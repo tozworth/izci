@@ -24,6 +24,7 @@ html,
 body,
 #app {
   margin: 0;
+  height: 100%;
   min-height: 100%;
 }
 
@@ -34,6 +35,7 @@ body {
     radial-gradient(circle at top right, rgba(250, 189, 47, 0.08), transparent 22%),
     linear-gradient(180deg, #282828 0%, #1d2021 100%);
   color: var(--text);
+  overflow: hidden;
 }
 
 button,
@@ -60,11 +62,13 @@ button {
 
 .app-shell {
   display: grid;
+  height: 100dvh;
   min-height: 100vh;
-  grid-template-rows: auto 1fr auto auto;
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
   gap: 0.75rem;
   padding: 0;
   padding-bottom: calc(6.5rem + env(safe-area-inset-bottom, 0px));
+  overflow: hidden;
 }
 
 .menu-bar {
@@ -168,6 +172,63 @@ button {
   gap: 0.75rem;
   min-height: 0;
   padding: 0 0.75rem;
+  overflow: hidden;
+}
+
+.workspace-tabs-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  overflow: auto;
+}
+
+.workspace-tabs {
+  display: flex;
+  align-items: center;
+  gap: 0.1rem;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  padding: 0 0 0.15rem;
+}
+
+.workspace-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.38rem;
+  min-height: 2rem;
+  padding: 0.3rem 0.45rem 0.5rem;
+  background: transparent;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  color: var(--muted);
+  line-height: 1;
+  transition:
+    background 180ms ease,
+    border-bottom-color 180ms ease,
+    color 180ms ease;
+}
+
+.workspace-tab:hover {
+  color: var(--text);
+}
+
+.workspace-tab.active {
+  border-bottom-color: var(--accent-strong);
+  color: var(--text);
+}
+
+.workspace-tab .material-symbols-outlined {
+  font-size: 1rem;
+}
+
+.workspace-tab-panel {
+  flex: 1;
+  min-height: 0;
+}
+
+.workspace-tab-panel > .panel {
+  height: 100%;
 }
 
 .panel,
@@ -213,11 +274,6 @@ button {
   font-size: 0.82rem;
 }
 
-.playlist-panel,
-.details-panel {
-  min-height: 28rem;
-}
-
 .dropzone,
 .canvas-placeholder {
   flex: 1;
@@ -228,6 +284,11 @@ button {
 }
 
 .dropzone {
+  position: relative;
+  overflow: auto;
+}
+
+.canvas-placeholder {
   overflow: auto;
 }
 
@@ -248,33 +309,40 @@ button {
 .track-list {
   list-style: none;
   margin: 0;
-  padding: 0.35rem;
+  padding: 0;
 }
 
-.track-list button {
+.track-list li + li {
+  border-top: 1px solid rgba(168, 153, 132, 0.12);
+}
+
+.track-row {
   width: 100%;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   column-gap: 0.75rem;
   text-align: left;
-  padding: 0.5rem 0.65rem;
-  margin-bottom: 0.2rem;
+  padding: 0.68rem 0.85rem;
   color: inherit;
-  background: rgba(40, 40, 40, 0.82);
-  border: 1px solid transparent;
-  border-radius: 0.6rem;
+  background: transparent;
+  border: 0;
+  border-left: 3px solid transparent;
   transition:
-    transform 180ms ease,
     border-color 180ms ease,
     background 180ms ease;
 }
 
-.track-list button:hover,
-.track-list button.active {
-  transform: translateY(-1px);
-  background: var(--accent-soft);
-  border-color: rgba(250, 189, 47, 0.34);
+.track-row:hover {
+  background: rgba(235, 219, 178, 0.05);
+}
+
+.track-list li.selected .track-row {
+  background: rgba(215, 153, 33, 0.15);
+}
+
+.track-list li.playing .track-row {
+  border-left-color: var(--accent-strong);
 }
 
 .track-name {
@@ -287,6 +355,32 @@ button {
   color: var(--muted);
   font-size: 0.84rem;
   white-space: nowrap;
+}
+
+.playlist-context-menu {
+  position: absolute;
+  min-width: 10rem;
+  padding: 0.35rem;
+  background: rgba(40, 40, 40, 0.985);
+  border: 1px solid rgba(168, 153, 132, 0.24);
+  border-radius: 0.6rem;
+  box-shadow: var(--shadow);
+  z-index: 60;
+}
+
+.playlist-context-menu button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  padding: 0.6rem 0.7rem;
+  background: transparent;
+  border-radius: 0.45rem;
+  color: var(--text);
+  text-align: left;
+}
+
+.playlist-context-menu button:hover {
+  background: var(--accent-soft);
 }
 
 .add-files {
@@ -338,7 +432,10 @@ button {
 
 .player-bar {
   display: grid;
-  grid-template-columns: minmax(14rem, 1fr) minmax(18rem, 1.5fr) minmax(10rem, 12rem);
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    'track actions'
+    'range volume';
   align-items: center;
   gap: 0.7rem;
   padding: 0.7rem 0.8rem calc(0.7rem + env(safe-area-inset-bottom, 0px));
@@ -351,6 +448,7 @@ button {
 }
 
 .player-track {
+  grid-area: track;
   display: grid;
   gap: 0.22rem;
   min-width: 0;
@@ -369,16 +467,14 @@ button {
   font-size: 0.88rem;
 }
 
-.player-main {
-  display: grid;
-  gap: 0.4rem;
-}
-
 .player-actions {
+  grid-area: actions;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-end;
   gap: 0.7rem;
+  min-width: 0;
+  flex-wrap: nowrap;
 }
 
 .transport-button {
@@ -407,7 +503,13 @@ button {
 }
 
 .transport-button .material-symbols-outlined {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1em;
+  height: 1em;
   font-size: 2rem;
+  line-height: 1;
 }
 
 .transport-button-primary {
@@ -417,9 +519,13 @@ button {
 
 .transport-button-primary .material-symbols-outlined {
   font-size: 2.45rem;
+  transform: translateY(0.02em);
 }
 
 .material-symbols-outlined {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   font-size: 1.25rem;
   line-height: 1;
 }
@@ -432,12 +538,15 @@ button {
 }
 
 .player-range {
+  grid-area: range;
   grid-template-columns: auto 1fr auto;
   min-width: 0;
 }
 
 .volume {
+  grid-area: volume;
   grid-template-columns: auto 1fr;
+  min-width: 8rem;
 }
 
 .volume-label {
@@ -460,12 +569,11 @@ input[type='range'] {
 }
 
 @media (max-width: 1080px) {
-  .workspace {
-    grid-template-columns: 1fr;
-  }
-
   .player-bar {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      'track actions'
+      'range volume';
     max-height: none;
   }
 }

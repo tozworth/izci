@@ -1,58 +1,175 @@
 <script lang="ts">
-  import { formatBytes, formatDuration } from '$lib/utils/files';
   import type { PlaylistItem } from '$lib/types';
+  import { resolveModuleTrackerName } from '$lib/utils/files';
 
   export let track: PlaylistItem | null = null;
+
+  $: title = track?.metadata?.title?.trim() || '';
+  $: showTrackSection = title.length > 0;
+  $: artist = track?.metadata?.artist?.trim() || '';
+  $: showArtist = showTrackSection && artist.length > 0 && artist.toLowerCase() !== 'unknown';
+  $: tracker = track ? resolveModuleTrackerName(track.extension, track.metadata?.trackerType) : '';
+  $: patterns = track?.metadata?.patterns;
+  $: notes = track?.metadata?.message?.trim() || '';
+  $: bitrate = track?.kind === 'stream' ? track.metadata?.bitrate : undefined;
+  $: formatSummary = track
+    ? track.kind === 'stream'
+      ? [track.extension.toUpperCase(), bitrate ? `${bitrate} kbps` : ''].filter(Boolean).join(' ')
+      : [track.extension.toUpperCase(), tracker ? `(${tracker})` : ''].filter(Boolean).join(' ')
+    : '';
+  $: patternSummary =
+    track?.kind === 'module' && typeof patterns === 'number'
+      ? `${patterns} pattern${patterns === 1 ? '' : 's'}`
+      : '';
 </script>
 
 <section class="panel details-panel">
   <div class="panel-header">
-    <p class="eyebrow">Current Song</p>
+    <p class="eyebrow">Track Details</p>
   </div>
 
   {#if track}
-    <dl class="details-grid">
-      <div>
-        <dt>Format</dt>
-        <dd>{track.extension.toUpperCase()}</dd>
-      </div>
-      <div>
-        <dt>Engine</dt>
-        <dd>{track.kind === 'module' ? 'Chiptune3 / libopenmpt AudioWorklet' : 'Howler / Web Audio'}</dd>
-      </div>
-      <div>
-        <dt>File Size</dt>
-        <dd>{formatBytes(track.size)}</dd>
-      </div>
-      <div>
-        <dt>Duration</dt>
-        <dd>{formatDuration(track.metadata?.duration ?? 0)}</dd>
-      </div>
-      <div>
-        <dt>Artist</dt>
-        <dd>{track.metadata?.artist || 'Unknown'}</dd>
-      </div>
-      <div>
-        <dt>Tracker</dt>
-        <dd>{track.metadata?.trackerType || (track.kind === 'module' ? 'Pending metadata' : 'N/A')}</dd>
-      </div>
-      <div>
-        <dt>Patterns</dt>
-        <dd>{track.metadata?.patterns ?? (track.kind === 'module' ? 'Pending playback' : 'N/A')}</dd>
-      </div>
-      <div class="details-span">
-        <dt>Notes</dt>
-        <dd>
-          {track.kind === 'module'
-            ? track.metadata?.message || 'Tracker seeking is enabled through Chiptune3 position control once playback has initialized.'
-            : track.metadata?.message || 'Module metadata and richer tags can be expanded after the MVP.'}
-        </dd>
-      </div>
-    </dl>
+    <div class="details-content">
+      {#if showTrackSection}
+        <section class="detail-section track-copy">
+          <p class="section-heading">
+            <span class="material-symbols-outlined section-icon" aria-hidden="true">audio_file</span>
+            <span>Track</span>
+          </p>
+          <h2 class="track-title">{title}</h2>
+          {#if showArtist}
+            <p class="track-artist">{artist}</p>
+          {/if}
+        </section>
+      {/if}
+
+      <section class="detail-section format-section">
+        <p class="section-heading">
+          <span class="material-symbols-outlined section-icon" aria-hidden="true">equalizer</span>
+          <span>Format</span>
+        </p>
+        <div class="format-copy">
+          <p class="format-value">{formatSummary}</p>
+          {#if patternSummary}
+            <p class="pattern-value">{patternSummary}</p>
+          {/if}
+        </div>
+      </section>
+
+      {#if notes}
+        <section class="detail-section notes-block">
+          <p class="section-heading">
+            <span class="material-symbols-outlined section-icon" aria-hidden="true">notes</span>
+            <span>Notes</span>
+          </p>
+          <pre>{notes}</pre>
+        </section>
+      {/if}
+    </div>
   {:else}
     <div class="empty-state align-start">
-      <p>Select or drop a file to inspect it.</p>
+      <p>Select a track to inspect it.</p>
       <p>The center area is intentionally reserved for a future visualization or workspace surface.</p>
     </div>
   {/if}
 </section>
+
+<style>
+  .details-content {
+    display: grid;
+    align-content: start;
+    grid-auto-rows: max-content;
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    padding: 0.9rem;
+  }
+
+  .detail-section {
+    display: grid;
+    gap: 0.35rem;
+    padding: 0.95rem 0;
+  }
+
+  .detail-section:first-child {
+    padding-top: 0;
+  }
+
+  .detail-section + .detail-section {
+    border-top: 1px solid rgba(168, 153, 132, 0.16);
+  }
+
+  .track-copy {
+    gap: 0.28rem;
+  }
+
+  .section-heading {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    margin: 0;
+    font-size: 0.95rem;
+    font-weight: 700;
+    line-height: 1.2;
+    color: var(--text);
+  }
+
+  .section-icon {
+    font-size: 1rem;
+    color: var(--muted);
+  }
+
+  .track-title {
+    margin: 0;
+    font-size: 1.45rem;
+    line-height: 1.1;
+    font-weight: 700;
+  }
+
+  .track-artist {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.98rem;
+  }
+
+  .format-section {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.8rem;
+  }
+
+  .format-section .section-heading {
+    flex: 0 0 auto;
+  }
+
+  .format-value {
+    margin: 0;
+    text-align: right;
+    color: var(--muted);
+  }
+
+  .format-copy {
+    display: grid;
+    justify-items: end;
+    gap: 0.18rem;
+  }
+
+  .pattern-value {
+    margin: 0;
+    text-align: right;
+    color: var(--text);
+  }
+
+  .notes-block {
+    min-height: 0;
+  }
+
+  .notes-block pre {
+    margin: 0;
+    font: 0.9rem/1.5 'IBM Plex Mono', 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+    white-space: pre-wrap;
+    word-break: break-word;
+    color: var(--text);
+  }
+</style>

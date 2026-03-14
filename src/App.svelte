@@ -10,11 +10,12 @@
   import type { PlaybackSnapshot, PlaylistItem } from '$lib/types';
   import { buildPlaylistItems } from '$lib/utils/files';
 
-  const { items, currentId } = playlistStore;
+  const { items, selectedIds, selectedTrack } = playlistStore;
 
   let playlistItems: PlaylistItem[] = [];
-  let selectedId: string | null = null;
-  let selectedTrack: PlaylistItem | null = null;
+  let selectionIds: string[] = [];
+  let selectedItem: PlaylistItem | null = null;
+  let playingTrack: PlaylistItem | null = null;
   let playback: PlaybackSnapshot = {
     state: 'idle',
     currentTime: 0,
@@ -25,9 +26,10 @@
   };
 
   const unsubscribeItems = items.subscribe((value) => (playlistItems = value));
-  const unsubscribeCurrentId = currentId.subscribe((value) => (selectedId = value));
+  const unsubscribeSelectedIds = selectedIds.subscribe((value) => (selectionIds = value));
+  const unsubscribeSelectedTrack = selectedTrack.subscribe((value) => (selectedItem = value));
   const unsubscribeTrack = playerController.currentTrack.subscribe((value) => {
-    selectedTrack = value;
+    playingTrack = value;
 
     if (value?.metadata) {
       playlistStore.updateMetadata(value.id, value.metadata);
@@ -36,6 +38,14 @@
   const unsubscribePlayback = playerController.snapshot.subscribe((value) => (playback = value));
 
   let fileInput: HTMLInputElement | null = null;
+  let innerWidth = 0;
+  let activeWorkspaceTab: 'playlist' | 'workspace' | 'details' = 'playlist';
+
+  const workspaceTabs = [
+    { id: 'playlist', icon: 'queue_music', label: 'Playlist' },
+    { id: 'workspace', icon: 'space_dashboard', label: 'Workspace' },
+    { id: 'details', icon: 'info', label: 'Track Details' }
+  ] as const;
 
   function addFiles(files: FileList | File[]) {
     const nextItems = buildPlaylistItems(files);
@@ -48,29 +58,56 @@
     return nextItems;
   }
 
-  async function handleAddFiles(files: FileList | File[]) {
+  function handleAddFiles(files: FileList | File[]) {
     const nextItems = addFiles(files);
 
-    if (nextItems.length === 0) {
-      return;
-    }
-
-    if (!selectedTrack) {
-      const first = nextItems[0];
-      playlistStore.select(first.id);
-      await playerController.load(first);
+    if (nextItems.length > 0 && selectionIds.length === 0) {
+      playlistStore.select(nextItems[0].id);
     }
   }
 
-  async function handleSelect(id: string) {
-    playlistStore.select(id);
+  function getTrackById(id: string): PlaylistItem | null {
     const track = playlistItems.find((item) => item.id === id);
+    return track ?? null;
+  }
+
+  async function playTrack(track: PlaylistItem) {
+    if (playingTrack?.id !== track.id) {
+      await playerController.load(track);
+    }
+
+    playerController.play();
+  }
+
+  function handleSelect(event: CustomEvent<{ id: string; range: boolean; toggle: boolean }>) {
+    playlistStore.select(event.detail.id, {
+      range: event.detail.range,
+      toggle: event.detail.toggle
+    });
+  }
+
+  async function handlePlay(id: string) {
+    const track = getTrackById(id);
 
     if (!track) {
       return;
     }
 
-    await playerController.load(track);
+    playlistStore.select(id);
+    await playTrack(track);
+  }
+
+  async function handleTogglePlayback() {
+    if (playingTrack) {
+      playerController.togglePlayback(playback.state);
+      return;
+    }
+
+    if (!selectedItem) {
+      return;
+    }
+
+    await playTrack(selectedItem);
   }
 
   function handleMenuOpenFiles() {
@@ -81,7 +118,7 @@
     const input = event.currentTarget as HTMLInputElement;
 
     if (input.files?.length) {
-      await handleAddFiles(input.files);
+      handleAddFiles(input.files);
       input.value = '';
     }
   }
@@ -91,6 +128,10 @@
   }
 
   function handleStop() {
+    if (!playingTrack) {
+      return;
+    }
+
     playerController.pause();
     playerController.seek(0);
   }
@@ -100,22 +141,49 @@
       return;
     }
 
-    const currentIndex = selectedId ? playlistItems.findIndex((item) => item.id === selectedId) : -1;
-    const safeIndex = currentIndex === -1 ? 0 : currentIndex;
-    const nextIndex = Math.min(Math.max(safeIndex + direction, 0), playlistItems.length - 1);
+    const baseTrackId = playingTrack?.id ?? selectedItem?.id ?? null;
+    const currentIndex = baseTrackId ? playlistItems.findIndex((item) => item.id === baseTrackId) : -1;
+    const nextIndex =
+      currentIndex === -1
+        ? direction > 0
+          ? 0
+          : playlistItems.length - 1
+        : Math.min(Math.max(currentIndex + direction, 0), playlistItems.length - 1);
     const nextTrack = playlistItems[nextIndex];
 
-    if (!nextTrack || nextTrack.id === selectedId) {
+    if (!nextTrack || nextTrack.id === baseTrackId) {
       return;
     }
 
     playlistStore.select(nextTrack.id);
-    await playerController.load(nextTrack);
+    await playTrack(nextTrack);
+  }
+
+  function handleRemove(event: CustomEvent<string[]>) {
+    const ids = event.detail;
+
+    if (ids.length === 0) {
+      return;
+    }
+
+    const removedSet = new Set(ids);
+    const removedItems = playlistStore.remove(ids);
+
+    if (playingTrack && removedSet.has(playingTrack.id)) {
+      playerController.unload();
+    }
+
+    for (const item of removedItems) {
+      if (item.objectUrl) {
+        URL.revokeObjectURL(item.objectUrl);
+      }
+    }
   }
 
   onDestroy(() => {
     unsubscribeItems();
-    unsubscribeCurrentId();
+    unsubscribeSelectedIds();
+    unsubscribeSelectedTrack();
     unsubscribeTrack();
     unsubscribePlayback();
     playerController.destroy();
@@ -125,6 +193,8 @@
 <svelte:head>
   <title>izci</title>
 </svelte:head>
+
+<svelte:window bind:innerWidth />
 
 <div class="app-shell">
   <input
@@ -142,22 +212,81 @@
     on:exit={() => windowManager.exit()}
   />
 
-  <main class="workspace">
-    <PlaylistPanel items={playlistItems} activeId={selectedId} on:addFiles={(event) => handleAddFiles(event.detail)} on:select={(event) => handleSelect(event.detail)} />
-
-    <section class="panel canvas-panel">
-      <div class="panel-header">
-        <p class="eyebrow">Workspace</p>
+  {#if innerWidth <= 1080}
+    <main class="workspace workspace-tabs-layout">
+      <div class="workspace-tabs" role="tablist" aria-label="Workspace sections">
+        {#each workspaceTabs as tab}
+          <button
+            type="button"
+            class:active={activeWorkspaceTab === tab.id}
+            class="workspace-tab"
+            role="tab"
+            aria-selected={activeWorkspaceTab === tab.id}
+            aria-controls={`workspace-tab-panel-${tab.id}`}
+            id={`workspace-tab-${tab.id}`}
+            on:click={() => (activeWorkspaceTab = tab.id)}
+          >
+            <span class="material-symbols-outlined" aria-hidden="true">{tab.icon}</span>
+            <span>{tab.label}</span>
+          </button>
+        {/each}
       </div>
 
-      <div class="canvas-placeholder">
-        <p>Intentionally empty for the MVP.</p>
-        <p>Future candidates: waveform, spectrum, module pattern view, or library tooling.</p>
+      <div class="workspace-tab-panel" role="tabpanel" id="workspace-tab-panel-playlist" aria-labelledby="workspace-tab-playlist" hidden={activeWorkspaceTab !== 'playlist'}>
+        <PlaylistPanel
+          items={playlistItems}
+          selectedIds={selectionIds}
+          playingId={playingTrack?.id ?? null}
+          on:addFiles={(event) => handleAddFiles(event.detail)}
+          on:select={handleSelect}
+          on:play={(event) => handlePlay(event.detail)}
+          on:remove={handleRemove}
+        />
       </div>
-    </section>
 
-    <TrackDetailsPanel track={selectedTrack} />
-  </main>
+      <div class="workspace-tab-panel" role="tabpanel" id="workspace-tab-panel-workspace" aria-labelledby="workspace-tab-workspace" hidden={activeWorkspaceTab !== 'workspace'}>
+        <section class="panel canvas-panel">
+          <div class="panel-header">
+            <p class="eyebrow">Workspace</p>
+          </div>
+
+          <div class="canvas-placeholder">
+            <p>Intentionally empty for the MVP.</p>
+            <p>Future candidates: waveform, spectrum, module pattern view, or library tooling.</p>
+          </div>
+        </section>
+      </div>
+
+      <div class="workspace-tab-panel" role="tabpanel" id="workspace-tab-panel-details" aria-labelledby="workspace-tab-details" hidden={activeWorkspaceTab !== 'details'}>
+        <TrackDetailsPanel track={selectedItem} />
+      </div>
+    </main>
+  {:else}
+    <main class="workspace">
+      <PlaylistPanel
+        items={playlistItems}
+        selectedIds={selectionIds}
+        playingId={playingTrack?.id ?? null}
+        on:addFiles={(event) => handleAddFiles(event.detail)}
+        on:select={handleSelect}
+        on:play={(event) => handlePlay(event.detail)}
+        on:remove={handleRemove}
+      />
+
+      <section class="panel canvas-panel">
+        <div class="panel-header">
+          <p class="eyebrow">Workspace</p>
+        </div>
+
+        <div class="canvas-placeholder">
+          <p>Intentionally empty for the MVP.</p>
+          <p>Future candidates: waveform, spectrum, module pattern view, or library tooling.</p>
+        </div>
+      </section>
+
+      <TrackDetailsPanel track={selectedItem} />
+    </main>
+  {/if}
 
   {#if playback.error}
     <aside class="error-banner">{playback.error}</aside>
@@ -165,8 +294,9 @@
 
   <PlayerControls
     snapshot={playback}
-    track={selectedTrack}
-    on:toggle={() => playerController.togglePlayback(playback.state)}
+    track={playingTrack}
+    selectedTrack={selectedItem}
+    on:toggle={handleTogglePlayback}
     on:stop={handleStop}
     on:previous={() => handleStepTrack(-1)}
     on:next={() => handleStepTrack(1)}

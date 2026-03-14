@@ -37,9 +37,10 @@ export class HowlerPlayerService {
       format: [track.extension],
       onload: () => {
         const duration = this.#howl?.duration() ?? 0;
+        const bitrate = duration > 0 ? Math.round((track.size * 8) / duration / 1000) : undefined;
         this.#onMetadata({
-          title: track.name.replace(/\.[^.]+$/, ''),
-          duration
+          duration,
+          bitrate
         });
         this.#onSnapshot({ duration, state: 'paused' });
       },

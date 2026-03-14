@@ -64,9 +64,13 @@ declare module 'chiptune3' {
     unpause(): void;
     togglePause(): void;
     setRepeatCount(value: number): void;
+    setPitch(value: number): void;
+    setTempo(value: number): void;
     setPos(value: number): void;
+    setOrderRow(order: number, row: number): void;
     seek(value: number): void;
     setVol(value: number): void;
+    selectSubsong(value: number): void;
     decodeAll(buffer: ArrayBuffer): void;
   }
 }

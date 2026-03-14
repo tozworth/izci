@@ -5,6 +5,7 @@ export type StreamExtension = (typeof STREAM_EXTENSIONS)[number];
 export type ModuleExtension = (typeof MODULE_EXTENSIONS)[number];
 export type TrackKind = 'stream' | 'module';
 export type PlaybackState = 'idle' | 'loading' | 'playing' | 'paused' | 'ended' | 'error';
+export type ModuleInterpolationFilter = 1 | 2 | 4 | 8;
 
 export interface TrackMetadata {
   title?: string;
@@ -13,13 +14,27 @@ export interface TrackMetadata {
   trackerType?: string;
   message?: string;
   duration?: number;
+  bitrate?: number;
   channels?: number;
   patterns?: number;
   instruments?: number;
   orders?: number;
   subsongs?: number;
+  subsongNames?: string[];
   rows?: number;
   sampleRate?: number;
+}
+
+export interface ModulePlaybackSettings {
+  repeatCount: number;
+  stereoSeparation: number;
+  interpolationFilter: ModuleInterpolationFilter;
+  tempoFactor: number;
+  pitchFactor: number;
+}
+
+export interface MetadataSettings {
+  inferFromFilename: boolean;
 }
 
 export interface PlaylistItem {

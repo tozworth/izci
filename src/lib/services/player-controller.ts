@@ -1,7 +1,10 @@
 import { writable } from 'svelte/store';
 import { HowlerPlayerService } from '$lib/services/howler-player';
 import { ModulePlayerService } from '$lib/services/module-player';
+import { metadataSettings } from '$lib/stores/metadata-settings';
+import { modulePlaybackSettings } from '$lib/stores/module-playback-settings';
 import type { PlaybackSnapshot, PlaylistItem, TrackMetadata } from '$lib/types';
+import { inferArtistTitleFromFileName } from '$lib/utils/files';
 
 const initialSnapshot: PlaybackSnapshot = {
   state: 'idle',
@@ -17,9 +20,40 @@ function createPlayerController() {
 
   let activeTrack: PlaylistItem | null = null;
   let volume = initialSnapshot.volume;
+  let metadataConfig = metadataSettings.getSnapshot();
 
   const onSnapshot = (partial: Partial<PlaybackSnapshot>) => {
     snapshot.update((state) => ({ ...state, ...partial }));
+  };
+
+  const applyMetadataInference = (track: PlaylistItem, metadata: TrackMetadata = {}): PlaylistItem => {
+    const nextMetadata = { ...track.metadata, ...metadata };
+
+    if (!metadataConfig.inferFromFilename) {
+      return { ...track, metadata: nextMetadata };
+    }
+
+    const hasTitle = typeof nextMetadata.title === 'string' && nextMetadata.title.trim() !== '';
+    const hasArtist = typeof nextMetadata.artist === 'string' && nextMetadata.artist.trim() !== '';
+
+    if (hasTitle && hasArtist) {
+      return { ...track, metadata: nextMetadata };
+    }
+
+    const inferred = inferArtistTitleFromFileName(track.name);
+
+    if (!inferred) {
+      return { ...track, metadata: nextMetadata };
+    }
+
+    return {
+      ...track,
+      metadata: {
+        ...nextMetadata,
+        title: hasTitle ? nextMetadata.title : inferred.title,
+        artist: hasArtist ? nextMetadata.artist : inferred.artist
+      }
+    };
   };
 
   const onMetadata = (metadata: TrackMetadata) => {
@@ -28,7 +62,9 @@ function createPlayerController() {
         return null;
       }
 
-      return { ...track, metadata: { ...track.metadata, ...metadata } };
+      const nextTrack = applyMetadataInference(track, metadata);
+      activeTrack = nextTrack;
+      return nextTrack;
     });
   };
 
@@ -36,29 +72,46 @@ function createPlayerController() {
     stream: new HowlerPlayerService(onSnapshot, onMetadata, () => onSnapshot({ state: 'ended' })),
     module: new ModulePlayerService(onSnapshot, onMetadata, () => onSnapshot({ state: 'ended' }))
   };
+  const unsubscribeModuleSettings = modulePlaybackSettings.subscribe((settings) => {
+    void services.module.applySettings(settings);
+  });
+  const unsubscribeMetadataSettings = metadataSettings.subscribe((settings) => {
+    metadataConfig = settings;
+
+    currentTrack.update((track) => {
+      if (!track) {
+        return null;
+      }
+
+      const nextTrack = applyMetadataInference(track);
+      activeTrack = nextTrack;
+      return nextTrack;
+    });
+  });
 
   return {
     snapshot,
     currentTrack,
     async load(track: PlaylistItem) {
-      activeTrack = track;
-      currentTrack.set(track);
+      const preparedTrack = applyMetadataInference(track);
+      activeTrack = preparedTrack;
+      currentTrack.set(preparedTrack);
       services.stream.stop();
       services.stream.destroy();
       services.module.stop();
       onSnapshot({
         state: 'loading',
         currentTime: 0,
-        duration: track.metadata?.duration ?? 0,
-        backend: track.kind,
+        duration: preparedTrack.metadata?.duration ?? 0,
+        backend: preparedTrack.kind,
         error: undefined
       });
 
-      if (track.kind === 'stream') {
-        services.stream.load(track);
+      if (preparedTrack.kind === 'stream') {
+        services.stream.load(preparedTrack);
         services.stream.setVolume(volume);
       } else {
-        await services.module.load(track);
+        await services.module.load(preparedTrack);
         services.module.setVolume(volume);
       }
     },
@@ -90,15 +143,33 @@ function createPlayerController() {
 
       services[activeTrack.kind].seek(seconds);
     },
-    setVolume(volume: number) {
-      volume = Math.min(Math.max(volume, 0), 1);
-      services.stream.setVolume(volume);
-      services.module.setVolume(volume);
-      onSnapshot({ volume });
+    setVolume(nextVolume: number) {
+      nextVolume = Math.min(Math.max(nextVolume, 0), 1);
+      volume = nextVolume;
+      services.stream.setVolume(nextVolume);
+      services.module.setVolume(nextVolume);
+      onSnapshot({ volume: nextVolume });
     },
-    destroy() {
+    unload() {
+      activeTrack = null;
+      currentTrack.set(null);
+      services.stream.stop();
       services.stream.destroy();
       services.module.stop();
+      onSnapshot({
+        ...initialSnapshot,
+        volume,
+        currentTime: 0,
+        duration: 0,
+        backend: null,
+        error: undefined
+      });
+    },
+    destroy() {
+      unsubscribeModuleSettings();
+      unsubscribeMetadataSettings();
+      services.stream.destroy();
+      services.module.destroy();
     }
   };
 }

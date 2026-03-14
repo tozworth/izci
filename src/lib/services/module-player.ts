@@ -1,5 +1,6 @@
-import { ensureChiptunePlayer } from '$lib/services/chiptune-loader';
-import type { PlaybackSnapshot, PlaylistItem, TrackMetadata } from '$lib/types';
+import { createChiptunePlayer } from '$lib/services/chiptune-loader';
+import { modulePlaybackSettings } from '$lib/stores/module-playback-settings';
+import type { ModulePlaybackSettings, PlaybackSnapshot, PlaylistItem, TrackMetadata } from '$lib/types';
 import type { Chiptune3Metadata, ChiptuneJsPlayer } from 'chiptune3';
 
 type SnapshotHandler = (snapshot: Partial<PlaybackSnapshot>) => void;
@@ -12,7 +13,8 @@ export class ModulePlayerService {
   #volume = 0.85;
   #playing = false;
   #started = false;
-  #handlersAttached = false;
+  #currentTime = 0;
+  #settings = modulePlaybackSettings.getSnapshot();
   #onSnapshot: SnapshotHandler;
   #onMetadata: MetadataHandler;
   #onEnded: EndHandler;
@@ -24,7 +26,12 @@ export class ModulePlayerService {
   }
 
   async load(track: PlaylistItem): Promise<void> {
-    this.stop();
+    this.#disposePlayer();
+    this.#buffer = null;
+    this.#playing = false;
+    this.#started = false;
+    this.#currentTime = 0;
+
     this.#onSnapshot({
       backend: 'module',
       state: 'loading',
@@ -33,14 +40,10 @@ export class ModulePlayerService {
       error: undefined
     });
 
-    this.#player = await ensureChiptunePlayer();
-    this.#attachHandlers();
-    this.#player.setVol(this.#volume);
+    this.#player = await this.#createPlayer();
     this.#buffer = await track.file.arrayBuffer();
-    this.#started = false;
 
     this.#onMetadata({
-      title: track.name.replace(/\.[^.]+$/, ''),
       trackerType: track.extension.toUpperCase()
     });
     this.#onSnapshot({ duration: 0, state: 'paused' });
@@ -57,6 +60,7 @@ export class ModulePlayerService {
       this.#player.play(this.#buffer);
       this.#started = true;
       this.#playing = true;
+      this.#applyRuntimeSettings();
     } else if (!this.#playing) {
       this.#player.unpause();
       this.#playing = true;
@@ -80,9 +84,14 @@ export class ModulePlayerService {
   stop(): void {
     this.#playing = false;
     this.#started = false;
-    this.#player?.stop();
+    this.#currentTime = 0;
     this.#buffer = null;
+    this.#disposePlayer();
     this.#onSnapshot({ state: 'paused', currentTime: 0, error: undefined });
+  }
+
+  destroy(): void {
+    this.stop();
   }
 
   seek(seconds: number): void {
@@ -91,6 +100,7 @@ export class ModulePlayerService {
     }
 
     this.#player.seek(seconds);
+    this.#currentTime = seconds;
     this.#onSnapshot({
       currentTime: seconds,
       error: undefined
@@ -103,21 +113,123 @@ export class ModulePlayerService {
     this.#onSnapshot({ volume, error: undefined });
   }
 
-  #attachHandlers(): void {
-    if (!this.#player || this.#handlersAttached) {
+  async applySettings(settings: ModulePlaybackSettings): Promise<void> {
+    const previousSettings = this.#settings;
+    const recreatePlayer =
+      previousSettings.stereoSeparation !== settings.stereoSeparation ||
+      previousSettings.interpolationFilter !== settings.interpolationFilter;
+
+    this.#settings = settings;
+
+    if (!this.#player) {
       return;
     }
 
-    this.#handlersAttached = true;
+    if (recreatePlayer) {
+      await this.#recreatePlayer();
+      return;
+    }
 
-    this.#player.onEnded(() => {
+    this.#applyRuntimeSettings();
+  }
+
+  async #createPlayer(): Promise<ChiptuneJsPlayer> {
+    const player = await createChiptunePlayer(this.#toPlayerConfig(this.#settings));
+
+    player.setVol(this.#volume);
+    player.setRepeatCount(this.#settings.repeatCount);
+    this.#attachHandlers(player);
+
+    return player;
+  }
+
+  #disposePlayer(): void {
+    const player = this.#player;
+
+    this.#player = null;
+
+    if (!player) {
+      return;
+    }
+
+    try {
+      player.stop();
+    } catch {
+      return;
+    } finally {
+      try {
+        player.gain.disconnect();
+      } catch {
+        // Ignore disconnect failures during teardown.
+      }
+
+      void player.context.close().catch(() => undefined);
+    }
+  }
+
+  async #recreatePlayer(): Promise<void> {
+    const wasStarted = this.#started;
+    const wasPlaying = this.#playing;
+    const restorePosition = this.#currentTime;
+    const buffer = this.#buffer;
+
+    this.#disposePlayer();
+    this.#player = await this.#createPlayer();
+
+    if (!wasStarted || !buffer || !this.#player) {
+      this.#started = false;
+      this.#playing = false;
+      this.#currentTime = restorePosition;
+      this.#onSnapshot({ state: 'paused', currentTime: restorePosition, error: undefined });
+      return;
+    }
+
+    void this.#player.context.resume();
+    this.#player.play(buffer);
+    this.#started = true;
+    this.#playing = true;
+    this.#applyRuntimeSettings();
+
+    if (restorePosition > 0) {
+      this.#player.seek(restorePosition);
+      this.#currentTime = restorePosition;
+    }
+
+    if (!wasPlaying) {
+      this.#player.pause();
+      this.#playing = false;
+      this.#onSnapshot({ state: 'paused', currentTime: restorePosition, error: undefined });
+      return;
+    }
+
+    this.#onSnapshot({ state: 'playing', currentTime: restorePosition, error: undefined });
+  }
+
+  #applyRuntimeSettings(): void {
+    if (!this.#player) {
+      return;
+    }
+
+    this.#player.setRepeatCount(this.#settings.repeatCount);
+
+    if (!this.#started) {
+      return;
+    }
+
+    this.#player.setTempo(this.#settings.tempoFactor);
+    this.#player.setPitch(this.#settings.pitchFactor);
+  }
+
+  #attachHandlers(player: ChiptuneJsPlayer): void {
+    player.onEnded(() => {
       this.#playing = false;
       this.#started = false;
+      this.#currentTime = 0;
       this.#onSnapshot({ state: 'ended' });
       this.#onEnded();
     });
 
-    this.#player.onError((error) => {
+    player.onError((error) => {
       this.#playing = false;
       this.#started = false;
       this.#onSnapshot({
@@ -129,7 +241,7 @@ export class ModulePlayerService {
       });
     });
 
-    this.#player.onMetadata((metadata) => {
+    player.onMetadata((metadata) => {
       this.#onMetadata(this.#toTrackMetadata(metadata));
       this.#onSnapshot({
         duration: this.#safeSeconds(metadata.dur),
@@ -137,13 +249,22 @@ export class ModulePlayerService {
       });
     });
 
-    this.#player.onProgress((progress) => {
+    player.onProgress((progress) => {
+      this.#currentTime = this.#safeSeconds(progress.pos);
       this.#onSnapshot({
-        currentTime: this.#safeSeconds(progress.pos),
-        duration: this.#safeSeconds(this.#player?.duration),
+        currentTime: this.#currentTime,
+        duration: this.#safeSeconds(player.duration),
         error: undefined
       });
     });
+  }
+
+  #toPlayerConfig(settings: ModulePlaybackSettings) {
+    return {
+      repeatCount: settings.repeatCount,
+      stereoSeparation: settings.stereoSeparation,
+      interpolationFilter: settings.interpolationFilter
+    };
   }
 
   #safeSeconds(value: number | undefined): number {
@@ -167,7 +288,10 @@ export class ModulePlayerService {
       channels: this.#toNumber(metadata.channels) ?? song?.channels.length,
       instruments: song?.instruments.length,
       orders: metadata.totalOrders ?? song?.orders.length,
-      subsongs: song?.numSubsongs
+      subsongs: song?.numSubsongs,
+      subsongNames: Array.isArray(metadata.songs)
+        ? metadata.songs.filter((value): value is string => typeof value === 'string')
+        : undefined
     };
   }
 

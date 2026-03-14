@@ -1,8 +1,46 @@
 import { MODULE_EXTENSIONS, STREAM_EXTENSIONS, type PlaylistItem, type TrackKind } from '$lib/types';
 
+const MODULE_TRACKER_NAMES: Record<string, string> = {
+  mod: 'SoundTracker compatible',
+  xm: 'FastTracker II compatible',
+  s3m: 'Scream Tracker 3',
+  it: 'Impulse Tracker',
+  mptm: 'ModPlug Tracker / OpenMPT'
+};
+
 export function inferExtension(fileName: string): string {
   const parts = fileName.toLowerCase().split('.');
   return parts.length > 1 ? parts.at(-1)! : '';
+}
+
+export function stripFileExtension(fileName: string): string {
+  const extension = inferExtension(fileName);
+
+  if (!extension) {
+    return fileName;
+  }
+
+  const suffix = `.${extension}`;
+
+  return fileName.toLowerCase().endsWith(suffix) ? fileName.slice(0, -suffix.length) : fileName;
+}
+
+export function inferArtistTitleFromFileName(fileName: string): { artist: string; title: string } | null {
+  const baseName = stripFileExtension(fileName).trim();
+  const separatorIndex = baseName.indexOf(' - ');
+
+  if (separatorIndex <= 0 || separatorIndex >= baseName.length - 3) {
+    return null;
+  }
+
+  const artist = baseName.slice(0, separatorIndex).trim();
+  const title = baseName.slice(separatorIndex + 3).trim();
+
+  if (!artist || !title) {
+    return null;
+  }
+
+  return { artist, title };
 }
 
 export function inferKind(extension: string): TrackKind | null {
@@ -81,4 +119,15 @@ export function truncateMiddle(value: string, maxLength = 34): string {
   const end = Math.floor(keep / 2);
 
   return `${value.slice(0, start)}…${value.slice(-end)}`;
+}
+
+export function resolveModuleTrackerName(extension: string, trackerType?: string): string {
+  const normalizedExtension = extension.trim().toLowerCase();
+  const normalizedTrackerType = trackerType?.trim();
+
+  if (normalizedTrackerType && normalizedTrackerType.toLowerCase() !== normalizedExtension) {
+    return normalizedTrackerType;
+  }
+
+  return MODULE_TRACKER_NAMES[normalizedExtension] ?? normalizedTrackerType ?? '';
 }
