@@ -30,11 +30,38 @@
   function formatTrackType(item: PlaylistItem): string {
     return item.kind === 'module' ? 'MOD' : item.extension.toUpperCase();
   }
+
+  function formatTotalDuration(seconds: number): string {
+    if (!Number.isFinite(seconds) || seconds <= 0) {
+      return '--:--';
+    }
+
+    const total = Math.floor(seconds);
+    const hours = Math.floor(total / 3600);
+    const minutes = Math.floor((total % 3600) / 60);
+    const remainingSeconds = total % 60;
+
+    if (hours > 0) {
+      return `${hours}:${String(minutes).padStart(2, '0')}:${String(remainingSeconds).padStart(2, '0')}`;
+    }
+
+    return `${String(minutes).padStart(2, '0')}:${String(remainingSeconds).padStart(2, '0')}`;
+  }
+
+  $: totalDuration = items.reduce((sum, item) => {
+    const duration = item.metadata?.duration ?? 0;
+    return Number.isFinite(duration) && duration > 0 ? sum + duration : sum;
+  }, 0);
+
+  $: trackSummary = `${items.length} song${items.length === 1 ? '' : 's'} · ${formatTotalDuration(totalDuration)}`;
 </script>
 
 <section class="panel playlist-panel">
   <div class="panel-header">
-    <p class="eyebrow">Playlist</p>
+    <div class="panel-heading">
+      <p class="eyebrow">Playlist</p>
+      <p class="panel-summary">{trackSummary}</p>
+    </div>
     <label class="add-files" aria-label="Add files" title="Add files">
       <span class="material-symbols-outlined" aria-hidden="true">add</span>
       <input type="file" multiple accept=".mp3,.wav,.flac,.ogg,.opus,.mod,.xm,.s3m,.it" on:change={handleInput} />
