@@ -6,6 +6,7 @@
 
   const dispatch = createEventDispatcher<{
     openFiles: void;
+    openFolder: void;
     openOptions: void;
     exit: void;
   }>();
@@ -49,7 +50,7 @@
     }
   }
 
-  function runMenuAction(action: 'openFiles' | 'openOptions' | 'exit') {
+  function runMenuAction(action: 'openFiles' | 'openFolder' | 'openOptions' | 'exit') {
     closeMenu();
     dispatch(action);
   }
@@ -83,10 +84,18 @@
       {#if activeMenu === 'file'}
         <div class="menu-list" role="menu" aria-label="File">
           <button type="button" role="menuitem" on:click={() => runMenuAction('openFiles')}>
-            <span>Open...</span>
+            <span class="material-symbols-outlined menu-item-icon" aria-hidden="true">folder_open</span>
+            <span class="menu-item-label">Open file...</span>
+            <span class="menu-item-shortcut" aria-hidden="true">Ctrl+O</span>
+          </button>
+          <button type="button" role="menuitem" on:click={() => runMenuAction('openFolder')}>
+            <span class="material-symbols-outlined menu-item-icon" aria-hidden="true">folder</span>
+            <span class="menu-item-label">Open folder...</span>
           </button>
           <button type="button" role="menuitem" on:click={() => runMenuAction('exit')}>
-            <span>Exit</span>
+            <span class="material-symbols-outlined menu-item-icon" aria-hidden="true">logout</span>
+            <span class="menu-item-label">Exit</span>
+            <span class="menu-item-shortcut" aria-hidden="true">Ctrl+Q</span>
           </button>
         </div>
       {/if}
@@ -106,7 +115,9 @@
       {#if activeMenu === 'view'}
         <div class="menu-list" role="menu" aria-label="View">
           <button type="button" role="menuitem" on:click={() => runMenuAction('openOptions')}>
-            <span>Options...</span>
+            <span class="material-symbols-outlined menu-item-icon" aria-hidden="true">settings</span>
+            <span class="menu-item-label">Options...</span>
+            <span class="menu-item-shortcut" aria-hidden="true">Ctrl+P</span>
           </button>
         </div>
       {/if}

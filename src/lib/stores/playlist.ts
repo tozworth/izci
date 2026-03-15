@@ -1,5 +1,7 @@
 import { derived, writable } from 'svelte/store';
-import type { PlaylistItem } from '$lib/types';
+import { metadataSettings } from '$lib/stores/metadata-settings';
+import type { PlaylistItem, PlaylistPlaybackOptions, PlaylistRepeatMode, TrackMetadata } from '$lib/types';
+import { mergeInferredArtistTitle } from '$lib/utils/files';
 
 interface PlaylistSelection {
   ids: string[];
@@ -25,6 +27,7 @@ interface StoredPlaylistItem {
 interface StoredPlaylistState {
   items: StoredPlaylistItem[];
   selection: PlaylistSelection;
+  playbackOptions?: PlaylistPlaybackOptions;
 }
 
 const emptySelection: PlaylistSelection = {
@@ -32,11 +35,34 @@ const emptySelection: PlaylistSelection = {
   anchorId: null,
   focusId: null
 };
+const defaultPlaybackOptions: PlaylistPlaybackOptions = {
+  shuffle: false,
+  repeatMode: 'off'
+};
 
 const PLAYLIST_DB_NAME = 'izci-playlist';
 const PLAYLIST_DB_VERSION = 1;
 const PLAYLIST_STORE_NAME = 'playlist';
 const PLAYLIST_STATE_KEY = 'state';
+
+type BackgroundDeadline = {
+  didTimeout: boolean;
+  timeRemaining(): number;
+};
+
+function scheduleBackgroundTask(callback: (deadline: BackgroundDeadline) => void): void {
+  if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+    window.requestIdleCallback(callback, { timeout: 100 });
+    return;
+  }
+
+  setTimeout(() => {
+    callback({
+      didTimeout: true,
+      timeRemaining: () => 0
+    });
+  }, 0);
+}
 
 function normalizeStoredItem(value: unknown): PlaylistItem | null {
   if (!value || typeof value !== 'object') {
@@ -95,6 +121,56 @@ function serializeItem(item: PlaylistItem): StoredPlaylistItem {
     kind: item.kind,
     size: item.size,
     metadata: item.metadata
+  };
+}
+
+function buildInitialMetadata(item: PlaylistItem): TrackMetadata | undefined {
+  const metadata = mergeInferredArtistTitle(item.metadata, item.name, metadataSettings.getSnapshot().inferFromFilename);
+  return Object.keys(metadata).length > 0 ? metadata : undefined;
+}
+
+async function readStreamDuration(item: PlaylistItem): Promise<number | undefined> {
+  if (typeof window === 'undefined' || item.kind !== 'stream' || !item.objectUrl) {
+    return undefined;
+  }
+
+  const objectUrl = item.objectUrl;
+
+  return await new Promise((resolve) => {
+    const audio = new Audio();
+
+    const cleanup = () => {
+      audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      audio.removeEventListener('error', handleError);
+      audio.src = '';
+    };
+
+    const handleLoadedMetadata = () => {
+      const duration = Number.isFinite(audio.duration) && audio.duration > 0 ? audio.duration : undefined;
+      cleanup();
+      resolve(duration);
+    };
+
+    const handleError = () => {
+      cleanup();
+      resolve(undefined);
+    };
+
+    audio.preload = 'metadata';
+    audio.addEventListener('loadedmetadata', handleLoadedMetadata, { once: true });
+    audio.addEventListener('error', handleError, { once: true });
+    audio.src = objectUrl;
+  });
+}
+
+function normalizePlaybackOptions(value: unknown): PlaylistPlaybackOptions {
+  const source = value && typeof value === 'object' ? (value as Partial<PlaylistPlaybackOptions>) : {};
+  const repeatMode: PlaylistRepeatMode =
+    source.repeatMode === 'one' || source.repeatMode === 'all' ? source.repeatMode : 'off';
+
+  return {
+    shuffle: source.shuffle === true,
+    repeatMode
   };
 }
 
@@ -179,9 +255,11 @@ async function persistStoredState(state: StoredPlaylistState): Promise<void> {
 function createPlaylistStore() {
   const items = writable<PlaylistItem[]>([]);
   const selection = writable<PlaylistSelection>(emptySelection);
+  const playbackOptions = writable<PlaylistPlaybackOptions>(defaultPlaybackOptions);
 
   let itemList: PlaylistItem[] = [];
   let selectionState: PlaylistSelection = emptySelection;
+  let playbackOptionsState: PlaylistPlaybackOptions = defaultPlaybackOptions;
   let hydrated = typeof window === 'undefined';
   let persistQueued = false;
   const pendingOperations: Array<() => void> = [];
@@ -193,8 +271,13 @@ function createPlaylistStore() {
   selection.subscribe((value) => {
     selectionState = value;
   });
+  playbackOptions.subscribe((value) => {
+    playbackOptionsState = value;
+  });
 
   const selectedIds = derived(selection, ($selection) => $selection.ids);
+  const shuffleEnabled = derived(playbackOptions, ($playbackOptions) => $playbackOptions.shuffle);
+  const repeatMode = derived(playbackOptions, ($playbackOptions) => $playbackOptions.repeatMode);
 
   const selectedTrack = derived([items, selection], ([$items, $selection]) => {
     const primaryId = $selection.focusId ?? $selection.ids.at(-1);
@@ -256,7 +339,8 @@ function createPlaylistStore() {
 
       void persistStoredState({
         items: itemList.map(serializeItem),
-        selection: selectionState
+        selection: selectionState,
+        playbackOptions: playbackOptionsState
       });
     });
   }
@@ -268,6 +352,161 @@ function createPlaylistStore() {
 
     items.set(restoredItems);
     selection.set(restoredSelection);
+    playbackOptions.set(normalizePlaybackOptions(state?.playbackOptions));
+  }
+
+  function scheduleMetadataParsing(targetItems: PlaylistItem[]): void {
+    if (targetItems.length === 0) {
+      return;
+    }
+
+    let index = 0;
+    let active = false;
+
+    const processChunk = (deadline: BackgroundDeadline) => {
+      if (active) {
+        return;
+      }
+
+      const updates: Array<{ id: string; metadata: TrackMetadata }> = [];
+      let pendingDurationItem: PlaylistItem | null = null;
+
+      while (index < targetItems.length && (deadline.didTimeout || deadline.timeRemaining() > 2)) {
+        const item = targetItems[index];
+        index += 1;
+
+        const metadata = buildInitialMetadata(item);
+
+        if (!metadata) {
+          continue;
+        }
+
+        const currentItem = itemList.find((entry) => entry.id === item.id);
+
+        if (!currentItem) {
+          continue;
+        }
+
+        if (item.kind === 'stream' && (currentItem.metadata?.duration ?? 0) <= 0) {
+          pendingDurationItem = item;
+          break;
+        }
+
+        const mergedMetadata = { ...currentItem.metadata, ...metadata };
+
+        if (JSON.stringify(currentItem.metadata ?? {}) === JSON.stringify(mergedMetadata)) {
+          continue;
+        }
+
+        updates.push({ id: item.id, metadata: mergedMetadata });
+      }
+
+      if (updates.length > 0) {
+        items.update((existing) =>
+          existing.map((item) => {
+            const update = updates.find((entry) => entry.id === item.id);
+
+            if (!update) {
+              return item;
+            }
+
+            return {
+              ...item,
+              metadata: update.metadata
+            };
+          })
+        );
+        queuePersist();
+      }
+
+      if (pendingDurationItem) {
+        active = true;
+
+        void readStreamDuration(pendingDurationItem)
+          .then((duration) => {
+            if (!duration || duration <= 0) {
+              return;
+            }
+
+            const currentItem = itemList.find((entry) => entry.id === pendingDurationItem?.id);
+
+            if (!currentItem) {
+              return;
+            }
+
+            const metadata = {
+              ...currentItem.metadata,
+              duration
+            };
+
+            items.update((existing) =>
+              existing.map((item) =>
+                item.id === pendingDurationItem?.id
+                  ? {
+                      ...item,
+                      metadata
+                    }
+                  : item
+              )
+            );
+            queuePersist();
+          })
+          .finally(() => {
+            active = false;
+
+            if (index < targetItems.length) {
+              scheduleBackgroundTask(processChunk);
+            }
+          });
+
+        return;
+      }
+
+      if (index < targetItems.length) {
+        scheduleBackgroundTask(processChunk);
+      }
+    };
+
+    scheduleBackgroundTask(processChunk);
+  }
+
+  function resolveLinearTrack(baseId: string | null, direction: -1 | 1, wrap: boolean): PlaylistItem | null {
+    if (itemList.length === 0) {
+      return null;
+    }
+
+    const currentIndex = baseId ? itemList.findIndex((item) => item.id === baseId) : -1;
+
+    if (currentIndex === -1) {
+      return direction > 0 ? itemList[0] : itemList[itemList.length - 1];
+    }
+
+    const nextIndex = currentIndex + direction;
+
+    if (nextIndex >= 0 && nextIndex < itemList.length) {
+      return itemList[nextIndex];
+    }
+
+    if (!wrap) {
+      return null;
+    }
+
+    return direction > 0 ? itemList[0] : itemList[itemList.length - 1];
+  }
+
+  function resolveShuffledTrack(baseId: string | null, includeCurrent: boolean): PlaylistItem | null {
+    if (itemList.length === 0) {
+      return null;
+    }
+
+    const candidates = includeCurrent ? itemList : itemList.filter((item) => item.id !== baseId);
+
+    if (candidates.length === 0) {
+      return includeCurrent && baseId ? itemList.find((item) => item.id === baseId) ?? null : null;
+    }
+
+    const index = Math.floor(Math.random() * candidates.length);
+    return candidates[index] ?? null;
   }
 
   function flushPendingOperations(): void {
@@ -295,6 +534,7 @@ function createPlaylistStore() {
     void readStoredState()
       .then((state) => {
         applyStoredState(state);
+        scheduleMetadataParsing(itemList);
       })
       .finally(() => {
         hydrated = true;
@@ -306,10 +546,13 @@ function createPlaylistStore() {
     items,
     selectedIds,
     selectedTrack,
+    shuffleEnabled,
+    repeatMode,
     add(newItems: PlaylistItem[]) {
       runOrQueue(() => {
         items.update((existing) => [...existing, ...newItems]);
         selection.update((value) => normalizeSelection(value));
+        scheduleMetadataParsing(newItems);
         queuePersist();
       });
     },
@@ -352,6 +595,24 @@ function createPlaylistStore() {
         queuePersist();
       });
     },
+    selectAll() {
+      runOrQueue(() => {
+        if (itemList.length === 0) {
+          selection.set(emptySelection);
+          queuePersist();
+          return;
+        }
+
+        const ids = itemList.map((item) => item.id);
+
+        selection.set({
+          ids,
+          anchorId: ids[0] ?? null,
+          focusId: ids.at(-1) ?? null
+        });
+        queuePersist();
+      });
+    },
     remove(ids: string[]) {
       if (ids.length === 0) {
         return [];
@@ -390,6 +651,61 @@ function createPlaylistStore() {
         );
         queuePersist();
       });
+    },
+    toggleShuffle() {
+      runOrQueue(() => {
+        playbackOptions.update((value) => ({
+          ...value,
+          shuffle: !value.shuffle
+        }));
+        queuePersist();
+      });
+    },
+    cycleRepeatMode() {
+      runOrQueue(() => {
+        playbackOptions.update((value) => ({
+          ...value,
+          repeatMode: value.repeatMode === 'off' ? 'one' : value.repeatMode === 'one' ? 'all' : 'off'
+        }));
+        queuePersist();
+      });
+    },
+    resolveStepTrack(options: {
+      currentId?: string | null;
+      selectedId?: string | null;
+      direction: -1 | 1;
+      shuffle?: boolean;
+      wrap?: boolean;
+    }) {
+      const { currentId = null, selectedId = null, direction, shuffle = false, wrap = false } = options;
+      const baseId = currentId ?? selectedId;
+
+      if (shuffle) {
+        return resolveShuffledTrack(baseId, false);
+      }
+
+      return resolveLinearTrack(baseId, direction, wrap);
+    },
+    resolveTrackEnd(options: {
+      currentId?: string | null;
+      shuffle?: boolean;
+      repeatMode?: PlaylistRepeatMode;
+    }) {
+      const { currentId = null, shuffle = false, repeatMode = 'off' } = options;
+
+      if (!currentId) {
+        return null;
+      }
+
+      if (repeatMode === 'one') {
+        return itemList.find((item) => item.id === currentId) ?? null;
+      }
+
+      if (shuffle) {
+        return resolveShuffledTrack(currentId, repeatMode === 'all');
+      }
+
+      return resolveLinearTrack(currentId, 1, repeatMode === 'all');
     }
   };
 }

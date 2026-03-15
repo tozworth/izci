@@ -1,11 +1,12 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
-  import { formatDuration, stripFileExtension } from '$lib/utils/files';
+  import { formatDuration, getTrackDisplaySubtitle, getTrackDisplayTitle } from '$lib/utils/files';
   import type { PlaybackSnapshot, PlaylistItem } from '$lib/types';
 
   export let snapshot: PlaybackSnapshot;
   export let track: PlaylistItem | null = null;
   export let selectedTrack: PlaylistItem | null = null;
+  export let isTabbedLayout = false;
 
   const dispatch = createEventDispatcher<{
     toggle: void;
@@ -35,32 +36,15 @@
     dispatch('volume', clamp(snapshot.volume + delta * 0.05, 0, 1));
   }
 
-  function getTrackSubtitle(item: PlaylistItem | null): string {
-    const title = item?.metadata?.title?.trim();
-    const artist = item?.metadata?.artist?.trim();
-
-    if (artist && artist.toLowerCase() !== 'unknown') {
-      return artist;
-    }
-
-    if (title) {
-      return item ? stripFileExtension(item.name) : '';
-    }
-
-    return '';
-  }
+  $: displayTrack = track ?? selectedTrack;
 </script>
 
 <footer class="player-bar">
   <div class="player-track">
-    <strong>{track?.metadata?.title || (track ? stripFileExtension(track.name) : '') || 'Idle'}</strong>
-    {#if track}
-      {#if getTrackSubtitle(track)}
-        <span>{getTrackSubtitle(track)}</span>
-      {/if}
-    {:else if selectedTrack}
-      {#if getTrackSubtitle(selectedTrack)}
-        <span>{getTrackSubtitle(selectedTrack)}</span>
+    <strong>{displayTrack ? getTrackDisplayTitle(displayTrack) : 'Drop files to begin'}</strong>
+    {#if displayTrack}
+      {#if getTrackDisplaySubtitle(displayTrack)}
+        <span>{getTrackDisplaySubtitle(displayTrack)}</span>
       {/if}
     {:else}
       <span>Drop files to begin</span>
@@ -71,9 +55,11 @@
     <button type="button" class="transport-button" aria-label="Previous track" on:click={() => dispatch('previous')} disabled={!track && !selectedTrack}>
       <span class="material-symbols-outlined" aria-hidden="true">skip_previous</span>
     </button>
-    <button type="button" class="transport-button" aria-label="Stop playback" on:click={() => dispatch('stop')} disabled={!track}>
-      <span class="material-symbols-outlined" aria-hidden="true">stop</span>
-    </button>
+    {#if !isTabbedLayout}
+      <button type="button" class="transport-button" aria-label="Stop playback" on:click={() => dispatch('stop')} disabled={!track}>
+        <span class="material-symbols-outlined" aria-hidden="true">stop</span>
+      </button>
+    {/if}
     <button
       type="button"
       class="transport-button transport-button-primary"

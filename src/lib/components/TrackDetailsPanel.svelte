@@ -3,6 +3,7 @@
   import { resolveModuleTrackerName } from '$lib/utils/files';
 
   export let track: PlaylistItem | null = null;
+  export let hideEyebrow = false;
 
   $: title = track?.metadata?.title?.trim() || '';
   $: showTrackSection = title.length > 0;
@@ -25,7 +26,9 @@
 
 <section class="panel details-panel">
   <div class="panel-header">
-    <p class="eyebrow">Track Details</p>
+    {#if !hideEyebrow}
+      <p class="eyebrow">Track Details</p>
+    {/if}
   </div>
 
   {#if track}

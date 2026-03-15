@@ -6,6 +6,7 @@ export type ModuleExtension = (typeof MODULE_EXTENSIONS)[number];
 export type TrackKind = 'stream' | 'module';
 export type PlaybackState = 'idle' | 'loading' | 'playing' | 'paused' | 'ended' | 'error';
 export type ModuleInterpolationFilter = 1 | 2 | 4 | 8;
+export type PlaylistRepeatMode = 'off' | 'one' | 'all';
 
 export interface TrackMetadata {
   title?: string;
@@ -46,6 +47,11 @@ export interface PlaylistItem {
   size: number;
   objectUrl?: string;
   metadata?: TrackMetadata;
+}
+
+export interface PlaylistPlaybackOptions {
+  shuffle: boolean;
+  repeatMode: PlaylistRepeatMode;
 }
 
 export interface PlaybackSnapshot {

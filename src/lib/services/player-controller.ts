@@ -4,7 +4,7 @@ import { ModulePlayerService } from '$lib/services/module-player';
 import { metadataSettings } from '$lib/stores/metadata-settings';
 import { modulePlaybackSettings } from '$lib/stores/module-playback-settings';
 import type { PlaybackSnapshot, PlaylistItem, TrackMetadata } from '$lib/types';
-import { inferArtistTitleFromFileName } from '$lib/utils/files';
+import { mergeInferredArtistTitle } from '$lib/utils/files';
 
 const initialSnapshot: PlaybackSnapshot = {
   state: 'idle',
@@ -27,32 +27,9 @@ function createPlayerController() {
   };
 
   const applyMetadataInference = (track: PlaylistItem, metadata: TrackMetadata = {}): PlaylistItem => {
-    const nextMetadata = { ...track.metadata, ...metadata };
-
-    if (!metadataConfig.inferFromFilename) {
-      return { ...track, metadata: nextMetadata };
-    }
-
-    const hasTitle = typeof nextMetadata.title === 'string' && nextMetadata.title.trim() !== '';
-    const hasArtist = typeof nextMetadata.artist === 'string' && nextMetadata.artist.trim() !== '';
-
-    if (hasTitle && hasArtist) {
-      return { ...track, metadata: nextMetadata };
-    }
-
-    const inferred = inferArtistTitleFromFileName(track.name);
-
-    if (!inferred) {
-      return { ...track, metadata: nextMetadata };
-    }
-
     return {
       ...track,
-      metadata: {
-        ...nextMetadata,
-        title: hasTitle ? nextMetadata.title : inferred.title,
-        artist: hasArtist ? nextMetadata.artist : inferred.artist
-      }
+      metadata: mergeInferredArtistTitle({ ...track.metadata, ...metadata }, track.name, metadataConfig.inferFromFilename)
     };
   };
 

@@ -53,13 +53,15 @@ function buildOptionsMarkup(): string {
         box-sizing: border-box;
       }
 
-      html {
+      html,
+      body {
         height: 100%;
+        overflow: hidden;
       }
 
       body {
         margin: 0;
-        min-height: 100vh;
+        min-height: 100%;
         background:
           radial-gradient(circle at top left, rgba(184, 187, 38, 0.12), transparent 24%),
           radial-gradient(circle at top right, rgba(250, 189, 47, 0.08), transparent 22%),
@@ -72,6 +74,7 @@ function buildOptionsMarkup(): string {
         min-height: 0;
         display: grid;
         grid-template-columns: minmax(156px, var(--tree-width)) 1px minmax(0, 1fr);
+        overflow: hidden;
       }
 
       p {
@@ -120,6 +123,15 @@ function buildOptionsMarkup(): string {
 
       .window-topbar-prefix {
         color: #a89984;
+        flex: 0 0 auto;
+      }
+
+      .window-topbar-breadcrumbs {
+        min-width: 0;
+        display: inline-flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 0.3ch;
       }
 
       .window-topbar-separator {
@@ -131,9 +143,15 @@ function buildOptionsMarkup(): string {
         line-height: 1;
       }
 
-      .window-topbar-current {
+      .window-topbar-crumb {
+        min-width: 0;
+        color: #a89984;
+        font-weight: 500;
+      }
+
+      .window-topbar-crumb.is-current {
         color: #fbf1c7;
-        font-weight: 600;
+        font-weight: 700;
       }
 
       .window-topbar-tools {
@@ -289,10 +307,14 @@ function buildOptionsMarkup(): string {
         display: block;
       }
 
-      .section {
+      .section + .section {
         margin-top: 16px;
         padding-top: 12px;
         border-top: 1px solid rgba(168, 153, 132, 0.16);
+      }
+
+      .section h2 {
+        margin: 0 0 10px;
       }
 
       .section-grid {
@@ -420,17 +442,17 @@ function buildOptionsMarkup(): string {
         display: none;
       }
 
-      .callout {
-        margin-top: 12px;
-        padding: 12px;
-        border-radius: 10px;
-        background: rgba(215, 153, 33, 0.09);
-        border: 1px solid rgba(215, 153, 33, 0.2);
+      .checkbox-field {
+        display: grid;
+        grid-template-columns: 1rem minmax(0, 1fr);
+        align-items: flex-start;
+        column-gap: 12px;
       }
 
-      .checkbox-field {
-        flex-direction: row;
-        align-items: flex-start;
+      .checkbox-field input[type="checkbox"] {
+        flex: none;
+        align-self: flex-start;
+        margin-top: 0.1rem;
       }
 
       .checkbox-copy {
@@ -448,8 +470,7 @@ function buildOptionsMarkup(): string {
     <header class="window-topbar">
       <div class="window-topbar-title" aria-live="polite">
         <span class="window-topbar-prefix">izci Options</span>
-        <span class="material-symbols-outlined window-topbar-separator" aria-hidden="true">chevron_right</span>
-        <span class="window-topbar-current" id="content-topbar-current">Modules</span>
+        <span class="window-topbar-breadcrumbs" id="content-topbar-breadcrumbs"></span>
       </div>
       <div class="window-topbar-tools" aria-label="Page tools">
         <button class="tool-button" id="toggle-field-hints" type="button" aria-label="Collapse field hints" title="Collapse field hints">
@@ -487,9 +508,7 @@ function buildOptionsMarkup(): string {
       </aside>
       <div class="resizer" role="separator" aria-orientation="vertical" aria-label="Resize panels"></div>
       <section class="content-panel" aria-live="polite">
-        <article class="view" data-view-panel="playback" data-view-label="Playback">
-          <p>Streamed formats stay on the Howler path. Tracker modules use Chiptune3/libopenmpt and expose backend-specific controls under Modules.</p>
-
+        <article class="view" data-view-panel="playback" data-view-label="Playback" data-view-parent-label="">
           <div class="section">
             <h2>Current Module Defaults</h2>
             <dl class="meta-list">
@@ -521,9 +540,7 @@ function buildOptionsMarkup(): string {
           </div>
         </article>
 
-        <article class="view is-active" data-view-panel="modules" data-view-label="Modules">
-          <p>These settings affect tracker-module playback only. Changes to interpolation and stereo separation rebuild the active module renderer when needed.</p>
-
+        <article class="view is-active" data-view-panel="modules" data-view-label="Modules" data-view-parent-label="Playback">
           <form class="settings-form" id="modules-form">
             <div class="section">
               <h2>Rendering</h2>
@@ -582,16 +599,10 @@ function buildOptionsMarkup(): string {
                 </label>
               </div>
             </div>
-
-            <div class="callout">
-              Module settings persist locally and sync between the main window and this options popup.
-            </div>
           </form>
         </article>
 
-        <article class="view" data-view-panel="metadata" data-view-label="Metadata">
-          <p>Optional metadata helpers applied by the player when a loaded track does not provide artist and title fields on its own.</p>
-
+        <article class="view" data-view-panel="metadata" data-view-label="Metadata" data-view-parent-label="">
           <form class="settings-form" id="metadata-form">
             <div class="section">
               <h2>Filename Inference</h2>
@@ -605,16 +616,10 @@ function buildOptionsMarkup(): string {
                 </label>
               </div>
             </div>
-
-            <div class="callout">
-              Metadata settings persist locally and sync between the main window and this options popup.
-            </div>
           </form>
         </article>
 
-        <article class="view" data-view-panel="about" data-view-label="About">
-          <p>Local-first tracker and music player for desktop Chromium PWAs.</p>
-
+        <article class="view" data-view-panel="about" data-view-label="About" data-view-parent-label="">
           <div class="section">
             <h2>Application</h2>
             <dl class="meta-list">
@@ -661,7 +666,7 @@ function buildOptionsMarkup(): string {
       const pitchFactorInput = document.getElementById('pitch-factor');
       const pitchFactorValue = document.getElementById('pitch-factor-value');
       const inferFromFilenameInput = document.getElementById('infer-from-filename');
-      const topbarCurrent = document.getElementById('content-topbar-current');
+      const topbarBreadcrumbs = document.getElementById('content-topbar-breadcrumbs');
       const toggleFieldHintsButton = document.getElementById('toggle-field-hints');
       const toggleFieldHintsIcon = document.getElementById('toggle-field-hints-icon');
       const resetCurrentPageButton = document.getElementById('reset-current-page');
@@ -785,6 +790,39 @@ function buildOptionsMarkup(): string {
         resetCurrentPageButton.disabled = !canReset;
       }
 
+      function renderBreadcrumbs(view) {
+        if (!topbarBreadcrumbs || !view) {
+          return;
+        }
+
+        const crumbs = [];
+        const parentLabel = view.dataset.viewParentLabel;
+        const currentLabel = view.dataset.viewLabel || view.dataset.viewPanel || activeViewName;
+
+        if (parentLabel) {
+          crumbs.push(parentLabel);
+        }
+
+        crumbs.push(currentLabel);
+        topbarBreadcrumbs.replaceChildren();
+
+        crumbs.forEach((label, index) => {
+          const separator = document.createElement('span');
+          separator.className = 'material-symbols-outlined window-topbar-separator';
+          separator.setAttribute('aria-hidden', 'true');
+          separator.textContent = 'chevron_right';
+          topbarBreadcrumbs.append(separator);
+
+          const crumb = document.createElement('span');
+          crumb.className = 'window-topbar-crumb';
+          if (index === crumbs.length - 1) {
+            crumb.classList.add('is-current');
+          }
+          crumb.textContent = label;
+          topbarBreadcrumbs.append(crumb);
+        });
+      }
+
       function render(settings) {
         if (stereoSeparationInput) {
           stereoSeparationInput.value = String(settings.stereoSeparation);
@@ -850,8 +888,8 @@ function buildOptionsMarkup(): string {
         });
 
         const activeView = views.find((view) => view.dataset.viewPanel === viewName);
-        if (topbarCurrent && activeView) {
-          topbarCurrent.textContent = activeView.dataset.viewLabel || viewName;
+        if (activeView) {
+          renderBreadcrumbs(activeView);
         }
 
         updateHintToggleButton();

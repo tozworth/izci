@@ -2,18 +2,24 @@
   import { createEventDispatcher } from 'svelte';
   import { onDestroy } from 'svelte';
   import { tick } from 'svelte';
-  import { formatDuration, stripFileExtension, truncateMiddle } from '$lib/utils/files';
+  import type { PlaylistRepeatMode } from '$lib/types';
+  import { extractDroppedFiles, formatDuration, getTrackDisplayTitle } from '$lib/utils/files';
   import type { PlaylistItem } from '$lib/types';
 
   export let items: PlaylistItem[] = [];
   export let selectedIds: string[] = [];
   export let playingId: string | null = null;
+  export let hideEyebrow = false;
+  export let shuffleEnabled = false;
+  export let repeatMode: PlaylistRepeatMode = 'off';
 
   const dispatch = createEventDispatcher<{
     addFiles: FileList | File[];
     select: { id: string; range: boolean; toggle: boolean };
     play: string;
     remove: string[];
+    toggleShuffle: void;
+    cycleRepeat: void;
   }>();
 
   let contextMenu:
@@ -35,15 +41,29 @@
     }
   }
 
-  function handleDrop(event: DragEvent) {
+  async function handleDrop(event: DragEvent) {
     event.preventDefault();
-    if (event.dataTransfer?.files?.length) {
-      dispatch('addFiles', event.dataTransfer.files);
+
+    if (!event.dataTransfer) {
+      return;
+    }
+
+    const files = await extractDroppedFiles(event.dataTransfer);
+
+    if (files.length > 0) {
+      dispatch('addFiles', files);
     }
   }
 
   function formatTrackType(item: PlaylistItem): string {
-    return item.kind === 'module' ? 'MOD' : item.extension.toUpperCase();
+    return item.extension.toUpperCase();
+  }
+
+  function getTrackMeta(item: PlaylistItem): string {
+    const duration = item.metadata?.duration ?? 0;
+    const hasDuration = Number.isFinite(duration) && duration > 0;
+
+    return hasDuration ? `${formatTrackType(item)} ${formatDuration(duration)}` : formatTrackType(item);
   }
 
   function isToggleSelection(event: MouseEvent): boolean {
@@ -187,18 +207,50 @@
   }, 0);
 
   $: trackSummary = `${items.length} song${items.length === 1 ? '' : 's'} · ${formatTotalDuration(totalDuration)}`;
+  $: repeatIcon = repeatMode === 'one' ? 'repeat_one' : 'repeat';
+  $: repeatLabel =
+    repeatMode === 'one' ? 'Repeat current track' : repeatMode === 'all' ? 'Repeat playlist' : 'Repeat off';
 </script>
 
 <section class="panel playlist-panel">
   <div class="panel-header">
     <div class="panel-heading">
-      <p class="eyebrow">Playlist</p>
+      {#if !hideEyebrow}
+        <p class="eyebrow">Playlist</p>
+      {/if}
       <p class="panel-summary">{trackSummary}</p>
     </div>
-    <label class="add-files" aria-label="Add files" title="Add files">
-      <span class="material-symbols-outlined" aria-hidden="true">add</span>
-      <input type="file" multiple accept=".mp3,.wav,.flac,.ogg,.opus,.mod,.xm,.s3m,.it" on:change={handleInput} />
-    </label>
+    <div class="playlist-actions">
+      <button
+        type="button"
+        class="playlist-action-button"
+        class:active={shuffleEnabled}
+        aria-label={shuffleEnabled ? 'Disable shuffle' : 'Enable shuffle'}
+        title={shuffleEnabled ? 'Shuffle on' : 'Shuffle off'}
+        on:click={() => dispatch('toggleShuffle')}
+      >
+        <span class="material-symbols-outlined" aria-hidden="true">shuffle</span>
+      </button>
+      <button
+        type="button"
+        class="playlist-action-button"
+        class:active={repeatMode !== 'off'}
+        aria-label={repeatLabel}
+        title={repeatLabel}
+        on:click={() => dispatch('cycleRepeat')}
+      >
+        <span class="material-symbols-outlined" aria-hidden="true">{repeatIcon}</span>
+      </button>
+      <label class="playlist-add-files" aria-label="Add files" title="Add files">
+        <span class="material-symbols-outlined" aria-hidden="true">add</span>
+        <input
+          type="file"
+          multiple
+          accept=".mp3,.wav,.flac,.ogg,.opus,.mod,.xm,.s3m,.it"
+          on:change={handleInput}
+        />
+      </label>
+    </div>
   </div>
 
   <div
@@ -211,7 +263,7 @@
   >
     {#if items.length === 0}
       <div class="empty-state">
-        <p>Drop local audio or tracker modules here.</p>
+        <p>Drop local audio, tracker modules, or folders here.</p>
         <p>Supported: MP3, WAV, FLAC, OGG, Opus, MOD, XM, S3M, IT.</p>
       </div>
     {:else}
@@ -225,10 +277,10 @@
               on:click={(event) => handleItemClick(event, item.id)}
               on:dblclick={() => handleItemDoubleClick(item.id)}
               on:contextmenu={(event) => handleItemContextMenu(event, item.id)}
-              title={stripFileExtension(item.name)}
+              title={getTrackDisplayTitle(item)}
             >
-              <span class="track-name">{truncateMiddle(stripFileExtension(item.name))}</span>
-              <span class="track-meta">{formatTrackType(item)} {formatDuration(item.metadata?.duration ?? 0)}</span>
+              <span class="track-name">{getTrackDisplayTitle(item)}</span>
+              <span class="track-meta">{getTrackMeta(item)}</span>
             </button>
           </li>
         {/each}
@@ -248,3 +300,40 @@
     {/if}
   </div>
 </section>
+
+<style>
+  .playlist-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.7rem;
+  }
+
+  .playlist-action-button,
+  .playlist-add-files {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    background: transparent;
+    border: 0;
+    color: var(--muted);
+    cursor: pointer;
+    transition: color 180ms ease;
+  }
+
+  .playlist-action-button.active,
+  .playlist-action-button:hover,
+  .playlist-add-files:hover {
+    color: var(--accent-strong);
+  }
+
+  .playlist-action-button .material-symbols-outlined,
+  .playlist-add-files .material-symbols-outlined {
+    font-size: 1.15rem;
+    line-height: 1;
+  }
+
+  .playlist-add-files input {
+    display: none;
+  }
+</style>
