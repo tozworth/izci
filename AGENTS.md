@@ -74,7 +74,13 @@ Primary location for playback and browser-integration logic.
 
 ### `src/lib/stores/`
 
-- `playlist.ts`: owns both `playlistStore` and `libraryStore`; handles collection state, selection, dedupe, IndexedDB persistence, playback options, metadata updates, file-handle reloading, and next/previous/end-of-track resolution.
+- `playlist.ts`: owns both `playlistStore` and `libraryStore`; now acts as the public assembly layer that wires collection state, persistence flush/queue behavior, and the extracted playlist helpers together.
+- `playlist-persistence.ts`: IndexedDB open/read/write helpers plus stored-item serialization and playback option normalization for playlist/library state.
+- `playlist-materialization.ts`: file-handle permission and rehydration helpers, including streamed-format object URL creation/revocation during `ensureLoaded()`.
+- `playlist-selection.ts`: selection normalization and selection action helpers shared by playlist and library stores.
+- `playlist-metadata.ts`: background metadata inference and stream-duration probing helpers.
+- `playlist-navigation.ts`: next/previous/track-end resolution, including shuffle session management.
+- `playlist-dedupe.ts`: duplicate detection based on track identity, used only by the library store path.
 - `library-view-settings.ts`: persistent library table layout and filter state (column order, widths, visibility, sort, search query) with `BroadcastChannel` sync.
 - `module-playback-settings.ts`: persistent tracker playback settings (repeat, stereo/pan, interpolation, tempo, pitch) with sync.
 - `metadata-settings.ts`: persistent metadata behavior settings, currently filename-based artist/title inference.
@@ -105,6 +111,7 @@ Primary location for playback and browser-integration logic.
 - Supported formats are centralized in `src/lib/types.ts`; keep playback routing, file pickers, file handlers, and accepted import lists aligned with those constants.
 - `src/lib/utils/files.ts` creates `objectUrl`s only for streamed formats. Do not force tracker modules down the streamed path.
 - `src/lib/stores/playlist.ts` persists playlist and library collections separately in IndexedDB (`izci-playlist`, `izci-library`). The library store dedupes tracks; the playlist store does not.
+- `src/lib/stores/playlist.ts` should stay as the public store facade; persistence, materialization, selection, metadata, navigation, and dedupe logic now live in focused sibling modules.
 - The app now has two collections:
   - playlist: ordered playback queue with shuffle/repeat behavior
   - library: persistent deduped catalog with column-based view state
