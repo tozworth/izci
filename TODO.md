@@ -67,6 +67,7 @@
 
 ### Phase 2: Playlist store decomposition
 
+- Status: done
 - Primary target:
   - `src/lib/stores/playlist.ts`
 - Problem:
