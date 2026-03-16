@@ -130,6 +130,7 @@
   let activeWorkspaceTab: WorkspaceTab = 'playlist';
   let pendingFileInputTarget: WorkspaceCollection = 'playlist';
   let previousPlaybackState: PlaybackSnapshot['state'] = playback.state;
+  let playRequestSequence = 0;
   let panelLayout = workspacePanelLayout.getSnapshot();
   let resizeState: PanelResizeState | null = null;
   let wideContentWidth = 0;
@@ -329,7 +330,12 @@
   }
 
   async function playTrack(track: PlaylistItem) {
+    const requestId = ++playRequestSequence;
     const playableTrack = await playlistStore.ensureLoaded(track.id, { prompt: true });
+
+    if (requestId !== playRequestSequence) {
+      return;
+    }
 
     if (!playableTrack) {
       playerController.reportError('Could not access this file. Re-add it or grant file access.');
@@ -338,6 +344,11 @@
 
     if (playingTrack?.id !== playableTrack.id) {
       await playerController.load(playableTrack);
+
+      if (requestId !== playRequestSequence) {
+        return;
+      }
+
       playerController.play();
       return;
     }

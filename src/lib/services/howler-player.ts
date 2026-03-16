@@ -7,6 +7,7 @@ type EndHandler = () => void;
 
 export class HowlerPlayerService {
   #howl: Howl | null = null;
+  #loadToken = 0;
   #onSnapshot: SnapshotHandler;
   #onMetadata: MetadataHandler;
   #onEnded: EndHandler;
@@ -23,6 +24,7 @@ export class HowlerPlayerService {
     }
 
     this.destroy();
+    const loadToken = ++this.#loadToken;
     this.#onSnapshot({
       backend: 'stream',
       state: 'loading',
@@ -36,6 +38,10 @@ export class HowlerPlayerService {
       html5: false,
       format: [track.extension],
       onload: () => {
+        if (!this.#isActiveLoad(loadToken)) {
+          return;
+        }
+
         const duration = this.#howl?.duration() ?? 0;
         const bitrate = duration > 0 ? Math.round((track.size * 8) / duration / 1000) : undefined;
         this.#onMetadata({
@@ -45,23 +51,47 @@ export class HowlerPlayerService {
         this.#onSnapshot({ duration, state: 'paused' });
       },
       onplay: () => {
+        if (!this.#isActiveLoad(loadToken)) {
+          return;
+        }
+
         this.#tick();
         this.#onSnapshot({ state: 'playing' });
       },
       onpause: () => {
+        if (!this.#isActiveLoad(loadToken)) {
+          return;
+        }
+
         this.#onSnapshot({ state: 'paused' });
       },
       onstop: () => {
+        if (!this.#isActiveLoad(loadToken)) {
+          return;
+        }
+
         this.#onSnapshot({ currentTime: 0, state: 'paused' });
       },
       onend: () => {
+        if (!this.#isActiveLoad(loadToken)) {
+          return;
+        }
+
         this.#onSnapshot({ state: 'ended' });
         this.#onEnded();
       },
       onloaderror: (_id: number, message: unknown) => {
+        if (!this.#isActiveLoad(loadToken)) {
+          return;
+        }
+
         this.#onSnapshot({ state: 'error', error: String(message) });
       },
       onplayerror: (_id: number, message: unknown) => {
+        if (!this.#isActiveLoad(loadToken)) {
+          return;
+        }
+
         this.#onSnapshot({ state: 'error', error: String(message) });
       }
     });
@@ -90,6 +120,7 @@ export class HowlerPlayerService {
   }
 
   destroy(): void {
+    this.#loadToken += 1;
     this.#howl?.unload();
     this.#howl = null;
   }
@@ -104,5 +135,9 @@ export class HowlerPlayerService {
 
     this.#onSnapshot({ currentTime, duration });
     requestAnimationFrame(() => this.#tick());
+  }
+
+  #isActiveLoad(loadToken: number): boolean {
+    return this.#howl !== null && loadToken === this.#loadToken;
   }
 }

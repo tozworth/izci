@@ -11,6 +11,7 @@ export class ModulePlayerService {
   #player: ChiptuneJsPlayer | null = null;
   #buffer: ArrayBuffer | null = null;
   #trackExtension: PlaylistItem['extension'] | null = null;
+  #loadToken = 0;
   #volume = 0.85;
   #playing = false;
   #started = false;
@@ -32,6 +33,7 @@ export class ModulePlayerService {
     }
 
     this.#disposePlayer();
+    const loadToken = ++this.#loadToken;
     this.#buffer = null;
     this.#trackExtension = track.extension.toLowerCase();
     this.#playing = false;
@@ -46,8 +48,21 @@ export class ModulePlayerService {
       error: undefined
     });
 
-    this.#player = await this.#createPlayer();
-    this.#buffer = await track.file.arrayBuffer();
+    const player = await this.#createPlayer(loadToken);
+
+    if (!this.#isActiveLoad(loadToken)) {
+      this.#disposeDetachedPlayer(player);
+      return;
+    }
+
+    this.#player = player;
+    const buffer = await track.file.arrayBuffer();
+
+    if (!this.#isActiveLoad(loadToken)) {
+      return;
+    }
+
+    this.#buffer = buffer;
 
     this.#onMetadata({
       trackerType: track.extension.toUpperCase()
@@ -88,6 +103,7 @@ export class ModulePlayerService {
   }
 
   stop(): void {
+    this.#loadToken += 1;
     this.#playing = false;
     this.#started = false;
     this.#currentTime = 0;
@@ -142,12 +158,12 @@ export class ModulePlayerService {
     this.#applyRuntimeSettings();
   }
 
-  async #createPlayer(): Promise<ChiptuneJsPlayer> {
+  async #createPlayer(loadToken: number = this.#loadToken): Promise<ChiptuneJsPlayer> {
     const player = await createChiptunePlayer(this.#toPlayerConfig(this.#settings));
 
     player.setVol(this.#volume);
     player.setRepeatCount(this.#settings.repeatCount);
-    this.#attachHandlers(player);
+    this.#attachHandlers(player, loadToken);
 
     return player;
   }
@@ -177,13 +193,21 @@ export class ModulePlayerService {
   }
 
   async #recreatePlayer(): Promise<void> {
+    const loadToken = this.#loadToken;
     const wasStarted = this.#started;
     const wasPlaying = this.#playing;
     const restorePosition = this.#currentTime;
     const buffer = this.#buffer;
 
     this.#disposePlayer();
-    this.#player = await this.#createPlayer();
+    const player = await this.#createPlayer(loadToken);
+
+    if (!this.#isActiveLoad(loadToken)) {
+      this.#disposeDetachedPlayer(player);
+      return;
+    }
+
+    this.#player = player;
 
     if (!wasStarted || !buffer || !this.#player) {
       this.#started = false;
@@ -229,8 +253,12 @@ export class ModulePlayerService {
     this.#player.setPitch(this.#settings.pitchFactor);
   }
 
-  #attachHandlers(player: ChiptuneJsPlayer): void {
+  #attachHandlers(player: ChiptuneJsPlayer, loadToken: number): void {
     player.onEnded(() => {
+      if (!this.#isPlayerLoadCurrent(player, loadToken)) {
+        return;
+      }
+
       this.#playing = false;
       this.#started = false;
       this.#currentTime = 0;
@@ -239,6 +267,10 @@ export class ModulePlayerService {
     });
 
     player.onError((error) => {
+      if (!this.#isPlayerLoadCurrent(player, loadToken)) {
+        return;
+      }
+
       this.#playing = false;
       this.#started = false;
       this.#onSnapshot({
@@ -251,6 +283,10 @@ export class ModulePlayerService {
     });
 
     player.onMetadata((metadata) => {
+      if (!this.#isPlayerLoadCurrent(player, loadToken)) {
+        return;
+      }
+
       this.#onMetadata(this.#toTrackMetadata(metadata));
       this.#onSnapshot({
         duration: this.#safeSeconds(metadata.dur),
@@ -259,6 +295,10 @@ export class ModulePlayerService {
     });
 
     player.onProgress((progress) => {
+      if (!this.#isPlayerLoadCurrent(player, loadToken)) {
+        return;
+      }
+
       this.#currentTime = this.#safeSeconds(progress.pos);
       this.#onSnapshot({
         currentTime: this.#currentTime,
@@ -319,5 +359,29 @@ export class ModulePlayerService {
     }
 
     return undefined;
+  }
+
+  #disposeDetachedPlayer(player: ChiptuneJsPlayer): void {
+    try {
+      player.stop();
+    } catch {
+      // Ignore teardown failures for superseded players.
+    } finally {
+      try {
+        player.gain.disconnect();
+      } catch {
+        // Ignore disconnect failures during teardown.
+      }
+
+      void player.context.close().catch(() => undefined);
+    }
+  }
+
+  #isActiveLoad(loadToken: number): boolean {
+    return loadToken === this.#loadToken;
+  }
+
+  #isPlayerLoadCurrent(player: ChiptuneJsPlayer, loadToken: number): boolean {
+    return this.#player === player && this.#isActiveLoad(loadToken);
   }
 }

@@ -1214,7 +1214,7 @@
 
   .track-columns-header {
     width: 100%;
-    padding: 0 0 0.1rem;
+    padding: 0 0 0.02rem;
   }
 
   .track-column-header {
@@ -1246,7 +1246,7 @@
   .track-column-sort-button {
     width: 100%;
     display: block;
-    padding: 0.2rem 1rem 0.3rem 0;
+    padding: 0.1rem 1rem 0.14rem 0;
     color: var(--muted);
     background: transparent;
     text-align: left;
@@ -1310,7 +1310,7 @@
   .track-table-row-button {
     width: 100%;
     align-items: center;
-    padding: 0.5rem 0;
+    padding: 0.38rem 0;
     color: inherit;
     background: transparent;
     border: 0;
