@@ -57,9 +57,25 @@ Working source tree:
 UI only. Keep these focused on rendering and event dispatch.
 
 - `PlayerControls.svelte`: transport controls, seek bar, volume, and currently selected/playing track context.
-- `PlaylistPanel.svelte`: shared panel used for both playlist and library; supports drag/drop import, multi-select, context menus, and library column mode with sort/reorder/resize/visibility/search state.
+- `PlaylistPanel.svelte`: shared playlist/library composition shell; wires drag/drop import, selection events, library view settings, and the extracted playlist-panel subcomponents/helpers.
 - `TopMenuBar.svelte`: desktop-style File/View menu bar.
 - `TrackDetailsPanel.svelte`: selected-track metadata/details surface.
+
+### `src/lib/components/playlist-panel/`
+
+Playlist/library panel subcomponents and UI-local helpers.
+
+- `PlaylistPanelHeader.svelte`: panel summary, search UI, shuffle/repeat buttons, and add-files trigger.
+- `LibraryColumnsHeader.svelte`: library table header with sort, resize, reorder hover, and column-menu entry points.
+- `TrackList.svelte`: switches between list and column table rendering while keeping row event wiring uniform.
+- `TrackRow.svelte`: individual track row renderer for both list and column layouts.
+- `PanelContextMenu.svelte`: item and column context menus rendered through the extracted panel actions.
+- `selection.ts`: ordered/range selection helpers for the library column view.
+- `search.ts`: library search value collection, filtering, and filtered-summary helpers.
+- `library-columns.ts`: column display text, width fitting/rebalancing, and sort comparison helpers.
+- `context-menu.ts`: playlist-panel context-menu state types and viewport clamping helpers.
+- `actions/portal.ts`: action that portals panel menus into `document.body`.
+- `actions/window-dismiss.ts`: action that closes transient panel UI on outside click, escape, scroll, blur, or resize.
 
 ### `src/lib/services/`
 
@@ -116,6 +132,7 @@ Primary location for playback and browser-integration logic.
   - playlist: ordered playback queue with shuffle/repeat behavior
   - library: persistent deduped catalog with column-based view state
 - Library search/filter query is part of the persistent library view state and syncs across windows with the rest of the library UI settings.
+- `src/lib/components/PlaylistPanel.svelte` should stay as a shell around `src/lib/components/playlist-panel/` rather than reaccreting column math, search traversal, or context-menu DOM wiring inline.
 - Wide-mode workspace panel widths are persisted in `localStorage` and sync across windows; tabbed mode ignores those widths.
 - `src/App.svelte` is responsible for workspace orchestration, but durable state should still live in stores/services.
 - File import supports multiple sources:
@@ -137,7 +154,7 @@ Primary location for playback and browser-integration logic.
 - Before changing playback behavior, verify whether the code path is `stream` or `module` and keep both working.
 - Before changing import behavior, inspect `src/App.svelte`, `src/lib/utils/files.ts`, and `src/lib/stores/playlist.ts` together.
 - Before changing module playback settings, inspect `src/lib/stores/module-playback-settings.ts`, `src/lib/services/module-player.ts`, and `src/options/OptionsApp.svelte` together.
-- Before changing library UI behavior, inspect `src/lib/components/PlaylistPanel.svelte` and `src/lib/stores/library-view-settings.ts` together.
+- Before changing library UI behavior, inspect `src/lib/components/PlaylistPanel.svelte`, `src/lib/components/playlist-panel/`, and `src/lib/stores/library-view-settings.ts` together.
 - Before changing PWA/build or popup-entry behavior, inspect `vite.config.ts`, `src/main.ts`, `options.html`, `src/options/main.ts`, and icon assets together.
 - Prefer extending stores/services over adding more stateful logic to `App.svelte` or leaf components.
 - Do not add backend/network assumptions, cloud dependencies, or server-coupled flows.

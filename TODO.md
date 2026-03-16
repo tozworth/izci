@@ -110,6 +110,7 @@
 
 ### Phase 3: PlaylistPanel split
 
+- Status: done
 - Primary target:
   - `src/lib/components/PlaylistPanel.svelte`
 - Problem:
