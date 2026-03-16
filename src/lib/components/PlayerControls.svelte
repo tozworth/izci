@@ -85,6 +85,7 @@
   });
 
   $: displayTrack = track ?? selectedTrack;
+  $: displayDuration = track ? snapshot.duration : selectedTrack?.metadata?.duration ?? snapshot.duration;
 </script>
 
 <footer class="player-bar">
@@ -125,7 +126,13 @@
         {snapshot.state === 'playing' ? 'pause' : 'play_arrow'}
       </span>
     </button>
-    <button type="button" class="transport-button" aria-label="Next track" on:click={() => dispatch('next')} disabled={!track && !selectedTrack}>
+    <button
+      type="button"
+      class="transport-button transport-button-next"
+      aria-label="Next track"
+      on:click={() => dispatch('next')}
+      disabled={!track && !selectedTrack}
+    >
       <span class="material-symbols-outlined" aria-hidden="true">skip_next</span>
     </button>
   </div>
@@ -135,14 +142,14 @@
     <input
       type="range"
       min="0"
-      max={Math.max(snapshot.duration, 1)}
+      max={Math.max(displayDuration, 1)}
       step="0.01"
       value={snapshot.currentTime}
       disabled={!track || snapshot.duration <= 0}
       on:input={(event) => dispatch('seek', Number((event.currentTarget as HTMLInputElement).value))}
       on:wheel|preventDefault={handleSeekWheel}
     />
-    <span>{formatDuration(snapshot.duration)}</span>
+    <span>{formatDuration(displayDuration)}</span>
   </div>
 
   <!-- svelte-ignore a11y_no_static_element_interactions -->
