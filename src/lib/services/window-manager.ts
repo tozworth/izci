@@ -309,8 +309,6 @@ function buildOptionsMarkup(): string {
 
       .section + .section {
         margin-top: 16px;
-        padding-top: 12px;
-        border-top: 1px solid rgba(168, 153, 132, 0.16);
       }
 
       .section h2 {
@@ -360,41 +358,55 @@ function buildOptionsMarkup(): string {
       .settings-form {
         display: flex;
         flex-direction: column;
-        gap: 14px;
+        gap: 12px;
         margin-top: 12px;
       }
 
       .field-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-        gap: 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 0;
       }
 
       .field {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-        padding: 12px;
-        border-radius: 10px;
-        background: rgba(50, 48, 47, 0.54);
-        border: 1px solid rgba(168, 153, 132, 0.14);
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(180px, auto);
+        align-items: center;
+        gap: 10px;
+        padding: 8px 0;
+        border-bottom: 1px solid rgba(168, 153, 132, 0.14);
       }
 
-      .field-header {
-        display: flex;
-        align-items: baseline;
-        justify-content: space-between;
-        gap: 12px;
+      .field:first-child {
+        border-top: 1px solid rgba(168, 153, 132, 0.14);
+      }
+
+      .field-copy {
+        min-width: 0;
       }
 
       .field-title {
         font-size: 0.96rem;
         font-weight: 600;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
 
-      .field-value {
+      .field-control {
+        display: inline-flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 8px;
+        min-width: 0;
+      }
+
+      .field-output {
+        min-width: 7.5ch;
         color: #fabd2f;
         font-variant-numeric: tabular-nums;
+        text-align: right;
+        white-space: nowrap;
       }
 
       .field input,
@@ -411,15 +423,15 @@ function buildOptionsMarkup(): string {
       }
 
       .field input[type="range"] {
-        width: 100%;
+        width: min(180px, 24vw);
         accent-color: #d79921;
       }
 
       .field select,
       .field button {
-        border-radius: 8px;
+        border-radius: 6px;
         border: 1px solid rgba(168, 153, 132, 0.22);
-        padding: 8px 10px;
+        padding: 4px 8px;
         color: #ebdbb2;
         background: rgba(29, 32, 33, 0.92);
       }
@@ -434,6 +446,7 @@ function buildOptionsMarkup(): string {
 
       .field-hint {
         margin: 0;
+        grid-column: 1 / -1;
         font-size: 0.84rem;
         color: #a89984;
       }
@@ -443,30 +456,30 @@ function buildOptionsMarkup(): string {
       }
 
       .checkbox-field {
-        display: grid;
-        grid-template-columns: 1rem minmax(0, 1fr);
-        align-items: flex-start;
-        column-gap: 12px;
+        grid-template-columns: minmax(0, 1fr) auto;
       }
 
-      .checkbox-field input[type="checkbox"] {
-        flex: none;
-        align-self: flex-start;
-        margin-top: 0.1rem;
+      .field-control-checkbox {
+        justify-content: flex-end;
       }
 
-      .checkbox-copy {
-        display: flex;
-        flex-direction: column;
-        gap: 0.35rem;
-      }
+      @media (max-width: 640px) {
+        .field {
+          grid-template-columns: 1fr;
+          gap: 8px;
+        }
 
-      .checkbox-copy .field-title {
-        display: block;
+        .field-control {
+          justify-content: space-between;
+        }
+
+        .field input[type="range"] {
+          width: 100%;
+        }
       }
     </style>
   </head>
-  <body>
+  <body class="hints-collapsed">
     <header class="window-topbar">
       <div class="window-topbar-title" aria-live="polite">
         <span class="window-topbar-prefix">izci Options</span>
@@ -546,20 +559,23 @@ function buildOptionsMarkup(): string {
               <h2>Rendering</h2>
               <div class="field-grid">
                 <label class="field">
-                  <div class="field-header">
+                  <div class="field-copy">
                     <span class="field-title">Stereo / Pan Separation</span>
-                    <span class="field-value" id="stereo-separation-value">100%</span>
                   </div>
-                  <input id="stereo-separation" name="stereoSeparation" type="range" min="0" max="200" step="1" />
+                  <div class="field-control">
+                    <input id="stereo-separation" name="stereoSeparation" type="range" min="0" max="200" step="1" />
+                    <span class="field-output" id="stereo-separation-value">100%</span>
+                  </div>
                   <p class="field-hint">0% collapses to mono. 100% is the current default. Values above 100% widen the image.</p>
                 </label>
 
                 <label class="field">
-                  <div class="field-header">
-                    <span class="field-title">Interpolation / Smoothing</span>
-                    <span class="field-value" id="interpolation-filter-value">1-tap</span>
+                  <div class="field-copy">
+                    <span class="field-title">Interpolation</span>
                   </div>
-                  <select id="interpolation-filter" name="interpolationFilter">${buildInterpolationOptionsMarkup()}</select>
+                  <div class="field-control">
+                    <select id="interpolation-filter" name="interpolationFilter">${buildInterpolationOptionsMarkup()}</select>
+                  </div>
                   <p class="field-hint" id="interpolation-filter-hint">Minimal smoothing.</p>
                 </label>
               </div>
@@ -569,32 +585,37 @@ function buildOptionsMarkup(): string {
               <h2>Playback</h2>
               <div class="field-grid">
                 <label class="field">
-                  <div class="field-header">
+                  <div class="field-copy">
                     <span class="field-title">Looping</span>
-                    <span class="field-value" id="repeat-count-value">Play once</span>
                   </div>
-                  <select id="repeat-count" name="repeatCount">
-                    <option value="0">Play once</option>
-                    <option value="-1">Loop forever</option>
-                  </select>
+                  <div class="field-control">
+                    <select id="repeat-count" name="repeatCount">
+                      <option value="0">Play once</option>
+                      <option value="-1">Loop forever</option>
+                    </select>
+                  </div>
                   <p class="field-hint">Maps to libopenmpt repeat count.</p>
                 </label>
 
                 <label class="field">
-                  <div class="field-header">
+                  <div class="field-copy">
                     <span class="field-title">Tempo Factor</span>
-                    <span class="field-value" id="tempo-factor-value">100% (1.00x)</span>
                   </div>
-                  <input id="tempo-factor" name="tempoFactor" type="range" min="25" max="400" step="1" />
+                  <div class="field-control">
+                    <input id="tempo-factor" name="tempoFactor" type="range" min="25" max="400" step="1" />
+                    <span class="field-output" id="tempo-factor-value">100% (1.00x)</span>
+                  </div>
                   <p class="field-hint">Adjust playback speed without touching the streamed-audio backend.</p>
                 </label>
 
                 <label class="field">
-                  <div class="field-header">
+                  <div class="field-copy">
                     <span class="field-title">Pitch Factor</span>
-                    <span class="field-value" id="pitch-factor-value">100% (1.00x)</span>
                   </div>
-                  <input id="pitch-factor" name="pitchFactor" type="range" min="25" max="400" step="1" />
+                  <div class="field-control">
+                    <input id="pitch-factor" name="pitchFactor" type="range" min="25" max="400" step="1" />
+                    <span class="field-output" id="pitch-factor-value">100% (1.00x)</span>
+                  </div>
                   <p class="field-hint">Applies libopenmpt pitch scaling to the active module.</p>
                 </label>
               </div>
@@ -608,11 +629,13 @@ function buildOptionsMarkup(): string {
               <h2>Filename Inference</h2>
               <div class="field-grid">
                 <label class="field checkbox-field">
-                  <input id="infer-from-filename" name="inferFromFilename" type="checkbox" />
-                  <div class="checkbox-copy">
+                  <div class="field-copy">
                     <span class="field-title">Infer artist and title from <code>Artist - Title.ext</code></span>
-                    <p class="field-hint">Only fills missing artist/title values. Embedded or decoder-provided metadata still wins.</p>
                   </div>
+                  <div class="field-control field-control-checkbox">
+                    <input id="infer-from-filename" name="inferFromFilename" type="checkbox" />
+                  </div>
+                  <p class="field-hint">Only fills missing artist/title values. Embedded or decoder-provided metadata still wins.</p>
                 </label>
               </div>
             </div>
@@ -657,10 +680,8 @@ function buildOptionsMarkup(): string {
       const stereoSeparationInput = document.getElementById('stereo-separation');
       const stereoSeparationValue = document.getElementById('stereo-separation-value');
       const interpolationFilterInput = document.getElementById('interpolation-filter');
-      const interpolationFilterValue = document.getElementById('interpolation-filter-value');
       const interpolationFilterHint = document.getElementById('interpolation-filter-hint');
       const repeatCountInput = document.getElementById('repeat-count');
-      const repeatCountValue = document.getElementById('repeat-count-value');
       const tempoFactorInput = document.getElementById('tempo-factor');
       const tempoFactorValue = document.getElementById('tempo-factor-value');
       const pitchFactorInput = document.getElementById('pitch-factor');
@@ -681,7 +702,7 @@ function buildOptionsMarkup(): string {
       const metadataBroadcastChannel =
         'BroadcastChannel' in window ? new BroadcastChannel(metadataChannelName) : null;
       let activeViewName = 'modules';
-      let fieldHintsExpanded = true;
+      let fieldHintsExpanded = false;
 
       function clamp(value, min, max) {
         return Math.min(Math.max(value, min), max);
@@ -835,18 +856,12 @@ function buildOptionsMarkup(): string {
         if (interpolationFilterInput) {
           interpolationFilterInput.value = String(settings.interpolationFilter);
         }
-        if (interpolationFilterValue) {
-          interpolationFilterValue.textContent = interpolationOption.label;
-        }
         if (interpolationFilterHint) {
           interpolationFilterHint.textContent = interpolationOption.hint;
         }
 
         if (repeatCountInput) {
           repeatCountInput.value = String(settings.repeatCount);
-        }
-        if (repeatCountValue) {
-          repeatCountValue.textContent = formatRepeatCount(settings.repeatCount);
         }
 
         if (tempoFactorInput) {
