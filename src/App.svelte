@@ -5,15 +5,37 @@
   import TopMenuBar from '$lib/components/TopMenuBar.svelte';
   import TrackDetailsPanel from '$lib/components/TrackDetailsPanel.svelte';
   import { playerController } from '$lib/services/player-controller';
+  import { DEFAULT_PLAYER_VOLUME } from '$lib/stores/player-volume';
   import { windowManager } from '$lib/services/window-manager';
   import { playlistStore } from '$lib/stores/playlist';
   import type { PlaybackSnapshot, PlaylistItem, PlaylistRepeatMode } from '$lib/types';
-  import { buildPlaylistItems, readDirectorySurfaceFiles } from '$lib/utils/files';
+  import { buildPlaylistItems, readDirectorySurfaceFiles, readFileHandleFiles } from '$lib/utils/files';
 
-  type DirectoryPickerWindow = Window &
+  type PickerWindow = Window &
     typeof globalThis & {
       showDirectoryPicker?: () => Promise<FileSystemDirectoryHandle>;
+      showOpenFilePicker?: (options?: OpenFilePickerOptions) => Promise<FileSystemFileHandle[]>;
     };
+
+  const openFilePickerOptions: OpenFilePickerOptions = {
+    multiple: true,
+    types: [
+      {
+        description: 'Supported audio files',
+        accept: {
+          'audio/mpeg': ['.mp3'],
+          'audio/wav': ['.wav'],
+          'audio/flac': ['.flac'],
+          'audio/ogg': ['.ogg', '.opus'],
+          'audio/opus': ['.opus'],
+          'audio/x-mod': ['.mod'],
+          'audio/x-xm': ['.xm'],
+          'audio/x-s3m': ['.s3m'],
+          'audio/x-it': ['.it']
+        }
+      }
+    ]
+  };
 
   const { items, selectedIds, selectedTrack, shuffleEnabled: shuffleStore, repeatMode: repeatStore } = playlistStore;
 
@@ -27,7 +49,7 @@
     state: 'idle',
     currentTime: 0,
     duration: 0,
-    volume: 0.85,
+    volume: DEFAULT_PLAYER_VOLUME,
     backend: null,
     error: undefined
   };
@@ -83,8 +105,15 @@
   }
 
   async function playTrack(track: PlaylistItem) {
-    if (playingTrack?.id !== track.id) {
-      await playerController.load(track);
+    const playableTrack = await playlistStore.ensureLoaded(track.id, { prompt: true });
+
+    if (!playableTrack) {
+      playerController.reportError('Could not access this file. Re-add it or grant file access.');
+      return;
+    }
+
+    if (playingTrack?.id !== playableTrack.id) {
+      await playerController.load(playableTrack);
       playerController.play();
       return;
     }
@@ -129,12 +158,32 @@
     await playTrack(selectedItem);
   }
 
-  function handleMenuOpenFiles() {
-    fileInput?.click();
+  async function handleMenuOpenFiles() {
+    const pickerWindow = typeof window === 'undefined' ? null : (window as PickerWindow);
+
+    if (!pickerWindow?.showOpenFilePicker) {
+      fileInput?.click();
+      return;
+    }
+
+    try {
+      const handles = await pickerWindow.showOpenFilePicker(openFilePickerOptions);
+      const files = await readFileHandleFiles(handles);
+
+      if (files.length > 0) {
+        handleAddFiles(files);
+      }
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') {
+        return;
+      }
+
+      throw error;
+    }
   }
 
   async function handleMenuOpenFolder() {
-    const pickerWindow = typeof window === 'undefined' ? null : (window as DirectoryPickerWindow);
+    const pickerWindow = typeof window === 'undefined' ? null : (window as PickerWindow);
 
     if (!pickerWindow?.showDirectoryPicker) {
       return;
@@ -198,7 +247,7 @@
         break;
       case 'o':
         event.preventDefault();
-        handleMenuOpenFiles();
+        void handleMenuOpenFiles();
         break;
       case 'p':
         event.preventDefault();
@@ -312,7 +361,7 @@
   />
 
   <TopMenuBar
-    on:openFiles={handleMenuOpenFiles}
+    on:openFiles={() => void handleMenuOpenFiles()}
     on:openFolder={() => void handleMenuOpenFolder()}
     on:openOptions={handleOpenOptions}
     on:exit={() => windowManager.exit()}
@@ -347,6 +396,7 @@
           {shuffleEnabled}
           {repeatMode}
           on:addFiles={(event) => handleAddFiles(event.detail)}
+          on:openFiles={() => void handleMenuOpenFiles()}
           on:select={handleSelect}
           on:play={(event) => handlePlay(event.detail)}
           on:remove={handleRemove}
@@ -383,6 +433,7 @@
         {shuffleEnabled}
         {repeatMode}
         on:addFiles={(event) => handleAddFiles(event.detail)}
+        on:openFiles={() => void handleMenuOpenFiles()}
         on:select={handleSelect}
         on:play={(event) => handlePlay(event.detail)}
         on:remove={handleRemove}

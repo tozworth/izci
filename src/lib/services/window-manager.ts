@@ -387,7 +387,6 @@ function buildOptionsMarkup(): string {
 
       .field-title {
         font-size: 0.96rem;
-        font-weight: 600;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
@@ -644,10 +643,8 @@ function buildOptionsMarkup(): string {
 
         <article class="view" data-view-panel="about" data-view-label="About" data-view-parent-label="">
           <div class="section">
-            <h2>Application</h2>
+            <h2>İZCİ</h2>
             <dl class="meta-list">
-              <div class="meta-label">Name</div>
-              <div class="meta-value">izci</div>
               <div class="meta-label">Version</div>
               <div class="meta-value">0.1.0</div>
               <div class="meta-label">Playback</div>

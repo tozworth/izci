@@ -3,6 +3,7 @@ import { HowlerPlayerService } from '$lib/services/howler-player';
 import { ModulePlayerService } from '$lib/services/module-player';
 import { metadataSettings } from '$lib/stores/metadata-settings';
 import { modulePlaybackSettings } from '$lib/stores/module-playback-settings';
+import { DEFAULT_PLAYER_VOLUME, playerVolume } from '$lib/stores/player-volume';
 import type { PlaybackSnapshot, PlaylistItem, TrackMetadata } from '$lib/types';
 import { mergeInferredArtistTitle } from '$lib/utils/files';
 
@@ -10,16 +11,16 @@ const initialSnapshot: PlaybackSnapshot = {
   state: 'idle',
   currentTime: 0,
   duration: 0,
-  volume: 0.85,
+  volume: DEFAULT_PLAYER_VOLUME,
   backend: null
 };
 
 function createPlayerController() {
-  const snapshot = writable<PlaybackSnapshot>(initialSnapshot);
+  let volume = playerVolume.getSnapshot();
+  const snapshot = writable<PlaybackSnapshot>({ ...initialSnapshot, volume });
   const currentTrack = writable<PlaylistItem | null>(null);
 
   let activeTrack: PlaylistItem | null = null;
-  let volume = initialSnapshot.volume;
   let metadataConfig = metadataSettings.getSnapshot();
 
   const onSnapshot = (partial: Partial<PlaybackSnapshot>) => {
@@ -123,6 +124,7 @@ function createPlayerController() {
     setVolume(nextVolume: number) {
       nextVolume = Math.min(Math.max(nextVolume, 0), 1);
       volume = nextVolume;
+      playerVolume.set(nextVolume);
       services.stream.setVolume(nextVolume);
       services.module.setVolume(nextVolume);
       onSnapshot({ volume: nextVolume });
@@ -140,6 +142,12 @@ function createPlayerController() {
         duration: 0,
         backend: null,
         error: undefined
+      });
+    },
+    reportError(message: string) {
+      onSnapshot({
+        state: 'error',
+        error: message
       });
     },
     destroy() {

@@ -26,6 +26,10 @@ export class ModulePlayerService {
   }
 
   async load(track: PlaylistItem): Promise<void> {
+    if (!track.file) {
+      throw new Error('Expected a file for tracker module playback.');
+    }
+
     this.#disposePlayer();
     this.#buffer = null;
     this.#playing = false;

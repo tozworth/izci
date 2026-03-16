@@ -40,7 +40,9 @@ export interface MetadataSettings {
 
 export interface PlaylistItem {
   id: string;
-  file: File;
+  file?: File;
+  fileHandle?: FileSystemFileHandle;
+  path?: string;
   name: string;
   extension: string;
   kind: TrackKind;

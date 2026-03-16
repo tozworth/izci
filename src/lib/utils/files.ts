@@ -31,8 +31,14 @@ interface ChromiumDirectoryReader {
 }
 
 type ChromiumDataTransferItem = DataTransferItem & {
+  getAsFileSystemHandle?: () => Promise<FileSystemHandle | null>;
   webkitGetAsEntry?: () => ChromiumFileSystemEntry | null;
 };
+
+interface ImportedFileSource {
+  fileHandle?: FileSystemFileHandle;
+  path?: string;
+}
 
 const MODULE_TRACKER_NAMES: Record<string, string> = {
   mod: 'SoundTracker compatible',
@@ -46,6 +52,34 @@ const fileNameCollator = new Intl.Collator(undefined, {
   numeric: true,
   sensitivity: 'base'
 });
+const importedFileSources = new WeakMap<File, ImportedFileSource>();
+
+function normalizePath(path: string | undefined): string | undefined {
+  if (!path) {
+    return undefined;
+  }
+
+  return path.replace(/^\/+/, '');
+}
+
+function registerImportedFile(file: File, source: ImportedFileSource): File {
+  const existing = importedFileSources.get(file);
+
+  importedFileSources.set(file, {
+    fileHandle: source.fileHandle ?? existing?.fileHandle,
+    path: normalizePath(source.path) ?? existing?.path
+  });
+
+  return file;
+}
+
+function getImportedFileSource(file: File): ImportedFileSource | undefined {
+  return importedFileSources.get(file);
+}
+
+function createTrackObjectUrl(kind: TrackKind, file: File): string | undefined {
+  return kind === 'stream' ? URL.createObjectURL(file) : undefined;
+}
 
 export function inferExtension(fileName: string): string {
   const parts = fileName.toLowerCase().split('.');
@@ -127,14 +161,18 @@ function createPlaylistItem(file: File): PlaylistItem | null {
     return null;
   }
 
+  const source = getImportedFileSource(file);
+
   return {
     id: crypto.randomUUID(),
     file,
+    fileHandle: source?.fileHandle,
+    path: source?.path,
     name: file.name,
     extension,
     kind,
     size: file.size,
-    objectUrl: kind === 'stream' ? URL.createObjectURL(file) : undefined
+    objectUrl: createTrackObjectUrl(kind, file)
   };
 }
 
@@ -159,6 +197,14 @@ function readFileEntry(entry: ChromiumFileEntry): Promise<File> {
   });
 }
 
+async function readFileHandle(handle: FileSystemFileHandle, path = handle.name): Promise<File> {
+  const file = await handle.getFile();
+  return registerImportedFile(file, {
+    fileHandle: handle,
+    path
+  });
+}
+
 function readDirectoryBatch(reader: ChromiumDirectoryReader): Promise<ChromiumFileSystemEntry[]> {
   return new Promise((resolve, reject) => {
     reader.readEntries(resolve, reject);
@@ -178,7 +224,12 @@ async function readDirectoryEntrySurfaceFiles(entry: ChromiumDirectoryEntry): Pr
 
     for (const child of entries) {
       if (child.isFile) {
-        files.push(await readFileEntry(child as ChromiumFileEntry));
+        const file = await readFileEntry(child as ChromiumFileEntry);
+        files.push(
+          registerImportedFile(file, {
+            path: normalizePath(child.fullPath)
+          })
+        );
       }
     }
   }
@@ -191,23 +242,31 @@ export async function readDirectorySurfaceFiles(handle: FileSystemDirectoryHandl
 
   for await (const entry of handle.values()) {
     if (entry.kind === 'file') {
-      files.push(await (entry as FileSystemFileHandle).getFile());
+      const fileHandle = entry as FileSystemFileHandle;
+      files.push(await readFileHandle(fileHandle, `${handle.name}/${fileHandle.name}`));
     }
   }
 
   return files;
 }
 
+export async function readFileHandleFiles(handles: FileSystemFileHandle[]): Promise<File[]> {
+  return await Promise.all(handles.map((handle) => readFileHandle(handle)));
+}
+
 export async function extractDroppedFiles(dataTransfer: DataTransfer): Promise<File[]> {
   const files: File[] = [];
   const seen = new Set<string>();
 
-  const pushFile = (file: File | null) => {
+  const pushFile = (file: File | null, source: ImportedFileSource = {}) => {
     if (!file) {
       return;
     }
 
-    const key = `${file.name}:${file.size}:${file.lastModified}`;
+    registerImportedFile(file, source);
+
+    const normalizedPath = normalizePath(source.path) ?? getImportedFileSource(file)?.path ?? file.name;
+    const key = `${normalizedPath}:${file.size}:${file.lastModified}`;
 
     if (seen.has(key)) {
       return;
@@ -218,6 +277,23 @@ export async function extractDroppedFiles(dataTransfer: DataTransfer): Promise<F
   };
 
   for (const item of Array.from(dataTransfer.items)) {
+    const handle = await item.getAsFileSystemHandle?.();
+
+    if (handle?.kind === 'file') {
+      pushFile(await readFileHandle(handle as FileSystemFileHandle));
+      continue;
+    }
+
+    if (handle?.kind === 'directory') {
+      const directoryFiles = await readDirectorySurfaceFiles(handle as FileSystemDirectoryHandle);
+
+      for (const file of directoryFiles) {
+        pushFile(file);
+      }
+
+      continue;
+    }
+
     const entry = (item as ChromiumDataTransferItem).webkitGetAsEntry?.();
 
     if (!entry) {
@@ -226,7 +302,9 @@ export async function extractDroppedFiles(dataTransfer: DataTransfer): Promise<F
     }
 
     if (entry.isFile) {
-      pushFile(await readFileEntry(entry as unknown as ChromiumFileEntry));
+      pushFile(await readFileEntry(entry as unknown as ChromiumFileEntry), {
+        path: normalizePath(entry.fullPath)
+      });
       continue;
     }
 

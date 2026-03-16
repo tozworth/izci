@@ -1,7 +1,7 @@
 import { derived, writable } from 'svelte/store';
 import { metadataSettings } from '$lib/stores/metadata-settings';
 import type { PlaylistItem, PlaylistPlaybackOptions, PlaylistRepeatMode, TrackMetadata } from '$lib/types';
-import { mergeInferredArtistTitle } from '$lib/utils/files';
+import { inferExtension, inferKind, mergeInferredArtistTitle } from '$lib/utils/files';
 
 interface PlaylistSelection {
   ids: string[];
@@ -16,16 +16,17 @@ interface SelectOptions {
 
 interface StoredPlaylistItem {
   id: string;
-  file: File;
   name: string;
   extension: string;
   kind: PlaylistItem['kind'];
   size: number;
+  fileHandle?: FileSystemFileHandle;
+  path?: string;
   metadata?: PlaylistItem['metadata'];
 }
 
 interface StoredPlaylistState {
-  items: StoredPlaylistItem[];
+  items?: StoredPlaylistItem[];
   selection: PlaylistSelection;
   playbackOptions?: PlaylistPlaybackOptions;
 }
@@ -50,6 +51,131 @@ type BackgroundDeadline = {
   timeRemaining(): number;
 };
 
+type FileSystemPermissionState = 'granted' | 'denied' | 'prompt';
+
+function isFileSystemFileHandle(value: unknown): value is FileSystemFileHandle {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  const source = value as Partial<FileSystemFileHandle>;
+  return source.kind === 'file' && typeof source.getFile === 'function';
+}
+
+function createObjectUrl(item: Pick<PlaylistItem, 'kind'>, file: File): string | undefined {
+  return item.kind === 'stream' ? URL.createObjectURL(file) : undefined;
+}
+
+function revokeObjectUrl(item: Pick<PlaylistItem, 'objectUrl'>): void {
+  if (item.objectUrl) {
+    URL.revokeObjectURL(item.objectUrl);
+  }
+}
+
+function normalizeStoredItem(value: unknown): StoredPlaylistItem | null {
+  if (!value || typeof value !== 'object') {
+    return null;
+  }
+
+  const source = value as Partial<StoredPlaylistItem> & { file?: unknown };
+
+  if (
+    typeof source.id !== 'string' ||
+    typeof source.name !== 'string' ||
+    typeof source.extension !== 'string' ||
+    (source.kind !== 'stream' && source.kind !== 'module') ||
+    typeof source.size !== 'number'
+  ) {
+    return null;
+  }
+
+  return {
+    id: source.id,
+    name: source.name,
+    extension: source.extension,
+    kind: source.kind,
+    size: source.size,
+    fileHandle: isFileSystemFileHandle(source.fileHandle) ? source.fileHandle : undefined,
+    path: typeof source.path === 'string' ? source.path : undefined,
+    metadata: source.metadata
+  };
+}
+
+function serializeItem(item: PlaylistItem): StoredPlaylistItem | null {
+  if (!item.fileHandle) {
+    return null;
+  }
+
+  return {
+    id: item.id,
+    name: item.name,
+    extension: item.extension,
+    kind: item.kind,
+    size: item.size,
+    fileHandle: item.fileHandle,
+    path: item.path,
+    metadata: item.metadata
+  };
+}
+
+async function queryHandlePermission(handle: FileSystemFileHandle): Promise<FileSystemPermissionState> {
+  if (typeof handle.queryPermission !== 'function') {
+    return 'granted';
+  }
+
+  try {
+    return await handle.queryPermission({ mode: 'read' });
+  } catch {
+    return 'prompt';
+  }
+}
+
+async function requestHandlePermission(handle: FileSystemFileHandle): Promise<FileSystemPermissionState> {
+  if (typeof handle.requestPermission !== 'function') {
+    return 'granted';
+  }
+
+  try {
+    return await handle.requestPermission({ mode: 'read' });
+  } catch {
+    return 'denied';
+  }
+}
+
+async function materializePlaylistItem(item: PlaylistItem, prompt = false): Promise<PlaylistItem | null> {
+  if (item.file && (item.kind !== 'stream' || item.objectUrl)) {
+    return item;
+  }
+
+  if (!item.fileHandle) {
+    return null;
+  }
+
+  const permission = await queryHandlePermission(item.fileHandle);
+
+  if (permission !== 'granted' && (!prompt || (await requestHandlePermission(item.fileHandle)) !== 'granted')) {
+    return null;
+  }
+
+  const file = await item.fileHandle.getFile();
+  const extension = inferExtension(file.name);
+  const kind = inferKind(extension);
+
+  if (!kind) {
+    return null;
+  }
+
+  return {
+    ...item,
+    file,
+    name: file.name,
+    extension,
+    kind,
+    size: file.size,
+    objectUrl: createObjectUrl({ kind }, file)
+  };
+}
+
 function scheduleBackgroundTask(callback: (deadline: BackgroundDeadline) => void): void {
   if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
     window.requestIdleCallback(callback, { timeout: 100 });
@@ -62,36 +188,6 @@ function scheduleBackgroundTask(callback: (deadline: BackgroundDeadline) => void
       timeRemaining: () => 0
     });
   }, 0);
-}
-
-function normalizeStoredItem(value: unknown): PlaylistItem | null {
-  if (!value || typeof value !== 'object') {
-    return null;
-  }
-
-  const source = value as Partial<StoredPlaylistItem>;
-
-  if (
-    typeof source.id !== 'string' ||
-    !(source.file instanceof File) ||
-    typeof source.name !== 'string' ||
-    typeof source.extension !== 'string' ||
-    (source.kind !== 'stream' && source.kind !== 'module') ||
-    typeof source.size !== 'number'
-  ) {
-    return null;
-  }
-
-  return {
-    id: source.id,
-    file: source.file,
-    name: source.name,
-    extension: source.extension,
-    kind: source.kind,
-    size: source.size,
-    metadata: source.metadata,
-    objectUrl: source.kind === 'stream' ? URL.createObjectURL(source.file) : undefined
-  };
 }
 
 function normalizeStoredSelection(value: unknown, itemIds: Set<string>): PlaylistSelection {
@@ -109,18 +205,6 @@ function normalizeStoredSelection(value: unknown, itemIds: Set<string>): Playlis
     ids,
     anchorId,
     focusId
-  };
-}
-
-function serializeItem(item: PlaylistItem): StoredPlaylistItem {
-  return {
-    id: item.id,
-    file: item.file,
-    name: item.name,
-    extension: item.extension,
-    kind: item.kind,
-    size: item.size,
-    metadata: item.metadata
   };
 }
 
@@ -262,6 +346,7 @@ function createPlaylistStore() {
   let playbackOptionsState: PlaylistPlaybackOptions = defaultPlaybackOptions;
   let hydrated = typeof window === 'undefined';
   let persistQueued = false;
+  let shouldCompactStoredState = false;
   const pendingOperations: Array<() => void> = [];
 
   items.subscribe((value) => {
@@ -338,7 +423,7 @@ function createPlaylistStore() {
       persistQueued = false;
 
       void persistStoredState({
-        items: itemList.map(serializeItem),
+        items: itemList.map(serializeItem).filter((item): item is StoredPlaylistItem => item !== null),
         selection: selectionState,
         playbackOptions: playbackOptionsState
       });
@@ -346,9 +431,30 @@ function createPlaylistStore() {
   }
 
   function applyStoredState(state: StoredPlaylistState | null): void {
-    const restoredItems = (state?.items ?? []).map(normalizeStoredItem).filter((item): item is PlaylistItem => item !== null);
+    const storedItems = Array.isArray(state?.items) ? state.items : [];
+    const restoredItems = storedItems
+      .map(normalizeStoredItem)
+      .filter((item): item is StoredPlaylistItem => item !== null)
+      .filter((item) => item.fileHandle)
+      .map(
+        (item): PlaylistItem => ({
+          id: item.id,
+          fileHandle: item.fileHandle,
+          path: item.path,
+          name: item.name,
+          extension: item.extension,
+          kind: item.kind,
+          size: item.size,
+          metadata: item.metadata
+        })
+      );
     const restoredItemIds = new Set(restoredItems.map((item) => item.id));
     const restoredSelection = normalizeStoredSelection(state?.selection, restoredItemIds);
+
+    shouldCompactStoredState =
+      storedItems.length > 0 &&
+      (restoredItems.length !== storedItems.length ||
+        storedItems.some((item) => Boolean(item && typeof item === 'object' && 'file' in (item as object))));
 
     items.set(restoredItems);
     selection.set(restoredSelection);
@@ -387,7 +493,7 @@ function createPlaylistStore() {
           continue;
         }
 
-        if (item.kind === 'stream' && (currentItem.metadata?.duration ?? 0) <= 0) {
+        if (item.kind === 'stream' && item.objectUrl && (currentItem.metadata?.duration ?? 0) <= 0) {
           pendingDurationItem = item;
           break;
         }
@@ -539,6 +645,10 @@ function createPlaylistStore() {
       .finally(() => {
         hydrated = true;
         flushPendingOperations();
+
+        if (shouldCompactStoredState) {
+          queuePersist();
+        }
       });
   }
 
@@ -548,6 +658,40 @@ function createPlaylistStore() {
     selectedTrack,
     shuffleEnabled,
     repeatMode,
+    async ensureLoaded(id: string, options: { prompt?: boolean } = {}) {
+      const item = itemList.find((entry) => entry.id === id);
+
+      if (!item) {
+        return null;
+      }
+
+      const materializedItem = await materializePlaylistItem(item, options.prompt === true);
+
+      if (!materializedItem) {
+        return null;
+      }
+
+      if (materializedItem === item) {
+        return item;
+      }
+
+      items.update((existing) =>
+        existing.map((entry) => {
+          if (entry.id !== id) {
+            return entry;
+          }
+
+          if (entry.objectUrl && entry.objectUrl !== materializedItem.objectUrl) {
+            revokeObjectUrl(entry);
+          }
+
+          return materializedItem;
+        })
+      );
+      queuePersist();
+
+      return materializedItem;
+    },
     add(newItems: PlaylistItem[]) {
       runOrQueue(() => {
         items.update((existing) => [...existing, ...newItems]);
