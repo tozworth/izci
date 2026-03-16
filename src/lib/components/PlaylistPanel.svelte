@@ -31,6 +31,7 @@
     | null = null;
   let contextMenuElement: HTMLDivElement | null = null;
   let dropzoneElement: HTMLDivElement | null = null;
+  let playlistHeaderCovered = false;
 
   function handleInput(event: Event) {
     const input = event.currentTarget as HTMLInputElement;
@@ -166,6 +167,10 @@
     };
   }
 
+  function updatePlaylistHeaderState() {
+    playlistHeaderCovered = (dropzoneElement?.scrollTop ?? 0) > 0;
+  }
+
   if (typeof window !== 'undefined') {
     window.addEventListener('pointerdown', handleWindowPointerDown);
     window.addEventListener('keydown', handleWindowKeydown);
@@ -210,59 +215,63 @@
   $: repeatIcon = repeatMode === 'one' ? 'repeat_one' : 'repeat';
   $: repeatLabel =
     repeatMode === 'one' ? 'Repeat current track' : repeatMode === 'all' ? 'Repeat playlist' : 'Repeat off';
+  $: if (items) {
+    tick().then(() => updatePlaylistHeaderState());
+  }
 </script>
 
 <section class="panel playlist-panel">
-  <div class="panel-header">
-    <div class="panel-heading">
-      {#if !hideEyebrow}
-        <p class="eyebrow">Playlist</p>
-      {/if}
-      <p class="panel-summary">{trackSummary}</p>
-    </div>
-    <div class="playlist-actions">
-      <button
-        type="button"
-        class="playlist-action-button"
-        class:active={shuffleEnabled}
-        aria-label={shuffleEnabled ? 'Disable shuffle' : 'Enable shuffle'}
-        title={shuffleEnabled ? 'Shuffle on' : 'Shuffle off'}
-        on:click={() => dispatch('toggleShuffle')}
-      >
-        <span class="material-symbols-outlined" aria-hidden="true">shuffle</span>
-      </button>
-      <button
-        type="button"
-        class="playlist-action-button"
-        class:active={repeatMode !== 'off'}
-        aria-label={repeatLabel}
-        title={repeatLabel}
-        on:click={() => dispatch('cycleRepeat')}
-      >
-        <span class="material-symbols-outlined" aria-hidden="true">{repeatIcon}</span>
-      </button>
-      <label class="playlist-add-files" aria-label="Add files" title="Add files">
-        <span class="material-symbols-outlined" aria-hidden="true">add</span>
-        <input
-          type="file"
-          multiple
-          accept=".mp3,.wav,.flac,.ogg,.opus,.mod,.xm,.s3m,.it"
-          on:change={handleInput}
-        />
-      </label>
-    </div>
-  </div>
-
   <div
     bind:this={dropzoneElement}
-    class="dropzone"
+    class="dropzone playlist-dropzone"
     role="region"
     aria-label="Playlist dropzone"
     on:dragover|preventDefault
     on:drop={handleDrop}
+    on:scroll={updatePlaylistHeaderState}
   >
+    <div class="panel-header playlist-panel-header" class:is-covered={playlistHeaderCovered}>
+      <div class="panel-heading">
+        {#if !hideEyebrow}
+          <p class="eyebrow">Playlist</p>
+        {/if}
+        <p class="panel-summary">{trackSummary}</p>
+      </div>
+      <div class="playlist-actions">
+        <button
+          type="button"
+          class="playlist-action-button"
+          class:active={shuffleEnabled}
+          aria-label={shuffleEnabled ? 'Disable shuffle' : 'Enable shuffle'}
+          title={shuffleEnabled ? 'Shuffle on' : 'Shuffle off'}
+          on:click={() => dispatch('toggleShuffle')}
+        >
+          <span class="material-symbols-outlined" aria-hidden="true">shuffle</span>
+        </button>
+        <button
+          type="button"
+          class="playlist-action-button"
+          class:active={repeatMode !== 'off'}
+          aria-label={repeatLabel}
+          title={repeatLabel}
+          on:click={() => dispatch('cycleRepeat')}
+        >
+          <span class="material-symbols-outlined" aria-hidden="true">{repeatIcon}</span>
+        </button>
+        <label class="playlist-add-files" aria-label="Add files" title="Add files">
+          <span class="material-symbols-outlined" aria-hidden="true">add</span>
+          <input
+            type="file"
+            multiple
+            accept=".mp3,.wav,.flac,.ogg,.opus,.mod,.xm,.s3m,.it"
+            on:change={handleInput}
+          />
+        </label>
+      </div>
+    </div>
+
     {#if items.length === 0}
-      <div class="empty-state">
+      <div class="empty-state playlist-empty-state">
         <p>Drop local audio, tracker modules, or folders here.</p>
         <p>Supported: MP3, WAV, FLAC, OGG, Opus, MOD, XM, S3M, IT.</p>
       </div>
