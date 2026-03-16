@@ -20,6 +20,7 @@
   import {
     buildPlaylistItems,
     clonePlaylistItems,
+    getTrackDisplayTitle,
     getTrackIdentity,
     readDirectorySurfaceFiles,
     readFileHandleFiles
@@ -132,6 +133,7 @@
   let panelLayout = workspacePanelLayout.getSnapshot();
   let resizeState: PanelResizeState | null = null;
   let wideContentWidth = 0;
+  let documentTitle = 'izci';
 
   const WORKSPACE_RESIZER_WIDTH = 14;
   const WIDE_PANEL_MIN_WIDTHS: Record<WorkspacePanelId, number> = {
@@ -252,6 +254,7 @@
     wideContentWidth = getWideContentWidth();
   }
   $: widePanelWidths = resolveWidePanelWidths(panelLayout, wideContentWidth);
+  $: documentTitle = playingTrack ? getTrackDisplayTitle(playingTrack) : 'izci';
 
   function getCollectionStore(collection: WorkspaceCollection): TrackCollectionStore {
     return collection === 'library' ? libraryStore : playlistStore;
@@ -768,7 +771,7 @@
 </script>
 
 <svelte:head>
-  <title>izci</title>
+  <title>{documentTitle}</title>
 </svelte:head>
 
 <svelte:window
