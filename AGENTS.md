@@ -52,7 +52,7 @@ Working source tree:
 UI only. Keep these focused on rendering and event dispatch.
 
 - `PlayerControls.svelte`: transport controls, seek bar, volume, and currently selected/playing track context.
-- `PlaylistPanel.svelte`: shared panel used for both playlist and library; supports drag/drop import, multi-select, context menus, and library column mode with sort/reorder/resize/visibility state.
+- `PlaylistPanel.svelte`: shared panel used for both playlist and library; supports drag/drop import, multi-select, context menus, and library column mode with sort/reorder/resize/visibility/search state.
 - `TopMenuBar.svelte`: desktop-style File/View menu bar.
 - `TrackDetailsPanel.svelte`: selected-track metadata/details surface.
 
@@ -69,7 +69,7 @@ Primary location for playback and browser-integration logic.
 ### `src/lib/stores/`
 
 - `playlist.ts`: owns both `playlistStore` and `libraryStore`; handles collection state, selection, dedupe, IndexedDB persistence, playback options, metadata updates, file-handle reloading, and next/previous/end-of-track resolution.
-- `library-view-settings.ts`: persistent library table layout state (column order, widths, visibility, sort) with `BroadcastChannel` sync.
+- `library-view-settings.ts`: persistent library table layout and filter state (column order, widths, visibility, sort, search query) with `BroadcastChannel` sync.
 - `module-playback-settings.ts`: persistent tracker playback settings (repeat, stereo/pan, interpolation, tempo, pitch) with sync.
 - `metadata-settings.ts`: persistent metadata behavior settings, currently filename-based artist/title inference.
 - `player-volume.ts`: persistent player volume with sync across windows.
@@ -101,6 +101,7 @@ Primary location for playback and browser-integration logic.
 - The app now has two collections:
   - playlist: ordered playback queue with shuffle/repeat behavior
   - library: persistent deduped catalog with column-based view state
+- Library search/filter query is part of the persistent library view state and syncs across windows with the rest of the library UI settings.
 - `src/App.svelte` is responsible for workspace orchestration, but durable state should still live in stores/services.
 - File import supports multiple sources:
   - plain file input fallback

@@ -46,7 +46,8 @@ const DEFAULT_LIBRARY_VIEW_SETTINGS: LibraryViewSettings = {
   sort: {
     columnId: 'title',
     direction: 'asc'
-  }
+  },
+  searchQuery: ''
 };
 
 let broadcastChannel: BroadcastChannel | null = null;
@@ -89,6 +90,10 @@ function normalizeOrder(order: unknown): LibraryColumnId[] {
 
 function normalizeDirection(value: unknown): SortDirection {
   return value === 'desc' ? 'desc' : 'asc';
+}
+
+function normalizeSearchQuery(value: unknown): string {
+  return typeof value === 'string' ? value : '';
 }
 
 function normalizeSettings(value: unknown): LibraryViewSettings {
@@ -134,7 +139,8 @@ function normalizeSettings(value: unknown): LibraryViewSettings {
     sort: {
       columnId: sortColumnId,
       direction: normalizeDirection(sortSource.direction)
-    }
+    },
+    searchQuery: normalizeSearchQuery(source.searchQuery)
   };
 }
 
@@ -291,6 +297,12 @@ export const libraryViewSettings = {
         order: nextOrder
       };
     });
+  },
+  setSearchQuery(searchQuery: string): LibraryViewSettings {
+    return updateSettings((settings) => ({
+      ...settings,
+      searchQuery: normalizeSearchQuery(searchQuery)
+    }));
   },
   reset(): LibraryViewSettings {
     return setSettings(DEFAULT_LIBRARY_VIEW_SETTINGS);

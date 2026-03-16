@@ -80,6 +80,7 @@ export interface LibraryViewSettings {
   order: LibraryColumnId[];
   columns: Record<LibraryColumnId, LibraryViewColumnState>;
   sort: LibraryViewSortState;
+  searchQuery: string;
 }
 
 export interface PlaybackSnapshot {

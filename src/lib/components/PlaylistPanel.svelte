@@ -14,7 +14,12 @@
     PlaylistRepeatMode,
     PlaylistSelection
   } from '$lib/types';
-  import { extractDroppedFiles, formatDuration, getTrackDisplayTitle } from '$lib/utils/files';
+  import {
+    extractDroppedFiles,
+    formatDuration,
+    getTrackDisplayTitle,
+    resolveModuleTrackerName
+  } from '$lib/utils/files';
 
   export let items: PlaylistItem[] = [];
   export let selectedIds: string[] = [];
@@ -26,6 +31,7 @@
   export let hideEyebrow = false;
   export let showShuffleControl = true;
   export let showRepeatControl = true;
+  export let showSearchControl = false;
   export let shuffleEnabled = false;
   export let repeatMode: PlaylistRepeatMode = 'off';
   export let getContextMenuActions: (ids: string[]) => Array<{ id: string; label: string }> = () => [
@@ -58,8 +64,10 @@
     | null = null;
   let contextMenuElement: HTMLDivElement | null = null;
   let dropzoneElement: HTMLDivElement | null = null;
+  let searchInputElement: HTMLInputElement | null = null;
   let playlistHeaderCovered = false;
   let dropzoneWidth = 0;
+  let searchInputExpanded = false;
   let draggedColumnId: LibraryColumnId | null = null;
   let dropIndicator:
     | {
@@ -79,6 +87,8 @@
   });
   const COLUMN_GAP = 12;
   const TABLE_SIDE_PADDING = 27.2;
+  const EXCLUDED_SEARCH_ROOT_KEYS = new Set(['id', 'file', 'fileHandle', 'objectUrl', 'extension']);
+  const EXCLUDED_METADATA_SEARCH_KEYS = new Set(['duration']);
 
   async function handleDrop(event: DragEvent) {
     event.preventDefault();
@@ -321,6 +331,81 @@
 
   function isRightAlignedColumn(columnId: LibraryColumnId): boolean {
     return columnId === 'format' || columnId === 'duration';
+  }
+
+  function collectSearchValues(value: unknown, excludedKeys: Set<string> | null = null): string[] {
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      return trimmed ? [trimmed] : [];
+    }
+
+    if (typeof value === 'number' || typeof value === 'boolean') {
+      return [String(value)];
+    }
+
+    if (!value) {
+      return [];
+    }
+
+    if (Array.isArray(value)) {
+      return value.flatMap((entry) => collectSearchValues(entry));
+    }
+
+    if (typeof value !== 'object') {
+      return [];
+    }
+
+    return Object.entries(value).flatMap(([key, entry]) => {
+      if (excludedKeys?.has(key)) {
+        return [];
+      }
+
+      if (key === 'metadata' && entry && typeof entry === 'object') {
+        return collectSearchValues(entry, EXCLUDED_METADATA_SEARCH_KEYS);
+      }
+
+      return collectSearchValues(entry);
+    });
+  }
+
+  function matchesSearchQuery(item: PlaylistItem, query: string): boolean {
+    if (!query) {
+      return true;
+    }
+
+    const normalizedQuery = query.toLocaleLowerCase();
+    const searchValues = [
+      ...collectSearchValues(item, EXCLUDED_SEARCH_ROOT_KEYS),
+      resolveModuleTrackerName(item.extension, item.metadata?.trackerType)
+    ];
+
+    return searchValues.some((value) => value.toLocaleLowerCase().includes(normalizedQuery));
+  }
+
+  async function handleSearchToggle() {
+    searchInputExpanded = true;
+    await tick();
+    searchInputElement?.focus();
+    searchInputElement?.select();
+  }
+
+  function handleSearchInput(event: Event) {
+    libraryViewSettings.setSearchQuery((event.currentTarget as HTMLInputElement).value);
+  }
+
+  function handleSearchClose() {
+    searchInputExpanded = false;
+    libraryViewSettings.setSearchQuery('');
+    searchInputElement?.blur();
+  }
+
+  function handleSearchKeydown(event: KeyboardEvent) {
+    if (event.key !== 'Escape') {
+      return;
+    }
+
+    event.stopPropagation();
+    handleSearchClose();
   }
 
   function fitWidthsToAvailableWidth(
@@ -635,12 +720,19 @@
     return `${String(minutes).padStart(2, '0')}:${String(remainingSeconds).padStart(2, '0')}`;
   }
 
-  $: totalDuration = items.reduce((sum, item) => {
+  $: searchQuery = showSearchControl ? $libraryViewSettings.searchQuery : '';
+  $: normalizedSearchQuery = searchQuery.trim().toLocaleLowerCase();
+  $: showSearchInput = showSearchControl && (searchInputExpanded || searchQuery !== '');
+  $: filteredItems = normalizedSearchQuery ? items.filter((item) => matchesSearchQuery(item, normalizedSearchQuery)) : items;
+  $: totalDuration = filteredItems.reduce((sum, item) => {
     const duration = item.metadata?.duration ?? 0;
     return Number.isFinite(duration) && duration > 0 ? sum + duration : sum;
   }, 0);
 
-  $: trackSummary = `${items.length} song${items.length === 1 ? '' : 's'} · ${formatTotalDuration(totalDuration)}`;
+  $: trackSummary =
+    normalizedSearchQuery && filteredItems.length !== items.length
+      ? `${filteredItems.length} of ${items.length} song${items.length === 1 ? '' : 's'} · ${formatTotalDuration(totalDuration)}`
+      : `${filteredItems.length} song${filteredItems.length === 1 ? '' : 's'} · ${formatTotalDuration(totalDuration)}`;
   $: repeatIcon = repeatMode === 'one' ? 'repeat_one' : 'repeat';
   $: repeatLabel =
     repeatMode === 'one' ? 'Repeat current track' : repeatMode === 'all' ? 'Repeat playlist' : 'Repeat off';
@@ -674,10 +766,14 @@
     ...column,
     width: resolvedColumnWidths[column.id] ?? column.width
   }));
-  $: displayItems = layout === 'columns' ? [...items].sort((left, right) => compareItems(left, right, activeSort)) : items;
+  $: displayItems =
+    layout === 'columns' ? [...filteredItems].sort((left, right) => compareItems(left, right, activeSort)) : filteredItems;
   $: tableTemplateColumns = visibleColumns.map((column) => `minmax(${column.width}px, ${column.width}px)`).join(' ');
   $: if (contextMenu?.kind === 'columns' && (layout !== 'columns' || isCompactColumnLayout)) {
     closeContextMenu();
+  }
+  $: if (!showSearchControl) {
+    searchInputExpanded = false;
   }
   $: if (items) {
     tick().then(() => updatePlaylistHeaderState());
@@ -704,6 +800,44 @@
           <p class="panel-summary">{trackSummary}</p>
         </div>
         <div class="playlist-actions">
+          {#if showSearchControl}
+            <button
+              type="button"
+              class="playlist-action-button"
+              class:active={showSearchInput}
+              aria-label="Search library"
+              title="Search library"
+              on:click={() => void handleSearchToggle()}
+            >
+              <span class="material-symbols-outlined" aria-hidden="true">search</span>
+            </button>
+            {#if showSearchInput}
+              <div class="playlist-search-inline">
+                <span class="material-symbols-outlined" aria-hidden="true">search</span>
+                <input
+                  bind:this={searchInputElement}
+                  type="search"
+                  inputmode="search"
+                  spellcheck="false"
+                  autocomplete="off"
+                  placeholder="Filter library"
+                  aria-label="Filter library"
+                  value={searchQuery}
+                  on:input={handleSearchInput}
+                  on:keydown={handleSearchKeydown}
+                />
+                <button
+                  type="button"
+                  class="playlist-search-close"
+                  aria-label="Close library search"
+                  title="Close library search"
+                  on:click={handleSearchClose}
+                >
+                  <span class="material-symbols-outlined" aria-hidden="true">close</span>
+                </button>
+              </div>
+            {/if}
+          {/if}
           {#if showShuffleControl}
             <button
               type="button"
@@ -791,7 +925,7 @@
       {/if}
     </div>
 
-    {#if items.length > 0}
+    {#if displayItems.length > 0}
       {#if layout === 'columns' && !isCompactColumnLayout}
         <div class="track-table" style={`--track-table-columns: ${tableTemplateColumns};`}>
           <ul class="track-list track-table-body">
@@ -846,42 +980,47 @@
         </ul>
       {/if}
 
-      {#if contextMenu?.kind === 'items'}
-        <div
-          bind:this={contextMenuElement}
-          class="playlist-context-menu"
-          role="menu"
-          aria-label={`${panelTitle} item actions`}
-          style={`left: ${contextMenu.x}px; top: ${contextMenu.y}px;`}
-        >
-          {#each contextMenuActions as action}
-            <button type="button" role="menuitem" on:click={() => handleContextAction(action.id)}>
-              {action.label}
-            </button>
-          {/each}
-        </div>
-      {:else if contextMenu?.kind === 'columns'}
-        <div
-          bind:this={contextMenuElement}
-          class="playlist-context-menu"
-          role="menu"
-          aria-label={`${panelTitle} columns`}
-          style={`left: ${contextMenu.x}px; top: ${contextMenu.y}px;`}
-        >
-          {#each orderedColumns as column}
-            <label class="playlist-context-menu-checkbox">
-              <input
-                type="checkbox"
-                checked={column.visible}
-                disabled={column.visible && visibleColumnCount === 1}
-                on:change={(event) =>
-                  handleColumnVisibilityChange(column.id, (event.currentTarget as HTMLInputElement).checked)}
-              />
-              <span>{column.label}</span>
-            </label>
-          {/each}
-        </div>
-      {/if}
+    {:else if items.length > 0 && normalizedSearchQuery}
+      <div class="empty-state playlist-filter-empty">
+        <p>No tracks match "{searchQuery.trim()}".</p>
+      </div>
+    {/if}
+
+    {#if contextMenu?.kind === 'items'}
+      <div
+        bind:this={contextMenuElement}
+        class="playlist-context-menu"
+        role="menu"
+        aria-label={`${panelTitle} item actions`}
+        style={`left: ${contextMenu.x}px; top: ${contextMenu.y}px;`}
+      >
+        {#each contextMenuActions as action}
+          <button type="button" role="menuitem" on:click={() => handleContextAction(action.id)}>
+            {action.label}
+          </button>
+        {/each}
+      </div>
+    {:else if contextMenu?.kind === 'columns'}
+      <div
+        bind:this={contextMenuElement}
+        class="playlist-context-menu"
+        role="menu"
+        aria-label={`${panelTitle} columns`}
+        style={`left: ${contextMenu.x}px; top: ${contextMenu.y}px;`}
+      >
+        {#each orderedColumns as column}
+          <label class="playlist-context-menu-checkbox">
+            <input
+              type="checkbox"
+              checked={column.visible}
+              disabled={column.visible && visibleColumnCount === 1}
+              on:change={(event) =>
+                handleColumnVisibilityChange(column.id, (event.currentTarget as HTMLInputElement).checked)}
+            />
+            <span>{column.label}</span>
+          </label>
+        {/each}
+      </div>
     {/if}
   </div>
 </section>
@@ -912,6 +1051,8 @@
     gap: 0.7rem;
     margin-left: auto;
     flex-shrink: 0;
+    justify-content: flex-end;
+    position: relative;
   }
 
   .playlist-action-button,
@@ -937,6 +1078,87 @@
   .playlist-add-files .material-symbols-outlined {
     font-size: 1.15rem;
     line-height: 1;
+  }
+
+  .playlist-search-inline {
+    position: absolute;
+    right: calc(100% + 0.45rem);
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 2;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.28rem;
+    width: min(10.25rem, calc(100vw - 7rem));
+    padding: 0 0.28rem 0 0.48rem;
+    border: 1px solid rgba(168, 153, 132, 0.16);
+    border-radius: 999px;
+    background: rgba(40, 40, 40, 0.96);
+    box-shadow: var(--shadow);
+    color: var(--muted);
+  }
+
+  .playlist-search-inline:focus-within {
+    border-color: rgba(250, 189, 47, 0.34);
+    color: var(--accent-strong);
+  }
+
+  .playlist-search-inline .material-symbols-outlined {
+    font-size: 0.92rem;
+    line-height: 1;
+  }
+
+  .playlist-search-inline input {
+    width: 100%;
+    min-width: 0;
+    height: 1.72rem;
+    padding: 0;
+    color: var(--text);
+    background: transparent;
+    border: 0;
+    outline: none;
+    font: inherit;
+    font-size: 0.83rem;
+  }
+
+  .playlist-search-inline input::-webkit-search-cancel-button {
+    appearance: none;
+  }
+
+  .playlist-search-inline input::placeholder {
+    color: color-mix(in srgb, var(--muted) 82%, transparent);
+  }
+
+  .playlist-search-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.35rem;
+    height: 1.35rem;
+    padding: 0;
+    color: inherit;
+    background: transparent;
+    border: 0;
+    border-radius: 999px;
+  }
+
+  .playlist-search-close:hover {
+    color: var(--accent-strong);
+    background: rgba(250, 189, 47, 0.08);
+  }
+
+  .playlist-search-close .material-symbols-outlined {
+    font-size: 0.9rem;
+    line-height: 1;
+  }
+
+  .playlist-filter-empty {
+    place-items: center;
+    padding: 1.2rem 0.9rem 1.35rem;
+  }
+
+  .playlist-filter-empty p {
+    margin: 0;
   }
 
   .track-table {
@@ -1108,5 +1330,14 @@
   .playlist-context-menu-checkbox input {
     margin: 0;
     accent-color: var(--accent-strong);
+  }
+
+  @media (max-width: 720px) {
+    .playlist-search-inline {
+      top: calc(100% + 0.3rem);
+      right: 0;
+      transform: none;
+      width: min(10rem, calc(100vw - 3rem));
+    }
   }
 </style>

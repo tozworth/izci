@@ -657,6 +657,7 @@
           hideEyebrow={true}
           showShuffleControl={false}
           showRepeatControl={false}
+          showSearchControl={true}
           getContextMenuActions={getLibraryContextActions}
           on:addFiles={(event) => handleAddFiles(event.detail, 'library')}
           on:openFiles={() => void handleMenuOpenFiles('library')}
@@ -707,6 +708,7 @@
         layout="columns"
         showShuffleControl={false}
         showRepeatControl={false}
+        showSearchControl={true}
         getContextMenuActions={getLibraryContextActions}
         on:addFiles={(event) => handleAddFiles(event.detail, 'library')}
         on:openFiles={() => void handleMenuOpenFiles('library')}
