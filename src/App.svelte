@@ -85,11 +85,17 @@
   async function playTrack(track: PlaylistItem) {
     if (playingTrack?.id !== track.id) {
       await playerController.load(track);
-    } else if (playback.state === 'ended') {
+      playerController.play();
+      return;
+    }
+
+    if (playback.state === 'playing' || playback.state === 'paused' || playback.state === 'ended') {
       playerController.seek(0);
     }
 
-    playerController.play();
+    if (playback.state !== 'playing') {
+      playerController.play();
+    }
   }
 
   function handleSelect(event: CustomEvent<{ id: string; range: boolean; toggle: boolean }>) {
