@@ -66,6 +66,13 @@ export interface PlaylistPlaybackOptions {
   repeatMode: PlaylistRepeatMode;
 }
 
+export interface MenuActionItem {
+  id: string;
+  label: string;
+  icon?: string;
+  shortcut?: string;
+}
+
 export interface LibraryViewColumnState {
   width: number;
   visible: boolean;

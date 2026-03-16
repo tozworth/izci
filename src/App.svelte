@@ -10,6 +10,7 @@
   import { windowManager } from '$lib/services/window-manager';
   import { libraryStore, playlistStore } from '$lib/stores/playlist';
   import type {
+    MenuActionItem,
     PlaybackSnapshot,
     PlaylistItem,
     PlaylistRepeatMode,
@@ -28,7 +29,6 @@
   type WorkspaceTab = WorkspaceCollection | 'details';
   type WorkspacePanelId = 'playlist' | 'library' | 'details';
   type TrackCollectionStore = typeof playlistStore;
-  type ContextMenuAction = { id: string; label: string };
   type PanelResizeState = {
     handle: 'playlist-library' | 'library-details';
     startX: number;
@@ -638,34 +638,40 @@
     cleanupRemovedItems(libraryStore.remove(ids));
   }
 
-  function getPlaylistContextActions(ids: string[]): ContextMenuAction[] {
+  function getPlaylistContextActions(ids: string[]): MenuActionItem[] {
     const tracks = buildSelectedTracks('playlist', ids);
+    const inLibrary = libraryHasAllTracks(tracks);
 
     return [
       {
         id: 'toggle-library',
-        label: libraryHasAllTracks(tracks) ? 'Remove from library' : 'Add to library'
+        label: inLibrary ? 'Remove from library' : 'Add to library',
+        icon: inLibrary ? 'remove_circle' : 'library_add'
       },
       {
         id: 'remove',
-        label: 'Remove'
+        label: 'Remove',
+        icon: 'delete'
       }
     ];
   }
 
-  function getLibraryContextActions(): ContextMenuAction[] {
+  function getLibraryContextActions(): MenuActionItem[] {
     return [
       {
         id: 'add-to-playlist',
-        label: 'Add to playlist'
+        label: 'Add to playlist',
+        icon: 'playlist_add'
       },
       {
         id: 'replace-playlist',
-        label: 'Replace playlist'
+        label: 'Replace playlist',
+        icon: 'playlist_play'
       },
       {
         id: 'remove',
-        label: 'Remove'
+        label: 'Remove',
+        icon: 'delete'
       }
     ];
   }

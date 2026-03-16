@@ -129,7 +129,9 @@ button {
   position: absolute;
   top: calc(100% + 0.35rem);
   left: 0;
+  width: max-content;
   min-width: 12rem;
+  max-width: calc(100vw - 1rem);
   padding: 0.25rem;
   background: rgba(40, 40, 40, 0.985);
   border: 1px solid rgba(168, 153, 132, 0.24);
@@ -148,17 +150,23 @@ button {
   border-radius: 0.5rem;
   color: var(--text);
   text-align: left;
+  white-space: nowrap;
 }
 
 .menu-item-label {
   flex: 1;
   min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .menu-item-shortcut {
+  min-width: 4rem;
   color: var(--muted);
   font-size: 0.8rem;
   letter-spacing: 0.02em;
+  text-align: right;
 }
 
 .menu-item-icon {
@@ -168,6 +176,19 @@ button {
 
 .menu-list button:hover {
   background: var(--accent-soft);
+}
+
+.menu-list button:disabled {
+  color: var(--muted);
+  cursor: default;
+}
+
+.menu-list button:disabled .menu-item-icon {
+  color: inherit;
+}
+
+.menu-list button:disabled:hover {
+  background: transparent;
 }
 
 .menu-brand {
@@ -533,28 +554,6 @@ button {
 
 .playlist-context-menu {
   position: absolute;
-  min-width: 10rem;
-  padding: 0.35rem;
-  background: rgba(40, 40, 40, 0.985);
-  border: 1px solid rgba(168, 153, 132, 0.24);
-  border-radius: 0.6rem;
-  box-shadow: var(--shadow);
-  z-index: 60;
-}
-
-.playlist-context-menu button {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  padding: 0.6rem 0.7rem;
-  background: transparent;
-  border-radius: 0.45rem;
-  color: var(--text);
-  text-align: left;
-}
-
-.playlist-context-menu button:hover {
-  background: var(--accent-soft);
 }
 
 .add-files {

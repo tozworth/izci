@@ -10,6 +10,7 @@
   import type {
     LibraryColumnId,
     LibraryViewSortState,
+    MenuActionItem,
     PlaylistItem,
     PlaylistRepeatMode,
     PlaylistSelection
@@ -35,8 +36,8 @@
   export let showSearchControl = false;
   export let shuffleEnabled = false;
   export let repeatMode: PlaylistRepeatMode = 'off';
-  export let getContextMenuActions: (ids: string[]) => Array<{ id: string; label: string }> = () => [
-    { id: 'remove', label: 'Remove' }
+  export let getContextMenuActions: (ids: string[]) => MenuActionItem[] = () => [
+    { id: 'remove', label: 'Remove', icon: 'delete' }
   ];
 
   const dispatch = createEventDispatcher<{
@@ -90,6 +91,25 @@
   const TABLE_SIDE_PADDING = 27.2;
   const EXCLUDED_SEARCH_ROOT_KEYS = new Set(['id', 'file', 'fileHandle', 'objectUrl', 'extension']);
   const EXCLUDED_METADATA_SEARCH_KEYS = new Set(['duration']);
+
+  function portal(node: HTMLElement) {
+    if (typeof document === 'undefined') {
+      return {
+        destroy() {}
+      };
+    }
+
+    const host = document.body;
+    host.appendChild(node);
+
+    return {
+      destroy() {
+        if (node.parentNode === host) {
+          host.removeChild(node);
+        }
+      }
+    };
+  }
 
   async function handleDrop(event: DragEvent) {
     event.preventDefault();
@@ -200,12 +220,7 @@
   async function handleItemContextMenu(event: MouseEvent, id: string) {
     event.preventDefault();
 
-    if (!dropzoneElement) {
-      return;
-    }
-
     const itemIsSelected = selectedIds.includes(id);
-    const bounds = dropzoneElement.getBoundingClientRect();
 
     if (!itemIsSelected) {
       if (layout === 'columns') {
@@ -225,8 +240,8 @@
 
     contextMenu = {
       kind: 'items',
-      x: event.clientX - bounds.left + dropzoneElement.scrollLeft,
-      y: event.clientY - bounds.top + dropzoneElement.scrollTop,
+      x: event.clientX,
+      y: event.clientY,
       ids: itemIsSelected ? selectedIds : [id]
     };
 
@@ -235,16 +250,15 @@
   }
 
   async function handleColumnContextMenu(event: MouseEvent) {
-    if (layout !== 'columns' || isCompactColumnLayout || !dropzoneElement) {
+    if (layout !== 'columns' || isCompactColumnLayout) {
       return;
     }
 
     event.preventDefault();
-    const bounds = dropzoneElement.getBoundingClientRect();
     contextMenu = {
       kind: 'columns',
-      x: event.clientX - bounds.left + dropzoneElement.scrollLeft,
-      y: event.clientY - bounds.top + dropzoneElement.scrollTop
+      x: event.clientX,
+      y: event.clientY
     };
 
     await tick();
@@ -284,15 +298,15 @@
   }
 
   function clampContextMenu() {
-    if (!contextMenu || !contextMenuElement || !dropzoneElement) {
+    if (!contextMenu || !contextMenuElement || typeof window === 'undefined') {
       return;
     }
 
     const padding = 8;
-    const minX = dropzoneElement.scrollLeft + padding;
-    const minY = dropzoneElement.scrollTop + padding;
-    const maxX = dropzoneElement.scrollLeft + dropzoneElement.clientWidth - contextMenuElement.offsetWidth - padding;
-    const maxY = dropzoneElement.scrollTop + dropzoneElement.clientHeight - contextMenuElement.offsetHeight - padding;
+    const minX = padding;
+    const minY = padding;
+    const maxX = Math.max(padding, window.innerWidth - contextMenuElement.offsetWidth - padding);
+    const maxY = Math.max(padding, window.innerHeight - contextMenuElement.offsetHeight - padding);
 
     contextMenu = {
       ...contextMenu,
@@ -314,6 +328,15 @@
       actionId,
       ids: contextMenu.ids
     });
+    closeContextMenu();
+  }
+
+  function handleColumnContextAction(columnId: LibraryColumnId, visible: boolean) {
+    if (visible && visibleColumnCount === 1) {
+      return;
+    }
+
+    handleColumnVisibilityChange(columnId, !visible);
     closeContextMenu();
   }
 
@@ -990,36 +1013,43 @@
     {#if contextMenu?.kind === 'items'}
       <div
         bind:this={contextMenuElement}
-        class="playlist-context-menu"
+        class="menu-list playlist-context-menu"
+        use:portal
         role="menu"
         aria-label={`${panelTitle} item actions`}
         style={`left: ${contextMenu.x}px; top: ${contextMenu.y}px;`}
       >
         {#each contextMenuActions as action}
           <button type="button" role="menuitem" on:click={() => handleContextAction(action.id)}>
-            {action.label}
+            <span class="material-symbols-outlined menu-item-icon" aria-hidden="true">{action.icon ?? 'label'}</span>
+            <span class="menu-item-label">{action.label}</span>
+            <span class="menu-item-shortcut" aria-hidden="true">{action.shortcut ?? ''}</span>
           </button>
         {/each}
       </div>
     {:else if contextMenu?.kind === 'columns'}
       <div
         bind:this={contextMenuElement}
-        class="playlist-context-menu"
+        class="menu-list playlist-context-menu"
+        use:portal
         role="menu"
         aria-label={`${panelTitle} columns`}
         style={`left: ${contextMenu.x}px; top: ${contextMenu.y}px;`}
       >
         {#each orderedColumns as column}
-          <label class="playlist-context-menu-checkbox">
-            <input
-              type="checkbox"
-              checked={column.visible}
-              disabled={column.visible && visibleColumnCount === 1}
-              on:change={(event) =>
-                handleColumnVisibilityChange(column.id, (event.currentTarget as HTMLInputElement).checked)}
-            />
-            <span>{column.label}</span>
-          </label>
+          <button
+            type="button"
+            role="menuitemcheckbox"
+            aria-checked={column.visible}
+            disabled={column.visible && visibleColumnCount === 1}
+            on:click={() => handleColumnContextAction(column.id, column.visible)}
+          >
+            <span class="material-symbols-outlined menu-item-icon" aria-hidden="true">
+              {column.visible ? 'check_box' : 'check_box_outline_blank'}
+            </span>
+            <span class="menu-item-label">{column.label}</span>
+            <span class="menu-item-shortcut" aria-hidden="true"></span>
+          </button>
         {/each}
       </div>
     {/if}
@@ -1320,23 +1350,9 @@
     color: inherit;
   }
 
-  .playlist-context-menu-checkbox {
-    display: flex;
-    align-items: center;
-    gap: 0.55rem;
-    padding: 0.55rem 0.7rem;
-    border-radius: 0.45rem;
-    cursor: pointer;
-    color: var(--text);
-  }
-
-  .playlist-context-menu-checkbox:hover {
-    background: var(--accent-soft);
-  }
-
-  .playlist-context-menu-checkbox input {
-    margin: 0;
-    accent-color: var(--accent-strong);
+  .playlist-context-menu {
+    position: fixed;
+    z-index: 60;
   }
 
   @media (max-width: 720px) {
