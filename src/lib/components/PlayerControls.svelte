@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { createEventDispatcher } from 'svelte';
+  import { createEventDispatcher, onMount } from 'svelte';
   import { formatDuration, getTrackDisplaySubtitle, getTrackDisplayTitle } from '$lib/utils/files';
   import type { PlaybackSnapshot, PlaylistItem } from '$lib/types';
 
@@ -16,6 +16,13 @@
     seek: number;
     volume: number;
   }>();
+
+  const COMPACT_VOLUME_QUERY = '(max-width: 349px)';
+  const COMPACT_VOLUME_OPEN_DELAY_MS = 120;
+
+  let isCompactVolume = false;
+  let isVolumePopupOpen = false;
+  let volumePopupTimer: ReturnType<typeof window.setTimeout> | null = null;
 
   function clamp(value: number, min: number, max: number): number {
     return Math.min(Math.max(value, min), max);
@@ -35,6 +42,47 @@
     const delta = event.deltaY < 0 ? 1 : -1;
     dispatch('volume', clamp(snapshot.volume + delta * 0.05, 0, 1));
   }
+
+  function clearVolumePopupTimer() {
+    if (volumePopupTimer !== null) {
+      window.clearTimeout(volumePopupTimer);
+      volumePopupTimer = null;
+    }
+  }
+
+  function openVolumePopup() {
+    if (!isCompactVolume) {
+      return;
+    }
+
+    clearVolumePopupTimer();
+    volumePopupTimer = window.setTimeout(() => {
+      isVolumePopupOpen = true;
+      volumePopupTimer = null;
+    }, COMPACT_VOLUME_OPEN_DELAY_MS);
+  }
+
+  function closeVolumePopup() {
+    clearVolumePopupTimer();
+    isVolumePopupOpen = false;
+  }
+
+  onMount(() => {
+    const mediaQuery = window.matchMedia(COMPACT_VOLUME_QUERY);
+
+    const syncCompactVolume = () => {
+      isCompactVolume = mediaQuery.matches;
+      closeVolumePopup();
+    };
+
+    syncCompactVolume();
+    mediaQuery.addEventListener('change', syncCompactVolume);
+
+    return () => {
+      closeVolumePopup();
+      mediaQuery.removeEventListener('change', syncCompactVolume);
+    };
+  });
 
   $: displayTrack = track ?? selectedTrack;
 </script>
@@ -91,19 +139,34 @@
     <span>{formatDuration(snapshot.duration)}</span>
   </div>
 
-  <label class="volume">
-    <span class="volume-label">
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <div class="volume" data-popup-open={isCompactVolume && isVolumePopupOpen ? 'true' : 'false'} on:mouseleave={closeVolumePopup}>
+    <button
+      type="button"
+      class="volume-label"
+      aria-label="Volume"
+      aria-expanded={isCompactVolume ? isVolumePopupOpen : undefined}
+      on:mouseenter={openVolumePopup}
+      on:focus={openVolumePopup}
+      on:blur={closeVolumePopup}
+    >
       <span class="material-symbols-outlined" aria-hidden="true">volume_up</span>
       <span class="sr-only">Volume</span>
-    </span>
-    <input
-      type="range"
-      min="0"
-      max="1"
-      step="0.01"
-      value={snapshot.volume}
-      on:input={(event) => dispatch('volume', Number((event.currentTarget as HTMLInputElement).value))}
-      on:wheel|preventDefault={handleVolumeWheel}
-    />
-  </label>
+    </button>
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div class="volume-popup" on:mouseenter={openVolumePopup}>
+      <div class="volume-popup-track">
+        <input
+          aria-label="Volume"
+          type="range"
+          min="0"
+          max="1"
+          step="0.01"
+          value={snapshot.volume}
+          on:input={(event) => dispatch('volume', Number((event.currentTarget as HTMLInputElement).value))}
+          on:wheel|preventDefault={handleVolumeWheel}
+        />
+      </div>
+    </div>
+  </div>
 </footer>

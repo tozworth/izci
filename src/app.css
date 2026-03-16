@@ -1,6 +1,8 @@
 :root {
   color-scheme: dark;
   font-family: "Space Grotesk", "Segoe UI", sans-serif;
+  --player-bar-reserve: calc(6.5rem + env(safe-area-inset-bottom, 0px));
+  --player-bar-reserve-tabbed: calc(4.8rem + env(safe-area-inset-bottom, 0px));
   --bg: #282828;
   --menu-bar-bg: #1c1d1e;
   --bg-elevated: rgba(50, 48, 47, 0.94);
@@ -67,12 +69,12 @@ button {
   grid-template-rows: auto minmax(0, 1fr) auto auto;
   gap: 0.75rem;
   padding: 0;
-  padding-bottom: calc(6.5rem + env(safe-area-inset-bottom, 0px));
+  padding-bottom: var(--player-bar-reserve);
   overflow: hidden;
 }
 
 .app-shell.tabbed-layout {
-  padding-bottom: 0;
+  padding-bottom: var(--player-bar-reserve-tabbed);
 }
 
 .menu-bar {
@@ -260,7 +262,6 @@ button {
   box-shadow: none;
 }
 
-.workspace-tabs-layout .playlist-dropzone,
 .workspace-tabs-layout .canvas-placeholder,
 .workspace-tabs-layout .empty-state {
   padding-bottom: calc(7rem + env(safe-area-inset-bottom, 0px));
@@ -657,6 +658,7 @@ button {
   min-width: 8rem;
   align-self: stretch;
   padding-left: 0.25rem;
+  position: relative;
 }
 
 .volume-label {
@@ -665,7 +667,11 @@ button {
   justify-content: center;
   align-self: center;
   min-width: 1.75rem;
+  padding: 0;
+  border: 0;
+  background: transparent;
   color: var(--text);
+  cursor: default;
 }
 
 .volume-label .material-symbols-outlined {
@@ -693,5 +699,81 @@ input[type='range'] {
       'track actions'
       'range volume';
     max-height: none;
+  }
+}
+
+@media (max-width: 349px) {
+  .player-bar {
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-areas:
+      'track actions actions'
+      'range range volume';
+    column-gap: 0.35rem;
+  }
+
+  .player-range {
+    grid-template-columns: minmax(2.8rem, auto) 1fr minmax(2.8rem, auto);
+  }
+
+  .volume {
+    grid-template-columns: auto;
+    min-width: auto;
+    align-self: end;
+    justify-self: end;
+    padding-left: 0;
+    overflow: visible;
+  }
+
+  .volume-popup {
+    display: none;
+  }
+
+  .volume[data-popup-open='true'] .volume-popup {
+    position: absolute;
+    left: 50%;
+    bottom: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 3rem;
+    height: 8.75rem;
+    padding: 0.7rem 0 0.35rem;
+    border: 0;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+    transform: translateX(-50%);
+    z-index: 1;
+  }
+
+  .volume-popup-track {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.4rem;
+    height: 7.7rem;
+    border-radius: 0.7rem;
+    background: rgba(28, 29, 30, 0.82);
+  }
+
+  .volume-popup input[type='range'] {
+    width: 1rem;
+    height: 7rem;
+    writing-mode: vertical-lr;
+    direction: rtl;
+    cursor: default;
+  }
+}
+
+@media (min-width: 350px) {
+  .volume-popup {
+    display: contents;
+    visibility: visible;
+    pointer-events: auto;
+  }
+
+  .volume-popup input[type='range'] {
+    width: 100%;
+    background: transparent;
   }
 }
