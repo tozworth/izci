@@ -5,6 +5,7 @@
   export let track: PlaylistItem | null = null;
   export let hideEyebrow = false;
   export let isTabbedLayout = false;
+  export let fillParent = false;
 
   $: title = track?.metadata?.title?.trim() || '';
   $: showTrackSection = title.length > 0;
@@ -25,7 +26,7 @@
       : '';
 </script>
 
-<section class="panel details-panel">
+<section class="panel details-panel" class:fill-parent={fillParent}>
   <div class="panel-header">
     {#if !hideEyebrow}
       <p class="eyebrow">Track Details</p>
@@ -79,6 +80,12 @@
 </section>
 
 <style>
+  .details-panel.fill-parent {
+    width: 100%;
+    min-width: 0;
+    height: 100%;
+  }
+
   .details-content {
     display: grid;
     align-content: start;

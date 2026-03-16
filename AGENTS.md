@@ -43,7 +43,7 @@ Working source tree:
 ## App source map
 
 - `src/main.ts`: Svelte mount, global CSS/material symbol import, production-only service worker registration.
-- `src/App.svelte`: top-level shell; manages playlist/library workspace, file and folder import flows, playback actions, context actions, responsive tabbed layout, and error banner wiring.
+- `src/App.svelte`: top-level shell; manages playlist/library workspace, file and folder import flows, playback actions, context actions, responsive tabbed layout, wide-mode panel resizing, and error banner wiring.
 - `src/app.css`: global styling.
 - `src/vite-env.d.ts`: Vite ambient types.
 
@@ -73,6 +73,7 @@ Primary location for playback and browser-integration logic.
 - `module-playback-settings.ts`: persistent tracker playback settings (repeat, stereo/pan, interpolation, tempo, pitch) with sync.
 - `metadata-settings.ts`: persistent metadata behavior settings, currently filename-based artist/title inference.
 - `player-volume.ts`: persistent player volume with sync across windows.
+- `workspace-panel-layout.ts`: persistent wide-layout workspace panel fractions for playlist/library/details resizing, with sync.
 
 ### `src/lib/utils/`
 
@@ -102,6 +103,7 @@ Primary location for playback and browser-integration logic.
   - playlist: ordered playback queue with shuffle/repeat behavior
   - library: persistent deduped catalog with column-based view state
 - Library search/filter query is part of the persistent library view state and syncs across windows with the rest of the library UI settings.
+- Wide-mode workspace panel widths are persisted in `localStorage` and sync across windows; tabbed mode ignores those widths.
 - `src/App.svelte` is responsible for workspace orchestration, but durable state should still live in stores/services.
 - File import supports multiple sources:
   - plain file input fallback

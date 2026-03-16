@@ -28,6 +28,7 @@
   export let panelTitle = 'Playlist';
   export let regionLabel = 'Playlist';
   export let layout: 'list' | 'columns' = 'list';
+  export let fillParent = false;
   export let hideEyebrow = false;
   export let showShuffleControl = true;
   export let showRepeatControl = true;
@@ -780,7 +781,7 @@
   }
 </script>
 
-<section class="panel playlist-panel">
+<section class="panel playlist-panel" class:fill-parent={fillParent}>
   <div
     bind:this={dropzoneElement}
     bind:clientWidth={dropzoneWidth}
@@ -1026,6 +1027,12 @@
 </section>
 
 <style>
+  .playlist-panel.fill-parent {
+    width: 100%;
+    min-width: 0;
+    height: 100%;
+  }
+
   .playlist-panel-header {
     display: flex;
     flex-direction: column;

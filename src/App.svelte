@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
+  import { workspacePanelLayout } from '$lib/stores/workspace-panel-layout';
   import PlayerControls from '$lib/components/PlayerControls.svelte';
   import PlaylistPanel from '$lib/components/PlaylistPanel.svelte';
   import TopMenuBar from '$lib/components/TopMenuBar.svelte';
@@ -8,7 +9,13 @@
   import { DEFAULT_PLAYER_VOLUME } from '$lib/stores/player-volume';
   import { windowManager } from '$lib/services/window-manager';
   import { libraryStore, playlistStore } from '$lib/stores/playlist';
-  import type { PlaybackSnapshot, PlaylistItem, PlaylistRepeatMode, PlaylistSelection } from '$lib/types';
+  import type {
+    PlaybackSnapshot,
+    PlaylistItem,
+    PlaylistRepeatMode,
+    PlaylistSelection,
+    WorkspacePanelLayoutSettings
+  } from '$lib/types';
   import {
     buildPlaylistItems,
     clonePlaylistItems,
@@ -19,8 +26,14 @@
 
   type WorkspaceCollection = 'playlist' | 'library';
   type WorkspaceTab = WorkspaceCollection | 'details';
+  type WorkspacePanelId = 'playlist' | 'library' | 'details';
   type TrackCollectionStore = typeof playlistStore;
   type ContextMenuAction = { id: string; label: string };
+  type PanelResizeState = {
+    handle: 'playlist-library' | 'library-details';
+    startX: number;
+    startLayout: WorkspacePanelLayoutSettings;
+  };
   type PickerWindow = Window &
     typeof globalThis & {
       showDirectoryPicker?: () => Promise<FileSystemDirectoryHandle>;
@@ -110,11 +123,23 @@
   const unsubscribePlayback = playerController.snapshot.subscribe((value) => (playback = value));
 
   let fileInput: HTMLInputElement | null = null;
+  let workspaceElement: HTMLElement | null = null;
   let innerWidth = 0;
   let activeCollection: WorkspaceCollection = 'playlist';
   let activeWorkspaceTab: WorkspaceTab = 'playlist';
   let pendingFileInputTarget: WorkspaceCollection = 'playlist';
   let previousPlaybackState: PlaybackSnapshot['state'] = playback.state;
+  let panelLayout = workspacePanelLayout.getSnapshot();
+  let resizeState: PanelResizeState | null = null;
+  let wideContentWidth = 0;
+
+  const WORKSPACE_RESIZER_WIDTH = 14;
+  const WIDE_PANEL_MIN_WIDTHS: Record<WorkspacePanelId, number> = {
+    playlist: 260,
+    library: 320,
+    details: 240
+  };
+  let widePanelWidths = resolveWidePanelWidths(panelLayout, wideContentWidth);
   $: isTabbedLayout = innerWidth <= 1000;
   $: selectedItem = activeCollection === 'library' ? selectedLibraryItem : selectedPlaylistItem;
 
@@ -123,6 +148,110 @@
     { id: 'library', icon: 'library_music', label: 'Library' },
     { id: 'details', icon: 'info', label: 'Details' }
   ] as const;
+  const unsubscribeWorkspacePanelLayout = workspacePanelLayout.subscribe((value) => (panelLayout = value));
+
+  function clamp(value: number, min: number, max: number): number {
+    return Math.min(Math.max(value, min), max);
+  }
+
+  function getWideContentWidth(): number {
+    const viewportWidth =
+      innerWidth > 0 ? innerWidth : typeof window !== 'undefined' ? window.innerWidth : 0;
+    const horizontalPadding = 24;
+    return Math.max(viewportWidth - horizontalPadding - WORKSPACE_RESIZER_WIDTH * 2, 0);
+  }
+
+  function resolveWidePanelWidths(
+    layout: WorkspacePanelLayoutSettings,
+    contentWidth: number
+  ): Record<WorkspacePanelId, number> {
+    const playlistMin = WIDE_PANEL_MIN_WIDTHS.playlist;
+    const libraryMin = WIDE_PANEL_MIN_WIDTHS.library;
+    const detailsMin = WIDE_PANEL_MIN_WIDTHS.details;
+
+    if (contentWidth <= 0) {
+      return {
+        playlist: playlistMin,
+        library: libraryMin,
+        details: detailsMin
+      };
+    }
+
+    if (contentWidth <= playlistMin + libraryMin + detailsMin) {
+      const scale = contentWidth / (playlistMin + libraryMin + detailsMin);
+      return {
+        playlist: playlistMin * scale,
+        library: libraryMin * scale,
+        details: detailsMin * scale
+      };
+    }
+
+    let playlist = layout.playlistFraction * contentWidth;
+    let library = layout.libraryFraction * contentWidth;
+    let details = layout.detailsFraction * contentWidth;
+
+    if (playlist < playlistMin) {
+      const delta = playlistMin - playlist;
+      playlist = playlistMin;
+      const availableReduction = Math.max(library - libraryMin, 0) + Math.max(details - detailsMin, 0);
+
+      if (availableReduction > 0) {
+        const libraryShare = Math.max(library - libraryMin, 0) / availableReduction;
+        library -= delta * libraryShare;
+        details -= delta * (1 - libraryShare);
+      }
+    }
+
+    if (library < libraryMin) {
+      const delta = libraryMin - library;
+      library = libraryMin;
+      const availableReduction = Math.max(playlist - playlistMin, 0) + Math.max(details - detailsMin, 0);
+
+      if (availableReduction > 0) {
+        const playlistShare = Math.max(playlist - playlistMin, 0) / availableReduction;
+        playlist -= delta * playlistShare;
+        details -= delta * (1 - playlistShare);
+      }
+    }
+
+    if (details < detailsMin) {
+      const delta = detailsMin - details;
+      details = detailsMin;
+      const availableReduction = Math.max(playlist - playlistMin, 0) + Math.max(library - libraryMin, 0);
+
+      if (availableReduction > 0) {
+        const playlistShare = Math.max(playlist - playlistMin, 0) / availableReduction;
+        playlist -= delta * playlistShare;
+        library -= delta * (1 - playlistShare);
+      }
+    }
+
+    const total = playlist + library + details;
+    const correction = contentWidth - total;
+    library += correction;
+
+    return { playlist, library, details };
+  }
+
+  function persistWidePanelWidths(widths: Record<WorkspacePanelId, number>) {
+    const total = widths.playlist + widths.library + widths.details;
+
+    if (total <= 0) {
+      return;
+    }
+
+    workspacePanelLayout.set({
+      playlistFraction: widths.playlist / total,
+      libraryFraction: widths.library / total,
+      detailsFraction: widths.details / total
+    });
+  }
+
+  $: {
+    innerWidth;
+    wideContentWidth = getWideContentWidth();
+  }
+  $: widePanelWidths = resolveWidePanelWidths(panelLayout, wideContentWidth);
 
   function getCollectionStore(collection: WorkspaceCollection): TrackCollectionStore {
     return collection === 'library' ? libraryStore : playlistStore;
@@ -260,6 +389,69 @@
     activeCollection = 'playlist';
     playlistStore.select(playlistTrack.id);
     await playTrack(playlistTrack);
+  }
+
+  function beginPanelResize(event: PointerEvent, handle: PanelResizeState['handle']) {
+    if (isTabbedLayout || !workspaceElement) {
+      return;
+    }
+
+    event.preventDefault();
+    resizeState = {
+      handle,
+      startX: event.clientX,
+      startLayout: panelLayout
+    };
+  }
+
+  function handlePanelResizeMove(event: PointerEvent) {
+    if (!resizeState || isTabbedLayout) {
+      return;
+    }
+
+    const delta = event.clientX - resizeState.startX;
+    const startWidths = resolveWidePanelWidths(resizeState.startLayout, wideContentWidth);
+
+    if (resizeState.handle === 'playlist-library') {
+      const nextPlaylist = clamp(
+        startWidths.playlist + delta,
+        WIDE_PANEL_MIN_WIDTHS.playlist,
+        startWidths.playlist + startWidths.library - WIDE_PANEL_MIN_WIDTHS.library
+      );
+      persistWidePanelWidths({
+        ...startWidths,
+        playlist: nextPlaylist,
+        library: startWidths.playlist + startWidths.library - nextPlaylist
+      });
+      return;
+    }
+
+    const nextLibrary = clamp(
+      startWidths.library + delta,
+      WIDE_PANEL_MIN_WIDTHS.library,
+      startWidths.library + startWidths.details - WIDE_PANEL_MIN_WIDTHS.details
+    );
+    persistWidePanelWidths({
+      ...startWidths,
+      library: nextLibrary,
+      details: startWidths.library + startWidths.details - nextLibrary
+    });
+  }
+
+  function endPanelResize() {
+    if (!resizeState) {
+      return;
+    }
+
+    resizeState = null;
+  }
+
+  function persistCurrentWideLayout() {
+    if (isTabbedLayout) {
+      return;
+    }
+
+    workspacePanelLayout.set(panelLayout);
   }
 
   async function handleTogglePlayback() {
@@ -564,6 +756,7 @@
     unsubscribeRepeat();
     unsubscribeTrack();
     unsubscribePlayback();
+    unsubscribeWorkspacePanelLayout();
     playerController.destroy();
   });
 </script>
@@ -572,7 +765,19 @@
   <title>izci</title>
 </svelte:head>
 
-<svelte:window bind:innerWidth on:keydown={handleWindowKeydown} />
+<svelte:window
+  bind:innerWidth
+  on:keydown={handleWindowKeydown}
+  on:pointermove={handlePanelResizeMove}
+  on:pointerup={() => {
+    persistCurrentWideLayout();
+    endPanelResize();
+  }}
+  on:pointercancel={() => {
+    persistCurrentWideLayout();
+    endPanelResize();
+  }}
+/>
 
 <div class="app-shell" class:tabbed-layout={isTabbedLayout}>
   <input
@@ -679,46 +884,89 @@
       </div>
     </main>
   {:else}
-    <main class="workspace">
-      <PlaylistPanel
-        items={playlistItems}
-        selectedIds={playlistSelectionIds}
-        playingId={playingTrack?.id ?? null}
-        panelTitle="Playlist"
-        regionLabel="Playlist"
-        {shuffleEnabled}
-        {repeatMode}
-        getContextMenuActions={getPlaylistContextActions}
-        on:addFiles={(event) => handleAddFiles(event.detail, 'playlist')}
-        on:openFiles={() => void handleMenuOpenFiles('playlist')}
-        on:select={(event) => handleSelect('playlist', event)}
-        on:activate={(event) => void handlePlaylistActivate(event.detail)}
-        on:contextAction={handlePlaylistContextAction}
-        on:toggleShuffle={() => playlistStore.toggleShuffle()}
-        on:cycleRepeat={() => playlistStore.cycleRepeatMode()}
-      />
+    <main
+      bind:this={workspaceElement}
+      class="workspace workspace-resizable"
+      class:is-resizing={Boolean(resizeState)}
+    >
+      <div
+        class="workspace-panel"
+        style={`flex: 0 0 ${widePanelWidths.playlist}px; width: ${widePanelWidths.playlist}px;`}
+      >
+        <PlaylistPanel
+          items={playlistItems}
+          selectedIds={playlistSelectionIds}
+          playingId={playingTrack?.id ?? null}
+          panelTitle="Playlist"
+          regionLabel="Playlist"
+          fillParent={true}
+          {shuffleEnabled}
+          {repeatMode}
+          getContextMenuActions={getPlaylistContextActions}
+          on:addFiles={(event) => handleAddFiles(event.detail, 'playlist')}
+          on:openFiles={() => void handleMenuOpenFiles('playlist')}
+          on:select={(event) => handleSelect('playlist', event)}
+          on:activate={(event) => void handlePlaylistActivate(event.detail)}
+          on:contextAction={handlePlaylistContextAction}
+          on:toggleShuffle={() => playlistStore.toggleShuffle()}
+          on:cycleRepeat={() => playlistStore.cycleRepeatMode()}
+        />
+      </div>
 
-      <PlaylistPanel
-        items={libraryItems}
-        selectedIds={librarySelectionIds}
-        selectionAnchorId={librarySelectionAnchorId}
-        playingId={null}
-        panelTitle="Library"
-        regionLabel="Library"
-        layout="columns"
-        showShuffleControl={false}
-        showRepeatControl={false}
-        showSearchControl={true}
-        getContextMenuActions={getLibraryContextActions}
-        on:addFiles={(event) => handleAddFiles(event.detail, 'library')}
-        on:openFiles={() => void handleMenuOpenFiles('library')}
-        on:select={(event) => handleSelect('library', event)}
-        on:setSelection={(event) => handleSetSelection('library', event)}
-        on:activate={(event) => void handleLibraryActivate(event.detail)}
-        on:contextAction={handleLibraryContextAction}
-      />
+      <div
+        class="workspace-resizer"
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="Resize playlist and library panels"
+        style={`width: ${WORKSPACE_RESIZER_WIDTH}px;`}
+        on:pointerdown={(event) => beginPanelResize(event, 'playlist-library')}
+      >
+        <span class="workspace-resizer-handle" aria-hidden="true"></span>
+      </div>
 
-      <TrackDetailsPanel track={selectedItem} />
+      <div
+        class="workspace-panel"
+        style={`flex: 0 0 ${widePanelWidths.library}px; width: ${widePanelWidths.library}px;`}
+      >
+        <PlaylistPanel
+          items={libraryItems}
+          selectedIds={librarySelectionIds}
+          selectionAnchorId={librarySelectionAnchorId}
+          playingId={null}
+          panelTitle="Library"
+          regionLabel="Library"
+          layout="columns"
+          fillParent={true}
+          showShuffleControl={false}
+          showRepeatControl={false}
+          showSearchControl={true}
+          getContextMenuActions={getLibraryContextActions}
+          on:addFiles={(event) => handleAddFiles(event.detail, 'library')}
+          on:openFiles={() => void handleMenuOpenFiles('library')}
+          on:select={(event) => handleSelect('library', event)}
+          on:setSelection={(event) => handleSetSelection('library', event)}
+          on:activate={(event) => void handleLibraryActivate(event.detail)}
+          on:contextAction={handleLibraryContextAction}
+        />
+      </div>
+
+      <div
+        class="workspace-resizer"
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="Resize library and details panels"
+        style={`width: ${WORKSPACE_RESIZER_WIDTH}px;`}
+        on:pointerdown={(event) => beginPanelResize(event, 'library-details')}
+      >
+        <span class="workspace-resizer-handle" aria-hidden="true"></span>
+      </div>
+
+      <div
+        class="workspace-panel"
+        style={`flex: 0 0 ${widePanelWidths.details}px; width: ${widePanelWidths.details}px;`}
+      >
+        <TrackDetailsPanel track={selectedItem} fillParent={true} />
+      </div>
     </main>
   {/if}
 

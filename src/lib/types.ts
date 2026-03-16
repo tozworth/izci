@@ -83,6 +83,12 @@ export interface LibraryViewSettings {
   searchQuery: string;
 }
 
+export interface WorkspacePanelLayoutSettings {
+  playlistFraction: number;
+  libraryFraction: number;
+  detailsFraction: number;
+}
+
 export interface PlaybackSnapshot {
   state: PlaybackState;
   currentTime: number;
