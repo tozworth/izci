@@ -70,6 +70,7 @@
   let contextMenu: PlaylistPanelContextMenu | null = null;
   let contextMenuElement: HTMLDivElement | null = null;
   let dropzoneElement: HTMLDivElement | null = null;
+  let headerElement: HTMLDivElement | null = null;
   let searchInputElement: HTMLInputElement | null = null;
   let playlistHeaderCovered = false;
   let dropzoneWidth = 0;
@@ -82,6 +83,10 @@
   let resizeStartX = 0;
   let resizeStartWidths: LibraryColumnWidths = {};
   let lastHandledJumpToken = 0;
+
+  function clamp(value: number, min: number, max: number): number {
+    return Math.min(Math.max(value, min), max);
+  }
 
   async function handleDrop(event: DragEvent) {
     event.preventDefault();
@@ -339,8 +344,18 @@
     }
 
     const row = dropzoneElement.querySelector<HTMLElement>(`[data-track-id="${CSS.escape(id)}"]`);
-    row?.scrollIntoView({
-      block: 'nearest'
+
+    if (!row) {
+      return;
+    }
+
+    const headerHeight = headerElement?.offsetHeight ?? 0;
+    const visibleHeight = Math.max(dropzoneElement.clientHeight - headerHeight, row.offsetHeight);
+    const rowTop = row.offsetTop;
+    const centeredTop = rowTop - headerHeight - (visibleHeight - row.offsetHeight) / 2;
+    const maxScrollTop = Math.max(dropzoneElement.scrollHeight - dropzoneElement.clientHeight, 0);
+    dropzoneElement.scrollTo({
+      top: clamp(centeredTop, 0, maxScrollTop)
     });
   }
 
@@ -411,7 +426,7 @@
     on:drop={handleDrop}
     on:scroll={updatePlaylistHeaderState}
   >
-    <div class="panel-header playlist-panel-header" class:is-covered={playlistHeaderCovered}>
+    <div bind:this={headerElement} class="panel-header playlist-panel-header" class:is-covered={playlistHeaderCovered}>
       <PlaylistPanelHeader
         bind:searchInputElement={searchInputElement}
         {panelTitle}
