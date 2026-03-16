@@ -2,23 +2,29 @@
   import { createEventDispatcher } from 'svelte';
   import { onDestroy } from 'svelte';
   import { tick } from 'svelte';
-  import type { PlaylistRepeatMode } from '$lib/types';
+  import type { PlaylistItem, PlaylistRepeatMode } from '$lib/types';
   import { extractDroppedFiles, formatDuration, getTrackDisplayTitle } from '$lib/utils/files';
-  import type { PlaylistItem } from '$lib/types';
 
   export let items: PlaylistItem[] = [];
   export let selectedIds: string[] = [];
   export let playingId: string | null = null;
+  export let panelTitle = 'Playlist';
+  export let regionLabel = 'Playlist';
   export let hideEyebrow = false;
+  export let showShuffleControl = true;
+  export let showRepeatControl = true;
   export let shuffleEnabled = false;
   export let repeatMode: PlaylistRepeatMode = 'off';
+  export let getContextMenuActions: (ids: string[]) => Array<{ id: string; label: string }> = () => [
+    { id: 'remove', label: 'Remove' }
+  ];
 
   const dispatch = createEventDispatcher<{
     addFiles: FileList | File[];
     openFiles: void;
     select: { id: string; range: boolean; toggle: boolean };
-    play: string;
-    remove: string[];
+    activate: string;
+    contextAction: { actionId: string; ids: string[] };
     toggleShuffle: void;
     cycleRepeat: void;
   }>();
@@ -75,7 +81,7 @@
   }
 
   function handleItemDoubleClick(id: string) {
-    dispatch('play', id);
+    dispatch('activate', id);
   }
 
   function closeContextMenu() {
@@ -108,15 +114,6 @@
 
     await tick();
     clampContextMenu();
-  }
-
-  function handleRemoveSelection() {
-    if (!contextMenu) {
-      return;
-    }
-
-    dispatch('remove', contextMenu.ids);
-    closeContextMenu();
   }
 
   function handleWindowPointerDown(event: PointerEvent) {
@@ -159,6 +156,18 @@
 
   function updatePlaylistHeaderState() {
     playlistHeaderCovered = (dropzoneElement?.scrollTop ?? 0) > 0;
+  }
+
+  function handleContextAction(actionId: string) {
+    if (!contextMenu) {
+      return;
+    }
+
+    dispatch('contextAction', {
+      actionId,
+      ids: contextMenu.ids
+    });
+    closeContextMenu();
   }
 
   if (typeof window !== 'undefined') {
@@ -205,6 +214,7 @@
   $: repeatIcon = repeatMode === 'one' ? 'repeat_one' : 'repeat';
   $: repeatLabel =
     repeatMode === 'one' ? 'Repeat current track' : repeatMode === 'all' ? 'Repeat playlist' : 'Repeat off';
+  $: contextMenuActions = contextMenu ? getContextMenuActions(contextMenu.ids) : [];
   $: if (items) {
     tick().then(() => updatePlaylistHeaderState());
   }
@@ -215,7 +225,7 @@
     bind:this={dropzoneElement}
     class="dropzone playlist-dropzone"
     role="region"
-    aria-label="Playlist dropzone"
+    aria-label={`${regionLabel} list`}
     on:dragover|preventDefault
     on:drop={handleDrop}
     on:scroll={updatePlaylistHeaderState}
@@ -223,31 +233,35 @@
     <div class="panel-header playlist-panel-header" class:is-covered={playlistHeaderCovered}>
       <div class="panel-heading">
         {#if !hideEyebrow}
-          <p class="eyebrow">Playlist</p>
+          <p class="eyebrow">{panelTitle}</p>
         {/if}
         <p class="panel-summary">{trackSummary}</p>
       </div>
       <div class="playlist-actions">
-        <button
-          type="button"
-          class="playlist-action-button"
-          class:active={shuffleEnabled}
-          aria-label={shuffleEnabled ? 'Disable shuffle' : 'Enable shuffle'}
-          title={shuffleEnabled ? 'Shuffle on' : 'Shuffle off'}
-          on:click={() => dispatch('toggleShuffle')}
-        >
-          <span class="material-symbols-outlined" aria-hidden="true">shuffle</span>
-        </button>
-        <button
-          type="button"
-          class="playlist-action-button"
-          class:active={repeatMode !== 'off'}
-          aria-label={repeatLabel}
-          title={repeatLabel}
-          on:click={() => dispatch('cycleRepeat')}
-        >
-          <span class="material-symbols-outlined" aria-hidden="true">{repeatIcon}</span>
-        </button>
+        {#if showShuffleControl}
+          <button
+            type="button"
+            class="playlist-action-button"
+            class:active={shuffleEnabled}
+            aria-label={shuffleEnabled ? 'Disable shuffle' : 'Enable shuffle'}
+            title={shuffleEnabled ? 'Shuffle on' : 'Shuffle off'}
+            on:click={() => dispatch('toggleShuffle')}
+          >
+            <span class="material-symbols-outlined" aria-hidden="true">shuffle</span>
+          </button>
+        {/if}
+        {#if showRepeatControl}
+          <button
+            type="button"
+            class="playlist-action-button"
+            class:active={repeatMode !== 'off'}
+            aria-label={repeatLabel}
+            title={repeatLabel}
+            on:click={() => dispatch('cycleRepeat')}
+          >
+            <span class="material-symbols-outlined" aria-hidden="true">{repeatIcon}</span>
+          </button>
+        {/if}
         <button
           type="button"
           class="playlist-add-files"
@@ -290,10 +304,14 @@
           bind:this={contextMenuElement}
           class="playlist-context-menu"
           role="menu"
-          aria-label="Playlist item actions"
+          aria-label={`${panelTitle} item actions`}
           style={`left: ${contextMenu.x}px; top: ${contextMenu.y}px;`}
         >
-          <button type="button" role="menuitem" on:click={handleRemoveSelection}>Remove</button>
+          {#each contextMenuActions as action}
+            <button type="button" role="menuitem" on:click={() => handleContextAction(action.id)}>
+              {action.label}
+            </button>
+          {/each}
         </div>
       {/if}
     {/if}

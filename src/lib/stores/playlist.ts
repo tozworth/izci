@@ -1,7 +1,7 @@
 import { derived, writable } from 'svelte/store';
 import { metadataSettings } from '$lib/stores/metadata-settings';
 import type { PlaylistItem, PlaylistPlaybackOptions, PlaylistRepeatMode, TrackMetadata } from '$lib/types';
-import { inferExtension, inferKind, mergeInferredArtistTitle } from '$lib/utils/files';
+import { getTrackIdentity, inferExtension, inferKind, mergeInferredArtistTitle } from '$lib/utils/files';
 
 interface PlaylistSelection {
   ids: string[];
@@ -20,6 +20,7 @@ interface StoredPlaylistItem {
   extension: string;
   kind: PlaylistItem['kind'];
   size: number;
+  lastModified: number;
   fileHandle?: FileSystemFileHandle;
   path?: string;
   metadata?: PlaylistItem['metadata'];
@@ -31,25 +32,30 @@ interface StoredPlaylistState {
   playbackOptions?: PlaylistPlaybackOptions;
 }
 
+interface BackgroundDeadline {
+  didTimeout: boolean;
+  timeRemaining(): number;
+}
+
+interface TrackCollectionStoreConfig {
+  dbName: string;
+  dedupe: boolean;
+}
+
 const emptySelection: PlaylistSelection = {
   ids: [],
   anchorId: null,
   focusId: null
 };
+
 const defaultPlaybackOptions: PlaylistPlaybackOptions = {
   shuffle: false,
   repeatMode: 'off'
 };
 
-const PLAYLIST_DB_NAME = 'izci-playlist';
 const PLAYLIST_DB_VERSION = 1;
 const PLAYLIST_STORE_NAME = 'playlist';
 const PLAYLIST_STATE_KEY = 'state';
-
-type BackgroundDeadline = {
-  didTimeout: boolean;
-  timeRemaining(): number;
-};
 
 type FileSystemPermissionState = 'granted' | 'denied' | 'prompt';
 
@@ -95,6 +101,7 @@ function normalizeStoredItem(value: unknown): StoredPlaylistItem | null {
     extension: source.extension,
     kind: source.kind,
     size: source.size,
+    lastModified: typeof source.lastModified === 'number' ? source.lastModified : 0,
     fileHandle: isFileSystemFileHandle(source.fileHandle) ? source.fileHandle : undefined,
     path: typeof source.path === 'string' ? source.path : undefined,
     metadata: source.metadata
@@ -112,6 +119,7 @@ function serializeItem(item: PlaylistItem): StoredPlaylistItem | null {
     extension: item.extension,
     kind: item.kind,
     size: item.size,
+    lastModified: item.lastModified,
     fileHandle: item.fileHandle,
     path: item.path,
     metadata: item.metadata
@@ -172,6 +180,7 @@ async function materializePlaylistItem(item: PlaylistItem, prompt = false): Prom
     extension,
     kind,
     size: file.size,
+    lastModified: file.lastModified,
     objectUrl: createObjectUrl({ kind }, file)
   };
 }
@@ -258,13 +267,13 @@ function normalizePlaybackOptions(value: unknown): PlaylistPlaybackOptions {
   };
 }
 
-async function openPlaylistDatabase(): Promise<IDBDatabase | null> {
+async function openPlaylistDatabase(dbName: string): Promise<IDBDatabase | null> {
   if (typeof window === 'undefined' || !('indexedDB' in window)) {
     return null;
   }
 
   return await new Promise((resolve) => {
-    const request = window.indexedDB.open(PLAYLIST_DB_NAME, PLAYLIST_DB_VERSION);
+    const request = window.indexedDB.open(dbName, PLAYLIST_DB_VERSION);
 
     request.onupgradeneeded = () => {
       const database = request.result;
@@ -279,8 +288,8 @@ async function openPlaylistDatabase(): Promise<IDBDatabase | null> {
   });
 }
 
-async function readStoredState(): Promise<StoredPlaylistState | null> {
-  const database = await openPlaylistDatabase();
+async function readStoredState(dbName: string): Promise<StoredPlaylistState | null> {
+  const database = await openPlaylistDatabase(dbName);
 
   if (!database) {
     return null;
@@ -308,8 +317,8 @@ async function readStoredState(): Promise<StoredPlaylistState | null> {
   });
 }
 
-async function persistStoredState(state: StoredPlaylistState): Promise<void> {
-  const database = await openPlaylistDatabase();
+async function persistStoredState(dbName: string, state: StoredPlaylistState): Promise<void> {
+  const database = await openPlaylistDatabase(dbName);
 
   if (!database) {
     return;
@@ -336,7 +345,7 @@ async function persistStoredState(state: StoredPlaylistState): Promise<void> {
   });
 }
 
-function createPlaylistStore() {
+function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
   const items = writable<PlaylistItem[]>([]);
   const selection = writable<PlaylistSelection>(emptySelection);
   const playbackOptions = writable<PlaylistPlaybackOptions>(defaultPlaybackOptions);
@@ -356,6 +365,7 @@ function createPlaylistStore() {
   selection.subscribe((value) => {
     selectionState = value;
   });
+
   playbackOptions.subscribe((value) => {
     playbackOptionsState = value;
   });
@@ -422,7 +432,7 @@ function createPlaylistStore() {
     queueMicrotask(() => {
       persistQueued = false;
 
-      void persistStoredState({
+      void persistStoredState(config.dbName, {
         items: itemList.map(serializeItem).filter((item): item is StoredPlaylistItem => item !== null),
         selection: selectionState,
         playbackOptions: playbackOptionsState
@@ -430,9 +440,42 @@ function createPlaylistStore() {
     });
   }
 
+  function splitUniqueItems(sourceItems: PlaylistItem[], existingItems: PlaylistItem[] = []): {
+    uniqueItems: PlaylistItem[];
+    duplicateItems: PlaylistItem[];
+  } {
+    if (!config.dedupe) {
+      return {
+        uniqueItems: [...sourceItems],
+        duplicateItems: []
+      };
+    }
+
+    const seen = new Set(existingItems.map((item) => getTrackIdentity(item)));
+    const uniqueItems: PlaylistItem[] = [];
+    const duplicateItems: PlaylistItem[] = [];
+
+    for (const item of sourceItems) {
+      const key = getTrackIdentity(item);
+
+      if (seen.has(key)) {
+        duplicateItems.push(item);
+        continue;
+      }
+
+      seen.add(key);
+      uniqueItems.push(item);
+    }
+
+    return {
+      uniqueItems,
+      duplicateItems
+    };
+  }
+
   function applyStoredState(state: StoredPlaylistState | null): void {
     const storedItems = Array.isArray(state?.items) ? state.items : [];
-    const restoredItems = storedItems
+    const normalizedItems = storedItems
       .map(normalizeStoredItem)
       .filter((item): item is StoredPlaylistItem => item !== null)
       .filter((item) => item.fileHandle)
@@ -445,18 +488,21 @@ function createPlaylistStore() {
           extension: item.extension,
           kind: item.kind,
           size: item.size,
+          lastModified: item.lastModified,
           metadata: item.metadata
         })
       );
-    const restoredItemIds = new Set(restoredItems.map((item) => item.id));
+
+    const { uniqueItems } = splitUniqueItems(normalizedItems);
+    const restoredItemIds = new Set(uniqueItems.map((item) => item.id));
     const restoredSelection = normalizeStoredSelection(state?.selection, restoredItemIds);
 
     shouldCompactStoredState =
       storedItems.length > 0 &&
-      (restoredItems.length !== storedItems.length ||
+      (uniqueItems.length !== storedItems.length ||
         storedItems.some((item) => Boolean(item && typeof item === 'object' && 'file' in (item as object))));
 
-    items.set(restoredItems);
+    items.set(uniqueItems);
     selection.set(restoredSelection);
     playbackOptions.set(normalizePlaybackOptions(state?.playbackOptions));
   }
@@ -620,17 +666,18 @@ function createPlaylistStore() {
     }
   }
 
-  function runOrQueue(operation: () => void): void {
+  function runOrQueue(operation: () => void): boolean {
     if (!hydrated) {
       pendingOperations.push(operation);
-      return;
+      return false;
     }
 
     operation();
+    return true;
   }
 
   if (typeof window !== 'undefined') {
-    void readStoredState()
+    void readStoredState(config.dbName)
       .then((state) => {
         applyStoredState(state);
         scheduleMetadataParsing(itemList);
@@ -686,12 +733,58 @@ function createPlaylistStore() {
       return materializedItem;
     },
     add(newItems: PlaylistItem[]) {
-      runOrQueue(() => {
-        items.update((existing) => [...existing, ...newItems]);
+      let addedItems: PlaylistItem[] = [];
+
+      const executed = runOrQueue(() => {
+        const { uniqueItems, duplicateItems } = splitUniqueItems(newItems, itemList);
+
+        for (const item of duplicateItems) {
+          revokeObjectUrl(item);
+        }
+
+        addedItems = uniqueItems;
+
+        if (uniqueItems.length === 0) {
+          return;
+        }
+
+        items.update((existing) => [...existing, ...uniqueItems]);
         selection.update((value) => normalizeSelection(value));
-        scheduleMetadataParsing(newItems);
+        scheduleMetadataParsing(uniqueItems);
         queuePersist();
       });
+
+      return executed ? addedItems : [];
+    },
+    replaceAll(newItems: PlaylistItem[]) {
+      let removedItems: PlaylistItem[] = [];
+      let addedItems: PlaylistItem[] = [];
+
+      const executed = runOrQueue(() => {
+        removedItems = [...itemList];
+
+        const { uniqueItems, duplicateItems } = splitUniqueItems(newItems);
+
+        for (const item of duplicateItems) {
+          revokeObjectUrl(item);
+        }
+
+        addedItems = uniqueItems;
+        items.set(uniqueItems);
+        selection.set(emptySelection);
+        scheduleMetadataParsing(uniqueItems);
+        queuePersist();
+      });
+
+      return executed
+        ? {
+            removedItems,
+            addedItems
+          }
+        : {
+            removedItems: [],
+            addedItems: []
+          };
     },
     select(id: string, options: SelectOptions = {}) {
       const { range = false, toggle = false } = options;
@@ -751,11 +844,7 @@ function createPlaylistStore() {
       });
     },
     remove(ids: string[]) {
-      if (ids.length === 0) {
-        return [];
-      }
-
-      if (!hydrated) {
+      if (ids.length === 0 || !hydrated) {
         return [];
       }
 
@@ -847,4 +936,12 @@ function createPlaylistStore() {
   };
 }
 
-export const playlistStore = createPlaylistStore();
+export const playlistStore = createTrackCollectionStore({
+  dbName: 'izci-playlist',
+  dedupe: false
+});
+
+export const libraryStore = createTrackCollectionStore({
+  dbName: 'izci-library',
+  dedupe: true
+});

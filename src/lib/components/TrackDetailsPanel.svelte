@@ -73,7 +73,7 @@
   {:else}
     <div class="empty-state align-start" class:tabbed-layout={isTabbedLayout}>
       <p>Select a track to inspect it.</p>
-      <p>The center area is intentionally reserved for a future visualization or workspace surface.</p>
+      <p>Playlist and library selections both surface their metadata here.</p>
     </div>
   {/if}
 </section>

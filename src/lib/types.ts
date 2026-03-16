@@ -48,6 +48,7 @@ export interface PlaylistItem {
   extension: string;
   kind: TrackKind;
   size: number;
+  lastModified: number;
   objectUrl?: string;
   metadata?: TrackMetadata;
 }

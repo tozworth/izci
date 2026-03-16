@@ -62,6 +62,17 @@ function normalizePath(path: string | undefined): string | undefined {
   return path.replace(/^\/+/, '');
 }
 
+function cloneTrackMetadata(metadata: TrackMetadata | undefined): TrackMetadata | undefined {
+  if (!metadata) {
+    return undefined;
+  }
+
+  return {
+    ...metadata,
+    subsongNames: metadata.subsongNames ? [...metadata.subsongNames] : undefined
+  };
+}
+
 function registerImportedFile(file: File, source: ImportedFileSource): File {
   const existing = importedFileSources.get(file);
 
@@ -172,6 +183,7 @@ function createPlaylistItem(file: File): PlaylistItem | null {
     extension,
     kind,
     size: file.size,
+    lastModified: file.lastModified,
     objectUrl: createTrackObjectUrl(kind, file)
   };
 }
@@ -331,6 +343,29 @@ export async function extractDroppedFiles(dataTransfer: DataTransfer): Promise<F
 export function getTrackDisplayTitle(item: PlaylistItem | null): string {
   const title = item?.metadata?.title?.trim();
   return title || (item ? stripFileExtension(item.name) : '');
+}
+
+export function getTrackIdentity(item: Pick<PlaylistItem, 'path' | 'name' | 'size' | 'lastModified'>): string {
+  const normalizedPath = normalizePath(item.path)?.toLowerCase();
+
+  if (normalizedPath) {
+    return `path:${normalizedPath}`;
+  }
+
+  return `file:${item.name.toLowerCase()}:${item.size}:${item.lastModified}`;
+}
+
+export function clonePlaylistItem(item: PlaylistItem): PlaylistItem {
+  return {
+    ...item,
+    id: crypto.randomUUID(),
+    objectUrl: item.file ? createTrackObjectUrl(item.kind, item.file) : undefined,
+    metadata: cloneTrackMetadata(item.metadata)
+  };
+}
+
+export function clonePlaylistItems(items: PlaylistItem[]): PlaylistItem[] {
+  return items.map(clonePlaylistItem);
 }
 
 export function getTrackDisplaySubtitle(item: PlaylistItem | null): string {

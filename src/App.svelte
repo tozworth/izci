@@ -7,10 +7,20 @@
   import { playerController } from '$lib/services/player-controller';
   import { DEFAULT_PLAYER_VOLUME } from '$lib/stores/player-volume';
   import { windowManager } from '$lib/services/window-manager';
-  import { playlistStore } from '$lib/stores/playlist';
+  import { libraryStore, playlistStore } from '$lib/stores/playlist';
   import type { PlaybackSnapshot, PlaylistItem, PlaylistRepeatMode } from '$lib/types';
-  import { buildPlaylistItems, readDirectorySurfaceFiles, readFileHandleFiles } from '$lib/utils/files';
+  import {
+    buildPlaylistItems,
+    clonePlaylistItems,
+    getTrackIdentity,
+    readDirectorySurfaceFiles,
+    readFileHandleFiles
+  } from '$lib/utils/files';
 
+  type WorkspaceCollection = 'playlist' | 'library';
+  type WorkspaceTab = WorkspaceCollection | 'details';
+  type TrackCollectionStore = typeof playlistStore;
+  type ContextMenuAction = { id: string; label: string };
   type PickerWindow = Window &
     typeof globalThis & {
       showDirectoryPicker?: () => Promise<FileSystemDirectoryHandle>;
@@ -37,10 +47,25 @@
     ]
   };
 
-  const { items, selectedIds, selectedTrack, shuffleEnabled: shuffleStore, repeatMode: repeatStore } = playlistStore;
+  const {
+    items: playlistItemsStore,
+    selectedIds: playlistSelectedIdsStore,
+    selectedTrack: playlistSelectedTrackStore,
+    shuffleEnabled: shuffleStore,
+    repeatMode: repeatStore
+  } = playlistStore;
+  const {
+    items: libraryItemsStore,
+    selectedIds: librarySelectedIdsStore,
+    selectedTrack: librarySelectedTrackStore
+  } = libraryStore;
 
   let playlistItems: PlaylistItem[] = [];
-  let selectionIds: string[] = [];
+  let libraryItems: PlaylistItem[] = [];
+  let playlistSelectionIds: string[] = [];
+  let librarySelectionIds: string[] = [];
+  let selectedPlaylistItem: PlaylistItem | null = null;
+  let selectedLibraryItem: PlaylistItem | null = null;
   let selectedItem: PlaylistItem | null = null;
   let playingTrack: PlaylistItem | null = null;
   let shuffleEnabled = false;
@@ -54,53 +79,117 @@
     error: undefined
   };
 
-  const unsubscribeItems = items.subscribe((value) => (playlistItems = value));
-  const unsubscribeSelectedIds = selectedIds.subscribe((value) => (selectionIds = value));
-  const unsubscribeSelectedTrack = selectedTrack.subscribe((value) => (selectedItem = value));
+  const unsubscribePlaylistItems = playlistItemsStore.subscribe((value) => (playlistItems = value));
+  const unsubscribeLibraryItems = libraryItemsStore.subscribe((value) => (libraryItems = value));
+  const unsubscribePlaylistSelectedIds = playlistSelectedIdsStore.subscribe((value) => (playlistSelectionIds = value));
+  const unsubscribeLibrarySelectedIds = librarySelectedIdsStore.subscribe((value) => (librarySelectionIds = value));
+  const unsubscribePlaylistSelectedTrack = playlistSelectedTrackStore.subscribe((value) => (selectedPlaylistItem = value));
+  const unsubscribeLibrarySelectedTrack = librarySelectedTrackStore.subscribe((value) => (selectedLibraryItem = value));
   const unsubscribeShuffle = shuffleStore.subscribe((value) => (shuffleEnabled = value));
   const unsubscribeRepeat = repeatStore.subscribe((value) => (repeatMode = value));
   const unsubscribeTrack = playerController.currentTrack.subscribe((value) => {
     playingTrack = value;
 
-    if (value?.metadata) {
-      playlistStore.updateMetadata(value.id, value.metadata);
+    if (!value?.metadata) {
+      return;
+    }
+
+    playlistStore.updateMetadata(value.id, value.metadata);
+
+    const playingIdentity = getTrackIdentity(value);
+
+    for (const item of libraryItems) {
+      if (getTrackIdentity(item) === playingIdentity) {
+        libraryStore.updateMetadata(item.id, value.metadata);
+      }
     }
   });
   const unsubscribePlayback = playerController.snapshot.subscribe((value) => (playback = value));
 
   let fileInput: HTMLInputElement | null = null;
   let innerWidth = 0;
-  let activeWorkspaceTab: 'playlist' | 'workspace' | 'details' = 'playlist';
+  let activeCollection: WorkspaceCollection = 'playlist';
+  let activeWorkspaceTab: WorkspaceTab = 'playlist';
+  let pendingFileInputTarget: WorkspaceCollection = 'playlist';
   let previousPlaybackState: PlaybackSnapshot['state'] = playback.state;
   $: isTabbedLayout = innerWidth <= 1000;
+  $: selectedItem = activeCollection === 'library' ? selectedLibraryItem : selectedPlaylistItem;
 
   const workspaceTabs = [
     { id: 'playlist', icon: 'queue_music', label: 'Playlist' },
-    { id: 'workspace', icon: 'space_dashboard', label: 'Workspace' },
+    { id: 'library', icon: 'library_music', label: 'Library' },
     { id: 'details', icon: 'info', label: 'Details' }
   ] as const;
 
-  function addFiles(files: FileList | File[]) {
+  function getCollectionStore(collection: WorkspaceCollection): TrackCollectionStore {
+    return collection === 'library' ? libraryStore : playlistStore;
+  }
+
+  function getCollectionItems(collection: WorkspaceCollection): PlaylistItem[] {
+    return collection === 'library' ? libraryItems : playlistItems;
+  }
+
+  function getCollectionSelectionIds(collection: WorkspaceCollection): string[] {
+    return collection === 'library' ? librarySelectionIds : playlistSelectionIds;
+  }
+
+  function setActiveWorkspaceTab(tab: WorkspaceTab) {
+    activeWorkspaceTab = tab;
+
+    if (tab !== 'details') {
+      activeCollection = tab;
+    }
+  }
+
+  function cleanupRemovedItems(items: PlaylistItem[]) {
+    for (const item of items) {
+      if (item.objectUrl) {
+        URL.revokeObjectURL(item.objectUrl);
+      }
+    }
+  }
+
+  function buildSelectedTracks(collection: WorkspaceCollection, ids: string[]): PlaylistItem[] {
+    const idSet = new Set(ids);
+    return getCollectionItems(collection).filter((item) => idSet.has(item.id));
+  }
+
+  function libraryHasAllTracks(tracks: PlaylistItem[]): boolean {
+    if (tracks.length === 0) {
+      return false;
+    }
+
+    const libraryKeys = new Set(libraryItems.map((item) => getTrackIdentity(item)));
+    return tracks.every((track) => libraryKeys.has(getTrackIdentity(track)));
+  }
+
+  function getEquivalentLibraryIds(tracks: PlaylistItem[]): string[] {
+    const trackKeys = new Set(tracks.map((track) => getTrackIdentity(track)));
+    return libraryItems.filter((item) => trackKeys.has(getTrackIdentity(item))).map((item) => item.id);
+  }
+
+  function addFiles(files: FileList | File[], target: WorkspaceCollection) {
     const nextItems = buildPlaylistItems(files);
 
     if (nextItems.length === 0) {
       return [];
     }
 
-    playlistStore.add(nextItems);
-    return nextItems;
+    return getCollectionStore(target).add(nextItems);
   }
 
-  function handleAddFiles(files: FileList | File[]) {
-    const nextItems = addFiles(files);
+  function handleAddFiles(files: FileList | File[], target: WorkspaceCollection = activeCollection) {
+    const nextItems = addFiles(files, target);
 
-    if (nextItems.length > 0 && selectionIds.length === 0) {
-      playlistStore.select(nextItems[0].id);
+    if (nextItems.length > 0 && getCollectionSelectionIds(target).length === 0) {
+      getCollectionStore(target).select(nextItems[0].id);
     }
+
+    activeCollection = target;
   }
 
-  function getTrackById(id: string): PlaylistItem | null {
-    const track = playlistItems.find((item) => item.id === id);
+  function getTrackById(collection: WorkspaceCollection, id: string): PlaylistItem | null {
+    const track = getCollectionItems(collection).find((item) => item.id === id);
     return track ?? null;
   }
 
@@ -127,22 +216,42 @@
     }
   }
 
-  function handleSelect(event: CustomEvent<{ id: string; range: boolean; toggle: boolean }>) {
-    playlistStore.select(event.detail.id, {
+  function handleSelect(collection: WorkspaceCollection, event: CustomEvent<{ id: string; range: boolean; toggle: boolean }>) {
+    activeCollection = collection;
+    getCollectionStore(collection).select(event.detail.id, {
       range: event.detail.range,
       toggle: event.detail.toggle
     });
   }
 
-  async function handlePlay(id: string) {
-    const track = getTrackById(id);
+  async function handlePlaylistActivate(id: string) {
+    const track = getTrackById('playlist', id);
 
     if (!track) {
       return;
     }
 
+    activeCollection = 'playlist';
     playlistStore.select(id);
     await playTrack(track);
+  }
+
+  async function handleLibraryActivate(id: string) {
+    const track = getTrackById('library', id);
+
+    if (!track) {
+      return;
+    }
+
+    const [playlistTrack] = playlistStore.add(clonePlaylistItems([track]));
+
+    if (!playlistTrack) {
+      return;
+    }
+
+    activeCollection = 'playlist';
+    playlistStore.select(playlistTrack.id);
+    await playTrack(playlistTrack);
   }
 
   async function handleTogglePlayback() {
@@ -151,17 +260,18 @@
       return;
     }
 
-    if (!selectedItem) {
+    if (!selectedPlaylistItem) {
       return;
     }
 
-    await playTrack(selectedItem);
+    await playTrack(selectedPlaylistItem);
   }
 
-  async function handleMenuOpenFiles() {
+  async function handleMenuOpenFiles(target: WorkspaceCollection = activeCollection) {
     const pickerWindow = typeof window === 'undefined' ? null : (window as PickerWindow);
 
     if (!pickerWindow?.showOpenFilePicker) {
+      pendingFileInputTarget = target;
       fileInput?.click();
       return;
     }
@@ -171,7 +281,7 @@
       const files = await readFileHandleFiles(handles);
 
       if (files.length > 0) {
-        handleAddFiles(files);
+        handleAddFiles(files, target);
       }
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') {
@@ -182,7 +292,7 @@
     }
   }
 
-  async function handleMenuOpenFolder() {
+  async function handleMenuOpenFolder(target: WorkspaceCollection = activeCollection) {
     const pickerWindow = typeof window === 'undefined' ? null : (window as PickerWindow);
 
     if (!pickerWindow?.showDirectoryPicker) {
@@ -194,7 +304,7 @@
       const files = await readDirectorySurfaceFiles(directoryHandle);
 
       if (files.length > 0) {
-        handleAddFiles(files);
+        handleAddFiles(files, target);
       }
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') {
@@ -209,7 +319,7 @@
     const input = event.currentTarget as HTMLInputElement;
 
     if (input.files?.length) {
-      handleAddFiles(input.files);
+      handleAddFiles(input.files, pendingFileInputTarget);
       input.value = '';
     }
   }
@@ -243,7 +353,7 @@
     switch (event.key.toLowerCase()) {
       case 'a':
         event.preventDefault();
-        playlistStore.selectAll();
+        getCollectionStore(activeCollection).selectAll();
         break;
       case 'o':
         event.preventDefault();
@@ -272,18 +382,19 @@
   async function handleStepTrack(direction: -1 | 1) {
     const nextTrack = playlistStore.resolveStepTrack({
       currentId: playingTrack?.id,
-      selectedId: selectedItem?.id,
+      selectedId: selectedPlaylistItem?.id,
       direction,
       shuffle: shuffleEnabled,
       wrap: repeatMode === 'all'
     });
 
-    const currentTrackId = playingTrack?.id ?? selectedItem?.id ?? null;
+    const currentTrackId = playingTrack?.id ?? selectedPlaylistItem?.id ?? null;
 
     if (!nextTrack || nextTrack.id === currentTrackId) {
       return;
     }
 
+    activeCollection = 'playlist';
     playlistStore.select(nextTrack.id);
     await playTrack(nextTrack);
   }
@@ -299,21 +410,12 @@
       return;
     }
 
+    activeCollection = 'playlist';
     playlistStore.select(nextTrack.id);
     await playTrack(nextTrack);
   }
 
-  $: if (playback.state !== previousPlaybackState) {
-    if (playback.state === 'ended') {
-      void handleTrackEnded();
-    }
-
-    previousPlaybackState = playback.state;
-  }
-
-  function handleRemove(event: CustomEvent<string[]>) {
-    const ids = event.detail;
-
+  function removePlaylistItems(ids: string[]) {
     if (ids.length === 0) {
       return;
     }
@@ -325,17 +427,130 @@
       playerController.unload();
     }
 
-    for (const item of removedItems) {
-      if (item.objectUrl) {
-        URL.revokeObjectURL(item.objectUrl);
+    cleanupRemovedItems(removedItems);
+  }
+
+  function removeLibraryItems(ids: string[]) {
+    if (ids.length === 0) {
+      return;
+    }
+
+    cleanupRemovedItems(libraryStore.remove(ids));
+  }
+
+  function getPlaylistContextActions(ids: string[]): ContextMenuAction[] {
+    const tracks = buildSelectedTracks('playlist', ids);
+
+    return [
+      {
+        id: 'toggle-library',
+        label: libraryHasAllTracks(tracks) ? 'Remove from library' : 'Add to library'
+      },
+      {
+        id: 'remove',
+        label: 'Remove'
       }
+    ];
+  }
+
+  function getLibraryContextActions(): ContextMenuAction[] {
+    return [
+      {
+        id: 'add-to-playlist',
+        label: 'Add to playlist'
+      },
+      {
+        id: 'replace-playlist',
+        label: 'Replace playlist'
+      },
+      {
+        id: 'remove',
+        label: 'Remove'
+      }
+    ];
+  }
+
+  function handlePlaylistContextAction(event: CustomEvent<{ actionId: string; ids: string[] }>) {
+    const { actionId, ids } = event.detail;
+    const tracks = buildSelectedTracks('playlist', ids);
+
+    if (tracks.length === 0) {
+      return;
+    }
+
+    if (actionId === 'toggle-library') {
+      if (libraryHasAllTracks(tracks)) {
+        removeLibraryItems(getEquivalentLibraryIds(tracks));
+        return;
+      }
+
+      const addedItems = libraryStore.add(clonePlaylistItems(tracks));
+
+      if (addedItems.length > 0 && librarySelectionIds.length === 0) {
+        libraryStore.select(addedItems[0].id);
+      }
+
+      return;
+    }
+
+    if (actionId === 'remove') {
+      removePlaylistItems(ids);
     }
   }
 
+  function handleLibraryContextAction(event: CustomEvent<{ actionId: string; ids: string[] }>) {
+    const { actionId, ids } = event.detail;
+    const tracks = buildSelectedTracks('library', ids);
+
+    if (tracks.length === 0) {
+      return;
+    }
+
+    if (actionId === 'add-to-playlist') {
+      const addedItems = playlistStore.add(clonePlaylistItems(tracks));
+
+      if (addedItems.length > 0) {
+        activeCollection = 'playlist';
+        playlistStore.select(addedItems[0].id);
+      }
+
+      return;
+    }
+
+    if (actionId === 'replace-playlist') {
+      const { removedItems, addedItems } = playlistStore.replaceAll(clonePlaylistItems(tracks));
+
+      cleanupRemovedItems(removedItems);
+      playerController.unload();
+
+      if (addedItems.length > 0) {
+        activeCollection = 'playlist';
+        playlistStore.select(addedItems[0].id);
+      }
+
+      return;
+    }
+
+    if (actionId === 'remove') {
+      removeLibraryItems(ids);
+    }
+  }
+
+  $: if (playback.state !== previousPlaybackState) {
+    if (playback.state === 'ended') {
+      void handleTrackEnded();
+    }
+
+    previousPlaybackState = playback.state;
+  }
+
   onDestroy(() => {
-    unsubscribeItems();
-    unsubscribeSelectedIds();
-    unsubscribeSelectedTrack();
+    unsubscribePlaylistItems();
+    unsubscribeLibraryItems();
+    unsubscribePlaylistSelectedIds();
+    unsubscribeLibrarySelectedIds();
+    unsubscribePlaylistSelectedTrack();
+    unsubscribeLibrarySelectedTrack();
     unsubscribeShuffle();
     unsubscribeRepeat();
     unsubscribeTrack();
@@ -380,7 +595,7 @@
             aria-selected={activeWorkspaceTab === tab.id}
             aria-controls={`workspace-tab-panel-${tab.id}`}
             id={`workspace-tab-${tab.id}`}
-            on:click={() => (activeWorkspaceTab = tab.id)}
+            on:click={() => setActiveWorkspaceTab(tab.id)}
           >
             <span class="material-symbols-outlined" aria-hidden="true">{tab.icon}</span>
             <span class="workspace-tab-label">{tab.label}</span>
@@ -388,40 +603,65 @@
         {/each}
       </div>
 
-      <div class="workspace-tab-panel" role="tabpanel" id="workspace-tab-panel-playlist" aria-labelledby="workspace-tab-playlist" hidden={activeWorkspaceTab !== 'playlist'}>
+      <div
+        class="workspace-tab-panel"
+        role="tabpanel"
+        id="workspace-tab-panel-playlist"
+        aria-labelledby="workspace-tab-playlist"
+        hidden={activeWorkspaceTab !== 'playlist'}
+      >
         <PlaylistPanel
           items={playlistItems}
-          selectedIds={selectionIds}
+          selectedIds={playlistSelectionIds}
           playingId={playingTrack?.id ?? null}
+          panelTitle="Playlist"
+          regionLabel="Playlist"
           hideEyebrow={true}
           {shuffleEnabled}
           {repeatMode}
-          on:addFiles={(event) => handleAddFiles(event.detail)}
-          on:openFiles={() => void handleMenuOpenFiles()}
-          on:select={handleSelect}
-          on:play={(event) => handlePlay(event.detail)}
-          on:remove={handleRemove}
+          getContextMenuActions={getPlaylistContextActions}
+          on:addFiles={(event) => handleAddFiles(event.detail, 'playlist')}
+          on:openFiles={() => void handleMenuOpenFiles('playlist')}
+          on:select={(event) => handleSelect('playlist', event)}
+          on:activate={(event) => void handlePlaylistActivate(event.detail)}
+          on:contextAction={handlePlaylistContextAction}
           on:toggleShuffle={() => playlistStore.toggleShuffle()}
           on:cycleRepeat={() => playlistStore.cycleRepeatMode()}
         />
       </div>
 
-      <div class="workspace-tab-panel" role="tabpanel" id="workspace-tab-panel-workspace" aria-labelledby="workspace-tab-workspace" hidden={activeWorkspaceTab !== 'workspace'}>
-        <section class="panel canvas-panel">
-          <div class="panel-header">
-            {#if !isTabbedLayout}
-              <p class="eyebrow">Workspace</p>
-            {/if}
-          </div>
-
-          <div class="canvas-placeholder">
-            <p>Intentionally empty for the MVP.</p>
-            <p>Future candidates: waveform, spectrum, module pattern view, or library tooling.</p>
-          </div>
-        </section>
+      <div
+        class="workspace-tab-panel"
+        role="tabpanel"
+        id="workspace-tab-panel-library"
+        aria-labelledby="workspace-tab-library"
+        hidden={activeWorkspaceTab !== 'library'}
+      >
+        <PlaylistPanel
+          items={libraryItems}
+          selectedIds={librarySelectionIds}
+          playingId={null}
+          panelTitle="Library"
+          regionLabel="Library"
+          hideEyebrow={true}
+          showShuffleControl={false}
+          showRepeatControl={false}
+          getContextMenuActions={getLibraryContextActions}
+          on:addFiles={(event) => handleAddFiles(event.detail, 'library')}
+          on:openFiles={() => void handleMenuOpenFiles('library')}
+          on:select={(event) => handleSelect('library', event)}
+          on:activate={(event) => void handleLibraryActivate(event.detail)}
+          on:contextAction={handleLibraryContextAction}
+        />
       </div>
 
-      <div class="workspace-tab-panel" role="tabpanel" id="workspace-tab-panel-details" aria-labelledby="workspace-tab-details" hidden={activeWorkspaceTab !== 'details'}>
+      <div
+        class="workspace-tab-panel"
+        role="tabpanel"
+        id="workspace-tab-panel-details"
+        aria-labelledby="workspace-tab-details"
+        hidden={activeWorkspaceTab !== 'details'}
+      >
         <TrackDetailsPanel track={selectedItem} hideEyebrow={true} isTabbedLayout={true} />
       </div>
     </main>
@@ -429,29 +669,37 @@
     <main class="workspace">
       <PlaylistPanel
         items={playlistItems}
-        selectedIds={selectionIds}
+        selectedIds={playlistSelectionIds}
         playingId={playingTrack?.id ?? null}
+        panelTitle="Playlist"
+        regionLabel="Playlist"
         {shuffleEnabled}
         {repeatMode}
-        on:addFiles={(event) => handleAddFiles(event.detail)}
-        on:openFiles={() => void handleMenuOpenFiles()}
-        on:select={handleSelect}
-        on:play={(event) => handlePlay(event.detail)}
-        on:remove={handleRemove}
+        getContextMenuActions={getPlaylistContextActions}
+        on:addFiles={(event) => handleAddFiles(event.detail, 'playlist')}
+        on:openFiles={() => void handleMenuOpenFiles('playlist')}
+        on:select={(event) => handleSelect('playlist', event)}
+        on:activate={(event) => void handlePlaylistActivate(event.detail)}
+        on:contextAction={handlePlaylistContextAction}
         on:toggleShuffle={() => playlistStore.toggleShuffle()}
         on:cycleRepeat={() => playlistStore.cycleRepeatMode()}
       />
 
-      <section class="panel canvas-panel">
-        <div class="panel-header">
-          <p class="eyebrow">Workspace</p>
-        </div>
-
-        <div class="canvas-placeholder">
-          <p>Intentionally empty for the MVP.</p>
-          <p>Future candidates: waveform, spectrum, module pattern view, or library tooling.</p>
-        </div>
-      </section>
+      <PlaylistPanel
+        items={libraryItems}
+        selectedIds={librarySelectionIds}
+        playingId={null}
+        panelTitle="Library"
+        regionLabel="Library"
+        showShuffleControl={false}
+        showRepeatControl={false}
+        getContextMenuActions={getLibraryContextActions}
+        on:addFiles={(event) => handleAddFiles(event.detail, 'library')}
+        on:openFiles={() => void handleMenuOpenFiles('library')}
+        on:select={(event) => handleSelect('library', event)}
+        on:activate={(event) => void handleLibraryActivate(event.detail)}
+        on:contextAction={handleLibraryContextAction}
+      />
 
       <TrackDetailsPanel track={selectedItem} />
     </main>
@@ -464,12 +712,12 @@
   <PlayerControls
     snapshot={playback}
     track={playingTrack}
-    selectedTrack={selectedItem}
+    selectedTrack={selectedPlaylistItem}
     isTabbedLayout={isTabbedLayout}
     on:toggle={handleTogglePlayback}
     on:stop={handleStop}
-    on:previous={() => handleStepTrack(-1)}
-    on:next={() => handleStepTrack(1)}
+    on:previous={() => void handleStepTrack(-1)}
+    on:next={() => void handleStepTrack(1)}
     on:seek={(event) => playerController.seek(event.detail)}
     on:volume={(event) => playerController.setVolume(event.detail)}
   />
