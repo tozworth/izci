@@ -84,12 +84,12 @@
       {#if activeMenu === 'file'}
         <div class="menu-list" role="menu" aria-label="File">
           <button type="button" role="menuitem" on:click={() => runMenuAction('openFiles')}>
-            <span class="material-symbols-outlined menu-item-icon" aria-hidden="true">folder_open</span>
-            <span class="menu-item-label">Open file...</span>
+            <span class="material-symbols-outlined menu-item-icon" aria-hidden="true">file_open</span>
+            <span class="menu-item-label">Open files...</span>
             <span class="menu-item-shortcut" aria-hidden="true">Ctrl+O</span>
           </button>
           <button type="button" role="menuitem" on:click={() => runMenuAction('openFolder')}>
-            <span class="material-symbols-outlined menu-item-icon" aria-hidden="true">folder</span>
+            <span class="material-symbols-outlined menu-item-icon" aria-hidden="true">folder_open</span>
             <span class="menu-item-label">Open folder...</span>
           </button>
           <button type="button" role="menuitem" on:click={() => runMenuAction('exit')}>

@@ -55,7 +55,7 @@
   const workspaceTabs = [
     { id: 'playlist', icon: 'queue_music', label: 'Playlist' },
     { id: 'workspace', icon: 'space_dashboard', label: 'Workspace' },
-    { id: 'details', icon: 'info', label: 'Track Details' }
+    { id: 'details', icon: 'info', label: 'Details' }
   ] as const;
 
   function addFiles(files: FileList | File[]) {

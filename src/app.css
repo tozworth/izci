@@ -213,7 +213,6 @@ button {
   display: inline-flex;
   align-items: center;
   gap: 0.38rem;
-  min-height: 2rem;
   padding: 0.3rem 0.45rem 0.5rem;
   background: transparent;
   border: 0;
@@ -340,14 +339,11 @@ button {
   align-items: center;
   column-gap: 0.75rem;
   text-align: left;
-  padding: 0.68rem 0.85rem;
+  padding: 0.4rem;
   color: inherit;
   background: transparent;
   border: 0;
   border-left: 3px solid transparent;
-  transition:
-    border-color 180ms ease,
-    background 180ms ease;
   min-width: 0;
 }
 
@@ -361,6 +357,7 @@ button {
 
 .track-list li.playing .track-row {
   border-left-color: var(--accent-strong);
+  font-weight: 600;
 }
 
 .track-name {
@@ -368,7 +365,6 @@ button {
   display: block;
   overflow: hidden;
   text-overflow: ellipsis;
-  font-weight: 600;
   white-space: nowrap;
 }
 

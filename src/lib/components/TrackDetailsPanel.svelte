@@ -85,7 +85,7 @@
     flex: 1;
     min-height: 0;
     overflow: auto;
-    padding: 0.9rem;
+    padding: 0 0.9rem;
   }
 
   .detail-section {
