@@ -376,13 +376,14 @@
             class:active={activeWorkspaceTab === tab.id}
             class="workspace-tab"
             role="tab"
+            aria-label={tab.label}
             aria-selected={activeWorkspaceTab === tab.id}
             aria-controls={`workspace-tab-panel-${tab.id}`}
             id={`workspace-tab-${tab.id}`}
             on:click={() => (activeWorkspaceTab = tab.id)}
           >
             <span class="material-symbols-outlined" aria-hidden="true">{tab.icon}</span>
-            <span>{tab.label}</span>
+            <span class="workspace-tab-label">{tab.label}</span>
           </button>
         {/each}
       </div>

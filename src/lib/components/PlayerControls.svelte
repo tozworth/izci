@@ -100,7 +100,13 @@
   </div>
 
   <div class="player-actions">
-    <button type="button" class="transport-button" aria-label="Previous track" on:click={() => dispatch('previous')} disabled={!track && !selectedTrack}>
+    <button
+      type="button"
+      class="transport-button transport-button-previous"
+      aria-label="Previous track"
+      on:click={() => dispatch('previous')}
+      disabled={!track && !selectedTrack}
+    >
       <span class="material-symbols-outlined" aria-hidden="true">skip_previous</span>
     </button>
     {#if !isTabbedLayout}

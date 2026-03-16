@@ -246,6 +246,10 @@ button {
   font-size: 1rem;
 }
 
+.workspace-tab-label {
+  white-space: nowrap;
+}
+
 .workspace-tab-panel {
   flex: 1;
   min-height: 0;
@@ -265,6 +269,17 @@ button {
 .workspace-tabs-layout .canvas-placeholder,
 .workspace-tabs-layout .empty-state {
   padding-bottom: calc(7rem + env(safe-area-inset-bottom, 0px));
+}
+
+@media (max-width: 349px) {
+  .workspace-tab {
+    justify-content: center;
+    padding-inline: 0.4rem;
+  }
+
+  .workspace-tab-label {
+    display: none;
+  }
 }
 
 .panel,
@@ -713,6 +728,10 @@ input[type='range'] {
 
   .player-range {
     grid-template-columns: minmax(2.8rem, auto) 1fr minmax(2.8rem, auto);
+  }
+
+  .transport-button-previous {
+    display: none;
   }
 
   .volume {
