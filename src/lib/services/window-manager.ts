@@ -526,8 +526,10 @@ function buildOptionsMarkup(): string {
             <dl class="meta-list">
               <div class="meta-label">Looping</div>
               <div class="meta-value" data-summary="repeatCount">Play once</div>
-              <div class="meta-label">Stereo</div>
-              <div class="meta-value" data-summary="stereoSeparation">100%</div>
+              <div class="meta-label">MOD Stereo</div>
+              <div class="meta-value" data-summary="stereoSeparation">50%</div>
+              <div class="meta-label">Pan Strength</div>
+              <div class="meta-value" data-summary="panStrength">100%</div>
               <div class="meta-label">Interpolation</div>
               <div class="meta-value" data-summary="interpolationFilter">1-tap (minimal)</div>
               <div class="meta-label">Tempo</div>
@@ -559,13 +561,24 @@ function buildOptionsMarkup(): string {
               <div class="field-grid">
                 <label class="field">
                   <div class="field-copy">
-                    <span class="field-title">Stereo / Pan Separation</span>
+                    <span class="field-title">Stereo separation (MOD)</span>
                   </div>
                   <div class="field-control">
                     <input id="stereo-separation" name="stereoSeparation" type="range" min="0" max="200" step="1" />
-                    <span class="field-output" id="stereo-separation-value">100%</span>
+                    <span class="field-output" id="stereo-separation-value">50%</span>
                   </div>
-                  <p class="field-hint">Below 100 = collapse to mono. Above 100 = widen the image.</p>
+                  <p class="field-hint">Applies to <code>MOD</code> files. 0 = mono, 200 = hard stereo.</p>
+                </label>
+
+                <label class="field">
+                  <div class="field-copy">
+                    <span class="field-title">Pan strength</span>
+                  </div>
+                  <div class="field-control">
+                    <input id="pan-strength" name="panStrength" type="range" min="0" max="200" step="1" />
+                    <span class="field-output" id="pan-strength-value">100%</span>
+                  </div>
+                  <p class="field-hint">Below 100 narrows the image, above 100 widens it.</p>
                 </label>
 
                 <label class="field">
@@ -671,6 +684,8 @@ function buildOptionsMarkup(): string {
       const resizer = document.querySelector('.resizer');
       const stereoSeparationInput = document.getElementById('stereo-separation');
       const stereoSeparationValue = document.getElementById('stereo-separation-value');
+      const panStrengthInput = document.getElementById('pan-strength');
+      const panStrengthValue = document.getElementById('pan-strength-value');
       const interpolationFilterInput = document.getElementById('interpolation-filter');
       const interpolationFilterHint = document.getElementById('interpolation-filter-hint');
       const repeatCountInput = document.getElementById('repeat-count');
@@ -686,6 +701,7 @@ function buildOptionsMarkup(): string {
       const summaryNodes = {
         repeatCount: document.querySelector('[data-summary="repeatCount"]'),
         stereoSeparation: document.querySelector('[data-summary="stereoSeparation"]'),
+        panStrength: document.querySelector('[data-summary="panStrength"]'),
         interpolationFilter: document.querySelector('[data-summary="interpolationFilter"]'),
         tempoFactor: document.querySelector('[data-summary="tempoFactor"]'),
         pitchFactor: document.querySelector('[data-summary="pitchFactor"]')
@@ -716,6 +732,9 @@ function buildOptionsMarkup(): string {
         return {
           repeatCount: Math.round(clamp(toNumber(source.repeatCount, defaultSettings.repeatCount), -1, 32)),
           stereoSeparation: Math.round(clamp(toNumber(source.stereoSeparation, defaultSettings.stereoSeparation), 0, 200)),
+          panStrength: Math.round(
+            clamp(toNumber(source.panStrength, toNumber(source.stereoSeparation, defaultSettings.panStrength)), 0, 200)
+          ),
           interpolationFilter: normalizeInterpolationFilter(source.interpolationFilter),
           tempoFactor: clamp(toNumber(source.tempoFactor, defaultSettings.tempoFactor), 0.25, 4),
           pitchFactor: clamp(toNumber(source.pitchFactor, defaultSettings.pitchFactor), 0.25, 4)
@@ -843,6 +862,12 @@ function buildOptionsMarkup(): string {
         if (stereoSeparationValue) {
           stereoSeparationValue.textContent = settings.stereoSeparation + '%';
         }
+        if (panStrengthInput) {
+          panStrengthInput.value = String(settings.panStrength);
+        }
+        if (panStrengthValue) {
+          panStrengthValue.textContent = settings.panStrength + '%';
+        }
 
         const interpolationOption = getInterpolationOption(settings.interpolationFilter);
         if (interpolationFilterInput) {
@@ -872,6 +897,7 @@ function buildOptionsMarkup(): string {
 
         summaryNodes.repeatCount.textContent = formatRepeatCount(settings.repeatCount);
         summaryNodes.stereoSeparation.textContent = settings.stereoSeparation + '%';
+        summaryNodes.panStrength.textContent = settings.panStrength + '%';
         summaryNodes.interpolationFilter.textContent = interpolationOption.label;
         summaryNodes.tempoFactor.textContent = formatFactor(settings.tempoFactor);
         summaryNodes.pitchFactor.textContent = formatFactor(settings.pitchFactor);
@@ -945,6 +971,13 @@ function buildOptionsMarkup(): string {
       });
       stereoSeparationInput?.addEventListener('change', () => {
         writeSettings({ ...readSettings(), stereoSeparation: Number(stereoSeparationInput.value) });
+      });
+
+      panStrengthInput?.addEventListener('input', () => {
+        panStrengthValue.textContent = panStrengthInput.value + '%';
+      });
+      panStrengthInput?.addEventListener('change', () => {
+        writeSettings({ ...readSettings(), panStrength: Number(panStrengthInput.value) });
       });
 
       interpolationFilterInput?.addEventListener('change', () => {

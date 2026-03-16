@@ -29,6 +29,7 @@ export interface TrackMetadata {
 export interface ModulePlaybackSettings {
   repeatCount: number;
   stereoSeparation: number;
+  panStrength: number;
   interpolationFilter: ModuleInterpolationFilter;
   tempoFactor: number;
   pitchFactor: number;

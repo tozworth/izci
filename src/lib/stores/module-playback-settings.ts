@@ -6,7 +6,8 @@ export const MODULE_PLAYBACK_SETTINGS_CHANNEL = 'izci-module-playback-settings';
 
 export const DEFAULT_MODULE_PLAYBACK_SETTINGS: ModulePlaybackSettings = {
   repeatCount: 0,
-  stereoSeparation: 100,
+  stereoSeparation: 50,
+  panStrength: 100,
   interpolationFilter: 1,
   tempoFactor: 1,
   pitchFactor: 1
@@ -60,6 +61,13 @@ function normalizeSettings(value: unknown): ModulePlaybackSettings {
     stereoSeparation: Math.round(
       clamp(
         toNumber(source.stereoSeparation, DEFAULT_MODULE_PLAYBACK_SETTINGS.stereoSeparation),
+        0,
+        200
+      )
+    ),
+    panStrength: Math.round(
+      clamp(
+        toNumber(source.panStrength, toNumber(source.stereoSeparation, DEFAULT_MODULE_PLAYBACK_SETTINGS.panStrength)),
         0,
         200
       )

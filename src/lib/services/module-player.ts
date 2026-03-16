@@ -10,6 +10,7 @@ type EndHandler = () => void;
 export class ModulePlayerService {
   #player: ChiptuneJsPlayer | null = null;
   #buffer: ArrayBuffer | null = null;
+  #trackExtension: PlaylistItem['extension'] | null = null;
   #volume = 0.85;
   #playing = false;
   #started = false;
@@ -32,6 +33,7 @@ export class ModulePlayerService {
 
     this.#disposePlayer();
     this.#buffer = null;
+    this.#trackExtension = track.extension.toLowerCase();
     this.#playing = false;
     this.#started = false;
     this.#currentTime = 0;
@@ -90,6 +92,7 @@ export class ModulePlayerService {
     this.#started = false;
     this.#currentTime = 0;
     this.#buffer = null;
+    this.#trackExtension = null;
     this.#disposePlayer();
     this.#onSnapshot({ state: 'paused', currentTime: 0, error: undefined });
   }
@@ -119,8 +122,10 @@ export class ModulePlayerService {
 
   async applySettings(settings: ModulePlaybackSettings): Promise<void> {
     const previousSettings = this.#settings;
+    const previousStereoWidth = this.#getStereoWidth(previousSettings);
+    const nextStereoWidth = this.#getStereoWidth(settings);
     const recreatePlayer =
-      previousSettings.stereoSeparation !== settings.stereoSeparation ||
+      previousStereoWidth !== nextStereoWidth ||
       previousSettings.interpolationFilter !== settings.interpolationFilter;
 
     this.#settings = settings;
@@ -266,9 +271,13 @@ export class ModulePlayerService {
   #toPlayerConfig(settings: ModulePlaybackSettings) {
     return {
       repeatCount: settings.repeatCount,
-      stereoSeparation: settings.stereoSeparation,
+      stereoSeparation: this.#getStereoWidth(settings),
       interpolationFilter: settings.interpolationFilter
     };
+  }
+
+  #getStereoWidth(settings: ModulePlaybackSettings): number {
+    return this.#trackExtension === 'mod' ? settings.stereoSeparation : settings.panStrength;
   }
 
   #safeSeconds(value: number | undefined): number {
