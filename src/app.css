@@ -372,7 +372,7 @@ button {
 .track-list {
   list-style: none;
   margin: 0;
-  padding: 0 0.85rem 0.85rem;
+  padding: 0 0 0.85rem;
 }
 
 .track-list li + li {
@@ -386,7 +386,7 @@ button {
   align-items: center;
   column-gap: 0.75rem;
   text-align: left;
-  padding: 0.5rem 0.2rem 0.5rem 0;
+  padding: 0.5rem 0.85rem 0.5rem 0.65rem;
   color: inherit;
   background: transparent;
   border: 0;
