@@ -52,11 +52,9 @@
     return item.extension.toUpperCase();
   }
 
-  function getTrackMeta(item: PlaylistItem): string {
+  function getTrackDuration(item: PlaylistItem): string {
     const duration = item.metadata?.duration ?? 0;
-    const hasDuration = Number.isFinite(duration) && duration > 0;
-
-    return hasDuration ? `${formatTrackType(item)} ${formatDuration(duration)}` : formatTrackType(item);
+    return Number.isFinite(duration) && duration > 0 ? formatDuration(duration) : '';
   }
 
   function isToggleSelection(event: MouseEvent): boolean {
@@ -276,7 +274,12 @@
               title={getTrackDisplayTitle(item)}
             >
               <span class="track-name">{getTrackDisplayTitle(item)}</span>
-              <span class="track-meta">{getTrackMeta(item)}</span>
+              <span class="track-meta" class:has-duration={Boolean(getTrackDuration(item))}>
+                <span class="track-format">{formatTrackType(item)}</span>
+                {#if getTrackDuration(item)}
+                  <span class="track-duration">{getTrackDuration(item)}</span>
+                {/if}
+              </span>
             </button>
           </li>
         {/each}

@@ -72,7 +72,7 @@
   let innerWidth = 0;
   let activeWorkspaceTab: 'playlist' | 'workspace' | 'details' = 'playlist';
   let previousPlaybackState: PlaybackSnapshot['state'] = playback.state;
-  $: isTabbedLayout = innerWidth <= 1080;
+  $: isTabbedLayout = innerWidth <= 1000;
 
   const workspaceTabs = [
     { id: 'playlist', icon: 'queue_music', label: 'Playlist' },

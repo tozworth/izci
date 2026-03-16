@@ -451,11 +451,24 @@ button {
 }
 
 .track-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
   flex-shrink: 0;
   min-width: max-content;
   color: var(--muted);
   font-size: 0.84rem;
   white-space: nowrap;
+}
+
+@media (max-width: 349px) {
+  .track-meta:not(.has-duration) {
+    display: none;
+  }
+
+  .track-format {
+    display: none;
+  }
 }
 
 .playlist-context-menu {
@@ -700,7 +713,7 @@ input[type='range'] {
   margin: 0 0.75rem;
 }
 
-@media (max-width: 1080px) {
+@media (max-width: 1000px) {
   .player-bar {
     grid-template-columns: minmax(0, 1fr) auto;
     grid-template-areas:
