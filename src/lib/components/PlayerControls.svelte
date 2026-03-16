@@ -89,7 +89,7 @@
 
 <footer class="player-bar">
   <div class="player-track">
-    <strong>{displayTrack ? getTrackDisplayTitle(displayTrack) : 'Drop files to begin'}</strong>
+    <strong>{displayTrack ? getTrackDisplayTitle(displayTrack) : 'Welcome to izci!'}</strong>
     {#if displayTrack}
       {#if getTrackDisplaySubtitle(displayTrack)}
         <span>{getTrackDisplaySubtitle(displayTrack)}</span>
