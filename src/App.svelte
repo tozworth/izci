@@ -350,7 +350,7 @@
 
 <svelte:window bind:innerWidth on:keydown={handleWindowKeydown} />
 
-<div class="app-shell">
+<div class="app-shell" class:tabbed-layout={isTabbedLayout}>
   <input
     bind:this={fileInput}
     class="sr-only"
@@ -421,7 +421,7 @@
       </div>
 
       <div class="workspace-tab-panel" role="tabpanel" id="workspace-tab-panel-details" aria-labelledby="workspace-tab-details" hidden={activeWorkspaceTab !== 'details'}>
-        <TrackDetailsPanel track={selectedItem} hideEyebrow={true} />
+        <TrackDetailsPanel track={selectedItem} hideEyebrow={true} isTabbedLayout={true} />
       </div>
     </main>
   {:else}

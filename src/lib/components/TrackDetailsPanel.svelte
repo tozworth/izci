@@ -4,6 +4,7 @@
 
   export let track: PlaylistItem | null = null;
   export let hideEyebrow = false;
+  export let isTabbedLayout = false;
 
   $: title = track?.metadata?.title?.trim() || '';
   $: showTrackSection = title.length > 0;
@@ -32,7 +33,7 @@
   </div>
 
   {#if track}
-    <div class="details-content">
+    <div class="details-content" class:tabbed-layout={isTabbedLayout}>
       {#if showTrackSection}
         <section class="detail-section track-copy">
           <p class="section-heading">
@@ -70,7 +71,7 @@
       {/if}
     </div>
   {:else}
-    <div class="empty-state align-start">
+    <div class="empty-state align-start" class:tabbed-layout={isTabbedLayout}>
       <p>Select a track to inspect it.</p>
       <p>The center area is intentionally reserved for a future visualization or workspace surface.</p>
     </div>
@@ -86,6 +87,11 @@
     min-height: 0;
     overflow: auto;
     padding: 0 0.9rem;
+  }
+
+  .details-content.tabbed-layout,
+  .empty-state.tabbed-layout {
+    padding-bottom: calc(7rem + env(safe-area-inset-bottom, 0px));
   }
 
   .detail-section {

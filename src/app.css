@@ -71,6 +71,10 @@ button {
   overflow: hidden;
 }
 
+.app-shell.tabbed-layout {
+  padding-bottom: 0;
+}
+
 .menu-bar {
   display: flex;
   align-items: center;
@@ -195,8 +199,9 @@ button {
 .workspace-tabs-layout {
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
-  overflow: auto;
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
 }
 
 .workspace-tabs {
@@ -206,7 +211,8 @@ button {
   position: sticky;
   top: 0;
   z-index: 10;
-  padding: 0 0 0.15rem;
+  padding: 0 0.75rem;
+  border-bottom: 1px solid rgba(168, 153, 132, 0.16);
 }
 
 .workspace-tab {
@@ -241,10 +247,23 @@ button {
 .workspace-tab-panel {
   flex: 1;
   min-height: 0;
+  overflow: hidden;
 }
 
 .workspace-tab-panel > .panel {
   height: 100%;
+}
+
+.workspace-tabs-layout .panel {
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.workspace-tabs-layout .playlist-dropzone,
+.workspace-tabs-layout .canvas-placeholder,
+.workspace-tabs-layout .empty-state {
+  padding-bottom: calc(7rem + env(safe-area-inset-bottom, 0px));
 }
 
 .panel,
@@ -319,7 +338,7 @@ button {
   position: sticky;
   top: 0;
   z-index: 10;
-  padding: 0.85rem 0.85rem 0.7rem;
+  padding: 0.72rem 0.85rem 0.58rem;
   background:
     linear-gradient(180deg, rgba(50, 48, 47, 0.76) 0%, rgba(50, 48, 47, 0.68) 100%),
     rgba(28, 29, 30, 0.22);
@@ -524,6 +543,17 @@ button {
   background: var(--menu-bar-bg);
   backdrop-filter: blur(16px);
   box-shadow: 0 -1px 0 rgba(255, 255, 255, 0.03);
+}
+
+.player-bar::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 100%;
+  height: 1.35rem;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(26, 27, 28, 0), rgba(26, 27, 28, 0.28));
 }
 
 .player-track {
