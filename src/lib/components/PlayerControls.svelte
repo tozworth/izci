@@ -162,6 +162,7 @@
       on:mouseenter={openVolumePopup}
       on:focus={openVolumePopup}
       on:blur={closeVolumePopup}
+      on:wheel|preventDefault={handleVolumeWheel}
     >
       <span class="material-symbols-outlined" aria-hidden="true">volume_up</span>
       <span class="sr-only">Volume</span>
