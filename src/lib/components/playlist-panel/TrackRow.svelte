@@ -26,7 +26,7 @@
   $: trackDuration = getTrackDuration(item);
 </script>
 
-<li class:selected class:playing>
+<li class:selected class:playing data-track-id={item.id}>
   {#if layout === 'columns'}
     <button
       class="track-table-row-button"

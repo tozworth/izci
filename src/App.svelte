@@ -131,6 +131,7 @@
   let pendingFileInputTarget: WorkspaceCollection = 'playlist';
   let previousPlaybackState: PlaybackSnapshot['state'] = playback.state;
   let playRequestSequence = 0;
+  let playlistJumpRequest: { id: string; token: number } | null = null;
   let panelLayout = workspacePanelLayout.getSnapshot();
   let resizeState: PanelResizeState | null = null;
   let wideContentWidth = 0;
@@ -145,6 +146,9 @@
   let widePanelWidths = resolveWidePanelWidths(panelLayout, wideContentWidth);
   $: isTabbedLayout = innerWidth <= 1000;
   $: selectedItem = activeCollection === 'library' ? selectedLibraryItem : selectedPlaylistItem;
+  $: if (playlistSelectionIds.length > 0 && librarySelectionIds.length > 0) {
+    clearSelection(getOtherCollection(activeCollection));
+  }
 
   const workspaceTabs = [
     { id: 'playlist', icon: 'queue_music', label: 'Playlist' },
@@ -269,6 +273,44 @@
     return collection === 'library' ? librarySelectionIds : playlistSelectionIds;
   }
 
+  function getOtherCollection(collection: WorkspaceCollection): WorkspaceCollection {
+    return collection === 'library' ? 'playlist' : 'library';
+  }
+
+  function clearSelection(collection: WorkspaceCollection) {
+    if (getCollectionSelectionIds(collection).length === 0) {
+      return;
+    }
+
+    getCollectionStore(collection).setSelection({
+      ids: [],
+      anchorId: null,
+      focusId: null
+    });
+  }
+
+  function clearOtherSelection(collection: WorkspaceCollection) {
+    clearSelection(getOtherCollection(collection));
+  }
+
+  function selectTrack(collection: WorkspaceCollection, id: string, options?: { range?: boolean; toggle?: boolean }) {
+    clearOtherSelection(collection);
+    activeCollection = collection;
+    getCollectionStore(collection).select(id, options);
+  }
+
+  function setCollectionSelection(collection: WorkspaceCollection, nextSelection: PlaylistSelection) {
+    clearOtherSelection(collection);
+    activeCollection = collection;
+    getCollectionStore(collection).setSelection(nextSelection);
+  }
+
+  function selectAllTracks(collection: WorkspaceCollection) {
+    clearOtherSelection(collection);
+    activeCollection = collection;
+    getCollectionStore(collection).selectAll();
+  }
+
   function setActiveWorkspaceTab(tab: WorkspaceTab) {
     activeWorkspaceTab = tab;
 
@@ -318,7 +360,8 @@
     const nextItems = addFiles(files, target);
 
     if (nextItems.length > 0 && getCollectionSelectionIds(target).length === 0) {
-      getCollectionStore(target).select(nextItems[0].id);
+      selectTrack(target, nextItems[0].id);
+      return;
     }
 
     activeCollection = target;
@@ -363,16 +406,14 @@
   }
 
   function handleSelect(collection: WorkspaceCollection, event: CustomEvent<{ id: string; range: boolean; toggle: boolean }>) {
-    activeCollection = collection;
-    getCollectionStore(collection).select(event.detail.id, {
+    selectTrack(collection, event.detail.id, {
       range: event.detail.range,
       toggle: event.detail.toggle
     });
   }
 
   function handleSetSelection(collection: WorkspaceCollection, event: CustomEvent<PlaylistSelection>) {
-    activeCollection = collection;
-    getCollectionStore(collection).setSelection(event.detail);
+    setCollectionSelection(collection, event.detail);
   }
 
   async function handlePlaylistActivate(id: string) {
@@ -382,9 +423,17 @@
       return;
     }
 
-    activeCollection = 'playlist';
-    playlistStore.select(id);
+    selectTrack('playlist', id);
     await playTrack(track);
+  }
+
+  function handleShowPlaylistTrack(id: string) {
+    setActiveWorkspaceTab('playlist');
+    selectTrack('playlist', id);
+    playlistJumpRequest = {
+      id,
+      token: (playlistJumpRequest?.token ?? 0) + 1
+    };
   }
 
   async function handleLibraryActivate(id: string) {
@@ -400,8 +449,7 @@
       return;
     }
 
-    activeCollection = 'playlist';
-    playlistStore.select(playlistTrack.id);
+    selectTrack('playlist', playlistTrack.id);
     await playTrack(playlistTrack);
   }
 
@@ -542,7 +590,7 @@
     windowManager.openOptions();
   }
 
-  function shouldIgnoreShortcutTarget(target: EventTarget | null) {
+  function shouldIgnoreKeyboardTarget(target: EventTarget | null) {
     if (!(target instanceof HTMLElement)) {
       return false;
     }
@@ -556,18 +604,40 @@
   }
 
   function handleWindowKeydown(event: KeyboardEvent) {
+    if (event.key === 'Delete' && !event.ctrlKey && !event.altKey && !event.metaKey) {
+      if (shouldIgnoreKeyboardTarget(event.target)) {
+        return;
+      }
+
+      const ids = getCollectionSelectionIds(activeCollection);
+
+      if (ids.length === 0) {
+        return;
+      }
+
+      event.preventDefault();
+
+      if (activeCollection === 'library') {
+        removeLibraryItems(ids);
+      } else {
+        removePlaylistItems(ids);
+      }
+
+      return;
+    }
+
     if (!event.ctrlKey || event.altKey || event.shiftKey || event.metaKey) {
       return;
     }
 
-    if (shouldIgnoreShortcutTarget(event.target)) {
+    if (shouldIgnoreKeyboardTarget(event.target)) {
       return;
     }
 
     switch (event.key.toLowerCase()) {
       case 'a':
         event.preventDefault();
-        getCollectionStore(activeCollection).selectAll();
+        selectAllTracks(activeCollection);
         break;
       case 'o':
         event.preventDefault();
@@ -608,8 +678,7 @@
       return;
     }
 
-    activeCollection = 'playlist';
-    playlistStore.select(nextTrack.id);
+    selectTrack('playlist', nextTrack.id);
     await playTrack(nextTrack);
   }
 
@@ -624,8 +693,7 @@
       return;
     }
 
-    activeCollection = 'playlist';
-    playlistStore.select(nextTrack.id);
+    selectTrack('playlist', nextTrack.id);
     await playTrack(nextTrack);
   }
 
@@ -707,7 +775,7 @@
       const addedItems = libraryStore.add(clonePlaylistItems(tracks));
 
       if (addedItems.length > 0 && librarySelectionIds.length === 0) {
-        libraryStore.select(addedItems[0].id);
+        selectTrack('library', addedItems[0].id);
       }
 
       return;
@@ -730,8 +798,7 @@
       const addedItems = playlistStore.add(clonePlaylistItems(tracks));
 
       if (addedItems.length > 0) {
-        activeCollection = 'playlist';
-        playlistStore.select(addedItems[0].id);
+        selectTrack('playlist', addedItems[0].id);
       }
 
       return;
@@ -744,8 +811,7 @@
       playerController.unload();
 
       if (addedItems.length > 0) {
-        activeCollection = 'playlist';
-        playlistStore.select(addedItems[0].id);
+        selectTrack('playlist', addedItems[0].id);
       }
 
       return;
@@ -848,6 +914,7 @@
           items={playlistItems}
           selectedIds={playlistSelectionIds}
           playingId={playingTrack?.id ?? null}
+          jumpToItemRequest={playlistJumpRequest}
           panelTitle="Playlist"
           regionLabel="Playlist"
           hideEyebrow={true}
@@ -917,6 +984,7 @@
           items={playlistItems}
           selectedIds={playlistSelectionIds}
           playingId={playingTrack?.id ?? null}
+          jumpToItemRequest={playlistJumpRequest}
           panelTitle="Playlist"
           regionLabel="Playlist"
           fillParent={true}
@@ -1005,5 +1073,6 @@
     on:next={() => void handleStepTrack(1)}
     on:seek={(event) => playerController.seek(event.detail)}
     on:volume={(event) => playerController.setVolume(event.detail)}
+    on:showTrack={(event) => handleShowPlaylistTrack(event.detail)}
   />
 </div>

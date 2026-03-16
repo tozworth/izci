@@ -48,6 +48,7 @@
   export let showSearchControl = false;
   export let shuffleEnabled = false;
   export let repeatMode: PlaylistRepeatMode = 'off';
+  export let jumpToItemRequest: { id: string; token: number } | null = null;
   export let getContextMenuActions: (ids: string[]) => MenuActionItem[] = () => [
     { id: 'remove', label: 'Remove', icon: 'delete' }
   ];
@@ -80,6 +81,7 @@
   let resizingColumnId: LibraryColumnId | null = null;
   let resizeStartX = 0;
   let resizeStartWidths: LibraryColumnWidths = {};
+  let lastHandledJumpToken = 0;
 
   async function handleDrop(event: DragEvent) {
     event.preventDefault();
@@ -329,6 +331,19 @@
     dropIndicator = null;
   }
 
+  async function scrollTrackIntoView(id: string) {
+    await tick();
+
+    if (!dropzoneElement || typeof CSS === 'undefined' || typeof CSS.escape !== 'function') {
+      return;
+    }
+
+    const row = dropzoneElement.querySelector<HTMLElement>(`[data-track-id="${CSS.escape(id)}"]`);
+    row?.scrollIntoView({
+      block: 'nearest'
+    });
+  }
+
   $: searchQuery = showSearchControl ? $libraryViewSettings.searchQuery : '';
   $: normalizedSearchQuery = searchQuery.trim().toLocaleLowerCase();
   $: showSearchInput = showSearchControl && (searchInputExpanded || searchQuery !== '');
@@ -370,6 +385,10 @@
   }
   $: if (items) {
     tick().then(() => updatePlaylistHeaderState());
+  }
+  $: if (jumpToItemRequest && jumpToItemRequest.token !== lastHandledJumpToken) {
+    lastHandledJumpToken = jumpToItemRequest.token;
+    void scrollTrackIntoView(jumpToItemRequest.id);
   }
 </script>
 

@@ -15,6 +15,7 @@
     next: void;
     seek: number;
     volume: number;
+    showTrack: string;
   }>();
 
   const COMPACT_VOLUME_QUERY = '(max-width: 349px)';
@@ -90,7 +91,13 @@
 
 <footer class="player-bar">
   <div class="player-track">
-    <strong>{displayTrack ? getTrackDisplayTitle(displayTrack) : 'Welcome to izci!'}</strong>
+    {#if displayTrack}
+      <button type="button" class="player-track-title" on:click={() => dispatch('showTrack', displayTrack.id)}>
+        <strong>{getTrackDisplayTitle(displayTrack)}</strong>
+      </button>
+    {:else}
+      <strong>Welcome to izci!</strong>
+    {/if}
     {#if displayTrack}
       {#if getTrackDisplaySubtitle(displayTrack)}
         <span>{getTrackDisplaySubtitle(displayTrack)}</span>
@@ -184,3 +191,15 @@
     </div>
   </div>
 </footer>
+
+<style>
+  .player-track-title {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: inherit;
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+  }
+</style>
