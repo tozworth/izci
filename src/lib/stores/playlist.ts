@@ -481,30 +481,23 @@ function createPlaylistStore() {
         const item = targetItems[index];
         index += 1;
 
-        const metadata = buildInitialMetadata(item);
-
-        if (!metadata) {
-          continue;
-        }
-
         const currentItem = itemList.find((entry) => entry.id === item.id);
 
         if (!currentItem) {
           continue;
         }
 
+        const metadata = buildInitialMetadata(item);
+        const mergedMetadata = metadata ? { ...currentItem.metadata, ...metadata } : currentItem.metadata;
+
+        if (metadata && JSON.stringify(currentItem.metadata ?? {}) !== JSON.stringify(mergedMetadata ?? {})) {
+          updates.push({ id: item.id, metadata: mergedMetadata ?? {} });
+        }
+
         if (item.kind === 'stream' && item.objectUrl && (currentItem.metadata?.duration ?? 0) <= 0) {
           pendingDurationItem = item;
           break;
         }
-
-        const mergedMetadata = { ...currentItem.metadata, ...metadata };
-
-        if (JSON.stringify(currentItem.metadata ?? {}) === JSON.stringify(mergedMetadata)) {
-          continue;
-        }
-
-        updates.push({ id: item.id, metadata: mergedMetadata });
       }
 
       if (updates.length > 0) {
