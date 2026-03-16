@@ -42,6 +42,12 @@ interface TrackCollectionStoreConfig {
   dedupe: boolean;
 }
 
+interface ShuffleSessionState {
+  history: string[];
+  cursor: number;
+  upcoming: string[];
+}
+
 const emptySelection: PlaylistSelection = {
   ids: [],
   anchorId: null,
@@ -357,6 +363,11 @@ function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
   let persistQueued = false;
   let shouldCompactStoredState = false;
   const pendingOperations: Array<() => void> = [];
+  let shuffleSession: ShuffleSessionState = {
+    history: [],
+    cursor: -1,
+    upcoming: []
+  };
 
   items.subscribe((value) => {
     itemList = value;
@@ -440,6 +451,88 @@ function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
     });
   }
 
+  function resetShuffleSession(): void {
+    shuffleSession = {
+      history: [],
+      cursor: -1,
+      upcoming: []
+    };
+  }
+
+  function shuffleIds(ids: string[]): string[] {
+    const shuffled = [...ids];
+
+    for (let index = shuffled.length - 1; index > 0; index -= 1) {
+      const swapIndex = Math.floor(Math.random() * (index + 1));
+      [shuffled[index], shuffled[swapIndex]] = [shuffled[swapIndex], shuffled[index]];
+    }
+
+    return shuffled;
+  }
+
+  function getTrackById(id: string | null): PlaylistItem | null {
+    if (!id) {
+      return null;
+    }
+
+    return itemList.find((item) => item.id === id) ?? null;
+  }
+
+  function buildShuffleCycle(currentId: string | null): string[] {
+    if (itemList.length === 0) {
+      return [];
+    }
+
+    if (itemList.length === 1) {
+      return currentId ? [currentId] : [itemList[0].id];
+    }
+
+    return shuffleIds(itemList.map((item) => item.id).filter((id) => id !== currentId));
+  }
+
+  function initializeShuffleSession(currentId: string | null): void {
+    const initialTrack = getTrackById(currentId) ?? itemList[0] ?? null;
+
+    if (!initialTrack) {
+      resetShuffleSession();
+      return;
+    }
+
+    shuffleSession = {
+      history: [initialTrack.id],
+      cursor: 0,
+      upcoming: shuffleIds(itemList.map((item) => item.id).filter((id) => id !== initialTrack.id))
+    };
+  }
+
+  function syncShuffleSession(currentId: string | null): void {
+    if (itemList.length === 0) {
+      resetShuffleSession();
+      return;
+    }
+
+    if (!currentId || !getTrackById(currentId)) {
+      if (shuffleSession.cursor === -1 || !getTrackById(shuffleSession.history[shuffleSession.cursor] ?? null)) {
+        initializeShuffleSession(itemList[0]?.id ?? null);
+      }
+
+      return;
+    }
+
+    if (shuffleSession.history[shuffleSession.cursor] === currentId) {
+      return;
+    }
+
+    const existingIndex = shuffleSession.history.lastIndexOf(currentId);
+
+    if (existingIndex !== -1) {
+      shuffleSession.cursor = existingIndex;
+      return;
+    }
+
+    initializeShuffleSession(currentId);
+  }
+
   function splitUniqueItems(sourceItems: PlaylistItem[], existingItems: PlaylistItem[] = []): {
     uniqueItems: PlaylistItem[];
     duplicateItems: PlaylistItem[];
@@ -505,6 +598,7 @@ function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
     items.set(uniqueItems);
     selection.set(restoredSelection);
     playbackOptions.set(normalizePlaybackOptions(state?.playbackOptions));
+    resetShuffleSession();
   }
 
   function scheduleMetadataParsing(targetItems: PlaylistItem[]): void {
@@ -639,19 +733,76 @@ function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
     return direction > 0 ? itemList[0] : itemList[itemList.length - 1];
   }
 
-  function resolveShuffledTrack(baseId: string | null, includeCurrent: boolean): PlaylistItem | null {
+  function resolveShuffledTrack(baseId: string | null, direction: -1 | 1, wrap: boolean): PlaylistItem | null {
     if (itemList.length === 0) {
       return null;
     }
 
-    const candidates = includeCurrent ? itemList : itemList.filter((item) => item.id !== baseId);
+    syncShuffleSession(baseId);
 
-    if (candidates.length === 0) {
-      return includeCurrent && baseId ? itemList.find((item) => item.id === baseId) ?? null : null;
+    if (shuffleSession.cursor === -1) {
+      return null;
     }
 
-    const index = Math.floor(Math.random() * candidates.length);
-    return candidates[index] ?? null;
+    if (direction < 0) {
+      if (shuffleSession.cursor > 0) {
+        return getTrackById(shuffleSession.history[shuffleSession.cursor - 1] ?? null);
+      }
+
+      if (!wrap) {
+        return null;
+      }
+
+      const previousCycle = buildShuffleCycle(baseId);
+
+      if (previousCycle.length === 0) {
+        return getTrackById(baseId);
+      }
+
+      shuffleSession = {
+        history: [...previousCycle, ...shuffleSession.history],
+        cursor: previousCycle.length,
+        upcoming: shuffleSession.upcoming
+      };
+
+      return getTrackById(shuffleSession.history[shuffleSession.cursor - 1] ?? null);
+    }
+
+    if (shuffleSession.cursor < shuffleSession.history.length - 1) {
+      return getTrackById(shuffleSession.history[shuffleSession.cursor + 1] ?? null);
+    }
+
+    if (shuffleSession.upcoming.length > 0) {
+      const [nextId, ...remaining] = shuffleSession.upcoming;
+
+      shuffleSession = {
+        history: [...shuffleSession.history, nextId],
+        cursor: shuffleSession.history.length,
+        upcoming: remaining
+      };
+
+      return getTrackById(nextId);
+    }
+
+    if (!wrap) {
+      return null;
+    }
+
+    const nextCycle = buildShuffleCycle(baseId);
+
+    if (nextCycle.length === 0) {
+      return getTrackById(baseId);
+    }
+
+    const [nextId, ...remaining] = nextCycle;
+
+    shuffleSession = {
+      history: [...shuffleSession.history, nextId],
+      cursor: shuffleSession.history.length,
+      upcoming: remaining
+    };
+
+    return getTrackById(nextId);
   }
 
   function flushPendingOperations(): void {
@@ -751,6 +902,7 @@ function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
 
         items.update((existing) => [...existing, ...uniqueItems]);
         selection.update((value) => normalizeSelection(value));
+        resetShuffleSession();
         scheduleMetadataParsing(uniqueItems);
         queuePersist();
       });
@@ -773,6 +925,7 @@ function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
         addedItems = uniqueItems;
         items.set(uniqueItems);
         selection.set(emptySelection);
+        resetShuffleSession();
         scheduleMetadataParsing(uniqueItems);
         queuePersist();
       });
@@ -866,6 +1019,7 @@ function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
           focusId: idsToRemove.has(value.focusId ?? '') ? null : value.focusId
         })
       );
+      resetShuffleSession();
       queuePersist();
 
       return removedItems;
@@ -891,6 +1045,7 @@ function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
           ...value,
           shuffle: !value.shuffle
         }));
+        resetShuffleSession();
         queuePersist();
       });
     },
@@ -914,7 +1069,18 @@ function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
       const baseId = currentId ?? selectedId;
 
       if (shuffle) {
-        return resolveShuffledTrack(baseId, false);
+        if (!baseId) {
+          const initialTrack = direction > 0 ? itemList[0] ?? null : itemList[itemList.length - 1] ?? null;
+
+          if (!initialTrack) {
+            return null;
+          }
+
+          initializeShuffleSession(initialTrack.id);
+          return initialTrack;
+        }
+
+        return resolveShuffledTrack(baseId, direction, wrap);
       }
 
       return resolveLinearTrack(baseId, direction, wrap);
@@ -935,7 +1101,7 @@ function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
       }
 
       if (shuffle) {
-        return resolveShuffledTrack(currentId, repeatMode === 'all');
+        return resolveShuffledTrack(currentId, 1, repeatMode === 'all');
       }
 
       return resolveLinearTrack(currentId, 1, repeatMode === 'all');
