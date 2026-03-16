@@ -17,10 +17,10 @@ export const MODULE_INTERPOLATION_OPTIONS: Array<{
   label: string;
   hint: string;
 }> = [
-  { value: 1, label: '1-tap', hint: 'Minimal smoothing.' },
-  { value: 2, label: '2-tap', hint: 'Soft smoothing.' },
-  { value: 4, label: '4-tap', hint: 'Default smoothing.' },
-  { value: 8, label: '8-tap', hint: 'High smoothing.' }
+  { value: 1, label: '1-tap (minimal)', hint: 'Minimal smoothing (sharper, more artifacts)' },
+  { value: 2, label: '2-tap (soft)', hint: 'Soft smoothing.' },
+  { value: 4, label: '4-tap (medium)', hint: 'Medium smoothing.' },
+  { value: 8, label: '8-tap (high)', hint: 'High smoothing (blurry, less artifacts)' }
 ];
 
 let broadcastChannel: BroadcastChannel | null = null;

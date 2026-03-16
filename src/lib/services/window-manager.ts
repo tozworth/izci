@@ -530,7 +530,7 @@ function buildOptionsMarkup(): string {
               <div class="meta-label">Stereo</div>
               <div class="meta-value" data-summary="stereoSeparation">100%</div>
               <div class="meta-label">Interpolation</div>
-              <div class="meta-value" data-summary="interpolationFilter">1-tap</div>
+              <div class="meta-value" data-summary="interpolationFilter">1-tap (minimal)</div>
               <div class="meta-label">Tempo</div>
               <div class="meta-value" data-summary="tempoFactor">100% (1.00x)</div>
               <div class="meta-label">Pitch</div>
@@ -566,7 +566,7 @@ function buildOptionsMarkup(): string {
                     <input id="stereo-separation" name="stereoSeparation" type="range" min="0" max="200" step="1" />
                     <span class="field-output" id="stereo-separation-value">100%</span>
                   </div>
-                  <p class="field-hint">0% collapses to mono. 100% is the current default. Values above 100% widen the image.</p>
+                  <p class="field-hint">Below 100 = collapse to mono. Above 100 = widen the image.</p>
                 </label>
 
                 <label class="field">
@@ -605,7 +605,7 @@ function buildOptionsMarkup(): string {
                     <input id="tempo-factor" name="tempoFactor" type="range" min="25" max="400" step="1" />
                     <span class="field-output" id="tempo-factor-value">100% (1.00x)</span>
                   </div>
-                  <p class="field-hint">Adjust playback speed without touching the streamed-audio backend.</p>
+                  <p class="field-hint">Adjust playback/tracking speed of modules.</p>
                 </label>
 
                 <label class="field">
@@ -616,7 +616,7 @@ function buildOptionsMarkup(): string {
                     <input id="pitch-factor" name="pitchFactor" type="range" min="25" max="400" step="1" />
                     <span class="field-output" id="pitch-factor-value">100% (1.00x)</span>
                   </div>
-                  <p class="field-hint">Applies libopenmpt pitch scaling to the active module.</p>
+                  <p class="field-hint">Adjust sample pitch of modules.</p>
                 </label>
               </div>
             </div>
@@ -630,12 +630,12 @@ function buildOptionsMarkup(): string {
               <div class="field-grid">
                 <label class="field checkbox-field">
                   <div class="field-copy">
-                    <span class="field-title">Infer artist and title from <code>Artist - Title.ext</code></span>
+                    <span class="field-title">Infer artist and title from filenames</span>
                   </div>
                   <div class="field-control field-control-checkbox">
                     <input id="infer-from-filename" name="inferFromFilename" type="checkbox" />
                   </div>
-                  <p class="field-hint">Only fills missing artist/title values. Embedded or decoder-provided metadata still wins.</p>
+                  <p class="field-hint">If file has no metadata, fill in from <code>Artist - Title</code>-style filename.</p>
                 </label>
               </div>
             </div>
@@ -655,11 +655,6 @@ function buildOptionsMarkup(): string {
               <div class="meta-label">Mode</div>
               <div class="meta-value">Offline-capable local PWA</div>
             </dl>
-          </div>
-
-          <div class="section">
-            <h2>Notes</h2>
-            <p>Tracker modules play through the dedicated module backend. Streamed formats continue through the Howler path.</p>
           </div>
         </article>
       </section>
