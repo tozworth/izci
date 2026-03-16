@@ -262,12 +262,7 @@
       </div>
     </div>
 
-    {#if items.length === 0}
-      <div class="empty-state playlist-empty-state">
-        <p>Drop local audio, tracker modules, or folders here.</p>
-        <p>Supported: MP3, WAV, FLAC, OGG, Opus, MOD, XM, S3M, IT.</p>
-      </div>
-    {:else}
+    {#if items.length > 0}
       <ul class="track-list">
         {#each items as item}
           <li class:selected={selectedIds.includes(item.id)} class:playing={item.id === playingId}>

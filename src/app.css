@@ -469,11 +469,6 @@ button {
   z-index: 60;
 }
 
-.playlist-empty-state {
-  min-height: 100%;
-  padding: 1rem 0.85rem 1.2rem;
-}
-
 .playlist-context-menu button {
   width: 100%;
   display: flex;
