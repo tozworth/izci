@@ -5,6 +5,14 @@ import { svelte } from '@sveltejs/vite-plugin-svelte';
 import { VitePWA } from 'vite-plugin-pwa';
 
 export default defineConfig({
+  build: {
+    rollupOptions: {
+      input: {
+        main: fileURLToPath(new URL('./index.html', import.meta.url)),
+        options: fileURLToPath(new URL('./options.html', import.meta.url))
+      }
+    }
+  },
   optimizeDeps: {
     // Keep chiptune3 unbundled so its internal AudioWorklet URL resolves to the package runtime files.
     exclude: ['chiptune3']

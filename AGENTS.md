@@ -37,6 +37,7 @@ Working source tree:
 - `svelte.config.js`: Svelte config.
 - `tsconfig.json`: TypeScript config.
 - `index.html`: Vite HTML shell.
+- `options.html`: dedicated Vite HTML entry for the Options popup window.
 - `TODO.md`: local notes, not app logic.
 - `AGENTS.md`: repo operating guide. Keep it current.
 
@@ -45,6 +46,10 @@ Working source tree:
 - `src/main.ts`: Svelte mount, global CSS/material symbol import, production-only service worker registration.
 - `src/App.svelte`: top-level shell; manages playlist/library workspace, file and folder import flows, playback actions, context actions, responsive tabbed layout, wide-mode panel resizing, and error banner wiring.
 - `src/app.css`: global styling.
+- `src/options/main.ts`: Options popup entry; mounts the dedicated popup Svelte app.
+- `src/options/OptionsApp.svelte`: standalone Options window UI for module playback defaults and metadata behavior.
+- `src/options/app.css`: Options popup styling.
+- `src/options/views.ts`: popup navigation/view metadata shared by the Options UI.
 - `src/vite-env.d.ts`: Vite ambient types.
 
 ### `src/lib/components/`
@@ -64,7 +69,8 @@ Primary location for playback and browser-integration logic.
 - `howler-player.ts`: streamed-audio backend built on `Howler.js`.
 - `module-player.ts`: tracker-module backend built on `Chiptune3`; applies runtime module playback settings and recreates the player when required by setting changes.
 - `chiptune-loader.ts`: guarded one-time `Chiptune3` initialization with timeout/error handling.
-- `window-manager.ts`: popup options window generation/sync and desktop-PWA exit behavior.
+- `popup-windows.ts`: registry of popup window definitions (path, name, features) used by the window manager.
+- `window-manager.ts`: generic popup launcher/tracker and desktop-PWA exit behavior; keep UI out of this file.
 
 ### `src/lib/stores/`
 
@@ -115,15 +121,16 @@ Primary location for playback and browser-integration logic.
 - `player-controller.ts` is the single coordinator for backend switching. Changes to transport or metadata propagation should usually start there.
 - `module-player.ts`, `chiptune-loader.ts`, and the custom asset emission in `vite.config.ts` form one pipeline. Treat them as coupled.
 - `vite.config.ts` emits `assets/libopenmpt.worklet.js`, configures the PWA manifest, and declares file handlers. Changes here can break offline playback, installed-app file opening, or module initialization.
-- `window-manager.ts` writes the options UI into a popup window and syncs settings over storage/BroadcastChannel. Keep that flow local-first and backend-free.
+- The Options window is a separate Vite/Svelte entrypoint (`options.html` -> `src/options/main.ts`) rather than an inline HTML string. Keep popup UIs local-first and frontend-only.
+- `popup-windows.ts` is the registry for managed popup definitions. Add future popup windows there so `window-manager.ts` stays generic.
 - `src/main.ts` only registers the service worker in production. Preserve that split unless there is a strong reason to change it.
 
 ## Change guidance
 
 - Before changing playback behavior, verify whether the code path is `stream` or `module` and keep both working.
 - Before changing import behavior, inspect `src/App.svelte`, `src/lib/utils/files.ts`, and `src/lib/stores/playlist.ts` together.
-- Before changing module playback settings, inspect `src/lib/stores/module-playback-settings.ts`, `src/lib/services/module-player.ts`, and `src/lib/services/window-manager.ts` together.
+- Before changing module playback settings, inspect `src/lib/stores/module-playback-settings.ts`, `src/lib/services/module-player.ts`, and `src/options/OptionsApp.svelte` together.
 - Before changing library UI behavior, inspect `src/lib/components/PlaylistPanel.svelte` and `src/lib/stores/library-view-settings.ts` together.
-- Before changing PWA/build behavior, inspect `vite.config.ts`, `src/main.ts`, and icon assets together.
+- Before changing PWA/build or popup-entry behavior, inspect `vite.config.ts`, `src/main.ts`, `options.html`, `src/options/main.ts`, and icon assets together.
 - Prefer extending stores/services over adding more stateful logic to `App.svelte` or leaf components.
 - Do not add backend/network assumptions, cloud dependencies, or server-coupled flows.
