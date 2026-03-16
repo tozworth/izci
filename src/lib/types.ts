@@ -7,6 +7,8 @@ export type TrackKind = 'stream' | 'module';
 export type PlaybackState = 'idle' | 'loading' | 'playing' | 'paused' | 'ended' | 'error';
 export type ModuleInterpolationFilter = 1 | 2 | 4 | 8;
 export type PlaylistRepeatMode = 'off' | 'one' | 'all';
+export type SortDirection = 'asc' | 'desc';
+export type LibraryColumnId = 'title' | 'artist' | 'format' | 'duration';
 
 export interface TrackMetadata {
   title?: string;
@@ -53,9 +55,31 @@ export interface PlaylistItem {
   metadata?: TrackMetadata;
 }
 
+export interface PlaylistSelection {
+  ids: string[];
+  anchorId: string | null;
+  focusId: string | null;
+}
+
 export interface PlaylistPlaybackOptions {
   shuffle: boolean;
   repeatMode: PlaylistRepeatMode;
+}
+
+export interface LibraryViewColumnState {
+  width: number;
+  visible: boolean;
+}
+
+export interface LibraryViewSortState {
+  columnId: LibraryColumnId;
+  direction: SortDirection;
+}
+
+export interface LibraryViewSettings {
+  order: LibraryColumnId[];
+  columns: Record<LibraryColumnId, LibraryViewColumnState>;
+  sort: LibraryViewSortState;
 }
 
 export interface PlaybackSnapshot {

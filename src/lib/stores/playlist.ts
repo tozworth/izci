@@ -1,13 +1,13 @@
 import { derived, writable } from 'svelte/store';
 import { metadataSettings } from '$lib/stores/metadata-settings';
-import type { PlaylistItem, PlaylistPlaybackOptions, PlaylistRepeatMode, TrackMetadata } from '$lib/types';
+import type {
+  PlaylistItem,
+  PlaylistPlaybackOptions,
+  PlaylistRepeatMode,
+  PlaylistSelection,
+  TrackMetadata
+} from '$lib/types';
 import { getTrackIdentity, inferExtension, inferKind, mergeInferredArtistTitle } from '$lib/utils/files';
-
-interface PlaylistSelection {
-  ids: string[];
-  anchorId: string | null;
-  focusId: string | null;
-}
 
 interface SelectOptions {
   range?: boolean;
@@ -694,6 +694,7 @@ function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
 
   return {
     items,
+    selection,
     selectedIds,
     selectedTrack,
     shuffleEnabled,
@@ -840,6 +841,12 @@ function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
           anchorId: ids[0] ?? null,
           focusId: ids.at(-1) ?? null
         });
+        queuePersist();
+      });
+    },
+    setSelection(nextSelection: PlaylistSelection) {
+      runOrQueue(() => {
+        selection.set(normalizeSelection(nextSelection));
         queuePersist();
       });
     },

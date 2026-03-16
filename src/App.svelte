@@ -8,7 +8,7 @@
   import { DEFAULT_PLAYER_VOLUME } from '$lib/stores/player-volume';
   import { windowManager } from '$lib/services/window-manager';
   import { libraryStore, playlistStore } from '$lib/stores/playlist';
-  import type { PlaybackSnapshot, PlaylistItem, PlaylistRepeatMode } from '$lib/types';
+  import type { PlaybackSnapshot, PlaylistItem, PlaylistRepeatMode, PlaylistSelection } from '$lib/types';
   import {
     buildPlaylistItems,
     clonePlaylistItems,
@@ -56,6 +56,7 @@
   } = playlistStore;
   const {
     items: libraryItemsStore,
+    selection: librarySelectionStore,
     selectedIds: librarySelectedIdsStore,
     selectedTrack: librarySelectedTrackStore
   } = libraryStore;
@@ -64,6 +65,7 @@
   let libraryItems: PlaylistItem[] = [];
   let playlistSelectionIds: string[] = [];
   let librarySelectionIds: string[] = [];
+  let librarySelectionAnchorId: string | null = null;
   let selectedPlaylistItem: PlaylistItem | null = null;
   let selectedLibraryItem: PlaylistItem | null = null;
   let selectedItem: PlaylistItem | null = null;
@@ -83,6 +85,7 @@
   const unsubscribeLibraryItems = libraryItemsStore.subscribe((value) => (libraryItems = value));
   const unsubscribePlaylistSelectedIds = playlistSelectedIdsStore.subscribe((value) => (playlistSelectionIds = value));
   const unsubscribeLibrarySelectedIds = librarySelectedIdsStore.subscribe((value) => (librarySelectionIds = value));
+  const unsubscribeLibrarySelection = librarySelectionStore.subscribe((value) => (librarySelectionAnchorId = value.anchorId));
   const unsubscribePlaylistSelectedTrack = playlistSelectedTrackStore.subscribe((value) => (selectedPlaylistItem = value));
   const unsubscribeLibrarySelectedTrack = librarySelectedTrackStore.subscribe((value) => (selectedLibraryItem = value));
   const unsubscribeShuffle = shuffleStore.subscribe((value) => (shuffleEnabled = value));
@@ -222,6 +225,11 @@
       range: event.detail.range,
       toggle: event.detail.toggle
     });
+  }
+
+  function handleSetSelection(collection: WorkspaceCollection, event: CustomEvent<PlaylistSelection>) {
+    activeCollection = collection;
+    getCollectionStore(collection).setSelection(event.detail);
   }
 
   async function handlePlaylistActivate(id: string) {
@@ -549,6 +557,7 @@
     unsubscribeLibraryItems();
     unsubscribePlaylistSelectedIds();
     unsubscribeLibrarySelectedIds();
+    unsubscribeLibrarySelection();
     unsubscribePlaylistSelectedTrack();
     unsubscribeLibrarySelectedTrack();
     unsubscribeShuffle();
@@ -640,9 +649,11 @@
         <PlaylistPanel
           items={libraryItems}
           selectedIds={librarySelectionIds}
+          selectionAnchorId={librarySelectionAnchorId}
           playingId={null}
           panelTitle="Library"
           regionLabel="Library"
+          layout="columns"
           hideEyebrow={true}
           showShuffleControl={false}
           showRepeatControl={false}
@@ -650,6 +661,7 @@
           on:addFiles={(event) => handleAddFiles(event.detail, 'library')}
           on:openFiles={() => void handleMenuOpenFiles('library')}
           on:select={(event) => handleSelect('library', event)}
+          on:setSelection={(event) => handleSetSelection('library', event)}
           on:activate={(event) => void handleLibraryActivate(event.detail)}
           on:contextAction={handleLibraryContextAction}
         />
@@ -688,15 +700,18 @@
       <PlaylistPanel
         items={libraryItems}
         selectedIds={librarySelectionIds}
+        selectionAnchorId={librarySelectionAnchorId}
         playingId={null}
         panelTitle="Library"
         regionLabel="Library"
+        layout="columns"
         showShuffleControl={false}
         showRepeatControl={false}
         getContextMenuActions={getLibraryContextActions}
         on:addFiles={(event) => handleAddFiles(event.detail, 'library')}
         on:openFiles={() => void handleMenuOpenFiles('library')}
         on:select={(event) => handleSelect('library', event)}
+        on:setSelection={(event) => handleSetSelection('library', event)}
         on:activate={(event) => void handleLibraryActivate(event.detail)}
         on:contextAction={handleLibraryContextAction}
       />
