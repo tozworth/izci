@@ -90,6 +90,7 @@ Workspace-only composition helpers for the app shell.
 
 Primary location for playback and browser-integration logic.
 
+- `file-launch.ts`: Chromium Launch Queue integration for installed-PWA file associations; converts launched file handles into `File`s and queues them until the app is ready to replace the playlist.
 - `import-controller.ts`: file import controller for picker capability detection, file-input fallback, open-files flow, and folder import flow.
 - `player-controller.ts`: single coordinator for backend switching, snapshot updates, metadata inference application, and player volume propagation.
 - `howler-player.ts`: streamed-audio backend built on `Howler.js`.
@@ -153,6 +154,7 @@ Primary location for playback and browser-integration logic.
   - `showOpenFilePicker()`
   - `showDirectoryPicker()` for top-level folder imports
   - drag/drop, including Chromium filesystem entry helpers
+- Installed PWA file-association launches come through Chromium `launchQueue`; those files should replace the playlist contents rather than append to the current queue.
 - `src/lib/services/import-controller.ts` is the entry point for picker capability checks and menu/input import behavior. Keep drag/drop extraction in `PlaylistPanel.svelte` and `src/lib/utils/files.ts`.
 - Persisted items may be rehydrated from `FileSystemFileHandle`s. Preserve the `ensureLoaded()` flow and permission prompts when changing import or playback behavior.
 - Metadata is inferred from filenames only when enabled in `metadata-settings`. Do not bake inference directly into components.

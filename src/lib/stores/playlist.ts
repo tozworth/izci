@@ -47,6 +47,12 @@ function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
   let shouldCompactStoredState = false;
   const pendingOperations: Array<() => void> = [];
   const navigation = createPlaylistNavigation(() => itemList);
+  let resolveReady: (() => void) | null = null;
+  const readyPromise = hydrated
+    ? Promise.resolve()
+    : new Promise<void>((resolve) => {
+        resolveReady = resolve;
+      });
 
   items.subscribe((value) => {
     itemList = value;
@@ -167,6 +173,9 @@ function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
         if (shouldCompactStoredState) {
           queuePersist();
         }
+
+        resolveReady?.();
+        resolveReady = null;
       });
   }
 
@@ -177,6 +186,9 @@ function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
     selectedTrack,
     shuffleEnabled,
     repeatMode,
+    ready() {
+      return readyPromise;
+    },
     async ensureLoaded(id: string, options: { prompt?: boolean } = {}) {
       const item = itemList.find((entry) => entry.id === id);
 

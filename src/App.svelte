@@ -11,6 +11,7 @@
     WorkspaceTabDefinition
   } from '$lib/components/workspace/types';
   import { createImportController, FILE_INPUT_ACCEPT } from '$lib/services/import-controller';
+  import { subscribeToLaunchedFiles } from '$lib/services/file-launch';
   import { playerController } from '$lib/services/player-controller';
   import {
     buildLibraryContextActions,
@@ -153,6 +154,7 @@
     addFiles: handleAddFiles,
     clickFileInput: () => fileInput?.click()
   });
+  const unsubscribeLaunchedFiles = subscribeToLaunchedFiles((files) => handleLaunchedFiles(files));
   const unsubscribeWorkspacePanelLayout = workspacePanelLayout.subscribe(
     (value) => (panelLayout = value)
   );
@@ -303,6 +305,27 @@
     }
 
     activeCollection = target;
+  }
+
+  async function handleLaunchedFiles(files: File[]) {
+    const nextItems = buildPlaylistItems(files);
+
+    if (nextItems.length === 0) {
+      return;
+    }
+
+    await playlistStore.ready();
+    setActiveWorkspaceTab('playlist');
+
+    const { removedItems, addedItems } = playlistStore.replaceAll(nextItems);
+
+    playerController.unload();
+    cleanupRemovedItems(removedItems);
+
+    if (addedItems.length > 0) {
+      selectTrack('playlist', addedItems[0].id);
+      await playTrack(addedItems[0]);
+    }
   }
 
   function getTrackById(collection: WorkspaceCollection, id: string): PlaylistItem | null {
@@ -685,6 +708,7 @@
     unsubscribeRepeat();
     unsubscribeTrack();
     unsubscribePlayback();
+    unsubscribeLaunchedFiles();
     unsubscribeWorkspacePanelLayout();
     playerController.destroy();
   });
