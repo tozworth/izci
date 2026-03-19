@@ -44,7 +44,7 @@ Working source tree:
 ## App source map
 
 - `src/main.ts`: Svelte mount, global CSS/material symbol import, production-only service worker registration.
-- `src/App.svelte`: top-level shell; manages playlist/library workspace, file and folder import flows, playback actions, context actions, responsive tabbed layout, wide-mode panel resizing, and error banner wiring.
+- `src/App.svelte`: top-level shell; composes the extracted workspace layouts/controllers, owns high-level workspace/playback coordination, global shortcuts, and error banner wiring.
 - `src/app.css`: global styling.
 - `src/options/main.ts`: Options popup entry; mounts the dedicated popup Svelte app.
 - `src/options/OptionsApp.svelte`: standalone Options window UI for module playback defaults and metadata behavior.
@@ -77,15 +77,27 @@ Playlist/library panel subcomponents and UI-local helpers.
 - `actions/portal.ts`: action that portals panel menus into `document.body`.
 - `actions/window-dismiss.ts`: action that closes transient panel UI on outside click, escape, scroll, blur, or resize.
 
+### `src/lib/components/workspace/`
+
+Workspace-only composition helpers for the app shell.
+
+- `TabbedWorkspace.svelte`: tabbed workspace layout for playlist, library, and details views.
+- `WideWorkspace.svelte`: wide desktop workspace layout with the three panels and resize handles.
+- `WorkspaceResizer.svelte`: reusable vertical separator handle for wide workspace layouts.
+- `types.ts`: shared workspace component prop/event types used by the tabbed and wide layout components.
+
 ### `src/lib/services/`
 
 Primary location for playback and browser-integration logic.
 
+- `import-controller.ts`: file import controller for picker capability detection, file-input fallback, open-files flow, and folder import flow.
 - `player-controller.ts`: single coordinator for backend switching, snapshot updates, metadata inference application, and player volume propagation.
 - `howler-player.ts`: streamed-audio backend built on `Howler.js`.
 - `module-player.ts`: tracker-module backend built on `Chiptune3`; applies runtime module playback settings and recreates the player when required by setting changes.
 - `chiptune-loader.ts`: guarded one-time `Chiptune3` initialization with timeout/error handling.
 - `popup-windows.ts`: registry of popup window definitions (path, name, features) used by the window manager.
+- `workspace-actions.ts`: workspace collection helpers plus playlist/library context action builders.
+- `workspace-layout.ts`: wide-workspace width math, resize constraints, and panel-layout resolution.
 - `window-manager.ts`: generic popup launcher/tracker and desktop-PWA exit behavior; keep UI out of this file.
 
 ### `src/lib/stores/`
@@ -109,7 +121,7 @@ Primary location for playback and browser-integration logic.
 
 ### Types and shims
 
-- `src/lib/types.ts`: shared domain types, supported extension constants, playlist/library view types, metadata/settings types, and playback snapshot types.
+- `src/lib/types.ts`: shared domain types, supported extension constants, workspace types, playlist/library view types, metadata/settings types, and playback snapshot types.
 - `src/lib/types/chiptune3.d.ts`: local typings for `chiptune3`.
 - `src/lib/types/file-system-access.d.ts`: File System Access API typing shim used by the app.
 - `src/lib/types/howler.d.ts`: local typings for `howler` integration gaps.
@@ -133,16 +145,19 @@ Primary location for playback and browser-integration logic.
   - library: persistent deduped catalog with column-based view state
 - Library search/filter query is part of the persistent library view state and syncs across windows with the rest of the library UI settings.
 - `src/lib/components/PlaylistPanel.svelte` should stay as a shell around `src/lib/components/playlist-panel/` rather than reaccreting column math, search traversal, or context-menu DOM wiring inline.
+- `src/lib/components/workspace/` owns the tabbed vs wide workspace markup split; keep layout-specific composition there instead of rebuilding duplicated panel trees inside `App.svelte`.
 - Wide-mode workspace panel widths are persisted in `localStorage` and sync across windows; tabbed mode ignores those widths.
-- `src/App.svelte` is responsible for workspace orchestration, but durable state should still live in stores/services.
+- `src/App.svelte` is responsible for top-level workspace orchestration, but durable state and local algorithms should live in stores/services or the focused workspace components.
 - File import supports multiple sources:
   - plain file input fallback
   - `showOpenFilePicker()`
   - `showDirectoryPicker()` for top-level folder imports
   - drag/drop, including Chromium filesystem entry helpers
+- `src/lib/services/import-controller.ts` is the entry point for picker capability checks and menu/input import behavior. Keep drag/drop extraction in `PlaylistPanel.svelte` and `src/lib/utils/files.ts`.
 - Persisted items may be rehydrated from `FileSystemFileHandle`s. Preserve the `ensureLoaded()` flow and permission prompts when changing import or playback behavior.
 - Metadata is inferred from filenames only when enabled in `metadata-settings`. Do not bake inference directly into components.
 - `player-controller.ts` is the single coordinator for backend switching. Changes to transport or metadata propagation should usually start there.
+- Workspace context actions and library membership checks should stay in `src/lib/services/workspace-actions.ts`; wide-layout sizing rules should stay in `src/lib/services/workspace-layout.ts`.
 - `module-player.ts`, `chiptune-loader.ts`, and the custom asset emission in `vite.config.ts` form one pipeline. Treat them as coupled.
 - `vite.config.ts` emits `assets/libopenmpt.worklet.js`, configures the PWA manifest, and declares file handlers. Changes here can break offline playback, installed-app file opening, or module initialization.
 - The Options window is a separate Vite/Svelte entrypoint (`options.html` -> `src/options/main.ts`) rather than an inline HTML string. Keep popup UIs local-first and frontend-only.
@@ -152,9 +167,10 @@ Primary location for playback and browser-integration logic.
 ## Change guidance
 
 - Before changing playback behavior, verify whether the code path is `stream` or `module` and keep both working.
-- Before changing import behavior, inspect `src/App.svelte`, `src/lib/utils/files.ts`, and `src/lib/stores/playlist.ts` together.
+- Before changing import behavior, inspect `src/App.svelte`, `src/lib/services/import-controller.ts`, `src/lib/utils/files.ts`, and `src/lib/stores/playlist.ts` together.
 - Before changing module playback settings, inspect `src/lib/stores/module-playback-settings.ts`, `src/lib/services/module-player.ts`, and `src/options/OptionsApp.svelte` together.
-- Before changing library UI behavior, inspect `src/lib/components/PlaylistPanel.svelte`, `src/lib/components/playlist-panel/`, and `src/lib/stores/library-view-settings.ts` together.
+- Before changing library UI behavior, inspect `src/lib/components/PlaylistPanel.svelte`, `src/lib/components/playlist-panel/`, `src/lib/components/workspace/`, and `src/lib/stores/library-view-settings.ts` together.
+- Before changing workspace layout behavior, inspect `src/App.svelte`, `src/lib/components/workspace/`, `src/lib/services/workspace-layout.ts`, and `src/lib/stores/workspace-panel-layout.ts` together.
 - Before changing PWA/build or popup-entry behavior, inspect `vite.config.ts`, `src/main.ts`, `options.html`, `src/options/main.ts`, and icon assets together.
 - Prefer extending stores/services over adding more stateful logic to `App.svelte` or leaf components.
 - Do not add backend/network assumptions, cloud dependencies, or server-coupled flows.

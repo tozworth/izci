@@ -1,64 +1,58 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
-  import { workspacePanelLayout } from '$lib/stores/workspace-panel-layout';
   import PlayerControls from '$lib/components/PlayerControls.svelte';
-  import PlaylistPanel from '$lib/components/PlaylistPanel.svelte';
   import TopMenuBar from '$lib/components/TopMenuBar.svelte';
-  import TrackDetailsPanel from '$lib/components/TrackDetailsPanel.svelte';
+  import TabbedWorkspace from '$lib/components/workspace/TabbedWorkspace.svelte';
+  import WideWorkspace from '$lib/components/workspace/WideWorkspace.svelte';
+  import type {
+    WideWorkspaceResizeStartDetail,
+    WorkspacePanelHandlers,
+    WorkspacePanelProps,
+    WorkspaceTabDefinition
+  } from '$lib/components/workspace/types';
+  import { createImportController, FILE_INPUT_ACCEPT } from '$lib/services/import-controller';
   import { playerController } from '$lib/services/player-controller';
-  import { DEFAULT_PLAYER_VOLUME } from '$lib/stores/player-volume';
+  import {
+    buildLibraryContextActions,
+    buildPlaylistContextActions,
+    buildSelectedWorkspaceTracks,
+    getEquivalentLibraryIds,
+    getOtherWorkspaceCollection,
+    libraryHasAllTracks
+  } from '$lib/services/workspace-actions';
+  import {
+    getWideContentWidth,
+    resolveResizedPanelLayout,
+    resolveWidePanelWidths,
+    WORKSPACE_RESIZER_WIDTH
+  } from '$lib/services/workspace-layout';
   import { windowManager } from '$lib/services/window-manager';
   import { libraryStore, playlistStore } from '$lib/stores/playlist';
+  import { DEFAULT_PLAYER_VOLUME } from '$lib/stores/player-volume';
+  import { workspacePanelLayout } from '$lib/stores/workspace-panel-layout';
   import type {
-    MenuActionItem,
     PlaybackSnapshot,
     PlaylistItem,
     PlaylistRepeatMode,
     PlaylistSelection,
-    WorkspacePanelLayoutSettings
+    WorkspaceCollection,
+    WorkspaceJumpRequest,
+    WorkspacePanelLayoutSettings,
+    WorkspaceResizeHandle,
+    WorkspaceTab
   } from '$lib/types';
   import {
     buildPlaylistItems,
     clonePlaylistItems,
     getTrackDisplayTitle,
-    getTrackIdentity,
-    readDirectorySurfaceFiles,
-    readFileHandleFiles
+    getTrackIdentity
   } from '$lib/utils/files';
 
-  type WorkspaceCollection = 'playlist' | 'library';
-  type WorkspaceTab = WorkspaceCollection | 'details';
-  type WorkspacePanelId = 'playlist' | 'library' | 'details';
   type TrackCollectionStore = typeof playlistStore;
   type PanelResizeState = {
-    handle: 'playlist-library' | 'library-details';
+    handle: WorkspaceResizeHandle;
     startX: number;
     startLayout: WorkspacePanelLayoutSettings;
-  };
-  type PickerWindow = Window &
-    typeof globalThis & {
-      showDirectoryPicker?: () => Promise<FileSystemDirectoryHandle>;
-      showOpenFilePicker?: (options?: OpenFilePickerOptions) => Promise<FileSystemFileHandle[]>;
-    };
-
-  const openFilePickerOptions: OpenFilePickerOptions = {
-    multiple: true,
-    types: [
-      {
-        description: 'Supported audio files',
-        accept: {
-          'audio/mpeg': ['.mp3'],
-          'audio/wav': ['.wav'],
-          'audio/flac': ['.flac'],
-          'audio/ogg': ['.ogg', '.opus'],
-          'audio/opus': ['.opus'],
-          'audio/x-mod': ['.mod'],
-          'audio/x-xm': ['.xm'],
-          'audio/x-s3m': ['.s3m'],
-          'audio/x-it': ['.it']
-        }
-      }
-    ]
   };
 
   const {
@@ -74,6 +68,13 @@
     selectedIds: librarySelectedIdsStore,
     selectedTrack: librarySelectedTrackStore
   } = libraryStore;
+
+  const workspaceTabs: WorkspaceTabDefinition[] = [
+    { id: 'playlist', icon: 'queue_music', label: 'Playlist' },
+    { id: 'library', icon: 'library_music', label: 'Library' },
+    { id: 'details', icon: 'info', label: 'Details' }
+  ];
+  const libraryContextActions = buildLibraryContextActions();
 
   let playlistItems: PlaylistItem[] = [];
   let libraryItems: PlaylistItem[] = [];
@@ -97,11 +98,21 @@
 
   const unsubscribePlaylistItems = playlistItemsStore.subscribe((value) => (playlistItems = value));
   const unsubscribeLibraryItems = libraryItemsStore.subscribe((value) => (libraryItems = value));
-  const unsubscribePlaylistSelectedIds = playlistSelectedIdsStore.subscribe((value) => (playlistSelectionIds = value));
-  const unsubscribeLibrarySelectedIds = librarySelectedIdsStore.subscribe((value) => (librarySelectionIds = value));
-  const unsubscribeLibrarySelection = librarySelectionStore.subscribe((value) => (librarySelectionAnchorId = value.anchorId));
-  const unsubscribePlaylistSelectedTrack = playlistSelectedTrackStore.subscribe((value) => (selectedPlaylistItem = value));
-  const unsubscribeLibrarySelectedTrack = librarySelectedTrackStore.subscribe((value) => (selectedLibraryItem = value));
+  const unsubscribePlaylistSelectedIds = playlistSelectedIdsStore.subscribe(
+    (value) => (playlistSelectionIds = value)
+  );
+  const unsubscribeLibrarySelectedIds = librarySelectedIdsStore.subscribe(
+    (value) => (librarySelectionIds = value)
+  );
+  const unsubscribeLibrarySelection = librarySelectionStore.subscribe(
+    (value) => (librarySelectionAnchorId = value.anchorId)
+  );
+  const unsubscribePlaylistSelectedTrack = playlistSelectedTrackStore.subscribe(
+    (value) => (selectedPlaylistItem = value)
+  );
+  const unsubscribeLibrarySelectedTrack = librarySelectedTrackStore.subscribe(
+    (value) => (selectedLibraryItem = value)
+  );
   const unsubscribeShuffle = shuffleStore.subscribe((value) => (shuffleEnabled = value));
   const unsubscribeRepeat = repeatStore.subscribe((value) => (repeatMode = value));
   const unsubscribeTrack = playerController.currentTrack.subscribe((value) => {
@@ -124,142 +135,82 @@
   const unsubscribePlayback = playerController.snapshot.subscribe((value) => (playback = value));
 
   let fileInput: HTMLInputElement | null = null;
-  let workspaceElement: HTMLElement | null = null;
   let innerWidth = 0;
   let activeCollection: WorkspaceCollection = 'playlist';
   let activeWorkspaceTab: WorkspaceTab = 'playlist';
-  let pendingFileInputTarget: WorkspaceCollection = 'playlist';
   let previousPlaybackState: PlaybackSnapshot['state'] = playback.state;
   let playRequestSequence = 0;
-  let playlistJumpRequest: { id: string; token: number } | null = null;
+  let playlistJumpRequest: WorkspaceJumpRequest | null = null;
   let panelLayout = workspacePanelLayout.getSnapshot();
   let resizeState: PanelResizeState | null = null;
   let wideContentWidth = 0;
+  let widePanelWidths = resolveWidePanelWidths(panelLayout, 0);
   let documentTitle = 'izci';
+  let playlistPanelProps: WorkspacePanelProps;
+  let libraryPanelProps: WorkspacePanelProps;
 
-  const WORKSPACE_RESIZER_WIDTH = 14;
-  const WIDE_PANEL_MIN_WIDTHS: Record<WorkspacePanelId, number> = {
-    playlist: 260,
-    library: 320,
-    details: 240
-  };
-  let widePanelWidths = resolveWidePanelWidths(panelLayout, wideContentWidth);
+  const importController = createImportController({
+    addFiles: handleAddFiles,
+    clickFileInput: () => fileInput?.click()
+  });
+  const unsubscribeWorkspacePanelLayout = workspacePanelLayout.subscribe(
+    (value) => (panelLayout = value)
+  );
+
   $: isTabbedLayout = innerWidth <= 1000;
   $: selectedItem = activeCollection === 'library' ? selectedLibraryItem : selectedPlaylistItem;
-  $: if (playlistSelectionIds.length > 0 && librarySelectionIds.length > 0) {
-    clearSelection(getOtherCollection(activeCollection));
-  }
-
-  const workspaceTabs = [
-    { id: 'playlist', icon: 'queue_music', label: 'Playlist' },
-    { id: 'library', icon: 'library_music', label: 'Library' },
-    { id: 'details', icon: 'info', label: 'Details' }
-  ] as const;
-  const unsubscribeWorkspacePanelLayout = workspacePanelLayout.subscribe((value) => (panelLayout = value));
-
-  function clamp(value: number, min: number, max: number): number {
-    return Math.min(Math.max(value, min), max);
-  }
-
-  function getWideContentWidth(): number {
+  $: documentTitle = playingTrack ? getTrackDisplayTitle(playingTrack) : 'izci';
+  $: {
     const viewportWidth =
       innerWidth > 0 ? innerWidth : typeof window !== 'undefined' ? window.innerWidth : 0;
-    const horizontalPadding = 24;
-    return Math.max(viewportWidth - horizontalPadding - WORKSPACE_RESIZER_WIDTH * 2, 0);
-  }
-
-  function resolveWidePanelWidths(
-    layout: WorkspacePanelLayoutSettings,
-    contentWidth: number
-  ): Record<WorkspacePanelId, number> {
-    const playlistMin = WIDE_PANEL_MIN_WIDTHS.playlist;
-    const libraryMin = WIDE_PANEL_MIN_WIDTHS.library;
-    const detailsMin = WIDE_PANEL_MIN_WIDTHS.details;
-
-    if (contentWidth <= 0) {
-      return {
-        playlist: playlistMin,
-        library: libraryMin,
-        details: detailsMin
-      };
-    }
-
-    if (contentWidth <= playlistMin + libraryMin + detailsMin) {
-      const scale = contentWidth / (playlistMin + libraryMin + detailsMin);
-      return {
-        playlist: playlistMin * scale,
-        library: libraryMin * scale,
-        details: detailsMin * scale
-      };
-    }
-
-    let playlist = layout.playlistFraction * contentWidth;
-    let library = layout.libraryFraction * contentWidth;
-    let details = layout.detailsFraction * contentWidth;
-
-    if (playlist < playlistMin) {
-      const delta = playlistMin - playlist;
-      playlist = playlistMin;
-      const availableReduction = Math.max(library - libraryMin, 0) + Math.max(details - detailsMin, 0);
-
-      if (availableReduction > 0) {
-        const libraryShare = Math.max(library - libraryMin, 0) / availableReduction;
-        library -= delta * libraryShare;
-        details -= delta * (1 - libraryShare);
-      }
-    }
-
-    if (library < libraryMin) {
-      const delta = libraryMin - library;
-      library = libraryMin;
-      const availableReduction = Math.max(playlist - playlistMin, 0) + Math.max(details - detailsMin, 0);
-
-      if (availableReduction > 0) {
-        const playlistShare = Math.max(playlist - playlistMin, 0) / availableReduction;
-        playlist -= delta * playlistShare;
-        details -= delta * (1 - playlistShare);
-      }
-    }
-
-    if (details < detailsMin) {
-      const delta = detailsMin - details;
-      details = detailsMin;
-      const availableReduction = Math.max(playlist - playlistMin, 0) + Math.max(library - libraryMin, 0);
-
-      if (availableReduction > 0) {
-        const playlistShare = Math.max(playlist - playlistMin, 0) / availableReduction;
-        playlist -= delta * playlistShare;
-        library -= delta * (1 - playlistShare);
-      }
-    }
-
-    const total = playlist + library + details;
-    const correction = contentWidth - total;
-    library += correction;
-
-    return { playlist, library, details };
-  }
-
-  function persistWidePanelWidths(widths: Record<WorkspacePanelId, number>) {
-    const total = widths.playlist + widths.library + widths.details;
-
-    if (total <= 0) {
-      return;
-    }
-
-    workspacePanelLayout.set({
-      playlistFraction: widths.playlist / total,
-      libraryFraction: widths.library / total,
-      detailsFraction: widths.details / total
-    });
-  }
-
-  $: {
-    innerWidth;
-    wideContentWidth = getWideContentWidth();
+    wideContentWidth = getWideContentWidth(viewportWidth);
   }
   $: widePanelWidths = resolveWidePanelWidths(panelLayout, wideContentWidth);
-  $: documentTitle = playingTrack ? getTrackDisplayTitle(playingTrack) : 'izci';
+  $: playlistPanelProps = {
+    items: playlistItems,
+    selectedIds: playlistSelectionIds,
+    playingId: playingTrack?.id ?? null,
+    jumpToItemRequest: playlistJumpRequest,
+    panelTitle: 'Playlist',
+    regionLabel: 'Playlist',
+    shuffleEnabled,
+    repeatMode,
+    getContextMenuActions: getPlaylistContextActions
+  };
+  $: libraryPanelProps = {
+    items: libraryItems,
+    selectedIds: librarySelectionIds,
+    selectionAnchorId: librarySelectionAnchorId,
+    playingId: null,
+    panelTitle: 'Library',
+    regionLabel: 'Library',
+    layout: 'columns',
+    showShuffleControl: false,
+    showRepeatControl: false,
+    showSearchControl: true,
+    getContextMenuActions: getLibraryContextActions
+  };
+  $: if (playlistSelectionIds.length > 0 && librarySelectionIds.length > 0) {
+    clearSelection(getOtherWorkspaceCollection(activeCollection));
+  }
+
+  const playlistPanelHandlers: WorkspacePanelHandlers = {
+    addFiles: (files) => handleAddFiles(files, 'playlist'),
+    openFiles: () => void handleMenuOpenFiles('playlist'),
+    select: (event) => handleSelect('playlist', event),
+    activate: (event) => void handlePlaylistActivate(event.detail),
+    contextAction: handlePlaylistContextAction,
+    toggleShuffle: () => playlistStore.toggleShuffle(),
+    cycleRepeat: () => playlistStore.cycleRepeatMode()
+  };
+  const libraryPanelHandlers: WorkspacePanelHandlers = {
+    addFiles: (files) => handleAddFiles(files, 'library'),
+    openFiles: () => void handleMenuOpenFiles('library'),
+    select: (event) => handleSelect('library', event),
+    setSelection: (event) => handleSetSelection('library', event),
+    activate: (event) => void handleLibraryActivate(event.detail),
+    contextAction: handleLibraryContextAction
+  };
 
   function getCollectionStore(collection: WorkspaceCollection): TrackCollectionStore {
     return collection === 'library' ? libraryStore : playlistStore;
@@ -271,10 +222,6 @@
 
   function getCollectionSelectionIds(collection: WorkspaceCollection): string[] {
     return collection === 'library' ? librarySelectionIds : playlistSelectionIds;
-  }
-
-  function getOtherCollection(collection: WorkspaceCollection): WorkspaceCollection {
-    return collection === 'library' ? 'playlist' : 'library';
   }
 
   function clearSelection(collection: WorkspaceCollection) {
@@ -290,16 +237,23 @@
   }
 
   function clearOtherSelection(collection: WorkspaceCollection) {
-    clearSelection(getOtherCollection(collection));
+    clearSelection(getOtherWorkspaceCollection(collection));
   }
 
-  function selectTrack(collection: WorkspaceCollection, id: string, options?: { range?: boolean; toggle?: boolean }) {
+  function selectTrack(
+    collection: WorkspaceCollection,
+    id: string,
+    options?: { range?: boolean; toggle?: boolean }
+  ) {
     clearOtherSelection(collection);
     activeCollection = collection;
     getCollectionStore(collection).select(id, options);
   }
 
-  function setCollectionSelection(collection: WorkspaceCollection, nextSelection: PlaylistSelection) {
+  function setCollectionSelection(
+    collection: WorkspaceCollection,
+    nextSelection: PlaylistSelection
+  ) {
     clearOtherSelection(collection);
     activeCollection = collection;
     getCollectionStore(collection).setSelection(nextSelection);
@@ -327,25 +281,6 @@
     }
   }
 
-  function buildSelectedTracks(collection: WorkspaceCollection, ids: string[]): PlaylistItem[] {
-    const idSet = new Set(ids);
-    return getCollectionItems(collection).filter((item) => idSet.has(item.id));
-  }
-
-  function libraryHasAllTracks(tracks: PlaylistItem[]): boolean {
-    if (tracks.length === 0) {
-      return false;
-    }
-
-    const libraryKeys = new Set(libraryItems.map((item) => getTrackIdentity(item)));
-    return tracks.every((track) => libraryKeys.has(getTrackIdentity(track)));
-  }
-
-  function getEquivalentLibraryIds(tracks: PlaylistItem[]): string[] {
-    const trackKeys = new Set(tracks.map((track) => getTrackIdentity(track)));
-    return libraryItems.filter((item) => trackKeys.has(getTrackIdentity(item))).map((item) => item.id);
-  }
-
   function addFiles(files: FileList | File[], target: WorkspaceCollection) {
     const nextItems = buildPlaylistItems(files);
 
@@ -356,7 +291,10 @@
     return getCollectionStore(target).add(nextItems);
   }
 
-  function handleAddFiles(files: FileList | File[], target: WorkspaceCollection = activeCollection) {
+  function handleAddFiles(
+    files: FileList | File[],
+    target: WorkspaceCollection = activeCollection
+  ) {
     const nextItems = addFiles(files, target);
 
     if (nextItems.length > 0 && getCollectionSelectionIds(target).length === 0) {
@@ -405,7 +343,10 @@
     }
   }
 
-  function handleSelect(collection: WorkspaceCollection, event: CustomEvent<{ id: string; range: boolean; toggle: boolean }>) {
+  function handleSelect(
+    collection: WorkspaceCollection,
+    event: CustomEvent<{ id: string; range: boolean; toggle: boolean }>
+  ) {
     selectTrack(collection, event.detail.id, {
       range: event.detail.range,
       toggle: event.detail.toggle
@@ -453,8 +394,8 @@
     await playTrack(playlistTrack);
   }
 
-  function beginPanelResize(event: PointerEvent, handle: PanelResizeState['handle']) {
-    if (isTabbedLayout || !workspaceElement) {
+  function beginPanelResize(event: PointerEvent, handle: WorkspaceResizeHandle) {
+    if (isTabbedLayout) {
       return;
     }
 
@@ -466,38 +407,23 @@
     };
   }
 
+  function handleWideWorkspaceResizeStart(event: CustomEvent<WideWorkspaceResizeStartDetail>) {
+    beginPanelResize(event.detail.event, event.detail.handle);
+  }
+
   function handlePanelResizeMove(event: PointerEvent) {
     if (!resizeState || isTabbedLayout) {
       return;
     }
 
-    const delta = event.clientX - resizeState.startX;
-    const startWidths = resolveWidePanelWidths(resizeState.startLayout, wideContentWidth);
-
-    if (resizeState.handle === 'playlist-library') {
-      const nextPlaylist = clamp(
-        startWidths.playlist + delta,
-        WIDE_PANEL_MIN_WIDTHS.playlist,
-        startWidths.playlist + startWidths.library - WIDE_PANEL_MIN_WIDTHS.library
-      );
-      persistWidePanelWidths({
-        ...startWidths,
-        playlist: nextPlaylist,
-        library: startWidths.playlist + startWidths.library - nextPlaylist
-      });
-      return;
-    }
-
-    const nextLibrary = clamp(
-      startWidths.library + delta,
-      WIDE_PANEL_MIN_WIDTHS.library,
-      startWidths.library + startWidths.details - WIDE_PANEL_MIN_WIDTHS.details
+    workspacePanelLayout.set(
+      resolveResizedPanelLayout({
+        handle: resizeState.handle,
+        startLayout: resizeState.startLayout,
+        delta: event.clientX - resizeState.startX,
+        contentWidth: wideContentWidth
+      })
     );
-    persistWidePanelWidths({
-      ...startWidths,
-      library: nextLibrary,
-      details: startWidths.library + startWidths.details - nextLibrary
-    });
   }
 
   function endPanelResize() {
@@ -506,14 +432,6 @@
     }
 
     resizeState = null;
-  }
-
-  function persistCurrentWideLayout() {
-    if (isTabbedLayout) {
-      return;
-    }
-
-    workspacePanelLayout.set(panelLayout);
   }
 
   async function handleTogglePlayback() {
@@ -530,60 +448,15 @@
   }
 
   async function handleMenuOpenFiles(target: WorkspaceCollection = activeCollection) {
-    const pickerWindow = typeof window === 'undefined' ? null : (window as PickerWindow);
-
-    if (!pickerWindow?.showOpenFilePicker) {
-      pendingFileInputTarget = target;
-      fileInput?.click();
-      return;
-    }
-
-    try {
-      const handles = await pickerWindow.showOpenFilePicker(openFilePickerOptions);
-      const files = await readFileHandleFiles(handles);
-
-      if (files.length > 0) {
-        handleAddFiles(files, target);
-      }
-    } catch (error) {
-      if (error instanceof DOMException && error.name === 'AbortError') {
-        return;
-      }
-
-      throw error;
-    }
+    await importController.openFiles(target);
   }
 
   async function handleMenuOpenFolder(target: WorkspaceCollection = activeCollection) {
-    const pickerWindow = typeof window === 'undefined' ? null : (window as PickerWindow);
-
-    if (!pickerWindow?.showDirectoryPicker) {
-      return;
-    }
-
-    try {
-      const directoryHandle = await pickerWindow.showDirectoryPicker();
-      const files = await readDirectorySurfaceFiles(directoryHandle);
-
-      if (files.length > 0) {
-        handleAddFiles(files, target);
-      }
-    } catch (error) {
-      if (error instanceof DOMException && error.name === 'AbortError') {
-        return;
-      }
-
-      throw error;
-    }
+    await importController.openFolder(target);
   }
 
-  async function handleMenuInput(event: Event) {
-    const input = event.currentTarget as HTMLInputElement;
-
-    if (input.files?.length) {
-      handleAddFiles(input.files, pendingFileInputTarget);
-      input.value = '';
-    }
+  function handleMenuInput(event: Event) {
+    importController.handleFileInputChange(event);
   }
 
   function handleOpenOptions() {
@@ -720,55 +593,25 @@
     cleanupRemovedItems(libraryStore.remove(ids));
   }
 
-  function getPlaylistContextActions(ids: string[]): MenuActionItem[] {
-    const tracks = buildSelectedTracks('playlist', ids);
-    const inLibrary = libraryHasAllTracks(tracks);
-
-    return [
-      {
-        id: 'toggle-library',
-        label: inLibrary ? 'Remove from library' : 'Add to library',
-        icon: inLibrary ? 'remove_circle' : 'library_add'
-      },
-      {
-        id: 'remove',
-        label: 'Remove',
-        icon: 'delete'
-      }
-    ];
+  function getPlaylistContextActions(ids: string[]) {
+    return buildPlaylistContextActions(playlistItems, libraryItems, ids);
   }
 
-  function getLibraryContextActions(): MenuActionItem[] {
-    return [
-      {
-        id: 'add-to-playlist',
-        label: 'Add to playlist',
-        icon: 'playlist_add'
-      },
-      {
-        id: 'replace-playlist',
-        label: 'Replace playlist',
-        icon: 'playlist_play'
-      },
-      {
-        id: 'remove',
-        label: 'Remove',
-        icon: 'delete'
-      }
-    ];
+  function getLibraryContextActions() {
+    return libraryContextActions;
   }
 
   function handlePlaylistContextAction(event: CustomEvent<{ actionId: string; ids: string[] }>) {
     const { actionId, ids } = event.detail;
-    const tracks = buildSelectedTracks('playlist', ids);
+    const tracks = buildSelectedWorkspaceTracks(playlistItems, ids);
 
     if (tracks.length === 0) {
       return;
     }
 
     if (actionId === 'toggle-library') {
-      if (libraryHasAllTracks(tracks)) {
-        removeLibraryItems(getEquivalentLibraryIds(tracks));
+      if (libraryHasAllTracks(libraryItems, tracks)) {
+        removeLibraryItems(getEquivalentLibraryIds(libraryItems, tracks));
         return;
       }
 
@@ -788,7 +631,7 @@
 
   function handleLibraryContextAction(event: CustomEvent<{ actionId: string; ids: string[] }>) {
     const { actionId, ids } = event.detail;
-    const tracks = buildSelectedTracks('library', ids);
+    const tracks = buildSelectedWorkspaceTracks(libraryItems, ids);
 
     if (tracks.length === 0) {
       return;
@@ -855,14 +698,8 @@
   bind:innerWidth
   on:keydown={handleWindowKeydown}
   on:pointermove={handlePanelResizeMove}
-  on:pointerup={() => {
-    persistCurrentWideLayout();
-    endPanelResize();
-  }}
-  on:pointercancel={() => {
-    persistCurrentWideLayout();
-    endPanelResize();
-  }}
+  on:pointerup={endPanelResize}
+  on:pointercancel={endPanelResize}
 />
 
 <div class="app-shell" class:tabbed-layout={isTabbedLayout}>
@@ -871,7 +708,7 @@
     class="sr-only"
     type="file"
     multiple
-    accept=".mp3,.wav,.flac,.ogg,.opus,.mod,.xm,.s3m,.it"
+    accept={FILE_INPUT_ACCEPT}
     on:change={handleMenuInput}
   />
 
@@ -883,179 +720,28 @@
   />
 
   {#if isTabbedLayout}
-    <main class="workspace workspace-tabs-layout">
-      <div class="workspace-tabs" role="tablist" aria-label="Workspace sections">
-        {#each workspaceTabs as tab}
-          <button
-            type="button"
-            class:active={activeWorkspaceTab === tab.id}
-            class="workspace-tab"
-            role="tab"
-            aria-label={tab.label}
-            aria-selected={activeWorkspaceTab === tab.id}
-            aria-controls={`workspace-tab-panel-${tab.id}`}
-            id={`workspace-tab-${tab.id}`}
-            on:click={() => setActiveWorkspaceTab(tab.id)}
-          >
-            <span class="material-symbols-outlined" aria-hidden="true">{tab.icon}</span>
-            <span class="workspace-tab-label">{tab.label}</span>
-          </button>
-        {/each}
-      </div>
-
-      <div
-        class="workspace-tab-panel"
-        role="tabpanel"
-        id="workspace-tab-panel-playlist"
-        aria-labelledby="workspace-tab-playlist"
-        hidden={activeWorkspaceTab !== 'playlist'}
-      >
-        <PlaylistPanel
-          items={playlistItems}
-          selectedIds={playlistSelectionIds}
-          playingId={playingTrack?.id ?? null}
-          jumpToItemRequest={playlistJumpRequest}
-          panelTitle="Playlist"
-          regionLabel="Playlist"
-          hideEyebrow={true}
-          {shuffleEnabled}
-          {repeatMode}
-          getContextMenuActions={getPlaylistContextActions}
-          on:addFiles={(event) => handleAddFiles(event.detail, 'playlist')}
-          on:openFiles={() => void handleMenuOpenFiles('playlist')}
-          on:select={(event) => handleSelect('playlist', event)}
-          on:activate={(event) => void handlePlaylistActivate(event.detail)}
-          on:contextAction={handlePlaylistContextAction}
-          on:toggleShuffle={() => playlistStore.toggleShuffle()}
-          on:cycleRepeat={() => playlistStore.cycleRepeatMode()}
-        />
-      </div>
-
-      <div
-        class="workspace-tab-panel"
-        role="tabpanel"
-        id="workspace-tab-panel-library"
-        aria-labelledby="workspace-tab-library"
-        hidden={activeWorkspaceTab !== 'library'}
-      >
-        <PlaylistPanel
-          items={libraryItems}
-          selectedIds={librarySelectionIds}
-          selectionAnchorId={librarySelectionAnchorId}
-          playingId={null}
-          panelTitle="Library"
-          regionLabel="Library"
-          layout="columns"
-          hideEyebrow={true}
-          showShuffleControl={false}
-          showRepeatControl={false}
-          showSearchControl={true}
-          getContextMenuActions={getLibraryContextActions}
-          on:addFiles={(event) => handleAddFiles(event.detail, 'library')}
-          on:openFiles={() => void handleMenuOpenFiles('library')}
-          on:select={(event) => handleSelect('library', event)}
-          on:setSelection={(event) => handleSetSelection('library', event)}
-          on:activate={(event) => void handleLibraryActivate(event.detail)}
-          on:contextAction={handleLibraryContextAction}
-        />
-      </div>
-
-      <div
-        class="workspace-tab-panel"
-        role="tabpanel"
-        id="workspace-tab-panel-details"
-        aria-labelledby="workspace-tab-details"
-        hidden={activeWorkspaceTab !== 'details'}
-      >
-        <TrackDetailsPanel track={selectedItem} hideEyebrow={true} isTabbedLayout={true} />
-      </div>
-    </main>
+    <TabbedWorkspace
+      {activeWorkspaceTab}
+      {workspaceTabs}
+      {playlistPanelProps}
+      {playlistPanelHandlers}
+      {libraryPanelProps}
+      {libraryPanelHandlers}
+      {selectedItem}
+      on:tabChange={(event) => setActiveWorkspaceTab(event.detail)}
+    />
   {:else}
-    <main
-      bind:this={workspaceElement}
-      class="workspace workspace-resizable"
-      class:is-resizing={Boolean(resizeState)}
-    >
-      <div
-        class="workspace-panel"
-        style={`flex: 0 0 ${widePanelWidths.playlist}px; width: ${widePanelWidths.playlist}px;`}
-      >
-        <PlaylistPanel
-          items={playlistItems}
-          selectedIds={playlistSelectionIds}
-          playingId={playingTrack?.id ?? null}
-          jumpToItemRequest={playlistJumpRequest}
-          panelTitle="Playlist"
-          regionLabel="Playlist"
-          fillParent={true}
-          {shuffleEnabled}
-          {repeatMode}
-          getContextMenuActions={getPlaylistContextActions}
-          on:addFiles={(event) => handleAddFiles(event.detail, 'playlist')}
-          on:openFiles={() => void handleMenuOpenFiles('playlist')}
-          on:select={(event) => handleSelect('playlist', event)}
-          on:activate={(event) => void handlePlaylistActivate(event.detail)}
-          on:contextAction={handlePlaylistContextAction}
-          on:toggleShuffle={() => playlistStore.toggleShuffle()}
-          on:cycleRepeat={() => playlistStore.cycleRepeatMode()}
-        />
-      </div>
-
-      <div
-        class="workspace-resizer"
-        role="separator"
-        aria-orientation="vertical"
-        aria-label="Resize playlist and library panels"
-        style={`width: ${WORKSPACE_RESIZER_WIDTH}px;`}
-        on:pointerdown={(event) => beginPanelResize(event, 'playlist-library')}
-      >
-        <span class="workspace-resizer-handle" aria-hidden="true"></span>
-      </div>
-
-      <div
-        class="workspace-panel"
-        style={`flex: 0 0 ${widePanelWidths.library}px; width: ${widePanelWidths.library}px;`}
-      >
-        <PlaylistPanel
-          items={libraryItems}
-          selectedIds={librarySelectionIds}
-          selectionAnchorId={librarySelectionAnchorId}
-          playingId={null}
-          panelTitle="Library"
-          regionLabel="Library"
-          layout="columns"
-          fillParent={true}
-          showShuffleControl={false}
-          showRepeatControl={false}
-          showSearchControl={true}
-          getContextMenuActions={getLibraryContextActions}
-          on:addFiles={(event) => handleAddFiles(event.detail, 'library')}
-          on:openFiles={() => void handleMenuOpenFiles('library')}
-          on:select={(event) => handleSelect('library', event)}
-          on:setSelection={(event) => handleSetSelection('library', event)}
-          on:activate={(event) => void handleLibraryActivate(event.detail)}
-          on:contextAction={handleLibraryContextAction}
-        />
-      </div>
-
-      <div
-        class="workspace-resizer"
-        role="separator"
-        aria-orientation="vertical"
-        aria-label="Resize library and details panels"
-        style={`width: ${WORKSPACE_RESIZER_WIDTH}px;`}
-        on:pointerdown={(event) => beginPanelResize(event, 'library-details')}
-      >
-        <span class="workspace-resizer-handle" aria-hidden="true"></span>
-      </div>
-
-      <div
-        class="workspace-panel"
-        style={`flex: 0 0 ${widePanelWidths.details}px; width: ${widePanelWidths.details}px;`}
-      >
-        <TrackDetailsPanel track={selectedItem} fillParent={true} />
-      </div>
-    </main>
+    <WideWorkspace
+      {playlistPanelProps}
+      {playlistPanelHandlers}
+      {libraryPanelProps}
+      {libraryPanelHandlers}
+      panelWidths={widePanelWidths}
+      resizerWidth={WORKSPACE_RESIZER_WIDTH}
+      isResizing={Boolean(resizeState)}
+      {selectedItem}
+      on:resizeStart={handleWideWorkspaceResizeStart}
+    />
   {/if}
 
   {#if playback.error}

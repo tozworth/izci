@@ -154,6 +154,7 @@
 
 ### Phase 4: App shell decomposition
 
+- Status: done
 - Primary target:
   - `src/App.svelte`
 - Problem:
@@ -185,6 +186,13 @@
   - Verify wide-panel resize persistence and tabbed-mode behavior.
   - Verify global shortcuts still work.
   - Verify playback error banner behavior.
+- Landed:
+  - Added `src/lib/services/import-controller.ts` for picker capability detection plus file/file-input/folder import flows.
+  - Added `src/lib/services/workspace-layout.ts` for wide workspace sizing and resizer constraint math.
+  - Added `src/lib/services/workspace-actions.ts` for playlist/library context actions and library membership helpers.
+  - Added `src/lib/components/workspace/TabbedWorkspace.svelte`, `src/lib/components/workspace/WideWorkspace.svelte`, and `src/lib/components/workspace/WorkspaceResizer.svelte`.
+  - Reduced `src/App.svelte` to a thinner shell that composes the extracted workspace pieces and shared panel wiring.
+  - Updated `AGENTS.md` to reflect the new workspace architecture.
 
 ### Phase 5: Global CSS split
 
