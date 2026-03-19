@@ -604,9 +604,7 @@
       wrap: repeatMode === 'all'
     });
 
-    const currentTrackId = playingTrack?.id ?? selectedPlaylistItem?.id ?? null;
-
-    if (!nextTrack || nextTrack.id === currentTrackId) {
+    if (!nextTrack) {
       return;
     }
 

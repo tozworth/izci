@@ -40,6 +40,17 @@ export function createPlaylistNavigation(getItems: () => PlaylistItem[]) {
     return getItems().find((item) => item.id === id) ?? null;
   }
 
+  function resolveExhaustedStepTrack(baseId: string | null): PlaylistItem | null {
+    const currentTrack = getTrackById(baseId);
+
+    if (!currentTrack) {
+      return null;
+    }
+
+    const hasAlternativeTrack = getItems().some((item) => item.id !== currentTrack.id);
+    return hasAlternativeTrack ? null : currentTrack;
+  }
+
   function buildShuffleCycle(currentId: string | null): string[] {
     const itemList = getItems();
 
@@ -120,7 +131,7 @@ export function createPlaylistNavigation(getItems: () => PlaylistItem[]) {
     }
 
     if (!wrap) {
-      return null;
+      return resolveExhaustedStepTrack(baseId);
     }
 
     return direction > 0 ? itemList[0] : itemList[itemList.length - 1];
@@ -143,7 +154,7 @@ export function createPlaylistNavigation(getItems: () => PlaylistItem[]) {
       }
 
       if (!wrap) {
-        return null;
+        return resolveExhaustedStepTrack(baseId);
       }
 
       const previousCycle = buildShuffleCycle(baseId);
@@ -178,7 +189,7 @@ export function createPlaylistNavigation(getItems: () => PlaylistItem[]) {
     }
 
     if (!wrap) {
-      return null;
+      return resolveExhaustedStepTrack(baseId);
     }
 
     const nextCycle = buildShuffleCycle(baseId);
