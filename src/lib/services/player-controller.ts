@@ -111,13 +111,6 @@ function createPlayerController() {
 
       services[activeTrack.kind].pause();
     },
-    togglePlayback(state: PlaybackSnapshot['state']) {
-      if (state === 'playing') {
-        this.pause();
-      } else {
-        this.play();
-      }
-    },
     seek(seconds: number) {
       if (!activeTrack) {
         return;

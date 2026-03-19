@@ -31,7 +31,8 @@ function createMediaSessionService() {
   let track: PlaylistItem | null = null;
   let transportAnchor: HTMLAudioElement | null = null;
   let transportHandlers: MediaSessionHandlers | null = null;
-  let syncingTransportAnchor = false;
+  let ignoredTransportPlayEvents = 0;
+  let ignoredTransportPauseEvents = 0;
 
   function getMediaSession(): MediaSession | null {
     if (typeof navigator === 'undefined' || !('mediaSession' in navigator)) {
@@ -92,14 +93,16 @@ function createMediaSessionService() {
     document.body?.appendChild(transportAnchor);
 
     transportAnchor.addEventListener('play', () => {
-      if (syncingTransportAnchor) {
+      if (ignoredTransportPlayEvents > 0) {
+        ignoredTransportPlayEvents -= 1;
         return;
       }
 
       void transportHandlers?.play();
     });
     transportAnchor.addEventListener('pause', () => {
-      if (syncingTransportAnchor) {
+      if (ignoredTransportPauseEvents > 0) {
+        ignoredTransportPauseEvents -= 1;
         return;
       }
 
@@ -107,18 +110,6 @@ function createMediaSessionService() {
     });
 
     return transportAnchor;
-  }
-
-  function withTransportAnchorSync<T>(action: () => T): T {
-    syncingTransportAnchor = true;
-
-    try {
-      return action();
-    } finally {
-      queueMicrotask(() => {
-        syncingTransportAnchor = false;
-      });
-    }
   }
 
   function syncMetadata(mediaSession: MediaSession): void {
@@ -283,8 +274,9 @@ function createMediaSessionService() {
         return;
       }
 
-      withTransportAnchorSync(() => {
-        void audio.play().catch(() => undefined);
+      ignoredTransportPlayEvents += 1;
+      void audio.play().catch(() => {
+        ignoredTransportPlayEvents = Math.max(ignoredTransportPlayEvents - 1, 0);
       });
     },
     pauseTransportAnchor(): void {
@@ -294,9 +286,8 @@ function createMediaSessionService() {
         return;
       }
 
-      withTransportAnchorSync(() => {
-        audio.pause();
-      });
+      ignoredTransportPauseEvents += 1;
+      audio.pause();
     },
     deactivateTransportAnchor(): void {
       const audio = transportAnchor;
@@ -305,10 +296,9 @@ function createMediaSessionService() {
         return;
       }
 
-      withTransportAnchorSync(() => {
-        audio.pause();
-        audio.currentTime = 0;
-      });
+      ignoredTransportPauseEvents += 1;
+      audio.pause();
+      audio.currentTime = 0;
     },
     connect({ snapshot: snapshotStore, track: trackStore, handlers }: MediaSessionConnectOptions): () => void {
       const mediaSession = getMediaSession();
