@@ -5,9 +5,14 @@ type SnapshotHandler = (snapshot: Partial<PlaybackSnapshot>) => void;
 type MetadataHandler = (metadata: TrackMetadata) => void;
 type EndHandler = () => void;
 
+interface StreamLoadOptions {
+  autoPlay?: boolean;
+}
+
 export class HowlerPlayerService {
   #howl: Howl | null = null;
   #loadToken = 0;
+  #autoPlayOnLoad = false;
   #onSnapshot: SnapshotHandler;
   #onMetadata: MetadataHandler;
   #onEnded: EndHandler;
@@ -18,13 +23,14 @@ export class HowlerPlayerService {
     this.#onEnded = onEnded;
   }
 
-  load(track: PlaylistItem): void {
+  load(track: PlaylistItem, options: StreamLoadOptions = {}): void {
     if (!track.objectUrl) {
       throw new Error('Expected an object URL for streamable audio.');
     }
 
     this.destroy();
     const loadToken = ++this.#loadToken;
+    this.#autoPlayOnLoad = options.autoPlay === true;
     this.#onSnapshot({
       backend: 'stream',
       state: 'loading',
@@ -35,7 +41,8 @@ export class HowlerPlayerService {
 
     this.#howl = new Howl({
       src: [track.objectUrl],
-      html5: false,
+      // Use a real media element so Chromium keeps native media controls alive while paused.
+      html5: true,
       format: [track.extension],
       onload: () => {
         if (!this.#isActiveLoad(loadToken)) {
@@ -48,6 +55,12 @@ export class HowlerPlayerService {
           duration,
           bitrate
         });
+
+        if (this.#autoPlayOnLoad) {
+          this.#howl?.play();
+          return;
+        }
+
         this.#onSnapshot({ duration, state: 'paused' });
       },
       onplay: () => {
@@ -95,6 +108,7 @@ export class HowlerPlayerService {
         this.#onSnapshot({ state: 'error', error: String(message) });
       }
     });
+
   }
 
   play(): void {
@@ -121,6 +135,7 @@ export class HowlerPlayerService {
 
   destroy(): void {
     this.#loadToken += 1;
+    this.#autoPlayOnLoad = false;
     this.#howl?.unload();
     this.#howl = null;
   }

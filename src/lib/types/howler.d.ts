@@ -1,4 +1,10 @@
 declare module 'howler' {
+  export const Howler: {
+    ctx: AudioContext | null;
+    masterGain: GainNode | null;
+    autoSuspend: boolean;
+  };
+
   export class Howl {
     constructor(options: {
       src: string[];

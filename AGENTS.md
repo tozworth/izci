@@ -93,8 +93,9 @@ Primary location for playback and browser-integration logic.
 - `file-launch.ts`: Chromium Launch Queue integration for installed-PWA file associations; converts launched file handles into `File`s and queues them until the app is ready to replace the playlist.
 - `import-controller.ts`: file import controller for picker capability detection, file-input fallback, open-files flow, and folder import flow.
 - `player-controller.ts`: single coordinator for backend switching, snapshot updates, metadata inference application, and player volume propagation.
-- `howler-player.ts`: streamed-audio backend built on `Howler.js`.
-- `module-player.ts`: tracker-module backend built on `Chiptune3`; applies runtime module playback settings and recreates the player when required by setting changes.
+- `media-session.ts`: Chromium Media Session bridge for now-playing metadata, seek position updates, OS/media-key transport handlers, and the silent native transport anchor used to keep Chromium media surfaces alive for non-native playback paths.
+- `howler-player.ts`: streamed-audio backend built on `Howler.js`, using Howler's HTML5 audio mode so Chromium media controls and pause/resume integration stay anchored to a native media element.
+- `module-player.ts`: tracker-module backend built on `Chiptune3`; applies runtime module playback settings and recreates the player when required by setting changes, while mirroring transport state to the browser media-session anchor without routing module audio through it.
 - `chiptune-loader.ts`: guarded one-time `Chiptune3` initialization with timeout/error handling.
 - `popup-windows.ts`: registry of popup window definitions (path, name, features) used by the window manager.
 - `workspace-actions.ts`: workspace collection helpers plus playlist/library context action builders.
@@ -159,6 +160,9 @@ Primary location for playback and browser-integration logic.
 - Persisted items may be rehydrated from `FileSystemFileHandle`s. Preserve the `ensureLoaded()` flow and permission prompts when changing import or playback behavior.
 - Metadata is inferred from filenames only when enabled in `metadata-settings`. Do not bake inference directly into components.
 - `player-controller.ts` is the single coordinator for backend switching. Changes to transport or metadata propagation should usually start there.
+- Chromium media keys / OS playback controls are wired through `src/lib/services/media-session.ts`, which subscribes to the shared playback stores, delegates transport actions back through app-level callbacks, and maintains the native transport anchor needed for Chromium media surfaces.
+- Streamed playback intentionally uses Howler's HTML5 audio mode instead of its Web Audio path so Chromium/desktop media controls remain available while paused.
+- Tracker modules still play through `Chiptune3`/Web Audio; their media-surface integration is mirrored through the silent native transport anchor rather than by rerouting module audio output.
 - Workspace context actions and library membership checks should stay in `src/lib/services/workspace-actions.ts`; wide-layout sizing rules should stay in `src/lib/services/workspace-layout.ts`.
 - `module-player.ts`, `chiptune-loader.ts`, and the custom asset emission in `vite.config.ts` form one pipeline. Treat them as coupled.
 - `vite.config.ts` emits `assets/libopenmpt.worklet.js`, configures the PWA manifest, and declares file handlers. Changes here can break offline playback, installed-app file opening, or module initialization.

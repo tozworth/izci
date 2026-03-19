@@ -1,4 +1,5 @@
 import { createChiptunePlayer } from '$lib/services/chiptune-loader';
+import { mediaSessionService } from '$lib/services/media-session';
 import { modulePlaybackSettings } from '$lib/stores/module-playback-settings';
 import type { ModulePlaybackSettings, PlaybackSnapshot, PlaylistItem, TrackMetadata } from '$lib/types';
 import type { Chiptune3Metadata, ChiptuneJsPlayer } from 'chiptune3';
@@ -56,6 +57,8 @@ export class ModulePlayerService {
     }
 
     this.#player = player;
+    mediaSessionService.activateTransportAnchor();
+    mediaSessionService.pauseTransportAnchor();
     const buffer = await track.file.arrayBuffer();
 
     if (!this.#isActiveLoad(loadToken)) {
@@ -90,6 +93,7 @@ export class ModulePlayerService {
     }
 
     this.#onSnapshot({ state: 'playing', error: undefined });
+    mediaSessionService.playTransportAnchor();
   }
 
   pause(): void {
@@ -100,6 +104,7 @@ export class ModulePlayerService {
     this.#player.pause();
     this.#playing = false;
     this.#onSnapshot({ state: 'paused' });
+    mediaSessionService.pauseTransportAnchor();
   }
 
   stop(): void {
@@ -110,6 +115,7 @@ export class ModulePlayerService {
     this.#buffer = null;
     this.#trackExtension = null;
     this.#disposePlayer();
+    mediaSessionService.deactivateTransportAnchor();
     this.#onSnapshot({ state: 'paused', currentTime: 0, error: undefined });
   }
 
@@ -208,12 +214,14 @@ export class ModulePlayerService {
     }
 
     this.#player = player;
+    mediaSessionService.activateTransportAnchor();
 
     if (!wasStarted || !buffer || !this.#player) {
       this.#started = false;
       this.#playing = false;
       this.#currentTime = restorePosition;
       this.#onSnapshot({ state: 'paused', currentTime: restorePosition, error: undefined });
+      mediaSessionService.pauseTransportAnchor();
       return;
     }
 
@@ -232,10 +240,12 @@ export class ModulePlayerService {
       this.#player.pause();
       this.#playing = false;
       this.#onSnapshot({ state: 'paused', currentTime: restorePosition, error: undefined });
+      mediaSessionService.pauseTransportAnchor();
       return;
     }
 
     this.#onSnapshot({ state: 'playing', currentTime: restorePosition, error: undefined });
+    mediaSessionService.playTransportAnchor();
   }
 
   #applyRuntimeSettings(): void {

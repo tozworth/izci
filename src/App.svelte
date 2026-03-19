@@ -12,6 +12,7 @@
   } from '$lib/components/workspace/types';
   import { createImportController, FILE_INPUT_ACCEPT } from '$lib/services/import-controller';
   import { subscribeToLaunchedFiles } from '$lib/services/file-launch';
+  import { mediaSessionService } from '$lib/services/media-session';
   import { playerController } from '$lib/services/player-controller';
   import {
     buildLibraryContextActions,
@@ -158,6 +159,18 @@
   const unsubscribeWorkspacePanelLayout = workspacePanelLayout.subscribe(
     (value) => (panelLayout = value)
   );
+  const disconnectMediaSession = mediaSessionService.connect({
+    snapshot: playerController.snapshot,
+    track: playerController.currentTrack,
+    handlers: {
+      play: () => void handlePlay(),
+      pause: handlePause,
+      stop: handleStop,
+      previousTrack: () => void handleStepTrack(-1),
+      nextTrack: () => void handleStepTrack(1),
+      seekTo: handleSeek
+    }
+  });
 
   $: isTabbedLayout = innerWidth <= 1000;
   $: selectedItem = activeCollection === 'library' ? selectedLibraryItem : selectedPlaylistItem;
@@ -347,13 +360,11 @@
     }
 
     if (playingTrack?.id !== playableTrack.id) {
-      await playerController.load(playableTrack);
+      await playerController.load(playableTrack, { autoPlay: true });
 
       if (requestId !== playRequestSequence) {
         return;
       }
-
-      playerController.play();
       return;
     }
 
@@ -458,16 +469,12 @@
   }
 
   async function handleTogglePlayback() {
-    if (playingTrack) {
-      playerController.togglePlayback(playback.state);
+    if (playback.state === 'playing') {
+      handlePause();
       return;
     }
 
-    if (!selectedPlaylistItem) {
-      return;
-    }
-
-    await playTrack(selectedPlaylistItem);
+    await handlePlay();
   }
 
   async function handleMenuOpenFiles(target: WorkspaceCollection = activeCollection) {
@@ -557,6 +564,35 @@
 
     playerController.pause();
     playerController.seek(0);
+  }
+
+  async function handlePlay() {
+    if (playingTrack) {
+      playerController.play();
+      return;
+    }
+
+    if (!selectedPlaylistItem) {
+      return;
+    }
+
+    await playTrack(selectedPlaylistItem);
+  }
+
+  function handlePause() {
+    if (!playingTrack) {
+      return;
+    }
+
+    playerController.pause();
+  }
+
+  function handleSeek(seconds: number) {
+    if (!playingTrack) {
+      return;
+    }
+
+    playerController.seek(seconds);
   }
 
   async function handleStepTrack(direction: -1 | 1) {
@@ -710,6 +746,7 @@
     unsubscribePlayback();
     unsubscribeLaunchedFiles();
     unsubscribeWorkspacePanelLayout();
+    disconnectMediaSession();
     playerController.destroy();
   });
 </script>

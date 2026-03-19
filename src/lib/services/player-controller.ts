@@ -70,7 +70,7 @@ function createPlayerController() {
   return {
     snapshot,
     currentTrack,
-    async load(track: PlaylistItem) {
+    async load(track: PlaylistItem, options: { autoPlay?: boolean } = {}) {
       const preparedTrack = applyMetadataInference(track);
       activeTrack = preparedTrack;
       currentTrack.set(preparedTrack);
@@ -86,11 +86,15 @@ function createPlayerController() {
       });
 
       if (preparedTrack.kind === 'stream') {
-        services.stream.load(preparedTrack);
+        services.stream.load(preparedTrack, { autoPlay: options.autoPlay === true });
         services.stream.setVolume(volume);
       } else {
         await services.module.load(preparedTrack);
         services.module.setVolume(volume);
+
+        if (options.autoPlay === true) {
+          services.module.play();
+        }
       }
     },
     play() {
