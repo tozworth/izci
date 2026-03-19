@@ -9,8 +9,8 @@
 ## Core rules
 
 - Preserve dual playback paths:
-  - streamed formats (`mp3`, `wav`, `flac`, `ogg`, `opus`) use `Howler.js`
-  - tracker modules (`mod`, `xm`, `s3m`, `it`) use `Chiptune3`
+  - streamed formats (`mp3`, `wav`, `flac`, `ogg`, `opus`) use `Howler.js` in HTML5 audio mode
+  - tracker modules (`mod`, `xm`, `s3m`, `it`) use `Chiptune3` / Web Audio
 - Offline PWA functionality is required and must not regress.
 - Target Chromium/Blink desktop and installed PWA behavior. Prefer Chrome APIs and desktop-PWA integrations over compatibility shims.
 - Assume no backend. The app runs locally against user-selected files and file handles.
@@ -161,8 +161,11 @@ Primary location for playback and browser-integration logic.
 - Metadata is inferred from filenames only when enabled in `metadata-settings`. Do not bake inference directly into components.
 - `player-controller.ts` is the single coordinator for backend switching. Changes to transport or metadata propagation should usually start there.
 - Chromium media keys / OS playback controls are wired through `src/lib/services/media-session.ts`, which subscribes to the shared playback stores, delegates transport actions back through app-level callbacks, and maintains the native transport anchor needed for Chromium media surfaces.
-- Streamed playback intentionally uses Howler's HTML5 audio mode instead of its Web Audio path so Chromium/desktop media controls remain available while paused.
-- Tracker modules still play through `Chiptune3`/Web Audio; their media-surface integration is mirrored through the silent native transport anchor rather than by rerouting module audio output.
+- Streamed playback intentionally stays on Howler's HTML5 audio mode because that path is the proven stable way to keep Chromium/desktop media controls alive for streamed formats without regressing row-activation or pause/resume behavior.
+- Tracker modules still play through `Chiptune3`/Web Audio because rerouting real module audio through a browser-facing media element regressed playback quality/pitch; their media-surface integration is mirrored through the silent native transport anchor instead.
+- The playback split is therefore intentional, not incidental:
+  - streams prioritize native browser media integration through a real media element
+  - modules prioritize correct Chiptune3 playback while separately mirroring transport state to Chromium
 - Workspace context actions and library membership checks should stay in `src/lib/services/workspace-actions.ts`; wide-layout sizing rules should stay in `src/lib/services/workspace-layout.ts`.
 - `module-player.ts`, `chiptune-loader.ts`, and the custom asset emission in `vite.config.ts` form one pipeline. Treat them as coupled.
 - `vite.config.ts` emits `assets/libopenmpt.worklet.js`, configures the PWA manifest, and declares file handlers. Changes here can break offline playback, installed-app file opening, or module initialization.
