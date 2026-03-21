@@ -43,7 +43,7 @@ Working source tree:
 
 ## App source map
 
-- `src/main.ts`: Svelte mount, global CSS/material symbol import, production-only service worker registration.
+- `src/main.ts`: Svelte mount, global CSS/material symbol import, and production-only handoff to the dedicated PWA registration/update service.
 - `src/App.svelte`: top-level shell; composes the extracted workspace layouts/controllers, owns high-level workspace/playback coordination, global shortcuts, and error banner wiring.
 - `src/app.css`: global styling.
 - `src/options/main.ts`: Options popup entry; mounts the dedicated popup Svelte app.
@@ -94,6 +94,7 @@ Primary location for playback and browser-integration logic.
 - `import-controller.ts`: file import controller for picker capability detection, file-input fallback, open-files flow, and folder import flow.
 - `player-controller.ts`: single coordinator for backend switching, snapshot updates, metadata inference application, and player volume propagation.
 - `media-session.ts`: Chromium Media Session bridge for now-playing metadata, seek position updates, OS/media-key transport handlers, and the silent native transport anchor used to keep Chromium media surfaces alive for non-native playback paths.
+- `pwa-updates.ts`: service-worker registration plus proactive update checks for long-lived preview/installed PWA windows so new builds can activate without getting stuck on the first cached shell.
 - `howler-player.ts`: streamed-audio backend built on `Howler.js`, using Howler's HTML5 audio mode so Chromium media controls and pause/resume integration stay anchored to a native media element.
 - `module-player.ts`: tracker-module backend built on `Chiptune3`; applies runtime module playback settings and recreates the player when required by setting changes, while mirroring transport state to the browser media-session anchor without routing module audio through it.
 - `chiptune-loader.ts`: guarded one-time `Chiptune3` initialization with timeout/error handling.
@@ -170,6 +171,7 @@ Primary location for playback and browser-integration logic.
 - Workspace context actions and library membership checks should stay in `src/lib/services/workspace-actions.ts`; wide-layout sizing rules should stay in `src/lib/services/workspace-layout.ts`.
 - `module-player.ts`, `chiptune-loader.ts`, and the custom asset emission in `vite.config.ts` form one pipeline. Treat them as coupled.
 - `vite.config.ts` emits `assets/libopenmpt.worklet.js`, configures the PWA manifest, and declares file handlers. Changes here can break offline playback, installed-app file opening, or module initialization.
+- `src/lib/services/pwa-updates.ts` complements the Vite PWA config by proactively calling `ServiceWorkerRegistration.update()` on focus/visibility/interval, which is especially important for long-lived installed windows and `vite preview` on `localhost`.
 - The Options window is a separate Vite/Svelte entrypoint (`options.html` -> `src/options/main.ts`) rather than an inline HTML string. Keep popup UIs local-first and frontend-only.
 - `popup-windows.ts` is the registry for managed popup definitions. Add future popup windows there so `window-manager.ts` stays generic.
 - `src/main.ts` only registers the service worker in production. Preserve that split unless there is a strong reason to change it.

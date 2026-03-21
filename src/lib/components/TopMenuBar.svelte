@@ -126,6 +126,6 @@
 
   <div class="menu-brand" aria-label="Application version">
     <strong>izci</strong>
-    <span>260319</span>
+    <span>260322</span>
   </div>
 </nav>
