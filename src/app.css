@@ -646,7 +646,19 @@ button {
   min-width: 0;
 }
 
+.player-track > * {
+  min-width: 0;
+}
+
+.player-track-title {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+}
+
 .player-track strong {
+  display: block;
   font-size: 1.02rem;
   white-space: nowrap;
   overflow: hidden;
@@ -654,8 +666,12 @@ button {
 }
 
 .player-track span {
+  display: block;
   color: var(--muted);
   font-size: 0.88rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .player-actions {
