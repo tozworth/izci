@@ -99,11 +99,11 @@
   }
 
   li .track-table-row-button:hover {
-    background: rgba(235, 219, 178, 0.04);
+    background: var(--hover-subtle);
   }
 
   li.selected .track-table-row-button {
-    background: rgba(215, 153, 33, 0.12);
+    background: var(--selection-bg);
   }
 
   li.playing .track-table-row-button {

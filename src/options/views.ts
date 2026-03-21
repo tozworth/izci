@@ -1,4 +1,4 @@
-export type OptionsViewName = 'playback' | 'modules' | 'metadata' | 'about';
+export type OptionsViewName = 'appearance' | 'playback' | 'modules' | 'metadata' | 'about';
 
 export interface OptionsViewDefinition {
   id: OptionsViewName;
@@ -11,6 +11,14 @@ export interface OptionsViewDefinition {
 
 export const OPTIONS_VIEW_GROUPS: OptionsViewDefinition[][] = [
   [
+    {
+      id: 'appearance',
+      label: 'Appearance',
+      icon: 'palette',
+      parentLabel: '',
+      hasHints: true,
+      resettable: true
+    },
     {
       id: 'playback',
       label: 'Playback',

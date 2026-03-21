@@ -46,8 +46,9 @@ Working source tree:
 - `src/main.ts`: Svelte mount, global CSS/material symbol import, and production-only handoff to the dedicated PWA registration/update service.
 - `src/App.svelte`: top-level shell; composes the extracted workspace layouts/controllers, owns high-level workspace/playback coordination, global shortcuts, and error banner wiring.
 - `src/app.css`: global styling.
+- `src/lib/styles/themes.css`: shared color-theme tokens consumed by the main app and Options popup.
 - `src/options/main.ts`: Options popup entry; mounts the dedicated popup Svelte app.
-- `src/options/OptionsApp.svelte`: standalone Options window UI for module playback defaults and metadata behavior.
+- `src/options/OptionsApp.svelte`: standalone Options window UI for appearance, module playback defaults, and metadata behavior.
 - `src/options/app.css`: Options popup styling.
 - `src/options/views.ts`: popup navigation/view metadata shared by the Options UI.
 - `src/vite-env.d.ts`: Vite ambient types.
@@ -95,6 +96,7 @@ Primary location for playback and browser-integration logic.
 - `player-controller.ts`: single coordinator for backend switching, snapshot updates, metadata inference application, and player volume propagation.
 - `media-session.ts`: Chromium Media Session bridge for now-playing metadata, seek position updates, OS/media-key transport handlers, and the silent native transport anchor used to keep Chromium media surfaces alive for non-native playback paths.
 - `pwa-updates.ts`: service-worker registration plus proactive update checks for long-lived preview/installed PWA windows so new builds can activate without getting stuck on the first cached shell.
+- `theme.ts`: shared color-theme metadata plus document-theme application used by both window entrypoints.
 - `howler-player.ts`: streamed-audio backend built on `Howler.js`, using Howler's HTML5 audio mode so Chromium media controls and pause/resume integration stay anchored to a native media element.
 - `module-player.ts`: tracker-module backend built on `Chiptune3`; applies runtime module playback settings and recreates the player when required by setting changes, while mirroring transport state to the browser media-session anchor without routing module audio through it.
 - `chiptune-loader.ts`: guarded one-time `Chiptune3` initialization with timeout/error handling.
@@ -113,6 +115,7 @@ Primary location for playback and browser-integration logic.
 - `playlist-navigation.ts`: next/previous/track-end resolution, including shuffle session management.
 - `playlist-dedupe.ts`: duplicate detection based on track identity, used only by the library store path.
 - `library-view-settings.ts`: persistent library table layout and filter state (column order, widths, visibility, sort, search query) with `BroadcastChannel` sync.
+- `appearance-settings.ts`: persistent appearance settings, currently the shared color-theme choice, with `BroadcastChannel` sync.
 - `module-playback-settings.ts`: persistent tracker playback settings (repeat, stereo/pan, interpolation, tempo, pitch) with sync.
 - `metadata-settings.ts`: persistent metadata behavior settings, currently filename-based artist/title inference.
 - `player-volume.ts`: persistent player volume with sync across windows.
@@ -150,6 +153,7 @@ Primary location for playback and browser-integration logic.
 - `src/lib/components/PlaylistPanel.svelte` should stay as a shell around `src/lib/components/playlist-panel/` rather than reaccreting column math, search traversal, or context-menu DOM wiring inline.
 - `src/lib/components/workspace/` owns the tabbed vs wide workspace markup split; keep layout-specific composition there instead of rebuilding duplicated panel trees inside `App.svelte`.
 - Wide-mode workspace panel widths are persisted in `localStorage` and sync across windows; tabbed mode ignores those widths.
+- Color theme selection is persisted in `localStorage`, synced across windows, and applied at the document level so both the main app and Options popup reuse the same theme tokens.
 - `src/App.svelte` is responsible for top-level workspace orchestration, but durable state and local algorithms should live in stores/services or the focused workspace components.
 - File import supports multiple sources:
   - plain file input fallback
@@ -181,6 +185,7 @@ Primary location for playback and browser-integration logic.
 - Before changing playback behavior, verify whether the code path is `stream` or `module` and keep both working.
 - Before changing import behavior, inspect `src/App.svelte`, `src/lib/services/import-controller.ts`, `src/lib/utils/files.ts`, and `src/lib/stores/playlist.ts` together.
 - Before changing module playback settings, inspect `src/lib/stores/module-playback-settings.ts`, `src/lib/services/module-player.ts`, and `src/options/OptionsApp.svelte` together.
+- Before changing appearance or color theming, inspect `src/lib/stores/appearance-settings.ts`, `src/lib/services/theme.ts`, `src/lib/styles/themes.css`, `src/app.css`, and `src/options/app.css` together.
 - Before changing library UI behavior, inspect `src/lib/components/PlaylistPanel.svelte`, `src/lib/components/playlist-panel/`, `src/lib/components/workspace/`, and `src/lib/stores/library-view-settings.ts` together.
 - Before changing workspace layout behavior, inspect `src/App.svelte`, `src/lib/components/workspace/`, `src/lib/services/workspace-layout.ts`, and `src/lib/stores/workspace-panel-layout.ts` together.
 - Before changing PWA/build or popup-entry behavior, inspect `vite.config.ts`, `src/main.ts`, `options.html`, `src/options/main.ts`, and icon assets together.

@@ -9,6 +9,7 @@ export type ModuleInterpolationFilter = 1 | 2 | 4 | 8;
 export type PlaylistRepeatMode = 'off' | 'one' | 'all';
 export type SortDirection = 'asc' | 'desc';
 export type LibraryColumnId = 'title' | 'artist' | 'format' | 'duration';
+export type ColorTheme = 'gruvbox' | 'dracula';
 export type WorkspaceCollection = 'playlist' | 'library';
 export type WorkspaceTab = WorkspaceCollection | 'details';
 export type WorkspacePanelId = 'playlist' | 'library' | 'details';
@@ -43,6 +44,10 @@ export interface ModulePlaybackSettings {
 
 export interface MetadataSettings {
   inferFromFilename: boolean;
+}
+
+export interface AppearanceSettings {
+  colorTheme: ColorTheme;
 }
 
 export interface PlaylistItem {

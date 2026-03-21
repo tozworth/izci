@@ -1,21 +1,8 @@
+@import "./lib/styles/themes.css";
+
 :root {
-  color-scheme: dark;
-  font-family: "Space Grotesk", "Segoe UI", sans-serif;
   --player-bar-reserve: calc(6.5rem + env(safe-area-inset-bottom, 0px));
   --player-bar-reserve-tabbed: calc(4.8rem + env(safe-area-inset-bottom, 0px));
-  --bg: #282828;
-  --menu-bar-bg: #1c1d1e;
-  --bg-elevated: rgba(50, 48, 47, 0.94);
-  --bg-strong: #3c3836;
-  --bg-soft: #32302f;
-  --border: rgba(168, 153, 132, 0.28);
-  --text: #ebdbb2;
-  --muted: #bdae93;
-  --accent: #d79921;
-  --accent-strong: #fabd2f;
-  --accent-soft: rgba(215, 153, 33, 0.16);
-  --success-soft: rgba(152, 151, 26, 0.16);
-  --shadow: 0 18px 44px rgba(0, 0, 0, 0.34);
 }
 
 * {
@@ -32,10 +19,7 @@ body,
 
 body {
   min-height: 100vh;
-  background:
-    radial-gradient(circle at top left, rgba(184, 187, 38, 0.1), transparent 24%),
-    radial-gradient(circle at top right, rgba(250, 189, 47, 0.08), transparent 22%),
-    linear-gradient(180deg, #282828 0%, #1d2021 100%);
+  background: var(--body-background);
   color: var(--text);
   overflow: hidden;
 }
@@ -86,9 +70,9 @@ button {
   min-height: 1.9rem;
   padding: max(env(safe-area-inset-top, 0px), 0px) 0.65rem 0;
   background: var(--menu-bar-bg);
-  border-bottom: 1px solid rgba(168, 153, 132, 0.22);
+  border-bottom: 1px solid var(--menu-bar-border);
   backdrop-filter: blur(16px);
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.03);
+  box-shadow: 0 1px 0 var(--hairline);
   position: sticky;
   top: 0;
   z-index: 40;
@@ -122,7 +106,7 @@ button {
 
 .menu-trigger.active,
 .menu-trigger:hover {
-  background: rgba(235, 219, 178, 0.08);
+  background: var(--hover-surface);
 }
 
 .menu-list {
@@ -133,8 +117,8 @@ button {
   min-width: 12rem;
   max-width: calc(100vw - 1rem);
   padding: 0.25rem;
-  background: rgba(40, 40, 40, 0.985);
-  border: 1px solid rgba(168, 153, 132, 0.24);
+  background: var(--bg-popover);
+  border: 1px solid var(--border-strong);
   border-radius: 0.6rem;
   box-shadow: var(--shadow);
   z-index: 30;
@@ -261,7 +245,7 @@ button {
   content: "";
   width: 1px;
   margin-block: 0.4rem;
-  background: linear-gradient(180deg, transparent 0%, rgba(168, 153, 132, 0.3) 14%, rgba(168, 153, 132, 0.3) 86%, transparent 100%);
+  background: var(--resizer-line-gradient);
   transition:
     background 180ms ease,
     box-shadow 180ms ease;
@@ -269,8 +253,8 @@ button {
 
 .workspace-resizer:hover::before,
 .workspace-resizable.is-resizing .workspace-resizer::before {
-  background: linear-gradient(180deg, transparent 0%, rgba(250, 189, 47, 0.6) 14%, rgba(250, 189, 47, 0.6) 86%, transparent 100%);
-  box-shadow: 0 0 0 1px rgba(250, 189, 47, 0.08);
+  background: var(--resizer-line-gradient-active);
+  box-shadow: 0 0 0 1px var(--resizer-line-glow);
 }
 
 .workspace-resizer-handle {
@@ -295,7 +279,7 @@ button {
   top: 0;
   z-index: 10;
   padding: 0 0.75rem;
-  border-bottom: 1px solid rgba(168, 153, 132, 0.16);
+  border-bottom: 1px solid var(--border-soft);
 }
 
 .workspace-tab {
@@ -414,7 +398,7 @@ button {
 .canvas-placeholder {
   flex: 1;
   margin: 0.85rem;
-  border: 1px dashed rgba(215, 153, 33, 0.24);
+  border: 1px dashed var(--accent-dashed-border);
   border-radius: 0.75rem;
   min-height: 0;
 }
@@ -428,7 +412,7 @@ button {
   margin: 0;
   border: 0;
   border-radius: 0;
-  background: linear-gradient(180deg, rgba(235, 219, 178, 0.02), transparent 18%);
+  background: var(--dropzone-background);
 }
 
 .playlist-panel-header {
@@ -436,9 +420,7 @@ button {
   top: 0;
   z-index: 10;
   padding: 0.72rem 0.85rem 0.58rem;
-  background:
-    linear-gradient(180deg, rgba(50, 48, 47, 0.76) 0%, rgba(50, 48, 47, 0.68) 100%),
-    rgba(28, 29, 30, 0.22);
+  background: var(--playlist-header-background);
   backdrop-filter: blur(22px) saturate(1.08);
   -webkit-backdrop-filter: blur(22px) saturate(1.08);
   transition:
@@ -455,12 +437,12 @@ button {
   height: 1.35rem;
   pointer-events: none;
   opacity: 0;
-  background: linear-gradient(180deg, rgba(26, 27, 28, 0.28), rgba(26, 27, 28, 0));
+  background: var(--playlist-header-shadow-gradient);
   transition: opacity 180ms ease;
 }
 
 .playlist-panel-header.is-covered {
-  box-shadow: 0 1px 0 rgba(168, 153, 132, 0.1);
+  box-shadow: 0 1px 0 var(--border-covered);
 }
 
 .playlist-panel-header.is-covered::after {
@@ -492,7 +474,7 @@ button {
 }
 
 .track-list li + li {
-  border-top: 1px solid rgba(168, 153, 132, 0.12);
+  border-top: 1px solid var(--border-subtle);
 }
 
 .track-row {
@@ -511,11 +493,11 @@ button {
 }
 
 .track-row:hover {
-  background: rgba(235, 219, 178, 0.04);
+  background: var(--hover-subtle);
 }
 
 .track-list li.selected .track-row {
-  background: rgba(215, 153, 33, 0.12);
+  background: var(--selection-bg);
 }
 
 .track-list li.playing .track-row {
@@ -562,8 +544,8 @@ button {
   justify-content: center;
   width: 2.25rem;
   height: 2.25rem;
-  background: rgba(250, 189, 47, 0.12);
-  border: 1px solid rgba(250, 189, 47, 0.26);
+  background: var(--accent-strong-faint);
+  border: 1px solid var(--accent-strong-border);
   border-radius: 999px;
   cursor: pointer;
   transition:
@@ -573,8 +555,8 @@ button {
 }
 
 .add-files:hover {
-  background: rgba(250, 189, 47, 0.18);
-  border-color: rgba(250, 189, 47, 0.42);
+  background: var(--accent-strong-hover);
+  border-color: var(--accent-strong-border-hover);
   transform: translateY(-1px);
 }
 
@@ -625,7 +607,7 @@ button {
   border-bottom: 0;
   background: var(--menu-bar-bg);
   backdrop-filter: blur(16px);
-  box-shadow: 0 -1px 0 rgba(255, 255, 255, 0.03);
+  box-shadow: 0 -1px 0 var(--hairline);
 }
 
 .player-bar::before {
@@ -636,7 +618,7 @@ button {
   bottom: 100%;
   height: 1.35rem;
   pointer-events: none;
-  background: linear-gradient(180deg, rgba(26, 27, 28, 0), rgba(26, 27, 28, 0.28));
+  background: var(--player-bar-fade);
 }
 
 .player-track {
@@ -700,7 +682,7 @@ button {
 }
 
 .transport-button:hover:not(:disabled) {
-  background: rgba(235, 219, 178, 0.06);
+  background: var(--hover-control);
 }
 
 .transport-button:disabled {
@@ -784,7 +766,7 @@ input[type='range'] {
 
 .error-banner {
   padding: 0.75rem 0.9rem;
-  color: #fb4934;
+  color: var(--danger);
   margin: 0 0.75rem;
 }
 
@@ -879,7 +861,7 @@ input[type='range'] {
     width: 2.4rem;
     height: 7.7rem;
     border-radius: 0.7rem;
-    background: rgba(28, 29, 30, 0.82);
+    background: var(--bg-volume-popup);
   }
 
   .volume-popup input[type='range'] {

@@ -1,13 +1,16 @@
 <script lang="ts">
+  import { COLOR_THEME_OPTIONS } from '$lib/services/theme';
+  import { appearanceSettings } from '$lib/stores/appearance-settings';
   import { metadataSettings } from '$lib/stores/metadata-settings';
   import {
     DEFAULT_MODULE_PLAYBACK_SETTINGS,
     MODULE_INTERPOLATION_OPTIONS,
     modulePlaybackSettings
   } from '$lib/stores/module-playback-settings';
+  import type { ColorTheme } from '$lib/types';
   import { OPTIONS_VIEW_GROUPS, OPTIONS_VIEWS, type OptionsViewName } from './views';
 
-  let activeView: OptionsViewName = 'modules';
+  let activeView: OptionsViewName = 'appearance';
   let fieldHintsExpanded = false;
   let treeWidth = 204;
   let resizePointerId: number | null = null;
@@ -97,7 +100,18 @@
     });
   }
 
+  function handleColorThemeChange(event: Event) {
+    appearanceSettings.update({
+      colorTheme: (event.currentTarget as HTMLSelectElement).value as ColorTheme
+    });
+  }
+
   function resetCurrentView() {
+    if (activeView === 'appearance') {
+      appearanceSettings.reset();
+      return;
+    }
+
     if (activeView === 'modules') {
       modulePlaybackSettings.reset();
       return;
@@ -225,6 +239,31 @@
     ></div>
 
     <section class="content-panel" aria-live="polite">
+      {#if activeView === 'appearance'}
+        <article class="view">
+          <div class="section">
+            <h2>Window Theme</h2>
+            <div class="field-grid">
+              <label class="field">
+                <div class="field-copy">
+                  <span class="field-title">Color theme</span>
+                </div>
+                <div class="field-control">
+                  <select value={$appearanceSettings.colorTheme} on:change={handleColorThemeChange}>
+                    {#each COLOR_THEME_OPTIONS as option}
+                      <option value={option.value}>{option.label}</option>
+                    {/each}
+                  </select>
+                </div>
+                <p class="field-hint">
+                  Applies to the main window and the Options popup, and stays synced across open windows.
+                </p>
+              </label>
+            </div>
+          </div>
+        </article>
+      {/if}
+
       {#if activeView === 'playback'}
         <article class="view">
           <div class="section">

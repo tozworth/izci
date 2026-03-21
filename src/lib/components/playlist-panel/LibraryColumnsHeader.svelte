@@ -78,7 +78,7 @@
   .track-column-header {
     position: relative;
     min-width: 0;
-    border-bottom: 1px solid rgba(168, 153, 132, 0.16);
+    border-bottom: 1px solid var(--border-soft);
   }
 
   .track-column-header.drop-before::before,

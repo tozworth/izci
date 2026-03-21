@@ -112,7 +112,7 @@
   }
 
   .detail-section + .detail-section {
-    border-top: 1px solid rgba(168, 153, 132, 0.16);
+    border-top: 1px solid var(--border-soft);
   }
 
   .track-copy {

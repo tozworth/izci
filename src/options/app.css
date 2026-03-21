@@ -1,8 +1,8 @@
+@import "../lib/styles/themes.css";
+
 :root {
-  color-scheme: dark;
-  font-family: "Space Grotesk", "Segoe UI", sans-serif;
-  background: #1d2021;
-  color: #ebdbb2;
+  background: var(--bg-base);
+  color: var(--text);
 }
 
 * {
@@ -19,10 +19,7 @@ body,
 
 body {
   min-height: 100%;
-  background:
-    radial-gradient(circle at top left, rgba(184, 187, 38, 0.12), transparent 24%),
-    radial-gradient(circle at top right, rgba(250, 189, 47, 0.08), transparent 22%),
-    linear-gradient(180deg, #282828 0%, #1d2021 100%);
+  background: var(--options-body-background);
 }
 
 button,
@@ -38,7 +35,7 @@ button {
 
 code {
   font-family: "IBM Plex Mono", "SFMono-Regular", monospace;
-  color: #fbf1c7;
+  color: var(--text-strong);
 }
 
 .material-symbols-outlined {
@@ -64,10 +61,10 @@ code {
   align-items: center;
   justify-content: space-between;
   gap: 1rem;
-  background: rgba(28, 29, 30, 0.96);
-  border-bottom: 1px solid rgba(168, 153, 132, 0.22);
+  background: var(--window-topbar-bg);
+  border-bottom: 1px solid var(--menu-bar-border);
   backdrop-filter: blur(16px);
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.03);
+  box-shadow: 0 1px 0 var(--hairline);
 }
 
 .window-topbar-title {
@@ -80,7 +77,7 @@ code {
 }
 
 .window-topbar-prefix {
-  color: #a89984;
+  color: var(--muted);
   flex: 0 0 auto;
 }
 
@@ -93,17 +90,17 @@ code {
 }
 
 .window-topbar-separator {
-  color: #a89984;
+  color: var(--muted);
 }
 
 .window-topbar-crumb {
   min-width: 0;
-  color: #a89984;
+  color: var(--muted);
   font-weight: 500;
 }
 
 .window-topbar-crumb.is-current {
-  color: #fbf1c7;
+  color: var(--text-strong);
   font-weight: 700;
 }
 
@@ -120,15 +117,15 @@ code {
   padding: 0;
   border-radius: 0.4rem;
   background: transparent;
-  color: #d5c4a1;
+  color: var(--muted-strong);
   display: inline-flex;
   align-items: center;
   justify-content: center;
 }
 
 .tool-button:hover:not(:disabled) {
-  background: rgba(235, 219, 178, 0.08);
-  color: #fbf1c7;
+  background: var(--hover-surface);
+  color: var(--text-strong);
 }
 
 .tool-button:disabled {
@@ -151,8 +148,8 @@ code {
 
 .tree-panel {
   padding: 10px 8px 10px 10px;
-  background: rgba(40, 40, 40, 0.96);
-  border-right: 1px solid rgba(168, 153, 132, 0.16);
+  background: var(--bg-tree);
+  border-right: 1px solid var(--border-soft);
   overflow: auto;
 }
 
@@ -181,30 +178,30 @@ code {
 }
 
 .tree-item:hover {
-  background: rgba(146, 131, 116, 0.16);
+  background: var(--tree-hover);
 }
 
 .tree-item[aria-selected="true"] {
-  background: rgba(215, 153, 33, 0.2);
-  color: #fbf1c7;
+  background: var(--selection-strong);
+  color: var(--text-strong);
 }
 
 .tree-item.child {
   padding-left: 22px;
-  color: #d5c4a1;
+  color: var(--muted-strong);
 }
 
 .tree-item .material-symbols-outlined {
-  color: #a89984;
+  color: var(--muted);
 }
 
 .tree-item[aria-selected="true"] .material-symbols-outlined {
-  color: #fabd2f;
+  color: var(--accent-strong);
 }
 
 .resizer {
   position: relative;
-  background: rgba(168, 153, 132, 0.2);
+  background: var(--resizer-track);
   cursor: col-resize;
 }
 
@@ -215,7 +212,7 @@ code {
   left: 50%;
   width: 1px;
   transform: translateX(-50%);
-  background: rgba(235, 219, 178, 0.26);
+  background: var(--resizer-handle);
   transition: width 120ms ease, background-color 120ms ease;
 }
 
@@ -223,7 +220,7 @@ code {
 .resizer.is-active::before,
 .options-shell.is-resizing .resizer::before {
   width: 5px;
-  background: rgba(250, 189, 47, 0.72);
+  background: var(--accent-strong);
 }
 
 .options-shell.is-resizing,
@@ -249,7 +246,7 @@ code {
   font-size: 0.82rem;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: #a89984;
+  color: var(--muted);
 }
 
 .section-grid {
@@ -261,8 +258,8 @@ code {
 .setting-card {
   padding: 12px;
   border-radius: 10px;
-  background: rgba(60, 56, 54, 0.52);
-  border: 1px solid rgba(168, 153, 132, 0.14);
+  background: var(--bg-card);
+  border: 1px solid var(--border-faint);
 }
 
 .setting-card h3 {
@@ -272,13 +269,13 @@ code {
 
 .setting-card p {
   margin: 0.45rem 0 0;
-  color: #bdae93;
+  color: var(--muted);
   line-height: 1.45;
   font-size: 0.88rem;
 }
 
 .setting-card strong {
-  color: #fbf1c7;
+  color: var(--text-strong);
 }
 
 .meta-list {
@@ -290,11 +287,11 @@ code {
 }
 
 .meta-label {
-  color: #a89984;
+  color: var(--muted);
 }
 
 .meta-value {
-  color: #ebdbb2;
+  color: var(--text);
 }
 
 .field-grid {
@@ -308,11 +305,11 @@ code {
   align-items: center;
   gap: 10px;
   padding: 8px 0;
-  border-bottom: 1px solid rgba(168, 153, 132, 0.14);
+  border-bottom: 1px solid var(--border-faint);
 }
 
 .field:first-child {
-  border-top: 1px solid rgba(168, 153, 132, 0.14);
+  border-top: 1px solid var(--border-faint);
 }
 
 .field-copy {
@@ -337,7 +334,7 @@ code {
 
 .field-output {
   min-width: 7.5ch;
-  color: #fabd2f;
+  color: var(--accent-strong);
   font-variant-numeric: tabular-nums;
   text-align: right;
   white-space: nowrap;
@@ -347,27 +344,27 @@ code {
   inline-size: 1rem;
   block-size: 1rem;
   margin: 0;
-  accent-color: #d79921;
+  accent-color: var(--accent);
 }
 
 .field input[type="range"] {
   width: min(180px, 24vw);
-  accent-color: #d79921;
+  accent-color: var(--accent);
 }
 
 .field select {
   border-radius: 6px;
-  border: 1px solid rgba(168, 153, 132, 0.22);
+  border: 1px solid var(--menu-bar-border);
   padding: 4px 8px;
-  color: #ebdbb2;
-  background: rgba(29, 32, 33, 0.92);
+  color: var(--text);
+  background: var(--bg-input);
 }
 
 .field-hint {
   margin: 0;
   grid-column: 1 / -1;
   font-size: 0.84rem;
-  color: #a89984;
+  color: var(--muted);
 }
 
 .options-shell:not(.hints-expanded) .field-hint {

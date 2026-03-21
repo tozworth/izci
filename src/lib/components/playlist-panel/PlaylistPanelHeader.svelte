@@ -192,15 +192,15 @@
     gap: 0.28rem;
     width: min(10.25rem, calc(100vw - 7rem));
     padding: 0 0.28rem 0 0.48rem;
-    border: 1px solid rgba(168, 153, 132, 0.16);
+    border: 1px solid var(--border-soft);
     border-radius: 999px;
-    background: rgba(40, 40, 40, 0.96);
+    background: var(--bg-search);
     box-shadow: var(--shadow);
     color: var(--muted);
   }
 
   .playlist-search-inline:focus-within {
-    border-color: rgba(250, 189, 47, 0.34);
+    border-color: var(--accent-focus-border);
     color: var(--accent-strong);
   }
 
@@ -245,7 +245,7 @@
 
   .playlist-search-close:hover {
     color: var(--accent-strong);
-    background: rgba(250, 189, 47, 0.08);
+    background: var(--accent-strong-soft);
   }
 
   .playlist-search-close .material-symbols-outlined {
