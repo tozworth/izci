@@ -50,6 +50,9 @@ export default defineConfig({
         display: 'standalone',
         start_url: '/',
         scope: '/',
+        launch_handler: {
+          client_mode: 'focus-existing'
+        },
         icons: [
           {
             src: '/icons/izci-icon.svg',

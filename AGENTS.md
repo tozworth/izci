@@ -156,6 +156,7 @@ Primary location for playback and browser-integration logic.
   - `showDirectoryPicker()` for top-level folder imports
   - drag/drop, including Chromium filesystem entry helpers
 - Installed PWA file-association launches come through Chromium `launchQueue`; those files should replace the playlist contents rather than append to the current queue.
+- Installed PWA file-association launches should prefer a single existing app window via the manifest `launch_handler`, with a runtime cross-window handoff fallback so repeated file opens do not spawn unbounded duplicate instances.
 - `src/lib/services/import-controller.ts` is the entry point for picker capability checks and menu/input import behavior. Keep drag/drop extraction in `PlaylistPanel.svelte` and `src/lib/utils/files.ts`.
 - Persisted items may be rehydrated from `FileSystemFileHandle`s. Preserve the `ensureLoaded()` flow and permission prompts when changing import or playback behavior.
 - Metadata is inferred from filenames only when enabled in `metadata-settings`. Do not bake inference directly into components.
