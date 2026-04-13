@@ -70,12 +70,17 @@ button {
   min-height: 1.9rem;
   padding: max(env(safe-area-inset-top, 0px), 0px) 0.65rem 0;
   background: var(--menu-bar-bg);
-  border-bottom: 1px solid var(--menu-bar-border);
   backdrop-filter: blur(16px);
   box-shadow: 0 1px 0 var(--hairline);
   position: sticky;
   top: 0;
   z-index: 40;
+}
+
+.menu-bar-compact {
+  gap: 0.35rem;
+  min-height: 1.7rem;
+  padding-inline: 0.35rem;
 }
 
 .menu-bar.window-controls-overlay-active {
@@ -90,6 +95,17 @@ button {
   );
   -webkit-app-region: drag;
   app-region: drag;
+}
+
+.menu-bar.window-controls-overlay-active.menu-bar-compact {
+  min-height: max(1.55rem, var(--window-controls-overlay-height, env(titlebar-area-height, 1.55rem)));
+  padding-left: max(0.3rem, var(--window-controls-overlay-x, env(titlebar-area-x, 0px)));
+  padding-right: max(
+    0.3rem,
+    calc(
+      100vw - var(--window-controls-overlay-x, env(titlebar-area-x, 0px)) - var(--window-controls-overlay-width, env(titlebar-area-width, 100vw))
+    )
+  );
 }
 
 .menu-groups {
@@ -125,6 +141,27 @@ button {
 .menu-trigger.active,
 .menu-trigger:hover {
   background: var(--hover-surface);
+}
+
+.compact-menu-trigger {
+  gap: 0.2rem;
+  min-height: 1.55rem;
+  padding: 0.12rem 0.38rem 0.12rem 0.46rem;
+  border-radius: 999px;
+  font-size: 0.84rem;
+  letter-spacing: 0.02em;
+}
+
+.compact-menu-trigger strong {
+  color: var(--text-strong);
+  font-size: 0.84rem;
+  letter-spacing: 0.05em;
+  text-transform: lowercase;
+}
+
+.compact-menu-chevron {
+  font-size: 0.95rem;
+  color: var(--muted);
 }
 
 .menu-list {
