@@ -8,7 +8,7 @@ const HORIZONTAL_PADDING = 24;
 
 export const WORKSPACE_RESIZER_WIDTH = 14;
 export const WIDE_PANEL_MIN_WIDTHS: Record<WorkspacePanelId, number> = {
-  playlist: 260,
+  playlist: 250,
   library: 320,
   details: 240
 };
@@ -166,8 +166,11 @@ export function resolveResizedPanelLayout(options: {
   startLayout: WorkspacePanelLayoutSettings;
   delta: number;
   contentWidth: number;
+  detailsVisible?: boolean;
 }): WorkspacePanelLayoutSettings {
-  const startWidths = resolveWidePanelWidths(options.startLayout, options.contentWidth);
+  const startWidths = resolveWidePanelWidths(options.startLayout, options.contentWidth, {
+    detailsVisible: options.detailsVisible
+  });
 
   if (options.handle === 'playlist-library') {
     const nextPlaylist = clamp(

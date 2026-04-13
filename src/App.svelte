@@ -467,7 +467,8 @@
         handle: resizeState.handle,
         startLayout: resizeState.startLayout,
         delta: event.clientX - resizeState.startX,
-        contentWidth: wideContentWidth
+        contentWidth: wideContentWidth,
+        detailsVisible: isDetailsPanelVisible
       })
     );
   }
