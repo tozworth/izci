@@ -268,7 +268,7 @@
                   </select>
                 </div>
                 <p class="field-hint">
-                  Applies to the main window and the Options popup, and stays synced across open windows.
+                  Sets the global color theme.
                 </p>
               </label>
             </div>
@@ -293,7 +293,7 @@
                   />
                 </div>
                 <p class="field-hint">
-                  Shapes the volume slider for gentler low-end changes. Turn this off to go back to a linear volume curve.
+                  Shapes the volume slider for gentler low-end changes.
                 </p>
               </label>
             </div>
@@ -393,7 +393,7 @@
                   />
                   <span class="field-output">{formatFactor($modulePlaybackSettings.tempoFactor)}</span>
                 </div>
-                <p class="field-hint">Changes module playback speed without changing pitch compensation behavior in the backend.</p>
+                <p class="field-hint">Changes module playback speed without changing pitch.</p>
               </label>
 
               <label class="field">
