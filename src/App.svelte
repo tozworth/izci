@@ -662,11 +662,20 @@
     return libraryContextActions;
   }
 
+  function handleShowTrackDetails() {
+    setActiveWorkspaceTab('details');
+  }
+
   function handlePlaylistContextAction(event: CustomEvent<{ actionId: string; ids: string[] }>) {
     const { actionId, ids } = event.detail;
     const tracks = buildSelectedWorkspaceTracks(playlistItems, ids);
 
     if (tracks.length === 0) {
+      return;
+    }
+
+    if (actionId === 'track-details') {
+      handleShowTrackDetails();
       return;
     }
 
@@ -695,6 +704,11 @@
     const tracks = buildSelectedWorkspaceTracks(libraryItems, ids);
 
     if (tracks.length === 0) {
+      return;
+    }
+
+    if (actionId === 'track-details') {
+      handleShowTrackDetails();
       return;
     }
 

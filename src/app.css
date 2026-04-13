@@ -175,6 +175,12 @@ button {
   background: transparent;
 }
 
+.menu-separator {
+  height: 1px;
+  margin: 0.25rem 0;
+  background: var(--border-strong);
+}
+
 .menu-brand {
   display: inline-flex;
   align-items: baseline;

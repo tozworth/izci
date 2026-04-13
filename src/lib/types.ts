@@ -85,6 +85,7 @@ export interface MenuActionItem {
   label: string;
   icon?: string;
   shortcut?: string;
+  separatorBefore?: boolean;
 }
 
 export interface LibraryViewColumnState {

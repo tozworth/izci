@@ -55,6 +55,11 @@ export function buildPlaylistContextActions(
 
   return [
     {
+      id: 'track-details',
+      label: 'Track details',
+      icon: 'info'
+    },
+    {
       id: 'toggle-library',
       label: inLibrary ? 'Remove from library' : 'Add to library',
       icon: inLibrary ? 'remove_circle' : 'library_add'
@@ -62,7 +67,8 @@ export function buildPlaylistContextActions(
     {
       id: 'remove',
       label: 'Remove',
-      icon: 'delete'
+      icon: 'delete',
+      separatorBefore: true
     }
   ];
 }
@@ -80,9 +86,15 @@ export function buildLibraryContextActions(): MenuActionItem[] {
       icon: 'playlist_play'
     },
     {
+      id: 'track-details',
+      label: 'Track details',
+      icon: 'info'
+    },
+    {
       id: 'remove',
       label: 'Remove',
-      icon: 'delete'
+      icon: 'delete',
+      separatorBefore: true
     }
   ];
 }

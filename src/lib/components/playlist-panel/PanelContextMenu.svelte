@@ -31,6 +31,9 @@
     style={`left: ${menu.x}px; top: ${menu.y}px;`}
   >
     {#each itemActions as action}
+      {#if action.separatorBefore}
+        <div class="menu-separator" role="separator" aria-hidden="true"></div>
+      {/if}
       <button type="button" role="menuitem" on:click={() => dispatch('action', action.id)}>
         <span class="material-symbols-outlined menu-item-icon" aria-hidden="true">{action.icon ?? 'label'}</span>
         <span class="menu-item-label">{action.label}</span>
