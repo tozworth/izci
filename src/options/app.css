@@ -92,7 +92,6 @@ code {
     )
   );
   -webkit-app-region: drag;
-  app-region: drag;
 }
 
 .window-topbar-title {
@@ -137,7 +136,6 @@ code {
   align-items: center;
   gap: 0.2rem;
   -webkit-app-region: no-drag;
-  app-region: no-drag;
 }
 
 .tool-button {
@@ -152,7 +150,6 @@ code {
   align-items: center;
   justify-content: center;
   -webkit-app-region: no-drag;
-  app-region: no-drag;
 }
 
 .tool-button:hover:not(:disabled) {

@@ -108,7 +108,6 @@ button {
     )
   );
   -webkit-app-region: drag;
-  app-region: drag;
 }
 
 .menu-bar.window-controls-overlay-active.menu-bar-compact {
@@ -131,7 +130,6 @@ button {
 .menu-root {
   position: relative;
   -webkit-app-region: no-drag;
-  app-region: no-drag;
 }
 
 .menu-trigger {
@@ -149,7 +147,6 @@ button {
   font-size: 0.92rem;
   line-height: 1.1;
   -webkit-app-region: no-drag;
-  app-region: no-drag;
 }
 
 .menu-trigger.active,
@@ -192,7 +189,6 @@ button {
   box-shadow: var(--shadow);
   z-index: 30;
   -webkit-app-region: no-drag;
-  app-region: no-drag;
 }
 
 .menu-list button {
@@ -207,7 +203,6 @@ button {
   text-align: left;
   white-space: nowrap;
   -webkit-app-region: no-drag;
-  app-region: no-drag;
 }
 
 .menu-item-label {
