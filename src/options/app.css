@@ -81,6 +81,20 @@ code {
   box-shadow: 0 1px 0 var(--hairline);
 }
 
+.window-topbar.window-controls-overlay-active {
+  min-height: max(1.9rem, var(--window-controls-overlay-height, env(titlebar-area-height, 1.9rem)));
+  padding-top: max(var(--window-controls-overlay-y, env(titlebar-area-y, 0px)), env(safe-area-inset-top, 0px));
+  padding-left: max(0.65rem, var(--window-controls-overlay-x, env(titlebar-area-x, 0px)));
+  padding-right: max(
+    0.65rem,
+    calc(
+      100vw - var(--window-controls-overlay-x, env(titlebar-area-x, 0px)) - var(--window-controls-overlay-width, env(titlebar-area-width, 100vw))
+    )
+  );
+  -webkit-app-region: drag;
+  app-region: drag;
+}
+
 .window-topbar-title {
   min-width: 0;
   display: flex;
@@ -122,6 +136,8 @@ code {
   display: flex;
   align-items: center;
   gap: 0.2rem;
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
 }
 
 .tool-button {
@@ -135,6 +151,8 @@ code {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  -webkit-app-region: no-drag;
+  app-region: no-drag;
 }
 
 .tool-button:hover:not(:disabled) {

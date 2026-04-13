@@ -1,6 +1,7 @@
 <script lang="ts">
   import { version as appVersion } from '../../package.json';
   import { COLOR_THEME_OPTIONS } from '$lib/services/theme';
+  import { windowControlsOverlayState } from '$lib/services/window-controls-overlay';
   import { appearanceSettings } from '$lib/stores/appearance-settings';
   import { metadataSettings } from '$lib/stores/metadata-settings';
   import {
@@ -162,6 +163,11 @@
     resizePointerId = null;
   }
 
+  $: overlayState = $windowControlsOverlayState;
+  $: overlayRect = overlayState.titlebarAreaRect;
+  $: overlayInlineStyle = overlayState.visible
+    ? `--window-controls-overlay-x: ${overlayRect.x}px; --window-controls-overlay-y: ${overlayRect.y}px; --window-controls-overlay-width: ${overlayRect.width}px; --window-controls-overlay-height: ${overlayRect.height}px;`
+    : '';
   $: activeViewDefinition = OPTIONS_VIEWS[activeView];
   $: breadcrumbs = [activeViewDefinition.parentLabel, activeViewDefinition.label].filter(Boolean);
   $: canResetCurrentView = activeViewDefinition.resettable;
@@ -188,7 +194,11 @@
 />
 
 <div class="options-shell" class:is-resizing={resizePointerId !== null} class:hints-expanded={fieldHintsExpanded}>
-  <header class="window-topbar">
+  <header
+    class="window-topbar"
+    class:window-controls-overlay-active={overlayState.visible}
+    style={overlayInlineStyle}
+  >
     <div class="window-topbar-title" aria-live="polite">
       <span class="window-topbar-prefix">izci Options</span>
       <span class="window-topbar-breadcrumbs">
