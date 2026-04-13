@@ -1,5 +1,5 @@
 export const STREAM_EXTENSIONS = ['mp3', 'wav', 'flac', 'ogg', 'opus'] as const;
-export const MODULE_EXTENSIONS = ['mod', 'xm', 's3m', 'it'] as const;
+export const MODULE_EXTENSIONS = ['mod', 'xm', 's3m', 'it', 'mo3'] as const;
 
 export type StreamExtension = (typeof STREAM_EXTENSIONS)[number];
 export type ModuleExtension = (typeof MODULE_EXTENSIONS)[number];

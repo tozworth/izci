@@ -10,7 +10,7 @@
 
 - Preserve dual playback paths:
   - streamed formats (`mp3`, `wav`, `flac`, `ogg`, `opus`) use `Howler.js` in HTML5 audio mode
-  - tracker modules (`mod`, `xm`, `s3m`, `it`) use `Chiptune3` / Web Audio
+  - tracker modules (`mod`, `xm`, `s3m`, `it`, `mo3`) use `Chiptune3` / Web Audio
 - Offline PWA functionality is required and must not regress.
 - Target Chromium/Blink desktop and installed PWA behavior. Prefer Chrome APIs and desktop-PWA integrations over compatibility shims.
 - Assume no backend. The app runs locally against user-selected files and file handles.

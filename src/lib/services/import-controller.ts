@@ -14,7 +14,7 @@ interface ImportControllerOptions {
 }
 
 export const FILE_INPUT_ACCEPT =
-  '.mp3,.wav,.flac,.ogg,.opus,.mod,.xm,.s3m,.it';
+  '.mp3,.wav,.flac,.ogg,.opus,.mod,.xm,.s3m,.it,.mo3';
 
 export const OPEN_FILE_PICKER_OPTIONS: OpenFilePickerOptions = {
   multiple: true,
@@ -30,7 +30,8 @@ export const OPEN_FILE_PICKER_OPTIONS: OpenFilePickerOptions = {
         'audio/x-mod': ['.mod'],
         'audio/x-xm': ['.xm'],
         'audio/x-s3m': ['.s3m'],
-        'audio/x-it': ['.it']
+        'audio/x-it': ['.it'],
+        'audio/x-mo3': ['.mo3']
       }
     }
   ]

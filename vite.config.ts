@@ -78,7 +78,8 @@ export default defineConfig({
               'audio/x-mod': ['.mod'],
               'audio/x-xm': ['.xm'],
               'audio/x-s3m': ['.s3m'],
-              'audio/x-it': ['.it']
+              'audio/x-it': ['.it'],
+              'audio/x-mo3': ['.mo3']
             }
           }
         ]

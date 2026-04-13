@@ -45,6 +45,7 @@ const MODULE_TRACKER_NAMES: Record<string, string> = {
   xm: 'FastTracker II compatible',
   s3m: 'Scream Tracker 3',
   it: 'Impulse Tracker',
+  mo3: 'Un4seen/BASS compressed module',
   mptm: 'ModPlug Tracker / OpenMPT'
 };
 
