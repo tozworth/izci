@@ -68,6 +68,7 @@ export function buildPlaylistContextActions(
       id: 'remove',
       label: 'Remove',
       icon: 'delete',
+      shortcut: 'Delete',
       separatorBefore: true
     }
   ];
@@ -94,6 +95,7 @@ export function buildLibraryContextActions(): MenuActionItem[] {
       id: 'remove',
       label: 'Remove',
       icon: 'delete',
+      shortcut: 'Delete',
       separatorBefore: true
     }
   ];
