@@ -59,7 +59,8 @@ UI only. Keep these focused on rendering and event dispatch.
 
 - `PlayerControls.svelte`: transport controls, seek bar, volume, and currently selected/playing track context.
 - `PlaylistPanel.svelte`: shared playlist/library composition shell; wires drag/drop import, selection events, library view settings, and the extracted playlist-panel subcomponents/helpers.
-- `TopMenuBar.svelte`: desktop-style File/View menu bar.
+- `TopMenuBar.svelte`: desktop-style File/View menu bar that also adapts to Window Controls Overlay state, exposes draggable titlebar regions, hides the version label while overlay mode is active, and collapses into a compact `izci` chevron menu when available titlebar space is tight.
+- `MenuSurface.svelte`: shared popup menu surface used by the compact titlebar menu; supports nested submenus plus in-place drilldown fallback when flyout submenus would overflow the window.
 - `TrackDetailsPanel.svelte`: selected-track metadata/details surface.
 
 ### `src/lib/components/playlist-panel/`
@@ -96,7 +97,8 @@ Primary location for playback and browser-integration logic.
 - `player-controller.ts`: single coordinator for backend switching, snapshot updates, metadata inference application, and player volume propagation.
 - `media-session.ts`: Chromium Media Session bridge for now-playing metadata, seek position updates, OS/media-key transport handlers, and the silent native transport anchor used to keep Chromium media surfaces alive for non-native playback paths.
 - `pwa-updates.ts`: service-worker registration plus proactive update checks for long-lived preview/installed PWA windows so new builds can activate without getting stuck on the first cached shell.
-- `theme.ts`: shared color-theme metadata plus document-theme application used by both window entrypoints.
+- `theme.ts`: shared color-theme metadata, document-theme application, and dynamic `<meta name="theme-color">` updates used by both window entrypoints so Chromium/PWA window chrome tracks the active theme where supported.
+- `window-controls-overlay.ts`: readable store that tracks Window Controls Overlay support, visibility, and `titlebarAreaRect` updates from Chromium's `geometrychange` event.
 - `howler-player.ts`: streamed-audio backend built on `Howler.js`, using Howler's HTML5 audio mode so Chromium media controls and pause/resume integration stay anchored to a native media element.
 - `module-player.ts`: tracker-module backend built on `Chiptune3`; applies runtime module playback settings and recreates the player when required by setting changes, while mirroring transport state to the browser media-session anchor without routing module audio through it.
 - `chiptune-loader.ts`: guarded one-time `Chiptune3` initialization with timeout/error handling.
@@ -128,7 +130,7 @@ Primary location for playback and browser-integration logic.
 
 ### Types and shims
 
-- `src/lib/types.ts`: shared domain types, supported extension constants, workspace types, playlist/library view types, metadata/settings types, and playback snapshot types.
+- `src/lib/types.ts`: shared domain types, supported extension constants, workspace types, playlist/library view types, metadata/settings types, popup-menu item types (including nested children for drilldown titlebar menus), and playback snapshot types.
 - `src/lib/types/chiptune3.d.ts`: local typings for `chiptune3`.
 - `src/lib/types/file-system-access.d.ts`: File System Access API typing shim used by the app.
 - `src/lib/types/howler.d.ts`: local typings for `howler` integration gaps.
@@ -156,7 +158,12 @@ Primary location for playback and browser-integration logic.
 - Wide-mode workspace panel widths are persisted in `localStorage` and sync across windows; tabbed mode ignores those widths.
 - The workspace switches to tabbed mode at viewport widths of 750px and below.
 - The Track Details workspace panel is closable and starts hidden until explicitly opened from a context action; when hidden, wide layout should reflow playlist/library widths without overwriting the stored three-panel proportions used when details is shown again.
-- Color theme selection is persisted in `localStorage`, synced across windows, and applied at the document level so both the main app and Options popup reuse the same theme tokens.
+- Color theme selection is persisted in `localStorage`, synced across windows, applied at the document level so both the main app and Options popup reuse the same theme tokens, and mirrored into the page `theme-color` meta tag so installed Chromium windows can recolor their chrome with the active theme.
+- Installed desktop builds opt into manifest `display_override: ['window-controls-overlay']` while preserving `display: 'standalone'` fallback. Users can still toggle the title bar at runtime, so overlay-specific UI must respond to live visibility/geometry changes rather than assuming the overlay is always active.
+- `src/lib/services/window-controls-overlay.ts` is the single source of truth for Window Controls Overlay state. Consume its readable store instead of querying `navigator.windowControlsOverlay` directly from components.
+- `src/lib/components/TopMenuBar.svelte` is responsible for titlebar adaptation: it becomes a drag region in overlay mode, marks interactive controls as `no-drag`, hides the version badge while overlay mode is visible, and sizes/collapses itself based on the live available `titlebarAreaRect.width` rather than raw viewport width.
+- When the titlebar menu collapses, it should stay on the shared `MenuSurface.svelte` path rather than inventing a second menu system. `MenuSurface.svelte` supports nested submenus and a drilldown fallback that replaces File/View root entries with submenu contents when flyout submenus would overflow the current window.
+- The menu bar intentionally has no bottom border; rely on blur/shadow separation instead so compact chevron mode and overlay titlebar mode do not show an extra seam.
 - `src/App.svelte` is responsible for top-level workspace orchestration, but durable state and local algorithms should live in stores/services or the focused workspace components.
 - File import supports multiple sources:
   - plain file input fallback
@@ -190,6 +197,7 @@ Primary location for playback and browser-integration logic.
 - Before changing module playback settings, inspect `src/lib/stores/module-playback-settings.ts`, `src/lib/services/module-player.ts`, and `src/options/OptionsApp.svelte` together.
 - Before changing general playback settings or volume-response behavior, inspect `src/lib/stores/playback-settings.ts`, `src/lib/services/player-controller.ts`, `src/lib/services/howler-player.ts`, `src/lib/services/module-player.ts`, and `src/options/OptionsApp.svelte` together.
 - Before changing appearance or color theming, inspect `src/lib/stores/appearance-settings.ts`, `src/lib/services/theme.ts`, `src/lib/styles/themes.css`, `src/app.css`, and `src/options/app.css` together.
+- Before changing titlebar/window chrome behavior, inspect `vite.config.ts`, `src/lib/services/theme.ts`, `src/lib/services/window-controls-overlay.ts`, `src/lib/components/TopMenuBar.svelte`, `src/lib/components/MenuSurface.svelte`, `src/app.css`, `index.html`, and `options.html` together.
 - Before changing library UI behavior, inspect `src/lib/components/PlaylistPanel.svelte`, `src/lib/components/playlist-panel/`, `src/lib/components/workspace/`, and `src/lib/stores/library-view-settings.ts` together.
 - Before changing workspace layout behavior, inspect `src/App.svelte`, `src/lib/components/workspace/`, `src/lib/services/workspace-layout.ts`, and `src/lib/stores/workspace-panel-layout.ts` together.
 - Before changing PWA/build or popup-entry behavior, inspect `vite.config.ts`, `src/main.ts`, `options.html`, `src/options/main.ts`, and icon assets together.
