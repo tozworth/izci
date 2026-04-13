@@ -15,6 +15,7 @@ declare module 'howler' {
       onpause?: () => void;
       onstop?: () => void;
       onend?: () => void;
+      onseek?: () => void;
       onloaderror?: (id: number, message: unknown) => void;
       onplayerror?: (id: number, message: unknown) => void;
     });
