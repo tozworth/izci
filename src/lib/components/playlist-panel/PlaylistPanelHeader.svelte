@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { afterUpdate, createEventDispatcher } from 'svelte';
+  import { afterUpdate, createEventDispatcher, tick } from 'svelte';
   import type { PlaylistRepeatMode } from '$lib/types';
 
   export let panelTitle = 'Playlist';
@@ -27,8 +27,9 @@
 
   let previousShowSearchInput = false;
 
-  afterUpdate(() => {
+  afterUpdate(async () => {
     if (showSearchInput && !previousShowSearchInput) {
+      await tick();
       searchInputElement?.focus();
       searchInputElement?.select();
     }
@@ -59,16 +60,6 @@
   </div>
   <div class="playlist-actions">
     {#if showSearchControl}
-      <button
-        type="button"
-        class="playlist-action-button"
-        class:active={showSearchInput}
-        aria-label="Search library"
-        title="Search library"
-        on:click={() => dispatch('searchToggle')}
-      >
-        <span class="material-symbols-outlined" aria-hidden="true">search</span>
-      </button>
       {#if showSearchInput}
         <div class="playlist-search-inline">
           <span class="material-symbols-outlined" aria-hidden="true">search</span>
@@ -94,6 +85,16 @@
             <span class="material-symbols-outlined" aria-hidden="true">close</span>
           </button>
         </div>
+      {:else}
+        <button
+          type="button"
+          class="playlist-action-button"
+          aria-label="Search library"
+          title="Search library"
+          on:click={() => dispatch('searchToggle')}
+        >
+          <span class="material-symbols-outlined" aria-hidden="true">search</span>
+        </button>
       {/if}
     {/if}
     {#if showShuffleControl}
