@@ -3,10 +3,24 @@
 :root {
   background: var(--bg-base);
   color: var(--text);
+  -webkit-tap-highlight-color: transparent;
 }
 
 * {
   box-sizing: border-box;
+}
+
+button,
+a,
+input,
+select,
+textarea,
+[role='button'] {
+  -webkit-tap-highlight-color: transparent;
+}
+
+:focus:not(:focus-visible) {
+  outline: none;
 }
 
 html,
