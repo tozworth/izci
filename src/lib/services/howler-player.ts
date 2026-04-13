@@ -1,5 +1,6 @@
 import { Howl } from 'howler';
 import type { PlaybackSnapshot, PlaylistItem, TrackMetadata } from '$lib/types';
+import { sliderVolumeToGain } from '$lib/services/volume';
 
 type SnapshotHandler = (snapshot: Partial<PlaybackSnapshot>) => void;
 type MetadataHandler = (metadata: TrackMetadata) => void;
@@ -15,6 +16,7 @@ export class HowlerPlayerService {
   #autoPlayOnLoad = false;
   #tickFrame: number | null = null;
   #shouldTrackProgress = false;
+  #useLogarithmicVolume = true;
   #onSnapshot: SnapshotHandler;
   #onMetadata: MetadataHandler;
   #onEnded: EndHandler;
@@ -155,8 +157,9 @@ export class HowlerPlayerService {
     }
   }
 
-  setVolume(volume: number): void {
-    this.#howl?.volume(volume);
+  setVolume(volume: number, logarithmicVolume: boolean = this.#useLogarithmicVolume): void {
+    this.#useLogarithmicVolume = logarithmicVolume;
+    this.#howl?.volume(sliderVolumeToGain(volume, this.#useLogarithmicVolume));
     this.#onSnapshot({ volume });
   }
 

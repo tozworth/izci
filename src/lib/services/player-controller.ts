@@ -3,6 +3,7 @@ import { HowlerPlayerService } from '$lib/services/howler-player';
 import { ModulePlayerService } from '$lib/services/module-player';
 import { metadataSettings } from '$lib/stores/metadata-settings';
 import { modulePlaybackSettings } from '$lib/stores/module-playback-settings';
+import { playbackSettings } from '$lib/stores/playback-settings';
 import { DEFAULT_PLAYER_VOLUME, playerVolume } from '$lib/stores/player-volume';
 import type { PlaybackSnapshot, PlaylistItem, TrackMetadata } from '$lib/types';
 import { mergeInferredArtistTitle } from '$lib/utils/files';
@@ -17,6 +18,7 @@ const initialSnapshot: PlaybackSnapshot = {
 
 function createPlayerController() {
   let volume = playerVolume.getSnapshot();
+  let playbackConfig = playbackSettings.getSnapshot();
   const snapshot = writable<PlaybackSnapshot>({ ...initialSnapshot, volume });
   const currentTrack = writable<PlaylistItem | null>(null);
 
@@ -66,6 +68,11 @@ function createPlayerController() {
       return nextTrack;
     });
   });
+  const unsubscribePlaybackSettings = playbackSettings.subscribe((settings) => {
+    playbackConfig = settings;
+    services.stream.setVolume(volume, playbackConfig.logarithmicVolume);
+    services.module.setVolume(volume, playbackConfig.logarithmicVolume);
+  });
 
   return {
     snapshot,
@@ -87,10 +94,10 @@ function createPlayerController() {
 
       if (preparedTrack.kind === 'stream') {
         services.stream.load(preparedTrack, { autoPlay: options.autoPlay === true });
-        services.stream.setVolume(volume);
+        services.stream.setVolume(volume, playbackConfig.logarithmicVolume);
       } else {
         await services.module.load(preparedTrack);
-        services.module.setVolume(volume);
+        services.module.setVolume(volume, playbackConfig.logarithmicVolume);
 
         if (options.autoPlay === true) {
           services.module.play();
@@ -122,8 +129,8 @@ function createPlayerController() {
       nextVolume = Math.min(Math.max(nextVolume, 0), 1);
       volume = nextVolume;
       playerVolume.set(nextVolume);
-      services.stream.setVolume(nextVolume);
-      services.module.setVolume(nextVolume);
+      services.stream.setVolume(nextVolume, playbackConfig.logarithmicVolume);
+      services.module.setVolume(nextVolume, playbackConfig.logarithmicVolume);
       onSnapshot({ volume: nextVolume });
     },
     unload() {
@@ -150,6 +157,7 @@ function createPlayerController() {
     destroy() {
       unsubscribeModuleSettings();
       unsubscribeMetadataSettings();
+      unsubscribePlaybackSettings();
       services.stream.destroy();
       services.module.destroy();
     }

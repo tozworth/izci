@@ -7,6 +7,7 @@
     MODULE_INTERPOLATION_OPTIONS,
     modulePlaybackSettings
   } from '$lib/stores/module-playback-settings';
+  import { playbackSettings } from '$lib/stores/playback-settings';
   import type { ColorTheme } from '$lib/types';
   import { OPTIONS_VIEW_GROUPS, OPTIONS_VIEWS, type OptionsViewName } from './views';
 
@@ -106,9 +107,20 @@
     });
   }
 
+  function handleLogarithmicVolumeToggle(event: Event) {
+    playbackSettings.update({
+      logarithmicVolume: (event.currentTarget as HTMLInputElement).checked
+    });
+  }
+
   function resetCurrentView() {
     if (activeView === 'appearance') {
       appearanceSettings.reset();
+      return;
+    }
+
+    if (activeView === 'playback') {
+      playbackSettings.reset();
       return;
     }
 
@@ -267,34 +279,23 @@
       {#if activeView === 'playback'}
         <article class="view">
           <div class="section">
-            <h2>Current Module Defaults</h2>
-            <dl class="meta-list">
-              <div class="meta-label">Looping</div>
-              <div class="meta-value">{formatRepeatCount($modulePlaybackSettings.repeatCount)}</div>
-              <div class="meta-label">MOD Stereo</div>
-              <div class="meta-value">{$modulePlaybackSettings.stereoSeparation}%</div>
-              <div class="meta-label">Pan Strength</div>
-              <div class="meta-value">{$modulePlaybackSettings.panStrength}%</div>
-              <div class="meta-label">Interpolation</div>
-              <div class="meta-value">{interpolationOption.label}</div>
-              <div class="meta-label">Tempo</div>
-              <div class="meta-value">{formatFactor($modulePlaybackSettings.tempoFactor)}</div>
-              <div class="meta-label">Pitch</div>
-              <div class="meta-value">{formatFactor($modulePlaybackSettings.pitchFactor)}</div>
-            </dl>
-          </div>
-
-          <div class="section">
-            <h2>Backend Notes</h2>
-            <div class="section-grid">
-              <div class="setting-card">
-                <h3>Streamed Audio</h3>
-                <p><code>mp3</code>, <code>wav</code>, <code>flac</code>, <code>ogg</code>, and <code>opus</code> continue through Howler.js.</p>
-              </div>
-              <div class="setting-card">
-                <h3>Tracker Modules</h3>
-                <p><code>mod</code>, <code>xm</code>, <code>s3m</code>, and <code>it</code> use libopenmpt render parameters and playback controls.</p>
-              </div>
+            <h2>Volume</h2>
+            <div class="field-grid">
+              <label class="field checkbox-field">
+                <div class="field-copy">
+                  <span class="field-title">Logarithmic volume</span>
+                </div>
+                <div class="field-control checkbox-control">
+                  <input
+                    type="checkbox"
+                    checked={$playbackSettings.logarithmicVolume}
+                    on:change={handleLogarithmicVolumeToggle}
+                  />
+                </div>
+                <p class="field-hint">
+                  Shapes the volume slider for gentler low-end changes. Turn this off to go back to a linear volume curve.
+                </p>
+              </label>
             </div>
           </div>
         </article>

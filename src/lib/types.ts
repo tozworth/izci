@@ -50,6 +50,10 @@ export interface AppearanceSettings {
   colorTheme: ColorTheme;
 }
 
+export interface PlaybackSettings {
+  logarithmicVolume: boolean;
+}
+
 export interface PlaylistItem {
   id: string;
   file?: File;

@@ -116,6 +116,7 @@ Primary location for playback and browser-integration logic.
 - `playlist-dedupe.ts`: duplicate detection based on track identity, used only by the library store path.
 - `library-view-settings.ts`: persistent library table layout and filter state (column order, widths, visibility, sort, search query) with `BroadcastChannel` sync.
 - `appearance-settings.ts`: persistent appearance settings, currently the shared color-theme choice, with `BroadcastChannel` sync.
+- `playback-settings.ts`: persistent general playback settings, currently the logarithmic-volume toggle, with sync.
 - `module-playback-settings.ts`: persistent tracker playback settings (repeat, stereo/pan, interpolation, tempo, pitch) with sync.
 - `metadata-settings.ts`: persistent metadata behavior settings, currently filename-based artist/title inference.
 - `player-volume.ts`: persistent player volume with sync across windows.
@@ -185,6 +186,7 @@ Primary location for playback and browser-integration logic.
 - Before changing playback behavior, verify whether the code path is `stream` or `module` and keep both working.
 - Before changing import behavior, inspect `src/App.svelte`, `src/lib/services/import-controller.ts`, `src/lib/utils/files.ts`, and `src/lib/stores/playlist.ts` together.
 - Before changing module playback settings, inspect `src/lib/stores/module-playback-settings.ts`, `src/lib/services/module-player.ts`, and `src/options/OptionsApp.svelte` together.
+- Before changing general playback settings or volume-response behavior, inspect `src/lib/stores/playback-settings.ts`, `src/lib/services/player-controller.ts`, `src/lib/services/howler-player.ts`, `src/lib/services/module-player.ts`, and `src/options/OptionsApp.svelte` together.
 - Before changing appearance or color theming, inspect `src/lib/stores/appearance-settings.ts`, `src/lib/services/theme.ts`, `src/lib/styles/themes.css`, `src/app.css`, and `src/options/app.css` together.
 - Before changing library UI behavior, inspect `src/lib/components/PlaylistPanel.svelte`, `src/lib/components/playlist-panel/`, `src/lib/components/workspace/`, and `src/lib/stores/library-view-settings.ts` together.
 - Before changing workspace layout behavior, inspect `src/App.svelte`, `src/lib/components/workspace/`, `src/lib/services/workspace-layout.ts`, and `src/lib/stores/workspace-panel-layout.ts` together.

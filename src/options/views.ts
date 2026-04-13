@@ -24,8 +24,8 @@ export const OPTIONS_VIEW_GROUPS: OptionsViewDefinition[][] = [
       label: 'Playback',
       icon: 'play_circle',
       parentLabel: '',
-      hasHints: false,
-      resettable: false
+      hasHints: true,
+      resettable: true
     },
     {
       id: 'modules',
