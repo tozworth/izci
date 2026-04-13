@@ -174,7 +174,7 @@
     }
   });
 
-  $: isTabbedLayout = innerWidth <= 1000;
+  $: isTabbedLayout = innerWidth <= 750;
   $: selectedItem = activeCollection === 'library' ? selectedLibraryItem : selectedPlaylistItem;
   $: documentTitle = playingTrack ? getTrackDisplayTitle(playingTrack) : 'izci';
   $: {
