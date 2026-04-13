@@ -6,7 +6,25 @@ export const COLOR_THEME_OPTIONS: Array<{ value: ColorTheme; label: string }> = 
   { value: 'dracula', label: 'Dracula' }
 ];
 
+const THEME_COLOR_BY_THEME: Record<ColorTheme, string> = {
+  gruvbox: '#1c1d1e',
+  dracula: '#1f2029'
+};
+
 let initialized = false;
+
+function applyThemeColor(theme: ColorTheme): void {
+  const themeColor = THEME_COLOR_BY_THEME[theme];
+  let themeColorMeta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
+
+  if (!themeColorMeta) {
+    themeColorMeta = document.createElement('meta');
+    themeColorMeta.name = 'theme-color';
+    document.head.append(themeColorMeta);
+  }
+
+  themeColorMeta.content = themeColor;
+}
 
 function applyTheme(theme: ColorTheme): void {
   if (typeof document === 'undefined') {
@@ -14,6 +32,7 @@ function applyTheme(theme: ColorTheme): void {
   }
 
   document.documentElement.dataset.theme = theme;
+  applyThemeColor(theme);
 }
 
 export function initializeTheme(): void {
