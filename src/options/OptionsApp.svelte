@@ -498,7 +498,7 @@
               <li>Low CPU usage</li>
               <li>Did I mention it plays tracker modules?</li>
               <li>izci plays tracker modules</li>
-              <li>"izci" is "tracker" in Turkish; though it's more in the sense of animal tracking/scouting, but i kept it cuz it's cute</li>
+              <li>"izci" is "tracker" in Turkish; though it's closer to "scout" but i kept it cuz it's cute</li>
             </ul>
           </div>
         </article>
