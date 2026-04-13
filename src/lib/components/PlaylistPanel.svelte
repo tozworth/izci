@@ -378,6 +378,7 @@
     dropzoneWidth > 0 &&
     dropzoneWidth < 350 &&
     !$appearanceSettings.keepLibraryColumnsVisibleInNarrowLayout;
+  $: hideTrackFormat = layout === 'list' && dropzoneWidth > 0 && dropzoneWidth < 350;
   $: activeSort = $libraryViewSettings.sort;
   $: tableInnerWidth = Math.max(0, dropzoneWidth - TABLE_SIDE_PADDING);
   $: availableColumnWidth = Math.max(0, tableInnerWidth - Math.max(0, visibleColumnCount - 1) * COLUMN_GAP);
@@ -479,6 +480,7 @@
         {isCompactColumnLayout}
         {visibleColumns}
         {tableTemplateColumns}
+        {hideTrackFormat}
         on:itemClick={(event) => handleItemClick(event.detail.event, event.detail.id)}
         on:itemDoubleClick={(event) => handleItemDoubleClick(event.detail)}
         on:itemContextMenu={(event) => void handleItemContextMenu(event.detail.event, event.detail.id)}

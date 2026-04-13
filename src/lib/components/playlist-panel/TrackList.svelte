@@ -11,6 +11,7 @@
   export let isCompactColumnLayout = false;
   export let visibleColumns: LibraryPanelColumn[] = [];
   export let tableTemplateColumns = '';
+  export let hideTrackFormat = false;
 
   const dispatch = createEventDispatcher<{
     itemClick: { id: string; event: MouseEvent };
@@ -44,6 +45,7 @@
         layout="list"
         selected={selectedIds.includes(item.id)}
         playing={item.id === playingId}
+        {hideTrackFormat}
         on:itemClick={(event) => dispatch('itemClick', event.detail)}
         on:itemDoubleClick={(event) => dispatch('itemDoubleClick', event.detail)}
         on:itemContextMenu={(event) => dispatch('itemContextMenu', event.detail)}

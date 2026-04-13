@@ -584,16 +584,6 @@ button {
   white-space: nowrap;
 }
 
-@media (max-width: 349px) {
-  .track-meta:not(.has-duration) {
-    display: none;
-  }
-
-  .track-format {
-    display: none;
-  }
-}
-
 .playlist-context-menu {
   position: absolute;
 }

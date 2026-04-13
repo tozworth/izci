@@ -15,6 +15,7 @@
   export let playing = false;
   export let layout: 'list' | 'columns' = 'list';
   export let visibleColumns: LibraryPanelColumn[] = [];
+  export let hideTrackFormat = false;
 
   const dispatch = createEventDispatcher<{
     itemClick: { id: string; event: MouseEvent };
@@ -58,12 +59,16 @@
       on:contextmenu={(event) => dispatch('itemContextMenu', { id: item.id, event })}
     >
       <span class="track-name">{trackTitle}</span>
-      <span class="track-meta" class:has-duration={Boolean(trackDuration)}>
-        <span class="track-format">{formatTrackType(item)}</span>
-        {#if trackDuration}
-          <span class="track-duration">{trackDuration}</span>
-        {/if}
-      </span>
+      {#if !hideTrackFormat || trackDuration}
+        <span class="track-meta" class:has-duration={Boolean(trackDuration)}>
+          {#if !hideTrackFormat}
+            <span class="track-format">{formatTrackType(item)}</span>
+          {/if}
+          {#if trackDuration}
+            <span class="track-duration">{trackDuration}</span>
+          {/if}
+        </span>
+      {/if}
     </button>
   {/if}
 </li>
