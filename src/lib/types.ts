@@ -20,6 +20,7 @@ export interface TrackMetadata {
   artist?: string;
   album?: string;
   trackerType?: string;
+  originalType?: string;
   message?: string;
   duration?: number;
   bitrate?: number;

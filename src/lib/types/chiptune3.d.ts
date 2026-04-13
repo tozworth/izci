@@ -29,6 +29,7 @@ declare module 'chiptune3' {
     tracker?: string;
     type?: string;
     originaltype?: string;
+    originaltype_long?: string;
     message?: string;
     message_raw?: string;
     channels?: number | string;

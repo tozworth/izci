@@ -40,15 +40,6 @@ interface ImportedFileSource {
   path?: string;
 }
 
-const MODULE_TRACKER_NAMES: Record<string, string> = {
-  mod: 'SoundTracker compatible',
-  xm: 'FastTracker II compatible',
-  s3m: 'Scream Tracker 3',
-  it: 'Impulse Tracker',
-  mo3: 'Un4seen/BASS compressed module',
-  mptm: 'ModPlug Tracker / OpenMPT'
-};
-
 const fileNameCollator = new Intl.Collator(undefined, {
   numeric: true,
   sensitivity: 'base'
@@ -420,13 +411,21 @@ export function truncateMiddle(value: string, maxLength = 34): string {
   return `${value.slice(0, start)}…${value.slice(-end)}`;
 }
 
-export function resolveModuleTrackerName(extension: string, trackerType?: string): string {
-  const normalizedExtension = extension.trim().toLowerCase();
-  const normalizedTrackerType = trackerType?.trim();
+export function resolveModuleTrackerName(_extension: string, trackerType?: string): string {
+  return trackerType?.trim() ?? '';
+}
 
-  if (normalizedTrackerType && normalizedTrackerType.toLowerCase() !== normalizedExtension) {
-    return normalizedTrackerType;
+export function resolveModuleDisplayFormat(extension: string, metadata?: TrackMetadata): string {
+  const normalizedExtension = extension.trim().toLowerCase();
+  const normalizedOriginalType = metadata?.originalType?.trim().toLowerCase();
+
+  if (
+    normalizedOriginalType &&
+    normalizedOriginalType !== normalizedExtension &&
+    MODULE_EXTENSIONS.includes(normalizedOriginalType as (typeof MODULE_EXTENSIONS)[number])
+  ) {
+    return `${normalizedOriginalType.toUpperCase()} in ${normalizedExtension.toUpperCase()} container`;
   }
 
-  return MODULE_TRACKER_NAMES[normalizedExtension] ?? normalizedTrackerType ?? '';
+  return normalizedExtension.toUpperCase();
 }

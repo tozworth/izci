@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { PlaylistItem } from '$lib/types';
-  import { resolveModuleTrackerName } from '$lib/utils/files';
+  import { resolveModuleDisplayFormat, resolveModuleTrackerName } from '$lib/utils/files';
 
   export let track: PlaylistItem | null = null;
   export let hideEyebrow = false;
@@ -15,10 +15,17 @@
   $: patterns = track?.metadata?.patterns;
   $: notes = track?.metadata?.message?.trim() || '';
   $: bitrate = track?.kind === 'stream' ? track.metadata?.bitrate : undefined;
-  $: formatSummary = track
+  $: formatValue = track
     ? track.kind === 'stream'
-      ? [track.extension.toUpperCase(), bitrate ? `${bitrate} kbps` : ''].filter(Boolean).join(' ')
-      : [track.extension.toUpperCase(), tracker ? `(${tracker})` : ''].filter(Boolean).join(' ')
+      ? track.extension.toUpperCase()
+      : resolveModuleDisplayFormat(track.extension, track.metadata)
+    : '';
+  $: formatDetail = track
+    ? track.kind === 'stream'
+      ? bitrate
+        ? `${bitrate} kbps`
+        : ''
+      : tracker
     : '';
   $: patternSummary =
     track?.kind === 'module' && typeof patterns === 'number'
@@ -54,7 +61,10 @@
           <span>Format</span>
         </p>
         <div class="format-copy">
-          <p class="format-value">{formatSummary}</p>
+          <p class="format-value">{formatValue}</p>
+          {#if formatDetail}
+            <p class="format-detail">{formatDetail}</p>
+          {/if}
           {#if patternSummary}
             <p class="pattern-value">{patternSummary}</p>
           {/if}
@@ -160,6 +170,12 @@
   }
 
   .format-value {
+    margin: 0;
+    text-align: right;
+    color: var(--text);
+  }
+
+  .format-detail {
     margin: 0;
     text-align: right;
     color: var(--muted);
