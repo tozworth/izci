@@ -107,6 +107,12 @@
     });
   }
 
+  function handleCompactColumnLayoutToggle(event: Event) {
+    appearanceSettings.update({
+      keepLibraryColumnsVisibleInNarrowLayout: (event.currentTarget as HTMLInputElement).checked
+    });
+  }
+
   function handleLogarithmicVolumeToggle(event: Event) {
     playbackSettings.update({
       logarithmicVolume: (event.currentTarget as HTMLInputElement).checked
@@ -274,6 +280,27 @@
                 </div>
                 <p class="field-hint">
                   Sets the global color theme.
+                </p>
+              </label>
+            </div>
+          </div>
+
+          <div class="section">
+            <h2>Library Layout</h2>
+            <div class="field-grid">
+              <label class="field checkbox-field">
+                <div class="field-copy">
+                  <span class="field-title">Keep columns visible in narrow library panels</span>
+                </div>
+                <div class="field-control checkbox-control">
+                  <input
+                    type="checkbox"
+                    checked={$appearanceSettings.keepLibraryColumnsVisibleInNarrowLayout}
+                    on:change={handleCompactColumnLayoutToggle}
+                  />
+                </div>
+                <p class="field-hint">
+                  Prevents the slim-window library view from collapsing to title-only rows.
                 </p>
               </label>
             </div>

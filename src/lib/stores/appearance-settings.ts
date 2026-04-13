@@ -5,7 +5,8 @@ export const APPEARANCE_SETTINGS_STORAGE_KEY = 'izci.appearance-settings';
 export const APPEARANCE_SETTINGS_CHANNEL = 'izci.appearance-settings';
 export const DEFAULT_COLOR_THEME: ColorTheme = 'gruvbox';
 export const DEFAULT_APPEARANCE_SETTINGS: AppearanceSettings = {
-  colorTheme: DEFAULT_COLOR_THEME
+  colorTheme: DEFAULT_COLOR_THEME,
+  keepLibraryColumnsVisibleInNarrowLayout: false
 };
 
 let broadcastChannel: BroadcastChannel | null = null;
@@ -19,7 +20,8 @@ function normalizeSettings(value: unknown): AppearanceSettings {
   const source = value && typeof value === 'object' ? (value as Partial<AppearanceSettings>) : {};
 
   return {
-    colorTheme: normalizeColorTheme(source.colorTheme)
+    colorTheme: normalizeColorTheme(source.colorTheme),
+    keepLibraryColumnsVisibleInNarrowLayout: source.keepLibraryColumnsVisibleInNarrowLayout === true
   };
 }
 

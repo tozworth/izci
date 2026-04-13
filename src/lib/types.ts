@@ -49,6 +49,7 @@ export interface MetadataSettings {
 
 export interface AppearanceSettings {
   colorTheme: ColorTheme;
+  keepLibraryColumnsVisibleInNarrowLayout: boolean;
 }
 
 export interface PlaybackSettings {

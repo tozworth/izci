@@ -1,5 +1,6 @@
 <script lang="ts">
   import { createEventDispatcher, tick } from 'svelte';
+  import { appearanceSettings } from '$lib/stores/appearance-settings';
   import {
     libraryViewSettings
   } from '$lib/stores/library-view-settings';
@@ -371,7 +372,11 @@
   $: orderedColumns = layout === 'columns' ? getOrderedColumns($libraryViewSettings.order, $libraryViewSettings.columns) : [];
   $: storedVisibleColumns = orderedColumns.filter((column) => column.visible);
   $: visibleColumnCount = storedVisibleColumns.length;
-  $: isCompactColumnLayout = layout === 'columns' && dropzoneWidth > 0 && dropzoneWidth < 350;
+  $: isCompactColumnLayout =
+    layout === 'columns' &&
+    dropzoneWidth > 0 &&
+    dropzoneWidth < 350 &&
+    !$appearanceSettings.keepLibraryColumnsVisibleInNarrowLayout;
   $: activeSort = $libraryViewSettings.sort;
   $: tableInnerWidth = Math.max(0, dropzoneWidth - TABLE_SIDE_PADDING);
   $: availableColumnWidth = Math.max(0, tableInnerWidth - Math.max(0, visibleColumnCount - 1) * COLUMN_GAP);
