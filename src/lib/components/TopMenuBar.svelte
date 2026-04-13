@@ -1,6 +1,7 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import { onDestroy } from 'svelte';
+  import { windowControlsOverlayState } from '$lib/services/window-controls-overlay';
 
   type MenuId = 'file' | 'view';
 
@@ -13,6 +14,12 @@
 
   let activeMenu: MenuId | null = null;
   let menuBarElement: HTMLElement | null = null;
+
+  $: overlayState = $windowControlsOverlayState;
+  $: overlayRect = overlayState.titlebarAreaRect;
+  $: overlayInlineStyle = overlayState.visible
+    ? `--window-controls-overlay-x: ${overlayRect.x}px; --window-controls-overlay-y: ${overlayRect.y}px; --window-controls-overlay-width: ${overlayRect.width}px; --window-controls-overlay-height: ${overlayRect.height}px;`
+    : '';
 
   function openMenu(menuId: MenuId) {
     activeMenu = menuId;
@@ -68,7 +75,13 @@
   });
 </script>
 
-<nav bind:this={menuBarElement} class="menu-bar" aria-label="Application menu">
+<nav
+  bind:this={menuBarElement}
+  class="menu-bar"
+  class:window-controls-overlay-active={overlayState.visible}
+  style={overlayInlineStyle}
+  aria-label="Application menu"
+>
   <div class="menu-groups">
     <div class="menu-root" role="none" on:pointerenter={() => handleMenuHover('file')}>
       <button
@@ -124,8 +137,10 @@
     </div>
   </div>
 
-  <div class="menu-brand" aria-label="Application version">
-    <strong>izci</strong>
-    <span>260322</span>
-  </div>
+  {#if !overlayState.visible}
+    <div class="menu-brand" aria-label="Application version">
+      <strong>izci</strong>
+      <span>260322</span>
+    </div>
+  {/if}
 </nav>
