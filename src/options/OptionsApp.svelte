@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { version as appVersion } from '../../package.json';
   import { COLOR_THEME_OPTIONS } from '$lib/services/theme';
   import { appearanceSettings } from '$lib/stores/appearance-settings';
   import { metadataSettings } from '$lib/stores/metadata-settings';
@@ -475,23 +476,30 @@
 
       {#if activeView === 'about'}
         <article class="view">
-          <div class="section-grid">
-            <div class="setting-card">
-              <h3>Local-first</h3>
-              <p>izci runs locally against user-selected files and file handles, with no backend service required.</p>
+          <div class="section about-section">
+            <h2>About</h2>
+            <div class="about-hero">
+              <img class="about-logo" src="/icons/izci-icon.svg" alt="izci logo" />
+              <div class="about-copy">
+                <h3 class="about-name">izci</h3>
+                <p class="about-tagline">PWA music player</p>
+                <p class="about-meta">Version {appVersion}</p>
+                <p class="about-meta">Toz, 2026</p>
+              </div>
             </div>
-            <div class="setting-card">
-              <h3>Offline-capable</h3>
-              <p>The installed PWA and production build keep playback and settings available without a network dependency.</p>
-            </div>
-            <div class="setting-card">
-              <h3>Playback split</h3>
-              <p>Streamed audio stays on Howler.js while tracker modules stay on Chiptune3.</p>
-            </div>
-            <div class="setting-card">
-              <h3>Window architecture</h3>
-              <p>The popup itself now lives in a dedicated entrypoint so the window manager only launches and tracks windows.</p>
-            </div>
+          </div>
+
+          <div class="section">
+            <h2>Features</h2>
+            <ul class="feature-list">
+              <li>Support for common streamed formats and tracker modules</li>
+              <li>Offline PWA with desktop integration and file associations</li>
+              <li>An easy-to-manage, persistent library</li>
+              <li>Low CPU usage</li>
+              <li>Did I mention it plays tracker modules?</li>
+              <li>izci plays tracker modules</li>
+              <li>"izci" is "tracker" in Turkish; though it's more in the sense of animal tracking/scouting, but i kept it cuz it's cute</li>
+            </ul>
           </div>
         </article>
       {/if}

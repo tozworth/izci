@@ -249,6 +249,70 @@ code {
   color: var(--muted);
 }
 
+.about-section {
+  margin-bottom: 22px;
+}
+
+.about-hero {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 18px;
+  padding: 16px 18px;
+  border-radius: 12px;
+  background:
+    linear-gradient(180deg, color-mix(in srgb, var(--bg-card) 88%, var(--accent) 12%), var(--bg-card));
+  border: 1px solid var(--border-faint);
+}
+
+.about-logo {
+  width: clamp(88px, 18vw, 96px);
+  height: clamp(88px, 18vw, 96px);
+  display: block;
+  flex: 0 0 auto;
+}
+
+.about-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.about-name {
+  margin: 0;
+  color: var(--text-strong);
+  font-size: clamp(1.4rem, 2.1vw, 1.9rem);
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.about-tagline {
+  margin: 0;
+  color: var(--text);
+  font-size: 0.98rem;
+  line-height: 1.35;
+}
+
+.about-meta {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.35;
+}
+
+.feature-list {
+  margin: 0;
+  padding-left: 1.2rem;
+  display: grid;
+  gap: 0.6rem;
+  color: var(--text);
+}
+
+.feature-list li {
+  line-height: 1.45;
+}
+
 .section-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
@@ -376,6 +440,11 @@ code {
 }
 
 @media (max-width: 640px) {
+  .about-hero {
+    grid-template-columns: 1fr;
+    justify-items: start;
+  }
+
   .field {
     grid-template-columns: 1fr;
     gap: 8px;
