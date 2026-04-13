@@ -363,13 +363,14 @@
   $: searchQuery = showSearchControl ? $libraryViewSettings.searchQuery : '';
   $: normalizedSearchQuery = searchQuery.trim().toLocaleLowerCase();
   $: showSearchInput = showSearchControl && (searchInputExpanded || searchQuery !== '');
-  $: filteredItems = filterItemsByQuery(items, normalizedSearchQuery);
+  $: orderedColumns = layout === 'columns' ? getOrderedColumns($libraryViewSettings.order, $libraryViewSettings.columns) : [];
+  $: visibleSearchColumnIds = orderedColumns.filter((column) => column.visible).map((column) => column.id);
+  $: filteredItems = filterItemsByQuery(items, normalizedSearchQuery, visibleSearchColumnIds);
   $: trackSummary = getTrackSummary(items, filteredItems, normalizedSearchQuery);
   $: repeatIcon = repeatMode === 'one' ? 'repeat_one' : 'repeat';
   $: repeatLabel =
     repeatMode === 'one' ? 'Repeat current track' : repeatMode === 'all' ? 'Repeat playlist' : 'Repeat off';
   $: contextMenuActions = contextMenu?.kind === 'items' ? getContextMenuActions(contextMenu.ids) : [];
-  $: orderedColumns = layout === 'columns' ? getOrderedColumns($libraryViewSettings.order, $libraryViewSettings.columns) : [];
   $: storedVisibleColumns = orderedColumns.filter((column) => column.visible);
   $: visibleColumnCount = storedVisibleColumns.length;
   $: isCompactColumnLayout =

@@ -1,59 +1,33 @@
-import type { PlaylistItem } from '$lib/types';
-import { resolveModuleTrackerName } from '$lib/utils/files';
+import { getColumnTextValue } from '$lib/components/playlist-panel/library-columns';
+import type { LibraryColumnId, PlaylistItem } from '$lib/types';
 
-const EXCLUDED_SEARCH_ROOT_KEYS = new Set(['id', 'file', 'fileHandle', 'objectUrl', 'extension']);
-const EXCLUDED_METADATA_SEARCH_KEYS = new Set(['duration']);
+const DEFAULT_SEARCH_COLUMN_IDS: LibraryColumnId[] = ['title', 'artist', 'format', 'duration'];
 
-function collectSearchValues(value: unknown, excludedKeys: Set<string> | null = null): string[] {
-  if (typeof value === 'string') {
-    const trimmed = value.trim();
-    return trimmed ? [trimmed] : [];
-  }
-
-  if (typeof value === 'number' || typeof value === 'boolean') {
-    return [String(value)];
-  }
-
-  if (!value) {
-    return [];
-  }
-
-  if (Array.isArray(value)) {
-    return value.flatMap((entry) => collectSearchValues(entry));
-  }
-
-  if (typeof value !== 'object') {
-    return [];
-  }
-
-  return Object.entries(value).flatMap(([key, entry]) => {
-    if (excludedKeys?.has(key)) {
-      return [];
-    }
-
-    if (key === 'metadata' && entry && typeof entry === 'object') {
-      return collectSearchValues(entry, EXCLUDED_METADATA_SEARCH_KEYS);
-    }
-
-    return collectSearchValues(entry);
-  });
+function getSearchValues(item: PlaylistItem, columnIds: LibraryColumnId[]): string[] {
+  return columnIds
+    .map((columnId) => getColumnTextValue(item, columnId).trim())
+    .filter((value) => value !== '');
 }
 
-export function matchesSearchQuery(item: PlaylistItem, normalizedQuery: string): boolean {
+export function matchesSearchQuery(
+  item: PlaylistItem,
+  normalizedQuery: string,
+  columnIds: LibraryColumnId[] = DEFAULT_SEARCH_COLUMN_IDS
+): boolean {
   if (!normalizedQuery) {
     return true;
   }
 
-  const searchValues = [
-    ...collectSearchValues(item, EXCLUDED_SEARCH_ROOT_KEYS),
-    resolveModuleTrackerName(item.extension, item.metadata?.trackerType)
-  ];
-
+  const searchValues = getSearchValues(item, columnIds);
   return searchValues.some((value) => value.toLocaleLowerCase().includes(normalizedQuery));
 }
 
-export function filterItemsByQuery(items: PlaylistItem[], normalizedQuery: string): PlaylistItem[] {
-  return normalizedQuery ? items.filter((item) => matchesSearchQuery(item, normalizedQuery)) : items;
+export function filterItemsByQuery(
+  items: PlaylistItem[],
+  normalizedQuery: string,
+  columnIds: LibraryColumnId[] = DEFAULT_SEARCH_COLUMN_IDS
+): PlaylistItem[] {
+  return normalizedQuery ? items.filter((item) => matchesSearchQuery(item, normalizedQuery, columnIds)) : items;
 }
 
 export function getTotalDuration(items: PlaylistItem[]): number {
