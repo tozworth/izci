@@ -506,6 +506,10 @@
     return tagName === 'INPUT' || tagName === 'TEXTAREA' || tagName === 'SELECT';
   }
 
+  function handleWindowContextMenu(event: MouseEvent) {
+    event.preventDefault();
+  }
+
   function handleWindowKeydown(event: KeyboardEvent) {
     if (event.key === 'Delete' && !event.ctrlKey && !event.altKey && !event.metaKey) {
       if (shouldIgnoreKeyboardTarget(event.target)) {
@@ -755,6 +759,7 @@
 
 <svelte:window
   bind:innerWidth
+  on:contextmenu={handleWindowContextMenu}
   on:keydown={handleWindowKeydown}
   on:pointermove={handlePanelResizeMove}
   on:pointerup={endPanelResize}

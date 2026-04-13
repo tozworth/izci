@@ -134,6 +134,10 @@
     }
   }
 
+  function handleWindowContextMenu(event: MouseEvent) {
+    event.preventDefault();
+  }
+
   function beginResize(event: PointerEvent) {
     resizePointerId = event.pointerId;
     event.preventDefault();
@@ -170,6 +174,7 @@
 </svelte:head>
 
 <svelte:window
+  on:contextmenu={handleWindowContextMenu}
   on:pointermove={handlePointerMove}
   on:pointerup={stopResize}
   on:pointercancel={stopResize}
