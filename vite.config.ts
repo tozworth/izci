@@ -5,6 +5,9 @@ import { svelte } from '@sveltejs/vite-plugin-svelte';
 import { VitePWA } from 'vite-plugin-pwa';
 
 export default defineConfig({
+  preview: {
+    allowedHosts: true
+  },
   build: {
     rollupOptions: {
       input: {
