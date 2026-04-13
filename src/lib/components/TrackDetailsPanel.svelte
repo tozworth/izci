@@ -122,8 +122,6 @@
     padding: 0.1rem 0;
     color: var(--muted);
     background: transparent;
-    border: 0;
-    border-radius: 999px;
     cursor: pointer;
     transition: color 160ms ease;
   }

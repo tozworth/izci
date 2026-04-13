@@ -193,7 +193,6 @@
     width: min(10.25rem, calc(100vw - 7rem));
     padding: 0 0.28rem 0 0.48rem;
     border: 1px solid var(--border-soft);
-    border-radius: 999px;
     background: var(--bg-search);
     box-shadow: var(--shadow);
     color: var(--muted);
@@ -239,8 +238,6 @@
     padding: 0;
     color: inherit;
     background: transparent;
-    border: 0;
-    border-radius: 999px;
   }
 
   .playlist-search-close:hover {

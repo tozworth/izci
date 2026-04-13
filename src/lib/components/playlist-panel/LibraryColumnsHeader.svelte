@@ -89,7 +89,6 @@
     bottom: 0.35rem;
     width: 2px;
     background: var(--accent-strong);
-    border-radius: 999px;
     z-index: 2;
   }
 
