@@ -18,6 +18,8 @@
   export let resizerWidth = 14;
   export let isResizing = false;
   export let selectedItem: PlaylistItem | null = null;
+  export let isDetailsVisible = false;
+  export let onCloseDetails: () => void = () => {};
 
   const dispatch = createEventDispatcher<{
     resizeStart: WideWorkspaceResizeStartDetail;
@@ -65,17 +67,24 @@
     />
   </div>
 
-  <WorkspaceResizer
-    label="Resize library and details panels"
-    width={resizerWidth}
-    onPointerDown={(event) =>
-      dispatch('resizeStart', { event, handle: 'library-details' })}
-  />
+  {#if isDetailsVisible}
+    <WorkspaceResizer
+      label="Resize library and details panels"
+      width={resizerWidth}
+      onPointerDown={(event) =>
+        dispatch('resizeStart', { event, handle: 'library-details' })}
+    />
 
-  <div
-    class="workspace-panel"
-    style={`flex: 0 0 ${panelWidths.details}px; width: ${panelWidths.details}px;`}
-  >
-    <TrackDetailsPanel track={selectedItem} fillParent={true} />
-  </div>
+    <div
+      class="workspace-panel"
+      style={`flex: 0 0 ${panelWidths.details}px; width: ${panelWidths.details}px;`}
+    >
+      <TrackDetailsPanel
+        track={selectedItem}
+        fillParent={true}
+        showCloseButton={true}
+        onClose={onCloseDetails}
+      />
+    </div>
+  {/if}
 </main>

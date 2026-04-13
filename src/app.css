@@ -304,6 +304,16 @@ button {
     color 180ms ease;
 }
 
+.workspace-tab-shell {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.workspace-tab-shell.has-close .workspace-tab {
+  padding-right: 1.55rem;
+}
+
 .workspace-tab:hover {
   color: var(--text);
 }
@@ -319,6 +329,52 @@ button {
 
 .workspace-tab-label {
   white-space: nowrap;
+}
+
+.workspace-tab-close-slot {
+  position: absolute;
+  top: 50%;
+  right: 0.45rem;
+  transform: translateY(-56%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1rem;
+  pointer-events: none;
+}
+
+.workspace-tab-close-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1rem;
+  height: 1rem;
+  padding: 0;
+  color: var(--muted);
+  background: transparent;
+  border: 0;
+  border-radius: 999px;
+  opacity: 0;
+  cursor: pointer;
+  pointer-events: none;
+  transition:
+    opacity 160ms ease,
+    color 160ms ease;
+}
+
+.workspace-tab-shell:hover .workspace-tab-close-button,
+.workspace-tab-shell:focus-within .workspace-tab-close-button {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.workspace-tab-close-button:hover,
+.workspace-tab-close-button:focus-visible {
+  color: var(--text);
+}
+
+.workspace-tab-close-button .material-symbols-outlined {
+  font-size: 0.95rem;
 }
 
 .workspace-tab-panel {

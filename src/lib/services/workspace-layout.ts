@@ -13,6 +13,10 @@ export const WIDE_PANEL_MIN_WIDTHS: Record<WorkspacePanelId, number> = {
   details: 240
 };
 
+interface WideWorkspaceLayoutOptions {
+  detailsVisible?: boolean;
+}
+
 function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
 }
@@ -37,17 +41,61 @@ function toPanelLayoutSettings(
   };
 }
 
-export function getWideContentWidth(viewportWidth: number): number {
-  return Math.max(viewportWidth - HORIZONTAL_PADDING - WORKSPACE_RESIZER_WIDTH * 2, 0);
+export function getWideContentWidth(
+  viewportWidth: number,
+  options: WideWorkspaceLayoutOptions = {}
+): number {
+  const resizerCount = options.detailsVisible === false ? 1 : 2;
+  return Math.max(viewportWidth - HORIZONTAL_PADDING - WORKSPACE_RESIZER_WIDTH * resizerCount, 0);
 }
 
 export function resolveWidePanelWidths(
   layout: WorkspacePanelLayoutSettings,
-  contentWidth: number
+  contentWidth: number,
+  options: WideWorkspaceLayoutOptions = {}
 ): Record<WorkspacePanelId, number> {
   const playlistMin = WIDE_PANEL_MIN_WIDTHS.playlist;
   const libraryMin = WIDE_PANEL_MIN_WIDTHS.library;
   const detailsMin = WIDE_PANEL_MIN_WIDTHS.details;
+  const detailsVisible = options.detailsVisible !== false;
+
+  if (!detailsVisible) {
+    if (contentWidth <= 0) {
+      return {
+        playlist: playlistMin,
+        library: libraryMin,
+        details: 0
+      };
+    }
+
+    if (contentWidth <= playlistMin + libraryMin) {
+      const scale = contentWidth / (playlistMin + libraryMin);
+      return {
+        playlist: playlistMin * scale,
+        library: libraryMin * scale,
+        details: 0
+      };
+    }
+
+    const visibleFractionTotal = layout.playlistFraction + layout.libraryFraction;
+    const playlistFraction =
+      visibleFractionTotal > 0 ? layout.playlistFraction / visibleFractionTotal : 0.5;
+    const libraryFraction = 1 - playlistFraction;
+    let playlist = playlistFraction * contentWidth;
+    let library = libraryFraction * contentWidth;
+
+    if (playlist < playlistMin) {
+      playlist = playlistMin;
+      library = contentWidth - playlist;
+    }
+
+    if (library < libraryMin) {
+      library = libraryMin;
+      playlist = contentWidth - library;
+    }
+
+    return { playlist, library, details: 0 };
+  }
 
   if (contentWidth <= 0) {
     return {

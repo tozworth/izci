@@ -71,7 +71,7 @@
     selectedTrack: librarySelectedTrackStore
   } = libraryStore;
 
-  const workspaceTabs: WorkspaceTabDefinition[] = [
+  const allWorkspaceTabs: WorkspaceTabDefinition[] = [
     { id: 'playlist', icon: 'queue_music', label: 'Playlist' },
     { id: 'library', icon: 'library_music', label: 'Library' },
     { id: 'details', icon: 'info', label: 'Details' }
@@ -143,6 +143,7 @@
   let previousPlaybackState: PlaybackSnapshot['state'] = playback.state;
   let playRequestSequence = 0;
   let playlistJumpRequest: WorkspaceJumpRequest | null = null;
+  let isDetailsPanelVisible = false;
   let panelLayout = workspacePanelLayout.getSnapshot();
   let resizeState: PanelResizeState | null = null;
   let wideContentWidth = 0;
@@ -150,6 +151,7 @@
   let documentTitle = 'izci';
   let playlistPanelProps: WorkspacePanelProps;
   let libraryPanelProps: WorkspacePanelProps;
+  let workspaceTabs: WorkspaceTabDefinition[] = allWorkspaceTabs.filter((tab) => tab.id !== 'details');
 
   const importController = createImportController({
     addFiles: handleAddFiles,
@@ -178,9 +180,16 @@
   $: {
     const viewportWidth =
       innerWidth > 0 ? innerWidth : typeof window !== 'undefined' ? window.innerWidth : 0;
-    wideContentWidth = getWideContentWidth(viewportWidth);
+    wideContentWidth = getWideContentWidth(viewportWidth, {
+      detailsVisible: isDetailsPanelVisible
+    });
   }
-  $: widePanelWidths = resolveWidePanelWidths(panelLayout, wideContentWidth);
+  $: widePanelWidths = resolveWidePanelWidths(panelLayout, wideContentWidth, {
+    detailsVisible: isDetailsPanelVisible
+  });
+  $: workspaceTabs = allWorkspaceTabs.filter(
+    (tab) => tab.id !== 'details' || isDetailsPanelVisible
+  );
   $: playlistPanelProps = {
     items: playlistItems,
     selectedIds: playlistSelectionIds,
@@ -207,6 +216,9 @@
   };
   $: if (playlistSelectionIds.length > 0 && librarySelectionIds.length > 0) {
     clearSelection(getOtherWorkspaceCollection(activeCollection));
+  }
+  $: if (!isDetailsPanelVisible && activeWorkspaceTab === 'details') {
+    setActiveWorkspaceTab(activeCollection);
   }
 
   const playlistPanelHandlers: WorkspacePanelHandlers = {
@@ -663,7 +675,12 @@
   }
 
   function handleShowTrackDetails() {
+    isDetailsPanelVisible = true;
     setActiveWorkspaceTab('details');
+  }
+
+  function handleCloseTrackDetails() {
+    isDetailsPanelVisible = false;
   }
 
   function handlePlaylistContextAction(event: CustomEvent<{ actionId: string; ids: string[] }>) {
@@ -806,6 +823,8 @@
       {libraryPanelProps}
       {libraryPanelHandlers}
       {selectedItem}
+      isDetailsVisible={isDetailsPanelVisible}
+      onCloseDetails={handleCloseTrackDetails}
       on:tabChange={(event) => setActiveWorkspaceTab(event.detail)}
     />
   {:else}
@@ -818,6 +837,8 @@
       resizerWidth={WORKSPACE_RESIZER_WIDTH}
       isResizing={Boolean(resizeState)}
       {selectedItem}
+      isDetailsVisible={isDetailsPanelVisible}
+      onCloseDetails={handleCloseTrackDetails}
       on:resizeStart={handleWideWorkspaceResizeStart}
     />
   {/if}

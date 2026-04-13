@@ -154,6 +154,7 @@ Primary location for playback and browser-integration logic.
 - `src/lib/components/PlaylistPanel.svelte` should stay as a shell around `src/lib/components/playlist-panel/` rather than reaccreting column math, search traversal, or context-menu DOM wiring inline.
 - `src/lib/components/workspace/` owns the tabbed vs wide workspace markup split; keep layout-specific composition there instead of rebuilding duplicated panel trees inside `App.svelte`.
 - Wide-mode workspace panel widths are persisted in `localStorage` and sync across windows; tabbed mode ignores those widths.
+- The Track Details workspace panel is closable and starts hidden until explicitly opened from a context action; when hidden, wide layout should reflow playlist/library widths without overwriting the stored three-panel proportions used when details is shown again.
 - Color theme selection is persisted in `localStorage`, synced across windows, and applied at the document level so both the main app and Options popup reuse the same theme tokens.
 - `src/App.svelte` is responsible for top-level workspace orchestration, but durable state and local algorithms should live in stores/services or the focused workspace components.
 - File import supports multiple sources:

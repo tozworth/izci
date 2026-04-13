@@ -6,6 +6,8 @@
   export let hideEyebrow = false;
   export let isTabbedLayout = false;
   export let fillParent = false;
+  export let showCloseButton = false;
+  export let onClose: () => void = () => {};
 
   $: title = track?.metadata?.title?.trim() || '';
   $: showTrackSection = title.length > 0;
@@ -35,8 +37,23 @@
 
 <section class="panel details-panel" class:fill-parent={fillParent}>
   <div class="panel-header">
-    {#if !hideEyebrow}
-      <p class="eyebrow">Track Details</p>
+    <div class="panel-heading">
+      {#if !hideEyebrow}
+        <p class="eyebrow">Track Details</p>
+      {/if}
+    </div>
+
+    {#if showCloseButton}
+      <button
+        type="button"
+        class="details-close-button"
+        aria-label="Close Track Details"
+        title="Close"
+        on:click={onClose}
+      >
+        <span class="details-close-label" aria-hidden="true">Close</span>
+        <span class="material-symbols-outlined details-close-icon" aria-hidden="true">close</span>
+      </button>
     {/if}
   </div>
 
@@ -94,6 +111,51 @@
     width: 100%;
     min-width: 0;
     height: 100%;
+  }
+
+  .details-close-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.22rem;
+    min-width: 5.75rem;
+    padding: 0.1rem 0;
+    color: var(--muted);
+    background: transparent;
+    border: 0;
+    border-radius: 999px;
+    cursor: pointer;
+    transition: color 160ms ease;
+  }
+
+  .details-close-button:hover,
+  .details-close-button:focus-visible {
+    color: var(--text);
+  }
+
+  .details-close-button:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  .details-close-label {
+    overflow: hidden;
+    max-width: 0;
+    opacity: 0;
+    white-space: nowrap;
+    transition:
+      max-width 160ms ease,
+      opacity 160ms ease;
+  }
+
+  .details-close-button:hover .details-close-label,
+  .details-close-button:focus-visible .details-close-label {
+    max-width: 3.5rem;
+    opacity: 1;
+  }
+
+  .details-close-icon {
+    font-size: 1.1rem;
   }
 
   .details-content {
