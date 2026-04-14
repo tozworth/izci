@@ -92,6 +92,7 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,woff2,mem}'],
         navigateFallbackDenylist: [/^\/options\.html(?:\?|$)/],
+        ignoreURLParametersMatching: [/^utm_/, /^fbclid$/, /^view$/],
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024
       }
     })
