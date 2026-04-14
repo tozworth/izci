@@ -1,5 +1,8 @@
 export type OptionsViewName = 'appearance' | 'playback' | 'modules' | 'metadata' | 'about';
 
+export const DEFAULT_OPTIONS_VIEW: OptionsViewName = 'appearance';
+export const OPTIONS_VIEW_QUERY_PARAM = 'view';
+
 export interface OptionsViewDefinition {
   id: OptionsViewName;
   label: string;
@@ -59,3 +62,26 @@ export const OPTIONS_VIEW_GROUPS: OptionsViewDefinition[][] = [
 export const OPTIONS_VIEWS = Object.fromEntries(
   OPTIONS_VIEW_GROUPS.flat().map((view) => [view.id, view])
 ) as Record<OptionsViewName, OptionsViewDefinition>;
+
+export function isOptionsViewName(value: string | null | undefined): value is OptionsViewName {
+  return typeof value === 'string' && value in OPTIONS_VIEWS;
+}
+
+export function normalizeOptionsView(value: string | null | undefined): OptionsViewName {
+  return isOptionsViewName(value) ? value : DEFAULT_OPTIONS_VIEW;
+}
+
+export function buildOptionsWindowPath(view: OptionsViewName = DEFAULT_OPTIONS_VIEW): string {
+  const params = new URLSearchParams();
+
+  if (view !== DEFAULT_OPTIONS_VIEW) {
+    params.set(OPTIONS_VIEW_QUERY_PARAM, view);
+  }
+
+  const query = params.toString();
+  return query ? `/options.html?${query}` : '/options.html';
+}
+
+export function getOptionsViewFromLocation(locationLike: Pick<Location, 'search'>): OptionsViewName {
+  return normalizeOptionsView(new URLSearchParams(locationLike.search).get(OPTIONS_VIEW_QUERY_PARAM));
+}

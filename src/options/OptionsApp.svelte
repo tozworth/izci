@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import { version as appVersion } from '../../package.json';
   import { COLOR_THEME_OPTIONS } from '$lib/services/theme';
   import { windowControlsOverlayState } from '$lib/services/window-controls-overlay';
@@ -11,9 +12,16 @@
   } from '$lib/stores/module-playback-settings';
   import { playbackSettings } from '$lib/stores/playback-settings';
   import type { ColorTheme } from '$lib/types';
-  import { OPTIONS_VIEW_GROUPS, OPTIONS_VIEWS, type OptionsViewName } from './views';
+  import {
+    OPTIONS_VIEW_GROUPS,
+    OPTIONS_VIEWS,
+    buildOptionsWindowPath,
+    getOptionsViewFromLocation,
+    isOptionsViewName,
+    type OptionsViewName
+  } from './views';
 
-  let activeView: OptionsViewName = 'appearance';
+  let activeView: OptionsViewName = getOptionsViewFromLocation(window.location);
   let fieldHintsExpanded = false;
   let treeWidth = 204;
   let resizePointerId: number | null = null;
@@ -22,6 +30,15 @@
 
   function clamp(value: number, min: number, max: number): number {
     return Math.min(Math.max(value, min), max);
+  }
+
+  function setActiveView(view: OptionsViewName) {
+    activeView = view;
+
+    const nextUrl = buildOptionsWindowPath(view);
+    if (`${window.location.pathname}${window.location.search}` !== nextUrl) {
+      window.history.replaceState(null, '', nextUrl);
+    }
   }
 
   function formatFactor(value: number): string {
@@ -169,6 +186,31 @@
     resizePointerId = null;
   }
 
+  onMount(() => {
+    const syncActiveViewFromLocation = () => {
+      activeView = getOptionsViewFromLocation(window.location);
+    };
+    const handleMessage = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin || event.data?.type !== 'izci:open-options-view') {
+        return;
+      }
+
+      if (!isOptionsViewName(event.data.view)) {
+        return;
+      }
+
+      setActiveView(event.data.view);
+    };
+
+    window.addEventListener('popstate', syncActiveViewFromLocation);
+    window.addEventListener('message', handleMessage);
+
+    return () => {
+      window.removeEventListener('popstate', syncActiveViewFromLocation);
+      window.removeEventListener('message', handleMessage);
+    };
+  });
+
   $: overlayState = $windowControlsOverlayState;
   $: overlayRect = overlayState.titlebarAreaRect;
   $: overlayInlineStyle = overlayState.visible
@@ -258,7 +300,7 @@
                 type="button"
                 role="treeitem"
                 aria-selected={activeView === view.id}
-                on:click={() => (activeView = view.id)}
+                on:click={() => setActiveView(view.id)}
               >
                 <span class="material-symbols-outlined" aria-hidden="true">{view.icon}</span>
                 <span class="tree-label">{view.label}</span>

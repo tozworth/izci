@@ -44,6 +44,7 @@
     WorkspaceResizeHandle,
     WorkspaceTab
   } from '$lib/types';
+  import type { OptionsViewName } from './options/views';
   import {
     buildPlaylistItems,
     clonePlaylistItems,
@@ -506,8 +507,8 @@
     importController.handleFileInputChange(event);
   }
 
-  function handleOpenOptions() {
-    windowManager.openOptions();
+  function handleOpenOptions(view?: OptionsViewName) {
+    windowManager.openOptions(view);
   }
 
   function shouldIgnoreKeyboardTarget(target: EventTarget | null) {
@@ -819,7 +820,7 @@
   <TopMenuBar
     on:openFiles={() => void handleMenuOpenFiles()}
     on:openFolder={() => void handleMenuOpenFolder()}
-    on:openOptions={handleOpenOptions}
+    on:openOptions={(event) => handleOpenOptions(event.detail?.view)}
     on:exit={() => windowManager.exit()}
   />
 

@@ -1,9 +1,11 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import { onDestroy } from 'svelte';
+  import { version as appVersion } from '../../../package.json';
   import MenuSurface from '$lib/components/MenuSurface.svelte';
   import { windowControlsOverlayState } from '$lib/services/window-controls-overlay';
   import type { MenuActionItem } from '$lib/types';
+  import type { OptionsViewName } from '../../options/views';
 
   type MenuId = 'file' | 'view';
   type MenuActionId = 'openFiles' | 'openFolder' | 'openOptions' | 'exit';
@@ -62,7 +64,7 @@
   const dispatch = createEventDispatcher<{
     openFiles: void;
     openFolder: void;
-    openOptions: void;
+    openOptions: { view?: OptionsViewName } | undefined;
     exit: void;
   }>();
 
@@ -147,6 +149,10 @@
   function runMenuAction(action: MenuActionId) {
     closeMenus();
     dispatch(action);
+  }
+
+  function handleVersionIndicatorClick() {
+    dispatch('openOptions', { view: 'about' });
   }
 
   function toggleCompactMenu() {
@@ -277,15 +283,17 @@
       </div>
     </div>
 
-    <div
+    <button
       bind:clientWidth={menuBrandWidth}
       class="menu-brand"
       class:menu-brand-hidden={!showVersionIndicator}
-      aria-label="Application version"
+      type="button"
+      aria-label="Open Options About page"
       aria-hidden={!showVersionIndicator}
+      on:click={handleVersionIndicatorClick}
     >
         <strong>izci</strong>
-        <span>260322</span>
-    </div>
+        <span>{appVersion}</span>
+    </button>
   {/if}
 </nav>

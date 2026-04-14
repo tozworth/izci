@@ -1,4 +1,5 @@
 import { popupWindows, type PopupWindowDefinition, type PopupWindowId } from '$lib/services/popup-windows';
+import { buildOptionsWindowPath, type OptionsViewName } from '../../options/views';
 
 function isOpenWindow(windowRef: Window | null | undefined): windowRef is Window {
   return windowRef !== null && windowRef !== undefined && !windowRef.closed;
@@ -67,17 +68,27 @@ function buildWindowFeatures(features: PopupWindowDefinition['features']): strin
 
 const popupRefs = new Map<PopupWindowId, Window | null>();
 
-function openPopupWindow(id: PopupWindowId): Window | null {
+function openPopupWindow(id: PopupWindowId, pathOverride?: string): Window | null {
   const existingWindow = popupRefs.get(id);
+  const definition = popupWindows[id];
+  const popupPath = pathOverride ?? definition.path;
 
   if (isOpenWindow(existingWindow)) {
+    const targetUrl = new URL(popupPath, window.location.origin);
+
+    if (
+      existingWindow.location.pathname !== targetUrl.pathname
+      || existingWindow.location.search !== targetUrl.search
+    ) {
+      existingWindow.location.replace(popupPath);
+    }
+
     existingWindow.focus();
     return existingWindow;
   }
 
-  const definition = popupWindows[id];
   const nextWindow = window.open(
-    definition.path,
+    popupPath,
     definition.name,
     buildWindowFeatures(getPopupFeatures(definition))
   );
@@ -101,8 +112,19 @@ export const windowManager = {
   openPopup(id: PopupWindowId) {
     return openPopupWindow(id);
   },
-  openOptions() {
-    return openPopupWindow('options');
+  openOptions(view?: OptionsViewName) {
+    const existingWindow = popupRefs.get('options');
+
+    if (isOpenWindow(existingWindow)) {
+      if (view) {
+        existingWindow.postMessage({ type: 'izci:open-options-view', view }, window.location.origin);
+      }
+
+      existingWindow.focus();
+      return existingWindow;
+    }
+
+    return openPopupWindow('options', view ? buildOptionsWindowPath(view) : undefined);
   },
   exit() {
     window.close();
