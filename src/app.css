@@ -261,6 +261,12 @@ button {
   white-space: nowrap;
 }
 
+.menu-brand-hidden {
+  position: absolute;
+  visibility: hidden;
+  pointer-events: none;
+}
+
 .menu-brand strong {
   color: var(--accent-strong);
   font-size: 0.98rem;

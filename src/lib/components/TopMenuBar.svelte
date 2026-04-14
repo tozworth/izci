@@ -9,6 +9,10 @@
   type MenuActionId = 'openFiles' | 'openFolder' | 'openOptions' | 'exit';
 
   const COMPACT_MENU_MAX_WIDTH = 400;
+  const MENU_ITEMS_ONLY_PADDING = 28;
+  const MENU_ITEMS_WITH_VERSION_PADDING = 40;
+  const FALLBACK_MENU_GROUPS_WIDTH = 140;
+  const FALLBACK_MENU_BRAND_WIDTH = 88;
 
   const FILE_MENU_ITEMS: MenuActionItem[] = [
     {
@@ -70,8 +74,8 @@
   let compactMenuTriggerElement: HTMLButtonElement | null = null;
   let menuBarWidth = Number.POSITIVE_INFINITY;
   let availableTitlebarWidth = Number.POSITIVE_INFINITY;
-  let resizeObserver: ResizeObserver | null = null;
-  let observedMenuBarElement: HTMLElement | null = null;
+  let menuGroupsWidth = 0;
+  let menuBrandWidth = 0;
 
   $: overlayState = $windowControlsOverlayState;
   $: overlayRect = overlayState.titlebarAreaRect;
@@ -81,43 +85,18 @@
   $: availableTitlebarWidth = overlayState.visible
     ? Math.max(0, overlayRect.width)
     : menuBarWidth;
-  $: isCompactMenu = availableTitlebarWidth < COMPACT_MENU_MAX_WIDTH;
+  $: resolvedMenuGroupsWidth = menuGroupsWidth || FALLBACK_MENU_GROUPS_WIDTH;
+  $: resolvedMenuBrandWidth = menuBrandWidth || FALLBACK_MENU_BRAND_WIDTH;
+  $: showVersionIndicator = !overlayState.visible
+    || availableTitlebarWidth >= resolvedMenuGroupsWidth + resolvedMenuBrandWidth + MENU_ITEMS_WITH_VERSION_PADDING;
+  $: compactMenuThreshold = overlayState.visible
+    ? resolvedMenuGroupsWidth + MENU_ITEMS_ONLY_PADDING
+    : COMPACT_MENU_MAX_WIDTH;
+  $: isCompactMenu = availableTitlebarWidth < compactMenuThreshold;
   $: if (isCompactMenu) {
     activeMenu = null;
   } else {
     compactMenuOpen = false;
-  }
-
-  function syncMenuBarElement() {
-    if (resizeObserver && observedMenuBarElement && observedMenuBarElement !== menuBarElement) {
-      resizeObserver.unobserve(observedMenuBarElement);
-      observedMenuBarElement = null;
-    }
-
-    if (!menuBarElement || typeof ResizeObserver === 'undefined') {
-      menuBarWidth = menuBarElement?.clientWidth ?? Number.POSITIVE_INFINITY;
-      return;
-    }
-
-    resizeObserver ??= new ResizeObserver((entries) => {
-      const entry = entries[0];
-      if (!entry) {
-        return;
-      }
-
-      menuBarWidth = entry.contentRect.width;
-    });
-
-    if (observedMenuBarElement !== menuBarElement) {
-      resizeObserver.observe(menuBarElement);
-      observedMenuBarElement = menuBarElement;
-    }
-
-    menuBarWidth = menuBarElement.clientWidth;
-  }
-
-  $: if (menuBarElement) {
-    syncMenuBarElement();
   }
 
   function toggleMenu(menuId: MenuId) {
@@ -200,12 +179,12 @@
       window.removeEventListener('keydown', handleWindowKeydown);
     }
 
-    resizeObserver?.disconnect();
   });
 </script>
 
 <nav
   bind:this={menuBarElement}
+  bind:clientWidth={menuBarWidth}
   class="menu-bar"
   class:window-controls-overlay-active={overlayState.visible}
   class:menu-bar-compact={isCompactMenu}
@@ -240,7 +219,7 @@
       />
     {/if}
   {:else}
-    <div class="menu-groups">
+    <div class="menu-groups" bind:clientWidth={menuGroupsWidth}>
       <div class="menu-root" role="none" on:pointerenter={() => handleMenuHover('file')}>
         <button
           class:active={activeMenu === 'file'}
@@ -298,11 +277,15 @@
       </div>
     </div>
 
-    {#if !overlayState.visible}
-      <div class="menu-brand" aria-label="Application version">
+    <div
+      bind:clientWidth={menuBrandWidth}
+      class="menu-brand"
+      class:menu-brand-hidden={!showVersionIndicator}
+      aria-label="Application version"
+      aria-hidden={!showVersionIndicator}
+    >
         <strong>izci</strong>
         <span>260322</span>
-      </div>
-    {/if}
+    </div>
   {/if}
 </nav>
