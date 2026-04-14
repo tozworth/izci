@@ -75,6 +75,10 @@ button {
   padding-bottom: var(--player-bar-reserve-tabbed);
 }
 
+.app-shell.compact-shell {
+  gap: 0;
+}
+
 .menu-bar {
   display: flex;
   align-items: center;
@@ -277,6 +281,11 @@ button {
   overflow: hidden;
 }
 
+.app-shell.compact-shell .workspace {
+  gap: 0;
+  padding: 0;
+}
+
 .workspace-resizable {
   display: flex;
   gap: 0;
@@ -325,6 +334,10 @@ button {
     box-shadow 180ms ease;
 }
 
+.app-shell.compact-shell .workspace-resizer::before {
+  margin-block: 0;
+}
+
 .workspace-resizer:hover::before,
 .workspace-resizable.is-resizing .workspace-resizer::before {
   background: var(--resizer-line-gradient-active);
@@ -354,6 +367,10 @@ button {
   z-index: 10;
   padding: 0 0.75rem;
   border-bottom: 1px solid var(--border-soft);
+}
+
+.app-shell.compact-shell .workspace-tabs {
+  padding: 0;
 }
 
 .workspace-tab {
@@ -483,6 +500,13 @@ button {
   border: 1px solid var(--border);
   border-radius: 0.5rem;
   box-shadow: var(--shadow);
+}
+
+.app-shell.compact-shell .panel,
+.app-shell.compact-shell .player-bar,
+.app-shell.compact-shell .error-banner {
+  border-radius: 0;
+  box-shadow: none;
 }
 
 .panel {

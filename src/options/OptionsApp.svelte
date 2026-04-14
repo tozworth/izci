@@ -115,6 +115,12 @@
     });
   }
 
+  function handleCompactShellToggle(event: Event) {
+    appearanceSettings.update({
+      compactShell: (event.currentTarget as HTMLInputElement).checked
+    });
+  }
+
   function handleLogarithmicVolumeToggle(event: Event) {
     playbackSettings.update({
       logarithmicVolume: (event.currentTarget as HTMLInputElement).checked
@@ -299,6 +305,22 @@
           <div class="section">
             <h2>Library Layout</h2>
             <div class="field-grid">
+              <label class="field checkbox-field">
+                <div class="field-copy">
+                  <span class="field-title">Compact shell layout</span>
+                </div>
+                <div class="field-control checkbox-control">
+                  <input
+                    type="checkbox"
+                    checked={$appearanceSettings.compactShell}
+                    on:change={handleCompactShellToggle}
+                  />
+                </div>
+                <p class="field-hint">
+                  Removes shell gaps and rounded outer panel corners so the main layout uses the window more efficiently.
+                </p>
+              </label>
+
               <label class="field checkbox-field">
                 <div class="field-copy">
                   <span class="field-title">Keep columns visible in narrow library panels</span>

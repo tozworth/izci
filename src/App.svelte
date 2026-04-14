@@ -29,6 +29,7 @@
     WORKSPACE_RESIZER_WIDTH
   } from '$lib/services/workspace-layout';
   import { windowManager } from '$lib/services/window-manager';
+  import { appearanceSettings } from '$lib/stores/appearance-settings';
   import { libraryStore, playlistStore } from '$lib/stores/playlist';
   import { DEFAULT_PLAYER_VOLUME } from '$lib/stores/player-volume';
   import { workspacePanelLayout } from '$lib/stores/workspace-panel-layout';
@@ -181,7 +182,8 @@
     const viewportWidth =
       innerWidth > 0 ? innerWidth : typeof window !== 'undefined' ? window.innerWidth : 0;
     wideContentWidth = getWideContentWidth(viewportWidth, {
-      detailsVisible: isDetailsPanelVisible
+      detailsVisible: isDetailsPanelVisible,
+      horizontalPadding: $appearanceSettings.compactShell ? 0 : undefined
     });
   }
   $: widePanelWidths = resolveWidePanelWidths(panelLayout, wideContentWidth, {
@@ -798,7 +800,11 @@
   on:pointercancel={endPanelResize}
 />
 
-<div class="app-shell" class:tabbed-layout={isTabbedLayout}>
+<div
+  class="app-shell"
+  class:tabbed-layout={isTabbedLayout}
+  class:compact-shell={$appearanceSettings.compactShell}
+>
   <input
     bind:this={fileInput}
     class="sr-only"

@@ -50,6 +50,7 @@ export interface MetadataSettings {
 export interface AppearanceSettings {
   colorTheme: ColorTheme;
   keepLibraryColumnsVisibleInNarrowLayout: boolean;
+  compactShell: boolean;
 }
 
 export interface PlaybackSettings {

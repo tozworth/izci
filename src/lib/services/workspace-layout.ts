@@ -15,6 +15,7 @@ export const WIDE_PANEL_MIN_WIDTHS: Record<WorkspacePanelId, number> = {
 
 interface WideWorkspaceLayoutOptions {
   detailsVisible?: boolean;
+  horizontalPadding?: number;
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -46,7 +47,8 @@ export function getWideContentWidth(
   options: WideWorkspaceLayoutOptions = {}
 ): number {
   const resizerCount = options.detailsVisible === false ? 1 : 2;
-  return Math.max(viewportWidth - HORIZONTAL_PADDING - WORKSPACE_RESIZER_WIDTH * resizerCount, 0);
+  const horizontalPadding = options.horizontalPadding ?? HORIZONTAL_PADDING;
+  return Math.max(viewportWidth - horizontalPadding - WORKSPACE_RESIZER_WIDTH * resizerCount, 0);
 }
 
 export function resolveWidePanelWidths(
