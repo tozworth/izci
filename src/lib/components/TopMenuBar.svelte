@@ -141,15 +141,22 @@
   }
 
   function handleWindowPointerDown(event: PointerEvent) {
-    if (!menuBarElement) {
+    if (!menuBarElement || (activeMenu === null && !compactMenuOpen)) {
       return;
     }
 
     const target = event.target;
 
-    if (target instanceof Node && !menuBarElement.contains(target)) {
-      activeMenu = null;
+    if (!(target instanceof Element)) {
+      closeMenus();
+      return;
     }
+
+    if (target.closest('[data-menu-interactive="true"]')) {
+      return;
+    }
+
+    closeMenus();
   }
 
   function handleWindowKeydown(event: KeyboardEvent) {
@@ -209,6 +216,7 @@
     <button
       bind:this={compactMenuTriggerElement}
       class="menu-trigger compact-menu-trigger"
+      data-menu-interactive="true"
       type="button"
       aria-haspopup="menu"
       aria-expanded={compactMenuOpen}
@@ -237,6 +245,7 @@
         <button
           class:active={activeMenu === 'file'}
           class="menu-trigger"
+          data-menu-interactive="true"
           type="button"
           aria-haspopup="menu"
           aria-expanded={activeMenu === 'file'}
@@ -245,7 +254,7 @@
           File
         </button>
         {#if activeMenu === 'file'}
-          <div class="menu-list" role="menu" aria-label="File">
+          <div class="menu-list" data-menu-interactive="true" role="menu" aria-label="File">
             {#each FILE_MENU_ITEMS as item}
               {#if item.separatorBefore}
                 <div class="menu-separator" role="separator" aria-hidden="true"></div>
@@ -264,6 +273,7 @@
         <button
           class:active={activeMenu === 'view'}
           class="menu-trigger"
+          data-menu-interactive="true"
           type="button"
           aria-haspopup="menu"
           aria-expanded={activeMenu === 'view'}
@@ -272,7 +282,7 @@
           View
         </button>
         {#if activeMenu === 'view'}
-          <div class="menu-list" role="menu" aria-label="View">
+          <div class="menu-list" data-menu-interactive="true" role="menu" aria-label="View">
             {#each VIEW_MENU_ITEMS as item}
               {#if item.separatorBefore}
                 <div class="menu-separator" role="separator" aria-hidden="true"></div>

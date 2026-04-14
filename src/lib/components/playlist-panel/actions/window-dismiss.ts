@@ -41,7 +41,7 @@ export function windowDismiss(node: HTMLElement, initialOptions: WindowDismissOp
     }
   };
 
-  window.addEventListener('pointerdown', handlePointerDown);
+  window.addEventListener('pointerdown', handlePointerDown, true);
   window.addEventListener('keydown', handleKeydown);
   window.addEventListener('scroll', dismiss, true);
   window.addEventListener('blur', dismiss);
@@ -52,7 +52,7 @@ export function windowDismiss(node: HTMLElement, initialOptions: WindowDismissOp
       options = nextOptions;
     },
     destroy() {
-      window.removeEventListener('pointerdown', handlePointerDown);
+      window.removeEventListener('pointerdown', handlePointerDown, true);
       window.removeEventListener('keydown', handleKeydown);
       window.removeEventListener('scroll', dismiss, true);
       window.removeEventListener('blur', dismiss);

@@ -24,6 +24,7 @@
   <div
     bind:this={menuElement}
     class="menu-list playlist-context-menu"
+    data-menu-interactive="true"
     use:portal
     use:windowDismiss={{ enabled: true, onDismiss: () => dispatch('dismiss') }}
     role="menu"
@@ -45,6 +46,7 @@
   <div
     bind:this={menuElement}
     class="menu-list playlist-context-menu"
+    data-menu-interactive="true"
     use:portal
     use:windowDismiss={{ enabled: true, onDismiss: () => dispatch('dismiss') }}
     role="menu"
