@@ -354,7 +354,12 @@ function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
       runOrQueue(() => {
         playbackOptions.update((value) => ({
           ...value,
-          repeatMode: value.repeatMode === 'off' ? 'one' : value.repeatMode === 'one' ? 'all' : 'off'
+          repeatMode:
+            value.repeatMode === 'off'
+              ? 'all'
+              : value.repeatMode === 'all'
+                ? 'one'
+                : 'off'
         }));
         queuePersist();
       });
