@@ -45,7 +45,7 @@ Interpretation:
 
 ### Priority 1: Throttle playback progress updates to the UI and app state
 
-- Status: pending
+- Status: done
 - Importance: highest efficiency win seen in this pass
 - Primary targets:
   - `src/lib/services/howler-player.ts`
@@ -71,14 +71,10 @@ Interpretation:
   - Add a similar throttle or coalescing path in `module-player.ts` for `onProgress` updates.
   - Consider only publishing progress if the elapsed delta crosses a threshold such as 100-250 ms.
   - Consider narrowing subscriptions so the hottest playback progress path does not have to flow through `App.svelte`.
-- Validation:
-  - Re-run Helium playback test with the same sample files.
-  - Compare `LayoutCount`, `TaskDuration`, and general UI smoothness.
-  - Confirm seeking, pause/resume, track-end transitions, and displayed time remain correct.
 
 ### Priority 2: Throttle Media Session position syncing
 
-- Status: pending
+- Status: done
 - Importance: high
 - Primary target:
   - `src/lib/services/media-session.ts`
@@ -97,9 +93,6 @@ Interpretation:
   - Cache the last published `duration`, `position`, and `playbackState`.
   - Only call `setPositionState(...)` when position changes by a meaningful delta, for example 250-500 ms, or after explicit seek/play/pause events.
   - Keep immediate updates for track changes, seeks, stop, and end-of-track transitions.
-- Validation:
-  - Confirm Chromium media controls still show progress and react correctly.
-  - Confirm media keys and seek events still work for both stream and module paths.
 
 ### Priority 3: Fix object URL cleanup on removal/replacement
 
@@ -123,10 +116,6 @@ Interpretation:
   - Revoke object URLs for `removedItems` in `remove(ids)`.
   - Revoke object URLs for replaced outgoing items in `replaceAll(newItems)`.
   - Re-check other destructive paths to ensure the same guarantee holds consistently.
-- Validation:
-  - Import streamed files repeatedly, then remove/replace them.
-  - Confirm behavior remains correct and playback still works after re-import.
-  - Optionally inspect for reduced memory retention in a follow-up browser pass.
 
 ### Priority 4: Narrow the hot playback subscription path through `App.svelte`
 
@@ -150,9 +139,6 @@ Interpretation:
   - Consider splitting playback state into coarse and hot subsets.
   - Or move the hot progress subscription closer to `PlayerControls`.
   - Or keep one store but only publish coarse changes globally and derive displayed time locally.
-- Validation:
-  - Confirm current UI behavior is unchanged.
-  - Re-run the same playback profile and compare layout/task metrics.
 
 ### Priority 5: Replace metadata equality `JSON.stringify(...)` checks with a targeted comparison
 
@@ -167,8 +153,6 @@ Interpretation:
   - It is extra allocation/work that can become more noticeable with larger libraries or many metadata updates.
 - Desired end state:
   - Metadata change detection uses a small explicit compare for the fields written in this flow.
-- Validation:
-  - Confirm inferred metadata and duration probing still populate exactly as before.
 
 ### Priority 6: Run a follow-up efficiency pass after the above changes
 

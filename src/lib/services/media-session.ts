@@ -3,6 +3,16 @@ import type { PlaybackSnapshot, PlaylistItem } from '$lib/types';
 import { getTrackDisplaySubtitle, getTrackDisplayTitle } from '$lib/utils/files';
 
 const DEFAULT_SEEK_OFFSET_SECONDS = 10;
+const POSITION_STATE_UPDATE_INTERVAL_SECONDS = 0.5;
+const POSITION_STATE_SEEK_DELTA_SECONDS = 1;
+
+interface PublishedPositionState {
+  trackId: string | null;
+  duration: number;
+  position: number;
+  playbackRate: number;
+  playbackState: PlaybackSnapshot['state'];
+}
 
 interface MediaSessionHandlers {
   play: () => void | Promise<void>;
@@ -33,6 +43,7 @@ function createMediaSessionService() {
   let transportHandlers: MediaSessionHandlers | null = null;
   let ignoredTransportPlayEvents = 0;
   let ignoredTransportPauseEvents = 0;
+  let lastPublishedPositionState: PublishedPositionState | null = null;
 
   function getMediaSession(): MediaSession | null {
     if (typeof navigator === 'undefined' || !('mediaSession' in navigator)) {
@@ -120,6 +131,42 @@ function createMediaSessionService() {
     mediaSession.playbackState = track ? (snapshot?.state === 'playing' ? 'playing' : 'paused') : 'none';
   }
 
+  function resetPublishedPositionState(): void {
+    lastPublishedPositionState = null;
+  }
+
+  function shouldPublishPositionState(nextState: PublishedPositionState): boolean {
+    const previousState = lastPublishedPositionState;
+
+    if (!previousState) {
+      return true;
+    }
+
+    if (previousState.trackId !== nextState.trackId) {
+      return true;
+    }
+
+    if (
+      previousState.duration !== nextState.duration ||
+      previousState.playbackRate !== nextState.playbackRate ||
+      previousState.playbackState !== nextState.playbackState
+    ) {
+      return true;
+    }
+
+    const positionDelta = Math.abs(nextState.position - previousState.position);
+
+    if (positionDelta >= POSITION_STATE_SEEK_DELTA_SECONDS) {
+      return true;
+    }
+
+    if (nextState.playbackState !== 'playing') {
+      return positionDelta > 0;
+    }
+
+    return positionDelta >= POSITION_STATE_UPDATE_INTERVAL_SECONDS;
+  }
+
   function syncPositionState(mediaSession: MediaSession): void {
     if (typeof mediaSession.setPositionState !== 'function') {
       return;
@@ -128,6 +175,7 @@ function createMediaSessionService() {
     if (!track) {
       try {
         mediaSession.setPositionState();
+        resetPublishedPositionState();
       } catch {
         // Ignore invalid/unsupported position state updates.
       }
@@ -138,15 +186,29 @@ function createMediaSessionService() {
     const duration = snapshot?.duration ?? 0;
 
     if (!Number.isFinite(duration) || duration <= 0) {
+      resetPublishedPositionState();
+      return;
+    }
+
+    const nextState: PublishedPositionState = {
+      trackId: track.id,
+      duration,
+      position: clamp(snapshot?.currentTime ?? 0, 0, duration),
+      playbackRate: snapshot?.state === 'playing' ? 1 : 0,
+      playbackState: snapshot?.state ?? 'idle'
+    };
+
+    if (!shouldPublishPositionState(nextState)) {
       return;
     }
 
     try {
       mediaSession.setPositionState({
-        duration,
-        position: clamp(snapshot?.currentTime ?? 0, 0, duration),
-        playbackRate: snapshot?.state === 'playing' ? 1 : 0
+        duration: nextState.duration,
+        position: nextState.position,
+        playbackRate: nextState.playbackRate
       });
+      lastPublishedPositionState = nextState;
     } catch {
       // Ignore invalid/unsupported position state updates.
     }
