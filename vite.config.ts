@@ -22,7 +22,8 @@ export default defineConfig({
   },
   resolve: {
     alias: {
-      $lib: fileURLToPath(new URL('./src/lib', import.meta.url))
+      $lib: fileURLToPath(new URL('./src/lib', import.meta.url)),
+      chiptune3: fileURLToPath(new URL('./src/lib/vendor/chiptune3/chiptune3.js', import.meta.url))
     }
   },
   plugins: [
