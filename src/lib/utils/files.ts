@@ -337,6 +337,17 @@ export function getTrackDisplayTitle(item: PlaylistItem | null): string {
   return title || (item ? stripFileExtension(item.name) : '');
 }
 
+export function getTrackPlaylistLabel(item: PlaylistItem | null): string {
+  const title = getTrackDisplayTitle(item);
+  const artist = getTrackDisplaySubtitle(item);
+
+  if (!artist) {
+    return title;
+  }
+
+  return title ? `${artist} - ${title}` : artist;
+}
+
 export function getTrackIdentity(item: Pick<PlaylistItem, 'path' | 'name' | 'size' | 'lastModified'>): string {
   const normalizedPath = normalizePath(item.path)?.toLowerCase();
 

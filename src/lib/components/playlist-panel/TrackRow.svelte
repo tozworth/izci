@@ -8,7 +8,7 @@
     getTrackDuration,
     isRightAlignedColumn
   } from './library-columns';
-  import { getTrackDisplayTitle } from '$lib/utils/files';
+  import { getTrackPlaylistLabel } from '$lib/utils/files';
 
   export let item: PlaylistItem;
   export let selected = false;
@@ -23,7 +23,7 @@
     itemContextMenu: { id: string; event: MouseEvent };
   }>();
 
-  $: trackTitle = getTrackDisplayTitle(item);
+  $: trackTitle = getTrackPlaylistLabel(item);
   $: trackDuration = getTrackDuration(item);
 </script>
 
