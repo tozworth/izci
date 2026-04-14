@@ -10,7 +10,6 @@
   type MenuId = 'file' | 'view';
   type MenuActionId = 'openFiles' | 'openFolder' | 'openOptions' | 'exit';
 
-  const COMPACT_MENU_MAX_WIDTH = 400;
   const MENU_ITEMS_ONLY_PADDING = 28;
   const MENU_ITEMS_WITH_VERSION_PADDING = 40;
   const FALLBACK_MENU_GROUPS_WIDTH = 140;
@@ -93,7 +92,7 @@
     || availableTitlebarWidth >= resolvedMenuGroupsWidth + resolvedMenuBrandWidth + MENU_ITEMS_WITH_VERSION_PADDING;
   $: compactMenuThreshold = overlayState.visible
     ? resolvedMenuGroupsWidth + MENU_ITEMS_ONLY_PADDING
-    : COMPACT_MENU_MAX_WIDTH;
+    : resolvedMenuGroupsWidth + resolvedMenuBrandWidth + MENU_ITEMS_WITH_VERSION_PADDING;
   $: isCompactMenu = availableTitlebarWidth < compactMenuThreshold;
   $: if (isCompactMenu) {
     activeMenu = null;
