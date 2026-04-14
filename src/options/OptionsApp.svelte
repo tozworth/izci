@@ -241,7 +241,12 @@
   on:pointercancel={stopResize}
 />
 
-<div class="options-shell" class:is-resizing={resizePointerId !== null} class:hints-expanded={fieldHintsExpanded}>
+<div
+  class="options-shell"
+  class:is-resizing={resizePointerId !== null}
+  class:hints-expanded={fieldHintsExpanded}
+  class:window-controls-overlay-active={overlayState.visible}
+>
   <header
     class="window-topbar"
     class:window-controls-overlay-active={overlayState.visible}

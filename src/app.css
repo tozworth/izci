@@ -71,6 +71,10 @@ button {
   overflow: hidden;
 }
 
+.app-shell.window-controls-overlay-active {
+  padding-top: var(--window-frame-safe-top);
+}
+
 .app-shell.tabbed-layout {
   padding-bottom: var(--player-bar-reserve-tabbed);
 }
@@ -102,8 +106,14 @@ button {
 }
 
 .menu-bar.window-controls-overlay-active {
-  min-height: max(1.9rem, var(--window-controls-overlay-height, env(titlebar-area-height, 1.9rem)));
-  padding-top: max(var(--window-controls-overlay-y, env(titlebar-area-y, 0px)), env(safe-area-inset-top, 0px));
+  min-height: max(
+    1.9rem,
+    calc(var(--window-controls-overlay-height, env(titlebar-area-height, 1.9rem)) - var(--window-frame-safe-top))
+  );
+  padding-top: max(
+    calc(var(--window-controls-overlay-y, env(titlebar-area-y, 0px)) - var(--window-frame-safe-top)),
+    0px
+  );
   padding-left: max(0.65rem, var(--window-controls-overlay-x, env(titlebar-area-x, 0px)));
   padding-right: max(
     0.65rem,
@@ -115,7 +125,10 @@ button {
 }
 
 .menu-bar.window-controls-overlay-active.menu-bar-compact {
-  min-height: max(1.55rem, var(--window-controls-overlay-height, env(titlebar-area-height, 1.55rem)));
+  min-height: max(
+    1.55rem,
+    calc(var(--window-controls-overlay-height, env(titlebar-area-height, 1.55rem)) - var(--window-frame-safe-top))
+  );
   padding-left: max(0.3rem, var(--window-controls-overlay-x, env(titlebar-area-x, 0px)));
   padding-right: max(
     0.3rem,

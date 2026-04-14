@@ -1,3 +1,7 @@
+:root {
+  --window-frame-safe-top: 1px;
+}
+
 :root,
 :root[data-theme='gruvbox'] {
   color-scheme: dark;

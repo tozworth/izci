@@ -29,6 +29,7 @@
     WORKSPACE_RESIZER_WIDTH
   } from '$lib/services/workspace-layout';
   import { windowManager } from '$lib/services/window-manager';
+  import { windowControlsOverlayState } from '$lib/services/window-controls-overlay';
   import { appearanceSettings } from '$lib/stores/appearance-settings';
   import { libraryStore, playlistStore } from '$lib/stores/playlist';
   import { DEFAULT_PLAYER_VOLUME } from '$lib/stores/player-volume';
@@ -807,6 +808,7 @@
   class="app-shell"
   class:tabbed-layout={isTabbedLayout}
   class:compact-shell={$appearanceSettings.compactShell}
+  class:window-controls-overlay-active={$windowControlsOverlayState.visible}
 >
   <input
     bind:this={fileInput}
