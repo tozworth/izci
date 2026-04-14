@@ -10,6 +10,8 @@ interface StreamLoadOptions {
   autoPlay?: boolean;
 }
 
+const PROGRESS_PUBLISH_INTERVAL_SECONDS = 0.125;
+
 export class HowlerPlayerService {
   #howl: Howl | null = null;
   #loadToken = 0;
@@ -17,6 +19,8 @@ export class HowlerPlayerService {
   #tickFrame: number | null = null;
   #shouldTrackProgress = false;
   #useLogarithmicVolume = true;
+  #lastPublishedCurrentTime = -1;
+  #lastPublishedDuration = -1;
   #onSnapshot: SnapshotHandler;
   #onMetadata: MetadataHandler;
   #onEnded: EndHandler;
@@ -34,6 +38,7 @@ export class HowlerPlayerService {
 
     this.destroy();
     const loadToken = ++this.#loadToken;
+    this.#resetPublishedProgress();
     this.#autoPlayOnLoad = options.autoPlay === true;
     this.#onSnapshot({
       backend: 'stream',
@@ -73,6 +78,7 @@ export class HowlerPlayerService {
         }
 
         this.#shouldTrackProgress = true;
+        this.#publishProgress(true);
         this.#startTicking();
         this.#onSnapshot({ state: 'playing' });
       },
@@ -83,6 +89,7 @@ export class HowlerPlayerService {
 
         this.#shouldTrackProgress = false;
         this.#stopTicking();
+        this.#publishProgress(true);
         this.#onSnapshot({ state: 'paused' });
       },
       onstop: () => {
@@ -92,6 +99,7 @@ export class HowlerPlayerService {
 
         this.#shouldTrackProgress = false;
         this.#stopTicking();
+        this.#resetPublishedProgress();
         this.#onSnapshot({ currentTime: 0, state: 'paused' });
       },
       onend: () => {
@@ -101,6 +109,7 @@ export class HowlerPlayerService {
 
         this.#shouldTrackProgress = false;
         this.#stopTicking();
+        this.#publishProgress(true, this.#howl?.duration() ?? 0, this.#howl?.duration() ?? 0);
         this.#onSnapshot({ state: 'ended' });
         this.#onEnded();
       },
@@ -109,7 +118,7 @@ export class HowlerPlayerService {
           return;
         }
 
-        this.#onSnapshot({ currentTime: Number(this.#howl?.seek() ?? 0), error: undefined });
+        this.#publishProgress(true);
         this.#startTicking();
       },
       onloaderror: (_id: number, message: unknown) => {
@@ -150,7 +159,7 @@ export class HowlerPlayerService {
     }
 
     this.#howl?.seek(seconds);
-    this.#onSnapshot({ currentTime: seconds, error: undefined });
+    this.#publishProgress(true, seconds);
 
     if (wasPlaying) {
       this.#startTicking();
@@ -167,6 +176,7 @@ export class HowlerPlayerService {
     this.#loadToken += 1;
     this.#autoPlayOnLoad = false;
     this.#shouldTrackProgress = false;
+    this.#resetPublishedProgress();
     this.#stopTicking();
     this.#howl?.unload();
     this.#howl = null;
@@ -208,8 +218,32 @@ export class HowlerPlayerService {
     const currentTime = Number(this.#howl.seek() ?? 0);
     const duration = this.#howl.duration();
 
-    this.#onSnapshot({ currentTime, duration, error: undefined });
+    this.#publishProgress(false, currentTime, duration);
     this.#tickFrame = requestAnimationFrame(() => this.#tick());
+  }
+
+  #publishProgress(
+    force = false,
+    currentTime = Number(this.#howl?.seek() ?? 0),
+    duration = this.#howl?.duration() ?? 0
+  ): void {
+    if (!force) {
+      const currentTimeDelta = Math.abs(currentTime - this.#lastPublishedCurrentTime);
+      const durationChanged = duration !== this.#lastPublishedDuration;
+
+      if (!durationChanged && currentTimeDelta < PROGRESS_PUBLISH_INTERVAL_SECONDS) {
+        return;
+      }
+    }
+
+    this.#lastPublishedCurrentTime = currentTime;
+    this.#lastPublishedDuration = duration;
+    this.#onSnapshot({ currentTime, duration, error: undefined });
+  }
+
+  #resetPublishedProgress(): void {
+    this.#lastPublishedCurrentTime = -1;
+    this.#lastPublishedDuration = -1;
   }
 
   #isActiveLoad(loadToken: number): boolean {

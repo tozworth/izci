@@ -9,6 +9,8 @@ type SnapshotHandler = (snapshot: Partial<PlaybackSnapshot>) => void;
 type MetadataHandler = (metadata: TrackMetadata) => void;
 type EndHandler = () => void;
 
+const PROGRESS_PUBLISH_INTERVAL_SECONDS = 0.125;
+
 export class ModulePlayerService {
   #player: ChiptuneJsPlayer | null = null;
   #buffer: ArrayBuffer | null = null;
@@ -19,6 +21,8 @@ export class ModulePlayerService {
   #playing = false;
   #started = false;
   #currentTime = 0;
+  #lastPublishedCurrentTime = -1;
+  #lastPublishedDuration = -1;
   #settings = modulePlaybackSettings.getSnapshot();
   #onSnapshot: SnapshotHandler;
   #onMetadata: MetadataHandler;
@@ -42,6 +46,7 @@ export class ModulePlayerService {
     this.#playing = false;
     this.#started = false;
     this.#currentTime = 0;
+    this.#resetPublishedProgress();
 
     this.#onSnapshot({
       backend: 'module',
@@ -95,6 +100,7 @@ export class ModulePlayerService {
     }
 
     this.#onSnapshot({ state: 'playing', error: undefined });
+    this.#publishProgress(true);
     mediaSessionService.playTransportAnchor();
   }
 
@@ -105,6 +111,7 @@ export class ModulePlayerService {
 
     this.#player.pause();
     this.#playing = false;
+    this.#publishProgress(true);
     this.#onSnapshot({ state: 'paused' });
     mediaSessionService.pauseTransportAnchor();
   }
@@ -116,6 +123,7 @@ export class ModulePlayerService {
     this.#currentTime = 0;
     this.#buffer = null;
     this.#trackExtension = null;
+    this.#resetPublishedProgress();
     this.#disposePlayer();
     mediaSessionService.deactivateTransportAnchor();
     this.#onSnapshot({ state: 'paused', currentTime: 0, error: undefined });
@@ -132,10 +140,7 @@ export class ModulePlayerService {
 
     this.#player.seek(seconds);
     this.#currentTime = seconds;
-    this.#onSnapshot({
-      currentTime: seconds,
-      error: undefined
-    });
+    this.#publishProgress(true, seconds);
   }
 
   setVolume(volume: number, logarithmicVolume: boolean = this.#useLogarithmicVolume): void {
@@ -223,6 +228,7 @@ export class ModulePlayerService {
       this.#started = false;
       this.#playing = false;
       this.#currentTime = restorePosition;
+      this.#resetPublishedProgress();
       this.#onSnapshot({ state: 'paused', currentTime: restorePosition, error: undefined });
       mediaSessionService.pauseTransportAnchor();
       return;
@@ -274,7 +280,9 @@ export class ModulePlayerService {
 
       this.#playing = false;
       this.#started = false;
-      this.#currentTime = 0;
+      const duration = this.#safeSeconds(player.duration);
+      this.#currentTime = duration;
+      this.#publishProgress(true, duration, duration);
       this.#onSnapshot({ state: 'ended' });
       this.#onEnded();
     });
@@ -313,12 +321,36 @@ export class ModulePlayerService {
       }
 
       this.#currentTime = this.#safeSeconds(progress.pos);
-      this.#onSnapshot({
-        currentTime: this.#currentTime,
-        duration: this.#safeSeconds(player.duration),
-        error: undefined
-      });
+      this.#publishProgress(false, this.#currentTime, this.#safeSeconds(player.duration));
     });
+  }
+
+  #publishProgress(
+    force = false,
+    currentTime = this.#currentTime,
+    duration = this.#safeSeconds(this.#player?.duration)
+  ): void {
+    if (!force) {
+      const currentTimeDelta = Math.abs(currentTime - this.#lastPublishedCurrentTime);
+      const durationChanged = duration !== this.#lastPublishedDuration;
+
+      if (!durationChanged && currentTimeDelta < PROGRESS_PUBLISH_INTERVAL_SECONDS) {
+        return;
+      }
+    }
+
+    this.#lastPublishedCurrentTime = currentTime;
+    this.#lastPublishedDuration = duration;
+    this.#onSnapshot({
+      currentTime,
+      duration,
+      error: undefined
+    });
+  }
+
+  #resetPublishedProgress(): void {
+    this.#lastPublishedCurrentTime = -1;
+    this.#lastPublishedDuration = -1;
   }
 
   #toPlayerConfig(settings: ModulePlaybackSettings) {

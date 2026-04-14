@@ -5,8 +5,15 @@ import { metadataSettings } from '$lib/stores/metadata-settings';
 import { modulePlaybackSettings } from '$lib/stores/module-playback-settings';
 import { playbackSettings } from '$lib/stores/playback-settings';
 import { DEFAULT_PLAYER_VOLUME, playerVolume } from '$lib/stores/player-volume';
-import type { PlaybackSnapshot, PlaylistItem, TrackMetadata } from '$lib/types';
+import type { PlaybackSnapshot, PlaybackState, PlaylistItem, TrackKind, TrackMetadata } from '$lib/types';
 import { mergeInferredArtistTitle } from '$lib/utils/files';
+
+interface PlaybackStatusSnapshot {
+  state: PlaybackState;
+  volume: number;
+  backend: TrackKind | null;
+  error?: string;
+}
 
 const initialSnapshot: PlaybackSnapshot = {
   state: 'idle',
@@ -16,10 +23,18 @@ const initialSnapshot: PlaybackSnapshot = {
   backend: null
 };
 
+const initialStatusSnapshot: PlaybackStatusSnapshot = {
+  state: initialSnapshot.state,
+  volume: initialSnapshot.volume,
+  backend: initialSnapshot.backend,
+  error: initialSnapshot.error
+};
+
 function createPlayerController() {
   let volume = playerVolume.getSnapshot();
   let playbackConfig = playbackSettings.getSnapshot();
   const snapshot = writable<PlaybackSnapshot>({ ...initialSnapshot, volume });
+  const status = writable<PlaybackStatusSnapshot>({ ...initialStatusSnapshot, volume });
   const currentTrack = writable<PlaylistItem | null>(null);
 
   let activeTrack: PlaylistItem | null = null;
@@ -27,6 +42,21 @@ function createPlayerController() {
 
   const onSnapshot = (partial: Partial<PlaybackSnapshot>) => {
     snapshot.update((state) => ({ ...state, ...partial }));
+
+    if (
+      partial.state !== undefined ||
+      partial.volume !== undefined ||
+      partial.backend !== undefined ||
+      Object.prototype.hasOwnProperty.call(partial, 'error')
+    ) {
+      status.update((state) => ({
+        ...state,
+        ...(partial.state !== undefined ? { state: partial.state } : {}),
+        ...(partial.volume !== undefined ? { volume: partial.volume } : {}),
+        ...(partial.backend !== undefined ? { backend: partial.backend } : {}),
+        ...(Object.prototype.hasOwnProperty.call(partial, 'error') ? { error: partial.error } : {})
+      }));
+    }
   };
 
   const applyMetadataInference = (track: PlaylistItem, metadata: TrackMetadata = {}): PlaylistItem => {
@@ -76,6 +106,7 @@ function createPlayerController() {
 
   return {
     snapshot,
+    status,
     currentTrack,
     async load(track: PlaylistItem, options: { autoPlay?: boolean } = {}) {
       const preparedTrack = applyMetadataInference(track);

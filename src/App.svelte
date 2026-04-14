@@ -90,10 +90,8 @@
   let playingTrack: PlaylistItem | null = null;
   let shuffleEnabled = false;
   let repeatMode: PlaylistRepeatMode = 'off';
-  let playback: PlaybackSnapshot = {
+  let playbackStatus: Pick<PlaybackSnapshot, 'state' | 'volume' | 'backend' | 'error'> = {
     state: 'idle',
-    currentTime: 0,
-    duration: 0,
     volume: DEFAULT_PLAYER_VOLUME,
     backend: null,
     error: undefined
@@ -135,13 +133,13 @@
       }
     }
   });
-  const unsubscribePlayback = playerController.snapshot.subscribe((value) => (playback = value));
+  const unsubscribePlaybackStatus = playerController.status.subscribe((value) => (playbackStatus = value));
 
   let fileInput: HTMLInputElement | null = null;
   let innerWidth = 0;
   let activeCollection: WorkspaceCollection = 'playlist';
   let activeWorkspaceTab: WorkspaceTab = 'playlist';
-  let previousPlaybackState: PlaybackSnapshot['state'] = playback.state;
+  let previousPlaybackState: PlaybackSnapshot['state'] = playbackStatus.state;
   let playRequestSequence = 0;
   let playlistJumpRequest: WorkspaceJumpRequest | null = null;
   let isDetailsPanelVisible = false;
@@ -382,11 +380,15 @@
       return;
     }
 
-    if (playback.state === 'playing' || playback.state === 'paused' || playback.state === 'ended') {
+    if (
+      playbackStatus.state === 'playing' ||
+      playbackStatus.state === 'paused' ||
+      playbackStatus.state === 'ended'
+    ) {
       playerController.seek(0);
     }
 
-    if (playback.state !== 'playing') {
+    if (playbackStatus.state !== 'playing') {
       playerController.play();
     }
   }
@@ -484,7 +486,7 @@
   }
 
   async function handleTogglePlayback() {
-    if (playback.state === 'playing') {
+    if (playbackStatus.state === 'playing') {
       handlePause();
       return;
     }
@@ -760,12 +762,12 @@
     }
   }
 
-  $: if (playback.state !== previousPlaybackState) {
-    if (playback.state === 'ended') {
+  $: if (playbackStatus.state !== previousPlaybackState) {
+    if (playbackStatus.state === 'ended') {
       void handleTrackEnded();
     }
 
-    previousPlaybackState = playback.state;
+    previousPlaybackState = playbackStatus.state;
   }
 
   onDestroy(() => {
@@ -779,7 +781,7 @@
     unsubscribeShuffle();
     unsubscribeRepeat();
     unsubscribeTrack();
-    unsubscribePlayback();
+    unsubscribePlaybackStatus();
     unsubscribeLaunchedFiles();
     unsubscribeWorkspacePanelLayout();
     disconnectMediaSession();
@@ -850,12 +852,12 @@
     />
   {/if}
 
-  {#if playback.error}
-    <aside class="error-banner">{playback.error}</aside>
+  {#if playbackStatus.error}
+    <aside class="error-banner">{playbackStatus.error}</aside>
   {/if}
 
   <PlayerControls
-    snapshot={playback}
+    snapshotStore={playerController.snapshot}
     track={playingTrack}
     selectedTrack={selectedPlaylistItem}
     isTabbedLayout={isTabbedLayout}

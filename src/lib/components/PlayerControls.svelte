@@ -1,9 +1,10 @@
 <script lang="ts">
   import { createEventDispatcher, onMount } from 'svelte';
+  import type { Readable } from 'svelte/store';
   import { formatDuration, getTrackDisplaySubtitle, getTrackDisplayTitle } from '$lib/utils/files';
   import type { PlaybackSnapshot, PlaylistItem } from '$lib/types';
 
-  export let snapshot: PlaybackSnapshot;
+  export let snapshotStore: Readable<PlaybackSnapshot>;
   export let track: PlaylistItem | null = null;
   export let selectedTrack: PlaylistItem | null = null;
   export let isTabbedLayout = false;
@@ -24,6 +25,14 @@
   let isCompactVolume = false;
   let isVolumePopupOpen = false;
   let volumePopupTimer: ReturnType<typeof window.setTimeout> | null = null;
+  let snapshot: PlaybackSnapshot = {
+    state: 'idle',
+    currentTime: 0,
+    duration: 0,
+    volume: 0,
+    backend: null,
+    error: undefined
+  };
 
   function clamp(value: number, min: number, max: number): number {
     return Math.min(Math.max(value, min), max);
@@ -85,6 +94,7 @@
     };
   });
 
+  $: snapshot = $snapshotStore;
   $: displayTrack = track ?? selectedTrack;
   $: displayDuration = track ? snapshot.duration : selectedTrack?.metadata?.duration ?? snapshot.duration;
 </script>
