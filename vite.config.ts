@@ -90,6 +90,7 @@ export default defineConfig({
       } as Record<string, unknown>,
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,woff2,mem}'],
+        navigateFallbackDenylist: [/^\/options\.html(?:\?|$)/],
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024
       }
     })
