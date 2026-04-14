@@ -27,6 +27,24 @@
     event.stopPropagation();
     onCloseDetails();
   }
+
+  function handleTabAuxClick(event: MouseEvent, tabId: WorkspaceTab) {
+    if (event.button !== 1 || tabId !== 'details') {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    onCloseDetails();
+  }
+
+  function handleTabMouseDown(event: MouseEvent, tabId: WorkspaceTab) {
+    if (event.button !== 1 || tabId !== 'details') {
+      return;
+    }
+
+    event.preventDefault();
+  }
 </script>
 
 <main class="workspace workspace-tabs-layout">
@@ -43,6 +61,8 @@
           aria-controls={`workspace-tab-panel-${tab.id}`}
           id={`workspace-tab-${tab.id}`}
           on:click={() => dispatch('tabChange', tab.id)}
+          on:auxclick={(event) => handleTabAuxClick(event, tab.id)}
+          on:mousedown={(event) => handleTabMouseDown(event, tab.id)}
         >
           <span class="material-symbols-outlined" aria-hidden="true">{tab.icon}</span>
           <span class="workspace-tab-label">{tab.label}</span>
@@ -56,6 +76,8 @@
               aria-label="Close Track Details"
               title="Close"
               on:click={handleDetailsCloseClick}
+              on:auxclick={(event) => handleTabAuxClick(event, tab.id)}
+              on:mousedown={(event) => handleTabMouseDown(event, tab.id)}
             >
               <span class="material-symbols-outlined" aria-hidden="true">close</span>
             </button>
