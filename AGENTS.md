@@ -95,6 +95,7 @@ Primary location for playback and browser-integration logic.
 - `file-launch.ts`: Chromium Launch Queue integration for installed-PWA file associations; converts launched file handles into `File`s and queues them until the app is ready to replace the playlist.
 - `import-controller.ts`: file import controller for picker capability detection, file-input fallback, open-files flow, and folder import flow.
 - `player-controller.ts`: single coordinator for backend switching, snapshot updates, metadata inference application, and player volume propagation.
+- `volume.ts`: shared slider-to-gain conversion helpers, including the logarithmic-volume mapping used by playback services.
 - `media-session.ts`: Chromium Media Session bridge for now-playing metadata, seek position updates, OS/media-key transport handlers, and the silent native transport anchor used to keep Chromium media surfaces alive for non-native playback paths.
 - `pwa-updates.ts`: service-worker registration plus proactive update checks for long-lived preview/installed PWA windows so new builds can activate without getting stuck on the first cached shell.
 - `theme.ts`: shared color-theme metadata, document-theme application, and dynamic `<meta name="theme-color">` updates used by both window entrypoints so Chromium/PWA window chrome tracks the active theme where supported.
@@ -149,11 +150,6 @@ Primary location for playback and browser-integration logic.
 - `src/lib/utils/files.ts` creates `objectUrl`s only for streamed formats. Do not force tracker modules down the streamed path.
 - `src/lib/stores/playlist.ts` persists playlist and library collections separately in IndexedDB (`izci-playlist`, `izci-library`). The library store dedupes tracks; the playlist store does not.
 - `src/lib/stores/playlist.ts` should stay as the public store facade; persistence, materialization, selection, metadata, navigation, and dedupe logic now live in focused sibling modules.
-- The app now has two collections:
-  - playlist: ordered playback queue with shuffle/repeat behavior
-  - library: persistent deduped catalog with column-based view state
-- Library search/filter query is part of the persistent library view state and syncs across windows with the rest of the library UI settings.
-- `src/lib/components/PlaylistPanel.svelte` should stay as a shell around `src/lib/components/playlist-panel/` rather than reaccreting column math, search traversal, or context-menu DOM wiring inline.
 - `src/lib/components/workspace/` owns the tabbed vs wide workspace markup split; keep layout-specific composition there instead of rebuilding duplicated panel trees inside `App.svelte`.
 - Wide-mode workspace panel widths are persisted in `localStorage` and sync across windows; tabbed mode ignores those widths.
 - The workspace switches to tabbed mode at viewport widths of 750px and below.
@@ -163,20 +159,10 @@ Primary location for playback and browser-integration logic.
 - `src/lib/services/window-controls-overlay.ts` is the single source of truth for Window Controls Overlay state. Consume its readable store instead of querying `navigator.windowControlsOverlay` directly from components.
 - `src/lib/components/TopMenuBar.svelte` is responsible for titlebar adaptation: it becomes a drag region in overlay mode, marks interactive controls as `no-drag`, hides the version badge while overlay mode is visible, and sizes/collapses itself based on the live available `titlebarAreaRect.width` rather than raw viewport width.
 - When the titlebar menu collapses, it should stay on the shared `MenuSurface.svelte` path rather than inventing a second menu system. `MenuSurface.svelte` supports nested submenus and a drilldown fallback that replaces File/View root entries with submenu contents when flyout submenus would overflow the current window.
-- The menu bar intentionally has no bottom border; rely on blur/shadow separation instead so compact chevron mode and overlay titlebar mode do not show an extra seam.
 - `src/App.svelte` is responsible for top-level workspace orchestration, but durable state and local algorithms should live in stores/services or the focused workspace components.
-- File import supports multiple sources:
-  - plain file input fallback
-  - `showOpenFilePicker()`
-  - `showDirectoryPicker()` for top-level folder imports
-  - drag/drop, including Chromium filesystem entry helpers
-- Installed PWA file-association launches come through Chromium `launchQueue`; those files should replace the playlist contents rather than append to the current queue.
-- Installed PWA file-association launches should prefer a single existing app window via the manifest `launch_handler`, with a runtime cross-window handoff fallback so repeated file opens do not spawn unbounded duplicate instances.
 - `src/lib/services/import-controller.ts` is the entry point for picker capability checks and menu/input import behavior. Keep drag/drop extraction in `PlaylistPanel.svelte` and `src/lib/utils/files.ts`.
 - Persisted items may be rehydrated from `FileSystemFileHandle`s. Preserve the `ensureLoaded()` flow and permission prompts when changing import or playback behavior.
-- Metadata is inferred from filenames only when enabled in `metadata-settings`. Do not bake inference directly into components.
 - `player-controller.ts` is the single coordinator for backend switching. Changes to transport or metadata propagation should usually start there.
-- Chromium media keys / OS playback controls are wired through `src/lib/services/media-session.ts`, which subscribes to the shared playback stores, delegates transport actions back through app-level callbacks, and maintains the native transport anchor needed for Chromium media surfaces.
 - Streamed playback intentionally stays on Howler's HTML5 audio mode because that path is the proven stable way to keep Chromium/desktop media controls alive for streamed formats without regressing row-activation or pause/resume behavior.
 - Tracker modules still play through `Chiptune3`/Web Audio because rerouting real module audio through a browser-facing media element regressed playback quality/pitch; their media-surface integration is mirrored through the silent native transport anchor instead.
 - The playback split is therefore intentional, not incidental:
@@ -193,13 +179,5 @@ Primary location for playback and browser-integration logic.
 ## Change guidance
 
 - Before changing playback behavior, verify whether the code path is `stream` or `module` and keep both working.
-- Before changing import behavior, inspect `src/App.svelte`, `src/lib/services/import-controller.ts`, `src/lib/utils/files.ts`, and `src/lib/stores/playlist.ts` together.
-- Before changing module playback settings, inspect `src/lib/stores/module-playback-settings.ts`, `src/lib/services/module-player.ts`, and `src/options/OptionsApp.svelte` together.
-- Before changing general playback settings or volume-response behavior, inspect `src/lib/stores/playback-settings.ts`, `src/lib/services/player-controller.ts`, `src/lib/services/howler-player.ts`, `src/lib/services/module-player.ts`, and `src/options/OptionsApp.svelte` together.
-- Before changing appearance or color theming, inspect `src/lib/stores/appearance-settings.ts`, `src/lib/services/theme.ts`, `src/lib/styles/themes.css`, `src/app.css`, and `src/options/app.css` together.
-- Before changing titlebar/window chrome behavior, inspect `vite.config.ts`, `src/lib/services/theme.ts`, `src/lib/services/window-controls-overlay.ts`, `src/lib/components/TopMenuBar.svelte`, `src/lib/components/MenuSurface.svelte`, `src/app.css`, `index.html`, and `options.html` together.
-- Before changing library UI behavior, inspect `src/lib/components/PlaylistPanel.svelte`, `src/lib/components/playlist-panel/`, `src/lib/components/workspace/`, and `src/lib/stores/library-view-settings.ts` together.
-- Before changing workspace layout behavior, inspect `src/App.svelte`, `src/lib/components/workspace/`, `src/lib/services/workspace-layout.ts`, and `src/lib/stores/workspace-panel-layout.ts` together.
-- Before changing PWA/build or popup-entry behavior, inspect `vite.config.ts`, `src/main.ts`, `options.html`, `src/options/main.ts`, and icon assets together.
 - Prefer extending stores/services over adding more stateful logic to `App.svelte` or leaf components.
 - Do not add backend/network assumptions, cloud dependencies, or server-coupled flows.
