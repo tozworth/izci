@@ -57,7 +57,6 @@ input {
 
 button {
   border: 0;
-  cursor: pointer;
 }
 
 .app-shell {
@@ -936,7 +935,6 @@ button {
 input[type='range'] {
   width: 100%;
   accent-color: var(--accent-strong);
-  cursor: ew-resize;
 }
 
 .error-banner {

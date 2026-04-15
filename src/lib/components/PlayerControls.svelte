@@ -210,6 +210,5 @@
     color: inherit;
     font: inherit;
     text-align: left;
-    cursor: pointer;
   }
 </style>
