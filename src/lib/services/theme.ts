@@ -26,12 +26,13 @@ function applyThemeColor(theme: ColorTheme): void {
   themeColorMeta.content = themeColor;
 }
 
-function applyTheme(theme: ColorTheme): void {
+function applyTheme(theme: ColorTheme, useSystemFont: boolean): void {
   if (typeof document === 'undefined') {
     return;
   }
 
   document.documentElement.dataset.theme = theme;
+  document.documentElement.dataset.systemFont = useSystemFont ? 'true' : 'false';
   applyThemeColor(theme);
 }
 
@@ -41,8 +42,9 @@ export function initializeTheme(): void {
   }
 
   initialized = true;
-  applyTheme(appearanceSettings.getSnapshot().colorTheme);
+  const initialSettings = appearanceSettings.getSnapshot();
+  applyTheme(initialSettings.colorTheme, initialSettings.useSystemFont);
   appearanceSettings.subscribe((settings) => {
-    applyTheme(settings.colorTheme);
+    applyTheme(settings.colorTheme, settings.useSystemFont);
   });
 }

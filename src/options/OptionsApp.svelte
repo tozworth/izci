@@ -138,6 +138,12 @@
     });
   }
 
+  function handleUseSystemFontToggle(event: Event) {
+    appearanceSettings.update({
+      useSystemFont: (event.currentTarget as HTMLInputElement).checked
+    });
+  }
+
   function handleLogarithmicVolumeToggle(event: Event) {
     playbackSettings.update({
       logarithmicVolume: (event.currentTarget as HTMLInputElement).checked
@@ -350,8 +356,24 @@
           </div>
 
           <div class="section">
-            <h2>Library Layout</h2>
+            <h2>Interface</h2>
             <div class="field-grid">
+              <label class="field checkbox-field">
+                <div class="field-copy">
+                  <span class="field-title">Use system font</span>
+                </div>
+                <div class="field-control checkbox-control">
+                  <input
+                    type="checkbox"
+                    checked={$appearanceSettings.useSystemFont}
+                    on:change={handleUseSystemFontToggle}
+                  />
+                </div>
+                <p class="field-hint">
+                  Replaces the default UI font with your system interface font across the main app and Options window.
+                </p>
+              </label>
+
               <label class="field checkbox-field">
                 <div class="field-copy">
                   <span class="field-title">Compact shell layout</span>

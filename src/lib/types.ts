@@ -51,6 +51,7 @@ export interface AppearanceSettings {
   colorTheme: ColorTheme;
   keepLibraryColumnsVisibleInNarrowLayout: boolean;
   compactShell: boolean;
+  useSystemFont: boolean;
 }
 
 export interface PlaybackSettings {
