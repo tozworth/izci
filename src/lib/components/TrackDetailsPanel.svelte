@@ -252,6 +252,9 @@
     box-shadow:
       inset 0 0 0 1px var(--border-strong),
       0 0 0 1px rgba(0, 0, 0, 0.08);
+    transition:
+      background var(--artwork-ui-transition-duration, 280ms) linear,
+      box-shadow var(--artwork-ui-transition-duration, 280ms) linear;
   }
 
   .track-artwork-image {

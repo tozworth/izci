@@ -4,6 +4,8 @@
   --player-bar-reserve: calc(6.5rem + env(safe-area-inset-bottom, 0px));
   --player-bar-reserve-tabbed: calc(4.8rem + env(safe-area-inset-bottom, 0px));
   --track-artwork-radius: 0.25rem;
+  --artwork-background-transition-duration: 320ms;
+  --artwork-ui-transition-duration: 280ms;
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -34,7 +36,7 @@ body,
 
 body {
   min-height: 100vh;
-  background: var(--body-background);
+  background-color: var(--body-background);
   color: var(--text);
   overflow: hidden;
   user-select: none;
@@ -59,6 +61,55 @@ input {
 
 button {
   border: 0;
+}
+
+.menu-bar,
+.menu-trigger,
+.compact-menu-trigger strong,
+.compact-menu-chevron,
+.menu-list,
+.menu-list button,
+.menu-item-shortcut,
+.menu-item-icon,
+.menu-separator,
+.menu-brand,
+.menu-brand strong,
+.menu-brand span,
+.workspace-tabs,
+.workspace-tab,
+.workspace-tab-close-button,
+.panel,
+.error-banner,
+.panel-summary,
+.eyebrow,
+.dropzone,
+.canvas-placeholder,
+.empty-state,
+.track-list li + li,
+.track-row,
+.track-meta,
+.player-bar,
+.player-track span,
+.volume-label,
+.details-close-button,
+.detail-section + .detail-section,
+.section-heading,
+.section-icon,
+.track-artist,
+.metadata-row dt,
+.metadata-row dd,
+.format-value,
+.format-detail,
+.pattern-value,
+.notes-block pre,
+.track-column-header,
+.track-column-sort-button {
+  transition:
+    color var(--artwork-ui-transition-duration) linear,
+    background-color var(--artwork-ui-transition-duration) linear,
+    border-color var(--artwork-ui-transition-duration) linear,
+    box-shadow var(--artwork-ui-transition-duration) linear,
+    opacity var(--artwork-ui-transition-duration) linear;
 }
 
 .app-shell {
@@ -93,10 +144,7 @@ button {
   inset: 0;
   pointer-events: none;
   opacity: 0;
-  transition:
-    opacity 220ms ease,
-    transform 220ms ease,
-    filter 220ms ease;
+  transition: opacity var(--artwork-background-transition-duration) linear;
   z-index: 0;
 }
 
@@ -271,7 +319,7 @@ body.artwork-background-active.artwork-background-bright {
   width: 100%;
   min-height: 1.9rem;
   padding: max(env(safe-area-inset-top, 0px), 0px) 0.65rem 0;
-  background: var(--menu-bar-bg);
+  background-color: var(--menu-bar-bg);
   backdrop-filter:
     blur(var(--chrome-backdrop-blur, 16px))
     saturate(var(--chrome-backdrop-saturate, 1));
@@ -308,7 +356,7 @@ body.artwork-background-active.artwork-background-bright {
       100vw - var(--window-controls-overlay-x, env(titlebar-area-x, 0px)) - var(--window-controls-overlay-width, env(titlebar-area-width, 100vw))
     )
   );
-  background: var(--window-topbar-bg);
+  background-color: var(--window-topbar-bg);
   color: var(--window-topbar-text);
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
@@ -359,7 +407,7 @@ body.artwork-background-active.artwork-background-bright {
 
 .menu-trigger.active,
 .menu-trigger:hover {
-  background: var(--hover-surface);
+  background-color: var(--hover-surface);
 }
 
 .compact-menu-trigger {
@@ -391,7 +439,7 @@ body.artwork-background-active.artwork-background-bright {
   min-width: 12rem;
   max-width: calc(100vw - 1rem);
   padding: 0.25rem;
-  background: var(--menu-popover-bg);
+  background-color: var(--menu-popover-bg);
   border: 1px solid var(--menu-popover-border);
   border-radius: 0.5rem;
   box-shadow: var(--menu-popover-shadow);
@@ -435,7 +483,7 @@ body.artwork-background-active.artwork-background-bright {
 }
 
 .menu-list button:hover {
-  background: var(--menu-popover-hover);
+  background-color: var(--menu-popover-hover);
 }
 
 .menu-list button:disabled {
@@ -454,7 +502,7 @@ body.artwork-background-active.artwork-background-bright {
 .menu-separator {
   height: 1px;
   margin: 0.25rem 0;
-  background: var(--menu-popover-border);
+  background-color: var(--menu-popover-border);
 }
 
 .menu-brand {
@@ -474,7 +522,7 @@ body.artwork-background-active.artwork-background-bright {
 }
 
 .menu-brand:hover {
-  background: var(--hover-surface);
+  background-color: var(--hover-surface);
 }
 
 .menu-brand:focus-visible {
@@ -722,7 +770,7 @@ body.artwork-background-active.artwork-background-bright {
 .panel,
 .player-bar,
 .error-banner {
-  background: var(--bg-elevated);
+  background-color: var(--bg-elevated);
   backdrop-filter:
     blur(var(--panel-backdrop-blur, 12px))
     saturate(var(--panel-backdrop-saturate, 1));
@@ -809,8 +857,9 @@ body.artwork-background-active.artwork-background-bright {
     blur(calc(var(--chrome-backdrop-blur, 22px) - 2px))
     saturate(var(--chrome-backdrop-saturate, 1.08));
   transition:
-    box-shadow 180ms ease,
-    border-color 180ms ease;
+    background var(--artwork-ui-transition-duration) linear,
+    box-shadow var(--artwork-ui-transition-duration) linear,
+    border-color var(--artwork-ui-transition-duration) linear;
 }
 
 .playlist-panel-header::after {
@@ -878,11 +927,11 @@ body.artwork-background-active.artwork-background-bright {
 }
 
 .track-row:hover {
-  background: var(--hover-subtle);
+  background-color: var(--hover-subtle);
 }
 
 .track-list li.selected .track-row {
-  background: var(--selection-bg);
+  background-color: var(--selection-bg);
 }
 
 .track-list li.playing .track-row {
@@ -919,16 +968,16 @@ body.artwork-background-active.artwork-background-bright {
   justify-content: center;
   width: 2.25rem;
   height: 2.25rem;
-  background: var(--accent-strong-faint);
+  background-color: var(--accent-strong-faint);
   cursor: pointer;
   transition:
-    background 180ms ease,
+    background-color 180ms ease,
     border-color 180ms ease,
     transform 180ms ease;
 }
 
 .add-files:hover {
-  background: var(--accent-strong-hover);
+  background-color: var(--accent-strong-hover);
   border-color: var(--accent-strong-border-hover);
   transform: translateY(-1px);
 }
@@ -978,7 +1027,7 @@ body.artwork-background-active.artwork-background-bright {
   border-left: 0;
   border-right: 0;
   border-bottom: 0;
-  background: var(--menu-bar-bg);
+  background-color: var(--menu-bar-bg);
   color: var(--text);
   backdrop-filter:
     blur(var(--player-bar-backdrop-blur, var(--chrome-backdrop-blur, 16px)))
@@ -1042,10 +1091,7 @@ body.artwork-background-active.artwork-background-bright {
   inset: 0;
   pointer-events: none;
   opacity: 0;
-  transition:
-    opacity 220ms ease,
-    transform 220ms ease,
-    filter 220ms ease;
+  transition: opacity var(--artwork-background-transition-duration) linear;
   z-index: 0;
 }
 
@@ -1103,6 +1149,9 @@ body.artwork-background-active.artwork-background-bright {
   box-shadow:
     inset 0 0 0 1px var(--border-strong),
     0 0 0 1px rgba(0, 0, 0, 0.08);
+  transition:
+    background var(--artwork-ui-transition-duration) linear,
+    box-shadow var(--artwork-ui-transition-duration) linear;
 }
 
 .player-artwork-image,
@@ -1172,7 +1221,7 @@ body.artwork-background-active.artwork-background-bright {
 }
 
 .transport-button:hover:not(:disabled) {
-  background: var(--hover-control);
+  background-color: var(--hover-control);
 }
 
 .transport-button:disabled {
@@ -1358,7 +1407,7 @@ input[type='range'] {
     width: 2.4rem;
     height: 7.7rem;
     border-radius: 0.5rem;
-    background: var(--bg-volume-popup);
+    background-color: var(--bg-volume-popup);
   }
 
   .volume-popup input[type='range'] {

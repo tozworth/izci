@@ -69,7 +69,7 @@
   };
   type ArtworkBackgroundSlot = 'primary' | 'secondary';
 
-  const ARTWORK_BACKGROUND_TRANSITION_MS = 220;
+  const ARTWORK_BACKGROUND_TRANSITION_MS = 320;
 
   const {
     items: playlistItemsStore,
@@ -163,6 +163,8 @@
   let artworkBackgroundSecondary: LoadedStreamArtwork | null = null;
   let activeArtworkBackgroundSlot: ArtworkBackgroundSlot = 'primary';
   let activeArtworkBackground: LoadedStreamArtwork | null = null;
+  let exitingArtworkBackgroundSlot: ArtworkBackgroundSlot | null = null;
+  let visibleArtworkBackground: LoadedStreamArtwork | null = null;
   let artworkLoadToken = 0;
   let detailsArtworkLoadToken = 0;
   let artworkBackgroundCleanupTimer: ReturnType<typeof setTimeout> | null = null;
@@ -212,16 +214,19 @@
   $: playerDisplayTrack = playingTrack ?? selectedPlaylistItem;
   $: activeArtworkBackground =
     activeArtworkBackgroundSlot === 'primary' ? artworkBackgroundPrimary : artworkBackgroundSecondary;
+  $: visibleArtworkBackground =
+    activeArtworkBackground ??
+    (exitingArtworkBackgroundSlot ? getArtworkBackground(exitingArtworkBackgroundSlot) : null);
   $: artworkBackgroundMode = $appearanceSettings.artworkBackgroundMode;
   $: isWorkspaceArtworkBackgroundEnabled = artworkBackgroundMode === 'workspace';
   $: isPlayerBarArtworkBackgroundEnabled =
     artworkBackgroundMode === 'workspace' || artworkBackgroundMode === 'player';
   $: isPlayerBarArtworkLayerActive =
-    artworkBackgroundMode === 'player' && Boolean(activeArtworkBackground);
+    artworkBackgroundMode === 'player' && Boolean(visibleArtworkBackground);
   $: isWorkspaceArtworkBackgroundActive =
-    isWorkspaceArtworkBackgroundEnabled && Boolean(activeArtworkBackground);
+    isWorkspaceArtworkBackgroundEnabled && Boolean(visibleArtworkBackground);
   $: isArtworkBackgroundActive =
-    isPlayerBarArtworkBackgroundEnabled && Boolean(activeArtworkBackground);
+    isPlayerBarArtworkBackgroundEnabled && Boolean(visibleArtworkBackground);
   $: documentTitle = playingTrack ? getTrackDisplayTitle(playingTrack) : 'izci';
   $: {
     const viewportWidth =
@@ -284,13 +289,13 @@
     }
   }
   $: {
-    const nextBrightnessKey = isArtworkBackgroundActive && activeArtworkBackground
-      ? activeArtworkBackground.url
+    const nextBrightnessKey = isArtworkBackgroundActive && visibleArtworkBackground
+      ? visibleArtworkBackground.url
       : '';
 
     if (nextBrightnessKey !== artworkBrightnessKey) {
       artworkBrightnessKey = nextBrightnessKey;
-      void syncArtworkBrightness(activeArtworkBackground, isArtworkBackgroundActive);
+      void syncArtworkBrightness(visibleArtworkBackground, isArtworkBackgroundActive);
     }
   }
   $: syncArtworkMenuClasses(isWorkspaceArtworkBackgroundActive, isArtworkBackgroundBright);
@@ -406,6 +411,7 @@
 
   function scheduleArtworkBackgroundCleanup(slot: ArtworkBackgroundSlot) {
     clearArtworkBackgroundCleanupTimer();
+    exitingArtworkBackgroundSlot = slot;
 
     artworkBackgroundCleanupTimer = setTimeout(() => {
       artworkBackgroundCleanupTimer = null;
@@ -422,6 +428,10 @@
 
       revokeTrackArtwork(artwork);
       setArtworkBackground(slot, null);
+
+      if (exitingArtworkBackgroundSlot === slot) {
+        exitingArtworkBackgroundSlot = null;
+      }
     }, ARTWORK_BACKGROUND_TRANSITION_MS);
   }
 
@@ -438,11 +448,16 @@
       revokeTrackArtwork(staleArtwork);
     }
 
+    if (exitingArtworkBackgroundSlot === nextSlot) {
+      exitingArtworkBackgroundSlot = null;
+    }
+
     setArtworkBackground(nextSlot, artwork);
     activeArtworkBackgroundSlot = nextSlot;
 
     if (!previousActiveArtwork) {
       setArtworkBackground(previousActiveSlot, null);
+      exitingArtworkBackgroundSlot = null;
       return;
     }
 
@@ -473,6 +488,7 @@
     revokeTrackArtwork(artworkBackgroundSecondary);
     artworkBackgroundPrimary = null;
     artworkBackgroundSecondary = null;
+    exitingArtworkBackgroundSlot = null;
     isArtworkBackgroundBright = false;
   }
 
@@ -1138,6 +1154,9 @@
     selectedTrack={selectedPlaylistItem}
     isTabbedLayout={isTabbedLayout}
     artwork={displayedArtwork}
+    artworkBackgroundPrimary={artworkBackgroundPrimary}
+    artworkBackgroundSecondary={artworkBackgroundSecondary}
+    activeArtworkBackgroundSlot={activeArtworkBackgroundSlot}
     artworkBackgroundActive={isPlayerBarArtworkLayerActive}
     artworkBackgroundBright={isArtworkBackgroundBright}
     on:toggle={handleTogglePlayback}

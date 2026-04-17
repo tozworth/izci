@@ -109,6 +109,7 @@
     text-align: left;
     border: 0;
     user-select: none;
+    transition: color var(--artwork-ui-transition-duration, 280ms) linear;
   }
 
   .track-column-sort-button.is-right-aligned {

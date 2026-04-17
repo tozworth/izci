@@ -167,7 +167,9 @@
     border: 0;
     color: var(--muted);
     cursor: pointer;
-    transition: color 180ms ease;
+    transition:
+      color 180ms ease,
+      background-color 180ms ease;
   }
 
   .playlist-action-button.active,
@@ -194,9 +196,14 @@
     width: min(10.25rem, calc(100vw - 7rem));
     padding: 0 0.28rem 0 0.48rem;
     border: 1px solid var(--border-soft);
-    background: var(--bg-search);
+    background-color: var(--bg-search);
     box-shadow: var(--shadow);
     color: var(--muted);
+    transition:
+      color var(--artwork-ui-transition-duration, 280ms) linear,
+      background-color var(--artwork-ui-transition-duration, 280ms) linear,
+      border-color var(--artwork-ui-transition-duration, 280ms) linear,
+      box-shadow var(--artwork-ui-transition-duration, 280ms) linear;
   }
 
   .playlist-search-inline:focus-within {
@@ -239,11 +246,14 @@
     padding: 0;
     color: inherit;
     background: transparent;
+    transition:
+      color 180ms ease,
+      background-color 180ms ease;
   }
 
   .playlist-search-close:hover {
     color: var(--accent-strong);
-    background: var(--accent-strong-soft);
+    background-color: var(--accent-strong-soft);
   }
 
   .playlist-search-close .material-symbols-outlined {
