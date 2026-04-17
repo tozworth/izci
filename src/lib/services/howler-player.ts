@@ -140,10 +140,12 @@ export class HowlerPlayerService {
   }
 
   play(): void {
+    this.#autoPlayOnLoad = true;
     this.#howl?.play();
   }
 
   pause(): void {
+    this.#autoPlayOnLoad = false;
     this.#howl?.pause();
   }
 

@@ -8,6 +8,9 @@ import type { Chiptune3Metadata, ChiptuneJsPlayer } from 'chiptune3';
 type SnapshotHandler = (snapshot: Partial<PlaybackSnapshot>) => void;
 type MetadataHandler = (metadata: TrackMetadata) => void;
 type EndHandler = () => void;
+interface StopOptions {
+  silent?: boolean;
+}
 
 const PROGRESS_PUBLISH_INTERVAL_SECONDS = 0.125;
 
@@ -77,7 +80,6 @@ export class ModulePlayerService {
     this.#onMetadata({
       trackerType: track.extension.toUpperCase()
     });
-    this.#onSnapshot({ duration: 0, state: 'paused' });
   }
 
   play(): void {
@@ -116,7 +118,7 @@ export class ModulePlayerService {
     mediaSessionService.pauseTransportAnchor();
   }
 
-  stop(): void {
+  stop(options: StopOptions = {}): void {
     this.#loadToken += 1;
     this.#playing = false;
     this.#started = false;
@@ -126,7 +128,9 @@ export class ModulePlayerService {
     this.#resetPublishedProgress();
     this.#disposePlayer();
     mediaSessionService.deactivateTransportAnchor();
-    this.#onSnapshot({ state: 'paused', currentTime: 0, error: undefined });
+    if (!options.silent) {
+      this.#onSnapshot({ state: 'paused', currentTime: 0, error: undefined });
+    }
   }
 
   destroy(): void {

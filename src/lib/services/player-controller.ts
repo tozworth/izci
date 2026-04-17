@@ -33,6 +33,8 @@ const initialStatusSnapshot: PlaybackStatusSnapshot = {
 function createPlayerController() {
   let volume = playerVolume.getSnapshot();
   let playbackConfig = playbackSettings.getSnapshot();
+  let desiredPlaybackState: 'playing' | 'paused' = 'paused';
+  let latestState: PlaybackState = initialSnapshot.state;
   const snapshot = writable<PlaybackSnapshot>({ ...initialSnapshot, volume });
   const status = writable<PlaybackStatusSnapshot>({ ...initialStatusSnapshot, volume });
   const currentTrack = writable<PlaylistItem | null>(null);
@@ -41,6 +43,10 @@ function createPlayerController() {
   let metadataConfig = metadataSettings.getSnapshot();
 
   const onSnapshot = (partial: Partial<PlaybackSnapshot>) => {
+    if (partial.state !== undefined) {
+      latestState = partial.state;
+    }
+
     snapshot.update((state) => ({ ...state, ...partial }));
 
     if (
@@ -109,37 +115,55 @@ function createPlayerController() {
     status,
     currentTrack,
     async load(track: PlaylistItem, options: { autoPlay?: boolean } = {}) {
+      const autoPlay = options.autoPlay === true;
       const preparedTrack = applyMetadataInference(track);
+      desiredPlaybackState = autoPlay ? 'playing' : 'paused';
       activeTrack = preparedTrack;
       currentTrack.set(preparedTrack);
-      services.stream.stop();
       services.stream.destroy();
-      services.module.stop();
+      services.module.stop({ silent: true });
+
+      if (preparedTrack.kind === 'stream') {
+        services.stream.load(preparedTrack, { autoPlay });
+        services.stream.setVolume(volume, playbackConfig.logarithmicVolume);
+      } else {
+        const pendingDuration = preparedTrack.metadata?.duration ?? 0;
+        const loadPromise = services.module.load(preparedTrack);
+
+        onSnapshot({
+          state: autoPlay ? 'playing' : 'loading',
+          currentTime: 0,
+          duration: pendingDuration,
+          backend: preparedTrack.kind,
+          error: undefined
+        });
+
+        await loadPromise;
+        services.module.setVolume(volume, playbackConfig.logarithmicVolume);
+
+        if (desiredPlaybackState === 'playing') {
+          services.module.play();
+        } else if (latestState === 'loading') {
+          onSnapshot({ state: 'paused', error: undefined });
+        }
+
+        return;
+      }
+
       onSnapshot({
-        state: 'loading',
+        state: autoPlay ? 'playing' : 'loading',
         currentTime: 0,
         duration: preparedTrack.metadata?.duration ?? 0,
         backend: preparedTrack.kind,
         error: undefined
       });
-
-      if (preparedTrack.kind === 'stream') {
-        services.stream.load(preparedTrack, { autoPlay: options.autoPlay === true });
-        services.stream.setVolume(volume, playbackConfig.logarithmicVolume);
-      } else {
-        await services.module.load(preparedTrack);
-        services.module.setVolume(volume, playbackConfig.logarithmicVolume);
-
-        if (options.autoPlay === true) {
-          services.module.play();
-        }
-      }
     },
     play() {
       if (!activeTrack) {
         return;
       }
 
+      desiredPlaybackState = 'playing';
       services[activeTrack.kind].play();
     },
     pause() {
@@ -147,7 +171,12 @@ function createPlayerController() {
         return;
       }
 
+      desiredPlaybackState = 'paused';
       services[activeTrack.kind].pause();
+
+      if (latestState === 'loading' || latestState === 'playing') {
+        onSnapshot({ state: 'paused', error: undefined });
+      }
     },
     seek(seconds: number) {
       if (!activeTrack) {
@@ -165,9 +194,9 @@ function createPlayerController() {
       onSnapshot({ volume: nextVolume });
     },
     unload() {
+      desiredPlaybackState = 'paused';
       activeTrack = null;
       currentTrack.set(null);
-      services.stream.stop();
       services.stream.destroy();
       services.module.stop();
       onSnapshot({

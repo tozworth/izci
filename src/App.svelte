@@ -100,7 +100,9 @@
   let selectedPlaylistItem: PlaylistItem | null = null;
   let selectedLibraryItem: PlaylistItem | null = null;
   let selectedItem: PlaylistItem | null = null;
+  let detailsTargetTrack: PlaylistItem | null = null;
   let detailsDisplayTrack: PlaylistItem | null = null;
+  let visibleDetailsArtwork: LoadedStreamArtwork | null = null;
   let playerDisplayTrack: PlaylistItem | null = null;
   let playingTrack: PlaylistItem | null = null;
   let shuffleEnabled = false;
@@ -170,6 +172,7 @@
   let artworkBackgroundCleanupTimer: ReturnType<typeof setTimeout> | null = null;
   let displayedArtworkKey = '';
   let detailsDisplayRequestKey = '';
+  let detailsArtworkTrackKey = '';
   let artworkBrightnessKey = '';
   let artworkBackgroundMode: ArtworkBackgroundMode = appearanceSettings.getSnapshot().artworkBackgroundMode;
   let isWorkspaceArtworkBackgroundEnabled = false;
@@ -211,6 +214,24 @@
 
   $: isTabbedLayout = innerWidth <= 750;
   $: selectedItem = activeCollection === 'library' ? selectedLibraryItem : selectedPlaylistItem;
+  $: {
+    if (selectedItem) {
+      detailsTargetTrack = selectedItem;
+    } else if (playlistSelectionIds.length === 0 && librarySelectionIds.length === 0) {
+      detailsTargetTrack = null;
+    }
+  }
+  $: {
+    if (selectedItem && detailsDisplayTrack?.id === selectedItem.id) {
+      detailsDisplayTrack = selectedItem;
+    } else if (playlistSelectionIds.length === 0 && librarySelectionIds.length === 0) {
+      detailsDisplayTrack = null;
+    }
+  }
+  $: visibleDetailsArtwork =
+    detailsDisplayTrack && detailsArtworkTrackKey === getTrackArtworkLoadKey(detailsDisplayTrack)
+      ? detailsArtwork
+      : null;
   $: playerDisplayTrack = playingTrack ?? selectedPlaylistItem;
   $: activeArtworkBackground =
     activeArtworkBackgroundSlot === 'primary' ? artworkBackgroundPrimary : artworkBackgroundSecondary;
@@ -281,11 +302,11 @@
     }
   }
   $: {
-    const nextDetailsKey = getTrackArtworkLoadKey(selectedItem);
+    const nextDetailsKey = getTrackArtworkLoadKey(detailsTargetTrack);
 
     if (nextDetailsKey !== detailsDisplayRequestKey) {
       detailsDisplayRequestKey = nextDetailsKey;
-      void syncDetailsDisplay(selectedItem);
+      void syncDetailsDisplay(detailsTargetTrack);
     }
   }
   $: {
@@ -468,10 +489,73 @@
     displayedArtwork = null;
   }
 
+  function wait(milliseconds: number): Promise<void> {
+    return new Promise((resolve) => {
+      setTimeout(resolve, milliseconds);
+    });
+  }
+
+  function hasCommittedPlaybackDetails(track: PlaylistItem | null): boolean {
+    if (!track) {
+      return true;
+    }
+
+    const metadata = track.metadata;
+
+    if ((metadata?.duration ?? 0) > 0) {
+      return true;
+    }
+
+    if (track.kind === 'module') {
+      return Boolean(
+        metadata?.patterns ||
+          metadata?.channels ||
+          metadata?.orders ||
+          metadata?.subsongNames?.length ||
+          metadata?.message?.trim() ||
+          metadata?.originalType?.trim()
+      );
+    }
+
+    return false;
+  }
+
+  async function waitForDetailsCommitReady(
+    track: PlaylistItem,
+    loadToken: number
+  ): Promise<PlaylistItem | null> {
+    const deadline = Date.now() + 1000;
+
+    while (
+      loadToken === detailsArtworkLoadToken &&
+      detailsTargetTrack?.id === track.id &&
+      playingTrack?.id === track.id &&
+      !hasCommittedPlaybackDetails(resolveDetailsTrackSnapshot(track)) &&
+      Date.now() < deadline
+    ) {
+      await wait(16);
+    }
+
+    return resolveDetailsTrackSnapshot(track);
+  }
+
+  function resolveDetailsTrackSnapshot(track: PlaylistItem | null): PlaylistItem | null {
+    if (!track) {
+      return null;
+    }
+
+    if (selectedItem?.id === track.id) {
+      return selectedItem;
+    }
+
+    return getTrackById('playlist', track.id) ?? getTrackById('library', track.id) ?? track;
+  }
+
   function setDetailsDisplay(track: PlaylistItem | null, artwork: LoadedStreamArtwork | null) {
     const previousArtwork = detailsArtwork;
     detailsDisplayTrack = track;
     detailsArtwork = artwork;
+    detailsArtworkTrackKey = getTrackArtworkLoadKey(track);
 
     if (previousArtwork && previousArtwork !== artwork) {
       revokeTrackArtwork(previousArtwork);
@@ -527,7 +611,14 @@
       return;
     }
 
-    setDetailsDisplay(track, artwork);
+    const resolvedTrack = await waitForDetailsCommitReady(track, loadToken);
+
+    if (loadToken !== detailsArtworkLoadToken) {
+      revokeTrackArtwork(artwork);
+      return;
+    }
+
+    setDetailsDisplay(resolvedTrack, artwork);
   }
 
   async function syncArtworkBrightness(artwork: LoadedStreamArtwork | null, enabled: boolean) {
@@ -1122,7 +1213,7 @@
       {libraryPanelProps}
       {libraryPanelHandlers}
       selectedItem={detailsDisplayTrack}
-      {detailsArtwork}
+      detailsArtwork={visibleDetailsArtwork}
       isDetailsVisible={isDetailsPanelVisible}
       onCloseDetails={handleCloseTrackDetails}
       on:tabChange={(event) => setActiveWorkspaceTab(event.detail)}
@@ -1137,7 +1228,7 @@
       resizerWidth={WORKSPACE_RESIZER_WIDTH}
       isResizing={Boolean(resizeState)}
       selectedItem={detailsDisplayTrack}
-      {detailsArtwork}
+      detailsArtwork={visibleDetailsArtwork}
       isDetailsVisible={isDetailsPanelVisible}
       onCloseDetails={handleCloseTrackDetails}
       on:resizeStart={handleWideWorkspaceResizeStart}
