@@ -138,6 +138,12 @@ button {
   --chrome-backdrop-blur: 28px;
   --chrome-backdrop-saturate: 1.16;
   --menu-bar-bg: rgba(17, 18, 24, 0.42);
+  --menu-popover-bg: rgba(18, 19, 24, 0.86);
+  --menu-popover-text: rgba(248, 246, 241, 0.96);
+  --menu-popover-muted: rgba(248, 246, 241, 0.72);
+  --menu-popover-border: rgba(255, 255, 255, 0.16);
+  --menu-popover-hover: rgba(255, 255, 255, 0.08);
+  --menu-popover-shadow: 0 24px 60px rgba(0, 0, 0, 0.28);
   --bg-elevated: rgba(18, 19, 24, 0.44);
   --bg-soft: rgba(18, 19, 24, 0.5);
   --bg-popover: rgba(18, 19, 24, 0.8);
@@ -184,6 +190,12 @@ button {
 .app-shell.artwork-background-active.artwork-background-bright {
   color-scheme: light;
   --menu-bar-bg: rgba(252, 248, 240, 0.46);
+  --menu-popover-bg: rgba(255, 250, 243, 0.96);
+  --menu-popover-text: #241b12;
+  --menu-popover-muted: rgba(36, 27, 18, 0.72);
+  --menu-popover-border: rgba(52, 39, 25, 0.16);
+  --menu-popover-hover: rgba(52, 39, 25, 0.08);
+  --menu-popover-shadow: 0 20px 50px rgba(57, 41, 25, 0.14);
   --bg-elevated: rgba(255, 250, 242, 0.48);
   --bg-soft: rgba(255, 250, 242, 0.58);
   --bg-popover: rgba(255, 250, 243, 0.88);
@@ -232,6 +244,24 @@ button {
 .app-shell.window-controls-overlay-active.artwork-background-active::before,
 .app-shell.window-controls-overlay-active.artwork-background-active::after {
   clip-path: inset(var(--window-frame-safe-top) 0 0 0);
+}
+
+body.artwork-background-active {
+  --menu-popover-bg: rgba(18, 19, 24, 0.86);
+  --menu-popover-text: rgba(248, 246, 241, 0.96);
+  --menu-popover-muted: rgba(248, 246, 241, 0.72);
+  --menu-popover-border: rgba(255, 255, 255, 0.16);
+  --menu-popover-hover: rgba(255, 255, 255, 0.08);
+  --menu-popover-shadow: 0 24px 60px rgba(0, 0, 0, 0.28);
+}
+
+body.artwork-background-active.artwork-background-bright {
+  --menu-popover-bg: rgba(255, 250, 243, 0.96);
+  --menu-popover-text: #241b12;
+  --menu-popover-muted: rgba(36, 27, 18, 0.72);
+  --menu-popover-border: rgba(52, 39, 25, 0.16);
+  --menu-popover-hover: rgba(52, 39, 25, 0.08);
+  --menu-popover-shadow: 0 20px 50px rgba(57, 41, 25, 0.14);
 }
 
 .menu-bar {
@@ -362,10 +392,10 @@ button {
   min-width: 12rem;
   max-width: calc(100vw - 1rem);
   padding: 0.25rem;
-  background: var(--bg-popover);
-  border: 1px solid var(--border-strong);
+  background: var(--menu-popover-bg);
+  border: 1px solid var(--menu-popover-border);
   border-radius: 0.5rem;
-  box-shadow: var(--shadow);
+  box-shadow: var(--menu-popover-shadow);
   z-index: 30;
   -webkit-app-region: no-drag;
 }
@@ -378,7 +408,7 @@ button {
   padding: 0.45rem 0.55rem;
   background: transparent;
   border-radius: 0.5rem;
-  color: var(--text);
+  color: var(--menu-popover-text);
   text-align: left;
   white-space: nowrap;
   -webkit-app-region: no-drag;
@@ -394,7 +424,7 @@ button {
 
 .menu-item-shortcut {
   min-width: 4rem;
-  color: var(--muted);
+  color: var(--menu-popover-muted);
   font-size: 0.8rem;
   letter-spacing: 0.02em;
   text-align: right;
@@ -402,15 +432,15 @@ button {
 
 .menu-item-icon {
   font-size: 1rem;
-  color: var(--muted);
+  color: var(--menu-popover-muted);
 }
 
 .menu-list button:hover {
-  background: var(--accent-soft);
+  background: var(--menu-popover-hover);
 }
 
 .menu-list button:disabled {
-  color: var(--muted);
+  color: var(--menu-popover-muted);
   cursor: default;
 }
 
@@ -425,7 +455,7 @@ button {
 .menu-separator {
   height: 1px;
   margin: 0.25rem 0;
-  background: var(--border-strong);
+  background: var(--menu-popover-border);
 }
 
 .menu-brand {

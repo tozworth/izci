@@ -253,6 +253,10 @@
       void syncArtworkBrightness(displayedArtwork, $appearanceSettings.useArtworkBackgroundColors);
     }
   }
+  $: syncArtworkMenuClasses(
+    $appearanceSettings.useArtworkBackgroundColors && Boolean(displayedArtwork),
+    isArtworkBackgroundBright
+  );
 
   const playlistPanelHandlers: WorkspacePanelHandlers = {
     addFiles: (files) => handleAddFiles(files, 'playlist'),
@@ -381,6 +385,15 @@
     }
 
     isArtworkBackgroundBright = analysis.isBright;
+  }
+
+  function syncArtworkMenuClasses(active: boolean, bright: boolean) {
+    if (typeof document === 'undefined' || !document.body) {
+      return;
+    }
+
+    document.body.classList.toggle('artwork-background-active', active);
+    document.body.classList.toggle('artwork-background-bright', active && bright);
   }
 
   function addFiles(files: FileList | File[], target: WorkspaceCollection) {
@@ -848,6 +861,7 @@
   onDestroy(() => {
     artworkLoadToken += 1;
     clearDisplayedArtwork();
+    syncArtworkMenuClasses(false, false);
     unsubscribePlaylistItems();
     unsubscribeLibraryItems();
     unsubscribePlaylistSelectedIds();

@@ -243,7 +243,7 @@
 
   .menu-item-chevron {
     min-width: 1rem;
-    color: var(--muted);
+    color: var(--menu-popover-muted);
     font-size: 1rem;
     text-align: right;
   }
@@ -256,6 +256,6 @@
 
   .submenu-open,
   .menu-back-button:hover {
-    background: var(--accent-soft);
+    background: var(--menu-popover-hover);
   }
 </style>
