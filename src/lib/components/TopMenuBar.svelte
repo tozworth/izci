@@ -71,8 +71,12 @@
   let compactMenuOpen = false;
   let compactMenuX = 8;
   let compactMenuY = 8;
+  let menuPopupX = 8;
+  let menuPopupY = 8;
   let menuBarElement: HTMLElement | null = null;
   let compactMenuTriggerElement: HTMLButtonElement | null = null;
+  let fileMenuTriggerElement: HTMLButtonElement | null = null;
+  let viewMenuTriggerElement: HTMLButtonElement | null = null;
   let menuBarWidth = Number.POSITIVE_INFINITY;
   let availableTitlebarWidth = Number.POSITIVE_INFINITY;
   let menuGroupsWidth = 0;
@@ -99,10 +103,18 @@
   } else {
     compactMenuOpen = false;
   }
+  $: if (activeMenu !== null) {
+    updateMenuPosition(activeMenu);
+  }
 
   function toggleMenu(menuId: MenuId) {
     compactMenuOpen = false;
-    activeMenu = activeMenu === menuId ? null : menuId;
+    const nextMenu = activeMenu === menuId ? null : menuId;
+    activeMenu = nextMenu;
+
+    if (nextMenu !== null) {
+      updateMenuPosition(nextMenu);
+    }
   }
 
   function closeMenus() {
@@ -117,6 +129,7 @@
 
     if (activeMenu !== null && activeMenu !== menuId) {
       activeMenu = menuId;
+      updateMenuPosition(menuId);
     }
   }
 
@@ -148,6 +161,22 @@
   function runMenuAction(action: MenuActionId) {
     closeMenus();
     dispatch(action);
+  }
+
+  function getMenuTriggerElement(menuId: MenuId) {
+    return menuId === 'file' ? fileMenuTriggerElement : viewMenuTriggerElement;
+  }
+
+  function updateMenuPosition(menuId: MenuId) {
+    const triggerElement = getMenuTriggerElement(menuId);
+
+    if (!triggerElement) {
+      return;
+    }
+
+    const rect = triggerElement.getBoundingClientRect();
+    menuPopupX = rect.left;
+    menuPopupY = rect.bottom + 6;
   }
 
   function handleVersionIndicatorClick() {
@@ -227,6 +256,7 @@
     <div class="menu-groups" bind:clientWidth={menuGroupsWidth}>
       <div class="menu-root" role="none" on:pointerenter={() => handleMenuHover('file')}>
         <button
+          bind:this={fileMenuTriggerElement}
           class:active={activeMenu === 'file'}
           class="menu-trigger"
           data-menu-interactive="true"
@@ -238,23 +268,20 @@
           File
         </button>
         {#if activeMenu === 'file'}
-          <div class="menu-list" data-menu-interactive="true" role="menu" aria-label="File">
-            {#each FILE_MENU_ITEMS as item}
-              {#if item.separatorBefore}
-                <div class="menu-separator" role="separator" aria-hidden="true"></div>
-              {/if}
-              <button type="button" role="menuitem" on:click={() => runMenuAction(item.id as MenuActionId)}>
-                <span class="material-symbols-outlined menu-item-icon" aria-hidden="true">{item.icon ?? 'label'}</span>
-                <span class="menu-item-label">{item.label}</span>
-                <span class="menu-item-shortcut" aria-hidden="true">{item.shortcut ?? ''}</span>
-              </button>
-            {/each}
-          </div>
+          <MenuSurface
+            items={FILE_MENU_ITEMS}
+            x={menuPopupX}
+            y={menuPopupY}
+            ariaLabel="File"
+            on:action={(event) => runMenuAction(event.detail as MenuActionId)}
+            on:dismiss={closeMenus}
+          />
         {/if}
       </div>
 
       <div class="menu-root" role="none" on:pointerenter={() => handleMenuHover('view')}>
         <button
+          bind:this={viewMenuTriggerElement}
           class:active={activeMenu === 'view'}
           class="menu-trigger"
           data-menu-interactive="true"
@@ -266,18 +293,14 @@
           View
         </button>
         {#if activeMenu === 'view'}
-          <div class="menu-list" data-menu-interactive="true" role="menu" aria-label="View">
-            {#each VIEW_MENU_ITEMS as item}
-              {#if item.separatorBefore}
-                <div class="menu-separator" role="separator" aria-hidden="true"></div>
-              {/if}
-              <button type="button" role="menuitem" on:click={() => runMenuAction(item.id as MenuActionId)}>
-                <span class="material-symbols-outlined menu-item-icon" aria-hidden="true">{item.icon ?? 'label'}</span>
-                <span class="menu-item-label">{item.label}</span>
-                <span class="menu-item-shortcut" aria-hidden="true">{item.shortcut ?? ''}</span>
-              </button>
-            {/each}
-          </div>
+          <MenuSurface
+            items={VIEW_MENU_ITEMS}
+            x={menuPopupX}
+            y={menuPopupY}
+            ariaLabel="View"
+            on:action={(event) => runMenuAction(event.detail as MenuActionId)}
+            on:dismiss={closeMenus}
+          />
         {/if}
       </div>
     </div>
