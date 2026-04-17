@@ -22,7 +22,7 @@
 
 ## `App.svelte` split / cleanup
 
-- Status: approved starting point
+- Status: phase 1-3 completed
 - Primary target:
   - `src/App.svelte`
 - Current reality check:
@@ -36,10 +36,10 @@
   - Move non-rendering state machines and imperative coordination into focused services or controller-style modules.
   - Preserve the current split between streamed playback, module playback, IndexedDB persistence, and PWA/browser integration.
 - Planned path:
-  - Phase 1: extract artwork/details presentation coordination from `src/App.svelte` into a focused module. This includes artwork loading/revocation, background slot swapping, brightness analysis, and details-panel display synchronization.
-  - Phase 2: extract playback command orchestration around play/load/step/end handling while keeping `playerController` as the backend switchboard.
-  - Phase 3: extract workspace-shell coordination for selection bridging, panel props/handlers assembly, details-panel visibility, and wide-layout resize state if it still meaningfully shrinks `App.svelte`.
-  - After each phase, keep `App.svelte` responsible only for wiring stores/services into `TopMenuBar`, `TabbedWorkspace` / `WideWorkspace`, and `PlayerControls`.
+  - Phase 1 completed: artwork/details presentation coordination moved into `src/lib/services/artwork-presentation.ts`.
+  - Phase 2 completed: playback command orchestration moved into `src/lib/services/playback-commands.ts` while `playerController` remains the backend switchboard.
+  - Phase 3 completed: workspace-shell coordination moved into `src/lib/services/workspace-shell.ts`.
+  - Current end state: `src/App.svelte` now mainly wires stores/services into `TopMenuBar`, `TabbedWorkspace` / `WideWorkspace`, and `PlayerControls`.
 - Guardrails:
   - Do not regress either playback path:
     - streamed formats stay on Howler HTML5 audio

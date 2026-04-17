@@ -44,7 +44,7 @@ Working source tree:
 ## App source map
 
 - `src/main.ts`: Svelte mount, global CSS/material symbol import, and production-only handoff to the dedicated PWA registration/update service.
-- `src/App.svelte`: top-level shell; composes the extracted workspace layouts/controllers, owns high-level workspace coordination, global shortcuts, error banner wiring, and wires the shared playback-command and artwork/details presentation controller state into the shell and player footer.
+- `src/App.svelte`: top-level shell; composes the extracted workspace layouts/controllers, owns high-level shell wiring, global shortcuts, error banner wiring, and connects the workspace-shell, playback-command, and artwork/details presentation controllers to the rendered layout.
 - `src/app.css`: global styling.
 - `src/lib/styles/themes.css`: shared color-theme tokens consumed by the main app and Options popup.
 - `src/options/main.ts`: Options popup entry; mounts the dedicated popup Svelte app.
@@ -102,6 +102,7 @@ Primary location for playback and browser-integration logic.
 - `module-metadata.ts`: background `Chiptune3` metadata probe used by store hydration to capture tracker-module duration/details without waiting for normal playback.
 - `artwork-background.ts`: artwork brightness analysis used by the main app shell to decide when artwork-backed backgrounds should flip UI surfaces/text into a darker-on-light contrast mode.
 - `artwork-presentation.ts`: main-shell artwork/details presentation controller; manages player/footer artwork loading, details-panel artwork synchronization, artwork-background slot swapping/cleanup, brightness-driven contrast state, and the temporary window-chrome transition bypass used when Window Controls Overlay visibility changes.
+- `workspace-shell.ts`: main-shell workspace controller; manages active playlist/library focus, details-panel visibility, playlist jump requests, wide-layout resize state, derived workspace panel props/tabs, and wide-layout width recomputation from the persisted panel layout store.
 - `pwa-updates.ts`: service-worker registration plus proactive update checks for long-lived preview/installed PWA windows so new builds can activate without getting stuck on the first cached shell.
 - `theme.ts`: shared color-theme metadata, document-theme application, and dynamic `<meta name="theme-color">` updates used by both window entrypoints so Chromium/PWA window chrome tracks the active theme where supported.
 - `window-controls-overlay.ts`: readable store that tracks Window Controls Overlay support, visibility, and `titlebarAreaRect` updates from Chromium's `geometrychange` event.
@@ -167,6 +168,7 @@ Primary location for playback and browser-integration logic.
 - `src/lib/services/window-controls-overlay.ts` is the single source of truth for Window Controls Overlay state. Consume its readable store instead of querying `navigator.windowControlsOverlay` directly from components.
 - `src/lib/services/artwork-presentation.ts` is the single coordinator for app-shell artwork/details presentation side effects. Keep artwork loading/revocation, details-artwork waiting, background-slot cleanup, brightness analysis coordination, and overlay-transition bypass logic there rather than rebuilding them in `App.svelte`.
 - `src/lib/services/playback-commands.ts` is the single coordinator for app-shell playback command sequencing. Keep playlist-backed play/load request ordering, launched-file replacement, and next/previous/end-of-track command flow there rather than rebuilding that logic in `App.svelte`.
+- `src/lib/services/workspace-shell.ts` is the single coordinator for app-shell workspace state. Keep selection exclusivity, active collection/tab tracking, details-panel visibility, playlist jump requests, workspace panel prop derivation, and wide-layout resize coordination there rather than rebuilding that logic in `App.svelte`.
 - `src/lib/components/TopMenuBar.svelte` is responsible for titlebar adaptation: it becomes a drag region in overlay mode, marks interactive controls as `no-drag`, hides the version badge while overlay mode is visible, and sizes/collapses itself based on the live available `titlebarAreaRect.width` rather than raw viewport width.
 - When the titlebar menu collapses, it should stay on the shared `MenuSurface.svelte` path rather than inventing a second menu system. `MenuSurface.svelte` supports nested submenus and a drilldown fallback that replaces File/View root entries with submenu contents when flyout submenus would overflow the current window.
 - `src/App.svelte` is responsible for top-level workspace orchestration, but durable state and local algorithms should live in stores/services or the focused workspace components.

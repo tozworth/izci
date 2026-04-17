@@ -5,10 +5,7 @@
   import TabbedWorkspace from '$lib/components/workspace/TabbedWorkspace.svelte';
   import WideWorkspace from '$lib/components/workspace/WideWorkspace.svelte';
   import type {
-    WideWorkspaceResizeStartDetail,
-    WorkspacePanelHandlers,
-    WorkspacePanelProps,
-    WorkspaceTabDefinition
+    WorkspacePanelHandlers
   } from '$lib/components/workspace/types';
   import {
     createArtworkPresentationController,
@@ -18,6 +15,7 @@
   import { createImportController, FILE_INPUT_ACCEPT } from '$lib/services/import-controller';
   import { subscribeToLaunchedFiles } from '$lib/services/file-launch';
   import { createPlaybackCommandsController } from '$lib/services/playback-commands';
+  import { createWorkspaceShellController } from '$lib/services/workspace-shell';
   import { mediaSessionService } from '$lib/services/media-session';
   import { playerController } from '$lib/services/player-controller';
   import {
@@ -25,13 +23,9 @@
     buildPlaylistContextActions,
     buildSelectedWorkspaceTracks,
     getEquivalentLibraryIds,
-    getOtherWorkspaceCollection,
     libraryHasAllTracks
   } from '$lib/services/workspace-actions';
   import {
-    getWideContentWidth,
-    resolveResizedPanelLayout,
-    resolveWidePanelWidths,
     WORKSPACE_RESIZER_WIDTH
   } from '$lib/services/workspace-layout';
   import { windowManager } from '$lib/services/window-manager';
@@ -39,18 +33,13 @@
   import { appearanceSettings } from '$lib/stores/appearance-settings';
   import { libraryStore, playlistStore } from '$lib/stores/playlist';
   import { DEFAULT_PLAYER_VOLUME } from '$lib/stores/player-volume';
-  import { workspacePanelLayout } from '$lib/stores/workspace-panel-layout';
   import type {
     ArtworkBackgroundMode,
     PlaybackSnapshot,
     PlaylistItem,
     PlaylistRepeatMode,
     PlaylistSelection,
-    WorkspaceCollection,
-    WorkspaceJumpRequest,
-    WorkspacePanelLayoutSettings,
-    WorkspaceResizeHandle,
-    WorkspaceTab
+    WorkspaceCollection
   } from '$lib/types';
   import type { OptionsViewName } from './options/views';
   import {
@@ -59,13 +48,6 @@
     getTrackDisplayTitle,
     getTrackIdentity
   } from '$lib/utils/files';
-
-  type TrackCollectionStore = typeof playlistStore;
-  type PanelResizeState = {
-    handle: WorkspaceResizeHandle;
-    startX: number;
-    startLayout: WorkspacePanelLayoutSettings;
-  };
 
   const {
     items: playlistItemsStore,
@@ -81,11 +63,6 @@
     selectedTrack: librarySelectedTrackStore
   } = libraryStore;
 
-  const allWorkspaceTabs: WorkspaceTabDefinition[] = [
-    { id: 'playlist', icon: 'queue_music', label: 'Playlist' },
-    { id: 'library', icon: 'library_music', label: 'Library' },
-    { id: 'details', icon: 'info', label: 'Details' }
-  ];
   const libraryContextActions = buildLibraryContextActions();
 
   let playlistItems: PlaylistItem[] = [];
@@ -110,25 +87,19 @@
 
   let fileInput: HTMLInputElement | null = null;
   let innerWidth = 0;
-  let activeCollection: WorkspaceCollection = 'playlist';
-  let activeWorkspaceTab: WorkspaceTab = 'playlist';
   let previousPlaybackState: PlaybackSnapshot['state'] = playbackStatus.state;
-  let playlistJumpRequest: WorkspaceJumpRequest | null = null;
   let artworkBackgroundMode: ArtworkBackgroundMode = appearanceSettings.getSnapshot().artworkBackgroundMode;
   let isWorkspaceArtworkBackgroundEnabled = false;
   let isPlayerBarArtworkBackgroundEnabled = false;
   let isPlayerBarArtworkLayerActive = false;
   let isWorkspaceArtworkBackgroundActive = false;
   let isArtworkBackgroundActive = false;
-  let isDetailsPanelVisible = true;
-  let panelLayout = workspacePanelLayout.getSnapshot();
-  let resizeState: PanelResizeState | null = null;
-  let wideContentWidth = 0;
-  let widePanelWidths = resolveWidePanelWidths(panelLayout, 0);
   let documentTitle = 'izci';
-  let playlistPanelProps: WorkspacePanelProps;
-  let libraryPanelProps: WorkspacePanelProps;
-  let workspaceTabs: WorkspaceTabDefinition[] = allWorkspaceTabs.filter((tab) => tab.id !== 'details');
+  const workspaceShell = createWorkspaceShellController({
+    getPlaylistContextActions,
+    getLibraryContextActions
+  });
+  let workspaceShellState = workspaceShell.getSnapshot();
   const playbackCommands = createPlaybackCommandsController({
     getPlayingTrack: () => playingTrack,
     getSelectedPlaylistTrack: () => selectedPlaylistItem,
@@ -137,8 +108,8 @@
     getRepeatMode: () => repeatMode,
     getTrackById: (collection, id) =>
       (collection === 'library' ? libraryItems : playlistItems).find((item) => item.id === id) ?? null,
-    selectTrack,
-    setActiveWorkspaceTab,
+    selectTrack: workspaceShell.selectTrack,
+    setActiveWorkspaceTab: workspaceShell.setActiveWorkspaceTab,
     cleanupRemovedItems
   });
   let playbackCommandsState = playbackCommands.getSnapshot();
@@ -187,6 +158,7 @@
     }
   });
   const unsubscribePlaybackStatus = playerController.status.subscribe((value) => (playbackStatus = value));
+  const unsubscribeWorkspaceShell = workspaceShell.subscribe((value) => (workspaceShellState = value));
   const unsubscribePlaybackCommands = playbackCommands.subscribe(
     (value) => (playbackCommandsState = value)
   );
@@ -201,9 +173,6 @@
   const unsubscribeLaunchedFiles = subscribeToLaunchedFiles((files) =>
     void playbackCommands.replacePlaylistFromFiles(files)
   );
-  const unsubscribeWorkspacePanelLayout = workspacePanelLayout.subscribe(
-    (value) => (panelLayout = value)
-  );
   const disconnectMediaSession = mediaSessionService.connect({
     snapshot: playerController.snapshot,
     track: playerController.currentTrack,
@@ -217,8 +186,8 @@
     }
   });
 
-  $: isTabbedLayout = innerWidth <= 750;
-  $: selectedItem = activeCollection === 'library' ? selectedLibraryItem : selectedPlaylistItem;
+  $: selectedItem =
+    workspaceShellState.activeCollection === 'library' ? selectedLibraryItem : selectedPlaylistItem;
   $: livePlayingTrack = resolveTrackSnapshot(playingTrack, selectedItem, playlistItems, libraryItems);
   $: playerDisplayTrack = livePlayingTrack;
   $: artworkBackgroundMode = $appearanceSettings.artworkBackgroundMode;
@@ -235,50 +204,18 @@
     $appearanceSettings.showTrackTitleInWindowTitle && livePlayingTrack
       ? getTrackDisplayTitle(livePlayingTrack)
       : 'izci';
-  $: {
-    const viewportWidth =
-      innerWidth > 0 ? innerWidth : typeof window !== 'undefined' ? window.innerWidth : 0;
-    wideContentWidth = getWideContentWidth(viewportWidth, {
-      detailsVisible: isDetailsPanelVisible,
-      horizontalPadding: $appearanceSettings.compactShell ? 0 : undefined
-    });
-  }
-  $: widePanelWidths = resolveWidePanelWidths(panelLayout, wideContentWidth, {
-    detailsVisible: isDetailsPanelVisible
-  });
-  $: workspaceTabs = allWorkspaceTabs.filter(
-    (tab) => tab.id !== 'details' || isDetailsPanelVisible
-  );
-  $: playlistPanelProps = {
-    items: playlistItems,
-    selectedIds: playlistSelectionIds,
-    playingId: playingTrack?.id ?? null,
-    jumpToItemRequest: playlistJumpRequest,
-    panelTitle: 'Playlist',
-    regionLabel: 'Playlist',
+  $: workspaceShell.sync({
+    innerWidth,
+    compactShell: $appearanceSettings.compactShell,
+    playlistItems,
+    libraryItems,
+    playlistSelectionIds,
+    librarySelectionIds,
+    librarySelectionAnchorId,
+    playingTrackId: playingTrack?.id ?? null,
     shuffleEnabled,
-    repeatMode,
-    getContextMenuActions: getPlaylistContextActions
-  };
-  $: libraryPanelProps = {
-    items: libraryItems,
-    selectedIds: librarySelectionIds,
-    selectionAnchorId: librarySelectionAnchorId,
-    playingId: null,
-    panelTitle: 'Library',
-    regionLabel: 'Library',
-    layout: 'columns',
-    showShuffleControl: false,
-    showRepeatControl: false,
-    showSearchControl: true,
-    getContextMenuActions: getLibraryContextActions
-  };
-  $: if (playlistSelectionIds.length > 0 && librarySelectionIds.length > 0) {
-    clearSelection(getOtherWorkspaceCollection(activeCollection));
-  }
-  $: if (!isDetailsPanelVisible && activeWorkspaceTab === 'details') {
-    setActiveWorkspaceTab(activeCollection);
-  }
+    repeatMode
+  });
   $: {
     artworkPresentation.syncSelection(
       selectedItem,
@@ -315,63 +252,6 @@
     contextAction: handleLibraryContextAction
   };
 
-  function getCollectionStore(collection: WorkspaceCollection): TrackCollectionStore {
-    return collection === 'library' ? libraryStore : playlistStore;
-  }
-
-  function getCollectionSelectionIds(collection: WorkspaceCollection): string[] {
-    return collection === 'library' ? librarySelectionIds : playlistSelectionIds;
-  }
-
-  function clearSelection(collection: WorkspaceCollection) {
-    if (getCollectionSelectionIds(collection).length === 0) {
-      return;
-    }
-
-    getCollectionStore(collection).setSelection({
-      ids: [],
-      anchorId: null,
-      focusId: null
-    });
-  }
-
-  function clearOtherSelection(collection: WorkspaceCollection) {
-    clearSelection(getOtherWorkspaceCollection(collection));
-  }
-
-  function selectTrack(
-    collection: WorkspaceCollection,
-    id: string,
-    options?: { range?: boolean; toggle?: boolean }
-  ) {
-    clearOtherSelection(collection);
-    activeCollection = collection;
-    getCollectionStore(collection).select(id, options);
-  }
-
-  function setCollectionSelection(
-    collection: WorkspaceCollection,
-    nextSelection: PlaylistSelection
-  ) {
-    clearOtherSelection(collection);
-    activeCollection = collection;
-    getCollectionStore(collection).setSelection(nextSelection);
-  }
-
-  function selectAllTracks(collection: WorkspaceCollection) {
-    clearOtherSelection(collection);
-    activeCollection = collection;
-    getCollectionStore(collection).selectAll();
-  }
-
-  function setActiveWorkspaceTab(tab: WorkspaceTab) {
-    activeWorkspaceTab = tab;
-
-    if (tab !== 'details') {
-      activeCollection = tab;
-    }
-  }
-
   function cleanupRemovedItems(items: PlaylistItem[]) {
     for (const item of items) {
       if (item.objectUrl) {
@@ -398,97 +278,52 @@
       return [];
     }
 
-    return getCollectionStore(target).add(nextItems);
+    return (target === 'library' ? libraryStore : playlistStore).add(nextItems);
   }
 
   function handleAddFiles(
     files: FileList | File[],
-    target: WorkspaceCollection = activeCollection
+    target: WorkspaceCollection = workspaceShellState.activeCollection
   ) {
     const nextItems = addFiles(files, target);
+    const selectedIds = target === 'library' ? librarySelectionIds : playlistSelectionIds;
 
-    if (nextItems.length > 0 && getCollectionSelectionIds(target).length === 0) {
-      selectTrack(target, nextItems[0].id);
+    if (nextItems.length > 0 && selectedIds.length === 0) {
+      workspaceShell.selectTrack(target, nextItems[0].id);
       return;
     }
 
-    activeCollection = target;
+    workspaceShell.focusCollection(target);
   }
 
   function handleSelect(
     collection: WorkspaceCollection,
     event: CustomEvent<{ id: string; range: boolean; toggle: boolean }>
   ) {
-    selectTrack(collection, event.detail.id, {
+    workspaceShell.selectTrack(collection, event.detail.id, {
       range: event.detail.range,
       toggle: event.detail.toggle
     });
   }
 
   function handleSetSelection(collection: WorkspaceCollection, event: CustomEvent<PlaylistSelection>) {
-    setCollectionSelection(collection, event.detail);
+    workspaceShell.setCollectionSelection(collection, event.detail);
   }
 
   function handleShowPlaylistTrack(id: string) {
-    setActiveWorkspaceTab('playlist');
-    selectTrack('playlist', id);
-    playlistJumpRequest = {
-      id,
-      token: (playlistJumpRequest?.token ?? 0) + 1
-    };
+    workspaceShell.showPlaylistTrack(id);
   }
 
   function handleShowPlayerTrackDetails(id: string) {
     handleShowPlaylistTrack(id);
-    handleShowTrackDetails();
+    workspaceShell.showTrackDetails();
   }
 
-  function beginPanelResize(event: PointerEvent, handle: WorkspaceResizeHandle) {
-    if (isTabbedLayout) {
-      return;
-    }
-
-    event.preventDefault();
-    resizeState = {
-      handle,
-      startX: event.clientX,
-      startLayout: panelLayout
-    };
-  }
-
-  function handleWideWorkspaceResizeStart(event: CustomEvent<WideWorkspaceResizeStartDetail>) {
-    beginPanelResize(event.detail.event, event.detail.handle);
-  }
-
-  function handlePanelResizeMove(event: PointerEvent) {
-    if (!resizeState || isTabbedLayout) {
-      return;
-    }
-
-    workspacePanelLayout.set(
-      resolveResizedPanelLayout({
-        handle: resizeState.handle,
-        startLayout: resizeState.startLayout,
-        delta: event.clientX - resizeState.startX,
-        contentWidth: wideContentWidth,
-        detailsVisible: isDetailsPanelVisible
-      })
-    );
-  }
-
-  function endPanelResize() {
-    if (!resizeState) {
-      return;
-    }
-
-    resizeState = null;
-  }
-
-  async function handleMenuOpenFiles(target: WorkspaceCollection = activeCollection) {
+  async function handleMenuOpenFiles(target: WorkspaceCollection = workspaceShellState.activeCollection) {
     await importController.openFiles(target);
   }
 
-  async function handleMenuOpenFolder(target: WorkspaceCollection = activeCollection) {
+  async function handleMenuOpenFolder(target: WorkspaceCollection = workspaceShellState.activeCollection) {
     await importController.openFolder(target);
   }
 
@@ -523,7 +358,8 @@
         return;
       }
 
-      const ids = getCollectionSelectionIds(activeCollection);
+      const ids =
+        workspaceShellState.activeCollection === 'library' ? librarySelectionIds : playlistSelectionIds;
 
       if (ids.length === 0) {
         return;
@@ -531,7 +367,7 @@
 
       event.preventDefault();
 
-      if (activeCollection === 'library') {
+      if (workspaceShellState.activeCollection === 'library') {
         removeLibraryItems(ids);
       } else {
         removePlaylistItems(ids);
@@ -551,7 +387,7 @@
     switch (event.key.toLowerCase()) {
       case 'a':
         event.preventDefault();
-        selectAllTracks(activeCollection);
+        workspaceShell.selectAllTracks(workspaceShellState.activeCollection);
         break;
       case 'o':
         event.preventDefault();
@@ -600,15 +436,6 @@
     return libraryContextActions;
   }
 
-  function handleShowTrackDetails() {
-    isDetailsPanelVisible = true;
-    setActiveWorkspaceTab('details');
-  }
-
-  function handleCloseTrackDetails() {
-    isDetailsPanelVisible = false;
-  }
-
   function handlePlaylistContextAction(event: CustomEvent<{ actionId: string; ids: string[] }>) {
     const { actionId, ids } = event.detail;
     const tracks = buildSelectedWorkspaceTracks(playlistItems, ids);
@@ -618,7 +445,7 @@
     }
 
     if (actionId === 'track-details') {
-      handleShowTrackDetails();
+      workspaceShell.showTrackDetails();
       return;
     }
 
@@ -631,7 +458,7 @@
       const addedItems = libraryStore.add(clonePlaylistItems(tracks));
 
       if (addedItems.length > 0 && librarySelectionIds.length === 0) {
-        selectTrack('library', addedItems[0].id);
+        workspaceShell.selectTrack('library', addedItems[0].id);
       }
 
       return;
@@ -651,7 +478,7 @@
     }
 
     if (actionId === 'track-details') {
-      handleShowTrackDetails();
+      workspaceShell.showTrackDetails();
       return;
     }
 
@@ -659,7 +486,7 @@
       const addedItems = playlistStore.add(clonePlaylistItems(tracks));
 
       if (addedItems.length > 0) {
-        selectTrack('playlist', addedItems[0].id);
+        workspaceShell.selectTrack('playlist', addedItems[0].id);
       }
 
       return;
@@ -672,7 +499,7 @@
       playerController.unload();
 
       if (addedItems.length > 0) {
-        selectTrack('playlist', addedItems[0].id);
+        workspaceShell.selectTrack('playlist', addedItems[0].id);
       }
 
       return;
@@ -693,6 +520,7 @@
 
   onDestroy(() => {
     artworkPresentation.destroy();
+    workspaceShell.destroy();
     unsubscribePlaylistItems();
     unsubscribeLibraryItems();
     unsubscribePlaylistSelectedIds();
@@ -704,10 +532,10 @@
     unsubscribeRepeat();
     unsubscribeTrack();
     unsubscribePlaybackStatus();
+    unsubscribeWorkspaceShell();
     unsubscribePlaybackCommands();
     unsubscribeArtworkPresentation();
     unsubscribeLaunchedFiles();
-    unsubscribeWorkspacePanelLayout();
     disconnectMediaSession();
     playerController.destroy();
   });
@@ -721,14 +549,14 @@
   bind:innerWidth
   on:contextmenu={handleWindowContextMenu}
   on:keydown={handleWindowKeydown}
-  on:pointermove={handlePanelResizeMove}
-  on:pointerup={endPanelResize}
-  on:pointercancel={endPanelResize}
+  on:pointermove={(event) => workspaceShell.handlePanelResizeMove(event)}
+  on:pointerup={() => workspaceShell.endPanelResize()}
+  on:pointercancel={() => workspaceShell.endPanelResize()}
 />
 
 <div
   class="app-shell"
-  class:tabbed-layout={isTabbedLayout}
+  class:tabbed-layout={workspaceShellState.isTabbedLayout}
   class:compact-shell={$appearanceSettings.compactShell}
   class:artwork-background-enabled={artworkBackgroundMode !== 'off'}
   class:artwork-background-active={isWorkspaceArtworkBackgroundActive}
@@ -788,34 +616,34 @@
     on:exit={() => windowManager.exit()}
   />
 
-  {#if isTabbedLayout}
+  {#if workspaceShellState.isTabbedLayout}
     <TabbedWorkspace
-      {activeWorkspaceTab}
-      {workspaceTabs}
-      {playlistPanelProps}
+      activeWorkspaceTab={workspaceShellState.activeWorkspaceTab}
+      workspaceTabs={workspaceShellState.workspaceTabs}
+      playlistPanelProps={workspaceShellState.playlistPanelProps}
       {playlistPanelHandlers}
-      {libraryPanelProps}
+      libraryPanelProps={workspaceShellState.libraryPanelProps}
       {libraryPanelHandlers}
       selectedItem={artworkPresentationState.detailsDisplayTrack}
       detailsArtwork={artworkPresentationState.visibleDetailsArtwork}
-      isDetailsVisible={isDetailsPanelVisible}
-      onCloseDetails={handleCloseTrackDetails}
-      on:tabChange={(event) => setActiveWorkspaceTab(event.detail)}
+      isDetailsVisible={workspaceShellState.isDetailsPanelVisible}
+      onCloseDetails={() => workspaceShell.closeTrackDetails()}
+      on:tabChange={(event) => workspaceShell.setActiveWorkspaceTab(event.detail)}
     />
   {:else}
     <WideWorkspace
-      {playlistPanelProps}
+      playlistPanelProps={workspaceShellState.playlistPanelProps}
       {playlistPanelHandlers}
-      {libraryPanelProps}
+      libraryPanelProps={workspaceShellState.libraryPanelProps}
       {libraryPanelHandlers}
-      panelWidths={widePanelWidths}
+      panelWidths={workspaceShellState.widePanelWidths}
       resizerWidth={WORKSPACE_RESIZER_WIDTH}
-      isResizing={Boolean(resizeState)}
+      isResizing={workspaceShellState.isResizing}
       selectedItem={artworkPresentationState.detailsDisplayTrack}
       detailsArtwork={artworkPresentationState.visibleDetailsArtwork}
-      isDetailsVisible={isDetailsPanelVisible}
-      onCloseDetails={handleCloseTrackDetails}
-      on:resizeStart={handleWideWorkspaceResizeStart}
+      isDetailsVisible={workspaceShellState.isDetailsPanelVisible}
+      onCloseDetails={() => workspaceShell.closeTrackDetails()}
+      on:resizeStart={(event) => workspaceShell.handleWideWorkspaceResizeStart(event.detail)}
     />
   {/if}
 
@@ -827,7 +655,7 @@
     snapshotStore={playerController.snapshot}
     track={playerDisplayTrack}
     selectedTrack={selectedPlaylistItem}
-    isTabbedLayout={isTabbedLayout}
+    isTabbedLayout={workspaceShellState.isTabbedLayout}
     artwork={artworkPresentationState.displayedArtwork}
     artworkBackgroundPrimary={artworkPresentationState.artworkBackgroundPrimary}
     artworkBackgroundSecondary={artworkPresentationState.artworkBackgroundSecondary}
