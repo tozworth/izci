@@ -105,6 +105,7 @@
   let visibleDetailsArtwork: LoadedStreamArtwork | null = null;
   let playerDisplayTrack: PlaylistItem | null = null;
   let playingTrack: PlaylistItem | null = null;
+  let pendingPlaybackTrackId: string | null = null;
   let shuffleEnabled = false;
   let repeatMode: PlaylistRepeatMode = 'off';
   let playbackStatus: Pick<PlaybackSnapshot, 'state' | 'volume' | 'backend' | 'error'> = {
@@ -135,6 +136,10 @@
   const unsubscribeRepeat = repeatStore.subscribe((value) => (repeatMode = value));
   const unsubscribeTrack = playerController.currentTrack.subscribe((value) => {
     playingTrack = value;
+
+    if (value?.id && pendingPlaybackTrackId === value.id) {
+      pendingPlaybackTrackId = null;
+    }
 
     if (!value?.metadata) {
       return;
@@ -502,7 +507,19 @@
 
     const metadata = track.metadata;
 
-    if ((metadata?.duration ?? 0) > 0) {
+    if (
+      (metadata?.duration ?? 0) > 0 ||
+      (metadata?.bitrate ?? 0) > 0 ||
+      Boolean(metadata?.title?.trim()) ||
+      Boolean(metadata?.artist?.trim()) ||
+      Boolean(metadata?.album?.trim()) ||
+      Boolean(metadata?.albumArtist?.trim()) ||
+      Boolean(metadata?.genre?.trim()) ||
+      Boolean(metadata?.year?.trim()) ||
+      Boolean(metadata?.trackNumber?.trim()) ||
+      Boolean(metadata?.discNumber?.trim()) ||
+      Boolean(metadata?.composer?.trim())
+    ) {
       return true;
     }
 
@@ -529,7 +546,7 @@
     while (
       loadToken === detailsArtworkLoadToken &&
       detailsTargetTrack?.id === track.id &&
-      playingTrack?.id === track.id &&
+      (pendingPlaybackTrackId === track.id || playingTrack?.id === track.id) &&
       !hasCommittedPlaybackDetails(resolveDetailsTrackSnapshot(track)) &&
       Date.now() < deadline
     ) {
@@ -699,13 +716,20 @@
 
   async function playTrack(track: PlaylistItem) {
     const requestId = ++playRequestSequence;
+    pendingPlaybackTrackId = track.id;
     const playableTrack = await playlistStore.ensureLoaded(track.id, { prompt: true });
 
     if (requestId !== playRequestSequence) {
+      if (pendingPlaybackTrackId === track.id) {
+        pendingPlaybackTrackId = null;
+      }
       return;
     }
 
     if (!playableTrack) {
+      if (pendingPlaybackTrackId === track.id) {
+        pendingPlaybackTrackId = null;
+      }
       playerController.reportError('Could not access this file. Re-add it or grant file access.');
       return;
     }
@@ -714,9 +738,16 @@
       await playerController.load(playableTrack, { autoPlay: true });
 
       if (requestId !== playRequestSequence) {
+        if (pendingPlaybackTrackId === playableTrack.id) {
+          pendingPlaybackTrackId = null;
+        }
         return;
       }
       return;
+    }
+
+    if (pendingPlaybackTrackId === playableTrack.id) {
+      pendingPlaybackTrackId = null;
     }
 
     if (

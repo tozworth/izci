@@ -408,15 +408,7 @@ export function getTrackArtworkLoadKey(track: PlaylistItem | null): string {
     return '';
   }
 
-  return [
-    track.id,
-    track.kind,
-    track.extension,
-    track.file ? 'file' : 'no-file',
-    track.fileHandle ? 'handle' : 'no-handle',
-    track.size,
-    track.lastModified
-  ].join(':');
+  return track.id;
 }
 
 export async function loadTrackMetadata(track: PlaylistItem | null): Promise<TrackMetadata | null> {

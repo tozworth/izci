@@ -3,22 +3,25 @@ import type { LibraryColumnId, LibraryViewSettings, SortDirection } from '$lib/t
 
 export const LIBRARY_VIEW_SETTINGS_STORAGE_KEY = 'izci.library-view-settings.v1';
 export const LIBRARY_VIEW_SETTINGS_CHANNEL = 'izci-library-view-settings';
-export const LIBRARY_COLUMN_IDS: LibraryColumnId[] = ['title', 'artist', 'format', 'duration'];
+export const LIBRARY_COLUMN_IDS: LibraryColumnId[] = ['title', 'artist', 'album', 'format', 'duration'];
 export const LIBRARY_COLUMN_LABELS: Record<LibraryColumnId, string> = {
   title: 'Title',
   artist: 'Artist',
+  album: 'Album',
   format: 'Format',
   duration: 'Duration'
 };
 export const LIBRARY_COLUMN_DEFAULT_WIDTHS: Record<LibraryColumnId, number> = {
   title: 300,
   artist: 220,
+  album: 220,
   format: 96,
   duration: 104
 };
 export const LIBRARY_COLUMN_MIN_WIDTHS: Record<LibraryColumnId, number> = {
   title: 72,
   artist: 72,
+  album: 72,
   format: 56,
   duration: 64
 };
@@ -33,6 +36,10 @@ const DEFAULT_LIBRARY_VIEW_SETTINGS: LibraryViewSettings = {
     artist: {
       width: LIBRARY_COLUMN_DEFAULT_WIDTHS.artist,
       visible: true
+    },
+    album: {
+      width: LIBRARY_COLUMN_DEFAULT_WIDTHS.album,
+      visible: false
     },
     format: {
       width: LIBRARY_COLUMN_DEFAULT_WIDTHS.format,

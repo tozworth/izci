@@ -1,7 +1,7 @@
 import { getColumnTextValue } from '$lib/components/playlist-panel/library-columns';
 import type { LibraryColumnId, PlaylistItem } from '$lib/types';
 
-const DEFAULT_SEARCH_COLUMN_IDS: LibraryColumnId[] = ['title', 'artist', 'format', 'duration'];
+const DEFAULT_SEARCH_COLUMN_IDS: LibraryColumnId[] = ['title', 'artist', 'album', 'format', 'duration'];
 
 function getSearchValues(item: PlaylistItem, columnIds: LibraryColumnId[]): string[] {
   return columnIds

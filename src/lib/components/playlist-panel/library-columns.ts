@@ -56,6 +56,8 @@ export function getColumnTextValue(item: PlaylistItem, columnId: LibraryColumnId
       return getTrackDisplayTitle(item);
     case 'artist':
       return item.metadata?.artist?.trim() ?? '';
+    case 'album':
+      return item.metadata?.album?.trim() ?? '';
     case 'format':
       return formatTrackType(item);
     case 'duration':
