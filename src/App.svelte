@@ -113,6 +113,7 @@
     backend: null,
     error: undefined
   };
+  let artworkPresentationState = artworkPresentation.getSnapshot();
 
   const unsubscribePlaylistItems = playlistItemsStore.subscribe((value) => (playlistItems = value));
   const unsubscribeLibraryItems = libraryItemsStore.subscribe((value) => (libraryItems = value));
@@ -181,7 +182,6 @@
   let playlistPanelProps: WorkspacePanelProps;
   let libraryPanelProps: WorkspacePanelProps;
   let workspaceTabs: WorkspaceTabDefinition[] = allWorkspaceTabs.filter((tab) => tab.id !== 'details');
-  let artworkPresentationState = artworkPresentation.getSnapshot();
 
   const importController = createImportController({
     addFiles: handleAddFiles,
