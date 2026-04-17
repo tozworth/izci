@@ -797,15 +797,55 @@ button {
   background: var(--player-bar-fade);
 }
 
-.player-track {
+.player-track-group {
   grid-area: track;
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  min-width: 0;
+}
+
+.player-track {
   display: grid;
   gap: 0.22rem;
   min-width: 0;
+  flex: 1;
 }
 
 .player-track > * {
   min-width: 0;
+}
+
+.player-artwork {
+  flex: 0 0 auto;
+  width: 3.4rem;
+  height: 3.4rem;
+  border-radius: 0.25rem;
+  overflow: hidden;
+  background:
+    linear-gradient(180deg, var(--hover-control), transparent 100%),
+    var(--bg-soft);
+  box-shadow:
+    inset 0 0 0 1px var(--border-strong),
+    0 0 0 1px rgba(0, 0, 0, 0.08);
+}
+
+.player-artwork-image,
+.player-artwork-placeholder {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.player-artwork-image {
+  object-fit: cover;
+}
+
+.player-artwork-placeholder {
+  background: color-mix(in srgb, var(--muted) 72%, transparent);
+  opacity: 0.5;
+  -webkit-mask: url('/icons/izci-mark.svg') center / 70% no-repeat;
+  mask: url('/icons/izci-mark.svg') center / 70% no-repeat;
 }
 
 .player-track-title {
@@ -969,6 +1009,14 @@ input[type='range'] {
 
   .player-range {
     grid-template-columns: minmax(2.8rem, auto) 1fr minmax(2.8rem, auto);
+  }
+
+  .player-track-group {
+    gap: 0;
+  }
+
+  .player-artwork {
+    display: none;
   }
 
   .transport-button-previous {

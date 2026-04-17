@@ -97,6 +97,7 @@ Primary location for playback and browser-integration logic.
 - `player-controller.ts`: single coordinator for backend switching, snapshot updates, metadata inference application, and player volume propagation.
 - `volume.ts`: shared slider-to-gain conversion helpers, including the logarithmic-volume mapping used by playback services.
 - `media-session.ts`: Chromium Media Session bridge for now-playing metadata, seek position updates, OS/media-key transport handlers, and the silent native transport anchor used to keep Chromium media surfaces alive for non-native playback paths.
+- `stream-artwork.ts`: on-demand embedded artwork loading for streamed files; currently extracts transient cover art from `flac` picture blocks and `opus` `METADATA_BLOCK_PICTURE` comments for the player UI and Media Session without persisting artwork.
 - `pwa-updates.ts`: service-worker registration plus proactive update checks for long-lived preview/installed PWA windows so new builds can activate without getting stuck on the first cached shell.
 - `theme.ts`: shared color-theme metadata, document-theme application, and dynamic `<meta name="theme-color">` updates used by both window entrypoints so Chromium/PWA window chrome tracks the active theme where supported.
 - `window-controls-overlay.ts`: readable store that tracks Window Controls Overlay support, visibility, and `titlebarAreaRect` updates from Chromium's `geometrychange` event.
@@ -164,6 +165,7 @@ Primary location for playback and browser-integration logic.
 - Persisted items may be rehydrated from `FileSystemFileHandle`s. Preserve the `ensureLoaded()` flow and permission prompts when changing import or playback behavior.
 - `player-controller.ts` is the single coordinator for backend switching. Changes to transport or metadata propagation should usually start there.
 - Streamed playback intentionally stays on Howler's HTML5 audio mode because that path is the proven stable way to keep Chromium/desktop media controls alive for streamed formats without regressing row-activation or pause/resume behavior.
+- Embedded artwork for streamed files is not sourced from Howler. `src/lib/services/stream-artwork.ts` loads `flac` and `opus` cover art directly from the selected file or file handle on demand, creates transient blob URLs for the current UI/media-session presentation, and does not persist artwork into IndexedDB metadata.
 - Tracker modules still play through `Chiptune3`/Web Audio because rerouting real module audio through a browser-facing media element regressed playback quality/pitch; their media-surface integration is mirrored through the silent native transport anchor instead.
 - The playback split is therefore intentional, not incidental:
   - streams prioritize native browser media integration through a real media element

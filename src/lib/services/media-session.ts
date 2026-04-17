@@ -1,5 +1,11 @@
 import type { Readable } from 'svelte/store';
 import type { PlaybackSnapshot, PlaylistItem } from '$lib/types';
+import {
+  getTrackArtworkLoadKey,
+  loadTrackArtwork,
+  revokeTrackArtwork,
+  type LoadedStreamArtwork
+} from '$lib/services/stream-artwork';
 import { getTrackDisplaySubtitle, getTrackDisplayTitle } from '$lib/utils/files';
 
 const DEFAULT_SEEK_OFFSET_SECONDS = 10;
@@ -44,6 +50,9 @@ function createMediaSessionService() {
   let ignoredTransportPlayEvents = 0;
   let ignoredTransportPauseEvents = 0;
   let lastPublishedPositionState: PublishedPositionState | null = null;
+  let trackArtwork: LoadedStreamArtwork | null = null;
+  let trackArtworkKey = '';
+  let artworkLoadToken = 0;
 
   function getMediaSession(): MediaSession | null {
     if (typeof navigator === 'undefined' || !('mediaSession' in navigator)) {
@@ -73,8 +82,14 @@ function createMediaSessionService() {
     return {
       title: getTrackDisplayTitle(activeTrack) || activeTrack.name,
       artist,
-      album: album || (activeTrack.kind === 'module' ? trackerType || activeTrack.extension.toUpperCase() : undefined)
+      album: album || (activeTrack.kind === 'module' ? trackerType || activeTrack.extension.toUpperCase() : undefined),
+      artwork: trackArtwork ? [trackArtwork.mediaImage] : undefined
     };
+  }
+
+  function clearTrackArtwork(): void {
+    revokeTrackArtwork(trackArtwork);
+    trackArtwork = null;
   }
 
   function ensureTransportAnchor(): HTMLAudioElement | null {
@@ -218,6 +233,27 @@ function createMediaSessionService() {
     syncMetadata(mediaSession);
     syncPlaybackState(mediaSession);
     syncPositionState(mediaSession);
+  }
+
+  async function syncTrackArtwork(mediaSession: MediaSession, activeTrack: PlaylistItem | null): Promise<void> {
+    const loadToken = ++artworkLoadToken;
+
+    clearTrackArtwork();
+    syncSession(mediaSession);
+
+    if (!activeTrack) {
+      return;
+    }
+
+    const artwork = await loadTrackArtwork(activeTrack);
+
+    if (loadToken !== artworkLoadToken) {
+      revokeTrackArtwork(artwork);
+      return;
+    }
+
+    trackArtwork = artwork;
+    syncSession(mediaSession);
   }
 
   function resolveSeekTarget(delta: number): number | null {
@@ -377,15 +413,26 @@ function createMediaSessionService() {
         syncSession(mediaSession);
       });
       const unsubscribeTrack = trackStore.subscribe((value) => {
+        const nextArtworkKey = getTrackArtworkLoadKey(value);
         track = value;
-        syncSession(mediaSession);
+
+        if (nextArtworkKey === trackArtworkKey) {
+          syncSession(mediaSession);
+          return;
+        }
+
+        trackArtworkKey = nextArtworkKey;
+        void syncTrackArtwork(mediaSession, value);
       });
 
       return () => {
         unsubscribeSnapshot();
         unsubscribeTrack();
+        artworkLoadToken += 1;
         snapshot = null;
         track = null;
+        trackArtworkKey = '';
+        clearTrackArtwork();
         transportHandlers = null;
         syncSession(mediaSession);
         clearHandlers();
