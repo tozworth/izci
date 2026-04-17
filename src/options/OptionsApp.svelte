@@ -11,7 +11,7 @@
     modulePlaybackSettings
   } from '$lib/stores/module-playback-settings';
   import { playbackSettings } from '$lib/stores/playback-settings';
-  import type { ColorTheme } from '$lib/types';
+  import type { ArtworkBackgroundMode, ColorTheme } from '$lib/types';
   import {
     OPTIONS_VIEW_GROUPS,
     OPTIONS_VIEWS,
@@ -144,9 +144,9 @@
     });
   }
 
-  function handleArtworkBackgroundColorsToggle(event: Event) {
+  function handleArtworkBackgroundModeChange(event: Event) {
     appearanceSettings.update({
-      useArtworkBackgroundColors: (event.currentTarget as HTMLInputElement).checked
+      artworkBackgroundMode: (event.currentTarget as HTMLSelectElement).value as ArtworkBackgroundMode
     });
   }
 
@@ -396,19 +396,22 @@
                 </p>
               </label>
 
-              <label class="field checkbox-field">
+              <label class="field">
                 <div class="field-copy">
-                  <span class="field-title">Use album artwork for background colors</span>
+                  <span class="field-title">Album artwork backdrop</span>
                 </div>
-                <div class="field-control checkbox-control">
-                  <input
-                    type="checkbox"
-                    checked={$appearanceSettings.useArtworkBackgroundColors}
-                    on:change={handleArtworkBackgroundColorsToggle}
-                  />
+                <div class="field-control">
+                  <select
+                    value={$appearanceSettings.artworkBackgroundMode}
+                    on:change={handleArtworkBackgroundModeChange}
+                  >
+                    <option value="off">Off</option>
+                    <option value="player">Behind player bar only</option>
+                    <option value="workspace">Entire workspace</option>
+                  </select>
                 </div>
                 <p class="field-hint">
-                  Replaces the workspace background with blurred album art when available and adapts panel contrast for bright covers.
+                  Uses the current track artwork as a blurred color source. "Behind player bar only" keeps the workspace stable while still giving the footer the glass/color treatment.
                 </p>
               </label>
 

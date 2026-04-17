@@ -978,10 +978,49 @@ body.artwork-background-active.artwork-background-bright {
   border-right: 0;
   border-bottom: 0;
   background: var(--menu-bar-bg);
+  color: var(--text);
   backdrop-filter:
-    blur(var(--chrome-backdrop-blur, 16px))
-    saturate(var(--chrome-backdrop-saturate, 1));
+    blur(var(--player-bar-backdrop-blur, var(--chrome-backdrop-blur, 16px)))
+    saturate(var(--player-bar-backdrop-saturate, var(--chrome-backdrop-saturate, 1)));
   box-shadow: 0 -1px 0 var(--hairline);
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.player-bar.artwork-background-active {
+  color-scheme: dark;
+  --player-bar-backdrop-blur: 28px;
+  --player-bar-backdrop-saturate: 1.16;
+  --menu-bar-bg: rgba(17, 18, 24, 0.42);
+  --text: rgba(248, 246, 241, 0.96);
+  --text-strong: rgba(255, 255, 255, 0.98);
+  --muted: rgba(248, 246, 241, 0.72);
+  --bg-soft: rgba(18, 19, 24, 0.5);
+  --bg-volume-popup: rgba(16, 17, 22, 0.76);
+  --border-strong: rgba(255, 255, 255, 0.18);
+  --hover-control: rgba(255, 255, 255, 0.08);
+  --player-bar-fade: linear-gradient(180deg, rgba(5, 6, 10, 0), rgba(5, 6, 10, 0.26));
+  --hairline: rgba(255, 255, 255, 0.08);
+  --player-bar-artwork-overlay:
+    radial-gradient(circle at top, rgba(255, 255, 255, 0.08), transparent 36%),
+    linear-gradient(180deg, rgba(10, 11, 16, 0.52) 0%, rgba(10, 11, 16, 0.34) 38%, rgba(10, 11, 16, 0.56) 100%);
+}
+
+.player-bar.artwork-background-active.artwork-background-bright {
+  color-scheme: light;
+  --menu-bar-bg: rgba(252, 248, 240, 0.46);
+  --bg-soft: rgba(255, 250, 242, 0.58);
+  --bg-volume-popup: rgba(255, 250, 242, 0.84);
+  --text: #241b12;
+  --text-strong: #130d08;
+  --muted: rgba(36, 27, 18, 0.76);
+  --border-strong: rgba(52, 39, 25, 0.22);
+  --hover-control: rgba(52, 39, 25, 0.09);
+  --player-bar-fade: linear-gradient(180deg, rgba(255, 255, 255, 0), rgba(255, 250, 242, 0.28));
+  --hairline: rgba(34, 20, 8, 0.08);
+  --player-bar-artwork-overlay:
+    radial-gradient(circle at top, rgba(255, 255, 255, 0.2), transparent 36%),
+    linear-gradient(180deg, rgba(255, 249, 240, 0.42) 0%, rgba(255, 249, 240, 0.22) 42%, rgba(255, 249, 240, 0.5) 100%);
 }
 
 .player-bar::before {
@@ -993,6 +1032,43 @@ body.artwork-background-active.artwork-background-bright {
   height: 1.35rem;
   pointer-events: none;
   background: var(--player-bar-fade);
+  z-index: 1;
+}
+
+.player-bar-background-layer,
+.player-bar-background-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition:
+    opacity 220ms ease,
+    transform 220ms ease,
+    filter 220ms ease;
+  z-index: 0;
+}
+
+.player-bar-background-layer {
+  background-image: var(--player-bar-artwork-image, none);
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+  filter: blur(52px) saturate(1.22);
+  transform: scale(1.12);
+}
+
+.player-bar-background-overlay {
+  background: var(--player-bar-artwork-overlay, transparent);
+}
+
+.player-bar-background-layer.is-active,
+.player-bar-background-overlay.is-active {
+  opacity: 1;
+}
+
+.player-bar > :not(.player-bar-background-layer):not(.player-bar-background-overlay) {
+  position: relative;
+  z-index: 2;
 }
 
 .player-track-group {

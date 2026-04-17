@@ -10,6 +10,8 @@
   export let selectedTrack: PlaylistItem | null = null;
   export let isTabbedLayout = false;
   export let artwork: LoadedStreamArtwork | null = null;
+  export let artworkBackgroundActive = false;
+  export let artworkBackgroundBright = false;
 
   const dispatch = createEventDispatcher<{
     toggle: void;
@@ -101,7 +103,23 @@
   $: displayDuration = track ? snapshot.duration : selectedTrack?.metadata?.duration ?? snapshot.duration;
 </script>
 
-<footer class="player-bar">
+<footer
+  class="player-bar"
+  class:artwork-background-active={artworkBackgroundActive}
+  class:artwork-background-bright={artworkBackgroundActive && artworkBackgroundBright}
+>
+  <div
+    class="player-bar-background-layer"
+    class:is-active={artworkBackgroundActive && Boolean(artwork)}
+    style={`--player-bar-artwork-image: ${artwork ? `url("${artwork.url}")` : 'none'};`}
+    aria-hidden="true"
+  ></div>
+  <div
+    class="player-bar-background-overlay"
+    class:is-active={artworkBackgroundActive}
+    aria-hidden="true"
+  ></div>
+
   <div class="player-track-group">
     {#if displayTrack}
       <div class="player-artwork" aria-hidden="true">

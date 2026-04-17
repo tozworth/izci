@@ -42,6 +42,7 @@
   import { DEFAULT_PLAYER_VOLUME } from '$lib/stores/player-volume';
   import { workspacePanelLayout } from '$lib/stores/workspace-panel-layout';
   import type {
+    ArtworkBackgroundMode,
     PlaybackSnapshot,
     PlaylistItem,
     PlaylistRepeatMode,
@@ -160,12 +161,15 @@
   let artworkBackgroundSecondary: LoadedStreamArtwork | null = null;
   let activeArtworkBackgroundSlot: ArtworkBackgroundSlot = 'primary';
   let activeArtworkBackground: LoadedStreamArtwork | null = null;
-  let visibleArtworkBackground: LoadedStreamArtwork | null = null;
   let artworkLoadToken = 0;
   let artworkBackgroundCleanupTimer: ReturnType<typeof setTimeout> | null = null;
   let displayedArtworkKey = '';
   let artworkBrightnessKey = '';
-  let hasArtworkBackground = false;
+  let artworkBackgroundMode: ArtworkBackgroundMode = appearanceSettings.getSnapshot().artworkBackgroundMode;
+  let isWorkspaceArtworkBackgroundEnabled = false;
+  let isPlayerBarArtworkBackgroundEnabled = false;
+  let isWorkspaceArtworkBackgroundActive = false;
+  let isArtworkBackgroundActive = false;
   let isArtworkBackgroundBright = false;
   let isDetailsPanelVisible = false;
   let panelLayout = workspacePanelLayout.getSnapshot();
@@ -203,10 +207,14 @@
   $: playerDisplayTrack = playingTrack ?? selectedPlaylistItem;
   $: activeArtworkBackground =
     activeArtworkBackgroundSlot === 'primary' ? artworkBackgroundPrimary : artworkBackgroundSecondary;
-  $: visibleArtworkBackground =
-    activeArtworkBackground ??
-    (activeArtworkBackgroundSlot === 'primary' ? artworkBackgroundSecondary : artworkBackgroundPrimary);
-  $: hasArtworkBackground = Boolean(artworkBackgroundPrimary) || Boolean(artworkBackgroundSecondary);
+  $: artworkBackgroundMode = $appearanceSettings.artworkBackgroundMode;
+  $: isWorkspaceArtworkBackgroundEnabled = artworkBackgroundMode === 'workspace';
+  $: isPlayerBarArtworkBackgroundEnabled =
+    artworkBackgroundMode === 'workspace' || artworkBackgroundMode === 'player';
+  $: isWorkspaceArtworkBackgroundActive =
+    isWorkspaceArtworkBackgroundEnabled && Boolean(activeArtworkBackground);
+  $: isArtworkBackgroundActive =
+    isPlayerBarArtworkBackgroundEnabled && Boolean(activeArtworkBackground);
   $: documentTitle = playingTrack ? getTrackDisplayTitle(playingTrack) : 'izci';
   $: {
     const viewportWidth =
@@ -261,20 +269,16 @@
     }
   }
   $: {
-    const nextBrightnessKey =
-      $appearanceSettings.useArtworkBackgroundColors && visibleArtworkBackground
-        ? visibleArtworkBackground.url
-        : '';
+    const nextBrightnessKey = isArtworkBackgroundActive && activeArtworkBackground
+      ? activeArtworkBackground.url
+      : '';
 
     if (nextBrightnessKey !== artworkBrightnessKey) {
       artworkBrightnessKey = nextBrightnessKey;
-      void syncArtworkBrightness(visibleArtworkBackground, $appearanceSettings.useArtworkBackgroundColors);
+      void syncArtworkBrightness(activeArtworkBackground, isArtworkBackgroundActive);
     }
   }
-  $: syncArtworkMenuClasses(
-    $appearanceSettings.useArtworkBackgroundColors && hasArtworkBackground,
-    isArtworkBackgroundBright
-  );
+  $: syncArtworkMenuClasses(isWorkspaceArtworkBackgroundActive, isArtworkBackgroundBright);
 
   const playlistPanelHandlers: WorkspacePanelHandlers = {
     addFiles: (files) => handleAddFiles(files, 'playlist'),
@@ -992,17 +996,17 @@
   class="app-shell"
   class:tabbed-layout={isTabbedLayout}
   class:compact-shell={$appearanceSettings.compactShell}
-  class:artwork-background-enabled={$appearanceSettings.useArtworkBackgroundColors}
-  class:artwork-background-active={$appearanceSettings.useArtworkBackgroundColors && hasArtworkBackground}
+  class:artwork-background-enabled={artworkBackgroundMode !== 'off'}
+  class:artwork-background-active={isWorkspaceArtworkBackgroundActive}
   class:artwork-background-bright={
-    $appearanceSettings.useArtworkBackgroundColors && hasArtworkBackground && isArtworkBackgroundBright
+    isWorkspaceArtworkBackgroundActive && isArtworkBackgroundBright
   }
   class:window-controls-overlay-active={$windowControlsOverlayState.visible}
 >
   <div
     class="app-shell-background-layer"
     class:is-active={
-      $appearanceSettings.useArtworkBackgroundColors &&
+      isWorkspaceArtworkBackgroundEnabled &&
       activeArtworkBackgroundSlot === 'primary' &&
       Boolean(artworkBackgroundPrimary)
     }
@@ -1014,7 +1018,7 @@
   <div
     class="app-shell-background-layer"
     class:is-active={
-      $appearanceSettings.useArtworkBackgroundColors &&
+      isWorkspaceArtworkBackgroundEnabled &&
       activeArtworkBackgroundSlot === 'secondary' &&
       Boolean(artworkBackgroundSecondary)
     }
@@ -1025,7 +1029,7 @@
   ></div>
   <div
     class="app-shell-background-overlay"
-    class:is-active={$appearanceSettings.useArtworkBackgroundColors && hasArtworkBackground}
+    class:is-active={isWorkspaceArtworkBackgroundActive}
     aria-hidden="true"
   ></div>
   <div class="window-frame-safe-strip" aria-hidden="true"></div>
@@ -1084,6 +1088,8 @@
     selectedTrack={selectedPlaylistItem}
     isTabbedLayout={isTabbedLayout}
     artwork={displayedArtwork}
+    artworkBackgroundActive={isArtworkBackgroundActive}
+    artworkBackgroundBright={isArtworkBackgroundBright}
     on:toggle={handleTogglePlayback}
     on:stop={handleStop}
     on:previous={() => void handleStepTrack(-1)}

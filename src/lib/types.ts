@@ -10,6 +10,7 @@ export type PlaylistRepeatMode = 'off' | 'one' | 'all';
 export type SortDirection = 'asc' | 'desc';
 export type LibraryColumnId = 'title' | 'artist' | 'format' | 'duration';
 export type ColorTheme = 'gruvbox' | 'dracula';
+export type ArtworkBackgroundMode = 'off' | 'player' | 'workspace';
 export type WorkspaceCollection = 'playlist' | 'library';
 export type WorkspaceTab = WorkspaceCollection | 'details';
 export type WorkspacePanelId = 'playlist' | 'library' | 'details';
@@ -52,7 +53,7 @@ export interface AppearanceSettings {
   keepLibraryColumnsVisibleInNarrowLayout: boolean;
   compactShell: boolean;
   useSystemFont: boolean;
-  useArtworkBackgroundColors: boolean;
+  artworkBackgroundMode: ArtworkBackgroundMode;
 }
 
 export interface PlaybackSettings {

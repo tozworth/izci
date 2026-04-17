@@ -1,5 +1,5 @@
 import { writable } from 'svelte/store';
-import type { AppearanceSettings, ColorTheme } from '$lib/types';
+import type { AppearanceSettings, ArtworkBackgroundMode, ColorTheme } from '$lib/types';
 
 export const APPEARANCE_SETTINGS_STORAGE_KEY = 'izci.appearance-settings';
 export const APPEARANCE_SETTINGS_CHANNEL = 'izci.appearance-settings';
@@ -9,7 +9,7 @@ export const DEFAULT_APPEARANCE_SETTINGS: AppearanceSettings = {
   keepLibraryColumnsVisibleInNarrowLayout: false,
   compactShell: false,
   useSystemFont: false,
-  useArtworkBackgroundColors: false
+  artworkBackgroundMode: 'off'
 };
 
 let broadcastChannel: BroadcastChannel | null = null;
@@ -19,15 +19,26 @@ function normalizeColorTheme(value: unknown): ColorTheme {
   return value === 'dracula' ? 'dracula' : DEFAULT_COLOR_THEME;
 }
 
+function normalizeArtworkBackgroundMode(value: unknown): ArtworkBackgroundMode {
+  return value === 'player' || value === 'workspace' ? value : 'off';
+}
+
 function normalizeSettings(value: unknown): AppearanceSettings {
-  const source = value && typeof value === 'object' ? (value as Partial<AppearanceSettings>) : {};
+  const source =
+    value && typeof value === 'object'
+      ? (value as Partial<AppearanceSettings> & { useArtworkBackgroundColors?: boolean })
+      : {};
+  const legacyArtworkBackgroundEnabled =
+    'useArtworkBackgroundColors' in source && source.useArtworkBackgroundColors === true;
 
   return {
     colorTheme: normalizeColorTheme(source.colorTheme),
     keepLibraryColumnsVisibleInNarrowLayout: source.keepLibraryColumnsVisibleInNarrowLayout === true,
     compactShell: source.compactShell === true,
     useSystemFont: source.useSystemFont === true,
-    useArtworkBackgroundColors: source.useArtworkBackgroundColors === true
+    artworkBackgroundMode: legacyArtworkBackgroundEnabled
+      ? 'workspace'
+      : normalizeArtworkBackgroundMode(source.artworkBackgroundMode)
   };
 }
 
