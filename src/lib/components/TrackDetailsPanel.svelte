@@ -91,10 +91,6 @@
     <div class="details-content" class:tabbed-layout={isTabbedLayout}>
       {#if showTrackSection}
         <section class="detail-section track-copy">
-          <p class="section-heading">
-            <span class="material-symbols-outlined section-icon" aria-hidden="true">audio_file</span>
-            <span>Track</span>
-          </p>
           {#if artwork}
             <div class="track-artwork" aria-hidden="true">
               <img class="track-artwork-image" src={artwork.url} alt="" />
@@ -165,13 +161,19 @@
     height: 100%;
   }
 
+  .panel-header {
+    align-items: center;
+  }
+
   .details-close-button {
     display: inline-flex;
+    flex: 0 0 auto;
     align-items: center;
     justify-content: flex-end;
     gap: 0.22rem;
     min-width: 5.75rem;
-    padding: 0.1rem 0;
+    padding: 0;
+    line-height: 1;
     color: var(--muted);
     background: transparent;
     cursor: pointer;
