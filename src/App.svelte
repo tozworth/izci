@@ -4,23 +4,21 @@
   import TopMenuBar from '$lib/components/TopMenuBar.svelte';
   import TabbedWorkspace from '$lib/components/workspace/TabbedWorkspace.svelte';
   import WideWorkspace from '$lib/components/workspace/WideWorkspace.svelte';
-  import { analyzeArtworkBackground } from '$lib/services/artwork-background';
   import type {
     WideWorkspaceResizeStartDetail,
     WorkspacePanelHandlers,
     WorkspacePanelProps,
     WorkspaceTabDefinition
   } from '$lib/components/workspace/types';
+  import {
+    createArtworkPresentationController,
+    hasSameTrackMetadata,
+    resolveTrackSnapshot
+  } from '$lib/services/artwork-presentation';
   import { createImportController, FILE_INPUT_ACCEPT } from '$lib/services/import-controller';
   import { subscribeToLaunchedFiles } from '$lib/services/file-launch';
   import { mediaSessionService } from '$lib/services/media-session';
   import { playerController } from '$lib/services/player-controller';
-  import {
-    getTrackArtworkLoadKey,
-    loadTrackArtwork,
-    revokeTrackArtwork,
-    type LoadedStreamArtwork
-  } from '$lib/services/stream-artwork';
   import {
     buildLibraryContextActions,
     buildPlaylistContextActions,
@@ -67,9 +65,6 @@
     startX: number;
     startLayout: WorkspacePanelLayoutSettings;
   };
-  type ArtworkBackgroundSlot = 'primary' | 'secondary';
-
-  const ARTWORK_BACKGROUND_TRANSITION_MS = 320;
 
   const {
     items: playlistItemsStore,
@@ -91,6 +86,12 @@
     { id: 'details', icon: 'info', label: 'Details' }
   ];
   const libraryContextActions = buildLibraryContextActions();
+  const artworkPresentation = createArtworkPresentationController({
+    resolveTrackSnapshot: (track) =>
+      resolveTrackSnapshot(track, selectedItem, playlistItems, libraryItems),
+    isPlaybackDetailsPending: (trackId) =>
+      pendingPlaybackTrackId === trackId || playingTrack?.id === trackId
+  });
 
   let playlistItems: PlaylistItem[] = [];
   let libraryItems: PlaylistItem[] = [];
@@ -100,9 +101,6 @@
   let selectedPlaylistItem: PlaylistItem | null = null;
   let selectedLibraryItem: PlaylistItem | null = null;
   let selectedItem: PlaylistItem | null = null;
-  let detailsTargetTrack: PlaylistItem | null = null;
-  let detailsDisplayTrack: PlaylistItem | null = null;
-  let visibleDetailsArtwork: LoadedStreamArtwork | null = null;
   let livePlayingTrack: PlaylistItem | null = null;
   let playerDisplayTrack: PlaylistItem | null = null;
   let playingTrack: PlaylistItem | null = null;
@@ -157,6 +155,9 @@
     }
   });
   const unsubscribePlaybackStatus = playerController.status.subscribe((value) => (playbackStatus = value));
+  const unsubscribeArtworkPresentation = artworkPresentation.subscribe(
+    (value) => (artworkPresentationState = value)
+  );
 
   let fileInput: HTMLInputElement | null = null;
   let innerWidth = 0;
@@ -165,29 +166,12 @@
   let previousPlaybackState: PlaybackSnapshot['state'] = playbackStatus.state;
   let playRequestSequence = 0;
   let playlistJumpRequest: WorkspaceJumpRequest | null = null;
-  let displayedArtwork: LoadedStreamArtwork | null = null;
-  let detailsArtwork: LoadedStreamArtwork | null = null;
-  let artworkBackgroundPrimary: LoadedStreamArtwork | null = null;
-  let artworkBackgroundSecondary: LoadedStreamArtwork | null = null;
-  let activeArtworkBackgroundSlot: ArtworkBackgroundSlot = 'primary';
-  let activeArtworkBackground: LoadedStreamArtwork | null = null;
-  let exitingArtworkBackgroundSlot: ArtworkBackgroundSlot | null = null;
-  let visibleArtworkBackground: LoadedStreamArtwork | null = null;
-  let artworkLoadToken = 0;
-  let detailsArtworkLoadToken = 0;
-  let artworkBackgroundCleanupTimer: ReturnType<typeof setTimeout> | null = null;
-  let displayedArtworkKey = '';
-  let detailsDisplayRequestKey = '';
-  let detailsArtworkTrackKey = '';
-  let artworkBrightnessKey = '';
   let artworkBackgroundMode: ArtworkBackgroundMode = appearanceSettings.getSnapshot().artworkBackgroundMode;
   let isWorkspaceArtworkBackgroundEnabled = false;
   let isPlayerBarArtworkBackgroundEnabled = false;
   let isPlayerBarArtworkLayerActive = false;
   let isWorkspaceArtworkBackgroundActive = false;
   let isArtworkBackgroundActive = false;
-  let isArtworkBackgroundBright = false;
-  let isWindowChromeTransitionBypassed = false;
   let isDetailsPanelVisible = true;
   let panelLayout = workspacePanelLayout.getSnapshot();
   let resizeState: PanelResizeState | null = null;
@@ -197,9 +181,7 @@
   let playlistPanelProps: WorkspacePanelProps;
   let libraryPanelProps: WorkspacePanelProps;
   let workspaceTabs: WorkspaceTabDefinition[] = allWorkspaceTabs.filter((tab) => tab.id !== 'details');
-  let previousWindowControlsOverlayVisible = false;
-  let windowChromeTransitionBypassFrameA: number | null = null;
-  let windowChromeTransitionBypassFrameB: number | null = null;
+  let artworkPresentationState = artworkPresentation.getSnapshot();
 
   const importController = createImportController({
     addFiles: handleAddFiles,
@@ -224,41 +206,18 @@
 
   $: isTabbedLayout = innerWidth <= 750;
   $: selectedItem = activeCollection === 'library' ? selectedLibraryItem : selectedPlaylistItem;
-  $: {
-    if (selectedItem) {
-      detailsTargetTrack = selectedItem;
-    } else if (playlistSelectionIds.length === 0 && librarySelectionIds.length === 0) {
-      detailsTargetTrack = null;
-    }
-  }
-  $: {
-    if (selectedItem && detailsDisplayTrack?.id === selectedItem.id) {
-      detailsDisplayTrack = selectedItem;
-    } else if (playlistSelectionIds.length === 0 && librarySelectionIds.length === 0) {
-      detailsDisplayTrack = null;
-    }
-  }
-  $: visibleDetailsArtwork =
-    detailsDisplayTrack && detailsArtworkTrackKey === getTrackArtworkLoadKey(detailsDisplayTrack)
-      ? detailsArtwork
-      : null;
   $: livePlayingTrack = resolveTrackSnapshot(playingTrack, selectedItem, playlistItems, libraryItems);
   $: playerDisplayTrack = livePlayingTrack;
-  $: activeArtworkBackground =
-    activeArtworkBackgroundSlot === 'primary' ? artworkBackgroundPrimary : artworkBackgroundSecondary;
-  $: visibleArtworkBackground =
-    activeArtworkBackground ??
-    (exitingArtworkBackgroundSlot ? getArtworkBackground(exitingArtworkBackgroundSlot) : null);
   $: artworkBackgroundMode = $appearanceSettings.artworkBackgroundMode;
   $: isWorkspaceArtworkBackgroundEnabled = artworkBackgroundMode === 'workspace';
   $: isPlayerBarArtworkBackgroundEnabled =
     artworkBackgroundMode === 'workspace' || artworkBackgroundMode === 'player';
   $: isPlayerBarArtworkLayerActive =
-    artworkBackgroundMode === 'player' && Boolean(visibleArtworkBackground);
+    artworkBackgroundMode === 'player' && Boolean(artworkPresentationState.visibleArtworkBackground);
   $: isWorkspaceArtworkBackgroundActive =
-    isWorkspaceArtworkBackgroundEnabled && Boolean(visibleArtworkBackground);
+    isWorkspaceArtworkBackgroundEnabled && Boolean(artworkPresentationState.visibleArtworkBackground);
   $: isArtworkBackgroundActive =
-    isPlayerBarArtworkBackgroundEnabled && Boolean(visibleArtworkBackground);
+    isPlayerBarArtworkBackgroundEnabled && Boolean(artworkPresentationState.visibleArtworkBackground);
   $: documentTitle =
     $appearanceSettings.showTrackTitleInWindowTitle && livePlayingTrack
       ? getTrackDisplayTitle(livePlayingTrack)
@@ -308,40 +267,22 @@
     setActiveWorkspaceTab(activeCollection);
   }
   $: {
-    const nextArtworkKey = getTrackArtworkLoadKey(playerDisplayTrack);
-
-    if (nextArtworkKey !== displayedArtworkKey) {
-      displayedArtworkKey = nextArtworkKey;
-      void syncDisplayedArtwork(playerDisplayTrack);
-    }
+    artworkPresentation.syncSelection(
+      selectedItem,
+      playlistSelectionIds.length > 0 || librarySelectionIds.length > 0
+    );
+    void artworkPresentation.syncDetailsDisplay();
   }
-  $: {
-    const nextDetailsKey = getTrackArtworkLoadKey(detailsTargetTrack);
-
-    if (nextDetailsKey !== detailsDisplayRequestKey) {
-      detailsDisplayRequestKey = nextDetailsKey;
-      void syncDetailsDisplay(detailsTargetTrack);
-    }
-  }
-  $: {
-    const nextBrightnessKey = isArtworkBackgroundActive && visibleArtworkBackground
-      ? visibleArtworkBackground.url
-      : '';
-
-    if (nextBrightnessKey !== artworkBrightnessKey) {
-      artworkBrightnessKey = nextBrightnessKey;
-      void syncArtworkBrightness(visibleArtworkBackground, isArtworkBackgroundActive);
-    }
-  }
-  $: syncArtworkMenuClasses(isWorkspaceArtworkBackgroundActive, isArtworkBackgroundBright);
-  $: {
-    const overlayVisible = $windowControlsOverlayState.visible;
-
-    if (overlayVisible !== previousWindowControlsOverlayVisible) {
-      bypassWindowChromeTransitions();
-      previousWindowControlsOverlayVisible = overlayVisible;
-    }
-  }
+  $: void artworkPresentation.syncDisplayedArtwork(playerDisplayTrack);
+  $: void artworkPresentation.syncArtworkBrightness(
+    artworkPresentationState.visibleArtworkBackground,
+    isArtworkBackgroundActive
+  );
+  $: artworkPresentation.syncArtworkMenuClasses(
+    isWorkspaceArtworkBackgroundActive,
+    artworkPresentationState.isArtworkBackgroundBright
+  );
+  $: artworkPresentation.setWindowControlsOverlayVisible($windowControlsOverlayState.visible);
 
   const playlistPanelHandlers: WorkspacePanelHandlers = {
     addFiles: (files) => handleAddFiles(files, 'playlist'),
@@ -428,306 +369,6 @@
         URL.revokeObjectURL(item.objectUrl);
       }
     }
-  }
-
-  function getArtworkBackground(slot: ArtworkBackgroundSlot): LoadedStreamArtwork | null {
-    return slot === 'primary' ? artworkBackgroundPrimary : artworkBackgroundSecondary;
-  }
-
-  function setArtworkBackground(slot: ArtworkBackgroundSlot, artwork: LoadedStreamArtwork | null) {
-    if (slot === 'primary') {
-      artworkBackgroundPrimary = artwork;
-      return;
-    }
-
-    artworkBackgroundSecondary = artwork;
-  }
-
-  function clearArtworkBackgroundCleanupTimer() {
-    if (artworkBackgroundCleanupTimer === null) {
-      return;
-    }
-
-    clearTimeout(artworkBackgroundCleanupTimer);
-    artworkBackgroundCleanupTimer = null;
-  }
-
-  function scheduleArtworkBackgroundCleanup(slot: ArtworkBackgroundSlot) {
-    clearArtworkBackgroundCleanupTimer();
-    exitingArtworkBackgroundSlot = slot;
-
-    artworkBackgroundCleanupTimer = setTimeout(() => {
-      artworkBackgroundCleanupTimer = null;
-
-      if (slot === activeArtworkBackgroundSlot) {
-        return;
-      }
-
-      const artwork = getArtworkBackground(slot);
-
-      if (!artwork) {
-        return;
-      }
-
-      revokeTrackArtwork(artwork);
-      setArtworkBackground(slot, null);
-
-      if (exitingArtworkBackgroundSlot === slot) {
-        exitingArtworkBackgroundSlot = null;
-      }
-    }, ARTWORK_BACKGROUND_TRANSITION_MS);
-  }
-
-  function replaceArtworkBackground(artwork: LoadedStreamArtwork | null) {
-    const nextSlot: ArtworkBackgroundSlot =
-      activeArtworkBackgroundSlot === 'primary' ? 'secondary' : 'primary';
-    const previousActiveSlot = activeArtworkBackgroundSlot;
-    const previousActiveArtwork = getArtworkBackground(previousActiveSlot);
-    const staleArtwork = getArtworkBackground(nextSlot);
-
-    clearArtworkBackgroundCleanupTimer();
-
-    if (staleArtwork) {
-      revokeTrackArtwork(staleArtwork);
-    }
-
-    if (exitingArtworkBackgroundSlot === nextSlot) {
-      exitingArtworkBackgroundSlot = null;
-    }
-
-    setArtworkBackground(nextSlot, artwork);
-    activeArtworkBackgroundSlot = nextSlot;
-
-    if (!previousActiveArtwork) {
-      setArtworkBackground(previousActiveSlot, null);
-      exitingArtworkBackgroundSlot = null;
-      return;
-    }
-
-    scheduleArtworkBackgroundCleanup(previousActiveSlot);
-  }
-
-  function clearDisplayedArtwork() {
-    displayedArtwork = null;
-  }
-
-  function wait(milliseconds: number): Promise<void> {
-    return new Promise((resolve) => {
-      setTimeout(resolve, milliseconds);
-    });
-  }
-
-  function hasCommittedPlaybackDetails(track: PlaylistItem | null): boolean {
-    if (!track) {
-      return true;
-    }
-
-    const metadata = track.metadata;
-
-    if (
-      (metadata?.duration ?? 0) > 0 ||
-      (metadata?.bitrate ?? 0) > 0 ||
-      Boolean(metadata?.title?.trim()) ||
-      Boolean(metadata?.artist?.trim()) ||
-      Boolean(metadata?.album?.trim()) ||
-      Boolean(metadata?.albumArtist?.trim()) ||
-      Boolean(metadata?.genre?.trim()) ||
-      Boolean(metadata?.year?.trim()) ||
-      Boolean(metadata?.trackNumber?.trim()) ||
-      Boolean(metadata?.discNumber?.trim()) ||
-      Boolean(metadata?.composer?.trim())
-    ) {
-      return true;
-    }
-
-    if (track.kind === 'module') {
-      return Boolean(
-        metadata?.patterns ||
-          metadata?.channels ||
-          metadata?.orders ||
-          metadata?.subsongNames?.length ||
-          metadata?.message?.trim() ||
-          metadata?.originalType?.trim()
-      );
-    }
-
-    return false;
-  }
-
-  async function waitForDetailsCommitReady(
-    track: PlaylistItem,
-    loadToken: number
-  ): Promise<PlaylistItem | null> {
-    const deadline = Date.now() + 1000;
-
-    while (
-      loadToken === detailsArtworkLoadToken &&
-      detailsTargetTrack?.id === track.id &&
-      (pendingPlaybackTrackId === track.id || playingTrack?.id === track.id) &&
-      !hasCommittedPlaybackDetails(resolveDetailsTrackSnapshot(track)) &&
-      Date.now() < deadline
-    ) {
-      await wait(16);
-    }
-
-    return resolveDetailsTrackSnapshot(track);
-  }
-
-  function resolveTrackSnapshot(
-    track: PlaylistItem | null,
-    selectedTrackSnapshot: PlaylistItem | null,
-    playlistTrackSnapshot: PlaylistItem[],
-    libraryTrackSnapshot: PlaylistItem[]
-  ): PlaylistItem | null {
-    if (!track) {
-      return null;
-    }
-
-    if (selectedTrackSnapshot?.id === track.id) {
-      return selectedTrackSnapshot;
-    }
-
-    return (
-      playlistTrackSnapshot.find((item) => item.id === track.id) ??
-      libraryTrackSnapshot.find((item) => item.id === track.id) ??
-      track
-    );
-  }
-
-  function resolveDetailsTrackSnapshot(track: PlaylistItem | null): PlaylistItem | null {
-    return resolveTrackSnapshot(track, selectedItem, playlistItems, libraryItems);
-  }
-
-  function hasSameTrackMetadata(left: PlaylistItem | null, right: PlaylistItem | null): boolean {
-    return JSON.stringify(left?.metadata ?? {}) === JSON.stringify(right?.metadata ?? {});
-  }
-
-  function setDetailsDisplay(track: PlaylistItem | null, artwork: LoadedStreamArtwork | null) {
-    const previousArtwork = detailsArtwork;
-    detailsDisplayTrack = track;
-    detailsArtwork = artwork;
-    detailsArtworkTrackKey = getTrackArtworkLoadKey(track);
-
-    if (previousArtwork && previousArtwork !== artwork) {
-      revokeTrackArtwork(previousArtwork);
-    }
-  }
-
-  function clearDetailsDisplay() {
-    setDetailsDisplay(null, null);
-  }
-
-  function clearArtworkBackgrounds() {
-    clearArtworkBackgroundCleanupTimer();
-    revokeTrackArtwork(artworkBackgroundPrimary);
-    revokeTrackArtwork(artworkBackgroundSecondary);
-    artworkBackgroundPrimary = null;
-    artworkBackgroundSecondary = null;
-    exitingArtworkBackgroundSlot = null;
-    isArtworkBackgroundBright = false;
-  }
-
-  async function syncDisplayedArtwork(track: PlaylistItem | null) {
-    const loadToken = ++artworkLoadToken;
-
-    if (!track) {
-      clearDisplayedArtwork();
-      replaceArtworkBackground(null);
-      return;
-    }
-
-    const artwork = await loadTrackArtwork(track);
-
-    if (loadToken !== artworkLoadToken) {
-      revokeTrackArtwork(artwork);
-      return;
-    }
-
-    displayedArtwork = artwork;
-    replaceArtworkBackground(artwork);
-  }
-
-  async function syncDetailsDisplay(track: PlaylistItem | null) {
-    const loadToken = ++detailsArtworkLoadToken;
-
-    if (!track) {
-      clearDetailsDisplay();
-      return;
-    }
-
-    const artwork = await loadTrackArtwork(track);
-
-    if (loadToken !== detailsArtworkLoadToken) {
-      revokeTrackArtwork(artwork);
-      return;
-    }
-
-    const resolvedTrack = await waitForDetailsCommitReady(track, loadToken);
-
-    if (loadToken !== detailsArtworkLoadToken) {
-      revokeTrackArtwork(artwork);
-      return;
-    }
-
-    setDetailsDisplay(resolvedTrack, artwork);
-  }
-
-  async function syncArtworkBrightness(artwork: LoadedStreamArtwork | null, enabled: boolean) {
-    const brightnessKey = enabled && artwork ? artwork.url : '';
-
-    if (brightnessKey.length === 0) {
-      isArtworkBackgroundBright = false;
-      return;
-    }
-
-    const analysis = await analyzeArtworkBackground(artwork);
-
-    if (artworkBrightnessKey !== brightnessKey) {
-      return;
-    }
-
-    isArtworkBackgroundBright = analysis.isBright;
-  }
-
-  function syncArtworkMenuClasses(active: boolean, bright: boolean) {
-    if (typeof document === 'undefined' || !document.body) {
-      return;
-    }
-
-    document.body.classList.toggle('artwork-background-active', active);
-    document.body.classList.toggle('artwork-background-bright', active && bright);
-  }
-
-  function clearWindowChromeTransitionBypassFrames() {
-    if (typeof window === 'undefined') {
-      return;
-    }
-
-    if (windowChromeTransitionBypassFrameA !== null) {
-      window.cancelAnimationFrame(windowChromeTransitionBypassFrameA);
-      windowChromeTransitionBypassFrameA = null;
-    }
-
-    if (windowChromeTransitionBypassFrameB !== null) {
-      window.cancelAnimationFrame(windowChromeTransitionBypassFrameB);
-      windowChromeTransitionBypassFrameB = null;
-    }
-  }
-
-  function bypassWindowChromeTransitions() {
-    if (typeof window === 'undefined') {
-      return;
-    }
-
-    clearWindowChromeTransitionBypassFrames();
-    isWindowChromeTransitionBypassed = true;
-    windowChromeTransitionBypassFrameA = window.requestAnimationFrame(() => {
-      windowChromeTransitionBypassFrameA = null;
-      windowChromeTransitionBypassFrameB = window.requestAnimationFrame(() => {
-        windowChromeTransitionBypassFrameB = null;
-        isWindowChromeTransitionBypassed = false;
-      });
-    });
   }
 
   $: {
@@ -1223,13 +864,7 @@
   }
 
   onDestroy(() => {
-    artworkLoadToken += 1;
-    detailsArtworkLoadToken += 1;
-    clearWindowChromeTransitionBypassFrames();
-    clearDisplayedArtwork();
-    clearDetailsDisplay();
-    clearArtworkBackgrounds();
-    syncArtworkMenuClasses(false, false);
+    artworkPresentation.destroy();
     unsubscribePlaylistItems();
     unsubscribeLibraryItems();
     unsubscribePlaylistSelectedIds();
@@ -1241,6 +876,7 @@
     unsubscribeRepeat();
     unsubscribeTrack();
     unsubscribePlaybackStatus();
+    unsubscribeArtworkPresentation();
     unsubscribeLaunchedFiles();
     unsubscribeWorkspacePanelLayout();
     disconnectMediaSession();
@@ -1268,20 +904,22 @@
   class:artwork-background-enabled={artworkBackgroundMode !== 'off'}
   class:artwork-background-active={isWorkspaceArtworkBackgroundActive}
   class:artwork-background-bright={
-    isWorkspaceArtworkBackgroundActive && isArtworkBackgroundBright
+    isWorkspaceArtworkBackgroundActive && artworkPresentationState.isArtworkBackgroundBright
   }
-  class:window-chrome-transition-bypass={isWindowChromeTransitionBypassed}
+  class:window-chrome-transition-bypass={artworkPresentationState.isWindowChromeTransitionBypassed}
   class:window-controls-overlay-active={$windowControlsOverlayState.visible}
 >
   <div
     class="app-shell-background-layer"
     class:is-active={
       isWorkspaceArtworkBackgroundEnabled &&
-      activeArtworkBackgroundSlot === 'primary' &&
-      Boolean(artworkBackgroundPrimary)
+      artworkPresentationState.activeArtworkBackgroundSlot === 'primary' &&
+      Boolean(artworkPresentationState.artworkBackgroundPrimary)
     }
     style={`--artwork-background-image: ${
-      artworkBackgroundPrimary ? `url("${artworkBackgroundPrimary.url}")` : 'none'
+      artworkPresentationState.artworkBackgroundPrimary
+        ? `url("${artworkPresentationState.artworkBackgroundPrimary.url}")`
+        : 'none'
     };`}
     aria-hidden="true"
   ></div>
@@ -1289,11 +927,13 @@
     class="app-shell-background-layer"
     class:is-active={
       isWorkspaceArtworkBackgroundEnabled &&
-      activeArtworkBackgroundSlot === 'secondary' &&
-      Boolean(artworkBackgroundSecondary)
+      artworkPresentationState.activeArtworkBackgroundSlot === 'secondary' &&
+      Boolean(artworkPresentationState.artworkBackgroundSecondary)
     }
     style={`--artwork-background-image: ${
-      artworkBackgroundSecondary ? `url("${artworkBackgroundSecondary.url}")` : 'none'
+      artworkPresentationState.artworkBackgroundSecondary
+        ? `url("${artworkPresentationState.artworkBackgroundSecondary.url}")`
+        : 'none'
     };`}
     aria-hidden="true"
   ></div>
@@ -1327,8 +967,8 @@
       {playlistPanelHandlers}
       {libraryPanelProps}
       {libraryPanelHandlers}
-      selectedItem={detailsDisplayTrack}
-      detailsArtwork={visibleDetailsArtwork}
+      selectedItem={artworkPresentationState.detailsDisplayTrack}
+      detailsArtwork={artworkPresentationState.visibleDetailsArtwork}
       isDetailsVisible={isDetailsPanelVisible}
       onCloseDetails={handleCloseTrackDetails}
       on:tabChange={(event) => setActiveWorkspaceTab(event.detail)}
@@ -1342,8 +982,8 @@
       panelWidths={widePanelWidths}
       resizerWidth={WORKSPACE_RESIZER_WIDTH}
       isResizing={Boolean(resizeState)}
-      selectedItem={detailsDisplayTrack}
-      detailsArtwork={visibleDetailsArtwork}
+      selectedItem={artworkPresentationState.detailsDisplayTrack}
+      detailsArtwork={artworkPresentationState.visibleDetailsArtwork}
       isDetailsVisible={isDetailsPanelVisible}
       onCloseDetails={handleCloseTrackDetails}
       on:resizeStart={handleWideWorkspaceResizeStart}
@@ -1359,12 +999,12 @@
     track={playerDisplayTrack}
     selectedTrack={selectedPlaylistItem}
     isTabbedLayout={isTabbedLayout}
-    artwork={displayedArtwork}
-    artworkBackgroundPrimary={artworkBackgroundPrimary}
-    artworkBackgroundSecondary={artworkBackgroundSecondary}
-    activeArtworkBackgroundSlot={activeArtworkBackgroundSlot}
+    artwork={artworkPresentationState.displayedArtwork}
+    artworkBackgroundPrimary={artworkPresentationState.artworkBackgroundPrimary}
+    artworkBackgroundSecondary={artworkPresentationState.artworkBackgroundSecondary}
+    activeArtworkBackgroundSlot={artworkPresentationState.activeArtworkBackgroundSlot}
     artworkBackgroundActive={isPlayerBarArtworkLayerActive}
-    artworkBackgroundBright={isArtworkBackgroundBright}
+    artworkBackgroundBright={artworkPresentationState.isArtworkBackgroundBright}
     on:toggle={handleTogglePlayback}
     on:stop={handleStop}
     on:previous={() => void handleStepTrack(-1)}
