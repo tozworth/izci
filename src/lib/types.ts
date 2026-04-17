@@ -20,6 +20,13 @@ export interface TrackMetadata {
   title?: string;
   artist?: string;
   album?: string;
+  albumArtist?: string;
+  genre?: string;
+  year?: string;
+  trackNumber?: string;
+  discNumber?: string;
+  composer?: string;
+  embeddedMetadataLoaded?: boolean;
   trackerType?: string;
   originalType?: string;
   message?: string;

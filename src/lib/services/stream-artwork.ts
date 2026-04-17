@@ -53,6 +53,17 @@ function trimTagValue(value: string): string | undefined {
   return trimmed ? trimmed : undefined;
 }
 
+function normalizeYearTagValue(value: string): string | undefined {
+  const normalizedValue = trimTagValue(value);
+
+  if (!normalizedValue) {
+    return undefined;
+  }
+
+  const yearMatch = normalizedValue.match(/\b\d{4}\b/);
+  return yearMatch ? yearMatch[0] : normalizedValue;
+}
+
 function applyVorbisComment(metadata: TrackMetadata, key: string, value: string): void {
   const normalizedValue = trimTagValue(value);
 
@@ -69,6 +80,27 @@ function applyVorbisComment(metadata: TrackMetadata, key: string, value: string)
       break;
     case 'ALBUM':
       metadata.album ??= normalizedValue;
+      break;
+    case 'ALBUMARTIST':
+    case 'ALBUM ARTIST':
+      metadata.albumArtist ??= normalizedValue;
+      break;
+    case 'GENRE':
+      metadata.genre ??= normalizedValue;
+      break;
+    case 'DATE':
+    case 'YEAR':
+      metadata.year ??= normalizeYearTagValue(normalizedValue);
+      break;
+    case 'TRACKNUMBER':
+      metadata.trackNumber ??= normalizedValue;
+      break;
+    case 'DISCNUMBER':
+    case 'DISC':
+      metadata.discNumber ??= normalizedValue;
+      break;
+    case 'COMPOSER':
+      metadata.composer ??= normalizedValue;
       break;
     default:
       break;
@@ -399,9 +431,12 @@ export async function loadTrackMetadata(track: PlaylistItem | null): Promise<Tra
   }
 
   const bytes = new Uint8Array(await file.arrayBuffer());
-  const metadata = extractStreamData(bytes, track.extension).metadata;
+  const metadata: TrackMetadata = {
+    ...extractStreamData(bytes, track.extension).metadata,
+    embeddedMetadataLoaded: true
+  };
 
-  return Object.keys(metadata).length > 0 ? metadata : null;
+  return metadata;
 }
 
 export async function loadTrackArtwork(track: PlaylistItem | null): Promise<LoadedStreamArtwork | null> {

@@ -11,10 +11,38 @@
   export let showCloseButton = false;
   export let onClose: () => void = () => {};
 
+  interface MetadataEntry {
+    label: string;
+    value: string;
+  }
+
+  function trimMetadataValue(value: string | undefined): string {
+    return value?.trim() || '';
+  }
+
+  function buildStreamMetadataEntries(track: PlaylistItem | null): MetadataEntry[] {
+    if (!track || track.kind !== 'stream') {
+      return [];
+    }
+
+    const metadata = track.metadata;
+
+    return [
+      { label: 'Album', value: trimMetadataValue(metadata?.album) },
+      { label: 'Album Artist', value: trimMetadataValue(metadata?.albumArtist) },
+      { label: 'Genre', value: trimMetadataValue(metadata?.genre) },
+      { label: 'Year', value: trimMetadataValue(metadata?.year) },
+      { label: 'Track Number', value: trimMetadataValue(metadata?.trackNumber) },
+      { label: 'Disc Number', value: trimMetadataValue(metadata?.discNumber) },
+      { label: 'Composer', value: trimMetadataValue(metadata?.composer) }
+    ].filter((entry) => entry.value.length > 0);
+  }
+
   $: title = track?.metadata?.title?.trim() || '';
   $: showTrackSection = title.length > 0;
   $: artist = track?.metadata?.artist?.trim() || '';
   $: showArtist = showTrackSection && artist.length > 0 && artist.toLowerCase() !== 'unknown';
+  $: metadataEntries = buildStreamMetadataEntries(track);
   $: tracker = track ? resolveModuleTrackerName(track.extension, track.metadata?.trackerType) : '';
   $: patterns = track?.metadata?.patterns;
   $: notes = track?.metadata?.message?.trim() || '';
@@ -76,6 +104,23 @@
           {#if showArtist}
             <p class="track-artist">{artist}</p>
           {/if}
+        </section>
+      {/if}
+
+      {#if metadataEntries.length > 0}
+        <section class="detail-section metadata-section">
+          <p class="section-heading">
+            <span class="material-symbols-outlined section-icon" aria-hidden="true">sell</span>
+            <span>Metadata</span>
+          </p>
+          <dl class="metadata-list">
+            {#each metadataEntries as entry}
+              <div class="metadata-row">
+                <dt>{entry.label}</dt>
+                <dd>{entry.value}</dd>
+              </div>
+            {/each}
+          </dl>
         </section>
       {/if}
 
@@ -243,6 +288,35 @@
     margin: 0;
     color: var(--muted);
     font-size: 0.98rem;
+  }
+
+  .metadata-list {
+    display: grid;
+    gap: 0.6rem;
+    margin: 0;
+  }
+
+  .metadata-row {
+    display: grid;
+    grid-template-columns: minmax(0, 7rem) minmax(0, 1fr);
+    gap: 0.8rem;
+    align-items: start;
+  }
+
+  .metadata-row dt,
+  .metadata-row dd {
+    margin: 0;
+    min-width: 0;
+  }
+
+  .metadata-row dt {
+    color: var(--muted);
+  }
+
+  .metadata-row dd {
+    color: var(--text);
+    text-align: left;
+    overflow-wrap: anywhere;
   }
 
   .format-section {

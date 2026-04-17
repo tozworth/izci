@@ -39,11 +39,7 @@ function shouldReadEmbeddedStreamMetadata(item: PlaylistItem): boolean {
     return false;
   }
 
-  const title = item.metadata?.title?.trim();
-  const artist = item.metadata?.artist?.trim();
-  const album = item.metadata?.album?.trim();
-
-  return !title || !artist || !album;
+  return item.metadata?.embeddedMetadataLoaded !== true;
 }
 
 async function readStreamDuration(item: PlaylistItem): Promise<number | undefined> {
