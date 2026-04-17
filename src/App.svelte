@@ -103,6 +103,7 @@
   let detailsTargetTrack: PlaylistItem | null = null;
   let detailsDisplayTrack: PlaylistItem | null = null;
   let visibleDetailsArtwork: LoadedStreamArtwork | null = null;
+  let livePlayingTrack: PlaylistItem | null = null;
   let playerDisplayTrack: PlaylistItem | null = null;
   let playingTrack: PlaylistItem | null = null;
   let pendingPlaybackTrackId: string | null = null;
@@ -237,7 +238,8 @@
     detailsDisplayTrack && detailsArtworkTrackKey === getTrackArtworkLoadKey(detailsDisplayTrack)
       ? detailsArtwork
       : null;
-  $: playerDisplayTrack = playingTrack ?? selectedPlaylistItem;
+  $: livePlayingTrack = resolveTrackSnapshot(playingTrack, selectedItem, playlistItems, libraryItems);
+  $: playerDisplayTrack = livePlayingTrack ?? selectedPlaylistItem;
   $: activeArtworkBackground =
     activeArtworkBackgroundSlot === 'primary' ? artworkBackgroundPrimary : artworkBackgroundSecondary;
   $: visibleArtworkBackground =
@@ -253,7 +255,7 @@
     isWorkspaceArtworkBackgroundEnabled && Boolean(visibleArtworkBackground);
   $: isArtworkBackgroundActive =
     isPlayerBarArtworkBackgroundEnabled && Boolean(visibleArtworkBackground);
-  $: documentTitle = playingTrack ? getTrackDisplayTitle(playingTrack) : 'izci';
+  $: documentTitle = livePlayingTrack ? getTrackDisplayTitle(livePlayingTrack) : 'izci';
   $: {
     const viewportWidth =
       innerWidth > 0 ? innerWidth : typeof window !== 'undefined' ? window.innerWidth : 0;
@@ -556,16 +558,29 @@
     return resolveDetailsTrackSnapshot(track);
   }
 
-  function resolveDetailsTrackSnapshot(track: PlaylistItem | null): PlaylistItem | null {
+  function resolveTrackSnapshot(
+    track: PlaylistItem | null,
+    selectedTrackSnapshot: PlaylistItem | null,
+    playlistTrackSnapshot: PlaylistItem[],
+    libraryTrackSnapshot: PlaylistItem[]
+  ): PlaylistItem | null {
     if (!track) {
       return null;
     }
 
-    if (selectedItem?.id === track.id) {
-      return selectedItem;
+    if (selectedTrackSnapshot?.id === track.id) {
+      return selectedTrackSnapshot;
     }
 
-    return getTrackById('playlist', track.id) ?? getTrackById('library', track.id) ?? track;
+    return (
+      playlistTrackSnapshot.find((item) => item.id === track.id) ??
+      libraryTrackSnapshot.find((item) => item.id === track.id) ??
+      track
+    );
+  }
+
+  function resolveDetailsTrackSnapshot(track: PlaylistItem | null): PlaylistItem | null {
+    return resolveTrackSnapshot(track, selectedItem, playlistItems, libraryItems);
   }
 
   function setDetailsDisplay(track: PlaylistItem | null, artwork: LoadedStreamArtwork | null) {
@@ -1277,7 +1292,7 @@
 
   <PlayerControls
     snapshotStore={playerController.snapshot}
-    track={playingTrack}
+    track={playerDisplayTrack}
     selectedTrack={selectedPlaylistItem}
     isTabbedLayout={isTabbedLayout}
     artwork={displayedArtwork}
