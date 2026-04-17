@@ -634,6 +634,8 @@ body.artwork-background-active.artwork-background-bright {
 }
 
 .workspace-tabs {
+  --workspace-tab-text: var(--text);
+  --workspace-tab-muted: var(--muted);
   display: flex;
   align-items: center;
   gap: 0.1rem;
@@ -641,7 +643,27 @@ body.artwork-background-active.artwork-background-bright {
   top: 0;
   z-index: 10;
   padding: 0 0.75rem;
+  color: var(--workspace-tab-text);
+  background-color: var(--menu-bar-bg);
+  backdrop-filter:
+    blur(var(--chrome-backdrop-blur, 16px))
+    saturate(var(--chrome-backdrop-saturate, 1));
+  -webkit-backdrop-filter:
+    blur(var(--chrome-backdrop-blur, 16px))
+    saturate(var(--chrome-backdrop-saturate, 1));
+  box-shadow: 0 1px 0 var(--hairline);
   border-bottom: 1px solid var(--border-soft);
+  isolation: isolate;
+}
+
+.app-shell.window-controls-overlay-active .workspace-tabs {
+  --workspace-tab-text: var(--window-topbar-text);
+  --workspace-tab-muted: var(--window-topbar-muted);
+  background-color: var(--window-topbar-bg);
+  box-shadow: 0 1px 0 var(--window-topbar-hairline);
+  border-bottom-color: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
 .app-shell.compact-shell .workspace-tabs {
@@ -656,7 +678,7 @@ body.artwork-background-active.artwork-background-bright {
   background: transparent;
   border: 0;
   border-bottom: 2px solid transparent;
-  color: var(--muted);
+  color: var(--workspace-tab-muted);
   line-height: 1;
   transition:
     background 180ms ease,
@@ -675,12 +697,12 @@ body.artwork-background-active.artwork-background-bright {
 }
 
 .workspace-tab:hover {
-  color: var(--text);
+  color: var(--workspace-tab-text);
 }
 
 .workspace-tab.active {
   border-bottom-color: var(--accent-strong);
-  color: var(--text);
+  color: var(--workspace-tab-text);
 }
 
 .workspace-tab .material-symbols-outlined {
@@ -710,7 +732,7 @@ body.artwork-background-active.artwork-background-bright {
   width: 1rem;
   height: 1rem;
   padding: 0;
-  color: var(--muted);
+  color: var(--workspace-tab-muted);
   background: transparent;
   opacity: 0;
   cursor: pointer;
@@ -728,7 +750,7 @@ body.artwork-background-active.artwork-background-bright {
 
 .workspace-tab-close-button:hover,
 .workspace-tab-close-button:focus-visible {
-  color: var(--text);
+  color: var(--workspace-tab-text);
 }
 
 .workspace-tab-close-button .material-symbols-outlined {
