@@ -766,6 +766,11 @@
     };
   }
 
+  function handleShowPlayerTrackDetails(id: string) {
+    handleShowPlaylistTrack(id);
+    handleShowTrackDetails();
+  }
+
   async function handleLibraryActivate(id: string) {
     const track = getTrackById('library', id);
 
@@ -1256,6 +1261,6 @@
     on:next={() => void handleStepTrack(1)}
     on:seek={(event) => playerController.seek(event.detail)}
     on:volume={(event) => playerController.setVolume(event.detail)}
-    on:showTrack={(event) => handleShowPlaylistTrack(event.detail)}
+    on:showTrack={(event) => handleShowPlayerTrackDetails(event.detail)}
   />
 </div>

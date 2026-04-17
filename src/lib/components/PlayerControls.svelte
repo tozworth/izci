@@ -104,6 +104,14 @@
   $: snapshot = $snapshotStore;
   $: displayTrack = track ?? selectedTrack;
   $: displayDuration = track ? snapshot.duration : selectedTrack?.metadata?.duration ?? snapshot.duration;
+
+  function handleShowTrack() {
+    if (!displayTrack) {
+      return;
+    }
+
+    dispatch('showTrack', displayTrack.id);
+  }
 </script>
 
 <footer
@@ -143,18 +151,25 @@
 
   <div class="player-track-group">
     {#if displayTrack}
-      <div class="player-artwork" aria-hidden="true">
-        {#if artwork}
-          <img class="player-artwork-image" src={artwork.url} alt="" />
-        {:else}
-          <div class="player-artwork-placeholder"></div>
-        {/if}
-      </div>
+      <button
+        type="button"
+        class="player-artwork-button"
+        aria-label="Show current track details"
+        on:click={handleShowTrack}
+      >
+        <div class="player-artwork" aria-hidden="true">
+          {#if artwork}
+            <img class="player-artwork-image" src={artwork.url} alt="" />
+          {:else}
+            <div class="player-artwork-placeholder"></div>
+          {/if}
+        </div>
+      </button>
     {/if}
 
     <div class="player-track">
       {#if displayTrack}
-        <button type="button" class="player-track-title" on:click={() => dispatch('showTrack', displayTrack.id)}>
+        <button type="button" class="player-track-link player-track-title" on:click={handleShowTrack}>
           <strong>{getTrackDisplayTitle(displayTrack)}</strong>
         </button>
       {:else}
@@ -162,7 +177,13 @@
       {/if}
       {#if displayTrack}
         {#if getTrackDisplaySubtitle(displayTrack)}
-          <span>{getTrackDisplaySubtitle(displayTrack)}</span>
+          <button
+            type="button"
+            class="player-track-link player-track-subtitle"
+            on:click={handleShowTrack}
+          >
+            {getTrackDisplaySubtitle(displayTrack)}
+          </button>
         {/if}
       {:else}
         <span>Drop files to begin</span>
@@ -256,12 +277,18 @@
 </footer>
 
 <style>
-  .player-track-title {
+  .player-artwork-button,
+  .player-track-link {
     padding: 0;
     border: 0;
     background: transparent;
     color: inherit;
     font: inherit;
+    cursor: pointer;
+  }
+
+  .player-track-title,
+  .player-track-subtitle {
     text-align: left;
   }
 </style>
