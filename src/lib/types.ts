@@ -61,6 +61,7 @@ export interface AppearanceSettings {
   compactShell: boolean;
   useSystemFont: boolean;
   artworkBackgroundMode: ArtworkBackgroundMode;
+  showTrackTitleInWindowTitle: boolean;
 }
 
 export interface PlaybackSettings {

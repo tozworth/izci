@@ -9,7 +9,8 @@ export const DEFAULT_APPEARANCE_SETTINGS: AppearanceSettings = {
   keepLibraryColumnsVisibleInNarrowLayout: false,
   compactShell: false,
   useSystemFont: false,
-  artworkBackgroundMode: 'off'
+  artworkBackgroundMode: 'off',
+  showTrackTitleInWindowTitle: true
 };
 
 let broadcastChannel: BroadcastChannel | null = null;
@@ -38,7 +39,8 @@ function normalizeSettings(value: unknown): AppearanceSettings {
     useSystemFont: source.useSystemFont === true,
     artworkBackgroundMode: legacyArtworkBackgroundEnabled
       ? 'workspace'
-      : normalizeArtworkBackgroundMode(source.artworkBackgroundMode)
+      : normalizeArtworkBackgroundMode(source.artworkBackgroundMode),
+    showTrackTitleInWindowTitle: source.showTrackTitleInWindowTitle !== false
   };
 }
 

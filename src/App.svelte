@@ -259,7 +259,10 @@
     isWorkspaceArtworkBackgroundEnabled && Boolean(visibleArtworkBackground);
   $: isArtworkBackgroundActive =
     isPlayerBarArtworkBackgroundEnabled && Boolean(visibleArtworkBackground);
-  $: documentTitle = livePlayingTrack ? getTrackDisplayTitle(livePlayingTrack) : 'izci';
+  $: documentTitle =
+    $appearanceSettings.showTrackTitleInWindowTitle && livePlayingTrack
+      ? getTrackDisplayTitle(livePlayingTrack)
+      : 'izci';
   $: {
     const viewportWidth =
       innerWidth > 0 ? innerWidth : typeof window !== 'undefined' ? window.innerWidth : 0;
@@ -595,6 +598,10 @@
     return resolveTrackSnapshot(track, selectedItem, playlistItems, libraryItems);
   }
 
+  function hasSameTrackMetadata(left: PlaylistItem | null, right: PlaylistItem | null): boolean {
+    return JSON.stringify(left?.metadata ?? {}) === JSON.stringify(right?.metadata ?? {});
+  }
+
   function setDetailsDisplay(track: PlaylistItem | null, artwork: LoadedStreamArtwork | null) {
     const previousArtwork = detailsArtwork;
     detailsDisplayTrack = track;
@@ -721,6 +728,17 @@
         isWindowChromeTransitionBypassed = false;
       });
     });
+  }
+
+  $: {
+    if (
+      playingTrack &&
+      livePlayingTrack &&
+      playingTrack.id === livePlayingTrack.id &&
+      !hasSameTrackMetadata(playingTrack, livePlayingTrack)
+    ) {
+      playerController.refreshCurrentTrackMetadata(livePlayingTrack.id, livePlayingTrack.metadata);
+    }
   }
 
   function addFiles(files: FileList | File[], target: WorkspaceCollection) {

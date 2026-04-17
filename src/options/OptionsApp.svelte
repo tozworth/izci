@@ -150,6 +150,12 @@
     });
   }
 
+  function handleWindowTitleToggle(event: Event) {
+    appearanceSettings.update({
+      showTrackTitleInWindowTitle: (event.currentTarget as HTMLInputElement).checked
+    });
+  }
+
   function handleLogarithmicVolumeToggle(event: Event) {
     playbackSettings.update({
       logarithmicVolume: (event.currentTarget as HTMLInputElement).checked
@@ -428,6 +434,22 @@
                 </div>
                 <p class="field-hint">
                   Prevents the slim-window library view from collapsing to title-only rows.
+                </p>
+              </label>
+
+              <label class="field checkbox-field">
+                <div class="field-copy">
+                  <span class="field-title">Show track title in window title</span>
+                </div>
+                <div class="field-control checkbox-control">
+                  <input
+                    type="checkbox"
+                    checked={$appearanceSettings.showTrackTitleInWindowTitle}
+                    on:change={handleWindowTitleToggle}
+                  />
+                </div>
+                <p class="field-hint">
+                  Shows the current track title in the main app window title. Turn it off to always show only "izci".
                 </p>
               </label>
             </div>

@@ -72,6 +72,9 @@ function createPlayerController() {
     };
   };
 
+  const hasSameMetadata = (left: TrackMetadata | undefined, right: TrackMetadata | undefined): boolean =>
+    JSON.stringify(left ?? {}) === JSON.stringify(right ?? {});
+
   const onMetadata = (metadata: TrackMetadata) => {
     currentTrack.update((track) => {
       if (!track) {
@@ -213,6 +216,15 @@ function createPlayerController() {
         state: 'error',
         error: message
       });
+    },
+    refreshCurrentTrackMetadata(id: string, metadata: TrackMetadata | undefined) {
+      if (!activeTrack || activeTrack.id !== id || hasSameMetadata(activeTrack.metadata, metadata)) {
+        return;
+      }
+
+      const nextTrack = applyMetadataInference(activeTrack, metadata);
+      activeTrack = nextTrack;
+      currentTrack.set(nextTrack);
     },
     destroy() {
       unsubscribeModuleSettings();
