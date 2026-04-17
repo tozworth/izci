@@ -187,7 +187,7 @@
   let isWorkspaceArtworkBackgroundActive = false;
   let isArtworkBackgroundActive = false;
   let isArtworkBackgroundBright = false;
-  let isDetailsPanelVisible = false;
+  let isDetailsPanelVisible = true;
   let panelLayout = workspacePanelLayout.getSnapshot();
   let resizeState: PanelResizeState | null = null;
   let wideContentWidth = 0;
