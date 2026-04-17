@@ -44,7 +44,7 @@ Working source tree:
 ## App source map
 
 - `src/main.ts`: Svelte mount, global CSS/material symbol import, and production-only handoff to the dedicated PWA registration/update service.
-- `src/App.svelte`: top-level shell; composes the extracted workspace layouts/controllers, owns high-level workspace/playback coordination, global shortcuts, error banner wiring, and wires the shared artwork/details presentation controller state into the shell and player footer.
+- `src/App.svelte`: top-level shell; composes the extracted workspace layouts/controllers, owns high-level workspace coordination, global shortcuts, error banner wiring, and wires the shared playback-command and artwork/details presentation controller state into the shell and player footer.
 - `src/app.css`: global styling.
 - `src/lib/styles/themes.css`: shared color-theme tokens consumed by the main app and Options popup.
 - `src/options/main.ts`: Options popup entry; mounts the dedicated popup Svelte app.
@@ -95,6 +95,7 @@ Primary location for playback and browser-integration logic.
 - `file-launch.ts`: Chromium Launch Queue integration for installed-PWA file associations; converts launched file handles into `File`s and queues them until the app is ready to replace the playlist.
 - `import-controller.ts`: file import controller for picker capability detection, file-input fallback, open-files flow, and folder import flow.
 - `player-controller.ts`: single coordinator for backend switching, snapshot updates, metadata inference application, and player volume propagation.
+- `playback-commands.ts`: app-shell playback command controller; coordinates playlist-backed play/load sequencing, launched-file playlist replacement, play/pause/stop/seek actions, and next/previous/track-end navigation while delegating backend playback to `player-controller.ts`.
 - `volume.ts`: shared slider-to-gain conversion helpers, including the logarithmic-volume mapping used by playback services.
 - `media-session.ts`: Chromium Media Session bridge for now-playing metadata, seek position updates, OS/media-key transport handlers, and the silent native transport anchor used to keep Chromium media surfaces alive for non-native playback paths.
 - `stream-artwork.ts`: on-demand embedded metadata/artwork loading for streamed files; extracts common Vorbis/Opus text tags (`title`, `artist`, `album`, `albumArtist`, `genre`, `year`, track/disc numbers, `composer`) plus transient cover art from `flac` Vorbis comments/picture blocks and `opus` `OpusTags`/`METADATA_BLOCK_PICTURE` comments for playlist metadata, the player UI, and Media Session without persisting artwork blobs.
@@ -165,6 +166,7 @@ Primary location for playback and browser-integration logic.
 - Installed desktop builds opt into manifest `display_override: ['window-controls-overlay']` while preserving `display: 'standalone'` fallback. Users can still toggle the title bar at runtime, so overlay-specific UI must respond to live visibility/geometry changes rather than assuming the overlay is always active.
 - `src/lib/services/window-controls-overlay.ts` is the single source of truth for Window Controls Overlay state. Consume its readable store instead of querying `navigator.windowControlsOverlay` directly from components.
 - `src/lib/services/artwork-presentation.ts` is the single coordinator for app-shell artwork/details presentation side effects. Keep artwork loading/revocation, details-artwork waiting, background-slot cleanup, brightness analysis coordination, and overlay-transition bypass logic there rather than rebuilding them in `App.svelte`.
+- `src/lib/services/playback-commands.ts` is the single coordinator for app-shell playback command sequencing. Keep playlist-backed play/load request ordering, launched-file replacement, and next/previous/end-of-track command flow there rather than rebuilding that logic in `App.svelte`.
 - `src/lib/components/TopMenuBar.svelte` is responsible for titlebar adaptation: it becomes a drag region in overlay mode, marks interactive controls as `no-drag`, hides the version badge while overlay mode is visible, and sizes/collapses itself based on the live available `titlebarAreaRect.width` rather than raw viewport width.
 - When the titlebar menu collapses, it should stay on the shared `MenuSurface.svelte` path rather than inventing a second menu system. `MenuSurface.svelte` supports nested submenus and a drilldown fallback that replaces File/View root entries with submenu contents when flyout submenus would overflow the current window.
 - `src/App.svelte` is responsible for top-level workspace orchestration, but durable state and local algorithms should live in stores/services or the focused workspace components.

@@ -17,6 +17,7 @@
   } from '$lib/services/artwork-presentation';
   import { createImportController, FILE_INPUT_ACCEPT } from '$lib/services/import-controller';
   import { subscribeToLaunchedFiles } from '$lib/services/file-launch';
+  import { createPlaybackCommandsController } from '$lib/services/playback-commands';
   import { mediaSessionService } from '$lib/services/media-session';
   import { playerController } from '$lib/services/player-controller';
   import {
@@ -86,12 +87,6 @@
     { id: 'details', icon: 'info', label: 'Details' }
   ];
   const libraryContextActions = buildLibraryContextActions();
-  const artworkPresentation = createArtworkPresentationController({
-    resolveTrackSnapshot: (track) =>
-      resolveTrackSnapshot(track, selectedItem, playlistItems, libraryItems),
-    isPlaybackDetailsPending: (trackId) =>
-      pendingPlaybackTrackId === trackId || playingTrack?.id === trackId
-  });
 
   let playlistItems: PlaylistItem[] = [];
   let libraryItems: PlaylistItem[] = [];
@@ -104,7 +99,6 @@
   let livePlayingTrack: PlaylistItem | null = null;
   let playerDisplayTrack: PlaylistItem | null = null;
   let playingTrack: PlaylistItem | null = null;
-  let pendingPlaybackTrackId: string | null = null;
   let shuffleEnabled = false;
   let repeatMode: PlaylistRepeatMode = 'off';
   let playbackStatus: Pick<PlaybackSnapshot, 'state' | 'volume' | 'backend' | 'error'> = {
@@ -113,8 +107,48 @@
     backend: null,
     error: undefined
   };
-  let artworkPresentationState = artworkPresentation.getSnapshot();
 
+  let fileInput: HTMLInputElement | null = null;
+  let innerWidth = 0;
+  let activeCollection: WorkspaceCollection = 'playlist';
+  let activeWorkspaceTab: WorkspaceTab = 'playlist';
+  let previousPlaybackState: PlaybackSnapshot['state'] = playbackStatus.state;
+  let playlistJumpRequest: WorkspaceJumpRequest | null = null;
+  let artworkBackgroundMode: ArtworkBackgroundMode = appearanceSettings.getSnapshot().artworkBackgroundMode;
+  let isWorkspaceArtworkBackgroundEnabled = false;
+  let isPlayerBarArtworkBackgroundEnabled = false;
+  let isPlayerBarArtworkLayerActive = false;
+  let isWorkspaceArtworkBackgroundActive = false;
+  let isArtworkBackgroundActive = false;
+  let isDetailsPanelVisible = true;
+  let panelLayout = workspacePanelLayout.getSnapshot();
+  let resizeState: PanelResizeState | null = null;
+  let wideContentWidth = 0;
+  let widePanelWidths = resolveWidePanelWidths(panelLayout, 0);
+  let documentTitle = 'izci';
+  let playlistPanelProps: WorkspacePanelProps;
+  let libraryPanelProps: WorkspacePanelProps;
+  let workspaceTabs: WorkspaceTabDefinition[] = allWorkspaceTabs.filter((tab) => tab.id !== 'details');
+  const playbackCommands = createPlaybackCommandsController({
+    getPlayingTrack: () => playingTrack,
+    getSelectedPlaylistTrack: () => selectedPlaylistItem,
+    getPlaybackState: () => playbackStatus.state,
+    getShuffleEnabled: () => shuffleEnabled,
+    getRepeatMode: () => repeatMode,
+    getTrackById: (collection, id) =>
+      (collection === 'library' ? libraryItems : playlistItems).find((item) => item.id === id) ?? null,
+    selectTrack,
+    setActiveWorkspaceTab,
+    cleanupRemovedItems
+  });
+  let playbackCommandsState = playbackCommands.getSnapshot();
+  const artworkPresentation = createArtworkPresentationController({
+    resolveTrackSnapshot: (track) =>
+      resolveTrackSnapshot(track, selectedItem, playlistItems, libraryItems),
+    isPlaybackDetailsPending: (trackId) =>
+      playbackCommandsState.pendingPlaybackTrackId === trackId || playingTrack?.id === trackId
+  });
+  let artworkPresentationState = artworkPresentation.getSnapshot();
   const unsubscribePlaylistItems = playlistItemsStore.subscribe((value) => (playlistItems = value));
   const unsubscribeLibraryItems = libraryItemsStore.subscribe((value) => (libraryItems = value));
   const unsubscribePlaylistSelectedIds = playlistSelectedIdsStore.subscribe(
@@ -136,10 +170,7 @@
   const unsubscribeRepeat = repeatStore.subscribe((value) => (repeatMode = value));
   const unsubscribeTrack = playerController.currentTrack.subscribe((value) => {
     playingTrack = value;
-
-    if (value?.id && pendingPlaybackTrackId === value.id) {
-      pendingPlaybackTrackId = null;
-    }
+    playbackCommands.notifyCurrentTrackChanged(value);
 
     if (!value?.metadata) {
       return;
@@ -156,38 +187,20 @@
     }
   });
   const unsubscribePlaybackStatus = playerController.status.subscribe((value) => (playbackStatus = value));
+  const unsubscribePlaybackCommands = playbackCommands.subscribe(
+    (value) => (playbackCommandsState = value)
+  );
   const unsubscribeArtworkPresentation = artworkPresentation.subscribe(
     (value) => (artworkPresentationState = value)
   );
-
-  let fileInput: HTMLInputElement | null = null;
-  let innerWidth = 0;
-  let activeCollection: WorkspaceCollection = 'playlist';
-  let activeWorkspaceTab: WorkspaceTab = 'playlist';
-  let previousPlaybackState: PlaybackSnapshot['state'] = playbackStatus.state;
-  let playRequestSequence = 0;
-  let playlistJumpRequest: WorkspaceJumpRequest | null = null;
-  let artworkBackgroundMode: ArtworkBackgroundMode = appearanceSettings.getSnapshot().artworkBackgroundMode;
-  let isWorkspaceArtworkBackgroundEnabled = false;
-  let isPlayerBarArtworkBackgroundEnabled = false;
-  let isPlayerBarArtworkLayerActive = false;
-  let isWorkspaceArtworkBackgroundActive = false;
-  let isArtworkBackgroundActive = false;
-  let isDetailsPanelVisible = true;
-  let panelLayout = workspacePanelLayout.getSnapshot();
-  let resizeState: PanelResizeState | null = null;
-  let wideContentWidth = 0;
-  let widePanelWidths = resolveWidePanelWidths(panelLayout, 0);
-  let documentTitle = 'izci';
-  let playlistPanelProps: WorkspacePanelProps;
-  let libraryPanelProps: WorkspacePanelProps;
-  let workspaceTabs: WorkspaceTabDefinition[] = allWorkspaceTabs.filter((tab) => tab.id !== 'details');
 
   const importController = createImportController({
     addFiles: handleAddFiles,
     clickFileInput: () => fileInput?.click()
   });
-  const unsubscribeLaunchedFiles = subscribeToLaunchedFiles((files) => handleLaunchedFiles(files));
+  const unsubscribeLaunchedFiles = subscribeToLaunchedFiles((files) =>
+    void playbackCommands.replacePlaylistFromFiles(files)
+  );
   const unsubscribeWorkspacePanelLayout = workspacePanelLayout.subscribe(
     (value) => (panelLayout = value)
   );
@@ -195,12 +208,12 @@
     snapshot: playerController.snapshot,
     track: playerController.currentTrack,
     handlers: {
-      play: () => void handlePlay(),
-      pause: handlePause,
-      stop: handleStop,
-      previousTrack: () => void handleStepTrack(-1),
-      nextTrack: () => void handleStepTrack(1),
-      seekTo: handleSeek
+      play: () => void playbackCommands.play(),
+      pause: () => playbackCommands.pause(),
+      stop: () => playbackCommands.stop(),
+      previousTrack: () => void playbackCommands.stepTrack(-1),
+      nextTrack: () => void playbackCommands.stepTrack(1),
+      seekTo: (seconds) => playbackCommands.seek(seconds)
     }
   });
 
@@ -288,7 +301,7 @@
     addFiles: (files) => handleAddFiles(files, 'playlist'),
     openFiles: () => void handleMenuOpenFiles('playlist'),
     select: (event) => handleSelect('playlist', event),
-    activate: (event) => void handlePlaylistActivate(event.detail),
+    activate: (event) => void playbackCommands.activatePlaylistTrack(event.detail),
     contextAction: handlePlaylistContextAction,
     toggleShuffle: () => playlistStore.toggleShuffle(),
     cycleRepeat: () => playlistStore.cycleRepeatMode()
@@ -298,16 +311,12 @@
     openFiles: () => void handleMenuOpenFiles('library'),
     select: (event) => handleSelect('library', event),
     setSelection: (event) => handleSetSelection('library', event),
-    activate: (event) => void handleLibraryActivate(event.detail),
+    activate: (event) => void playbackCommands.activateLibraryTrack(event.detail),
     contextAction: handleLibraryContextAction
   };
 
   function getCollectionStore(collection: WorkspaceCollection): TrackCollectionStore {
     return collection === 'library' ? libraryStore : playlistStore;
-  }
-
-  function getCollectionItems(collection: WorkspaceCollection): PlaylistItem[] {
-    return collection === 'library' ? libraryItems : playlistItems;
   }
 
   function getCollectionSelectionIds(collection: WorkspaceCollection): string[] {
@@ -406,81 +415,6 @@
     activeCollection = target;
   }
 
-  async function handleLaunchedFiles(files: File[]) {
-    const nextItems = buildPlaylistItems(files);
-
-    if (nextItems.length === 0) {
-      return;
-    }
-
-    await playlistStore.ready();
-    setActiveWorkspaceTab('playlist');
-
-    const { removedItems, addedItems } = playlistStore.replaceAll(nextItems);
-
-    playerController.unload();
-    cleanupRemovedItems(removedItems);
-
-    if (addedItems.length > 0) {
-      selectTrack('playlist', addedItems[0].id);
-      await playTrack(addedItems[0]);
-    }
-  }
-
-  function getTrackById(collection: WorkspaceCollection, id: string): PlaylistItem | null {
-    const track = getCollectionItems(collection).find((item) => item.id === id);
-    return track ?? null;
-  }
-
-  async function playTrack(track: PlaylistItem) {
-    const requestId = ++playRequestSequence;
-    pendingPlaybackTrackId = track.id;
-    const playableTrack = await playlistStore.ensureLoaded(track.id, { prompt: true });
-
-    if (requestId !== playRequestSequence) {
-      if (pendingPlaybackTrackId === track.id) {
-        pendingPlaybackTrackId = null;
-      }
-      return;
-    }
-
-    if (!playableTrack) {
-      if (pendingPlaybackTrackId === track.id) {
-        pendingPlaybackTrackId = null;
-      }
-      playerController.reportError('Could not access this file. Re-add it or grant file access.');
-      return;
-    }
-
-    if (playingTrack?.id !== playableTrack.id) {
-      await playerController.load(playableTrack, { autoPlay: true });
-
-      if (requestId !== playRequestSequence) {
-        if (pendingPlaybackTrackId === playableTrack.id) {
-          pendingPlaybackTrackId = null;
-        }
-        return;
-      }
-      return;
-    }
-
-    if (pendingPlaybackTrackId === playableTrack.id) {
-      pendingPlaybackTrackId = null;
-    }
-
-    if (
-      playbackStatus.state === 'playing' ||
-      playbackStatus.state === 'paused' ||
-      playbackStatus.state === 'ended'
-    ) {
-      playerController.seek(0);
-    }
-
-    if (playbackStatus.state !== 'playing') {
-      playerController.play();
-    }
-  }
-
   function handleSelect(
     collection: WorkspaceCollection,
     event: CustomEvent<{ id: string; range: boolean; toggle: boolean }>
@@ -495,17 +429,6 @@
     setCollectionSelection(collection, event.detail);
   }
 
-  async function handlePlaylistActivate(id: string) {
-    const track = getTrackById('playlist', id);
-
-    if (!track) {
-      return;
-    }
-
-    selectTrack('playlist', id);
-    await playTrack(track);
-  }
-
   function handleShowPlaylistTrack(id: string) {
     setActiveWorkspaceTab('playlist');
     selectTrack('playlist', id);
@@ -518,23 +441,6 @@
   function handleShowPlayerTrackDetails(id: string) {
     handleShowPlaylistTrack(id);
     handleShowTrackDetails();
-  }
-
-  async function handleLibraryActivate(id: string) {
-    const track = getTrackById('library', id);
-
-    if (!track) {
-      return;
-    }
-
-    const [playlistTrack] = playlistStore.add(clonePlaylistItems([track]));
-
-    if (!playlistTrack) {
-      return;
-    }
-
-    selectTrack('playlist', playlistTrack.id);
-    await playTrack(playlistTrack);
   }
 
   function beginPanelResize(event: PointerEvent, handle: WorkspaceResizeHandle) {
@@ -576,15 +482,6 @@
     }
 
     resizeState = null;
-  }
-
-  async function handleTogglePlayback() {
-    if (playbackStatus.state === 'playing') {
-      handlePause();
-      return;
-    }
-
-    await handlePlay();
   }
 
   async function handleMenuOpenFiles(target: WorkspaceCollection = activeCollection) {
@@ -671,75 +568,6 @@
     }
   }
 
-  function handleStop() {
-    if (!playingTrack) {
-      return;
-    }
-
-    playerController.pause();
-    playerController.seek(0);
-  }
-
-  async function handlePlay() {
-    if (playingTrack) {
-      playerController.play();
-      return;
-    }
-
-    if (!selectedPlaylistItem) {
-      return;
-    }
-
-    await playTrack(selectedPlaylistItem);
-  }
-
-  function handlePause() {
-    if (!playingTrack) {
-      return;
-    }
-
-    playerController.pause();
-  }
-
-  function handleSeek(seconds: number) {
-    if (!playingTrack) {
-      return;
-    }
-
-    playerController.seek(seconds);
-  }
-
-  async function handleStepTrack(direction: -1 | 1) {
-    const nextTrack = playlistStore.resolveStepTrack({
-      currentId: playingTrack?.id,
-      selectedId: selectedPlaylistItem?.id,
-      direction,
-      shuffle: shuffleEnabled,
-      wrap: repeatMode === 'all'
-    });
-
-    if (!nextTrack) {
-      return;
-    }
-
-    selectTrack('playlist', nextTrack.id);
-    await playTrack(nextTrack);
-  }
-
-  async function handleTrackEnded() {
-    const nextTrack = playlistStore.resolveTrackEnd({
-      currentId: playingTrack?.id,
-      shuffle: shuffleEnabled,
-      repeatMode
-    });
-
-    if (!nextTrack) {
-      return;
-    }
-
-    selectTrack('playlist', nextTrack.id);
-    await playTrack(nextTrack);
-  }
 
   function removePlaylistItems(ids: string[]) {
     if (ids.length === 0) {
@@ -857,7 +685,7 @@
 
   $: if (playbackStatus.state !== previousPlaybackState) {
     if (playbackStatus.state === 'ended') {
-      void handleTrackEnded();
+      void playbackCommands.handleTrackEnded();
     }
 
     previousPlaybackState = playbackStatus.state;
@@ -876,6 +704,7 @@
     unsubscribeRepeat();
     unsubscribeTrack();
     unsubscribePlaybackStatus();
+    unsubscribePlaybackCommands();
     unsubscribeArtworkPresentation();
     unsubscribeLaunchedFiles();
     unsubscribeWorkspacePanelLayout();
@@ -1005,11 +834,11 @@
     activeArtworkBackgroundSlot={artworkPresentationState.activeArtworkBackgroundSlot}
     artworkBackgroundActive={isPlayerBarArtworkLayerActive}
     artworkBackgroundBright={artworkPresentationState.isArtworkBackgroundBright}
-    on:toggle={handleTogglePlayback}
-    on:stop={handleStop}
-    on:previous={() => void handleStepTrack(-1)}
-    on:next={() => void handleStepTrack(1)}
-    on:seek={(event) => playerController.seek(event.detail)}
+    on:toggle={() => void playbackCommands.togglePlayback()}
+    on:stop={() => playbackCommands.stop()}
+    on:previous={() => void playbackCommands.stepTrack(-1)}
+    on:next={() => void playbackCommands.stepTrack(1)}
+    on:seek={(event) => playbackCommands.seek(event.detail)}
     on:volume={(event) => playerController.setVolume(event.detail)}
     on:showTrack={(event) => handleShowPlayerTrackDetails(event.detail)}
   />
