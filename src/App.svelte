@@ -891,6 +891,7 @@
   class:window-controls-overlay-active={$windowControlsOverlayState.visible}
   style={`--artwork-background-image: ${displayedArtwork ? `url("${displayedArtwork.url}")` : 'none'};`}
 >
+  <div class="window-frame-safe-strip" aria-hidden="true"></div>
   <input
     bind:this={fileInput}
     class="sr-only"

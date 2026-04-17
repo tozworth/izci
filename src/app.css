@@ -76,15 +76,6 @@ button {
 
 .app-shell.window-controls-overlay-active {
   padding-top: var(--window-frame-safe-top);
-  background-image: linear-gradient(
-    180deg,
-    var(--window-topbar-bg) 0,
-    var(--window-topbar-bg) var(--window-frame-safe-top),
-    transparent var(--window-frame-safe-top),
-    transparent 100%
-  );
-  background-repeat: no-repeat;
-  background-size: 100% 100%;
 }
 
 .app-shell.tabbed-layout {
@@ -125,6 +116,19 @@ button {
 
 .app-shell > * {
   z-index: 1;
+}
+
+.window-frame-safe-strip {
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 0;
+  pointer-events: none;
+  z-index: 45;
+  background: var(--window-topbar-bg);
+}
+
+.app-shell.window-controls-overlay-active .window-frame-safe-strip {
+  height: var(--window-frame-safe-top);
 }
 
 .app-shell.artwork-background-active {
