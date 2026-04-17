@@ -239,7 +239,7 @@
       ? detailsArtwork
       : null;
   $: livePlayingTrack = resolveTrackSnapshot(playingTrack, selectedItem, playlistItems, libraryItems);
-  $: playerDisplayTrack = livePlayingTrack ?? selectedPlaylistItem;
+  $: playerDisplayTrack = livePlayingTrack;
   $: activeArtworkBackground =
     activeArtworkBackgroundSlot === 'primary' ? artworkBackgroundPrimary : artworkBackgroundSecondary;
   $: visibleArtworkBackground =

@@ -102,8 +102,8 @@
   });
 
   $: snapshot = $snapshotStore;
-  $: displayTrack = track ?? selectedTrack;
-  $: displayDuration = track ? snapshot.duration : selectedTrack?.metadata?.duration ?? snapshot.duration;
+  $: displayTrack = track;
+  $: displayDuration = track ? snapshot.duration : 0;
 
   function handleShowTrack() {
     if (!displayTrack) {
