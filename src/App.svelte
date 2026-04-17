@@ -100,6 +100,7 @@
   let selectedPlaylistItem: PlaylistItem | null = null;
   let selectedLibraryItem: PlaylistItem | null = null;
   let selectedItem: PlaylistItem | null = null;
+  let detailsDisplayTrack: PlaylistItem | null = null;
   let playerDisplayTrack: PlaylistItem | null = null;
   let playingTrack: PlaylistItem | null = null;
   let shuffleEnabled = false;
@@ -158,7 +159,6 @@
   let playlistJumpRequest: WorkspaceJumpRequest | null = null;
   let displayedArtwork: LoadedStreamArtwork | null = null;
   let detailsArtwork: LoadedStreamArtwork | null = null;
-  let resolvedDetailsArtwork: LoadedStreamArtwork | null = null;
   let artworkBackgroundPrimary: LoadedStreamArtwork | null = null;
   let artworkBackgroundSecondary: LoadedStreamArtwork | null = null;
   let activeArtworkBackgroundSlot: ArtworkBackgroundSlot = 'primary';
@@ -167,8 +167,7 @@
   let detailsArtworkLoadToken = 0;
   let artworkBackgroundCleanupTimer: ReturnType<typeof setTimeout> | null = null;
   let displayedArtworkKey = '';
-  let selectedItemArtworkLoadKey = '';
-  let detailsArtworkKey = '';
+  let detailsDisplayRequestKey = '';
   let artworkBrightnessKey = '';
   let artworkBackgroundMode: ArtworkBackgroundMode = appearanceSettings.getSnapshot().artworkBackgroundMode;
   let isWorkspaceArtworkBackgroundEnabled = false;
@@ -212,10 +211,6 @@
   $: playerDisplayTrack = playingTrack ?? selectedPlaylistItem;
   $: activeArtworkBackground =
     activeArtworkBackgroundSlot === 'primary' ? artworkBackgroundPrimary : artworkBackgroundSecondary;
-  $: resolvedDetailsArtwork =
-    selectedItemArtworkLoadKey.length > 0 && selectedItemArtworkLoadKey === displayedArtworkKey
-      ? displayedArtwork
-      : detailsArtwork;
   $: artworkBackgroundMode = $appearanceSettings.artworkBackgroundMode;
   $: isWorkspaceArtworkBackgroundEnabled = artworkBackgroundMode === 'workspace';
   $: isPlayerBarArtworkBackgroundEnabled =
@@ -278,18 +273,11 @@
     }
   }
   $: {
-    const nextArtworkKey = getTrackArtworkLoadKey(selectedItem);
-    const shouldReuseDisplayedArtwork =
-      nextArtworkKey.length > 0 && nextArtworkKey === displayedArtworkKey;
+    const nextDetailsKey = getTrackArtworkLoadKey(selectedItem);
 
-    selectedItemArtworkLoadKey = nextArtworkKey;
-
-    if (shouldReuseDisplayedArtwork) {
-      detailsArtworkKey = '';
-      clearDetailsArtwork();
-    } else if (nextArtworkKey !== detailsArtworkKey) {
-      detailsArtworkKey = nextArtworkKey;
-      void syncDetailsArtwork(selectedItem);
+    if (nextDetailsKey !== detailsDisplayRequestKey) {
+      detailsDisplayRequestKey = nextDetailsKey;
+      void syncDetailsDisplay(selectedItem);
     }
   }
   $: {
@@ -462,9 +450,18 @@
     displayedArtwork = null;
   }
 
-  function clearDetailsArtwork() {
-    revokeTrackArtwork(detailsArtwork);
-    detailsArtwork = null;
+  function setDetailsDisplay(track: PlaylistItem | null, artwork: LoadedStreamArtwork | null) {
+    const previousArtwork = detailsArtwork;
+    detailsDisplayTrack = track;
+    detailsArtwork = artwork;
+
+    if (previousArtwork && previousArtwork !== artwork) {
+      revokeTrackArtwork(previousArtwork);
+    }
+  }
+
+  function clearDetailsDisplay() {
+    setDetailsDisplay(null, null);
   }
 
   function clearArtworkBackgrounds() {
@@ -479,9 +476,8 @@
   async function syncDisplayedArtwork(track: PlaylistItem | null) {
     const loadToken = ++artworkLoadToken;
 
-    clearDisplayedArtwork();
-
     if (!track) {
+      clearDisplayedArtwork();
       replaceArtworkBackground(null);
       return;
     }
@@ -497,12 +493,11 @@
     replaceArtworkBackground(artwork);
   }
 
-  async function syncDetailsArtwork(track: PlaylistItem | null) {
+  async function syncDetailsDisplay(track: PlaylistItem | null) {
     const loadToken = ++detailsArtworkLoadToken;
 
-    clearDetailsArtwork();
-
     if (!track) {
+      clearDetailsDisplay();
       return;
     }
 
@@ -513,7 +508,7 @@
       return;
     }
 
-    detailsArtwork = artwork;
+    setDetailsDisplay(track, artwork);
   }
 
   async function syncArtworkBrightness(artwork: LoadedStreamArtwork | null, enabled: boolean) {
@@ -1008,7 +1003,7 @@
     artworkLoadToken += 1;
     detailsArtworkLoadToken += 1;
     clearDisplayedArtwork();
-    clearDetailsArtwork();
+    clearDetailsDisplay();
     clearArtworkBackgrounds();
     syncArtworkMenuClasses(false, false);
     unsubscribePlaylistItems();
@@ -1107,8 +1102,8 @@
       {playlistPanelHandlers}
       {libraryPanelProps}
       {libraryPanelHandlers}
-      {selectedItem}
-      detailsArtwork={resolvedDetailsArtwork}
+      selectedItem={detailsDisplayTrack}
+      {detailsArtwork}
       isDetailsVisible={isDetailsPanelVisible}
       onCloseDetails={handleCloseTrackDetails}
       on:tabChange={(event) => setActiveWorkspaceTab(event.detail)}
@@ -1122,8 +1117,8 @@
       panelWidths={widePanelWidths}
       resizerWidth={WORKSPACE_RESIZER_WIDTH}
       isResizing={Boolean(resizeState)}
-      {selectedItem}
-      detailsArtwork={resolvedDetailsArtwork}
+      selectedItem={detailsDisplayTrack}
+      {detailsArtwork}
       isDetailsVisible={isDetailsPanelVisible}
       onCloseDetails={handleCloseTrackDetails}
       on:resizeStart={handleWideWorkspaceResizeStart}
