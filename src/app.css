@@ -86,9 +86,8 @@ button {
   gap: 0;
 }
 
-.app-shell::before,
-.app-shell::after {
-  content: "";
+.app-shell-background-layer,
+.app-shell-background-overlay {
   position: absolute;
   inset: 0;
   pointer-events: none;
@@ -97,10 +96,10 @@ button {
     opacity 220ms ease,
     transform 220ms ease,
     filter 220ms ease;
+  z-index: 0;
 }
 
-.app-shell::before {
-  z-index: 0;
+.app-shell-background-layer {
   background-image: var(--artwork-background-image, none);
   background-position: center;
   background-repeat: no-repeat;
@@ -109,12 +108,16 @@ button {
   transform: scale(1.16);
 }
 
-.app-shell::after {
-  z-index: 0;
+.app-shell-background-overlay {
   background: var(--artwork-background-overlay, transparent);
 }
 
-.app-shell > * {
+.app-shell-background-layer.is-active,
+.app-shell-background-overlay.is-active {
+  opacity: 1;
+}
+
+.app-shell > :not(.app-shell-background-layer):not(.app-shell-background-overlay) {
   z-index: 1;
 }
 
@@ -236,13 +239,8 @@ button {
     linear-gradient(180deg, rgba(255, 249, 240, 0.42) 0%, rgba(255, 249, 240, 0.22) 42%, rgba(255, 249, 240, 0.5) 100%);
 }
 
-.app-shell.artwork-background-active::before,
-.app-shell.artwork-background-active::after {
-  opacity: 1;
-}
-
-.app-shell.window-controls-overlay-active.artwork-background-active::before,
-.app-shell.window-controls-overlay-active.artwork-background-active::after {
+.app-shell.window-controls-overlay-active .app-shell-background-layer,
+.app-shell.window-controls-overlay-active .app-shell-background-overlay {
   clip-path: inset(var(--window-frame-safe-top) 0 0 0);
 }
 

@@ -66,6 +66,9 @@
     startX: number;
     startLayout: WorkspacePanelLayoutSettings;
   };
+  type ArtworkBackgroundSlot = 'primary' | 'secondary';
+
+  const ARTWORK_BACKGROUND_TRANSITION_MS = 220;
 
   const {
     items: playlistItemsStore,
@@ -153,9 +156,16 @@
   let playRequestSequence = 0;
   let playlistJumpRequest: WorkspaceJumpRequest | null = null;
   let displayedArtwork: LoadedStreamArtwork | null = null;
+  let artworkBackgroundPrimary: LoadedStreamArtwork | null = null;
+  let artworkBackgroundSecondary: LoadedStreamArtwork | null = null;
+  let activeArtworkBackgroundSlot: ArtworkBackgroundSlot = 'primary';
+  let activeArtworkBackground: LoadedStreamArtwork | null = null;
+  let visibleArtworkBackground: LoadedStreamArtwork | null = null;
   let artworkLoadToken = 0;
+  let artworkBackgroundCleanupTimer: ReturnType<typeof setTimeout> | null = null;
   let displayedArtworkKey = '';
   let artworkBrightnessKey = '';
+  let hasArtworkBackground = false;
   let isArtworkBackgroundBright = false;
   let isDetailsPanelVisible = false;
   let panelLayout = workspacePanelLayout.getSnapshot();
@@ -191,6 +201,12 @@
   $: isTabbedLayout = innerWidth <= 750;
   $: selectedItem = activeCollection === 'library' ? selectedLibraryItem : selectedPlaylistItem;
   $: playerDisplayTrack = playingTrack ?? selectedPlaylistItem;
+  $: activeArtworkBackground =
+    activeArtworkBackgroundSlot === 'primary' ? artworkBackgroundPrimary : artworkBackgroundSecondary;
+  $: visibleArtworkBackground =
+    activeArtworkBackground ??
+    (activeArtworkBackgroundSlot === 'primary' ? artworkBackgroundSecondary : artworkBackgroundPrimary);
+  $: hasArtworkBackground = Boolean(artworkBackgroundPrimary) || Boolean(artworkBackgroundSecondary);
   $: documentTitle = playingTrack ? getTrackDisplayTitle(playingTrack) : 'izci';
   $: {
     const viewportWidth =
@@ -246,15 +262,17 @@
   }
   $: {
     const nextBrightnessKey =
-      $appearanceSettings.useArtworkBackgroundColors && displayedArtwork ? displayedArtwork.url : '';
+      $appearanceSettings.useArtworkBackgroundColors && visibleArtworkBackground
+        ? visibleArtworkBackground.url
+        : '';
 
     if (nextBrightnessKey !== artworkBrightnessKey) {
       artworkBrightnessKey = nextBrightnessKey;
-      void syncArtworkBrightness(displayedArtwork, $appearanceSettings.useArtworkBackgroundColors);
+      void syncArtworkBrightness(visibleArtworkBackground, $appearanceSettings.useArtworkBackgroundColors);
     }
   }
   $: syncArtworkMenuClasses(
-    $appearanceSettings.useArtworkBackgroundColors && Boolean(displayedArtwork),
+    $appearanceSettings.useArtworkBackgroundColors && hasArtworkBackground,
     isArtworkBackgroundBright
   );
 
@@ -345,9 +363,83 @@
     }
   }
 
+  function getArtworkBackground(slot: ArtworkBackgroundSlot): LoadedStreamArtwork | null {
+    return slot === 'primary' ? artworkBackgroundPrimary : artworkBackgroundSecondary;
+  }
+
+  function setArtworkBackground(slot: ArtworkBackgroundSlot, artwork: LoadedStreamArtwork | null) {
+    if (slot === 'primary') {
+      artworkBackgroundPrimary = artwork;
+      return;
+    }
+
+    artworkBackgroundSecondary = artwork;
+  }
+
+  function clearArtworkBackgroundCleanupTimer() {
+    if (artworkBackgroundCleanupTimer === null) {
+      return;
+    }
+
+    clearTimeout(artworkBackgroundCleanupTimer);
+    artworkBackgroundCleanupTimer = null;
+  }
+
+  function scheduleArtworkBackgroundCleanup(slot: ArtworkBackgroundSlot) {
+    clearArtworkBackgroundCleanupTimer();
+
+    artworkBackgroundCleanupTimer = setTimeout(() => {
+      artworkBackgroundCleanupTimer = null;
+
+      if (slot === activeArtworkBackgroundSlot) {
+        return;
+      }
+
+      const artwork = getArtworkBackground(slot);
+
+      if (!artwork) {
+        return;
+      }
+
+      revokeTrackArtwork(artwork);
+      setArtworkBackground(slot, null);
+    }, ARTWORK_BACKGROUND_TRANSITION_MS);
+  }
+
+  function replaceArtworkBackground(artwork: LoadedStreamArtwork | null) {
+    const nextSlot: ArtworkBackgroundSlot =
+      activeArtworkBackgroundSlot === 'primary' ? 'secondary' : 'primary';
+    const previousActiveSlot = activeArtworkBackgroundSlot;
+    const previousActiveArtwork = getArtworkBackground(previousActiveSlot);
+    const staleArtwork = getArtworkBackground(nextSlot);
+
+    clearArtworkBackgroundCleanupTimer();
+
+    if (staleArtwork) {
+      revokeTrackArtwork(staleArtwork);
+    }
+
+    setArtworkBackground(nextSlot, artwork);
+    activeArtworkBackgroundSlot = nextSlot;
+
+    if (!previousActiveArtwork) {
+      setArtworkBackground(previousActiveSlot, null);
+      return;
+    }
+
+    scheduleArtworkBackgroundCleanup(previousActiveSlot);
+  }
+
   function clearDisplayedArtwork() {
-    revokeTrackArtwork(displayedArtwork);
     displayedArtwork = null;
+  }
+
+  function clearArtworkBackgrounds() {
+    clearArtworkBackgroundCleanupTimer();
+    revokeTrackArtwork(artworkBackgroundPrimary);
+    revokeTrackArtwork(artworkBackgroundSecondary);
+    artworkBackgroundPrimary = null;
+    artworkBackgroundSecondary = null;
     isArtworkBackgroundBright = false;
   }
 
@@ -357,6 +449,7 @@
     clearDisplayedArtwork();
 
     if (!track) {
+      replaceArtworkBackground(null);
       return;
     }
 
@@ -368,6 +461,7 @@
     }
 
     displayedArtwork = artwork;
+    replaceArtworkBackground(artwork);
   }
 
   async function syncArtworkBrightness(artwork: LoadedStreamArtwork | null, enabled: boolean) {
@@ -861,6 +955,7 @@
   onDestroy(() => {
     artworkLoadToken += 1;
     clearDisplayedArtwork();
+    clearArtworkBackgrounds();
     syncArtworkMenuClasses(false, false);
     unsubscribePlaylistItems();
     unsubscribeLibraryItems();
@@ -898,13 +993,41 @@
   class:tabbed-layout={isTabbedLayout}
   class:compact-shell={$appearanceSettings.compactShell}
   class:artwork-background-enabled={$appearanceSettings.useArtworkBackgroundColors}
-  class:artwork-background-active={$appearanceSettings.useArtworkBackgroundColors && Boolean(displayedArtwork)}
+  class:artwork-background-active={$appearanceSettings.useArtworkBackgroundColors && hasArtworkBackground}
   class:artwork-background-bright={
-    $appearanceSettings.useArtworkBackgroundColors && Boolean(displayedArtwork) && isArtworkBackgroundBright
+    $appearanceSettings.useArtworkBackgroundColors && hasArtworkBackground && isArtworkBackgroundBright
   }
   class:window-controls-overlay-active={$windowControlsOverlayState.visible}
-  style={`--artwork-background-image: ${displayedArtwork ? `url("${displayedArtwork.url}")` : 'none'};`}
 >
+  <div
+    class="app-shell-background-layer"
+    class:is-active={
+      $appearanceSettings.useArtworkBackgroundColors &&
+      activeArtworkBackgroundSlot === 'primary' &&
+      Boolean(artworkBackgroundPrimary)
+    }
+    style={`--artwork-background-image: ${
+      artworkBackgroundPrimary ? `url("${artworkBackgroundPrimary.url}")` : 'none'
+    };`}
+    aria-hidden="true"
+  ></div>
+  <div
+    class="app-shell-background-layer"
+    class:is-active={
+      $appearanceSettings.useArtworkBackgroundColors &&
+      activeArtworkBackgroundSlot === 'secondary' &&
+      Boolean(artworkBackgroundSecondary)
+    }
+    style={`--artwork-background-image: ${
+      artworkBackgroundSecondary ? `url("${artworkBackgroundSecondary.url}")` : 'none'
+    };`}
+    aria-hidden="true"
+  ></div>
+  <div
+    class="app-shell-background-overlay"
+    class:is-active={$appearanceSettings.useArtworkBackgroundColors && hasArtworkBackground}
+    aria-hidden="true"
+  ></div>
   <div class="window-frame-safe-strip" aria-hidden="true"></div>
   <input
     bind:this={fileInput}
