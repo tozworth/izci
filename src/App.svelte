@@ -172,6 +172,7 @@
   let artworkBackgroundMode: ArtworkBackgroundMode = appearanceSettings.getSnapshot().artworkBackgroundMode;
   let isWorkspaceArtworkBackgroundEnabled = false;
   let isPlayerBarArtworkBackgroundEnabled = false;
+  let isPlayerBarArtworkLayerActive = false;
   let isWorkspaceArtworkBackgroundActive = false;
   let isArtworkBackgroundActive = false;
   let isArtworkBackgroundBright = false;
@@ -215,6 +216,8 @@
   $: isWorkspaceArtworkBackgroundEnabled = artworkBackgroundMode === 'workspace';
   $: isPlayerBarArtworkBackgroundEnabled =
     artworkBackgroundMode === 'workspace' || artworkBackgroundMode === 'player';
+  $: isPlayerBarArtworkLayerActive =
+    artworkBackgroundMode === 'player' && Boolean(activeArtworkBackground);
   $: isWorkspaceArtworkBackgroundActive =
     isWorkspaceArtworkBackgroundEnabled && Boolean(activeArtworkBackground);
   $: isArtworkBackgroundActive =
@@ -1135,7 +1138,7 @@
     selectedTrack={selectedPlaylistItem}
     isTabbedLayout={isTabbedLayout}
     artwork={displayedArtwork}
-    artworkBackgroundActive={isArtworkBackgroundActive}
+    artworkBackgroundActive={isPlayerBarArtworkLayerActive}
     artworkBackgroundBright={isArtworkBackgroundBright}
     on:toggle={handleTogglePlayback}
     on:stop={handleStop}
