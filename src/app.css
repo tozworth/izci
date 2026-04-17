@@ -377,6 +377,19 @@ body.artwork-background-active.artwork-background-bright {
   );
 }
 
+.app-shell.window-chrome-transition-bypass .menu-bar,
+.app-shell.window-chrome-transition-bypass .menu-trigger,
+.app-shell.window-chrome-transition-bypass .compact-menu-trigger strong,
+.app-shell.window-chrome-transition-bypass .compact-menu-chevron,
+.app-shell.window-chrome-transition-bypass .menu-brand,
+.app-shell.window-chrome-transition-bypass .menu-brand strong,
+.app-shell.window-chrome-transition-bypass .menu-brand span,
+.app-shell.window-chrome-transition-bypass .workspace-tabs,
+.app-shell.window-chrome-transition-bypass .workspace-tab,
+.app-shell.window-chrome-transition-bypass .workspace-tab-close-button {
+  transition: none !important;
+}
+
 .menu-groups {
   display: flex;
   align-items: center;

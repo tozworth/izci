@@ -187,6 +187,7 @@
   let isWorkspaceArtworkBackgroundActive = false;
   let isArtworkBackgroundActive = false;
   let isArtworkBackgroundBright = false;
+  let isWindowChromeTransitionBypassed = false;
   let isDetailsPanelVisible = true;
   let panelLayout = workspacePanelLayout.getSnapshot();
   let resizeState: PanelResizeState | null = null;
@@ -196,6 +197,9 @@
   let playlistPanelProps: WorkspacePanelProps;
   let libraryPanelProps: WorkspacePanelProps;
   let workspaceTabs: WorkspaceTabDefinition[] = allWorkspaceTabs.filter((tab) => tab.id !== 'details');
+  let previousWindowControlsOverlayVisible = false;
+  let windowChromeTransitionBypassFrameA: number | null = null;
+  let windowChromeTransitionBypassFrameB: number | null = null;
 
   const importController = createImportController({
     addFiles: handleAddFiles,
@@ -327,6 +331,14 @@
     }
   }
   $: syncArtworkMenuClasses(isWorkspaceArtworkBackgroundActive, isArtworkBackgroundBright);
+  $: {
+    const overlayVisible = $windowControlsOverlayState.visible;
+
+    if (overlayVisible !== previousWindowControlsOverlayVisible) {
+      bypassWindowChromeTransitions();
+      previousWindowControlsOverlayVisible = overlayVisible;
+    }
+  }
 
   const playlistPanelHandlers: WorkspacePanelHandlers = {
     addFiles: (files) => handleAddFiles(files, 'playlist'),
@@ -677,6 +689,38 @@
 
     document.body.classList.toggle('artwork-background-active', active);
     document.body.classList.toggle('artwork-background-bright', active && bright);
+  }
+
+  function clearWindowChromeTransitionBypassFrames() {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    if (windowChromeTransitionBypassFrameA !== null) {
+      window.cancelAnimationFrame(windowChromeTransitionBypassFrameA);
+      windowChromeTransitionBypassFrameA = null;
+    }
+
+    if (windowChromeTransitionBypassFrameB !== null) {
+      window.cancelAnimationFrame(windowChromeTransitionBypassFrameB);
+      windowChromeTransitionBypassFrameB = null;
+    }
+  }
+
+  function bypassWindowChromeTransitions() {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    clearWindowChromeTransitionBypassFrames();
+    isWindowChromeTransitionBypassed = true;
+    windowChromeTransitionBypassFrameA = window.requestAnimationFrame(() => {
+      windowChromeTransitionBypassFrameA = null;
+      windowChromeTransitionBypassFrameB = window.requestAnimationFrame(() => {
+        windowChromeTransitionBypassFrameB = null;
+        isWindowChromeTransitionBypassed = false;
+      });
+    });
   }
 
   function addFiles(files: FileList | File[], target: WorkspaceCollection) {
@@ -1163,6 +1207,7 @@
   onDestroy(() => {
     artworkLoadToken += 1;
     detailsArtworkLoadToken += 1;
+    clearWindowChromeTransitionBypassFrames();
     clearDisplayedArtwork();
     clearDetailsDisplay();
     clearArtworkBackgrounds();
@@ -1207,6 +1252,7 @@
   class:artwork-background-bright={
     isWorkspaceArtworkBackgroundActive && isArtworkBackgroundBright
   }
+  class:window-chrome-transition-bypass={isWindowChromeTransitionBypassed}
   class:window-controls-overlay-active={$windowControlsOverlayState.visible}
 >
   <div
