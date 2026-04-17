@@ -62,17 +62,29 @@ button {
 
 .app-shell {
   display: grid;
+  position: relative;
   height: 100dvh;
   min-height: 100vh;
   grid-template-rows: auto minmax(0, 1fr) auto auto;
   gap: 0.75rem;
   padding: 0;
   padding-bottom: var(--player-bar-reserve);
+  color: var(--text);
   overflow: hidden;
+  isolation: isolate;
 }
 
 .app-shell.window-controls-overlay-active {
   padding-top: var(--window-frame-safe-top);
+  background-image: linear-gradient(
+    180deg,
+    var(--window-topbar-bg) 0,
+    var(--window-topbar-bg) var(--window-frame-safe-top),
+    transparent var(--window-frame-safe-top),
+    transparent 100%
+  );
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
 }
 
 .app-shell.tabbed-layout {
@@ -81,6 +93,141 @@ button {
 
 .app-shell.compact-shell {
   gap: 0;
+}
+
+.app-shell::before,
+.app-shell::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition:
+    opacity 220ms ease,
+    transform 220ms ease,
+    filter 220ms ease;
+}
+
+.app-shell::before {
+  z-index: 0;
+  background-image: var(--artwork-background-image, none);
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+  filter: blur(72px) saturate(1.22);
+  transform: scale(1.16);
+}
+
+.app-shell::after {
+  z-index: 0;
+  background: var(--artwork-background-overlay, transparent);
+}
+
+.app-shell > * {
+  z-index: 1;
+}
+
+.app-shell.artwork-background-active {
+  color-scheme: dark;
+  --panel-backdrop-blur: 28px;
+  --panel-backdrop-saturate: 1.18;
+  --chrome-backdrop-blur: 28px;
+  --chrome-backdrop-saturate: 1.16;
+  --menu-bar-bg: rgba(17, 18, 24, 0.42);
+  --bg-elevated: rgba(18, 19, 24, 0.44);
+  --bg-soft: rgba(18, 19, 24, 0.5);
+  --bg-popover: rgba(18, 19, 24, 0.8);
+  --bg-tree: rgba(18, 19, 24, 0.68);
+  --bg-search: rgba(18, 19, 24, 0.72);
+  --bg-volume-popup: rgba(16, 17, 22, 0.76);
+  --playlist-header-background:
+    linear-gradient(180deg, rgba(18, 19, 24, 0.58) 0%, rgba(18, 19, 24, 0.44) 100%),
+    rgba(255, 255, 255, 0.04);
+  --border: rgba(255, 255, 255, 0.16);
+  --border-strong: rgba(255, 255, 255, 0.18);
+  --border-soft: rgba(255, 255, 255, 0.12);
+  --border-faint: rgba(255, 255, 255, 0.1);
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-covered: rgba(255, 255, 255, 0.08);
+  --menu-bar-border: rgba(255, 255, 255, 0.14);
+  --hover-surface: rgba(255, 255, 255, 0.1);
+  --hover-subtle: rgba(255, 255, 255, 0.05);
+  --hover-control: rgba(255, 255, 255, 0.08);
+  --hover-ghost: rgba(255, 255, 255, 0.03);
+  --tree-hover: rgba(255, 255, 255, 0.08);
+  --selection-bg: color-mix(in srgb, var(--accent-strong) 14%, transparent);
+  --resizer-track: rgba(255, 255, 255, 0.14);
+  --resizer-handle: rgba(255, 255, 255, 0.28);
+  --resizer-line-gradient:
+    linear-gradient(180deg, transparent 0%, rgba(255, 255, 255, 0.24) 14%, rgba(255, 255, 255, 0.24) 86%, transparent 100%);
+  --resizer-line-gradient-active:
+    linear-gradient(
+      180deg,
+      transparent 0%,
+      color-mix(in srgb, var(--accent-strong) 70%, transparent) 14%,
+      color-mix(in srgb, var(--accent-strong) 70%, transparent) 86%,
+      transparent 100%
+    );
+  --resizer-line-glow: color-mix(in srgb, var(--accent-strong) 24%, transparent);
+  --dropzone-background: linear-gradient(180deg, rgba(255, 255, 255, 0.045), transparent 18%);
+  --player-bar-fade: linear-gradient(180deg, rgba(5, 6, 10, 0), rgba(5, 6, 10, 0.26));
+  --shadow: 0 20px 54px rgba(0, 0, 0, 0.26);
+  --artwork-background-overlay:
+    radial-gradient(circle at top, rgba(255, 255, 255, 0.08), transparent 36%),
+    linear-gradient(180deg, rgba(10, 11, 16, 0.52) 0%, rgba(10, 11, 16, 0.34) 38%, rgba(10, 11, 16, 0.56) 100%);
+}
+
+.app-shell.artwork-background-active.artwork-background-bright {
+  color-scheme: light;
+  --menu-bar-bg: rgba(252, 248, 240, 0.46);
+  --bg-elevated: rgba(255, 250, 242, 0.48);
+  --bg-soft: rgba(255, 250, 242, 0.58);
+  --bg-popover: rgba(255, 250, 243, 0.88);
+  --bg-tree: rgba(255, 250, 243, 0.8);
+  --bg-search: rgba(255, 252, 246, 0.82);
+  --bg-volume-popup: rgba(255, 250, 242, 0.84);
+  --playlist-header-background:
+    linear-gradient(180deg, rgba(255, 250, 244, 0.7) 0%, rgba(255, 250, 244, 0.54) 100%),
+    rgba(74, 56, 34, 0.03);
+  --text: #241b12;
+  --text-strong: #130d08;
+  --muted: rgba(36, 27, 18, 0.76);
+  --muted-strong: rgba(36, 27, 18, 0.92);
+  --border: rgba(52, 39, 25, 0.18);
+  --border-strong: rgba(52, 39, 25, 0.22);
+  --border-soft: rgba(52, 39, 25, 0.12);
+  --border-faint: rgba(52, 39, 25, 0.09);
+  --border-subtle: rgba(52, 39, 25, 0.08);
+  --border-covered: rgba(52, 39, 25, 0.08);
+  --menu-bar-border: rgba(52, 39, 25, 0.14);
+  --hover-surface: rgba(52, 39, 25, 0.08);
+  --hover-subtle: rgba(52, 39, 25, 0.04);
+  --hover-control: rgba(52, 39, 25, 0.09);
+  --hover-ghost: rgba(52, 39, 25, 0.025);
+  --tree-hover: rgba(52, 39, 25, 0.07);
+  --selection-bg: color-mix(in srgb, var(--accent-strong) 18%, rgba(255, 255, 255, 0.1));
+  --resizer-track: rgba(52, 39, 25, 0.14);
+  --resizer-handle: rgba(52, 39, 25, 0.26);
+  --resizer-line-gradient:
+    linear-gradient(180deg, transparent 0%, rgba(52, 39, 25, 0.2) 14%, rgba(52, 39, 25, 0.2) 86%, transparent 100%);
+  --resizer-line-glow: rgba(52, 39, 25, 0.08);
+  --dropzone-background: linear-gradient(180deg, rgba(255, 255, 255, 0.18), transparent 18%);
+  --player-bar-fade: linear-gradient(180deg, rgba(255, 255, 255, 0), rgba(255, 250, 242, 0.28));
+  --shadow: 0 20px 54px rgba(57, 41, 25, 0.12);
+  --hairline: rgba(34, 20, 8, 0.08);
+  --artwork-background-overlay:
+    radial-gradient(circle at top, rgba(255, 255, 255, 0.2), transparent 36%),
+    linear-gradient(180deg, rgba(255, 249, 240, 0.42) 0%, rgba(255, 249, 240, 0.22) 42%, rgba(255, 249, 240, 0.5) 100%);
+}
+
+.app-shell.artwork-background-active::before,
+.app-shell.artwork-background-active::after {
+  opacity: 1;
+}
+
+.app-shell.window-controls-overlay-active.artwork-background-active::before,
+.app-shell.window-controls-overlay-active.artwork-background-active::after {
+  clip-path: inset(var(--window-frame-safe-top) 0 0 0);
 }
 
 .menu-bar {
@@ -92,7 +239,9 @@ button {
   min-height: 1.9rem;
   padding: max(env(safe-area-inset-top, 0px), 0px) 0.65rem 0;
   background: var(--menu-bar-bg);
-  backdrop-filter: blur(16px);
+  backdrop-filter:
+    blur(var(--chrome-backdrop-blur, 16px))
+    saturate(var(--chrome-backdrop-saturate, 1));
   box-shadow: 0 1px 0 var(--hairline);
   position: sticky;
   top: 0;
@@ -106,6 +255,11 @@ button {
 }
 
 .menu-bar.window-controls-overlay-active {
+  --text: var(--window-topbar-text);
+  --text-strong: var(--window-topbar-text-strong);
+  --muted: var(--window-topbar-muted);
+  --hover-surface: var(--window-topbar-hover-surface);
+  --hairline: var(--window-topbar-hairline);
   min-height: max(
     1.9rem,
     calc(var(--window-controls-overlay-height, env(titlebar-area-height, 1.9rem)) - var(--window-frame-safe-top))
@@ -121,6 +275,10 @@ button {
       100vw - var(--window-controls-overlay-x, env(titlebar-area-x, 0px)) - var(--window-controls-overlay-width, env(titlebar-area-width, 100vw))
     )
   );
+  background: var(--window-topbar-bg);
+  color: var(--window-topbar-text);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   -webkit-app-region: drag;
 }
 
@@ -532,7 +690,9 @@ button {
 .player-bar,
 .error-banner {
   background: var(--bg-elevated);
-  backdrop-filter: blur(12px);
+  backdrop-filter:
+    blur(var(--panel-backdrop-blur, 12px))
+    saturate(var(--panel-backdrop-saturate, 1));
   border: 1px solid var(--border);
   border-radius: 0.5rem;
   box-shadow: var(--shadow);
@@ -609,8 +769,12 @@ button {
   z-index: 10;
   padding: 0.72rem 0.85rem 0.58rem;
   background: var(--playlist-header-background);
-  backdrop-filter: blur(22px) saturate(1.08);
-  -webkit-backdrop-filter: blur(22px) saturate(1.08);
+  backdrop-filter:
+    blur(calc(var(--chrome-backdrop-blur, 22px) - 2px))
+    saturate(var(--chrome-backdrop-saturate, 1.08));
+  -webkit-backdrop-filter:
+    blur(calc(var(--chrome-backdrop-blur, 22px) - 2px))
+    saturate(var(--chrome-backdrop-saturate, 1.08));
   transition:
     box-shadow 180ms ease,
     border-color 180ms ease;
@@ -782,7 +946,9 @@ button {
   border-right: 0;
   border-bottom: 0;
   background: var(--menu-bar-bg);
-  backdrop-filter: blur(16px);
+  backdrop-filter:
+    blur(var(--chrome-backdrop-blur, 16px))
+    saturate(var(--chrome-backdrop-saturate, 1));
   box-shadow: 0 -1px 0 var(--hairline);
 }
 

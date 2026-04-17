@@ -4,6 +4,7 @@
   import TopMenuBar from '$lib/components/TopMenuBar.svelte';
   import TabbedWorkspace from '$lib/components/workspace/TabbedWorkspace.svelte';
   import WideWorkspace from '$lib/components/workspace/WideWorkspace.svelte';
+  import { analyzeArtworkBackground } from '$lib/services/artwork-background';
   import type {
     WideWorkspaceResizeStartDetail,
     WorkspacePanelHandlers,
@@ -14,6 +15,12 @@
   import { subscribeToLaunchedFiles } from '$lib/services/file-launch';
   import { mediaSessionService } from '$lib/services/media-session';
   import { playerController } from '$lib/services/player-controller';
+  import {
+    getTrackArtworkLoadKey,
+    loadTrackArtwork,
+    revokeTrackArtwork,
+    type LoadedStreamArtwork
+  } from '$lib/services/stream-artwork';
   import {
     buildLibraryContextActions,
     buildPlaylistContextActions,
@@ -89,6 +96,7 @@
   let selectedPlaylistItem: PlaylistItem | null = null;
   let selectedLibraryItem: PlaylistItem | null = null;
   let selectedItem: PlaylistItem | null = null;
+  let playerDisplayTrack: PlaylistItem | null = null;
   let playingTrack: PlaylistItem | null = null;
   let shuffleEnabled = false;
   let repeatMode: PlaylistRepeatMode = 'off';
@@ -144,6 +152,11 @@
   let previousPlaybackState: PlaybackSnapshot['state'] = playbackStatus.state;
   let playRequestSequence = 0;
   let playlistJumpRequest: WorkspaceJumpRequest | null = null;
+  let displayedArtwork: LoadedStreamArtwork | null = null;
+  let artworkLoadToken = 0;
+  let displayedArtworkKey = '';
+  let artworkBrightnessKey = '';
+  let isArtworkBackgroundBright = false;
   let isDetailsPanelVisible = false;
   let panelLayout = workspacePanelLayout.getSnapshot();
   let resizeState: PanelResizeState | null = null;
@@ -177,6 +190,7 @@
 
   $: isTabbedLayout = innerWidth <= 750;
   $: selectedItem = activeCollection === 'library' ? selectedLibraryItem : selectedPlaylistItem;
+  $: playerDisplayTrack = playingTrack ?? selectedPlaylistItem;
   $: documentTitle = playingTrack ? getTrackDisplayTitle(playingTrack) : 'izci';
   $: {
     const viewportWidth =
@@ -221,6 +235,23 @@
   }
   $: if (!isDetailsPanelVisible && activeWorkspaceTab === 'details') {
     setActiveWorkspaceTab(activeCollection);
+  }
+  $: {
+    const nextArtworkKey = getTrackArtworkLoadKey(playerDisplayTrack);
+
+    if (nextArtworkKey !== displayedArtworkKey) {
+      displayedArtworkKey = nextArtworkKey;
+      void syncDisplayedArtwork(playerDisplayTrack);
+    }
+  }
+  $: {
+    const nextBrightnessKey =
+      $appearanceSettings.useArtworkBackgroundColors && displayedArtwork ? displayedArtwork.url : '';
+
+    if (nextBrightnessKey !== artworkBrightnessKey) {
+      artworkBrightnessKey = nextBrightnessKey;
+      void syncArtworkBrightness(displayedArtwork, $appearanceSettings.useArtworkBackgroundColors);
+    }
   }
 
   const playlistPanelHandlers: WorkspacePanelHandlers = {
@@ -308,6 +339,48 @@
         URL.revokeObjectURL(item.objectUrl);
       }
     }
+  }
+
+  function clearDisplayedArtwork() {
+    revokeTrackArtwork(displayedArtwork);
+    displayedArtwork = null;
+    isArtworkBackgroundBright = false;
+  }
+
+  async function syncDisplayedArtwork(track: PlaylistItem | null) {
+    const loadToken = ++artworkLoadToken;
+
+    clearDisplayedArtwork();
+
+    if (!track) {
+      return;
+    }
+
+    const artwork = await loadTrackArtwork(track);
+
+    if (loadToken !== artworkLoadToken) {
+      revokeTrackArtwork(artwork);
+      return;
+    }
+
+    displayedArtwork = artwork;
+  }
+
+  async function syncArtworkBrightness(artwork: LoadedStreamArtwork | null, enabled: boolean) {
+    const brightnessKey = enabled && artwork ? artwork.url : '';
+
+    if (brightnessKey.length === 0) {
+      isArtworkBackgroundBright = false;
+      return;
+    }
+
+    const analysis = await analyzeArtworkBackground(artwork);
+
+    if (artworkBrightnessKey !== brightnessKey) {
+      return;
+    }
+
+    isArtworkBackgroundBright = analysis.isBright;
   }
 
   function addFiles(files: FileList | File[], target: WorkspaceCollection) {
@@ -773,6 +846,8 @@
   }
 
   onDestroy(() => {
+    artworkLoadToken += 1;
+    clearDisplayedArtwork();
     unsubscribePlaylistItems();
     unsubscribeLibraryItems();
     unsubscribePlaylistSelectedIds();
@@ -808,7 +883,13 @@
   class="app-shell"
   class:tabbed-layout={isTabbedLayout}
   class:compact-shell={$appearanceSettings.compactShell}
+  class:artwork-background-enabled={$appearanceSettings.useArtworkBackgroundColors}
+  class:artwork-background-active={$appearanceSettings.useArtworkBackgroundColors && Boolean(displayedArtwork)}
+  class:artwork-background-bright={
+    $appearanceSettings.useArtworkBackgroundColors && Boolean(displayedArtwork) && isArtworkBackgroundBright
+  }
   class:window-controls-overlay-active={$windowControlsOverlayState.visible}
+  style={`--artwork-background-image: ${displayedArtwork ? `url("${displayedArtwork.url}")` : 'none'};`}
 >
   <input
     bind:this={fileInput}
@@ -864,6 +945,7 @@
     track={playingTrack}
     selectedTrack={selectedPlaylistItem}
     isTabbedLayout={isTabbedLayout}
+    artwork={displayedArtwork}
     on:toggle={handleTogglePlayback}
     on:stop={handleStop}
     on:previous={() => void handleStepTrack(-1)}

@@ -1,11 +1,6 @@
 <script lang="ts">
-  import { createEventDispatcher, onDestroy, onMount } from 'svelte';
-  import {
-    getTrackArtworkLoadKey,
-    loadTrackArtwork,
-    revokeTrackArtwork,
-    type LoadedStreamArtwork
-  } from '$lib/services/stream-artwork';
+  import { createEventDispatcher, onMount } from 'svelte';
+  import type { LoadedStreamArtwork } from '$lib/services/stream-artwork';
   import type { Readable } from 'svelte/store';
   import { formatDuration, getTrackDisplaySubtitle, getTrackDisplayTitle } from '$lib/utils/files';
   import type { PlaybackSnapshot, PlaylistItem } from '$lib/types';
@@ -14,6 +9,7 @@
   export let track: PlaylistItem | null = null;
   export let selectedTrack: PlaylistItem | null = null;
   export let isTabbedLayout = false;
+  export let artwork: LoadedStreamArtwork | null = null;
 
   const dispatch = createEventDispatcher<{
     toggle: void;
@@ -31,9 +27,6 @@
   let isCompactVolume = false;
   let isVolumePopupOpen = false;
   let volumePopupTimer: ReturnType<typeof window.setTimeout> | null = null;
-  let displayedArtwork: LoadedStreamArtwork | null = null;
-  let artworkLoadToken = 0;
-  let displayedArtworkKey = '';
   let snapshot: PlaybackSnapshot = {
     state: 'idle',
     currentTime: 0,
@@ -86,30 +79,6 @@
     isVolumePopupOpen = false;
   }
 
-  function clearDisplayedArtwork() {
-    revokeTrackArtwork(displayedArtwork);
-    displayedArtwork = null;
-  }
-
-  async function syncDisplayedArtwork(nextTrack: PlaylistItem | null) {
-    const loadToken = ++artworkLoadToken;
-
-    clearDisplayedArtwork();
-
-    if (!nextTrack) {
-      return;
-    }
-
-    const artwork = await loadTrackArtwork(nextTrack);
-
-    if (loadToken !== artworkLoadToken) {
-      revokeTrackArtwork(artwork);
-      return;
-    }
-
-    displayedArtwork = artwork;
-  }
-
   onMount(() => {
     const mediaQuery = window.matchMedia(COMPACT_VOLUME_QUERY);
 
@@ -127,30 +96,17 @@
     };
   });
 
-  onDestroy(() => {
-    artworkLoadToken += 1;
-    clearDisplayedArtwork();
-  });
-
   $: snapshot = $snapshotStore;
   $: displayTrack = track ?? selectedTrack;
   $: displayDuration = track ? snapshot.duration : selectedTrack?.metadata?.duration ?? snapshot.duration;
-  $: {
-    const nextArtworkKey = getTrackArtworkLoadKey(displayTrack);
-
-    if (nextArtworkKey !== displayedArtworkKey) {
-      displayedArtworkKey = nextArtworkKey;
-      void syncDisplayedArtwork(displayTrack);
-    }
-  }
 </script>
 
 <footer class="player-bar">
   <div class="player-track-group">
     {#if displayTrack}
       <div class="player-artwork" aria-hidden="true">
-        {#if displayedArtwork}
-          <img class="player-artwork-image" src={displayedArtwork.url} alt="" />
+        {#if artwork}
+          <img class="player-artwork-image" src={artwork.url} alt="" />
         {:else}
           <div class="player-artwork-placeholder"></div>
         {/if}

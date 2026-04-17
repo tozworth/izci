@@ -44,11 +44,11 @@ Working source tree:
 ## App source map
 
 - `src/main.ts`: Svelte mount, global CSS/material symbol import, and production-only handoff to the dedicated PWA registration/update service.
-- `src/App.svelte`: top-level shell; composes the extracted workspace layouts/controllers, owns high-level workspace/playback coordination, global shortcuts, and error banner wiring.
+- `src/App.svelte`: top-level shell; composes the extracted workspace layouts/controllers, owns high-level workspace/playback coordination, global shortcuts, error banner wiring, and the shared artwork-backed workspace background/contrast state used by the shell and player footer.
 - `src/app.css`: global styling.
 - `src/lib/styles/themes.css`: shared color-theme tokens consumed by the main app and Options popup.
 - `src/options/main.ts`: Options popup entry; mounts the dedicated popup Svelte app.
-- `src/options/OptionsApp.svelte`: standalone Options window UI for appearance, module playback defaults, and metadata behavior.
+- `src/options/OptionsApp.svelte`: standalone Options window UI for appearance, module playback defaults, and metadata behavior, including the artwork-background appearance toggle.
 - `src/options/app.css`: Options popup styling.
 - `src/options/views.ts`: popup navigation/view metadata shared by the Options UI.
 - `src/vite-env.d.ts`: Vite ambient types.
@@ -98,6 +98,7 @@ Primary location for playback and browser-integration logic.
 - `volume.ts`: shared slider-to-gain conversion helpers, including the logarithmic-volume mapping used by playback services.
 - `media-session.ts`: Chromium Media Session bridge for now-playing metadata, seek position updates, OS/media-key transport handlers, and the silent native transport anchor used to keep Chromium media surfaces alive for non-native playback paths.
 - `stream-artwork.ts`: on-demand embedded artwork loading for streamed files; currently extracts transient cover art from `flac` picture blocks and `opus` `METADATA_BLOCK_PICTURE` comments for the player UI and Media Session without persisting artwork.
+- `artwork-background.ts`: artwork brightness analysis used by the main app shell to decide when artwork-backed backgrounds should flip UI surfaces/text into a darker-on-light contrast mode.
 - `pwa-updates.ts`: service-worker registration plus proactive update checks for long-lived preview/installed PWA windows so new builds can activate without getting stuck on the first cached shell.
 - `theme.ts`: shared color-theme metadata, document-theme application, and dynamic `<meta name="theme-color">` updates used by both window entrypoints so Chromium/PWA window chrome tracks the active theme where supported.
 - `window-controls-overlay.ts`: readable store that tracks Window Controls Overlay support, visibility, and `titlebarAreaRect` updates from Chromium's `geometrychange` event.
@@ -119,7 +120,7 @@ Primary location for playback and browser-integration logic.
 - `playlist-navigation.ts`: next/previous/track-end resolution, including shuffle session management.
 - `playlist-dedupe.ts`: duplicate detection based on track identity, used only by the library store path.
 - `library-view-settings.ts`: persistent library table layout and filter state (column order, widths, visibility, sort, search query) with `BroadcastChannel` sync.
-- `appearance-settings.ts`: persistent appearance settings, currently the shared color-theme choice, with `BroadcastChannel` sync.
+- `appearance-settings.ts`: persistent appearance settings for color theme, shell density, system font, narrow-library behavior, and the artwork-background toggle, with `BroadcastChannel` sync.
 - `playback-settings.ts`: persistent general playback settings, currently the logarithmic-volume toggle, with sync.
 - `module-playback-settings.ts`: persistent tracker playback settings (repeat, stereo/pan, interpolation, tempo, pitch) with sync.
 - `metadata-settings.ts`: persistent metadata behavior settings, currently filename-based artist/title inference.
@@ -156,6 +157,8 @@ Primary location for playback and browser-integration logic.
 - The workspace switches to tabbed mode at viewport widths of 750px and below.
 - The Track Details workspace panel is closable and starts hidden until explicitly opened from a context action; when hidden, wide layout should reflow playlist/library widths without overwriting the stored three-panel proportions used when details is shown again.
 - Color theme selection is persisted in `localStorage`, synced across windows, applied at the document level so both the main app and Options popup reuse the same theme tokens, and mirrored into the page `theme-color` meta tag so installed Chromium windows can recolor their chrome with the active theme.
+- The optional artwork-backed workspace background is driven from `App.svelte` using the same transient embedded-artwork loading path as the footer artwork. When enabled and artwork is available, the shell swaps in a heavily blurred backdrop and uses `src/lib/services/artwork-background.ts` to flip shared shell surface/text tokens into a light-background contrast mode for bright covers.
+- In Window Controls Overlay mode, the combined titlebar/menu bar should stay on the active theme's topbar color without artwork blur or glass effects so Chromium window chrome and the app's top strip remain visually aligned.
 - Installed desktop builds opt into manifest `display_override: ['window-controls-overlay']` while preserving `display: 'standalone'` fallback. Users can still toggle the title bar at runtime, so overlay-specific UI must respond to live visibility/geometry changes rather than assuming the overlay is always active.
 - `src/lib/services/window-controls-overlay.ts` is the single source of truth for Window Controls Overlay state. Consume its readable store instead of querying `navigator.windowControlsOverlay` directly from components.
 - `src/lib/components/TopMenuBar.svelte` is responsible for titlebar adaptation: it becomes a drag region in overlay mode, marks interactive controls as `no-drag`, hides the version badge while overlay mode is visible, and sizes/collapses itself based on the live available `titlebarAreaRect.width` rather than raw viewport width.
@@ -166,6 +169,7 @@ Primary location for playback and browser-integration logic.
 - `player-controller.ts` is the single coordinator for backend switching. Changes to transport or metadata propagation should usually start there.
 - Streamed playback intentionally stays on Howler's HTML5 audio mode because that path is the proven stable way to keep Chromium/desktop media controls alive for streamed formats without regressing row-activation or pause/resume behavior.
 - Embedded artwork for streamed files is not sourced from Howler. `src/lib/services/stream-artwork.ts` loads `flac` and `opus` cover art directly from the selected file or file handle on demand, creates transient blob URLs for the current UI/media-session presentation, and does not persist artwork into IndexedDB metadata.
+- `PlayerControls.svelte` should consume shared artwork passed down from `App.svelte` rather than starting a second artwork-loading lifecycle of its own.
 - Tracker modules still play through `Chiptune3`/Web Audio because rerouting real module audio through a browser-facing media element regressed playback quality/pitch; their media-surface integration is mirrored through the silent native transport anchor instead.
 - The playback split is therefore intentional, not incidental:
   - streams prioritize native browser media integration through a real media element

@@ -144,6 +144,12 @@
     });
   }
 
+  function handleArtworkBackgroundColorsToggle(event: Event) {
+    appearanceSettings.update({
+      useArtworkBackgroundColors: (event.currentTarget as HTMLInputElement).checked
+    });
+  }
+
   function handleLogarithmicVolumeToggle(event: Event) {
     playbackSettings.update({
       logarithmicVolume: (event.currentTarget as HTMLInputElement).checked
@@ -387,6 +393,22 @@
                 </div>
                 <p class="field-hint">
                   Removes shell gaps and rounded outer panel corners so the main layout uses the window more efficiently.
+                </p>
+              </label>
+
+              <label class="field checkbox-field">
+                <div class="field-copy">
+                  <span class="field-title">Use album artwork for background colors</span>
+                </div>
+                <div class="field-control checkbox-control">
+                  <input
+                    type="checkbox"
+                    checked={$appearanceSettings.useArtworkBackgroundColors}
+                    on:change={handleArtworkBackgroundColorsToggle}
+                  />
+                </div>
+                <p class="field-hint">
+                  Replaces the workspace background with blurred album art when available and adapts panel contrast for bright covers.
                 </p>
               </label>
 

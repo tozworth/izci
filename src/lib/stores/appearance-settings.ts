@@ -8,7 +8,8 @@ export const DEFAULT_APPEARANCE_SETTINGS: AppearanceSettings = {
   colorTheme: DEFAULT_COLOR_THEME,
   keepLibraryColumnsVisibleInNarrowLayout: false,
   compactShell: false,
-  useSystemFont: false
+  useSystemFont: false,
+  useArtworkBackgroundColors: false
 };
 
 let broadcastChannel: BroadcastChannel | null = null;
@@ -25,7 +26,8 @@ function normalizeSettings(value: unknown): AppearanceSettings {
     colorTheme: normalizeColorTheme(source.colorTheme),
     keepLibraryColumnsVisibleInNarrowLayout: source.keepLibraryColumnsVisibleInNarrowLayout === true,
     compactShell: source.compactShell === true,
-    useSystemFont: source.useSystemFont === true
+    useSystemFont: source.useSystemFont === true,
+    useArtworkBackgroundColors: source.useArtworkBackgroundColors === true
   };
 }
 

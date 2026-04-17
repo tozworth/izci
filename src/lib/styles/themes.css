@@ -11,7 +11,12 @@
   --bg-base: #1d2021;
   --bg: #282828;
   --menu-bar-bg: #1c1d1e;
-  --window-topbar-bg: rgba(28, 29, 30, 0.96);
+  --window-topbar-bg: #1c1d1e;
+  --window-topbar-text: #ebdbb2;
+  --window-topbar-text-strong: #fbf1c7;
+  --window-topbar-muted: #bdae93;
+  --window-topbar-hover-surface: rgba(235, 219, 178, 0.08);
+  --window-topbar-hairline: rgba(255, 255, 255, 0.03);
   --bg-elevated: rgba(50, 48, 47, 0.94);
   --bg-strong: #3c3836;
   --bg-soft: #32302f;
@@ -85,7 +90,12 @@
   --bg-base: #171922;
   --bg: #282a36;
   --menu-bar-bg: #1f2029;
-  --window-topbar-bg: rgba(31, 32, 41, 0.96);
+  --window-topbar-bg: #1f2029;
+  --window-topbar-text: #f8f8f2;
+  --window-topbar-text-strong: #ffffff;
+  --window-topbar-muted: #b7bdd6;
+  --window-topbar-hover-surface: rgba(248, 248, 242, 0.08);
+  --window-topbar-hairline: rgba(255, 255, 255, 0.04);
   --bg-elevated: rgba(54, 57, 73, 0.94);
   --bg-strong: #44475a;
   --bg-soft: #343746;
