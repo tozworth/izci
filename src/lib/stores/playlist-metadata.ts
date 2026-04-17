@@ -1,4 +1,5 @@
 import { metadataSettings } from '$lib/stores/metadata-settings';
+import { loadModuleMetadata } from '$lib/services/module-metadata';
 import { loadTrackMetadata } from '$lib/services/stream-artwork';
 import type { PlaylistItem, TrackMetadata } from '$lib/types';
 import { mergeInferredArtistTitle } from '$lib/utils/files';
@@ -43,11 +44,27 @@ function shouldReadEmbeddedStreamMetadata(item: PlaylistItem): boolean {
 }
 
 async function readStreamDuration(item: PlaylistItem): Promise<number | undefined> {
-  if (typeof window === 'undefined' || item.kind !== 'stream' || !item.objectUrl) {
+  if (typeof window === 'undefined' || item.kind !== 'stream') {
     return undefined;
   }
 
-  const objectUrl = item.objectUrl;
+  let file: File | null = item.file ?? null;
+
+  if (!file && item.fileHandle) {
+    try {
+      file = await item.fileHandle.getFile();
+    } catch {
+      file = null;
+    }
+  }
+
+  const objectUrl = item.objectUrl ?? (file ? URL.createObjectURL(file) : undefined);
+
+  if (!objectUrl) {
+    return undefined;
+  }
+
+  const shouldRevokeObjectUrl = !item.objectUrl;
 
   return await new Promise((resolve) => {
     const audio = new Audio();
@@ -56,6 +73,9 @@ async function readStreamDuration(item: PlaylistItem): Promise<number | undefine
       audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
       audio.removeEventListener('error', handleError);
       audio.src = '';
+      if (shouldRevokeObjectUrl) {
+        URL.revokeObjectURL(objectUrl);
+      }
     };
 
     const handleLoadedMetadata = () => {
@@ -97,6 +117,7 @@ export function scheduleMetadataParsing({
     const updates: Array<{ id: string; metadata: TrackMetadata }> = [];
     let pendingEmbeddedMetadataItem: PlaylistItem | null = null;
     let pendingDurationItem: PlaylistItem | null = null;
+    let pendingModuleMetadataItem: PlaylistItem | null = null;
 
     while (index < targetItems.length && (deadline.didTimeout || deadline.timeRemaining() > 2)) {
       const item = targetItems[index];
@@ -116,13 +137,20 @@ export function scheduleMetadataParsing({
       }
 
       if (shouldReadEmbeddedStreamMetadata(currentItem)) {
-        pendingEmbeddedMetadataItem = item;
+        pendingEmbeddedMetadataItem = currentItem;
         break;
       }
 
-      if (item.kind === 'stream' && item.objectUrl && (currentItem.metadata?.duration ?? 0) <= 0) {
-        pendingDurationItem = item;
-        break;
+      if ((currentItem.metadata?.duration ?? 0) <= 0) {
+        if (currentItem.kind === 'stream') {
+          pendingDurationItem = currentItem;
+          break;
+        }
+
+        if (currentItem.kind === 'module') {
+          pendingModuleMetadataItem = currentItem;
+          break;
+        }
       }
     }
 
@@ -147,12 +175,98 @@ export function scheduleMetadataParsing({
       active = true;
 
       void loadTrackMetadata(pendingEmbeddedMetadataItem)
+        .then(async (metadata) => {
+          const itemId = pendingEmbeddedMetadataItem?.id;
+
+          if (!itemId) {
+            return;
+          }
+
+          const currentItem = getItemList().find((entry) => entry.id === itemId);
+
+          if (!currentItem) {
+            return;
+          }
+
+          if (metadata) {
+            const mergedMetadata = mergeInferredArtistTitle(
+              {
+                ...currentItem.metadata,
+                ...metadata
+              },
+              currentItem.name,
+              metadataSettings.getSnapshot().inferFromFilename
+            );
+
+            if (JSON.stringify(currentItem.metadata ?? {}) !== JSON.stringify(mergedMetadata ?? {})) {
+              updateItems((existing) =>
+                existing.map((item) =>
+                  item.id === itemId
+                    ? {
+                        ...item,
+                        metadata: mergedMetadata
+                      }
+                    : item
+                )
+              );
+              queuePersist();
+            }
+          }
+
+          const refreshedItem = getItemList().find((entry) => entry.id === itemId);
+
+          if (!refreshedItem || refreshedItem.kind !== 'stream' || (refreshedItem.metadata?.duration ?? 0) > 0) {
+            return;
+          }
+
+          const duration = await readStreamDuration(refreshedItem);
+
+          if (!duration || duration <= 0) {
+            return;
+          }
+
+          const latestItem = getItemList().find((entry) => entry.id === itemId);
+
+          if (!latestItem) {
+            return;
+          }
+
+          updateItems((existing) =>
+            existing.map((item) =>
+              item.id === itemId
+                ? {
+                    ...item,
+                    metadata: {
+                      ...latestItem.metadata,
+                      duration
+                    }
+                  }
+                : item
+            )
+          );
+          queuePersist();
+        })
+        .finally(() => {
+          active = false;
+
+          if (index < targetItems.length) {
+            scheduleBackgroundTask(processChunk);
+          }
+        });
+
+      return;
+    }
+
+    if (pendingModuleMetadataItem) {
+      active = true;
+
+      void loadModuleMetadata(pendingModuleMetadataItem)
         .then((metadata) => {
           if (!metadata) {
             return;
           }
 
-          const currentItem = getItemList().find((entry) => entry.id === pendingEmbeddedMetadataItem?.id);
+          const currentItem = getItemList().find((entry) => entry.id === pendingModuleMetadataItem?.id);
 
           if (!currentItem) {
             return;
@@ -173,7 +287,7 @@ export function scheduleMetadataParsing({
 
           updateItems((existing) =>
             existing.map((item) =>
-              item.id === pendingEmbeddedMetadataItem?.id
+              item.id === pendingModuleMetadataItem?.id
                 ? {
                     ...item,
                     metadata: mergedMetadata
