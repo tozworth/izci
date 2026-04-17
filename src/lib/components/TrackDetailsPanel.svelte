@@ -176,7 +176,6 @@
     line-height: 1;
     color: var(--muted);
     background: transparent;
-    cursor: pointer;
     transition: color 160ms ease;
   }
 

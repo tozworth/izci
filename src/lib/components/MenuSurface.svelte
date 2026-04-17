@@ -248,12 +248,6 @@
     text-align: right;
   }
 
-  .menu-item-parent,
-  .menu-back-button,
-  .menu-item-drilldown {
-    cursor: pointer;
-  }
-
   .submenu-open,
   .menu-back-button:hover {
     background: var(--menu-popover-hover);

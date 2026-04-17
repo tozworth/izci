@@ -398,7 +398,6 @@ body.artwork-background-active.artwork-background-bright {
   border: 0;
   background: transparent;
   color: var(--text);
-  cursor: pointer;
   user-select: none;
   font-size: 0.92rem;
   line-height: 1.1;
@@ -735,7 +734,6 @@ body.artwork-background-active.artwork-background-bright {
   color: var(--workspace-tab-muted);
   background: transparent;
   opacity: 0;
-  cursor: pointer;
   pointer-events: none;
   transition:
     opacity 160ms ease,
@@ -991,7 +989,6 @@ body.artwork-background-active.artwork-background-bright {
   width: 2.25rem;
   height: 2.25rem;
   background-color: var(--accent-strong-faint);
-  cursor: pointer;
   transition:
     background-color 180ms ease,
     border-color 180ms ease,
