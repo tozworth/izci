@@ -97,7 +97,7 @@ Primary location for playback and browser-integration logic.
 - `player-controller.ts`: single coordinator for backend switching, snapshot updates, metadata inference application, and player volume propagation.
 - `volume.ts`: shared slider-to-gain conversion helpers, including the logarithmic-volume mapping used by playback services.
 - `media-session.ts`: Chromium Media Session bridge for now-playing metadata, seek position updates, OS/media-key transport handlers, and the silent native transport anchor used to keep Chromium media surfaces alive for non-native playback paths.
-- `stream-artwork.ts`: on-demand embedded artwork loading for streamed files; currently extracts transient cover art from `flac` picture blocks and `opus` `METADATA_BLOCK_PICTURE` comments for the player UI and Media Session without persisting artwork.
+- `stream-artwork.ts`: on-demand embedded metadata/artwork loading for streamed files; currently extracts `title`/`artist`/`album` tags plus transient cover art from `flac` Vorbis comments/picture blocks and `opus` `OpusTags`/`METADATA_BLOCK_PICTURE` comments for playlist metadata, the player UI, and Media Session without persisting artwork blobs.
 - `artwork-background.ts`: artwork brightness analysis used by the main app shell to decide when artwork-backed backgrounds should flip UI surfaces/text into a darker-on-light contrast mode.
 - `pwa-updates.ts`: service-worker registration plus proactive update checks for long-lived preview/installed PWA windows so new builds can activate without getting stuck on the first cached shell.
 - `theme.ts`: shared color-theme metadata, document-theme application, and dynamic `<meta name="theme-color">` updates used by both window entrypoints so Chromium/PWA window chrome tracks the active theme where supported.
@@ -116,7 +116,7 @@ Primary location for playback and browser-integration logic.
 - `playlist-persistence.ts`: IndexedDB open/read/write helpers plus stored-item serialization and playback option normalization for playlist/library state.
 - `playlist-materialization.ts`: file-handle permission and rehydration helpers, including streamed-format object URL creation/revocation during `ensureLoaded()`.
 - `playlist-selection.ts`: selection normalization and selection action helpers shared by playlist and library stores.
-- `playlist-metadata.ts`: background metadata inference and stream-duration probing helpers.
+- `playlist-metadata.ts`: background streamed-track metadata hydration (filename inference, embedded `flac`/`opus` tags, and duration probing).
 - `playlist-navigation.ts`: next/previous/track-end resolution, including shuffle session management.
 - `playlist-dedupe.ts`: duplicate detection based on track identity, used only by the library store path.
 - `library-view-settings.ts`: persistent library table layout and filter state (column order, widths, visibility, sort, search query) with `BroadcastChannel` sync.
@@ -168,7 +168,7 @@ Primary location for playback and browser-integration logic.
 - Persisted items may be rehydrated from `FileSystemFileHandle`s. Preserve the `ensureLoaded()` flow and permission prompts when changing import or playback behavior.
 - `player-controller.ts` is the single coordinator for backend switching. Changes to transport or metadata propagation should usually start there.
 - Streamed playback intentionally stays on Howler's HTML5 audio mode because that path is the proven stable way to keep Chromium/desktop media controls alive for streamed formats without regressing row-activation or pause/resume behavior.
-- Embedded artwork for streamed files is not sourced from Howler. `src/lib/services/stream-artwork.ts` loads `flac` and `opus` cover art directly from the selected file or file handle on demand, creates transient blob URLs for the current UI/media-session presentation, and does not persist artwork into IndexedDB metadata.
+- Embedded streamed metadata/artwork is not sourced from Howler. `src/lib/services/stream-artwork.ts` reads `flac` and `opus` tags directly from the selected file or file handle on demand, persists parsed textual metadata (`title`/`artist`/`album`) into IndexedDB through the playlist metadata worker, creates transient blob URLs for cover art used by the current UI/media-session presentation, and does not persist artwork blobs.
 - `PlayerControls.svelte` should consume shared artwork passed down from `App.svelte` rather than starting a second artwork-loading lifecycle of its own.
 - Tracker modules still play through `Chiptune3`/Web Audio because rerouting real module audio through a browser-facing media element regressed playback quality/pitch; their media-surface integration is mirrored through the silent native transport anchor instead.
 - The playback split is therefore intentional, not incidental:

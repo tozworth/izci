@@ -1,4 +1,5 @@
 import { metadataSettings } from '$lib/stores/metadata-settings';
+import { loadTrackMetadata } from '$lib/services/stream-artwork';
 import type { PlaylistItem, TrackMetadata } from '$lib/types';
 import { mergeInferredArtistTitle } from '$lib/utils/files';
 
@@ -31,6 +32,18 @@ function scheduleBackgroundTask(callback: (deadline: BackgroundDeadline) => void
 function buildInitialMetadata(item: PlaylistItem): TrackMetadata | undefined {
   const metadata = mergeInferredArtistTitle(item.metadata, item.name, metadataSettings.getSnapshot().inferFromFilename);
   return Object.keys(metadata).length > 0 ? metadata : undefined;
+}
+
+function shouldReadEmbeddedStreamMetadata(item: PlaylistItem): boolean {
+  if (item.kind !== 'stream' || (item.extension !== 'flac' && item.extension !== 'opus')) {
+    return false;
+  }
+
+  const title = item.metadata?.title?.trim();
+  const artist = item.metadata?.artist?.trim();
+  const album = item.metadata?.album?.trim();
+
+  return !title || !artist || !album;
 }
 
 async function readStreamDuration(item: PlaylistItem): Promise<number | undefined> {
@@ -86,6 +99,7 @@ export function scheduleMetadataParsing({
     }
 
     const updates: Array<{ id: string; metadata: TrackMetadata }> = [];
+    let pendingEmbeddedMetadataItem: PlaylistItem | null = null;
     let pendingDurationItem: PlaylistItem | null = null;
 
     while (index < targetItems.length && (deadline.didTimeout || deadline.timeRemaining() > 2)) {
@@ -103,6 +117,11 @@ export function scheduleMetadataParsing({
 
       if (metadata && JSON.stringify(currentItem.metadata ?? {}) !== JSON.stringify(mergedMetadata ?? {})) {
         updates.push({ id: item.id, metadata: mergedMetadata ?? {} });
+      }
+
+      if (shouldReadEmbeddedStreamMetadata(currentItem)) {
+        pendingEmbeddedMetadataItem = item;
+        break;
       }
 
       if (item.kind === 'stream' && item.objectUrl && (currentItem.metadata?.duration ?? 0) <= 0) {
@@ -126,6 +145,57 @@ export function scheduleMetadataParsing({
         })
       );
       queuePersist();
+    }
+
+    if (pendingEmbeddedMetadataItem) {
+      active = true;
+
+      void loadTrackMetadata(pendingEmbeddedMetadataItem)
+        .then((metadata) => {
+          if (!metadata) {
+            return;
+          }
+
+          const currentItem = getItemList().find((entry) => entry.id === pendingEmbeddedMetadataItem?.id);
+
+          if (!currentItem) {
+            return;
+          }
+
+          const mergedMetadata = mergeInferredArtistTitle(
+            {
+              ...currentItem.metadata,
+              ...metadata
+            },
+            currentItem.name,
+            metadataSettings.getSnapshot().inferFromFilename
+          );
+
+          if (JSON.stringify(currentItem.metadata ?? {}) === JSON.stringify(mergedMetadata ?? {})) {
+            return;
+          }
+
+          updateItems((existing) =>
+            existing.map((item) =>
+              item.id === pendingEmbeddedMetadataItem?.id
+                ? {
+                    ...item,
+                    metadata: mergedMetadata
+                  }
+                : item
+            )
+          );
+          queuePersist();
+        })
+        .finally(() => {
+          active = false;
+
+          if (index < targetItems.length) {
+            scheduleBackgroundTask(processChunk);
+          }
+        });
+
+      return;
     }
 
     if (pendingDurationItem) {

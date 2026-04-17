@@ -1,8 +1,10 @@
-import type { PlaylistItem } from '$lib/types';
+import type { PlaylistItem, TrackMetadata } from '$lib/types';
 
 const FLAC_MARKER = 'fLaC';
 const OPUS_TAGS_MARKER = 'OpusTags';
 const METADATA_BLOCK_PICTURE_KEY = 'METADATA_BLOCK_PICTURE';
+const FLAC_VORBIS_COMMENT_BLOCK_TYPE = 4;
+const FLAC_PICTURE_BLOCK_TYPE = 6;
 
 interface ParsedArtwork {
   mimeType: string;
@@ -10,6 +12,16 @@ interface ParsedArtwork {
   width?: number;
   height?: number;
   pictureType?: number;
+}
+
+interface ParsedVorbisComments {
+  metadata: TrackMetadata;
+  artwork: ParsedArtwork | null;
+}
+
+interface ParsedStreamData {
+  metadata: TrackMetadata;
+  artwork: ParsedArtwork | null;
 }
 
 export interface LoadedStreamArtwork {
@@ -33,6 +45,33 @@ function decodeBase64(value: string): Uint8Array | null {
     return bytes;
   } catch {
     return null;
+  }
+}
+
+function trimTagValue(value: string): string | undefined {
+  const trimmed = value.trim();
+  return trimmed ? trimmed : undefined;
+}
+
+function applyVorbisComment(metadata: TrackMetadata, key: string, value: string): void {
+  const normalizedValue = trimTagValue(value);
+
+  if (!normalizedValue) {
+    return;
+  }
+
+  switch (key.trim().toUpperCase()) {
+    case 'TITLE':
+      metadata.title ??= normalizedValue;
+      break;
+    case 'ARTIST':
+      metadata.artist ??= normalizedValue;
+      break;
+    case 'ALBUM':
+      metadata.album ??= normalizedValue;
+      break;
+    default:
+      break;
   }
 }
 
@@ -87,13 +126,71 @@ function parsePictureBlock(block: Uint8Array): ParsedArtwork | null {
   };
 }
 
-function parseFlacArtwork(bytes: Uint8Array): ParsedArtwork | null {
+function parseVorbisCommentsPacket(packet: Uint8Array, offset: number): ParsedVorbisComments {
+  const metadata: TrackMetadata = {};
+  const view = new DataView(packet.buffer, packet.byteOffset, packet.byteLength);
+  let artwork: ParsedArtwork | null = null;
+
+  if (offset + 4 > packet.byteLength) {
+    return { metadata, artwork };
+  }
+
+  const vendorLength = view.getUint32(offset, true);
+  offset += 4 + vendorLength;
+
+  if (offset + 4 > packet.byteLength) {
+    return { metadata, artwork };
+  }
+
+  const commentCount = view.getUint32(offset, true);
+  offset += 4;
+
+  for (let index = 0; index < commentCount; index += 1) {
+    if (offset + 4 > packet.byteLength) {
+      break;
+    }
+
+    const commentLength = view.getUint32(offset, true);
+    offset += 4;
+
+    if (offset + commentLength > packet.byteLength) {
+      break;
+    }
+
+    const comment = new TextDecoder().decode(packet.subarray(offset, offset + commentLength));
+    offset += commentLength;
+
+    const separatorIndex = comment.indexOf('=');
+
+    if (separatorIndex <= 0) {
+      continue;
+    }
+
+    const key = comment.slice(0, separatorIndex).trim();
+    const value = comment.slice(separatorIndex + 1);
+
+    if (key.toUpperCase() === METADATA_BLOCK_PICTURE_KEY) {
+      const pictureBytes = decodeBase64(value.trim());
+      artwork ??= pictureBytes ? parsePictureBlock(pictureBytes) : null;
+      continue;
+    }
+
+    applyVorbisComment(metadata, key, value);
+  }
+
+  return { metadata, artwork };
+}
+
+function parseFlacData(bytes: Uint8Array): ParsedStreamData {
+  const metadata: TrackMetadata = {};
+
   if (bytes.byteLength < 4 || new TextDecoder().decode(bytes.subarray(0, 4)) !== FLAC_MARKER) {
-    return null;
+    return { metadata, artwork: null };
   }
 
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   let offset = 4;
+  let preferredArtwork: ParsedArtwork | null = null;
   let fallbackArtwork: ParsedArtwork | null = null;
 
   while (offset + 4 <= bytes.byteLength) {
@@ -105,18 +202,25 @@ function parseFlacArtwork(bytes: Uint8Array): ParsedArtwork | null {
     const blockEnd = blockStart + blockLength;
 
     if (blockEnd > bytes.byteLength) {
-      return fallbackArtwork;
+      return {
+        metadata,
+        artwork: preferredArtwork ?? fallbackArtwork
+      };
     }
 
-    if (blockType === 6) {
+    if (blockType === FLAC_VORBIS_COMMENT_BLOCK_TYPE) {
+      Object.assign(metadata, parseVorbisCommentsPacket(bytes.subarray(blockStart, blockEnd), 0).metadata);
+    }
+
+    if (blockType === FLAC_PICTURE_BLOCK_TYPE) {
       const artwork = parsePictureBlock(bytes.subarray(blockStart, blockEnd));
 
       if (artwork) {
         if (artwork.pictureType === 3) {
-          return artwork;
+          preferredArtwork ??= artwork;
+        } else {
+          fallbackArtwork ??= artwork;
         }
-
-        fallbackArtwork ??= artwork;
       }
     }
 
@@ -127,7 +231,10 @@ function parseFlacArtwork(bytes: Uint8Array): ParsedArtwork | null {
     }
   }
 
-  return fallbackArtwork;
+  return {
+    metadata,
+    artwork: preferredArtwork ?? fallbackArtwork
+  };
 }
 
 function extractOpusTagPacket(bytes: Uint8Array): Uint8Array | null {
@@ -204,68 +311,21 @@ function extractOpusTagPacket(bytes: Uint8Array): Uint8Array | null {
   return null;
 }
 
-function parseOpusArtwork(bytes: Uint8Array): ParsedArtwork | null {
+function parseOpusData(bytes: Uint8Array): ParsedStreamData {
+  const metadata: TrackMetadata = {};
   const packet = extractOpusTagPacket(bytes);
 
   if (!packet || packet.byteLength < 16) {
-    return null;
+    return { metadata, artwork: null };
   }
 
   const marker = new TextDecoder().decode(packet.subarray(0, 8));
 
   if (marker !== OPUS_TAGS_MARKER) {
-    return null;
+    return { metadata, artwork: null };
   }
 
-  const view = new DataView(packet.buffer, packet.byteOffset, packet.byteLength);
-  let offset = 8;
-
-  if (offset + 4 > packet.byteLength) {
-    return null;
-  }
-
-  const vendorLength = view.getUint32(offset, true);
-  offset += 4 + vendorLength;
-
-  if (offset + 4 > packet.byteLength) {
-    return null;
-  }
-
-  const commentCount = view.getUint32(offset, true);
-  offset += 4;
-
-  for (let index = 0; index < commentCount; index += 1) {
-    if (offset + 4 > packet.byteLength) {
-      return null;
-    }
-
-    const commentLength = view.getUint32(offset, true);
-    offset += 4;
-
-    if (offset + commentLength > packet.byteLength) {
-      return null;
-    }
-
-    const comment = new TextDecoder().decode(packet.subarray(offset, offset + commentLength));
-    offset += commentLength;
-
-    const separatorIndex = comment.indexOf('=');
-
-    if (separatorIndex <= 0) {
-      continue;
-    }
-
-    const key = comment.slice(0, separatorIndex).trim().toUpperCase();
-
-    if (key !== METADATA_BLOCK_PICTURE_KEY) {
-      continue;
-    }
-
-    const pictureBytes = decodeBase64(comment.slice(separatorIndex + 1).trim());
-    return pictureBytes ? parsePictureBlock(pictureBytes) : null;
-  }
-
-  return null;
+  return parseVorbisCommentsPacket(packet, 8);
 }
 
 async function resolveTrackFile(track: PlaylistItem): Promise<File | null> {
@@ -288,16 +348,23 @@ function buildMediaImage(artwork: ParsedArtwork, url: string): MediaImage {
   };
 }
 
-function extractArtwork(bytes: Uint8Array, extension: string): ParsedArtwork | null {
+function extractStreamData(bytes: Uint8Array, extension: string): ParsedStreamData {
   if (extension === 'flac') {
-    return parseFlacArtwork(bytes);
+    return parseFlacData(bytes);
   }
 
   if (extension === 'opus') {
-    return parseOpusArtwork(bytes);
+    return parseOpusData(bytes);
   }
 
-  return null;
+  return {
+    metadata: {},
+    artwork: null
+  };
+}
+
+function extractArtwork(bytes: Uint8Array, extension: string): ParsedArtwork | null {
+  return extractStreamData(bytes, extension).artwork;
 }
 
 function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
@@ -318,6 +385,23 @@ export function getTrackArtworkLoadKey(track: PlaylistItem | null): string {
     track.size,
     track.lastModified
   ].join(':');
+}
+
+export async function loadTrackMetadata(track: PlaylistItem | null): Promise<TrackMetadata | null> {
+  if (!track || track.kind !== 'stream' || (track.extension !== 'flac' && track.extension !== 'opus')) {
+    return null;
+  }
+
+  const file = await resolveTrackFile(track);
+
+  if (!file) {
+    return null;
+  }
+
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  const metadata = extractStreamData(bytes, track.extension).metadata;
+
+  return Object.keys(metadata).length > 0 ? metadata : null;
 }
 
 export async function loadTrackArtwork(track: PlaylistItem | null): Promise<LoadedStreamArtwork | null> {
