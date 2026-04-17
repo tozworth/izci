@@ -2,6 +2,7 @@
   import { createEventDispatcher } from 'svelte';
   import PlaylistPanel from '$lib/components/PlaylistPanel.svelte';
   import TrackDetailsPanel from '$lib/components/TrackDetailsPanel.svelte';
+  import type { LoadedStreamArtwork } from '$lib/services/stream-artwork';
   import type { PlaylistItem, WorkspaceTab } from '$lib/types';
   import type {
     WorkspacePanelHandlers,
@@ -16,6 +17,7 @@
   export let libraryPanelProps: WorkspacePanelProps;
   export let libraryPanelHandlers: WorkspacePanelHandlers;
   export let selectedItem: PlaylistItem | null = null;
+  export let detailsArtwork: LoadedStreamArtwork | null = null;
   export let isDetailsVisible = false;
   export let onCloseDetails: () => void = () => {};
 
@@ -136,6 +138,7 @@
     >
       <TrackDetailsPanel
         track={selectedItem}
+        artwork={detailsArtwork}
         hideEyebrow={true}
         isTabbedLayout={true}
       />

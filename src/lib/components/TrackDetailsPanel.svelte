@@ -1,8 +1,10 @@
 <script lang="ts">
+  import type { LoadedStreamArtwork } from '$lib/services/stream-artwork';
   import type { PlaylistItem } from '$lib/types';
   import { resolveModuleDisplayFormat, resolveModuleTrackerName } from '$lib/utils/files';
 
   export let track: PlaylistItem | null = null;
+  export let artwork: LoadedStreamArtwork | null = null;
   export let hideEyebrow = false;
   export let isTabbedLayout = false;
   export let fillParent = false;
@@ -65,6 +67,11 @@
             <span class="material-symbols-outlined section-icon" aria-hidden="true">audio_file</span>
             <span>Track</span>
           </p>
+          {#if artwork}
+            <div class="track-artwork" aria-hidden="true">
+              <img class="track-artwork-image" src={artwork.url} alt="" />
+            </div>
+          {/if}
           <h2 class="track-title">{title}</h2>
           {#if showArtist}
             <p class="track-artist">{artist}</p>
@@ -187,6 +194,26 @@
 
   .track-copy {
     gap: 0.28rem;
+  }
+
+  .track-artwork {
+    width: min(100%, 16rem);
+    aspect-ratio: 1;
+    border-radius: var(--track-artwork-radius);
+    overflow: hidden;
+    background:
+      linear-gradient(180deg, var(--hover-control), transparent 100%),
+      var(--bg-soft);
+    box-shadow:
+      inset 0 0 0 1px var(--border-strong),
+      0 0 0 1px rgba(0, 0, 0, 0.08);
+  }
+
+  .track-artwork-image {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
   }
 
   .section-heading {

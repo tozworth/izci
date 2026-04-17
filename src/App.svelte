@@ -157,13 +157,18 @@
   let playRequestSequence = 0;
   let playlistJumpRequest: WorkspaceJumpRequest | null = null;
   let displayedArtwork: LoadedStreamArtwork | null = null;
+  let detailsArtwork: LoadedStreamArtwork | null = null;
+  let resolvedDetailsArtwork: LoadedStreamArtwork | null = null;
   let artworkBackgroundPrimary: LoadedStreamArtwork | null = null;
   let artworkBackgroundSecondary: LoadedStreamArtwork | null = null;
   let activeArtworkBackgroundSlot: ArtworkBackgroundSlot = 'primary';
   let activeArtworkBackground: LoadedStreamArtwork | null = null;
   let artworkLoadToken = 0;
+  let detailsArtworkLoadToken = 0;
   let artworkBackgroundCleanupTimer: ReturnType<typeof setTimeout> | null = null;
   let displayedArtworkKey = '';
+  let selectedItemArtworkLoadKey = '';
+  let detailsArtworkKey = '';
   let artworkBrightnessKey = '';
   let artworkBackgroundMode: ArtworkBackgroundMode = appearanceSettings.getSnapshot().artworkBackgroundMode;
   let isWorkspaceArtworkBackgroundEnabled = false;
@@ -207,6 +212,10 @@
   $: playerDisplayTrack = playingTrack ?? selectedPlaylistItem;
   $: activeArtworkBackground =
     activeArtworkBackgroundSlot === 'primary' ? artworkBackgroundPrimary : artworkBackgroundSecondary;
+  $: resolvedDetailsArtwork =
+    selectedItemArtworkLoadKey.length > 0 && selectedItemArtworkLoadKey === displayedArtworkKey
+      ? displayedArtwork
+      : detailsArtwork;
   $: artworkBackgroundMode = $appearanceSettings.artworkBackgroundMode;
   $: isWorkspaceArtworkBackgroundEnabled = artworkBackgroundMode === 'workspace';
   $: isPlayerBarArtworkBackgroundEnabled =
@@ -266,6 +275,21 @@
     if (nextArtworkKey !== displayedArtworkKey) {
       displayedArtworkKey = nextArtworkKey;
       void syncDisplayedArtwork(playerDisplayTrack);
+    }
+  }
+  $: {
+    const nextArtworkKey = getTrackArtworkLoadKey(selectedItem);
+    const shouldReuseDisplayedArtwork =
+      nextArtworkKey.length > 0 && nextArtworkKey === displayedArtworkKey;
+
+    selectedItemArtworkLoadKey = nextArtworkKey;
+
+    if (shouldReuseDisplayedArtwork) {
+      detailsArtworkKey = '';
+      clearDetailsArtwork();
+    } else if (nextArtworkKey !== detailsArtworkKey) {
+      detailsArtworkKey = nextArtworkKey;
+      void syncDetailsArtwork(selectedItem);
     }
   }
   $: {
@@ -438,6 +462,11 @@
     displayedArtwork = null;
   }
 
+  function clearDetailsArtwork() {
+    revokeTrackArtwork(detailsArtwork);
+    detailsArtwork = null;
+  }
+
   function clearArtworkBackgrounds() {
     clearArtworkBackgroundCleanupTimer();
     revokeTrackArtwork(artworkBackgroundPrimary);
@@ -466,6 +495,25 @@
 
     displayedArtwork = artwork;
     replaceArtworkBackground(artwork);
+  }
+
+  async function syncDetailsArtwork(track: PlaylistItem | null) {
+    const loadToken = ++detailsArtworkLoadToken;
+
+    clearDetailsArtwork();
+
+    if (!track) {
+      return;
+    }
+
+    const artwork = await loadTrackArtwork(track);
+
+    if (loadToken !== detailsArtworkLoadToken) {
+      revokeTrackArtwork(artwork);
+      return;
+    }
+
+    detailsArtwork = artwork;
   }
 
   async function syncArtworkBrightness(artwork: LoadedStreamArtwork | null, enabled: boolean) {
@@ -958,7 +1006,9 @@
 
   onDestroy(() => {
     artworkLoadToken += 1;
+    detailsArtworkLoadToken += 1;
     clearDisplayedArtwork();
+    clearDetailsArtwork();
     clearArtworkBackgrounds();
     syncArtworkMenuClasses(false, false);
     unsubscribePlaylistItems();
@@ -1058,6 +1108,7 @@
       {libraryPanelProps}
       {libraryPanelHandlers}
       {selectedItem}
+      detailsArtwork={resolvedDetailsArtwork}
       isDetailsVisible={isDetailsPanelVisible}
       onCloseDetails={handleCloseTrackDetails}
       on:tabChange={(event) => setActiveWorkspaceTab(event.detail)}
@@ -1072,6 +1123,7 @@
       resizerWidth={WORKSPACE_RESIZER_WIDTH}
       isResizing={Boolean(resizeState)}
       {selectedItem}
+      detailsArtwork={resolvedDetailsArtwork}
       isDetailsVisible={isDetailsPanelVisible}
       onCloseDetails={handleCloseTrackDetails}
       on:resizeStart={handleWideWorkspaceResizeStart}

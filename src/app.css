@@ -3,6 +3,7 @@
 :root {
   --player-bar-reserve: calc(6.5rem + env(safe-area-inset-bottom, 0px));
   --player-bar-reserve-tabbed: calc(4.8rem + env(safe-area-inset-bottom, 0px));
+  --track-artwork-radius: 0.25rem;
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -1094,7 +1095,7 @@ body.artwork-background-active.artwork-background-bright {
   flex: 0 0 auto;
   width: 3.4rem;
   height: 3.4rem;
-  border-radius: 0.25rem;
+  border-radius: var(--track-artwork-radius);
   overflow: hidden;
   background:
     linear-gradient(180deg, var(--hover-control), transparent 100%),

@@ -2,6 +2,7 @@
   import { createEventDispatcher } from 'svelte';
   import PlaylistPanel from '$lib/components/PlaylistPanel.svelte';
   import TrackDetailsPanel from '$lib/components/TrackDetailsPanel.svelte';
+  import type { LoadedStreamArtwork } from '$lib/services/stream-artwork';
   import type { PlaylistItem, WorkspacePanelId } from '$lib/types';
   import WorkspaceResizer from '$lib/components/workspace/WorkspaceResizer.svelte';
   import type {
@@ -18,6 +19,7 @@
   export let resizerWidth = 14;
   export let isResizing = false;
   export let selectedItem: PlaylistItem | null = null;
+  export let detailsArtwork: LoadedStreamArtwork | null = null;
   export let isDetailsVisible = false;
   export let onCloseDetails: () => void = () => {};
 
@@ -81,6 +83,7 @@
     >
       <TrackDetailsPanel
         track={selectedItem}
+        artwork={detailsArtwork}
         fillParent={true}
         showCloseButton={true}
         onClose={onCloseDetails}
