@@ -1199,7 +1199,8 @@ body.artwork-background-active.artwork-background-bright {
 }
 
 .player-artwork-image {
-  object-fit: cover;
+  /* Chromium can visibly shimmer aliased artwork when this footer thumbnail is cover-cropped. */
+  object-fit: contain;
 }
 
 .player-artwork-placeholder {
