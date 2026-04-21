@@ -977,9 +977,6 @@ body.artwork-background-active.artwork-background-bright {
   z-index: 0;
   border-radius: 4px;
   pointer-events: none;
-  transition:
-    background-color var(--artwork-ui-transition-duration) linear,
-    box-shadow var(--artwork-ui-transition-duration) linear;
 }
 
 .track-row:hover::before {

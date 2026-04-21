@@ -97,9 +97,6 @@
     z-index: 0;
     border-radius: 4px;
     pointer-events: none;
-    transition:
-      background-color var(--artwork-ui-transition-duration, 280ms) linear,
-      box-shadow var(--artwork-ui-transition-duration, 280ms) linear;
   }
 
   .track-table-cell {
