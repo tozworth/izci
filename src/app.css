@@ -1203,8 +1203,8 @@ body.artwork-background-active.artwork-background-bright {
 
 .player-artwork {
   flex: 0 0 auto;
-  width: 3.4rem;
-  height: 3.4rem;
+  width: 56px;
+  height: 56px;
   border-radius: var(--track-artwork-radius);
   overflow: hidden;
   background:
@@ -1226,8 +1226,11 @@ body.artwork-background-active.artwork-background-bright {
 }
 
 .player-artwork-image {
-  /* Chromium can visibly shimmer aliased artwork when this footer thumbnail is cover-cropped. */
+  /* Keep Chromium from resampling this thumbnail on fractional footer repaints. */
   object-fit: contain;
+  background: var(--bg-soft);
+  transform: translateZ(0);
+  backface-visibility: hidden;
 }
 
 .player-artwork-placeholder {
