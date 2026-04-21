@@ -1310,7 +1310,6 @@ body.artwork-background-active.artwork-background-bright {
 
 .transport-button-primary .material-symbols-outlined {
   font-size: 2.45rem;
-  transform: translateY(0.02em);
 }
 
 .material-symbols-outlined {
@@ -1431,7 +1430,6 @@ input[type='range'] {
 
   .transport-button-primary .material-symbols-outlined {
     font-size: 2.3rem;
-    transform: translateY(-0.03em);
   }
 
   .volume {
