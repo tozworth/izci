@@ -75,12 +75,13 @@
 
 <style>
   .track-table-row-button {
+    position: relative;
     width: 100%;
     display: grid;
     grid-template-columns: var(--track-table-columns);
     column-gap: var(--track-table-gap);
     align-items: center;
-    padding: 0.06rem 0;
+    padding: 0.03rem 0;
     color: inherit;
     background: transparent;
     border: 0;
@@ -89,11 +90,25 @@
     border-radius: 4px;
   }
 
+  .track-table-row-button::before {
+    content: "";
+    position: absolute;
+    inset: 0 -0.6rem;
+    z-index: 0;
+    border-radius: 4px;
+    pointer-events: none;
+    transition:
+      background-color var(--artwork-ui-transition-duration, 280ms) linear,
+      box-shadow var(--artwork-ui-transition-duration, 280ms) linear;
+  }
+
   .track-table-cell {
+    position: relative;
+    z-index: 1;
     min-width: 0;
-    min-height: 1.85rem;
+    min-height: 1.62rem;
     display: block;
-    padding: 0.36rem 0.5rem 0.34rem;
+    padding: 0.28rem 0.35rem 0.26rem;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -107,11 +122,11 @@
     color: var(--muted);
   }
 
-  li .track-table-row-button:hover {
+  li .track-table-row-button:hover::before {
     background: var(--hover-subtle);
   }
 
-  li.selected .track-table-row-button {
+  li.selected .track-table-row-button::before {
     background: var(--selection-bg);
   }
 
@@ -119,7 +134,7 @@
     font-weight: 600;
   }
 
-  li.playing .track-table-row-button .track-table-cell:first-child {
+  li.playing .track-table-row-button::before {
     box-shadow: inset 3px 0 0 var(--accent-strong);
   }
 

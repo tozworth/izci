@@ -66,7 +66,7 @@
   }>();
 
   const COLUMN_GAP = 4;
-  const TABLE_SIDE_PADDING = 27.2;
+  const TABLE_SIDE_PADDING = 19.2;
 
   let contextMenu: PlaylistPanelContextMenu | null = null;
   let contextMenuElement: HTMLDivElement | null = null;
@@ -574,7 +574,7 @@
   .playlist-panel-header {
     display: flex;
     flex-direction: column;
-    gap: 0.65rem;
+    gap: 0.48rem;
   }
 
   .playlist-filter-empty {

@@ -62,12 +62,13 @@
   .track-table {
     width: 100%;
     min-width: 0;
-    padding: 0 0.85rem 0.85rem;
+    padding: 0 0.6rem 0.7rem;
     overflow-x: hidden;
   }
 
   .track-table-body {
     width: 100%;
+    padding: 0;
   }
 
   .track-table-body :global(li + li) {

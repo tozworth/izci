@@ -84,13 +84,14 @@
     grid-template-columns: var(--track-table-columns);
     column-gap: var(--track-table-gap);
     width: 100%;
+    margin-inline: -0.25rem;
     padding: 0.02rem 0 0;
   }
 
   .track-column-header {
     position: relative;
     min-width: 0;
-    min-height: 1.95rem;
+    min-height: 1.72rem;
     display: flex;
     align-items: stretch;
     border: 0;
@@ -139,7 +140,7 @@
     display: flex;
     align-items: center;
     min-width: 0;
-    padding: 0.32rem 0.5rem 0.3rem;
+    padding: 0.24rem 0.35rem 0.22rem;
     color: var(--muted);
     background: transparent;
     text-align: left;
@@ -186,7 +187,7 @@
 
   .track-column-sort-icon {
     position: absolute;
-    right: 0.42rem;
+    right: 0.32rem;
     top: 50%;
     transform: translateY(-50%);
     font-size: 0.9rem;
@@ -195,7 +196,7 @@
   }
 
   .track-column-sort-button.is-sorted .track-column-label {
-    padding-right: 1.05rem;
+    padding-right: 0.9rem;
   }
 
   .track-column-resizer {

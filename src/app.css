@@ -947,7 +947,7 @@ body.artwork-background-active.artwork-background-bright {
 .track-list {
   list-style: none;
   margin: 0;
-  padding: 0 0 0.85rem;
+  padding: 0 0.6rem 0.7rem;
 }
 
 .track-list li + li {
@@ -955,34 +955,52 @@ body.artwork-background-active.artwork-background-bright {
 }
 
 .track-row {
+  position: relative;
   width: 100%;
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   column-gap: 0.75rem;
   text-align: left;
-  padding: 0.5rem 0.85rem 0.5rem 0.65rem;
+  padding: 0.28rem 0.35rem 0.26rem 0.25rem;
   color: inherit;
   background: transparent;
   border: 0;
-  border-left: 3px solid transparent;
+  border-radius: 4px;
   min-width: 0;
 }
 
-.track-row:hover {
+.track-row::before {
+  content: "";
+  position: absolute;
+  inset: 0 -0.6rem;
+  z-index: 0;
+  border-radius: 4px;
+  pointer-events: none;
+  transition:
+    background-color var(--artwork-ui-transition-duration) linear,
+    box-shadow var(--artwork-ui-transition-duration) linear;
+}
+
+.track-row:hover::before {
   background-color: var(--hover-subtle);
 }
 
-.track-list li.selected .track-row {
+.track-list li.selected .track-row::before {
   background-color: var(--selection-bg);
 }
 
 .track-list li.playing .track-row {
-  border-left-color: var(--accent-strong);
   font-weight: 600;
 }
 
+.track-list li.playing .track-row::before {
+  box-shadow: inset 3px 0 0 var(--accent-strong);
+}
+
 .track-name {
+  position: relative;
+  z-index: 1;
   min-width: 0;
   display: block;
   overflow: hidden;
@@ -991,6 +1009,8 @@ body.artwork-background-active.artwork-background-bright {
 }
 
 .track-meta {
+  position: relative;
+  z-index: 1;
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
