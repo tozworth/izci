@@ -658,7 +658,6 @@
     snapshotStore={playerController.snapshot}
     track={playerDisplayTrack}
     selectedTrack={selectedPlaylistItem}
-    isTabbedLayout={workspaceShellState.isTabbedLayout}
     artwork={artworkPresentationState.displayedArtwork}
     artworkBackgroundPrimary={artworkPresentationState.artworkBackgroundPrimary}
     artworkBackgroundSecondary={artworkPresentationState.artworkBackgroundSecondary}
@@ -666,7 +665,6 @@
     artworkBackgroundActive={isPlayerBarArtworkLayerActive}
     artworkBackgroundBright={artworkPresentationState.isArtworkBackgroundBright}
     on:toggle={() => void playbackCommands.togglePlayback()}
-    on:stop={() => playbackCommands.stop()}
     on:previous={() => void playbackCommands.stepTrack(-1)}
     on:next={() => void playbackCommands.stepTrack(1)}
     on:seek={(event) => playbackCommands.seek(event.detail)}

@@ -8,7 +8,6 @@
   export let snapshotStore: Readable<PlaybackSnapshot>;
   export let track: PlaylistItem | null = null;
   export let selectedTrack: PlaylistItem | null = null;
-  export let isTabbedLayout = false;
   export let artwork: LoadedStreamArtwork | null = null;
   export let artworkBackgroundActive = false;
   export let artworkBackgroundBright = false;
@@ -18,7 +17,6 @@
 
   const dispatch = createEventDispatcher<{
     toggle: void;
-    stop: void;
     previous: void;
     next: void;
     seek: number;
@@ -201,11 +199,6 @@
     >
       <span class="material-symbols-outlined" aria-hidden="true">skip_previous</span>
     </button>
-    {#if !isTabbedLayout}
-      <button type="button" class="transport-button" aria-label="Stop playback" on:click={() => dispatch('stop')} disabled={!track}>
-        <span class="material-symbols-outlined" aria-hidden="true">stop</span>
-      </button>
-    {/if}
     <button
       type="button"
       class="transport-button transport-button-primary"
