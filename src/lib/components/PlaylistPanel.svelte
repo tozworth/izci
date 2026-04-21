@@ -65,13 +65,14 @@
     cycleRepeat: void;
   }>();
 
-  const COLUMN_GAP = 12;
+  const COLUMN_GAP = 4;
   const TABLE_SIDE_PADDING = 27.2;
 
   let contextMenu: PlaylistPanelContextMenu | null = null;
   let contextMenuElement: HTMLDivElement | null = null;
   let dropzoneElement: HTMLDivElement | null = null;
   let headerElement: HTMLDivElement | null = null;
+  let columnsHeaderElement: HTMLDivElement | null = null;
   let searchInputElement: HTMLInputElement | null = null;
   let playlistHeaderCovered = false;
   let dropzoneWidth = 0;
@@ -80,6 +81,7 @@
   let dropIndicator: ColumnDropIndicator | null = null;
   let pendingDragColumnId: LibraryColumnId | null = null;
   let pendingDragStartX = 0;
+  let suppressNextColumnSort = false;
   let resizingColumnId: LibraryColumnId | null = null;
   let resizeStartX = 0;
   let resizeStartWidths: LibraryColumnWidths = {};
@@ -112,6 +114,48 @@
     pendingDragColumnId = null;
     dropIndicator = null;
     resizingColumnId = null;
+  }
+
+  function getColumnDropIndicator(clientX: number): ColumnDropIndicator | null {
+    if (!columnsHeaderElement || visibleColumns.length === 0) {
+      return null;
+    }
+
+    const columnElements = Array.from(
+      columnsHeaderElement.querySelectorAll<HTMLElement>('[data-library-column-id]')
+    );
+    const columnBounds = visibleColumns
+      .map((column) => {
+        const element = columnElements.find((node) => node.dataset.libraryColumnId === column.id);
+
+        if (!element) {
+          return null;
+        }
+
+        return {
+          columnId: column.id,
+          bounds: element.getBoundingClientRect()
+        };
+      })
+      .filter((entry): entry is { columnId: LibraryColumnId; bounds: DOMRect } => Boolean(entry));
+
+    if (columnBounds.length === 0) {
+      return null;
+    }
+
+    for (const { columnId, bounds } of columnBounds) {
+      if (clientX < bounds.left + bounds.width / 2) {
+        return {
+          columnId,
+          position: 'before'
+        };
+      }
+    }
+
+    return {
+      columnId: columnBounds[columnBounds.length - 1].columnId,
+      position: 'after'
+    };
   }
 
   function handleWindowDismiss() {
@@ -228,6 +272,11 @@
   }
 
   function handleColumnSort(columnId: LibraryColumnId) {
+    if (suppressNextColumnSort) {
+      suppressNextColumnSort = false;
+      return;
+    }
+
     libraryViewSettings.setSort(columnId);
   }
 
@@ -272,7 +321,7 @@
   }
 
   function handleColumnPointerDown(event: PointerEvent, columnId: LibraryColumnId) {
-    if (layout !== 'columns' || isCompactColumnLayout || resizingColumnId) {
+    if (event.button !== 0 || layout !== 'columns' || isCompactColumnLayout || resizingColumnId) {
       return;
     }
 
@@ -288,19 +337,6 @@
 
     pendingDragColumnId = columnId;
     pendingDragStartX = event.clientX;
-  }
-
-  function handleColumnPointerEnter(event: PointerEvent, columnId: LibraryColumnId) {
-    if (!draggedColumnId || draggedColumnId === columnId) {
-      return;
-    }
-
-    const bounds = (event.currentTarget as HTMLElement).getBoundingClientRect();
-
-    dropIndicator = {
-      columnId,
-      position: event.clientX < bounds.left + bounds.width / 2 ? 'before' : 'after'
-    };
   }
 
   function handleWindowPointerMove(event: PointerEvent) {
@@ -322,11 +358,19 @@
       }
 
       draggedColumnId = pendingDragColumnId;
-      dropIndicator = null;
+      dropIndicator = getColumnDropIndicator(event.clientX);
+      closeContextMenu();
+      return;
+    }
+
+    if (draggedColumnId) {
+      dropIndicator = getColumnDropIndicator(event.clientX);
     }
   }
 
   function handleWindowPointerUp() {
+    const completedDrag = Boolean(draggedColumnId);
+
     if (draggedColumnId && dropIndicator) {
       libraryViewSettings.moveColumn(draggedColumnId, dropIndicator.columnId, dropIndicator.position);
     }
@@ -335,6 +379,16 @@
     pendingDragColumnId = null;
     draggedColumnId = null;
     dropIndicator = null;
+
+    if (completedDrag) {
+      suppressNextColumnSort = true;
+
+      if (typeof window !== 'undefined') {
+        window.setTimeout(() => {
+          suppressNextColumnSort = false;
+        }, 120);
+      }
+    }
   }
 
   async function scrollTrackIntoView(id: string) {
@@ -399,6 +453,7 @@
   $: displayItems =
     layout === 'columns' ? [...filteredItems].sort((left, right) => compareItems(left, right, activeSort)) : filteredItems;
   $: tableTemplateColumns = visibleColumns.map((column) => `minmax(${column.width}px, ${column.width}px)`).join(' ');
+  $: tableColumnGap = `${COLUMN_GAP}px`;
   $: if (contextMenu?.kind === 'columns' && (layout !== 'columns' || isCompactColumnLayout)) {
     closeContextMenu();
   }
@@ -458,14 +513,17 @@
 
       {#if items.length > 0 && layout === 'columns' && !isCompactColumnLayout}
         <LibraryColumnsHeader
+          bind:headerElement={columnsHeaderElement}
           {visibleColumns}
           {activeSort}
           {tableTemplateColumns}
+          {tableColumnGap}
           {dropIndicator}
+          {draggedColumnId}
+          {resizingColumnId}
           on:sort={(event) => handleColumnSort(event.detail)}
           on:contextMenu={(event) => void handleColumnContextMenu(event.detail)}
           on:columnPointerDown={(event) => handleColumnPointerDown(event.detail.event, event.detail.columnId)}
-          on:columnPointerEnter={(event) => handleColumnPointerEnter(event.detail.event, event.detail.columnId)}
           on:resizeStart={(event) => handleColumnResizeStart(event.detail.event, event.detail.columnId)}
         />
       {/if}
@@ -480,6 +538,7 @@
         {isCompactColumnLayout}
         {visibleColumns}
         {tableTemplateColumns}
+        {tableColumnGap}
         {hideTrackFormat}
         on:itemClick={(event) => handleItemClick(event.detail.event, event.detail.id)}
         on:itemDoubleClick={(event) => handleItemDoubleClick(event.detail)}

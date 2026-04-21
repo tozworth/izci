@@ -631,10 +631,20 @@ body.artwork-background-active.artwork-background-bright {
   box-shadow: 0 0 0 1px var(--resizer-line-glow);
 }
 
+.app-shell.compact-shell .workspace-resizer:hover::before,
+.app-shell.compact-shell .workspace-resizable.is-resizing .workspace-resizer::before {
+  box-shadow: none;
+}
+
 .workspace-resizer-handle {
   position: absolute;
   width: 100%;
   height: 100%;
+}
+
+.app-shell.compact-shell .workspace-resizer-handle {
+  inset-inline: -4px;
+  width: auto;
 }
 
 .workspace-tabs-layout {

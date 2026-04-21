@@ -26,6 +26,7 @@
     libraryHasAllTracks
   } from '$lib/services/workspace-actions';
   import {
+    COMPACT_WORKSPACE_RESIZER_WIDTH,
     WORKSPACE_RESIZER_WIDTH
   } from '$lib/services/workspace-layout';
   import { windowManager } from '$lib/services/window-manager';
@@ -637,7 +638,9 @@
       libraryPanelProps={workspaceShellState.libraryPanelProps}
       {libraryPanelHandlers}
       panelWidths={workspaceShellState.widePanelWidths}
-      resizerWidth={WORKSPACE_RESIZER_WIDTH}
+      resizerWidth={$appearanceSettings.compactShell
+        ? COMPACT_WORKSPACE_RESIZER_WIDTH
+        : WORKSPACE_RESIZER_WIDTH}
       isResizing={workspaceShellState.isResizing}
       selectedItem={artworkPresentationState.detailsDisplayTrack}
       detailsArtwork={artworkPresentationState.visibleDetailsArtwork}

@@ -11,6 +11,7 @@
   export let isCompactColumnLayout = false;
   export let visibleColumns: LibraryPanelColumn[] = [];
   export let tableTemplateColumns = '';
+  export let tableColumnGap = '4px';
   export let hideTrackFormat = false;
 
   const dispatch = createEventDispatcher<{
@@ -21,7 +22,10 @@
 </script>
 
 {#if layout === 'columns' && !isCompactColumnLayout}
-  <div class="track-table" style={`--track-table-columns: ${tableTemplateColumns};`}>
+  <div
+    class="track-table"
+    style={`--track-table-columns: ${tableTemplateColumns}; --track-table-gap: ${tableColumnGap};`}
+  >
     <ul class="track-list track-table-body">
       {#each displayItems as item}
         <TrackRow
@@ -64,5 +68,9 @@
 
   .track-table-body {
     width: 100%;
+  }
+
+  .track-table-body :global(li + li) {
+    border-top: 0;
   }
 </style>

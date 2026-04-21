@@ -78,18 +78,22 @@
     width: 100%;
     display: grid;
     grid-template-columns: var(--track-table-columns);
-    column-gap: 0.75rem;
+    column-gap: var(--track-table-gap);
     align-items: center;
-    padding: 0.38rem 0;
+    padding: 0.06rem 0;
     color: inherit;
     background: transparent;
     border: 0;
     text-align: left;
     min-width: 0;
+    border-radius: 4px;
   }
 
   .track-table-cell {
     min-width: 0;
+    min-height: 1.85rem;
+    display: block;
+    padding: 0.36rem 0.5rem 0.34rem;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -112,8 +116,11 @@
   }
 
   li.playing .track-table-row-button {
-    box-shadow: inset 3px 0 0 var(--accent-strong);
     font-weight: 600;
+  }
+
+  li.playing .track-table-row-button .track-table-cell:first-child {
+    box-shadow: inset 3px 0 0 var(--accent-strong);
   }
 
   li.playing .track-table-row-button .track-table-cell.is-duration {

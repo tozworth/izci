@@ -22,8 +22,8 @@ export const LIBRARY_COLUMN_MIN_WIDTHS: Record<LibraryColumnId, number> = {
   title: 72,
   artist: 72,
   album: 72,
-  format: 56,
-  duration: 64
+  format: 48,
+  duration: 48
 };
 
 const DEFAULT_LIBRARY_VIEW_SETTINGS: LibraryViewSettings = {
