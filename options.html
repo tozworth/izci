@@ -11,10 +11,39 @@
     <link rel="icon" href="/icons/izci-icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="/icons/izci-icon.svg" />
     <title>izci Options</title>
+    <script>
+      (() => {
+        const root = document.documentElement;
+        let theme = 'gruvbox';
+        let useSystemFont = false;
+
+        try {
+          const rawSettings = window.localStorage.getItem('izci.appearance-settings');
+          const settings = rawSettings ? JSON.parse(rawSettings) : null;
+          theme = settings?.colorTheme === 'dracula' ? 'dracula' : 'gruvbox';
+          useSystemFont = settings?.useSystemFont === true;
+        } catch {
+          theme = 'gruvbox';
+          useSystemFont = false;
+        }
+
+        root.dataset.theme = theme;
+        root.dataset.systemFont = useSystemFont ? 'true' : 'false';
+
+        const themeColorMeta = document.querySelector('meta[name="theme-color"]');
+        if (themeColorMeta) {
+          themeColorMeta.setAttribute('content', theme === 'dracula' ? '#1f2029' : '#1c1d1e');
+        }
+      })();
+    </script>
     <style>
       :root {
         color-scheme: dark;
         background: #1d2021;
+      }
+
+      :root[data-theme='dracula'] {
+        background: #171922;
       }
 
       html,
@@ -22,7 +51,13 @@
       #app {
         min-height: 100%;
         margin: 0;
-        background: #1d2021;
+        background-color: #1d2021;
+      }
+
+      html[data-theme='dracula'],
+      html[data-theme='dracula'] body,
+      html[data-theme='dracula'] #app {
+        background-color: #171922;
       }
     </style>
   </head>

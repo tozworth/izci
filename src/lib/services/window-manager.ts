@@ -68,19 +68,46 @@ function buildWindowFeatures(features: PopupWindowDefinition['features']): strin
 
 const popupRefs = new Map<PopupWindowId, Window | null>();
 
+function getInitialPopupBackground(): string {
+  try {
+    const rawSettings = window.localStorage.getItem('izci.appearance-settings');
+    const settings = rawSettings ? JSON.parse(rawSettings) : null;
+    return settings?.colorTheme === 'dracula' ? '#171922' : '#1d2021';
+  } catch {
+    return '#1d2021';
+  }
+}
+
+function paintInitialPopupSurface(windowRef: Window): void {
+  try {
+    const backgroundColor = getInitialPopupBackground();
+    const popupDocument = windowRef.document;
+
+    popupDocument.documentElement.style.backgroundColor = backgroundColor;
+    popupDocument.documentElement.style.colorScheme = 'dark';
+
+    if (popupDocument.body) {
+      popupDocument.body.style.margin = '0';
+      popupDocument.body.style.minHeight = '100vh';
+      popupDocument.body.style.backgroundColor = backgroundColor;
+    }
+  } catch {
+    // The popup may be unavailable if Chromium blocks or immediately navigates it.
+  }
+}
+
 function openPopupWindow(id: PopupWindowId, pathOverride?: string): Window | null {
   const existingWindow = popupRefs.get(id);
   const definition = popupWindows[id];
   const popupPath = pathOverride ?? definition.path;
+  const popupUrl = new URL(popupPath, window.location.href);
 
   if (isOpenWindow(existingWindow)) {
-    const targetUrl = new URL(popupPath, window.location.origin);
-
     if (
-      existingWindow.location.pathname !== targetUrl.pathname
-      || existingWindow.location.search !== targetUrl.search
+      existingWindow.location.pathname !== popupUrl.pathname
+      || existingWindow.location.search !== popupUrl.search
     ) {
-      existingWindow.location.replace(popupPath);
+      existingWindow.location.replace(popupUrl.href);
     }
 
     existingWindow.focus();
@@ -88,7 +115,7 @@ function openPopupWindow(id: PopupWindowId, pathOverride?: string): Window | nul
   }
 
   const nextWindow = window.open(
-    popupPath,
+    '',
     definition.name,
     buildWindowFeatures(getPopupFeatures(definition))
   );
@@ -97,6 +124,8 @@ function openPopupWindow(id: PopupWindowId, pathOverride?: string): Window | nul
     return null;
   }
 
+  paintInitialPopupSurface(nextWindow);
+  nextWindow.location.replace(popupUrl.href);
   popupRefs.set(id, nextWindow);
   nextWindow.addEventListener('beforeunload', () => {
     if (popupRefs.get(id) === nextWindow) {
