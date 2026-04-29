@@ -96,8 +96,7 @@ function getArtworkBackground(
 function buildPublishedState(
   state: ArtworkPresentationState,
   detailsArtwork: LoadedStreamArtwork | null,
-  detailsArtworkTrackKey: string,
-  exitingArtworkBackgroundSlot: ArtworkBackgroundSlot | null
+  detailsArtworkTrackKey: string
 ): ArtworkPresentationState {
   const activeArtworkBackground = getArtworkBackground(state, state.activeArtworkBackgroundSlot);
 
@@ -107,9 +106,7 @@ function buildPublishedState(
       state.detailsDisplayTrack && detailsArtworkTrackKey === getTrackArtworkLoadKey(state.detailsDisplayTrack)
         ? detailsArtwork
         : null,
-    visibleArtworkBackground:
-      activeArtworkBackground ??
-      (exitingArtworkBackgroundSlot ? getArtworkBackground(state, exitingArtworkBackgroundSlot) : null)
+    visibleArtworkBackground: activeArtworkBackground
   };
 }
 
@@ -160,7 +157,7 @@ export function createArtworkPresentationController({
   const store = writable(state);
 
   function publishState(): void {
-    state = buildPublishedState(state, detailsArtwork, detailsArtworkTrackKey, exitingArtworkBackgroundSlot);
+    state = buildPublishedState(state, detailsArtwork, detailsArtworkTrackKey);
     store.set(state);
   }
 
