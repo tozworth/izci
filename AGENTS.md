@@ -45,8 +45,9 @@ Working source tree:
 
 - `src/main.ts`: Svelte mount, global CSS/material symbol import, and production-only handoff to the dedicated PWA registration/update service.
 - `src/App.svelte`: top-level shell; composes the extracted workspace layouts/controllers, owns high-level shell wiring, global shortcuts, error banner wiring, and connects the workspace-shell, playback-command, and artwork/details presentation controllers to the rendered layout.
-- `src/app.css`: global styling.
+- `src/app.css`: main app global stylesheet entrypoint; imports the shared theme tokens plus focused app-shell CSS files.
 - `src/lib/styles/themes.css`: shared color-theme tokens consumed by the main app and Options popup.
+- `src/lib/styles/app/`: focused main-window CSS split by ownership (`base`, `shell`, `menus`, `workspace`, `panels`, `player`).
 - `src/options/main.ts`: Options popup entry; mounts the dedicated popup Svelte app.
 - `src/options/OptionsApp.svelte`: standalone Options window UI for appearance, module playback defaults, and metadata behavior, including the artwork-backdrop mode selector and the window-title track-name toggle.
 - `src/options/app.css`: Options popup styling.

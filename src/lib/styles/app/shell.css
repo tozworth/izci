@@ -1,0 +1,204 @@
+.app-shell {
+  display: grid;
+  position: relative;
+  height: 100dvh;
+  min-height: 100vh;
+  grid-template-rows: auto minmax(0, 1fr) auto auto;
+  gap: 0.75rem;
+  padding: 0;
+  padding-bottom: var(--player-bar-reserve);
+  color: var(--text);
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.app-shell.window-controls-overlay-active {
+  padding-top: var(--window-frame-safe-top);
+}
+
+.app-shell.tabbed-layout {
+  padding-bottom: var(--player-bar-reserve-tabbed);
+}
+
+.app-shell.compact-shell {
+  gap: 0;
+}
+
+.app-shell-background-layer,
+.app-shell-background-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity var(--artwork-background-transition-duration) linear;
+  z-index: 0;
+}
+
+.app-shell-background-layer {
+  background-image: var(--artwork-background-image, none);
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: cover;
+  filter: blur(72px) saturate(1.22);
+  transform: scale(1.16);
+}
+
+.app-shell-background-overlay {
+  background: var(--artwork-background-overlay, transparent);
+}
+
+.app-shell-background-layer.is-active,
+.app-shell-background-overlay.is-active {
+  opacity: 1;
+}
+
+.app-shell > :not(.app-shell-background-layer):not(.app-shell-background-overlay) {
+  z-index: 1;
+}
+
+.window-frame-safe-strip {
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 0;
+  pointer-events: none;
+  z-index: 45;
+  background: var(--window-topbar-bg);
+}
+
+.app-shell.window-controls-overlay-active .window-frame-safe-strip {
+  height: var(--window-frame-safe-top);
+}
+
+.app-shell.artwork-background-active {
+  color-scheme: dark;
+  --panel-backdrop-blur: 28px;
+  --panel-backdrop-saturate: 1.18;
+  --chrome-backdrop-blur: 28px;
+  --chrome-backdrop-saturate: 1.16;
+  --menu-bar-bg: rgba(17, 18, 24, 0.42);
+  --menu-popover-bg: rgba(18, 19, 24, 0.86);
+  --menu-popover-text: rgba(248, 246, 241, 0.96);
+  --menu-popover-muted: rgba(248, 246, 241, 0.72);
+  --menu-popover-border: rgba(255, 255, 255, 0.16);
+  --menu-popover-hover: rgba(255, 255, 255, 0.08);
+  --menu-popover-shadow: 0 24px 60px rgba(0, 0, 0, 0.28);
+  --bg-elevated: rgba(18, 19, 24, 0.44);
+  --bg-soft: rgba(18, 19, 24, 0.5);
+  --bg-popover: rgba(18, 19, 24, 0.8);
+  --bg-tree: rgba(18, 19, 24, 0.68);
+  --bg-search: rgba(18, 19, 24, 0.72);
+  --bg-volume-popup: rgba(16, 17, 22, 0.76);
+  --playlist-header-background:
+    linear-gradient(180deg, rgba(18, 19, 24, 0.58) 0%, rgba(18, 19, 24, 0.44) 100%),
+    rgba(255, 255, 255, 0.04);
+  --border: rgba(255, 255, 255, 0.16);
+  --border-strong: rgba(255, 255, 255, 0.18);
+  --border-soft: rgba(255, 255, 255, 0.12);
+  --border-faint: rgba(255, 255, 255, 0.1);
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-covered: rgba(255, 255, 255, 0.08);
+  --menu-bar-border: rgba(255, 255, 255, 0.14);
+  --hover-surface: rgba(255, 255, 255, 0.1);
+  --hover-subtle: rgba(255, 255, 255, 0.05);
+  --hover-control: rgba(255, 255, 255, 0.08);
+  --hover-ghost: rgba(255, 255, 255, 0.03);
+  --tree-hover: rgba(255, 255, 255, 0.08);
+  --selection-bg: color-mix(in srgb, var(--accent-strong) 14%, transparent);
+  --resizer-track: rgba(255, 255, 255, 0.14);
+  --resizer-handle: rgba(255, 255, 255, 0.28);
+  --resizer-line-gradient:
+    linear-gradient(180deg, transparent 0%, rgba(255, 255, 255, 0.24) 14%, rgba(255, 255, 255, 0.24) 86%, transparent 100%);
+  --resizer-line-gradient-active:
+    linear-gradient(
+      180deg,
+      transparent 0%,
+      color-mix(in srgb, var(--accent-strong) 70%, transparent) 14%,
+      color-mix(in srgb, var(--accent-strong) 70%, transparent) 86%,
+      transparent 100%
+    );
+  --resizer-line-glow: color-mix(in srgb, var(--accent-strong) 24%, transparent);
+  --dropzone-background: linear-gradient(180deg, rgba(255, 255, 255, 0.045), transparent 18%);
+  --player-bar-fade: linear-gradient(180deg, rgba(5, 6, 10, 0), rgba(5, 6, 10, 0.26));
+  --shadow: 0 20px 54px rgba(0, 0, 0, 0.26);
+  --artwork-background-overlay:
+    radial-gradient(circle at top, rgba(255, 255, 255, 0.08), transparent 36%),
+    linear-gradient(180deg, rgba(10, 11, 16, 0.52) 0%, rgba(10, 11, 16, 0.34) 38%, rgba(10, 11, 16, 0.56) 100%);
+}
+
+.app-shell.artwork-background-active.artwork-background-bright {
+  color-scheme: light;
+  --menu-bar-bg: rgba(252, 248, 240, 0.46);
+  --menu-popover-bg: rgba(255, 250, 243, 0.96);
+  --menu-popover-text: #241b12;
+  --menu-popover-muted: rgba(36, 27, 18, 0.72);
+  --menu-popover-border: rgba(52, 39, 25, 0.16);
+  --menu-popover-hover: rgba(52, 39, 25, 0.08);
+  --menu-popover-shadow: 0 20px 50px rgba(57, 41, 25, 0.14);
+  --bg-elevated: rgba(255, 250, 242, 0.48);
+  --bg-soft: rgba(255, 250, 242, 0.58);
+  --bg-popover: rgba(255, 250, 243, 0.88);
+  --bg-tree: rgba(255, 250, 243, 0.8);
+  --bg-search: rgba(255, 252, 246, 0.82);
+  --bg-volume-popup: rgba(255, 250, 242, 0.84);
+  --playlist-header-background:
+    linear-gradient(180deg, rgba(255, 250, 244, 0.7) 0%, rgba(255, 250, 244, 0.54) 100%),
+    rgba(74, 56, 34, 0.03);
+  --text: #241b12;
+  --text-strong: #130d08;
+  --muted: rgba(36, 27, 18, 0.76);
+  --muted-strong: rgba(36, 27, 18, 0.92);
+  --border: rgba(52, 39, 25, 0.18);
+  --border-strong: rgba(52, 39, 25, 0.22);
+  --border-soft: rgba(52, 39, 25, 0.12);
+  --border-faint: rgba(52, 39, 25, 0.09);
+  --border-subtle: rgba(52, 39, 25, 0.08);
+  --border-covered: rgba(52, 39, 25, 0.08);
+  --menu-bar-border: rgba(52, 39, 25, 0.14);
+  --hover-surface: rgba(52, 39, 25, 0.08);
+  --hover-subtle: rgba(52, 39, 25, 0.04);
+  --hover-control: rgba(52, 39, 25, 0.09);
+  --hover-ghost: rgba(52, 39, 25, 0.025);
+  --tree-hover: rgba(52, 39, 25, 0.07);
+  --selection-bg: color-mix(in srgb, var(--accent-strong) 18%, rgba(255, 255, 255, 0.1));
+  --resizer-track: rgba(52, 39, 25, 0.14);
+  --resizer-handle: rgba(52, 39, 25, 0.26);
+  --resizer-line-gradient:
+    linear-gradient(180deg, transparent 0%, rgba(52, 39, 25, 0.2) 14%, rgba(52, 39, 25, 0.2) 86%, transparent 100%);
+  --resizer-line-glow: rgba(52, 39, 25, 0.08);
+  --dropzone-background: linear-gradient(180deg, rgba(255, 255, 255, 0.18), transparent 18%);
+  --player-bar-fade: linear-gradient(180deg, rgba(255, 255, 255, 0), rgba(255, 250, 242, 0.28));
+  --shadow: 0 20px 54px rgba(57, 41, 25, 0.12);
+  --hairline: rgba(34, 20, 8, 0.08);
+  --artwork-background-overlay:
+    radial-gradient(circle at top, rgba(255, 255, 255, 0.2), transparent 36%),
+    linear-gradient(180deg, rgba(255, 249, 240, 0.42) 0%, rgba(255, 249, 240, 0.22) 42%, rgba(255, 249, 240, 0.5) 100%);
+}
+
+.app-shell.window-controls-overlay-active .app-shell-background-layer,
+.app-shell.window-controls-overlay-active .app-shell-background-overlay {
+  clip-path: inset(var(--window-frame-safe-top) 0 0 0);
+}
+
+body.artwork-background-active {
+  --menu-popover-bg: rgba(18, 19, 24, 0.86);
+  --menu-popover-text: rgba(248, 246, 241, 0.96);
+  --menu-popover-muted: rgba(248, 246, 241, 0.72);
+  --menu-popover-border: rgba(255, 255, 255, 0.16);
+  --menu-popover-hover: rgba(255, 255, 255, 0.08);
+  --menu-popover-shadow: 0 24px 60px rgba(0, 0, 0, 0.28);
+}
+
+body.artwork-background-active.artwork-background-bright {
+  --menu-popover-bg: rgba(255, 250, 243, 0.96);
+  --menu-popover-text: #241b12;
+  --menu-popover-muted: rgba(36, 27, 18, 0.72);
+  --menu-popover-border: rgba(52, 39, 25, 0.16);
+  --menu-popover-hover: rgba(52, 39, 25, 0.08);
+  --menu-popover-shadow: 0 20px 50px rgba(57, 41, 25, 0.14);
+}
+
+@media (max-width: 349px) {
+  .app-shell.tabbed-layout {
+    padding-bottom: calc(4.55rem + env(safe-area-inset-bottom, 0px));
+  }
+}

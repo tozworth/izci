@@ -2,23 +2,21 @@
 
 ## Global CSS split / cleanup
 
-- Status: optional / low priority
+- Status: completed
 - Primary target:
   - `src/app.css`
 - Current reality check:
-  - `src/app.css` still exists as the main global stylesheet.
-  - `src/lib/styles/themes.css` exists, but the broader CSS split described in the old refactor notes does not appear to be completed.
+  - `src/app.css` is now a small import entrypoint for the main window.
+  - `src/lib/styles/themes.css` still owns shared color-theme tokens.
+  - Main-window styling is split across `src/lib/styles/app/` by ownership.
 - Problem:
   - Global CSS still centralizes a lot of layout and component styling.
 - Desired end state:
   - Keep the current visual design, but reduce global-style sprawl where it improves maintainability.
-- Possible directions:
-  - Extract only if it provides clear ownership wins.
-  - Prefer moving truly local styles into component `<style>` blocks.
-  - Avoid a large mechanical CSS split unless there is a real maintenance pain point.
-- Validation:
-  - Compare desktop wide layout, tabbed layout, menu bar, panels, player bar, and error banner before/after.
-  - Verify responsive breakpoints remain intact.
+- Completed direction:
+  - Compare desktop wide layout, tabbed layout, menu bar, panels, player bar, and error banner.
+  - Extracted global rules into focused files for base, shell, menus, workspace, panels, and player styles.
+  - Removed stale global selectors for old add-files/details/canvas-placeholder markup.
 
 ## `App.svelte` split / cleanup
 
