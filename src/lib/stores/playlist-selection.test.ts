@@ -1,0 +1,85 @@
+import { describe, expect, it } from 'vitest';
+
+import {
+  buildSelectAllSelection,
+  emptySelection,
+  normalizeSelection,
+  normalizeStoredSelection,
+  removeIdsFromSelection,
+  resolveSelectSelection
+} from './playlist-selection';
+import type { PlaylistItem, PlaylistSelection } from '$lib/types';
+
+function item(id: string): PlaylistItem {
+  return {
+    id,
+    name: `${id}.flac`,
+    extension: 'flac',
+    kind: 'stream',
+    size: 0,
+    lastModified: 0
+  };
+}
+
+describe('playlist selection helpers', () => {
+  const items = [item('a'), item('b'), item('c'), item('d')];
+
+  it('normalizes selected ids into playlist order and drops stale focus ids', () => {
+    const selection: PlaylistSelection = {
+      ids: ['d', 'missing', 'b'],
+      anchorId: 'c',
+      focusId: 'missing'
+    };
+
+    expect(normalizeSelection(items, selection)).toEqual({
+      ids: ['b', 'd'],
+      anchorId: 'c',
+      focusId: 'd'
+    });
+  });
+
+  it('normalizes malformed stored selections against existing ids', () => {
+    expect(
+      normalizeStoredSelection(
+        {
+          ids: ['c', 1, 'a', 'missing'],
+          anchorId: 'missing',
+          focusId: 'c'
+        },
+        new Set(items.map((track) => track.id))
+      )
+    ).toEqual({
+      ids: ['c', 'a'],
+      anchorId: 'c',
+      focusId: 'c'
+    });
+  });
+
+  it('supports single, toggle, and range selection without losing the anchor', () => {
+    const selectedB = resolveSelectSelection(items, emptySelection, 'b');
+    const rangeToD = resolveSelectSelection(items, selectedB, 'd', { range: true });
+    const toggledC = resolveSelectSelection(items, rangeToD, 'c', { toggle: true });
+    const additiveRange = resolveSelectSelection(items, toggledC, 'a', { range: true, toggle: true });
+
+    expect(selectedB).toEqual({ ids: ['b'], anchorId: 'b', focusId: 'b' });
+    expect(rangeToD).toEqual({ ids: ['b', 'c', 'd'], anchorId: 'b', focusId: 'd' });
+    expect(toggledC).toEqual({ ids: ['b', 'd'], anchorId: 'c', focusId: 'd' });
+    expect(additiveRange).toEqual({ ids: ['a', 'b', 'c', 'd'], anchorId: 'c', focusId: 'a' });
+  });
+
+  it('builds select-all state and removes ids while repairing focus and anchor', () => {
+    const all = buildSelectAllSelection(items);
+
+    expect(all).toEqual({
+      ids: ['a', 'b', 'c', 'd'],
+      anchorId: 'a',
+      focusId: 'd'
+    });
+
+    expect(removeIdsFromSelection(items, all, new Set(['a', 'd']))).toEqual({
+      ids: ['b', 'c'],
+      anchorId: 'c',
+      focusId: 'c'
+    });
+  });
+});
