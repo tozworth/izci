@@ -31,7 +31,7 @@ Ignore generated and dependency directories unless the task explicitly involves 
 
 Working source tree:
 
-- `package.json`: Vite/Svelte app manifest and scripts (`dev`, `build`, `preview`, `check`).
+- `package.json`: Vite/Svelte app manifest and scripts (`dev`, `build`, `preview`, `test`, `check`).
 - `package-lock.json`: npm lockfile.
 - `vite.config.ts`: Vite config, `$lib` alias, `chiptune3` runtime emission, and PWA manifest/workbox setup.
 - `svelte.config.js`: Svelte config.
@@ -52,6 +52,7 @@ Working source tree:
 - `src/options/app.css`: Options popup styling.
 - `src/options/views.ts`: popup navigation/view metadata shared by the Options UI.
 - `src/vite-env.d.ts`: Vite ambient types.
+- `src/**/*.test.ts`: Vitest unit tests for pure helpers/services.
 
 ### `src/lib/components/`
 
