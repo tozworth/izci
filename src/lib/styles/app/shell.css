@@ -24,6 +24,14 @@
   gap: 0;
 }
 
+.app-shell.mini-mode {
+  grid-template-rows: auto auto;
+  align-content: start;
+  gap: 0;
+  padding-bottom: 0;
+  background-color: var(--menu-bar-bg);
+}
+
 .app-shell-background-layer,
 .app-shell-background-overlay {
   position: absolute;

@@ -109,6 +109,18 @@
   z-index: 2;
 }
 
+.app-shell.mini-mode .player-bar {
+  position: relative;
+  left: auto;
+  right: auto;
+  bottom: auto;
+  max-height: none;
+}
+
+.app-shell.mini-mode .player-bar::before {
+  display: none;
+}
+
 .player-track-group {
   grid-area: track;
   display: flex;
