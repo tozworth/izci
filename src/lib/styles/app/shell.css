@@ -29,7 +29,6 @@
   align-content: start;
   gap: 0;
   padding-bottom: 0;
-  background-color: var(--menu-bar-bg);
 }
 
 .app-shell-background-layer,

@@ -14,6 +14,8 @@ interface MiniModeState {
 const MINI_MODE_WIDTH = 500;
 const MIN_MINI_MODE_INNER_HEIGHT = 100;
 const MINI_MODE_VERTICAL_PADDING = 0;
+const MINI_MODE_RESIZE_SETTLE_FRAMES = 3;
+const MINI_MODE_RESIZE_TOLERANCE = 1;
 const MANUAL_EXIT_HEIGHT_DELTA = 2;
 const AUTO_MINI_MODE_OUTER_HEIGHT = 150;
 const NORMAL_BOUNDS_STORAGE_KEY = 'izci.window-mini-mode.normal-bounds';
@@ -92,10 +94,47 @@ function getMiniModeInnerHeight(): number {
   const menuBar = document.querySelector<HTMLElement>('.menu-bar');
   const playerBar = document.querySelector<HTMLElement>('.player-bar');
   const menuHeight = menuBar?.getBoundingClientRect().height ?? 0;
-  const playerHeight = playerBar?.getBoundingClientRect().height ?? 0;
-  const measuredHeight = Math.ceil(menuHeight + playerHeight + MINI_MODE_VERTICAL_PADDING);
+  const playerRect = playerBar?.getBoundingClientRect();
+  const playerBottom = playerRect?.bottom ?? 0;
+  const playerHeight = playerRect?.height ?? 0;
+  const measuredHeight = Math.ceil(
+    Math.max(playerBottom, menuHeight + playerHeight) + MINI_MODE_VERTICAL_PADDING
+  );
 
   return Math.max(MIN_MINI_MODE_INNER_HEIGHT, measuredHeight);
+}
+
+function fitMiniModeWindowToContent(): void {
+  const targetInnerHeight = getMiniModeInnerHeight();
+  const innerHeightDelta = Math.round(window.innerHeight - targetInnerHeight);
+
+  if (Math.abs(innerHeightDelta) <= MINI_MODE_RESIZE_TOLERANCE) {
+    return;
+  }
+
+  const targetOuterHeight = Math.round(window.outerHeight - innerHeightDelta);
+  targetMiniModeOuterHeight = targetOuterHeight;
+  resizeWindow(window.outerWidth, targetOuterHeight);
+}
+
+function settleMiniModeWindow(bottom: number, frame = 0): void {
+  requestAnimationFrame(() => {
+    if (!currentState.active) {
+      isApplyingMiniModeBounds = false;
+      return;
+    }
+
+    fitMiniModeWindowToContent();
+
+    if (frame < MINI_MODE_RESIZE_SETTLE_FRAMES - 1) {
+      settleMiniModeWindow(bottom, frame + 1);
+      return;
+    }
+
+    window.moveTo(window.screenX, Math.round(bottom - window.outerHeight));
+    targetMiniModeOuterHeight = Math.round(window.outerHeight);
+    isApplyingMiniModeBounds = false;
+  });
 }
 
 function setActive(active: boolean): void {
@@ -129,11 +168,7 @@ function enterMiniMode(): void {
 
     targetMiniModeOuterHeight = Math.round(targetOuterHeight);
     resizeWindow(MINI_MODE_WIDTH, targetOuterHeight);
-    requestAnimationFrame(() => {
-      window.moveTo(window.screenX, Math.round(bottom - window.outerHeight));
-      targetMiniModeOuterHeight = Math.round(window.outerHeight);
-      isApplyingMiniModeBounds = false;
-    });
+    settleMiniModeWindow(bottom);
   });
 }
 
