@@ -60,6 +60,8 @@
   let availableTitlebarWidth = Number.POSITIVE_INFINITY;
   let menuGroupsWidth = 0;
   let menuBrandWidth = 0;
+  let menubarPressPointerId: number | null = null;
+  let suppressNextRootClick = false;
 
   $: viewMenuItems = [
     {
@@ -118,6 +120,7 @@
 
   function toggleMenu(menuId: MenuId) {
     compactMenuOpen = false;
+    menubarPressPointerId = null;
     const nextMenu = activeMenu === menuId ? null : menuId;
     activeMenu = nextMenu;
 
@@ -129,6 +132,8 @@
   function closeMenus() {
     activeMenu = null;
     compactMenuOpen = false;
+    menubarPressPointerId = null;
+    suppressNextRootClick = false;
   }
 
   function handleMenuHover(menuId: MenuId) {
@@ -140,6 +145,28 @@
       activeMenu = menuId;
       updateMenuPosition(menuId);
     }
+  }
+
+  function handleRootPointerDown(event: PointerEvent, menuId: MenuId) {
+    if (isCompactMenu || event.button !== 0) {
+      return;
+    }
+
+    event.preventDefault();
+    compactMenuOpen = false;
+    activeMenu = menuId;
+    menubarPressPointerId = event.pointerId;
+    suppressNextRootClick = true;
+    updateMenuPosition(menuId);
+  }
+
+  function handleRootClick(menuId: MenuId) {
+    if (suppressNextRootClick) {
+      suppressNextRootClick = false;
+      return;
+    }
+
+    toggleMenu(menuId);
   }
 
   function handleWindowPointerDown(event: PointerEvent) {
@@ -164,6 +191,15 @@
   function handleWindowKeydown(event: KeyboardEvent) {
     if (event.key === 'Escape') {
       closeMenus();
+    }
+  }
+
+  function handleWindowPointerUp(event: PointerEvent) {
+    if (menubarPressPointerId === event.pointerId) {
+      menubarPressPointerId = null;
+      window.setTimeout(() => {
+        suppressNextRootClick = false;
+      }, 0);
     }
   }
 
@@ -213,12 +249,14 @@
 
   if (typeof window !== 'undefined') {
     window.addEventListener('pointerdown', handleWindowPointerDown);
+    window.addEventListener('pointerup', handleWindowPointerUp);
     window.addEventListener('keydown', handleWindowKeydown);
   }
 
   onDestroy(() => {
     if (typeof window !== 'undefined') {
       window.removeEventListener('pointerdown', handleWindowPointerDown);
+      window.removeEventListener('pointerup', handleWindowPointerUp);
       window.removeEventListener('keydown', handleWindowKeydown);
     }
 
@@ -272,7 +310,8 @@
           type="button"
           aria-haspopup="menu"
           aria-expanded={activeMenu === 'file'}
-          on:click={() => toggleMenu('file')}
+          on:pointerdown={(event) => handleRootPointerDown(event, 'file')}
+          on:click={() => handleRootClick('file')}
         >
           File
         </button>
@@ -282,6 +321,7 @@
             x={menuPopupX}
             y={menuPopupY}
             ariaLabel="File"
+            activateOnPointerUpPointerId={menubarPressPointerId}
             on:action={(event) => runMenuAction(event.detail as MenuActionId)}
             on:dismiss={closeMenus}
           />
@@ -297,7 +337,8 @@
           type="button"
           aria-haspopup="menu"
           aria-expanded={activeMenu === 'view'}
-          on:click={() => toggleMenu('view')}
+          on:pointerdown={(event) => handleRootPointerDown(event, 'view')}
+          on:click={() => handleRootClick('view')}
         >
           View
         </button>
@@ -307,6 +348,7 @@
             x={menuPopupX}
             y={menuPopupY}
             ariaLabel="View"
+            activateOnPointerUpPointerId={menubarPressPointerId}
             on:action={(event) => runMenuAction(event.detail as MenuActionId)}
             on:dismiss={closeMenus}
           />

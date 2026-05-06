@@ -11,6 +11,7 @@
   export let ariaLabel = 'Menu';
   export let nested = false;
   export let enableOverflowSubmenuFallback = false;
+  export let activateOnPointerUpPointerId: number | null = null;
 
   type MenuLevel = {
     label: string;
@@ -28,6 +29,7 @@
   let resolvedY = y;
   let shouldUseSubmenuDrilldown = false;
   let navigationStack: MenuLevel[] = [];
+  let suppressNextClickItemId: string | null = null;
 
   $: currentLevel = navigationStack[navigationStack.length - 1] ?? null;
   $: displayedItems = currentLevel?.items ?? items;
@@ -60,7 +62,7 @@
     activeSubmenuId = null;
   }
 
-  function handleItemClick(item: MenuActionItem) {
+  function handleItemSelect(item: MenuActionItem) {
     if (item.children?.length) {
       if (canShowHoverSubmenus) {
         activeSubmenuId = activeSubmenuId === item.id ? null : item.id;
@@ -73,6 +75,26 @@
 
     dispatch('action', item.id);
     dispatch('dismiss');
+  }
+
+  function handleItemClick(item: MenuActionItem) {
+    if (suppressNextClickItemId === item.id) {
+      suppressNextClickItemId = null;
+      return;
+    }
+
+    handleItemSelect(item);
+  }
+
+  function handleItemPointerUp(event: PointerEvent, item: MenuActionItem) {
+    if (activateOnPointerUpPointerId === null || event.pointerId !== activateOnPointerUpPointerId) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    suppressNextClickItemId = item.id;
+    handleItemSelect(item);
   }
 
   function updateRootLayout() {
@@ -140,6 +162,7 @@
           class:menu-item-parent={item.children?.length}
           aria-haspopup={item.children?.length ? 'menu' : undefined}
           aria-expanded={item.children?.length ? activeSubmenuId === item.id : undefined}
+          on:pointerup={(event) => handleItemPointerUp(event, item)}
           on:click={() => handleItemClick(item)}
         >
           <span class="material-symbols-outlined menu-item-icon" aria-hidden="true">{item.icon ?? 'label'}</span>
@@ -156,6 +179,7 @@
             nested
             items={item.children}
             ariaLabel={item.label}
+            activateOnPointerUpPointerId={activateOnPointerUpPointerId}
             on:action={(event) => dispatch('action', event.detail)}
             on:dismiss={() => dispatch('dismiss')}
           />
@@ -197,6 +221,7 @@
           class:menu-item-drilldown={shouldUseSubmenuDrilldown && item.children?.length}
           aria-haspopup={item.children?.length ? 'menu' : undefined}
           aria-expanded={item.children?.length ? activeSubmenuId === item.id : undefined}
+          on:pointerup={(event) => handleItemPointerUp(event, item)}
           on:click={() => handleItemClick(item)}
         >
           <span class="material-symbols-outlined menu-item-icon" aria-hidden="true">{item.icon ?? 'label'}</span>
@@ -215,6 +240,7 @@
             nested
             items={item.children}
             ariaLabel={item.label}
+            activateOnPointerUpPointerId={activateOnPointerUpPointerId}
             on:action={(event) => dispatch('action', event.detail)}
             on:dismiss={() => dispatch('dismiss')}
           />
