@@ -14,6 +14,7 @@ interface MiniModeState {
 const MINI_MODE_WIDTH = 500;
 const MIN_MINI_MODE_INNER_HEIGHT = 100;
 const MINI_MODE_VERTICAL_PADDING = 0;
+const MINI_MODE_HEIGHT_TRIM = 4;
 const MINI_MODE_RESIZE_SETTLE_FRAMES = 3;
 const MINI_MODE_RESIZE_TOLERANCE = 1;
 const MANUAL_EXIT_HEIGHT_DELTA = 2;
@@ -101,7 +102,7 @@ function getMiniModeInnerHeight(): number {
     Math.max(playerBottom, menuHeight + playerHeight) + MINI_MODE_VERTICAL_PADDING
   );
 
-  return Math.max(MIN_MINI_MODE_INNER_HEIGHT, measuredHeight);
+  return Math.max(MIN_MINI_MODE_INNER_HEIGHT, measuredHeight - MINI_MODE_HEIGHT_TRIM);
 }
 
 function fitMiniModeWindowToContent(): void {
