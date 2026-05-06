@@ -8,7 +8,7 @@
   import type { OptionsViewName } from '../../options/views';
 
   type MenuId = 'file' | 'view';
-  type MenuActionId = 'openFiles' | 'openFolder' | 'openOptions' | 'exit';
+  type MenuActionId = 'openFiles' | 'openFolder' | 'openOptions' | 'toggleMiniMode' | 'exit';
 
   const MENU_ITEMS_ONLY_PADDING = 28;
   const MENU_ITEMS_WITH_VERSION_PADDING = 40;
@@ -36,34 +36,13 @@
     }
   ];
 
-  const VIEW_MENU_ITEMS: MenuActionItem[] = [
-    {
-      id: 'openOptions',
-      label: 'Options...',
-      icon: 'settings',
-      shortcut: 'Ctrl+P'
-    }
-  ];
-
-  const COMPACT_MENU_ITEMS: MenuActionItem[] = [
-    {
-      id: 'file',
-      label: 'File',
-      icon: 'folder',
-      children: FILE_MENU_ITEMS
-    },
-    {
-      id: 'view',
-      label: 'View',
-      icon: 'visibility',
-      children: VIEW_MENU_ITEMS
-    }
-  ];
+  export let miniModeActive = false;
 
   const dispatch = createEventDispatcher<{
     openFiles: void;
     openFolder: void;
     openOptions: { view?: OptionsViewName } | undefined;
+    toggleMiniMode: void;
     exit: void;
   }>();
 
@@ -81,6 +60,36 @@
   let availableTitlebarWidth = Number.POSITIVE_INFINITY;
   let menuGroupsWidth = 0;
   let menuBrandWidth = 0;
+
+  $: viewMenuItems = [
+    {
+      id: 'toggleMiniMode',
+      label: 'Mini mode',
+      icon: miniModeActive ? 'check' : 'picture_in_picture_alt',
+      shortcut: 'Ctrl+M'
+    },
+    {
+      id: 'openOptions',
+      label: 'Options...',
+      icon: 'settings',
+      shortcut: 'Ctrl+P',
+      separatorBefore: true
+    }
+  ] satisfies MenuActionItem[];
+  $: compactMenuItems = [
+    {
+      id: 'file',
+      label: 'File',
+      icon: 'folder',
+      children: FILE_MENU_ITEMS
+    },
+    {
+      id: 'view',
+      label: 'View',
+      icon: 'visibility',
+      children: viewMenuItems
+    }
+  ] satisfies MenuActionItem[];
 
   $: overlayState = $windowControlsOverlayState;
   $: overlayRect = overlayState.titlebarAreaRect;
@@ -243,7 +252,7 @@
 
     {#if compactMenuOpen}
       <MenuSurface
-        items={COMPACT_MENU_ITEMS}
+        items={compactMenuItems}
         x={compactMenuX}
         y={compactMenuY}
         ariaLabel="Application menu"
@@ -294,7 +303,7 @@
         </button>
         {#if activeMenu === 'view'}
           <MenuSurface
-            items={VIEW_MENU_ITEMS}
+            items={viewMenuItems}
             x={menuPopupX}
             y={menuPopupY}
             ariaLabel="View"

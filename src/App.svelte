@@ -30,6 +30,7 @@
     WORKSPACE_RESIZER_WIDTH
   } from '$lib/services/workspace-layout';
   import { windowManager } from '$lib/services/window-manager';
+  import { windowMiniMode } from '$lib/services/window-mini-mode';
   import { windowControlsOverlayState } from '$lib/services/window-controls-overlay';
   import { appearanceSettings } from '$lib/stores/appearance-settings';
   import { libraryStore, playlistStore } from '$lib/stores/playlist';
@@ -121,6 +122,7 @@
       playbackCommandsState.pendingPlaybackTrackId === trackId || playingTrack?.id === trackId
   });
   let artworkPresentationState = artworkPresentation.getSnapshot();
+  let miniModeActive = windowMiniMode.getSnapshot().active;
   const unsubscribePlaylistItems = playlistItemsStore.subscribe((value) => (playlistItems = value));
   const unsubscribeLibraryItems = libraryItemsStore.subscribe((value) => (libraryItems = value));
   const unsubscribePlaylistSelectedIds = playlistSelectedIdsStore.subscribe(
@@ -165,6 +167,9 @@
   );
   const unsubscribeArtworkPresentation = artworkPresentation.subscribe(
     (value) => (artworkPresentationState = value)
+  );
+  const unsubscribeWindowMiniMode = windowMiniMode.subscribe(
+    (value) => (miniModeActive = value.active)
   );
 
   const importController = createImportController({
@@ -398,6 +403,10 @@
         event.preventDefault();
         handleOpenOptions();
         break;
+      case 'm':
+        event.preventDefault();
+        windowMiniMode.toggle();
+        break;
       case 'q':
         event.preventDefault();
         windowManager.exit();
@@ -536,6 +545,7 @@
     unsubscribeWorkspaceShell();
     unsubscribePlaybackCommands();
     unsubscribeArtworkPresentation();
+    unsubscribeWindowMiniMode();
     unsubscribeLaunchedFiles();
     disconnectMediaSession();
     playerController.destroy();
@@ -559,6 +569,7 @@
   class="app-shell"
   class:tabbed-layout={workspaceShellState.isTabbedLayout}
   class:compact-shell={$appearanceSettings.compactShell}
+  class:mini-mode={miniModeActive}
   class:artwork-background-enabled={artworkBackgroundMode !== 'off'}
   class:artwork-background-active={isWorkspaceArtworkBackgroundActive}
   class:artwork-background-bright={
@@ -611,46 +622,50 @@
   />
 
   <TopMenuBar
+    {miniModeActive}
     on:openFiles={() => void handleMenuOpenFiles()}
     on:openFolder={() => void handleMenuOpenFolder()}
     on:openOptions={(event) => handleOpenOptions(event.detail?.view)}
+    on:toggleMiniMode={() => windowMiniMode.toggle()}
     on:exit={() => windowManager.exit()}
   />
 
-  {#if workspaceShellState.isTabbedLayout}
-    <TabbedWorkspace
-      activeWorkspaceTab={workspaceShellState.activeWorkspaceTab}
-      workspaceTabs={workspaceShellState.workspaceTabs}
-      playlistPanelProps={workspaceShellState.playlistPanelProps}
-      {playlistPanelHandlers}
-      libraryPanelProps={workspaceShellState.libraryPanelProps}
-      {libraryPanelHandlers}
-      selectedItem={artworkPresentationState.detailsDisplayTrack}
-      detailsArtwork={artworkPresentationState.visibleDetailsArtwork}
-      isDetailsVisible={workspaceShellState.isDetailsPanelVisible}
-      onCloseDetails={() => workspaceShell.closeTrackDetails()}
-      on:tabChange={(event) => workspaceShell.setActiveWorkspaceTab(event.detail)}
-    />
-  {:else}
-    <WideWorkspace
-      playlistPanelProps={workspaceShellState.playlistPanelProps}
-      {playlistPanelHandlers}
-      libraryPanelProps={workspaceShellState.libraryPanelProps}
-      {libraryPanelHandlers}
-      panelWidths={workspaceShellState.widePanelWidths}
-      resizerWidth={$appearanceSettings.compactShell
-        ? COMPACT_WORKSPACE_RESIZER_WIDTH
-        : WORKSPACE_RESIZER_WIDTH}
-      isResizing={workspaceShellState.isResizing}
-      selectedItem={artworkPresentationState.detailsDisplayTrack}
-      detailsArtwork={artworkPresentationState.visibleDetailsArtwork}
-      isDetailsVisible={workspaceShellState.isDetailsPanelVisible}
-      onCloseDetails={() => workspaceShell.closeTrackDetails()}
-      on:resizeStart={(event) => workspaceShell.handleWideWorkspaceResizeStart(event.detail)}
-    />
+  {#if !miniModeActive}
+    {#if workspaceShellState.isTabbedLayout}
+      <TabbedWorkspace
+        activeWorkspaceTab={workspaceShellState.activeWorkspaceTab}
+        workspaceTabs={workspaceShellState.workspaceTabs}
+        playlistPanelProps={workspaceShellState.playlistPanelProps}
+        {playlistPanelHandlers}
+        libraryPanelProps={workspaceShellState.libraryPanelProps}
+        {libraryPanelHandlers}
+        selectedItem={artworkPresentationState.detailsDisplayTrack}
+        detailsArtwork={artworkPresentationState.visibleDetailsArtwork}
+        isDetailsVisible={workspaceShellState.isDetailsPanelVisible}
+        onCloseDetails={() => workspaceShell.closeTrackDetails()}
+        on:tabChange={(event) => workspaceShell.setActiveWorkspaceTab(event.detail)}
+      />
+    {:else}
+      <WideWorkspace
+        playlistPanelProps={workspaceShellState.playlistPanelProps}
+        {playlistPanelHandlers}
+        libraryPanelProps={workspaceShellState.libraryPanelProps}
+        {libraryPanelHandlers}
+        panelWidths={workspaceShellState.widePanelWidths}
+        resizerWidth={$appearanceSettings.compactShell
+          ? COMPACT_WORKSPACE_RESIZER_WIDTH
+          : WORKSPACE_RESIZER_WIDTH}
+        isResizing={workspaceShellState.isResizing}
+        selectedItem={artworkPresentationState.detailsDisplayTrack}
+        detailsArtwork={artworkPresentationState.visibleDetailsArtwork}
+        isDetailsVisible={workspaceShellState.isDetailsPanelVisible}
+        onCloseDetails={() => workspaceShell.closeTrackDetails()}
+        on:resizeStart={(event) => workspaceShell.handleWideWorkspaceResizeStart(event.detail)}
+      />
+    {/if}
   {/if}
 
-  {#if playbackStatus.error}
+  {#if playbackStatus.error && !miniModeActive}
     <aside class="error-banner">{playbackStatus.error}</aside>
   {/if}
 
