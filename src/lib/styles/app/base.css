@@ -1,5 +1,5 @@
 :root {
-  --player-bar-reserve: calc(6.5rem + env(safe-area-inset-bottom, 0px));
+  --player-bar-reserve: calc(6.3125rem + env(safe-area-inset-bottom, 0px));
   --player-bar-reserve-tabbed: calc(4.8rem + env(safe-area-inset-bottom, 0px));
   --track-artwork-radius: 0.25rem;
   --artwork-background-transition-duration: 320ms;
