@@ -20,22 +20,35 @@
     return value?.trim() || '';
   }
 
+  function buildTrackNumberEntry(metadata: PlaylistItem['metadata']): MetadataEntry | null {
+    const trackNumber = trimMetadataValue(metadata?.trackNumber);
+    const discNumber = trimMetadataValue(metadata?.discNumber);
+
+    if (!trackNumber) {
+      return discNumber ? { label: 'Disc Number', value: discNumber } : null;
+    }
+
+    return discNumber
+      ? { label: 'Disc / Track', value: `${discNumber} / ${trackNumber}` }
+      : { label: 'Track Number', value: trackNumber };
+  }
+
   function buildStreamMetadataEntries(track: PlaylistItem | null): MetadataEntry[] {
     if (!track || track.kind !== 'stream') {
       return [];
     }
 
     const metadata = track.metadata;
+    const trackNumberEntry = buildTrackNumberEntry(metadata);
 
     return [
       { label: 'Album', value: trimMetadataValue(metadata?.album) },
       { label: 'Album Artist', value: trimMetadataValue(metadata?.albumArtist) },
       { label: 'Genre', value: trimMetadataValue(metadata?.genre) },
       { label: 'Year', value: trimMetadataValue(metadata?.year) },
-      { label: 'Track Number', value: trimMetadataValue(metadata?.trackNumber) },
-      { label: 'Disc Number', value: trimMetadataValue(metadata?.discNumber) },
+      trackNumberEntry,
       { label: 'Composer', value: trimMetadataValue(metadata?.composer) }
-    ].filter((entry) => entry.value.length > 0);
+    ].filter((entry): entry is MetadataEntry => Boolean(entry && entry.value.length > 0));
   }
 
   $: title = track?.metadata?.title?.trim() || '';
@@ -296,14 +309,13 @@
 
   .metadata-list {
     display: grid;
-    gap: 0.6rem;
+    gap: 0.72rem;
     margin: 0;
   }
 
   .metadata-row {
     display: grid;
-    grid-template-columns: minmax(0, 7rem) minmax(0, 1fr);
-    gap: 0.8rem;
+    gap: 0.18rem;
     align-items: start;
   }
 
@@ -315,6 +327,11 @@
 
   .metadata-row dt {
     color: var(--muted);
+    font-size: 0.66rem;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    line-height: 1.15;
+    text-transform: uppercase;
   }
 
   .metadata-row dd {
