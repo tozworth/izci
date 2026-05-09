@@ -128,11 +128,33 @@ export function buildSelectAllSelection(items: PlaylistItem[]): PlaylistSelectio
 export function removeIdsFromSelection(
   items: PlaylistItem[],
   selection: PlaylistSelection,
-  idsToRemove: Set<string>
+  idsToRemove: Set<string>,
+  previousItems: PlaylistItem[] = items
 ): PlaylistSelection {
+  const ids = selection.ids.filter((id) => !idsToRemove.has(id));
+
+  if (ids.length > 0 || selection.ids.every((id) => !idsToRemove.has(id))) {
+    return normalizeSelection(items, {
+      ids,
+      anchorId: idsToRemove.has(selection.anchorId ?? '') ? null : selection.anchorId,
+      focusId: idsToRemove.has(selection.focusId ?? '') ? null : selection.focusId
+    });
+  }
+
+  const removedIndexes = previousItems
+    .map((item, index) => (idsToRemove.has(item.id) ? index : -1))
+    .filter((index) => index >= 0);
+  const firstRemovedIndex = Math.min(...removedIndexes);
+  const fallbackIndex = Math.min(Math.max(0, firstRemovedIndex), items.length - 1);
+  const nextItem = items[fallbackIndex] ?? null;
+
+  if (!nextItem) {
+    return emptySelection;
+  }
+
   return normalizeSelection(items, {
-    ids: selection.ids.filter((id) => !idsToRemove.has(id)),
-    anchorId: idsToRemove.has(selection.anchorId ?? '') ? null : selection.anchorId,
-    focusId: idsToRemove.has(selection.focusId ?? '') ? null : selection.focusId
+    ids: [nextItem.id],
+    anchorId: nextItem.id,
+    focusId: nextItem.id
   });
 }

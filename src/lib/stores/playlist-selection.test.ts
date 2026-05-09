@@ -67,7 +67,7 @@ describe('playlist selection helpers', () => {
     expect(additiveRange).toEqual({ ids: ['a', 'b', 'c', 'd'], anchorId: 'c', focusId: 'a' });
   });
 
-  it('builds select-all state and removes ids while repairing focus and anchor', () => {
+  it('builds select-all state and keeps remaining selected ids after removal', () => {
     const all = buildSelectAllSelection(items);
 
     expect(all).toEqual({
@@ -78,6 +78,28 @@ describe('playlist selection helpers', () => {
 
     expect(removeIdsFromSelection(items, all, new Set(['a', 'd']))).toEqual({
       ids: ['b', 'c'],
+      anchorId: 'c',
+      focusId: 'c'
+    });
+  });
+
+  it('selects the next available item when removing the active selection', () => {
+    const selection = resolveSelectSelection(items, emptySelection, 'b');
+    const remainingItems = [item('a'), item('c'), item('d')];
+
+    expect(removeIdsFromSelection(remainingItems, selection, new Set(['b']), items)).toEqual({
+      ids: ['c'],
+      anchorId: 'c',
+      focusId: 'c'
+    });
+  });
+
+  it('selects the previous item when removing the active selection at the end', () => {
+    const selection = resolveSelectSelection(items, emptySelection, 'd');
+    const remainingItems = [item('a'), item('b'), item('c')];
+
+    expect(removeIdsFromSelection(remainingItems, selection, new Set(['d']), items)).toEqual({
+      ids: ['c'],
       anchorId: 'c',
       focusId: 'c'
     });

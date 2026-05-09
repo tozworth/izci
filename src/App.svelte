@@ -365,11 +365,40 @@
     return tagName === 'INPUT' || tagName === 'TEXTAREA' || tagName === 'SELECT';
   }
 
+  function isTrackRowKeyboardTarget(target: EventTarget | null) {
+    return target instanceof HTMLElement && Boolean(target.closest('[data-track-row-button]'));
+  }
+
+  function shouldIgnorePlaybackKeyboardTarget(target: EventTarget | null) {
+    if (shouldIgnoreKeyboardTarget(target)) {
+      return true;
+    }
+
+    if (!(target instanceof HTMLElement)) {
+      return false;
+    }
+
+    const tagName = target.tagName;
+    return (
+      (tagName === 'BUTTON' || tagName === 'A') &&
+      !isTrackRowKeyboardTarget(target)
+    );
+  }
+
   function handleWindowContextMenu(event: MouseEvent) {
     event.preventDefault();
   }
 
   function handleWindowKeydown(event: KeyboardEvent) {
+    if (event.key === 'Escape' && !event.ctrlKey && !event.altKey && !event.metaKey) {
+      if (workspaceShellState.isDetailsPanelVisible) {
+        event.preventDefault();
+        workspaceShell.closeTrackDetails();
+      }
+
+      return;
+    }
+
     if (event.key === 'Delete' && !event.ctrlKey && !event.altKey && !event.metaKey) {
       if (shouldIgnoreKeyboardTarget(event.target)) {
         return;
@@ -390,6 +419,39 @@
         removePlaylistItems(ids);
       }
 
+      return;
+    }
+
+    if (event.key === 'Enter' && !event.repeat && !event.ctrlKey && !event.altKey && !event.shiftKey && !event.metaKey) {
+      if (shouldIgnorePlaybackKeyboardTarget(event.target)) {
+        return;
+      }
+
+      const selectedTrack =
+        workspaceShellState.activeCollection === 'library' ? selectedLibraryItem : selectedPlaylistItem;
+
+      if (!selectedTrack) {
+        return;
+      }
+
+      event.preventDefault();
+
+      if (workspaceShellState.activeCollection === 'library') {
+        void playbackCommands.activateLibraryTrack(selectedTrack.id);
+      } else {
+        void playbackCommands.activatePlaylistTrack(selectedTrack.id);
+      }
+
+      return;
+    }
+
+    if (event.key === ' ' && !event.repeat && !event.ctrlKey && !event.altKey && !event.shiftKey && !event.metaKey) {
+      if (shouldIgnorePlaybackKeyboardTarget(event.target)) {
+        return;
+      }
+
+      event.preventDefault();
+      void playbackCommands.togglePlayback();
       return;
     }
 

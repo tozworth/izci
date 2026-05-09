@@ -315,11 +315,12 @@ function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
         return [];
       }
 
+      const previousItems = itemList;
       const idsToRemove = new Set(ids);
       const removedItems = itemList.filter((item) => idsToRemove.has(item.id));
 
       items.update((existing) => existing.filter((item) => !idsToRemove.has(item.id)));
-      selection.update((value) => removeIdsFromSelection(itemList, value, idsToRemove));
+      selection.update((value) => removeIdsFromSelection(itemList, value, idsToRemove, previousItems));
       navigation.reset();
       queuePersist();
 

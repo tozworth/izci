@@ -30,6 +30,7 @@
 <li class:selected class:playing data-track-id={item.id}>
   {#if layout === 'columns'}
     <button
+      data-track-row-button
       class="track-table-row-button"
       type="button"
       aria-current={playing ? 'true' : undefined}
@@ -50,6 +51,7 @@
     </button>
   {:else}
     <button
+      data-track-row-button
       class="track-row"
       type="button"
       aria-current={playing ? 'true' : undefined}
