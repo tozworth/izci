@@ -60,7 +60,6 @@ export interface MetadataSettings {
 export interface AppearanceSettings {
   colorTheme: ColorTheme;
   keepLibraryColumnsVisibleInNarrowLayout: boolean;
-  compactShell: boolean;
   useSystemFont: boolean;
   artworkBackgroundMode: ArtworkBackgroundMode;
   showTrackTitleInWindowTitle: boolean;

@@ -19,8 +19,8 @@ function totalWidth(widths: Record<'playlist' | 'library' | 'details', number>):
 
 describe('workspace layout', () => {
   it('subtracts padding and only visible resizers from the wide content width', () => {
-    expect(getWideContentWidth(1200)).toBe(1148);
-    expect(getWideContentWidth(1200, { detailsVisible: false })).toBe(1162);
+    expect(getWideContentWidth(1200)).toBe(1198);
+    expect(getWideContentWidth(1200, { detailsVisible: false })).toBe(1199);
   });
 
   it('resolves wide panel widths while preserving total content width', () => {

@@ -6,13 +6,6 @@
     blur(var(--panel-backdrop-blur, 12px))
     saturate(var(--panel-backdrop-saturate, 1));
   border: 1px solid var(--border);
-  border-radius: 0.5rem;
-  box-shadow: var(--shadow);
-}
-
-.app-shell.compact-shell .panel,
-.app-shell.compact-shell .player-bar,
-.app-shell.compact-shell .error-banner {
   border-radius: 0;
   box-shadow: none;
 }

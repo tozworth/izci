@@ -5,7 +5,6 @@ import type {
   WorkspaceTabDefinition
 } from '$lib/components/workspace/types';
 import {
-  COMPACT_WORKSPACE_RESIZER_WIDTH,
   getWideContentWidth,
   resolveResizedPanelLayout,
   resolveWidePanelWidths
@@ -35,7 +34,6 @@ type PanelResizeState = {
 
 interface WorkspaceShellInputs {
   innerWidth: number;
-  compactShell: boolean;
   playlistItems: PlaylistItem[];
   libraryItems: PlaylistItem[];
   playlistSelectionIds: string[];
@@ -169,9 +167,7 @@ export function createWorkspaceShellController({
           ? window.innerWidth
           : 0;
     const wideContentWidth = getWideContentWidth(viewportWidth, {
-      detailsVisible: state.isDetailsPanelVisible,
-      horizontalPadding: lastInputs.compactShell ? 0 : undefined,
-      resizerWidth: lastInputs.compactShell ? COMPACT_WORKSPACE_RESIZER_WIDTH : undefined
+      detailsVisible: state.isDetailsPanelVisible
     });
     const widePanelWidths = resolveWidePanelWidths(panelLayout, wideContentWidth, {
       detailsVisible: state.isDetailsPanelVisible
@@ -322,9 +318,7 @@ export function createWorkspaceShellController({
             ? window.innerWidth
             : 0;
       const wideContentWidth = getWideContentWidth(viewportWidth, {
-        detailsVisible: state.isDetailsPanelVisible,
-        horizontalPadding: lastInputs.compactShell ? 0 : undefined,
-        resizerWidth: lastInputs.compactShell ? COMPACT_WORKSPACE_RESIZER_WIDTH : undefined
+        detailsVisible: state.isDetailsPanelVisible
       });
 
       workspacePanelLayout.set(

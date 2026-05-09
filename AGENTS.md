@@ -128,7 +128,7 @@ Primary location for playback and browser-integration logic.
 - `playlist-navigation.ts`: next/previous/track-end resolution, including shuffle session management.
 - `playlist-dedupe.ts`: duplicate detection based on track identity, used only by the library store path.
 - `library-view-settings.ts`: persistent library table layout and filter state (column order, widths, visibility, sort, search query) with `BroadcastChannel` sync.
-- `appearance-settings.ts`: persistent appearance settings for color theme, shell density, system font, narrow-library behavior, the artwork-backdrop mode (`off`, `player`, `workspace`), and whether the main window title mirrors the current track title, with `BroadcastChannel` sync.
+- `appearance-settings.ts`: persistent appearance settings for color theme, system font, narrow-library behavior, the artwork-backdrop mode (`off`, `player`, `workspace`), and whether the main window title mirrors the current track title, with `BroadcastChannel` sync.
 - `playback-settings.ts`: persistent general playback settings, currently the logarithmic-volume toggle, with sync.
 - `module-playback-settings.ts`: persistent tracker playback settings (repeat, stereo/pan, interpolation, tempo, pitch) with sync.
 - `metadata-settings.ts`: persistent metadata behavior settings, including filename-based artist/title inference and the library play-count threshold.

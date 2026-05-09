@@ -16,7 +16,7 @@
   export let libraryPanelProps: WorkspacePanelProps;
   export let libraryPanelHandlers: WorkspacePanelHandlers;
   export let panelWidths: Record<WorkspacePanelId, number>;
-  export let resizerWidth = 14;
+  export let resizerWidth = 1;
   export let isResizing = false;
   export let selectedItem: PlaylistItem | null = null;
   export let detailsArtwork: LoadedStreamArtwork | null = null;

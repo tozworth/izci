@@ -145,12 +145,6 @@
     });
   }
 
-  function handleCompactShellToggle(event: Event) {
-    appearanceSettings.update({
-      compactShell: (event.currentTarget as HTMLInputElement).checked
-    });
-  }
-
   function handleUseSystemFontToggle(event: Event) {
     appearanceSettings.update({
       useSystemFont: (event.currentTarget as HTMLInputElement).checked
@@ -396,22 +390,6 @@
                 </div>
                 <p class="field-hint">
                   Replaces the default UI font with your system interface font across the main app and Options window.
-                </p>
-              </label>
-
-              <label class="field checkbox-field">
-                <div class="field-copy">
-                  <span class="field-title">Compact shell layout</span>
-                </div>
-                <div class="field-control checkbox-control">
-                  <input
-                    type="checkbox"
-                    checked={$appearanceSettings.compactShell}
-                    on:change={handleCompactShellToggle}
-                  />
-                </div>
-                <p class="field-hint">
-                  Removes shell gaps and rounded outer panel corners so the main layout uses the window more efficiently.
                 </p>
               </label>
 

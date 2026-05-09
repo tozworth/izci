@@ -4,10 +4,9 @@ import type {
   WorkspaceResizeHandle
 } from '$lib/types';
 
-const HORIZONTAL_PADDING = 24;
+const HORIZONTAL_PADDING = 0;
 
-export const WORKSPACE_RESIZER_WIDTH = 14;
-export const COMPACT_WORKSPACE_RESIZER_WIDTH = 1;
+export const WORKSPACE_RESIZER_WIDTH = 1;
 export const WIDE_PANEL_MIN_WIDTHS: Record<WorkspacePanelId, number> = {
   playlist: 250,
   library: 320,
@@ -16,8 +15,6 @@ export const WIDE_PANEL_MIN_WIDTHS: Record<WorkspacePanelId, number> = {
 
 interface WideWorkspaceLayoutOptions {
   detailsVisible?: boolean;
-  horizontalPadding?: number;
-  resizerWidth?: number;
 }
 
 function clamp(value: number, min: number, max: number): number {
@@ -49,9 +46,7 @@ export function getWideContentWidth(
   options: WideWorkspaceLayoutOptions = {}
 ): number {
   const resizerCount = options.detailsVisible === false ? 1 : 2;
-  const horizontalPadding = options.horizontalPadding ?? HORIZONTAL_PADDING;
-  const resizerWidth = options.resizerWidth ?? WORKSPACE_RESIZER_WIDTH;
-  return Math.max(viewportWidth - horizontalPadding - resizerWidth * resizerCount, 0);
+  return Math.max(viewportWidth - HORIZONTAL_PADDING - WORKSPACE_RESIZER_WIDTH * resizerCount, 0);
 }
 
 export function resolveWidePanelWidths(

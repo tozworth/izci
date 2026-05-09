@@ -26,10 +26,7 @@
     getEquivalentLibraryIds,
     libraryHasAllTracks
   } from '$lib/services/workspace-actions';
-  import {
-    COMPACT_WORKSPACE_RESIZER_WIDTH,
-    WORKSPACE_RESIZER_WIDTH
-  } from '$lib/services/workspace-layout';
+  import { WORKSPACE_RESIZER_WIDTH } from '$lib/services/workspace-layout';
   import { windowManager } from '$lib/services/window-manager';
   import { windowMiniMode } from '$lib/services/window-mini-mode';
   import { windowControlsOverlayState } from '$lib/services/window-controls-overlay';
@@ -233,7 +230,6 @@
   });
   $: workspaceShell.sync({
     innerWidth,
-    compactShell: $appearanceSettings.compactShell,
     playlistItems,
     libraryItems,
     playlistSelectionIds,
@@ -664,7 +660,6 @@
 <div
   class="app-shell"
   class:tabbed-layout={workspaceShellState.isTabbedLayout}
-  class:compact-shell={$appearanceSettings.compactShell}
   class:mini-mode={miniModeActive}
   class:artwork-background-enabled={artworkBackgroundMode !== 'off'}
   class:artwork-background-active={isWorkspaceArtworkBackgroundActive}
@@ -751,9 +746,7 @@
         libraryPanelProps={workspaceShellState.libraryPanelProps}
         {libraryPanelHandlers}
         panelWidths={workspaceShellState.widePanelWidths}
-        resizerWidth={$appearanceSettings.compactShell
-          ? COMPACT_WORKSPACE_RESIZER_WIDTH
-          : WORKSPACE_RESIZER_WIDTH}
+        resizerWidth={WORKSPACE_RESIZER_WIDTH}
         isResizing={workspaceShellState.isResizing}
         selectedItem={artworkPresentationState.detailsDisplayTrack}
         detailsArtwork={artworkPresentationState.visibleDetailsArtwork}

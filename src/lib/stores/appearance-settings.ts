@@ -7,7 +7,6 @@ export const DEFAULT_COLOR_THEME: ColorTheme = 'gruvbox';
 export const DEFAULT_APPEARANCE_SETTINGS: AppearanceSettings = {
   colorTheme: DEFAULT_COLOR_THEME,
   keepLibraryColumnsVisibleInNarrowLayout: false,
-  compactShell: false,
   useSystemFont: false,
   artworkBackgroundMode: 'off',
   showTrackTitleInWindowTitle: true
@@ -35,7 +34,6 @@ function normalizeSettings(value: unknown): AppearanceSettings {
   return {
     colorTheme: normalizeColorTheme(source.colorTheme),
     keepLibraryColumnsVisibleInNarrowLayout: source.keepLibraryColumnsVisibleInNarrowLayout === true,
-    compactShell: source.compactShell === true,
     useSystemFont: source.useSystemFont === true,
     artworkBackgroundMode: legacyArtworkBackgroundEnabled
       ? 'workspace'
