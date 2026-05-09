@@ -149,8 +149,8 @@
   --bg-search: rgba(255, 252, 246, 0.82);
   --bg-volume-popup: rgba(255, 250, 242, 0.84);
   --playlist-header-artwork-background:
-    linear-gradient(180deg, rgba(255, 250, 244, 0.7) 0%, rgba(255, 250, 244, 0.54) 100%),
-    rgba(74, 56, 34, 0.03);
+    linear-gradient(180deg, rgba(255, 250, 244, 0.92) 0%, rgba(255, 250, 244, 0.84) 100%),
+    rgba(255, 252, 246, 0.28);
   --text: #241b12;
   --text-strong: #130d08;
   --muted: rgba(36, 27, 18, 0.76);
