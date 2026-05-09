@@ -31,6 +31,7 @@
 
 .workspace-resizable .workspace-panel > .panel {
   border-inline: 0;
+  border-bottom: 0;
 }
 
 .workspace-resizer {
