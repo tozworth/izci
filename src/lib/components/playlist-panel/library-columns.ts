@@ -50,6 +50,11 @@ export function getTrackDuration(item: PlaylistItem): string {
   return Number.isFinite(duration) && duration > 0 ? formatDuration(duration) : '';
 }
 
+export function getTrackPlayCount(item: PlaylistItem): string {
+  const playCount = item.metadata?.playCount ?? 0;
+  return Number.isFinite(playCount) && playCount > 0 ? String(Math.floor(playCount)) : '';
+}
+
 export function getColumnTextValue(item: PlaylistItem, columnId: LibraryColumnId): string {
   switch (columnId) {
     case 'title':
@@ -62,11 +67,13 @@ export function getColumnTextValue(item: PlaylistItem, columnId: LibraryColumnId
       return formatTrackType(item);
     case 'duration':
       return getTrackDuration(item);
+    case 'plays':
+      return getTrackPlayCount(item);
   }
 }
 
 export function isRightAlignedColumn(columnId: LibraryColumnId): boolean {
-  return columnId === 'format' || columnId === 'duration';
+  return columnId === 'format' || columnId === 'duration' || columnId === 'plays';
 }
 
 export function fitWidthsToAvailableWidth(
@@ -224,6 +231,23 @@ function compareByColumn(
     }
 
     return direction === 'desc' ? rightDuration - leftDuration : leftDuration - rightDuration;
+  }
+
+  if (columnId === 'plays') {
+    const leftPlayCount = left.metadata?.playCount ?? 0;
+    const rightPlayCount = right.metadata?.playCount ?? 0;
+    const leftMissing = !Number.isFinite(leftPlayCount) || leftPlayCount <= 0;
+    const rightMissing = !Number.isFinite(rightPlayCount) || rightPlayCount <= 0;
+
+    if (leftMissing || rightMissing) {
+      if (leftMissing && rightMissing) {
+        return 0;
+      }
+
+      return leftMissing ? 1 : -1;
+    }
+
+    return direction === 'desc' ? rightPlayCount - leftPlayCount : leftPlayCount - rightPlayCount;
   }
 
   const leftValue = getColumnTextValue(left, columnId).trim();

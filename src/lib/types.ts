@@ -8,7 +8,7 @@ export type PlaybackState = 'idle' | 'loading' | 'playing' | 'paused' | 'ended' 
 export type ModuleInterpolationFilter = 1 | 2 | 4 | 8;
 export type PlaylistRepeatMode = 'off' | 'one' | 'all';
 export type SortDirection = 'asc' | 'desc';
-export type LibraryColumnId = 'title' | 'artist' | 'album' | 'format' | 'duration';
+export type LibraryColumnId = 'title' | 'artist' | 'album' | 'format' | 'duration' | 'plays';
 export type ColorTheme = 'gruvbox' | 'dracula';
 export type ArtworkBackgroundMode = 'off' | 'player' | 'workspace';
 export type WorkspaceCollection = 'playlist' | 'library';
@@ -40,6 +40,7 @@ export interface TrackMetadata {
   subsongNames?: string[];
   rows?: number;
   sampleRate?: number;
+  playCount?: number;
 }
 
 export interface ModulePlaybackSettings {
@@ -53,6 +54,7 @@ export interface ModulePlaybackSettings {
 
 export interface MetadataSettings {
   inferFromFilename: boolean;
+  playCountThresholdSeconds: number;
 }
 
 export interface AppearanceSettings {

@@ -17,6 +17,7 @@
   import { createPlaybackCommandsController } from '$lib/services/playback-commands';
   import { createWorkspaceShellController } from '$lib/services/workspace-shell';
   import { mediaSessionService } from '$lib/services/media-session';
+  import { createPlayCountTracker } from '$lib/services/play-count';
   import { playerController } from '$lib/services/player-controller';
   import {
     buildLibraryContextActions,
@@ -33,6 +34,7 @@
   import { windowMiniMode } from '$lib/services/window-mini-mode';
   import { windowControlsOverlayState } from '$lib/services/window-controls-overlay';
   import { appearanceSettings } from '$lib/stores/appearance-settings';
+  import { metadataSettings } from '$lib/stores/metadata-settings';
   import { libraryStore, playlistStore } from '$lib/stores/playlist';
   import { DEFAULT_PLAYER_VOLUME } from '$lib/stores/player-volume';
   import type {
@@ -113,6 +115,9 @@
     selectTrack: workspaceShell.selectTrack,
     setActiveWorkspaceTab: workspaceShell.setActiveWorkspaceTab,
     cleanupRemovedItems
+  });
+  const playCountTracker = createPlayCountTracker({
+    incrementLibraryPlayCount
   });
   let playbackCommandsState = playbackCommands.getSnapshot();
   const artworkPresentation = createArtworkPresentationController({
@@ -210,6 +215,12 @@
     $appearanceSettings.showTrackTitleInWindowTitle && livePlayingTrack
       ? getTrackDisplayTitle(livePlayingTrack)
       : 'izci';
+  $: playCountTracker.sync({
+    track: playingTrack,
+    playbackState: playbackStatus.state,
+    libraryItems,
+    thresholdSeconds: $metadataSettings.playCountThresholdSeconds
+  });
   $: workspaceShell.sync({
     innerWidth,
     compactShell: $appearanceSettings.compactShell,
@@ -446,6 +457,18 @@
     return libraryContextActions;
   }
 
+  function incrementLibraryPlayCount(libraryItemId: string): void {
+    const item = libraryItems.find((entry) => entry.id === libraryItemId);
+    const currentPlayCount = item?.metadata?.playCount ?? 0;
+    const nextPlayCount = Number.isFinite(currentPlayCount)
+      ? Math.max(0, Math.floor(currentPlayCount)) + 1
+      : 1;
+
+    libraryStore.updateMetadata(libraryItemId, {
+      playCount: nextPlayCount
+    });
+  }
+
   function handlePlaylistContextAction(event: CustomEvent<{ actionId: string; ids: string[] }>) {
     const { actionId, ids } = event.detail;
     const tracks = buildSelectedWorkspaceTracks(playlistItems, ids);
@@ -530,6 +553,7 @@
 
   onDestroy(() => {
     artworkPresentation.destroy();
+    playCountTracker.destroy();
     workspaceShell.destroy();
     unsubscribePlaylistItems();
     unsubscribeLibraryItems();

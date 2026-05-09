@@ -98,6 +98,7 @@ Primary location for playback and browser-integration logic.
 - `import-controller.ts`: file import controller for picker capability detection, file-input fallback, open-files flow, and folder import flow.
 - `player-controller.ts`: single coordinator for backend switching, snapshot updates, metadata inference application, and player volume propagation.
 - `playback-commands.ts`: app-shell playback command controller; coordinates playlist-backed play/load sequencing, launched-file playlist replacement, play/pause/stop/seek actions, and next/previous/track-end navigation while delegating backend playback to `player-controller.ts`.
+- `play-count.ts`: app-shell play-count tracker; counts a track once after the configured continuous playback threshold, only when the playing item resolves to a library track.
 - `volume.ts`: shared slider-to-gain conversion helpers, including the logarithmic-volume mapping used by playback services.
 - `media-session.ts`: Chromium Media Session bridge for now-playing metadata, seek position updates, OS/media-key transport handlers, and the silent native transport anchor used to keep Chromium media surfaces alive for non-native playback paths.
 - `stream-artwork.ts`: on-demand embedded metadata/artwork loading for streamed files; extracts common Vorbis/Opus text tags (`title`, `artist`, `album`, `albumArtist`, `genre`, `year`, track/disc numbers, `composer`) plus transient cover art from `flac` Vorbis comments/picture blocks and `opus` `OpusTags`/`METADATA_BLOCK_PICTURE` comments for playlist metadata, the player UI, and Media Session without persisting artwork blobs.
@@ -130,7 +131,7 @@ Primary location for playback and browser-integration logic.
 - `appearance-settings.ts`: persistent appearance settings for color theme, shell density, system font, narrow-library behavior, the artwork-backdrop mode (`off`, `player`, `workspace`), and whether the main window title mirrors the current track title, with `BroadcastChannel` sync.
 - `playback-settings.ts`: persistent general playback settings, currently the logarithmic-volume toggle, with sync.
 - `module-playback-settings.ts`: persistent tracker playback settings (repeat, stereo/pan, interpolation, tempo, pitch) with sync.
-- `metadata-settings.ts`: persistent metadata behavior settings, currently filename-based artist/title inference.
+- `metadata-settings.ts`: persistent metadata behavior settings, including filename-based artist/title inference and the library play-count threshold.
 - `player-volume.ts`: persistent player volume with sync across windows.
 - `workspace-panel-layout.ts`: persistent wide-layout workspace panel fractions for playlist/library/details resizing, with sync.
 
@@ -181,6 +182,7 @@ Primary location for playback and browser-integration logic.
 - `player-controller.ts` is the single coordinator for backend switching. Changes to transport or metadata propagation should usually start there.
 - Streamed playback intentionally stays on Howler's HTML5 audio mode because that path is the proven stable way to keep Chromium/desktop media controls alive for streamed formats without regressing row-activation or pause/resume behavior.
 - Embedded streamed metadata/artwork is not sourced from Howler. `src/lib/services/stream-artwork.ts` reads `flac` and `opus` tags directly from the selected file or file handle on demand, persists parsed textual metadata (`title`/`artist`/`album`, `albumArtist`, `genre`, `year`, track/disc numbers, `composer`) plus a one-shot embedded-tag parse sentinel into IndexedDB through the playlist metadata worker, creates transient blob URLs for cover art used by the current UI/media-session presentation, and does not persist artwork blobs.
+- Library play counts live in track metadata and are updated only through `src/lib/services/play-count.ts` after the user-configured continuous playback threshold. Playlist-only items should not accrue plays.
 - Background duration hydration should not depend on an already-materialized streamed `objectUrl`. `src/lib/stores/playlist-metadata.ts` must be able to probe duration from either an in-memory `File` or a readable `FileSystemFileHandle`.
 - `PlayerControls.svelte` should consume shared artwork passed down from `App.svelte` rather than starting a second artwork-loading lifecycle of its own.
 - Tracker modules still play through `Chiptune3`/Web Audio because rerouting real module audio through a browser-facing media element regressed playback quality/pitch; their media-surface integration is mirrored through the silent native transport anchor instead.

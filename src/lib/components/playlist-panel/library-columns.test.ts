@@ -5,6 +5,7 @@ import {
   fitWidthsToAvailableWidth,
   getColumnTextValue,
   getTrackDuration,
+  getTrackPlayCount,
   rebalanceResizedColumns
 } from './library-columns';
 import type { PlaylistItem } from '$lib/types';
@@ -38,6 +39,8 @@ describe('library column helpers', () => {
     expect(getColumnTextValue(track, 'format')).toBe('FLAC');
     expect(getTrackDuration(track)).toBe('02:05');
     expect(getTrackDuration(item('missing-duration'))).toBe('');
+    expect(getTrackPlayCount(item('plays', { metadata: { playCount: 3 } }))).toBe('3');
+    expect(getColumnTextValue(item('missing-plays'), 'plays')).toBe('');
   });
 
   it('shrinks and expands visible widths while preserving the available total', () => {
@@ -89,6 +92,18 @@ describe('library column helpers', () => {
       'z-file',
       'a-file',
       'missing'
+    ]);
+
+    const playCountTracks = [
+      item('two', { metadata: { title: 'Two', playCount: 2 } }),
+      item('five', { metadata: { title: 'Five', playCount: 5 } }),
+      item('none', { metadata: { title: 'None' } })
+    ];
+
+    expect([...playCountTracks].sort((left, right) => compareItems(left, right, { columnId: 'plays', direction: 'desc' })).map((track) => track.id)).toEqual([
+      'five',
+      'two',
+      'none'
     ]);
   });
 });

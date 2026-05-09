@@ -464,6 +464,15 @@ code {
   background: var(--bg-input);
 }
 
+.field input[type="number"] {
+  width: 7.5rem;
+  border-radius: 6px;
+  border: 1px solid var(--menu-bar-border);
+  padding: 4px 8px;
+  color: var(--text);
+  background: var(--bg-input);
+}
+
 .field-hint {
   margin: 0;
   grid-column: 1 / -1;

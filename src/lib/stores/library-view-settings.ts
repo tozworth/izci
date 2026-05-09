@@ -3,27 +3,30 @@ import type { LibraryColumnId, LibraryViewSettings, SortDirection } from '$lib/t
 
 export const LIBRARY_VIEW_SETTINGS_STORAGE_KEY = 'izci.library-view-settings.v1';
 export const LIBRARY_VIEW_SETTINGS_CHANNEL = 'izci-library-view-settings';
-export const LIBRARY_COLUMN_IDS: LibraryColumnId[] = ['title', 'artist', 'album', 'format', 'duration'];
+export const LIBRARY_COLUMN_IDS: LibraryColumnId[] = ['title', 'artist', 'album', 'format', 'duration', 'plays'];
 export const LIBRARY_COLUMN_LABELS: Record<LibraryColumnId, string> = {
   title: 'Title',
   artist: 'Artist',
   album: 'Album',
   format: 'Format',
-  duration: 'Duration'
+  duration: 'Duration',
+  plays: 'Plays'
 };
 export const LIBRARY_COLUMN_DEFAULT_WIDTHS: Record<LibraryColumnId, number> = {
   title: 300,
   artist: 220,
   album: 220,
   format: 96,
-  duration: 104
+  duration: 104,
+  plays: 88
 };
 export const LIBRARY_COLUMN_MIN_WIDTHS: Record<LibraryColumnId, number> = {
   title: 72,
   artist: 72,
   album: 72,
   format: 48,
-  duration: 48
+  duration: 48,
+  plays: 48
 };
 
 const DEFAULT_LIBRARY_VIEW_SETTINGS: LibraryViewSettings = {
@@ -48,6 +51,10 @@ const DEFAULT_LIBRARY_VIEW_SETTINGS: LibraryViewSettings = {
     duration: {
       width: LIBRARY_COLUMN_DEFAULT_WIDTHS.duration,
       visible: true
+    },
+    plays: {
+      width: LIBRARY_COLUMN_DEFAULT_WIDTHS.plays,
+      visible: false
     }
   },
   sort: {

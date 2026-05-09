@@ -4,7 +4,12 @@
   import { COLOR_THEME_OPTIONS } from '$lib/services/theme';
   import { windowControlsOverlayState } from '$lib/services/window-controls-overlay';
   import { appearanceSettings } from '$lib/stores/appearance-settings';
-  import { metadataSettings } from '$lib/stores/metadata-settings';
+  import {
+    MAX_PLAY_COUNT_THRESHOLD_SECONDS,
+    MIN_PLAY_COUNT_THRESHOLD_SECONDS,
+    metadataSettings,
+    normalizePlayCountThresholdSeconds
+  } from '$lib/stores/metadata-settings';
   import {
     DEFAULT_MODULE_PLAYBACK_SETTINGS,
     MODULE_INTERPOLATION_OPTIONS,
@@ -117,6 +122,14 @@
   function handleMetadataToggle(event: Event) {
     metadataSettings.update({
       inferFromFilename: (event.currentTarget as HTMLInputElement).checked
+    });
+  }
+
+  function handlePlayCountThresholdChange(event: Event) {
+    metadataSettings.update({
+      playCountThresholdSeconds: normalizePlayCountThresholdSeconds(
+        (event.currentTarget as HTMLInputElement).value
+      )
     });
   }
 
@@ -616,6 +629,23 @@
                   />
                 </div>
                 <p class="field-hint">When enabled, izci parses filenames like <code>Artist - Title.ext</code> into metadata fields.</p>
+              </label>
+
+              <label class="field">
+                <div class="field-copy">
+                  <span class="field-title">Count track as played after (seconds)</span>
+                  <p class="field-hint">Only tracks that are in the library update their play count.</p>
+                </div>
+                <div class="field-control">
+                  <input
+                    type="number"
+                    min={MIN_PLAY_COUNT_THRESHOLD_SECONDS}
+                    max={MAX_PLAY_COUNT_THRESHOLD_SECONDS}
+                    step="1"
+                    value={$metadataSettings.playCountThresholdSeconds}
+                    on:change={handlePlayCountThresholdChange}
+                  />
+                </div>
               </label>
             </div>
           </div>
