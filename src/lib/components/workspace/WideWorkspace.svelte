@@ -20,6 +20,8 @@
   export let isResizing = false;
   export let selectedItem: PlaylistItem | null = null;
   export let detailsArtwork: LoadedStreamArtwork | null = null;
+  export let artworkBackgroundActive = false;
+  export let artworkBackgroundBright = false;
   export let isDetailsVisible = false;
   export let onCloseDetails: () => void = () => {};
 
@@ -84,6 +86,8 @@
       <TrackDetailsPanel
         track={selectedItem}
         artwork={detailsArtwork}
+        {artworkBackgroundActive}
+        {artworkBackgroundBright}
         fillParent={true}
         showCloseButton={true}
         onClose={onCloseDetails}

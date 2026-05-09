@@ -5,6 +5,8 @@
 
   export let track: PlaylistItem | null = null;
   export let artwork: LoadedStreamArtwork | null = null;
+  export let artworkBackgroundActive = false;
+  export let artworkBackgroundBright = false;
   export let hideEyebrow = false;
   export let isTabbedLayout = false;
   export let fillParent = false;
@@ -78,7 +80,18 @@
       : '';
 </script>
 
-<section class="panel details-panel" class:fill-parent={fillParent}>
+<section
+  class="panel details-panel"
+  class:fill-parent={fillParent}
+  class:artwork-background-active={artworkBackgroundActive}
+  class:artwork-background-bright={artworkBackgroundActive && artworkBackgroundBright}
+>
+  <div
+    class="details-panel-background-overlay"
+    class:is-active={artworkBackgroundActive}
+    aria-hidden="true"
+  ></div>
+
   <div class="panel-header">
     <div class="panel-heading">
       {#if !hideEyebrow}
@@ -168,10 +181,69 @@
 </section>
 
 <style>
+  .details-panel {
+    position: relative;
+    isolation: isolate;
+  }
+
   .details-panel.fill-parent {
     width: 100%;
     min-width: 0;
     height: 100%;
+  }
+
+  .details-panel.artwork-background-active {
+    color-scheme: dark;
+    --panel-backdrop-blur: 28px;
+    --panel-backdrop-saturate: 1.16;
+    --bg-elevated: rgba(18, 19, 24, 0.44);
+    --text: rgba(248, 246, 241, 0.96);
+    --text-strong: rgba(255, 255, 255, 0.98);
+    --muted: rgba(248, 246, 241, 0.72);
+    --bg-soft: rgba(18, 19, 24, 0.5);
+    --border-soft: rgba(255, 255, 255, 0.12);
+    --border-strong: rgba(255, 255, 255, 0.18);
+    --hover-control: rgba(255, 255, 255, 0.08);
+    --details-panel-artwork-overlay:
+      radial-gradient(circle at top, rgba(255, 255, 255, 0.08), transparent 36%),
+      linear-gradient(180deg, rgba(10, 11, 16, 0.52) 0%, rgba(10, 11, 16, 0.34) 38%, rgba(10, 11, 16, 0.56) 100%);
+  }
+
+  .details-panel.artwork-background-active.artwork-background-bright {
+    color-scheme: light;
+    --bg-elevated: rgba(255, 250, 242, 0.48);
+    --bg-soft: rgba(255, 250, 242, 0.58);
+    --text: #241b12;
+    --text-strong: #130d08;
+    --muted: rgba(36, 27, 18, 0.76);
+    --border-soft: rgba(52, 39, 25, 0.12);
+    --border-strong: rgba(52, 39, 25, 0.22);
+    --hover-control: rgba(52, 39, 25, 0.09);
+    --details-panel-artwork-overlay:
+      radial-gradient(circle at top, rgba(255, 255, 255, 0.2), transparent 36%),
+      linear-gradient(180deg, rgba(255, 249, 240, 0.42) 0%, rgba(255, 249, 240, 0.22) 42%, rgba(255, 249, 240, 0.5) 100%);
+  }
+
+  .details-panel-background-overlay {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity var(--artwork-background-transition-duration) linear;
+    z-index: 0;
+  }
+
+  .details-panel-background-overlay {
+    background: var(--details-panel-artwork-overlay, transparent);
+  }
+
+  .details-panel-background-overlay.is-active {
+    opacity: 1;
+  }
+
+  .details-panel > :not(.details-panel-background-overlay) {
+    position: relative;
+    z-index: 1;
   }
 
   .panel-header {
@@ -299,6 +371,7 @@
     font-size: 1.45rem;
     line-height: 1.1;
     font-weight: 700;
+    color: var(--text-strong);
   }
 
   .track-artist {

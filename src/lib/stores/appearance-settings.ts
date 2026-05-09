@@ -21,7 +21,7 @@ function normalizeColorTheme(value: unknown): ColorTheme {
 }
 
 function normalizeArtworkBackgroundMode(value: unknown): ArtworkBackgroundMode {
-  return value === 'player' || value === 'workspace' ? value : 'off';
+  return value === 'player' || value === 'player-details' || value === 'workspace' ? value : 'off';
 }
 
 function normalizeSettings(value: unknown): AppearanceSettings {

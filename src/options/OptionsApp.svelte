@@ -426,11 +426,12 @@
                   >
                     <option value="off">Off</option>
                     <option value="player">Behind player bar only</option>
+                    <option value="player-details">Player and Track Details</option>
                     <option value="workspace">Entire workspace</option>
                   </select>
                 </div>
                 <p class="field-hint">
-                  Uses the current track artwork as a blurred color source. "Behind player bar only" keeps the workspace stable while still giving the footer the glass/color treatment.
+                  Uses the current track artwork as a blurred color source for the player, Track Details, or the whole workspace.
                 </p>
               </label>
 

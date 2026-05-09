@@ -76,7 +76,6 @@
   z-index: 1;
 }
 
-.player-bar-background-layer,
 .player-bar-background-overlay {
   position: absolute;
   inset: 0;
@@ -86,25 +85,15 @@
   z-index: 0;
 }
 
-.player-bar-background-layer {
-  background-image: var(--player-bar-artwork-image, none);
-  background-position: center;
-  background-repeat: no-repeat;
-  background-size: cover;
-  filter: blur(52px) saturate(1.22);
-  transform: scale(1.12);
-}
-
 .player-bar-background-overlay {
   background: var(--player-bar-artwork-overlay, transparent);
 }
 
-.player-bar-background-layer.is-active,
 .player-bar-background-overlay.is-active {
   opacity: 1;
 }
 
-.player-bar > :not(.player-bar-background-layer):not(.player-bar-background-overlay) {
+.player-bar > :not(.player-bar-background-overlay) {
   position: relative;
   z-index: 2;
 }

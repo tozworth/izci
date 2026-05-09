@@ -11,9 +11,6 @@
   export let artwork: LoadedStreamArtwork | null = null;
   export let artworkBackgroundActive = false;
   export let artworkBackgroundBright = false;
-  export let artworkBackgroundPrimary: LoadedStreamArtwork | null = null;
-  export let artworkBackgroundSecondary: LoadedStreamArtwork | null = null;
-  export let activeArtworkBackgroundSlot: 'primary' | 'secondary' = 'primary';
 
   const dispatch = createEventDispatcher<{
     toggle: void;
@@ -117,30 +114,6 @@
   class:artwork-background-active={artworkBackgroundActive}
   class:artwork-background-bright={artworkBackgroundActive && artworkBackgroundBright}
 >
-  <div
-    class="player-bar-background-layer"
-    class:is-active={
-      artworkBackgroundActive &&
-      activeArtworkBackgroundSlot === 'primary' &&
-      Boolean(artworkBackgroundPrimary)
-    }
-    style={`--player-bar-artwork-image: ${
-      artworkBackgroundPrimary ? `url("${artworkBackgroundPrimary.url}")` : 'none'
-    };`}
-    aria-hidden="true"
-  ></div>
-  <div
-    class="player-bar-background-layer"
-    class:is-active={
-      artworkBackgroundActive &&
-      activeArtworkBackgroundSlot === 'secondary' &&
-      Boolean(artworkBackgroundSecondary)
-    }
-    style={`--player-bar-artwork-image: ${
-      artworkBackgroundSecondary ? `url("${artworkBackgroundSecondary.url}")` : 'none'
-    };`}
-    aria-hidden="true"
-  ></div>
   <div
     class="player-bar-background-overlay"
     class:is-active={artworkBackgroundActive}

@@ -96,7 +96,9 @@
   let isWorkspaceArtworkBackgroundEnabled = false;
   let isPlayerBarArtworkBackgroundEnabled = false;
   let isPlayerBarArtworkLayerActive = false;
+  let isTrackDetailsArtworkLayerActive = false;
   let isWorkspaceArtworkBackgroundActive = false;
+  let isScopedArtworkBackgroundActive = false;
   let isArtworkBackgroundActive = false;
   let documentTitle = 'izci';
   const workspaceShell = createWorkspaceShellController({
@@ -204,13 +206,21 @@
   $: artworkBackgroundMode = $appearanceSettings.artworkBackgroundMode;
   $: isWorkspaceArtworkBackgroundEnabled = artworkBackgroundMode === 'workspace';
   $: isPlayerBarArtworkBackgroundEnabled =
-    artworkBackgroundMode === 'workspace' || artworkBackgroundMode === 'player';
+    artworkBackgroundMode === 'workspace' ||
+    artworkBackgroundMode === 'player' ||
+    artworkBackgroundMode === 'player-details';
   $: isPlayerBarArtworkLayerActive =
-    artworkBackgroundMode === 'player' && Boolean(artworkPresentationState.visibleArtworkBackground);
+    (artworkBackgroundMode === 'player' || artworkBackgroundMode === 'player-details') &&
+    Boolean(artworkPresentationState.visibleArtworkBackground);
+  $: isTrackDetailsArtworkLayerActive =
+    artworkBackgroundMode === 'player-details' &&
+    Boolean(artworkPresentationState.visibleArtworkBackground);
   $: isWorkspaceArtworkBackgroundActive =
     isWorkspaceArtworkBackgroundEnabled && Boolean(artworkPresentationState.visibleArtworkBackground);
   $: isArtworkBackgroundActive =
     isPlayerBarArtworkBackgroundEnabled && Boolean(artworkPresentationState.visibleArtworkBackground);
+  $: isScopedArtworkBackgroundActive =
+    !isWorkspaceArtworkBackgroundEnabled && isArtworkBackgroundActive;
   $: documentTitle =
     $appearanceSettings.showTrackTitleInWindowTitle && livePlayingTrack
       ? getTrackDisplayTitle(livePlayingTrack)
@@ -658,6 +668,7 @@
   class:mini-mode={miniModeActive}
   class:artwork-background-enabled={artworkBackgroundMode !== 'off'}
   class:artwork-background-active={isWorkspaceArtworkBackgroundActive}
+  class:artwork-background-scoped={isScopedArtworkBackgroundActive}
   class:artwork-background-bright={
     isWorkspaceArtworkBackgroundActive && artworkPresentationState.isArtworkBackgroundBright
   }
@@ -667,7 +678,7 @@
   <div
     class="app-shell-background-layer"
     class:is-active={
-      isWorkspaceArtworkBackgroundEnabled &&
+      isArtworkBackgroundActive &&
       artworkPresentationState.activeArtworkBackgroundSlot === 'primary' &&
       Boolean(artworkPresentationState.artworkBackgroundPrimary)
     }
@@ -681,7 +692,7 @@
   <div
     class="app-shell-background-layer"
     class:is-active={
-      isWorkspaceArtworkBackgroundEnabled &&
+      isArtworkBackgroundActive &&
       artworkPresentationState.activeArtworkBackgroundSlot === 'secondary' &&
       Boolean(artworkPresentationState.artworkBackgroundSecondary)
     }
@@ -727,6 +738,8 @@
         {libraryPanelHandlers}
         selectedItem={artworkPresentationState.detailsDisplayTrack}
         detailsArtwork={artworkPresentationState.visibleDetailsArtwork}
+        artworkBackgroundActive={isTrackDetailsArtworkLayerActive}
+        artworkBackgroundBright={artworkPresentationState.isArtworkBackgroundBright}
         isDetailsVisible={workspaceShellState.isDetailsPanelVisible}
         onCloseDetails={() => workspaceShell.closeTrackDetails()}
         on:tabChange={(event) => workspaceShell.setActiveWorkspaceTab(event.detail)}
@@ -744,6 +757,8 @@
         isResizing={workspaceShellState.isResizing}
         selectedItem={artworkPresentationState.detailsDisplayTrack}
         detailsArtwork={artworkPresentationState.visibleDetailsArtwork}
+        artworkBackgroundActive={isTrackDetailsArtworkLayerActive}
+        artworkBackgroundBright={artworkPresentationState.isArtworkBackgroundBright}
         isDetailsVisible={workspaceShellState.isDetailsPanelVisible}
         onCloseDetails={() => workspaceShell.closeTrackDetails()}
         on:resizeStart={(event) => workspaceShell.handleWideWorkspaceResizeStart(event.detail)}
@@ -760,9 +775,6 @@
     track={playerDisplayTrack}
     selectedTrack={selectedPlaylistItem}
     artwork={artworkPresentationState.displayedArtwork}
-    artworkBackgroundPrimary={artworkPresentationState.artworkBackgroundPrimary}
-    artworkBackgroundSecondary={artworkPresentationState.artworkBackgroundSecondary}
-    activeArtworkBackgroundSlot={artworkPresentationState.activeArtworkBackgroundSlot}
     artworkBackgroundActive={isPlayerBarArtworkLayerActive}
     artworkBackgroundBright={artworkPresentationState.isArtworkBackgroundBright}
     on:toggle={() => void playbackCommands.togglePlayback()}
