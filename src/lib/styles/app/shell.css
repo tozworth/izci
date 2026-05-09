@@ -8,6 +8,7 @@
   padding: 0;
   padding-bottom: var(--player-bar-reserve);
   color: var(--text);
+  background: var(--body-background);
   overflow: hidden;
   isolation: isolate;
 }

@@ -34,7 +34,7 @@ body,
 
 body {
   min-height: 100vh;
-  background-color: var(--body-background);
+  background: var(--body-background);
   color: var(--text);
   overflow: hidden;
   user-select: none;
