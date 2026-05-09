@@ -377,7 +377,7 @@
     line-height: 1;
     color: var(--muted);
     background: transparent;
-    transition: color 160ms ease;
+    transition: none;
   }
 
   .details-close-button:hover,
@@ -395,9 +395,7 @@
     max-width: 0;
     opacity: 0;
     white-space: nowrap;
-    transition:
-      max-width 160ms ease,
-      opacity 160ms ease;
+    transition: none;
   }
 
   .details-close-button:hover .details-close-label,

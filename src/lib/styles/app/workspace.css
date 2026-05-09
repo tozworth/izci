@@ -29,6 +29,10 @@
   height: 100%;
 }
 
+.workspace-resizable .workspace-panel > .panel {
+  border-inline: 0;
+}
+
 .workspace-resizer {
   position: relative;
   display: flex;
@@ -38,6 +42,7 @@
   cursor: col-resize;
   user-select: none;
   touch-action: none;
+  z-index: 2;
 }
 
 .workspace-resizable.is-resizing,
@@ -49,15 +54,13 @@
   content: "";
   width: 1px;
   margin-block: 0;
-  background: var(--resizer-line-gradient);
-  transition:
-    background 180ms ease,
-    box-shadow 180ms ease;
+  background: var(--border);
+  transition: none;
 }
 
 .workspace-resizer:hover::before,
 .workspace-resizable.is-resizing .workspace-resizer::before {
-  background: var(--resizer-line-gradient-active);
+  background: var(--accent-strong-border-hover);
   box-shadow: none;
 }
 

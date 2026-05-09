@@ -151,7 +151,14 @@
   color: var(--menu-popover-text);
   text-align: left;
   white-space: nowrap;
+  transition: none;
   -webkit-app-region: no-drag;
+}
+
+.menu-list button .menu-item-shortcut,
+.menu-list button .menu-item-icon,
+.menu-list button .menu-item-chevron {
+  transition: none;
 }
 
 .menu-item-label {
