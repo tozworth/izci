@@ -3,7 +3,7 @@
   --player-bar-reserve-tabbed: calc(4.8rem + env(safe-area-inset-bottom, 0px));
   --track-artwork-radius: 0.25rem;
   --artwork-background-transition-duration: 320ms;
-  --artwork-ui-transition-duration: 280ms;
+  --artwork-ui-transition-duration: 320ms;
   -webkit-tap-highlight-color: transparent;
 }
 

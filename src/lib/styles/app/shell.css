@@ -96,7 +96,7 @@
   --bg-tree: rgba(18, 19, 24, 0.68);
   --bg-search: rgba(18, 19, 24, 0.72);
   --bg-volume-popup: rgba(16, 17, 22, 0.76);
-  --playlist-header-background:
+  --playlist-header-artwork-background:
     linear-gradient(180deg, rgba(18, 19, 24, 0.58) 0%, rgba(18, 19, 24, 0.44) 100%),
     rgba(255, 255, 255, 0.04);
   --border: rgba(255, 255, 255, 0.16);
@@ -148,7 +148,7 @@
   --bg-tree: rgba(255, 250, 243, 0.8);
   --bg-search: rgba(255, 252, 246, 0.82);
   --bg-volume-popup: rgba(255, 250, 242, 0.84);
-  --playlist-header-background:
+  --playlist-header-artwork-background:
     linear-gradient(180deg, rgba(255, 250, 244, 0.7) 0%, rgba(255, 250, 244, 0.54) 100%),
     rgba(74, 56, 34, 0.03);
   --text: #241b12;

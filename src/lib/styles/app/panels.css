@@ -84,9 +84,23 @@
     blur(calc(var(--chrome-backdrop-blur, 22px) - 2px))
     saturate(var(--chrome-backdrop-saturate, 1.08));
   transition:
-    background var(--artwork-ui-transition-duration) linear,
     box-shadow var(--artwork-ui-transition-duration) linear,
     border-color var(--artwork-ui-transition-duration) linear;
+}
+
+.playlist-panel-header::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0;
+  background: var(--playlist-header-artwork-background, transparent);
+  transition: opacity var(--artwork-background-transition-duration) linear;
+}
+
+.app-shell.artwork-background-active .playlist-panel-header::before {
+  opacity: 1;
 }
 
 .playlist-panel-header::after {
@@ -100,6 +114,11 @@
   opacity: 0;
   background: var(--playlist-header-shadow-gradient);
   transition: opacity 180ms ease;
+}
+
+.playlist-panel-header > * {
+  position: relative;
+  z-index: 1;
 }
 
 .playlist-panel-header.is-covered {
