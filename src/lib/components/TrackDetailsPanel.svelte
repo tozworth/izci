@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onDestroy, tick } from 'svelte';
   import type { LoadedStreamArtwork } from '$lib/services/stream-artwork';
   import type { PlaylistItem } from '$lib/types';
   import { resolveModuleDisplayFormat, resolveModuleTrackerName } from '$lib/utils/files';
@@ -16,6 +17,110 @@
   interface MetadataEntry {
     label: string;
     value: string;
+  }
+
+  let panelElement: HTMLElement | null = null;
+  let scopedMaskShell: HTMLElement | null = null;
+  let scopedMaskResizeObserver: ResizeObserver | null = null;
+  let scopedMaskAnimationFrame: number | null = null;
+  let isScopedMaskTracking = false;
+
+  function clearScopedDetailsMaskRect(shell: HTMLElement | null = scopedMaskShell): void {
+    shell?.style.removeProperty('--artwork-scoped-details-left');
+    shell?.style.removeProperty('--artwork-scoped-details-top');
+    shell?.style.removeProperty('--artwork-scoped-details-width');
+    shell?.style.removeProperty('--artwork-scoped-details-height');
+  }
+
+  function updateScopedDetailsMaskRect(): void {
+    if (!isScopedMaskTracking || !panelElement) {
+      return;
+    }
+
+    const shell = panelElement.closest('.app-shell') as HTMLElement | null;
+    if (!shell) {
+      clearScopedDetailsMaskRect();
+      scopedMaskShell = null;
+      return;
+    }
+
+    if (scopedMaskShell && scopedMaskShell !== shell) {
+      clearScopedDetailsMaskRect(scopedMaskShell);
+    }
+
+    scopedMaskShell = shell;
+    const shellRect = shell.getBoundingClientRect();
+    const panelRect = panelElement.getBoundingClientRect();
+
+    shell.style.setProperty(
+      '--artwork-scoped-details-left',
+      `${Math.max(0, panelRect.left - shellRect.left)}px`
+    );
+    shell.style.setProperty(
+      '--artwork-scoped-details-top',
+      `${Math.max(0, panelRect.top - shellRect.top)}px`
+    );
+    shell.style.setProperty('--artwork-scoped-details-width', `${panelRect.width}px`);
+    shell.style.setProperty('--artwork-scoped-details-height', `${panelRect.height}px`);
+  }
+
+  function scheduleScopedDetailsMaskRectUpdate(): void {
+    if (typeof window === 'undefined' || scopedMaskAnimationFrame !== null) {
+      return;
+    }
+
+    scopedMaskAnimationFrame = window.requestAnimationFrame(() => {
+      scopedMaskAnimationFrame = null;
+      updateScopedDetailsMaskRect();
+    });
+  }
+
+  async function startScopedDetailsMaskTracking(): Promise<void> {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    if (isScopedMaskTracking) {
+      scheduleScopedDetailsMaskRectUpdate();
+      return;
+    }
+
+    isScopedMaskTracking = true;
+    await tick();
+
+    if (!isScopedMaskTracking || !panelElement) {
+      return;
+    }
+
+    if (typeof ResizeObserver !== 'undefined') {
+      scopedMaskResizeObserver = new ResizeObserver(scheduleScopedDetailsMaskRectUpdate);
+      scopedMaskResizeObserver.observe(panelElement);
+      const shell = panelElement.closest('.app-shell');
+      if (shell) {
+        scopedMaskResizeObserver.observe(shell);
+      }
+    }
+
+    window.addEventListener('resize', scheduleScopedDetailsMaskRectUpdate);
+    scheduleScopedDetailsMaskRectUpdate();
+  }
+
+  function stopScopedDetailsMaskTracking(): void {
+    if (typeof window !== 'undefined' && scopedMaskAnimationFrame !== null) {
+      window.cancelAnimationFrame(scopedMaskAnimationFrame);
+      scopedMaskAnimationFrame = null;
+    }
+
+    isScopedMaskTracking = false;
+    scopedMaskResizeObserver?.disconnect();
+    scopedMaskResizeObserver = null;
+
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('resize', scheduleScopedDetailsMaskRectUpdate);
+    }
+
+    clearScopedDetailsMaskRect();
+    scopedMaskShell = null;
   }
 
   function trimMetadataValue(value: string | undefined): string {
@@ -78,9 +183,20 @@
     track?.kind === 'module' && typeof patterns === 'number'
       ? `${patterns} pattern${patterns === 1 ? '' : 's'}`
       : '';
+  $: if (artworkBackgroundActive) {
+    void startScopedDetailsMaskTracking();
+  } else {
+    stopScopedDetailsMaskTracking();
+  }
+  $: if (artworkBackgroundActive && panelElement) {
+    scheduleScopedDetailsMaskRectUpdate();
+  }
+
+  onDestroy(stopScopedDetailsMaskTracking);
 </script>
 
 <section
+  bind:this={panelElement}
   class="panel details-panel"
   class:fill-parent={fillParent}
   class:artwork-background-active={artworkBackgroundActive}

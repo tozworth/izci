@@ -11,6 +11,11 @@
   background: var(--body-background);
   overflow: hidden;
   isolation: isolate;
+  --artwork-scoped-details-left: 0px;
+  --artwork-scoped-details-top: 0px;
+  --artwork-scoped-details-width: 0px;
+  --artwork-scoped-details-height: 0px;
+  --artwork-scoped-player-height: var(--player-bar-reserve);
 }
 
 .app-shell.window-controls-overlay-active {
@@ -49,6 +54,41 @@
   background-size: cover;
   filter: blur(72px) saturate(1.22);
   transform: scale(1.16);
+}
+
+.app-shell.artwork-background-scoped .app-shell-background-layer {
+  transform: none;
+  -webkit-mask-image:
+    linear-gradient(#000 0 0),
+    linear-gradient(#000 0 0);
+  -webkit-mask-position:
+    0 100%,
+    var(--artwork-scoped-details-left) var(--artwork-scoped-details-top);
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-size:
+    100% var(--artwork-scoped-player-height),
+    var(--artwork-scoped-details-width) var(--artwork-scoped-details-height);
+  mask-image:
+    linear-gradient(#000 0 0),
+    linear-gradient(#000 0 0);
+  mask-position:
+    0 100%,
+    var(--artwork-scoped-details-left) var(--artwork-scoped-details-top);
+  mask-repeat: no-repeat;
+  mask-size:
+    100% var(--artwork-scoped-player-height),
+    var(--artwork-scoped-details-width) var(--artwork-scoped-details-height);
+}
+
+.app-shell.tabbed-layout {
+  --artwork-scoped-player-height: var(--player-bar-reserve-tabbed);
+}
+
+.app-shell.artwork-background-scoped.mini-mode .app-shell-background-layer {
+  -webkit-mask-position: 0 0, 0 0;
+  -webkit-mask-size: 100% 100%, 0 0;
+  mask-position: 0 0, 0 0;
+  mask-size: 100% 100%, 0 0;
 }
 
 .app-shell-background-overlay {
