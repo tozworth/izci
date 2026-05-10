@@ -97,6 +97,7 @@
   let isWorkspaceArtworkBackgroundActive = false;
   let isScopedArtworkBackgroundActive = false;
   let isArtworkBackgroundActive = false;
+  let isArtworkBackgroundLayerBright = false;
   let documentTitle = 'izci';
   const workspaceShell = createWorkspaceShellController({
     getPlaylistContextActions,
@@ -216,8 +217,19 @@
     isWorkspaceArtworkBackgroundEnabled && Boolean(artworkPresentationState.visibleArtworkBackground);
   $: isArtworkBackgroundActive =
     isPlayerBarArtworkBackgroundEnabled && Boolean(artworkPresentationState.visibleArtworkBackground);
+  $: hasArtworkBackgroundLayer =
+    isPlayerBarArtworkBackgroundEnabled &&
+    Boolean(
+      artworkPresentationState.artworkBackgroundPrimary ||
+        artworkPresentationState.artworkBackgroundSecondary
+    );
   $: isScopedArtworkBackgroundActive =
-    !isWorkspaceArtworkBackgroundEnabled && isArtworkBackgroundActive;
+    !isWorkspaceArtworkBackgroundEnabled && hasArtworkBackgroundLayer;
+  $: if (isArtworkBackgroundActive) {
+    isArtworkBackgroundLayerBright = artworkPresentationState.isArtworkBackgroundBright;
+  } else if (!hasArtworkBackgroundLayer) {
+    isArtworkBackgroundLayerBright = false;
+  }
   $: documentTitle =
     $appearanceSettings.showTrackTitleInWindowTitle && livePlayingTrack
       ? getTrackDisplayTitle(livePlayingTrack)
@@ -662,7 +674,8 @@
   class:tabbed-layout={workspaceShellState.isTabbedLayout}
   class:mini-mode={miniModeActive}
   class:artwork-background-enabled={artworkBackgroundMode !== 'off'}
-  class:artwork-background-layer-active={isArtworkBackgroundActive}
+  class:artwork-background-layer-active={hasArtworkBackgroundLayer}
+  class:artwork-background-layer-bright={hasArtworkBackgroundLayer && isArtworkBackgroundLayerBright}
   class:artwork-background-active={isWorkspaceArtworkBackgroundActive}
   class:artwork-background-scoped={isScopedArtworkBackgroundActive}
   class:artwork-background-bright={isArtworkBackgroundActive &&

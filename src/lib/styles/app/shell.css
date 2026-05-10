@@ -124,12 +124,18 @@
   --artwork-background-overlay:
     radial-gradient(circle at top, rgba(255, 255, 255, 0.08), transparent 36%),
     linear-gradient(180deg, rgba(10, 11, 16, 0.52) 0%, rgba(10, 11, 16, 0.34) 38%, rgba(10, 11, 16, 0.56) 100%);
+  --playlist-header-artwork-background:
+    linear-gradient(180deg, rgba(18, 19, 24, 0.58) 0%, rgba(18, 19, 24, 0.44) 100%),
+    rgba(255, 255, 255, 0.04);
 }
 
-.app-shell.artwork-background-layer-active.artwork-background-bright {
+.app-shell.artwork-background-layer-active.artwork-background-layer-bright {
   --artwork-background-overlay:
     radial-gradient(circle at top, rgba(255, 255, 255, 0.2), transparent 36%),
     linear-gradient(180deg, rgba(255, 249, 240, 0.42) 0%, rgba(255, 249, 240, 0.22) 42%, rgba(255, 249, 240, 0.5) 100%);
+  --playlist-header-artwork-background:
+    linear-gradient(180deg, rgba(255, 250, 244, 0.92) 0%, rgba(255, 250, 244, 0.84) 100%),
+    rgba(255, 252, 246, 0.28);
 }
 
 .app-shell.artwork-background-active {
@@ -151,9 +157,6 @@
   --bg-tree: rgba(18, 19, 24, 0.68);
   --bg-search: rgba(18, 19, 24, 0.72);
   --bg-volume-popup: rgba(16, 17, 22, 0.76);
-  --playlist-header-artwork-background:
-    linear-gradient(180deg, rgba(18, 19, 24, 0.58) 0%, rgba(18, 19, 24, 0.44) 100%),
-    rgba(255, 255, 255, 0.04);
   --border: rgba(255, 255, 255, 0.16);
   --border-strong: rgba(255, 255, 255, 0.18);
   --border-soft: rgba(255, 255, 255, 0.12);
@@ -200,9 +203,6 @@
   --bg-tree: rgba(255, 250, 243, 0.8);
   --bg-search: rgba(255, 252, 246, 0.82);
   --bg-volume-popup: rgba(255, 250, 242, 0.84);
-  --playlist-header-artwork-background:
-    linear-gradient(180deg, rgba(255, 250, 244, 0.92) 0%, rgba(255, 250, 244, 0.84) 100%),
-    rgba(255, 252, 246, 0.28);
   --text: #241b12;
   --text-strong: #130d08;
   --muted: rgba(36, 27, 18, 0.76);
