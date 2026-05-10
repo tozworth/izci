@@ -33,7 +33,7 @@
   padding-bottom: 0;
 }
 
-.app-shell-background-layer,
+.app-shell-background-clip,
 .app-shell-background-overlay {
   position: absolute;
   inset: 0;
@@ -43,7 +43,13 @@
   z-index: 0;
 }
 
+.app-shell-background-clip {
+  overflow: hidden;
+}
+
 .app-shell-background-layer {
+  position: absolute;
+  inset: 0;
   background-image: var(--artwork-background-image, none);
   background-position: center;
   background-repeat: no-repeat;
@@ -52,8 +58,8 @@
   transform: scale(1.16);
 }
 
-.app-shell.artwork-background-scoped .app-shell-background-layer {
-  transform: none;
+.app-shell.artwork-background-scoped .app-shell-background-clip,
+.app-shell.artwork-background-scoped .app-shell-background-overlay {
   -webkit-mask-image:
     linear-gradient(#000 0 0),
     linear-gradient(#000 0 0);
@@ -80,7 +86,8 @@
   --artwork-scoped-player-height: var(--player-bar-reserve-tabbed);
 }
 
-.app-shell.artwork-background-scoped.mini-mode .app-shell-background-layer {
+.app-shell.artwork-background-scoped.mini-mode .app-shell-background-clip,
+.app-shell.artwork-background-scoped.mini-mode .app-shell-background-overlay {
   -webkit-mask-position: 0 0, 0 0;
   -webkit-mask-size: 100% 100%, 0 0;
   mask-position: 0 0, 0 0;
@@ -91,12 +98,12 @@
   background: var(--artwork-background-overlay, transparent);
 }
 
-.app-shell-background-layer.is-active,
+.app-shell-background-clip.is-active,
 .app-shell-background-overlay.is-active {
   opacity: 1;
 }
 
-.app-shell > :not(.app-shell-background-layer):not(.app-shell-background-overlay) {
+.app-shell > :not(.app-shell-background-clip):not(.app-shell-background-overlay) {
   z-index: 1;
 }
 
@@ -111,6 +118,18 @@
 
 .app-shell.window-controls-overlay-active .window-frame-safe-strip {
   height: var(--window-frame-safe-top);
+}
+
+.app-shell.artwork-background-layer-active {
+  --artwork-background-overlay:
+    radial-gradient(circle at top, rgba(255, 255, 255, 0.08), transparent 36%),
+    linear-gradient(180deg, rgba(10, 11, 16, 0.52) 0%, rgba(10, 11, 16, 0.34) 38%, rgba(10, 11, 16, 0.56) 100%);
+}
+
+.app-shell.artwork-background-layer-active.artwork-background-bright {
+  --artwork-background-overlay:
+    radial-gradient(circle at top, rgba(255, 255, 255, 0.2), transparent 36%),
+    linear-gradient(180deg, rgba(255, 249, 240, 0.42) 0%, rgba(255, 249, 240, 0.22) 42%, rgba(255, 249, 240, 0.5) 100%);
 }
 
 .app-shell.artwork-background-active {
@@ -164,9 +183,6 @@
   --dropzone-background: linear-gradient(180deg, rgba(255, 255, 255, 0.045), transparent 18%);
   --player-bar-fade: linear-gradient(180deg, rgba(5, 6, 10, 0), rgba(5, 6, 10, 0.26));
   --shadow: 0 20px 54px rgba(0, 0, 0, 0.26);
-  --artwork-background-overlay:
-    radial-gradient(circle at top, rgba(255, 255, 255, 0.08), transparent 36%),
-    linear-gradient(180deg, rgba(10, 11, 16, 0.52) 0%, rgba(10, 11, 16, 0.34) 38%, rgba(10, 11, 16, 0.56) 100%);
 }
 
 .app-shell.artwork-background-active.artwork-background-bright {
@@ -213,12 +229,9 @@
   --player-bar-fade: linear-gradient(180deg, rgba(255, 255, 255, 0), rgba(255, 250, 242, 0.28));
   --shadow: 0 20px 54px rgba(57, 41, 25, 0.12);
   --hairline: rgba(34, 20, 8, 0.08);
-  --artwork-background-overlay:
-    radial-gradient(circle at top, rgba(255, 255, 255, 0.2), transparent 36%),
-    linear-gradient(180deg, rgba(255, 249, 240, 0.42) 0%, rgba(255, 249, 240, 0.22) 42%, rgba(255, 249, 240, 0.5) 100%);
 }
 
-.app-shell.window-controls-overlay-active .app-shell-background-layer,
+.app-shell.window-controls-overlay-active .app-shell-background-clip,
 .app-shell.window-controls-overlay-active .app-shell-background-overlay {
   clip-path: inset(var(--window-frame-safe-top) 0 0 0);
 }

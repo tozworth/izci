@@ -114,12 +114,6 @@
   class:artwork-background-active={artworkBackgroundActive}
   class:artwork-background-bright={artworkBackgroundActive && artworkBackgroundBright}
 >
-  <div
-    class="player-bar-background-overlay"
-    class:is-active={artworkBackgroundActive}
-    aria-hidden="true"
-  ></div>
-
   <div class="player-track-group">
     {#if displayTrack}
       <button

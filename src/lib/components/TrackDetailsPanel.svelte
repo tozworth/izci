@@ -202,12 +202,6 @@
   class:artwork-background-active={artworkBackgroundActive}
   class:artwork-background-bright={artworkBackgroundActive && artworkBackgroundBright}
 >
-  <div
-    class="details-panel-background-overlay"
-    class:is-active={artworkBackgroundActive}
-    aria-hidden="true"
-  ></div>
-
   <div class="panel-header">
     <div class="panel-heading">
       {#if !hideEyebrow}
@@ -320,9 +314,6 @@
     --border-soft: rgba(255, 255, 255, 0.12);
     --border-strong: rgba(255, 255, 255, 0.18);
     --hover-control: rgba(255, 255, 255, 0.08);
-    --details-panel-artwork-overlay:
-      radial-gradient(circle at top, rgba(255, 255, 255, 0.08), transparent 36%),
-      linear-gradient(180deg, rgba(10, 11, 16, 0.52) 0%, rgba(10, 11, 16, 0.34) 38%, rgba(10, 11, 16, 0.56) 100%);
   }
 
   .details-panel.artwork-background-active.artwork-background-bright {
@@ -335,29 +326,9 @@
     --border-soft: rgba(52, 39, 25, 0.12);
     --border-strong: rgba(52, 39, 25, 0.22);
     --hover-control: rgba(52, 39, 25, 0.09);
-    --details-panel-artwork-overlay:
-      radial-gradient(circle at top, rgba(255, 255, 255, 0.2), transparent 36%),
-      linear-gradient(180deg, rgba(255, 249, 240, 0.42) 0%, rgba(255, 249, 240, 0.22) 42%, rgba(255, 249, 240, 0.5) 100%);
   }
 
-  .details-panel-background-overlay {
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    opacity: 0;
-    transition: opacity var(--artwork-background-transition-duration) linear;
-    z-index: 0;
-  }
-
-  .details-panel-background-overlay {
-    background: var(--details-panel-artwork-overlay, transparent);
-  }
-
-  .details-panel-background-overlay.is-active {
-    opacity: 1;
-  }
-
-  .details-panel > :not(.details-panel-background-overlay) {
+  .details-panel > * {
     position: relative;
     z-index: 1;
   }

@@ -662,45 +662,53 @@
   class:tabbed-layout={workspaceShellState.isTabbedLayout}
   class:mini-mode={miniModeActive}
   class:artwork-background-enabled={artworkBackgroundMode !== 'off'}
+  class:artwork-background-layer-active={isArtworkBackgroundActive}
   class:artwork-background-active={isWorkspaceArtworkBackgroundActive}
   class:artwork-background-scoped={isScopedArtworkBackgroundActive}
-  class:artwork-background-bright={
-    isWorkspaceArtworkBackgroundActive && artworkPresentationState.isArtworkBackgroundBright
-  }
+  class:artwork-background-bright={isArtworkBackgroundActive &&
+    artworkPresentationState.isArtworkBackgroundBright}
   class:window-chrome-transition-bypass={artworkPresentationState.isWindowChromeTransitionBypassed}
   class:window-controls-overlay-active={$windowControlsOverlayState.visible}
 >
   <div
-    class="app-shell-background-layer"
+    class="app-shell-background-clip"
     class:is-active={
       isArtworkBackgroundActive &&
       artworkPresentationState.activeArtworkBackgroundSlot === 'primary' &&
       Boolean(artworkPresentationState.artworkBackgroundPrimary)
     }
-    style={`--artwork-background-image: ${
-      artworkPresentationState.artworkBackgroundPrimary
-        ? `url("${artworkPresentationState.artworkBackgroundPrimary.url}")`
-        : 'none'
-    };`}
     aria-hidden="true"
-  ></div>
+  >
+    <div
+      class="app-shell-background-layer"
+      style={`--artwork-background-image: ${
+        artworkPresentationState.artworkBackgroundPrimary
+          ? `url("${artworkPresentationState.artworkBackgroundPrimary.url}")`
+          : 'none'
+      };`}
+    ></div>
+  </div>
   <div
-    class="app-shell-background-layer"
+    class="app-shell-background-clip"
     class:is-active={
       isArtworkBackgroundActive &&
       artworkPresentationState.activeArtworkBackgroundSlot === 'secondary' &&
       Boolean(artworkPresentationState.artworkBackgroundSecondary)
     }
-    style={`--artwork-background-image: ${
-      artworkPresentationState.artworkBackgroundSecondary
-        ? `url("${artworkPresentationState.artworkBackgroundSecondary.url}")`
-        : 'none'
-    };`}
     aria-hidden="true"
-  ></div>
+  >
+    <div
+      class="app-shell-background-layer"
+      style={`--artwork-background-image: ${
+        artworkPresentationState.artworkBackgroundSecondary
+          ? `url("${artworkPresentationState.artworkBackgroundSecondary.url}")`
+          : 'none'
+      };`}
+    ></div>
+  </div>
   <div
     class="app-shell-background-overlay"
-    class:is-active={isWorkspaceArtworkBackgroundActive}
+    class:is-active={isArtworkBackgroundActive}
     aria-hidden="true"
   ></div>
   <div class="window-frame-safe-strip" aria-hidden="true"></div>

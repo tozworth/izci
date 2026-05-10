@@ -43,9 +43,6 @@
   --hover-control: rgba(255, 255, 255, 0.08);
   --player-bar-fade: linear-gradient(180deg, rgba(5, 6, 10, 0), rgba(5, 6, 10, 0.26));
   --hairline: rgba(255, 255, 255, 0.08);
-  --player-bar-artwork-overlay:
-    radial-gradient(circle at top, rgba(255, 255, 255, 0.08), transparent 36%),
-    linear-gradient(180deg, rgba(10, 11, 16, 0.52) 0%, rgba(10, 11, 16, 0.34) 38%, rgba(10, 11, 16, 0.56) 100%);
 }
 
 .player-bar.artwork-background-active.artwork-background-bright {
@@ -60,29 +57,9 @@
   --hover-control: rgba(52, 39, 25, 0.09);
   --player-bar-fade: linear-gradient(180deg, rgba(255, 255, 255, 0), rgba(255, 250, 242, 0.28));
   --hairline: rgba(34, 20, 8, 0.08);
-  --player-bar-artwork-overlay:
-    radial-gradient(circle at top, rgba(255, 255, 255, 0.2), transparent 36%),
-    linear-gradient(180deg, rgba(255, 249, 240, 0.42) 0%, rgba(255, 249, 240, 0.22) 42%, rgba(255, 249, 240, 0.5) 100%);
 }
 
-.player-bar-background-overlay {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  opacity: 0;
-  transition: opacity var(--artwork-background-transition-duration) linear;
-  z-index: 0;
-}
-
-.player-bar-background-overlay {
-  background: var(--player-bar-artwork-overlay, transparent);
-}
-
-.player-bar-background-overlay.is-active {
-  opacity: 1;
-}
-
-.player-bar > :not(.player-bar-background-overlay) {
+.player-bar > * {
   position: relative;
   z-index: 2;
 }
