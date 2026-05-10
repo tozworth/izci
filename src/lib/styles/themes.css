@@ -55,6 +55,7 @@
   --border-faint: rgba(168, 153, 132, 0.14);
   --border-subtle: rgba(168, 153, 132, 0.12);
   --border-covered: rgba(168, 153, 132, 0.1);
+  --player-bar-separator: #5b5447;
   --menu-bar-border: rgba(168, 153, 132, 0.22);
   --hover-surface: rgba(235, 219, 178, 0.08);
   --hover-subtle: rgba(235, 219, 178, 0.04);
@@ -140,6 +141,7 @@
   --border-faint: rgba(189, 147, 249, 0.14);
   --border-subtle: rgba(189, 147, 249, 0.12);
   --border-covered: rgba(189, 147, 249, 0.1);
+  --player-bar-separator: #625584;
   --menu-bar-border: rgba(189, 147, 249, 0.22);
   --hover-surface: rgba(248, 248, 242, 0.08);
   --hover-subtle: rgba(248, 248, 242, 0.05);
