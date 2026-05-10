@@ -74,6 +74,7 @@ input[type='range'] {
   accent-color: var(--accent-strong);
 }
 
+.app-shell,
 .menu-bar,
 .menu-trigger,
 .compact-menu-trigger strong,

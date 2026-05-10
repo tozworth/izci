@@ -59,12 +59,15 @@
   --hairline: rgba(34, 20, 8, 0.08);
 }
 
-.app-shell.artwork-background-active:not(.mini-mode) .player-bar {
-  box-shadow: 0 -1px 0 var(--hairline);
+.app-shell.artwork-background-layer-active:not(.mini-mode) .player-bar {
   overflow: visible;
 }
 
-.app-shell.artwork-background-active:not(.mini-mode) .player-bar::before {
+.app-shell.artwork-background-active:not(.mini-mode) .player-bar {
+  box-shadow: 0 -1px 0 var(--hairline);
+}
+
+.player-bar::before {
   content: "";
   position: absolute;
   left: 0;
@@ -72,8 +75,14 @@
   bottom: 100%;
   height: 1.35rem;
   pointer-events: none;
-  background: var(--player-bar-fade);
+  opacity: 0;
+  background: var(--player-bar-layer-fade, var(--player-bar-fade));
+  transition: opacity var(--artwork-background-transition-duration) linear;
   z-index: 1;
+}
+
+.app-shell.artwork-background-active:not(.mini-mode) .player-bar::before {
+  opacity: 1;
 }
 
 .player-bar > * {
