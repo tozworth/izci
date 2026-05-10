@@ -157,6 +157,12 @@
     });
   }
 
+  function handleArtworkBackgroundFadeToggle(event: Event) {
+    appearanceSettings.update({
+      artworkBackgroundFadeEnabled: (event.currentTarget as HTMLInputElement).checked
+    });
+  }
+
   function handleWindowTitleToggle(event: Event) {
     appearanceSettings.update({
       showTrackTitleInWindowTitle: (event.currentTarget as HTMLInputElement).checked
@@ -410,6 +416,22 @@
                 </div>
                 <p class="field-hint">
                   Uses the current track artwork as a blurred color source for the player, Track Details, or the whole workspace.
+                </p>
+              </label>
+
+              <label class="field checkbox-field">
+                <div class="field-copy">
+                  <span class="field-title">Album artwork backdrop fade effect</span>
+                </div>
+                <div class="field-control checkbox-control">
+                  <input
+                    type="checkbox"
+                    checked={$appearanceSettings.artworkBackgroundFadeEnabled}
+                    on:change={handleArtworkBackgroundFadeToggle}
+                  />
+                </div>
+                <p class="field-hint">
+                  Fades between artwork backdrops and bright or dark contrast modes.
                 </p>
               </label>
 

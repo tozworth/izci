@@ -680,6 +680,7 @@
   class:artwork-background-scoped={isScopedArtworkBackgroundActive}
   class:artwork-background-bright={isArtworkBackgroundActive &&
     artworkPresentationState.isArtworkBackgroundBright}
+  class:artwork-background-fade-disabled={!$appearanceSettings.artworkBackgroundFadeEnabled}
   class:window-chrome-transition-bypass={artworkPresentationState.isWindowChromeTransitionBypassed}
   class:window-controls-overlay-active={$windowControlsOverlayState.visible}
 >

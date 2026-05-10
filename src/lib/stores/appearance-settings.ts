@@ -9,6 +9,7 @@ export const DEFAULT_APPEARANCE_SETTINGS: AppearanceSettings = {
   keepLibraryColumnsVisibleInNarrowLayout: false,
   useSystemFont: false,
   artworkBackgroundMode: 'off',
+  artworkBackgroundFadeEnabled: true,
   showTrackTitleInWindowTitle: true
 };
 
@@ -38,6 +39,7 @@ function normalizeSettings(value: unknown): AppearanceSettings {
     artworkBackgroundMode: legacyArtworkBackgroundEnabled
       ? 'workspace'
       : normalizeArtworkBackgroundMode(source.artworkBackgroundMode),
+    artworkBackgroundFadeEnabled: source.artworkBackgroundFadeEnabled !== false,
     showTrackTitleInWindowTitle: source.showTrackTitleInWindowTitle !== false
   };
 }
