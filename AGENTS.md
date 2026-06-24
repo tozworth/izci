@@ -127,6 +127,7 @@ Primary location for playback and browser-integration logic.
 - `playlist-metadata.ts`: background metadata hydration for playlist/library items (filename inference, embedded `flac`/`opus` tags, streamed duration probing from `File`/handle-backed URLs, and tracker-module metadata/duration probing).
 - `playlist-navigation.ts`: next/previous/track-end resolution, including shuffle session management.
 - `playlist-dedupe.ts`: duplicate detection based on track identity, used only by the library store path.
+- `persistent-store.ts`: shared `localStorage` plus `BroadcastChannel` persistence/sync helper for lightweight settings stores.
 - `library-view-settings.ts`: persistent library table layout and filter state (column order, widths, visibility, sort, search query) with `BroadcastChannel` sync.
 - `appearance-settings.ts`: persistent appearance settings for color theme, system font, narrow-library behavior, the artwork-backdrop mode (`off`, `player`, `workspace`), and whether the main window title mirrors the current track title, with `BroadcastChannel` sync.
 - `playback-settings.ts`: persistent general playback settings, currently the logarithmic-volume toggle, with sync.

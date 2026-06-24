@@ -381,23 +381,6 @@ export function getTrackDisplaySubtitle(item: PlaylistItem | null): string {
   return '';
 }
 
-export function formatBytes(value: number): string {
-  if (value < 1024) {
-    return `${value} B`;
-  }
-
-  const units = ['KB', 'MB', 'GB'];
-  let size = value / 1024;
-  let unitIndex = 0;
-
-  while (size >= 1024 && unitIndex < units.length - 1) {
-    size /= 1024;
-    unitIndex += 1;
-  }
-
-  return `${size.toFixed(size >= 10 ? 0 : 1)} ${units[unitIndex]}`;
-}
-
 export function formatDuration(seconds: number): string {
   if (!Number.isFinite(seconds) || seconds < 0) {
     return '--:--';
@@ -408,18 +391,6 @@ export function formatDuration(seconds: number): string {
   const secs = total % 60;
 
   return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
-}
-
-export function truncateMiddle(value: string, maxLength = 34): string {
-  if (value.length <= maxLength) {
-    return value;
-  }
-
-  const keep = maxLength - 1;
-  const start = Math.ceil(keep / 2);
-  const end = Math.floor(keep / 2);
-
-  return `${value.slice(0, start)}…${value.slice(-end)}`;
 }
 
 export function resolveModuleTrackerName(_extension: string, trackerType?: string): string {

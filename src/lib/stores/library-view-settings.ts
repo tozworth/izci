@@ -1,5 +1,5 @@
-import { writable } from 'svelte/store';
 import type { LibraryColumnId, LibraryViewSettings, SortDirection } from '$lib/types';
+import { createPersistentStore } from './persistent-store';
 
 export const LIBRARY_VIEW_SETTINGS_STORAGE_KEY = 'izci.library-view-settings.v1';
 export const LIBRARY_VIEW_SETTINGS_CHANNEL = 'izci-library-view-settings';
@@ -63,9 +63,6 @@ const DEFAULT_LIBRARY_VIEW_SETTINGS: LibraryViewSettings = {
   },
   searchQuery: ''
 };
-
-let broadcastChannel: BroadcastChannel | null = null;
-let syncInitialized = false;
 
 function clampWidth(columnId: LibraryColumnId, width: unknown): number {
   const minWidth = LIBRARY_COLUMN_MIN_WIDTHS[columnId];
@@ -158,80 +155,20 @@ function normalizeSettings(value: unknown): LibraryViewSettings {
   };
 }
 
-function readStoredSettings(): LibraryViewSettings {
-  if (typeof window === 'undefined') {
-    return DEFAULT_LIBRARY_VIEW_SETTINGS;
-  }
-
-  try {
-    const rawValue = window.localStorage.getItem(LIBRARY_VIEW_SETTINGS_STORAGE_KEY);
-    return rawValue ? normalizeSettings(JSON.parse(rawValue)) : DEFAULT_LIBRARY_VIEW_SETTINGS;
-  } catch {
-    return DEFAULT_LIBRARY_VIEW_SETTINGS;
-  }
-}
-
-function persistSettings(settings: LibraryViewSettings): void {
-  if (typeof window === 'undefined') {
-    return;
-  }
-
-  window.localStorage.setItem(LIBRARY_VIEW_SETTINGS_STORAGE_KEY, JSON.stringify(settings));
-  broadcastChannel?.postMessage(settings);
-}
-
-const store = writable<LibraryViewSettings>(readStoredSettings());
-let currentSettings = readStoredSettings();
-
-store.subscribe((value) => {
-  currentSettings = value;
+const store = createPersistentStore({
+  storageKey: LIBRARY_VIEW_SETTINGS_STORAGE_KEY,
+  channelName: LIBRARY_VIEW_SETTINGS_CHANNEL,
+  defaultValue: DEFAULT_LIBRARY_VIEW_SETTINGS,
+  normalize: normalizeSettings
 });
 
-function initializeSync(): void {
-  if (syncInitialized || typeof window === 'undefined') {
-    return;
-  }
-
-  syncInitialized = true;
-
-  window.addEventListener('storage', (event) => {
-    if (event.key !== LIBRARY_VIEW_SETTINGS_STORAGE_KEY || !event.newValue) {
-      return;
-    }
-
-    try {
-      store.set(normalizeSettings(JSON.parse(event.newValue)));
-    } catch {
-      store.set(DEFAULT_LIBRARY_VIEW_SETTINGS);
-    }
-  });
-
-  if ('BroadcastChannel' in window) {
-    broadcastChannel = new BroadcastChannel(LIBRARY_VIEW_SETTINGS_CHANNEL);
-    broadcastChannel.addEventListener('message', (event) => {
-      store.set(normalizeSettings(event.data));
-    });
-  }
-}
-
-function setSettings(nextValue: unknown): LibraryViewSettings {
-  const normalized = normalizeSettings(nextValue);
-  store.set(normalized);
-  persistSettings(normalized);
-  return normalized;
-}
-
 function updateSettings(updater: (settings: LibraryViewSettings) => LibraryViewSettings): LibraryViewSettings {
-  return setSettings(updater(currentSettings));
+  return store.update(updater);
 }
-
-initializeSync();
 
 export const libraryViewSettings = {
   subscribe: store.subscribe,
-  getSnapshot(): LibraryViewSettings {
-    return currentSettings;
-  },
+  getSnapshot: store.getSnapshot,
   setSort(columnId: LibraryColumnId): LibraryViewSettings {
     return updateSettings((settings) => ({
       ...settings,
@@ -318,7 +255,5 @@ export const libraryViewSettings = {
       searchQuery: normalizeSearchQuery(searchQuery)
     }));
   },
-  reset(): LibraryViewSettings {
-    return setSettings(DEFAULT_LIBRARY_VIEW_SETTINGS);
-  }
+  reset: store.reset
 };

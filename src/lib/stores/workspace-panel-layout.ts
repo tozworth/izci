@@ -1,5 +1,5 @@
-import { writable } from 'svelte/store';
 import type { WorkspacePanelLayoutSettings } from '$lib/types';
+import { createPersistentStore } from './persistent-store';
 
 export const WORKSPACE_PANEL_LAYOUT_STORAGE_KEY = 'izci.workspace-panel-layout.v1';
 export const WORKSPACE_PANEL_LAYOUT_CHANNEL = 'izci-workspace-panel-layout';
@@ -9,9 +9,6 @@ export const DEFAULT_WORKSPACE_PANEL_LAYOUT: WorkspacePanelLayoutSettings = {
   libraryFraction: 0.42,
   detailsFraction: 0.3
 };
-
-let broadcastChannel: BroadcastChannel | null = null;
-let syncInitialized = false;
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
@@ -57,86 +54,21 @@ function normalizeLayoutSettings(value: unknown): WorkspacePanelLayoutSettings {
   };
 }
 
-function readStoredLayoutSettings(): WorkspacePanelLayoutSettings {
-  if (typeof window === 'undefined') {
-    return DEFAULT_WORKSPACE_PANEL_LAYOUT;
-  }
-
-  try {
-    const rawValue = window.localStorage.getItem(WORKSPACE_PANEL_LAYOUT_STORAGE_KEY);
-    return rawValue ? normalizeLayoutSettings(JSON.parse(rawValue)) : DEFAULT_WORKSPACE_PANEL_LAYOUT;
-  } catch {
-    return DEFAULT_WORKSPACE_PANEL_LAYOUT;
-  }
-}
-
-function persistLayoutSettings(settings: WorkspacePanelLayoutSettings): void {
-  if (typeof window === 'undefined') {
-    return;
-  }
-
-  window.localStorage.setItem(WORKSPACE_PANEL_LAYOUT_STORAGE_KEY, JSON.stringify(settings));
-  broadcastChannel?.postMessage(settings);
-}
-
-const store = writable<WorkspacePanelLayoutSettings>(readStoredLayoutSettings());
-let currentSettings = readStoredLayoutSettings();
-
-store.subscribe((value) => {
-  currentSettings = value;
+const store = createPersistentStore({
+  storageKey: WORKSPACE_PANEL_LAYOUT_STORAGE_KEY,
+  channelName: WORKSPACE_PANEL_LAYOUT_CHANNEL,
+  defaultValue: DEFAULT_WORKSPACE_PANEL_LAYOUT,
+  normalize: normalizeLayoutSettings
 });
-
-function initializeSync(): void {
-  if (syncInitialized || typeof window === 'undefined') {
-    return;
-  }
-
-  syncInitialized = true;
-
-  window.addEventListener('storage', (event) => {
-    if (event.key !== WORKSPACE_PANEL_LAYOUT_STORAGE_KEY || !event.newValue) {
-      return;
-    }
-
-    try {
-      store.set(normalizeLayoutSettings(JSON.parse(event.newValue)));
-    } catch {
-      store.set(DEFAULT_WORKSPACE_PANEL_LAYOUT);
-    }
-  });
-
-  if ('BroadcastChannel' in window) {
-    broadcastChannel = new BroadcastChannel(WORKSPACE_PANEL_LAYOUT_CHANNEL);
-    broadcastChannel.addEventListener('message', (event) => {
-      store.set(normalizeLayoutSettings(event.data));
-    });
-  }
-}
-
-initializeSync();
-
-function setLayoutSettings(nextValue: unknown): WorkspacePanelLayoutSettings {
-  const normalized = normalizeLayoutSettings(nextValue);
-  store.set(normalized);
-  persistLayoutSettings(normalized);
-  return normalized;
-}
 
 export const workspacePanelLayout = {
   subscribe: store.subscribe,
-  getSnapshot(): WorkspacePanelLayoutSettings {
-    return currentSettings;
-  },
+  getSnapshot: store.getSnapshot,
   set(nextValue: WorkspacePanelLayoutSettings): WorkspacePanelLayoutSettings {
-    return setLayoutSettings(nextValue);
+    return store.set(nextValue);
   },
   update(patch: Partial<WorkspacePanelLayoutSettings>): WorkspacePanelLayoutSettings {
-    return setLayoutSettings({
-      ...currentSettings,
-      ...patch
-    });
+    return store.update((settings) => ({ ...settings, ...patch }));
   },
-  reset(): WorkspacePanelLayoutSettings {
-    return setLayoutSettings(DEFAULT_WORKSPACE_PANEL_LAYOUT);
-  }
+  reset: store.reset
 };

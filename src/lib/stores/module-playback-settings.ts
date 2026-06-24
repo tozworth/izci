@@ -1,5 +1,5 @@
-import { writable } from 'svelte/store';
 import type { ModuleInterpolationFilter, ModulePlaybackSettings } from '$lib/types';
+import { createPersistentStore } from './persistent-store';
 
 export const MODULE_PLAYBACK_SETTINGS_STORAGE_KEY = 'izci.module-playback-settings.v1';
 export const MODULE_PLAYBACK_SETTINGS_CHANNEL = 'izci-module-playback-settings';
@@ -23,8 +23,6 @@ export const MODULE_INTERPOLATION_OPTIONS: Array<{
   { value: 4, label: '4-tap (medium)', hint: 'Medium smoothing.' },
   { value: 8, label: '8-tap (high)', hint: 'High smoothing (blurry, less artifacts)' }
 ];
-
-let broadcastChannel: BroadcastChannel | null = null;
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
@@ -78,81 +76,18 @@ function normalizeSettings(value: unknown): ModulePlaybackSettings {
   };
 }
 
-function readStoredSettings(): ModulePlaybackSettings {
-  if (typeof window === 'undefined') {
-    return DEFAULT_MODULE_PLAYBACK_SETTINGS;
-  }
-
-  try {
-    const rawValue = window.localStorage.getItem(MODULE_PLAYBACK_SETTINGS_STORAGE_KEY);
-    return rawValue ? normalizeSettings(JSON.parse(rawValue)) : DEFAULT_MODULE_PLAYBACK_SETTINGS;
-  } catch {
-    return DEFAULT_MODULE_PLAYBACK_SETTINGS;
-  }
-}
-
-function persistSettings(settings: ModulePlaybackSettings): void {
-  if (typeof window === 'undefined') {
-    return;
-  }
-
-  window.localStorage.setItem(MODULE_PLAYBACK_SETTINGS_STORAGE_KEY, JSON.stringify(settings));
-  broadcastChannel?.postMessage(settings);
-}
-
-const store = writable<ModulePlaybackSettings>(readStoredSettings());
-let currentSettings = readStoredSettings();
-let syncInitialized = false;
-
-store.subscribe((value) => {
-  currentSettings = value;
+const store = createPersistentStore({
+  storageKey: MODULE_PLAYBACK_SETTINGS_STORAGE_KEY,
+  channelName: MODULE_PLAYBACK_SETTINGS_CHANNEL,
+  defaultValue: DEFAULT_MODULE_PLAYBACK_SETTINGS,
+  normalize: normalizeSettings
 });
-
-function initializeSync(): void {
-  if (syncInitialized || typeof window === 'undefined') {
-    return;
-  }
-
-  syncInitialized = true;
-
-  window.addEventListener('storage', (event) => {
-    if (event.key !== MODULE_PLAYBACK_SETTINGS_STORAGE_KEY || !event.newValue) {
-      return;
-    }
-
-    try {
-      store.set(normalizeSettings(JSON.parse(event.newValue)));
-    } catch {
-      store.set(DEFAULT_MODULE_PLAYBACK_SETTINGS);
-    }
-  });
-
-  if ('BroadcastChannel' in window) {
-    broadcastChannel = new BroadcastChannel(MODULE_PLAYBACK_SETTINGS_CHANNEL);
-    broadcastChannel.addEventListener('message', (event) => {
-      store.set(normalizeSettings(event.data));
-    });
-  }
-}
-
-initializeSync();
-
-function setSettings(nextValue: unknown): ModulePlaybackSettings {
-  const normalized = normalizeSettings(nextValue);
-  store.set(normalized);
-  persistSettings(normalized);
-  return normalized;
-}
 
 export const modulePlaybackSettings = {
   subscribe: store.subscribe,
-  getSnapshot(): ModulePlaybackSettings {
-    return currentSettings;
-  },
+  getSnapshot: store.getSnapshot,
   update(patch: Partial<ModulePlaybackSettings>): ModulePlaybackSettings {
-    return setSettings({ ...currentSettings, ...patch });
+    return store.update((settings) => ({ ...settings, ...patch }));
   },
-  reset(): ModulePlaybackSettings {
-    return setSettings(DEFAULT_MODULE_PLAYBACK_SETTINGS);
-  }
+  reset: store.reset
 };

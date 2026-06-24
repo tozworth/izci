@@ -1,8 +1,6 @@
 export const STREAM_EXTENSIONS = ['mp3', 'wav', 'flac', 'ogg', 'opus'] as const;
 export const MODULE_EXTENSIONS = ['mod', 'xm', 's3m', 'it', 'mo3'] as const;
 
-export type StreamExtension = (typeof STREAM_EXTENSIONS)[number];
-export type ModuleExtension = (typeof MODULE_EXTENSIONS)[number];
 export type TrackKind = 'stream' | 'module';
 export type PlaybackState = 'idle' | 'loading' | 'playing' | 'paused' | 'ended' | 'error';
 export type ModuleInterpolationFilter = 1 | 2 | 4 | 8;

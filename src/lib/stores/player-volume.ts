@@ -1,11 +1,8 @@
-import { writable } from 'svelte/store';
+import { createPersistentStore } from './persistent-store';
 
 export const PLAYER_VOLUME_STORAGE_KEY = 'izci.player-volume.v1';
 export const PLAYER_VOLUME_CHANNEL = 'izci-player-volume';
 export const DEFAULT_PLAYER_VOLUME = 0.85;
-
-let broadcastChannel: BroadcastChannel | null = null;
-let syncInitialized = false;
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
@@ -27,80 +24,18 @@ function normalizeVolume(value: unknown): number {
   return DEFAULT_PLAYER_VOLUME;
 }
 
-function readStoredVolume(): number {
-  if (typeof window === 'undefined') {
-    return DEFAULT_PLAYER_VOLUME;
-  }
-
-  try {
-    const rawValue = window.localStorage.getItem(PLAYER_VOLUME_STORAGE_KEY);
-    return rawValue ? normalizeVolume(JSON.parse(rawValue)) : DEFAULT_PLAYER_VOLUME;
-  } catch {
-    return DEFAULT_PLAYER_VOLUME;
-  }
-}
-
-function persistVolume(volume: number): void {
-  if (typeof window === 'undefined') {
-    return;
-  }
-
-  window.localStorage.setItem(PLAYER_VOLUME_STORAGE_KEY, JSON.stringify(volume));
-  broadcastChannel?.postMessage(volume);
-}
-
-const store = writable<number>(readStoredVolume());
-let currentVolume = readStoredVolume();
-
-store.subscribe((value) => {
-  currentVolume = value;
+const store = createPersistentStore({
+  storageKey: PLAYER_VOLUME_STORAGE_KEY,
+  channelName: PLAYER_VOLUME_CHANNEL,
+  defaultValue: DEFAULT_PLAYER_VOLUME,
+  normalize: normalizeVolume
 });
-
-function initializeSync(): void {
-  if (syncInitialized || typeof window === 'undefined') {
-    return;
-  }
-
-  syncInitialized = true;
-
-  window.addEventListener('storage', (event) => {
-    if (event.key !== PLAYER_VOLUME_STORAGE_KEY || !event.newValue) {
-      return;
-    }
-
-    try {
-      store.set(normalizeVolume(JSON.parse(event.newValue)));
-    } catch {
-      store.set(DEFAULT_PLAYER_VOLUME);
-    }
-  });
-
-  if ('BroadcastChannel' in window) {
-    broadcastChannel = new BroadcastChannel(PLAYER_VOLUME_CHANNEL);
-    broadcastChannel.addEventListener('message', (event) => {
-      store.set(normalizeVolume(event.data));
-    });
-  }
-}
-
-function setVolume(nextValue: unknown): number {
-  const normalized = normalizeVolume(nextValue);
-  store.set(normalized);
-  persistVolume(normalized);
-  return normalized;
-}
-
-initializeSync();
 
 export const playerVolume = {
   subscribe: store.subscribe,
-  getSnapshot(): number {
-    return currentVolume;
-  },
+  getSnapshot: store.getSnapshot,
   set(nextValue: number): number {
-    return setVolume(nextValue);
+    return store.set(nextValue);
   },
-  reset(): number {
-    return setVolume(DEFAULT_PLAYER_VOLUME);
-  }
+  reset: store.reset
 };

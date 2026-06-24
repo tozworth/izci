@@ -1,5 +1,5 @@
-import { writable } from 'svelte/store';
 import type { AppearanceSettings, ArtworkBackgroundMode, ColorTheme } from '$lib/types';
+import { createPersistentStore } from './persistent-store';
 
 export const APPEARANCE_SETTINGS_STORAGE_KEY = 'izci.appearance-settings';
 export const APPEARANCE_SETTINGS_CHANNEL = 'izci.appearance-settings';
@@ -12,9 +12,6 @@ export const DEFAULT_APPEARANCE_SETTINGS: AppearanceSettings = {
   artworkBackgroundFadeEnabled: true,
   showTrackTitleInWindowTitle: true
 };
-
-let broadcastChannel: BroadcastChannel | null = null;
-let syncInitialized = false;
 
 function normalizeColorTheme(value: unknown): ColorTheme {
   return value === 'dracula' ? 'dracula' : DEFAULT_COLOR_THEME;
@@ -44,80 +41,18 @@ function normalizeSettings(value: unknown): AppearanceSettings {
   };
 }
 
-function readStoredSettings(): AppearanceSettings {
-  if (typeof window === 'undefined') {
-    return DEFAULT_APPEARANCE_SETTINGS;
-  }
-
-  try {
-    const rawValue = window.localStorage.getItem(APPEARANCE_SETTINGS_STORAGE_KEY);
-    return rawValue ? normalizeSettings(JSON.parse(rawValue)) : DEFAULT_APPEARANCE_SETTINGS;
-  } catch {
-    return DEFAULT_APPEARANCE_SETTINGS;
-  }
-}
-
-function persistSettings(settings: AppearanceSettings): void {
-  if (typeof window === 'undefined') {
-    return;
-  }
-
-  window.localStorage.setItem(APPEARANCE_SETTINGS_STORAGE_KEY, JSON.stringify(settings));
-  broadcastChannel?.postMessage(settings);
-}
-
-const store = writable<AppearanceSettings>(readStoredSettings());
-let currentSettings = readStoredSettings();
-
-store.subscribe((value) => {
-  currentSettings = value;
+const store = createPersistentStore({
+  storageKey: APPEARANCE_SETTINGS_STORAGE_KEY,
+  channelName: APPEARANCE_SETTINGS_CHANNEL,
+  defaultValue: DEFAULT_APPEARANCE_SETTINGS,
+  normalize: normalizeSettings
 });
-
-function initializeSync(): void {
-  if (syncInitialized || typeof window === 'undefined') {
-    return;
-  }
-
-  syncInitialized = true;
-
-  window.addEventListener('storage', (event) => {
-    if (event.key !== APPEARANCE_SETTINGS_STORAGE_KEY || !event.newValue) {
-      return;
-    }
-
-    try {
-      store.set(normalizeSettings(JSON.parse(event.newValue)));
-    } catch {
-      store.set(DEFAULT_APPEARANCE_SETTINGS);
-    }
-  });
-
-  if ('BroadcastChannel' in window) {
-    broadcastChannel = new BroadcastChannel(APPEARANCE_SETTINGS_CHANNEL);
-    broadcastChannel.addEventListener('message', (event) => {
-      store.set(normalizeSettings(event.data));
-    });
-  }
-}
-
-function setSettings(nextValue: unknown): AppearanceSettings {
-  const normalized = normalizeSettings(nextValue);
-  store.set(normalized);
-  persistSettings(normalized);
-  return normalized;
-}
-
-initializeSync();
 
 export const appearanceSettings = {
   subscribe: store.subscribe,
-  getSnapshot(): AppearanceSettings {
-    return currentSettings;
-  },
+  getSnapshot: store.getSnapshot,
   update(patch: Partial<AppearanceSettings>): AppearanceSettings {
-    return setSettings({ ...currentSettings, ...patch });
+    return store.update((settings) => ({ ...settings, ...patch }));
   },
-  reset(): AppearanceSettings {
-    return setSettings(DEFAULT_APPEARANCE_SETTINGS);
-  }
+  reset: store.reset
 };
