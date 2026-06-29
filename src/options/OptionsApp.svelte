@@ -16,7 +16,17 @@
     modulePlaybackSettings
   } from '$lib/stores/module-playback-settings';
   import { playbackSettings } from '$lib/stores/playback-settings';
-  import type { ArtworkBackgroundMode, ColorTheme } from '$lib/types';
+  import {
+    VISUALIZER_COLOR_SOURCE_OPTIONS,
+    VISUALIZER_STYLE_OPTIONS,
+    visualizerSettings
+  } from '$lib/stores/visualizer-settings';
+  import type {
+    ArtworkBackgroundMode,
+    ColorTheme,
+    VisualizerColorSource,
+    VisualizerStyle
+  } from '$lib/types';
   import {
     OPTIONS_VIEW_GROUPS,
     OPTIONS_VIEWS,
@@ -175,6 +185,36 @@
     });
   }
 
+  function handleVisualizerStyleChange(event: Event) {
+    visualizerSettings.update({
+      style: (event.currentTarget as HTMLSelectElement).value as VisualizerStyle
+    });
+  }
+
+  function handleVisualizerColorSourceChange(event: Event) {
+    visualizerSettings.update({
+      colorSource: (event.currentTarget as HTMLSelectElement).value as VisualizerColorSource
+    });
+  }
+
+  function handleVisualizerHeightChange(event: Event) {
+    visualizerSettings.update({
+      height: (event.currentTarget as HTMLInputElement).valueAsNumber / 100
+    });
+  }
+
+  function handleVisualizerOpacityChange(event: Event) {
+    visualizerSettings.update({
+      transparency: (event.currentTarget as HTMLInputElement).valueAsNumber / 100
+    });
+  }
+
+  function handleVisualizerNormalizationChange(event: Event) {
+    visualizerSettings.update({
+      normalizationStrength: (event.currentTarget as HTMLInputElement).valueAsNumber / 100
+    });
+  }
+
   function resetCurrentView() {
     if (activeView === 'appearance') {
       appearanceSettings.reset();
@@ -183,6 +223,11 @@
 
     if (activeView === 'playback') {
       playbackSettings.reset();
+      return;
+    }
+
+    if (activeView === 'visualizer') {
+      visualizerSettings.reset();
       return;
     }
 
@@ -489,6 +534,107 @@
                 </div>
                 <p class="field-hint">
                   Shapes the volume slider for gentler low-end changes.
+                </p>
+              </label>
+            </div>
+          </div>
+        </article>
+      {/if}
+
+      {#if activeView === 'visualizer'}
+        <article class="view">
+          <div class="section">
+            <h2>Player Background</h2>
+            <div class="field-grid">
+              <label class="field">
+                <div class="field-copy">
+                  <span class="field-title">Style</span>
+                </div>
+                <div class="field-control">
+                  <select value={$visualizerSettings.style} on:change={handleVisualizerStyleChange}>
+                    {#each VISUALIZER_STYLE_OPTIONS as option}
+                      <option value={option.value}>{option.label}</option>
+                    {/each}
+                  </select>
+                </div>
+                <p class="field-hint">
+                  Controls how the spectrum analyzer is drawn behind the full player bar.
+                </p>
+              </label>
+
+              <label class="field">
+                <div class="field-copy">
+                  <span class="field-title">Color source</span>
+                </div>
+                <div class="field-control">
+                  <select value={$visualizerSettings.colorSource} on:change={handleVisualizerColorSourceChange}>
+                    {#each VISUALIZER_COLOR_SOURCE_OPTIONS as option}
+                      <option value={option.value}>{option.label}</option>
+                    {/each}
+                  </select>
+                </div>
+                <p class="field-hint">
+                  Uses the current artwork palette when available, otherwise falls back to the active theme.
+                </p>
+              </label>
+
+              <label class="field">
+                <div class="field-copy">
+                  <span class="field-title">Height</span>
+                </div>
+                <div class="field-control">
+                  <input
+                    type="range"
+                    min="22"
+                    max="100"
+                    step="1"
+                    value={Math.round($visualizerSettings.height * 100)}
+                    on:input={handleVisualizerHeightChange}
+                  />
+                  <span class="field-output">{Math.round($visualizerSettings.height * 100)}%</span>
+                </div>
+                <p class="field-hint">
+                  Sets how far the analyzer can rise through the player background.
+                </p>
+              </label>
+
+              <label class="field">
+                <div class="field-copy">
+                  <span class="field-title">Opacity</span>
+                </div>
+                <div class="field-control">
+                  <input
+                    type="range"
+                    min="0"
+                    max="85"
+                    step="1"
+                    value={Math.round($visualizerSettings.transparency * 100)}
+                    on:input={handleVisualizerOpacityChange}
+                  />
+                  <span class="field-output">{Math.round($visualizerSettings.transparency * 100)}%</span>
+                </div>
+                <p class="field-hint">
+                  Sets how strongly the analyzer appears behind text, controls, and artwork.
+                </p>
+              </label>
+
+              <label class="field">
+                <div class="field-copy">
+                  <span class="field-title">Normalization</span>
+                </div>
+                <div class="field-control">
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    step="1"
+                    value={Math.round($visualizerSettings.normalizationStrength * 100)}
+                    on:input={handleVisualizerNormalizationChange}
+                  />
+                  <span class="field-output">{Math.round($visualizerSettings.normalizationStrength * 100)}%</span>
+                </div>
+                <p class="field-hint">
+                  Balances low, mid, and high frequency bands so bass-heavy or bright tracks still use the full visual range.
                 </p>
               </label>
             </div>

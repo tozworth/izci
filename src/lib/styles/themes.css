@@ -48,6 +48,12 @@
   --accent-focus-border: rgba(250, 189, 47, 0.34);
   --accent-dashed-border: rgba(215, 153, 33, 0.24);
   --success-soft: rgba(152, 151, 26, 0.16);
+  --visualizer-high: rgba(251, 241, 199, 0.94);
+  --visualizer-mid: rgba(250, 189, 47, 0.68);
+  --visualizer-low: rgba(184, 187, 38, 0.24);
+  --visualizer-glow: rgba(250, 189, 47, 0.38);
+  --visualizer-bars: rgba(250, 189, 47, 0.78);
+  --visualizer-blocks: rgba(251, 241, 199, 0.72);
   --danger: #fb4934;
   --border: rgba(168, 153, 132, 0.28);
   --border-strong: rgba(168, 153, 132, 0.24);
@@ -134,6 +140,12 @@
   --accent-focus-border: rgba(255, 121, 198, 0.34);
   --accent-dashed-border: rgba(189, 147, 249, 0.24);
   --success-soft: rgba(80, 250, 123, 0.16);
+  --visualizer-high: rgba(255, 246, 210, 0.95);
+  --visualizer-mid: rgba(120, 205, 255, 0.68);
+  --visualizer-low: rgba(255, 121, 198, 0.22);
+  --visualizer-glow: rgba(120, 205, 255, 0.42);
+  --visualizer-bars: rgba(155, 220, 255, 0.86);
+  --visualizer-blocks: rgba(255, 246, 210, 0.72);
   --danger: #ff5555;
   --border: rgba(189, 147, 249, 0.28);
   --border-strong: rgba(189, 147, 249, 0.24);

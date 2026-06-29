@@ -1,4 +1,4 @@
-export type OptionsViewName = 'appearance' | 'playback' | 'modules' | 'metadata' | 'about';
+export type OptionsViewName = 'appearance' | 'playback' | 'visualizer' | 'modules' | 'metadata' | 'about';
 
 export const DEFAULT_OPTIONS_VIEW: OptionsViewName = 'appearance';
 export const OPTIONS_VIEW_QUERY_PARAM = 'view';
@@ -27,6 +27,14 @@ export const OPTIONS_VIEW_GROUPS: OptionsViewDefinition[][] = [
       label: 'Playback',
       icon: 'play_circle',
       parentLabel: '',
+      hasHints: true,
+      resettable: true
+    },
+    {
+      id: 'visualizer',
+      label: 'Visualizer',
+      icon: 'graphic_eq',
+      parentLabel: 'Playback',
       hasHints: true,
       resettable: true
     },

@@ -1,10 +1,16 @@
 import { Howl } from 'howler';
 import type { PlaybackSnapshot, PlaylistItem, TrackMetadata } from '$lib/types';
 import { sliderVolumeToGain } from '$lib/services/volume';
+import { visualizerService } from '$lib/services/visualizer';
 
 type SnapshotHandler = (snapshot: Partial<PlaybackSnapshot>) => void;
 type MetadataHandler = (metadata: TrackMetadata) => void;
 type EndHandler = () => void;
+type HowlWithSounds = Howl & {
+  _sounds?: Array<{
+    _node?: HTMLMediaElement;
+  }>;
+};
 
 interface StreamLoadOptions {
   autoPlay?: boolean;
@@ -77,6 +83,7 @@ export class HowlerPlayerService {
           return;
         }
 
+        this.#connectVisualizer();
         this.#shouldTrackProgress = true;
         this.#publishProgress(true);
         this.#startTicking();
@@ -182,6 +189,15 @@ export class HowlerPlayerService {
     this.#stopTicking();
     this.#howl?.unload();
     this.#howl = null;
+    visualizerService.clear();
+  }
+
+  #connectVisualizer(): void {
+    const mediaElement = (this.#howl as HowlWithSounds | null)?._sounds?.find(
+      (sound) => sound._node instanceof HTMLMediaElement
+    )?._node;
+
+    visualizerService.connectHtmlMediaElement(mediaElement ?? null);
   }
 
   #startTicking(): void {

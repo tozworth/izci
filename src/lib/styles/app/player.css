@@ -45,7 +45,9 @@
   --hairline: rgba(255, 255, 255, 0.08);
 }
 
-.player-bar.artwork-background-active.artwork-background-bright {
+.player-bar.artwork-background-active.artwork-background-bright,
+.app-shell.artwork-background-layer-bright .player-bar,
+.app-shell.artwork-background-bright .player-bar {
   color-scheme: light;
   --menu-bar-bg: rgba(252, 248, 240, 0.46);
   --bg-soft: rgba(255, 250, 242, 0.58);
@@ -57,6 +59,13 @@
   --hover-control: rgba(52, 39, 25, 0.09);
   --player-bar-fade: linear-gradient(180deg, rgba(255, 255, 255, 0), rgba(255, 250, 242, 0.28));
   --hairline: rgba(34, 20, 8, 0.08);
+  --visualizer-high: rgba(42, 31, 20, 0.44);
+  --visualizer-mid: rgba(122, 83, 26, 0.34);
+  --visualizer-low: rgba(38, 78, 57, 0.18);
+  --visualizer-glow: rgba(42, 31, 20, 0.1);
+  --visualizer-bars: rgba(75, 53, 34, 0.38);
+  --visualizer-blocks: rgba(42, 31, 20, 0.36);
+  --visualizer-blend-mode: multiply;
 }
 
 .app-shell.artwork-background-layer-active:not(.mini-mode) .player-bar {
@@ -85,9 +94,24 @@
   opacity: 1;
 }
 
+.player-visualizer {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  pointer-events: none;
+  mix-blend-mode: var(--visualizer-blend-mode, screen);
+}
+
 .player-bar > * {
   position: relative;
   z-index: 2;
+}
+
+.player-bar > .player-visualizer {
+  position: absolute;
+  z-index: 0;
 }
 
 .app-shell.mini-mode .player-bar {

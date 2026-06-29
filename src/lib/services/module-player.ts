@@ -1,6 +1,7 @@
 import { createChiptunePlayer } from '$lib/services/chiptune-loader';
 import { mediaSessionService } from '$lib/services/media-session';
 import { sliderVolumeToGain } from '$lib/services/volume';
+import { visualizerService } from '$lib/services/visualizer';
 import { modulePlaybackSettings } from '$lib/stores/module-playback-settings';
 import type { ModulePlaybackSettings, PlaybackSnapshot, PlaylistItem, TrackMetadata } from '$lib/types';
 import type { Chiptune3Metadata, ChiptuneJsPlayer } from 'chiptune3';
@@ -67,6 +68,7 @@ export class ModulePlayerService {
     }
 
     this.#player = player;
+    visualizerService.connectAudioNode(player.gain);
     mediaSessionService.activateTransportAnchor();
     mediaSessionService.pauseTransportAnchor();
     const buffer = await track.file.arrayBuffer();
@@ -190,6 +192,7 @@ export class ModulePlayerService {
     const player = this.#player;
 
     this.#player = null;
+    visualizerService.clear();
 
     if (!player) {
       return;
@@ -226,6 +229,7 @@ export class ModulePlayerService {
     }
 
     this.#player = player;
+    visualizerService.connectAudioNode(player.gain);
     mediaSessionService.activateTransportAnchor();
 
     if (!wasStarted || !buffer || !this.#player) {

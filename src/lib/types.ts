@@ -9,6 +9,8 @@ export type SortDirection = 'asc' | 'desc';
 export type LibraryColumnId = 'title' | 'artist' | 'album' | 'format' | 'duration' | 'plays';
 export type ColorTheme = 'gruvbox' | 'dracula';
 export type ArtworkBackgroundMode = 'off' | 'player' | 'player-details' | 'workspace';
+export type VisualizerStyle = 'wave' | 'bars' | 'mirror' | 'blocks';
+export type VisualizerColorSource = 'theme' | 'artwork';
 export type WorkspaceCollection = 'playlist' | 'library';
 export type WorkspaceTab = WorkspaceCollection | 'details';
 export type WorkspacePanelId = 'playlist' | 'library' | 'details';
@@ -66,6 +68,14 @@ export interface AppearanceSettings {
 
 export interface PlaybackSettings {
   logarithmicVolume: boolean;
+}
+
+export interface VisualizerSettings {
+  style: VisualizerStyle;
+  colorSource: VisualizerColorSource;
+  height: number;
+  transparency: number;
+  normalizationStrength: number;
 }
 
 export interface PlaylistItem {

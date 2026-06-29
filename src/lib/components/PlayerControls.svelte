@@ -1,5 +1,6 @@
 <script lang="ts">
   import { createEventDispatcher, onMount } from 'svelte';
+  import PlayerVisualizer from '$lib/components/PlayerVisualizer.svelte';
   import type { LoadedStreamArtwork } from '$lib/services/stream-artwork';
   import type { Readable } from 'svelte/store';
   import { formatDuration, getTrackDisplaySubtitle, getTrackDisplayTitle } from '$lib/utils/files';
@@ -114,6 +115,8 @@
   class:artwork-background-active={artworkBackgroundActive}
   class:artwork-background-bright={artworkBackgroundActive && artworkBackgroundBright}
 >
+  <PlayerVisualizer artworkUrl={artwork?.url} />
+
   <div class="player-track-group">
     {#if displayTrack}
       <button
