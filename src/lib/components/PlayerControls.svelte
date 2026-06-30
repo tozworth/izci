@@ -1,7 +1,9 @@
 <script lang="ts">
   import { createEventDispatcher, onMount } from 'svelte';
   import PlayerVisualizer from '$lib/components/PlayerVisualizer.svelte';
+  import { extractArtworkPalette, type PlayerArtworkPalette } from '$lib/services/artwork-palette';
   import type { LoadedStreamArtwork } from '$lib/services/stream-artwork';
+  import { appearanceSettings } from '$lib/stores/appearance-settings';
   import type { Readable } from 'svelte/store';
   import { formatDuration, getTrackDisplaySubtitle, getTrackDisplayTitle } from '$lib/utils/files';
   import type { PlaybackSnapshot, PlaylistItem } from '$lib/types';
@@ -28,6 +30,9 @@
   let isCompactVolume = false;
   let isVolumePopupOpen = false;
   let volumePopupTimer: ReturnType<typeof window.setTimeout> | null = null;
+  let playerArtworkPalette: PlayerArtworkPalette | null = null;
+  let playerArtworkPaletteUrl: string | undefined = undefined;
+  let playerArtworkPaletteToken = 0;
   let snapshot: PlaybackSnapshot = {
     state: 'idle',
     currentTime: 0,
@@ -80,6 +85,58 @@
     isVolumePopupOpen = false;
   }
 
+  async function syncPlayerArtworkPalette(url: string | undefined): Promise<void> {
+    const token = ++playerArtworkPaletteToken;
+    playerArtworkPaletteUrl = url;
+    playerArtworkPalette = null;
+
+    if (!url) {
+      return;
+    }
+
+    try {
+      const palette = await extractArtworkPalette(url);
+
+      if (token === playerArtworkPaletteToken && playerArtworkPaletteUrl === url) {
+        playerArtworkPalette = palette.player;
+      }
+    } catch {
+      if (token === playerArtworkPaletteToken) {
+        playerArtworkPalette = null;
+      }
+    }
+  }
+
+  function toPlayerArtworkStyle(palette: PlayerArtworkPalette | null): string {
+    if (!palette) {
+      return '';
+    }
+
+    return [
+      `--player-bar-background: ${palette.background}`,
+      `--menu-bar-bg: ${palette.background}`,
+      `--text: ${palette.text}`,
+      `--text-strong: ${palette.textStrong}`,
+      `--muted: ${palette.muted}`,
+      `--bg-soft: ${palette.soft}`,
+      `--bg-volume-popup: ${palette.popover}`,
+      `--border-strong: ${palette.border}`,
+      `--hover-control: ${palette.hover}`,
+      `--player-bar-separator: ${palette.separator}`,
+      `--hairline: ${palette.hairline}`,
+      `--player-range-fill: ${palette.rangeFill}`,
+      `--player-range-track: ${palette.rangeTrack}`,
+      `--player-range-border: ${palette.rangeBorder}`,
+      `--player-range-thumb: ${palette.rangeThumb}`,
+      `--visualizer-blend-mode: ${palette.visualizerBlendMode}`
+    ].join('; ');
+  }
+
+  function toRangeProgressStyle(value: number, max: number): string {
+    const percent = max > 0 ? clamp((value / max) * 100, 0, 100) : 0;
+    return `--player-range-progress: ${percent}%;`;
+  }
+
   onMount(() => {
     const mediaQuery = window.matchMedia(COMPACT_VOLUME_QUERY);
 
@@ -100,6 +157,11 @@
   $: snapshot = $snapshotStore;
   $: displayTrack = track;
   $: displayDuration = track ? snapshot.duration : 0;
+  $: playerArtworkColorsActive = $appearanceSettings.useArtworkPlayerColors && playerArtworkPalette !== null;
+  $: playerArtworkStyle = playerArtworkColorsActive ? toPlayerArtworkStyle(playerArtworkPalette) : '';
+  $: if (artwork?.url !== playerArtworkPaletteUrl) {
+    void syncPlayerArtworkPalette(artwork?.url);
+  }
 
   function handleShowTrack() {
     if (!displayTrack) {
@@ -114,6 +176,8 @@
   class="player-bar"
   class:artwork-background-active={artworkBackgroundActive}
   class:artwork-background-bright={artworkBackgroundActive && artworkBackgroundBright}
+  class:artwork-player-colors-active={playerArtworkColorsActive}
+  style={playerArtworkStyle}
 >
   <PlayerVisualizer artworkUrl={artwork?.url} />
 
@@ -199,6 +263,7 @@
       max={Math.max(displayDuration, 1)}
       step="0.01"
       value={snapshot.currentTime}
+      style={toRangeProgressStyle(snapshot.currentTime, Math.max(displayDuration, 1))}
       disabled={!track || snapshot.duration <= 0}
       on:input={(event) => dispatch('seek', Number((event.currentTarget as HTMLInputElement).value))}
       on:wheel|preventDefault={handleSeekWheel}
@@ -231,6 +296,7 @@
           max="1"
           step="0.01"
           value={snapshot.volume}
+          style={toRangeProgressStyle(snapshot.volume, 1)}
           on:input={(event) => dispatch('volume', Number((event.currentTarget as HTMLInputElement).value))}
           on:wheel|preventDefault={handleVolumeWheel}
         />

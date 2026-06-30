@@ -6,6 +6,7 @@ export const APPEARANCE_SETTINGS_CHANNEL = 'izci.appearance-settings';
 export const DEFAULT_COLOR_THEME: ColorTheme = 'gruvbox';
 export const DEFAULT_APPEARANCE_SETTINGS: AppearanceSettings = {
   colorTheme: DEFAULT_COLOR_THEME,
+  useArtworkPlayerColors: false,
   keepLibraryColumnsVisibleInNarrowLayout: false,
   useSystemFont: false,
   artworkBackgroundMode: 'off',
@@ -31,6 +32,7 @@ function normalizeSettings(value: unknown): AppearanceSettings {
 
   return {
     colorTheme: normalizeColorTheme(source.colorTheme),
+    useArtworkPlayerColors: source.useArtworkPlayerColors === true,
     keepLibraryColumnsVisibleInNarrowLayout: source.keepLibraryColumnsVisibleInNarrowLayout === true,
     useSystemFont: source.useSystemFont === true,
     artworkBackgroundMode: legacyArtworkBackgroundEnabled

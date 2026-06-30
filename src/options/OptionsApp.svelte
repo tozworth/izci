@@ -149,6 +149,12 @@
     });
   }
 
+  function handleArtworkPlayerColorsToggle(event: Event) {
+    appearanceSettings.update({
+      useArtworkPlayerColors: (event.currentTarget as HTMLInputElement).checked
+    });
+  }
+
   function handleCompactColumnLayoutToggle(event: Event) {
     appearanceSettings.update({
       keepLibraryColumnsVisibleInNarrowLayout: (event.currentTarget as HTMLInputElement).checked
@@ -420,6 +426,22 @@
                 </div>
                 <p class="field-hint">
                   Sets the global color theme.
+                </p>
+              </label>
+
+              <label class="field checkbox-field">
+                <div class="field-copy">
+                  <span class="field-title">Use artwork colors for player</span>
+                </div>
+                <div class="field-control checkbox-control">
+                  <input
+                    type="checkbox"
+                    checked={$appearanceSettings.useArtworkPlayerColors}
+                    on:change={handleArtworkPlayerColorsToggle}
+                  />
+                </div>
+                <p class="field-hint">
+                  Tints the player bar from the current artwork, with the selected theme as fallback.
                 </p>
               </label>
             </div>

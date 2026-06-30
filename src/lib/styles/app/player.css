@@ -19,7 +19,7 @@
   border-left: 0;
   border-right: 0;
   border-bottom: 0;
-  background-color: var(--menu-bar-bg);
+  background: var(--player-bar-background, var(--menu-bar-bg));
   color: var(--text);
   backdrop-filter:
     blur(var(--player-bar-backdrop-blur, var(--chrome-backdrop-blur, 16px)))
@@ -27,6 +27,10 @@
   box-shadow: none;
   overflow: hidden;
   isolation: isolate;
+  --player-range-fill: var(--accent-strong);
+  --player-range-track: color-mix(in srgb, var(--bg-soft) 76%, black);
+  --player-range-border: var(--border-strong);
+  --player-range-thumb: var(--accent-strong);
 }
 
 .player-bar.artwork-background-active {
@@ -43,6 +47,12 @@
   --hover-control: rgba(255, 255, 255, 0.08);
   --player-bar-fade: linear-gradient(180deg, rgba(5, 6, 10, 0), rgba(5, 6, 10, 0.26));
   --hairline: rgba(255, 255, 255, 0.08);
+}
+
+.player-bar.artwork-player-colors-active {
+  color-scheme: dark;
+  --player-bar-backdrop-blur: 24px;
+  --player-bar-backdrop-saturate: 1.22;
 }
 
 .player-bar.artwork-background-active.artwork-background-bright,
@@ -265,6 +275,55 @@
   display: grid;
   align-items: center;
   gap: 0.2rem;
+}
+
+.player-bar input[type='range'] {
+  --player-range-progress: 0%;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 1rem;
+  border: 0;
+  color: var(--player-range-fill);
+  background: transparent;
+}
+
+.player-bar input[type='range']::-webkit-slider-runnable-track {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 0.52rem;
+  border: 1px solid var(--player-range-border);
+  border-radius: 999px;
+  background:
+    linear-gradient(
+      90deg,
+      var(--player-range-fill) 0%,
+      var(--player-range-fill) var(--player-range-progress),
+      var(--player-range-track) var(--player-range-progress),
+      var(--player-range-track) 100%
+    );
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.12);
+}
+
+.player-bar input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 1.05rem;
+  height: 1.05rem;
+  margin-top: calc((0.52rem - 1.05rem) / 2 - 1px);
+  border: 1px solid var(--player-range-border);
+  border-radius: 50%;
+  background: var(--player-range-thumb);
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.18),
+    0 1px 4px rgba(0, 0, 0, 0.22);
+}
+
+.player-bar input[type='range']:disabled::-webkit-slider-runnable-track {
+  opacity: 0.55;
+}
+
+.player-bar input[type='range']:disabled::-webkit-slider-thumb {
+  opacity: 0.65;
 }
 
 .player-range {

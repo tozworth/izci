@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
+  import { extractArtworkPalette, type VisualizerPalette } from '$lib/services/artwork-palette';
   import { visualizerService } from '$lib/services/visualizer';
   import { visualizerSettings } from '$lib/stores/visualizer-settings';
   import type { VisualizerSettings } from '$lib/types';
@@ -7,9 +8,8 @@
   export let artworkUrl: string | undefined = undefined;
 
   const BAND_COUNT = 72;
-  const IDLE_FALLBACK = 0.025;
+  const IDLE_FALLBACK = 0;
   const MAX_VISUALIZED_FREQUENCY_HZ = 16_000;
-  const ARTWORK_SAMPLE_SIZE = 32;
 
   let canvas: HTMLCanvasElement;
   let frame: number | null = null;
@@ -23,15 +23,6 @@
   let artworkPalette: VisualizerPalette | null = null;
   let artworkPaletteUrl: string | undefined = undefined;
   let artworkPaletteToken = 0;
-
-  interface VisualizerPalette {
-    high: string;
-    mid: string;
-    low: string;
-    glow: string;
-    bars: string;
-    blocks: string;
-  }
 
   function resizeCanvas() {
     if (!canvas) {
@@ -157,120 +148,13 @@
       const palette = await extractArtworkPalette(url);
 
       if (token === artworkPaletteToken && artworkPaletteUrl === url) {
-        artworkPalette = palette;
+        artworkPalette = palette.visualizer;
       }
     } catch {
       if (token === artworkPaletteToken) {
         artworkPalette = null;
       }
     }
-  }
-
-  async function extractArtworkPalette(url: string): Promise<VisualizerPalette> {
-    const image = new Image();
-    image.decoding = 'async';
-    image.src = url;
-
-    await image.decode();
-
-    const sampleCanvas = document.createElement('canvas');
-    sampleCanvas.width = ARTWORK_SAMPLE_SIZE;
-    sampleCanvas.height = ARTWORK_SAMPLE_SIZE;
-    const context = sampleCanvas.getContext('2d', { willReadFrequently: true });
-
-    if (!context) {
-      throw new Error('Unable to sample artwork.');
-    }
-
-    context.drawImage(image, 0, 0, ARTWORK_SAMPLE_SIZE, ARTWORK_SAMPLE_SIZE);
-    const { data } = context.getImageData(0, 0, ARTWORK_SAMPLE_SIZE, ARTWORK_SAMPLE_SIZE);
-    const swatches: Array<{ r: number; g: number; b: number; score: number; saturation: number; lightness: number }> = [];
-
-    for (let index = 0; index < data.length; index += 4) {
-      const alpha = data[index + 3] / 255;
-
-      if (alpha < 0.45) {
-        continue;
-      }
-
-      const r = data[index];
-      const g = data[index + 1];
-      const b = data[index + 2];
-      const { saturation, lightness } = rgbToHsl(r, g, b);
-
-      if (lightness < 0.08 || lightness > 0.94 || saturation < 0.08) {
-        continue;
-      }
-
-      const vibrance = saturation * (1 - Math.abs(lightness - 0.55));
-      swatches.push({ r, g, b, score: vibrance, saturation, lightness });
-    }
-
-    if (!swatches.length) {
-      throw new Error('Artwork has no usable visualizer colors.');
-    }
-
-    swatches.sort((left, right) => right.score - left.score);
-    const primary = swatches[0];
-    const secondary = findDistinctSwatch(swatches, primary) ?? primary;
-    const highlight = adjustRgb(primary, 1.22, 22);
-    const mid = adjustRgb(primary, 1.02, 0);
-    const low = adjustRgb(secondary, 0.86, -8);
-
-    return {
-      high: toRgba(highlight, 0.88),
-      mid: toRgba(mid, 0.68),
-      low: toRgba(low, 0.32),
-      glow: toRgba(highlight, 0.32),
-      bars: toRgba(mid, 0.82),
-      blocks: toRgba(highlight, 0.7)
-    };
-  }
-
-  function findDistinctSwatch(
-    swatches: Array<{ r: number; g: number; b: number; score: number; saturation: number; lightness: number }>,
-    primary: { r: number; g: number; b: number }
-  ) {
-    return swatches.find((swatch) => colorDistance(swatch, primary) > 72);
-  }
-
-  function colorDistance(left: { r: number; g: number; b: number }, right: { r: number; g: number; b: number }): number {
-    return Math.hypot(left.r - right.r, left.g - right.g, left.b - right.b);
-  }
-
-  function rgbToHsl(r: number, g: number, b: number): { saturation: number; lightness: number } {
-    const red = r / 255;
-    const green = g / 255;
-    const blue = b / 255;
-    const max = Math.max(red, green, blue);
-    const min = Math.min(red, green, blue);
-    const lightness = (max + min) / 2;
-    const delta = max - min;
-    const saturation = delta === 0 ? 0 : delta / (1 - Math.abs(2 * lightness - 1));
-
-    return { saturation, lightness };
-  }
-
-  function adjustRgb(
-    color: { r: number; g: number; b: number },
-    saturationFactor: number,
-    lightnessDelta: number
-  ): { r: number; g: number; b: number } {
-    const gray = color.r * 0.299 + color.g * 0.587 + color.b * 0.114;
-
-    return {
-      r: clampColor(gray + (color.r - gray) * saturationFactor + lightnessDelta),
-      g: clampColor(gray + (color.g - gray) * saturationFactor + lightnessDelta),
-      b: clampColor(gray + (color.b - gray) * saturationFactor + lightnessDelta)
-    };
-  }
-
-  function clampColor(value: number): number {
-    return Math.min(Math.max(Math.round(value), 0), 255);
-  }
-
-  function toRgba(color: { r: number; g: number; b: number }, alpha: number): string {
-    return `rgba(${color.r}, ${color.g}, ${color.b}, ${alpha})`;
   }
 
   function draw() {

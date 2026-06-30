@@ -59,6 +59,7 @@ export interface MetadataSettings {
 
 export interface AppearanceSettings {
   colorTheme: ColorTheme;
+  useArtworkPlayerColors: boolean;
   keepLibraryColumnsVisibleInNarrowLayout: boolean;
   useSystemFont: boolean;
   artworkBackgroundMode: ArtworkBackgroundMode;
