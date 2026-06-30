@@ -44,7 +44,7 @@ export default defineConfig({
     svelte(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['icons/izci-icon.svg', 'icons/izci-maskable.svg'],
+      includeAssets: ['icons/izci-icon.svg', 'icons/izci-maskable.svg', 'icons/izci-file.png'],
       manifest: {
         name: 'izci',
         short_name: 'izci',
@@ -74,6 +74,13 @@ export default defineConfig({
         file_handlers: [
           {
             action: '/',
+            icons: [
+              {
+                src: '/icons/izci-file.png',
+                sizes: '512x512',
+                type: 'image/png'
+              }
+            ],
             accept: {
               'audio/mpeg': ['.mp3'],
               'audio/wav': ['.wav'],

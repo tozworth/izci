@@ -157,6 +157,7 @@ Primary location for playback and browser-integration logic.
 ## Public assets
 
 - `public/icons/izci-icon.svg`: primary app icon.
+- `public/icons/izci-file.png`: PNG app icon used by Chromium file-handler associations.
 - `public/icons/izci-maskable.svg`: maskable PWA icon.
 
 ## Architecture notes
@@ -200,7 +201,7 @@ Primary location for playback and browser-integration logic.
   - modules prioritize correct Chiptune3 playback while separately mirroring transport state to Chromium
 - Workspace context actions and library membership checks should stay in `src/lib/services/workspace-actions.ts`; wide-layout sizing rules should stay in `src/lib/services/workspace-layout.ts`.
 - `module-player.ts`, `chiptune-loader.ts`, and the custom asset emission in `vite.config.ts` form one pipeline. Treat them as coupled.
-- `vite.config.ts` emits `assets/libopenmpt.worklet.js`, configures the PWA manifest, and declares file handlers. Changes here can break offline playback, installed-app file opening, or module initialization.
+- `vite.config.ts` emits `assets/libopenmpt.worklet.js`, configures the PWA manifest, and declares file handlers plus their association icon. Changes here can break offline playback, installed-app file opening, or module initialization.
 - `src/lib/services/pwa-updates.ts` complements the Vite PWA config by proactively calling `ServiceWorkerRegistration.update()` on focus/visibility/interval, which is especially important for long-lived installed windows and `vite preview` on `localhost`.
 - The Options window is a separate Vite/Svelte entrypoint (`options.html` -> `src/options/main.ts`) rather than an inline HTML string. Keep popup UIs local-first and frontend-only.
 - `popup-windows.ts` is the registry for managed popup definitions. Add future popup windows there so `window-manager.ts` stays generic.

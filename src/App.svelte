@@ -241,11 +241,13 @@
     !miniModeActive &&
     (visualizerBackdropMode === 'workspace' || visualizerBackdropMode === 'player-details');
   $: isScopedVisualizerBackdropActive = isShellVisualizerBackdropActive && visualizerBackdropMode === 'player-details';
+  $: isTrackDetailsOverArtworkBackground =
+    isWorkspaceArtworkBackgroundActive || isTrackDetailsArtworkLayerActive;
   $: isVisualizerBackdropOverBrightArtwork =
     isShellVisualizerBackdropActive &&
     artworkPresentationState.isArtworkBackgroundBright &&
     ((visualizerBackdropMode === 'workspace' && isWorkspaceArtworkBackgroundActive) ||
-      (visualizerBackdropMode === 'player-details' && isTrackDetailsArtworkLayerActive));
+      (visualizerBackdropMode === 'player-details' && isTrackDetailsOverArtworkBackground));
   $: isVisualizerBackdropBright =
     isShellVisualizerBackdropActive && isVisualizerBackdropOverBrightArtwork;
   $: isTrackDetailsScopedBackdropTrackingActive =
