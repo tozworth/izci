@@ -64,7 +64,6 @@ export interface AppearanceSettings {
   useSystemFont: boolean;
   artworkBackgroundMode: ArtworkBackgroundMode;
   visualizerBackdropMode: ArtworkBackgroundMode;
-  artworkBackgroundFadeEnabled: boolean;
   showTrackTitleInWindowTitle: boolean;
 }
 

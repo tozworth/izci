@@ -33,11 +33,6 @@
   padding-bottom: 0;
 }
 
-.app-shell.artwork-background-fade-disabled {
-  --artwork-background-transition-duration: 0ms;
-  --artwork-ui-transition-duration: 0ms;
-}
-
 .app-shell-background-clip,
 .app-shell-background-overlay,
 .app-shell-visualizer-backdrop {

@@ -17,7 +17,6 @@ export const DEFAULT_APPEARANCE_SETTINGS: AppearanceSettings = {
   useSystemFont: false,
   artworkBackgroundMode: 'off',
   visualizerBackdropMode: 'player',
-  artworkBackgroundFadeEnabled: true,
   showTrackTitleInWindowTitle: true
 };
 
@@ -46,7 +45,6 @@ function normalizeSettings(value: unknown): AppearanceSettings {
       ? 'workspace'
       : normalizeArtworkBackgroundMode(source.artworkBackgroundMode),
     visualizerBackdropMode: normalizeArtworkBackgroundMode(source.visualizerBackdropMode ?? 'player'),
-    artworkBackgroundFadeEnabled: source.artworkBackgroundFadeEnabled !== false,
     showTrackTitleInWindowTitle: source.showTrackTitleInWindowTitle !== false
   };
 }

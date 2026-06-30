@@ -703,7 +703,6 @@
   class:artwork-background-scoped={isScopedArtworkBackgroundActive}
   class:artwork-background-bright={isArtworkBackgroundActive &&
     artworkPresentationState.isArtworkBackgroundBright}
-  class:artwork-background-fade-disabled={!$appearanceSettings.artworkBackgroundFadeEnabled}
   class:visualizer-backdrop-active={isShellVisualizerBackdropActive}
   class:visualizer-backdrop-scoped={isScopedVisualizerBackdropActive}
   class:visualizer-backdrop-bright={isVisualizerBackdropBright}
