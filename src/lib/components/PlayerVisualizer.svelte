@@ -10,6 +10,22 @@
   const BAND_COUNT = 72;
   const IDLE_FALLBACK = 0;
   const MAX_VISUALIZED_FREQUENCY_HZ = 16_000;
+  interface TriangleParticle {
+    x: number;
+    y: number;
+    size: number;
+    baseSpeed: number;
+    depth: number;
+    alpha: number;
+    bandIndex: number;
+    flash: number;
+  }
+
+  interface TriangleRhythm {
+    amplitude: number;
+    pulse: number;
+    isBeat: boolean;
+  }
 
   let canvas: HTMLCanvasElement;
   let frame: number | null = null;
@@ -23,6 +39,13 @@
   let artworkPalette: VisualizerPalette | null = null;
   let artworkPaletteUrl: string | undefined = undefined;
   let artworkPaletteToken = 0;
+  let triangleParticles: TriangleParticle[] = [];
+  let triangleLastTimestamp = 0;
+  let triangleRollingEnergy = 0.12;
+  let triangleRollingLow = 0.12;
+  let triangleBeatPulse = 0;
+  let triangleLastBeatAt = 0;
+  let triangleGenerationSignature = '';
 
   function resizeCanvas() {
     if (!canvas) {
@@ -31,12 +54,17 @@
 
     const rect = canvas.getBoundingClientRect();
     const scale = window.devicePixelRatio || 1;
-    width = Math.max(1, Math.round(rect.width * scale));
-    height = Math.max(1, Math.round(rect.height * scale));
+    const nextWidth = Math.max(1, Math.round(rect.width * scale));
+    const nextHeight = Math.max(1, Math.round(rect.height * scale));
+    const sizeChanged = canvas.width !== nextWidth || canvas.height !== nextHeight;
 
-    if (canvas.width !== width || canvas.height !== height) {
+    width = nextWidth;
+    height = nextHeight;
+
+    if (sizeChanged) {
       canvas.width = width;
       canvas.height = height;
+      triangleParticles = [];
     }
   }
 
@@ -135,6 +163,105 @@
     return slice.reduce((total, value) => total + value, 0) / Math.max(slice.length, 1);
   }
 
+  function clamp01(value: number): number {
+    return Math.min(Math.max(value, 0), 1);
+  }
+
+  function randomRange(min: number, max: number): number {
+    return min + Math.random() * (max - min);
+  }
+
+  function getTriangleGenerationSignature(settings: VisualizerSettings): string {
+    return [
+      settings.height,
+      settings.triangleMinSize,
+      settings.triangleMaxSize,
+      settings.triangleBaseSpeed
+    ].join(':');
+  }
+
+  function getTriangleTargetCount(settings: VisualizerSettings): number {
+    return Math.round(settings.triangleCount);
+  }
+
+  function ensureTriangleParticles(settings: VisualizerSettings, bandCount: number): void {
+    const targetCount = getTriangleTargetCount(settings);
+
+    while (triangleParticles.length < targetCount) {
+      triangleParticles.push(createTriangleParticle(settings, bandCount));
+    }
+
+    if (triangleParticles.length > targetCount) {
+      triangleParticles.length = targetCount;
+    }
+  }
+
+  function createTriangleParticle(settings: VisualizerSettings, bandCount: number): TriangleParticle {
+    const heightRatio = settings.height;
+    const visualTop = height * (1 - heightRatio);
+    const visualHeight = Math.max(1, height - visualTop);
+    const depth = randomRange(0.72, 1.62);
+    const minSize = Math.max(8, height * settings.triangleMinSize);
+    const maxSize = Math.max(minSize + 4, height * settings.triangleMaxSize);
+    const size = randomRange(minSize, maxSize) * depth;
+    const xMargin = Math.min(width * 0.12, size * 0.28);
+
+    return {
+      x: width <= xMargin * 2 ? width / 2 : randomRange(xMargin, width - xMargin),
+      y: randomRange(height + size * 0.2, height + visualHeight * 1.15 + size),
+      size,
+      baseSpeed: randomRange(height * 0.08, height * 0.3) * depth * settings.triangleBaseSpeed,
+      depth,
+      alpha: randomRange(0.48, 0.9),
+      bandIndex: Math.floor(randomRange(0, Math.max(1, bandCount))),
+      flash: 0
+    };
+  }
+
+  function getTriangleFrameDelta(): { timestamp: number; deltaSeconds: number } {
+    const timestamp = performance.now();
+    const deltaSeconds = triangleLastTimestamp
+      ? Math.min(0.08, Math.max(0.001, (timestamp - triangleLastTimestamp) / 1000))
+      : 1 / 60;
+
+    triangleLastTimestamp = timestamp;
+    return { timestamp, deltaSeconds };
+  }
+
+  function updateTriangleRhythm(values: number[], timestamp: number, deltaSeconds: number): TriangleRhythm {
+    const low = average(values, 0, 18);
+    const mid = average(values, 18, 46);
+    const high = average(values, 46, values.length);
+    const energy = clamp01(low * 0.5 + mid * 0.32 + high * 0.18);
+    const previousEnergy = triangleRollingEnergy;
+    const previousLow = triangleRollingLow;
+    const onset = energy - previousEnergy;
+    const lowOnset = low - previousLow;
+    const enoughBeatGap = timestamp - triangleLastBeatAt > 145;
+    const isBeat =
+      enoughBeatGap &&
+      energy > 0.12 &&
+      (onset > 0.055 + previousEnergy * 0.12 ||
+        lowOnset > 0.065 + previousLow * 0.1 ||
+        (energy > 0.62 && onset > 0.025));
+
+    triangleBeatPulse *= Math.pow(0.035, deltaSeconds);
+
+    if (isBeat) {
+      triangleBeatPulse = Math.max(triangleBeatPulse, Math.min(1, 0.38 + energy * 0.78));
+      triangleLastBeatAt = timestamp;
+    }
+
+    triangleRollingEnergy = previousEnergy * 0.94 + Math.max(energy, 0.025) * 0.06;
+    triangleRollingLow = previousLow * 0.92 + Math.max(low, 0.025) * 0.08;
+
+    return {
+      amplitude: Math.pow(energy, 0.85),
+      pulse: triangleBeatPulse,
+      isBeat
+    };
+  }
+
   async function syncArtworkPalette(url: string | undefined): Promise<void> {
     const token = ++artworkPaletteToken;
     artworkPaletteUrl = url;
@@ -179,13 +306,19 @@
     context.globalAlpha = settings.transparency;
 
     if (settings.style === 'wave') {
+      triangleLastTimestamp = 0;
       drawWave(context, values, settings.height, palette);
     } else if (settings.style === 'bars') {
+      triangleLastTimestamp = 0;
       drawBars(context, values, settings.height, palette);
     } else if (settings.style === 'mirror') {
+      triangleLastTimestamp = 0;
       drawMirror(context, values, settings.height, palette);
-    } else {
+    } else if (settings.style === 'blocks') {
+      triangleLastTimestamp = 0;
       drawBlocks(context, values, settings.height, palette);
+    } else {
+      drawTriangles(context, values, settings, palette);
     }
 
     context.globalAlpha = 1;
@@ -298,6 +431,132 @@
         );
       }
     }
+  }
+
+  function drawTriangles(
+    context: CanvasRenderingContext2D,
+    values: number[],
+    settings: VisualizerSettings,
+    palette: VisualizerPalette
+  ) {
+    const { timestamp, deltaSeconds } = getTriangleFrameDelta();
+    const heightRatio = settings.height;
+    const visualTop = height * (1 - heightRatio);
+    const generationSignature = getTriangleGenerationSignature(settings);
+
+    if (generationSignature !== triangleGenerationSignature) {
+      triangleGenerationSignature = generationSignature;
+      triangleParticles = [];
+    }
+
+    ensureTriangleParticles(settings, values.length);
+
+    const rhythm = updateTriangleRhythm(values, timestamp, deltaSeconds);
+
+    if (rhythm.isBeat) {
+      const flashCount = Math.ceil(2 + rhythm.amplitude * 6);
+
+      for (let index = 0; index < flashCount; index += 1) {
+        const particle = triangleParticles[Math.floor(Math.random() * triangleParticles.length)];
+
+        if (!particle) {
+          continue;
+        }
+
+        particle.flash = Math.max(particle.flash, randomRange(0.46, 1));
+      }
+    }
+
+    triangleParticles.sort((left, right) => left.depth - right.depth);
+
+    for (const particle of triangleParticles) {
+      const bandValue = values[particle.bandIndex] ?? rhythm.amplitude;
+      const activity = Math.max(rhythm.amplitude * 0.62, bandValue);
+      const speedMultiplier = 0.12 + (activity * 1.9 + rhythm.pulse * 0.58) * settings.triangleReactiveSpeed;
+
+      particle.flash = Math.max(0, particle.flash - deltaSeconds * (2.4 + activity * 1.4));
+      particle.y -= particle.baseSpeed * speedMultiplier * deltaSeconds;
+
+      if (particle.y < visualTop - particle.size * 4) {
+        Object.assign(particle, createTriangleParticle(settings, values.length));
+      }
+
+      drawTriangleParticle(context, particle, palette, settings, bandValue, rhythm.pulse);
+    }
+
+    drawTriangleBeatFlash(context, heightRatio, palette, settings.transparency, rhythm.pulse);
+  }
+
+  function drawTriangleParticle(
+    context: CanvasRenderingContext2D,
+    particle: TriangleParticle,
+    palette: VisualizerPalette,
+    settings: VisualizerSettings,
+    bandValue: number,
+    pulse: number
+  ) {
+    const baseAlpha = settings.transparency;
+    const flash = Math.max(particle.flash, pulse * 0.62);
+    const size = particle.size;
+    const fillColor = particle.depth > 1.08 ? palette.mid : palette.low;
+    const strokeColor = flash > 0.28 ? palette.high : palette.mid;
+    const borderWidth = settings.triangleBorderWidth * (window.devicePixelRatio || 1);
+
+    context.save();
+    context.translate(particle.x, particle.y);
+    context.beginPath();
+
+    for (let index = 0; index < 3; index += 1) {
+      const angle = -Math.PI / 2 + index * ((Math.PI * 2) / 3);
+      const x = Math.cos(angle) * size;
+      const y = Math.sin(angle) * size;
+
+      if (index === 0) {
+        context.moveTo(x, y);
+      } else {
+        context.lineTo(x, y);
+      }
+    }
+
+    context.closePath();
+    context.globalAlpha = Math.min(0.94, baseAlpha * (particle.alpha * (0.72 + bandValue * 0.52) + flash * 0.32));
+    context.fillStyle = fillColor;
+    context.fill();
+
+    if (borderWidth > 0) {
+      context.globalAlpha = Math.min(1, baseAlpha * (0.72 + bandValue * 0.36 + flash * 0.72));
+      context.strokeStyle = strokeColor;
+      context.lineJoin = 'round';
+      context.lineWidth = borderWidth;
+      context.shadowColor = flash > 0.18 ? palette.glow : 'transparent';
+      context.shadowBlur = flash > 0.18 ? size * 0.28 : 0;
+      context.stroke();
+      context.shadowBlur = 0;
+    }
+
+    context.restore();
+  }
+
+  function drawTriangleBeatFlash(
+    context: CanvasRenderingContext2D,
+    heightRatio: number,
+    palette: VisualizerPalette,
+    baseAlpha: number,
+    pulse: number
+  ) {
+    if (pulse <= 0.02) {
+      return;
+    }
+
+    const visualTop = height * (1 - heightRatio);
+    const gradient = context.createLinearGradient(0, visualTop, 0, height);
+    gradient.addColorStop(0, palette.high);
+    gradient.addColorStop(0.52, palette.mid);
+    gradient.addColorStop(1, palette.low);
+
+    context.globalAlpha = Math.min(0.32, baseAlpha * pulse * 0.62);
+    context.fillStyle = gradient;
+    context.fillRect(0, visualTop, width, height - visualTop);
   }
 
   onMount(() => {

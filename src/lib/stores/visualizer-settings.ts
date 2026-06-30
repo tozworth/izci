@@ -8,7 +8,8 @@ export const VISUALIZER_STYLE_OPTIONS: Array<{ value: VisualizerStyle; label: st
   { value: 'wave', label: 'Uniform wave' },
   { value: 'bars', label: 'Spectrum bars' },
   { value: 'mirror', label: 'Mirror bloom' },
-  { value: 'blocks', label: 'Pixel blocks' }
+  { value: 'blocks', label: 'Pixel blocks' },
+  { value: 'triangles', label: 'Rhythm triangles' }
 ];
 
 export const VISUALIZER_COLOR_SOURCE_OPTIONS: Array<{ value: VisualizerColorSource; label: string }> = [
@@ -21,11 +22,17 @@ export const DEFAULT_VISUALIZER_SETTINGS: VisualizerSettings = {
   colorSource: 'theme',
   height: 0.78,
   transparency: 0.42,
-  normalizationStrength: 0.42
+  normalizationStrength: 0.42,
+  triangleCount: 64,
+  triangleMinSize: 0.14,
+  triangleMaxSize: 0.56,
+  triangleBaseSpeed: 1,
+  triangleReactiveSpeed: 1,
+  triangleBorderWidth: 1
 };
 
 function normalizeStyle(value: unknown): VisualizerStyle {
-  return value === 'bars' || value === 'mirror' || value === 'blocks' || value === 'wave'
+  return value === 'bars' || value === 'mirror' || value === 'blocks' || value === 'triangles' || value === 'wave'
     ? value
     : DEFAULT_VISUALIZER_SETTINGS.style;
 }
@@ -80,7 +87,21 @@ function normalizeSettings(value: unknown): VisualizerSettings {
     colorSource: normalizeColorSource(source.colorSource),
     height: normalizeNumber(source.height, DEFAULT_VISUALIZER_SETTINGS.height, 0.22, 1),
     transparency: normalizeNumber(source.transparency, DEFAULT_VISUALIZER_SETTINGS.transparency, 0, 0.85),
-    normalizationStrength: normalizeNormalizationStrength(source)
+    normalizationStrength: normalizeNormalizationStrength(source),
+    triangleCount: Math.round(normalizeNumber(source.triangleCount, DEFAULT_VISUALIZER_SETTINGS.triangleCount, 8, 160)),
+    triangleMinSize: normalizeNumber(source.triangleMinSize, DEFAULT_VISUALIZER_SETTINGS.triangleMinSize, 0.04, 0.8),
+    triangleMaxSize: Math.max(
+      normalizeNumber(source.triangleMinSize, DEFAULT_VISUALIZER_SETTINGS.triangleMinSize, 0.04, 0.8),
+      normalizeNumber(source.triangleMaxSize, DEFAULT_VISUALIZER_SETTINGS.triangleMaxSize, 0.08, 1.2)
+    ),
+    triangleBaseSpeed: normalizeNumber(source.triangleBaseSpeed, DEFAULT_VISUALIZER_SETTINGS.triangleBaseSpeed, 0.2, 3),
+    triangleReactiveSpeed: normalizeNumber(
+      source.triangleReactiveSpeed,
+      DEFAULT_VISUALIZER_SETTINGS.triangleReactiveSpeed,
+      0,
+      3
+    ),
+    triangleBorderWidth: normalizeNumber(source.triangleBorderWidth, DEFAULT_VISUALIZER_SETTINGS.triangleBorderWidth, 0, 12)
   };
 }
 

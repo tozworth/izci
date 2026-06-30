@@ -25,6 +25,7 @@
     ArtworkBackgroundMode,
     ColorTheme,
     VisualizerColorSource,
+    VisualizerSettings,
     VisualizerStyle
   } from '$lib/types';
   import {
@@ -42,6 +43,14 @@
   let resizePointerId: number | null = null;
   let pendingStereoSeparation: number | null = null;
   let pendingPanStrength: number | null = null;
+
+  type TriangleVisualizerSetting =
+    | 'triangleCount'
+    | 'triangleMinSize'
+    | 'triangleMaxSize'
+    | 'triangleBaseSpeed'
+    | 'triangleReactiveSpeed'
+    | 'triangleBorderWidth';
 
   function clamp(value: number, min: number, max: number): number {
     return Math.min(Math.max(value, min), max);
@@ -219,6 +228,12 @@
     visualizerSettings.update({
       normalizationStrength: (event.currentTarget as HTMLInputElement).valueAsNumber / 100
     });
+  }
+
+  function handleTriangleVisualizerChange(event: Event, key: TriangleVisualizerSetting, scale = 1) {
+    visualizerSettings.update({
+      [key]: (event.currentTarget as HTMLInputElement).valueAsNumber / scale
+    } as Partial<VisualizerSettings>);
   }
 
   function resetCurrentView() {
@@ -659,6 +674,128 @@
                   Balances low, mid, and high frequency bands so bass-heavy or bright tracks still use the full visual range.
                 </p>
               </label>
+
+              {#if $visualizerSettings.style === 'triangles'}
+                <label class="field">
+                  <div class="field-copy">
+                    <span class="field-title">Triangle count</span>
+                  </div>
+                  <div class="field-control">
+                    <input
+                      type="range"
+                      min="8"
+                      max="160"
+                      step="1"
+                      value={$visualizerSettings.triangleCount}
+                      on:input={(event) => handleTriangleVisualizerChange(event, 'triangleCount')}
+                    />
+                    <span class="field-output">{Math.round($visualizerSettings.triangleCount)}</span>
+                  </div>
+                  <p class="field-hint">
+                    Sets how many triangle shapes are kept active in the player background.
+                  </p>
+                </label>
+
+                <label class="field">
+                  <div class="field-copy">
+                    <span class="field-title">Minimum triangle size</span>
+                  </div>
+                  <div class="field-control">
+                    <input
+                      type="range"
+                      min="4"
+                      max="80"
+                      step="1"
+                      value={Math.round($visualizerSettings.triangleMinSize * 100)}
+                      on:input={(event) => handleTriangleVisualizerChange(event, 'triangleMinSize', 100)}
+                    />
+                    <span class="field-output">{Math.round($visualizerSettings.triangleMinSize * 100)}%</span>
+                  </div>
+                  <p class="field-hint">
+                    Sets the smallest triangle size as a percentage of the player bar height.
+                  </p>
+                </label>
+
+                <label class="field">
+                  <div class="field-copy">
+                    <span class="field-title">Maximum triangle size</span>
+                  </div>
+                  <div class="field-control">
+                    <input
+                      type="range"
+                      min="8"
+                      max="120"
+                      step="1"
+                      value={Math.round($visualizerSettings.triangleMaxSize * 100)}
+                      on:input={(event) => handleTriangleVisualizerChange(event, 'triangleMaxSize', 100)}
+                    />
+                    <span class="field-output">{Math.round($visualizerSettings.triangleMaxSize * 100)}%</span>
+                  </div>
+                  <p class="field-hint">
+                    Sets the largest triangle size as a percentage of the player bar height.
+                  </p>
+                </label>
+
+                <label class="field">
+                  <div class="field-copy">
+                    <span class="field-title">Base rise speed</span>
+                  </div>
+                  <div class="field-control">
+                    <input
+                      type="range"
+                      min="20"
+                      max="300"
+                      step="1"
+                      value={Math.round($visualizerSettings.triangleBaseSpeed * 100)}
+                      on:input={(event) => handleTriangleVisualizerChange(event, 'triangleBaseSpeed', 100)}
+                    />
+                    <span class="field-output">{formatFactor($visualizerSettings.triangleBaseSpeed)}</span>
+                  </div>
+                  <p class="field-hint">
+                    Multiplies the baseline upward movement before rhythm response is applied.
+                  </p>
+                </label>
+
+                <label class="field">
+                  <div class="field-copy">
+                    <span class="field-title">Reactive rise speed</span>
+                  </div>
+                  <div class="field-control">
+                    <input
+                      type="range"
+                      min="0"
+                      max="300"
+                      step="1"
+                      value={Math.round($visualizerSettings.triangleReactiveSpeed * 100)}
+                      on:input={(event) => handleTriangleVisualizerChange(event, 'triangleReactiveSpeed', 100)}
+                    />
+                    <span class="field-output">{formatFactor($visualizerSettings.triangleReactiveSpeed)}</span>
+                  </div>
+                  <p class="field-hint">
+                    Multiplies the extra upward speed added by amplitude and beat pulses.
+                  </p>
+                </label>
+
+                <label class="field">
+                  <div class="field-copy">
+                    <span class="field-title">Border thickness</span>
+                  </div>
+                  <div class="field-control">
+                    <input
+                      type="range"
+                      min="0"
+                      max="12"
+                      step="0.25"
+                      value={$visualizerSettings.triangleBorderWidth}
+                      on:input={(event) => handleTriangleVisualizerChange(event, 'triangleBorderWidth')}
+                    />
+                    <span class="field-output">{$visualizerSettings.triangleBorderWidth.toFixed(2)}px</span>
+                  </div>
+                  <p class="field-hint">
+                    Sets a fixed outline width shared by every triangle, regardless of size.
+                  </p>
+                </label>
+              {/if}
             </div>
           </div>
         </article>
