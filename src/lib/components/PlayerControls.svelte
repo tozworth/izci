@@ -15,6 +15,7 @@
   export let artworkBackgroundActive = false;
   export let artworkBackgroundBright = false;
   export let visualizerBackdropActive = true;
+  export let suppressArtworkPlayerColors = false;
 
   const dispatch = createEventDispatcher<{
     toggle: void;
@@ -108,9 +109,24 @@
     }
   }
 
-  function toPlayerArtworkStyle(palette: PlayerArtworkPalette | null): string {
+  function toPlayerArtworkStyle(
+    palette: PlayerArtworkPalette | null,
+    surfaceColorsEnabled: boolean
+  ): string {
     if (!palette) {
       return '';
+    }
+
+    const accentVariables = [
+      `--player-bar-separator: ${palette.separator}`,
+      `--player-range-fill: ${palette.rangeFill}`,
+      `--player-range-track: ${palette.rangeTrack}`,
+      `--player-range-border: ${palette.rangeBorder}`,
+      `--player-range-thumb: ${palette.rangeThumb}`
+    ];
+
+    if (!surfaceColorsEnabled) {
+      return accentVariables.join('; ');
     }
 
     return [
@@ -123,12 +139,8 @@
       `--bg-volume-popup: ${palette.popover}`,
       `--border-strong: ${palette.border}`,
       `--hover-control: ${palette.hover}`,
-      `--player-bar-separator: ${palette.separator}`,
       `--hairline: ${palette.hairline}`,
-      `--player-range-fill: ${palette.rangeFill}`,
-      `--player-range-track: ${palette.rangeTrack}`,
-      `--player-range-border: ${palette.rangeBorder}`,
-      `--player-range-thumb: ${palette.rangeThumb}`,
+      ...accentVariables,
       `--visualizer-blend-mode: ${palette.visualizerBlendMode}`
     ].join('; ');
   }
@@ -158,8 +170,12 @@
   $: snapshot = $snapshotStore;
   $: displayTrack = track;
   $: displayDuration = track ? snapshot.duration : 0;
-  $: playerArtworkColorsActive = $appearanceSettings.useArtworkPlayerColors && playerArtworkPalette !== null;
-  $: playerArtworkStyle = playerArtworkColorsActive ? toPlayerArtworkStyle(playerArtworkPalette) : '';
+  $: playerArtworkPaletteActive =
+    $appearanceSettings.useArtworkPlayerColors && playerArtworkPalette !== null;
+  $: playerArtworkColorsActive = playerArtworkPaletteActive && !suppressArtworkPlayerColors;
+  $: playerArtworkStyle = playerArtworkPaletteActive
+    ? toPlayerArtworkStyle(playerArtworkPalette, !suppressArtworkPlayerColors)
+    : '';
   $: if (artwork?.url !== playerArtworkPaletteUrl) {
     void syncPlayerArtworkPalette(artwork?.url);
   }

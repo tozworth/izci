@@ -57,7 +57,8 @@
 
 .player-bar.artwork-background-active.artwork-background-bright,
 .app-shell.artwork-background-layer-bright .player-bar,
-.app-shell.artwork-background-bright .player-bar {
+.app-shell.artwork-background-bright .player-bar,
+.app-shell.visualizer-backdrop-bright .player-bar {
   color-scheme: light;
   --menu-bar-bg: rgba(252, 248, 240, 0.46);
   --bg-soft: rgba(255, 250, 242, 0.58);
@@ -98,7 +99,8 @@
   --player-bar-layer-fade: linear-gradient(180deg, rgba(18, 19, 28, 0), rgba(18, 19, 28, 0.16));
 }
 
-.app-shell.visualizer-backdrop-active.artwork-background-bright:not(.mini-mode) .player-bar {
+.app-shell.visualizer-backdrop-active.artwork-background-bright:not(.mini-mode) .player-bar,
+.app-shell.visualizer-backdrop-active.visualizer-backdrop-bright:not(.mini-mode) .player-bar {
   --shell-visualizer-player-background:
     linear-gradient(90deg, rgba(255, 250, 242, 0.32), rgba(255, 250, 242, 0.18) 50%, rgba(255, 250, 242, 0.32));
   --bg-soft: rgba(255, 250, 242, 0.36);

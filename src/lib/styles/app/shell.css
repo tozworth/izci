@@ -156,11 +156,17 @@
   --hover-control: rgba(255, 255, 255, 0.06);
 }
 
-.app-shell.visualizer-backdrop-active.artwork-background-bright:not(.visualizer-backdrop-scoped):not(.mini-mode) {
+.app-shell.visualizer-backdrop-active.artwork-background-active.artwork-background-bright:not(.visualizer-backdrop-scoped):not(.mini-mode),
+.app-shell.visualizer-backdrop-active.visualizer-backdrop-bright:not(.visualizer-backdrop-scoped):not(.mini-mode) {
+  color-scheme: light;
   --bg-elevated: rgba(255, 250, 242, 0.26);
   --bg-soft: rgba(255, 250, 242, 0.36);
   --bg-popover: rgba(255, 250, 243, 0.8);
   --bg-search: rgba(255, 252, 246, 0.52);
+  --text: #241b12;
+  --text-strong: #130d08;
+  --muted: rgba(36, 27, 18, 0.76);
+  --muted-strong: rgba(36, 27, 18, 0.92);
   --border: rgba(52, 39, 25, 0.14);
   --border-soft: rgba(52, 39, 25, 0.1);
   --border-subtle: rgba(52, 39, 25, 0.075);
@@ -176,9 +182,14 @@
   --dropzone-background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 18%);
 }
 
-.app-shell.visualizer-backdrop-active.visualizer-backdrop-scoped.artwork-background-bright:not(.mini-mode) .details-panel {
+.app-shell.visualizer-backdrop-active.visualizer-backdrop-scoped.visualizer-backdrop-bright:not(.mini-mode) .details-panel {
+  color-scheme: light;
   --bg-elevated: rgba(255, 250, 242, 0.26);
   --bg-soft: rgba(255, 250, 242, 0.36);
+  --text: #241b12;
+  --text-strong: #130d08;
+  --muted: rgba(36, 27, 18, 0.76);
+  --muted-strong: rgba(36, 27, 18, 0.92);
   --border-soft: rgba(52, 39, 25, 0.1);
   --border-strong: rgba(52, 39, 25, 0.14);
   --hover-control: rgba(52, 39, 25, 0.06);

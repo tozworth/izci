@@ -241,6 +241,13 @@
     !miniModeActive &&
     (visualizerBackdropMode === 'workspace' || visualizerBackdropMode === 'player-details');
   $: isScopedVisualizerBackdropActive = isShellVisualizerBackdropActive && visualizerBackdropMode === 'player-details';
+  $: isVisualizerBackdropOverBrightArtwork =
+    isShellVisualizerBackdropActive &&
+    artworkPresentationState.isArtworkBackgroundBright &&
+    ((visualizerBackdropMode === 'workspace' && isWorkspaceArtworkBackgroundActive) ||
+      (visualizerBackdropMode === 'player-details' && isTrackDetailsArtworkLayerActive));
+  $: isVisualizerBackdropBright =
+    isShellVisualizerBackdropActive && isVisualizerBackdropOverBrightArtwork;
   $: isTrackDetailsScopedBackdropTrackingActive =
     isTrackDetailsArtworkLayerActive || isScopedVisualizerBackdropActive;
   $: isPlayerLocalVisualizerActive = visualizerBackdropMode !== 'off' && !isShellVisualizerBackdropActive;
@@ -697,6 +704,7 @@
   class:artwork-background-fade-disabled={!$appearanceSettings.artworkBackgroundFadeEnabled}
   class:visualizer-backdrop-active={isShellVisualizerBackdropActive}
   class:visualizer-backdrop-scoped={isScopedVisualizerBackdropActive}
+  class:visualizer-backdrop-bright={isVisualizerBackdropBright}
   class:window-chrome-transition-bypass={artworkPresentationState.isWindowChromeTransitionBypassed}
   class:window-controls-overlay-active={$windowControlsOverlayState.visible}
 >
@@ -819,6 +827,7 @@
     artworkBackgroundActive={isPlayerBarArtworkLayerActive}
     artworkBackgroundBright={artworkPresentationState.isArtworkBackgroundBright}
     visualizerBackdropActive={isPlayerLocalVisualizerActive}
+    suppressArtworkPlayerColors={isShellVisualizerBackdropActive}
     on:toggle={() => void playbackCommands.togglePlayback()}
     on:previous={() => void playbackCommands.stepTrack(-1)}
     on:next={() => void playbackCommands.stepTrack(1)}
