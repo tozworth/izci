@@ -14,6 +14,7 @@
   export let artwork: LoadedStreamArtwork | null = null;
   export let artworkBackgroundActive = false;
   export let artworkBackgroundBright = false;
+  export let visualizerBackdropActive = true;
 
   const dispatch = createEventDispatcher<{
     toggle: void;
@@ -179,7 +180,9 @@
   class:artwork-player-colors-active={playerArtworkColorsActive}
   style={playerArtworkStyle}
 >
-  <PlayerVisualizer artworkUrl={artwork?.url} />
+  {#if visualizerBackdropActive}
+    <PlayerVisualizer artworkUrl={artwork?.url} />
+  {/if}
 
   <div class="player-track-group">
     {#if displayTrack}

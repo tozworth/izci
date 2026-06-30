@@ -2,10 +2,11 @@
   import { onDestroy, onMount } from 'svelte';
   import { extractArtworkPalette, type VisualizerPalette } from '$lib/services/artwork-palette';
   import { visualizerService } from '$lib/services/visualizer';
-  import { visualizerSettings } from '$lib/stores/visualizer-settings';
+  import { DEFAULT_VISUALIZER_SETTINGS, visualizerSettings } from '$lib/stores/visualizer-settings';
   import type { VisualizerSettings } from '$lib/types';
 
   export let artworkUrl: string | undefined = undefined;
+  export let triangleSizeReferenceSelector: string | null = null;
 
   const BAND_COUNT = 72;
   const IDLE_FALLBACK = 0;
@@ -46,6 +47,7 @@
   let triangleBeatPulse = 0;
   let triangleLastBeatAt = 0;
   let triangleGenerationSignature = '';
+  let triangleReferenceHeight = 0;
 
   function resizeCanvas() {
     if (!canvas) {
@@ -111,7 +113,12 @@
       values.push(total / (end - start) / 255);
     }
 
-    return normalizeBands(values, settings.normalizationStrength);
+    const normalizationStrength =
+      settings.style === 'triangles'
+        ? DEFAULT_VISUALIZER_SETTINGS.normalizationStrength
+        : settings.normalizationStrength;
+
+    return normalizeBands(values, normalizationStrength);
   }
 
   function normalizeBands(values: number[], strength: number): number[] {
@@ -171,12 +178,25 @@
     return min + Math.random() * (max - min);
   }
 
+  function getTriangleReferenceHeight(): number {
+    if (!triangleSizeReferenceSelector) {
+      return height;
+    }
+
+    const referenceElement = document.querySelector(triangleSizeReferenceSelector);
+    const referenceRect = referenceElement?.getBoundingClientRect();
+    const referenceHeight = referenceRect ? referenceRect.height * (window.devicePixelRatio || 1) : 0;
+
+    return Math.max(1, Math.round(referenceHeight || height));
+  }
+
   function getTriangleGenerationSignature(settings: VisualizerSettings): string {
     return [
       settings.height,
       settings.triangleMinSize,
       settings.triangleMaxSize,
-      settings.triangleBaseSpeed
+      settings.triangleBaseSpeed,
+      triangleReferenceHeight
     ].join(':');
   }
 
@@ -201,8 +221,9 @@
     const visualTop = height * (1 - heightRatio);
     const visualHeight = Math.max(1, height - visualTop);
     const depth = randomRange(0.72, 1.62);
-    const minSize = Math.max(8, height * settings.triangleMinSize);
-    const maxSize = Math.max(minSize + 4, height * settings.triangleMaxSize);
+    const referenceHeight = Math.max(1, triangleReferenceHeight || height);
+    const minSize = Math.max(8, referenceHeight * settings.triangleMinSize);
+    const maxSize = Math.max(minSize + 4, referenceHeight * settings.triangleMaxSize);
     const size = randomRange(minSize, maxSize) * depth;
     const xMargin = Math.min(width * 0.12, size * 0.28);
 
@@ -210,7 +231,7 @@
       x: width <= xMargin * 2 ? width / 2 : randomRange(xMargin, width - xMargin),
       y: randomRange(height + size * 0.2, height + visualHeight * 1.15 + size),
       size,
-      baseSpeed: randomRange(height * 0.08, height * 0.3) * depth * settings.triangleBaseSpeed,
+      baseSpeed: randomRange(referenceHeight * 0.08, referenceHeight * 0.3) * depth * settings.triangleBaseSpeed,
       depth,
       alpha: randomRange(0.48, 0.9),
       bandIndex: Math.floor(randomRange(0, Math.max(1, bandCount))),
@@ -442,6 +463,7 @@
     const { timestamp, deltaSeconds } = getTriangleFrameDelta();
     const heightRatio = settings.height;
     const visualTop = height * (1 - heightRatio);
+    triangleReferenceHeight = getTriangleReferenceHeight();
     const generationSignature = getTriangleGenerationSignature(settings);
 
     if (generationSignature !== triangleGenerationSignature) {

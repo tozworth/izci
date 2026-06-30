@@ -49,7 +49,7 @@ Working source tree:
 - `src/lib/styles/themes.css`: shared color-theme tokens consumed by the main app and Options popup.
 - `src/lib/styles/app/`: focused main-window CSS split by ownership (`base`, `shell`, `menus`, `workspace`, `panels`, `player`).
 - `src/options/main.ts`: Options popup entry; mounts the dedicated popup Svelte app.
-- `src/options/OptionsApp.svelte`: standalone Options window UI for appearance, module playback defaults, and metadata behavior, including the artwork-backdrop mode selector and the window-title track-name toggle.
+- `src/options/OptionsApp.svelte`: standalone Options window UI for appearance, module playback defaults, and metadata behavior, including the artwork/visualizer backdrop mode selectors and the window-title track-name toggle.
 - `src/options/app.css`: Options popup styling.
 - `src/options/views.ts`: popup navigation/view metadata shared by the Options UI.
 - `src/vite-env.d.ts`: Vite ambient types.
@@ -60,7 +60,7 @@ Working source tree:
 UI only. Keep these focused on rendering and event dispatch.
 
 - `PlayerControls.svelte`: transport controls, seek bar, volume, and currently selected/playing track context.
-- `PlayerVisualizer.svelte`: canvas spectrum visualizer rendered as a transparent full-player background layer, driven by the shared visualizer service and settings store.
+- `PlayerVisualizer.svelte`: canvas spectrum visualizer rendered as a transparent backdrop layer for the player or shell, driven by the shared visualizer service and settings store.
 - `PlaylistPanel.svelte`: shared playlist/library composition shell; wires drag/drop import, selection events, library view settings, and the extracted playlist-panel subcomponents/helpers.
 - `TopMenuBar.svelte`: desktop-style File/View menu bar that also adapts to Window Controls Overlay state, exposes draggable titlebar regions, hides the version label while overlay mode is active, and collapses into a compact `izci` chevron menu when available titlebar space is tight.
 - `MenuSurface.svelte`: shared popup menu surface used by the compact titlebar menu; supports nested submenus plus in-place drilldown fallback when flyout submenus would overflow the window.
@@ -132,7 +132,7 @@ Primary location for playback and browser-integration logic.
 - `playlist-dedupe.ts`: duplicate detection based on track identity, used only by the library store path.
 - `persistent-store.ts`: shared `localStorage` plus `BroadcastChannel` persistence/sync helper for lightweight settings stores.
 - `library-view-settings.ts`: persistent library table layout and filter state (column order, widths, visibility, sort, search query) with `BroadcastChannel` sync.
-- `appearance-settings.ts`: persistent appearance settings for color theme, optional artwork-colored player chrome, system font, narrow-library behavior, the artwork-backdrop mode (`off`, `player`, `workspace`), and whether the main window title mirrors the current track title, with `BroadcastChannel` sync.
+- `appearance-settings.ts`: persistent appearance settings for color theme, optional artwork-colored player chrome, system font, narrow-library behavior, artwork/visualizer backdrop modes (`off`, `player`, `player-details`, `workspace`), and whether the main window title mirrors the current track title, with `BroadcastChannel` sync.
 - `playback-settings.ts`: persistent general playback settings, currently the logarithmic-volume toggle, with sync.
 - `visualizer-settings.ts`: persistent player visualizer settings (style, color source, height, opacity stored as transparency, and numeric spectrum-normalization strength), with sync.
 - `module-playback-settings.ts`: persistent tracker playback settings (repeat, stereo/pan, interpolation, tempo, pitch) with sync.
@@ -173,7 +173,7 @@ Primary location for playback and browser-integration logic.
 - The main app window title defaults to the current track title when one is available, but Appearance settings can force it to remain `izci`; this preference is persisted in `localStorage` and synced across windows with the rest of the appearance settings.
 - The optional artwork-colored player mode samples the current player artwork through `src/lib/services/artwork-palette.ts` and applies normalized player-bar CSS variables from `PlayerControls.svelte`. Keep it transient and frontend-only; do not persist sampled artwork palettes or blobs.
 - The optional artwork-backed appearance mode is coordinated through `src/lib/services/artwork-presentation.ts`, which uses the same transient embedded-artwork loading path as the footer artwork. In `workspace` mode, the shell swaps in a heavily blurred backdrop and uses `src/lib/services/artwork-background.ts` to flip shared shell surface/text tokens into a light-background contrast mode for bright covers. In `player` mode, that artwork-driven glass/color treatment is scoped to the player bar so the workspace panels stay on the selected theme.
-- The player visualizer is a transparent canvas layer inside `PlayerControls.svelte`, behind all player content and above the player bar background. It can read visualizer palette CSS variables from the active theme or derive a transient palette from the current player artwork, falling back to theme colors when no artwork palette is available. Keep it visible regardless of artwork backdrop mode; artwork-backed player/workspace modes must not cover or replace the visualizer layer.
+- The player visualizer is a transparent canvas layer that renders inside `PlayerControls.svelte` for the player-only backdrop and as a single app-shell-level canvas for Track Details/workspace backdrop modes. Do not mount a second independent visualizer over the player when the shell-level canvas is active, because randomized styles such as triangles would drift apart. Shell-level triangle sizing should use the player bar as its size/speed reference so triangle settings remain visually consistent between player-only and workspace modes. It can read visualizer palette CSS variables from the active theme or derive a transient palette from the current player artwork, falling back to theme colors when no artwork palette is available. Keep it independent from artwork backdrop mode; artwork-backed player/workspace modes must not cover or replace the visualizer layer.
 - The menu bar should always stay on the active theme's topbar color without artwork blur or glass effects; Window Controls Overlay mode only changes its titlebar geometry and drag regions.
 - Installed desktop builds opt into manifest `display_override: ['window-controls-overlay']` while preserving `display: 'standalone'` fallback. Users can still toggle the title bar at runtime, so overlay-specific UI must respond to live visibility/geometry changes rather than assuming the overlay is always active.
 - `src/lib/services/window-controls-overlay.ts` is the single source of truth for Window Controls Overlay state. Consume its readable store instead of querying `navigator.windowControlsOverlay` directly from components.

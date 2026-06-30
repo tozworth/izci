@@ -63,6 +63,7 @@ export interface AppearanceSettings {
   keepLibraryColumnsVisibleInNarrowLayout: boolean;
   useSystemFont: boolean;
   artworkBackgroundMode: ArtworkBackgroundMode;
+  visualizerBackdropMode: ArtworkBackgroundMode;
   artworkBackgroundFadeEnabled: boolean;
   showTrackTitleInWindowTitle: boolean;
 }

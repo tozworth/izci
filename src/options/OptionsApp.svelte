@@ -3,7 +3,7 @@
   import { version as appVersion } from '../../package.json';
   import { COLOR_THEME_OPTIONS } from '$lib/services/theme';
   import { windowControlsOverlayState } from '$lib/services/window-controls-overlay';
-  import { appearanceSettings } from '$lib/stores/appearance-settings';
+  import { BACKDROP_MODE_OPTIONS, appearanceSettings } from '$lib/stores/appearance-settings';
   import {
     MAX_PLAY_COUNT_THRESHOLD_SECONDS,
     MIN_PLAY_COUNT_THRESHOLD_SECONDS,
@@ -179,6 +179,12 @@
   function handleArtworkBackgroundModeChange(event: Event) {
     appearanceSettings.update({
       artworkBackgroundMode: (event.currentTarget as HTMLSelectElement).value as ArtworkBackgroundMode
+    });
+  }
+
+  function handleVisualizerBackdropModeChange(event: Event) {
+    appearanceSettings.update({
+      visualizerBackdropMode: (event.currentTarget as HTMLSelectElement).value as ArtworkBackgroundMode
     });
   }
 
@@ -490,14 +496,32 @@
                     value={$appearanceSettings.artworkBackgroundMode}
                     on:change={handleArtworkBackgroundModeChange}
                   >
-                    <option value="off">Off</option>
-                    <option value="player">Behind player bar only</option>
-                    <option value="player-details">Player and Track Details</option>
-                    <option value="workspace">Entire workspace</option>
+                    {#each BACKDROP_MODE_OPTIONS as option}
+                      <option value={option.value}>{option.label}</option>
+                    {/each}
                   </select>
                 </div>
                 <p class="field-hint">
                   Uses the current track artwork as a blurred color source for the player, Track Details, or the whole workspace.
+                </p>
+              </label>
+
+              <label class="field">
+                <div class="field-copy">
+                  <span class="field-title">Visualizer backdrop</span>
+                </div>
+                <div class="field-control">
+                  <select
+                    value={$appearanceSettings.visualizerBackdropMode}
+                    on:change={handleVisualizerBackdropModeChange}
+                  >
+                    {#each BACKDROP_MODE_OPTIONS as option}
+                      <option value={option.value}>{option.label}</option>
+                    {/each}
+                  </select>
+                </div>
+                <p class="field-hint">
+                  Draws the spectrum visualizer behind the player, Track Details, or the whole workspace.
                 </p>
               </label>
 
@@ -655,25 +679,27 @@
                 </p>
               </label>
 
-              <label class="field">
-                <div class="field-copy">
-                  <span class="field-title">Normalization</span>
-                </div>
-                <div class="field-control">
-                  <input
-                    type="range"
-                    min="0"
-                    max="100"
-                    step="1"
-                    value={Math.round($visualizerSettings.normalizationStrength * 100)}
-                    on:input={handleVisualizerNormalizationChange}
-                  />
-                  <span class="field-output">{Math.round($visualizerSettings.normalizationStrength * 100)}%</span>
-                </div>
-                <p class="field-hint">
-                  Balances low, mid, and high frequency bands so bass-heavy or bright tracks still use the full visual range.
-                </p>
-              </label>
+              {#if $visualizerSettings.style !== 'triangles'}
+                <label class="field">
+                  <div class="field-copy">
+                    <span class="field-title">Normalization</span>
+                  </div>
+                  <div class="field-control">
+                    <input
+                      type="range"
+                      min="0"
+                      max="100"
+                      step="1"
+                      value={Math.round($visualizerSettings.normalizationStrength * 100)}
+                      on:input={handleVisualizerNormalizationChange}
+                    />
+                    <span class="field-output">{Math.round($visualizerSettings.normalizationStrength * 100)}%</span>
+                  </div>
+                  <p class="field-hint">
+                    Balances low, mid, and high frequency bands so bass-heavy or bright tracks still use the full visual range.
+                  </p>
+                </label>
+              {/if}
 
               {#if $visualizerSettings.style === 'triangles'}
                 <label class="field">

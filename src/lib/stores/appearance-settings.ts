@@ -4,12 +4,19 @@ import { createPersistentStore } from './persistent-store';
 export const APPEARANCE_SETTINGS_STORAGE_KEY = 'izci.appearance-settings';
 export const APPEARANCE_SETTINGS_CHANNEL = 'izci.appearance-settings';
 export const DEFAULT_COLOR_THEME: ColorTheme = 'gruvbox';
+export const BACKDROP_MODE_OPTIONS: Array<{ value: ArtworkBackgroundMode; label: string }> = [
+  { value: 'off', label: 'Off' },
+  { value: 'player', label: 'Behind player bar only' },
+  { value: 'player-details', label: 'Player and Track Details' },
+  { value: 'workspace', label: 'Entire workspace' }
+];
 export const DEFAULT_APPEARANCE_SETTINGS: AppearanceSettings = {
   colorTheme: DEFAULT_COLOR_THEME,
   useArtworkPlayerColors: false,
   keepLibraryColumnsVisibleInNarrowLayout: false,
   useSystemFont: false,
   artworkBackgroundMode: 'off',
+  visualizerBackdropMode: 'player',
   artworkBackgroundFadeEnabled: true,
   showTrackTitleInWindowTitle: true
 };
@@ -38,6 +45,7 @@ function normalizeSettings(value: unknown): AppearanceSettings {
     artworkBackgroundMode: legacyArtworkBackgroundEnabled
       ? 'workspace'
       : normalizeArtworkBackgroundMode(source.artworkBackgroundMode),
+    visualizerBackdropMode: normalizeArtworkBackgroundMode(source.visualizerBackdropMode ?? 'player'),
     artworkBackgroundFadeEnabled: source.artworkBackgroundFadeEnabled !== false,
     showTrackTitleInWindowTitle: source.showTrackTitleInWindowTitle !== false
   };

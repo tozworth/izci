@@ -22,6 +22,7 @@
   export let detailsArtwork: LoadedStreamArtwork | null = null;
   export let artworkBackgroundActive = false;
   export let artworkBackgroundBright = false;
+  export let scopedBackdropTrackingActive = false;
   export let isDetailsVisible = false;
   export let onCloseDetails: () => void = () => {};
 
@@ -88,6 +89,7 @@
         artwork={detailsArtwork}
         {artworkBackgroundActive}
         {artworkBackgroundBright}
+        {scopedBackdropTrackingActive}
         fillParent={true}
         showCloseButton={true}
         onClose={onCloseDetails}

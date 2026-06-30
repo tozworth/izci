@@ -8,6 +8,7 @@
   export let artwork: LoadedStreamArtwork | null = null;
   export let artworkBackgroundActive = false;
   export let artworkBackgroundBright = false;
+  export let scopedBackdropTrackingActive = false;
   export let hideEyebrow = false;
   export let isTabbedLayout = false;
   export let fillParent = false;
@@ -183,12 +184,12 @@
     track?.kind === 'module' && typeof patterns === 'number'
       ? `${patterns} pattern${patterns === 1 ? '' : 's'}`
       : '';
-  $: if (artworkBackgroundActive) {
+  $: if (artworkBackgroundActive || scopedBackdropTrackingActive) {
     void startScopedDetailsMaskTracking();
   } else {
     stopScopedDetailsMaskTracking();
   }
-  $: if (artworkBackgroundActive && panelElement) {
+  $: if ((artworkBackgroundActive || scopedBackdropTrackingActive) && panelElement) {
     scheduleScopedDetailsMaskRectUpdate();
   }
 

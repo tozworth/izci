@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
   import PlayerControls from '$lib/components/PlayerControls.svelte';
+  import PlayerVisualizer from '$lib/components/PlayerVisualizer.svelte';
   import TopMenuBar from '$lib/components/TopMenuBar.svelte';
   import TabbedWorkspace from '$lib/components/workspace/TabbedWorkspace.svelte';
   import WideWorkspace from '$lib/components/workspace/WideWorkspace.svelte';
@@ -90,6 +91,7 @@
   let innerWidth = 0;
   let previousPlaybackState: PlaybackSnapshot['state'] = playbackStatus.state;
   let artworkBackgroundMode: ArtworkBackgroundMode = appearanceSettings.getSnapshot().artworkBackgroundMode;
+  let visualizerBackdropMode: ArtworkBackgroundMode = appearanceSettings.getSnapshot().visualizerBackdropMode;
   let isWorkspaceArtworkBackgroundEnabled = false;
   let isPlayerBarArtworkBackgroundEnabled = false;
   let isPlayerBarArtworkLayerActive = false;
@@ -98,6 +100,10 @@
   let isScopedArtworkBackgroundActive = false;
   let isArtworkBackgroundActive = false;
   let isArtworkBackgroundLayerBright = false;
+  let isShellVisualizerBackdropActive = false;
+  let isScopedVisualizerBackdropActive = false;
+  let isTrackDetailsScopedBackdropTrackingActive = false;
+  let isPlayerLocalVisualizerActive = true;
   let documentTitle = 'izci';
   const workspaceShell = createWorkspaceShellController({
     getPlaylistContextActions,
@@ -202,6 +208,7 @@
   $: livePlayingTrack = resolveTrackSnapshot(playingTrack, selectedItem, playlistItems, libraryItems);
   $: playerDisplayTrack = livePlayingTrack;
   $: artworkBackgroundMode = $appearanceSettings.artworkBackgroundMode;
+  $: visualizerBackdropMode = $appearanceSettings.visualizerBackdropMode;
   $: isWorkspaceArtworkBackgroundEnabled = artworkBackgroundMode === 'workspace';
   $: isPlayerBarArtworkBackgroundEnabled =
     artworkBackgroundMode === 'workspace' ||
@@ -230,6 +237,13 @@
   } else if (!hasArtworkBackgroundLayer) {
     isArtworkBackgroundLayerBright = false;
   }
+  $: isShellVisualizerBackdropActive =
+    !miniModeActive &&
+    (visualizerBackdropMode === 'workspace' || visualizerBackdropMode === 'player-details');
+  $: isScopedVisualizerBackdropActive = isShellVisualizerBackdropActive && visualizerBackdropMode === 'player-details';
+  $: isTrackDetailsScopedBackdropTrackingActive =
+    isTrackDetailsArtworkLayerActive || isScopedVisualizerBackdropActive;
+  $: isPlayerLocalVisualizerActive = visualizerBackdropMode !== 'off' && !isShellVisualizerBackdropActive;
   $: documentTitle =
     $appearanceSettings.showTrackTitleInWindowTitle && livePlayingTrack
       ? getTrackDisplayTitle(livePlayingTrack)
@@ -681,6 +695,8 @@
   class:artwork-background-bright={isArtworkBackgroundActive &&
     artworkPresentationState.isArtworkBackgroundBright}
   class:artwork-background-fade-disabled={!$appearanceSettings.artworkBackgroundFadeEnabled}
+  class:visualizer-backdrop-active={isShellVisualizerBackdropActive}
+  class:visualizer-backdrop-scoped={isScopedVisualizerBackdropActive}
   class:window-chrome-transition-bypass={artworkPresentationState.isWindowChromeTransitionBypassed}
   class:window-controls-overlay-active={$windowControlsOverlayState.visible}
 >
@@ -725,6 +741,14 @@
     class:is-active={isArtworkBackgroundActive}
     aria-hidden="true"
   ></div>
+  {#if isShellVisualizerBackdropActive}
+    <div class="app-shell-visualizer-backdrop" aria-hidden="true">
+      <PlayerVisualizer
+        artworkUrl={artworkPresentationState.displayedArtwork?.url}
+        triangleSizeReferenceSelector=".player-bar"
+      />
+    </div>
+  {/if}
   <div class="window-frame-safe-strip" aria-hidden="true"></div>
   <input
     bind:this={fileInput}
@@ -757,6 +781,7 @@
         detailsArtwork={artworkPresentationState.visibleDetailsArtwork}
         artworkBackgroundActive={isTrackDetailsArtworkLayerActive}
         artworkBackgroundBright={artworkPresentationState.isArtworkBackgroundBright}
+        scopedBackdropTrackingActive={isTrackDetailsScopedBackdropTrackingActive}
         isDetailsVisible={workspaceShellState.isDetailsPanelVisible}
         onCloseDetails={() => workspaceShell.closeTrackDetails()}
         on:tabChange={(event) => workspaceShell.setActiveWorkspaceTab(event.detail)}
@@ -774,6 +799,7 @@
         detailsArtwork={artworkPresentationState.visibleDetailsArtwork}
         artworkBackgroundActive={isTrackDetailsArtworkLayerActive}
         artworkBackgroundBright={artworkPresentationState.isArtworkBackgroundBright}
+        scopedBackdropTrackingActive={isTrackDetailsScopedBackdropTrackingActive}
         isDetailsVisible={workspaceShellState.isDetailsPanelVisible}
         onCloseDetails={() => workspaceShell.closeTrackDetails()}
         on:resizeStart={(event) => workspaceShell.handleWideWorkspaceResizeStart(event.detail)}
@@ -792,6 +818,7 @@
     artwork={artworkPresentationState.displayedArtwork}
     artworkBackgroundActive={isPlayerBarArtworkLayerActive}
     artworkBackgroundBright={artworkPresentationState.isArtworkBackgroundBright}
+    visualizerBackdropActive={isPlayerLocalVisualizerActive}
     on:toggle={() => void playbackCommands.togglePlayback()}
     on:previous={() => void playbackCommands.stepTrack(-1)}
     on:next={() => void playbackCommands.stepTrack(1)}
