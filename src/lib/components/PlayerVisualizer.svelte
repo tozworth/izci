@@ -11,6 +11,11 @@
   const BAND_COUNT = 72;
   const IDLE_FALLBACK = 0;
   const MAX_VISUALIZED_FREQUENCY_HZ = 16_000;
+  const TRIANGLE_SIDE_X = Math.sqrt(3) / 2;
+  const TRIANGLE_FRAME_INTERVAL_MS = 1000 / 60;
+  const TRIANGLE_EDGE_FADE_SIZE_FACTOR = 1.4;
+  const PALETTE_REFRESH_INTERVAL_MS = 250;
+
   interface TriangleParticle {
     x: number;
     y: number;
@@ -29,18 +34,27 @@
   }
 
   let canvas: HTMLCanvasElement;
+  let canvasContext: CanvasRenderingContext2D | null = null;
   let frame: number | null = null;
+  let lastRenderedAt = 0;
   let width = 0;
   let height = 0;
+  let displayScale = 1;
   let analyser: AnalyserNode | null = null;
   let frequencyData = new Uint8Array(0);
+  let bandValues = new Array<number>(BAND_COUNT).fill(IDLE_FALLBACK);
   let rollingLow = 0.55;
   let rollingMid = 0.55;
   let rollingHigh = 0.55;
+  let currentSettings = DEFAULT_VISUALIZER_SETTINGS;
   let artworkPalette: VisualizerPalette | null = null;
   let artworkPaletteUrl: string | undefined = undefined;
   let artworkPaletteToken = 0;
+  let themePalette: VisualizerPalette | null = null;
+  let paletteCacheDirty = true;
+  let lastPaletteRefreshAt = 0;
   let triangleParticles: TriangleParticle[] = [];
+  let triangleParticlesNeedSort = false;
   let triangleLastTimestamp = 0;
   let triangleRollingEnergy = 0.12;
   let triangleRollingLow = 0.12;
@@ -48,6 +62,12 @@
   let triangleLastBeatAt = 0;
   let triangleGenerationSignature = '';
   let triangleReferenceHeight = 0;
+  let observedTriangleSelector: string | null = null;
+  let triangleReferenceElement: Element | null = null;
+  let resizeObserver: ResizeObserver | null = null;
+  let triangleReferenceObserver: ResizeObserver | null = null;
+  let paletteMutationObserver: MutationObserver | null = null;
+  let mounted = false;
 
   function resizeCanvas() {
     if (!canvas) {
@@ -62,11 +82,13 @@
 
     width = nextWidth;
     height = nextHeight;
+    displayScale = scale;
 
     if (sizeChanged) {
       canvas.width = width;
       canvas.height = height;
       triangleParticles = [];
+      triangleParticlesNeedSort = true;
     }
   }
 
@@ -79,7 +101,7 @@
       analyser.getByteFrequencyData(frequencyData);
     }
 
-    const values: number[] = [];
+    const values = bandValues;
     const binCount = frequencyData.length;
     const nyquistFrequency = analyser ? analyser.context.sampleRate / 2 : 0;
     const visualizedBinCount =
@@ -89,7 +111,7 @@
 
     for (let index = 0; index < BAND_COUNT; index += 1) {
       if (!binCount) {
-        values.push(IDLE_FALLBACK);
+        values[index] = IDLE_FALLBACK;
         continue;
       }
 
@@ -110,7 +132,7 @@
         total += frequencyData[bin];
       }
 
-      values.push(total / (end - start) / 255);
+      values[index] = total / (end - start) / 255;
     }
 
     const normalizationStrength =
@@ -123,7 +145,11 @@
 
   function normalizeBands(values: number[], strength: number): number[] {
     if (strength <= 0) {
-      return values.map((value) => Math.pow(value, 0.72));
+      for (let index = 0; index < values.length; index += 1) {
+        values[index] = Math.pow(values[index], 0.72);
+      }
+
+      return values;
     }
 
     const low = average(values, 0, 18);
@@ -133,7 +159,8 @@
     rollingMid = rollingMid * 0.985 + Math.max(mid, 0.08) * 0.015;
     rollingHigh = rollingHigh * 0.985 + Math.max(high, 0.08) * 0.015;
 
-    return values.map((value, index) => {
+    for (let index = 0; index < values.length; index += 1) {
+      const value = values[index];
       const balance =
         index < 18
           ? rollingLow
@@ -141,21 +168,29 @@
             ? rollingMid
             : rollingHigh;
       const normalized = value / Math.max(balance, 0.14);
-      return Math.min(1, Math.pow(value * (1 - strength) + normalized * 0.52 * strength, 0.72));
-    });
+      values[index] = Math.min(1, Math.pow(value * (1 - strength) + normalized * 0.52 * strength, 0.72));
+    }
+
+    return values;
   }
 
   function getPalette(): VisualizerPalette {
-    const settings = visualizerSettings.getSnapshot();
+    const settings = currentSettings;
 
     if (settings.colorSource === 'artwork' && artworkPalette) {
       return artworkPalette;
     }
 
+    const timestamp = performance.now();
+
+    if (themePalette && !paletteCacheDirty && timestamp - lastPaletteRefreshAt < PALETTE_REFRESH_INTERVAL_MS) {
+      return themePalette;
+    }
+
     const styles = getComputedStyle(canvas);
     const read = (name: string, fallback: string) => styles.getPropertyValue(name).trim() || fallback;
 
-    return {
+    themePalette = {
       high: read('--visualizer-high', 'rgba(255, 246, 210, 0.95)'),
       mid: read('--visualizer-mid', 'rgba(120, 205, 255, 0.68)'),
       low: read('--visualizer-low', 'rgba(255, 121, 198, 0.22)'),
@@ -163,11 +198,22 @@
       bars: read('--visualizer-bars', 'rgba(155, 220, 255, 0.86)'),
       blocks: read('--visualizer-blocks', 'rgba(255, 246, 210, 0.72)')
     };
+    paletteCacheDirty = false;
+    lastPaletteRefreshAt = timestamp;
+
+    return themePalette;
   }
 
   function average(values: number[], start: number, end: number): number {
-    const slice = values.slice(start, end);
-    return slice.reduce((total, value) => total + value, 0) / Math.max(slice.length, 1);
+    const normalizedStart = Math.max(0, start);
+    const normalizedEnd = Math.min(values.length, end);
+    let total = 0;
+
+    for (let index = normalizedStart; index < normalizedEnd; index += 1) {
+      total += values[index];
+    }
+
+    return total / Math.max(normalizedEnd - normalizedStart, 1);
   }
 
   function clamp01(value: number): number {
@@ -183,11 +229,48 @@
       return height;
     }
 
-    const referenceElement = document.querySelector(triangleSizeReferenceSelector);
-    const referenceRect = referenceElement?.getBoundingClientRect();
-    const referenceHeight = referenceRect ? referenceRect.height * (window.devicePixelRatio || 1) : 0;
+    return triangleReferenceHeight || height;
+  }
 
-    return Math.max(1, Math.round(referenceHeight || height));
+  function updateTriangleReferenceHeight() {
+    if (!triangleSizeReferenceSelector || !triangleReferenceElement) {
+      triangleReferenceHeight = height;
+      return;
+    }
+
+    const referenceRect = triangleReferenceElement.getBoundingClientRect();
+    const referenceHeight = referenceRect.height * displayScale;
+    const nextHeight = Math.max(1, Math.round(referenceHeight || height));
+
+    if (nextHeight !== triangleReferenceHeight) {
+      triangleReferenceHeight = nextHeight;
+      triangleGenerationSignature = '';
+      triangleParticlesNeedSort = true;
+    }
+  }
+
+  function syncTriangleReferenceObserver() {
+    if (
+      !mounted ||
+      (observedTriangleSelector === triangleSizeReferenceSelector &&
+        (!triangleSizeReferenceSelector || triangleReferenceElement))
+    ) {
+      return;
+    }
+
+    triangleReferenceObserver?.disconnect();
+    triangleReferenceObserver = null;
+    observedTriangleSelector = triangleSizeReferenceSelector;
+    triangleReferenceElement = triangleSizeReferenceSelector
+      ? document.querySelector(triangleSizeReferenceSelector)
+      : null;
+
+    if (triangleReferenceElement && typeof ResizeObserver !== 'undefined') {
+      triangleReferenceObserver = new ResizeObserver(updateTriangleReferenceHeight);
+      triangleReferenceObserver.observe(triangleReferenceElement);
+    }
+
+    updateTriangleReferenceHeight();
   }
 
   function getTriangleGenerationSignature(settings: VisualizerSettings): string {
@@ -209,10 +292,12 @@
 
     while (triangleParticles.length < targetCount) {
       triangleParticles.push(createTriangleParticle(settings, bandCount));
+      triangleParticlesNeedSort = true;
     }
 
     if (triangleParticles.length > targetCount) {
       triangleParticles.length = targetCount;
+      triangleParticlesNeedSort = true;
     }
   }
 
@@ -229,7 +314,7 @@
 
     return {
       x: width <= xMargin * 2 ? width / 2 : randomRange(xMargin, width - xMargin),
-      y: randomRange(height + size * 0.2, height + visualHeight * 1.15 + size),
+      y: randomRange(height + size * 1.15, height + visualHeight * 1.15 + size * 2),
       size,
       baseSpeed: randomRange(referenceHeight * 0.08, referenceHeight * 0.3) * depth * settings.triangleBaseSpeed,
       depth,
@@ -239,14 +324,33 @@
     };
   }
 
-  function getTriangleFrameDelta(): { timestamp: number; deltaSeconds: number } {
-    const timestamp = performance.now();
+  function getTriangleVisibilityAlpha(particle: TriangleParticle, visualTop: number): number {
+    const size = particle.size;
+    const top = particle.y - size;
+    const bottom = particle.y + size * 0.5;
+    const fadeDistance = Math.max(1, size * TRIANGLE_EDGE_FADE_SIZE_FACTOR);
+    const bottomFade = clamp01((height - top) / fadeDistance);
+    const topFade = clamp01((bottom - visualTop) / fadeDistance);
+
+    return Math.min(bottomFade, topFade);
+  }
+
+  function sortTriangleParticlesIfNeeded(): void {
+    if (!triangleParticlesNeedSort) {
+      return;
+    }
+
+    triangleParticles.sort((left, right) => left.depth - right.depth);
+    triangleParticlesNeedSort = false;
+  }
+
+  function getTriangleFrameDelta(timestamp: number): { deltaSeconds: number } {
     const deltaSeconds = triangleLastTimestamp
       ? Math.min(0.08, Math.max(0.001, (timestamp - triangleLastTimestamp) / 1000))
       : 1 / 60;
 
     triangleLastTimestamp = timestamp;
-    return { timestamp, deltaSeconds };
+    return { deltaSeconds };
   }
 
   function updateTriangleRhythm(values: number[], timestamp: number, deltaSeconds: number): TriangleRhythm {
@@ -287,6 +391,7 @@
     const token = ++artworkPaletteToken;
     artworkPaletteUrl = url;
     artworkPalette = null;
+    paletteCacheDirty = true;
 
     if (!url) {
       return;
@@ -297,30 +402,47 @@
 
       if (token === artworkPaletteToken && artworkPaletteUrl === url) {
         artworkPalette = palette.visualizer;
+        paletteCacheDirty = true;
       }
     } catch {
       if (token === artworkPaletteToken) {
         artworkPalette = null;
+        paletteCacheDirty = true;
       }
     }
   }
 
-  function draw() {
+  function draw(timestamp = performance.now()) {
     frame = null;
 
     if (!canvas) {
       return;
     }
 
-    resizeCanvas();
+    if (!width || !height) {
+      resizeCanvas();
+    }
 
-    const context = canvas.getContext('2d');
+    const context = canvasContext ?? canvas.getContext('2d');
 
     if (!context) {
       return;
     }
 
-    const settings = visualizerSettings.getSnapshot();
+    canvasContext = context;
+    const settings = currentSettings;
+
+    if (
+      settings.style === 'triangles' &&
+      lastRenderedAt > 0 &&
+      timestamp - lastRenderedAt < TRIANGLE_FRAME_INTERVAL_MS
+    ) {
+      frame = requestAnimationFrame(draw);
+      return;
+    }
+
+    lastRenderedAt = timestamp;
+
     const values = sampleBands(settings);
     const palette = getPalette();
     context.clearRect(0, 0, width, height);
@@ -337,9 +459,9 @@
       drawMirror(context, values, settings.height, palette);
     } else if (settings.style === 'blocks') {
       triangleLastTimestamp = 0;
-      drawBlocks(context, values, settings.height, palette);
+      drawBlocks(context, values, settings.height, palette, settings.transparency);
     } else {
-      drawTriangles(context, values, settings, palette);
+      drawTriangles(context, values, settings, palette, timestamp);
     }
 
     context.globalAlpha = 1;
@@ -428,7 +550,8 @@
     context: CanvasRenderingContext2D,
     values: number[],
     heightRatio: number,
-    palette: VisualizerPalette
+    palette: VisualizerPalette,
+    transparency: number
   ) {
     const columns = 48;
     const rows = 7;
@@ -442,7 +565,7 @@
       const litRows = Math.ceil(value * rows);
 
       for (let row = 0; row < litRows; row += 1) {
-        context.globalAlpha = (visualizerSettings.getSnapshot().transparency * (0.44 + (row / rows) * 0.56));
+        context.globalAlpha = transparency * (0.44 + (row / rows) * 0.56);
         context.fillStyle = palette.blocks;
         context.fillRect(
           column * blockWidth + blockWidth * 0.14,
@@ -458,9 +581,10 @@
     context: CanvasRenderingContext2D,
     values: number[],
     settings: VisualizerSettings,
-    palette: VisualizerPalette
+    palette: VisualizerPalette,
+    timestamp: number
   ) {
-    const { timestamp, deltaSeconds } = getTriangleFrameDelta();
+    const { deltaSeconds } = getTriangleFrameDelta(timestamp);
     const heightRatio = settings.height;
     const visualTop = height * (1 - heightRatio);
     triangleReferenceHeight = getTriangleReferenceHeight();
@@ -469,9 +593,11 @@
     if (generationSignature !== triangleGenerationSignature) {
       triangleGenerationSignature = generationSignature;
       triangleParticles = [];
+      triangleParticlesNeedSort = true;
     }
 
     ensureTriangleParticles(settings, values.length);
+    sortTriangleParticlesIfNeeded();
 
     const rhythm = updateTriangleRhythm(values, timestamp, deltaSeconds);
 
@@ -489,7 +615,7 @@
       }
     }
 
-    triangleParticles.sort((left, right) => left.depth - right.depth);
+    const borderWidth = settings.triangleBorderWidth * displayScale;
 
     for (const particle of triangleParticles) {
       const bandValue = values[particle.bandIndex] ?? rhythm.amplitude;
@@ -499,14 +625,19 @@
       particle.flash = Math.max(0, particle.flash - deltaSeconds * (2.4 + activity * 1.4));
       particle.y -= particle.baseSpeed * speedMultiplier * deltaSeconds;
 
-      if (particle.y < visualTop - particle.size * 4) {
+      const visibilityAlpha = getTriangleVisibilityAlpha(particle, visualTop);
+
+      if (particle.y + particle.size * 0.5 < visualTop - particle.size * TRIANGLE_EDGE_FADE_SIZE_FACTOR) {
         Object.assign(particle, createTriangleParticle(settings, values.length));
+        triangleParticlesNeedSort = true;
+        continue;
       }
 
-      drawTriangleParticle(context, particle, palette, settings, bandValue, rhythm.pulse);
+      drawTriangleParticle(context, particle, palette, settings, bandValue, rhythm.pulse, borderWidth, visibilityAlpha);
     }
 
     drawTriangleBeatFlash(context, heightRatio, palette, settings.transparency, rhythm.pulse);
+    sortTriangleParticlesIfNeeded();
   }
 
   function drawTriangleParticle(
@@ -515,38 +646,36 @@
     palette: VisualizerPalette,
     settings: VisualizerSettings,
     bandValue: number,
-    pulse: number
+    pulse: number,
+    borderWidth: number,
+    visibilityAlpha: number
   ) {
+    if (visibilityAlpha <= 0) {
+      return;
+    }
+
     const baseAlpha = settings.transparency;
     const flash = Math.max(particle.flash, pulse * 0.62);
     const size = particle.size;
     const fillColor = particle.depth > 1.08 ? palette.mid : palette.low;
     const strokeColor = flash > 0.28 ? palette.high : palette.mid;
-    const borderWidth = settings.triangleBorderWidth * (window.devicePixelRatio || 1);
+    const x = particle.x;
+    const y = particle.y;
 
-    context.save();
-    context.translate(particle.x, particle.y);
     context.beginPath();
-
-    for (let index = 0; index < 3; index += 1) {
-      const angle = -Math.PI / 2 + index * ((Math.PI * 2) / 3);
-      const x = Math.cos(angle) * size;
-      const y = Math.sin(angle) * size;
-
-      if (index === 0) {
-        context.moveTo(x, y);
-      } else {
-        context.lineTo(x, y);
-      }
-    }
-
+    context.moveTo(x, y - size);
+    context.lineTo(x + size * TRIANGLE_SIDE_X, y + size * 0.5);
+    context.lineTo(x - size * TRIANGLE_SIDE_X, y + size * 0.5);
     context.closePath();
-    context.globalAlpha = Math.min(0.94, baseAlpha * (particle.alpha * (0.72 + bandValue * 0.52) + flash * 0.32));
+    context.globalAlpha = Math.min(
+      0.94,
+      baseAlpha * visibilityAlpha * (particle.alpha * (0.72 + bandValue * 0.52) + flash * 0.32)
+    );
     context.fillStyle = fillColor;
     context.fill();
 
     if (borderWidth > 0) {
-      context.globalAlpha = Math.min(1, baseAlpha * (0.72 + bandValue * 0.36 + flash * 0.72));
+      context.globalAlpha = Math.min(1, baseAlpha * visibilityAlpha * (0.72 + bandValue * 0.36 + flash * 0.72));
       context.strokeStyle = strokeColor;
       context.lineJoin = 'round';
       context.lineWidth = borderWidth;
@@ -555,8 +684,6 @@
       context.stroke();
       context.shadowBlur = 0;
     }
-
-    context.restore();
   }
 
   function drawTriangleBeatFlash(
@@ -585,15 +712,41 @@
     const unsubscribeSource = visualizerService.source.subscribe((nextSource) => {
       analyser = nextSource?.analyser ?? null;
     });
-    const unsubscribeSettings = visualizerSettings.subscribe(() => undefined);
+    const unsubscribeSettings = visualizerSettings.subscribe((nextSettings) => {
+      currentSettings = nextSettings;
+      paletteCacheDirty = true;
+    });
 
+    mounted = true;
+    canvasContext = canvas.getContext('2d');
     draw();
+
+    if (typeof ResizeObserver !== 'undefined') {
+      resizeObserver = new ResizeObserver(resizeCanvas);
+      resizeObserver.observe(canvas);
+    }
+
+    paletteMutationObserver = new MutationObserver(() => {
+      paletteCacheDirty = true;
+    });
+    paletteMutationObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['class', 'style'] });
+    paletteMutationObserver.observe(document.body, { attributes: true, attributeFilter: ['class', 'style'] });
+    if (canvas.parentElement) {
+      paletteMutationObserver.observe(canvas.parentElement, { attributes: true, attributeFilter: ['class', 'style'] });
+    }
+
+    resizeCanvas();
+    syncTriangleReferenceObserver();
     window.addEventListener('resize', resizeCanvas);
 
     return () => {
+      mounted = false;
       unsubscribeSource();
       unsubscribeSettings();
       window.removeEventListener('resize', resizeCanvas);
+      resizeObserver?.disconnect();
+      triangleReferenceObserver?.disconnect();
+      paletteMutationObserver?.disconnect();
       if (frame !== null) {
         cancelAnimationFrame(frame);
       }
@@ -603,6 +756,8 @@
   $: if (artworkUrl !== artworkPaletteUrl) {
     void syncArtworkPalette(artworkUrl);
   }
+
+  $: syncTriangleReferenceObserver();
 
   onDestroy(() => {
     if (frame !== null) {
