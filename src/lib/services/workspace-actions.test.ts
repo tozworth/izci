@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  buildLibraryContextActions,
   buildPlaylistContextActions,
   buildSelectedWorkspaceTracks,
   getEquivalentLibraryIds,
@@ -59,5 +60,17 @@ describe('workspace actions', () => {
       label: 'Add to library',
       icon: 'library_add'
     });
+  });
+
+  it('includes reset play count in library context actions', () => {
+    expect(buildLibraryContextActions()).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: 'reset-play-count',
+          label: 'Reset play count',
+          icon: 'restart_alt'
+        })
+      ])
+    );
   });
 });

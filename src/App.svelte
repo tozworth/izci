@@ -544,6 +544,14 @@
     });
   }
 
+  function resetLibraryPlayCounts(ids: string[]): void {
+    for (const id of ids) {
+      libraryStore.updateMetadata(id, {
+        playCount: 0
+      });
+    }
+  }
+
   function handlePlaylistContextAction(event: CustomEvent<{ actionId: string; ids: string[] }>) {
     const { actionId, ids } = event.detail;
     const tracks = buildSelectedWorkspaceTracks(playlistItems, ids);
@@ -610,6 +618,11 @@
         workspaceShell.selectTrack('playlist', addedItems[0].id);
       }
 
+      return;
+    }
+
+    if (actionId === 'reset-play-count') {
+      resetLibraryPlayCounts(ids);
       return;
     }
 

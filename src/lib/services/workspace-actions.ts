@@ -92,11 +92,16 @@ export function buildLibraryContextActions(): MenuActionItem[] {
       icon: 'info'
     },
     {
+      id: 'reset-play-count',
+      label: 'Reset play count',
+      icon: 'restart_alt',
+      separatorBefore: true
+    },
+    {
       id: 'remove',
       label: 'Remove',
       icon: 'delete',
-      shortcut: 'Delete',
-      separatorBefore: true
+      shortcut: 'Delete'
     }
   ];
 }
