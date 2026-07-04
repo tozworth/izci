@@ -109,7 +109,11 @@
   }
 </script>
 
-<main class="workspace now-playing-workspace">
+<main
+  class="workspace now-playing-workspace"
+  class:is-cursor-hidden={panelChromeHidden}
+  on:pointermove={revealPanelChrome}
+>
   <BackdropZone
     effect={backdropEffect}
     artwork={backdropArtwork}
@@ -150,7 +154,6 @@
       <section
         class="now-playing-queue-pane"
         aria-label="Workspace panels"
-        on:pointermove={revealPanelChrome}
         on:focusin={revealPanelChrome}
       >
         <div

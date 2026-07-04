@@ -254,6 +254,11 @@
   overflow: hidden;
 }
 
+.now-playing-workspace.is-cursor-hidden,
+.now-playing-workspace.is-cursor-hidden * {
+  cursor: none !important;
+}
+
 .now-playing-backdrop-zone {
   flex: 1;
 }
@@ -322,6 +327,11 @@
   border-color: transparent;
   background-color: transparent;
   box-shadow: none;
+}
+
+.now-playing-tabs-layout.is-chrome-hidden .now-playing-tab-panel .panel {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
 .now-playing-tabs {
