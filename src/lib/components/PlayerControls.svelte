@@ -31,6 +31,7 @@
 
   const COMPACT_VOLUME_QUERY = '(max-width: 349px)';
   const COMPACT_VOLUME_OPEN_DELAY_MS = 120;
+  const RANGE_THUMB_SIZE_REM = 1.05;
 
   let isCompactVolume = false;
   let isVolumePopupOpen = false;
@@ -155,7 +156,17 @@
 
   function toRangeProgressStyle(value: number, max: number): string {
     const percent = max > 0 ? clamp((value / max) * 100, 0, 100) : 0;
-    return `--player-range-progress: ${percent}%;`;
+    let fillEnd = '0px';
+
+    if (percent >= 100) {
+      fillEnd = '100%';
+    } else if (percent > 0) {
+      const thumbCenterOffsetRem = RANGE_THUMB_SIZE_REM * (0.5 - percent / 100);
+      const offsetSign = thumbCenterOffsetRem < 0 ? '-' : '+';
+      fillEnd = `calc(${percent}% ${offsetSign} ${Math.abs(thumbCenterOffsetRem).toFixed(4)}rem)`;
+    }
+
+    return `--player-range-progress: ${percent}%; --player-range-fill-end: ${fillEnd};`;
   }
 
   function getVolumeIcon(volume: number, muted: boolean): string {
@@ -334,18 +345,20 @@
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div class="volume-popup" on:mouseenter={openVolumePopup}>
       <div class="volume-popup-track">
-        <input
-          aria-label="Volume"
-          type="range"
-          min="0"
-          max="1"
-          step="0.01"
-          value={snapshot.volume}
-          style={toRangeProgressStyle(snapshot.volume, 1)}
-          disabled={snapshot.muted}
-          on:input={(event) => dispatch('volume', Number((event.currentTarget as HTMLInputElement).value))}
-          on:wheel|preventDefault={handleVolumeWheel}
-        />
+        <div class="range-control volume-range" style={toRangeProgressStyle(snapshot.volume, 1)}>
+          <span class="range-control-fill" aria-hidden="true"></span>
+          <input
+            aria-label="Volume"
+            type="range"
+            min="0"
+            max="1"
+            step="0.01"
+            value={snapshot.volume}
+            disabled={snapshot.muted}
+            on:input={(event) => dispatch('volume', Number((event.currentTarget as HTMLInputElement).value))}
+            on:wheel|preventDefault={handleVolumeWheel}
+          />
+        </div>
       </div>
     </div>
   </div>
