@@ -67,6 +67,37 @@ function buildWindowFeatures(features: PopupWindowDefinition['features']): strin
 }
 
 const popupRefs = new Map<PopupWindowId, Window | null>();
+let hasMainWindowLifecycleListeners = false;
+
+function getPopupWindowIds(): PopupWindowId[] {
+  return Object.keys(popupWindows) as PopupWindowId[];
+}
+
+function closePopupWindow(id: PopupWindowId): void {
+  const windowRef = popupRefs.get(id);
+
+  if (isOpenWindow(windowRef)) {
+    windowRef.close();
+  }
+
+  popupRefs.set(id, null);
+}
+
+function closeAllPopupWindows(): void {
+  for (const id of getPopupWindowIds()) {
+    closePopupWindow(id);
+  }
+}
+
+function attachMainWindowLifecycleListeners(): void {
+  if (hasMainWindowLifecycleListeners) {
+    return;
+  }
+
+  hasMainWindowLifecycleListeners = true;
+  window.addEventListener('pagehide', closeAllPopupWindows);
+  window.addEventListener('beforeunload', closeAllPopupWindows);
+}
 
 function openPopupWindow(id: PopupWindowId, pathOverride?: string): Window | null {
   const existingWindow = popupRefs.get(id);
@@ -97,6 +128,7 @@ function openPopupWindow(id: PopupWindowId, pathOverride?: string): Window | nul
   }
 
   popupRefs.set(id, nextWindow);
+  attachMainWindowLifecycleListeners();
   nextWindow.addEventListener('beforeunload', () => {
     if (popupRefs.get(id) === nextWindow) {
       popupRefs.set(id, null);
@@ -126,10 +158,12 @@ export const windowManager = {
     return openPopupWindow('options', view ? buildOptionsWindowPath(view) : undefined);
   },
   exit() {
+    closeAllPopupWindows();
     window.close();
 
     if (!window.closed) {
       window.location.replace('about:blank');
     }
-  }
+  },
+  closePopups: closeAllPopupWindows
 };

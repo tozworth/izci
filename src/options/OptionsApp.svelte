@@ -290,6 +290,18 @@
     const syncActiveViewFromLocation = () => {
       activeView = getOptionsViewFromLocation(window.location);
     };
+    const wasOpenedByMainWindow = window.opener !== null;
+    const closeIfMainWindowClosed = () => {
+      if (!wasOpenedByMainWindow) {
+        return;
+      }
+
+      if (window.opener && !window.opener.closed) {
+        return;
+      }
+
+      window.close();
+    };
     const handleMessage = (event: MessageEvent) => {
       if (event.origin !== window.location.origin || event.data?.type !== 'izci:open-options-view') {
         return;
@@ -304,10 +316,16 @@
 
     window.addEventListener('popstate', syncActiveViewFromLocation);
     window.addEventListener('message', handleMessage);
+    window.addEventListener('focus', closeIfMainWindowClosed);
+    document.addEventListener('visibilitychange', closeIfMainWindowClosed);
+    const openerCheckInterval = window.setInterval(closeIfMainWindowClosed, 1000);
 
     return () => {
+      window.clearInterval(openerCheckInterval);
       window.removeEventListener('popstate', syncActiveViewFromLocation);
       window.removeEventListener('message', handleMessage);
+      window.removeEventListener('focus', closeIfMainWindowClosed);
+      document.removeEventListener('visibilitychange', closeIfMainWindowClosed);
     };
   });
 
