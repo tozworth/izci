@@ -32,7 +32,11 @@
   const COMPACT_VOLUME_QUERY = '(max-width: 349px)';
   const COMPACT_VOLUME_OPEN_DELAY_MS = 120;
   const RANGE_THUMB_SIZE_REM = 1.05;
+  const PLAYER_BAR_RESERVE_PROPERTY = '--player-bar-measured-reserve';
 
+  let playerBarElement: HTMLElement | null = null;
+  let playerBarResizeObserver: ResizeObserver | null = null;
+  let playerBarReserveFrame: number | null = null;
   let isCompactVolume = false;
   let isVolumePopupOpen = false;
   let volumePopupTimer: ReturnType<typeof window.setTimeout> | null = null;
@@ -177,6 +181,40 @@
     return volume < 0.5 ? 'volume_down' : 'volume_up';
   }
 
+  function getAppShell(): HTMLElement | null {
+    return playerBarElement?.closest('.app-shell') as HTMLElement | null;
+  }
+
+  function clearPlayerBarReserve() {
+    getAppShell()?.style.removeProperty(PLAYER_BAR_RESERVE_PROPERTY);
+  }
+
+  function syncPlayerBarReserve() {
+    playerBarReserveFrame = null;
+
+    if (!playerBarElement) {
+      clearPlayerBarReserve();
+      return;
+    }
+
+    const height = Math.ceil(playerBarElement.getBoundingClientRect().height);
+
+    if (height <= 0) {
+      clearPlayerBarReserve();
+      return;
+    }
+
+    getAppShell()?.style.setProperty(PLAYER_BAR_RESERVE_PROPERTY, `${height}px`);
+  }
+
+  function schedulePlayerBarReserveSync() {
+    if (typeof window === 'undefined' || playerBarReserveFrame !== null) {
+      return;
+    }
+
+    playerBarReserveFrame = window.requestAnimationFrame(syncPlayerBarReserve);
+  }
+
   onMount(() => {
     const mediaQuery = window.matchMedia(COMPACT_VOLUME_QUERY);
 
@@ -187,10 +225,25 @@
 
     syncCompactVolume();
     mediaQuery.addEventListener('change', syncCompactVolume);
+    schedulePlayerBarReserveSync();
+
+    if (typeof ResizeObserver !== 'undefined' && playerBarElement) {
+      playerBarResizeObserver = new ResizeObserver(schedulePlayerBarReserveSync);
+      playerBarResizeObserver.observe(playerBarElement);
+    }
 
     return () => {
       closeVolumePopup();
       mediaQuery.removeEventListener('change', syncCompactVolume);
+      playerBarResizeObserver?.disconnect();
+      playerBarResizeObserver = null;
+
+      if (playerBarReserveFrame !== null) {
+        window.cancelAnimationFrame(playerBarReserveFrame);
+        playerBarReserveFrame = null;
+      }
+
+      clearPlayerBarReserve();
     };
   });
 
@@ -219,6 +272,7 @@
 </script>
 
 <footer
+  bind:this={playerBarElement}
   class="player-bar"
   class:artwork-background-active={artworkBackgroundActive}
   class:artwork-background-bright={artworkBackgroundActive && artworkBackgroundBright}

@@ -6,7 +6,7 @@
   grid-template-rows: auto minmax(0, 1fr) auto;
   gap: 0;
   padding: 0;
-  padding-bottom: var(--player-bar-reserve);
+  padding-bottom: var(--player-bar-measured-reserve, var(--player-bar-reserve));
   color: var(--text);
   background: var(--body-background);
   overflow: hidden;
@@ -18,7 +18,7 @@
 }
 
 .app-shell.tabbed-layout {
-  padding-bottom: var(--player-bar-reserve-tabbed);
+  padding-bottom: var(--player-bar-measured-reserve, var(--player-bar-reserve-tabbed));
 }
 
 .app-shell.mini-mode {
@@ -249,6 +249,6 @@
 
 @media (max-width: 349px) {
   .app-shell.tabbed-layout {
-    padding-bottom: calc(4.55rem + env(safe-area-inset-bottom, 0px));
+    padding-bottom: var(--player-bar-measured-reserve, calc(4.55rem + env(safe-area-inset-bottom, 0px)));
   }
 }

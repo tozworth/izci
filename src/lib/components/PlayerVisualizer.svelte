@@ -70,6 +70,7 @@
   let triangleLastBeatAt = 0;
   let triangleGenerationSignature = '';
   let triangleReferenceHeight = 0;
+  let triangleMotionReferenceHeight = 0;
   let observedTriangleSelector: string | null = null;
   let triangleReferenceElement: Element | null = null;
   let resizeObserver: ResizeObserver | null = null;
@@ -240,6 +241,12 @@
     return triangleReferenceHeight || height;
   }
 
+  function getTriangleMotionReferenceHeight(): number {
+    const viewportHeight = typeof window === 'undefined' ? 0 : window.innerHeight * displayScale;
+
+    return Math.max(1, Math.round(Math.max(height, viewportHeight)));
+  }
+
   function updateTriangleReferenceHeight() {
     if (!triangleSizeReferenceSelector || !triangleReferenceElement) {
       triangleReferenceHeight = height;
@@ -287,7 +294,8 @@
       settings.triangleMinSize,
       settings.triangleMaxSize,
       settings.triangleBaseSpeed,
-      triangleReferenceHeight
+      triangleReferenceHeight,
+      triangleMotionReferenceHeight
     ].join(':');
   }
 
@@ -315,7 +323,7 @@
     const visualHeight = Math.max(1, height - visualTop);
     const depth = randomRange(0.72, 1.62);
     const sizeReferenceHeight = Math.max(1, triangleReferenceHeight || height);
-    const motionReferenceHeight = Math.max(sizeReferenceHeight, visualHeight);
+    const motionReferenceHeight = Math.max(sizeReferenceHeight, triangleMotionReferenceHeight * heightRatio);
     const minSize = Math.max(8, sizeReferenceHeight * settings.triangleMinSize);
     const maxSize = Math.max(minSize + 4, sizeReferenceHeight * settings.triangleMaxSize);
     const size = randomRange(minSize, maxSize) * depth;
@@ -618,6 +626,7 @@
     const heightRatio = settings.height;
     const visualTop = height * (1 - heightRatio);
     triangleReferenceHeight = getTriangleReferenceHeight();
+    triangleMotionReferenceHeight = getTriangleMotionReferenceHeight();
     const generationSignature = getTriangleGenerationSignature(settings);
 
     if (generationSignature !== triangleGenerationSignature) {
