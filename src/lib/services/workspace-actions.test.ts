@@ -50,12 +50,21 @@ describe('workspace actions', () => {
     const playlistTracks = [item('playlist-alpha', { path: '/Music/Alpha.flac' })];
     const libraryTracks = [item('library-alpha', { path: '/music/alpha.flac' })];
 
-    expect(buildPlaylistContextActions(playlistTracks, libraryTracks, ['playlist-alpha'])[1]).toMatchObject({
+    expect(buildPlaylistContextActions(playlistTracks, libraryTracks, ['playlist-alpha'])).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: 'track-lyrics',
+          label: 'Lyrics',
+          icon: 'lyrics'
+        })
+      ])
+    );
+    expect(buildPlaylistContextActions(playlistTracks, libraryTracks, ['playlist-alpha'])[2]).toMatchObject({
       id: 'toggle-library',
       label: 'Remove from library',
       icon: 'remove_circle'
     });
-    expect(buildPlaylistContextActions(playlistTracks, [], ['playlist-alpha'])[1]).toMatchObject({
+    expect(buildPlaylistContextActions(playlistTracks, [], ['playlist-alpha'])[2]).toMatchObject({
       id: 'toggle-library',
       label: 'Add to library',
       icon: 'library_add'

@@ -53,6 +53,8 @@ export interface WorkspaceShellState {
   activeCollection: WorkspaceCollection;
   activeWorkspaceTab: WorkspaceTab;
   isDetailsPanelVisible: boolean;
+  isLyricsPanelVisible: boolean;
+  isRightPanelVisible: boolean;
   isTabbedLayout: boolean;
   isResizing: boolean;
   widePanelWidths: Record<'playlist' | 'library' | 'details', number>;
@@ -65,8 +67,13 @@ export interface WorkspaceShellState {
 const allWorkspaceTabs: WorkspaceTabDefinition[] = [
   { id: 'playlist', icon: 'queue_music', label: 'Playlist' },
   { id: 'library', icon: 'library_music', label: 'Library' },
-  { id: 'details', icon: 'info', label: 'Details' }
+  { id: 'details', icon: 'info', label: 'Details' },
+  { id: 'lyrics', icon: 'lyrics', label: 'Lyrics' }
 ];
+
+function isWorkspaceCollection(tab: WorkspaceTab): tab is WorkspaceCollection {
+  return tab === 'playlist' || tab === 'library';
+}
 
 function createInitialState(
   getPlaylistContextActions: (ids: string[]) => MenuActionItem[],
@@ -76,10 +83,12 @@ function createInitialState(
     activeCollection: 'playlist',
     activeWorkspaceTab: 'playlist',
     isDetailsPanelVisible: true,
+    isLyricsPanelVisible: false,
+    isRightPanelVisible: true,
     isTabbedLayout: false,
     isResizing: false,
     widePanelWidths: resolveWidePanelWidths(workspacePanelLayout.getSnapshot(), 0),
-    workspaceTabs: allWorkspaceTabs.filter((tab) => tab.id !== 'details'),
+    workspaceTabs: allWorkspaceTabs.filter((tab) => tab.id !== 'lyrics'),
     playlistJumpRequest: null,
     playlistPanelProps: {
       items: [],
@@ -166,14 +175,16 @@ export function createWorkspaceShellController({
         : typeof window !== 'undefined'
           ? window.innerWidth
           : 0;
+    const isRightPanelVisible = state.isDetailsPanelVisible || state.isLyricsPanelVisible;
     const wideContentWidth = getWideContentWidth(viewportWidth, {
-      detailsVisible: state.isDetailsPanelVisible
+      detailsVisible: isRightPanelVisible
     });
     const widePanelWidths = resolveWidePanelWidths(panelLayout, wideContentWidth, {
-      detailsVisible: state.isDetailsPanelVisible
+      detailsVisible: isRightPanelVisible
     });
     const activeWorkspaceTab =
-      !state.isDetailsPanelVisible && state.activeWorkspaceTab === 'details'
+      (state.activeWorkspaceTab === 'details' && !state.isDetailsPanelVisible) ||
+      (state.activeWorkspaceTab === 'lyrics' && !state.isLyricsPanelVisible)
         ? state.activeCollection
         : state.activeWorkspaceTab;
 
@@ -181,10 +192,13 @@ export function createWorkspaceShellController({
       ...state,
       activeWorkspaceTab,
       isTabbedLayout,
+      isRightPanelVisible,
       isResizing: Boolean(resizeState),
       widePanelWidths,
       workspaceTabs: allWorkspaceTabs.filter(
-        (tab) => tab.id !== 'details' || state.isDetailsPanelVisible
+        (tab) =>
+          (tab.id !== 'details' || state.isDetailsPanelVisible) &&
+          (tab.id !== 'lyrics' || state.isLyricsPanelVisible)
       ),
       playlistPanelProps: {
         items: lastInputs.playlistItems,
@@ -263,7 +277,7 @@ export function createWorkspaceShellController({
       state = {
         ...state,
         activeWorkspaceTab: tab,
-        activeCollection: tab !== 'details' ? tab : state.activeCollection
+        activeCollection: isWorkspaceCollection(tab) ? tab : state.activeCollection
       };
       recomputeDerivedState();
     },
@@ -284,7 +298,33 @@ export function createWorkspaceShellController({
       this.setActiveWorkspaceTab('details');
     },
     closeTrackDetails(): void {
-      state = { ...state, isDetailsPanelVisible: false };
+      state = {
+        ...state,
+        isDetailsPanelVisible: false,
+        activeWorkspaceTab:
+          state.activeWorkspaceTab === 'details'
+            ? state.isLyricsPanelVisible
+              ? 'lyrics'
+              : state.activeCollection
+            : state.activeWorkspaceTab
+      };
+      recomputeDerivedState();
+    },
+    showTrackLyrics(): void {
+      state = { ...state, isLyricsPanelVisible: true };
+      this.setActiveWorkspaceTab('lyrics');
+    },
+    closeTrackLyrics(): void {
+      state = {
+        ...state,
+        isLyricsPanelVisible: false,
+        activeWorkspaceTab:
+          state.activeWorkspaceTab === 'lyrics'
+            ? state.isDetailsPanelVisible
+              ? 'details'
+              : state.activeCollection
+            : state.activeWorkspaceTab
+      };
       recomputeDerivedState();
     },
     beginPanelResize(event: PointerEvent, handle: WorkspaceResizeHandle): void {
@@ -318,7 +358,7 @@ export function createWorkspaceShellController({
             ? window.innerWidth
             : 0;
       const wideContentWidth = getWideContentWidth(viewportWidth, {
-        detailsVisible: state.isDetailsPanelVisible
+        detailsVisible: state.isRightPanelVisible
       });
 
       workspacePanelLayout.set(
@@ -327,7 +367,7 @@ export function createWorkspaceShellController({
           startLayout: resizeState.startLayout,
           delta: event.clientX - resizeState.startX,
           contentWidth: wideContentWidth,
-          detailsVisible: state.isDetailsPanelVisible
+          detailsVisible: state.isRightPanelVisible
         })
       );
     },

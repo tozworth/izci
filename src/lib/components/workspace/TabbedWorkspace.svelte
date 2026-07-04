@@ -1,17 +1,27 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import BackdropZone from '$lib/components/BackdropZone.svelte';
+  import LyricsPanel from '$lib/components/LyricsPanel.svelte';
   import PlaylistPanel from '$lib/components/PlaylistPanel.svelte';
   import TrackDetailsPanel from '$lib/components/TrackDetailsPanel.svelte';
   import type { LoadedStreamArtwork } from '$lib/services/stream-artwork';
   import { hasArtworkBackdrop, hasVisualizerBackdrop } from '$lib/stores/appearance-settings';
-  import type { BackdropZoneEffect, PlaylistItem, WorkspacePanelId, WorkspaceTab } from '$lib/types';
+  import type {
+    BackdropZoneEffect,
+    LyricsDisplayStyle,
+    PlaybackSnapshot,
+    PlaylistItem,
+    WorkspacePanelId,
+    WorkspaceTab
+  } from '$lib/types';
+  import type { Readable } from 'svelte/store';
   import type {
     WorkspacePanelHandlers,
     WorkspacePanelProps,
     WorkspaceTabDefinition
   } from './types';
 
+  export let snapshotStore: Readable<PlaybackSnapshot>;
   export let activeWorkspaceTab: WorkspaceTab;
   export let workspaceTabs: WorkspaceTabDefinition[] = [];
   export let playlistPanelProps: WorkspacePanelProps;
@@ -28,29 +38,48 @@
     details: 'none'
   };
   export let isDetailsVisible = false;
+  export let isLyricsVisible = false;
+  export let lyricsDisplayStyle: LyricsDisplayStyle = 'timestamped';
+  export let lyricsAutoScroll = true;
   export let onCloseDetails: () => void = () => {};
+  export let onCloseLyrics: () => void = () => {};
 
   const dispatch = createEventDispatcher<{
     tabChange: WorkspaceTab;
   }>();
 
-  function handleDetailsCloseClick(event: MouseEvent) {
+  function isClosableTab(tabId: WorkspaceTab): boolean {
+    return tabId === 'details' || tabId === 'lyrics';
+  }
+
+  function closeTab(tabId: WorkspaceTab) {
+    if (tabId === 'details') {
+      onCloseDetails();
+      return;
+    }
+
+    if (tabId === 'lyrics') {
+      onCloseLyrics();
+    }
+  }
+
+  function handleTabCloseClick(event: MouseEvent, tabId: WorkspaceTab) {
     event.stopPropagation();
-    onCloseDetails();
+    closeTab(tabId);
   }
 
   function handleTabAuxClick(event: MouseEvent, tabId: WorkspaceTab) {
-    if (event.button !== 1 || tabId !== 'details') {
+    if (event.button !== 1 || !isClosableTab(tabId)) {
       return;
     }
 
     event.preventDefault();
     event.stopPropagation();
-    onCloseDetails();
+    closeTab(tabId);
   }
 
   function handleTabMouseDown(event: MouseEvent, tabId: WorkspaceTab) {
-    if (event.button !== 1 || tabId !== 'details') {
+    if (event.button !== 1 || !isClosableTab(tabId)) {
       return;
     }
 
@@ -61,7 +90,7 @@
 <main class="workspace workspace-tabs-layout">
   <div class="workspace-tabs" role="tablist" aria-label="Workspace sections">
     {#each workspaceTabs as tab}
-      <div class="workspace-tab-shell" class:has-close={tab.id === 'details'}>
+      <div class="workspace-tab-shell" class:has-close={isClosableTab(tab.id)}>
         <button
           type="button"
           class:active={activeWorkspaceTab === tab.id}
@@ -79,14 +108,14 @@
           <span class="workspace-tab-label">{tab.label}</span>
         </button>
 
-        {#if tab.id === 'details'}
+        {#if isClosableTab(tab.id)}
           <span class="workspace-tab-close-slot">
             <button
               type="button"
               class="workspace-tab-close-button"
-              aria-label="Close Track Details"
+              aria-label={`Close ${tab.label}`}
               title="Close"
-              on:click={handleDetailsCloseClick}
+              on:click={(event) => handleTabCloseClick(event, tab.id)}
               on:auxclick={(event) => handleTabAuxClick(event, tab.id)}
               on:mousedown={(event) => handleTabMouseDown(event, tab.id)}
             >
@@ -173,6 +202,33 @@
           artworkBackgroundActive={hasArtworkBackdrop(zoneEffects.details) && Boolean(backdropArtwork)}
           {artworkBackgroundBright}
           visualizerBackdropActive={hasVisualizerBackdrop(zoneEffects.details)}
+          hideEyebrow={true}
+          isTabbedLayout={true}
+          fillParent={true}
+        />
+      </BackdropZone>
+    </div>
+  {/if}
+
+  {#if isLyricsVisible}
+    <div
+      class="workspace-tab-panel"
+      role="tabpanel"
+      id="workspace-tab-panel-lyrics"
+      aria-labelledby="workspace-tab-lyrics"
+      hidden={activeWorkspaceTab !== 'lyrics'}
+    >
+      <BackdropZone
+        effect={zoneEffects.details}
+        artwork={backdropArtwork}
+        artworkBright={artworkBackgroundBright}
+        fillParent={true}
+      >
+        <LyricsPanel
+          {snapshotStore}
+          track={selectedItem}
+          displayStyle={lyricsDisplayStyle}
+          autoScroll={lyricsAutoScroll}
           hideEyebrow={true}
           isTabbedLayout={true}
           fillParent={true}

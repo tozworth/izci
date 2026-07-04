@@ -211,6 +211,33 @@
   height: 100%;
 }
 
+.right-panel-tabs-layout {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.right-panel-tabs {
+  flex: 0 0 auto;
+}
+
+.right-panel-tab-panel {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.right-panel-tab-panel .panel {
+  height: 100%;
+  border: 0;
+  background-color: transparent;
+  box-shadow: none;
+}
+
 .workspace-tabs-layout .panel {
   border: 0;
   border-radius: 0;

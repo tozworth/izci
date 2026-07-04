@@ -12,6 +12,8 @@
     | 'openFiles'
     | 'openFolder'
     | 'openOptions'
+    | 'showTrackDetails'
+    | 'showLyrics'
     | 'toggleMiniMode'
     | 'toggleNowPlayingView'
     | 'exit';
@@ -49,6 +51,8 @@
     openFiles: void;
     openFolder: void;
     openOptions: { view?: OptionsViewName } | undefined;
+    showTrackDetails: void;
+    showLyrics: void;
     toggleMiniMode: void;
     toggleNowPlayingView: void;
     exit: void;
@@ -73,6 +77,16 @@
 
   $: viewMenuItems = [
     {
+      id: 'showTrackDetails',
+      label: 'Track Details',
+      icon: 'info'
+    },
+    {
+      id: 'showLyrics',
+      label: 'Lyrics',
+      icon: 'lyrics'
+    },
+    {
       id: 'toggleNowPlayingView',
       label: 'Now Playing',
       icon: nowPlayingViewActive ? 'check' : 'album'
@@ -81,7 +95,8 @@
       id: 'toggleMiniMode',
       label: 'Mini mode',
       icon: miniModeActive ? 'check' : 'picture_in_picture_alt',
-      shortcut: 'Ctrl+M'
+      shortcut: 'Ctrl+M',
+      separatorBefore: true
     },
     {
       id: 'openOptions',

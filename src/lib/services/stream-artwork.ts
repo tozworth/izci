@@ -24,6 +24,11 @@ interface ParsedStreamData {
   artwork: ParsedArtwork | null;
 }
 
+export interface VorbisComment {
+  key: string;
+  value: string;
+}
+
 export interface LoadedStreamArtwork {
   url: string;
   mediaImage: MediaImage;
@@ -158,20 +163,19 @@ function parsePictureBlock(block: Uint8Array): ParsedArtwork | null {
   };
 }
 
-function parseVorbisCommentsPacket(packet: Uint8Array, offset: number): ParsedVorbisComments {
-  const metadata: TrackMetadata = {};
+export function readVorbisCommentsPacket(packet: Uint8Array, offset: number): VorbisComment[] {
+  const comments: VorbisComment[] = [];
   const view = new DataView(packet.buffer, packet.byteOffset, packet.byteLength);
-  let artwork: ParsedArtwork | null = null;
 
   if (offset + 4 > packet.byteLength) {
-    return { metadata, artwork };
+    return comments;
   }
 
   const vendorLength = view.getUint32(offset, true);
   offset += 4 + vendorLength;
 
   if (offset + 4 > packet.byteLength) {
-    return { metadata, artwork };
+    return comments;
   }
 
   const commentCount = view.getUint32(offset, true);
@@ -201,6 +205,17 @@ function parseVorbisCommentsPacket(packet: Uint8Array, offset: number): ParsedVo
     const key = comment.slice(0, separatorIndex).trim();
     const value = comment.slice(separatorIndex + 1);
 
+    comments.push({ key, value });
+  }
+
+  return comments;
+}
+
+function parseVorbisCommentsPacket(packet: Uint8Array, offset: number): ParsedVorbisComments {
+  const metadata: TrackMetadata = {};
+  let artwork: ParsedArtwork | null = null;
+
+  for (const { key, value } of readVorbisCommentsPacket(packet, offset)) {
     if (key.toUpperCase() === METADATA_BLOCK_PICTURE_KEY) {
       const pictureBytes = decodeBase64(value.trim());
       artwork ??= pictureBytes ? parsePictureBlock(pictureBytes) : null;
@@ -211,6 +226,56 @@ function parseVorbisCommentsPacket(packet: Uint8Array, offset: number): ParsedVo
   }
 
   return { metadata, artwork };
+}
+
+export function extractStreamVorbisComments(bytes: Uint8Array, extension: string): VorbisComment[] {
+  if (extension === 'flac') {
+    if (bytes.byteLength < 4 || new TextDecoder().decode(bytes.subarray(0, 4)) !== FLAC_MARKER) {
+      return [];
+    }
+
+    const comments: VorbisComment[] = [];
+    const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+    let offset = 4;
+
+    while (offset + 4 <= bytes.byteLength) {
+      const header = view.getUint8(offset);
+      const isLastBlock = (header & 0x80) !== 0;
+      const blockType = header & 0x7f;
+      const blockLength = readUint24BE(view, offset + 1);
+      const blockStart = offset + 4;
+      const blockEnd = blockStart + blockLength;
+
+      if (blockEnd > bytes.byteLength) {
+        return comments;
+      }
+
+      if (blockType === FLAC_VORBIS_COMMENT_BLOCK_TYPE) {
+        comments.push(...readVorbisCommentsPacket(bytes.subarray(blockStart, blockEnd), 0));
+      }
+
+      offset = blockEnd;
+
+      if (isLastBlock) {
+        break;
+      }
+    }
+
+    return comments;
+  }
+
+  if (extension === 'opus') {
+    const packet = extractOpusTagPacket(bytes);
+
+    if (!packet || packet.byteLength < 16) {
+      return [];
+    }
+
+    const marker = new TextDecoder().decode(packet.subarray(0, 8));
+    return marker === OPUS_TAGS_MARKER ? readVorbisCommentsPacket(packet, 8) : [];
+  }
+
+  return [];
 }
 
 function parseFlacData(bytes: Uint8Array): ParsedStreamData {

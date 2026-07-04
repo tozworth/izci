@@ -49,7 +49,7 @@ Working source tree:
 - `src/lib/styles/themes.css`: shared color-theme tokens consumed by the main app and Options popup.
 - `src/lib/styles/app/`: focused main-window CSS split by ownership (`base`, `shell`, `menus`, `workspace`, `panels`, `player`).
 - `src/options/main.ts`: Options popup entry; mounts the dedicated popup Svelte app.
-- `src/options/OptionsApp.svelte`: standalone Options window UI for appearance, module playback defaults, and metadata behavior, including the zone-based backdrop selector and the window-title track-name toggle.
+- `src/options/OptionsApp.svelte`: standalone Options window UI for appearance, lyrics display, module playback defaults, and metadata behavior, including the zone-based backdrop selector and the window-title track-name toggle.
 - `src/options/app.css`: Options popup styling.
 - `src/options/views.ts`: popup navigation/view metadata shared by the Options UI.
 - `src/vite-env.d.ts`: Vite ambient types.
@@ -68,6 +68,7 @@ UI only. Keep these focused on rendering and event dispatch.
 - `TopMenuBar.svelte`: desktop-style File/View menu bar that also adapts to Window Controls Overlay state, exposes draggable titlebar regions, hides the version label while overlay mode is active, and collapses into a compact `izci` chevron menu when available titlebar space is tight.
 - `MenuSurface.svelte`: shared popup menu surface used by the compact titlebar menu; supports nested submenus plus in-place drilldown fallback when flyout submenus would overflow the window.
 - `TrackDetailsPanel.svelte`: selected-track metadata/details surface.
+- `LyricsPanel.svelte`: transient embedded lyrics surface; loads Vorbis-comment lyrics on demand, parses synced LRC timestamps, and renders plain, timestamped, or Theater-style synced views against the shared playback snapshot.
 
 ### `src/lib/components/playlist-panel/`
 
@@ -109,6 +110,7 @@ Primary location for playback and browser-integration logic.
 - `visualizer.ts`: shared analyzer-source coordinator for the player visualizer; observes streamed HTML media via Chromium `captureStream()` and tracker-module Web Audio from the Chiptune3 gain node without merging the playback backends.
 - `artwork-palette.ts`: transient artwork color sampler used by the visualizer and optional artwork-colored player chrome; derives normalized player/visualizer palettes from the current artwork and caches per blob URL without persisting artwork data.
 - `stream-artwork.ts`: on-demand embedded metadata/artwork loading for streamed files; extracts common Vorbis/Opus text tags (`title`, `artist`, `album`, `albumArtist`, `genre`, `year`, track/disc numbers, `composer`) plus transient cover art from `flac` Vorbis comments/picture blocks and `opus` `OpusTags`/`METADATA_BLOCK_PICTURE` comments for playlist metadata, the player UI, and Media Session without persisting artwork blobs.
+- `lyrics.ts`: on-demand transient embedded lyrics loading for streamed files with Vorbis-comment support; reads `LYRICS`/synced lyrics tags from supported comment packets, parses LRC timestamps, and does not persist lyric text in playlist/library metadata.
 - `module-metadata.ts`: background `Chiptune3` metadata probe used by store hydration to capture tracker-module duration/details without waiting for normal playback.
 - `artwork-background.ts`: artwork brightness analysis used by the main app shell to decide when artwork-backed backgrounds should flip UI surfaces/text into a darker-on-light contrast mode.
 - `artwork-presentation.ts`: main-shell artwork/details presentation controller; manages player/footer artwork loading, details-panel artwork synchronization, artwork-background slot swapping/cleanup, brightness-driven contrast state, and the temporary window-chrome transition bypass used when Window Controls Overlay visibility changes.
@@ -137,7 +139,7 @@ Primary location for playback and browser-integration logic.
 - `playlist-dedupe.ts`: duplicate detection based on track identity, used only by the library store path.
 - `persistent-store.ts`: shared `localStorage` plus `BroadcastChannel` persistence/sync helper for lightweight settings stores.
 - `library-view-settings.ts`: persistent library table layout and filter state (column order, widths, visibility, sort, search query) with `BroadcastChannel` sync.
-- `appearance-settings.ts`: persistent appearance settings for color theme, optional artwork-colored player chrome, system font, narrow-library behavior, View -> Now Playing layout state plus the maximized/fullscreen auto-Now-Playing preference, per-zone backdrop effects for playlist/library/details/player/now playing (`none`, `artwork`, `visualizer`, `both`), and whether the main window title mirrors the current track title, with `BroadcastChannel` sync.
+- `appearance-settings.ts`: persistent appearance settings for color theme, optional artwork-colored player chrome, system font, narrow-library behavior, View -> Now Playing layout state plus the maximized/fullscreen auto-Now-Playing preference, per-zone backdrop effects for playlist/library/details/player/now playing (`none`, `artwork`, `visualizer`, `both`), transient lyrics display preferences, and whether the main window title mirrors the current track title, with `BroadcastChannel` sync.
 - `playback-settings.ts`: persistent general playback settings, currently the logarithmic-volume toggle, with sync.
 - `visualizer-settings.ts`: persistent player visualizer settings (style, color source, height, opacity stored as transparency, and numeric spectrum-normalization strength), with sync.
 - `module-playback-settings.ts`: persistent tracker playback settings (repeat, stereo/pan, interpolation, tempo, pitch) with sync.
@@ -151,7 +153,7 @@ Primary location for playback and browser-integration logic.
 
 ### Types and shims
 
-- `src/lib/types.ts`: shared domain types, supported extension constants, workspace types, playlist/library view types, metadata/settings types, popup-menu item types (including nested children for drilldown titlebar menus), and playback snapshot types.
+- `src/lib/types.ts`: shared domain types, supported extension constants, workspace and lyrics view types, playlist/library view types, metadata/settings types, popup-menu item types (including nested children for drilldown titlebar menus), and playback snapshot types.
 - `src/lib/types/chiptune3.d.ts`: local typings for `chiptune3`.
 - `src/lib/types/file-system-access.d.ts`: File System Access API typing shim used by the app.
 - `src/lib/types/howler.d.ts`: local typings for `howler` integration gaps.
@@ -198,6 +200,7 @@ Primary location for playback and browser-integration logic.
 - The visualizer must preserve the dual playback split: streams are observed from their Howler-owned HTML media element, while tracker modules are observed from the Chiptune3/Web Audio graph. Do not route streamed playback through the module path or real module audio through a browser media element just for visualization.
 - Streamed playback intentionally stays on Howler's HTML5 audio mode because that path is the proven stable way to keep Chromium/desktop media controls alive for streamed formats without regressing row-activation or pause/resume behavior.
 - Embedded streamed metadata/artwork is not sourced from Howler. `src/lib/services/stream-artwork.ts` reads `flac` and `opus` tags directly from the selected file or file handle on demand, persists parsed textual metadata (`title`/`artist`/`album`, `albumArtist`, `genre`, `year`, track/disc numbers, `composer`) plus a one-shot embedded-tag parse sentinel into IndexedDB through the playlist metadata worker, creates transient blob URLs for cover art used by the current UI/media-session presentation, and does not persist artwork blobs.
+- Embedded lyrics are intentionally separate from persisted streamed metadata. `src/lib/services/lyrics.ts` reads supported Vorbis-comment lyrics on demand for the Lyrics panel, parses synced LRC timestamps against `playerController.snapshot.currentTime`, and must not store lyric text in playlist/library IndexedDB state.
 - Library play counts live in track metadata and are updated only through `src/lib/services/play-count.ts` after the user-configured continuous playback threshold. Playlist-only items should not accrue plays.
 - Background duration hydration should not depend on an already-materialized streamed `objectUrl`. `src/lib/stores/playlist-metadata.ts` must be able to probe duration from either an in-memory `File` or a readable `FileSystemFileHandle`.
 - `PlayerControls.svelte` should consume shared artwork passed down from `App.svelte` rather than starting a second artwork-loading lifecycle of its own.

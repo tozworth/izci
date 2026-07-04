@@ -13,8 +13,9 @@ export type BackdropZoneEffect = 'none' | 'artwork' | 'visualizer' | 'both';
 export type BackdropZoneSettings = Record<BackdropZoneId, BackdropZoneEffect>;
 export type VisualizerStyle = 'wave' | 'bars' | 'mirror' | 'blocks' | 'triangles';
 export type VisualizerColorSource = 'theme' | 'artwork';
+export type LyricsDisplayStyle = 'plain' | 'timestamped' | 'theater';
 export type WorkspaceCollection = 'playlist' | 'library';
-export type WorkspaceTab = WorkspaceCollection | 'details';
+export type WorkspaceTab = WorkspaceCollection | 'details' | 'lyrics';
 export type WorkspacePanelId = 'playlist' | 'library' | 'details';
 export type WorkspaceResizeHandle = 'playlist-library' | 'library-details';
 
@@ -59,12 +60,20 @@ export interface MetadataSettings {
   playCountThresholdSeconds: number;
 }
 
+export interface LyricsSettings {
+  displayStyle: LyricsDisplayStyle;
+  autoScroll: boolean;
+  autoTheaterInNowPlaying: boolean;
+  autoFocusInNowPlaying: boolean;
+}
+
 export interface AppearanceSettings {
   colorTheme: ColorTheme;
   useArtworkPlayerColors: boolean;
   keepLibraryColumnsVisibleInNarrowLayout: boolean;
   useSystemFont: boolean;
   backdropZones: BackdropZoneSettings;
+  lyrics: LyricsSettings;
   nowPlayingViewActive: boolean;
   autoNowPlayingOnMaximized: boolean;
   showTrackTitleInWindowTitle: boolean;

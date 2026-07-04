@@ -7,6 +7,7 @@
     BACKDROP_EFFECT_OPTIONS,
     BACKDROP_ZONE_IDS,
     BACKDROP_ZONE_LABELS,
+    LYRICS_STYLE_OPTIONS,
     appearanceSettings
   } from '$lib/stores/appearance-settings';
   import {
@@ -30,6 +31,7 @@
     BackdropZoneEffect,
     BackdropZoneId,
     ColorTheme,
+    LyricsDisplayStyle,
     VisualizerColorSource,
     VisualizerSettings,
     VisualizerStyle
@@ -203,6 +205,42 @@
     });
   }
 
+  function handleLyricsStyleChange(event: Event) {
+    appearanceSettings.update({
+      lyrics: {
+        ...appearanceSettings.getSnapshot().lyrics,
+        displayStyle: (event.currentTarget as HTMLSelectElement).value as LyricsDisplayStyle
+      }
+    });
+  }
+
+  function handleLyricsAutoScrollToggle(event: Event) {
+    appearanceSettings.update({
+      lyrics: {
+        ...appearanceSettings.getSnapshot().lyrics,
+        autoScroll: (event.currentTarget as HTMLInputElement).checked
+      }
+    });
+  }
+
+  function handleLyricsAutoTheaterToggle(event: Event) {
+    appearanceSettings.update({
+      lyrics: {
+        ...appearanceSettings.getSnapshot().lyrics,
+        autoTheaterInNowPlaying: (event.currentTarget as HTMLInputElement).checked
+      }
+    });
+  }
+
+  function handleLyricsAutoFocusToggle(event: Event) {
+    appearanceSettings.update({
+      lyrics: {
+        ...appearanceSettings.getSnapshot().lyrics,
+        autoFocusInNowPlaying: (event.currentTarget as HTMLInputElement).checked
+      }
+    });
+  }
+
   function handleLogarithmicVolumeToggle(event: Event) {
     playbackSettings.update({
       logarithmicVolume: (event.currentTarget as HTMLInputElement).checked
@@ -247,6 +285,11 @@
 
   function resetCurrentView() {
     if (activeView === 'appearance') {
+      appearanceSettings.reset();
+      return;
+    }
+
+    if (activeView === 'lyrics') {
       appearanceSettings.reset();
       return;
     }
@@ -577,6 +620,81 @@
                 </div>
                 <p class="field-hint">
                   Shows the current track title in the main app window title. Turn it off to always show only "izci".
+                </p>
+              </label>
+            </div>
+          </div>
+        </article>
+      {/if}
+
+      {#if activeView === 'lyrics'}
+        <article class="view">
+          <div class="section">
+            <h2>Lyrics</h2>
+            <div class="field-grid">
+              <label class="field">
+                <div class="field-copy">
+                  <span class="field-title">Display style</span>
+                </div>
+                <div class="field-control">
+                  <select value={$appearanceSettings.lyrics.displayStyle} on:change={handleLyricsStyleChange}>
+                    {#each LYRICS_STYLE_OPTIONS as option}
+                      <option value={option.value}>{option.label}</option>
+                    {/each}
+                  </select>
+                </div>
+                <p class="field-hint">
+                  Chooses how embedded synced lyrics render in the Lyrics panel.
+                </p>
+              </label>
+
+              {#if $appearanceSettings.lyrics.displayStyle !== 'theater'}
+                <label class="field checkbox-field">
+                  <div class="field-copy">
+                    <span class="field-title">Auto scroll to current line</span>
+                  </div>
+                  <div class="field-control checkbox-control">
+                    <input
+                      type="checkbox"
+                      checked={$appearanceSettings.lyrics.autoScroll}
+                      on:change={handleLyricsAutoScrollToggle}
+                    />
+                  </div>
+                  <p class="field-hint">
+                    Keeps the highlighted lyric row in view while playback advances.
+                  </p>
+                </label>
+              {/if}
+
+              <label class="field checkbox-field">
+                <div class="field-copy">
+                  <span class="field-title">Auto switch to Theater in Now Playing</span>
+                </div>
+                <div class="field-control checkbox-control">
+                  <input
+                    type="checkbox"
+                    checked={$appearanceSettings.lyrics.autoTheaterInNowPlaying}
+                    on:change={handleLyricsAutoTheaterToggle}
+                  />
+                </div>
+                <p class="field-hint">
+                  Uses the large focused lyrics layout while Now Playing is active.
+                </p>
+              </label>
+
+              <label class="field checkbox-field">
+                <div class="field-copy">
+                  <span class="field-title">Auto focus Lyrics tab in Now Playing</span>
+                </div>
+                <div class="field-control checkbox-control">
+                  <input
+                    type="checkbox"
+                    checked={$appearanceSettings.lyrics.autoFocusInNowPlaying}
+                    on:change={handleLyricsAutoFocusToggle}
+                  />
+                </div>
+                <p class="field-hint">
+                  Opens Now Playing directly to the lyrics view.
                 </p>
               </label>
             </div>

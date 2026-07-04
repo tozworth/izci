@@ -60,6 +60,11 @@ export function buildPlaylistContextActions(
       icon: 'info'
     },
     {
+      id: 'track-lyrics',
+      label: 'Lyrics',
+      icon: 'lyrics'
+    },
+    {
       id: 'toggle-library',
       label: inLibrary ? 'Remove from library' : 'Add to library',
       icon: inLibrary ? 'remove_circle' : 'library_add'
@@ -90,6 +95,11 @@ export function buildLibraryContextActions(): MenuActionItem[] {
       id: 'track-details',
       label: 'Track details',
       icon: 'info'
+    },
+    {
+      id: 'track-lyrics',
+      label: 'Lyrics',
+      icon: 'lyrics'
     },
     {
       id: 'reset-play-count',

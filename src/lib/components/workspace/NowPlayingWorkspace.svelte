@@ -1,11 +1,18 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import BackdropZone from '$lib/components/BackdropZone.svelte';
+  import LyricsPanel from '$lib/components/LyricsPanel.svelte';
   import PlayerControls from '$lib/components/PlayerControls.svelte';
   import PlaylistPanel from '$lib/components/PlaylistPanel.svelte';
   import TrackDetailsPanel from '$lib/components/TrackDetailsPanel.svelte';
   import type { LoadedStreamArtwork } from '$lib/services/stream-artwork';
-  import type { BackdropZoneEffect, PlaybackSnapshot, PlaylistItem, WorkspaceTab } from '$lib/types';
+  import type {
+    BackdropZoneEffect,
+    LyricsDisplayStyle,
+    PlaybackSnapshot,
+    PlaylistItem,
+    WorkspaceTab
+  } from '$lib/types';
   import type { Readable } from 'svelte/store';
   import type { WorkspacePanelHandlers, WorkspacePanelProps, WorkspaceTabDefinition } from './types';
 
@@ -23,6 +30,8 @@
   export let libraryPanelProps: WorkspacePanelProps;
   export let libraryPanelHandlers: WorkspacePanelHandlers;
   export let selectedItem: PlaylistItem | null = null;
+  export let lyricsDisplayStyle: LyricsDisplayStyle = 'timestamped';
+  export let lyricsAutoScroll = true;
 
   const dispatch = createEventDispatcher<{
     close: void;
@@ -32,7 +41,8 @@
   const REQUIRED_TABS: WorkspaceTabDefinition[] = [
     { id: 'playlist', icon: 'queue_music', label: 'Playlist' },
     { id: 'library', icon: 'library_music', label: 'Library' },
-    { id: 'details', icon: 'info', label: 'Details' }
+    { id: 'details', icon: 'info', label: 'Details' },
+    { id: 'lyrics', icon: 'lyrics', label: 'Lyrics' }
   ];
 
   function resolveQueueTabs(tabs: WorkspaceTabDefinition[]): WorkspaceTabDefinition[] {
@@ -153,6 +163,23 @@
             <TrackDetailsPanel
               track={selectedItem}
               artwork={null}
+              fillParent={true}
+              hideEyebrow={true}
+            />
+          </div>
+
+          <div
+            class="now-playing-tab-panel"
+            role="tabpanel"
+            id="now-playing-tab-panel-lyrics"
+            aria-labelledby="now-playing-tab-lyrics"
+            hidden={activeWorkspaceTab !== 'lyrics'}
+          >
+            <LyricsPanel
+              {snapshotStore}
+              track={selectedItem}
+              displayStyle={lyricsDisplayStyle}
+              autoScroll={lyricsAutoScroll}
               fillParent={true}
               hideEyebrow={true}
             />

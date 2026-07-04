@@ -1,4 +1,11 @@
-export type OptionsViewName = 'appearance' | 'playback' | 'visualizer' | 'modules' | 'metadata' | 'about';
+export type OptionsViewName =
+  | 'appearance'
+  | 'lyrics'
+  | 'playback'
+  | 'visualizer'
+  | 'modules'
+  | 'metadata'
+  | 'about';
 
 export const DEFAULT_OPTIONS_VIEW: OptionsViewName = 'appearance';
 export const OPTIONS_VIEW_QUERY_PARAM = 'view';
@@ -23,13 +30,23 @@ export const OPTIONS_VIEW_GROUPS: OptionsViewDefinition[][] = [
       resettable: true
     },
     {
+      id: 'lyrics',
+      label: 'Lyrics',
+      icon: 'lyrics',
+      parentLabel: 'Appearance',
+      hasHints: true,
+      resettable: true
+    },
+    {
       id: 'playback',
       label: 'Playback',
       icon: 'play_circle',
       parentLabel: '',
       hasHints: true,
       resettable: true
-    },
+    }
+  ],
+  [
     {
       id: 'visualizer',
       label: 'Visualizer',

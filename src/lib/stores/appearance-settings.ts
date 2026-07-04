@@ -3,7 +3,9 @@ import type {
   BackdropZoneEffect,
   BackdropZoneId,
   BackdropZoneSettings,
-  ColorTheme
+  ColorTheme,
+  LyricsDisplayStyle,
+  LyricsSettings
 } from '$lib/types';
 import { createPersistentStore } from './persistent-store';
 
@@ -31,12 +33,24 @@ export const DEFAULT_BACKDROP_ZONES: BackdropZoneSettings = {
   player: 'visualizer',
   nowPlaying: 'both'
 };
+export const LYRICS_STYLE_OPTIONS: Array<{ value: LyricsDisplayStyle; label: string }> = [
+  { value: 'plain', label: 'Plain text' },
+  { value: 'timestamped', label: 'Timestamped rows' },
+  { value: 'theater', label: 'Theater' }
+];
+export const DEFAULT_LYRICS_SETTINGS: LyricsSettings = {
+  displayStyle: 'timestamped',
+  autoScroll: true,
+  autoTheaterInNowPlaying: true,
+  autoFocusInNowPlaying: true
+};
 export const DEFAULT_APPEARANCE_SETTINGS: AppearanceSettings = {
   colorTheme: DEFAULT_COLOR_THEME,
   useArtworkPlayerColors: false,
   keepLibraryColumnsVisibleInNarrowLayout: false,
   useSystemFont: false,
   backdropZones: DEFAULT_BACKDROP_ZONES,
+  lyrics: DEFAULT_LYRICS_SETTINGS,
   nowPlayingViewActive: false,
   autoNowPlayingOnMaximized: false,
   showTrackTitleInWindowTitle: true
@@ -56,6 +70,21 @@ function normalizeColorTheme(value: unknown): ColorTheme {
 
 function normalizeBackdropZoneEffect(value: unknown): BackdropZoneEffect {
   return value === 'artwork' || value === 'visualizer' || value === 'both' ? value : 'none';
+}
+
+function normalizeLyricsDisplayStyle(value: unknown): LyricsDisplayStyle {
+  return value === 'plain' || value === 'theater' ? value : DEFAULT_LYRICS_SETTINGS.displayStyle;
+}
+
+function normalizeLyricsSettings(value: unknown): LyricsSettings {
+  const source = value && typeof value === 'object' ? (value as Partial<LyricsSettings>) : {};
+
+  return {
+    displayStyle: normalizeLyricsDisplayStyle(source.displayStyle),
+    autoScroll: source.autoScroll !== false,
+    autoTheaterInNowPlaying: source.autoTheaterInNowPlaying !== false,
+    autoFocusInNowPlaying: source.autoFocusInNowPlaying !== false
+  };
 }
 
 function addBackdropEffect(
@@ -137,6 +166,7 @@ function normalizeSettings(value: unknown): AppearanceSettings {
     keepLibraryColumnsVisibleInNarrowLayout: source.keepLibraryColumnsVisibleInNarrowLayout === true,
     useSystemFont: source.useSystemFont === true,
     backdropZones: normalizeBackdropZones(source),
+    lyrics: normalizeLyricsSettings(source.lyrics),
     nowPlayingViewActive: source.nowPlayingViewActive === true,
     autoNowPlayingOnMaximized: source.autoNowPlayingOnMaximized === true,
     showTrackTitleInWindowTitle: source.showTrackTitleInWindowTitle !== false

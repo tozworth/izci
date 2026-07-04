@@ -45,6 +45,7 @@
   import type {
     BackdropZoneSettings,
     BackdropZoneEffect,
+    LyricsDisplayStyle,
     PlaybackSnapshot,
     PlaylistItem,
     PlaylistRepeatMode,
@@ -115,6 +116,9 @@
   let isArtworkBackdropActive = false;
   let isArtworkBackgroundBright = false;
   let documentTitle = 'izci';
+  let wasNowPlayingLayoutActive = false;
+  let effectiveLyricsDisplayStyle: LyricsDisplayStyle = 'timestamped';
+  let lyricsAutoScroll = true;
   const workspaceShell = createWorkspaceShellController({
     getPlaylistContextActions,
     getLibraryContextActions
@@ -231,6 +235,18 @@
     (nowPlayingViewActive || (isAutomaticNowPlayingEligible && !autoNowPlayingSuppressed)) &&
     isNowPlayingViewportEligible &&
     !miniModeActive;
+  $: if (isNowPlayingLayoutActive !== wasNowPlayingLayoutActive) {
+    if (isNowPlayingLayoutActive && $appearanceSettings.lyrics.autoFocusInNowPlaying) {
+      workspaceShell.showTrackLyrics();
+    }
+
+    wasNowPlayingLayoutActive = isNowPlayingLayoutActive;
+  }
+  $: effectiveLyricsDisplayStyle =
+    isNowPlayingLayoutActive && $appearanceSettings.lyrics.autoTheaterInNowPlaying
+      ? 'theater'
+      : $appearanceSettings.lyrics.displayStyle;
+  $: lyricsAutoScroll = effectiveLyricsDisplayStyle === 'theater' || $appearanceSettings.lyrics.autoScroll;
   $: workspaceZoneEffects = {
     playlist: backdropZones.playlist,
     library: backdropZones.library,
@@ -371,6 +387,14 @@
     workspaceShell.showTrackDetails();
   }
 
+  function showTrackDetails() {
+    workspaceShell.showTrackDetails();
+  }
+
+  function showTrackLyrics() {
+    workspaceShell.showTrackLyrics();
+  }
+
   async function handleMenuOpenFiles(target: WorkspaceCollection = workspaceShellState.activeCollection) {
     await importController.openFiles(target);
   }
@@ -415,7 +439,31 @@
       return;
     }
 
+    if (tab === 'lyrics') {
+      workspaceShell.showTrackLyrics();
+      return;
+    }
+
     workspaceShell.setActiveWorkspaceTab(tab);
+  }
+
+  function closeActiveRightPanel() {
+    if (workspaceShellState.activeWorkspaceTab === 'lyrics') {
+      workspaceShell.closeTrackLyrics();
+      return;
+    }
+
+    if (workspaceShellState.activeWorkspaceTab === 'details') {
+      workspaceShell.closeTrackDetails();
+      return;
+    }
+
+    if (workspaceShellState.isLyricsPanelVisible) {
+      workspaceShell.closeTrackLyrics();
+      return;
+    }
+
+    workspaceShell.closeTrackDetails();
   }
 
   function shouldIgnoreKeyboardTarget(target: EventTarget | null) {
@@ -463,9 +511,9 @@
         return;
       }
 
-      if (workspaceShellState.isDetailsPanelVisible) {
+      if (workspaceShellState.isRightPanelVisible) {
         event.preventDefault();
-        workspaceShell.closeTrackDetails();
+        closeActiveRightPanel();
       }
 
       return;
@@ -634,6 +682,11 @@
       return;
     }
 
+    if (actionId === 'track-lyrics') {
+      workspaceShell.showTrackLyrics();
+      return;
+    }
+
     if (actionId === 'toggle-library') {
       if (libraryHasAllTracks(libraryItems, tracks)) {
         removeLibraryItems(getEquivalentLibraryIds(libraryItems, tracks));
@@ -664,6 +717,11 @@
 
     if (actionId === 'track-details') {
       workspaceShell.showTrackDetails();
+      return;
+    }
+
+    if (actionId === 'track-lyrics') {
+      workspaceShell.showTrackLyrics();
       return;
     }
 
@@ -779,6 +837,8 @@
     on:openFiles={() => void handleMenuOpenFiles()}
     on:openFolder={() => void handleMenuOpenFolder()}
     on:openOptions={(event) => handleOpenOptions(event.detail?.view)}
+    on:showTrackDetails={showTrackDetails}
+    on:showLyrics={showTrackLyrics}
     on:toggleMiniMode={() => windowMiniMode.toggle()}
     on:toggleNowPlayingView={toggleNowPlayingView}
     on:exit={() => windowManager.exit()}
@@ -800,6 +860,8 @@
       libraryPanelProps={workspaceShellState.libraryPanelProps}
       {libraryPanelHandlers}
       selectedItem={artworkPresentationState.detailsDisplayTrack}
+      lyricsDisplayStyle={effectiveLyricsDisplayStyle}
+      {lyricsAutoScroll}
       on:close={closeNowPlayingView}
       on:tabChange={(event) => handleNowPlayingTabChange(event.detail)}
       on:toggle={() => void playbackCommands.togglePlayback()}
@@ -813,6 +875,7 @@
   {:else if !miniModeActive}
     {#if workspaceShellState.isTabbedLayout}
       <TabbedWorkspace
+        snapshotStore={playerController.snapshot}
         activeWorkspaceTab={workspaceShellState.activeWorkspaceTab}
         workspaceTabs={workspaceShellState.workspaceTabs}
         playlistPanelProps={workspaceShellState.playlistPanelProps}
@@ -825,11 +888,16 @@
         artworkBackgroundBright={isArtworkBackgroundBright}
         zoneEffects={workspaceZoneEffects}
         isDetailsVisible={workspaceShellState.isDetailsPanelVisible}
+        isLyricsVisible={workspaceShellState.isLyricsPanelVisible}
+        lyricsDisplayStyle={effectiveLyricsDisplayStyle}
+        {lyricsAutoScroll}
         onCloseDetails={() => workspaceShell.closeTrackDetails()}
+        onCloseLyrics={() => workspaceShell.closeTrackLyrics()}
         on:tabChange={(event) => workspaceShell.setActiveWorkspaceTab(event.detail)}
       />
     {:else}
       <WideWorkspace
+        snapshotStore={playerController.snapshot}
         playlistPanelProps={workspaceShellState.playlistPanelProps}
         {playlistPanelHandlers}
         libraryPanelProps={workspaceShellState.libraryPanelProps}
@@ -843,7 +911,13 @@
         artworkBackgroundBright={isArtworkBackgroundBright}
         zoneEffects={workspaceZoneEffects}
         isDetailsVisible={workspaceShellState.isDetailsPanelVisible}
+        isLyricsVisible={workspaceShellState.isLyricsPanelVisible}
+        activeWorkspaceTab={workspaceShellState.activeWorkspaceTab}
+        lyricsDisplayStyle={effectiveLyricsDisplayStyle}
+        {lyricsAutoScroll}
         onCloseDetails={() => workspaceShell.closeTrackDetails()}
+        onCloseLyrics={() => workspaceShell.closeTrackLyrics()}
+        on:tabChange={(event) => workspaceShell.setActiveWorkspaceTab(event.detail)}
         on:resizeStart={(event) => workspaceShell.handleWideWorkspaceResizeStart(event.detail)}
       />
     {/if}
