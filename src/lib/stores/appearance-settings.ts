@@ -38,6 +38,7 @@ export const DEFAULT_APPEARANCE_SETTINGS: AppearanceSettings = {
   useSystemFont: false,
   backdropZones: DEFAULT_BACKDROP_ZONES,
   nowPlayingViewActive: false,
+  autoNowPlayingOnMaximized: false,
   showTrackTitleInWindowTitle: true
 };
 
@@ -137,6 +138,7 @@ function normalizeSettings(value: unknown): AppearanceSettings {
     useSystemFont: source.useSystemFont === true,
     backdropZones: normalizeBackdropZones(source),
     nowPlayingViewActive: source.nowPlayingViewActive === true,
+    autoNowPlayingOnMaximized: source.autoNowPlayingOnMaximized === true,
     showTrackTitleInWindowTitle: source.showTrackTitleInWindowTitle !== false
   };
 }

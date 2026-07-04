@@ -66,6 +66,7 @@ export interface AppearanceSettings {
   useSystemFont: boolean;
   backdropZones: BackdropZoneSettings;
   nowPlayingViewActive: boolean;
+  autoNowPlayingOnMaximized: boolean;
   showTrackTitleInWindowTitle: boolean;
 }
 

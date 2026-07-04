@@ -33,6 +33,7 @@
   import { windowManager } from '$lib/services/window-manager';
   import { windowMiniMode } from '$lib/services/window-mini-mode';
   import { windowControlsOverlayState } from '$lib/services/window-controls-overlay';
+  import { windowDisplayState } from '$lib/services/window-display-state';
   import {
     appearanceSettings,
     hasArtworkBackdrop,
@@ -105,6 +106,8 @@
   let backdropZones: BackdropZoneSettings = appearanceSettings.getSnapshot().backdropZones;
   let activeBackdropEffects: BackdropZoneEffect[] = [];
   let nowPlayingViewActive = appearanceSettings.getSnapshot().nowPlayingViewActive;
+  let isAutomaticNowPlayingEligible = false;
+  let autoNowPlayingSuppressed = false;
   let isNowPlayingViewportEligible = false;
   let isNowPlayingLayoutActive = false;
   let isArtworkBackdropRequested = false;
@@ -216,10 +219,18 @@
   $: playerDisplayTrack = livePlayingTrack;
   $: backdropZones = $appearanceSettings.backdropZones;
   $: nowPlayingViewActive = $appearanceSettings.nowPlayingViewActive;
+  $: isAutomaticNowPlayingEligible =
+    $appearanceSettings.autoNowPlayingOnMaximized && $windowDisplayState.prefersNowPlaying;
+  $: if (!isAutomaticNowPlayingEligible) {
+    autoNowPlayingSuppressed = false;
+  }
   $: isNowPlayingViewportEligible =
     innerWidth >= NOW_PLAYING_MIN_VIEWPORT_WIDTH &&
     innerHeight >= NOW_PLAYING_MIN_VIEWPORT_HEIGHT;
-  $: isNowPlayingLayoutActive = nowPlayingViewActive && isNowPlayingViewportEligible && !miniModeActive;
+  $: isNowPlayingLayoutActive =
+    (nowPlayingViewActive || (isAutomaticNowPlayingEligible && !autoNowPlayingSuppressed)) &&
+    isNowPlayingViewportEligible &&
+    !miniModeActive;
   $: workspaceZoneEffects = {
     playlist: backdropZones.playlist,
     library: backdropZones.library,
@@ -377,12 +388,22 @@
   }
 
   function toggleNowPlayingView() {
+    if (isNowPlayingLayoutActive) {
+      closeNowPlayingView();
+      return;
+    }
+
+    autoNowPlayingSuppressed = false;
     appearanceSettings.update({
-      nowPlayingViewActive: !appearanceSettings.getSnapshot().nowPlayingViewActive
+      nowPlayingViewActive: true
     });
   }
 
   function closeNowPlayingView() {
+    if (isAutomaticNowPlayingEligible) {
+      autoNowPlayingSuppressed = true;
+    }
+
     appearanceSettings.update({
       nowPlayingViewActive: false
     });

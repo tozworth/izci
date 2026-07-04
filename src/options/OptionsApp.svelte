@@ -176,6 +176,12 @@
     });
   }
 
+  function handleAutoNowPlayingToggle(event: Event) {
+    appearanceSettings.update({
+      autoNowPlayingOnMaximized: (event.currentTarget as HTMLInputElement).checked
+    });
+  }
+
   function handleUseSystemFontToggle(event: Event) {
     appearanceSettings.update({
       useSystemFont: (event.currentTarget as HTMLInputElement).checked
@@ -539,6 +545,22 @@
                 </div>
                 <p class="field-hint">
                   Prevents the slim-window library view from collapsing to title-only rows.
+                </p>
+              </label>
+
+              <label class="field checkbox-field">
+                <div class="field-copy">
+                  <span class="field-title">Open Now Playing when maximized</span>
+                </div>
+                <div class="field-control checkbox-control">
+                  <input
+                    type="checkbox"
+                    checked={$appearanceSettings.autoNowPlayingOnMaximized}
+                    on:change={handleAutoNowPlayingToggle}
+                  />
+                </div>
+                <p class="field-hint">
+                  Switches the main window to Now Playing while it is maximized or fullscreen.
                 </p>
               </label>
 
