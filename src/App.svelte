@@ -35,6 +35,7 @@
   import { windowMiniMode } from '$lib/services/window-mini-mode';
   import { windowControlsOverlayState } from '$lib/services/window-controls-overlay';
   import { windowDisplayState } from '$lib/services/window-display-state';
+  import { windowFullscreen } from '$lib/services/window-fullscreen';
   import {
     appearanceSettings,
     hasArtworkBackdrop,
@@ -78,6 +79,9 @@
 
   const NOW_PLAYING_MIN_VIEWPORT_WIDTH = 901;
   const NOW_PLAYING_MIN_VIEWPORT_HEIGHT = 721;
+  const KEYBOARD_SEEK_STEP_SECONDS = 5;
+  const KEYBOARD_VOLUME_STEP = 0.05;
+  const NOW_PLAYING_WORKSPACE_TABS: WorkspaceTab[] = ['playlist', 'library', 'details', 'lyrics'];
   type LyricsAvailability = 'unknown' | 'loading' | 'available' | 'unavailable';
 
   const libraryContextActions = buildLibraryContextActions();
@@ -99,6 +103,15 @@
   let playbackStatus: Pick<PlaybackSnapshot, 'state' | 'volume' | 'backend' | 'error'> = {
     state: 'idle',
     volume: DEFAULT_PLAYER_VOLUME,
+    backend: null,
+    error: undefined
+  };
+  let playbackSnapshot: PlaybackSnapshot = {
+    state: 'idle',
+    currentTime: 0,
+    duration: 0,
+    volume: DEFAULT_PLAYER_VOLUME,
+    muted: false,
     backend: null,
     error: undefined
   };
@@ -197,6 +210,9 @@
       }
     }
   });
+  const unsubscribePlaybackSnapshot = playerController.snapshot.subscribe(
+    (value) => (playbackSnapshot = value)
+  );
   const unsubscribePlaybackStatus = playerController.status.subscribe((value) => (playbackStatus = value));
   const unsubscribeWorkspaceShell = workspaceShell.subscribe((value) => (workspaceShellState = value));
   const unsubscribePlaybackCommands = playbackCommands.subscribe(
@@ -416,6 +432,10 @@
     playbackCommands.seek(seconds);
   }
 
+  function clamp(value: number, min: number, max: number): number {
+    return Math.min(Math.max(value, min), max);
+  }
+
   function syncLyricsAvailability(track: PlaylistItem | null): void {
     const nextTrackKey = getTrackLyricsLoadKey(track);
 
@@ -571,6 +591,13 @@
     });
   }
 
+  function enableNowPlayingView() {
+    autoNowPlayingSuppressed = false;
+    appearanceSettings.update({
+      nowPlayingViewActive: true
+    });
+  }
+
   function handleNowPlayingTabChange(tab: WorkspaceTab) {
     if (tab === 'details') {
       workspaceShell.showTrackDetails();
@@ -602,6 +629,92 @@
     }
 
     workspaceShell.closeTrackDetails();
+  }
+
+  function getCyclableWorkspaceTabs(): WorkspaceTab[] {
+    if (isNowPlayingLayoutActive) {
+      return NOW_PLAYING_WORKSPACE_TABS;
+    }
+
+    if (workspaceShellState.isTabbedLayout) {
+      return workspaceShellState.workspaceTabs.map((tab) => tab.id);
+    }
+
+    return (['details', 'lyrics'] as const).filter((tab) =>
+      tab === 'details'
+        ? workspaceShellState.isDetailsPanelVisible
+        : workspaceShellState.isLyricsPanelVisible
+    );
+  }
+
+  function cycleWorkspaceTab(direction: -1 | 1): boolean {
+    const tabs = getCyclableWorkspaceTabs();
+
+    if (tabs.length < 2) {
+      return false;
+    }
+
+    const currentIndex = Math.max(tabs.indexOf(workspaceShellState.activeWorkspaceTab), 0);
+    const nextIndex = (currentIndex + direction + tabs.length) % tabs.length;
+    const nextTab = tabs[nextIndex];
+
+    if (isNowPlayingLayoutActive) {
+      handleNowPlayingTabChange(nextTab);
+      return true;
+    }
+
+    if (!workspaceShellState.isTabbedLayout && nextTab === 'details') {
+      workspaceShell.showTrackDetails();
+      return true;
+    }
+
+    if (!workspaceShellState.isTabbedLayout && nextTab === 'lyrics') {
+      workspaceShell.showTrackLyrics();
+      return true;
+    }
+
+    workspaceShell.setActiveWorkspaceTab(nextTab);
+    return true;
+  }
+
+  function seekByKeyboardStep(direction: -1 | 1): void {
+    if (!playingTrack || playbackSnapshot.duration <= 0) {
+      return;
+    }
+
+    seekPlayback(
+      clamp(
+        playbackSnapshot.currentTime + direction * KEYBOARD_SEEK_STEP_SECONDS,
+        0,
+        playbackSnapshot.duration
+      )
+    );
+  }
+
+  function changeVolumeByKeyboardStep(direction: -1 | 1): void {
+    playerController.setVolume(
+      clamp(playbackSnapshot.volume + direction * KEYBOARD_VOLUME_STEP, 0, 1)
+    );
+  }
+
+  async function toggleFullscreenNowPlaying(): Promise<void> {
+    if (windowFullscreen.isControllerFullscreenActive()) {
+      closeNowPlayingView();
+      await windowFullscreen.exit();
+      return;
+    }
+
+    if ($windowDisplayState.maximized || $windowDisplayState.fullscreen) {
+      toggleNowPlayingView();
+      return;
+    }
+
+    if (miniModeActive) {
+      windowMiniMode.exit();
+    }
+
+    enableNowPlayingView();
+    await windowFullscreen.enter();
   }
 
   function shouldIgnoreKeyboardTarget(target: EventTarget | null) {
@@ -642,6 +755,12 @@
   }
 
   function handleWindowKeydown(event: KeyboardEvent) {
+    if (event.key === 'Enter' && event.altKey && !event.ctrlKey && !event.shiftKey && !event.metaKey) {
+      event.preventDefault();
+      void toggleFullscreenNowPlaying();
+      return;
+    }
+
     if (event.key === 'Escape' && !event.ctrlKey && !event.altKey && !event.metaKey) {
       if (isNowPlayingLayoutActive) {
         event.preventDefault();
@@ -677,6 +796,69 @@
         removePlaylistItems(ids);
       }
 
+      return;
+    }
+
+    if (event.key === 'Tab' && event.ctrlKey && !event.altKey && !event.metaKey) {
+      if (shouldIgnoreKeyboardTarget(event.target)) {
+        return;
+      }
+
+      if (cycleWorkspaceTab(event.shiftKey ? -1 : 1)) {
+        event.preventDefault();
+        return;
+      }
+    }
+
+    if (event.key === 'ArrowLeft' && !event.ctrlKey && !event.altKey && !event.shiftKey && !event.metaKey) {
+      if (shouldIgnoreKeyboardTarget(event.target)) {
+        return;
+      }
+
+      event.preventDefault();
+      seekByKeyboardStep(-1);
+      return;
+    }
+
+    if (event.key === 'ArrowRight' && !event.ctrlKey && !event.altKey && !event.shiftKey && !event.metaKey) {
+      if (shouldIgnoreKeyboardTarget(event.target)) {
+        return;
+      }
+
+      event.preventDefault();
+      seekByKeyboardStep(1);
+      return;
+    }
+
+    if (
+      event.ctrlKey &&
+      !event.altKey &&
+      !event.shiftKey &&
+      !event.metaKey &&
+      (event.key === 'ArrowLeft' || event.key === 'ArrowRight')
+    ) {
+      if (shouldIgnoreKeyboardTarget(event.target)) {
+        return;
+      }
+
+      event.preventDefault();
+      void playbackCommands.stepTrack(event.key === 'ArrowLeft' ? -1 : 1);
+      return;
+    }
+
+    if (
+      event.ctrlKey &&
+      !event.altKey &&
+      !event.shiftKey &&
+      !event.metaKey &&
+      (event.key === 'ArrowUp' || event.key === 'ArrowDown')
+    ) {
+      if (shouldIgnoreKeyboardTarget(event.target)) {
+        return;
+      }
+
+      event.preventDefault();
+      changeVolumeByKeyboardStep(event.key === 'ArrowUp' ? 1 : -1);
       return;
     }
 
@@ -918,6 +1100,7 @@
     unsubscribeShuffle();
     unsubscribeRepeat();
     unsubscribeTrack();
+    unsubscribePlaybackSnapshot();
     unsubscribePlaybackStatus();
     unsubscribeWorkspaceShell();
     unsubscribePlaybackCommands();
