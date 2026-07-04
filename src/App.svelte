@@ -4,6 +4,7 @@
   import SharedBackdropArtwork from '$lib/components/SharedBackdropArtwork.svelte';
   import SharedBackdropVisualizer from '$lib/components/SharedBackdropVisualizer.svelte';
   import TopMenuBar from '$lib/components/TopMenuBar.svelte';
+  import NowPlayingWorkspace from '$lib/components/workspace/NowPlayingWorkspace.svelte';
   import TabbedWorkspace from '$lib/components/workspace/TabbedWorkspace.svelte';
   import WideWorkspace from '$lib/components/workspace/WideWorkspace.svelte';
   import type {
@@ -42,11 +43,13 @@
   import { DEFAULT_PLAYER_VOLUME } from '$lib/stores/player-volume';
   import type {
     BackdropZoneSettings,
+    BackdropZoneEffect,
     PlaybackSnapshot,
     PlaylistItem,
     PlaylistRepeatMode,
     PlaylistSelection,
-    WorkspaceCollection
+    WorkspaceCollection,
+    WorkspaceTab
   } from '$lib/types';
   import type { OptionsViewName } from './options/views';
   import {
@@ -96,6 +99,9 @@
   let innerWidth = 0;
   let previousPlaybackState: PlaybackSnapshot['state'] = playbackStatus.state;
   let backdropZones: BackdropZoneSettings = appearanceSettings.getSnapshot().backdropZones;
+  let activeBackdropEffects: BackdropZoneEffect[] = [];
+  let nowPlayingViewActive = appearanceSettings.getSnapshot().nowPlayingViewActive;
+  let isNowPlayingLayoutActive = false;
   let isArtworkBackdropRequested = false;
   let isVisualizerBackdropRequested = false;
   let isArtworkBackdropActive = false;
@@ -204,13 +210,20 @@
   $: livePlayingTrack = resolveTrackSnapshot(playingTrack, selectedItem, playlistItems, libraryItems);
   $: playerDisplayTrack = livePlayingTrack;
   $: backdropZones = $appearanceSettings.backdropZones;
+  $: nowPlayingViewActive = $appearanceSettings.nowPlayingViewActive;
+  $: isNowPlayingLayoutActive = nowPlayingViewActive && !miniModeActive;
   $: workspaceZoneEffects = {
     playlist: backdropZones.playlist,
     library: backdropZones.library,
     details: backdropZones.details
   };
-  $: isArtworkBackdropRequested = Object.values(backdropZones).some(hasArtworkBackdrop);
-  $: isVisualizerBackdropRequested = Object.values(backdropZones).some(hasVisualizerBackdrop);
+  $: activeBackdropEffects = isNowPlayingLayoutActive
+    ? [backdropZones.nowPlaying]
+    : miniModeActive
+      ? [backdropZones.player]
+      : [backdropZones.playlist, backdropZones.library, backdropZones.details, backdropZones.player];
+  $: isArtworkBackdropRequested = activeBackdropEffects.some(hasArtworkBackdrop);
+  $: isVisualizerBackdropRequested = activeBackdropEffects.some(hasVisualizerBackdrop);
   $: isArtworkBackdropActive =
     isArtworkBackdropRequested && Boolean(artworkPresentationState.visibleArtworkBackground);
   $: isArtworkBackgroundBright =
@@ -355,6 +368,27 @@
     windowManager.openOptions(view);
   }
 
+  function toggleNowPlayingView() {
+    appearanceSettings.update({
+      nowPlayingViewActive: !appearanceSettings.getSnapshot().nowPlayingViewActive
+    });
+  }
+
+  function closeNowPlayingView() {
+    appearanceSettings.update({
+      nowPlayingViewActive: false
+    });
+  }
+
+  function handleNowPlayingTabChange(tab: WorkspaceTab) {
+    if (tab === 'details') {
+      workspaceShell.showTrackDetails();
+      return;
+    }
+
+    workspaceShell.setActiveWorkspaceTab(tab);
+  }
+
   function shouldIgnoreKeyboardTarget(target: EventTarget | null) {
     if (!(target instanceof HTMLElement)) {
       return false;
@@ -394,6 +428,12 @@
 
   function handleWindowKeydown(event: KeyboardEvent) {
     if (event.key === 'Escape' && !event.ctrlKey && !event.altKey && !event.metaKey) {
+      if (isNowPlayingLayoutActive) {
+        event.preventDefault();
+        closeNowPlayingView();
+        return;
+      }
+
       if (workspaceShellState.isDetailsPanelVisible) {
         event.preventDefault();
         workspaceShell.closeTrackDetails();
@@ -681,6 +721,7 @@
   class="app-shell"
   class:tabbed-layout={workspaceShellState.isTabbedLayout}
   class:mini-mode={miniModeActive}
+  class:now-playing-mode={isNowPlayingLayoutActive}
   class:window-chrome-transition-bypass={artworkPresentationState.isWindowChromeTransitionBypassed}
   class:window-controls-overlay-active={$windowControlsOverlayState.visible}
 >
@@ -704,14 +745,42 @@
 
   <TopMenuBar
     {miniModeActive}
+    {nowPlayingViewActive}
     on:openFiles={() => void handleMenuOpenFiles()}
     on:openFolder={() => void handleMenuOpenFolder()}
     on:openOptions={(event) => handleOpenOptions(event.detail?.view)}
     on:toggleMiniMode={() => windowMiniMode.toggle()}
+    on:toggleNowPlayingView={toggleNowPlayingView}
     on:exit={() => windowManager.exit()}
   />
 
-  {#if !miniModeActive}
+  {#if isNowPlayingLayoutActive}
+    <NowPlayingWorkspace
+      snapshotStore={playerController.snapshot}
+      track={playerDisplayTrack}
+      selectedTrack={selectedPlaylistItem}
+      artwork={artworkPresentationState.displayedArtwork}
+      backdropArtwork={artworkPresentationState.visibleArtworkBackground}
+      artworkBackgroundBright={isArtworkBackgroundBright}
+      backdropEffect={backdropZones.nowPlaying}
+      activeWorkspaceTab={workspaceShellState.activeWorkspaceTab}
+      workspaceTabs={workspaceShellState.workspaceTabs}
+      playlistPanelProps={workspaceShellState.playlistPanelProps}
+      {playlistPanelHandlers}
+      libraryPanelProps={workspaceShellState.libraryPanelProps}
+      {libraryPanelHandlers}
+      selectedItem={artworkPresentationState.detailsDisplayTrack}
+      on:close={closeNowPlayingView}
+      on:tabChange={(event) => handleNowPlayingTabChange(event.detail)}
+      on:toggle={() => void playbackCommands.togglePlayback()}
+      on:previous={() => void playbackCommands.stepTrack(-1)}
+      on:next={() => void playbackCommands.stepTrack(1)}
+      on:seek={(event) => playbackCommands.seek(event.detail)}
+      on:volume={(event) => playerController.setVolume(event.detail)}
+      on:mute={() => playerController.toggleMute()}
+      on:showTrack={(event) => handleShowPlayerTrackDetails(event.detail)}
+    />
+  {:else if !miniModeActive}
     {#if workspaceShellState.isTabbedLayout}
       <TabbedWorkspace
         activeWorkspaceTab={workspaceShellState.activeWorkspaceTab}
@@ -754,19 +823,21 @@
     <aside class="error-banner">{playbackStatus.error}</aside>
   {/if}
 
-  <PlayerControls
-    snapshotStore={playerController.snapshot}
-    track={playerDisplayTrack}
-    selectedTrack={selectedPlaylistItem}
-    artwork={artworkPresentationState.displayedArtwork}
-    backdropEffect={backdropZones.player}
-    artworkBackgroundBright={isArtworkBackgroundBright}
-    on:toggle={() => void playbackCommands.togglePlayback()}
-    on:previous={() => void playbackCommands.stepTrack(-1)}
-    on:next={() => void playbackCommands.stepTrack(1)}
-    on:seek={(event) => playbackCommands.seek(event.detail)}
-    on:volume={(event) => playerController.setVolume(event.detail)}
-    on:mute={() => playerController.toggleMute()}
-    on:showTrack={(event) => handleShowPlayerTrackDetails(event.detail)}
-  />
+  {#if !isNowPlayingLayoutActive}
+    <PlayerControls
+      snapshotStore={playerController.snapshot}
+      track={playerDisplayTrack}
+      selectedTrack={selectedPlaylistItem}
+      artwork={artworkPresentationState.displayedArtwork}
+      backdropEffect={backdropZones.player}
+      artworkBackgroundBright={isArtworkBackgroundBright}
+      on:toggle={() => void playbackCommands.togglePlayback()}
+      on:previous={() => void playbackCommands.stepTrack(-1)}
+      on:next={() => void playbackCommands.stepTrack(1)}
+      on:seek={(event) => playbackCommands.seek(event.detail)}
+      on:volume={(event) => playerController.setVolume(event.detail)}
+      on:mute={() => playerController.toggleMute()}
+      on:showTrack={(event) => handleShowPlayerTrackDetails(event.detail)}
+    />
+  {/if}
 </div>

@@ -8,7 +8,7 @@ export type PlaylistRepeatMode = 'off' | 'one' | 'all';
 export type SortDirection = 'asc' | 'desc';
 export type LibraryColumnId = 'title' | 'artist' | 'album' | 'format' | 'duration' | 'plays';
 export type ColorTheme = 'gruvbox' | 'dracula';
-export type BackdropZoneId = 'playlist' | 'library' | 'details' | 'player';
+export type BackdropZoneId = 'playlist' | 'library' | 'details' | 'player' | 'nowPlaying';
 export type BackdropZoneEffect = 'none' | 'artwork' | 'visualizer' | 'both';
 export type BackdropZoneSettings = Record<BackdropZoneId, BackdropZoneEffect>;
 export type VisualizerStyle = 'wave' | 'bars' | 'mirror' | 'blocks' | 'triangles';
@@ -65,6 +65,7 @@ export interface AppearanceSettings {
   keepLibraryColumnsVisibleInNarrowLayout: boolean;
   useSystemFont: boolean;
   backdropZones: BackdropZoneSettings;
+  nowPlayingViewActive: boolean;
   showTrackTitleInWindowTitle: boolean;
 }
 

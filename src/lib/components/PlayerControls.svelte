@@ -18,6 +18,7 @@
   export let artworkBackgroundBright = false;
   export let backdropEffect: BackdropZoneEffect = 'visualizer';
   export let suppressArtworkPlayerColors = false;
+  export let presentation: 'bar' | 'now-playing' = 'bar';
 
   const dispatch = createEventDispatcher<{
     toggle: void;
@@ -52,6 +53,7 @@
     backend: null,
     error: undefined
   };
+  $: containerElement = presentation === 'bar' ? 'footer' : 'section';
 
   function clamp(value: number, min: number, max: number): number {
     return Math.min(Math.max(value, min), max);
@@ -192,6 +194,11 @@
   function syncPlayerBarReserve() {
     playerBarReserveFrame = null;
 
+    if (presentation !== 'bar') {
+      clearPlayerBarReserve();
+      return;
+    }
+
     if (!playerBarElement) {
       clearPlayerBarReserve();
       return;
@@ -227,7 +234,7 @@
     mediaQuery.addEventListener('change', syncCompactVolume);
     schedulePlayerBarReserveSync();
 
-    if (typeof ResizeObserver !== 'undefined' && playerBarElement) {
+    if (presentation === 'bar' && typeof ResizeObserver !== 'undefined' && playerBarElement) {
       playerBarResizeObserver = new ResizeObserver(schedulePlayerBarReserveSync);
       playerBarResizeObserver.observe(playerBarElement);
     }
@@ -261,6 +268,9 @@
   $: if (artwork?.url !== playerArtworkPaletteUrl) {
     void syncPlayerArtworkPalette(artwork?.url);
   }
+  $: if (presentation !== 'bar') {
+    clearPlayerBarReserve();
+  }
 
   function handleShowTrack() {
     if (!displayTrack) {
@@ -271,23 +281,27 @@
   }
 </script>
 
-<footer
+<svelte:element
+  this={containerElement}
   bind:this={playerBarElement}
   class="player-bar"
+  class:now-playing-player={presentation === 'now-playing'}
   class:artwork-background-active={artworkBackgroundActive}
   class:artwork-background-bright={artworkBackgroundActive && artworkBackgroundBright}
   class:visualizer-backdrop-active={visualizerBackdropActive}
   class:artwork-player-colors-active={playerArtworkColorsActive}
+  aria-label={presentation === 'now-playing' ? 'Now Playing controls' : undefined}
   data-artwork-zone={artworkBackgroundActive ? 'true' : null}
   data-visualizer-zone={visualizerBackdropActive ? 'true' : null}
   style={playerArtworkStyle}
 >
   <div class="player-track-group">
-    {#if displayTrack}
+    {#if displayTrack || presentation === 'now-playing'}
       <button
         type="button"
         class="player-artwork-button"
         aria-label="Show current track details"
+        disabled={!displayTrack}
         on:click={handleShowTrack}
       >
         <div class="player-artwork" aria-hidden="true">
@@ -416,7 +430,7 @@
       </div>
     </div>
   </div>
-</footer>
+</svelte:element>
 
 <style>
   .player-artwork-button,

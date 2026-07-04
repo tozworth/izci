@@ -28,6 +28,11 @@
   padding-bottom: 0;
 }
 
+.app-shell.now-playing-mode {
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  padding-bottom: 0;
+}
+
 .shared-artwork-host {
   display: contents;
 }

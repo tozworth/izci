@@ -10,12 +10,13 @@ import { createPersistentStore } from './persistent-store';
 export const APPEARANCE_SETTINGS_STORAGE_KEY = 'izci.appearance-settings';
 export const APPEARANCE_SETTINGS_CHANNEL = 'izci.appearance-settings';
 export const DEFAULT_COLOR_THEME: ColorTheme = 'gruvbox';
-export const BACKDROP_ZONE_IDS: BackdropZoneId[] = ['playlist', 'library', 'details', 'player'];
+export const BACKDROP_ZONE_IDS: BackdropZoneId[] = ['playlist', 'library', 'details', 'player', 'nowPlaying'];
 export const BACKDROP_ZONE_LABELS: Record<BackdropZoneId, string> = {
   playlist: 'Playlist',
   library: 'Library',
   details: 'Track Details',
-  player: 'Player Bar'
+  player: 'Player Bar',
+  nowPlaying: 'Now Playing'
 };
 export const BACKDROP_EFFECT_OPTIONS: Array<{ value: BackdropZoneEffect; label: string }> = [
   { value: 'none', label: 'Neither' },
@@ -27,7 +28,8 @@ export const DEFAULT_BACKDROP_ZONES: BackdropZoneSettings = {
   playlist: 'none',
   library: 'none',
   details: 'none',
-  player: 'visualizer'
+  player: 'visualizer',
+  nowPlaying: 'both'
 };
 export const DEFAULT_APPEARANCE_SETTINGS: AppearanceSettings = {
   colorTheme: DEFAULT_COLOR_THEME,
@@ -35,6 +37,7 @@ export const DEFAULT_APPEARANCE_SETTINGS: AppearanceSettings = {
   keepLibraryColumnsVisibleInNarrowLayout: false,
   useSystemFont: false,
   backdropZones: DEFAULT_BACKDROP_ZONES,
+  nowPlayingViewActive: false,
   showTrackTitleInWindowTitle: true
 };
 
@@ -96,7 +99,9 @@ function normalizeBackdropZones(source: Partial<AppearanceSettings> & Record<str
     const zoneSource = persistedZones as Partial<Record<BackdropZoneId, unknown>>;
 
     for (const zone of BACKDROP_ZONE_IDS) {
-      zones[zone] = normalizeBackdropZoneEffect(zoneSource[zone]);
+      zones[zone] = Object.prototype.hasOwnProperty.call(zoneSource, zone)
+        ? normalizeBackdropZoneEffect(zoneSource[zone])
+        : DEFAULT_BACKDROP_ZONES[zone];
     }
 
     return zones;
@@ -131,6 +136,7 @@ function normalizeSettings(value: unknown): AppearanceSettings {
     keepLibraryColumnsVisibleInNarrowLayout: source.keepLibraryColumnsVisibleInNarrowLayout === true,
     useSystemFont: source.useSystemFont === true,
     backdropZones: normalizeBackdropZones(source),
+    nowPlayingViewActive: source.nowPlayingViewActive === true,
     showTrackTitleInWindowTitle: source.showTrackTitleInWindowTitle !== false
   };
 }

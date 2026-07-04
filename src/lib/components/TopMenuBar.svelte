@@ -8,7 +8,13 @@
   import type { OptionsViewName } from '../../options/views';
 
   type MenuId = 'file' | 'view';
-  type MenuActionId = 'openFiles' | 'openFolder' | 'openOptions' | 'toggleMiniMode' | 'exit';
+  type MenuActionId =
+    | 'openFiles'
+    | 'openFolder'
+    | 'openOptions'
+    | 'toggleMiniMode'
+    | 'toggleNowPlayingView'
+    | 'exit';
 
   const MENU_ITEMS_ONLY_PADDING = 28;
   const MENU_ITEMS_WITH_VERSION_PADDING = 40;
@@ -37,12 +43,14 @@
   ];
 
   export let miniModeActive = false;
+  export let nowPlayingViewActive = false;
 
   const dispatch = createEventDispatcher<{
     openFiles: void;
     openFolder: void;
     openOptions: { view?: OptionsViewName } | undefined;
     toggleMiniMode: void;
+    toggleNowPlayingView: void;
     exit: void;
   }>();
 
@@ -64,6 +72,11 @@
   let suppressNextRootClick = false;
 
   $: viewMenuItems = [
+    {
+      id: 'toggleNowPlayingView',
+      label: 'Now Playing',
+      icon: nowPlayingViewActive ? 'check' : 'album'
+    },
     {
       id: 'toggleMiniMode',
       label: 'Mini mode',
