@@ -73,6 +73,9 @@
     selectedTrack: librarySelectedTrackStore
   } = libraryStore;
 
+  const NOW_PLAYING_MIN_VIEWPORT_WIDTH = 901;
+  const NOW_PLAYING_MIN_VIEWPORT_HEIGHT = 721;
+
   const libraryContextActions = buildLibraryContextActions();
 
   let playlistItems: PlaylistItem[] = [];
@@ -96,11 +99,13 @@
   };
 
   let fileInput: HTMLInputElement | null = null;
-  let innerWidth = 0;
+  let innerWidth = typeof window !== 'undefined' ? window.innerWidth : 0;
+  let innerHeight = typeof window !== 'undefined' ? window.innerHeight : 0;
   let previousPlaybackState: PlaybackSnapshot['state'] = playbackStatus.state;
   let backdropZones: BackdropZoneSettings = appearanceSettings.getSnapshot().backdropZones;
   let activeBackdropEffects: BackdropZoneEffect[] = [];
   let nowPlayingViewActive = appearanceSettings.getSnapshot().nowPlayingViewActive;
+  let isNowPlayingViewportEligible = false;
   let isNowPlayingLayoutActive = false;
   let isArtworkBackdropRequested = false;
   let isVisualizerBackdropRequested = false;
@@ -211,7 +216,10 @@
   $: playerDisplayTrack = livePlayingTrack;
   $: backdropZones = $appearanceSettings.backdropZones;
   $: nowPlayingViewActive = $appearanceSettings.nowPlayingViewActive;
-  $: isNowPlayingLayoutActive = nowPlayingViewActive && !miniModeActive;
+  $: isNowPlayingViewportEligible =
+    innerWidth >= NOW_PLAYING_MIN_VIEWPORT_WIDTH &&
+    innerHeight >= NOW_PLAYING_MIN_VIEWPORT_HEIGHT;
+  $: isNowPlayingLayoutActive = nowPlayingViewActive && isNowPlayingViewportEligible && !miniModeActive;
   $: workspaceZoneEffects = {
     playlist: backdropZones.playlist,
     library: backdropZones.library,
@@ -710,6 +718,7 @@
 
 <svelte:window
   bind:innerWidth
+  bind:innerHeight
   on:contextmenu={handleWindowContextMenu}
   on:keydown={handleWindowKeydown}
   on:pointermove={(event) => workspaceShell.handlePanelResizeMove(event)}
@@ -745,7 +754,7 @@
 
   <TopMenuBar
     {miniModeActive}
-    {nowPlayingViewActive}
+    nowPlayingViewActive={isNowPlayingLayoutActive}
     on:openFiles={() => void handleMenuOpenFiles()}
     on:openFolder={() => void handleMenuOpenFolder()}
     on:openOptions={(event) => handleOpenOptions(event.detail?.view)}
