@@ -458,6 +458,16 @@
       return;
     }
 
+    if (event.key.toLowerCase() === 'm' && !event.repeat && !event.ctrlKey && !event.altKey && !event.shiftKey && !event.metaKey) {
+      if (shouldIgnorePlaybackKeyboardTarget(event.target)) {
+        return;
+      }
+
+      event.preventDefault();
+      playerController.toggleMute();
+      return;
+    }
+
     if (!event.ctrlKey || event.altKey || event.shiftKey || event.metaKey) {
       return;
     }
@@ -743,6 +753,7 @@
     on:next={() => void playbackCommands.stepTrack(1)}
     on:seek={(event) => playbackCommands.seek(event.detail)}
     on:volume={(event) => playerController.setVolume(event.detail)}
+    on:mute={() => playerController.toggleMute()}
     on:showTrack={(event) => handleShowPlayerTrackDetails(event.detail)}
   />
 </div>

@@ -11,6 +11,7 @@ import { mergeInferredArtistTitle } from '$lib/utils/files';
 interface PlaybackStatusSnapshot {
   state: PlaybackState;
   volume: number;
+  muted: boolean;
   backend: TrackKind | null;
   error?: string;
 }
@@ -20,18 +21,22 @@ const initialSnapshot: PlaybackSnapshot = {
   currentTime: 0,
   duration: 0,
   volume: DEFAULT_PLAYER_VOLUME,
+  muted: false,
   backend: null
 };
 
 const initialStatusSnapshot: PlaybackStatusSnapshot = {
   state: initialSnapshot.state,
   volume: initialSnapshot.volume,
+  muted: initialSnapshot.muted,
   backend: initialSnapshot.backend,
   error: initialSnapshot.error
 };
 
 function createPlayerController() {
   let volume = playerVolume.getSnapshot();
+  let lastAudibleVolume = volume > 0 ? volume : DEFAULT_PLAYER_VOLUME;
+  let muted = false;
   let playbackConfig = playbackSettings.getSnapshot();
   let desiredPlaybackState: 'playing' | 'paused' = 'paused';
   let latestState: PlaybackState = initialSnapshot.state;
@@ -52,6 +57,7 @@ function createPlayerController() {
     if (
       partial.state !== undefined ||
       partial.volume !== undefined ||
+      partial.muted !== undefined ||
       partial.backend !== undefined ||
       Object.prototype.hasOwnProperty.call(partial, 'error')
     ) {
@@ -59,6 +65,7 @@ function createPlayerController() {
         ...state,
         ...(partial.state !== undefined ? { state: partial.state } : {}),
         ...(partial.volume !== undefined ? { volume: partial.volume } : {}),
+        ...(partial.muted !== undefined ? { muted: partial.muted } : {}),
         ...(partial.backend !== undefined ? { backend: partial.backend } : {}),
         ...(Object.prototype.hasOwnProperty.call(partial, 'error') ? { error: partial.error } : {})
       }));
@@ -74,6 +81,23 @@ function createPlayerController() {
 
   const hasSameMetadata = (left: TrackMetadata | undefined, right: TrackMetadata | undefined): boolean =>
     JSON.stringify(left ?? {}) === JSON.stringify(right ?? {});
+
+  const applyBackendVolume = () => {
+    const effectiveVolume = muted ? 0 : volume;
+
+    services.stream.setVolume(effectiveVolume, playbackConfig.logarithmicVolume);
+    services.module.setVolume(effectiveVolume, playbackConfig.logarithmicVolume);
+  };
+
+  const setConfiguredVolume = (nextVolume: number) => {
+    volume = Math.min(Math.max(nextVolume, 0), 1);
+
+    if (volume > 0) {
+      lastAudibleVolume = volume;
+    }
+
+    playerVolume.set(volume);
+  };
 
   const onMetadata = (metadata: TrackMetadata) => {
     currentTrack.update((track) => {
@@ -109,8 +133,7 @@ function createPlayerController() {
   });
   const unsubscribePlaybackSettings = playbackSettings.subscribe((settings) => {
     playbackConfig = settings;
-    services.stream.setVolume(volume, playbackConfig.logarithmicVolume);
-    services.module.setVolume(volume, playbackConfig.logarithmicVolume);
+    applyBackendVolume();
   });
 
   return {
@@ -128,7 +151,7 @@ function createPlayerController() {
 
       if (preparedTrack.kind === 'stream') {
         services.stream.load(preparedTrack, { autoPlay });
-        services.stream.setVolume(volume, playbackConfig.logarithmicVolume);
+        applyBackendVolume();
       } else {
         const pendingDuration = preparedTrack.metadata?.duration ?? 0;
         const loadPromise = services.module.load(preparedTrack);
@@ -142,7 +165,7 @@ function createPlayerController() {
         });
 
         await loadPromise;
-        services.module.setVolume(volume, playbackConfig.logarithmicVolume);
+        applyBackendVolume();
 
         if (desiredPlaybackState === 'playing') {
           services.module.play();
@@ -189,12 +212,21 @@ function createPlayerController() {
       services[activeTrack.kind].seek(seconds);
     },
     setVolume(nextVolume: number) {
-      nextVolume = Math.min(Math.max(nextVolume, 0), 1);
-      volume = nextVolume;
-      playerVolume.set(nextVolume);
-      services.stream.setVolume(nextVolume, playbackConfig.logarithmicVolume);
-      services.module.setVolume(nextVolume, playbackConfig.logarithmicVolume);
-      onSnapshot({ volume: nextVolume });
+      setConfiguredVolume(nextVolume);
+      muted = false;
+      applyBackendVolume();
+      onSnapshot({ volume, muted });
+    },
+    toggleMute() {
+      if (muted || volume <= 0) {
+        setConfiguredVolume(lastAudibleVolume);
+        muted = false;
+      } else {
+        muted = true;
+      }
+
+      applyBackendVolume();
+      onSnapshot({ volume, muted });
     },
     unload() {
       desiredPlaybackState = 'paused';

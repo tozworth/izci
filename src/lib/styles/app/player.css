@@ -426,13 +426,30 @@
   border: 0;
   background: transparent;
   color: var(--text);
-  cursor: default;
+  transition:
+    color 180ms ease,
+    background 180ms ease;
+}
+
+.volume-label:hover {
+  background-color: var(--hover-control);
+}
+
+.volume-label:focus-visible {
+  outline: 2px solid var(--accent-strong);
+  outline-offset: 2px;
 }
 
 .volume-label .material-symbols-outlined {
   font-size: 1.45rem;
   line-height: 1;
   font-variation-settings: 'wght' 500;
+}
+
+.volume[data-muted='true'] {
+  --player-range-fill: color-mix(in srgb, var(--muted) 72%, transparent);
+  --player-range-thumb: color-mix(in srgb, var(--muted) 82%, transparent);
+  --player-range-border: color-mix(in srgb, var(--muted) 40%, transparent);
 }
 
 @media (max-width: 1000px) {

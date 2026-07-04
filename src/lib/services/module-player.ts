@@ -153,7 +153,7 @@ export class ModulePlayerService {
     this.#volume = volume;
     this.#useLogarithmicVolume = logarithmicVolume;
     this.#player?.setVol(sliderVolumeToGain(volume, this.#useLogarithmicVolume));
-    this.#onSnapshot({ volume, error: undefined });
+    this.#onSnapshot({ error: undefined });
   }
 
   async applySettings(settings: ModulePlaybackSettings): Promise<void> {

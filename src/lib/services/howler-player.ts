@@ -178,7 +178,6 @@ export class HowlerPlayerService {
   setVolume(volume: number, logarithmicVolume: boolean = this.#useLogarithmicVolume): void {
     this.#useLogarithmicVolume = logarithmicVolume;
     this.#howl?.volume(sliderVolumeToGain(volume, this.#useLogarithmicVolume));
-    this.#onSnapshot({ volume });
   }
 
   destroy(): void {

@@ -25,6 +25,7 @@
     next: void;
     seek: number;
     volume: number;
+    mute: void;
     showTrack: string;
   }>();
 
@@ -42,6 +43,7 @@
     currentTime: 0,
     duration: 0,
     volume: 0,
+    muted: false,
     backend: null,
     error: undefined
   };
@@ -61,6 +63,10 @@
   }
 
   function handleVolumeWheel(event: WheelEvent) {
+    if (snapshot.muted) {
+      return;
+    }
+
     const delta = event.deltaY < 0 ? 1 : -1;
     dispatch('volume', clamp(snapshot.volume + delta * 0.05, 0, 1));
   }
@@ -150,6 +156,14 @@
   function toRangeProgressStyle(value: number, max: number): string {
     const percent = max > 0 ? clamp((value / max) * 100, 0, 100) : 0;
     return `--player-range-progress: ${percent}%;`;
+  }
+
+  function getVolumeIcon(volume: number, muted: boolean): string {
+    if (muted || volume <= 0) {
+      return 'volume_off';
+    }
+
+    return volume < 0.5 ? 'volume_down' : 'volume_up';
   }
 
   onMount(() => {
@@ -296,19 +310,26 @@
   </div>
 
   <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <div class="volume" data-popup-open={isCompactVolume && isVolumePopupOpen ? 'true' : 'false'} on:mouseleave={closeVolumePopup}>
+  <div
+    class="volume"
+    data-muted={snapshot.muted ? 'true' : 'false'}
+    data-popup-open={isCompactVolume && isVolumePopupOpen ? 'true' : 'false'}
+    on:mouseleave={closeVolumePopup}
+  >
     <button
       type="button"
       class="volume-label"
-      aria-label="Volume"
+      aria-label={snapshot.muted || snapshot.volume <= 0 ? 'Unmute' : 'Mute'}
       aria-expanded={isCompactVolume ? isVolumePopupOpen : undefined}
+      aria-pressed={snapshot.muted}
+      on:click={() => dispatch('mute')}
       on:mouseenter={openVolumePopup}
       on:focus={openVolumePopup}
       on:blur={closeVolumePopup}
       on:wheel|preventDefault={handleVolumeWheel}
     >
-      <span class="material-symbols-outlined" aria-hidden="true">volume_up</span>
-      <span class="sr-only">Volume</span>
+      <span class="material-symbols-outlined" aria-hidden="true">{getVolumeIcon(snapshot.volume, snapshot.muted)}</span>
+      <span class="sr-only">{snapshot.muted || snapshot.volume <= 0 ? 'Unmute' : 'Mute'}</span>
     </button>
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <div class="volume-popup" on:mouseenter={openVolumePopup}>
@@ -321,6 +342,7 @@
           step="0.01"
           value={snapshot.volume}
           style={toRangeProgressStyle(snapshot.volume, 1)}
+          disabled={snapshot.muted}
           on:input={(event) => dispatch('volume', Number((event.currentTarget as HTMLInputElement).value))}
           on:wheel|preventDefault={handleVolumeWheel}
         />

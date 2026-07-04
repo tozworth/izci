@@ -153,6 +153,7 @@ export interface PlaybackSnapshot {
   currentTime: number;
   duration: number;
   volume: number;
+  muted: boolean;
   backend: TrackKind | null;
   error?: string;
 }
