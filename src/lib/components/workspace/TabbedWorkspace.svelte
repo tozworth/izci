@@ -1,9 +1,11 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
+  import BackdropZone from '$lib/components/BackdropZone.svelte';
   import PlaylistPanel from '$lib/components/PlaylistPanel.svelte';
   import TrackDetailsPanel from '$lib/components/TrackDetailsPanel.svelte';
   import type { LoadedStreamArtwork } from '$lib/services/stream-artwork';
-  import type { PlaylistItem, WorkspaceTab } from '$lib/types';
+  import { hasArtworkBackdrop, hasVisualizerBackdrop } from '$lib/stores/appearance-settings';
+  import type { BackdropZoneEffect, PlaylistItem, WorkspacePanelId, WorkspaceTab } from '$lib/types';
   import type {
     WorkspacePanelHandlers,
     WorkspacePanelProps,
@@ -18,9 +20,13 @@
   export let libraryPanelHandlers: WorkspacePanelHandlers;
   export let selectedItem: PlaylistItem | null = null;
   export let detailsArtwork: LoadedStreamArtwork | null = null;
-  export let artworkBackgroundActive = false;
+  export let backdropArtwork: LoadedStreamArtwork | null = null;
   export let artworkBackgroundBright = false;
-  export let scopedBackdropTrackingActive = false;
+  export let zoneEffects: Record<WorkspacePanelId, BackdropZoneEffect> = {
+    playlist: 'none',
+    library: 'none',
+    details: 'none'
+  };
   export let isDetailsVisible = false;
   export let onCloseDetails: () => void = () => {};
 
@@ -99,17 +105,25 @@
     aria-labelledby="workspace-tab-playlist"
     hidden={activeWorkspaceTab !== 'playlist'}
   >
-    <PlaylistPanel
-      {...playlistPanelProps}
-      hideEyebrow={true}
-      on:addFiles={(event) => playlistPanelHandlers.addFiles(event.detail)}
-      on:openFiles={playlistPanelHandlers.openFiles}
-      on:select={playlistPanelHandlers.select}
-      on:activate={playlistPanelHandlers.activate}
-      on:contextAction={playlistPanelHandlers.contextAction}
-      on:toggleShuffle={() => playlistPanelHandlers.toggleShuffle?.()}
-      on:cycleRepeat={() => playlistPanelHandlers.cycleRepeat?.()}
-    />
+    <BackdropZone
+      effect={zoneEffects.playlist}
+      artwork={backdropArtwork}
+      artworkBright={artworkBackgroundBright}
+      fillParent={true}
+    >
+      <PlaylistPanel
+        {...playlistPanelProps}
+        hideEyebrow={true}
+        fillParent={true}
+        on:addFiles={(event) => playlistPanelHandlers.addFiles(event.detail)}
+        on:openFiles={playlistPanelHandlers.openFiles}
+        on:select={playlistPanelHandlers.select}
+        on:activate={playlistPanelHandlers.activate}
+        on:contextAction={playlistPanelHandlers.contextAction}
+        on:toggleShuffle={() => playlistPanelHandlers.toggleShuffle?.()}
+        on:cycleRepeat={() => playlistPanelHandlers.cycleRepeat?.()}
+      />
+    </BackdropZone>
   </div>
 
   <div
@@ -119,16 +133,24 @@
     aria-labelledby="workspace-tab-library"
     hidden={activeWorkspaceTab !== 'library'}
   >
-    <PlaylistPanel
-      {...libraryPanelProps}
-      hideEyebrow={true}
-      on:addFiles={(event) => libraryPanelHandlers.addFiles(event.detail)}
-      on:openFiles={libraryPanelHandlers.openFiles}
-      on:select={libraryPanelHandlers.select}
-      on:setSelection={(event) => libraryPanelHandlers.setSelection?.(event)}
-      on:activate={libraryPanelHandlers.activate}
-      on:contextAction={libraryPanelHandlers.contextAction}
-    />
+    <BackdropZone
+      effect={zoneEffects.library}
+      artwork={backdropArtwork}
+      artworkBright={artworkBackgroundBright}
+      fillParent={true}
+    >
+      <PlaylistPanel
+        {...libraryPanelProps}
+        hideEyebrow={true}
+        fillParent={true}
+        on:addFiles={(event) => libraryPanelHandlers.addFiles(event.detail)}
+        on:openFiles={libraryPanelHandlers.openFiles}
+        on:select={libraryPanelHandlers.select}
+        on:setSelection={(event) => libraryPanelHandlers.setSelection?.(event)}
+        on:activate={libraryPanelHandlers.activate}
+        on:contextAction={libraryPanelHandlers.contextAction}
+      />
+    </BackdropZone>
   </div>
 
   {#if isDetailsVisible}
@@ -139,15 +161,23 @@
       aria-labelledby="workspace-tab-details"
       hidden={activeWorkspaceTab !== 'details'}
     >
-      <TrackDetailsPanel
-        track={selectedItem}
-        artwork={detailsArtwork}
-        {artworkBackgroundActive}
-        {artworkBackgroundBright}
-        {scopedBackdropTrackingActive}
-        hideEyebrow={true}
-        isTabbedLayout={true}
-      />
+      <BackdropZone
+        effect={zoneEffects.details}
+        artwork={backdropArtwork}
+        artworkBright={artworkBackgroundBright}
+        fillParent={true}
+      >
+        <TrackDetailsPanel
+          track={selectedItem}
+          artwork={detailsArtwork}
+          artworkBackgroundActive={hasArtworkBackdrop(zoneEffects.details) && Boolean(backdropArtwork)}
+          {artworkBackgroundBright}
+          visualizerBackdropActive={hasVisualizerBackdrop(zoneEffects.details)}
+          hideEyebrow={true}
+          isTabbedLayout={true}
+          fillParent={true}
+        />
+      </BackdropZone>
     </div>
   {/if}
 </main>

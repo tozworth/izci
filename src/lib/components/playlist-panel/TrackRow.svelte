@@ -84,7 +84,7 @@
     column-gap: var(--track-table-gap);
     align-items: center;
     padding: 0.03rem 0;
-    color: inherit;
+    color: var(--text);
     background: transparent;
     border: 0;
     text-align: left;
@@ -130,6 +130,7 @@
   }
 
   li.playing .track-table-row-button {
+    color: var(--text-strong);
     font-weight: 600;
   }
 

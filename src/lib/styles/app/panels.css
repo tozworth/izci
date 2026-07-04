@@ -15,6 +15,7 @@
   flex-direction: column;
   min-height: 0;
   overflow: hidden;
+  color: var(--text);
 }
 
 .playlist-panel {
@@ -92,7 +93,7 @@
   transition: opacity var(--artwork-background-transition-duration) linear;
 }
 
-.app-shell.artwork-background-active .playlist-panel-header::before {
+.backdrop-zone.artwork-backdrop-active .playlist-panel-header::before {
   opacity: 1;
 }
 
@@ -165,7 +166,7 @@
   column-gap: 0.75rem;
   text-align: left;
   padding: 0.28rem 0.35rem 0.26rem 0.25rem;
-  color: inherit;
+  color: var(--text);
   background: transparent;
   border: 0;
   border-radius: 4px;
@@ -190,6 +191,7 @@
 }
 
 .track-list li.playing .track-row {
+  color: var(--text-strong);
   font-weight: 600;
 }
 

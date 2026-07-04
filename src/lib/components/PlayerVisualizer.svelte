@@ -5,9 +5,6 @@
   import { DEFAULT_VISUALIZER_SETTINGS, visualizerSettings } from '$lib/stores/visualizer-settings';
   import type { VisualizerSettings } from '$lib/types';
 
-  export let artworkUrl: string | undefined = undefined;
-  export let triangleSizeReferenceSelector: string | null = null;
-
   const BAND_COUNT = 72;
   const IDLE_FALLBACK = 0;
   const MAX_VISUALIZED_FREQUENCY_HZ = 16_000;
@@ -32,6 +29,17 @@
     pulse: number;
     isBeat: boolean;
   }
+
+  interface VisualizerClipRect {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+  }
+
+  export let artworkUrl: string | undefined = undefined;
+  export let triangleSizeReferenceSelector: string | null = null;
+  export let clipRects: VisualizerClipRect[] = [];
 
   let canvas: HTMLCanvasElement;
   let canvasContext: CanvasRenderingContext2D | null = null;
@@ -446,6 +454,23 @@
     const values = sampleBands(settings);
     const palette = getPalette();
     context.clearRect(0, 0, width, height);
+    context.save();
+
+    if (clipRects.length > 0) {
+      context.beginPath();
+
+      for (const rect of clipRects) {
+        context.rect(
+          Math.round(rect.x * displayScale),
+          Math.round(rect.y * displayScale),
+          Math.round(rect.width * displayScale),
+          Math.round(rect.height * displayScale)
+        );
+      }
+
+      context.clip();
+    }
+
     context.globalAlpha = settings.transparency;
 
     if (settings.style === 'wave') {
@@ -464,6 +489,7 @@
       drawTriangles(context, values, settings, palette, timestamp);
     }
 
+    context.restore();
     context.globalAlpha = 1;
     frame = requestAnimationFrame(draw);
   }

@@ -11,11 +11,6 @@
   background: var(--body-background);
   overflow: hidden;
   isolation: isolate;
-  --artwork-scoped-details-left: 0px;
-  --artwork-scoped-details-top: 0px;
-  --artwork-scoped-details-width: 0px;
-  --artwork-scoped-details-height: 0px;
-  --artwork-scoped-player-height: var(--player-bar-reserve);
 }
 
 .app-shell.window-controls-overlay-active {
@@ -33,98 +28,177 @@
   padding-bottom: 0;
 }
 
-.app-shell-background-clip,
-.app-shell-background-overlay,
-.app-shell-visualizer-backdrop {
+.shared-artwork-host {
+  display: contents;
+}
+
+.shared-artwork-layer,
+.shared-artwork-zone,
+.shared-artwork-zone-image,
+.shared-artwork-zone-overlay {
   position: absolute;
-  inset: 0;
   pointer-events: none;
-  opacity: 0;
-  transition: opacity var(--artwork-background-transition-duration) linear;
+}
+
+.shared-artwork-zone-overlay {
+  inset: 0;
+}
+
+.shared-artwork-layer {
   z-index: 0;
 }
 
-.app-shell-background-clip {
+.shared-artwork-zone {
   overflow: hidden;
 }
 
-.app-shell-visualizer-backdrop {
-  overflow: hidden;
-}
-
-.app-shell-visualizer-backdrop > .player-visualizer {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-}
-
-.app-shell-background-layer {
-  position: absolute;
-  inset: 0;
-  background-image: var(--artwork-background-image, none);
+.shared-artwork-zone-image {
+  background-color: var(--body-background);
+  background-image: var(--shared-artwork-image, none);
   background-position: center;
   background-repeat: no-repeat;
   background-size: cover;
-  filter: blur(72px) saturate(1.22);
-  transform: scale(1.16);
+  filter: blur(36px) saturate(1.18);
+  transform: scale(1.12);
 }
 
-.app-shell.artwork-background-scoped .app-shell-background-clip,
-.app-shell.artwork-background-scoped .app-shell-background-overlay,
-.app-shell.visualizer-backdrop-scoped .app-shell-visualizer-backdrop {
-  -webkit-mask-image:
-    linear-gradient(#000 0 0),
-    linear-gradient(#000 0 0);
-  -webkit-mask-position:
-    0 100%,
-    var(--artwork-scoped-details-left) var(--artwork-scoped-details-top);
-  -webkit-mask-repeat: no-repeat;
-  -webkit-mask-size:
-    100% var(--artwork-scoped-player-height),
-    var(--artwork-scoped-details-width) var(--artwork-scoped-details-height);
-  mask-image:
-    linear-gradient(#000 0 0),
-    linear-gradient(#000 0 0);
-  mask-position:
-    0 100%,
-    var(--artwork-scoped-details-left) var(--artwork-scoped-details-top);
-  mask-repeat: no-repeat;
-  mask-size:
-    100% var(--artwork-scoped-player-height),
-    var(--artwork-scoped-details-width) var(--artwork-scoped-details-height);
+.shared-artwork-zone-overlay {
+  background:
+    radial-gradient(circle at top, rgba(255, 255, 255, 0.08), transparent 36%),
+    linear-gradient(180deg, rgba(10, 11, 16, 0.58) 0%, rgba(10, 11, 16, 0.34) 52%, rgba(10, 11, 16, 0.62) 100%);
 }
 
-.app-shell.tabbed-layout {
-  --artwork-scoped-player-height: var(--player-bar-reserve-tabbed);
+.shared-artwork-zone.artwork-backdrop-bright .shared-artwork-zone-overlay {
+  background:
+    radial-gradient(circle at top, rgba(255, 255, 255, 0.2), transparent 36%),
+    linear-gradient(180deg, rgba(255, 249, 240, 0.48) 0%, rgba(255, 249, 240, 0.26) 52%, rgba(255, 249, 240, 0.56) 100%);
 }
 
-.app-shell.artwork-background-scoped.mini-mode .app-shell-background-clip,
-.app-shell.artwork-background-scoped.mini-mode .app-shell-background-overlay,
-.app-shell.visualizer-backdrop-scoped.mini-mode .app-shell-visualizer-backdrop {
-  -webkit-mask-position: 0 0, 0 0;
-  -webkit-mask-size: 100% 100%, 0 0;
-  mask-position: 0 0, 0 0;
-  mask-size: 100% 100%, 0 0;
+.shared-visualizer-host {
+  display: contents;
 }
 
-.app-shell-background-overlay {
-  background: var(--artwork-background-overlay, transparent);
+.shared-visualizer-layer {
+  position: absolute;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 1;
 }
 
-.app-shell-background-clip.is-active,
-.app-shell-background-overlay.is-active,
-.app-shell.visualizer-backdrop-active .app-shell-visualizer-backdrop {
-  opacity: 1;
+.shared-visualizer-layer > .player-visualizer {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
 }
 
-.app-shell.visualizer-backdrop-active:not(.visualizer-backdrop-scoped):not(.mini-mode) {
+.shared-visualizer-layer.artwork-backdrop-bright {
+  --visualizer-high: rgba(42, 31, 20, 0.44);
+  --visualizer-mid: rgba(122, 83, 26, 0.34);
+  --visualizer-low: rgba(38, 78, 57, 0.18);
+  --visualizer-glow: rgba(42, 31, 20, 0.1);
+  --visualizer-bars: rgba(75, 53, 34, 0.38);
+  --visualizer-blocks: rgba(42, 31, 20, 0.36);
+  --visualizer-blend-mode: multiply;
+}
+
+.backdrop-zone {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.backdrop-zone.fill-parent,
+.backdrop-zone-content {
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+}
+
+.backdrop-zone-content {
+  position: relative;
+  z-index: 2;
+  display: flex;
+}
+
+.backdrop-zone.artwork-backdrop-active {
+  color-scheme: dark;
+  --panel-backdrop-blur: 28px;
+  --panel-backdrop-saturate: 1.18;
+  --chrome-backdrop-blur: 28px;
+  --chrome-backdrop-saturate: 1.16;
+  --bg-elevated: rgba(18, 19, 24, 0.44);
+  --bg-soft: rgba(18, 19, 24, 0.5);
+  --bg-tree: rgba(18, 19, 24, 0.68);
+  --bg-search: rgba(18, 19, 24, 0.72);
+  --bg-volume-popup: rgba(16, 17, 22, 0.76);
+  --border: rgba(255, 255, 255, 0.16);
+  --border-strong: rgba(255, 255, 255, 0.18);
+  --border-soft: rgba(255, 255, 255, 0.12);
+  --border-faint: rgba(255, 255, 255, 0.1);
+  --border-subtle: rgba(255, 255, 255, 0.08);
+  --border-covered: rgba(255, 255, 255, 0.08);
+  --hover-subtle: rgba(255, 255, 255, 0.05);
+  --hover-control: rgba(255, 255, 255, 0.08);
+  --selection-bg: color-mix(in srgb, var(--accent-strong) 14%, transparent);
+  --playlist-header-background:
+    linear-gradient(180deg, rgba(18, 19, 24, 0.58) 0%, rgba(18, 19, 24, 0.44) 100%),
+    rgba(255, 255, 255, 0.04);
+  --playlist-header-artwork-background:
+    linear-gradient(180deg, rgba(18, 19, 24, 0.58) 0%, rgba(18, 19, 24, 0.44) 100%),
+    rgba(255, 255, 255, 0.04);
+  --dropzone-background: linear-gradient(180deg, rgba(255, 255, 255, 0.045), transparent 18%);
+  --player-bar-fade: linear-gradient(180deg, rgba(5, 6, 10, 0), rgba(5, 6, 10, 0.26));
+  --shadow: 0 20px 54px rgba(0, 0, 0, 0.26);
+}
+
+.backdrop-zone.artwork-backdrop-bright {
+  color-scheme: light;
+  --bg-elevated: rgba(255, 250, 242, 0.48);
+  --bg-soft: rgba(255, 250, 242, 0.58);
+  --bg-tree: rgba(255, 250, 243, 0.8);
+  --bg-search: rgba(255, 252, 246, 0.82);
+  --bg-volume-popup: rgba(255, 250, 242, 0.84);
+  --text: #241b12;
+  --text-strong: #130d08;
+  --muted: rgba(36, 27, 18, 0.76);
+  --muted-strong: rgba(36, 27, 18, 0.92);
+  --border: rgba(52, 39, 25, 0.18);
+  --border-strong: rgba(52, 39, 25, 0.22);
+  --border-soft: rgba(52, 39, 25, 0.12);
+  --border-faint: rgba(52, 39, 25, 0.09);
+  --border-subtle: rgba(52, 39, 25, 0.08);
+  --border-covered: rgba(52, 39, 25, 0.08);
+  --hover-subtle: rgba(52, 39, 25, 0.04);
+  --hover-control: rgba(52, 39, 25, 0.09);
+  --selection-bg: color-mix(in srgb, var(--accent-strong) 18%, rgba(255, 255, 255, 0.1));
+  --playlist-header-background:
+    linear-gradient(180deg, rgba(255, 250, 244, 0.92) 0%, rgba(255, 250, 244, 0.84) 100%),
+    rgba(255, 252, 246, 0.28);
+  --playlist-header-artwork-background:
+    linear-gradient(180deg, rgba(255, 250, 244, 0.92) 0%, rgba(255, 250, 244, 0.84) 100%),
+    rgba(255, 252, 246, 0.28);
+  --dropzone-background: linear-gradient(180deg, rgba(255, 255, 255, 0.18), transparent 18%);
+  --player-bar-fade: linear-gradient(180deg, rgba(255, 255, 255, 0), rgba(255, 250, 242, 0.28));
+  --hairline: rgba(34, 20, 8, 0.08);
+  --visualizer-high: rgba(42, 31, 20, 0.44);
+  --visualizer-mid: rgba(122, 83, 26, 0.34);
+  --visualizer-low: rgba(38, 78, 57, 0.18);
+  --visualizer-glow: rgba(42, 31, 20, 0.1);
+  --visualizer-bars: rgba(75, 53, 34, 0.38);
+  --visualizer-blocks: rgba(42, 31, 20, 0.36);
+  --visualizer-blend-mode: multiply;
+}
+
+.backdrop-zone.visualizer-backdrop-active {
   --panel-backdrop-blur: 2px;
   --panel-backdrop-saturate: 1;
   --chrome-backdrop-blur: 4px;
   --chrome-backdrop-saturate: 1;
   --bg-elevated: rgba(18, 19, 28, 0.24);
   --bg-soft: rgba(18, 19, 28, 0.34);
-  --bg-popover: rgba(18, 19, 28, 0.78);
   --bg-search: rgba(18, 19, 28, 0.48);
   --border: rgba(255, 255, 255, 0.14);
   --border-soft: rgba(255, 255, 255, 0.1);
@@ -141,27 +215,10 @@
   --dropzone-background: linear-gradient(180deg, rgba(255, 255, 255, 0.018), transparent 18%);
 }
 
-.app-shell.visualizer-backdrop-active.visualizer-backdrop-scoped:not(.mini-mode) .details-panel {
-  --panel-backdrop-blur: 2px;
-  --panel-backdrop-saturate: 1;
-  --bg-elevated: rgba(18, 19, 28, 0.24);
-  --bg-soft: rgba(18, 19, 28, 0.34);
-  --border-soft: rgba(255, 255, 255, 0.1);
-  --border-strong: rgba(255, 255, 255, 0.14);
-  --hover-control: rgba(255, 255, 255, 0.06);
-}
-
-.app-shell.visualizer-backdrop-active.artwork-background-active.artwork-background-bright:not(.visualizer-backdrop-scoped):not(.mini-mode),
-.app-shell.visualizer-backdrop-active.visualizer-backdrop-bright:not(.visualizer-backdrop-scoped):not(.mini-mode) {
-  color-scheme: light;
+.backdrop-zone.visualizer-backdrop-active.artwork-backdrop-bright {
   --bg-elevated: rgba(255, 250, 242, 0.26);
   --bg-soft: rgba(255, 250, 242, 0.36);
-  --bg-popover: rgba(255, 250, 243, 0.8);
   --bg-search: rgba(255, 252, 246, 0.52);
-  --text: #241b12;
-  --text-strong: #130d08;
-  --muted: rgba(36, 27, 18, 0.76);
-  --muted-strong: rgba(36, 27, 18, 0.92);
   --border: rgba(52, 39, 25, 0.14);
   --border-soft: rgba(52, 39, 25, 0.1);
   --border-subtle: rgba(52, 39, 25, 0.075);
@@ -177,23 +234,6 @@
   --dropzone-background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 18%);
 }
 
-.app-shell.visualizer-backdrop-active.visualizer-backdrop-scoped.visualizer-backdrop-bright:not(.mini-mode) .details-panel {
-  color-scheme: light;
-  --bg-elevated: rgba(255, 250, 242, 0.26);
-  --bg-soft: rgba(255, 250, 242, 0.36);
-  --text: #241b12;
-  --text-strong: #130d08;
-  --muted: rgba(36, 27, 18, 0.76);
-  --muted-strong: rgba(36, 27, 18, 0.92);
-  --border-soft: rgba(52, 39, 25, 0.1);
-  --border-strong: rgba(52, 39, 25, 0.14);
-  --hover-control: rgba(52, 39, 25, 0.06);
-}
-
-.app-shell > :not(.app-shell-background-clip):not(.app-shell-background-overlay):not(.app-shell-visualizer-backdrop) {
-  z-index: 1;
-}
-
 .window-frame-safe-strip {
   position: absolute;
   inset: 0 0 auto 0;
@@ -205,143 +245,6 @@
 
 .app-shell.window-controls-overlay-active .window-frame-safe-strip {
   height: var(--window-frame-safe-top);
-}
-
-.app-shell.artwork-background-layer-active {
-  --artwork-background-overlay:
-    radial-gradient(circle at top, rgba(255, 255, 255, 0.08), transparent 36%),
-    linear-gradient(180deg, rgba(10, 11, 16, 0.52) 0%, rgba(10, 11, 16, 0.34) 38%, rgba(10, 11, 16, 0.56) 100%);
-  --playlist-header-artwork-background:
-    linear-gradient(180deg, rgba(18, 19, 24, 0.58) 0%, rgba(18, 19, 24, 0.44) 100%),
-    rgba(255, 255, 255, 0.04);
-  --player-bar-layer-fade: linear-gradient(180deg, rgba(5, 6, 10, 0), rgba(5, 6, 10, 0.26));
-}
-
-.app-shell.artwork-background-layer-active.artwork-background-layer-bright {
-  --artwork-background-overlay:
-    radial-gradient(circle at top, rgba(255, 255, 255, 0.2), transparent 36%),
-    linear-gradient(180deg, rgba(255, 249, 240, 0.42) 0%, rgba(255, 249, 240, 0.22) 42%, rgba(255, 249, 240, 0.5) 100%);
-  --playlist-header-artwork-background:
-    linear-gradient(180deg, rgba(255, 250, 244, 0.92) 0%, rgba(255, 250, 244, 0.84) 100%),
-    rgba(255, 252, 246, 0.28);
-  --player-bar-layer-fade: linear-gradient(180deg, rgba(255, 255, 255, 0), rgba(255, 250, 242, 0.28));
-}
-
-.app-shell.artwork-background-active {
-  color-scheme: dark;
-  --panel-backdrop-blur: 28px;
-  --panel-backdrop-saturate: 1.18;
-  --chrome-backdrop-blur: 28px;
-  --chrome-backdrop-saturate: 1.16;
-  --menu-bar-bg: rgba(17, 18, 24, 0.42);
-  --menu-popover-bg: rgba(18, 19, 24, 0.86);
-  --menu-popover-text: rgba(248, 246, 241, 0.96);
-  --menu-popover-muted: rgba(248, 246, 241, 0.72);
-  --menu-popover-border: rgba(255, 255, 255, 0.16);
-  --menu-popover-hover: rgba(255, 255, 255, 0.08);
-  --menu-popover-shadow: 0 24px 60px rgba(0, 0, 0, 0.28);
-  --bg-elevated: rgba(18, 19, 24, 0.44);
-  --bg-soft: rgba(18, 19, 24, 0.5);
-  --bg-popover: rgba(18, 19, 24, 0.8);
-  --bg-tree: rgba(18, 19, 24, 0.68);
-  --bg-search: rgba(18, 19, 24, 0.72);
-  --bg-volume-popup: rgba(16, 17, 22, 0.76);
-  --border: rgba(255, 255, 255, 0.16);
-  --border-strong: rgba(255, 255, 255, 0.18);
-  --border-soft: rgba(255, 255, 255, 0.12);
-  --border-faint: rgba(255, 255, 255, 0.1);
-  --border-subtle: rgba(255, 255, 255, 0.08);
-  --border-covered: rgba(255, 255, 255, 0.08);
-  --menu-bar-border: rgba(255, 255, 255, 0.14);
-  --hover-surface: rgba(255, 255, 255, 0.1);
-  --hover-subtle: rgba(255, 255, 255, 0.05);
-  --hover-control: rgba(255, 255, 255, 0.08);
-  --hover-ghost: rgba(255, 255, 255, 0.03);
-  --tree-hover: rgba(255, 255, 255, 0.08);
-  --selection-bg: color-mix(in srgb, var(--accent-strong) 14%, transparent);
-  --resizer-track: rgba(255, 255, 255, 0.14);
-  --resizer-handle: rgba(255, 255, 255, 0.28);
-  --resizer-line-gradient:
-    linear-gradient(180deg, transparent 0%, rgba(255, 255, 255, 0.24) 14%, rgba(255, 255, 255, 0.24) 86%, transparent 100%);
-  --resizer-line-gradient-active:
-    linear-gradient(
-      180deg,
-      transparent 0%,
-      color-mix(in srgb, var(--accent-strong) 70%, transparent) 14%,
-      color-mix(in srgb, var(--accent-strong) 70%, transparent) 86%,
-      transparent 100%
-    );
-  --resizer-line-glow: color-mix(in srgb, var(--accent-strong) 24%, transparent);
-  --dropzone-background: linear-gradient(180deg, rgba(255, 255, 255, 0.045), transparent 18%);
-  --player-bar-fade: linear-gradient(180deg, rgba(5, 6, 10, 0), rgba(5, 6, 10, 0.26));
-  --shadow: 0 20px 54px rgba(0, 0, 0, 0.26);
-}
-
-.app-shell.artwork-background-active.artwork-background-bright {
-  color-scheme: light;
-  --menu-bar-bg: rgba(252, 248, 240, 0.46);
-  --menu-popover-bg: rgba(255, 250, 243, 0.96);
-  --menu-popover-text: #241b12;
-  --menu-popover-muted: rgba(36, 27, 18, 0.72);
-  --menu-popover-border: rgba(52, 39, 25, 0.16);
-  --menu-popover-hover: rgba(52, 39, 25, 0.08);
-  --menu-popover-shadow: 0 20px 50px rgba(57, 41, 25, 0.14);
-  --bg-elevated: rgba(255, 250, 242, 0.48);
-  --bg-soft: rgba(255, 250, 242, 0.58);
-  --bg-popover: rgba(255, 250, 243, 0.88);
-  --bg-tree: rgba(255, 250, 243, 0.8);
-  --bg-search: rgba(255, 252, 246, 0.82);
-  --bg-volume-popup: rgba(255, 250, 242, 0.84);
-  --text: #241b12;
-  --text-strong: #130d08;
-  --muted: rgba(36, 27, 18, 0.76);
-  --muted-strong: rgba(36, 27, 18, 0.92);
-  --border: rgba(52, 39, 25, 0.18);
-  --border-strong: rgba(52, 39, 25, 0.22);
-  --border-soft: rgba(52, 39, 25, 0.12);
-  --border-faint: rgba(52, 39, 25, 0.09);
-  --border-subtle: rgba(52, 39, 25, 0.08);
-  --border-covered: rgba(52, 39, 25, 0.08);
-  --menu-bar-border: rgba(52, 39, 25, 0.14);
-  --hover-surface: rgba(52, 39, 25, 0.08);
-  --hover-subtle: rgba(52, 39, 25, 0.04);
-  --hover-control: rgba(52, 39, 25, 0.09);
-  --hover-ghost: rgba(52, 39, 25, 0.025);
-  --tree-hover: rgba(52, 39, 25, 0.07);
-  --selection-bg: color-mix(in srgb, var(--accent-strong) 18%, rgba(255, 255, 255, 0.1));
-  --resizer-track: rgba(52, 39, 25, 0.14);
-  --resizer-handle: rgba(52, 39, 25, 0.26);
-  --resizer-line-gradient:
-    linear-gradient(180deg, transparent 0%, rgba(52, 39, 25, 0.2) 14%, rgba(52, 39, 25, 0.2) 86%, transparent 100%);
-  --resizer-line-glow: rgba(52, 39, 25, 0.08);
-  --dropzone-background: linear-gradient(180deg, rgba(255, 255, 255, 0.18), transparent 18%);
-  --player-bar-fade: linear-gradient(180deg, rgba(255, 255, 255, 0), rgba(255, 250, 242, 0.28));
-  --shadow: 0 20px 54px rgba(57, 41, 25, 0.12);
-  --hairline: rgba(34, 20, 8, 0.08);
-}
-
-.app-shell.window-controls-overlay-active .app-shell-background-clip,
-.app-shell.window-controls-overlay-active .app-shell-background-overlay,
-.app-shell.window-controls-overlay-active .app-shell-visualizer-backdrop {
-  clip-path: inset(var(--window-frame-safe-top) 0 0 0);
-}
-
-body.artwork-background-active {
-  --menu-popover-bg: rgba(18, 19, 24, 0.86);
-  --menu-popover-text: rgba(248, 246, 241, 0.96);
-  --menu-popover-muted: rgba(248, 246, 241, 0.72);
-  --menu-popover-border: rgba(255, 255, 255, 0.16);
-  --menu-popover-hover: rgba(255, 255, 255, 0.08);
-  --menu-popover-shadow: 0 24px 60px rgba(0, 0, 0, 0.28);
-}
-
-body.artwork-background-active.artwork-background-bright {
-  --menu-popover-bg: rgba(255, 250, 243, 0.96);
-  --menu-popover-text: #241b12;
-  --menu-popover-muted: rgba(36, 27, 18, 0.72);
-  --menu-popover-border: rgba(52, 39, 25, 0.16);
-  --menu-popover-hover: rgba(52, 39, 25, 0.08);
-  --menu-popover-shadow: 0 20px 50px rgba(57, 41, 25, 0.14);
 }
 
 @media (max-width: 349px) {

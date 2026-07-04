@@ -3,7 +3,12 @@
   import { version as appVersion } from '../../package.json';
   import { COLOR_THEME_OPTIONS } from '$lib/services/theme';
   import { windowControlsOverlayState } from '$lib/services/window-controls-overlay';
-  import { BACKDROP_MODE_OPTIONS, appearanceSettings } from '$lib/stores/appearance-settings';
+  import {
+    BACKDROP_EFFECT_OPTIONS,
+    BACKDROP_ZONE_IDS,
+    BACKDROP_ZONE_LABELS,
+    appearanceSettings
+  } from '$lib/stores/appearance-settings';
   import {
     MAX_PLAY_COUNT_THRESHOLD_SECONDS,
     MIN_PLAY_COUNT_THRESHOLD_SECONDS,
@@ -22,7 +27,8 @@
     visualizerSettings
   } from '$lib/stores/visualizer-settings';
   import type {
-    ArtworkBackgroundMode,
+    BackdropZoneEffect,
+    BackdropZoneId,
     ColorTheme,
     VisualizerColorSource,
     VisualizerSettings,
@@ -176,15 +182,12 @@
     });
   }
 
-  function handleArtworkBackgroundModeChange(event: Event) {
+  function handleBackdropZoneChange(event: Event, zone: BackdropZoneId) {
     appearanceSettings.update({
-      artworkBackgroundMode: (event.currentTarget as HTMLSelectElement).value as ArtworkBackgroundMode
-    });
-  }
-
-  function handleVisualizerBackdropModeChange(event: Event) {
-    appearanceSettings.update({
-      visualizerBackdropMode: (event.currentTarget as HTMLSelectElement).value as ArtworkBackgroundMode
+      backdropZones: {
+        ...appearanceSettings.getSnapshot().backdropZones,
+        [zone]: (event.currentTarget as HTMLSelectElement).value as BackdropZoneEffect
+      }
     });
   }
 
@@ -481,43 +484,29 @@
                 </p>
               </label>
 
-              <label class="field">
+              <div class="field backdrop-zone-field">
                 <div class="field-copy">
-                  <span class="field-title">Album artwork backdrop</span>
+                  <span class="field-title">Background zones</span>
                 </div>
-                <div class="field-control">
-                  <select
-                    value={$appearanceSettings.artworkBackgroundMode}
-                    on:change={handleArtworkBackgroundModeChange}
-                  >
-                    {#each BACKDROP_MODE_OPTIONS as option}
-                      <option value={option.value}>{option.label}</option>
-                    {/each}
-                  </select>
+                <div class="backdrop-zone-grid">
+                  {#each BACKDROP_ZONE_IDS as zone}
+                    <label class="backdrop-zone-row">
+                      <span>{BACKDROP_ZONE_LABELS[zone]}</span>
+                      <select
+                        value={$appearanceSettings.backdropZones[zone]}
+                        on:change={(event) => handleBackdropZoneChange(event, zone)}
+                      >
+                        {#each BACKDROP_EFFECT_OPTIONS as option}
+                          <option value={option.value}>{option.label}</option>
+                        {/each}
+                      </select>
+                    </label>
+                  {/each}
                 </div>
                 <p class="field-hint">
-                  Uses the current track artwork as a blurred color source for the player, Track Details, or the whole workspace.
+                  Chooses whether each pane and the player bar render album artwork, the visualizer, both, or neither.
                 </p>
-              </label>
-
-              <label class="field">
-                <div class="field-copy">
-                  <span class="field-title">Visualizer backdrop</span>
-                </div>
-                <div class="field-control">
-                  <select
-                    value={$appearanceSettings.visualizerBackdropMode}
-                    on:change={handleVisualizerBackdropModeChange}
-                  >
-                    {#each BACKDROP_MODE_OPTIONS as option}
-                      <option value={option.value}>{option.label}</option>
-                    {/each}
-                  </select>
-                </div>
-                <p class="field-hint">
-                  Draws the spectrum visualizer behind the player, Track Details, or the whole workspace.
-                </p>
-              </label>
+              </div>
 
               <label class="field checkbox-field">
                 <div class="field-copy">

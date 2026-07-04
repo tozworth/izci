@@ -464,6 +464,28 @@ code {
   background: var(--bg-input);
 }
 
+.backdrop-zone-field {
+  align-items: start;
+}
+
+.backdrop-zone-grid {
+  display: grid;
+  gap: 6px;
+  min-width: min(18rem, 100%);
+}
+
+.backdrop-zone-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(8.5rem, auto);
+  align-items: center;
+  gap: 8px;
+}
+
+.backdrop-zone-row > span {
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
 .field input[type="number"] {
   width: 7.5rem;
   border-radius: 6px;

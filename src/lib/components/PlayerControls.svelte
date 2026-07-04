@@ -1,20 +1,22 @@
 <script lang="ts">
   import { createEventDispatcher, onMount } from 'svelte';
-  import PlayerVisualizer from '$lib/components/PlayerVisualizer.svelte';
   import { extractArtworkPalette, type PlayerArtworkPalette } from '$lib/services/artwork-palette';
   import type { LoadedStreamArtwork } from '$lib/services/stream-artwork';
-  import { appearanceSettings } from '$lib/stores/appearance-settings';
+  import {
+    appearanceSettings,
+    hasArtworkBackdrop,
+    hasVisualizerBackdrop
+  } from '$lib/stores/appearance-settings';
   import type { Readable } from 'svelte/store';
   import { formatDuration, getTrackDisplaySubtitle, getTrackDisplayTitle } from '$lib/utils/files';
-  import type { PlaybackSnapshot, PlaylistItem } from '$lib/types';
+  import type { BackdropZoneEffect, PlaybackSnapshot, PlaylistItem } from '$lib/types';
 
   export let snapshotStore: Readable<PlaybackSnapshot>;
   export let track: PlaylistItem | null = null;
   export let selectedTrack: PlaylistItem | null = null;
   export let artwork: LoadedStreamArtwork | null = null;
-  export let artworkBackgroundActive = false;
   export let artworkBackgroundBright = false;
-  export let visualizerBackdropActive = true;
+  export let backdropEffect: BackdropZoneEffect = 'visualizer';
   export let suppressArtworkPlayerColors = false;
 
   const dispatch = createEventDispatcher<{
@@ -170,6 +172,8 @@
   $: snapshot = $snapshotStore;
   $: displayTrack = track;
   $: displayDuration = track ? snapshot.duration : 0;
+  $: artworkBackgroundActive = hasArtworkBackdrop(backdropEffect) && Boolean(artwork);
+  $: visualizerBackdropActive = hasVisualizerBackdrop(backdropEffect);
   $: playerArtworkPaletteActive =
     $appearanceSettings.useArtworkPlayerColors && playerArtworkPalette !== null;
   $: playerArtworkColorsActive = playerArtworkPaletteActive && !suppressArtworkPlayerColors;
@@ -193,13 +197,12 @@
   class="player-bar"
   class:artwork-background-active={artworkBackgroundActive}
   class:artwork-background-bright={artworkBackgroundActive && artworkBackgroundBright}
+  class:visualizer-backdrop-active={visualizerBackdropActive}
   class:artwork-player-colors-active={playerArtworkColorsActive}
+  data-artwork-zone={artworkBackgroundActive ? 'true' : null}
+  data-visualizer-zone={visualizerBackdropActive ? 'true' : null}
   style={playerArtworkStyle}
 >
-  {#if visualizerBackdropActive}
-    <PlayerVisualizer artworkUrl={artwork?.url} />
-  {/if}
-
   <div class="player-track-group">
     {#if displayTrack}
       <button

@@ -1,5 +1,7 @@
 .workspace {
   display: grid;
+  position: relative;
+  z-index: 2;
   grid-template-columns: minmax(18rem, 1.1fr) minmax(0, 1.5fr) minmax(18rem, 1fr);
   gap: 0;
   min-height: 0;
@@ -29,7 +31,7 @@
   height: 100%;
 }
 
-.workspace-resizable .workspace-panel > .panel {
+.workspace-resizable .workspace-panel .panel {
   border-inline: 0;
   border-bottom: 0;
 }
@@ -205,7 +207,7 @@
   overflow: hidden;
 }
 
-.workspace-tab-panel > .panel {
+.workspace-tab-panel .panel {
   height: 100%;
 }
 

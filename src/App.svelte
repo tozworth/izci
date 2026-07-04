@@ -1,7 +1,8 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
   import PlayerControls from '$lib/components/PlayerControls.svelte';
-  import PlayerVisualizer from '$lib/components/PlayerVisualizer.svelte';
+  import SharedBackdropArtwork from '$lib/components/SharedBackdropArtwork.svelte';
+  import SharedBackdropVisualizer from '$lib/components/SharedBackdropVisualizer.svelte';
   import TopMenuBar from '$lib/components/TopMenuBar.svelte';
   import TabbedWorkspace from '$lib/components/workspace/TabbedWorkspace.svelte';
   import WideWorkspace from '$lib/components/workspace/WideWorkspace.svelte';
@@ -31,12 +32,16 @@
   import { windowManager } from '$lib/services/window-manager';
   import { windowMiniMode } from '$lib/services/window-mini-mode';
   import { windowControlsOverlayState } from '$lib/services/window-controls-overlay';
-  import { appearanceSettings } from '$lib/stores/appearance-settings';
+  import {
+    appearanceSettings,
+    hasArtworkBackdrop,
+    hasVisualizerBackdrop
+  } from '$lib/stores/appearance-settings';
   import { metadataSettings } from '$lib/stores/metadata-settings';
   import { libraryStore, playlistStore } from '$lib/stores/playlist';
   import { DEFAULT_PLAYER_VOLUME } from '$lib/stores/player-volume';
   import type {
-    ArtworkBackgroundMode,
+    BackdropZoneSettings,
     PlaybackSnapshot,
     PlaylistItem,
     PlaylistRepeatMode,
@@ -90,20 +95,11 @@
   let fileInput: HTMLInputElement | null = null;
   let innerWidth = 0;
   let previousPlaybackState: PlaybackSnapshot['state'] = playbackStatus.state;
-  let artworkBackgroundMode: ArtworkBackgroundMode = appearanceSettings.getSnapshot().artworkBackgroundMode;
-  let visualizerBackdropMode: ArtworkBackgroundMode = appearanceSettings.getSnapshot().visualizerBackdropMode;
-  let isWorkspaceArtworkBackgroundEnabled = false;
-  let isPlayerBarArtworkBackgroundEnabled = false;
-  let isPlayerBarArtworkLayerActive = false;
-  let isTrackDetailsArtworkLayerActive = false;
-  let isWorkspaceArtworkBackgroundActive = false;
-  let isScopedArtworkBackgroundActive = false;
-  let isArtworkBackgroundActive = false;
-  let isArtworkBackgroundLayerBright = false;
-  let isShellVisualizerBackdropActive = false;
-  let isScopedVisualizerBackdropActive = false;
-  let isTrackDetailsScopedBackdropTrackingActive = false;
-  let isPlayerLocalVisualizerActive = true;
+  let backdropZones: BackdropZoneSettings = appearanceSettings.getSnapshot().backdropZones;
+  let isArtworkBackdropRequested = false;
+  let isVisualizerBackdropRequested = false;
+  let isArtworkBackdropActive = false;
+  let isArtworkBackgroundBright = false;
   let documentTitle = 'izci';
   const workspaceShell = createWorkspaceShellController({
     getPlaylistContextActions,
@@ -207,52 +203,18 @@
     workspaceShellState.activeCollection === 'library' ? selectedLibraryItem : selectedPlaylistItem;
   $: livePlayingTrack = resolveTrackSnapshot(playingTrack, selectedItem, playlistItems, libraryItems);
   $: playerDisplayTrack = livePlayingTrack;
-  $: artworkBackgroundMode = $appearanceSettings.artworkBackgroundMode;
-  $: visualizerBackdropMode = $appearanceSettings.visualizerBackdropMode;
-  $: isWorkspaceArtworkBackgroundEnabled = artworkBackgroundMode === 'workspace';
-  $: isPlayerBarArtworkBackgroundEnabled =
-    artworkBackgroundMode === 'workspace' ||
-    artworkBackgroundMode === 'player' ||
-    artworkBackgroundMode === 'player-details';
-  $: isPlayerBarArtworkLayerActive =
-    (artworkBackgroundMode === 'player' || artworkBackgroundMode === 'player-details') &&
-    Boolean(artworkPresentationState.visibleArtworkBackground);
-  $: isTrackDetailsArtworkLayerActive =
-    artworkBackgroundMode === 'player-details' &&
-    Boolean(artworkPresentationState.visibleArtworkBackground);
-  $: isWorkspaceArtworkBackgroundActive =
-    isWorkspaceArtworkBackgroundEnabled && Boolean(artworkPresentationState.visibleArtworkBackground);
-  $: isArtworkBackgroundActive =
-    isPlayerBarArtworkBackgroundEnabled && Boolean(artworkPresentationState.visibleArtworkBackground);
-  $: hasArtworkBackgroundLayer =
-    isPlayerBarArtworkBackgroundEnabled &&
-    Boolean(
-      artworkPresentationState.artworkBackgroundPrimary ||
-        artworkPresentationState.artworkBackgroundSecondary
-    );
-  $: isScopedArtworkBackgroundActive =
-    !isWorkspaceArtworkBackgroundEnabled && hasArtworkBackgroundLayer;
-  $: if (isArtworkBackgroundActive) {
-    isArtworkBackgroundLayerBright = artworkPresentationState.isArtworkBackgroundBright;
-  } else if (!hasArtworkBackgroundLayer) {
-    isArtworkBackgroundLayerBright = false;
-  }
-  $: isShellVisualizerBackdropActive =
-    !miniModeActive &&
-    (visualizerBackdropMode === 'workspace' || visualizerBackdropMode === 'player-details');
-  $: isScopedVisualizerBackdropActive = isShellVisualizerBackdropActive && visualizerBackdropMode === 'player-details';
-  $: isTrackDetailsOverArtworkBackground =
-    isWorkspaceArtworkBackgroundActive || isTrackDetailsArtworkLayerActive;
-  $: isVisualizerBackdropOverBrightArtwork =
-    isShellVisualizerBackdropActive &&
-    artworkPresentationState.isArtworkBackgroundBright &&
-    ((visualizerBackdropMode === 'workspace' && isWorkspaceArtworkBackgroundActive) ||
-      (visualizerBackdropMode === 'player-details' && isTrackDetailsOverArtworkBackground));
-  $: isVisualizerBackdropBright =
-    isShellVisualizerBackdropActive && isVisualizerBackdropOverBrightArtwork;
-  $: isTrackDetailsScopedBackdropTrackingActive =
-    isTrackDetailsArtworkLayerActive || isScopedVisualizerBackdropActive;
-  $: isPlayerLocalVisualizerActive = visualizerBackdropMode !== 'off' && !isShellVisualizerBackdropActive;
+  $: backdropZones = $appearanceSettings.backdropZones;
+  $: workspaceZoneEffects = {
+    playlist: backdropZones.playlist,
+    library: backdropZones.library,
+    details: backdropZones.details
+  };
+  $: isArtworkBackdropRequested = Object.values(backdropZones).some(hasArtworkBackdrop);
+  $: isVisualizerBackdropRequested = Object.values(backdropZones).some(hasVisualizerBackdrop);
+  $: isArtworkBackdropActive =
+    isArtworkBackdropRequested && Boolean(artworkPresentationState.visibleArtworkBackground);
+  $: isArtworkBackgroundBright =
+    isArtworkBackdropActive && artworkPresentationState.isArtworkBackgroundBright;
   $: documentTitle =
     $appearanceSettings.showTrackTitleInWindowTitle && livePlayingTrack
       ? getTrackDisplayTitle(livePlayingTrack)
@@ -284,11 +246,11 @@
   $: void artworkPresentation.syncDisplayedArtwork(playerDisplayTrack);
   $: void artworkPresentation.syncArtworkBrightness(
     artworkPresentationState.visibleArtworkBackground,
-    isArtworkBackgroundActive
+    isArtworkBackdropRequested
   );
   $: artworkPresentation.syncArtworkMenuClasses(
-    isWorkspaceArtworkBackgroundActive,
-    artworkPresentationState.isArtworkBackgroundBright
+    false,
+    false
   );
   $: artworkPresentation.setWindowControlsOverlayVisible($windowControlsOverlayState.visible);
 
@@ -696,68 +658,17 @@
   class="app-shell"
   class:tabbed-layout={workspaceShellState.isTabbedLayout}
   class:mini-mode={miniModeActive}
-  class:artwork-background-enabled={artworkBackgroundMode !== 'off'}
-  class:artwork-background-layer-active={hasArtworkBackgroundLayer}
-  class:artwork-background-layer-bright={hasArtworkBackgroundLayer && isArtworkBackgroundLayerBright}
-  class:artwork-background-active={isWorkspaceArtworkBackgroundActive}
-  class:artwork-background-scoped={isScopedArtworkBackgroundActive}
-  class:artwork-background-bright={isArtworkBackgroundActive &&
-    artworkPresentationState.isArtworkBackgroundBright}
-  class:visualizer-backdrop-active={isShellVisualizerBackdropActive}
-  class:visualizer-backdrop-scoped={isScopedVisualizerBackdropActive}
-  class:visualizer-backdrop-bright={isVisualizerBackdropBright}
   class:window-chrome-transition-bypass={artworkPresentationState.isWindowChromeTransitionBypassed}
   class:window-controls-overlay-active={$windowControlsOverlayState.visible}
 >
-  <div
-    class="app-shell-background-clip"
-    class:is-active={
-      isArtworkBackgroundActive &&
-      artworkPresentationState.activeArtworkBackgroundSlot === 'primary' &&
-      Boolean(artworkPresentationState.artworkBackgroundPrimary)
-    }
-    aria-hidden="true"
-  >
-    <div
-      class="app-shell-background-layer"
-      style={`--artwork-background-image: ${
-        artworkPresentationState.artworkBackgroundPrimary
-          ? `url("${artworkPresentationState.artworkBackgroundPrimary.url}")`
-          : 'none'
-      };`}
-    ></div>
-  </div>
-  <div
-    class="app-shell-background-clip"
-    class:is-active={
-      isArtworkBackgroundActive &&
-      artworkPresentationState.activeArtworkBackgroundSlot === 'secondary' &&
-      Boolean(artworkPresentationState.artworkBackgroundSecondary)
-    }
-    aria-hidden="true"
-  >
-    <div
-      class="app-shell-background-layer"
-      style={`--artwork-background-image: ${
-        artworkPresentationState.artworkBackgroundSecondary
-          ? `url("${artworkPresentationState.artworkBackgroundSecondary.url}")`
-          : 'none'
-      };`}
-    ></div>
-  </div>
-  <div
-    class="app-shell-background-overlay"
-    class:is-active={isArtworkBackgroundActive}
-    aria-hidden="true"
-  ></div>
-  {#if isShellVisualizerBackdropActive}
-    <div class="app-shell-visualizer-backdrop" aria-hidden="true">
-      <PlayerVisualizer
-        artworkUrl={artworkPresentationState.displayedArtwork?.url}
-        triangleSizeReferenceSelector=".player-bar"
-      />
-    </div>
+  {#if isArtworkBackdropActive}
+    <SharedBackdropArtwork artworkUrl={artworkPresentationState.visibleArtworkBackground?.url} />
   {/if}
+
+  {#if isVisualizerBackdropRequested}
+    <SharedBackdropVisualizer artworkUrl={artworkPresentationState.displayedArtwork?.url} />
+  {/if}
+
   <div class="window-frame-safe-strip" aria-hidden="true"></div>
   <input
     bind:this={fileInput}
@@ -788,9 +699,9 @@
         {libraryPanelHandlers}
         selectedItem={artworkPresentationState.detailsDisplayTrack}
         detailsArtwork={artworkPresentationState.visibleDetailsArtwork}
-        artworkBackgroundActive={isTrackDetailsArtworkLayerActive}
-        artworkBackgroundBright={artworkPresentationState.isArtworkBackgroundBright}
-        scopedBackdropTrackingActive={isTrackDetailsScopedBackdropTrackingActive}
+        backdropArtwork={artworkPresentationState.visibleArtworkBackground}
+        artworkBackgroundBright={isArtworkBackgroundBright}
+        zoneEffects={workspaceZoneEffects}
         isDetailsVisible={workspaceShellState.isDetailsPanelVisible}
         onCloseDetails={() => workspaceShell.closeTrackDetails()}
         on:tabChange={(event) => workspaceShell.setActiveWorkspaceTab(event.detail)}
@@ -806,9 +717,9 @@
         isResizing={workspaceShellState.isResizing}
         selectedItem={artworkPresentationState.detailsDisplayTrack}
         detailsArtwork={artworkPresentationState.visibleDetailsArtwork}
-        artworkBackgroundActive={isTrackDetailsArtworkLayerActive}
-        artworkBackgroundBright={artworkPresentationState.isArtworkBackgroundBright}
-        scopedBackdropTrackingActive={isTrackDetailsScopedBackdropTrackingActive}
+        backdropArtwork={artworkPresentationState.visibleArtworkBackground}
+        artworkBackgroundBright={isArtworkBackgroundBright}
+        zoneEffects={workspaceZoneEffects}
         isDetailsVisible={workspaceShellState.isDetailsPanelVisible}
         onCloseDetails={() => workspaceShell.closeTrackDetails()}
         on:resizeStart={(event) => workspaceShell.handleWideWorkspaceResizeStart(event.detail)}
@@ -825,10 +736,8 @@
     track={playerDisplayTrack}
     selectedTrack={selectedPlaylistItem}
     artwork={artworkPresentationState.displayedArtwork}
-    artworkBackgroundActive={isPlayerBarArtworkLayerActive}
-    artworkBackgroundBright={artworkPresentationState.isArtworkBackgroundBright}
-    visualizerBackdropActive={isPlayerLocalVisualizerActive}
-    suppressArtworkPlayerColors={isShellVisualizerBackdropActive}
+    backdropEffect={backdropZones.player}
+    artworkBackgroundBright={isArtworkBackgroundBright}
     on:toggle={() => void playbackCommands.togglePlayback()}
     on:previous={() => void playbackCommands.stepTrack(-1)}
     on:next={() => void playbackCommands.stepTrack(1)}

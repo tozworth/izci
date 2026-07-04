@@ -19,7 +19,7 @@
   border-left: 0;
   border-right: 0;
   border-bottom: 0;
-  background: var(--shell-visualizer-player-background, var(--player-bar-background, var(--menu-bar-bg)));
+  background: var(--player-bar-background, var(--menu-bar-bg));
   color: var(--text);
   backdrop-filter:
     blur(var(--player-bar-backdrop-blur, var(--chrome-backdrop-blur, 16px)))
@@ -55,10 +55,25 @@
   --player-bar-backdrop-saturate: 1.22;
 }
 
-.player-bar.artwork-background-active.artwork-background-bright,
-.app-shell.artwork-background-layer-bright .player-bar,
-.app-shell.artwork-background-bright .player-bar,
-.app-shell.visualizer-backdrop-bright .player-bar {
+.player-bar.visualizer-backdrop-active:not(.artwork-background-active) {
+  --player-bar-background:
+    linear-gradient(90deg, rgba(18, 19, 28, 0.28), rgba(18, 19, 28, 0.16) 50%, rgba(18, 19, 28, 0.28));
+  --player-bar-backdrop-blur: 2px;
+  --player-bar-backdrop-saturate: 1;
+  --bg-soft: rgba(18, 19, 28, 0.34);
+  --bg-volume-popup: rgba(18, 19, 28, 0.78);
+  --border-strong: rgba(255, 255, 255, 0.16);
+  --hover-control: rgba(255, 255, 255, 0.06);
+  --player-bar-layer-fade: linear-gradient(180deg, rgba(18, 19, 28, 0), rgba(18, 19, 28, 0.16));
+}
+
+.player-bar.visualizer-backdrop-active {
+  background: color-mix(in srgb, var(--player-bar-background, var(--menu-bar-bg)) 62%, transparent);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.player-bar.artwork-background-active.artwork-background-bright {
   color-scheme: light;
   --menu-bar-bg: rgba(252, 248, 240, 0.46);
   --bg-soft: rgba(255, 250, 242, 0.58);
@@ -79,34 +94,11 @@
   --visualizer-blend-mode: multiply;
 }
 
-.app-shell.artwork-background-layer-active:not(.mini-mode) .player-bar {
-  overflow: visible;
-}
-
-.app-shell.artwork-background-active:not(.mini-mode) .player-bar {
+.player-bar.artwork-background-active {
   box-shadow: 0 -1px 0 var(--hairline);
 }
 
-.app-shell.visualizer-backdrop-active:not(.mini-mode) .player-bar {
-  --shell-visualizer-player-background:
-    linear-gradient(90deg, rgba(18, 19, 28, 0.28), rgba(18, 19, 28, 0.16) 50%, rgba(18, 19, 28, 0.28));
-  --player-bar-backdrop-blur: 2px;
-  --player-bar-backdrop-saturate: 1;
-  --bg-soft: rgba(18, 19, 28, 0.34);
-  --bg-volume-popup: rgba(18, 19, 28, 0.78);
-  --border-strong: rgba(255, 255, 255, 0.16);
-  --hover-control: rgba(255, 255, 255, 0.06);
-  --player-bar-layer-fade: linear-gradient(180deg, rgba(18, 19, 28, 0), rgba(18, 19, 28, 0.16));
-}
-
-.app-shell.visualizer-backdrop-active.artwork-background-bright:not(.mini-mode) .player-bar,
-.app-shell.visualizer-backdrop-active.visualizer-backdrop-bright:not(.mini-mode) .player-bar {
-  --shell-visualizer-player-background:
-    linear-gradient(90deg, rgba(255, 250, 242, 0.32), rgba(255, 250, 242, 0.18) 50%, rgba(255, 250, 242, 0.32));
-  --bg-soft: rgba(255, 250, 242, 0.36);
-  --bg-volume-popup: rgba(255, 250, 242, 0.8);
-  --border-strong: rgba(52, 39, 25, 0.16);
-  --hover-control: rgba(52, 39, 25, 0.06);
+.player-bar.artwork-background-active.artwork-background-bright.visualizer-backdrop-active {
   --player-bar-layer-fade: linear-gradient(180deg, rgba(255, 250, 242, 0), rgba(255, 250, 242, 0.16));
 }
 
@@ -122,10 +114,6 @@
   background: var(--player-bar-layer-fade, var(--player-bar-fade));
   transition: opacity var(--artwork-background-transition-duration) linear;
   z-index: 1;
-}
-
-.app-shell.artwork-background-active:not(.mini-mode) .player-bar::before {
-  opacity: 1;
 }
 
 .player-visualizer {
