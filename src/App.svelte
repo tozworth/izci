@@ -17,6 +17,7 @@
   } from '$lib/services/artwork-presentation';
   import { createImportController, FILE_INPUT_ACCEPT } from '$lib/services/import-controller';
   import { subscribeToLaunchedFiles } from '$lib/services/file-launch';
+  import { getTrackLyricsLoadKey, loadTrackLyrics } from '$lib/services/lyrics';
   import { createPlaybackCommandsController } from '$lib/services/playback-commands';
   import { createWorkspaceShellController } from '$lib/services/workspace-shell';
   import { mediaSessionService } from '$lib/services/media-session';
@@ -77,6 +78,7 @@
 
   const NOW_PLAYING_MIN_VIEWPORT_WIDTH = 901;
   const NOW_PLAYING_MIN_VIEWPORT_HEIGHT = 721;
+  type LyricsAvailability = 'unknown' | 'loading' | 'available' | 'unavailable';
 
   const libraryContextActions = buildLibraryContextActions();
 
@@ -119,6 +121,15 @@
   let wasNowPlayingLayoutActive = false;
   let effectiveLyricsDisplayStyle: LyricsDisplayStyle = 'timestamped';
   let lyricsAutoScroll = true;
+  let lyricsFontSize = appearanceSettings.getSnapshot().lyrics.fontSizes.timestamped;
+  let lyricsResumeAutoScrollToken = 0;
+  let lyricsAvailability: LyricsAvailability = 'unknown';
+  let lyricsAvailabilityTrackKey = '';
+  let lyricsAvailabilityToken = 0;
+  let lyricsAutomationSignature = '';
+  let nowPlayingRestoreTab: WorkspaceTab | null = null;
+  let nowPlayingAutoFocusedLyrics = false;
+  let nowPlayingAutoFocusTrackKey = '';
   const workspaceShell = createWorkspaceShellController({
     getPlaylistContextActions,
     getLibraryContextActions
@@ -213,7 +224,7 @@
       stop: () => playbackCommands.stop(),
       previousTrack: () => void playbackCommands.stepTrack(-1),
       nextTrack: () => void playbackCommands.stepTrack(1),
-      seekTo: (seconds) => playbackCommands.seek(seconds)
+      seekTo: seekPlayback
     }
   });
 
@@ -235,18 +246,21 @@
     (nowPlayingViewActive || (isAutomaticNowPlayingEligible && !autoNowPlayingSuppressed)) &&
     isNowPlayingViewportEligible &&
     !miniModeActive;
-  $: if (isNowPlayingLayoutActive !== wasNowPlayingLayoutActive) {
-    if (isNowPlayingLayoutActive && $appearanceSettings.lyrics.autoFocusInNowPlaying) {
-      workspaceShell.showTrackLyrics();
-    }
-
-    wasNowPlayingLayoutActive = isNowPlayingLayoutActive;
-  }
+  $: syncNowPlayingLayoutTransition(isNowPlayingLayoutActive);
+  $: syncLyricsAvailability(artworkPresentationState.detailsDisplayTrack);
+  $: syncNowPlayingLyricsAutoFocus();
+  $: applyLyricsPanelAvailabilityAutomation(
+    lyricsAvailabilityTrackKey,
+    lyricsAvailability,
+    $appearanceSettings.lyrics.openPanelForLyrics,
+    $appearanceSettings.lyrics.closePanelWithoutLyrics
+  );
   $: effectiveLyricsDisplayStyle =
     isNowPlayingLayoutActive && $appearanceSettings.lyrics.autoTheaterInNowPlaying
       ? 'theater'
       : $appearanceSettings.lyrics.displayStyle;
   $: lyricsAutoScroll = effectiveLyricsDisplayStyle === 'theater' || $appearanceSettings.lyrics.autoScroll;
+  $: lyricsFontSize = $appearanceSettings.lyrics.fontSizes[effectiveLyricsDisplayStyle];
   $: workspaceZoneEffects = {
     playlist: backdropZones.playlist,
     library: backdropZones.library,
@@ -392,6 +406,128 @@
   }
 
   function showTrackLyrics() {
+    workspaceShell.showTrackLyrics();
+  }
+
+  function seekPlayback(seconds: number): void {
+    lyricsResumeAutoScrollToken += 1;
+    playbackCommands.seek(seconds);
+  }
+
+  function syncLyricsAvailability(track: PlaylistItem | null): void {
+    const nextTrackKey = getTrackLyricsLoadKey(track);
+
+    if (nextTrackKey === lyricsAvailabilityTrackKey) {
+      return;
+    }
+
+    lyricsAvailabilityTrackKey = nextTrackKey;
+    const currentToken = ++lyricsAvailabilityToken;
+
+    if (!track || !nextTrackKey) {
+      lyricsAvailability = 'unavailable';
+      return;
+    }
+
+    lyricsAvailability = 'loading';
+
+    void loadTrackLyrics(track)
+      .then((loadedLyrics) => {
+        if (currentToken === lyricsAvailabilityToken) {
+          lyricsAvailability = loadedLyrics ? 'available' : 'unavailable';
+        }
+      })
+      .catch(() => {
+        if (currentToken === lyricsAvailabilityToken) {
+          lyricsAvailability = 'unavailable';
+        }
+      });
+  }
+
+  function applyLyricsPanelAvailabilityAutomation(
+    trackKey: string,
+    availability: LyricsAvailability,
+    openWhenAvailable: boolean,
+    closeWhenUnavailable: boolean
+  ): void {
+    const signature = `${trackKey}:${availability}:${openWhenAvailable}:${closeWhenUnavailable}`;
+
+    if (signature === lyricsAutomationSignature || availability === 'loading' || availability === 'unknown') {
+      return;
+    }
+
+    lyricsAutomationSignature = signature;
+
+    if (availability === 'available' && openWhenAvailable) {
+      workspaceShell.showTrackLyrics();
+      return;
+    }
+
+    if (availability === 'unavailable' && closeWhenUnavailable && workspaceShellState.isLyricsPanelVisible) {
+      workspaceShell.closeTrackLyrics();
+    }
+  }
+
+  function restoreWorkspaceTab(tab: WorkspaceTab): void {
+    if (tab === 'details') {
+      workspaceShell.showTrackDetails();
+      return;
+    }
+
+    if (tab === 'lyrics') {
+      workspaceShell.showTrackLyrics();
+      return;
+    }
+
+    workspaceShell.setActiveWorkspaceTab(tab);
+  }
+
+  function syncNowPlayingLayoutTransition(isActive: boolean): void {
+    if (isActive === wasNowPlayingLayoutActive) {
+      return;
+    }
+
+    if (isActive) {
+      nowPlayingRestoreTab = workspaceShellState.activeWorkspaceTab;
+      nowPlayingAutoFocusedLyrics = false;
+      nowPlayingAutoFocusTrackKey = '';
+      wasNowPlayingLayoutActive = true;
+      return;
+    }
+
+    if (
+      nowPlayingAutoFocusedLyrics &&
+      workspaceShellState.activeWorkspaceTab === 'lyrics' &&
+      nowPlayingRestoreTab
+    ) {
+      restoreWorkspaceTab(nowPlayingRestoreTab);
+    }
+
+    nowPlayingRestoreTab = null;
+    nowPlayingAutoFocusedLyrics = false;
+    nowPlayingAutoFocusTrackKey = '';
+    wasNowPlayingLayoutActive = false;
+  }
+
+  function syncNowPlayingLyricsAutoFocus(): void {
+    if (
+      !isNowPlayingLayoutActive ||
+      !$appearanceSettings.lyrics.autoFocusInNowPlaying ||
+      lyricsAvailability !== 'available' ||
+      !lyricsAvailabilityTrackKey ||
+      nowPlayingAutoFocusTrackKey === lyricsAvailabilityTrackKey
+    ) {
+      return;
+    }
+
+    nowPlayingAutoFocusTrackKey = lyricsAvailabilityTrackKey;
+
+    if (workspaceShellState.activeWorkspaceTab === 'lyrics') {
+      return;
+    }
+
+    nowPlayingRestoreTab ??= workspaceShellState.activeWorkspaceTab;
+    nowPlayingAutoFocusedLyrics = true;
     workspaceShell.showTrackLyrics();
   }
 
@@ -862,12 +998,17 @@
       selectedItem={artworkPresentationState.detailsDisplayTrack}
       lyricsDisplayStyle={effectiveLyricsDisplayStyle}
       {lyricsAutoScroll}
+      {lyricsFontSize}
+      {lyricsResumeAutoScrollToken}
+      lyricsTheaterDowntimeDots={$appearanceSettings.lyrics.theaterDowntimeDots}
+      lyricsTheaterDowntimeThresholdSeconds={$appearanceSettings.lyrics.theaterDowntimeThresholdSeconds}
+      lyricsTheaterSmoothScroll={$appearanceSettings.lyrics.theaterSmoothScroll}
       on:close={closeNowPlayingView}
       on:tabChange={(event) => handleNowPlayingTabChange(event.detail)}
       on:toggle={() => void playbackCommands.togglePlayback()}
       on:previous={() => void playbackCommands.stepTrack(-1)}
       on:next={() => void playbackCommands.stepTrack(1)}
-      on:seek={(event) => playbackCommands.seek(event.detail)}
+      on:seek={(event) => seekPlayback(event.detail)}
       on:volume={(event) => playerController.setVolume(event.detail)}
       on:mute={() => playerController.toggleMute()}
       on:showTrack={(event) => handleShowPlayerTrackDetails(event.detail)}
@@ -891,8 +1032,14 @@
         isLyricsVisible={workspaceShellState.isLyricsPanelVisible}
         lyricsDisplayStyle={effectiveLyricsDisplayStyle}
         {lyricsAutoScroll}
+        {lyricsFontSize}
+        {lyricsResumeAutoScrollToken}
+        lyricsTheaterDowntimeDots={$appearanceSettings.lyrics.theaterDowntimeDots}
+        lyricsTheaterDowntimeThresholdSeconds={$appearanceSettings.lyrics.theaterDowntimeThresholdSeconds}
+        lyricsTheaterSmoothScroll={$appearanceSettings.lyrics.theaterSmoothScroll}
         onCloseDetails={() => workspaceShell.closeTrackDetails()}
         onCloseLyrics={() => workspaceShell.closeTrackLyrics()}
+        on:seek={(event) => seekPlayback(event.detail)}
         on:tabChange={(event) => workspaceShell.setActiveWorkspaceTab(event.detail)}
       />
     {:else}
@@ -915,8 +1062,14 @@
         activeWorkspaceTab={workspaceShellState.activeWorkspaceTab}
         lyricsDisplayStyle={effectiveLyricsDisplayStyle}
         {lyricsAutoScroll}
+        {lyricsFontSize}
+        {lyricsResumeAutoScrollToken}
+        lyricsTheaterDowntimeDots={$appearanceSettings.lyrics.theaterDowntimeDots}
+        lyricsTheaterDowntimeThresholdSeconds={$appearanceSettings.lyrics.theaterDowntimeThresholdSeconds}
+        lyricsTheaterSmoothScroll={$appearanceSettings.lyrics.theaterSmoothScroll}
         onCloseDetails={() => workspaceShell.closeTrackDetails()}
         onCloseLyrics={() => workspaceShell.closeTrackLyrics()}
+        on:seek={(event) => seekPlayback(event.detail)}
         on:tabChange={(event) => workspaceShell.setActiveWorkspaceTab(event.detail)}
         on:resizeStart={(event) => workspaceShell.handleWideWorkspaceResizeStart(event.detail)}
       />
@@ -938,7 +1091,7 @@
       on:toggle={() => void playbackCommands.togglePlayback()}
       on:previous={() => void playbackCommands.stepTrack(-1)}
       on:next={() => void playbackCommands.stepTrack(1)}
-      on:seek={(event) => playbackCommands.seek(event.detail)}
+      on:seek={(event) => seekPlayback(event.detail)}
       on:volume={(event) => playerController.setVolume(event.detail)}
       on:mute={() => playerController.toggleMute()}
       on:showTrack={(event) => handleShowPlayerTrackDetails(event.detail)}

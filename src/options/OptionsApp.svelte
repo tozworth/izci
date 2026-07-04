@@ -7,8 +7,13 @@
     BACKDROP_EFFECT_OPTIONS,
     BACKDROP_ZONE_IDS,
     BACKDROP_ZONE_LABELS,
+    LYRICS_FONT_SIZE_LIMITS,
     LYRICS_STYLE_OPTIONS,
-    appearanceSettings
+    MAX_LYRICS_DOWNTIME_THRESHOLD_SECONDS,
+    MIN_LYRICS_DOWNTIME_THRESHOLD_SECONDS,
+    appearanceSettings,
+    normalizeLyricsDowntimeThresholdSeconds,
+    normalizeLyricsFontSize
   } from '$lib/stores/appearance-settings';
   import {
     MAX_PLAY_COUNT_THRESHOLD_SECONDS,
@@ -223,6 +228,71 @@
     });
   }
 
+  function handleLyricsFontSizeChange(event: Event) {
+    const lyricsSettings = appearanceSettings.getSnapshot().lyrics;
+    const displayStyle = lyricsSettings.displayStyle;
+
+    appearanceSettings.update({
+      lyrics: {
+        ...lyricsSettings,
+        fontSizes: {
+          ...lyricsSettings.fontSizes,
+          [displayStyle]: normalizeLyricsFontSize(
+            displayStyle,
+            (event.currentTarget as HTMLInputElement).valueAsNumber
+          )
+        }
+      }
+    });
+  }
+
+  function handleLyricsTheaterDotsToggle(event: Event) {
+    appearanceSettings.update({
+      lyrics: {
+        ...appearanceSettings.getSnapshot().lyrics,
+        theaterDowntimeDots: (event.currentTarget as HTMLInputElement).checked
+      }
+    });
+  }
+
+  function handleLyricsDowntimeThresholdChange(event: Event) {
+    appearanceSettings.update({
+      lyrics: {
+        ...appearanceSettings.getSnapshot().lyrics,
+        theaterDowntimeThresholdSeconds: normalizeLyricsDowntimeThresholdSeconds(
+          (event.currentTarget as HTMLInputElement).valueAsNumber
+        )
+      }
+    });
+  }
+
+  function handleLyricsTheaterSmoothScrollToggle(event: Event) {
+    appearanceSettings.update({
+      lyrics: {
+        ...appearanceSettings.getSnapshot().lyrics,
+        theaterSmoothScroll: (event.currentTarget as HTMLInputElement).checked
+      }
+    });
+  }
+
+  function handleLyricsOpenPanelToggle(event: Event) {
+    appearanceSettings.update({
+      lyrics: {
+        ...appearanceSettings.getSnapshot().lyrics,
+        openPanelForLyrics: (event.currentTarget as HTMLInputElement).checked
+      }
+    });
+  }
+
+  function handleLyricsClosePanelToggle(event: Event) {
+    appearanceSettings.update({
+      lyrics: {
+        ...appearanceSettings.getSnapshot().lyrics,
+        closePanelWithoutLyrics: (event.currentTarget as HTMLInputElement).checked
+      }
+    });
+  }
+
   function handleLyricsAutoTheaterToggle(event: Event) {
     appearanceSettings.update({
       lyrics: {
@@ -395,6 +465,9 @@
   $: hintToggleLabel = fieldHintsExpanded ? 'Collapse field hints' : 'Expand field hints';
   $: stereoSeparationValue = pendingStereoSeparation ?? $modulePlaybackSettings.stereoSeparation;
   $: panStrengthValue = pendingPanStrength ?? $modulePlaybackSettings.panStrength;
+  $: lyricsFontSizeLimits = LYRICS_FONT_SIZE_LIMITS[$appearanceSettings.lyrics.displayStyle];
+  $: lyricsFontSizeValue = $appearanceSettings.lyrics.fontSizes[$appearanceSettings.lyrics.displayStyle];
+  $: lyricsFontSizePercent = Math.round(lyricsFontSizeValue * 100);
 </script>
 
 <svelte:head>
@@ -648,6 +721,26 @@
                 </p>
               </label>
 
+              <label class="field">
+                <div class="field-copy">
+                  <span class="field-title">Font size</span>
+                </div>
+                <div class="field-control">
+                  <input
+                    type="range"
+                    min={lyricsFontSizeLimits.min}
+                    max={lyricsFontSizeLimits.max}
+                    step={lyricsFontSizeLimits.step}
+                    value={lyricsFontSizeValue}
+                    on:input={handleLyricsFontSizeChange}
+                  />
+                  <span class="field-output">{lyricsFontSizePercent}%</span>
+                </div>
+                <p class="field-hint">
+                  Saves a separate size for Plain text, Timestamped rows, and Theater.
+                </p>
+              </label>
+
               {#if $appearanceSettings.lyrics.displayStyle !== 'theater'}
                 <label class="field checkbox-field">
                   <div class="field-copy">
@@ -664,7 +757,92 @@
                     Keeps the highlighted lyric row in view while playback advances.
                   </p>
                 </label>
+              {:else}
+                <label class="field checkbox-field">
+                  <div class="field-copy">
+                    <span class="field-title">Downtime dots</span>
+                  </div>
+                  <div class="field-control checkbox-control">
+                    <input
+                      type="checkbox"
+                      checked={$appearanceSettings.lyrics.theaterDowntimeDots}
+                      on:change={handleLyricsTheaterDotsToggle}
+                    />
+                  </div>
+                <p class="field-hint">
+                  Shows a three-dot break marker during long gaps between synced lines.
+                </p>
+              </label>
+
+                <label class="field">
+                  <div class="field-copy">
+                    <span class="field-title">Downtime after</span>
+                  </div>
+                  <div class="field-control">
+                    <input
+                      type="range"
+                      min={MIN_LYRICS_DOWNTIME_THRESHOLD_SECONDS}
+                      max={MAX_LYRICS_DOWNTIME_THRESHOLD_SECONDS}
+                      step="1"
+                      value={$appearanceSettings.lyrics.theaterDowntimeThresholdSeconds}
+                      disabled={!$appearanceSettings.lyrics.theaterDowntimeDots}
+                      on:input={handleLyricsDowntimeThresholdChange}
+                    />
+                    <span class="field-output">{$appearanceSettings.lyrics.theaterDowntimeThresholdSeconds}s</span>
+                  </div>
+                  <p class="field-hint">
+                    Sets how long a synced lyric gap must last before Theater shows the break marker.
+                  </p>
+                </label>
+
+                <label class="field checkbox-field">
+                  <div class="field-copy">
+                    <span class="field-title">Smooth Theater scroll</span>
+                  </div>
+                  <div class="field-control checkbox-control">
+                    <input
+                      type="checkbox"
+                      checked={$appearanceSettings.lyrics.theaterSmoothScroll}
+                      on:change={handleLyricsTheaterSmoothScrollToggle}
+                    />
+                  </div>
+                  <p class="field-hint">
+                    Animates Theater line changes instead of snapping directly to the active line.
+                  </p>
+                </label>
               {/if}
+
+              <label class="field checkbox-field">
+                <div class="field-copy">
+                  <span class="field-title">Open Lyrics when available</span>
+                </div>
+                <div class="field-control checkbox-control">
+                  <input
+                    type="checkbox"
+                    checked={$appearanceSettings.lyrics.openPanelForLyrics}
+                    on:change={handleLyricsOpenPanelToggle}
+                  />
+                </div>
+                <p class="field-hint">
+                  Opens the Lyrics panel when the selected track has embedded lyrics.
+                </p>
+              </label>
+
+              <label class="field checkbox-field">
+                <div class="field-copy">
+                  <span class="field-title">Close Lyrics when unavailable</span>
+                </div>
+                <div class="field-control checkbox-control">
+                  <input
+                    type="checkbox"
+                    checked={$appearanceSettings.lyrics.closePanelWithoutLyrics}
+                    on:change={handleLyricsClosePanelToggle}
+                  />
+                </div>
+                <p class="field-hint">
+                  Falls back to Details when it is open, otherwise closes the right panel.
+                </p>
+              </label>
 
               <label class="field checkbox-field">
                 <div class="field-copy">

@@ -41,10 +41,16 @@
   export let isLyricsVisible = false;
   export let lyricsDisplayStyle: LyricsDisplayStyle = 'timestamped';
   export let lyricsAutoScroll = true;
+  export let lyricsFontSize = 1;
+  export let lyricsTheaterDowntimeDots = true;
+  export let lyricsTheaterDowntimeThresholdSeconds = 10;
+  export let lyricsTheaterSmoothScroll = true;
+  export let lyricsResumeAutoScrollToken = 0;
   export let onCloseDetails: () => void = () => {};
   export let onCloseLyrics: () => void = () => {};
 
   const dispatch = createEventDispatcher<{
+    seek: number;
     tabChange: WorkspaceTab;
   }>();
 
@@ -229,9 +235,15 @@
           track={selectedItem}
           displayStyle={lyricsDisplayStyle}
           autoScroll={lyricsAutoScroll}
+          fontSize={lyricsFontSize}
+          theaterDowntimeDots={lyricsTheaterDowntimeDots}
+          theaterDowntimeThresholdSeconds={lyricsTheaterDowntimeThresholdSeconds}
+          theaterSmoothScroll={lyricsTheaterSmoothScroll}
+          resumeAutoScrollToken={lyricsResumeAutoScrollToken}
           hideEyebrow={true}
           isTabbedLayout={true}
           fillParent={true}
+          on:seek
         />
       </BackdropZone>
     </div>

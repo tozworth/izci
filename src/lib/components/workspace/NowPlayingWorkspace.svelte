@@ -32,9 +32,15 @@
   export let selectedItem: PlaylistItem | null = null;
   export let lyricsDisplayStyle: LyricsDisplayStyle = 'timestamped';
   export let lyricsAutoScroll = true;
+  export let lyricsFontSize = 1;
+  export let lyricsTheaterDowntimeDots = true;
+  export let lyricsTheaterDowntimeThresholdSeconds = 10;
+  export let lyricsTheaterSmoothScroll = true;
+  export let lyricsResumeAutoScrollToken = 0;
 
   const dispatch = createEventDispatcher<{
     close: void;
+    seek: number;
     tabChange: WorkspaceTab;
   }>();
 
@@ -180,8 +186,14 @@
               track={selectedItem}
               displayStyle={lyricsDisplayStyle}
               autoScroll={lyricsAutoScroll}
+              fontSize={lyricsFontSize}
+              theaterDowntimeDots={lyricsTheaterDowntimeDots}
+              theaterDowntimeThresholdSeconds={lyricsTheaterDowntimeThresholdSeconds}
+              theaterSmoothScroll={lyricsTheaterSmoothScroll}
+              resumeAutoScrollToken={lyricsResumeAutoScrollToken}
               fillParent={true}
               hideEyebrow={true}
+              on:seek
             />
           </div>
         </div>

@@ -6,6 +6,14 @@ export interface TimedLyricLine {
   text: string;
 }
 
+export interface TheaterLyricRow {
+  id: string;
+  type: 'lyric' | 'downtime';
+  time: number;
+  text: string;
+  lyricIndex: number;
+}
+
 export interface LoadedLyrics {
   raw: string;
   lines: TimedLyricLine[];
@@ -14,6 +22,8 @@ export interface LoadedLyrics {
 
 const VORBIS_LYRICS_KEYS = ['LYRICS', 'SYNCEDLYRICS', 'SYNCED LYRICS'];
 const LRC_TIMESTAMP_PATTERN = /\[(\d{1,3}):(\d{2})(?:[.:](\d{1,3}))?\]/g;
+const DEFAULT_DOWNTIME_THRESHOLD_SECONDS = 10;
+const lyricsLoadCache = new Map<string, Promise<LoadedLyrics | null>>();
 
 async function resolveTrackFile(track: PlaylistItem): Promise<File | null> {
   if (track.fileHandle) {
@@ -52,6 +62,10 @@ export function parseLrcLyrics(raw: string): TimedLyricLine[] {
 
     const text = rawLine.replace(LRC_TIMESTAMP_PATTERN, '').trim();
 
+    if (!text) {
+      continue;
+    }
+
     for (const match of matches) {
       const time = parseTimestamp(match[1], match[2], match[3]);
 
@@ -72,7 +86,7 @@ export function stripLrcTimestamps(raw: string): string {
     .trim();
 }
 
-export function findActiveLyricIndex(lines: TimedLyricLine[], currentTime: number): number {
+export function findActiveTimelineIndex(lines: Array<{ time: number }>, currentTime: number): number {
   if (lines.length === 0 || !Number.isFinite(currentTime)) {
     return -1;
   }
@@ -95,6 +109,96 @@ export function findActiveLyricIndex(lines: TimedLyricLine[], currentTime: numbe
   return activeIndex;
 }
 
+export function findActiveLyricIndex(lines: TimedLyricLine[], currentTime: number): number {
+  return findActiveTimelineIndex(lines, currentTime);
+}
+
+export function buildTheaterLyricRows(
+  lines: TimedLyricLine[],
+  duration = 0,
+  includeDowntime = true,
+  downtimeThresholdSeconds = DEFAULT_DOWNTIME_THRESHOLD_SECONDS
+): TheaterLyricRow[] {
+  const rows: TheaterLyricRow[] = [];
+  const thresholdSeconds =
+    Number.isFinite(downtimeThresholdSeconds) && downtimeThresholdSeconds > 0
+      ? downtimeThresholdSeconds
+      : DEFAULT_DOWNTIME_THRESHOLD_SECONDS;
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+    const isFirstLine = index === 0;
+    const nextLine = lines[index + 1] ?? null;
+
+    if (includeDowntime && isFirstLine && line.time > thresholdSeconds) {
+      rows.push({
+        id: `downtime-start-${line.time}`,
+        type: 'downtime',
+        time: 0,
+        text: '',
+        lyricIndex: -1
+      });
+    }
+
+    rows.push({
+      id: `lyric-${index}-${line.time}`,
+      type: 'lyric',
+      time: line.time,
+      text: line.text,
+      lyricIndex: index
+    });
+
+    if (!includeDowntime) {
+      continue;
+    }
+
+    const downtimeStart = line.time + thresholdSeconds;
+
+    if (nextLine) {
+      if (nextLine.time - line.time > thresholdSeconds) {
+        rows.push({
+          id: `downtime-${index}-${downtimeStart}`,
+          type: 'downtime',
+          time: downtimeStart,
+          text: '',
+          lyricIndex: -1
+        });
+      }
+
+      continue;
+    }
+
+    if (duration <= 0 || duration - line.time > thresholdSeconds) {
+      rows.push({
+        id: `downtime-end-${index}-${downtimeStart}`,
+        type: 'downtime',
+        time: downtimeStart,
+        text: '',
+        lyricIndex: -1
+      });
+    }
+  }
+
+  return rows;
+}
+
+export function hasRenderableLyrics(raw: string, lines = parseLrcLyrics(raw)): boolean {
+  if (lines.length > 0) {
+    return true;
+  }
+
+  const untimedLines = stripLrcTimestamps(raw)
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  return untimedLines.length > 1;
+}
+
+export function getTrackLyricsLoadKey(track: PlaylistItem | null): string {
+  return track ? `${track.id}:${track.extension}:${track.lastModified}:${track.size}` : '';
+}
+
 function findVorbisLyricsComment(comments: Array<{ key: string; value: string }>): string {
   for (const key of VORBIS_LYRICS_KEYS) {
     const comment = comments.find((entry) => entry.key.trim().toUpperCase() === key);
@@ -108,11 +212,7 @@ function findVorbisLyricsComment(comments: Array<{ key: string; value: string }>
   return '';
 }
 
-export async function loadTrackLyrics(track: PlaylistItem | null): Promise<LoadedLyrics | null> {
-  if (!track || track.kind !== 'stream') {
-    return null;
-  }
-
+async function loadTrackLyricsUncached(track: PlaylistItem): Promise<LoadedLyrics | null> {
   const file = await resolveTrackFile(track);
 
   if (!file) {
@@ -126,9 +226,41 @@ export async function loadTrackLyrics(track: PlaylistItem | null): Promise<Loade
     return null;
   }
 
+  const lines = parseLrcLyrics(raw);
+
+  if (!hasRenderableLyrics(raw, lines)) {
+    return null;
+  }
+
   return {
     raw,
-    lines: parseLrcLyrics(raw),
+    lines,
     source: 'vorbis-comments'
   };
+}
+
+export async function loadTrackLyrics(track: PlaylistItem | null): Promise<LoadedLyrics | null> {
+  if (!track || track.kind !== 'stream') {
+    return null;
+  }
+
+  const cacheKey = getTrackLyricsLoadKey(track);
+
+  if (!cacheKey) {
+    return null;
+  }
+
+  const cachedLyrics = lyricsLoadCache.get(cacheKey);
+
+  if (cachedLyrics) {
+    return cachedLyrics;
+  }
+
+  const lyricsPromise = loadTrackLyricsUncached(track).catch((error: unknown) => {
+    lyricsLoadCache.delete(cacheKey);
+    throw error;
+  });
+
+  lyricsLoadCache.set(cacheKey, lyricsPromise);
+  return lyricsPromise;
 }

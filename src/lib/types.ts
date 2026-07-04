@@ -14,6 +14,7 @@ export type BackdropZoneSettings = Record<BackdropZoneId, BackdropZoneEffect>;
 export type VisualizerStyle = 'wave' | 'bars' | 'mirror' | 'blocks' | 'triangles';
 export type VisualizerColorSource = 'theme' | 'artwork';
 export type LyricsDisplayStyle = 'plain' | 'timestamped' | 'theater';
+export type LyricsFontSizeSettings = Record<LyricsDisplayStyle, number>;
 export type WorkspaceCollection = 'playlist' | 'library';
 export type WorkspaceTab = WorkspaceCollection | 'details' | 'lyrics';
 export type WorkspacePanelId = 'playlist' | 'library' | 'details';
@@ -63,6 +64,12 @@ export interface MetadataSettings {
 export interface LyricsSettings {
   displayStyle: LyricsDisplayStyle;
   autoScroll: boolean;
+  fontSizes: LyricsFontSizeSettings;
+  theaterDowntimeDots: boolean;
+  theaterDowntimeThresholdSeconds: number;
+  theaterSmoothScroll: boolean;
+  openPanelForLyrics: boolean;
+  closePanelWithoutLyrics: boolean;
   autoTheaterInNowPlaying: boolean;
   autoFocusInNowPlaying: boolean;
 }

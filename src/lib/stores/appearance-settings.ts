@@ -4,6 +4,7 @@ import type {
   BackdropZoneId,
   BackdropZoneSettings,
   ColorTheme,
+  LyricsFontSizeSettings,
   LyricsDisplayStyle,
   LyricsSettings
 } from '$lib/types';
@@ -38,9 +39,31 @@ export const LYRICS_STYLE_OPTIONS: Array<{ value: LyricsDisplayStyle; label: str
   { value: 'timestamped', label: 'Timestamped rows' },
   { value: 'theater', label: 'Theater' }
 ];
+export const LYRICS_FONT_SIZE_LIMITS: Record<
+  LyricsDisplayStyle,
+  { min: number; max: number; step: number }
+> = {
+  plain: { min: 0.78, max: 1.35, step: 0.01 },
+  timestamped: { min: 0.78, max: 1.35, step: 0.01 },
+  theater: { min: 1.1, max: 2.6, step: 0.01 }
+};
+export const DEFAULT_LYRICS_FONT_SIZES: LyricsFontSizeSettings = {
+  plain: 0.95,
+  timestamped: 0.95,
+  theater: 1.75
+};
+export const MIN_LYRICS_DOWNTIME_THRESHOLD_SECONDS = 5;
+export const MAX_LYRICS_DOWNTIME_THRESHOLD_SECONDS = 30;
+export const DEFAULT_LYRICS_DOWNTIME_THRESHOLD_SECONDS = 10;
 export const DEFAULT_LYRICS_SETTINGS: LyricsSettings = {
   displayStyle: 'timestamped',
   autoScroll: true,
+  fontSizes: DEFAULT_LYRICS_FONT_SIZES,
+  theaterDowntimeDots: true,
+  theaterDowntimeThresholdSeconds: DEFAULT_LYRICS_DOWNTIME_THRESHOLD_SECONDS,
+  theaterSmoothScroll: true,
+  openPanelForLyrics: false,
+  closePanelWithoutLyrics: false,
   autoTheaterInNowPlaying: true,
   autoFocusInNowPlaying: true
 };
@@ -76,12 +99,54 @@ function normalizeLyricsDisplayStyle(value: unknown): LyricsDisplayStyle {
   return value === 'plain' || value === 'theater' ? value : DEFAULT_LYRICS_SETTINGS.displayStyle;
 }
 
+export function normalizeLyricsFontSize(style: LyricsDisplayStyle, value: unknown): number {
+  const numericValue = Number(value);
+  const limits = LYRICS_FONT_SIZE_LIMITS[style];
+
+  if (!Number.isFinite(numericValue)) {
+    return DEFAULT_LYRICS_FONT_SIZES[style];
+  }
+
+  return Math.min(Math.max(numericValue, limits.min), limits.max);
+}
+
+function normalizeLyricsFontSizes(value: unknown): LyricsFontSizeSettings {
+  const source = value && typeof value === 'object' ? (value as Partial<LyricsFontSizeSettings>) : {};
+
+  return {
+    plain: normalizeLyricsFontSize('plain', source.plain),
+    timestamped: normalizeLyricsFontSize('timestamped', source.timestamped),
+    theater: normalizeLyricsFontSize('theater', source.theater)
+  };
+}
+
+export function normalizeLyricsDowntimeThresholdSeconds(value: unknown): number {
+  const numericValue = Number(value);
+
+  if (!Number.isFinite(numericValue)) {
+    return DEFAULT_LYRICS_DOWNTIME_THRESHOLD_SECONDS;
+  }
+
+  return Math.min(
+    Math.max(numericValue, MIN_LYRICS_DOWNTIME_THRESHOLD_SECONDS),
+    MAX_LYRICS_DOWNTIME_THRESHOLD_SECONDS
+  );
+}
+
 function normalizeLyricsSettings(value: unknown): LyricsSettings {
   const source = value && typeof value === 'object' ? (value as Partial<LyricsSettings>) : {};
 
   return {
     displayStyle: normalizeLyricsDisplayStyle(source.displayStyle),
     autoScroll: source.autoScroll !== false,
+    fontSizes: normalizeLyricsFontSizes(source.fontSizes),
+    theaterDowntimeDots: source.theaterDowntimeDots !== false,
+    theaterDowntimeThresholdSeconds: normalizeLyricsDowntimeThresholdSeconds(
+      source.theaterDowntimeThresholdSeconds
+    ),
+    theaterSmoothScroll: source.theaterSmoothScroll !== false,
+    openPanelForLyrics: source.openPanelForLyrics === true,
+    closePanelWithoutLyrics: source.closePanelWithoutLyrics === true,
     autoTheaterInNowPlaying: source.autoTheaterInNowPlaying !== false,
     autoFocusInNowPlaying: source.autoFocusInNowPlaying !== false
   };
