@@ -279,17 +279,19 @@
 
   <div class="player-range">
     <span>{formatDuration(snapshot.currentTime)}</span>
-    <input
-      type="range"
-      min="0"
-      max={Math.max(displayDuration, 1)}
-      step="0.01"
-      value={snapshot.currentTime}
-      style={toRangeProgressStyle(snapshot.currentTime, Math.max(displayDuration, 1))}
-      disabled={!track || snapshot.duration <= 0}
-      on:input={(event) => dispatch('seek', Number((event.currentTarget as HTMLInputElement).value))}
-      on:wheel|preventDefault={handleSeekWheel}
-    />
+    <div class="range-control" style={toRangeProgressStyle(snapshot.currentTime, Math.max(displayDuration, 1))}>
+      <span class="range-control-fill" aria-hidden="true"></span>
+      <input
+        type="range"
+        min="0"
+        max={Math.max(displayDuration, 1)}
+        step="0.01"
+        value={snapshot.currentTime}
+        disabled={!track || snapshot.duration <= 0}
+        on:input={(event) => dispatch('seek', Number((event.currentTarget as HTMLInputElement).value))}
+        on:wheel|preventDefault={handleSeekWheel}
+      />
+    </div>
     <span>{formatDuration(displayDuration)}</span>
   </div>
 
