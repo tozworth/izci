@@ -29,6 +29,7 @@
   export let libraryPanelProps: WorkspacePanelProps;
   export let libraryPanelHandlers: WorkspacePanelHandlers;
   export let selectedItem: PlaylistItem | null = null;
+  export let lyricsTrack: PlaylistItem | null = null;
   export let detailsArtwork: LoadedStreamArtwork | null = null;
   export let backdropArtwork: LoadedStreamArtwork | null = null;
   export let artworkBackgroundBright = false;
@@ -232,7 +233,7 @@
       >
         <LyricsPanel
           {snapshotStore}
-          track={selectedItem}
+          track={lyricsTrack}
           displayStyle={lyricsDisplayStyle}
           autoScroll={lyricsAutoScroll}
           fontSize={lyricsFontSize}

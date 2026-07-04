@@ -92,6 +92,7 @@
   let selectedItem: PlaylistItem | null = null;
   let livePlayingTrack: PlaylistItem | null = null;
   let playerDisplayTrack: PlaylistItem | null = null;
+  let lyricsTrack: PlaylistItem | null = null;
   let playingTrack: PlaylistItem | null = null;
   let shuffleEnabled = false;
   let repeatMode: PlaylistRepeatMode = 'off';
@@ -232,6 +233,7 @@
     workspaceShellState.activeCollection === 'library' ? selectedLibraryItem : selectedPlaylistItem;
   $: livePlayingTrack = resolveTrackSnapshot(playingTrack, selectedItem, playlistItems, libraryItems);
   $: playerDisplayTrack = livePlayingTrack;
+  $: lyricsTrack = livePlayingTrack;
   $: backdropZones = $appearanceSettings.backdropZones;
   $: nowPlayingViewActive = $appearanceSettings.nowPlayingViewActive;
   $: isAutomaticNowPlayingEligible =
@@ -247,7 +249,7 @@
     isNowPlayingViewportEligible &&
     !miniModeActive;
   $: syncNowPlayingLayoutTransition(isNowPlayingLayoutActive);
-  $: syncLyricsAvailability(artworkPresentationState.detailsDisplayTrack);
+  $: syncLyricsAvailability(lyricsTrack);
   $: syncNowPlayingLyricsAutoFocus();
   $: applyLyricsPanelAvailabilityAutomation(
     lyricsAvailabilityTrackKey,
@@ -996,6 +998,7 @@
       libraryPanelProps={workspaceShellState.libraryPanelProps}
       {libraryPanelHandlers}
       selectedItem={artworkPresentationState.detailsDisplayTrack}
+      {lyricsTrack}
       lyricsDisplayStyle={effectiveLyricsDisplayStyle}
       {lyricsAutoScroll}
       {lyricsFontSize}
@@ -1026,6 +1029,7 @@
         {libraryPanelHandlers}
         selectedItem={artworkPresentationState.detailsDisplayTrack}
         detailsArtwork={artworkPresentationState.visibleDetailsArtwork}
+        {lyricsTrack}
         backdropArtwork={artworkPresentationState.visibleArtworkBackground}
         artworkBackgroundBright={isArtworkBackgroundBright}
         zoneEffects={workspaceZoneEffects}
@@ -1055,6 +1059,7 @@
         isResizing={workspaceShellState.isResizing}
         selectedItem={artworkPresentationState.detailsDisplayTrack}
         detailsArtwork={artworkPresentationState.visibleDetailsArtwork}
+        {lyricsTrack}
         backdropArtwork={artworkPresentationState.visibleArtworkBackground}
         artworkBackgroundBright={isArtworkBackgroundBright}
         zoneEffects={workspaceZoneEffects}

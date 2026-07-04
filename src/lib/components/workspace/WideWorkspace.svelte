@@ -31,6 +31,7 @@
   export let resizerWidth = 1;
   export let isResizing = false;
   export let selectedItem: PlaylistItem | null = null;
+  export let lyricsTrack: PlaylistItem | null = null;
   export let detailsArtwork: LoadedStreamArtwork | null = null;
   export let backdropArtwork: LoadedStreamArtwork | null = null;
   export let artworkBackgroundBright = false;
@@ -217,7 +218,7 @@
             >
               <LyricsPanel
                 {snapshotStore}
-                track={selectedItem}
+                track={lyricsTrack}
                 displayStyle={lyricsDisplayStyle}
                 autoScroll={lyricsAutoScroll}
                 fontSize={lyricsFontSize}
@@ -245,7 +246,7 @@
         {:else}
           <LyricsPanel
             {snapshotStore}
-            track={selectedItem}
+            track={lyricsTrack}
             displayStyle={lyricsDisplayStyle}
             autoScroll={lyricsAutoScroll}
             fontSize={lyricsFontSize}

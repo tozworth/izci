@@ -31,6 +31,7 @@
   export let libraryPanelProps: WorkspacePanelProps;
   export let libraryPanelHandlers: WorkspacePanelHandlers;
   export let selectedItem: PlaylistItem | null = null;
+  export let lyricsTrack: PlaylistItem | null = null;
   export let lyricsDisplayStyle: LyricsDisplayStyle = 'timestamped';
   export let lyricsAutoScroll = true;
   export let lyricsFontSize = 1;
@@ -244,7 +245,7 @@
           >
             <LyricsPanel
               {snapshotStore}
-              track={selectedItem}
+              track={lyricsTrack}
               displayStyle={lyricsDisplayStyle}
               autoScroll={lyricsAutoScroll}
               fontSize={lyricsFontSize}

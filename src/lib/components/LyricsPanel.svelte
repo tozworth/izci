@@ -441,7 +441,7 @@
 
   {#if !track}
     <div class="empty-state align-start" class:tabbed-layout={isTabbedLayout}>
-      <p>Select a track to view lyrics.</p>
+      <p>Play a track to view lyrics.</p>
     </div>
   {:else if loading}
     <div class="empty-state align-start" class:tabbed-layout={isTabbedLayout}>
