@@ -11,9 +11,12 @@
     LYRICS_STYLE_OPTIONS,
     MAX_LYRICS_DOWNTIME_THRESHOLD_SECONDS,
     MIN_LYRICS_DOWNTIME_THRESHOLD_SECONDS,
+    MIN_NOW_PLAYING_PANEL_AUTO_HIDE_SECONDS,
+    NOW_PLAYING_PANEL_AUTO_HIDE_NEVER_SECONDS,
     appearanceSettings,
     normalizeLyricsDowntimeThresholdSeconds,
-    normalizeLyricsFontSize
+    normalizeLyricsFontSize,
+    normalizeNowPlayingPanelAutoHideDelaySeconds
   } from '$lib/stores/appearance-settings';
   import {
     MAX_PLAY_COUNT_THRESHOLD_SECONDS,
@@ -186,6 +189,14 @@
   function handleAutoNowPlayingToggle(event: Event) {
     appearanceSettings.update({
       autoNowPlayingOnMaximized: (event.currentTarget as HTMLInputElement).checked
+    });
+  }
+
+  function handleNowPlayingPanelAutoHideChange(event: Event) {
+    appearanceSettings.update({
+      nowPlayingPanelAutoHideDelaySeconds: normalizeNowPlayingPanelAutoHideDelaySeconds(
+        (event.currentTarget as HTMLInputElement).valueAsNumber
+      )
     });
   }
 
@@ -468,6 +479,10 @@
   $: lyricsFontSizeLimits = LYRICS_FONT_SIZE_LIMITS[$appearanceSettings.lyrics.displayStyle];
   $: lyricsFontSizeValue = $appearanceSettings.lyrics.fontSizes[$appearanceSettings.lyrics.displayStyle];
   $: lyricsFontSizePercent = Math.round(lyricsFontSizeValue * 100);
+  $: nowPlayingPanelAutoHideLabel =
+    $appearanceSettings.nowPlayingPanelAutoHideDelaySeconds >= NOW_PLAYING_PANEL_AUTO_HIDE_NEVER_SECONDS
+      ? 'Never hide'
+      : `${$appearanceSettings.nowPlayingPanelAutoHideDelaySeconds}s`;
 </script>
 
 <svelte:head>
@@ -677,6 +692,26 @@
                 </div>
                 <p class="field-hint">
                   Switches the main window to Now Playing while it is maximized or fullscreen.
+                </p>
+              </label>
+
+              <label class="field">
+                <div class="field-copy">
+                  <span class="field-title">Hide Now Playing side chrome after</span>
+                </div>
+                <div class="field-control">
+                  <input
+                    type="range"
+                    min={MIN_NOW_PLAYING_PANEL_AUTO_HIDE_SECONDS}
+                    max={NOW_PLAYING_PANEL_AUTO_HIDE_NEVER_SECONDS}
+                    step="1"
+                    value={$appearanceSettings.nowPlayingPanelAutoHideDelaySeconds}
+                    on:input={handleNowPlayingPanelAutoHideChange}
+                  />
+                  <span class="field-output">{nowPlayingPanelAutoHideLabel}</span>
+                </div>
+                <p class="field-hint">
+                  Fades the Now Playing side tabs and pane fill after mouse inactivity.
                 </p>
               </label>
 

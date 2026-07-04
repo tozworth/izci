@@ -83,6 +83,7 @@ export interface AppearanceSettings {
   lyrics: LyricsSettings;
   nowPlayingViewActive: boolean;
   autoNowPlayingOnMaximized: boolean;
+  nowPlayingPanelAutoHideDelaySeconds: number;
   showTrackTitleInWindowTitle: boolean;
 }
 

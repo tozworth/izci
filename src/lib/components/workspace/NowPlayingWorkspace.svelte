@@ -1,10 +1,11 @@
 <script lang="ts">
-  import { createEventDispatcher } from 'svelte';
+  import { createEventDispatcher, onMount } from 'svelte';
   import BackdropZone from '$lib/components/BackdropZone.svelte';
   import LyricsPanel from '$lib/components/LyricsPanel.svelte';
   import PlayerControls from '$lib/components/PlayerControls.svelte';
   import PlaylistPanel from '$lib/components/PlaylistPanel.svelte';
   import TrackDetailsPanel from '$lib/components/TrackDetailsPanel.svelte';
+  import { NOW_PLAYING_PANEL_AUTO_HIDE_NEVER_SECONDS } from '$lib/stores/appearance-settings';
   import type { LoadedStreamArtwork } from '$lib/services/stream-artwork';
   import type {
     BackdropZoneEffect,
@@ -37,6 +38,7 @@
   export let lyricsTheaterDowntimeThresholdSeconds = 10;
   export let lyricsTheaterSmoothScroll = true;
   export let lyricsResumeAutoScrollToken = 0;
+  export let panelAutoHideDelaySeconds = 5;
 
   const dispatch = createEventDispatcher<{
     close: void;
@@ -51,12 +53,60 @@
     { id: 'lyrics', icon: 'lyrics', label: 'Lyrics' }
   ];
 
+  let panelChromeHidden = false;
+  let panelHideTimer: ReturnType<typeof window.setTimeout> | null = null;
+  let lastPanelAutoHideDelaySeconds = panelAutoHideDelaySeconds;
+
   function resolveQueueTabs(tabs: WorkspaceTabDefinition[]): WorkspaceTabDefinition[] {
     const tabMap = new Map(tabs.map((tab) => [tab.id, tab]));
     return REQUIRED_TABS.map((tab) => tabMap.get(tab.id) ?? tab);
   }
 
+  function isPanelAutoHideEnabled(delaySeconds: number): boolean {
+    return delaySeconds < NOW_PLAYING_PANEL_AUTO_HIDE_NEVER_SECONDS;
+  }
+
+  function clearPanelHideTimer() {
+    if (panelHideTimer === null) {
+      return;
+    }
+
+    window.clearTimeout(panelHideTimer);
+    panelHideTimer = null;
+  }
+
+  function schedulePanelHide() {
+    clearPanelHideTimer();
+
+    if (!isPanelAutoHideEnabled(panelAutoHideDelaySeconds)) {
+      panelChromeHidden = false;
+      return;
+    }
+
+    panelHideTimer = window.setTimeout(() => {
+      panelChromeHidden = true;
+      panelHideTimer = null;
+    }, panelAutoHideDelaySeconds * 1000);
+  }
+
+  function revealPanelChrome() {
+    panelChromeHidden = false;
+    schedulePanelHide();
+  }
+
+  onMount(() => {
+    schedulePanelHide();
+
+    return () => {
+      clearPanelHideTimer();
+    };
+  });
+
   $: queueTabs = resolveQueueTabs(workspaceTabs);
+  $: if (panelAutoHideDelaySeconds !== lastPanelAutoHideDelaySeconds) {
+    lastPanelAutoHideDelaySeconds = panelAutoHideDelaySeconds;
+    revealPanelChrome();
+  }
 </script>
 
 <main class="workspace now-playing-workspace">
@@ -97,8 +147,16 @@
         />
       </section>
 
-      <section class="now-playing-queue-pane" aria-label="Workspace panels">
-        <div class="now-playing-tabs-layout">
+      <section
+        class="now-playing-queue-pane"
+        aria-label="Workspace panels"
+        on:pointermove={revealPanelChrome}
+        on:focusin={revealPanelChrome}
+      >
+        <div
+          class="now-playing-tabs-layout"
+          class:is-chrome-hidden={panelChromeHidden}
+        >
           <div class="workspace-tabs now-playing-tabs" role="tablist" aria-label="Now Playing panels">
             {#each queueTabs as tab}
               <button

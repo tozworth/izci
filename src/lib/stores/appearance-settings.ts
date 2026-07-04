@@ -55,6 +55,9 @@ export const DEFAULT_LYRICS_FONT_SIZES: LyricsFontSizeSettings = {
 export const MIN_LYRICS_DOWNTIME_THRESHOLD_SECONDS = 5;
 export const MAX_LYRICS_DOWNTIME_THRESHOLD_SECONDS = 30;
 export const DEFAULT_LYRICS_DOWNTIME_THRESHOLD_SECONDS = 10;
+export const MIN_NOW_PLAYING_PANEL_AUTO_HIDE_SECONDS = 2;
+export const NOW_PLAYING_PANEL_AUTO_HIDE_NEVER_SECONDS = 16;
+export const DEFAULT_NOW_PLAYING_PANEL_AUTO_HIDE_SECONDS = 5;
 export const DEFAULT_LYRICS_SETTINGS: LyricsSettings = {
   displayStyle: 'timestamped',
   autoScroll: true,
@@ -76,6 +79,7 @@ export const DEFAULT_APPEARANCE_SETTINGS: AppearanceSettings = {
   lyrics: DEFAULT_LYRICS_SETTINGS,
   nowPlayingViewActive: false,
   autoNowPlayingOnMaximized: false,
+  nowPlayingPanelAutoHideDelaySeconds: DEFAULT_NOW_PLAYING_PANEL_AUTO_HIDE_SECONDS,
   showTrackTitleInWindowTitle: true
 };
 
@@ -130,6 +134,25 @@ export function normalizeLyricsDowntimeThresholdSeconds(value: unknown): number 
   return Math.min(
     Math.max(numericValue, MIN_LYRICS_DOWNTIME_THRESHOLD_SECONDS),
     MAX_LYRICS_DOWNTIME_THRESHOLD_SECONDS
+  );
+}
+
+export function normalizeNowPlayingPanelAutoHideDelaySeconds(value: unknown): number {
+  const numericValue = Number(value);
+
+  if (!Number.isFinite(numericValue)) {
+    return DEFAULT_NOW_PLAYING_PANEL_AUTO_HIDE_SECONDS;
+  }
+
+  const roundedValue = Math.round(numericValue);
+
+  if (roundedValue >= NOW_PLAYING_PANEL_AUTO_HIDE_NEVER_SECONDS) {
+    return NOW_PLAYING_PANEL_AUTO_HIDE_NEVER_SECONDS;
+  }
+
+  return Math.min(
+    Math.max(roundedValue, MIN_NOW_PLAYING_PANEL_AUTO_HIDE_SECONDS),
+    NOW_PLAYING_PANEL_AUTO_HIDE_NEVER_SECONDS
   );
 }
 
@@ -234,6 +257,9 @@ function normalizeSettings(value: unknown): AppearanceSettings {
     lyrics: normalizeLyricsSettings(source.lyrics),
     nowPlayingViewActive: source.nowPlayingViewActive === true,
     autoNowPlayingOnMaximized: source.autoNowPlayingOnMaximized === true,
+    nowPlayingPanelAutoHideDelaySeconds: normalizeNowPlayingPanelAutoHideDelaySeconds(
+      source.nowPlayingPanelAutoHideDelaySeconds
+    ),
     showTrackTitleInWindowTitle: source.showTrackTitleInWindowTitle !== false
   };
 }

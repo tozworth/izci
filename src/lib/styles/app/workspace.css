@@ -312,6 +312,16 @@
   background-color: var(--now-playing-pane-fill);
   box-shadow: 0 1.2rem 3rem rgba(0, 0, 0, 0.12);
   contain: inline-size;
+  transition:
+    background-color 420ms ease,
+    border-color 420ms ease,
+    box-shadow 420ms ease;
+}
+
+.now-playing-tabs-layout.is-chrome-hidden {
+  border-color: transparent;
+  background-color: transparent;
+  box-shadow: none;
 }
 
 .now-playing-tabs {
@@ -333,6 +343,15 @@
   position: relative;
   top: auto;
   z-index: 1;
+  transition:
+    opacity 360ms ease,
+    transform 360ms ease;
+}
+
+.now-playing-tabs-layout.is-chrome-hidden .now-playing-tabs {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-0.35rem);
 }
 
 .app-shell.window-controls-overlay-active .now-playing-tabs {

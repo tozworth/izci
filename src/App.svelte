@@ -1003,6 +1003,7 @@
       lyricsTheaterDowntimeDots={$appearanceSettings.lyrics.theaterDowntimeDots}
       lyricsTheaterDowntimeThresholdSeconds={$appearanceSettings.lyrics.theaterDowntimeThresholdSeconds}
       lyricsTheaterSmoothScroll={$appearanceSettings.lyrics.theaterSmoothScroll}
+      panelAutoHideDelaySeconds={$appearanceSettings.nowPlayingPanelAutoHideDelaySeconds}
       on:close={closeNowPlayingView}
       on:tabChange={(event) => handleNowPlayingTabChange(event.detail)}
       on:toggle={() => void playbackCommands.togglePlayback()}

@@ -49,7 +49,7 @@ Working source tree:
 - `src/lib/styles/themes.css`: shared color-theme tokens consumed by the main app and Options popup.
 - `src/lib/styles/app/`: focused main-window CSS split by ownership (`base`, `shell`, `menus`, `workspace`, `panels`, `player`).
 - `src/options/main.ts`: Options popup entry; mounts the dedicated popup Svelte app.
-- `src/options/OptionsApp.svelte`: standalone Options window UI for appearance, lyrics display, module playback defaults, and metadata behavior, including the zone-based backdrop selector and the window-title track-name toggle.
+- `src/options/OptionsApp.svelte`: standalone Options window UI for appearance, lyrics display, module playback defaults, and metadata behavior, including the zone-based backdrop selector, Now Playing side-chrome auto-hide timeout, and the window-title track-name toggle.
 - `src/options/app.css`: Options popup styling.
 - `src/options/views.ts`: popup navigation/view metadata shared by the Options UI.
 - `src/vite-env.d.ts`: Vite ambient types.
@@ -92,7 +92,7 @@ Workspace-only composition helpers for the app shell.
 
 - `TabbedWorkspace.svelte`: tabbed workspace layout for playlist, library, and details views.
 - `WideWorkspace.svelte`: wide desktop workspace layout with the three panels and resize handles.
-- `NowPlayingWorkspace.svelte`: focused Apple Music-like Now Playing layout with large centered artwork/controls and Playlist/Library/Details tabs alongside it; the Details tab intentionally hides its own artwork to avoid duplicating the large cover.
+- `NowPlayingWorkspace.svelte`: focused Apple Music-like Now Playing layout with large centered artwork/controls and Playlist/Library/Details tabs alongside it; the side pane can fade its tabs/background after mouse inactivity, and the Details tab intentionally hides its own artwork to avoid duplicating the large cover.
 - `WorkspaceResizer.svelte`: reusable vertical separator handle for wide workspace layouts.
 - `types.ts`: shared workspace component prop/event types used by the tabbed and wide layout components.
 
@@ -139,7 +139,7 @@ Primary location for playback and browser-integration logic.
 - `playlist-dedupe.ts`: duplicate detection based on track identity, used only by the library store path.
 - `persistent-store.ts`: shared `localStorage` plus `BroadcastChannel` persistence/sync helper for lightweight settings stores.
 - `library-view-settings.ts`: persistent library table layout and filter state (column order, widths, visibility, sort, search query) with `BroadcastChannel` sync.
-- `appearance-settings.ts`: persistent appearance settings for color theme, optional artwork-colored player chrome, system font, narrow-library behavior, View -> Now Playing layout state plus the maximized/fullscreen auto-Now-Playing preference, per-zone backdrop effects for playlist/library/details/player/now playing (`none`, `artwork`, `visualizer`, `both`), transient lyrics display preferences, and whether the main window title mirrors the current track title, with `BroadcastChannel` sync.
+- `appearance-settings.ts`: persistent appearance settings for color theme, optional artwork-colored player chrome, system font, narrow-library behavior, View -> Now Playing layout state plus the maximized/fullscreen auto-Now-Playing preference and side-chrome auto-hide timeout, per-zone backdrop effects for playlist/library/details/player/now playing (`none`, `artwork`, `visualizer`, `both`), transient lyrics display preferences, and whether the main window title mirrors the current track title, with `BroadcastChannel` sync.
 - `playback-settings.ts`: persistent general playback settings, currently the logarithmic-volume toggle, with sync.
 - `visualizer-settings.ts`: persistent player visualizer settings (style, color source, height, opacity stored as transparency, and numeric spectrum-normalization strength), with sync.
 - `module-playback-settings.ts`: persistent tracker playback settings (repeat, stereo/pan, interpolation, tempo, pitch) with sync.
@@ -193,7 +193,7 @@ Primary location for playback and browser-integration logic.
 - `src/lib/components/TopMenuBar.svelte` is responsible for titlebar adaptation: it becomes a drag region in overlay mode, marks interactive controls as `no-drag`, hides the version badge while overlay mode is visible, and sizes/collapses itself based on the live available `titlebarAreaRect.width` rather than raw viewport width.
 - When the titlebar menu collapses, it should stay on the shared `MenuSurface.svelte` path rather than inventing a second menu system. `MenuSurface.svelte` supports nested submenus and a drilldown fallback that replaces File/View root entries with submenu contents when flyout submenus would overflow the current window.
 - `src/App.svelte` is responsible for top-level workspace orchestration, but durable state and local algorithms should live in stores/services or the focused workspace components.
-- View -> Now Playing is a content layout toggle persisted in `appearance-settings.ts`; the optional maximized/fullscreen auto mode uses `window-display-state.ts` as an effective layout trigger without overwriting the user's persisted manual toggle. It should reuse `NowPlayingWorkspace.svelte`, `PlayerControls.svelte`, and the normal workspace/playlist/playback services rather than introducing separate playback or tab state.
+- View -> Now Playing is a content layout toggle persisted in `appearance-settings.ts`; the optional maximized/fullscreen auto mode uses `window-display-state.ts` as an effective layout trigger without overwriting the user's persisted manual toggle. The Now Playing side-chrome auto-hide timeout is also persisted there and should remain a presentation behavior in `NowPlayingWorkspace.svelte`. It should reuse `NowPlayingWorkspace.svelte`, `PlayerControls.svelte`, and the normal workspace/playlist/playback services rather than introducing separate playback or tab state.
 - `src/lib/services/import-controller.ts` is the entry point for picker capability checks and menu/input import behavior. Keep drag/drop extraction in `PlaylistPanel.svelte` and `src/lib/utils/files.ts`.
 - Persisted items may be rehydrated from `FileSystemFileHandle`s. Preserve the `ensureLoaded()` flow and permission prompts when changing import or playback behavior.
 - `player-controller.ts` is the single coordinator for backend switching. Changes to transport or metadata propagation should usually start there.
