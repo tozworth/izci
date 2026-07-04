@@ -12,6 +12,7 @@
   }
 
   const VISUALIZER_ZONE_SELECTOR = '[data-visualizer-zone="true"]';
+  const TRIANGLE_SIZE_REFERENCE_SELECTOR = '.player-bar';
 
   let hostElement: HTMLElement | null = null;
   let shellElement: HTMLElement | null = null;
@@ -172,7 +173,11 @@
       class:artwork-backdrop-bright={usesBrightVisualizerPalette}
       style={layerStyle}
     >
-      <PlayerVisualizer {artworkUrl} {clipRects} />
+      <PlayerVisualizer
+        {artworkUrl}
+        {clipRects}
+        triangleSizeReferenceSelector={TRIANGLE_SIZE_REFERENCE_SELECTOR}
+      />
     </div>
   {/if}
 </div>

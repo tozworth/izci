@@ -314,9 +314,10 @@
     const visualTop = height * (1 - heightRatio);
     const visualHeight = Math.max(1, height - visualTop);
     const depth = randomRange(0.72, 1.62);
-    const referenceHeight = Math.max(1, triangleReferenceHeight || height);
-    const minSize = Math.max(8, referenceHeight * settings.triangleMinSize);
-    const maxSize = Math.max(minSize + 4, referenceHeight * settings.triangleMaxSize);
+    const sizeReferenceHeight = Math.max(1, triangleReferenceHeight || height);
+    const motionReferenceHeight = Math.max(sizeReferenceHeight, visualHeight);
+    const minSize = Math.max(8, sizeReferenceHeight * settings.triangleMinSize);
+    const maxSize = Math.max(minSize + 4, sizeReferenceHeight * settings.triangleMaxSize);
     const size = randomRange(minSize, maxSize) * depth;
     const xMargin = Math.min(width * 0.12, size * 0.28);
 
@@ -324,7 +325,10 @@
       x: width <= xMargin * 2 ? width / 2 : randomRange(xMargin, width - xMargin),
       y: randomRange(height + size * 1.15, height + visualHeight * 1.15 + size * 2),
       size,
-      baseSpeed: randomRange(referenceHeight * 0.08, referenceHeight * 0.3) * depth * settings.triangleBaseSpeed,
+      baseSpeed:
+        randomRange(motionReferenceHeight * 0.08, motionReferenceHeight * 0.3) *
+        depth *
+        settings.triangleBaseSpeed,
       depth,
       alpha: randomRange(0.48, 0.9),
       bandIndex: Math.floor(randomRange(0, Math.max(1, bandCount))),
