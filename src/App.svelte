@@ -131,6 +131,7 @@
   let isVisualizerBackdropRequested = false;
   let isArtworkBackdropActive = false;
   let isArtworkBackgroundBright = false;
+  let backdropGeometryKey = '';
   let documentTitle = 'izci';
   let wasNowPlayingLayoutActive = false;
   let effectiveLyricsDisplayStyle: LyricsDisplayStyle = 'timestamped';
@@ -308,6 +309,25 @@
     isArtworkBackdropRequested && Boolean(artworkPresentationState.visibleArtworkBackground);
   $: isArtworkBackgroundBright =
     isArtworkBackdropActive && artworkPresentationState.isArtworkBackgroundBright;
+  $: backdropGeometryKey = [
+    isNowPlayingLayoutActive ? 'now-playing' : miniModeActive ? 'mini' : workspaceShellState.isTabbedLayout ? 'tabbed' : 'wide',
+    workspaceShellState.activeWorkspaceTab,
+    workspaceShellState.isDetailsPanelVisible ? 'details-open' : 'details-closed',
+    workspaceShellState.isLyricsPanelVisible ? 'lyrics-open' : 'lyrics-closed',
+    backdropZones.playlist,
+    backdropZones.library,
+    backdropZones.details,
+    backdropZones.player,
+    backdropZones.nowPlaying,
+    isArtworkBackgroundBright ? 'bright' : 'dim',
+    $windowControlsOverlayState.visible ? 'wco-visible' : 'wco-hidden',
+    Math.round($windowControlsOverlayState.titlebarAreaRect.x),
+    Math.round($windowControlsOverlayState.titlebarAreaRect.y),
+    Math.round($windowControlsOverlayState.titlebarAreaRect.width),
+    Math.round($windowControlsOverlayState.titlebarAreaRect.height),
+    innerWidth,
+    innerHeight
+  ].join(':');
   $: documentTitle =
     $appearanceSettings.showTrackTitleInWindowTitle && livePlayingTrack
       ? getTrackDisplayTitle(livePlayingTrack)
@@ -1176,11 +1196,17 @@
   class:window-controls-overlay-active={$windowControlsOverlayState.visible}
 >
   {#if isArtworkBackdropActive}
-    <SharedBackdropArtwork artworkUrl={artworkPresentationState.visibleArtworkBackground?.url} />
+    <SharedBackdropArtwork
+      artworkUrl={artworkPresentationState.visibleArtworkBackground?.url}
+      geometryKey={backdropGeometryKey}
+    />
   {/if}
 
   {#if isVisualizerBackdropRequested}
-    <SharedBackdropVisualizer artworkUrl={artworkPresentationState.displayedArtwork?.url} />
+    <SharedBackdropVisualizer
+      artworkUrl={artworkPresentationState.displayedArtwork?.url}
+      geometryKey={backdropGeometryKey}
+    />
   {/if}
 
   <div class="window-frame-safe-strip" aria-hidden="true"></div>

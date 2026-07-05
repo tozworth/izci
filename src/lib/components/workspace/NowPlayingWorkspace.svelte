@@ -122,6 +122,7 @@
     artworkBright={artworkBackgroundBright}
     fillParent={true}
     className="now-playing-backdrop-zone"
+    zoneId="nowPlaying"
   >
     <button
       type="button"

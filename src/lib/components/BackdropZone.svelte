@@ -8,6 +8,7 @@
   export let artworkBright = false;
   export let fillParent = false;
   export let className = '';
+  export let zoneId = '';
 
   $: artworkActive = hasArtworkBackdrop(effect) && Boolean(artwork);
   $: visualizerActive = hasVisualizerBackdrop(effect);
@@ -21,6 +22,7 @@
   class:visualizer-backdrop-active={visualizerActive}
   data-artwork-zone={artworkActive ? 'true' : null}
   data-visualizer-zone={visualizerActive ? 'true' : null}
+  data-backdrop-zone-id={zoneId || null}
 >
   <div class="backdrop-zone-content">
     <slot />

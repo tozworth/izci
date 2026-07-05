@@ -2,6 +2,7 @@
   import { onDestroy, onMount } from 'svelte';
 
   export let artworkUrl: string | undefined = undefined;
+  export let geometryKey = '';
 
   interface ArtworkClipRect {
     key: string;
@@ -24,6 +25,8 @@
   let resizeObserver: ResizeObserver | null = null;
   let mutationObserver: MutationObserver | null = null;
   let animationFrame: number | null = null;
+  let refreshFrame: number | null = null;
+  let refreshTimer: ReturnType<typeof setTimeout> | null = null;
   let layerRevealFrame: number | null = null;
   let layerCleanupTimer: ReturnType<typeof setTimeout> | null = null;
   let artworkDecodeToken = 0;
@@ -32,6 +35,7 @@
   let layerStyle = '';
   let artworkLayers: ArtworkLayer[] = [];
   let currentArtworkUrl = '';
+  let lastGeometryKey = '';
   let isActive = false;
 
   function scheduleGeometryUpdate(): void {
@@ -43,6 +47,32 @@
       animationFrame = null;
       updateGeometry();
     });
+  }
+
+  function scheduleGeometryRefresh(): void {
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    scheduleGeometryUpdate();
+
+    if (refreshFrame === null) {
+      refreshFrame = window.requestAnimationFrame(() => {
+        refreshFrame = window.requestAnimationFrame(() => {
+          refreshFrame = null;
+          scheduleGeometryUpdate();
+        });
+      });
+    }
+
+    if (refreshTimer !== null) {
+      clearTimeout(refreshTimer);
+    }
+
+    refreshTimer = setTimeout(() => {
+      refreshTimer = null;
+      scheduleGeometryUpdate();
+    }, 120);
   }
 
   function getVisibleZoneElements(): HTMLElement[] {
@@ -102,24 +132,20 @@
     }
 
     const shellRect = shell.getBoundingClientRect();
-    const zoneRects = zoneElements.map((element) => element.getBoundingClientRect());
-    const left = Math.min(...zoneRects.map((rect) => rect.left));
-    const top = Math.min(...zoneRects.map((rect) => rect.top));
-    const right = Math.max(...zoneRects.map((rect) => rect.right));
-    const bottom = Math.max(...zoneRects.map((rect) => rect.bottom));
-    const width = Math.max(1, right - left);
-    const height = Math.max(1, bottom - top);
+    const width = Math.max(1, shellRect.width);
+    const height = Math.max(1, shellRect.height);
 
     clipRects = zoneElements.map((element, index) => {
       const rect = element.getBoundingClientRect();
-      const x = rect.left - left;
-      const y = rect.top - top;
+      const x = rect.left - shellRect.left;
+      const y = rect.top - shellRect.top;
+      const zoneId = element.dataset.backdropZoneId ?? `${index}`;
       const bright =
         element.classList.contains('artwork-backdrop-bright') ||
         element.classList.contains('artwork-background-bright');
 
       return {
-        key: `${index}:${Math.round(x)}:${Math.round(y)}:${Math.round(rect.width)}:${Math.round(rect.height)}`,
+        key: `${zoneId}:${Math.round(x)}:${Math.round(y)}:${Math.round(rect.width)}:${Math.round(rect.height)}`,
         bright,
         style: [
           `left: ${x}px`,
@@ -136,8 +162,8 @@
       };
     });
     layerStyle = [
-      `left: ${left - shellRect.left}px`,
-      `top: ${top - shellRect.top}px`,
+      'left: 0px',
+      'top: 0px',
       `width: ${width}px`,
       `height: ${height}px`
     ].join('; ');
@@ -172,7 +198,7 @@
     layerCleanupTimer = setTimeout(() => {
       layerCleanupTimer = null;
       artworkLayers = artworkLayers.filter((layer) => layer.visible);
-      scheduleGeometryUpdate();
+      scheduleGeometryRefresh();
     }, ARTWORK_LAYER_CLEANUP_MS);
   }
 
@@ -253,7 +279,7 @@
     if (!nextUrl) {
       artworkLayers = artworkLayers.map((layer) => ({ ...layer, visible: false }));
       scheduleLayerCleanup();
-      scheduleGeometryUpdate();
+      scheduleGeometryRefresh();
       return;
     }
 
@@ -268,7 +294,7 @@
       void revealArtworkLayerAfterDecode(nextUrl);
     }
 
-    scheduleGeometryUpdate();
+    scheduleGeometryRefresh();
   }
 
   onMount(() => {
@@ -279,25 +305,25 @@
     }
 
     if (typeof ResizeObserver !== 'undefined') {
-      resizeObserver = new ResizeObserver(scheduleGeometryUpdate);
+      resizeObserver = new ResizeObserver(scheduleGeometryRefresh);
       resizeObserver.observe(shellElement);
     }
 
     if (typeof MutationObserver !== 'undefined') {
-      mutationObserver = new MutationObserver(scheduleGeometryUpdate);
+      mutationObserver = new MutationObserver(scheduleGeometryRefresh);
       mutationObserver.observe(shellElement, {
         attributes: true,
-        attributeFilter: ['class', 'data-artwork-zone', 'hidden', 'style'],
+        attributeFilter: ['class', 'data-artwork-zone', 'data-backdrop-zone-id', 'hidden', 'style'],
         childList: true,
         subtree: true
       });
     }
 
-    window.addEventListener('resize', scheduleGeometryUpdate);
-    scheduleGeometryUpdate();
+    window.addEventListener('resize', scheduleGeometryRefresh);
+    scheduleGeometryRefresh();
 
     return () => {
-      window.removeEventListener('resize', scheduleGeometryUpdate);
+      window.removeEventListener('resize', scheduleGeometryRefresh);
       resizeObserver?.disconnect();
       mutationObserver?.disconnect();
 
@@ -308,10 +334,22 @@
   });
 
   $: syncArtworkLayers(artworkUrl);
+  $: if (geometryKey !== lastGeometryKey) {
+    lastGeometryKey = geometryKey;
+    scheduleGeometryRefresh();
+  }
 
   onDestroy(() => {
     if (typeof window !== 'undefined' && animationFrame !== null) {
       window.cancelAnimationFrame(animationFrame);
+    }
+
+    if (typeof window !== 'undefined' && refreshFrame !== null) {
+      window.cancelAnimationFrame(refreshFrame);
+    }
+
+    if (refreshTimer !== null) {
+      clearTimeout(refreshTimer);
     }
 
     clearLayerRevealFrame();

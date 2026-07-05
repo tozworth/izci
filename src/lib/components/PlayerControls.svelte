@@ -293,6 +293,7 @@
   aria-label={presentation === 'now-playing' ? 'Now Playing controls' : undefined}
   data-artwork-zone={artworkBackgroundActive ? 'true' : null}
   data-visualizer-zone={visualizerBackdropActive ? 'true' : null}
+  data-backdrop-zone-id={presentation === 'bar' ? 'player' : null}
   style={playerArtworkStyle}
 >
   <div class="player-track-group">

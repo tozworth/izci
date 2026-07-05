@@ -147,6 +147,7 @@
       artwork={backdropArtwork}
       artworkBright={artworkBackgroundBright}
       fillParent={true}
+      zoneId="playlist"
     >
       <PlaylistPanel
         {...playlistPanelProps}
@@ -175,6 +176,7 @@
       artwork={backdropArtwork}
       artworkBright={artworkBackgroundBright}
       fillParent={true}
+      zoneId="library"
     >
       <PlaylistPanel
         {...libraryPanelProps}
@@ -203,6 +205,7 @@
         artwork={backdropArtwork}
         artworkBright={artworkBackgroundBright}
         fillParent={true}
+        zoneId="details"
       >
         <TrackDetailsPanel
           track={selectedItem}
@@ -231,6 +234,7 @@
         artwork={backdropArtwork}
         artworkBright={artworkBackgroundBright}
         fillParent={true}
+        zoneId="details"
       >
         <LyricsPanel
           {snapshotStore}
