@@ -19,6 +19,7 @@
   import { subscribeToLaunchedFiles } from '$lib/services/file-launch';
   import { getTrackLyricsLoadKey, loadTrackLyrics } from '$lib/services/lyrics';
   import { createPlaybackCommandsController } from '$lib/services/playback-commands';
+  import { forceServiceWorkerUpdateCheck } from '$lib/services/pwa-updates';
   import { createWorkspaceShellController } from '$lib/services/workspace-shell';
   import { mediaSessionService } from '$lib/services/media-session';
   import { createPlayCountTracker } from '$lib/services/play-count';
@@ -630,6 +631,14 @@
     windowManager.openOptions(view);
   }
 
+  function handleOpenAbout() {
+    windowManager.openOptions('about');
+  }
+
+  async function handleForceUpdate() {
+    await forceServiceWorkerUpdateCheck();
+  }
+
   function toggleNowPlayingView() {
     if (isNowPlayingLayoutActive) {
       closeNowPlayingView();
@@ -1225,6 +1234,8 @@
     on:openFiles={() => void handleMenuOpenFiles()}
     on:openFolder={() => void handleMenuOpenFolder()}
     on:openOptions={(event) => handleOpenOptions(event.detail?.view)}
+    on:forceUpdate={() => void handleForceUpdate()}
+    on:openAbout={handleOpenAbout}
     on:showTrackDetails={showTrackDetails}
     on:showLyrics={showTrackLyrics}
     on:toggleMiniMode={() => windowMiniMode.toggle()}

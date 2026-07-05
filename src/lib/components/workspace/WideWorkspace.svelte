@@ -82,6 +82,29 @@
 
     onCloseLyrics();
   }
+
+  function handleRightPanelTabCloseClick(event: MouseEvent, tab: 'details' | 'lyrics') {
+    event.stopPropagation();
+    closeRightPanelTab(tab);
+  }
+
+  function handleRightPanelTabAuxClick(event: MouseEvent, tab: 'details' | 'lyrics') {
+    if (event.button !== 1) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    closeRightPanelTab(tab);
+  }
+
+  function handleRightPanelTabMouseDown(event: MouseEvent) {
+    if (event.button !== 1) {
+      return;
+    }
+
+    event.preventDefault();
+  }
 </script>
 
 <main class="workspace workspace-resizable" class:is-resizing={isResizing}>
@@ -175,6 +198,8 @@
                     aria-controls={`right-panel-tab-${tab.id}`}
                     id={`right-panel-tab-button-${tab.id}`}
                     on:click={() => dispatch('tabChange', tab.id)}
+                    on:auxclick={(event) => handleRightPanelTabAuxClick(event, tab.id)}
+                    on:mousedown={handleRightPanelTabMouseDown}
                   >
                     <span class="material-symbols-outlined" aria-hidden="true">{tab.icon}</span>
                     <span class="workspace-tab-label">{tab.label}</span>
@@ -186,7 +211,9 @@
                       class="workspace-tab-close-button"
                       aria-label={`Close ${tab.label}`}
                       title="Close"
-                      on:click={() => closeRightPanelTab(tab.id)}
+                      on:click={(event) => handleRightPanelTabCloseClick(event, tab.id)}
+                      on:auxclick={(event) => handleRightPanelTabAuxClick(event, tab.id)}
+                      on:mousedown={handleRightPanelTabMouseDown}
                     >
                       <span class="material-symbols-outlined" aria-hidden="true">close</span>
                     </button>

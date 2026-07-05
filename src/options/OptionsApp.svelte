@@ -30,6 +30,7 @@
     modulePlaybackSettings
   } from '$lib/stores/module-playback-settings';
   import { playbackSettings } from '$lib/stores/playback-settings';
+  import { formatDisplayVersion } from '$lib/utils/version';
   import {
     VISUALIZER_COLOR_SOURCE_OPTIONS,
     VISUALIZER_STYLE_OPTIONS,
@@ -59,6 +60,7 @@
   let resizePointerId: number | null = null;
   let pendingStereoSeparation: number | null = null;
   let pendingPanStrength: number | null = null;
+  const displayVersion = formatDisplayVersion(appVersion);
 
   type TriangleVisualizerSetting =
     | 'triangleCount'
@@ -1331,7 +1333,7 @@
               <div class="about-copy">
                 <h3 class="about-name">izci</h3>
                 <p class="about-tagline">PWA music player</p>
-                <p class="about-meta">Version {appVersion}</p>
+                <p class="about-meta">Version {displayVersion}</p>
                 <p class="about-meta">Toz, 2026</p>
               </div>
             </div>

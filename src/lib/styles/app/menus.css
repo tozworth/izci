@@ -44,6 +44,10 @@
   -webkit-app-region: drag;
 }
 
+body:has(.menu-list[data-menu-interactive='true']) .menu-bar.window-controls-overlay-active {
+  -webkit-app-region: no-drag;
+}
+
 .menu-bar.window-controls-overlay-active.menu-bar-compact {
   min-height: max(
     1.55rem,
@@ -216,18 +220,13 @@
   border-radius: 999px;
   background: transparent;
   color: inherit;
-  cursor: pointer;
+  cursor: default;
   user-select: none;
+  -webkit-app-region: drag;
+}
+
+body:has(.menu-list[data-menu-interactive='true']) .menu-brand {
   -webkit-app-region: no-drag;
-}
-
-.menu-brand:hover {
-  background-color: var(--hover-surface);
-}
-
-.menu-brand:focus-visible {
-  outline: 2px solid var(--accent-strong);
-  outline-offset: 1px;
 }
 
 .menu-brand-hidden {

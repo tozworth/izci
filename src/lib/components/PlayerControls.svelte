@@ -17,7 +17,6 @@
   export let artwork: LoadedStreamArtwork | null = null;
   export let artworkBackgroundBright = false;
   export let backdropEffect: BackdropZoneEffect = 'visualizer';
-  export let suppressArtworkPlayerColors = false;
   export let presentation: 'bar' | 'now-playing' = 'bar';
 
   const dispatch = createEventDispatcher<{
@@ -124,39 +123,19 @@
     }
   }
 
-  function toPlayerArtworkStyle(
-    palette: PlayerArtworkPalette | null,
-    surfaceColorsEnabled: boolean
-  ): string {
+  function toPlayerArtworkStyle(palette: PlayerArtworkPalette | null): string {
     if (!palette) {
       return '';
     }
 
-    const accentVariables = [
-      `--player-bar-separator: ${palette.separator}`,
+    return [
+      `--text: ${palette.text}`,
+      `--text-strong: ${palette.textStrong}`,
+      `--muted: ${palette.muted}`,
       `--player-range-fill: ${palette.rangeFill}`,
       `--player-range-track: ${palette.rangeTrack}`,
       `--player-range-border: ${palette.rangeBorder}`,
       `--player-range-thumb: ${palette.rangeThumb}`
-    ];
-
-    if (!surfaceColorsEnabled) {
-      return accentVariables.join('; ');
-    }
-
-    return [
-      `--player-bar-background: ${palette.background}`,
-      `--menu-bar-bg: ${palette.background}`,
-      `--text: ${palette.text}`,
-      `--text-strong: ${palette.textStrong}`,
-      `--muted: ${palette.muted}`,
-      `--bg-soft: ${palette.soft}`,
-      `--bg-volume-popup: ${palette.popover}`,
-      `--border-strong: ${palette.border}`,
-      `--hover-control: ${palette.hover}`,
-      `--hairline: ${palette.hairline}`,
-      ...accentVariables,
-      `--visualizer-blend-mode: ${palette.visualizerBlendMode}`
     ].join('; ');
   }
 
@@ -261,9 +240,8 @@
   $: visualizerBackdropActive = hasVisualizerBackdrop(backdropEffect);
   $: playerArtworkPaletteActive =
     $appearanceSettings.useArtworkPlayerColors && playerArtworkPalette !== null;
-  $: playerArtworkColorsActive = playerArtworkPaletteActive && !suppressArtworkPlayerColors;
   $: playerArtworkStyle = playerArtworkPaletteActive
-    ? toPlayerArtworkStyle(playerArtworkPalette, !suppressArtworkPlayerColors)
+    ? toPlayerArtworkStyle(playerArtworkPalette)
     : '';
   $: if (artwork?.url !== playerArtworkPaletteUrl) {
     void syncPlayerArtworkPalette(artwork?.url);
@@ -289,7 +267,6 @@
   class:artwork-background-active={artworkBackgroundActive}
   class:artwork-background-bright={artworkBackgroundActive && artworkBackgroundBright}
   class:visualizer-backdrop-active={visualizerBackdropActive}
-  class:artwork-player-colors-active={playerArtworkColorsActive}
   aria-label={presentation === 'now-playing' ? 'Now Playing controls' : undefined}
   data-artwork-zone={artworkBackgroundActive ? 'true' : null}
   data-visualizer-zone={visualizerBackdropActive ? 'true' : null}

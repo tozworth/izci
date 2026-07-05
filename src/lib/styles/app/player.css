@@ -51,12 +51,6 @@
   --hairline: rgba(255, 255, 255, 0.08);
 }
 
-.player-bar.artwork-player-colors-active {
-  color-scheme: dark;
-  --player-bar-backdrop-blur: 24px;
-  --player-bar-backdrop-saturate: 1.22;
-}
-
 .player-bar.visualizer-backdrop-active:not(.artwork-background-active) {
   --player-bar-background:
     linear-gradient(90deg, rgba(18, 19, 28, 0.28), rgba(18, 19, 28, 0.16) 50%, rgba(18, 19, 28, 0.28));

@@ -5,13 +5,16 @@
   import MenuSurface from '$lib/components/MenuSurface.svelte';
   import { windowControlsOverlayState } from '$lib/services/window-controls-overlay';
   import type { MenuActionItem } from '$lib/types';
+  import { formatDisplayVersion } from '$lib/utils/version';
   import type { OptionsViewName } from '../../options/views';
 
-  type MenuId = 'file' | 'view';
+  type MenuId = 'file' | 'view' | 'help';
   type MenuActionId =
     | 'openFiles'
     | 'openFolder'
     | 'openOptions'
+    | 'forceUpdate'
+    | 'openAbout'
     | 'showTrackDetails'
     | 'showLyrics'
     | 'toggleMiniMode'
@@ -43,14 +46,29 @@
       separatorBefore: true
     }
   ];
+  const HELP_MENU_ITEMS: MenuActionItem[] = [
+    {
+      id: 'forceUpdate',
+      label: 'Force update',
+      icon: 'sync'
+    },
+    {
+      id: 'openAbout',
+      label: 'About',
+      icon: 'info'
+    }
+  ];
 
   export let miniModeActive = false;
   export let nowPlayingViewActive = false;
+  const displayVersion = formatDisplayVersion(appVersion);
 
   const dispatch = createEventDispatcher<{
     openFiles: void;
     openFolder: void;
     openOptions: { view?: OptionsViewName } | undefined;
+    forceUpdate: void;
+    openAbout: void;
     showTrackDetails: void;
     showLyrics: void;
     toggleMiniMode: void;
@@ -68,6 +86,7 @@
   let compactMenuTriggerElement: HTMLButtonElement | null = null;
   let fileMenuTriggerElement: HTMLButtonElement | null = null;
   let viewMenuTriggerElement: HTMLButtonElement | null = null;
+  let helpMenuTriggerElement: HTMLButtonElement | null = null;
   let menuBarWidth = Number.POSITIVE_INFINITY;
   let availableTitlebarWidth = Number.POSITIVE_INFINITY;
   let menuGroupsWidth = 0;
@@ -118,6 +137,12 @@
       label: 'View',
       icon: 'visibility',
       children: viewMenuItems
+    },
+    {
+      id: 'help',
+      label: 'Help',
+      icon: 'help',
+      children: HELP_MENU_ITEMS
     }
   ] satisfies MenuActionItem[];
 
@@ -237,7 +262,11 @@
   }
 
   function getMenuTriggerElement(menuId: MenuId) {
-    return menuId === 'file' ? fileMenuTriggerElement : viewMenuTriggerElement;
+    if (menuId === 'file') {
+      return fileMenuTriggerElement;
+    }
+
+    return menuId === 'view' ? viewMenuTriggerElement : helpMenuTriggerElement;
   }
 
   function updateMenuPosition(menuId: MenuId) {
@@ -250,10 +279,6 @@
     const rect = triggerElement.getBoundingClientRect();
     menuPopupX = rect.left;
     menuPopupY = rect.bottom + 6;
-  }
-
-  function handleVersionIndicatorClick() {
-    dispatch('openOptions', { view: 'about' });
   }
 
   function toggleCompactMenu() {
@@ -382,19 +407,43 @@
           />
         {/if}
       </div>
+
+      <div class="menu-root" role="none" on:pointerenter={() => handleMenuHover('help')}>
+        <button
+          bind:this={helpMenuTriggerElement}
+          class:active={activeMenu === 'help'}
+          class="menu-trigger"
+          data-menu-interactive="true"
+          type="button"
+          aria-haspopup="menu"
+          aria-expanded={activeMenu === 'help'}
+          on:pointerdown={(event) => handleRootPointerDown(event, 'help')}
+          on:click={() => handleRootClick('help')}
+        >
+          Help
+        </button>
+        {#if activeMenu === 'help'}
+          <MenuSurface
+            items={HELP_MENU_ITEMS}
+            x={menuPopupX}
+            y={menuPopupY}
+            ariaLabel="Help"
+            activateOnPointerUpPointerId={menubarPressPointerId}
+            on:action={(event) => runMenuAction(event.detail as MenuActionId)}
+            on:dismiss={closeMenus}
+          />
+        {/if}
+      </div>
     </div>
 
-    <button
+    <div
       bind:clientWidth={menuBrandWidth}
       class="menu-brand"
       class:menu-brand-hidden={!showVersionIndicator}
-      type="button"
-      aria-label="Open Options About page"
       aria-hidden={!showVersionIndicator}
-      on:click={handleVersionIndicatorClick}
     >
         <strong>izci</strong>
-        <span>{appVersion}</span>
-    </button>
+        <span>{displayVersion}</span>
+    </div>
   {/if}
 </nav>
