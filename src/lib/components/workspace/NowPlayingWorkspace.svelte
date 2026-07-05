@@ -18,6 +18,7 @@
   import type { WorkspacePanelHandlers, WorkspacePanelProps, WorkspaceTabDefinition } from './types';
 
   export let snapshotStore: Readable<PlaybackSnapshot>;
+  export let playbackSnapshot: PlaybackSnapshot | null = null;
   export let track: PlaylistItem | null = null;
   export let selectedTrack: PlaylistItem | null = null;
   export let artwork: LoadedStreamArtwork | null = null;
@@ -245,6 +246,7 @@
           >
             <LyricsPanel
               {snapshotStore}
+              {playbackSnapshot}
               track={lyricsTrack}
               displayStyle={lyricsDisplayStyle}
               autoScroll={lyricsAutoScroll}
@@ -253,6 +255,7 @@
               theaterDowntimeThresholdSeconds={lyricsTheaterDowntimeThresholdSeconds}
               theaterSmoothScroll={lyricsTheaterSmoothScroll}
               resumeAutoScrollToken={lyricsResumeAutoScrollToken}
+              forceAutoScroll={activeWorkspaceTab === 'lyrics'}
               fillParent={true}
               hideEyebrow={true}
               on:seek

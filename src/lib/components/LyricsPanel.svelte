@@ -13,6 +13,7 @@
 
   export let track: PlaylistItem | null = null;
   export let snapshotStore: Readable<PlaybackSnapshot>;
+  export let playbackSnapshot: PlaybackSnapshot | null = null;
   export let displayStyle: LyricsDisplayStyle = 'timestamped';
   export let autoScroll = true;
   export let fontSize = 1;
@@ -20,6 +21,7 @@
   export let theaterDowntimeThresholdSeconds = 10;
   export let theaterSmoothScroll = true;
   export let resumeAutoScrollToken = 0;
+  export let forceAutoScroll = false;
   export let hideEyebrow = false;
   export let isTabbedLayout = false;
   export let fillParent = false;
@@ -33,6 +35,7 @@
   const USER_SCROLL_RESUME_MS = 5000;
   const SEEK_RESUME_THRESHOLD_SECONDS = 1.25;
   const PROGRAMMATIC_SCROLL_MS = 720;
+  const FORCED_SCROLL_MAX_ATTEMPTS = 45;
 
   let snapshot: PlaybackSnapshot = {
     state: 'idle',
@@ -42,6 +45,7 @@
     muted: false,
     backend: null
   };
+  let effectiveSnapshot: PlaybackSnapshot = snapshot;
   let lyrics: LoadedLyrics | null = null;
   let loading = false;
   let loadError = '';
@@ -57,6 +61,7 @@
   let programmaticScrollTimer: ReturnType<typeof setTimeout> | null = null;
   let lastSnapshotAt = Date.now();
   let lastResumeAutoScrollToken = resumeAutoScrollToken;
+  let lastForceAutoScroll = false;
   const rowElements = new Map<string, HTMLElement>();
 
   const unsubscribeSnapshot = snapshotStore.subscribe(handleSnapshotUpdate);
@@ -152,6 +157,16 @@
     return displayStyle === 'theater' && !theaterSmoothScroll ? 'auto' : 'smooth';
   }
 
+  function waitForNextFrame(): Promise<void> {
+    if (typeof requestAnimationFrame === 'undefined') {
+      return Promise.resolve();
+    }
+
+    return new Promise((resolve) => {
+      requestAnimationFrame(() => resolve());
+    });
+  }
+
   function clearUserScrollResumeTimer(): void {
     if (userScrollResumeTimer === null) {
       return;
@@ -204,11 +219,15 @@
     return rowRect.bottom > scrollerRect.top && rowRect.top < scrollerRect.bottom;
   }
 
-  function scrollRowToCenter(rowKey: string, behavior: ScrollBehavior): void {
+  function scrollRowToCenter(rowKey: string, behavior: ScrollBehavior): boolean {
     const row = rowElements.get(rowKey);
 
     if (!row || !scroller) {
-      return;
+      return false;
+    }
+
+    if (row.offsetHeight <= 0 || scroller.clientHeight <= 0 || scroller.scrollHeight <= 0) {
+      return false;
     }
 
     const rowTop = getRowTopWithinScroller(row);
@@ -224,22 +243,52 @@
       top: nextScrollTop,
       behavior
     });
+    return true;
   }
 
   function requestScrollToActiveRow(force = false): void {
-    const rowKey = activeScrollRowKey;
+    const initialRowKey = activeScrollRowKey;
 
-    if (!rowKey || !resolvedAutoScroll || (!force && userScrollPaused)) {
+    if ((!initialRowKey && !force) || !resolvedAutoScroll || (!force && userScrollPaused)) {
       return;
     }
 
-    void tick().then(() => {
-      if (!force && rowKey !== activeScrollRowKey) {
-        return;
-      }
+    void (async () => {
+      const maxAttempts = force ? FORCED_SCROLL_MAX_ATTEMPTS : 1;
+      let lastScrolledRowKey = '';
 
-      scrollRowToCenter(rowKey, getScrollBehavior());
-    });
+      for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+        await tick();
+
+        const rowKey = force ? activeScrollRowKey : initialRowKey;
+
+        if (!rowKey) {
+          await waitForNextFrame();
+          continue;
+        }
+
+        if (!force && rowKey !== activeScrollRowKey) {
+          return;
+        }
+
+        if (force && rowKey === lastScrolledRowKey) {
+          await waitForNextFrame();
+          continue;
+        }
+
+        if (scrollRowToCenter(rowKey, getScrollBehavior())) {
+          lastScrolledRowKey = rowKey;
+
+          if (!force) {
+            return;
+          }
+        } else if (!force) {
+          return;
+        }
+
+        await waitForNextFrame();
+      }
+    })();
   }
 
   function forceResumeAutoScroll(): void {
@@ -365,19 +414,21 @@
 
   $: normalizedFontSize = clamp(fontSize, 0.72, 2.8);
   $: panelStyle = `--lyrics-font-size: ${normalizedFontSize}rem; --lyrics-scroller-height: ${scrollerHeight}px;`;
+  $: effectiveSnapshot = playbackSnapshot ?? snapshot;
   $: trackLoadKey = track ? `${track.id}:${track.lastModified}:${track.size}` : '';
   $: loadLyricsForTrack(trackLoadKey, track);
   $: lyricLines = lyrics?.lines ?? [];
   $: theaterRows = buildTheaterLyricRows(
     lyricLines,
-    snapshot.duration,
+    effectiveSnapshot.duration,
     theaterDowntimeDots,
     theaterDowntimeThresholdSeconds
   );
-  $: activeLyricIndex = findActiveLyricIndex(lyricLines, snapshot.currentTime);
-  $: activeTheaterRowIndex = findActiveTimelineIndex(theaterRows, snapshot.currentTime);
+  $: activeLyricIndex = findActiveLyricIndex(lyricLines, effectiveSnapshot.currentTime);
+  $: activeTheaterRowIndex = findActiveTimelineIndex(theaterRows, effectiveSnapshot.currentTime);
   $: activeTheaterRow = activeTheaterRowIndex >= 0 ? theaterRows[activeTheaterRowIndex] : null;
-  $: isPlaybackPositionVisible = snapshot.state === 'playing' || snapshot.state === 'paused';
+  $: isPlaybackPositionVisible =
+    effectiveSnapshot.state === 'playing' || effectiveSnapshot.state === 'paused';
   $: activeIndex =
     displayStyle === 'theater'
       ? activeTheaterRow?.type === 'lyric'
@@ -396,6 +447,13 @@
   $: if (resumeAutoScrollToken !== lastResumeAutoScrollToken) {
     lastResumeAutoScrollToken = resumeAutoScrollToken;
     forceResumeAutoScroll();
+  }
+  $: if (forceAutoScroll !== lastForceAutoScroll) {
+    lastForceAutoScroll = forceAutoScroll;
+
+    if (forceAutoScroll) {
+      forceResumeAutoScroll();
+    }
   }
   $: if (
     resolvedAutoScroll &&
@@ -540,7 +598,7 @@
                 {#if index === activeTheaterRowIndex && isPlaybackPositionVisible}
                   <span
                     class="downtime-dots"
-                    class:is-playing={snapshot.state === 'playing'}
+                    class:is-playing={effectiveSnapshot.state === 'playing'}
                     aria-label="Instrumental break"
                   >
                     <span></span>
@@ -553,7 +611,7 @@
               <li
                 use:registerRow={row.id}
                 class:active={row.lyricIndex === activeIndex}
-                class:past={row.time < snapshot.currentTime}
+                class:past={row.time < effectiveSnapshot.currentTime}
                 style={`--lyric-opacity: ${lyricOpacity(index, activeTheaterRowIndex)}; --lyric-scale: ${lyricScale(index, activeTheaterRowIndex)};`}
               >
                 <button

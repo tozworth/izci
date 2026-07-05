@@ -144,6 +144,7 @@
   let nowPlayingRestoreTab: WorkspaceTab | null = null;
   let nowPlayingAutoFocusedLyrics = false;
   let nowPlayingAutoFocusTrackKey = '';
+  let nowPlayingLyricsAutoScrollSignature = '';
   const workspaceShell = createWorkspaceShellController({
     getPlaylistContextActions,
     getLibraryContextActions
@@ -266,7 +267,19 @@
     !miniModeActive;
   $: syncNowPlayingLayoutTransition(isNowPlayingLayoutActive);
   $: syncLyricsAvailability(lyricsTrack);
-  $: syncNowPlayingLyricsAutoFocus();
+  $: syncNowPlayingLyricsAutoFocus(
+    isNowPlayingLayoutActive,
+    $appearanceSettings.lyrics.autoFocusInNowPlaying,
+    lyricsAvailability,
+    lyricsAvailabilityTrackKey,
+    workspaceShellState.activeWorkspaceTab
+  );
+  $: syncNowPlayingLyricsAutoScroll(
+    isNowPlayingLayoutActive,
+    workspaceShellState.activeWorkspaceTab,
+    lyricsAvailabilityTrackKey,
+    effectiveLyricsDisplayStyle
+  );
   $: applyLyricsPanelAvailabilityAutomation(
     lyricsAvailabilityTrackKey,
     lyricsAvailability,
@@ -531,26 +544,54 @@
     wasNowPlayingLayoutActive = false;
   }
 
-  function syncNowPlayingLyricsAutoFocus(): void {
+  function syncNowPlayingLyricsAutoFocus(
+    isLayoutActive: boolean,
+    autoFocusInNowPlaying: boolean,
+    availability: LyricsAvailability,
+    trackKey: string,
+    activeWorkspaceTab: WorkspaceTab
+  ): void {
     if (
-      !isNowPlayingLayoutActive ||
-      !$appearanceSettings.lyrics.autoFocusInNowPlaying ||
-      lyricsAvailability !== 'available' ||
-      !lyricsAvailabilityTrackKey ||
-      nowPlayingAutoFocusTrackKey === lyricsAvailabilityTrackKey
+      !isLayoutActive ||
+      !autoFocusInNowPlaying ||
+      availability !== 'available' ||
+      !trackKey ||
+      nowPlayingAutoFocusTrackKey === trackKey
     ) {
       return;
     }
 
-    nowPlayingAutoFocusTrackKey = lyricsAvailabilityTrackKey;
+    nowPlayingAutoFocusTrackKey = trackKey;
 
-    if (workspaceShellState.activeWorkspaceTab === 'lyrics') {
+    if (activeWorkspaceTab === 'lyrics') {
       return;
     }
 
-    nowPlayingRestoreTab ??= workspaceShellState.activeWorkspaceTab;
+    nowPlayingRestoreTab ??= activeWorkspaceTab;
     nowPlayingAutoFocusedLyrics = true;
     workspaceShell.showTrackLyrics();
+  }
+
+  function syncNowPlayingLyricsAutoScroll(
+    isLayoutActive: boolean,
+    activeWorkspaceTab: WorkspaceTab,
+    trackKey: string,
+    displayStyle: LyricsDisplayStyle
+  ): void {
+    const signature =
+      isLayoutActive && activeWorkspaceTab === 'lyrics'
+        ? `${trackKey}:${displayStyle}`
+        : '';
+
+    if (signature === nowPlayingLyricsAutoScrollSignature) {
+      return;
+    }
+
+    nowPlayingLyricsAutoScrollSignature = signature;
+
+    if (signature) {
+      lyricsResumeAutoScrollToken += 1;
+    }
   }
 
   async function handleMenuOpenFiles(target: WorkspaceCollection = workspaceShellState.activeCollection) {
@@ -1168,6 +1209,7 @@
   {#if isNowPlayingLayoutActive}
     <NowPlayingWorkspace
       snapshotStore={playerController.snapshot}
+      {playbackSnapshot}
       track={playerDisplayTrack}
       selectedTrack={selectedPlaylistItem}
       artwork={artworkPresentationState.displayedArtwork}
@@ -1204,6 +1246,7 @@
     {#if workspaceShellState.isTabbedLayout}
       <TabbedWorkspace
         snapshotStore={playerController.snapshot}
+        {playbackSnapshot}
         activeWorkspaceTab={workspaceShellState.activeWorkspaceTab}
         workspaceTabs={workspaceShellState.workspaceTabs}
         playlistPanelProps={workspaceShellState.playlistPanelProps}
@@ -1233,6 +1276,7 @@
     {:else}
       <WideWorkspace
         snapshotStore={playerController.snapshot}
+        {playbackSnapshot}
         playlistPanelProps={workspaceShellState.playlistPanelProps}
         {playlistPanelHandlers}
         libraryPanelProps={workspaceShellState.libraryPanelProps}
