@@ -3,6 +3,8 @@ import { createPersistentStore } from './persistent-store';
 
 export const VISUALIZER_SETTINGS_STORAGE_KEY = 'izci.visualizer-settings';
 export const VISUALIZER_SETTINGS_CHANNEL = 'izci.visualizer-settings';
+export const MIN_VISUALIZER_FRAME_RATE_LIMIT = 30;
+export const MAX_VISUALIZER_FRAME_RATE_LIMIT = 240;
 
 export const VISUALIZER_STYLE_OPTIONS: Array<{ value: VisualizerStyle; label: string }> = [
   { value: 'wave', label: 'Uniform wave' },
@@ -22,6 +24,7 @@ export const DEFAULT_VISUALIZER_SETTINGS: VisualizerSettings = {
   colorSource: 'theme',
   height: 0.78,
   transparency: 0.42,
+  frameRateLimit: 60,
   normalizationStrength: 0.42,
   triangleCount: 64,
   triangleMinSize: 0.14,
@@ -87,6 +90,14 @@ function normalizeSettings(value: unknown): VisualizerSettings {
     colorSource: normalizeColorSource(source.colorSource),
     height: normalizeNumber(source.height, DEFAULT_VISUALIZER_SETTINGS.height, 0.22, 1),
     transparency: normalizeNumber(source.transparency, DEFAULT_VISUALIZER_SETTINGS.transparency, 0, 0.85),
+    frameRateLimit: Math.round(
+      normalizeNumber(
+        source.frameRateLimit,
+        DEFAULT_VISUALIZER_SETTINGS.frameRateLimit,
+        MIN_VISUALIZER_FRAME_RATE_LIMIT,
+        MAX_VISUALIZER_FRAME_RATE_LIMIT
+      )
+    ),
     normalizationStrength: normalizeNormalizationStrength(source),
     triangleCount: Math.round(normalizeNumber(source.triangleCount, DEFAULT_VISUALIZER_SETTINGS.triangleCount, 8, 160)),
     triangleMinSize: normalizeNumber(source.triangleMinSize, DEFAULT_VISUALIZER_SETTINGS.triangleMinSize, 0.04, 0.8),

@@ -113,6 +113,7 @@ export interface VisualizerSettings {
   colorSource: VisualizerColorSource;
   height: number;
   transparency: number;
+  frameRateLimit: number;
   normalizationStrength: number;
   triangleCount: number;
   triangleMinSize: number;

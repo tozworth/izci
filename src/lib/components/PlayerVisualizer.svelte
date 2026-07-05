@@ -3,35 +3,13 @@
   import { extractArtworkPalette, type VisualizerPalette } from '$lib/services/artwork-palette';
   import { visualizerService } from '$lib/services/visualizer';
   import { DEFAULT_VISUALIZER_SETTINGS, visualizerSettings } from '$lib/stores/visualizer-settings';
+  import { TriangleVisualizerRenderer } from '$lib/components/visualizers/triangles';
   import type { VisualizerSettings } from '$lib/types';
 
   const BAND_COUNT = 72;
   const IDLE_FALLBACK = 0;
   const MAX_VISUALIZED_FREQUENCY_HZ = 16_000;
-  const TRIANGLE_SIDE_X = Math.sqrt(3) / 2;
-  const TRIANGLE_FRAME_INTERVAL_MS = 1000 / 60;
-  const TRIANGLE_EDGE_FADE_SIZE_FACTOR = 1.4;
-  const TRIANGLE_SIZE_DAMPENING_START_PX = 160;
-  const TRIANGLE_SIZE_DAMPENING_EXPONENT = 0.56;
-  const TRIANGLE_SIZE_REFERENCE_MAX_PX = 340;
   const PALETTE_REFRESH_INTERVAL_MS = 250;
-
-  interface TriangleParticle {
-    x: number;
-    y: number;
-    size: number;
-    baseSpeed: number;
-    depth: number;
-    alpha: number;
-    bandIndex: number;
-    flash: number;
-  }
-
-  interface TriangleRhythm {
-    amplitude: number;
-    pulse: number;
-    isBeat: boolean;
-  }
 
   interface VisualizerClipRect {
     x: number;
@@ -64,20 +42,8 @@
   let themePalette: VisualizerPalette | null = null;
   let paletteCacheDirty = true;
   let lastPaletteRefreshAt = 0;
-  let triangleParticles: TriangleParticle[] = [];
-  let triangleParticlesNeedSort = false;
-  let triangleLastTimestamp = 0;
-  let triangleRollingEnergy = 0.12;
-  let triangleRollingLow = 0.12;
-  let triangleBeatPulse = 0;
-  let triangleLastBeatAt = 0;
-  let triangleGenerationSignature = '';
-  let triangleReferenceHeight = 0;
-  let triangleMotionReferenceHeight = 0;
-  let observedTriangleSelector: string | null = null;
-  let triangleReferenceElement: Element | null = null;
+  const triangleRenderer = new TriangleVisualizerRenderer();
   let resizeObserver: ResizeObserver | null = null;
-  let triangleReferenceObserver: ResizeObserver | null = null;
   let paletteMutationObserver: MutationObserver | null = null;
   let mounted = false;
 
@@ -99,9 +65,18 @@
     if (sizeChanged) {
       canvas.width = width;
       canvas.height = height;
-      triangleParticles = [];
-      triangleParticlesNeedSort = true;
+      triangleRenderer.resetParticles();
     }
+
+    syncTriangleReferenceObserver();
+  }
+
+  function getVisualizerMetrics() {
+    return { width, height, displayScale };
+  }
+
+  function getFrameIntervalMs(settings: VisualizerSettings): number {
+    return 1000 / Math.max(settings.frameRateLimit, 1);
   }
 
   function sampleBands(settings: VisualizerSettings): number[] {
@@ -228,202 +203,12 @@
     return total / Math.max(normalizedEnd - normalizedStart, 1);
   }
 
-  function clamp01(value: number): number {
-    return Math.min(Math.max(value, 0), 1);
-  }
-
-  function randomRange(min: number, max: number): number {
-    return min + Math.random() * (max - min);
-  }
-
-  function getTriangleReferenceHeight(): number {
-    if (!triangleSizeReferenceSelector) {
-      return height;
-    }
-
-    return triangleReferenceHeight || getDampenedTriangleReferenceHeight(height);
-  }
-
-  function getTriangleMotionReferenceHeight(): number {
-    const viewportHeight = typeof window === 'undefined' ? 0 : window.innerHeight * displayScale;
-
-    return Math.max(1, Math.round(Math.max(height, viewportHeight)));
-  }
-
-  function getDampenedTriangleReferenceHeight(referenceHeight: number): number {
-    const scale = Math.max(1, displayScale);
-    const referenceHeightPx = referenceHeight / scale;
-
-    if (referenceHeightPx <= TRIANGLE_SIZE_DAMPENING_START_PX) {
-      return referenceHeight;
-    }
-
-    const dampenedHeightPx =
-      TRIANGLE_SIZE_DAMPENING_START_PX *
-      Math.pow(referenceHeightPx / TRIANGLE_SIZE_DAMPENING_START_PX, TRIANGLE_SIZE_DAMPENING_EXPONENT);
-    const cappedHeightPx = Math.min(dampenedHeightPx, TRIANGLE_SIZE_REFERENCE_MAX_PX);
-
-    return Math.max(1, Math.round(cappedHeightPx * scale));
-  }
-
-  function updateTriangleReferenceHeight() {
-    if (!triangleSizeReferenceSelector || !triangleReferenceElement) {
-      triangleReferenceHeight = getDampenedTriangleReferenceHeight(height);
-      return;
-    }
-
-    const referenceRect = triangleReferenceElement.getBoundingClientRect();
-    const referenceHeight = referenceRect.height * displayScale;
-    const nextHeight = getDampenedTriangleReferenceHeight(Math.max(1, Math.round(referenceHeight || height)));
-
-    if (nextHeight !== triangleReferenceHeight) {
-      triangleReferenceHeight = nextHeight;
-      triangleGenerationSignature = '';
-      triangleParticlesNeedSort = true;
-    }
-  }
-
   function syncTriangleReferenceObserver() {
-    if (
-      !mounted ||
-      (observedTriangleSelector === triangleSizeReferenceSelector &&
-        (!triangleSizeReferenceSelector || triangleReferenceElement))
-    ) {
+    if (!mounted) {
       return;
     }
 
-    triangleReferenceObserver?.disconnect();
-    triangleReferenceObserver = null;
-    observedTriangleSelector = triangleSizeReferenceSelector;
-    triangleReferenceElement = triangleSizeReferenceSelector
-      ? document.querySelector(triangleSizeReferenceSelector)
-      : null;
-
-    if (triangleReferenceElement && typeof ResizeObserver !== 'undefined') {
-      triangleReferenceObserver = new ResizeObserver(updateTriangleReferenceHeight);
-      triangleReferenceObserver.observe(triangleReferenceElement);
-    }
-
-    updateTriangleReferenceHeight();
-  }
-
-  function getTriangleGenerationSignature(settings: VisualizerSettings): string {
-    return [
-      settings.height,
-      settings.triangleMinSize,
-      settings.triangleMaxSize,
-      settings.triangleBaseSpeed,
-      triangleReferenceHeight,
-      triangleMotionReferenceHeight
-    ].join(':');
-  }
-
-  function getTriangleTargetCount(settings: VisualizerSettings): number {
-    return Math.round(settings.triangleCount);
-  }
-
-  function ensureTriangleParticles(settings: VisualizerSettings, bandCount: number): void {
-    const targetCount = getTriangleTargetCount(settings);
-
-    while (triangleParticles.length < targetCount) {
-      triangleParticles.push(createTriangleParticle(settings, bandCount));
-      triangleParticlesNeedSort = true;
-    }
-
-    if (triangleParticles.length > targetCount) {
-      triangleParticles.length = targetCount;
-      triangleParticlesNeedSort = true;
-    }
-  }
-
-  function createTriangleParticle(settings: VisualizerSettings, bandCount: number): TriangleParticle {
-    const heightRatio = settings.height;
-    const visualTop = height * (1 - heightRatio);
-    const visualHeight = Math.max(1, height - visualTop);
-    const depth = randomRange(0.72, 1.62);
-    const sizeReferenceHeight = Math.max(1, triangleReferenceHeight || height);
-    const motionReferenceHeight = Math.max(sizeReferenceHeight, triangleMotionReferenceHeight * heightRatio);
-    const minSize = Math.max(8, sizeReferenceHeight * settings.triangleMinSize);
-    const maxSize = Math.max(minSize + 4, sizeReferenceHeight * settings.triangleMaxSize);
-    const size = randomRange(minSize, maxSize) * depth;
-    const xMargin = Math.min(width * 0.12, size * 0.28);
-
-    return {
-      x: width <= xMargin * 2 ? width / 2 : randomRange(xMargin, width - xMargin),
-      y: randomRange(height + size * 1.15, height + visualHeight * 1.15 + size * 2),
-      size,
-      baseSpeed:
-        randomRange(motionReferenceHeight * 0.08, motionReferenceHeight * 0.3) *
-        depth *
-        settings.triangleBaseSpeed,
-      depth,
-      alpha: randomRange(0.48, 0.9),
-      bandIndex: Math.floor(randomRange(0, Math.max(1, bandCount))),
-      flash: 0
-    };
-  }
-
-  function getTriangleVisibilityAlpha(particle: TriangleParticle, visualTop: number): number {
-    const size = particle.size;
-    const top = particle.y - size;
-    const bottom = particle.y + size * 0.5;
-    const fadeDistance = Math.max(1, size * TRIANGLE_EDGE_FADE_SIZE_FACTOR);
-    const bottomFade = clamp01((height - top) / fadeDistance);
-    const topFade = clamp01((bottom - visualTop) / fadeDistance);
-
-    return Math.min(bottomFade, topFade);
-  }
-
-  function sortTriangleParticlesIfNeeded(): void {
-    if (!triangleParticlesNeedSort) {
-      return;
-    }
-
-    triangleParticles.sort((left, right) => left.depth - right.depth);
-    triangleParticlesNeedSort = false;
-  }
-
-  function getTriangleFrameDelta(timestamp: number): { deltaSeconds: number } {
-    const deltaSeconds = triangleLastTimestamp
-      ? Math.min(0.08, Math.max(0.001, (timestamp - triangleLastTimestamp) / 1000))
-      : 1 / 60;
-
-    triangleLastTimestamp = timestamp;
-    return { deltaSeconds };
-  }
-
-  function updateTriangleRhythm(values: number[], timestamp: number, deltaSeconds: number): TriangleRhythm {
-    const low = average(values, 0, 18);
-    const mid = average(values, 18, 46);
-    const high = average(values, 46, values.length);
-    const energy = clamp01(low * 0.5 + mid * 0.32 + high * 0.18);
-    const previousEnergy = triangleRollingEnergy;
-    const previousLow = triangleRollingLow;
-    const onset = energy - previousEnergy;
-    const lowOnset = low - previousLow;
-    const enoughBeatGap = timestamp - triangleLastBeatAt > 145;
-    const isBeat =
-      enoughBeatGap &&
-      energy > 0.12 &&
-      (onset > 0.055 + previousEnergy * 0.12 ||
-        lowOnset > 0.065 + previousLow * 0.1 ||
-        (energy > 0.62 && onset > 0.025));
-
-    triangleBeatPulse *= Math.pow(0.035, deltaSeconds);
-
-    if (isBeat) {
-      triangleBeatPulse = Math.max(triangleBeatPulse, Math.min(1, 0.38 + energy * 0.78));
-      triangleLastBeatAt = timestamp;
-    }
-
-    triangleRollingEnergy = previousEnergy * 0.94 + Math.max(energy, 0.025) * 0.06;
-    triangleRollingLow = previousLow * 0.92 + Math.max(low, 0.025) * 0.08;
-
-    return {
-      amplitude: Math.pow(energy, 0.85),
-      pulse: triangleBeatPulse,
-      isBeat
-    };
+    triangleRenderer.syncSizeReference(triangleSizeReferenceSelector, getVisualizerMetrics());
   }
 
   async function syncArtworkPalette(url: string | undefined): Promise<void> {
@@ -471,11 +256,7 @@
     canvasContext = context;
     const settings = currentSettings;
 
-    if (
-      settings.style === 'triangles' &&
-      lastRenderedAt > 0 &&
-      timestamp - lastRenderedAt < TRIANGLE_FRAME_INTERVAL_MS
-    ) {
+    if (lastRenderedAt > 0 && timestamp - lastRenderedAt < getFrameIntervalMs(settings)) {
       frame = requestAnimationFrame(draw);
       return;
     }
@@ -505,19 +286,19 @@
     context.globalAlpha = settings.transparency;
 
     if (settings.style === 'wave') {
-      triangleLastTimestamp = 0;
+      triangleRenderer.resetFrameTiming();
       drawWave(context, values, settings.height, palette);
     } else if (settings.style === 'bars') {
-      triangleLastTimestamp = 0;
+      triangleRenderer.resetFrameTiming();
       drawBars(context, values, settings.height, palette);
     } else if (settings.style === 'mirror') {
-      triangleLastTimestamp = 0;
+      triangleRenderer.resetFrameTiming();
       drawMirror(context, values, settings.height, palette);
     } else if (settings.style === 'blocks') {
-      triangleLastTimestamp = 0;
+      triangleRenderer.resetFrameTiming();
       drawBlocks(context, values, settings.height, palette, settings.transparency);
     } else {
-      drawTriangles(context, values, settings, palette, timestamp);
+      triangleRenderer.render(context, values, settings, palette, timestamp, getVisualizerMetrics());
     }
 
     context.restore();
@@ -634,138 +415,6 @@
     }
   }
 
-  function drawTriangles(
-    context: CanvasRenderingContext2D,
-    values: number[],
-    settings: VisualizerSettings,
-    palette: VisualizerPalette,
-    timestamp: number
-  ) {
-    const { deltaSeconds } = getTriangleFrameDelta(timestamp);
-    const heightRatio = settings.height;
-    const visualTop = height * (1 - heightRatio);
-    triangleReferenceHeight = getTriangleReferenceHeight();
-    triangleMotionReferenceHeight = getTriangleMotionReferenceHeight();
-    const generationSignature = getTriangleGenerationSignature(settings);
-
-    if (generationSignature !== triangleGenerationSignature) {
-      triangleGenerationSignature = generationSignature;
-      triangleParticles = [];
-      triangleParticlesNeedSort = true;
-    }
-
-    ensureTriangleParticles(settings, values.length);
-    sortTriangleParticlesIfNeeded();
-
-    const rhythm = updateTriangleRhythm(values, timestamp, deltaSeconds);
-
-    if (rhythm.isBeat) {
-      const flashCount = Math.ceil(2 + rhythm.amplitude * 6);
-
-      for (let index = 0; index < flashCount; index += 1) {
-        const particle = triangleParticles[Math.floor(Math.random() * triangleParticles.length)];
-
-        if (!particle) {
-          continue;
-        }
-
-        particle.flash = Math.max(particle.flash, randomRange(0.46, 1));
-      }
-    }
-
-    const borderWidth = settings.triangleBorderWidth * displayScale;
-
-    for (const particle of triangleParticles) {
-      const bandValue = values[particle.bandIndex] ?? rhythm.amplitude;
-      const activity = Math.max(rhythm.amplitude * 0.62, bandValue);
-      const speedMultiplier = 0.12 + (activity * 1.9 + rhythm.pulse * 0.58) * settings.triangleReactiveSpeed;
-
-      particle.flash = Math.max(0, particle.flash - deltaSeconds * (2.4 + activity * 1.4));
-      particle.y -= particle.baseSpeed * speedMultiplier * deltaSeconds;
-
-      const visibilityAlpha = getTriangleVisibilityAlpha(particle, visualTop);
-
-      if (particle.y + particle.size * 0.5 < visualTop - particle.size * TRIANGLE_EDGE_FADE_SIZE_FACTOR) {
-        Object.assign(particle, createTriangleParticle(settings, values.length));
-        triangleParticlesNeedSort = true;
-        continue;
-      }
-
-      drawTriangleParticle(context, particle, palette, settings, bandValue, rhythm.pulse, borderWidth, visibilityAlpha);
-    }
-
-    drawTriangleBeatFlash(context, heightRatio, palette, settings.transparency, rhythm.pulse);
-    sortTriangleParticlesIfNeeded();
-  }
-
-  function drawTriangleParticle(
-    context: CanvasRenderingContext2D,
-    particle: TriangleParticle,
-    palette: VisualizerPalette,
-    settings: VisualizerSettings,
-    bandValue: number,
-    pulse: number,
-    borderWidth: number,
-    visibilityAlpha: number
-  ) {
-    if (visibilityAlpha <= 0) {
-      return;
-    }
-
-    const baseAlpha = settings.transparency;
-    const flash = Math.max(particle.flash, pulse * 0.62);
-    const size = particle.size;
-    const fillColor = particle.depth > 1.08 ? palette.mid : palette.low;
-    const strokeColor = flash > 0.28 ? palette.high : palette.mid;
-    const x = particle.x;
-    const y = particle.y;
-
-    context.beginPath();
-    context.moveTo(x, y - size);
-    context.lineTo(x + size * TRIANGLE_SIDE_X, y + size * 0.5);
-    context.lineTo(x - size * TRIANGLE_SIDE_X, y + size * 0.5);
-    context.closePath();
-    context.globalAlpha = Math.min(
-      0.94,
-      baseAlpha * visibilityAlpha * (particle.alpha * (0.72 + bandValue * 0.52) + flash * 0.32)
-    );
-    context.fillStyle = fillColor;
-    context.fill();
-
-    if (borderWidth > 0) {
-      context.globalAlpha = Math.min(1, baseAlpha * visibilityAlpha * (0.72 + bandValue * 0.36 + flash * 0.72));
-      context.strokeStyle = strokeColor;
-      context.lineJoin = 'round';
-      context.lineWidth = borderWidth;
-      context.shadowColor = flash > 0.18 ? palette.glow : 'transparent';
-      context.shadowBlur = flash > 0.18 ? size * 0.28 : 0;
-      context.stroke();
-      context.shadowBlur = 0;
-    }
-  }
-
-  function drawTriangleBeatFlash(
-    context: CanvasRenderingContext2D,
-    heightRatio: number,
-    palette: VisualizerPalette,
-    baseAlpha: number,
-    pulse: number
-  ) {
-    if (pulse <= 0.02) {
-      return;
-    }
-
-    const visualTop = height * (1 - heightRatio);
-    const gradient = context.createLinearGradient(0, visualTop, 0, height);
-    gradient.addColorStop(0, palette.high);
-    gradient.addColorStop(0.52, palette.mid);
-    gradient.addColorStop(1, palette.low);
-
-    context.globalAlpha = Math.min(0.32, baseAlpha * pulse * 0.62);
-    context.fillStyle = gradient;
-    context.fillRect(0, visualTop, width, height - visualTop);
-  }
-
   onMount(() => {
     const unsubscribeSource = visualizerService.source.subscribe((nextSource) => {
       analyser = nextSource?.analyser ?? null;
@@ -803,7 +452,7 @@
       unsubscribeSettings();
       window.removeEventListener('resize', resizeCanvas);
       resizeObserver?.disconnect();
-      triangleReferenceObserver?.disconnect();
+      triangleRenderer.disconnect();
       paletteMutationObserver?.disconnect();
       if (frame !== null) {
         cancelAnimationFrame(frame);

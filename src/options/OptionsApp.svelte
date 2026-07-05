@@ -39,6 +39,8 @@
   import { REPLAY_GAIN_MODE_OPTIONS, playbackSettings } from '$lib/stores/playback-settings';
   import { formatDisplayVersion } from '$lib/utils/version';
   import {
+    MAX_VISUALIZER_FRAME_RATE_LIMIT,
+    MIN_VISUALIZER_FRAME_RATE_LIMIT,
     VISUALIZER_COLOR_SOURCE_OPTIONS,
     VISUALIZER_STYLE_OPTIONS,
     visualizerSettings
@@ -401,6 +403,12 @@
   function handleVisualizerOpacityChange(event: Event) {
     visualizerSettings.update({
       transparency: (event.currentTarget as HTMLInputElement).valueAsNumber / 100
+    });
+  }
+
+  function handleVisualizerFrameRateLimitChange(event: Event) {
+    visualizerSettings.update({
+      frameRateLimit: (event.currentTarget as HTMLInputElement).valueAsNumber
     });
   }
 
@@ -1146,6 +1154,26 @@
                 </div>
                 <p class="field-hint">
                   Sets how strongly the analyzer appears behind text, controls, and artwork.
+                </p>
+              </label>
+
+              <label class="field">
+                <div class="field-copy">
+                  <span class="field-title">Frame cap</span>
+                </div>
+                <div class="field-control">
+                  <input
+                    type="range"
+                    min={MIN_VISUALIZER_FRAME_RATE_LIMIT}
+                    max={MAX_VISUALIZER_FRAME_RATE_LIMIT}
+                    step="1"
+                    value={$visualizerSettings.frameRateLimit}
+                    on:input={handleVisualizerFrameRateLimitChange}
+                  />
+                  <span class="field-output">{Math.round($visualizerSettings.frameRateLimit)} fps</span>
+                </div>
+                <p class="field-hint">
+                  Limits how often every visualizer style redraws, from battery-friendlier motion to high-refresh displays.
                 </p>
               </label>
 
