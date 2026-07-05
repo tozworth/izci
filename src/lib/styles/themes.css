@@ -9,7 +9,6 @@
   color-scheme: dark;
   font-family: var(--app-font-family);
   --bg-base: #1d2021;
-  --bg: #282828;
   --menu-bar-bg: #1c1d1e;
   --window-topbar-bg: #1c1d1e;
   --window-topbar-text: #ebdbb2;
@@ -18,9 +17,7 @@
   --window-topbar-hover-surface: rgba(235, 219, 178, 0.08);
   --window-topbar-hairline: rgba(255, 255, 255, 0.03);
   --bg-elevated: rgba(50, 48, 47, 0.94);
-  --bg-strong: #3c3836;
   --bg-soft: #32302f;
-  --bg-popover: rgba(40, 40, 40, 0.985);
   --menu-popover-bg: rgba(40, 40, 40, 0.985);
   --menu-popover-text: #ebdbb2;
   --menu-popover-muted: #bdae93;
@@ -38,16 +35,11 @@
   --muted-strong: #d5c4a1;
   --accent: #d79921;
   --accent-strong: #fabd2f;
-  --accent-soft: rgba(215, 153, 33, 0.16);
-  --accent-faint: rgba(215, 153, 33, 0.12);
   --accent-strong-soft: rgba(250, 189, 47, 0.08);
   --accent-strong-faint: rgba(250, 189, 47, 0.12);
-  --accent-strong-hover: rgba(250, 189, 47, 0.18);
-  --accent-strong-border: rgba(250, 189, 47, 0.26);
   --accent-strong-border-hover: rgba(250, 189, 47, 0.42);
   --accent-focus-border: rgba(250, 189, 47, 0.34);
   --accent-dashed-border: rgba(215, 153, 33, 0.24);
-  --success-soft: rgba(152, 151, 26, 0.16);
   --visualizer-high: rgba(251, 241, 199, 0.94);
   --visualizer-mid: rgba(250, 189, 47, 0.68);
   --visualizer-low: rgba(184, 187, 38, 0.24);
@@ -66,7 +58,6 @@
   --hover-surface: rgba(235, 219, 178, 0.08);
   --hover-subtle: rgba(235, 219, 178, 0.04);
   --hover-control: rgba(235, 219, 178, 0.06);
-  --hover-ghost: rgba(235, 219, 178, 0.02);
   --tree-hover: rgba(146, 131, 116, 0.16);
   --selection-bg: rgba(215, 153, 33, 0.12);
   --selection-strong: rgba(215, 153, 33, 0.2);
@@ -87,11 +78,6 @@
     rgba(28, 29, 30, 0.22);
   --playlist-header-shadow-gradient: linear-gradient(180deg, rgba(26, 27, 28, 0.28), rgba(26, 27, 28, 0));
   --player-bar-fade: linear-gradient(180deg, rgba(26, 27, 28, 0), rgba(26, 27, 28, 0.28));
-  --resizer-line-gradient:
-    linear-gradient(180deg, transparent 0%, rgba(168, 153, 132, 0.3) 14%, rgba(168, 153, 132, 0.3) 86%, transparent 100%);
-  --resizer-line-gradient-active:
-    linear-gradient(180deg, transparent 0%, rgba(250, 189, 47, 0.6) 14%, rgba(250, 189, 47, 0.6) 86%, transparent 100%);
-  --resizer-line-glow: rgba(250, 189, 47, 0.08);
   --dropzone-background: linear-gradient(180deg, rgba(235, 219, 178, 0.02), transparent 18%);
 }
 
@@ -101,7 +87,6 @@
 
 :root[data-theme='dracula'] {
   --bg-base: #171922;
-  --bg: #282a36;
   --menu-bar-bg: #1f2029;
   --window-topbar-bg: #1f2029;
   --window-topbar-text: #f8f8f2;
@@ -110,9 +95,7 @@
   --window-topbar-hover-surface: rgba(248, 248, 242, 0.08);
   --window-topbar-hairline: rgba(255, 255, 255, 0.04);
   --bg-elevated: rgba(54, 57, 73, 0.94);
-  --bg-strong: #44475a;
   --bg-soft: #343746;
-  --bg-popover: rgba(40, 42, 54, 0.985);
   --menu-popover-bg: rgba(40, 42, 54, 0.985);
   --menu-popover-text: #f8f8f2;
   --menu-popover-muted: #b7bdd6;
@@ -130,16 +113,11 @@
   --muted-strong: #d8dcf0;
   --accent: #bd93f9;
   --accent-strong: #ff79c6;
-  --accent-soft: rgba(189, 147, 249, 0.16);
-  --accent-faint: rgba(189, 147, 249, 0.12);
   --accent-strong-soft: rgba(255, 121, 198, 0.08);
   --accent-strong-faint: rgba(255, 121, 198, 0.12);
-  --accent-strong-hover: rgba(255, 121, 198, 0.2);
-  --accent-strong-border: rgba(255, 121, 198, 0.28);
   --accent-strong-border-hover: rgba(255, 121, 198, 0.44);
   --accent-focus-border: rgba(255, 121, 198, 0.34);
   --accent-dashed-border: rgba(189, 147, 249, 0.24);
-  --success-soft: rgba(80, 250, 123, 0.16);
   --visualizer-high: rgba(255, 246, 210, 0.95);
   --visualizer-mid: rgba(120, 205, 255, 0.68);
   --visualizer-low: rgba(255, 121, 198, 0.22);
@@ -158,7 +136,6 @@
   --hover-surface: rgba(248, 248, 242, 0.08);
   --hover-subtle: rgba(248, 248, 242, 0.05);
   --hover-control: rgba(248, 248, 242, 0.07);
-  --hover-ghost: rgba(248, 248, 242, 0.025);
   --tree-hover: rgba(98, 114, 164, 0.24);
   --selection-bg: rgba(189, 147, 249, 0.14);
   --selection-strong: rgba(189, 147, 249, 0.22);
@@ -179,10 +156,5 @@
     rgba(31, 32, 41, 0.24);
   --playlist-header-shadow-gradient: linear-gradient(180deg, rgba(15, 16, 22, 0.3), rgba(15, 16, 22, 0));
   --player-bar-fade: linear-gradient(180deg, rgba(15, 16, 22, 0), rgba(15, 16, 22, 0.3));
-  --resizer-line-gradient:
-    linear-gradient(180deg, transparent 0%, rgba(98, 114, 164, 0.34) 14%, rgba(98, 114, 164, 0.34) 86%, transparent 100%);
-  --resizer-line-gradient-active:
-    linear-gradient(180deg, transparent 0%, rgba(255, 121, 198, 0.62) 14%, rgba(255, 121, 198, 0.62) 86%, transparent 100%);
-  --resizer-line-glow: rgba(255, 121, 198, 0.1);
   --dropzone-background: linear-gradient(180deg, rgba(248, 248, 242, 0.025), transparent 18%);
 }

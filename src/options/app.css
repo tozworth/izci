@@ -353,51 +353,6 @@ code {
   line-height: 1.45;
 }
 
-.section-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 14px;
-}
-
-.setting-card {
-  padding: 12px;
-  border-radius: 10px;
-  background: var(--bg-card);
-  border: 1px solid var(--border-faint);
-}
-
-.setting-card h3 {
-  margin: 0;
-  font-size: 0.96rem;
-}
-
-.setting-card p {
-  margin: 0.45rem 0 0;
-  color: var(--muted);
-  line-height: 1.45;
-  font-size: 0.88rem;
-}
-
-.setting-card strong {
-  color: var(--text-strong);
-}
-
-.meta-list {
-  display: grid;
-  grid-template-columns: max-content 1fr;
-  gap: 4px 12px;
-  margin: 10px 0 0;
-  font-size: 0.92rem;
-}
-
-.meta-label {
-  color: var(--muted);
-}
-
-.meta-value {
-  color: var(--text);
-}
-
 .field-grid {
   display: flex;
   flex-direction: column;
