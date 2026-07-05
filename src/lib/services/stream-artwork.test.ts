@@ -28,6 +28,21 @@ function uint32LE(value: number): Uint8Array {
   return bytes;
 }
 
+function uint32BE(value: number): Uint8Array {
+  const bytes = new Uint8Array(4);
+  new DataView(bytes.buffer).setUint32(0, value);
+  return bytes;
+}
+
+function synchsafeUint32(value: number): Uint8Array {
+  return new Uint8Array([
+    (value >> 21) & 0x7f,
+    (value >> 14) & 0x7f,
+    (value >> 7) & 0x7f,
+    value & 0x7f
+  ]);
+}
+
 function vorbisCommentPacket(comments: string[]): Uint8Array {
   const vendor = textEncoder.encode('izci-test');
   const encodedComments = comments.map((comment) => textEncoder.encode(comment));
@@ -68,6 +83,30 @@ function opusFile(comments: string[]): File {
   });
 }
 
+function oggVorbisFile(comments: string[]): File {
+  const vorbisHead = concatBytes(new Uint8Array([0x01]), textEncoder.encode('vorbis'));
+  const vorbisComments = concatBytes(new Uint8Array([0x03]), textEncoder.encode('vorbis'), vorbisCommentPacket(comments));
+
+  return new File([toArrayBuffer(oggPage([vorbisHead, vorbisComments]))], 'Tagged.ogg', {
+    type: 'audio/ogg'
+  });
+}
+
+function id3UserTextFrame(description: string, value: string): Uint8Array {
+  const frameData = concatBytes(new Uint8Array([3]), textEncoder.encode(`${description}\u0000${value}`));
+
+  return concatBytes(textEncoder.encode('TXXX'), uint32BE(frameData.byteLength), new Uint8Array([0, 0]), frameData);
+}
+
+function mp3File(frames: Uint8Array[]): File {
+  const tagData = concatBytes(...frames);
+  const header = concatBytes(textEncoder.encode('ID3'), new Uint8Array([3, 0, 0]), synchsafeUint32(tagData.byteLength));
+
+  return new File([toArrayBuffer(concatBytes(header, tagData, new Uint8Array([0xff, 0xfb, 0x90, 0x64])))], 'Tagged.mp3', {
+    type: 'audio/mpeg'
+  });
+}
+
 function item(overrides: Partial<PlaylistItem>): PlaylistItem {
   return {
     id: 'track-id',
@@ -98,7 +137,11 @@ describe('stream artwork metadata helpers', () => {
           'DATE=Recorded 2024-05-01',
           'TRACKNUMBER=3/9',
           'DISCNUMBER=1',
-          'COMPOSER=Module Writer'
+          'COMPOSER=Module Writer',
+          'REPLAYGAIN_TRACK_GAIN=-7.50 dB',
+          'REPLAYGAIN_TRACK_PEAK=0.960000',
+          'REPLAYGAIN_ALBUM_GAIN=-6.25 dB',
+          'REPLAYGAIN_ALBUM_PEAK=0.980000'
         ])
       })
     );
@@ -113,6 +156,12 @@ describe('stream artwork metadata helpers', () => {
       trackNumber: '3/9',
       discNumber: '1',
       composer: 'Module Writer',
+      replayGain: {
+        trackGainDb: -7.5,
+        trackPeak: 0.96,
+        albumGainDb: -6.25,
+        albumPeak: 0.98
+      },
       embeddedMetadataLoaded: true
     });
   });
@@ -122,7 +171,7 @@ describe('stream artwork metadata helpers', () => {
       item({
         name: 'Tagged.opus',
         extension: 'opus',
-        file: opusFile(['TITLE=Opus Tune', 'ARTIST=Local Artist', 'YEAR=1998'])
+        file: opusFile(['TITLE=Opus Tune', 'ARTIST=Local Artist', 'YEAR=1998', 'R128_TRACK_GAIN=-768'])
       })
     );
 
@@ -130,12 +179,54 @@ describe('stream artwork metadata helpers', () => {
       title: 'Opus Tune',
       artist: 'Local Artist',
       year: '1998',
+      replayGain: {
+        trackGainDb: -3
+      },
+      embeddedMetadataLoaded: true
+    });
+  });
+
+  it('loads ReplayGain metadata from Ogg Vorbis comments', async () => {
+    const metadata = await loadTrackMetadata(
+      item({
+        name: 'Tagged.ogg',
+        extension: 'ogg',
+        file: oggVorbisFile(['REPLAYGAIN_TRACK_GAIN=+1.50 dB', 'REPLAYGAIN_ALBUM_GAIN=-2.25 dB'])
+      })
+    );
+
+    expect(metadata).toEqual({
+      replayGain: {
+        trackGainDb: 1.5,
+        albumGainDb: -2.25
+      },
+      embeddedMetadataLoaded: true
+    });
+  });
+
+  it('loads ReplayGain metadata from MP3 ID3 user text frames', async () => {
+    const metadata = await loadTrackMetadata(
+      item({
+        name: 'Tagged.mp3',
+        extension: 'mp3',
+        file: mp3File([
+          id3UserTextFrame('replaygain_track_gain', '-5.25 dB'),
+          id3UserTextFrame('replaygain_track_peak', '0.910000')
+        ])
+      })
+    );
+
+    expect(metadata).toEqual({
+      replayGain: {
+        trackGainDb: -5.25,
+        trackPeak: 0.91
+      },
       embeddedMetadataLoaded: true
     });
   });
 
   it('returns null for formats without embedded stream metadata support', async () => {
-    await expect(loadTrackMetadata(item({ extension: 'mp3', file: new File([], 'Track.mp3') }))).resolves.toBeNull();
+    await expect(loadTrackMetadata(item({ extension: 'wav', file: new File([], 'Track.wav') }))).resolves.toBeNull();
     await expect(loadTrackMetadata(item({ extension: 'xm', kind: 'module', file: new File([], 'Track.xm') }))).resolves.toBeNull();
   });
 });

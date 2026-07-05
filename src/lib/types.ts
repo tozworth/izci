@@ -19,6 +19,14 @@ export type WorkspaceCollection = 'playlist' | 'library';
 export type WorkspaceTab = WorkspaceCollection | 'details' | 'lyrics';
 export type WorkspacePanelId = 'playlist' | 'library' | 'details';
 export type WorkspaceResizeHandle = 'playlist-library' | 'library-details';
+export type ReplayGainMode = 'off' | 'track' | 'album';
+
+export interface ReplayGainMetadata {
+  trackGainDb?: number;
+  trackPeak?: number;
+  albumGainDb?: number;
+  albumPeak?: number;
+}
 
 export interface TrackMetadata {
   title?: string;
@@ -45,6 +53,7 @@ export interface TrackMetadata {
   rows?: number;
   sampleRate?: number;
   playCount?: number;
+  replayGain?: ReplayGainMetadata;
 }
 
 export interface ModulePlaybackSettings {
@@ -90,6 +99,7 @@ export interface AppearanceSettings {
 
 export interface PlaybackSettings {
   logarithmicVolume: boolean;
+  replayGainMode: ReplayGainMode;
 }
 
 export interface VisualizerSettings {

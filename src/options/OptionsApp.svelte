@@ -29,7 +29,7 @@
     MODULE_INTERPOLATION_OPTIONS,
     modulePlaybackSettings
   } from '$lib/stores/module-playback-settings';
-  import { playbackSettings } from '$lib/stores/playback-settings';
+  import { REPLAY_GAIN_MODE_OPTIONS, playbackSettings } from '$lib/stores/playback-settings';
   import { formatDisplayVersion } from '$lib/utils/version';
   import {
     VISUALIZER_COLOR_SOURCE_OPTIONS,
@@ -41,6 +41,7 @@
     BackdropZoneId,
     ColorTheme,
     LyricsDisplayStyle,
+    ReplayGainMode,
     VisualizerColorSource,
     VisualizerSettings,
     VisualizerStyle
@@ -333,6 +334,12 @@
   function handleLogarithmicVolumeToggle(event: Event) {
     playbackSettings.update({
       logarithmicVolume: (event.currentTarget as HTMLInputElement).checked
+    });
+  }
+
+  function handleReplayGainModeChange(event: Event) {
+    playbackSettings.update({
+      replayGainMode: (event.currentTarget as HTMLSelectElement).value as ReplayGainMode
     });
   }
 
@@ -967,6 +974,22 @@
                 </div>
                 <p class="field-hint">
                   Shapes the volume slider for gentler low-end changes.
+                </p>
+              </label>
+
+              <label class="field">
+                <div class="field-copy">
+                  <span class="field-title">ReplayGain</span>
+                </div>
+                <div class="field-control">
+                  <select value={$playbackSettings.replayGainMode} on:change={handleReplayGainModeChange}>
+                    {#each REPLAY_GAIN_MODE_OPTIONS as option}
+                      <option value={option.value}>{option.label}</option>
+                    {/each}
+                  </select>
+                </div>
+                <p class="field-hint">
+                  Applies streamed-file ReplayGain tags, preferring track or album gain when both are available.
                 </p>
               </label>
             </div>

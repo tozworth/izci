@@ -1,12 +1,25 @@
-import type { PlaybackSettings } from '$lib/types';
+import type { PlaybackSettings, ReplayGainMode } from '$lib/types';
 import { createPersistentStore } from './persistent-store';
 
 export const PLAYBACK_SETTINGS_STORAGE_KEY = 'izci.playback-settings';
 export const PLAYBACK_SETTINGS_CHANNEL = 'izci-playback-settings';
 
+export const REPLAY_GAIN_MODE_OPTIONS: Array<{ value: ReplayGainMode; label: string }> = [
+  { value: 'track', label: 'Track' },
+  { value: 'album', label: 'Album' },
+  { value: 'off', label: 'Off' }
+];
+
 export const DEFAULT_PLAYBACK_SETTINGS: PlaybackSettings = {
-  logarithmicVolume: true
+  logarithmicVolume: true,
+  replayGainMode: 'track'
 };
+
+function normalizeReplayGainMode(value: unknown): ReplayGainMode {
+  return value === 'off' || value === 'track' || value === 'album'
+    ? value
+    : DEFAULT_PLAYBACK_SETTINGS.replayGainMode;
+}
 
 function normalizeSettings(value: unknown): PlaybackSettings {
   const source = value && typeof value === 'object' ? (value as Partial<PlaybackSettings>) : {};
@@ -15,7 +28,8 @@ function normalizeSettings(value: unknown): PlaybackSettings {
     logarithmicVolume:
       typeof source.logarithmicVolume === 'boolean'
         ? source.logarithmicVolume
-        : DEFAULT_PLAYBACK_SETTINGS.logarithmicVolume
+        : DEFAULT_PLAYBACK_SETTINGS.logarithmicVolume,
+    replayGainMode: normalizeReplayGainMode(source.replayGainMode)
   };
 }
 

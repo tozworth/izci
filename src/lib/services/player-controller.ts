@@ -84,8 +84,14 @@ function createPlayerController() {
 
   const applyBackendVolume = () => {
     const effectiveVolume = muted ? 0 : volume;
+    const streamReplayGain = activeTrack?.kind === 'stream' ? activeTrack.metadata?.replayGain : undefined;
 
-    services.stream.setVolume(effectiveVolume, playbackConfig.logarithmicVolume);
+    services.stream.setVolume(
+      effectiveVolume,
+      playbackConfig.logarithmicVolume,
+      streamReplayGain,
+      playbackConfig.replayGainMode
+    );
     services.module.setVolume(effectiveVolume, playbackConfig.logarithmicVolume);
   };
 
@@ -107,6 +113,7 @@ function createPlayerController() {
 
       const nextTrack = applyMetadataInference(track, metadata);
       activeTrack = nextTrack;
+      applyBackendVolume();
       return nextTrack;
     });
   };
@@ -257,6 +264,7 @@ function createPlayerController() {
       const nextTrack = applyMetadataInference(activeTrack, metadata);
       activeTrack = nextTrack;
       currentTrack.set(nextTrack);
+      applyBackendVolume();
     },
     destroy() {
       unsubscribeModuleSettings();

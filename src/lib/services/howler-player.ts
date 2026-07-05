@@ -1,6 +1,6 @@
 import { Howl } from 'howler';
-import type { PlaybackSnapshot, PlaylistItem, TrackMetadata } from '$lib/types';
-import { sliderVolumeToGain } from '$lib/services/volume';
+import type { PlaybackSnapshot, PlaylistItem, ReplayGainMetadata, ReplayGainMode, TrackMetadata } from '$lib/types';
+import { applyReplayGain, sliderVolumeToGain } from '$lib/services/volume';
 import { visualizerService } from '$lib/services/visualizer';
 
 type SnapshotHandler = (snapshot: Partial<PlaybackSnapshot>) => void;
@@ -25,6 +25,8 @@ export class HowlerPlayerService {
   #tickFrame: number | null = null;
   #shouldTrackProgress = false;
   #useLogarithmicVolume = true;
+  #replayGainMode: ReplayGainMode = 'track';
+  #replayGain: ReplayGainMetadata | undefined;
   #lastPublishedCurrentTime = -1;
   #lastPublishedDuration = -1;
   #onSnapshot: SnapshotHandler;
@@ -45,6 +47,7 @@ export class HowlerPlayerService {
     this.destroy();
     const loadToken = ++this.#loadToken;
     this.#resetPublishedProgress();
+    this.#replayGain = track.metadata?.replayGain;
     this.#autoPlayOnLoad = options.autoPlay === true;
     this.#onSnapshot({
       backend: 'stream',
@@ -175,15 +178,23 @@ export class HowlerPlayerService {
     }
   }
 
-  setVolume(volume: number, logarithmicVolume: boolean = this.#useLogarithmicVolume): void {
+  setVolume(
+    volume: number,
+    logarithmicVolume: boolean = this.#useLogarithmicVolume,
+    replayGain: ReplayGainMetadata | undefined = this.#replayGain,
+    replayGainMode: ReplayGainMode = this.#replayGainMode
+  ): void {
     this.#useLogarithmicVolume = logarithmicVolume;
-    this.#howl?.volume(sliderVolumeToGain(volume, this.#useLogarithmicVolume));
+    this.#replayGain = replayGain;
+    this.#replayGainMode = replayGainMode;
+    this.#howl?.volume(applyReplayGain(sliderVolumeToGain(volume, this.#useLogarithmicVolume), replayGain, replayGainMode));
   }
 
   destroy(): void {
     this.#loadToken += 1;
     this.#autoPlayOnLoad = false;
     this.#shouldTrackProgress = false;
+    this.#replayGain = undefined;
     this.#resetPublishedProgress();
     this.#stopTicking();
     this.#howl?.unload();

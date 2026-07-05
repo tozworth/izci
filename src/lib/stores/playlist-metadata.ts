@@ -36,7 +36,10 @@ function buildInitialMetadata(item: PlaylistItem): TrackMetadata | undefined {
 }
 
 function shouldReadEmbeddedStreamMetadata(item: PlaylistItem): boolean {
-  if (item.kind !== 'stream' || (item.extension !== 'flac' && item.extension !== 'opus')) {
+  if (
+    item.kind !== 'stream' ||
+    (item.extension !== 'flac' && item.extension !== 'opus' && item.extension !== 'ogg' && item.extension !== 'mp3')
+  ) {
     return false;
   }
 
