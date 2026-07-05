@@ -5,7 +5,10 @@
   import PlayerControls from '$lib/components/PlayerControls.svelte';
   import PlaylistPanel from '$lib/components/PlaylistPanel.svelte';
   import TrackDetailsPanel from '$lib/components/TrackDetailsPanel.svelte';
-  import { NOW_PLAYING_PANEL_AUTO_HIDE_NEVER_SECONDS } from '$lib/stores/appearance-settings';
+  import {
+    hasArtworkBackdrop,
+    NOW_PLAYING_PANEL_AUTO_HIDE_NEVER_SECONDS
+  } from '$lib/stores/appearance-settings';
   import type { LoadedStreamArtwork } from '$lib/services/stream-artwork';
   import type {
     BackdropZoneEffect,
@@ -41,6 +44,7 @@
   export let lyricsTheaterSmoothScroll = true;
   export let lyricsResumeAutoScrollToken = 0;
   export let panelAutoHideDelaySeconds = 5;
+  export let useArtworkPlayerColors = true;
 
   const dispatch = createEventDispatcher<{
     close: void;
@@ -105,6 +109,8 @@
   });
 
   $: queueTabs = resolveQueueTabs(workspaceTabs);
+  $: artworkColorSurfaceBright =
+    hasArtworkBackdrop(backdropEffect) && Boolean(backdropArtwork) && artworkBackgroundBright;
   $: if (panelAutoHideDelaySeconds !== lastPanelAutoHideDelaySeconds) {
     lastPanelAutoHideDelaySeconds = panelAutoHideDelaySeconds;
     revealPanelChrome();
@@ -144,6 +150,8 @@
           {artwork}
           backdropEffect="none"
           {artworkBackgroundBright}
+          useArtworkColorsOverride={useArtworkPlayerColors}
+          {artworkColorSurfaceBright}
           on:toggle
           on:previous
           on:next

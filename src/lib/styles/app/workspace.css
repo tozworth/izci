@@ -457,7 +457,15 @@
   background: transparent;
   transition:
     color 180ms ease,
-    background-color 180ms ease;
+    background-color 180ms ease,
+    opacity 360ms ease,
+    transform 360ms ease;
+}
+
+.now-playing-workspace.is-cursor-hidden .now-playing-close {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(-0.25rem);
 }
 
 .now-playing-close:hover,

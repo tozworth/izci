@@ -182,6 +182,12 @@
     });
   }
 
+  function handleNowPlayingArtworkPlayerColorsToggle(event: Event) {
+    appearanceSettings.update({
+      useNowPlayingArtworkPlayerColors: (event.currentTarget as HTMLInputElement).checked
+    });
+  }
+
   function handleCompactColumnLayoutToggle(event: Event) {
     appearanceSettings.update({
       keepLibraryColumnsVisibleInNarrowLayout: (event.currentTarget as HTMLInputElement).checked
@@ -372,7 +378,7 @@
       return;
     }
 
-    if (activeView === 'lyrics') {
+    if (activeView === 'now-playing' || activeView === 'lyrics') {
       appearanceSettings.reset();
       return;
     }
@@ -683,7 +689,32 @@
 
               <label class="field checkbox-field">
                 <div class="field-copy">
-                  <span class="field-title">Open Now Playing when maximized</span>
+                  <span class="field-title">Show track title in window title</span>
+                </div>
+                <div class="field-control checkbox-control">
+                  <input
+                    type="checkbox"
+                    checked={$appearanceSettings.showTrackTitleInWindowTitle}
+                    on:change={handleWindowTitleToggle}
+                  />
+                </div>
+                <p class="field-hint">
+                  Shows the current track title in the main app window title. Turn it off to always show only "izci".
+                </p>
+              </label>
+            </div>
+          </div>
+        </article>
+      {/if}
+
+      {#if activeView === 'now-playing'}
+        <article class="view">
+          <div class="section">
+            <h2>Now Playing</h2>
+            <div class="field-grid">
+              <label class="field checkbox-field">
+                <div class="field-copy">
+                  <span class="field-title">Open when maximized</span>
                 </div>
                 <div class="field-control checkbox-control">
                   <input
@@ -699,7 +730,7 @@
 
               <label class="field">
                 <div class="field-copy">
-                  <span class="field-title">Hide Now Playing side chrome after</span>
+                  <span class="field-title">Hide side chrome after</span>
                 </div>
                 <div class="field-control">
                   <input
@@ -713,23 +744,55 @@
                   <span class="field-output">{nowPlayingPanelAutoHideLabel}</span>
                 </div>
                 <p class="field-hint">
-                  Fades the Now Playing side tabs and pane fill after mouse inactivity.
+                  Fades the side tabs, pane fill, and close button after mouse inactivity.
                 </p>
               </label>
 
               <label class="field checkbox-field">
                 <div class="field-copy">
-                  <span class="field-title">Show track title in window title</span>
+                  <span class="field-title">Always use artwork colors</span>
                 </div>
                 <div class="field-control checkbox-control">
                   <input
                     type="checkbox"
-                    checked={$appearanceSettings.showTrackTitleInWindowTitle}
-                    on:change={handleWindowTitleToggle}
+                    checked={$appearanceSettings.useNowPlayingArtworkPlayerColors}
+                    on:change={handleNowPlayingArtworkPlayerColorsToggle}
                   />
                 </div>
                 <p class="field-hint">
-                  Shows the current track title in the main app window title. Turn it off to always show only "izci".
+                  Tints the focused player controls from the current artwork, independent of the player bar setting.
+                </p>
+              </label>
+
+              <label class="field checkbox-field">
+                <div class="field-copy">
+                  <span class="field-title">Auto switch to Theater</span>
+                </div>
+                <div class="field-control checkbox-control">
+                  <input
+                    type="checkbox"
+                    checked={$appearanceSettings.lyrics.autoTheaterInNowPlaying}
+                    on:change={handleLyricsAutoTheaterToggle}
+                  />
+                </div>
+                <p class="field-hint">
+                  Uses the large focused lyrics layout while Now Playing is active.
+                </p>
+              </label>
+
+              <label class="field checkbox-field">
+                <div class="field-copy">
+                  <span class="field-title">Auto focus Lyrics tab</span>
+                </div>
+                <div class="field-control checkbox-control">
+                  <input
+                    type="checkbox"
+                    checked={$appearanceSettings.lyrics.autoFocusInNowPlaying}
+                    on:change={handleLyricsAutoFocusToggle}
+                  />
+                </div>
+                <p class="field-hint">
+                  Opens Now Playing directly to the lyrics view.
                 </p>
               </label>
             </div>
@@ -881,37 +944,6 @@
                 </p>
               </label>
 
-              <label class="field checkbox-field">
-                <div class="field-copy">
-                  <span class="field-title">Auto switch to Theater in Now Playing</span>
-                </div>
-                <div class="field-control checkbox-control">
-                  <input
-                    type="checkbox"
-                    checked={$appearanceSettings.lyrics.autoTheaterInNowPlaying}
-                    on:change={handleLyricsAutoTheaterToggle}
-                  />
-                </div>
-                <p class="field-hint">
-                  Uses the large focused lyrics layout while Now Playing is active.
-                </p>
-              </label>
-
-              <label class="field checkbox-field">
-                <div class="field-copy">
-                  <span class="field-title">Auto focus Lyrics tab in Now Playing</span>
-                </div>
-                <div class="field-control checkbox-control">
-                  <input
-                    type="checkbox"
-                    checked={$appearanceSettings.lyrics.autoFocusInNowPlaying}
-                    on:change={handleLyricsAutoFocusToggle}
-                  />
-                </div>
-                <p class="field-hint">
-                  Opens Now Playing directly to the lyrics view.
-                </p>
-              </label>
             </div>
           </div>
         </article>

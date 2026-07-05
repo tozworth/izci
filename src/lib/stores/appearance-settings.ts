@@ -73,6 +73,7 @@ export const DEFAULT_LYRICS_SETTINGS: LyricsSettings = {
 export const DEFAULT_APPEARANCE_SETTINGS: AppearanceSettings = {
   colorTheme: DEFAULT_COLOR_THEME,
   useArtworkPlayerColors: false,
+  useNowPlayingArtworkPlayerColors: true,
   keepLibraryColumnsVisibleInNarrowLayout: false,
   useSystemFont: false,
   backdropZones: DEFAULT_BACKDROP_ZONES,
@@ -251,6 +252,7 @@ function normalizeSettings(value: unknown): AppearanceSettings {
   return {
     colorTheme: normalizeColorTheme(source.colorTheme),
     useArtworkPlayerColors: source.useArtworkPlayerColors === true,
+    useNowPlayingArtworkPlayerColors: source.useNowPlayingArtworkPlayerColors !== false,
     keepLibraryColumnsVisibleInNarrowLayout: source.keepLibraryColumnsVisibleInNarrowLayout === true,
     useSystemFont: source.useSystemFont === true,
     backdropZones: normalizeBackdropZones(source),

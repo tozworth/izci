@@ -77,6 +77,7 @@ export interface LyricsSettings {
 export interface AppearanceSettings {
   colorTheme: ColorTheme;
   useArtworkPlayerColors: boolean;
+  useNowPlayingArtworkPlayerColors: boolean;
   keepLibraryColumnsVisibleInNarrowLayout: boolean;
   useSystemFont: boolean;
   backdropZones: BackdropZoneSettings;

@@ -10,22 +10,26 @@ export interface VisualizerPalette {
   blocks: string;
 }
 
-export interface PlayerArtworkPalette {
-  background: string;
+export interface PlayerArtworkColorSet {
   text: string;
   textStrong: string;
   muted: string;
+  rangeFill: string;
+  rangeTrack: string;
+  rangeBorder: string;
+  rangeThumb: string;
+}
+
+export interface PlayerArtworkPalette extends PlayerArtworkColorSet {
+  background: string;
   soft: string;
   popover: string;
   border: string;
   hover: string;
   separator: string;
   hairline: string;
-  rangeFill: string;
-  rangeTrack: string;
-  rangeBorder: string;
-  rangeThumb: string;
   visualizerBlendMode: string;
+  onLightBackground: PlayerArtworkColorSet;
 }
 
 export interface ArtworkPalette {
@@ -114,6 +118,7 @@ async function sampleArtworkPalette(url: string): Promise<ArtworkPalette> {
   const lightPoint = normalizeForText(lightest, 0.88);
   const accent = adjustRgb(primary, 1.18, 10);
   const accentTwo = adjustRgb(secondary, 1.04, 0);
+  const darkAccent = normalizeForText(primary, 0.24);
   const highlight = adjustRgb(primary, 1.22, 22);
   const visualizerMid = adjustRgb(primary, 1.02, 0);
   const visualizerLow = adjustRgb(secondary, 0.86, -8);
@@ -142,7 +147,16 @@ async function sampleArtworkPalette(url: string): Promise<ArtworkPalette> {
       rangeTrack: toRgba(darkPoint, 0.74),
       rangeBorder: toRgba(lightPoint, 0.34),
       rangeThumb: toRgb(adjustRgb(accent, 1.16, 24)),
-      visualizerBlendMode: 'screen'
+      visualizerBlendMode: 'screen',
+      onLightBackground: {
+        text: toRgba(darkPoint, 0.9),
+        textStrong: toRgb(darkPoint),
+        muted: toRgba(darkPoint, 0.68),
+        rangeFill: toRgba(darkAccent, 0.92),
+        rangeTrack: toRgba(darkPoint, 0.28),
+        rangeBorder: toRgba(darkPoint, 0.34),
+        rangeThumb: toRgb(adjustRgb(darkAccent, 1.08, -4))
+      }
     }
   };
 }

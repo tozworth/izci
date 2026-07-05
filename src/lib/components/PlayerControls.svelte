@@ -1,6 +1,10 @@
 <script lang="ts">
   import { createEventDispatcher, onMount } from 'svelte';
-  import { extractArtworkPalette, type PlayerArtworkPalette } from '$lib/services/artwork-palette';
+  import {
+    extractArtworkPalette,
+    type PlayerArtworkColorSet,
+    type PlayerArtworkPalette
+  } from '$lib/services/artwork-palette';
   import type { LoadedStreamArtwork } from '$lib/services/stream-artwork';
   import {
     appearanceSettings,
@@ -18,6 +22,8 @@
   export let artworkBackgroundBright = false;
   export let backdropEffect: BackdropZoneEffect = 'visualizer';
   export let presentation: 'bar' | 'now-playing' = 'bar';
+  export let useArtworkColorsOverride: boolean | null = null;
+  export let artworkColorSurfaceBright = false;
 
   const dispatch = createEventDispatcher<{
     toggle: void;
@@ -123,7 +129,7 @@
     }
   }
 
-  function toPlayerArtworkStyle(palette: PlayerArtworkPalette | null): string {
+  function toPlayerArtworkStyle(palette: PlayerArtworkColorSet | null): string {
     if (!palette) {
       return '';
     }
@@ -239,9 +245,13 @@
   $: artworkBackgroundActive = hasArtworkBackdrop(backdropEffect) && Boolean(artwork);
   $: visualizerBackdropActive = hasVisualizerBackdrop(backdropEffect);
   $: playerArtworkPaletteActive =
-    $appearanceSettings.useArtworkPlayerColors && playerArtworkPalette !== null;
+    (useArtworkColorsOverride ?? $appearanceSettings.useArtworkPlayerColors) &&
+    playerArtworkPalette !== null;
+  $: playerArtworkColors = (artworkColorSurfaceBright || (artworkBackgroundActive && artworkBackgroundBright))
+    ? playerArtworkPalette?.onLightBackground ?? null
+    : playerArtworkPalette;
   $: playerArtworkStyle = playerArtworkPaletteActive
-    ? toPlayerArtworkStyle(playerArtworkPalette)
+    ? toPlayerArtworkStyle(playerArtworkColors)
     : '';
   $: if (artwork?.url !== playerArtworkPaletteUrl) {
     void syncPlayerArtworkPalette(artwork?.url);

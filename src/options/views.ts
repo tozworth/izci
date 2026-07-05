@@ -1,5 +1,6 @@
 export type OptionsViewName =
   | 'appearance'
+  | 'now-playing'
   | 'lyrics'
   | 'playback'
   | 'visualizer'
@@ -26,6 +27,14 @@ export const OPTIONS_VIEW_GROUPS: OptionsViewDefinition[][] = [
       label: 'Appearance',
       icon: 'palette',
       parentLabel: '',
+      hasHints: true,
+      resettable: true
+    },
+    {
+      id: 'now-playing',
+      label: 'Now Playing',
+      icon: 'album',
+      parentLabel: 'Appearance',
       hasHints: true,
       resettable: true
     },
