@@ -7,6 +7,10 @@
     BACKDROP_EFFECT_OPTIONS,
     BACKDROP_ZONE_IDS,
     BACKDROP_ZONE_LABELS,
+    MAX_BACKDROP_ARTWORK_BLUR,
+    MAX_BACKDROP_ARTWORK_BRIGHTNESS,
+    MIN_BACKDROP_ARTWORK_BLUR,
+    MIN_BACKDROP_ARTWORK_BRIGHTNESS,
     LYRICS_FONT_SIZE_LIMITS,
     LYRICS_STYLE_OPTIONS,
     MAX_LYRICS_DOWNTIME_THRESHOLD_SECONDS,
@@ -14,6 +18,9 @@
     MIN_NOW_PLAYING_PANEL_AUTO_HIDE_SECONDS,
     NOW_PLAYING_PANEL_AUTO_HIDE_NEVER_SECONDS,
     appearanceSettings,
+    hasArtworkBackdrop,
+    normalizeBackdropZoneArtworkBlur,
+    normalizeBackdropZoneArtworkBrightness,
     normalizeLyricsDowntimeThresholdSeconds,
     normalizeLyricsFontSize,
     normalizeNowPlayingPanelAutoHideDelaySeconds
@@ -224,6 +231,36 @@
     });
   }
 
+  function handleBackdropArtworkBlurChange(event: Event, zone: BackdropZoneId) {
+    const settings = appearanceSettings.getSnapshot();
+
+    appearanceSettings.update({
+      backdropZoneArtwork: {
+        ...settings.backdropZoneArtwork,
+        [zone]: {
+          ...settings.backdropZoneArtwork[zone],
+          blur: normalizeBackdropZoneArtworkBlur((event.currentTarget as HTMLInputElement).valueAsNumber)
+        }
+      }
+    });
+  }
+
+  function handleBackdropArtworkBrightnessChange(event: Event, zone: BackdropZoneId) {
+    const settings = appearanceSettings.getSnapshot();
+
+    appearanceSettings.update({
+      backdropZoneArtwork: {
+        ...settings.backdropZoneArtwork,
+        [zone]: {
+          ...settings.backdropZoneArtwork[zone],
+          brightness: normalizeBackdropZoneArtworkBrightness(
+            (event.currentTarget as HTMLInputElement).valueAsNumber
+          )
+        }
+      }
+    });
+  }
+
   function handleWindowTitleToggle(event: Event) {
     appearanceSettings.update({
       showTrackTitleInWindowTitle: (event.currentTarget as HTMLInputElement).checked
@@ -385,7 +422,7 @@
       return;
     }
 
-    if (activeView === 'now-playing' || activeView === 'lyrics') {
+    if (activeView === 'backdrops' || activeView === 'now-playing' || activeView === 'lyrics') {
       appearanceSettings.reset();
       return;
     }
@@ -654,30 +691,6 @@
                 </p>
               </label>
 
-              <div class="field backdrop-zone-field">
-                <div class="field-copy">
-                  <span class="field-title">Background zones</span>
-                </div>
-                <div class="backdrop-zone-grid">
-                  {#each BACKDROP_ZONE_IDS as zone}
-                    <label class="backdrop-zone-row">
-                      <span>{BACKDROP_ZONE_LABELS[zone]}</span>
-                      <select
-                        value={$appearanceSettings.backdropZones[zone]}
-                        on:change={(event) => handleBackdropZoneChange(event, zone)}
-                      >
-                        {#each BACKDROP_EFFECT_OPTIONS as option}
-                          <option value={option.value}>{option.label}</option>
-                        {/each}
-                      </select>
-                    </label>
-                  {/each}
-                </div>
-                <p class="field-hint">
-                  Chooses whether each pane and the player bar render album artwork, the visualizer, both, or neither.
-                </p>
-              </div>
-
               <label class="field checkbox-field">
                 <div class="field-copy">
                   <span class="field-title">Keep columns visible in narrow library panels</span>
@@ -709,6 +722,68 @@
                   Shows the current track title in the main app window title. Turn it off to always show only "izci".
                 </p>
               </label>
+            </div>
+          </div>
+        </article>
+      {/if}
+
+      {#if activeView === 'backdrops'}
+        <article class="view">
+          <div class="section">
+            <h2>Backdrop Zones</h2>
+            <div class="field-grid">
+              {#each BACKDROP_ZONE_IDS as zone}
+                <div class="field backdrop-zone-field">
+                  <label class="backdrop-zone-effect-row">
+                    <div class="field-copy">
+                      <span class="field-title">{BACKDROP_ZONE_LABELS[zone]}</span>
+                    </div>
+                    <div class="field-control">
+                      <select
+                        value={$appearanceSettings.backdropZones[zone]}
+                        on:change={(event) => handleBackdropZoneChange(event, zone)}
+                      >
+                        {#each BACKDROP_EFFECT_OPTIONS as option}
+                          <option value={option.value}>{option.label}</option>
+                        {/each}
+                      </select>
+                    </div>
+                  </label>
+
+                  {#if hasArtworkBackdrop($appearanceSettings.backdropZones[zone])}
+                    <label class="backdrop-zone-slider">
+                      <span class="backdrop-zone-slider-label">Artwork blur strength</span>
+                      <div class="field-control">
+                        <input
+                          type="range"
+                          min={MIN_BACKDROP_ARTWORK_BLUR}
+                          max={MAX_BACKDROP_ARTWORK_BLUR}
+                          step="1"
+                          value={$appearanceSettings.backdropZoneArtwork[zone].blur}
+                          on:input={(event) => handleBackdropArtworkBlurChange(event, zone)}
+                        />
+                        <span class="field-output">{$appearanceSettings.backdropZoneArtwork[zone].blur}px</span>
+                      </div>
+                    </label>
+
+                    <label class="backdrop-zone-slider">
+                      <span class="backdrop-zone-slider-label">Artwork brightness</span>
+                      <div class="field-control">
+                        <input
+                          type="range"
+                          min={MIN_BACKDROP_ARTWORK_BRIGHTNESS}
+                          max={MAX_BACKDROP_ARTWORK_BRIGHTNESS}
+                          step="1"
+                          value={$appearanceSettings.backdropZoneArtwork[zone].brightness}
+                          aria-valuetext={`${$appearanceSettings.backdropZoneArtwork[zone].brightness}%`}
+                          on:input={(event) => handleBackdropArtworkBrightnessChange(event, zone)}
+                        />
+                        <span class="field-output">{$appearanceSettings.backdropZoneArtwork[zone].brightness}%</span>
+                      </div>
+                    </label>
+                  {/if}
+                </div>
+              {/each}
             </div>
           </div>
         </article>

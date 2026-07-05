@@ -9,11 +9,17 @@
   import {
     appearanceSettings,
     hasArtworkBackdrop,
-    hasVisualizerBackdrop
+    hasVisualizerBackdrop,
+    toBackdropZoneArtworkStyle
   } from '$lib/stores/appearance-settings';
   import type { Readable } from 'svelte/store';
   import { formatDuration, getTrackDisplaySubtitle, getTrackDisplayTitle } from '$lib/utils/files';
-  import type { BackdropZoneEffect, PlaybackSnapshot, PlaylistItem } from '$lib/types';
+  import type {
+    BackdropZoneArtworkSettings,
+    BackdropZoneEffect,
+    PlaybackSnapshot,
+    PlaylistItem
+  } from '$lib/types';
 
   export let snapshotStore: Readable<PlaybackSnapshot>;
   export let track: PlaylistItem | null = null;
@@ -21,6 +27,7 @@
   export let artwork: LoadedStreamArtwork | null = null;
   export let artworkBackgroundBright = false;
   export let backdropEffect: BackdropZoneEffect = 'visualizer';
+  export let backdropArtworkSettings: BackdropZoneArtworkSettings | null = null;
   export let presentation: 'bar' | 'now-playing' = 'bar';
   export let useArtworkColorsOverride: boolean | null = null;
   export let artworkColorSurfaceBright = false;
@@ -253,6 +260,10 @@
   $: playerArtworkStyle = playerArtworkPaletteActive
     ? toPlayerArtworkStyle(playerArtworkColors)
     : '';
+  $: backdropArtworkStyle = backdropArtworkSettings
+    ? toBackdropZoneArtworkStyle(backdropArtworkSettings)
+    : '';
+  $: rootStyle = [backdropArtworkStyle, playerArtworkStyle].filter(Boolean).join('; ');
   $: if (artwork?.url !== playerArtworkPaletteUrl) {
     void syncPlayerArtworkPalette(artwork?.url);
   }
@@ -281,7 +292,7 @@
   data-artwork-zone={artworkBackgroundActive ? 'true' : null}
   data-visualizer-zone={visualizerBackdropActive ? 'true' : null}
   data-backdrop-zone-id={presentation === 'bar' ? 'player' : null}
-  style={playerArtworkStyle}
+  style={rootStyle}
 >
   <div class="player-track-group">
     {#if displayTrack || presentation === 'now-playing'}

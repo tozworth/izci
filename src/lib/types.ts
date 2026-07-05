@@ -11,6 +11,11 @@ export type ColorTheme = 'gruvbox' | 'dracula';
 export type BackdropZoneId = 'playlist' | 'library' | 'details' | 'player' | 'nowPlaying';
 export type BackdropZoneEffect = 'none' | 'artwork' | 'visualizer' | 'both';
 export type BackdropZoneSettings = Record<BackdropZoneId, BackdropZoneEffect>;
+export interface BackdropZoneArtworkSettings {
+  blur: number;
+  brightness: number;
+}
+export type BackdropZoneArtworkSettingsMap = Record<BackdropZoneId, BackdropZoneArtworkSettings>;
 export type VisualizerStyle = 'wave' | 'bars' | 'mirror' | 'blocks' | 'triangles';
 export type VisualizerColorSource = 'theme' | 'artwork';
 export type LyricsDisplayStyle = 'plain' | 'timestamped' | 'theater';
@@ -90,6 +95,7 @@ export interface AppearanceSettings {
   keepLibraryColumnsVisibleInNarrowLayout: boolean;
   useSystemFont: boolean;
   backdropZones: BackdropZoneSettings;
+  backdropZoneArtwork: BackdropZoneArtworkSettingsMap;
   lyrics: LyricsSettings;
   nowPlayingViewActive: boolean;
   autoNowPlayingOnMaximized: boolean;

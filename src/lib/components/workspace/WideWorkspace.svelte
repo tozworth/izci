@@ -8,6 +8,7 @@
   import { hasArtworkBackdrop, hasVisualizerBackdrop } from '$lib/stores/appearance-settings';
   import type {
     BackdropZoneEffect,
+    BackdropZoneArtworkSettings,
     LyricsDisplayStyle,
     PlaybackSnapshot,
     PlaylistItem,
@@ -40,6 +41,11 @@
     playlist: 'none',
     library: 'none',
     details: 'none'
+  };
+  export let zoneArtworkSettings: Record<WorkspacePanelId, BackdropZoneArtworkSettings | null> = {
+    playlist: null,
+    library: null,
+    details: null
   };
   export let isDetailsVisible = false;
   export let isLyricsVisible = false;
@@ -115,6 +121,7 @@
     <BackdropZone
       effect={zoneEffects.playlist}
       artwork={backdropArtwork}
+      artworkSettings={zoneArtworkSettings.playlist}
       artworkBright={artworkBackgroundBright}
       fillParent={true}
       zoneId="playlist"
@@ -147,6 +154,7 @@
     <BackdropZone
       effect={zoneEffects.library}
       artwork={backdropArtwork}
+      artworkSettings={zoneArtworkSettings.library}
       artworkBright={artworkBackgroundBright}
       fillParent={true}
       zoneId="library"
@@ -179,6 +187,7 @@
       <BackdropZone
         effect={zoneEffects.details}
         artwork={backdropArtwork}
+        artworkSettings={zoneArtworkSettings.details}
         artworkBright={artworkBackgroundBright}
         fillParent={true}
         zoneId="details"

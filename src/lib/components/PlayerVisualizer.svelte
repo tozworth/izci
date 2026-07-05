@@ -11,6 +11,9 @@
   const TRIANGLE_SIDE_X = Math.sqrt(3) / 2;
   const TRIANGLE_FRAME_INTERVAL_MS = 1000 / 60;
   const TRIANGLE_EDGE_FADE_SIZE_FACTOR = 1.4;
+  const TRIANGLE_SIZE_DAMPENING_START_PX = 160;
+  const TRIANGLE_SIZE_DAMPENING_EXPONENT = 0.56;
+  const TRIANGLE_SIZE_REFERENCE_MAX_PX = 340;
   const PALETTE_REFRESH_INTERVAL_MS = 250;
 
   interface TriangleParticle {
@@ -238,7 +241,7 @@
       return height;
     }
 
-    return triangleReferenceHeight || height;
+    return triangleReferenceHeight || getDampenedTriangleReferenceHeight(height);
   }
 
   function getTriangleMotionReferenceHeight(): number {
@@ -247,15 +250,31 @@
     return Math.max(1, Math.round(Math.max(height, viewportHeight)));
   }
 
+  function getDampenedTriangleReferenceHeight(referenceHeight: number): number {
+    const scale = Math.max(1, displayScale);
+    const referenceHeightPx = referenceHeight / scale;
+
+    if (referenceHeightPx <= TRIANGLE_SIZE_DAMPENING_START_PX) {
+      return referenceHeight;
+    }
+
+    const dampenedHeightPx =
+      TRIANGLE_SIZE_DAMPENING_START_PX *
+      Math.pow(referenceHeightPx / TRIANGLE_SIZE_DAMPENING_START_PX, TRIANGLE_SIZE_DAMPENING_EXPONENT);
+    const cappedHeightPx = Math.min(dampenedHeightPx, TRIANGLE_SIZE_REFERENCE_MAX_PX);
+
+    return Math.max(1, Math.round(cappedHeightPx * scale));
+  }
+
   function updateTriangleReferenceHeight() {
     if (!triangleSizeReferenceSelector || !triangleReferenceElement) {
-      triangleReferenceHeight = height;
+      triangleReferenceHeight = getDampenedTriangleReferenceHeight(height);
       return;
     }
 
     const referenceRect = triangleReferenceElement.getBoundingClientRect();
     const referenceHeight = referenceRect.height * displayScale;
-    const nextHeight = Math.max(1, Math.round(referenceHeight || height));
+    const nextHeight = getDampenedTriangleReferenceHeight(Math.max(1, Math.round(referenceHeight || height)));
 
     if (nextHeight !== triangleReferenceHeight) {
       triangleReferenceHeight = nextHeight;

@@ -1,5 +1,7 @@
 import type {
   AppearanceSettings,
+  BackdropZoneArtworkSettings,
+  BackdropZoneArtworkSettingsMap,
   BackdropZoneEffect,
   BackdropZoneId,
   BackdropZoneSettings,
@@ -33,6 +35,34 @@ export const DEFAULT_BACKDROP_ZONES: BackdropZoneSettings = {
   details: 'none',
   player: 'visualizer',
   nowPlaying: 'both'
+};
+export const MIN_BACKDROP_ARTWORK_BLUR = 0;
+export const MAX_BACKDROP_ARTWORK_BLUR = 64;
+export const DEFAULT_BACKDROP_ARTWORK_BLUR = 36;
+export const MIN_BACKDROP_ARTWORK_BRIGHTNESS = 0;
+export const MAX_BACKDROP_ARTWORK_BRIGHTNESS = 100;
+export const DEFAULT_BACKDROP_ARTWORK_BRIGHTNESS = 42;
+export const DEFAULT_BACKDROP_ZONE_ARTWORK: BackdropZoneArtworkSettingsMap = {
+  playlist: {
+    blur: DEFAULT_BACKDROP_ARTWORK_BLUR,
+    brightness: DEFAULT_BACKDROP_ARTWORK_BRIGHTNESS
+  },
+  library: {
+    blur: DEFAULT_BACKDROP_ARTWORK_BLUR,
+    brightness: DEFAULT_BACKDROP_ARTWORK_BRIGHTNESS
+  },
+  details: {
+    blur: DEFAULT_BACKDROP_ARTWORK_BLUR,
+    brightness: DEFAULT_BACKDROP_ARTWORK_BRIGHTNESS
+  },
+  player: {
+    blur: DEFAULT_BACKDROP_ARTWORK_BLUR,
+    brightness: DEFAULT_BACKDROP_ARTWORK_BRIGHTNESS
+  },
+  nowPlaying: {
+    blur: DEFAULT_BACKDROP_ARTWORK_BLUR,
+    brightness: DEFAULT_BACKDROP_ARTWORK_BRIGHTNESS
+  }
 };
 export const LYRICS_STYLE_OPTIONS: Array<{ value: LyricsDisplayStyle; label: string }> = [
   { value: 'plain', label: 'Plain text' },
@@ -77,6 +107,7 @@ export const DEFAULT_APPEARANCE_SETTINGS: AppearanceSettings = {
   keepLibraryColumnsVisibleInNarrowLayout: false,
   useSystemFont: false,
   backdropZones: DEFAULT_BACKDROP_ZONES,
+  backdropZoneArtwork: DEFAULT_BACKDROP_ZONE_ARTWORK,
   lyrics: DEFAULT_LYRICS_SETTINGS,
   nowPlayingViewActive: false,
   autoNowPlayingOnMaximized: false,
@@ -98,6 +129,45 @@ function normalizeColorTheme(value: unknown): ColorTheme {
 
 function normalizeBackdropZoneEffect(value: unknown): BackdropZoneEffect {
   return value === 'artwork' || value === 'visualizer' || value === 'both' ? value : 'none';
+}
+
+function normalizeNumber(value: unknown, min: number, max: number, fallback: number): number {
+  const numericValue = Number(value);
+
+  if (!Number.isFinite(numericValue)) {
+    return fallback;
+  }
+
+  return Math.min(Math.max(numericValue, min), max);
+}
+
+export function normalizeBackdropZoneArtworkBlur(value: unknown): number {
+  return Math.round(
+    normalizeNumber(
+      value,
+      MIN_BACKDROP_ARTWORK_BLUR,
+      MAX_BACKDROP_ARTWORK_BLUR,
+      DEFAULT_BACKDROP_ARTWORK_BLUR
+    )
+  );
+}
+
+export function normalizeBackdropZoneArtworkBrightness(value: unknown): number {
+  return Math.round(
+    normalizeNumber(
+      value,
+      MIN_BACKDROP_ARTWORK_BRIGHTNESS,
+      MAX_BACKDROP_ARTWORK_BRIGHTNESS,
+      DEFAULT_BACKDROP_ARTWORK_BRIGHTNESS
+    )
+  );
+}
+
+export function toBackdropZoneArtworkStyle(settings: BackdropZoneArtworkSettings): string {
+  return [
+    `--shared-zone-artwork-blur: ${settings.blur}px`,
+    `--shared-zone-artwork-brightness: ${settings.brightness / 100}`
+  ].join('; ');
 }
 
 function normalizeLyricsDisplayStyle(value: unknown): LyricsDisplayStyle {
@@ -243,6 +313,43 @@ function normalizeBackdropZones(source: Partial<AppearanceSettings> & Record<str
   return zones;
 }
 
+function normalizeBackdropZoneArtworkSettings(value: unknown): BackdropZoneArtworkSettings {
+  const source =
+    value && typeof value === 'object' ? (value as Partial<BackdropZoneArtworkSettings>) : {};
+
+  return {
+    blur: normalizeBackdropZoneArtworkBlur(source.blur),
+    brightness: normalizeBackdropZoneArtworkBrightness(source.brightness)
+  };
+}
+
+function normalizeBackdropZoneArtwork(
+  source: Partial<AppearanceSettings> & Record<string, unknown>
+): BackdropZoneArtworkSettingsMap {
+  const settings: BackdropZoneArtworkSettingsMap = {
+    playlist: { ...DEFAULT_BACKDROP_ZONE_ARTWORK.playlist },
+    library: { ...DEFAULT_BACKDROP_ZONE_ARTWORK.library },
+    details: { ...DEFAULT_BACKDROP_ZONE_ARTWORK.details },
+    player: { ...DEFAULT_BACKDROP_ZONE_ARTWORK.player },
+    nowPlaying: { ...DEFAULT_BACKDROP_ZONE_ARTWORK.nowPlaying }
+  };
+  const persistedSettings = source.backdropZoneArtwork;
+
+  if (!persistedSettings || typeof persistedSettings !== 'object') {
+    return settings;
+  }
+
+  const zoneSource = persistedSettings as Partial<Record<BackdropZoneId, unknown>>;
+
+  for (const zone of BACKDROP_ZONE_IDS) {
+    settings[zone] = Object.prototype.hasOwnProperty.call(zoneSource, zone)
+      ? normalizeBackdropZoneArtworkSettings(zoneSource[zone])
+      : { ...DEFAULT_BACKDROP_ZONE_ARTWORK[zone] };
+  }
+
+  return settings;
+}
+
 function normalizeSettings(value: unknown): AppearanceSettings {
   const source =
     value && typeof value === 'object'
@@ -256,6 +363,7 @@ function normalizeSettings(value: unknown): AppearanceSettings {
     keepLibraryColumnsVisibleInNarrowLayout: source.keepLibraryColumnsVisibleInNarrowLayout === true,
     useSystemFont: source.useSystemFont === true,
     backdropZones: normalizeBackdropZones(source),
+    backdropZoneArtwork: normalizeBackdropZoneArtwork(source),
     lyrics: normalizeLyricsSettings(source.lyrics),
     nowPlayingViewActive: source.nowPlayingViewActive === true,
     autoNowPlayingOnMaximized: source.autoNowPlayingOnMaximized === true,

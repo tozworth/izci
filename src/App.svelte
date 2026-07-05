@@ -48,6 +48,7 @@
   import type {
     BackdropZoneSettings,
     BackdropZoneEffect,
+    BackdropZoneArtworkSettingsMap,
     LyricsDisplayStyle,
     PlaybackSnapshot,
     PlaylistItem,
@@ -122,6 +123,8 @@
   let innerHeight = typeof window !== 'undefined' ? window.innerHeight : 0;
   let previousPlaybackState: PlaybackSnapshot['state'] = playbackStatus.state;
   let backdropZones: BackdropZoneSettings = appearanceSettings.getSnapshot().backdropZones;
+  let backdropZoneArtwork: BackdropZoneArtworkSettingsMap =
+    appearanceSettings.getSnapshot().backdropZoneArtwork;
   let activeBackdropEffects: BackdropZoneEffect[] = [];
   let nowPlayingViewActive = appearanceSettings.getSnapshot().nowPlayingViewActive;
   let isAutomaticNowPlayingEligible = false;
@@ -145,6 +148,7 @@
   let lyricsAutomationSignature = '';
   let nowPlayingRestoreTab: WorkspaceTab | null = null;
   let nowPlayingAutoFocusedLyrics = false;
+  let nowPlayingHadLyricsPanelVisible = false;
   let nowPlayingAutoFocusTrackKey = '';
   let nowPlayingLyricsAutoScrollSignature = '';
   const workspaceShell = createWorkspaceShellController({
@@ -254,6 +258,7 @@
   $: playerDisplayTrack = livePlayingTrack;
   $: lyricsTrack = livePlayingTrack;
   $: backdropZones = $appearanceSettings.backdropZones;
+  $: backdropZoneArtwork = $appearanceSettings.backdropZoneArtwork;
   $: nowPlayingViewActive = $appearanceSettings.nowPlayingViewActive;
   $: isAutomaticNowPlayingEligible =
     $appearanceSettings.autoNowPlayingOnMaximized && $windowDisplayState.prefersNowPlaying;
@@ -299,6 +304,11 @@
     library: backdropZones.library,
     details: backdropZones.details
   };
+  $: workspaceZoneArtworkSettings = {
+    playlist: backdropZoneArtwork.playlist,
+    library: backdropZoneArtwork.library,
+    details: backdropZoneArtwork.details
+  };
   $: activeBackdropEffects = isNowPlayingLayoutActive
     ? [backdropZones.nowPlaying]
     : miniModeActive
@@ -320,6 +330,16 @@
     backdropZones.details,
     backdropZones.player,
     backdropZones.nowPlaying,
+    backdropZoneArtwork.playlist.blur,
+    backdropZoneArtwork.playlist.brightness,
+    backdropZoneArtwork.library.blur,
+    backdropZoneArtwork.library.brightness,
+    backdropZoneArtwork.details.blur,
+    backdropZoneArtwork.details.brightness,
+    backdropZoneArtwork.player.blur,
+    backdropZoneArtwork.player.brightness,
+    backdropZoneArtwork.nowPlaying.blur,
+    backdropZoneArtwork.nowPlaying.brightness,
     isArtworkBackgroundBright ? 'bright' : 'dim',
     $windowControlsOverlayState.visible ? 'wco-visible' : 'wco-hidden',
     Math.round($windowControlsOverlayState.titlebarAreaRect.x),
@@ -546,6 +566,7 @@
     if (isActive) {
       nowPlayingRestoreTab = workspaceShellState.activeWorkspaceTab;
       nowPlayingAutoFocusedLyrics = false;
+      nowPlayingHadLyricsPanelVisible = workspaceShellState.isLyricsPanelVisible;
       nowPlayingAutoFocusTrackKey = '';
       wasNowPlayingLayoutActive = true;
       return;
@@ -559,8 +580,17 @@
       restoreWorkspaceTab(nowPlayingRestoreTab);
     }
 
+    if (
+      nowPlayingAutoFocusedLyrics &&
+      !nowPlayingHadLyricsPanelVisible &&
+      workspaceShellState.isLyricsPanelVisible
+    ) {
+      workspaceShell.closeTrackLyrics();
+    }
+
     nowPlayingRestoreTab = null;
     nowPlayingAutoFocusedLyrics = false;
+    nowPlayingHadLyricsPanelVisible = false;
     nowPlayingAutoFocusTrackKey = '';
     wasNowPlayingLayoutActive = false;
   }
@@ -1253,6 +1283,7 @@
       backdropArtwork={artworkPresentationState.visibleArtworkBackground}
       artworkBackgroundBright={isArtworkBackgroundBright}
       backdropEffect={backdropZones.nowPlaying}
+      backdropArtworkSettings={backdropZoneArtwork.nowPlaying}
       activeWorkspaceTab={workspaceShellState.activeWorkspaceTab}
       workspaceTabs={workspaceShellState.workspaceTabs}
       playlistPanelProps={workspaceShellState.playlistPanelProps}
@@ -1297,6 +1328,7 @@
         backdropArtwork={artworkPresentationState.visibleArtworkBackground}
         artworkBackgroundBright={isArtworkBackgroundBright}
         zoneEffects={workspaceZoneEffects}
+        zoneArtworkSettings={workspaceZoneArtworkSettings}
         isDetailsVisible={workspaceShellState.isDetailsPanelVisible}
         isLyricsVisible={workspaceShellState.isLyricsPanelVisible}
         lyricsDisplayStyle={effectiveLyricsDisplayStyle}
@@ -1328,6 +1360,7 @@
         backdropArtwork={artworkPresentationState.visibleArtworkBackground}
         artworkBackgroundBright={isArtworkBackgroundBright}
         zoneEffects={workspaceZoneEffects}
+        zoneArtworkSettings={workspaceZoneArtworkSettings}
         isDetailsVisible={workspaceShellState.isDetailsPanelVisible}
         isLyricsVisible={workspaceShellState.isLyricsPanelVisible}
         activeWorkspaceTab={workspaceShellState.activeWorkspaceTab}
@@ -1358,6 +1391,7 @@
       selectedTrack={selectedPlaylistItem}
       artwork={artworkPresentationState.displayedArtwork}
       backdropEffect={backdropZones.player}
+      backdropArtworkSettings={backdropZoneArtwork.player}
       artworkBackgroundBright={isArtworkBackgroundBright}
       on:toggle={() => void playbackCommands.togglePlayback()}
       on:previous={() => void playbackCommands.stepTrack(-1)}

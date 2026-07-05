@@ -140,6 +140,10 @@
       const x = rect.left - shellRect.left;
       const y = rect.top - shellRect.top;
       const zoneId = element.dataset.backdropZoneId ?? `${index}`;
+      const zoneStyle = window.getComputedStyle(element);
+      const artworkBlur = zoneStyle.getPropertyValue('--shared-zone-artwork-blur').trim() || '36px';
+      const artworkBrightness =
+        zoneStyle.getPropertyValue('--shared-zone-artwork-brightness').trim() || '0.42';
       const bright =
         element.classList.contains('artwork-backdrop-bright') ||
         element.classList.contains('artwork-background-bright');
@@ -151,7 +155,9 @@
           `left: ${x}px`,
           `top: ${y}px`,
           `width: ${rect.width}px`,
-          `height: ${rect.height}px`
+          `height: ${rect.height}px`,
+          `--shared-artwork-blur: ${artworkBlur}`,
+          `--shared-artwork-brightness: ${artworkBrightness}`
         ].join('; '),
         surfaceStyle: [
           `left: ${-x}px`,

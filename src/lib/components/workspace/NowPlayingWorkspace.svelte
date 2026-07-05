@@ -12,6 +12,7 @@
   import type { LoadedStreamArtwork } from '$lib/services/stream-artwork';
   import type {
     BackdropZoneEffect,
+    BackdropZoneArtworkSettings,
     LyricsDisplayStyle,
     PlaybackSnapshot,
     PlaylistItem,
@@ -28,6 +29,7 @@
   export let backdropArtwork: LoadedStreamArtwork | null = null;
   export let artworkBackgroundBright = false;
   export let backdropEffect: BackdropZoneEffect = 'none';
+  export let backdropArtworkSettings: BackdropZoneArtworkSettings | null = null;
   export let activeWorkspaceTab: WorkspaceTab = 'playlist';
   export let workspaceTabs: WorkspaceTabDefinition[] = [];
   export let playlistPanelProps: WorkspacePanelProps;
@@ -125,6 +127,7 @@
   <BackdropZone
     effect={backdropEffect}
     artwork={backdropArtwork}
+    artworkSettings={backdropArtworkSettings}
     artworkBright={artworkBackgroundBright}
     fillParent={true}
     className="now-playing-backdrop-zone"

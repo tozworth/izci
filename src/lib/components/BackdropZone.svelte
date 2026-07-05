@@ -1,10 +1,15 @@
 <script lang="ts">
-  import { hasArtworkBackdrop, hasVisualizerBackdrop } from '$lib/stores/appearance-settings';
+  import {
+    hasArtworkBackdrop,
+    hasVisualizerBackdrop,
+    toBackdropZoneArtworkStyle
+  } from '$lib/stores/appearance-settings';
   import type { LoadedStreamArtwork } from '$lib/services/stream-artwork';
-  import type { BackdropZoneEffect } from '$lib/types';
+  import type { BackdropZoneArtworkSettings, BackdropZoneEffect } from '$lib/types';
 
   export let effect: BackdropZoneEffect = 'none';
   export let artwork: LoadedStreamArtwork | null = null;
+  export let artworkSettings: BackdropZoneArtworkSettings | null = null;
   export let artworkBright = false;
   export let fillParent = false;
   export let className = '';
@@ -12,6 +17,7 @@
 
   $: artworkActive = hasArtworkBackdrop(effect) && Boolean(artwork);
   $: visualizerActive = hasVisualizerBackdrop(effect);
+  $: artworkSettingsStyle = artworkSettings ? toBackdropZoneArtworkStyle(artworkSettings) : '';
 </script>
 
 <div
@@ -23,6 +29,7 @@
   data-artwork-zone={artworkActive ? 'true' : null}
   data-visualizer-zone={visualizerActive ? 'true' : null}
   data-backdrop-zone-id={zoneId || null}
+  style={artworkSettingsStyle}
 >
   <div class="backdrop-zone-content">
     <slot />

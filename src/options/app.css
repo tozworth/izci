@@ -420,25 +420,28 @@ code {
 }
 
 .backdrop-zone-field {
-  align-items: start;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: stretch;
+  gap: 10px;
 }
 
-.backdrop-zone-grid {
+.backdrop-zone-effect-row,
+.backdrop-zone-slider {
   display: grid;
-  gap: 6px;
-  min-width: min(18rem, 100%);
-}
-
-.backdrop-zone-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(8.5rem, auto);
+  grid-template-columns: minmax(0, 1fr) minmax(250px, auto);
   align-items: center;
-  gap: 8px;
+  gap: 10px;
+  grid-column: 1 / -1;
 }
 
-.backdrop-zone-row > span {
+.backdrop-zone-slider {
+  padding-left: 14px;
+}
+
+.backdrop-zone-slider-label {
   color: var(--muted);
-  font-size: 0.88rem;
+  font-size: 0.84rem;
 }
 
 .field input[type="number"] {
@@ -474,6 +477,16 @@ code {
   .field {
     grid-template-columns: 1fr;
     gap: 8px;
+  }
+
+  .backdrop-zone-effect-row,
+  .backdrop-zone-slider {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .backdrop-zone-slider {
+    padding-left: 0;
   }
 
   .field-control {
