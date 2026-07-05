@@ -50,6 +50,16 @@ const DEFAULT_STATE: WindowControlsOverlayState = {
   titlebarAreaRect: EMPTY_RECT
 };
 
+const FULLSCREEN_BOUNDS_TOLERANCE = 16;
+
+function isFinitePositive(value: number): boolean {
+  return Number.isFinite(value) && value > 0;
+}
+
+function isClose(left: number, right: number): boolean {
+  return Math.abs(left - right) <= FULLSCREEN_BOUNDS_TOLERANCE;
+}
+
 function toRect(rect: DOMRectReadOnly): WindowControlsOverlayRect {
   return {
     x: rect.x,
@@ -57,6 +67,46 @@ function toRect(rect: DOMRectReadOnly): WindowControlsOverlayRect {
     width: rect.width,
     height: rect.height
   };
+}
+
+export function resolveTitlebarAreaRect(
+  rect: WindowControlsOverlayRect,
+  fullscreen: boolean,
+  viewportWidth: number
+): WindowControlsOverlayRect {
+  if (!fullscreen) {
+    return rect;
+  }
+
+  return {
+    x: 0,
+    y: 0,
+    width: isFinitePositive(viewportWidth) ? viewportWidth : rect.width,
+    height: rect.height
+  };
+}
+
+function isFullscreenLikeWindow(): boolean {
+  const screenWithOffsets = window.screen as Screen & {
+    left?: number;
+    top?: number;
+  };
+  const fullscreenQuery = window.matchMedia('(display-mode: fullscreen)');
+  const screenLeft = screenWithOffsets.left ?? 0;
+  const screenTop = screenWithOffsets.top ?? 0;
+
+  if (document.fullscreenElement || fullscreenQuery.matches) {
+    return true;
+  }
+
+  return (
+    isFinitePositive(screenWithOffsets.width) &&
+    isFinitePositive(screenWithOffsets.height) &&
+    isClose(window.screenX, screenLeft) &&
+    isClose(window.screenY, screenTop) &&
+    isClose(window.outerWidth, screenWithOffsets.width) &&
+    isClose(window.outerHeight, screenWithOffsets.height)
+  );
 }
 
 export const windowControlsOverlayState = readable<WindowControlsOverlayState>(DEFAULT_STATE, (set) => {
@@ -71,24 +121,56 @@ export const windowControlsOverlayState = readable<WindowControlsOverlayState>(D
     return undefined;
   }
 
+  let animationFrame = 0;
+
   const updateState = (event?: WindowControlsOverlayGeometryChangeEvent) => {
-    const titlebarAreaRect = event ? event.titlebarAreaRect : overlay.getTitlebarAreaRect();
+    animationFrame = 0;
+    const rawTitlebarAreaRect = event ? event.titlebarAreaRect : overlay.getTitlebarAreaRect();
+    const titlebarAreaRect = resolveTitlebarAreaRect(
+      toRect(rawTitlebarAreaRect),
+      isFullscreenLikeWindow(),
+      window.innerWidth
+    );
 
     set({
       supported: true,
       visible: overlay.visible,
-      titlebarAreaRect: toRect(titlebarAreaRect)
+      titlebarAreaRect
     });
+  };
+
+  const scheduleUpdate = () => {
+    if (animationFrame !== 0) {
+      return;
+    }
+
+    animationFrame = window.requestAnimationFrame(() => updateState());
   };
 
   const handleGeometryChange = (event: Event) => {
     updateState(event as WindowControlsOverlayGeometryChangeEvent);
   };
 
+  const fullscreenQuery = window.matchMedia('(display-mode: fullscreen)');
+
   updateState();
   overlay.addEventListener('geometrychange', handleGeometryChange);
+  window.addEventListener('resize', scheduleUpdate);
+  window.addEventListener('focus', scheduleUpdate);
+  document.addEventListener('fullscreenchange', scheduleUpdate);
+  document.addEventListener('visibilitychange', scheduleUpdate);
+  fullscreenQuery.addEventListener('change', scheduleUpdate);
 
   return () => {
+    if (animationFrame !== 0) {
+      window.cancelAnimationFrame(animationFrame);
+    }
+
     overlay.removeEventListener('geometrychange', handleGeometryChange);
+    window.removeEventListener('resize', scheduleUpdate);
+    window.removeEventListener('focus', scheduleUpdate);
+    document.removeEventListener('fullscreenchange', scheduleUpdate);
+    document.removeEventListener('visibilitychange', scheduleUpdate);
+    fullscreenQuery.removeEventListener('change', scheduleUpdate);
   };
 });
