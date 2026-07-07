@@ -12,6 +12,13 @@
     height: number;
   }
 
+  interface VisualizerBounds {
+    left: number;
+    top: number;
+    right: number;
+    bottom: number;
+  }
+
   const VISUALIZER_ZONE_SELECTOR = '[data-visualizer-zone="true"]';
   const TRIANGLE_SIZE_REFERENCE_SELECTOR = '.player-bar';
 
@@ -102,6 +109,23 @@
     observedZoneElements = nextElements;
   }
 
+  function getZoneBounds(zoneRects: DOMRect[]): VisualizerBounds {
+    return zoneRects.reduce<VisualizerBounds>(
+      (bounds, rect) => ({
+        left: Math.min(bounds.left, rect.left),
+        top: Math.min(bounds.top, rect.top),
+        right: Math.max(bounds.right, rect.right),
+        bottom: Math.max(bounds.bottom, rect.bottom)
+      }),
+      {
+        left: zoneRects[0].left,
+        top: zoneRects[0].top,
+        right: zoneRects[0].right,
+        bottom: zoneRects[0].bottom
+      }
+    );
+  }
+
   function updateGeometry(): void {
     const shell = shellElement;
 
@@ -126,18 +150,21 @@
 
     const shellRect = shell.getBoundingClientRect();
     const zoneRects = zoneElements.map((element) => element.getBoundingClientRect());
-    const width = Math.max(1, shellRect.width);
-    const height = Math.max(1, shellRect.height);
+    const zoneBounds = getZoneBounds(zoneRects);
+    const layerLeft = zoneBounds.left - shellRect.left;
+    const layerTop = zoneBounds.top - shellRect.top;
+    const width = Math.max(1, zoneBounds.right - zoneBounds.left);
+    const height = Math.max(1, zoneBounds.bottom - zoneBounds.top);
 
     clipRects = zoneRects.map((rect) => ({
-      x: rect.left - shellRect.left,
-      y: rect.top - shellRect.top,
+      x: rect.left - zoneBounds.left,
+      y: rect.top - zoneBounds.top,
       width: rect.width,
       height: rect.height
     }));
     layerStyle = [
-      'left: 0px',
-      'top: 0px',
+      `left: ${layerLeft}px`,
+      `top: ${layerTop}px`,
       `width: ${width}px`,
       `height: ${height}px`
     ].join('; ');
