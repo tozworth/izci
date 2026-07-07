@@ -106,25 +106,6 @@
     );
 }
 
-.shared-artwork-zone.artwork-backdrop-bright .shared-artwork-zone-overlay {
-  background:
-    linear-gradient(
-      rgba(0, 0, 0, var(--shared-artwork-blackout-opacity)),
-      rgba(0, 0, 0, var(--shared-artwork-blackout-opacity))
-    ),
-    radial-gradient(
-      circle at top,
-      rgba(255, 255, 255, calc(0.2 * var(--shared-artwork-default-overlay-opacity))),
-      transparent 36%
-    ),
-    linear-gradient(
-      180deg,
-      rgba(255, 249, 240, calc(0.48 * var(--shared-artwork-default-overlay-opacity))) 0%,
-      rgba(255, 249, 240, calc(0.26 * var(--shared-artwork-default-overlay-opacity))) 52%,
-      rgba(255, 249, 240, calc(0.56 * var(--shared-artwork-default-overlay-opacity))) 100%
-    );
-}
-
 .shared-visualizer-host {
   display: contents;
 }
@@ -176,64 +157,117 @@
 
 .backdrop-zone.artwork-backdrop-active {
   color-scheme: dark;
+  --artwork-zone-brightness: var(--shared-zone-artwork-brightness, 0.42);
+  --artwork-zone-light-mix: calc(var(--artwork-zone-brightness) * 100%);
   --panel-backdrop-blur: 28px;
   --panel-backdrop-saturate: 1.18;
   --chrome-backdrop-blur: 28px;
   --chrome-backdrop-saturate: 1.16;
-  --bg-elevated: rgba(18, 19, 24, 0.44);
-  --bg-soft: rgba(18, 19, 24, 0.5);
-  --bg-tree: rgba(18, 19, 24, 0.68);
-  --bg-search: rgba(18, 19, 24, 0.72);
-  --bg-volume-popup: rgba(16, 17, 22, 0.76);
-  --border: rgba(255, 255, 255, 0.16);
-  --border-strong: rgba(255, 255, 255, 0.18);
-  --border-soft: rgba(255, 255, 255, 0.12);
-  --border-faint: rgba(255, 255, 255, 0.1);
-  --border-subtle: rgba(255, 255, 255, 0.08);
-  --border-covered: rgba(255, 255, 255, 0.08);
-  --hover-subtle: rgba(255, 255, 255, 0.05);
-  --hover-control: rgba(255, 255, 255, 0.08);
-  --selection-bg: color-mix(in srgb, var(--accent-strong) 14%, transparent);
-  --playlist-header-background:
-    linear-gradient(180deg, rgba(18, 19, 24, 0.58) 0%, rgba(18, 19, 24, 0.44) 100%),
-    rgba(255, 255, 255, 0.04);
-  --playlist-header-artwork-background:
-    linear-gradient(180deg, rgba(18, 19, 24, 0.58) 0%, rgba(18, 19, 24, 0.44) 100%),
-    rgba(255, 255, 255, 0.04);
-  --dropzone-background: linear-gradient(180deg, rgba(255, 255, 255, 0.045), transparent 18%);
-  --player-bar-fade: linear-gradient(180deg, rgba(5, 6, 10, 0), rgba(5, 6, 10, 0.26));
+  --bg-elevated: color-mix(
+    in srgb,
+    rgba(255, 250, 242, 0.48) var(--artwork-zone-light-mix),
+    rgba(18, 19, 24, 0.44)
+  );
+  --bg-soft: color-mix(
+    in srgb,
+    rgba(255, 250, 242, 0.58) var(--artwork-zone-light-mix),
+    rgba(18, 19, 24, 0.5)
+  );
+  --bg-tree: color-mix(
+    in srgb,
+    rgba(255, 250, 243, 0.8) var(--artwork-zone-light-mix),
+    rgba(18, 19, 24, 0.68)
+  );
+  --bg-search: color-mix(
+    in srgb,
+    rgba(255, 252, 246, 0.82) var(--artwork-zone-light-mix),
+    rgba(18, 19, 24, 0.72)
+  );
+  --bg-volume-popup: color-mix(
+    in srgb,
+    rgba(255, 250, 242, 0.84) var(--artwork-zone-light-mix),
+    rgba(16, 17, 22, 0.76)
+  );
+  --border: color-mix(
+    in srgb,
+    rgba(52, 39, 25, 0.18) var(--artwork-zone-light-mix),
+    rgba(255, 255, 255, 0.16)
+  );
+  --border-strong: color-mix(
+    in srgb,
+    rgba(52, 39, 25, 0.22) var(--artwork-zone-light-mix),
+    rgba(255, 255, 255, 0.18)
+  );
+  --border-soft: color-mix(
+    in srgb,
+    rgba(52, 39, 25, 0.12) var(--artwork-zone-light-mix),
+    rgba(255, 255, 255, 0.12)
+  );
+  --border-faint: color-mix(
+    in srgb,
+    rgba(52, 39, 25, 0.09) var(--artwork-zone-light-mix),
+    rgba(255, 255, 255, 0.1)
+  );
+  --border-subtle: color-mix(
+    in srgb,
+    rgba(52, 39, 25, 0.08) var(--artwork-zone-light-mix),
+    rgba(255, 255, 255, 0.08)
+  );
+  --border-covered: var(--border-subtle);
+  --hover-subtle: color-mix(
+    in srgb,
+    rgba(52, 39, 25, 0.04) var(--artwork-zone-light-mix),
+    rgba(255, 255, 255, 0.05)
+  );
+  --hover-control: color-mix(
+    in srgb,
+    rgba(52, 39, 25, 0.09) var(--artwork-zone-light-mix),
+    rgba(255, 255, 255, 0.08)
+  );
+  --selection-bg: color-mix(
+    in srgb,
+    color-mix(in srgb, var(--accent-strong) 18%, rgba(255, 255, 255, 0.1))
+      var(--artwork-zone-light-mix),
+    color-mix(in srgb, var(--accent-strong) 14%, transparent)
+  );
+  --playlist-header-background: color-mix(
+    in srgb,
+    rgba(255, 250, 244, 0.88) var(--artwork-zone-light-mix),
+    rgba(18, 19, 24, 0.52)
+  );
+  --playlist-header-artwork-background: var(--playlist-header-background);
+  --dropzone-background: linear-gradient(
+    180deg,
+    color-mix(
+      in srgb,
+      rgba(255, 255, 255, 0.18) var(--artwork-zone-light-mix),
+      rgba(255, 255, 255, 0.045)
+    ),
+    transparent 18%
+  );
+  --player-bar-fade: linear-gradient(
+    180deg,
+    rgba(5, 6, 10, 0),
+    color-mix(
+      in srgb,
+      rgba(255, 250, 242, 0.28) var(--artwork-zone-light-mix),
+      rgba(5, 6, 10, 0.26)
+    )
+  );
+  --hairline: color-mix(
+    in srgb,
+    rgba(34, 20, 8, 0.08) var(--artwork-zone-light-mix),
+    rgba(255, 255, 255, 0.08)
+  );
   --shadow: 0 20px 54px rgba(0, 0, 0, 0.26);
 }
 
 .backdrop-zone.artwork-backdrop-bright {
   color-scheme: light;
-  --bg-elevated: rgba(255, 250, 242, 0.48);
-  --bg-soft: rgba(255, 250, 242, 0.58);
-  --bg-tree: rgba(255, 250, 243, 0.8);
-  --bg-search: rgba(255, 252, 246, 0.82);
-  --bg-volume-popup: rgba(255, 250, 242, 0.84);
   --text: #241b12;
   --text-strong: #130d08;
   --muted: rgba(36, 27, 18, 0.76);
   --muted-strong: rgba(36, 27, 18, 0.92);
-  --border: rgba(52, 39, 25, 0.18);
-  --border-strong: rgba(52, 39, 25, 0.22);
-  --border-soft: rgba(52, 39, 25, 0.12);
-  --border-faint: rgba(52, 39, 25, 0.09);
-  --border-subtle: rgba(52, 39, 25, 0.08);
-  --border-covered: rgba(52, 39, 25, 0.08);
-  --hover-subtle: rgba(52, 39, 25, 0.04);
-  --hover-control: rgba(52, 39, 25, 0.09);
-  --selection-bg: color-mix(in srgb, var(--accent-strong) 18%, rgba(255, 255, 255, 0.1));
-  --playlist-header-background:
-    linear-gradient(180deg, rgba(255, 250, 244, 0.92) 0%, rgba(255, 250, 244, 0.84) 100%),
-    rgba(255, 252, 246, 0.28);
-  --playlist-header-artwork-background:
-    linear-gradient(180deg, rgba(255, 250, 244, 0.92) 0%, rgba(255, 250, 244, 0.84) 100%),
-    rgba(255, 252, 246, 0.28);
-  --dropzone-background: linear-gradient(180deg, rgba(255, 255, 255, 0.18), transparent 18%);
-  --player-bar-fade: linear-gradient(180deg, rgba(255, 255, 255, 0), rgba(255, 250, 242, 0.28));
-  --hairline: rgba(34, 20, 8, 0.08);
   --visualizer-high: rgba(42, 31, 20, 0.44);
   --visualizer-mid: rgba(122, 83, 26, 0.34);
   --visualizer-low: rgba(38, 78, 57, 0.18);
@@ -266,23 +300,68 @@
   --dropzone-background: linear-gradient(180deg, rgba(255, 255, 255, 0.018), transparent 18%);
 }
 
-.backdrop-zone.visualizer-backdrop-active.artwork-backdrop-bright {
-  --bg-elevated: rgba(255, 250, 242, 0.26);
-  --bg-soft: rgba(255, 250, 242, 0.36);
-  --bg-search: rgba(255, 252, 246, 0.52);
-  --border: rgba(52, 39, 25, 0.14);
-  --border-soft: rgba(52, 39, 25, 0.1);
-  --border-subtle: rgba(52, 39, 25, 0.075);
-  --border-covered: rgba(52, 39, 25, 0.075);
-  --hover-subtle: rgba(52, 39, 25, 0.045);
-  --selection-bg: color-mix(in srgb, var(--accent-strong) 24%, rgba(255, 250, 242, 0.3));
-  --playlist-header-background:
-    linear-gradient(180deg, rgba(255, 250, 242, 0.44) 0%, rgba(255, 250, 242, 0.34) 100%),
-    rgba(255, 255, 255, 0.035);
-  --playlist-header-artwork-background:
-    linear-gradient(180deg, rgba(255, 250, 242, 0.38) 0%, rgba(255, 250, 242, 0.28) 100%),
-    rgba(255, 255, 255, 0.035);
-  --dropzone-background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 18%);
+.backdrop-zone.artwork-backdrop-active.visualizer-backdrop-active {
+  --bg-elevated: color-mix(
+    in srgb,
+    rgba(255, 250, 242, 0.26) var(--artwork-zone-light-mix),
+    rgba(18, 19, 28, 0.24)
+  );
+  --bg-soft: color-mix(
+    in srgb,
+    rgba(255, 250, 242, 0.36) var(--artwork-zone-light-mix),
+    rgba(18, 19, 28, 0.34)
+  );
+  --bg-search: color-mix(
+    in srgb,
+    rgba(255, 252, 246, 0.52) var(--artwork-zone-light-mix),
+    rgba(18, 19, 28, 0.48)
+  );
+  --border: color-mix(
+    in srgb,
+    rgba(52, 39, 25, 0.14) var(--artwork-zone-light-mix),
+    rgba(255, 255, 255, 0.14)
+  );
+  --border-soft: color-mix(
+    in srgb,
+    rgba(52, 39, 25, 0.1) var(--artwork-zone-light-mix),
+    rgba(255, 255, 255, 0.1)
+  );
+  --border-subtle: color-mix(
+    in srgb,
+    rgba(52, 39, 25, 0.075) var(--artwork-zone-light-mix),
+    rgba(255, 255, 255, 0.075)
+  );
+  --border-covered: var(--border-subtle);
+  --hover-subtle: color-mix(
+    in srgb,
+    rgba(52, 39, 25, 0.045) var(--artwork-zone-light-mix),
+    rgba(255, 255, 255, 0.045)
+  );
+  --selection-bg: color-mix(
+    in srgb,
+    color-mix(in srgb, var(--accent-strong) 24%, rgba(255, 250, 242, 0.3))
+      var(--artwork-zone-light-mix),
+    color-mix(in srgb, var(--accent-strong) 24%, rgba(18, 19, 28, 0.28))
+  );
+  --playlist-header-background: color-mix(
+    in srgb,
+    rgba(255, 250, 242, 0.39) var(--artwork-zone-light-mix),
+    rgba(18, 19, 28, 0.37)
+  );
+  --playlist-header-artwork-background: color-mix(
+    in srgb,
+    rgba(255, 250, 242, 0.33) var(--artwork-zone-light-mix),
+    rgba(18, 19, 28, 0.29)
+  );
+  --dropzone-background: linear-gradient(
+    180deg,
+    color-mix(
+      in srgb,
+      rgba(255, 255, 255, 0.08) var(--artwork-zone-light-mix),
+      rgba(255, 255, 255, 0.018)
+    ),
+    transparent 18%
+  );
 }
 
 .window-frame-safe-strip {

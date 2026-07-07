@@ -15,6 +15,10 @@
     hasSameTrackMetadata,
     resolveTrackSnapshot
   } from '$lib/services/artwork-presentation';
+  import {
+    isArtworkBackgroundBrightForBrightness,
+    type ArtworkBackgroundAnalysis
+  } from '$lib/services/artwork-background';
   import { createImportController, FILE_INPUT_ACCEPT } from '$lib/services/import-controller';
   import { subscribeToLaunchedFiles } from '$lib/services/file-launch';
   import { getTrackLyricsLoadKey, loadTrackLyrics } from '$lib/services/lyrics';
@@ -46,6 +50,7 @@
   import { libraryStore, playlistStore } from '$lib/stores/playlist';
   import { DEFAULT_PLAYER_VOLUME } from '$lib/stores/player-volume';
   import type {
+    BackdropZoneId,
     BackdropZoneSettings,
     BackdropZoneEffect,
     BackdropZoneArtworkSettingsMap,
@@ -55,6 +60,7 @@
     PlaylistRepeatMode,
     PlaylistSelection,
     WorkspaceCollection,
+    WorkspacePanelId,
     WorkspaceTab
   } from '$lib/types';
   import type { OptionsViewName } from './options/views';
@@ -125,7 +131,20 @@
   let backdropZones: BackdropZoneSettings = appearanceSettings.getSnapshot().backdropZones;
   let backdropZoneArtwork: BackdropZoneArtworkSettingsMap =
     appearanceSettings.getSnapshot().backdropZoneArtwork;
+  let activeBackdropZoneIds: BackdropZoneId[] = [];
   let activeBackdropEffects: BackdropZoneEffect[] = [];
+  let artworkBackgroundBrightByZone: Record<BackdropZoneId, boolean> = {
+    playlist: false,
+    library: false,
+    details: false,
+    player: false,
+    nowPlaying: false
+  };
+  let workspaceZoneArtworkBright: Record<WorkspacePanelId, boolean> = {
+    playlist: false,
+    library: false,
+    details: false
+  };
   let nowPlayingViewActive = appearanceSettings.getSnapshot().nowPlayingViewActive;
   let isAutomaticNowPlayingEligible = false;
   let autoNowPlayingSuppressed = false;
@@ -136,7 +155,6 @@
   let isArtworkBackdropRequested = false;
   let isVisualizerBackdropRequested = false;
   let isArtworkBackdropActive = false;
-  let isArtworkBackgroundBright = false;
   let backdropGeometryKey = '';
   let documentTitle = 'izci';
   let wasNowPlayingLayoutActive = false;
@@ -316,17 +334,53 @@
     library: backdropZoneArtwork.library,
     details: backdropZoneArtwork.details
   };
-  $: activeBackdropEffects = isNowPlayingLayoutActive
-    ? [backdropZones.nowPlaying]
+  $: workspaceZoneArtworkBright = {
+    playlist: artworkBackgroundBrightByZone.playlist,
+    library: artworkBackgroundBrightByZone.library,
+    details: artworkBackgroundBrightByZone.details
+  };
+  $: activeBackdropZoneIds = isNowPlayingLayoutActive
+    ? ['nowPlaying']
     : miniModeActive
-      ? [backdropZones.player]
-      : [backdropZones.playlist, backdropZones.library, backdropZones.details, backdropZones.player];
+      ? ['player']
+      : ['playlist', 'library', 'details', 'player'];
+  $: activeBackdropEffects = activeBackdropZoneIds.map((zoneId) => backdropZones[zoneId]);
   $: isArtworkBackdropRequested = activeBackdropEffects.some(hasArtworkBackdrop);
   $: isVisualizerBackdropRequested = activeBackdropEffects.some(hasVisualizerBackdrop);
   $: isArtworkBackdropActive =
     isArtworkBackdropRequested && Boolean(artworkPresentationState.visibleArtworkBackground);
-  $: isArtworkBackgroundBright =
-    isArtworkBackdropActive && artworkPresentationState.isArtworkBackgroundBright;
+  $: artworkBackgroundBrightByZone = {
+    playlist: resolveZoneArtworkBackgroundBright(
+      isArtworkBackdropActive,
+      backdropZones.playlist,
+      artworkPresentationState.artworkBackgroundAnalysis,
+      backdropZoneArtwork.playlist.brightness
+    ),
+    library: resolveZoneArtworkBackgroundBright(
+      isArtworkBackdropActive,
+      backdropZones.library,
+      artworkPresentationState.artworkBackgroundAnalysis,
+      backdropZoneArtwork.library.brightness
+    ),
+    details: resolveZoneArtworkBackgroundBright(
+      isArtworkBackdropActive,
+      backdropZones.details,
+      artworkPresentationState.artworkBackgroundAnalysis,
+      backdropZoneArtwork.details.brightness
+    ),
+    player: resolveZoneArtworkBackgroundBright(
+      isArtworkBackdropActive,
+      backdropZones.player,
+      artworkPresentationState.artworkBackgroundAnalysis,
+      backdropZoneArtwork.player.brightness
+    ),
+    nowPlaying: resolveZoneArtworkBackgroundBright(
+      isArtworkBackdropActive,
+      backdropZones.nowPlaying,
+      artworkPresentationState.artworkBackgroundAnalysis,
+      backdropZoneArtwork.nowPlaying.brightness
+    )
+  };
   $: backdropGeometryKey = [
     isNowPlayingLayoutActive ? 'now-playing' : miniModeActive ? 'mini' : workspaceShellState.isTabbedLayout ? 'tabbed' : 'wide',
     workspaceShellState.activeWorkspaceTab,
@@ -347,7 +401,11 @@
     backdropZoneArtwork.player.brightness,
     backdropZoneArtwork.nowPlaying.blur,
     backdropZoneArtwork.nowPlaying.brightness,
-    isArtworkBackgroundBright ? 'bright' : 'dim',
+    artworkBackgroundBrightByZone.playlist ? 'playlist-bright' : 'playlist-dim',
+    artworkBackgroundBrightByZone.library ? 'library-bright' : 'library-dim',
+    artworkBackgroundBrightByZone.details ? 'details-bright' : 'details-dim',
+    artworkBackgroundBrightByZone.player ? 'player-bright' : 'player-dim',
+    artworkBackgroundBrightByZone.nowPlaying ? 'now-playing-bright' : 'now-playing-dim',
     $windowControlsOverlayState.visible ? 'wco-visible' : 'wco-hidden',
     Math.round($windowControlsOverlayState.titlebarAreaRect.x),
     Math.round($windowControlsOverlayState.titlebarAreaRect.y),
@@ -478,6 +536,19 @@
   function handleShowPlayerTrackDetails(id: string) {
     handleShowPlaylistTrack(id);
     workspaceShell.showTrackDetails();
+  }
+
+  function resolveZoneArtworkBackgroundBright(
+    active: boolean,
+    effect: BackdropZoneEffect,
+    analysis: ArtworkBackgroundAnalysis,
+    brightness: number
+  ): boolean {
+    return (
+      active &&
+      hasArtworkBackdrop(effect) &&
+      isArtworkBackgroundBrightForBrightness(analysis, brightness)
+    );
   }
 
   function showTrackDetails() {
@@ -1289,7 +1360,7 @@
       selectedTrack={selectedPlaylistItem}
       artwork={artworkPresentationState.displayedArtwork}
       backdropArtwork={artworkPresentationState.visibleArtworkBackground}
-      artworkBackgroundBright={isArtworkBackgroundBright}
+      artworkBackgroundBright={artworkBackgroundBrightByZone.nowPlaying}
       backdropEffect={backdropZones.nowPlaying}
       backdropArtworkSettings={backdropZoneArtwork.nowPlaying}
       activeWorkspaceTab={workspaceShellState.activeWorkspaceTab}
@@ -1335,7 +1406,7 @@
         detailsArtwork={artworkPresentationState.visibleDetailsArtwork}
         {lyricsTrack}
         backdropArtwork={artworkPresentationState.visibleArtworkBackground}
-        artworkBackgroundBright={isArtworkBackgroundBright}
+        zoneArtworkBright={workspaceZoneArtworkBright}
         zoneEffects={workspaceZoneEffects}
         zoneArtworkSettings={workspaceZoneArtworkSettings}
         isDetailsVisible={workspaceShellState.isDetailsPanelVisible}
@@ -1367,7 +1438,7 @@
         detailsArtwork={artworkPresentationState.visibleDetailsArtwork}
         {lyricsTrack}
         backdropArtwork={artworkPresentationState.visibleArtworkBackground}
-        artworkBackgroundBright={isArtworkBackgroundBright}
+        zoneArtworkBright={workspaceZoneArtworkBright}
         zoneEffects={workspaceZoneEffects}
         zoneArtworkSettings={workspaceZoneArtworkSettings}
         isDetailsVisible={workspaceShellState.isDetailsPanelVisible}
@@ -1401,7 +1472,7 @@
       artwork={artworkPresentationState.displayedArtwork}
       backdropEffect={backdropZones.player}
       backdropArtworkSettings={backdropZoneArtwork.player}
-      artworkBackgroundBright={isArtworkBackgroundBright}
+      artworkBackgroundBright={artworkBackgroundBrightByZone.player}
       on:toggle={() => void playbackCommands.togglePlayback()}
       on:previous={() => void playbackCommands.stepTrack(-1)}
       on:next={() => void playbackCommands.stepTrack(1)}

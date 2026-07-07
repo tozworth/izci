@@ -37,18 +37,52 @@
 
 .player-bar.artwork-background-active {
   color-scheme: dark;
+  --artwork-zone-brightness: var(--shared-zone-artwork-brightness, 0.42);
+  --artwork-zone-light-mix: calc(var(--artwork-zone-brightness) * 100%);
   --player-bar-backdrop-blur: 28px;
   --player-bar-backdrop-saturate: 1.16;
-  --menu-bar-bg: rgba(17, 18, 24, 0.42);
+  --menu-bar-bg: color-mix(
+    in srgb,
+    rgba(252, 248, 240, 0.46) var(--artwork-zone-light-mix),
+    rgba(17, 18, 24, 0.42)
+  );
   --text: rgba(248, 246, 241, 0.96);
   --text-strong: rgba(255, 255, 255, 0.98);
   --muted: rgba(248, 246, 241, 0.72);
-  --bg-soft: rgba(18, 19, 24, 0.5);
-  --bg-volume-popup: rgba(16, 17, 22, 0.76);
-  --border-strong: rgba(255, 255, 255, 0.18);
-  --hover-control: rgba(255, 255, 255, 0.08);
-  --player-bar-fade: linear-gradient(180deg, rgba(5, 6, 10, 0), rgba(5, 6, 10, 0.26));
-  --hairline: rgba(255, 255, 255, 0.08);
+  --bg-soft: color-mix(
+    in srgb,
+    rgba(255, 250, 242, 0.58) var(--artwork-zone-light-mix),
+    rgba(18, 19, 24, 0.5)
+  );
+  --bg-volume-popup: color-mix(
+    in srgb,
+    rgba(255, 250, 242, 0.84) var(--artwork-zone-light-mix),
+    rgba(16, 17, 22, 0.76)
+  );
+  --border-strong: color-mix(
+    in srgb,
+    rgba(52, 39, 25, 0.22) var(--artwork-zone-light-mix),
+    rgba(255, 255, 255, 0.18)
+  );
+  --hover-control: color-mix(
+    in srgb,
+    rgba(52, 39, 25, 0.09) var(--artwork-zone-light-mix),
+    rgba(255, 255, 255, 0.08)
+  );
+  --player-bar-fade: linear-gradient(
+    180deg,
+    rgba(5, 6, 10, 0),
+    color-mix(
+      in srgb,
+      rgba(255, 250, 242, 0.28) var(--artwork-zone-light-mix),
+      rgba(5, 6, 10, 0.26)
+    )
+  );
+  --hairline: color-mix(
+    in srgb,
+    rgba(34, 20, 8, 0.08) var(--artwork-zone-light-mix),
+    rgba(255, 255, 255, 0.08)
+  );
 }
 
 .player-bar.visualizer-backdrop-active:not(.artwork-background-active) {
@@ -71,16 +105,9 @@
 
 .player-bar.artwork-background-active.artwork-background-bright {
   color-scheme: light;
-  --menu-bar-bg: rgba(252, 248, 240, 0.46);
-  --bg-soft: rgba(255, 250, 242, 0.58);
-  --bg-volume-popup: rgba(255, 250, 242, 0.84);
   --text: #241b12;
   --text-strong: #130d08;
   --muted: rgba(36, 27, 18, 0.76);
-  --border-strong: rgba(52, 39, 25, 0.22);
-  --hover-control: rgba(52, 39, 25, 0.09);
-  --player-bar-fade: linear-gradient(180deg, rgba(255, 255, 255, 0), rgba(255, 250, 242, 0.28));
-  --hairline: rgba(34, 20, 8, 0.08);
   --visualizer-high: rgba(42, 31, 20, 0.44);
   --visualizer-mid: rgba(122, 83, 26, 0.34);
   --visualizer-low: rgba(38, 78, 57, 0.18);
@@ -95,7 +122,15 @@
 }
 
 .player-bar.artwork-background-active.artwork-background-bright.visualizer-backdrop-active {
-  --player-bar-layer-fade: linear-gradient(180deg, rgba(255, 250, 242, 0), rgba(255, 250, 242, 0.16));
+  --player-bar-layer-fade: linear-gradient(
+    180deg,
+    rgba(18, 19, 28, 0),
+    color-mix(
+      in srgb,
+      rgba(255, 250, 242, 0.16) var(--artwork-zone-light-mix),
+      rgba(18, 19, 28, 0.16)
+    )
+  );
 }
 
 .player-bar::before {

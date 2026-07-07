@@ -1,6 +1,10 @@
 import { writable } from 'svelte/store';
 import type { PlaylistItem } from '$lib/types';
-import { analyzeArtworkBackground } from '$lib/services/artwork-background';
+import {
+  analyzeArtworkBackground,
+  DEFAULT_ARTWORK_BACKGROUND_ANALYSIS,
+  type ArtworkBackgroundAnalysis
+} from '$lib/services/artwork-background';
 import {
   getTrackArtworkLoadKey,
   loadTrackArtwork,
@@ -18,6 +22,7 @@ export interface ArtworkPresentationState {
   artworkBackgroundSecondary: LoadedStreamArtwork | null;
   activeArtworkBackgroundSlot: ArtworkBackgroundSlot;
   visibleArtworkBackground: LoadedStreamArtwork | null;
+  artworkBackgroundAnalysis: ArtworkBackgroundAnalysis;
   isArtworkBackgroundBright: boolean;
   isWindowChromeTransitionBypassed: boolean;
 }
@@ -38,6 +43,7 @@ function createInitialState(): ArtworkPresentationState {
     artworkBackgroundSecondary: null,
     activeArtworkBackgroundSlot: 'primary',
     visibleArtworkBackground: null,
+    artworkBackgroundAnalysis: DEFAULT_ARTWORK_BACKGROUND_ANALYSIS,
     isArtworkBackgroundBright: false,
     isWindowChromeTransitionBypassed: false
   };
@@ -264,6 +270,7 @@ export function createArtworkPresentationController({
       ...state,
       artworkBackgroundPrimary: null,
       artworkBackgroundSecondary: null,
+      artworkBackgroundAnalysis: DEFAULT_ARTWORK_BACKGROUND_ANALYSIS,
       isArtworkBackgroundBright: false
     };
     exitingArtworkBackgroundSlot = null;
@@ -419,7 +426,11 @@ export function createArtworkPresentationController({
       artworkBrightnessKey = brightnessKey;
 
       if (brightnessKey.length === 0) {
-        state = { ...state, isArtworkBackgroundBright: false };
+        state = {
+          ...state,
+          artworkBackgroundAnalysis: DEFAULT_ARTWORK_BACKGROUND_ANALYSIS,
+          isArtworkBackgroundBright: false
+        };
         publishState();
         return;
       }
@@ -430,7 +441,11 @@ export function createArtworkPresentationController({
         return;
       }
 
-      state = { ...state, isArtworkBackgroundBright: analysis.isBright };
+      state = {
+        ...state,
+        artworkBackgroundAnalysis: analysis,
+        isArtworkBackgroundBright: analysis.isBright
+      };
       publishState();
     },
     syncArtworkMenuClasses(active: boolean, bright: boolean): void {

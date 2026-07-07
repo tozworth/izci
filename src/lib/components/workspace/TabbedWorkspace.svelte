@@ -45,6 +45,11 @@
     library: null,
     details: null
   };
+  export let zoneArtworkBright: Record<WorkspacePanelId, boolean> = {
+    playlist: false,
+    library: false,
+    details: false
+  };
   export let isDetailsVisible = false;
   export let isLyricsVisible = false;
   export let lyricsDisplayStyle: LyricsDisplayStyle = 'timestamped';
@@ -152,7 +157,7 @@
       effect={zoneEffects.playlist}
       artwork={backdropArtwork}
       artworkSettings={zoneArtworkSettings.playlist}
-      artworkBright={artworkBackgroundBright}
+      artworkBright={zoneArtworkBright.playlist || artworkBackgroundBright}
       fillParent={true}
       zoneId="playlist"
     >
@@ -182,7 +187,7 @@
       effect={zoneEffects.library}
       artwork={backdropArtwork}
       artworkSettings={zoneArtworkSettings.library}
-      artworkBright={artworkBackgroundBright}
+      artworkBright={zoneArtworkBright.library || artworkBackgroundBright}
       fillParent={true}
       zoneId="library"
     >
@@ -212,7 +217,7 @@
         effect={zoneEffects.details}
         artwork={backdropArtwork}
         artworkSettings={zoneArtworkSettings.details}
-        artworkBright={artworkBackgroundBright}
+        artworkBright={zoneArtworkBright.details || artworkBackgroundBright}
         fillParent={true}
         zoneId="details"
       >
@@ -220,7 +225,7 @@
           track={selectedItem}
           artwork={detailsArtwork}
           artworkBackgroundActive={hasArtworkBackdrop(zoneEffects.details) && Boolean(backdropArtwork)}
-          {artworkBackgroundBright}
+          artworkBackgroundBright={zoneArtworkBright.details || artworkBackgroundBright}
           visualizerBackdropActive={hasVisualizerBackdrop(zoneEffects.details)}
           hideEyebrow={true}
           isTabbedLayout={true}
@@ -242,7 +247,7 @@
         effect={zoneEffects.details}
         artwork={backdropArtwork}
         artworkSettings={zoneArtworkSettings.details}
-        artworkBright={artworkBackgroundBright}
+        artworkBright={zoneArtworkBright.details || artworkBackgroundBright}
         fillParent={true}
         zoneId="details"
       >

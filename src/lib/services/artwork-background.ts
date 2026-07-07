@@ -12,11 +12,56 @@ export interface ArtworkBackgroundAnalysis {
   isBright: boolean;
 }
 
-const DEFAULT_ANALYSIS: ArtworkBackgroundAnalysis = {
+export const DEFAULT_ARTWORK_BACKGROUND_ANALYSIS: ArtworkBackgroundAnalysis = {
   averageLuminance: 0,
   brightPixelRatio: 0,
   isBright: false
 };
+
+const DEFAULT_RENDERED_BRIGHTNESS = 0.42;
+
+function clampUnit(value: number): number {
+  if (!Number.isFinite(value)) {
+    return DEFAULT_RENDERED_BRIGHTNESS;
+  }
+
+  return Math.min(Math.max(value, 0), 1);
+}
+
+export function getEffectiveArtworkBackgroundAnalysis(
+  analysis: ArtworkBackgroundAnalysis,
+  renderedBrightness: number
+): ArtworkBackgroundAnalysis {
+  const brightness = clampUnit(renderedBrightness);
+  const brightnessScale = brightness / DEFAULT_RENDERED_BRIGHTNESS;
+  const averageLuminance = Math.min(analysis.averageLuminance * brightnessScale, 1);
+  const brightPixelScale =
+    brightnessScale <= BRIGHT_PIXEL_LUMINANCE
+      ? 0
+      : Math.min(
+          1,
+          brightnessScale < 1
+            ? (brightnessScale - BRIGHT_PIXEL_LUMINANCE) / (1 - BRIGHT_PIXEL_LUMINANCE)
+            : brightnessScale
+        );
+  const brightPixelRatio = Math.min(analysis.brightPixelRatio * brightPixelScale, 1);
+  const isBright =
+    averageLuminance >= BRIGHT_AVERAGE_LUMINANCE ||
+    (averageLuminance >= BRIGHT_MIXED_LUMINANCE && brightPixelRatio >= BRIGHT_PIXEL_RATIO);
+
+  return {
+    averageLuminance,
+    brightPixelRatio,
+    isBright
+  };
+}
+
+export function isArtworkBackgroundBrightForBrightness(
+  analysis: ArtworkBackgroundAnalysis,
+  brightnessPercent: number
+): boolean {
+  return getEffectiveArtworkBackgroundAnalysis(analysis, brightnessPercent / 100).isBright;
+}
 
 function loadImage(url: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
@@ -51,7 +96,7 @@ export async function analyzeArtworkBackground(
   artwork: LoadedStreamArtwork | null | undefined
 ): Promise<ArtworkBackgroundAnalysis> {
   if (!artwork || typeof document === 'undefined') {
-    return DEFAULT_ANALYSIS;
+    return DEFAULT_ARTWORK_BACKGROUND_ANALYSIS;
   }
 
   try {
@@ -65,7 +110,7 @@ export async function analyzeArtworkBackground(
     const context = canvas.getContext('2d', { willReadFrequently: true });
 
     if (!context) {
-      return DEFAULT_ANALYSIS;
+      return DEFAULT_ARTWORK_BACKGROUND_ANALYSIS;
     }
 
     context.drawImage(image, 0, 0, width, height);
@@ -96,7 +141,7 @@ export async function analyzeArtworkBackground(
     }
 
     if (totalAlpha <= 0) {
-      return DEFAULT_ANALYSIS;
+      return DEFAULT_ARTWORK_BACKGROUND_ANALYSIS;
     }
 
     const averageLuminance = totalLuminance / totalAlpha;
@@ -111,6 +156,6 @@ export async function analyzeArtworkBackground(
       isBright
     };
   } catch {
-    return DEFAULT_ANALYSIS;
+    return DEFAULT_ARTWORK_BACKGROUND_ANALYSIS;
   }
 }
