@@ -85,6 +85,226 @@
   --app-font-family: var(--system-font-family);
 }
 
+:root[data-theme='coal'] {
+  --bg-base: #101113;
+  --menu-bar-bg: #101113;
+  --window-topbar-bg: #101113;
+  --window-topbar-text: #dde1e5;
+  --window-topbar-text-strong: #f0f2f4;
+  --window-topbar-muted: #8e97a1;
+  --window-topbar-hover-surface: rgba(221, 225, 229, 0.075);
+  --window-topbar-hairline: rgba(255, 255, 255, 0.035);
+  --bg-elevated: rgba(32, 34, 38, 0.95);
+  --bg-soft: #202226;
+  --menu-popover-bg: rgba(21, 23, 26, 0.985);
+  --menu-popover-text: #dde1e5;
+  --menu-popover-muted: #8e97a1;
+  --menu-popover-border: rgba(146, 154, 164, 0.2);
+  --menu-popover-hover: rgba(146, 154, 164, 0.13);
+  --menu-popover-shadow: 0 18px 44px rgba(0, 0, 0, 0.42);
+  --bg-tree: rgba(21, 23, 26, 0.96);
+  --bg-card: rgba(43, 46, 51, 0.48);
+  --bg-input: rgba(16, 17, 19, 0.93);
+  --bg-search: rgba(21, 23, 26, 0.96);
+  --bg-volume-popup: rgba(16, 17, 19, 0.86);
+  --text: #dde1e5;
+  --text-strong: #f0f2f4;
+  --muted: #8e97a1;
+  --muted-strong: #b6bdc5;
+  --accent: #7f8a96;
+  --accent-strong: #b9c1ca;
+  --accent-strong-soft: rgba(185, 193, 202, 0.08);
+  --accent-strong-faint: rgba(185, 193, 202, 0.12);
+  --accent-strong-border-hover: rgba(185, 193, 202, 0.38);
+  --accent-focus-border: rgba(185, 193, 202, 0.3);
+  --accent-dashed-border: rgba(127, 138, 150, 0.22);
+  --visualizer-high: rgba(240, 242, 244, 0.88);
+  --visualizer-mid: rgba(164, 173, 184, 0.58);
+  --visualizer-low: rgba(92, 100, 110, 0.22);
+  --visualizer-glow: rgba(185, 193, 202, 0.3);
+  --visualizer-bars: rgba(185, 193, 202, 0.72);
+  --visualizer-blocks: rgba(240, 242, 244, 0.64);
+  --danger: #e06b68;
+  --border: rgba(146, 154, 164, 0.24);
+  --border-strong: rgba(146, 154, 164, 0.2);
+  --border-soft: rgba(146, 154, 164, 0.14);
+  --border-faint: rgba(146, 154, 164, 0.12);
+  --border-subtle: rgba(146, 154, 164, 0.1);
+  --border-covered: rgba(146, 154, 164, 0.08);
+  --player-bar-separator: #3d4249;
+  --menu-bar-border: rgba(146, 154, 164, 0.18);
+  --hover-surface: rgba(221, 225, 229, 0.075);
+  --hover-subtle: rgba(221, 225, 229, 0.035);
+  --hover-control: rgba(221, 225, 229, 0.055);
+  --tree-hover: rgba(92, 100, 110, 0.18);
+  --selection-bg: rgba(127, 138, 150, 0.13);
+  --selection-strong: rgba(127, 138, 150, 0.2);
+  --resizer-track: rgba(146, 154, 164, 0.18);
+  --resizer-handle: rgba(221, 225, 229, 0.22);
+  --shadow: 0 18px 44px rgba(0, 0, 0, 0.42);
+  --hairline: rgba(255, 255, 255, 0.035);
+  --body-background:
+    radial-gradient(circle at top left, rgba(114, 124, 136, 0.06), transparent 24%),
+    radial-gradient(circle at top right, rgba(185, 193, 202, 0.035), transparent 22%),
+    linear-gradient(180deg, #17191c 0%, #101113 100%);
+  --options-body-background:
+    radial-gradient(circle at top left, rgba(114, 124, 136, 0.07), transparent 24%),
+    radial-gradient(circle at top right, rgba(185, 193, 202, 0.045), transparent 22%),
+    linear-gradient(180deg, #17191c 0%, #101113 100%);
+  --playlist-header-background:
+    linear-gradient(180deg, rgba(32, 34, 38, 0.78) 0%, rgba(32, 34, 38, 0.68) 100%),
+    rgba(16, 17, 19, 0.26);
+  --playlist-header-shadow-gradient: linear-gradient(180deg, rgba(11, 12, 13, 0.34), rgba(11, 12, 13, 0));
+  --player-bar-fade: linear-gradient(180deg, rgba(11, 12, 13, 0), rgba(11, 12, 13, 0.34));
+  --dropzone-background: linear-gradient(180deg, rgba(221, 225, 229, 0.02), transparent 18%);
+}
+
+:root[data-theme='lights-out'] {
+  --bg-base: #000000;
+  --menu-bar-bg: #000000;
+  --window-topbar-bg: #000000;
+  --window-topbar-text: #d7dce1;
+  --window-topbar-text-strong: #edf0f3;
+  --window-topbar-muted: #858d96;
+  --window-topbar-hover-surface: rgba(215, 220, 225, 0.07);
+  --window-topbar-hairline: rgba(255, 255, 255, 0.03);
+  --bg-elevated: #000000;
+  --bg-soft: #050506;
+  --menu-popover-bg: rgba(6, 7, 8, 0.99);
+  --menu-popover-text: #d7dce1;
+  --menu-popover-muted: #858d96;
+  --menu-popover-border: rgba(132, 142, 152, 0.18);
+  --menu-popover-hover: rgba(132, 142, 152, 0.12);
+  --menu-popover-shadow: 0 18px 44px rgba(0, 0, 0, 0.55);
+  --bg-tree: #000000;
+  --bg-card: #000000;
+  --bg-input: rgba(0, 0, 0, 0.94);
+  --bg-search: rgba(6, 7, 8, 0.97);
+  --bg-volume-popup: rgba(0, 0, 0, 0.88);
+  --text: #d7dce1;
+  --text-strong: #edf0f3;
+  --muted: #858d96;
+  --muted-strong: #aeb6bf;
+  --accent: #7c8792;
+  --accent-strong: #adb7c1;
+  --accent-strong-soft: rgba(173, 183, 193, 0.075);
+  --accent-strong-faint: rgba(173, 183, 193, 0.11);
+  --accent-strong-border-hover: rgba(173, 183, 193, 0.34);
+  --accent-focus-border: rgba(173, 183, 193, 0.28);
+  --accent-dashed-border: rgba(124, 135, 146, 0.2);
+  --visualizer-high: rgba(237, 240, 243, 0.82);
+  --visualizer-mid: rgba(154, 164, 176, 0.52);
+  --visualizer-low: rgba(74, 82, 92, 0.2);
+  --visualizer-glow: rgba(173, 183, 193, 0.24);
+  --visualizer-bars: rgba(173, 183, 193, 0.66);
+  --visualizer-blocks: rgba(237, 240, 243, 0.58);
+  --danger: #db6561;
+  --border: rgba(132, 142, 152, 0.22);
+  --border-strong: rgba(132, 142, 152, 0.18);
+  --border-soft: rgba(132, 142, 152, 0.12);
+  --border-faint: rgba(132, 142, 152, 0.1);
+  --border-subtle: rgba(132, 142, 152, 0.085);
+  --border-covered: rgba(132, 142, 152, 0.07);
+  --player-bar-separator: #2c3036;
+  --menu-bar-border: rgba(132, 142, 152, 0.16);
+  --hover-surface: rgba(215, 220, 225, 0.07);
+  --hover-subtle: rgba(215, 220, 225, 0.03);
+  --hover-control: rgba(215, 220, 225, 0.05);
+  --tree-hover: rgba(74, 82, 92, 0.16);
+  --selection-bg: rgba(124, 135, 146, 0.12);
+  --selection-strong: rgba(124, 135, 146, 0.18);
+  --resizer-track: rgba(132, 142, 152, 0.16);
+  --resizer-handle: rgba(215, 220, 225, 0.2);
+  --shadow: 0 18px 44px rgba(0, 0, 0, 0.55);
+  --hairline: rgba(255, 255, 255, 0.03);
+  --body-background:
+    radial-gradient(circle at top left, rgba(92, 102, 114, 0.035), transparent 24%),
+    radial-gradient(circle at top right, rgba(173, 183, 193, 0.025), transparent 22%),
+    linear-gradient(180deg, #050506 0%, #000000 100%);
+  --options-body-background:
+    radial-gradient(circle at top left, rgba(92, 102, 114, 0.045), transparent 24%),
+    radial-gradient(circle at top right, rgba(173, 183, 193, 0.03), transparent 22%),
+    linear-gradient(180deg, #050506 0%, #000000 100%);
+  --playlist-header-background: #000000;
+  --playlist-header-shadow-gradient: linear-gradient(180deg, rgba(0, 0, 0, 0.38), rgba(0, 0, 0, 0));
+  --player-bar-fade: linear-gradient(180deg, rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.38));
+  --dropzone-background: #000000;
+}
+
+:root[data-theme='nordic'] {
+  --bg-base: #1b222d;
+  --menu-bar-bg: #1b222d;
+  --window-topbar-bg: #1b222d;
+  --window-topbar-text: #d8dee9;
+  --window-topbar-text-strong: #eceff4;
+  --window-topbar-muted: #9aa8ba;
+  --window-topbar-hover-surface: rgba(216, 222, 233, 0.08);
+  --window-topbar-hairline: rgba(236, 239, 244, 0.04);
+  --bg-elevated: rgba(48, 57, 70, 0.94);
+  --bg-soft: #303946;
+  --menu-popover-bg: rgba(35, 42, 52, 0.985);
+  --menu-popover-text: #d8dee9;
+  --menu-popover-muted: #9aa8ba;
+  --menu-popover-border: rgba(129, 161, 193, 0.24);
+  --menu-popover-hover: rgba(129, 161, 193, 0.16);
+  --menu-popover-shadow: 0 18px 44px rgba(8, 12, 17, 0.42);
+  --bg-tree: rgba(35, 42, 52, 0.96);
+  --bg-card: rgba(59, 69, 85, 0.52);
+  --bg-input: rgba(27, 34, 45, 0.92);
+  --bg-search: rgba(35, 42, 52, 0.96);
+  --bg-volume-popup: rgba(27, 34, 45, 0.84);
+  --text: #d8dee9;
+  --text-strong: #eceff4;
+  --muted: #9aa8ba;
+  --muted-strong: #bfccdc;
+  --accent: #81a1c1;
+  --accent-strong: #88c0d0;
+  --accent-strong-soft: rgba(136, 192, 208, 0.08);
+  --accent-strong-faint: rgba(136, 192, 208, 0.12);
+  --accent-strong-border-hover: rgba(136, 192, 208, 0.4);
+  --accent-focus-border: rgba(136, 192, 208, 0.32);
+  --accent-dashed-border: rgba(129, 161, 193, 0.24);
+  --visualizer-high: rgba(236, 239, 244, 0.92);
+  --visualizer-mid: rgba(136, 192, 208, 0.66);
+  --visualizer-low: rgba(94, 129, 172, 0.24);
+  --visualizer-glow: rgba(136, 192, 208, 0.36);
+  --visualizer-bars: rgba(136, 192, 208, 0.78);
+  --visualizer-blocks: rgba(236, 239, 244, 0.68);
+  --danger: #bf616a;
+  --border: rgba(129, 161, 193, 0.28);
+  --border-strong: rgba(129, 161, 193, 0.24);
+  --border-soft: rgba(129, 161, 193, 0.16);
+  --border-faint: rgba(129, 161, 193, 0.14);
+  --border-subtle: rgba(129, 161, 193, 0.12);
+  --border-covered: rgba(129, 161, 193, 0.1);
+  --player-bar-separator: #4b5a6c;
+  --menu-bar-border: rgba(129, 161, 193, 0.22);
+  --hover-surface: rgba(216, 222, 233, 0.08);
+  --hover-subtle: rgba(216, 222, 233, 0.04);
+  --hover-control: rgba(216, 222, 233, 0.06);
+  --tree-hover: rgba(94, 129, 172, 0.2);
+  --selection-bg: rgba(129, 161, 193, 0.14);
+  --selection-strong: rgba(129, 161, 193, 0.22);
+  --resizer-track: rgba(129, 161, 193, 0.22);
+  --resizer-handle: rgba(216, 222, 233, 0.24);
+  --shadow: 0 18px 44px rgba(8, 12, 17, 0.42);
+  --hairline: rgba(236, 239, 244, 0.04);
+  --body-background:
+    radial-gradient(circle at top left, rgba(94, 129, 172, 0.11), transparent 24%),
+    radial-gradient(circle at top right, rgba(136, 192, 208, 0.08), transparent 22%),
+    linear-gradient(180deg, #27303c 0%, #1b222d 100%);
+  --options-body-background:
+    radial-gradient(circle at top left, rgba(94, 129, 172, 0.12), transparent 24%),
+    radial-gradient(circle at top right, rgba(136, 192, 208, 0.09), transparent 22%),
+    linear-gradient(180deg, #27303c 0%, #1b222d 100%);
+  --playlist-header-background:
+    linear-gradient(180deg, rgba(48, 57, 70, 0.78) 0%, rgba(48, 57, 70, 0.68) 100%),
+    rgba(27, 34, 45, 0.24);
+  --playlist-header-shadow-gradient: linear-gradient(180deg, rgba(13, 18, 25, 0.32), rgba(13, 18, 25, 0));
+  --player-bar-fade: linear-gradient(180deg, rgba(13, 18, 25, 0), rgba(13, 18, 25, 0.32));
+  --dropzone-background: linear-gradient(180deg, rgba(216, 222, 233, 0.022), transparent 18%);
+}
+
 :root[data-theme='gruvbox'] {
   color-scheme: dark;
   font-family: var(--app-font-family);
@@ -262,11 +482,11 @@
   --muted: #c79a84;
   --muted-strong: #e2b9a5;
   --accent: #d86a3d;
-  --accent-strong: #ff9b54;
-  --accent-strong-soft: rgba(255, 155, 84, 0.08);
-  --accent-strong-faint: rgba(255, 155, 84, 0.12);
-  --accent-strong-border-hover: rgba(255, 155, 84, 0.42);
-  --accent-focus-border: rgba(255, 155, 84, 0.34);
+  --accent-strong: #f0783f;
+  --accent-strong-soft: rgba(240, 120, 63, 0.08);
+  --accent-strong-faint: rgba(240, 120, 63, 0.12);
+  --accent-strong-border-hover: rgba(240, 120, 63, 0.42);
+  --accent-focus-border: rgba(240, 120, 63, 0.34);
   --accent-dashed-border: rgba(216, 106, 61, 0.24);
   --visualizer-high: rgba(255, 236, 205, 0.94);
   --visualizer-mid: rgba(255, 155, 84, 0.68);

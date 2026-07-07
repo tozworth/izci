@@ -124,9 +124,18 @@ export function hasVisualizerBackdrop(effect: BackdropZoneEffect): boolean {
 }
 
 function normalizeColorTheme(value: unknown): ColorTheme {
-  return value === 'gruvbox' || value === 'dracula' || value === 'ember' || value === 'gray'
-    ? value
-    : DEFAULT_COLOR_THEME;
+  switch (value) {
+    case 'gray':
+    case 'coal':
+    case 'lights-out':
+    case 'nordic':
+    case 'gruvbox':
+    case 'dracula':
+    case 'ember':
+      return value;
+    default:
+      return DEFAULT_COLOR_THEME;
+  }
 }
 
 function normalizeBackdropZoneEffect(value: unknown): BackdropZoneEffect {
