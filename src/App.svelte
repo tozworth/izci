@@ -131,6 +131,8 @@
   let autoNowPlayingSuppressed = false;
   let isNowPlayingViewportEligible = false;
   let isNowPlayingLayoutActive = false;
+  let isNowPlayingChromeHidden = false;
+  let isFullscreenNowPlayingChromeHidden = false;
   let isArtworkBackdropRequested = false;
   let isVisualizerBackdropRequested = false;
   let isArtworkBackdropActive = false;
@@ -272,6 +274,11 @@
     (nowPlayingViewActive || (isAutomaticNowPlayingEligible && !autoNowPlayingSuppressed)) &&
     isNowPlayingViewportEligible &&
     !miniModeActive;
+  $: isFullscreenNowPlayingChromeHidden =
+    isNowPlayingLayoutActive && $windowDisplayState.fullscreen && isNowPlayingChromeHidden;
+  $: if (!isNowPlayingLayoutActive || !$windowDisplayState.fullscreen) {
+    isNowPlayingChromeHidden = false;
+  }
   $: syncNowPlayingLayoutTransition(isNowPlayingLayoutActive);
   $: syncLyricsAvailability(lyricsTrack);
   $: syncNowPlayingLyricsAutoFocus(
@@ -1231,6 +1238,7 @@
   class:tabbed-layout={workspaceShellState.isTabbedLayout}
   class:mini-mode={miniModeActive}
   class:now-playing-mode={isNowPlayingLayoutActive}
+  class:now-playing-theater-chrome-hidden={isFullscreenNowPlayingChromeHidden}
   class:window-chrome-transition-bypass={artworkPresentationState.isWindowChromeTransitionBypassed}
   class:window-controls-overlay-active={$windowControlsOverlayState.visible}
 >
@@ -1302,6 +1310,7 @@
       panelAutoHideDelaySeconds={$appearanceSettings.nowPlayingPanelAutoHideDelaySeconds}
       useArtworkPlayerColors={$appearanceSettings.useNowPlayingArtworkPlayerColors}
       on:close={closeNowPlayingView}
+      on:chromeHiddenChange={(event) => (isNowPlayingChromeHidden = event.detail)}
       on:tabChange={(event) => handleNowPlayingTabChange(event.detail)}
       on:toggle={() => void playbackCommands.togglePlayback()}
       on:previous={() => void playbackCommands.stepTrack(-1)}

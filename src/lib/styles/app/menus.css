@@ -17,6 +17,10 @@
   position: sticky;
   top: 0;
   z-index: 40;
+  transition:
+    opacity 420ms ease,
+    transform 420ms ease,
+    box-shadow 420ms ease;
 }
 
 .menu-bar-compact {
@@ -46,6 +50,13 @@
 
 body:has(.menu-list[data-menu-interactive='true']) .menu-bar.window-controls-overlay-active {
   -webkit-app-region: no-drag;
+}
+
+.app-shell.now-playing-theater-chrome-hidden .menu-bar {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(calc(-100% - var(--window-frame-safe-top)));
+  box-shadow: none;
 }
 
 .menu-bar.window-controls-overlay-active.menu-bar-compact {

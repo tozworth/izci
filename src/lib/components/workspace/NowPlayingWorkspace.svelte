@@ -50,6 +50,7 @@
 
   const dispatch = createEventDispatcher<{
     close: void;
+    chromeHiddenChange: boolean;
     seek: number;
     tabChange: WorkspaceTab;
   }>();
@@ -64,6 +65,15 @@
   let panelChromeHidden = false;
   let panelHideTimer: ReturnType<typeof window.setTimeout> | null = null;
   let lastPanelAutoHideDelaySeconds = panelAutoHideDelaySeconds;
+
+  function setPanelChromeHidden(hidden: boolean) {
+    if (panelChromeHidden === hidden) {
+      return;
+    }
+
+    panelChromeHidden = hidden;
+    dispatch('chromeHiddenChange', hidden);
+  }
 
   function resolveQueueTabs(tabs: WorkspaceTabDefinition[]): WorkspaceTabDefinition[] {
     const tabMap = new Map(tabs.map((tab) => [tab.id, tab]));
@@ -87,18 +97,18 @@
     clearPanelHideTimer();
 
     if (!isPanelAutoHideEnabled(panelAutoHideDelaySeconds)) {
-      panelChromeHidden = false;
+      setPanelChromeHidden(false);
       return;
     }
 
     panelHideTimer = window.setTimeout(() => {
-      panelChromeHidden = true;
+      setPanelChromeHidden(true);
       panelHideTimer = null;
     }, panelAutoHideDelaySeconds * 1000);
   }
 
   function revealPanelChrome() {
-    panelChromeHidden = false;
+    setPanelChromeHidden(false);
     schedulePanelHide();
   }
 
@@ -119,10 +129,11 @@
   }
 </script>
 
+<svelte:window on:pointermove={revealPanelChrome} />
+
 <main
   class="workspace now-playing-workspace"
   class:is-cursor-hidden={panelChromeHidden}
-  on:pointermove={revealPanelChrome}
 >
   <BackdropZone
     effect={backdropEffect}

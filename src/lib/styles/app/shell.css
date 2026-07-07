@@ -298,6 +298,10 @@
   height: var(--window-frame-safe-top);
 }
 
+.app-shell.now-playing-theater-chrome-hidden .window-frame-safe-strip {
+  opacity: 0;
+}
+
 @media (max-width: 349px) {
   .app-shell.tabbed-layout {
     padding-bottom: var(--player-bar-measured-reserve, calc(4.55rem + env(safe-area-inset-bottom, 0px)));
