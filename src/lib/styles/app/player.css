@@ -38,8 +38,8 @@
 .player-bar.artwork-background-active {
   color-scheme: dark;
   --artwork-zone-brightness: var(--shared-zone-artwork-brightness, 0.42);
-  --artwork-zone-light-mix: calc(var(--artwork-zone-brightness) * 100%);
-  --player-bar-backdrop-blur: 28px;
+  --artwork-zone-light-mix: 0%;
+  --player-bar-backdrop-blur: var(--shared-zone-surface-blur, 28px);
   --player-bar-backdrop-saturate: 1.16;
   --menu-bar-bg: color-mix(
     in srgb,
@@ -105,6 +105,7 @@
 
 .player-bar.artwork-background-active.artwork-background-bright {
   color-scheme: light;
+  --artwork-zone-light-mix: 100%;
   --text: #241b12;
   --text-strong: #130d08;
   --muted: rgba(36, 27, 18, 0.76);

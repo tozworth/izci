@@ -63,18 +63,8 @@
   overflow: hidden;
   --shared-artwork-blur: 36px;
   --shared-artwork-brightness: 0.42;
-  --shared-artwork-default-brightness: 0.42;
-  --shared-artwork-default-overlay-opacity: min(
-    calc(var(--shared-artwork-brightness) / var(--shared-artwork-default-brightness)),
-    calc((1 - var(--shared-artwork-brightness)) / (1 - var(--shared-artwork-default-brightness)))
-  );
-  --shared-artwork-blackout-opacity: max(
-    0,
-    calc(
-      (var(--shared-artwork-default-brightness) - var(--shared-artwork-brightness)) /
-        var(--shared-artwork-default-brightness)
-    )
-  );
+  --shared-artwork-dim-opacity: calc((1 - var(--shared-artwork-brightness)) * 0.72);
+  --shared-artwork-vignette-opacity: calc((1 - var(--shared-artwork-brightness)) * 0.16);
 }
 
 .shared-artwork-zone-image {
@@ -89,20 +79,18 @@
 
 .shared-artwork-zone-overlay {
   background:
-    linear-gradient(
-      rgba(0, 0, 0, var(--shared-artwork-blackout-opacity)),
-      rgba(0, 0, 0, var(--shared-artwork-blackout-opacity))
-    ),
     radial-gradient(
       circle at top,
-      rgba(255, 255, 255, calc(0.08 * var(--shared-artwork-default-overlay-opacity))),
+      rgba(255, 255, 255, calc(0.04 * var(--shared-artwork-brightness))),
       transparent 36%
     ),
     linear-gradient(
       180deg,
-      rgba(10, 11, 16, calc(0.58 * var(--shared-artwork-default-overlay-opacity))) 0%,
-      rgba(10, 11, 16, calc(0.34 * var(--shared-artwork-default-overlay-opacity))) 52%,
-      rgba(10, 11, 16, calc(0.62 * var(--shared-artwork-default-overlay-opacity))) 100%
+      rgba(8, 9, 13, calc(var(--shared-artwork-dim-opacity) + var(--shared-artwork-vignette-opacity)))
+        0%,
+      rgba(8, 9, 13, var(--shared-artwork-dim-opacity)) 52%,
+      rgba(8, 9, 13, calc(var(--shared-artwork-dim-opacity) + var(--shared-artwork-vignette-opacity)))
+        100%
     );
 }
 
@@ -158,10 +146,11 @@
 .backdrop-zone.artwork-backdrop-active {
   color-scheme: dark;
   --artwork-zone-brightness: var(--shared-zone-artwork-brightness, 0.42);
-  --artwork-zone-light-mix: calc(var(--artwork-zone-brightness) * 100%);
-  --panel-backdrop-blur: 28px;
+  --artwork-zone-light-mix: 0%;
+  --panel-backdrop-blur: var(--shared-zone-surface-blur, 28px);
   --panel-backdrop-saturate: 1.18;
-  --chrome-backdrop-blur: 28px;
+  --chrome-backdrop-blur: var(--shared-zone-surface-blur, 28px);
+  --chrome-header-backdrop-blur: var(--shared-zone-header-blur, 26px);
   --chrome-backdrop-saturate: 1.16;
   --bg-elevated: color-mix(
     in srgb,
@@ -264,6 +253,7 @@
 
 .backdrop-zone.artwork-backdrop-bright {
   color-scheme: light;
+  --artwork-zone-light-mix: 100%;
   --text: #241b12;
   --text-strong: #130d08;
   --muted: rgba(36, 27, 18, 0.76);
@@ -278,9 +268,10 @@
 }
 
 .backdrop-zone.visualizer-backdrop-active {
-  --panel-backdrop-blur: 2px;
+  --panel-backdrop-blur: var(--shared-zone-visualizer-surface-blur, 2px);
   --panel-backdrop-saturate: 1;
-  --chrome-backdrop-blur: 4px;
+  --chrome-backdrop-blur: var(--shared-zone-visualizer-chrome-blur, 4px);
+  --chrome-header-backdrop-blur: var(--shared-zone-visualizer-header-blur, 2px);
   --chrome-backdrop-saturate: 1;
   --bg-elevated: rgba(18, 19, 28, 0.24);
   --bg-soft: rgba(18, 19, 28, 0.34);

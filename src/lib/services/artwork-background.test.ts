@@ -19,16 +19,16 @@ const paleArtwork: ArtworkBackgroundAnalysis = {
 };
 
 describe('artwork background brightness helpers', () => {
-  it('keeps bright artwork bright at the default backdrop brightness', () => {
-    expect(isArtworkBackgroundBrightForBrightness(brightArtwork, 42)).toBe(true);
+  it('keeps bright artwork bright at full backdrop brightness', () => {
+    expect(isArtworkBackgroundBrightForBrightness(brightArtwork, 100)).toBe(true);
   });
 
-  it('treats brightened pale artwork as bright for text contrast', () => {
+  it('does not treat higher exposure as artificial lightening for text contrast', () => {
     const effectiveAnalysis = getEffectiveArtworkBackgroundAnalysis(paleArtwork, 1);
 
-    expect(effectiveAnalysis.averageLuminance).toBeGreaterThan(0.72);
-    expect(effectiveAnalysis.isBright).toBe(true);
-    expect(isArtworkBackgroundBrightForBrightness(paleArtwork, 100)).toBe(true);
+    expect(effectiveAnalysis.averageLuminance).toBe(0.48);
+    expect(effectiveAnalysis.isBright).toBe(false);
+    expect(isArtworkBackgroundBrightForBrightness(paleArtwork, 100)).toBe(false);
   });
 
   it('treats dimmed bright artwork as dark for text contrast', () => {

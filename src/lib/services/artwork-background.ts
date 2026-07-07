@@ -33,18 +33,8 @@ export function getEffectiveArtworkBackgroundAnalysis(
   renderedBrightness: number
 ): ArtworkBackgroundAnalysis {
   const brightness = clampUnit(renderedBrightness);
-  const brightnessScale = brightness / DEFAULT_RENDERED_BRIGHTNESS;
-  const averageLuminance = Math.min(analysis.averageLuminance * brightnessScale, 1);
-  const brightPixelScale =
-    brightnessScale <= BRIGHT_PIXEL_LUMINANCE
-      ? 0
-      : Math.min(
-          1,
-          brightnessScale < 1
-            ? (brightnessScale - BRIGHT_PIXEL_LUMINANCE) / (1 - BRIGHT_PIXEL_LUMINANCE)
-            : brightnessScale
-        );
-  const brightPixelRatio = Math.min(analysis.brightPixelRatio * brightPixelScale, 1);
+  const averageLuminance = analysis.averageLuminance * brightness;
+  const brightPixelRatio = analysis.brightPixelRatio * brightness;
   const isBright =
     averageLuminance >= BRIGHT_AVERAGE_LUMINANCE ||
     (averageLuminance >= BRIGHT_MIXED_LUMINANCE && brightPixelRatio >= BRIGHT_PIXEL_RATIO);

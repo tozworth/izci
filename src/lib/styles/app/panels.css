@@ -72,10 +72,10 @@
   padding: 0.72rem 0.85rem 0.58rem;
   background: var(--playlist-header-background);
   backdrop-filter:
-    blur(calc(var(--chrome-backdrop-blur, 22px) - 2px))
+    blur(var(--chrome-header-backdrop-blur, calc(var(--chrome-backdrop-blur, 22px) - 2px)))
     saturate(var(--chrome-backdrop-saturate, 1.08));
   -webkit-backdrop-filter:
-    blur(calc(var(--chrome-backdrop-blur, 22px) - 2px))
+    blur(var(--chrome-header-backdrop-blur, calc(var(--chrome-backdrop-blur, 22px) - 2px)))
     saturate(var(--chrome-backdrop-saturate, 1.08));
   transition:
     box-shadow var(--artwork-ui-transition-duration) linear,

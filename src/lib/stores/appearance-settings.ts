@@ -39,6 +39,10 @@ export const DEFAULT_BACKDROP_ZONES: BackdropZoneSettings = {
 export const MIN_BACKDROP_ARTWORK_BLUR = 0;
 export const MAX_BACKDROP_ARTWORK_BLUR = 64;
 export const DEFAULT_BACKDROP_ARTWORK_BLUR = 36;
+const MAX_BACKDROP_ARTWORK_SURFACE_BLUR = 28;
+const BACKDROP_ARTWORK_HEADER_BLUR_OFFSET = 2;
+const MAX_BACKDROP_VISUALIZER_SURFACE_BLUR = 2;
+const MAX_BACKDROP_VISUALIZER_CHROME_BLUR = 4;
 export const MIN_BACKDROP_ARTWORK_BRIGHTNESS = 0;
 export const MAX_BACKDROP_ARTWORK_BRIGHTNESS = 100;
 export const DEFAULT_BACKDROP_ARTWORK_BRIGHTNESS = 42;
@@ -175,8 +179,22 @@ export function normalizeBackdropZoneArtworkBrightness(value: unknown): number {
 }
 
 export function toBackdropZoneArtworkStyle(settings: BackdropZoneArtworkSettings): string {
+  const surfaceBlur = Math.min(settings.blur, MAX_BACKDROP_ARTWORK_SURFACE_BLUR);
+  const headerBlur = Math.max(surfaceBlur - BACKDROP_ARTWORK_HEADER_BLUR_OFFSET, 0);
+  const visualizerSurfaceBlur = Math.min(surfaceBlur, MAX_BACKDROP_VISUALIZER_SURFACE_BLUR);
+  const visualizerChromeBlur = Math.min(surfaceBlur, MAX_BACKDROP_VISUALIZER_CHROME_BLUR);
+  const visualizerHeaderBlur = Math.max(
+    visualizerChromeBlur - BACKDROP_ARTWORK_HEADER_BLUR_OFFSET,
+    0
+  );
+
   return [
     `--shared-zone-artwork-blur: ${settings.blur}px`,
+    `--shared-zone-surface-blur: ${surfaceBlur}px`,
+    `--shared-zone-header-blur: ${headerBlur}px`,
+    `--shared-zone-visualizer-surface-blur: ${visualizerSurfaceBlur}px`,
+    `--shared-zone-visualizer-chrome-blur: ${visualizerChromeBlur}px`,
+    `--shared-zone-visualizer-header-blur: ${visualizerHeaderBlur}px`,
     `--shared-zone-artwork-brightness: ${settings.brightness / 100}`
   ].join('; ');
 }
