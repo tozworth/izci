@@ -14,7 +14,7 @@ import { createPersistentStore } from './persistent-store';
 
 export const APPEARANCE_SETTINGS_STORAGE_KEY = 'izci.appearance-settings';
 export const APPEARANCE_SETTINGS_CHANNEL = 'izci.appearance-settings';
-export const DEFAULT_COLOR_THEME: ColorTheme = 'gruvbox';
+export const DEFAULT_COLOR_THEME: ColorTheme = 'gray';
 export const BACKDROP_ZONE_IDS: BackdropZoneId[] = ['playlist', 'library', 'details', 'player', 'nowPlaying'];
 export const BACKDROP_ZONE_LABELS: Record<BackdropZoneId, string> = {
   playlist: 'Playlist',
@@ -124,7 +124,9 @@ export function hasVisualizerBackdrop(effect: BackdropZoneEffect): boolean {
 }
 
 function normalizeColorTheme(value: unknown): ColorTheme {
-  return value === 'dracula' ? 'dracula' : DEFAULT_COLOR_THEME;
+  return value === 'gruvbox' || value === 'dracula' || value === 'ember' || value === 'gray'
+    ? value
+    : DEFAULT_COLOR_THEME;
 }
 
 function normalizeBackdropZoneEffect(value: unknown): BackdropZoneEffect {

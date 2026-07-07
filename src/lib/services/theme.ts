@@ -2,13 +2,17 @@ import { appearanceSettings } from '$lib/stores/appearance-settings';
 import type { ColorTheme } from '$lib/types';
 
 export const COLOR_THEME_OPTIONS: Array<{ value: ColorTheme; label: string }> = [
-  { value: 'gruvbox', label: 'Gruvbox (default)' },
-  { value: 'dracula', label: 'Dracula' }
+  { value: 'gray', label: 'Gray (default)' },
+  { value: 'gruvbox', label: 'Gruvbox' },
+  { value: 'dracula', label: 'Dracula' },
+  { value: 'ember', label: 'Ember' }
 ];
 
 const THEME_COLOR_BY_THEME: Record<ColorTheme, string> = {
+  gray: '#18191b',
   gruvbox: '#1c1d1e',
-  dracula: '#1f2029'
+  dracula: '#1f2029',
+  ember: '#1c1110'
 };
 
 let initialized = false;

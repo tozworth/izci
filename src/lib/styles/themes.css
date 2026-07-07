@@ -5,6 +5,86 @@
 }
 
 :root,
+:root[data-theme='gray'] {
+  color-scheme: dark;
+  font-family: var(--app-font-family);
+  --bg-base: #18191b;
+  --menu-bar-bg: #18191b;
+  --window-topbar-bg: #18191b;
+  --window-topbar-text: #e4e7eb;
+  --window-topbar-text-strong: #f7f8fa;
+  --window-topbar-muted: #9aa3ad;
+  --window-topbar-hover-surface: rgba(228, 231, 235, 0.08);
+  --window-topbar-hairline: rgba(255, 255, 255, 0.04);
+  --bg-elevated: rgba(41, 44, 48, 0.94);
+  --bg-soft: #292c30;
+  --menu-popover-bg: rgba(31, 33, 36, 0.985);
+  --menu-popover-text: #e4e7eb;
+  --menu-popover-muted: #9aa3ad;
+  --menu-popover-border: rgba(170, 178, 188, 0.22);
+  --menu-popover-hover: rgba(170, 178, 188, 0.14);
+  --menu-popover-shadow: 0 18px 44px rgba(0, 0, 0, 0.36);
+  --bg-tree: rgba(31, 33, 36, 0.96);
+  --bg-card: rgba(54, 58, 64, 0.5);
+  --bg-input: rgba(24, 25, 27, 0.92);
+  --bg-search: rgba(31, 33, 36, 0.96);
+  --bg-volume-popup: rgba(24, 25, 27, 0.84);
+  --text: #e4e7eb;
+  --text-strong: #f7f8fa;
+  --muted: #9aa3ad;
+  --muted-strong: #c5cad0;
+  --accent: #8c96a3;
+  --accent-strong: #c5ccd6;
+  --accent-strong-soft: rgba(197, 204, 214, 0.08);
+  --accent-strong-faint: rgba(197, 204, 214, 0.12);
+  --accent-strong-border-hover: rgba(197, 204, 214, 0.4);
+  --accent-focus-border: rgba(197, 204, 214, 0.32);
+  --accent-dashed-border: rgba(140, 150, 163, 0.24);
+  --visualizer-high: rgba(247, 248, 250, 0.9);
+  --visualizer-mid: rgba(178, 186, 197, 0.62);
+  --visualizer-low: rgba(116, 124, 136, 0.24);
+  --visualizer-glow: rgba(197, 204, 214, 0.34);
+  --visualizer-bars: rgba(197, 204, 214, 0.76);
+  --visualizer-blocks: rgba(247, 248, 250, 0.68);
+  --danger: #ef6f6c;
+  --border: rgba(170, 178, 188, 0.26);
+  --border-strong: rgba(170, 178, 188, 0.22);
+  --border-soft: rgba(170, 178, 188, 0.16);
+  --border-faint: rgba(170, 178, 188, 0.13);
+  --border-subtle: rgba(170, 178, 188, 0.11);
+  --border-covered: rgba(170, 178, 188, 0.09);
+  --player-bar-separator: #4b5057;
+  --menu-bar-border: rgba(170, 178, 188, 0.2);
+  --hover-surface: rgba(228, 231, 235, 0.08);
+  --hover-subtle: rgba(228, 231, 235, 0.04);
+  --hover-control: rgba(228, 231, 235, 0.06);
+  --tree-hover: rgba(116, 124, 136, 0.18);
+  --selection-bg: rgba(140, 150, 163, 0.14);
+  --selection-strong: rgba(140, 150, 163, 0.22);
+  --resizer-track: rgba(170, 178, 188, 0.2);
+  --resizer-handle: rgba(228, 231, 235, 0.24);
+  --shadow: 0 18px 44px rgba(0, 0, 0, 0.36);
+  --hairline: rgba(255, 255, 255, 0.04);
+  --body-background:
+    radial-gradient(circle at top left, rgba(148, 157, 168, 0.08), transparent 24%),
+    radial-gradient(circle at top right, rgba(204, 210, 218, 0.05), transparent 22%),
+    linear-gradient(180deg, #202225 0%, #18191b 100%);
+  --options-body-background:
+    radial-gradient(circle at top left, rgba(148, 157, 168, 0.09), transparent 24%),
+    radial-gradient(circle at top right, rgba(204, 210, 218, 0.06), transparent 22%),
+    linear-gradient(180deg, #202225 0%, #18191b 100%);
+  --playlist-header-background:
+    linear-gradient(180deg, rgba(41, 44, 48, 0.76) 0%, rgba(41, 44, 48, 0.68) 100%),
+    rgba(24, 25, 27, 0.24);
+  --playlist-header-shadow-gradient: linear-gradient(180deg, rgba(18, 19, 21, 0.3), rgba(18, 19, 21, 0));
+  --player-bar-fade: linear-gradient(180deg, rgba(18, 19, 21, 0), rgba(18, 19, 21, 0.3));
+  --dropzone-background: linear-gradient(180deg, rgba(228, 231, 235, 0.022), transparent 18%);
+}
+
+:root[data-system-font='true'] {
+  --app-font-family: var(--system-font-family);
+}
+
 :root[data-theme='gruvbox'] {
   color-scheme: dark;
   font-family: var(--app-font-family);
@@ -81,10 +161,6 @@
   --dropzone-background: linear-gradient(180deg, rgba(235, 219, 178, 0.02), transparent 18%);
 }
 
-:root[data-system-font='true'] {
-  --app-font-family: var(--system-font-family);
-}
-
 :root[data-theme='dracula'] {
   --bg-base: #171922;
   --menu-bar-bg: #1f2029;
@@ -157,4 +233,78 @@
   --playlist-header-shadow-gradient: linear-gradient(180deg, rgba(15, 16, 22, 0.3), rgba(15, 16, 22, 0));
   --player-bar-fade: linear-gradient(180deg, rgba(15, 16, 22, 0), rgba(15, 16, 22, 0.3));
   --dropzone-background: linear-gradient(180deg, rgba(248, 248, 242, 0.025), transparent 18%);
+}
+
+:root[data-theme='ember'] {
+  --bg-base: #1a1010;
+  --menu-bar-bg: #1c1110;
+  --window-topbar-bg: #1c1110;
+  --window-topbar-text: #f2d9ca;
+  --window-topbar-text-strong: #fff0e4;
+  --window-topbar-muted: #c79a84;
+  --window-topbar-hover-surface: rgba(242, 217, 202, 0.08);
+  --window-topbar-hairline: rgba(255, 238, 225, 0.04);
+  --bg-elevated: rgba(55, 31, 27, 0.94);
+  --bg-soft: #37201c;
+  --menu-popover-bg: rgba(38, 21, 19, 0.985);
+  --menu-popover-text: #f2d9ca;
+  --menu-popover-muted: #c79a84;
+  --menu-popover-border: rgba(219, 105, 65, 0.24);
+  --menu-popover-hover: rgba(219, 105, 65, 0.16);
+  --menu-popover-shadow: 0 18px 44px rgba(9, 5, 4, 0.44);
+  --bg-tree: rgba(38, 21, 19, 0.96);
+  --bg-card: rgba(76, 39, 31, 0.52);
+  --bg-input: rgba(26, 16, 16, 0.92);
+  --bg-search: rgba(38, 21, 19, 0.96);
+  --bg-volume-popup: rgba(28, 17, 16, 0.84);
+  --text: #f2d9ca;
+  --text-strong: #fff0e4;
+  --muted: #c79a84;
+  --muted-strong: #e2b9a5;
+  --accent: #d86a3d;
+  --accent-strong: #ff9b54;
+  --accent-strong-soft: rgba(255, 155, 84, 0.08);
+  --accent-strong-faint: rgba(255, 155, 84, 0.12);
+  --accent-strong-border-hover: rgba(255, 155, 84, 0.42);
+  --accent-focus-border: rgba(255, 155, 84, 0.34);
+  --accent-dashed-border: rgba(216, 106, 61, 0.24);
+  --visualizer-high: rgba(255, 236, 205, 0.94);
+  --visualizer-mid: rgba(255, 155, 84, 0.68);
+  --visualizer-low: rgba(193, 67, 43, 0.24);
+  --visualizer-glow: rgba(255, 128, 64, 0.42);
+  --visualizer-bars: rgba(255, 145, 78, 0.82);
+  --visualizer-blocks: rgba(255, 232, 205, 0.7);
+  --danger: #ff6d4d;
+  --border: rgba(219, 105, 65, 0.28);
+  --border-strong: rgba(219, 105, 65, 0.24);
+  --border-soft: rgba(219, 105, 65, 0.16);
+  --border-faint: rgba(219, 105, 65, 0.14);
+  --border-subtle: rgba(219, 105, 65, 0.12);
+  --border-covered: rgba(219, 105, 65, 0.1);
+  --player-bar-separator: #65392e;
+  --menu-bar-border: rgba(219, 105, 65, 0.22);
+  --hover-surface: rgba(242, 217, 202, 0.08);
+  --hover-subtle: rgba(242, 217, 202, 0.04);
+  --hover-control: rgba(242, 217, 202, 0.06);
+  --tree-hover: rgba(126, 61, 47, 0.2);
+  --selection-bg: rgba(216, 106, 61, 0.13);
+  --selection-strong: rgba(216, 106, 61, 0.21);
+  --resizer-track: rgba(219, 105, 65, 0.22);
+  --resizer-handle: rgba(242, 217, 202, 0.25);
+  --shadow: 0 18px 44px rgba(9, 5, 4, 0.44);
+  --hairline: rgba(255, 238, 225, 0.04);
+  --body-background:
+    radial-gradient(circle at top left, rgba(193, 67, 43, 0.14), transparent 24%),
+    radial-gradient(circle at top right, rgba(255, 155, 84, 0.1), transparent 22%),
+    linear-gradient(180deg, #2b1715 0%, #1a1010 100%);
+  --options-body-background:
+    radial-gradient(circle at top left, rgba(193, 67, 43, 0.16), transparent 24%),
+    radial-gradient(circle at top right, rgba(255, 155, 84, 0.11), transparent 22%),
+    linear-gradient(180deg, #2b1715 0%, #1a1010 100%);
+  --playlist-header-background:
+    linear-gradient(180deg, rgba(55, 31, 27, 0.78) 0%, rgba(55, 31, 27, 0.68) 100%),
+    rgba(28, 17, 16, 0.24);
+  --playlist-header-shadow-gradient: linear-gradient(180deg, rgba(18, 10, 9, 0.34), rgba(18, 10, 9, 0));
+  --player-bar-fade: linear-gradient(180deg, rgba(18, 10, 9, 0), rgba(18, 10, 9, 0.34));
+  --dropzone-background: linear-gradient(180deg, rgba(242, 217, 202, 0.024), transparent 18%);
 }
