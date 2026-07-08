@@ -1,16 +1,16 @@
 import { describe, expect, it } from 'vitest';
 import {
-  NOW_PLAYING_COMFORTABLE_VIEWPORT_HEIGHT,
-  NOW_PLAYING_COMFORTABLE_VIEWPORT_WIDTH,
+  NOW_PLAYING_COMFORTABLE_WINDOW_HEIGHT,
+  NOW_PLAYING_COMFORTABLE_WINDOW_WIDTH,
   resolveNowPlayingWindowBounds,
   type NowPlayingWindowGeometry
 } from './window-now-playing';
 
 const BASE_GEOMETRY: NowPlayingWindowGeometry = {
-  innerWidth: NOW_PLAYING_COMFORTABLE_VIEWPORT_WIDTH,
-  innerHeight: NOW_PLAYING_COMFORTABLE_VIEWPORT_HEIGHT,
-  outerWidth: NOW_PLAYING_COMFORTABLE_VIEWPORT_WIDTH + 16,
-  outerHeight: NOW_PLAYING_COMFORTABLE_VIEWPORT_HEIGHT + 38,
+  innerWidth: 1200,
+  innerHeight: 760,
+  outerWidth: NOW_PLAYING_COMFORTABLE_WINDOW_WIDTH,
+  outerHeight: NOW_PLAYING_COMFORTABLE_WINDOW_HEIGHT,
   screenX: 120,
   screenY: 80,
   screen: {
@@ -24,11 +24,11 @@ const BASE_GEOMETRY: NowPlayingWindowGeometry = {
 };
 
 describe('resolveNowPlayingWindowBounds', () => {
-  it('does not resize windows that already meet the comfortable Now Playing viewport', () => {
+  it('does not resize windows that are already eligible for Now Playing', () => {
     expect(resolveNowPlayingWindowBounds(BASE_GEOMETRY)).toBeNull();
   });
 
-  it('grows a small player window to the comfortable Now Playing size', () => {
+  it('grows a small player window to the comfortable Now Playing window size', () => {
     expect(
       resolveNowPlayingWindowBounds({
         ...BASE_GEOMETRY,
@@ -40,16 +40,16 @@ describe('resolveNowPlayingWindowBounds', () => {
     ).toEqual({
       left: 120,
       top: 80,
-      width: 1296,
-      height: 838
+      width: 1280,
+      height: 800
     });
   });
 
-  it('only grows dimensions that are below the comfortable viewport', () => {
+  it('only grows window dimensions that are below the comfortable size', () => {
     expect(
       resolveNowPlayingWindowBounds({
         ...BASE_GEOMETRY,
-        innerWidth: 1400,
+        innerWidth: 850,
         innerHeight: 700,
         outerWidth: 1420,
         outerHeight: 740
@@ -58,7 +58,7 @@ describe('resolveNowPlayingWindowBounds', () => {
       left: 120,
       top: 80,
       width: 1420,
-      height: 840
+      height: 800
     });
   });
 
@@ -81,9 +81,9 @@ describe('resolveNowPlayingWindowBounds', () => {
         }
       })
     ).toEqual({
-      left: 70,
+      left: 86,
       top: 0,
-      width: 1296,
+      width: 1280,
       height: 768
     });
   });

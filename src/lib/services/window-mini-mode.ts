@@ -138,6 +138,18 @@ function settleMiniModeWindow(bottom: number, frame = 0): void {
   });
 }
 
+function settleRestoredWindow(frame = 0): void {
+  requestAnimationFrame(() => {
+    if (frame < MINI_MODE_RESIZE_SETTLE_FRAMES - 1) {
+      settleRestoredWindow(frame + 1);
+      return;
+    }
+
+    targetMiniModeOuterHeight = null;
+    isApplyingMiniModeBounds = false;
+  });
+}
+
 function setActive(active: boolean): void {
   if (currentState.active === active) {
     return;
@@ -181,18 +193,25 @@ function exitMiniMode(): void {
   const bounds = restoreBounds;
   restoreBounds = null;
   targetMiniModeOuterHeight = null;
-  isApplyingMiniModeBounds = false;
+  isApplyingMiniModeBounds = true;
+  setActive(false);
 
   if (bounds) {
     window.moveTo(bounds.left, bounds.top);
     resizeWindow(bounds.width, bounds.height);
     persistNormalBounds(bounds);
+    settleRestoredWindow();
+    return;
   }
 
-  setActive(false);
+  isApplyingMiniModeBounds = false;
 }
 
 function handleWindowResize(): void {
+  if (isApplyingMiniModeBounds) {
+    return;
+  }
+
   if (!currentState.active) {
     if (isAutoMiniModeSize()) {
       restoreBounds = readStoredNormalBounds() ?? restoreBounds;
@@ -202,10 +221,6 @@ function handleWindowResize(): void {
     }
 
     persistNormalBounds(getWindowBounds());
-    return;
-  }
-
-  if (isApplyingMiniModeBounds) {
     return;
   }
 

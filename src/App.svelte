@@ -41,7 +41,8 @@
   import {
     ensureComfortableNowPlayingWindowSize,
     NOW_PLAYING_MIN_VIEWPORT_HEIGHT,
-    NOW_PLAYING_MIN_VIEWPORT_WIDTH
+    NOW_PLAYING_MIN_VIEWPORT_WIDTH,
+    restoreNowPlayingWindowSize
   } from '$lib/services/window-now-playing';
   import { windowControlsOverlayState } from '$lib/services/window-controls-overlay';
   import { windowDisplayState } from '$lib/services/window-display-state';
@@ -758,9 +759,13 @@
 
     if (miniModeActive) {
       windowMiniMode.exit();
+      window.requestAnimationFrame(() => {
+        ensureComfortableNowPlayingWindowSize();
+      });
+    } else {
+      ensureComfortableNowPlayingWindowSize();
     }
 
-    ensureComfortableNowPlayingWindowSize();
     autoNowPlayingSuppressed = false;
     appearanceSettings.update({
       nowPlayingViewActive: true
@@ -772,6 +777,7 @@
       autoNowPlayingSuppressed = true;
     }
 
+    restoreNowPlayingWindowSize();
     appearanceSettings.update({
       nowPlayingViewActive: false
     });

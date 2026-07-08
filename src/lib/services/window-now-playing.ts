@@ -28,11 +28,13 @@ export interface NowPlayingWindowBounds {
 
 export const NOW_PLAYING_MIN_VIEWPORT_WIDTH = 901;
 export const NOW_PLAYING_MIN_VIEWPORT_HEIGHT = 721;
-export const NOW_PLAYING_COMFORTABLE_VIEWPORT_WIDTH = 1280;
-export const NOW_PLAYING_COMFORTABLE_VIEWPORT_HEIGHT = 800;
+export const NOW_PLAYING_COMFORTABLE_WINDOW_WIDTH = 1280;
+export const NOW_PLAYING_COMFORTABLE_WINDOW_HEIGHT = 800;
 
 const MIN_WINDOW_WIDTH = 320;
 const MIN_WINDOW_HEIGHT = 240;
+
+let nowPlayingRestoreBounds: NowPlayingWindowBounds | null = null;
 
 function isFiniteNumber(value: number | undefined): value is number {
   return typeof value === 'number' && Number.isFinite(value);
@@ -48,30 +50,29 @@ function clamp(value: number, min: number, max: number): number {
 
 export function resolveNowPlayingWindowBounds(
   geometry: NowPlayingWindowGeometry,
-  targetInnerWidth = NOW_PLAYING_COMFORTABLE_VIEWPORT_WIDTH,
-  targetInnerHeight = NOW_PLAYING_COMFORTABLE_VIEWPORT_HEIGHT
+  targetWindowWidth = NOW_PLAYING_COMFORTABLE_WINDOW_WIDTH,
+  targetWindowHeight = NOW_PLAYING_COMFORTABLE_WINDOW_HEIGHT
 ): NowPlayingWindowBounds | null {
-  const chromeWidth = Math.max(0, geometry.outerWidth - geometry.innerWidth);
-  const chromeHeight = Math.max(0, geometry.outerHeight - geometry.innerHeight);
-  const targetOuterWidth = Math.max(geometry.outerWidth, targetInnerWidth + chromeWidth);
-  const targetOuterHeight = Math.max(geometry.outerHeight, targetInnerHeight + chromeHeight);
-  const shouldGrowWidth = geometry.innerWidth < targetInnerWidth;
-  const shouldGrowHeight = geometry.innerHeight < targetInnerHeight;
+  const viewportEligible =
+    geometry.innerWidth >= NOW_PLAYING_MIN_VIEWPORT_WIDTH &&
+    geometry.innerHeight >= NOW_PLAYING_MIN_VIEWPORT_HEIGHT;
+  const shouldGrowWidth = geometry.outerWidth < targetWindowWidth;
+  const shouldGrowHeight = geometry.outerHeight < targetWindowHeight;
 
-  if (!shouldGrowWidth && !shouldGrowHeight) {
+  if (viewportEligible || (!shouldGrowWidth && !shouldGrowHeight)) {
     return null;
   }
 
   const screen = geometry.screen;
   const availLeft = isFiniteNumber(screen.availLeft) ? screen.availLeft : (screen.left ?? 0);
   const availTop = isFiniteNumber(screen.availTop) ? screen.availTop : (screen.top ?? 0);
-  const availWidth = getPositive(screen.availWidth, getPositive(screen.width, targetOuterWidth));
-  const availHeight = getPositive(screen.availHeight, getPositive(screen.height, targetOuterHeight));
+  const availWidth = getPositive(screen.availWidth, getPositive(screen.width, targetWindowWidth));
+  const availHeight = getPositive(screen.availHeight, getPositive(screen.height, targetWindowHeight));
   const nextWidth = shouldGrowWidth
-    ? Math.max(geometry.outerWidth, Math.min(targetOuterWidth, availWidth))
+    ? Math.max(geometry.outerWidth, Math.min(targetWindowWidth, availWidth))
     : geometry.outerWidth;
   const nextHeight = shouldGrowHeight
-    ? Math.max(geometry.outerHeight, Math.min(targetOuterHeight, availHeight))
+    ? Math.max(geometry.outerHeight, Math.min(targetWindowHeight, availHeight))
     : geometry.outerHeight;
   const width = Math.max(MIN_WINDOW_WIDTH, Math.round(nextWidth));
   const height = Math.max(MIN_WINDOW_HEIGHT, Math.round(nextHeight));
@@ -120,14 +121,29 @@ function readWindowGeometry(): NowPlayingWindowGeometry | null {
   };
 }
 
+function readWindowBounds(geometry: NowPlayingWindowGeometry): NowPlayingWindowBounds {
+  return {
+    left: Math.round(geometry.screenX),
+    top: Math.round(geometry.screenY),
+    width: Math.round(geometry.outerWidth),
+    height: Math.round(geometry.outerHeight)
+  };
+}
+
 function applyNowPlayingWindowBounds(): boolean {
   const geometry = readWindowGeometry();
-  const bounds = geometry ? resolveNowPlayingWindowBounds(geometry) : null;
+
+  if (!geometry) {
+    return false;
+  }
+
+  const bounds = resolveNowPlayingWindowBounds(geometry);
 
   if (!bounds) {
     return false;
   }
 
+  nowPlayingRestoreBounds ??= readWindowBounds(geometry);
   window.moveTo(bounds.left, bounds.top);
   window.resizeTo(bounds.width, bounds.height);
   return true;
@@ -142,4 +158,15 @@ export function ensureComfortableNowPlayingWindowSize(): void {
   window.requestAnimationFrame(() => {
     applyNowPlayingWindowBounds();
   });
+}
+
+export function restoreNowPlayingWindowSize(): void {
+  if (typeof window === 'undefined' || !nowPlayingRestoreBounds) {
+    return;
+  }
+
+  const bounds = nowPlayingRestoreBounds;
+  nowPlayingRestoreBounds = null;
+  window.moveTo(bounds.left, bounds.top);
+  window.resizeTo(bounds.width, bounds.height);
 }
