@@ -1379,7 +1379,7 @@
       lyricsTheaterDowntimeThresholdSeconds={$appearanceSettings.lyrics.theaterDowntimeThresholdSeconds}
       lyricsTheaterSmoothScroll={$appearanceSettings.lyrics.theaterSmoothScroll}
       panelAutoHideDelaySeconds={$appearanceSettings.nowPlayingPanelAutoHideDelaySeconds}
-      useArtworkPlayerColors={$appearanceSettings.useNowPlayingArtworkPlayerColors}
+      alwaysUseArtworkPlayerColors={$appearanceSettings.useNowPlayingArtworkPlayerColors}
       on:close={closeNowPlayingView}
       on:chromeHiddenChange={(event) => (isNowPlayingChromeHidden = event.detail)}
       on:tabChange={(event) => handleNowPlayingTabChange(event.detail)}

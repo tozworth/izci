@@ -46,7 +46,7 @@
   export let lyricsTheaterSmoothScroll = true;
   export let lyricsResumeAutoScrollToken = 0;
   export let panelAutoHideDelaySeconds = 5;
-  export let useArtworkPlayerColors = true;
+  export let alwaysUseArtworkPlayerColors = false;
 
   const dispatch = createEventDispatcher<{
     close: void;
@@ -164,7 +164,7 @@
           {artwork}
           backdropEffect="none"
           {artworkBackgroundBright}
-          useArtworkColorsOverride={useArtworkPlayerColors}
+          useArtworkColorsOverride={alwaysUseArtworkPlayerColors ? true : null}
           {artworkColorSurfaceBright}
           on:toggle
           on:previous

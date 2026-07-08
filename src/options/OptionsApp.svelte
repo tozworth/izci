@@ -850,7 +850,7 @@
                   />
                 </div>
                 <p class="field-hint">
-                  Tints the focused player controls from the current artwork, independent of the player bar setting.
+                  Forces the focused player controls to use artwork colors. When off, Now Playing follows the main player setting.
                 </p>
               </label>
 
