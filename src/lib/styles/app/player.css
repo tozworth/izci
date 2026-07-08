@@ -196,8 +196,13 @@
 }
 
 .player-track-link {
+  display: block;
   justify-self: start;
+  min-width: 0;
   max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .player-artwork {
@@ -240,10 +245,7 @@
 }
 
 .player-track-title {
-  display: block;
-  width: auto;
-  min-width: 0;
-  overflow: hidden;
+  width: 100%;
 }
 
 .player-track strong {
@@ -505,10 +507,6 @@
       'track actions actions'
       'range range volume';
     column-gap: 0.35rem;
-  }
-
-  .player-range {
-    grid-template-columns: minmax(2.8rem, auto) 1fr minmax(2.8rem, auto);
   }
 
   .player-track-group {
