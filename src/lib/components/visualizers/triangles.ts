@@ -6,6 +6,7 @@ const TRIANGLE_EDGE_FADE_SIZE_FACTOR = 1.4;
 const TRIANGLE_SIZE_DAMPENING_START_PX = 160;
 const TRIANGLE_SIZE_DAMPENING_EXPONENT = 0.56;
 const TRIANGLE_SIZE_REFERENCE_MAX_PX = 340;
+const MAX_TRIANGLE_SHADOW_BLUR_PX = 18;
 
 interface TriangleParticle {
   x: number;
@@ -39,6 +40,8 @@ export class TriangleVisualizerRenderer {
   private beatPulse = 0;
   private lastBeatAt = 0;
   private generationSignature = '';
+  private beatFlashGradient: CanvasGradient | null = null;
+  private beatFlashGradientSignature = '';
   private referenceHeight = 0;
   private motionReferenceHeight = 0;
   private observedSelector: string | null = null;
@@ -129,6 +132,11 @@ export class TriangleVisualizerRenderer {
     }
 
     const borderWidth = settings.triangleBorderWidth * metrics.displayScale;
+
+    if (borderWidth > 0) {
+      context.lineJoin = 'round';
+      context.lineWidth = borderWidth;
+    }
 
     for (const particle of this.particles) {
       const bandValue = values[particle.bandIndex] ?? rhythm.amplitude;
@@ -359,10 +367,11 @@ export class TriangleVisualizerRenderer {
     if (borderWidth > 0) {
       context.globalAlpha = Math.min(1, baseAlpha * visibilityAlpha * (0.72 + bandValue * 0.36 + flash * 0.72));
       context.strokeStyle = strokeColor;
-      context.lineJoin = 'round';
-      context.lineWidth = borderWidth;
-      context.shadowColor = flash > 0.18 ? palette.glow : 'transparent';
-      context.shadowBlur = flash > 0.18 ? size * 0.28 : 0;
+      context.shadowColor = flash > 0.18 && visibilityAlpha > 0.18 ? palette.glow : 'transparent';
+      context.shadowBlur =
+        flash > 0.18 && visibilityAlpha > 0.18
+          ? Math.min(size * 0.18, MAX_TRIANGLE_SHADOW_BLUR_PX * this.metrics.displayScale)
+          : 0;
       context.stroke();
       context.shadowBlur = 0;
     }
@@ -381,13 +390,18 @@ export class TriangleVisualizerRenderer {
 
     const { width, height } = this.metrics;
     const visualTop = height * (1 - heightRatio);
-    const gradient = context.createLinearGradient(0, visualTop, 0, height);
-    gradient.addColorStop(0, palette.high);
-    gradient.addColorStop(0.52, palette.mid);
-    gradient.addColorStop(1, palette.low);
+    const gradientSignature = `${width}:${height}:${visualTop}:${palette.high}:${palette.mid}:${palette.low}`;
+
+    if (!this.beatFlashGradient || this.beatFlashGradientSignature !== gradientSignature) {
+      this.beatFlashGradient = context.createLinearGradient(0, visualTop, 0, height);
+      this.beatFlashGradient.addColorStop(0, palette.high);
+      this.beatFlashGradient.addColorStop(0.52, palette.mid);
+      this.beatFlashGradient.addColorStop(1, palette.low);
+      this.beatFlashGradientSignature = gradientSignature;
+    }
 
     context.globalAlpha = Math.min(0.32, baseAlpha * pulse * 0.62);
-    context.fillStyle = gradient;
+    context.fillStyle = this.beatFlashGradient;
     context.fillRect(0, visualTop, width, height - visualTop);
   }
 }

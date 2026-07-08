@@ -8,8 +8,15 @@
 
   const BAND_COUNT = 72;
   const IDLE_FALLBACK = 0;
+  const MAX_CANVAS_BACKING_PIXELS = 1_000_000;
+  const MIN_CANVAS_DISPLAY_SCALE = 0.5;
   const MAX_VISUALIZED_FREQUENCY_HZ = 16_000;
   const PALETTE_REFRESH_INTERVAL_MS = 250;
+  const FRAME_INTERVAL_TOLERANCE_MS = 0.75;
+  const CANVAS_CONTEXT_OPTIONS: CanvasRenderingContext2DSettings = {
+    alpha: true,
+    desynchronized: true
+  };
 
   interface VisualizerClipRect {
     x: number;
@@ -29,6 +36,7 @@
   let width = 0;
   let height = 0;
   let displayScale = 1;
+  let lastClipSignature = '';
   let analyser: AnalyserNode | null = null;
   let frequencyData = new Uint8Array(0);
   let bandValues = new Array<number>(BAND_COUNT).fill(IDLE_FALLBACK);
@@ -53,7 +61,12 @@
     }
 
     const rect = canvas.getBoundingClientRect();
-    const scale = window.devicePixelRatio || 1;
+    const rawScale = Math.max(1, window.devicePixelRatio || 1);
+    const cssPixels = Math.max(1, rect.width * rect.height);
+    const scale = Math.max(
+      MIN_CANVAS_DISPLAY_SCALE,
+      Math.min(rawScale, Math.sqrt(MAX_CANVAS_BACKING_PIXELS / cssPixels))
+    );
     const nextWidth = Math.max(1, Math.round(rect.width * scale));
     const nextHeight = Math.max(1, Math.round(rect.height * scale));
     const sizeChanged = canvas.width !== nextWidth || canvas.height !== nextHeight;
@@ -65,6 +78,7 @@
     if (sizeChanged) {
       canvas.width = width;
       canvas.height = height;
+      lastClipSignature = '';
       triangleRenderer.resetParticles();
     }
 
@@ -77,6 +91,44 @@
 
   function getFrameIntervalMs(settings: VisualizerSettings): number {
     return 1000 / Math.max(settings.frameRateLimit, 1);
+  }
+
+  function getScaledClipRect(rect: VisualizerClipRect): VisualizerClipRect {
+    return {
+      x: Math.round(rect.x * displayScale),
+      y: Math.round(rect.y * displayScale),
+      width: Math.round(rect.width * displayScale),
+      height: Math.round(rect.height * displayScale)
+    };
+  }
+
+  function getClipSignature(): string {
+    return clipRects
+      .map((rect) => {
+        const scaled = getScaledClipRect(rect);
+        return `${scaled.x},${scaled.y},${scaled.width},${scaled.height}`;
+      })
+      .join('|');
+  }
+
+  function clearVisualizerCanvas(context: CanvasRenderingContext2D): void {
+    if (clipRects.length === 0) {
+      context.clearRect(0, 0, width, height);
+      lastClipSignature = '';
+      return;
+    }
+
+    const clipSignature = getClipSignature();
+
+    if (clipSignature !== lastClipSignature) {
+      context.clearRect(0, 0, width, height);
+      lastClipSignature = clipSignature;
+    }
+
+    for (const rect of clipRects) {
+      const scaled = getScaledClipRect(rect);
+      context.clearRect(scaled.x, scaled.y, scaled.width, scaled.height);
+    }
   }
 
   function sampleBands(settings: VisualizerSettings): number[] {
@@ -247,7 +299,7 @@
       resizeCanvas();
     }
 
-    const context = canvasContext ?? canvas.getContext('2d');
+    const context = canvasContext ?? canvas.getContext('2d', CANVAS_CONTEXT_OPTIONS);
 
     if (!context) {
       return;
@@ -256,7 +308,7 @@
     canvasContext = context;
     const settings = currentSettings;
 
-    if (lastRenderedAt > 0 && timestamp - lastRenderedAt < getFrameIntervalMs(settings)) {
+    if (lastRenderedAt > 0 && timestamp - lastRenderedAt + FRAME_INTERVAL_TOLERANCE_MS < getFrameIntervalMs(settings)) {
       frame = requestAnimationFrame(draw);
       return;
     }
@@ -265,19 +317,15 @@
 
     const values = sampleBands(settings);
     const palette = getPalette();
-    context.clearRect(0, 0, width, height);
+    clearVisualizerCanvas(context);
     context.save();
 
     if (clipRects.length > 0) {
       context.beginPath();
 
       for (const rect of clipRects) {
-        context.rect(
-          Math.round(rect.x * displayScale),
-          Math.round(rect.y * displayScale),
-          Math.round(rect.width * displayScale),
-          Math.round(rect.height * displayScale)
-        );
+        const scaled = getScaledClipRect(rect);
+        context.rect(scaled.x, scaled.y, scaled.width, scaled.height);
       }
 
       context.clip();
@@ -425,7 +473,7 @@
     });
 
     mounted = true;
-    canvasContext = canvas.getContext('2d');
+    canvasContext = canvas.getContext('2d', CANVAS_CONTEXT_OPTIONS);
     draw();
 
     if (typeof ResizeObserver !== 'undefined') {
