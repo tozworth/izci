@@ -38,6 +38,11 @@
   import { WORKSPACE_RESIZER_WIDTH } from '$lib/services/workspace-layout';
   import { windowManager } from '$lib/services/window-manager';
   import { windowMiniMode } from '$lib/services/window-mini-mode';
+  import {
+    ensureComfortableNowPlayingWindowSize,
+    NOW_PLAYING_MIN_VIEWPORT_HEIGHT,
+    NOW_PLAYING_MIN_VIEWPORT_WIDTH
+  } from '$lib/services/window-now-playing';
   import { windowControlsOverlayState } from '$lib/services/window-controls-overlay';
   import { windowDisplayState } from '$lib/services/window-display-state';
   import { windowFullscreen } from '$lib/services/window-fullscreen';
@@ -85,8 +90,6 @@
     selectedTrack: librarySelectedTrackStore
   } = libraryStore;
 
-  const NOW_PLAYING_MIN_VIEWPORT_WIDTH = 901;
-  const NOW_PLAYING_MIN_VIEWPORT_HEIGHT = 721;
   const KEYBOARD_SEEK_STEP_SECONDS = 5;
   const KEYBOARD_VOLUME_STEP = 0.05;
   const NOW_PLAYING_WORKSPACE_TABS: WorkspaceTab[] = ['playlist', 'library', 'details', 'lyrics'];
@@ -753,6 +756,11 @@
       return;
     }
 
+    if (miniModeActive) {
+      windowMiniMode.exit();
+    }
+
+    ensureComfortableNowPlayingWindowSize();
     autoNowPlayingSuppressed = false;
     appearanceSettings.update({
       nowPlayingViewActive: true
