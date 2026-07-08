@@ -24,7 +24,7 @@ export const BACKDROP_ZONE_LABELS: Record<BackdropZoneId, string> = {
   nowPlaying: 'Now Playing'
 };
 export const BACKDROP_EFFECT_OPTIONS: Array<{ value: BackdropZoneEffect; label: string }> = [
-  { value: 'none', label: 'Neither' },
+  { value: 'none', label: 'None' },
   { value: 'artwork', label: 'Artwork' },
   { value: 'visualizer', label: 'Visualizer' },
   { value: 'both', label: 'Both' }
@@ -33,8 +33,8 @@ export const DEFAULT_BACKDROP_ZONES: BackdropZoneSettings = {
   playlist: 'none',
   library: 'none',
   details: 'none',
-  player: 'visualizer',
-  nowPlaying: 'both'
+  player: 'none',
+  nowPlaying: 'artwork'
 };
 export const MIN_BACKDROP_ARTWORK_BLUR = 0;
 export const MAX_BACKDROP_ARTWORK_BLUR = 64;

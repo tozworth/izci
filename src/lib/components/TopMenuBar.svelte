@@ -106,16 +106,16 @@
       icon: 'lyrics'
     },
     {
-      id: 'toggleNowPlayingView',
-      label: 'Now Playing',
-      icon: nowPlayingViewActive ? 'check' : 'album'
-    },
-    {
       id: 'toggleMiniMode',
       label: 'Mini mode',
       icon: miniModeActive ? 'check' : 'picture_in_picture_alt',
       shortcut: 'Ctrl+M',
       separatorBefore: true
+    },
+    {
+      id: 'toggleNowPlayingView',
+      label: 'Now Playing',
+      icon: nowPlayingViewActive ? 'check' : 'album'
     },
     {
       id: 'openOptions',

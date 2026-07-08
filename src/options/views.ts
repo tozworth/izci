@@ -48,6 +48,14 @@ export const OPTIONS_VIEW_GROUPS: OptionsViewDefinition[][] = [
       resettable: true
     },
     {
+      id: 'visualizer',
+      label: 'Visualizer',
+      icon: 'graphic_eq',
+      parentLabel: 'Appearance',
+      hasHints: true,
+      resettable: true
+    },
+    {
       id: 'lyrics',
       label: 'Lyrics',
       icon: 'lyrics',
@@ -65,14 +73,6 @@ export const OPTIONS_VIEW_GROUPS: OptionsViewDefinition[][] = [
     }
   ],
   [
-    {
-      id: 'visualizer',
-      label: 'Visualizer',
-      icon: 'graphic_eq',
-      parentLabel: 'Playback',
-      hasHints: true,
-      resettable: true
-    },
     {
       id: 'modules',
       label: 'Modules',
