@@ -218,13 +218,6 @@
   min-height: 0;
   flex-direction: column;
   color: var(--text);
-  background-color: var(--bg-elevated);
-  backdrop-filter:
-    blur(var(--panel-backdrop-blur, 12px))
-    saturate(var(--panel-backdrop-saturate, 1));
-  -webkit-backdrop-filter:
-    blur(var(--panel-backdrop-blur, 12px))
-    saturate(var(--panel-backdrop-saturate, 1));
   overflow: hidden;
 }
 
@@ -236,6 +229,13 @@
   flex: 1;
   min-width: 0;
   min-height: 0;
+  background-color: color-mix(in srgb, var(--bg-elevated) 82%, transparent);
+  backdrop-filter:
+    blur(var(--panel-backdrop-blur, 12px))
+    saturate(var(--panel-backdrop-saturate, 1));
+  -webkit-backdrop-filter:
+    blur(var(--panel-backdrop-blur, 12px))
+    saturate(var(--panel-backdrop-saturate, 1));
   overflow: hidden;
 }
 
