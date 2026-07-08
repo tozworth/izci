@@ -116,7 +116,7 @@ Primary location for playback and browser-integration logic.
 - `module-metadata.ts`: background `Chiptune3` metadata probe used by store hydration to capture tracker-module duration/details without waiting for normal playback.
 - `artwork-background.ts`: artwork brightness analysis used by the main app shell to decide when artwork-backed backgrounds should flip UI surfaces/text into a darker-on-light contrast mode.
 - `artwork-presentation.ts`: main-shell artwork/details presentation controller; manages player/footer artwork loading, details-panel artwork synchronization, artwork-background slot swapping/cleanup, brightness-driven contrast state, and the temporary window-chrome transition bypass used when Window Controls Overlay visibility changes.
-- `workspace-shell.ts`: main-shell workspace controller; manages active playlist/library focus, details-panel visibility, playlist jump requests, wide-layout resize state, derived workspace panel props/tabs, and wide-layout width recomputation from the persisted panel layout store.
+- `workspace-shell.ts`: main-shell workspace controller; manages active playlist/library focus, restored Details/Lyrics tab visibility, playlist jump requests, wide-layout resize state, derived workspace panel props/tabs, and wide-layout width recomputation from the persisted panel layout store.
 - `pwa-updates.ts`: service-worker registration plus proactive update checks for long-lived preview/installed PWA windows so new builds can activate without getting stuck on the first cached shell.
 - `theme.ts`: shared color-theme metadata, document-theme application, and dynamic `<meta name="theme-color">` updates used by both window entrypoints so Chromium/PWA window chrome tracks the active theme where supported.
 - `window-controls-overlay.ts`: readable store that tracks Window Controls Overlay support, visibility, and `titlebarAreaRect` updates from Chromium's `geometrychange` event.
@@ -149,6 +149,7 @@ Primary location for playback and browser-integration logic.
 - `metadata-settings.ts`: persistent metadata behavior settings, including filename-based artist/title inference and the library play-count threshold.
 - `player-volume.ts`: persistent player volume with sync across windows.
 - `workspace-panel-layout.ts`: persistent wide-layout workspace panel fractions for playlist/library/details resizing, with sync.
+- `workspace-panel-state.ts`: persistent workspace Details/Lyrics tab visibility, active workspace tab, and active playlist/library focus, with sync.
 
 ### `src/lib/utils/`
 
@@ -179,7 +180,7 @@ Primary location for playback and browser-integration logic.
 - `src/lib/components/workspace/` owns the tabbed vs wide workspace markup split; keep layout-specific composition there instead of rebuilding duplicated panel trees inside `App.svelte`.
 - Wide-mode workspace panel widths are persisted in `localStorage` and sync across windows; tabbed mode ignores those widths.
 - The workspace switches to tabbed mode at viewport widths of 750px and below.
-- The Track Details workspace panel is closable and starts visible by default; when hidden, wide layout should reflow playlist/library widths without overwriting the stored three-panel proportions used when details is shown again.
+- The Track Details and Lyrics workspace tabs are closable and their visible/active state is restored from local persistence; when the right panel is hidden, wide layout should reflow playlist/library widths without overwriting the stored three-panel proportions used when it is shown again.
 - Color theme selection is persisted in `localStorage`, synced across windows, applied at the document level so both the main app and Options popup reuse the same theme tokens, and mirrored into the page `theme-color` meta tag so installed Chromium windows can recolor their chrome with the active theme.
 - The main app window title defaults to the current track title when one is available, but Appearance settings can force it to remain `izci`; this preference is persisted in `localStorage` and synced across windows with the rest of the appearance settings.
 - The optional artwork-colored player mode samples the current player artwork through `src/lib/services/artwork-palette.ts` and applies normalized player-bar CSS variables from `PlayerControls.svelte`. Keep it transient and frontend-only; do not persist sampled artwork palettes or blobs.
@@ -192,7 +193,7 @@ Primary location for playback and browser-integration logic.
 - `src/lib/services/window-mini-mode.ts` is the single source of truth for the View -> Mini mode command and `Ctrl+M` shortcut. Keep window resizing/restoration behavior there rather than scattering `resizeTo()` or `moveTo()` calls through components.
 - `src/lib/services/artwork-presentation.ts` is the single coordinator for app-shell artwork/details presentation side effects. Keep artwork loading/revocation, details-artwork waiting, background-slot cleanup, brightness analysis coordination, and overlay-transition bypass logic there rather than rebuilding them in `App.svelte`; zone components should consume its output for rendering.
 - `src/lib/services/playback-commands.ts` is the single coordinator for app-shell playback command sequencing. Keep playlist-backed play/load request ordering, launched-file replacement, and next/previous/end-of-track command flow there rather than rebuilding that logic in `App.svelte`.
-- `src/lib/services/workspace-shell.ts` is the single coordinator for app-shell workspace state. Keep selection exclusivity, active collection/tab tracking, details-panel visibility, playlist jump requests, workspace panel prop derivation, and wide-layout resize coordination there rather than rebuilding that logic in `App.svelte`.
+- `src/lib/services/workspace-shell.ts` is the single coordinator for app-shell workspace state. Keep selection exclusivity, active collection/tab tracking, Details/Lyrics tab visibility, playlist jump requests, workspace panel prop derivation, and wide-layout resize coordination there rather than rebuilding that logic in `App.svelte`.
 - `src/lib/components/TopMenuBar.svelte` is responsible for titlebar adaptation: it becomes a drag region in overlay mode, marks interactive controls as `no-drag`, hides the version badge while overlay mode is visible, and sizes/collapses itself based on the live available `titlebarAreaRect.width` rather than raw viewport width.
 - When the titlebar menu collapses, it should stay on the shared `MenuSurface.svelte` path rather than inventing a second menu system. `MenuSurface.svelte` supports nested submenus and a drilldown fallback that replaces File/View root entries with submenu contents when flyout submenus would overflow the current window.
 - `src/App.svelte` is responsible for top-level workspace orchestration, but durable state and local algorithms should live in stores/services or the focused workspace components.

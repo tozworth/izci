@@ -11,6 +11,7 @@ import {
 } from '$lib/services/workspace-layout';
 import { libraryStore, playlistStore } from '$lib/stores/playlist';
 import { workspacePanelLayout } from '$lib/stores/workspace-panel-layout';
+import { workspacePanelState } from '$lib/stores/workspace-panel-state';
 import type {
   MenuActionItem,
   PlaylistItem,
@@ -19,6 +20,7 @@ import type {
   WorkspaceCollection,
   WorkspaceJumpRequest,
   WorkspacePanelLayoutSettings,
+  WorkspacePanelStateSettings,
   WorkspaceResizeHandle,
   WorkspaceTab
 } from '$lib/types';
@@ -79,16 +81,25 @@ function createInitialState(
   getPlaylistContextActions: (ids: string[]) => MenuActionItem[],
   getLibraryContextActions: () => MenuActionItem[]
 ): WorkspaceShellState {
+  const savedPanelState = workspacePanelState.getSnapshot();
+  const isRightPanelVisible = savedPanelState.detailsVisible || savedPanelState.lyricsVisible;
+
   return {
-    activeCollection: 'playlist',
-    activeWorkspaceTab: 'playlist',
-    isDetailsPanelVisible: true,
-    isLyricsPanelVisible: false,
-    isRightPanelVisible: true,
+    activeCollection: savedPanelState.activeCollection,
+    activeWorkspaceTab: savedPanelState.activeWorkspaceTab,
+    isDetailsPanelVisible: savedPanelState.detailsVisible,
+    isLyricsPanelVisible: savedPanelState.lyricsVisible,
+    isRightPanelVisible,
     isTabbedLayout: false,
     isResizing: false,
-    widePanelWidths: resolveWidePanelWidths(workspacePanelLayout.getSnapshot(), 0),
-    workspaceTabs: allWorkspaceTabs.filter((tab) => tab.id !== 'lyrics'),
+    widePanelWidths: resolveWidePanelWidths(workspacePanelLayout.getSnapshot(), 0, {
+      detailsVisible: isRightPanelVisible
+    }),
+    workspaceTabs: allWorkspaceTabs.filter(
+      (tab) =>
+        (tab.id !== 'details' || savedPanelState.detailsVisible) &&
+        (tab.id !== 'lyrics' || savedPanelState.lyricsVisible)
+    ),
     playlistJumpRequest: null,
     playlistPanelProps: {
       items: [],
@@ -122,6 +133,7 @@ export function createWorkspaceShellController({
   getLibraryContextActions
 }: CreateWorkspaceShellControllerOptions) {
   let panelLayout = workspacePanelLayout.getSnapshot();
+  let savedPanelState = workspacePanelState.getSnapshot();
   let resizeState: PanelResizeState | null = null;
   let lastInputs: WorkspaceShellInputs | null = null;
   let state = createInitialState(getPlaylistContextActions, getLibraryContextActions);
@@ -129,6 +141,46 @@ export function createWorkspaceShellController({
 
   function publishState(): void {
     store.set(state);
+  }
+
+  function getSavedPanelStateFromShellState(): WorkspacePanelStateSettings {
+    return {
+      detailsVisible: state.isDetailsPanelVisible,
+      lyricsVisible: state.isLyricsPanelVisible,
+      activeWorkspaceTab: state.activeWorkspaceTab,
+      activeCollection: state.activeCollection
+    };
+  }
+
+  function isSameSavedPanelState(a: WorkspacePanelStateSettings, b: WorkspacePanelStateSettings): boolean {
+    return (
+      a.detailsVisible === b.detailsVisible &&
+      a.lyricsVisible === b.lyricsVisible &&
+      a.activeWorkspaceTab === b.activeWorkspaceTab &&
+      a.activeCollection === b.activeCollection
+    );
+  }
+
+  function persistPanelState(): void {
+    const nextPanelState = getSavedPanelStateFromShellState();
+
+    if (isSameSavedPanelState(savedPanelState, nextPanelState)) {
+      return;
+    }
+
+    savedPanelState = workspacePanelState.set(nextPanelState);
+  }
+
+  function applySavedPanelState(nextPanelState: WorkspacePanelStateSettings): void {
+    savedPanelState = nextPanelState;
+    state = {
+      ...state,
+      activeCollection: nextPanelState.activeCollection,
+      activeWorkspaceTab: nextPanelState.activeWorkspaceTab,
+      isDetailsPanelVisible: nextPanelState.detailsVisible,
+      isLyricsPanelVisible: nextPanelState.lyricsVisible
+    };
+    recomputeDerivedState();
   }
 
   function getCollectionStore(collection: WorkspaceCollection): TrackCollectionStore {
@@ -232,6 +284,14 @@ export function createWorkspaceShellController({
     panelLayout = value;
     recomputeDerivedState();
   });
+  const unsubscribePanelState = workspacePanelState.subscribe((value) => {
+    if (isSameSavedPanelState(value, getSavedPanelStateFromShellState())) {
+      savedPanelState = value;
+      return;
+    }
+
+    applySavedPanelState(value);
+  });
 
   return {
     subscribe: store.subscribe,
@@ -251,18 +311,21 @@ export function createWorkspaceShellController({
       clearOtherSelection(collection);
       state = { ...state, activeCollection: collection };
       publishState();
+      persistPanelState();
       getCollectionStore(collection).select(id, options);
     },
     setCollectionSelection(collection: WorkspaceCollection, nextSelection: PlaylistSelection): void {
       clearOtherSelection(collection);
       state = { ...state, activeCollection: collection };
       publishState();
+      persistPanelState();
       getCollectionStore(collection).setSelection(nextSelection);
     },
     selectAllTracks(collection: WorkspaceCollection): void {
       clearOtherSelection(collection);
       state = { ...state, activeCollection: collection };
       publishState();
+      persistPanelState();
       getCollectionStore(collection).selectAll();
     },
     focusCollection(collection: WorkspaceCollection): void {
@@ -272,6 +335,7 @@ export function createWorkspaceShellController({
 
       state = { ...state, activeCollection: collection };
       publishState();
+      persistPanelState();
     },
     setActiveWorkspaceTab(tab: WorkspaceTab): void {
       state = {
@@ -280,6 +344,7 @@ export function createWorkspaceShellController({
         activeCollection: isWorkspaceCollection(tab) ? tab : state.activeCollection
       };
       recomputeDerivedState();
+      persistPanelState();
     },
     showPlaylistTrack(id: string): void {
       this.setActiveWorkspaceTab('playlist');
@@ -309,6 +374,7 @@ export function createWorkspaceShellController({
             : state.activeWorkspaceTab
       };
       recomputeDerivedState();
+      persistPanelState();
     },
     showTrackLyrics(): void {
       state = { ...state, isLyricsPanelVisible: true };
@@ -326,6 +392,7 @@ export function createWorkspaceShellController({
             : state.activeWorkspaceTab
       };
       recomputeDerivedState();
+      persistPanelState();
     },
     beginPanelResize(event: PointerEvent, handle: WorkspaceResizeHandle): void {
       if (state.isTabbedLayout) {
@@ -381,6 +448,7 @@ export function createWorkspaceShellController({
     },
     destroy(): void {
       unsubscribePanelLayout();
+      unsubscribePanelState();
     }
   };
 }

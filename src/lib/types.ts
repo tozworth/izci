@@ -180,6 +180,13 @@ export interface WorkspacePanelLayoutSettings {
   detailsFraction: number;
 }
 
+export interface WorkspacePanelStateSettings {
+  detailsVisible: boolean;
+  lyricsVisible: boolean;
+  activeWorkspaceTab: WorkspaceTab;
+  activeCollection: WorkspaceCollection;
+}
+
 export interface WorkspaceJumpRequest {
   id: string;
   token: number;
