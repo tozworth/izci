@@ -38,19 +38,19 @@
   export let backdropArtwork: LoadedStreamArtwork | null = null;
   export let artworkBackgroundBright = false;
   export let zoneEffects: Record<WorkspacePanelId, BackdropZoneEffect> = {
-    playlist: 'none',
-    library: 'none',
-    details: 'none'
+    left: 'none',
+    center: 'none',
+    right: 'none'
   };
   export let zoneArtworkSettings: Record<WorkspacePanelId, BackdropZoneArtworkSettings | null> = {
-    playlist: null,
-    library: null,
-    details: null
+    left: null,
+    center: null,
+    right: null
   };
   export let zoneArtworkBright: Record<WorkspacePanelId, boolean> = {
-    playlist: false,
-    library: false,
-    details: false
+    left: false,
+    center: false,
+    right: false
   };
   export let lyricsDisplayStyle: LyricsDisplayStyle = 'timestamped';
   export let lyricsAutoScroll = true;
@@ -68,11 +68,15 @@
   }>();
 
   function getBackdropPanelId(tabId: WorkspaceTab): WorkspacePanelId {
-    if (tabId === 'playlist' || tabId === 'library') {
-      return tabId;
+    if (tabId === 'playlist') {
+      return 'left';
     }
 
-    return 'details';
+    if (tabId === 'library') {
+      return 'center';
+    }
+
+    return 'right';
   }
 
   $: activeBackdropPanelId = getBackdropPanelId(activeWorkspaceTab);

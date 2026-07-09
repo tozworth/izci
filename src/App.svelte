@@ -137,16 +137,16 @@
   let activeBackdropZoneIds: BackdropZoneId[] = [];
   let activeBackdropEffects: BackdropZoneEffect[] = [];
   let artworkBackgroundBrightByZone: Record<BackdropZoneId, boolean> = {
-    playlist: false,
-    library: false,
-    details: false,
+    left: false,
+    center: false,
+    right: false,
     player: false,
     nowPlaying: false
   };
   let workspaceZoneArtworkBright: Record<WorkspacePanelId, boolean> = {
-    playlist: false,
-    library: false,
-    details: false
+    left: false,
+    center: false,
+    right: false
   };
   let nowPlayingViewActive = appearanceSettings.getSnapshot().nowPlayingViewActive;
   let isAutomaticNowPlayingEligible = false;
@@ -328,48 +328,48 @@
   $: lyricsAutoScroll = effectiveLyricsDisplayStyle === 'theater' || $appearanceSettings.lyrics.autoScroll;
   $: lyricsFontSize = $appearanceSettings.lyrics.fontSizes[effectiveLyricsDisplayStyle];
   $: workspaceZoneEffects = {
-    playlist: backdropZones.playlist,
-    library: backdropZones.library,
-    details: backdropZones.details
+    left: backdropZones.left,
+    center: backdropZones.center,
+    right: backdropZones.right
   };
   $: workspaceZoneArtworkSettings = {
-    playlist: backdropZoneArtwork.playlist,
-    library: backdropZoneArtwork.library,
-    details: backdropZoneArtwork.details
+    left: backdropZoneArtwork.left,
+    center: backdropZoneArtwork.center,
+    right: backdropZoneArtwork.right
   };
   $: workspaceZoneArtworkBright = {
-    playlist: artworkBackgroundBrightByZone.playlist,
-    library: artworkBackgroundBrightByZone.library,
-    details: artworkBackgroundBrightByZone.details
+    left: artworkBackgroundBrightByZone.left,
+    center: artworkBackgroundBrightByZone.center,
+    right: artworkBackgroundBrightByZone.right
   };
   $: activeBackdropZoneIds = isNowPlayingLayoutActive
     ? ['nowPlaying']
     : miniModeActive
       ? ['player']
-      : ['playlist', 'library', 'details', 'player'];
+      : ['left', 'center', 'right', 'player'];
   $: activeBackdropEffects = activeBackdropZoneIds.map((zoneId) => backdropZones[zoneId]);
   $: isArtworkBackdropRequested = activeBackdropEffects.some(hasArtworkBackdrop);
   $: isVisualizerBackdropRequested = activeBackdropEffects.some(hasVisualizerBackdrop);
   $: isArtworkBackdropActive =
     isArtworkBackdropRequested && Boolean(artworkPresentationState.visibleArtworkBackground);
   $: artworkBackgroundBrightByZone = {
-    playlist: resolveZoneArtworkBackgroundBright(
+    left: resolveZoneArtworkBackgroundBright(
       isArtworkBackdropActive,
-      backdropZones.playlist,
+      backdropZones.left,
       artworkPresentationState.artworkBackgroundAnalysis,
-      backdropZoneArtwork.playlist.brightness
+      backdropZoneArtwork.left.brightness
     ),
-    library: resolveZoneArtworkBackgroundBright(
+    center: resolveZoneArtworkBackgroundBright(
       isArtworkBackdropActive,
-      backdropZones.library,
+      backdropZones.center,
       artworkPresentationState.artworkBackgroundAnalysis,
-      backdropZoneArtwork.library.brightness
+      backdropZoneArtwork.center.brightness
     ),
-    details: resolveZoneArtworkBackgroundBright(
+    right: resolveZoneArtworkBackgroundBright(
       isArtworkBackdropActive,
-      backdropZones.details,
+      backdropZones.right,
       artworkPresentationState.artworkBackgroundAnalysis,
-      backdropZoneArtwork.details.brightness
+      backdropZoneArtwork.right.brightness
     ),
     player: resolveZoneArtworkBackgroundBright(
       isArtworkBackdropActive,
@@ -391,24 +391,24 @@
     workspaceShellState.workspaceTabs.map((tab) => tab.id).join(','),
     workspaceShellState.isDetailsPanelVisible ? 'details-open' : 'details-closed',
     workspaceShellState.isLyricsPanelVisible ? 'lyrics-open' : 'lyrics-closed',
-    backdropZones.playlist,
-    backdropZones.library,
-    backdropZones.details,
+    backdropZones.left,
+    backdropZones.center,
+    backdropZones.right,
     backdropZones.player,
     backdropZones.nowPlaying,
-    backdropZoneArtwork.playlist.blur,
-    backdropZoneArtwork.playlist.brightness,
-    backdropZoneArtwork.library.blur,
-    backdropZoneArtwork.library.brightness,
-    backdropZoneArtwork.details.blur,
-    backdropZoneArtwork.details.brightness,
+    backdropZoneArtwork.left.blur,
+    backdropZoneArtwork.left.brightness,
+    backdropZoneArtwork.center.blur,
+    backdropZoneArtwork.center.brightness,
+    backdropZoneArtwork.right.blur,
+    backdropZoneArtwork.right.brightness,
     backdropZoneArtwork.player.blur,
     backdropZoneArtwork.player.brightness,
     backdropZoneArtwork.nowPlaying.blur,
     backdropZoneArtwork.nowPlaying.brightness,
-    artworkBackgroundBrightByZone.playlist ? 'playlist-bright' : 'playlist-dim',
-    artworkBackgroundBrightByZone.library ? 'library-bright' : 'library-dim',
-    artworkBackgroundBrightByZone.details ? 'details-bright' : 'details-dim',
+    artworkBackgroundBrightByZone.left ? 'left-bright' : 'left-dim',
+    artworkBackgroundBrightByZone.center ? 'center-bright' : 'center-dim',
+    artworkBackgroundBrightByZone.right ? 'right-bright' : 'right-dim',
     artworkBackgroundBrightByZone.player ? 'player-bright' : 'player-dim',
     artworkBackgroundBrightByZone.nowPlaying ? 'now-playing-bright' : 'now-playing-dim',
     $windowControlsOverlayState.visible ? 'wco-visible' : 'wco-hidden',
@@ -799,7 +799,7 @@
   }
 
   function closeActiveRightPanel() {
-    const rightPanel = workspaceShellState.workspacePanels.find((panel) => panel.id === 'details');
+    const rightPanel = workspaceShellState.workspacePanels.find((panel) => panel.id === 'right');
     const tabToClose =
       rightPanel?.activeTab ?? rightPanel?.tabs[0]?.id ?? null;
 

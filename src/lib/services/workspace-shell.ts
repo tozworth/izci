@@ -97,9 +97,9 @@ function isWorkspaceTabOpen(settings: WorkspacePanelStateSettings, tab: Workspac
 
 function clonePanels(panels: WorkspacePanelTabsSettings): WorkspacePanelTabsSettings {
   return {
-    playlist: [...panels.playlist],
-    library: [...panels.library],
-    details: [...panels.details]
+    left: [...panels.left],
+    center: [...panels.center],
+    right: [...panels.right]
   };
 }
 
@@ -107,9 +107,9 @@ function cloneActiveTabs(
   activeTabsByPanel: WorkspacePanelActiveTabsSettings
 ): WorkspacePanelActiveTabsSettings {
   return {
-    playlist: activeTabsByPanel.playlist,
-    library: activeTabsByPanel.library,
-    details: activeTabsByPanel.details
+    left: activeTabsByPanel.left,
+    center: activeTabsByPanel.center,
+    right: activeTabsByPanel.right
   };
 }
 
@@ -327,7 +327,7 @@ function createInitialState(
     activeWorkspaceTab: savedPanelState.activeWorkspaceTab,
     isDetailsPanelVisible: savedPanelState.detailsVisible,
     isLyricsPanelVisible: savedPanelState.lyricsVisible,
-    isRightPanelVisible: visibleWorkspacePanels.includes('details'),
+    isRightPanelVisible: visibleWorkspacePanels.includes('right'),
     isTabbedLayout: false,
     isResizing: false,
     widePanelWidths: resolveWidePanelWidths(workspacePanelLayout.getSnapshot(), 0, {
@@ -455,7 +455,7 @@ export function createWorkspaceShellController({
       activeWorkspaceTab: savedPanelState.activeWorkspaceTab,
       isDetailsPanelVisible: savedPanelState.detailsVisible,
       isLyricsPanelVisible: savedPanelState.lyricsVisible,
-      isRightPanelVisible: visibleWorkspacePanels.includes('details'),
+      isRightPanelVisible: visibleWorkspacePanels.includes('right'),
       isTabbedLayout,
       isResizing: Boolean(resizeState),
       widePanelWidths,

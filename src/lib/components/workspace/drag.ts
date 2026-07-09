@@ -17,7 +17,7 @@ function isWorkspaceTab(value: unknown): value is WorkspaceTab {
 }
 
 function isWorkspacePanelId(value: unknown): value is WorkspacePanelId {
-  return value === 'playlist' || value === 'library' || value === 'details';
+  return value === 'left' || value === 'center' || value === 'right';
 }
 
 export function writeWorkspaceTabDragData(

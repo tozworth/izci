@@ -15,11 +15,11 @@ import { createPersistentStore } from './persistent-store';
 export const APPEARANCE_SETTINGS_STORAGE_KEY = 'izci.appearance-settings';
 export const APPEARANCE_SETTINGS_CHANNEL = 'izci.appearance-settings';
 export const DEFAULT_COLOR_THEME: ColorTheme = 'gray';
-export const BACKDROP_ZONE_IDS: BackdropZoneId[] = ['playlist', 'library', 'details', 'player', 'nowPlaying'];
+export const BACKDROP_ZONE_IDS: BackdropZoneId[] = ['left', 'center', 'right', 'player', 'nowPlaying'];
 export const BACKDROP_ZONE_LABELS: Record<BackdropZoneId, string> = {
-  playlist: 'Playlist',
-  library: 'Library',
-  details: 'Track Details',
+  left: 'Left',
+  center: 'Center',
+  right: 'Right',
   player: 'Player Bar',
   nowPlaying: 'Now Playing'
 };
@@ -30,9 +30,9 @@ export const BACKDROP_EFFECT_OPTIONS: Array<{ value: BackdropZoneEffect; label: 
   { value: 'both', label: 'Both' }
 ];
 export const DEFAULT_BACKDROP_ZONES: BackdropZoneSettings = {
-  playlist: 'none',
-  library: 'none',
-  details: 'none',
+  left: 'none',
+  center: 'none',
+  right: 'none',
   player: 'none',
   nowPlaying: 'artwork'
 };
@@ -47,15 +47,15 @@ export const MIN_BACKDROP_ARTWORK_BRIGHTNESS = 0;
 export const MAX_BACKDROP_ARTWORK_BRIGHTNESS = 100;
 export const DEFAULT_BACKDROP_ARTWORK_BRIGHTNESS = 42;
 export const DEFAULT_BACKDROP_ZONE_ARTWORK: BackdropZoneArtworkSettingsMap = {
-  playlist: {
+  left: {
     blur: DEFAULT_BACKDROP_ARTWORK_BLUR,
     brightness: DEFAULT_BACKDROP_ARTWORK_BRIGHTNESS
   },
-  library: {
+  center: {
     blur: DEFAULT_BACKDROP_ARTWORK_BLUR,
     brightness: DEFAULT_BACKDROP_ARTWORK_BRIGHTNESS
   },
-  details: {
+  right: {
     blur: DEFAULT_BACKDROP_ARTWORK_BLUR,
     brightness: DEFAULT_BACKDROP_ARTWORK_BRIGHTNESS
   },
@@ -300,7 +300,7 @@ function applyLegacyMode(
     mode === 'workspace'
       ? BACKDROP_ZONE_IDS
       : mode === 'player-details'
-        ? ['player', 'details']
+        ? ['player', 'right']
         : mode === 'player'
           ? ['player']
           : [];
@@ -357,9 +357,9 @@ function normalizeBackdropZoneArtwork(
   source: Partial<AppearanceSettings> & Record<string, unknown>
 ): BackdropZoneArtworkSettingsMap {
   const settings: BackdropZoneArtworkSettingsMap = {
-    playlist: { ...DEFAULT_BACKDROP_ZONE_ARTWORK.playlist },
-    library: { ...DEFAULT_BACKDROP_ZONE_ARTWORK.library },
-    details: { ...DEFAULT_BACKDROP_ZONE_ARTWORK.details },
+    left: { ...DEFAULT_BACKDROP_ZONE_ARTWORK.left },
+    center: { ...DEFAULT_BACKDROP_ZONE_ARTWORK.center },
+    right: { ...DEFAULT_BACKDROP_ZONE_ARTWORK.right },
     player: { ...DEFAULT_BACKDROP_ZONE_ARTWORK.player },
     nowPlaying: { ...DEFAULT_BACKDROP_ZONE_ARTWORK.nowPlaying }
   };

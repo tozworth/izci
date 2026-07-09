@@ -8,7 +8,7 @@ export type PlaylistRepeatMode = 'off' | 'one' | 'all';
 export type SortDirection = 'asc' | 'desc';
 export type LibraryColumnId = 'title' | 'artist' | 'album' | 'format' | 'duration' | 'plays';
 export type ColorTheme = 'gray' | 'coal' | 'lights-out' | 'nordic' | 'gruvbox' | 'dracula' | 'ember';
-export type BackdropZoneId = 'playlist' | 'library' | 'details' | 'player' | 'nowPlaying';
+export type BackdropZoneId = 'left' | 'center' | 'right' | 'player' | 'nowPlaying';
 export type BackdropZoneEffect = 'none' | 'artwork' | 'visualizer' | 'both';
 export type BackdropZoneSettings = Record<BackdropZoneId, BackdropZoneEffect>;
 export interface BackdropZoneArtworkSettings {
@@ -22,9 +22,9 @@ export type LyricsDisplayStyle = 'plain' | 'timestamped' | 'theater';
 export type LyricsFontSizeSettings = Record<LyricsDisplayStyle, number>;
 export type WorkspaceCollection = 'playlist' | 'library';
 export type WorkspaceTab = WorkspaceCollection | 'details' | 'lyrics';
-export type WorkspacePanelId = 'playlist' | 'library' | 'details';
+export type WorkspacePanelId = 'left' | 'center' | 'right';
 export const WORKSPACE_TABS: WorkspaceTab[] = ['playlist', 'library', 'details', 'lyrics'];
-export const WORKSPACE_PANEL_IDS: WorkspacePanelId[] = ['playlist', 'library', 'details'];
+export const WORKSPACE_PANEL_IDS: WorkspacePanelId[] = ['left', 'center', 'right'];
 export interface WorkspaceResizeHandle {
   before: WorkspacePanelId;
   after: WorkspacePanelId;
@@ -181,9 +181,9 @@ export interface LibraryViewSettings {
 }
 
 export interface WorkspacePanelLayoutSettings {
-  playlistFraction: number;
-  libraryFraction: number;
-  detailsFraction: number;
+  leftFraction: number;
+  centerFraction: number;
+  rightFraction: number;
 }
 
 export type WorkspacePanelTabsSettings = Record<WorkspacePanelId, WorkspaceTab[]>;

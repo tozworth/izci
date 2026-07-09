@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { createEventDispatcher } from 'svelte';
+  import { createEventDispatcher, onMount, tick } from 'svelte';
   import type { WorkspacePanelId, WorkspaceTab } from '$lib/types';
   import type {
     WorkspaceTabDefinition,
@@ -29,6 +29,40 @@
   }>();
 
   let dropIndicator: { tabId: WorkspaceTab; position: 'before' | 'after' } | null = null;
+  let tabBarElement: HTMLDivElement;
+  let tabMeasurementElement: HTMLDivElement;
+  let isIconOnly = false;
+  let resizeObserver: ResizeObserver | null = null;
+  let iconOnlyUpdateScheduled = false;
+  let tabMeasurementSignature = '';
+
+  function getMeasurementSignature(): string {
+    return `${closeable ? 'closeable' : 'fixed'}:${tabs
+      .map((tab) => `${tab.id}:${tab.icon}:${tab.label}`)
+      .join('|')}`;
+  }
+
+  function updateIconOnly() {
+    if (!tabBarElement || !tabMeasurementElement) {
+      return;
+    }
+
+    const availableWidth = tabBarElement.clientWidth;
+    const requiredWidth = Math.ceil(tabMeasurementElement.scrollWidth);
+    isIconOnly = availableWidth > 0 && requiredWidth > availableWidth;
+  }
+
+  function scheduleIconOnlyUpdate() {
+    if (iconOnlyUpdateScheduled) {
+      return;
+    }
+
+    iconOnlyUpdateScheduled = true;
+    void tick().then(() => {
+      iconOnlyUpdateScheduled = false;
+      updateIconOnly();
+    });
+  }
 
   function getDropPosition(event: DragEvent, element: HTMLElement): 'before' | 'after' {
     const rect = element.getBoundingClientRect();
@@ -177,10 +211,40 @@
 
     event.preventDefault();
   }
+
+  onMount(() => {
+    resizeObserver = new ResizeObserver(scheduleIconOnlyUpdate);
+
+    if (tabBarElement) {
+      resizeObserver.observe(tabBarElement);
+    }
+
+    if (tabMeasurementElement) {
+      resizeObserver.observe(tabMeasurementElement);
+    }
+
+    scheduleIconOnlyUpdate();
+
+    return () => {
+      resizeObserver?.disconnect();
+      resizeObserver = null;
+    };
+  });
+
+  $: {
+    const nextMeasurementSignature = getMeasurementSignature();
+
+    if (nextMeasurementSignature !== tabMeasurementSignature) {
+      tabMeasurementSignature = nextMeasurementSignature;
+      scheduleIconOnlyUpdate();
+    }
+  }
 </script>
 
 <div
   class={`workspace-tabs ${className}`.trim()}
+  class:is-icon-only={isIconOnly}
+  bind:this={tabBarElement}
   role="tablist"
   aria-label={ariaLabel}
   tabindex="-1"
@@ -190,7 +254,8 @@
 >
   {#each tabs as tab}
     <div
-      class="workspace-tab-shell has-close"
+      class="workspace-tab-shell"
+      class:has-close={closeable}
       class:drop-before={dropIndicator?.tabId === tab.id && dropIndicator.position === 'before'}
       class:drop-after={dropIndicator?.tabId === tab.id && dropIndicator.position === 'after'}
       role="presentation"
@@ -210,6 +275,7 @@
         aria-controls={`workspace-tab-panel-${panelId ?? 'tabs'}-${tab.id}`}
         id={`workspace-tab-${panelId ?? 'tabs'}-${tab.id}`}
         draggable="false"
+        title={tab.label}
         on:click={() => dispatch('tabChange', tab.id)}
         on:auxclick={(event) => handleTabAuxClick(event, tab.id)}
         on:mousedown={handleTabMouseDown}
@@ -236,4 +302,23 @@
       {/if}
     </div>
   {/each}
+
+  <div class="workspace-tabs-measure" aria-hidden="true" bind:this={tabMeasurementElement}>
+    {#each tabs as tab}
+      <div class="workspace-tab-shell" class:has-close={closeable}>
+        <span class="workspace-tab">
+          <span class="material-symbols-outlined" aria-hidden="true">{tab.icon}</span>
+          <span class="workspace-tab-label">{tab.label}</span>
+        </span>
+
+        {#if closeable}
+          <span class="workspace-tab-close-slot">
+            <span class="workspace-tab-close-button">
+              <span class="material-symbols-outlined" aria-hidden="true">close</span>
+            </span>
+          </span>
+        {/if}
+      </div>
+    {/each}
+  </div>
 </div>

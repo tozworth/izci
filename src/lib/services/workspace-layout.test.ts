@@ -8,65 +8,65 @@ import {
 import type { WorkspacePanelLayoutSettings } from '$lib/types';
 
 const balancedLayout: WorkspacePanelLayoutSettings = {
-  playlistFraction: 0.3,
-  libraryFraction: 0.45,
-  detailsFraction: 0.25
+  leftFraction: 0.3,
+  centerFraction: 0.45,
+  rightFraction: 0.25
 };
 
-function totalWidth(widths: Record<'playlist' | 'library' | 'details', number>): number {
-  return widths.playlist + widths.library + widths.details;
+function totalWidth(widths: Record<'left' | 'center' | 'right', number>): number {
+  return widths.left + widths.center + widths.right;
 }
 
 describe('workspace layout', () => {
   it('subtracts padding and only visible resizers from the wide content width', () => {
     expect(getWideContentWidth(1200)).toBe(1198);
     expect(getWideContentWidth(1200, { detailsVisible: false })).toBe(1199);
-    expect(getWideContentWidth(1200, { visiblePanels: ['details'] })).toBe(1200);
+    expect(getWideContentWidth(1200, { visiblePanels: ['right'] })).toBe(1200);
     expect(getWideContentWidth(1200, { visiblePanels: [] })).toBe(1200);
   });
 
   it('resolves wide panel widths while preserving total content width', () => {
     const widths = resolveWidePanelWidths(balancedLayout, 1000);
 
-    expect(widths.playlist).toBeGreaterThanOrEqual(250);
-    expect(widths.library).toBeGreaterThanOrEqual(320);
-    expect(widths.details).toBeGreaterThanOrEqual(240);
+    expect(widths.left).toBeGreaterThanOrEqual(250);
+    expect(widths.center).toBeGreaterThanOrEqual(320);
+    expect(widths.right).toBeGreaterThanOrEqual(240);
     expect(totalWidth(widths)).toBeCloseTo(1000);
   });
 
   it('keeps hidden details out of the visible width without mutating the stored proportions', () => {
     const widths = resolveWidePanelWidths(balancedLayout, 1000, { detailsVisible: false });
 
-    expect(widths.details).toBe(0);
-    expect(widths.playlist + widths.library).toBeCloseTo(1000);
-    expect(widths.playlist).toBeCloseTo(400);
-    expect(widths.library).toBeCloseTo(600);
+    expect(widths.right).toBe(0);
+    expect(widths.left + widths.center).toBeCloseTo(1000);
+    expect(widths.left).toBeCloseTo(400);
+    expect(widths.center).toBeCloseTo(600);
   });
 
   it('reflows any hidden panel out of the visible width', () => {
     const widths = resolveWidePanelWidths(balancedLayout, 1000, {
-      visiblePanels: ['playlist', 'details']
+      visiblePanels: ['left', 'right']
     });
 
-    expect(widths.library).toBe(0);
-    expect(widths.playlist + widths.details).toBeCloseTo(1000);
-    expect(widths.playlist).toBeCloseTo(545.4545);
-    expect(widths.details).toBeCloseTo(454.5454);
+    expect(widths.center).toBe(0);
+    expect(widths.left + widths.right).toBeCloseTo(1000);
+    expect(widths.left).toBeCloseTo(545.4545);
+    expect(widths.right).toBeCloseTo(454.5454);
   });
 
   it('updates adjacent panel fractions when a resize handle moves', () => {
     const nextLayout = resolveResizedPanelLayout({
       handle: {
-        before: 'playlist',
-        after: 'library'
+        before: 'left',
+        after: 'center'
       },
       startLayout: balancedLayout,
       delta: 50,
       contentWidth: 1000
     });
 
-    expect(nextLayout.playlistFraction).toBeCloseTo(0.35);
-    expect(nextLayout.libraryFraction).toBeCloseTo(0.4);
-    expect(nextLayout.detailsFraction).toBeCloseTo(0.25);
+    expect(nextLayout.leftFraction).toBeCloseTo(0.35);
+    expect(nextLayout.centerFraction).toBeCloseTo(0.4);
+    expect(nextLayout.rightFraction).toBeCloseTo(0.25);
   });
 });

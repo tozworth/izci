@@ -10,26 +10,26 @@ import type {
 import { WORKSPACE_PANEL_IDS, WORKSPACE_TABS } from '$lib/types';
 import { createPersistentStore } from './persistent-store';
 
-export const WORKSPACE_PANEL_STATE_STORAGE_KEY = 'izci.workspace-panel-state.v1';
+export const WORKSPACE_PANEL_STATE_STORAGE_KEY = 'izci.workspace-panel-state.v2';
 export const WORKSPACE_PANEL_STATE_CHANNEL = 'izci-workspace-panel-state';
 
 export const DEFAULT_WORKSPACE_PANEL_TABS: WorkspacePanelTabsSettings = {
-  playlist: ['playlist'],
-  library: ['library'],
-  details: []
+  left: ['playlist'],
+  center: ['library'],
+  right: []
 };
 
 export const DEFAULT_WORKSPACE_ACTIVE_TABS: WorkspacePanelActiveTabsSettings = {
-  playlist: 'playlist',
-  library: 'library',
-  details: null
+  left: 'playlist',
+  center: 'library',
+  right: null
 };
 
 export const DEFAULT_WORKSPACE_LAST_PANEL_BY_TAB: WorkspaceTabPanelMemorySettings = {
-  playlist: 'playlist',
-  library: 'library',
-  details: 'details',
-  lyrics: 'details'
+  playlist: 'left',
+  library: 'center',
+  details: 'right',
+  lyrics: 'right'
 };
 
 export const DEFAULT_WORKSPACE_PANEL_STATE: WorkspacePanelStateSettings = {
@@ -38,7 +38,7 @@ export const DEFAULT_WORKSPACE_PANEL_STATE: WorkspacePanelStateSettings = {
   activeWorkspaceTab: 'playlist',
   activeCollection: 'playlist',
   panels: DEFAULT_WORKSPACE_PANEL_TABS,
-  openPanels: ['playlist', 'library'],
+  openPanels: ['left', 'center'],
   activeTabsByPanel: DEFAULT_WORKSPACE_ACTIVE_TABS,
   lastPanelByTab: DEFAULT_WORKSPACE_LAST_PANEL_BY_TAB,
   tabbedTabOrder: ['playlist', 'library']
@@ -54,7 +54,7 @@ function isWorkspaceTab(value: unknown): value is WorkspaceTab {
 }
 
 function isWorkspacePanelId(value: unknown): value is WorkspacePanelId {
-  return value === 'playlist' || value === 'library' || value === 'details';
+  return value === 'left' || value === 'center' || value === 'right';
 }
 
 function normalizeWorkspaceTab(value: unknown): WorkspaceTab {
@@ -67,17 +67,17 @@ function normalizeWorkspaceCollection(value: unknown): WorkspaceCollection {
 
 function createEmptyPanels(): WorkspacePanelTabsSettings {
   return {
-    playlist: [],
-    library: [],
-    details: []
+    left: [],
+    center: [],
+    right: []
   };
 }
 
 function clonePanels(panels: WorkspacePanelTabsSettings): WorkspacePanelTabsSettings {
   return {
-    playlist: [...panels.playlist],
-    library: [...panels.library],
-    details: [...panels.details]
+    left: [...panels.left],
+    center: [...panels.center],
+    right: [...panels.right]
   };
 }
 
@@ -124,11 +124,11 @@ function migrateLegacyPanelTabs(
   const panels = clonePanels(DEFAULT_WORKSPACE_PANEL_TABS);
 
   if (source.detailsVisible === true) {
-    panels.details.push('details');
+    panels.right.push('details');
   }
 
   if (source.lyricsVisible === true) {
-    panels.details.push('lyrics');
+    panels.right.push('lyrics');
   }
 
   return panels;

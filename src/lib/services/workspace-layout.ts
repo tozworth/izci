@@ -9,9 +9,9 @@ const HORIZONTAL_PADDING = 0;
 
 export const WORKSPACE_RESIZER_WIDTH = 1;
 export const WIDE_PANEL_MIN_WIDTHS: Record<WorkspacePanelId, number> = {
-  playlist: 250,
-  library: 320,
-  details: 240
+  left: 250,
+  center: 320,
+  right: 240
 };
 
 interface WideWorkspaceLayoutOptions {
@@ -28,12 +28,12 @@ function getLayoutFraction(
   panelId: WorkspacePanelId
 ): number {
   switch (panelId) {
-    case 'playlist':
-      return layout.playlistFraction;
-    case 'library':
-      return layout.libraryFraction;
-    case 'details':
-      return layout.detailsFraction;
+    case 'left':
+      return layout.leftFraction;
+    case 'center':
+      return layout.centerFraction;
+    case 'right':
+      return layout.rightFraction;
   }
 }
 
@@ -43,14 +43,14 @@ function setLayoutFraction(
   value: number
 ): void {
   switch (panelId) {
-    case 'playlist':
-      layout.playlistFraction = value;
+    case 'left':
+      layout.leftFraction = value;
       break;
-    case 'library':
-      layout.libraryFraction = value;
+    case 'center':
+      layout.centerFraction = value;
       break;
-    case 'details':
-      layout.detailsFraction = value;
+    case 'right':
+      layout.rightFraction = value;
       break;
   }
 }
@@ -62,7 +62,7 @@ function resolveVisiblePanels(options: WideWorkspaceLayoutOptions = {}): Workspa
   }
 
   return options.detailsVisible === false
-    ? ['playlist', 'library']
+    ? ['left', 'center']
     : [...WORKSPACE_PANEL_IDS];
 }
 
@@ -74,23 +74,23 @@ function getPanelWidthTotal(
 }
 
 function normalizeLayout(layout: WorkspacePanelLayoutSettings): WorkspacePanelLayoutSettings {
-  const playlistFraction = Math.max(layout.playlistFraction, 0);
-  const libraryFraction = Math.max(layout.libraryFraction, 0);
-  const detailsFraction = Math.max(layout.detailsFraction, 0);
-  const total = playlistFraction + libraryFraction + detailsFraction;
+  const leftFraction = Math.max(layout.leftFraction, 0);
+  const centerFraction = Math.max(layout.centerFraction, 0);
+  const rightFraction = Math.max(layout.rightFraction, 0);
+  const total = leftFraction + centerFraction + rightFraction;
 
   if (total <= 0) {
     return {
-      playlistFraction: 1 / 3,
-      libraryFraction: 1 / 3,
-      detailsFraction: 1 / 3
+      leftFraction: 1 / 3,
+      centerFraction: 1 / 3,
+      rightFraction: 1 / 3
     };
   }
 
   return {
-    playlistFraction: playlistFraction / total,
-    libraryFraction: libraryFraction / total,
-    detailsFraction: detailsFraction / total
+    leftFraction: leftFraction / total,
+    centerFraction: centerFraction / total,
+    rightFraction: rightFraction / total
   };
 }
 
@@ -109,9 +109,9 @@ function toPanelLayoutSettings(
   const visibleFractionTotal = Math.max(1 - hiddenFractionTotal, 0);
   const visibleWidthTotal = getPanelWidthTotal(widths, visiblePanels);
   const nextLayout: WorkspacePanelLayoutSettings = {
-    playlistFraction: normalizedStartLayout.playlistFraction,
-    libraryFraction: normalizedStartLayout.libraryFraction,
-    detailsFraction: normalizedStartLayout.detailsFraction
+    leftFraction: normalizedStartLayout.leftFraction,
+    centerFraction: normalizedStartLayout.centerFraction,
+    rightFraction: normalizedStartLayout.rightFraction
   };
 
   if (visiblePanels.length === 0 || visibleWidthTotal <= 0 || visibleFractionTotal <= 0) {
@@ -127,9 +127,9 @@ function toPanelLayoutSettings(
   }
 
   const total =
-    nextLayout.playlistFraction + nextLayout.libraryFraction + nextLayout.detailsFraction;
+    nextLayout.leftFraction + nextLayout.centerFraction + nextLayout.rightFraction;
   const correction = 1 - total;
-  const correctionPanel = visiblePanels[visiblePanels.length - 1] ?? 'library';
+  const correctionPanel = visiblePanels[visiblePanels.length - 1] ?? 'center';
   setLayoutFraction(
     nextLayout,
     correctionPanel,
@@ -156,9 +156,9 @@ export function resolveWidePanelWidths(
   const visiblePanels = resolveVisiblePanels(options);
   const visibleSet = new Set(visiblePanels);
   const widths: Record<WorkspacePanelId, number> = {
-    playlist: 0,
-    library: 0,
-    details: 0
+    left: 0,
+    center: 0,
+    right: 0
   };
 
   if (visiblePanels.length === 0) {

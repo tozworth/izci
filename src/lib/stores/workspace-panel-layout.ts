@@ -1,13 +1,13 @@
 import type { WorkspacePanelLayoutSettings } from '$lib/types';
 import { createPersistentStore } from './persistent-store';
 
-export const WORKSPACE_PANEL_LAYOUT_STORAGE_KEY = 'izci.workspace-panel-layout.v1';
+export const WORKSPACE_PANEL_LAYOUT_STORAGE_KEY = 'izci.workspace-panel-layout.v2';
 export const WORKSPACE_PANEL_LAYOUT_CHANNEL = 'izci-workspace-panel-layout';
 
 export const DEFAULT_WORKSPACE_PANEL_LAYOUT: WorkspacePanelLayoutSettings = {
-  playlistFraction: 0.28,
-  libraryFraction: 0.42,
-  detailsFraction: 0.3
+  leftFraction: 0.28,
+  centerFraction: 0.42,
+  rightFraction: 0.3
 };
 
 function clamp(value: number, min: number, max: number): number {
@@ -30,27 +30,27 @@ function toNumber(value: unknown, fallback: number): number {
 function normalizeLayoutSettings(value: unknown): WorkspacePanelLayoutSettings {
   const source =
     value && typeof value === 'object' ? (value as Partial<WorkspacePanelLayoutSettings>) : {};
-  const playlistFraction = clamp(
-    toNumber(source.playlistFraction, DEFAULT_WORKSPACE_PANEL_LAYOUT.playlistFraction),
+  const leftFraction = clamp(
+    toNumber(source.leftFraction, DEFAULT_WORKSPACE_PANEL_LAYOUT.leftFraction),
     0.1,
     0.8
   );
-  const libraryFraction = clamp(
-    toNumber(source.libraryFraction, DEFAULT_WORKSPACE_PANEL_LAYOUT.libraryFraction),
+  const centerFraction = clamp(
+    toNumber(source.centerFraction, DEFAULT_WORKSPACE_PANEL_LAYOUT.centerFraction),
     0.1,
     0.8
   );
-  const detailsFraction = clamp(
-    toNumber(source.detailsFraction, DEFAULT_WORKSPACE_PANEL_LAYOUT.detailsFraction),
+  const rightFraction = clamp(
+    toNumber(source.rightFraction, DEFAULT_WORKSPACE_PANEL_LAYOUT.rightFraction),
     0.1,
     0.8
   );
-  const total = playlistFraction + libraryFraction + detailsFraction;
+  const total = leftFraction + centerFraction + rightFraction;
 
   return {
-    playlistFraction: playlistFraction / total,
-    libraryFraction: libraryFraction / total,
-    detailsFraction: detailsFraction / total
+    leftFraction: leftFraction / total,
+    centerFraction: centerFraction / total,
+    rightFraction: rightFraction / total
   };
 }
 

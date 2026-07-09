@@ -142,6 +142,9 @@
   box-shadow: 0 1px 0 var(--hairline);
   border-bottom: 1px solid var(--border-soft);
   isolation: isolate;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
 }
 
 .app-shell.window-controls-overlay-active .workspace-tabs {
@@ -157,7 +160,9 @@
 .workspace-tab {
   display: inline-flex;
   align-items: center;
+  flex: 0 1 auto;
   gap: 0.38rem;
+  min-width: 0;
   padding: 0.3rem 0.45rem 0.5rem;
   background: transparent;
   border: 0;
@@ -174,6 +179,8 @@
   position: relative;
   display: inline-flex;
   align-items: center;
+  flex: 0 0 auto;
+  min-width: 0;
 }
 
 .workspace-tab-shell[draggable='true'] {
@@ -223,7 +230,40 @@
 }
 
 .workspace-tab-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.workspace-tabs.is-icon-only > .workspace-tab-shell .workspace-tab {
+  justify-content: center;
+  gap: 0;
+  padding-inline: 0.42rem;
+}
+
+.workspace-tabs.is-icon-only > .workspace-tab-shell.has-close .workspace-tab {
+  padding-right: 1.55rem;
+}
+
+.workspace-tabs.is-icon-only > .workspace-tab-shell .workspace-tab-label {
+  display: none;
+}
+
+.workspace-tabs-measure {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: -1;
+  display: flex;
+  align-items: center;
+  gap: inherit;
+  width: max-content;
+  max-width: none;
+  height: 0;
+  overflow: visible;
+  visibility: hidden;
+  pointer-events: none;
 }
 
 .workspace-tab-close-slot {
@@ -349,16 +389,16 @@
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent-strong) 18%, transparent);
 }
 
-.workspace-edge-drop-target-playlist {
+.workspace-edge-drop-target-left {
   left: 0;
 }
 
-.workspace-edge-drop-target-library {
+.workspace-edge-drop-target-center {
   left: 50%;
   transform: translateX(-50%);
 }
 
-.workspace-edge-drop-target-details {
+.workspace-edge-drop-target-right {
   right: 0;
 }
 
