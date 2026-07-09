@@ -23,7 +23,12 @@ export type LyricsFontSizeSettings = Record<LyricsDisplayStyle, number>;
 export type WorkspaceCollection = 'playlist' | 'library';
 export type WorkspaceTab = WorkspaceCollection | 'details' | 'lyrics';
 export type WorkspacePanelId = 'playlist' | 'library' | 'details';
-export type WorkspaceResizeHandle = 'playlist-library' | 'library-details';
+export const WORKSPACE_TABS: WorkspaceTab[] = ['playlist', 'library', 'details', 'lyrics'];
+export const WORKSPACE_PANEL_IDS: WorkspacePanelId[] = ['playlist', 'library', 'details'];
+export interface WorkspaceResizeHandle {
+  before: WorkspacePanelId;
+  after: WorkspacePanelId;
+}
 export type ReplayGainMode = 'off' | 'track' | 'album';
 
 export interface ReplayGainMetadata {
@@ -93,6 +98,7 @@ export interface AppearanceSettings {
   useArtworkPlayerColors: boolean;
   useNowPlayingArtworkPlayerColors: boolean;
   keepLibraryColumnsVisibleInNarrowLayout: boolean;
+  keepEmptyWorkspacePanelsOpen: boolean;
   useSystemFont: boolean;
   backdropZones: BackdropZoneSettings;
   backdropZoneArtwork: BackdropZoneArtworkSettingsMap;
@@ -180,11 +186,20 @@ export interface WorkspacePanelLayoutSettings {
   detailsFraction: number;
 }
 
+export type WorkspacePanelTabsSettings = Record<WorkspacePanelId, WorkspaceTab[]>;
+export type WorkspacePanelActiveTabsSettings = Record<WorkspacePanelId, WorkspaceTab | null>;
+export type WorkspaceTabPanelMemorySettings = Record<WorkspaceTab, WorkspacePanelId>;
+
 export interface WorkspacePanelStateSettings {
   detailsVisible: boolean;
   lyricsVisible: boolean;
   activeWorkspaceTab: WorkspaceTab;
   activeCollection: WorkspaceCollection;
+  panels: WorkspacePanelTabsSettings;
+  openPanels: WorkspacePanelId[];
+  activeTabsByPanel: WorkspacePanelActiveTabsSettings;
+  lastPanelByTab: WorkspaceTabPanelMemorySettings;
+  tabbedTabOrder: WorkspaceTab[];
 }
 
 export interface WorkspaceJumpRequest {

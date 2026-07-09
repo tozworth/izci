@@ -93,7 +93,6 @@
 
   const KEYBOARD_SEEK_STEP_SECONDS = 5;
   const KEYBOARD_VOLUME_STEP = 0.05;
-  const NOW_PLAYING_WORKSPACE_TABS: WorkspaceTab[] = ['playlist', 'library', 'details', 'lyrics'];
   type LyricsAvailability = 'unknown' | 'loading' | 'available' | 'unavailable';
 
   const libraryContextActions = buildLibraryContextActions();
@@ -388,6 +387,8 @@
   $: backdropGeometryKey = [
     isNowPlayingLayoutActive ? 'now-playing' : miniModeActive ? 'mini' : workspaceShellState.isTabbedLayout ? 'tabbed' : 'wide',
     workspaceShellState.activeWorkspaceTab,
+    workspaceShellState.visibleWorkspacePanels.join(','),
+    workspaceShellState.workspaceTabs.map((tab) => tab.id).join(','),
     workspaceShellState.isDetailsPanelVisible ? 'details-open' : 'details-closed',
     workspaceShellState.isLyricsPanelVisible ? 'lyrics-open' : 'lyrics-closed',
     backdropZones.playlist,
@@ -437,7 +438,8 @@
     librarySelectionAnchorId,
     playingTrackId: playingTrack?.id ?? null,
     shuffleEnabled,
-    repeatMode
+    repeatMode,
+    keepEmptyWorkspacePanelsOpen: $appearanceSettings.keepEmptyWorkspacePanelsOpen
   });
   $: {
     artworkPresentation.syncSelection(
@@ -555,6 +557,14 @@
     );
   }
 
+  function showPlaylist() {
+    workspaceShell.showWorkspaceTab('playlist');
+  }
+
+  function showLibrary() {
+    workspaceShell.showWorkspaceTab('library');
+  }
+
   function showTrackDetails() {
     workspaceShell.showTrackDetails();
   }
@@ -627,13 +637,7 @@
   }
 
   function restoreWorkspaceTab(tab: WorkspaceTab): void {
-    if (tab === 'details') {
-      workspaceShell.showTrackDetails();
-      return;
-    }
-
-    if (tab === 'lyrics') {
-      workspaceShell.showTrackLyrics();
+    if (!workspaceShellState.workspaceTabs.some((workspaceTab) => workspaceTab.id === tab)) {
       return;
     }
 
@@ -791,52 +795,23 @@
   }
 
   function handleNowPlayingTabChange(tab: WorkspaceTab) {
-    if (tab === 'details') {
-      workspaceShell.showTrackDetails();
-      return;
-    }
-
-    if (tab === 'lyrics') {
-      workspaceShell.showTrackLyrics();
-      return;
-    }
-
     workspaceShell.setActiveWorkspaceTab(tab);
   }
 
   function closeActiveRightPanel() {
-    if (workspaceShellState.activeWorkspaceTab === 'lyrics') {
-      workspaceShell.closeTrackLyrics();
+    const rightPanel = workspaceShellState.workspacePanels.find((panel) => panel.id === 'details');
+    const tabToClose =
+      rightPanel?.activeTab ?? rightPanel?.tabs[0]?.id ?? null;
+
+    if (!tabToClose) {
       return;
     }
 
-    if (workspaceShellState.activeWorkspaceTab === 'details') {
-      workspaceShell.closeTrackDetails();
-      return;
-    }
-
-    if (workspaceShellState.isLyricsPanelVisible) {
-      workspaceShell.closeTrackLyrics();
-      return;
-    }
-
-    workspaceShell.closeTrackDetails();
+    workspaceShell.closeWorkspaceTab(tabToClose);
   }
 
   function getCyclableWorkspaceTabs(): WorkspaceTab[] {
-    if (isNowPlayingLayoutActive) {
-      return NOW_PLAYING_WORKSPACE_TABS;
-    }
-
-    if (workspaceShellState.isTabbedLayout) {
-      return workspaceShellState.workspaceTabs.map((tab) => tab.id);
-    }
-
-    return (['details', 'lyrics'] as const).filter((tab) =>
-      tab === 'details'
-        ? workspaceShellState.isDetailsPanelVisible
-        : workspaceShellState.isLyricsPanelVisible
-    );
+    return workspaceShellState.workspaceTabs.map((tab) => tab.id);
   }
 
   function cycleWorkspaceTab(direction: -1 | 1): boolean {
@@ -849,21 +824,6 @@
     const currentIndex = Math.max(tabs.indexOf(workspaceShellState.activeWorkspaceTab), 0);
     const nextIndex = (currentIndex + direction + tabs.length) % tabs.length;
     const nextTab = tabs[nextIndex];
-
-    if (isNowPlayingLayoutActive) {
-      handleNowPlayingTabChange(nextTab);
-      return true;
-    }
-
-    if (!workspaceShellState.isTabbedLayout && nextTab === 'details') {
-      workspaceShell.showTrackDetails();
-      return true;
-    }
-
-    if (!workspaceShellState.isTabbedLayout && nextTab === 'lyrics') {
-      workspaceShell.showTrackLyrics();
-      return true;
-    }
 
     workspaceShell.setActiveWorkspaceTab(nextTab);
     return true;
@@ -1359,6 +1319,8 @@
     on:openOptions={(event) => handleOpenOptions(event.detail?.view)}
     on:forceUpdate={() => void handleForceUpdate()}
     on:openAbout={handleOpenAbout}
+    on:showPlaylist={showPlaylist}
+    on:showLibrary={showLibrary}
     on:showTrackDetails={showTrackDetails}
     on:showLyrics={showTrackLyrics}
     on:toggleMiniMode={() => windowMiniMode.toggle()}
@@ -1397,6 +1359,8 @@
       on:close={closeNowPlayingView}
       on:chromeHiddenChange={(event) => (isNowPlayingChromeHidden = event.detail)}
       on:tabChange={(event) => handleNowPlayingTabChange(event.detail)}
+      on:tabClose={(event) => workspaceShell.closeWorkspaceTab(event.detail)}
+      on:tabMove={(event) => workspaceShell.moveTabbedWorkspaceTab(event.detail)}
       on:toggle={() => void playbackCommands.togglePlayback()}
       on:previous={() => void playbackCommands.stepTrack(-1)}
       on:next={() => void playbackCommands.stepTrack(1)}
@@ -1423,8 +1387,6 @@
         zoneArtworkBright={workspaceZoneArtworkBright}
         zoneEffects={workspaceZoneEffects}
         zoneArtworkSettings={workspaceZoneArtworkSettings}
-        isDetailsVisible={workspaceShellState.isDetailsPanelVisible}
-        isLyricsVisible={workspaceShellState.isLyricsPanelVisible}
         lyricsDisplayStyle={effectiveLyricsDisplayStyle}
         {lyricsAutoScroll}
         {lyricsFontSize}
@@ -1432,15 +1394,16 @@
         lyricsTheaterDowntimeDots={$appearanceSettings.lyrics.theaterDowntimeDots}
         lyricsTheaterDowntimeThresholdSeconds={$appearanceSettings.lyrics.theaterDowntimeThresholdSeconds}
         lyricsTheaterSmoothScroll={$appearanceSettings.lyrics.theaterSmoothScroll}
-        onCloseDetails={() => workspaceShell.closeTrackDetails()}
-        onCloseLyrics={() => workspaceShell.closeTrackLyrics()}
         on:seek={(event) => seekPlayback(event.detail)}
         on:tabChange={(event) => workspaceShell.setActiveWorkspaceTab(event.detail)}
+        on:tabClose={(event) => workspaceShell.closeWorkspaceTab(event.detail)}
+        on:tabMove={(event) => workspaceShell.moveTabbedWorkspaceTab(event.detail)}
       />
     {:else}
       <WideWorkspace
         snapshotStore={playerController.snapshot}
         {playbackSnapshot}
+        workspacePanels={workspaceShellState.workspacePanels}
         playlistPanelProps={workspaceShellState.playlistPanelProps}
         {playlistPanelHandlers}
         libraryPanelProps={workspaceShellState.libraryPanelProps}
@@ -1455,9 +1418,6 @@
         zoneArtworkBright={workspaceZoneArtworkBright}
         zoneEffects={workspaceZoneEffects}
         zoneArtworkSettings={workspaceZoneArtworkSettings}
-        isDetailsVisible={workspaceShellState.isDetailsPanelVisible}
-        isLyricsVisible={workspaceShellState.isLyricsPanelVisible}
-        activeWorkspaceTab={workspaceShellState.activeWorkspaceTab}
         lyricsDisplayStyle={effectiveLyricsDisplayStyle}
         {lyricsAutoScroll}
         {lyricsFontSize}
@@ -1465,10 +1425,10 @@
         lyricsTheaterDowntimeDots={$appearanceSettings.lyrics.theaterDowntimeDots}
         lyricsTheaterDowntimeThresholdSeconds={$appearanceSettings.lyrics.theaterDowntimeThresholdSeconds}
         lyricsTheaterSmoothScroll={$appearanceSettings.lyrics.theaterSmoothScroll}
-        onCloseDetails={() => workspaceShell.closeTrackDetails()}
-        onCloseLyrics={() => workspaceShell.closeTrackLyrics()}
         on:seek={(event) => seekPlayback(event.detail)}
         on:tabChange={(event) => workspaceShell.setActiveWorkspaceTab(event.detail)}
+        on:tabClose={(event) => workspaceShell.closeWorkspaceTab(event.detail)}
+        on:tabMove={(event) => workspaceShell.moveWorkspaceTab(event.detail)}
         on:resizeStart={(event) => workspaceShell.handleWideWorkspaceResizeStart(event.detail)}
       />
     {/if}

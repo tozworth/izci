@@ -204,6 +204,12 @@
     });
   }
 
+  function handleEmptyWorkspacePanelsToggle(event: Event) {
+    appearanceSettings.update({
+      keepEmptyWorkspacePanelsOpen: (event.currentTarget as HTMLInputElement).checked
+    });
+  }
+
   function handleAutoNowPlayingToggle(event: Event) {
     appearanceSettings.update({
       autoNowPlayingOnMaximized: (event.currentTarget as HTMLInputElement).checked
@@ -712,6 +718,22 @@
                 </div>
                 <p class="field-hint">
                   Prevents the slim-window library view from collapsing to title-only rows.
+                </p>
+              </label>
+
+              <label class="field checkbox-field">
+                <div class="field-copy">
+                  <span class="field-title">Keep empty workspace panels open</span>
+                </div>
+                <div class="field-control checkbox-control">
+                  <input
+                    type="checkbox"
+                    checked={$appearanceSettings.keepEmptyWorkspacePanelsOpen}
+                    on:change={handleEmptyWorkspacePanelsToggle}
+                  />
+                </div>
+                <p class="field-hint">
+                  Leaves a dock panel in place after its last tab closes instead of letting neighboring panels fill the space.
                 </p>
               </label>
 

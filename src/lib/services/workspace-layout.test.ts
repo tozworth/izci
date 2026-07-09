@@ -21,6 +21,8 @@ describe('workspace layout', () => {
   it('subtracts padding and only visible resizers from the wide content width', () => {
     expect(getWideContentWidth(1200)).toBe(1198);
     expect(getWideContentWidth(1200, { detailsVisible: false })).toBe(1199);
+    expect(getWideContentWidth(1200, { visiblePanels: ['details'] })).toBe(1200);
+    expect(getWideContentWidth(1200, { visiblePanels: [] })).toBe(1200);
   });
 
   it('resolves wide panel widths while preserving total content width', () => {
@@ -41,9 +43,23 @@ describe('workspace layout', () => {
     expect(widths.library).toBeCloseTo(600);
   });
 
+  it('reflows any hidden panel out of the visible width', () => {
+    const widths = resolveWidePanelWidths(balancedLayout, 1000, {
+      visiblePanels: ['playlist', 'details']
+    });
+
+    expect(widths.library).toBe(0);
+    expect(widths.playlist + widths.details).toBeCloseTo(1000);
+    expect(widths.playlist).toBeCloseTo(545.4545);
+    expect(widths.details).toBeCloseTo(454.5454);
+  });
+
   it('updates adjacent panel fractions when a resize handle moves', () => {
     const nextLayout = resolveResizedPanelLayout({
-      handle: 'playlist-library',
+      handle: {
+        before: 'playlist',
+        after: 'library'
+      },
       startLayout: balancedLayout,
       delta: 50,
       contentWidth: 1000

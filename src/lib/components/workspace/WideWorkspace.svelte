@@ -16,15 +16,20 @@
     WorkspaceTab
   } from '$lib/types';
   import WorkspaceResizer from '$lib/components/workspace/WorkspaceResizer.svelte';
+  import WorkspaceTabBar from '$lib/components/workspace/WorkspaceTabBar.svelte';
+  import { hasWorkspaceTabDragData, readWorkspaceTabDragData } from './drag';
   import type { Readable } from 'svelte/store';
   import type {
     WideWorkspaceResizeStartDetail,
+    WorkspacePanelDefinition,
     WorkspacePanelHandlers,
-    WorkspacePanelProps
+    WorkspacePanelProps,
+    WorkspaceTabMoveDetail
   } from './types';
 
   export let snapshotStore: Readable<PlaybackSnapshot>;
   export let playbackSnapshot: PlaybackSnapshot | null = null;
+  export let workspacePanels: WorkspacePanelDefinition[] = [];
   export let playlistPanelProps: WorkspacePanelProps;
   export let playlistPanelHandlers: WorkspacePanelHandlers;
   export let libraryPanelProps: WorkspacePanelProps;
@@ -52,9 +57,6 @@
     library: false,
     details: false
   };
-  export let isDetailsVisible = false;
-  export let isLyricsVisible = false;
-  export let activeWorkspaceTab: WorkspaceTab = 'playlist';
   export let lyricsDisplayStyle: LyricsDisplayStyle = 'timestamped';
   export let lyricsAutoScroll = true;
   export let lyricsFontSize = 1;
@@ -62,254 +64,226 @@
   export let lyricsTheaterDowntimeThresholdSeconds = 10;
   export let lyricsTheaterSmoothScroll = true;
   export let lyricsResumeAutoScrollToken = 0;
-  export let onCloseDetails: () => void = () => {};
-  export let onCloseLyrics: () => void = () => {};
 
   const dispatch = createEventDispatcher<{
     resizeStart: WideWorkspaceResizeStartDetail;
     seek: number;
     tabChange: WorkspaceTab;
+    tabClose: WorkspaceTab;
+    tabMove: WorkspaceTabMoveDetail;
   }>();
 
-  $: visibleRightTabs = [
-    isDetailsVisible ? { id: 'details' as const, icon: 'info', label: 'Details' } : null,
-    isLyricsVisible ? { id: 'lyrics' as const, icon: 'lyrics', label: 'Lyrics' } : null
-  ].filter((tab): tab is { id: 'details' | 'lyrics'; icon: string; label: string } => Boolean(tab));
-  $: showRightPanelTabs = visibleRightTabs.length > 1;
-  $: activeRightPanelTab =
-    activeWorkspaceTab === 'lyrics' && isLyricsVisible
-      ? 'lyrics'
-      : activeWorkspaceTab === 'details' && isDetailsVisible
-        ? 'details'
-        : isDetailsVisible
-          ? 'details'
-          : 'lyrics';
+  const PANEL_LABELS: Record<WorkspacePanelId, string> = {
+    playlist: 'Left',
+    library: 'Center',
+    details: 'Right'
+  };
 
-  function closeRightPanelTab(tab: 'details' | 'lyrics') {
-    if (tab === 'details') {
-      onCloseDetails();
-      return;
-    }
+  let draggedTabId: WorkspaceTab | null = null;
+  let dropTargetPanelId: WorkspacePanelId | null = null;
 
-    onCloseLyrics();
+  $: visiblePanels = workspacePanels.filter((panel) => panel.isOpen);
+  $: hiddenPanels = workspacePanels.filter((panel) => !panel.isOpen);
+
+  function getPanelLabel(panelId: WorkspacePanelId): string {
+    return `${PANEL_LABELS[panelId]} panel`;
   }
 
-  function handleRightPanelTabCloseClick(event: MouseEvent, tab: 'details' | 'lyrics') {
-    event.stopPropagation();
-    closeRightPanelTab(tab);
-  }
-
-  function handleRightPanelTabAuxClick(event: MouseEvent, tab: 'details' | 'lyrics') {
-    if (event.button !== 1) {
+  function handlePanelDragOver(event: DragEvent, panelId: WorkspacePanelId) {
+    if (!hasWorkspaceTabDragData(event.dataTransfer)) {
       return;
     }
 
     event.preventDefault();
-    event.stopPropagation();
-    closeRightPanelTab(tab);
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = 'move';
+    }
+    dropTargetPanelId = panelId;
   }
 
-  function handleRightPanelTabMouseDown(event: MouseEvent) {
-    if (event.button !== 1) {
+  function handlePanelDrop(event: DragEvent, panelId: WorkspacePanelId) {
+    const dragData = readWorkspaceTabDragData(event.dataTransfer);
+
+    if (!dragData) {
       return;
     }
 
     event.preventDefault();
+    dropTargetPanelId = null;
+    dispatch('tabMove', {
+      ...dragData,
+      targetPanelId: panelId,
+      position: 'end'
+    });
+  }
+
+  function handlePanelDragLeave(event: DragEvent, panelId: WorkspacePanelId) {
+    const currentTarget = event.currentTarget;
+    const relatedTarget = event.relatedTarget;
+
+    if (
+      currentTarget instanceof HTMLElement &&
+      relatedTarget instanceof Node &&
+      currentTarget.contains(relatedTarget)
+    ) {
+      return;
+    }
+
+    if (dropTargetPanelId === panelId) {
+      dropTargetPanelId = null;
+    }
+  }
+
+  function handleTabDragStart(tabId: WorkspaceTab) {
+    draggedTabId = tabId;
+  }
+
+  function handleTabDragEnd() {
+    draggedTabId = null;
+    dropTargetPanelId = null;
   }
 </script>
 
-<main class="workspace workspace-resizable" class:is-resizing={isResizing}>
-  <div
-    class="workspace-panel"
-    style={`flex: 0 0 ${panelWidths.playlist}px; width: ${panelWidths.playlist}px;`}
-  >
-    <BackdropZone
-      effect={zoneEffects.playlist}
-      artwork={backdropArtwork}
-      artworkSettings={zoneArtworkSettings.playlist}
-      artworkBright={zoneArtworkBright.playlist || artworkBackgroundBright}
-      fillParent={true}
-      zoneId="playlist"
-    >
-      <PlaylistPanel
-        {...playlistPanelProps}
-        fillParent={true}
-        on:addFiles={(event) => playlistPanelHandlers.addFiles(event.detail)}
-        on:openFiles={playlistPanelHandlers.openFiles}
-        on:select={playlistPanelHandlers.select}
-        on:activate={playlistPanelHandlers.activate}
-        on:contextAction={playlistPanelHandlers.contextAction}
-        on:toggleShuffle={() => playlistPanelHandlers.toggleShuffle?.()}
-        on:cycleRepeat={() => playlistPanelHandlers.cycleRepeat?.()}
-      />
-    </BackdropZone>
-  </div>
-
-  <WorkspaceResizer
-    label="Resize playlist and library panels"
-    width={resizerWidth}
-    onPointerDown={(event) =>
-      dispatch('resizeStart', { event, handle: 'playlist-library' })}
-  />
-
-  <div
-    class="workspace-panel"
-    style={`flex: 0 0 ${panelWidths.library}px; width: ${panelWidths.library}px;`}
-  >
-    <BackdropZone
-      effect={zoneEffects.library}
-      artwork={backdropArtwork}
-      artworkSettings={zoneArtworkSettings.library}
-      artworkBright={zoneArtworkBright.library || artworkBackgroundBright}
-      fillParent={true}
-      zoneId="library"
-    >
-      <PlaylistPanel
-        {...libraryPanelProps}
-        fillParent={true}
-        on:addFiles={(event) => libraryPanelHandlers.addFiles(event.detail)}
-        on:openFiles={libraryPanelHandlers.openFiles}
-        on:select={libraryPanelHandlers.select}
-        on:setSelection={(event) => libraryPanelHandlers.setSelection?.(event)}
-        on:activate={libraryPanelHandlers.activate}
-        on:contextAction={libraryPanelHandlers.contextAction}
-      />
-    </BackdropZone>
-  </div>
-
-  {#if isDetailsVisible || isLyricsVisible}
-    <WorkspaceResizer
-      label="Resize library and right panels"
-      width={resizerWidth}
-      onPointerDown={(event) =>
-        dispatch('resizeStart', { event, handle: 'library-details' })}
-    />
-
-    <div
-      class="workspace-panel"
-      style={`flex: 0 0 ${panelWidths.details}px; width: ${panelWidths.details}px;`}
-    >
-      <BackdropZone
-        effect={zoneEffects.details}
-        artwork={backdropArtwork}
-        artworkSettings={zoneArtworkSettings.details}
-        artworkBright={zoneArtworkBright.details || artworkBackgroundBright}
-        fillParent={true}
-        zoneId="details"
+<main
+  class="workspace workspace-resizable workspace-dock-layout"
+  class:is-resizing={isResizing}
+  class:is-dragging-tab={draggedTabId !== null}
+>
+  {#if visiblePanels.length > 0}
+    {#each visiblePanels as panel, index (panel.id)}
+      <div
+        class="workspace-panel workspace-dock-panel"
+        class:is-drop-target={dropTargetPanelId === panel.id}
+        style={`flex: 0 0 ${panelWidths[panel.id]}px; width: ${panelWidths[panel.id]}px;`}
+        role="group"
+        aria-label={getPanelLabel(panel.id)}
+        on:dragover={(event) => handlePanelDragOver(event, panel.id)}
+        on:drop={(event) => handlePanelDrop(event, panel.id)}
+        on:dragleave={(event) => handlePanelDragLeave(event, panel.id)}
       >
-        {#if showRightPanelTabs}
-          <div class="right-panel-tabs-layout">
-            <div class="workspace-tabs right-panel-tabs" role="tablist" aria-label="Right panel views">
-              {#each visibleRightTabs as tab}
-                <div class="workspace-tab-shell has-close">
-                  <button
-                    type="button"
-                    class:active={activeRightPanelTab === tab.id}
-                    class="workspace-tab"
-                    role="tab"
-                    aria-label={tab.label}
-                    aria-selected={activeRightPanelTab === tab.id}
-                    aria-controls={`right-panel-tab-${tab.id}`}
-                    id={`right-panel-tab-button-${tab.id}`}
-                    on:click={() => dispatch('tabChange', tab.id)}
-                    on:auxclick={(event) => handleRightPanelTabAuxClick(event, tab.id)}
-                    on:mousedown={handleRightPanelTabMouseDown}
-                  >
-                    <span class="material-symbols-outlined" aria-hidden="true">{tab.icon}</span>
-                    <span class="workspace-tab-label">{tab.label}</span>
-                  </button>
+        <BackdropZone
+          effect={zoneEffects[panel.id]}
+          artwork={backdropArtwork}
+          artworkSettings={zoneArtworkSettings[panel.id]}
+          artworkBright={zoneArtworkBright[panel.id] || artworkBackgroundBright}
+          fillParent={true}
+          zoneId={panel.id}
+        >
+          <div class="workspace-dock-panel-content">
+            <WorkspaceTabBar
+              tabs={panel.tabs}
+              activeTab={panel.activeTab}
+              panelId={panel.id}
+              ariaLabel={`${getPanelLabel(panel.id)} tabs`}
+              className="dock-panel-tabs"
+              on:tabChange={(event) => dispatch('tabChange', event.detail)}
+              on:tabClose={(event) => dispatch('tabClose', event.detail)}
+              on:tabMove={(event) => dispatch('tabMove', event.detail)}
+              on:tabDragStart={(event) => handleTabDragStart(event.detail.tabId)}
+              on:tabDragEnd={handleTabDragEnd}
+            />
 
-                  <span class="workspace-tab-close-slot">
-                    <button
-                      type="button"
-                      class="workspace-tab-close-button"
-                      aria-label={`Close ${tab.label}`}
-                      title="Close"
-                      on:click={(event) => handleRightPanelTabCloseClick(event, tab.id)}
-                      on:auxclick={(event) => handleRightPanelTabAuxClick(event, tab.id)}
-                      on:mousedown={handleRightPanelTabMouseDown}
-                    >
-                      <span class="material-symbols-outlined" aria-hidden="true">close</span>
-                    </button>
-                  </span>
-                </div>
-              {/each}
-            </div>
-
-            <div
-              class="right-panel-tab-panel"
-              role="tabpanel"
-              id="right-panel-tab-details"
-              aria-labelledby="right-panel-tab-button-details"
-              hidden={activeRightPanelTab !== 'details'}
-            >
-              <TrackDetailsPanel
-                track={selectedItem}
-                artwork={detailsArtwork}
-                artworkBackgroundActive={hasArtworkBackdrop(zoneEffects.details) && Boolean(backdropArtwork)}
-                artworkBackgroundBright={zoneArtworkBright.details || artworkBackgroundBright}
-                visualizerBackdropActive={hasVisualizerBackdrop(zoneEffects.details)}
-                fillParent={true}
-                hideEyebrow={true}
-              />
-            </div>
-
-            <div
-              class="right-panel-tab-panel"
-              role="tabpanel"
-              id="right-panel-tab-lyrics"
-              aria-labelledby="right-panel-tab-button-lyrics"
-              hidden={activeRightPanelTab !== 'lyrics'}
-            >
-              <LyricsPanel
-                {snapshotStore}
-                {playbackSnapshot}
-                track={lyricsTrack}
-                displayStyle={lyricsDisplayStyle}
-                autoScroll={lyricsAutoScroll}
-                fontSize={lyricsFontSize}
-                theaterDowntimeDots={lyricsTheaterDowntimeDots}
-                theaterDowntimeThresholdSeconds={lyricsTheaterDowntimeThresholdSeconds}
-                theaterSmoothScroll={lyricsTheaterSmoothScroll}
-                resumeAutoScrollToken={lyricsResumeAutoScrollToken}
-                forceAutoScroll={activeRightPanelTab === 'lyrics'}
-                fillParent={true}
-                hideEyebrow={true}
-                on:seek
-              />
-            </div>
+            {#if panel.activeTab}
+              <div
+                class="dock-panel-tab-panel"
+                role="tabpanel"
+                id={`workspace-tab-panel-${panel.id}-${panel.activeTab}`}
+                aria-labelledby={`workspace-tab-${panel.id}-${panel.activeTab}`}
+              >
+                {#if panel.activeTab === 'playlist'}
+                  <PlaylistPanel
+                    {...playlistPanelProps}
+                    fillParent={true}
+                    hideEyebrow={true}
+                    on:addFiles={(event) => playlistPanelHandlers.addFiles(event.detail)}
+                    on:openFiles={playlistPanelHandlers.openFiles}
+                    on:select={playlistPanelHandlers.select}
+                    on:activate={playlistPanelHandlers.activate}
+                    on:contextAction={playlistPanelHandlers.contextAction}
+                    on:toggleShuffle={() => playlistPanelHandlers.toggleShuffle?.()}
+                    on:cycleRepeat={() => playlistPanelHandlers.cycleRepeat?.()}
+                  />
+                {:else if panel.activeTab === 'library'}
+                  <PlaylistPanel
+                    {...libraryPanelProps}
+                    fillParent={true}
+                    hideEyebrow={true}
+                    on:addFiles={(event) => libraryPanelHandlers.addFiles(event.detail)}
+                    on:openFiles={libraryPanelHandlers.openFiles}
+                    on:select={libraryPanelHandlers.select}
+                    on:setSelection={(event) => libraryPanelHandlers.setSelection?.(event)}
+                    on:activate={libraryPanelHandlers.activate}
+                    on:contextAction={libraryPanelHandlers.contextAction}
+                  />
+                {:else if panel.activeTab === 'details'}
+                  <TrackDetailsPanel
+                    track={selectedItem}
+                    artwork={detailsArtwork}
+                    artworkBackgroundActive={hasArtworkBackdrop(zoneEffects[panel.id]) && Boolean(backdropArtwork)}
+                    artworkBackgroundBright={zoneArtworkBright[panel.id] || artworkBackgroundBright}
+                    visualizerBackdropActive={hasVisualizerBackdrop(zoneEffects[panel.id])}
+                    fillParent={true}
+                    hideEyebrow={true}
+                  />
+                {:else if panel.activeTab === 'lyrics'}
+                  <LyricsPanel
+                    {snapshotStore}
+                    {playbackSnapshot}
+                    track={lyricsTrack}
+                    displayStyle={lyricsDisplayStyle}
+                    autoScroll={lyricsAutoScroll}
+                    fontSize={lyricsFontSize}
+                    theaterDowntimeDots={lyricsTheaterDowntimeDots}
+                    theaterDowntimeThresholdSeconds={lyricsTheaterDowntimeThresholdSeconds}
+                    theaterSmoothScroll={lyricsTheaterSmoothScroll}
+                    resumeAutoScrollToken={lyricsResumeAutoScrollToken}
+                    forceAutoScroll={true}
+                    fillParent={true}
+                    hideEyebrow={true}
+                    on:seek
+                  />
+                {/if}
+              </div>
+            {:else}
+              <div
+                class="workspace-empty-panel"
+                aria-label={`${getPanelLabel(panel.id)} is empty`}
+              ></div>
+            {/if}
           </div>
-        {:else if isDetailsVisible}
-          <TrackDetailsPanel
-            track={selectedItem}
-            artwork={detailsArtwork}
-            artworkBackgroundActive={hasArtworkBackdrop(zoneEffects.details) && Boolean(backdropArtwork)}
-            artworkBackgroundBright={zoneArtworkBright.details || artworkBackgroundBright}
-            visualizerBackdropActive={hasVisualizerBackdrop(zoneEffects.details)}
-            fillParent={true}
-            showCloseButton={true}
-            onClose={onCloseDetails}
-          />
-        {:else}
-          <LyricsPanel
-            {snapshotStore}
-            {playbackSnapshot}
-            track={lyricsTrack}
-            displayStyle={lyricsDisplayStyle}
-            autoScroll={lyricsAutoScroll}
-            fontSize={lyricsFontSize}
-            theaterDowntimeDots={lyricsTheaterDowntimeDots}
-            theaterDowntimeThresholdSeconds={lyricsTheaterDowntimeThresholdSeconds}
-            theaterSmoothScroll={lyricsTheaterSmoothScroll}
-            resumeAutoScrollToken={lyricsResumeAutoScrollToken}
-            forceAutoScroll={true}
-            fillParent={true}
-            showCloseButton={true}
-            onClose={onCloseLyrics}
-            on:seek
-          />
-        {/if}
-      </BackdropZone>
-    </div>
+        </BackdropZone>
+      </div>
+
+      {#if index < visiblePanels.length - 1}
+        <WorkspaceResizer
+          label={`Resize ${getPanelLabel(panel.id)} and ${getPanelLabel(visiblePanels[index + 1].id)}`}
+          width={resizerWidth}
+          onPointerDown={(event) =>
+            dispatch('resizeStart', {
+              event,
+              handle: {
+                before: panel.id,
+                after: visiblePanels[index + 1].id
+              }
+            })}
+        />
+      {/if}
+    {/each}
+  {:else}
+    <div class="workspace-empty-surface" aria-label="Workspace is empty"></div>
+  {/if}
+
+  {#if draggedTabId}
+    {#each hiddenPanels as panel (panel.id)}
+      <div
+        class={`workspace-edge-drop-target workspace-edge-drop-target-${panel.id}`}
+        class:is-drop-target={dropTargetPanelId === panel.id}
+        role="group"
+        aria-label={`Drop on ${getPanelLabel(panel.id)}`}
+        on:dragover={(event) => handlePanelDragOver(event, panel.id)}
+        on:drop={(event) => handlePanelDrop(event, panel.id)}
+        on:dragleave={(event) => handlePanelDragLeave(event, panel.id)}
+      ></div>
+    {/each}
   {/if}
 </main>

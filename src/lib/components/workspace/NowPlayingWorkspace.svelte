@@ -19,7 +19,13 @@
     WorkspaceTab
   } from '$lib/types';
   import type { Readable } from 'svelte/store';
-  import type { WorkspacePanelHandlers, WorkspacePanelProps, WorkspaceTabDefinition } from './types';
+  import WorkspaceTabBar from './WorkspaceTabBar.svelte';
+  import type {
+    WorkspacePanelHandlers,
+    WorkspacePanelProps,
+    WorkspaceTabDefinition,
+    WorkspaceTabMoveDetail
+  } from './types';
 
   export let snapshotStore: Readable<PlaybackSnapshot>;
   export let playbackSnapshot: PlaybackSnapshot | null = null;
@@ -53,14 +59,9 @@
     chromeHiddenChange: boolean;
     seek: number;
     tabChange: WorkspaceTab;
+    tabClose: WorkspaceTab;
+    tabMove: WorkspaceTabMoveDetail;
   }>();
-
-  const REQUIRED_TABS: WorkspaceTabDefinition[] = [
-    { id: 'playlist', icon: 'queue_music', label: 'Playlist' },
-    { id: 'library', icon: 'library_music', label: 'Library' },
-    { id: 'details', icon: 'info', label: 'Details' },
-    { id: 'lyrics', icon: 'lyrics', label: 'Lyrics' }
-  ];
 
   let panelChromeHidden = false;
   let panelHideTimer: ReturnType<typeof window.setTimeout> | null = null;
@@ -73,11 +74,6 @@
 
     panelChromeHidden = hidden;
     dispatch('chromeHiddenChange', hidden);
-  }
-
-  function resolveQueueTabs(tabs: WorkspaceTabDefinition[]): WorkspaceTabDefinition[] {
-    const tabMap = new Map(tabs.map((tab) => [tab.id, tab]));
-    return REQUIRED_TABS.map((tab) => tabMap.get(tab.id) ?? tab);
   }
 
   function isPanelAutoHideEnabled(delaySeconds: number): boolean {
@@ -120,7 +116,6 @@
     };
   });
 
-  $: queueTabs = resolveQueueTabs(workspaceTabs);
   $: artworkColorSurfaceBright =
     hasArtworkBackdrop(backdropEffect) && Boolean(backdropArtwork) && artworkBackgroundBright;
   $: if (panelAutoHideDelaySeconds !== lastPanelAutoHideDelaySeconds) {
@@ -185,105 +180,77 @@
           class="now-playing-tabs-layout"
           class:is-chrome-hidden={panelChromeHidden}
         >
-          <div class="workspace-tabs now-playing-tabs" role="tablist" aria-label="Now Playing panels">
-            {#each queueTabs as tab}
-              <button
-                type="button"
-                class:active={activeWorkspaceTab === tab.id}
-                class="workspace-tab"
-                role="tab"
-                aria-label={tab.label}
-                aria-selected={activeWorkspaceTab === tab.id}
-                aria-controls={`now-playing-tab-panel-${tab.id}`}
-                id={`now-playing-tab-${tab.id}`}
-                on:click={() => dispatch('tabChange', tab.id)}
-              >
-                <span class="material-symbols-outlined" aria-hidden="true">{tab.icon}</span>
-                <span class="workspace-tab-label">{tab.label}</span>
-              </button>
-            {/each}
-          </div>
+          <WorkspaceTabBar
+            tabs={workspaceTabs}
+            activeTab={activeWorkspaceTab}
+            ariaLabel="Now Playing panels"
+            className="now-playing-tabs"
+            on:tabChange={(event) => dispatch('tabChange', event.detail)}
+            on:tabClose={(event) => dispatch('tabClose', event.detail)}
+            on:tabMove={(event) => dispatch('tabMove', event.detail)}
+          />
 
-          <div
-            class="now-playing-tab-panel"
-            role="tabpanel"
-            id="now-playing-tab-panel-playlist"
-            aria-labelledby="now-playing-tab-playlist"
-            hidden={activeWorkspaceTab !== 'playlist'}
-          >
-            <PlaylistPanel
-              {...playlistPanelProps}
-              fillParent={true}
-              hideEyebrow={true}
-              on:addFiles={(event) => playlistPanelHandlers.addFiles(event.detail)}
-              on:openFiles={playlistPanelHandlers.openFiles}
-              on:select={playlistPanelHandlers.select}
-              on:activate={playlistPanelHandlers.activate}
-              on:contextAction={playlistPanelHandlers.contextAction}
-              on:toggleShuffle={() => playlistPanelHandlers.toggleShuffle?.()}
-              on:cycleRepeat={() => playlistPanelHandlers.cycleRepeat?.()}
-            />
-          </div>
-
-          <div
-            class="now-playing-tab-panel"
-            role="tabpanel"
-            id="now-playing-tab-panel-library"
-            aria-labelledby="now-playing-tab-library"
-            hidden={activeWorkspaceTab !== 'library'}
-          >
-            <PlaylistPanel
-              {...libraryPanelProps}
-              fillParent={true}
-              hideEyebrow={true}
-              on:addFiles={(event) => libraryPanelHandlers.addFiles(event.detail)}
-              on:openFiles={libraryPanelHandlers.openFiles}
-              on:select={libraryPanelHandlers.select}
-              on:setSelection={(event) => libraryPanelHandlers.setSelection?.(event)}
-              on:activate={libraryPanelHandlers.activate}
-              on:contextAction={libraryPanelHandlers.contextAction}
-            />
-          </div>
-
-          <div
-            class="now-playing-tab-panel"
-            role="tabpanel"
-            id="now-playing-tab-panel-details"
-            aria-labelledby="now-playing-tab-details"
-            hidden={activeWorkspaceTab !== 'details'}
-          >
-            <TrackDetailsPanel
-              track={selectedItem}
-              artwork={null}
-              fillParent={true}
-              hideEyebrow={true}
-            />
-          </div>
-
-          <div
-            class="now-playing-tab-panel"
-            role="tabpanel"
-            id="now-playing-tab-panel-lyrics"
-            aria-labelledby="now-playing-tab-lyrics"
-            hidden={activeWorkspaceTab !== 'lyrics'}
-          >
-            <LyricsPanel
-              {snapshotStore}
-              {playbackSnapshot}
-              track={lyricsTrack}
-              displayStyle={lyricsDisplayStyle}
-              autoScroll={lyricsAutoScroll}
-              fontSize={lyricsFontSize}
-              theaterDowntimeDots={lyricsTheaterDowntimeDots}
-              theaterDowntimeThresholdSeconds={lyricsTheaterDowntimeThresholdSeconds}
-              theaterSmoothScroll={lyricsTheaterSmoothScroll}
-              resumeAutoScrollToken={lyricsResumeAutoScrollToken}
-              forceAutoScroll={activeWorkspaceTab === 'lyrics'}
-              fillParent={true}
-              hideEyebrow={true}
-              on:seek
-            />
-          </div>
+          {#if workspaceTabs.length === 0}
+            <div class="now-playing-tab-panel workspace-empty-surface" aria-label="Workspace is empty"></div>
+          {:else}
+            <div
+              class="now-playing-tab-panel"
+              role="tabpanel"
+              id={`workspace-tab-panel-tabs-${activeWorkspaceTab}`}
+              aria-labelledby={`workspace-tab-tabs-${activeWorkspaceTab}`}
+            >
+              {#if activeWorkspaceTab === 'playlist'}
+                <PlaylistPanel
+                  {...playlistPanelProps}
+                  fillParent={true}
+                  hideEyebrow={true}
+                  on:addFiles={(event) => playlistPanelHandlers.addFiles(event.detail)}
+                  on:openFiles={playlistPanelHandlers.openFiles}
+                  on:select={playlistPanelHandlers.select}
+                  on:activate={playlistPanelHandlers.activate}
+                  on:contextAction={playlistPanelHandlers.contextAction}
+                  on:toggleShuffle={() => playlistPanelHandlers.toggleShuffle?.()}
+                  on:cycleRepeat={() => playlistPanelHandlers.cycleRepeat?.()}
+                />
+              {:else if activeWorkspaceTab === 'library'}
+                <PlaylistPanel
+                  {...libraryPanelProps}
+                  fillParent={true}
+                  hideEyebrow={true}
+                  on:addFiles={(event) => libraryPanelHandlers.addFiles(event.detail)}
+                  on:openFiles={libraryPanelHandlers.openFiles}
+                  on:select={libraryPanelHandlers.select}
+                  on:setSelection={(event) => libraryPanelHandlers.setSelection?.(event)}
+                  on:activate={libraryPanelHandlers.activate}
+                  on:contextAction={libraryPanelHandlers.contextAction}
+                />
+              {:else if activeWorkspaceTab === 'details'}
+                <TrackDetailsPanel
+                  track={selectedItem}
+                  artwork={null}
+                  fillParent={true}
+                  hideEyebrow={true}
+                />
+              {:else if activeWorkspaceTab === 'lyrics'}
+                <LyricsPanel
+                  {snapshotStore}
+                  {playbackSnapshot}
+                  track={lyricsTrack}
+                  displayStyle={lyricsDisplayStyle}
+                  autoScroll={lyricsAutoScroll}
+                  fontSize={lyricsFontSize}
+                  theaterDowntimeDots={lyricsTheaterDowntimeDots}
+                  theaterDowntimeThresholdSeconds={lyricsTheaterDowntimeThresholdSeconds}
+                  theaterSmoothScroll={lyricsTheaterSmoothScroll}
+                  resumeAutoScrollToken={lyricsResumeAutoScrollToken}
+                  forceAutoScroll={true}
+                  fillParent={true}
+                  hideEyebrow={true}
+                  on:seek
+                />
+              {/if}
+            </div>
+          {/if}
         </div>
       </section>
     </div>

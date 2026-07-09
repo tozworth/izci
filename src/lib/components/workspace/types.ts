@@ -4,6 +4,7 @@ import type {
   PlaylistRepeatMode,
   PlaylistSelection,
   WorkspaceJumpRequest,
+  WorkspacePanelId,
   WorkspaceResizeHandle,
   WorkspaceTab
 } from '$lib/types';
@@ -42,6 +43,26 @@ export interface WorkspaceTabDefinition {
   id: WorkspaceTab;
   icon: string;
   label: string;
+}
+
+export interface WorkspacePanelDefinition {
+  id: WorkspacePanelId;
+  tabs: WorkspaceTabDefinition[];
+  activeTab: WorkspaceTab | null;
+  isOpen: boolean;
+}
+
+export interface WorkspaceTabDragDetail {
+  tabId: WorkspaceTab;
+  sourcePanelId?: WorkspacePanelId;
+}
+
+export interface WorkspaceTabMoveDetail {
+  tabId: WorkspaceTab;
+  sourcePanelId?: WorkspacePanelId;
+  targetPanelId?: WorkspacePanelId;
+  targetTabId?: WorkspaceTab;
+  position: 'before' | 'after' | 'end';
 }
 
 export interface WideWorkspaceResizeStartDetail {

@@ -15,6 +15,8 @@
     | 'openOptions'
     | 'forceUpdate'
     | 'openAbout'
+    | 'showPlaylist'
+    | 'showLibrary'
     | 'showTrackDetails'
     | 'showLyrics'
     | 'toggleMiniMode'
@@ -69,6 +71,8 @@
     openOptions: { view?: OptionsViewName } | undefined;
     forceUpdate: void;
     openAbout: void;
+    showPlaylist: void;
+    showLibrary: void;
     showTrackDetails: void;
     showLyrics: void;
     toggleMiniMode: void;
@@ -95,6 +99,16 @@
   let suppressNextRootClick = false;
 
   $: viewMenuItems = [
+    {
+      id: 'showPlaylist',
+      label: 'Playlist',
+      icon: 'queue_music'
+    },
+    {
+      id: 'showLibrary',
+      label: 'Library',
+      icon: 'library_music'
+    },
     {
       id: 'showTrackDetails',
       label: 'Track Details',

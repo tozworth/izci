@@ -1,8 +1,10 @@
 import { writable } from 'svelte/store';
 import type {
+  WorkspacePanelDefinition,
   WorkspacePanelHandlers,
   WorkspacePanelProps,
-  WorkspaceTabDefinition
+  WorkspaceTabDefinition,
+  WorkspaceTabMoveDetail
 } from '$lib/components/workspace/types';
 import {
   getWideContentWidth,
@@ -11,7 +13,10 @@ import {
 } from '$lib/services/workspace-layout';
 import { libraryStore, playlistStore } from '$lib/stores/playlist';
 import { workspacePanelLayout } from '$lib/stores/workspace-panel-layout';
-import { workspacePanelState } from '$lib/stores/workspace-panel-state';
+import {
+  getDefaultWorkspacePanelForTab,
+  workspacePanelState
+} from '$lib/stores/workspace-panel-state';
 import type {
   MenuActionItem,
   PlaylistItem,
@@ -19,11 +24,16 @@ import type {
   PlaylistSelection,
   WorkspaceCollection,
   WorkspaceJumpRequest,
+  WorkspacePanelActiveTabsSettings,
+  WorkspacePanelId,
   WorkspacePanelLayoutSettings,
   WorkspacePanelStateSettings,
+  WorkspacePanelTabsSettings,
   WorkspaceResizeHandle,
-  WorkspaceTab
+  WorkspaceTab,
+  WorkspaceTabPanelMemorySettings
 } from '$lib/types';
+import { WORKSPACE_PANEL_IDS } from '$lib/types';
 import { getOtherWorkspaceCollection } from '$lib/services/workspace-actions';
 
 type TrackCollectionStore = typeof playlistStore;
@@ -32,6 +42,7 @@ type PanelResizeState = {
   handle: WorkspaceResizeHandle;
   startX: number;
   startLayout: WorkspacePanelLayoutSettings;
+  visiblePanels: WorkspacePanelId[];
 };
 
 interface WorkspaceShellInputs {
@@ -44,6 +55,7 @@ interface WorkspaceShellInputs {
   playingTrackId: string | null;
   shuffleEnabled: boolean;
   repeatMode: PlaylistRepeatMode;
+  keepEmptyWorkspacePanelsOpen: boolean;
 }
 
 interface CreateWorkspaceShellControllerOptions {
@@ -59,22 +71,248 @@ export interface WorkspaceShellState {
   isRightPanelVisible: boolean;
   isTabbedLayout: boolean;
   isResizing: boolean;
-  widePanelWidths: Record<'playlist' | 'library' | 'details', number>;
+  widePanelWidths: Record<WorkspacePanelId, number>;
+  visibleWorkspacePanels: WorkspacePanelId[];
+  workspacePanels: WorkspacePanelDefinition[];
   workspaceTabs: WorkspaceTabDefinition[];
   playlistPanelProps: WorkspacePanelProps;
   libraryPanelProps: WorkspacePanelProps;
   playlistJumpRequest: WorkspaceJumpRequest | null;
 }
 
-const allWorkspaceTabs: WorkspaceTabDefinition[] = [
-  { id: 'playlist', icon: 'queue_music', label: 'Playlist' },
-  { id: 'library', icon: 'library_music', label: 'Library' },
-  { id: 'details', icon: 'info', label: 'Details' },
-  { id: 'lyrics', icon: 'lyrics', label: 'Lyrics' }
-];
+const allWorkspaceTabs: Record<WorkspaceTab, WorkspaceTabDefinition> = {
+  playlist: { id: 'playlist', icon: 'queue_music', label: 'Playlist' },
+  library: { id: 'library', icon: 'library_music', label: 'Library' },
+  details: { id: 'details', icon: 'info', label: 'Details' },
+  lyrics: { id: 'lyrics', icon: 'lyrics', label: 'Lyrics' }
+};
 
 function isWorkspaceCollection(tab: WorkspaceTab): tab is WorkspaceCollection {
   return tab === 'playlist' || tab === 'library';
+}
+
+function isWorkspaceTabOpen(settings: WorkspacePanelStateSettings, tab: WorkspaceTab): boolean {
+  return WORKSPACE_PANEL_IDS.some((panelId) => settings.panels[panelId].includes(tab));
+}
+
+function clonePanels(panels: WorkspacePanelTabsSettings): WorkspacePanelTabsSettings {
+  return {
+    playlist: [...panels.playlist],
+    library: [...panels.library],
+    details: [...panels.details]
+  };
+}
+
+function cloneActiveTabs(
+  activeTabsByPanel: WorkspacePanelActiveTabsSettings
+): WorkspacePanelActiveTabsSettings {
+  return {
+    playlist: activeTabsByPanel.playlist,
+    library: activeTabsByPanel.library,
+    details: activeTabsByPanel.details
+  };
+}
+
+function cloneLastPanelByTab(
+  lastPanelByTab: WorkspaceTabPanelMemorySettings
+): WorkspaceTabPanelMemorySettings {
+  return {
+    playlist: lastPanelByTab.playlist,
+    library: lastPanelByTab.library,
+    details: lastPanelByTab.details,
+    lyrics: lastPanelByTab.lyrics
+  };
+}
+
+function clonePanelState(settings: WorkspacePanelStateSettings): WorkspacePanelStateSettings {
+  return {
+    ...settings,
+    panels: clonePanels(settings.panels),
+    openPanels: [...settings.openPanels],
+    activeTabsByPanel: cloneActiveTabs(settings.activeTabsByPanel),
+    lastPanelByTab: cloneLastPanelByTab(settings.lastPanelByTab),
+    tabbedTabOrder: [...settings.tabbedTabOrder]
+  };
+}
+
+function getWorkspacePanelForTab(
+  settings: WorkspacePanelStateSettings,
+  tab: WorkspaceTab
+): WorkspacePanelId {
+  for (const panelId of WORKSPACE_PANEL_IDS) {
+    if (settings.panels[panelId].includes(tab)) {
+      return panelId;
+    }
+  }
+
+  return settings.lastPanelByTab[tab] ?? getDefaultWorkspacePanelForTab(tab);
+}
+
+function getOpenTabs(settings: WorkspacePanelStateSettings): WorkspaceTab[] {
+  const tabs: WorkspaceTab[] = [];
+
+  for (const panelId of WORKSPACE_PANEL_IDS) {
+    tabs.push(...settings.panels[panelId]);
+  }
+
+  return tabs;
+}
+
+function getFirstOpenTab(settings: WorkspacePanelStateSettings): WorkspaceTab | null {
+  for (const tab of settings.tabbedTabOrder) {
+    if (isWorkspaceTabOpen(settings, tab)) {
+      return tab;
+    }
+  }
+
+  return getOpenTabs(settings)[0] ?? null;
+}
+
+function normalizeTabbedOrder(settings: WorkspacePanelStateSettings): WorkspaceTab[] {
+  const openTabs = new Set(getOpenTabs(settings));
+  const order = settings.tabbedTabOrder.filter((tab) => openTabs.has(tab));
+
+  for (const tab of getOpenTabs(settings)) {
+    if (!order.includes(tab)) {
+      order.push(tab);
+    }
+  }
+
+  return order;
+}
+
+function normalizePanelActivity(
+  settings: WorkspacePanelStateSettings,
+  preferredActiveTab?: WorkspaceTab
+): WorkspacePanelStateSettings {
+  const activeTabsByPanel = cloneActiveTabs(settings.activeTabsByPanel);
+
+  for (const panelId of WORKSPACE_PANEL_IDS) {
+    const activeTab = activeTabsByPanel[panelId];
+    activeTabsByPanel[panelId] =
+      activeTab && settings.panels[panelId].includes(activeTab)
+        ? activeTab
+        : settings.panels[panelId][0] ?? null;
+  }
+
+  const tabbedTabOrder = normalizeTabbedOrder({
+    ...settings,
+    activeTabsByPanel
+  });
+  const requestedActiveTab = preferredActiveTab ?? settings.activeWorkspaceTab;
+  const activeWorkspaceTab = isWorkspaceTabOpen(settings, requestedActiveTab)
+    ? requestedActiveTab
+    : getFirstOpenTab({ ...settings, activeTabsByPanel, tabbedTabOrder }) ??
+      requestedActiveTab;
+  const activeCollection = isWorkspaceCollection(activeWorkspaceTab)
+    ? activeWorkspaceTab
+    : settings.activeCollection;
+
+  return {
+    ...settings,
+    detailsVisible: isWorkspaceTabOpen(settings, 'details'),
+    lyricsVisible: isWorkspaceTabOpen(settings, 'lyrics'),
+    activeWorkspaceTab,
+    activeCollection,
+    activeTabsByPanel,
+    tabbedTabOrder
+  };
+}
+
+function ensurePanelOpen(
+  settings: WorkspacePanelStateSettings,
+  panelId: WorkspacePanelId
+): void {
+  if (!settings.openPanels.includes(panelId)) {
+    settings.openPanels.push(panelId);
+  }
+
+  settings.openPanels = WORKSPACE_PANEL_IDS.filter((id) => settings.openPanels.includes(id));
+}
+
+function collapseEmptyPanels(
+  settings: WorkspacePanelStateSettings,
+  keepEmptyWorkspacePanelsOpen: boolean
+): void {
+  if (keepEmptyWorkspacePanelsOpen) {
+    settings.openPanels = WORKSPACE_PANEL_IDS.filter((panelId) =>
+      settings.openPanels.includes(panelId) || settings.panels[panelId].length > 0
+    );
+    return;
+  }
+
+  settings.openPanels = WORKSPACE_PANEL_IDS.filter(
+    (panelId) => settings.panels[panelId].length > 0
+  );
+}
+
+function getVisibleWorkspacePanels(
+  settings: WorkspacePanelStateSettings,
+  keepEmptyWorkspacePanelsOpen: boolean
+): WorkspacePanelId[] {
+  if (keepEmptyWorkspacePanelsOpen) {
+    const openPanels = new Set(settings.openPanels);
+
+    return WORKSPACE_PANEL_IDS.filter(
+      (panelId) => openPanels.has(panelId) || settings.panels[panelId].length > 0
+    );
+  }
+
+  return WORKSPACE_PANEL_IDS.filter((panelId) => settings.panels[panelId].length > 0);
+}
+
+function buildWorkspacePanels(
+  settings: WorkspacePanelStateSettings,
+  visiblePanels: WorkspacePanelId[]
+): WorkspacePanelDefinition[] {
+  const visiblePanelSet = new Set(visiblePanels);
+
+  return WORKSPACE_PANEL_IDS.map((panelId) => ({
+    id: panelId,
+    tabs: settings.panels[panelId].map((tab) => allWorkspaceTabs[tab]),
+    activeTab: settings.activeTabsByPanel[panelId],
+    isOpen: visiblePanelSet.has(panelId)
+  }));
+}
+
+function buildWorkspaceTabs(settings: WorkspacePanelStateSettings): WorkspaceTabDefinition[] {
+  return settings.tabbedTabOrder
+    .filter((tab) => isWorkspaceTabOpen(settings, tab))
+    .map((tab) => allWorkspaceTabs[tab]);
+}
+
+function createPlaylistPanelProps(
+  getPlaylistContextActions: (ids: string[]) => MenuActionItem[]
+): WorkspacePanelProps {
+  return {
+    items: [],
+    selectedIds: [],
+    playingId: null,
+    jumpToItemRequest: null,
+    panelTitle: 'Playlist',
+    regionLabel: 'Playlist',
+    shuffleEnabled: false,
+    repeatMode: 'off',
+    getContextMenuActions: getPlaylistContextActions
+  };
+}
+
+function createLibraryPanelProps(
+  getLibraryContextActions: () => MenuActionItem[]
+): WorkspacePanelProps {
+  return {
+    items: [],
+    selectedIds: [],
+    selectionAnchorId: null,
+    playingId: null,
+    panelTitle: 'Library',
+    regionLabel: 'Library',
+    layout: 'columns',
+    showShuffleControl: false,
+    showRepeatControl: false,
+    showSearchControl: true,
+    getContextMenuActions: getLibraryContextActions
+  };
 }
 
 function createInitialState(
@@ -82,49 +320,25 @@ function createInitialState(
   getLibraryContextActions: () => MenuActionItem[]
 ): WorkspaceShellState {
   const savedPanelState = workspacePanelState.getSnapshot();
-  const isRightPanelVisible = savedPanelState.detailsVisible || savedPanelState.lyricsVisible;
+  const visibleWorkspacePanels = getVisibleWorkspacePanels(savedPanelState, false);
 
   return {
     activeCollection: savedPanelState.activeCollection,
     activeWorkspaceTab: savedPanelState.activeWorkspaceTab,
     isDetailsPanelVisible: savedPanelState.detailsVisible,
     isLyricsPanelVisible: savedPanelState.lyricsVisible,
-    isRightPanelVisible,
+    isRightPanelVisible: visibleWorkspacePanels.includes('details'),
     isTabbedLayout: false,
     isResizing: false,
     widePanelWidths: resolveWidePanelWidths(workspacePanelLayout.getSnapshot(), 0, {
-      detailsVisible: isRightPanelVisible
+      visiblePanels: visibleWorkspacePanels
     }),
-    workspaceTabs: allWorkspaceTabs.filter(
-      (tab) =>
-        (tab.id !== 'details' || savedPanelState.detailsVisible) &&
-        (tab.id !== 'lyrics' || savedPanelState.lyricsVisible)
-    ),
+    visibleWorkspacePanels,
+    workspacePanels: buildWorkspacePanels(savedPanelState, visibleWorkspacePanels),
+    workspaceTabs: buildWorkspaceTabs(savedPanelState),
     playlistJumpRequest: null,
-    playlistPanelProps: {
-      items: [],
-      selectedIds: [],
-      playingId: null,
-      jumpToItemRequest: null,
-      panelTitle: 'Playlist',
-      regionLabel: 'Playlist',
-      shuffleEnabled: false,
-      repeatMode: 'off',
-      getContextMenuActions: getPlaylistContextActions
-    },
-    libraryPanelProps: {
-      items: [],
-      selectedIds: [],
-      selectionAnchorId: null,
-      playingId: null,
-      panelTitle: 'Library',
-      regionLabel: 'Library',
-      layout: 'columns',
-      showShuffleControl: false,
-      showRepeatControl: false,
-      showSearchControl: true,
-      getContextMenuActions: getLibraryContextActions
-    }
+    playlistPanelProps: createPlaylistPanelProps(getPlaylistContextActions),
+    libraryPanelProps: createLibraryPanelProps(getLibraryContextActions)
   };
 }
 
@@ -143,43 +357,26 @@ export function createWorkspaceShellController({
     store.set(state);
   }
 
-  function getSavedPanelStateFromShellState(): WorkspacePanelStateSettings {
-    return {
-      detailsVisible: state.isDetailsPanelVisible,
-      lyricsVisible: state.isLyricsPanelVisible,
-      activeWorkspaceTab: state.activeWorkspaceTab,
-      activeCollection: state.activeCollection
-    };
+  function isSameSavedPanelState(
+    a: WorkspacePanelStateSettings,
+    b: WorkspacePanelStateSettings
+  ): boolean {
+    return JSON.stringify(a) === JSON.stringify(b);
   }
 
-  function isSameSavedPanelState(a: WorkspacePanelStateSettings, b: WorkspacePanelStateSettings): boolean {
-    return (
-      a.detailsVisible === b.detailsVisible &&
-      a.lyricsVisible === b.lyricsVisible &&
-      a.activeWorkspaceTab === b.activeWorkspaceTab &&
-      a.activeCollection === b.activeCollection
-    );
-  }
+  function persistPanelState(nextPanelState: WorkspacePanelStateSettings): void {
+    const normalizedPanelState = normalizePanelActivity(nextPanelState);
 
-  function persistPanelState(): void {
-    const nextPanelState = getSavedPanelStateFromShellState();
-
-    if (isSameSavedPanelState(savedPanelState, nextPanelState)) {
+    if (isSameSavedPanelState(savedPanelState, normalizedPanelState)) {
       return;
     }
 
-    savedPanelState = workspacePanelState.set(nextPanelState);
+    savedPanelState = workspacePanelState.set(normalizedPanelState);
+    recomputeDerivedState();
   }
 
   function applySavedPanelState(nextPanelState: WorkspacePanelStateSettings): void {
     savedPanelState = nextPanelState;
-    state = {
-      ...state,
-      activeCollection: nextPanelState.activeCollection,
-      activeWorkspaceTab: nextPanelState.activeWorkspaceTab,
-      isDetailsPanelVisible: nextPanelState.detailsVisible,
-      isLyricsPanelVisible: nextPanelState.lyricsVisible
-    };
     recomputeDerivedState();
   }
 
@@ -211,6 +408,20 @@ export function createWorkspaceShellController({
     clearSelection(getOtherWorkspaceCollection(collection));
   }
 
+  function updateActiveWorkspaceTab(tab: WorkspaceTab): void {
+    const nextPanelState = clonePanelState(savedPanelState);
+    const panelId = getWorkspacePanelForTab(nextPanelState, tab);
+
+    if (!isWorkspaceTabOpen(nextPanelState, tab)) {
+      nextPanelState.panels[panelId].push(tab);
+      nextPanelState.lastPanelByTab[tab] = panelId;
+      ensurePanelOpen(nextPanelState, panelId);
+    }
+
+    nextPanelState.activeTabsByPanel[panelId] = tab;
+    persistPanelState(normalizePanelActivity(nextPanelState, tab));
+  }
+
   function recomputeDerivedState(): void {
     if (!lastInputs) {
       return;
@@ -227,31 +438,30 @@ export function createWorkspaceShellController({
         : typeof window !== 'undefined'
           ? window.innerWidth
           : 0;
-    const isRightPanelVisible = state.isDetailsPanelVisible || state.isLyricsPanelVisible;
+    const visibleWorkspacePanels = getVisibleWorkspacePanels(
+      savedPanelState,
+      lastInputs.keepEmptyWorkspacePanelsOpen
+    );
     const wideContentWidth = getWideContentWidth(viewportWidth, {
-      detailsVisible: isRightPanelVisible
+      visiblePanels: visibleWorkspacePanels
     });
     const widePanelWidths = resolveWidePanelWidths(panelLayout, wideContentWidth, {
-      detailsVisible: isRightPanelVisible
+      visiblePanels: visibleWorkspacePanels
     });
-    const activeWorkspaceTab =
-      (state.activeWorkspaceTab === 'details' && !state.isDetailsPanelVisible) ||
-      (state.activeWorkspaceTab === 'lyrics' && !state.isLyricsPanelVisible)
-        ? state.activeCollection
-        : state.activeWorkspaceTab;
 
     state = {
       ...state,
-      activeWorkspaceTab,
+      activeCollection: savedPanelState.activeCollection,
+      activeWorkspaceTab: savedPanelState.activeWorkspaceTab,
+      isDetailsPanelVisible: savedPanelState.detailsVisible,
+      isLyricsPanelVisible: savedPanelState.lyricsVisible,
+      isRightPanelVisible: visibleWorkspacePanels.includes('details'),
       isTabbedLayout,
-      isRightPanelVisible,
       isResizing: Boolean(resizeState),
       widePanelWidths,
-      workspaceTabs: allWorkspaceTabs.filter(
-        (tab) =>
-          (tab.id !== 'details' || state.isDetailsPanelVisible) &&
-          (tab.id !== 'lyrics' || state.isLyricsPanelVisible)
-      ),
+      visibleWorkspacePanels,
+      workspacePanels: buildWorkspacePanels(savedPanelState, visibleWorkspacePanels),
+      workspaceTabs: buildWorkspaceTabs(savedPanelState),
       playlistPanelProps: {
         items: lastInputs.playlistItems,
         selectedIds: lastInputs.playlistSelectionIds,
@@ -285,7 +495,7 @@ export function createWorkspaceShellController({
     recomputeDerivedState();
   });
   const unsubscribePanelState = workspacePanelState.subscribe((value) => {
-    if (isSameSavedPanelState(value, getSavedPanelStateFromShellState())) {
+    if (isSameSavedPanelState(value, savedPanelState)) {
       savedPanelState = value;
       return;
     }
@@ -309,45 +519,151 @@ export function createWorkspaceShellController({
       options?: { range?: boolean; toggle?: boolean }
     ): void {
       clearOtherSelection(collection);
-      state = { ...state, activeCollection: collection };
-      publishState();
-      persistPanelState();
+      updateActiveWorkspaceTab(collection);
       getCollectionStore(collection).select(id, options);
     },
     setCollectionSelection(collection: WorkspaceCollection, nextSelection: PlaylistSelection): void {
       clearOtherSelection(collection);
-      state = { ...state, activeCollection: collection };
-      publishState();
-      persistPanelState();
+      updateActiveWorkspaceTab(collection);
       getCollectionStore(collection).setSelection(nextSelection);
     },
     selectAllTracks(collection: WorkspaceCollection): void {
       clearOtherSelection(collection);
-      state = { ...state, activeCollection: collection };
-      publishState();
-      persistPanelState();
+      updateActiveWorkspaceTab(collection);
       getCollectionStore(collection).selectAll();
     },
     focusCollection(collection: WorkspaceCollection): void {
-      if (state.activeCollection === collection) {
+      if (state.activeCollection === collection && state.activeWorkspaceTab === collection) {
         return;
       }
 
-      state = { ...state, activeCollection: collection };
-      publishState();
-      persistPanelState();
+      updateActiveWorkspaceTab(collection);
     },
     setActiveWorkspaceTab(tab: WorkspaceTab): void {
-      state = {
-        ...state,
-        activeWorkspaceTab: tab,
-        activeCollection: isWorkspaceCollection(tab) ? tab : state.activeCollection
-      };
-      recomputeDerivedState();
-      persistPanelState();
+      updateActiveWorkspaceTab(tab);
+    },
+    showWorkspaceTab(tab: WorkspaceTab, targetPanelId?: WorkspacePanelId): void {
+      const nextPanelState = clonePanelState(savedPanelState);
+      const panelId =
+        targetPanelId ??
+        nextPanelState.lastPanelByTab[tab] ??
+        getDefaultWorkspacePanelForTab(tab);
+
+      if (!nextPanelState.panels[panelId].includes(tab)) {
+        for (const existingPanelId of WORKSPACE_PANEL_IDS) {
+          nextPanelState.panels[existingPanelId] = nextPanelState.panels[existingPanelId].filter(
+            (panelTab) => panelTab !== tab
+          );
+        }
+
+        nextPanelState.panels[panelId].push(tab);
+      }
+
+      nextPanelState.lastPanelByTab[tab] = panelId;
+      nextPanelState.activeTabsByPanel[panelId] = tab;
+      ensurePanelOpen(nextPanelState, panelId);
+
+      if (!nextPanelState.tabbedTabOrder.includes(tab)) {
+        nextPanelState.tabbedTabOrder.push(tab);
+      }
+
+      persistPanelState(normalizePanelActivity(nextPanelState, tab));
+    },
+    closeWorkspaceTab(tab: WorkspaceTab): void {
+      if (!isWorkspaceTabOpen(savedPanelState, tab)) {
+        return;
+      }
+
+      const nextPanelState = clonePanelState(savedPanelState);
+      const panelId = getWorkspacePanelForTab(nextPanelState, tab);
+      const tabIndex = nextPanelState.panels[panelId].indexOf(tab);
+
+      nextPanelState.panels[panelId] = nextPanelState.panels[panelId].filter(
+        (panelTab) => panelTab !== tab
+      );
+      nextPanelState.tabbedTabOrder = nextPanelState.tabbedTabOrder.filter(
+        (panelTab) => panelTab !== tab
+      );
+      nextPanelState.lastPanelByTab[tab] = panelId;
+      nextPanelState.activeTabsByPanel[panelId] =
+        nextPanelState.panels[panelId][Math.min(tabIndex, nextPanelState.panels[panelId].length - 1)] ??
+        null;
+
+      collapseEmptyPanels(
+        nextPanelState,
+        lastInputs?.keepEmptyWorkspacePanelsOpen === true
+      );
+
+      persistPanelState(normalizePanelActivity(nextPanelState));
+    },
+    moveWorkspaceTab(detail: WorkspaceTabMoveDetail): void {
+      if (!isWorkspaceTabOpen(savedPanelState, detail.tabId) || !detail.targetPanelId) {
+        return;
+      }
+
+      const nextPanelState = clonePanelState(savedPanelState);
+      const sourcePanelId = getWorkspacePanelForTab(nextPanelState, detail.tabId);
+      const targetPanelId = detail.targetPanelId;
+
+      if (
+        sourcePanelId === targetPanelId &&
+        detail.targetTabId === detail.tabId &&
+        detail.position !== 'end'
+      ) {
+        return;
+      }
+
+      nextPanelState.panels[sourcePanelId] = nextPanelState.panels[sourcePanelId].filter(
+        (tab) => tab !== detail.tabId
+      );
+      const targetTabs = nextPanelState.panels[targetPanelId].filter(
+        (tab) => tab !== detail.tabId
+      );
+      let insertIndex = targetTabs.length;
+
+      if (detail.targetTabId && detail.targetTabId !== detail.tabId) {
+        const targetIndex = targetTabs.indexOf(detail.targetTabId);
+
+        if (targetIndex >= 0) {
+          insertIndex = detail.position === 'before' ? targetIndex : targetIndex + 1;
+        }
+      }
+
+      targetTabs.splice(insertIndex, 0, detail.tabId);
+      nextPanelState.panels[targetPanelId] = targetTabs;
+      nextPanelState.activeTabsByPanel[targetPanelId] = detail.tabId;
+      nextPanelState.lastPanelByTab[detail.tabId] = targetPanelId;
+      ensurePanelOpen(nextPanelState, targetPanelId);
+      collapseEmptyPanels(
+        nextPanelState,
+        lastInputs?.keepEmptyWorkspacePanelsOpen === true
+      );
+
+      persistPanelState(normalizePanelActivity(nextPanelState, detail.tabId));
+    },
+    moveTabbedWorkspaceTab(detail: WorkspaceTabMoveDetail): void {
+      if (!isWorkspaceTabOpen(savedPanelState, detail.tabId)) {
+        return;
+      }
+
+      const nextPanelState = clonePanelState(savedPanelState);
+      const order = normalizeTabbedOrder(nextPanelState).filter((tab) => tab !== detail.tabId);
+      let insertIndex = order.length;
+
+      if (detail.targetTabId && detail.targetTabId !== detail.tabId) {
+        const targetIndex = order.indexOf(detail.targetTabId);
+
+        if (targetIndex >= 0) {
+          insertIndex = detail.position === 'before' ? targetIndex : targetIndex + 1;
+        }
+      }
+
+      order.splice(insertIndex, 0, detail.tabId);
+      nextPanelState.tabbedTabOrder = order;
+      persistPanelState(normalizePanelActivity(nextPanelState, detail.tabId));
     },
     showPlaylistTrack(id: string): void {
-      this.setActiveWorkspaceTab('playlist');
+      this.showWorkspaceTab('playlist');
       this.selectTrack('playlist', id);
       state = {
         ...state,
@@ -359,40 +675,16 @@ export function createWorkspaceShellController({
       publishState();
     },
     showTrackDetails(): void {
-      state = { ...state, isDetailsPanelVisible: true };
-      this.setActiveWorkspaceTab('details');
+      this.showWorkspaceTab('details');
     },
     closeTrackDetails(): void {
-      state = {
-        ...state,
-        isDetailsPanelVisible: false,
-        activeWorkspaceTab:
-          state.activeWorkspaceTab === 'details'
-            ? state.isLyricsPanelVisible
-              ? 'lyrics'
-              : state.activeCollection
-            : state.activeWorkspaceTab
-      };
-      recomputeDerivedState();
-      persistPanelState();
+      this.closeWorkspaceTab('details');
     },
     showTrackLyrics(): void {
-      state = { ...state, isLyricsPanelVisible: true };
-      this.setActiveWorkspaceTab('lyrics');
+      this.showWorkspaceTab('lyrics');
     },
     closeTrackLyrics(): void {
-      state = {
-        ...state,
-        isLyricsPanelVisible: false,
-        activeWorkspaceTab:
-          state.activeWorkspaceTab === 'lyrics'
-            ? state.isDetailsPanelVisible
-              ? 'details'
-              : state.activeCollection
-            : state.activeWorkspaceTab
-      };
-      recomputeDerivedState();
-      persistPanelState();
+      this.closeWorkspaceTab('lyrics');
     },
     beginPanelResize(event: PointerEvent, handle: WorkspaceResizeHandle): void {
       if (state.isTabbedLayout) {
@@ -403,7 +695,8 @@ export function createWorkspaceShellController({
       resizeState = {
         handle,
         startX: event.clientX,
-        startLayout: panelLayout
+        startLayout: panelLayout,
+        visiblePanels: [...state.visibleWorkspacePanels]
       };
       recomputeDerivedState();
     },
@@ -425,7 +718,7 @@ export function createWorkspaceShellController({
             ? window.innerWidth
             : 0;
       const wideContentWidth = getWideContentWidth(viewportWidth, {
-        detailsVisible: state.isRightPanelVisible
+        visiblePanels: resizeState.visiblePanels
       });
 
       workspacePanelLayout.set(
@@ -434,7 +727,7 @@ export function createWorkspaceShellController({
           startLayout: resizeState.startLayout,
           delta: event.clientX - resizeState.startX,
           contentWidth: wideContentWidth,
-          detailsVisible: state.isRightPanelVisible
+          visiblePanels: resizeState.visiblePanels
         })
       );
     },
