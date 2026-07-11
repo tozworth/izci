@@ -261,8 +261,8 @@
 
   .detail-section {
     display: grid;
-    gap: 0.28rem;
-    padding: 0.72rem 0;
+    gap: 0.2rem;
+    padding: 0.46rem 0;
   }
 
   .detail-section:first-child {
@@ -274,7 +274,7 @@
   }
 
   .track-copy {
-    gap: 0.28rem;
+    gap: 0.2rem;
   }
 
   .track-artwork {
@@ -332,7 +332,7 @@
 
   .metadata-list {
     display: grid;
-    gap: 0.52rem;
+    gap: 0.32rem;
     margin: 0;
   }
 
