@@ -488,7 +488,12 @@
     on:drop={handleDrop}
     on:scroll={updatePlaylistHeaderState}
   >
-    <div bind:this={headerElement} class="panel-header playlist-panel-header" class:is-covered={playlistHeaderCovered}>
+    <div
+      bind:this={headerElement}
+      class="panel-header playlist-panel-header"
+      class:is-covered={playlistHeaderCovered}
+      class:has-column-header={items.length > 0 && layout === 'columns' && !isCompactColumnLayout}
+    >
       <PlaylistPanelHeader
         bind:searchInputElement={searchInputElement}
         {panelTitle}
@@ -574,7 +579,12 @@
   .playlist-panel-header {
     display: flex;
     flex-direction: column;
-    gap: 0.48rem;
+    gap: 0.3rem;
+    padding-bottom: 0.36rem;
+  }
+
+  .playlist-panel-header.has-column-header {
+    padding-bottom: 0;
   }
 
   .playlist-filter-empty {

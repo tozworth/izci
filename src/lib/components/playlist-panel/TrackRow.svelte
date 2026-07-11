@@ -95,7 +95,7 @@
   .track-table-row-button::before {
     content: "";
     position: absolute;
-    inset: 0 -0.6rem;
+    inset: 0 -0.55rem;
     z-index: 0;
     border-radius: 4px;
     pointer-events: none;

@@ -62,7 +62,7 @@
   .track-table {
     width: 100%;
     min-width: 0;
-    padding: 0 0.6rem 0.7rem;
+    padding: 0 0.55rem 0.7rem;
     overflow-x: hidden;
   }
 

@@ -26,8 +26,8 @@
   display: flex;
   justify-content: space-between;
   align-items: start;
-  gap: 0.6rem;
-  padding: 0.65rem 0.7rem 0;
+  gap: 0.45rem;
+  padding: 0.45rem 0.55rem 0;
 }
 
 .panel-heading {
@@ -71,7 +71,7 @@
   position: sticky;
   top: 0;
   z-index: 10;
-  padding: 0.5rem 0.7rem 0.42rem;
+  padding: 0.4rem 0.55rem 0;
   background: var(--playlist-header-background);
   backdrop-filter:
     blur(var(--chrome-header-backdrop-blur, calc(var(--chrome-backdrop-blur, 22px) - 2px)))

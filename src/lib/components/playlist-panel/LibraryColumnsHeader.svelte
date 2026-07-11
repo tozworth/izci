@@ -84,18 +84,21 @@
     grid-template-columns: var(--track-table-columns);
     column-gap: var(--track-table-gap);
     width: 100%;
-    margin-inline: -0.25rem;
-    padding: 0.02rem 0 0;
+    margin-inline: 0;
+    padding: 0;
+    border-top: 1px solid var(--border-subtle);
+    border-bottom: 1px solid var(--border-soft);
+    background: color-mix(in srgb, var(--playlist-header-background) 72%, var(--bg-elevated));
   }
 
   .track-column-header {
     position: relative;
     min-width: 0;
-    min-height: 1.45rem;
+    min-height: 1.32rem;
     display: flex;
     align-items: stretch;
     border: 0;
-    border-radius: 4px;
+    border-radius: 0;
     background: transparent;
     overflow: visible;
     cursor: grab;
@@ -140,12 +143,12 @@
     display: flex;
     align-items: center;
     min-width: 0;
-    padding: 0.16rem 0.3rem 0.14rem;
+    padding: 0.08rem 0.3rem 0.07rem;
     color: var(--muted);
     background: transparent;
     text-align: left;
     border: 0;
-    border-radius: 4px;
+    border-radius: 0;
     user-select: none;
     transition: color var(--artwork-ui-transition-duration, 280ms) linear;
   }
@@ -160,7 +163,7 @@
   }
 
   .track-column-sort-button:hover {
-    background: var(--hover-subtle);
+    background: color-mix(in srgb, var(--hover-subtle) 72%, transparent);
   }
 
   .track-column-sort-content {
@@ -180,17 +183,18 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-size: 0.7rem;
-    letter-spacing: 0;
+    font-size: 0.66rem;
+    font-weight: 600;
+    letter-spacing: 0.025em;
     text-transform: uppercase;
   }
 
   .track-column-sort-icon {
     position: absolute;
-    right: 0.32rem;
+    right: 0.25rem;
     top: 50%;
     transform: translateY(-50%);
-    font-size: 0.9rem;
+    font-size: 0.76rem;
     flex-shrink: 0;
     pointer-events: none;
   }
@@ -202,7 +206,7 @@
   .track-column-resizer {
     position: absolute;
     top: -1px;
-    right: calc(var(--track-table-gap) / -2 - 4px);
+    right: calc(var(--track-table-gap) / -2 - 6px);
     width: 12px;
     height: 100%;
     min-height: calc(100% + 2px);
@@ -216,8 +220,8 @@
   .track-column-resizer::after {
     content: "";
     position: absolute;
-    top: 0.36rem;
-    bottom: 0.36rem;
+    top: 0.22rem;
+    bottom: 0.22rem;
     left: 50%;
     width: 1px;
     transform: translateX(-50%);
@@ -225,7 +229,8 @@
     opacity: 1;
     transition:
       opacity 120ms ease,
-      background-color var(--artwork-ui-transition-duration, 280ms) linear;
+      background-color var(--artwork-ui-transition-duration, 280ms) linear,
+      box-shadow 120ms ease;
   }
 
   .track-column-header:last-child .track-column-resizer::after {
@@ -236,5 +241,6 @@
   .track-column-header.is-resizing .track-column-resizer::after {
     opacity: 1;
     background: var(--accent-strong);
+    box-shadow: 0 0 0 2px var(--accent-strong-faint);
   }
 </style>
