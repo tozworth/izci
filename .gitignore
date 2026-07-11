@@ -6,3 +6,4 @@ coverage
 .local/
 .firebase/
 .firebaserc
+firebase-debug.log
