@@ -15,6 +15,7 @@ import { createPersistentStore } from './persistent-store';
 export const APPEARANCE_SETTINGS_STORAGE_KEY = 'izci.appearance-settings';
 export const APPEARANCE_SETTINGS_CHANNEL = 'izci.appearance-settings';
 export const DEFAULT_COLOR_THEME: ColorTheme = 'gray';
+export const SYSTEM_FONT_FAMILY = 'system';
 export const BACKDROP_ZONE_IDS: BackdropZoneId[] = ['left', 'center', 'right', 'player', 'nowPlaying'];
 export const BACKDROP_ZONE_LABELS: Record<BackdropZoneId, string> = {
   left: 'Left',
@@ -112,7 +113,7 @@ export const DEFAULT_APPEARANCE_SETTINGS: AppearanceSettings = {
   keepLibraryColumnsVisibleInNarrowLayout: false,
   keepEmptyWorkspacePanelsOpen: false,
   showIdlePlayerQuips: true,
-  useSystemFont: false,
+  fontFamily: SYSTEM_FONT_FAMILY,
   backdropZones: DEFAULT_BACKDROP_ZONES,
   backdropZoneArtwork: DEFAULT_BACKDROP_ZONE_ARTWORK,
   lyrics: DEFAULT_LYRICS_SETTINGS,
@@ -143,6 +144,10 @@ function normalizeColorTheme(value: unknown): ColorTheme {
     default:
       return DEFAULT_COLOR_THEME;
   }
+}
+
+function normalizeFontFamily(value: unknown): string {
+  return typeof value === 'string' && value.trim() ? value.trim() : SYSTEM_FONT_FAMILY;
 }
 
 function normalizeBackdropZoneEffect(value: unknown): BackdropZoneEffect {
@@ -396,7 +401,7 @@ function normalizeSettings(value: unknown): AppearanceSettings {
     keepLibraryColumnsVisibleInNarrowLayout: source.keepLibraryColumnsVisibleInNarrowLayout === true,
     keepEmptyWorkspacePanelsOpen: source.keepEmptyWorkspacePanelsOpen === true,
     showIdlePlayerQuips: source.showIdlePlayerQuips !== false,
-    useSystemFont: source.useSystemFont === true,
+    fontFamily: normalizeFontFamily(source.fontFamily),
     backdropZones: normalizeBackdropZones(source),
     backdropZoneArtwork: normalizeBackdropZoneArtwork(source),
     lyrics: normalizeLyricsSettings(source.lyrics),

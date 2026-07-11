@@ -101,7 +101,7 @@ export interface AppearanceSettings {
   keepLibraryColumnsVisibleInNarrowLayout: boolean;
   keepEmptyWorkspacePanelsOpen: boolean;
   showIdlePlayerQuips: boolean;
-  useSystemFont: boolean;
+  fontFamily: string;
   backdropZones: BackdropZoneSettings;
   backdropZoneArtwork: BackdropZoneArtworkSettingsMap;
   lyrics: LyricsSettings;

@@ -1,4 +1,5 @@
 import { appearanceSettings } from '$lib/stores/appearance-settings';
+import { SYSTEM_FONT_FAMILY } from '$lib/stores/appearance-settings';
 import type { ColorTheme } from '$lib/types';
 
 export const COLOR_THEME_OPTIONS: Array<{ value: ColorTheme; label: string }> = [
@@ -36,13 +37,18 @@ function applyThemeColor(theme: ColorTheme): void {
   themeColorMeta.content = themeColor;
 }
 
-function applyTheme(theme: ColorTheme, useSystemFont: boolean): void {
+function applyTheme(theme: ColorTheme, fontFamily: string): void {
   if (typeof document === 'undefined') {
     return;
   }
 
   document.documentElement.dataset.theme = theme;
-  document.documentElement.dataset.systemFont = useSystemFont ? 'true' : 'false';
+  document.documentElement.style.setProperty(
+    '--app-font-family',
+    fontFamily === SYSTEM_FONT_FAMILY
+      ? 'var(--system-font-family)'
+      : `${JSON.stringify(fontFamily)}, var(--system-font-family)`
+  );
   applyThemeColor(theme);
 }
 
@@ -53,8 +59,8 @@ export function initializeTheme(): void {
 
   initialized = true;
   const initialSettings = appearanceSettings.getSnapshot();
-  applyTheme(initialSettings.colorTheme, initialSettings.useSystemFont);
+  applyTheme(initialSettings.colorTheme, initialSettings.fontFamily);
   appearanceSettings.subscribe((settings) => {
-    applyTheme(settings.colorTheme, settings.useSystemFont);
+    applyTheme(settings.colorTheme, settings.fontFamily);
   });
 }

@@ -81,10 +81,6 @@
   --dropzone-background: linear-gradient(180deg, rgba(228, 231, 235, 0.022), transparent 18%);
 }
 
-:root[data-system-font='true'] {
-  --app-font-family: var(--system-font-family);
-}
-
 :root[data-theme='coal'] {
   --bg-base: #101113;
   --menu-bar-bg: #101113;

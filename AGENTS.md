@@ -52,7 +52,7 @@ Working source tree:
 - `src/lib/styles/themes.css`: shared color-theme tokens consumed by the main app and Options popup.
 - `src/lib/styles/app/`: focused main-window CSS split by ownership (`base`, `shell`, `menus`, `workspace`, `panels`, `player`).
 - `src/options/main.ts`: Options popup entry; mounts the dedicated popup Svelte app.
-- `src/options/OptionsApp.svelte`: standalone Options window UI for appearance, backdrop zones/artwork tuning, lyrics display, module playback defaults, and metadata behavior, including the empty-workspace-panel behavior toggle, the Now Playing side-chrome auto-hide timeout, and the window-title track-name toggle. The wide workspace backdrop zones and persisted dock-panel keys are positional: left, center, and right.
+- `src/options/OptionsApp.svelte`: standalone Options window UI for appearance, system/local font selection, backdrop zones/artwork tuning, lyrics display, module playback defaults, and metadata behavior, including the empty-workspace-panel behavior toggle, the Now Playing side-chrome auto-hide timeout, and the window-title track-name toggle. The wide workspace backdrop zones and persisted dock-panel keys are positional: left, center, and right.
 - `src/options/app.css`: Options popup styling.
 - `src/options/views.ts`: popup navigation/view metadata shared by the Options UI.
 - `src/vite-env.d.ts`: Vite ambient types.
@@ -124,6 +124,7 @@ Primary location for playback and browser-integration logic.
 - `pwa-updates.ts`: service-worker registration plus proactive update checks for long-lived preview/installed PWA windows so new builds can activate without getting stuck on the first cached shell.
 - `app-install.ts`: Chromium install-prompt coordinator; retains the deferred browser prompt, hides install UI in installed display modes, and manages the one-time post-engagement File-menu hint acknowledgement.
 - `theme.ts`: shared color-theme metadata, document-theme application, and dynamic `<meta name="theme-color">` updates used by both window entrypoints so Chromium/PWA window chrome tracks the active theme where supported.
+- `local-fonts.ts`: progressive Local Font Access API wrapper used by Options to request permission and enumerate local font families without persisting the font inventory.
 - `window-controls-overlay.ts`: readable store that tracks Window Controls Overlay support, visibility, and `titlebarAreaRect` updates from Chromium's `geometrychange` event.
 - `window-mini-mode.ts`: Chromium/PWA-oriented mini-mode window controller; remembers the pre-mini window bounds, resizes the app to a player-focused height, restores the previous bounds, and tracks manual resize exits.
 - `window-display-state.ts`: Chromium desktop-window geometry detector for maximized/fullscreen state; used by the Appearance option that can automatically show Now Playing while the main window occupies the screen/work area.

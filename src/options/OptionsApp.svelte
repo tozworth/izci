@@ -2,6 +2,11 @@
   import { onMount } from 'svelte';
   import { version as appVersion } from '../../package.json';
   import { COLOR_THEME_OPTIONS } from '$lib/services/theme';
+  import {
+    hasLocalFontAccessPermission,
+    queryLocalFontFamilies,
+    supportsLocalFontAccess
+  } from '$lib/services/local-fonts';
   import { windowControlsOverlayState } from '$lib/services/window-controls-overlay';
   import {
     BACKDROP_EFFECT_OPTIONS,
@@ -17,6 +22,7 @@
     MIN_LYRICS_DOWNTIME_THRESHOLD_SECONDS,
     MIN_NOW_PLAYING_PANEL_AUTO_HIDE_SECONDS,
     NOW_PLAYING_PANEL_AUTO_HIDE_NEVER_SECONDS,
+    SYSTEM_FONT_FAMILY,
     appearanceSettings,
     hasArtworkBackdrop,
     normalizeBackdropZoneArtworkBlur,
@@ -70,6 +76,12 @@
   let resizePointerId: number | null = null;
   let pendingStereoSeparation: number | null = null;
   let pendingPanStrength: number | null = null;
+  let localFontFamilies: string[] = [];
+  let localFontsLoading = false;
+  let localFontsError = '';
+  let localFontAccessGranted = false;
+  const localFontAccessSupported = supportsLocalFontAccess();
+  let localFontPermissionChecked = !localFontAccessSupported;
   const displayVersion = formatDisplayVersion(appVersion);
 
   type TriangleVisualizerSetting =
@@ -236,10 +248,34 @@
     });
   }
 
-  function handleUseSystemFontToggle(event: Event) {
+  function handleFontFamilyChange(event: Event) {
     appearanceSettings.update({
-      useSystemFont: (event.currentTarget as HTMLInputElement).checked
+      fontFamily: (event.currentTarget as HTMLSelectElement).value
     });
+  }
+
+  async function loadLocalFonts() {
+    localFontsLoading = true;
+    localFontsError = '';
+
+    try {
+      localFontFamilies = await queryLocalFontFamilies();
+      localFontAccessGranted = true;
+      if (localFontFamilies.length === 0) {
+        localFontsError = 'No local fonts were returned.';
+      }
+    } catch (error) {
+      localFontsError = error instanceof DOMException && error.name === 'NotAllowedError'
+        ? 'Local font permission was not granted.'
+        : 'Local fonts could not be loaded.';
+    } finally {
+      localFontsLoading = false;
+    }
+  }
+
+  function handleUseLocalFonts(event: MouseEvent) {
+    event.preventDefault();
+    void loadLocalFonts();
   }
 
   function handleBackdropZoneChange(event: Event, zone: BackdropZoneId) {
@@ -495,6 +531,14 @@
   }
 
   onMount(() => {
+    void hasLocalFontAccessPermission().then((granted) => {
+      localFontPermissionChecked = true;
+      if (granted) {
+        localFontAccessGranted = true;
+        void loadLocalFonts();
+      }
+    });
+
     const syncActiveViewFromLocation = () => {
       activeView = getOptionsViewFromLocation(window.location);
     };
@@ -701,19 +745,34 @@
           <div class="section">
             <h2>Interface</h2>
             <div class="field-grid">
-              <label class="field checkbox-field">
+              <label class="field">
                 <div class="field-copy">
-                  <span class="field-title">Use system font</span>
+                  <span class="field-title">Font</span>
                 </div>
-                <div class="field-control checkbox-control">
-                  <input
-                    type="checkbox"
-                    checked={$appearanceSettings.useSystemFont}
-                    on:change={handleUseSystemFontToggle}
-                  />
+                <div class="field-control font-control">
+                  <select value={$appearanceSettings.fontFamily} on:change={handleFontFamilyChange}>
+                    <option value={SYSTEM_FONT_FAMILY}>System</option>
+                    {#if $appearanceSettings.fontFamily !== SYSTEM_FONT_FAMILY && !localFontFamilies.includes($appearanceSettings.fontFamily)}
+                      <option value={$appearanceSettings.fontFamily}>{$appearanceSettings.fontFamily}</option>
+                    {/if}
+                    {#each localFontFamilies as family}
+                      <option value={family}>{family}</option>
+                    {/each}
+                  </select>
+                  {#if localFontAccessSupported && localFontPermissionChecked && !localFontAccessGranted}
+                    <a href="#local-fonts" on:click={handleUseLocalFonts} aria-disabled={localFontsLoading}>
+                      {localFontsLoading ? 'Loading local fonts…' : 'Use local fonts…'}
+                    </a>
+                  {/if}
                 </div>
                 <p class="field-hint">
-                  Replaces the default UI font with your system interface font across the main app and Options window.
+                  {#if localFontsError}
+                    {localFontsError}
+                  {:else if localFontAccessSupported}
+                    Applies the system interface font or a permitted local font across the app.
+                  {:else}
+                    Local Font Access is not supported by this browser.
+                  {/if}
                 </p>
               </label>
 
