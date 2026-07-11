@@ -16,6 +16,7 @@
 
   interface MetadataEntry {
     label: string;
+    icon: string;
     value: string;
   }
 
@@ -28,12 +29,14 @@
     const discNumber = trimMetadataValue(metadata?.discNumber);
 
     if (!trackNumber) {
-      return discNumber ? { label: 'Disc Number', value: discNumber } : null;
+      return discNumber
+        ? { label: 'Disc Number', icon: 'format_list_numbered', value: discNumber }
+        : null;
     }
 
     return discNumber
-      ? { label: 'Disc / Track', value: `${discNumber} / ${trackNumber}` }
-      : { label: 'Track Number', value: trackNumber };
+      ? { label: 'Disc / Track', icon: 'format_list_numbered', value: `${discNumber} / ${trackNumber}` }
+      : { label: 'Track Number', icon: 'format_list_numbered', value: trackNumber };
   }
 
   function buildStreamMetadataEntries(track: PlaylistItem | null): MetadataEntry[] {
@@ -45,12 +48,12 @@
     const trackNumberEntry = buildTrackNumberEntry(metadata);
 
     return [
-      { label: 'Album', value: trimMetadataValue(metadata?.album) },
-      { label: 'Album Artist', value: trimMetadataValue(metadata?.albumArtist) },
-      { label: 'Genre', value: trimMetadataValue(metadata?.genre) },
-      { label: 'Year', value: trimMetadataValue(metadata?.year) },
+      { label: 'Album', icon: 'album', value: trimMetadataValue(metadata?.album) },
+      { label: 'Album Artist', icon: 'person', value: trimMetadataValue(metadata?.albumArtist) },
+      { label: 'Genre', icon: 'category', value: trimMetadataValue(metadata?.genre) },
+      { label: 'Year', icon: 'calendar_month', value: trimMetadataValue(metadata?.year) },
       trackNumberEntry,
-      { label: 'Composer', value: trimMetadataValue(metadata?.composer) }
+      { label: 'Composer', icon: 'edit_note', value: trimMetadataValue(metadata?.composer) }
     ].filter((entry): entry is MetadataEntry => Boolean(entry && entry.value.length > 0));
   }
 
@@ -127,14 +130,16 @@
 
       {#if metadataEntries.length > 0}
         <section class="detail-section metadata-section">
-          <p class="section-heading">
-            <span class="material-symbols-outlined section-icon" aria-hidden="true">sell</span>
-            <span>Metadata</span>
-          </p>
           <dl class="metadata-list">
             {#each metadataEntries as entry}
               <div class="metadata-row">
-                <dt>{entry.label}</dt>
+                <dt>
+                  <span
+                    class="material-symbols-outlined metadata-icon"
+                    title={entry.label}
+                    aria-label={entry.label}
+                  >{entry.icon}</span>
+                </dt>
                 <dd>{entry.value}</dd>
               </div>
             {/each}
@@ -333,7 +338,8 @@
 
   .metadata-row {
     display: grid;
-    gap: 0.18rem;
+    grid-template-columns: 1rem minmax(0, 1fr);
+    gap: 0.42rem;
     align-items: start;
   }
 
@@ -345,11 +351,12 @@
 
   .metadata-row dt {
     color: var(--muted);
-    font-size: 0.66rem;
-    font-weight: 700;
-    letter-spacing: 0.12em;
-    line-height: 1.15;
-    text-transform: uppercase;
+    line-height: 1.25;
+  }
+
+  .metadata-icon {
+    display: block;
+    font-size: 1rem;
   }
 
   .metadata-row dd {
