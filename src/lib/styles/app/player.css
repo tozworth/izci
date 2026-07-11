@@ -681,6 +681,7 @@
 
 .compact-player-bar .player-artwork {
   display: block;
+  box-shadow: none;
 }
 
 .compact-player-bar .player-track {
