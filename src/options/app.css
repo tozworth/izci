@@ -272,6 +272,7 @@ code {
 .content-panel {
   padding: 8px 10px;
   overflow: auto;
+  container-type: inline-size;
 }
 
 .view {
@@ -469,7 +470,7 @@ code {
   grid-template-columns: minmax(0, 1fr) auto;
 }
 
-@media (max-width: 640px) {
+@container (max-width: 360px) {
   .about-hero {
     grid-template-columns: 1fr;
     justify-items: start;
