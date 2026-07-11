@@ -14,6 +14,9 @@
   export let repeatMode: PlaylistRepeatMode = 'off';
   export let repeatIcon = 'repeat';
   export let repeatLabel = 'Repeat off';
+
+  let shuffleRecentlyDisabled = false;
+  let repeatRecentlyDisabled = false;
   export let searchInputElement: HTMLInputElement | null = null;
 
   const dispatch = createEventDispatcher<{
@@ -24,6 +27,16 @@
     cycleRepeat: void;
     openFiles: void;
   }>();
+
+  function toggleShuffle() {
+    shuffleRecentlyDisabled = shuffleEnabled;
+    dispatch('toggleShuffle');
+  }
+
+  function cycleRepeat() {
+    repeatRecentlyDisabled = repeatMode === 'one';
+    dispatch('cycleRepeat');
+  }
 
   let previousShowSearchInput = false;
 
@@ -109,9 +122,11 @@
         type="button"
         class="playlist-action-button"
         class:active={shuffleEnabled}
+        class:recently-disabled={shuffleRecentlyDisabled}
         aria-label={shuffleEnabled ? 'Disable shuffle' : 'Enable shuffle'}
         title={shuffleEnabled ? 'Shuffle on' : 'Shuffle off'}
-        on:click={() => dispatch('toggleShuffle')}
+        on:mouseenter={() => (shuffleRecentlyDisabled = false)}
+        on:click={toggleShuffle}
       >
         <span class="material-symbols-outlined" aria-hidden="true">shuffle</span>
       </button>
@@ -121,9 +136,11 @@
         type="button"
         class="playlist-action-button"
         class:active={repeatMode !== 'off'}
+        class:recently-disabled={repeatRecentlyDisabled}
         aria-label={repeatLabel}
         title={repeatLabel}
-        on:click={() => dispatch('cycleRepeat')}
+        on:mouseenter={() => (repeatRecentlyDisabled = false)}
+        on:click={cycleRepeat}
       >
         <span class="material-symbols-outlined" aria-hidden="true">{repeatIcon}</span>
       </button>
@@ -196,6 +213,11 @@
   .playlist-action-button:hover,
   .playlist-add-files:hover {
     color: var(--accent-strong);
+  }
+
+  .playlist-action-button.recently-disabled,
+  .playlist-action-button.recently-disabled:hover {
+    color: var(--muted);
   }
 
   .playlist-action-button .material-symbols-outlined,
