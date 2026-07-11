@@ -20,6 +20,7 @@
     type ArtworkBackgroundAnalysis
   } from '$lib/services/artwork-background';
   import { createImportController, FILE_INPUT_ACCEPT } from '$lib/services/import-controller';
+  import { appInstallService, type AppInstallState } from '$lib/services/app-install';
   import { subscribeToLaunchedFiles } from '$lib/services/file-launch';
   import { getTrackLyricsLoadKey, loadTrackLyrics } from '$lib/services/lyrics';
   import { createPlaybackCommandsController } from '$lib/services/playback-commands';
@@ -204,6 +205,7 @@
   });
   let artworkPresentationState = artworkPresentation.getSnapshot();
   let miniModeActive = windowMiniMode.getSnapshot().active;
+  let appInstallState: AppInstallState = { available: false, showHint: false };
   const unsubscribePlaylistItems = playlistItemsStore.subscribe((value) => (playlistItems = value));
   const unsubscribeLibraryItems = libraryItemsStore.subscribe((value) => (libraryItems = value));
   void Promise.all([playlistStore.ready(), libraryStore.ready()]).then(() => {
@@ -244,9 +246,10 @@
       }
     }
   });
-  const unsubscribePlaybackSnapshot = playerController.snapshot.subscribe(
-    (value) => (playbackSnapshot = value)
-  );
+  const unsubscribePlaybackSnapshot = playerController.snapshot.subscribe((value) => {
+    playbackSnapshot = value;
+    if (value.state === 'playing') appInstallService.markEngaged();
+  });
   const unsubscribePlaybackStatus = playerController.status.subscribe((value) => (playbackStatus = value));
   const unsubscribeWorkspaceShell = workspaceShell.subscribe((value) => (workspaceShellState = value));
   const unsubscribePlaybackCommands = playbackCommands.subscribe(
@@ -258,6 +261,7 @@
   const unsubscribeWindowMiniMode = windowMiniMode.subscribe(
     (value) => (miniModeActive = value.active)
   );
+  const unsubscribeAppInstall = appInstallService.subscribe((value) => (appInstallState = value));
 
   const importController = createImportController({
     addFiles: handleAddFiles,
@@ -506,6 +510,8 @@
     if (nextItems.length === 0) {
       return [];
     }
+
+    appInstallService.markEngaged();
 
     return (target === 'library' ? libraryStore : playlistStore).add(nextItems);
   }
@@ -1262,6 +1268,8 @@
     unsubscribePlaybackCommands();
     unsubscribeArtworkPresentation();
     unsubscribeWindowMiniMode();
+    unsubscribeAppInstall();
+    appInstallService.destroy();
     unsubscribeLaunchedFiles();
     disconnectMediaSession();
     playerController.destroy();
@@ -1318,8 +1326,12 @@
   <TopMenuBar
     {miniModeActive}
     nowPlayingViewActive={isNowPlayingLayoutActive}
+    installAvailable={appInstallState.available}
+    showInstallHint={appInstallState.showHint}
     on:openFiles={() => void handleMenuOpenFiles()}
     on:openFolder={() => void handleMenuOpenFolder()}
+    on:installApp={() => void appInstallService.prompt()}
+    on:acknowledgeInstallHint={() => appInstallService.acknowledgeHint()}
     on:openOptions={(event) => handleOpenOptions(event.detail?.view)}
     on:forceUpdate={() => void handleForceUpdate()}
     on:openAbout={handleOpenAbout}

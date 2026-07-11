@@ -160,13 +160,17 @@
           role="menuitem"
           class:submenu-open={activeSubmenuId === item.id}
           class:menu-item-parent={item.children?.length}
+          class:menu-item-attention={item.attention}
           aria-haspopup={item.children?.length ? 'menu' : undefined}
           aria-expanded={item.children?.length ? activeSubmenuId === item.id : undefined}
           on:pointerup={(event) => handleItemPointerUp(event, item)}
           on:click={() => handleItemClick(item)}
         >
           <span class="material-symbols-outlined menu-item-icon" aria-hidden="true">{item.icon ?? 'label'}</span>
-          <span class="menu-item-label">{item.label}</span>
+          <span class="menu-item-copy">
+            <span class="menu-item-label">{item.label}</span>
+            {#if item.description}<span class="menu-item-description">{item.description}</span>{/if}
+          </span>
           {#if item.children?.length}
             <span class="material-symbols-outlined menu-item-chevron" aria-hidden="true">chevron_right</span>
           {:else}
@@ -219,13 +223,17 @@
           class:submenu-open={activeSubmenuId === item.id}
           class:menu-item-parent={item.children?.length}
           class:menu-item-drilldown={shouldUseSubmenuDrilldown && item.children?.length}
+          class:menu-item-attention={item.attention}
           aria-haspopup={item.children?.length ? 'menu' : undefined}
           aria-expanded={item.children?.length ? activeSubmenuId === item.id : undefined}
           on:pointerup={(event) => handleItemPointerUp(event, item)}
           on:click={() => handleItemClick(item)}
         >
           <span class="material-symbols-outlined menu-item-icon" aria-hidden="true">{item.icon ?? 'label'}</span>
-          <span class="menu-item-label">{item.label}</span>
+          <span class="menu-item-copy">
+            <span class="menu-item-label">{item.label}</span>
+            {#if item.description}<span class="menu-item-description">{item.description}</span>{/if}
+          </span>
           {#if item.children?.length}
             <span class="material-symbols-outlined menu-item-chevron" aria-hidden="true">
               {shouldUseSubmenuDrilldown ? 'chevron_right' : 'chevron_right'}
@@ -256,6 +264,10 @@
     z-index: 60;
   }
 
+  .menu-surface:has(.menu-item-description) {
+    width: min(22rem, calc(100vw - 1rem));
+  }
+
   .menu-surface-nested {
     position: absolute;
     top: -0.3rem;
@@ -272,6 +284,39 @@
     color: var(--menu-popover-muted);
     font-size: 1rem;
     text-align: right;
+  }
+
+  .menu-item-copy {
+    display: flex;
+    flex: 1;
+    min-width: 0;
+    flex-direction: column;
+    gap: 0.08rem;
+  }
+
+  .menu-item-description {
+    color: var(--menu-popover-muted);
+    font-size: 0.72rem;
+    line-height: 1.25;
+    white-space: normal;
+  }
+
+  button:has(.menu-item-description) .menu-item-shortcut {
+    min-width: 0;
+  }
+
+  button.menu-item-attention {
+    background: color-mix(in srgb, #e5a92f 16%, transparent);
+    color: #ffd77b;
+  }
+
+  button.menu-item-attention .menu-item-icon,
+  button.menu-item-attention .menu-item-description {
+    color: #e9b84e;
+  }
+
+  button.menu-item-attention:hover {
+    background: color-mix(in srgb, #e5a92f 24%, transparent);
   }
 
   .submenu-open,

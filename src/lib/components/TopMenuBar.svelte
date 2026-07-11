@@ -12,6 +12,7 @@
   type MenuActionId =
     | 'openFiles'
     | 'openFolder'
+    | 'installApp'
     | 'openOptions'
     | 'forceUpdate'
     | 'openAbout'
@@ -28,7 +29,7 @@
   const FALLBACK_MENU_GROUPS_WIDTH = 140;
   const FALLBACK_MENU_BRAND_WIDTH = 88;
 
-  const FILE_MENU_ITEMS: MenuActionItem[] = [
+  const BASE_FILE_MENU_ITEMS: MenuActionItem[] = [
     {
       id: 'openFiles',
       label: 'Open files...',
@@ -63,11 +64,15 @@
 
   export let miniModeActive = false;
   export let nowPlayingViewActive = false;
+  export let installAvailable = false;
+  export let showInstallHint = false;
   const displayVersion = formatDisplayVersion(appVersion);
 
   const dispatch = createEventDispatcher<{
     openFiles: void;
     openFolder: void;
+    installApp: void;
+    acknowledgeInstallHint: void;
     openOptions: { view?: OptionsViewName } | undefined;
     forceUpdate: void;
     openAbout: void;
@@ -97,6 +102,24 @@
   let menuBrandWidth = 0;
   let menubarPressPointerId: number | null = null;
   let suppressNextRootClick = false;
+  let installHintPresentedInOpenMenu = false;
+
+  $: fileMenuItems = [
+    ...BASE_FILE_MENU_ITEMS.slice(0, 2),
+    ...(installAvailable
+      ? [{
+          id: 'installApp',
+          label: 'Install izci...',
+          description: showInstallHint || installHintPresentedInOpenMenu
+            ? 'Install the PWA to get file associations, a compact title bar, better OS integration and automatic updates.'
+            : undefined,
+          icon: 'install_desktop',
+          separatorBefore: true,
+          attention: showInstallHint || installHintPresentedInOpenMenu
+        } satisfies MenuActionItem]
+      : []),
+    BASE_FILE_MENU_ITEMS[2]
+  ];
 
   $: viewMenuItems = [
     {
@@ -144,7 +167,7 @@
       id: 'file',
       label: 'File',
       icon: 'folder',
-      children: FILE_MENU_ITEMS
+      children: fileMenuItems
     },
     {
       id: 'view',
@@ -191,6 +214,13 @@
     const nextMenu = activeMenu === menuId ? null : menuId;
     activeMenu = nextMenu;
 
+    if (nextMenu === 'file' && showInstallHint) {
+      installHintPresentedInOpenMenu = true;
+      dispatch('acknowledgeInstallHint');
+    } else if (nextMenu !== 'file') {
+      installHintPresentedInOpenMenu = false;
+    }
+
     if (nextMenu !== null) {
       updateMenuPosition(nextMenu);
     }
@@ -199,6 +229,7 @@
   function closeMenus() {
     activeMenu = null;
     compactMenuOpen = false;
+    installHintPresentedInOpenMenu = false;
     menubarPressPointerId = null;
     suppressNextRootClick = false;
   }
@@ -222,6 +253,12 @@
     event.preventDefault();
     compactMenuOpen = false;
     activeMenu = menuId;
+    if (menuId === 'file' && showInstallHint) {
+      installHintPresentedInOpenMenu = true;
+      dispatch('acknowledgeInstallHint');
+    } else if (menuId !== 'file') {
+      installHintPresentedInOpenMenu = false;
+    }
     menubarPressPointerId = event.pointerId;
     suppressNextRootClick = true;
     updateMenuPosition(menuId);
@@ -305,6 +342,13 @@
     compactMenuOpen = nextOpen;
     activeMenu = null;
 
+    if (nextOpen && showInstallHint) {
+      installHintPresentedInOpenMenu = true;
+      dispatch('acknowledgeInstallHint');
+    } else if (!nextOpen) {
+      installHintPresentedInOpenMenu = false;
+    }
+
     if (!nextOpen) {
       return;
     }
@@ -343,6 +387,7 @@
     <button
       bind:this={compactMenuTriggerElement}
       class="menu-trigger compact-menu-trigger"
+      class:install-hint-visible={showInstallHint}
       data-menu-interactive="true"
       type="button"
       aria-haspopup="menu"
@@ -373,6 +418,7 @@
           bind:this={fileMenuTriggerElement}
           class:active={activeMenu === 'file'}
           class="menu-trigger"
+          class:install-hint-visible={showInstallHint}
           data-menu-interactive="true"
           type="button"
           aria-haspopup="menu"
@@ -384,7 +430,7 @@
         </button>
         {#if activeMenu === 'file'}
           <MenuSurface
-            items={FILE_MENU_ITEMS}
+            items={fileMenuItems}
             x={menuPopupX}
             y={menuPopupY}
             ariaLabel="File"
@@ -461,3 +507,26 @@
     </div>
   {/if}
 </nav>
+
+<style>
+  .menu-trigger.install-hint-visible::after {
+    width: 0.42rem;
+    height: 0.42rem;
+    margin-left: 0.18rem;
+    border-radius: 999px;
+    background: #e5a92f;
+    box-shadow: 0 0 0 0 rgba(229, 169, 47, 0.42);
+    content: '';
+    animation: install-hint-pulse 1.4s ease-out 1;
+  }
+
+  @keyframes install-hint-pulse {
+    0% { box-shadow: 0 0 0 0 rgba(229, 169, 47, 0.42); }
+    70% { box-shadow: 0 0 0 0.36rem rgba(229, 169, 47, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(229, 169, 47, 0); }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .menu-trigger.install-hint-visible::after { animation: none; }
+  }
+</style>
