@@ -294,8 +294,8 @@
   background: transparent;
   transition-duration: 0ms;
   filter:
-    drop-shadow(0 0 0.28rem color-mix(in srgb, currentColor 48%, transparent))
-    drop-shadow(0 0 0.7rem color-mix(in srgb, var(--accent-strong) 28%, transparent));
+    drop-shadow(0 0 0.38rem color-mix(in srgb, currentColor 68%, transparent))
+    drop-shadow(0 0 0.95rem color-mix(in srgb, var(--accent-strong) 46%, transparent));
 }
 
 .transport-button:disabled {
