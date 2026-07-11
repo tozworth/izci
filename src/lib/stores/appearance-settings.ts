@@ -79,7 +79,7 @@ export const LYRICS_FONT_SIZE_LIMITS: Record<
 > = {
   plain: { min: 0.78, max: 1.35, step: 0.01 },
   timestamped: { min: 0.78, max: 1.35, step: 0.01 },
-  theater: { min: 1.1, max: 2.6, step: 0.01 }
+  theater: { min: 0.78, max: 2.6, step: 0.01 }
 };
 export const DEFAULT_LYRICS_FONT_SIZES: LyricsFontSizeSettings = {
   plain: 0.95,

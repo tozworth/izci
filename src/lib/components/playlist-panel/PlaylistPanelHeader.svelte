@@ -27,6 +27,8 @@
 
   let previousShowSearchInput = false;
 
+  $: [trackCountSummary = '', trackRuntimeSummary = ''] = trackSummary.split(' · ', 2);
+
   afterUpdate(async () => {
     if (showSearchInput && !previousShowSearchInput) {
       await tick();
@@ -56,7 +58,12 @@
     {#if !hideEyebrow}
       <p class="eyebrow">{panelTitle}</p>
     {/if}
-    <p class="panel-summary">{trackSummary}</p>
+    <p class="panel-summary" title={trackSummary}>
+      <span class="panel-summary-count">{trackCountSummary}</span>
+      {#if trackRuntimeSummary}
+        <span class="panel-summary-runtime"> · {trackRuntimeSummary}</span>
+      {/if}
+    </p>
   </div>
   <div class="playlist-actions">
     {#if showSearchControl}
@@ -145,6 +152,19 @@
   .playlist-header-main .panel-heading {
     flex: 1;
     min-width: 0;
+    container-type: inline-size;
+  }
+
+  .panel-summary {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  @container (max-width: 9rem) {
+    .panel-summary-runtime {
+      display: none;
+    }
   }
 
   .playlist-actions {

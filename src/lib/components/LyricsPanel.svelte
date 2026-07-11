@@ -413,7 +413,7 @@
   }
 
   $: normalizedFontSize = clamp(fontSize, 0.72, 2.8);
-  $: panelStyle = `--lyrics-font-size: ${normalizedFontSize}rem; --lyrics-scroller-height: ${scrollerHeight}px;`;
+  $: panelStyle = `--lyrics-font-size: ${normalizedFontSize}em; --lyrics-scroller-height: ${scrollerHeight}px;`;
   $: effectiveSnapshot = playbackSnapshot ?? snapshot;
   $: trackLoadKey = track ? `${track.id}:${track.lastModified}:${track.size}` : '';
   $: loadLyricsForTrack(trackLoadKey, track);
@@ -758,12 +758,17 @@
     line-height: 1.35;
   }
 
+  .lyrics-content.timestamped-layout {
+    padding-top: 0.1rem;
+    padding-inline: 0.45rem;
+  }
+
   .timestamped-layout .lyric-line-button {
     display: grid;
-    grid-template-columns: 4.8rem minmax(0, 1fr);
+    grid-template-columns: max-content minmax(0, 1fr);
     align-items: baseline;
     gap: 0.65rem;
-    padding: 0.28rem 0.35rem;
+    padding: 0.16rem 0.25rem;
     border-radius: inherit;
     line-height: inherit;
   }

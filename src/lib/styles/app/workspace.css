@@ -596,6 +596,10 @@
   transform: translateY(-0.01rem);
 }
 
+.now-playing-tabs .workspace-tab-close-slot {
+  top: calc(50% - 0.12rem);
+}
+
 .now-playing-tab-panel {
   flex: 1;
   width: 100%;
