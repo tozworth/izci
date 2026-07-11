@@ -1447,6 +1447,7 @@
       backdropEffect={backdropZones.player}
       backdropArtworkSettings={backdropZoneArtwork.player}
       artworkBackgroundBright={artworkBackgroundBrightByZone.player}
+      hasCollectionItems={playlistItems.length > 0 || libraryItems.length > 0}
       on:toggle={() => void playbackCommands.togglePlayback()}
       on:previous={() => void playbackCommands.stepTrack(-1)}
       on:next={() => void playbackCommands.stepTrack(1)}

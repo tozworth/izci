@@ -100,6 +100,7 @@ export interface AppearanceSettings {
   compactPlayerBar: boolean;
   keepLibraryColumnsVisibleInNarrowLayout: boolean;
   keepEmptyWorkspacePanelsOpen: boolean;
+  showIdlePlayerQuips: boolean;
   useSystemFont: boolean;
   backdropZones: BackdropZoneSettings;
   backdropZoneArtwork: BackdropZoneArtworkSettingsMap;

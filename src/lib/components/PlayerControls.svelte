@@ -6,6 +6,7 @@
     type PlayerArtworkPalette
   } from '$lib/services/artwork-palette';
   import type { LoadedStreamArtwork } from '$lib/services/stream-artwork';
+  import { sessionIdlePlayerQuip } from '$lib/services/idle-player-copy';
   import {
     appearanceSettings,
     hasArtworkBackdrop,
@@ -31,6 +32,7 @@
   export let presentation: 'bar' | 'now-playing' = 'bar';
   export let useArtworkColorsOverride: boolean | null = null;
   export let artworkColorSurfaceBright = false;
+  export let hasCollectionItems = false;
 
   const dispatch = createEventDispatcher<{
     toggle: void;
@@ -334,7 +336,13 @@
           </button>
         {/if}
       {:else}
-        <span>Drop files to begin</span>
+        <span>
+          {hasCollectionItems
+            ? $appearanceSettings.showIdlePlayerQuips
+              ? sessionIdlePlayerQuip
+              : 'Ready'
+            : 'Drop files to begin'}
+        </span>
       {/if}
     </div>
   </div>

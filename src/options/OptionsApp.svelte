@@ -216,6 +216,12 @@
     });
   }
 
+  function handleIdlePlayerQuipsToggle(event: Event) {
+    appearanceSettings.update({
+      showIdlePlayerQuips: (event.currentTarget as HTMLInputElement).checked
+    });
+  }
+
   function handleAutoNowPlayingToggle(event: Event) {
     appearanceSettings.update({
       autoNowPlayingOnMaximized: (event.currentTarget as HTMLInputElement).checked
@@ -756,6 +762,22 @@
                 </div>
                 <p class="field-hint">
                   Leaves a dock panel in place after its last tab closes instead of letting neighboring panels fill the space.
+                </p>
+              </label>
+
+              <label class="field checkbox-field">
+                <div class="field-copy">
+                  <span class="field-title">Show idle player quips</span>
+                </div>
+                <div class="field-control checkbox-control">
+                  <input
+                    type="checkbox"
+                    checked={$appearanceSettings.showIdlePlayerQuips}
+                    on:change={handleIdlePlayerQuipsToggle}
+                  />
+                </div>
+                <p class="field-hint">
+                  Shows a randomly chosen quip in the idle player bar when the playlist or library has music.
                 </p>
               </label>
 
