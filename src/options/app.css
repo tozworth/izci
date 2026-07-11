@@ -53,7 +53,7 @@ code {
 }
 
 .material-symbols-outlined {
-  font-size: 18px;
+  font-size: 16px;
   line-height: 1;
 }
 
@@ -64,6 +64,7 @@ code {
   grid-template-rows: auto minmax(0, 1fr);
   overflow: hidden;
   background: var(--options-body-background);
+  font-size: 0.8rem;
 }
 
 .options-shell.window-controls-overlay-active {
@@ -110,7 +111,7 @@ code {
   display: flex;
   align-items: center;
   gap: 0.3ch;
-  font-size: 0.92rem;
+  font-size: 0.8rem;
   line-height: 1.1;
 }
 
@@ -174,7 +175,7 @@ code {
 }
 
 .options-main {
-  --tree-width: 204px;
+  --tree-width: 184px;
   min-height: 0;
   display: grid;
   grid-template-columns: minmax(156px, var(--tree-width)) 1px minmax(0, 1fr);
@@ -187,7 +188,7 @@ code {
 }
 
 .tree-panel {
-  padding: 10px 8px 10px 10px;
+  padding: 8px 6px 8px 8px;
   background: var(--bg-tree);
   border-right: 1px solid var(--border-soft);
   overflow: auto;
@@ -210,11 +211,11 @@ code {
   color: inherit;
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   text-align: left;
   border-radius: 6px;
-  padding: 4px 8px;
-  font-size: 0.92rem;
+  padding: 3px 7px;
+  font-size: 0.8rem;
 }
 
 .tree-item:hover {
@@ -227,7 +228,7 @@ code {
 }
 
 .tree-item.child {
-  padding-left: 22px;
+  padding-left: 18px;
   color: var(--muted-strong);
 }
 
@@ -269,7 +270,7 @@ code {
 }
 
 .content-panel {
-  padding: 10px 12px;
+  padding: 8px 10px;
   overflow: auto;
 }
 
@@ -278,12 +279,12 @@ code {
 }
 
 .section + .section {
-  margin-top: 16px;
+  margin-top: 12px;
 }
 
 .section h2 {
-  margin: 0 0 10px;
-  font-size: 0.82rem;
+  margin: 0 0 8px;
+  font-size: 0.72rem;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--muted);
@@ -362,8 +363,8 @@ code {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(180px, auto);
   align-items: center;
-  gap: 10px;
-  padding: 8px 0;
+  gap: 8px;
+  padding: 6px 0;
   border-bottom: 1px solid var(--border-faint);
 }
 
@@ -376,7 +377,7 @@ code {
 }
 
 .field-title {
-  font-size: 0.96rem;
+  font-size: 0.8rem;
 }
 
 .field-control {
@@ -441,7 +442,7 @@ code {
 
 .backdrop-zone-slider-label {
   color: var(--muted);
-  font-size: 0.84rem;
+  font-size: 0.75rem;
 }
 
 .field input[type="number"] {
@@ -456,7 +457,7 @@ code {
 .field-hint {
   margin: 0;
   grid-column: 1 / -1;
-  font-size: 0.84rem;
+  font-size: 0.75rem;
   color: var(--muted);
 }
 

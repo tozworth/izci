@@ -256,7 +256,8 @@
   text-overflow: ellipsis;
 }
 
-.player-track span {
+.player-track span,
+.player-track-subtitle {
   display: block;
   color: var(--muted);
   font-size: 0.88rem;
@@ -692,7 +693,7 @@
   flex: 0 1 auto;
 }
 
-.compact-player-bar .player-track-title strong {
+.compact-player-bar .player-track strong {
   font-size: 0.8rem;
 }
 

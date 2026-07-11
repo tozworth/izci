@@ -138,7 +138,7 @@
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    gap: 0.75rem;
+    gap: 0.6rem;
     width: 100%;
   }
 
@@ -150,7 +150,7 @@
   .playlist-actions {
     display: inline-flex;
     align-items: center;
-    gap: 0.7rem;
+    gap: 0.52rem;
     margin-left: auto;
     flex-shrink: 0;
     justify-content: flex-end;
@@ -180,7 +180,7 @@
 
   .playlist-action-button .material-symbols-outlined,
   .playlist-add-files .material-symbols-outlined {
-    font-size: 1.15rem;
+    font-size: 1rem;
     line-height: 1;
   }
 

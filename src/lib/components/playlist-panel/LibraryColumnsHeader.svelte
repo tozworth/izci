@@ -91,7 +91,7 @@
   .track-column-header {
     position: relative;
     min-width: 0;
-    min-height: 1.72rem;
+    min-height: 1.45rem;
     display: flex;
     align-items: stretch;
     border: 0;
@@ -140,7 +140,7 @@
     display: flex;
     align-items: center;
     min-width: 0;
-    padding: 0.24rem 0.35rem 0.22rem;
+    padding: 0.16rem 0.3rem 0.14rem;
     color: var(--muted);
     background: transparent;
     text-align: left;
@@ -180,7 +180,7 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-size: 0.78rem;
+    font-size: 0.7rem;
     letter-spacing: 0;
     text-transform: uppercase;
   }

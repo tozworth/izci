@@ -431,7 +431,7 @@ export function createWorkspaceShellController({
       clearSelection(getOtherWorkspaceCollection(state.activeCollection));
     }
 
-    const isTabbedLayout = lastInputs.innerWidth <= 750;
+    const isTabbedLayout = lastInputs.innerWidth <= 660;
     const viewportWidth =
       lastInputs.innerWidth > 0
         ? lastInputs.innerWidth

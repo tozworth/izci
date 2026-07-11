@@ -83,7 +83,7 @@
     grid-template-columns: var(--track-table-columns);
     column-gap: var(--track-table-gap);
     align-items: center;
-    padding: 0.03rem 0;
+    padding: 0.01rem 0;
     color: var(--text);
     background: transparent;
     border: 0;
@@ -105,9 +105,9 @@
     position: relative;
     z-index: 1;
     min-width: 0;
-    min-height: 1.62rem;
+    min-height: 1.4rem;
     display: block;
-    padding: 0.28rem 0.35rem 0.26rem;
+    padding: 0.18rem 0.3rem 0.16rem;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;

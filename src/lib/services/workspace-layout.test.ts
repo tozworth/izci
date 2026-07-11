@@ -28,9 +28,9 @@ describe('workspace layout', () => {
   it('resolves wide panel widths while preserving total content width', () => {
     const widths = resolveWidePanelWidths(balancedLayout, 1000);
 
-    expect(widths.left).toBeGreaterThanOrEqual(250);
+    expect(widths.left).toBeGreaterThanOrEqual(210);
     expect(widths.center).toBeGreaterThanOrEqual(320);
-    expect(widths.right).toBeGreaterThanOrEqual(240);
+    expect(widths.right).toBeGreaterThanOrEqual(200);
     expect(totalWidth(widths)).toBeCloseTo(1000);
   });
 

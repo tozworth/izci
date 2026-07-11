@@ -299,23 +299,21 @@
   style={rootStyle}
 >
   <div class="player-track-group">
-    {#if displayTrack || presentation === 'now-playing'}
-      <button
-        type="button"
-        class="player-artwork-button"
-        aria-label="Show current track details"
-        disabled={!displayTrack}
-        on:click={handleShowTrack}
-      >
-        <div class="player-artwork" aria-hidden="true">
-          {#if artwork}
-            <img class="player-artwork-image" src={artwork.url} alt="" />
-          {:else}
-            <div class="player-artwork-placeholder"></div>
-          {/if}
-        </div>
-      </button>
-    {/if}
+    <button
+      type="button"
+      class="player-artwork-button"
+      aria-label="Show current track details"
+      disabled={!displayTrack}
+      on:click={handleShowTrack}
+    >
+      <div class="player-artwork" aria-hidden="true">
+        {#if artwork}
+          <img class="player-artwork-image" src={artwork.url} alt="" />
+        {:else}
+          <div class="player-artwork-placeholder"></div>
+        {/if}
+      </div>
+    </button>
 
     <div class="player-track">
       {#if displayTrack}

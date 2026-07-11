@@ -9,9 +9,9 @@ const HORIZONTAL_PADDING = 0;
 
 export const WORKSPACE_RESIZER_WIDTH = 1;
 export const WIDE_PANEL_MIN_WIDTHS: Record<WorkspacePanelId, number> = {
-  left: 250,
+  left: 210,
   center: 320,
-  right: 240
+  right: 200
 };
 
 interface WideWorkspaceLayoutOptions {

@@ -246,7 +246,7 @@
     flex: 1;
     min-height: 0;
     overflow: auto;
-    padding: 0 0.9rem;
+    padding: 0 0.72rem;
   }
 
   .details-content.tabbed-layout,
@@ -256,8 +256,8 @@
 
   .detail-section {
     display: grid;
-    gap: 0.35rem;
-    padding: 0.95rem 0;
+    gap: 0.28rem;
+    padding: 0.72rem 0;
   }
 
   .detail-section:first-child {
@@ -298,9 +298,9 @@
   .section-heading {
     display: inline-flex;
     align-items: center;
-    gap: 0.45rem;
+    gap: 0.35rem;
     margin: 0;
-    font-size: 0.95rem;
+    font-size: 0.82rem;
     font-weight: 700;
     line-height: 1.2;
     color: var(--text);
@@ -313,7 +313,7 @@
 
   .track-title {
     margin: 0;
-    font-size: 1.45rem;
+    font-size: 1.18rem;
     line-height: 1.1;
     font-weight: 700;
     color: var(--text-strong);
@@ -322,12 +322,12 @@
   .track-artist {
     margin: 0;
     color: var(--muted);
-    font-size: 0.98rem;
+    font-size: 0.84rem;
   }
 
   .metadata-list {
     display: grid;
-    gap: 0.72rem;
+    gap: 0.52rem;
     margin: 0;
   }
 
