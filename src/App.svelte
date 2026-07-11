@@ -99,6 +99,7 @@
 
   let playlistItems: PlaylistItem[] = [];
   let libraryItems: PlaylistItem[] = [];
+  let collectionsReady = false;
   let playlistSelectionIds: string[] = [];
   let librarySelectionIds: string[] = [];
   let librarySelectionAnchorId: string | null = null;
@@ -205,6 +206,9 @@
   let miniModeActive = windowMiniMode.getSnapshot().active;
   const unsubscribePlaylistItems = playlistItemsStore.subscribe((value) => (playlistItems = value));
   const unsubscribeLibraryItems = libraryItemsStore.subscribe((value) => (libraryItems = value));
+  void Promise.all([playlistStore.ready(), libraryStore.ready()]).then(() => {
+    collectionsReady = true;
+  });
   const unsubscribePlaylistSelectedIds = playlistSelectedIdsStore.subscribe(
     (value) => (playlistSelectionIds = value)
   );
@@ -1448,6 +1452,7 @@
       backdropArtworkSettings={backdropZoneArtwork.player}
       artworkBackgroundBright={artworkBackgroundBrightByZone.player}
       hasCollectionItems={playlistItems.length > 0 || libraryItems.length > 0}
+      {collectionsReady}
       on:toggle={() => void playbackCommands.togglePlayback()}
       on:previous={() => void playbackCommands.stepTrack(-1)}
       on:next={() => void playbackCommands.stepTrack(1)}

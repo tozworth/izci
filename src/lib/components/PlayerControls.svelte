@@ -33,6 +33,7 @@
   export let useArtworkColorsOverride: boolean | null = null;
   export let artworkColorSurfaceBright = false;
   export let hasCollectionItems = false;
+  export let collectionsReady = true;
 
   const dispatch = createEventDispatcher<{
     toggle: void;
@@ -336,13 +337,15 @@
           </button>
         {/if}
       {:else}
-        <span>
-          {hasCollectionItems
-            ? $appearanceSettings.showIdlePlayerQuips
-              ? sessionIdlePlayerQuip
-              : 'Ready'
-            : 'Drop files to begin'}
-        </span>
+        {#if collectionsReady}
+          <span>
+            {hasCollectionItems
+              ? $appearanceSettings.showIdlePlayerQuips
+                ? sessionIdlePlayerQuip
+                : 'Ready'
+              : 'Drop files to begin'}
+          </span>
+        {/if}
       {/if}
     </div>
   </div>
