@@ -286,12 +286,16 @@
   background: transparent;
   color: var(--text);
   transition:
-    color 180ms ease,
-    background 180ms ease;
+    color 120ms ease,
+    filter 120ms ease-out;
 }
 
 .transport-button:hover:not(:disabled) {
-  background-color: var(--hover-control);
+  background: transparent;
+  transition-duration: 0ms;
+  filter:
+    drop-shadow(0 0 0.28rem color-mix(in srgb, currentColor 48%, transparent))
+    drop-shadow(0 0 0.7rem color-mix(in srgb, var(--accent-strong) 28%, transparent));
 }
 
 .transport-button:disabled {
@@ -865,6 +869,7 @@
 
 .player-bar:not(.compact-player-bar):not(.now-playing-player) .player-actions {
   gap: 0.16rem;
+  transform: translateX(0.35rem);
 }
 
 .player-bar:not(.compact-player-bar):not(.now-playing-player) .transport-button {
