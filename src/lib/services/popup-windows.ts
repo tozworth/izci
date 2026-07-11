@@ -10,8 +10,8 @@ export const popupWindows = {
     path: '/options.html',
     features: {
       popup: true,
-      width: 720,
-      height: 520,
+      width: 680,
+      height: 460,
       resizable: true,
       scrollbars: true
     }
