@@ -15,7 +15,7 @@
 - Offline PWA functionality is required and must not regress.
 - Target Chromium/Blink desktop and installed PWA behavior. Prefer Chrome APIs and desktop-PWA integrations over compatibility shims.
 - Assume no backend. The app runs locally against user-selected files and file handles.
-- Do not start local dev/preview servers or perform browser inspection unless the user explicitly asks for that verification path. Prefer static inspection, focused tests, `npm run check`, or `npm run build` when verification is needed.
+- Run a build (`npm run build`) after every source change so user's hot reload stays current. However, do not start local dev/preview servers or perform browser inspection yourself unless user explicitly asks. Prefer static inspection, focused tests, `npm run check`, or `npm run build`.
 - Do not use the Codex built-in browser as proof for installed-PWA-only behavior such as Window Controls Overlay, file handlers, or desktop window integrations; verify those paths only when explicitly requested and only in an appropriate Chromium/PWA surface.
 - Keep playback, persistence, and browser-integration logic in services and stores, not inside Svelte components.
 - Preserve local persistence and cross-window sync behavior:
