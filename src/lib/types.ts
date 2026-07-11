@@ -97,6 +97,7 @@ export interface AppearanceSettings {
   colorTheme: ColorTheme;
   useArtworkPlayerColors: boolean;
   useNowPlayingArtworkPlayerColors: boolean;
+  compactPlayerBar: boolean;
   keepLibraryColumnsVisibleInNarrowLayout: boolean;
   keepEmptyWorkspacePanelsOpen: boolean;
   useSystemFont: boolean;

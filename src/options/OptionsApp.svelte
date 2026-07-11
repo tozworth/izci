@@ -192,6 +192,12 @@
     });
   }
 
+  function handleCompactPlayerBarToggle(event: Event) {
+    appearanceSettings.update({
+      compactPlayerBar: (event.currentTarget as HTMLInputElement).checked
+    });
+  }
+
   function handleNowPlayingArtworkPlayerColorsToggle(event: Event) {
     appearanceSettings.update({
       useNowPlayingArtworkPlayerColors: (event.currentTarget as HTMLInputElement).checked
@@ -718,6 +724,22 @@
                 </div>
                 <p class="field-hint">
                   Prevents the slim-window library view from collapsing to title-only rows.
+                </p>
+              </label>
+
+              <label class="field checkbox-field">
+                <div class="field-copy">
+                  <span class="field-title">Compact player bar</span>
+                </div>
+                <div class="field-control checkbox-control">
+                  <input
+                    type="checkbox"
+                    checked={$appearanceSettings.compactPlayerBar}
+                    on:change={handleCompactPlayerBarToggle}
+                  />
+                </div>
+                <p class="field-hint">
+                  Fits track information, compact transport controls, seek, and popup volume into one small row.
                 </p>
               </label>
 

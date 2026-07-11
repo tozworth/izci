@@ -50,6 +50,7 @@
   let playerBarElement: HTMLElement | null = null;
   let playerBarResizeObserver: ResizeObserver | null = null;
   let playerBarReserveFrame: number | null = null;
+  let viewportUsesCompactVolume = false;
   let isCompactVolume = false;
   let isVolumePopupOpen = false;
   let volumePopupTimer: ReturnType<typeof window.setTimeout> | null = null;
@@ -218,7 +219,7 @@
     const mediaQuery = window.matchMedia(COMPACT_VOLUME_QUERY);
 
     const syncCompactVolume = () => {
-      isCompactVolume = mediaQuery.matches;
+      viewportUsesCompactVolume = mediaQuery.matches;
       closeVolumePopup();
     };
 
@@ -247,6 +248,8 @@
   });
 
   $: snapshot = $snapshotStore;
+  $: compactPlayerBar = presentation === 'bar' && $appearanceSettings.compactPlayerBar;
+  $: isCompactVolume = viewportUsesCompactVolume || compactPlayerBar;
   $: displayTrack = track;
   $: displayDuration = track ? snapshot.duration : 0;
   $: artworkBackgroundActive = hasArtworkBackdrop(backdropEffect) && Boolean(artwork);
@@ -285,6 +288,7 @@
   bind:this={playerBarElement}
   class="player-bar"
   class:now-playing-player={presentation === 'now-playing'}
+  class:compact-player-bar={compactPlayerBar}
   class:artwork-background-active={artworkBackgroundActive}
   class:artwork-background-bright={artworkBackgroundActive && artworkBackgroundBright}
   class:visualizer-backdrop-active={visualizerBackdropActive}
