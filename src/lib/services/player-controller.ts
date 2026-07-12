@@ -1,4 +1,5 @@
 import { writable } from 'svelte/store';
+import { audioBusService } from '$lib/services/audio-bus';
 import { HowlerPlayerService } from '$lib/services/howler-player';
 import { ModulePlayerService } from '$lib/services/module-player';
 import { metadataSettings } from '$lib/stores/metadata-settings';
@@ -272,6 +273,7 @@ function createPlayerController() {
       unsubscribePlaybackSettings();
       services.stream.destroy();
       services.module.destroy();
+      audioBusService.destroy();
     }
   };
 }

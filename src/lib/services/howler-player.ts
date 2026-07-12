@@ -1,7 +1,7 @@
 import { Howl } from 'howler';
+import { audioBusService } from '$lib/services/audio-bus';
 import type { PlaybackSnapshot, PlaylistItem, ReplayGainMetadata, ReplayGainMode, TrackMetadata } from '$lib/types';
 import { applyReplayGain, sliderVolumeToGain } from '$lib/services/volume';
-import { visualizerService } from '$lib/services/visualizer';
 
 type SnapshotHandler = (snapshot: Partial<PlaybackSnapshot>) => void;
 type MetadataHandler = (metadata: TrackMetadata) => void;
@@ -20,6 +20,7 @@ const PROGRESS_PUBLISH_INTERVAL_SECONDS = 0.125;
 
 export class HowlerPlayerService {
   #howl: Howl | null = null;
+  #audioSource: MediaElementAudioSourceNode | null = null;
   #loadToken = 0;
   #autoPlayOnLoad = false;
   #tickFrame: number | null = null;
@@ -67,6 +68,7 @@ export class HowlerPlayerService {
           return;
         }
 
+        this.#connectAudioBus();
         const duration = this.#howl?.duration() ?? 0;
         const bitrate = duration > 0 ? Math.round((track.size * 8) / duration / 1000) : undefined;
         this.#onMetadata({
@@ -86,7 +88,8 @@ export class HowlerPlayerService {
           return;
         }
 
-        this.#connectVisualizer();
+        this.#connectAudioBus();
+        audioBusService.resume();
         this.#shouldTrackProgress = true;
         this.#publishProgress(true);
         this.#startTicking();
@@ -197,17 +200,23 @@ export class HowlerPlayerService {
     this.#replayGain = undefined;
     this.#resetPublishedProgress();
     this.#stopTicking();
+    audioBusService.disconnect(this.#audioSource);
+    this.#audioSource = null;
     this.#howl?.unload();
     this.#howl = null;
-    visualizerService.clear();
   }
 
-  #connectVisualizer(): void {
+  #connectAudioBus(): void {
     const mediaElement = (this.#howl as HowlWithSounds | null)?._sounds?.find(
       (sound) => sound._node instanceof HTMLMediaElement
     )?._node;
 
-    visualizerService.connectHtmlMediaElement(mediaElement ?? null);
+    if (!mediaElement || this.#audioSource?.mediaElement === mediaElement) {
+      return;
+    }
+
+    audioBusService.disconnect(this.#audioSource);
+    this.#audioSource = audioBusService.connectHtmlMediaElement(mediaElement);
   }
 
   #startTicking(): void {

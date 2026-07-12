@@ -45,6 +45,7 @@ declare module 'chiptune3' {
   export class ChiptuneJsPlayer {
     context: AudioContext;
     gain: GainNode;
+    processNode?: AudioWorkletNode;
     duration?: number;
     currentTime?: number;
     order?: number;

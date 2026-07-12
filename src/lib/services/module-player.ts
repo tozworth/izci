@@ -1,7 +1,7 @@
 import { createChiptunePlayer } from '$lib/services/chiptune-loader';
+import { audioBusService } from '$lib/services/audio-bus';
 import { mediaSessionService } from '$lib/services/media-session';
 import { sliderVolumeToGain } from '$lib/services/volume';
-import { visualizerService } from '$lib/services/visualizer';
 import { modulePlaybackSettings } from '$lib/stores/module-playback-settings';
 import type { ModulePlaybackSettings, PlaybackSnapshot, PlaylistItem, TrackMetadata } from '$lib/types';
 import type { Chiptune3Metadata, ChiptuneJsPlayer } from 'chiptune3';
@@ -68,7 +68,7 @@ export class ModulePlayerService {
     }
 
     this.#player = player;
-    visualizerService.connectAudioNode(player.gain);
+    audioBusService.connectAudioNode(player.gain);
     mediaSessionService.activateTransportAnchor();
     mediaSessionService.pauseTransportAnchor();
     const buffer = await track.file.arrayBuffer();
@@ -89,7 +89,7 @@ export class ModulePlayerService {
       return;
     }
 
-    void this.#player.context.resume();
+    audioBusService.resume();
 
     if (!this.#started) {
       this.#player.play(this.#buffer);
@@ -192,7 +192,7 @@ export class ModulePlayerService {
     const player = this.#player;
 
     this.#player = null;
-    visualizerService.clear();
+    audioBusService.disconnect(player?.gain ?? null);
 
     if (!player) {
       return;
@@ -209,7 +209,7 @@ export class ModulePlayerService {
         // Ignore disconnect failures during teardown.
       }
 
-      void player.context.close().catch(() => undefined);
+      this.#disposeProcessNode(player);
     }
   }
 
@@ -229,7 +229,7 @@ export class ModulePlayerService {
     }
 
     this.#player = player;
-    visualizerService.connectAudioNode(player.gain);
+    audioBusService.connectAudioNode(player.gain);
     mediaSessionService.activateTransportAnchor();
 
     if (!wasStarted || !buffer || !this.#player) {
@@ -365,7 +365,8 @@ export class ModulePlayerService {
     return {
       repeatCount: settings.repeatCount,
       stereoSeparation: this.#getStereoWidth(settings),
-      interpolationFilter: settings.interpolationFilter
+      interpolationFilter: settings.interpolationFilter,
+      context: audioBusService.context
     };
   }
 
@@ -427,7 +428,21 @@ export class ModulePlayerService {
         // Ignore disconnect failures during teardown.
       }
 
-      void player.context.close().catch(() => undefined);
+      this.#disposeProcessNode(player);
+    }
+  }
+
+  #disposeProcessNode(player: ChiptuneJsPlayer): void {
+    try {
+      player.processNode?.disconnect();
+    } catch {
+      // Ignore teardown failures for worklets that never finished initializing.
+    }
+
+    try {
+      player.processNode?.port.close();
+    } catch {
+      // Ignore teardown failures for worklets whose ports already closed.
     }
   }
 
