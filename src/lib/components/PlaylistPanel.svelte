@@ -163,9 +163,56 @@
     clearColumnInteractions();
   }
 
+  async function focusTrackRow(id: string) {
+    await tick();
+
+    if (!dropzoneElement || typeof CSS === 'undefined' || typeof CSS.escape !== 'function') {
+      return;
+    }
+
+    const rowButton = dropzoneElement.querySelector<HTMLButtonElement>(
+      `[data-track-id="${CSS.escape(id)}"] [data-track-row-button]`
+    );
+    rowButton?.focus();
+    await scrollTrackIntoView(id);
+  }
+
   function handleWindowKeydown(event: KeyboardEvent) {
     if (event.key === 'Escape') {
       handleWindowDismiss();
+      return;
+    }
+
+    if (
+      (event.key === 'ArrowUp' || event.key === 'ArrowDown') &&
+      !event.ctrlKey &&
+      !event.altKey &&
+      !event.metaKey &&
+      event.target instanceof Element &&
+      dropzoneElement?.contains(event.target)
+    ) {
+      const currentRow = event.target.closest<HTMLElement>('[data-track-id]');
+      const currentIndex = currentRow
+        ? displayItems.findIndex((item) => item.id === currentRow.dataset.trackId)
+        : -1;
+
+      if (currentIndex < 0) {
+        return;
+      }
+
+      const nextIndex = clamp(currentIndex + (event.key === 'ArrowUp' ? -1 : 1), 0, displayItems.length - 1);
+      const nextItem = displayItems[nextIndex];
+      event.preventDefault();
+
+      if (!nextItem || nextIndex === currentIndex) {
+        return;
+      }
+
+      dispatch(
+        'setSelection',
+        buildOrderedSelection(displayItems, selectedIds, selectionAnchorId, nextItem.id, event.shiftKey, false)
+      );
+      void focusTrackRow(nextItem.id);
     }
   }
 
