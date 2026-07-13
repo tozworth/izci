@@ -14,6 +14,7 @@ type HowlWithSounds = Howl & {
 
 interface StreamLoadOptions {
   autoPlay?: boolean;
+  initialPosition?: number;
 }
 
 const PROGRESS_PUBLISH_INTERVAL_SECONDS = 0.125;
@@ -23,6 +24,7 @@ export class HowlerPlayerService {
   #audioSource: MediaElementAudioSourceNode | null = null;
   #loadToken = 0;
   #autoPlayOnLoad = false;
+  #initialPosition = 0;
   #tickFrame: number | null = null;
   #shouldTrackProgress = false;
   #useLogarithmicVolume = true;
@@ -50,6 +52,7 @@ export class HowlerPlayerService {
     this.#resetPublishedProgress();
     this.#replayGain = track.metadata?.replayGain;
     this.#autoPlayOnLoad = options.autoPlay === true;
+    this.#initialPosition = Math.max(options.initialPosition ?? 0, 0);
     this.#onSnapshot({
       backend: 'stream',
       state: 'loading',
@@ -70,18 +73,23 @@ export class HowlerPlayerService {
 
         this.#connectAudioBus();
         const duration = this.#howl?.duration() ?? 0;
+        const initialPosition = Math.min(this.#initialPosition, duration);
         const bitrate = duration > 0 ? Math.round((track.size * 8) / duration / 1000) : undefined;
         this.#onMetadata({
           duration,
           bitrate
         });
 
+        if (initialPosition > 0) {
+          this.#howl?.seek(initialPosition);
+        }
+
         if (this.#autoPlayOnLoad) {
           this.#howl?.play();
           return;
         }
 
-        this.#onSnapshot({ duration, state: 'paused' });
+        this.#onSnapshot({ currentTime: initialPosition, duration, state: 'paused' });
       },
       onplay: () => {
         if (!this.#isActiveLoad(loadToken)) {
@@ -196,6 +204,7 @@ export class HowlerPlayerService {
   destroy(): void {
     this.#loadToken += 1;
     this.#autoPlayOnLoad = false;
+    this.#initialPosition = 0;
     this.#shouldTrackProgress = false;
     this.#replayGain = undefined;
     this.#resetPublishedProgress();

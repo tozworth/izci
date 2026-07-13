@@ -148,8 +148,12 @@ function createPlayerController() {
     snapshot,
     status,
     currentTrack,
-    async load(track: PlaylistItem, options: { autoPlay?: boolean } = {}) {
+    async load(
+      track: PlaylistItem,
+      options: { autoPlay?: boolean; initialPosition?: number } = {}
+    ) {
       const autoPlay = options.autoPlay === true;
+      const initialPosition = Math.max(options.initialPosition ?? 0, 0);
       const preparedTrack = applyMetadataInference(track);
       desiredPlaybackState = autoPlay ? 'playing' : 'paused';
       activeTrack = preparedTrack;
@@ -158,7 +162,7 @@ function createPlayerController() {
       services.module.stop({ silent: true });
 
       if (preparedTrack.kind === 'stream') {
-        services.stream.load(preparedTrack, { autoPlay });
+        services.stream.load(preparedTrack, { autoPlay, initialPosition });
         applyBackendVolume();
       } else {
         const pendingDuration = preparedTrack.metadata?.duration ?? 0;
@@ -177,6 +181,13 @@ function createPlayerController() {
 
         if (desiredPlaybackState === 'playing') {
           services.module.play();
+          if (initialPosition > 0) {
+            services.module.seek(initialPosition);
+          }
+        } else if (initialPosition > 0) {
+          services.module.play();
+          services.module.seek(initialPosition);
+          services.module.pause();
         } else if (latestState === 'loading') {
           onSnapshot({ state: 'paused', error: undefined });
         }
@@ -186,7 +197,7 @@ function createPlayerController() {
 
       onSnapshot({
         state: autoPlay ? 'playing' : 'loading',
-        currentTime: 0,
+        currentTime: initialPosition,
         duration: preparedTrack.metadata?.duration ?? 0,
         backend: preparedTrack.kind,
         error: undefined

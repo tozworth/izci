@@ -43,7 +43,11 @@
     MODULE_INTERPOLATION_OPTIONS,
     modulePlaybackSettings
   } from '$lib/stores/module-playback-settings';
-  import { REPLAY_GAIN_MODE_OPTIONS, playbackSettings } from '$lib/stores/playback-settings';
+  import {
+    PLAYBACK_RESTORE_MODE_OPTIONS,
+    REPLAY_GAIN_MODE_OPTIONS,
+    playbackSettings
+  } from '$lib/stores/playback-settings';
   import { rafSettings } from '$lib/stores/raf-settings';
   import { formatDisplayVersion } from '$lib/utils/version';
   import {
@@ -58,6 +62,7 @@
     BackdropZoneId,
     ColorTheme,
     LyricsDisplayStyle,
+    PlaybackRestoreMode,
     ReplayGainMode,
     VisualizerColorSource,
     VisualizerSettings,
@@ -441,6 +446,12 @@
   function handleReplayGainModeChange(event: Event) {
     playbackSettings.update({
       replayGainMode: (event.currentTarget as HTMLSelectElement).value as ReplayGainMode
+    });
+  }
+
+  function handlePlaybackRestoreModeChange(event: Event) {
+    playbackSettings.update({
+      restoreMode: (event.currentTarget as HTMLSelectElement).value as PlaybackRestoreMode
     });
   }
 
@@ -1192,6 +1203,30 @@
 
       {#if activeView === 'playback'}
         <article class="view">
+          <div class="section">
+            <h2>Startup</h2>
+            <div class="field-grid">
+              <label class="field">
+                <div class="field-copy">
+                  <span class="field-title">Restore playback</span>
+                </div>
+                <div class="field-control">
+                  <select
+                    value={$playbackSettings.restoreMode}
+                    on:change={handlePlaybackRestoreModeChange}
+                  >
+                    {#each PLAYBACK_RESTORE_MODE_OPTIONS as option}
+                      <option value={option.value}>{option.label}</option>
+                    {/each}
+                  </select>
+                </div>
+                <p class="field-hint">
+                  Restores the current track and position after a reload. Position and state also resumes playback when Chromium allows it.
+                </p>
+              </label>
+            </div>
+          </div>
+
           <div class="section">
             <h2>Volume</h2>
             <div class="field-grid">

@@ -5,6 +5,7 @@ export type TrackKind = 'stream' | 'module';
 export type PlaybackState = 'idle' | 'loading' | 'playing' | 'paused' | 'ended' | 'error';
 export type ModuleInterpolationFilter = 1 | 2 | 4 | 8;
 export type PlaylistRepeatMode = 'off' | 'one' | 'all';
+export type PlaybackRestoreMode = 'disabled' | 'position' | 'position-and-state';
 export type SortDirection = 'asc' | 'desc';
 export type LibraryColumnId = 'title' | 'artist' | 'album' | 'format' | 'duration' | 'plays';
 export type ColorTheme = 'gray' | 'coal' | 'lights-out' | 'nordic' | 'gruvbox' | 'dracula' | 'ember';
@@ -162,6 +163,7 @@ export interface AppearanceSettings {
 export interface PlaybackSettings {
   logarithmicVolume: boolean;
   replayGainMode: ReplayGainMode;
+  restoreMode: PlaybackRestoreMode;
   enableRaf: boolean;
 }
 

@@ -24,6 +24,7 @@
   import { subscribeToLaunchedFiles } from '$lib/services/file-launch';
   import { getTrackLyricsLoadKey, loadTrackLyrics } from '$lib/services/lyrics';
   import { createPlaybackCommandsController } from '$lib/services/playback-commands';
+  import { createPlaybackRestorationController } from '$lib/services/playback-restoration';
   import { forceServiceWorkerUpdateCheck } from '$lib/services/pwa-updates';
   import { createWorkspaceShellController } from '$lib/services/workspace-shell';
   import { mediaSessionService } from '$lib/services/media-session';
@@ -196,6 +197,14 @@
   const playCountTracker = createPlayCountTracker({
     incrementLibraryPlayCount
   });
+  const playbackRestoration = createPlaybackRestorationController({
+    track: playerController.currentTrack,
+    snapshot: playerController.snapshot,
+    getPlaylistTrack: (id) => playlistItems.find((item) => item.id === id) ?? null,
+    ensureLoaded: (id) => playlistStore.ensureLoaded(id),
+    selectTrack: (id) => workspaceShell.selectTrack('playlist', id),
+    loadTrack: (track, options) => playerController.load(track, options)
+  });
   let playbackCommandsState = playbackCommands.getSnapshot();
   const artworkPresentation = createArtworkPresentationController({
     resolveTrackSnapshot: (track) =>
@@ -208,8 +217,9 @@
   let appInstallState: AppInstallState = { available: false, showHint: false };
   const unsubscribePlaylistItems = playlistItemsStore.subscribe((value) => (playlistItems = value));
   const unsubscribeLibraryItems = libraryItemsStore.subscribe((value) => (libraryItems = value));
-  void Promise.all([playlistStore.ready(), libraryStore.ready()]).then(() => {
+  void Promise.all([playlistStore.ready(), libraryStore.ready()]).then(async () => {
     collectionsReady = true;
+    await playbackRestoration.restore();
   });
   const unsubscribePlaylistSelectedIds = playlistSelectedIdsStore.subscribe(
     (value) => (playlistSelectionIds = value)
@@ -1249,6 +1259,7 @@
   }
 
   onDestroy(() => {
+    playbackRestoration.destroy();
     artworkPresentation.destroy();
     playCountTracker.destroy();
     workspaceShell.destroy();
