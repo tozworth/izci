@@ -1,15 +1,19 @@
 import { visualizerService } from '$lib/services/visualizer';
 import { RafEngine } from '$lib/services/raf-engine';
+import { setAudioParam } from '$lib/services/raf-effects/shared';
 
 type AudioBusSource = AudioNode | MediaElementAudioSourceNode;
 
 export class AudioBusService {
   #context: AudioContext | null = null;
   #input: GainNode | null = null;
+  #output: GainNode | null = null;
   #rafEngine: RafEngine | null = null;
   #analyser: AnalyserNode | null = null;
   #activeSource: AudioBusSource | null = null;
   #mediaSources = new WeakMap<HTMLMediaElement, MediaElementAudioSourceNode>();
+  #inputGain = 1;
+  #outputGain = 1;
 
   get context(): AudioContext {
     this.#ensureGraph();
@@ -74,6 +78,22 @@ export class AudioBusService {
     }
   }
 
+  setInputGain(gain: number): void {
+    this.#inputGain = Math.max(gain, 0);
+
+    if (this.#input && this.#context) {
+      setAudioParam(this.#input.gain, this.#inputGain, this.#context);
+    }
+  }
+
+  setOutputGain(gain: number): void {
+    this.#outputGain = Math.max(gain, 0);
+
+    if (this.#output && this.#context) {
+      setAudioParam(this.#output.gain, this.#outputGain, this.#context);
+    }
+  }
+
   destroy(): void {
     this.disconnect(this.#activeSource);
     visualizerService.clear();
@@ -82,6 +102,7 @@ export class AudioBusService {
       this.#input?.disconnect();
       this.#rafEngine?.destroy();
       this.#analyser?.disconnect();
+      this.#output?.disconnect();
     } catch {
       // Ignore graph teardown races during window shutdown.
     }
@@ -90,6 +111,7 @@ export class AudioBusService {
 
     this.#context = null;
     this.#input = null;
+    this.#output = null;
     this.#rafEngine = null;
     this.#analyser = null;
     this.#mediaSources = new WeakMap();
@@ -128,15 +150,20 @@ export class AudioBusService {
 
     const context = new AudioContextConstructor();
     const input = context.createGain();
+    const output = context.createGain();
     const analyser = context.createAnalyser();
     const rafEngine = new RafEngine(context);
 
+    input.gain.value = this.#inputGain;
+    output.gain.value = this.#outputGain;
     input.connect(rafEngine.input);
     rafEngine.output.connect(analyser);
-    analyser.connect(context.destination);
+    analyser.connect(output);
+    output.connect(context.destination);
 
     this.#context = context;
     this.#input = input;
+    this.#output = output;
     this.#rafEngine = rafEngine;
     this.#analyser = analyser;
     visualizerService.setAnalyser(analyser);

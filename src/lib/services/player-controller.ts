@@ -6,6 +6,7 @@ import { metadataSettings } from '$lib/stores/metadata-settings';
 import { modulePlaybackSettings } from '$lib/stores/module-playback-settings';
 import { playbackSettings } from '$lib/stores/playback-settings';
 import { DEFAULT_PLAYER_VOLUME, playerVolume } from '$lib/stores/player-volume';
+import { applyReplayGain, sliderVolumeToGain } from '$lib/services/volume';
 import type { PlaybackSnapshot, PlaybackState, PlaylistItem, TrackKind, TrackMetadata } from '$lib/types';
 import { mergeInferredArtistTitle } from '$lib/utils/files';
 
@@ -87,13 +88,21 @@ function createPlayerController() {
     const effectiveVolume = muted ? 0 : volume;
     const streamReplayGain = activeTrack?.kind === 'stream' ? activeTrack.metadata?.replayGain : undefined;
 
+    audioBusService.setInputGain(
+      activeTrack?.kind === 'stream'
+        ? applyReplayGain(1, streamReplayGain, playbackConfig.replayGainMode)
+        : 1
+    );
+    audioBusService.setOutputGain(sliderVolumeToGain(effectiveVolume, playbackConfig.logarithmicVolume));
+
+    // This is audible only if Chromium cannot route Howler's media element
+    // through the shared Web Audio graph.
     services.stream.setVolume(
       effectiveVolume,
       playbackConfig.logarithmicVolume,
       streamReplayGain,
       playbackConfig.replayGainMode
     );
-    services.module.setVolume(effectiveVolume, playbackConfig.logarithmicVolume);
   };
 
   const setConfiguredVolume = (nextVolume: number) => {

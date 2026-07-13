@@ -30,6 +30,7 @@ export class HowlerPlayerService {
   #useLogarithmicVolume = true;
   #replayGainMode: ReplayGainMode = 'track';
   #replayGain: ReplayGainMetadata | undefined;
+  #fallbackVolume = 1;
   #lastPublishedCurrentTime = -1;
   #lastPublishedDuration = -1;
   #onSnapshot: SnapshotHandler;
@@ -198,7 +199,12 @@ export class HowlerPlayerService {
     this.#useLogarithmicVolume = logarithmicVolume;
     this.#replayGain = replayGain;
     this.#replayGainMode = replayGainMode;
-    this.#howl?.volume(applyReplayGain(sliderVolumeToGain(volume, this.#useLogarithmicVolume), replayGain, replayGainMode));
+    this.#fallbackVolume = applyReplayGain(
+      sliderVolumeToGain(volume, this.#useLogarithmicVolume),
+      replayGain,
+      replayGainMode
+    );
+    this.#applyOutputVolume();
   }
 
   destroy(): void {
@@ -226,6 +232,13 @@ export class HowlerPlayerService {
 
     audioBusService.disconnect(this.#audioSource);
     this.#audioSource = audioBusService.connectHtmlMediaElement(mediaElement);
+    this.#applyOutputVolume();
+  }
+
+  #applyOutputVolume(): void {
+    // Routed streams receive ReplayGain and master volume in the shared graph.
+    // Keep native Howler gain handling only for the progressive fallback path.
+    this.#howl?.volume(this.#audioSource ? 1 : this.#fallbackVolume);
   }
 
   #startTicking(): void {

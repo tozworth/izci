@@ -102,12 +102,24 @@ describe('AudioBusService', () => {
 
   it('creates one pass-through graph ending at the browser destination', () => {
     const context = bus.context as unknown as FakeAudioContext;
-    const [input] = context.gains;
+    const [input, output] = context.gains;
     const [analyser] = context.analysers;
 
     expect(input.connections).toHaveLength(1);
     expect(context.gains.some((gain) => gain.connections.includes(analyser))).toBe(true);
-    expect(analyser.connections).toEqual([context.destination]);
+    expect(analyser.connections).toEqual([output]);
+    expect(output.connections).toEqual([context.destination]);
+  });
+
+  it('applies source gain before Raf and player volume after the analyser', () => {
+    bus.setInputGain(0.75);
+    bus.setOutputGain(0.25);
+
+    const context = bus.context as unknown as FakeAudioContext;
+    const [input, output] = context.gains;
+
+    expect(input.gain.value).toBe(0.75);
+    expect(output.gain.value).toBe(0.25);
   });
 
   it('switches module sources without rebuilding the shared graph', () => {

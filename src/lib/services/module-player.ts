@@ -1,7 +1,6 @@
 import { createChiptunePlayer } from '$lib/services/chiptune-loader';
 import { audioBusService } from '$lib/services/audio-bus';
 import { mediaSessionService } from '$lib/services/media-session';
-import { sliderVolumeToGain } from '$lib/services/volume';
 import { modulePlaybackSettings } from '$lib/stores/module-playback-settings';
 import type { ModulePlaybackSettings, PlaybackSnapshot, PlaylistItem, TrackMetadata } from '$lib/types';
 import type { Chiptune3Metadata, ChiptuneJsPlayer } from 'chiptune3';
@@ -20,8 +19,6 @@ export class ModulePlayerService {
   #buffer: ArrayBuffer | null = null;
   #trackExtension: PlaylistItem['extension'] | null = null;
   #loadToken = 0;
-  #volume = 0.85;
-  #useLogarithmicVolume = true;
   #playing = false;
   #started = false;
   #currentTime = 0;
@@ -149,13 +146,6 @@ export class ModulePlayerService {
     this.#publishProgress(true, seconds);
   }
 
-  setVolume(volume: number, logarithmicVolume: boolean = this.#useLogarithmicVolume): void {
-    this.#volume = volume;
-    this.#useLogarithmicVolume = logarithmicVolume;
-    this.#player?.setVol(sliderVolumeToGain(volume, this.#useLogarithmicVolume));
-    this.#onSnapshot({ error: undefined });
-  }
-
   async applySettings(settings: ModulePlaybackSettings): Promise<void> {
     const previousSettings = this.#settings;
     const previousStereoWidth = this.#getStereoWidth(previousSettings);
@@ -181,7 +171,7 @@ export class ModulePlayerService {
   async #createPlayer(loadToken: number = this.#loadToken): Promise<ChiptuneJsPlayer> {
     const player = await createChiptunePlayer(this.#toPlayerConfig(this.#settings));
 
-    player.setVol(sliderVolumeToGain(this.#volume, this.#useLogarithmicVolume));
+    player.setVol(1);
     player.setRepeatCount(this.#settings.repeatCount);
     this.#attachHandlers(player, loadToken);
 
