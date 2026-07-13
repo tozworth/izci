@@ -8,6 +8,27 @@
 
 <article class="view">
   <div class="section">
+    <h2>Track Details</h2>
+    <div class="field-grid">
+      <label class="field checkbox-field">
+        <div class="field-copy">
+          <span class="field-title">Hide repeated album metadata</span>
+        </div>
+        <div class="field-control checkbox-control">
+          <input
+            type="checkbox"
+            checked={$experimentalSettings.hideRedundantAlbumMetadata}
+            on:change={(event) => experimentalSettings.update({ hideRedundantAlbumMetadata: checked(event) })}
+          />
+        </div>
+        <p class="field-hint">
+          Hides Album when it matches Title and Album Artist when it matches Artist in Track Details.
+        </p>
+      </label>
+    </div>
+  </div>
+
+  <div class="section">
     <h2>Options</h2>
     <div class="field-grid">
       <label class="field checkbox-field">

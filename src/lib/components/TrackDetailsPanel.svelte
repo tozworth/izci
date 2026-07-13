@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { LoadedStreamArtwork } from '$lib/services/stream-artwork';
+  import { experimentalSettings } from '$lib/stores/experimental-settings';
   import type { PlaylistItem } from '$lib/types';
   import { resolveModuleDisplayFormat, resolveModuleTrackerName } from '$lib/utils/files';
 
@@ -24,6 +25,11 @@
     return value?.trim() || '';
   }
 
+  function metadataValuesMatch(left: string, right: string): boolean {
+    return left.normalize('NFKC').replace(/\s+/g, ' ').toLowerCase()
+      === right.normalize('NFKC').replace(/\s+/g, ' ').toLowerCase();
+  }
+
   function buildTrackNumberEntry(metadata: PlaylistItem['metadata']): MetadataEntry | null {
     const trackNumber = trimMetadataValue(metadata?.trackNumber);
     const discNumber = trimMetadataValue(metadata?.discNumber);
@@ -39,17 +45,28 @@
       : { label: 'Track Number', icon: 'format_list_numbered', value: trackNumber };
   }
 
-  function buildStreamMetadataEntries(track: PlaylistItem | null): MetadataEntry[] {
+  function buildStreamMetadataEntries(
+    track: PlaylistItem | null,
+    hideRedundantAlbumMetadata: boolean
+  ): MetadataEntry[] {
     if (!track || track.kind !== 'stream') {
       return [];
     }
 
     const metadata = track.metadata;
     const trackNumberEntry = buildTrackNumberEntry(metadata);
+    const title = trimMetadataValue(metadata?.title);
+    const artist = trimMetadataValue(metadata?.artist);
+    const album = trimMetadataValue(metadata?.album);
+    const albumArtist = trimMetadataValue(metadata?.albumArtist);
 
     return [
-      { label: 'Album', icon: 'album', value: trimMetadataValue(metadata?.album) },
-      { label: 'Album Artist', icon: 'person', value: trimMetadataValue(metadata?.albumArtist) },
+      hideRedundantAlbumMetadata && title && metadataValuesMatch(album, title)
+        ? null
+        : { label: 'Album', icon: 'album', value: album },
+      hideRedundantAlbumMetadata && artist && metadataValuesMatch(albumArtist, artist)
+        ? null
+        : { label: 'Album Artist', icon: 'person', value: albumArtist },
       { label: 'Genre', icon: 'category', value: trimMetadataValue(metadata?.genre) },
       { label: 'Year', icon: 'calendar_month', value: trimMetadataValue(metadata?.year) },
       trackNumberEntry,
@@ -61,7 +78,7 @@
   $: showTrackSection = title.length > 0;
   $: artist = track?.metadata?.artist?.trim() || '';
   $: showArtist = showTrackSection && artist.length > 0 && artist.toLowerCase() !== 'unknown';
-  $: metadataEntries = buildStreamMetadataEntries(track);
+  $: metadataEntries = buildStreamMetadataEntries(track, $experimentalSettings.hideRedundantAlbumMetadata);
   $: tracker = track ? resolveModuleTrackerName(track.extension, track.metadata?.trackerType) : '';
   $: patterns = track?.metadata?.patterns;
   $: notes = track?.metadata?.message?.trim() || '';

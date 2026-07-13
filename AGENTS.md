@@ -171,7 +171,7 @@ Primary location for playback and browser-integration logic.
 - `visualizer-settings.ts`: persistent player visualizer settings (style, color source, height, opacity stored as transparency, and numeric spectrum-normalization strength), with sync.
 - `module-playback-settings.ts`: persistent tracker playback settings (repeat, stereo/pan, interpolation, tempo, pitch) with sync.
 - `metadata-settings.ts`: persistent metadata behavior settings, including filename-based artist/title inference and the library play-count threshold.
-- `experimental-settings.ts`: persistent opt-in settings for exploratory UI, currently Raf's effects-list/cardless-editor layout and single-page Options mode, with `BroadcastChannel` sync.
+- `experimental-settings.ts`: persistent opt-in settings for exploratory UI, currently Raf's effects-list/cardless-editor layout, single-page Options mode, and suppression of album/album-artist rows that repeat title/artist in Track Details, with `BroadcastChannel` sync.
 - `track-settings.ts`: persistent track-import settings for folder traversal depth and optional OpenMPT verification of files with unknown extensions.
 - `player-volume.ts`: persistent player volume with sync across windows.
 - `workspace-panel-layout.ts`: persistent wide-layout workspace panel fractions for left/center/right resizing, with sync.

@@ -1,6 +1,7 @@
 import { createPersistentStore } from './persistent-store';
 
 export interface ExperimentalSettings {
+  hideRedundantAlbumMetadata: boolean;
   rafEffectsList: boolean;
   singlePageMode: boolean;
 }
@@ -8,6 +9,7 @@ export interface ExperimentalSettings {
 export const EXPERIMENTAL_SETTINGS_STORAGE_KEY = 'izci.experimental-settings';
 export const EXPERIMENTAL_SETTINGS_CHANNEL = 'izci-experimental-settings';
 export const DEFAULT_EXPERIMENTAL_SETTINGS: ExperimentalSettings = {
+  hideRedundantAlbumMetadata: false,
   rafEffectsList: false,
   singlePageMode: false
 };
@@ -16,6 +18,9 @@ export function normalizeExperimentalSettings(value: unknown): ExperimentalSetti
   if (!value || typeof value !== 'object') return DEFAULT_EXPERIMENTAL_SETTINGS;
   const source = value as Partial<ExperimentalSettings>;
   return {
+    hideRedundantAlbumMetadata: typeof source.hideRedundantAlbumMetadata === 'boolean'
+      ? source.hideRedundantAlbumMetadata
+      : DEFAULT_EXPERIMENTAL_SETTINGS.hideRedundantAlbumMetadata,
     rafEffectsList: typeof source.rafEffectsList === 'boolean'
       ? source.rafEffectsList
       : DEFAULT_EXPERIMENTAL_SETTINGS.rafEffectsList,
