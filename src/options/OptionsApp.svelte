@@ -466,6 +466,12 @@
     }
   }
 
+  function handleShowRafToggleInPlayerBar(event: Event) {
+    playbackSettings.update({
+      showRafToggleInPlayerBar: (event.currentTarget as HTMLInputElement).checked
+    });
+  }
+
   function handleVisualizerStyleChange(event: Event) {
     visualizerSettings.update({
       style: (event.currentTarget as HTMLSelectElement).value as VisualizerStyle
@@ -1259,6 +1265,22 @@
                 </div>
                 <p class="field-hint">
                   Enables the built-in audio effects rack and shows Raf under Playback.
+                </p>
+              </label>
+
+              <label class="field checkbox-field">
+                <div class="field-copy">
+                  <span class="field-title">Show Raf toggle in player bar</span>
+                </div>
+                <div class="field-control checkbox-control">
+                  <input
+                    type="checkbox"
+                    checked={$playbackSettings.showRafToggleInPlayerBar}
+                    on:change={handleShowRafToggleInPlayerBar}
+                  />
+                </div>
+                <p class="field-hint">
+                  Shows the rack bypass control beside volume while Raf is enabled. Right-clicking it opens Raf options.
                 </p>
               </label>
             </div>

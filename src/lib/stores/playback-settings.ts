@@ -23,7 +23,8 @@ export const DEFAULT_PLAYBACK_SETTINGS: PlaybackSettings = {
   logarithmicVolume: true,
   replayGainMode: 'track',
   restoreMode: 'disabled',
-  enableRaf: false
+  enableRaf: false,
+  showRafToggleInPlayerBar: false
 };
 
 function normalizeReplayGainMode(value: unknown): ReplayGainMode {
@@ -49,7 +50,11 @@ function normalizeSettings(value: unknown): PlaybackSettings {
     replayGainMode: normalizeReplayGainMode(source.replayGainMode),
     restoreMode: normalizePlaybackRestoreMode(source.restoreMode),
     enableRaf:
-      typeof source.enableRaf === 'boolean' ? source.enableRaf : DEFAULT_PLAYBACK_SETTINGS.enableRaf
+      typeof source.enableRaf === 'boolean' ? source.enableRaf : DEFAULT_PLAYBACK_SETTINGS.enableRaf,
+    showRafToggleInPlayerBar:
+      typeof source.showRafToggleInPlayerBar === 'boolean'
+        ? source.showRafToggleInPlayerBar
+        : DEFAULT_PLAYBACK_SETTINGS.showRafToggleInPlayerBar
   };
 }
 

@@ -57,6 +57,8 @@
   import { metadataSettings } from '$lib/stores/metadata-settings';
   import { libraryStore, playlistStore } from '$lib/stores/playlist';
   import { DEFAULT_PLAYER_VOLUME } from '$lib/stores/player-volume';
+  import { playbackSettings } from '$lib/stores/playback-settings';
+  import { rafSettings } from '$lib/stores/raf-settings';
   import type {
     BackdropZoneId,
     BackdropZoneSettings,
@@ -1476,12 +1478,16 @@
       artworkBackgroundBright={artworkBackgroundBrightByZone.player}
       hasCollectionItems={playlistItems.length > 0 || libraryItems.length > 0}
       {collectionsReady}
+      showRafToggle={$playbackSettings.enableRaf && $playbackSettings.showRafToggleInPlayerBar}
+      rafEnabled={$rafSettings.enabled}
       on:toggle={() => void playbackCommands.togglePlayback()}
       on:previous={() => void playbackCommands.stepTrack(-1)}
       on:next={() => void playbackCommands.stepTrack(1)}
       on:seek={(event) => seekPlayback(event.detail)}
       on:volume={(event) => playerController.setVolume(event.detail)}
       on:mute={() => playerController.toggleMute()}
+      on:toggleRaf={() => rafSettings.setEnabled(!$rafSettings.enabled)}
+      on:openRafOptions={() => handleOpenOptions('raf')}
       on:showTrack={(event) => handleShowPlayerTrackDetails(event.detail)}
     />
   {/if}

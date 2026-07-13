@@ -175,6 +175,7 @@ export interface PlaybackSettings {
   replayGainMode: ReplayGainMode;
   restoreMode: PlaybackRestoreMode;
   enableRaf: boolean;
+  showRafToggleInPlayerBar: boolean;
 }
 
 export interface VisualizerSettings {

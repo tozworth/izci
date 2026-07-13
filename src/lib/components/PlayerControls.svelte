@@ -34,6 +34,8 @@
   export let artworkColorSurfaceBright = false;
   export let hasCollectionItems = false;
   export let collectionsReady = true;
+  export let showRafToggle = false;
+  export let rafEnabled = true;
 
   const dispatch = createEventDispatcher<{
     toggle: void;
@@ -42,6 +44,8 @@
     seek: number;
     volume: number;
     mute: void;
+    toggleRaf: void;
+    openRafOptions: void;
     showTrack: string;
   }>();
 
@@ -407,37 +411,53 @@
     data-popup-open={isCompactVolume && isVolumePopupOpen ? 'true' : 'false'}
     on:mouseleave={closeVolumePopup}
   >
-    <button
-      type="button"
-      class="volume-label"
-      aria-label={snapshot.muted || snapshot.volume <= 0 ? 'Unmute' : 'Mute'}
-      aria-expanded={isCompactVolume ? isVolumePopupOpen : undefined}
-      aria-pressed={snapshot.muted}
-      on:click={() => dispatch('mute')}
-      on:mouseenter={openVolumePopup}
-      on:focus={openVolumePopup}
-      on:blur={closeVolumePopup}
-      on:wheel|preventDefault={handleVolumeWheel}
-    >
-      <span class="material-symbols-outlined" aria-hidden="true">{getVolumeIcon(snapshot.volume, snapshot.muted)}</span>
-      <span class="sr-only">{snapshot.muted || snapshot.volume <= 0 ? 'Unmute' : 'Mute'}</span>
-    </button>
-    <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div class="volume-popup" on:mouseenter={openVolumePopup}>
-      <div class="volume-popup-track">
-        <div class="range-control volume-range" style={toRangeProgressStyle(snapshot.volume, 1)}>
-          <span class="range-control-fill" aria-hidden="true"></span>
-          <input
-            aria-label="Volume"
-            type="range"
-            min="0"
-            max="1"
-            step="0.01"
-            value={snapshot.volume}
-            disabled={snapshot.muted}
-            on:input={(event) => dispatch('volume', Number((event.currentTarget as HTMLInputElement).value))}
-            on:wheel|preventDefault={handleVolumeWheel}
-          />
+    {#if presentation === 'bar' && showRafToggle}
+      <button
+        type="button"
+        class:active={rafEnabled}
+        class="raf-toggle"
+        aria-label={rafEnabled ? 'Bypass Raf' : 'Power on Raf'}
+        aria-pressed={rafEnabled}
+        title={`${rafEnabled ? 'Bypass Raf' : 'Power on Raf'} · Right-click for Raf options`}
+        on:click={() => dispatch('toggleRaf')}
+        on:contextmenu|preventDefault={() => dispatch('openRafOptions')}
+      >
+        <span class="material-symbols-outlined" aria-hidden="true">power_settings_new</span>
+      </button>
+    {/if}
+    <div class="volume-control">
+      <button
+        type="button"
+        class="volume-label"
+        aria-label={snapshot.muted || snapshot.volume <= 0 ? 'Unmute' : 'Mute'}
+        aria-expanded={isCompactVolume ? isVolumePopupOpen : undefined}
+        aria-pressed={snapshot.muted}
+        on:click={() => dispatch('mute')}
+        on:mouseenter={openVolumePopup}
+        on:focus={openVolumePopup}
+        on:blur={closeVolumePopup}
+        on:wheel|preventDefault={handleVolumeWheel}
+      >
+        <span class="material-symbols-outlined" aria-hidden="true">{getVolumeIcon(snapshot.volume, snapshot.muted)}</span>
+        <span class="sr-only">{snapshot.muted || snapshot.volume <= 0 ? 'Unmute' : 'Mute'}</span>
+      </button>
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <div class="volume-popup" on:mouseenter={openVolumePopup}>
+        <div class="volume-popup-track">
+          <div class="range-control volume-range" style={toRangeProgressStyle(snapshot.volume, 1)}>
+            <span class="range-control-fill" aria-hidden="true"></span>
+            <input
+              aria-label="Volume"
+              type="range"
+              min="0"
+              max="1"
+              step="0.01"
+              value={snapshot.volume}
+              disabled={snapshot.muted}
+              on:input={(event) => dispatch('volume', Number((event.currentTarget as HTMLInputElement).value))}
+              on:wheel|preventDefault={handleVolumeWheel}
+            />
+          </div>
         </div>
       </div>
     </div>
