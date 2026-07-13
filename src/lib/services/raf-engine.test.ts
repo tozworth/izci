@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { rafSettings } from '$lib/stores/raf-settings';
 import { playbackSettings } from '$lib/stores/playback-settings';
 import type { RafGraphicEqSettings } from '$lib/types';
-import { RafEngine, sameTopology } from './raf-engine';
+import { RafEngine, sameEffectSettings, sameTopology } from './raf-engine';
 
 class FakeParam {
   value = 1;
@@ -72,10 +72,59 @@ describe('RafEngine', () => {
     engine.destroy();
   });
 
+  it('updates only the effect whose settings changed', () => {
+    const context = new FakeContext();
+    const engine = new RafEngine(context as unknown as BaseAudioContext);
+    rafSettings.addEffect('graphic-eq');
+    rafSettings.addEffect('graphic-eq');
+    const effects = rafSettings.getSnapshot().effects as RafGraphicEqSettings[];
+    const activeFilters = context.filters.slice(-22);
+    const firstFilters = activeFilters.slice(0, 10);
+    const secondFilters = activeFilters.slice(11, 21);
+
+    rafSettings.updateEffect(effects[0].id, (effect) => {
+      const current = effect as RafGraphicEqSettings;
+      const bandGainsDb = [...current.bandGainsDb];
+      bandGainsDb[0] = 4;
+      return { ...current, bandGainsDb };
+    });
+
+    expect(firstFilters[0].gain.ramps).toEqual([4]);
+    expect(firstFilters.slice(1).every((filter) => filter.gain.ramps.length === 0)).toBe(true);
+    expect(secondFilters.every((filter) => filter.gain.ramps.length === 0)).toBe(true);
+    engine.destroy();
+  });
+
+  it('ignores a structurally identical rack delivery', () => {
+    const context = new FakeContext();
+    const engine = new RafEngine(context as unknown as BaseAudioContext);
+    rafSettings.addEffect('graphic-eq');
+    const activeFilters = context.filters.slice(-11, -1);
+    const duplicate = JSON.parse(JSON.stringify(rafSettings.getSnapshot()));
+
+    rafSettings.replace(duplicate);
+
+    expect(activeFilters.every((filter) => filter.gain.ramps.length === 0)).toBe(true);
+    engine.destroy();
+  });
+
   it('treats only stable ID/type order as the same topology', () => {
     const first = [{ id: 'a', type: 'stereo-width' as const, enabled: true, widthDb: 0 }];
     expect(sameTopology(first, [{ ...first[0], enabled: false }])).toBe(true);
     expect(sameTopology(first, [{ ...first[0], id: 'b' }])).toBe(false);
+  });
+
+  it('compares effect settings structurally', () => {
+    const first: RafGraphicEqSettings = {
+      id: 'eq',
+      type: 'graphic-eq',
+      enabled: true,
+      preampDb: 0,
+      bandGainsDb: [0, 1]
+    };
+
+    expect(sameEffectSettings(first, { ...first, bandGainsDb: [...first.bandGainsDb] })).toBe(true);
+    expect(sameEffectSettings(first, { ...first, bandGainsDb: [0, 2] })).toBe(false);
   });
 
   it('keeps the Playback feature gate separate from rack power', () => {

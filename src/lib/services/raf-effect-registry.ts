@@ -48,7 +48,12 @@ export interface RafEffectDefinition {
   createDefault: (id: string) => RafEffectSettings;
   normalize: (value: unknown) => RafEffectSettings | null;
   createNode: (context: BaseAudioContext, settings: RafEffectSettings) => RafEffectNode;
-  updateNode: (node: RafEffectNode, settings: RafEffectSettings, context: BaseAudioContext) => void;
+  updateNode: (
+    node: RafEffectNode,
+    settings: RafEffectSettings,
+    context: BaseAudioContext,
+    previousSettings?: RafEffectSettings
+  ) => void;
   disposeNode: (node: RafEffectNode) => void;
 }
 
@@ -150,8 +155,13 @@ const graphicEqDefinition: RafEffectDefinition = {
   }),
   normalize: normalizeGraphicEq,
   createNode: (context, settings) => createGraphicEqNode(context, settings as RafGraphicEqSettings),
-  updateNode: (node, settings, context) =>
-    updateGraphicEqNode(node as ReturnType<typeof createGraphicEqNode>, settings as RafGraphicEqSettings, context),
+  updateNode: (node, settings, context, previousSettings) =>
+    updateGraphicEqNode(
+      node as ReturnType<typeof createGraphicEqNode>,
+      settings as RafGraphicEqSettings,
+      context,
+      previousSettings as RafGraphicEqSettings | undefined
+    ),
   disposeNode: (node) => disposeGraphicEqNode(node as ReturnType<typeof createGraphicEqNode>)
 };
 
@@ -162,8 +172,13 @@ const stereoWidthDefinition: RafEffectDefinition = {
   createDefault: (id) => ({ id, type: 'stereo-width', enabled: true, widthDb: 0 }),
   normalize: normalizeStereoWidth,
   createNode: (context, settings) => createStereoWidthNode(context, settings as RafStereoWidthSettings),
-  updateNode: (node, settings, context) =>
-    updateStereoWidthNode(node as ReturnType<typeof createStereoWidthNode>, settings as RafStereoWidthSettings, context),
+  updateNode: (node, settings, context, previousSettings) =>
+    updateStereoWidthNode(
+      node as ReturnType<typeof createStereoWidthNode>,
+      settings as RafStereoWidthSettings,
+      context,
+      previousSettings as RafStereoWidthSettings | undefined
+    ),
   disposeNode: (node) => disposeStereoWidthNode(node as ReturnType<typeof createStereoWidthNode>)
 };
 
@@ -181,8 +196,13 @@ const crystalizerDefinition: RafEffectDefinition = {
   }),
   normalize: normalizeCrystalizer,
   createNode: (context, settings) => createCrystalizerNode(context, settings as RafCrystalizerSettings),
-  updateNode: (node, settings, context) =>
-    updateCrystalizerNode(node as ReturnType<typeof createCrystalizerNode>, settings as RafCrystalizerSettings, context),
+  updateNode: (node, settings, context, previousSettings) =>
+    updateCrystalizerNode(
+      node as ReturnType<typeof createCrystalizerNode>,
+      settings as RafCrystalizerSettings,
+      context,
+      previousSettings as RafCrystalizerSettings | undefined
+    ),
   disposeNode: (node) => disposeCrystalizerNode(node as ReturnType<typeof createCrystalizerNode>)
 };
 
@@ -201,8 +221,13 @@ const sloptimizerDefinition: RafEffectDefinition = {
   }),
   normalize: normalizeSloptimizer,
   createNode: (context, settings) => createSloptimizerNode(context, settings as RafSloptimizerSettings),
-  updateNode: (node, settings, context) =>
-    updateSloptimizerNode(node as ReturnType<typeof createSloptimizerNode>, settings as RafSloptimizerSettings, context),
+  updateNode: (node, settings, context, previousSettings) =>
+    updateSloptimizerNode(
+      node as ReturnType<typeof createSloptimizerNode>,
+      settings as RafSloptimizerSettings,
+      context,
+      previousSettings as RafSloptimizerSettings | undefined
+    ),
   disposeNode: (node) => disposeSloptimizerNode(node as ReturnType<typeof createSloptimizerNode>)
 };
 

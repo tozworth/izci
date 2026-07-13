@@ -98,17 +98,36 @@ export function createCrystalizerNode(
 export function updateCrystalizerNode(
   node: CrystalizerNode,
   settings: RafCrystalizerSettings,
-  context: BaseAudioContext
+  context: BaseAudioContext,
+  previousSettings?: RafCrystalizerSettings
 ): void {
   node.bands.forEach((band, index) => {
-    setAudioParam(band.intensity.gain, bandIntensityGain(settings, index), context);
-    setAudioParam(band.mute.gain, settings.bandMuted[index] ? -1 : 0, context);
+    const intensity = bandIntensityGain(settings, index);
+    const previousIntensity = previousSettings ? bandIntensityGain(previousSettings, index) : null;
+    if (previousIntensity === null || intensity !== previousIntensity) {
+      setAudioParam(band.intensity.gain, intensity, context);
+    }
+    if (!previousSettings || settings.bandMuted[index] !== previousSettings.bandMuted[index]) {
+      setAudioParam(band.mute.gain, settings.bandMuted[index] ? -1 : 0, context);
+    }
   });
-  setAudioParam(
-    node.headroom.gain,
-    calculateCrystalizerHeadroomGain(node.bands.map((band) => band.filter), settings, context.sampleRate),
-    context
-  );
+  if (!previousSettings || !sameProcessingSettings(settings, previousSettings)) {
+    setAudioParam(
+      node.headroom.gain,
+      calculateCrystalizerHeadroomGain(node.bands.map((band) => band.filter), settings, context.sampleRate),
+      context
+    );
+  }
+}
+
+function sameProcessingSettings(first: RafCrystalizerSettings, second: RafCrystalizerSettings): boolean {
+  return sameArray(first.bandIntensities, second.bandIntensities)
+    && sameArray(first.bandMuted, second.bandMuted)
+    && sameArray(first.bandBypassed, second.bandBypassed);
+}
+
+function sameArray<T>(first: T[], second: T[]): boolean {
+  return first.length === second.length && first.every((value, index) => value === second[index]);
 }
 
 export function disposeCrystalizerNode(node: CrystalizerNode): void {

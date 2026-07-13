@@ -51,11 +51,28 @@ export function createGraphicEqNode(
 export function updateGraphicEqNode(
   node: GraphicEqNode,
   settings: RafGraphicEqSettings,
-  context: BaseAudioContext
+  context: BaseAudioContext,
+  previousSettings?: RafGraphicEqSettings
 ): void {
-  setAudioParam(node.preamp.gain, 10 ** (settings.preampDb / 20), context);
-  node.filters.forEach((filter, index) => setAudioParam(filter.gain, settings.bandGainsDb[index], context));
-  setAudioParam(node.headroom.gain, calculateHeadroomGain(node.responseProbe, settings), context);
+  if (!previousSettings || settings.preampDb !== previousSettings.preampDb) {
+    setAudioParam(node.preamp.gain, 10 ** (settings.preampDb / 20), context);
+  }
+  node.filters.forEach((filter, index) => {
+    if (!previousSettings || settings.bandGainsDb[index] !== previousSettings.bandGainsDb[index]) {
+      setAudioParam(filter.gain, settings.bandGainsDb[index], context);
+    }
+  });
+  if (
+    !previousSettings ||
+    settings.preampDb !== previousSettings.preampDb ||
+    !sameGains(settings.bandGainsDb, previousSettings.bandGainsDb)
+  ) {
+    setAudioParam(node.headroom.gain, calculateHeadroomGain(node.responseProbe, settings), context);
+  }
+}
+
+function sameGains(first: number[], second: number[]): boolean {
+  return first.length === second.length && first.every((value, index) => value === second[index]);
 }
 
 export function disposeGraphicEqNode(node: GraphicEqNode): void {

@@ -72,8 +72,10 @@ export function createStereoWidthNode(context: BaseAudioContext, settings: RafSt
 export function updateStereoWidthNode(
   node: StereoWidthNode,
   settings: RafStereoWidthSettings,
-  context: BaseAudioContext
+  context: BaseAudioContext,
+  previousSettings?: RafStereoWidthSettings
 ): void {
+  if (previousSettings?.widthDb === settings.widthDb) return;
   const gains = stereoWidthToMidSideGains(settings.widthDb);
   setAudioParam(node.midGain.gain, gains.mid, context);
   setAudioParam(node.sideGain.gain, gains.side, context);

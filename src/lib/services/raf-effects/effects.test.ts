@@ -90,6 +90,21 @@ describe('Graphic EQ DSP', () => {
     expect((node.filters[9].gain as unknown as FakeParam).ramps.at(-1)).toBe(9);
     expect((node.headroom.gain as unknown as FakeParam).ramps.at(-1)).toBeLessThan(1);
   });
+
+  it('ramps only the EQ parameters that changed', () => {
+    const context = new FakeContext();
+    const settings = { id: 'eq', type: 'graphic-eq' as const, enabled: true, preampDb: 0, bandGainsDb: GRAPHIC_EQ_FREQUENCIES.map(() => 0) };
+    const node = createGraphicEqNode(context as unknown as BaseAudioContext, settings);
+    const bandGainsDb = [...settings.bandGainsDb];
+    bandGainsDb[4] = -2.5;
+
+    updateGraphicEqNode(node, { ...settings, bandGainsDb }, context as unknown as BaseAudioContext, settings);
+
+    expect((node.preamp.gain as unknown as FakeParam).ramps).toHaveLength(0);
+    expect((node.filters[4].gain as unknown as FakeParam).ramps).toEqual([-2.5]);
+    expect(node.filters.every((filter, index) => index === 4 || (filter.gain as unknown as FakeParam).ramps.length === 0)).toBe(true);
+    expect((node.headroom.gain as unknown as FakeParam).ramps).toHaveLength(1);
+  });
 });
 
 describe('Stereo Width DSP', () => {
@@ -132,6 +147,28 @@ describe('Crystalizer DSP', () => {
     updateCrystalizerNode(node, { ...settings, bandIntensities }, context as unknown as BaseAudioContext);
     expect((node.bands[12].intensity.gain as unknown as FakeParam).ramps.at(-1)).toBe(intensityToFactor(32));
     expect((node.headroom.gain as unknown as FakeParam).ramps.at(-1)).toBeLessThan(1);
+  });
+
+  it('ramps only the Crystalizer band that changed', () => {
+    const context = new FakeContext();
+    const settings = {
+      id: 'crystalizer',
+      type: 'crystalizer' as const,
+      enabled: true,
+      bandIntensities: CRYSTALIZER_FREQUENCIES.map(() => 0),
+      bandMuted: CRYSTALIZER_FREQUENCIES.map(() => false),
+      bandBypassed: CRYSTALIZER_FREQUENCIES.map(() => false)
+    };
+    const node = createCrystalizerNode(context as unknown as BaseAudioContext, settings);
+    const bandIntensities = [...settings.bandIntensities];
+    bandIntensities[3] = 16;
+
+    updateCrystalizerNode(node, { ...settings, bandIntensities }, context as unknown as BaseAudioContext, settings);
+
+    expect((node.bands[3].intensity.gain as unknown as FakeParam).ramps).toEqual([intensityToFactor(16)]);
+    expect(node.bands.every((band, index) => index === 3 || (band.intensity.gain as unknown as FakeParam).ramps.length === 0)).toBe(true);
+    expect(node.bands.every((band) => (band.mute.gain as unknown as FakeParam).ramps.length === 0)).toBe(true);
+    expect((node.headroom.gain as unknown as FakeParam).ramps).toHaveLength(1);
   });
 });
 

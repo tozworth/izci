@@ -80,14 +80,22 @@ export class RafEngine {
 
   #applySettings(settings: RafRackSettings): void {
     if (this.#destroyed) return;
-    const topologyChanged = !this.#settings || !sameTopology(this.#settings.effects, settings.effects);
+    const previousSettings = this.#settings;
+    const topologyChanged = !previousSettings || !sameTopology(previousSettings.effects, settings.effects);
     this.#settings = settings;
 
     if (topologyChanged) {
       this.#replaceChain(settings);
     } else if (this.#activeChain) {
-      settings.effects.forEach((effect, index) => this.#updateEffect(this.#activeChain!.effects[index], effect));
-      this.#setRackEnabled(this.#featureEnabled && settings.enabled);
+      settings.effects.forEach((effect, index) => {
+        const liveEffect = this.#activeChain!.effects[index];
+        if (!sameEffectSettings(liveEffect.settings, effect)) {
+          this.#updateEffect(liveEffect, effect);
+        }
+      });
+      if (previousSettings.enabled !== settings.enabled) {
+        this.#setRackEnabled(this.#featureEnabled && settings.enabled);
+      }
     }
   }
 
@@ -160,13 +168,17 @@ export class RafEngine {
   }
 
   #updateEffect(liveEffect: LiveEffect, settings: RafEffectSettings): void {
-    liveEffect.settings = settings;
+    const previousSettings = liveEffect.settings;
     if (liveEffect.processor) {
-      liveEffect.definition.updateNode(liveEffect.processor, settings, this.context);
+      liveEffect.definition.updateNode(liveEffect.processor, settings, this.context, previousSettings);
     }
     const enabled = settings.enabled && liveEffect.processor !== null;
-    setAudioParam(liveEffect.dryGain.gain, enabled ? 0 : 1, this.context);
-    setAudioParam(liveEffect.wetGain.gain, enabled ? 1 : 0, this.context);
+    const previouslyEnabled = previousSettings.enabled && liveEffect.processor !== null;
+    if (enabled !== previouslyEnabled) {
+      setAudioParam(liveEffect.dryGain.gain, enabled ? 0 : 1, this.context);
+      setAudioParam(liveEffect.wetGain.gain, enabled ? 1 : 0, this.context);
+    }
+    liveEffect.settings = settings;
   }
 
   #setRackEnabled(enabled: boolean): void {
@@ -201,4 +213,40 @@ function peakDb(samples: Float32Array): number {
 export function sameTopology(first: RafEffectSettings[], second: RafEffectSettings[]): boolean {
   return first.length === second.length
     && first.every((effect, index) => effect.id === second[index].id && effect.type === second[index].type);
+}
+
+export function sameEffectSettings(first: RafEffectSettings, second: RafEffectSettings): boolean {
+  if (first.id !== second.id || first.type !== second.type || first.enabled !== second.enabled) return false;
+
+  switch (first.type) {
+    case 'graphic-eq': {
+      const candidate = second as typeof first;
+      return first.preampDb === candidate.preampDb
+        && sameArray(first.bandGainsDb, candidate.bandGainsDb);
+    }
+    case 'stereo-width':
+      return first.widthDb === (second as typeof first).widthDb;
+    case 'crystalizer': {
+      const candidate = second as typeof first;
+      return sameArray(first.bandIntensities, candidate.bandIntensities)
+        && sameArray(first.bandMuted, candidate.bandMuted)
+        && sameArray(first.bandBypassed, candidate.bandBypassed);
+    }
+    case 'sloptimizer': {
+      const candidate = second as typeof first;
+      return first.advanced === candidate.advanced
+        && first.slop === candidate.slop
+        && first.customized === candidate.customized
+        && first.lowLiftDb === candidate.lowLiftDb
+        && first.midLiftDb === candidate.midLiftDb
+        && first.highLiftDb === candidate.highLiftDb
+        && first.density === candidate.density
+        && first.speed === candidate.speed
+        && first.ceilingDb === candidate.ceilingDb;
+    }
+  }
+}
+
+function sameArray<T>(first: T[], second: T[]): boolean {
+  return first.length === second.length && first.every((value, index) => value === second[index]);
 }

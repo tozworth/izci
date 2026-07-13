@@ -113,9 +113,10 @@ export function createSloptimizerNode(
 export function updateSloptimizerNode(
   node: SloptimizerNode,
   settings: RafSloptimizerSettings,
-  context: BaseAudioContext
+  context: BaseAudioContext,
+  previousSettings?: RafSloptimizerSettings
 ): void {
-  applySloptimizerParameters(node, settings, context, true);
+  applySloptimizerParameters(node, settings, context, true, previousSettings);
 }
 
 export function disposeSloptimizerNode(node: SloptimizerNode): void {
@@ -175,7 +176,8 @@ function applySloptimizerParameters(
   node: Pick<SloptimizerNode, 'dry' | 'processed' | 'bands' | 'limiter' | 'saturator'>,
   settings: RafSloptimizerSettings,
   context: BaseAudioContext,
-  ramp: boolean
+  ramp: boolean,
+  previousSettings?: RafSloptimizerSettings
 ): void {
   const density = settings.density / 100;
   const speed = settings.speed / 100;
@@ -186,24 +188,66 @@ function applySloptimizerParameters(
   const release = (320 - 250 * speed) / 1000;
   const lifts = [settings.lowLiftDb, settings.midLiftDb, settings.highLiftDb];
   const transparent = sloptimizerIsTransparent(settings);
+  const previousDensity = previousSettings ? previousSettings.density / 100 : null;
+  const previousSpeed = previousSettings ? previousSettings.speed / 100 : null;
+  const previousThreshold = previousDensity === null ? null : -3 - 29 * previousDensity ** 1.25;
+  const previousRatio = previousDensity === null ? null : 1 + 11 * previousDensity ** 1.15;
+  const previousKnee = previousDensity === null ? null : 3 + 17 * previousDensity;
+  const previousAttack = previousSpeed === null ? null : (30 - 27 * previousSpeed) / 1000;
+  const previousRelease = previousSpeed === null ? null : (320 - 250 * previousSpeed) / 1000;
+  const previousLifts = previousSettings
+    ? [previousSettings.lowLiftDb, previousSettings.midLiftDb, previousSettings.highLiftDb]
+    : null;
+  const previousTransparent = previousSettings ? sloptimizerIsTransparent(previousSettings) : null;
 
   node.bands.forEach((band, index) => {
-    setParam(band.compressor.threshold, threshold, context, ramp);
-    setParam(band.compressor.ratio, ratio, context, ramp);
-    setParam(band.compressor.knee, knee, context, ramp);
-    setParam(band.compressor.attack, attack, context, ramp);
-    setParam(band.compressor.release, release, context, ramp);
-    setParam(band.lift.gain, decibelsToGain(lifts[index]), context, ramp);
+    setParamIfChanged(band.compressor.threshold, threshold, previousThreshold, context, ramp);
+    setParamIfChanged(band.compressor.ratio, ratio, previousRatio, context, ramp);
+    setParamIfChanged(band.compressor.knee, knee, previousKnee, context, ramp);
+    setParamIfChanged(band.compressor.attack, attack, previousAttack, context, ramp);
+    setParamIfChanged(band.compressor.release, release, previousRelease, context, ramp);
+    setParamIfChanged(
+      band.lift.gain,
+      decibelsToGain(lifts[index]),
+      previousLifts ? decibelsToGain(previousLifts[index]) : null,
+      context,
+      ramp
+    );
   });
 
-  setParam(node.limiter.threshold, Math.max(-8, settings.ceilingDb - 2.5), context, ramp);
-  setParam(node.limiter.ratio, 20, context, ramp);
-  setParam(node.limiter.knee, 1.5, context, ramp);
-  setParam(node.limiter.attack, 0.002, context, ramp);
-  setParam(node.limiter.release, (110 - 55 * speed) / 1000, context, ramp);
-  node.saturator.curve = createSafeLimiterCurve(settings.ceilingDb);
-  setParam(node.dry.gain, transparent ? 1 : 0, context, ramp);
-  setParam(node.processed.gain, transparent ? 0 : 1, context, ramp);
+  setParamIfChanged(
+    node.limiter.threshold,
+    Math.max(-8, settings.ceilingDb - 2.5),
+    previousSettings ? Math.max(-8, previousSettings.ceilingDb - 2.5) : null,
+    context,
+    ramp
+  );
+  setParamIfChanged(node.limiter.ratio, 20, previousSettings ? 20 : null, context, ramp);
+  setParamIfChanged(node.limiter.knee, 1.5, previousSettings ? 1.5 : null, context, ramp);
+  setParamIfChanged(node.limiter.attack, 0.002, previousSettings ? 0.002 : null, context, ramp);
+  setParamIfChanged(
+    node.limiter.release,
+    (110 - 55 * speed) / 1000,
+    previousSpeed === null ? null : (110 - 55 * previousSpeed) / 1000,
+    context,
+    ramp
+  );
+  if (!previousSettings || settings.ceilingDb !== previousSettings.ceilingDb) {
+    node.saturator.curve = createSafeLimiterCurve(settings.ceilingDb);
+  }
+  setParamIfChanged(node.dry.gain, transparent ? 1 : 0, previousTransparent === null ? null : previousTransparent ? 1 : 0, context, ramp);
+  setParamIfChanged(node.processed.gain, transparent ? 0 : 1, previousTransparent === null ? null : previousTransparent ? 0 : 1, context, ramp);
+}
+
+function setParamIfChanged(
+  parameter: AudioParam,
+  value: number,
+  previousValue: number | null,
+  context: BaseAudioContext,
+  ramp: boolean
+): void {
+  if (previousValue === value) return;
+  setParam(parameter, value, context, ramp);
 }
 
 function setParam(parameter: AudioParam, value: number, context: BaseAudioContext, ramp: boolean): void {
