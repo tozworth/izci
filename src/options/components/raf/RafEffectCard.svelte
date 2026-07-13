@@ -14,9 +14,8 @@
   export let onDragStart: (id: string) => void;
   export let onDragEnd: () => void;
 
-  function toggle(event: Event) {
-    const enabled = (event.currentTarget as HTMLInputElement).checked;
-    rafSettings.updateEffect(effect.id, (current) => ({ ...current, enabled }));
+  function toggle() {
+    rafSettings.updateEffect(effect.id, (current) => ({ ...current, enabled: !current.enabled }));
   }
 
   function setSloptimizerMode(advanced: boolean) {
@@ -58,8 +57,17 @@
         <button class:active={effect.advanced} on:click={() => setSloptimizerMode(true)} aria-pressed={effect.advanced}>Advanced</button>
       </div>
     {/if}
-    <label class="bypass-toggle"><input type="checkbox" checked={effect.enabled} on:change={toggle} /> Enabled</label>
     <div class="card-actions">
+      <button
+        class="icon-button bypass-toggle"
+        class:active={effect.enabled}
+        on:click={toggle}
+        title={effect.enabled ? 'Bypass effect' : 'Power on effect'}
+        aria-label={effect.enabled ? 'Bypass effect' : 'Power on effect'}
+        aria-pressed={effect.enabled}
+      >
+        <span class="material-symbols-outlined" aria-hidden="true">power_settings_new</span>
+      </button>
       <button class="icon-button" on:click={() => rafSettings.moveEffect(effect.id, index - 1)} disabled={index === 0} title="Move up" aria-label="Move effect up"><span class="material-symbols-outlined">arrow_upward</span></button>
       <button class="icon-button" on:click={() => rafSettings.moveEffect(effect.id, index + 1)} disabled={index === total - 1} title="Move down" aria-label="Move effect down"><span class="material-symbols-outlined">arrow_downward</span></button>
       <button class="icon-button" on:click={() => rafSettings.resetEffect(effect.id)} title="Reset effect" aria-label="Reset effect"><span class="material-symbols-outlined">restart_alt</span></button>
@@ -85,8 +93,7 @@
   .effect-card.is-dragging { border-style: dashed; border-color: var(--accent-strong); background: transparent; opacity: 0.58; cursor: grabbing; }
   .effect-card.is-dragging .effect-editor { display: none; }
   .effect-card.is-dragging header { border-bottom: 0; }
-  .effect-card.is-dragging button,
-  .effect-card.is-dragging label { pointer-events: none; }
+  .effect-card.is-dragging button { pointer-events: none; }
   header { min-width: 0; min-height: 33px; display: flex; flex-wrap: wrap; align-items: center; gap: 3px 5px; padding: 2px 5px; border-bottom: 1px solid var(--border-faint); }
   strong { min-width: 0; color: var(--text-strong); }
   .effect-icon { color: var(--accent-strong); }
@@ -97,9 +104,9 @@
   .mode-pill button:hover:not(.active) { background: var(--hover-surface); color: var(--text-strong); }
   .drag-handle { cursor: grab; }
   .drag-handle:active { cursor: grabbing; }
-  .bypass-toggle { margin-left: auto; display: flex; align-items: center; gap: 5px; color: var(--muted-strong); }
-  .bypass-toggle input { accent-color: var(--accent); }
-  .card-actions { min-width: 0; display: flex; align-items: center; gap: 1px; }
+  .bypass-toggle { color: var(--muted-strong); }
+  .bypass-toggle.active { color: var(--accent-strong); }
+  .card-actions { min-width: 0; display: flex; align-items: center; gap: 1px; margin-left: auto; }
   button { color: var(--text); background: transparent; border-radius: 4px; }
   button:hover:not(:disabled) { background: var(--hover-surface); color: var(--text-strong); }
   button:disabled { opacity: 0.3; }
@@ -109,7 +116,6 @@
   .effect-editor { width: 100%; min-width: 0; padding: 6px; overflow: hidden; transition: opacity 120ms ease; }
 
   @container (max-width: 300px) {
-    .bypass-toggle { order: 2; }
-    .card-actions { order: 3; width: 100%; justify-content: flex-end; border-top: 1px solid var(--border-faint); padding-top: 2px; }
+    .card-actions { order: 3; width: 100%; margin-left: 0; justify-content: flex-end; border-top: 1px solid var(--border-faint); padding-top: 2px; }
   }
 </style>
