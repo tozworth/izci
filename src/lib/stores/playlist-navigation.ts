@@ -211,6 +211,32 @@ export function createPlaylistNavigation(getItems: () => PlaylistItem[]) {
 
   return {
     reset,
+    resolveStartTrack(options: {
+      selectedId?: string | null;
+      shuffle?: boolean;
+    } = {}): PlaylistItem | null {
+      const { selectedId = null, shuffle = false } = options;
+
+      if (!shuffle) {
+        return getTrackById(selectedId);
+      }
+
+      const shuffledIds = shuffleIds(getItems().map((item) => item.id));
+      const initialTrack = getTrackById(shuffledIds[0] ?? null);
+
+      if (!initialTrack) {
+        reset();
+        return null;
+      }
+
+      shuffleSession = {
+        history: [initialTrack.id],
+        cursor: 0,
+        upcoming: shuffledIds.slice(1)
+      };
+
+      return initialTrack;
+    },
     resolveStepTrack(options: {
       currentId?: string | null;
       selectedId?: string | null;

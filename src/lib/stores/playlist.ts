@@ -365,6 +365,12 @@ function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
         queuePersist();
       });
     },
+    resolveStartTrack(options: {
+      selectedId?: string | null;
+      shuffle?: boolean;
+    } = {}) {
+      return navigation.resolveStartTrack(options);
+    },
     resolveStepTrack(options: {
       currentId?: string | null;
       selectedId?: string | null;

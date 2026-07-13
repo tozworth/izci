@@ -46,6 +46,16 @@ describe('playlist navigation', () => {
     expect(navigation.resolveTrackEnd({ currentId: 'c', repeatMode: 'all' })?.id).toBe('a');
   });
 
+  it('starts linear playback from selection and shuffled playback from the full playlist', () => {
+    vi.spyOn(Math, 'random').mockReturnValue(0);
+    const navigation = createPlaylistNavigation(() => items);
+
+    expect(navigation.resolveStartTrack({ selectedId: 'a' })?.id).toBe('a');
+    expect(navigation.resolveStartTrack()).toBeNull();
+    expect(navigation.resolveStartTrack({ selectedId: 'a', shuffle: true })?.id).toBe('b');
+    expect(navigation.resolveStepTrack({ currentId: 'b', direction: 1, shuffle: true })?.id).toBe('c');
+  });
+
   it('walks shuffle history backward instead of drawing a fresh random item', () => {
     vi.spyOn(Math, 'random').mockReturnValue(0);
     const navigation = createPlaylistNavigation(() => items);

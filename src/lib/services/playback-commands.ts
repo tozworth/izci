@@ -168,12 +168,17 @@ export function createPlaybackCommandsController({
     }
 
     const selectedPlaylistTrack = getSelectedPlaylistTrack();
+    const startTrack = playlistStore.resolveStartTrack({
+      selectedId: selectedPlaylistTrack?.id,
+      shuffle: getShuffleEnabled()
+    });
 
-    if (!selectedPlaylistTrack) {
+    if (!startTrack) {
       return;
     }
 
-    await playTrack(selectedPlaylistTrack);
+    selectTrack('playlist', startTrack.id);
+    await playTrack(startTrack);
   }
 
   function pause(): void {
