@@ -7,6 +7,7 @@ import {
 } from './crystalizer';
 import { GRAPHIC_EQ_FREQUENCIES, GRAPHIC_EQ_Q, createGraphicEqNode, updateGraphicEqNode } from './graphic-eq';
 import { createStereoWidthNode, stereoWidthToMidSideGains, updateStereoWidthNode } from './mid-side';
+import { createReverbNode, createRoomImpulse, reverbMixToGains, updateReverbNode } from './reverb';
 import {
   createSafeLimiterCurve,
   createSloptimizerNode,
@@ -56,6 +57,17 @@ class FakeWaveShaper extends FakeNode {
   curve: Float32Array | null = null;
   oversample: OverSampleType = 'none';
 }
+class FakeAudioBuffer {
+  readonly channels: Float32Array[];
+  constructor(readonly numberOfChannels: number, readonly length: number, readonly sampleRate: number) {
+    this.channels = Array.from({ length: numberOfChannels }, () => new Float32Array(length));
+  }
+  getChannelData(channel: number): Float32Array { return this.channels[channel]; }
+}
+class FakeConvolver extends FakeNode {
+  buffer: AudioBuffer | null = null;
+  normalize = true;
+}
 
 class FakeContext {
   currentTime = 1;
@@ -68,6 +80,8 @@ class FakeContext {
   delays: FakeDelay[] = [];
   compressors: FakeCompressor[] = [];
   waveShapers: FakeWaveShaper[] = [];
+  convolvers: FakeConvolver[] = [];
+  buffers: FakeAudioBuffer[] = [];
   createGain(): GainNode { const node = new FakeGain(); this.gains.push(node); return node as unknown as GainNode; }
   createBiquadFilter(): BiquadFilterNode { const node = new FakeFilter(); this.filters.push(node); return node as unknown as BiquadFilterNode; }
   createChannelSplitter(): ChannelSplitterNode { const node = new FakeNode(); this.splitters.push(node); return node as unknown as ChannelSplitterNode; }
@@ -76,6 +90,12 @@ class FakeContext {
   createDelay(): DelayNode { const node = new FakeDelay(); this.delays.push(node); return node as unknown as DelayNode; }
   createDynamicsCompressor(): DynamicsCompressorNode { const node = new FakeCompressor(); this.compressors.push(node); return node as unknown as DynamicsCompressorNode; }
   createWaveShaper(): WaveShaperNode { const node = new FakeWaveShaper(); this.waveShapers.push(node); return node as unknown as WaveShaperNode; }
+  createConvolver(): ConvolverNode { const node = new FakeConvolver(); this.convolvers.push(node); return node as unknown as ConvolverNode; }
+  createBuffer(channels: number, length: number, sampleRate: number): AudioBuffer {
+    const buffer = new FakeAudioBuffer(channels, length, sampleRate);
+    this.buffers.push(buffer);
+    return buffer as unknown as AudioBuffer;
+  }
 }
 
 describe('Graphic EQ DSP', () => {
@@ -217,5 +237,47 @@ describe('Sloptimizer DSP', () => {
     expect(curve.at(-1)).toBeCloseTo(ceiling);
     expect(curve[Math.floor(curve.length / 2)]).toBeCloseTo(0);
     expect(Array.from(curve).every((value, index) => index === 0 || value >= curve[index - 1])).toBe(true);
+  });
+});
+
+describe('Reverb DSP', () => {
+  it('builds a deterministic stereo room impulse with a decaying tail', () => {
+    const firstContext = new FakeContext();
+    const secondContext = new FakeContext();
+    const first = createRoomImpulse(firstContext as unknown as BaseAudioContext, 55, 2.2) as unknown as FakeAudioBuffer;
+    const second = createRoomImpulse(secondContext as unknown as BaseAudioContext, 55, 2.2) as unknown as FakeAudioBuffer;
+
+    expect(first.numberOfChannels).toBe(2);
+    expect(first.length).toBe(Math.ceil(2.2 * firstContext.sampleRate));
+    expect(first.channels[0]).toEqual(second.channels[0]);
+    expect(first.channels[0]).not.toEqual(first.channels[1]);
+    expect(first.channels[0].some((sample) => sample !== 0)).toBe(true);
+  });
+
+  it('uses equal-power mix and crossfades impulse changes', () => {
+    const context = new FakeContext();
+    const settings = {
+      id: 'reverb',
+      type: 'reverb' as const,
+      enabled: true,
+      mix: 18,
+      roomSize: 55,
+      decaySeconds: 2.2,
+      preDelayMs: 18,
+      dampingHz: 9_000
+    };
+    const node = createReverbNode(context as unknown as BaseAudioContext, settings);
+    expect(context.convolvers).toHaveLength(2);
+    expect(node.slots[0].gain.gain.value).toBe(1);
+    expect(node.slots[1].gain.gain.value).toBe(0);
+    expect(reverbMixToGains(50).dry).toBeCloseTo(Math.SQRT1_2);
+    expect(reverbMixToGains(50).wet).toBeCloseTo(Math.SQRT1_2);
+
+    updateReverbNode(node, { ...settings, roomSize: 80, mix: 30 }, context as unknown as BaseAudioContext, settings);
+    expect(node.activeSlot).toBe(1);
+    expect((node.slots[0].gain.gain as unknown as FakeParam).ramps.at(-1)).toBe(0);
+    expect((node.slots[1].gain.gain as unknown as FakeParam).ramps.at(-1)).toBe(1);
+    expect((node.wet.gain as unknown as FakeParam).ramps.at(-1)).toBeCloseTo(reverbMixToGains(30).wet);
+    expect(context.buffers).toHaveLength(2);
   });
 });

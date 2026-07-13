@@ -31,7 +31,7 @@ export interface WorkspaceResizeHandle {
   after: WorkspacePanelId;
 }
 export type ReplayGainMode = 'off' | 'track' | 'album';
-export type RafEffectType = 'graphic-eq' | 'stereo-width' | 'crystalizer' | 'sloptimizer';
+export type RafEffectType = 'graphic-eq' | 'stereo-width' | 'crystalizer' | 'sloptimizer' | 'reverb';
 
 export interface RafEffectBase {
   id: string;
@@ -69,11 +69,21 @@ export interface RafSloptimizerSettings extends RafEffectBase {
   ceilingDb: number;
 }
 
+export interface RafReverbSettings extends RafEffectBase {
+  type: 'reverb';
+  mix: number;
+  roomSize: number;
+  decaySeconds: number;
+  preDelayMs: number;
+  dampingHz: number;
+}
+
 export type RafEffectSettings =
   | RafGraphicEqSettings
   | RafStereoWidthSettings
   | RafCrystalizerSettings
-  | RafSloptimizerSettings;
+  | RafSloptimizerSettings
+  | RafReverbSettings;
 
 export interface RafRackSettings {
   enabled: boolean;

@@ -244,6 +244,14 @@ export function sameEffectSettings(first: RafEffectSettings, second: RafEffectSe
         && first.speed === candidate.speed
         && first.ceilingDb === candidate.ceilingDb;
     }
+    case 'reverb': {
+      const candidate = second as typeof first;
+      return first.mix === candidate.mix
+        && first.roomSize === candidate.roomSize
+        && first.decaySeconds === candidate.decaySeconds
+        && first.preDelayMs === candidate.preDelayMs
+        && first.dampingHz === candidate.dampingHz;
+    }
   }
 }
 

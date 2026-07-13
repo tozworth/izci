@@ -10,7 +10,8 @@ describe('Raf effect registry', () => {
       'graphic-eq',
       'stereo-width',
       'crystalizer',
-      'sloptimizer'
+      'sloptimizer',
+      'reverb'
     ]);
     const first = RAF_EFFECT_REGISTRY['graphic-eq'].createDefault('first');
     const second = RAF_EFFECT_REGISTRY['graphic-eq'].createDefault('second');
@@ -28,6 +29,15 @@ describe('Raf effect registry', () => {
       slop: 0,
       customized: false,
       ...mapSlopToParameters(0)
+    });
+    expect(RAF_EFFECT_REGISTRY.reverb.createDefault('reverb')).toMatchObject({
+      id: 'reverb',
+      type: 'reverb',
+      mix: 18,
+      roomSize: 55,
+      decaySeconds: 2.2,
+      preDelayMs: 18,
+      dampingHz: 9_000
     });
   });
 });

@@ -39,6 +39,16 @@ describe('normalizeRafSettings', () => {
           speed: 55,
           ceilingDb: -1
         },
+        {
+          id: 'reverb-1',
+          type: 'reverb',
+          enabled: true,
+          mix: 22,
+          roomSize: 70,
+          decaySeconds: 3.4,
+          preDelayMs: 25,
+          dampingHz: 7_500
+        },
         { id: 'eq-1', type: 'stereo-width', enabled: true, widthDb: 0 },
         { id: 'bad', type: 'future-effect', enabled: true },
         { id: 'nan', type: 'stereo-width', enabled: true, widthDb: Number.NaN }
@@ -46,9 +56,10 @@ describe('normalizeRafSettings', () => {
     });
 
     expect(result.enabled).toBe(false);
-    expect(result.effects.map((effect) => effect.id)).toEqual(['eq-1', 'width-1', 'crystalizer-1', 'sloptimizer-1']);
+    expect(result.effects.map((effect) => effect.id)).toEqual(['eq-1', 'width-1', 'crystalizer-1', 'sloptimizer-1', 'reverb-1']);
     expect(result.effects[0]).toMatchObject({ preampDb: 3 });
     expect(result.effects[3]).toMatchObject(mapSlopToParameters(50));
+    expect(result.effects[4]).toMatchObject({ mix: 22, decaySeconds: 3.4, dampingHz: 7_500 });
   });
 
   it('clamps finite gains to the declared control domain and rejects malformed EQ arrays', () => {
@@ -118,6 +129,30 @@ describe('normalizeRafSettings', () => {
       density: 100,
       speed: 0,
       ceilingDb: -6
+    });
+  });
+
+  it('clamps reverb controls to safe DSP ranges', () => {
+    const result = normalizeRafSettings({
+      enabled: true,
+      effects: [{
+        id: 'reverb',
+        type: 'reverb',
+        enabled: true,
+        mix: 150,
+        roomSize: -10,
+        decaySeconds: 20,
+        preDelayMs: -4,
+        dampingHz: 50_000
+      }]
+    });
+
+    expect(result.effects[0]).toMatchObject({
+      mix: 100,
+      roomSize: 0,
+      decaySeconds: 8,
+      preDelayMs: 0,
+      dampingHz: 20_000
     });
   });
 

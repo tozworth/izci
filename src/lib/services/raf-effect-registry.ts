@@ -3,6 +3,7 @@ import type {
   RafEffectSettings,
   RafEffectType,
   RafGraphicEqSettings,
+  RafReverbSettings,
   RafSloptimizerSettings,
   RafStereoWidthSettings
 } from '$lib/types';
@@ -23,6 +24,21 @@ import {
   updateGraphicEqNode
 } from './raf-effects/graphic-eq';
 import { STEREO_WIDTH_MAX_DB, STEREO_WIDTH_MIN_DB, createStereoWidthNode, disposeStereoWidthNode, updateStereoWidthNode } from './raf-effects/mid-side';
+import {
+  REVERB_DAMPING_MAX_HZ,
+  REVERB_DAMPING_MIN_HZ,
+  REVERB_DECAY_MAX_SECONDS,
+  REVERB_DECAY_MIN_SECONDS,
+  REVERB_MIX_MAX,
+  REVERB_MIX_MIN,
+  REVERB_PRE_DELAY_MAX_MS,
+  REVERB_PRE_DELAY_MIN_MS,
+  REVERB_ROOM_SIZE_MAX,
+  REVERB_ROOM_SIZE_MIN,
+  createReverbNode,
+  disposeReverbNode,
+  updateReverbNode
+} from './raf-effects/reverb';
 import {
   SLOPTIMIZER_CEILING_MAX_DB,
   SLOPTIMIZER_CEILING_MIN_DB,
@@ -142,6 +158,23 @@ function normalizeSloptimizer(value: unknown): RafSloptimizerSettings | null {
   return customized ? normalized : { ...normalized, ...mapSlopToParameters(slop) };
 }
 
+function normalizeReverb(value: unknown): RafReverbSettings | null {
+  const base = normalizeBase(value, 'reverb');
+  if (!base) return null;
+  const source = value as Record<string, unknown>;
+  const numericKeys = ['mix', 'roomSize', 'decaySeconds', 'preDelayMs', 'dampingHz'] as const;
+  if (!numericKeys.every((key) => typeof source[key] === 'number' && Number.isFinite(source[key]))) return null;
+  return {
+    ...base,
+    type: 'reverb',
+    mix: clamp(source.mix as number, REVERB_MIX_MIN, REVERB_MIX_MAX),
+    roomSize: clamp(source.roomSize as number, REVERB_ROOM_SIZE_MIN, REVERB_ROOM_SIZE_MAX),
+    decaySeconds: clamp(source.decaySeconds as number, REVERB_DECAY_MIN_SECONDS, REVERB_DECAY_MAX_SECONDS),
+    preDelayMs: clamp(source.preDelayMs as number, REVERB_PRE_DELAY_MIN_MS, REVERB_PRE_DELAY_MAX_MS),
+    dampingHz: clamp(source.dampingHz as number, REVERB_DAMPING_MIN_HZ, REVERB_DAMPING_MAX_HZ)
+  };
+}
+
 const graphicEqDefinition: RafEffectDefinition = {
   type: 'graphic-eq',
   name: 'Graphic EQ',
@@ -231,7 +264,33 @@ const sloptimizerDefinition: RafEffectDefinition = {
   disposeNode: (node) => disposeSloptimizerNode(node as ReturnType<typeof createSloptimizerNode>)
 };
 
-export const RAF_EFFECT_DEFINITIONS = [graphicEqDefinition, stereoWidthDefinition, crystalizerDefinition, sloptimizerDefinition] as const;
+const reverbDefinition: RafEffectDefinition = {
+  type: 'reverb',
+  name: 'Reverb',
+  icon: 'blur_on',
+  createDefault: (id) => ({
+    id,
+    type: 'reverb',
+    enabled: true,
+    mix: 18,
+    roomSize: 55,
+    decaySeconds: 2.2,
+    preDelayMs: 18,
+    dampingHz: 9_000
+  }),
+  normalize: normalizeReverb,
+  createNode: (context, settings) => createReverbNode(context, settings as RafReverbSettings),
+  updateNode: (node, settings, context, previousSettings) =>
+    updateReverbNode(
+      node as ReturnType<typeof createReverbNode>,
+      settings as RafReverbSettings,
+      context,
+      previousSettings as RafReverbSettings | undefined
+    ),
+  disposeNode: (node) => disposeReverbNode(node as ReturnType<typeof createReverbNode>)
+};
+
+export const RAF_EFFECT_DEFINITIONS = [graphicEqDefinition, stereoWidthDefinition, crystalizerDefinition, sloptimizerDefinition, reverbDefinition] as const;
 export const RAF_EFFECT_REGISTRY = Object.fromEntries(
   RAF_EFFECT_DEFINITIONS.map((definition) => [definition.type, definition])
 ) as Record<RafEffectType, RafEffectDefinition>;
