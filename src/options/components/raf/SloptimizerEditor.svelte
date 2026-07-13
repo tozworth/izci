@@ -19,10 +19,6 @@
 
   type AdvancedKey = 'lowLiftDb' | 'midLiftDb' | 'highLiftDb' | 'density' | 'speed' | 'ceilingDb';
 
-  function setAdvanced(advanced: boolean) {
-    update({ advanced });
-  }
-
   function updateSlop(event: Event) {
     const slop = (event.currentTarget as HTMLInputElement).valueAsNumber;
     update({ slop, customized: false, ...mapSlopToParameters(slop) });
@@ -46,12 +42,6 @@
 </script>
 
 <div class="sloptimizer-editor">
-  <div class="mode-row" aria-label="Sloptimizer editor mode">
-    <button class:active={!settings.advanced} on:click={() => setAdvanced(false)} aria-pressed={!settings.advanced}>Simple</button>
-    <button class:active={settings.advanced} on:click={() => setAdvanced(true)} aria-pressed={settings.advanced}>Advanced</button>
-    {#if settings.customized}<span class="customized">Customized</span>{/if}
-  </div>
-
   <label class="slop-control">
     <span class="control-name">Slop</span>
     <input type="range" min={SLOPTIMIZER_SLOP_MIN} max={SLOPTIMIZER_SLOP_MAX} step="1" value={settings.slop} on:input={updateSlop} />
@@ -78,14 +68,8 @@
 
 <style>
   .sloptimizer-editor { display: grid; gap: 8px; padding: 2px; }
-  .mode-row { display: flex; align-items: center; gap: 3px; }
-  .mode-row button,
   .advanced-footer button { min-height: 24px; padding: 3px 8px; border: 1px solid var(--border-faint); border-radius: 4px; background: transparent; color: var(--muted-strong); }
-  .mode-row button:hover,
-  .mode-row button.active,
   .advanced-footer button:hover:not(:disabled) { border-color: var(--accent-strong); background: var(--hover-surface); color: var(--text-strong); }
-  .mode-row button.active { color: var(--accent-strong); }
-  .customized { margin-left: auto; color: var(--accent-strong); font-size: 9px; text-transform: uppercase; letter-spacing: 0.08em; }
   .slop-control,
   .advanced-grid label { min-width: 0; display: grid; grid-template-columns: 55px minmax(80px, 1fr) 55px; align-items: center; gap: 7px; color: var(--muted); font-size: 10px; }
   .slop-control { grid-template-columns: 35px minmax(100px, 1fr) 42px; }

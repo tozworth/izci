@@ -19,6 +19,12 @@
     rafSettings.updateEffect(effect.id, (current) => ({ ...current, enabled }));
   }
 
+  function setSloptimizerMode(advanced: boolean) {
+    rafSettings.updateEffect(effect.id, (current) => current.type === 'sloptimizer'
+      ? { ...current, advanced }
+      : current);
+  }
+
   function startDrag(event: DragEvent) {
     onDragStart(effect.id);
 
@@ -46,6 +52,12 @@
     </button>
     <span class="material-symbols-outlined effect-icon" aria-hidden="true">{RAF_EFFECT_REGISTRY[effect.type].icon}</span>
     <strong>{RAF_EFFECT_REGISTRY[effect.type].name}</strong>
+    {#if effect.type === 'sloptimizer'}
+      <div class="mode-pill" aria-label="Sloptimizer editor mode">
+        <button class:active={!effect.advanced} on:click={() => setSloptimizerMode(false)} aria-pressed={!effect.advanced}>Simple</button>
+        <button class:active={effect.advanced} on:click={() => setSloptimizerMode(true)} aria-pressed={effect.advanced}>Advanced</button>
+      </div>
+    {/if}
     <label class="bypass-toggle"><input type="checkbox" checked={effect.enabled} on:change={toggle} /> Enabled</label>
     <div class="card-actions">
       <button class="icon-button" on:click={() => rafSettings.moveEffect(effect.id, index - 1)} disabled={index === 0} title="Move up" aria-label="Move effect up"><span class="material-symbols-outlined">arrow_upward</span></button>
@@ -78,6 +90,11 @@
   header { min-width: 0; min-height: 33px; display: flex; flex-wrap: wrap; align-items: center; gap: 3px 5px; padding: 2px 5px; border-bottom: 1px solid var(--border-faint); }
   strong { min-width: 0; color: var(--text-strong); }
   .effect-icon { color: var(--accent-strong); }
+  .mode-pill { display: inline-flex; overflow: hidden; border: 1px solid var(--border-faint); border-radius: 999px; }
+  .mode-pill button { min-height: 22px; padding: 2px 7px; border: 0; border-radius: 0; color: var(--muted-strong); font-size: 10px; }
+  .mode-pill button + button { border-left: 1px solid var(--border-faint); }
+  .mode-pill button.active { background: var(--accent); color: var(--accent-text, #fff); }
+  .mode-pill button:hover:not(.active) { background: var(--hover-surface); color: var(--text-strong); }
   .drag-handle { cursor: grab; }
   .drag-handle:active { cursor: grabbing; }
   .bypass-toggle { margin-left: auto; display: flex; align-items: center; gap: 5px; color: var(--muted-strong); }
