@@ -1,6 +1,7 @@
 <script lang="ts">
   import { RAF_EFFECT_DEFINITIONS } from '$lib/services/raf-effect-registry';
   import { rafSettings } from '$lib/stores/raf-settings';
+  import { rafMeter } from '$lib/services/raf-meter';
   import RafEffectCard from './RafEffectCard.svelte';
 
   let draggedId: string | null = null;
@@ -31,6 +32,10 @@
     dropBoundary = null;
     dragEngaged = false;
   }
+
+  function formatDb(value: number) {
+    return value <= -60 ? '-∞' : value.toFixed(1);
+  }
 </script>
 
 <article class="raf-view">
@@ -51,6 +56,11 @@
     <button on:click={() => rafSettings.clearEffects()} disabled={$rafSettings.effects.length === 0} title="Remove all effects" aria-label="Remove all effects">
       <span class="material-symbols-outlined" aria-hidden="true">delete</span>
     </button>
+    <div class="meter-readouts" aria-label="Raf input and output peak levels">
+      <span title="Raf input peak">IN {formatDb($rafMeter.inputDb)} dB</span>
+      <span title="Raf output peak">OUT {formatDb($rafMeter.outputDb)} dB</span>
+    </div>
+    <span class:clipping={$rafMeter.clipping} class="clip-warning" title={$rafMeter.clipping ? "Help me, Raf's output is clipping!" : 'No Raf output clipping detected'} aria-label={$rafMeter.clipping ? "Help me, Raf's output is clipping!" : 'No Raf output clipping detected'}>!</span>
   </div>
 
   {#if $rafSettings.effects.length === 0}
@@ -104,6 +114,9 @@
   .add-menu summary:hover { background: var(--hover-surface); color: var(--text-strong); }
   .raf-toolbar > button.active { color: var(--accent-strong); }
   .raf-toolbar > button:disabled { opacity: 0.35; cursor: default; }
+  .meter-readouts { margin-left: auto; display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 9px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .clip-warning { width: 17px; height: 17px; display: grid; place-items: center; border: 1px solid var(--border-faint); border-radius: 50%; color: var(--muted); font-size: 11px; font-weight: 800; opacity: 0.35; }
+  .clip-warning.clipping { border-color: #ff604f; background: #ff604f; color: #fff; opacity: 1; box-shadow: 0 0 7px rgb(255 72 52 / 55%); }
   .add-menu { position: static; }
   .add-menu summary { list-style: none; }
   .add-menu summary::-webkit-details-marker { display: none; }

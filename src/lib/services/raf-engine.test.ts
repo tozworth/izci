@@ -24,6 +24,13 @@ class FakeFilter extends FakeNode {
   frequency = new FakeParam();
   Q = new FakeParam();
   gain = new FakeParam();
+  getFrequencyResponse(_frequencies: Float32Array, magnitudes: Float32Array): void {
+    magnitudes.fill(10 ** (this.gain.value / 20));
+  }
+}
+class FakeAnalyser extends FakeNode {
+  fftSize = 2048;
+  getFloatTimeDomainData(samples: Float32Array): void { samples.fill(0); }
 }
 class FakeContext {
   currentTime = 0;
@@ -31,6 +38,7 @@ class FakeContext {
   filters: FakeFilter[] = [];
   createGain(): GainNode { const node = new FakeGain(); this.gains.push(node); return node as unknown as GainNode; }
   createBiquadFilter(): BiquadFilterNode { const node = new FakeFilter(); this.filters.push(node); return node as unknown as BiquadFilterNode; }
+  createAnalyser(): AnalyserNode { return new FakeAnalyser() as unknown as AnalyserNode; }
 }
 
 describe('RafEngine', () => {
@@ -56,7 +64,7 @@ describe('RafEngine', () => {
 
     rafSettings.updateEffect(effect.id, (current) => ({ ...current, preampDb: 6 } as RafGraphicEqSettings));
     expect(context.filters).toHaveLength(filterCount);
-    expect(context.gains.some((gain) => gain.gain.ramps.some((value) => value > 1))).toBe(true);
+    expect(context.gains.some((gain) => gain.gain.ramps.some((value) => value < 1))).toBe(true);
 
     rafSettings.removeEffect(effect.id);
     vi.advanceTimersByTime(30);
@@ -65,7 +73,7 @@ describe('RafEngine', () => {
   });
 
   it('treats only stable ID/type order as the same topology', () => {
-    const first = [{ id: 'a', type: 'mid-side' as const, enabled: true, midGainDb: 0, sideGainDb: 0 }];
+    const first = [{ id: 'a', type: 'stereo-width' as const, enabled: true, widthDb: 0 }];
     expect(sameTopology(first, [{ ...first[0], enabled: false }])).toBe(true);
     expect(sameTopology(first, [{ ...first[0], id: 'b' }])).toBe(false);
   });

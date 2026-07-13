@@ -2,7 +2,7 @@ import type {
   RafEffectSettings,
   RafEffectType,
   RafGraphicEqSettings,
-  RafMidSideSettings
+  RafStereoWidthSettings
 } from '$lib/types';
 import {
   GRAPHIC_EQ_FREQUENCIES,
@@ -12,7 +12,7 @@ import {
   disposeGraphicEqNode,
   updateGraphicEqNode
 } from './raf-effects/graphic-eq';
-import { createMidSideNode, disposeMidSideNode, updateMidSideNode } from './raf-effects/mid-side';
+import { STEREO_WIDTH_MAX_DB, STEREO_WIDTH_MIN_DB, createStereoWidthNode, disposeStereoWidthNode, updateStereoWidthNode } from './raf-effects/mid-side';
 import type { RafEffectNode } from './raf-effects/shared';
 
 export interface RafEffectDefinition {
@@ -53,15 +53,13 @@ function normalizeGraphicEq(value: unknown): RafGraphicEqSettings | null {
   return { ...base, type: 'graphic-eq', preampDb, bandGainsDb: bandGainsDb as number[] };
 }
 
-function normalizeMidSide(value: unknown): RafMidSideSettings | null {
-  const base = normalizeBase(value, 'mid-side');
+function normalizeStereoWidth(value: unknown): RafStereoWidthSettings | null {
+  const base = normalizeBase(value, 'stereo-width');
   if (!base) return null;
   const source = value as Record<string, unknown>;
-  const midGainDb = normalizeGain(source.midGainDb);
-  const sideGainDb = normalizeGain(source.sideGainDb);
-  return midGainDb === null || sideGainDb === null
-    ? null
-    : { ...base, type: 'mid-side', midGainDb, sideGainDb };
+  if (typeof source.widthDb !== 'number' || !Number.isFinite(source.widthDb)) return null;
+  const widthDb = Math.min(STEREO_WIDTH_MAX_DB, Math.max(STEREO_WIDTH_MIN_DB, source.widthDb));
+  return { ...base, type: 'stereo-width', widthDb };
 }
 
 const graphicEqDefinition: RafEffectDefinition = {
@@ -82,19 +80,19 @@ const graphicEqDefinition: RafEffectDefinition = {
   disposeNode: (node) => disposeGraphicEqNode(node as ReturnType<typeof createGraphicEqNode>)
 };
 
-const midSideDefinition: RafEffectDefinition = {
-  type: 'mid-side',
-  name: 'Mid/Side',
+const stereoWidthDefinition: RafEffectDefinition = {
+  type: 'stereo-width',
+  name: 'Stereo Width',
   icon: 'swap_horiz',
-  createDefault: (id) => ({ id, type: 'mid-side', enabled: true, midGainDb: 0, sideGainDb: 0 }),
-  normalize: normalizeMidSide,
-  createNode: (context, settings) => createMidSideNode(context, settings as RafMidSideSettings),
+  createDefault: (id) => ({ id, type: 'stereo-width', enabled: true, widthDb: 0 }),
+  normalize: normalizeStereoWidth,
+  createNode: (context, settings) => createStereoWidthNode(context, settings as RafStereoWidthSettings),
   updateNode: (node, settings, context) =>
-    updateMidSideNode(node as ReturnType<typeof createMidSideNode>, settings as RafMidSideSettings, context),
-  disposeNode: (node) => disposeMidSideNode(node as ReturnType<typeof createMidSideNode>)
+    updateStereoWidthNode(node as ReturnType<typeof createStereoWidthNode>, settings as RafStereoWidthSettings, context),
+  disposeNode: (node) => disposeStereoWidthNode(node as ReturnType<typeof createStereoWidthNode>)
 };
 
-export const RAF_EFFECT_DEFINITIONS = [graphicEqDefinition, midSideDefinition] as const;
+export const RAF_EFFECT_DEFINITIONS = [graphicEqDefinition, stereoWidthDefinition] as const;
 export const RAF_EFFECT_REGISTRY = Object.fromEntries(
   RAF_EFFECT_DEFINITIONS.map((definition) => [definition.type, definition])
 ) as Record<RafEffectType, RafEffectDefinition>;

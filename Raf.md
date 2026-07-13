@@ -311,20 +311,16 @@ Installed-PWA behavior must be verified manually in an appropriate Chromium surf
 
 The exact grouping can shift based on use, but additions should build on the Phase 0 registry and engine rather than introduce parallel processing paths.
 
-### Phase 1: rack workflow and presets
+### Phase A: rack workflow and presets
 
 - Save, rename, load, and delete user rack presets.
-- A small set of conservative factory presets.
-- Duplicate effect instance.
-- Clear rack command.
-- Better keyboard reordering and focus handling.
+- "Clone effect" button.
 - Optional compact/expanded card state.
 - Input/output meters and clipping indication.
-- Optional per-effect wet/dry where it is musically useful.
 
 Preset data consists of effect type IDs, order, enabled states, and parameters.
 
-### Phase 2: additional built-in effects
+### Phase B: additional built-in effects
 
 - Exciter/crystalizer using a filtered parallel nonlinear path.
 - Conventional compressor with explicit threshold, ratio, knee, attack, release, and makeup controls.
@@ -332,7 +328,7 @@ Preset data consists of effect type IDs, order, enabled states, and parameters.
 
 Custom DSP should use bundled `AudioWorklet` code only when native AudioNodes are insufficient. Worklets and any future WASM are application assets included in the normal build and offline service-worker cache.
 
-### Phase 3: maximization and advanced dynamics
+### Phase C: maximization and advanced dynamics
 
 - Maximizer/limiter as a normal user-addable effect.
 - Multiband compressor or multiband maximizer.

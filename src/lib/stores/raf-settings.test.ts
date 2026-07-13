@@ -14,15 +14,15 @@ describe('normalizeRafSettings', () => {
       enabled: false,
       effects: [
         { id: 'eq-1', type: 'graphic-eq', enabled: true, preampDb: 3, bandGainsDb: GRAPHIC_EQ_FREQUENCIES.map(() => 2) },
-        { id: 'ms-1', type: 'mid-side', enabled: false, midGainDb: -4, sideGainDb: 6 },
-        { id: 'eq-1', type: 'mid-side', enabled: true, midGainDb: 0, sideGainDb: 0 },
+        { id: 'width-1', type: 'stereo-width', enabled: false, widthDb: 10 },
+        { id: 'eq-1', type: 'stereo-width', enabled: true, widthDb: 0 },
         { id: 'bad', type: 'future-effect', enabled: true },
-        { id: 'nan', type: 'mid-side', enabled: true, midGainDb: Number.NaN, sideGainDb: 0 }
+        { id: 'nan', type: 'stereo-width', enabled: true, widthDb: Number.NaN }
       ]
     });
 
     expect(result.enabled).toBe(false);
-    expect(result.effects.map((effect) => effect.id)).toEqual(['eq-1', 'ms-1']);
+    expect(result.effects.map((effect) => effect.id)).toEqual(['eq-1', 'width-1']);
     expect(result.effects[0]).toMatchObject({ preampDb: 3 });
   });
 
@@ -30,17 +30,17 @@ describe('normalizeRafSettings', () => {
     const result = normalizeRafSettings({
       enabled: true,
       effects: [
-        { id: 'ms', type: 'mid-side', enabled: true, midGainDb: -100, sideGainDb: 100 },
+        { id: 'width', type: 'stereo-width', enabled: true, widthDb: 100 },
         { id: 'eq', type: 'graphic-eq', enabled: true, preampDb: 0, bandGainsDb: [0] }
       ]
     });
 
-    expect(result.effects).toEqual([{ id: 'ms', type: 'mid-side', enabled: true, midGainDb: -24, sideGainDb: 24 }]);
+    expect(result.effects).toEqual([{ id: 'width', type: 'stereo-width', enabled: true, widthDb: 24 }]);
   });
 
   it('reorders by stable ID and resets only the selected instance', () => {
     rafSettings.addEffect('graphic-eq');
-    rafSettings.addEffect('mid-side');
+    rafSettings.addEffect('stereo-width');
     const [equalizer, midSide] = rafSettings.getSnapshot().effects;
     rafSettings.updateEffect(equalizer.id, (effect) => ({ ...effect, preampDb: 8 } as typeof equalizer));
     rafSettings.moveEffect(midSide.id, 0);

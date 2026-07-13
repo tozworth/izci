@@ -3,7 +3,7 @@
   import { rafSettings } from '$lib/stores/raf-settings';
   import type { RafEffectSettings } from '$lib/types';
   import GraphicEqEditor from './GraphicEqEditor.svelte';
-  import MidSideEditor from './MidSideEditor.svelte';
+  import StereoWidthEditor from './StereoWidthEditor.svelte';
 
   export let effect: RafEffectSettings;
   export let index: number;
@@ -56,7 +56,7 @@
     {#if effect.type === 'graphic-eq'}
       <GraphicEqEditor settings={effect} />
     {:else}
-      <MidSideEditor settings={effect} />
+      <StereoWidthEditor settings={effect} />
     {/if}
   </div>
 </article>

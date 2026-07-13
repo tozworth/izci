@@ -30,7 +30,7 @@ export interface WorkspaceResizeHandle {
   after: WorkspacePanelId;
 }
 export type ReplayGainMode = 'off' | 'track' | 'album';
-export type RafEffectType = 'graphic-eq' | 'mid-side';
+export type RafEffectType = 'graphic-eq' | 'stereo-width';
 
 export interface RafEffectBase {
   id: string;
@@ -43,13 +43,12 @@ export interface RafGraphicEqSettings extends RafEffectBase {
   bandGainsDb: number[];
 }
 
-export interface RafMidSideSettings extends RafEffectBase {
-  type: 'mid-side';
-  midGainDb: number;
-  sideGainDb: number;
+export interface RafStereoWidthSettings extends RafEffectBase {
+  type: 'stereo-width';
+  widthDb: number;
 }
 
-export type RafEffectSettings = RafGraphicEqSettings | RafMidSideSettings;
+export type RafEffectSettings = RafGraphicEqSettings | RafStereoWidthSettings;
 
 export interface RafRackSettings {
   enabled: boolean;

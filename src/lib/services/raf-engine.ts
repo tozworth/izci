@@ -2,6 +2,7 @@ import { RAF_EFFECT_REGISTRY, type RafEffectDefinition } from '$lib/services/raf
 import { RAF_PARAMETER_RAMP_SECONDS, disconnectNode, setAudioParam, type RafEffectNode } from '$lib/services/raf-effects/shared';
 import { rafSettings } from '$lib/stores/raf-settings';
 import { playbackSettings } from '$lib/stores/playback-settings';
+import { publishRafMeter } from '$lib/services/raf-meter';
 import type { RafEffectSettings, RafRackSettings } from '$lib/types';
 import type { Unsubscriber } from 'svelte/store';
 
@@ -27,6 +28,9 @@ export class RafEngine {
   readonly output: GainNode;
 
   #dryGain: GainNode;
+  #inputAnalyser: AnalyserNode;
+  #outputAnalyser: AnalyserNode;
+  #meterTimer: ReturnType<typeof setInterval>;
   #activeChain: LiveChain | null = null;
   #settings: RafRackSettings | null = null;
   #unsubscribers: Unsubscriber[];
@@ -38,8 +42,14 @@ export class RafEngine {
     this.input = context.createGain();
     this.output = context.createGain();
     this.#dryGain = context.createGain();
-    this.input.connect(this.#dryGain);
-    this.#dryGain.connect(this.output);
+    this.#inputAnalyser = context.createAnalyser();
+    this.#outputAnalyser = context.createAnalyser();
+    this.#inputAnalyser.fftSize = 2048;
+    this.#outputAnalyser.fftSize = 2048;
+    this.input.connect(this.#inputAnalyser);
+    this.#inputAnalyser.connect(this.#dryGain);
+    this.#dryGain.connect(this.#outputAnalyser);
+    this.#outputAnalyser.connect(this.output);
     this.#dryGain.gain.value = 1;
     this.#featureEnabled = playbackSettings.getSnapshot().enableRaf;
     this.#unsubscribers = [
@@ -49,17 +59,21 @@ export class RafEngine {
       }),
       rafSettings.subscribe((settings) => this.#applySettings(settings))
     ];
+    this.#meterTimer = setInterval(() => this.#publishMeters(), 100);
   }
 
   destroy(): void {
     if (this.#destroyed) return;
     this.#destroyed = true;
     this.#unsubscribers.forEach((unsubscribe) => unsubscribe());
+    clearInterval(this.#meterTimer);
     for (const timer of this.#disposeTimers) clearTimeout(timer);
     this.#disposeTimers.clear();
     if (this.#activeChain) this.#disposeChain(this.#activeChain);
     disconnectNode(this.input);
     disconnectNode(this.#dryGain);
+    disconnectNode(this.#inputAnalyser);
+    disconnectNode(this.#outputAnalyser);
     disconnectNode(this.output);
     this.#activeChain = null;
   }
@@ -83,8 +97,8 @@ export class RafEngine {
     this.#activeChain = nextChain;
 
     nextChain.outputGain.gain.value = 0;
-    this.input.connect(nextChain.input);
-    nextChain.outputGain.connect(this.output);
+    this.#inputAnalyser.connect(nextChain.input);
+    nextChain.outputGain.connect(this.#outputAnalyser);
 
     const rackEnabled = this.#featureEnabled && settings.enabled;
     const target = rackEnabled ? 1 : 0;
@@ -168,6 +182,20 @@ export class RafEngine {
       if (effect.processor) effect.definition.disposeNode(effect.processor);
     }
   }
+
+  #publishMeters(): void {
+    const input = new Float32Array(this.#inputAnalyser.fftSize);
+    const output = new Float32Array(this.#outputAnalyser.fftSize);
+    this.#inputAnalyser.getFloatTimeDomainData(input);
+    this.#outputAnalyser.getFloatTimeDomainData(output);
+    publishRafMeter(peakDb(input), peakDb(output));
+  }
+}
+
+function peakDb(samples: Float32Array): number {
+  let peak = 0;
+  for (const sample of samples) peak = Math.max(peak, Math.abs(sample));
+  return peak > 0 ? 20 * Math.log10(peak) : -60;
 }
 
 export function sameTopology(first: RafEffectSettings[], second: RafEffectSettings[]): boolean {

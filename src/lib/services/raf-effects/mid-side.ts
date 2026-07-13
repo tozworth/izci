@@ -1,9 +1,11 @@
-import type { RafMidSideSettings } from '$lib/types';
+import type { RafStereoWidthSettings } from '$lib/types';
 import { decibelsToGain, disconnectNode, setAudioParam, type RafEffectNode } from './shared';
 
 const MATRIX_GAIN = Math.SQRT1_2;
+export const STEREO_WIDTH_MIN_DB = -24;
+export const STEREO_WIDTH_MAX_DB = 24;
 
-export interface MidSideNode extends RafEffectNode {
+export interface StereoWidthNode extends RafEffectNode {
   nodes: AudioNode[];
   midGain: GainNode;
   sideGain: GainNode;
@@ -15,7 +17,8 @@ function matrixGain(context: BaseAudioContext, gain: number): GainNode {
   return node;
 }
 
-export function createMidSideNode(context: BaseAudioContext, settings: RafMidSideSettings): MidSideNode {
+export function createStereoWidthNode(context: BaseAudioContext, settings: RafStereoWidthSettings): StereoWidthNode {
+  const gains = stereoWidthToMidSideGains(settings.widthDb);
   const input = context.createGain();
   const splitter = context.createChannelSplitter(2);
   const midBus = context.createGain();
@@ -24,8 +27,8 @@ export function createMidSideNode(context: BaseAudioContext, settings: RafMidSid
   const rightToMid = matrixGain(context, MATRIX_GAIN);
   const leftToSide = matrixGain(context, MATRIX_GAIN);
   const rightToSide = matrixGain(context, -MATRIX_GAIN);
-  const midGain = matrixGain(context, decibelsToGain(settings.midGainDb));
-  const sideGain = matrixGain(context, decibelsToGain(settings.sideGainDb));
+  const midGain = matrixGain(context, gains.mid);
+  const sideGain = matrixGain(context, gains.side);
   const midToLeft = matrixGain(context, MATRIX_GAIN);
   const midToRight = matrixGain(context, MATRIX_GAIN);
   const sideToLeft = matrixGain(context, MATRIX_GAIN);
@@ -66,15 +69,22 @@ export function createMidSideNode(context: BaseAudioContext, settings: RafMidSid
   };
 }
 
-export function updateMidSideNode(
-  node: MidSideNode,
-  settings: RafMidSideSettings,
+export function updateStereoWidthNode(
+  node: StereoWidthNode,
+  settings: RafStereoWidthSettings,
   context: BaseAudioContext
 ): void {
-  setAudioParam(node.midGain.gain, decibelsToGain(settings.midGainDb), context);
-  setAudioParam(node.sideGain.gain, decibelsToGain(settings.sideGainDb), context);
+  const gains = stereoWidthToMidSideGains(settings.widthDb);
+  setAudioParam(node.midGain.gain, gains.mid, context);
+  setAudioParam(node.sideGain.gain, gains.side, context);
 }
 
-export function disposeMidSideNode(node: MidSideNode): void {
+export function disposeStereoWidthNode(node: StereoWidthNode): void {
   node.nodes.forEach(disconnectNode);
+}
+
+export function stereoWidthToMidSideGains(widthDb: number): { mid: number; side: number } {
+  return widthDb >= 0
+    ? { mid: decibelsToGain(-widthDb), side: 1 }
+    : { mid: 1, side: decibelsToGain(widthDb) };
 }
