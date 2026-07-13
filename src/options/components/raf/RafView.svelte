@@ -128,7 +128,7 @@
       <span title="Raf input peak">IN {formatDb($rafMeter.inputDb)} dB</span>
       <span title="Raf output peak">OUT {formatDb($rafMeter.outputDb)} dB</span>
     </div>
-    <span class:clipping={$rafMeter.clipping} class="clip-warning" title={$rafMeter.clipping ? "Help me, Raf's output is clipping!" : 'No Raf output clipping detected'} aria-label={$rafMeter.clipping ? "Help me, Raf's output is clipping!" : 'No Raf output clipping detected'}>!</span>
+    <span class:clipping={$rafMeter.clipping} class="clip-warning" title={$rafMeter.clipping ? "Help me, I'm clipping!" : 'No clipping detected'} aria-label={$rafMeter.clipping ? "Help me, I'm clipping!" : 'No clipping detected'}>!</span>
   </div>
 
   {#if $rafSettings.effects.length === 0}
