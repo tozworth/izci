@@ -5,6 +5,10 @@ export const SLOPTIMIZER_SLOP_MIN = 0;
 export const SLOPTIMIZER_SLOP_MAX = 100;
 export const SLOPTIMIZER_LIFT_MIN_DB = -6;
 export const SLOPTIMIZER_LIFT_MAX_DB = 12;
+export const SLOPTIMIZER_LOW_CROSSOVER_MIN_HZ = 60;
+export const SLOPTIMIZER_LOW_CROSSOVER_MAX_HZ = 400;
+export const SLOPTIMIZER_HIGH_CROSSOVER_MIN_HZ = 1000;
+export const SLOPTIMIZER_HIGH_CROSSOVER_MAX_HZ = 8000;
 export const SLOPTIMIZER_DENSITY_MIN = 0;
 export const SLOPTIMIZER_DENSITY_MAX = 100;
 export const SLOPTIMIZER_SPEED_MIN = 0;
@@ -67,18 +71,18 @@ export function createSloptimizerNode(
   const sum = context.createGain();
   const processed = context.createGain();
   const low = createBand(context, [
-    createCrossoverFilter(context, 'lowpass', SLOPTIMIZER_CROSSOVERS[0]),
-    createCrossoverFilter(context, 'lowpass', SLOPTIMIZER_CROSSOVERS[0])
+    createCrossoverFilter(context, 'lowpass', settings.lowCrossoverHz),
+    createCrossoverFilter(context, 'lowpass', settings.lowCrossoverHz)
   ]);
   const mid = createBand(context, [
-    createCrossoverFilter(context, 'highpass', SLOPTIMIZER_CROSSOVERS[0]),
-    createCrossoverFilter(context, 'highpass', SLOPTIMIZER_CROSSOVERS[0]),
-    createCrossoverFilter(context, 'lowpass', SLOPTIMIZER_CROSSOVERS[1]),
-    createCrossoverFilter(context, 'lowpass', SLOPTIMIZER_CROSSOVERS[1])
+    createCrossoverFilter(context, 'highpass', settings.lowCrossoverHz),
+    createCrossoverFilter(context, 'highpass', settings.lowCrossoverHz),
+    createCrossoverFilter(context, 'lowpass', settings.highCrossoverHz),
+    createCrossoverFilter(context, 'lowpass', settings.highCrossoverHz)
   ]);
   const high = createBand(context, [
-    createCrossoverFilter(context, 'highpass', SLOPTIMIZER_CROSSOVERS[1]),
-    createCrossoverFilter(context, 'highpass', SLOPTIMIZER_CROSSOVERS[1])
+    createCrossoverFilter(context, 'highpass', settings.highCrossoverHz),
+    createCrossoverFilter(context, 'highpass', settings.highCrossoverHz)
   ]);
   const bands = [low, mid, high];
   const limiter = context.createDynamicsCompressor();
@@ -198,9 +202,31 @@ function applySloptimizerParameters(
   const previousLifts = previousSettings
     ? [previousSettings.lowLiftDb, previousSettings.midLiftDb, previousSettings.highLiftDb]
     : null;
+  const crossoverFrequencies = [
+    [settings.lowCrossoverHz, settings.lowCrossoverHz],
+    [settings.lowCrossoverHz, settings.lowCrossoverHz, settings.highCrossoverHz, settings.highCrossoverHz],
+    [settings.highCrossoverHz, settings.highCrossoverHz]
+  ];
+  const previousCrossoverFrequencies = previousSettings ? [
+    [previousSettings.lowCrossoverHz, previousSettings.lowCrossoverHz],
+    [previousSettings.lowCrossoverHz, previousSettings.lowCrossoverHz, previousSettings.highCrossoverHz, previousSettings.highCrossoverHz],
+    [previousSettings.highCrossoverHz, previousSettings.highCrossoverHz]
+  ] : null;
   const previousTransparent = previousSettings ? sloptimizerIsTransparent(previousSettings) : null;
 
   node.bands.forEach((band, index) => {
+    band.filters.forEach((filter, filterIndex) => {
+      const maximum = context.sampleRate * 0.45;
+      setParamIfChanged(
+        filter.frequency,
+        Math.min(crossoverFrequencies[index][filterIndex], maximum),
+        previousCrossoverFrequencies
+          ? Math.min(previousCrossoverFrequencies[index][filterIndex], maximum)
+          : null,
+        context,
+        ramp
+      );
+    });
     setParamIfChanged(band.compressor.threshold, threshold, previousThreshold, context, ramp);
     setParamIfChanged(band.compressor.ratio, ratio, previousRatio, context, ramp);
     setParamIfChanged(band.compressor.knee, knee, previousKnee, context, ramp);

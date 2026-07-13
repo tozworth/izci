@@ -44,12 +44,17 @@ import {
   SLOPTIMIZER_CEILING_MIN_DB,
   SLOPTIMIZER_DENSITY_MAX,
   SLOPTIMIZER_DENSITY_MIN,
+  SLOPTIMIZER_HIGH_CROSSOVER_MAX_HZ,
+  SLOPTIMIZER_HIGH_CROSSOVER_MIN_HZ,
   SLOPTIMIZER_LIFT_MAX_DB,
   SLOPTIMIZER_LIFT_MIN_DB,
+  SLOPTIMIZER_LOW_CROSSOVER_MAX_HZ,
+  SLOPTIMIZER_LOW_CROSSOVER_MIN_HZ,
   SLOPTIMIZER_SLOP_MAX,
   SLOPTIMIZER_SLOP_MIN,
   SLOPTIMIZER_SPEED_MAX,
   SLOPTIMIZER_SPEED_MIN,
+  SLOPTIMIZER_CROSSOVERS,
   createSloptimizerNode,
   disposeSloptimizerNode,
   mapSlopToParameters,
@@ -138,7 +143,17 @@ function normalizeSloptimizer(value: unknown): RafSloptimizerSettings | null {
   if (!base) return null;
   const source = value as Record<string, unknown>;
   if (typeof source.advanced !== 'boolean' || typeof source.customized !== 'boolean') return null;
-  const numericKeys = ['slop', 'lowLiftDb', 'midLiftDb', 'highLiftDb', 'density', 'speed', 'ceilingDb'] as const;
+  const numericKeys = [
+    'slop',
+    'lowLiftDb',
+    'midLiftDb',
+    'highLiftDb',
+    'lowCrossoverHz',
+    'highCrossoverHz',
+    'density',
+    'speed',
+    'ceilingDb'
+  ] as const;
   if (!numericKeys.every((key) => typeof source[key] === 'number' && Number.isFinite(source[key]))) return null;
   const slop = clamp(source.slop as number, SLOPTIMIZER_SLOP_MIN, SLOPTIMIZER_SLOP_MAX);
   const customized = source.customized;
@@ -151,6 +166,16 @@ function normalizeSloptimizer(value: unknown): RafSloptimizerSettings | null {
     lowLiftDb: clamp(source.lowLiftDb as number, SLOPTIMIZER_LIFT_MIN_DB, SLOPTIMIZER_LIFT_MAX_DB),
     midLiftDb: clamp(source.midLiftDb as number, SLOPTIMIZER_LIFT_MIN_DB, SLOPTIMIZER_LIFT_MAX_DB),
     highLiftDb: clamp(source.highLiftDb as number, SLOPTIMIZER_LIFT_MIN_DB, SLOPTIMIZER_LIFT_MAX_DB),
+    lowCrossoverHz: clamp(
+      source.lowCrossoverHz as number,
+      SLOPTIMIZER_LOW_CROSSOVER_MIN_HZ,
+      SLOPTIMIZER_LOW_CROSSOVER_MAX_HZ
+    ),
+    highCrossoverHz: clamp(
+      source.highCrossoverHz as number,
+      SLOPTIMIZER_HIGH_CROSSOVER_MIN_HZ,
+      SLOPTIMIZER_HIGH_CROSSOVER_MAX_HZ
+    ),
     density: clamp(source.density as number, SLOPTIMIZER_DENSITY_MIN, SLOPTIMIZER_DENSITY_MAX),
     speed: clamp(source.speed as number, SLOPTIMIZER_SPEED_MIN, SLOPTIMIZER_SPEED_MAX),
     ceilingDb: clamp(source.ceilingDb as number, SLOPTIMIZER_CEILING_MIN_DB, SLOPTIMIZER_CEILING_MAX_DB)
@@ -250,6 +275,8 @@ const sloptimizerDefinition: RafEffectDefinition = {
     advanced: false,
     slop: 0,
     customized: false,
+    lowCrossoverHz: SLOPTIMIZER_CROSSOVERS[0],
+    highCrossoverHz: SLOPTIMIZER_CROSSOVERS[1],
     ...mapSlopToParameters(0)
   }),
   normalize: normalizeSloptimizer,

@@ -12,6 +12,7 @@ import {
   createSafeLimiterCurve,
   createSloptimizerNode,
   mapSlopToParameters,
+  SLOPTIMIZER_CROSSOVERS,
   sloptimizerIsTransparent,
   updateSloptimizerNode
 } from './sloptimizer';
@@ -213,21 +214,36 @@ describe('Sloptimizer DSP', () => {
       advanced: false,
       slop: 0,
       customized: false,
+      lowCrossoverHz: SLOPTIMIZER_CROSSOVERS[0],
+      highCrossoverHz: SLOPTIMIZER_CROSSOVERS[1],
       ...mapSlopToParameters(0)
     };
     const node = createSloptimizerNode(context as unknown as BaseAudioContext, settings);
     expect(node.bands).toHaveLength(3);
     expect(context.compressors).toHaveLength(4);
+    expect(node.bands.map((band) => band.filters.map((filter) => filter.frequency.value))).toEqual([
+      [180, 180],
+      [180, 180, 3000, 3000],
+      [3000, 3000]
+    ]);
     expect(node.dry.gain.value).toBe(1);
     expect(node.processed.gain.value).toBe(0);
     expect(sloptimizerIsTransparent(settings)).toBe(true);
 
     const active = { ...settings, slop: 100, ...mapSlopToParameters(100) };
-    updateSloptimizerNode(node, active, context as unknown as BaseAudioContext);
+    updateSloptimizerNode(node, active, context as unknown as BaseAudioContext, settings);
     expect((node.dry.gain as unknown as FakeParam).ramps.at(-1)).toBe(0);
     expect((node.processed.gain as unknown as FakeParam).ramps.at(-1)).toBe(1);
     expect((node.bands[2].lift.gain as unknown as FakeParam).ramps.at(-1)).toBeCloseTo(10 ** (11.5 / 20));
     expect(Math.max(...(node.saturator.curve ?? []))).toBeLessThanOrEqual(10 ** (-1 / 20));
+
+    const focusedBass = { ...active, lowCrossoverHz: 120 };
+    updateSloptimizerNode(node, focusedBass, context as unknown as BaseAudioContext, active);
+    expect(node.bands.map((band) => band.filters.map((filter) => (filter.frequency as unknown as FakeParam).ramps))).toEqual([
+      [[120], [120]],
+      [[120], [120], [], []],
+      [[], []]
+    ]);
   });
 
   it('keeps limiter curves monotonic, symmetric, and beneath their ceiling', () => {

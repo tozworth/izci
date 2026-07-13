@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { CRYSTALIZER_FREQUENCIES } from './raf-effects/crystalizer';
 import { GRAPHIC_EQ_FREQUENCIES } from './raf-effects/graphic-eq';
-import { mapSlopToParameters } from './raf-effects/sloptimizer';
+import { mapSlopToParameters, SLOPTIMIZER_CROSSOVERS } from './raf-effects/sloptimizer';
 import { RAF_EFFECT_DEFINITIONS, RAF_EFFECT_REGISTRY } from './raf-effect-registry';
 
 describe('Raf effect registry', () => {
@@ -28,6 +28,8 @@ describe('Raf effect registry', () => {
       advanced: false,
       slop: 0,
       customized: false,
+      lowCrossoverHz: SLOPTIMIZER_CROSSOVERS[0],
+      highCrossoverHz: SLOPTIMIZER_CROSSOVERS[1],
       ...mapSlopToParameters(0)
     });
     expect(RAF_EFFECT_REGISTRY.reverb.createDefault('reverb')).toMatchObject({

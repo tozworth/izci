@@ -35,6 +35,8 @@ describe('normalizeRafSettings', () => {
           lowLiftDb: 2,
           midLiftDb: 4,
           highLiftDb: 6,
+          lowCrossoverHz: 220,
+          highCrossoverHz: 4_000,
           density: 60,
           speed: 55,
           ceilingDb: -1
@@ -59,6 +61,7 @@ describe('normalizeRafSettings', () => {
     expect(result.effects.map((effect) => effect.id)).toEqual(['eq-1', 'width-1', 'crystalizer-1', 'sloptimizer-1', 'reverb-1']);
     expect(result.effects[0]).toMatchObject({ preampDb: 3 });
     expect(result.effects[3]).toMatchObject(mapSlopToParameters(50));
+    expect(result.effects[3]).toMatchObject({ lowCrossoverHz: 220, highCrossoverHz: 4_000 });
     expect(result.effects[4]).toMatchObject({ mix: 22, decaySeconds: 3.4, dampingHz: 7_500 });
   });
 
@@ -115,6 +118,8 @@ describe('normalizeRafSettings', () => {
         lowLiftDb: -20,
         midLiftDb: 20,
         highLiftDb: 5,
+        lowCrossoverHz: 20,
+        highCrossoverHz: 20_000,
         density: 120,
         speed: -10,
         ceilingDb: -20
@@ -126,6 +131,8 @@ describe('normalizeRafSettings', () => {
       customized: true,
       lowLiftDb: -6,
       midLiftDb: 12,
+      lowCrossoverHz: 60,
+      highCrossoverHz: 8_000,
       density: 100,
       speed: 0,
       ceilingDb: -6

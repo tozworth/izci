@@ -64,6 +64,8 @@ export interface RafSloptimizerSettings extends RafEffectBase {
   lowLiftDb: number;
   midLiftDb: number;
   highLiftDb: number;
+  lowCrossoverHz: number;
+  highCrossoverHz: number;
   density: number;
   speed: number;
   ceilingDb: number;

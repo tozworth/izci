@@ -240,6 +240,8 @@ export function sameEffectSettings(first: RafEffectSettings, second: RafEffectSe
         && first.lowLiftDb === candidate.lowLiftDb
         && first.midLiftDb === candidate.midLiftDb
         && first.highLiftDb === candidate.highLiftDb
+        && first.lowCrossoverHz === candidate.lowCrossoverHz
+        && first.highCrossoverHz === candidate.highCrossoverHz
         && first.density === candidate.density
         && first.speed === candidate.speed
         && first.ceilingDb === candidate.ceilingDb;
