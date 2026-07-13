@@ -75,8 +75,6 @@
   {/each}
 </div>
 
-<p class="hint">Positive values sharpen transients; negative values soften them. Automatic headroom protects the combined output.</p>
-
 <style>
   .crystalizer-bank { width: 100%; max-width: 100%; min-width: 0; display: grid; grid-template-columns: repeat(13, minmax(39px, 1fr)); gap: 3px; overflow-x: auto; overscroll-behavior-inline: contain; padding: 3px 1px 1px; }
   .crystalizer-band { min-width: 39px; display: grid; grid-template-rows: auto auto 98px auto; justify-items: center; gap: 3px; color: var(--muted); font-size: 0.66rem; transition: opacity 120ms ease; }

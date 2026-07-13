@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { CRYSTALIZER_FREQUENCIES } from '$lib/services/raf-effects/crystalizer';
 import { GRAPHIC_EQ_FREQUENCIES } from '$lib/services/raf-effects/graphic-eq';
+import { mapSlopToParameters } from '$lib/services/raf-effects/sloptimizer';
 import { DEFAULT_RAF_SETTINGS, normalizeRafSettings, rafSettings } from './raf-settings';
 
 describe('normalizeRafSettings', () => {
@@ -24,6 +25,20 @@ describe('normalizeRafSettings', () => {
           bandMuted: CRYSTALIZER_FREQUENCIES.map(() => false),
           bandBypassed: CRYSTALIZER_FREQUENCIES.map(() => false)
         },
+        {
+          id: 'sloptimizer-1',
+          type: 'sloptimizer',
+          enabled: true,
+          advanced: false,
+          slop: 50,
+          customized: false,
+          lowLiftDb: 2,
+          midLiftDb: 4,
+          highLiftDb: 6,
+          density: 60,
+          speed: 55,
+          ceilingDb: -1
+        },
         { id: 'eq-1', type: 'stereo-width', enabled: true, widthDb: 0 },
         { id: 'bad', type: 'future-effect', enabled: true },
         { id: 'nan', type: 'stereo-width', enabled: true, widthDb: Number.NaN }
@@ -31,8 +46,9 @@ describe('normalizeRafSettings', () => {
     });
 
     expect(result.enabled).toBe(false);
-    expect(result.effects.map((effect) => effect.id)).toEqual(['eq-1', 'width-1', 'crystalizer-1']);
+    expect(result.effects.map((effect) => effect.id)).toEqual(['eq-1', 'width-1', 'crystalizer-1', 'sloptimizer-1']);
     expect(result.effects[0]).toMatchObject({ preampDb: 3 });
+    expect(result.effects[3]).toMatchObject(mapSlopToParameters(50));
   });
 
   it('clamps finite gains to the declared control domain and rejects malformed EQ arrays', () => {
@@ -73,6 +89,36 @@ describe('normalizeRafSettings', () => {
 
     expect(result.effects).toHaveLength(1);
     expect(result.effects[0]).toMatchObject({ bandIntensities: CRYSTALIZER_FREQUENCIES.map(() => 32) });
+  });
+
+  it('clamps Sloptimizer controls while preserving macro customization state', () => {
+    const result = normalizeRafSettings({
+      enabled: true,
+      effects: [{
+        id: 'sloptimizer',
+        type: 'sloptimizer',
+        enabled: true,
+        advanced: true,
+        slop: 140,
+        customized: true,
+        lowLiftDb: -20,
+        midLiftDb: 20,
+        highLiftDb: 5,
+        density: 120,
+        speed: -10,
+        ceilingDb: -20
+      }]
+    });
+
+    expect(result.effects[0]).toMatchObject({
+      slop: 100,
+      customized: true,
+      lowLiftDb: -6,
+      midLiftDb: 12,
+      density: 100,
+      speed: 0,
+      ceilingDb: -6
+    });
   });
 
   it('reorders by stable ID and resets only the selected instance', () => {

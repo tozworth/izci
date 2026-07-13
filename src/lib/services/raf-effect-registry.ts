@@ -3,6 +3,7 @@ import type {
   RafEffectSettings,
   RafEffectType,
   RafGraphicEqSettings,
+  RafSloptimizerSettings,
   RafStereoWidthSettings
 } from '$lib/types';
 import {
@@ -22,6 +23,22 @@ import {
   updateGraphicEqNode
 } from './raf-effects/graphic-eq';
 import { STEREO_WIDTH_MAX_DB, STEREO_WIDTH_MIN_DB, createStereoWidthNode, disposeStereoWidthNode, updateStereoWidthNode } from './raf-effects/mid-side';
+import {
+  SLOPTIMIZER_CEILING_MAX_DB,
+  SLOPTIMIZER_CEILING_MIN_DB,
+  SLOPTIMIZER_DENSITY_MAX,
+  SLOPTIMIZER_DENSITY_MIN,
+  SLOPTIMIZER_LIFT_MAX_DB,
+  SLOPTIMIZER_LIFT_MIN_DB,
+  SLOPTIMIZER_SLOP_MAX,
+  SLOPTIMIZER_SLOP_MIN,
+  SLOPTIMIZER_SPEED_MAX,
+  SLOPTIMIZER_SPEED_MIN,
+  createSloptimizerNode,
+  disposeSloptimizerNode,
+  mapSlopToParameters,
+  updateSloptimizerNode
+} from './raf-effects/sloptimizer';
 import type { RafEffectNode } from './raf-effects/shared';
 
 export interface RafEffectDefinition {
@@ -95,6 +112,31 @@ function normalizeCrystalizer(value: unknown): RafCrystalizerSettings | null {
   };
 }
 
+function normalizeSloptimizer(value: unknown): RafSloptimizerSettings | null {
+  const base = normalizeBase(value, 'sloptimizer');
+  if (!base) return null;
+  const source = value as Record<string, unknown>;
+  if (typeof source.advanced !== 'boolean' || typeof source.customized !== 'boolean') return null;
+  const numericKeys = ['slop', 'lowLiftDb', 'midLiftDb', 'highLiftDb', 'density', 'speed', 'ceilingDb'] as const;
+  if (!numericKeys.every((key) => typeof source[key] === 'number' && Number.isFinite(source[key]))) return null;
+  const slop = clamp(source.slop as number, SLOPTIMIZER_SLOP_MIN, SLOPTIMIZER_SLOP_MAX);
+  const customized = source.customized;
+  const normalized: RafSloptimizerSettings = {
+    ...base,
+    type: 'sloptimizer',
+    advanced: source.advanced,
+    customized,
+    slop,
+    lowLiftDb: clamp(source.lowLiftDb as number, SLOPTIMIZER_LIFT_MIN_DB, SLOPTIMIZER_LIFT_MAX_DB),
+    midLiftDb: clamp(source.midLiftDb as number, SLOPTIMIZER_LIFT_MIN_DB, SLOPTIMIZER_LIFT_MAX_DB),
+    highLiftDb: clamp(source.highLiftDb as number, SLOPTIMIZER_LIFT_MIN_DB, SLOPTIMIZER_LIFT_MAX_DB),
+    density: clamp(source.density as number, SLOPTIMIZER_DENSITY_MIN, SLOPTIMIZER_DENSITY_MAX),
+    speed: clamp(source.speed as number, SLOPTIMIZER_SPEED_MIN, SLOPTIMIZER_SPEED_MAX),
+    ceilingDb: clamp(source.ceilingDb as number, SLOPTIMIZER_CEILING_MIN_DB, SLOPTIMIZER_CEILING_MAX_DB)
+  };
+  return customized ? normalized : { ...normalized, ...mapSlopToParameters(slop) };
+}
+
 const graphicEqDefinition: RafEffectDefinition = {
   type: 'graphic-eq',
   name: 'Graphic EQ',
@@ -144,7 +186,27 @@ const crystalizerDefinition: RafEffectDefinition = {
   disposeNode: (node) => disposeCrystalizerNode(node as ReturnType<typeof createCrystalizerNode>)
 };
 
-export const RAF_EFFECT_DEFINITIONS = [graphicEqDefinition, stereoWidthDefinition, crystalizerDefinition] as const;
+const sloptimizerDefinition: RafEffectDefinition = {
+  type: 'sloptimizer',
+  name: 'Sloptimizer',
+  icon: 'compress',
+  createDefault: (id) => ({
+    id,
+    type: 'sloptimizer',
+    enabled: true,
+    advanced: false,
+    slop: 0,
+    customized: false,
+    ...mapSlopToParameters(0)
+  }),
+  normalize: normalizeSloptimizer,
+  createNode: (context, settings) => createSloptimizerNode(context, settings as RafSloptimizerSettings),
+  updateNode: (node, settings, context) =>
+    updateSloptimizerNode(node as ReturnType<typeof createSloptimizerNode>, settings as RafSloptimizerSettings, context),
+  disposeNode: (node) => disposeSloptimizerNode(node as ReturnType<typeof createSloptimizerNode>)
+};
+
+export const RAF_EFFECT_DEFINITIONS = [graphicEqDefinition, stereoWidthDefinition, crystalizerDefinition, sloptimizerDefinition] as const;
 export const RAF_EFFECT_REGISTRY = Object.fromEntries(
   RAF_EFFECT_DEFINITIONS.map((definition) => [definition.type, definition])
 ) as Record<RafEffectType, RafEffectDefinition>;
@@ -157,4 +219,8 @@ export function normalizeRafEffect(value: unknown): RafEffectSettings | null {
   if (!value || typeof value !== 'object') return null;
   const type = (value as { type?: unknown }).type;
   return isRafEffectType(type) ? RAF_EFFECT_REGISTRY[type].normalize(value) : null;
+}
+
+function clamp(value: number, minimum: number, maximum: number): number {
+  return Math.min(maximum, Math.max(minimum, value));
 }

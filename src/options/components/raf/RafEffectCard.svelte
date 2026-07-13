@@ -5,6 +5,7 @@
   import CrystalizerEditor from './CrystalizerEditor.svelte';
   import GraphicEqEditor from './GraphicEqEditor.svelte';
   import StereoWidthEditor from './StereoWidthEditor.svelte';
+  import SloptimizerEditor from './SloptimizerEditor.svelte';
 
   export let effect: RafEffectSettings;
   export let index: number;
@@ -58,8 +59,10 @@
       <GraphicEqEditor settings={effect} />
     {:else if effect.type === 'stereo-width'}
       <StereoWidthEditor settings={effect} />
-    {:else}
+    {:else if effect.type === 'crystalizer'}
       <CrystalizerEditor settings={effect} />
+    {:else}
+      <SloptimizerEditor settings={effect} />
     {/if}
   </div>
 </article>
