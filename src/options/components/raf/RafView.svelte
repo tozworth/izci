@@ -233,7 +233,24 @@
 
 <style>
   .raf-view { width: 100%; min-width: 0; min-height: 100%; display: flex; flex-direction: column; gap: 6px; }
-  .raf-toolbar { position: sticky; z-index: 10; top: 0; width: 100%; min-width: 0; min-height: 33px; display: flex; align-items: center; gap: 2px; padding: 2px; border: 1px solid var(--border-faint); border-radius: 5px; background: var(--bg-card); box-shadow: 0 2px 5px rgb(0 0 0 / 12%); }
+  .raf-toolbar {
+    position: sticky;
+    z-index: 10;
+    top: 0;
+    width: calc(100% + 20px);
+    min-width: 0;
+    min-height: 32px;
+    margin: 0 -10px;
+    padding: 2px 10px;
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    border-bottom: 1px solid var(--border-soft);
+    background: color-mix(in srgb, var(--window-topbar-bg) 94%, transparent);
+    backdrop-filter: blur(16px) saturate(1.08);
+    -webkit-backdrop-filter: blur(16px) saturate(1.08);
+    box-shadow: 0 1px 0 var(--hairline), 0 8px 16px rgb(0 0 0 / 8%);
+  }
   .raf-toolbar > button,
   .add-menu summary,
   .transfer-menu summary { width: 27px; height: 27px; padding: 0; display: grid; place-items: center; border-radius: 4px; background: transparent; color: var(--muted-strong); cursor: pointer; }

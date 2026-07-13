@@ -214,7 +214,7 @@
       </div>
     </aside>
 
-    <section class="content-panel" aria-live="polite">
+    <section class="content-panel" class:raf-content={activeView === 'raf'} aria-live="polite">
       {#if activeView === 'appearance'}
         <AppearanceView />
       {/if}

@@ -286,6 +286,10 @@ code {
   container-type: inline-size;
 }
 
+.content-panel.raf-content {
+  padding-top: 0;
+}
+
 .view {
   display: block;
 }
