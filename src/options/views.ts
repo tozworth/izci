@@ -9,6 +9,7 @@ export type OptionsViewName =
   | 'modules'
   | 'tracks'
   | 'metadata'
+  | 'experimental'
   | 'about';
 
 export const DEFAULT_OPTIONS_VIEW: OptionsViewName = 'appearance';
@@ -106,6 +107,16 @@ export const OPTIONS_VIEW_GROUPS: OptionsViewDefinition[][] = [
       label: 'Metadata',
       icon: 'tag',
       parentLabel: 'Tracks',
+      hasHints: true,
+      resettable: true
+    }
+  ],
+  [
+    {
+      id: 'experimental',
+      label: 'Experimental',
+      icon: 'science',
+      parentLabel: '',
       hasHints: true,
       resettable: true
     }

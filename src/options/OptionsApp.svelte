@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import AboutView from './components/views/AboutView.svelte';
+  import ExperimentalView from './components/views/ExperimentalView.svelte';
   import AppearanceView from './components/views/AppearanceView.svelte';
   import BackdropsView from './components/views/BackdropsView.svelte';
   import LyricsView from './components/views/LyricsView.svelte';
@@ -19,6 +20,7 @@
   } from '$lib/services/options-window-state';
   import { appearanceSettings } from '$lib/stores/appearance-settings';
   import { metadataSettings } from '$lib/stores/metadata-settings';
+  import { experimentalSettings } from '$lib/stores/experimental-settings';
   import { modulePlaybackSettings } from '$lib/stores/module-playback-settings';
   import { playbackSettings } from '$lib/stores/playback-settings';
   import { rafSettings } from '$lib/stores/raf-settings';
@@ -70,6 +72,8 @@
       trackSettings.reset();
     } else if (activeView === 'metadata') {
       metadataSettings.reset();
+    } else if (activeView === 'experimental') {
+      experimentalSettings.reset();
     }
   }
 
@@ -253,6 +257,10 @@
 
       {#if activeView === 'metadata'}
         <MetadataView />
+      {/if}
+
+      {#if activeView === 'experimental'}
+        <ExperimentalView />
       {/if}
 
       {#if activeView === 'about'}

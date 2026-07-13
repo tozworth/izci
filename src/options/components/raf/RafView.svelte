@@ -8,9 +8,11 @@
     importRafSettingsFile
   } from '$lib/services/raf-settings-transfer';
   import { rafSettings } from '$lib/stores/raf-settings';
+  import { experimentalSettings } from '$lib/stores/experimental-settings';
   import { isRafPresetDirty, rafPresets } from '$lib/stores/raf-presets';
   import { rafMeter } from '$lib/services/raf-meter';
   import RafEffectCard from './RafEffectCard.svelte';
+  import RafEffectsWorkspace from './RafEffectsWorkspace.svelte';
 
   let draggedId: string | null = null;
   let dropBoundary: number | null = null;
@@ -115,16 +117,18 @@
     <button class:active={$rafSettings.enabled} on:click={() => rafSettings.setEnabled(!$rafSettings.enabled)} title={$rafSettings.enabled ? 'Bypass Raf' : 'Power on Raf'} aria-label={$rafSettings.enabled ? 'Bypass Raf' : 'Power on Raf'} aria-pressed={$rafSettings.enabled}>
       <span class="material-symbols-outlined" aria-hidden="true">power_settings_new</span>
     </button>
-    <details class="add-menu">
-      <summary title="Add effect" aria-label="Add effect"><span class="material-symbols-outlined" aria-hidden="true">add</span></summary>
-      <div class="add-menu-items">
-        {#each RAF_EFFECT_DEFINITIONS as definition}
-          <button on:click={(event) => { rafSettings.addEffect(definition.type); (event.currentTarget.closest('details') as HTMLDetailsElement)?.removeAttribute('open'); }}>
-            <span class="material-symbols-outlined" aria-hidden="true">{definition.icon}</span>{definition.name}
-          </button>
-        {/each}
-      </div>
-    </details>
+    {#if !$experimentalSettings.rafEffectsList}
+      <details class="add-menu">
+        <summary title="Add effect" aria-label="Add effect"><span class="material-symbols-outlined" aria-hidden="true">add</span></summary>
+        <div class="add-menu-items">
+          {#each RAF_EFFECT_DEFINITIONS as definition}
+            <button on:click={(event) => { rafSettings.addEffect(definition.type); (event.currentTarget.closest('details') as HTMLDetailsElement)?.removeAttribute('open'); }}>
+              <span class="material-symbols-outlined" aria-hidden="true">{definition.icon}</span>{definition.name}
+            </button>
+          {/each}
+        </div>
+      </details>
+    {/if}
     <details class="preset-menu" bind:this={presetMenu}>
       <summary title="Choose a Raf preset" aria-label="Choose a Raf preset">
         <span class="preset-summary-name">{selectedPreset?.name ?? 'Presets'}{presetDirty ? ' *' : ''}</span>
@@ -176,9 +180,11 @@
       </div>
     </details>
     <input bind:this={fileInput} class="file-input" type="file" accept="application/json,.json" on:change={handleFileImport} />
-    <button on:click={() => rafSettings.clearEffects()} disabled={$rafSettings.effects.length === 0} title="Remove all effects" aria-label="Remove all effects">
-      <span class="material-symbols-outlined" aria-hidden="true">delete</span>
-    </button>
+    {#if !$experimentalSettings.rafEffectsList}
+      <button on:click={() => rafSettings.clearEffects()} disabled={$rafSettings.effects.length === 0} title="Remove all effects" aria-label="Remove all effects">
+        <span class="material-symbols-outlined" aria-hidden="true">delete</span>
+      </button>
+    {/if}
     {#if transferStatus}
       <span class:failed={transferFailed} class="transfer-status" role="status">{transferStatus}</span>
     {/if}
@@ -189,7 +195,9 @@
     <span class:clipping={$rafMeter.clipping} class="clip-warning" title={$rafMeter.clipping ? "Help me, I'm clipping!" : 'No clipping detected'} aria-label={$rafMeter.clipping ? "Help me, I'm clipping!" : 'No clipping detected'}>!</span>
   </div>
 
-  {#if $rafSettings.effects.length === 0}
+  {#if $experimentalSettings.rafEffectsList}
+    <RafEffectsWorkspace />
+  {:else if $rafSettings.effects.length === 0}
     <div class="empty-rack">
       <span class="material-symbols-outlined" aria-hidden="true">audio_file</span>
       <strong>The rack is empty</strong>
