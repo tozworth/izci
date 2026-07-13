@@ -1777,13 +1777,14 @@
           <div class="section">
             <h2>Features</h2>
             <ul class="feature-list">
-              <li>Support for common streamed formats and tracker modules</li>
-              <li>Offline PWA with desktop integration and file associations</li>
-              <li>An easy-to-manage, persistent library</li>
-              <li>Low CPU usage</li>
-              <li>Did I mention it plays tracker modules?</li>
-              <li>izci plays tracker modules</li>
-              <li>"izci" is "tracker" in Turkish; though it's closer to "scout" but i kept it cuz it's cute</li>
+              <li>Plays usual streamed formats and tracker modules. It plays tracker modules!!!</li>
+              <li>Local-first and offline-capable</li>
+              <li>Persistent playlists and a proper library, with metadata, artwork, lyrics, and play counts</li>
+              <li>Dockable workspaces, a big moody Now Playing view, and a mini mode</li>
+              <li>Desktop PWA niceties: file associations, media keys, launch handling, custom window chrome</li>
+              <li>Per-zone artwork and visualizer backdrops</li>
+              <li>Raf: a tiny effects rack, with the usual suspects</li>
+              <li>"izci" means “tracker” in Turkish; well closer to “scout” but it was cute and the name stuck</li>
             </ul>
           </div>
         </article>
