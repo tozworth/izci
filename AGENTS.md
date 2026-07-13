@@ -47,7 +47,7 @@ Working source tree:
 ## App source map
 
 - `src/main.ts`: Svelte mount, global CSS/material symbol import, and production-only handoff to the dedicated PWA registration/update service.
-- `src/App.svelte`: top-level shell; composes the extracted workspace layouts/controllers, owns high-level shell wiring, global shortcuts, error banner wiring, View -> Now Playing mode switching, and connects the workspace-shell, playback-command, and artwork/details presentation controllers to the rendered layout.
+- `src/App.svelte`: lean top-level composition root; wires stores/controllers, derives shell/backdrop state, coordinates View -> Now Playing mode switching, and connects focused app controllers to the rendered menu, workspace, and player surfaces.
 - `src/app.css`: main app global stylesheet entrypoint; imports the shared theme tokens plus focused app-shell CSS files.
 - `src/lib/styles/themes.css`: shared color-theme tokens consumed by the main app and Options popup.
 - `src/lib/styles/app/`: focused main-window CSS split by ownership (`base`, `shell`, `menus`, `workspace`, `panels`, `player`).
@@ -95,6 +95,7 @@ Playlist/library panel subcomponents and UI-local helpers.
 
 Workspace-only composition helpers for the app shell.
 
+- `AppWorkspace.svelte`: presentation-only switchboard for Now Playing, tabbed, and wide workspace layouts; centralizes their shared playback, artwork, lyrics, panel-prop, and tab-event wiring without owning app state.
 - `TabbedWorkspace.svelte`: slim tabbed workspace layout for open workspace tabs; supports persisted tab reordering and close events without wide-panel docking.
 - `WideWorkspace.svelte`: wide desktop dock workspace with three resizable panel slots; renders per-panel tab strips, tab drag/drop between panels, collapsed-edge drop targets, and empty panels when the Appearance setting requests them.
 - `NowPlayingWorkspace.svelte`: focused Apple Music-like Now Playing layout with large centered artwork/controls and the open workspace tabs alongside it; the side pane can fade its tabs/background after mouse inactivity, supports tab reordering/closing, and the Details tab intentionally hides its own artwork to avoid duplicating the large cover.
@@ -110,6 +111,8 @@ Primary location for playback and browser-integration logic.
 - `file-launch.ts`: Chromium Launch Queue integration for installed-PWA file associations; converts launched file handles into `File`s and queues them until the app is ready to replace the playlist.
 - `import-controller.ts`: file import controller for picker capability detection, file-input fallback, open-files flow, and recursive folder import flow.
 - `file-verification.ts`: unknown-extension import gate. With verification enabled it probes files in a separate muted Chiptune3/OpenMPT player and admits successful files as tracker modules without touching active playback; with verification disabled it marks all unknown files as modules so normal playback determines whether they work.
+- `app-shortcuts.ts`: global main-window keyboard/context-menu command router; interprets shortcuts against a supplied app snapshot and delegates all mutations to shell/playback/window handlers.
+- `app-backdrops.ts`: pure app-shell backdrop presentation resolver; derives active artwork/visualizer requests, per-zone brightness contrast, shared-layer geometry keys, and workspace-zone backdrop props.
 - `player-controller.ts`: single coordinator for backend switching, snapshot updates, metadata inference application, and player volume propagation.
 - `playback-commands.ts`: app-shell playback command controller; coordinates playlist-backed play/load sequencing, launched-file playlist replacement, play/pause/stop/seek actions, and next/previous/track-end navigation while delegating backend playback to `player-controller.ts`.
 - `playback-restoration.ts`: checkpoints the current playlist track, position, and playing state in `localStorage`, then restores the configured subset after playlist hydration on reload/relaunch without prompting for file access.
@@ -127,6 +130,7 @@ Primary location for playback and browser-integration logic.
 - `artwork-palette.ts`: transient artwork color sampler used by the visualizer and optional artwork-colored player chrome; derives normalized player/visualizer palettes from the current artwork and caches per blob URL without persisting artwork data.
 - `stream-artwork.ts`: on-demand embedded metadata/artwork loading for streamed files; extracts common text tags (`title`, `artist`, `album`, `albumArtist`, `genre`, `year`, track/disc numbers, `composer`) from `flac` Vorbis comments and `opus`/`ogg` comment packets, plus ReplayGain/R128 tags from those comment packets and MP3 ID3/APEv2 tags; also creates transient cover art from `flac` picture blocks and `opus` `METADATA_BLOCK_PICTURE` comments for the player UI and Media Session without persisting artwork blobs.
 - `lyrics.ts`: on-demand transient embedded lyrics loading for streamed files with Vorbis-comment support; reads `LYRICS`/synced lyrics tags from supported comment packets, parses LRC timestamps, and does not persist lyric text in playlist/library metadata.
+- `lyrics-presentation.ts`: main-shell lyrics presentation controller; owns async availability tracking, automatic panel open/close behavior, Now Playing lyrics focus restoration, and auto-scroll resume tokens.
 - `module-metadata.ts`: background `Chiptune3` metadata probe used by store hydration to capture tracker-module duration/details without waiting for normal playback.
 - `artwork-background.ts`: artwork brightness analysis used by the main app shell to decide when artwork-backed backgrounds should flip UI surfaces/text into a darker-on-light contrast mode.
 - `artwork-presentation.ts`: main-shell artwork/details presentation controller; manages player/footer artwork loading, details-panel artwork synchronization, artwork-background slot swapping/cleanup, brightness-driven contrast state, and the temporary window-chrome transition bypass used when Window Controls Overlay visibility changes.
@@ -143,6 +147,7 @@ Primary location for playback and browser-integration logic.
 - `chiptune-loader.ts`: guarded one-time `Chiptune3` initialization with timeout/error handling.
 - `popup-windows.ts`: registry of popup window definitions (path, name, features) used by the window manager.
 - `workspace-actions.ts`: workspace collection helpers plus playlist/library context action builders.
+- `workspace-collections.ts`: app-shell playlist/library mutation coordinator; owns file-add selection behavior, removal cleanup, context-action execution, and library play-count updates.
 - `workspace-layout.ts`: wide-workspace width math, resize constraints, and panel-layout resolution for any visible subset of the three panel slots while preserving hidden-slot proportions.
 - `window-manager.ts`: generic popup launcher/tracker and desktop-PWA exit behavior; keep UI out of this file.
 - `options-window-state.ts`: persists the Options popup's last active page and user-resized dimensions for later launches.

@@ -4,25 +4,27 @@
   import SharedBackdropArtwork from '$lib/components/SharedBackdropArtwork.svelte';
   import SharedBackdropVisualizer from '$lib/components/SharedBackdropVisualizer.svelte';
   import TopMenuBar from '$lib/components/TopMenuBar.svelte';
-  import NowPlayingWorkspace from '$lib/components/workspace/NowPlayingWorkspace.svelte';
-  import TabbedWorkspace from '$lib/components/workspace/TabbedWorkspace.svelte';
-  import WideWorkspace from '$lib/components/workspace/WideWorkspace.svelte';
+  import AppWorkspace from '$lib/components/workspace/AppWorkspace.svelte';
   import type {
     WorkspacePanelHandlers
   } from '$lib/components/workspace/types';
+  import {
+    resolveAppBackdropPresentation,
+    type AppBackdropPresentation
+  } from '$lib/services/app-backdrops';
+  import { createAppShortcuts } from '$lib/services/app-shortcuts';
   import {
     createArtworkPresentationController,
     hasSameTrackMetadata,
     resolveTrackSnapshot
   } from '$lib/services/artwork-presentation';
-  import {
-    isArtworkBackgroundBrightForBrightness,
-    type ArtworkBackgroundAnalysis
-  } from '$lib/services/artwork-background';
   import { createImportController, FILE_INPUT_ACCEPT } from '$lib/services/import-controller';
   import { appInstallService, type AppInstallState } from '$lib/services/app-install';
   import { subscribeToLaunchedFiles } from '$lib/services/file-launch';
-  import { getTrackLyricsLoadKey, loadTrackLyrics } from '$lib/services/lyrics';
+  import {
+    createLyricsPresentationController,
+    type LyricsPresentationState
+  } from '$lib/services/lyrics-presentation';
   import { createPlaybackCommandsController } from '$lib/services/playback-commands';
   import { createPlaybackRestorationController } from '$lib/services/playback-restoration';
   import { forceServiceWorkerUpdateCheck } from '$lib/services/pwa-updates';
@@ -30,14 +32,7 @@
   import { mediaSessionService } from '$lib/services/media-session';
   import { createPlayCountTracker } from '$lib/services/play-count';
   import { playerController } from '$lib/services/player-controller';
-  import {
-    buildLibraryContextActions,
-    buildPlaylistContextActions,
-    buildSelectedWorkspaceTracks,
-    getEquivalentLibraryIds,
-    libraryHasAllTracks
-  } from '$lib/services/workspace-actions';
-  import { WORKSPACE_RESIZER_WIDTH } from '$lib/services/workspace-layout';
+  import { createWorkspaceCollectionsController } from '$lib/services/workspace-collections';
   import { windowManager } from '$lib/services/window-manager';
   import { windowMiniMode } from '$lib/services/window-mini-mode';
   import {
@@ -49,11 +44,7 @@
   import { windowControlsOverlayState } from '$lib/services/window-controls-overlay';
   import { windowDisplayState } from '$lib/services/window-display-state';
   import { windowFullscreen } from '$lib/services/window-fullscreen';
-  import {
-    appearanceSettings,
-    hasArtworkBackdrop,
-    hasVisualizerBackdrop
-  } from '$lib/stores/appearance-settings';
+  import { appearanceSettings } from '$lib/stores/appearance-settings';
   import { metadataSettings } from '$lib/stores/metadata-settings';
   import { libraryStore, playlistStore } from '$lib/stores/playlist';
   import { DEFAULT_PLAYER_VOLUME } from '$lib/stores/player-volume';
@@ -61,26 +52,16 @@
   import { rafSettings } from '$lib/stores/raf-settings';
   import { isRafPresetDirty, rafPresets } from '$lib/stores/raf-presets';
   import type {
-    BackdropZoneId,
-    BackdropZoneSettings,
-    BackdropZoneEffect,
-    BackdropZoneArtworkSettingsMap,
     LyricsDisplayStyle,
     PlaybackSnapshot,
     PlaylistItem,
     PlaylistRepeatMode,
     PlaylistSelection,
     WorkspaceCollection,
-    WorkspacePanelId,
     WorkspaceTab
   } from '$lib/types';
   import type { OptionsViewName } from './options/views';
-  import {
-    buildPlaylistItems,
-    clonePlaylistItems,
-    getTrackDisplayTitle,
-    getTrackIdentity
-  } from '$lib/utils/files';
+  import { getTrackDisplayTitle, getTrackIdentity } from '$lib/utils/files';
 
   const {
     items: playlistItemsStore,
@@ -95,12 +76,6 @@
     selectedIds: librarySelectedIdsStore,
     selectedTrack: librarySelectedTrackStore
   } = libraryStore;
-
-  const KEYBOARD_SEEK_STEP_SECONDS = 5;
-  const KEYBOARD_VOLUME_STEP = 0.05;
-  type LyricsAvailability = 'unknown' | 'loading' | 'available' | 'unavailable';
-
-  const libraryContextActions = buildLibraryContextActions();
 
   let playlistItems: PlaylistItem[] = [];
   let libraryItems: PlaylistItem[] = [];
@@ -137,23 +112,6 @@
   let innerWidth = typeof window !== 'undefined' ? window.innerWidth : 0;
   let innerHeight = typeof window !== 'undefined' ? window.innerHeight : 0;
   let previousPlaybackState: PlaybackSnapshot['state'] = playbackStatus.state;
-  let backdropZones: BackdropZoneSettings = appearanceSettings.getSnapshot().backdropZones;
-  let backdropZoneArtwork: BackdropZoneArtworkSettingsMap =
-    appearanceSettings.getSnapshot().backdropZoneArtwork;
-  let activeBackdropZoneIds: BackdropZoneId[] = [];
-  let activeBackdropEffects: BackdropZoneEffect[] = [];
-  let artworkBackgroundBrightByZone: Record<BackdropZoneId, boolean> = {
-    left: false,
-    center: false,
-    right: false,
-    player: false,
-    nowPlaying: false
-  };
-  let workspaceZoneArtworkBright: Record<WorkspacePanelId, boolean> = {
-    left: false,
-    center: false,
-    right: false
-  };
   let nowPlayingViewActive = appearanceSettings.getSnapshot().nowPlayingViewActive;
   let isAutomaticNowPlayingEligible = false;
   let autoNowPlayingSuppressed = false;
@@ -161,30 +119,42 @@
   let isNowPlayingLayoutActive = false;
   let isNowPlayingChromeHidden = false;
   let isFullscreenNowPlayingChromeHidden = false;
-  let isArtworkBackdropRequested = false;
-  let isVisualizerBackdropRequested = false;
-  let isArtworkBackdropActive = false;
-  let backdropGeometryKey = '';
   let documentTitle = 'izci';
-  let wasNowPlayingLayoutActive = false;
   let effectiveLyricsDisplayStyle: LyricsDisplayStyle = 'timestamped';
   let lyricsAutoScroll = true;
   let lyricsFontSize = appearanceSettings.getSnapshot().lyrics.fontSizes.timestamped;
   let lyricsResumeAutoScrollToken = 0;
-  let lyricsAvailability: LyricsAvailability = 'unknown';
-  let lyricsAvailabilityTrackKey = '';
-  let lyricsAvailabilityToken = 0;
-  let lyricsAutomationSignature = '';
-  let nowPlayingRestoreTab: WorkspaceTab | null = null;
-  let nowPlayingAutoFocusedLyrics = false;
-  let nowPlayingHadLyricsPanelVisible = false;
-  let nowPlayingAutoFocusTrackKey = '';
-  let nowPlayingLyricsAutoScrollSignature = '';
+  let lyricsPresentationState: LyricsPresentationState = {
+    availability: 'unknown',
+    trackKey: '',
+    resumeAutoScrollToken: 0
+  };
   const workspaceShell = createWorkspaceShellController({
-    getPlaylistContextActions,
-    getLibraryContextActions
+    getPlaylistContextActions: (ids) => workspaceCollections.getPlaylistContextActions(ids),
+    getLibraryContextActions: () => workspaceCollections.getLibraryContextActions()
   });
   let workspaceShellState = workspaceShell.getSnapshot();
+  const workspaceCollections = createWorkspaceCollectionsController({
+    getState: () => ({
+      playlistItems,
+      libraryItems,
+      playlistSelectionIds,
+      librarySelectionIds,
+      playingTrack
+    }),
+    handlers: {
+      focusCollection: (collection) => workspaceShell.focusCollection(collection),
+      selectTrack: (collection, id) => workspaceShell.selectTrack(collection, id),
+      showTrackDetails: () => workspaceShell.showTrackDetails(),
+      showTrackLyrics: () => workspaceShell.showTrackLyrics()
+    }
+  });
+  const lyricsPresentation = createLyricsPresentationController({
+    getWorkspaceState: () => workspaceShellState,
+    showTrackLyrics: () => workspaceShell.showTrackLyrics(),
+    closeTrackLyrics: () => workspaceShell.closeTrackLyrics(),
+    setActiveWorkspaceTab: (tab) => workspaceShell.setActiveWorkspaceTab(tab)
+  });
   const playbackCommands = createPlaybackCommandsController({
     getPlayingTrack: () => playingTrack,
     getSelectedPlaylistTrack: () => selectedPlaylistItem,
@@ -195,10 +165,10 @@
       (collection === 'library' ? libraryItems : playlistItems).find((item) => item.id === id) ?? null,
     selectTrack: workspaceShell.selectTrack,
     setActiveWorkspaceTab: workspaceShell.setActiveWorkspaceTab,
-    cleanupRemovedItems
+    cleanupRemovedItems: workspaceCollections.cleanupRemovedItems
   });
   const playCountTracker = createPlayCountTracker({
-    incrementLibraryPlayCount
+    incrementLibraryPlayCount: workspaceCollections.incrementLibraryPlayCount
   });
   const playbackRestoration = createPlaybackRestorationController({
     track: playerController.currentTrack,
@@ -217,6 +187,7 @@
   });
   let artworkPresentationState = artworkPresentation.getSnapshot();
   let miniModeActive = windowMiniMode.getSnapshot().active;
+  let backdropPresentation: AppBackdropPresentation;
   let appInstallState: AppInstallState = { available: false, showHint: false };
   const unsubscribePlaylistItems = playlistItemsStore.subscribe((value) => (playlistItems = value));
   const unsubscribeLibraryItems = libraryItemsStore.subscribe((value) => (libraryItems = value));
@@ -271,14 +242,50 @@
   const unsubscribeArtworkPresentation = artworkPresentation.subscribe(
     (value) => (artworkPresentationState = value)
   );
+  const unsubscribeLyricsPresentation = lyricsPresentation.subscribe(
+    (value) => (lyricsPresentationState = value)
+  );
   const unsubscribeWindowMiniMode = windowMiniMode.subscribe(
     (value) => (miniModeActive = value.active)
   );
   const unsubscribeAppInstall = appInstallService.subscribe((value) => (appInstallState = value));
 
   const importController = createImportController({
-    addFiles: handleAddFiles,
+    addFiles: (files, target) => workspaceCollections.handleAddFiles(files, target),
     clickFileInput: () => fileInput?.click()
+  });
+  const appShortcuts = createAppShortcuts({
+    getState: () => ({
+      isNowPlayingLayoutActive,
+      isRightPanelVisible: workspaceShellState.isRightPanelVisible,
+      activeCollection: workspaceShellState.activeCollection,
+      playlistSelectionIds,
+      librarySelectionIds,
+      selectedPlaylistItem,
+      selectedLibraryItem,
+      playingTrack,
+      playbackSnapshot
+    }),
+    handlers: {
+      toggleFullscreenNowPlaying,
+      closeNowPlayingView,
+      closeActiveRightPanel,
+      removePlaylistItems: workspaceCollections.removePlaylistItems,
+      removeLibraryItems: workspaceCollections.removeLibraryItems,
+      cycleWorkspaceTab,
+      seek: seekPlayback,
+      stepTrack: (direction) => playbackCommands.stepTrack(direction),
+      setVolume: (volume) => playerController.setVolume(volume),
+      activatePlaylistTrack: (id) => playbackCommands.activatePlaylistTrack(id),
+      activateLibraryTrack: (id) => playbackCommands.activateLibraryTrack(id),
+      togglePlayback: () => playbackCommands.togglePlayback(),
+      toggleMute: () => playerController.toggleMute(),
+      selectAllTracks: (collection) => workspaceShell.selectAllTracks(collection),
+      openFiles: () => handleMenuOpenFiles(),
+      openOptions: () => handleOpenOptions(),
+      toggleMiniMode: () => windowMiniMode.toggle(),
+      exit: () => windowManager.exit()
+    }
   });
   const unsubscribeLaunchedFiles = subscribeToLaunchedFiles((files) =>
     void playbackCommands.replacePlaylistFromFiles(files)
@@ -301,8 +308,6 @@
   $: livePlayingTrack = resolveTrackSnapshot(playingTrack, selectedItem, playlistItems, libraryItems);
   $: playerDisplayTrack = livePlayingTrack;
   $: lyricsTrack = livePlayingTrack;
-  $: backdropZones = $appearanceSettings.backdropZones;
-  $: backdropZoneArtwork = $appearanceSettings.backdropZoneArtwork;
   $: nowPlayingViewActive = $appearanceSettings.nowPlayingViewActive;
   $: isAutomaticNowPlayingEligible =
     $appearanceSettings.autoNowPlayingOnMaximized && $windowDisplayState.prefersNowPlaying;
@@ -321,125 +326,37 @@
   $: if (!isNowPlayingLayoutActive || !$windowDisplayState.fullscreen) {
     isNowPlayingChromeHidden = false;
   }
-  $: syncNowPlayingLayoutTransition(isNowPlayingLayoutActive);
-  $: syncLyricsAvailability(lyricsTrack);
-  $: syncNowPlayingLyricsAutoFocus(
-    isNowPlayingLayoutActive,
-    $appearanceSettings.lyrics.autoFocusInNowPlaying,
-    lyricsAvailability,
-    lyricsAvailabilityTrackKey,
-    workspaceShellState.activeWorkspaceTab
-  );
-  $: syncNowPlayingLyricsAutoScroll(
-    isNowPlayingLayoutActive,
-    workspaceShellState.activeWorkspaceTab,
-    lyricsAvailabilityTrackKey,
-    effectiveLyricsDisplayStyle
-  );
-  $: applyLyricsPanelAvailabilityAutomation(
-    lyricsAvailabilityTrackKey,
-    lyricsAvailability,
-    $appearanceSettings.lyrics.openPanelForLyrics,
-    $appearanceSettings.lyrics.closePanelWithoutLyrics
-  );
   $: effectiveLyricsDisplayStyle =
     isNowPlayingLayoutActive && $appearanceSettings.lyrics.autoTheaterInNowPlaying
       ? 'theater'
       : $appearanceSettings.lyrics.displayStyle;
+  $: {
+    lyricsPresentationState;
+    workspaceShellState;
+    lyricsPresentation.sync({
+      track: lyricsTrack,
+      isNowPlayingLayoutActive,
+      autoFocusInNowPlaying: $appearanceSettings.lyrics.autoFocusInNowPlaying,
+      displayStyle: effectiveLyricsDisplayStyle,
+      openPanelForLyrics: $appearanceSettings.lyrics.openPanelForLyrics,
+      closePanelWithoutLyrics: $appearanceSettings.lyrics.closePanelWithoutLyrics
+    });
+  }
+  $: lyricsResumeAutoScrollToken = lyricsPresentationState.resumeAutoScrollToken;
   $: lyricsAutoScroll = effectiveLyricsDisplayStyle === 'theater' || $appearanceSettings.lyrics.autoScroll;
   $: lyricsFontSize = $appearanceSettings.lyrics.fontSizes[effectiveLyricsDisplayStyle];
-  $: workspaceZoneEffects = {
-    left: backdropZones.left,
-    center: backdropZones.center,
-    right: backdropZones.right
-  };
-  $: workspaceZoneArtworkSettings = {
-    left: backdropZoneArtwork.left,
-    center: backdropZoneArtwork.center,
-    right: backdropZoneArtwork.right
-  };
-  $: workspaceZoneArtworkBright = {
-    left: artworkBackgroundBrightByZone.left,
-    center: artworkBackgroundBrightByZone.center,
-    right: artworkBackgroundBrightByZone.right
-  };
-  $: activeBackdropZoneIds = isNowPlayingLayoutActive
-    ? ['nowPlaying']
-    : miniModeActive
-      ? ['player']
-      : ['left', 'center', 'right', 'player'];
-  $: activeBackdropEffects = activeBackdropZoneIds.map((zoneId) => backdropZones[zoneId]);
-  $: isArtworkBackdropRequested = activeBackdropEffects.some(hasArtworkBackdrop);
-  $: isVisualizerBackdropRequested = activeBackdropEffects.some(hasVisualizerBackdrop);
-  $: isArtworkBackdropActive =
-    isArtworkBackdropRequested && Boolean(artworkPresentationState.visibleArtworkBackground);
-  $: artworkBackgroundBrightByZone = {
-    left: resolveZoneArtworkBackgroundBright(
-      isArtworkBackdropActive,
-      backdropZones.left,
-      artworkPresentationState.artworkBackgroundAnalysis,
-      backdropZoneArtwork.left.brightness
-    ),
-    center: resolveZoneArtworkBackgroundBright(
-      isArtworkBackdropActive,
-      backdropZones.center,
-      artworkPresentationState.artworkBackgroundAnalysis,
-      backdropZoneArtwork.center.brightness
-    ),
-    right: resolveZoneArtworkBackgroundBright(
-      isArtworkBackdropActive,
-      backdropZones.right,
-      artworkPresentationState.artworkBackgroundAnalysis,
-      backdropZoneArtwork.right.brightness
-    ),
-    player: resolveZoneArtworkBackgroundBright(
-      isArtworkBackdropActive,
-      backdropZones.player,
-      artworkPresentationState.artworkBackgroundAnalysis,
-      backdropZoneArtwork.player.brightness
-    ),
-    nowPlaying: resolveZoneArtworkBackgroundBright(
-      isArtworkBackdropActive,
-      backdropZones.nowPlaying,
-      artworkPresentationState.artworkBackgroundAnalysis,
-      backdropZoneArtwork.nowPlaying.brightness
-    )
-  };
-  $: backdropGeometryKey = [
-    isNowPlayingLayoutActive ? 'now-playing' : miniModeActive ? 'mini' : workspaceShellState.isTabbedLayout ? 'tabbed' : 'wide',
-    workspaceShellState.activeWorkspaceTab,
-    workspaceShellState.visibleWorkspacePanels.join(','),
-    workspaceShellState.workspaceTabs.map((tab) => tab.id).join(','),
-    workspaceShellState.isDetailsPanelVisible ? 'details-open' : 'details-closed',
-    workspaceShellState.isLyricsPanelVisible ? 'lyrics-open' : 'lyrics-closed',
-    backdropZones.left,
-    backdropZones.center,
-    backdropZones.right,
-    backdropZones.player,
-    backdropZones.nowPlaying,
-    backdropZoneArtwork.left.blur,
-    backdropZoneArtwork.left.brightness,
-    backdropZoneArtwork.center.blur,
-    backdropZoneArtwork.center.brightness,
-    backdropZoneArtwork.right.blur,
-    backdropZoneArtwork.right.brightness,
-    backdropZoneArtwork.player.blur,
-    backdropZoneArtwork.player.brightness,
-    backdropZoneArtwork.nowPlaying.blur,
-    backdropZoneArtwork.nowPlaying.brightness,
-    artworkBackgroundBrightByZone.left ? 'left-bright' : 'left-dim',
-    artworkBackgroundBrightByZone.center ? 'center-bright' : 'center-dim',
-    artworkBackgroundBrightByZone.right ? 'right-bright' : 'right-dim',
-    artworkBackgroundBrightByZone.player ? 'player-bright' : 'player-dim',
-    artworkBackgroundBrightByZone.nowPlaying ? 'now-playing-bright' : 'now-playing-dim',
-    $windowControlsOverlayState.visible ? 'wco-visible' : 'wco-hidden',
-    Math.round($windowControlsOverlayState.titlebarAreaRect.x),
-    Math.round($windowControlsOverlayState.titlebarAreaRect.y),
-    Math.round($windowControlsOverlayState.titlebarAreaRect.width),
-    Math.round($windowControlsOverlayState.titlebarAreaRect.height),
+  $: backdropPresentation = resolveAppBackdropPresentation({
+    isNowPlayingLayoutActive,
+    miniModeActive,
+    workspaceState: workspaceShellState,
+    backdropZones: $appearanceSettings.backdropZones,
+    backdropZoneArtwork: $appearanceSettings.backdropZoneArtwork,
+    hasVisibleArtworkBackground: Boolean(artworkPresentationState.visibleArtworkBackground),
+    artworkBackgroundAnalysis: artworkPresentationState.artworkBackgroundAnalysis,
+    windowControlsOverlay: $windowControlsOverlayState,
     innerWidth,
     innerHeight
-  ].join(':');
+  });
   $: documentTitle =
     $appearanceSettings.showTrackTitleInWindowTitle && livePlayingTrack
       ? getTrackDisplayTitle(livePlayingTrack)
@@ -472,7 +389,7 @@
   $: void artworkPresentation.syncDisplayedArtwork(playerDisplayTrack);
   $: void artworkPresentation.syncArtworkBrightness(
     artworkPresentationState.visibleArtworkBackground,
-    isArtworkBackdropRequested
+    backdropPresentation.isArtworkBackdropRequested
   );
   $: artworkPresentation.syncArtworkMenuClasses(
     false,
@@ -481,30 +398,24 @@
   $: artworkPresentation.setWindowControlsOverlayVisible($windowControlsOverlayState.visible);
 
   const playlistPanelHandlers: WorkspacePanelHandlers = {
-    addFiles: (files) => handleAddFiles(files, 'playlist'),
+    addFiles: (files) => workspaceCollections.handleAddFiles(files, 'playlist'),
     openFiles: () => void handleMenuOpenFiles('playlist'),
     select: (event) => handleSelect('playlist', event),
     activate: (event) => void playbackCommands.activatePlaylistTrack(event.detail),
-    contextAction: handlePlaylistContextAction,
+    contextAction: (event) =>
+      workspaceCollections.handlePlaylistContextAction(event.detail.actionId, event.detail.ids),
     toggleShuffle: () => playlistStore.toggleShuffle(),
     cycleRepeat: () => playlistStore.cycleRepeatMode()
   };
   const libraryPanelHandlers: WorkspacePanelHandlers = {
-    addFiles: (files) => handleAddFiles(files, 'library'),
+    addFiles: (files) => workspaceCollections.handleAddFiles(files, 'library'),
     openFiles: () => void handleMenuOpenFiles('library'),
     select: (event) => handleSelect('library', event),
     setSelection: (event) => handleSetSelection('library', event),
     activate: (event) => void playbackCommands.activateLibraryTrack(event.detail),
-    contextAction: handleLibraryContextAction
+    contextAction: (event) =>
+      workspaceCollections.handleLibraryContextAction(event.detail.actionId, event.detail.ids)
   };
-
-  function cleanupRemovedItems(items: PlaylistItem[]) {
-    for (const item of items) {
-      if (item.objectUrl) {
-        URL.revokeObjectURL(item.objectUrl);
-      }
-    }
-  }
 
   $: {
     if (
@@ -515,33 +426,6 @@
     ) {
       playerController.refreshCurrentTrackMetadata(livePlayingTrack.id, livePlayingTrack.metadata);
     }
-  }
-
-  function addFiles(files: FileList | File[], target: WorkspaceCollection) {
-    const nextItems = buildPlaylistItems(files);
-
-    if (nextItems.length === 0) {
-      return [];
-    }
-
-    appInstallService.markEngaged();
-
-    return (target === 'library' ? libraryStore : playlistStore).add(nextItems);
-  }
-
-  function handleAddFiles(
-    files: FileList | File[],
-    target: WorkspaceCollection = workspaceShellState.activeCollection
-  ) {
-    const nextItems = addFiles(files, target);
-    const selectedIds = target === 'library' ? librarySelectionIds : playlistSelectionIds;
-
-    if (nextItems.length > 0 && selectedIds.length === 0) {
-      workspaceShell.selectTrack(target, nextItems[0].id);
-      return;
-    }
-
-    workspaceShell.focusCollection(target);
   }
 
   function handleSelect(
@@ -567,19 +451,6 @@
     workspaceShell.showTrackDetails();
   }
 
-  function resolveZoneArtworkBackgroundBright(
-    active: boolean,
-    effect: BackdropZoneEffect,
-    analysis: ArtworkBackgroundAnalysis,
-    brightness: number
-  ): boolean {
-    return (
-      active &&
-      hasArtworkBackdrop(effect) &&
-      isArtworkBackgroundBrightForBrightness(analysis, brightness)
-    );
-  }
-
   function showPlaylist() {
     workspaceShell.showWorkspaceTab('playlist');
   }
@@ -597,161 +468,8 @@
   }
 
   function seekPlayback(seconds: number): void {
-    lyricsResumeAutoScrollToken += 1;
+    lyricsPresentation.resumeAutoScroll();
     playbackCommands.seek(seconds);
-  }
-
-  function clamp(value: number, min: number, max: number): number {
-    return Math.min(Math.max(value, min), max);
-  }
-
-  function syncLyricsAvailability(track: PlaylistItem | null): void {
-    const nextTrackKey = getTrackLyricsLoadKey(track);
-
-    if (nextTrackKey === lyricsAvailabilityTrackKey) {
-      return;
-    }
-
-    lyricsAvailabilityTrackKey = nextTrackKey;
-    const currentToken = ++lyricsAvailabilityToken;
-
-    if (!track || !nextTrackKey) {
-      lyricsAvailability = 'unavailable';
-      return;
-    }
-
-    lyricsAvailability = 'loading';
-
-    void loadTrackLyrics(track)
-      .then((loadedLyrics) => {
-        if (currentToken === lyricsAvailabilityToken) {
-          lyricsAvailability = loadedLyrics ? 'available' : 'unavailable';
-        }
-      })
-      .catch(() => {
-        if (currentToken === lyricsAvailabilityToken) {
-          lyricsAvailability = 'unavailable';
-        }
-      });
-  }
-
-  function applyLyricsPanelAvailabilityAutomation(
-    trackKey: string,
-    availability: LyricsAvailability,
-    openWhenAvailable: boolean,
-    closeWhenUnavailable: boolean
-  ): void {
-    const signature = `${trackKey}:${availability}:${openWhenAvailable}:${closeWhenUnavailable}`;
-
-    if (signature === lyricsAutomationSignature || availability === 'loading' || availability === 'unknown') {
-      return;
-    }
-
-    lyricsAutomationSignature = signature;
-
-    if (availability === 'available' && openWhenAvailable) {
-      workspaceShell.showTrackLyrics();
-      return;
-    }
-
-    if (availability === 'unavailable' && closeWhenUnavailable && workspaceShellState.isLyricsPanelVisible) {
-      workspaceShell.closeTrackLyrics();
-    }
-  }
-
-  function restoreWorkspaceTab(tab: WorkspaceTab): void {
-    if (!workspaceShellState.workspaceTabs.some((workspaceTab) => workspaceTab.id === tab)) {
-      return;
-    }
-
-    workspaceShell.setActiveWorkspaceTab(tab);
-  }
-
-  function syncNowPlayingLayoutTransition(isActive: boolean): void {
-    if (isActive === wasNowPlayingLayoutActive) {
-      return;
-    }
-
-    if (isActive) {
-      nowPlayingRestoreTab = workspaceShellState.activeWorkspaceTab;
-      nowPlayingAutoFocusedLyrics = false;
-      nowPlayingHadLyricsPanelVisible = workspaceShellState.isLyricsPanelVisible;
-      nowPlayingAutoFocusTrackKey = '';
-      wasNowPlayingLayoutActive = true;
-      return;
-    }
-
-    if (
-      nowPlayingAutoFocusedLyrics &&
-      workspaceShellState.activeWorkspaceTab === 'lyrics' &&
-      nowPlayingRestoreTab
-    ) {
-      restoreWorkspaceTab(nowPlayingRestoreTab);
-    }
-
-    if (
-      nowPlayingAutoFocusedLyrics &&
-      !nowPlayingHadLyricsPanelVisible &&
-      workspaceShellState.isLyricsPanelVisible
-    ) {
-      workspaceShell.closeTrackLyrics();
-    }
-
-    nowPlayingRestoreTab = null;
-    nowPlayingAutoFocusedLyrics = false;
-    nowPlayingHadLyricsPanelVisible = false;
-    nowPlayingAutoFocusTrackKey = '';
-    wasNowPlayingLayoutActive = false;
-  }
-
-  function syncNowPlayingLyricsAutoFocus(
-    isLayoutActive: boolean,
-    autoFocusInNowPlaying: boolean,
-    availability: LyricsAvailability,
-    trackKey: string,
-    activeWorkspaceTab: WorkspaceTab
-  ): void {
-    if (
-      !isLayoutActive ||
-      !autoFocusInNowPlaying ||
-      availability !== 'available' ||
-      !trackKey ||
-      nowPlayingAutoFocusTrackKey === trackKey
-    ) {
-      return;
-    }
-
-    nowPlayingAutoFocusTrackKey = trackKey;
-
-    if (activeWorkspaceTab === 'lyrics') {
-      return;
-    }
-
-    nowPlayingRestoreTab ??= activeWorkspaceTab;
-    nowPlayingAutoFocusedLyrics = true;
-    workspaceShell.showTrackLyrics();
-  }
-
-  function syncNowPlayingLyricsAutoScroll(
-    isLayoutActive: boolean,
-    activeWorkspaceTab: WorkspaceTab,
-    trackKey: string,
-    displayStyle: LyricsDisplayStyle
-  ): void {
-    const signature =
-      isLayoutActive && activeWorkspaceTab === 'lyrics'
-        ? `${trackKey}:${displayStyle}`
-        : '';
-
-    if (signature === nowPlayingLyricsAutoScrollSignature) {
-      return;
-    }
-
-    nowPlayingLyricsAutoScrollSignature = signature;
-
-    if (signature) {
-      lyricsResumeAutoScrollToken += 1;
-    }
   }
 
   async function handleMenuOpenFiles(target: WorkspaceCollection = workspaceShellState.activeCollection) {
@@ -852,26 +570,6 @@
     return true;
   }
 
-  function seekByKeyboardStep(direction: -1 | 1): void {
-    if (!playingTrack || playbackSnapshot.duration <= 0) {
-      return;
-    }
-
-    seekPlayback(
-      clamp(
-        playbackSnapshot.currentTime + direction * KEYBOARD_SEEK_STEP_SECONDS,
-        0,
-        playbackSnapshot.duration
-      )
-    );
-  }
-
-  function changeVolumeByKeyboardStep(direction: -1 | 1): void {
-    playerController.setVolume(
-      clamp(playbackSnapshot.volume + direction * KEYBOARD_VOLUME_STEP, 0, 1)
-    );
-  }
-
   async function toggleFullscreenNowPlaying(): Promise<void> {
     if (windowFullscreen.isControllerFullscreenActive()) {
       closeNowPlayingView();
@@ -892,367 +590,6 @@
     await windowFullscreen.enter();
   }
 
-  function shouldIgnoreKeyboardTarget(target: EventTarget | null) {
-    if (!(target instanceof HTMLElement)) {
-      return false;
-    }
-
-    if (target.isContentEditable) {
-      return true;
-    }
-
-    const tagName = target.tagName;
-    return tagName === 'INPUT' || tagName === 'TEXTAREA' || tagName === 'SELECT';
-  }
-
-  function isTrackRowKeyboardTarget(target: EventTarget | null) {
-    return target instanceof HTMLElement && Boolean(target.closest('[data-track-row-button]'));
-  }
-
-  function shouldIgnorePlaybackKeyboardTarget(target: EventTarget | null) {
-    if (shouldIgnoreKeyboardTarget(target)) {
-      return true;
-    }
-
-    if (!(target instanceof HTMLElement)) {
-      return false;
-    }
-
-    const tagName = target.tagName;
-    return (
-      (tagName === 'BUTTON' || tagName === 'A') &&
-      !isTrackRowKeyboardTarget(target)
-    );
-  }
-
-  function handleWindowContextMenu(event: MouseEvent) {
-    event.preventDefault();
-  }
-
-  function handleWindowKeydown(event: KeyboardEvent) {
-    if (event.key === 'Enter' && event.altKey && !event.ctrlKey && !event.shiftKey && !event.metaKey) {
-      event.preventDefault();
-      void toggleFullscreenNowPlaying();
-      return;
-    }
-
-    if (event.key === 'Escape' && !event.ctrlKey && !event.altKey && !event.metaKey) {
-      if (isNowPlayingLayoutActive) {
-        event.preventDefault();
-        closeNowPlayingView();
-        return;
-      }
-
-      if (workspaceShellState.isRightPanelVisible) {
-        event.preventDefault();
-        closeActiveRightPanel();
-      }
-
-      return;
-    }
-
-    if (event.key === 'Delete' && !event.ctrlKey && !event.altKey && !event.metaKey) {
-      if (shouldIgnoreKeyboardTarget(event.target)) {
-        return;
-      }
-
-      const ids =
-        workspaceShellState.activeCollection === 'library' ? librarySelectionIds : playlistSelectionIds;
-
-      if (ids.length === 0) {
-        return;
-      }
-
-      event.preventDefault();
-
-      if (workspaceShellState.activeCollection === 'library') {
-        removeLibraryItems(ids);
-      } else {
-        removePlaylistItems(ids);
-      }
-
-      return;
-    }
-
-    if (event.key === 'Tab' && event.ctrlKey && !event.altKey && !event.metaKey) {
-      if (shouldIgnoreKeyboardTarget(event.target)) {
-        return;
-      }
-
-      if (cycleWorkspaceTab(event.shiftKey ? -1 : 1)) {
-        event.preventDefault();
-        return;
-      }
-    }
-
-    if (event.key === 'ArrowLeft' && !event.ctrlKey && !event.altKey && !event.shiftKey && !event.metaKey) {
-      if (shouldIgnoreKeyboardTarget(event.target)) {
-        return;
-      }
-
-      event.preventDefault();
-      seekByKeyboardStep(-1);
-      return;
-    }
-
-    if (event.key === 'ArrowRight' && !event.ctrlKey && !event.altKey && !event.shiftKey && !event.metaKey) {
-      if (shouldIgnoreKeyboardTarget(event.target)) {
-        return;
-      }
-
-      event.preventDefault();
-      seekByKeyboardStep(1);
-      return;
-    }
-
-    if (
-      event.ctrlKey &&
-      !event.altKey &&
-      !event.shiftKey &&
-      !event.metaKey &&
-      (event.key === 'ArrowLeft' || event.key === 'ArrowRight')
-    ) {
-      if (shouldIgnoreKeyboardTarget(event.target)) {
-        return;
-      }
-
-      event.preventDefault();
-      void playbackCommands.stepTrack(event.key === 'ArrowLeft' ? -1 : 1);
-      return;
-    }
-
-    if (
-      event.ctrlKey &&
-      !event.altKey &&
-      !event.shiftKey &&
-      !event.metaKey &&
-      (event.key === 'ArrowUp' || event.key === 'ArrowDown')
-    ) {
-      if (shouldIgnoreKeyboardTarget(event.target)) {
-        return;
-      }
-
-      event.preventDefault();
-      changeVolumeByKeyboardStep(event.key === 'ArrowUp' ? 1 : -1);
-      return;
-    }
-
-    if (event.key === 'Enter' && !event.repeat && !event.ctrlKey && !event.altKey && !event.shiftKey && !event.metaKey) {
-      if (shouldIgnorePlaybackKeyboardTarget(event.target)) {
-        return;
-      }
-
-      const selectedTrack =
-        workspaceShellState.activeCollection === 'library' ? selectedLibraryItem : selectedPlaylistItem;
-
-      if (!selectedTrack) {
-        return;
-      }
-
-      event.preventDefault();
-
-      if (workspaceShellState.activeCollection === 'library') {
-        void playbackCommands.activateLibraryTrack(selectedTrack.id);
-      } else {
-        void playbackCommands.activatePlaylistTrack(selectedTrack.id);
-      }
-
-      return;
-    }
-
-    if (event.key === ' ' && !event.repeat && !event.ctrlKey && !event.altKey && !event.shiftKey && !event.metaKey) {
-      if (shouldIgnorePlaybackKeyboardTarget(event.target)) {
-        return;
-      }
-
-      event.preventDefault();
-      void playbackCommands.togglePlayback();
-      return;
-    }
-
-    if (event.key.toLowerCase() === 'm' && !event.repeat && !event.ctrlKey && !event.altKey && !event.shiftKey && !event.metaKey) {
-      if (shouldIgnorePlaybackKeyboardTarget(event.target)) {
-        return;
-      }
-
-      event.preventDefault();
-      playerController.toggleMute();
-      return;
-    }
-
-    if (!event.ctrlKey || event.altKey || event.shiftKey || event.metaKey) {
-      return;
-    }
-
-    if (shouldIgnoreKeyboardTarget(event.target)) {
-      return;
-    }
-
-    switch (event.key.toLowerCase()) {
-      case 'a':
-        event.preventDefault();
-        workspaceShell.selectAllTracks(workspaceShellState.activeCollection);
-        break;
-      case 'o':
-        event.preventDefault();
-        void handleMenuOpenFiles();
-        break;
-      case 'p':
-        event.preventDefault();
-        handleOpenOptions();
-        break;
-      case 'm':
-        event.preventDefault();
-        windowMiniMode.toggle();
-        break;
-      case 'q':
-        event.preventDefault();
-        windowManager.exit();
-        break;
-    }
-  }
-
-
-  function removePlaylistItems(ids: string[]) {
-    if (ids.length === 0) {
-      return;
-    }
-
-    const removedSet = new Set(ids);
-    const removedItems = playlistStore.remove(ids);
-
-    if (playingTrack && removedSet.has(playingTrack.id)) {
-      playerController.unload();
-    }
-
-    cleanupRemovedItems(removedItems);
-  }
-
-  function removeLibraryItems(ids: string[]) {
-    if (ids.length === 0) {
-      return;
-    }
-
-    cleanupRemovedItems(libraryStore.remove(ids));
-  }
-
-  function getPlaylistContextActions(ids: string[]) {
-    return buildPlaylistContextActions(playlistItems, libraryItems, ids);
-  }
-
-  function getLibraryContextActions() {
-    return libraryContextActions;
-  }
-
-  function incrementLibraryPlayCount(libraryItemId: string): void {
-    const item = libraryItems.find((entry) => entry.id === libraryItemId);
-    const currentPlayCount = item?.metadata?.playCount ?? 0;
-    const nextPlayCount = Number.isFinite(currentPlayCount)
-      ? Math.max(0, Math.floor(currentPlayCount)) + 1
-      : 1;
-
-    libraryStore.updateMetadata(libraryItemId, {
-      playCount: nextPlayCount
-    });
-  }
-
-  function resetLibraryPlayCounts(ids: string[]): void {
-    for (const id of ids) {
-      libraryStore.updateMetadata(id, {
-        playCount: 0
-      });
-    }
-  }
-
-  function handlePlaylistContextAction(event: CustomEvent<{ actionId: string; ids: string[] }>) {
-    const { actionId, ids } = event.detail;
-    const tracks = buildSelectedWorkspaceTracks(playlistItems, ids);
-
-    if (tracks.length === 0) {
-      return;
-    }
-
-    if (actionId === 'track-details') {
-      workspaceShell.showTrackDetails();
-      return;
-    }
-
-    if (actionId === 'track-lyrics') {
-      workspaceShell.showTrackLyrics();
-      return;
-    }
-
-    if (actionId === 'toggle-library') {
-      if (libraryHasAllTracks(libraryItems, tracks)) {
-        removeLibraryItems(getEquivalentLibraryIds(libraryItems, tracks));
-        return;
-      }
-
-      const addedItems = libraryStore.add(clonePlaylistItems(tracks));
-
-      if (addedItems.length > 0 && librarySelectionIds.length === 0) {
-        workspaceShell.selectTrack('library', addedItems[0].id);
-      }
-
-      return;
-    }
-
-    if (actionId === 'remove') {
-      removePlaylistItems(ids);
-    }
-  }
-
-  function handleLibraryContextAction(event: CustomEvent<{ actionId: string; ids: string[] }>) {
-    const { actionId, ids } = event.detail;
-    const tracks = buildSelectedWorkspaceTracks(libraryItems, ids);
-
-    if (tracks.length === 0) {
-      return;
-    }
-
-    if (actionId === 'track-details') {
-      workspaceShell.showTrackDetails();
-      return;
-    }
-
-    if (actionId === 'track-lyrics') {
-      workspaceShell.showTrackLyrics();
-      return;
-    }
-
-    if (actionId === 'add-to-playlist') {
-      const addedItems = playlistStore.add(clonePlaylistItems(tracks));
-
-      if (addedItems.length > 0) {
-        workspaceShell.selectTrack('playlist', addedItems[0].id);
-      }
-
-      return;
-    }
-
-    if (actionId === 'replace-playlist') {
-      const { removedItems, addedItems } = playlistStore.replaceAll(clonePlaylistItems(tracks));
-
-      cleanupRemovedItems(removedItems);
-      playerController.unload();
-
-      if (addedItems.length > 0) {
-        workspaceShell.selectTrack('playlist', addedItems[0].id);
-      }
-
-      return;
-    }
-
-    if (actionId === 'reset-play-count') {
-      resetLibraryPlayCounts(ids);
-      return;
-    }
-
-    if (actionId === 'remove') {
-      removeLibraryItems(ids);
-    }
-  }
-
   $: if (playbackStatus.state !== previousPlaybackState) {
     if (playbackStatus.state === 'ended') {
       void playbackCommands.handleTrackEnded();
@@ -1264,6 +601,7 @@
   onDestroy(() => {
     playbackRestoration.destroy();
     artworkPresentation.destroy();
+    lyricsPresentation.destroy();
     playCountTracker.destroy();
     workspaceShell.destroy();
     unsubscribePlaylistItems();
@@ -1281,6 +619,7 @@
     unsubscribeWorkspaceShell();
     unsubscribePlaybackCommands();
     unsubscribeArtworkPresentation();
+    unsubscribeLyricsPresentation();
     unsubscribeWindowMiniMode();
     unsubscribeAppInstall();
     appInstallService.destroy();
@@ -1297,8 +636,8 @@
 <svelte:window
   bind:innerWidth
   bind:innerHeight
-  on:contextmenu={handleWindowContextMenu}
-  on:keydown={handleWindowKeydown}
+  on:contextmenu={appShortcuts.handleContextMenu}
+  on:keydown={appShortcuts.handleKeydown}
   on:pointermove={(event) => workspaceShell.handlePanelResizeMove(event)}
   on:pointerup={() => workspaceShell.endPanelResize()}
   on:pointercancel={() => workspaceShell.endPanelResize()}
@@ -1313,17 +652,17 @@
   class:window-chrome-transition-bypass={artworkPresentationState.isWindowChromeTransitionBypassed}
   class:window-controls-overlay-active={$windowControlsOverlayState.visible}
 >
-  {#if isArtworkBackdropActive}
+  {#if backdropPresentation.isArtworkBackdropActive}
     <SharedBackdropArtwork
       artworkUrl={artworkPresentationState.visibleArtworkBackground?.url}
-      geometryKey={backdropGeometryKey}
+      geometryKey={backdropPresentation.geometryKey}
     />
   {/if}
 
-  {#if isVisualizerBackdropRequested}
+  {#if backdropPresentation.isVisualizerBackdropRequested}
     <SharedBackdropVisualizer
       artworkUrl={artworkPresentationState.displayedArtwork?.url}
-      geometryKey={backdropGeometryKey}
+      geometryKey={backdropPresentation.geometryKey}
     />
   {/if}
 
@@ -1358,110 +697,42 @@
     on:exit={() => windowManager.exit()}
   />
 
-  {#if isNowPlayingLayoutActive}
-    <NowPlayingWorkspace
+  {#if !miniModeActive}
+    <AppWorkspace
       snapshotStore={playerController.snapshot}
       {playbackSnapshot}
-      track={playerDisplayTrack}
-      selectedTrack={selectedPlaylistItem}
-      artwork={artworkPresentationState.displayedArtwork}
-      backdropArtwork={artworkPresentationState.visibleArtworkBackground}
-      artworkBackgroundBright={artworkBackgroundBrightByZone.nowPlaying}
-      backdropEffect={backdropZones.nowPlaying}
-      backdropArtworkSettings={backdropZoneArtwork.nowPlaying}
-      activeWorkspaceTab={workspaceShellState.activeWorkspaceTab}
-      workspaceTabs={workspaceShellState.workspaceTabs}
-      playlistPanelProps={workspaceShellState.playlistPanelProps}
+      {isNowPlayingLayoutActive}
+      workspaceState={workspaceShellState}
       {playlistPanelHandlers}
-      libraryPanelProps={workspaceShellState.libraryPanelProps}
       {libraryPanelHandlers}
-      selectedItem={artworkPresentationState.detailsDisplayTrack}
+      {selectedPlaylistItem}
+      {playerDisplayTrack}
       {lyricsTrack}
-      lyricsDisplayStyle={effectiveLyricsDisplayStyle}
+      artworkState={artworkPresentationState}
+      appearance={$appearanceSettings}
+      artworkBackgroundBrightByZone={backdropPresentation.artworkBackgroundBrightByZone}
+      workspaceZoneArtworkBright={backdropPresentation.workspaceZoneArtworkBright}
+      workspaceZoneEffects={backdropPresentation.workspaceZoneEffects}
+      workspaceZoneArtworkSettings={backdropPresentation.workspaceZoneArtworkSettings}
+      {effectiveLyricsDisplayStyle}
       {lyricsAutoScroll}
       {lyricsFontSize}
       {lyricsResumeAutoScrollToken}
-      lyricsTheaterDowntimeDots={$appearanceSettings.lyrics.theaterDowntimeDots}
-      lyricsTheaterDowntimeThresholdSeconds={$appearanceSettings.lyrics.theaterDowntimeThresholdSeconds}
-      lyricsTheaterSmoothScroll={$appearanceSettings.lyrics.theaterSmoothScroll}
-      panelAutoHideDelaySeconds={$appearanceSettings.nowPlayingPanelAutoHideDelaySeconds}
-      alwaysUseArtworkPlayerColors={$appearanceSettings.useNowPlayingArtworkPlayerColors}
-      on:close={closeNowPlayingView}
-      on:chromeHiddenChange={(event) => (isNowPlayingChromeHidden = event.detail)}
-      on:tabChange={(event) => handleNowPlayingTabChange(event.detail)}
-      on:tabClose={(event) => workspaceShell.closeWorkspaceTab(event.detail)}
-      on:tabMove={(event) => workspaceShell.moveTabbedWorkspaceTab(event.detail)}
-      on:toggle={() => void playbackCommands.togglePlayback()}
-      on:previous={() => void playbackCommands.stepTrack(-1)}
-      on:next={() => void playbackCommands.stepTrack(1)}
-      on:seek={(event) => seekPlayback(event.detail)}
-      on:volume={(event) => playerController.setVolume(event.detail)}
-      on:mute={() => playerController.toggleMute()}
-      on:showTrack={(event) => handleShowPlayerTrackDetails(event.detail)}
+      onCloseNowPlaying={closeNowPlayingView}
+      onChromeHiddenChange={(hidden) => (isNowPlayingChromeHidden = hidden)}
+      onTabChange={handleNowPlayingTabChange}
+      onTabClose={(tab) => workspaceShell.closeWorkspaceTab(tab)}
+      onTabbedTabMove={(detail) => workspaceShell.moveTabbedWorkspaceTab(detail)}
+      onWideTabMove={(detail) => workspaceShell.moveWorkspaceTab(detail)}
+      onResizeStart={(detail) => workspaceShell.handleWideWorkspaceResizeStart(detail)}
+      onTogglePlayback={() => void playbackCommands.togglePlayback()}
+      onPreviousTrack={() => void playbackCommands.stepTrack(-1)}
+      onNextTrack={() => void playbackCommands.stepTrack(1)}
+      onSeek={seekPlayback}
+      onVolume={(volume) => playerController.setVolume(volume)}
+      onMute={() => playerController.toggleMute()}
+      onShowTrack={handleShowPlayerTrackDetails}
     />
-  {:else if !miniModeActive}
-    {#if workspaceShellState.isTabbedLayout}
-      <TabbedWorkspace
-        snapshotStore={playerController.snapshot}
-        {playbackSnapshot}
-        activeWorkspaceTab={workspaceShellState.activeWorkspaceTab}
-        workspaceTabs={workspaceShellState.workspaceTabs}
-        playlistPanelProps={workspaceShellState.playlistPanelProps}
-        {playlistPanelHandlers}
-        libraryPanelProps={workspaceShellState.libraryPanelProps}
-        {libraryPanelHandlers}
-        selectedItem={artworkPresentationState.detailsDisplayTrack}
-        detailsArtwork={artworkPresentationState.visibleDetailsArtwork}
-        {lyricsTrack}
-        backdropArtwork={artworkPresentationState.visibleArtworkBackground}
-        zoneArtworkBright={workspaceZoneArtworkBright}
-        zoneEffects={workspaceZoneEffects}
-        zoneArtworkSettings={workspaceZoneArtworkSettings}
-        lyricsDisplayStyle={effectiveLyricsDisplayStyle}
-        {lyricsAutoScroll}
-        {lyricsFontSize}
-        {lyricsResumeAutoScrollToken}
-        lyricsTheaterDowntimeDots={$appearanceSettings.lyrics.theaterDowntimeDots}
-        lyricsTheaterDowntimeThresholdSeconds={$appearanceSettings.lyrics.theaterDowntimeThresholdSeconds}
-        lyricsTheaterSmoothScroll={$appearanceSettings.lyrics.theaterSmoothScroll}
-        on:seek={(event) => seekPlayback(event.detail)}
-        on:tabChange={(event) => workspaceShell.setActiveWorkspaceTab(event.detail)}
-        on:tabClose={(event) => workspaceShell.closeWorkspaceTab(event.detail)}
-        on:tabMove={(event) => workspaceShell.moveTabbedWorkspaceTab(event.detail)}
-      />
-    {:else}
-      <WideWorkspace
-        snapshotStore={playerController.snapshot}
-        {playbackSnapshot}
-        workspacePanels={workspaceShellState.workspacePanels}
-        playlistPanelProps={workspaceShellState.playlistPanelProps}
-        {playlistPanelHandlers}
-        libraryPanelProps={workspaceShellState.libraryPanelProps}
-        {libraryPanelHandlers}
-        panelWidths={workspaceShellState.widePanelWidths}
-        resizerWidth={WORKSPACE_RESIZER_WIDTH}
-        isResizing={workspaceShellState.isResizing}
-        selectedItem={artworkPresentationState.detailsDisplayTrack}
-        detailsArtwork={artworkPresentationState.visibleDetailsArtwork}
-        {lyricsTrack}
-        backdropArtwork={artworkPresentationState.visibleArtworkBackground}
-        zoneArtworkBright={workspaceZoneArtworkBright}
-        zoneEffects={workspaceZoneEffects}
-        zoneArtworkSettings={workspaceZoneArtworkSettings}
-        lyricsDisplayStyle={effectiveLyricsDisplayStyle}
-        {lyricsAutoScroll}
-        {lyricsFontSize}
-        {lyricsResumeAutoScrollToken}
-        lyricsTheaterDowntimeDots={$appearanceSettings.lyrics.theaterDowntimeDots}
-        lyricsTheaterDowntimeThresholdSeconds={$appearanceSettings.lyrics.theaterDowntimeThresholdSeconds}
-        lyricsTheaterSmoothScroll={$appearanceSettings.lyrics.theaterSmoothScroll}
-        on:seek={(event) => seekPlayback(event.detail)}
-        on:tabChange={(event) => workspaceShell.setActiveWorkspaceTab(event.detail)}
-        on:tabClose={(event) => workspaceShell.closeWorkspaceTab(event.detail)}
-        on:tabMove={(event) => workspaceShell.moveWorkspaceTab(event.detail)}
-        on:resizeStart={(event) => workspaceShell.handleWideWorkspaceResizeStart(event.detail)}
-      />
-    {/if}
   {/if}
 
   {#if playbackStatus.error && !miniModeActive}
@@ -1474,9 +745,9 @@
       track={playerDisplayTrack}
       selectedTrack={selectedPlaylistItem}
       artwork={artworkPresentationState.displayedArtwork}
-      backdropEffect={backdropZones.player}
-      backdropArtworkSettings={backdropZoneArtwork.player}
-      artworkBackgroundBright={artworkBackgroundBrightByZone.player}
+      backdropEffect={$appearanceSettings.backdropZones.player}
+      backdropArtworkSettings={$appearanceSettings.backdropZoneArtwork.player}
+      artworkBackgroundBright={backdropPresentation.artworkBackgroundBrightByZone.player}
       hasCollectionItems={playlistItems.length > 0 || libraryItems.length > 0}
       {collectionsReady}
       showRafToggle={$playbackSettings.enableRaf && $playbackSettings.showRafToggleInPlayerBar}
