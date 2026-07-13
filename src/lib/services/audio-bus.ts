@@ -1,11 +1,12 @@
 import { visualizerService } from '$lib/services/visualizer';
+import { RafEngine } from '$lib/services/raf-engine';
 
 type AudioBusSource = AudioNode | MediaElementAudioSourceNode;
 
 export class AudioBusService {
   #context: AudioContext | null = null;
   #input: GainNode | null = null;
-  #output: GainNode | null = null;
+  #rafEngine: RafEngine | null = null;
   #analyser: AnalyserNode | null = null;
   #activeSource: AudioBusSource | null = null;
   #mediaSources = new WeakMap<HTMLMediaElement, MediaElementAudioSourceNode>();
@@ -79,7 +80,7 @@ export class AudioBusService {
 
     try {
       this.#input?.disconnect();
-      this.#output?.disconnect();
+      this.#rafEngine?.destroy();
       this.#analyser?.disconnect();
     } catch {
       // Ignore graph teardown races during window shutdown.
@@ -89,7 +90,7 @@ export class AudioBusService {
 
     this.#context = null;
     this.#input = null;
-    this.#output = null;
+    this.#rafEngine = null;
     this.#analyser = null;
     this.#mediaSources = new WeakMap();
 
@@ -127,16 +128,16 @@ export class AudioBusService {
 
     const context = new AudioContextConstructor();
     const input = context.createGain();
-    const output = context.createGain();
     const analyser = context.createAnalyser();
+    const rafEngine = new RafEngine(context);
 
-    input.connect(output);
-    output.connect(analyser);
+    input.connect(rafEngine.input);
+    rafEngine.output.connect(analyser);
     analyser.connect(context.destination);
 
     this.#context = context;
     this.#input = input;
-    this.#output = output;
+    this.#rafEngine = rafEngine;
     this.#analyser = analyser;
     visualizerService.setAnalyser(analyser);
   }

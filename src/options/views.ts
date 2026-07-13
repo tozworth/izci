@@ -4,6 +4,7 @@ export type OptionsViewName =
   | 'now-playing'
   | 'lyrics'
   | 'playback'
+  | 'raf'
   | 'visualizer'
   | 'modules'
   | 'metadata'
@@ -73,6 +74,14 @@ export const OPTIONS_VIEW_GROUPS: OptionsViewDefinition[][] = [
     }
   ],
   [
+    {
+      id: 'raf',
+      label: 'Raf',
+      icon: 'tune',
+      parentLabel: 'Playback',
+      hasHints: false,
+      resettable: true
+    },
     {
       id: 'modules',
       label: 'Modules',

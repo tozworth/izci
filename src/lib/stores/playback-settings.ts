@@ -12,7 +12,8 @@ export const REPLAY_GAIN_MODE_OPTIONS: Array<{ value: ReplayGainMode; label: str
 
 export const DEFAULT_PLAYBACK_SETTINGS: PlaybackSettings = {
   logarithmicVolume: true,
-  replayGainMode: 'track'
+  replayGainMode: 'track',
+  enableRaf: false
 };
 
 function normalizeReplayGainMode(value: unknown): ReplayGainMode {
@@ -29,7 +30,9 @@ function normalizeSettings(value: unknown): PlaybackSettings {
       typeof source.logarithmicVolume === 'boolean'
         ? source.logarithmicVolume
         : DEFAULT_PLAYBACK_SETTINGS.logarithmicVolume,
-    replayGainMode: normalizeReplayGainMode(source.replayGainMode)
+    replayGainMode: normalizeReplayGainMode(source.replayGainMode),
+    enableRaf:
+      typeof source.enableRaf === 'boolean' ? source.enableRaf : DEFAULT_PLAYBACK_SETTINGS.enableRaf
   };
 }
 

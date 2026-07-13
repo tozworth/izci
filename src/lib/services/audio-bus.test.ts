@@ -18,6 +18,17 @@ class FakeAudioNode {
   }
 }
 
+class FakeAudioParam {
+  value = 1;
+  cancelScheduledValues(): void {}
+  setValueAtTime(value: number): void { this.value = value; }
+  linearRampToValueAtTime(value: number): void { this.value = value; }
+}
+
+class FakeGainNode extends FakeAudioNode {
+  readonly gain = new FakeAudioParam();
+}
+
 class FakeAnalyserNode extends FakeAudioNode {
   fftSize = 0;
   minDecibels = 0;
@@ -35,7 +46,7 @@ class FakeAudioContext {
   static instances: FakeAudioContext[] = [];
 
   readonly destination = new FakeAudioNode(this);
-  readonly gains: FakeAudioNode[] = [];
+  readonly gains: FakeGainNode[] = [];
   readonly analysers: FakeAnalyserNode[] = [];
   readonly mediaSources: FakeMediaElementSourceNode[] = [];
   state: AudioContextState = 'suspended';
@@ -47,7 +58,7 @@ class FakeAudioContext {
   }
 
   createGain(): GainNode {
-    const node = new FakeAudioNode(this);
+    const node = new FakeGainNode(this);
     this.gains.push(node);
     return node as unknown as GainNode;
   }
@@ -91,11 +102,11 @@ describe('AudioBusService', () => {
 
   it('creates one pass-through graph ending at the browser destination', () => {
     const context = bus.context as unknown as FakeAudioContext;
-    const [input, output] = context.gains;
+    const [input] = context.gains;
     const [analyser] = context.analysers;
 
-    expect(input.connections).toEqual([output]);
-    expect(output.connections).toEqual([analyser]);
+    expect(input.connections).toHaveLength(1);
+    expect(context.gains.some((gain) => gain.connections.includes(analyser))).toBe(true);
     expect(analyser.connections).toEqual([context.destination]);
   });
 

@@ -30,6 +30,31 @@ export interface WorkspaceResizeHandle {
   after: WorkspacePanelId;
 }
 export type ReplayGainMode = 'off' | 'track' | 'album';
+export type RafEffectType = 'graphic-eq' | 'mid-side';
+
+export interface RafEffectBase {
+  id: string;
+  enabled: boolean;
+}
+
+export interface RafGraphicEqSettings extends RafEffectBase {
+  type: 'graphic-eq';
+  preampDb: number;
+  bandGainsDb: number[];
+}
+
+export interface RafMidSideSettings extends RafEffectBase {
+  type: 'mid-side';
+  midGainDb: number;
+  sideGainDb: number;
+}
+
+export type RafEffectSettings = RafGraphicEqSettings | RafMidSideSettings;
+
+export interface RafRackSettings {
+  enabled: boolean;
+  effects: RafEffectSettings[];
+}
 
 export interface ReplayGainMetadata {
   trackGainDb?: number;
@@ -114,6 +139,7 @@ export interface AppearanceSettings {
 export interface PlaybackSettings {
   logarithmicVolume: boolean;
   replayGainMode: ReplayGainMode;
+  enableRaf: boolean;
 }
 
 export interface VisualizerSettings {

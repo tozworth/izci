@@ -1,5 +1,9 @@
 # izci Raf
 
+## Implementation status
+
+Phase 0 was implemented on 2026-07-13. The typed synchronized store, compile-time effect registry, live crossfading engine, post-Raf analyser routing, ten-band Graphic EQ, normalized Mid/Side processor, and complete Options rack editor are present. Raf is exposed by a default-off Playback setting; its in-page power control remains an independent temporary rack bypass. Automated store, registry, DSP, engine, audio-bus, type/Svelte, and production-build checks pass.
+
 ## Final implementation plan
 
 `izci Raf` is a small built-in audio processing rack for izci. It processes both streamed audio and tracker modules through the shared Web Audio output bus while preserving their separate playback transports.

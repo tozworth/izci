@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import RafView from './components/raf/RafView.svelte';
   import { version as appVersion } from '../../package.json';
   import { COLOR_THEME_OPTIONS } from '$lib/services/theme';
   import {
@@ -43,6 +44,7 @@
     modulePlaybackSettings
   } from '$lib/stores/module-playback-settings';
   import { REPLAY_GAIN_MODE_OPTIONS, playbackSettings } from '$lib/stores/playback-settings';
+  import { rafSettings } from '$lib/stores/raf-settings';
   import { formatDisplayVersion } from '$lib/utils/version';
   import {
     MAX_VISUALIZER_FRAME_RATE_LIMIT,
@@ -71,6 +73,9 @@
   } from './views';
 
   let activeView: OptionsViewName = getOptionsViewFromLocation(window.location);
+  if (activeView === 'raf' && !playbackSettings.getSnapshot().enableRaf) {
+    activeView = 'playback';
+  }
   let fieldHintsExpanded = false;
   let treeWidth = 204;
   let resizePointerId: number | null = null;
@@ -97,6 +102,9 @@
   }
 
   function setActiveView(view: OptionsViewName) {
+    if (view === 'raf' && !playbackSettings.getSnapshot().enableRaf) {
+      view = 'playback';
+    }
     activeView = view;
 
     const nextUrl = buildOptionsWindowPath(view);
@@ -436,6 +444,14 @@
     });
   }
 
+  function handleEnableRafToggle(event: Event) {
+    const enableRaf = (event.currentTarget as HTMLInputElement).checked;
+    playbackSettings.update({ enableRaf });
+    if (!enableRaf && activeView === 'raf') {
+      setActiveView('playback');
+    }
+  }
+
   function handleVisualizerStyleChange(event: Event) {
     visualizerSettings.update({
       style: (event.currentTarget as HTMLSelectElement).value as VisualizerStyle
@@ -496,6 +512,11 @@
 
     if (activeView === 'visualizer') {
       visualizerSettings.reset();
+      return;
+    }
+
+    if (activeView === 'raf') {
+      rafSettings.reset();
       return;
     }
 
@@ -582,6 +603,9 @@
   });
 
   $: overlayState = $windowControlsOverlayState;
+  $: if (activeView === 'raf' && !$playbackSettings.enableRaf) {
+    setActiveView('playback');
+  }
   $: overlayRect = overlayState.titlebarAreaRect;
   $: overlayInlineStyle = overlayState.visible
     ? `--window-controls-overlay-x: ${overlayRect.x}px; --window-controls-overlay-y: ${overlayRect.y}px; --window-controls-overlay-width: ${overlayRect.width}px; --window-controls-overlay-height: ${overlayRect.height}px;`
@@ -676,17 +700,19 @@
         {#each OPTIONS_VIEW_GROUPS as group}
           <div class="tree-group" role="none">
             {#each group as view}
-              <button
-                class="tree-item"
-                class:child={view.parentLabel !== ''}
-                type="button"
-                role="treeitem"
-                aria-selected={activeView === view.id}
-                on:click={() => setActiveView(view.id)}
-              >
-                <span class="material-symbols-outlined" aria-hidden="true">{view.icon}</span>
-                <span class="tree-label">{view.label}</span>
-              </button>
+              {#if view.id !== 'raf' || $playbackSettings.enableRaf}
+                <button
+                  class="tree-item"
+                  class:child={view.parentLabel !== ''}
+                  type="button"
+                  role="treeitem"
+                  aria-selected={activeView === view.id}
+                  on:click={() => setActiveView(view.id)}
+                >
+                  <span class="material-symbols-outlined" aria-hidden="true">{view.icon}</span>
+                  <span class="tree-label">{view.label}</span>
+                </button>
+              {/if}
             {/each}
           </div>
         {/each}
@@ -1202,6 +1228,27 @@
               </label>
             </div>
           </div>
+
+          <div class="section">
+            <h2>Effects</h2>
+            <div class="field-grid">
+              <label class="field checkbox-field">
+                <div class="field-copy">
+                  <span class="field-title">Enable Raf</span>
+                </div>
+                <div class="field-control checkbox-control">
+                  <input
+                    type="checkbox"
+                    checked={$playbackSettings.enableRaf}
+                    on:change={handleEnableRafToggle}
+                  />
+                </div>
+                <p class="field-hint">
+                  Enables the built-in audio effects rack and shows Raf under Playback.
+                </p>
+              </label>
+            </div>
+          </div>
         </article>
       {/if}
 
@@ -1448,6 +1495,10 @@
             </div>
           </div>
         </article>
+      {/if}
+
+      {#if activeView === 'raf'}
+        <RafView />
       {/if}
 
       {#if activeView === 'modules'}
