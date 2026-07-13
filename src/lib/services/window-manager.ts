@@ -1,4 +1,5 @@
 import { popupWindows, type PopupWindowDefinition, type PopupWindowId } from '$lib/services/popup-windows';
+import { getOptionsWindowState } from '$lib/services/options-window-state';
 import { buildOptionsWindowPath, type OptionsViewName } from '../../options/views';
 
 function isOpenWindow(windowRef: Window | null | undefined): windowRef is Window {
@@ -102,7 +103,8 @@ function attachMainWindowLifecycleListeners(): void {
 function openPopupWindow(id: PopupWindowId, pathOverride?: string): Window | null {
   const existingWindow = popupRefs.get(id);
   const definition = popupWindows[id];
-  const popupPath = pathOverride ?? definition.path;
+  const optionsState = id === 'options' ? getOptionsWindowState() : null;
+  const popupPath = pathOverride ?? (optionsState ? buildOptionsWindowPath(optionsState.activeView) : definition.path);
   const popupUrl = new URL(popupPath, window.location.href);
 
   if (isOpenWindow(existingWindow)) {
@@ -120,7 +122,12 @@ function openPopupWindow(id: PopupWindowId, pathOverride?: string): Window | nul
   const nextWindow = window.open(
     popupUrl.href,
     definition.name,
-    buildWindowFeatures(getPopupFeatures(definition))
+    buildWindowFeatures(getPopupFeatures(optionsState
+      ? {
+          ...definition,
+          features: { ...definition.features, width: optionsState.width, height: optionsState.height }
+        }
+      : definition))
   );
 
   if (!nextWindow) {

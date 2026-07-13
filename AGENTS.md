@@ -143,6 +143,7 @@ Primary location for playback and browser-integration logic.
 - `workspace-actions.ts`: workspace collection helpers plus playlist/library context action builders.
 - `workspace-layout.ts`: wide-workspace width math, resize constraints, and panel-layout resolution for any visible subset of the three panel slots while preserving hidden-slot proportions.
 - `window-manager.ts`: generic popup launcher/tracker and desktop-PWA exit behavior; keep UI out of this file.
+- `options-window-state.ts`: persists the Options popup's last active page and user-resized dimensions for later launches.
 - `window-fullscreen.ts`: small Chromium/PWA-friendly Fullscreen API helper used by the Alt+Enter Now Playing shortcut to distinguish app-requested fullscreen from pre-existing maximized/fullscreen window states.
 
 ### `src/lib/stores/`

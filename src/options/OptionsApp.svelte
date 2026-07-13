@@ -10,6 +10,11 @@
   } from '$lib/services/local-fonts';
   import { windowControlsOverlayState } from '$lib/services/window-controls-overlay';
   import {
+    getOptionsWindowState,
+    rememberOptionsActiveView,
+    rememberOptionsWindowSize
+  } from '$lib/services/options-window-state';
+  import {
     BACKDROP_EFFECT_OPTIONS,
     BACKDROP_ZONE_IDS,
     BACKDROP_ZONE_LABELS,
@@ -77,13 +82,14 @@
     type OptionsViewName
   } from './views';
 
-  let activeView: OptionsViewName = getOptionsViewFromLocation(window.location);
+  const requestedView = getOptionsViewFromLocation(window.location);
+  let activeView: OptionsViewName = window.location.search
+    ? requestedView
+    : getOptionsWindowState().activeView;
   if (activeView === 'raf' && !playbackSettings.getSnapshot().enableRaf) {
     activeView = 'playback';
   }
   let fieldHintsExpanded = false;
-  let treeWidth = 204;
-  let resizePointerId: number | null = null;
   let pendingStereoSeparation: number | null = null;
   let pendingPanStrength: number | null = null;
   let localFontFamilies: string[] = [];
@@ -102,15 +108,12 @@
     | 'triangleReactiveSpeed'
     | 'triangleBorderWidth';
 
-  function clamp(value: number, min: number, max: number): number {
-    return Math.min(Math.max(value, min), max);
-  }
-
   function setActiveView(view: OptionsViewName) {
     if (view === 'raf' && !playbackSettings.getSnapshot().enableRaf) {
       view = 'playback';
     }
     activeView = view;
+    rememberOptionsActiveView(view);
 
     const nextUrl = buildOptionsWindowPath(view);
     if (`${window.location.pathname}${window.location.search}` !== nextUrl) {
@@ -545,24 +548,12 @@
     event.preventDefault();
   }
 
-  function beginResize(event: PointerEvent) {
-    resizePointerId = event.pointerId;
-    event.preventDefault();
-  }
-
-  function handlePointerMove(event: PointerEvent) {
-    if (resizePointerId === null) {
-      return;
-    }
-
-    treeWidth = clamp(event.clientX, 156, window.innerWidth - 220);
-  }
-
-  function stopResize() {
-    resizePointerId = null;
-  }
-
   onMount(() => {
+    rememberOptionsActiveView(activeView);
+    const rememberWindowSize = () => {
+      rememberOptionsWindowSize(window.outerWidth, window.outerHeight);
+    };
+
     void hasLocalFontAccessPermission().then((granted) => {
       localFontPermissionChecked = true;
       if (granted) {
@@ -571,9 +562,7 @@
       }
     });
 
-    const syncActiveViewFromLocation = () => {
-      activeView = getOptionsViewFromLocation(window.location);
-    };
+    const syncActiveViewFromLocation = () => setActiveView(getOptionsViewFromLocation(window.location));
     const wasOpenedByMainWindow = window.opener !== null;
     const closeIfMainWindowClosed = () => {
       if (!wasOpenedByMainWindow) {
@@ -600,6 +589,7 @@
 
     window.addEventListener('popstate', syncActiveViewFromLocation);
     window.addEventListener('message', handleMessage);
+    window.addEventListener('resize', rememberWindowSize);
     window.addEventListener('focus', closeIfMainWindowClosed);
     document.addEventListener('visibilitychange', closeIfMainWindowClosed);
     const openerCheckInterval = window.setInterval(closeIfMainWindowClosed, 1000);
@@ -608,6 +598,7 @@
       window.clearInterval(openerCheckInterval);
       window.removeEventListener('popstate', syncActiveViewFromLocation);
       window.removeEventListener('message', handleMessage);
+      window.removeEventListener('resize', rememberWindowSize);
       window.removeEventListener('focus', closeIfMainWindowClosed);
       document.removeEventListener('visibilitychange', closeIfMainWindowClosed);
     };
@@ -648,14 +639,10 @@
 
 <svelte:window
   on:contextmenu={handleWindowContextMenu}
-  on:pointermove={handlePointerMove}
-  on:pointerup={stopResize}
-  on:pointercancel={stopResize}
 />
 
 <div
   class="options-shell"
-  class:is-resizing={resizePointerId !== null}
   class:hints-expanded={fieldHintsExpanded}
   class:window-controls-overlay-active={overlayState.visible}
 >
@@ -705,7 +692,7 @@
     </div>
   </header>
 
-  <main class="options-main" style={`--tree-width: ${treeWidth}px;`}>
+  <main class="options-main">
     <aside class="tree-panel" aria-label="Options categories">
       <div class="tree" role="tree" aria-label="Options categories">
         {#each OPTIONS_VIEW_GROUPS as group}
@@ -729,15 +716,6 @@
         {/each}
       </div>
     </aside>
-
-    <div
-      class="resizer"
-      class:is-active={resizePointerId !== null}
-      role="separator"
-      aria-orientation="vertical"
-      aria-label="Resize panels"
-      on:pointerdown={beginResize}
-    ></div>
 
     <section class="content-panel" aria-live="polite">
       {#if activeView === 'appearance'}

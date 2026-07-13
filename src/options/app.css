@@ -199,10 +199,9 @@ code {
 }
 
 .options-main {
-  --tree-width: 184px;
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(156px, var(--tree-width)) 1px minmax(0, 1fr);
+  grid-template-columns: 150px minmax(0, 1fr);
   overflow: hidden;
 }
 
@@ -262,35 +261,6 @@ code {
 
 .tree-item[aria-selected="true"] .material-symbols-outlined {
   color: var(--accent-strong);
-}
-
-.resizer {
-  position: relative;
-  background: var(--resizer-track);
-  cursor: col-resize;
-}
-
-.resizer::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  left: 50%;
-  width: 1px;
-  transform: translateX(-50%);
-  background: var(--resizer-handle);
-  transition: width 120ms ease, background-color 120ms ease;
-}
-
-.resizer:hover::before,
-.resizer.is-active::before,
-.options-shell.is-resizing .resizer::before {
-  width: 5px;
-  background: var(--accent-strong);
-}
-
-.options-shell.is-resizing,
-.options-shell.is-resizing * {
-  cursor: col-resize;
 }
 
 .content-panel {
