@@ -374,7 +374,7 @@ code {
 .field {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(180px, auto);
-  align-items: start;
+  align-items: center;
   gap: 8px;
   padding: 6px 0;
   border-bottom: 1px solid var(--border-faint);
@@ -386,7 +386,6 @@ code {
 
 .field-copy {
   min-width: 0;
-  padding-top: 5px;
 }
 
 .field-title {
@@ -403,6 +402,14 @@ code {
 
 .field-control-checkbox {
   justify-content: flex-end;
+}
+
+.font-field {
+  align-items: start;
+}
+
+.font-field .field-copy {
+  padding-top: 5px;
 }
 
 .field-output {

@@ -792,7 +792,7 @@
           <div class="section">
             <h2>Interface</h2>
             <div class="field-grid">
-              <label class="field">
+              <label class="field font-field">
                 <div class="field-copy">
                   <span class="field-title">Font</span>
                 </div>
