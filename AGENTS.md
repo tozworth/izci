@@ -55,7 +55,7 @@ Working source tree:
 - `src/options/OptionsApp.svelte`: standalone Options window UI for appearance, system/local font selection, backdrop zones/artwork tuning, lyrics display, playback/Raf settings, module playback defaults, and metadata behavior, including the empty-workspace-panel behavior toggle, the Now Playing side-chrome auto-hide timeout, and the window-title track-name toggle. The wide workspace backdrop zones and persisted dock-panel keys are positional: left, center, and right.
 - `src/options/app.css`: Options popup styling.
 - `src/options/views.ts`: popup navigation/view metadata shared by the Options UI.
-- `src/options/components/raf/`: Raf rack view, effect cards, and the Graphic EQ, Stereo Width, multiband Crystalizer, and Sloptimizer settings editors. These components edit the synchronized store only and never own Web Audio nodes. Sloptimizer defaults to its one-slider Simple mode; Advanced mode exposes six tuned controls without changing DSP topology.
+- `src/options/components/raf/`: Raf rack view, effect cards, and the Graphic EQ, Stereo Width, multiband Crystalizer, and Sloptimizer settings editors. The rack toolbar imports/exports normalized rack settings through the clipboard or JSON files. These components edit the synchronized store only and never own Web Audio nodes. Sloptimizer defaults to its one-slider Simple mode; Advanced mode exposes six tuned controls without changing DSP topology.
 - `src/vite-env.d.ts`: Vite ambient types.
 - `src/**/*.test.ts`: Vitest unit tests for pure helpers/services.
 
@@ -118,6 +118,7 @@ Primary location for playback and browser-integration logic.
 - `audio-bus.ts`: shared Web Audio context/source owner; reroutes the Howler-owned HTML media element and the Chiptune3 gain output through Raf, then the analyser and destination, without merging their transport backends.
 - `raf-engine.ts`: main-window-only live Raf graph owner; subscribes directly to synchronized settings, maintains dry/wet bypass paths, updates parameters in place, and crossfades topology replacements.
 - `raf-meter.ts`: transient cross-window Raf input/output peak telemetry; publishes the main window's live rack levels to the Options popup without persisting meter state.
+- `raf-settings-transfer.ts`: validated Raf rack settings serialization plus clipboard and JSON-file import/export helpers.
 - `raf-effect-registry.ts`: compile-time-only registry for built-in Raf effects, their defaults/normalizers, DSP factories, parameter updates, and disposal.
 - `raf-effects/`: Web Audio implementations for the ten-band Graphic EQ, attenuation-only Stereo Width M/S processor, 13-band Crystalizer, and three-band Sloptimizer loudness maximizer plus shared smoothing/disposal helpers. Graphic EQ and Crystalizer calculate always-on output headroom from their combined filter responses; Stereo Width changes the Side-to-Mid ratio without applying positive matrix gain; Sloptimizer finishes with a ceiling-bounded limiter curve.
 - `artwork-palette.ts`: transient artwork color sampler used by the visualizer and optional artwork-colored player chrome; derives normalized player/visualizer palettes from the current artwork and caches per blob URL without persisting artwork data.

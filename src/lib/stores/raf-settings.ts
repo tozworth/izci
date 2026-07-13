@@ -44,6 +44,9 @@ const store = createPersistentStore({
 export const rafSettings = {
   subscribe: store.subscribe,
   getSnapshot: store.getSnapshot,
+  replace(settings: unknown): RafRackSettings {
+    return store.set(settings);
+  },
   setEnabled(enabled: boolean): RafRackSettings {
     return store.update((settings) => ({ ...settings, enabled }));
   },
