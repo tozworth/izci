@@ -132,11 +132,15 @@ code {
 
 .window-topbar-title {
   min-width: 0;
+  flex: 1 1 auto;
   display: flex;
   align-items: center;
   gap: 0.3ch;
   font-size: 0.8rem;
   line-height: 1.1;
+  overflow: hidden;
+  white-space: nowrap;
+  container-type: inline-size;
 }
 
 .window-topbar-prefix {
@@ -148,7 +152,6 @@ code {
   min-width: 0;
   display: inline-flex;
   align-items: center;
-  flex-wrap: wrap;
   gap: 0.3ch;
 }
 
@@ -165,6 +168,20 @@ code {
 .window-topbar-crumb.is-current {
   color: var(--text-strong);
   font-weight: 700;
+}
+
+@container (max-width: 250px) {
+  .window-topbar-prefix,
+  .window-topbar-prefix-separator {
+    display: none;
+  }
+}
+
+@container (max-width: 140px) {
+  .window-topbar-parent,
+  .window-topbar-parent-separator {
+    display: none;
+  }
 }
 
 .window-topbar-tools {

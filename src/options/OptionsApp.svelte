@@ -613,7 +613,6 @@
     ? `--window-controls-overlay-x: ${overlayRect.x}px; --window-controls-overlay-y: ${overlayRect.y}px; --window-controls-overlay-width: ${overlayRect.width}px; --window-controls-overlay-height: ${overlayRect.height}px;`
     : '';
   $: activeViewDefinition = OPTIONS_VIEWS[activeView];
-  $: breadcrumbs = [activeViewDefinition.parentLabel, activeViewDefinition.label].filter(Boolean);
   $: canResetCurrentView = activeViewDefinition.resettable;
   $: canToggleHints = activeViewDefinition.hasHints;
   $: interpolationOption =
@@ -653,15 +652,17 @@
   >
     <div class="window-topbar-title" aria-live="polite">
       <span class="window-topbar-prefix">izci Options</span>
+      <span class="material-symbols-outlined window-topbar-separator window-topbar-prefix-separator" aria-hidden="true">
+        chevron_right
+      </span>
       <span class="window-topbar-breadcrumbs">
-        {#each breadcrumbs as crumb}
-          <span class="material-symbols-outlined window-topbar-separator" aria-hidden="true">
+        {#if activeViewDefinition.parentLabel}
+          <span class="window-topbar-crumb window-topbar-parent">{activeViewDefinition.parentLabel}</span>
+          <span class="material-symbols-outlined window-topbar-separator window-topbar-parent-separator" aria-hidden="true">
             chevron_right
           </span>
-          <span class="window-topbar-crumb" class:is-current={crumb === activeViewDefinition.label}>
-            {crumb}
-          </span>
-        {/each}
+        {/if}
+        <span class="window-topbar-crumb is-current">{activeViewDefinition.label}</span>
       </span>
     </div>
 
