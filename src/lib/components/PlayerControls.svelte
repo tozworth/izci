@@ -190,6 +190,7 @@
       `--text: ${palette.text}`,
       `--text-strong: ${palette.textStrong}`,
       `--muted: ${palette.muted}`,
+      `--player-control-accent: ${palette.rangeFill}`,
       `--player-range-fill: ${palette.rangeFill}`,
       `--player-range-track: ${palette.rangeTrack}`,
       `--player-range-border: ${palette.rangeBorder}`,
