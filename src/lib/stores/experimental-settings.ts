@@ -2,12 +2,14 @@ import { createPersistentStore } from './persistent-store';
 
 export interface ExperimentalSettings {
   rafEffectsList: boolean;
+  singlePageMode: boolean;
 }
 
 export const EXPERIMENTAL_SETTINGS_STORAGE_KEY = 'izci.experimental-settings';
 export const EXPERIMENTAL_SETTINGS_CHANNEL = 'izci-experimental-settings';
 export const DEFAULT_EXPERIMENTAL_SETTINGS: ExperimentalSettings = {
-  rafEffectsList: false
+  rafEffectsList: false,
+  singlePageMode: false
 };
 
 export function normalizeExperimentalSettings(value: unknown): ExperimentalSettings {
@@ -16,7 +18,10 @@ export function normalizeExperimentalSettings(value: unknown): ExperimentalSetti
   return {
     rafEffectsList: typeof source.rafEffectsList === 'boolean'
       ? source.rafEffectsList
-      : DEFAULT_EXPERIMENTAL_SETTINGS.rafEffectsList
+      : DEFAULT_EXPERIMENTAL_SETTINGS.rafEffectsList,
+    singlePageMode: typeof source.singlePageMode === 'boolean'
+      ? source.singlePageMode
+      : DEFAULT_EXPERIMENTAL_SETTINGS.singlePageMode
   };
 }
 

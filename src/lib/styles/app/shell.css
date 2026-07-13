@@ -17,6 +17,23 @@
   padding-top: var(--window-frame-safe-top);
 }
 
+.app-shell.single-page-options {
+  grid-template-rows: minmax(0, 1fr);
+}
+
+.app-shell.single-page-options.window-controls-overlay-active {
+  padding-top: 0;
+}
+
+.single-page-options-host {
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  overflow: hidden;
+  position: relative;
+  z-index: 2;
+}
+
 .app-shell.tabbed-layout {
   padding-bottom: var(--player-bar-measured-reserve, var(--player-bar-reserve-tabbed));
 }

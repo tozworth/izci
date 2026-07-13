@@ -4,6 +4,7 @@
   import SharedBackdropArtwork from '$lib/components/SharedBackdropArtwork.svelte';
   import SharedBackdropVisualizer from '$lib/components/SharedBackdropVisualizer.svelte';
   import TopMenuBar from '$lib/components/TopMenuBar.svelte';
+  import OptionsApp from './options/OptionsApp.svelte';
   import AppWorkspace from '$lib/components/workspace/AppWorkspace.svelte';
   import type {
     WorkspacePanelHandlers
@@ -45,6 +46,7 @@
   import { windowDisplayState } from '$lib/services/window-display-state';
   import { windowFullscreen } from '$lib/services/window-fullscreen';
   import { appearanceSettings } from '$lib/stores/appearance-settings';
+  import { experimentalSettings } from '$lib/stores/experimental-settings';
   import { metadataSettings } from '$lib/stores/metadata-settings';
   import { libraryStore, playlistStore } from '$lib/stores/playlist';
   import { DEFAULT_PLAYER_VOLUME } from '$lib/stores/player-volume';
@@ -60,7 +62,7 @@
     WorkspaceCollection,
     WorkspaceTab
   } from '$lib/types';
-  import type { OptionsViewName } from './options/views';
+  import { isOptionsViewName, type OptionsViewName } from './options/views';
   import { getTrackDisplayTitle, getTrackIdentity } from '$lib/utils/files';
 
   const {
@@ -120,6 +122,8 @@
   let isNowPlayingChromeHidden = false;
   let isFullscreenNowPlayingChromeHidden = false;
   let documentTitle = 'izci';
+  let singlePageOptionsActive = false;
+  let singlePageOptionsView: OptionsViewName | undefined = undefined;
   let effectiveLyricsDisplayStyle: LyricsDisplayStyle = 'timestamped';
   let lyricsAutoScroll = true;
   let lyricsFontSize = appearanceSettings.getSnapshot().lyrics.fontSizes.timestamped;
@@ -358,7 +362,9 @@
     innerHeight
   });
   $: documentTitle =
-    $appearanceSettings.showTrackTitleInWindowTitle && livePlayingTrack
+    singlePageOptionsActive
+      ? 'izci Options'
+      : $appearanceSettings.showTrackTitleInWindowTitle && livePlayingTrack
       ? getTrackDisplayTitle(livePlayingTrack)
       : 'izci';
   $: playCountTracker.sync({
@@ -485,11 +491,45 @@
   }
 
   function handleOpenOptions(view?: OptionsViewName) {
+    if ($experimentalSettings.singlePageMode) {
+      if (miniModeActive) {
+        windowMiniMode.exit();
+      }
+      singlePageOptionsView = view;
+      singlePageOptionsActive = true;
+      return;
+    }
+
     windowManager.openOptions(view);
   }
 
+  function closeSinglePageOptions() {
+    singlePageOptionsActive = false;
+    singlePageOptionsView = undefined;
+  }
+
+  function handleWindowMessage(event: MessageEvent) {
+    if (
+      event.origin === window.location.origin
+      && event.data?.type === 'izci:open-options-single-page'
+      && isOptionsViewName(event.data.view)
+    ) {
+      if (miniModeActive) {
+        windowMiniMode.exit();
+      }
+      singlePageOptionsView = event.data.view;
+      singlePageOptionsActive = true;
+    }
+  }
+
+  function handleAppKeydown(event: KeyboardEvent) {
+    if (!singlePageOptionsActive) {
+      appShortcuts.handleKeydown(event);
+    }
+  }
+
   function handleOpenAbout() {
-    windowManager.openOptions('about');
+    handleOpenOptions('about');
   }
 
   async function handleForceUpdate() {
@@ -637,7 +677,8 @@
   bind:innerWidth
   bind:innerHeight
   on:contextmenu={appShortcuts.handleContextMenu}
-  on:keydown={appShortcuts.handleKeydown}
+  on:keydown={handleAppKeydown}
+  on:message={handleWindowMessage}
   on:pointermove={(event) => workspaceShell.handlePanelResizeMove(event)}
   on:pointerup={() => workspaceShell.endPanelResize()}
   on:pointercancel={() => workspaceShell.endPanelResize()}
@@ -648,6 +689,7 @@
   class:tabbed-layout={workspaceShellState.isTabbedLayout}
   class:mini-mode={miniModeActive}
   class:now-playing-mode={isNowPlayingLayoutActive}
+  class:single-page-options={singlePageOptionsActive}
   class:now-playing-theater-chrome-hidden={isFullscreenNowPlayingChromeHidden}
   class:window-chrome-transition-bypass={artworkPresentationState.isWindowChromeTransitionBypassed}
   class:window-controls-overlay-active={$windowControlsOverlayState.visible}
@@ -676,6 +718,15 @@
     on:change={handleMenuInput}
   />
 
+  {#if singlePageOptionsActive}
+    <div class="single-page-options-host">
+      <OptionsApp
+        embedded
+        initialView={singlePageOptionsView}
+        on:close={closeSinglePageOptions}
+      />
+    </div>
+  {:else}
   <TopMenuBar
     {miniModeActive}
     nowPlayingViewActive={isNowPlayingLayoutActive}
@@ -734,12 +785,13 @@
       onShowTrack={handleShowPlayerTrackDetails}
     />
   {/if}
+  {/if}
 
-  {#if playbackStatus.error && !miniModeActive}
+  {#if playbackStatus.error && !miniModeActive && !singlePageOptionsActive}
     <aside class="error-banner">{playbackStatus.error}</aside>
   {/if}
 
-  {#if !isNowPlayingLayoutActive}
+  {#if singlePageOptionsActive || !isNowPlayingLayoutActive}
     <PlayerControls
       snapshotStore={playerController.snapshot}
       track={playerDisplayTrack}
