@@ -59,6 +59,7 @@
   import { DEFAULT_PLAYER_VOLUME } from '$lib/stores/player-volume';
   import { playbackSettings } from '$lib/stores/playback-settings';
   import { rafSettings } from '$lib/stores/raf-settings';
+  import { isRafPresetDirty, rafPresets } from '$lib/stores/raf-presets';
   import type {
     BackdropZoneId,
     BackdropZoneSettings,
@@ -1480,6 +1481,9 @@
       {collectionsReady}
       showRafToggle={$playbackSettings.enableRaf && $playbackSettings.showRafToggleInPlayerBar}
       rafEnabled={$rafSettings.enabled}
+      rafPresets={$rafPresets.presets}
+      selectedRafPresetId={$rafPresets.selectedPresetId}
+      rafPresetDirty={isRafPresetDirty($rafPresets, $rafSettings)}
       on:toggle={() => void playbackCommands.togglePlayback()}
       on:previous={() => void playbackCommands.stepTrack(-1)}
       on:next={() => void playbackCommands.stepTrack(1)}
@@ -1487,6 +1491,7 @@
       on:volume={(event) => playerController.setVolume(event.detail)}
       on:mute={() => playerController.toggleMute()}
       on:toggleRaf={() => rafSettings.setEnabled(!$rafSettings.enabled)}
+      on:applyRafPreset={(event) => rafPresets.apply(event.detail)}
       on:openRafOptions={() => handleOpenOptions('raf')}
       on:showTrack={(event) => handleShowPlayerTrackDetails(event.detail)}
     />

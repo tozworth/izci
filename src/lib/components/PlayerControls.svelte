@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { createEventDispatcher, onMount } from 'svelte';
+  import { createEventDispatcher, onMount, tick } from 'svelte';
   import {
     extractArtworkPalette,
     type PlayerArtworkColorSet,
@@ -7,6 +7,8 @@
   } from '$lib/services/artwork-palette';
   import type { LoadedStreamArtwork } from '$lib/services/stream-artwork';
   import { sessionIdlePlayerQuip } from '$lib/services/idle-player-copy';
+  import { portal } from '$lib/components/playlist-panel/actions/portal';
+  import { windowDismiss } from '$lib/components/playlist-panel/actions/window-dismiss';
   import {
     appearanceSettings,
     hasArtworkBackdrop,
@@ -19,7 +21,8 @@
     BackdropZoneArtworkSettings,
     BackdropZoneEffect,
     PlaybackSnapshot,
-    PlaylistItem
+    PlaylistItem,
+    RafPreset
   } from '$lib/types';
 
   export let snapshotStore: Readable<PlaybackSnapshot>;
@@ -36,6 +39,9 @@
   export let collectionsReady = true;
   export let showRafToggle = false;
   export let rafEnabled = true;
+  export let rafPresets: RafPreset[] = [];
+  export let selectedRafPresetId: string | null = null;
+  export let rafPresetDirty = false;
 
   const dispatch = createEventDispatcher<{
     toggle: void;
@@ -45,6 +51,7 @@
     volume: number;
     mute: void;
     toggleRaf: void;
+    applyRafPreset: string;
     openRafOptions: void;
     showTrack: string;
   }>();
@@ -64,6 +71,10 @@
   let playerArtworkPalette: PlayerArtworkPalette | null = null;
   let playerArtworkPaletteUrl: string | undefined = undefined;
   let playerArtworkPaletteToken = 0;
+  let rafPresetMenuOpen = false;
+  let rafPresetMenuX = 0;
+  let rafPresetMenuY = 0;
+  let rafPresetMenuElement: HTMLDivElement | null = null;
   let snapshot: PlaybackSnapshot = {
     state: 'idle',
     currentTime: 0,
@@ -120,6 +131,32 @@
   function closeVolumePopup() {
     clearVolumePopupTimer();
     isVolumePopupOpen = false;
+  }
+
+  async function openRafPresetMenu(event: MouseEvent) {
+    const anchor = (event.currentTarget as HTMLButtonElement).getBoundingClientRect();
+    const estimatedHeight = Math.min(320, 45 + Math.max(rafPresets.length, 1) * 30);
+    rafPresetMenuX = clamp(anchor.right - 192, 6, Math.max(6, window.innerWidth - 198));
+    rafPresetMenuY = Math.max(6, anchor.top - estimatedHeight - 4);
+    rafPresetMenuOpen = true;
+    await tick();
+
+    if (!rafPresetMenuOpen || !rafPresetMenuElement) return;
+    rafPresetMenuX = clamp(
+      anchor.right - rafPresetMenuElement.offsetWidth,
+      6,
+      Math.max(6, window.innerWidth - rafPresetMenuElement.offsetWidth - 6)
+    );
+    rafPresetMenuY = Math.max(6, anchor.top - rafPresetMenuElement.offsetHeight - 4);
+  }
+
+  function closeRafPresetMenu() {
+    rafPresetMenuOpen = false;
+  }
+
+  function applyRafPreset(id: string) {
+    dispatch('applyRafPreset', id);
+    closeRafPresetMenu();
   }
 
   async function syncPlayerArtworkPalette(url: string | undefined): Promise<void> {
@@ -418,9 +455,9 @@
         class="raf-toggle"
         aria-label={rafEnabled ? 'Bypass Raf' : 'Power on Raf'}
         aria-pressed={rafEnabled}
-        title={`${rafEnabled ? 'Bypass Raf' : 'Power on Raf'} · Right-click for Raf options`}
+        title={`${rafEnabled ? 'Bypass Raf' : 'Power on Raf'} · Right-click for presets`}
         on:click={() => dispatch('toggleRaf')}
-        on:contextmenu|preventDefault={() => dispatch('openRafOptions')}
+        on:contextmenu|preventDefault|stopPropagation={openRafPresetMenu}
       >
         <span class="material-symbols-outlined" aria-hidden="true">power_settings_new</span>
       </button>
@@ -464,6 +501,38 @@
   </div>
 </svelte:element>
 
+{#if rafPresetMenuOpen}
+  <div
+    bind:this={rafPresetMenuElement}
+    class="menu-list raf-preset-context-menu"
+    data-menu-interactive="true"
+    use:portal
+    use:windowDismiss={{ enabled: true, onDismiss: closeRafPresetMenu }}
+    role="menu"
+    aria-label="Raf presets"
+    style={`left: ${rafPresetMenuX}px; top: ${rafPresetMenuY}px;`}
+  >
+    {#if rafPresets.length > 0}
+      {#each rafPresets as preset (preset.id)}
+        <button role="menuitemradio" aria-checked={preset.id === selectedRafPresetId} on:click={() => applyRafPreset(preset.id)}>
+          <span class="material-symbols-outlined menu-item-icon preset-check" aria-hidden="true">check</span>
+          <span class="menu-item-label">{preset.name}{preset.id === selectedRafPresetId && rafPresetDirty ? ' *' : ''}</span>
+        </button>
+      {/each}
+    {:else}
+      <button type="button" role="menuitem" disabled>
+        <span class="material-symbols-outlined menu-item-icon" aria-hidden="true">tune</span>
+        <span class="menu-item-label">No Raf presets</span>
+      </button>
+    {/if}
+    <div class="menu-separator" role="separator" aria-hidden="true"></div>
+    <button role="menuitem" on:click={() => { closeRafPresetMenu(); dispatch('openRafOptions'); }}>
+      <span class="material-symbols-outlined menu-item-icon" aria-hidden="true">tune</span>
+      <span class="menu-item-label">Open Raf</span>
+    </button>
+  </div>
+{/if}
+
 <style>
   .player-artwork-button,
   .player-track-link {
@@ -479,4 +548,23 @@
   .player-track-subtitle {
     text-align: left;
   }
+
+  .raf-preset-context-menu {
+    position: fixed;
+    z-index: 60;
+    width: 12rem;
+    max-height: min(320px, calc(100vh - 12px));
+    overflow: auto;
+  }
+
+  .raf-preset-context-menu .preset-check {
+    visibility: hidden;
+    flex: 0 0 auto;
+    color: var(--accent-strong);
+  }
+
+  .raf-preset-context-menu button[aria-checked='true'] .preset-check {
+    visibility: visible;
+  }
+
 </style>

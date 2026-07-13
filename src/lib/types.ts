@@ -161,6 +161,17 @@ export interface RafRackSettings {
   effects: RafEffectSettings[];
 }
 
+export interface RafPreset {
+  id: string;
+  name: string;
+  settings: RafRackSettings;
+}
+
+export interface RafPresetState {
+  presets: RafPreset[];
+  selectedPresetId: string | null;
+}
+
 export interface ReplayGainMetadata {
   trackGainDb?: number;
   trackPeak?: number;
