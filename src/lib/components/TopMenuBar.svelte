@@ -3,6 +3,7 @@
   import { onDestroy } from 'svelte';
   import { version as appVersion } from '../../../package.json';
   import MenuSurface from '$lib/components/MenuSurface.svelte';
+  import { pwaUpdateCompleted } from '$lib/services/pwa-updates';
   import { windowControlsOverlayState } from '$lib/services/window-controls-overlay';
   import type { MenuActionItem } from '$lib/types';
   import { formatDisplayVersion } from '$lib/utils/version';
@@ -503,7 +504,12 @@
       aria-hidden={!showVersionIndicator}
     >
         <strong>izci</strong>
-        <span>{displayVersion}</span>
+        <span class="menu-version-indicator">
+          <span class:menu-version-hidden={$pwaUpdateCompleted}>{displayVersion}</span>
+          <span class="menu-update-completed" class:menu-update-visible={$pwaUpdateCompleted}>
+            updated!
+          </span>
+        </span>
     </div>
   {/if}
 </nav>

@@ -256,3 +256,32 @@ body:has(.menu-list[data-menu-interactive='true']) .menu-brand {
   color: var(--muted);
   font-size: 0.75rem;
 }
+
+.menu-brand .menu-version-indicator {
+  display: inline-grid;
+  align-items: baseline;
+}
+
+.menu-version-indicator > span {
+  grid-area: 1 / 1;
+  transition: opacity 240ms ease;
+}
+
+.menu-version-indicator .menu-version-hidden {
+  opacity: 0;
+}
+
+.menu-version-indicator .menu-update-completed {
+  color: #9ee6aa;
+  opacity: 0;
+}
+
+.menu-version-indicator .menu-update-visible {
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .menu-version-indicator > span {
+    transition: none;
+  }
+}
