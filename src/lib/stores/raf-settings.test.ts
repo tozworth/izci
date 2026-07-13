@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
+import { CRYSTALIZER_FREQUENCIES } from '$lib/services/raf-effects/crystalizer';
 import { GRAPHIC_EQ_FREQUENCIES } from '$lib/services/raf-effects/graphic-eq';
 import { DEFAULT_RAF_SETTINGS, normalizeRafSettings, rafSettings } from './raf-settings';
 
@@ -15,6 +16,14 @@ describe('normalizeRafSettings', () => {
       effects: [
         { id: 'eq-1', type: 'graphic-eq', enabled: true, preampDb: 3, bandGainsDb: GRAPHIC_EQ_FREQUENCIES.map(() => 2) },
         { id: 'width-1', type: 'stereo-width', enabled: false, widthDb: 10 },
+        {
+          id: 'crystalizer-1',
+          type: 'crystalizer',
+          enabled: true,
+          bandIntensities: CRYSTALIZER_FREQUENCIES.map(() => 4),
+          bandMuted: CRYSTALIZER_FREQUENCIES.map(() => false),
+          bandBypassed: CRYSTALIZER_FREQUENCIES.map(() => false)
+        },
         { id: 'eq-1', type: 'stereo-width', enabled: true, widthDb: 0 },
         { id: 'bad', type: 'future-effect', enabled: true },
         { id: 'nan', type: 'stereo-width', enabled: true, widthDb: Number.NaN }
@@ -22,7 +31,7 @@ describe('normalizeRafSettings', () => {
     });
 
     expect(result.enabled).toBe(false);
-    expect(result.effects.map((effect) => effect.id)).toEqual(['eq-1', 'width-1']);
+    expect(result.effects.map((effect) => effect.id)).toEqual(['eq-1', 'width-1', 'crystalizer-1']);
     expect(result.effects[0]).toMatchObject({ preampDb: 3 });
   });
 
@@ -36,6 +45,34 @@ describe('normalizeRafSettings', () => {
     });
 
     expect(result.effects).toEqual([{ id: 'width', type: 'stereo-width', enabled: true, widthDb: 24 }]);
+  });
+
+  it('clamps crystalizer intensities and rejects malformed per-band state', () => {
+    const validFlags = CRYSTALIZER_FREQUENCIES.map(() => false);
+    const result = normalizeRafSettings({
+      enabled: true,
+      effects: [
+        {
+          id: 'crystalizer',
+          type: 'crystalizer',
+          enabled: true,
+          bandIntensities: CRYSTALIZER_FREQUENCIES.map(() => 100),
+          bandMuted: validFlags,
+          bandBypassed: validFlags
+        },
+        {
+          id: 'broken',
+          type: 'crystalizer',
+          enabled: true,
+          bandIntensities: [0],
+          bandMuted: validFlags,
+          bandBypassed: validFlags
+        }
+      ]
+    });
+
+    expect(result.effects).toHaveLength(1);
+    expect(result.effects[0]).toMatchObject({ bandIntensities: CRYSTALIZER_FREQUENCIES.map(() => 32) });
   });
 
   it('reorders by stable ID and resets only the selected instance', () => {

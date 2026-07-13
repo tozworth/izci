@@ -1,9 +1,18 @@
 import type {
+  RafCrystalizerSettings,
   RafEffectSettings,
   RafEffectType,
   RafGraphicEqSettings,
   RafStereoWidthSettings
 } from '$lib/types';
+import {
+  CRYSTALIZER_FREQUENCIES,
+  CRYSTALIZER_INTENSITY_MAX,
+  CRYSTALIZER_INTENSITY_MIN,
+  createCrystalizerNode,
+  disposeCrystalizerNode,
+  updateCrystalizerNode
+} from './raf-effects/crystalizer';
 import {
   GRAPHIC_EQ_FREQUENCIES,
   RAF_GAIN_MAX_DB,
@@ -62,6 +71,30 @@ function normalizeStereoWidth(value: unknown): RafStereoWidthSettings | null {
   return { ...base, type: 'stereo-width', widthDb };
 }
 
+function normalizeCrystalizer(value: unknown): RafCrystalizerSettings | null {
+  const base = normalizeBase(value, 'crystalizer');
+  if (!base) return null;
+  const source = value as Record<string, unknown>;
+  const length = CRYSTALIZER_FREQUENCIES.length;
+  if (
+    !Array.isArray(source.bandIntensities) || source.bandIntensities.length !== length ||
+    !Array.isArray(source.bandMuted) || source.bandMuted.length !== length ||
+    !Array.isArray(source.bandBypassed) || source.bandBypassed.length !== length
+  ) return null;
+  if (!source.bandIntensities.every((intensity) => typeof intensity === 'number' && Number.isFinite(intensity))) return null;
+  if (!source.bandMuted.every((muted) => typeof muted === 'boolean')) return null;
+  if (!source.bandBypassed.every((bypassed) => typeof bypassed === 'boolean')) return null;
+  return {
+    ...base,
+    type: 'crystalizer',
+    bandIntensities: source.bandIntensities.map((intensity) =>
+      Math.min(CRYSTALIZER_INTENSITY_MAX, Math.max(CRYSTALIZER_INTENSITY_MIN, intensity as number))
+    ),
+    bandMuted: [...source.bandMuted] as boolean[],
+    bandBypassed: [...source.bandBypassed] as boolean[]
+  };
+}
+
 const graphicEqDefinition: RafEffectDefinition = {
   type: 'graphic-eq',
   name: 'Graphic EQ',
@@ -92,7 +125,26 @@ const stereoWidthDefinition: RafEffectDefinition = {
   disposeNode: (node) => disposeStereoWidthNode(node as ReturnType<typeof createStereoWidthNode>)
 };
 
-export const RAF_EFFECT_DEFINITIONS = [graphicEqDefinition, stereoWidthDefinition] as const;
+const crystalizerDefinition: RafEffectDefinition = {
+  type: 'crystalizer',
+  name: 'Crystalizer',
+  icon: 'diamond',
+  createDefault: (id) => ({
+    id,
+    type: 'crystalizer',
+    enabled: true,
+    bandIntensities: CRYSTALIZER_FREQUENCIES.map(() => 0),
+    bandMuted: CRYSTALIZER_FREQUENCIES.map(() => false),
+    bandBypassed: CRYSTALIZER_FREQUENCIES.map(() => false)
+  }),
+  normalize: normalizeCrystalizer,
+  createNode: (context, settings) => createCrystalizerNode(context, settings as RafCrystalizerSettings),
+  updateNode: (node, settings, context) =>
+    updateCrystalizerNode(node as ReturnType<typeof createCrystalizerNode>, settings as RafCrystalizerSettings, context),
+  disposeNode: (node) => disposeCrystalizerNode(node as ReturnType<typeof createCrystalizerNode>)
+};
+
+export const RAF_EFFECT_DEFINITIONS = [graphicEqDefinition, stereoWidthDefinition, crystalizerDefinition] as const;
 export const RAF_EFFECT_REGISTRY = Object.fromEntries(
   RAF_EFFECT_DEFINITIONS.map((definition) => [definition.type, definition])
 ) as Record<RafEffectType, RafEffectDefinition>;

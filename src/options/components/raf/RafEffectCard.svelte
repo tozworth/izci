@@ -2,6 +2,7 @@
   import { RAF_EFFECT_REGISTRY } from '$lib/services/raf-effect-registry';
   import { rafSettings } from '$lib/stores/raf-settings';
   import type { RafEffectSettings } from '$lib/types';
+  import CrystalizerEditor from './CrystalizerEditor.svelte';
   import GraphicEqEditor from './GraphicEqEditor.svelte';
   import StereoWidthEditor from './StereoWidthEditor.svelte';
 
@@ -55,8 +56,10 @@
   <div class="effect-editor">
     {#if effect.type === 'graphic-eq'}
       <GraphicEqEditor settings={effect} />
-    {:else}
+    {:else if effect.type === 'stereo-width'}
       <StereoWidthEditor settings={effect} />
+    {:else}
+      <CrystalizerEditor settings={effect} />
     {/if}
   </div>
 </article>

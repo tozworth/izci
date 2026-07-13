@@ -30,7 +30,7 @@ export interface WorkspaceResizeHandle {
   after: WorkspacePanelId;
 }
 export type ReplayGainMode = 'off' | 'track' | 'album';
-export type RafEffectType = 'graphic-eq' | 'stereo-width';
+export type RafEffectType = 'graphic-eq' | 'stereo-width' | 'crystalizer';
 
 export interface RafEffectBase {
   id: string;
@@ -48,7 +48,14 @@ export interface RafStereoWidthSettings extends RafEffectBase {
   widthDb: number;
 }
 
-export type RafEffectSettings = RafGraphicEqSettings | RafStereoWidthSettings;
+export interface RafCrystalizerSettings extends RafEffectBase {
+  type: 'crystalizer';
+  bandIntensities: number[];
+  bandMuted: boolean[];
+  bandBypassed: boolean[];
+}
+
+export type RafEffectSettings = RafGraphicEqSettings | RafStereoWidthSettings | RafCrystalizerSettings;
 
 export interface RafRackSettings {
   enabled: boolean;
