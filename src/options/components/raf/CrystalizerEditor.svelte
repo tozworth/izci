@@ -88,5 +88,4 @@
   input:disabled { opacity: 0.45; }
   .band-value { color: var(--text); font-variant-numeric: tabular-nums; }
   .band-label { font-weight: 600; }
-  .hint { margin: 6px 2px 0; color: var(--muted); font-size: 9px; }
 </style>

@@ -16,12 +16,12 @@ export function setAudioParam(
   rampSeconds = RAF_PARAMETER_RAMP_SECONDS
 ): void {
   const now = context.currentTime;
-  if (typeof parameter.cancelAndHoldAtTime === 'function') {
-    parameter.cancelAndHoldAtTime(now);
-  } else {
-    parameter.cancelScheduledValues(now);
-    parameter.setValueAtTime(parameter.value, now);
-  }
+  const currentValue = Number.isFinite(parameter.value) ? parameter.value : value;
+  // Chromium can produce non-finite output when cancelAndHoldAtTime() is
+  // repeatedly rescheduled at pointer-event frequency. Anchor the current
+  // finite value explicitly before replacing the outstanding ramp instead.
+  parameter.cancelScheduledValues(now);
+  parameter.setValueAtTime(currentValue, now);
   parameter.linearRampToValueAtTime(value, now + rampSeconds);
 }
 
