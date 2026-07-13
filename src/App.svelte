@@ -762,7 +762,7 @@
   }
 
   function handleMenuInput(event: Event) {
-    importController.handleFileInputChange(event);
+    void importController.handleFileInputChange(event);
   }
 
   function handleOpenOptions(view?: OptionsViewName) {

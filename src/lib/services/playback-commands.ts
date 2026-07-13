@@ -9,6 +9,7 @@ import type {
   WorkspaceTab
 } from '$lib/types';
 import { buildPlaylistItems, clonePlaylistItems } from '$lib/utils/files';
+import { prepareImportedFiles } from '$lib/services/file-verification';
 
 interface PlaybackCommandsState {
   pendingPlaybackTrackId: string | null;
@@ -136,7 +137,7 @@ export function createPlaybackCommandsController({
   }
 
   async function replacePlaylistFromFiles(files: File[]): Promise<void> {
-    const nextItems = buildPlaylistItems(files);
+    const nextItems = buildPlaylistItems(await prepareImportedFiles(files));
 
     if (nextItems.length === 0) {
       return;

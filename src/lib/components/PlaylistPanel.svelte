@@ -11,6 +11,8 @@
     PlaylistRepeatMode,
     PlaylistSelection
   } from '$lib/types';
+  import { prepareImportedFiles } from '$lib/services/file-verification';
+  import { trackSettings } from '$lib/stores/track-settings';
   import { extractDroppedFiles } from '$lib/utils/files';
   import PlaylistPanelHeader from '$lib/components/playlist-panel/PlaylistPanelHeader.svelte';
   import LibraryColumnsHeader from '$lib/components/playlist-panel/LibraryColumnsHeader.svelte';
@@ -98,7 +100,10 @@
       return;
     }
 
-    const files = await extractDroppedFiles(event.dataTransfer);
+    const discoveredFiles = await extractDroppedFiles(event.dataTransfer, {
+      maxDepth: trackSettings.getSnapshot().folderNestingLimit
+    });
+    const files = await prepareImportedFiles(discoveredFiles);
 
     if (files.length > 0) {
       dispatch('addFiles', files);

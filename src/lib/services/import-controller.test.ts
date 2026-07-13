@@ -7,7 +7,7 @@ import {
   supportsDirectoryPicker,
   supportsOpenFilePicker
 } from './import-controller';
-import type { WorkspaceCollection } from '$lib/types';
+import { MODULE_EXTENSIONS, STREAM_EXTENSIONS, type WorkspaceCollection } from '$lib/types';
 
 type PickerWindow = Window & typeof globalThis;
 
@@ -25,12 +25,14 @@ function pickerWindow(value: object): PickerWindow {
 
 describe('import controller', () => {
   it('keeps picker accept lists aligned with supported extensions', () => {
-    expect(FILE_INPUT_ACCEPT).toBe('.mp3,.wav,.flac,.ogg,.opus,.mod,.xm,.s3m,.it,.mo3');
+    expect(FILE_INPUT_ACCEPT.split(',')).toEqual(
+      [...STREAM_EXTENSIONS, ...MODULE_EXTENSIONS].map((extension) => `.${extension}`)
+    );
     expect(OPEN_FILE_PICKER_OPTIONS.multiple).toBe(true);
     expect(OPEN_FILE_PICKER_OPTIONS.types?.[0].accept).toMatchObject({
       'audio/flac': ['.flac'],
       'audio/ogg': ['.ogg', '.opus'],
-      'audio/x-mo3': ['.mo3']
+      'audio/x-openmpt': MODULE_EXTENSIONS.map((extension) => `.${extension}`)
     });
   });
 
@@ -60,7 +62,7 @@ describe('import controller', () => {
       value: 'C:\\fakepath\\Track.flac'
     };
 
-    controller.handleFileInputChange({ currentTarget: input } as unknown as Event);
+    await controller.handleFileInputChange({ currentTarget: input } as unknown as Event);
 
     expect(addFiles).toHaveBeenCalledWith(input.files, 'library');
     expect(input.value).toBe('');

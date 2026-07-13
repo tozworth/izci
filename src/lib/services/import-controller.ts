@@ -1,5 +1,7 @@
-import type { WorkspaceCollection } from '$lib/types';
-import { readDirectorySurfaceFiles, readFileHandleFiles } from '$lib/utils/files';
+import { MODULE_EXTENSIONS, STREAM_EXTENSIONS, type WorkspaceCollection } from '$lib/types';
+import { prepareImportedFiles } from '$lib/services/file-verification';
+import { trackSettings } from '$lib/stores/track-settings';
+import { readDirectoryFiles, readFileHandleFiles } from '$lib/utils/files';
 
 type PickerWindow = Window &
   typeof globalThis & {
@@ -13,8 +15,10 @@ interface ImportControllerOptions {
   getWindow?: () => PickerWindow | null;
 }
 
-export const FILE_INPUT_ACCEPT =
-  '.mp3,.wav,.flac,.ogg,.opus,.mod,.xm,.s3m,.it,.mo3';
+const STREAM_FILE_EXTENSIONS = STREAM_EXTENSIONS.map((extension) => `.${extension}`);
+const MODULE_FILE_EXTENSIONS = MODULE_EXTENSIONS.map((extension) => `.${extension}`);
+
+export const FILE_INPUT_ACCEPT = [...STREAM_FILE_EXTENSIONS, ...MODULE_FILE_EXTENSIONS].join(',');
 
 export const OPEN_FILE_PICKER_OPTIONS: OpenFilePickerOptions = {
   multiple: true,
@@ -27,11 +31,7 @@ export const OPEN_FILE_PICKER_OPTIONS: OpenFilePickerOptions = {
         'audio/flac': ['.flac'],
         'audio/ogg': ['.ogg', '.opus'],
         'audio/opus': ['.opus'],
-        'audio/x-mod': ['.mod'],
-        'audio/x-xm': ['.xm'],
-        'audio/x-s3m': ['.s3m'],
-        'audio/x-it': ['.it'],
-        'audio/x-mo3': ['.mo3']
+        'audio/x-openmpt': MODULE_FILE_EXTENSIONS
       }
     }
   ]
@@ -78,7 +78,8 @@ export function createImportController(options: ImportControllerOptions) {
 
       try {
         const handles = await pickerWindow.showOpenFilePicker?.(OPEN_FILE_PICKER_OPTIONS);
-        const files = handles ? await readFileHandleFiles(handles) : [];
+        const pickedFiles = handles ? await readFileHandleFiles(handles) : [];
+        const files = await prepareImportedFiles(pickedFiles);
 
         if (files.length > 0) {
           options.addFiles(files, target);
@@ -100,7 +101,12 @@ export function createImportController(options: ImportControllerOptions) {
 
       try {
         const directoryHandle = await pickerWindow.showDirectoryPicker?.();
-        const files = directoryHandle ? await readDirectorySurfaceFiles(directoryHandle) : [];
+        const discoveredFiles = directoryHandle
+          ? await readDirectoryFiles(directoryHandle, {
+              maxDepth: trackSettings.getSnapshot().folderNestingLimit
+            })
+          : [];
+        const files = await prepareImportedFiles(discoveredFiles);
 
         if (files.length > 0) {
           options.addFiles(files, target);
@@ -113,15 +119,20 @@ export function createImportController(options: ImportControllerOptions) {
         throw error;
       }
     },
-    handleFileInputChange(event: Event): void {
+    async handleFileInputChange(event: Event): Promise<void> {
       const input = event.currentTarget as HTMLInputElement;
 
       if (!input.files?.length) {
         return;
       }
 
-      options.addFiles(input.files, pendingFileInputTarget);
+      const selectedFiles = Array.from(input.files);
       input.value = '';
+      const files = await prepareImportedFiles(selectedFiles);
+
+      if (files.length > 0) {
+        options.addFiles(files, pendingFileInputTarget);
+      }
     }
   };
 }

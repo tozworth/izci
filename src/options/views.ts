@@ -7,6 +7,7 @@ export type OptionsViewName =
   | 'raf'
   | 'visualizer'
   | 'modules'
+  | 'tracks'
   | 'metadata'
   | 'about';
 
@@ -93,13 +94,23 @@ export const OPTIONS_VIEW_GROUPS: OptionsViewDefinition[][] = [
   ],
   [
     {
-      id: 'metadata',
-      label: 'Metadata',
-      icon: 'tag',
+      id: 'tracks',
+      label: 'Tracks',
+      icon: 'library_music',
       parentLabel: '',
       hasHints: true,
       resettable: true
     },
+    {
+      id: 'metadata',
+      label: 'Metadata',
+      icon: 'tag',
+      parentLabel: 'Tracks',
+      hasHints: true,
+      resettable: true
+    }
+  ],
+  [
     {
       id: 'about',
       label: 'About',

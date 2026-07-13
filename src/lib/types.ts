@@ -1,5 +1,74 @@
 export const STREAM_EXTENSIONS = ['mp3', 'wav', 'flac', 'ogg', 'opus'] as const;
-export const MODULE_EXTENSIONS = ['mod', 'xm', 's3m', 'it', 'mo3'] as const;
+export const MODULE_EXTENSIONS = [
+  'mptm',
+  'mod',
+  's3m',
+  'xm',
+  'it',
+  '667',
+  '669',
+  'amf',
+  'ams',
+  'c67',
+  'cba',
+  'dbm',
+  'digi',
+  'dmf',
+  'dsm',
+  'dsym',
+  'dtm',
+  'etx',
+  'far',
+  'fc',
+  'fc13',
+  'fc14',
+  'fmt',
+  'fst',
+  'ftm',
+  'imf',
+  'ims',
+  'ice',
+  'j2b',
+  'm15',
+  'mdl',
+  'med',
+  'mms',
+  'mt2',
+  'mtm',
+  'mus',
+  'nst',
+  'okt',
+  'plm',
+  'psm',
+  'pt36',
+  'ptm',
+  'puma',
+  'rtm',
+  'sfx',
+  'sfx2',
+  'smod',
+  'st26',
+  'stk',
+  'stm',
+  'stx',
+  'stp',
+  'symmod',
+  'tcb',
+  'gmc',
+  'gtk',
+  'gt2',
+  'ult',
+  'unic',
+  'wow',
+  'xmf',
+  'gdm',
+  'mo3',
+  'oxm',
+  'umx',
+  'xpk',
+  'ppm',
+  'mmcmp'
+] as const;
 
 export type TrackKind = 'stream' | 'module';
 export type PlaybackState = 'idle' | 'loading' | 'playing' | 'paused' | 'ended' | 'error';
@@ -139,6 +208,11 @@ export interface ModulePlaybackSettings {
 export interface MetadataSettings {
   inferFromFilename: boolean;
   playCountThresholdSeconds: number;
+}
+
+export interface TrackSettings {
+  folderNestingLimit: number;
+  verifyAddedFiles: boolean;
 }
 
 export interface LyricsSettings {

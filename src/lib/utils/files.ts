@@ -40,11 +40,16 @@ interface ImportedFileSource {
   path?: string;
 }
 
+interface DirectoryReadOptions {
+  maxDepth?: number;
+}
+
 const fileNameCollator = new Intl.Collator(undefined, {
   numeric: true,
   sensitivity: 'base'
 });
 const importedFileSources = new WeakMap<File, ImportedFileSource>();
+const moduleOverrideFiles = new WeakSet<File>();
 
 function normalizePath(path: string | undefined): string | undefined {
   if (!path) {
@@ -78,6 +83,10 @@ function registerImportedFile(file: File, source: ImportedFileSource): File {
 
 function getImportedFileSource(file: File): ImportedFileSource | undefined {
   return importedFileSources.get(file);
+}
+
+export function markFileAsModule(file: File): void {
+  moduleOverrideFiles.add(file);
 }
 
 function createTrackObjectUrl(kind: TrackKind, file: File): string | undefined {
@@ -158,7 +167,7 @@ export function inferKind(extension: string): TrackKind | null {
 
 function createPlaylistItem(file: File): PlaylistItem | null {
   const extension = inferExtension(file.name);
-  const kind = inferKind(extension);
+  const kind = inferKind(extension) ?? (moduleOverrideFiles.has(file) ? 'module' : null);
 
   if (!kind) {
     return null;
@@ -215,7 +224,11 @@ function readDirectoryBatch(reader: ChromiumDirectoryReader): Promise<ChromiumFi
   });
 }
 
-async function readDirectoryEntrySurfaceFiles(entry: ChromiumDirectoryEntry): Promise<File[]> {
+async function readDirectoryEntryFiles(
+  entry: ChromiumDirectoryEntry,
+  maxDepth: number,
+  depth = 0
+): Promise<File[]> {
   const reader = entry.createReader();
   const files: File[] = [];
 
@@ -234,6 +247,10 @@ async function readDirectoryEntrySurfaceFiles(entry: ChromiumDirectoryEntry): Pr
             path: normalizePath(child.fullPath)
           })
         );
+      } else if (child.isDirectory && depth < maxDepth) {
+        files.push(
+          ...(await readDirectoryEntryFiles(child as ChromiumDirectoryEntry, maxDepth, depth + 1))
+        );
       }
     }
   }
@@ -241,13 +258,29 @@ async function readDirectoryEntrySurfaceFiles(entry: ChromiumDirectoryEntry): Pr
   return files;
 }
 
-export async function readDirectorySurfaceFiles(handle: FileSystemDirectoryHandle): Promise<File[]> {
+export async function readDirectoryFiles(
+  handle: FileSystemDirectoryHandle,
+  options: DirectoryReadOptions = {},
+  path = handle.name,
+  depth = 0
+): Promise<File[]> {
   const files: File[] = [];
+  const maxDepth = options.maxDepth ?? Number.POSITIVE_INFINITY;
 
   for await (const entry of handle.values()) {
     if (entry.kind === 'file') {
       const fileHandle = entry as FileSystemFileHandle;
-      files.push(await readFileHandle(fileHandle, `${handle.name}/${fileHandle.name}`));
+      files.push(await readFileHandle(fileHandle, `${path}/${fileHandle.name}`));
+    } else if (entry.kind === 'directory' && depth < maxDepth) {
+      const directoryHandle = entry as FileSystemDirectoryHandle;
+      files.push(
+        ...(await readDirectoryFiles(
+          directoryHandle,
+          options,
+          `${path}/${directoryHandle.name}`,
+          depth + 1
+        ))
+      );
     }
   }
 
@@ -258,7 +291,10 @@ export async function readFileHandleFiles(handles: FileSystemFileHandle[]): Prom
   return await Promise.all(handles.map((handle) => readFileHandle(handle)));
 }
 
-export async function extractDroppedFiles(dataTransfer: DataTransfer): Promise<File[]> {
+export async function extractDroppedFiles(
+  dataTransfer: DataTransfer,
+  options: DirectoryReadOptions = {}
+): Promise<File[]> {
   const files: File[] = [];
   const seen = new Set<string>();
 
@@ -289,7 +325,7 @@ export async function extractDroppedFiles(dataTransfer: DataTransfer): Promise<F
     }
 
     if (handle?.kind === 'directory') {
-      const directoryFiles = await readDirectorySurfaceFiles(handle as FileSystemDirectoryHandle);
+      const directoryFiles = await readDirectoryFiles(handle as FileSystemDirectoryHandle, options);
 
       for (const file of directoryFiles) {
         pushFile(file);
@@ -313,7 +349,10 @@ export async function extractDroppedFiles(dataTransfer: DataTransfer): Promise<F
     }
 
     if (entry.isDirectory) {
-      const directoryFiles = await readDirectoryEntrySurfaceFiles(entry as unknown as ChromiumDirectoryEntry);
+      const directoryFiles = await readDirectoryEntryFiles(
+        entry as unknown as ChromiumDirectoryEntry,
+        options.maxDepth ?? Number.POSITIVE_INFINITY
+      );
 
       for (const file of directoryFiles) {
         pushFile(file);

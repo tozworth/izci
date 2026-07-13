@@ -52,7 +52,7 @@ Working source tree:
 - `src/lib/styles/themes.css`: shared color-theme tokens consumed by the main app and Options popup.
 - `src/lib/styles/app/`: focused main-window CSS split by ownership (`base`, `shell`, `menus`, `workspace`, `panels`, `player`).
 - `src/options/main.ts`: Options popup entry; mounts the dedicated popup Svelte app.
-- `src/options/OptionsApp.svelte`: standalone Options window UI for appearance, system/local font selection, backdrop zones/artwork tuning, lyrics display, playback/Raf settings, module playback defaults, and metadata behavior, including the empty-workspace-panel behavior toggle, the Now Playing side-chrome auto-hide timeout, and the window-title track-name toggle. The wide workspace backdrop zones and persisted dock-panel keys are positional: left, center, and right.
+- `src/options/OptionsApp.svelte`: standalone Options window UI for appearance, system/local font selection, backdrop zones/artwork tuning, lyrics display, playback/Raf settings, module playback defaults, track importing, and metadata behavior. Tracks owns the folder nesting limit and opt-in unknown-file verification, with Metadata presented as its subpage. The UI also includes the empty-workspace-panel behavior toggle, the Now Playing side-chrome auto-hide timeout, and the window-title track-name toggle. The wide workspace backdrop zones and persisted dock-panel keys are positional: left, center, and right.
 - `src/options/app.css`: Options popup styling.
 - `src/options/views.ts`: popup navigation/view metadata shared by the Options UI.
 - `src/options/components/raf/`: Raf rack view, effect cards, and the Graphic EQ, Stereo Width, multiband Crystalizer, Sloptimizer, and stereo convolution Reverb settings editors. The rack toolbar imports/exports normalized rack settings through the clipboard or JSON files. These components edit the synchronized store only and never own Web Audio nodes. Sloptimizer defaults to its one-slider Simple mode; Advanced mode exposes six tuned controls without changing DSP topology.
@@ -107,7 +107,8 @@ Workspace-only composition helpers for the app shell.
 Primary location for playback and browser-integration logic.
 
 - `file-launch.ts`: Chromium Launch Queue integration for installed-PWA file associations; converts launched file handles into `File`s and queues them until the app is ready to replace the playlist.
-- `import-controller.ts`: file import controller for picker capability detection, file-input fallback, open-files flow, and folder import flow.
+- `import-controller.ts`: file import controller for picker capability detection, file-input fallback, open-files flow, and recursive folder import flow.
+- `file-verification.ts`: unknown-extension import gate. With verification enabled it probes files in a separate muted Chiptune3/OpenMPT player and admits successful files as tracker modules without touching active playback; with verification disabled it marks all unknown files as modules so normal playback determines whether they work.
 - `player-controller.ts`: single coordinator for backend switching, snapshot updates, metadata inference application, and player volume propagation.
 - `playback-commands.ts`: app-shell playback command controller; coordinates playlist-backed play/load sequencing, launched-file playlist replacement, play/pause/stop/seek actions, and next/previous/track-end navigation while delegating backend playback to `player-controller.ts`.
 - `playback-restoration.ts`: checkpoints the current playlist track, position, and playing state in `localStorage`, then restores the configured subset after playlist hydration on reload/relaunch without prompting for file access.
@@ -163,13 +164,14 @@ Primary location for playback and browser-integration logic.
 - `visualizer-settings.ts`: persistent player visualizer settings (style, color source, height, opacity stored as transparency, and numeric spectrum-normalization strength), with sync.
 - `module-playback-settings.ts`: persistent tracker playback settings (repeat, stereo/pan, interpolation, tempo, pitch) with sync.
 - `metadata-settings.ts`: persistent metadata behavior settings, including filename-based artist/title inference and the library play-count threshold.
+- `track-settings.ts`: persistent track-import settings for folder traversal depth and optional OpenMPT verification of files with unknown extensions.
 - `player-volume.ts`: persistent player volume with sync across windows.
 - `workspace-panel-layout.ts`: persistent wide-layout workspace panel fractions for left/center/right resizing, with sync.
 - `workspace-panel-state.ts`: persistent dock workspace state, including tab-to-panel placement, panel active tabs, open/collapsed panel slots, tabbed-layout order, active workspace tab, active playlist/library focus, and legacy Details/Lyrics visibility migration, with sync.
 
 ### `src/lib/utils/`
 
-- `files.ts`: extension/kind inference, playlist item creation/cloning, track identity, display formatting, filename-based metadata inference, drag/drop extraction, and Chromium file-system entry helpers.
+- `files.ts`: extension/kind inference, playlist item creation/cloning, track identity, display formatting, filename-based metadata inference, depth-limited recursive drag/drop extraction, unknown-file module overrides, and Chromium file-system entry helpers.
 
 ### Types and shims
 
@@ -189,7 +191,8 @@ Primary location for playback and browser-integration logic.
 
 ## Architecture notes
 
-- Supported formats are centralized in `src/lib/types.ts`; keep playback routing, file pickers, file handlers, and accepted import lists aligned with those constants.
+- Internally supported formats are centralized in `src/lib/types.ts`; the module list follows the official extension list exposed by the bundled libopenmpt build and is used by picker, folder, and drag imports without probing. PWA file-handler associations intentionally remain a small conservative subset declared separately in `vite.config.ts` to avoid claiming ambiguous extensions in Windows.
+- Verify added files only controls unknown extensions. When enabled, a muted OpenMPT probe must accept an unknown file before it is marked as a tracker module. When disabled, any unknown file is marked as a module and normal playback is allowed to succeed or fail.
 - `src/lib/utils/files.ts` creates `objectUrl`s only for streamed formats. Do not force tracker modules down the streamed path.
 - `src/lib/stores/playlist.ts` persists playlist and library collections separately in IndexedDB (`izci-playlist`, `izci-library`). The library store dedupes tracks; the playlist store does not.
 - `src/lib/stores/playlist.ts` should stay as the public store facade; persistence, materialization, selection, metadata, navigation, and dedupe logic now live in focused sibling modules.
