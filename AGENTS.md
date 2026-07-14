@@ -53,7 +53,7 @@ Working source tree:
 - `src/lib/styles/app/`: focused main-window CSS split by ownership (`base`, `shell`, `menus`, `workspace`, `panels`, `player`).
 - `src/options/main.ts`: Options popup entry; mounts the dedicated popup Svelte app.
 - `src/options/OptionsApp.svelte`: reusable Options shell for the standalone popup and experimental main-window single-page mode; owns popup lifecycle, embedded close dispatch, navigation, breadcrumbs, page tools, reset dispatch, and Window Controls Overlay layout while delegating route content and store bindings to focused view components.
-- `src/options/components/views/`: focused Options route components for Appearance, Backdrops, Now Playing, Lyrics, Playback, Visualizer, Modules, Tracks, Metadata, Experimental, and About. Each settings view owns its page-specific store bindings and event handlers; Tracks owns the folder nesting limit and opt-in unknown-file verification, with Metadata presented as its subpage. Appearance owns local-font permission/loading UI. Experimental is the home for opt-in exploratory UI, currently including Raf's effects-list layout and the single-page Options mode that replaces the main shell while keeping the player bar visible. The UI also includes the empty-workspace-panel behavior toggle, the Now Playing side-chrome auto-hide timeout, and the window-title track-name toggle. The wide workspace backdrop zones and persisted dock-panel keys are positional: left, center, and right.
+- `src/options/components/views/`: focused Options route components for Appearance, Backdrops, Now Playing, Lyrics, Playback, Visualizer, Modules, Tracks, Metadata, Experimental, and About. Each settings view owns its page-specific store bindings and event handlers; Tracks owns the folder nesting limit and opt-in unknown-file verification, with Metadata presented as its subpage. Appearance owns local-font permission/loading UI. The UI also includes the empty-workspace-panel behavior toggle, the Now Playing side-chrome auto-hide timeout, and the window-title track-name toggle. The wide workspace backdrop zones and persisted dock-panel keys are positional: left, center, and right.
 - `src/options/app.css`: Options popup styling.
 - `src/options/views.ts`: popup navigation/view metadata shared by the Options UI.
 - `src/options/components/raf/`: Raf rack view, legacy effect cards, the experimental split effects-list/cardless-editor workspace, and the Graphic EQ, Stereo Width, multiband Crystalizer, Sloptimizer, and stereo convolution Reverb settings editors. The attached sticky rack toolbar manages synchronized named presets and imports/exports normalized rack settings through the clipboard or JSON files. These components edit synchronized stores only and never own Web Audio nodes. Sloptimizer defaults to its one-slider Simple mode; Advanced mode exposes six tuned controls without changing DSP topology.
@@ -196,6 +196,14 @@ Primary location for playback and browser-integration logic.
 - `public/icons/izci-icon.svg`: primary app icon.
 - `public/icons/izci-file.png`: PNG app icon used by Chromium file-handler associations.
 - `public/icons/izci-maskable.svg`: maskable PWA icon.
+
+## Experimental features
+
+- Treat requests to "add an experiment", "add experiment where...", or similar wording as opt-in exploratory UI unless the request explicitly gives the feature a permanent home.
+- Put experiment controls in Options -> Experimental (`src/options/components/views/ExperimentalView.svelte`) and persist their opt-in state in `src/lib/stores/experimental-settings.ts` with `BroadcastChannel` synchronization. Experiments should default to off.
+- Keep the experiment's runtime behavior in the normal architectural owner for that behavior: services/stores for logic and persistence, focused components for rendering and event dispatch. The Experimental Options page is the control surface, not a catch-all implementation file.
+- Experimental code must still preserve the core playback, offline PWA, persistence, and browser-integration rules in this document. Prefer a clean feature gate around the exploratory path so disabling it restores the established behavior.
+- Current experiments are Raf's effects-list/cardless-editor layout, the single-page Options mode that replaces the main shell while keeping the player bar visible, and suppression of duplicate album/album-artist rows in Track Details.
 
 ## Architecture notes
 
