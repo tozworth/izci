@@ -33,8 +33,6 @@ export const DEFAULT_WORKSPACE_LAST_PANEL_BY_TAB: WorkspaceTabPanelMemorySetting
 };
 
 export const DEFAULT_WORKSPACE_PANEL_STATE: WorkspacePanelStateSettings = {
-  detailsVisible: false,
-  lyricsVisible: false,
   activeWorkspaceTab: 'playlist',
   activeCollection: 'playlist',
   panels: DEFAULT_WORKSPACE_PANEL_TABS,
@@ -113,22 +111,6 @@ function normalizePanelTabs(value: unknown): WorkspacePanelTabsSettings {
       panels[panelId].push(tab);
       assignedTabs.add(tab);
     }
-  }
-
-  return panels;
-}
-
-function migrateLegacyPanelTabs(
-  source: Partial<WorkspacePanelStateSettings>
-): WorkspacePanelTabsSettings {
-  const panels = clonePanels(DEFAULT_WORKSPACE_PANEL_TABS);
-
-  if (source.detailsVisible === true) {
-    panels.right.push('details');
-  }
-
-  if (source.lyricsVisible === true) {
-    panels.right.push('lyrics');
   }
 
   return panels;
@@ -262,10 +244,9 @@ function normalizePanelState(value: unknown): WorkspacePanelStateSettings {
     value && typeof value === 'object'
       ? (value as Partial<WorkspacePanelStateSettings> & Record<string, unknown>)
       : {};
-  const hasSavedPanels = source.panels && typeof source.panels === 'object';
-  const panels = hasSavedPanels
+  const panels = source.panels && typeof source.panels === 'object'
     ? normalizePanelTabs(source.panels)
-    : migrateLegacyPanelTabs(source);
+    : clonePanels(DEFAULT_WORKSPACE_PANEL_TABS);
   const openPanels = normalizeOpenPanels(
     source.openPanels,
     panels,
@@ -285,8 +266,6 @@ function normalizePanelState(value: unknown): WorkspacePanelStateSettings {
       : normalizeWorkspaceCollection(source.activeCollection);
 
   return {
-    detailsVisible: isTabOpen('details', panels),
-    lyricsVisible: isTabOpen('lyrics', panels),
     activeWorkspaceTab,
     activeCollection,
     panels,
@@ -299,26 +278,6 @@ function normalizePanelState(value: unknown): WorkspacePanelStateSettings {
 
 export function getDefaultWorkspacePanelForTab(tab: WorkspaceTab): WorkspacePanelId {
   return DEFAULT_WORKSPACE_LAST_PANEL_BY_TAB[tab];
-}
-
-export function isWorkspacePanelTabOpen(
-  settings: WorkspacePanelStateSettings,
-  tab: WorkspaceTab
-): boolean {
-  return isTabOpen(tab, settings.panels);
-}
-
-export function getWorkspacePanelForTab(
-  settings: WorkspacePanelStateSettings,
-  tab: WorkspaceTab
-): WorkspacePanelId {
-  for (const panelId of WORKSPACE_PANEL_IDS) {
-    if (settings.panels[panelId].includes(tab)) {
-      return panelId;
-    }
-  }
-
-  return getDefaultWorkspacePanelForTab(tab);
 }
 
 const store = createPersistentStore({

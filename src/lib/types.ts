@@ -356,8 +356,6 @@ export type WorkspacePanelActiveTabsSettings = Record<WorkspacePanelId, Workspac
 export type WorkspaceTabPanelMemorySettings = Record<WorkspaceTab, WorkspacePanelId>;
 
 export interface WorkspacePanelStateSettings {
-  detailsVisible: boolean;
-  lyricsVisible: boolean;
   activeWorkspaceTab: WorkspaceTab;
   activeCollection: WorkspaceCollection;
   panels: WorkspacePanelTabsSettings;

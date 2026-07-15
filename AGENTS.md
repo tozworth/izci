@@ -96,6 +96,7 @@ Playlist/library panel subcomponents and UI-local helpers.
 Workspace-only composition helpers for the app shell.
 
 - `AppWorkspace.svelte`: presentation-only switchboard for Now Playing, tabbed, and wide workspace layouts; centralizes their shared playback, artwork, lyrics, panel-prop, and tab-event wiring without owning app state.
+- `WorkspaceTabContent.svelte`: shared Playlist, Library, Details, and Lyrics tab renderer used by all workspace layouts.
 - `TabbedWorkspace.svelte`: slim tabbed workspace layout for open workspace tabs; supports persisted tab reordering and close events without wide-panel docking.
 - `WideWorkspace.svelte`: wide desktop dock workspace with three resizable panel slots; renders per-panel tab strips, tab drag/drop between panels, collapsed-edge drop targets, and empty panels when the Appearance setting requests them.
 - `NowPlayingWorkspace.svelte`: focused Apple Music-like Now Playing layout with large centered artwork/controls and the open workspace tabs alongside it; the side pane can fade its tabs/background after mouse inactivity, supports tab reordering/closing, and the Details tab intentionally hides its own artwork to avoid duplicating the large cover.
@@ -103,6 +104,7 @@ Workspace-only composition helpers for the app shell.
 - `WorkspaceResizer.svelte`: reusable vertical separator handle for wide workspace layouts.
 - `drag.ts`: native tab drag metadata helpers shared by workspace renderers.
 - `types.ts`: shared workspace component prop/event types used by the tabbed and wide layout components.
+- `backdrop-zone-observer.ts`: shared resize/mutation observer and refresh scheduler for artwork and visualizer backdrop-zone geometry.
 
 ### `src/lib/services/`
 

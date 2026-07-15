@@ -1,5 +1,7 @@
 import type {
+  LyricsDisplayStyle,
   MenuActionItem,
+  PlaybackSnapshot,
   PlaylistItem,
   PlaylistRepeatMode,
   PlaylistSelection,
@@ -8,6 +10,8 @@ import type {
   WorkspaceResizeHandle,
   WorkspaceTab
 } from '$lib/types';
+import type { LoadedStreamArtwork } from '$lib/services/stream-artwork';
+import type { Readable } from 'svelte/store';
 
 export interface WorkspacePanelProps {
   items: PlaylistItem[];
@@ -43,6 +47,25 @@ export interface WorkspaceTabDefinition {
   id: WorkspaceTab;
   icon: string;
   label: string;
+}
+
+export interface WorkspaceTabContentProps {
+  snapshotStore: Readable<PlaybackSnapshot>;
+  playbackSnapshot: PlaybackSnapshot | null;
+  playlistPanelProps: WorkspacePanelProps;
+  playlistPanelHandlers: WorkspacePanelHandlers;
+  libraryPanelProps: WorkspacePanelProps;
+  libraryPanelHandlers: WorkspacePanelHandlers;
+  selectedItem: PlaylistItem | null;
+  lyricsTrack: PlaylistItem | null;
+  detailsArtwork: LoadedStreamArtwork | null;
+  lyricsDisplayStyle: LyricsDisplayStyle;
+  lyricsAutoScroll: boolean;
+  lyricsFontSize: number;
+  lyricsTheaterDowntimeDots: boolean;
+  lyricsTheaterDowntimeThresholdSeconds: number;
+  lyricsTheaterSmoothScroll: boolean;
+  lyricsResumeAutoScrollToken: number;
 }
 
 export interface WorkspacePanelDefinition {

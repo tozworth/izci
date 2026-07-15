@@ -1,5 +1,9 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
+  import {
+    observeBackdropZones,
+    type BackdropZoneObserver
+  } from './workspace/backdrop-zone-observer';
 
   export let artworkUrl: string | undefined = undefined;
   export let geometryKey = '';
@@ -21,16 +25,10 @@
   const ARTWORK_LAYER_CLEANUP_MS = 360;
 
   let hostElement: HTMLElement | null = null;
-  let shellElement: HTMLElement | null = null;
-  let resizeObserver: ResizeObserver | null = null;
-  let mutationObserver: MutationObserver | null = null;
-  let animationFrame: number | null = null;
-  let refreshFrame: number | null = null;
-  let refreshTimer: ReturnType<typeof setTimeout> | null = null;
+  let zoneObserver: BackdropZoneObserver | null = null;
   let layerRevealFrame: number | null = null;
   let layerCleanupTimer: ReturnType<typeof setTimeout> | null = null;
   let artworkDecodeToken = 0;
-  let observedZoneElements = new Set<Element>();
   let clipRects: ArtworkClipRect[] = [];
   let layerStyle = '';
   let artworkLayers: ArtworkLayer[] = [];
@@ -38,93 +36,12 @@
   let lastGeometryKey = '';
   let isActive = false;
 
-  function scheduleGeometryUpdate(): void {
-    if (typeof window === 'undefined' || animationFrame !== null) {
-      return;
-    }
-
-    animationFrame = window.requestAnimationFrame(() => {
-      animationFrame = null;
-      updateGeometry();
-    });
-  }
-
   function scheduleGeometryRefresh(): void {
-    if (typeof window === 'undefined') {
-      return;
-    }
-
-    scheduleGeometryUpdate();
-
-    if (refreshFrame === null) {
-      refreshFrame = window.requestAnimationFrame(() => {
-        refreshFrame = window.requestAnimationFrame(() => {
-          refreshFrame = null;
-          scheduleGeometryUpdate();
-        });
-      });
-    }
-
-    if (refreshTimer !== null) {
-      clearTimeout(refreshTimer);
-    }
-
-    refreshTimer = setTimeout(() => {
-      refreshTimer = null;
-      scheduleGeometryUpdate();
-    }, 120);
+    zoneObserver?.refresh();
   }
 
-  function getVisibleZoneElements(): HTMLElement[] {
-    const shell = shellElement;
-
-    if (!shell) {
-      return [];
-    }
-
-    return Array.from(shell.querySelectorAll<HTMLElement>(ARTWORK_ZONE_SELECTOR)).filter((element) => {
-      const rect = element.getBoundingClientRect();
-
-      return rect.width > 0 && rect.height > 0;
-    });
-  }
-
-  function syncObservedZoneElements(zoneElements: HTMLElement[]): void {
-    if (!resizeObserver) {
-      return;
-    }
-
-    const nextElements = new Set<Element>(zoneElements);
-
-    for (const element of observedZoneElements) {
-      if (!nextElements.has(element) && element !== shellElement) {
-        resizeObserver.unobserve(element);
-      }
-    }
-
-    for (const element of nextElements) {
-      if (!observedZoneElements.has(element)) {
-        resizeObserver.observe(element);
-      }
-    }
-
-    observedZoneElements = nextElements;
-  }
-
-  function updateGeometry(): void {
-    const shell = shellElement;
-
-    if (!shell || artworkLayers.length === 0) {
-      isActive = false;
-      clipRects = [];
-      layerStyle = '';
-      return;
-    }
-
-    const zoneElements = getVisibleZoneElements();
-    syncObservedZoneElements(zoneElements);
-
-    if (zoneElements.length === 0) {
+  function updateGeometry(shell: HTMLElement, zoneElements: HTMLElement[]): void {
+    if (artworkLayers.length === 0 || zoneElements.length === 0) {
       isActive = false;
       clipRects = [];
       layerStyle = '';
@@ -304,39 +221,15 @@
   }
 
   onMount(() => {
-    shellElement = hostElement?.closest('.app-shell') as HTMLElement | null;
-
-    if (!shellElement || typeof window === 'undefined') {
-      return;
+    if (hostElement) {
+      zoneObserver = observeBackdropZones(
+        hostElement,
+        ARTWORK_ZONE_SELECTOR,
+        'data-artwork-zone',
+        updateGeometry
+      );
     }
-
-    if (typeof ResizeObserver !== 'undefined') {
-      resizeObserver = new ResizeObserver(scheduleGeometryRefresh);
-      resizeObserver.observe(shellElement);
-    }
-
-    if (typeof MutationObserver !== 'undefined') {
-      mutationObserver = new MutationObserver(scheduleGeometryRefresh);
-      mutationObserver.observe(shellElement, {
-        attributes: true,
-        attributeFilter: ['class', 'data-artwork-zone', 'data-backdrop-zone-id', 'hidden', 'style'],
-        childList: true,
-        subtree: true
-      });
-    }
-
-    window.addEventListener('resize', scheduleGeometryRefresh);
-    scheduleGeometryRefresh();
-
-    return () => {
-      window.removeEventListener('resize', scheduleGeometryRefresh);
-      resizeObserver?.disconnect();
-      mutationObserver?.disconnect();
-
-      if (animationFrame !== null) {
-        window.cancelAnimationFrame(animationFrame);
-      }
-    };
+    return () => zoneObserver?.destroy();
   });
 
   $: syncArtworkLayers(artworkUrl);
@@ -346,18 +239,6 @@
   }
 
   onDestroy(() => {
-    if (typeof window !== 'undefined' && animationFrame !== null) {
-      window.cancelAnimationFrame(animationFrame);
-    }
-
-    if (typeof window !== 'undefined' && refreshFrame !== null) {
-      window.cancelAnimationFrame(refreshFrame);
-    }
-
-    if (refreshTimer !== null) {
-      clearTimeout(refreshTimer);
-    }
-
     clearLayerRevealFrame();
     clearLayerCleanupTimer();
   });

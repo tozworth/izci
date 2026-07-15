@@ -210,8 +210,6 @@ function normalizePanelActivity(
 
   return {
     ...settings,
-    detailsVisible: isWorkspaceTabOpen(settings, 'details'),
-    lyricsVisible: isWorkspaceTabOpen(settings, 'lyrics'),
     activeWorkspaceTab,
     activeCollection,
     activeTabsByPanel,
@@ -325,8 +323,8 @@ function createInitialState(
   return {
     activeCollection: savedPanelState.activeCollection,
     activeWorkspaceTab: savedPanelState.activeWorkspaceTab,
-    isDetailsPanelVisible: savedPanelState.detailsVisible,
-    isLyricsPanelVisible: savedPanelState.lyricsVisible,
+    isDetailsPanelVisible: isWorkspaceTabOpen(savedPanelState, 'details'),
+    isLyricsPanelVisible: isWorkspaceTabOpen(savedPanelState, 'lyrics'),
     isRightPanelVisible: visibleWorkspacePanels.includes('right'),
     isTabbedLayout: false,
     isResizing: false,
@@ -453,8 +451,8 @@ export function createWorkspaceShellController({
       ...state,
       activeCollection: savedPanelState.activeCollection,
       activeWorkspaceTab: savedPanelState.activeWorkspaceTab,
-      isDetailsPanelVisible: savedPanelState.detailsVisible,
-      isLyricsPanelVisible: savedPanelState.lyricsVisible,
+      isDetailsPanelVisible: isWorkspaceTabOpen(savedPanelState, 'details'),
+      isLyricsPanelVisible: isWorkspaceTabOpen(savedPanelState, 'lyrics'),
       isRightPanelVisible: visibleWorkspacePanels.includes('right'),
       isTabbedLayout,
       isResizing: Boolean(resizeState),

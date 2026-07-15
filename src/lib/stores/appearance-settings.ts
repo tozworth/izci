@@ -309,69 +309,20 @@ function normalizeLyricsSettings(value: unknown): LyricsSettings {
   };
 }
 
-function addBackdropEffect(
-  current: BackdropZoneEffect,
-  effect: 'artwork' | 'visualizer'
-): BackdropZoneEffect {
-  if (current === 'both' || current === effect) {
-    return current;
-  }
-
-  if (current === 'none') {
-    return effect;
-  }
-
-  return 'both';
-}
-
-function applyLegacyMode(
-  zones: BackdropZoneSettings,
-  mode: unknown,
-  effect: 'artwork' | 'visualizer'
-): void {
-  const targetZones: BackdropZoneId[] =
-    mode === 'workspace'
-      ? BACKDROP_ZONE_IDS
-      : mode === 'player-details'
-        ? ['player', 'right']
-        : mode === 'player'
-          ? ['player']
-          : [];
-
-  for (const zone of targetZones) {
-    zones[zone] = addBackdropEffect(zones[zone], effect);
-  }
-}
-
-function normalizeBackdropZones(source: Partial<AppearanceSettings> & Record<string, unknown>): BackdropZoneSettings {
+function normalizeBackdropZones(source: Partial<AppearanceSettings>): BackdropZoneSettings {
   const zones: BackdropZoneSettings = { ...DEFAULT_BACKDROP_ZONES };
   const persistedZones = source.backdropZones;
 
-  if (persistedZones && typeof persistedZones === 'object') {
-    const zoneSource = persistedZones as Partial<Record<BackdropZoneId, unknown>>;
-
-    for (const zone of BACKDROP_ZONE_IDS) {
-      zones[zone] = Object.prototype.hasOwnProperty.call(zoneSource, zone)
-        ? normalizeBackdropZoneEffect(zoneSource[zone])
-        : DEFAULT_BACKDROP_ZONES[zone];
-    }
-
+  if (!persistedZones || typeof persistedZones !== 'object') {
     return zones;
   }
 
+  const zoneSource = persistedZones as Partial<Record<BackdropZoneId, unknown>>;
   for (const zone of BACKDROP_ZONE_IDS) {
-    zones[zone] = 'none';
+    if (Object.prototype.hasOwnProperty.call(zoneSource, zone)) {
+      zones[zone] = normalizeBackdropZoneEffect(zoneSource[zone]);
+    }
   }
-
-  const legacyArtworkBackgroundEnabled =
-    source.useArtworkBackgroundColors === true && source.artworkBackgroundMode === undefined;
-
-  applyLegacyMode(
-    zones,
-    legacyArtworkBackgroundEnabled ? 'workspace' : source.artworkBackgroundMode,
-    'artwork'
-  );
-  applyLegacyMode(zones, source.visualizerBackdropMode ?? 'player', 'visualizer');
 
   return zones;
 }

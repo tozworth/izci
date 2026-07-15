@@ -54,36 +54,8 @@ function normalizeNumber(value: unknown, fallback: number, min: number, max: num
   return Math.min(Math.max(numberValue, min), max);
 }
 
-function normalizeNormalizationStrength(source: Partial<VisualizerSettings> & { normalization?: unknown }): number {
-  if (typeof source.normalizationStrength !== 'undefined') {
-    return normalizeNumber(
-      source.normalizationStrength,
-      DEFAULT_VISUALIZER_SETTINGS.normalizationStrength,
-      0,
-      1
-    );
-  }
-
-  if (source.normalization === 'off') {
-    return 0;
-  }
-
-  if (source.normalization === 'strong') {
-    return 0.72;
-  }
-
-  if (source.normalization === 'balanced') {
-    return 0.42;
-  }
-
-  return DEFAULT_VISUALIZER_SETTINGS.normalizationStrength;
-}
-
 function normalizeSettings(value: unknown): VisualizerSettings {
-  const source =
-    value && typeof value === 'object'
-      ? (value as Partial<VisualizerSettings> & { normalization?: unknown })
-      : {};
+  const source = value && typeof value === 'object' ? (value as Partial<VisualizerSettings>) : {};
 
   return {
     style: normalizeStyle(source.style),
@@ -98,7 +70,12 @@ function normalizeSettings(value: unknown): VisualizerSettings {
         MAX_VISUALIZER_FRAME_RATE_LIMIT
       )
     ),
-    normalizationStrength: normalizeNormalizationStrength(source),
+    normalizationStrength: normalizeNumber(
+      source.normalizationStrength,
+      DEFAULT_VISUALIZER_SETTINGS.normalizationStrength,
+      0,
+      1
+    ),
     triangleCount: Math.round(normalizeNumber(source.triangleCount, DEFAULT_VISUALIZER_SETTINGS.triangleCount, 8, 160)),
     triangleMinSize: normalizeNumber(source.triangleMinSize, DEFAULT_VISUALIZER_SETTINGS.triangleMinSize, 0.04, 0.8),
     triangleMaxSize: Math.max(
