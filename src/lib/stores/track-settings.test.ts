@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  DEFAULT_TRACK_SETTINGS,
   DEFAULT_FOLDER_NESTING_LIMIT,
   MAX_FOLDER_NESTING_LIMIT,
   MIN_FOLDER_NESTING_LIMIT,
@@ -19,5 +20,9 @@ describe('track settings helpers', () => {
     );
     expect(normalizeFolderNestingLimit('')).toBe(DEFAULT_FOLDER_NESTING_LIMIT);
     expect(normalizeFolderNestingLimit('invalid')).toBe(DEFAULT_FOLDER_NESTING_LIMIT);
+  });
+
+  it('keeps replacement as the default associated-file action', () => {
+    expect(DEFAULT_TRACK_SETTINGS.associatedFileAction).toBe('replace');
   });
 });

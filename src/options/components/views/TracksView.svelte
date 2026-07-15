@@ -7,6 +7,13 @@
   function handleVerifyAddedFilesToggle(event: Event) {
     trackSettings.update({ verifyAddedFiles: (event.currentTarget as HTMLInputElement).checked });
   }
+  function handleAssociatedFileActionChange(event: Event) {
+    const associatedFileAction = (event.currentTarget as HTMLSelectElement).value;
+
+    if (associatedFileAction === 'add' || associatedFileAction === 'replace') {
+      trackSettings.update({ associatedFileAction });
+    }
+  }
 </script>
 
 <article class="view">
@@ -43,7 +50,19 @@
         </div>
         <p class="field-hint">Check unknown file extensions in a separate muted OpenMPT player before adding them. When disabled, izci adds any unknown file as a tracker module and lets normal playback report whether it works. Official OpenMPT extensions are accepted directly either way.</p>
       </label>
+
+      <label class="field">
+        <div class="field-copy">
+          <span class="field-title">Files opened with izci</span>
+        </div>
+        <div class="field-control">
+          <select value={$trackSettings.associatedFileAction} on:change={handleAssociatedFileActionChange}>
+            <option value="add">Add to playlist</option>
+            <option value="replace">Replace playlist</option>
+          </select>
+        </div>
+        <p class="field-hint">Choose how files opened through operating-system file associations affect the current playlist.</p>
+      </label>
     </div>
   </div>
 </article>
-

@@ -136,7 +136,7 @@ export function createPlaybackCommandsController({
     await playTrack(playlistTrack);
   }
 
-  async function replacePlaylistFromFiles(files: File[]): Promise<void> {
+  async function importLaunchedFiles(files: File[], action: 'add' | 'replace'): Promise<void> {
     const nextItems = buildPlaylistItems(await prepareImportedFiles(files));
 
     if (nextItems.length === 0) {
@@ -146,10 +146,16 @@ export function createPlaybackCommandsController({
     await playlistStore.ready();
     setActiveWorkspaceTab('playlist');
 
-    const { removedItems, addedItems } = playlistStore.replaceAll(nextItems);
+    let addedItems: PlaylistItem[];
 
-    playerController.unload();
-    cleanupRemovedItems(removedItems);
+    if (action === 'add') {
+      addedItems = playlistStore.add(nextItems);
+    } else {
+      const replacement = playlistStore.replaceAll(nextItems);
+      addedItems = replacement.addedItems;
+      playerController.unload();
+      cleanupRemovedItems(replacement.removedItems);
+    }
 
     if (addedItems.length === 0) {
       return;
@@ -262,7 +268,7 @@ export function createPlaybackCommandsController({
     playTrack,
     activatePlaylistTrack,
     activateLibraryTrack,
-    replacePlaylistFromFiles,
+    importLaunchedFiles,
     play,
     pause,
     stop,

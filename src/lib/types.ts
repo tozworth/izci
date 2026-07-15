@@ -224,6 +224,7 @@ export interface MetadataSettings {
 export interface TrackSettings {
   folderNestingLimit: number;
   verifyAddedFiles: boolean;
+  associatedFileAction: 'add' | 'replace';
 }
 
 export interface LyricsSettings {

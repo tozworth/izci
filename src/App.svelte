@@ -53,6 +53,7 @@
   import { playbackSettings } from '$lib/stores/playback-settings';
   import { rafSettings } from '$lib/stores/raf-settings';
   import { isRafPresetDirty, rafPresets } from '$lib/stores/raf-presets';
+  import { trackSettings } from '$lib/stores/track-settings';
   import type {
     LyricsDisplayStyle,
     PlaybackSnapshot,
@@ -292,7 +293,7 @@
     }
   });
   const unsubscribeLaunchedFiles = subscribeToLaunchedFiles((files) =>
-    void playbackCommands.replacePlaylistFromFiles(files)
+    void playbackCommands.importLaunchedFiles(files, $trackSettings.associatedFileAction)
   );
   const disconnectMediaSession = mediaSessionService.connect({
     snapshot: playerController.snapshot,
