@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   NOW_PLAYING_COMFORTABLE_WINDOW_HEIGHT,
   NOW_PLAYING_COMFORTABLE_WINDOW_WIDTH,
+  resolveNowPlayingBrowserZoomScale,
   resolveNowPlayingWindowBounds,
   type NowPlayingWindowGeometry
 } from './window-now-playing';
@@ -86,5 +87,49 @@ describe('resolveNowPlayingWindowBounds', () => {
       width: 1280,
       height: 768
     });
+  });
+
+  it('scales the target window size to preserve the CSS viewport at 125% browser zoom', () => {
+    expect(
+      resolveNowPlayingWindowBounds({
+        innerWidth: 640,
+        innerHeight: 480,
+        outerWidth: 800,
+        outerHeight: 600,
+        screenX: 200,
+        screenY: 150,
+        screen: {
+          width: 2560,
+          height: 1440,
+          availWidth: 2560,
+          availHeight: 1400,
+          availLeft: 0,
+          availTop: 0
+        }
+      })
+    ).toEqual({
+      left: 200,
+      top: 150,
+      width: 1600,
+      height: 1000
+    });
+  });
+});
+
+describe('resolveNowPlayingBrowserZoomScale', () => {
+  it('detects browser zoom from the scale shared by both window axes', () => {
+    expect(
+      resolveNowPlayingBrowserZoomScale({
+        ...BASE_GEOMETRY,
+        innerWidth: 1024,
+        innerHeight: 640,
+        outerWidth: 1280,
+        outerHeight: 800
+      })
+    ).toBe(1.25);
+  });
+
+  it('does not mistake ordinary window chrome for browser zoom', () => {
+    expect(resolveNowPlayingBrowserZoomScale(BASE_GEOMETRY)).toBe(1);
   });
 });
