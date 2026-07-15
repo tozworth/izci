@@ -2,7 +2,14 @@
   import { onMount } from 'svelte';
   import { COLOR_THEME_OPTIONS } from '$lib/services/theme';
   import { hasLocalFontAccessPermission, queryLocalFontFamilies, supportsLocalFontAccess } from '$lib/services/local-fonts';
-  import { SYSTEM_FONT_FAMILY, appearanceSettings } from '$lib/stores/appearance-settings';
+  import {
+    MAX_CHAMELEON_HUE,
+    MAX_CHAMELEON_SATURATION,
+    MIN_CHAMELEON_HUE,
+    MIN_CHAMELEON_SATURATION,
+    SYSTEM_FONT_FAMILY,
+    appearanceSettings
+  } from '$lib/stores/appearance-settings';
   import type { ColorTheme } from '$lib/types';
 
   let localFontFamilies: string[] = [];
@@ -14,6 +21,8 @@
 
   function checked(event: Event) { return (event.currentTarget as HTMLInputElement).checked; }
   function handleColorThemeChange(event: Event) { appearanceSettings.update({ colorTheme: (event.currentTarget as HTMLSelectElement).value as ColorTheme }); }
+  function handleChameleonHueInput(event: Event) { appearanceSettings.update({ chameleonHue: Number((event.currentTarget as HTMLInputElement).value) }); }
+  function handleChameleonSaturationInput(event: Event) { appearanceSettings.update({ chameleonSaturation: Number((event.currentTarget as HTMLInputElement).value) }); }
   function handleArtworkPlayerColorsToggle(event: Event) { appearanceSettings.update({ useArtworkPlayerColors: checked(event) }); }
   function handleCompactPlayerBarToggle(event: Event) { appearanceSettings.update({ compactPlayerBar: checked(event) }); }
   function handleCompactColumnLayoutToggle(event: Event) { appearanceSettings.update({ keepLibraryColumnsVisibleInNarrowLayout: checked(event) }); }
@@ -67,6 +76,58 @@
           Sets the global color theme.
         </p>
       </label>
+
+      {#if $appearanceSettings.colorTheme === 'chameleon'}
+        <label class="field chameleon-hue-field">
+          <div class="field-copy">
+            <span class="field-title">Chameleon color</span>
+          </div>
+          <div class="field-control chameleon-slider-control">
+            <input
+              class="chameleon-hue-slider"
+              type="range"
+              min={MIN_CHAMELEON_HUE}
+              max={MAX_CHAMELEON_HUE}
+              step="1"
+              value={$appearanceSettings.chameleonHue}
+              style={`--slider-hue: ${$appearanceSettings.chameleonHue}; --slider-saturation: ${$appearanceSettings.chameleonSaturation}%`}
+              aria-label="Chameleon color hue"
+              on:input={handleChameleonHueInput}
+            />
+            <output class="chameleon-slider-output" style={`--swatch-hue: ${$appearanceSettings.chameleonHue}; --swatch-saturation: ${$appearanceSettings.chameleonSaturation}%`} aria-label={`${$appearanceSettings.chameleonHue} degrees`}>
+              {$appearanceSettings.chameleonHue}°
+            </output>
+          </div>
+          <p class="field-hint">
+            Fine-tunes Chameleon's hue. This choice is remembered when you use another theme.
+          </p>
+        </label>
+
+        <label class="field chameleon-saturation-field">
+          <div class="field-copy">
+            <span class="field-title">Chameleon saturation</span>
+          </div>
+          <div class="field-control chameleon-slider-control">
+            <input
+              class="chameleon-saturation-slider"
+              type="range"
+              min={MIN_CHAMELEON_SATURATION}
+              max={MAX_CHAMELEON_SATURATION}
+              step="1"
+              value={$appearanceSettings.chameleonSaturation}
+              style={`--slider-hue: ${$appearanceSettings.chameleonHue}; --slider-saturation: ${$appearanceSettings.chameleonSaturation}%`}
+              aria-label="Chameleon color saturation"
+              on:input={handleChameleonSaturationInput}
+            />
+            <output class="chameleon-slider-output" aria-label={`${$appearanceSettings.chameleonSaturation} percent`}>
+              {$appearanceSettings.chameleonSaturation}%
+            </output>
+          </div>
+          <p class="field-hint">
+            Controls color intensity without changing the theme's contrast or brightness.
+          </p>
+        </label>
+      {/if}
 
       <label class="field checkbox-field">
         <div class="field-copy">
@@ -203,4 +264,3 @@
     </div>
   </div>
 </article>
-

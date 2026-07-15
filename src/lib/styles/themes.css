@@ -524,3 +524,79 @@
   --player-bar-fade: linear-gradient(180deg, rgba(18, 10, 9, 0), rgba(18, 10, 9, 0.34));
   --dropzone-background: linear-gradient(180deg, rgba(242, 217, 202, 0.024), transparent 18%);
 }
+
+:root[data-theme='chameleon'] {
+  color-scheme: dark;
+  --bg-base: hsl(var(--chameleon-hue) var(--chameleon-surface-saturation) 9%);
+  --menu-bar-bg: hsl(var(--chameleon-hue) var(--chameleon-surface-saturation) 11%);
+  --window-topbar-bg: hsl(var(--chameleon-hue) var(--chameleon-surface-saturation) 11%);
+  --window-topbar-text: hsl(var(--chameleon-hue) var(--chameleon-text-saturation) 88%);
+  --window-topbar-text-strong: hsl(var(--chameleon-hue) var(--chameleon-text-saturation) 97%);
+  --window-topbar-muted: hsl(var(--chameleon-hue) var(--chameleon-text-saturation) 66%);
+  --window-topbar-hover-surface: hsl(var(--chameleon-hue) var(--chameleon-accent-saturation) 72% / 0.09);
+  --window-topbar-hairline: hsl(var(--chameleon-hue) var(--chameleon-text-saturation) 95% / 0.04);
+  --bg-elevated: hsl(var(--chameleon-hue) var(--chameleon-surface-saturation) 17% / 0.95);
+  --bg-soft: hsl(var(--chameleon-hue) var(--chameleon-surface-saturation) 18%);
+  --menu-popover-bg: hsl(var(--chameleon-hue) var(--chameleon-surface-saturation) 12% / 0.985);
+  --menu-popover-text: hsl(var(--chameleon-hue) var(--chameleon-text-saturation) 88%);
+  --menu-popover-muted: hsl(var(--chameleon-hue) var(--chameleon-text-saturation) 66%);
+  --menu-popover-border: hsl(var(--chameleon-hue) var(--chameleon-border-saturation) 64% / 0.25);
+  --menu-popover-hover: hsl(var(--chameleon-hue) var(--chameleon-accent-saturation) 64% / 0.16);
+  --menu-popover-shadow: 0 18px 44px hsl(var(--chameleon-hue) var(--chameleon-surface-saturation) 3% / 0.46);
+  --bg-tree: hsl(var(--chameleon-hue) var(--chameleon-surface-saturation) 12% / 0.97);
+  --bg-card: hsl(var(--chameleon-hue) var(--chameleon-surface-saturation) 23% / 0.52);
+  --bg-input: hsl(var(--chameleon-hue) var(--chameleon-surface-saturation) 8% / 0.93);
+  --bg-search: hsl(var(--chameleon-hue) var(--chameleon-surface-saturation) 12% / 0.97);
+  --bg-volume-popup: hsl(var(--chameleon-hue) var(--chameleon-surface-saturation) 8% / 0.86);
+  --text: hsl(var(--chameleon-hue) var(--chameleon-text-saturation) 88%);
+  --text-strong: hsl(var(--chameleon-hue) var(--chameleon-text-saturation) 97%);
+  --muted: hsl(var(--chameleon-hue) var(--chameleon-text-saturation) 66%);
+  --muted-strong: hsl(var(--chameleon-hue) var(--chameleon-text-saturation) 79%);
+  --accent: hsl(var(--chameleon-hue) var(--chameleon-accent-saturation) 72%);
+  --accent-strong: hsl(var(--chameleon-hue) var(--chameleon-accent-saturation) 78%);
+  --accent-text: hsl(var(--chameleon-hue) var(--chameleon-surface-saturation) 9%);
+  --accent-strong-soft: hsl(var(--chameleon-hue) var(--chameleon-accent-saturation) 78% / 0.08);
+  --accent-strong-faint: hsl(var(--chameleon-hue) var(--chameleon-accent-saturation) 78% / 0.13);
+  --accent-strong-border-hover: hsl(var(--chameleon-hue) var(--chameleon-accent-saturation) 78% / 0.44);
+  --accent-focus-border: hsl(var(--chameleon-hue) var(--chameleon-accent-saturation) 78% / 0.35);
+  --accent-dashed-border: hsl(var(--chameleon-hue) var(--chameleon-accent-saturation) 58% / 0.26);
+  --visualizer-high: hsl(var(--chameleon-hue) var(--chameleon-text-saturation) 96% / 0.94);
+  --visualizer-mid: hsl(var(--chameleon-hue) var(--chameleon-vivid-saturation) 70% / 0.7);
+  --visualizer-low: hsl(var(--chameleon-hue) var(--chameleon-accent-saturation) 48% / 0.25);
+  --visualizer-glow: hsl(var(--chameleon-hue) var(--chameleon-vivid-saturation) 68% / 0.42);
+  --visualizer-bars: hsl(var(--chameleon-hue) var(--chameleon-vivid-saturation) 72% / 0.84);
+  --visualizer-blocks: hsl(var(--chameleon-hue) var(--chameleon-text-saturation) 96% / 0.72);
+  --danger: #f06f6b;
+  --border: hsl(var(--chameleon-hue) var(--chameleon-border-saturation) 62% / 0.29);
+  --border-strong: hsl(var(--chameleon-hue) var(--chameleon-border-saturation) 62% / 0.25);
+  --border-soft: hsl(var(--chameleon-hue) var(--chameleon-border-saturation) 62% / 0.17);
+  --border-faint: hsl(var(--chameleon-hue) var(--chameleon-border-saturation) 62% / 0.14);
+  --border-subtle: hsl(var(--chameleon-hue) var(--chameleon-border-saturation) 62% / 0.12);
+  --border-covered: hsl(var(--chameleon-hue) var(--chameleon-border-saturation) 62% / 0.1);
+  --player-bar-separator: hsl(var(--chameleon-hue) var(--chameleon-border-saturation) 31%);
+  --menu-bar-border: hsl(var(--chameleon-hue) var(--chameleon-border-saturation) 62% / 0.23);
+  --hover-surface: hsl(var(--chameleon-hue) var(--chameleon-accent-saturation) 82% / 0.09);
+  --hover-subtle: hsl(var(--chameleon-hue) var(--chameleon-accent-saturation) 82% / 0.045);
+  --hover-control: hsl(var(--chameleon-hue) var(--chameleon-accent-saturation) 82% / 0.065);
+  --tree-hover: hsl(var(--chameleon-hue) var(--chameleon-accent-saturation) 50% / 0.2);
+  --selection-bg: hsl(var(--chameleon-hue) var(--chameleon-accent-saturation) 58% / 0.15);
+  --selection-strong: hsl(var(--chameleon-hue) var(--chameleon-accent-saturation) 58% / 0.24);
+  --resizer-track: hsl(var(--chameleon-hue) var(--chameleon-border-saturation) 62% / 0.22);
+  --resizer-handle: hsl(var(--chameleon-hue) var(--chameleon-accent-saturation) 82% / 0.27);
+  --shadow: 0 18px 44px hsl(var(--chameleon-hue) var(--chameleon-surface-saturation) 3% / 0.46);
+  --hairline: hsl(var(--chameleon-hue) var(--chameleon-text-saturation) 95% / 0.04);
+  --body-background:
+    radial-gradient(circle at top left, hsl(var(--chameleon-hue) var(--chameleon-accent-saturation) 48% / 0.15), transparent 24%),
+    radial-gradient(circle at top right, hsl(var(--chameleon-hue) var(--chameleon-vivid-saturation) 70% / 0.1), transparent 22%),
+    linear-gradient(180deg, hsl(var(--chameleon-hue) var(--chameleon-surface-saturation) 15%) 0%, hsl(var(--chameleon-hue) var(--chameleon-surface-saturation) 9%) 100%);
+  --options-body-background:
+    radial-gradient(circle at top left, hsl(var(--chameleon-hue) var(--chameleon-accent-saturation) 48% / 0.17), transparent 24%),
+    radial-gradient(circle at top right, hsl(var(--chameleon-hue) var(--chameleon-vivid-saturation) 70% / 0.11), transparent 22%),
+    linear-gradient(180deg, hsl(var(--chameleon-hue) var(--chameleon-surface-saturation) 15%) 0%, hsl(var(--chameleon-hue) var(--chameleon-surface-saturation) 9%) 100%);
+  --playlist-header-background:
+    linear-gradient(180deg, hsl(var(--chameleon-hue) var(--chameleon-surface-saturation) 19% / 0.8) 0%, hsl(var(--chameleon-hue) var(--chameleon-surface-saturation) 17% / 0.7) 100%),
+    hsl(var(--chameleon-hue) var(--chameleon-surface-saturation) 9% / 0.25);
+  --playlist-header-shadow-gradient: linear-gradient(180deg, hsl(var(--chameleon-hue) var(--chameleon-surface-saturation) 4% / 0.35), transparent);
+  --player-bar-fade: linear-gradient(180deg, transparent, hsl(var(--chameleon-hue) var(--chameleon-surface-saturation) 4% / 0.35));
+  --dropzone-background: linear-gradient(180deg, hsl(var(--chameleon-hue) var(--chameleon-accent-saturation) 88% / 0.024), transparent 18%);
+}

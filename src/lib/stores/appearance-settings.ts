@@ -15,6 +15,12 @@ import { createPersistentStore } from './persistent-store';
 export const APPEARANCE_SETTINGS_STORAGE_KEY = 'izci.appearance-settings';
 export const APPEARANCE_SETTINGS_CHANNEL = 'izci.appearance-settings';
 export const DEFAULT_COLOR_THEME: ColorTheme = 'gray';
+export const MIN_CHAMELEON_HUE = 0;
+export const MAX_CHAMELEON_HUE = 359;
+export const DEFAULT_CHAMELEON_HUE = 210;
+export const MIN_CHAMELEON_SATURATION = 0;
+export const MAX_CHAMELEON_SATURATION = 100;
+export const DEFAULT_CHAMELEON_SATURATION = 76;
 export const SYSTEM_FONT_FAMILY = 'system';
 export const BACKDROP_ZONE_IDS: BackdropZoneId[] = ['left', 'center', 'right', 'player', 'nowPlaying'];
 export const BACKDROP_ZONE_LABELS: Record<BackdropZoneId, string> = {
@@ -107,6 +113,8 @@ export const DEFAULT_LYRICS_SETTINGS: LyricsSettings = {
 };
 export const DEFAULT_APPEARANCE_SETTINGS: AppearanceSettings = {
   colorTheme: DEFAULT_COLOR_THEME,
+  chameleonHue: DEFAULT_CHAMELEON_HUE,
+  chameleonSaturation: DEFAULT_CHAMELEON_SATURATION,
   useArtworkPlayerColors: false,
   useNowPlayingArtworkPlayerColors: true,
   compactPlayerBar: false,
@@ -140,10 +148,28 @@ function normalizeColorTheme(value: unknown): ColorTheme {
     case 'gruvbox':
     case 'dracula':
     case 'ember':
+    case 'chameleon':
       return value;
     default:
       return DEFAULT_COLOR_THEME;
   }
+}
+
+export function normalizeChameleonHue(value: unknown): number {
+  return Math.round(
+    normalizeNumber(value, MIN_CHAMELEON_HUE, MAX_CHAMELEON_HUE, DEFAULT_CHAMELEON_HUE)
+  );
+}
+
+export function normalizeChameleonSaturation(value: unknown): number {
+  return Math.round(
+    normalizeNumber(
+      value,
+      MIN_CHAMELEON_SATURATION,
+      MAX_CHAMELEON_SATURATION,
+      DEFAULT_CHAMELEON_SATURATION
+    )
+  );
 }
 
 function normalizeFontFamily(value: unknown): string {
@@ -395,6 +421,8 @@ function normalizeSettings(value: unknown): AppearanceSettings {
 
   return {
     colorTheme: normalizeColorTheme(source.colorTheme),
+    chameleonHue: normalizeChameleonHue(source.chameleonHue),
+    chameleonSaturation: normalizeChameleonSaturation(source.chameleonSaturation),
     useArtworkPlayerColors: source.useArtworkPlayerColors === true,
     useNowPlayingArtworkPlayerColors: source.useNowPlayingArtworkPlayerColors !== false,
     compactPlayerBar: source.compactPlayerBar === true,
