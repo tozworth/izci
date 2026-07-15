@@ -113,6 +113,7 @@ export type RafEffectType = 'graphic-eq' | 'stereo-width' | 'crystalizer' | 'slo
 export interface RafEffectBase {
   id: string;
   enabled: boolean;
+  displayName?: string;
 }
 
 export interface RafGraphicEqSettings extends RafEffectBase {

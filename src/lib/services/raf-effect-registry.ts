@@ -84,12 +84,19 @@ function normalizeGain(value: unknown): number | null {
     : null;
 }
 
-function normalizeBase(value: unknown, type: RafEffectType): { id: string; enabled: boolean } | null {
+export function normalizeRafEffectDisplayName(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined;
+  const displayName = value.trim().replace(/\s+/g, ' ').slice(0, 64);
+  return displayName || undefined;
+}
+
+function normalizeBase(value: unknown, type: RafEffectType): { id: string; enabled: boolean; displayName?: string } | null {
   if (!value || typeof value !== 'object') return null;
   const source = value as Record<string, unknown>;
   if (source.type !== type || typeof source.enabled !== 'boolean') return null;
   if (typeof source.id !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(source.id)) return null;
-  return { id: source.id, enabled: source.enabled };
+  const displayName = normalizeRafEffectDisplayName(source.displayName);
+  return { id: source.id, enabled: source.enabled, ...(displayName ? { displayName } : {}) };
 }
 
 function normalizeGraphicEq(value: unknown): RafGraphicEqSettings | null {

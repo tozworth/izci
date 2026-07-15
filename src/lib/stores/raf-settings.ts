@@ -1,4 +1,8 @@
-import { RAF_EFFECT_REGISTRY, normalizeRafEffect } from '$lib/services/raf-effect-registry';
+import {
+  RAF_EFFECT_REGISTRY,
+  normalizeRafEffect,
+  normalizeRafEffectDisplayName
+} from '$lib/services/raf-effect-registry';
 import type { RafEffectSettings, RafEffectType, RafRackSettings } from '$lib/types';
 import { createPersistentStore } from './persistent-store';
 
@@ -62,6 +66,28 @@ export const rafSettings = {
       effects: settings.effects.map((effect) => effect.id === id ? updater(effect) : effect)
     }));
   },
+  renameEffect(id: string, displayName: string): RafRackSettings {
+    const normalizedName = normalizeRafEffectDisplayName(displayName);
+    return store.update((settings) => ({
+      ...settings,
+      effects: settings.effects.map((effect) => {
+        if (effect.id !== id) return effect;
+        const { displayName: _currentName, ...rest } = effect;
+        return { ...rest, ...(normalizedName ? { displayName: normalizedName } : {}) } as RafEffectSettings;
+      })
+    }));
+  },
+  cloneEffect(id: string): RafRackSettings {
+    return store.update((settings) => {
+      const sourceIndex = settings.effects.findIndex((effect) => effect.id === id);
+      if (sourceIndex < 0) return settings;
+      const clone = normalizeRafEffect({ ...settings.effects[sourceIndex], id: createRafEffectId() });
+      if (!clone) return settings;
+      const effects = [...settings.effects];
+      effects.splice(sourceIndex + 1, 0, clone);
+      return { ...settings, effects };
+    });
+  },
   removeEffect(id: string): RafRackSettings {
     return store.update((settings) => ({
       ...settings,
@@ -86,7 +112,11 @@ export const rafSettings = {
       ...settings,
       effects: settings.effects.map((effect) =>
         effect.id === id
-          ? { ...RAF_EFFECT_REGISTRY[effect.type].createDefault(effect.id), enabled: effect.enabled }
+          ? {
+              ...RAF_EFFECT_REGISTRY[effect.type].createDefault(effect.id),
+              enabled: effect.enabled,
+              ...(effect.displayName ? { displayName: effect.displayName } : {})
+            }
           : effect
       )
     }));

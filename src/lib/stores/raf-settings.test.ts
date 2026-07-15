@@ -16,7 +16,7 @@ describe('normalizeRafSettings', () => {
       enabled: false,
       effects: [
         { id: 'eq-1', type: 'graphic-eq', enabled: true, preampDb: 3, bandGainsDb: GRAPHIC_EQ_FREQUENCIES.map(() => 2) },
-        { id: 'width-1', type: 'stereo-width', enabled: false, widthDb: 10 },
+        { id: 'width-1', type: 'stereo-width', enabled: false, displayName: '  Wide   room  ', widthDb: 10 },
         {
           id: 'crystalizer-1',
           type: 'crystalizer',
@@ -60,6 +60,7 @@ describe('normalizeRafSettings', () => {
     expect(result.enabled).toBe(false);
     expect(result.effects.map((effect) => effect.id)).toEqual(['eq-1', 'width-1', 'crystalizer-1', 'sloptimizer-1', 'reverb-1']);
     expect(result.effects[0]).toMatchObject({ preampDb: 3 });
+    expect(result.effects[1]).toMatchObject({ displayName: 'Wide room' });
     expect(result.effects[3]).toMatchObject(mapSlopToParameters(50));
     expect(result.effects[3]).toMatchObject({ lowCrossoverHz: 220, highCrossoverHz: 4_000 });
     expect(result.effects[4]).toMatchObject({ mix: 22, decaySeconds: 3.4, dampingHz: 7_500 });
@@ -174,5 +175,22 @@ describe('normalizeRafSettings', () => {
     const result = rafSettings.getSnapshot().effects;
     expect(result.map((effect) => effect.id)).toEqual([midSide.id, equalizer.id]);
     expect(result[1]).toMatchObject({ id: equalizer.id, preampDb: 0 });
+  });
+
+  it('renames, clones, and resets effect instances without losing their display name', () => {
+    rafSettings.addEffect('stereo-width');
+    const source = rafSettings.getSnapshot().effects[0];
+    rafSettings.renameEffect(source.id, '  Side   shimmer  ');
+    const clonedSettings = rafSettings.cloneEffect(source.id);
+
+    expect(clonedSettings.effects).toHaveLength(2);
+    expect(clonedSettings.effects[0]).toMatchObject({ displayName: 'Side shimmer' });
+    expect(clonedSettings.effects[1]).toMatchObject({ displayName: 'Side shimmer' });
+    expect(clonedSettings.effects[1].id).not.toBe(source.id);
+
+    rafSettings.resetEffect(source.id);
+    expect(rafSettings.getSnapshot().effects[0]).toMatchObject({ displayName: 'Side shimmer' });
+    rafSettings.renameEffect(source.id, '   ');
+    expect(rafSettings.getSnapshot().effects[0]).not.toHaveProperty('displayName');
   });
 });

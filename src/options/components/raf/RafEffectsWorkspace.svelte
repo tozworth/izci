@@ -1,4 +1,7 @@
 <script lang="ts">
+  import { tick } from 'svelte';
+  import { portal } from '$lib/components/playlist-panel/actions/portal';
+  import { windowDismiss } from '$lib/components/playlist-panel/actions/window-dismiss';
   import { RAF_EFFECT_DEFINITIONS, RAF_EFFECT_REGISTRY } from '$lib/services/raf-effect-registry';
   import { rafSettings } from '$lib/stores/raf-settings';
   import type { RafEffectSettings, RafEffectType } from '$lib/types';
@@ -9,6 +12,8 @@
   let dropBoundary: number | null = null;
   let dragEngaged = false;
   let addMenu: HTMLDetailsElement;
+  let contextMenu: { effectId: string; x: number; y: number } | null = null;
+  let contextMenuElement: HTMLDivElement | null = null;
 
   function addEffect(type: RafEffectType) {
     const nextSettings = rafSettings.addEffect(type);
@@ -32,6 +37,42 @@
     rafSettings.updateEffect(effect.id, (current) => current.type === 'sloptimizer'
       ? { ...current, advanced }
       : current);
+  }
+
+  async function openEffectContextMenu(event: MouseEvent, effectId: string) {
+    event.preventDefault();
+    event.stopPropagation();
+    selectedEffectId = effectId;
+    contextMenu = { effectId, x: event.clientX, y: event.clientY };
+    await tick();
+    if (!contextMenu || contextMenu.effectId !== effectId || !contextMenuElement) return;
+    const padding = 8;
+    contextMenu = {
+      ...contextMenu,
+      x: Math.max(padding, Math.min(contextMenu.x, window.innerWidth - contextMenuElement.offsetWidth - padding)),
+      y: Math.max(padding, Math.min(contextMenu.y, window.innerHeight - contextMenuElement.offsetHeight - padding))
+    };
+  }
+
+  function renameEffect(id: string) {
+    contextMenu = null;
+    const effect = $rafSettings.effects.find((candidate) => candidate.id === id);
+    if (!effect) return;
+    const displayName = window.prompt('Rename effect (leave blank to use its original name):', effect.displayName ?? '');
+    if (displayName === null) return;
+    rafSettings.renameEffect(id, displayName);
+  }
+
+  function cloneEffect(id: string) {
+    contextMenu = null;
+    const sourceIndex = $rafSettings.effects.findIndex((effect) => effect.id === id);
+    const nextSettings = rafSettings.cloneEffect(id);
+    selectedEffectId = nextSettings.effects[sourceIndex + 1]?.id ?? selectedEffectId;
+  }
+
+  function deleteEffect(id: string) {
+    contextMenu = null;
+    removeEffect(id);
   }
 
   function startDrag(event: DragEvent, id: string, index: number) {
@@ -90,9 +131,6 @@
     selectedEffectId = $rafSettings.effects[0]?.id ?? null;
   }
   $: selectedEffect = $rafSettings.effects.find((effect) => effect.id === selectedEffectId) ?? null;
-  $: selectedIndex = selectedEffect
-    ? $rafSettings.effects.findIndex((effect) => effect.id === selectedEffect.id)
-    : -1;
 </script>
 
 <div class="effects-workspace">
@@ -113,18 +151,6 @@
             {/each}
           </div>
         </details>
-        <button
-          on:click={() => selectedEffect && rafSettings.moveEffect(selectedEffect.id, selectedIndex - 1)}
-          disabled={!selectedEffect || selectedIndex === 0}
-          title="Move selected effect up"
-          aria-label="Move selected effect up"
-        ><span class="material-symbols-outlined" aria-hidden="true">arrow_upward</span></button>
-        <button
-          on:click={() => selectedEffect && rafSettings.moveEffect(selectedEffect.id, selectedIndex + 1)}
-          disabled={!selectedEffect || selectedIndex === $rafSettings.effects.length - 1}
-          title="Move selected effect down"
-          aria-label="Move selected effect down"
-        ><span class="material-symbols-outlined" aria-hidden="true">arrow_downward</span></button>
         <button
           class="remove"
           on:click={() => selectedEffect && removeEffect(selectedEffect.id)}
@@ -150,16 +176,23 @@
             class="drag-handle"
             draggable="true"
             on:dragstart={(event) => startDrag(event, effect.id, index)}
+            on:contextmenu={(event) => openEffectContextMenu(event, effect.id)}
             title={`Drag ${RAF_EFFECT_REGISTRY[effect.type].name} to reorder`}
             aria-label={`Drag ${RAF_EFFECT_REGISTRY[effect.type].name} to reorder`}
           ><span class="material-symbols-outlined" aria-hidden="true">drag_indicator</span></button>
           <button
             class="effect-list-item"
             on:click={() => (selectedEffectId = effect.id)}
+            on:contextmenu={(event) => openEffectContextMenu(event, effect.id)}
             aria-pressed={effect.id === selectedEffectId}
           >
             <span class="material-symbols-outlined effect-list-icon" aria-hidden="true">{RAF_EFFECT_REGISTRY[effect.type].icon}</span>
-            <span>{RAF_EFFECT_REGISTRY[effect.type].name}</span>
+            <span class="effect-list-copy">
+              <span class="effect-display-name">{effect.displayName ?? RAF_EFFECT_REGISTRY[effect.type].name}</span>
+              {#if effect.displayName}
+                <span class="effect-type-name">{RAF_EFFECT_REGISTRY[effect.type].name}</span>
+              {/if}
+            </span>
           </button>
         </div>
       {/each}
@@ -181,7 +214,12 @@
     {#if selectedEffect}
       <header class="effect-config-header">
         <span class="material-symbols-outlined effect-config-icon" aria-hidden="true">{RAF_EFFECT_REGISTRY[selectedEffect.type].icon}</span>
-        <strong>{RAF_EFFECT_REGISTRY[selectedEffect.type].name}</strong>
+        <span class="effect-config-heading">
+          <strong>{selectedEffect.displayName ?? RAF_EFFECT_REGISTRY[selectedEffect.type].name}</strong>
+          {#if selectedEffect.displayName}
+            <span>{RAF_EFFECT_REGISTRY[selectedEffect.type].name}</span>
+          {/if}
+        </span>
         {#if selectedEffect.type === 'sloptimizer'}
           <div class="mode-switch" aria-label="Sloptimizer editor mode">
             <button class:active={!selectedEffect.advanced} on:click={() => setSloptimizerMode(selectedEffect, false)} aria-pressed={!selectedEffect.advanced}>Simple</button>
@@ -213,6 +251,33 @@
   </section>
 </div>
 
+{#if contextMenu}
+  <div
+    bind:this={contextMenuElement}
+    class="effect-context-menu"
+    data-menu-interactive="true"
+    use:portal
+    use:windowDismiss={{ enabled: true, onDismiss: () => (contextMenu = null) }}
+    role="menu"
+    aria-label="Effect actions"
+    style={`left: ${contextMenu.x}px; top: ${contextMenu.y}px;`}
+  >
+    <button type="button" role="menuitem" on:click={() => renameEffect(contextMenu?.effectId ?? '')}>
+      <span class="material-symbols-outlined" aria-hidden="true">edit</span>
+      <span>Rename effect</span>
+    </button>
+    <button type="button" role="menuitem" on:click={() => cloneEffect(contextMenu?.effectId ?? '')}>
+      <span class="material-symbols-outlined" aria-hidden="true">content_copy</span>
+      <span>Clone effect</span>
+    </button>
+    <div class="context-menu-separator" role="separator" aria-hidden="true"></div>
+    <button class="danger" type="button" role="menuitem" on:click={() => deleteEffect(contextMenu?.effectId ?? '')}>
+      <span class="material-symbols-outlined" aria-hidden="true">delete</span>
+      <span>Delete effect</span>
+    </button>
+  </div>
+{/if}
+
 <style>
   .effects-workspace { width: calc(100% + 20px); min-width: 0; min-height: 220px; flex: 1; margin: -6px -10px -8px; display: grid; grid-template-columns: clamp(160px, 28cqw, 210px) minmax(0, 1fr); }
   .effects-sidebar { min-width: 0; display: flex; flex-direction: column; background: color-mix(in srgb, var(--bg-tree) 74%, transparent); border-right: 1px solid var(--border-soft); }
@@ -239,18 +304,23 @@
   .effect-list-slot.bypassed { opacity: 0.55; }
   .effect-list-slot.is-dragging { background: transparent; opacity: 0.58; cursor: grabbing; }
   .effect-list-slot.is-dragging button { pointer-events: none; }
-  .drag-handle { width: 20px; align-self: stretch; min-height: 22px; padding: 0; display: grid; place-items: center; border-radius: 0; background: transparent; color: var(--muted); cursor: grab; }
+  .drag-handle { width: 20px; align-self: stretch; min-height: 22px; padding: 0; display: grid; place-items: center; border-radius: 0; background: transparent; color: var(--muted); cursor: grab; opacity: 0; }
+  .effect-list-slot:hover .drag-handle { opacity: 1; }
   .drag-handle:active { cursor: grabbing; }
   .drag-handle:hover { color: var(--text-strong); }
   .effect-list-item { min-width: 0; padding: 3px 6px 3px 1px; display: flex; align-items: center; gap: 6px; overflow: hidden; border-radius: 0; background: transparent; color: inherit; text-align: left; }
-  .effect-list-item > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .effect-list-copy { min-width: 0; display: flex; align-items: baseline; gap: 5px; overflow: hidden; white-space: nowrap; }
+  .effect-display-name { min-width: 0; flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; }
+  .effect-type-name { min-width: 0; flex: 1 1000 auto; overflow: hidden; color: var(--muted); font-size: 0.68rem; text-overflow: clip; }
   .effect-list-icon { flex: 0 0 auto; color: var(--accent-strong); }
   .effect-list-slot.show-drop-line::before,
   .drop-tail.show-drop-line::before { content: ''; position: absolute; z-index: 3; left: 3px; right: 3px; top: -1px; height: 2px; background: var(--accent-strong); pointer-events: none; }
   .drop-tail { position: relative; min-height: 40px; }
   .effect-config { min-width: 0; container-type: inline-size; }
   .effect-config-header { min-height: 40px; padding: 5px 9px; display: flex; align-items: center; gap: 6px; border-bottom: 1px solid var(--border-faint); }
-  .effect-config-header strong { color: var(--text-strong); }
+  .effect-config-heading { min-width: 0; display: flex; align-items: baseline; gap: 6px; overflow: hidden; white-space: nowrap; }
+  .effect-config-heading strong { min-width: 0; flex: 0 1 auto; overflow: hidden; color: var(--text-strong); text-overflow: ellipsis; }
+  .effect-config-heading > span { min-width: 0; flex: 1 1000 auto; overflow: hidden; color: var(--muted); font-size: 0.7rem; text-overflow: clip; }
   .effect-config-icon { color: var(--accent-strong); }
   .effect-config-actions { margin-left: auto; display: flex; align-items: center; gap: 1px; }
   .effect-config-actions button.active { color: var(--accent-strong); }
@@ -264,6 +334,13 @@
   .empty-config { min-height: 180px; padding: 20px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; color: var(--muted); text-align: center; }
   .empty-config .material-symbols-outlined { color: var(--accent-strong); font-size: 26px; }
   .empty-config strong { color: var(--text-strong); }
+  .effect-context-menu { position: fixed; z-index: 60; width: max-content; min-width: 10.5rem; max-width: calc(100vw - 1rem); padding: 0.18rem; border: 1px solid var(--menu-popover-border); border-radius: 0.5rem; background: var(--menu-popover-bg); box-shadow: var(--menu-popover-shadow); font-size: 0.8rem; }
+  .effect-context-menu button { width: 100%; padding: 0.32rem 0.42rem; display: flex; align-items: center; gap: 0.42rem; border-radius: 0.5rem; background: transparent; color: var(--menu-popover-text); text-align: left; white-space: nowrap; }
+  .effect-context-menu button:hover { background: var(--menu-popover-hover); }
+  .effect-context-menu button .material-symbols-outlined { color: var(--menu-popover-muted); font-size: 0.9rem; }
+  .effect-context-menu button.danger:hover,
+  .effect-context-menu button.danger:hover .material-symbols-outlined { color: var(--danger); }
+  .context-menu-separator { height: 1px; margin: 0.18rem 0; background: var(--menu-popover-border); }
 
   @container (max-width: 390px) {
     .effects-workspace { grid-template-columns: 145px minmax(0, 1fr); }
