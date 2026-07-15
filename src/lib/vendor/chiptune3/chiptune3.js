@@ -75,9 +75,6 @@ export class ChiptuneJsPlayer {
 			case 'err':
 				this.fireEvent('onError', {type: msg.data.val})
 				break
-			case 'fullAudioData':
-				this.fireEvent('onFullAudioData', msg.data)
-				break
 			default:
 				console.log('Received unknown message',msg.data)
 		}
@@ -100,33 +97,20 @@ export class ChiptuneJsPlayer {
 	onError(handler) { this.addHandler('onError', handler) }
 	onMetadata(handler) { this.addHandler('onMetadata', handler) }
 	onProgress(handler) { this.addHandler('onProgress', handler) }
-	onFullAudioData(handler) { this.addHandler('onFullAudioData', handler) }
 
 	// methods
 	postMsg(cmd, val) {
 		if (this.processNode)
 			this.processNode.port.postMessage({cmd:cmd,val:val})
 	}
-	load(url) {
-		fetch(url)
-		.then(response => response.arrayBuffer())
-		.then(arrayBuffer => this.play(arrayBuffer))
-		.catch(e=>{this.fireEvent('onError', {type: 'Load'})})
-	}
 	play(val) { this.postMsg('play', val) }
 	stop() { this.postMsg('stop') }
 	pause() { this.postMsg('pause') }
 	unpause() { this.postMsg('unpause') }
-	togglePause() { this.postMsg('togglePause') }
 	setRepeatCount(val) { this.postMsg('repeatCount', val) }
 	setPitch(val) { this.postMsg('setPitch', val) }
 	setTempo(val) { this.postMsg('setTempo', val) }
 	setPos(val) { this.postMsg('setPos', val) }
-	setOrderRow(o,r) { this.postMsg('setOrderRow', {o:o,r:r}) }
 	setVol(val) { this.gain.gain.value = val }
-	selectSubsong(val) { this.postMsg('selectSubsong', val) }
-	// compatibility
 	seek(val) { this.setPos(val) }
-	getCurrentTime() { return this.currentTime }
-	decodeAll(ab) { this.postMsg('decodeAll', ab) }
 }

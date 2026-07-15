@@ -65,7 +65,7 @@ function normalizeSettings(value: unknown): ModulePlaybackSettings {
     ),
     panStrength: Math.round(
       clamp(
-        toNumber(source.panStrength, toNumber(source.stereoSeparation, DEFAULT_MODULE_PLAYBACK_SETTINGS.panStrength)),
+        toNumber(source.panStrength, DEFAULT_MODULE_PLAYBACK_SETTINGS.panStrength),
         0,
         200
       )

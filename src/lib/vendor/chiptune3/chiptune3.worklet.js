@@ -117,14 +117,8 @@ class MPT extends AudioWorkletProcessor {
 			case 'unpause':
 				this.paused = false
 				break
-			case 'togglePause':
-				this.paused = !this.paused
-				break
 			case 'stop':
 				this.stop()
-				break
-			case 'meta':
-				this.meta()
 				break
 			case 'repeatCount':
 				this.config.repeatCount = v
@@ -139,62 +133,16 @@ class MPT extends AudioWorkletProcessor {
 				if (!libopenmpt.stackSave || !this.modulePtr) return
 				libopenmpt._openmpt_module_ctl_set(this.modulePtr, asciiToStack('play.tempo_factor'), asciiToStack(v.toString()))
 				break
-			case 'selectSubsong':
-				if (!this.modulePtr) return
-				libopenmpt._openmpt_module_select_subsong(this.modulePtr, v)
-				//this.meta()
-				break
 			case 'setPos':
 				if (!this.modulePtr) return
 				libopenmpt._openmpt_module_set_position_seconds(this.modulePtr, v)
-				break
-			case 'setOrderRow':
-				if (!this.modulePtr) return
-				libopenmpt._openmpt_module_set_position_order_row(this.modulePtr, v.o, v.r)
-				break
-			/*
-			case 'toggleMute'
-				// openmpt_module_ext_get_interface(mod_ext, interface_id, interface, interface_size)
-				// openmpt_module_ext_interface_interactive
-				// set_channel_mute_status
-				// https://lib.openmpt.org/doc/group__libopenmpt__ext__c.html#ga0275a35da407cd092232a20d3535c9e4
-				if (!this.modulePtr) return
-				//const extPtr = libopenmpt.openmpt_module_ext_get_interface(mod_ext, interface_id, interface, interface_size)
-				break
-			*/
-			case 'decodeAll':
-				this.decodeAll(v)
 				break
 			default:
 				console.log('Received unknown message',msg.data)
 		}
 	} // handleMessage_
 
-	decodeAll(buffer) {
-		this.play(buffer, true)
-		
-		// now build the full audioData
-		const left = [], right = []
-		const maxFramesPerChunk = 128
-		let actualFramesPerChunk = libopenmpt._openmpt_module_read_float_stereo(this.modulePtr, sampleRate, maxFramesPerChunk, this.leftPtr, this.rightPtr)
-		while (actualFramesPerChunk != 0) {
-			left.push( ...libopenmpt.HEAPF32.subarray(this.leftPtr / 4, this.leftPtr / 4 + actualFramesPerChunk) )
-			right.push( ...libopenmpt.HEAPF32.subarray(this.rightPtr / 4, this.rightPtr / 4 + actualFramesPerChunk) )
-			actualFramesPerChunk = libopenmpt._openmpt_module_read_float_stereo(this.modulePtr, sampleRate, maxFramesPerChunk, this.leftPtr, this.rightPtr)
-		}
-
-		// post final data
-		let msg = {
-			cmd: 'fullAudioData',
-			meta: this.getMeta(),
-			data: [left,right]
-		}
-		this.port.postMessage( msg )
-
-		this.stop()
-	}
-
-	play(buffer, paused = false) {
+	play(buffer) {
 		this.stop()
 		
 		const maxFramesPerChunk = 128	// thats what worklet is using
@@ -218,7 +166,7 @@ class MPT extends AudioWorkletProcessor {
 			libopenmpt.stackRestore(stack)
 		}
 		
-		this.paused = paused
+		this.paused = false
 		this.leftPtr = libopenmpt._malloc(4 * maxFramesPerChunk)	// 4x = float
 		this.rightPtr = libopenmpt._malloc(4 * maxFramesPerChunk)
 
@@ -228,7 +176,7 @@ class MPT extends AudioWorkletProcessor {
 		libopenmpt._openmpt_module_set_render_param(this.modulePtr, OPENMPT_MODULE_RENDER_INTERPOLATIONFILTER_LENGTH, this.config.interpolationFilter)
 
 		// post back tracks metadata
-		if (!paused) this.meta()
+		this.meta()
 	}
 	stop() {
 		if (!this.modulePtr) return
