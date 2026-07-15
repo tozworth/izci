@@ -15,6 +15,41 @@
   let contextMenu: { effectId: string; x: number; y: number } | null = null;
   let contextMenuElement: HTMLDivElement | null = null;
 
+  function fitEffectNames(node: HTMLElement, names: { displayName: string; typeName: string }) {
+    let currentNames = names;
+
+    const updateVisibility = () => {
+      const displayName = node.querySelector<HTMLElement>('.effect-display-name');
+      const typeName = node.querySelector<HTMLElement>('.effect-type-name');
+      node.classList.remove('show-type-name');
+      if (!displayName || !typeName || !currentNames.displayName) return;
+      const displayNameRange = document.createRange();
+      displayNameRange.selectNodeContents(displayName);
+      const typeNameRange = document.createRange();
+      typeNameRange.selectNodeContents(typeName);
+      const requiredWidth = displayNameRange.getBoundingClientRect().width
+        + typeNameRange.getBoundingClientRect().width
+        + 5;
+      if (requiredWidth <= node.clientWidth) {
+        node.classList.add('show-type-name');
+      }
+    };
+
+    const resizeObserver = new ResizeObserver(updateVisibility);
+    resizeObserver.observe(node);
+    queueMicrotask(updateVisibility);
+
+    return {
+      update(nextNames: { displayName: string; typeName: string }) {
+        currentNames = nextNames;
+        queueMicrotask(updateVisibility);
+      },
+      destroy() {
+        resizeObserver.disconnect();
+      }
+    };
+  }
+
   function addEffect(type: RafEffectType) {
     const nextSettings = rafSettings.addEffect(type);
     selectedEffectId = nextSettings.effects.at(-1)?.id ?? null;
@@ -187,7 +222,13 @@
             aria-pressed={effect.id === selectedEffectId}
           >
             <span class="material-symbols-outlined effect-list-icon" aria-hidden="true">{RAF_EFFECT_REGISTRY[effect.type].icon}</span>
-            <span class="effect-list-copy">
+            <span
+              class="effect-list-copy"
+              use:fitEffectNames={{
+                displayName: effect.displayName ?? '',
+                typeName: RAF_EFFECT_REGISTRY[effect.type].name
+              }}
+            >
               <span class="effect-display-name">{effect.displayName ?? RAF_EFFECT_REGISTRY[effect.type].name}</span>
               {#if effect.displayName}
                 <span class="effect-type-name">{RAF_EFFECT_REGISTRY[effect.type].name}</span>
@@ -214,8 +255,14 @@
     {#if selectedEffect}
       <header class="effect-config-header">
         <span class="material-symbols-outlined effect-config-icon" aria-hidden="true">{RAF_EFFECT_REGISTRY[selectedEffect.type].icon}</span>
-        <span class="effect-config-heading">
-          <strong>{selectedEffect.displayName ?? RAF_EFFECT_REGISTRY[selectedEffect.type].name}</strong>
+        <span
+          class="effect-config-heading"
+          use:fitEffectNames={{
+            displayName: selectedEffect.displayName ?? '',
+            typeName: RAF_EFFECT_REGISTRY[selectedEffect.type].name
+          }}
+        >
+          <strong class="effect-display-name">{selectedEffect.displayName ?? RAF_EFFECT_REGISTRY[selectedEffect.type].name}</strong>
           {#if selectedEffect.displayName}
             <span>{RAF_EFFECT_REGISTRY[selectedEffect.type].name}</span>
           {/if}
@@ -309,18 +356,22 @@
   .drag-handle:active { cursor: grabbing; }
   .drag-handle:hover { color: var(--text-strong); }
   .effect-list-item { min-width: 0; padding: 3px 6px 3px 1px; display: flex; align-items: center; gap: 6px; overflow: hidden; border-radius: 0; background: transparent; color: inherit; text-align: left; }
-  .effect-list-copy { min-width: 0; display: flex; align-items: baseline; gap: 5px; overflow: hidden; white-space: nowrap; }
-  .effect-display-name { min-width: 0; flex: 0 1 auto; overflow: hidden; text-overflow: ellipsis; }
-  .effect-type-name { min-width: 0; flex: 1 1000 auto; overflow: hidden; color: var(--muted); font-size: 0.68rem; text-overflow: clip; }
+  .effect-list-copy { position: relative; min-width: 0; flex: 1 1 auto; display: flex; align-items: baseline; overflow: hidden; white-space: nowrap; }
+  .effect-display-name { min-width: 0; flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; }
+  .effect-list-copy:global(.show-type-name) > .effect-display-name,
+  .effect-config-heading:global(.show-type-name) > .effect-display-name { flex: 0 1 auto; }
+  .effect-type-name { position: absolute; left: 0; top: 0; width: max-content; visibility: hidden; color: var(--muted); font-size: 0.68rem; }
+  .effect-list-copy:global(.show-type-name) > :global(.effect-type-name) { position: static; flex: 0 0 auto; margin-left: 5px; visibility: visible; }
   .effect-list-icon { flex: 0 0 auto; color: var(--accent-strong); }
   .effect-list-slot.show-drop-line::before,
   .drop-tail.show-drop-line::before { content: ''; position: absolute; z-index: 3; left: 3px; right: 3px; top: -1px; height: 2px; background: var(--accent-strong); pointer-events: none; }
   .drop-tail { position: relative; min-height: 40px; }
   .effect-config { min-width: 0; container-type: inline-size; }
   .effect-config-header { min-height: 40px; padding: 5px 9px; display: flex; align-items: center; gap: 6px; border-bottom: 1px solid var(--border-faint); }
-  .effect-config-heading { min-width: 0; display: flex; align-items: baseline; gap: 6px; overflow: hidden; white-space: nowrap; }
-  .effect-config-heading strong { min-width: 0; flex: 0 1 auto; overflow: hidden; color: var(--text-strong); text-overflow: ellipsis; }
-  .effect-config-heading > span { min-width: 0; flex: 1 1000 auto; overflow: hidden; color: var(--muted); font-size: 0.7rem; text-overflow: clip; }
+  .effect-config-heading { position: relative; min-width: 0; flex: 1 1 auto; display: flex; align-items: baseline; overflow: hidden; white-space: nowrap; }
+  .effect-config-heading strong { min-width: 0; flex: 1 1 auto; overflow: hidden; color: var(--text-strong); text-overflow: ellipsis; }
+  .effect-config-heading > :global(.effect-type-name) { font-size: 0.7rem; }
+  .effect-config-heading:global(.show-type-name) > :global(.effect-type-name) { margin-left: 6px; }
   .effect-config-icon { color: var(--accent-strong); }
   .effect-config-actions { margin-left: auto; display: flex; align-items: center; gap: 1px; }
   .effect-config-actions button.active { color: var(--accent-strong); }
