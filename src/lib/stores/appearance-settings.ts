@@ -148,6 +148,7 @@ function normalizeColorTheme(value: unknown): ColorTheme {
     case 'gruvbox':
     case 'dracula':
     case 'ember':
+    case 'system':
     case 'chameleon':
       return value;
     default:

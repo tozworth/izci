@@ -13,6 +13,7 @@ export const COLOR_THEME_OPTIONS: Array<{ value: ColorTheme; label: string }> = 
   { value: 'gruvbox', label: 'Gruvbox' },
   { value: 'dracula', label: 'Dracula' },
   { value: 'ember', label: 'Ember' },
+  { value: 'system', label: 'System' },
   { value: 'chameleon', label: 'Chameleon' }
 ];
 
@@ -24,6 +25,7 @@ const THEME_COLOR_BY_THEME: Record<ColorTheme, string> = {
   gruvbox: '#1c1d1e',
   dracula: '#1f2029',
   ember: '#1c1110',
+  system: 'Canvas',
   chameleon: '#141a20'
 };
 
