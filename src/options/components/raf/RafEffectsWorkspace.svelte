@@ -7,6 +7,7 @@
   let selectedEffectId: string | null = null;
   let draggedId: string | null = null;
   let dropBoundary: number | null = null;
+  let dragEngaged = false;
   let addMenu: HTMLDetailsElement;
 
   function addEffect(type: RafEffectType) {
@@ -40,12 +41,30 @@
     if (event.dataTransfer) {
       event.dataTransfer.setData('text/plain', id);
       event.dataTransfer.effectAllowed = 'move';
+      try {
+        const row = (event.currentTarget as HTMLElement).closest('.effect-list-slot');
+        if (row) {
+          const dragImage = row.cloneNode(true) as HTMLElement;
+          dragImage.classList.remove('show-drop-line', 'is-dragging');
+          dragImage.style.position = 'fixed';
+          dragImage.style.top = '-1000px';
+          dragImage.style.left = '0';
+          dragImage.style.width = `${row.getBoundingClientRect().width}px`;
+          dragImage.style.pointerEvents = 'none';
+          document.body.append(dragImage);
+          event.dataTransfer.setDragImage(dragImage, 10, 11);
+          setTimeout(() => dragImage.remove());
+        }
+      } catch {
+        // Chromium's default drag image is an acceptable fallback.
+      }
     }
   }
 
   function updateDropBoundary(event: DragEvent, index: number) {
     event.preventDefault();
     if (!draggedId) return;
+    dragEngaged = true;
     if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
     const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
     dropBoundary = event.clientY < rect.top + rect.height / 2 ? index : index + 1;
@@ -64,6 +83,7 @@
   function clearDrag() {
     draggedId = null;
     dropBoundary = null;
+    dragEngaged = false;
   }
 
   $: if (!$rafSettings.effects.some((effect) => effect.id === selectedEffectId)) {
@@ -119,6 +139,9 @@
       {#each $rafSettings.effects as effect, index (effect.id)}
         <div
           class="effect-list-slot"
+          class:selected={effect.id === selectedEffectId}
+          class:bypassed={!effect.enabled}
+          class:is-dragging={dragEngaged && draggedId === effect.id}
           class:show-drop-line={draggedId !== null && dropBoundary === index}
           role="listitem"
           on:dragover={(event) => updateDropBoundary(event, index)}
@@ -132,10 +155,7 @@
           ><span class="material-symbols-outlined" aria-hidden="true">drag_indicator</span></button>
           <button
             class="effect-list-item"
-            class:selected={effect.id === selectedEffectId}
-            class:bypassed={!effect.enabled}
             on:click={() => (selectedEffectId = effect.id)}
-            title={RAF_EFFECT_REGISTRY[effect.type].name}
             aria-pressed={effect.id === selectedEffectId}
           >
             <span class="material-symbols-outlined effect-list-icon" aria-hidden="true">{RAF_EFFECT_REGISTRY[effect.type].icon}</span>
@@ -149,6 +169,7 @@
         on:dragover={(event) => {
           event.preventDefault();
           if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+          dragEngaged = true;
           dropBoundary = $rafSettings.effects.length;
         }}
         aria-hidden="true"
@@ -211,16 +232,18 @@
   .effect-config-actions button:hover { background: var(--hover-surface); color: var(--text-strong); }
   .effects-sidebar-actions > button:disabled { opacity: 0.3; }
   .effects-sidebar-actions .remove:hover:not(:disabled) { color: var(--danger); }
-  .effects-list { min-height: 0; flex: 1; padding: 4px; overflow: auto; }
-  .effect-list-slot { position: relative; min-width: 0; display: grid; grid-template-columns: 22px minmax(0, 1fr); align-items: center; }
-  .drag-handle { width: 22px; height: 28px; padding: 0; display: grid; place-items: center; border-radius: 3px; background: transparent; color: var(--muted); cursor: grab; }
+  .effects-list { min-height: 0; flex: 1; padding: 0; overflow: auto; }
+  .effect-list-slot { position: relative; min-width: 0; display: grid; grid-template-columns: 20px minmax(0, 1fr); align-items: center; background: transparent; font-size: 0.8rem; }
+  .effect-list-slot:hover { background: var(--tree-hover); }
+  .effect-list-slot.selected { background: var(--selection-strong); color: var(--text-strong); }
+  .effect-list-slot.bypassed { opacity: 0.55; }
+  .effect-list-slot.is-dragging { background: transparent; opacity: 0.58; cursor: grabbing; }
+  .effect-list-slot.is-dragging button { pointer-events: none; }
+  .drag-handle { width: 20px; align-self: stretch; min-height: 22px; padding: 0; display: grid; place-items: center; border-radius: 0; background: transparent; color: var(--muted); cursor: grab; }
   .drag-handle:active { cursor: grabbing; }
-  .drag-handle:hover { background: var(--hover-surface); color: var(--text-strong); }
-  .effect-list-item { min-width: 0; height: 28px; padding: 0 6px; display: flex; align-items: center; gap: 6px; overflow: hidden; border-radius: 3px; background: transparent; color: var(--text); text-align: left; }
+  .drag-handle:hover { color: var(--text-strong); }
+  .effect-list-item { min-width: 0; padding: 3px 6px 3px 1px; display: flex; align-items: center; gap: 6px; overflow: hidden; border-radius: 0; background: transparent; color: inherit; text-align: left; }
   .effect-list-item > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .effect-list-item:hover { background: var(--tree-hover); }
-  .effect-list-item.selected { background: var(--selection-strong); color: var(--text-strong); }
-  .effect-list-item.bypassed { opacity: 0.55; }
   .effect-list-icon { flex: 0 0 auto; color: var(--accent-strong); }
   .effect-list-slot.show-drop-line::before,
   .drop-tail.show-drop-line::before { content: ''; position: absolute; z-index: 3; left: 3px; right: 3px; top: -1px; height: 2px; background: var(--accent-strong); pointer-events: none; }
