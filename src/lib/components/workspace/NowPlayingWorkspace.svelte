@@ -1,10 +1,7 @@
 <script lang="ts">
   import { createEventDispatcher, onMount } from 'svelte';
   import BackdropZone from '$lib/components/BackdropZone.svelte';
-  import LyricsPanel from '$lib/components/LyricsPanel.svelte';
   import PlayerControls from '$lib/components/PlayerControls.svelte';
-  import PlaylistPanel from '$lib/components/PlaylistPanel.svelte';
-  import TrackDetailsPanel from '$lib/components/TrackDetailsPanel.svelte';
   import {
     hasArtworkBackdrop,
     NOW_PLAYING_PANEL_AUTO_HIDE_NEVER_SECONDS
@@ -13,22 +10,18 @@
   import type {
     BackdropZoneEffect,
     BackdropZoneArtworkSettings,
-    LyricsDisplayStyle,
-    PlaybackSnapshot,
     PlaylistItem,
     WorkspaceTab
   } from '$lib/types';
-  import type { Readable } from 'svelte/store';
   import WorkspaceTabBar from './WorkspaceTabBar.svelte';
+  import WorkspaceTabContent from './WorkspaceTabContent.svelte';
   import type {
-    WorkspacePanelHandlers,
-    WorkspacePanelProps,
+    WorkspaceTabContentProps,
     WorkspaceTabDefinition,
     WorkspaceTabMoveDetail
   } from './types';
 
-  export let snapshotStore: Readable<PlaybackSnapshot>;
-  export let playbackSnapshot: PlaybackSnapshot | null = null;
+  export let content: WorkspaceTabContentProps;
   export let track: PlaylistItem | null = null;
   export let selectedTrack: PlaylistItem | null = null;
   export let artwork: LoadedStreamArtwork | null = null;
@@ -38,19 +31,6 @@
   export let backdropArtworkSettings: BackdropZoneArtworkSettings | null = null;
   export let activeWorkspaceTab: WorkspaceTab = 'playlist';
   export let workspaceTabs: WorkspaceTabDefinition[] = [];
-  export let playlistPanelProps: WorkspacePanelProps;
-  export let playlistPanelHandlers: WorkspacePanelHandlers;
-  export let libraryPanelProps: WorkspacePanelProps;
-  export let libraryPanelHandlers: WorkspacePanelHandlers;
-  export let selectedItem: PlaylistItem | null = null;
-  export let lyricsTrack: PlaylistItem | null = null;
-  export let lyricsDisplayStyle: LyricsDisplayStyle = 'timestamped';
-  export let lyricsAutoScroll = true;
-  export let lyricsFontSize = 1;
-  export let lyricsTheaterDowntimeDots = true;
-  export let lyricsTheaterDowntimeThresholdSeconds = 10;
-  export let lyricsTheaterSmoothScroll = true;
-  export let lyricsResumeAutoScrollToken = 0;
   export let panelAutoHideDelaySeconds = 5;
   export let alwaysUseArtworkPlayerColors = false;
 
@@ -153,7 +133,7 @@
       <section class="now-playing-control-pane" aria-label="Now Playing">
         <PlayerControls
           presentation="now-playing"
-          {snapshotStore}
+          snapshotStore={content.snapshotStore}
           {track}
           {selectedTrack}
           {artwork}
@@ -199,56 +179,11 @@
               id={`workspace-tab-panel-tabs-${activeWorkspaceTab}`}
               aria-labelledby={`workspace-tab-tabs-${activeWorkspaceTab}`}
             >
-              {#if activeWorkspaceTab === 'playlist'}
-                <PlaylistPanel
-                  {...playlistPanelProps}
-                  fillParent={true}
-                  hideEyebrow={true}
-                  on:addFiles={(event) => playlistPanelHandlers.addFiles(event.detail)}
-                  on:openFiles={playlistPanelHandlers.openFiles}
-                  on:select={playlistPanelHandlers.select}
-                  on:activate={playlistPanelHandlers.activate}
-                  on:contextAction={playlistPanelHandlers.contextAction}
-                  on:toggleShuffle={() => playlistPanelHandlers.toggleShuffle?.()}
-                  on:cycleRepeat={() => playlistPanelHandlers.cycleRepeat?.()}
-                />
-              {:else if activeWorkspaceTab === 'library'}
-                <PlaylistPanel
-                  {...libraryPanelProps}
-                  fillParent={true}
-                  hideEyebrow={true}
-                  on:addFiles={(event) => libraryPanelHandlers.addFiles(event.detail)}
-                  on:openFiles={libraryPanelHandlers.openFiles}
-                  on:select={libraryPanelHandlers.select}
-                  on:setSelection={(event) => libraryPanelHandlers.setSelection?.(event)}
-                  on:activate={libraryPanelHandlers.activate}
-                  on:contextAction={libraryPanelHandlers.contextAction}
-                />
-              {:else if activeWorkspaceTab === 'details'}
-                <TrackDetailsPanel
-                  track={selectedItem}
-                  artwork={null}
-                  fillParent={true}
-                  hideEyebrow={true}
-                />
-              {:else if activeWorkspaceTab === 'lyrics'}
-                <LyricsPanel
-                  {snapshotStore}
-                  {playbackSnapshot}
-                  track={lyricsTrack}
-                  displayStyle={lyricsDisplayStyle}
-                  autoScroll={lyricsAutoScroll}
-                  fontSize={lyricsFontSize}
-                  theaterDowntimeDots={lyricsTheaterDowntimeDots}
-                  theaterDowntimeThresholdSeconds={lyricsTheaterDowntimeThresholdSeconds}
-                  theaterSmoothScroll={lyricsTheaterSmoothScroll}
-                  resumeAutoScrollToken={lyricsResumeAutoScrollToken}
-                  forceAutoScroll={true}
-                  fillParent={true}
-                  hideEyebrow={true}
-                  on:seek
-                />
-              {/if}
+              <WorkspaceTabContent
+                tab={activeWorkspaceTab}
+                content={{ ...content, detailsArtwork: null }}
+                on:seek
+              />
             </div>
           {/if}
         </div>

@@ -22,6 +22,25 @@
     WorkspaceTabMoveDetail
   } from './types';
 
+  $: workspaceContent = {
+    snapshotStore,
+    playbackSnapshot,
+    playlistPanelProps: workspaceState.playlistPanelProps,
+    playlistPanelHandlers,
+    libraryPanelProps: workspaceState.libraryPanelProps,
+    libraryPanelHandlers,
+    selectedItem: artworkState.detailsDisplayTrack,
+    lyricsTrack,
+    detailsArtwork: artworkState.visibleDetailsArtwork,
+    lyricsDisplayStyle: effectiveLyricsDisplayStyle,
+    lyricsAutoScroll,
+    lyricsFontSize,
+    lyricsResumeAutoScrollToken,
+    lyricsTheaterDowntimeDots: appearance.lyrics.theaterDowntimeDots,
+    lyricsTheaterDowntimeThresholdSeconds: appearance.lyrics.theaterDowntimeThresholdSeconds,
+    lyricsTheaterSmoothScroll: appearance.lyrics.theaterSmoothScroll
+  };
+
   export let snapshotStore: Readable<PlaybackSnapshot>;
   export let playbackSnapshot: PlaybackSnapshot;
   export let isNowPlayingLayoutActive: boolean;
@@ -63,8 +82,7 @@
 
 {#if isNowPlayingLayoutActive}
   <NowPlayingWorkspace
-    {snapshotStore}
-    {playbackSnapshot}
+    content={workspaceContent}
     track={playerDisplayTrack}
     selectedTrack={selectedPlaylistItem}
     artwork={artworkState.displayedArtwork}
@@ -74,19 +92,6 @@
     backdropArtworkSettings={appearance.backdropZoneArtwork.nowPlaying}
     activeWorkspaceTab={workspaceState.activeWorkspaceTab}
     workspaceTabs={workspaceState.workspaceTabs}
-    playlistPanelProps={workspaceState.playlistPanelProps}
-    {playlistPanelHandlers}
-    libraryPanelProps={workspaceState.libraryPanelProps}
-    {libraryPanelHandlers}
-    selectedItem={artworkState.detailsDisplayTrack}
-    {lyricsTrack}
-    lyricsDisplayStyle={effectiveLyricsDisplayStyle}
-    {lyricsAutoScroll}
-    {lyricsFontSize}
-    {lyricsResumeAutoScrollToken}
-    lyricsTheaterDowntimeDots={appearance.lyrics.theaterDowntimeDots}
-    lyricsTheaterDowntimeThresholdSeconds={appearance.lyrics.theaterDowntimeThresholdSeconds}
-    lyricsTheaterSmoothScroll={appearance.lyrics.theaterSmoothScroll}
     panelAutoHideDelaySeconds={appearance.nowPlayingPanelAutoHideDelaySeconds}
     alwaysUseArtworkPlayerColors={appearance.useNowPlayingArtworkPlayerColors}
     on:close={onCloseNowPlaying}
@@ -104,28 +109,13 @@
   />
 {:else if workspaceState.isTabbedLayout}
   <TabbedWorkspace
-    {snapshotStore}
-    {playbackSnapshot}
+    content={workspaceContent}
     activeWorkspaceTab={workspaceState.activeWorkspaceTab}
     workspaceTabs={workspaceState.workspaceTabs}
-    playlistPanelProps={workspaceState.playlistPanelProps}
-    {playlistPanelHandlers}
-    libraryPanelProps={workspaceState.libraryPanelProps}
-    {libraryPanelHandlers}
-    selectedItem={artworkState.detailsDisplayTrack}
-    detailsArtwork={artworkState.visibleDetailsArtwork}
-    {lyricsTrack}
     backdropArtwork={artworkState.visibleArtworkBackground}
     zoneArtworkBright={workspaceZoneArtworkBright}
     zoneEffects={workspaceZoneEffects}
     zoneArtworkSettings={workspaceZoneArtworkSettings}
-    lyricsDisplayStyle={effectiveLyricsDisplayStyle}
-    {lyricsAutoScroll}
-    {lyricsFontSize}
-    {lyricsResumeAutoScrollToken}
-    lyricsTheaterDowntimeDots={appearance.lyrics.theaterDowntimeDots}
-    lyricsTheaterDowntimeThresholdSeconds={appearance.lyrics.theaterDowntimeThresholdSeconds}
-    lyricsTheaterSmoothScroll={appearance.lyrics.theaterSmoothScroll}
     on:seek={(event) => onSeek(event.detail)}
     on:tabChange={(event) => onTabChange(event.detail)}
     on:tabClose={(event) => onTabClose(event.detail)}
@@ -133,30 +123,15 @@
   />
 {:else}
   <WideWorkspace
-    {snapshotStore}
-    {playbackSnapshot}
+    content={workspaceContent}
     workspacePanels={workspaceState.workspacePanels}
-    playlistPanelProps={workspaceState.playlistPanelProps}
-    {playlistPanelHandlers}
-    libraryPanelProps={workspaceState.libraryPanelProps}
-    {libraryPanelHandlers}
     panelWidths={workspaceState.widePanelWidths}
     resizerWidth={WORKSPACE_RESIZER_WIDTH}
     isResizing={workspaceState.isResizing}
-    selectedItem={artworkState.detailsDisplayTrack}
-    detailsArtwork={artworkState.visibleDetailsArtwork}
-    {lyricsTrack}
     backdropArtwork={artworkState.visibleArtworkBackground}
     zoneArtworkBright={workspaceZoneArtworkBright}
     zoneEffects={workspaceZoneEffects}
     zoneArtworkSettings={workspaceZoneArtworkSettings}
-    lyricsDisplayStyle={effectiveLyricsDisplayStyle}
-    {lyricsAutoScroll}
-    {lyricsFontSize}
-    {lyricsResumeAutoScrollToken}
-    lyricsTheaterDowntimeDots={appearance.lyrics.theaterDowntimeDots}
-    lyricsTheaterDowntimeThresholdSeconds={appearance.lyrics.theaterDowntimeThresholdSeconds}
-    lyricsTheaterSmoothScroll={appearance.lyrics.theaterSmoothScroll}
     on:seek={(event) => onSeek(event.detail)}
     on:tabChange={(event) => onTabChange(event.detail)}
     on:tabClose={(event) => onTabClose(event.detail)}

@@ -1,45 +1,30 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import BackdropZone from '$lib/components/BackdropZone.svelte';
-  import LyricsPanel from '$lib/components/LyricsPanel.svelte';
-  import PlaylistPanel from '$lib/components/PlaylistPanel.svelte';
-  import TrackDetailsPanel from '$lib/components/TrackDetailsPanel.svelte';
   import type { LoadedStreamArtwork } from '$lib/services/stream-artwork';
   import { hasArtworkBackdrop, hasVisualizerBackdrop } from '$lib/stores/appearance-settings';
   import type {
     BackdropZoneEffect,
     BackdropZoneArtworkSettings,
-    LyricsDisplayStyle,
-    PlaybackSnapshot,
-    PlaylistItem,
     WorkspacePanelId,
     WorkspaceTab
   } from '$lib/types';
   import WorkspaceResizer from '$lib/components/workspace/WorkspaceResizer.svelte';
   import WorkspaceTabBar from '$lib/components/workspace/WorkspaceTabBar.svelte';
+  import WorkspaceTabContent from '$lib/components/workspace/WorkspaceTabContent.svelte';
   import { hasWorkspaceTabDragData, readWorkspaceTabDragData } from './drag';
-  import type { Readable } from 'svelte/store';
   import type {
     WideWorkspaceResizeStartDetail,
     WorkspacePanelDefinition,
-    WorkspacePanelHandlers,
-    WorkspacePanelProps,
+    WorkspaceTabContentProps,
     WorkspaceTabMoveDetail
   } from './types';
 
-  export let snapshotStore: Readable<PlaybackSnapshot>;
-  export let playbackSnapshot: PlaybackSnapshot | null = null;
+  export let content: WorkspaceTabContentProps;
   export let workspacePanels: WorkspacePanelDefinition[] = [];
-  export let playlistPanelProps: WorkspacePanelProps;
-  export let playlistPanelHandlers: WorkspacePanelHandlers;
-  export let libraryPanelProps: WorkspacePanelProps;
-  export let libraryPanelHandlers: WorkspacePanelHandlers;
   export let panelWidths: Record<WorkspacePanelId, number>;
   export let resizerWidth = 1;
   export let isResizing = false;
-  export let selectedItem: PlaylistItem | null = null;
-  export let lyricsTrack: PlaylistItem | null = null;
-  export let detailsArtwork: LoadedStreamArtwork | null = null;
   export let backdropArtwork: LoadedStreamArtwork | null = null;
   export let artworkBackgroundBright = false;
   export let zoneEffects: Record<WorkspacePanelId, BackdropZoneEffect> = {
@@ -57,13 +42,6 @@
     center: false,
     right: false
   };
-  export let lyricsDisplayStyle: LyricsDisplayStyle = 'timestamped';
-  export let lyricsAutoScroll = true;
-  export let lyricsFontSize = 1;
-  export let lyricsTheaterDowntimeDots = true;
-  export let lyricsTheaterDowntimeThresholdSeconds = 10;
-  export let lyricsTheaterSmoothScroll = true;
-  export let lyricsResumeAutoScrollToken = 0;
 
   const dispatch = createEventDispatcher<{
     resizeStart: WideWorkspaceResizeStartDetail;
@@ -190,59 +168,14 @@
                 id={`workspace-tab-panel-${panel.id}-${panel.activeTab}`}
                 aria-labelledby={`workspace-tab-${panel.id}-${panel.activeTab}`}
               >
-                {#if panel.activeTab === 'playlist'}
-                  <PlaylistPanel
-                    {...playlistPanelProps}
-                    fillParent={true}
-                    hideEyebrow={true}
-                    on:addFiles={(event) => playlistPanelHandlers.addFiles(event.detail)}
-                    on:openFiles={playlistPanelHandlers.openFiles}
-                    on:select={playlistPanelHandlers.select}
-                    on:activate={playlistPanelHandlers.activate}
-                    on:contextAction={playlistPanelHandlers.contextAction}
-                    on:toggleShuffle={() => playlistPanelHandlers.toggleShuffle?.()}
-                    on:cycleRepeat={() => playlistPanelHandlers.cycleRepeat?.()}
-                  />
-                {:else if panel.activeTab === 'library'}
-                  <PlaylistPanel
-                    {...libraryPanelProps}
-                    fillParent={true}
-                    hideEyebrow={true}
-                    on:addFiles={(event) => libraryPanelHandlers.addFiles(event.detail)}
-                    on:openFiles={libraryPanelHandlers.openFiles}
-                    on:select={libraryPanelHandlers.select}
-                    on:setSelection={(event) => libraryPanelHandlers.setSelection?.(event)}
-                    on:activate={libraryPanelHandlers.activate}
-                    on:contextAction={libraryPanelHandlers.contextAction}
-                  />
-                {:else if panel.activeTab === 'details'}
-                  <TrackDetailsPanel
-                    track={selectedItem}
-                    artwork={detailsArtwork}
-                    artworkBackgroundActive={hasArtworkBackdrop(zoneEffects[panel.id]) && Boolean(backdropArtwork)}
-                    artworkBackgroundBright={zoneArtworkBright[panel.id] || artworkBackgroundBright}
-                    visualizerBackdropActive={hasVisualizerBackdrop(zoneEffects[panel.id])}
-                    fillParent={true}
-                    hideEyebrow={true}
-                  />
-                {:else if panel.activeTab === 'lyrics'}
-                  <LyricsPanel
-                    {snapshotStore}
-                    {playbackSnapshot}
-                    track={lyricsTrack}
-                    displayStyle={lyricsDisplayStyle}
-                    autoScroll={lyricsAutoScroll}
-                    fontSize={lyricsFontSize}
-                    theaterDowntimeDots={lyricsTheaterDowntimeDots}
-                    theaterDowntimeThresholdSeconds={lyricsTheaterDowntimeThresholdSeconds}
-                    theaterSmoothScroll={lyricsTheaterSmoothScroll}
-                    resumeAutoScrollToken={lyricsResumeAutoScrollToken}
-                    forceAutoScroll={true}
-                    fillParent={true}
-                    hideEyebrow={true}
-                    on:seek
-                  />
-                {/if}
+                <WorkspaceTabContent
+                  tab={panel.activeTab}
+                  {content}
+                  artworkBackgroundActive={hasArtworkBackdrop(zoneEffects[panel.id]) && Boolean(backdropArtwork)}
+                  artworkBackgroundBright={zoneArtworkBright[panel.id] || artworkBackgroundBright}
+                  visualizerBackdropActive={hasVisualizerBackdrop(zoneEffects[panel.id])}
+                  on:seek
+                />
               </div>
             {:else}
               <div
