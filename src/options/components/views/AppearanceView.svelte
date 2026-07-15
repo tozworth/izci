@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import SettingsField from '../SettingsField.svelte';
   import { COLOR_THEME_OPTIONS } from '$lib/services/theme';
   import { hasLocalFontAccessPermission, queryLocalFontFamilies, supportsLocalFontAccess } from '$lib/services/local-fonts';
   import {
@@ -12,6 +13,21 @@
   } from '$lib/stores/appearance-settings';
   import type { ColorTheme } from '$lib/types';
 
+  type BooleanAppearanceSetting =
+    | 'useArtworkPlayerColors'
+    | 'compactPlayerBar'
+    | 'keepLibraryColumnsVisibleInNarrowLayout'
+    | 'keepEmptyWorkspacePanelsOpen'
+    | 'showIdlePlayerQuips'
+    | 'showTrackTitleInWindowTitle';
+  const INTERFACE_TOGGLES: Array<{ key: BooleanAppearanceSetting; title: string; hint: string }> = [
+    { key: 'keepLibraryColumnsVisibleInNarrowLayout', title: 'Keep columns visible in narrow library panels', hint: 'Prevents the slim-window library view from collapsing to title-only rows.' },
+    { key: 'compactPlayerBar', title: 'Compact player bar', hint: 'Fits track information, compact transport controls, seek, and popup volume into one small row.' },
+    { key: 'keepEmptyWorkspacePanelsOpen', title: 'Keep empty workspace panels open', hint: 'Leaves a dock panel in place after its last tab closes instead of letting neighboring panels fill the space.' },
+    { key: 'showIdlePlayerQuips', title: 'Show idle player quips', hint: 'Shows a randomly chosen quip in the idle player bar when the playlist or library has music.' },
+    { key: 'showTrackTitleInWindowTitle', title: 'Show track title in window title', hint: 'Shows the current track title in the main app window title. Turn it off to always show only "izci".' }
+  ];
+
   let localFontFamilies: string[] = [];
   let localFontsLoading = false;
   let localFontsError = '';
@@ -23,12 +39,7 @@
   function handleColorThemeChange(event: Event) { appearanceSettings.update({ colorTheme: (event.currentTarget as HTMLSelectElement).value as ColorTheme }); }
   function handleChameleonHueInput(event: Event) { appearanceSettings.update({ chameleonHue: Number((event.currentTarget as HTMLInputElement).value) }); }
   function handleChameleonSaturationInput(event: Event) { appearanceSettings.update({ chameleonSaturation: Number((event.currentTarget as HTMLInputElement).value) }); }
-  function handleArtworkPlayerColorsToggle(event: Event) { appearanceSettings.update({ useArtworkPlayerColors: checked(event) }); }
-  function handleCompactPlayerBarToggle(event: Event) { appearanceSettings.update({ compactPlayerBar: checked(event) }); }
-  function handleCompactColumnLayoutToggle(event: Event) { appearanceSettings.update({ keepLibraryColumnsVisibleInNarrowLayout: checked(event) }); }
-  function handleEmptyWorkspacePanelsToggle(event: Event) { appearanceSettings.update({ keepEmptyWorkspacePanelsOpen: checked(event) }); }
-  function handleIdlePlayerQuipsToggle(event: Event) { appearanceSettings.update({ showIdlePlayerQuips: checked(event) }); }
-  function handleWindowTitleToggle(event: Event) { appearanceSettings.update({ showTrackTitleInWindowTitle: checked(event) }); }
+  function handleAppearanceToggle(event: Event, key: BooleanAppearanceSetting) { appearanceSettings.update({ [key]: checked(event) }); }
   function handleFontFamilyChange(event: Event) { appearanceSettings.update({ fontFamily: (event.currentTarget as HTMLSelectElement).value }); }
 
   async function loadLocalFonts() {
@@ -61,28 +72,21 @@
   <div class="section">
     <h2>Window Theme</h2>
     <div class="field-grid">
-      <label class="field">
-        <div class="field-copy">
-          <span class="field-title">Color theme</span>
-        </div>
-        <div class="field-control">
+      <SettingsField title="Color theme" hint="Sets the global color theme.">
           <select value={$appearanceSettings.colorTheme} on:change={handleColorThemeChange}>
             {#each COLOR_THEME_OPTIONS as option}
               <option value={option.value}>{option.label}</option>
             {/each}
           </select>
-        </div>
-        <p class="field-hint">
-          Sets the global color theme.
-        </p>
-      </label>
+      </SettingsField>
 
       {#if $appearanceSettings.colorTheme === 'chameleon'}
-        <label class="field chameleon-hue-field">
-          <div class="field-copy">
-            <span class="field-title">Chameleon color</span>
-          </div>
-          <div class="field-control chameleon-slider-control">
+        <SettingsField
+          title="Chameleon color"
+          hint="Fine-tunes Chameleon's hue. This choice is remembered when you use another theme."
+          fieldClass="chameleon-hue-field"
+          controlClass="chameleon-slider-control"
+        >
             <input
               class="chameleon-hue-slider"
               type="range"
@@ -97,17 +101,14 @@
             <output class="chameleon-slider-output" style={`--swatch-hue: ${$appearanceSettings.chameleonHue}; --swatch-saturation: ${$appearanceSettings.chameleonSaturation}%`} aria-label={`${$appearanceSettings.chameleonHue} degrees`}>
               {$appearanceSettings.chameleonHue}°
             </output>
-          </div>
-          <p class="field-hint">
-            Fine-tunes Chameleon's hue. This choice is remembered when you use another theme.
-          </p>
-        </label>
+        </SettingsField>
 
-        <label class="field chameleon-saturation-field">
-          <div class="field-copy">
-            <span class="field-title">Chameleon saturation</span>
-          </div>
-          <div class="field-control chameleon-slider-control">
+        <SettingsField
+          title="Chameleon saturation"
+          hint="Controls color intensity without changing the theme's contrast or brightness."
+          fieldClass="chameleon-saturation-field"
+          controlClass="chameleon-slider-control"
+        >
             <input
               class="chameleon-saturation-slider"
               type="range"
@@ -122,39 +123,27 @@
             <output class="chameleon-slider-output" aria-label={`${$appearanceSettings.chameleonSaturation} percent`}>
               {$appearanceSettings.chameleonSaturation}%
             </output>
-          </div>
-          <p class="field-hint">
-            Controls color intensity without changing the theme's contrast or brightness.
-          </p>
-        </label>
+        </SettingsField>
       {/if}
 
-      <label class="field checkbox-field">
-        <div class="field-copy">
-          <span class="field-title">Use artwork colors for player</span>
-        </div>
-        <div class="field-control checkbox-control">
+      <SettingsField
+        title="Use artwork colors for player"
+        hint="Tints the player bar from the current artwork, with the selected theme as fallback."
+        checkbox
+      >
           <input
             type="checkbox"
             checked={$appearanceSettings.useArtworkPlayerColors}
-            on:change={handleArtworkPlayerColorsToggle}
+            on:change={(event) => handleAppearanceToggle(event, 'useArtworkPlayerColors')}
           />
-        </div>
-        <p class="field-hint">
-          Tints the player bar from the current artwork, with the selected theme as fallback.
-        </p>
-      </label>
+      </SettingsField>
     </div>
   </div>
 
   <div class="section">
     <h2>Interface</h2>
     <div class="field-grid">
-      <label class="field font-field">
-        <div class="field-copy">
-          <span class="field-title">Font</span>
-        </div>
-        <div class="field-control font-control">
+      <SettingsField title="Font" fieldClass="font-field" controlClass="font-control">
           <select value={$appearanceSettings.fontFamily} on:change={handleFontFamilyChange}>
             <option value={SYSTEM_FONT_FAMILY}>System</option>
             {#if $appearanceSettings.fontFamily !== SYSTEM_FONT_FAMILY && !localFontFamilies.includes($appearanceSettings.fontFamily)}
@@ -169,8 +158,7 @@
               {localFontsLoading ? 'Loading local fonts…' : 'Use local fonts…'}
             </a>
           {/if}
-        </div>
-        <p class="field-hint">
+        <svelte:fragment slot="hint">
           {#if localFontsError}
             {localFontsError}
           {:else if localFontAccessSupported}
@@ -178,89 +166,18 @@
           {:else}
             Local Font Access is not supported by this browser.
           {/if}
-        </p>
-      </label>
+        </svelte:fragment>
+      </SettingsField>
 
-      <label class="field checkbox-field">
-        <div class="field-copy">
-          <span class="field-title">Keep columns visible in narrow library panels</span>
-        </div>
-        <div class="field-control checkbox-control">
+      {#each INTERFACE_TOGGLES as toggle (toggle.key)}
+        <SettingsField title={toggle.title} hint={toggle.hint} checkbox>
           <input
             type="checkbox"
-            checked={$appearanceSettings.keepLibraryColumnsVisibleInNarrowLayout}
-            on:change={handleCompactColumnLayoutToggle}
+            checked={$appearanceSettings[toggle.key]}
+            on:change={(event) => handleAppearanceToggle(event, toggle.key)}
           />
-        </div>
-        <p class="field-hint">
-          Prevents the slim-window library view from collapsing to title-only rows.
-        </p>
-      </label>
-
-      <label class="field checkbox-field">
-        <div class="field-copy">
-          <span class="field-title">Compact player bar</span>
-        </div>
-        <div class="field-control checkbox-control">
-          <input
-            type="checkbox"
-            checked={$appearanceSettings.compactPlayerBar}
-            on:change={handleCompactPlayerBarToggle}
-          />
-        </div>
-        <p class="field-hint">
-          Fits track information, compact transport controls, seek, and popup volume into one small row.
-        </p>
-      </label>
-
-      <label class="field checkbox-field">
-        <div class="field-copy">
-          <span class="field-title">Keep empty workspace panels open</span>
-        </div>
-        <div class="field-control checkbox-control">
-          <input
-            type="checkbox"
-            checked={$appearanceSettings.keepEmptyWorkspacePanelsOpen}
-            on:change={handleEmptyWorkspacePanelsToggle}
-          />
-        </div>
-        <p class="field-hint">
-          Leaves a dock panel in place after its last tab closes instead of letting neighboring panels fill the space.
-        </p>
-      </label>
-
-      <label class="field checkbox-field">
-        <div class="field-copy">
-          <span class="field-title">Show idle player quips</span>
-        </div>
-        <div class="field-control checkbox-control">
-          <input
-            type="checkbox"
-            checked={$appearanceSettings.showIdlePlayerQuips}
-            on:change={handleIdlePlayerQuipsToggle}
-          />
-        </div>
-        <p class="field-hint">
-          Shows a randomly chosen quip in the idle player bar when the playlist or library has music.
-        </p>
-      </label>
-
-      <label class="field checkbox-field">
-        <div class="field-copy">
-          <span class="field-title">Show track title in window title</span>
-        </div>
-        <div class="field-control checkbox-control">
-          <input
-            type="checkbox"
-            checked={$appearanceSettings.showTrackTitleInWindowTitle}
-            on:change={handleWindowTitleToggle}
-          />
-        </div>
-
-        <p class="field-hint">
-          Shows the current track title in the main app window title. Turn it off to always show only "izci".
-        </p>
-      </label>
+        </SettingsField>
+      {/each}
     </div>
   </div>
 </article>

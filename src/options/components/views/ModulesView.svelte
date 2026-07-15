@@ -1,4 +1,5 @@
 <script lang="ts">
+  import SettingsField from '../SettingsField.svelte';
   import { DEFAULT_MODULE_PLAYBACK_SETTINGS, MODULE_INTERPOLATION_OPTIONS, modulePlaybackSettings } from '$lib/stores/module-playback-settings';
 
   let pendingStereoSeparation: number | null = null;
@@ -31,11 +32,7 @@
   <div class="section">
     <h2>Rendering</h2>
     <div class="field-grid">
-      <label class="field">
-        <div class="field-copy">
-          <span class="field-title">Stereo separation (MOD)</span>
-        </div>
-        <div class="field-control">
+      <SettingsField title="Stereo separation (MOD)">
           <input
             type="range"
             min="0"
@@ -47,15 +44,10 @@
             on:blur={(event) => commitDeferredRangeSetting(event, 'stereoSeparation')}
           />
           <span class="field-output">{stereoSeparationValue}%</span>
-        </div>
-        <p class="field-hint">Applies to <code>MOD</code> files. 0 = mono, 200 = hard stereo.</p>
-      </label>
+        <svelte:fragment slot="hint">Applies to <code>MOD</code> files. 0 = mono, 200 = hard stereo.</svelte:fragment>
+      </SettingsField>
 
-      <label class="field">
-        <div class="field-copy">
-          <span class="field-title">Pan strength</span>
-        </div>
-        <div class="field-control">
+      <SettingsField title="Pan strength" hint="Below 100 narrows the image, above 100 widens it.">
           <input
             type="range"
             min="0"
@@ -67,47 +59,29 @@
             on:blur={(event) => commitDeferredRangeSetting(event, 'panStrength')}
           />
           <span class="field-output">{panStrengthValue}%</span>
-        </div>
-        <p class="field-hint">Below 100 narrows the image, above 100 widens it.</p>
-      </label>
+      </SettingsField>
 
-      <label class="field">
-        <div class="field-copy">
-          <span class="field-title">Interpolation</span>
-        </div>
-        <div class="field-control">
+      <SettingsField title="Interpolation" hint={interpolationOption.hint}>
           <select value={$modulePlaybackSettings.interpolationFilter} on:change={handleInterpolationChange}>
             {#each MODULE_INTERPOLATION_OPTIONS as option}
               <option value={option.value}>{option.label}</option>
             {/each}
           </select>
-        </div>
-        <p class="field-hint">{interpolationOption.hint}</p>
-      </label>
+      </SettingsField>
     </div>
   </div>
 
   <div class="section">
     <h2>Playback</h2>
     <div class="field-grid">
-      <label class="field">
-        <div class="field-copy">
-          <span class="field-title">Looping</span>
-        </div>
-        <div class="field-control">
+      <SettingsField title="Looping" hint="Maps to libopenmpt repeat count.">
           <select value={repeatCountSelectValue} on:change={handleRepeatCountChange}>
             <option value="0">Play once</option>
             <option value="-1">Loop forever</option>
           </select>
-        </div>
-        <p class="field-hint">Maps to libopenmpt repeat count.</p>
-      </label>
+      </SettingsField>
 
-      <label class="field">
-        <div class="field-copy">
-          <span class="field-title">Tempo factor</span>
-        </div>
-        <div class="field-control">
+      <SettingsField title="Tempo factor" hint="Changes module playback speed without changing pitch.">
           <input
             type="range"
             min="25"
@@ -117,15 +91,9 @@
             on:input={(event) => handleRangeSettingChange(event, 'tempoFactor')}
           />
           <span class="field-output">{formatFactor($modulePlaybackSettings.tempoFactor)}</span>
-        </div>
-        <p class="field-hint">Changes module playback speed without changing pitch.</p>
-      </label>
+      </SettingsField>
 
-      <label class="field">
-        <div class="field-copy">
-          <span class="field-title">Pitch factor</span>
-        </div>
-        <div class="field-control">
+      <SettingsField title="Pitch factor" hint="Adjusts playback pitch relative to the module's original tuning.">
           <input
             type="range"
             min="25"
@@ -135,10 +103,7 @@
             on:input={(event) => handleRangeSettingChange(event, 'pitchFactor')}
           />
           <span class="field-output">{formatFactor($modulePlaybackSettings.pitchFactor)}</span>
-        </div>
-        <p class="field-hint">Adjusts playback pitch relative to the module's original tuning.</p>
-      </label>
+      </SettingsField>
     </div>
   </div>
 </article>
-

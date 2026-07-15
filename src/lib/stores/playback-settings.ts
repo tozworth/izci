@@ -1,5 +1,5 @@
 import type { PlaybackRestoreMode, PlaybackSettings, ReplayGainMode } from '$lib/types';
-import { createPersistentStore } from './persistent-store';
+import { createSettingsStore } from './persistent-store';
 
 export const PLAYBACK_SETTINGS_STORAGE_KEY = 'izci.playback-settings';
 export const PLAYBACK_SETTINGS_CHANNEL = 'izci-playback-settings';
@@ -58,18 +58,9 @@ function normalizeSettings(value: unknown): PlaybackSettings {
   };
 }
 
-const store = createPersistentStore({
+export const playbackSettings = createSettingsStore({
   storageKey: PLAYBACK_SETTINGS_STORAGE_KEY,
   channelName: PLAYBACK_SETTINGS_CHANNEL,
   defaultValue: DEFAULT_PLAYBACK_SETTINGS,
   normalize: normalizeSettings
 });
-
-export const playbackSettings = {
-  subscribe: store.subscribe,
-  getSnapshot: store.getSnapshot,
-  update(patch: Partial<PlaybackSettings>): PlaybackSettings {
-    return store.update((settings) => ({ ...settings, ...patch }));
-  },
-  reset: store.reset
-};

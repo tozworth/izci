@@ -1,4 +1,5 @@
 <script lang="ts">
+  import SettingsField from '../SettingsField.svelte';
   import {
     MIN_NOW_PLAYING_PANEL_AUTO_HIDE_SECONDS, NOW_PLAYING_PANEL_AUTO_HIDE_NEVER_SECONDS,
     appearanceSettings, normalizeNowPlayingPanelAutoHideDelaySeconds
@@ -23,27 +24,22 @@
   <div class="section">
     <h2>Now Playing</h2>
     <div class="field-grid">
-      <label class="field checkbox-field">
-        <div class="field-copy">
-          <span class="field-title">Open when maximized</span>
-        </div>
-        <div class="field-control checkbox-control">
+      <SettingsField
+        title="Open when maximized"
+        hint="Switches the main window to Now Playing while it is maximized or fullscreen."
+        checkbox
+      >
           <input
             type="checkbox"
             checked={$appearanceSettings.autoNowPlayingOnMaximized}
             on:change={handleAutoNowPlayingToggle}
           />
-        </div>
-        <p class="field-hint">
-          Switches the main window to Now Playing while it is maximized or fullscreen.
-        </p>
-      </label>
+      </SettingsField>
 
-      <label class="field">
-        <div class="field-copy">
-          <span class="field-title">Hide side chrome after</span>
-        </div>
-        <div class="field-control">
+      <SettingsField
+        title="Hide side chrome after"
+        hint="Fades the side tabs, pane fill, and close button after mouse inactivity."
+      >
           <input
             type="range"
             min={MIN_NOW_PLAYING_PANEL_AUTO_HIDE_SECONDS}
@@ -53,60 +49,43 @@
             on:input={handleNowPlayingPanelAutoHideChange}
           />
           <span class="field-output">{nowPlayingPanelAutoHideLabel}</span>
-        </div>
-        <p class="field-hint">
-          Fades the side tabs, pane fill, and close button after mouse inactivity.
-        </p>
-      </label>
+      </SettingsField>
 
-      <label class="field checkbox-field">
-        <div class="field-copy">
-          <span class="field-title">Always use artwork colors</span>
-        </div>
-        <div class="field-control checkbox-control">
+      <SettingsField
+        title="Always use artwork colors"
+        hint="Forces the focused player controls to use artwork colors. When off, Now Playing follows the main player setting."
+        checkbox
+      >
           <input
             type="checkbox"
             checked={$appearanceSettings.useNowPlayingArtworkPlayerColors}
             on:change={handleNowPlayingArtworkPlayerColorsToggle}
           />
-        </div>
-        <p class="field-hint">
-          Forces the focused player controls to use artwork colors. When off, Now Playing follows the main player setting.
-        </p>
-      </label>
+      </SettingsField>
 
-      <label class="field checkbox-field">
-        <div class="field-copy">
-          <span class="field-title">Auto switch to Theater</span>
-        </div>
-        <div class="field-control checkbox-control">
+      <SettingsField
+        title="Auto switch to Theater"
+        hint="Uses the large focused lyrics layout while Now Playing is active."
+        checkbox
+      >
           <input
             type="checkbox"
             checked={$appearanceSettings.lyrics.autoTheaterInNowPlaying}
             on:change={handleLyricsAutoTheaterToggle}
           />
-        </div>
-        <p class="field-hint">
-          Uses the large focused lyrics layout while Now Playing is active.
-        </p>
-      </label>
+      </SettingsField>
 
-      <label class="field checkbox-field">
-        <div class="field-copy">
-          <span class="field-title">Auto focus Lyrics tab</span>
-        </div>
-        <div class="field-control checkbox-control">
+      <SettingsField
+        title="Auto focus Lyrics tab"
+        hint="Opens Now Playing directly to the lyrics view."
+        checkbox
+      >
           <input
             type="checkbox"
             checked={$appearanceSettings.lyrics.autoFocusInNowPlaying}
             on:change={handleLyricsAutoFocusToggle}
           />
-        </div>
-        <p class="field-hint">
-          Opens Now Playing directly to the lyrics view.
-        </p>
-      </label>
+      </SettingsField>
     </div>
   </div>
 </article>
-

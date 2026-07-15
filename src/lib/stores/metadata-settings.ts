@@ -1,5 +1,5 @@
 import type { MetadataSettings } from '$lib/types';
-import { createPersistentStore } from './persistent-store';
+import { createSettingsStore } from './persistent-store';
 
 export const METADATA_SETTINGS_STORAGE_KEY = 'izci.metadata-settings';
 export const METADATA_SETTINGS_CHANNEL = 'izci.metadata-settings';
@@ -42,18 +42,9 @@ function normalizeSettings(value: unknown): MetadataSettings {
   };
 }
 
-const store = createPersistentStore({
+export const metadataSettings = createSettingsStore({
   storageKey: METADATA_SETTINGS_STORAGE_KEY,
   channelName: METADATA_SETTINGS_CHANNEL,
   defaultValue: DEFAULT_METADATA_SETTINGS,
   normalize: normalizeSettings
 });
-
-export const metadataSettings = {
-  subscribe: store.subscribe,
-  getSnapshot: store.getSnapshot,
-  update(patch: Partial<MetadataSettings>): MetadataSettings {
-    return store.update((settings) => ({ ...settings, ...patch }));
-  },
-  reset: store.reset
-};

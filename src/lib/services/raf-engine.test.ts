@@ -3,43 +3,7 @@ import { rafSettings } from '$lib/stores/raf-settings';
 import { playbackSettings } from '$lib/stores/playback-settings';
 import type { RafGraphicEqSettings } from '$lib/types';
 import { RafEngine, sameEffectSettings, sameTopology } from './raf-engine';
-
-class FakeParam {
-  value = 1;
-  ramps: number[] = [];
-  cancelScheduledValues(): void {}
-  setValueAtTime(value: number): void { this.value = value; }
-  linearRampToValueAtTime(value: number): void { this.value = value; this.ramps.push(value); }
-}
-
-class FakeNode {
-  connections: FakeNode[] = [];
-  disconnectCalls = 0;
-  connect(destination: FakeNode): FakeNode { this.connections.push(destination); return destination; }
-  disconnect(): void { this.disconnectCalls += 1; }
-}
-class FakeGain extends FakeNode { gain = new FakeParam(); }
-class FakeFilter extends FakeNode {
-  type: BiquadFilterType = 'lowpass';
-  frequency = new FakeParam();
-  Q = new FakeParam();
-  gain = new FakeParam();
-  getFrequencyResponse(_frequencies: Float32Array, magnitudes: Float32Array): void {
-    magnitudes.fill(10 ** (this.gain.value / 20));
-  }
-}
-class FakeAnalyser extends FakeNode {
-  fftSize = 2048;
-  getFloatTimeDomainData(samples: Float32Array): void { samples.fill(0); }
-}
-class FakeContext {
-  currentTime = 0;
-  gains: FakeGain[] = [];
-  filters: FakeFilter[] = [];
-  createGain(): GainNode { const node = new FakeGain(); this.gains.push(node); return node as unknown as GainNode; }
-  createBiquadFilter(): BiquadFilterNode { const node = new FakeFilter(); this.filters.push(node); return node as unknown as BiquadFilterNode; }
-  createAnalyser(): AnalyserNode { return new FakeAnalyser() as unknown as AnalyserNode; }
-}
+import { FakeContext } from './raf-effects/test-audio-context';
 
 describe('RafEngine', () => {
   beforeEach(() => {

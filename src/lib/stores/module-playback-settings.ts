@@ -1,5 +1,5 @@
 import type { ModuleInterpolationFilter, ModulePlaybackSettings } from '$lib/types';
-import { createPersistentStore } from './persistent-store';
+import { createSettingsStore } from './persistent-store';
 
 export const MODULE_PLAYBACK_SETTINGS_STORAGE_KEY = 'izci.module-playback-settings.v1';
 export const MODULE_PLAYBACK_SETTINGS_CHANNEL = 'izci-module-playback-settings';
@@ -76,18 +76,9 @@ function normalizeSettings(value: unknown): ModulePlaybackSettings {
   };
 }
 
-const store = createPersistentStore({
+export const modulePlaybackSettings = createSettingsStore({
   storageKey: MODULE_PLAYBACK_SETTINGS_STORAGE_KEY,
   channelName: MODULE_PLAYBACK_SETTINGS_CHANNEL,
   defaultValue: DEFAULT_MODULE_PLAYBACK_SETTINGS,
   normalize: normalizeSettings
 });
-
-export const modulePlaybackSettings = {
-  subscribe: store.subscribe,
-  getSnapshot: store.getSnapshot,
-  update(patch: Partial<ModulePlaybackSettings>): ModulePlaybackSettings {
-    return store.update((settings) => ({ ...settings, ...patch }));
-  },
-  reset: store.reset
-};

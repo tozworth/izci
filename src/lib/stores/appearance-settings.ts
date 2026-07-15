@@ -10,7 +10,7 @@ import type {
   LyricsDisplayStyle,
   LyricsSettings
 } from '$lib/types';
-import { createPersistentStore } from './persistent-store';
+import { createSettingsStore } from './persistent-store';
 
 export const APPEARANCE_SETTINGS_STORAGE_KEY = 'izci.appearance-settings';
 export const APPEARANCE_SETTINGS_CHANNEL = 'izci.appearance-settings';
@@ -393,18 +393,9 @@ function normalizeSettings(value: unknown): AppearanceSettings {
   };
 }
 
-const store = createPersistentStore({
+export const appearanceSettings = createSettingsStore({
   storageKey: APPEARANCE_SETTINGS_STORAGE_KEY,
   channelName: APPEARANCE_SETTINGS_CHANNEL,
   defaultValue: DEFAULT_APPEARANCE_SETTINGS,
   normalize: normalizeSettings
 });
-
-export const appearanceSettings = {
-  subscribe: store.subscribe,
-  getSnapshot: store.getSnapshot,
-  update(patch: Partial<AppearanceSettings>): AppearanceSettings {
-    return store.update((settings) => ({ ...settings, ...patch }));
-  },
-  reset: store.reset
-};

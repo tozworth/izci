@@ -1,5 +1,5 @@
 import type { TrackSettings } from '$lib/types';
-import { createPersistentStore } from './persistent-store';
+import { createSettingsStore } from './persistent-store';
 
 export const TRACK_SETTINGS_STORAGE_KEY = 'izci.track-settings';
 export const TRACK_SETTINGS_CHANNEL = 'izci.track-settings';
@@ -47,18 +47,9 @@ function normalizeSettings(value: unknown): TrackSettings {
   };
 }
 
-const store = createPersistentStore({
+export const trackSettings = createSettingsStore({
   storageKey: TRACK_SETTINGS_STORAGE_KEY,
   channelName: TRACK_SETTINGS_CHANNEL,
   defaultValue: DEFAULT_TRACK_SETTINGS,
   normalize: normalizeSettings
 });
-
-export const trackSettings = {
-  subscribe: store.subscribe,
-  getSnapshot: store.getSnapshot,
-  update(patch: Partial<TrackSettings>): TrackSettings {
-    return store.update((settings) => ({ ...settings, ...patch }));
-  },
-  reset: store.reset
-};

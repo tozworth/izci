@@ -1,4 +1,5 @@
 <script lang="ts">
+  import SettingsField from '../SettingsField.svelte';
   import {
     MAX_PLAY_COUNT_THRESHOLD_SECONDS, MIN_PLAY_COUNT_THRESHOLD_SECONDS,
     metadataSettings, normalizePlayCountThresholdSeconds
@@ -16,26 +17,19 @@
   <div class="section">
     <h2>Metadata Behavior</h2>
     <div class="field-grid">
-      <label class="field checkbox-field">
-        <div class="field-copy">
-          <span class="field-title">Infer artist/title from filename</span>
-        </div>
-        <div class="field-control field-control-checkbox">
+      <SettingsField title="Infer artist/title from filename" checkbox>
           <input
             type="checkbox"
             checked={$metadataSettings.inferFromFilename}
             on:change={handleMetadataToggle}
           />
-        </div>
-        <p class="field-hint">When enabled, izci parses filenames like <code>Artist - Title.ext</code> into metadata fields.</p>
-      </label>
+        <svelte:fragment slot="hint">When enabled, izci parses filenames like <code>Artist - Title.ext</code> into metadata fields.</svelte:fragment>
+      </SettingsField>
 
-      <label class="field">
-        <div class="field-copy">
-          <span class="field-title">Count track as played after (seconds)</span>
-          <p class="field-hint">Only tracks that are in the library update their play count.</p>
-        </div>
-        <div class="field-control">
+      <SettingsField
+        title="Count track as played after (seconds)"
+        hint="Only tracks that are in the library update their play count."
+      >
           <input
             type="number"
             min={MIN_PLAY_COUNT_THRESHOLD_SECONDS}
@@ -44,9 +38,7 @@
             value={$metadataSettings.playCountThresholdSeconds}
             on:change={handlePlayCountThresholdChange}
           />
-        </div>
-      </label>
+      </SettingsField>
     </div>
   </div>
 </article>
-

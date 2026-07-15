@@ -1,5 +1,5 @@
 import type { WorkspacePanelLayoutSettings } from '$lib/types';
-import { createPersistentStore } from './persistent-store';
+import { createSettingsStore } from './persistent-store';
 
 export const WORKSPACE_PANEL_LAYOUT_STORAGE_KEY = 'izci.workspace-panel-layout.v2';
 export const WORKSPACE_PANEL_LAYOUT_CHANNEL = 'izci-workspace-panel-layout';
@@ -54,21 +54,9 @@ function normalizeLayoutSettings(value: unknown): WorkspacePanelLayoutSettings {
   };
 }
 
-const store = createPersistentStore({
+export const workspacePanelLayout = createSettingsStore({
   storageKey: WORKSPACE_PANEL_LAYOUT_STORAGE_KEY,
   channelName: WORKSPACE_PANEL_LAYOUT_CHANNEL,
   defaultValue: DEFAULT_WORKSPACE_PANEL_LAYOUT,
   normalize: normalizeLayoutSettings
 });
-
-export const workspacePanelLayout = {
-  subscribe: store.subscribe,
-  getSnapshot: store.getSnapshot,
-  set(nextValue: WorkspacePanelLayoutSettings): WorkspacePanelLayoutSettings {
-    return store.set(nextValue);
-  },
-  update(patch: Partial<WorkspacePanelLayoutSettings>): WorkspacePanelLayoutSettings {
-    return store.update((settings) => ({ ...settings, ...patch }));
-  },
-  reset: store.reset
-};

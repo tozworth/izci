@@ -475,6 +475,11 @@
     activeScrollRowKey;
     maybeResumeAutoScroll();
   }
+  $: emptyStateMessage = !track
+    ? 'Play a track to view lyrics.'
+    : loading
+      ? 'Reading embedded lyrics...'
+      : loadError || (!lyrics ? 'No embedded lyrics found.' : '');
 </script>
 
 <section
@@ -504,34 +509,22 @@
     {/if}
   </div>
 
-  {#if !track}
+  {#if emptyStateMessage}
     <div class="empty-state align-start" class:tabbed-layout={isTabbedLayout}>
-      <p>Play a track to view lyrics.</p>
+      <p>{emptyStateMessage}</p>
     </div>
-  {:else if loading}
-    <div class="empty-state align-start" class:tabbed-layout={isTabbedLayout}>
-      <p>Reading embedded lyrics...</p>
-    </div>
-  {:else if loadError}
-    <div class="empty-state align-start" class:tabbed-layout={isTabbedLayout}>
-      <p>{loadError}</p>
-    </div>
-  {:else if !lyrics}
-    <div class="empty-state align-start" class:tabbed-layout={isTabbedLayout}>
-      <p>No embedded lyrics found.</p>
-    </div>
-  {:else if displayStyle === 'plain'}
+  {:else if displayStyle !== 'theater'}
     <div
-      class="lyrics-content plain-layout"
+      class="lyrics-content {displayStyle}-layout"
       class:tabbed-layout={isTabbedLayout}
       use:measureScroller
       on:wheel={pauseAutoScrollForUser}
       on:scroll={handleScrollerScroll}
     >
       {#if lyricLines.length === 0}
-        <pre>{plainText}</pre>
+        <pre class:untimed-fallback={displayStyle === 'timestamped'}>{plainText}</pre>
       {:else}
-        <ol class="lyrics-list" aria-label="Lyrics">
+        <ol class="lyrics-list" aria-label={displayStyle === 'plain' ? 'Lyrics' : 'Synced lyrics'}>
           {#each lyricLines as line, index (getLyricRowKey(index))}
             <li
               use:registerRow={getLyricRowKey(index)}
@@ -543,37 +536,9 @@
                 class="lyric-line-button"
                 on:click={() => handleLyricLineClick(line.time)}
               >
-                <span class="lyric-text">{line.text || '\u00a0'}</span>
-              </button>
-            </li>
-          {/each}
-        </ol>
-      {/if}
-    </div>
-  {:else if displayStyle === 'timestamped'}
-    <div
-      class="lyrics-content timestamped-layout"
-      class:tabbed-layout={isTabbedLayout}
-      use:measureScroller
-      on:wheel={pauseAutoScrollForUser}
-      on:scroll={handleScrollerScroll}
-    >
-      {#if lyricLines.length === 0}
-        <pre class="untimed-fallback">{plainText}</pre>
-      {:else}
-        <ol class="lyrics-list" aria-label="Synced lyrics">
-          {#each lyricLines as line, index (getLyricRowKey(index))}
-            <li
-              use:registerRow={getLyricRowKey(index)}
-              class:active={index === activeIndex}
-              class:past={index < activeIndex}
-            >
-              <button
-                type="button"
-                class="lyric-line-button"
-                on:click={() => handleLyricLineClick(line.time)}
-              >
-                <span class="lyric-time">{formatTimestamp(line.time)}</span>
+                {#if displayStyle === 'timestamped'}
+                  <span class="lyric-time">{formatTimestamp(line.time)}</span>
+                {/if}
                 <span class="lyric-text">{line.text || '\u00a0'}</span>
               </button>
             </li>

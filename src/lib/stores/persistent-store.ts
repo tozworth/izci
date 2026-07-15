@@ -14,6 +14,15 @@ export interface PersistentStoreController<T> extends Readable<T> {
   reset(): T;
 }
 
+export type SettingsStoreController<T extends object> = Omit<PersistentStoreController<T>, 'update'> & {
+  update(patch: Partial<T>): T;
+};
+
+export function createSettingsStore<T extends object>(options: PersistentStoreOptions<T>): SettingsStoreController<T> {
+  const store = createPersistentStore(options);
+  return { ...store, update: (patch) => store.update((value) => ({ ...value, ...patch })) };
+}
+
 export function createPersistentStore<T>({
   storageKey,
   channelName,

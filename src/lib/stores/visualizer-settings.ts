@@ -1,5 +1,5 @@
 import type { VisualizerColorSource, VisualizerSettings, VisualizerStyle } from '$lib/types';
-import { createPersistentStore } from './persistent-store';
+import { createSettingsStore } from './persistent-store';
 
 export const VISUALIZER_SETTINGS_STORAGE_KEY = 'izci.visualizer-settings';
 export const VISUALIZER_SETTINGS_CHANNEL = 'izci.visualizer-settings';
@@ -93,18 +93,9 @@ function normalizeSettings(value: unknown): VisualizerSettings {
   };
 }
 
-const store = createPersistentStore({
+export const visualizerSettings = createSettingsStore({
   storageKey: VISUALIZER_SETTINGS_STORAGE_KEY,
   channelName: VISUALIZER_SETTINGS_CHANNEL,
   defaultValue: DEFAULT_VISUALIZER_SETTINGS,
   normalize: normalizeSettings
 });
-
-export const visualizerSettings = {
-  subscribe: store.subscribe,
-  getSnapshot: store.getSnapshot,
-  update(patch: Partial<VisualizerSettings>): VisualizerSettings {
-    return store.update((settings) => ({ ...settings, ...patch }));
-  },
-  reset: store.reset
-};
