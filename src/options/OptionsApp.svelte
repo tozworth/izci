@@ -228,15 +228,17 @@
         <span class="material-symbols-outlined" aria-hidden="true">restart_alt</span>
       </button>
 
-      <button
-        class="tool-button"
-        type="button"
-        aria-label="Close Options"
-        title="Close Options"
-        on:click={closeOptions}
-      >
-        <span class="material-symbols-outlined" aria-hidden="true">close</span>
-      </button>
+      {#if embedded}
+        <button
+          class="tool-button"
+          type="button"
+          aria-label="Close Options"
+          title="Close Options"
+          on:click={closeOptions}
+        >
+          <span class="material-symbols-outlined" aria-hidden="true">close</span>
+        </button>
+      {/if}
     </div>
   </header>
 
