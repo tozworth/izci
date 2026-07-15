@@ -562,14 +562,6 @@ code {
   color: var(--muted);
 }
 
-.system-theme-warning {
-  margin: 0;
-  grid-column: 1 / -1;
-  color: #f59e0b;
-  font-size: 0.72rem;
-  line-height: 1.35;
-}
-
 .options-shell:not(.hints-expanded) .field-hint {
   display: none;
 }

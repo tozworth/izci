@@ -75,11 +75,6 @@
         <p class="field-hint">
           Sets the global color theme.
         </p>
-        {#if $appearanceSettings.colorTheme === 'system'}
-          <p class="system-theme-warning">
-            System theme is experimental and varies across browsers and operating systems.
-          </p>
-        {/if}
       </label>
 
       {#if $appearanceSettings.colorTheme === 'chameleon'}

@@ -85,7 +85,6 @@ export type ColorTheme =
   | 'gruvbox'
   | 'dracula'
   | 'ember'
-  | 'system'
   | 'chameleon';
 export type BackdropZoneId = 'left' | 'center' | 'right' | 'player' | 'nowPlaying';
 export type BackdropZoneEffect = 'none' | 'artwork' | 'visualizer' | 'both';
