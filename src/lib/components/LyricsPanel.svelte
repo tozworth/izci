@@ -1,6 +1,7 @@
 <script lang="ts">
   import { createEventDispatcher, onDestroy, tick } from 'svelte';
   import type { Readable } from 'svelte/store';
+  import { WINDOW_DISMISS_IGNORE_SCROLL_ATTRIBUTE } from '$lib/components/playlist-panel/actions/window-dismiss';
   import {
     buildTheaterLyricRows,
     findActiveLyricIndex,
@@ -178,20 +179,24 @@
 
   function clearProgrammaticScrollTimer(): void {
     if (programmaticScrollTimer === null) {
+      scroller?.removeAttribute(WINDOW_DISMISS_IGNORE_SCROLL_ATTRIBUTE);
       return;
     }
 
     clearTimeout(programmaticScrollTimer);
     programmaticScrollTimer = null;
+    scroller?.removeAttribute(WINDOW_DISMISS_IGNORE_SCROLL_ATTRIBUTE);
   }
 
   function markProgrammaticScroll(): void {
     isProgrammaticScroll = true;
     clearProgrammaticScrollTimer();
+    scroller?.setAttribute(WINDOW_DISMISS_IGNORE_SCROLL_ATTRIBUTE, '');
 
     programmaticScrollTimer = setTimeout(() => {
       isProgrammaticScroll = false;
       programmaticScrollTimer = null;
+      scroller?.removeAttribute(WINDOW_DISMISS_IGNORE_SCROLL_ATTRIBUTE);
     }, PROGRAMMATIC_SCROLL_MS);
   }
 
@@ -324,6 +329,8 @@
       return;
     }
 
+    clearProgrammaticScrollTimer();
+    isProgrammaticScroll = false;
     userScrollPaused = true;
     lastUserScrollAt = Date.now();
     scheduleUserScrollResumeCheck();
