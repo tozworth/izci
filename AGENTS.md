@@ -47,16 +47,16 @@ Working source tree:
 ## App source map
 
 - `src/main.ts`: Svelte mount, global CSS/material symbol import, and production-only handoff to the dedicated PWA registration/update service.
-- `src/App.svelte`: lean top-level composition root; wires stores/controllers, derives shell/backdrop state, coordinates View -> Now Playing and experimental single-page Options mode switching, and connects focused app controllers to the rendered menu, workspace, Options, and player surfaces.
+- `src/App.svelte`: lean top-level composition root; wires stores/controllers, derives shell/backdrop state, coordinates View -> Now Playing, and connects focused app controllers to the rendered menu, workspace, and player surfaces.
 - `src/app.css`: main app global stylesheet entrypoint; imports the shared theme tokens plus focused app-shell CSS files.
 - `src/lib/styles/themes.css`: shared color-theme tokens consumed by the main app and Options popup.
 - `src/lib/styles/app/`: focused main-window CSS split by ownership (`base`, `shell`, `menus`, `workspace`, `panels`, `player`).
 - `src/options/main.ts`: Options popup entry; mounts the dedicated popup Svelte app.
-- `src/options/OptionsApp.svelte`: reusable Options shell for the standalone popup and experimental main-window single-page mode; owns popup lifecycle, embedded close dispatch, navigation, breadcrumbs, page tools, reset dispatch, and Window Controls Overlay layout while delegating route content and store bindings to focused view components.
-- `src/options/components/views/`: focused Options route components for Appearance, Backdrops, Now Playing, Lyrics, Playback, Visualizer, Modules, Tracks, Metadata, Experimental, and About. Each settings view owns its page-specific store bindings and event handlers; Tracks owns the folder nesting limit and opt-in unknown-file verification, with Metadata presented as its subpage. Appearance owns local-font permission/loading UI. The UI also includes the empty-workspace-panel behavior toggle, the Now Playing side-chrome auto-hide timeout, and the window-title track-name toggle. The wide workspace backdrop zones and persisted dock-panel keys are positional: left, center, and right.
+- `src/options/OptionsApp.svelte`: standalone Options popup shell; owns popup lifecycle, navigation, breadcrumbs, page tools, reset dispatch, and Window Controls Overlay layout while delegating route content and store bindings to focused view components.
+- `src/options/components/views/`: focused Options route components for Appearance, Backdrops, Now Playing, Lyrics, Playback, Visualizer, Modules, Tracks, Metadata, and About. Each settings view owns its page-specific store bindings and event handlers; Tracks owns the folder nesting limit and opt-in unknown-file verification, with Metadata presented as its subpage. Appearance owns local-font permission/loading UI. The UI also includes the empty-workspace-panel behavior toggle, the Now Playing side-chrome auto-hide timeout, and the window-title track-name toggle. The wide workspace backdrop zones and persisted dock-panel keys are positional: left, center, and right.
 - `src/options/app.css`: Options popup styling.
 - `src/options/views.ts`: popup navigation/view metadata shared by the Options UI.
-- `src/options/components/raf/`: Raf rack view, legacy effect cards, the experimental split effects-list/cardless-editor workspace, and the Graphic EQ, Stereo Width, multiband Crystalizer, Sloptimizer, and stereo convolution Reverb settings editors. The attached sticky rack toolbar manages synchronized named presets and imports/exports normalized rack settings through the clipboard or JSON files. These components edit synchronized stores only and never own Web Audio nodes. Sloptimizer defaults to its one-slider Simple mode; Advanced mode exposes six tuned controls without changing DSP topology.
+- `src/options/components/raf/`: split effects-list/cardless-editor Raf workspace and the Graphic EQ, Stereo Width, multiband Crystalizer, Sloptimizer, and stereo convolution Reverb settings editors. The attached sticky rack toolbar manages synchronized named presets and imports/exports normalized rack settings through the clipboard or JSON files. These components edit synchronized stores only and never own Web Audio nodes. Sloptimizer defaults to its one-slider Simple mode; Advanced mode exposes six tuned controls without changing DSP topology.
 - `src/vite-env.d.ts`: Vite ambient types.
 - `src/**/*.test.ts`: Vitest unit tests for pure helpers/services.
 
@@ -72,7 +72,7 @@ UI only. Keep these focused on rendering and event dispatch.
 - `PlaylistPanel.svelte`: shared playlist/library composition shell; wires drag/drop import, selection events, library view settings, and the extracted playlist-panel subcomponents/helpers.
 - `TopMenuBar.svelte`: desktop-style File/View menu bar that also adapts to Window Controls Overlay state, exposes draggable titlebar regions, hides the version label while overlay mode is active, and collapses into a compact `izci` chevron menu when available titlebar space is tight.
 - `MenuSurface.svelte`: shared popup menu surface used by the compact titlebar menu; supports nested submenus plus in-place drilldown fallback when flyout submenus would overflow the window.
-- `TrackDetailsPanel.svelte`: selected-track metadata/details surface.
+- `TrackDetailsPanel.svelte`: selected-track metadata/details surface; suppresses album and album-artist rows that only repeat the title or artist.
 - `LyricsPanel.svelte`: transient embedded lyrics surface; loads Vorbis-comment lyrics on demand, parses synced LRC timestamps, and renders plain, timestamped, or Theater-style synced views against the shared playback snapshot.
 
 ### `src/lib/components/playlist-panel/`
@@ -171,7 +171,6 @@ Primary location for playback and browser-integration logic.
 - `visualizer-settings.ts`: persistent player visualizer settings (style, color source, height, opacity stored as transparency, and numeric spectrum-normalization strength), with sync.
 - `module-playback-settings.ts`: persistent tracker playback settings (repeat, stereo/pan, interpolation, tempo, pitch) with sync.
 - `metadata-settings.ts`: persistent metadata behavior settings, including filename-based artist/title inference and the library play-count threshold.
-- `experimental-settings.ts`: persistent opt-in settings for exploratory UI, currently Raf's effects-list/cardless-editor layout, single-page Options mode, and suppression of album/album-artist rows that repeat title/artist in Track Details, with `BroadcastChannel` sync.
 - `track-settings.ts`: persistent track-import settings for folder traversal depth, optional OpenMPT verification of files with unknown extensions, and whether OS-associated file launches add to or replace the playlist.
 - `player-volume.ts`: persistent player volume with sync across windows.
 - `workspace-panel-layout.ts`: persistent wide-layout workspace panel fractions for left/center/right resizing, with sync.
@@ -200,10 +199,10 @@ Primary location for playback and browser-integration logic.
 ## Experimental features
 
 - Treat requests to "add an experiment", "add experiment where...", or similar wording as opt-in exploratory UI unless the request explicitly gives the feature a permanent home.
-- Put experiment controls in Options -> Experimental (`src/options/components/views/ExperimentalView.svelte`) and persist their opt-in state in `src/lib/stores/experimental-settings.ts` with `BroadcastChannel` synchronization. Experiments should default to off.
+- When introducing the first active experiment, add an Options -> Experimental view and a synchronized `experimental-settings.ts` store for its opt-in state. Experiments should default to off.
 - Keep the experiment's runtime behavior in the normal architectural owner for that behavior: services/stores for logic and persistence, focused components for rendering and event dispatch. The Experimental Options page is the control surface, not a catch-all implementation file.
 - Experimental code must still preserve the core playback, offline PWA, persistence, and browser-integration rules in this document. Prefer a clean feature gate around the exploratory path so disabling it restores the established behavior.
-- Current experiments are Raf's effects-list/cardless-editor layout, the single-page Options mode that replaces the main shell while keeping the player bar visible, and suppression of duplicate album/album-artist rows in Track Details.
+- There are currently no active experiments. The cardless Raf workspace and duplicate Track Details suppression are permanent; the single-page Options prototype was removed.
 
 ## Architecture notes
 

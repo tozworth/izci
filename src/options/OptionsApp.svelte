@@ -1,7 +1,6 @@
 <script lang="ts">
-  import { createEventDispatcher, onMount } from 'svelte';
+  import { onMount } from 'svelte';
   import AboutView from './components/views/AboutView.svelte';
-  import ExperimentalView from './components/views/ExperimentalView.svelte';
   import AppearanceView from './components/views/AppearanceView.svelte';
   import BackdropsView from './components/views/BackdropsView.svelte';
   import LyricsView from './components/views/LyricsView.svelte';
@@ -20,7 +19,6 @@
   } from '$lib/services/options-window-state';
   import { appearanceSettings } from '$lib/stores/appearance-settings';
   import { metadataSettings } from '$lib/stores/metadata-settings';
-  import { experimentalSettings } from '$lib/stores/experimental-settings';
   import { modulePlaybackSettings } from '$lib/stores/module-playback-settings';
   import { playbackSettings } from '$lib/stores/playback-settings';
   import { rafSettings } from '$lib/stores/raf-settings';
@@ -35,21 +33,14 @@
     type OptionsViewName
   } from './views';
 
-  export let embedded = false;
-  export let initialView: OptionsViewName | undefined = undefined;
-
-  const dispatch = createEventDispatcher<{ close: void }>();
   const requestedView = getOptionsViewFromLocation(window.location);
-  let activeView: OptionsViewName = embedded
-    ? initialView ?? getOptionsWindowState().activeView
-    : window.location.search
-      ? requestedView
-      : getOptionsWindowState().activeView;
+  let activeView: OptionsViewName = window.location.search
+    ? requestedView
+    : getOptionsWindowState().activeView;
   if (activeView === 'raf' && !playbackSettings.getSnapshot().enableRaf) {
     activeView = 'playback';
   }
   let fieldHintsExpanded = false;
-  let lastHandledInitialView = initialView;
 
   function setActiveView(view: OptionsViewName) {
     if (view === 'raf' && !playbackSettings.getSnapshot().enableRaf) {
@@ -58,21 +49,10 @@
     activeView = view;
     rememberOptionsActiveView(view);
 
-    if (!embedded) {
-      const nextUrl = buildOptionsWindowPath(view);
-      if (`${window.location.pathname}${window.location.search}` !== nextUrl) {
-        window.history.replaceState(null, '', nextUrl);
-      }
+    const nextUrl = buildOptionsWindowPath(view);
+    if (`${window.location.pathname}${window.location.search}` !== nextUrl) {
+      window.history.replaceState(null, '', nextUrl);
     }
-  }
-
-  function closeOptions() {
-    if (embedded) {
-      dispatch('close');
-      return;
-    }
-
-    window.close();
   }
 
   function resetCurrentView() {
@@ -90,8 +70,6 @@
       trackSettings.reset();
     } else if (activeView === 'metadata') {
       metadataSettings.reset();
-    } else if (activeView === 'experimental') {
-      experimentalSettings.reset();
     }
   }
 
@@ -119,21 +97,15 @@
       }
     };
 
-    if (!embedded) {
-      window.addEventListener('popstate', syncActiveViewFromLocation);
-      window.addEventListener('resize', rememberWindowSize);
-    }
-    if (!embedded) {
-      window.addEventListener('message', handleMessage);
-      window.addEventListener('focus', closeIfMainWindowClosed);
-      document.addEventListener('visibilitychange', closeIfMainWindowClosed);
-    }
-    const openerCheckInterval = embedded ? null : window.setInterval(closeIfMainWindowClosed, 1000);
+    window.addEventListener('popstate', syncActiveViewFromLocation);
+    window.addEventListener('resize', rememberWindowSize);
+    window.addEventListener('message', handleMessage);
+    window.addEventListener('focus', closeIfMainWindowClosed);
+    document.addEventListener('visibilitychange', closeIfMainWindowClosed);
+    const openerCheckInterval = window.setInterval(closeIfMainWindowClosed, 1000);
 
     return () => {
-      if (openerCheckInterval !== null) {
-        window.clearInterval(openerCheckInterval);
-      }
+      window.clearInterval(openerCheckInterval);
       window.removeEventListener('popstate', syncActiveViewFromLocation);
       window.removeEventListener('message', handleMessage);
       window.removeEventListener('resize', rememberWindowSize);
@@ -154,23 +126,10 @@
   $: canResetCurrentView = activeViewDefinition.resettable;
   $: canToggleHints = activeViewDefinition.hasHints;
   $: hintToggleLabel = fieldHintsExpanded ? 'Collapse field hints' : 'Expand field hints';
-  $: if (embedded && initialView && initialView !== lastHandledInitialView) {
-    lastHandledInitialView = initialView;
-    setActiveView(initialView);
-  }
-  $: if (!embedded && $experimentalSettings.singlePageMode && window.opener) {
-    window.opener.postMessage(
-      { type: 'izci:open-options-single-page', view: activeView },
-      window.location.origin
-    );
-    window.close();
-  }
 </script>
 
 <svelte:head>
-  {#if !embedded}
-    <title>izci Options</title>
-  {/if}
+  <title>izci Options</title>
 </svelte:head>
 
 <svelte:window
@@ -228,17 +187,6 @@
         <span class="material-symbols-outlined" aria-hidden="true">restart_alt</span>
       </button>
 
-      {#if embedded}
-        <button
-          class="tool-button"
-          type="button"
-          aria-label="Close Options"
-          title="Close Options"
-          on:click={closeOptions}
-        >
-          <span class="material-symbols-outlined" aria-hidden="true">close</span>
-        </button>
-      {/if}
     </div>
   </header>
 
@@ -306,10 +254,6 @@
 
       {#if activeView === 'metadata'}
         <MetadataView />
-      {/if}
-
-      {#if activeView === 'experimental'}
-        <ExperimentalView />
       {/if}
 
       {#if activeView === 'about'}
