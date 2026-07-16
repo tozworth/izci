@@ -63,7 +63,7 @@
     if (value <= 20) return 'Subtle';
     if (value <= 50) return 'Ear candy';
     if (value <= 80) return 'Sludge';
-    if (value <= 90) return 'Fuck me up';
+    if (value <= 99) return 'Fuck me up';
     return 'OTT mode';
   }
 
