@@ -1,12 +1,42 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import { version as appVersion } from '../../../../package.json';
+  import {
+    applyAvailableServiceWorkerUpdate,
+    forceServiceWorkerUpdateCheck,
+    pwaUpdateCheckState
+  } from '$lib/services/pwa-updates';
   import { formatDisplayVersion } from '$lib/utils/version';
   const displayVersion = formatDisplayVersion(appVersion);
+
+  const successfulCheckFormatter = new Intl.DateTimeFormat(undefined, {
+    dateStyle: 'medium',
+    timeStyle: 'short'
+  });
+
+  $: updateStatusLabel = $pwaUpdateCheckState.status === 'checking'
+    ? 'Checking for updates'
+    : $pwaUpdateCheckState.status === 'available'
+      ? 'Update available'
+      : $pwaUpdateCheckState.status === 'up-to-date'
+        ? 'Up to date'
+        : $pwaUpdateCheckState.status === 'failed'
+          ? 'Failed to check updates'
+          : 'Checking for updates';
+
+  $: lastSuccessfulCheck = $pwaUpdateCheckState.lastSuccessfulCheck === null
+    ? 'No successful checks yet'
+    : `Last checked ${successfulCheckFormatter.format($pwaUpdateCheckState.lastSuccessfulCheck)}`;
+
+  onMount(() => {
+    void forceServiceWorkerUpdateCheck();
+  });
 </script>
 
 <article class="view">
   <div class="section about-section">
-    <div class="about-hero">
+    <div class="about-card">
+      <div class="about-hero">
       <div class="about-pattern" aria-hidden="true">
         <div class="about-pattern-fragment fragment-a">
           <span>00 C-3 01 428</span><span>01 ... .. ...</span><span>02 G-3 02 A06</span><span>03 ... .. ...</span>
@@ -18,17 +48,64 @@
           <span>38 C-5 04 C20</span><span>39 ... .. 401</span><span>3A F-4 02 037</span>
         </div>
       </div>
-      <div class="about-brand-lockup">
-        <img class="about-logo" src="/icons/izci-mark-light.svg" alt="izci logo" />
-        <div class="about-copy">
-          <p class="about-kicker">GOLDILOCKED / SLOPTIMIZED / WCO'D</p>
-          <h3 class="about-name">izci</h3>
-          <p class="about-tagline">PWA music player</p>
-          <div class="about-meta-row">
-            <span class="about-version">v{displayVersion}</span>
-            <span>Toz · 2026</span>
+        <div class="about-brand-lockup">
+          <img class="about-logo" src="/icons/izci-mark-light.svg" alt="izci logo" />
+          <div class="about-copy">
+            <p class="about-kicker">GOLDILOCKED / SLOPTIMIZED / WCO'D</p>
+            <h3 class="about-name">izci</h3>
+            <p class="about-tagline">PWA music player</p>
+            <div class="about-meta-row">
+              <span class="about-version">v{displayVersion}</span>
+              <span>Toz · 2026</span>
+            </div>
           </div>
         </div>
+      </div>
+
+      <div class="about-extension">
+        <div
+          class="about-update-status"
+          class:update-checking={$pwaUpdateCheckState.status === 'checking'}
+          class:update-available={$pwaUpdateCheckState.status === 'available'}
+          class:update-failed={$pwaUpdateCheckState.status === 'failed'}
+          aria-live="polite"
+        >
+          <span class="about-update-indicator" aria-hidden="true"></span>
+          <span class="about-update-copy">
+            <strong>{updateStatusLabel}</strong>
+            {#if $pwaUpdateCheckState.status === 'available'}
+              <button type="button" on:click={() => void applyAvailableServiceWorkerUpdate()}>
+                Click to update and restart
+              </button>
+            {:else}
+              <span>{lastSuccessfulCheck}</span>
+            {/if}
+          </span>
+          {#if $pwaUpdateCheckState.status === 'up-to-date' || $pwaUpdateCheckState.status === 'failed'}
+            <button
+              class="about-update-refresh"
+              type="button"
+              aria-label="Check for updates again"
+              title="Check for updates again"
+              on:click={() => void forceServiceWorkerUpdateCheck()}
+            >
+              <span class="material-symbols-outlined" aria-hidden="true">refresh</span>
+            </button>
+          {/if}
+        </div>
+
+        <a
+          class="about-github-badge"
+          href="https://github.com/dunsparce9/izci"
+          target="_blank"
+          rel="noreferrer"
+          aria-label="Open dunsparce9/izci on GitHub"
+        >
+          <svg class="about-github-icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path fill="currentColor" d="M12 .7a11.6 11.6 0 0 0-3.7 22.6c.6.1.8-.3.8-.6v-2.2c-3.4.7-4.1-1.4-4.1-1.4-.5-1.4-1.3-1.8-1.3-1.8-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1.1 1.8 2.8 1.3 3.5 1 .1-.8.4-1.3.8-1.6-2.7-.3-5.5-1.3-5.5-5.8 0-1.3.5-2.3 1.2-3.1-.1-.3-.5-1.5.1-3.1 0 0 1-.3 3.2 1.2a11 11 0 0 1 5.8 0c2.2-1.5 3.2-1.2 3.2-1.2.6 1.6.2 2.8.1 3.1.8.8 1.2 1.8 1.2 3.1 0 4.5-2.8 5.5-5.5 5.8.4.4.8 1.1.8 2.2v3.2c0 .3.2.7.8.6A11.6 11.6 0 0 0 12 .7Z" />
+          </svg>
+          <span>dunsparce9/izci</span>
+        </a>
       </div>
     </div>
   </div>
