@@ -9,9 +9,12 @@ A local music player [PWA](https://en.wikipedia.org/wiki/Progressive_web_app). I
 
 izci is mostly a personal hobby project. It has already reached "daily driver" status, but is still missing many, many features that will be added once I realize they're missing.
 
+<img height="100" alt="image" src="https://github.com/user-attachments/assets/46484154-ec92-4497-b4d6-205cf3bff271" />
+
+
 ## Features
 
-- Plays most audio files (`mp3`, `wav`, `flac`, `ogg`, and `opus`) and tracker modules (`mod`, `xm`, `s3m`, `it`, `mo3` and more)
+- Plays common audio files (`mp3`, `wav`, `flac`, `ogg`, and `opus`) and tracker modules (`mod`, `xm`, `s3m`, `it`, `mo3` and more via included OpenMPT library)
 - Imports files/folders through the File System Access API
 - OS-level file associations via the Launch Queue API
 - Reads embedded metadata, artwork, time-synced lyrics, ReplayGain, module instrument names
@@ -20,7 +23,6 @@ izci is mostly a personal hobby project. It has already reached "daily driver" s
 - Optional Web Audio effects rack with presets and import/export
   - EQ, stereo width, crystalizer, loudness processing, and convolution reverb
 - Works offline after installation and does not require a backend
-  - PWAs are wonderful aren't they
 
 > [!WARNING]
 > izci attempts to use every obscure Project Fugu-adjacent feature/API it can get its hands on. It's essentially a PWA stress test.
