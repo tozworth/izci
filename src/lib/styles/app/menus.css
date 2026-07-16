@@ -265,3 +265,11 @@ body:has(.menu-list[data-menu-interactive='true']) .menu-brand {
 .menu-version-indicator .menu-update-completed {
   color: #9ee6aa;
 }
+
+.menu-version-indicator .menu-update-current {
+  color: #79dce8;
+}
+
+.menu-version-indicator .menu-update-failed {
+  color: #f2bd7d;
+}

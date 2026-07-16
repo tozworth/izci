@@ -7,8 +7,23 @@ const UPDATE_NOTICE_DURATION_MS = 2_000;
 const UPDATE_NOTICE_SESSION_KEY = 'izci.pwa-update-completed';
 
 let checkForServiceWorkerUpdate: ((force?: boolean) => Promise<void>) | null = null;
+let updateNoticeTimeout: number | null = null;
 
-export const pwaUpdateCompleted = writable(false);
+export type PwaUpdateStatus = 'idle' | 'updated' | 'up-to-date' | 'failed';
+
+export const pwaUpdateStatus = writable<PwaUpdateStatus>('idle');
+
+function showUpdateNotice(status: Exclude<PwaUpdateStatus, 'idle'>): void {
+  if (updateNoticeTimeout !== null) {
+    window.clearTimeout(updateNoticeTimeout);
+  }
+
+  pwaUpdateStatus.set(status);
+  updateNoticeTimeout = window.setTimeout(() => {
+    pwaUpdateStatus.set('idle');
+    updateNoticeTimeout = null;
+  }, UPDATE_NOTICE_DURATION_MS);
+}
 
 function showCompletedUpdateNotice(): void {
   if (sessionStorage.getItem(UPDATE_NOTICE_SESSION_KEY) !== 'true') {
@@ -16,20 +31,31 @@ function showCompletedUpdateNotice(): void {
   }
 
   sessionStorage.removeItem(UPDATE_NOTICE_SESSION_KEY);
-  pwaUpdateCompleted.set(true);
-  window.setTimeout(() => {
-    pwaUpdateCompleted.set(false);
-  }, UPDATE_NOTICE_DURATION_MS);
+  showUpdateNotice('updated');
 }
 
 export async function forceServiceWorkerUpdateCheck(): Promise<void> {
-  if (!checkForServiceWorkerUpdate) {
-    const registration = await navigator.serviceWorker?.getRegistration();
-    await registration?.update();
-    return;
-  }
+  try {
+    if (!navigator.onLine) {
+      throw new Error('Cannot check for an update while offline.');
+    }
 
-  await checkForServiceWorkerUpdate(true);
+    if (!checkForServiceWorkerUpdate) {
+      const registration = await navigator.serviceWorker?.getRegistration();
+      if (!registration) {
+        throw new Error('No service worker registration is available.');
+      }
+
+      await registration.update();
+    } else {
+      await checkForServiceWorkerUpdate(true);
+    }
+
+    showUpdateNotice('up-to-date');
+  } catch (error) {
+    console.warn('Failed to force a service worker update check.', error);
+    showUpdateNotice('failed');
+  }
 }
 
 export function registerAppServiceWorker(): void {
@@ -59,6 +85,10 @@ export function registerAppServiceWorker(): void {
     try {
       await registration.update();
     } catch (error) {
+      if (force) {
+        throw error;
+      }
+
       console.warn('Failed to check for a service worker update.', error);
     } finally {
       updateInFlight = false;

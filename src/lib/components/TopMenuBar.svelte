@@ -1,9 +1,11 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import { onDestroy } from 'svelte';
+  import { get } from 'svelte/store';
+  import { fade } from 'svelte/transition';
   import { version as appVersion } from '../../../package.json';
   import MenuSurface from '$lib/components/MenuSurface.svelte';
-  import { pwaUpdateCompleted } from '$lib/services/pwa-updates';
+  import { pwaUpdateStatus, type PwaUpdateStatus } from '$lib/services/pwa-updates';
   import { windowControlsOverlayState } from '$lib/services/window-controls-overlay';
   import type { MenuActionItem } from '$lib/types';
   import { formatDisplayVersion } from '$lib/utils/version';
@@ -104,6 +106,19 @@
   let menubarPressPointerId: number | null = null;
   let suppressNextRootClick = false;
   let installHintPresentedInOpenMenu = false;
+  let displayedUpdateStatus: PwaUpdateStatus = get(pwaUpdateStatus);
+  let pendingUpdateStatus = displayedUpdateStatus;
+  let updateIndicatorVisible = true;
+
+  $: if ($pwaUpdateStatus !== pendingUpdateStatus) {
+    pendingUpdateStatus = $pwaUpdateStatus;
+    updateIndicatorVisible = false;
+  }
+
+  function handleUpdateIndicatorOutroEnd() {
+    displayedUpdateStatus = pendingUpdateStatus;
+    updateIndicatorVisible = true;
+  }
 
   $: fileMenuItems = [
     ...BASE_FILE_MENU_ITEMS.slice(0, 2),
@@ -505,10 +520,25 @@
     >
         <strong>izci</strong>
         <span class="menu-version-indicator">
-          {#if $pwaUpdateCompleted}
-            <span class="menu-update-completed">updated!</span>
-          {:else}
-            <span>{displayVersion}</span>
+          {#if updateIndicatorVisible}
+            <span
+              class:menu-update-completed={displayedUpdateStatus === 'updated'}
+              class:menu-update-current={displayedUpdateStatus === 'up-to-date'}
+              class:menu-update-failed={displayedUpdateStatus === 'failed'}
+              in:fade={{ duration: 240 }}
+              out:fade={{ duration: 240 }}
+              on:outroend={handleUpdateIndicatorOutroEnd}
+            >
+              {#if displayedUpdateStatus === 'updated'}
+                updated!
+              {:else if displayedUpdateStatus === 'up-to-date'}
+                up to date
+              {:else if displayedUpdateStatus === 'failed'}
+                update check failed
+              {:else}
+                {displayVersion}
+              {/if}
+            </span>
           {/if}
         </span>
     </div>

@@ -6,7 +6,6 @@
 
 <article class="view">
   <div class="section about-section">
-    <h2>About</h2>
     <div class="about-hero">
       <div class="about-pattern" aria-hidden="true">
         <div class="about-pattern-fragment fragment-a">
@@ -24,7 +23,7 @@
         <div class="about-copy">
           <p class="about-kicker">GOLDILOCKED / SLOPTIMIZED / WCO'D</p>
           <h3 class="about-name">izci</h3>
-          <p class="about-tagline">Experimental PWA music player</p>
+          <p class="about-tagline">PWA music player</p>
           <div class="about-meta-row">
             <span class="about-version">v{displayVersion}</span>
             <span>Toz · 2026</span>
@@ -35,12 +34,17 @@
   </div>
 
   <div class="section">
-    <h2>Features</h2>
     <ul class="feature-list">
-      <li><span class="material-symbols-outlined feature-icon" aria-hidden="true">music_note</span><span>Plays usual streamed formats and tracker modules. It plays tracker modules!!!</span></li>
+      <li>
+        <span class="material-symbols-outlined feature-icon" aria-hidden="true">music_note</span>
+        <span>Plays usual streamed formats and tracker modules<small class="feature-note">It plays tracker modules!!!</small></span>
+      </li>
       <li><span class="material-symbols-outlined feature-icon" aria-hidden="true">auto_stories</span><span>A decent library with artwork, lyrics, and play counts</span></li>
       <li><span class="material-symbols-outlined feature-icon" aria-hidden="true">tab_group</span><span>Dockable tabbed workspace, a big moody Now Playing view, and a mini mode</span></li>
-      <li><span class="material-symbols-outlined feature-icon" aria-hidden="true">desktop_windows</span><span>PWA niceties: file associations, media keys, custom window border</span></li>
+      <li>
+        <span class="material-symbols-outlined feature-icon" aria-hidden="true">desktop_windows</span>
+        <span>PWA niceties: file associations, media keys, custom window border<small class="feature-note">Only if your browser respects them (works on my machine)</small></span>
+      </li>
       <li><span class="material-symbols-outlined feature-icon" aria-hidden="true">palette</span><span>Per-zone artwork and visualizer backdrops</span></li>
       <li><span class="material-symbols-outlined feature-icon" aria-hidden="true">tune</span><span>Raf: a tiny effects rack</span></li>
       <li>
