@@ -61,6 +61,14 @@ Vite will print the local address, which you can then open in "any browser" (see
 
 [Svelte](https://svelte.dev/), [Vite](https://vite.dev/), [Howler.js](https://howlerjs.com/) (standard audio formats), [Chiptune3](https://github.com/DrSnuggles/chiptune) (tracker modules; based on libopenmpt WASM).
 
+## License
+
+izci's original code and documentation are licensed under the MIT License.
+Bundled third-party components remain under their respective licenses,
+including MIT-licensed Chiptune3, Howler.js, and Svelte; BSD-3-Clause-licensed
+libopenmpt; and Apache-2.0-licensed Material Symbols. See [LICENSE.md](LICENSE.md)
+for the full license and third-party notices.
+
 ## Name
 
 “İzci” means “tracker”/“scout” in Turkish. The intentionally lowercase ASCII spelling keeps the package and file names uneventful.
