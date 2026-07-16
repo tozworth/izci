@@ -3,6 +3,7 @@ import { MODULE_EXTENSIONS } from '$lib/types';
 
 import {
   buildPlaylistItems,
+  extractDroppedContent,
   extractDroppedFiles,
   inferArtistTitleFromFileName,
   inferExtension,
@@ -155,5 +156,29 @@ describe('file helpers', () => {
 
     expect(items).toHaveLength(1);
     expect(items[0].path).toBe('Music/Sub/Legacy.it');
+  });
+
+  it('collects reusable directory handles and their files in one drop traversal', async () => {
+    const track = fileHandle(new File(['track'], 'Track.flac'));
+    const folder = directoryHandle('Music', [track]);
+    let handleReads = 0;
+    const dataTransfer = {
+      items: [
+        {
+          getAsFileSystemHandle: async () => {
+            handleReads += 1;
+            return folder;
+          }
+        }
+      ],
+      files: []
+    } as unknown as DataTransfer;
+
+    const dropped = await extractDroppedContent(dataTransfer);
+
+    expect(handleReads).toBe(1);
+    expect(dropped.directoryHandles).toEqual([folder]);
+    expect(dropped.files).toMatchObject([{ name: 'Track.flac' }]);
+    expect(buildPlaylistItems(dropped.files)[0].path).toBe('Music/Track.flac');
   });
 });

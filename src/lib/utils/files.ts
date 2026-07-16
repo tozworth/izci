@@ -302,11 +302,17 @@ export async function readFileHandleFiles(handles: FileSystemFileHandle[]): Prom
   return await Promise.all(handles.map((handle) => readFileHandle(handle)));
 }
 
-export async function extractDroppedFiles(
+export interface DroppedContent {
+  files: File[];
+  directoryHandles: FileSystemDirectoryHandle[];
+}
+
+export async function extractDroppedContent(
   dataTransfer: DataTransfer,
   options: DirectoryReadOptions = {}
-): Promise<File[]> {
+): Promise<DroppedContent> {
   const files: File[] = [];
+  const directoryHandles: FileSystemDirectoryHandle[] = [];
   const seen = new Set<string>();
 
   const pushFile = (file: File | null, source: ImportedFileSource = {}) => {
@@ -336,7 +342,9 @@ export async function extractDroppedFiles(
     }
 
     if (handle?.kind === 'directory') {
-      const directoryFiles = await readDirectoryFiles(handle as FileSystemDirectoryHandle, options);
+      const directoryHandle = handle as FileSystemDirectoryHandle;
+      directoryHandles.push(directoryHandle);
+      const directoryFiles = await readDirectoryFiles(directoryHandle, options);
 
       for (const file of directoryFiles) {
         pushFile(file);
@@ -372,14 +380,21 @@ export async function extractDroppedFiles(
   }
 
   if (files.length > 0) {
-    return files;
+    return { files, directoryHandles };
   }
 
   for (const file of Array.from(dataTransfer.files)) {
     pushFile(file);
   }
 
-  return files;
+  return { files, directoryHandles };
+}
+
+export async function extractDroppedFiles(
+  dataTransfer: DataTransfer,
+  options: DirectoryReadOptions = {}
+): Promise<File[]> {
+  return (await extractDroppedContent(dataTransfer, options)).files;
 }
 
 export function getTrackDisplayTitle(item: PlaylistItem | null): string {

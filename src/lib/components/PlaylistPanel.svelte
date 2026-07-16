@@ -12,9 +12,8 @@
     PlaylistSelection
   } from '$lib/types';
   import { prepareImportedFiles } from '$lib/services/file-verification';
-  import { getDroppedDirectoryHandles } from '$lib/services/filesystem-folders';
   import { trackSettings } from '$lib/stores/track-settings';
-  import { extractDroppedFiles } from '$lib/utils/files';
+  import { extractDroppedContent } from '$lib/utils/files';
   import PlaylistPanelHeader from '$lib/components/playlist-panel/PlaylistPanelHeader.svelte';
   import LibraryColumnsHeader from '$lib/components/playlist-panel/LibraryColumnsHeader.svelte';
   import TrackList from '$lib/components/playlist-panel/TrackList.svelte';
@@ -102,14 +101,14 @@
       return;
     }
 
-    const folderHandles = await getDroppedDirectoryHandles(event.dataTransfer);
-    if (folderHandles.length > 0) {
-      dispatch('addFolders', folderHandles);
-    }
-
-    const discoveredFiles = await extractDroppedFiles(event.dataTransfer, {
+    const { files: discoveredFiles, directoryHandles } = await extractDroppedContent(event.dataTransfer, {
       maxDepth: trackSettings.getSnapshot().folderNestingLimit
     });
+
+    if (directoryHandles.length > 0) {
+      dispatch('addFolders', directoryHandles);
+    }
+
     const files = await prepareImportedFiles(discoveredFiles);
 
     if (files.length > 0) {
