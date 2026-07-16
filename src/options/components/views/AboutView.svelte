@@ -22,13 +22,13 @@
     <h2>Features</h2>
     <ul class="feature-list">
       <li>Plays usual streamed formats and tracker modules. It plays tracker modules!!!</li>
-      <li>Local-first and offline-capable</li>
-      <li>Persistent playlists and a proper library, with metadata, artwork, lyrics, and play counts</li>
-      <li>Dockable workspaces, a big moody Now Playing view, and a mini mode</li>
-      <li>Desktop PWA niceties: file associations, media keys, launch handling, custom window chrome</li>
+      <li>A decent library with artwork, lyrics, and play counts</li>
+      <li>Dockable tabbed workspace, a big moody Now Playing view, and a mini mode</li>
+      <li>PWA niceties: file associations, media keys, custom window border</li>
       <li>Per-zone artwork and visualizer backdrops</li>
-      <li>Raf: a tiny effects rack, with the usual suspects</li>
-      <li>"izci" means “tracker” in Turkish; well closer to “scout” but it was cute and the name stuck</li>
+      <li>Raf: a tiny effects rack</li>
+      <li>"izci" means “tracker” in Turkish*</li>
+      <li>*It's actually closer to “scout” but it was cute and the name stuck</li>
     </ul>
   </div>
 </article>
