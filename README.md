@@ -2,28 +2,34 @@
 
 ## izci
 
-A local music player PWA. It plays regular audio files and tracker modules from the same library.
+A local music player PWA.
+
+It plays regular audio files and tracker modules, with a compact interface, low CPU usage, and many interface modes with goldilocks-tier knobs/switches. It has already reached "daily driver" state, however is still missing many, many features that will be added once I realize they're missing.
 
 ## What it does
 
-- Plays streamed audio (`mp3`, `wav`, `flac`, `ogg`, and `opus`) alongside tracker modules (`mod`, `xm`, `s3m`, `it`, `mo3`, and other formats supported by the bundled OpenMPT build)
-- Imports individual files or folders through Chromium's File System Access APIs, with familiar fallbacks where those APIs are unavailable
-- Keeps separate playlist and library collections, stored locally in IndexedDB
-- Reads embedded metadata, artwork, lyrics, ReplayGain data, and tracker details where the format allows it
-- Provides dockable Playlist, Library, Track Details, and Lyrics views, plus a focused Now Playing layout
-- Includes artwork and spectrum visualizer backdrops, synced lyrics, media-key support, and desktop-oriented window controls
-- Offers an optional Web Audio effects rack with EQ, stereo width, crystalizer, loudness processing, and convolution reverb
+- Plays music.
+  - Streamed audio (`mp3`, `wav`, `flac`, `ogg`, and `opus`) alongside tracker modules (`mod`, `xm`, `s3m`, `it`, `mo3` and more)
+- Imports files/folders through File System Access API
+- **OS-level file associations** and launch handling via launchQueue
+- Reads embedded metadata, artwork, timesynced lyrics, ReplayGain, module instrument names / notes
+- Dockable Playlist, Library, Track Details, and Lyrics views
+  - Includes big moody blurry "Now Playing" mode (Apple Music theater mode larp)
+- Optional Web Audio effects rack with presets and import/export
+  - EQ, stereo width, crystalizer, loudness processing, and convolution reverb
 - **Works offline after PWA installation and does not require a backend**
+  - PWAs are wonderful aren't they
 
-Streamed formats use Howler.js in HTML5 audio mode, tracker modules use Chiptune3 and Web Audio.
+Streamed formats use Howler.js, tracker modules use Chiptune3 (which in turn uses libopenmpt WASM).
 
-## What to know
-
-izci targets desktop Chromium-adjacent browsers and installed PWA use. Since there are 50 quadrillion Chromium browsers, some of them may or may not support all relevant PWA features (File System Access API, Window Controls Overlay, Web Audio API) that make izci actually usable.
-
-Edge and Helium work fine.
-
-The project is currently pre-alpha and mainly used for personal testing. Features move around, saved state may be reset between versions, and there is no migration promise yet.
+> [!WARNING]
+> izci attempts to use every obscure Project Fugu-adjacent feature/API it can get its hands on. It's essentially a PWA stress test.
+> 
+> Since there are 50 quadrillion Chromium browsers, some may not support all the features that make izci actually usable: the File System Access API, Web Audio API, WebAssembly (for OpenMPT), and Launch Queue API (for file associations), plus UI/UX niceties such as Window Controls Overlay (custom chrome) and the Local Font Access API.
+>
+> * Edge and Helium work fine.
+> * Firefox works (though web apps are [Windows only](https://support.mozilla.org/en-US/kb/web-apps-firefox-windows), and window borders will be slightly thicker without WCO).
+> * Safari explodes.
 
 ## Run / install
 
@@ -40,14 +46,15 @@ npm install
 npm run dev
 ```
 
-Vite will print the local address. Open it in Chrome-or-what-have-you.
-
-```sh
-npm run check   # Svelte and TypeScript checks
-npm test        # unit tests
-npm run build   # production PWA build
-npm run preview # serve the production build locally
-```
+Vite will print the local address, which you can then open in ~~Helium~~ "any browser".
+> [!TIP]
+> Useful commands:
+> ```sh
+> npm run check   # Svelte and TypeScript checks
+> npm test        # unit tests
+> npm run build   # production PWA build
+> npm run preview # serve the production build locally
+> ```
 
 The production build is written to `dist/`.
 
