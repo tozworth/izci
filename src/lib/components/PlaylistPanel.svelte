@@ -12,6 +12,7 @@
     PlaylistSelection
   } from '$lib/types';
   import { prepareImportedFiles } from '$lib/services/file-verification';
+  import { getDroppedDirectoryHandles } from '$lib/services/filesystem-folders';
   import { trackSettings } from '$lib/stores/track-settings';
   import { extractDroppedFiles } from '$lib/utils/files';
   import PlaylistPanelHeader from '$lib/components/playlist-panel/PlaylistPanelHeader.svelte';
@@ -58,6 +59,7 @@
 
   const dispatch = createEventDispatcher<{
     addFiles: FileList | File[];
+    addFolders: FileSystemDirectoryHandle[];
     openFiles: void;
     select: { id: string; range: boolean; toggle: boolean };
     setSelection: PlaylistSelection;
@@ -98,6 +100,11 @@
 
     if (!event.dataTransfer) {
       return;
+    }
+
+    const folderHandles = await getDroppedDirectoryHandles(event.dataTransfer);
+    if (folderHandles.length > 0) {
+      dispatch('addFolders', folderHandles);
     }
 
     const discoveredFiles = await extractDroppedFiles(event.dataTransfer, {

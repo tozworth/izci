@@ -301,7 +301,7 @@ export interface PlaylistItem {
   file?: File;
   fileHandle?: FileSystemFileHandle;
   path?: string;
-  folder?: string;
+  sourceFolderId?: string;
   name: string;
   extension: string;
   kind: TrackKind;

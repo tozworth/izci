@@ -76,9 +76,9 @@ describe('file helpers', () => {
     const files = await readDirectoryFiles(root);
     const items = buildPlaylistItems(files);
 
-    expect(items.map((item) => ({ name: item.name, path: item.path, folder: item.folder }))).toEqual([
-      { name: 'Nested.mod', path: 'Music/Artist/Album/Nested.mod', folder: 'Music/Artist/Album' },
-      { name: 'Root.xm', path: 'Music/Root.xm', folder: 'Music' }
+    expect(items.map((item) => ({ name: item.name, path: item.path }))).toEqual([
+      { name: 'Nested.mod', path: 'Music/Artist/Album/Nested.mod' },
+      { name: 'Root.xm', path: 'Music/Root.xm' }
     ]);
     expect(items.find((item) => item.name === 'Nested.mod')?.fileHandle).toBe(nestedTrack);
   });

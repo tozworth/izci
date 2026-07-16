@@ -19,6 +19,9 @@
     resolveTrackSnapshot
   } from '$lib/services/artwork-presentation';
   import { createImportController, FILE_INPUT_ACCEPT } from '$lib/services/import-controller';
+  import { filesystemFolders } from '$lib/services/filesystem-folders';
+  import { startLibraryFolderCommandListener } from '$lib/services/library-folder-coordination';
+  import { scanLaunchLibraryFolders } from '$lib/services/library-folder-scanner';
   import { appInstallService, type AppInstallState } from '$lib/services/app-install';
   import { subscribeToLaunchedFiles } from '$lib/services/file-launch';
   import {
@@ -77,6 +80,7 @@
     selectedIds: librarySelectedIdsStore,
     selectedTrack: librarySelectedTrackStore
   } = libraryStore;
+  const stopLibraryFolderCommands = startLibraryFolderCommandListener();
 
   let playlistItems: PlaylistItem[] = [];
   let libraryItems: PlaylistItem[] = [];
@@ -194,6 +198,7 @@
   const unsubscribeLibraryItems = libraryItemsStore.subscribe((value) => (libraryItems = value));
   void Promise.all([playlistStore.ready(), libraryStore.ready()]).then(async () => {
     collectionsReady = true;
+    void scanLaunchLibraryFolders();
     await playbackRestoration.restore();
   });
   const unsubscribePlaylistSelectedIds = playlistSelectedIdsStore.subscribe(
@@ -400,6 +405,7 @@
 
   const playlistPanelHandlers: WorkspacePanelHandlers = {
     addFiles: (files) => workspaceCollections.handleAddFiles(files, 'playlist'),
+    addFolders: (handles) => void filesystemFolders.rememberMany(handles),
     openFiles: () => void handleMenuOpenFiles('playlist'),
     select: (event) => handleSelect('playlist', event),
     activate: (event) => void playbackCommands.activatePlaylistTrack(event.detail),
@@ -410,6 +416,7 @@
   };
   const libraryPanelHandlers: WorkspacePanelHandlers = {
     addFiles: (files) => workspaceCollections.handleAddFiles(files, 'library'),
+    addFolders: (handles) => void filesystemFolders.rememberMany(handles),
     openFiles: () => void handleMenuOpenFiles('library'),
     select: (event) => handleSelect('library', event),
     setSelection: (event) => handleSetSelection('library', event),
@@ -625,6 +632,7 @@
     unsubscribeAppInstall();
     appInstallService.destroy();
     unsubscribeLaunchedFiles();
+    stopLibraryFolderCommands();
     disconnectMediaSession();
     playerController.destroy();
   });

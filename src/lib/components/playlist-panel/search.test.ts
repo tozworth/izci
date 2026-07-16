@@ -35,7 +35,7 @@ describe('playlist-panel search helpers', () => {
         album: 'Modules',
         duration: 3605
       }),
-      folder: 'Music/Tracker Albums'
+      path: 'Music/Tracker Albums/Track.flac'
     }
   ];
 

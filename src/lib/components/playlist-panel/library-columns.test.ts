@@ -31,7 +31,7 @@ describe('library column helpers', () => {
         album: ' Album ',
         duration: 125
       },
-      folder: 'Music/Artist/Album'
+      path: 'Music/Artist/Album/Track.flac'
     });
 
     expect(getColumnTextValue(track, 'title')).toBe('Tagged Title');

@@ -34,6 +34,7 @@ export interface WorkspacePanelProps {
 
 export interface WorkspacePanelHandlers {
   addFiles: (event: FileList | File[]) => void;
+  addFolders?: (handles: FileSystemDirectoryHandle[]) => void;
   openFiles: () => void;
   select: (event: CustomEvent<{ id: string; range: boolean; toggle: boolean }>) => void;
   setSelection?: (event: CustomEvent<PlaylistSelection>) => void;

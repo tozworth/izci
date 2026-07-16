@@ -8,7 +8,7 @@ import type {
   LibraryViewSortState,
   PlaylistItem
 } from '$lib/types';
-import { formatDuration, getTrackDisplayTitle } from '$lib/utils/files';
+import { formatDuration, getFolderFromPath, getTrackDisplayTitle } from '$lib/utils/files';
 
 export type LibraryColumnWidths = Partial<Record<LibraryColumnId, number>>;
 
@@ -64,7 +64,7 @@ export function getColumnTextValue(item: PlaylistItem, columnId: LibraryColumnId
     case 'album':
       return item.metadata?.album?.trim() ?? '';
     case 'folder':
-      return item.folder?.trim() ?? '';
+      return getFolderFromPath(item.path)?.trim() ?? '';
     case 'format':
       return formatTrackType(item);
     case 'duration':

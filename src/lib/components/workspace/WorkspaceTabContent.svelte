@@ -19,6 +19,7 @@
     fillParent={true}
     hideEyebrow={true}
     on:addFiles={(event) => content.playlistPanelHandlers.addFiles(event.detail)}
+    on:addFolders={(event) => content.playlistPanelHandlers.addFolders?.(event.detail)}
     on:openFiles={content.playlistPanelHandlers.openFiles}
     on:select={content.playlistPanelHandlers.select}
     on:activate={content.playlistPanelHandlers.activate}
@@ -32,6 +33,7 @@
     fillParent={true}
     hideEyebrow={true}
     on:addFiles={(event) => content.libraryPanelHandlers.addFiles(event.detail)}
+    on:addFolders={(event) => content.libraryPanelHandlers.addFolders?.(event.detail)}
     on:openFiles={content.libraryPanelHandlers.openFiles}
     on:select={content.libraryPanelHandlers.select}
     on:setSelection={(event) => content.libraryPanelHandlers.setSelection?.(event)}

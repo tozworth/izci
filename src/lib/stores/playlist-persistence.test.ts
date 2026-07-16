@@ -36,7 +36,7 @@ describe('playlist persistence helpers', () => {
 
   it('serializes only handle-backed playlist items', () => {
     expect(serializeItem(item())).toBeNull();
-    expect(serializeItem(item({ fileHandle, path: '/Music/Track.flac', folder: 'Music', metadata: { title: 'Track' } }))).toEqual({
+    expect(serializeItem(item({ fileHandle, path: '/Music/Track.flac', sourceFolderId: 'music-root', metadata: { title: 'Track' } }))).toEqual({
       id: 'track-id',
       name: 'Track.flac',
       extension: 'flac',
@@ -45,7 +45,7 @@ describe('playlist persistence helpers', () => {
       lastModified: 456,
       fileHandle,
       path: '/Music/Track.flac',
-      folder: 'Music',
+      sourceFolderId: 'music-root',
       metadata: { title: 'Track' }
     });
   });
@@ -64,7 +64,7 @@ describe('playlist persistence helpers', () => {
         lastModified: 'invalid',
         fileHandle: { kind: 'directory', getFile: async () => new File([], 'Track.flac') },
         path: 12,
-        folder: 34
+        sourceFolderId: 34
       })
     ).toEqual({
       id: 'x',
@@ -75,7 +75,7 @@ describe('playlist persistence helpers', () => {
       lastModified: 0,
       fileHandle: undefined,
       path: undefined,
-      folder: undefined,
+      sourceFolderId: undefined,
       metadata: undefined
     });
   });

@@ -1,5 +1,6 @@
 import { MODULE_EXTENSIONS, STREAM_EXTENSIONS, type WorkspaceCollection } from '$lib/types';
 import { prepareImportedFiles } from '$lib/services/file-verification';
+import { filesystemFolders } from '$lib/services/filesystem-folders';
 import { trackSettings } from '$lib/stores/track-settings';
 import { readDirectoryFiles, readFileHandleFiles } from '$lib/utils/files';
 
@@ -101,6 +102,9 @@ export function createImportController(options: ImportControllerOptions) {
 
       try {
         const directoryHandle = await pickerWindow.showDirectoryPicker?.();
+        if (directoryHandle) {
+          await filesystemFolders.remember(directoryHandle);
+        }
         const discoveredFiles = directoryHandle
           ? await readDirectoryFiles(directoryHandle, {
               maxDepth: trackSettings.getSnapshot().folderNestingLimit

@@ -9,7 +9,7 @@ export interface StoredPlaylistItem {
   lastModified: number;
   fileHandle?: FileSystemFileHandle;
   path?: string;
-  folder?: string;
+  sourceFolderId?: string;
   metadata?: PlaylistItem['metadata'];
 }
 
@@ -63,7 +63,7 @@ export function normalizeStoredItem(value: unknown): StoredPlaylistItem | null {
     lastModified: typeof source.lastModified === 'number' ? source.lastModified : 0,
     fileHandle: isFileSystemFileHandle(source.fileHandle) ? source.fileHandle : undefined,
     path: typeof source.path === 'string' ? source.path : undefined,
-    folder: typeof source.folder === 'string' ? source.folder : undefined,
+    sourceFolderId: typeof source.sourceFolderId === 'string' ? source.sourceFolderId : undefined,
     metadata: source.metadata
   };
 }
@@ -82,7 +82,7 @@ export function serializeItem(item: PlaylistItem): StoredPlaylistItem | null {
     lastModified: item.lastModified,
     fileHandle: item.fileHandle,
     path: item.path,
-    folder: item.folder,
+    sourceFolderId: item.sourceFolderId,
     metadata: item.metadata
   };
 }

@@ -8,6 +8,8 @@ export type OptionsViewName =
   | 'visualizer'
   | 'modules'
   | 'tracks'
+  | 'filesystem'
+  | 'library-folders'
   | 'metadata'
   | 'about';
 
@@ -100,6 +102,22 @@ export const OPTIONS_VIEW_GROUPS: OptionsViewDefinition[][] = [
       parentLabel: '',
       hasHints: true,
       resettable: true
+    },
+    {
+      id: 'filesystem',
+      label: 'Filesystem',
+      icon: 'hard_drive',
+      parentLabel: 'Tracks',
+      hasHints: true,
+      resettable: false
+    },
+    {
+      id: 'library-folders',
+      label: 'Library',
+      icon: 'folder_copy',
+      parentLabel: 'Tracks',
+      hasHints: true,
+      resettable: false
     },
     {
       id: 'metadata',

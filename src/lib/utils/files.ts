@@ -191,7 +191,6 @@ function createPlaylistItem(file: File): PlaylistItem | null {
     file,
     fileHandle: source?.fileHandle,
     path: source?.path,
-    folder: getFolderFromPath(source?.path),
     name: file.name,
     extension,
     kind,

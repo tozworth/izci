@@ -21,6 +21,7 @@ interface FileSystemHandle {
   readonly name: string;
   queryPermission?(descriptor?: FileSystemPermissionDescriptor): Promise<FileSystemPermissionState>;
   requestPermission?(descriptor?: FileSystemPermissionDescriptor): Promise<FileSystemPermissionState>;
+  isSameEntry?(other: FileSystemHandle): Promise<boolean>;
 }
 
 interface FileSystemFileHandle extends FileSystemHandle {
@@ -31,6 +32,7 @@ interface FileSystemFileHandle extends FileSystemHandle {
 interface FileSystemDirectoryHandle extends FileSystemHandle {
   readonly kind: 'directory';
   values(): AsyncIterableIterator<FileSystemHandle>;
+  resolve?(possibleDescendant: FileSystemHandle): Promise<string[] | null>;
 }
 
 interface DataTransferItem {

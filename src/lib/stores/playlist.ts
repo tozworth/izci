@@ -5,7 +5,6 @@ import type {
   PlaylistRepeatMode,
   PlaylistSelection
 } from '$lib/types';
-import { getFolderFromPath } from '$lib/utils/files';
 import { splitUniqueItems } from './playlist-dedupe';
 import { materializePlaylistItem, revokeObjectUrl } from './playlist-materialization';
 import { scheduleMetadataParsing } from './playlist-metadata';
@@ -29,13 +28,14 @@ import {
   resolveSelectSelection,
   type SelectOptions
 } from './playlist-selection';
+import { getTrackIdentity } from '$lib/utils/files';
 
-interface TrackCollectionStoreConfig {
+export interface TrackCollectionStoreConfig {
   dbName: string;
   dedupe: boolean;
 }
 
-function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
+export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
   const items = writable<PlaylistItem[]>([]);
   const selection = writable<PlaylistSelection>(emptySelection);
   const playbackOptions = writable<PlaylistPlaybackOptions>(defaultPlaybackOptions);
@@ -110,7 +110,7 @@ function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
           id: item.id,
           fileHandle: item.fileHandle,
           path: item.path,
-          folder: item.folder ?? getFolderFromPath(item.path),
+          sourceFolderId: item.sourceFolderId,
           name: item.name,
           extension: item.extension,
           kind: item.kind,
@@ -366,6 +366,84 @@ function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
         }));
         queuePersist();
       });
+    },
+    reconcileFolder(folderId: string, scannedItems: PlaylistItem[], activeFolderIds: string[] = []) {
+      if (!hydrated) {
+        return { addedItems: [], updatedItems: [], removedItems: [] };
+      }
+
+      const managedItems = itemList.filter((item) => item.sourceFolderId === folderId);
+      const managedByIdentity = new Map(managedItems.map((item) => [getTrackIdentity(item), item]));
+      const activeFolderIdSet = new Set(activeFolderIds);
+      const adoptableByIdentity = new Map(
+        itemList
+          .filter((item) => !item.sourceFolderId || !activeFolderIdSet.has(item.sourceFolderId))
+          .map((item) => [getTrackIdentity(item), item])
+      );
+      const replacements = new Map<string, PlaylistItem>();
+      const retainedManagedIds = new Set<string>();
+      const addedItems: PlaylistItem[] = [];
+      const updatedItems: PlaylistItem[] = [];
+
+      for (const scannedItem of scannedItems) {
+        const candidate = { ...scannedItem, sourceFolderId: folderId };
+        const identity = getTrackIdentity(candidate);
+        const existing = managedByIdentity.get(identity) ?? adoptableByIdentity.get(identity);
+
+        if (!existing) {
+          addedItems.push(candidate);
+          continue;
+        }
+
+        retainedManagedIds.add(existing.id);
+        const contentChanged =
+          existing.size !== candidate.size ||
+          existing.lastModified !== candidate.lastModified ||
+          existing.kind !== candidate.kind ||
+          existing.extension !== candidate.extension;
+        const preservedMetadata = contentChanged
+          ? existing.metadata?.playCount === undefined
+            ? undefined
+            : { playCount: existing.metadata.playCount }
+          : existing.metadata;
+        const replacement: PlaylistItem = {
+          ...candidate,
+          id: existing.id,
+          metadata: preservedMetadata,
+          file: contentChanged ? candidate.file : existing.file ?? candidate.file,
+          objectUrl: contentChanged ? candidate.objectUrl : existing.objectUrl ?? candidate.objectUrl
+        };
+
+        if (contentChanged && existing.objectUrl && existing.objectUrl !== replacement.objectUrl) {
+          revokeObjectUrl(existing);
+        }
+
+        replacements.set(existing.id, replacement);
+        if (contentChanged) updatedItems.push(replacement);
+      }
+
+      const removedItems = managedItems.filter((item) => !retainedManagedIds.has(item.id));
+      const removedIds = new Set(removedItems.map((item) => item.id));
+      for (const item of removedItems) revokeObjectUrl(item);
+
+      const previousItems = itemList;
+      const nextItems = itemList
+        .filter((item) => !removedIds.has(item.id))
+        .map((item) => replacements.get(item.id) ?? item)
+        .concat(addedItems);
+
+      items.set(nextItems);
+      selection.set(removeIdsFromSelection(nextItems, selectionState, removedIds, previousItems));
+      navigation.reset();
+      scheduleMetadataParsing({
+        targetItems: [...addedItems, ...updatedItems],
+        getItemList: () => itemList,
+        updateItems: (updater) => items.update(updater),
+        queuePersist
+      });
+      queuePersist();
+
+      return { addedItems, updatedItems, removedItems };
     },
     resolveStartTrack(options: {
       selectedId?: string | null;
