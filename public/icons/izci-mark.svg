@@ -1,4 +1,16 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <path d="M128 128h64v256h-64zm96 48h64v208h-64zm96-80h64v288h-64z" fill="#fff" />
-  <circle cx="352" cy="144" r="40" fill="#fff" />
+  <defs>
+    <path id="vinyl-segment" d="M246 88A168 168 0 0 0 88 246h104a64 64 0 0 1 54-54Z" />
+    <mask id="notched-segment">
+      <use href="#vinyl-segment" fill="#fff" />
+      <path d="m137 171 18-18 20 20-18 18Zm28 28 18-18 20 20-18 18Zm28 28 18-18 20 20-18 18Z" fill="#000" />
+    </mask>
+  </defs>
+  <g fill="#fff">
+    <g mask="url(#notched-segment)"><use href="#vinyl-segment" /></g>
+    <g transform="rotate(-90 256 256)" mask="url(#notched-segment)"><use href="#vinyl-segment" /></g>
+    <g transform="rotate(180 256 256)" mask="url(#notched-segment)"><use href="#vinyl-segment" /></g>
+    <path d="M254 191A65 65 0 0 0 191 254h28a37 37 0 0 1 50-34L424 76l-91 179a83 83 0 0 1-79 66v-28a55 55 0 0 0 48-34l46-91-74 69a65 65 0 0 0-20-9Z" />
+    <circle cx="256" cy="256" r="14" />
+  </g>
 </svg>

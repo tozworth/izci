@@ -1,6 +1,18 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" fill="#282828" />
-  <rect x="96" y="96" width="320" height="320" rx="72" fill="#1d2021" />
-  <path d="M156 148h62v216h-62zm84 44h62v172h-62zm84-72h62v244h-62z" fill="#fe8019" />
-  <circle cx="355" cy="150" r="34" fill="#fabd2f" />
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="izci">
+  <defs>
+    <path id="vinyl-segment" d="M246 112A144 144 0 0 0 112 246h88a56 56 0 0 1 46-46Z" />
+    <mask id="notched-segment">
+      <use href="#vinyl-segment" fill="#fff" />
+      <path d="m151 183 16-16 17 17-16 16Zm24 24 16-16 17 17-16 16Zm24 24 16-16 17 17-16 16Z" fill="#000" />
+    </mask>
+  </defs>
+  <rect width="512" height="512" fill="#122437" />
+  <g fill="#fff8e9">
+    <g mask="url(#notched-segment)"><use href="#vinyl-segment" /></g>
+    <g transform="rotate(-90 256 256)" mask="url(#notched-segment)"><use href="#vinyl-segment" /></g>
+    <g transform="rotate(180 256 256)" mask="url(#notched-segment)"><use href="#vinyl-segment" /></g>
+  </g>
+  <path d="M254 199a57 57 0 0 0-55 55h25a32 32 0 0 1 43-29l133-123-78 153a72 72 0 0 1-68 57v-24a48 48 0 0 0 42-30l39-77-63 59a57 57 0 0 0-18-8Z" fill="#ff5a1f" />
+  <circle cx="256" cy="256" r="34" fill="#122437" />
+  <circle cx="256" cy="256" r="12" fill="#ff5a1f" />
 </svg>

@@ -197,6 +197,8 @@ Primary location for playback and browser-integration logic.
 
 - `public/icons/izci-icon.svg`: primary app icon.
 - `public/icons/izci-file.png`: PNG app icon used by Chromium file-handler associations.
+- `public/icons/izci-mark.svg`: monochrome mecha-vinyl brand mark used as a CSS mask in the main player.
+- `public/icons/izci-mark-light.svg`: dark-and-orange mecha-vinyl mark for light presentation surfaces such as the About hero.
 - `public/icons/izci-maskable.svg`: maskable PWA icon.
 
 ## Experimental features

@@ -311,51 +311,145 @@ code {
 }
 
 .about-hero {
+  position: relative;
+  min-height: 120px;
+  overflow: hidden;
+  isolation: isolate;
+  padding: 10px;
+  border-radius: 12px;
+  background:
+    radial-gradient(circle at 22% 28%, rgba(255, 122, 61, 0.18), transparent 25%),
+    linear-gradient(135deg, #fffaf0 0%, #f6f0e3 58%, #eee4d0 100%);
+  color: #122437;
+}
+
+.about-brand-lockup {
+  position: relative;
+  z-index: 2;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
-  gap: 18px;
-  padding: 16px 18px;
-  border-radius: 12px;
-  background:
-    linear-gradient(180deg, color-mix(in srgb, var(--bg-card) 88%, var(--accent) 12%), var(--bg-card));
-  border: 1px solid var(--border-faint);
+  gap: clamp(18px, 4cqi, 34px);
+  min-height: inherit;
 }
 
 .about-logo {
-  width: clamp(88px, 18vw, 96px);
-  height: clamp(88px, 18vw, 96px);
+  width: clamp(126px, 24cqi, 188px);
+  height: clamp(126px, 24cqi, 188px);
   display: block;
   flex: 0 0 auto;
+  filter: drop-shadow(0 12px 18px rgba(18, 36, 55, 0.15));
 }
 
 .about-copy {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 0.2rem;
+  gap: 0.34rem;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.55);
+}
+
+.about-kicker {
+  margin: 0 0 0.1rem;
+  color: #d84a17;
+  font-family: ui-monospace, "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: clamp(0.58rem, 1.5cqi, 0.7rem);
+  font-weight: 700;
+  letter-spacing: 0.12em;
 }
 
 .about-name {
   margin: 0;
-  color: var(--text-strong);
-  font-size: clamp(1.4rem, 2.1vw, 1.9rem);
-  font-weight: 800;
-  letter-spacing: 0.02em;
+  color: #122437;
+  font-family: ui-monospace, "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: clamp(2.6rem, 9cqi, 5.4rem);
+  font-weight: 650;
+  letter-spacing: -0.09em;
+  line-height: 0.9;
 }
 
 .about-tagline {
   margin: 0;
-  color: var(--text);
-  font-size: 0.98rem;
+  max-width: 28ch;
+  color: rgba(18, 36, 55, 0.78);
+  font-size: clamp(0.82rem, 2cqi, 1rem);
   line-height: 1.35;
 }
 
-.about-meta {
-  margin: 0;
-  color: var(--muted);
-  font-size: 0.9rem;
-  line-height: 1.35;
+.about-meta-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 0.38rem;
+  color: rgba(18, 36, 55, 0.58);
+  font-family: ui-monospace, "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 0.72rem;
+}
+
+.about-version {
+  padding: 3px 7px;
+  border: 1px solid rgba(18, 36, 55, 0.18);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.38);
+  color: #122437;
+}
+
+.about-pattern {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.about-pattern::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(90deg, transparent 49.8%, rgba(18, 36, 55, 0.035) 50%, transparent 50.2%),
+    linear-gradient(transparent 49.8%, rgba(18, 36, 55, 0.035) 50%, transparent 50.2%);
+  background-size: 28px 28px;
+  mask-image: linear-gradient(110deg, transparent 18%, #000 62%);
+}
+
+.about-pattern-fragment {
+  position: absolute;
+  display: grid;
+  gap: 5px;
+  padding: 9px 11px;
+  border: 1px solid rgba(18, 36, 55, 0.09);
+  background: rgba(255, 250, 240, 0.42);
+  color: rgba(18, 36, 55, 0.16);
+  font-family: ui-monospace, "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 0.62rem;
+  line-height: 1;
+  letter-spacing: 0.04em;
+  box-shadow: 8px 10px 0 rgba(18, 36, 55, 0.035);
+  transform: rotate(var(--fragment-rotation));
+}
+
+.about-pattern-fragment span:nth-child(3n + 1) {
+  color: rgba(216, 74, 23, 0.32);
+}
+
+.fragment-a {
+  --fragment-rotation: 7deg;
+  top: -12px;
+  right: 30px;
+}
+
+.fragment-b {
+  --fragment-rotation: -5deg;
+  right: -14px;
+  bottom: -20px;
+}
+
+.fragment-c {
+  --fragment-rotation: 11deg;
+  left: 50px;
+  bottom: -5px;
 }
 
 .feature-list {
@@ -576,9 +670,23 @@ code {
 }
 
 @container (max-width: 360px) {
-  .about-hero {
+  .about-brand-lockup {
     grid-template-columns: 1fr;
     justify-items: start;
+    gap: 8px;
+  }
+
+  .about-logo {
+    width: 112px;
+    height: 112px;
+  }
+
+  .about-name {
+    font-size: 2.8rem;
+  }
+
+  .fragment-c {
+    display: none;
   }
 
   .field {

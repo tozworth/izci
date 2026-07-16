@@ -8,12 +8,28 @@
   <div class="section about-section">
     <h2>About</h2>
     <div class="about-hero">
-      <img class="about-logo" src="/icons/izci-icon.svg" alt="izci logo" />
-      <div class="about-copy">
-        <h3 class="about-name">izci</h3>
-        <p class="about-tagline">PWA music player</p>
-        <p class="about-meta">Version {displayVersion}</p>
-        <p class="about-meta">Toz, 2026</p>
+      <div class="about-pattern" aria-hidden="true">
+        <div class="about-pattern-fragment fragment-a">
+          <span>00 C-3 01 428</span><span>01 ... .. ...</span><span>02 G-3 02 A06</span><span>03 ... .. ...</span>
+        </div>
+        <div class="about-pattern-fragment fragment-b">
+          <span>1C D#4 03 840</span><span>1D ... .. F03</span><span>1E A-3 01 20F</span><span>1F === == ===</span>
+        </div>
+        <div class="about-pattern-fragment fragment-c">
+          <span>38 C-5 04 C20</span><span>39 ... .. 401</span><span>3A F-4 02 037</span>
+        </div>
+      </div>
+      <div class="about-brand-lockup">
+        <img class="about-logo" src="/icons/izci-mark-light.svg" alt="izci logo" />
+        <div class="about-copy">
+          <p class="about-kicker">GOLDILOCKED / SLOPTIMIZED / WCO'D</p>
+          <h3 class="about-name">izci</h3>
+          <p class="about-tagline">Experimental PWA music player</p>
+          <div class="about-meta-row">
+            <span class="about-version">v{displayVersion}</span>
+            <span>Toz · 2026</span>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -32,4 +48,3 @@
     </ul>
   </div>
 </article>
-
