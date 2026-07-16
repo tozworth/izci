@@ -1,7 +1,11 @@
-<img height="75" src="https://github.com/user-attachments/assets/c325330f-c719-4ca2-b1a2-0c6ad2017597" />
-<img height="75" src="https://github.com/user-attachments/assets/ea4b796b-483e-4866-9a20-cb997531d359" />
-<img height="75" src="https://github.com/user-attachments/assets/e4844999-943b-4392-b2e4-4243376c2aef" />
-<img height="75" src="https://github.com/user-attachments/assets/ab124936-b1e6-4a0f-b66d-eaea9c87ddca" />
+<table>
+<tr>
+<td><img height="75" src="https://raw.githubusercontent.com/dunsparce9/izci/refs/heads/main/docs/screenshots/carousel1.png" /></td>
+<td><img height="75" src="https://raw.githubusercontent.com/dunsparce9/izci/refs/heads/main/docs/screenshots/carousel2.png" /></td>
+<td><img height="75" src="https://raw.githubusercontent.com/dunsparce9/izci/refs/heads/main/docs/screenshots/carousel3.png" /></td>
+<td><img height="75" src="https://raw.githubusercontent.com/dunsparce9/izci/refs/heads/main/docs/screenshots/carousel4.png" /></td>
+</tr>
+</table>
 
 ## <img height="30" src="https://raw.githubusercontent.com/dunsparce9/izci/refs/heads/main/public/icons/izci-icon.svg"> izci
 
@@ -9,7 +13,7 @@ A local music player [PWA](https://en.wikipedia.org/wiki/Progressive_web_app). I
 
 izci is mostly a personal hobby project. It has already reached "daily driver" status, but is still missing many, many features that will be added once I realize they're missing.
 
-<img height="100" alt="image" src="https://github.com/user-attachments/assets/46484154-ec92-4497-b4d6-205cf3bff271" />
+<img height="100" alt="image" src="https://raw.githubusercontent.com/dunsparce9/izci/refs/heads/main/docs/screenshots/small1.png" />
 
 
 ## Features
