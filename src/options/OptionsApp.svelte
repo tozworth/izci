@@ -10,6 +10,7 @@
   import PlaybackView from './components/views/PlaybackView.svelte';
   import TracksView from './components/views/TracksView.svelte';
   import FoldersView from './components/views/FoldersView.svelte';
+  import LicensesView from './components/views/LicensesView.svelte';
   import VisualizerView from './components/views/VisualizerView.svelte';
   import RafView from './components/raf/RafView.svelte';
   import { windowControlsOverlayState } from '$lib/services/window-controls-overlay';
@@ -263,6 +264,10 @@
 
       {#if activeView === 'about'}
         <AboutView />
+      {/if}
+
+      {#if activeView === 'licenses'}
+        <LicensesView />
       {/if}
     </section>
   </main>

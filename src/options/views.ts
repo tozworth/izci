@@ -10,7 +10,8 @@ export type OptionsViewName =
   | 'tracks'
   | 'folders'
   | 'metadata'
-  | 'about';
+  | 'about'
+  | 'licenses';
 
 export const DEFAULT_OPTIONS_VIEW: OptionsViewName = 'appearance';
 export const OPTIONS_VIEW_QUERY_PARAM = 'view';
@@ -125,6 +126,14 @@ export const OPTIONS_VIEW_GROUPS: OptionsViewDefinition[][] = [
       label: 'About',
       icon: 'info',
       parentLabel: '',
+      hasHints: false,
+      resettable: false
+    },
+    {
+      id: 'licenses',
+      label: 'Licenses',
+      icon: 'license',
+      parentLabel: 'About',
       hasHints: false,
       resettable: false
     }

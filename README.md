@@ -63,11 +63,11 @@ Vite will print the local address, which you can then open in "any browser" (see
 
 ## License
 
-izci's original code and documentation are licensed under the MIT License.
+izci's original code, documentation, and assets are licensed under the MIT License.
 Bundled third-party components remain under their respective licenses,
-including MIT-licensed Chiptune3, Howler.js, and Svelte; BSD-3-Clause-licensed
-libopenmpt; and Apache-2.0-licensed Material Symbols. See [LICENSE.md](LICENSE.md)
-for the full license and third-party notices.
+including MIT-licensed Chiptune3, Howler.js, Svelte, and Workbox;
+BSD-3-Clause-licensed libopenmpt; and Apache-2.0-licensed Material Symbols.
+See [LICENSE.md](LICENSE.md) for the full license and third-party notices.
 
 ## Name
 

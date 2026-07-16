@@ -2,8 +2,8 @@
 
 Copyright (c) 2026 Yiğit Aydın
 
-Except for the third-party components identified below, the original izci code
-and documentation are licensed under the MIT License:
+Except for the third-party components identified below, the original izci code,
+documentation, and assets are licensed under the MIT License:
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -60,11 +60,21 @@ The MIT License text reproduced above applies to Svelte.
 
 Source: <https://github.com/sveltejs/svelte>
 
+### Workbox
+
+Workbox is licensed under the MIT License.
+
+Copyright 2018 Google LLC
+
+The MIT License text reproduced above applies to Workbox.
+
+Source: <https://github.com/GoogleChrome/workbox>
+
 ### libopenmpt
 
 libopenmpt is licensed under the BSD 3-Clause License:
 
-Copyright (c) 2004-2026, OpenMPT Project Developers and Contributors
+Copyright (c) 2004-2025, OpenMPT Project Developers and Contributors
 
 Copyright (c) 1997-2003, Olivier Lapicque
 

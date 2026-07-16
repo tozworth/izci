@@ -610,6 +610,20 @@ code {
   line-height: 1.45;
 }
 
+.license-document {
+  margin: 0;
+  padding: 12px;
+  border: 1px solid var(--border-faint);
+  border-radius: 8px;
+  background: var(--bg-input);
+  color: var(--text);
+  font-family: "IBM Plex Mono", "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 0.72rem;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
 .feature-icon {
   margin-top: 0.12rem;
   color: var(--accent);
