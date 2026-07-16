@@ -241,19 +241,16 @@ class MPT extends AudioWorkletProcessor {
 				const row = []
 				// channels
 				for (let chIdx = 0; chIdx < chNum; chIdx++) {
-					const channel = []
-					for (let comIdx = 0; comIdx < 6; comIdx++) {
-						/* commands
-						OPENMPT_MODULE_COMMAND_NOTE = 0
-						OPENMPT_MODULE_COMMAND_INSTRUMENT = 1
-						OPENMPT_MODULE_COMMAND_VOLUMEEFFECT = 2
-						OPENMPT_MODULE_COMMAND_EFFECT = 3
-						OPENMPT_MODULE_COMMAND_VOLUME = 4
-						OPENMPT_MODULE_COMMAND_PARAMETER = 5
-						*/
-						channel.push( libopenmpt._openmpt_module_get_pattern_row_channel_command(this.modulePtr, patIdx, rowIdx, chIdx, comIdx) )
-					}
-					row.push( channel )
+					const formatted = libopenmpt._openmpt_module_format_pattern_row_channel(
+						this.modulePtr,
+						patIdx,
+						rowIdx,
+						chIdx,
+						14,
+						1
+					)
+					row.push(formatted ? libopenmpt.UTF8ToString(formatted) : '')
+					if (formatted) libopenmpt._openmpt_free_string(formatted)
 				}
 				pattern.rows.push( row )
 			}

@@ -1,5 +1,6 @@
 <script lang="ts">
   import LyricsPanel from '$lib/components/LyricsPanel.svelte';
+  import PatternViewer from '$lib/components/PatternViewer.svelte';
   import PlaylistPanel from '$lib/components/PlaylistPanel.svelte';
   import TrackDetailsPanel from '$lib/components/TrackDetailsPanel.svelte';
   import type { WorkspaceTab } from '$lib/types';
@@ -51,7 +52,7 @@
     fillParent={true}
     hideEyebrow={true}
   />
-{:else}
+{:else if tab === 'lyrics'}
   <LyricsPanel
     snapshotStore={content.snapshotStore}
     playbackSnapshot={content.playbackSnapshot}
@@ -68,5 +69,11 @@
     fillParent={true}
     hideEyebrow={true}
     on:seek
+  />
+{:else}
+  <PatternViewer
+    track={content.patternTrack}
+    snapshot={content.modulePatternSnapshot}
+    playbackSnapshot={content.playbackSnapshot}
   />
 {/if}

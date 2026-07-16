@@ -1,0 +1,93 @@
+import type { PatternColorScheme, PatternRowNumberBase, PatternViewerSettings } from '$lib/types';
+import { createSettingsStore } from './persistent-store';
+
+export const PATTERN_VIEWER_SETTINGS_STORAGE_KEY = 'izci.pattern-viewer-settings';
+export const PATTERN_VIEWER_SETTINGS_CHANNEL = 'izci.pattern-viewer-settings';
+export const MIN_PATTERN_FONT_SIZE = 10;
+export const MAX_PATTERN_FONT_SIZE = 18;
+export const MIN_PATTERN_ROW_HEIGHT = 18;
+export const MAX_PATTERN_ROW_HEIGHT = 34;
+export const MIN_PATTERN_CHANNEL_WIDTH = 104;
+export const MAX_PATTERN_CHANNEL_WIDTH = 196;
+
+export const DEFAULT_PATTERN_VIEWER_SETTINGS: PatternViewerSettings = {
+  fontSize: 12,
+  rowHeight: 23,
+  channelWidth: 134,
+  rowNumberBase: 'hex',
+  colorScheme: 'conventional',
+  followPlayback: true,
+  smoothScroll: false,
+  showChannelNames: true,
+  highlightBeatRows: true
+};
+
+function normalizeNumber(value: unknown, fallback: number, min: number, max: number): number {
+  const numericValue = Number(value);
+
+  if (!Number.isFinite(numericValue)) {
+    return fallback;
+  }
+
+  return Math.round(Math.min(Math.max(numericValue, min), max));
+}
+
+function normalizeRowNumberBase(value: unknown): PatternRowNumberBase {
+  return value === 'decimal' ? 'decimal' : DEFAULT_PATTERN_VIEWER_SETTINGS.rowNumberBase;
+}
+
+function normalizeColorScheme(value: unknown): PatternColorScheme {
+  return value === 'theme' || value === 'monochrome'
+    ? value
+    : DEFAULT_PATTERN_VIEWER_SETTINGS.colorScheme;
+}
+
+export function normalizePatternViewerSettings(value: unknown): PatternViewerSettings {
+  const source = value && typeof value === 'object' ? (value as Partial<PatternViewerSettings>) : {};
+
+  return {
+    fontSize: normalizeNumber(
+      source.fontSize,
+      DEFAULT_PATTERN_VIEWER_SETTINGS.fontSize,
+      MIN_PATTERN_FONT_SIZE,
+      MAX_PATTERN_FONT_SIZE
+    ),
+    rowHeight: normalizeNumber(
+      source.rowHeight,
+      DEFAULT_PATTERN_VIEWER_SETTINGS.rowHeight,
+      MIN_PATTERN_ROW_HEIGHT,
+      MAX_PATTERN_ROW_HEIGHT
+    ),
+    channelWidth: normalizeNumber(
+      source.channelWidth,
+      DEFAULT_PATTERN_VIEWER_SETTINGS.channelWidth,
+      MIN_PATTERN_CHANNEL_WIDTH,
+      MAX_PATTERN_CHANNEL_WIDTH
+    ),
+    rowNumberBase: normalizeRowNumberBase(source.rowNumberBase),
+    colorScheme: normalizeColorScheme(source.colorScheme),
+    followPlayback:
+      typeof source.followPlayback === 'boolean'
+        ? source.followPlayback
+        : DEFAULT_PATTERN_VIEWER_SETTINGS.followPlayback,
+    smoothScroll:
+      typeof source.smoothScroll === 'boolean'
+        ? source.smoothScroll
+        : DEFAULT_PATTERN_VIEWER_SETTINGS.smoothScroll,
+    showChannelNames:
+      typeof source.showChannelNames === 'boolean'
+        ? source.showChannelNames
+        : DEFAULT_PATTERN_VIEWER_SETTINGS.showChannelNames,
+    highlightBeatRows:
+      typeof source.highlightBeatRows === 'boolean'
+        ? source.highlightBeatRows
+        : DEFAULT_PATTERN_VIEWER_SETTINGS.highlightBeatRows
+  };
+}
+
+export const patternViewerSettings = createSettingsStore({
+  storageKey: PATTERN_VIEWER_SETTINGS_STORAGE_KEY,
+  channelName: PATTERN_VIEWER_SETTINGS_CHANNEL,
+  defaultValue: DEFAULT_PATTERN_VIEWER_SETTINGS,
+  normalize: normalizePatternViewerSettings
+});

@@ -18,7 +18,7 @@ declare module 'chiptune3' {
     instruments: string[];
     samples: string[];
     orders: Array<{ name: string; pat: number }>;
-    patterns: Array<{ name: string; rows: number[][][] }>;
+    patterns: Array<{ name: string; rows: string[][] }>;
     numSubsongs: number;
   }
 

@@ -12,7 +12,8 @@ function isWorkspaceTab(value: unknown): value is WorkspaceTab {
     value === 'playlist' ||
     value === 'library' ||
     value === 'details' ||
-    value === 'lyrics'
+    value === 'lyrics' ||
+    value === 'patterns'
   );
 }
 

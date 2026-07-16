@@ -2,11 +2,18 @@ import { createChiptunePlayer } from '$lib/services/chiptune-loader';
 import { audioBusService } from '$lib/services/audio-bus';
 import { mediaSessionService } from '$lib/services/media-session';
 import { modulePlaybackSettings } from '$lib/stores/module-playback-settings';
-import type { ModulePlaybackSettings, PlaybackSnapshot, PlaylistItem, TrackMetadata } from '$lib/types';
+import type {
+  ModulePatternSnapshot,
+  ModulePlaybackSettings,
+  PlaybackSnapshot,
+  PlaylistItem,
+  TrackMetadata
+} from '$lib/types';
 import type { Chiptune3Metadata, ChiptuneJsPlayer } from 'chiptune3';
 
 type SnapshotHandler = (snapshot: Partial<PlaybackSnapshot>) => void;
 type MetadataHandler = (metadata: TrackMetadata) => void;
+type PatternHandler = (snapshot: Partial<ModulePatternSnapshot> | null) => void;
 type EndHandler = () => void;
 interface StopOptions {
   silent?: boolean;
@@ -24,14 +31,24 @@ export class ModulePlayerService {
   #currentTime = 0;
   #lastPublishedCurrentTime = -1;
   #lastPublishedDuration = -1;
+  #lastPublishedOrder = -1;
+  #lastPublishedPattern = -1;
+  #lastPublishedRow = -1;
   #settings = modulePlaybackSettings.getSnapshot();
   #onSnapshot: SnapshotHandler;
   #onMetadata: MetadataHandler;
+  #onPattern: PatternHandler;
   #onEnded: EndHandler;
 
-  constructor(onSnapshot: SnapshotHandler, onMetadata: MetadataHandler, onEnded: EndHandler) {
+  constructor(
+    onSnapshot: SnapshotHandler,
+    onMetadata: MetadataHandler,
+    onPattern: PatternHandler,
+    onEnded: EndHandler
+  ) {
     this.#onSnapshot = onSnapshot;
     this.#onMetadata = onMetadata;
+    this.#onPattern = onPattern;
     this.#onEnded = onEnded;
   }
 
@@ -48,6 +65,7 @@ export class ModulePlayerService {
     this.#started = false;
     this.#currentTime = 0;
     this.#resetPublishedProgress();
+    this.#onPattern(null);
 
     this.#onSnapshot({
       backend: 'module',
@@ -125,6 +143,7 @@ export class ModulePlayerService {
     this.#buffer = null;
     this.#trackExtension = null;
     this.#resetPublishedProgress();
+    this.#onPattern(null);
     this.#disposePlayer();
     mediaSessionService.deactivateTransportAnchor();
     if (!options.silent) {
@@ -307,6 +326,14 @@ export class ModulePlayerService {
       }
 
       this.#onMetadata(this.#toTrackMetadata(metadata));
+      if (metadata.song) {
+        this.#onPattern({
+          song: metadata.song,
+          order: 0,
+          pattern: metadata.song.orders[0]?.pat ?? 0,
+          row: 0
+        });
+      }
       this.#onSnapshot({
         duration: this.#safeSeconds(metadata.dur),
         error: undefined
@@ -319,6 +346,20 @@ export class ModulePlayerService {
       }
 
       this.#currentTime = this.#safeSeconds(progress.pos);
+      if (
+        progress.order !== this.#lastPublishedOrder ||
+        progress.pattern !== this.#lastPublishedPattern ||
+        progress.row !== this.#lastPublishedRow
+      ) {
+        this.#lastPublishedOrder = progress.order;
+        this.#lastPublishedPattern = progress.pattern;
+        this.#lastPublishedRow = progress.row;
+        this.#onPattern({
+          order: progress.order,
+          pattern: progress.pattern,
+          row: progress.row
+        });
+      }
       this.#publishProgress(false, this.#currentTime, this.#safeSeconds(player.duration));
     });
   }
@@ -349,6 +390,9 @@ export class ModulePlayerService {
   #resetPublishedProgress(): void {
     this.#lastPublishedCurrentTime = -1;
     this.#lastPublishedDuration = -1;
+    this.#lastPublishedOrder = -1;
+    this.#lastPublishedPattern = -1;
+    this.#lastPublishedRow = -1;
   }
 
   #toPlayerConfig(settings: ModulePlaybackSettings) {

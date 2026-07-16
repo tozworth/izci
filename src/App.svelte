@@ -57,6 +57,7 @@
   import { trackSettings } from '$lib/stores/track-settings';
   import type {
     LyricsDisplayStyle,
+    ModulePatternSnapshot,
     PlaybackSnapshot,
     PlaylistItem,
     PlaylistRepeatMode,
@@ -80,6 +81,7 @@
     selectedIds: librarySelectedIdsStore,
     selectedTrack: librarySelectedTrackStore
   } = libraryStore;
+  const modulePatternStore = playerController.modulePattern;
   const stopLibraryFolderCommands = startLibraryFolderCommandListener();
 
   let playlistItems: PlaylistItem[] = [];
@@ -111,6 +113,13 @@
     muted: false,
     backend: null,
     error: undefined
+  };
+  let modulePatternSnapshot: ModulePatternSnapshot = {
+    trackId: null,
+    song: null,
+    order: 0,
+    pattern: 0,
+    row: 0
   };
 
   let fileInput: HTMLInputElement | null = null;
@@ -314,6 +323,7 @@
   $: livePlayingTrack = resolveTrackSnapshot(playingTrack, selectedItem, playlistItems, libraryItems);
   $: playerDisplayTrack = livePlayingTrack;
   $: lyricsTrack = livePlayingTrack;
+  $: modulePatternSnapshot = $modulePatternStore;
   $: nowPlayingViewActive = $appearanceSettings.nowPlayingViewActive;
   $: isAutomaticNowPlayingEligible =
     $appearanceSettings.autoNowPlayingOnMaximized && $windowDisplayState.prefersNowPlaying;
@@ -473,6 +483,15 @@
 
   function showTrackLyrics() {
     workspaceShell.showTrackLyrics();
+  }
+
+  function togglePatterns() {
+    if (workspaceShellState.isPatternsPanelVisible) {
+      workspaceShell.closeWorkspaceTab('patterns');
+      return;
+    }
+
+    workspaceShell.showWorkspaceTab('patterns');
   }
 
   function seekPlayback(seconds: number): void {
@@ -688,6 +707,7 @@
   <TopMenuBar
     {miniModeActive}
     nowPlayingViewActive={isNowPlayingLayoutActive}
+    patternsVisible={workspaceShellState.isPatternsPanelVisible}
     installAvailable={appInstallState.available}
     showInstallHint={appInstallState.showHint}
     on:openFiles={() => void handleMenuOpenFiles()}
@@ -701,6 +721,7 @@
     on:showLibrary={showLibrary}
     on:showTrackDetails={showTrackDetails}
     on:showLyrics={showTrackLyrics}
+    on:togglePatterns={togglePatterns}
     on:toggleMiniMode={() => windowMiniMode.toggle()}
     on:toggleNowPlayingView={toggleNowPlayingView}
     on:exit={() => windowManager.exit()}
@@ -717,6 +738,7 @@
       {selectedPlaylistItem}
       {playerDisplayTrack}
       {lyricsTrack}
+      {modulePatternSnapshot}
       artworkState={artworkPresentationState}
       appearance={$appearanceSettings}
       artworkBackgroundBrightByZone={backdropPresentation.artworkBackgroundBrightByZone}

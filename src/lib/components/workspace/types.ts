@@ -1,6 +1,7 @@
 import type {
   LyricsDisplayStyle,
   MenuActionItem,
+  ModulePatternSnapshot,
   PlaybackSnapshot,
   PlaylistItem,
   PlaylistRepeatMode,
@@ -59,6 +60,8 @@ export interface WorkspaceTabContentProps {
   libraryPanelHandlers: WorkspacePanelHandlers;
   selectedItem: PlaylistItem | null;
   lyricsTrack: PlaylistItem | null;
+  patternTrack: PlaylistItem | null;
+  modulePatternSnapshot: ModulePatternSnapshot;
   detailsArtwork: LoadedStreamArtwork | null;
   lyricsDisplayStyle: LyricsDisplayStyle;
   lyricsAutoScroll: boolean;

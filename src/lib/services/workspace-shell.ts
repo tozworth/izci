@@ -68,6 +68,7 @@ export interface WorkspaceShellState {
   activeWorkspaceTab: WorkspaceTab;
   isDetailsPanelVisible: boolean;
   isLyricsPanelVisible: boolean;
+  isPatternsPanelVisible: boolean;
   isRightPanelVisible: boolean;
   isTabbedLayout: boolean;
   isResizing: boolean;
@@ -84,7 +85,8 @@ const allWorkspaceTabs: Record<WorkspaceTab, WorkspaceTabDefinition> = {
   playlist: { id: 'playlist', icon: 'queue_music', label: 'Playlist' },
   library: { id: 'library', icon: 'library_music', label: 'Library' },
   details: { id: 'details', icon: 'info', label: 'Details' },
-  lyrics: { id: 'lyrics', icon: 'lyrics', label: 'Lyrics' }
+  lyrics: { id: 'lyrics', icon: 'lyrics', label: 'Lyrics' },
+  patterns: { id: 'patterns', icon: 'view_timeline', label: 'Patterns' }
 };
 
 function isWorkspaceCollection(tab: WorkspaceTab): tab is WorkspaceCollection {
@@ -120,7 +122,8 @@ function cloneLastPanelByTab(
     playlist: lastPanelByTab.playlist,
     library: lastPanelByTab.library,
     details: lastPanelByTab.details,
-    lyrics: lastPanelByTab.lyrics
+    lyrics: lastPanelByTab.lyrics,
+    patterns: lastPanelByTab.patterns
   };
 }
 
@@ -325,6 +328,7 @@ function createInitialState(
     activeWorkspaceTab: savedPanelState.activeWorkspaceTab,
     isDetailsPanelVisible: isWorkspaceTabOpen(savedPanelState, 'details'),
     isLyricsPanelVisible: isWorkspaceTabOpen(savedPanelState, 'lyrics'),
+    isPatternsPanelVisible: isWorkspaceTabOpen(savedPanelState, 'patterns'),
     isRightPanelVisible: visibleWorkspacePanels.includes('right'),
     isTabbedLayout: false,
     isResizing: false,
@@ -453,6 +457,7 @@ export function createWorkspaceShellController({
       activeWorkspaceTab: savedPanelState.activeWorkspaceTab,
       isDetailsPanelVisible: isWorkspaceTabOpen(savedPanelState, 'details'),
       isLyricsPanelVisible: isWorkspaceTabOpen(savedPanelState, 'lyrics'),
+      isPatternsPanelVisible: isWorkspaceTabOpen(savedPanelState, 'patterns'),
       isRightPanelVisible: visibleWorkspacePanels.includes('right'),
       isTabbedLayout,
       isResizing: Boolean(resizeState),

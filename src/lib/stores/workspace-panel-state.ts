@@ -29,7 +29,8 @@ export const DEFAULT_WORKSPACE_LAST_PANEL_BY_TAB: WorkspaceTabPanelMemorySetting
   playlist: 'left',
   library: 'center',
   details: 'right',
-  lyrics: 'right'
+  lyrics: 'right',
+  patterns: 'center'
 };
 
 export const DEFAULT_WORKSPACE_PANEL_STATE: WorkspacePanelStateSettings = {
@@ -47,7 +48,8 @@ function isWorkspaceTab(value: unknown): value is WorkspaceTab {
     value === 'playlist' ||
     value === 'library' ||
     value === 'details' ||
-    value === 'lyrics'
+    value === 'lyrics' ||
+    value === 'patterns'
   );
 }
 

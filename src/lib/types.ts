@@ -99,9 +99,9 @@ export type VisualizerColorSource = 'theme' | 'artwork';
 export type LyricsDisplayStyle = 'plain' | 'timestamped' | 'theater';
 export type LyricsFontSizeSettings = Record<LyricsDisplayStyle, number>;
 export type WorkspaceCollection = 'playlist' | 'library';
-export type WorkspaceTab = WorkspaceCollection | 'details' | 'lyrics';
+export type WorkspaceTab = WorkspaceCollection | 'details' | 'lyrics' | 'patterns';
 export type WorkspacePanelId = 'left' | 'center' | 'right';
-export const WORKSPACE_TABS: WorkspaceTab[] = ['playlist', 'library', 'details', 'lyrics'];
+export const WORKSPACE_TABS: WorkspaceTab[] = ['playlist', 'library', 'details', 'lyrics', 'patterns'];
 export const WORKSPACE_PANEL_IDS: WorkspacePanelId[] = ['left', 'center', 'right'];
 export interface WorkspaceResizeHandle {
   before: WorkspacePanelId;
@@ -109,6 +109,47 @@ export interface WorkspaceResizeHandle {
 }
 export type ReplayGainMode = 'off' | 'track' | 'album';
 export type RafEffectType = 'graphic-eq' | 'stereo-width' | 'crystalizer' | 'sloptimizer' | 'reverb';
+export type PatternRowNumberBase = 'hex' | 'decimal';
+export type PatternColorScheme = 'conventional' | 'theme' | 'monochrome';
+
+export interface PatternViewerSettings {
+  fontSize: number;
+  rowHeight: number;
+  channelWidth: number;
+  rowNumberBase: PatternRowNumberBase;
+  colorScheme: PatternColorScheme;
+  followPlayback: boolean;
+  smoothScroll: boolean;
+  showChannelNames: boolean;
+  highlightBeatRows: boolean;
+}
+
+export interface ModulePatternOrder {
+  name: string;
+  pat: number;
+}
+
+export interface ModulePattern {
+  name: string;
+  rows: string[][];
+}
+
+export interface ModulePatternSong {
+  channels: string[];
+  instruments: string[];
+  samples: string[];
+  orders: ModulePatternOrder[];
+  patterns: ModulePattern[];
+  numSubsongs: number;
+}
+
+export interface ModulePatternSnapshot {
+  trackId: string | null;
+  song: ModulePatternSong | null;
+  order: number;
+  pattern: number;
+  row: number;
+}
 
 export interface RafEffectBase {
   id: string;

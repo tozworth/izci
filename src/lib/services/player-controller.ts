@@ -7,7 +7,14 @@ import { modulePlaybackSettings } from '$lib/stores/module-playback-settings';
 import { playbackSettings } from '$lib/stores/playback-settings';
 import { DEFAULT_PLAYER_VOLUME, playerVolume } from '$lib/stores/player-volume';
 import { applyReplayGain, sliderVolumeToGain } from '$lib/services/volume';
-import type { PlaybackSnapshot, PlaybackState, PlaylistItem, TrackKind, TrackMetadata } from '$lib/types';
+import type {
+  ModulePatternSnapshot,
+  PlaybackSnapshot,
+  PlaybackState,
+  PlaylistItem,
+  TrackKind,
+  TrackMetadata
+} from '$lib/types';
 import { mergeInferredArtistTitle } from '$lib/utils/files';
 
 interface PlaybackStatusSnapshot {
@@ -35,6 +42,14 @@ const initialStatusSnapshot: PlaybackStatusSnapshot = {
   error: initialSnapshot.error
 };
 
+const initialModulePatternSnapshot: ModulePatternSnapshot = {
+  trackId: null,
+  song: null,
+  order: 0,
+  pattern: 0,
+  row: 0
+};
+
 function createPlayerController() {
   let volume = playerVolume.getSnapshot();
   let lastAudibleVolume = volume > 0 ? volume : DEFAULT_PLAYER_VOLUME;
@@ -45,6 +60,7 @@ function createPlayerController() {
   const snapshot = writable<PlaybackSnapshot>({ ...initialSnapshot, volume });
   const status = writable<PlaybackStatusSnapshot>({ ...initialStatusSnapshot, volume });
   const currentTrack = writable<PlaylistItem | null>(null);
+  const modulePattern = writable<ModulePatternSnapshot>({ ...initialModulePatternSnapshot });
 
   let activeTrack: PlaylistItem | null = null;
   let metadataConfig = metadataSettings.getSnapshot();
@@ -128,9 +144,27 @@ function createPlayerController() {
     });
   };
 
+  const onModulePattern = (partial: Partial<ModulePatternSnapshot> | null) => {
+    if (!partial || activeTrack?.kind !== 'module') {
+      modulePattern.set({ ...initialModulePatternSnapshot });
+      return;
+    }
+
+    modulePattern.update((state) => ({
+      ...state,
+      ...partial,
+      trackId: activeTrack?.id ?? null
+    }));
+  };
+
   const services = {
     stream: new HowlerPlayerService(onSnapshot, onMetadata, () => onSnapshot({ state: 'ended' })),
-    module: new ModulePlayerService(onSnapshot, onMetadata, () => onSnapshot({ state: 'ended' }))
+    module: new ModulePlayerService(
+      onSnapshot,
+      onMetadata,
+      onModulePattern,
+      () => onSnapshot({ state: 'ended' })
+    )
   };
   const unsubscribeModuleSettings = modulePlaybackSettings.subscribe((settings) => {
     void services.module.applySettings(settings);
@@ -157,6 +191,7 @@ function createPlayerController() {
     snapshot,
     status,
     currentTrack,
+    modulePattern,
     async load(
       track: PlaylistItem,
       options: { autoPlay?: boolean; initialPosition?: number } = {}

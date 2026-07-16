@@ -6,6 +6,7 @@ export type OptionsViewName =
   | 'playback'
   | 'raf'
   | 'visualizer'
+  | 'patterns'
   | 'modules'
   | 'tracks'
   | 'folders'
@@ -55,6 +56,14 @@ export const OPTIONS_VIEW_GROUPS: OptionsViewDefinition[][] = [
       id: 'visualizer',
       label: 'Visualizer',
       icon: 'graphic_eq',
+      parentLabel: 'Appearance',
+      hasHints: true,
+      resettable: true
+    },
+    {
+      id: 'patterns',
+      label: 'Patterns',
+      icon: 'view_timeline',
       parentLabel: 'Appearance',
       hasHints: true,
       resettable: true

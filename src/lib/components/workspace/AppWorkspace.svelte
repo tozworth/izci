@@ -8,6 +8,7 @@
     BackdropZoneArtworkSettingsMap,
     BackdropZoneEffect,
     LyricsDisplayStyle,
+    ModulePatternSnapshot,
     PlaybackSnapshot,
     PlaylistItem,
     WorkspacePanelId,
@@ -31,6 +32,8 @@
     libraryPanelHandlers,
     selectedItem: artworkState.detailsDisplayTrack,
     lyricsTrack,
+    patternTrack: playerDisplayTrack,
+    modulePatternSnapshot,
     detailsArtwork: artworkState.visibleDetailsArtwork,
     lyricsDisplayStyle: effectiveLyricsDisplayStyle,
     lyricsAutoScroll,
@@ -50,6 +53,7 @@
   export let selectedPlaylistItem: PlaylistItem | null;
   export let playerDisplayTrack: PlaylistItem | null;
   export let lyricsTrack: PlaylistItem | null;
+  export let modulePatternSnapshot: ModulePatternSnapshot;
   export let artworkState: ArtworkPresentationState;
   export let appearance: AppearanceSettings;
   export let artworkBackgroundBrightByZone: Record<'nowPlaying', boolean> &

@@ -8,6 +8,7 @@
   import ModulesView from './components/views/ModulesView.svelte';
   import NowPlayingView from './components/views/NowPlayingView.svelte';
   import PlaybackView from './components/views/PlaybackView.svelte';
+  import PatternsView from './components/views/PatternsView.svelte';
   import TracksView from './components/views/TracksView.svelte';
   import FoldersView from './components/views/FoldersView.svelte';
   import LicensesView from './components/views/LicensesView.svelte';
@@ -23,6 +24,7 @@
   import { metadataSettings } from '$lib/stores/metadata-settings';
   import { modulePlaybackSettings } from '$lib/stores/module-playback-settings';
   import { playbackSettings } from '$lib/stores/playback-settings';
+  import { patternViewerSettings } from '$lib/stores/pattern-viewer-settings';
   import { rafSettings } from '$lib/stores/raf-settings';
   import { trackSettings } from '$lib/stores/track-settings';
   import { visualizerSettings } from '$lib/stores/visualizer-settings';
@@ -64,6 +66,8 @@
       playbackSettings.reset();
     } else if (activeView === 'visualizer') {
       visualizerSettings.reset();
+    } else if (activeView === 'patterns') {
+      patternViewerSettings.reset();
     } else if (activeView === 'raf') {
       rafSettings.reset();
     } else if (activeView === 'modules') {
@@ -240,6 +244,10 @@
 
       {#if activeView === 'visualizer'}
         <VisualizerView />
+      {/if}
+
+      {#if activeView === 'patterns'}
+        <PatternsView />
       {/if}
 
       {#if activeView === 'raf'}

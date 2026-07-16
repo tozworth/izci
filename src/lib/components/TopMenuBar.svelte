@@ -23,6 +23,7 @@
     | 'showLibrary'
     | 'showTrackDetails'
     | 'showLyrics'
+    | 'togglePatterns'
     | 'toggleMiniMode'
     | 'toggleNowPlayingView'
     | 'exit';
@@ -67,6 +68,7 @@
 
   export let miniModeActive = false;
   export let nowPlayingViewActive = false;
+  export let patternsVisible = false;
   export let installAvailable = false;
   export let showInstallHint = false;
   const displayVersion = formatDisplayVersion(appVersion);
@@ -83,6 +85,7 @@
     showLibrary: void;
     showTrackDetails: void;
     showLyrics: void;
+    togglePatterns: void;
     toggleMiniMode: void;
     toggleNowPlayingView: void;
     exit: void;
@@ -157,6 +160,11 @@
       id: 'showLyrics',
       label: 'Lyrics',
       icon: 'lyrics'
+    },
+    {
+      id: 'togglePatterns',
+      label: 'Patterns',
+      icon: patternsVisible ? 'check' : 'view_timeline'
     },
     {
       id: 'toggleMiniMode',
