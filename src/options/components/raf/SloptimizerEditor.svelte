@@ -58,6 +58,15 @@
     return value >= 1000 ? `${(value / 1000).toFixed(value % 1000 === 0 ? 0 : 1)} kHz` : `${value.toFixed(0)} Hz`;
   }
 
+  function slopFlavor(value: number): string {
+    if (value == 0) return 'Off';
+    if (value <= 20) return 'Subtle';
+    if (value <= 50) return 'Ear candy';
+    if (value <= 80) return 'Sludge';
+    if (value <= 90) return 'Fuck me up';
+    return 'OTT mode';
+  }
+
   $: slopPulse = settings.slop > 0 && settings.enabled && $rafSettings.enabled
     ? Math.max(0, Math.min(1, ($rafMeter.outputDb + 48) / 45)) ** 2
     : 0;
@@ -76,7 +85,10 @@
       value={settings.slop}
       on:input={updateSlop}
     />
-    <output>{settings.slop.toFixed(0)}%</output>
+    <span class="slop-value">
+      <output>{settings.slop.toFixed(0)}%</output>
+      <small>{slopFlavor(settings.slop)}</small>
+    </span>
   </label>
 
   {#if settings.advanced}
@@ -119,6 +131,8 @@
     transition: accent-color 140ms ease-out, filter 140ms ease-out;
   }
   output { color: var(--text-strong); text-align: right; font-variant-numeric: tabular-nums; }
+  .slop-value { display: grid; justify-items: end; line-height: 1.05; }
+  .slop-value small { color: var(--muted); font-size: 8px; white-space: nowrap; }
   .control-name { color: var(--text-strong); font-weight: 700; }
   .advanced-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px 14px; padding-top: 2px; }
   .crossover-section { display: grid; gap: 6px; padding-top: 3px; border-top: 1px solid var(--border-faint); }
