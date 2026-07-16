@@ -16,6 +16,7 @@
     SLOPTIMIZER_SPEED_MIN,
     mapSlopToParameters
   } from '$lib/services/raf-effects/sloptimizer';
+  import { rafMeter } from '$lib/services/raf-meter';
   import { rafSettings } from '$lib/stores/raf-settings';
   import type { RafSloptimizerSettings } from '$lib/types';
 
@@ -56,12 +57,25 @@
   function formatFrequency(value: number): string {
     return value >= 1000 ? `${(value / 1000).toFixed(value % 1000 === 0 ? 0 : 1)} kHz` : `${value.toFixed(0)} Hz`;
   }
+
+  $: slopPulse = settings.slop > 0 && settings.enabled && $rafSettings.enabled
+    ? Math.max(0, Math.min(1, ($rafMeter.outputDb + 48) / 45)) ** 2
+    : 0;
 </script>
 
 <div class="sloptimizer-editor">
   <label class="slop-control">
     <span class="control-name">Slop</span>
-    <input type="range" min={SLOPTIMIZER_SLOP_MIN} max={SLOPTIMIZER_SLOP_MAX} step="1" value={settings.slop} on:input={updateSlop} />
+    <input
+      class="slop-slider"
+      style={`--slop-pulse: ${(slopPulse * 68).toFixed(1)}%; --slop-glow: ${(slopPulse * 0.4).toFixed(3)}`}
+      type="range"
+      min={SLOPTIMIZER_SLOP_MIN}
+      max={SLOPTIMIZER_SLOP_MAX}
+      step="1"
+      value={settings.slop}
+      on:input={updateSlop}
+    />
     <output>{settings.slop.toFixed(0)}%</output>
   </label>
 
@@ -99,6 +113,11 @@
   .crossover-grid label { min-width: 0; display: grid; grid-template-columns: 58px minmax(80px, 1fr) 58px; align-items: center; gap: 7px; color: var(--muted); font-size: 10px; }
   .slop-control { grid-template-columns: 35px minmax(100px, 1fr) 42px; }
   input[type='range'] { width: 100%; accent-color: var(--accent-strong); }
+  .slop-slider[type='range'] {
+    accent-color: color-mix(in srgb, var(--accent-strong), #fff3ad var(--slop-pulse));
+    filter: drop-shadow(0 0 4px rgb(255 243 173 / var(--slop-glow)));
+    transition: accent-color 140ms ease-out, filter 140ms ease-out;
+  }
   output { color: var(--text-strong); text-align: right; font-variant-numeric: tabular-nums; }
   .control-name { color: var(--text-strong); font-weight: 700; }
   .advanced-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px 14px; padding-top: 2px; }
