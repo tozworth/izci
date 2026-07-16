@@ -37,14 +37,16 @@
   <div class="section">
     <h2>Features</h2>
     <ul class="feature-list">
-      <li>Plays usual streamed formats and tracker modules. It plays tracker modules!!!</li>
-      <li>A decent library with artwork, lyrics, and play counts</li>
-      <li>Dockable tabbed workspace, a big moody Now Playing view, and a mini mode</li>
-      <li>PWA niceties: file associations, media keys, custom window border</li>
-      <li>Per-zone artwork and visualizer backdrops</li>
-      <li>Raf: a tiny effects rack</li>
-      <li>"izci" means “tracker” in Turkish*</li>
-      <li>*It's actually closer to “scout” but it was cute and the name stuck</li>
+      <li><span class="material-symbols-outlined feature-icon" aria-hidden="true">music_note</span><span>Plays usual streamed formats and tracker modules. It plays tracker modules!!!</span></li>
+      <li><span class="material-symbols-outlined feature-icon" aria-hidden="true">auto_stories</span><span>A decent library with artwork, lyrics, and play counts</span></li>
+      <li><span class="material-symbols-outlined feature-icon" aria-hidden="true">tab_group</span><span>Dockable tabbed workspace, a big moody Now Playing view, and a mini mode</span></li>
+      <li><span class="material-symbols-outlined feature-icon" aria-hidden="true">desktop_windows</span><span>PWA niceties: file associations, media keys, custom window border</span></li>
+      <li><span class="material-symbols-outlined feature-icon" aria-hidden="true">palette</span><span>Per-zone artwork and visualizer backdrops</span></li>
+      <li><span class="material-symbols-outlined feature-icon" aria-hidden="true">tune</span><span>Raf: a tiny effects rack</span></li>
+      <li>
+        <span class="material-symbols-outlined feature-icon" aria-hidden="true">explore</span>
+        <span>“izci” means “tracker” in Turkish*<small class="feature-note">*Umm actually it’s closer to “scout”. But it was cute and the name stuck</small></span>
+      </li>
     </ul>
   </div>
 </article>
