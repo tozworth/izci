@@ -28,18 +28,22 @@ describe('playlist-panel search helpers', () => {
       album: 'First Light',
       duration: 125
     }),
-    item('Night Drive.xm', {
-      title: 'Night Drive',
-      artist: 'Tracker Unit',
-      album: 'Modules',
-      duration: 3605
-    })
+    {
+      ...item('Night Drive.xm', {
+        title: 'Night Drive',
+        artist: 'Tracker Unit',
+        album: 'Modules',
+        duration: 3605
+      }),
+      folder: 'Music/Tracker Albums'
+    }
   ];
 
   it('matches normalized queries against default library columns', () => {
     expect(matchesSearchQuery(tracks[0], 'alpha')).toBe(true);
     expect(matchesSearchQuery(tracks[1], 'flac')).toBe(false);
     expect(matchesSearchQuery(tracks[1], 'xm')).toBe(true);
+    expect(matchesSearchQuery(tracks[1], 'tracker albums')).toBe(true);
   });
 
   it('filters items only when a query is present', () => {

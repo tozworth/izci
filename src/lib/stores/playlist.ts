@@ -5,6 +5,7 @@ import type {
   PlaylistRepeatMode,
   PlaylistSelection
 } from '$lib/types';
+import { getFolderFromPath } from '$lib/utils/files';
 import { splitUniqueItems } from './playlist-dedupe';
 import { materializePlaylistItem, revokeObjectUrl } from './playlist-materialization';
 import { scheduleMetadataParsing } from './playlist-metadata';
@@ -109,6 +110,7 @@ function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
           id: item.id,
           fileHandle: item.fileHandle,
           path: item.path,
+          folder: item.folder ?? getFolderFromPath(item.path),
           name: item.name,
           extension: item.extension,
           kind: item.kind,

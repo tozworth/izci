@@ -56,7 +56,18 @@ function normalizePath(path: string | undefined): string | undefined {
     return undefined;
   }
 
-  return path.replace(/^\/+/, '');
+  return path.replace(/\\/g, '/').replace(/^\/+/, '').replace(/\/{2,}/g, '/');
+}
+
+export function getFolderFromPath(path: string | undefined): string | undefined {
+  const normalizedPath = normalizePath(path);
+
+  if (!normalizedPath) {
+    return undefined;
+  }
+
+  const separatorIndex = normalizedPath.lastIndexOf('/');
+  return separatorIndex > 0 ? normalizedPath.slice(0, separatorIndex) : undefined;
 }
 
 function cloneTrackMetadata(metadata: TrackMetadata | undefined): TrackMetadata | undefined {
@@ -180,6 +191,7 @@ function createPlaylistItem(file: File): PlaylistItem | null {
     file,
     fileHandle: source?.fileHandle,
     path: source?.path,
+    folder: getFolderFromPath(source?.path),
     name: file.name,
     extension,
     kind,

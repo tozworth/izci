@@ -159,14 +159,14 @@ Primary location for playback and browser-integration logic.
 ### `src/lib/stores/`
 
 - `playlist.ts`: owns both `playlistStore` and `libraryStore`; now acts as the public assembly layer that wires collection state, persistence flush/queue behavior, and the extracted playlist helpers together.
-- `playlist-persistence.ts`: IndexedDB open/read/write helpers plus stored-item serialization and playback option normalization for playlist/library state.
+- `playlist-persistence.ts`: IndexedDB open/read/write helpers plus stored-item serialization (including privacy-safe import-relative folder names) and playback option normalization for playlist/library state.
 - `playlist-materialization.ts`: file-handle permission and rehydration helpers, including streamed-format object URL creation/revocation during `ensureLoaded()`.
 - `playlist-selection.ts`: selection normalization and selection action helpers shared by playlist and library stores.
 - `playlist-metadata.ts`: background metadata hydration for playlist/library items (filename inference, embedded `flac`/`opus` tags, streamed duration probing from `File`/handle-backed URLs, and tracker-module metadata/duration probing).
 - `playlist-navigation.ts`: next/previous/track-end resolution, including shuffle session management.
 - `playlist-dedupe.ts`: duplicate detection based on track identity, used only by the library store path.
 - `persistent-store.ts`: shared `localStorage` plus `BroadcastChannel` persistence/sync helper for lightweight settings stores.
-- `library-view-settings.ts`: persistent library table layout and filter state (column order, widths, visibility, sort, search query) with `BroadcastChannel` sync.
+- `library-view-settings.ts`: persistent library table layout and filter state (including the Folder column, column order, widths, visibility, sort, and search query) with `BroadcastChannel` sync.
 - `appearance-settings.ts`: persistent appearance settings for color theme, optional artwork-colored player chrome, system font, compact one-row player-bar mode, contextual idle player quips, narrow-library behavior, whether empty workspace panels stay open after their last tab closes, View -> Now Playing layout state plus the maximized/fullscreen auto-Now-Playing preference and side-chrome auto-hide timeout, per-zone backdrop effects for the Left/Center/Right dock slots, player bar, and Now Playing (`none`, `artwork`, `visualizer`, `both`), per-zone artwork blur/brightness tuning, transient lyrics display preferences, and whether the main window title mirrors the current track title, with `BroadcastChannel` sync.
 - `playback-settings.ts`: persistent general playback settings for logarithmic-volume, streamed ReplayGain mode, reload/relaunch playback restoration (`disabled`, position only, or position and state), the default-off Raf feature gate, and visibility of the player-bar Raf bypass toggle, with sync. The feature gate controls processing availability and Options navigation visibility; it is separate from the rack's own temporary power/bypass state.
 - `raf-settings.ts`: persistent global Raf rack state (order, stable instance IDs, optional per-instance display names, bypass states, and typed parameters) in `localStorage`, synchronized with `BroadcastChannel`.

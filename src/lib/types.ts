@@ -76,7 +76,7 @@ export type ModuleInterpolationFilter = 1 | 2 | 4 | 8;
 export type PlaylistRepeatMode = 'off' | 'one' | 'all';
 export type PlaybackRestoreMode = 'disabled' | 'position' | 'position-and-state';
 export type SortDirection = 'asc' | 'desc';
-export type LibraryColumnId = 'title' | 'artist' | 'album' | 'format' | 'duration' | 'plays';
+export type LibraryColumnId = 'title' | 'artist' | 'album' | 'folder' | 'format' | 'duration' | 'plays';
 export type ColorTheme =
   | 'gray'
   | 'coal'
@@ -301,6 +301,7 @@ export interface PlaylistItem {
   file?: File;
   fileHandle?: FileSystemFileHandle;
   path?: string;
+  folder?: string;
   name: string;
   extension: string;
   kind: TrackKind;

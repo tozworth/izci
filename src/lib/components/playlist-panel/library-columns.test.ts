@@ -30,12 +30,14 @@ describe('library column helpers', () => {
         artist: ' Artist ',
         album: ' Album ',
         duration: 125
-      }
+      },
+      folder: 'Music/Artist/Album'
     });
 
     expect(getColumnTextValue(track, 'title')).toBe('Tagged Title');
     expect(getColumnTextValue(track, 'artist')).toBe('Artist');
     expect(getColumnTextValue(track, 'album')).toBe('Album');
+    expect(getColumnTextValue(track, 'folder')).toBe('Music/Artist/Album');
     expect(getColumnTextValue(track, 'format')).toBe('FLAC');
     expect(getTrackDuration(track)).toBe('02:05');
     expect(getTrackDuration(item('missing-duration'))).toBe('');

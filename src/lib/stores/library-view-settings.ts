@@ -3,11 +3,12 @@ import { createPersistentStore } from './persistent-store';
 
 export const LIBRARY_VIEW_SETTINGS_STORAGE_KEY = 'izci.library-view-settings.v1';
 export const LIBRARY_VIEW_SETTINGS_CHANNEL = 'izci-library-view-settings';
-export const LIBRARY_COLUMN_IDS: LibraryColumnId[] = ['title', 'artist', 'album', 'format', 'duration', 'plays'];
+export const LIBRARY_COLUMN_IDS: LibraryColumnId[] = ['title', 'artist', 'album', 'folder', 'format', 'duration', 'plays'];
 export const LIBRARY_COLUMN_LABELS: Record<LibraryColumnId, string> = {
   title: 'Title',
   artist: 'Artist',
   album: 'Album',
+  folder: 'Folder',
   format: 'Format',
   duration: 'Duration',
   plays: 'Plays'
@@ -16,6 +17,7 @@ export const LIBRARY_COLUMN_DEFAULT_WIDTHS: Record<LibraryColumnId, number> = {
   title: 300,
   artist: 220,
   album: 220,
+  folder: 220,
   format: 96,
   duration: 104,
   plays: 88
@@ -24,6 +26,7 @@ export const LIBRARY_COLUMN_MIN_WIDTHS: Record<LibraryColumnId, number> = {
   title: 72,
   artist: 72,
   album: 72,
+  folder: 72,
   format: 48,
   duration: 48,
   plays: 48
@@ -43,6 +46,10 @@ const DEFAULT_LIBRARY_VIEW_SETTINGS: LibraryViewSettings = {
     album: {
       width: LIBRARY_COLUMN_DEFAULT_WIDTHS.album,
       visible: false
+    },
+    folder: {
+      width: LIBRARY_COLUMN_DEFAULT_WIDTHS.folder,
+      visible: true
     },
     format: {
       width: LIBRARY_COLUMN_DEFAULT_WIDTHS.format,

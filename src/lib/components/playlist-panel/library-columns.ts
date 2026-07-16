@@ -63,6 +63,8 @@ export function getColumnTextValue(item: PlaylistItem, columnId: LibraryColumnId
       return item.metadata?.artist?.trim() ?? '';
     case 'album':
       return item.metadata?.album?.trim() ?? '';
+    case 'folder':
+      return item.folder?.trim() ?? '';
     case 'format':
       return formatTrackType(item);
     case 'duration':
