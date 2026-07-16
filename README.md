@@ -1,7 +1,7 @@
-<img height="100" src="https://github.com/user-attachments/assets/c325330f-c719-4ca2-b1a2-0c6ad2017597" />
-<img height="100" src="https://github.com/user-attachments/assets/ea4b796b-483e-4866-9a20-cb997531d359" />
-<img height="100" src="https://github.com/user-attachments/assets/931b5af4-643e-4024-8d17-926c3c7f84f8" />
-<img height="100" src="https://github.com/user-attachments/assets/ab124936-b1e6-4a0f-b66d-eaea9c87ddca" />
+<img height="75" src="https://github.com/user-attachments/assets/c325330f-c719-4ca2-b1a2-0c6ad2017597" />
+<img height="75" src="https://github.com/user-attachments/assets/ea4b796b-483e-4866-9a20-cb997531d359" />
+<img height="75" src="https://github.com/user-attachments/assets/931b5af4-643e-4024-8d17-926c3c7f84f8" />
+<img height="75" src="https://github.com/user-attachments/assets/ab124936-b1e6-4a0f-b66d-eaea9c87ddca" />
 
 ## <img height="30" src="https://raw.githubusercontent.com/dunsparce9/izci/refs/heads/main/public/icons/izci-icon.svg"> izci
 
