@@ -161,19 +161,23 @@
       {/if}
 
       <section class="detail-section format-section">
-        <p class="section-heading">
-          <span class="material-symbols-outlined section-icon" aria-hidden="true">equalizer</span>
-          <span>Format</span>
-        </p>
-        <div class="format-copy">
+        <div class="format-primary">
+          <p class="section-heading">
+            <span class="material-symbols-outlined section-icon" aria-hidden="true">equalizer</span>
+            <span>Format</span>
+          </p>
           <p class="format-value">{formatValue}</p>
-          {#if formatDetail}
-            <p class="format-detail">{formatDetail}</p>
-          {/if}
-          {#if patternSummary}
-            <p class="pattern-value">{patternSummary}</p>
-          {/if}
         </div>
+        {#if formatDetail || patternSummary}
+          <div class="format-copy">
+            {#if formatDetail}
+              <p class="format-detail">{formatDetail}</p>
+            {/if}
+            {#if patternSummary}
+              <p class="pattern-value">{patternSummary}</p>
+            {/if}
+          </div>
+        {/if}
       </section>
 
       {#if notes}
@@ -379,13 +383,18 @@
   }
 
   .format-section {
+    display: grid;
+    gap: 0.18rem;
+  }
+
+  .format-primary {
     display: flex;
     align-items: baseline;
     justify-content: space-between;
     gap: 0.8rem;
   }
 
-  .format-section .section-heading {
+  .format-primary .section-heading {
     flex: 0 0 auto;
   }
 
@@ -402,9 +411,11 @@
   }
 
   .format-copy {
-    display: grid;
-    justify-items: end;
-    gap: 0.18rem;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    column-gap: 0.65rem;
+    row-gap: 0.1rem;
   }
 
   .pattern-value {
