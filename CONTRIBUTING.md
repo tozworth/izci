@@ -2,7 +2,10 @@
 
 Nobody will ever read this document.
 
-AI/LLM-generated issues and PRs are allowed.
-I vibecoded the entire thing anyway (woke up sweating one day and decided I wanted a music player PWA in my life).
+AI/LLM-generated issues and PRs are fine.
 
-Please just ensure that your slop is compatible with existing slop and doesn't result in more compatibility/maintenance slop.
+I vibecoded the entire thing anyway (woke up sweating one day and decided I wanted a decently functional music player PWA in my life).
+
+Please just ensure that your slop is compatible with existing slop and doesn't result in further compatibility/maintenance slop. Also test your slop. And add tests to your slop. If your agent reads AGENTS.md and adjacent files, it should already be auto-adding tests.
+
+If you fork izci and make it 1000% better and 5000% more popular, you owe me a beer. Has to be those exact percentages though.
