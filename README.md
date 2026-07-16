@@ -1,14 +1,20 @@
-<img src="https://raw.githubusercontent.com/dunsparce9/izci/refs/heads/main/public/icons/izci-icon.svg" width="100" alt="izci logo">
+<img height="75" src="https://github.com/user-attachments/assets/c325330f-c719-4ca2-b1a2-0c6ad2017597" />
+<img height="75" src="https://github.com/user-attachments/assets/ea4b796b-483e-4866-9a20-cb997531d359" />
+<img height="75" src="https://github.com/user-attachments/assets/931b5af4-643e-4024-8d17-926c3c7f84f8" />
+<img height="75" src="https://github.com/user-attachments/assets/ab124936-b1e6-4a0f-b66d-eaea9c87ddca" />
 
-## izci
+## <img height="30" src="https://raw.githubusercontent.com/dunsparce9/izci/refs/heads/main/public/icons/izci-icon.svg"> izci
 
 A local music player [PWA](https://en.wikipedia.org/wiki/Progressive_web_app). It plays regular audio files and tracker modules. Compact interface, low CPU usage, several UI modes to adapt to any window size, and an unreasonable number of oddly specific settings (logarithmic volume slider anyone?)
 
 izci is mostly a personal hobby project. It has already reached "daily driver" status, but is still missing many, many features that will be added once I realize they're missing.
 
+<img height="100" alt="image" src="https://github.com/user-attachments/assets/46484154-ec92-4497-b4d6-205cf3bff271" />
+
+
 ## Features
 
-- Plays most audio files (`mp3`, `wav`, `flac`, `ogg`, and `opus`) and tracker modules (`mod`, `xm`, `s3m`, `it`, `mo3` and more)
+- Plays common audio files (`mp3`, `wav`, `flac`, `ogg`, and `opus`) and tracker modules (`mod`, `xm`, `s3m`, `it`, `mo3` and more via included OpenMPT library)
 - Imports files/folders through the File System Access API
 - OS-level file associations via the Launch Queue API
 - Reads embedded metadata, artwork, time-synced lyrics, ReplayGain, module instrument names
@@ -17,7 +23,6 @@ izci is mostly a personal hobby project. It has already reached "daily driver" s
 - Optional Web Audio effects rack with presets and import/export
   - EQ, stereo width, crystalizer, loudness processing, and convolution reverb
 - Works offline after installation and does not require a backend
-  - PWAs are wonderful aren't they
 
 > [!WARNING]
 > izci attempts to use every obscure Project Fugu-adjacent feature/API it can get its hands on. It's essentially a PWA stress test.
