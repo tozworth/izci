@@ -1,6 +1,8 @@
-# izci
+<img src="https://raw.githubusercontent.com/dunsparce9/izci/refs/heads/main/public/icons/izci-icon.svg" width="100" alt="izci logo">
 
-A local-first music player for Chromium. It plays regular audio files and tracker modules from the same library, works offline, and can be installed as a desktop PWA.
+## izci
+
+A local music player PWA. It plays regular audio files and tracker modules from the same library.
 
 ## What it does
 
@@ -23,7 +25,13 @@ Edge and Helium work fine.
 
 The project is currently pre-alpha and mainly used for personal testing. Features move around, saved state may be reset between versions, and there is no migration promise yet.
 
-## Running locally
+## Run / install
+
+Go to [izci.ağla.net](https://izci.ağla.net) and hit the "Install app" icon on the address bar.
+
+If your browser hates IDNs, use [izci-pwa.web.app](https://izci-pwa.web.app) Firebase Hosting URL.
+
+## Build
 
 You will need a recent Node.js release and npm.
 
@@ -32,9 +40,7 @@ npm install
 npm run dev
 ```
 
-Vite will print the local address. Open it in Chrome or another Chromium-based browser.
-
-Useful commands:
+Vite will print the local address. Open it in Chrome-or-what-have-you.
 
 ```sh
 npm run check   # Svelte and TypeScript checks
