@@ -5,7 +5,7 @@
 
 ## <img height="30" src="https://raw.githubusercontent.com/dunsparce9/izci/refs/heads/main/public/icons/izci-icon.svg"> izci
 
-A local music player [PWA](https://en.wikipedia.org/wiki/Progressive_web_app). It plays regular audio files and tracker modules. Compact interface, low CPU usage, several UI modes to adapt to any window size, and an unreasonable number of oddly specific settings (logarithmic volume slider anyone?)
+A local music player [PWA](https://en.wikipedia.org/wiki/Progressive_web_app). It plays regular audio files and tracker modules. Compact interface, low CPU usage, several UI modes to adapt to any window size, and a lot of oddly specific settings (logarithmic volume slider anyone?)
 
 izci is mostly a personal hobby project. It has already reached "daily driver" status, but is still missing many, many features that will be added once I realize they're missing.
 
@@ -14,31 +14,31 @@ izci is mostly a personal hobby project. It has already reached "daily driver" s
 
 ## Features
 
-- Plays common audio files (`mp3`, `wav`, `flac`, `ogg`, and `opus`) and tracker modules (`mod`, `xm`, `s3m`, `it`, `mo3` and more via included OpenMPT library)
+- Plays common audio formats (`mp3`, `wav`, `flac`, `ogg`, `opus`) and tracker modules (`mod`, `xm`, `s3m`, `it`, `mo3` and more via included libopenmpt WASM)
 - Imports files/folders through the File System Access API
 - OS-level file associations via the Launch Queue API
-- Reads embedded metadata, artwork, time-synced lyrics, ReplayGain, module instrument names
-- Dockable Playlist, Library, Track Details, and Lyrics views
+- Reads embedded metadata, artwork, time-synced lyrics, ReplayGain for audio tracks; plus instrument names and patterns for modules
+- Dockable Playlist, Library, Track Details, Lyrics, and Patterns views
   - Includes big moody blurry "Now Playing" mode (Apple Music theater mode larp)
 - Optional Web Audio effects rack with presets and import/export
   - EQ, stereo width, crystalizer, loudness processing, and convolution reverb
-- Works offline after installation and does not require a backend
+- Works offline after installation and does not require a backend (fully static)
 
 > [!WARNING]
 > izci attempts to use every obscure Project Fugu-adjacent feature/API it can get its hands on. It's essentially a PWA stress test.
 > 
 > Since there are 50 quadrillion web browsers, some may not support all the features that izci was designed around: the File System Access API, Web Audio API, Launch Handler API and Launch Queue API (for file associations), plus UI/UX niceties such as Window Controls Overlay (custom titlebar), Media Session API and Local Font Access API.
 >
-> * Chrome, Chromium (stock, Ungoogled, Thorium/Helium...) and Edge work perfectly
+> * Chrome, Chromium (stock, Ungoogled, Thorium, Helium...) and Edge work perfectly
 >   * After install, press the top-right <img width="25" alt="Hide title bar chevron in Chromium" src="https://github.com/user-attachments/assets/a9415e43-29a9-43e5-9cb1-e949e3ae3928"/> chevron to enable the custom titlebar
 > * Firefox works with caveats:
 >   * Firefox web apps / "taskbar apps" are [Windows only](https://support.mozilla.org/en-US/kb/web-apps-firefox-windows); izci will run as a tab on other platforms
 >   * Window borders will be thick, as Firefox lacks WCO even if izci is "installed"
 > * Safari explodes.
 
-## Run / install
+## Install
 
-Go to [izci.ağla.net](https://izci.ağla.net) and hit the "Install app" button in the address bar, *or* use izci's own "Install" entry under File. Both trigger the same Chromium PWA install prompt.
+Go to [izci.ağla.net](https://izci.ağla.net) and hit the "Install app" button in the address bar, *or* use izci's own "Install" entry under File. Both trigger the same PWA install prompt on Chromium browsers.
 
 <img width="268" height="219" alt="'Install izci...' highlighted in izci's top-bar 'File' menu" src="https://github.com/user-attachments/assets/4c960cae-bc82-49a5-b681-a78db9d2d838" />
 
@@ -60,7 +60,7 @@ Vite will print the local address, which you can then open in "any browser" (see
 > ```
 > The production build is written to `dist/`.
 >
-> Running izci instances will automatically pick up the updated service worker (and refresh the shell) after an `npm run build`. You can also force an update (Help > Force update).
+> Locally running izci instances will automatically pick up the updated service worker (and refresh the shell) after an `npm run build && npm run preview`. You can also force an update (Help > Force update).
 
 ## Built with
 
@@ -69,11 +69,12 @@ Vite will print the local address, which you can then open in "any browser" (see
 ## License
 
 izci's original code, documentation, and assets are licensed under the MIT License.
-Bundled third-party components remain under their respective licenses,
-including MIT-licensed Chiptune3, Howler.js, Svelte, and Workbox;
-BSD-3-Clause-licensed libopenmpt; and Apache-2.0-licensed Material Symbols.
+Bundled third-party components remain under their respective licenses, including MIT-licensed Chiptune3, Howler.js, Svelte, and Workbox; BSD-3-Clause-licensed libopenmpt; and Apache-2.0-licensed Material Symbols.
+
 See [LICENSE.md](LICENSE.md) for the full license and third-party notices.
 
 ## Name
 
-“İzci” means “tracker”/“scout” in Turkish. The intentionally lowercase ASCII spelling keeps the package and file names uneventful.
+“İzci” means “tracker”/“scout” in Turkish.
+
+The intentionally lowercase spelling keeps the package and file names uneventful, as the 'İ' [breaks things](https://stackoverflow.com/questions/796986/what-is-the-turkey-test).
