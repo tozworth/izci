@@ -9,8 +9,7 @@
   import NowPlayingView from './components/views/NowPlayingView.svelte';
   import PlaybackView from './components/views/PlaybackView.svelte';
   import TracksView from './components/views/TracksView.svelte';
-  import FilesystemView from './components/views/FilesystemView.svelte';
-  import LibraryFoldersView from './components/views/LibraryFoldersView.svelte';
+  import FoldersView from './components/views/FoldersView.svelte';
   import VisualizerView from './components/views/VisualizerView.svelte';
   import RafView from './components/raf/RafView.svelte';
   import { windowControlsOverlayState } from '$lib/services/window-controls-overlay';
@@ -254,12 +253,8 @@
         <TracksView />
       {/if}
 
-      {#if activeView === 'filesystem'}
-        <FilesystemView />
-      {/if}
-
-      {#if activeView === 'library-folders'}
-        <LibraryFoldersView />
+      {#if activeView === 'folders'}
+        <FoldersView />
       {/if}
 
       {#if activeView === 'metadata'}

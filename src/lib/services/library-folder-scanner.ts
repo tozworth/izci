@@ -53,7 +53,7 @@ async function performScan(folderId: string): Promise<LibraryFolderScanResult> {
   if (permission !== 'granted') {
     await filesystemFolders.updateScan(folderId, {
       lastScanStatus: 'permission-required',
-      lastScanMessage: 'Grant folder access in Tracks > Filesystem before scanning.'
+      lastScanMessage: 'Check folder access in Tracks > Folders before scanning.'
     });
     return {
       folderId,
