@@ -287,7 +287,8 @@ code {
 }
 
 .content-panel.raf-content {
-  padding-top: 0;
+  padding: 0;
+  overflow: hidden;
 }
 
 .view {

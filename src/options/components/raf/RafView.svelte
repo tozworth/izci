@@ -151,15 +151,15 @@
 </article>
 
 <style>
-  .raf-view { width: 100%; min-width: 0; min-height: 100%; display: flex; flex-direction: column; gap: 6px; }
+  .raf-view { width: 100%; height: 100%; min-width: 0; min-height: 0; display: flex; flex-direction: column; gap: 6px; overflow: hidden; }
   .raf-toolbar {
     position: sticky;
     z-index: 10;
     top: 0;
-    width: calc(100% + 20px);
+    width: 100%;
     min-width: 0;
     min-height: 32px;
-    margin: 0 -10px;
+    margin: 0;
     padding: 2px 10px;
     display: flex;
     align-items: center;

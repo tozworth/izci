@@ -326,8 +326,8 @@
 {/if}
 
 <style>
-  .effects-workspace { width: calc(100% + 20px); min-width: 0; min-height: 220px; flex: 1; margin: -6px -10px -8px; display: grid; grid-template-columns: clamp(160px, 28cqw, 210px) minmax(0, 1fr); }
-  .effects-sidebar { min-width: 0; display: flex; flex-direction: column; background: color-mix(in srgb, var(--bg-tree) 74%, transparent); border-right: 1px solid var(--border-soft); }
+  .effects-workspace { width: 100%; min-width: 0; min-height: 0; flex: 1; margin-top: -6px; display: grid; grid-template-columns: clamp(160px, 28cqw, 210px) minmax(0, 1fr); overflow: hidden; }
+  .effects-sidebar { min-width: 0; min-height: 0; display: flex; flex-direction: column; background: color-mix(in srgb, var(--bg-tree) 74%, transparent); border-right: 1px solid var(--border-soft); }
   .effects-sidebar-header { min-height: 34px; padding: 4px 7px 4px 10px; display: flex; align-items: center; gap: 4px; border-bottom: 1px solid var(--border-faint); }
   .effects-sidebar-header strong { color: var(--text-strong); }
   .effects-sidebar-actions { min-width: 0; margin-left: auto; display: flex; align-items: center; gap: 1px; }
@@ -366,7 +366,7 @@
   .effect-list-slot.show-drop-line::before,
   .drop-tail.show-drop-line::before { content: ''; position: absolute; z-index: 3; left: 3px; right: 3px; top: -1px; height: 2px; background: var(--accent-strong); pointer-events: none; }
   .drop-tail { position: relative; min-height: 40px; }
-  .effect-config { min-width: 0; container-type: inline-size; }
+  .effect-config { min-width: 0; min-height: 0; display: grid; grid-template-rows: auto minmax(0, 1fr); overflow: hidden; container-type: inline-size; }
   .effect-config-header { min-height: 40px; padding: 5px 9px; display: flex; align-items: center; gap: 6px; border-bottom: 1px solid var(--border-faint); }
   .effect-config-heading { position: relative; min-width: 0; flex: 1 1 auto; display: flex; align-items: baseline; overflow: hidden; white-space: nowrap; }
   .effect-config-heading strong { min-width: 0; flex: 1 1 auto; overflow: hidden; color: var(--text-strong); text-overflow: ellipsis; }
@@ -375,7 +375,7 @@
   .effect-config-icon { color: var(--accent-strong); }
   .effect-config-actions { margin-left: auto; display: flex; align-items: center; gap: 1px; }
   .effect-config-actions button.active { color: var(--accent-strong); }
-  .effect-config-editor { min-width: 0; padding: 12px 10px; transition: opacity 120ms ease; }
+  .effect-config-editor { min-width: 0; min-height: 0; padding: 12px 10px; overflow: auto; overscroll-behavior: contain; transition: opacity 120ms ease; }
   .effect-config.is-bypassed .effect-config-editor { opacity: 0.55; }
   .mode-switch { display: inline-flex; border: 1px solid var(--border-faint); }
   .mode-switch button { min-height: 22px; padding: 2px 7px; border-radius: 0; background: transparent; color: var(--muted-strong); font-size: 10px; }
