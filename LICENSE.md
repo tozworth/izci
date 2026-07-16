@@ -1,6 +1,6 @@
 # izci license
 
-Copyright (c) 2026 Yiğit A
+Copyright (c) 2026 Yiğit Aydın
 
 Except for the third-party components identified below, the original izci code
 and documentation are licensed under the MIT License:
