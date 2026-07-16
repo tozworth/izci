@@ -40,7 +40,7 @@
   );
   padding-left: max(0.65rem, var(--window-controls-overlay-x, env(titlebar-area-x, 0px)));
   padding-right: max(
-    0.65rem,
+    0px,
     calc(
       100vw - var(--window-controls-overlay-x, env(titlebar-area-x, 0px)) - var(--window-controls-overlay-width, env(titlebar-area-width, 100vw))
     )
@@ -66,7 +66,7 @@ body:has(.menu-list[data-menu-interactive='true']) .menu-bar.window-controls-ove
   );
   padding-left: max(0.3rem, var(--window-controls-overlay-x, env(titlebar-area-x, 0px)));
   padding-right: max(
-    0.3rem,
+    0px,
     calc(
       100vw - var(--window-controls-overlay-x, env(titlebar-area-x, 0px)) - var(--window-controls-overlay-width, env(titlebar-area-width, 100vw))
     )
@@ -258,30 +258,10 @@ body:has(.menu-list[data-menu-interactive='true']) .menu-brand {
 }
 
 .menu-brand .menu-version-indicator {
-  display: inline-grid;
+  display: inline-flex;
   align-items: baseline;
-}
-
-.menu-version-indicator > span {
-  grid-area: 1 / 1;
-  transition: opacity 240ms ease;
-}
-
-.menu-version-indicator .menu-version-hidden {
-  opacity: 0;
 }
 
 .menu-version-indicator .menu-update-completed {
   color: #9ee6aa;
-  opacity: 0;
-}
-
-.menu-version-indicator .menu-update-visible {
-  opacity: 1;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .menu-version-indicator > span {
-    transition: none;
-  }
 }

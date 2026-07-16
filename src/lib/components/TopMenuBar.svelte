@@ -505,10 +505,11 @@
     >
         <strong>izci</strong>
         <span class="menu-version-indicator">
-          <span class:menu-version-hidden={$pwaUpdateCompleted}>{displayVersion}</span>
-          <span class="menu-update-completed" class:menu-update-visible={$pwaUpdateCompleted}>
-            updated!
-          </span>
+          {#if $pwaUpdateCompleted}
+            <span class="menu-update-completed">updated!</span>
+          {:else}
+            <span>{displayVersion}</span>
+          {/if}
         </span>
     </div>
   {/if}
