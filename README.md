@@ -25,10 +25,12 @@ Streamed formats use Howler.js, tracker modules use Chiptune3 (which in turn use
 > [!WARNING]
 > izci attempts to use every obscure Project Fugu-adjacent feature/API it can get its hands on. It's essentially a PWA stress test.
 > 
-> Since there are 50 quadrillion Chromium browsers, some may not support all the features that make izci actually usable: the File System Access API, Web Audio API, WebAssembly (for OpenMPT), and Launch Queue API (for file associations), plus UI/UX niceties such as Window Controls Overlay (custom chrome) and the Local Font Access API.
+> Since there are 50 quadrillion web browsers, some may not support all the features that make izci actually usable: the File System Access API, Web Audio API, Launch Handler API and Launch Queue API (for file associations), plus UI/UX niceties such as Window Controls Overlay (custom chrome), Media Session API and Local Font Access API.
 >
-> * Edge and Helium work fine.
-> * Firefox works (though web apps are [Windows only](https://support.mozilla.org/en-US/kb/web-apps-firefox-windows), and window borders will be slightly thicker without WCO).
+> * Edge and Helium work perfectly.
+> * Firefox works with caveats:
+>   * Firefox web apps / "taskbar apps" are [Windows only](https://support.mozilla.org/en-US/kb/web-apps-firefox-windows); izci will run as a tab on other platforms.
+>   * Window borders will be thick, as Firefox lacks WCO even if izci is "installed".
 > * Safari explodes.
 
 ## Run / install
