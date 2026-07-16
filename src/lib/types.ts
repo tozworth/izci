@@ -170,10 +170,14 @@ export interface RafRackSettings {
   effects: RafEffectSettings[];
 }
 
+export interface RafPresetSettings {
+  effects: RafEffectSettings[];
+}
+
 export interface RafPreset {
   id: string;
   name: string;
-  settings: RafRackSettings;
+  settings: RafPresetSettings;
 }
 
 export interface RafPresetState {

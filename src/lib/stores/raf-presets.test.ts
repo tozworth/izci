@@ -24,7 +24,7 @@ describe('Raf presets', () => {
       ]
     })).toEqual({
       selectedPresetId: 'one',
-      presets: [{ id: 'one', name: 'My Rack', settings: { enabled: false, effects: [] } }]
+      presets: [{ id: 'one', name: 'My Rack', settings: { effects: [] } }]
     });
   });
 
@@ -62,5 +62,17 @@ describe('Raf presets', () => {
     expect(rafSettings.getSnapshot().effects).toHaveLength(1);
     expect(rafPresets.rename(preset!.id, 'Wide')?.name).toBe('Wide');
     expect(rafPresets.delete(preset!.id)).toEqual(DEFAULT_RAF_PRESET_STATE);
+  });
+
+  it('keeps global Raf bypass outside presets and dirty tracking', () => {
+    const preset = rafPresets.create('Rack only');
+    expect(preset?.settings).toEqual({ effects: [] });
+
+    rafSettings.setEnabled(false);
+    expect(isRafPresetDirty(rafPresets.getSnapshot(), rafSettings.getSnapshot())).toBe(false);
+
+    rafSettings.addEffect('stereo-width');
+    rafPresets.apply(preset!.id);
+    expect(rafSettings.getSnapshot()).toEqual({ enabled: false, effects: [] });
   });
 });
