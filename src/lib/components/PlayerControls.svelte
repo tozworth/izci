@@ -75,6 +75,8 @@
   let rafPresetMenuX = 0;
   let rafPresetMenuY = 0;
   let rafPresetMenuElement: HTMLDivElement | null = null;
+  let seekPreview = 0;
+  let seekPointerActive = false;
   let snapshot: PlaybackSnapshot = {
     state: 'idle',
     currentTime: 0,
@@ -98,6 +100,38 @@
     const delta = event.deltaY < 0 ? 1 : -1;
     const step = Math.max(snapshot.duration / 100, 1);
     dispatch('seek', clamp(snapshot.currentTime + delta * step, 0, snapshot.duration));
+  }
+
+  function beginSeekPointer(): void {
+    seekPointerActive = true;
+    seekPreview = snapshot.currentTime;
+  }
+
+  function previewSeek(event: Event): void {
+    const seconds = Number((event.currentTarget as HTMLInputElement).value);
+    seekPreview = seconds;
+
+    // Keyboard changes are discrete, so apply them immediately. Pointer drags
+    // commit once on release to avoid backend progress updates fighting the thumb.
+    if (!seekPointerActive) {
+      dispatch('seek', seconds);
+    }
+  }
+
+  function commitSeekPointer(event: PointerEvent): void {
+    if (!seekPointerActive) {
+      return;
+    }
+
+    const seconds = Number((event.currentTarget as HTMLInputElement).value);
+    seekPreview = seconds;
+    seekPointerActive = false;
+    dispatch('seek', seconds);
+  }
+
+  function cancelSeekPointer(): void {
+    seekPointerActive = false;
+    seekPreview = snapshot.currentTime;
   }
 
   function handleVolumeWheel(event: WheelEvent) {
@@ -293,6 +327,8 @@
   });
 
   $: snapshot = $snapshotStore;
+  $: if (!seekPointerActive) seekPreview = snapshot.currentTime;
+  $: displayedSeekTime = seekPointerActive ? seekPreview : snapshot.currentTime;
   $: compactPlayerBar = presentation === 'bar' && $appearanceSettings.compactPlayerBar;
   $: isCompactVolume = viewportUsesCompactVolume || compactPlayerBar;
   $: displayTrack = track;
@@ -425,17 +461,20 @@
   </div>
 
   <div class="player-range">
-    <span>{formatDuration(snapshot.currentTime)}</span>
-    <div class="range-control" style={toRangeProgressStyle(snapshot.currentTime, Math.max(displayDuration, 1))}>
+    <span>{formatDuration(displayedSeekTime)}</span>
+    <div class="range-control" style={toRangeProgressStyle(displayedSeekTime, Math.max(displayDuration, 1))}>
       <span class="range-control-fill" aria-hidden="true"></span>
       <input
         type="range"
         min="0"
         max={Math.max(displayDuration, 1)}
         step="0.01"
-        value={snapshot.currentTime}
+        value={displayedSeekTime}
         disabled={!track || snapshot.duration <= 0}
-        on:input={(event) => dispatch('seek', Number((event.currentTarget as HTMLInputElement).value))}
+        on:pointerdown={beginSeekPointer}
+        on:input={previewSeek}
+        on:pointerup={commitSeekPointer}
+        on:pointercancel={cancelSeekPointer}
         on:wheel|preventDefault={handleSeekWheel}
       />
     </div>
