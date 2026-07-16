@@ -638,6 +638,24 @@ code {
   line-height: 1.35;
 }
 
+.about-footer {
+  margin-top: 18px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-faint);
+  color: var(--muted);
+  font-size: 0.7rem;
+  line-height: 1.5;
+}
+
+.about-footer a {
+  color: var(--muted-strong);
+  text-underline-offset: 2px;
+}
+
+.about-footer a:hover {
+  color: var(--text-strong);
+}
+
 .field-grid {
   display: flex;
   flex-direction: column;

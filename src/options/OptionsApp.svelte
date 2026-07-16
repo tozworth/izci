@@ -263,7 +263,7 @@
       {/if}
 
       {#if activeView === 'about'}
-        <AboutView />
+        <AboutView onOpenLicenses={() => setActiveView('licenses')} />
       {/if}
 
       {#if activeView === 'licenses'}

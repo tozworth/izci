@@ -128,20 +128,23 @@ export const OPTIONS_VIEW_GROUPS: OptionsViewDefinition[][] = [
       parentLabel: '',
       hasHints: false,
       resettable: false
-    },
-    {
-      id: 'licenses',
-      label: 'Licenses',
-      icon: 'license',
-      parentLabel: 'About',
-      hasHints: false,
-      resettable: false
     }
   ]
 ];
 
+const AUXILIARY_OPTIONS_VIEWS: OptionsViewDefinition[] = [
+  {
+    id: 'licenses',
+    label: 'Licenses',
+    icon: 'license',
+    parentLabel: 'About',
+    hasHints: false,
+    resettable: false
+  }
+];
+
 export const OPTIONS_VIEWS = Object.fromEntries(
-  OPTIONS_VIEW_GROUPS.flat().map((view) => [view.id, view])
+  [...OPTIONS_VIEW_GROUPS.flat(), ...AUXILIARY_OPTIONS_VIEWS].map((view) => [view.id, view])
 ) as Record<OptionsViewName, OptionsViewDefinition>;
 
 export function isOptionsViewName(value: string | null | undefined): value is OptionsViewName {

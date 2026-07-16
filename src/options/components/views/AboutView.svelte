@@ -7,6 +7,10 @@
     pwaUpdateCheckState
   } from '$lib/services/pwa-updates';
   import { formatDisplayVersion } from '$lib/utils/version';
+  import { buildOptionsWindowPath } from '../../views';
+
+  export let onOpenLicenses: () => void;
+
   const displayVersion = formatDisplayVersion(appVersion);
 
   const successfulCheckFormatter = new Intl.DateTimeFormat(undefined, {
@@ -130,4 +134,13 @@
       </li>
     </ul>
   </div>
+
+  <footer class="about-footer">
+    izci uses Howler.js, Chiptune3 (based on libopenmpt), and Google Material Symbols.
+    See full
+    <a
+      href={buildOptionsWindowPath('licenses')}
+      on:click|preventDefault={onOpenLicenses}
+    >third-party licenses</a>.
+  </footer>
 </article>
