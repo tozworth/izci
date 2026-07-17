@@ -701,7 +701,6 @@
     background: transparent;
     font: inherit;
     text-align: left;
-    cursor: pointer;
   }
 
   .lyric-line-button:hover {

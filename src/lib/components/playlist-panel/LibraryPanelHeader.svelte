@@ -185,7 +185,6 @@
     background: transparent;
     border: 0;
     border-radius: 4px;
-    cursor: pointer;
     transition: color 150ms ease, background-color 150ms ease;
   }
 

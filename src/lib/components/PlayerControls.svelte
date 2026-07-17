@@ -581,7 +581,6 @@
     background: transparent;
     color: inherit;
     font: inherit;
-    cursor: pointer;
   }
 
   .player-track-title,
