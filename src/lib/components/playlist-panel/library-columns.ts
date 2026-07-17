@@ -156,57 +156,46 @@ export function rebalanceResizedColumns(
   delta: number
 ): LibraryColumnWidths {
   const widths = { ...baseWidths };
-  const otherColumns = visibleColumnIds.filter((id) => id !== columnId);
+  const columnIndex = visibleColumnIds.indexOf(columnId);
+
+  if (columnIndex === -1 || visibleColumnIds.length < 2) {
+    return widths;
+  }
+
+  const columnsToRight = visibleColumnIds.slice(columnIndex + 1);
+  const columnsToLeft = visibleColumnIds.slice(0, columnIndex).reverse();
+  const neighboringColumns = [...columnsToRight, ...columnsToLeft];
   const currentWidth = widths[columnId] ?? 0;
   const targetWidth = Math.max(LIBRARY_COLUMN_MIN_WIDTHS[columnId], currentWidth + delta);
 
   if (targetWidth > currentWidth) {
     let remainingIncrease = targetWidth - currentWidth;
-    let adjustableColumns = [...otherColumns];
 
-    while (remainingIncrease > 0.5 && adjustableColumns.length > 0) {
-      const shrinkCapacity = adjustableColumns.reduce(
-        (sum, id) => sum + Math.max(0, (widths[id] ?? 0) - LIBRARY_COLUMN_MIN_WIDTHS[id]),
-        0
-      );
-
-      if (shrinkCapacity <= 0) {
+    for (const id of neighboringColumns) {
+      if (remainingIncrease <= 0) {
         break;
       }
 
-      const clampedColumns: LibraryColumnId[] = [];
-      let reducedWidth = 0;
+      const width = widths[id] ?? 0;
+      const capacity = Math.max(0, width - LIBRARY_COLUMN_MIN_WIDTHS[id]);
+      const reduction = Math.min(capacity, remainingIncrease);
 
-      for (const id of adjustableColumns) {
-        const width = widths[id] ?? 0;
-        const capacity = Math.max(0, width - LIBRARY_COLUMN_MIN_WIDTHS[id]);
-        const reduction = Math.min(capacity, (remainingIncrease * capacity) / shrinkCapacity);
-
-        widths[id] = width - reduction;
-        reducedWidth += reduction;
-
-        if ((widths[id] ?? 0) - LIBRARY_COLUMN_MIN_WIDTHS[id] <= 0.5) {
-          widths[id] = LIBRARY_COLUMN_MIN_WIDTHS[id];
-          clampedColumns.push(id);
-        }
-      }
-
-      remainingIncrease = Math.max(0, remainingIncrease - reducedWidth);
-      adjustableColumns = adjustableColumns.filter((id) => !clampedColumns.includes(id));
+      widths[id] = width - reduction;
+      remainingIncrease -= reduction;
     }
 
-    const actualIncrease = otherColumns.reduce((sum, id) => sum + (baseWidths[id] ?? 0) - (widths[id] ?? 0), 0);
+    const actualIncrease = neighboringColumns.reduce(
+      (sum, id) => sum + (baseWidths[id] ?? 0) - (widths[id] ?? 0),
+      0
+    );
     widths[columnId] = currentWidth + actualIncrease;
     return widths;
   }
 
   const actualReduction = Math.max(0, currentWidth - targetWidth);
-  const totalOtherWidth = otherColumns.reduce((sum, id) => sum + (widths[id] ?? 0), 0);
+  const neighborId = neighboringColumns[0];
 
-  for (const id of otherColumns) {
-    const basis = totalOtherWidth > 0 ? (widths[id] ?? 0) / totalOtherWidth : 1 / otherColumns.length;
-    widths[id] = (widths[id] ?? 0) + actualReduction * basis;
-  }
+  widths[neighborId] = (widths[neighborId] ?? 0) + actualReduction;
 
   widths[columnId] = targetWidth;
   return widths;

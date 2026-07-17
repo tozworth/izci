@@ -62,7 +62,7 @@ describe('library column helpers', () => {
     expect(Object.values(expanded).reduce((sum, width) => sum + width, 0)).toBeCloseTo(720);
   });
 
-  it('rebalance resized columns by borrowing from adjacent visible columns', () => {
+  it('rebalances resized columns against the nearest neighbor', () => {
     const resized = rebalanceResizedColumns(
       {
         title: 300,
@@ -75,7 +75,33 @@ describe('library column helpers', () => {
     );
 
     expect(resized.title).toBeCloseTo(400);
-    expect((resized.artist ?? 0) + (resized.format ?? 0)).toBeCloseTo(216);
+    expect(resized.artist).toBeCloseTo(120);
+    expect(resized.format).toBeCloseTo(96);
+
+    const shrunk = rebalanceResizedColumns(resized, ['title', 'artist', 'format'], 'title', -50);
+
+    expect(shrunk.title).toBeCloseTo(350);
+    expect(shrunk.artist).toBeCloseTo(170);
+    expect(shrunk.format).toBeCloseTo(96);
+  });
+
+  it('cascades resizing only when the nearest neighbor reaches its minimum', () => {
+    const resized = rebalanceResizedColumns(
+      {
+        title: 300,
+        artist: 90,
+        format: 96,
+        duration: 104
+      },
+      ['title', 'artist', 'format', 'duration'],
+      'title',
+      100
+    );
+
+    expect(resized.title).toBeCloseTo(400);
+    expect(resized.artist).toBeCloseTo(72);
+    expect(resized.format).toBeCloseTo(48);
+    expect(resized.duration).toBeCloseTo(70);
   });
 
   it('sorts missing values last and falls back to title/name for ties', () => {
