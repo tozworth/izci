@@ -154,16 +154,14 @@
   }
 
   .library-view-tabs {
-    flex: 1;
+    flex: 0 1 auto;
     min-width: 0;
-    justify-content: space-between;
+    justify-content: flex-start;
   }
 
   .library-view-tabs .library-toolbar-button {
-    flex: 1 1 0;
-    width: auto;
+    flex: 0 0 auto;
     min-width: 1rem;
-    max-width: 1.58rem;
   }
 
   .library-primary-actions {
