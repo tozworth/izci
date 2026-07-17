@@ -17,6 +17,46 @@ function item(id: string, overrides: Partial<PlaylistItem> = {}): PlaylistItem {
 }
 
 describe('library folder reconciliation', () => {
+  it('publishes lightweight batches while preserving hydrated data', () => {
+    const store = createTrackCollectionStore({ dbName: 'test-library-batch', dedupe: true });
+    store.add([item('existing', {
+      sourceFolderId: 'music-root',
+      metadata: { title: 'Hydrated', playCount: 2 }
+    })]);
+
+    const result = store.upsertFolderIndexBatch('music-root', [
+      item('scan-existing', { size: null, lastModified: null }),
+      item('scan-new', {
+        path: 'Music/Artist/New.flac',
+        size: null,
+        lastModified: null
+      })
+    ], ['music-root']);
+
+    expect(result.addedItems).toHaveLength(1);
+    expect(get(store.items)).toHaveLength(2);
+    expect(get(store.items)[0]).toMatchObject({
+      id: 'existing',
+      size: 100,
+      lastModified: 1,
+      metadata: { title: 'Hydrated', playCount: 2 }
+    });
+  });
+
+  it('removes missing managed tracks only when the scan is finalized', () => {
+    const store = createTrackCollectionStore({ dbName: 'test-library-finalize', dedupe: true });
+    store.add([
+      item('seen', { sourceFolderId: 'music-root' }),
+      item('missing', { sourceFolderId: 'music-root', path: 'Music/Missing.flac' })
+    ]);
+
+    store.upsertFolderIndexBatch('music-root', [item('scan', { size: null, lastModified: null })]);
+    expect(get(store.items).map((track) => track.id)).toEqual(['seen', 'missing']);
+
+    store.finalizeFolderIndex('music-root', new Set(['path:music/artist/track.flac']));
+    expect(get(store.items).map((track) => track.id)).toEqual(['seen']);
+  });
+
   it('adopts matching manual tracks and preserves their identity and metadata', () => {
     const store = createTrackCollectionStore({ dbName: 'test-library-adopt', dedupe: true });
     store.add([item('manual', { metadata: { title: 'Track', playCount: 4 } })]);

@@ -45,6 +45,9 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
   let playbackOptionsState: PlaylistPlaybackOptions = defaultPlaybackOptions;
   let hydrated = typeof window === 'undefined';
   let persistQueued = false;
+  let persistTimer: ReturnType<typeof setTimeout> | null = null;
+  let persistenceDeferredDepth = 0;
+  let deferredPersistRequested = false;
   let shouldCompactStoredState = false;
   const pendingOperations: Array<() => void> = [];
   const navigation = createPlaylistNavigation(() => itemList);
@@ -81,21 +84,45 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
     return $items.find((item) => item.id === primaryId) ?? null;
   });
 
-  function queuePersist(): void {
-    if (!hydrated || persistQueued) {
+  function persistSnapshot(): void {
+    void persistStoredState(config.dbName, {
+      items: itemList.map(serializeItem).filter((item): item is StoredPlaylistItem => item !== null),
+      selection: selectionState,
+      playbackOptions: playbackOptionsState
+    });
+  }
+
+  function queuePersist(delayMs = 0): void {
+    if (!hydrated) {
       return;
     }
+
+    if (persistenceDeferredDepth > 0) {
+      deferredPersistRequested = true;
+      return;
+    }
+
+    if (delayMs > 0) {
+      if (persistQueued || persistTimer) return;
+      persistTimer = setTimeout(() => {
+        persistTimer = null;
+        persistSnapshot();
+      }, delayMs);
+      return;
+    }
+
+    if (persistTimer) {
+      clearTimeout(persistTimer);
+      persistTimer = null;
+    }
+
+    if (persistQueued) return;
 
     persistQueued = true;
 
     queueMicrotask(() => {
       persistQueued = false;
-
-      void persistStoredState(config.dbName, {
-        items: itemList.map(serializeItem).filter((item): item is StoredPlaylistItem => item !== null),
-        selection: selectionState,
-        playbackOptions: playbackOptionsState
-      });
+      persistSnapshot();
     });
   }
 
@@ -104,7 +131,7 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
     const normalizedItems = storedItems
       .map(normalizeStoredItem)
       .filter((item): item is StoredPlaylistItem => item !== null)
-      .filter((item) => item.fileHandle)
+      .filter((item) => item.fileHandle || (item.sourceFolderId && item.path))
       .map(
         (item): PlaylistItem => ({
           id: item.id,
@@ -190,6 +217,16 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
     repeatMode,
     ready() {
       return readyPromise;
+    },
+    beginBulkUpdate() {
+      persistenceDeferredDepth += 1;
+    },
+    endBulkUpdate() {
+      persistenceDeferredDepth = Math.max(0, persistenceDeferredDepth - 1);
+      if (persistenceDeferredDepth === 0 && deferredPersistRequested) {
+        deferredPersistRequested = false;
+        queuePersist();
+      }
     },
     async ensureLoaded(id: string, options: { prompt?: boolean } = {}) {
       const item = itemList.find((entry) => entry.id === id);
@@ -366,6 +403,107 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
         }));
         queuePersist();
       });
+    },
+    upsertFolderIndexBatch(
+      folderId: string,
+      indexedItems: PlaylistItem[],
+      activeFolderIds: string[] = []
+    ) {
+      if (!hydrated || indexedItems.length === 0) {
+        return { addedItems: [], updatedItems: [] };
+      }
+
+      const managedByIdentity = new Map(
+        itemList
+          .filter((item) => item.sourceFolderId === folderId)
+          .map((item) => [getTrackIdentity(item), item])
+      );
+      const activeFolderIdSet = new Set(activeFolderIds);
+      const adoptableByIdentity = new Map(
+        itemList
+          .filter((item) => !item.sourceFolderId || !activeFolderIdSet.has(item.sourceFolderId))
+          .map((item) => [getTrackIdentity(item), item])
+      );
+      const replacements = new Map<string, PlaylistItem>();
+      const pendingIdentities = new Set<string>();
+      const addedItems: PlaylistItem[] = [];
+      const updatedItems: PlaylistItem[] = [];
+
+      for (const indexedItem of indexedItems) {
+        const candidate = { ...indexedItem, sourceFolderId: folderId };
+        const identity = getTrackIdentity(candidate);
+
+        if (pendingIdentities.has(identity)) continue;
+        pendingIdentities.add(identity);
+
+        const existing = managedByIdentity.get(identity) ?? adoptableByIdentity.get(identity);
+
+        if (!existing) {
+          addedItems.push(candidate);
+          managedByIdentity.set(identity, candidate);
+          continue;
+        }
+
+        const replacement: PlaylistItem = {
+          ...candidate,
+          id: existing.id,
+          size: candidate.size ?? existing.size,
+          lastModified: candidate.lastModified ?? existing.lastModified,
+          file: existing.file ?? candidate.file,
+          fileHandle: existing.fileHandle ?? candidate.fileHandle,
+          objectUrl: existing.objectUrl ?? candidate.objectUrl,
+          metadata: existing.metadata
+        };
+        const changed =
+          existing.sourceFolderId !== folderId ||
+          existing.path !== replacement.path ||
+          existing.name !== replacement.name ||
+          existing.extension !== replacement.extension ||
+          existing.kind !== replacement.kind;
+
+        if (changed) {
+          replacements.set(existing.id, replacement);
+          updatedItems.push(replacement);
+        }
+      }
+
+      if (addedItems.length === 0 && replacements.size === 0) {
+        return { addedItems, updatedItems };
+      }
+
+      items.set(
+        itemList
+          .map((item) => replacements.get(item.id) ?? item)
+          .concat(addedItems)
+      );
+      selection.set(normalizeSelection(itemList, selectionState));
+      navigation.reset();
+      queuePersist(750);
+
+      return { addedItems, updatedItems };
+    },
+    finalizeFolderIndex(folderId: string, seenIdentities: ReadonlySet<string>) {
+      if (!hydrated) return { removedItems: [] as PlaylistItem[] };
+
+      const removedItems = itemList.filter(
+        (item) => item.sourceFolderId === folderId && !seenIdentities.has(getTrackIdentity(item))
+      );
+
+      if (removedItems.length === 0) {
+        queuePersist();
+        return { removedItems };
+      }
+
+      const removedIds = new Set(removedItems.map((item) => item.id));
+      for (const item of removedItems) revokeObjectUrl(item);
+
+      const previousItems = itemList;
+      const nextItems = itemList.filter((item) => !removedIds.has(item.id));
+      items.set(nextItems);
+      selection.set(removeIdsFromSelection(nextItems, selectionState, removedIds, previousItems));
+      navigation.reset();
+      queuePersist();
+      return { removedItems };
     },
     reconcileFolder(folderId: string, scannedItems: PlaylistItem[], activeFolderIds: string[] = []) {
       if (!hydrated) {

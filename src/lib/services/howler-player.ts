@@ -75,7 +75,9 @@ export class HowlerPlayerService {
         this.#connectAudioBus();
         const duration = this.#howl?.duration() ?? 0;
         const initialPosition = Math.min(this.#initialPosition, duration);
-        const bitrate = duration > 0 ? Math.round((track.size * 8) / duration / 1000) : undefined;
+        const bitrate = duration > 0 && track.size !== null
+          ? Math.round((track.size * 8) / duration / 1000)
+          : undefined;
         this.#onMetadata({
           duration,
           bitrate

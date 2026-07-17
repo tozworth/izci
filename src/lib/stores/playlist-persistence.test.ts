@@ -34,7 +34,7 @@ describe('playlist persistence helpers', () => {
     expect(normalizePlaybackOptions({ shuffle: 'yes', repeatMode: 'bad' })).toEqual(defaultPlaybackOptions);
   });
 
-  it('serializes only handle-backed playlist items', () => {
+  it('serializes handle-backed and lightweight managed items', () => {
     expect(serializeItem(item())).toBeNull();
     expect(serializeItem(item({ fileHandle, path: '/Music/Track.flac', sourceFolderId: 'music-root', metadata: { title: 'Track' } }))).toEqual({
       id: 'track-id',
@@ -43,10 +43,27 @@ describe('playlist persistence helpers', () => {
       kind: 'stream',
       size: 123,
       lastModified: 456,
-      fileHandle,
+      fileHandle: undefined,
       path: '/Music/Track.flac',
       sourceFolderId: 'music-root',
       metadata: { title: 'Track' }
+    });
+    expect(serializeItem(item({
+      sourceFolderId: 'music-root',
+      path: 'Music/Track.flac',
+      size: null,
+      lastModified: null
+    }))).toEqual({
+      id: 'track-id',
+      name: 'Track.flac',
+      extension: 'flac',
+      kind: 'stream',
+      size: null,
+      lastModified: null,
+      fileHandle: undefined,
+      path: 'Music/Track.flac',
+      sourceFolderId: 'music-root',
+      metadata: undefined
     });
   });
 
@@ -72,7 +89,7 @@ describe('playlist persistence helpers', () => {
       extension: 'flac',
       kind: 'stream',
       size: 1,
-      lastModified: 0,
+      lastModified: null,
       fileHandle: undefined,
       path: undefined,
       sourceFolderId: undefined,

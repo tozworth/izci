@@ -21,7 +21,10 @@
   import { createImportController, FILE_INPUT_ACCEPT } from '$lib/services/import-controller';
   import { filesystemFolders } from '$lib/services/filesystem-folders';
   import { startLibraryFolderCommandListener } from '$lib/services/library-folder-coordination';
-  import { scanLaunchLibraryFolders } from '$lib/services/library-folder-scanner';
+  import {
+    registerAndScanLibraryFolders,
+    scanLaunchLibraryFolders
+  } from '$lib/services/library-folder-scanner';
   import { appInstallService, type AppInstallState } from '$lib/services/app-install';
   import { subscribeToLaunchedFiles } from '$lib/services/file-launch';
   import {
@@ -426,7 +429,7 @@
   };
   const libraryPanelHandlers: WorkspacePanelHandlers = {
     addFiles: (files) => workspaceCollections.handleAddFiles(files, 'library'),
-    addFolders: (handles) => void filesystemFolders.rememberMany(handles),
+    addFolders: (handles) => void registerAndScanLibraryFolders(handles),
     openFiles: () => void handleMenuOpenFiles('library'),
     select: (event) => handleSelect('library', event),
     setSelection: (event) => handleSetSelection('library', event),

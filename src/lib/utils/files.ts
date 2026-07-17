@@ -42,6 +42,7 @@ interface ImportedFileSource {
 
 interface DirectoryReadOptions {
   maxDepth?: number;
+  materializeDirectories?: boolean;
 }
 
 const fileNameCollator = new Intl.Collator(undefined, {
@@ -344,7 +345,9 @@ export async function extractDroppedContent(
     if (handle?.kind === 'directory') {
       const directoryHandle = handle as FileSystemDirectoryHandle;
       directoryHandles.push(directoryHandle);
-      const directoryFiles = await readDirectoryFiles(directoryHandle, options);
+      const directoryFiles = options.materializeDirectories === false
+        ? []
+        : await readDirectoryFiles(directoryHandle, options);
 
       for (const file of directoryFiles) {
         pushFile(file);
@@ -379,7 +382,7 @@ export async function extractDroppedContent(
     }
   }
 
-  if (files.length > 0) {
+  if (files.length > 0 || directoryHandles.length > 0) {
     return { files, directoryHandles };
   }
 

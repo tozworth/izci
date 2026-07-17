@@ -4,10 +4,20 @@ export type FilesystemFolderPermission = 'granted' | 'prompt' | 'denied' | 'unav
 export type LibraryFolderMode = 'manual' | 'launch';
 export type LibraryFolderScanStatus =
   | 'never'
-  | 'scanning'
-  | 'success'
+  | 'enumerating'
+  | 'indexed'
+  | 'partial'
   | 'permission-required'
+  | 'cancelled'
   | 'error';
+
+export interface LibraryFolderScanProgress {
+  discoveredTrackCount: number;
+  visitedDirectoryCount: number;
+  skippedFileCount: number;
+  errorCount: number;
+  currentPath?: string;
+}
 
 export interface FilesystemFolder {
   id: string;
@@ -20,9 +30,10 @@ export interface FilesystemFolder {
   lastScanStatus: LibraryFolderScanStatus;
   lastScanTrackCount?: number;
   lastScanMessage?: string;
+  scanProgress?: LibraryFolderScanProgress;
 }
 
-type StoredFilesystemFolder = Omit<FilesystemFolder, 'permission'>;
+type StoredFilesystemFolder = Omit<FilesystemFolder, 'permission' | 'scanProgress'>;
 
 const DATABASE_NAME = 'izci-filesystem';
 const DATABASE_VERSION = 1;
@@ -49,9 +60,11 @@ function normalizeStoredFolder(value: unknown): StoredFilesystemFolder | null {
   }
 
   const lastScanStatus: LibraryFolderScanStatus =
-    source.lastScanStatus === 'scanning' ||
-    source.lastScanStatus === 'success' ||
+    source.lastScanStatus === 'enumerating' ||
+    source.lastScanStatus === 'indexed' ||
+    source.lastScanStatus === 'partial' ||
     source.lastScanStatus === 'permission-required' ||
+    source.lastScanStatus === 'cancelled' ||
     source.lastScanStatus === 'error'
       ? source.lastScanStatus
       : 'never';
@@ -172,7 +185,7 @@ async function sameDirectory(
 }
 
 function stripRuntimeState(folder: FilesystemFolder): StoredFilesystemFolder {
-  const { permission: _permission, ...stored } = folder;
+  const { permission: _permission, scanProgress: _scanProgress, ...stored } = folder;
   return stored;
 }
 
@@ -191,6 +204,7 @@ function createFilesystemFoldersStore(): Readable<FilesystemFolder[]> & {
     id: string,
     patch: Partial<Pick<FilesystemFolder, 'lastScanAt' | 'lastScanStatus' | 'lastScanTrackCount' | 'lastScanMessage'>>
   ): Promise<void>;
+  updateScanProgress(id: string, progress: LibraryFolderScanProgress | undefined): void;
   getSnapshot(): FilesystemFolder[];
 } {
   const store = writable<FilesystemFolder[]>([]);
@@ -252,7 +266,21 @@ function createFilesystemFoldersStore(): Readable<FilesystemFolder[]> & {
   if (typeof window !== 'undefined') {
     if ('BroadcastChannel' in window) {
       channel = new BroadcastChannel(CHANNEL_NAME);
-      channel.addEventListener('message', () => void load());
+      channel.addEventListener('message', (event) => {
+        const message = event.data as
+          | { type?: 'changed' }
+          | { type: 'scan-progress'; folderId: string; progress?: LibraryFolderScanProgress };
+
+        if (message?.type === 'scan-progress' && typeof message.folderId === 'string') {
+          snapshot = snapshot.map((folder) =>
+            folder.id === message.folderId ? { ...folder, scanProgress: message.progress } : folder
+          );
+          store.set(snapshot);
+          return;
+        }
+
+        void load();
+      });
     }
     void load().finally(() => {
       resolveReady?.();
@@ -321,8 +349,17 @@ function createFilesystemFoldersStore(): Readable<FilesystemFolder[]> & {
     },
     async updateScan(id, patch) {
       await mutate((current) =>
-        current.map((folder) => (folder.id === id ? { ...folder, ...patch } : folder))
+        current.map((folder) =>
+          folder.id === id ? { ...folder, ...patch, scanProgress: undefined } : folder
+        )
       );
+    },
+    updateScanProgress(id, progress) {
+      snapshot = snapshot.map((folder) =>
+        folder.id === id ? { ...folder, scanProgress: progress } : folder
+      );
+      store.set(snapshot);
+      channel?.postMessage({ type: 'scan-progress', folderId: id, progress });
     }
   };
 }

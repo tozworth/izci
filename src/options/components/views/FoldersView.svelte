@@ -7,7 +7,10 @@
     type FilesystemFolder,
     type FilesystemFolderPermission
   } from '$lib/services/filesystem-folders';
-  import { requestLibraryFolderScan } from '$lib/services/library-folder-coordination';
+  import {
+    requestLibraryFolderScan,
+    requestLibraryFolderScanCancellation
+  } from '$lib/services/library-folder-coordination';
 
   type PickerWindow = Window & typeof globalThis & {
     showDirectoryPicker?: () => Promise<FileSystemDirectoryHandle>;
@@ -36,9 +39,16 @@
 
   function formatLastScan(folder: FilesystemFolder): string {
     if (folder.libraryMode === null) return '—';
-    if (folder.lastScanStatus === 'scanning') return 'Scanning…';
+    if (folder.lastScanStatus === 'enumerating') {
+      const count = folder.scanProgress?.discoveredTrackCount ?? 0;
+      return `Scanning… ${new Intl.NumberFormat().format(count)} tracks found`;
+    }
     if (folder.lastScanStatus === 'permission-required') return 'Permission required';
-    if (folder.lastScanStatus === 'error') return folder.lastScanMessage ?? 'Scan failed';
+    if (
+      folder.lastScanStatus === 'partial' ||
+      folder.lastScanStatus === 'cancelled' ||
+      folder.lastScanStatus === 'error'
+    ) return folder.lastScanMessage ?? 'Scan failed';
     if (!folder.lastScanAt) return 'Not scanned';
 
     return new Intl.DateTimeFormat(undefined, {
@@ -131,6 +141,7 @@
   async function removeFromLibrary(folder: FilesystemFolder) {
     setBusy(folder.id, true);
     try {
+      requestLibraryFolderScanCancellation(folder.id);
       await filesystemFolders.setLibraryMode(folder.id, null);
     } finally {
       setBusy(folder.id, false);
@@ -149,6 +160,7 @@
   async function forgetFolder(folder: FilesystemFolder) {
     setBusy(folder.id, true);
     try {
+      requestLibraryFolderScanCancellation(folder.id);
       await filesystemFolders.forget(folder.id);
     } finally {
       setBusy(folder.id, false);
@@ -236,7 +248,7 @@
               {/if}
             </span>
             <span
-              class:status-error={folder.lastScanStatus === 'error' || folder.lastScanStatus === 'permission-required'}
+              class:status-error={folder.lastScanStatus === 'error' || folder.lastScanStatus === 'partial' || folder.lastScanStatus === 'permission-required'}
               class="text-cell scan-cell"
               role="cell"
               title={formatLastScan(folder)}
@@ -268,9 +280,18 @@
                   icon="refresh"
                   label="Scan now"
                   placement="above"
-                  disabled={folder.lastScanStatus === 'scanning' || busyIds.has(folder.id)}
+                  disabled={folder.lastScanStatus === 'enumerating' || busyIds.has(folder.id)}
                   on:click={() => queueScan(folder)}
                 />
+                {#if folder.lastScanStatus === 'enumerating'}
+                  <OptionGlyphButton
+                    icon="cancel"
+                    label="Cancel scan"
+                    placement="above"
+                    disabled={busyIds.has(folder.id)}
+                    on:click={() => requestLibraryFolderScanCancellation(folder.id)}
+                  />
+                {/if}
                 <OptionGlyphButton
                   icon="playlist_remove"
                   label="Remove from library"

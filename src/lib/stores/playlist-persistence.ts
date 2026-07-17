@@ -5,8 +5,8 @@ export interface StoredPlaylistItem {
   name: string;
   extension: string;
   kind: PlaylistItem['kind'];
-  size: number;
-  lastModified: number;
+  size: number | null;
+  lastModified: number | null;
   fileHandle?: FileSystemFileHandle;
   path?: string;
   sourceFolderId?: string;
@@ -49,7 +49,7 @@ export function normalizeStoredItem(value: unknown): StoredPlaylistItem | null {
     typeof source.name !== 'string' ||
     typeof source.extension !== 'string' ||
     (source.kind !== 'stream' && source.kind !== 'module') ||
-    typeof source.size !== 'number'
+    (source.size !== null && typeof source.size !== 'number')
   ) {
     return null;
   }
@@ -60,7 +60,10 @@ export function normalizeStoredItem(value: unknown): StoredPlaylistItem | null {
     extension: source.extension,
     kind: source.kind,
     size: source.size,
-    lastModified: typeof source.lastModified === 'number' ? source.lastModified : 0,
+    lastModified:
+      source.lastModified === null || typeof source.lastModified === 'number'
+        ? source.lastModified
+        : null,
     fileHandle: isFileSystemFileHandle(source.fileHandle) ? source.fileHandle : undefined,
     path: typeof source.path === 'string' ? source.path : undefined,
     sourceFolderId: typeof source.sourceFolderId === 'string' ? source.sourceFolderId : undefined,
@@ -69,7 +72,9 @@ export function normalizeStoredItem(value: unknown): StoredPlaylistItem | null {
 }
 
 export function serializeItem(item: PlaylistItem): StoredPlaylistItem | null {
-  if (!item.fileHandle) {
+  const isManagedItem = Boolean(item.sourceFolderId && item.path);
+
+  if (!isManagedItem && !item.fileHandle) {
     return null;
   }
 
@@ -80,7 +85,7 @@ export function serializeItem(item: PlaylistItem): StoredPlaylistItem | null {
     kind: item.kind,
     size: item.size,
     lastModified: item.lastModified,
-    fileHandle: item.fileHandle,
+    fileHandle: isManagedItem ? undefined : item.fileHandle,
     path: item.path,
     sourceFolderId: item.sourceFolderId,
     metadata: item.metadata

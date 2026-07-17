@@ -347,8 +347,8 @@ export interface PlaylistItem {
   name: string;
   extension: string;
   kind: TrackKind;
-  size: number;
-  lastModified: number;
+  size: number | null;
+  lastModified: number | null;
   objectUrl?: string;
   metadata?: TrackMetadata;
 }

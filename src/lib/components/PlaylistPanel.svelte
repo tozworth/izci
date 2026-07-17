@@ -116,7 +116,8 @@
     }
 
     const { files: discoveredFiles, directoryHandles } = await extractDroppedContent(event.dataTransfer, {
-      maxDepth: trackSettings.getSnapshot().folderNestingLimit
+      maxDepth: trackSettings.getSnapshot().folderNestingLimit,
+      materializeDirectories: !libraryMode
     });
 
     if (directoryHandles.length > 0) {

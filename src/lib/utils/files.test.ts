@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { MODULE_EXTENSIONS } from '$lib/types';
 
 import {
@@ -180,5 +180,22 @@ describe('file helpers', () => {
     expect(dropped.directoryHandles).toEqual([folder]);
     expect(dropped.files).toMatchObject([{ name: 'Track.flac' }]);
     expect(buildPlaylistItems(dropped.files)[0].path).toBe('Music/Track.flac');
+  });
+
+  it('hands managed directory drops off without opening their files', async () => {
+    const getFile = vi.fn(async () => new File(['track'], 'Track.flac'));
+    const track = fileHandle(new File(['track'], 'Track.flac'));
+    track.getFile = getFile;
+    const folder = directoryHandle('Music', [track]);
+    const dataTransfer = {
+      items: [{ getAsFileSystemHandle: async () => folder }],
+      files: []
+    } as unknown as DataTransfer;
+
+    const dropped = await extractDroppedContent(dataTransfer, { materializeDirectories: false });
+
+    expect(dropped.directoryHandles).toEqual([folder]);
+    expect(dropped.files).toEqual([]);
+    expect(getFile).not.toHaveBeenCalled();
   });
 });
