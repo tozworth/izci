@@ -203,7 +203,6 @@
     background: transparent;
     border: 0;
     color: var(--muted);
-    cursor: pointer;
     transition:
       color 180ms ease,
       background-color 180ms ease;

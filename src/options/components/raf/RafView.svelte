@@ -171,7 +171,7 @@
     box-shadow: 0 1px 0 var(--hairline), 0 8px 16px rgb(0 0 0 / 8%);
   }
   .raf-toolbar > button,
-  .transfer-menu summary { width: 27px; height: 27px; padding: 0; display: grid; place-items: center; border-radius: 4px; background: transparent; color: var(--muted-strong); cursor: pointer; }
+  .transfer-menu summary { width: 27px; height: 27px; padding: 0; display: grid; place-items: center; border-radius: 4px; background: transparent; color: var(--muted-strong); }
   .raf-toolbar > button:hover:not(:disabled),
   .transfer-menu summary:hover { background: var(--hover-surface); color: var(--text-strong); }
   .raf-toolbar > button.active { color: var(--accent-strong); }
@@ -183,7 +183,7 @@
   .preset-menu { position: static; }
   .transfer-menu summary { list-style: none; }
   .transfer-menu summary::-webkit-details-marker { display: none; }
-  .preset-menu summary { width: min(150px, 32vw); height: 27px; min-width: 72px; padding: 0 4px 0 7px; display: flex; align-items: center; gap: 2px; border-radius: 4px; background: var(--bg-input); color: var(--text); cursor: pointer; list-style: none; }
+  .preset-menu summary { width: min(150px, 32vw); height: 27px; min-width: 72px; padding: 0 4px 0 7px; display: flex; align-items: center; gap: 2px; border-radius: 4px; background: var(--bg-input); color: var(--text); list-style: none; }
   .preset-menu summary:hover { background: var(--hover-surface); color: var(--text-strong); }
   .preset-menu summary::-webkit-details-marker { display: none; }
   .preset-summary-name { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

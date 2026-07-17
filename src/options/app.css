@@ -364,7 +364,6 @@ code {
   border-radius: 50%;
   background: transparent;
   color: rgba(18, 36, 55, 0.58);
-  cursor: pointer;
 }
 
 .about-update-refresh:hover {
@@ -434,7 +433,6 @@ code {
   padding: 0;
   border: 0;
   background: transparent;
-  cursor: pointer;
   text-decoration: underline;
   text-underline-offset: 2px;
 }

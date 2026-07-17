@@ -332,7 +332,7 @@
   .effects-sidebar-header strong { color: var(--text-strong); }
   .effects-sidebar-actions { min-width: 0; margin-left: auto; display: flex; align-items: center; gap: 1px; }
   .sidebar-add-menu { position: relative; }
-  .sidebar-add-menu summary { width: 25px; height: 25px; padding: 0; display: grid; place-items: center; border-radius: 3px; color: var(--muted-strong); cursor: pointer; list-style: none; }
+  .sidebar-add-menu summary { width: 25px; height: 25px; padding: 0; display: grid; place-items: center; border-radius: 3px; color: var(--muted-strong); list-style: none; }
   .sidebar-add-menu summary::-webkit-details-marker { display: none; }
   .sidebar-add-menu summary:hover { background: var(--hover-surface); color: var(--text-strong); }
   .sidebar-add-menu-items { position: absolute; z-index: 8; top: calc(100% + 3px); left: 0; width: 150px; padding: 3px; display: grid; border: 1px solid var(--menu-bar-border); border-radius: 4px; background: var(--menu-popover-bg); box-shadow: var(--shadow); }
