@@ -15,7 +15,6 @@
     WorkspaceTab
   } from '$lib/types';
   import NowPlayingWorkspace from './NowPlayingWorkspace.svelte';
-  import TabbedWorkspace from './TabbedWorkspace.svelte';
   import WideWorkspace from './WideWorkspace.svelte';
   import type {
     WideWorkspaceResizeStartDetail,
@@ -111,20 +110,6 @@
     on:mute={onMute}
     on:showTrack={(event) => onShowTrack(event.detail)}
   />
-{:else if workspaceState.isTabbedLayout}
-  <TabbedWorkspace
-    content={workspaceContent}
-    activeWorkspaceTab={workspaceState.activeWorkspaceTab}
-    workspaceTabs={workspaceState.workspaceTabs}
-    backdropArtwork={artworkState.visibleArtworkBackground}
-    zoneArtworkBright={workspaceZoneArtworkBright}
-    zoneEffects={workspaceZoneEffects}
-    zoneArtworkSettings={workspaceZoneArtworkSettings}
-    on:seek={(event) => onSeek(event.detail)}
-    on:tabChange={(event) => onTabChange(event.detail)}
-    on:tabClose={(event) => onTabClose(event.detail)}
-    on:tabMove={(event) => onTabbedTabMove(event.detail)}
-  />
 {:else}
   <WideWorkspace
     content={workspaceContent}
@@ -132,6 +117,7 @@
     panelWidths={workspaceState.widePanelWidths}
     resizerWidth={WORKSPACE_RESIZER_WIDTH}
     isResizing={workspaceState.isResizing}
+    isCompactWorkspace={workspaceState.isCompactWorkspace}
     backdropArtwork={artworkState.visibleArtworkBackground}
     zoneArtworkBright={workspaceZoneArtworkBright}
     zoneEffects={workspaceZoneEffects}

@@ -11,7 +11,7 @@
   export let artworkBackgroundActive = false;
   export let artworkBackgroundBright = false;
   export let visualizerBackdropActive = false;
-  export let isTabbedLayout = false;
+  export let isCompactWorkspace = false;
 </script>
 
 {#if tab === 'playlist'}
@@ -49,7 +49,7 @@
     {artworkBackgroundActive}
     {artworkBackgroundBright}
     {visualizerBackdropActive}
-    {isTabbedLayout}
+    {isCompactWorkspace}
     fillParent={true}
     hideEyebrow={true}
   />
@@ -66,7 +66,7 @@
     theaterSmoothScroll={content.lyricsTheaterSmoothScroll}
     resumeAutoScrollToken={content.lyricsResumeAutoScrollToken}
     forceAutoScroll={true}
-    {isTabbedLayout}
+    {isCompactWorkspace}
     fillParent={true}
     hideEyebrow={true}
     on:seek

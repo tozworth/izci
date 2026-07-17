@@ -9,7 +9,7 @@
   export let artworkBackgroundBright = false;
   export let visualizerBackdropActive = false;
   export let hideEyebrow = false;
-  export let isTabbedLayout = false;
+  export let isCompactWorkspace = false;
   export let fillParent = false;
   export let showCloseButton = false;
   export let onClose: () => void = () => {};
@@ -126,7 +126,7 @@
   </div>
 
   {#if track}
-    <div class="details-content" class:tabbed-layout={isTabbedLayout}>
+    <div class="details-content" class:compact-workspace={isCompactWorkspace}>
       {#if showTrackSection}
         <section class="detail-section track-copy">
           {#if artwork}
@@ -191,7 +191,7 @@
       {/if}
     </div>
   {:else}
-    <div class="empty-state align-start" class:tabbed-layout={isTabbedLayout}>
+    <div class="empty-state align-start" class:compact-workspace={isCompactWorkspace}>
       <p>Select a track to inspect it.</p>
       <p>Playlist and library selections both surface their metadata here.</p>
     </div>
@@ -271,8 +271,8 @@
     padding: 0 0.72rem;
   }
 
-  .details-content.tabbed-layout,
-  .empty-state.tabbed-layout {
+  .details-content.compact-workspace,
+  .empty-state.compact-workspace {
     padding-bottom: calc(7rem + env(safe-area-inset-bottom, 0px));
   }
 

@@ -25,6 +25,7 @@
   export let panelWidths: Record<WorkspacePanelId, number>;
   export let resizerWidth = 1;
   export let isResizing = false;
+  export let isCompactWorkspace = false;
   export let backdropArtwork: LoadedStreamArtwork | null = null;
   export let artworkBackgroundBright = false;
   export let zoneEffects: Record<WorkspacePanelId, BackdropZoneEffect> = {
@@ -61,7 +62,9 @@
   let dropTargetPanelId: WorkspacePanelId | null = null;
 
   $: visiblePanels = workspacePanels.filter((panel) => panel.isOpen);
-  $: hiddenPanels = workspacePanels.filter((panel) => !panel.isOpen);
+  $: hiddenPanels = workspacePanels.filter(
+    (panel) => !panel.isOpen && !panel.isResponsiveCollapsed
+  );
 
   function getPanelLabel(panelId: WorkspacePanelId): string {
     return `${PANEL_LABELS[panelId]} panel`;
@@ -140,12 +143,12 @@
         on:dragleave={(event) => handlePanelDragLeave(event, panel.id)}
       >
         <BackdropZone
-          effect={zoneEffects[panel.id]}
+          effect={zoneEffects[panel.backdropPanelId]}
           artwork={backdropArtwork}
-          artworkSettings={zoneArtworkSettings[panel.id]}
-          artworkBright={zoneArtworkBright[panel.id] || artworkBackgroundBright}
+          artworkSettings={zoneArtworkSettings[panel.backdropPanelId]}
+          artworkBright={zoneArtworkBright[panel.backdropPanelId] || artworkBackgroundBright}
           fillParent={true}
-          zoneId={panel.id}
+          zoneId={panel.backdropPanelId}
         >
           <div class="workspace-dock-panel-content">
             <WorkspaceTabBar
@@ -171,9 +174,10 @@
                 <WorkspaceTabContent
                   tab={panel.activeTab}
                   {content}
-                  artworkBackgroundActive={hasArtworkBackdrop(zoneEffects[panel.id]) && Boolean(backdropArtwork)}
-                  artworkBackgroundBright={zoneArtworkBright[panel.id] || artworkBackgroundBright}
-                  visualizerBackdropActive={hasVisualizerBackdrop(zoneEffects[panel.id])}
+                  artworkBackgroundActive={hasArtworkBackdrop(zoneEffects[panel.backdropPanelId]) && Boolean(backdropArtwork)}
+                  artworkBackgroundBright={zoneArtworkBright[panel.backdropPanelId] || artworkBackgroundBright}
+                  visualizerBackdropActive={hasVisualizerBackdrop(zoneEffects[panel.backdropPanelId])}
+                  {isCompactWorkspace}
                   on:seek
                 />
               </div>

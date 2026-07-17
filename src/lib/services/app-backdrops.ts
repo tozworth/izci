@@ -124,8 +124,8 @@ export function resolveAppBackdropPresentation({
       ? 'now-playing'
       : miniModeActive
         ? 'mini'
-        : workspaceState.isTabbedLayout
-          ? 'tabbed'
+        : workspaceState.isCompactWorkspace
+          ? 'compact'
           : 'wide',
     workspaceState.activeWorkspaceTab,
     workspaceState.visibleWorkspacePanels.join(','),

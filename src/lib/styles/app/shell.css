@@ -17,7 +17,7 @@
   padding-top: var(--window-frame-safe-top);
 }
 
-.app-shell.tabbed-layout {
+.app-shell.compact-workspace {
   padding-bottom: var(--player-bar-measured-reserve, var(--player-bar-reserve-tabbed));
 }
 
@@ -373,7 +373,7 @@
 }
 
 @media (max-width: 349px) {
-  .app-shell.tabbed-layout {
+  .app-shell.compact-workspace {
     padding-bottom: var(--player-bar-measured-reserve, calc(4.55rem + env(safe-area-inset-bottom, 0px)));
   }
 }

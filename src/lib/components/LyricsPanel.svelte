@@ -24,7 +24,7 @@
   export let resumeAutoScrollToken = 0;
   export let forceAutoScroll = false;
   export let hideEyebrow = false;
-  export let isTabbedLayout = false;
+  export let isCompactWorkspace = false;
   export let fillParent = false;
   export let showCloseButton = false;
   export let onClose: () => void = () => {};
@@ -510,13 +510,13 @@
   </div>
 
   {#if emptyStateMessage}
-    <div class="empty-state align-start" class:tabbed-layout={isTabbedLayout}>
+    <div class="empty-state align-start" class:compact-workspace={isCompactWorkspace}>
       <p>{emptyStateMessage}</p>
     </div>
   {:else if displayStyle !== 'theater'}
     <div
       class="lyrics-content {displayStyle}-layout"
-      class:tabbed-layout={isTabbedLayout}
+      class:compact-workspace={isCompactWorkspace}
       use:measureScroller
       on:wheel={pauseAutoScrollForUser}
       on:scroll={handleScrollerScroll}
@@ -549,7 +549,7 @@
   {:else}
     <div
       class="lyrics-content theater-layout"
-      class:tabbed-layout={isTabbedLayout}
+      class:compact-workspace={isCompactWorkspace}
       use:measureScroller
       on:wheel={pauseAutoScrollForUser}
       on:scroll={handleScrollerScroll}
@@ -665,8 +665,8 @@
     scroll-behavior: auto;
   }
 
-  .lyrics-content.tabbed-layout,
-  .empty-state.tabbed-layout {
+  .lyrics-content.compact-workspace,
+  .empty-state.compact-workspace {
     padding-bottom: calc(7rem + env(safe-area-inset-bottom, 0px));
   }
 

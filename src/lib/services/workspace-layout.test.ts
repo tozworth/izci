@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   getWideContentWidth,
+  resolveResponsiveWorkspacePanels,
   resolveResizedPanelLayout,
   resolveWidePanelWidths
 } from './workspace-layout';
@@ -18,6 +19,28 @@ function totalWidth(widths: Record<'left' | 'center' | 'right', number>): number
 }
 
 describe('workspace layout', () => {
+  it('collapses right into center and then left as available width shrinks', () => {
+    expect(resolveResponsiveWorkspacePanels(900, ['left', 'center', 'right'])).toEqual({
+      visiblePanels: ['left', 'center', 'right'],
+      collapsedPanels: []
+    });
+    expect(resolveResponsiveWorkspacePanels(700, ['left', 'center', 'right'])).toEqual({
+      visiblePanels: ['left', 'center'],
+      collapsedPanels: ['right']
+    });
+    expect(resolveResponsiveWorkspacePanels(500, ['left', 'center', 'right'])).toEqual({
+      visiblePanels: ['center'],
+      collapsedPanels: ['left', 'right']
+    });
+  });
+
+  it('uses a temporary center host when a layout without center must collapse', () => {
+    expect(resolveResponsiveWorkspacePanels(400, ['left', 'right'])).toEqual({
+      visiblePanels: ['center'],
+      collapsedPanels: ['left', 'right']
+    });
+  });
+
   it('subtracts padding and only visible resizers from the wide content width', () => {
     expect(getWideContentWidth(1200)).toBe(1198);
     expect(getWideContentWidth(1200, { detailsVisible: false })).toBe(1199);

@@ -14,6 +14,11 @@ export const WIDE_PANEL_MIN_WIDTHS: Record<WorkspacePanelId, number> = {
   right: 200
 };
 
+export interface ResponsiveWorkspacePanels {
+  visiblePanels: WorkspacePanelId[];
+  collapsedPanels: WorkspacePanelId[];
+}
+
 interface WideWorkspaceLayoutOptions {
   visiblePanels?: WorkspacePanelId[];
   detailsVisible?: boolean;
@@ -64,6 +69,49 @@ function resolveVisiblePanels(options: WideWorkspaceLayoutOptions = {}): Workspa
   return options.detailsVisible === false
     ? ['left', 'center']
     : [...WORKSPACE_PANEL_IDS];
+}
+
+function getRequiredPanelWidth(panelIds: WorkspacePanelId[]): number {
+  const resizerCount = Math.max(panelIds.length - 1, 0);
+
+  return panelIds.reduce(
+    (total, panelId) => total + WIDE_PANEL_MIN_WIDTHS[panelId],
+    WORKSPACE_RESIZER_WIDTH * resizerCount
+  );
+}
+
+export function resolveResponsiveWorkspacePanels(
+  viewportWidth: number,
+  logicalPanels: WorkspacePanelId[]
+): ResponsiveWorkspacePanels {
+  const logicalPanelSet = new Set(logicalPanels);
+  let visiblePanels = WORKSPACE_PANEL_IDS.filter((panelId) => logicalPanelSet.has(panelId));
+  const collapsedPanels: WorkspacePanelId[] = [];
+
+  while (visiblePanels.length > 0 && viewportWidth < getRequiredPanelWidth(visiblePanels)) {
+    const panelToCollapse = visiblePanels.includes('right')
+      ? 'right'
+      : visiblePanels.includes('left')
+        ? 'left'
+        : null;
+
+    if (!panelToCollapse) {
+      break;
+    }
+
+    collapsedPanels.push(panelToCollapse);
+    visiblePanels = visiblePanels.filter((panelId) => panelId !== panelToCollapse);
+
+    if (!visiblePanels.includes('center')) {
+      visiblePanels.push('center');
+      visiblePanels = WORKSPACE_PANEL_IDS.filter((panelId) => visiblePanels.includes(panelId));
+    }
+  }
+
+  return {
+    visiblePanels,
+    collapsedPanels: WORKSPACE_PANEL_IDS.filter((panelId) => collapsedPanels.includes(panelId))
+  };
 }
 
 function getPanelWidthTotal(

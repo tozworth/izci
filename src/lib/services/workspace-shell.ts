@@ -8,6 +8,7 @@ import type {
 } from '$lib/components/workspace/types';
 import {
   getWideContentWidth,
+  resolveResponsiveWorkspacePanels,
   resolveResizedPanelLayout,
   resolveWidePanelWidths
 } from '$lib/services/workspace-layout';
@@ -70,8 +71,9 @@ export interface WorkspaceShellState {
   isLyricsPanelVisible: boolean;
   isPatternsPanelVisible: boolean;
   isRightPanelVisible: boolean;
-  isTabbedLayout: boolean;
+  isCompactWorkspace: boolean;
   isResizing: boolean;
+  collapsedWorkspacePanels: WorkspacePanelId[];
   widePanelWidths: Record<WorkspacePanelId, number>;
   visibleWorkspacePanels: WorkspacePanelId[];
   workspacePanels: WorkspacePanelDefinition[];
@@ -264,16 +266,42 @@ function getVisibleWorkspacePanels(
 
 function buildWorkspacePanels(
   settings: WorkspacePanelStateSettings,
-  visiblePanels: WorkspacePanelId[]
+  logicalVisiblePanels: WorkspacePanelId[],
+  visiblePanels: WorkspacePanelId[],
+  collapsedPanels: WorkspacePanelId[]
 ): WorkspacePanelDefinition[] {
   const visiblePanelSet = new Set(visiblePanels);
+  const logicalVisiblePanelSet = new Set(logicalVisiblePanels);
+  const collapsedPanelSet = new Set(collapsedPanels);
+  const mergeSourcePanelSet = new Set<WorkspacePanelId>(collapsedPanels);
 
-  return WORKSPACE_PANEL_IDS.map((panelId) => ({
-    id: panelId,
-    tabs: settings.panels[panelId].map((tab) => allWorkspaceTabs[tab]),
-    activeTab: settings.activeTabsByPanel[panelId],
-    isOpen: visiblePanelSet.has(panelId)
-  }));
+  if (logicalVisiblePanelSet.has('center')) {
+    mergeSourcePanelSet.add('center');
+  }
+
+  const mergedTabs = normalizeTabbedOrder(settings).filter((tab) =>
+    mergeSourcePanelSet.has(getWorkspacePanelForTab(settings, tab))
+  );
+  const mergedActiveTab = mergedTabs.includes(settings.activeWorkspaceTab)
+    ? settings.activeWorkspaceTab
+    : settings.activeTabsByPanel.center && mergedTabs.includes(settings.activeTabsByPanel.center)
+      ? settings.activeTabsByPanel.center
+      : mergedTabs[0] ?? null;
+
+  return WORKSPACE_PANEL_IDS.map((panelId) => {
+    const isMergeHost = panelId === 'center' && collapsedPanels.length > 0;
+    const tabs = isMergeHost ? mergedTabs : settings.panels[panelId];
+    const activeTab = isMergeHost ? mergedActiveTab : settings.activeTabsByPanel[panelId];
+
+    return {
+      id: panelId,
+      tabs: tabs.map((tab) => allWorkspaceTabs[tab]),
+      activeTab,
+      backdropPanelId: activeTab ? getWorkspacePanelForTab(settings, activeTab) : panelId,
+      isOpen: visiblePanelSet.has(panelId),
+      isResponsiveCollapsed: collapsedPanelSet.has(panelId)
+    };
+  });
 }
 
 function buildWorkspaceTabs(settings: WorkspacePanelStateSettings): WorkspaceTabDefinition[] {
@@ -321,7 +349,9 @@ function createInitialState(
   getLibraryContextActions: () => MenuActionItem[]
 ): WorkspaceShellState {
   const savedPanelState = workspacePanelState.getSnapshot();
-  const visibleWorkspacePanels = getVisibleWorkspacePanels(savedPanelState, false);
+  const logicalVisiblePanels = getVisibleWorkspacePanels(savedPanelState, false);
+  const responsivePanels = resolveResponsiveWorkspacePanels(0, logicalVisiblePanels);
+  const visibleWorkspacePanels = responsivePanels.visiblePanels;
 
   return {
     activeCollection: savedPanelState.activeCollection,
@@ -329,14 +359,20 @@ function createInitialState(
     isDetailsPanelVisible: isWorkspaceTabOpen(savedPanelState, 'details'),
     isLyricsPanelVisible: isWorkspaceTabOpen(savedPanelState, 'lyrics'),
     isPatternsPanelVisible: isWorkspaceTabOpen(savedPanelState, 'patterns'),
-    isRightPanelVisible: visibleWorkspacePanels.includes('right'),
-    isTabbedLayout: false,
+    isRightPanelVisible: logicalVisiblePanels.includes('right'),
+    isCompactWorkspace: responsivePanels.collapsedPanels.length > 0 && visibleWorkspacePanels.length === 1,
     isResizing: false,
+    collapsedWorkspacePanels: responsivePanels.collapsedPanels,
     widePanelWidths: resolveWidePanelWidths(workspacePanelLayout.getSnapshot(), 0, {
       visiblePanels: visibleWorkspacePanels
     }),
     visibleWorkspacePanels,
-    workspacePanels: buildWorkspacePanels(savedPanelState, visibleWorkspacePanels),
+    workspacePanels: buildWorkspacePanels(
+      savedPanelState,
+      logicalVisiblePanels,
+      visibleWorkspacePanels,
+      responsivePanels.collapsedPanels
+    ),
     workspaceTabs: buildWorkspaceTabs(savedPanelState),
     playlistJumpRequest: null,
     playlistPanelProps: createPlaylistPanelProps(getPlaylistContextActions),
@@ -433,17 +469,27 @@ export function createWorkspaceShellController({
       clearSelection(getOtherWorkspaceCollection(state.activeCollection));
     }
 
-    const isTabbedLayout = lastInputs.innerWidth <= 660;
     const viewportWidth =
       lastInputs.innerWidth > 0
         ? lastInputs.innerWidth
         : typeof window !== 'undefined'
           ? window.innerWidth
           : 0;
-    const visibleWorkspacePanels = getVisibleWorkspacePanels(
+    const logicalVisiblePanels = getVisibleWorkspacePanels(
       savedPanelState,
       lastInputs.keepEmptyWorkspacePanelsOpen
     );
+    const responsivePanels = resolveResponsiveWorkspacePanels(viewportWidth, logicalVisiblePanels);
+    const visibleWorkspacePanels = responsivePanels.visiblePanels;
+
+    if (
+      resizeState &&
+      (!visibleWorkspacePanels.includes(resizeState.handle.before) ||
+        !visibleWorkspacePanels.includes(resizeState.handle.after))
+    ) {
+      resizeState = null;
+    }
+
     const wideContentWidth = getWideContentWidth(viewportWidth, {
       visiblePanels: visibleWorkspacePanels
     });
@@ -458,12 +504,19 @@ export function createWorkspaceShellController({
       isDetailsPanelVisible: isWorkspaceTabOpen(savedPanelState, 'details'),
       isLyricsPanelVisible: isWorkspaceTabOpen(savedPanelState, 'lyrics'),
       isPatternsPanelVisible: isWorkspaceTabOpen(savedPanelState, 'patterns'),
-      isRightPanelVisible: visibleWorkspacePanels.includes('right'),
-      isTabbedLayout,
+      isRightPanelVisible: logicalVisiblePanels.includes('right'),
+      isCompactWorkspace:
+        responsivePanels.collapsedPanels.length > 0 && visibleWorkspacePanels.length === 1,
       isResizing: Boolean(resizeState),
+      collapsedWorkspacePanels: responsivePanels.collapsedPanels,
       widePanelWidths,
       visibleWorkspacePanels,
-      workspacePanels: buildWorkspacePanels(savedPanelState, visibleWorkspacePanels),
+      workspacePanels: buildWorkspacePanels(
+        savedPanelState,
+        logicalVisiblePanels,
+        visibleWorkspacePanels,
+        responsivePanels.collapsedPanels
+      ),
       workspaceTabs: buildWorkspaceTabs(savedPanelState),
       playlistPanelProps: {
         items: lastInputs.playlistItems,
@@ -604,6 +657,15 @@ export function createWorkspaceShellController({
         return;
       }
 
+      if (
+        state.collapsedWorkspacePanels.length > 0 &&
+        detail.sourcePanelId === 'center' &&
+        detail.targetPanelId === 'center'
+      ) {
+        this.moveTabbedWorkspaceTab(detail);
+        return;
+      }
+
       const nextPanelState = clonePanelState(savedPanelState);
       const sourcePanelId = getWorkspacePanelForTab(nextPanelState, detail.tabId);
       const targetPanelId = detail.targetPanelId;
@@ -690,7 +752,10 @@ export function createWorkspaceShellController({
       this.closeWorkspaceTab('lyrics');
     },
     beginPanelResize(event: PointerEvent, handle: WorkspaceResizeHandle): void {
-      if (state.isTabbedLayout) {
+      if (
+        !state.visibleWorkspacePanels.includes(handle.before) ||
+        !state.visibleWorkspacePanels.includes(handle.after)
+      ) {
         return;
       }
 
@@ -710,7 +775,7 @@ export function createWorkspaceShellController({
       this.beginPanelResize(detail.event, detail.handle);
     },
     handlePanelResizeMove(event: PointerEvent): void {
-      if (!resizeState || state.isTabbedLayout || !lastInputs) {
+      if (!resizeState || !lastInputs) {
         return;
       }
 

@@ -673,7 +673,7 @@
 
 <div
   class="app-shell"
-  class:tabbed-layout={workspaceShellState.isTabbedLayout}
+  class:compact-workspace={workspaceShellState.isCompactWorkspace}
   class:mini-mode={miniModeActive}
   class:now-playing-mode={isNowPlayingLayoutActive}
   class:now-playing-theater-chrome-hidden={isFullscreenNowPlayingChromeHidden}

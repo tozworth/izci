@@ -76,7 +76,9 @@ export interface WorkspacePanelDefinition {
   id: WorkspacePanelId;
   tabs: WorkspaceTabDefinition[];
   activeTab: WorkspaceTab | null;
+  backdropPanelId: WorkspacePanelId;
   isOpen: boolean;
+  isResponsiveCollapsed: boolean;
 }
 
 export interface WorkspaceTabDragDetail {
