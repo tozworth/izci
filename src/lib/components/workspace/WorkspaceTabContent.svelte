@@ -31,6 +31,7 @@
 {:else if tab === 'library'}
   <PlaylistPanel
     {...content.libraryPanelProps}
+    libraryMode={true}
     fillParent={true}
     hideEyebrow={true}
     on:addFiles={(event) => content.libraryPanelHandlers.addFiles(event.detail)}

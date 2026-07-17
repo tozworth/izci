@@ -3,29 +3,42 @@ import type { LibraryColumnId, PlaylistItem } from '$lib/types';
 
 const DEFAULT_SEARCH_COLUMN_IDS: LibraryColumnId[] = ['title', 'artist', 'album', 'folder', 'format', 'duration'];
 
-function getSearchValues(item: PlaylistItem, columnIds: LibraryColumnId[]): string[] {
-  return columnIds
+function getSearchValues(item: PlaylistItem, columnIds?: LibraryColumnId[]): string[] {
+  const columnValues = (columnIds ?? DEFAULT_SEARCH_COLUMN_IDS)
     .map((columnId) => getColumnTextValue(item, columnId).trim())
     .filter((value) => value !== '');
+
+  if (columnIds) {
+    return columnValues;
+  }
+
+  return [
+    ...columnValues,
+    item.metadata?.albumArtist?.trim() ?? '',
+    item.metadata?.genre?.trim() ?? '',
+    item.metadata?.year?.trim() ?? '',
+    item.kind === 'module' ? 'tracker module' : 'stream'
+  ].filter(Boolean);
 }
 
 export function matchesSearchQuery(
   item: PlaylistItem,
   normalizedQuery: string,
-  columnIds: LibraryColumnId[] = DEFAULT_SEARCH_COLUMN_IDS
+  columnIds?: LibraryColumnId[]
 ): boolean {
   if (!normalizedQuery) {
     return true;
   }
 
-  const searchValues = getSearchValues(item, columnIds);
-  return searchValues.some((value) => value.toLocaleLowerCase().includes(normalizedQuery));
+  const haystack = getSearchValues(item, columnIds).join('\n').toLowerCase();
+  const queryTokens = normalizedQuery.toLowerCase().split(/\s+/).filter(Boolean);
+  return queryTokens.every((token) => haystack.includes(token));
 }
 
 export function filterItemsByQuery(
   items: PlaylistItem[],
   normalizedQuery: string,
-  columnIds: LibraryColumnId[] = DEFAULT_SEARCH_COLUMN_IDS
+  columnIds?: LibraryColumnId[]
 ): PlaylistItem[] {
   return normalizedQuery ? items.filter((item) => matchesSearchQuery(item, normalizedQuery, columnIds)) : items;
 }

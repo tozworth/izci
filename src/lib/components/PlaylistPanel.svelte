@@ -6,6 +6,7 @@
   } from '$lib/stores/library-view-settings';
   import type {
     LibraryColumnId,
+    LibraryViewId,
     MenuActionItem,
     PlaylistItem,
     PlaylistRepeatMode,
@@ -15,6 +16,8 @@
   import { trackSettings } from '$lib/stores/track-settings';
   import { extractDroppedContent } from '$lib/utils/files';
   import PlaylistPanelHeader from '$lib/components/playlist-panel/PlaylistPanelHeader.svelte';
+  import LibraryPanelHeader from '$lib/components/playlist-panel/LibraryPanelHeader.svelte';
+  import LibraryGroupList from '$lib/components/playlist-panel/LibraryGroupList.svelte';
   import LibraryColumnsHeader from '$lib/components/playlist-panel/LibraryColumnsHeader.svelte';
   import TrackList from '$lib/components/playlist-panel/TrackList.svelte';
   import PanelContextMenu from '$lib/components/playlist-panel/PanelContextMenu.svelte';
@@ -36,6 +39,14 @@
     filterItemsByQuery,
     getTrackSummary
   } from '$lib/components/playlist-panel/search';
+  import {
+    buildLibraryGroups,
+    filterLibraryGroupItems,
+    filterLibraryGroups,
+    getGroupSummary,
+    getGroupTrackSummary,
+    type LibraryGroupViewId
+  } from '$lib/components/playlist-panel/library-views';
 
   export let items: PlaylistItem[] = [];
   export let selectedIds: string[] = [];
@@ -49,6 +60,7 @@
   export let showShuffleControl = true;
   export let showRepeatControl = true;
   export let showSearchControl = false;
+  export let libraryMode = false;
   export let shuffleEnabled = false;
   export let repeatMode: PlaylistRepeatMode = 'off';
   export let jumpToItemRequest: { id: string; token: number } | null = null;
@@ -89,6 +101,8 @@
   let resizeStartX = 0;
   let resizeStartWidths: LibraryColumnWidths = {};
   let lastHandledJumpToken = 0;
+  let selectedGroupKey: string | null = null;
+  let lastActiveLibraryView: LibraryViewId | null = null;
 
   function clamp(value: number, min: number, max: number): number {
     return Math.min(Math.max(value, min), max);
@@ -355,6 +369,40 @@
     searchInputExpanded = true;
   }
 
+  function clearSelection() {
+    if (selectedIds.length === 0) return;
+
+    dispatch('setSelection', {
+      ids: [],
+      anchorId: null,
+      focusId: null
+    });
+  }
+
+  function handleLibraryViewChange(view: LibraryViewId) {
+    if (view === activeLibraryView) {
+      if (selectedGroupKey) handleLibraryGroupBack();
+      return;
+    }
+
+    selectedGroupKey = null;
+    clearSelection();
+    libraryViewSettings.setActiveView(view);
+    dropzoneElement?.scrollTo({ top: 0 });
+  }
+
+  function handleLibraryGroupOpen(key: string) {
+    selectedGroupKey = key;
+    clearSelection();
+    dropzoneElement?.scrollTo({ top: 0 });
+  }
+
+  function handleLibraryGroupBack() {
+    selectedGroupKey = null;
+    clearSelection();
+    dropzoneElement?.scrollTo({ top: 0 });
+  }
+
   function handleSearchInput(value: string) {
     libraryViewSettings.setSearchQuery(value);
   }
@@ -472,13 +520,43 @@
     });
   }
 
+  $: activeLibraryView = libraryMode ? $libraryViewSettings.activeView : 'songs';
+  $: if (activeLibraryView !== lastActiveLibraryView) {
+    selectedGroupKey = null;
+    lastActiveLibraryView = activeLibraryView;
+  }
   $: searchQuery = showSearchControl ? $libraryViewSettings.searchQuery : '';
-  $: normalizedSearchQuery = searchQuery.trim().toLocaleLowerCase();
+  $: normalizedSearchQuery = searchQuery.trim().toLowerCase();
   $: showSearchInput = showSearchControl && (searchInputExpanded || searchQuery !== '');
   $: orderedColumns = layout === 'columns' ? getOrderedColumns($libraryViewSettings.order, $libraryViewSettings.columns) : [];
-  $: visibleSearchColumnIds = orderedColumns.filter((column) => column.visible).map((column) => column.id);
-  $: filteredItems = filterItemsByQuery(items, normalizedSearchQuery, visibleSearchColumnIds);
-  $: trackSummary = getTrackSummary(items, filteredItems, normalizedSearchQuery);
+  $: groupView = activeLibraryView === 'songs' ? null : activeLibraryView as LibraryGroupViewId;
+  $: libraryGroups = groupView ? buildLibraryGroups(items, groupView) : [];
+  $: visibleLibraryGroups = groupView ? filterLibraryGroups(libraryGroups, normalizedSearchQuery) : [];
+  $: visibleGroupSongCount = new Set(
+    visibleLibraryGroups.flatMap((group) => group.items.map((item) => item.id))
+  ).size;
+  $: selectedLibraryGroup = selectedGroupKey
+    ? libraryGroups.find((group) => group.key === selectedGroupKey) ?? null
+    : null;
+  $: showTrackRows = !libraryMode || activeLibraryView === 'songs' || Boolean(selectedLibraryGroup);
+  $: unfilteredDisplayItems = libraryMode && activeLibraryView !== 'songs'
+    ? selectedLibraryGroup?.items ?? []
+    : items;
+  $: filteredItems = selectedLibraryGroup
+    ? filterLibraryGroupItems(selectedLibraryGroup, normalizedSearchQuery)
+    : filterItemsByQuery(unfilteredDisplayItems, normalizedSearchQuery);
+  $: trackSummary = selectedLibraryGroup
+    ? getGroupTrackSummary(selectedLibraryGroup, filteredItems)
+    : getTrackSummary(items, filteredItems, normalizedSearchQuery);
+  $: librarySummary = groupView && !selectedLibraryGroup
+    ? getGroupSummary(
+        groupView,
+        visibleLibraryGroups.length,
+        libraryGroups.length,
+        normalizedSearchQuery ? visibleGroupSongCount : items.length,
+        normalizedSearchQuery
+      )
+    : trackSummary;
   $: repeatIcon = repeatMode === 'one' ? 'repeat_one' : 'repeat';
   $: repeatLabel =
     repeatMode === 'one' ? 'Repeat current track' : repeatMode === 'all' ? 'Repeat playlist' : 'Repeat off';
@@ -512,7 +590,7 @@
     layout === 'columns' ? [...filteredItems].sort((left, right) => compareItems(left, right, activeSort)) : filteredItems;
   $: tableTemplateColumns = visibleColumns.map((column) => `minmax(${column.width}px, ${column.width}px)`).join(' ');
   $: tableColumnGap = `${COLUMN_GAP}px`;
-  $: if (contextMenu?.kind === 'columns' && (layout !== 'columns' || isCompactColumnLayout)) {
+  $: if (contextMenu?.kind === 'columns' && (layout !== 'columns' || isCompactColumnLayout || !showTrackRows)) {
     closeContextMenu();
   }
   $: if (!showSearchControl) {
@@ -550,31 +628,49 @@
       bind:this={headerElement}
       class="panel-header playlist-panel-header"
       class:is-covered={playlistHeaderCovered}
-      class:has-column-header={items.length > 0 && layout === 'columns' && !isCompactColumnLayout}
+      class:has-column-header={showTrackRows && filteredItems.length > 0 && layout === 'columns' && !isCompactColumnLayout}
     >
-      <PlaylistPanelHeader
-        bind:searchInputElement={searchInputElement}
-        {panelTitle}
-        {hideEyebrow}
-        {trackSummary}
-        {showSearchControl}
-        {showSearchInput}
-        {searchQuery}
-        {showShuffleControl}
-        {showRepeatControl}
-        {shuffleEnabled}
-        {repeatMode}
-        {repeatIcon}
-        {repeatLabel}
-        on:searchToggle={handleSearchToggle}
-        on:searchInput={(event) => handleSearchInput(event.detail)}
-        on:searchClose={handleSearchClose}
-        on:toggleShuffle={() => dispatch('toggleShuffle')}
-        on:cycleRepeat={() => dispatch('cycleRepeat')}
-        on:openFiles={() => dispatch('openFiles')}
-      />
+      {#if libraryMode}
+        <LibraryPanelHeader
+          bind:searchInputElement={searchInputElement}
+          activeView={activeLibraryView}
+          summary={librarySummary}
+          groupLabel={selectedLibraryGroup?.label ?? ''}
+          showBack={Boolean(selectedLibraryGroup)}
+          {showSearchInput}
+          {searchQuery}
+          on:viewChange={(event) => handleLibraryViewChange(event.detail)}
+          on:back={handleLibraryGroupBack}
+          on:searchToggle={handleSearchToggle}
+          on:searchInput={(event) => handleSearchInput(event.detail)}
+          on:searchClose={handleSearchClose}
+          on:openFiles={() => dispatch('openFiles')}
+        />
+      {:else}
+        <PlaylistPanelHeader
+          bind:searchInputElement={searchInputElement}
+          {panelTitle}
+          {hideEyebrow}
+          {trackSummary}
+          {showSearchControl}
+          {showSearchInput}
+          {searchQuery}
+          {showShuffleControl}
+          {showRepeatControl}
+          {shuffleEnabled}
+          {repeatMode}
+          {repeatIcon}
+          {repeatLabel}
+          on:searchToggle={handleSearchToggle}
+          on:searchInput={(event) => handleSearchInput(event.detail)}
+          on:searchClose={handleSearchClose}
+          on:toggleShuffle={() => dispatch('toggleShuffle')}
+          on:cycleRepeat={() => dispatch('cycleRepeat')}
+          on:openFiles={() => dispatch('openFiles')}
+        />
+      {/if}
 
-      {#if items.length > 0 && layout === 'columns' && !isCompactColumnLayout}
+      {#if showTrackRows && filteredItems.length > 0 && layout === 'columns' && !isCompactColumnLayout}
         <LibraryColumnsHeader
           bind:headerElement={columnsHeaderElement}
           {visibleColumns}
@@ -592,7 +688,13 @@
       {/if}
     </div>
 
-    {#if displayItems.length > 0}
+    {#if !showTrackRows && visibleLibraryGroups.length > 0 && groupView}
+      <LibraryGroupList
+        groups={visibleLibraryGroups}
+        view={groupView}
+        on:open={(event) => handleLibraryGroupOpen(event.detail)}
+      />
+    {:else if displayItems.length > 0}
       <TrackList
         {displayItems}
         {selectedIds}
@@ -609,7 +711,11 @@
       />
     {:else if items.length > 0 && normalizedSearchQuery}
       <div class="empty-state playlist-filter-empty">
-        <p>No tracks match "{searchQuery.trim()}".</p>
+        <p>No library results match "{searchQuery.trim()}".</p>
+      </div>
+    {:else if libraryMode && items.length === 0}
+      <div class="empty-state playlist-filter-empty">
+        <p>Your library is empty. Add files or drop a folder here.</p>
       </div>
     {/if}
 

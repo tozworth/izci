@@ -26,6 +26,8 @@ describe('playlist-panel search helpers', () => {
       title: 'Morning',
       artist: 'Alpha Artist',
       album: 'First Light',
+      genre: 'Ambient',
+      year: '2022',
       duration: 125
     }),
     {
@@ -35,6 +37,7 @@ describe('playlist-panel search helpers', () => {
         album: 'Modules',
         duration: 3605
       }),
+      kind: 'module' as const,
       path: 'Music/Tracker Albums/Track.flac'
     }
   ];
@@ -44,6 +47,10 @@ describe('playlist-panel search helpers', () => {
     expect(matchesSearchQuery(tracks[1], 'flac')).toBe(false);
     expect(matchesSearchQuery(tracks[1], 'xm')).toBe(true);
     expect(matchesSearchQuery(tracks[1], 'tracker albums')).toBe(true);
+    expect(matchesSearchQuery(tracks[1], 'tracker module')).toBe(true);
+    expect(matchesSearchQuery(tracks[0], 'ambient')).toBe(true);
+    expect(matchesSearchQuery(tracks[0], '2022')).toBe(true);
+    expect(matchesSearchQuery(tracks[0], 'alpha light')).toBe(true);
   });
 
   it('filters items only when a query is present', () => {

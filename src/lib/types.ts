@@ -77,6 +77,7 @@ export type PlaylistRepeatMode = 'off' | 'one' | 'all';
 export type PlaybackRestoreMode = 'disabled' | 'position' | 'position-and-state';
 export type SortDirection = 'asc' | 'desc';
 export type LibraryColumnId = 'title' | 'artist' | 'album' | 'folder' | 'format' | 'duration' | 'plays';
+export type LibraryViewId = 'songs' | 'artists' | 'albums' | 'genres' | 'years' | 'formats' | 'folders';
 export type ColorTheme =
   | 'gray'
   | 'coal'
@@ -385,6 +386,7 @@ export interface LibraryViewSortState {
 }
 
 export interface LibraryViewSettings {
+  activeView: LibraryViewId;
   order: LibraryColumnId[];
   columns: Record<LibraryColumnId, LibraryViewColumnState>;
   sort: LibraryViewSortState;

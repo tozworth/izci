@@ -1,8 +1,17 @@
-import type { LibraryColumnId, LibraryViewSettings, SortDirection } from '$lib/types';
+import type { LibraryColumnId, LibraryViewId, LibraryViewSettings, SortDirection } from '$lib/types';
 import { createPersistentStore } from './persistent-store';
 
-export const LIBRARY_VIEW_SETTINGS_STORAGE_KEY = 'izci.library-view-settings.v1';
+export const LIBRARY_VIEW_SETTINGS_STORAGE_KEY = 'izci.library-view-settings.v2';
 export const LIBRARY_VIEW_SETTINGS_CHANNEL = 'izci-library-view-settings';
+export const LIBRARY_VIEW_IDS: LibraryViewId[] = [
+  'songs',
+  'artists',
+  'albums',
+  'genres',
+  'years',
+  'formats',
+  'folders'
+];
 export const LIBRARY_COLUMN_IDS: LibraryColumnId[] = ['title', 'artist', 'album', 'folder', 'format', 'duration', 'plays'];
 export const LIBRARY_COLUMN_LABELS: Record<LibraryColumnId, string> = {
   title: 'Title',
@@ -33,6 +42,7 @@ export const LIBRARY_COLUMN_MIN_WIDTHS: Record<LibraryColumnId, number> = {
 };
 
 const DEFAULT_LIBRARY_VIEW_SETTINGS: LibraryViewSettings = {
+  activeView: 'songs',
   order: [...LIBRARY_COLUMN_IDS],
   columns: {
     title: {
@@ -152,6 +162,9 @@ function normalizeSettings(value: unknown): LibraryViewSettings {
     : DEFAULT_LIBRARY_VIEW_SETTINGS.sort.columnId;
 
   return {
+    activeView: LIBRARY_VIEW_IDS.includes(source.activeView as LibraryViewId)
+      ? (source.activeView as LibraryViewId)
+      : DEFAULT_LIBRARY_VIEW_SETTINGS.activeView,
     order,
     columns,
     sort: {
@@ -176,6 +189,12 @@ function updateSettings(updater: (settings: LibraryViewSettings) => LibraryViewS
 export const libraryViewSettings = {
   subscribe: store.subscribe,
   getSnapshot: store.getSnapshot,
+  setActiveView(activeView: LibraryViewId): LibraryViewSettings {
+    return updateSettings((settings) => ({
+      ...settings,
+      activeView: LIBRARY_VIEW_IDS.includes(activeView) ? activeView : 'songs'
+    }));
+  },
   setSort(columnId: LibraryColumnId): LibraryViewSettings {
     return updateSettings((settings) => ({
       ...settings,
