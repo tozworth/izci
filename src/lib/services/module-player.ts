@@ -29,6 +29,8 @@ export class ModulePlayerService {
   #playing = false;
   #started = false;
   #currentTime = 0;
+  #subsong = 0;
+  #subsongCount = 1;
   #lastPublishedCurrentTime = -1;
   #lastPublishedDuration = -1;
   #lastPublishedOrder = -1;
@@ -64,6 +66,8 @@ export class ModulePlayerService {
     this.#playing = false;
     this.#started = false;
     this.#currentTime = 0;
+    this.#subsong = this.#normalizeSubsong(track.subsong, track.metadata?.subsongs);
+    this.#subsongCount = this.#normalizeSubsongCount(track.metadata?.subsongs);
     this.#resetPublishedProgress();
     this.#onPattern(null);
 
@@ -72,6 +76,8 @@ export class ModulePlayerService {
       state: 'loading',
       currentTime: 0,
       duration: 0,
+      subsong: this.#subsong,
+      subsongCount: this.#subsongCount,
       error: undefined
     });
 
@@ -108,6 +114,9 @@ export class ModulePlayerService {
 
     if (!this.#started) {
       this.#player.play(this.#buffer);
+      if (this.#subsong > 0) {
+        this.#player.selectSubsong(this.#subsong);
+      }
       this.#started = true;
       this.#playing = true;
       this.#applyRuntimeSettings();
@@ -140,6 +149,8 @@ export class ModulePlayerService {
     this.#playing = false;
     this.#started = false;
     this.#currentTime = 0;
+    this.#subsong = 0;
+    this.#subsongCount = 1;
     this.#buffer = null;
     this.#trackExtension = null;
     this.#resetPublishedProgress();
@@ -163,6 +174,31 @@ export class ModulePlayerService {
     this.#player.seek(seconds);
     this.#currentTime = seconds;
     this.#publishProgress(true, seconds);
+  }
+
+  stepSubsong(direction: -1 | 1): number | null {
+    if (!this.#player || !this.#buffer || this.#subsongCount <= 1) {
+      return null;
+    }
+
+    const nextSubsong = (this.#subsong + direction + this.#subsongCount) % this.#subsongCount;
+    this.#subsong = nextSubsong;
+    this.#currentTime = 0;
+    this.#resetPublishedProgress();
+
+    if (this.#started) {
+      this.#player.selectSubsong(nextSubsong);
+    }
+
+    this.#onSnapshot({
+      currentTime: 0,
+      ...(this.#started ? { duration: 0 } : {}),
+      subsong: nextSubsong,
+      subsongCount: this.#subsongCount,
+      error: undefined
+    });
+
+    return nextSubsong;
   }
 
   async applySettings(settings: ModulePlaybackSettings): Promise<void> {
@@ -253,6 +289,9 @@ export class ModulePlayerService {
 
     void this.#player.context.resume();
     this.#player.play(buffer);
+    if (this.#subsong > 0) {
+      this.#player.selectSubsong(this.#subsong);
+    }
     this.#started = true;
     this.#playing = true;
     this.#applyRuntimeSettings();
@@ -325,6 +364,16 @@ export class ModulePlayerService {
         return;
       }
 
+      const subsongCount = this.#normalizeSubsongCount(metadata.song?.numSubsongs);
+      const selectedSubsong = this.#normalizeSubsong(metadata.selectedSubsong, subsongCount);
+
+      // play() publishes the default subsong before a queued initial selection.
+      // Suppress that transient metadata so separated entries never flash subsong 1.
+      if (selectedSubsong !== this.#subsong) {
+        return;
+      }
+
+      this.#subsongCount = subsongCount;
       this.#onMetadata(this.#toTrackMetadata(metadata));
       if (metadata.song) {
         this.#onPattern({
@@ -336,12 +385,18 @@ export class ModulePlayerService {
       }
       this.#onSnapshot({
         duration: this.#safeSeconds(metadata.dur),
+        subsong: this.#subsong,
+        subsongCount: this.#subsongCount,
         error: undefined
       });
     });
 
     player.onProgress((progress) => {
       if (!this.#isPlayerLoadCurrent(player, loadToken)) {
+        return;
+      }
+
+      if (progress.subsong !== undefined && progress.subsong !== this.#subsong) {
         return;
       }
 
@@ -448,6 +503,19 @@ export class ModulePlayerService {
     }
 
     return undefined;
+  }
+
+  #normalizeSubsongCount(value: unknown): number {
+    return typeof value === 'number' && Number.isFinite(value) && value > 0
+      ? Math.max(1, Math.trunc(value))
+      : 1;
+  }
+
+  #normalizeSubsong(value: unknown, count: unknown): number {
+    const normalizedCount = this.#normalizeSubsongCount(count);
+    return typeof value === 'number' && Number.isFinite(value)
+      ? Math.min(Math.max(Math.trunc(value), 0), normalizedCount - 1)
+      : 0;
   }
 
   #disposeDetachedPlayer(player: ChiptuneJsPlayer): void {

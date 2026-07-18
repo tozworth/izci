@@ -116,7 +116,8 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
           kind: item.kind,
           size: item.size,
           lastModified: item.lastModified,
-          metadata: item.metadata
+          metadata: item.metadata,
+          subsong: item.subsong
         })
       );
 
@@ -327,6 +328,44 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
       queuePersist();
 
       return removedItems;
+    },
+    replaceItem(id: string, replacements: PlaylistItem[]) {
+      if (!hydrated || replacements.length === 0) {
+        return false;
+      }
+
+      const index = itemList.findIndex((item) => item.id === id);
+
+      if (index < 0) {
+        return false;
+      }
+
+      const nextItems = [
+        ...itemList.slice(0, index),
+        ...replacements,
+        ...itemList.slice(index + 1)
+      ];
+      const replacementIds = new Set(replacements.map((item) => item.id));
+      const fallbackId = replacements[0].id;
+      const nextSelection: PlaylistSelection = {
+        ids: selectionState.ids.flatMap((selectedId) =>
+          selectedId === id ? [replacementIds.has(id) ? id : fallbackId] : [selectedId]
+        ),
+        anchorId:
+          selectionState.anchorId === id
+            ? replacementIds.has(id) ? id : fallbackId
+            : selectionState.anchorId,
+        focusId:
+          selectionState.focusId === id
+            ? replacementIds.has(id) ? id : fallbackId
+            : selectionState.focusId
+      };
+
+      items.set(nextItems);
+      selection.set(normalizeSelection(nextItems, nextSelection));
+      navigation.reset();
+      queuePersist();
+      return true;
     },
     updateMetadata(id: string, metadata: PlaylistItem['metadata']) {
       runOrQueue(() => {

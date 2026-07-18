@@ -217,6 +217,8 @@ function createPlayerController() {
           currentTime: 0,
           duration: pendingDuration,
           backend: preparedTrack.kind,
+          subsong: preparedTrack.subsong ?? 0,
+          subsongCount: Math.max(1, preparedTrack.metadata?.subsongs ?? 1),
           error: undefined
         });
 
@@ -244,6 +246,8 @@ function createPlayerController() {
         currentTime: initialPosition,
         duration: preparedTrack.metadata?.duration ?? 0,
         backend: preparedTrack.kind,
+        subsong: undefined,
+        subsongCount: undefined,
         error: undefined
       });
     },
@@ -274,6 +278,21 @@ function createPlayerController() {
 
       services[activeTrack.kind].seek(seconds);
     },
+    stepSubsong(direction: -1 | 1) {
+      if (!activeTrack || activeTrack.kind !== 'module') {
+        return;
+      }
+
+      const subsong = services.module.stepSubsong(direction);
+
+      if (subsong === null) {
+        return;
+      }
+
+      const nextTrack = { ...activeTrack, subsong };
+      activeTrack = nextTrack;
+      currentTrack.set(nextTrack);
+    },
     setVolume(nextVolume: number) {
       setConfiguredVolume(nextVolume);
       muted = false;
@@ -303,6 +322,8 @@ function createPlayerController() {
         currentTime: 0,
         duration: 0,
         backend: null,
+        subsong: undefined,
+        subsongCount: undefined,
         error: undefined
       });
     },

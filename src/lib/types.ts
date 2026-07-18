@@ -354,6 +354,8 @@ export interface PlaylistItem {
   lastModified: number;
   objectUrl?: string;
   metadata?: TrackMetadata;
+  /** Zero-based module subsong selected by a separated playlist entry. */
+  subsong?: number;
 }
 
 export interface PlaylistSelection {
@@ -432,5 +434,8 @@ export interface PlaybackSnapshot {
   volume: number;
   muted: boolean;
   backend: TrackKind | null;
+  /** Zero-based active module subsong. Present only for module playback. */
+  subsong?: number;
+  subsongCount?: number;
   error?: string;
 }

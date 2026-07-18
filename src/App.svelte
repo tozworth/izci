@@ -779,6 +779,8 @@
       onTogglePlayback={() => void playbackCommands.togglePlayback()}
       onPreviousTrack={() => void playbackCommands.stepTrack(-1)}
       onNextTrack={() => void playbackCommands.stepTrack(1)}
+      onPreviousSubsong={() => playerController.stepSubsong(-1)}
+      onNextSubsong={() => playerController.stepSubsong(1)}
       onSeek={seekPlayback}
       onVolume={(volume) => playerController.setVolume(volume)}
       onMute={() => playerController.toggleMute()}
@@ -808,6 +810,8 @@
       on:toggle={() => void playbackCommands.togglePlayback()}
       on:previous={() => void playbackCommands.stepTrack(-1)}
       on:next={() => void playbackCommands.stepTrack(1)}
+      on:previousSubsong={() => playerController.stepSubsong(-1)}
+      on:nextSubsong={() => playerController.stepSubsong(1)}
       on:seek={(event) => seekPlayback(event.detail)}
       on:volume={(event) => playerController.setVolume(event.detail)}
       on:mute={() => playerController.toggleMute()}

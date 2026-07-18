@@ -95,6 +95,15 @@
     track?.kind === 'module' && typeof patterns === 'number'
       ? `${patterns} pattern${patterns === 1 ? '' : 's'}`
       : '';
+  $: subsongCount = track?.kind === 'module' ? Math.max(track.metadata?.subsongs ?? 1, 1) : 1;
+  $: subsongName = track?.subsong !== undefined
+    ? track.metadata?.subsongNames?.[track.subsong]?.trim() ?? ''
+    : '';
+  $: subsongSummary = subsongCount > 1
+    ? track?.subsong !== undefined
+      ? `${track.subsong + 1} of ${subsongCount}${subsongName ? ` · ${subsongName}` : ''}`
+      : `${subsongCount} available`
+    : '';
 </script>
 
 <section
@@ -168,13 +177,16 @@
           </p>
           <p class="format-value">{formatValue}</p>
         </div>
-        {#if formatDetail || patternSummary}
+        {#if formatDetail || patternSummary || subsongSummary}
           <div class="format-copy">
             {#if formatDetail}
               <p class="format-detail">{formatDetail}</p>
             {/if}
             {#if patternSummary}
               <p class="pattern-value">{patternSummary}</p>
+            {/if}
+            {#if subsongSummary}
+              <p class="subsong-value">Subsongs: {subsongSummary}</p>
             {/if}
           </div>
         {/if}
@@ -422,6 +434,12 @@
     margin: 0;
     text-align: right;
     color: var(--text);
+  }
+
+  .subsong-value {
+    margin: 0;
+    text-align: right;
+    color: var(--muted);
   }
 
   .notes-block {

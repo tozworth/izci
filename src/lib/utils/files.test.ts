@@ -3,12 +3,15 @@ import { MODULE_EXTENSIONS } from '$lib/types';
 
 import {
   buildPlaylistItems,
+  buildSeparatedSubsongItems,
   extractDroppedContent,
   extractDroppedFiles,
   inferArtistTitleFromFileName,
   inferExtension,
   inferKind,
   mergeInferredArtistTitle,
+  getTrackDisplayTitle,
+  getTrackPlaylistLabel,
   readDirectoryFiles,
   stripFileExtension
 } from './files';
@@ -64,6 +67,34 @@ describe('file helpers', () => {
       title: 'Tagged Title'
     });
     expect(mergeInferredArtistTitle({}, 'Artist - Title.opus', false)).toEqual({});
+  });
+
+  it('builds distinct playlist entries for every module subsong', () => {
+    const source = {
+      id: 'module-id',
+      name: 'Suite.xm',
+      extension: 'xm',
+      kind: 'module' as const,
+      size: 123,
+      lastModified: 456,
+      metadata: {
+        title: 'Suite',
+        subsongs: 3,
+        subsongNames: ['Intro', 'Main', 'Outro']
+      }
+    };
+
+    const separated = buildSeparatedSubsongItems(source, 1);
+
+    expect(separated.map((item) => item.subsong)).toEqual([0, 1, 2]);
+    expect(separated[1].id).toBe('module-id');
+    expect(new Set(separated.map((item) => item.id))).toHaveLength(3);
+    expect(separated.map(getTrackPlaylistLabel)).toEqual([
+      'Suite.xm - 1/3',
+      'Suite.xm - 2/3',
+      'Suite.xm - 3/3'
+    ]);
+    expect(separated.map(getTrackDisplayTitle)).toEqual(['Suite', 'Suite', 'Suite']);
   });
 
   it('recursively reads directory handles and preserves nested paths and file handles', async () => {

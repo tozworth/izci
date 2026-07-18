@@ -65,6 +65,21 @@ describe('workspace actions', () => {
     });
   });
 
+  it('offers subsong separation only for one unsplit multi-subsong module', () => {
+    const module = item('module', {
+      extension: 'xm',
+      kind: 'module',
+      metadata: { subsongs: 3 }
+    });
+
+    expect(buildPlaylistContextActions([module], [], ['module']).map((action) => action.id))
+      .toContain('separate-subsongs');
+    expect(buildPlaylistContextActions([{ ...module, subsong: 0 }], [], ['module']).map((action) => action.id))
+      .not.toContain('separate-subsongs');
+    expect(buildPlaylistContextActions([module, item('other')], [], ['module', 'other']).map((action) => action.id))
+      .not.toContain('separate-subsongs');
+  });
+
   it('includes reset play count in library context actions', () => {
     expect(buildLibraryContextActions()).toEqual(
       expect.arrayContaining([

@@ -13,7 +13,11 @@ import type {
   PlaylistItem,
   WorkspaceCollection
 } from '$lib/types';
-import { buildPlaylistItems, clonePlaylistItems } from '$lib/utils/files';
+import {
+  buildPlaylistItems,
+  buildSeparatedSubsongItems,
+  clonePlaylistItems
+} from '$lib/utils/files';
 
 export interface WorkspaceCollectionState {
   playlistItems: PlaylistItem[];
@@ -143,6 +147,11 @@ export function createWorkspaceCollectionsController({
       if (addedItems.length > 0 && librarySelectionIds.length === 0) {
         handlers.selectTrack('library', addedItems[0].id);
       }
+    } else if (actionId === 'separate-subsongs' && tracks.length === 1) {
+      const track = tracks[0];
+      const playingTrack = getState().playingTrack;
+      const activeSubsong = playingTrack?.id === track.id ? playingTrack.subsong ?? 0 : 0;
+      playlistStore.replaceItem(track.id, buildSeparatedSubsongItems(track, activeSubsong));
     } else if (actionId === 'remove') {
       removePlaylistItems(ids);
     }

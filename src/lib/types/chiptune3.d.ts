@@ -11,6 +11,7 @@ declare module 'chiptune3' {
     order: number;
     pattern: number;
     row: number;
+    subsong?: number;
   }
 
   export interface Chiptune3Song {
@@ -38,6 +39,7 @@ declare module 'chiptune3' {
     totalPatterns?: number;
     song?: Chiptune3Song;
     songs?: string[];
+    selectedSubsong?: number;
     libopenmptVersion?: string;
     libopenmptBuild?: string;
   }

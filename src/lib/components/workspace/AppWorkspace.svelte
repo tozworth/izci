@@ -77,6 +77,8 @@
   export let onTogglePlayback: () => void;
   export let onPreviousTrack: () => void;
   export let onNextTrack: () => void;
+  export let onPreviousSubsong: () => void;
+  export let onNextSubsong: () => void;
   export let onSeek: (seconds: number) => void;
   export let onVolume: (volume: number) => void;
   export let onMute: () => void;
@@ -105,6 +107,8 @@
     on:toggle={onTogglePlayback}
     on:previous={onPreviousTrack}
     on:next={onNextTrack}
+    on:previousSubsong={onPreviousSubsong}
+    on:nextSubsong={onNextSubsong}
     on:seek={(event) => onSeek(event.detail)}
     on:volume={(event) => onVolume(event.detail)}
     on:mute={onMute}

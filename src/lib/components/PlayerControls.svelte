@@ -47,6 +47,8 @@
     toggle: void;
     previous: void;
     next: void;
+    previousSubsong: void;
+    nextSubsong: void;
     seek: number;
     volume: number;
     mute: void;
@@ -333,6 +335,12 @@
   $: isCompactVolume = viewportUsesCompactVolume || compactPlayerBar;
   $: displayTrack = track;
   $: displayDuration = track ? snapshot.duration : 0;
+  $: displaySubsongCount = displayTrack?.kind === 'module'
+    ? Math.max(snapshot.subsongCount ?? displayTrack.metadata?.subsongs ?? 1, 1)
+    : 1;
+  $: displaySubsong = displayTrack?.kind === 'module'
+    ? Math.min(Math.max(snapshot.subsong ?? displayTrack.subsong ?? 0, 0), displaySubsongCount - 1)
+    : 0;
   $: artworkBackgroundActive = hasArtworkBackdrop(backdropEffect) && Boolean(artwork);
   $: visualizerBackdropActive = hasVisualizerBackdrop(backdropEffect);
   $: playerArtworkPaletteActive =
@@ -361,6 +369,19 @@
     }
 
     dispatch('showTrack', displayTrack.id);
+  }
+
+  function handleSubsongStep(event: MouseEvent, direction: -1 | 1): void {
+    if (!displayTrack || displayTrack.kind !== 'module' || displaySubsongCount <= 1) {
+      return;
+    }
+
+    event.preventDefault();
+    if (direction < 0) {
+      dispatch('previousSubsong');
+    } else {
+      dispatch('nextSubsong');
+    }
   }
 </script>
 
@@ -400,6 +421,9 @@
       {#if displayTrack}
         <button type="button" class="player-track-link player-track-title" on:click={handleShowTrack}>
           <strong>{getTrackDisplayTitle(displayTrack)}</strong>
+          {#if displaySubsongCount > 1}
+            <span class="player-subsong-position">{displaySubsong + 1}/{displaySubsongCount}</span>
+          {/if}
         </button>
       {:else}
         <strong>Welcome to izci!</strong>
@@ -433,7 +457,9 @@
       type="button"
       class="transport-button transport-button-previous"
       aria-label="Previous track"
+      title={displaySubsongCount > 1 ? 'Previous track · Right-click for previous subsong' : 'Previous track'}
       on:click={() => dispatch('previous')}
+      on:contextmenu={(event) => handleSubsongStep(event, -1)}
       disabled={!track && !selectedTrack}
     >
       <span class="material-symbols-outlined" aria-hidden="true">skip_previous</span>
@@ -453,7 +479,9 @@
       type="button"
       class="transport-button transport-button-next"
       aria-label="Next track"
+      title={displaySubsongCount > 1 ? 'Next track · Right-click for next subsong' : 'Next track'}
       on:click={() => dispatch('next')}
+      on:contextmenu={(event) => handleSubsongStep(event, 1)}
       disabled={!track && !selectedTrack}
     >
       <span class="material-symbols-outlined" aria-hidden="true">skip_next</span>

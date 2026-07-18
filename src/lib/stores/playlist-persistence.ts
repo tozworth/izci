@@ -11,6 +11,7 @@ export interface StoredPlaylistItem {
   path?: string;
   sourceFolderId?: string;
   metadata?: PlaylistItem['metadata'];
+  subsong?: number;
 }
 
 export interface StoredPlaylistState {
@@ -43,6 +44,10 @@ export function normalizeStoredItem(value: unknown): StoredPlaylistItem | null {
   }
 
   const source = value as Partial<StoredPlaylistItem> & { file?: unknown };
+  const subsong =
+    typeof source.subsong === 'number' && Number.isFinite(source.subsong) && source.subsong >= 0
+      ? Math.trunc(source.subsong)
+      : undefined;
 
   if (
     typeof source.id !== 'string' ||
@@ -64,7 +69,8 @@ export function normalizeStoredItem(value: unknown): StoredPlaylistItem | null {
     fileHandle: isFileSystemFileHandle(source.fileHandle) ? source.fileHandle : undefined,
     path: typeof source.path === 'string' ? source.path : undefined,
     sourceFolderId: typeof source.sourceFolderId === 'string' ? source.sourceFolderId : undefined,
-    metadata: source.metadata
+    metadata: source.metadata,
+    ...(subsong !== undefined ? { subsong } : {})
   };
 }
 
@@ -83,7 +89,8 @@ export function serializeItem(item: PlaylistItem): StoredPlaylistItem | null {
     fileHandle: item.fileHandle,
     path: item.path,
     sourceFolderId: item.sourceFolderId,
-    metadata: item.metadata
+    metadata: item.metadata,
+    ...(item.subsong !== undefined ? { subsong: item.subsong } : {})
   };
 }
 

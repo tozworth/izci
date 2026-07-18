@@ -50,6 +50,19 @@ describe('playlist persistence helpers', () => {
     });
   });
 
+  it('round-trips a separated module subsong index', () => {
+    const moduleItem = item({
+      extension: 'xm',
+      kind: 'module',
+      fileHandle,
+      subsong: 2
+    });
+
+    expect(serializeItem(moduleItem)).toMatchObject({ subsong: 2 });
+    expect(normalizeStoredItem(serializeItem(moduleItem))).toMatchObject({ subsong: 2 });
+    expect(normalizeStoredItem({ ...serializeItem(moduleItem), subsong: -1 })).not.toHaveProperty('subsong');
+  });
+
   it('rejects invalid stored items and strips non-file handles', () => {
     expect(normalizeStoredItem(null)).toBeNull();
     expect(normalizeStoredItem({ id: 'x', name: 'Track.flac', extension: 'flac', kind: 'stream' })).toBeNull();

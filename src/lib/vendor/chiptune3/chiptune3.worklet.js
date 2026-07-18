@@ -50,6 +50,7 @@ class MPT extends AudioWorkletProcessor {
 			interpolationFilter: 0,	// https://lib.openmpt.org/doc/group__openmpt__module__render__param.html
 		}
 		this.channels = 0
+		this.selectedSubsong = 0
 	}
 
 	process(inputList, outputList, parameters) {
@@ -84,6 +85,7 @@ class MPT extends AudioWorkletProcessor {
 			order: libopenmpt._openmpt_module_get_current_order(this.modulePtr),
 			pattern: libopenmpt._openmpt_module_get_current_pattern(this.modulePtr),
 			row: libopenmpt._openmpt_module_get_current_row(this.modulePtr),
+			subsong: this.selectedSubsong,
 			// channel volumes
 			//chVol: [], // ch0Left, ch0Right, ch1Left, ...
 		}
@@ -133,6 +135,9 @@ class MPT extends AudioWorkletProcessor {
 				if (!libopenmpt.stackSave || !this.modulePtr) return
 				libopenmpt._openmpt_module_ctl_set(this.modulePtr, asciiToStack('play.tempo_factor'), asciiToStack(v.toString()))
 				break
+			case 'selectSubsong':
+				this.selectSubsong(v)
+				break
 			case 'setPos':
 				if (!this.modulePtr) return
 				libopenmpt._openmpt_module_set_position_seconds(this.modulePtr, v)
@@ -150,6 +155,7 @@ class MPT extends AudioWorkletProcessor {
 		const ptrToFile = libopenmpt._malloc(byteArray.byteLength)
 		libopenmpt.HEAPU8.set(byteArray, ptrToFile)
 		this.modulePtr = libopenmpt._openmpt_module_create_from_memory(ptrToFile, byteArray.byteLength, 0, 0, 0)
+		this.selectedSubsong = 0
 
 		if(this.modulePtr === 0) {
 			// could not create module
@@ -193,6 +199,15 @@ class MPT extends AudioWorkletProcessor {
 			this.rightBufferPtr = 0
 		}
 		this.channels = 0
+	}
+	selectSubsong(index) {
+		if (!this.modulePtr) return
+		const count = libopenmpt._openmpt_module_get_num_subsongs(this.modulePtr)
+		if (count <= 0) return
+		const selected = Math.max(0, Math.min(Math.trunc(Number(index) || 0), count - 1))
+		libopenmpt._openmpt_module_select_subsong(this.modulePtr, selected)
+		this.selectedSubsong = selected
+		this.meta()
 	}
 	meta() {
 		this.port.postMessage({cmd: 'meta', meta: this.getMeta()})
@@ -280,6 +295,7 @@ class MPT extends AudioWorkletProcessor {
 		data.totalOrders = data.song.orders.length	// libopenmpt._openmpt_module_get_num_orders(this.modulePtr)
 		data.totalPatterns = data.song.patterns.length// libopenmpt._openmpt_module_get_num_patterns(this.modulePtr)
 		data.songs = this.getSongs()
+		data.selectedSubsong = this.selectedSubsong
 		data.libopenmptVersion = libopenmpt.version
 		data.libopenmptBuild = libopenmpt.build
 		return data

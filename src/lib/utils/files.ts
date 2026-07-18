@@ -402,7 +402,39 @@ export function getTrackDisplayTitle(item: PlaylistItem | null): string {
   return title || (item ? stripFileExtension(item.name) : '');
 }
 
+export function getSeparatedSubsongPlaylistLabel(item: PlaylistItem | null): string {
+  if (!item || item.kind !== 'module' || item.subsong === undefined) {
+    return '';
+  }
+
+  const count = Math.max(1, Math.trunc(item.metadata?.subsongs ?? 1));
+  const subsong = Math.min(Math.max(Math.trunc(item.subsong), 0), count - 1);
+  return count > 1 ? `${item.name} - ${subsong + 1}/${count}` : '';
+}
+
+export function buildSeparatedSubsongItems(
+  item: PlaylistItem,
+  activeSubsong = item.subsong ?? 0
+): PlaylistItem[] {
+  const count = Math.max(1, Math.trunc(item.metadata?.subsongs ?? 1));
+  const preservedSubsong = Math.min(Math.max(Math.trunc(activeSubsong), 0), count - 1);
+
+  return Array.from({ length: count }, (_, subsong) => ({
+    ...item,
+    id: subsong === preservedSubsong ? item.id : crypto.randomUUID(),
+    objectUrl: undefined,
+    metadata: cloneTrackMetadata(item.metadata),
+    subsong
+  }));
+}
+
 export function getTrackPlaylistLabel(item: PlaylistItem | null): string {
+  const subsongLabel = getSeparatedSubsongPlaylistLabel(item);
+
+  if (subsongLabel) {
+    return subsongLabel;
+  }
+
   const title = getTrackDisplayTitle(item);
   const artist = getTrackDisplaySubtitle(item);
 

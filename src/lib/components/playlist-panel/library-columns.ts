@@ -8,7 +8,12 @@ import type {
   LibraryViewSortState,
   PlaylistItem
 } from '$lib/types';
-import { formatDuration, getFolderFromPath, getTrackDisplayTitle } from '$lib/utils/files';
+import {
+  formatDuration,
+  getFolderFromPath,
+  getSeparatedSubsongPlaylistLabel,
+  getTrackDisplayTitle
+} from '$lib/utils/files';
 
 export type LibraryColumnWidths = Partial<Record<LibraryColumnId, number>>;
 
@@ -58,7 +63,7 @@ export function getTrackPlayCount(item: PlaylistItem): string {
 export function getColumnTextValue(item: PlaylistItem, columnId: LibraryColumnId): string {
   switch (columnId) {
     case 'title':
-      return getTrackDisplayTitle(item);
+      return getSeparatedSubsongPlaylistLabel(item) || getTrackDisplayTitle(item);
     case 'artist':
       return item.metadata?.artist?.trim() ?? '';
     case 'album':

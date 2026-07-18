@@ -52,6 +52,11 @@ export function buildPlaylistContextActions(
 ): MenuActionItem[] {
   const tracks = buildSelectedWorkspaceTracks(playlistItems, ids);
   const inLibrary = libraryHasAllTracks(libraryItems, tracks);
+  const canSeparateSubsongs =
+    tracks.length === 1 &&
+    tracks[0].kind === 'module' &&
+    tracks[0].subsong === undefined &&
+    (tracks[0].metadata?.subsongs ?? 0) > 1;
 
   return [
     {
@@ -64,6 +69,13 @@ export function buildPlaylistContextActions(
       label: inLibrary ? 'Remove from library' : 'Add to library',
       icon: inLibrary ? 'remove_circle' : 'library_add'
     },
+    ...(canSeparateSubsongs
+      ? [{
+          id: 'separate-subsongs',
+          label: 'Separate subsongs',
+          icon: 'call_split'
+        }]
+      : []),
     {
       id: 'remove',
       label: 'Remove',

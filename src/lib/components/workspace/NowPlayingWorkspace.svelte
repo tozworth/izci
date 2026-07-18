@@ -144,6 +144,8 @@
           on:toggle
           on:previous
           on:next
+          on:previousSubsong
+          on:nextSubsong
           on:seek
           on:volume
           on:mute
