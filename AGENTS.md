@@ -23,7 +23,7 @@
   - reusable File System Access directory handles: separate IndexedDB storage;
   - lightweight UI/settings state: `localStorage`;
   - same-origin settings sync: `BroadcastChannel` where available, with duplicate delivery suppressed.
-- Never persist artwork blobs, lyrics, live meters, pattern-grid snapshots, or other transient presentation/playback data.
+- Artwork persistence is limited to bounded, rebuildable renditions in the separate artwork-cache IndexedDB; never place artwork blobs in playlist/library records. Never persist lyrics, live meters, pattern-grid snapshots, or other transient presentation/playback data.
 
 ## Working rules
 

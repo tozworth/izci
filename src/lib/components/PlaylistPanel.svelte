@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { createEventDispatcher, tick } from 'svelte';
+  import { createEventDispatcher, onDestroy, tick } from 'svelte';
   import { appearanceSettings } from '$lib/stores/appearance-settings';
   import {
     libraryViewSettings
@@ -13,6 +13,7 @@
     PlaylistSelection
   } from '$lib/types';
   import { prepareImportedFiles } from '$lib/services/file-verification';
+  import { createAlbumArtworkController } from '$lib/services/album-artwork';
   import { trackSettings } from '$lib/stores/track-settings';
   import { extractDroppedContent } from '$lib/utils/files';
   import PlaylistPanelHeader from '$lib/components/playlist-panel/PlaylistPanelHeader.svelte';
@@ -104,6 +105,16 @@
   let lastHandledJumpToken = 0;
   let selectedGroupKey: string | null = null;
   let lastActiveLibraryView: LibraryViewId | null = null;
+  const albumArtworkController = createAlbumArtworkController();
+  let albumArtworkUrls: Record<string, string> = {};
+  const unsubscribeAlbumArtwork = albumArtworkController.subscribe((urls) => {
+    albumArtworkUrls = urls;
+  });
+
+  onDestroy(() => {
+    unsubscribeAlbumArtwork();
+    albumArtworkController.destroy();
+  });
 
   function clamp(value: number, min: number, max: number): number {
     return Math.min(Math.max(value, min), max);
@@ -569,6 +580,9 @@
   $: selectedLibraryGroup = selectedGroupKey
     ? libraryGroups.find((group) => group.key === selectedGroupKey) ?? null
     : null;
+  $: albumArtworkController.sync(
+    libraryMode && groupView === 'albums' && !selectedLibraryGroup ? visibleLibraryGroups : []
+  );
   $: showTrackRows = !libraryMode || activeLibraryView === 'songs' || Boolean(selectedLibraryGroup);
   $: unfilteredDisplayItems = libraryMode && activeLibraryView !== 'songs'
     ? selectedLibraryGroup?.items ?? []
@@ -725,6 +739,7 @@
       <LibraryGroupList
         groups={visibleLibraryGroups}
         view={groupView}
+        artworkUrls={albumArtworkUrls}
         on:open={(event) => handleLibraryGroupOpen(event.detail)}
         on:contextMenu={(event) => void handleLibraryGroupContextMenu(event.detail.event, event.detail.key)}
       />

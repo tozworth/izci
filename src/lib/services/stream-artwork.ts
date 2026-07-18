@@ -36,6 +36,12 @@ export interface LoadedStreamArtwork {
   mediaImage: MediaImage;
 }
 
+export interface EmbeddedStreamArtwork {
+  blob: Blob;
+  width?: number;
+  height?: number;
+}
+
 function readUint24BE(view: DataView, offset: number): number {
   return (view.getUint8(offset) << 16) | (view.getUint8(offset + 1) << 8) | view.getUint8(offset + 2);
 }
@@ -723,10 +729,10 @@ async function resolveTrackFile(track: PlaylistItem): Promise<File | null> {
   return track.file ?? null;
 }
 
-function buildMediaImage(artwork: ParsedArtwork, url: string): MediaImage {
+function buildMediaImage(artwork: EmbeddedStreamArtwork, url: string): MediaImage {
   return {
     src: url,
-    type: artwork.mimeType || undefined,
+    type: artwork.blob.type || undefined,
     sizes: artwork.width && artwork.height ? `${artwork.width}x${artwork.height}` : undefined
   };
 }
@@ -794,7 +800,7 @@ export async function loadTrackMetadata(track: PlaylistItem | null): Promise<Tra
   return metadata;
 }
 
-export async function loadTrackArtwork(track: PlaylistItem | null): Promise<LoadedStreamArtwork | null> {
+export async function loadEmbeddedStreamArtwork(track: PlaylistItem | null): Promise<EmbeddedStreamArtwork | null> {
   if (!track || track.kind !== 'stream' || (track.extension !== 'flac' && track.extension !== 'opus')) {
     return null;
   }
@@ -812,7 +818,21 @@ export async function loadTrackArtwork(track: PlaylistItem | null): Promise<Load
     return null;
   }
 
-  const url = URL.createObjectURL(new Blob([toArrayBuffer(artwork.data)], { type: artwork.mimeType }));
+  return {
+    blob: new Blob([toArrayBuffer(artwork.data)], { type: artwork.mimeType }),
+    width: artwork.width,
+    height: artwork.height
+  };
+}
+
+export async function loadTrackArtwork(track: PlaylistItem | null): Promise<LoadedStreamArtwork | null> {
+  const artwork = await loadEmbeddedStreamArtwork(track);
+
+  if (!artwork) {
+    return null;
+  }
+
+  const url = URL.createObjectURL(artwork.blob);
 
   return {
     url,

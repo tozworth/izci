@@ -6,6 +6,7 @@
 
   export let groups: LibraryGroup[] = [];
   export let view: Exclude<LibraryViewId, 'songs'> = 'artists';
+  export let artworkUrls: Record<string, string> = {};
 
   const dispatch = createEventDispatcher<{
     open: string;
@@ -31,7 +32,15 @@
         on:click={() => dispatch('open', group.key)}
         on:contextmenu={(event) => dispatch('contextMenu', { key: group.key, event })}
       >
-        <span class="library-group-icon material-symbols-outlined" aria-hidden="true">{icons[view]}</span>
+        {#if view === 'albums' && artworkUrls[group.key]}
+          <img class="library-group-artwork" src={artworkUrls[group.key]} alt="" />
+        {:else}
+          <span
+            class="library-group-icon material-symbols-outlined"
+            class:album-placeholder={view === 'albums'}
+            aria-hidden="true"
+          >{icons[view]}</span>
+        {/if}
         <span class="library-group-copy">
           <span class="library-group-name">{group.label}</span>
           {#if group.secondary}
@@ -97,6 +106,22 @@
   .library-group-icon {
     color: var(--accent);
     font-size: 1.12rem;
+  }
+
+  .library-group-icon.album-placeholder {
+    display: grid;
+    place-items: center;
+    width: 2rem;
+    height: 2rem;
+  }
+
+  .library-group-artwork {
+    width: 2rem;
+    height: 2rem;
+    object-fit: cover;
+    border-radius: var(--track-artwork-radius);
+    background: var(--bg-card);
+    box-shadow: inset 0 0 0 1px var(--border-subtle);
   }
 
   .library-group-copy {
