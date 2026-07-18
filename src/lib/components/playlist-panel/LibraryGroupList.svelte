@@ -29,6 +29,7 @@
       <button
         type="button"
         class="library-group-row"
+        class:album-row={view === 'albums'}
         on:click={() => dispatch('open', group.key)}
         on:contextmenu={(event) => dispatch('contextMenu', { key: group.key, event })}
       >
@@ -103,6 +104,14 @@
     background: var(--hover-subtle);
   }
 
+  .library-group-row.album-row {
+    width: calc(100% + 0.5rem);
+    min-height: 2rem;
+    margin-left: -0.5rem;
+    padding-block: 0;
+    padding-left: 0;
+  }
+
   .library-group-icon {
     color: var(--accent);
     font-size: 1.12rem;
@@ -119,7 +128,7 @@
     width: 2rem;
     height: 2rem;
     object-fit: cover;
-    border-radius: var(--track-artwork-radius);
+    border-radius: 0;
     background: var(--bg-card);
     box-shadow: inset 0 0 0 1px var(--border-subtle);
   }
