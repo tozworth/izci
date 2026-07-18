@@ -276,6 +276,32 @@
     }
   }
 
+  function handleWindowKeydownCapture(event: KeyboardEvent) {
+    if (
+      event.key !== 'Escape' ||
+      event.ctrlKey ||
+      event.altKey ||
+      event.metaKey ||
+      event.target instanceof HTMLInputElement
+    ) {
+      return;
+    }
+
+    if (contextMenu) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      handleWindowDismiss();
+      return;
+    }
+
+    if (libraryMode && selectedGroupKey !== null) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      handleWindowDismiss();
+      void handleLibraryGroupBack();
+    }
+  }
+
   function clampContextMenu() {
     if (!contextMenu || !contextMenuElement || typeof window === 'undefined') {
       return;
@@ -694,6 +720,7 @@
 <svelte:window
   on:pointermove={handleWindowPointerMove}
   on:pointerup={handleWindowPointerUp}
+  on:keydown|capture={handleWindowKeydownCapture}
   on:keydown={handleWindowKeydown}
   on:blur={handleWindowDismiss}
   on:resize={handleWindowDismiss}
