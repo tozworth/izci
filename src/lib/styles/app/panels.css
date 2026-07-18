@@ -20,6 +20,8 @@
 
 .playlist-panel {
   position: relative;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
 .panel-header {
@@ -72,13 +74,7 @@
   top: 0;
   z-index: 10;
   padding: 0.4rem 0.55rem 0;
-  background: var(--playlist-header-background);
-  backdrop-filter:
-    blur(var(--chrome-header-backdrop-blur, calc(var(--chrome-backdrop-blur, 22px) - 2px)))
-    saturate(var(--chrome-backdrop-saturate, 1.08));
-  -webkit-backdrop-filter:
-    blur(var(--chrome-header-backdrop-blur, calc(var(--chrome-backdrop-blur, 22px) - 2px)))
-    saturate(var(--chrome-backdrop-saturate, 1.08));
+  background: transparent;
   transition:
     box-shadow var(--artwork-ui-transition-duration) linear,
     border-color var(--artwork-ui-transition-duration) linear;
@@ -90,13 +86,15 @@
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  opacity: 0;
-  background: var(--playlist-header-artwork-background, transparent);
-  transition: opacity var(--artwork-background-transition-duration) linear;
-}
-
-.backdrop-zone.artwork-backdrop-active .playlist-panel-header::before {
   opacity: 1;
+  background: var(--playlist-header-artwork-background, var(--playlist-header-background));
+  backdrop-filter:
+    blur(var(--chrome-header-backdrop-blur, calc(var(--chrome-backdrop-blur, 22px) - 2px)))
+    saturate(var(--chrome-backdrop-saturate, 1.08));
+  -webkit-backdrop-filter:
+    blur(var(--chrome-header-backdrop-blur, calc(var(--chrome-backdrop-blur, 22px) - 2px)))
+    saturate(var(--chrome-backdrop-saturate, 1.08));
+  transition: background var(--artwork-background-transition-duration) linear;
 }
 
 .playlist-panel-header::after {
