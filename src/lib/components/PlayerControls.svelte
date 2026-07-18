@@ -455,58 +455,6 @@
     </div>
   </div>
 
-  <div class="player-actions">
-    <button
-      type="button"
-      class="transport-button transport-button-previous"
-      aria-label="Previous track"
-      title={displaySubsongCount > 1 ? 'Previous track · Right-click for previous subsong' : 'Previous track'}
-      on:click={() => dispatch('previous')}
-      on:contextmenu={(event) => handleSubsongStep(event, -1)}
-      disabled={!track && !selectedTrack}
-    >
-      <span class="material-symbols-outlined" aria-hidden="true">skip_previous</span>
-    </button>
-    <button
-      type="button"
-      class="transport-button transport-button-primary"
-      aria-label={snapshot.state === 'playing' ? 'Pause playback' : 'Play playback'}
-      on:click={() => dispatch('toggle')}
-      disabled={!track && !selectedTrack}
-    >
-      <span class="material-symbols-outlined" aria-hidden="true">
-        {snapshot.state === 'playing' ? 'pause' : 'play_arrow'}
-      </span>
-    </button>
-    <button
-      type="button"
-      class="transport-button transport-button-next"
-      aria-label="Next track"
-      title={displaySubsongCount > 1 ? 'Next track · Right-click for next subsong' : 'Next track'}
-      on:click={() => dispatch('next')}
-      on:contextmenu={(event) => handleSubsongStep(event, 1)}
-      disabled={!track && !selectedTrack}
-    >
-      <span class="material-symbols-outlined" aria-hidden="true">skip_next</span>
-    </button>
-    {#if presentation === 'bar' && showFavoriteToggle}
-      <button
-        type="button"
-        class="favorite-toggle"
-        class:active={favorite}
-        aria-label={favorite ? 'Remove from favorites' : 'Add to favorites'}
-        aria-pressed={favorite}
-        title={favorite ? 'Remove from favorites' : 'Add to favorites'}
-        disabled={!track}
-        on:click={() => dispatch('toggleFavorite')}
-      >
-        <span class="material-symbols-outlined" aria-hidden="true">
-          {favorite ? 'favorite' : 'favorite_border'}
-        </span>
-      </button>
-    {/if}
-  </div>
-
   <div class="player-range">
     <span>{formatDuration(displayedSeekTime)}</span>
     <div class="range-control" style={toRangeProgressStyle(displayedSeekTime, Math.max(displayDuration, 1))}>
@@ -528,13 +476,66 @@
     <span>{formatDuration(displayDuration)}</span>
   </div>
 
-  <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <div
-    class="volume"
-    data-muted={snapshot.muted ? 'true' : 'false'}
-    data-popup-open={isCompactVolume && isVolumePopupOpen ? 'true' : 'false'}
-    on:mouseleave={closeVolumePopup}
-  >
+  <div class="player-control-strip">
+    <div class="player-actions">
+      <button
+        type="button"
+        class="transport-button transport-button-previous"
+        aria-label="Previous track"
+        title={displaySubsongCount > 1 ? 'Previous track · Right-click for previous subsong' : 'Previous track'}
+        on:click={() => dispatch('previous')}
+        on:contextmenu={(event) => handleSubsongStep(event, -1)}
+        disabled={!track && !selectedTrack}
+      >
+      <span class="material-symbols-outlined" aria-hidden="true">skip_previous</span>
+      </button>
+      <button
+        type="button"
+        class="transport-button transport-button-primary"
+        aria-label={snapshot.state === 'playing' ? 'Pause playback' : 'Play playback'}
+        on:click={() => dispatch('toggle')}
+        disabled={!track && !selectedTrack}
+      >
+        <span class="material-symbols-outlined" aria-hidden="true">
+          {snapshot.state === 'playing' ? 'pause' : 'play_arrow'}
+        </span>
+      </button>
+      <button
+        type="button"
+        class="transport-button transport-button-next"
+        aria-label="Next track"
+        title={displaySubsongCount > 1 ? 'Next track · Right-click for next subsong' : 'Next track'}
+        on:click={() => dispatch('next')}
+        on:contextmenu={(event) => handleSubsongStep(event, 1)}
+        disabled={!track && !selectedTrack}
+      >
+        <span class="material-symbols-outlined" aria-hidden="true">skip_next</span>
+      </button>
+      {#if presentation === 'bar' && showFavoriteToggle}
+        <button
+          type="button"
+          class="favorite-toggle"
+          class:active={favorite}
+          aria-label={favorite ? 'Remove from favorites' : 'Add to favorites'}
+          aria-pressed={favorite}
+          title={favorite ? 'Remove from favorites' : 'Add to favorites'}
+          disabled={!track}
+          on:click={() => dispatch('toggleFavorite')}
+        >
+          <span class="material-symbols-outlined" aria-hidden="true">
+            {favorite ? 'favorite' : 'favorite_border'}
+          </span>
+        </button>
+      {/if}
+    </div>
+
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div
+      class="volume"
+      data-muted={snapshot.muted ? 'true' : 'false'}
+      data-popup-open={isCompactVolume && isVolumePopupOpen ? 'true' : 'false'}
+      on:mouseleave={closeVolumePopup}
+    >
     {#if presentation === 'bar' && showRafToggle}
       <button
         type="button"
@@ -584,6 +585,7 @@
           </div>
         </div>
       </div>
+    </div>
     </div>
   </div>
 </svelte:element>
