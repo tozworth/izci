@@ -1050,6 +1050,28 @@
   font-size: 1.2rem;
 }
 
+.player-bar:not(.compact-player-bar):not(.now-playing-player) .favorite-toggle {
+  order: -1;
+  width: 2.2rem;
+  height: 2.2rem;
+  color: var(--text);
+  transition:
+    color 120ms ease,
+    filter 120ms ease-out;
+}
+
+.player-bar:not(.compact-player-bar):not(.now-playing-player) .favorite-toggle:hover:not(:disabled) {
+  background: transparent;
+  transition-duration: 0ms;
+  filter:
+    drop-shadow(0 0 0.38rem color-mix(in srgb, currentColor 68%, transparent))
+    drop-shadow(0 0 0.95rem color-mix(in srgb, var(--accent-strong) 46%, transparent));
+}
+
+.player-bar:not(.compact-player-bar):not(.now-playing-player) .favorite-toggle .material-symbols-outlined {
+  font-size: 1.6rem;
+}
+
 @media (min-width: 350px) {
   .player-bar:not(.compact-player-bar):not(.now-playing-player) .volume {
     width: auto;
