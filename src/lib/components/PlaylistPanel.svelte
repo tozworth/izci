@@ -106,6 +106,7 @@
   let lastHandledJumpToken = 0;
   let selectedGroupKey: string | null = null;
   let lastActiveLibraryView: LibraryViewId | null = null;
+  const libraryGroupScrollPositions = new Map<LibraryViewId, number>();
   let previousSelectedAlbumArtworkUrl: string | undefined;
   let albumBackdropTransitionBypassed = false;
   let albumBackdropTransitionFrame: number | null = null;
@@ -453,15 +454,19 @@
   }
 
   function handleLibraryGroupOpen(key: string) {
+    libraryGroupScrollPositions.set(activeLibraryView, dropzoneElement?.scrollTop ?? 0);
     selectedGroupKey = key;
     clearSelection();
     dropzoneElement?.scrollTo({ top: 0 });
   }
 
-  function handleLibraryGroupBack() {
+  async function handleLibraryGroupBack() {
+    const scrollTop = libraryGroupScrollPositions.get(activeLibraryView) ?? 0;
     selectedGroupKey = null;
     clearSelection();
-    dropzoneElement?.scrollTo({ top: 0 });
+    await tick();
+    dropzoneElement?.scrollTo({ top: scrollTop });
+    updatePlaylistHeaderState();
   }
 
   function handleSearchInput(value: string) {
@@ -602,15 +607,12 @@
   $: selectedLibraryGroup = selectedGroupKey
     ? libraryGroups.find((group) => group.key === selectedGroupKey) ?? null
     : null;
-  $: albumArtworkController.sync(
-    libraryMode && groupView === 'albums'
-      ? selectedLibraryGroup
-        ? $appearanceSettings.showLibraryAlbumArtworkBackdrop
-          ? [selectedLibraryGroup]
-          : []
-        : visibleLibraryGroups
-      : []
-  );
+  $: albumArtworkGroups = libraryMode && groupView === 'albums'
+    ? selectedLibraryGroup && !visibleLibraryGroups.some((group) => group.key === selectedLibraryGroup.key)
+      ? [selectedLibraryGroup, ...visibleLibraryGroups]
+      : visibleLibraryGroups
+    : [];
+  $: albumArtworkController.sync(albumArtworkGroups);
   $: selectedAlbumArtworkUrl = libraryMode
     && groupView === 'albums'
     && selectedLibraryGroup
