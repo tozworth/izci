@@ -2,7 +2,7 @@ import type { LibraryViewId, PlaylistItem } from '$lib/types';
 import { getFolderFromPath, getTrackDisplayTitle } from '$lib/utils/files';
 import { filterItemsByQuery, formatTotalDuration, getTotalDuration, matchesSearchQuery } from './search';
 
-export type LibraryGroupViewId = Exclude<LibraryViewId, 'songs'>;
+export type LibraryGroupViewId = Exclude<LibraryViewId, 'favorites' | 'songs'>;
 
 export interface LibraryViewDefinition {
   id: LibraryViewId;
@@ -19,6 +19,7 @@ export interface LibraryGroup {
 }
 
 export const LIBRARY_VIEW_DEFINITIONS: LibraryViewDefinition[] = [
+  { id: 'favorites', label: 'Favorites', icon: 'favorite' },
   { id: 'songs', label: 'Songs', icon: 'music_note' },
   { id: 'artists', label: 'Artists', icon: 'person' },
   { id: 'albums', label: 'Albums', icon: 'album' },
@@ -159,18 +160,21 @@ export function filterLibraryGroups(groups: LibraryGroup[], normalizedQuery: str
 
 export function getLibraryViewTooltipDetails(
   items: PlaylistItem[],
+  favoriteItems: PlaylistItem[],
   normalizedQuery: string
 ): Record<LibraryViewId, string> {
   const filteredSongs = filterItemsByQuery(items, normalizedQuery);
+  const filteredFavorites = filterItemsByQuery(favoriteItems, normalizedQuery);
   const songCount = normalizedQuery && filteredSongs.length !== items.length
     ? `${filteredSongs.length} of ${items.length}`
     : String(filteredSongs.length);
   const details = {
+    favorites: String(filteredFavorites.length),
     songs: `${songCount} · ${formatTotalDuration(getTotalDuration(filteredSongs))}`
   } as Record<LibraryViewId, string>;
 
   for (const definition of LIBRARY_VIEW_DEFINITIONS) {
-    if (definition.id === 'songs') continue;
+    if (definition.id === 'favorites' || definition.id === 'songs') continue;
 
     const groups = buildLibraryGroups(items, definition.id);
     const visibleGroups = filterLibraryGroups(groups, normalizedQuery);

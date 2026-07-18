@@ -37,6 +37,8 @@
   export let artworkColorSurfaceBright = false;
   export let hasCollectionItems = false;
   export let collectionsReady = true;
+  export let showFavoriteToggle = false;
+  export let favorite = false;
   export let showRafToggle = false;
   export let rafEnabled = true;
   export let rafPresets: RafPreset[] = [];
@@ -52,6 +54,7 @@
     seek: number;
     volume: number;
     mute: void;
+    toggleFavorite: void;
     toggleRaf: void;
     applyRafPreset: string;
     openRafOptions: void;
@@ -486,6 +489,22 @@
     >
       <span class="material-symbols-outlined" aria-hidden="true">skip_next</span>
     </button>
+    {#if presentation === 'bar' && showFavoriteToggle}
+      <button
+        type="button"
+        class="favorite-toggle"
+        class:active={favorite}
+        aria-label={favorite ? 'Remove from favorites' : 'Add to favorites'}
+        aria-pressed={favorite}
+        title={favorite ? 'Remove from favorites' : 'Add to favorites'}
+        disabled={!track}
+        on:click={() => dispatch('toggleFavorite')}
+      >
+        <span class="material-symbols-outlined" aria-hidden="true">
+          {favorite ? 'favorite' : 'favorite_border'}
+        </span>
+      </button>
+    {/if}
   </div>
 
   <div class="player-range">

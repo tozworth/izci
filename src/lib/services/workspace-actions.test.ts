@@ -5,7 +5,9 @@ import {
   buildPlaylistContextActions,
   buildSelectedWorkspaceTracks,
   getEquivalentLibraryIds,
+  getEquivalentFavoriteIds,
   getOtherWorkspaceCollection,
+  favoritesHaveAllTracks,
   libraryHasAllTracks
 } from './workspace-actions';
 import type { PlaylistItem } from '$lib/types';
@@ -63,6 +65,28 @@ describe('workspace actions', () => {
       label: 'Add to library',
       icon: 'library_add'
     });
+  });
+
+  it('matches favorites by file identity and subsong', () => {
+    const base = item('module', { path: '/Music/Module.xm', kind: 'module', extension: 'xm' });
+    const first = { ...base, id: 'first', subsong: 0 };
+    const second = { ...base, id: 'second', subsong: 1 };
+    const favorite = { ...first, id: 'favorite-first' };
+
+    expect(favoritesHaveAllTracks([favorite], [first])).toBe(true);
+    expect(favoritesHaveAllTracks([favorite], [second])).toBe(false);
+    expect(favoritesHaveAllTracks([favorite], [base])).toBe(false);
+    expect(getEquivalentFavoriteIds([favorite], [first])).toEqual(['favorite-first']);
+  });
+
+  it('offers a favorite toggle in track context menus', () => {
+    const track = item('track', { path: '/Music/Track.flac' });
+    const favorite = { ...track, id: 'favorite' };
+
+    expect(buildPlaylistContextActions([track], [], ['track'], [favorite]))
+      .toContainEqual(expect.objectContaining({ id: 'toggle-favorite', label: 'Remove from favorites' }));
+    expect(buildLibraryContextActions([track], [], ['track']))
+      .toContainEqual(expect.objectContaining({ id: 'toggle-favorite', label: 'Add to favorites' }));
   });
 
   it('offers subsong separation only for one unsplit multi-subsong module', () => {

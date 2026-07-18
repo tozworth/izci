@@ -19,6 +19,10 @@ export interface WorkspacePanelProps {
   selectedIds: string[];
   selectionAnchorId?: string | null;
   playingId: string | null;
+  favoriteItems?: PlaylistItem[];
+  favoriteSelectedIds?: string[];
+  favoriteSelectionAnchorId?: string | null;
+  favoritePlayingId?: string | null;
   panelTitle: string;
   regionLabel: string;
   layout?: 'list' | 'columns';

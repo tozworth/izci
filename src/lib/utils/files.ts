@@ -455,6 +455,12 @@ export function getTrackIdentity(item: Pick<PlaylistItem, 'path' | 'name' | 'siz
   return `file:${item.name.toLowerCase()}:${item.size}:${item.lastModified}`;
 }
 
+export function getFavoriteIdentity(
+  item: Pick<PlaylistItem, 'path' | 'name' | 'size' | 'lastModified' | 'subsong'>
+): string {
+  return `${getTrackIdentity(item)}:subsong:${item.subsong ?? 'all'}`;
+}
+
 export function clonePlaylistItem(item: PlaylistItem): PlaylistItem {
   return {
     ...item,

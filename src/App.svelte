@@ -54,7 +54,8 @@
   import { windowFullscreen } from '$lib/services/window-fullscreen';
   import { appearanceSettings } from '$lib/stores/appearance-settings';
   import { metadataSettings } from '$lib/stores/metadata-settings';
-  import { libraryStore, playlistStore } from '$lib/stores/playlist';
+  import { favoritesStore, libraryStore, playlistStore } from '$lib/stores/playlist';
+  import { libraryViewSettings } from '$lib/stores/library-view-settings';
   import { DEFAULT_PLAYER_VOLUME } from '$lib/stores/player-volume';
   import { playbackSettings } from '$lib/stores/playback-settings';
   import { rafSettings } from '$lib/stores/raf-settings';
@@ -71,7 +72,8 @@
     WorkspaceTab
   } from '$lib/types';
   import type { OptionsViewName } from './options/views';
-  import { getTrackDisplayTitle, getTrackIdentity } from '$lib/utils/files';
+  import { getFavoriteIdentity, getTrackDisplayTitle, getTrackIdentity } from '$lib/utils/files';
+  import { favoritesHaveAllTracks } from '$lib/services/workspace-actions';
 
   const {
     items: playlistItemsStore,
@@ -86,20 +88,31 @@
     selectedIds: librarySelectedIdsStore,
     selectedTrack: librarySelectedTrackStore
   } = libraryStore;
+  const {
+    items: favoriteItemsStore,
+    selection: favoriteSelectionStore,
+    selectedIds: favoriteSelectedIdsStore,
+    selectedTrack: favoriteSelectedTrackStore
+  } = favoritesStore;
   const modulePatternStore = playerController.modulePattern;
   const stopLibraryFolderCommands = startLibraryFolderCommandListener();
 
   let playlistItems: PlaylistItem[] = [];
   let libraryItems: PlaylistItem[] = [];
+  let favoriteItems: PlaylistItem[] = [];
   let collectionsReady = false;
   let playlistSelectionIds: string[] = [];
   let librarySelectionIds: string[] = [];
   let librarySelectionAnchorId: string | null = null;
+  let favoriteSelectionIds: string[] = [];
+  let favoriteSelectionAnchorId: string | null = null;
   let selectedPlaylistItem: PlaylistItem | null = null;
   let selectedLibraryItem: PlaylistItem | null = null;
+  let selectedFavoriteItem: PlaylistItem | null = null;
   let selectedItem: PlaylistItem | null = null;
   let livePlayingTrack: PlaylistItem | null = null;
   let playerDisplayTrack: PlaylistItem | null = null;
+  let favoriteTargetTrack: PlaylistItem | null = null;
   let lyricsTrack: PlaylistItem | null = null;
   let playingTrack: PlaylistItem | null = null;
   let shuffleEnabled = false;
@@ -151,15 +164,20 @@
   };
   const workspaceShell = createWorkspaceShellController({
     getPlaylistContextActions: (ids) => workspaceCollections.getPlaylistContextActions(ids),
-    getLibraryContextActions: () => workspaceCollections.getLibraryContextActions()
+    getLibraryContextActions: (ids) =>
+      libraryViewSettings.getSnapshot().activeView === 'favorites'
+        ? workspaceCollections.getFavoriteContextActions()
+        : workspaceCollections.getLibraryContextActions(ids)
   });
   let workspaceShellState = workspaceShell.getSnapshot();
   const workspaceCollections = createWorkspaceCollectionsController({
     getState: () => ({
       playlistItems,
       libraryItems,
+      favoriteItems,
       playlistSelectionIds,
       librarySelectionIds,
+      favoriteSelectionIds,
       playingTrack
     }),
     handlers: {
@@ -216,7 +234,8 @@
   let appInstallState: AppInstallState = { available: false, showHint: false };
   const unsubscribePlaylistItems = playlistItemsStore.subscribe((value) => (playlistItems = value));
   const unsubscribeLibraryItems = libraryItemsStore.subscribe((value) => (libraryItems = value));
-  void Promise.all([playlistStore.ready(), libraryStore.ready()]).then(async () => {
+  const unsubscribeFavoriteItems = favoriteItemsStore.subscribe((value) => (favoriteItems = value));
+  void Promise.all([playlistStore.ready(), libraryStore.ready(), favoritesStore.ready()]).then(async () => {
     collectionsReady = true;
     void scanLaunchLibraryFolders();
     await playbackRestoration.restore();
@@ -230,11 +249,20 @@
   const unsubscribeLibrarySelection = librarySelectionStore.subscribe(
     (value) => (librarySelectionAnchorId = value.anchorId)
   );
+  const unsubscribeFavoriteSelectedIds = favoriteSelectedIdsStore.subscribe(
+    (value) => (favoriteSelectionIds = value)
+  );
+  const unsubscribeFavoriteSelection = favoriteSelectionStore.subscribe(
+    (value) => (favoriteSelectionAnchorId = value.anchorId)
+  );
   const unsubscribePlaylistSelectedTrack = playlistSelectedTrackStore.subscribe(
     (value) => (selectedPlaylistItem = value)
   );
   const unsubscribeLibrarySelectedTrack = librarySelectedTrackStore.subscribe(
     (value) => (selectedLibraryItem = value)
+  );
+  const unsubscribeFavoriteSelectedTrack = favoriteSelectedTrackStore.subscribe(
+    (value) => (selectedFavoriteItem = value)
   );
   const unsubscribeShuffle = shuffleStore.subscribe((value) => (shuffleEnabled = value));
   const unsubscribeRepeat = repeatStore.subscribe((value) => (repeatMode = value));
@@ -253,6 +281,12 @@
     for (const item of libraryItems) {
       if (getTrackIdentity(item) === playingIdentity) {
         libraryStore.updateMetadata(item.id, value.metadata);
+      }
+    }
+
+    for (const item of favoriteItems) {
+      if (getTrackIdentity(item) === playingIdentity) {
+        favoritesStore.updateMetadata(item.id, value.metadata);
       }
     }
   });
@@ -286,9 +320,9 @@
       isRightPanelVisible: workspaceShellState.isRightPanelVisible,
       activeCollection: workspaceShellState.activeCollection,
       playlistSelectionIds,
-      librarySelectionIds,
+      librarySelectionIds: $libraryViewSettings.activeView === 'favorites' ? favoriteSelectionIds : librarySelectionIds,
       selectedPlaylistItem,
-      selectedLibraryItem,
+      selectedLibraryItem: $libraryViewSettings.activeView === 'favorites' ? selectedFavoriteItem : selectedLibraryItem,
       playingTrack,
       playbackSnapshot
     }),
@@ -297,16 +331,22 @@
       closeNowPlayingView,
       closeActiveRightPanel,
       removePlaylistItems: workspaceCollections.removePlaylistItems,
-      removeLibraryItems: workspaceCollections.removeLibraryItems,
+      removeLibraryItems: (ids) =>
+        $libraryViewSettings.activeView === 'favorites'
+          ? workspaceCollections.handleFavoriteContextAction('remove-favorite', ids)
+          : workspaceCollections.removeLibraryItems(ids),
       cycleWorkspaceTab,
       seek: seekPlayback,
       stepTrack: (direction) => playbackCommands.stepTrack(direction),
       setVolume: (volume) => playerController.setVolume(volume),
       activatePlaylistTrack: (id) => playbackCommands.activatePlaylistTrack(id),
-      activateLibraryTrack: (id) => playbackCommands.activateLibraryTrack(id),
+      activateLibraryTrack: (id) => activateLibraryPanelTrack(id),
       togglePlayback: () => playbackCommands.togglePlayback(),
       toggleMute: () => playerController.toggleMute(),
-      selectAllTracks: (collection) => workspaceShell.selectAllTracks(collection),
+      selectAllTracks: (collection) =>
+        collection === 'library' && $libraryViewSettings.activeView === 'favorites'
+          ? favoritesStore.selectAll()
+          : workspaceShell.selectAllTracks(collection),
       openFiles: () => handleMenuOpenFiles(),
       openOptions: () => handleOpenOptions(),
       toggleMiniMode: () => windowMiniMode.toggle(),
@@ -330,9 +370,14 @@
   });
 
   $: selectedItem =
-    workspaceShellState.activeCollection === 'library' ? selectedLibraryItem : selectedPlaylistItem;
+    workspaceShellState.activeCollection === 'library'
+      ? $libraryViewSettings.activeView === 'favorites' ? selectedFavoriteItem : selectedLibraryItem
+      : selectedPlaylistItem;
   $: livePlayingTrack = resolveTrackSnapshot(playingTrack, selectedItem, playlistItems, libraryItems);
   $: playerDisplayTrack = livePlayingTrack;
+  $: favoriteTargetTrack = playerDisplayTrack?.kind === 'module' && playbackSnapshot.subsong !== undefined
+    ? { ...playerDisplayTrack, subsong: playbackSnapshot.subsong }
+    : playerDisplayTrack;
   $: lyricsTrack = livePlayingTrack;
   $: modulePatternSnapshot = $modulePatternStore;
   $: patternAvailability = resolvePatternTabAvailability(
@@ -407,9 +452,15 @@
     innerWidth,
     playlistItems,
     libraryItems,
+    favoriteItems,
     playlistSelectionIds,
     librarySelectionIds,
     librarySelectionAnchorId,
+    favoriteSelectionIds,
+    favoriteSelectionAnchorId,
+    favoritePlayingId: favoriteTargetTrack
+      ? favoriteItems.find((item) => getFavoriteIdentity(item) === getFavoriteIdentity(favoriteTargetTrack!))?.id ?? null
+      : null,
     playingTrackId: playingTrack?.id ?? null,
     shuffleEnabled,
     repeatMode,
@@ -418,7 +469,7 @@
   $: {
     artworkPresentation.syncSelection(
       selectedItem,
-      playlistSelectionIds.length > 0 || librarySelectionIds.length > 0
+      playlistSelectionIds.length > 0 || librarySelectionIds.length > 0 || favoriteSelectionIds.length > 0
     );
     void artworkPresentation.syncDetailsDisplay();
   }
@@ -448,11 +499,13 @@
     addFiles: (files) => workspaceCollections.handleAddFiles(files, 'library'),
     addFolders: (handles) => void filesystemFolders.rememberMany(handles),
     openFiles: () => void handleMenuOpenFiles('library'),
-    select: (event) => handleSelect('library', event),
-    setSelection: (event) => handleSetSelection('library', event),
-    activate: (event) => void playbackCommands.activateLibraryTrack(event.detail),
+    select: (event) => handleLibraryPanelSelect(event),
+    setSelection: (event) => handleLibraryPanelSetSelection(event),
+    activate: (event) => void activateLibraryPanelTrack(event.detail),
     contextAction: (event) =>
-      workspaceCollections.handleLibraryContextAction(event.detail.actionId, event.detail.ids)
+      $libraryViewSettings.activeView === 'favorites'
+        ? workspaceCollections.handleFavoriteContextAction(event.detail.actionId, event.detail.ids)
+        : workspaceCollections.handleLibraryContextAction(event.detail.actionId, event.detail.ids)
   };
 
   $: {
@@ -478,6 +531,41 @@
 
   function handleSetSelection(collection: WorkspaceCollection, event: CustomEvent<PlaylistSelection>) {
     workspaceShell.setCollectionSelection(collection, event.detail);
+  }
+
+  function handleLibraryPanelSelect(
+    event: CustomEvent<{ id: string; range: boolean; toggle: boolean }>
+  ) {
+    if ($libraryViewSettings.activeView !== 'favorites') {
+      handleSelect('library', event);
+      return;
+    }
+
+    workspaceShell.focusCollection('library');
+    favoritesStore.select(event.detail.id, {
+      range: event.detail.range,
+      toggle: event.detail.toggle
+    });
+  }
+
+  function handleLibraryPanelSetSelection(event: CustomEvent<PlaylistSelection>) {
+    if ($libraryViewSettings.activeView === 'favorites') {
+      workspaceShell.focusCollection('library');
+      favoritesStore.setSelection(event.detail);
+      return;
+    }
+
+    handleSetSelection('library', event);
+  }
+
+  async function activateLibraryPanelTrack(id: string) {
+    if ($libraryViewSettings.activeView !== 'favorites') {
+      await playbackCommands.activateLibraryTrack(id);
+      return;
+    }
+
+    const track = favoriteItems.find((item) => item.id === id);
+    if (track) await playbackCommands.activateFavoriteTrack(track);
   }
 
   function handleShowPlaylistTrack(id: string) {
@@ -653,11 +741,15 @@
     workspaceShell.destroy();
     unsubscribePlaylistItems();
     unsubscribeLibraryItems();
+    unsubscribeFavoriteItems();
     unsubscribePlaylistSelectedIds();
     unsubscribeLibrarySelectedIds();
     unsubscribeLibrarySelection();
+    unsubscribeFavoriteSelectedIds();
+    unsubscribeFavoriteSelection();
     unsubscribePlaylistSelectedTrack();
     unsubscribeLibrarySelectedTrack();
+    unsubscribeFavoriteSelectedTrack();
     unsubscribeShuffle();
     unsubscribeRepeat();
     unsubscribeTrack();
@@ -800,8 +892,10 @@
       backdropEffect={$appearanceSettings.backdropZones.player}
       backdropArtworkSettings={$appearanceSettings.backdropZoneArtwork.player}
       artworkBackgroundBright={backdropPresentation.artworkBackgroundBrightByZone.player}
-      hasCollectionItems={playlistItems.length > 0 || libraryItems.length > 0}
+      hasCollectionItems={playlistItems.length > 0 || libraryItems.length > 0 || favoriteItems.length > 0}
       {collectionsReady}
+      showFavoriteToggle={$trackSettings.showFavoriteToggleInPlayerBar}
+      favorite={favoriteTargetTrack ? favoritesHaveAllTracks(favoriteItems, [favoriteTargetTrack]) : false}
       showRafToggle={$playbackSettings.enableRaf && $playbackSettings.showRafToggleInPlayerBar}
       rafEnabled={$rafSettings.enabled}
       rafPresets={$rafPresets.presets}
@@ -815,6 +909,7 @@
       on:seek={(event) => seekPlayback(event.detail)}
       on:volume={(event) => playerController.setVolume(event.detail)}
       on:mute={() => playerController.toggleMute()}
+      on:toggleFavorite={() => favoriteTargetTrack && workspaceCollections.toggleFavoriteTracks([favoriteTargetTrack])}
       on:toggleRaf={() => rafSettings.setEnabled(!$rafSettings.enabled)}
       on:applyRafPreset={(event) => rafPresets.apply(event.detail)}
       on:openRafOptions={() => handleOpenOptions('raf')}

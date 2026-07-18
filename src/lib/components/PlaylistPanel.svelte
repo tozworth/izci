@@ -55,6 +55,10 @@
   export let selectedIds: string[] = [];
   export let selectionAnchorId: string | null = null;
   export let playingId: string | null = null;
+  export let favoriteItems: PlaylistItem[] = [];
+  export let favoriteSelectedIds: string[] = [];
+  export let favoriteSelectionAnchorId: string | null = null;
+  export let favoritePlayingId: string | null = null;
   export let panelTitle = 'Playlist';
   export let regionLabel = 'Playlist';
   export let layout: 'list' | 'columns' = 'list';
@@ -270,7 +274,7 @@
 
       dispatch(
         'setSelection',
-        buildOrderedSelection(displayItems, selectedIds, selectionAnchorId, nextItem.id, event.shiftKey, false)
+        buildOrderedSelection(displayItems, displaySelectedIds, displaySelectionAnchorId, nextItem.id, event.shiftKey, false)
       );
       void focusTrackRow(nextItem.id);
     }
@@ -323,7 +327,7 @@
     if (layout === 'columns') {
       dispatch(
         'setSelection',
-        buildOrderedSelection(displayItems, selectedIds, selectionAnchorId, id, event.shiftKey, isToggleSelection(event))
+        buildOrderedSelection(displayItems, displaySelectedIds, displaySelectionAnchorId, id, event.shiftKey, isToggleSelection(event))
       );
       return;
     }
@@ -347,7 +351,7 @@
   async function handleItemContextMenu(event: MouseEvent, id: string) {
     event.preventDefault();
 
-    const itemIsSelected = selectedIds.includes(id);
+    const itemIsSelected = displaySelectedIds.includes(id);
 
     if (!itemIsSelected) {
       if (layout === 'columns') {
@@ -369,7 +373,7 @@
       kind: 'items',
       x: event.clientX,
       y: event.clientY,
-      ids: itemIsSelected ? selectedIds : [id]
+      ids: itemIsSelected ? displaySelectedIds : [id]
     };
 
     await tick();
@@ -458,7 +462,7 @@
   }
 
   function clearSelection() {
-    if (selectedIds.length === 0) return;
+    if (displaySelectedIds.length === 0) return;
 
     dispatch('setSelection', {
       ids: [],
@@ -613,6 +617,11 @@
   }
 
   $: activeLibraryView = libraryMode ? $libraryViewSettings.activeView : 'songs';
+  $: favoritesViewActive = libraryMode && activeLibraryView === 'favorites';
+  $: displaySourceItems = favoritesViewActive ? favoriteItems : items;
+  $: displaySelectedIds = favoritesViewActive ? favoriteSelectedIds : selectedIds;
+  $: displaySelectionAnchorId = favoritesViewActive ? favoriteSelectionAnchorId : selectionAnchorId;
+  $: displayPlayingId = favoritesViewActive ? favoritePlayingId : playingId;
   $: if (activeLibraryView !== lastActiveLibraryView) {
     selectedGroupKey = null;
     lastActiveLibraryView = activeLibraryView;
@@ -624,7 +633,9 @@
   $: orderedColumns = layout === 'columns'
     ? getOrderedColumns(activeLibraryTableSettings.order, activeLibraryTableSettings.columns)
     : [];
-  $: groupView = activeLibraryView === 'songs' ? null : activeLibraryView as LibraryGroupViewId;
+  $: groupView = activeLibraryView === 'songs' || activeLibraryView === 'favorites'
+    ? null
+    : activeLibraryView as LibraryGroupViewId;
   $: libraryGroups = groupView ? buildLibraryGroups(items, groupView) : [];
   $: visibleLibraryGroups = groupView ? filterLibraryGroups(libraryGroups, normalizedSearchQuery) : [];
   $: visibleGroupSongCount = new Set(
@@ -649,17 +660,17 @@
     previousSelectedAlbumArtworkUrl = selectedAlbumArtworkUrl;
     bypassAlbumBackdropTransitions();
   }
-  $: showTrackRows = !libraryMode || activeLibraryView === 'songs' || Boolean(selectedLibraryGroup);
-  $: unfilteredDisplayItems = libraryMode && activeLibraryView !== 'songs'
+  $: showTrackRows = !libraryMode || activeLibraryView === 'songs' || activeLibraryView === 'favorites' || Boolean(selectedLibraryGroup);
+  $: unfilteredDisplayItems = libraryMode && activeLibraryView !== 'songs' && activeLibraryView !== 'favorites'
     ? selectedLibraryGroup?.items ?? []
-    : items;
+    : displaySourceItems;
   $: filteredItems = selectedLibraryGroup
     ? filterLibraryGroupItems(selectedLibraryGroup, normalizedSearchQuery)
     : filterItemsByQuery(unfilteredDisplayItems, normalizedSearchQuery);
   $: trackSummary = selectedLibraryGroup
     ? getGroupTrackSummary(selectedLibraryGroup, filteredItems)
-    : getTrackSummary(items, filteredItems, normalizedSearchQuery);
-  $: libraryTooltipDetails = getLibraryViewTooltipDetails(items, normalizedSearchQuery);
+    : getTrackSummary(displaySourceItems, filteredItems, normalizedSearchQuery);
+  $: libraryTooltipDetails = getLibraryViewTooltipDetails(items, favoriteItems, normalizedSearchQuery);
   $: librarySummary = groupView && !selectedLibraryGroup
     ? getGroupSummary(
         groupView,
@@ -708,7 +719,7 @@
   $: if (!showSearchControl) {
     searchInputExpanded = false;
   }
-  $: if (items) {
+  $: if (items || favoriteItems) {
     tick().then(() => updatePlaylistHeaderState());
   }
   $: if (jumpToItemRequest && jumpToItemRequest.token !== lastHandledJumpToken) {
@@ -823,8 +834,8 @@
     {:else if displayItems.length > 0}
       <TrackList
         {displayItems}
-        {selectedIds}
-        {playingId}
+        selectedIds={displaySelectedIds}
+        playingId={displayPlayingId}
         {layout}
         {isCompactColumnLayout}
         {visibleColumns}
@@ -835,9 +846,13 @@
         on:itemDoubleClick={(event) => handleItemDoubleClick(event.detail)}
         on:itemContextMenu={(event) => void handleItemContextMenu(event.detail.event, event.detail.id)}
       />
-    {:else if items.length > 0 && normalizedSearchQuery}
+    {:else if displaySourceItems.length > 0 && normalizedSearchQuery}
       <div class="empty-state playlist-filter-empty">
         <p>No library results match "{searchQuery.trim()}".</p>
+      </div>
+    {:else if favoritesViewActive && favoriteItems.length === 0}
+      <div class="empty-state playlist-filter-empty favorites-empty-note">
+        <p>Favorite tracks and subsongs will appear here.</p>
       </div>
     {:else if libraryMode && items.length === 0}
       <div class="empty-state playlist-filter-empty">
@@ -919,5 +934,10 @@
 
   .playlist-filter-empty p {
     margin: 0;
+  }
+
+  .favorites-empty-note {
+    color: var(--muted);
+    font-size: 0.76rem;
   }
 </style>

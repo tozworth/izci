@@ -41,4 +41,14 @@ describe('playlist dedupe', () => {
       duplicateItems: [duplicateOfExisting, duplicateOfSource]
     });
   });
+
+  it('accepts a collection-specific identity resolver', () => {
+    const first = item('first', { name: 'module.xm', kind: 'module', extension: 'xm', subsong: 0 });
+    const second = item('second', { name: 'module.xm', kind: 'module', extension: 'xm', subsong: 1 });
+
+    expect(splitUniqueItems([first, second], {
+      dedupe: true,
+      getIdentity: (entry) => `${entry.name}:${entry.subsong ?? 'all'}`
+    }).uniqueItems).toEqual([first, second]);
+  });
 });

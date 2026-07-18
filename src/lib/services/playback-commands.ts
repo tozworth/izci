@@ -136,6 +136,17 @@ export function createPlaybackCommandsController({
     await playTrack(playlistTrack);
   }
 
+  async function activateFavoriteTrack(track: PlaylistItem): Promise<void> {
+    const [playlistTrack] = playlistStore.add(clonePlaylistItems([track]));
+
+    if (!playlistTrack) {
+      return;
+    }
+
+    selectTrack('playlist', playlistTrack.id);
+    await playTrack(playlistTrack);
+  }
+
   async function importLaunchedFiles(files: File[], action: 'add' | 'replace'): Promise<void> {
     const nextItems = buildPlaylistItems(await prepareImportedFiles(files));
 
@@ -268,6 +279,7 @@ export function createPlaybackCommandsController({
     playTrack,
     activatePlaylistTrack,
     activateLibraryTrack,
+    activateFavoriteTrack,
     importLaunchedFiles,
     play,
     pause,

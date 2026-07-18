@@ -59,7 +59,7 @@
           on:click={() => dispatch('viewChange', view.id)}
         >
           <span class="material-symbols-outlined" aria-hidden="true">{view.icon}</span>
-          <HoverTooltip align={view.id === 'songs' ? 'left' : 'center'} nowrap>
+          <HoverTooltip align={view.id === 'favorites' ? 'left' : 'center'} nowrap>
             <strong>{view.label}</strong>{#if !showBack && tooltipDetails[view.id]}
               <span class="library-tooltip-detail">{tooltipDetails[view.id]}</span>
             {/if}

@@ -10,7 +10,8 @@ export const MAX_FOLDER_NESTING_LIMIT = 64;
 export const DEFAULT_TRACK_SETTINGS: TrackSettings = {
   folderNestingLimit: DEFAULT_FOLDER_NESTING_LIMIT,
   verifyAddedFiles: false,
-  associatedFileAction: 'replace'
+  associatedFileAction: 'replace',
+  showFavoriteToggleInPlayerBar: false
 };
 
 export function normalizeFolderNestingLimit(value: unknown): number {
@@ -43,7 +44,11 @@ function normalizeSettings(value: unknown): TrackSettings {
     associatedFileAction:
       source.associatedFileAction === 'add' || source.associatedFileAction === 'replace'
         ? source.associatedFileAction
-        : DEFAULT_TRACK_SETTINGS.associatedFileAction
+        : DEFAULT_TRACK_SETTINGS.associatedFileAction,
+    showFavoriteToggleInPlayerBar:
+      typeof source.showFavoriteToggleInPlayerBar === 'boolean'
+        ? source.showFavoriteToggleInPlayerBar
+        : DEFAULT_TRACK_SETTINGS.showFavoriteToggleInPlayerBar
   };
 }
 

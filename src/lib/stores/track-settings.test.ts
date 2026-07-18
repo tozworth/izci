@@ -25,4 +25,8 @@ describe('track settings helpers', () => {
   it('keeps replacement as the default associated-file action', () => {
     expect(DEFAULT_TRACK_SETTINGS.associatedFileAction).toBe('replace');
   });
+
+  it('hides the player-bar favorite toggle by default', () => {
+    expect(DEFAULT_TRACK_SETTINGS.showFavoriteToggleInPlayerBar).toBe(false);
+  });
 });

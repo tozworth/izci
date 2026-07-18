@@ -6,12 +6,13 @@ export function splitUniqueItems(
   options: {
     dedupe: boolean;
     existingItems?: PlaylistItem[];
+    getIdentity?: (item: PlaylistItem) => string;
   }
 ): {
   uniqueItems: PlaylistItem[];
   duplicateItems: PlaylistItem[];
 } {
-  const { dedupe, existingItems = [] } = options;
+  const { dedupe, existingItems = [], getIdentity = getTrackIdentity } = options;
 
   if (!dedupe) {
     return {
@@ -20,12 +21,12 @@ export function splitUniqueItems(
     };
   }
 
-  const seen = new Set(existingItems.map((item) => getTrackIdentity(item)));
+  const seen = new Set(existingItems.map((item) => getIdentity(item)));
   const uniqueItems: PlaylistItem[] = [];
   const duplicateItems: PlaylistItem[] = [];
 
   for (const item of sourceItems) {
-    const key = getTrackIdentity(item);
+    const key = getIdentity(item);
 
     if (seen.has(key)) {
       duplicateItems.push(item);

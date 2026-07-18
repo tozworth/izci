@@ -15,6 +15,7 @@ describe('library view settings', () => {
     }
 
     expect(views.songs.columns.artist.visible).toBe(true);
+    expect(views.favorites.columns.artist.visible).toBe(true);
     expect(views.artists.columns.artist.visible).toBe(false);
     expect(views.artists.columns.album.visible).toBe(true);
     expect(views.albums.columns.album.visible).toBe(false);

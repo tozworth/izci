@@ -15,6 +15,11 @@
       trackSettings.update({ associatedFileAction });
     }
   }
+  function handleFavoriteToggleVisibility(event: Event) {
+    trackSettings.update({
+      showFavoriteToggleInPlayerBar: (event.currentTarget as HTMLInputElement).checked
+    });
+  }
 </script>
 
 <article class="view">
@@ -55,6 +60,23 @@
             <option value="add">Add to playlist</option>
             <option value="replace">Replace playlist</option>
           </select>
+      </SettingsField>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Player Bar</h2>
+    <div class="field-grid">
+      <SettingsField
+        title="Show favorite toggle"
+        hint="Show a heart button after the transport controls for adding or removing the current track or module subsong from Favorites."
+        checkbox
+      >
+        <input
+          type="checkbox"
+          checked={$trackSettings.showFavoriteToggleInPlayerBar}
+          on:change={handleFavoriteToggleVisibility}
+        />
       </SettingsField>
     </div>
   </div>

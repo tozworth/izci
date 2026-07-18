@@ -50,9 +50,13 @@ interface WorkspaceShellInputs {
   innerWidth: number;
   playlistItems: PlaylistItem[];
   libraryItems: PlaylistItem[];
+  favoriteItems: PlaylistItem[];
   playlistSelectionIds: string[];
   librarySelectionIds: string[];
   librarySelectionAnchorId: string | null;
+  favoriteSelectionIds: string[];
+  favoriteSelectionAnchorId: string | null;
+  favoritePlayingId: string | null;
   playingTrackId: string | null;
   shuffleEnabled: boolean;
   repeatMode: PlaylistRepeatMode;
@@ -61,7 +65,7 @@ interface WorkspaceShellInputs {
 
 interface CreateWorkspaceShellControllerOptions {
   getPlaylistContextActions: (ids: string[]) => MenuActionItem[];
-  getLibraryContextActions: () => MenuActionItem[];
+  getLibraryContextActions: (ids: string[]) => MenuActionItem[];
 }
 
 export interface WorkspaceShellState {
@@ -327,7 +331,7 @@ function createPlaylistPanelProps(
 }
 
 function createLibraryPanelProps(
-  getLibraryContextActions: () => MenuActionItem[]
+  getLibraryContextActions: (ids: string[]) => MenuActionItem[]
 ): WorkspacePanelProps {
   return {
     items: [],
@@ -346,7 +350,7 @@ function createLibraryPanelProps(
 
 function createInitialState(
   getPlaylistContextActions: (ids: string[]) => MenuActionItem[],
-  getLibraryContextActions: () => MenuActionItem[]
+  getLibraryContextActions: (ids: string[]) => MenuActionItem[]
 ): WorkspaceShellState {
   const savedPanelState = workspacePanelState.getSnapshot();
   const logicalVisiblePanels = getVisibleWorkspacePanels(savedPanelState, false);
@@ -534,6 +538,10 @@ export function createWorkspaceShellController({
         selectedIds: lastInputs.librarySelectionIds,
         selectionAnchorId: lastInputs.librarySelectionAnchorId,
         playingId: null,
+        favoriteItems: lastInputs.favoriteItems,
+        favoriteSelectedIds: lastInputs.favoriteSelectionIds,
+        favoriteSelectionAnchorId: lastInputs.favoriteSelectionAnchorId,
+        favoritePlayingId: lastInputs.favoritePlayingId,
         panelTitle: 'Library',
         regionLabel: 'Library',
         layout: 'columns',

@@ -7,9 +7,10 @@ import type {
 } from '$lib/types';
 import { createPersistentStore } from './persistent-store';
 
-export const LIBRARY_VIEW_SETTINGS_STORAGE_KEY = 'izci.library-view-settings.v4';
-export const LIBRARY_VIEW_SETTINGS_CHANNEL = 'izci-library-view-settings-v4';
+export const LIBRARY_VIEW_SETTINGS_STORAGE_KEY = 'izci.library-view-settings.v5';
+export const LIBRARY_VIEW_SETTINGS_CHANNEL = 'izci-library-view-settings-v5';
 export const LIBRARY_VIEW_IDS: LibraryViewId[] = [
+  'favorites',
   'songs',
   'artists',
   'albums',
@@ -79,7 +80,7 @@ function createDefaultColumns(view: LibraryViewId): LibraryViewTableSettings['co
     }
   };
 
-  if (view !== 'songs' && view !== 'albums') {
+  if (view !== 'favorites' && view !== 'songs' && view !== 'albums') {
     columns.album.visible = true;
   }
 

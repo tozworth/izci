@@ -28,11 +28,12 @@ import {
   resolveSelectSelection,
   type SelectOptions
 } from './playlist-selection';
-import { getTrackIdentity } from '$lib/utils/files';
+import { getFavoriteIdentity, getTrackIdentity } from '$lib/utils/files';
 
 export interface TrackCollectionStoreConfig {
   dbName: string;
   dedupe: boolean;
+  getIdentity?: (item: PlaylistItem) => string;
 }
 
 export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
@@ -121,7 +122,10 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
         })
       );
 
-    const { uniqueItems } = splitUniqueItems(normalizedItems, { dedupe: config.dedupe });
+    const { uniqueItems } = splitUniqueItems(normalizedItems, {
+      dedupe: config.dedupe,
+      getIdentity: config.getIdentity
+    });
     const restoredItemIds = new Set(uniqueItems.map((item) => item.id));
     const restoredSelection = normalizeStoredSelection(state?.selection, restoredItemIds);
 
@@ -232,7 +236,8 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
       const executed = runOrQueue(() => {
         const { uniqueItems, duplicateItems } = splitUniqueItems(newItems, {
           dedupe: config.dedupe,
-          existingItems: itemList
+          existingItems: itemList,
+          getIdentity: config.getIdentity
         });
 
         for (const item of duplicateItems) {
@@ -266,7 +271,10 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
       const executed = runOrQueue(() => {
         removedItems = [...itemList];
 
-        const { uniqueItems, duplicateItems } = splitUniqueItems(newItems, { dedupe: config.dedupe });
+        const { uniqueItems, duplicateItems } = splitUniqueItems(newItems, {
+          dedupe: config.dedupe,
+          getIdentity: config.getIdentity
+        });
 
         for (const item of duplicateItems) {
           revokeObjectUrl(item);
@@ -517,4 +525,10 @@ export const playlistStore = createTrackCollectionStore({
 export const libraryStore = createTrackCollectionStore({
   dbName: 'izci-library',
   dedupe: true
+});
+
+export const favoritesStore = createTrackCollectionStore({
+  dbName: 'izci-favorites',
+  dedupe: true,
+  getIdentity: getFavoriteIdentity
 });

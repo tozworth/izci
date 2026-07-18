@@ -70,8 +70,9 @@ describe('library view projections', () => {
       { ...tracks[0], metadata: { ...tracks[0].metadata, duration: 60 } },
       { ...tracks[1], metadata: { ...tracks[1].metadata, duration: 90 } },
       tracks[2]
-    ], '');
+    ], [tracks[0]], '');
 
+    expect(details.favorites).toBe('1');
     expect(details.songs).toBe('3 · 02:30');
     expect(details.artists).toBe('2');
     expect(details.albums).toBe('3');

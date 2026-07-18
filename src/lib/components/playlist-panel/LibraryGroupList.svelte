@@ -1,11 +1,10 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
-  import type { LibraryViewId } from '$lib/types';
   import { formatTotalDuration } from './search';
-  import type { LibraryGroup } from './library-views';
+  import type { LibraryGroup, LibraryGroupViewId } from './library-views';
 
   export let groups: LibraryGroup[] = [];
-  export let view: Exclude<LibraryViewId, 'songs'> = 'artists';
+  export let view: LibraryGroupViewId = 'artists';
   export let artworkUrls: Record<string, string> = {};
 
   const dispatch = createEventDispatcher<{
@@ -13,7 +12,7 @@
     contextMenu: { key: string; event: MouseEvent };
   }>();
 
-  const icons: Record<Exclude<LibraryViewId, 'songs'>, string> = {
+  const icons: Record<LibraryGroupViewId, string> = {
     artists: 'person',
     albums: 'album',
     genres: 'category',
