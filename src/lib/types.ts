@@ -304,6 +304,7 @@ export interface AppearanceSettings {
   compactPlayerBar: boolean;
   keepLibraryColumnsVisibleInNarrowLayout: boolean;
   keepEmptyWorkspacePanelsOpen: boolean;
+  showLibraryAlbumArtworkBackdrop: boolean;
   showIdlePlayerQuips: boolean;
   fontFamily: string;
   backdropZones: BackdropZoneSettings;

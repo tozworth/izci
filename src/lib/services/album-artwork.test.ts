@@ -65,4 +65,43 @@ describe('album artwork controller', () => {
     expect(loadThumbnail).toHaveBeenCalledTimes(1);
     controller.destroy();
   });
+
+  it('retains the selected album URL while releasing artwork for albums no longer in scope', async () => {
+    const firstBlob = new Blob(['cover-one'], { type: 'image/webp' });
+    const secondBlob = new Blob(['cover-two'], { type: 'image/webp' });
+    const loadThumbnail = vi.fn(async (track: PlaylistItem) => ({
+      assetId: track.id,
+      blob: track.id === 'cover-one' ? firstBlob : secondBlob,
+      width: 96,
+      height: 96
+    }));
+    const createObjectUrl = vi.fn((blob: Blob) =>
+      blob === firstBlob ? 'blob:cover-one' : 'blob:cover-two'
+    );
+    const revokeObjectUrl = vi.fn();
+    const controller = createAlbumArtworkController({
+      loadThumbnail,
+      createObjectUrl,
+      revokeObjectUrl
+    });
+    const firstAlbum = { key: 'album:one', items: [item('cover-one')] };
+    const secondAlbum = { key: 'album:two', items: [item('cover-two')] };
+    let urls: Record<string, string> = {};
+    controller.subscribe((snapshot) => {
+      urls = snapshot;
+    });
+
+    controller.sync([firstAlbum, secondAlbum]);
+    await vi.waitFor(() => expect(Object.keys(urls)).toHaveLength(2));
+
+    controller.sync([firstAlbum]);
+    expect(urls).toEqual({ 'album:one': 'blob:cover-one' });
+    expect(revokeObjectUrl).toHaveBeenCalledTimes(1);
+    expect(revokeObjectUrl).toHaveBeenLastCalledWith('blob:cover-two');
+
+    controller.sync([]);
+    expect(urls).toEqual({});
+    expect(revokeObjectUrl).toHaveBeenLastCalledWith('blob:cover-one');
+    controller.destroy();
+  });
 });

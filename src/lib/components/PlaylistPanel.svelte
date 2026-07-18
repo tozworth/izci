@@ -18,6 +18,7 @@
   import { extractDroppedContent } from '$lib/utils/files';
   import PlaylistPanelHeader from '$lib/components/playlist-panel/PlaylistPanelHeader.svelte';
   import LibraryPanelHeader from '$lib/components/playlist-panel/LibraryPanelHeader.svelte';
+  import LibraryAlbumBackdrop from '$lib/components/playlist-panel/LibraryAlbumBackdrop.svelte';
   import LibraryGroupList from '$lib/components/playlist-panel/LibraryGroupList.svelte';
   import LibraryColumnsHeader from '$lib/components/playlist-panel/LibraryColumnsHeader.svelte';
   import TrackList from '$lib/components/playlist-panel/TrackList.svelte';
@@ -105,6 +106,9 @@
   let lastHandledJumpToken = 0;
   let selectedGroupKey: string | null = null;
   let lastActiveLibraryView: LibraryViewId | null = null;
+  let previousSelectedAlbumArtworkUrl: string | undefined;
+  let albumBackdropTransitionBypassed = false;
+  let albumBackdropTransitionFrame: number | null = null;
   const albumArtworkController = createAlbumArtworkController();
   let albumArtworkUrls: Record<string, string> = {};
   const unsubscribeAlbumArtwork = albumArtworkController.subscribe((urls) => {
@@ -112,9 +116,27 @@
   });
 
   onDestroy(() => {
+    if (albumBackdropTransitionFrame !== null) {
+      cancelAnimationFrame(albumBackdropTransitionFrame);
+    }
     unsubscribeAlbumArtwork();
     albumArtworkController.destroy();
   });
+
+  function bypassAlbumBackdropTransitions() {
+    albumBackdropTransitionBypassed = true;
+
+    if (albumBackdropTransitionFrame !== null) {
+      cancelAnimationFrame(albumBackdropTransitionFrame);
+    }
+
+    albumBackdropTransitionFrame = requestAnimationFrame(() => {
+      albumBackdropTransitionFrame = requestAnimationFrame(() => {
+        albumBackdropTransitionFrame = null;
+        albumBackdropTransitionBypassed = false;
+      });
+    });
+  }
 
   function clamp(value: number, min: number, max: number): number {
     return Math.min(Math.max(value, min), max);
@@ -581,8 +603,24 @@
     ? libraryGroups.find((group) => group.key === selectedGroupKey) ?? null
     : null;
   $: albumArtworkController.sync(
-    libraryMode && groupView === 'albums' && !selectedLibraryGroup ? visibleLibraryGroups : []
+    libraryMode && groupView === 'albums'
+      ? selectedLibraryGroup
+        ? $appearanceSettings.showLibraryAlbumArtworkBackdrop
+          ? [selectedLibraryGroup]
+          : []
+        : visibleLibraryGroups
+      : []
   );
+  $: selectedAlbumArtworkUrl = libraryMode
+    && groupView === 'albums'
+    && selectedLibraryGroup
+    && $appearanceSettings.showLibraryAlbumArtworkBackdrop
+    ? albumArtworkUrls[selectedLibraryGroup.key]
+    : undefined;
+  $: if (selectedAlbumArtworkUrl !== previousSelectedAlbumArtworkUrl) {
+    previousSelectedAlbumArtworkUrl = selectedAlbumArtworkUrl;
+    bypassAlbumBackdropTransitions();
+  }
   $: showTrackRows = !libraryMode || activeLibraryView === 'songs' || Boolean(selectedLibraryGroup);
   $: unfilteredDisplayItems = libraryMode && activeLibraryView !== 'songs'
     ? selectedLibraryGroup?.items ?? []
@@ -659,7 +697,17 @@
   on:resize={handleWindowDismiss}
 />
 
-<section class="panel playlist-panel" class:fill-parent={fillParent}>
+<section
+  class="panel playlist-panel"
+  class:fill-parent={fillParent}
+  class:library-album-backdrop-active={Boolean(selectedAlbumArtworkUrl)}
+  class:library-album-transition-bypass={albumBackdropTransitionBypassed}
+>
+  {#if selectedAlbumArtworkUrl}
+    <!-- This is deliberately panel-local and must not register as a shared backdrop zone. -->
+    <LibraryAlbumBackdrop artworkUrl={selectedAlbumArtworkUrl} />
+  {/if}
+
   <div
     bind:this={dropzoneElement}
     bind:clientWidth={dropzoneWidth}
@@ -787,6 +835,41 @@
     width: 100%;
     min-width: 0;
     height: 100%;
+  }
+
+  .playlist-panel.library-album-backdrop-active {
+    isolation: isolate;
+    color-scheme: dark;
+    --playlist-header-artwork-background:
+      linear-gradient(180deg, rgba(18, 19, 28, 0.48) 0%, rgba(18, 19, 28, 0.38) 100%),
+      rgba(255, 255, 255, 0.018);
+  }
+
+  :global(.backdrop-zone.artwork-backdrop-bright) .playlist-panel.library-album-backdrop-active {
+    --text: #e4e7eb;
+    --text-strong: #f7f8fa;
+    --muted: #9aa3ad;
+    --muted-strong: #c5cad0;
+    --border: rgba(255, 255, 255, 0.16);
+    --border-strong: rgba(255, 255, 255, 0.18);
+    --border-soft: rgba(255, 255, 255, 0.12);
+    --border-faint: rgba(255, 255, 255, 0.1);
+    --border-subtle: rgba(255, 255, 255, 0.08);
+    --border-covered: var(--border-subtle);
+    --hover-subtle: rgba(255, 255, 255, 0.05);
+    --hover-control: rgba(255, 255, 255, 0.08);
+  }
+
+  .playlist-panel.library-album-backdrop-active .playlist-dropzone {
+    z-index: 1;
+    background: transparent;
+  }
+
+  .playlist-panel.library-album-transition-bypass,
+  .playlist-panel.library-album-transition-bypass :global(*),
+  .playlist-panel.library-album-transition-bypass :global(*::before),
+  .playlist-panel.library-album-transition-bypass :global(*::after) {
+    transition-duration: 0ms !important;
   }
 
   .playlist-panel-header {
