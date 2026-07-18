@@ -876,15 +876,15 @@
 }
 
 .compact-player-bar .favorite-toggle .material-symbols-outlined {
-  font-size: 0.875rem;
+  font-size: 0.9rem;
 }
 
 .compact-player-bar .raf-toggle .material-symbols-outlined {
-  font-size: 0.8rem;
+  font-size: 0.9rem;
 }
 
 .compact-player-bar .volume-label .material-symbols-outlined {
-  font-size: 0.825rem;
+  font-size: 1rem;
 }
 
 .compact-player-bar .favorite-toggle.active .material-symbols-outlined {
