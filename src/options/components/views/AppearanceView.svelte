@@ -4,6 +4,7 @@
   import { COLOR_THEME_OPTIONS } from '$lib/services/theme';
   import { hasLocalFontAccessPermission, queryLocalFontFamilies, supportsLocalFontAccess } from '$lib/services/local-fonts';
   import {
+    CONTEXTUAL_TAB_AUTOMATION_OPTIONS,
     MAX_CHAMELEON_HUE,
     MAX_CHAMELEON_SATURATION,
     MIN_CHAMELEON_HUE,
@@ -11,7 +12,7 @@
     SYSTEM_FONT_FAMILY,
     appearanceSettings
   } from '$lib/stores/appearance-settings';
-  import type { ColorTheme } from '$lib/types';
+  import type { ColorTheme, ContextualTabAutomation, ContextualWorkspaceTab } from '$lib/types';
 
   type BooleanAppearanceSetting =
     | 'useArtworkPlayerColors'
@@ -43,6 +44,14 @@
   function handleChameleonSaturationInput(event: Event) { appearanceSettings.update({ chameleonSaturation: Number((event.currentTarget as HTMLInputElement).value) }); }
   function handleAppearanceToggle(event: Event, key: BooleanAppearanceSetting) { appearanceSettings.update({ [key]: checked(event) }); }
   function handleFontFamilyChange(event: Event) { appearanceSettings.update({ fontFamily: (event.currentTarget as HTMLSelectElement).value }); }
+  function handleContextualTabChange(event: Event, tab: ContextualWorkspaceTab) {
+    appearanceSettings.update({
+      contextualTabs: {
+        ...appearanceSettings.getSnapshot().contextualTabs,
+        [tab]: (event.currentTarget as HTMLSelectElement).value as ContextualTabAutomation
+      }
+    });
+  }
 
   async function loadLocalFonts() {
     localFontsLoading = true;
@@ -180,6 +189,39 @@
           />
         </SettingsField>
       {/each}
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Contextual Tabs</h2>
+    <div class="field-grid">
+      <SettingsField
+        title="Lyrics"
+        hint="Controls whether the Lyrics tab follows embedded lyrics availability for the playing track."
+      >
+        <select
+          value={$appearanceSettings.contextualTabs.lyrics}
+          on:change={(event) => handleContextualTabChange(event, 'lyrics')}
+        >
+          {#each CONTEXTUAL_TAB_AUTOMATION_OPTIONS as option}
+            <option value={option.value}>{option.label}</option>
+          {/each}
+        </select>
+      </SettingsField>
+
+      <SettingsField
+        title="Patterns"
+        hint="Controls whether the Patterns tab follows module pattern availability for the playing track."
+      >
+        <select
+          value={$appearanceSettings.contextualTabs.patterns}
+          on:change={(event) => handleContextualTabChange(event, 'patterns')}
+        >
+          {#each CONTEXTUAL_TAB_AUTOMATION_OPTIONS as option}
+            <option value={option.value}>{option.label}</option>
+          {/each}
+        </select>
+      </SettingsField>
     </div>
   </div>
 </article>

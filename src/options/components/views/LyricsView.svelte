@@ -15,8 +15,6 @@
   function handleLyricsAutoScrollToggle(event: Event) { updateLyrics({ autoScroll: checked(event) }); }
   function handleLyricsTheaterDotsToggle(event: Event) { updateLyrics({ theaterDowntimeDots: checked(event) }); }
   function handleLyricsTheaterSmoothScrollToggle(event: Event) { updateLyrics({ theaterSmoothScroll: checked(event) }); }
-  function handleLyricsOpenPanelToggle(event: Event) { updateLyrics({ openPanelForLyrics: checked(event) }); }
-  function handleLyricsClosePanelToggle(event: Event) { updateLyrics({ closePanelWithoutLyrics: checked(event) }); }
   function handleLyricsFontSizeChange(event: Event) {
     const lyrics = appearanceSettings.getSnapshot().lyrics;
     updateLyrics({ fontSizes: { ...lyrics.fontSizes, [lyrics.displayStyle]: normalizeLyricsFontSize(lyrics.displayStyle, (event.currentTarget as HTMLInputElement).valueAsNumber) } });
@@ -106,30 +104,6 @@
             />
         </SettingsField>
       {/if}
-
-      <SettingsField
-        title="Open Lyrics when available"
-        hint="Opens the Lyrics panel when the selected track has embedded lyrics."
-        checkbox
-      >
-          <input
-            type="checkbox"
-            checked={$appearanceSettings.lyrics.openPanelForLyrics}
-            on:change={handleLyricsOpenPanelToggle}
-          />
-      </SettingsField>
-
-      <SettingsField
-        title="Close Lyrics when unavailable"
-        hint="Falls back to Details when it is open, otherwise closes the right panel."
-        checkbox
-      >
-          <input
-            type="checkbox"
-            checked={$appearanceSettings.lyrics.closePanelWithoutLyrics}
-            on:change={handleLyricsClosePanelToggle}
-          />
-      </SettingsField>
 
     </div>
   </div>

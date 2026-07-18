@@ -1,6 +1,11 @@
 import { writable } from 'svelte/store';
 import { getTrackLyricsLoadKey, loadTrackLyrics } from '$lib/services/lyrics';
-import type { LyricsDisplayStyle, PlaylistItem, WorkspaceTab } from '$lib/types';
+import type {
+  ContextualTabAutomation,
+  LyricsDisplayStyle,
+  PlaylistItem,
+  WorkspaceTab
+} from '$lib/types';
 
 export type LyricsAvailability = 'unknown' | 'loading' | 'available' | 'unavailable';
 
@@ -21,8 +26,7 @@ interface LyricsPresentationSyncInput {
   isNowPlayingLayoutActive: boolean;
   autoFocusInNowPlaying: boolean;
   displayStyle: LyricsDisplayStyle;
-  openPanelForLyrics: boolean;
-  closePanelWithoutLyrics: boolean;
+  automation: ContextualTabAutomation;
 }
 
 interface CreateLyricsPresentationControllerOptions {
@@ -135,8 +139,8 @@ export function createLyricsPresentationController({
     wasNowPlayingLayoutActive = false;
   }
 
-  function syncPanelAvailability(openWhenAvailable: boolean, closeWhenUnavailable: boolean): void {
-    const signature = `${snapshot.trackKey}:${snapshot.availability}:${openWhenAvailable}:${closeWhenUnavailable}`;
+  function syncPanelAvailability(automation: ContextualTabAutomation): void {
+    const signature = `${snapshot.trackKey}:${snapshot.availability}:${automation}`;
 
     if (
       signature === automationSignature ||
@@ -148,11 +152,11 @@ export function createLyricsPresentationController({
 
     automationSignature = signature;
 
-    if (snapshot.availability === 'available' && openWhenAvailable) {
+    if (snapshot.availability === 'available' && automation !== 'manual') {
       showTrackLyrics();
     } else if (
       snapshot.availability === 'unavailable' &&
-      closeWhenUnavailable &&
+      automation === 'open-close' &&
       getWorkspaceState().isLyricsPanelVisible
     ) {
       closeTrackLyrics();
@@ -204,7 +208,7 @@ export function createLyricsPresentationController({
     syncLayoutTransition(input.isNowPlayingLayoutActive);
     syncNowPlayingAutoFocus(input.isNowPlayingLayoutActive, input.autoFocusInNowPlaying);
     syncNowPlayingAutoScroll(input.isNowPlayingLayoutActive, input.displayStyle);
-    syncPanelAvailability(input.openPanelForLyrics, input.closePanelWithoutLyrics);
+    syncPanelAvailability(input.automation);
   }
 
   function resumeAutoScroll(): void {

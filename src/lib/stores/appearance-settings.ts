@@ -6,6 +6,8 @@ import type {
   BackdropZoneId,
   BackdropZoneSettings,
   ColorTheme,
+  ContextualTabAutomation,
+  ContextualTabSettings,
   LyricsFontSizeSettings,
   LyricsDisplayStyle,
   LyricsSettings
@@ -80,6 +82,18 @@ export const LYRICS_STYLE_OPTIONS: Array<{ value: LyricsDisplayStyle; label: str
   { value: 'timestamped', label: 'Timestamped rows' },
   { value: 'theater', label: 'Theater' }
 ];
+export const CONTEXTUAL_TAB_AUTOMATION_OPTIONS: Array<{
+  value: ContextualTabAutomation;
+  label: string;
+}> = [
+  { value: 'manual', label: 'Manual' },
+  { value: 'open', label: 'Open when available' },
+  { value: 'open-close', label: 'Open and close automatically' }
+];
+export const DEFAULT_CONTEXTUAL_TAB_SETTINGS: ContextualTabSettings = {
+  lyrics: 'manual',
+  patterns: 'manual'
+};
 export const LYRICS_FONT_SIZE_LIMITS: Record<
   LyricsDisplayStyle,
   { min: number; max: number; step: number }
@@ -106,8 +120,6 @@ export const DEFAULT_LYRICS_SETTINGS: LyricsSettings = {
   theaterDowntimeDots: true,
   theaterDowntimeThresholdSeconds: DEFAULT_LYRICS_DOWNTIME_THRESHOLD_SECONDS,
   theaterSmoothScroll: true,
-  openPanelForLyrics: false,
-  closePanelWithoutLyrics: false,
   autoTheaterInNowPlaying: true,
   autoFocusInNowPlaying: true
 };
@@ -125,6 +137,7 @@ export const DEFAULT_APPEARANCE_SETTINGS: AppearanceSettings = {
   fontFamily: SYSTEM_FONT_FAMILY,
   backdropZones: DEFAULT_BACKDROP_ZONES,
   backdropZoneArtwork: DEFAULT_BACKDROP_ZONE_ARTWORK,
+  contextualTabs: DEFAULT_CONTEXTUAL_TAB_SETTINGS,
   lyrics: DEFAULT_LYRICS_SETTINGS,
   nowPlayingViewActive: false,
   autoNowPlayingOnMaximized: false,
@@ -303,10 +316,24 @@ function normalizeLyricsSettings(value: unknown): LyricsSettings {
       source.theaterDowntimeThresholdSeconds
     ),
     theaterSmoothScroll: source.theaterSmoothScroll !== false,
-    openPanelForLyrics: source.openPanelForLyrics === true,
-    closePanelWithoutLyrics: source.closePanelWithoutLyrics === true,
     autoTheaterInNowPlaying: source.autoTheaterInNowPlaying !== false,
     autoFocusInNowPlaying: source.autoFocusInNowPlaying !== false
+  };
+}
+
+export function normalizeContextualTabAutomation(value: unknown): ContextualTabAutomation {
+  return value === 'open' || value === 'open-close' ? value : 'manual';
+}
+
+function normalizeContextualTabs(value: unknown): ContextualTabSettings {
+  const source =
+    value && typeof value === 'object'
+      ? (value as Partial<Record<keyof ContextualTabSettings, unknown>>)
+      : {};
+
+  return {
+    lyrics: normalizeContextualTabAutomation(source.lyrics),
+    patterns: normalizeContextualTabAutomation(source.patterns)
   };
 }
 
@@ -385,6 +412,7 @@ function normalizeSettings(value: unknown): AppearanceSettings {
     fontFamily: normalizeFontFamily(source.fontFamily),
     backdropZones: normalizeBackdropZones(source),
     backdropZoneArtwork: normalizeBackdropZoneArtwork(source),
+    contextualTabs: normalizeContextualTabs(source.contextualTabs),
     lyrics: normalizeLyricsSettings(source.lyrics),
     nowPlayingViewActive: source.nowPlayingViewActive === true,
     autoNowPlayingOnMaximized: source.autoNowPlayingOnMaximized === true,

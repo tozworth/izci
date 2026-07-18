@@ -7,7 +7,8 @@ import {
   MAX_CHAMELEON_SATURATION,
   MIN_CHAMELEON_SATURATION,
   normalizeChameleonHue,
-  normalizeChameleonSaturation
+  normalizeChameleonSaturation,
+  normalizeContextualTabAutomation
 } from './appearance-settings';
 
 describe('normalizeChameleonHue', () => {
@@ -24,6 +25,15 @@ describe('normalizeChameleonHue', () => {
   it('falls back to the default for a missing or invalid hue', () => {
     expect(normalizeChameleonHue(undefined)).toBe(DEFAULT_CHAMELEON_HUE);
     expect(normalizeChameleonHue('green')).toBe(DEFAULT_CHAMELEON_HUE);
+  });
+});
+
+describe('normalizeContextualTabAutomation', () => {
+  it('keeps supported automation modes and defaults invalid values to manual', () => {
+    expect(normalizeContextualTabAutomation('open')).toBe('open');
+    expect(normalizeContextualTabAutomation('open-close')).toBe('open-close');
+    expect(normalizeContextualTabAutomation('close')).toBe('manual');
+    expect(normalizeContextualTabAutomation(undefined)).toBe('manual');
   });
 });
 

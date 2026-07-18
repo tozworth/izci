@@ -101,6 +101,9 @@ export type LyricsDisplayStyle = 'plain' | 'timestamped' | 'theater';
 export type LyricsFontSizeSettings = Record<LyricsDisplayStyle, number>;
 export type WorkspaceCollection = 'playlist' | 'library';
 export type WorkspaceTab = WorkspaceCollection | 'details' | 'lyrics' | 'patterns';
+export type ContextualWorkspaceTab = Extract<WorkspaceTab, 'lyrics' | 'patterns'>;
+export type ContextualTabAutomation = 'manual' | 'open' | 'open-close';
+export type ContextualTabSettings = Record<ContextualWorkspaceTab, ContextualTabAutomation>;
 export type WorkspacePanelId = 'left' | 'center' | 'right';
 export const WORKSPACE_TABS: WorkspaceTab[] = ['playlist', 'library', 'details', 'lyrics', 'patterns'];
 export const WORKSPACE_PANEL_IDS: WorkspacePanelId[] = ['left', 'center', 'right'];
@@ -289,8 +292,6 @@ export interface LyricsSettings {
   theaterDowntimeDots: boolean;
   theaterDowntimeThresholdSeconds: number;
   theaterSmoothScroll: boolean;
-  openPanelForLyrics: boolean;
-  closePanelWithoutLyrics: boolean;
   autoTheaterInNowPlaying: boolean;
   autoFocusInNowPlaying: boolean;
 }
@@ -309,6 +310,7 @@ export interface AppearanceSettings {
   fontFamily: string;
   backdropZones: BackdropZoneSettings;
   backdropZoneArtwork: BackdropZoneArtworkSettingsMap;
+  contextualTabs: ContextualTabSettings;
   lyrics: LyricsSettings;
   nowPlayingViewActive: boolean;
   autoNowPlayingOnMaximized: boolean;

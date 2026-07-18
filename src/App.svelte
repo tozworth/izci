@@ -19,6 +19,11 @@
     resolveTrackSnapshot
   } from '$lib/services/artwork-presentation';
   import { createImportController, FILE_INPUT_ACCEPT } from '$lib/services/import-controller';
+  import {
+    createContextualTabPresentationController,
+    resolvePatternTabAvailability,
+    type ContextualTabAvailability
+  } from '$lib/services/contextual-tab-presentation';
   import { filesystemFolders } from '$lib/services/filesystem-folders';
   import { startLibraryFolderCommandListener } from '$lib/services/library-folder-coordination';
   import { scanLaunchLibraryFolders } from '$lib/services/library-folder-scanner';
@@ -121,6 +126,7 @@
     pattern: 0,
     row: 0
   };
+  let patternAvailability: ContextualTabAvailability = 'unavailable';
 
   let fileInput: HTMLInputElement | null = null;
   let innerWidth = typeof window !== 'undefined' ? window.innerWidth : 0;
@@ -168,6 +174,11 @@
     showTrackLyrics: () => workspaceShell.showTrackLyrics(),
     closeTrackLyrics: () => workspaceShell.closeTrackLyrics(),
     setActiveWorkspaceTab: (tab) => workspaceShell.setActiveWorkspaceTab(tab)
+  });
+  const patternTabPresentation = createContextualTabPresentationController({
+    isVisible: () => workspaceShellState.isPatternsPanelVisible,
+    show: () => workspaceShell.showWorkspaceTab('patterns'),
+    close: () => workspaceShell.closeWorkspaceTab('patterns')
   });
   const playbackCommands = createPlaybackCommandsController({
     getPlayingTrack: () => playingTrack,
@@ -324,6 +335,11 @@
   $: playerDisplayTrack = livePlayingTrack;
   $: lyricsTrack = livePlayingTrack;
   $: modulePatternSnapshot = $modulePatternStore;
+  $: patternAvailability = resolvePatternTabAvailability(
+    playingTrack,
+    modulePatternSnapshot,
+    playbackStatus.state
+  );
   $: nowPlayingViewActive = $appearanceSettings.nowPlayingViewActive;
   $: isAutomaticNowPlayingEligible =
     $appearanceSettings.autoNowPlayingOnMaximized && $windowDisplayState.prefersNowPlaying;
@@ -354,10 +370,14 @@
       isNowPlayingLayoutActive,
       autoFocusInNowPlaying: $appearanceSettings.lyrics.autoFocusInNowPlaying,
       displayStyle: effectiveLyricsDisplayStyle,
-      openPanelForLyrics: $appearanceSettings.lyrics.openPanelForLyrics,
-      closePanelWithoutLyrics: $appearanceSettings.lyrics.closePanelWithoutLyrics
+      automation: $appearanceSettings.contextualTabs.lyrics
     });
   }
+  $: patternTabPresentation.sync({
+    key: playingTrack?.id ?? '',
+    availability: patternAvailability,
+    automation: $appearanceSettings.contextualTabs.patterns
+  });
   $: lyricsResumeAutoScrollToken = lyricsPresentationState.resumeAutoScrollToken;
   $: lyricsAutoScroll = effectiveLyricsDisplayStyle === 'theater' || $appearanceSettings.lyrics.autoScroll;
   $: lyricsFontSize = $appearanceSettings.lyrics.fontSizes[effectiveLyricsDisplayStyle];
