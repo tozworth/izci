@@ -533,9 +533,13 @@
 
 .favorite-toggle .material-symbols-outlined,
 .raf-toggle .material-symbols-outlined {
-  font-size: 1.32rem;
+  font-size: 1.15rem;
   line-height: 1;
-  font-variation-settings: 'wght' 500;
+  font-variation-settings: 'wght' 400;
+}
+
+.favorite-toggle.active .material-symbols-outlined {
+  font-variation-settings: 'FILL' 1, 'wght' 400;
 }
 
 .favorite-toggle:disabled {
@@ -840,6 +844,7 @@
   height: 1.55rem;
 }
 
+.compact-player-bar .favorite-toggle .material-symbols-outlined,
 .compact-player-bar .raf-toggle .material-symbols-outlined {
   font-size: 1.08rem;
 }
@@ -997,6 +1002,7 @@
   height: 1.45rem;
 }
 
+.player-bar:not(.compact-player-bar):not(.now-playing-player) .favorite-toggle .material-symbols-outlined,
 .player-bar:not(.compact-player-bar):not(.now-playing-player) .raf-toggle .material-symbols-outlined {
   font-size: 1.08rem;
 }

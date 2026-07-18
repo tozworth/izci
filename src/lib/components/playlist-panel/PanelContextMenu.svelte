@@ -36,7 +36,11 @@
         <div class="menu-separator" role="separator" aria-hidden="true"></div>
       {/if}
       <button type="button" role="menuitem" on:click={() => dispatch('action', action.id)}>
-        <span class="material-symbols-outlined menu-item-icon" aria-hidden="true">{action.icon ?? 'label'}</span>
+        <span
+          class="material-symbols-outlined menu-item-icon"
+          class:favorite-filled={action.icon === 'heart_minus'}
+          aria-hidden="true"
+        >{action.icon ?? 'label'}</span>
         <span class="menu-item-label">{action.label}</span>
         <span class="menu-item-shortcut" aria-hidden="true">{action.shortcut ?? ''}</span>
       </button>

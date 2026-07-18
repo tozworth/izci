@@ -197,6 +197,10 @@ body:has(.menu-list[data-menu-interactive='true']) .menu-bar.window-controls-ove
   color: var(--menu-popover-muted);
 }
 
+.menu-item-icon.favorite-filled {
+  font-variation-settings: 'FILL' 1;
+}
+
 .menu-list button:hover {
   background-color: var(--menu-popover-hover);
 }

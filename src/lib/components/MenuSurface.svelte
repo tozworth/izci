@@ -166,7 +166,11 @@
           on:pointerup={(event) => handleItemPointerUp(event, item)}
           on:click={() => handleItemClick(item)}
         >
-          <span class="material-symbols-outlined menu-item-icon" aria-hidden="true">{item.icon ?? 'label'}</span>
+          <span
+            class="material-symbols-outlined menu-item-icon"
+            class:favorite-filled={item.icon === 'heart_minus'}
+            aria-hidden="true"
+          >{item.icon ?? 'label'}</span>
           <span class="menu-item-copy">
             <span class="menu-item-label">{item.label}</span>
             {#if item.description}<span class="menu-item-description">{item.description}</span>{/if}
@@ -229,7 +233,11 @@
           on:pointerup={(event) => handleItemPointerUp(event, item)}
           on:click={() => handleItemClick(item)}
         >
-          <span class="material-symbols-outlined menu-item-icon" aria-hidden="true">{item.icon ?? 'label'}</span>
+          <span
+            class="material-symbols-outlined menu-item-icon"
+            class:favorite-filled={item.icon === 'heart_minus'}
+            aria-hidden="true"
+          >{item.icon ?? 'label'}</span>
           <span class="menu-item-copy">
             <span class="menu-item-label">{item.label}</span>
             {#if item.description}<span class="menu-item-description">{item.description}</span>{/if}
