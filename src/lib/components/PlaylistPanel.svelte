@@ -316,6 +316,33 @@
     clampContextMenu();
   }
 
+  async function handleLibraryGroupContextMenu(event: MouseEvent, key: string) {
+    event.preventDefault();
+
+    const group = libraryGroups.find((entry) => entry.key === key);
+
+    if (!group) {
+      return;
+    }
+
+    const ids = group.items.map((item) => item.id);
+    dispatch('setSelection', {
+      ids,
+      anchorId: ids[0] ?? null,
+      focusId: ids[0] ?? null
+    });
+
+    contextMenu = {
+      kind: 'items',
+      x: event.clientX,
+      y: event.clientY,
+      ids
+    };
+
+    await tick();
+    clampContextMenu();
+  }
+
   async function handleColumnContextMenu(event: MouseEvent) {
     if (layout !== 'columns' || isCompactColumnLayout) {
       return;
@@ -699,6 +726,7 @@
         groups={visibleLibraryGroups}
         view={groupView}
         on:open={(event) => handleLibraryGroupOpen(event.detail)}
+        on:contextMenu={(event) => void handleLibraryGroupContextMenu(event.detail.event, event.detail.key)}
       />
     {:else if displayItems.length > 0}
       <TrackList

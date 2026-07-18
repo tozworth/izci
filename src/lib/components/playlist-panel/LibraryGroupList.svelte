@@ -7,7 +7,10 @@
   export let groups: LibraryGroup[] = [];
   export let view: Exclude<LibraryViewId, 'songs'> = 'artists';
 
-  const dispatch = createEventDispatcher<{ open: string }>();
+  const dispatch = createEventDispatcher<{
+    open: string;
+    contextMenu: { key: string; event: MouseEvent };
+  }>();
 
   const icons: Record<Exclude<LibraryViewId, 'songs'>, string> = {
     artists: 'person',
@@ -22,7 +25,12 @@
 <ul class="library-group-list">
   {#each groups as group (group.key)}
     <li>
-      <button type="button" class="library-group-row" on:click={() => dispatch('open', group.key)}>
+      <button
+        type="button"
+        class="library-group-row"
+        on:click={() => dispatch('open', group.key)}
+        on:contextmenu={(event) => dispatch('contextMenu', { key: group.key, event })}
+      >
         <span class="library-group-icon material-symbols-outlined" aria-hidden="true">{icons[view]}</span>
         <span class="library-group-copy">
           <span class="library-group-name">{group.label}</span>
