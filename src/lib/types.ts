@@ -385,11 +385,15 @@ export interface LibraryViewSortState {
   direction: SortDirection;
 }
 
-export interface LibraryViewSettings {
-  activeView: LibraryViewId;
+export interface LibraryViewTableSettings {
   order: LibraryColumnId[];
   columns: Record<LibraryColumnId, LibraryViewColumnState>;
   sort: LibraryViewSortState;
+}
+
+export interface LibraryViewSettings {
+  activeView: LibraryViewId;
+  views: Record<LibraryViewId, LibraryViewTableSettings>;
   searchQuery: string;
 }
 

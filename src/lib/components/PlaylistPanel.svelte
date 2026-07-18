@@ -529,7 +529,10 @@
   $: searchQuery = showSearchControl ? $libraryViewSettings.searchQuery : '';
   $: normalizedSearchQuery = searchQuery.trim().toLowerCase();
   $: showSearchInput = showSearchControl && (searchInputExpanded || searchQuery !== '');
-  $: orderedColumns = layout === 'columns' ? getOrderedColumns($libraryViewSettings.order, $libraryViewSettings.columns) : [];
+  $: activeLibraryTableSettings = $libraryViewSettings.views[activeLibraryView];
+  $: orderedColumns = layout === 'columns'
+    ? getOrderedColumns(activeLibraryTableSettings.order, activeLibraryTableSettings.columns)
+    : [];
   $: groupView = activeLibraryView === 'songs' ? null : activeLibraryView as LibraryGroupViewId;
   $: libraryGroups = groupView ? buildLibraryGroups(items, groupView) : [];
   $: visibleLibraryGroups = groupView ? filterLibraryGroups(libraryGroups, normalizedSearchQuery) : [];
@@ -571,7 +574,7 @@
     dropzoneWidth < 280 &&
     !$appearanceSettings.keepLibraryColumnsVisibleInNarrowLayout;
   $: hideTrackFormat = layout === 'list' && dropzoneWidth > 0 && dropzoneWidth < 280;
-  $: activeSort = $libraryViewSettings.sort;
+  $: activeSort = activeLibraryTableSettings.sort;
   $: tableInnerWidth = Math.max(0, dropzoneWidth - TABLE_SIDE_PADDING);
   $: availableColumnWidth = Math.max(0, tableInnerWidth - Math.max(0, visibleColumnCount - 1) * COLUMN_GAP);
   $: resolvedColumnWidths =

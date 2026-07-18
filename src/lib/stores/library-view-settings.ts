@@ -1,8 +1,14 @@
-import type { LibraryColumnId, LibraryViewId, LibraryViewSettings, SortDirection } from '$lib/types';
+import type {
+  LibraryColumnId,
+  LibraryViewId,
+  LibraryViewSettings,
+  LibraryViewTableSettings,
+  SortDirection
+} from '$lib/types';
 import { createPersistentStore } from './persistent-store';
 
-export const LIBRARY_VIEW_SETTINGS_STORAGE_KEY = 'izci.library-view-settings.v2';
-export const LIBRARY_VIEW_SETTINGS_CHANNEL = 'izci-library-view-settings';
+export const LIBRARY_VIEW_SETTINGS_STORAGE_KEY = 'izci.library-view-settings.v3';
+export const LIBRARY_VIEW_SETTINGS_CHANNEL = 'izci-library-view-settings-v3';
 export const LIBRARY_VIEW_IDS: LibraryViewId[] = [
   'songs',
   'artists',
@@ -41,10 +47,8 @@ export const LIBRARY_COLUMN_MIN_WIDTHS: Record<LibraryColumnId, number> = {
   plays: 48
 };
 
-const DEFAULT_LIBRARY_VIEW_SETTINGS: LibraryViewSettings = {
-  activeView: 'songs',
-  order: [...LIBRARY_COLUMN_IDS],
-  columns: {
+function createDefaultColumns(view: LibraryViewId): LibraryViewTableSettings['columns'] {
+  const columns: LibraryViewTableSettings['columns'] = {
     title: {
       width: LIBRARY_COLUMN_DEFAULT_WIDTHS.title,
       visible: true
@@ -73,11 +77,47 @@ const DEFAULT_LIBRARY_VIEW_SETTINGS: LibraryViewSettings = {
       width: LIBRARY_COLUMN_DEFAULT_WIDTHS.plays,
       visible: false
     }
-  },
-  sort: {
-    columnId: 'title',
-    direction: 'asc'
-  },
+  };
+
+  if (view !== 'songs' && view !== 'albums') {
+    columns.album.visible = true;
+  }
+
+  const redundantColumn: Partial<Record<LibraryViewId, LibraryColumnId>> = {
+    artists: 'artist',
+    albums: 'album',
+    formats: 'format',
+    folders: 'folder'
+  };
+  const columnId = redundantColumn[view];
+
+  if (columnId) {
+    columns[columnId].visible = false;
+  }
+
+  return columns;
+}
+
+function createDefaultViewSettings(view: LibraryViewId): LibraryViewTableSettings {
+  return {
+    order: [...LIBRARY_COLUMN_IDS],
+    columns: createDefaultColumns(view),
+    sort: {
+      columnId: 'title',
+      direction: 'asc'
+    }
+  };
+}
+
+function createDefaultViews(): LibraryViewSettings['views'] {
+  return Object.fromEntries(
+    LIBRARY_VIEW_IDS.map((view) => [view, createDefaultViewSettings(view)])
+  ) as LibraryViewSettings['views'];
+}
+
+const DEFAULT_LIBRARY_VIEW_SETTINGS: LibraryViewSettings = {
+  activeView: 'songs',
+  views: createDefaultViews(),
   searchQuery: ''
 };
 
@@ -124,8 +164,9 @@ function normalizeSearchQuery(value: unknown): string {
   return typeof value === 'string' ? value : '';
 }
 
-function normalizeSettings(value: unknown): LibraryViewSettings {
-  const source = value && typeof value === 'object' ? (value as Partial<LibraryViewSettings>) : {};
+function normalizeViewSettings(value: unknown, view: LibraryViewId): LibraryViewTableSettings {
+  const defaults = createDefaultViewSettings(view);
+  const source = value && typeof value === 'object' ? (value as Partial<LibraryViewTableSettings>) : {};
   const columnsSource =
     source.columns && typeof source.columns === 'object'
       ? (source.columns as Partial<Record<LibraryColumnId, { width?: unknown; visible?: unknown }>>)
@@ -140,12 +181,12 @@ function normalizeSettings(value: unknown): LibraryViewSettings {
         visible:
           typeof column?.visible === 'boolean'
             ? column.visible
-            : DEFAULT_LIBRARY_VIEW_SETTINGS.columns[columnId].visible
+            : defaults.columns[columnId].visible
       };
 
       return result;
     },
-    {} as LibraryViewSettings['columns']
+    {} as LibraryViewTableSettings['columns']
   );
 
   if (!LIBRARY_COLUMN_IDS.some((columnId) => columns[columnId].visible)) {
@@ -155,22 +196,36 @@ function normalizeSettings(value: unknown): LibraryViewSettings {
   const order = normalizeOrder(source.order);
   const sortSource =
     source.sort && typeof source.sort === 'object'
-      ? (source.sort as Partial<LibraryViewSettings['sort']>)
+      ? (source.sort as Partial<LibraryViewTableSettings['sort']>)
       : {};
   const sortColumnId = LIBRARY_COLUMN_IDS.includes(sortSource.columnId as LibraryColumnId)
     ? (sortSource.columnId as LibraryColumnId)
-    : DEFAULT_LIBRARY_VIEW_SETTINGS.sort.columnId;
+    : defaults.sort.columnId;
 
   return {
-    activeView: LIBRARY_VIEW_IDS.includes(source.activeView as LibraryViewId)
-      ? (source.activeView as LibraryViewId)
-      : DEFAULT_LIBRARY_VIEW_SETTINGS.activeView,
     order,
     columns,
     sort: {
       columnId: sortColumnId,
       direction: normalizeDirection(sortSource.direction)
-    },
+    }
+  };
+}
+
+function normalizeSettings(value: unknown): LibraryViewSettings {
+  const source = value && typeof value === 'object' ? (value as Partial<LibraryViewSettings>) : {};
+  const viewsSource =
+    source.views && typeof source.views === 'object'
+      ? (source.views as Partial<Record<LibraryViewId, unknown>>)
+      : {};
+
+  return {
+    activeView: LIBRARY_VIEW_IDS.includes(source.activeView as LibraryViewId)
+      ? (source.activeView as LibraryViewId)
+      : DEFAULT_LIBRARY_VIEW_SETTINGS.activeView,
+    views: Object.fromEntries(
+      LIBRARY_VIEW_IDS.map((view) => [view, normalizeViewSettings(viewsSource[view], view)])
+    ) as LibraryViewSettings['views'],
     searchQuery: normalizeSearchQuery(source.searchQuery)
   };
 }
@@ -196,59 +251,95 @@ export const libraryViewSettings = {
     }));
   },
   setSort(columnId: LibraryColumnId): LibraryViewSettings {
-    return updateSettings((settings) => ({
-      ...settings,
-      sort: {
-        columnId,
-        direction:
-          settings.sort.columnId === columnId && settings.sort.direction === 'asc' ? 'desc' : 'asc'
-      }
-    }));
+    return updateSettings((settings) => {
+      const view = settings.views[settings.activeView];
+
+      return {
+        ...settings,
+        views: {
+          ...settings.views,
+          [settings.activeView]: {
+            ...view,
+            sort: {
+              columnId,
+              direction: view.sort.columnId === columnId && view.sort.direction === 'asc' ? 'desc' : 'asc'
+            }
+          }
+        }
+      };
+    });
   },
   setColumnWidth(columnId: LibraryColumnId, width: number): LibraryViewSettings {
-    return updateSettings((settings) => ({
-      ...settings,
-      columns: {
-        ...settings.columns,
-        [columnId]: {
-          ...settings.columns[columnId],
-          width: clampWidth(columnId, width)
+    return updateSettings((settings) => {
+      const view = settings.views[settings.activeView];
+
+      return {
+        ...settings,
+        views: {
+          ...settings.views,
+          [settings.activeView]: {
+            ...view,
+            columns: {
+              ...view.columns,
+              [columnId]: {
+                ...view.columns[columnId],
+                width: clampWidth(columnId, width)
+              }
+            }
+          }
         }
-      }
-    }));
+      };
+    });
   },
   setColumnWidths(widths: Partial<Record<LibraryColumnId, number>>): LibraryViewSettings {
-    return updateSettings((settings) => ({
-      ...settings,
-      columns: {
-        ...settings.columns,
-        ...Object.fromEntries(
-          Object.entries(widths).map(([columnId, width]) => [
-            columnId,
-            {
-              ...settings.columns[columnId as LibraryColumnId],
-              width: clampWidth(columnId as LibraryColumnId, width)
+    return updateSettings((settings) => {
+      const view = settings.views[settings.activeView];
+
+      return {
+        ...settings,
+        views: {
+          ...settings.views,
+          [settings.activeView]: {
+            ...view,
+            columns: {
+              ...view.columns,
+              ...Object.fromEntries(
+                Object.entries(widths).map(([columnId, width]) => [
+                  columnId,
+                  {
+                    ...view.columns[columnId as LibraryColumnId],
+                    width: clampWidth(columnId as LibraryColumnId, width)
+                  }
+                ])
+              )
             }
-          ])
-        )
-      }
-    }));
+          }
+        }
+      };
+    });
   },
   setColumnVisibility(columnId: LibraryColumnId, visible: boolean): LibraryViewSettings {
     return updateSettings((settings) => {
-      const visibleColumnCount = LIBRARY_COLUMN_IDS.filter((id) => settings.columns[id].visible).length;
+      const view = settings.views[settings.activeView];
+      const visibleColumnCount = LIBRARY_COLUMN_IDS.filter((id) => view.columns[id].visible).length;
 
-      if (!visible && settings.columns[columnId].visible && visibleColumnCount === 1) {
+      if (!visible && view.columns[columnId].visible && visibleColumnCount === 1) {
         return settings;
       }
 
       return {
         ...settings,
-        columns: {
-          ...settings.columns,
-          [columnId]: {
-            ...settings.columns[columnId],
-            visible
+        views: {
+          ...settings.views,
+          [settings.activeView]: {
+            ...view,
+            columns: {
+              ...view.columns,
+              [columnId]: {
+                ...view.columns[columnId],
+                visible
+              }
+            }
           }
         }
       };
@@ -256,11 +347,13 @@ export const libraryViewSettings = {
   },
   moveColumn(columnId: LibraryColumnId, targetColumnId: LibraryColumnId, position: 'before' | 'after'): LibraryViewSettings {
     return updateSettings((settings) => {
+      const view = settings.views[settings.activeView];
+
       if (columnId === targetColumnId) {
         return settings;
       }
 
-      const nextOrder = settings.order.filter((id) => id !== columnId);
+      const nextOrder = view.order.filter((id) => id !== columnId);
       const targetIndex = nextOrder.indexOf(targetColumnId);
 
       if (targetIndex === -1) {
@@ -271,7 +364,13 @@ export const libraryViewSettings = {
 
       return {
         ...settings,
-        order: nextOrder
+        views: {
+          ...settings.views,
+          [settings.activeView]: {
+            ...view,
+            order: nextOrder
+          }
+        }
       };
     });
   },
