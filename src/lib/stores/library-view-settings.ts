@@ -7,8 +7,8 @@ import type {
 } from '$lib/types';
 import { createPersistentStore } from './persistent-store';
 
-export const LIBRARY_VIEW_SETTINGS_STORAGE_KEY = 'izci.library-view-settings.v3';
-export const LIBRARY_VIEW_SETTINGS_CHANNEL = 'izci-library-view-settings-v3';
+export const LIBRARY_VIEW_SETTINGS_STORAGE_KEY = 'izci.library-view-settings.v4';
+export const LIBRARY_VIEW_SETTINGS_CHANNEL = 'izci-library-view-settings-v4';
 export const LIBRARY_VIEW_IDS: LibraryViewId[] = [
   'songs',
   'artists',
@@ -63,11 +63,11 @@ function createDefaultColumns(view: LibraryViewId): LibraryViewTableSettings['co
     },
     folder: {
       width: LIBRARY_COLUMN_DEFAULT_WIDTHS.folder,
-      visible: true
+      visible: false
     },
     format: {
       width: LIBRARY_COLUMN_DEFAULT_WIDTHS.format,
-      visible: true
+      visible: false
     },
     duration: {
       width: LIBRARY_COLUMN_DEFAULT_WIDTHS.duration,
@@ -85,9 +85,7 @@ function createDefaultColumns(view: LibraryViewId): LibraryViewTableSettings['co
 
   const redundantColumn: Partial<Record<LibraryViewId, LibraryColumnId>> = {
     artists: 'artist',
-    albums: 'album',
-    formats: 'format',
-    folders: 'folder'
+    albums: 'album'
   };
   const columnId = redundantColumn[view];
 

@@ -9,12 +9,24 @@ describe('library view settings', () => {
   it('provides context-aware column defaults for grouped views', () => {
     const views = libraryViewSettings.getSnapshot().views;
 
+    for (const view of Object.values(views)) {
+      expect(view.columns.folder.visible).toBe(false);
+      expect(view.columns.format.visible).toBe(false);
+    }
+
     expect(views.songs.columns.artist.visible).toBe(true);
     expect(views.artists.columns.artist.visible).toBe(false);
     expect(views.artists.columns.album.visible).toBe(true);
     expect(views.albums.columns.album.visible).toBe(false);
-    expect(views.formats.columns.format.visible).toBe(false);
-    expect(views.folders.columns.folder.visible).toBe(false);
+  });
+
+  it('allows folder and format columns to be restored per view', () => {
+    libraryViewSettings.setColumnVisibility('folder', true);
+    libraryViewSettings.setColumnVisibility('format', true);
+
+    const songs = libraryViewSettings.getSnapshot().views.songs;
+    expect(songs.columns.folder.visible).toBe(true);
+    expect(songs.columns.format.visible).toBe(true);
   });
 
   it('keeps column visibility, widths, order, and sorting independent per view', () => {
