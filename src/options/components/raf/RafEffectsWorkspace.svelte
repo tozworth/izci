@@ -395,7 +395,7 @@
 
   @container (max-width: 390px) {
     .effects-workspace { grid-template-columns: 145px minmax(0, 1fr); }
-    .effect-config-header { align-items: flex-start; flex-wrap: wrap; }
+    .effect-config-header { flex-wrap: wrap; }
     .effect-config-actions { margin-left: 0; }
   }
 </style>
