@@ -221,7 +221,7 @@
 
   .pattern-grid {
     display: grid;
-    grid-template-columns: 3.35rem repeat(var(--pattern-channel-count), var(--pattern-channel-width));
+    grid-template-columns: 2.8rem repeat(var(--pattern-channel-count), var(--pattern-channel-width));
     width: max-content;
     min-width: 100%;
   }
@@ -230,7 +230,7 @@
     position: sticky;
     top: 0;
     z-index: 2;
-    min-height: 2.35rem;
+    min-height: 1.8rem;
     border-bottom: 1px solid var(--border-soft);
     background: color-mix(in srgb, var(--bg-elevated) 94%, transparent);
     backdrop-filter: blur(12px);
@@ -241,7 +241,7 @@
     display: flex;
     align-items: center;
     min-width: 0;
-    padding: 0 0.55rem;
+    padding: 0 0.3rem;
     border-right: 1px solid var(--border-faint);
     color: var(--muted);
     font: 650 0.62rem/1 'IBM Plex Mono', 'SFMono-Regular', Consolas, monospace;
@@ -257,7 +257,7 @@
   }
 
   .pattern-channel-heading {
-    gap: 0.4rem;
+    gap: 0.25rem;
   }
 
   .pattern-channel-heading b {

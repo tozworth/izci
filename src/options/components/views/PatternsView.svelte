@@ -202,7 +202,7 @@
   .preview-header,
   .preview-row {
     display: grid;
-    grid-template-columns: 3.2rem repeat(3, var(--preview-channel-width));
+    grid-template-columns: 2.8rem repeat(3, var(--preview-channel-width));
     width: max-content;
     min-width: 100%;
   }
@@ -210,7 +210,7 @@
   .preview-header {
     color: var(--muted);
     background: var(--bg-elevated);
-    font: 650 0.62rem/2rem 'IBM Plex Mono', Consolas, monospace;
+    font: 650 0.62rem/1.8rem 'IBM Plex Mono', Consolas, monospace;
     letter-spacing: 0.04em;
   }
 
@@ -218,7 +218,7 @@
   .preview-row > span {
     box-sizing: border-box;
     overflow: hidden;
-    padding: 0 0.52rem;
+    padding: 0 0.3rem;
     border-right: 1px solid var(--border-faint);
     white-space: pre;
   }

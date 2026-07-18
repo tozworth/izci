@@ -3,17 +3,17 @@ import { createSettingsStore } from './persistent-store';
 
 export const PATTERN_VIEWER_SETTINGS_STORAGE_KEY = 'izci.pattern-viewer-settings';
 export const PATTERN_VIEWER_SETTINGS_CHANNEL = 'izci.pattern-viewer-settings';
-export const MIN_PATTERN_FONT_SIZE = 10;
-export const MAX_PATTERN_FONT_SIZE = 18;
-export const MIN_PATTERN_ROW_HEIGHT = 18;
-export const MAX_PATTERN_ROW_HEIGHT = 34;
-export const MIN_PATTERN_CHANNEL_WIDTH = 104;
-export const MAX_PATTERN_CHANNEL_WIDTH = 196;
+export const MIN_PATTERN_FONT_SIZE = 8;
+export const MAX_PATTERN_FONT_SIZE = 16;
+export const MIN_PATTERN_ROW_HEIGHT = 14;
+export const MAX_PATTERN_ROW_HEIGHT = 28;
+export const MIN_PATTERN_CHANNEL_WIDTH = 88;
+export const MAX_PATTERN_CHANNEL_WIDTH = 160;
 
 export const DEFAULT_PATTERN_VIEWER_SETTINGS: PatternViewerSettings = {
-  fontSize: 12,
-  rowHeight: 23,
-  channelWidth: 134,
+  fontSize: 10,
+  rowHeight: 18,
+  channelWidth: 104,
   rowNumberBase: 'hex',
   colorScheme: 'conventional',
   followPlayback: true,
