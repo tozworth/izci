@@ -1,10 +1,12 @@
 <script lang="ts">
   import { afterUpdate, createEventDispatcher, tick } from 'svelte';
+  import HoverTooltip from '$lib/components/HoverTooltip.svelte';
   import type { LibraryViewId } from '$lib/types';
   import { LIBRARY_VIEW_DEFINITIONS } from './library-views';
 
   export let activeView: LibraryViewId = 'songs';
   export let summary = '';
+  export let tooltipDetails: Record<LibraryViewId, string>;
   export let groupLabel = '';
   export let showBack = false;
   export let showSearchInput = false;
@@ -49,15 +51,19 @@
       {#each LIBRARY_VIEW_DEFINITIONS as view}
         <button
           type="button"
-          class="library-toolbar-button"
+          class="library-toolbar-button hover-tooltip-anchor"
           class:active={activeView === view.id}
           role="tab"
           aria-selected={activeView === view.id}
           aria-label={view.label}
-          title={view.label}
           on:click={() => dispatch('viewChange', view.id)}
         >
           <span class="material-symbols-outlined" aria-hidden="true">{view.icon}</span>
+          <HoverTooltip align={view.id === 'songs' ? 'left' : 'center'} nowrap>
+            <strong>{view.label}</strong>{#if !showBack && tooltipDetails[view.id]}
+              <span class="library-tooltip-detail">{tooltipDetails[view.id]}</span>
+            {/if}
+          </HoverTooltip>
         </button>
       {/each}
     </div>
@@ -65,22 +71,22 @@
     <div class="library-primary-actions">
       <button
         type="button"
-        class="library-toolbar-button"
+        class="library-toolbar-button hover-tooltip-anchor"
         class:active={showSearchInput || searchQuery !== ''}
         aria-label="Search library"
-        title="Search library"
         on:click={() => dispatch('searchToggle')}
       >
         <span class="material-symbols-outlined" aria-hidden="true">search</span>
+        <HoverTooltip>Search library</HoverTooltip>
       </button>
       <button
         type="button"
-        class="library-toolbar-button"
+        class="library-toolbar-button hover-tooltip-anchor"
         aria-label="Add files"
-        title="Add files"
         on:click={() => dispatch('openFiles')}
       >
         <span class="material-symbols-outlined" aria-hidden="true">add</span>
+        <HoverTooltip>Add files</HoverTooltip>
       </button>
     </div>
   </div>
@@ -112,8 +118,8 @@
     </div>
   {/if}
 
-  <div class="library-location">
-    {#if showBack}
+  {#if showBack}
+    <div class="library-location">
       <button
         type="button"
         class="library-back-button"
@@ -125,17 +131,22 @@
       </button>
       <span class="library-group-label" title={groupLabel}>{groupLabel}</span>
       <span class="library-location-divider" aria-hidden="true">·</span>
-    {/if}
-    <span class="panel-summary" title={summary}>{summary}</span>
-  </div>
+      <span class="panel-summary" title={summary}>{summary}</span>
+    </div>
+  {/if}
 </div>
 
 <style>
   .library-header {
+    z-index: 2;
     display: flex;
     flex-direction: column;
     gap: 0.36rem;
     width: 100%;
+  }
+
+  .library-tooltip-detail {
+    margin-left: 0.28rem;
   }
 
   .library-toolbar {
@@ -173,6 +184,7 @@
   .library-toolbar-button,
   .library-search-close,
   .library-back-button {
+    position: relative;
     display: inline-flex;
     align-items: center;
     justify-content: center;

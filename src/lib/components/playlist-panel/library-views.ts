@@ -157,6 +157,33 @@ export function filterLibraryGroups(groups: LibraryGroup[], normalizedQuery: str
   return normalizedQuery ? groups.filter((group) => groupMatchesSearchQuery(group, normalizedQuery)) : groups;
 }
 
+export function getLibraryViewTooltipDetails(
+  items: PlaylistItem[],
+  normalizedQuery: string
+): Record<LibraryViewId, string> {
+  const filteredSongs = filterItemsByQuery(items, normalizedQuery);
+  const songCount = normalizedQuery && filteredSongs.length !== items.length
+    ? `${filteredSongs.length} of ${items.length}`
+    : String(filteredSongs.length);
+  const details = {
+    songs: `${songCount} · ${formatTotalDuration(getTotalDuration(filteredSongs))}`
+  } as Record<LibraryViewId, string>;
+
+  for (const definition of LIBRARY_VIEW_DEFINITIONS) {
+    if (definition.id === 'songs') continue;
+
+    const groups = buildLibraryGroups(items, definition.id);
+    const visibleGroups = filterLibraryGroups(groups, normalizedQuery);
+    const groupCount = normalizedQuery && visibleGroups.length !== groups.length
+      ? `${visibleGroups.length} of ${groups.length}`
+      : String(visibleGroups.length);
+
+    details[definition.id] = groupCount;
+  }
+
+  return details;
+}
+
 export function filterLibraryGroupItems(group: LibraryGroup, normalizedQuery: string): PlaylistItem[] {
   const groupText = `${group.label}\n${group.secondary}`.toLowerCase();
   const queryTokens = normalizedQuery.toLowerCase().split(/\s+/).filter(Boolean);

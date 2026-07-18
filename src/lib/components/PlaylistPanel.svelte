@@ -45,6 +45,7 @@
     filterLibraryGroups,
     getGroupSummary,
     getGroupTrackSummary,
+    getLibraryViewTooltipDetails,
     type LibraryGroupViewId
   } from '$lib/components/playlist-panel/library-views';
 
@@ -548,6 +549,7 @@
   $: trackSummary = selectedLibraryGroup
     ? getGroupTrackSummary(selectedLibraryGroup, filteredItems)
     : getTrackSummary(items, filteredItems, normalizedSearchQuery);
+  $: libraryTooltipDetails = getLibraryViewTooltipDetails(items, normalizedSearchQuery);
   $: librarySummary = groupView && !selectedLibraryGroup
     ? getGroupSummary(
         groupView,
@@ -635,6 +637,7 @@
           bind:searchInputElement={searchInputElement}
           activeView={activeLibraryView}
           summary={librarySummary}
+          tooltipDetails={libraryTooltipDetails}
           groupLabel={selectedLibraryGroup?.label ?? ''}
           showBack={Boolean(selectedLibraryGroup)}
           {showSearchInput}

@@ -3,7 +3,8 @@ import type { PlaylistItem } from '$lib/types';
 import {
   buildLibraryGroups,
   filterLibraryGroupItems,
-  filterLibraryGroups
+  filterLibraryGroups,
+  getLibraryViewTooltipDetails
 } from './library-views';
 
 function track(id: string, metadata: PlaylistItem['metadata'], path?: string): PlaylistItem {
@@ -62,5 +63,17 @@ describe('library view projections', () => {
     const aster = buildLibraryGroups(tracks, 'artists')[0];
     expect(filterLibraryGroupItems(aster, 'second').map((item) => item.id)).toEqual(['two']);
     expect(filterLibraryGroupItems(aster, 'aster')).toHaveLength(2);
+  });
+
+  it('builds count details for every root view regardless of the active tab', () => {
+    const details = getLibraryViewTooltipDetails([
+      { ...tracks[0], metadata: { ...tracks[0].metadata, duration: 60 } },
+      { ...tracks[1], metadata: { ...tracks[1].metadata, duration: 90 } },
+      tracks[2]
+    ], '');
+
+    expect(details.songs).toBe('3 · 02:30');
+    expect(details.artists).toBe('2');
+    expect(details.albums).toBe('3');
   });
 });

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
+  import HoverTooltip from '$lib/components/HoverTooltip.svelte';
 
   export let icon: string;
   export let label: string;
@@ -12,10 +13,9 @@
 </script>
 
 <button
-  class="glyph-button"
+  class="glyph-button hover-tooltip-anchor"
   class:is-active={pressed === true}
   class:is-danger={danger}
-  class:is-above={placement === 'above'}
   type="button"
   {disabled}
   aria-label={label}
@@ -23,7 +23,7 @@
   on:click={(event) => dispatch('click', event)}
 >
   <span class="material-symbols-outlined" aria-hidden="true">{icon}</span>
-  <span class="glyph-tooltip" role="tooltip">{label}</span>
+  <HoverTooltip {placement}>{label}</HoverTooltip>
 </button>
 
 <style>
@@ -58,45 +58,4 @@
     opacity: 0.38;
   }
 
-  .glyph-tooltip {
-    position: absolute;
-    z-index: 80;
-    top: calc(100% + 4px);
-    right: 0;
-    width: max-content;
-    max-width: min(240px, 70vw);
-    padding: 4px 7px;
-    border: 1px solid var(--menu-bar-border);
-    border-radius: 5px;
-    background: var(--bg-elevated);
-    color: var(--text-strong);
-    box-shadow: 0 5px 14px rgba(0, 0, 0, 0.28);
-    font-size: 0.68rem;
-    font-weight: 400;
-    line-height: 1.25;
-    opacity: 0;
-    pointer-events: none;
-    transform: translateY(-2px) scale(0.98);
-    transform-origin: top right;
-    transition: opacity 55ms ease-out, transform 55ms ease-out;
-    white-space: normal;
-  }
-
-  .glyph-button:hover .glyph-tooltip,
-  .glyph-button:focus-visible .glyph-tooltip {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-
-  .glyph-button.is-above .glyph-tooltip {
-    top: auto;
-    bottom: calc(100% + 4px);
-    transform: translateY(2px) scale(0.98);
-    transform-origin: bottom right;
-  }
-
-  .glyph-button.is-above:hover .glyph-tooltip,
-  .glyph-button.is-above:focus-visible .glyph-tooltip {
-    transform: translateY(0) scale(1);
-  }
 </style>
