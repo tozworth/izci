@@ -1,5 +1,6 @@
 <script lang="ts">
   import { createEventDispatcher, onMount, tick } from 'svelte';
+  import { t } from 'svelte-i18n';
   import type { WorkspacePanelId, WorkspaceTab } from '$lib/types';
   import type {
     WorkspaceTabDefinition,
@@ -38,8 +39,19 @@
 
   function getMeasurementSignature(): string {
     return `${closeable ? 'closeable' : 'fixed'}:${tabs
-      .map((tab) => `${tab.id}:${tab.icon}:${tab.label}`)
+      .map((tab) => `${tab.id}:${tab.icon}:${getTabLabel(tab)}`)
       .join('|')}`;
+  }
+
+  function getTabLabel(tab: WorkspaceTabDefinition): string {
+    switch (tab.id) {
+      case 'playlist': return $t('workspace.tabs.playlist', { default: 'Playlist' });
+      case 'library': return $t('workspace.tabs.library', { default: 'Library' });
+      case 'details': return $t('workspace.tabs.details', { default: 'Details' });
+      case 'lyrics': return $t('workspace.tabs.lyrics', { default: 'Lyrics' });
+      case 'patterns': return $t('workspace.tabs.patterns', { default: 'Patterns' });
+      default: return tab.label;
+    }
   }
 
   function updateIconOnly() {
@@ -239,6 +251,9 @@
       scheduleIconOnlyUpdate();
     }
   }
+  $: localizedAriaLabel = ariaLabel === 'Workspace tabs'
+    ? $t('workspace.tabs.label', { default: 'Workspace tabs' })
+    : ariaLabel;
 </script>
 
 <div
@@ -246,7 +261,7 @@
   class:is-icon-only={isIconOnly}
   bind:this={tabBarElement}
   role="tablist"
-  aria-label={ariaLabel}
+  aria-label={localizedAriaLabel}
   tabindex="-1"
   on:dragover={handleBarDragOver}
   on:drop={handleBarDrop}
@@ -270,18 +285,18 @@
         class:active={activeTab === tab.id}
         class="workspace-tab"
         role="tab"
-        aria-label={tab.label}
+        aria-label={getTabLabel(tab)}
         aria-selected={activeTab === tab.id}
         aria-controls={`workspace-tab-panel-${panelId ?? 'tabs'}-${tab.id}`}
         id={`workspace-tab-${panelId ?? 'tabs'}-${tab.id}`}
         draggable="false"
-        title={tab.label}
+        title={getTabLabel(tab)}
         on:click={() => dispatch('tabChange', tab.id)}
         on:auxclick={(event) => handleTabAuxClick(event, tab.id)}
         on:mousedown={handleTabMouseDown}
       >
         <span class="material-symbols-outlined" aria-hidden="true">{tab.icon}</span>
-        <span class="workspace-tab-label">{tab.label}</span>
+        <span class="workspace-tab-label">{getTabLabel(tab)}</span>
       </button>
 
       {#if closeable}
@@ -289,8 +304,8 @@
           <button
             type="button"
             class="workspace-tab-close-button"
-            aria-label={`Close ${tab.label}`}
-            title="Close"
+            aria-label={$t('workspace.tabs.closeNamed', { default: 'Close {tab}', values: { tab: getTabLabel(tab) } })}
+            title={$t('workspace.tabs.close', { default: 'Close' })}
             draggable="false"
             on:click={(event) => handleTabCloseClick(event, tab.id)}
             on:auxclick={(event) => handleTabAuxClick(event, tab.id)}
@@ -308,7 +323,7 @@
       <div class="workspace-tab-shell" class:has-close={closeable}>
         <span class="workspace-tab">
           <span class="material-symbols-outlined" aria-hidden="true">{tab.icon}</span>
-          <span class="workspace-tab-label">{tab.label}</span>
+          <span class="workspace-tab-label">{getTabLabel(tab)}</span>
         </span>
 
         {#if closeable}

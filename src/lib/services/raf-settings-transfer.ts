@@ -3,6 +3,22 @@ import type { RafRackSettings } from '$lib/types';
 
 export const RAF_SETTINGS_FILE_NAME = 'izci-raf-settings.json';
 
+export type RafSettingsTransferErrorCode =
+  | 'invalid-json'
+  | 'invalid-rack'
+  | 'invalid-effect'
+  | 'clipboard-unavailable';
+
+export class RafSettingsTransferError extends Error {
+  constructor(
+    readonly code: RafSettingsTransferErrorCode,
+    message: string
+  ) {
+    super(message);
+    this.name = 'RafSettingsTransferError';
+  }
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
 }
@@ -13,16 +29,19 @@ export function parseRafSettingsJson(text: string): RafRackSettings {
   try {
     value = JSON.parse(text);
   } catch {
-    throw new Error('The selected content is not valid JSON.');
+    throw new RafSettingsTransferError('invalid-json', 'The selected content is not valid JSON.');
   }
 
   if (!isRecord(value) || typeof value.enabled !== 'boolean' || !Array.isArray(value.effects)) {
-    throw new Error('The JSON does not contain valid Raf rack settings.');
+    throw new RafSettingsTransferError('invalid-rack', 'The JSON does not contain valid Raf rack settings.');
   }
 
   const normalized = normalizeRafSettings(value);
   if (normalized.effects.length !== value.effects.length) {
-    throw new Error('The Raf rack contains an unsupported or malformed effect.');
+    throw new RafSettingsTransferError(
+      'invalid-effect',
+      'The Raf rack contains an unsupported or malformed effect.'
+    );
   }
 
   return normalized;
@@ -41,12 +60,16 @@ export async function importRafSettingsFile(file: File): Promise<RafRackSettings
 }
 
 export async function importRafSettingsClipboard(target: Pick<Clipboard, 'readText'> = navigator.clipboard): Promise<RafRackSettings> {
-  if (!target?.readText) throw new Error('Clipboard access is unavailable.');
+  if (!target?.readText) {
+    throw new RafSettingsTransferError('clipboard-unavailable', 'Clipboard access is unavailable.');
+  }
   return importRafSettingsJson(await target.readText());
 }
 
 export async function exportRafSettingsClipboard(target: Pick<Clipboard, 'writeText'> = navigator.clipboard): Promise<void> {
-  if (!target?.writeText) throw new Error('Clipboard access is unavailable.');
+  if (!target?.writeText) {
+    throw new RafSettingsTransferError('clipboard-unavailable', 'Clipboard access is unavailable.');
+  }
   await target.writeText(serializeRafSettings(rafSettings.getSnapshot()));
 }
 

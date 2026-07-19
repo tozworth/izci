@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { locale, t } from 'svelte-i18n';
   import OptionGlyphButton from '../OptionGlyphButton.svelte';
   import {
     filesystemFolders,
@@ -11,13 +12,6 @@
 
   type PickerWindow = Window & typeof globalThis & {
     showDirectoryPicker?: () => Promise<FileSystemDirectoryHandle>;
-  };
-
-  const permissionLabels: Record<FilesystemFolderPermission, string> = {
-    granted: 'Available',
-    prompt: 'Permission required',
-    denied: 'Access denied',
-    unavailable: 'Unavailable'
   };
 
   const permissionIcons: Record<FilesystemFolderPermission, string> = {
@@ -36,12 +30,25 @@
 
   function formatLastScan(folder: FilesystemFolder): string {
     if (folder.libraryMode === null) return '—';
-    if (folder.lastScanStatus === 'scanning') return 'Scanning…';
-    if (folder.lastScanStatus === 'permission-required') return 'Permission required';
-    if (folder.lastScanStatus === 'error') return folder.lastScanMessage ?? 'Scan failed';
-    if (!folder.lastScanAt) return 'Not scanned';
+    if (folder.lastScanStatus === 'scanning') return $t('options.folders.scan.scanning', { default: 'Scanning…' });
+    if (folder.lastScanStatus === 'permission-required') return $t('options.folders.permission.required', { default: 'Permission required' });
+    if (folder.lastScanStatus === 'error') {
+      switch (folder.lastScanFailure) {
+        case 'not-library-folder':
+          return $t('options.folders.scan.notLibraryFolder', {
+            default: 'Folder is no longer registered as a library folder.'
+          });
+        case 'cancelled':
+          return $t('options.folders.scan.cancelled', {
+            default: 'Folder scanning was cancelled because it is no longer a library folder.'
+          });
+        default:
+          return $t('options.folders.scan.failed', { default: 'Scan failed' });
+      }
+    }
+    if (!folder.lastScanAt) return $t('options.folders.scan.notScanned', { default: 'Not scanned' });
 
-    return new Intl.DateTimeFormat(undefined, {
+    return new Intl.DateTimeFormat($locale || undefined, {
       dateStyle: 'medium',
       timeStyle: 'short'
     }).format(folder.lastScanAt);
@@ -49,13 +56,20 @@
 
   function formatTrackCount(folder: FilesystemFolder): string {
     if (folder.libraryMode === null || folder.lastScanTrackCount === undefined) return '—';
-    return new Intl.NumberFormat().format(folder.lastScanTrackCount);
+    return new Intl.NumberFormat($locale || undefined).format(folder.lastScanTrackCount);
+  }
+
+  function permissionLabel(permission: FilesystemFolderPermission): string {
+    if (permission === 'granted') return $t('options.folders.permission.available', { default: 'Available' });
+    if (permission === 'prompt') return $t('options.folders.permission.required', { default: 'Permission required' });
+    if (permission === 'denied') return $t('options.folders.permission.denied', { default: 'Access denied' });
+    return $t('options.folders.permission.unavailable', { default: 'Unavailable' });
   }
 
   function libraryModeLabel(folder: FilesystemFolder): string {
-    if (folder.libraryMode === 'launch') return 'Scan on launch';
-    if (folder.libraryMode === 'manual') return 'In library';
-    return 'Not in library';
+    if (folder.libraryMode === 'launch') return $t('options.folders.library.scanOnLaunch', { default: 'Scan on launch' });
+    if (folder.libraryMode === 'manual') return $t('options.folders.library.inLibrary', { default: 'In library' });
+    return $t('options.folders.library.notInLibrary', { default: 'Not in library' });
   }
 
   function libraryModeIcon(folder: FilesystemFolder): string | null {
@@ -168,39 +182,39 @@
 <article class="view section">
   <div class="section-heading">
     <div>
-      <h2>Folders</h2>
-      <p class="field-hint">Every folder izci has remembered, including folders used for library scans.</p>
+      <h2>{$t('options.folders.heading', { default: 'Folders' })}</h2>
+      <p class="field-hint">{$t('options.folders.description', { default: 'Every folder izci has remembered, including folders used for library scans.' })}</p>
     </div>
     <div class="page-actions">
       <OptionGlyphButton
         icon="refresh"
-        label="Check all folder access"
+        label={$t('options.folders.actions.checkAllAccess', { default: 'Check all folder access' })}
         on:click={() => void filesystemFolders.refresh()}
       />
-      <OptionGlyphButton icon="create_new_folder" label="Add folder" on:click={() => void browseFolder()} />
+      <OptionGlyphButton icon="create_new_folder" label={$t('options.folders.actions.add', { default: 'Add folder' })} on:click={() => void browseFolder()} />
     </div>
   </div>
 
   <div
     class="folder-table-scroll"
     role="table"
-    aria-label="Known folders"
+    aria-label={$t('options.folders.table.label', { default: 'Known folders' })}
     aria-rowcount={$filesystemFolders.length + 1}
   >
     <div class="folder-table" role="rowgroup">
       <div class="folder-header" role="row">
-        <span role="columnheader">Folder</span>
-        <span class="access-heading" role="columnheader">Access</span>
-        <span class="library-heading" role="columnheader">Library</span>
-        <span role="columnheader">Last scan</span>
-        <span class="tracks-heading" role="columnheader">Tracks</span>
-        <span class="actions-heading" role="columnheader">Actions</span>
+        <span role="columnheader">{$t('options.folders.table.folder', { default: 'Folder' })}</span>
+        <span class="access-heading" role="columnheader">{$t('options.folders.table.access', { default: 'Access' })}</span>
+        <span class="library-heading" role="columnheader">{$t('options.folders.table.library', { default: 'Library' })}</span>
+        <span role="columnheader">{$t('options.folders.table.lastScan', { default: 'Last scan' })}</span>
+        <span class="tracks-heading" role="columnheader">{$t('options.folders.table.tracks', { default: 'Tracks' })}</span>
+        <span class="actions-heading" role="columnheader">{$t('options.folders.table.actions', { default: 'Actions' })}</span>
       </div>
 
       {#if $filesystemFolders.length === 0}
         <div class="empty-row" role="row">
           <span class="material-symbols-outlined" aria-hidden="true">folder_off</span>
-          <span role="cell">No known folders. Add or drop one here.</span>
+          <span role="cell">{$t('options.folders.empty', { default: 'No known folders. Add or drop one here.' })}</span>
         </div>
       {:else}
         {#each $filesystemFolders as folder, index (folder.id)}
@@ -214,8 +228,8 @@
             <div
               class="access-cell"
               role="cell"
-              title={permissionLabels[folder.permission]}
-              aria-label={permissionLabels[folder.permission]}
+              title={permissionLabel(folder.permission)}
+              aria-label={permissionLabel(folder.permission)}
             >
               <span class="material-symbols-outlined" aria-hidden="true">
                 {permissionIcons[folder.permission]}
@@ -246,11 +260,11 @@
             <span class="text-cell tracks-cell" role="cell" title={formatTrackCount(folder)}>
               {formatTrackCount(folder)}
             </span>
-            <div class="row-actions" role="cell" aria-label={`Actions for ${folder.name}`}>
+            <div class="row-actions" role="cell" aria-label={$t('options.folders.actions.forFolder', { default: 'Actions for {folder}', values: { folder: folder.name } })}>
               {#if folder.libraryMode === null}
                 <OptionGlyphButton
                   icon="library_add"
-                  label="Add to library"
+                  label={$t('options.folders.actions.addToLibrary', { default: 'Add to library' })}
                   placement="above"
                   disabled={busyIds.has(folder.id)}
                   on:click={() => void addToLibrary(folder)}
@@ -258,7 +272,9 @@
               {:else}
                 <OptionGlyphButton
                   icon="sync"
-                  label={folder.libraryMode === 'launch' ? 'Disable scan on launch' : 'Scan on launch'}
+                  label={folder.libraryMode === 'launch'
+                    ? $t('options.folders.actions.disableScanOnLaunch', { default: 'Disable scan on launch' })
+                    : $t('options.folders.actions.scanOnLaunch', { default: 'Scan on launch' })}
                   placement="above"
                   pressed={folder.libraryMode === 'launch'}
                   disabled={busyIds.has(folder.id)}
@@ -266,14 +282,14 @@
                 />
                 <OptionGlyphButton
                   icon="refresh"
-                  label="Scan now"
+                  label={$t('options.folders.actions.scanNow', { default: 'Scan now' })}
                   placement="above"
                   disabled={folder.lastScanStatus === 'scanning' || busyIds.has(folder.id)}
                   on:click={() => queueScan(folder)}
                 />
                 <OptionGlyphButton
                   icon="playlist_remove"
-                  label="Remove from library"
+                  label={$t('options.folders.actions.removeFromLibrary', { default: 'Remove from library' })}
                   placement="above"
                   danger
                   disabled={busyIds.has(folder.id)}
@@ -282,14 +298,14 @@
               {/if}
               <OptionGlyphButton
                 icon={folder.permission === 'granted' ? 'verified_user' : 'key'}
-                label="Check access"
+                label={$t('options.folders.actions.checkAccess', { default: 'Check access' })}
                 placement="above"
                 disabled={busyIds.has(folder.id)}
                 on:click={() => void checkAccess(folder)}
               />
               <OptionGlyphButton
                 icon="delete"
-                label="Forget folder"
+                label={$t('options.folders.actions.forget', { default: 'Forget folder' })}
                 placement="above"
                 danger
                 disabled={busyIds.has(folder.id)}
@@ -302,13 +318,13 @@
     </div>
   </div>
 
-  <p class="field-hint page-hint">Forgetting a folder or removing it from the library keeps tracks already imported from it.</p>
+  <p class="field-hint page-hint">{$t('options.folders.retentionHint', { default: 'Forgetting a folder or removing it from the library keeps tracks already imported from it.' })}</p>
 </article>
 
 {#if dropActive}
   <div class="window-drop-overlay" aria-hidden="true">
     <span class="material-symbols-outlined">drive_file_move</span>
-    <span>Drop folders to add</span>
+    <span>{$t('options.folders.dropToAdd', { default: 'Drop folders to add' })}</span>
   </div>
 {/if}
 

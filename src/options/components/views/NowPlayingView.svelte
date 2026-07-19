@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from 'svelte-i18n';
   import SettingsField from '../SettingsField.svelte';
   import {
     MIN_NOW_PLAYING_PANEL_AUTO_HIDE_SECONDS, NOW_PLAYING_PANEL_AUTO_HIDE_NEVER_SECONDS,
@@ -17,16 +18,16 @@
     appearanceSettings.update({ nowPlayingPanelAutoHideDelaySeconds: normalizeNowPlayingPanelAutoHideDelaySeconds((event.currentTarget as HTMLInputElement).valueAsNumber) });
   }
   $: nowPlayingPanelAutoHideLabel = $appearanceSettings.nowPlayingPanelAutoHideDelaySeconds >= NOW_PLAYING_PANEL_AUTO_HIDE_NEVER_SECONDS
-    ? 'Never hide' : `${$appearanceSettings.nowPlayingPanelAutoHideDelaySeconds}s`;
+    ? $t('options.nowPlaying.neverHide', { default: 'Never hide' }) : `${$appearanceSettings.nowPlayingPanelAutoHideDelaySeconds}s`;
 </script>
 
 <article class="view">
   <div class="section">
-    <h2>Now Playing</h2>
+    <h2>{$t('options.nowPlaying.heading', { default: 'Now Playing' })}</h2>
     <div class="field-grid">
       <SettingsField
-        title="Open when maximized"
-        hint="Switches the main window to Now Playing while it is maximized or fullscreen."
+        title={$t('options.nowPlaying.openWhenMaximized.title', { default: 'Open when maximized' })}
+        hint={$t('options.nowPlaying.openWhenMaximized.hint', { default: 'Switches the main window to Now Playing while it is maximized or fullscreen.' })}
         checkbox
       >
           <input
@@ -37,8 +38,8 @@
       </SettingsField>
 
       <SettingsField
-        title="Hide side chrome after"
-        hint="Fades the side tabs, pane fill, and close button after mouse inactivity."
+        title={$t('options.nowPlaying.hideSideChrome.title', { default: 'Hide side chrome after' })}
+        hint={$t('options.nowPlaying.hideSideChrome.hint', { default: 'Fades the side tabs, pane fill, and close button after mouse inactivity.' })}
       >
           <input
             type="range"
@@ -52,8 +53,8 @@
       </SettingsField>
 
       <SettingsField
-        title="Always use artwork colors"
-        hint="Forces the focused player controls to use artwork colors. When off, Now Playing follows the main player setting."
+        title={$t('options.nowPlaying.artworkColors.title', { default: 'Always use artwork colors' })}
+        hint={$t('options.nowPlaying.artworkColors.hint', { default: 'Forces the focused player controls to use artwork colors. When off, Now Playing follows the main player setting.' })}
         checkbox
       >
           <input
@@ -64,8 +65,8 @@
       </SettingsField>
 
       <SettingsField
-        title="Auto switch to Theater"
-        hint="Uses the large focused lyrics layout while Now Playing is active."
+        title={$t('options.nowPlaying.autoTheater.title', { default: 'Auto switch to Theater' })}
+        hint={$t('options.nowPlaying.autoTheater.hint', { default: 'Uses the large focused lyrics layout while Now Playing is active.' })}
         checkbox
       >
           <input
@@ -76,8 +77,8 @@
       </SettingsField>
 
       <SettingsField
-        title="Auto focus Lyrics tab"
-        hint="Opens Now Playing directly to the lyrics view."
+        title={$t('options.nowPlaying.autoFocusLyrics.title', { default: 'Auto focus Lyrics tab' })}
+        hint={$t('options.nowPlaying.autoFocusLyrics.hint', { default: 'Opens Now Playing directly to the lyrics view.' })}
         checkbox
       >
           <input

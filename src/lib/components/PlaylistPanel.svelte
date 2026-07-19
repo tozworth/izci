@@ -1,5 +1,6 @@
 <script lang="ts">
   import { createEventDispatcher, onDestroy, tick } from 'svelte';
+  import { locale, t } from 'svelte-i18n';
   import { appearanceSettings } from '$lib/stores/appearance-settings';
   import {
     libraryViewSettings
@@ -39,15 +40,15 @@
   } from '$lib/components/playlist-panel/context-menu';
   import {
     filterItemsByQuery,
-    getTrackSummary
+    formatTotalDuration,
+    getTotalDuration
   } from '$lib/components/playlist-panel/search';
   import {
     buildLibraryGroups,
     filterLibraryGroupItems,
     filterLibraryGroups,
-    getGroupSummary,
-    getGroupTrackSummary,
     getLibraryViewTooltipDetails,
+    type LibraryGroup,
     type LibraryGroupViewId
   } from '$lib/components/playlist-panel/library-views';
 
@@ -119,6 +120,126 @@
   const unsubscribeAlbumArtwork = albumArtworkController.subscribe((urls) => {
     albumArtworkUrls = urls;
   });
+
+  function localizePanelLabel(label: string): string {
+    if (label === 'Playlist') return $t('playlist.title', { default: 'Playlist' });
+    if (label === 'Library') return $t('playlist.library.title', { default: 'Library' });
+    return label;
+  }
+
+  function localizeLibraryGroup(group: LibraryGroup): LibraryGroup {
+    let label = group.label;
+    let secondary = group.secondary;
+
+    switch (group.placeholder) {
+      case 'artist': label = $t('playlist.library.unknownArtist', { default: 'Unknown artist' }); break;
+      case 'album': label = $t('playlist.library.unknownAlbum', { default: 'Unknown album' }); break;
+      case 'genre': label = $t('playlist.library.unknownGenre', { default: 'Unknown genre' }); break;
+      case 'year': label = $t('playlist.library.unknownYear', { default: 'Unknown year' }); break;
+      case 'format': label = $t('playlist.library.unknownFormat', { default: 'Unknown format' }); break;
+      case 'folder': label = $t('playlist.library.unknownFolder', { default: 'Unknown folder' }); break;
+    }
+
+    if (group.secondaryKind === 'trackerModule') {
+      secondary = $t('playlist.library.trackerModule', { default: 'Tracker module' });
+    } else if (group.secondaryKind === 'stream') {
+      secondary = $t('playlist.library.stream', { default: 'Stream' });
+    }
+
+    return { ...group, label, secondary };
+  }
+
+  function getColumnLabel(columnId: LibraryColumnId, fallback: string): string {
+    switch (columnId) {
+      case 'title': return $t('playlist.library.columns.title', { default: 'Title' });
+      case 'artist': return $t('playlist.library.columns.artist', { default: 'Artist' });
+      case 'album': return $t('playlist.library.columns.album', { default: 'Album' });
+      case 'folder': return $t('playlist.library.columns.folder', { default: 'Folder' });
+      case 'format': return $t('playlist.library.columns.format', { default: 'Format' });
+      case 'duration': return $t('playlist.library.columns.duration', { default: 'Duration' });
+      case 'plays': return $t('playlist.library.columns.plays', { default: 'Plays' });
+      default: return fallback;
+    }
+  }
+
+  function getTrackSummary(
+    sourceItems: PlaylistItem[],
+    visibleItems: PlaylistItem[],
+    query: string
+  ): string {
+    const duration = formatTotalDuration(getTotalDuration(visibleItems));
+
+    if (query && visibleItems.length !== sourceItems.length) {
+      return $t('playlist.summary.filteredTracks', {
+        default: '{visible} of {total} {total, plural, one {song} other {songs}} · {duration}',
+        values: { visible: visibleItems.length, total: sourceItems.length, duration }
+      });
+    }
+
+    return $t('playlist.summary.tracks', {
+      default: '{count, plural, one {# song} other {# songs}} · {duration}',
+      values: { count: visibleItems.length, duration }
+    });
+  }
+
+  function getGroupCountSummary(
+    view: LibraryGroupViewId,
+    visible: number,
+    total: number,
+    filtered: boolean
+  ): string {
+    const values = { visible, total, count: visible };
+
+    if (filtered) {
+      switch (view) {
+        case 'artists': return $t('playlist.library.summary.filteredArtists', { default: '{visible} of {total} {total, plural, one {artist} other {artists}}', values });
+        case 'albums': return $t('playlist.library.summary.filteredAlbums', { default: '{visible} of {total} {total, plural, one {album} other {albums}}', values });
+        case 'genres': return $t('playlist.library.summary.filteredGenres', { default: '{visible} of {total} {total, plural, one {genre} other {genres}}', values });
+        case 'years': return $t('playlist.library.summary.filteredYears', { default: '{visible} of {total} {total, plural, one {year} other {years}}', values });
+        case 'formats': return $t('playlist.library.summary.filteredFormats', { default: '{visible} of {total} {total, plural, one {format} other {formats}}', values });
+        case 'folders': return $t('playlist.library.summary.filteredFolders', { default: '{visible} of {total} {total, plural, one {folder} other {folders}}', values });
+      }
+    }
+
+    switch (view) {
+      case 'artists': return $t('playlist.library.summary.artists', { default: '{count, plural, one {# artist} other {# artists}}', values });
+      case 'albums': return $t('playlist.library.summary.albums', { default: '{count, plural, one {# album} other {# albums}}', values });
+      case 'genres': return $t('playlist.library.summary.genres', { default: '{count, plural, one {# genre} other {# genres}}', values });
+      case 'years': return $t('playlist.library.summary.years', { default: '{count, plural, one {# year} other {# years}}', values });
+      case 'formats': return $t('playlist.library.summary.formats', { default: '{count, plural, one {# format} other {# formats}}', values });
+      case 'folders': return $t('playlist.library.summary.folders', { default: '{count, plural, one {# folder} other {# folders}}', values });
+    }
+  }
+
+  function getLibraryGroupSummary(
+    view: LibraryGroupViewId,
+    visibleGroups: number,
+    totalGroups: number,
+    songs: number,
+    query: string
+  ): string {
+    const groups = getGroupCountSummary(view, visibleGroups, totalGroups, Boolean(query) && visibleGroups !== totalGroups);
+    return $t('playlist.library.summary.groupsAndSongs', {
+      default: '{groups} · {songs, plural, one {# song} other {# songs}}',
+      values: { groups, songs }
+    });
+  }
+
+  function getLibraryGroupTrackSummary(group: LibraryGroup, visibleItems: PlaylistItem[]): string {
+    const duration = formatTotalDuration(getTotalDuration(visibleItems));
+
+    if (visibleItems.length !== group.items.length) {
+      return $t('playlist.summary.filteredTracks', {
+        default: '{visible} of {total} {total, plural, one {song} other {songs}} · {duration}',
+        values: { visible: visibleItems.length, total: group.items.length, duration }
+      });
+    }
+
+    return $t('playlist.summary.tracks', {
+      default: '{count, plural, one {# song} other {# songs}} · {duration}',
+      values: { count: visibleItems.length, duration }
+    });
+  }
 
   onDestroy(() => {
     if (albumBackdropTransitionFrame !== null) {
@@ -632,11 +753,14 @@
   $: activeLibraryTableSettings = $libraryViewSettings.views[activeLibraryView];
   $: orderedColumns = layout === 'columns'
     ? getOrderedColumns(activeLibraryTableSettings.order, activeLibraryTableSettings.columns)
+        .map((column) => ({ ...column, label: getColumnLabel(column.id, column.label) }))
     : [];
   $: groupView = activeLibraryView === 'songs' || activeLibraryView === 'favorites'
     ? null
     : activeLibraryView as LibraryGroupViewId;
-  $: libraryGroups = groupView ? buildLibraryGroups(items, groupView) : [];
+  $: libraryGroups = groupView
+    ? buildLibraryGroups(items, groupView, $locale ?? undefined).map(localizeLibraryGroup)
+    : [];
   $: visibleLibraryGroups = groupView ? filterLibraryGroups(libraryGroups, normalizedSearchQuery) : [];
   $: visibleGroupSongCount = new Set(
     visibleLibraryGroups.flatMap((group) => group.items.map((item) => item.id))
@@ -668,11 +792,16 @@
     ? filterLibraryGroupItems(selectedLibraryGroup, normalizedSearchQuery)
     : filterItemsByQuery(unfilteredDisplayItems, normalizedSearchQuery);
   $: trackSummary = selectedLibraryGroup
-    ? getGroupTrackSummary(selectedLibraryGroup, filteredItems)
+    ? getLibraryGroupTrackSummary(selectedLibraryGroup, filteredItems)
     : getTrackSummary(displaySourceItems, filteredItems, normalizedSearchQuery);
-  $: libraryTooltipDetails = getLibraryViewTooltipDetails(items, favoriteItems, normalizedSearchQuery);
+  $: libraryTooltipDetails = getLibraryViewTooltipDetails(
+    items,
+    favoriteItems,
+    normalizedSearchQuery,
+    $locale ?? undefined
+  );
   $: librarySummary = groupView && !selectedLibraryGroup
-    ? getGroupSummary(
+    ? getLibraryGroupSummary(
         groupView,
         visibleLibraryGroups.length,
         libraryGroups.length,
@@ -682,7 +811,13 @@
     : trackSummary;
   $: repeatIcon = repeatMode === 'one' ? 'repeat_one' : 'repeat';
   $: repeatLabel =
-    repeatMode === 'one' ? 'Repeat current track' : repeatMode === 'all' ? 'Repeat playlist' : 'Repeat off';
+    repeatMode === 'one'
+      ? $t('playlist.repeat.currentTrack', { default: 'Repeat current track' })
+      : repeatMode === 'all'
+        ? $t('playlist.repeat.playlist', { default: 'Repeat playlist' })
+        : $t('playlist.repeat.off', { default: 'Repeat off' });
+  $: localizedPanelTitle = localizePanelLabel(panelTitle);
+  $: localizedRegionLabel = localizePanelLabel(regionLabel);
   $: contextMenuActions = contextMenu?.kind === 'items' ? getContextMenuActions(contextMenu.ids) : [];
   $: storedVisibleColumns = orderedColumns.filter((column) => column.visible);
   $: visibleColumnCount = storedVisibleColumns.length;
@@ -710,7 +845,11 @@
     width: resolvedColumnWidths[column.id] ?? column.width
   }));
   $: displayItems =
-    layout === 'columns' ? [...filteredItems].sort((left, right) => compareItems(left, right, activeSort)) : filteredItems;
+    layout === 'columns'
+      ? [...filteredItems].sort((left, right) =>
+          compareItems(left, right, activeSort, $locale ?? undefined)
+        )
+      : filteredItems;
   $: tableTemplateColumns = visibleColumns.map((column) => `minmax(${column.width}px, ${column.width}px)`).join(' ');
   $: tableColumnGap = `${COLUMN_GAP}px`;
   $: if (contextMenu?.kind === 'columns' && (layout !== 'columns' || isCompactColumnLayout || !showTrackRows)) {
@@ -753,7 +892,7 @@
     bind:clientWidth={dropzoneWidth}
     class="dropzone playlist-dropzone"
     role="region"
-    aria-label={`${regionLabel} list`}
+    aria-label={$t('playlist.listRegion', { default: '{name} list', values: { name: localizedRegionLabel } })}
     on:dragover|preventDefault
     on:drop={handleDrop}
     on:scroll={updatePlaylistHeaderState}
@@ -784,7 +923,7 @@
       {:else}
         <PlaylistPanelHeader
           bind:searchInputElement={searchInputElement}
-          {panelTitle}
+          panelTitle={localizedPanelTitle}
           {hideEyebrow}
           {trackSummary}
           {showSearchControl}
@@ -848,22 +987,22 @@
       />
     {:else if displaySourceItems.length > 0 && normalizedSearchQuery}
       <div class="empty-state playlist-filter-empty">
-        <p>No library results match "{searchQuery.trim()}".</p>
+        <p>{$t('playlist.library.noResults', { default: 'No library results match "{query}".', values: { query: searchQuery.trim() } })}</p>
       </div>
     {:else if favoritesViewActive && favoriteItems.length === 0}
       <div class="empty-state playlist-filter-empty favorites-empty-note">
-        <p>Favorite tracks and subsongs will appear here.</p>
+        <p>{$t('playlist.library.favoritesEmpty', { default: 'Favorite tracks and subsongs will appear here.' })}</p>
       </div>
     {:else if libraryMode && items.length === 0}
       <div class="empty-state playlist-filter-empty">
-        <p>Your library is empty. Add files or drop a folder here.</p>
+        <p>{$t('playlist.library.empty', { default: 'Your library is empty. Add files or drop a folder here.' })}</p>
       </div>
     {/if}
 
     <PanelContextMenu
       bind:menuElement={contextMenuElement}
       menu={contextMenu}
-      {panelTitle}
+      panelTitle={localizedPanelTitle}
       itemActions={contextMenuActions}
       {orderedColumns}
       {visibleColumnCount}

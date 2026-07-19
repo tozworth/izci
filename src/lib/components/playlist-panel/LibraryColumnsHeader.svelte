@@ -1,5 +1,6 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
+  import { t } from 'svelte-i18n';
   import type { LibraryColumnId, LibraryViewSortState } from '$lib/types';
   import type { ColumnDropIndicator, LibraryPanelColumn } from './library-columns';
   import { isRightAlignedColumn } from './library-columns';
@@ -55,7 +56,7 @@
         class="track-column-sort-button"
         class:is-sorted={activeSort.columnId === column.id}
         class:is-right-aligned={isRightAlignedColumn(column.id)}
-        title={`Sort by ${column.label}`}
+        title={$t('playlist.library.columns.sortBy', { default: 'Sort by {column}', values: { column: column.label } })}
         on:click={() => dispatch('sort', column.id)}
       >
         <span class="track-column-sort-content" class:is-right-aligned={isRightAlignedColumn(column.id)}>
@@ -70,8 +71,8 @@
       <button
         type="button"
         class="track-column-resizer"
-        aria-label={`Resize ${column.label} column`}
-        title={`Resize ${column.label} column`}
+        aria-label={$t('playlist.library.columns.resize', { default: 'Resize {column} column', values: { column: column.label } })}
+        title={$t('playlist.library.columns.resize', { default: 'Resize {column} column', values: { column: column.label } })}
         on:pointerdown={(event) => dispatch('resizeStart', { event, columnId: column.id })}
       ></button>
     </div>

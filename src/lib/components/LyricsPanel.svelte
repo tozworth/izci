@@ -1,5 +1,6 @@
 <script lang="ts">
   import { createEventDispatcher, onDestroy, tick } from 'svelte';
+  import { t } from 'svelte-i18n';
   import type { Readable } from 'svelte/store';
   import { WINDOW_DISMISS_IGNORE_SCROLL_ATTRIBUTE } from '$lib/components/playlist-panel/actions/window-dismiss';
   import {
@@ -49,7 +50,7 @@
   let effectiveSnapshot: PlaybackSnapshot = snapshot;
   let lyrics: LoadedLyrics | null = null;
   let loading = false;
-  let loadError = '';
+  let loadError = false;
   let loadToken = 0;
   let loadedTrackKey = '';
   let scroller: HTMLDivElement | null = null;
@@ -383,7 +384,7 @@
     if (!key || !nextTrack) {
       loadToken += 1;
       loading = false;
-      loadError = '';
+      loadError = false;
       lyrics = null;
       resetScrollState();
       return;
@@ -391,7 +392,7 @@
 
     const currentToken = ++loadToken;
     loading = true;
-    loadError = '';
+    loadError = false;
     lyrics = null;
     resetScrollState();
 
@@ -404,7 +405,7 @@
       })
       .catch(() => {
         if (currentToken === loadToken) {
-          loadError = 'Lyrics could not be read from this file.';
+          loadError = true;
         }
       })
       .finally(() => {
@@ -476,10 +477,14 @@
     maybeResumeAutoScroll();
   }
   $: emptyStateMessage = !track
-    ? 'Play a track to view lyrics.'
+    ? $t('main.lyrics.playTrack', { default: 'Play a track to view lyrics.' })
     : loading
-      ? 'Reading embedded lyrics...'
-      : loadError || (!lyrics ? 'No embedded lyrics found.' : '');
+      ? $t('main.lyrics.reading', { default: 'Reading embedded lyrics...' })
+      : loadError
+        ? $t('main.lyrics.readError', { default: 'Lyrics could not be read from this file.' })
+        : !lyrics
+          ? $t('main.lyrics.notFound', { default: 'No embedded lyrics found.' })
+          : '';
 </script>
 
 <section
@@ -491,7 +496,7 @@
   <div class="panel-header">
     <div class="panel-heading">
       {#if !hideEyebrow}
-        <p class="eyebrow">Lyrics</p>
+        <p class="eyebrow">{$t('main.lyrics.heading', { default: 'Lyrics' })}</p>
       {/if}
     </div>
 
@@ -499,11 +504,11 @@
       <button
         type="button"
         class="lyrics-close-button"
-        aria-label="Close Lyrics"
-        title="Close"
+        aria-label={$t('main.lyrics.closePanel', { default: 'Close Lyrics' })}
+        title={$t('main.common.close', { default: 'Close' })}
         on:click={onClose}
       >
-        <span class="lyrics-close-label" aria-hidden="true">Close</span>
+        <span class="lyrics-close-label" aria-hidden="true">{$t('main.common.close', { default: 'Close' })}</span>
         <span class="material-symbols-outlined lyrics-close-icon" aria-hidden="true">close</span>
       </button>
     {/if}
@@ -524,7 +529,9 @@
       {#if lyricLines.length === 0}
         <pre class:untimed-fallback={displayStyle === 'timestamped'}>{plainText}</pre>
       {:else}
-        <ol class="lyrics-list" aria-label={displayStyle === 'plain' ? 'Lyrics' : 'Synced lyrics'}>
+        <ol class="lyrics-list" aria-label={displayStyle === 'plain'
+          ? $t('main.lyrics.heading', { default: 'Lyrics' })
+          : $t('main.lyrics.synced', { default: 'Synced lyrics' })}>
           {#each lyricLines as line, index (getLyricRowKey(index))}
             <li
               use:registerRow={getLyricRowKey(index)}
@@ -557,7 +564,7 @@
       {#if lyricLines.length === 0}
         <pre class="untimed-fallback">{plainText}</pre>
       {:else}
-        <ol class="lyrics-list" aria-label="Synced lyrics">
+        <ol class="lyrics-list" aria-label={$t('main.lyrics.synced', { default: 'Synced lyrics' })}>
           {#each theaterRows as row, index (row.id)}
             {#if row.type === 'downtime'}
               <li
@@ -571,7 +578,7 @@
                   <span
                     class="downtime-dots"
                     class:is-playing={effectiveSnapshot.state === 'playing'}
-                    aria-label="Instrumental break"
+                    aria-label={$t('main.lyrics.instrumentalBreak', { default: 'Instrumental break' })}
                   >
                     <span></span>
                     <span></span>

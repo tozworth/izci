@@ -3,8 +3,10 @@ import { mount } from 'svelte';
 import OptionsApp from './OptionsApp.svelte';
 import './app.css';
 import { initializeTheme } from '$lib/services/theme';
+import { initializeLocalization } from '$lib/i18n';
 
 initializeTheme();
+initializeLocalization();
 
 mount(OptionsApp, {
   target: document.getElementById('app')!

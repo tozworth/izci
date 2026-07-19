@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { t } from 'svelte-i18n';
   import AboutView from './components/views/AboutView.svelte';
   import AppearanceView from './components/views/AppearanceView.svelte';
   import BackdropsView from './components/views/BackdropsView.svelte';
@@ -45,6 +46,33 @@
     activeView = 'playback';
   }
   let fieldHintsExpanded = false;
+
+  function viewLabel(view: OptionsViewName): string {
+    switch (view) {
+      case 'appearance': return $t('options.views.appearance', { default: 'Appearance' });
+      case 'backdrops': return $t('options.views.backdrops', { default: 'Backdrops' });
+      case 'now-playing': return $t('options.views.nowPlaying', { default: 'Now Playing' });
+      case 'lyrics': return $t('options.views.lyrics', { default: 'Lyrics' });
+      case 'playback': return $t('options.views.playback', { default: 'Playback' });
+      case 'raf': return 'Raf';
+      case 'visualizer': return $t('options.views.visualizer', { default: 'Visualizer' });
+      case 'patterns': return $t('options.views.patterns', { default: 'Patterns' });
+      case 'modules': return $t('options.views.modules', { default: 'Modules' });
+      case 'tracks': return $t('options.views.tracks', { default: 'Tracks' });
+      case 'folders': return $t('options.views.folders', { default: 'Folders' });
+      case 'metadata': return $t('options.views.metadata', { default: 'Metadata' });
+      case 'about': return $t('options.views.about', { default: 'About' });
+      case 'licenses': return $t('options.views.licenses', { default: 'Licenses' });
+    }
+  }
+
+  function parentViewId(view: OptionsViewName): OptionsViewName | null {
+    if (view === 'backdrops' || view === 'now-playing' || view === 'visualizer' || view === 'patterns' || view === 'lyrics') return 'appearance';
+    if (view === 'raf' || view === 'modules') return 'playback';
+    if (view === 'folders' || view === 'metadata') return 'tracks';
+    if (view === 'licenses') return 'about';
+    return null;
+  }
 
   function setActiveView(view: OptionsViewName) {
     if (view === 'raf' && !playbackSettings.getSnapshot().enableRaf) {
@@ -131,11 +159,14 @@
   $: activeViewDefinition = OPTIONS_VIEWS[activeView];
   $: canResetCurrentView = activeViewDefinition.resettable;
   $: canToggleHints = activeViewDefinition.hasHints;
-  $: hintToggleLabel = fieldHintsExpanded ? 'Collapse field hints' : 'Expand field hints';
+  $: hintToggleLabel = fieldHintsExpanded
+    ? $t('options.tools.collapseHints', { default: 'Collapse field hints' })
+    : $t('options.tools.expandHints', { default: 'Expand field hints' });
+  $: activeParentView = parentViewId(activeView);
 </script>
 
 <svelte:head>
-  <title>izci Options</title>
+  <title>{$t('options.windowTitle', { default: 'izci Options' })}</title>
 </svelte:head>
 
 <svelte:window
@@ -153,22 +184,22 @@
     style={overlayInlineStyle}
   >
     <div class="window-topbar-title" aria-live="polite">
-      <span class="window-topbar-prefix">izci Options</span>
+      <span class="window-topbar-prefix">{$t('options.windowTitle', { default: 'izci Options' })}</span>
       <span class="material-symbols-outlined window-topbar-separator window-topbar-prefix-separator" aria-hidden="true">
         chevron_right
       </span>
       <span class="window-topbar-breadcrumbs">
-        {#if activeViewDefinition.parentLabel}
-          <span class="window-topbar-crumb window-topbar-parent">{activeViewDefinition.parentLabel}</span>
+        {#if activeParentView}
+          <span class="window-topbar-crumb window-topbar-parent">{viewLabel(activeParentView)}</span>
           <span class="material-symbols-outlined window-topbar-separator window-topbar-parent-separator" aria-hidden="true">
             chevron_right
           </span>
         {/if}
-        <span class="window-topbar-crumb is-current">{activeViewDefinition.label}</span>
+        <span class="window-topbar-crumb is-current">{viewLabel(activeView)}</span>
       </span>
     </div>
 
-    <div class="window-topbar-tools" aria-label="Page tools">
+    <div class="window-topbar-tools" aria-label={$t('options.tools.label', { default: 'Page tools' })}>
       <button
         class="tool-button"
         type="button"
@@ -185,8 +216,8 @@
       <button
         class="tool-button"
         type="button"
-        aria-label="Reset current page to defaults"
-        title="Reset current page to defaults"
+        aria-label={$t('options.tools.resetPage', { default: 'Reset current page to defaults' })}
+        title={$t('options.tools.resetPage', { default: 'Reset current page to defaults' })}
         disabled={!canResetCurrentView}
         on:click={resetCurrentView}
       >
@@ -197,8 +228,8 @@
   </header>
 
   <main class="options-main">
-    <aside class="tree-panel" aria-label="Options categories">
-      <div class="tree" role="tree" aria-label="Options categories">
+    <aside class="tree-panel" aria-label={$t('options.categories', { default: 'Options categories' })}>
+      <div class="tree" role="tree" aria-label={$t('options.categories', { default: 'Options categories' })}>
         {#each OPTIONS_VIEW_GROUPS as group}
           <div class="tree-group" role="none">
             {#each group as view}
@@ -212,7 +243,7 @@
                   on:click={() => setActiveView(view.id)}
                 >
                   <span class="material-symbols-outlined" aria-hidden="true">{view.icon}</span>
-                  <span class="tree-label">{view.label}</span>
+                  <span class="tree-label">{viewLabel(view.id)}</span>
                 </button>
               {/if}
             {/each}

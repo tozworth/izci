@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from 'svelte-i18n';
   import { STEREO_WIDTH_MAX_DB, STEREO_WIDTH_MIN_DB } from '$lib/services/raf-effects/mid-side';
   import { rafSettings } from '$lib/stores/raf-settings';
   import type { RafStereoWidthSettings } from '$lib/types';
@@ -12,9 +13,9 @@
 </script>
 
 <label class="width-control">
-  <span>Narrower</span>
-  <input type="range" min={STEREO_WIDTH_MIN_DB} max={STEREO_WIDTH_MAX_DB} step="0.5" value={settings.widthDb} on:input={updateWidth} aria-label="Stereo width" />
-  <span>Wider</span>
+  <span>{$t('options.raf.stereoWidth.narrower', { default: 'Narrower' })}</span>
+  <input type="range" min={STEREO_WIDTH_MIN_DB} max={STEREO_WIDTH_MAX_DB} step="0.5" value={settings.widthDb} on:input={updateWidth} aria-label={$t('options.raf.stereoWidth.label', { default: 'Stereo width' })} />
+  <span>{$t('options.raf.stereoWidth.wider', { default: 'Wider' })}</span>
   <output>{settings.widthDb > 0 ? '+' : ''}{settings.widthDb.toFixed(1)} dB</output>
 </label>
 

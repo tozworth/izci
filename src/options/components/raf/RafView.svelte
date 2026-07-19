@@ -1,10 +1,12 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
+  import { t } from 'svelte-i18n';
   import {
     exportRafSettingsClipboard,
     exportRafSettingsFile,
     importRafSettingsClipboard,
-    importRafSettingsFile
+    importRafSettingsFile,
+    RafSettingsTransferError
   } from '$lib/services/raf-settings-transfer';
   import { rafSettings } from '$lib/stores/raf-settings';
   import { isRafPresetDirty, rafPresets } from '$lib/stores/raf-presets';
@@ -36,13 +38,38 @@
     }, 4000);
   }
 
+  function localizeTransferError(error: unknown): string {
+    if (!(error instanceof RafSettingsTransferError)) {
+      return $t('options.raf.transfer.failed', { default: 'Raf settings transfer failed.' });
+    }
+
+    switch (error.code) {
+      case 'invalid-json':
+        return $t('options.raf.transfer.errors.invalidJson', {
+          default: 'The selected content is not valid JSON.'
+        });
+      case 'invalid-rack':
+        return $t('options.raf.transfer.errors.invalidRack', {
+          default: 'The JSON does not contain valid Raf rack settings.'
+        });
+      case 'invalid-effect':
+        return $t('options.raf.transfer.errors.invalidEffect', {
+          default: 'The Raf rack contains an unsupported or malformed effect.'
+        });
+      case 'clipboard-unavailable':
+        return $t('options.raf.transfer.errors.clipboardUnavailable', {
+          default: 'Clipboard access is unavailable.'
+        });
+    }
+  }
+
   async function runTransfer(action: () => unknown | Promise<unknown>, successMessage: string) {
     closeTransferMenu();
     try {
       await action();
       showTransferStatus(successMessage);
     } catch (error) {
-      showTransferStatus(error instanceof Error ? error.message : 'Raf settings transfer failed.', true);
+      showTransferStatus(localizeTransferError(error), true);
     }
   }
 
@@ -50,7 +77,7 @@
     const input = event.currentTarget as HTMLInputElement;
     const file = input.files?.[0];
     input.value = '';
-    if (file) await runTransfer(() => importRafSettingsFile(file), 'Rack imported');
+    if (file) await runTransfer(() => importRafSettingsFile(file), $t('options.raf.transfer.imported', { default: 'Rack imported' }));
   }
 
   function formatDb(value: number) {
@@ -62,13 +89,13 @@
   }
 
   function createPreset() {
-    const name = window.prompt('Name this Raf preset:');
+    const name = window.prompt($t('options.raf.presets.namePrompt', { default: 'Name this Raf preset:' }));
     if (name === null) return;
     if (rafPresets.create(name)) closePresetMenu();
   }
 
   function renamePreset(id: string, currentName: string) {
-    const name = window.prompt('Rename Raf preset:', currentName);
+    const name = window.prompt($t('options.raf.presets.renamePrompt', { default: 'Rename Raf preset:' }), currentName);
     if (name !== null) rafPresets.rename(id, name);
   }
 
@@ -82,32 +109,32 @@
 </script>
 
 <article class="raf-view">
-  <div class="raf-toolbar" aria-label="Raf controls">
-    <button class:active={$rafSettings.enabled} on:click={() => rafSettings.setEnabled(!$rafSettings.enabled)} title={$rafSettings.enabled ? 'Bypass Raf' : 'Power on Raf'} aria-label={$rafSettings.enabled ? 'Bypass Raf' : 'Power on Raf'} aria-pressed={$rafSettings.enabled}>
+  <div class="raf-toolbar" aria-label={$t('options.raf.controls', { default: 'Raf controls' })}>
+    <button class:active={$rafSettings.enabled} on:click={() => rafSettings.setEnabled(!$rafSettings.enabled)} title={$rafSettings.enabled ? $t('options.raf.bypass', { default: 'Bypass Raf' }) : $t('options.raf.powerOn', { default: 'Power on Raf' })} aria-label={$rafSettings.enabled ? $t('options.raf.bypass', { default: 'Bypass Raf' }) : $t('options.raf.powerOn', { default: 'Power on Raf' })} aria-pressed={$rafSettings.enabled}>
       <span class="material-symbols-outlined" aria-hidden="true">power_settings_new</span>
     </button>
     <details class="preset-menu" bind:this={presetMenu}>
-      <summary title="Choose a Raf preset" aria-label="Choose a Raf preset">
-        <span class="preset-summary-name">{selectedPreset?.name ?? 'Presets'}{presetDirty ? ' *' : ''}</span>
+      <summary title={$t('options.raf.presets.choose', { default: 'Choose a Raf preset' })} aria-label={$t('options.raf.presets.choose', { default: 'Choose a Raf preset' })}>
+        <span class="preset-summary-name">{selectedPreset?.name ?? $t('options.raf.presets.label', { default: 'Presets' })}{presetDirty ? ' *' : ''}</span>
         <span class="material-symbols-outlined" aria-hidden="true">arrow_drop_down</span>
       </summary>
       <div class="preset-menu-items">
         <button class="new-preset" on:click={createPreset}>
-          <span class="material-symbols-outlined" aria-hidden="true">add</span>New preset
+          <span class="material-symbols-outlined" aria-hidden="true">add</span>{$t('options.raf.presets.new', { default: 'New preset' })}
         </button>
         {#if $rafPresets.presets.length > 0}
           <div class="preset-separator" aria-hidden="true"></div>
           {#each $rafPresets.presets as preset (preset.id)}
             <div class="preset-entry" class:selected={preset.id === $rafPresets.selectedPresetId}>
-              <button class="preset-select" on:click={() => selectPreset(preset.id)} title={`Apply ${preset.name}`}>
+              <button class="preset-select" on:click={() => selectPreset(preset.id)} title={$t('options.raf.presets.apply', { default: 'Apply {preset}', values: { preset: preset.name } })}>
                 <span class="material-symbols-outlined preset-check" aria-hidden="true">check</span>
                 <span>{preset.name}</span>
               </button>
               <div class="preset-entry-actions">
-                <button on:click={() => renamePreset(preset.id, preset.name)} title={`Rename ${preset.name}`} aria-label={`Rename ${preset.name}`}>
+                <button on:click={() => renamePreset(preset.id, preset.name)} title={$t('options.raf.presets.rename', { default: 'Rename {preset}', values: { preset: preset.name } })} aria-label={$t('options.raf.presets.rename', { default: 'Rename {preset}', values: { preset: preset.name } })}>
                   <span class="material-symbols-outlined" aria-hidden="true">edit</span>
                 </button>
-                <button on:click={() => rafPresets.delete(preset.id)} title={`Delete ${preset.name}`} aria-label={`Delete ${preset.name}`}>
+                <button on:click={() => rafPresets.delete(preset.id)} title={$t('options.raf.presets.delete', { default: 'Delete {preset}', values: { preset: preset.name } })} aria-label={$t('options.raf.presets.delete', { default: 'Delete {preset}', values: { preset: preset.name } })}>
                   <span class="material-symbols-outlined" aria-hidden="true">delete</span>
                 </button>
               </div>
@@ -116,23 +143,23 @@
         {/if}
       </div>
     </details>
-    <button class="save-preset" on:click={() => rafPresets.save()} disabled={!presetDirty} title="Save changes to preset" aria-label="Save changes to preset">
+    <button class="save-preset" on:click={() => rafPresets.save()} disabled={!presetDirty} title={$t('options.raf.presets.save', { default: 'Save changes to preset' })} aria-label={$t('options.raf.presets.save', { default: 'Save changes to preset' })}>
       <span class="material-symbols-outlined" aria-hidden="true">save</span>
     </button>
     <details class="transfer-menu" bind:this={transferMenu}>
-      <summary title="Import or export rack settings" aria-label="Import or export rack settings"><span class="material-symbols-outlined" aria-hidden="true">import_export</span></summary>
+      <summary title={$t('options.raf.transfer.label', { default: 'Import or export rack settings' })} aria-label={$t('options.raf.transfer.label', { default: 'Import or export rack settings' })}><span class="material-symbols-outlined" aria-hidden="true">import_export</span></summary>
       <div class="transfer-menu-items">
-        <button on:click={() => runTransfer(() => importRafSettingsClipboard(), 'Rack imported')}>
-          <span class="material-symbols-outlined" aria-hidden="true">content_paste</span>Import from clipboard
+        <button on:click={() => runTransfer(() => importRafSettingsClipboard(), $t('options.raf.transfer.imported', { default: 'Rack imported' }))}>
+          <span class="material-symbols-outlined" aria-hidden="true">content_paste</span>{$t('options.raf.transfer.importClipboard', { default: 'Import from clipboard' })}
         </button>
         <button on:click={() => { closeTransferMenu(); fileInput.click(); }}>
-          <span class="material-symbols-outlined" aria-hidden="true">file_open</span>Import JSON
+          <span class="material-symbols-outlined" aria-hidden="true">file_open</span>{$t('options.raf.transfer.importJson', { default: 'Import JSON' })}
         </button>
-        <button title="Copy rack settings to the clipboard" on:click={() => runTransfer(() => exportRafSettingsClipboard(), 'Rack copied')}>
-          <span class="material-symbols-outlined" aria-hidden="true">content_copy</span>Export to clipboard
+        <button title={$t('options.raf.transfer.copyHint', { default: 'Copy rack settings to the clipboard' })} on:click={() => runTransfer(() => exportRafSettingsClipboard(), $t('options.raf.transfer.copied', { default: 'Rack copied' }))}>
+          <span class="material-symbols-outlined" aria-hidden="true">content_copy</span>{$t('options.raf.transfer.exportClipboard', { default: 'Export to clipboard' })}
         </button>
-        <button on:click={() => runTransfer(() => exportRafSettingsFile(), 'Rack exported')}>
-          <span class="material-symbols-outlined" aria-hidden="true">download</span>Export JSON
+        <button on:click={() => runTransfer(() => exportRafSettingsFile(), $t('options.raf.transfer.exported', { default: 'Rack exported' }))}>
+          <span class="material-symbols-outlined" aria-hidden="true">download</span>{$t('options.raf.transfer.exportJson', { default: 'Export JSON' })}
         </button>
       </div>
     </details>
@@ -140,11 +167,11 @@
     {#if transferStatus}
       <span class:failed={transferFailed} class="transfer-status" role="status">{transferStatus}</span>
     {/if}
-    <div class="meter-readouts" aria-label="Raf input and output peak levels">
-      <span title="Raf input peak">IN {formatDb($rafMeter.inputDb)} dB</span>
-      <span title="Raf output peak">OUT {formatDb($rafMeter.outputDb)} dB</span>
+    <div class="meter-readouts" aria-label={$t('options.raf.meter.levels', { default: 'Raf input and output peak levels' })}>
+      <span title={$t('options.raf.meter.inputPeak', { default: 'Raf input peak' })}>{$t('options.raf.meter.inputAbbreviation', { default: 'IN' })} {formatDb($rafMeter.inputDb)} dB</span>
+      <span title={$t('options.raf.meter.outputPeak', { default: 'Raf output peak' })}>{$t('options.raf.meter.outputAbbreviation', { default: 'OUT' })} {formatDb($rafMeter.outputDb)} dB</span>
     </div>
-    <span class:clipping={$rafMeter.clipping} class="clip-warning" title={$rafMeter.clipping ? "Help me, I'm clipping!" : 'No clipping detected'} aria-label={$rafMeter.clipping ? "Help me, I'm clipping!" : 'No clipping detected'}>!</span>
+    <span class:clipping={$rafMeter.clipping} class="clip-warning" title={$rafMeter.clipping ? $t('options.raf.meter.clipping', { default: "Help me, I'm clipping!" }) : $t('options.raf.meter.noClipping', { default: 'No clipping detected' })} aria-label={$rafMeter.clipping ? $t('options.raf.meter.clipping', { default: "Help me, I'm clipping!" }) : $t('options.raf.meter.noClipping', { default: 'No clipping detected' })}>!</span>
   </div>
 
   <RafEffectsWorkspace />

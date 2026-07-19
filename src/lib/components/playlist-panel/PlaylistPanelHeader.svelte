@@ -1,5 +1,6 @@
 <script lang="ts">
   import { afterUpdate, createEventDispatcher, tick } from 'svelte';
+  import { t } from 'svelte-i18n';
   import type { PlaylistRepeatMode } from '$lib/types';
 
   export let panelTitle = 'Playlist';
@@ -89,8 +90,8 @@
             inputmode="search"
             spellcheck="false"
             autocomplete="off"
-            placeholder="Filter library"
-            aria-label="Filter library"
+            placeholder={$t('playlist.library.filter', { default: 'Filter library' })}
+            aria-label={$t('playlist.library.filter', { default: 'Filter library' })}
             value={searchQuery}
             on:input={handleSearchInput}
             on:keydown={handleSearchKeydown}
@@ -98,8 +99,8 @@
           <button
             type="button"
             class="playlist-search-close"
-            aria-label="Close library search"
-            title="Close library search"
+            aria-label={$t('playlist.library.closeSearch', { default: 'Close library search' })}
+            title={$t('playlist.library.closeSearch', { default: 'Close library search' })}
             on:click={() => dispatch('searchClose')}
           >
             <span class="material-symbols-outlined" aria-hidden="true">close</span>
@@ -109,8 +110,8 @@
         <button
           type="button"
           class="playlist-action-button"
-          aria-label="Search library"
-          title="Search library"
+          aria-label={$t('playlist.library.search', { default: 'Search library' })}
+          title={$t('playlist.library.search', { default: 'Search library' })}
           on:click={() => dispatch('searchToggle')}
         >
           <span class="material-symbols-outlined" aria-hidden="true">search</span>
@@ -123,8 +124,12 @@
         class="playlist-action-button"
         class:active={shuffleEnabled}
         class:recently-disabled={shuffleRecentlyDisabled}
-        aria-label={shuffleEnabled ? 'Disable shuffle' : 'Enable shuffle'}
-        title={shuffleEnabled ? 'Shuffle on' : 'Shuffle off'}
+        aria-label={shuffleEnabled
+          ? $t('playlist.shuffle.disable', { default: 'Disable shuffle' })
+          : $t('playlist.shuffle.enable', { default: 'Enable shuffle' })}
+        title={shuffleEnabled
+          ? $t('playlist.shuffle.on', { default: 'Shuffle on' })
+          : $t('playlist.shuffle.off', { default: 'Shuffle off' })}
         on:mouseenter={() => (shuffleRecentlyDisabled = false)}
         on:click={toggleShuffle}
       >
@@ -148,8 +153,8 @@
     <button
       type="button"
       class="playlist-add-files"
-      aria-label="Add files"
-      title="Add files"
+      aria-label={$t('playlist.addFiles', { default: 'Add files' })}
+      title={$t('playlist.addFiles', { default: 'Add files' })}
       on:click={() => dispatch('openFiles')}
     >
       <span class="material-symbols-outlined" aria-hidden="true">add</span>

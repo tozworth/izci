@@ -2,6 +2,11 @@ import { writable, type Readable } from 'svelte/store';
 
 export type FilesystemFolderPermission = 'granted' | 'prompt' | 'denied' | 'unavailable';
 export type LibraryFolderMode = 'manual' | 'launch';
+export type LibraryFolderScanFailure =
+  | 'not-library-folder'
+  | 'permission-required'
+  | 'cancelled'
+  | 'scan-failed';
 export type LibraryFolderScanStatus =
   | 'never'
   | 'scanning'
@@ -19,7 +24,7 @@ export interface FilesystemFolder {
   lastScanAt?: number;
   lastScanStatus: LibraryFolderScanStatus;
   lastScanTrackCount?: number;
-  lastScanMessage?: string;
+  lastScanFailure?: LibraryFolderScanFailure;
 }
 
 type StoredFilesystemFolder = Omit<FilesystemFolder, 'permission'>;
@@ -66,7 +71,13 @@ function normalizeStoredFolder(value: unknown): StoredFilesystemFolder | null {
     lastScanStatus,
     lastScanTrackCount:
       typeof source.lastScanTrackCount === 'number' ? source.lastScanTrackCount : undefined,
-    lastScanMessage: typeof source.lastScanMessage === 'string' ? source.lastScanMessage : undefined
+    lastScanFailure:
+      source.lastScanFailure === 'not-library-folder' ||
+      source.lastScanFailure === 'permission-required' ||
+      source.lastScanFailure === 'cancelled' ||
+      source.lastScanFailure === 'scan-failed'
+        ? source.lastScanFailure
+        : undefined
   };
 }
 
@@ -189,7 +200,7 @@ function createFilesystemFoldersStore(): Readable<FilesystemFolder[]> & {
   setLibraryMode(id: string, mode: LibraryFolderMode | null): Promise<void>;
   updateScan(
     id: string,
-    patch: Partial<Pick<FilesystemFolder, 'lastScanAt' | 'lastScanStatus' | 'lastScanTrackCount' | 'lastScanMessage'>>
+    patch: Partial<Pick<FilesystemFolder, 'lastScanAt' | 'lastScanStatus' | 'lastScanTrackCount' | 'lastScanFailure'>>
   ): Promise<void>;
   getSnapshot(): FilesystemFolder[];
 } {

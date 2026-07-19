@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from 'svelte-i18n';
   import type { LoadedStreamArtwork } from '$lib/services/stream-artwork';
   import type { PlaylistItem } from '$lib/types';
   import { resolveModuleDisplayFormat, resolveModuleTrackerName } from '$lib/utils/files';
@@ -20,6 +21,17 @@
     value: string;
   }
 
+  interface MetadataLabels {
+    album: string;
+    albumArtist: string;
+    composer: string;
+    discAndTrack: string;
+    discNumber: string;
+    genre: string;
+    trackNumber: string;
+    year: string;
+  }
+
   function trimMetadataValue(value: string | undefined): string {
     return value?.trim() || '';
   }
@@ -29,28 +41,28 @@
       === right.normalize('NFKC').replace(/\s+/g, ' ').toLowerCase();
   }
 
-  function buildTrackNumberEntry(metadata: PlaylistItem['metadata']): MetadataEntry | null {
+  function buildTrackNumberEntry(metadata: PlaylistItem['metadata'], labels: MetadataLabels): MetadataEntry | null {
     const trackNumber = trimMetadataValue(metadata?.trackNumber);
     const discNumber = trimMetadataValue(metadata?.discNumber);
 
     if (!trackNumber) {
       return discNumber
-        ? { label: 'Disc Number', icon: 'format_list_numbered', value: discNumber }
+        ? { label: labels.discNumber, icon: 'format_list_numbered', value: discNumber }
         : null;
     }
 
     return discNumber
-      ? { label: 'Disc / Track', icon: 'format_list_numbered', value: `${discNumber} / ${trackNumber}` }
-      : { label: 'Track Number', icon: 'format_list_numbered', value: trackNumber };
+      ? { label: labels.discAndTrack, icon: 'format_list_numbered', value: `${discNumber} / ${trackNumber}` }
+      : { label: labels.trackNumber, icon: 'format_list_numbered', value: trackNumber };
   }
 
-  function buildStreamMetadataEntries(track: PlaylistItem | null): MetadataEntry[] {
+  function buildStreamMetadataEntries(track: PlaylistItem | null, labels: MetadataLabels): MetadataEntry[] {
     if (!track || track.kind !== 'stream') {
       return [];
     }
 
     const metadata = track.metadata;
-    const trackNumberEntry = buildTrackNumberEntry(metadata);
+    const trackNumberEntry = buildTrackNumberEntry(metadata, labels);
     const title = trimMetadataValue(metadata?.title);
     const artist = trimMetadataValue(metadata?.artist);
     const album = trimMetadataValue(metadata?.album);
@@ -59,14 +71,14 @@
     return [
       title && metadataValuesMatch(album, title)
         ? null
-        : { label: 'Album', icon: 'album', value: album },
+        : { label: labels.album, icon: 'album', value: album },
       artist && metadataValuesMatch(albumArtist, artist)
         ? null
-        : { label: 'Album Artist', icon: 'person', value: albumArtist },
-      { label: 'Genre', icon: 'category', value: trimMetadataValue(metadata?.genre) },
-      { label: 'Year', icon: 'calendar_month', value: trimMetadataValue(metadata?.year) },
+        : { label: labels.albumArtist, icon: 'person', value: albumArtist },
+      { label: labels.genre, icon: 'category', value: trimMetadataValue(metadata?.genre) },
+      { label: labels.year, icon: 'calendar_month', value: trimMetadataValue(metadata?.year) },
       trackNumberEntry,
-      { label: 'Composer', icon: 'edit_note', value: trimMetadataValue(metadata?.composer) }
+      { label: labels.composer, icon: 'edit_note', value: trimMetadataValue(metadata?.composer) }
     ].filter((entry): entry is MetadataEntry => Boolean(entry && entry.value.length > 0));
   }
 
@@ -74,7 +86,17 @@
   $: showTrackSection = title.length > 0;
   $: artist = track?.metadata?.artist?.trim() || '';
   $: showArtist = showTrackSection && artist.length > 0 && artist.toLowerCase() !== 'unknown';
-  $: metadataEntries = buildStreamMetadataEntries(track);
+  $: metadataLabels = {
+    album: $t('main.trackDetails.album', { default: 'Album' }),
+    albumArtist: $t('main.trackDetails.albumArtist', { default: 'Album Artist' }),
+    composer: $t('main.trackDetails.composer', { default: 'Composer' }),
+    discAndTrack: $t('main.trackDetails.discAndTrack', { default: 'Disc / Track' }),
+    discNumber: $t('main.trackDetails.discNumber', { default: 'Disc Number' }),
+    genre: $t('main.trackDetails.genre', { default: 'Genre' }),
+    trackNumber: $t('main.trackDetails.trackNumber', { default: 'Track Number' }),
+    year: $t('main.trackDetails.year', { default: 'Year' })
+  } satisfies MetadataLabels;
+  $: metadataEntries = buildStreamMetadataEntries(track, metadataLabels);
   $: tracker = track ? resolveModuleTrackerName(track.extension, track.metadata?.trackerType) : '';
   $: patterns = track?.metadata?.patterns;
   $: notes = track?.metadata?.message?.trim() || '';
@@ -93,7 +115,10 @@
     : '';
   $: patternSummary =
     track?.kind === 'module' && typeof patterns === 'number'
-      ? `${patterns} pattern${patterns === 1 ? '' : 's'}`
+      ? $t('main.trackDetails.patternCount', {
+          default: '{count, plural, one {# pattern} other {# patterns}}',
+          values: { count: patterns }
+        })
       : '';
   $: subsongCount = track?.kind === 'module' ? Math.max(track.metadata?.subsongs ?? 1, 1) : 1;
   $: subsongName = track?.subsong !== undefined
@@ -101,8 +126,19 @@
     : '';
   $: subsongSummary = subsongCount > 1
     ? track?.subsong !== undefined
-      ? `${track.subsong + 1} of ${subsongCount}${subsongName ? ` · ${subsongName}` : ''}`
-      : `${subsongCount} available`
+      ? subsongName
+        ? $t('main.trackDetails.subsongPositionNamed', {
+            default: 'Subsongs: {position} of {count} · {name}',
+            values: { position: track.subsong + 1, count: subsongCount, name: subsongName }
+          })
+        : $t('main.trackDetails.subsongPosition', {
+            default: 'Subsongs: {position} of {count}',
+            values: { position: track.subsong + 1, count: subsongCount }
+          })
+      : $t('main.trackDetails.subsongAvailable', {
+          default: 'Subsongs: {count, plural, one {# available} other {# available}}',
+          values: { count: subsongCount }
+        })
     : '';
 </script>
 
@@ -116,7 +152,7 @@
   <div class="panel-header">
     <div class="panel-heading">
       {#if !hideEyebrow}
-        <p class="eyebrow">Track Details</p>
+        <p class="eyebrow">{$t('main.trackDetails.heading', { default: 'Track Details' })}</p>
       {/if}
     </div>
 
@@ -124,11 +160,11 @@
       <button
         type="button"
         class="details-close-button"
-        aria-label="Close Track Details"
-        title="Close"
+        aria-label={$t('main.trackDetails.closePanel', { default: 'Close Track Details' })}
+        title={$t('main.common.close', { default: 'Close' })}
         on:click={onClose}
       >
-        <span class="details-close-label" aria-hidden="true">Close</span>
+        <span class="details-close-label" aria-hidden="true">{$t('main.common.close', { default: 'Close' })}</span>
         <span class="material-symbols-outlined details-close-icon" aria-hidden="true">close</span>
       </button>
     {/if}
@@ -173,7 +209,7 @@
         <div class="format-primary">
           <p class="section-heading">
             <span class="material-symbols-outlined section-icon" aria-hidden="true">equalizer</span>
-            <span>Format</span>
+            <span>{$t('main.trackDetails.format', { default: 'Format' })}</span>
           </p>
           <p class="format-value">{formatValue}</p>
         </div>
@@ -186,7 +222,7 @@
               <p class="pattern-value">{patternSummary}</p>
             {/if}
             {#if subsongSummary}
-              <p class="subsong-value">Subsongs: {subsongSummary}</p>
+              <p class="subsong-value">{subsongSummary}</p>
             {/if}
           </div>
         {/if}
@@ -196,7 +232,7 @@
         <section class="detail-section notes-block">
           <p class="section-heading">
             <span class="material-symbols-outlined section-icon" aria-hidden="true">notes</span>
-            <span>Notes</span>
+            <span>{$t('main.trackDetails.notes', { default: 'Notes' })}</span>
           </p>
           <pre>{notes}</pre>
         </section>
@@ -204,8 +240,10 @@
     </div>
   {:else}
     <div class="empty-state align-start" class:compact-workspace={isCompactWorkspace}>
-      <p>Select a track to inspect it.</p>
-      <p>Playlist and library selections both surface their metadata here.</p>
+      <p>{$t('main.trackDetails.emptyTitle', { default: 'Select a track to inspect it.' })}</p>
+      <p>{$t('main.trackDetails.emptyDescription', {
+        default: 'Playlist and library selections both surface their metadata here.'
+      })}</p>
     </div>
   {/if}
 </section>

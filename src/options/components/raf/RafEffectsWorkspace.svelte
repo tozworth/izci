@@ -1,5 +1,6 @@
 <script lang="ts">
   import { tick } from 'svelte';
+  import { t } from 'svelte-i18n';
   import { portal } from '$lib/components/playlist-panel/actions/portal';
   import { windowDismiss } from '$lib/components/playlist-panel/actions/window-dismiss';
   import { RAF_EFFECT_DEFINITIONS, RAF_EFFECT_REGISTRY } from '$lib/services/raf-effect-registry';
@@ -93,7 +94,7 @@
     contextMenu = null;
     const effect = $rafSettings.effects.find((candidate) => candidate.id === id);
     if (!effect) return;
-    const displayName = window.prompt('Rename effect (leave blank to use its original name):', effect.displayName ?? '');
+    const displayName = window.prompt($t('options.raf.effects.renamePrompt', { default: 'Rename effect (leave blank to use its original name):' }), effect.displayName ?? '');
     if (displayName === null) return;
     rafSettings.renameEffect(id, displayName);
   }
@@ -162,6 +163,16 @@
     dragEngaged = false;
   }
 
+  function effectTypeName(type: RafEffectType): string {
+    switch (type) {
+      case 'graphic-eq': return $t('options.raf.effectTypes.graphicEq', { default: 'Graphic EQ' });
+      case 'stereo-width': return $t('options.raf.effectTypes.stereoWidth', { default: 'Stereo Width' });
+      case 'crystalizer': return $t('options.raf.effectTypes.crystalizer', { default: 'Crystalizer' });
+      case 'sloptimizer': return $t('options.raf.effectTypes.sloptimizer', { default: 'Sloptimizer' });
+      case 'reverb': return $t('options.raf.effectTypes.reverb', { default: 'Reverb' });
+    }
+  }
+
   $: if (!$rafSettings.effects.some((effect) => effect.id === selectedEffectId)) {
     selectedEffectId = $rafSettings.effects[0]?.id ?? null;
   }
@@ -169,19 +180,19 @@
 </script>
 
 <div class="effects-workspace">
-  <aside class="effects-sidebar" aria-label="Raf effects">
+  <aside class="effects-sidebar" aria-label={$t('options.raf.effects.label', { default: 'Raf effects' })}>
     <header class="effects-sidebar-header">
-      <strong>Effects</strong>
-      <div class="effects-sidebar-actions" aria-label="Effect list actions">
+      <strong>{$t('options.raf.effects.heading', { default: 'Effects' })}</strong>
+      <div class="effects-sidebar-actions" aria-label={$t('options.raf.effects.listActions', { default: 'Effect list actions' })}>
         <details class="sidebar-add-menu" bind:this={addMenu}>
-          <summary title="Add effect" aria-label="Add effect">
+          <summary title={$t('options.raf.effects.add', { default: 'Add effect' })} aria-label={$t('options.raf.effects.add', { default: 'Add effect' })}>
             <span class="material-symbols-outlined" aria-hidden="true">add</span>
           </summary>
           <div class="sidebar-add-menu-items">
             {#each RAF_EFFECT_DEFINITIONS as definition}
               <button on:click={() => addEffect(definition.type)}>
                 <span class="material-symbols-outlined" aria-hidden="true">{definition.icon}</span>
-                {definition.name}
+                {effectTypeName(definition.type)}
               </button>
             {/each}
           </div>
@@ -190,8 +201,8 @@
           class="remove"
           on:click={() => selectedEffect && removeEffect(selectedEffect.id)}
           disabled={!selectedEffect}
-          title="Remove selected effect"
-          aria-label="Remove selected effect"
+          title={$t('options.raf.effects.removeSelected', { default: 'Remove selected effect' })}
+          aria-label={$t('options.raf.effects.removeSelected', { default: 'Remove selected effect' })}
         ><span class="material-symbols-outlined" aria-hidden="true">delete</span></button>
       </div>
     </header>
@@ -212,8 +223,8 @@
             draggable="true"
             on:dragstart={(event) => startDrag(event, effect.id, index)}
             on:contextmenu={(event) => openEffectContextMenu(event, effect.id)}
-            title={`Drag ${RAF_EFFECT_REGISTRY[effect.type].name} to reorder`}
-            aria-label={`Drag ${RAF_EFFECT_REGISTRY[effect.type].name} to reorder`}
+            title={$t('options.raf.effects.dragToReorder', { default: 'Drag {effect} to reorder', values: { effect: effectTypeName(effect.type) } })}
+            aria-label={$t('options.raf.effects.dragToReorder', { default: 'Drag {effect} to reorder', values: { effect: effectTypeName(effect.type) } })}
           ><span class="material-symbols-outlined" aria-hidden="true">drag_indicator</span></button>
           <button
             class="effect-list-item"
@@ -226,12 +237,12 @@
               class="effect-list-copy"
               use:fitEffectNames={{
                 displayName: effect.displayName ?? '',
-                typeName: RAF_EFFECT_REGISTRY[effect.type].name
+                typeName: effectTypeName(effect.type)
               }}
             >
-              <span class="effect-display-name">{effect.displayName ?? RAF_EFFECT_REGISTRY[effect.type].name}</span>
+              <span class="effect-display-name">{effect.displayName ?? effectTypeName(effect.type)}</span>
               {#if effect.displayName}
-                <span class="effect-type-name">{RAF_EFFECT_REGISTRY[effect.type].name}</span>
+                <span class="effect-type-name">{effectTypeName(effect.type)}</span>
               {/if}
             </span>
           </button>
@@ -259,29 +270,29 @@
           class="effect-config-heading"
           use:fitEffectNames={{
             displayName: selectedEffect.displayName ?? '',
-            typeName: RAF_EFFECT_REGISTRY[selectedEffect.type].name
+            typeName: effectTypeName(selectedEffect.type)
           }}
         >
-          <strong class="effect-display-name">{selectedEffect.displayName ?? RAF_EFFECT_REGISTRY[selectedEffect.type].name}</strong>
+          <strong class="effect-display-name">{selectedEffect.displayName ?? effectTypeName(selectedEffect.type)}</strong>
           {#if selectedEffect.displayName}
-            <span>{RAF_EFFECT_REGISTRY[selectedEffect.type].name}</span>
+            <span>{effectTypeName(selectedEffect.type)}</span>
           {/if}
         </span>
         {#if selectedEffect.type === 'sloptimizer'}
-          <div class="mode-switch" aria-label="Sloptimizer editor mode">
-            <button class:active={!selectedEffect.advanced} on:click={() => setSloptimizerMode(selectedEffect, false)} aria-pressed={!selectedEffect.advanced}>Simple</button>
-            <button class:active={selectedEffect.advanced} on:click={() => setSloptimizerMode(selectedEffect, true)} aria-pressed={selectedEffect.advanced}>Advanced</button>
+          <div class="mode-switch" aria-label={$t('options.raf.effects.sloptimizerMode', { default: 'Sloptimizer editor mode' })}>
+            <button class:active={!selectedEffect.advanced} on:click={() => setSloptimizerMode(selectedEffect, false)} aria-pressed={!selectedEffect.advanced}>{$t('options.raf.effects.simple', { default: 'Simple' })}</button>
+            <button class:active={selectedEffect.advanced} on:click={() => setSloptimizerMode(selectedEffect, true)} aria-pressed={selectedEffect.advanced}>{$t('options.raf.effects.advanced', { default: 'Advanced' })}</button>
           </div>
         {/if}
         <div class="effect-config-actions">
           <button
             class:active={selectedEffect.enabled}
             on:click={() => toggleEffect(selectedEffect)}
-            title={selectedEffect.enabled ? 'Bypass effect' : 'Power on effect'}
-            aria-label={selectedEffect.enabled ? 'Bypass effect' : 'Power on effect'}
+            title={selectedEffect.enabled ? $t('options.raf.effects.bypass', { default: 'Bypass effect' }) : $t('options.raf.effects.powerOn', { default: 'Power on effect' })}
+            aria-label={selectedEffect.enabled ? $t('options.raf.effects.bypass', { default: 'Bypass effect' }) : $t('options.raf.effects.powerOn', { default: 'Power on effect' })}
             aria-pressed={selectedEffect.enabled}
           ><span class="material-symbols-outlined" aria-hidden="true">power_settings_new</span></button>
-          <button on:click={() => rafSettings.resetEffect(selectedEffect.id)} title="Reset effect" aria-label="Reset effect">
+          <button on:click={() => rafSettings.resetEffect(selectedEffect.id)} title={$t('options.raf.effects.reset', { default: 'Reset effect' })} aria-label={$t('options.raf.effects.reset', { default: 'Reset effect' })}>
             <span class="material-symbols-outlined" aria-hidden="true">restart_alt</span>
           </button>
         </div>
@@ -292,7 +303,7 @@
     {:else}
       <div class="empty-config">
         <span class="material-symbols-outlined" aria-hidden="true">tune</span>
-        <strong>Add an effect to start building the rack</strong>
+        <strong>{$t('options.raf.effects.empty', { default: 'Add an effect to start building the rack' })}</strong>
       </div>
     {/if}
   </section>
@@ -306,21 +317,21 @@
     use:portal
     use:windowDismiss={{ enabled: true, onDismiss: () => (contextMenu = null) }}
     role="menu"
-    aria-label="Effect actions"
+    aria-label={$t('options.raf.effects.actions', { default: 'Effect actions' })}
     style={`left: ${contextMenu.x}px; top: ${contextMenu.y}px;`}
   >
     <button type="button" role="menuitem" on:click={() => renameEffect(contextMenu?.effectId ?? '')}>
       <span class="material-symbols-outlined" aria-hidden="true">edit</span>
-      <span>Rename effect</span>
+      <span>{$t('options.raf.effects.rename', { default: 'Rename effect' })}</span>
     </button>
     <button type="button" role="menuitem" on:click={() => cloneEffect(contextMenu?.effectId ?? '')}>
       <span class="material-symbols-outlined" aria-hidden="true">content_copy</span>
-      <span>Clone effect</span>
+      <span>{$t('options.raf.effects.clone', { default: 'Clone effect' })}</span>
     </button>
     <div class="context-menu-separator" role="separator" aria-hidden="true"></div>
     <button class="danger" type="button" role="menuitem" on:click={() => deleteEffect(contextMenu?.effectId ?? '')}>
       <span class="material-symbols-outlined" aria-hidden="true">delete</span>
-      <span>Delete effect</span>
+      <span>{$t('options.raf.effects.delete', { default: 'Delete effect' })}</span>
     </button>
   </div>
 {/if}

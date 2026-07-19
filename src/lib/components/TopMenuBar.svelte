@@ -3,6 +3,7 @@
   import { onDestroy } from 'svelte';
   import { get } from 'svelte/store';
   import { fade } from 'svelte/transition';
+  import { t } from 'svelte-i18n';
   import { version as appVersion } from '../../../package.json';
   import MenuSurface from '$lib/components/MenuSurface.svelte';
   import { pwaUpdateStatus, type PwaUpdateStatus } from '$lib/services/pwa-updates';
@@ -33,38 +34,38 @@
   const FALLBACK_MENU_GROUPS_WIDTH = 140;
   const FALLBACK_MENU_BRAND_WIDTH = 88;
 
-  const BASE_FILE_MENU_ITEMS: MenuActionItem[] = [
+  $: baseFileMenuItems = [
     {
       id: 'openFiles',
-      label: 'Open files...',
+      label: $t('main.menu.openFiles', { default: 'Open files...' }),
       icon: 'file_open',
       shortcut: 'Ctrl+O'
     },
     {
       id: 'openFolder',
-      label: 'Open folder...',
+      label: $t('main.menu.openFolder', { default: 'Open folder...' }),
       icon: 'folder_open'
     },
     {
       id: 'exit',
-      label: 'Exit',
+      label: $t('main.menu.exit', { default: 'Exit' }),
       icon: 'logout',
       shortcut: 'Ctrl+Q',
       separatorBefore: true
     }
-  ];
-  const HELP_MENU_ITEMS: MenuActionItem[] = [
+  ] satisfies MenuActionItem[];
+  $: helpMenuItems = [
     {
       id: 'forceUpdate',
-      label: 'Force update',
+      label: $t('main.menu.forceUpdate', { default: 'Force update' }),
       icon: 'sync'
     },
     {
       id: 'openAbout',
-      label: 'About',
+      label: $t('main.menu.about', { default: 'About' }),
       icon: 'info'
     }
-  ];
+  ] satisfies MenuActionItem[];
 
   export let miniModeActive = false;
   export let nowPlayingViewActive = false;
@@ -124,63 +125,65 @@
   }
 
   $: fileMenuItems = [
-    ...BASE_FILE_MENU_ITEMS.slice(0, 2),
+    ...baseFileMenuItems.slice(0, 2),
     ...(installAvailable
       ? [{
           id: 'installApp',
-          label: 'Install izci...',
+          label: $t('main.menu.installApp', { default: 'Install izci...' }),
           description: showInstallHint || installHintPresentedInOpenMenu
-            ? 'Install the PWA to get file associations, a compact title bar, better OS integration and automatic updates.'
+            ? $t('main.menu.installDescription', {
+                default: 'Install the PWA to get file associations, a compact title bar, better OS integration and automatic updates.'
+              })
             : undefined,
           icon: 'install_desktop',
           separatorBefore: true,
           attention: showInstallHint || installHintPresentedInOpenMenu
         } satisfies MenuActionItem]
       : []),
-    BASE_FILE_MENU_ITEMS[2]
+    baseFileMenuItems[2]
   ];
 
   $: viewMenuItems = [
     {
       id: 'showPlaylist',
-      label: 'Playlist',
+      label: $t('main.menu.playlist', { default: 'Playlist' }),
       icon: 'queue_music'
     },
     {
       id: 'showLibrary',
-      label: 'Library',
+      label: $t('main.menu.library', { default: 'Library' }),
       icon: 'library_music'
     },
     {
       id: 'showTrackDetails',
-      label: 'Track Details',
+      label: $t('main.menu.trackDetails', { default: 'Track Details' }),
       icon: 'info'
     },
     {
       id: 'showLyrics',
-      label: 'Lyrics',
+      label: $t('main.menu.lyrics', { default: 'Lyrics' }),
       icon: 'lyrics'
     },
     {
       id: 'togglePatterns',
-      label: 'Patterns',
+      label: $t('main.menu.patterns', { default: 'Patterns' }),
       icon: patternsVisible ? 'check' : 'view_timeline'
     },
     {
       id: 'toggleMiniMode',
-      label: 'Mini mode',
+      label: $t('main.menu.miniMode', { default: 'Mini mode' }),
       icon: miniModeActive ? 'check' : 'picture_in_picture_alt',
       shortcut: 'Ctrl+M',
       separatorBefore: true
     },
     {
       id: 'toggleNowPlayingView',
-      label: 'Now Playing',
+      label: $t('main.menu.nowPlaying', { default: 'Now Playing' }),
       icon: nowPlayingViewActive ? 'check' : 'album'
     },
     {
       id: 'openOptions',
-      label: 'Options...',
+      label: $t('main.menu.options', { default: 'Options...' }),
       icon: 'settings',
       shortcut: 'Ctrl+P',
       separatorBefore: true
@@ -189,21 +192,21 @@
   $: compactMenuItems = [
     {
       id: 'file',
-      label: 'File',
+      label: $t('main.menu.file', { default: 'File' }),
       icon: 'folder',
       children: fileMenuItems
     },
     {
       id: 'view',
-      label: 'View',
+      label: $t('main.menu.view', { default: 'View' }),
       icon: 'visibility',
       children: viewMenuItems
     },
     {
       id: 'help',
-      label: 'Help',
+      label: $t('main.menu.help', { default: 'Help' }),
       icon: 'help',
-      children: HELP_MENU_ITEMS
+      children: helpMenuItems
     }
   ] satisfies MenuActionItem[];
 
@@ -405,7 +408,7 @@
   class:window-controls-overlay-active={overlayState.visible}
   class:menu-bar-compact={isCompactMenu}
   style={overlayInlineStyle}
-  aria-label="Application menu"
+  aria-label={$t('main.menu.applicationMenu', { default: 'Application menu' })}
 >
   {#if isCompactMenu}
     <button
@@ -429,7 +432,7 @@
         items={compactMenuItems}
         x={compactMenuX}
         y={compactMenuY}
-        ariaLabel="Application menu"
+        ariaLabel={$t('main.menu.applicationMenu', { default: 'Application menu' })}
         enableOverflowSubmenuFallback={true}
         on:action={(event) => runMenuAction(event.detail as MenuActionId)}
         on:dismiss={closeMenus}
@@ -450,14 +453,14 @@
           on:pointerdown={(event) => handleRootPointerDown(event, 'file')}
           on:click={() => handleRootClick('file')}
         >
-          File
+          {$t('main.menu.file', { default: 'File' })}
         </button>
         {#if activeMenu === 'file'}
           <MenuSurface
             items={fileMenuItems}
             x={menuPopupX}
             y={menuPopupY}
-            ariaLabel="File"
+            ariaLabel={$t('main.menu.file', { default: 'File' })}
             activateOnPointerUpPointerId={menubarPressPointerId}
             on:action={(event) => runMenuAction(event.detail as MenuActionId)}
             on:dismiss={closeMenus}
@@ -477,14 +480,14 @@
           on:pointerdown={(event) => handleRootPointerDown(event, 'view')}
           on:click={() => handleRootClick('view')}
         >
-          View
+          {$t('main.menu.view', { default: 'View' })}
         </button>
         {#if activeMenu === 'view'}
           <MenuSurface
             items={viewMenuItems}
             x={menuPopupX}
             y={menuPopupY}
-            ariaLabel="View"
+            ariaLabel={$t('main.menu.view', { default: 'View' })}
             activateOnPointerUpPointerId={menubarPressPointerId}
             on:action={(event) => runMenuAction(event.detail as MenuActionId)}
             on:dismiss={closeMenus}
@@ -504,14 +507,14 @@
           on:pointerdown={(event) => handleRootPointerDown(event, 'help')}
           on:click={() => handleRootClick('help')}
         >
-          Help
+          {$t('main.menu.help', { default: 'Help' })}
         </button>
         {#if activeMenu === 'help'}
           <MenuSurface
-            items={HELP_MENU_ITEMS}
+            items={helpMenuItems}
             x={menuPopupX}
             y={menuPopupY}
-            ariaLabel="Help"
+            ariaLabel={$t('main.menu.help', { default: 'Help' })}
             activateOnPointerUpPointerId={menubarPressPointerId}
             on:action={(event) => runMenuAction(event.detail as MenuActionId)}
             on:dismiss={closeMenus}
@@ -538,11 +541,11 @@
               on:outroend={handleUpdateIndicatorOutroEnd}
             >
               {#if displayedUpdateStatus === 'updated'}
-                updated!
+                {$t('main.menu.updateUpdated', { default: 'updated!' })}
               {:else if displayedUpdateStatus === 'up-to-date'}
-                up to date
+                {$t('main.menu.updateCurrent', { default: 'up to date' })}
               {:else if displayedUpdateStatus === 'failed'}
-                update check failed
+                {$t('main.menu.updateFailed', { default: 'update check failed' })}
               {:else}
                 {displayVersion}
               {/if}

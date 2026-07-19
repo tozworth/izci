@@ -1,5 +1,6 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
+  import { t } from 'svelte-i18n';
   import { formatTotalDuration } from './search';
   import type { LibraryGroup, LibraryGroupViewId } from './library-views';
 
@@ -48,7 +49,10 @@
           {/if}
         </span>
         <span class="library-group-meta">
-          <span>{group.items.length} song{group.items.length === 1 ? '' : 's'}</span>
+          <span>{$t('playlist.library.groupSongCount', {
+            default: '{count, plural, one {# song} other {# songs}}',
+            values: { count: group.items.length }
+          })}</span>
           {#if group.duration > 0}
             <span class="library-group-meta-divider" aria-hidden="true">·</span>
             <span>{formatTotalDuration(group.duration)}</span>

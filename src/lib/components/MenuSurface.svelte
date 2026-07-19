@@ -1,6 +1,7 @@
 <script lang="ts">
   import { afterUpdate, createEventDispatcher } from 'svelte';
   import { onMount } from 'svelte';
+  import { t } from 'svelte-i18n';
   import type { MenuActionItem } from '$lib/types';
   import { portal } from '$lib/components/playlist-panel/actions/portal';
   import { windowDismiss } from '$lib/components/playlist-panel/actions/window-dismiss';
@@ -8,7 +9,7 @@
   export let items: MenuActionItem[] = [];
   export let x = 0;
   export let y = 0;
-  export let ariaLabel = 'Menu';
+  export let ariaLabel: string | undefined = undefined;
   export let nested = false;
   export let enableOverflowSubmenuFallback = false;
   export let activateOnPointerUpPointerId: number | null = null;
@@ -33,7 +34,9 @@
 
   $: currentLevel = navigationStack[navigationStack.length - 1] ?? null;
   $: displayedItems = currentLevel?.items ?? items;
-  $: resolvedAriaLabel = currentLevel?.label ?? ariaLabel;
+  $: resolvedAriaLabel = currentLevel?.label
+    ?? ariaLabel
+    ?? $t('main.menu.genericMenu', { default: 'Menu' });
   $: canShowHoverSubmenus = nested || !shouldUseSubmenuDrilldown;
 
   function closeSubmenu() {
@@ -209,7 +212,7 @@
     {#if shouldUseSubmenuDrilldown && navigationStack.length > 0}
       <button type="button" role="menuitem" class="menu-back-button" on:click={goBack}>
         <span class="material-symbols-outlined menu-item-icon" aria-hidden="true">arrow_back</span>
-        <span class="menu-item-label">Back</span>
+        <span class="menu-item-label">{$t('main.menu.back', { default: 'Back' })}</span>
         <span class="menu-item-shortcut" aria-hidden="true"></span>
       </button>
       <div class="menu-separator" role="separator" aria-hidden="true"></div>

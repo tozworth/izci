@@ -1,5 +1,6 @@
 <script lang="ts">
   import { createEventDispatcher, onMount } from 'svelte';
+  import { t } from 'svelte-i18n';
   import BackdropZone from '$lib/components/BackdropZone.svelte';
   import PlayerControls from '$lib/components/PlayerControls.svelte';
   import {
@@ -122,15 +123,15 @@
     <button
       type="button"
       class="now-playing-close"
-      aria-label="Exit Now Playing"
-      title="Exit Now Playing"
+      aria-label={$t('workspace.nowPlaying.exit', { default: 'Exit Now Playing' })}
+      title={$t('workspace.nowPlaying.exit', { default: 'Exit Now Playing' })}
       on:click={() => dispatch('close')}
     >
       <span class="material-symbols-outlined" aria-hidden="true">close</span>
     </button>
 
     <div class="now-playing-layout">
-      <section class="now-playing-control-pane" aria-label="Now Playing">
+      <section class="now-playing-control-pane" aria-label={$t('workspace.nowPlaying.title', { default: 'Now Playing' })}>
         <PlayerControls
           presentation="now-playing"
           snapshotStore={content.snapshotStore}
@@ -155,7 +156,7 @@
 
       <section
         class="now-playing-queue-pane"
-        aria-label="Workspace panels"
+        aria-label={$t('workspace.panels.label', { default: 'Workspace panels' })}
         on:focusin={revealPanelChrome}
       >
         <div
@@ -165,7 +166,7 @@
           <WorkspaceTabBar
             tabs={workspaceTabs}
             activeTab={activeWorkspaceTab}
-            ariaLabel="Now Playing panels"
+            ariaLabel={$t('workspace.nowPlaying.panels', { default: 'Now Playing panels' })}
             className="now-playing-tabs"
             on:tabChange={(event) => dispatch('tabChange', event.detail)}
             on:tabClose={(event) => dispatch('tabClose', event.detail)}
@@ -173,7 +174,7 @@
           />
 
           {#if workspaceTabs.length === 0}
-            <div class="now-playing-tab-panel workspace-empty-surface" aria-label="Workspace is empty"></div>
+            <div class="now-playing-tab-panel workspace-empty-surface" aria-label={$t('workspace.empty', { default: 'Workspace is empty' })}></div>
           {:else}
             <div
               class="now-playing-tab-panel"

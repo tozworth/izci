@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from 'svelte-i18n';
   import SettingsField from '../SettingsField.svelte';
   import {
     LYRICS_FONT_SIZE_LIMITS, LYRICS_STYLE_OPTIONS,
@@ -22,6 +23,11 @@
   function handleLyricsDowntimeThresholdChange(event: Event) {
     updateLyrics({ theaterDowntimeThresholdSeconds: normalizeLyricsDowntimeThresholdSeconds((event.currentTarget as HTMLInputElement).valueAsNumber) });
   }
+  function lyricsStyleLabel(style: LyricsDisplayStyle): string {
+    if (style === 'plain') return $t('options.lyrics.styles.plain', { default: 'Plain text' });
+    if (style === 'timestamped') return $t('options.lyrics.styles.timestamped', { default: 'Timestamped rows' });
+    return $t('options.lyrics.styles.theater', { default: 'Theater' });
+  }
   $: lyricsFontSizeLimits = LYRICS_FONT_SIZE_LIMITS[$appearanceSettings.lyrics.displayStyle];
   $: lyricsFontSizeValue = $appearanceSettings.lyrics.fontSizes[$appearanceSettings.lyrics.displayStyle];
   $: lyricsFontSizePercent = Math.round(lyricsFontSizeValue * 100);
@@ -29,17 +35,17 @@
 
 <article class="view">
   <div class="section">
-    <h2>Lyrics</h2>
+    <h2>{$t('options.lyrics.heading', { default: 'Lyrics' })}</h2>
     <div class="field-grid">
-      <SettingsField title="Display style" hint="Chooses how embedded synced lyrics render in the Lyrics panel.">
+      <SettingsField title={$t('options.lyrics.displayStyle.title', { default: 'Display style' })} hint={$t('options.lyrics.displayStyle.hint', { default: 'Chooses how embedded synced lyrics render in the Lyrics panel.' })}>
           <select value={$appearanceSettings.lyrics.displayStyle} on:change={handleLyricsStyleChange}>
             {#each LYRICS_STYLE_OPTIONS as option}
-              <option value={option.value}>{option.label}</option>
+              <option value={option.value}>{lyricsStyleLabel(option.value)}</option>
             {/each}
           </select>
       </SettingsField>
 
-      <SettingsField title="Font size" hint="Saves a separate size for Plain text, Timestamped rows, and Theater.">
+      <SettingsField title={$t('options.lyrics.fontSize.title', { default: 'Font size' })} hint={$t('options.lyrics.fontSize.hint', { default: 'Saves a separate size for Plain text, Timestamped rows, and Theater.' })}>
           <input
             type="range"
             min={lyricsFontSizeLimits.min}
@@ -53,8 +59,8 @@
 
       {#if $appearanceSettings.lyrics.displayStyle !== 'theater'}
         <SettingsField
-          title="Auto scroll to current line"
-          hint="Keeps the highlighted lyric row in view while playback advances."
+          title={$t('options.lyrics.autoScroll.title', { default: 'Auto scroll to current line' })}
+          hint={$t('options.lyrics.autoScroll.hint', { default: 'Keeps the highlighted lyric row in view while playback advances.' })}
           checkbox
         >
             <input
@@ -65,8 +71,8 @@
         </SettingsField>
       {:else}
         <SettingsField
-          title="Downtime dots"
-          hint="Shows a three-dot break marker during long gaps between synced lines."
+          title={$t('options.lyrics.downtimeDots.title', { default: 'Downtime dots' })}
+          hint={$t('options.lyrics.downtimeDots.hint', { default: 'Shows a three-dot break marker during long gaps between synced lines.' })}
           checkbox
         >
             <input
@@ -77,8 +83,8 @@
         </SettingsField>
 
         <SettingsField
-          title="Downtime after"
-          hint="Sets how long a synced lyric gap must last before Theater shows the break marker."
+          title={$t('options.lyrics.downtimeAfter.title', { default: 'Downtime after' })}
+          hint={$t('options.lyrics.downtimeAfter.hint', { default: 'Sets how long a synced lyric gap must last before Theater shows the break marker.' })}
         >
             <input
               type="range"
@@ -93,8 +99,8 @@
         </SettingsField>
 
         <SettingsField
-          title="Smooth Theater scroll"
-          hint="Animates Theater line changes instead of snapping directly to the active line."
+          title={$t('options.lyrics.smoothTheaterScroll.title', { default: 'Smooth Theater scroll' })}
+          hint={$t('options.lyrics.smoothTheaterScroll.hint', { default: 'Animates Theater line changes instead of snapping directly to the active line.' })}
           checkbox
         >
             <input

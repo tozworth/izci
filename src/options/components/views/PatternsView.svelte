@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from 'svelte-i18n';
   import SettingsField from '../SettingsField.svelte';
   import { isPatternCellEmpty, splitPatternCell } from '$lib/services/pattern-presentation';
   import {
@@ -115,16 +116,39 @@
       ? index.toString(16).toUpperCase().padStart(2, '0')
       : String(index).padStart(2, '0');
   }
+
+  function numericTitle(setting: typeof NUMERIC_SETTINGS[number]): string {
+    if (setting.key === 'fontSize') return $t('options.patterns.textSize.title', { default: 'Pattern text size' });
+    if (setting.key === 'rowHeight') return $t('options.patterns.rowHeight.title', { default: 'Row height' });
+    return $t('options.patterns.channelWidth.title', { default: 'Channel width' });
+  }
+  function numericHint(setting: typeof NUMERIC_SETTINGS[number]): string {
+    if (setting.key === 'fontSize') return $t('options.patterns.textSize.hint', { default: 'Scales tracker cells independently from the app interface font.' });
+    if (setting.key === 'rowHeight') return $t('options.patterns.rowHeight.hint', { default: 'Controls how densely pattern rows pass through the playhead.' });
+    return $t('options.patterns.channelWidth.hint', { default: 'Sets the horizontal room reserved for each formatted tracker channel.' });
+  }
+  function toggleTitle(setting: typeof TOGGLE_SETTINGS[number]): string {
+    if (setting.key === 'followPlayback') return $t('options.patterns.follow.title', { default: 'Follow the playhead' });
+    if (setting.key === 'smoothScroll') return $t('options.patterns.smoothScroll.title', { default: 'Smooth playhead scrolling' });
+    if (setting.key === 'showChannelNames') return $t('options.patterns.channelNames.title', { default: 'Show channel names' });
+    return $t('options.patterns.highlightBeats.title', { default: 'Highlight beat rows' });
+  }
+  function toggleHint(setting: typeof TOGGLE_SETTINGS[number]): string {
+    if (setting.key === 'followPlayback') return $t('options.patterns.follow.hint', { default: 'Keeps the active row centered while a module plays.' });
+    if (setting.key === 'smoothScroll') return $t('options.patterns.smoothScroll.hint', { default: 'Animates row centering instead of stepping directly to the current row.' });
+    if (setting.key === 'showChannelNames') return $t('options.patterns.channelNames.hint', { default: 'Adds module-provided names beside channel numbers when they are available.' });
+    return $t('options.patterns.highlightBeats.hint', { default: 'Adds a subtle guide every four rows behind the moving playhead.' });
+  }
 </script>
 
 <article class="view">
   <div class="section">
-    <h2>Pattern Viewer</h2>
-    <div class="pattern-preview colors-{$patternViewerSettings.colorScheme}" style={previewStyle} aria-label="Pattern viewer preview">
+    <h2>{$t('options.patterns.heading', { default: 'Pattern Viewer' })}</h2>
+    <div class="pattern-preview colors-{$patternViewerSettings.colorScheme}" style={previewStyle} aria-label={$t('options.patterns.preview.label', { default: 'Pattern viewer preview' })}>
       <div class="preview-header">
-        <span>ROW</span>
+        <span>{$t('options.patterns.preview.row', { default: 'ROW' })}</span>
         {#each [0, 1, 2] as channel}
-          <span><b>CH {String(channel + 1).padStart(2, '0')}</b>{$patternViewerSettings.showChannelNames ? ` · ${['Lead', 'Chord', 'Bass'][channel]}` : ''}</span>
+          <span><b>{$t('options.patterns.preview.channelAbbreviation', { default: 'CH' })} {String(channel + 1).padStart(2, '0')}</b>{$patternViewerSettings.showChannelNames ? ` · ${[$t('options.patterns.preview.lead', { default: 'Lead' }), $t('options.patterns.preview.chord', { default: 'Chord' }), $t('options.patterns.preview.bass', { default: 'Bass' })][channel]}` : ''}</span>
         {/each}
       </div>
       {#each PREVIEW_ROWS as row, rowIndex}
@@ -146,7 +170,7 @@
 
     <div class="field-grid">
       {#each NUMERIC_SETTINGS as setting (setting.key)}
-        <SettingsField title={setting.title} hint={setting.hint}>
+        <SettingsField title={numericTitle(setting)} hint={numericHint(setting)}>
           <input
             type="range"
             min={setting.min}
@@ -159,23 +183,23 @@
         </SettingsField>
       {/each}
 
-      <SettingsField title="Row numbers" hint="Uses familiar hexadecimal tracker numbering or ordinary decimal values.">
+      <SettingsField title={$t('options.patterns.rowNumbers.title', { default: 'Row numbers' })} hint={$t('options.patterns.rowNumbers.hint', { default: 'Uses familiar hexadecimal tracker numbering or ordinary decimal values.' })}>
         <select value={$patternViewerSettings.rowNumberBase} on:change={updateRowNumberBase}>
-          <option value="hex">Hexadecimal (0A)</option>
-          <option value="decimal">Decimal (10)</option>
+          <option value="hex">{$t('options.patterns.rowNumbers.hex', { default: 'Hexadecimal (0A)' })}</option>
+          <option value="decimal">{$t('options.patterns.rowNumbers.decimal', { default: 'Decimal (10)' })}</option>
         </select>
       </SettingsField>
 
-      <SettingsField title="Pattern colors" hint="Colors notes, instruments, volume commands, and effects for easier scanning.">
+      <SettingsField title={$t('options.patterns.colors.title', { default: 'Pattern colors' })} hint={$t('options.patterns.colors.hint', { default: 'Colors notes, instruments, volume commands, and effects for easier scanning.' })}>
         <select value={$patternViewerSettings.colorScheme} on:change={updateColorScheme}>
-          <option value="conventional">Conventional tracker colors</option>
-          <option value="theme">Theme colors</option>
-          <option value="monochrome">Monochrome</option>
+          <option value="conventional">{$t('options.patterns.colors.conventional', { default: 'Conventional tracker colors' })}</option>
+          <option value="theme">{$t('options.patterns.colors.theme', { default: 'Theme colors' })}</option>
+          <option value="monochrome">{$t('options.patterns.colors.monochrome', { default: 'Monochrome' })}</option>
         </select>
       </SettingsField>
 
       {#each TOGGLE_SETTINGS as setting (setting.key)}
-        <SettingsField title={setting.title} hint={setting.hint} checkbox>
+        <SettingsField title={toggleTitle(setting)} hint={toggleHint(setting)} checkbox>
           <input
             type="checkbox"
             checked={$patternViewerSettings[setting.key]}

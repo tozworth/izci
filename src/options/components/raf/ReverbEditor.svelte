@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from 'svelte-i18n';
   import {
     REVERB_DAMPING_MAX_HZ,
     REVERB_DAMPING_MIN_HZ,
@@ -24,11 +25,11 @@
 </script>
 
 <div class="reverb-editor">
-  <label><span>Mix</span><input type="range" min={REVERB_MIX_MIN} max={REVERB_MIX_MAX} step="1" value={settings.mix} on:input={(event) => update(event, 'mix')} /><output>{settings.mix.toFixed(0)}%</output></label>
-  <label><span>Room</span><input type="range" min={REVERB_ROOM_SIZE_MIN} max={REVERB_ROOM_SIZE_MAX} step="1" value={settings.roomSize} on:change={(event) => update(event, 'roomSize')} /><output>{settings.roomSize.toFixed(0)}%</output></label>
-  <label><span>Decay</span><input type="range" min={REVERB_DECAY_MIN_SECONDS} max={REVERB_DECAY_MAX_SECONDS} step="0.1" value={settings.decaySeconds} on:change={(event) => update(event, 'decaySeconds')} /><output>{settings.decaySeconds.toFixed(1)} s</output></label>
-  <label><span>Pre-delay</span><input type="range" min={REVERB_PRE_DELAY_MIN_MS} max={REVERB_PRE_DELAY_MAX_MS} step="1" value={settings.preDelayMs} on:input={(event) => update(event, 'preDelayMs')} /><output>{settings.preDelayMs.toFixed(0)} ms</output></label>
-  <label><span>Damping</span><input type="range" min={REVERB_DAMPING_MIN_HZ} max={REVERB_DAMPING_MAX_HZ} step="100" value={settings.dampingHz} on:input={(event) => update(event, 'dampingHz')} /><output>{(settings.dampingHz / 1_000).toFixed(1)} kHz</output></label>
+  <label><span>{$t('options.raf.reverb.mix', { default: 'Mix' })}</span><input type="range" min={REVERB_MIX_MIN} max={REVERB_MIX_MAX} step="1" value={settings.mix} on:input={(event) => update(event, 'mix')} /><output>{settings.mix.toFixed(0)}%</output></label>
+  <label><span>{$t('options.raf.reverb.room', { default: 'Room' })}</span><input type="range" min={REVERB_ROOM_SIZE_MIN} max={REVERB_ROOM_SIZE_MAX} step="1" value={settings.roomSize} on:change={(event) => update(event, 'roomSize')} /><output>{settings.roomSize.toFixed(0)}%</output></label>
+  <label><span>{$t('options.raf.reverb.decay', { default: 'Decay' })}</span><input type="range" min={REVERB_DECAY_MIN_SECONDS} max={REVERB_DECAY_MAX_SECONDS} step="0.1" value={settings.decaySeconds} on:change={(event) => update(event, 'decaySeconds')} /><output>{settings.decaySeconds.toFixed(1)} s</output></label>
+  <label><span>{$t('options.raf.reverb.preDelay', { default: 'Pre-delay' })}</span><input type="range" min={REVERB_PRE_DELAY_MIN_MS} max={REVERB_PRE_DELAY_MAX_MS} step="1" value={settings.preDelayMs} on:input={(event) => update(event, 'preDelayMs')} /><output>{settings.preDelayMs.toFixed(0)} ms</output></label>
+  <label><span>{$t('options.raf.reverb.damping', { default: 'Damping' })}</span><input type="range" min={REVERB_DAMPING_MIN_HZ} max={REVERB_DAMPING_MAX_HZ} step="100" value={settings.dampingHz} on:input={(event) => update(event, 'dampingHz')} /><output>{(settings.dampingHz / 1_000).toFixed(1)} kHz</output></label>
 </div>
 
 <style>

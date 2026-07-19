@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onDestroy, tick } from 'svelte';
+  import { t } from 'svelte-i18n';
   import { isPatternCellEmpty, splitPatternCell } from '$lib/services/pattern-presentation';
   import { patternViewerSettings } from '$lib/stores/pattern-viewer-settings';
   import type { ModulePatternSnapshot, PlaybackSnapshot, PlaylistItem } from '$lib/types';
@@ -80,15 +81,21 @@
   });
 </script>
 
-<section class="pattern-viewer colors-{$patternViewerSettings.colorScheme}" aria-label="Module patterns">
+<section
+  class="pattern-viewer colors-{$patternViewerSettings.colorScheme}"
+  aria-label={$t('main.patterns.modulePatterns', { default: 'Module patterns' })}
+>
   {#if track?.kind === 'module' && song && pattern}
     <header class="pattern-toolbar">
-      <span class="pattern-channel-count">{channelCount} channels</span>
+      <span class="pattern-channel-count">{$t('main.patterns.channelCount', {
+        default: '{count, plural, one {# channel} other {# channels}}',
+        values: { count: channelCount }
+      })}</span>
 
-      <div class="pattern-position" aria-label="Pattern playback position">
-        <span><small>ORD</small><b>{formatPosition(snapshot.order, orderCount)}</b></span>
-        <span><small>PAT</small><b>{formatPosition(patternIndex, song.patterns.length)}</b></span>
-        <span><small>ROW</small><b>{formatPosition(activeRow, rowCount)}</b></span>
+      <div class="pattern-position" aria-label={$t('main.patterns.playbackPosition', { default: 'Pattern playback position' })}>
+        <span><small>{$t('main.patterns.orderAbbreviation', { default: 'ORD' })}</small><b>{formatPosition(snapshot.order, orderCount)}</b></span>
+        <span><small>{$t('main.patterns.patternAbbreviation', { default: 'PAT' })}</small><b>{formatPosition(patternIndex, song.patterns.length)}</b></span>
+        <span><small>{$t('main.patterns.rowAbbreviation', { default: 'ROW' })}</small><b>{formatPosition(activeRow, rowCount)}</b></span>
       </div>
     </header>
 
@@ -98,15 +105,25 @@
       style={patternGridStyle}
       data-window-dismiss-ignore-scroll
       role="table"
-      aria-label={`Pattern ${formatPosition(patternIndex, song.patterns.length)}`}
+      aria-label={$t('main.patterns.patternLabel', {
+        default: 'Pattern {position}',
+        values: { position: formatPosition(patternIndex, song.patterns.length) }
+      })}
       aria-rowcount={rowCount + 1}
       aria-colcount={channelCount + 1}
     >
       <div class="pattern-grid pattern-channel-header" role="row">
-        <span class="pattern-row-heading" role="columnheader">ROW</span>
+        <span class="pattern-row-heading" role="columnheader">{$t('main.patterns.rowAbbreviation', { default: 'ROW' })}</span>
         {#each channels as channel}
-          <span class="pattern-channel-heading" role="columnheader" title={channel.name || `Channel ${channel.index + 1}`}>
-            <b>CH {String(channel.index + 1).padStart(2, '0')}</b>
+          <span
+            class="pattern-channel-heading"
+            role="columnheader"
+            title={channel.name || $t('main.patterns.channelLabel', {
+              default: 'Channel {number}',
+              values: { number: channel.index + 1 }
+            })}
+          >
+            <b>{$t('main.patterns.channelAbbreviation', { default: 'CH' })} {String(channel.index + 1).padStart(2, '0')}</b>
             {#if $patternViewerSettings.showChannelNames && channel.name}
               <small>{channel.name}</small>
             {/if}
@@ -132,7 +149,13 @@
                 class="pattern-cell"
                 class:empty={isPatternCellEmpty(cell)}
                 role="cell"
-                title={`Channel ${channel.index + 1}: ${cell.trim() || 'empty'}`}
+                title={$t('main.patterns.cellDescription', {
+                  default: 'Channel {number}: {value}',
+                  values: {
+                    number: channel.index + 1,
+                    value: cell.trim() || $t('main.patterns.emptyCell', { default: 'empty' })
+                  }
+                })}
               >
                 <span class="pattern-token pattern-note">{parts.note}</span>
                 <span class="pattern-token pattern-instrument">{parts.instrument}</span>

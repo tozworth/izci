@@ -1,5 +1,6 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
+  import { t } from 'svelte-i18n';
   import BackdropZone from '$lib/components/BackdropZone.svelte';
   import type { LoadedStreamArtwork } from '$lib/services/stream-artwork';
   import { hasArtworkBackdrop, hasVisualizerBackdrop } from '$lib/stores/appearance-settings';
@@ -52,12 +53,6 @@
     tabMove: WorkspaceTabMoveDetail;
   }>();
 
-  const PANEL_LABELS: Record<WorkspacePanelId, string> = {
-    left: 'Left',
-    center: 'Center',
-    right: 'Right'
-  };
-
   let draggedTabId: WorkspaceTab | null = null;
   let dropTargetPanelId: WorkspacePanelId | null = null;
 
@@ -67,7 +62,11 @@
   );
 
   function getPanelLabel(panelId: WorkspacePanelId): string {
-    return `${PANEL_LABELS[panelId]} panel`;
+    switch (panelId) {
+      case 'left': return $t('workspace.panels.left', { default: 'Left panel' });
+      case 'center': return $t('workspace.panels.center', { default: 'Center panel' });
+      case 'right': return $t('workspace.panels.right', { default: 'Right panel' });
+    }
   }
 
   function handlePanelDragOver(event: DragEvent, panelId: WorkspacePanelId) {
@@ -155,7 +154,7 @@
               tabs={panel.tabs}
               activeTab={panel.activeTab}
               panelId={panel.id}
-              ariaLabel={`${getPanelLabel(panel.id)} tabs`}
+              ariaLabel={$t('workspace.panelTabs', { default: '{panel} tabs', values: { panel: getPanelLabel(panel.id) } })}
               className="dock-panel-tabs"
               on:tabChange={(event) => dispatch('tabChange', event.detail)}
               on:tabClose={(event) => dispatch('tabClose', event.detail)}
@@ -184,7 +183,7 @@
             {:else}
               <div
                 class="workspace-empty-panel"
-                aria-label={`${getPanelLabel(panel.id)} is empty`}
+                aria-label={$t('workspace.panelEmpty', { default: '{panel} is empty', values: { panel: getPanelLabel(panel.id) } })}
               ></div>
             {/if}
           </div>
@@ -193,7 +192,10 @@
 
       {#if index < visiblePanels.length - 1}
         <WorkspaceResizer
-          label={`Resize ${getPanelLabel(panel.id)} and ${getPanelLabel(visiblePanels[index + 1].id)}`}
+          label={$t('workspace.resizePanels', {
+            default: 'Resize {before} and {after}',
+            values: { before: getPanelLabel(panel.id), after: getPanelLabel(visiblePanels[index + 1].id) }
+          })}
           width={resizerWidth}
           onPointerDown={(event) =>
             dispatch('resizeStart', {
@@ -207,7 +209,7 @@
       {/if}
     {/each}
   {:else}
-    <div class="workspace-empty-surface" aria-label="Workspace is empty"></div>
+    <div class="workspace-empty-surface" aria-label={$t('workspace.empty', { default: 'Workspace is empty' })}></div>
   {/if}
 
   {#if draggedTabId}
@@ -216,7 +218,7 @@
         class={`workspace-edge-drop-target workspace-edge-drop-target-${panel.id}`}
         class:is-drop-target={dropTargetPanelId === panel.id}
         role="group"
-        aria-label={`Drop on ${getPanelLabel(panel.id)}`}
+        aria-label={$t('workspace.dropOnPanel', { default: 'Drop on {panel}', values: { panel: getPanelLabel(panel.id) } })}
         on:dragover={(event) => handlePanelDragOver(event, panel.id)}
         on:drop={(event) => handlePanelDrop(event, panel.id)}
         on:dragleave={(event) => handlePanelDragLeave(event, panel.id)}

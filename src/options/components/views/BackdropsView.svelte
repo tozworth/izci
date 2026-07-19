@@ -1,6 +1,7 @@
 <script lang="ts">
+  import { t } from 'svelte-i18n';
   import {
-    BACKDROP_EFFECT_OPTIONS, BACKDROP_ZONE_IDS, BACKDROP_ZONE_LABELS,
+    BACKDROP_EFFECT_OPTIONS, BACKDROP_ZONE_IDS,
     MAX_BACKDROP_ARTWORK_BLUR, MAX_BACKDROP_ARTWORK_BRIGHTNESS,
     MIN_BACKDROP_ARTWORK_BLUR, MIN_BACKDROP_ARTWORK_BRIGHTNESS,
     appearanceSettings, hasArtworkBackdrop,
@@ -21,17 +22,30 @@
   function handleBackdropArtworkBrightnessChange(event: Event, zone: BackdropZoneId) {
     updateArtwork(zone, 'brightness', normalizeBackdropZoneArtworkBrightness((event.currentTarget as HTMLInputElement).valueAsNumber));
   }
+  function zoneLabel(zone: BackdropZoneId): string {
+    if (zone === 'left') return $t('options.backdrops.zones.left', { default: 'Left' });
+    if (zone === 'center') return $t('options.backdrops.zones.center', { default: 'Center' });
+    if (zone === 'right') return $t('options.backdrops.zones.right', { default: 'Right' });
+    if (zone === 'player') return $t('options.backdrops.zones.player', { default: 'Player Bar' });
+    return $t('options.backdrops.zones.nowPlaying', { default: 'Now Playing' });
+  }
+  function effectLabel(effect: BackdropZoneEffect): string {
+    if (effect === 'none') return $t('options.backdrops.effects.none', { default: 'None' });
+    if (effect === 'artwork') return $t('options.backdrops.effects.artwork', { default: 'Artwork' });
+    if (effect === 'visualizer') return $t('options.backdrops.effects.visualizer', { default: 'Visualizer' });
+    return $t('options.backdrops.effects.both', { default: 'Both' });
+  }
 </script>
 
 <article class="view">
   <div class="section">
-    <h2>Backdrop Zones</h2>
+    <h2>{$t('options.backdrops.heading', { default: 'Backdrop Zones' })}</h2>
     <div class="field-grid">
       {#each BACKDROP_ZONE_IDS as zone}
         <div class="field backdrop-zone-field">
           <label class="backdrop-zone-effect-row">
             <div class="field-copy">
-              <span class="field-title">{BACKDROP_ZONE_LABELS[zone]}</span>
+              <span class="field-title">{zoneLabel(zone)}</span>
             </div>
             <div class="field-control">
               <select
@@ -39,7 +53,7 @@
                 on:change={(event) => handleBackdropZoneChange(event, zone)}
               >
                 {#each BACKDROP_EFFECT_OPTIONS as option}
-                  <option value={option.value}>{option.label}</option>
+                  <option value={option.value}>{effectLabel(option.value)}</option>
                 {/each}
               </select>
             </div>
@@ -47,7 +61,7 @@
 
           {#if hasArtworkBackdrop($appearanceSettings.backdropZones[zone])}
             <label class="backdrop-zone-slider">
-              <span class="backdrop-zone-slider-label">Artwork blur strength</span>
+              <span class="backdrop-zone-slider-label">{$t('options.backdrops.artworkBlur.title', { default: 'Artwork blur strength' })}</span>
               <div class="field-control">
                 <input
                   type="range"
@@ -62,7 +76,7 @@
             </label>
 
             <label class="backdrop-zone-slider">
-              <span class="backdrop-zone-slider-label">Artwork brightness</span>
+              <span class="backdrop-zone-slider-label">{$t('options.backdrops.artworkBrightness.title', { default: 'Artwork brightness' })}</span>
               <div class="field-control">
                 <input
                   type="range"

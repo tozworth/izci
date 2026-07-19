@@ -29,10 +29,17 @@ export type ColumnDropIndicator = {
   position: 'before' | 'after';
 };
 
-const stringCollator = new Intl.Collator(undefined, {
-  numeric: true,
-  sensitivity: 'base'
-});
+const stringCollators = new Map<string, Intl.Collator>();
+
+function getStringCollator(locale?: string): Intl.Collator {
+  const key = locale ?? '';
+  const existing = stringCollators.get(key);
+  if (existing) return existing;
+
+  const collator = new Intl.Collator(locale, { numeric: true, sensitivity: 'base' });
+  stringCollators.set(key, collator);
+  return collator;
+}
 
 export function getOrderedColumns(
   order: LibraryColumnId[],
@@ -210,7 +217,8 @@ function compareByColumn(
   left: PlaylistItem,
   right: PlaylistItem,
   columnId: LibraryColumnId,
-  direction: 'asc' | 'desc'
+  direction: 'asc' | 'desc',
+  stringCollator: Intl.Collator
 ): number {
   if (columnId === 'duration') {
     const leftDuration = left.metadata?.duration ?? 0;
@@ -264,9 +272,15 @@ function compareByColumn(
     : stringCollator.compare(leftValue, rightValue);
 }
 
-export function compareItems(left: PlaylistItem, right: PlaylistItem, sort: LibraryViewSortState): number {
+export function compareItems(
+  left: PlaylistItem,
+  right: PlaylistItem,
+  sort: LibraryViewSortState,
+  locale?: string
+): number {
   const { columnId, direction } = sort;
-  const comparison = compareByColumn(left, right, columnId, direction);
+  const stringCollator = getStringCollator(locale);
+  const comparison = compareByColumn(left, right, columnId, direction, stringCollator);
 
   if (comparison !== 0) {
     return comparison;

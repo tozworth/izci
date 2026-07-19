@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from 'svelte-i18n';
   import SettingsField from '../SettingsField.svelte';
   import { DEFAULT_MODULE_PLAYBACK_SETTINGS, MODULE_INTERPOLATION_OPTIONS, modulePlaybackSettings } from '$lib/stores/module-playback-settings';
 
@@ -22,6 +23,18 @@
     if (key === 'stereoSeparation') pendingStereoSeparation = null; else pendingPanStrength = null;
     if (modulePlaybackSettings.getSnapshot()[key] !== value) modulePlaybackSettings.update({ [key]: value });
   }
+  function interpolationLabel(value: number): string {
+    if (value === 1) return $t('options.modules.interpolation.options.oneTap', { default: '1-tap (minimal)' });
+    if (value === 2) return $t('options.modules.interpolation.options.twoTap', { default: '2-tap (soft)' });
+    if (value === 4) return $t('options.modules.interpolation.options.fourTap', { default: '4-tap (medium)' });
+    return $t('options.modules.interpolation.options.eightTap', { default: '8-tap (high)' });
+  }
+  function interpolationHint(value: number): string {
+    if (value === 1) return $t('options.modules.interpolation.hints.oneTap', { default: 'Minimal smoothing (sharper, more artifacts)' });
+    if (value === 2) return $t('options.modules.interpolation.hints.twoTap', { default: 'Soft smoothing.' });
+    if (value === 4) return $t('options.modules.interpolation.hints.fourTap', { default: 'Medium smoothing.' });
+    return $t('options.modules.interpolation.hints.eightTap', { default: 'High smoothing (blurry, less artifacts)' });
+  }
   $: interpolationOption = MODULE_INTERPOLATION_OPTIONS.find((option) => option.value === $modulePlaybackSettings.interpolationFilter) ?? MODULE_INTERPOLATION_OPTIONS[0];
   $: repeatCountSelectValue = $modulePlaybackSettings.repeatCount === -1 ? '-1' : '0';
   $: stereoSeparationValue = pendingStereoSeparation ?? $modulePlaybackSettings.stereoSeparation;
@@ -30,9 +43,9 @@
 
 <article class="view">
   <div class="section">
-    <h2>Rendering</h2>
+    <h2>{$t('options.modules.rendering.heading', { default: 'Rendering' })}</h2>
     <div class="field-grid">
-      <SettingsField title="Stereo separation (MOD)">
+      <SettingsField title={$t('options.modules.stereoSeparation.title', { default: 'Stereo separation (MOD)' })}>
           <input
             type="range"
             min="0"
@@ -44,10 +57,10 @@
             on:blur={(event) => commitDeferredRangeSetting(event, 'stereoSeparation')}
           />
           <span class="field-output">{stereoSeparationValue}%</span>
-        <svelte:fragment slot="hint">Applies to <code>MOD</code> files. 0 = mono, 200 = hard stereo.</svelte:fragment>
+        <svelte:fragment slot="hint">{$t('options.modules.stereoSeparation.hintBeforeFormat', { default: 'Applies to' })} <code>MOD</code> {$t('options.modules.stereoSeparation.hintAfterFormat', { default: 'files. 0 = mono, 200 = hard stereo.' })}</svelte:fragment>
       </SettingsField>
 
-      <SettingsField title="Pan strength" hint="Below 100 narrows the image, above 100 widens it.">
+      <SettingsField title={$t('options.modules.panStrength.title', { default: 'Pan strength' })} hint={$t('options.modules.panStrength.hint', { default: 'Below 100 narrows the image, above 100 widens it.' })}>
           <input
             type="range"
             min="0"
@@ -61,10 +74,10 @@
           <span class="field-output">{panStrengthValue}%</span>
       </SettingsField>
 
-      <SettingsField title="Interpolation" hint={interpolationOption.hint}>
+      <SettingsField title={$t('options.modules.interpolation.title', { default: 'Interpolation' })} hint={interpolationHint(interpolationOption.value)}>
           <select value={$modulePlaybackSettings.interpolationFilter} on:change={handleInterpolationChange}>
             {#each MODULE_INTERPOLATION_OPTIONS as option}
-              <option value={option.value}>{option.label}</option>
+              <option value={option.value}>{interpolationLabel(option.value)}</option>
             {/each}
           </select>
       </SettingsField>
@@ -72,16 +85,16 @@
   </div>
 
   <div class="section">
-    <h2>Playback</h2>
+    <h2>{$t('options.modules.playback.heading', { default: 'Playback' })}</h2>
     <div class="field-grid">
-      <SettingsField title="Looping" hint="Maps to libopenmpt repeat count.">
+      <SettingsField title={$t('options.modules.looping.title', { default: 'Looping' })} hint={$t('options.modules.looping.hint', { default: 'Maps to libopenmpt repeat count.' })}>
           <select value={repeatCountSelectValue} on:change={handleRepeatCountChange}>
-            <option value="0">Play once</option>
-            <option value="-1">Loop forever</option>
+            <option value="0">{$t('options.modules.looping.once', { default: 'Play once' })}</option>
+            <option value="-1">{$t('options.modules.looping.forever', { default: 'Loop forever' })}</option>
           </select>
       </SettingsField>
 
-      <SettingsField title="Tempo factor" hint="Changes module playback speed without changing pitch.">
+      <SettingsField title={$t('options.modules.tempoFactor.title', { default: 'Tempo factor' })} hint={$t('options.modules.tempoFactor.hint', { default: 'Changes module playback speed without changing pitch.' })}>
           <input
             type="range"
             min="25"
@@ -93,7 +106,7 @@
           <span class="field-output">{formatFactor($modulePlaybackSettings.tempoFactor)}</span>
       </SettingsField>
 
-      <SettingsField title="Pitch factor" hint="Adjusts playback pitch relative to the module's original tuning.">
+      <SettingsField title={$t('options.modules.pitchFactor.title', { default: 'Pitch factor' })} hint={$t('options.modules.pitchFactor.hint', { default: "Adjusts playback pitch relative to the module's original tuning." })}>
           <input
             type="range"
             min="25"

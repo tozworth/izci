@@ -14,9 +14,13 @@ export interface LibraryGroup {
   key: string;
   label: string;
   secondary: string;
+  placeholder?: 'artist' | 'album' | 'genre' | 'year' | 'format' | 'folder';
+  secondaryKind?: 'trackerModule' | 'stream';
   items: PlaylistItem[];
   duration: number;
 }
+
+type LibraryGroupValue = Pick<LibraryGroup, 'label' | 'secondary' | 'placeholder' | 'secondaryKind'>;
 
 export const LIBRARY_VIEW_DEFINITIONS: LibraryViewDefinition[] = [
   { id: 'favorites', label: 'Favorites', icon: 'favorite' },
@@ -29,7 +33,17 @@ export const LIBRARY_VIEW_DEFINITIONS: LibraryViewDefinition[] = [
   { id: 'folders', label: 'Folders', icon: 'folder' }
 ];
 
-const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
+const collators = new Map<string, Intl.Collator>();
+
+function getCollator(locale?: string): Intl.Collator {
+  const key = locale ?? '';
+  const existing = collators.get(key);
+  if (existing) return existing;
+
+  const collator = new Intl.Collator(locale, { numeric: true, sensitivity: 'base' });
+  collators.set(key, collator);
+  return collator;
+}
 
 function normalized(value: string | undefined): string {
   return value?.trim() ?? '';
@@ -39,10 +53,10 @@ function groupKey(view: LibraryGroupViewId, label: string, secondary = ''): stri
   return `${view}:${label.toLowerCase()}\u0000${secondary.toLowerCase()}`;
 }
 
-function getGenreValues(item: PlaylistItem): string[] {
+function getGenreValues(item: PlaylistItem): LibraryGroupValue[] {
   const genre = normalized(item.metadata?.genre);
 
-  if (!genre) return ['Unknown genre'];
+  if (!genre) return [{ label: 'Unknown genre', secondary: '', placeholder: 'genre' }];
 
   const values = genre
     .split(/[;,]/)
@@ -51,18 +65,22 @@ function getGenreValues(item: PlaylistItem): string[] {
 
   return values.length > 0
     ? Array.from(new Map(values.map((value) => [value.toLowerCase(), value])).values())
-    : ['Unknown genre'];
+        .map((label) => ({ label, secondary: '' }))
+    : [{ label: 'Unknown genre', secondary: '', placeholder: 'genre' }];
 }
 
-function getYearValue(item: PlaylistItem): string {
+function getYearValue(item: PlaylistItem): LibraryGroupValue {
   const rawYear = normalized(item.metadata?.year);
-  return (rawYear.match(/\b(?:18|19|20|21)\d{2}\b/)?.[0] ?? rawYear) || 'Unknown year';
+  const year = rawYear.match(/\b(?:18|19|20|21)\d{2}\b/)?.[0] ?? rawYear;
+  return year
+    ? { label: year, secondary: '' }
+    : { label: 'Unknown year', secondary: '', placeholder: 'year' };
 }
 
-function getFolderValues(item: PlaylistItem): { label: string; secondary: string } {
+function getFolderValues(item: PlaylistItem): LibraryGroupValue {
   const folder = normalized(getFolderFromPath(item.path));
 
-  if (!folder) return { label: 'Unknown folder', secondary: '' };
+  if (!folder) return { label: 'Unknown folder', secondary: '', placeholder: 'folder' };
 
   const segments = folder.split('/').filter(Boolean);
   return {
@@ -74,32 +92,48 @@ function getFolderValues(item: PlaylistItem): { label: string; secondary: string
 function getGroupValues(
   item: PlaylistItem,
   view: LibraryGroupViewId
-): Array<{ label: string; secondary: string }> {
+): LibraryGroupValue[] {
   switch (view) {
     case 'artists':
-      return [{ label: normalized(item.metadata?.artist) || 'Unknown artist', secondary: '' }];
+      return normalized(item.metadata?.artist)
+        ? [{ label: normalized(item.metadata?.artist), secondary: '' }]
+        : [{ label: 'Unknown artist', secondary: '', placeholder: 'artist' }];
     case 'albums': {
-      const label = normalized(item.metadata?.album) || 'Unknown album';
+      const album = normalized(item.metadata?.album);
+      const label = album || 'Unknown album';
       const secondary = normalized(item.metadata?.albumArtist) || normalized(item.metadata?.artist);
-      return [{ label, secondary }];
+      return [{ label, secondary, placeholder: album ? undefined : 'album' }];
     }
     case 'genres':
-      return getGenreValues(item).map((label) => ({ label, secondary: '' }));
+      return getGenreValues(item);
     case 'years':
-      return [{ label: getYearValue(item), secondary: '' }];
+      return [getYearValue(item)];
     case 'formats':
-      return [{
-        label: normalized(item.extension).toUpperCase() || 'Unknown format',
-        secondary: item.kind === 'module' ? 'Tracker module' : 'Stream'
-      }];
+      return normalized(item.extension)
+        ? [{
+            label: normalized(item.extension).toUpperCase(),
+            secondary: item.kind === 'module' ? 'Tracker module' : 'Stream',
+            secondaryKind: item.kind === 'module' ? 'trackerModule' : 'stream'
+          }]
+        : [{
+            label: 'Unknown format',
+            secondary: item.kind === 'module' ? 'Tracker module' : 'Stream',
+            placeholder: 'format',
+            secondaryKind: item.kind === 'module' ? 'trackerModule' : 'stream'
+          }];
     case 'folders':
       return [getFolderValues(item)];
   }
 }
 
-function compareGroups(left: LibraryGroup, right: LibraryGroup, view: LibraryGroupViewId): number {
-  const leftUnknown = left.label.toLowerCase().startsWith('unknown ');
-  const rightUnknown = right.label.toLowerCase().startsWith('unknown ');
+function compareGroups(
+  left: LibraryGroup,
+  right: LibraryGroup,
+  view: LibraryGroupViewId,
+  collator: Intl.Collator
+): number {
+  const leftUnknown = Boolean(left.placeholder);
+  const rightUnknown = Boolean(right.placeholder);
 
   if (leftUnknown !== rightUnknown) return leftUnknown ? 1 : -1;
 
@@ -112,12 +146,21 @@ function compareGroups(left: LibraryGroup, right: LibraryGroup, view: LibraryGro
   return labelComparison || collator.compare(left.secondary, right.secondary);
 }
 
-export function buildLibraryGroups(items: PlaylistItem[], view: LibraryGroupViewId): LibraryGroup[] {
+export function buildLibraryGroups(
+  items: PlaylistItem[],
+  view: LibraryGroupViewId,
+  locale?: string
+): LibraryGroup[] {
   const groups = new Map<string, LibraryGroup>();
+  const collator = getCollator(locale);
 
   for (const item of items) {
     for (const value of getGroupValues(item, view)) {
-      const key = groupKey(view, value.label, value.secondary);
+      const key = groupKey(
+        view,
+        value.placeholder ? `__unknown:${value.placeholder}` : value.label,
+        value.secondaryKind ? `__kind:${value.secondaryKind}` : value.secondary
+      );
       const existing = groups.get(key);
 
       if (existing) {
@@ -127,6 +170,8 @@ export function buildLibraryGroups(items: PlaylistItem[], view: LibraryGroupView
           key,
           label: value.label,
           secondary: value.secondary,
+          placeholder: value.placeholder,
+          secondaryKind: value.secondaryKind,
           items: [item],
           duration: 0
         });
@@ -142,7 +187,7 @@ export function buildLibraryGroups(items: PlaylistItem[], view: LibraryGroupView
       ),
       duration: getTotalDuration(group.items)
     }))
-    .sort((left, right) => compareGroups(left, right, view));
+    .sort((left, right) => compareGroups(left, right, view, collator));
 }
 
 export function groupMatchesSearchQuery(group: LibraryGroup, normalizedQuery: string): boolean {
@@ -161,7 +206,8 @@ export function filterLibraryGroups(groups: LibraryGroup[], normalizedQuery: str
 export function getLibraryViewTooltipDetails(
   items: PlaylistItem[],
   favoriteItems: PlaylistItem[],
-  normalizedQuery: string
+  normalizedQuery: string,
+  locale?: string
 ): Record<LibraryViewId, string> {
   const filteredSongs = filterItemsByQuery(items, normalizedQuery);
   const filteredFavorites = filterItemsByQuery(favoriteItems, normalizedQuery);
@@ -176,7 +222,7 @@ export function getLibraryViewTooltipDetails(
   for (const definition of LIBRARY_VIEW_DEFINITIONS) {
     if (definition.id === 'favorites' || definition.id === 'songs') continue;
 
-    const groups = buildLibraryGroups(items, definition.id);
+    const groups = buildLibraryGroups(items, definition.id, locale);
     const visibleGroups = filterLibraryGroups(groups, normalizedQuery);
     const groupCount = normalizedQuery && visibleGroups.length !== groups.length
       ? `${visibleGroups.length} of ${groups.length}`

@@ -1,5 +1,6 @@
 <script lang="ts">
   import { afterUpdate, createEventDispatcher, tick } from 'svelte';
+  import { t } from 'svelte-i18n';
   import HoverTooltip from '$lib/components/HoverTooltip.svelte';
   import type { LibraryViewId } from '$lib/types';
   import { LIBRARY_VIEW_DEFINITIONS } from './library-views';
@@ -43,11 +44,25 @@
     event.stopPropagation();
     dispatch('searchClose');
   }
+
+  function getViewLabel(view: LibraryViewId, fallback: string): string {
+    switch (view) {
+      case 'favorites': return $t('playlist.library.views.favorites', { default: 'Favorites' });
+      case 'songs': return $t('playlist.library.views.songs', { default: 'Songs' });
+      case 'artists': return $t('playlist.library.views.artists', { default: 'Artists' });
+      case 'albums': return $t('playlist.library.views.albums', { default: 'Albums' });
+      case 'genres': return $t('playlist.library.views.genres', { default: 'Genres' });
+      case 'years': return $t('playlist.library.views.years', { default: 'Years' });
+      case 'formats': return $t('playlist.library.views.formats', { default: 'Formats' });
+      case 'folders': return $t('playlist.library.views.folders', { default: 'Folders' });
+      default: return fallback;
+    }
+  }
 </script>
 
 <div class="library-header">
   <div class="library-toolbar">
-    <div class="library-view-tabs" aria-label="Library views" role="tablist">
+    <div class="library-view-tabs" aria-label={$t('playlist.library.views.label', { default: 'Library views' })} role="tablist">
       {#each LIBRARY_VIEW_DEFINITIONS as view}
         <button
           type="button"
@@ -55,12 +70,12 @@
           class:active={activeView === view.id}
           role="tab"
           aria-selected={activeView === view.id}
-          aria-label={view.label}
+          aria-label={getViewLabel(view.id, view.label)}
           on:click={() => dispatch('viewChange', view.id)}
         >
           <span class="material-symbols-outlined" aria-hidden="true">{view.icon}</span>
           <HoverTooltip align={view.id === 'favorites' ? 'left' : 'center'} nowrap>
-            <strong>{view.label}</strong>{#if !showBack && tooltipDetails[view.id]}
+            <strong>{getViewLabel(view.id, view.label)}</strong>{#if !showBack && tooltipDetails[view.id]}
               <span class="library-tooltip-detail">{tooltipDetails[view.id]}</span>
             {/if}
           </HoverTooltip>
@@ -73,20 +88,20 @@
         type="button"
         class="library-toolbar-button hover-tooltip-anchor"
         class:active={showSearchInput || searchQuery !== ''}
-        aria-label="Search library"
+        aria-label={$t('playlist.library.search', { default: 'Search library' })}
         on:click={() => dispatch('searchToggle')}
       >
         <span class="material-symbols-outlined" aria-hidden="true">search</span>
-        <HoverTooltip>Search library</HoverTooltip>
+        <HoverTooltip>{$t('playlist.library.search', { default: 'Search library' })}</HoverTooltip>
       </button>
       <button
         type="button"
         class="library-toolbar-button hover-tooltip-anchor"
-        aria-label="Add files"
+        aria-label={$t('playlist.addFiles', { default: 'Add files' })}
         on:click={() => dispatch('openFiles')}
       >
         <span class="material-symbols-outlined" aria-hidden="true">add</span>
-        <HoverTooltip>Add files</HoverTooltip>
+        <HoverTooltip>{$t('playlist.addFiles', { default: 'Add files' })}</HoverTooltip>
       </button>
     </div>
   </div>
@@ -100,8 +115,8 @@
         inputmode="search"
         spellcheck="false"
         autocomplete="off"
-        placeholder="Search"
-        aria-label="Search library"
+        placeholder={$t('playlist.searchPlaceholder', { default: 'Search' })}
+        aria-label={$t('playlist.library.search', { default: 'Search library' })}
         value={searchQuery}
         on:input={handleSearchInput}
         on:keydown={handleSearchKeydown}
@@ -109,8 +124,8 @@
       <button
         type="button"
         class="library-search-close"
-        aria-label="Close library search"
-        title="Close library search"
+        aria-label={$t('playlist.library.closeSearch', { default: 'Close library search' })}
+        title={$t('playlist.library.closeSearch', { default: 'Close library search' })}
         on:click={() => dispatch('searchClose')}
       >
         <span class="material-symbols-outlined" aria-hidden="true">close</span>
@@ -123,8 +138,8 @@
       <button
         type="button"
         class="library-back-button"
-        aria-label="Back to groups"
-        title="Back"
+        aria-label={$t('playlist.library.backToGroups', { default: 'Back to groups' })}
+        title={$t('playlist.library.back', { default: 'Back' })}
         on:click={() => dispatch('back')}
       >
         <span class="material-symbols-outlined" aria-hidden="true">arrow_back</span>

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from 'svelte-i18n';
   import {
     CRYSTALIZER_FREQUENCIES,
     CRYSTALIZER_INTENSITY_MAX,
@@ -40,22 +41,30 @@
   }
 </script>
 
-<div class="crystalizer-bank" aria-label="Multiband crystalizer controls">
+<div class="crystalizer-bank" aria-label={$t('options.raf.crystalizer.controls', { default: 'Multiband crystalizer controls' })}>
   {#each CRYSTALIZER_FREQUENCIES as frequency, index}
     <div class:muted={settings.bandMuted[index]} class:bypassed={settings.bandBypassed[index]} class="crystalizer-band">
       <div class="band-actions">
         <button
           class:active={settings.bandMuted[index]}
           on:click={() => toggleMute(index)}
-          title={`${settings.bandMuted[index] ? 'Unmute' : 'Mute'} ${frequency} Hz band`}
-          aria-label={`${settings.bandMuted[index] ? 'Unmute' : 'Mute'} ${frequency} Hz band`}
+          title={settings.bandMuted[index]
+            ? $t('options.raf.crystalizer.unmuteBand', { default: 'Unmute {frequency} Hz band', values: { frequency } })
+            : $t('options.raf.crystalizer.muteBand', { default: 'Mute {frequency} Hz band', values: { frequency } })}
+          aria-label={settings.bandMuted[index]
+            ? $t('options.raf.crystalizer.unmuteBand', { default: 'Unmute {frequency} Hz band', values: { frequency } })
+            : $t('options.raf.crystalizer.muteBand', { default: 'Mute {frequency} Hz band', values: { frequency } })}
           aria-pressed={settings.bandMuted[index]}
         >M</button>
         <button
           class:active={settings.bandBypassed[index]}
           on:click={() => toggleBypass(index)}
-          title={`${settings.bandBypassed[index] ? 'Process' : 'Bypass'} ${frequency} Hz band`}
-          aria-label={`${settings.bandBypassed[index] ? 'Process' : 'Bypass'} ${frequency} Hz band`}
+          title={settings.bandBypassed[index]
+            ? $t('options.raf.crystalizer.processBand', { default: 'Process {frequency} Hz band', values: { frequency } })
+            : $t('options.raf.crystalizer.bypassBand', { default: 'Bypass {frequency} Hz band', values: { frequency } })}
+          aria-label={settings.bandBypassed[index]
+            ? $t('options.raf.crystalizer.processBand', { default: 'Process {frequency} Hz band', values: { frequency } })
+            : $t('options.raf.crystalizer.bypassBand', { default: 'Bypass {frequency} Hz band', values: { frequency } })}
           aria-pressed={settings.bandBypassed[index]}
         >B</button>
       </div>
@@ -68,7 +77,7 @@
         value={settings.bandIntensities[index]}
         disabled={settings.bandMuted[index] || settings.bandBypassed[index]}
         on:input={(event) => updateIntensity(event, index)}
-        aria-label={`${frequency} Hz crystalizer intensity`}
+        aria-label={$t('options.raf.crystalizer.bandIntensity', { default: '{frequency} Hz crystalizer intensity', values: { frequency } })}
       />
       <span class="band-label">{formatFrequency(frequency)}</span>
     </div>

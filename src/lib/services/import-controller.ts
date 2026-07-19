@@ -14,6 +14,7 @@ interface ImportControllerOptions {
   addFiles: (files: FileList | File[], target: WorkspaceCollection) => void;
   clickFileInput: () => void;
   getWindow?: () => PickerWindow | null;
+  getOpenFilePickerDescription?: () => string;
 }
 
 const STREAM_FILE_EXTENSIONS = STREAM_EXTENSIONS.map((extension) => `.${extension}`);
@@ -21,11 +22,12 @@ const MODULE_FILE_EXTENSIONS = MODULE_EXTENSIONS.map((extension) => `.${extensio
 
 export const FILE_INPUT_ACCEPT = [...STREAM_FILE_EXTENSIONS, ...MODULE_FILE_EXTENSIONS].join(',');
 
-export const OPEN_FILE_PICKER_OPTIONS: OpenFilePickerOptions = {
+export function createOpenFilePickerOptions(description = 'Supported audio files'): OpenFilePickerOptions {
+  return {
   multiple: true,
   types: [
     {
-      description: 'Supported audio files',
+      description,
       accept: {
         'audio/mpeg': ['.mp3'],
         'audio/wav': ['.wav'],
@@ -36,7 +38,10 @@ export const OPEN_FILE_PICKER_OPTIONS: OpenFilePickerOptions = {
       }
     }
   ]
-};
+  };
+}
+
+export const OPEN_FILE_PICKER_OPTIONS = createOpenFilePickerOptions();
 
 function getDefaultWindow(): PickerWindow | null {
   return typeof window === 'undefined' ? null : (window as PickerWindow);
@@ -56,6 +61,8 @@ export function supportsDirectoryPicker(targetWindow = getDefaultWindow()): bool
 
 export function createImportController(options: ImportControllerOptions) {
   const getWindow = options.getWindow ?? getDefaultWindow;
+  const getOpenFilePickerDescription =
+    options.getOpenFilePickerDescription ?? (() => OPEN_FILE_PICKER_OPTIONS.types?.[0].description ?? '');
   let pendingFileInputTarget: WorkspaceCollection = 'playlist';
 
   return {
@@ -78,7 +85,9 @@ export function createImportController(options: ImportControllerOptions) {
       }
 
       try {
-        const handles = await pickerWindow.showOpenFilePicker?.(OPEN_FILE_PICKER_OPTIONS);
+        const handles = await pickerWindow.showOpenFilePicker?.(
+          createOpenFilePickerOptions(getOpenFilePickerDescription())
+        );
         const pickedFiles = handles ? await readFileHandleFiles(handles) : [];
         const files = await prepareImportedFiles(pickedFiles);
 

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from 'svelte-i18n';
   import SettingsField from '../SettingsField.svelte';
   import { MAX_FOLDER_NESTING_LIMIT, MIN_FOLDER_NESTING_LIMIT, normalizeFolderNestingLimit, trackSettings } from '$lib/stores/track-settings';
 
@@ -24,11 +25,11 @@
 
 <article class="view">
   <div class="section">
-    <h2>Adding Tracks</h2>
+    <h2>{$t('options.tracks.adding.heading', { default: 'Adding Tracks' })}</h2>
     <div class="field-grid">
       <SettingsField
-        title="Folder nesting limit"
-        hint="How many subfolder levels folder opens and folder drops traverse. Use 0 to read only files directly inside the selected folder."
+        title={$t('options.tracks.folderNesting.title', { default: 'Folder nesting limit' })}
+        hint={$t('options.tracks.folderNesting.hint', { default: 'How many subfolder levels folder opens and folder drops traverse. Use 0 to read only files directly inside the selected folder.' })}
       >
           <input
             type="number"
@@ -41,8 +42,8 @@
       </SettingsField>
 
       <SettingsField
-        title="Verify added files"
-        hint="Check unknown file extensions in a separate muted OpenMPT player before adding them. When disabled, izci adds any unknown file as a tracker module and lets normal playback report whether it works. Official OpenMPT extensions are accepted directly either way."
+        title={$t('options.tracks.verify.title', { default: 'Verify added files' })}
+        hint={$t('options.tracks.verify.hint', { default: 'Check unknown file extensions in a separate muted OpenMPT player before adding them. When disabled, izci adds any unknown file as a tracker module and lets normal playback report whether it works. Official OpenMPT extensions are accepted directly either way.' })}
         checkbox
       >
           <input
@@ -53,23 +54,23 @@
       </SettingsField>
 
       <SettingsField
-        title="Files opened with izci"
-        hint="Choose how files opened through operating-system file associations affect the current playlist."
+        title={$t('options.tracks.associatedFiles.title', { default: 'Files opened with izci' })}
+        hint={$t('options.tracks.associatedFiles.hint', { default: 'Choose how files opened through operating-system file associations affect the current playlist.' })}
       >
           <select value={$trackSettings.associatedFileAction} on:change={handleAssociatedFileActionChange}>
-            <option value="add">Add to playlist</option>
-            <option value="replace">Replace playlist</option>
+            <option value="add">{$t('options.tracks.associatedFiles.add', { default: 'Add to playlist' })}</option>
+            <option value="replace">{$t('options.tracks.associatedFiles.replace', { default: 'Replace playlist' })}</option>
           </select>
       </SettingsField>
     </div>
   </div>
 
   <div class="section">
-    <h2>Player Bar</h2>
+    <h2>{$t('options.tracks.playerBar.heading', { default: 'Player Bar' })}</h2>
     <div class="field-grid">
       <SettingsField
-        title="Show favorite toggle"
-        hint="Show a heart button after the transport controls for adding or removing the current track or module subsong from Favorites."
+        title={$t('options.tracks.favoriteToggle.title', { default: 'Show favorite toggle' })}
+        hint={$t('options.tracks.favoriteToggle.hint', { default: 'Show a heart button after the transport controls for adding or removing the current track or module subsong from Favorites.' })}
         checkbox
       >
         <input

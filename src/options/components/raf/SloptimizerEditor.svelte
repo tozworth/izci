@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from 'svelte-i18n';
   import {
     SLOPTIMIZER_CEILING_MAX_DB,
     SLOPTIMIZER_CEILING_MIN_DB,
@@ -59,12 +60,12 @@
   }
 
   function slopFlavor(value: number): string {
-    if (value == 0) return 'Off';
-    if (value <= 20) return 'Subtle';
-    if (value <= 50) return 'Ear candy';
-    if (value <= 80) return 'Sludge';
-    if (value <= 99) return 'Fuck me up';
-    return 'OTT mode';
+    if (value == 0) return $t('options.raf.sloptimizer.flavors.off', { default: 'Off' });
+    if (value <= 20) return $t('options.raf.sloptimizer.flavors.subtle', { default: 'Subtle' });
+    if (value <= 50) return $t('options.raf.sloptimizer.flavors.earCandy', { default: 'Ear candy' });
+    if (value <= 80) return $t('options.raf.sloptimizer.flavors.sludge', { default: 'Sludge' });
+    if (value <= 99) return $t('options.raf.sloptimizer.flavors.max', { default: 'Fuck me up' });
+    return $t('options.raf.sloptimizer.flavors.ott', { default: 'OTT mode' });
   }
 
   $: slopPulse = settings.slop > 0 && settings.enabled && $rafSettings.enabled
@@ -93,24 +94,24 @@
 
   {#if settings.advanced}
     <div class="advanced-grid">
-      <label><span>Low lift</span><input type="range" min={SLOPTIMIZER_LIFT_MIN_DB} max={SLOPTIMIZER_LIFT_MAX_DB} step="0.1" value={settings.lowLiftDb} on:input={(event) => updateAdvanced(event, 'lowLiftDb')} /><output>{formatDb(settings.lowLiftDb)}</output></label>
-      <label><span>Mid lift</span><input type="range" min={SLOPTIMIZER_LIFT_MIN_DB} max={SLOPTIMIZER_LIFT_MAX_DB} step="0.1" value={settings.midLiftDb} on:input={(event) => updateAdvanced(event, 'midLiftDb')} /><output>{formatDb(settings.midLiftDb)}</output></label>
-      <label><span>High lift</span><input type="range" min={SLOPTIMIZER_LIFT_MIN_DB} max={SLOPTIMIZER_LIFT_MAX_DB} step="0.1" value={settings.highLiftDb} on:input={(event) => updateAdvanced(event, 'highLiftDb')} /><output>{formatDb(settings.highLiftDb)}</output></label>
-      <label><span>Density</span><input type="range" min={SLOPTIMIZER_DENSITY_MIN} max={SLOPTIMIZER_DENSITY_MAX} step="1" value={settings.density} on:input={(event) => updateAdvanced(event, 'density')} /><output>{settings.density.toFixed(0)}%</output></label>
-      <label><span>Speed</span><input type="range" min={SLOPTIMIZER_SPEED_MIN} max={SLOPTIMIZER_SPEED_MAX} step="1" value={settings.speed} on:input={(event) => updateAdvanced(event, 'speed')} /><output>{settings.speed.toFixed(0)}%</output></label>
-      <label><span>Ceiling</span><input type="range" min={SLOPTIMIZER_CEILING_MIN_DB} max={SLOPTIMIZER_CEILING_MAX_DB} step="0.1" value={settings.ceilingDb} on:input={(event) => updateAdvanced(event, 'ceilingDb')} /><output>{formatDb(settings.ceilingDb)}</output></label>
+      <label><span>{$t('options.raf.sloptimizer.lowLift', { default: 'Low lift' })}</span><input type="range" min={SLOPTIMIZER_LIFT_MIN_DB} max={SLOPTIMIZER_LIFT_MAX_DB} step="0.1" value={settings.lowLiftDb} on:input={(event) => updateAdvanced(event, 'lowLiftDb')} /><output>{formatDb(settings.lowLiftDb)}</output></label>
+      <label><span>{$t('options.raf.sloptimizer.midLift', { default: 'Mid lift' })}</span><input type="range" min={SLOPTIMIZER_LIFT_MIN_DB} max={SLOPTIMIZER_LIFT_MAX_DB} step="0.1" value={settings.midLiftDb} on:input={(event) => updateAdvanced(event, 'midLiftDb')} /><output>{formatDb(settings.midLiftDb)}</output></label>
+      <label><span>{$t('options.raf.sloptimizer.highLift', { default: 'High lift' })}</span><input type="range" min={SLOPTIMIZER_LIFT_MIN_DB} max={SLOPTIMIZER_LIFT_MAX_DB} step="0.1" value={settings.highLiftDb} on:input={(event) => updateAdvanced(event, 'highLiftDb')} /><output>{formatDb(settings.highLiftDb)}</output></label>
+      <label><span>{$t('options.raf.sloptimizer.density', { default: 'Density' })}</span><input type="range" min={SLOPTIMIZER_DENSITY_MIN} max={SLOPTIMIZER_DENSITY_MAX} step="1" value={settings.density} on:input={(event) => updateAdvanced(event, 'density')} /><output>{settings.density.toFixed(0)}%</output></label>
+      <label><span>{$t('options.raf.sloptimizer.speed', { default: 'Speed' })}</span><input type="range" min={SLOPTIMIZER_SPEED_MIN} max={SLOPTIMIZER_SPEED_MAX} step="1" value={settings.speed} on:input={(event) => updateAdvanced(event, 'speed')} /><output>{settings.speed.toFixed(0)}%</output></label>
+      <label><span>{$t('options.raf.sloptimizer.ceiling', { default: 'Ceiling' })}</span><input type="range" min={SLOPTIMIZER_CEILING_MIN_DB} max={SLOPTIMIZER_CEILING_MAX_DB} step="0.1" value={settings.ceilingDb} on:input={(event) => updateAdvanced(event, 'ceilingDb')} /><output>{formatDb(settings.ceilingDb)}</output></label>
     </div>
     <div class="crossover-section">
-      <span class="section-label">Crossovers <span>(not Slop-mapped)</span></span>
+      <span class="section-label">{$t('options.raf.sloptimizer.crossovers', { default: 'Crossovers' })} <span>{$t('options.raf.sloptimizer.notMapped', { default: '(not Slop-mapped)' })}</span></span>
       <div class="crossover-grid">
-        <label><span>Low / mid</span><input type="range" min={SLOPTIMIZER_LOW_CROSSOVER_MIN_HZ} max={SLOPTIMIZER_LOW_CROSSOVER_MAX_HZ} step="5" value={settings.lowCrossoverHz} on:input={(event) => updateAdvanced(event, 'lowCrossoverHz')} aria-label="Low to mid crossover frequency" /><output>{formatFrequency(settings.lowCrossoverHz)}</output></label>
-        <label><span>Mid / high</span><input type="range" min={SLOPTIMIZER_HIGH_CROSSOVER_MIN_HZ} max={SLOPTIMIZER_HIGH_CROSSOVER_MAX_HZ} step="100" value={settings.highCrossoverHz} on:input={(event) => updateAdvanced(event, 'highCrossoverHz')} aria-label="Mid to high crossover frequency" /><output>{formatFrequency(settings.highCrossoverHz)}</output></label>
+        <label><span>{$t('options.raf.sloptimizer.lowMid', { default: 'Low / mid' })}</span><input type="range" min={SLOPTIMIZER_LOW_CROSSOVER_MIN_HZ} max={SLOPTIMIZER_LOW_CROSSOVER_MAX_HZ} step="5" value={settings.lowCrossoverHz} on:input={(event) => updateAdvanced(event, 'lowCrossoverHz')} aria-label={$t('options.raf.sloptimizer.lowMidFrequency', { default: 'Low to mid crossover frequency' })} /><output>{formatFrequency(settings.lowCrossoverHz)}</output></label>
+        <label><span>{$t('options.raf.sloptimizer.midHigh', { default: 'Mid / high' })}</span><input type="range" min={SLOPTIMIZER_HIGH_CROSSOVER_MIN_HZ} max={SLOPTIMIZER_HIGH_CROSSOVER_MAX_HZ} step="100" value={settings.highCrossoverHz} on:input={(event) => updateAdvanced(event, 'highCrossoverHz')} aria-label={$t('options.raf.sloptimizer.midHighFrequency', { default: 'Mid to high crossover frequency' })} /><output>{formatFrequency(settings.highCrossoverHz)}</output></label>
       </div>
     </div>
     <div class="advanced-footer">
-      <span>Stock crossovers: 180 Hz / 3 kHz</span>
-      <button on:click={resetMapping} disabled={!settings.customized} title="Restore the stock macro mapping at the current Slop value">
-        <span class="material-symbols-outlined" aria-hidden="true">restart_alt</span> Reset mapping
+      <span>{$t('options.raf.sloptimizer.stockCrossovers', { default: 'Stock crossovers: 180 Hz / 3 kHz' })}</span>
+      <button on:click={resetMapping} disabled={!settings.customized} title={$t('options.raf.sloptimizer.restoreMapping', { default: 'Restore the stock macro mapping at the current Slop value' })}>
+        <span class="material-symbols-outlined" aria-hidden="true">restart_alt</span> {$t('options.raf.sloptimizer.resetMapping', { default: 'Reset mapping' })}
       </button>
     </div>
   {/if}

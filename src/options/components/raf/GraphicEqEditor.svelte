@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from 'svelte-i18n';
   import { GRAPHIC_EQ_FREQUENCIES, RAF_GAIN_MAX_DB, RAF_GAIN_MIN_DB } from '$lib/services/raf-effects/graphic-eq';
   import { rafSettings } from '$lib/stores/raf-settings';
   import type { RafGraphicEqSettings } from '$lib/types';
@@ -25,16 +26,16 @@
   }
 </script>
 
-<div class="eq-bank" aria-label="Graphic equalizer controls">
+<div class="eq-bank" aria-label={$t('options.raf.graphicEq.controls', { default: 'Graphic equalizer controls' })}>
   <label class="eq-control preamp-control">
     <span class="eq-value">{settings.preampDb > 0 ? '+' : ''}{settings.preampDb.toFixed(1)} dB</span>
-    <input type="range" min={RAF_GAIN_MIN_DB} max={RAF_GAIN_MAX_DB} step="0.5" value={settings.preampDb} on:input={updatePreamp} aria-label="Preamp gain" />
-    <span class="eq-label">Pre</span>
+    <input type="range" min={RAF_GAIN_MIN_DB} max={RAF_GAIN_MAX_DB} step="0.5" value={settings.preampDb} on:input={updatePreamp} aria-label={$t('options.raf.graphicEq.preampGain', { default: 'Preamp gain' })} />
+    <span class="eq-label">{$t('options.raf.graphicEq.pre', { default: 'Pre' })}</span>
   </label>
   {#each GRAPHIC_EQ_FREQUENCIES as frequency, index}
     <label class="eq-control">
       <span class="eq-value">{settings.bandGainsDb[index] > 0 ? '+' : ''}{settings.bandGainsDb[index].toFixed(1)}</span>
-      <input type="range" min={RAF_GAIN_MIN_DB} max={RAF_GAIN_MAX_DB} step="0.5" value={settings.bandGainsDb[index]} on:input={(event) => updateBand(event, index)} aria-label={`${frequency} Hz gain`} />
+      <input type="range" min={RAF_GAIN_MIN_DB} max={RAF_GAIN_MAX_DB} step="0.5" value={settings.bandGainsDb[index]} on:input={(event) => updateBand(event, index)} aria-label={$t('options.raf.graphicEq.bandGain', { default: '{frequency} Hz gain', values: { frequency } })} />
       <span class="eq-label">{formatFrequency(frequency)}</span>
     </label>
   {/each}

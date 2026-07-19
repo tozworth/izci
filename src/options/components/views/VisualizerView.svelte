@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { t } from 'svelte-i18n';
   import {
     MAX_VISUALIZER_FRAME_RATE_LIMIT, MIN_VISUALIZER_FRAME_RATE_LIMIT,
     VISUALIZER_COLOR_SOURCE_OPTIONS, VISUALIZER_STYLE_OPTIONS, visualizerSettings
@@ -105,6 +106,50 @@
     return setting.preserveFraction ? value : Math.round(value);
   }
 
+  function descriptorTitle(setting: SelectDescriptor | RangeDescriptor): string {
+    switch (setting.key) {
+      case 'style': return $t('options.visualizer.style.title', { default: 'Style' });
+      case 'colorSource': return $t('options.visualizer.colorSource.title', { default: 'Color source' });
+      case 'height': return $t('options.visualizer.height.title', { default: 'Height' });
+      case 'transparency': return $t('options.visualizer.opacity.title', { default: 'Opacity' });
+      case 'frameRateLimit': return $t('options.visualizer.frameCap.title', { default: 'Frame cap' });
+      case 'normalizationStrength': return $t('options.visualizer.normalization.title', { default: 'Normalization' });
+      case 'triangleCount': return $t('options.visualizer.triangleCount.title', { default: 'Triangle count' });
+      case 'triangleMinSize': return $t('options.visualizer.triangleMinSize.title', { default: 'Minimum triangle size' });
+      case 'triangleMaxSize': return $t('options.visualizer.triangleMaxSize.title', { default: 'Maximum triangle size' });
+      case 'triangleBaseSpeed': return $t('options.visualizer.triangleBaseSpeed.title', { default: 'Base rise speed' });
+      case 'triangleReactiveSpeed': return $t('options.visualizer.triangleReactiveSpeed.title', { default: 'Reactive rise speed' });
+      default: return $t('options.visualizer.triangleBorderWidth.title', { default: 'Border thickness' });
+    }
+  }
+  function descriptorHint(setting: SelectDescriptor | RangeDescriptor): string {
+    switch (setting.key) {
+      case 'style': return $t('options.visualizer.style.hint', { default: 'Controls how the spectrum analyzer is drawn behind the full player bar.' });
+      case 'colorSource': return $t('options.visualizer.colorSource.hint', { default: 'Uses the current artwork palette when available, otherwise falls back to the active theme.' });
+      case 'height': return $t('options.visualizer.height.hint', { default: 'Sets how far the analyzer can rise through the player background.' });
+      case 'transparency': return $t('options.visualizer.opacity.hint', { default: 'Sets how strongly the analyzer appears behind text, controls, and artwork.' });
+      case 'frameRateLimit': return $t('options.visualizer.frameCap.hint', { default: 'Limits how often every visualizer style redraws, from battery-friendlier motion to high-refresh displays.' });
+      case 'normalizationStrength': return $t('options.visualizer.normalization.hint', { default: 'Balances low, mid, and high frequency bands so bass-heavy or bright tracks still use the full visual range.' });
+      case 'triangleCount': return $t('options.visualizer.triangleCount.hint', { default: 'Sets how many triangle shapes are kept active in the player background.' });
+      case 'triangleMinSize': return $t('options.visualizer.triangleMinSize.hint', { default: 'Sets the smallest triangle size as a percentage of the player bar height.' });
+      case 'triangleMaxSize': return $t('options.visualizer.triangleMaxSize.hint', { default: 'Sets the largest triangle size as a percentage of the player bar height.' });
+      case 'triangleBaseSpeed': return $t('options.visualizer.triangleBaseSpeed.hint', { default: 'Multiplies the baseline upward movement before rhythm response is applied.' });
+      case 'triangleReactiveSpeed': return $t('options.visualizer.triangleReactiveSpeed.hint', { default: 'Multiplies the extra upward speed added by amplitude and beat pulses.' });
+      default: return $t('options.visualizer.triangleBorderWidth.hint', { default: 'Sets a fixed outline width shared by every triangle, regardless of size.' });
+    }
+  }
+  function optionLabel(value: string): string {
+    switch (value) {
+      case 'bars': return $t('options.visualizer.options.bars', { default: 'Spectrum bars' });
+      case 'wave': return $t('options.visualizer.options.wave', { default: 'Uniform wave' });
+      case 'mirror': return $t('options.visualizer.options.mirror', { default: 'Mirror bloom' });
+      case 'blocks': return $t('options.visualizer.options.blocks', { default: 'Pixel blocks' });
+      case 'triangles': return $t('options.visualizer.options.triangles', { default: 'Rhythm triangles' });
+      case 'theme': return $t('options.visualizer.options.theme', { default: 'Follow theme' });
+      default: return $t('options.visualizer.options.artwork', { default: 'Follow artwork' });
+    }
+  }
+
   $: visibleRangeSettings = RANGE_SETTINGS.filter(({ visibility = 'always' }) =>
     visibility === 'always' || (visibility === 'triangles') === ($visualizerSettings.style === 'triangles')
   );
@@ -112,28 +157,28 @@
 
 <article class="view">
   <div class="section">
-    <h2>Player Background</h2>
+    <h2>{$t('options.visualizer.heading', { default: 'Player Background' })}</h2>
     <div class="field-grid">
       {#each SELECT_SETTINGS as setting (setting.key)}
         <label class="field">
           <div class="field-copy">
-            <span class="field-title">{setting.title}</span>
+            <span class="field-title">{descriptorTitle(setting)}</span>
           </div>
           <div class="field-control">
             <select value={$visualizerSettings[setting.key]} on:change={(event) => handleSelectChange(event, setting.key)}>
               {#each setting.options as option}
-                <option value={option.value}>{option.label}</option>
+                <option value={option.value}>{optionLabel(option.value)}</option>
               {/each}
             </select>
           </div>
-          <p class="field-hint">{setting.hint}</p>
+          <p class="field-hint">{descriptorHint(setting)}</p>
         </label>
       {/each}
 
       {#each visibleRangeSettings as setting (setting.key)}
         <label class="field">
           <div class="field-copy">
-            <span class="field-title">{setting.title}</span>
+            <span class="field-title">{descriptorTitle(setting)}</span>
           </div>
           <div class="field-control">
             <input
@@ -146,7 +191,7 @@
             />
             <span class="field-output">{setting.format($visualizerSettings[setting.key])}</span>
           </div>
-          <p class="field-hint">{setting.hint}</p>
+          <p class="field-hint">{descriptorHint(setting)}</p>
         </label>
       {/each}
     </div>

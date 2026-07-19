@@ -1,12 +1,13 @@
 <script lang="ts">
   import { createEventDispatcher, onMount, tick } from 'svelte';
+  import { t } from 'svelte-i18n';
   import {
     extractArtworkPalette,
     type PlayerArtworkColorSet,
     type PlayerArtworkPalette
   } from '$lib/services/artwork-palette';
   import type { LoadedStreamArtwork } from '$lib/services/stream-artwork';
-  import { sessionIdlePlayerQuip } from '$lib/services/idle-player-copy';
+  import { sessionIdlePlayerQuip, type IdlePlayerQuipId } from '$lib/services/idle-player-copy';
   import { portal } from '$lib/components/playlist-panel/actions/portal';
   import { windowDismiss } from '$lib/components/playlist-panel/actions/window-dismiss';
   import {
@@ -24,6 +25,32 @@
     PlaylistItem,
     RafPreset
   } from '$lib/types';
+
+  function localizeIdlePlayerQuip(quip: IdlePlayerQuipId): string {
+    switch (quip) {
+      case 'scout': return $t('main.player.quips.scout', { default: 'İzci means scout. Tracker was already taken.' });
+      case 'xmplayRam': return $t('main.player.quips.xmplayRam', { default: 'What if XMPlay used 9 GB of RAM?' });
+      case 'interpolation': return $t('main.player.quips.interpolation', { default: 'REAL modheads turn interpolation OFF' });
+      case 'lrcMsn': return $t('main.player.quips.lrcMsn', { default: 'Time-synced LRC display! (MSN integration coming soon.)' });
+      case 'fourChannels': return $t('main.player.quips.fourChannels', { default: 'Four channels ought to be enough for anybody.' });
+      case 'diskTwo': return $t('main.player.quips.diskTwo', { default: 'Please insert disk 2.' });
+      case 'playsThat': return $t('main.player.quips.playsThat', { default: 'Yes, it plays that too.' });
+      case 'opusEyes': return $t('main.player.quips.opusEyes', { default: "Your eyes can't smell past 160k Opus anyway." });
+      case 'velocidensity': return $t('main.player.quips.velocidensity', { default: 'Maximum rotational velocidensity achieved.' });
+      case 'santaFlac': return $t('main.player.quips.santaFlac', { default: 'Do you believe in Santa, the Tooth Fairy, or FLAC?' });
+      case 'stereoMind': return $t('main.player.quips.stereoMind', { default: 'Stereo separation is a state of mind.' });
+      case 'offlineAmiga': return $t('main.player.quips.offlineAmiga', { default: 'Works offline. So did your Amiga.' });
+      case 'youtubeRips': return $t('main.player.quips.youtubeRips', { default: 'Does not support YouTube MP3 rips.' });
+      case 'winampPlugins': return $t('main.player.quips.winampPlugins', { default: 'Does not support Winamp plugins.' });
+      case 'goldPlatedEars': return $t('main.player.quips.goldPlatedEars', { default: 'Lossless gold-plated ears sold separately.' });
+      case 'pronunciation': return $t('main.player.quips.pronunciation', { default: "It's pronounced eez-jee." });
+      case 'losslessSilence': return $t('main.player.quips.losslessSilence', { default: 'This silence is lossless.' });
+      case 'llama': return $t('main.player.quips.llama', { default: 'Whips the llama respectfully.' });
+      case 'patternZero': return $t('main.player.quips.patternZero', { default: 'Pattern 00, Row 00, Order 00.' });
+      case 'whatPwa': return $t('main.player.quips.whatPwa', { default: 'What even is a PWA?' });
+      case 'worksOnMachine': return $t('main.player.quips.worksOnMachine', { default: 'Works on my machine.' });
+    }
+  }
 
   export let snapshotStore: Readable<PlaybackSnapshot>;
   export let track: PlaylistItem | null = null;
@@ -397,7 +424,9 @@
   class:artwork-background-active={artworkBackgroundActive}
   class:artwork-background-bright={artworkBackgroundActive && artworkBackgroundBright}
   class:visualizer-backdrop-active={visualizerBackdropActive}
-  aria-label={presentation === 'now-playing' ? 'Now Playing controls' : undefined}
+  aria-label={presentation === 'now-playing'
+    ? $t('main.player.nowPlayingControls', { default: 'Now Playing controls' })
+    : undefined}
   data-artwork-zone={artworkBackgroundActive ? 'true' : null}
   data-visualizer-zone={visualizerBackdropActive ? 'true' : null}
   data-backdrop-zone-id={presentation === 'bar' ? 'player' : null}
@@ -407,7 +436,7 @@
     <button
       type="button"
       class="player-artwork-button"
-      aria-label="Show current track details"
+      aria-label={$t('main.player.showCurrentTrackDetails', { default: 'Show current track details' })}
       disabled={!displayTrack}
       on:click={handleShowTrack}
     >
@@ -429,7 +458,7 @@
           {/if}
         </button>
       {:else}
-        <strong>Welcome to izci!</strong>
+        <strong>{$t('main.player.welcome', { default: 'Welcome to izci!' })}</strong>
       {/if}
       {#if displayTrack}
         {#if getTrackDisplaySubtitle(displayTrack)}
@@ -446,9 +475,9 @@
           <span>
             {hasCollectionItems
               ? $appearanceSettings.showIdlePlayerQuips
-                ? sessionIdlePlayerQuip
-                : 'Ready'
-              : 'Drop files to begin'}
+                ? localizeIdlePlayerQuip(sessionIdlePlayerQuip)
+                : $t('main.player.ready', { default: 'Ready' })
+              : $t('main.player.dropFilesToBegin', { default: 'Drop files to begin' })}
           </span>
         {/if}
       {/if}
@@ -481,8 +510,12 @@
       <button
         type="button"
         class="transport-button transport-button-previous"
-        aria-label="Previous track"
-        title={displaySubsongCount > 1 ? 'Previous track · Right-click for previous subsong' : 'Previous track'}
+        aria-label={$t('main.player.previousTrack', { default: 'Previous track' })}
+        title={displaySubsongCount > 1
+          ? $t('main.player.previousTrackWithSubsongHint', {
+              default: 'Previous track · Right-click for previous subsong'
+            })
+          : $t('main.player.previousTrack', { default: 'Previous track' })}
         on:click={() => dispatch('previous')}
         on:contextmenu={(event) => handleSubsongStep(event, -1)}
         disabled={!track && !selectedTrack}
@@ -492,7 +525,9 @@
       <button
         type="button"
         class="transport-button transport-button-primary"
-        aria-label={snapshot.state === 'playing' ? 'Pause playback' : 'Play playback'}
+        aria-label={snapshot.state === 'playing'
+          ? $t('main.player.pausePlayback', { default: 'Pause playback' })
+          : $t('main.player.playPlayback', { default: 'Play playback' })}
         on:click={() => dispatch('toggle')}
         disabled={!track && !selectedTrack}
       >
@@ -503,8 +538,12 @@
       <button
         type="button"
         class="transport-button transport-button-next"
-        aria-label="Next track"
-        title={displaySubsongCount > 1 ? 'Next track · Right-click for next subsong' : 'Next track'}
+        aria-label={$t('main.player.nextTrack', { default: 'Next track' })}
+        title={displaySubsongCount > 1
+          ? $t('main.player.nextTrackWithSubsongHint', {
+              default: 'Next track · Right-click for next subsong'
+            })
+          : $t('main.player.nextTrack', { default: 'Next track' })}
         on:click={() => dispatch('next')}
         on:contextmenu={(event) => handleSubsongStep(event, 1)}
         disabled={!track && !selectedTrack}
@@ -516,9 +555,13 @@
           type="button"
           class="favorite-toggle"
           class:active={favorite}
-          aria-label={favorite ? 'Remove from favorites' : 'Add to favorites'}
+          aria-label={favorite
+            ? $t('main.player.removeFromFavorites', { default: 'Remove from favorites' })
+            : $t('main.player.addToFavorites', { default: 'Add to favorites' })}
           aria-pressed={favorite}
-          title={favorite ? 'Remove from favorites' : 'Add to favorites'}
+          title={favorite
+            ? $t('main.player.removeFromFavorites', { default: 'Remove from favorites' })
+            : $t('main.player.addToFavorites', { default: 'Add to favorites' })}
           disabled={!track}
           on:click={() => dispatch('toggleFavorite')}
         >
@@ -541,9 +584,17 @@
         type="button"
         class:active={rafEnabled}
         class="raf-toggle"
-        aria-label={rafEnabled ? 'Bypass Raf' : 'Power on Raf'}
+        aria-label={rafEnabled
+          ? $t('main.player.bypassRaf', { default: 'Bypass Raf' })
+          : $t('main.player.powerOnRaf', { default: 'Power on Raf' })}
         aria-pressed={rafEnabled}
-        title={`${rafEnabled ? 'Bypass Raf' : 'Power on Raf'} · Right-click for presets`}
+        title={rafEnabled
+          ? $t('main.player.bypassRafWithPresetHint', {
+              default: 'Bypass Raf · Right-click for presets'
+            })
+          : $t('main.player.powerOnRafWithPresetHint', {
+              default: 'Power on Raf · Right-click for presets'
+            })}
         on:click={() => dispatch('toggleRaf')}
         on:contextmenu|preventDefault|stopPropagation={openRafPresetMenu}
       >
@@ -554,7 +605,9 @@
       <button
         type="button"
         class="volume-label"
-        aria-label={snapshot.muted || snapshot.volume <= 0 ? 'Unmute' : 'Mute'}
+        aria-label={snapshot.muted || snapshot.volume <= 0
+          ? $t('main.player.unmute', { default: 'Unmute' })
+          : $t('main.player.mute', { default: 'Mute' })}
         aria-expanded={isCompactVolume ? isVolumePopupOpen : undefined}
         aria-pressed={snapshot.muted}
         on:click={() => dispatch('mute')}
@@ -564,7 +617,9 @@
         on:wheel|preventDefault={handleVolumeWheel}
       >
         <span class="material-symbols-outlined" aria-hidden="true">{getVolumeIcon(snapshot.volume, snapshot.muted)}</span>
-        <span class="sr-only">{snapshot.muted || snapshot.volume <= 0 ? 'Unmute' : 'Mute'}</span>
+        <span class="sr-only">{snapshot.muted || snapshot.volume <= 0
+          ? $t('main.player.unmute', { default: 'Unmute' })
+          : $t('main.player.mute', { default: 'Mute' })}</span>
       </button>
       <!-- svelte-ignore a11y_no_static_element_interactions -->
       <div class="volume-popup" on:mouseenter={openVolumePopup}>
@@ -572,7 +627,7 @@
           <div class="range-control volume-range" style={toRangeProgressStyle(snapshot.volume, 1)}>
             <span class="range-control-fill" aria-hidden="true"></span>
             <input
-              aria-label="Volume"
+              aria-label={$t('main.player.volume', { default: 'Volume' })}
               type="range"
               min="0"
               max="1"
@@ -598,7 +653,7 @@
     use:portal
     use:windowDismiss={{ enabled: true, onDismiss: closeRafPresetMenu }}
     role="menu"
-    aria-label="Raf presets"
+    aria-label={$t('main.player.rafPresets', { default: 'Raf presets' })}
     style={`left: ${rafPresetMenuX}px; top: ${rafPresetMenuY}px;`}
   >
     {#if rafPresets.length > 0}
@@ -611,13 +666,13 @@
     {:else}
       <button type="button" role="menuitem" disabled>
         <span class="material-symbols-outlined menu-item-icon" aria-hidden="true">tune</span>
-        <span class="menu-item-label">No Raf presets</span>
+        <span class="menu-item-label">{$t('main.player.noRafPresets', { default: 'No Raf presets' })}</span>
       </button>
     {/if}
     <div class="menu-separator" role="separator" aria-hidden="true"></div>
     <button role="menuitem" on:click={() => { closeRafPresetMenu(); dispatch('openRafOptions'); }}>
       <span class="material-symbols-outlined menu-item-icon" aria-hidden="true">tune</span>
-      <span class="menu-item-label">Open Raf</span>
+      <span class="menu-item-label">{$t('main.player.openRaf', { default: 'Open Raf' })}</span>
     </button>
   </div>
 {/if}

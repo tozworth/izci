@@ -1,0 +1,893 @@
+{
+  "main": {
+    "playbackErrors": {
+      "fileAccess": "Could not access this file. Re-add it or grant file access.",
+      "moduleDecode": "libopenmpt failed to decode this module.",
+      "modulePlayback": "Module playback failed.",
+      "generic": "Playback failed."
+    },
+    "import": {
+      "supportedAudioFiles": "Supported audio files"
+    },
+    "lyrics": {
+      "playTrack": "Play a track to view lyrics.",
+      "reading": "Reading embedded lyrics...",
+      "readError": "Lyrics could not be read from this file.",
+      "notFound": "No embedded lyrics found.",
+      "heading": "Lyrics",
+      "closePanel": "Close Lyrics",
+      "synced": "Synced lyrics",
+      "instrumentalBreak": "Instrumental break"
+    },
+    "common": {
+      "close": "Close"
+    },
+    "menu": {
+      "genericMenu": "Menu",
+      "back": "Back",
+      "openFiles": "Open files...",
+      "openFolder": "Open folder...",
+      "exit": "Exit",
+      "forceUpdate": "Force update",
+      "about": "About",
+      "installApp": "Install izci...",
+      "installDescription": "Install the PWA to get file associations, a compact title bar, better OS integration and automatic updates.",
+      "playlist": "Playlist",
+      "library": "Library",
+      "trackDetails": "Track Details",
+      "lyrics": "Lyrics",
+      "patterns": "Patterns",
+      "miniMode": "Mini mode",
+      "nowPlaying": "Now Playing",
+      "options": "Options...",
+      "file": "File",
+      "view": "View",
+      "help": "Help",
+      "applicationMenu": "Application menu",
+      "updateUpdated": "updated!",
+      "updateCurrent": "up to date",
+      "updateFailed": "update check failed"
+    },
+    "patterns": {
+      "modulePatterns": "Module patterns",
+      "channelCount": "{count, plural, one {# channel} other {# channels}}",
+      "playbackPosition": "Pattern playback position",
+      "orderAbbreviation": "ORD",
+      "patternAbbreviation": "PAT",
+      "rowAbbreviation": "ROW",
+      "patternLabel": "Pattern {position}",
+      "channelLabel": "Channel {number}",
+      "channelAbbreviation": "CH",
+      "cellDescription": "Channel {number}: {value}"
+    },
+    "player": {
+      "quips": {
+        "scout": "İzci means scout. Tracker was already taken.",
+        "xmplayRam": "What if XMPlay used 9 GB of RAM?",
+        "interpolation": "REAL modheads turn interpolation OFF",
+        "lrcMsn": "Time-synced LRC display! (MSN integration coming soon.)",
+        "fourChannels": "Four channels ought to be enough for anybody.",
+        "diskTwo": "Please insert disk 2.",
+        "playsThat": "Yes, it plays that too.",
+        "opusEyes": "Your eyes can't smell past 160k Opus anyway.",
+        "velocidensity": "Maximum rotational velocidensity achieved.",
+        "santaFlac": "Do you believe in Santa, the Tooth Fairy, or FLAC?",
+        "stereoMind": "Stereo separation is a state of mind.",
+        "offlineAmiga": "Works offline. So did your Amiga.",
+        "youtubeRips": "Does not support YouTube MP3 rips.",
+        "winampPlugins": "Does not support Winamp plugins.",
+        "goldPlatedEars": "Lossless gold-plated ears sold separately.",
+        "pronunciation": "It's pronounced eez-jee.",
+        "losslessSilence": "This silence is lossless.",
+        "llama": "Whips the llama respectfully.",
+        "patternZero": "Pattern 00, Row 00, Order 00.",
+        "whatPwa": "What even is a PWA?",
+        "worksOnMachine": "Works on my machine."
+      },
+      "nowPlayingControls": "Now Playing controls",
+      "showCurrentTrackDetails": "Show current track details",
+      "welcome": "Welcome to izci!",
+      "ready": "Ready",
+      "dropFilesToBegin": "Drop files to begin",
+      "previousTrack": "Previous track",
+      "previousTrackWithSubsongHint": "Previous track · Right-click for previous subsong",
+      "pausePlayback": "Pause playback",
+      "playPlayback": "Play playback",
+      "nextTrack": "Next track",
+      "nextTrackWithSubsongHint": "Next track · Right-click for next subsong",
+      "removeFromFavorites": "Remove from favorites",
+      "addToFavorites": "Add to favorites",
+      "bypassRaf": "Bypass Raf",
+      "powerOnRaf": "Power on Raf",
+      "bypassRafWithPresetHint": "Bypass Raf · Right-click for presets",
+      "powerOnRafWithPresetHint": "Power on Raf · Right-click for presets",
+      "unmute": "Unmute",
+      "mute": "Mute",
+      "volume": "Volume",
+      "rafPresets": "Raf presets",
+      "noRafPresets": "No Raf presets",
+      "openRaf": "Open Raf"
+    },
+    "trackDetails": {
+      "album": "Album",
+      "albumArtist": "Album Artist",
+      "composer": "Composer",
+      "discAndTrack": "Disc / Track",
+      "discNumber": "Disc Number",
+      "genre": "Genre",
+      "trackNumber": "Track Number",
+      "year": "Year",
+      "patternCount": "{count, plural, one {# pattern} other {# patterns}}",
+      "subsongPositionNamed": "Subsongs: {position} of {count} · {name}",
+      "subsongPosition": "Subsongs: {position} of {count}",
+      "subsongAvailable": "Subsongs: {count, plural, one {# available} other {# available}}",
+      "heading": "Track Details",
+      "closePanel": "Close Track Details",
+      "format": "Format",
+      "notes": "Notes",
+      "emptyTitle": "Select a track to inspect it.",
+      "emptyDescription": "Playlist and library selections both surface their metadata here."
+    }
+  },
+  "playlist": {
+    "library": {
+      "columns": {
+        "sortBy": "Sort by {column}",
+        "resize": "Resize {column} column",
+        "title": "Title",
+        "artist": "Artist",
+        "album": "Album",
+        "folder": "Folder",
+        "format": "Format",
+        "duration": "Duration",
+        "plays": "Plays"
+      },
+      "groupSongCount": "{count, plural, one {# song} other {# songs}}",
+      "views": {
+        "favorites": "Favorites",
+        "songs": "Songs",
+        "artists": "Artists",
+        "albums": "Albums",
+        "genres": "Genres",
+        "years": "Years",
+        "formats": "Formats",
+        "folders": "Folders",
+        "label": "Library views"
+      },
+      "search": "Search library",
+      "closeSearch": "Close library search",
+      "backToGroups": "Back to groups",
+      "back": "Back",
+      "filter": "Filter library",
+      "title": "Library",
+      "unknownArtist": "Unknown artist",
+      "unknownAlbum": "Unknown album",
+      "unknownGenre": "Unknown genre",
+      "unknownYear": "Unknown year",
+      "unknownFormat": "Unknown format",
+      "unknownFolder": "Unknown folder",
+      "trackerModule": "Tracker module",
+      "stream": "Stream",
+      "summary": {
+        "filteredArtists": "{visible} of {total} {total, plural, one {artist} other {artists}}",
+        "filteredAlbums": "{visible} of {total} {total, plural, one {album} other {albums}}",
+        "filteredGenres": "{visible} of {total} {total, plural, one {genre} other {genres}}",
+        "filteredYears": "{visible} of {total} {total, plural, one {year} other {years}}",
+        "filteredFormats": "{visible} of {total} {total, plural, one {format} other {formats}}",
+        "filteredFolders": "{visible} of {total} {total, plural, one {folder} other {folders}}",
+        "artists": "{count, plural, one {# artist} other {# artists}}",
+        "albums": "{count, plural, one {# album} other {# albums}}",
+        "genres": "{count, plural, one {# genre} other {# genres}}",
+        "years": "{count, plural, one {# year} other {# years}}",
+        "formats": "{count, plural, one {# format} other {# formats}}",
+        "folders": "{count, plural, one {# folder} other {# folders}}",
+        "groupsAndSongs": "{groups} · {songs, plural, one {# song} other {# songs}}"
+      },
+      "noResults": "No library results match \"{query}\".",
+      "favoritesEmpty": "Favorite tracks and subsongs will appear here.",
+      "empty": "Your library is empty. Add files or drop a folder here."
+    },
+    "addFiles": "Add files",
+    "searchPlaceholder": "Search",
+    "actions": {
+      "trackDetails": "Track details",
+      "removeFromLibrary": "Remove from library",
+      "addToLibrary": "Add to library",
+      "removeFromFavorites": "Remove from favorites",
+      "addToFavorites": "Add to favorites",
+      "separateSubsongs": "Separate subsongs",
+      "addToPlaylist": "Add to playlist",
+      "replacePlaylist": "Replace playlist",
+      "resetPlayCount": "Reset play count",
+      "remove": "Remove"
+    },
+    "shortcuts": {
+      "delete": "Delete"
+    },
+    "contextMenu": {
+      "itemActions": "{panel} item actions",
+      "columns": "{panel} columns"
+    },
+    "shuffle": {
+      "disable": "Disable shuffle",
+      "enable": "Enable shuffle",
+      "on": "Shuffle on",
+      "off": "Shuffle off"
+    },
+    "title": "Playlist",
+    "summary": {
+      "filteredTracks": "{visible} of {total} {total, plural, one {song} other {songs}} · {duration}",
+      "tracks": "{count, plural, one {# song} other {# songs}} · {duration}"
+    },
+    "repeat": {
+      "currentTrack": "Repeat current track",
+      "playlist": "Repeat playlist",
+      "off": "Repeat off"
+    },
+    "listRegion": "{name} list"
+  },
+  "workspace": {
+    "nowPlaying": {
+      "exit": "Exit Now Playing",
+      "title": "Now Playing",
+      "panels": "Now Playing panels"
+    },
+    "panels": {
+      "label": "Workspace panels",
+      "left": "Left panel",
+      "center": "Center panel",
+      "right": "Right panel"
+    },
+    "empty": "Workspace is empty",
+    "panelTabs": "{panel} tabs",
+    "panelEmpty": "{panel} is empty",
+    "resizePanels": "Resize {before} and {after}",
+    "dropOnPanel": "Drop on {panel}",
+    "tabs": {
+      "playlist": "Playlist",
+      "library": "Library",
+      "details": "Details",
+      "lyrics": "Lyrics",
+      "patterns": "Patterns",
+      "label": "Workspace tabs",
+      "closeNamed": "Close {tab}",
+      "close": "Close"
+    }
+  },
+  "pwa": {
+    "description": "Offline-first PWA music player with tracker module support."
+  },
+  "options": {
+    "raf": {
+      "crystalizer": {
+        "controls": "Multiband crystalizer controls",
+        "unmuteBand": "Unmute {frequency} Hz band",
+        "muteBand": "Mute {frequency} Hz band",
+        "processBand": "Process {frequency} Hz band",
+        "bypassBand": "Bypass {frequency} Hz band",
+        "bandIntensity": "{frequency} Hz crystalizer intensity"
+      },
+      "graphicEq": {
+        "controls": "Graphic equalizer controls",
+        "preampGain": "Preamp gain",
+        "pre": "Pre",
+        "bandGain": "{frequency} Hz gain"
+      },
+      "effects": {
+        "renamePrompt": "Rename effect (leave blank to use its original name):",
+        "label": "Raf effects",
+        "heading": "Effects",
+        "listActions": "Effect list actions",
+        "add": "Add effect",
+        "removeSelected": "Remove selected effect",
+        "dragToReorder": "Drag {effect} to reorder",
+        "sloptimizerMode": "Sloptimizer editor mode",
+        "simple": "Simple",
+        "advanced": "Advanced",
+        "bypass": "Bypass effect",
+        "powerOn": "Power on effect",
+        "reset": "Reset effect",
+        "empty": "Add an effect to start building the rack",
+        "actions": "Effect actions",
+        "rename": "Rename effect",
+        "clone": "Clone effect",
+        "delete": "Delete effect"
+      },
+      "effectTypes": {
+        "graphicEq": "Graphic EQ",
+        "stereoWidth": "Stereo Width",
+        "crystalizer": "Crystalizer",
+        "sloptimizer": "Sloptimizer",
+        "reverb": "Reverb"
+      },
+      "transfer": {
+        "failed": "Raf settings transfer failed.",
+        "errors": {
+          "invalidJson": "The selected content is not valid JSON.",
+          "invalidRack": "The JSON does not contain valid Raf rack settings.",
+          "invalidEffect": "The Raf rack contains an unsupported or malformed effect.",
+          "clipboardUnavailable": "Clipboard access is unavailable."
+        },
+        "imported": "Rack imported",
+        "label": "Import or export rack settings",
+        "importClipboard": "Import from clipboard",
+        "importJson": "Import JSON",
+        "copyHint": "Copy rack settings to the clipboard",
+        "copied": "Rack copied",
+        "exportClipboard": "Export to clipboard",
+        "exported": "Rack exported",
+        "exportJson": "Export JSON"
+      },
+      "presets": {
+        "namePrompt": "Name this Raf preset:",
+        "renamePrompt": "Rename Raf preset:",
+        "choose": "Choose a Raf preset",
+        "label": "Presets",
+        "new": "New preset",
+        "apply": "Apply {preset}",
+        "rename": "Rename {preset}",
+        "delete": "Delete {preset}",
+        "save": "Save changes to preset"
+      },
+      "controls": "Raf controls",
+      "bypass": "Bypass Raf",
+      "powerOn": "Power on Raf",
+      "meter": {
+        "levels": "Raf input and output peak levels",
+        "inputPeak": "Raf input peak",
+        "inputAbbreviation": "IN",
+        "outputPeak": "Raf output peak",
+        "outputAbbreviation": "OUT",
+        "clipping": "Help me, I'm clipping!",
+        "noClipping": "No clipping detected"
+      },
+      "reverb": {
+        "mix": "Mix",
+        "room": "Room",
+        "decay": "Decay",
+        "preDelay": "Pre-delay",
+        "damping": "Damping"
+      },
+      "sloptimizer": {
+        "flavors": {
+          "off": "Off",
+          "subtle": "Subtle",
+          "earCandy": "Ear candy",
+          "sludge": "Sludge",
+          "max": "Fuck me up",
+          "ott": "OTT mode"
+        },
+        "lowLift": "Low lift",
+        "midLift": "Mid lift",
+        "highLift": "High lift",
+        "density": "Density",
+        "speed": "Speed",
+        "ceiling": "Ceiling",
+        "crossovers": "Crossovers",
+        "notMapped": "(not Slop-mapped)",
+        "lowMid": "Low / mid",
+        "lowMidFrequency": "Low to mid crossover frequency",
+        "midHigh": "Mid / high",
+        "midHighFrequency": "Mid to high crossover frequency",
+        "stockCrossovers": "Stock crossovers: 180 Hz / 3 kHz",
+        "restoreMapping": "Restore the stock macro mapping at the current Slop value",
+        "resetMapping": "Reset mapping"
+      },
+      "stereoWidth": {
+        "narrower": "Narrower",
+        "label": "Stereo width",
+        "wider": "Wider"
+      }
+    },
+    "about": {
+      "updates": {
+        "checking": "Checking for updates",
+        "available": "Update available",
+        "upToDate": "Up to date",
+        "failed": "Failed to check updates",
+        "noSuccessfulChecks": "No successful checks yet",
+        "lastChecked": "Last checked {date}",
+        "apply": "Click to update and restart",
+        "checkAgain": "Check for updates again"
+      },
+      "logoAlt": "izci logo",
+      "kicker": "GOLDILOCKED / SLOPTIMIZED / WCO'D",
+      "tagline": "PWA music player",
+      "openOnGitHub": "Open dunsparce9/izci on GitHub",
+      "features": {
+        "formats": "Plays usual streamed formats and tracker modules",
+        "formatsNote": "It plays tracker modules!!!",
+        "library": "A decent library with artwork, lyrics, and play counts",
+        "workspace": "Dockable tabbed workspace, a big moody Now Playing view, and a mini mode",
+        "pwa": "PWA niceties: file associations, media keys, custom window border",
+        "pwaNote": "Only if your browser respects them (works on my machine)",
+        "backdrops": "Per-zone artwork and visualizer backdrops",
+        "raf": "Raf: a tiny effects rack",
+        "name": "“izci” means “tracker” in Turkish*",
+        "nameNote": "*Umm actually it’s closer to “scout”. But it was cute and the name stuck"
+      },
+      "credits": "izci uses Howler.js, Chiptune3 (based on libopenmpt), and Google Material Symbols.",
+      "seeFull": "See full",
+      "thirdPartyLicenses": "third-party licenses"
+    },
+    "appearance": {
+      "themes": {
+        "gray": "Gray (default)",
+        "coal": "Coal",
+        "lightsOut": "Lights Out",
+        "nordic": "Nordic",
+        "gruvbox": "Gruvbox",
+        "dracula": "Dracula",
+        "ember": "Ember",
+        "chameleon": "Chameleon"
+      },
+      "contextualTabs": {
+        "options": {
+          "manual": "Manual",
+          "open": "Open when available",
+          "openClose": "Open and close automatically"
+        },
+        "heading": "Contextual Tabs",
+        "lyrics": {
+          "title": "Lyrics",
+          "hint": "Controls whether the Lyrics tab follows embedded lyrics availability for the playing track."
+        },
+        "patterns": {
+          "title": "Patterns",
+          "hint": "Controls whether the Patterns tab follows module pattern availability for the playing track."
+        }
+      },
+      "interface": {
+        "keepColumns": {
+          "title": "Keep columns visible in narrow library panels",
+          "hint": "Prevents the slim-window library view from collapsing to title-only rows."
+        },
+        "libraryArtwork": {
+          "title": "Show album artwork backdrop in Library",
+          "hint": "Shows a blurred album cover behind its songs after you open an album."
+        },
+        "compactPlayerBar": {
+          "title": "Compact player bar",
+          "hint": "Fits track information, compact transport controls, seek, and popup volume into one small row."
+        },
+        "keepPanels": {
+          "title": "Keep empty workspace panels open",
+          "hint": "Leaves a dock panel in place after its last tab closes instead of letting neighboring panels fill the space."
+        },
+        "idleQuips": {
+          "title": "Show idle player quips",
+          "hint": "Shows a randomly chosen quip in the idle player bar when the playlist or library has music."
+        },
+        "windowTitle": {
+          "title": "Show track title in window title",
+          "hint": "Shows the current track title in the main app window title. Turn it off to always show only \"izci\"."
+        },
+        "heading": "Interface"
+      },
+      "language": {
+        "section": "Language",
+        "title": "Interface language",
+        "hint": "Changes the language in izci and its Options window."
+      },
+      "theme": {
+        "heading": "Window Theme",
+        "title": "Color theme",
+        "hint": "Sets the global color theme."
+      },
+      "chameleonColor": {
+        "title": "Chameleon color",
+        "hint": "Fine-tunes Chameleon's hue. This choice is remembered when you use another theme.",
+        "hueLabel": "Chameleon color hue"
+      },
+      "degrees": "{value} degrees",
+      "chameleonSaturation": {
+        "title": "Chameleon saturation",
+        "hint": "Controls color intensity without changing the theme's contrast or brightness.",
+        "label": "Chameleon color saturation"
+      },
+      "percent": "{value} percent",
+      "artworkPlayerColors": {
+        "title": "Use artwork colors for player",
+        "hint": "Tints the player bar from the current artwork, with the selected theme as fallback."
+      },
+      "font": {
+        "title": "Font",
+        "system": "System",
+        "loading": "Loading local fonts…",
+        "useLocal": "Use local fonts…",
+        "noFonts": "No local fonts were returned.",
+        "permissionDenied": "Local font permission was not granted.",
+        "loadFailed": "Local fonts could not be loaded.",
+        "hint": "Applies the system interface font or a permitted local font across the app.",
+        "unsupported": "Local Font Access is not supported by this browser."
+      }
+    },
+    "backdrops": {
+      "zones": {
+        "left": "Left",
+        "center": "Center",
+        "right": "Right",
+        "player": "Player Bar",
+        "nowPlaying": "Now Playing"
+      },
+      "effects": {
+        "none": "None",
+        "artwork": "Artwork",
+        "visualizer": "Visualizer",
+        "both": "Both"
+      },
+      "heading": "Backdrop Zones",
+      "artworkBlur": {
+        "title": "Artwork blur strength"
+      },
+      "artworkBrightness": {
+        "title": "Artwork brightness"
+      }
+    },
+    "folders": {
+      "scan": {
+        "scanning": "Scanning…",
+        "notLibraryFolder": "Folder is no longer registered as a library folder.",
+        "cancelled": "Folder scanning was cancelled because it is no longer a library folder.",
+        "failed": "Scan failed",
+        "notScanned": "Not scanned"
+      },
+      "permission": {
+        "required": "Permission required",
+        "available": "Available",
+        "denied": "Access denied",
+        "unavailable": "Unavailable"
+      },
+      "library": {
+        "scanOnLaunch": "Scan on launch",
+        "inLibrary": "In library",
+        "notInLibrary": "Not in library"
+      },
+      "heading": "Folders",
+      "description": "Every folder izci has remembered, including folders used for library scans.",
+      "actions": {
+        "checkAllAccess": "Check all folder access",
+        "add": "Add folder",
+        "forFolder": "Actions for {folder}",
+        "addToLibrary": "Add to library",
+        "disableScanOnLaunch": "Disable scan on launch",
+        "scanOnLaunch": "Scan on launch",
+        "scanNow": "Scan now",
+        "removeFromLibrary": "Remove from library",
+        "checkAccess": "Check access",
+        "forget": "Forget folder"
+      },
+      "table": {
+        "label": "Known folders",
+        "folder": "Folder",
+        "access": "Access",
+        "library": "Library",
+        "lastScan": "Last scan",
+        "tracks": "Tracks",
+        "actions": "Actions"
+      },
+      "empty": "No known folders. Add or drop one here.",
+      "retentionHint": "Forgetting a folder or removing it from the library keeps tracks already imported from it.",
+      "dropToAdd": "Drop folders to add"
+    },
+    "licenses": {
+      "documentLabel": "izci license and third-party notices"
+    },
+    "lyrics": {
+      "styles": {
+        "plain": "Plain text",
+        "timestamped": "Timestamped rows",
+        "theater": "Theater"
+      },
+      "heading": "Lyrics",
+      "displayStyle": {
+        "title": "Display style",
+        "hint": "Chooses how embedded synced lyrics render in the Lyrics panel."
+      },
+      "fontSize": {
+        "title": "Font size",
+        "hint": "Saves a separate size for Plain text, Timestamped rows, and Theater."
+      },
+      "autoScroll": {
+        "title": "Auto scroll to current line",
+        "hint": "Keeps the highlighted lyric row in view while playback advances."
+      },
+      "downtimeDots": {
+        "title": "Downtime dots",
+        "hint": "Shows a three-dot break marker during long gaps between synced lines."
+      },
+      "downtimeAfter": {
+        "title": "Downtime after",
+        "hint": "Sets how long a synced lyric gap must last before Theater shows the break marker."
+      },
+      "smoothTheaterScroll": {
+        "title": "Smooth Theater scroll",
+        "hint": "Animates Theater line changes instead of snapping directly to the active line."
+      }
+    },
+    "metadata": {
+      "heading": "Metadata Behavior",
+      "inferFromFilename": {
+        "title": "Infer artist/title from filename",
+        "hintBeforeExample": "When enabled, izci parses filenames like",
+        "hintAfterExample": "into metadata fields."
+      },
+      "playCountThreshold": {
+        "title": "Count track as played after (seconds)",
+        "hint": "Only tracks that are in the library update their play count."
+      }
+    },
+    "modules": {
+      "interpolation": {
+        "options": {
+          "oneTap": "1-tap (minimal)",
+          "twoTap": "2-tap (soft)",
+          "fourTap": "4-tap (medium)",
+          "eightTap": "8-tap (high)"
+        },
+        "hints": {
+          "oneTap": "Minimal smoothing (sharper, more artifacts)",
+          "twoTap": "Soft smoothing.",
+          "fourTap": "Medium smoothing.",
+          "eightTap": "High smoothing (blurry, less artifacts)"
+        },
+        "title": "Interpolation"
+      },
+      "rendering": {
+        "heading": "Rendering"
+      },
+      "stereoSeparation": {
+        "title": "Stereo separation (MOD)",
+        "hintBeforeFormat": "Applies to",
+        "hintAfterFormat": "files. 0 = mono, 200 = hard stereo."
+      },
+      "panStrength": {
+        "title": "Pan strength",
+        "hint": "Below 100 narrows the image, above 100 widens it."
+      },
+      "playback": {
+        "heading": "Playback"
+      },
+      "looping": {
+        "title": "Looping",
+        "hint": "Maps to libopenmpt repeat count.",
+        "once": "Play once",
+        "forever": "Loop forever"
+      },
+      "tempoFactor": {
+        "title": "Tempo factor",
+        "hint": "Changes module playback speed without changing pitch."
+      },
+      "pitchFactor": {
+        "title": "Pitch factor",
+        "hint": "Adjusts playback pitch relative to the module's original tuning."
+      }
+    },
+    "nowPlaying": {
+      "neverHide": "Never hide",
+      "heading": "Now Playing",
+      "openWhenMaximized": {
+        "title": "Open when maximized",
+        "hint": "Switches the main window to Now Playing while it is maximized or fullscreen."
+      },
+      "hideSideChrome": {
+        "title": "Hide side chrome after",
+        "hint": "Fades the side tabs, pane fill, and close button after mouse inactivity."
+      },
+      "artworkColors": {
+        "title": "Always use artwork colors",
+        "hint": "Forces the focused player controls to use artwork colors. When off, Now Playing follows the main player setting."
+      },
+      "autoTheater": {
+        "title": "Auto switch to Theater",
+        "hint": "Uses the large focused lyrics layout while Now Playing is active."
+      },
+      "autoFocusLyrics": {
+        "title": "Auto focus Lyrics tab",
+        "hint": "Opens Now Playing directly to the lyrics view."
+      }
+    },
+    "patterns": {
+      "textSize": {
+        "title": "Pattern text size",
+        "hint": "Scales tracker cells independently from the app interface font."
+      },
+      "rowHeight": {
+        "title": "Row height",
+        "hint": "Controls how densely pattern rows pass through the playhead."
+      },
+      "channelWidth": {
+        "title": "Channel width",
+        "hint": "Sets the horizontal room reserved for each formatted tracker channel."
+      },
+      "follow": {
+        "title": "Follow the playhead",
+        "hint": "Keeps the active row centered while a module plays."
+      },
+      "smoothScroll": {
+        "title": "Smooth playhead scrolling",
+        "hint": "Animates row centering instead of stepping directly to the current row."
+      },
+      "channelNames": {
+        "title": "Show channel names",
+        "hint": "Adds module-provided names beside channel numbers when they are available."
+      },
+      "highlightBeats": {
+        "title": "Highlight beat rows",
+        "hint": "Adds a subtle guide every four rows behind the moving playhead."
+      },
+      "heading": "Pattern Viewer",
+      "preview": {
+        "label": "Pattern viewer preview",
+        "row": "ROW",
+        "channelAbbreviation": "CH",
+        "lead": "Lead",
+        "chord": "Chord",
+        "bass": "Bass"
+      },
+      "rowNumbers": {
+        "title": "Row numbers",
+        "hint": "Uses familiar hexadecimal tracker numbering or ordinary decimal values.",
+        "hex": "Hexadecimal (0A)",
+        "decimal": "Decimal (10)"
+      },
+      "colors": {
+        "title": "Pattern colors",
+        "hint": "Colors notes, instruments, volume commands, and effects for easier scanning.",
+        "conventional": "Conventional tracker colors",
+        "theme": "Theme colors",
+        "monochrome": "Monochrome"
+      }
+    },
+    "playback": {
+      "restore": {
+        "options": {
+          "disabled": "Disabled",
+          "position": "Position only",
+          "positionAndState": "Position and state"
+        },
+        "title": "Restore playback",
+        "hint": "Restores the current track and position after a reload. Position and state also resumes playback when Chromium allows it."
+      },
+      "replayGain": {
+        "options": {
+          "track": "Track",
+          "album": "Album",
+          "off": "Off"
+        },
+        "title": "ReplayGain",
+        "hint": "Applies streamed-file ReplayGain tags, preferring track or album gain when both are available."
+      },
+      "startup": {
+        "heading": "Startup"
+      },
+      "volume": {
+        "heading": "Volume"
+      },
+      "logarithmicVolume": {
+        "title": "Logarithmic volume",
+        "hint": "Shapes the volume slider for gentler low-end changes."
+      },
+      "effects": {
+        "heading": "Effects"
+      },
+      "enableRaf": {
+        "title": "Enable Raf",
+        "hint": "Enables the built-in audio effects rack and shows Raf under Playback."
+      },
+      "showRafToggle": {
+        "title": "Show Raf toggle in player bar",
+        "hint": "Shows the rack bypass control beside volume while Raf is enabled. Right-clicking it opens Raf options."
+      }
+    },
+    "tracks": {
+      "adding": {
+        "heading": "Adding Tracks"
+      },
+      "folderNesting": {
+        "title": "Folder nesting limit",
+        "hint": "How many subfolder levels folder opens and folder drops traverse. Use 0 to read only files directly inside the selected folder."
+      },
+      "verify": {
+        "title": "Verify added files",
+        "hint": "Check unknown file extensions in a separate muted OpenMPT player before adding them. When disabled, izci adds any unknown file as a tracker module and lets normal playback report whether it works. Official OpenMPT extensions are accepted directly either way."
+      },
+      "associatedFiles": {
+        "title": "Files opened with izci",
+        "hint": "Choose how files opened through operating-system file associations affect the current playlist.",
+        "add": "Add to playlist",
+        "replace": "Replace playlist"
+      },
+      "playerBar": {
+        "heading": "Player Bar"
+      },
+      "favoriteToggle": {
+        "title": "Show favorite toggle",
+        "hint": "Show a heart button after the transport controls for adding or removing the current track or module subsong from Favorites."
+      }
+    },
+    "visualizer": {
+      "style": {
+        "title": "Style",
+        "hint": "Controls how the spectrum analyzer is drawn behind the full player bar."
+      },
+      "colorSource": {
+        "title": "Color source",
+        "hint": "Uses the current artwork palette when available, otherwise falls back to the active theme."
+      },
+      "height": {
+        "title": "Height",
+        "hint": "Sets how far the analyzer can rise through the player background."
+      },
+      "opacity": {
+        "title": "Opacity",
+        "hint": "Sets how strongly the analyzer appears behind text, controls, and artwork."
+      },
+      "frameCap": {
+        "title": "Frame cap",
+        "hint": "Limits how often every visualizer style redraws, from battery-friendlier motion to high-refresh displays."
+      },
+      "normalization": {
+        "title": "Normalization",
+        "hint": "Balances low, mid, and high frequency bands so bass-heavy or bright tracks still use the full visual range."
+      },
+      "triangleCount": {
+        "title": "Triangle count",
+        "hint": "Sets how many triangle shapes are kept active in the player background."
+      },
+      "triangleMinSize": {
+        "title": "Minimum triangle size",
+        "hint": "Sets the smallest triangle size as a percentage of the player bar height."
+      },
+      "triangleMaxSize": {
+        "title": "Maximum triangle size",
+        "hint": "Sets the largest triangle size as a percentage of the player bar height."
+      },
+      "triangleBaseSpeed": {
+        "title": "Base rise speed",
+        "hint": "Multiplies the baseline upward movement before rhythm response is applied."
+      },
+      "triangleReactiveSpeed": {
+        "title": "Reactive rise speed",
+        "hint": "Multiplies the extra upward speed added by amplitude and beat pulses."
+      },
+      "triangleBorderWidth": {
+        "title": "Border thickness",
+        "hint": "Sets a fixed outline width shared by every triangle, regardless of size."
+      },
+      "options": {
+        "bars": "Spectrum bars",
+        "wave": "Uniform wave",
+        "mirror": "Mirror bloom",
+        "blocks": "Pixel blocks",
+        "triangles": "Rhythm triangles",
+        "theme": "Follow theme",
+        "artwork": "Follow artwork"
+      },
+      "heading": "Player Background"
+    },
+    "views": {
+      "appearance": "Appearance",
+      "backdrops": "Backdrops",
+      "nowPlaying": "Now Playing",
+      "lyrics": "Lyrics",
+      "playback": "Playback",
+      "visualizer": "Visualizer",
+      "patterns": "Patterns",
+      "modules": "Modules",
+      "tracks": "Tracks",
+      "folders": "Folders",
+      "metadata": "Metadata",
+      "about": "About",
+      "licenses": "Licenses"
+    },
+    "tools": {
+      "collapseHints": "Collapse field hints",
+      "expandHints": "Expand field hints",
+      "label": "Page tools",
+      "resetPage": "Reset current page to defaults"
+    },
+    "windowTitle": "izci Options",
+    "categories": "Options categories"
+  }
+}

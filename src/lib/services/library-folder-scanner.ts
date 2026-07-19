@@ -2,7 +2,8 @@ import { prepareImportedFiles } from '$lib/services/file-verification';
 import {
   filesystemFolders,
   queryFilesystemFolderPermission,
-  type FilesystemFolder
+  type FilesystemFolder,
+  type LibraryFolderScanFailure
 } from '$lib/services/filesystem-folders';
 import { libraryStore } from '$lib/stores/playlist';
 import { trackSettings } from '$lib/stores/track-settings';
@@ -15,7 +16,7 @@ export interface LibraryFolderScanResult {
   addedCount: number;
   updatedCount: number;
   removedCount: number;
-  message?: string;
+  failure?: LibraryFolderScanFailure;
 }
 
 const activeScans = new Map<string, Promise<LibraryFolderScanResult>>();
@@ -45,7 +46,7 @@ async function performScan(folderId: string): Promise<LibraryFolderScanResult> {
       addedCount: 0,
       updatedCount: 0,
       removedCount: 0,
-      message: 'Folder is no longer registered as a library folder.'
+      failure: 'not-library-folder'
     };
   }
 
@@ -53,7 +54,7 @@ async function performScan(folderId: string): Promise<LibraryFolderScanResult> {
   if (permission !== 'granted') {
     await filesystemFolders.updateScan(folderId, {
       lastScanStatus: 'permission-required',
-      lastScanMessage: 'Check folder access in Tracks > Folders before scanning.'
+      lastScanFailure: 'permission-required'
     });
     return {
       folderId,
@@ -62,13 +63,13 @@ async function performScan(folderId: string): Promise<LibraryFolderScanResult> {
       addedCount: 0,
       updatedCount: 0,
       removedCount: 0,
-      message: 'Folder access is required.'
+      failure: 'permission-required'
     };
   }
 
   await filesystemFolders.updateScan(folderId, {
     lastScanStatus: 'scanning',
-    lastScanMessage: undefined
+    lastScanFailure: undefined
   });
 
   try {
@@ -90,7 +91,7 @@ async function performScan(folderId: string): Promise<LibraryFolderScanResult> {
         addedCount: 0,
         updatedCount: 0,
         removedCount: 0,
-        message: 'Folder scanning was cancelled because it is no longer a library folder.'
+        failure: 'cancelled'
       };
     }
     const reconciliation = libraryStore.reconcileFolder(
@@ -104,7 +105,7 @@ async function performScan(folderId: string): Promise<LibraryFolderScanResult> {
       lastScanAt: now,
       lastScanStatus: 'success',
       lastScanTrackCount: scannedItems.length,
-      lastScanMessage: undefined
+      lastScanFailure: undefined
     });
 
     return {
@@ -116,11 +117,11 @@ async function performScan(folderId: string): Promise<LibraryFolderScanResult> {
       removedCount: reconciliation.removedItems.length
     };
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'The folder could not be scanned.';
+    console.warn('Library folder scan failed.', error);
     await filesystemFolders.updateScan(folderId, {
       lastScanAt: Date.now(),
       lastScanStatus: 'error',
-      lastScanMessage: message
+      lastScanFailure: 'scan-failed'
     });
     return {
       folderId,
@@ -129,7 +130,7 @@ async function performScan(folderId: string): Promise<LibraryFolderScanResult> {
       addedCount: 0,
       updatedCount: 0,
       removedCount: 0,
-      message
+      failure: 'scan-failed'
     };
   }
 }

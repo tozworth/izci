@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
+  import { t } from 'svelte-i18n';
   import PlayerControls from '$lib/components/PlayerControls.svelte';
   import SharedBackdropArtwork from '$lib/components/SharedBackdropArtwork.svelte';
   import SharedBackdropVisualizer from '$lib/components/SharedBackdropVisualizer.svelte';
@@ -310,9 +311,28 @@
   );
   const unsubscribeAppInstall = appInstallService.subscribe((value) => (appInstallState = value));
 
+  function localizePlaybackError(message: string): string {
+    if (message === 'Could not access this file. Re-add it or grant file access.') {
+      return $t('main.playbackErrors.fileAccess', {
+        default: 'Could not access this file. Re-add it or grant file access.'
+      });
+    }
+    if (message === 'libopenmpt failed to decode this module.') {
+      return $t('main.playbackErrors.moduleDecode', {
+        default: 'libopenmpt failed to decode this module.'
+      });
+    }
+    if (message === 'Module playback failed.') {
+      return $t('main.playbackErrors.modulePlayback', { default: 'Module playback failed.' });
+    }
+    return $t('main.playbackErrors.generic', { default: 'Playback failed.' });
+  }
+
   const importController = createImportController({
     addFiles: (files, target) => workspaceCollections.handleAddFiles(files, target),
-    clickFileInput: () => fileInput?.click()
+    clickFileInput: () => fileInput?.click(),
+    getOpenFilePickerDescription: () =>
+      $t('main.import.supportedAudioFiles', { default: 'Supported audio files' })
   });
   const appShortcuts = createAppShortcuts({
     getState: () => ({
@@ -880,7 +900,7 @@
     />
   {/if}
   {#if playbackStatus.error && !miniModeActive}
-    <aside class="error-banner">{playbackStatus.error}</aside>
+    <aside class="error-banner">{localizePlaybackError(playbackStatus.error)}</aside>
   {/if}
 
   {#if !isNowPlayingLayoutActive}

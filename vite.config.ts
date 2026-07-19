@@ -3,6 +3,8 @@ import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vite';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
 import { VitePWA } from 'vite-plugin-pwa';
+import enMessages from './src/lib/i18n/locales/en.json';
+import trMessages from './src/lib/i18n/locales/tr.json';
 
 export default defineConfig({
   preview: {
@@ -46,9 +48,14 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['icons/izci-icon.svg', 'icons/izci-maskable.svg', 'icons/izci-file.png'],
       manifest: {
+        lang: 'en',
+        dir: 'ltr',
         name: 'izci',
         short_name: 'izci',
-        description: 'Offline-first PWA music player with tracker module support.',
+        description: enMessages.pwa.description,
+        description_localized: {
+          tr: { value: trMessages.pwa.description, lang: 'tr', dir: 'ltr' }
+        },
         theme_color: '#1c1d1e',
         background_color: '#0d1118',
         display: 'standalone',
