@@ -349,6 +349,7 @@
         "damping": "Sönümleme"
       },
       "sloptimizer": {
+        "slop": "Yal",
         "flavors": {
           "off": "Kapalı",
           "subtle": "Ölçülü",

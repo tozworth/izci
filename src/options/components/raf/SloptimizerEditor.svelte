@@ -75,7 +75,7 @@
 
 <div class="sloptimizer-editor">
   <label class="slop-control">
-    <span class="control-name">Slop</span>
+    <span class="control-name">{$t('options.raf.sloptimizer.slop', { default: 'Slop' })}</span>
     <input
       class="slop-slider"
       style={`--slop-pulse: ${(slopPulse * 68).toFixed(1)}%; --slop-glow: ${(slopPulse * 0.4).toFixed(3)}`}

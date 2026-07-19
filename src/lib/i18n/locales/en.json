@@ -349,6 +349,7 @@
         "damping": "Damping"
       },
       "sloptimizer": {
+        "slop": "Slop",
         "flavors": {
           "off": "Off",
           "subtle": "Subtle",
