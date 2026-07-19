@@ -62,70 +62,70 @@
     },
     "player": {
       "quips": {
-        "scout": "İzci aslında \"tracker\"dan çok \"scout\" a yakın. Ama neyse.",
+        "scout": "İzci aslında \"tracker\"dan daha çok \"scout\" a yakın. Ama neyse.",
         "xmplayRam": "Düşünsene: XMPlay, ama 9 GB RAM yiyor.",
         "interpolation": "GERÇEK modcular aradeğerlemeyi KAPAR",
-        "lrcMsn": "Time-synced LRC display! (MSN integration coming soon.)",
+        "lrcMsn": ".LRC destekler! (MSN durum paylaşımını desteklemez.)",
         "fourChannels": "Dört kanal kime yetmez ki?",
-        "diskTwo": "Please insert disk 2.",
+        "diskTwo": "Lütfen Disk 2'yi takın.",
         "playsThat": "Müzik çalar. Evet, onu da çalar.",
-        "opusEyes": "Your eyes can't smell past 160k Opus anyway.",
-        "velocidensity": "Maximum rotational velocidensity achieved.",
+        "opusEyes": "Zorlasan da 160k Opus'tan daha iyisini duyamazsın.",
+        "velocidensity": "Plaktan daha kaliteli sesi sonunda çözdük.",
         "santaFlac": "Diş perisine ve Noel Baba'ya inanan FLAC'a da inanır.",
-        "stereoMind": "Stereo separation is a state of mind.",
-        "offlineAmiga": "Works offline. So did your Amiga.",
-        "youtubeRips": "Does not support YouTube MP3 rips.",
-        "winampPlugins": "Does not support Winamp plugins.",
-        "goldPlatedEars": "Lossless gold-plated ears sold separately.",
-        "pronunciation": "It's pronounced eez-jee.",
+        "stereoMind": "Stereo bölme, denemeden ölme.",
+        "offlineAmiga": "Çevrimdışı. Tıpkı Aidata kasan gibi.",
+        "youtubeRips": "YouTube-MP3 ile indirilmiş dosyaları desteklemez.",
+        "winampPlugins": "Winamp eklentilerini desteklemez.",
+        "goldPlatedEars": "Altın kaplamalı AUX kablosu ayrı satılır.",
+        "pronunciation": "\"İzzzz-ciiii\" diyeceksin.",
         "losslessSilence": "Kayıpsız bir sessizlik.",
         "llama": "Winamp'ı pek de aratmaz.",
-        "patternZero": "Pattern 00, Row 00, Order 00.",
+        "patternZero": "Örüntü 00, Satır 00, Sıra 00.",
         "whatPwa": "PWA ne lan?",
-        "worksOnMachine": "Works on my machine."
+        "worksOnMachine": "Bende çalışıyo."
       },
-      "nowPlayingControls": "Now Playing controls",
-      "showCurrentTrackDetails": "Show current track details",
-      "welcome": "Welcome to izci!",
-      "ready": "Ready",
-      "dropFilesToBegin": "Drop files to begin",
-      "previousTrack": "Previous track",
-      "previousTrackWithSubsongHint": "Previous track · Right-click for previous subsong",
-      "pausePlayback": "Pause playback",
-      "playPlayback": "Play playback",
-      "nextTrack": "Next track",
-      "nextTrackWithSubsongHint": "Next track · Right-click for next subsong",
-      "removeFromFavorites": "Remove from favorites",
-      "addToFavorites": "Add to favorites",
-      "bypassRaf": "Bypass Raf",
-      "powerOnRaf": "Power on Raf",
-      "bypassRafWithPresetHint": "Bypass Raf · Right-click for presets",
-      "powerOnRafWithPresetHint": "Power on Raf · Right-click for presets",
-      "unmute": "Unmute",
-      "mute": "Mute",
-      "volume": "Volume",
-      "rafPresets": "Raf presets",
-      "noRafPresets": "No Raf presets",
-      "openRaf": "Open Raf"
+      "nowPlayingControls": "Şimdi Yürütülüyor kontrolleri",
+      "showCurrentTrackDetails": "Mevcut parçanın detaylarını göster",
+      "welcome": "izci'ye hoş geldin!",
+      "ready": "Hazır",
+      "dropFilesToBegin": "Başlamak için dosya sürükle",
+      "previousTrack": "Önceki parça",
+      "previousTrackWithSubsongHint": "Önceki parça · Önceki altparça için sağ tıkla",
+      "pausePlayback": "Oynatmayı duraklat",
+      "playPlayback": "Oynatmayı devam ettir",
+      "nextTrack": "Sonraki parça",
+      "nextTrackWithSubsongHint": "Sonraki parça · Sonraki altparça için sağ tıkla",
+      "removeFromFavorites": "Favorilerden kaldır",
+      "addToFavorites": "Favorilere ekle",
+      "bypassRaf": "Raf'ı geç",
+      "powerOnRaf": "Raf'ı aç",
+      "bypassRafWithPresetHint": "Raf'ı geç · Önayarlar için sağ tıkla",
+      "powerOnRafWithPresetHint": "Raf'ı aç · Önayarlar için sağ tıkla",
+      "unmute": "Sesi aç",
+      "mute": "Sesi kapat",
+      "volume": "Ses düzeyi",
+      "rafPresets": "Raf önayarları",
+      "noRafPresets": "Raf önayarları yok",
+      "openRaf": "Raf'ı aç"
     },
     "trackDetails": {
-      "album": "Album",
+      "album": "Albüm",
       "albumArtist": "Albüm Sanatçısı",
-      "composer": "Composer",
-      "discAndTrack": "Disc / Track",
-      "discNumber": "Disc Number",
-      "genre": "Genre",
-      "trackNumber": "Track Number",
-      "year": "Year",
+      "composer": "Besteci",
+      "discAndTrack": "Disk / Parça",
+      "discNumber": "Disk Sayısı",
+      "genre": "Tarz",
+      "trackNumber": "Parça Numarası",
+      "year": "Yıl",
       "patternCount": "{count, plural, one {# örüntü} other {# örüntü}}",
-      "subsongPositionNamed": "Subsongs: {position} of {count} · {name}",
-      "subsongPosition": "Subsongs: {position} of {count}",
+      "subsongPositionNamed": "Altparçalar: {position} / {count} · {name}",
+      "subsongPosition": "Altparçalar: {position} / {count}",
       "subsongAvailable": "Altparçalar: {count, plural, one {# tane} other {# tane}}",
-      "heading": "Track Details",
-      "closePanel": "Close Track Details",
+      "heading": "Parça Detayları",
+      "closePanel": "Parça Detaylarını Kapat",
       "format": "Tür",
-      "notes": "Notes",
-      "emptyTitle": "Select a track to inspect it.",
+      "notes": "Notlar",
+      "emptyTitle": "İncelemek için parça seçin.",
       "emptyDescription": "Playlist and library selections both surface their metadata here."
     }
   },
@@ -144,62 +144,62 @@
       },
       "groupSongCount": "{count, plural, one {# parça} other {# parça}}",
       "views": {
-        "favorites": "Favorites",
+        "favorites": "Favoriler",
         "songs": "Parçalar",
         "artists": "Sanatçılar",
-        "albums": "Albums",
-        "genres": "Genres",
-        "years": "Years",
+        "albums": "Albümler",
+        "genres": "Tarzlar",
+        "years": "Yıllar",
         "formats": "Türler",
-        "folders": "Folders",
-        "label": "Library views"
+        "folders": "Klasörler",
+        "label": "Kütüphane görünümleri"
       },
-      "search": "Search library",
-      "closeSearch": "Close library search",
-      "backToGroups": "Back to groups",
-      "back": "Back",
-      "filter": "Filter library",
+      "search": "Kütüphaneyi ara",
+      "closeSearch": "Kütüphane aramayı kapat",
+      "backToGroups": "Gruplara geri dön",
+      "back": "Geri",
+      "filter": "Kütüphaneyi filtrele",
       "title": "Kütüphane",
       "unknownArtist": "Bilinmeyen sanatçı",
       "unknownAlbum": "Bilinmeyen albüm",
-      "unknownGenre": "Unknown genre",
-      "unknownYear": "Unknown year",
+      "unknownGenre": "Bilinmeyen tarz",
+      "unknownYear": "Bilinmeyen yıl",
       "unknownFormat": "Bilinmeyen tür",
-      "unknownFolder": "Unknown folder",
+      "unknownFolder": "Bilinmeyen klasör",
       "trackerModule": "İzci modülü",
       "stream": "Akış",
       "summary": {
-        "filteredArtists": "{visible} of {total} {total, plural, one {artist} other {artists}}",
-        "filteredAlbums": "{visible} of {total} {total, plural, one {album} other {albums}}",
-        "filteredGenres": "{visible} of {total} {total, plural, one {genre} other {genres}}",
-        "filteredYears": "{visible} of {total} {total, plural, one {year} other {years}}",
-        "filteredFormats": "{visible} of {total} {total, plural, one {format} other {formats}}",
-        "filteredFolders": "{visible} of {total} {total, plural, one {folder} other {folders}}",
+        "filteredArtists": "{visible} sanatçıdan {total} {total, plural, one {} other {}}",
+        "filteredAlbums": "{visible} albümden {total} {total, plural, one {} other {}}",
+        "filteredGenres": "{visible} tarzdan {total} {total, plural, one {} other {}}",
+        "filteredYears": "{visible} yıldan {total} {total, plural, one {} other {}}",
+        "filteredFormats": "{visible} türden {total} {total, plural, one {} other {}}",
+        "filteredFolders": "{visible} klasörden {total} {total, plural, one {} other {}}",
         "artists": "{count, plural, one {# sanatçı} other {# sanatçı}}",
-        "albums": "{count, plural, one {# album} other {# albums}}",
-        "genres": "{count, plural, one {# genre} other {# genres}}",
-        "years": "{count, plural, one {# year} other {# years}}",
-        "formats": "{count, plural, one {# format} other {# formats}}",
-        "folders": "{count, plural, one {# folder} other {# folders}}",
+        "albums": "{count, plural, one {# albüm} other {# albüm}}",
+        "genres": "{count, plural, one {# tarz} other {# tarz}}",
+        "years": "{count, plural, one {# yıl} other {# yıl}}",
+        "formats": "{count, plural, one {# tür} other {# tür}}",
+        "folders": "{count, plural, one {# klasör} other {# klasör}}",
         "groupsAndSongs": "{groups} · {songs, plural, one {# parça} other {# parça}}"
       },
-      "noResults": "No library results match \"{query}\".",
+      "noResults": "\"{query}\" ile eşleşen kütüphane ögesi yok.",
       "favoritesEmpty": "Favorilenen parça ve altparçalar burada görünür.",
-      "empty": "Your library is empty. Add files or drop a folder here."
+      "empty": "Kütüphaneniz boş. Dosya veya klasör sürükleyin."
     },
-    "addFiles": "Add files",
-    "searchPlaceholder": "Search",
+    "addFiles": "Dosya ekle",
+    "searchPlaceholder": "Ara",
     "actions": {
-      "trackDetails": "Track details",
-      "removeFromLibrary": "Remove from library",
-      "addToLibrary": "Add to library",
-      "removeFromFavorites": "Remove from favorites",
-      "addToFavorites": "Add to favorites",
+      "trackDetails": "Parça detayları",
+      "removeFromLibrary": "Kütüphaneden kaldır",
+      "addToLibrary": "Kütüphaneye ekle",
+      "removeFromFavorites": "Favorilerden kaldır",
+      "addToFavorites": "Favorilere ekle",
       "separateSubsongs": "Altparçaları böl",
-      "addToPlaylist": "Add to playlist",
-      "replacePlaylist": "Replace playlist",
-      "resetPlayCount": "Reset play count",
-      "remove": "Remove"
+      "addToPlaylist": "Çalma listesine ekle",
+      "replacePlaylist": "Çalma listesinin üzerine yaz",
+      "resetPlayCount": "Çalma sayısını sıfırla",
+      "remove": "Listeden kaldır"
     },
     "shortcuts": {
       "delete": "Delete"
@@ -209,10 +209,10 @@
       "columns": "{panel} columns"
     },
     "shuffle": {
-      "disable": "Disable shuffle",
-      "enable": "Enable shuffle",
-      "on": "Shuffle on",
-      "off": "Shuffle off"
+      "disable": "Karıştırmayı kapat",
+      "enable": "Karıştırmayı aç",
+      "on": "Karıştır açık",
+      "off": "Karıştır kapalı"
     },
     "title": "Çalma Listesi",
     "summary": {
@@ -220,7 +220,7 @@
       "tracks": "{count, plural, one {# parça} other {# parça}} · {duration}"
     },
     "repeat": {
-      "currentTrack": "Repeat current track",
+      "currentTrack": "Mevcut parçayı tekrarla",
       "playlist": "Repeat playlist",
       "off": "Repeat off"
     },
@@ -228,9 +228,9 @@
   },
   "workspace": {
     "nowPlaying": {
-      "exit": "Exit Now Playing",
+      "exit": "Şimdi Yürütülüyor'dan çık",
       "title": "Şimdi Yürütülüyor",
-      "panels": "Now Playing panels"
+      "panels": "Şimdi Yürütülüyor panelleri"
     },
     "panels": {
       "label": "Workspace panels",
@@ -298,55 +298,55 @@
         "stereoWidth": "Stereo Genişletme",
         "crystalizer": "Keskinleştirici",
         "sloptimizer": "Yalamaç",
-        "reverb": "Reverb"
+        "reverb": "Yankı"
       },
       "transfer": {
         "failed": "Raf settings transfer failed.",
         "errors": {
-          "invalidJson": "The selected content is not valid JSON.",
-          "invalidRack": "The JSON does not contain valid Raf rack settings.",
-          "invalidEffect": "The Raf rack contains an unsupported or malformed effect.",
-          "clipboardUnavailable": "Clipboard access is unavailable."
+          "invalidJson": "Seçilen içerik JSON değil.",
+          "invalidRack": "Bu JSON'da düzgün Raf ayarı yok.",
+          "invalidEffect": "Bu Raf ayarında bilinmeyen veya desteklenmeyen efektler mevcut.",
+          "clipboardUnavailable": "Panoya erişilemedi."
         },
-        "imported": "Rack imported",
-        "label": "Import or export rack settings",
-        "importClipboard": "Import from clipboard",
-        "importJson": "Import JSON",
-        "copyHint": "Copy rack settings to the clipboard",
-        "copied": "Rack copied",
-        "exportClipboard": "Export to clipboard",
-        "exported": "Rack exported",
-        "exportJson": "Export JSON"
+        "imported": "Raf içeri aktarıldı",
+        "label": "Rafları içeri / dışarı aktar",
+        "importClipboard": "Panodan içeri aktar",
+        "importJson": "JSON içeri aktar",
+        "copyHint": "Raf ayarlarını panoya kopyala",
+        "copied": "Raf kopyalandı",
+        "exportClipboard": "Panoya dışarı aktar",
+        "exported": "Raf dışarı aktarıldı",
+        "exportJson": "JSON dışarı aktar"
       },
       "presets": {
-        "namePrompt": "Name this Raf preset:",
-        "renamePrompt": "Rename Raf preset:",
-        "choose": "Choose a Raf preset",
-        "label": "Presets",
-        "new": "New preset",
-        "apply": "Apply {preset}",
-        "rename": "Rename {preset}",
-        "delete": "Delete {preset}",
-        "save": "Save changes to preset"
+        "namePrompt": "Bu Raf önayarına ad ver:",
+        "renamePrompt": "Raf önayarını yeniden adlandır:",
+        "choose": "Raf önayarı seç",
+        "label": "Önayarlar",
+        "new": "Yeni önayar",
+        "apply": "{preset} önayarını uygula",
+        "rename": "{preset} önayar adı değiştir",
+        "delete": "{preset} önayarını sil",
+        "save": "Önayar değişikliklerini kaydet"
       },
-      "controls": "Raf controls",
-      "bypass": "Bypass Raf",
-      "powerOn": "Power on Raf",
+      "controls": "Raf kontrolleri",
+      "bypass": "Raf'ı geç",
+      "powerOn": "Raf'ı aç",
       "meter": {
-        "levels": "Raf input and output peak levels",
-        "inputPeak": "Raf input peak",
-        "inputAbbreviation": "IN",
-        "outputPeak": "Raf output peak",
-        "outputAbbreviation": "OUT",
-        "clipping": "Help me, I'm clipping!",
-        "noClipping": "No clipping detected"
+        "levels": "Raf giriş ve çıkış düzeyleri",
+        "inputPeak": "Raf giriş tavanı",
+        "inputAbbreviation": "GİRİŞ",
+        "outputPeak": "Raf çıkış tavanı",
+        "outputAbbreviation": "ÇIKIŞ",
+        "clipping": "Amanın, cızırdıyorum!",
+        "noClipping": "Cızırdama yok"
       },
       "reverb": {
-        "mix": "Mix",
-        "room": "Room",
-        "decay": "Decay",
-        "preDelay": "Pre-delay",
-        "damping": "Damping"
+        "mix": "Karışım",
+        "room": "Oda büyüklüğü",
+        "decay": "Azalış",
+        "preDelay": "Ön gecikme",
+        "damping": "Sönümleme"
       },
       "sloptimizer": {
         "flavors": {
@@ -374,51 +374,51 @@
         "resetMapping": "Eşitlemeyi sıfırla"
       },
       "stereoWidth": {
-        "narrower": "Narrower",
-        "label": "Stereo width",
-        "wider": "Wider"
+        "narrower": "Daha dar",
+        "label": "Stereo genişliği",
+        "wider": "Daha geniş"
       }
     },
     "about": {
       "updates": {
-        "checking": "Checking for updates",
-        "available": "Update available",
-        "upToDate": "Up to date",
-        "failed": "Failed to check updates",
-        "noSuccessfulChecks": "No successful checks yet",
-        "lastChecked": "Last checked {date}",
-        "apply": "Click to update and restart",
-        "checkAgain": "Check for updates again"
+        "checking": "Güncellemeler kontrol ediliyor",
+        "available": "Güncelleme var",
+        "upToDate": "Güncel",
+        "failed": "Güncelleme kontrolü başarısız",
+        "noSuccessfulChecks": "Henüz kontrol edilmedi",
+        "lastChecked": "Son kontrol: {date}",
+        "apply": "Güncellemek için tıkla",
+        "checkAgain": "Tekrar kontrol et"
       },
-      "logoAlt": "izci logo",
-      "kicker": "GOLDILOCKED / SLOPTIMIZED / WCO'D",
-      "tagline": "PWA music player",
-      "openOnGitHub": "Open dunsparce9/izci on GitHub",
+      "logoAlt": "izci logosu",
+      "kicker": "MIZMIZLI / YALAMAÇLI / WCO'LU",
+      "tagline": "PWA müzik çalar",
+      "openOnGitHub": "GitHub'da dunsparce9/izci repo'sunu aç",
       "features": {
-        "formats": "Plays usual streamed formats and tracker modules",
-        "formatsNote": "It plays tracker modules!!!",
-        "library": "A decent library with artwork, lyrics, and play counts",
+        "formats": "Bildiğimiz müzik dosyalarının yanı sıra izci modüllerini de çalar",
+        "formatsNote": "Evet, izci modüllerini çalar!!!",
+        "library": "Albüm resimli, şarkı sözlü, oynatma sayılı \"eh işte\" bir kütüphane",
         "workspace": "Dockable tabbed workspace, a big moody Now Playing view, and a mini mode",
         "pwa": "PWA niceties: file associations, media keys, custom window border",
         "pwaNote": "Only if your browser respects them (works on my machine)",
         "backdrops": "Per-zone artwork and visualizer backdrops",
-        "raf": "Raf: a tiny effects rack",
+        "raf": "Raf: küçücük bir ses efekti arayüzü",
         "name": "“izci” means “tracker” in Turkish*",
         "nameNote": "*Umm actually it’s closer to “scout”. But it was cute and the name stuck"
       },
-      "credits": "izci uses Howler.js, Chiptune3 (based on libopenmpt), and Google Material Symbols.",
-      "seeFull": "See full",
-      "thirdPartyLicenses": "third-party licenses"
+      "credits": "izci için Howler.js, Chiptune3 (libopenmpt WASM), ve Material Symbols olmazsa olmazdır.",
+      "seeFull": "Tüm",
+      "thirdPartyLicenses": "üçüncü parti lisansları için tıklayın"
     },
     "appearance": {
       "themes": {
-        "gray": "Gray (default)",
-        "coal": "Coal",
-        "lightsOut": "Lights Out",
+        "gray": "Gri (varsayılan)",
+        "coal": "Kömür",
+        "lightsOut": "Işıksız",
         "nordic": "Nordic",
         "gruvbox": "Gruvbox",
         "dracula": "Dracula",
-        "ember": "Ember",
+        "ember": "Köz",
         "chameleon": "Bukalemun"
       },
       "contextualTabs": {
@@ -504,67 +504,67 @@
     },
     "backdrops": {
       "zones": {
-        "left": "Left",
-        "center": "Center",
-        "right": "Right",
-        "player": "Player Bar",
-        "nowPlaying": "Now Playing"
+        "left": "Sol",
+        "center": "Orta",
+        "right": "Sağ",
+        "player": "Oynatıcı",
+        "nowPlaying": "Şimdi Yürütülüyor"
       },
       "effects": {
-        "none": "None",
-        "artwork": "Artwork",
-        "visualizer": "Visualizer",
-        "both": "Both"
+        "none": "Hiçbiri",
+        "artwork": "Albüm resmi",
+        "visualizer": "Görselleştirici",
+        "both": "Her ikisi"
       },
-      "heading": "Backdrop Zones",
+      "heading": "Artalanlar",
       "artworkBlur": {
-        "title": "Artwork blur strength"
+        "title": "Albüm resmi bulanıklaştırması"
       },
       "artworkBrightness": {
-        "title": "Artwork brightness"
+        "title": "Albüm resmi parlaklığı"
       }
     },
     "folders": {
       "scan": {
-        "scanning": "Scanning…",
+        "scanning": "Taranıyor…",
         "notLibraryFolder": "Folder is no longer registered as a library folder.",
         "cancelled": "Folder scanning was cancelled because it is no longer a library folder.",
-        "failed": "Scan failed",
-        "notScanned": "Not scanned"
+        "failed": "Tarama başarısız",
+        "notScanned": "Taranmamış"
       },
       "permission": {
-        "required": "Permission required",
-        "available": "Available",
-        "denied": "Access denied",
-        "unavailable": "Unavailable"
+        "required": "İzin gerekli",
+        "available": "Uygun",
+        "denied": "İzin yok",
+        "unavailable": "Uygun değil"
       },
       "library": {
-        "scanOnLaunch": "Scan on launch",
-        "inLibrary": "In library",
-        "notInLibrary": "Not in library"
+        "scanOnLaunch": "Her açılışta tara",
+        "inLibrary": "Kütüphanede",
+        "notInLibrary": "Kütüphanede değil"
       },
-      "heading": "Folders",
+      "heading": "Klasörler",
       "description": "Every folder izci has remembered, including folders used for library scans.",
       "actions": {
         "checkAllAccess": "Check all folder access",
-        "add": "Add folder",
-        "forFolder": "Actions for {folder}",
+        "add": "Klasör ekle",
+        "forFolder": "{folder} için eylemler",
         "addToLibrary": "Add to library",
-        "disableScanOnLaunch": "Disable scan on launch",
+        "disableScanOnLaunch": "Açılışta taramayı kapat",
         "scanOnLaunch": "Scan on launch",
-        "scanNow": "Scan now",
-        "removeFromLibrary": "Remove from library",
-        "checkAccess": "Check access",
-        "forget": "Forget folder"
+        "scanNow": "Şimdi tara",
+        "removeFromLibrary": "Kütüphaneden kaldır",
+        "checkAccess": "Erişimi kontrol et",
+        "forget": "Klasörü unut"
       },
       "table": {
-        "label": "Known folders",
-        "folder": "Folder",
-        "access": "Access",
-        "library": "Library",
-        "lastScan": "Last scan",
-        "tracks": "Tracks",
-        "actions": "Actions"
+        "label": "Bilinen klasörler",
+        "folder": "Klasör",
+        "access": "Erişim",
+        "library": "Kütüphane",
+        "lastScan": "Son tarama",
+        "tracks": "Parçalar",
+        "actions": "Eylemler"
       },
       "empty": "No known folders. Add or drop one here.",
       "retentionHint": "Forgetting a folder or removing it from the library keeps tracks already imported from it.",
@@ -575,33 +575,33 @@
     },
     "lyrics": {
       "styles": {
-        "plain": "Plain text",
-        "timestamped": "Timestamped rows",
-        "theater": "Theater"
+        "plain": "Düz yazı",
+        "timestamped": "Süreli satırlar",
+        "theater": "Sinema"
       },
-      "heading": "Lyrics",
+      "heading": "Sözler",
       "displayStyle": {
-        "title": "Display style",
+        "title": "Gösterim türü",
         "hint": "Chooses how embedded synced lyrics render in the Lyrics panel."
       },
       "fontSize": {
-        "title": "Font size",
+        "title": "Yazı tipi boyutu",
         "hint": "Saves a separate size for Plain text, Timestamped rows, and Theater."
       },
       "autoScroll": {
-        "title": "Auto scroll to current line",
+        "title": "Şu anki satıra otomatik ilerle",
         "hint": "Keeps the highlighted lyric row in view while playback advances."
       },
       "downtimeDots": {
-        "title": "Downtime dots",
+        "title": "Ara noktaları",
         "hint": "Shows a three-dot break marker during long gaps between synced lines."
       },
       "downtimeAfter": {
-        "title": "Downtime after",
+        "title": "Ara saymadan önce bekle",
         "hint": "Sets how long a synced lyric gap must last before Theater shows the break marker."
       },
       "smoothTheaterScroll": {
-        "title": "Smooth Theater scroll",
+        "title": "Kaygan Sinema ilerlemesi",
         "hint": "Animates Theater line changes instead of snapping directly to the active line."
       }
     },
@@ -613,110 +613,110 @@
         "hintAfterExample": "into metadata fields."
       },
       "playCountThreshold": {
-        "title": "Count track as played after (seconds)",
+        "title": "Parçayı oynatılmış sayma süresi (saniye)",
         "hint": "Only tracks that are in the library update their play count."
       }
     },
     "modules": {
       "interpolation": {
         "options": {
-          "oneTap": "1-tap (minimal)",
-          "twoTap": "2-tap (soft)",
-          "fourTap": "4-tap (medium)",
-          "eightTap": "8-tap (high)"
+          "oneTap": "1-tap (en az)",
+          "twoTap": "2-tap (az)",
+          "fourTap": "4-tap (orta)",
+          "eightTap": "8-tap (yüksek)"
         },
         "hints": {
-          "oneTap": "Minimal smoothing (sharper, more artifacts)",
-          "twoTap": "Soft smoothing.",
-          "fourTap": "Medium smoothing.",
-          "eightTap": "High smoothing (blurry, less artifacts)"
+          "oneTap": "En az yumuşaklık (daha keskin)",
+          "twoTap": "Az yumuşaklık.",
+          "fourTap": "Orta derecede yumuşaklık.",
+          "eightTap": "Yüksek yumuşaklık (daha bulanık)"
         },
-        "title": "Interpolation"
+        "title": "Aradeğerleme"
       },
       "rendering": {
-        "heading": "Rendering"
+        "heading": "İşleme"
       },
       "stereoSeparation": {
-        "title": "Stereo separation (MOD)",
-        "hintBeforeFormat": "Applies to",
-        "hintAfterFormat": "files. 0 = mono, 200 = hard stereo."
+        "title": "Stereo ayrımı (MOD)",
+        "hintBeforeFormat": "Sadece",
+        "hintAfterFormat": "dosyalarına işler. 0 = mono, 200 = tam stereo."
       },
       "panStrength": {
-        "title": "Pan strength",
-        "hint": "Below 100 narrows the image, above 100 widens it."
+        "title": "Çevrim gücü",
+        "hint": "100'den aşağı sahne daralır, 100'den yukarı ise genişler."
       },
       "playback": {
-        "heading": "Playback"
+        "heading": "Oynatım"
       },
       "looping": {
-        "title": "Looping",
+        "title": "Döngü",
         "hint": "Maps to libopenmpt repeat count.",
-        "once": "Play once",
-        "forever": "Loop forever"
+        "once": "Tek çal",
+        "forever": "Sonsuza kadar döngüle"
       },
       "tempoFactor": {
-        "title": "Tempo factor",
+        "title": "Tempo katsayısı",
         "hint": "Changes module playback speed without changing pitch."
       },
       "pitchFactor": {
-        "title": "Pitch factor",
+        "title": "Perde katsayısı",
         "hint": "Adjusts playback pitch relative to the module's original tuning."
       }
     },
     "nowPlaying": {
-      "neverHide": "Never hide",
-      "heading": "Now Playing",
+      "neverHide": "Asla gizleme",
+      "heading": "Şimdi Yürütülüyor",
       "openWhenMaximized": {
-        "title": "Open when maximized",
+        "title": "Ekranı kapladığında aç",
         "hint": "Switches the main window to Now Playing while it is maximized or fullscreen."
       },
       "hideSideChrome": {
-        "title": "Hide side chrome after",
+        "title": "Sol paneli gizleme süresi",
         "hint": "Fades the side tabs, pane fill, and close button after mouse inactivity."
       },
       "artworkColors": {
-        "title": "Always use artwork colors",
+        "title": "Her zaman albüm renklerini kullan",
         "hint": "Forces the focused player controls to use artwork colors. When off, Now Playing follows the main player setting."
       },
       "autoTheater": {
-        "title": "Auto switch to Theater",
+        "title": "Sözleri otomatik olarak Sinema moduna al",
         "hint": "Uses the large focused lyrics layout while Now Playing is active."
       },
       "autoFocusLyrics": {
-        "title": "Auto focus Lyrics tab",
+        "title": "Sözler sekmesine otomatik geç",
         "hint": "Opens Now Playing directly to the lyrics view."
       }
     },
     "patterns": {
       "textSize": {
-        "title": "Pattern text size",
+        "title": "Örüntü yazı boyutu",
         "hint": "Scales tracker cells independently from the app interface font."
       },
       "rowHeight": {
-        "title": "Row height",
+        "title": "Satır yüksekliği",
         "hint": "Controls how densely pattern rows pass through the playhead."
       },
       "channelWidth": {
-        "title": "Channel width",
+        "title": "Kanal genişliği",
         "hint": "Sets the horizontal room reserved for each formatted tracker channel."
       },
       "follow": {
-        "title": "Follow the playhead",
+        "title": "Mevcut satırı takip et",
         "hint": "Keeps the active row centered while a module plays."
       },
       "smoothScroll": {
-        "title": "Smooth playhead scrolling",
+        "title": "Kaygan satır ilerlemesi",
         "hint": "Animates row centering instead of stepping directly to the current row."
       },
       "channelNames": {
-        "title": "Show channel names",
+        "title": "Kanal isimlerini göster",
         "hint": "Adds module-provided names beside channel numbers when they are available."
       },
       "highlightBeats": {
-        "title": "Highlight beat rows",
+        "title": "Ritim satırlarını işaretle",
         "hint": "Adds a subtle guide every four rows behind the moving playhead."
       },
-      "heading": "Pattern Viewer",
+      "heading": "Örüntü Görüntüleyici",
       "preview": {
         "label": "Pattern viewer preview",
         "row": "ROW",
@@ -728,8 +728,8 @@
       "rowNumbers": {
         "title": "Row numbers",
         "hint": "Uses familiar hexadecimal tracker numbering or ordinary decimal values.",
-        "hex": "Hexadecimal (0A)",
-        "decimal": "Decimal (10)"
+        "hex": "Onaltılık (0A)",
+        "decimal": "Sayısal (10)"
       },
       "colors": {
         "title": "Pattern colors",
@@ -742,41 +742,41 @@
     "playback": {
       "restore": {
         "options": {
-          "disabled": "Disabled",
-          "position": "Position only",
-          "positionAndState": "Position and state"
+          "disabled": "Devredışı",
+          "position": "Sadece konum",
+          "positionAndState": "Konum ve durum"
         },
-        "title": "Restore playback",
-        "hint": "Restores the current track and position after a reload. Position and state also resumes playback when Chromium allows it."
+        "title": "Oynatımı devam ettir",
+        "hint": "Sayfa kapandıktan / yeniden yüklendikten sonra oynatımı devam ettirir."
       },
       "replayGain": {
         "options": {
-          "track": "Track",
-          "album": "Album",
-          "off": "Off"
+          "track": "Parça",
+          "album": "Albüm",
+          "off": "Kapalı"
         },
         "title": "ReplayGain",
         "hint": "Applies streamed-file ReplayGain tags, preferring track or album gain when both are available."
       },
       "startup": {
-        "heading": "Startup"
+        "heading": "Başlangıç"
       },
       "volume": {
-        "heading": "Volume"
+        "heading": "Ses düzeyi"
       },
       "logarithmicVolume": {
-        "title": "Logarithmic volume",
+        "title": "Logaritmik ses düzeyi",
         "hint": "Shapes the volume slider for gentler low-end changes."
       },
       "effects": {
-        "heading": "Effects"
+        "heading": "Efektler"
       },
       "enableRaf": {
-        "title": "Enable Raf",
+        "title": "Raf'ı etkinleştir",
         "hint": "Enables the built-in audio effects rack and shows Raf under Playback."
       },
       "showRafToggle": {
-        "title": "Show Raf toggle in player bar",
+        "title": "Raf düğmesini oynatıcıda göster",
         "hint": "Shows the rack bypass control beside volume while Raf is enabled. Right-clicking it opens Raf options."
       }
     },
@@ -808,35 +808,35 @@
     },
     "visualizer": {
       "style": {
-        "title": "Style",
+        "title": "Tür",
         "hint": "Controls how the spectrum analyzer is drawn behind the full player bar."
       },
       "colorSource": {
-        "title": "Color source",
+        "title": "Renk kaynağı",
         "hint": "Uses the current artwork palette when available, otherwise falls back to the active theme."
       },
       "height": {
-        "title": "Height",
+        "title": "Yükseklik",
         "hint": "Sets how far the analyzer can rise through the player background."
       },
       "opacity": {
-        "title": "Opacity",
+        "title": "Opaklık",
         "hint": "Sets how strongly the analyzer appears behind text, controls, and artwork."
       },
       "frameCap": {
-        "title": "Frame cap",
+        "title": "Kare hızı",
         "hint": "Limits how often every visualizer style redraws, from battery-friendlier motion to high-refresh displays."
       },
       "normalization": {
-        "title": "Normalization",
+        "title": "Normalleştirme",
         "hint": "Balances low, mid, and high frequency bands so bass-heavy or bright tracks still use the full visual range."
       },
       "triangleCount": {
-        "title": "Triangle count",
+        "title": "Üçgen sayısı",
         "hint": "Sets how many triangle shapes are kept active in the player background."
       },
       "triangleMinSize": {
-        "title": "Minimum triangle size",
+        "title": "Minimum üçgen boyutu",
         "hint": "Sets the smallest triangle size as a percentage of the player bar height."
       },
       "triangleMaxSize": {
