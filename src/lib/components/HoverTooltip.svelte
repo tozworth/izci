@@ -2,14 +2,83 @@
   export let placement: 'above' | 'below' = 'below';
   export let align: 'left' | 'center' | 'right' = 'right';
   export let nowrap = false;
+
+  let tooltipElement: HTMLSpanElement;
+  let anchorElement: HTMLElement | null = null;
+  let visible = false;
+
+  function positionTooltip(): void {
+    if (!anchorElement || !tooltipElement || typeof window === 'undefined') return;
+
+    const anchorRect = anchorElement.getBoundingClientRect();
+    const tooltipRect = tooltipElement.getBoundingClientRect();
+    const viewportInset = 6;
+    const gap = 4;
+    const preferredLeft = align === 'left'
+      ? anchorRect.left
+      : align === 'center'
+        ? anchorRect.left + (anchorRect.width - tooltipRect.width) / 2
+        : anchorRect.right - tooltipRect.width;
+    const maxLeft = Math.max(viewportInset, window.innerWidth - tooltipRect.width - viewportInset);
+    const preferredTop = placement === 'above'
+      ? anchorRect.top - tooltipRect.height - gap
+      : anchorRect.bottom + gap;
+    const maxTop = Math.max(viewportInset, window.innerHeight - tooltipRect.height - viewportInset);
+
+    tooltipElement.style.left = `${Math.min(Math.max(preferredLeft, viewportInset), maxLeft)}px`;
+    tooltipElement.style.top = `${Math.min(Math.max(preferredTop, viewportInset), maxTop)}px`;
+  }
+
+  function showTooltip(): void {
+    visible = true;
+    positionTooltip();
+  }
+
+  function handleFocus(): void {
+    if (anchorElement?.matches(':focus-visible')) showTooltip();
+  }
+
+  function mountTooltip(node: HTMLSpanElement) {
+    if (typeof document === 'undefined') return {};
+
+    anchorElement = node.parentElement;
+    document.body.appendChild(node);
+    anchorElement?.addEventListener('pointerenter', showTooltip);
+    anchorElement?.addEventListener('pointerleave', hideTooltip);
+    anchorElement?.addEventListener('focus', handleFocus);
+    anchorElement?.addEventListener('blur', hideTooltip);
+    window.addEventListener('resize', positionTooltip);
+    window.addEventListener('scroll', positionTooltip, true);
+
+    return {
+      destroy() {
+        anchorElement?.removeEventListener('pointerenter', showTooltip);
+        anchorElement?.removeEventListener('pointerleave', hideTooltip);
+        anchorElement?.removeEventListener('focus', handleFocus);
+        anchorElement?.removeEventListener('blur', hideTooltip);
+        window.removeEventListener('resize', positionTooltip);
+        window.removeEventListener('scroll', positionTooltip, true);
+        anchorElement = null;
+        if (node.parentNode === document.body) document.body.removeChild(node);
+      }
+    };
+  }
+
+  function hideTooltip(): void {
+    visible = false;
+  }
 </script>
 
 <span
+  bind:this={tooltipElement}
+  use:mountTooltip
   class="hover-tooltip"
+  class:is-visible={visible}
   class:is-above={placement === 'above'}
   class:is-left-aligned={align === 'left'}
   class:is-center-aligned={align === 'center'}
   class:is-nowrap={nowrap}
+  aria-hidden={!visible}
   role="tooltip"
 >
   <slot />
@@ -17,10 +86,10 @@
 
 <style>
   .hover-tooltip {
-    position: absolute;
-    z-index: 80;
-    top: calc(100% + 4px);
-    right: 0;
+    position: fixed;
+    z-index: 1000;
+    top: 0;
+    left: 0;
     width: max-content;
     max-width: min(240px, 70vw);
     padding: 4px 7px;
@@ -40,16 +109,16 @@
     white-space: normal;
   }
 
+  .hover-tooltip.is-visible {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+
   .hover-tooltip.is-left-aligned {
-    right: auto;
-    left: 0;
     transform-origin: top left;
   }
 
   .hover-tooltip.is-center-aligned {
-    right: auto;
-    left: 50%;
-    transform: translate(-50%, -2px) scale(0.98);
     transform-origin: top center;
   }
 
@@ -57,22 +126,13 @@
     white-space: nowrap;
   }
 
-  :global(.hover-tooltip-anchor:hover) .hover-tooltip,
-  :global(.hover-tooltip-anchor:focus-visible) .hover-tooltip {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-  }
-
-  :global(.hover-tooltip-anchor:hover) .hover-tooltip.is-center-aligned,
-  :global(.hover-tooltip-anchor:focus-visible) .hover-tooltip.is-center-aligned {
-    transform: translate(-50%, 0) scale(1);
-  }
-
   .hover-tooltip.is-above {
-    top: auto;
-    bottom: calc(100% + 4px);
     transform: translateY(2px) scale(0.98);
     transform-origin: bottom right;
+  }
+
+  .hover-tooltip.is-above.is-visible {
+    transform: translateY(0) scale(1);
   }
 
   .hover-tooltip.is-above.is-left-aligned {
@@ -80,17 +140,6 @@
   }
 
   .hover-tooltip.is-above.is-center-aligned {
-    transform: translate(-50%, 2px) scale(0.98);
     transform-origin: bottom center;
-  }
-
-  :global(.hover-tooltip-anchor:hover) .hover-tooltip.is-above,
-  :global(.hover-tooltip-anchor:focus-visible) .hover-tooltip.is-above {
-    transform: translateY(0) scale(1);
-  }
-
-  :global(.hover-tooltip-anchor:hover) .hover-tooltip.is-above.is-center-aligned,
-  :global(.hover-tooltip-anchor:focus-visible) .hover-tooltip.is-above.is-center-aligned {
-    transform: translate(-50%, 0) scale(1);
   }
 </style>
