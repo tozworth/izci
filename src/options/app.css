@@ -218,7 +218,7 @@ code {
 .options-main {
   min-height: 0;
   display: grid;
-  grid-template-columns: 150px minmax(0, 1fr);
+  grid-template-columns: max-content minmax(0, 1fr);
   overflow: hidden;
 }
 
@@ -228,6 +228,8 @@ code {
 }
 
 .tree-panel {
+  min-width: 150px;
+  max-width: 190px;
   padding: 8px 6px 8px 8px;
   background: var(--bg-tree);
   border-right: 1px solid var(--border-soft);
@@ -278,6 +280,13 @@ code {
 
 .tree-item[aria-selected="true"] .material-symbols-outlined {
   color: var(--accent-strong);
+}
+
+.tree-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .content-panel {
