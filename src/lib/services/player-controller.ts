@@ -16,6 +16,7 @@ import type {
   TrackMetadata
 } from '$lib/types';
 import { mergeInferredArtistTitle } from '$lib/utils/files';
+import type { StemPlaybackAsset } from '$lib/services/stem-separation/types';
 
 interface PlaybackStatusSnapshot {
   state: PlaybackState;
@@ -309,6 +310,12 @@ function createPlayerController() {
 
       applyBackendVolume();
       onSnapshot({ volume, muted });
+    },
+    setStemPlaybackAsset(asset: StemPlaybackAsset | null) {
+      services.stream.setStemPlaybackAsset(activeTrack?.kind === 'stream' ? asset : null);
+    },
+    setStemMix(value: number) {
+      services.stream.setStemMix(value);
     },
     unload() {
       desiredPlaybackState = 'paused';

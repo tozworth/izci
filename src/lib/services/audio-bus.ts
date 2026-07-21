@@ -21,6 +21,12 @@ export class AudioBusService {
   }
 
   connectHtmlMediaElement(element: HTMLMediaElement | null): MediaElementAudioSourceNode | null {
+    const source = this.adoptHtmlMediaElement(element);
+    if (source) this.#connectSource(source);
+    return source;
+  }
+
+  adoptHtmlMediaElement(element: HTMLMediaElement | null): MediaElementAudioSourceNode | null {
     if (!element) {
       return null;
     }
@@ -35,7 +41,6 @@ export class AudioBusService {
         this.#mediaSources.set(element, source);
       }
 
-      this.#connectSource(source);
       return source;
     } catch {
       // If Web Audio cannot adopt the element, leave Howler's native output untouched.

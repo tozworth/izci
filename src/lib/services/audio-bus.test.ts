@@ -147,6 +147,15 @@ describe('AudioBusService', () => {
     expect(context.mediaSources).toHaveLength(1);
   });
 
+  it('can adopt a media element without connecting it to the bus', () => {
+    const element = {} as HTMLMediaElement;
+    const source = bus.adoptHtmlMediaElement(element) as unknown as FakeMediaElementSourceNode;
+    const context = bus.context as unknown as FakeAudioContext;
+
+    expect(source.connections).toEqual([]);
+    expect(context.mediaSources).toEqual([source]);
+  });
+
   it('resumes the shared context for either playback backend', async () => {
     const context = bus.context as unknown as FakeAudioContext;
 

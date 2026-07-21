@@ -868,6 +868,32 @@ code {
   padding-top: 0;
 }
 
+.experiment-diagnostics {
+  margin: 0;
+  border-top: 1px solid var(--border-faint);
+}
+
+.experiment-diagnostics > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border-faint);
+}
+
+.experiment-diagnostics dt { color: var(--muted); }
+.experiment-diagnostics dd { margin: 0; color: var(--text-strong); text-align: right; }
+.experiment-message { margin: 8px 0 0; color: var(--muted); }
+.experiment-message.attention { color: #e69a78; }
+.experiment-progress { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px 10px; align-items: center; margin-top: 10px; }
+.experiment-progress progress { grid-column: 1 / -1; width: 100%; accent-color: var(--accent); }
+.experiment-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; margin-top: 10px; }
+.experiment-actions button,
+.experiment-progress button { padding: 5px 8px; border-radius: 6px; background: var(--bg-input); color: var(--text); border: 1px solid var(--menu-bar-border); }
+.experiment-actions button:hover:not(:disabled),
+.experiment-progress button:hover:not(:disabled) { background: var(--hover-surface); }
+.experiment-actions button:disabled { opacity: 0.45; }
+
 @container (max-width: 360px) {
   .about-extension {
     align-items: flex-start;

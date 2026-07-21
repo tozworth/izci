@@ -45,7 +45,7 @@
   }>();
 
   let panelChromeHidden = false;
-  let panelHideTimer: ReturnType<typeof window.setTimeout> | null = null;
+  let panelHideTimer: number | null = null;
   let lastPanelAutoHideDelaySeconds = panelAutoHideDelaySeconds;
 
   function setPanelChromeHidden(hidden: boolean) {

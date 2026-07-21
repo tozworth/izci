@@ -137,7 +137,7 @@
   </div>
 
   <footer class="about-footer">
-    {$t('options.about.credits', { default: 'izci uses Howler.js, Chiptune3 (based on libopenmpt), and Google Material Symbols.' })}
+    {$t('options.about.credits', { default: 'izci uses Howler.js, Chiptune3 (based on libopenmpt), ONNX Runtime Web, and Google Material Symbols.' })}
     {$t('options.about.seeFull', { default: 'See full' })}
     <a
       href={buildOptionsWindowPath('licenses')}

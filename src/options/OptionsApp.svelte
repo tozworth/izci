@@ -14,6 +14,7 @@
   import FoldersView from './components/views/FoldersView.svelte';
   import LicensesView from './components/views/LicensesView.svelte';
   import VisualizerView from './components/views/VisualizerView.svelte';
+  import ExperimentalView from './components/views/ExperimentalView.svelte';
   import RafView from './components/raf/RafView.svelte';
   import { windowControlsOverlayState } from '$lib/services/window-controls-overlay';
   import {
@@ -29,6 +30,8 @@
   import { rafSettings } from '$lib/stores/raf-settings';
   import { trackSettings } from '$lib/stores/track-settings';
   import { visualizerSettings } from '$lib/stores/visualizer-settings';
+  import { experimentalSettings } from '$lib/stores/experimental-settings';
+  import { stemPayloadManager } from '$lib/services/stem-separation/payload-manager';
   import {
     OPTIONS_VIEW_GROUPS,
     OPTIONS_VIEWS,
@@ -61,6 +64,7 @@
       case 'tracks': return $t('options.views.tracks', { default: 'Tracks' });
       case 'folders': return $t('options.views.folders', { default: 'Folders' });
       case 'metadata': return $t('options.views.metadata', { default: 'Metadata' });
+      case 'experimental': return $t('options.views.experimental', { default: 'Experimental' });
       case 'about': return $t('options.views.about', { default: 'About' });
       case 'licenses': return $t('options.views.licenses', { default: 'Licenses' });
     }
@@ -104,6 +108,9 @@
       trackSettings.reset();
     } else if (activeView === 'metadata') {
       metadataSettings.reset();
+    } else if (activeView === 'experimental') {
+      stemPayloadManager.cancel();
+      experimentalSettings.reset();
     }
   }
 
@@ -299,6 +306,10 @@
 
       {#if activeView === 'metadata'}
         <MetadataView />
+      {/if}
+
+      {#if activeView === 'experimental'}
+        <ExperimentalView />
       {/if}
 
       {#if activeView === 'about'}

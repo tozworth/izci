@@ -8,6 +8,7 @@
   } from '$lib/services/artwork-palette';
   import type { LoadedStreamArtwork } from '$lib/services/stream-artwork';
   import { sessionIdlePlayerQuip, type IdlePlayerQuipId } from '$lib/services/idle-player-copy';
+  import { formatStemGpuAdapter } from '$lib/services/stem-separation/gpu-adapter';
   import { portal } from '$lib/components/playlist-panel/actions/portal';
   import { windowDismiss } from '$lib/components/playlist-panel/actions/window-dismiss';
   import {
@@ -25,6 +26,7 @@
     PlaylistItem,
     RafPreset
   } from '$lib/types';
+  import type { StemSeparationSnapshot } from '$lib/services/stem-separation/types';
 
   function localizeIdlePlayerQuip(quip: IdlePlayerQuipId): string {
     switch (quip) {
@@ -71,6 +73,14 @@
   export let rafPresets: RafPreset[] = [];
   export let selectedRafPresetId: string | null = null;
   export let rafPresetDirty = false;
+  export let stemState: StemSeparationSnapshot = {
+    enabled: false,
+    trackId: null,
+    status: 'hidden',
+    progress: 0,
+    mix: 0,
+    playbackAsset: null
+  };
 
   const dispatch = createEventDispatcher<{
     toggle: void;
@@ -86,6 +96,12 @@
     applyRafPreset: string;
     openRafOptions: void;
     showTrack: string;
+    prepareStem: void;
+    cancelStem: void;
+    reprocessStem: void;
+    deleteStem: void;
+    stemMix: number;
+    openStemOptions: void;
   }>();
 
   const COMPACT_VOLUME_QUERY = '(max-width: 349px)';
@@ -99,7 +115,7 @@
   let viewportUsesCompactVolume = false;
   let isCompactVolume = false;
   let isVolumePopupOpen = false;
-  let volumePopupTimer: ReturnType<typeof window.setTimeout> | null = null;
+  let volumePopupTimer: number | null = null;
   let playerArtworkPalette: PlayerArtworkPalette | null = null;
   let playerArtworkPaletteUrl: string | undefined = undefined;
   let playerArtworkPaletteToken = 0;
@@ -107,6 +123,10 @@
   let rafPresetMenuX = 0;
   let rafPresetMenuY = 0;
   let rafPresetMenuElement: HTMLDivElement | null = null;
+  let stemMenuOpen = false;
+  let stemMenuX = 0;
+  let stemMenuY = 0;
+  let stemMenuElement: HTMLDivElement | null = null;
   let seekPreview = 0;
   let seekPointerActive = false;
   let snapshot: PlaybackSnapshot = {
@@ -223,6 +243,32 @@
   function applyRafPreset(id: string) {
     dispatch('applyRafPreset', id);
     closeRafPresetMenu();
+  }
+
+  async function openStemMenu(event: MouseEvent): Promise<void> {
+    const anchor = (event.currentTarget as HTMLButtonElement).getBoundingClientRect();
+    stemMenuX = clamp(anchor.right - 280, 6, Math.max(6, window.innerWidth - 286));
+    stemMenuY = Math.max(6, anchor.top - 220);
+    stemMenuOpen = true;
+    await tick();
+    if (!stemMenuOpen || !stemMenuElement) return;
+    stemMenuX = clamp(
+      anchor.right - stemMenuElement.offsetWidth,
+      6,
+      Math.max(6, window.innerWidth - stemMenuElement.offsetWidth - 6)
+    );
+    stemMenuY = Math.max(6, anchor.top - stemMenuElement.offsetHeight - 4);
+  }
+
+  function closeStemMenu(): void {
+    stemMenuOpen = false;
+  }
+
+  function stemStatusLabel(): string {
+    if (stemState.status === 'ready') return $t('main.player.stems.ready', { default: 'Vocal balance' });
+    if (stemState.status === 'processing') return $t('main.player.stems.processing', { default: 'Preparing vocals…' });
+    if (stemState.status === 'setup-required') return $t('main.player.stems.setupRequired', { default: 'Stem model setup required' });
+    return $t('main.player.stems.title', { default: 'Stem separation' });
   }
 
   async function syncPlayerArtworkPalette(url: string | undefined): Promise<void> {
@@ -601,6 +647,19 @@
         <span class="material-symbols-outlined" aria-hidden="true">power_settings_new</span>
       </button>
     {/if}
+    {#if presentation === 'bar' && stemState.enabled}
+      <button
+        type="button"
+        class="stem-toggle"
+        class:active={stemState.status === 'ready' && stemState.mix !== 0}
+        aria-label={stemStatusLabel()}
+        aria-expanded={stemMenuOpen}
+        title={stemStatusLabel()}
+        on:click={openStemMenu}
+      >
+        <span class="material-symbols-outlined" aria-hidden="true">graphic_eq</span>
+      </button>
+    {/if}
     <div class="volume-control">
       <button
         type="button"
@@ -677,6 +736,65 @@
   </div>
 {/if}
 
+{#if stemMenuOpen}
+  <div
+    bind:this={stemMenuElement}
+    class="stem-popover"
+    data-menu-interactive="true"
+    use:portal
+    use:windowDismiss={{ enabled: true, onDismiss: closeStemMenu }}
+    role="dialog"
+    aria-label={$t('main.player.stems.title', { default: 'Stem separation' })}
+    style={`left: ${stemMenuX}px; top: ${stemMenuY}px;`}
+  >
+    <header>
+      <strong>{$t('main.player.stems.title', { default: 'Stem separation' })}</strong>
+      <span class="material-symbols-outlined" aria-hidden="true">experiment</span>
+    </header>
+
+    {#if stemState.status === 'ready'}
+      <div class="stem-balance-labels" aria-hidden="true">
+        <span>{$t('main.player.stems.instrumental', { default: 'Instrumental' })}</span>
+        <span>{$t('main.player.stems.original', { default: 'Original' })}</span>
+        <span>{$t('main.player.stems.vocals', { default: 'Vocals' })}</span>
+      </div>
+      <input
+        class="stem-balance-range"
+        aria-label={$t('main.player.stems.balance', { default: 'Vocal balance' })}
+        type="range"
+        min="-1"
+        max="1"
+        step="0.01"
+        value={stemState.mix}
+        on:input={(event) => dispatch('stemMix', Number((event.currentTarget as HTMLInputElement).value))}
+      />
+      <div class="stem-actions">
+        <button type="button" on:click={() => dispatch('stemMix', 0)}>{$t('main.player.stems.reset', { default: 'Reset' })}</button>
+        <button type="button" on:click={() => dispatch('reprocessStem')}>{$t('main.player.stems.reprocess', { default: 'Reprocess' })}</button>
+        <button type="button" class="attention" on:click={() => dispatch('deleteStem')}>{$t('main.player.stems.delete', { default: 'Delete cached vocals' })}</button>
+      </div>
+    {:else if stemState.status === 'processing'}
+      <p>{$t('main.player.stems.processing', { default: 'Preparing vocals…' })}</p>
+      <progress max="1" value={stemState.progress}></progress>
+      <div class="stem-actions"><button type="button" on:click={() => dispatch('cancelStem')}>{$t('main.player.stems.cancel', { default: 'Cancel' })}</button></div>
+    {:else if stemState.status === 'unprepared'}
+      <p>{$t('main.player.stems.prepareHint', { default: 'Create a local vocal estimate for this stream track. The original file is never changed.' })}</p>
+      <div class="stem-actions"><button type="button" class="primary" on:click={() => dispatch('prepareStem')}>{$t('main.player.stems.prepare', { default: 'Prepare this track' })}</button></div>
+    {:else if stemState.status === 'setup-required'}
+      <p>{$t('main.player.stems.setupHint', { default: 'Finish the one-time model download in Experimental options.' })}</p>
+      <div class="stem-actions"><button type="button" on:click={() => { closeStemMenu(); dispatch('openStemOptions'); }}>{$t('main.player.stems.openOptions', { default: 'Open Experimental options' })}</button></div>
+    {:else}
+      <p>{stemState.message ?? $t('main.player.stems.checking', { default: 'Checking stem separation availability…' })}</p>
+      {#if stemState.status === 'error'}
+        <div class="stem-actions"><button type="button" on:click={() => dispatch('prepareStem')}>{$t('main.player.stems.tryAgain', { default: 'Try again' })}</button></div>
+      {/if}
+    {/if}
+    {#if stemState.adapterInfo}
+      <p class="stem-gpu">{$t('main.player.stems.gpu', { default: 'Inference GPU' })}: {formatStemGpuAdapter(stemState.adapterInfo)}</p>
+    {/if}
+  </div>
+{/if}
+
 <style>
   .player-artwork-button,
   .player-track-link {
@@ -709,5 +827,32 @@
   .raf-preset-context-menu button[aria-checked='true'] .preset-check {
     visibility: visible;
   }
+
+  .stem-popover {
+    position: fixed;
+    z-index: 65;
+    width: min(17.5rem, calc(100vw - 12px));
+    padding: 0.75rem;
+    border: 1px solid var(--menu-border, var(--border-strong));
+    border-radius: 0.6rem;
+    background: var(--bg-menu, var(--bg-elevated));
+    color: var(--text);
+    box-shadow: 0 0.8rem 2.5rem rgba(0, 0, 0, 0.35);
+  }
+
+  .stem-popover header,
+  .stem-actions,
+  .stem-balance-labels { display: flex; align-items: center; }
+  .stem-popover header { justify-content: space-between; }
+  .stem-popover p { margin: 0.65rem 0; color: var(--muted); line-height: 1.4; }
+  .stem-popover p.stem-gpu { margin-bottom: 0; font-size: 0.72rem; overflow-wrap: anywhere; }
+  .stem-popover progress { width: 100%; accent-color: var(--accent); }
+  .stem-balance-labels { justify-content: space-between; margin-top: 0.8rem; color: var(--muted); font-size: 0.68rem; }
+  .stem-balance-range { width: 100%; margin: 0.45rem 0 0.7rem; accent-color: var(--accent); }
+  .stem-actions { flex-wrap: wrap; justify-content: flex-end; gap: 0.35rem; }
+  .stem-actions button { padding: 0.35rem 0.55rem; border-radius: 0.35rem; background: var(--hover-surface); color: var(--text); }
+  .stem-actions button:hover { background: var(--selection-strong); }
+  .stem-actions button.primary { color: var(--accent-strong); }
+  .stem-actions button.attention { color: var(--danger, #e46f61); }
 
 </style>

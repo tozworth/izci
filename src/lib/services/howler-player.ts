@@ -2,6 +2,8 @@ import { Howl } from 'howler';
 import { audioBusService } from '$lib/services/audio-bus';
 import type { PlaybackSnapshot, PlaylistItem, ReplayGainMetadata, ReplayGainMode, TrackMetadata } from '$lib/types';
 import { applyReplayGain, sliderVolumeToGain } from '$lib/services/volume';
+import { StemPlaybackService } from '$lib/services/stem-playback';
+import type { StemPlaybackAsset } from '$lib/services/stem-separation/types';
 
 type SnapshotHandler = (snapshot: Partial<PlaybackSnapshot>) => void;
 type MetadataHandler = (metadata: TrackMetadata) => void;
@@ -22,6 +24,10 @@ const PROGRESS_PUBLISH_INTERVAL_SECONDS = 0.125;
 export class HowlerPlayerService {
   #howl: Howl | null = null;
   #audioSource: MediaElementAudioSourceNode | null = null;
+  #mediaElement: HTMLMediaElement | null = null;
+  #stemPlayback = new StemPlaybackService(audioBusService);
+  #stemAsset: StemPlaybackAsset | null = null;
+  #stemMix = 0;
   #loadToken = 0;
   #autoPlayOnLoad = false;
   #initialPosition = 0;
@@ -207,6 +213,18 @@ export class HowlerPlayerService {
     this.#applyOutputVolume();
   }
 
+  setStemPlaybackAsset(asset: StemPlaybackAsset | null): void {
+    if (this.#stemAsset?.cacheKey === asset?.cacheKey) return;
+    this.#stemAsset = asset;
+    this.#stemPlayback.destroy();
+    if (this.#mediaElement) this.#connectAudioBus(true);
+  }
+
+  setStemMix(value: number): void {
+    this.#stemMix = Math.min(Math.max(Number.isFinite(value) ? value : 0, -1), 1);
+    this.#stemPlayback.setMix(this.#stemMix);
+  }
+
   destroy(): void {
     this.#loadToken += 1;
     this.#autoPlayOnLoad = false;
@@ -215,23 +233,35 @@ export class HowlerPlayerService {
     this.#replayGain = undefined;
     this.#resetPublishedProgress();
     this.#stopTicking();
+    this.#stemPlayback.destroy();
     audioBusService.disconnect(this.#audioSource);
     this.#audioSource = null;
+    this.#mediaElement = null;
     this.#howl?.unload();
     this.#howl = null;
   }
 
-  #connectAudioBus(): void {
+  #connectAudioBus(force = false): void {
     const mediaElement = (this.#howl as HowlWithSounds | null)?._sounds?.find(
       (sound) => sound._node instanceof HTMLMediaElement
     )?._node;
 
-    if (!mediaElement || this.#audioSource?.mediaElement === mediaElement) {
+    if (!mediaElement || (!force && this.#audioSource?.mediaElement === mediaElement)) {
       return;
     }
 
+    this.#mediaElement = mediaElement;
+    this.#stemPlayback.destroy();
     audioBusService.disconnect(this.#audioSource);
-    this.#audioSource = audioBusService.connectHtmlMediaElement(mediaElement);
+    this.#audioSource = audioBusService.adoptHtmlMediaElement(mediaElement);
+    const stemRouted = Boolean(
+      this.#audioSource && this.#stemAsset && this.#stemPlayback.attach(mediaElement, this.#stemAsset)
+    );
+    if (stemRouted) {
+      this.#stemPlayback.setMix(this.#stemMix);
+    } else {
+      this.#audioSource = audioBusService.connectHtmlMediaElement(mediaElement);
+    }
     this.#applyOutputVolume();
   }
 

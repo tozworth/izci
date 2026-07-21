@@ -75,6 +75,8 @@
   import type { OptionsViewName } from './options/views';
   import { getFavoriteIdentity, getTrackDisplayTitle, getTrackIdentity } from '$lib/utils/files';
   import { favoritesHaveAllTracks } from '$lib/services/workspace-actions';
+  import { stemSeparationService } from '$lib/services/stem-separation/service';
+  import type { StemSeparationSnapshot } from '$lib/services/stem-separation/types';
 
   const {
     items: playlistItemsStore,
@@ -141,6 +143,7 @@
     row: 0
   };
   let patternAvailability: ContextualTabAvailability = 'unavailable';
+  let stemState: StemSeparationSnapshot = stemSeparationService.getSnapshot();
 
   let fileInput: HTMLInputElement | null = null;
   let innerWidth = typeof window !== 'undefined' ? window.innerWidth : 0;
@@ -269,6 +272,7 @@
   const unsubscribeRepeat = repeatStore.subscribe((value) => (repeatMode = value));
   const unsubscribeTrack = playerController.currentTrack.subscribe((value) => {
     playingTrack = value;
+    stemSeparationService.setCurrentTrack(value);
     playbackCommands.notifyCurrentTrackChanged(value);
 
     if (!value?.metadata) {
@@ -310,6 +314,20 @@
     (value) => (miniModeActive = value.active)
   );
   const unsubscribeAppInstall = appInstallService.subscribe((value) => (appInstallState = value));
+  const unsubscribeStemSeparation = stemSeparationService.subscribe((value) => {
+    stemState = value;
+    playerController.setStemPlaybackAsset(value.playbackAsset);
+    playerController.setStemMix(value.mix);
+  });
+
+  async function prepareCurrentStem(reprocess = false): Promise<void> {
+    const track = playingTrack;
+    if (!track) return;
+    if (reprocess) await stemSeparationService.deleteCurrentResult();
+    const loaded = await playlistStore.ensureLoaded(track.id, { prompt: true });
+    if (!loaded?.file) return;
+    await stemSeparationService.prepare(loaded, loaded.file).catch(() => undefined);
+  }
 
   function localizePlaybackError(message: string): string {
     if (message === 'Could not access this file. Re-add it or grant file access.') {
@@ -781,11 +799,13 @@
     unsubscribeLyricsPresentation();
     unsubscribeWindowMiniMode();
     unsubscribeAppInstall();
+    unsubscribeStemSeparation();
     appInstallService.destroy();
     unsubscribeLaunchedFiles();
     stopLibraryFolderCommands();
     disconnectMediaSession();
     playerController.destroy();
+    stemSeparationService.destroy();
   });
 </script>
 
@@ -921,6 +941,7 @@
       rafPresets={$rafPresets.presets}
       selectedRafPresetId={$rafPresets.selectedPresetId}
       rafPresetDirty={isRafPresetDirty($rafPresets, $rafSettings)}
+      {stemState}
       on:toggle={() => void playbackCommands.togglePlayback()}
       on:previous={() => void playbackCommands.stepTrack(-1)}
       on:next={() => void playbackCommands.stepTrack(1)}
@@ -934,6 +955,12 @@
       on:applyRafPreset={(event) => rafPresets.apply(event.detail)}
       on:openRafOptions={() => handleOpenOptions('raf')}
       on:showTrack={(event) => handleShowPlayerTrackDetails(event.detail)}
+      on:prepareStem={() => void prepareCurrentStem()}
+      on:cancelStem={() => stemSeparationService.cancel()}
+      on:reprocessStem={() => void prepareCurrentStem(true)}
+      on:deleteStem={() => void stemSeparationService.deleteCurrentResult()}
+      on:stemMix={(event) => stemSeparationService.setMix(event.detail)}
+      on:openStemOptions={() => handleOpenOptions('experimental')}
     />
   {/if}
 </div>

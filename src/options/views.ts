@@ -11,6 +11,7 @@ export type OptionsViewName =
   | 'tracks'
   | 'folders'
   | 'metadata'
+  | 'experimental'
   | 'about'
   | 'licenses';
 
@@ -27,6 +28,16 @@ export interface OptionsViewDefinition {
 }
 
 export const OPTIONS_VIEW_GROUPS: OptionsViewDefinition[][] = [
+  [
+    {
+      id: 'experimental',
+      label: 'Experimental',
+      icon: 'experiment',
+      parentLabel: '',
+      hasHints: true,
+      resettable: true
+    }
+  ],
   [
     {
       id: 'appearance',

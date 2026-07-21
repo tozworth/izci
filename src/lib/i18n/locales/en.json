@@ -84,6 +84,27 @@
         "whatPwa": "What even is a PWA?",
         "worksOnMachine": "Works on my machine."
       },
+      "stems": {
+        "ready": "Vocal balance",
+        "processing": "Preparing vocals…",
+        "setupRequired": "Stem model setup required",
+        "title": "Stem separation",
+        "instrumental": "Instrumental",
+        "original": "Original",
+        "vocals": "Vocals",
+        "balance": "Vocal balance",
+        "reset": "Reset",
+        "reprocess": "Reprocess",
+        "delete": "Delete cached vocals",
+        "cancel": "Cancel",
+        "prepareHint": "Create a local vocal estimate for this stream track. The original file is never changed.",
+        "prepare": "Prepare this track",
+        "setupHint": "Finish the one-time model download in Experimental options.",
+        "openOptions": "Open Experimental options",
+        "checking": "Checking stem separation availability…",
+        "tryAgain": "Try again",
+        "gpu": "Inference GPU"
+      },
       "nowPlayingControls": "Now Playing controls",
       "showCurrentTrackDetails": "Show current track details",
       "welcome": "Welcome to izci!",
@@ -349,7 +370,6 @@
         "damping": "Damping"
       },
       "sloptimizer": {
-        "slop": "Slop",
         "flavors": {
           "off": "Off",
           "subtle": "Subtle",
@@ -358,6 +378,7 @@
           "max": "Fuck me up",
           "ott": "OTT mode"
         },
+        "slop": "Slop",
         "lowLift": "Low lift",
         "midLift": "Mid lift",
         "highLift": "High lift",
@@ -407,7 +428,7 @@
         "name": "“izci” means “tracker” in Turkish*",
         "nameNote": "*Umm actually it’s closer to “scout”. But it was cute and the name stuck"
       },
-      "credits": "izci uses Howler.js, Chiptune3 (based on libopenmpt), and Google Material Symbols.",
+      "credits": "izci uses Howler.js, Chiptune3 (based on libopenmpt), ONNX Runtime Web, and Google Material Symbols.",
       "seeFull": "See full",
       "thirdPartyLicenses": "third-party licenses"
     },
@@ -524,6 +545,36 @@
       "artworkBrightness": {
         "title": "Artwork brightness"
       }
+    },
+    "experimental": {
+      "stems": {
+        "downloadConfirm": "Download and verify the {size} stem model?",
+        "removeConfirm": "Remove the downloaded stem model? Prepared tracks will be kept.",
+        "clearConfirm": "Delete all prepared vocal assets? Source files are never touched.",
+        "title": "Stem separation",
+        "hint": "Locally estimates vocals for stream tracks using WebGPU. It never uploads or changes your music.",
+        "gpuRequest": "GPU request",
+        "inferenceAdapter": "Verified inference adapter",
+        "notVerified": "Not verified yet",
+        "model": "Model",
+        "runtime": "Optional runtime",
+        "prepared": "Prepared tracks",
+        "siteStorage": "Total site storage",
+        "windowsGpuWarning": "Chromium returned the Intel adapter. Chrome currently ignores WebGPU powerPreference on Windows; assign chrome.exe to High performance in Windows Graphics settings, fully exit Chrome, then verify again.",
+        "cancel": "Cancel",
+        "download": "Download model and runtime",
+        "verifyAdapter": "Verify inference GPU",
+        "remove": "Remove downloaded model",
+        "clear": "Delete prepared tracks"
+      },
+      "heading": "Optional experiments",
+      "diagnostics": {
+        "heading": "Diagnostics and storage"
+      }
+    },
+    "common": {
+      "available": "Available",
+      "unavailable": "Unavailable"
     },
     "folders": {
       "scan": {
@@ -879,6 +930,7 @@
       "tracks": "Tracks",
       "folders": "Folders",
       "metadata": "Metadata",
+      "experimental": "Experimental",
       "about": "About",
       "licenses": "Licenses"
     },

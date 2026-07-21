@@ -84,6 +84,27 @@
         "whatPwa": "PWA ne lan?",
         "worksOnMachine": "Bende çalışıyo."
       },
+      "stems": {
+        "ready": "Vokal dengesi",
+        "processing": "Vokaller hazırlanıyor…",
+        "setupRequired": "Stem modeli kurulmalı",
+        "title": "Stem ayırma",
+        "instrumental": "Enstrümantal",
+        "original": "Orijinal",
+        "vocals": "Vokaller",
+        "balance": "Vokal dengesi",
+        "reset": "Sıfırla",
+        "reprocess": "Yeniden işle",
+        "delete": "Önbellekteki vokalleri sil",
+        "cancel": "İptal",
+        "prepareHint": "Bu akış parçası için yerel bir vokal tahmini oluşturur. Orijinal dosya asla değiştirilmez.",
+        "prepare": "Bu parçayı hazırla",
+        "setupHint": "Deneysel seçeneklerde tek seferlik model indirmesini tamamla.",
+        "openOptions": "Deneysel seçenekleri aç",
+        "checking": "Stem ayırma desteği denetleniyor…",
+        "tryAgain": "Tekrar dene",
+        "gpu": "Çıkarım GPU'su"
+      },
       "nowPlayingControls": "Şimdi Yürütülüyor kontrolleri",
       "showCurrentTrackDetails": "Mevcut parçanın detaylarını göster",
       "welcome": "izci'ye hoş geldin!",
@@ -349,7 +370,6 @@
         "damping": "Sönümleme"
       },
       "sloptimizer": {
-        "slop": "Yal",
         "flavors": {
           "off": "Kapalı",
           "subtle": "Ölçülü",
@@ -358,6 +378,7 @@
           "max": "Viran eyle",
           "ott": "OTT modu"
         },
+        "slop": "Yal",
         "lowLift": "Düşük frekanslar",
         "midLift": "Orta frekanslar",
         "highLift": "Yüksek frekanslar",
@@ -407,7 +428,7 @@
         "name": "Biliyomusun, \"izci\" ingilizcede \"tracker\" demek*",
         "nameNote": "*Aslında “scout”a daha yakın. Ama \"izci\" çok tatlı duruyo ya."
       },
-      "credits": "izci için Howler.js, Chiptune3 (libopenmpt WASM), ve Material Symbols olmazsa olmazdır.",
+      "credits": "izci için Howler.js, Chiptune3 (libopenmpt WASM), ONNX Runtime Web ve Material Symbols olmazsa olmazdır.",
       "seeFull": "Tüm",
       "thirdPartyLicenses": "üçüncü taraf lisansları için tıklayın"
     },
@@ -524,6 +545,36 @@
       "artworkBrightness": {
         "title": "Albüm resmi parlaklığı"
       }
+    },
+    "experimental": {
+      "stems": {
+        "downloadConfirm": "{size} boyutundaki stem modeli indirilip doğrulansın mı?",
+        "removeConfirm": "İndirilen stem modeli kaldırılsın mı? Hazırlanan parçalar korunacak.",
+        "clearConfirm": "Hazırlanmış tüm vokal varlıkları silinsin mi? Kaynak dosyalara dokunulmaz.",
+        "title": "Stem ayırma",
+        "hint": "Akış parçalarındaki vokalleri WebGPU ile yerel olarak tahmin eder. Müziğini asla yüklemez veya değiştirmez.",
+        "gpuRequest": "GPU isteği",
+        "inferenceAdapter": "Doğrulanmış çıkarım bağdaştırıcısı",
+        "notVerified": "Henüz doğrulanmadı",
+        "model": "Model",
+        "runtime": "İsteğe bağlı çalışma zamanı",
+        "prepared": "Hazırlanan parçalar",
+        "siteStorage": "Toplam site depolaması",
+        "windowsGpuWarning": "Chromium Intel bağdaştırıcısını döndürdü. Chrome şu anda Windows'ta WebGPU powerPreference değerini yok sayıyor; Windows Grafik ayarlarında chrome.exe'yi Yüksek performans olarak ayarla, Chrome'dan tamamen çık ve ardından yeniden doğrula.",
+        "cancel": "İptal",
+        "download": "Modeli ve çalışma zamanını indir",
+        "verifyAdapter": "Çıkarım GPU'sunu doğrula",
+        "remove": "İndirilen modeli kaldır",
+        "clear": "Hazırlanan parçaları sil"
+      },
+      "heading": "İsteğe bağlı deneyler",
+      "diagnostics": {
+        "heading": "Tanılama ve depolama"
+      }
+    },
+    "common": {
+      "available": "Uygun",
+      "unavailable": "Uygun değil"
     },
     "folders": {
       "scan": {
@@ -879,6 +930,7 @@
       "tracks": "Parçalar",
       "folders": "Klasörler",
       "metadata": "Metaveri",
+      "experimental": "Deneysel",
       "about": "Hakkında",
       "licenses": "Lisanslar"
     },

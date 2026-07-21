@@ -15,6 +15,11 @@ export default defineConfig({
       input: {
         main: fileURLToPath(new URL('./index.html', import.meta.url)),
         options: fileURLToPath(new URL('./options.html', import.meta.url))
+      },
+      output: {
+        manualChunks(id) {
+          if (id.includes('/stem-separation/processor.ts')) return 'stem-separation-runtime';
+        }
       }
     }
   },
@@ -105,6 +110,20 @@ export default defineConfig({
       } as Record<string, unknown>,
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,woff2,mem}'],
+        globIgnores: ['**/processor.worker-*.js', '**/stem-separation-*.js', '**/ort-wasm-*.wasm'],
+        runtimeCaching: [
+          {
+            urlPattern: ({ url }) =>
+              url.origin === self.location.origin &&
+              (/\/assets\/(?:processor\.worker|stem-separation-).+\.js$/.test(url.pathname) ||
+                /\/assets\/ort-wasm-.+\.wasm$/.test(url.pathname)),
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'izci-optional-stem-runtime-v1',
+              expiration: { maxEntries: 6 }
+            }
+          }
+        ],
         navigateFallbackDenylist: [/^\/options\.html(?:\?|$)/],
         ignoreURLParametersMatching: [/^utm_/, /^fbclid$/, /^view$/],
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024

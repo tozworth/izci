@@ -8,4 +8,5 @@ coverage
 .local/
 .firebase/
 .firebaserc
+public/optional/stem-separation/
 firebase-debug.log

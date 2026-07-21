@@ -70,6 +70,27 @@ The MIT License text reproduced above applies to Workbox.
 
 Source: <https://github.com/GoogleChrome/workbox>
 
+### ONNX Runtime Web
+
+ONNX Runtime Web is licensed under the MIT License.
+
+Copyright (c) Microsoft Corporation.
+
+The MIT License text reproduced above applies to ONNX Runtime Web.
+
+Source: <https://github.com/microsoft/onnxruntime>
+
+### BS PolarFormer optional model payload
+
+The optional `bs_polarformer_webgpu_fp16.onnx` export is published by bgkb
+under the MIT License. It is derived from the BS PolarFormer checkpoint in
+ZFTurbo's Music-Source-Separation-Training project and is downloaded only when
+the stem-separation experiment is explicitly enabled.
+
+Model and conversion source: <https://huggingface.co/bgkb/bs_polarformer>
+
+Original training/inference project: <https://github.com/ZFTurbo/Music-Source-Separation-Training>
+
 ### libopenmpt
 
 libopenmpt is licensed under the BSD 3-Clause License:
