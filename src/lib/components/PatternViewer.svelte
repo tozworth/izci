@@ -3,7 +3,12 @@
   import { t } from 'svelte-i18n';
   import { isPatternCellEmpty, splitPatternCell } from '$lib/services/pattern-presentation';
   import { patternViewerSettings } from '$lib/stores/pattern-viewer-settings';
-  import type { ModulePatternSnapshot, PlaybackSnapshot, PlaylistItem } from '$lib/types';
+  import type {
+    ModulePatternSnapshot,
+    ModulePatternSong,
+    PlaybackSnapshot,
+    PlaylistItem
+  } from '$lib/types';
 
   export let track: PlaylistItem | null = null;
   export let snapshot: ModulePatternSnapshot;
@@ -12,11 +17,13 @@
   let viewport: HTMLDivElement | null = null;
   let viewportHeight = 0;
   let channelHeaderHeight = 0;
+  let song: ModulePatternSong | null = null;
   let lastFollowKey = '';
-  let followFrame = 0;
+  let followRequest = 0;
+  let destroyed = false;
 
   $: isCurrentModule = track?.kind === 'module' && snapshot.trackId === track.id;
-  $: song = isCurrentModule ? snapshot.song : null;
+  $: syncSong(isCurrentModule ? snapshot.song : null);
   $: patternIndex = song
     ? Math.min(Math.max(snapshot.pattern, 0), Math.max(song.patterns.length - 1, 0))
     : 0;
@@ -58,12 +65,21 @@
     return formatIndex(value, width);
   }
 
+  function syncSong(nextSong: ModulePatternSong | null): void {
+    // Row-only snapshots arrive frequently during playback. Keep the song object
+    // stable so those updates do not rebuild the channel model and dirty every
+    // pattern cell.
+    if (song !== nextSong) {
+      song = nextSong;
+    }
+  }
+
   function measurePatternViewport(node: HTMLDivElement) {
     const channelHeader = node.querySelector<HTMLElement>('.pattern-channel-header');
 
     const updateMeasurements = () => {
       const nextViewportHeight = node.clientHeight;
-      const nextChannelHeaderHeight = channelHeader?.offsetHeight ?? 0;
+      const nextChannelHeaderHeight = channelHeader?.getBoundingClientRect().height ?? 0;
 
       if (nextViewportHeight === viewportHeight && nextChannelHeaderHeight === channelHeaderHeight) {
         return;
@@ -98,36 +114,45 @@
   }
 
   async function centerActiveRow(): Promise<void> {
+    const request = ++followRequest;
     await tick();
-    window.cancelAnimationFrame(followFrame);
-    followFrame = window.requestAnimationFrame(() => {
-      const activeRowElement = viewport?.querySelector<HTMLElement>('[data-pattern-active-row="true"]');
 
-      if (!viewport || !activeRowElement) {
-        return;
-      }
+    if (destroyed || request !== followRequest || !viewport) {
+      return;
+    }
 
-      const stickyHeaderHeight = $patternViewerSettings.alwaysCenterActiveRow
-        ? channelHeaderHeight
-        : 0;
-      const top = Math.max(
-        activeRowElement.offsetTop
-          - stickyHeaderHeight
-          - (viewport.clientHeight - stickyHeaderHeight - activeRowElement.offsetHeight) / 2,
-        0
-      );
-      viewport.scrollTo({
-        top,
-        behavior:
-          $patternViewerSettings.smoothScroll && playbackSnapshot?.state === 'playing'
-            ? 'smooth'
-            : 'auto'
-      });
-    });
+    const activeRowElement = viewport.querySelector<HTMLElement>('[data-pattern-active-row="true"]');
+
+    if (!activeRowElement) {
+      return;
+    }
+
+    const viewportRect = viewport.getBoundingClientRect();
+    const activeRowRect = activeRowElement.getBoundingClientRect();
+    const stickyHeaderHeight = $patternViewerSettings.alwaysCenterActiveRow
+      ? channelHeaderHeight
+      : 0;
+    const rowTop = viewport.scrollTop + activeRowRect.top - viewportRect.top;
+    const top = Math.max(
+      rowTop
+        - stickyHeaderHeight
+        - (viewport.clientHeight - stickyHeaderHeight - activeRowRect.height) / 2,
+      0
+    );
+
+    if ($patternViewerSettings.smoothScroll && playbackSnapshot?.state === 'playing') {
+      viewport.scrollTo({ top, behavior: 'smooth' });
+      return;
+    }
+
+    // Apply the row correction in the same update turn. Deferring it to a new
+    // animation frame lets the active style paint one row away from center.
+    viewport.scrollTop = top;
   }
 
   onDestroy(() => {
-    window.cancelAnimationFrame(followFrame);
+    destroyed = true;
+    followRequest += 1;
   });
 </script>
 
@@ -349,7 +374,8 @@
   }
 
   .pattern-row {
-    min-height: var(--pattern-row-height);
+    height: var(--pattern-row-height);
+    min-height: 0;
   }
 
   .pattern-body {
@@ -365,7 +391,9 @@
     border-right: 1px solid var(--border-faint);
     border-bottom: 1px solid color-mix(in srgb, var(--border-faint) 48%, transparent);
     font: 500 var(--pattern-font-size)/1 'IBM Plex Mono', 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
+    font-synthesis: none;
     font-variant-ligatures: none;
+    font-variant-numeric: tabular-nums;
   }
 
   .pattern-row-number {
@@ -418,14 +446,12 @@
   .pattern-row.active .pattern-cell,
   .pattern-row.active .pattern-row-number {
     border-bottom-color: color-mix(in srgb, var(--accent) 44%, transparent);
-    color: var(--text);
     background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 17%, var(--bg-elevated)), color-mix(in srgb, var(--accent) 8%, var(--bg-base)));
     box-shadow: inset 0 1px color-mix(in srgb, var(--accent) 22%, transparent), inset 0 -1px color-mix(in srgb, var(--accent) 22%, transparent);
   }
 
   .pattern-row.active .pattern-row-number {
     color: var(--accent);
-    font-weight: 750;
   }
 
   @media (max-width: 520px) {
