@@ -279,8 +279,7 @@
         "maxBoost": "En fazla artırma",
         "peakHold": "Tepe tutma",
         "recovery": "Geri dönüş",
-        "lookahead": "Öngörü",
-        "explanation": "Yakın zamandaki tepeleri izler ve tek bir geniş bant kazancını hareket ettirir. Otomatik modlar ani tepelerin çalınmadan önce kısılabilmesi için sesi öngörü süresi kadar geciktirir; manuel mod gecikmesiz kalır. Kompresör veya limiter değildir."
+        "lookahead": "Öngörü"
       },
       "crystalizer": {
         "controls": "Çok-bantlı keskinleştirici kontrolleri",

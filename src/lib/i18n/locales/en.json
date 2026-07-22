@@ -279,8 +279,7 @@
         "maxBoost": "Max boost",
         "peakHold": "Peak hold",
         "recovery": "Recovery",
-        "lookahead": "Lookahead",
-        "explanation": "Tracks recent peaks and moves one broadband gain. Automatic modes delay audio by the lookahead amount so sudden peaks can be cut before playback; manual mode stays latency-free. It is not a compressor or limiter."
+        "lookahead": "Lookahead"
       },
       "crystalizer": {
         "controls": "Multiband crystalizer controls",

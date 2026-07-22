@@ -113,10 +113,6 @@
       </label>
     </div>
   {/if}
-
-  <p class="explanation">
-    {$t('options.raf.autoAmp.explanation', { default: 'Tracks recent peaks and moves one broadband gain. Automatic modes delay audio by the lookahead amount so sudden peaks can be cut before playback; manual mode stays latency-free. It is not a compressor or limiter.' })}
-  </p>
 </div>
 
 <style>
