@@ -15,6 +15,19 @@ describe('normalizeRafSettings', () => {
     const result = normalizeRafSettings({
       enabled: false,
       effects: [
+        {
+          id: 'amp-1',
+          type: 'auto-amp',
+          enabled: true,
+          gainDb: 2,
+          mode: 'dynamic',
+          targetDb: -1,
+          maximumReductionDb: 20,
+          maximumBoostDb: 12,
+          peakHoldSeconds: 2,
+          recoveryDbPerSecond: 2,
+          lookaheadMs: 150
+        },
         { id: 'eq-1', type: 'graphic-eq', enabled: true, preampDb: 3, bandGainsDb: GRAPHIC_EQ_FREQUENCIES.map(() => 2) },
         { id: 'width-1', type: 'stereo-width', enabled: false, displayName: '  Wide   room  ', widthDb: 10 },
         {
@@ -58,12 +71,13 @@ describe('normalizeRafSettings', () => {
     });
 
     expect(result.enabled).toBe(false);
-    expect(result.effects.map((effect) => effect.id)).toEqual(['eq-1', 'width-1', 'crystalizer-1', 'sloptimizer-1', 'reverb-1']);
-    expect(result.effects[0]).toMatchObject({ preampDb: 3 });
-    expect(result.effects[1]).toMatchObject({ displayName: 'Wide room' });
-    expect(result.effects[3]).toMatchObject(mapSlopToParameters(50));
-    expect(result.effects[3]).toMatchObject({ lowCrossoverHz: 220, highCrossoverHz: 4_000 });
-    expect(result.effects[4]).toMatchObject({ mix: 22, decaySeconds: 3.4, dampingHz: 7_500 });
+    expect(result.effects.map((effect) => effect.id)).toEqual(['amp-1', 'eq-1', 'width-1', 'crystalizer-1', 'sloptimizer-1', 'reverb-1']);
+    expect(result.effects[0]).toMatchObject({ mode: 'dynamic', targetDb: -1, maximumBoostDb: 12 });
+    expect(result.effects[1]).toMatchObject({ preampDb: 3 });
+    expect(result.effects[2]).toMatchObject({ displayName: 'Wide room' });
+    expect(result.effects[4]).toMatchObject(mapSlopToParameters(50));
+    expect(result.effects[4]).toMatchObject({ lowCrossoverHz: 220, highCrossoverHz: 4_000 });
+    expect(result.effects[5]).toMatchObject({ mix: 22, decaySeconds: 3.4, dampingHz: 7_500 });
   });
 
   it('clamps finite gains to the declared control domain and rejects malformed EQ arrays', () => {
@@ -76,6 +90,41 @@ describe('normalizeRafSettings', () => {
     });
 
     expect(result.effects).toEqual([{ id: 'width', type: 'stereo-width', enabled: true, widthDb: 24 }]);
+  });
+
+  it('clamps Auto Amp controls and rejects unknown movement modes', () => {
+    const common = {
+      type: 'auto-amp',
+      enabled: true,
+      gainDb: 100,
+      targetDb: -20,
+      maximumReductionDb: 100,
+      maximumBoostDb: 100,
+      peakHoldSeconds: 100,
+      recoveryDbPerSecond: 100,
+      lookaheadMs: 1_000
+    };
+    const result = normalizeRafSettings({
+      enabled: true,
+      effects: [
+        { ...common, id: 'amp', mode: 'dynamic' },
+        { ...common, id: 'broken', mode: 'sometimes' }
+      ]
+    });
+
+    expect(result.effects).toEqual([{
+      id: 'amp',
+      type: 'auto-amp',
+      enabled: true,
+      gainDb: 24,
+      mode: 'dynamic',
+      targetDb: -6,
+      maximumReductionDb: 24,
+      maximumBoostDb: 24,
+      peakHoldSeconds: 10,
+      recoveryDbPerSecond: 12,
+      lookaheadMs: 300
+    }]);
   });
 
   it('clamps crystalizer intensities and rejects malformed per-band state', () => {

@@ -165,6 +165,7 @@
 
   function effectTypeName(type: RafEffectType): string {
     switch (type) {
+      case 'auto-amp': return $t('options.raf.effectTypes.autoAmp', { default: 'Auto Amp' });
       case 'graphic-eq': return $t('options.raf.effectTypes.graphicEq', { default: 'Graphic EQ' });
       case 'stereo-width': return $t('options.raf.effectTypes.stereoWidth', { default: 'Stereo Width' });
       case 'crystalizer': return $t('options.raf.effectTypes.crystalizer', { default: 'Crystalizer' });

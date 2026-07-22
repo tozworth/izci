@@ -117,11 +117,8 @@
       "genre": "Tarz",
       "trackNumber": "Parça Numarası",
       "year": "Yıl",
-      "replayGain": "ReplayGain",
       "replayGainTrack": "Parça {gain}",
       "replayGainAlbum": "Albüm {gain}",
-      "patterns": "Örüntüler",
-      "subsongs": "Altparçalar",
       "patternCount": "{count, plural, one {# örüntü} other {# örüntü}}",
       "subsongPositionNamed": "Altparçalar: {position} / {count} · {name}",
       "subsongPosition": "Altparçalar: {position} / {count}",
@@ -129,6 +126,9 @@
       "heading": "Parça Detayları",
       "closePanel": "Parça Detaylarını Kapat",
       "format": "Tür",
+      "replayGain": "ReplayGain",
+      "patterns": "Örüntüler",
+      "subsongs": "Altparçalar",
       "notes": "Notlar",
       "emptyTitle": "İncelemek için parça seçin.",
       "emptyDescription": "Çalma listesi ve kütüphane seçimlerinin metaverileri burada görünür."
@@ -264,6 +264,24 @@
   },
   "options": {
     "raf": {
+      "autoAmp": {
+        "mode": "Otomatik",
+        "modes": {
+          "off": "Kapalı",
+          "reduce": "Azalt",
+          "increase": "Artır",
+          "dynamic": "Dinamik (ikisi de)"
+        },
+        "appliedGain": "Uygulanan kazanç",
+        "gain": "Kazanç",
+        "targetPeak": "Hedef tepe",
+        "maxReduction": "En fazla azaltma",
+        "maxBoost": "En fazla artırma",
+        "peakHold": "Tepe tutma",
+        "recovery": "Geri dönüş",
+        "lookahead": "Öngörü",
+        "explanation": "Yakın zamandaki tepeleri izler ve tek bir geniş bant kazancını hareket ettirir. Otomatik modlar ani tepelerin çalınmadan önce kısılabilmesi için sesi öngörü süresi kadar geciktirir; manuel mod gecikmesiz kalır. Kompresör veya limiter değildir."
+      },
       "crystalizer": {
         "controls": "Çok-bantlı keskinleştirici kontrolleri",
         "unmuteBand": "{frequency} Hz bandını aç",
@@ -299,6 +317,7 @@
         "delete": "Efekti sil"
       },
       "effectTypes": {
+        "autoAmp": "Auto Amp",
         "graphicEq": "Ekolayzer",
         "stereoWidth": "Stereo Genişletme",
         "crystalizer": "Keskinleştirici",
@@ -354,7 +373,6 @@
         "damping": "Sönümleme"
       },
       "sloptimizer": {
-        "slop": "Yal",
         "flavors": {
           "off": "Kapalı",
           "subtle": "Ölçülü",
@@ -363,6 +381,7 @@
           "max": "Viran eyle",
           "ott": "OTT modu"
         },
+        "slop": "Yal",
         "lowLift": "Düşük frekanslar",
         "midLift": "Orta frekanslar",
         "highLift": "Yüksek frekanslar",

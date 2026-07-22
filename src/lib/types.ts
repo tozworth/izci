@@ -112,7 +112,8 @@ export interface WorkspaceResizeHandle {
   after: WorkspacePanelId;
 }
 export type ReplayGainMode = 'off' | 'track' | 'album';
-export type RafEffectType = 'graphic-eq' | 'stereo-width' | 'crystalizer' | 'sloptimizer' | 'reverb';
+export type RafAutoAmpMode = 'off' | 'reduce' | 'increase' | 'dynamic';
+export type RafEffectType = 'auto-amp' | 'graphic-eq' | 'stereo-width' | 'crystalizer' | 'sloptimizer' | 'reverb';
 export type PatternRowNumberBase = 'hex' | 'decimal';
 export type PatternColorScheme = 'conventional' | 'theme' | 'monochrome';
 
@@ -162,6 +163,18 @@ export interface RafEffectBase {
   displayName?: string;
 }
 
+export interface RafAutoAmpSettings extends RafEffectBase {
+  type: 'auto-amp';
+  gainDb: number;
+  mode: RafAutoAmpMode;
+  targetDb: number;
+  maximumReductionDb: number;
+  maximumBoostDb: number;
+  peakHoldSeconds: number;
+  recoveryDbPerSecond: number;
+  lookaheadMs: number;
+}
+
 export interface RafGraphicEqSettings extends RafEffectBase {
   type: 'graphic-eq';
   preampDb: number;
@@ -205,6 +218,7 @@ export interface RafReverbSettings extends RafEffectBase {
 }
 
 export type RafEffectSettings =
+  | RafAutoAmpSettings
   | RafGraphicEqSettings
   | RafStereoWidthSettings
   | RafCrystalizerSettings

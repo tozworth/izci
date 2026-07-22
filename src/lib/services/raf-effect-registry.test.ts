@@ -7,12 +7,21 @@ import { RAF_EFFECT_DEFINITIONS, RAF_EFFECT_REGISTRY } from './raf-effect-regist
 describe('Raf effect registry', () => {
   it('declares the built-ins with independent defaults', () => {
     expect(RAF_EFFECT_DEFINITIONS.map((definition) => definition.type)).toEqual([
+      'auto-amp',
       'graphic-eq',
       'stereo-width',
       'crystalizer',
       'sloptimizer',
       'reverb'
     ]);
+    expect(RAF_EFFECT_REGISTRY['auto-amp'].createDefault('amp')).toMatchObject({
+      id: 'amp',
+      type: 'auto-amp',
+      gainDb: 0,
+      mode: 'off',
+      targetDb: -1,
+      lookaheadMs: 150
+    });
     const first = RAF_EFFECT_REGISTRY['graphic-eq'].createDefault('first');
     const second = RAF_EFFECT_REGISTRY['graphic-eq'].createDefault('second');
     expect(first).toMatchObject({ id: 'first', enabled: true, preampDb: 0 });

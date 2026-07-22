@@ -117,11 +117,8 @@
       "genre": "Genre",
       "trackNumber": "Track Number",
       "year": "Year",
-      "replayGain": "ReplayGain",
       "replayGainTrack": "Track {gain}",
       "replayGainAlbum": "Album {gain}",
-      "patterns": "Patterns",
-      "subsongs": "Subsongs",
       "patternCount": "{count, plural, one {# pattern} other {# patterns}}",
       "subsongPositionNamed": "Subsongs: {position} of {count} · {name}",
       "subsongPosition": "Subsongs: {position} of {count}",
@@ -129,6 +126,9 @@
       "heading": "Track Details",
       "closePanel": "Close Track Details",
       "format": "Format",
+      "replayGain": "ReplayGain",
+      "patterns": "Patterns",
+      "subsongs": "Subsongs",
       "notes": "Notes",
       "emptyTitle": "Select a track to inspect it.",
       "emptyDescription": "Playlist and library selections both surface their metadata here."
@@ -264,6 +264,24 @@
   },
   "options": {
     "raf": {
+      "autoAmp": {
+        "mode": "Auto",
+        "modes": {
+          "off": "Off",
+          "reduce": "Reduce",
+          "increase": "Increase",
+          "dynamic": "Dynamic (both)"
+        },
+        "appliedGain": "Applied gain",
+        "gain": "Gain",
+        "targetPeak": "Target peak",
+        "maxReduction": "Max reduction",
+        "maxBoost": "Max boost",
+        "peakHold": "Peak hold",
+        "recovery": "Recovery",
+        "lookahead": "Lookahead",
+        "explanation": "Tracks recent peaks and moves one broadband gain. Automatic modes delay audio by the lookahead amount so sudden peaks can be cut before playback; manual mode stays latency-free. It is not a compressor or limiter."
+      },
       "crystalizer": {
         "controls": "Multiband crystalizer controls",
         "unmuteBand": "Unmute {frequency} Hz band",
@@ -299,6 +317,7 @@
         "delete": "Delete effect"
       },
       "effectTypes": {
+        "autoAmp": "Auto Amp",
         "graphicEq": "Graphic EQ",
         "stereoWidth": "Stereo Width",
         "crystalizer": "Crystalizer",
@@ -354,7 +373,6 @@
         "damping": "Damping"
       },
       "sloptimizer": {
-        "slop": "Slop",
         "flavors": {
           "off": "Off",
           "subtle": "Subtle",
@@ -363,6 +381,7 @@
           "max": "Fuck me up",
           "ott": "OTT mode"
         },
+        "slop": "Slop",
         "lowLift": "Low lift",
         "midLift": "Mid lift",
         "highLift": "High lift",

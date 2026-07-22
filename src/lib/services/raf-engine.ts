@@ -219,6 +219,17 @@ export function sameEffectSettings(first: RafEffectSettings, second: RafEffectSe
   if (first.id !== second.id || first.type !== second.type || first.enabled !== second.enabled) return false;
 
   switch (first.type) {
+    case 'auto-amp': {
+      const candidate = second as typeof first;
+      return first.gainDb === candidate.gainDb
+        && first.mode === candidate.mode
+        && first.targetDb === candidate.targetDb
+        && first.maximumReductionDb === candidate.maximumReductionDb
+        && first.maximumBoostDb === candidate.maximumBoostDb
+        && first.peakHoldSeconds === candidate.peakHoldSeconds
+        && first.recoveryDbPerSecond === candidate.recoveryDbPerSecond
+        && first.lookaheadMs === candidate.lookaheadMs;
+    }
     case 'graphic-eq': {
       const candidate = second as typeof first;
       return first.preampDb === candidate.preampDb

@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { RafEffectSettings } from '$lib/types';
+  import AutoAmpEditor from './AutoAmpEditor.svelte';
   import CrystalizerEditor from './CrystalizerEditor.svelte';
   import GraphicEqEditor from './GraphicEqEditor.svelte';
   import ReverbEditor from './ReverbEditor.svelte';
@@ -9,7 +10,9 @@
   export let effect: RafEffectSettings;
 </script>
 
-{#if effect.type === 'graphic-eq'}
+{#if effect.type === 'auto-amp'}
+  <AutoAmpEditor settings={effect} />
+{:else if effect.type === 'graphic-eq'}
   <GraphicEqEditor settings={effect} />
 {:else if effect.type === 'stereo-width'}
   <StereoWidthEditor settings={effect} />

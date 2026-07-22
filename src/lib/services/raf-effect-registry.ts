@@ -1,4 +1,5 @@
 import type {
+  RafAutoAmpSettings,
   RafCrystalizerSettings,
   RafEffectSettings,
   RafEffectType,
@@ -7,6 +8,23 @@ import type {
   RafSloptimizerSettings,
   RafStereoWidthSettings
 } from '$lib/types';
+import {
+  AUTO_AMP_BOOST_MAX_DB,
+  AUTO_AMP_GAIN_MAX_DB,
+  AUTO_AMP_GAIN_MIN_DB,
+  AUTO_AMP_LOOKAHEAD_MAX_MS,
+  AUTO_AMP_LOOKAHEAD_MIN_MS,
+  AUTO_AMP_PEAK_HOLD_MAX_SECONDS,
+  AUTO_AMP_RECOVERY_MAX_DB_PER_SECOND,
+  AUTO_AMP_RECOVERY_MIN_DB_PER_SECOND,
+  AUTO_AMP_REDUCTION_MAX_DB,
+  AUTO_AMP_TARGET_MAX_DB,
+  AUTO_AMP_TARGET_MIN_DB,
+  createAutoAmpNode,
+  disposeAutoAmpNode,
+  isAutoAmpMode,
+  updateAutoAmpNode
+} from './raf-effects/auto-amp';
 import {
   CRYSTALIZER_FREQUENCIES,
   CRYSTALIZER_INTENSITY_MAX,
@@ -82,6 +100,40 @@ function normalizeGain(value: unknown): number | null {
   return typeof value === 'number' && Number.isFinite(value)
     ? Math.min(RAF_GAIN_MAX_DB, Math.max(RAF_GAIN_MIN_DB, value))
     : null;
+}
+
+function normalizeAutoAmp(value: unknown): RafAutoAmpSettings | null {
+  const base = normalizeBase(value, 'auto-amp');
+  if (!base) return null;
+  const source = value as Record<string, unknown>;
+  const numericKeys = [
+    'gainDb',
+    'targetDb',
+    'maximumReductionDb',
+    'maximumBoostDb',
+    'peakHoldSeconds',
+    'recoveryDbPerSecond',
+    'lookaheadMs'
+  ] as const;
+  if (!isAutoAmpMode(source.mode) || !numericKeys.every((key) => typeof source[key] === 'number' && Number.isFinite(source[key]))) {
+    return null;
+  }
+  return {
+    ...base,
+    type: 'auto-amp',
+    gainDb: clamp(source.gainDb as number, AUTO_AMP_GAIN_MIN_DB, AUTO_AMP_GAIN_MAX_DB),
+    mode: source.mode,
+    targetDb: clamp(source.targetDb as number, AUTO_AMP_TARGET_MIN_DB, AUTO_AMP_TARGET_MAX_DB),
+    maximumReductionDb: clamp(source.maximumReductionDb as number, 0, AUTO_AMP_REDUCTION_MAX_DB),
+    maximumBoostDb: clamp(source.maximumBoostDb as number, 0, AUTO_AMP_BOOST_MAX_DB),
+    peakHoldSeconds: clamp(source.peakHoldSeconds as number, 0, AUTO_AMP_PEAK_HOLD_MAX_SECONDS),
+    recoveryDbPerSecond: clamp(
+      source.recoveryDbPerSecond as number,
+      AUTO_AMP_RECOVERY_MIN_DB_PER_SECOND,
+      AUTO_AMP_RECOVERY_MAX_DB_PER_SECOND
+    ),
+    lookaheadMs: clamp(source.lookaheadMs as number, AUTO_AMP_LOOKAHEAD_MIN_MS, AUTO_AMP_LOOKAHEAD_MAX_MS)
+  };
 }
 
 export function normalizeRafEffectDisplayName(value: unknown): string | undefined {
@@ -207,6 +259,35 @@ function normalizeReverb(value: unknown): RafReverbSettings | null {
   };
 }
 
+const autoAmpDefinition: RafEffectDefinition = {
+  type: 'auto-amp',
+  name: 'Auto Amp',
+  icon: 'instant_mix',
+  createDefault: (id) => ({
+    id,
+    type: 'auto-amp',
+    enabled: true,
+    gainDb: 0,
+    mode: 'off',
+    targetDb: -1,
+    maximumReductionDb: 24,
+    maximumBoostDb: 18,
+    peakHoldSeconds: 2,
+    recoveryDbPerSecond: 2,
+    lookaheadMs: 150
+  }),
+  normalize: normalizeAutoAmp,
+  createNode: (context, settings) => createAutoAmpNode(context, settings as RafAutoAmpSettings),
+  updateNode: (node, settings, context, previousSettings) =>
+    updateAutoAmpNode(
+      node as ReturnType<typeof createAutoAmpNode>,
+      settings as RafAutoAmpSettings,
+      context,
+      previousSettings as RafAutoAmpSettings | undefined
+    ),
+  disposeNode: (node) => disposeAutoAmpNode(node as ReturnType<typeof createAutoAmpNode>)
+};
+
 const graphicEqDefinition: RafEffectDefinition = {
   type: 'graphic-eq',
   name: 'Graphic EQ',
@@ -324,7 +405,7 @@ const reverbDefinition: RafEffectDefinition = {
   disposeNode: (node) => disposeReverbNode(node as ReturnType<typeof createReverbNode>)
 };
 
-export const RAF_EFFECT_DEFINITIONS = [graphicEqDefinition, stereoWidthDefinition, crystalizerDefinition, sloptimizerDefinition, reverbDefinition] as const;
+export const RAF_EFFECT_DEFINITIONS = [autoAmpDefinition, graphicEqDefinition, stereoWidthDefinition, crystalizerDefinition, sloptimizerDefinition, reverbDefinition] as const;
 export const RAF_EFFECT_REGISTRY = Object.fromEntries(
   RAF_EFFECT_DEFINITIONS.map((definition) => [definition.type, definition])
 ) as Record<RafEffectType, RafEffectDefinition>;
