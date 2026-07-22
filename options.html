@@ -14,36 +14,69 @@
     <script>
       (() => {
         const root = document.documentElement;
-        let theme = 'gruvbox';
-        let useSystemFont = false;
+        const themeBackgrounds = {
+          gray: '#18191b',
+          coal: '#101113',
+          'lights-out': '#000000',
+          nordic: '#1b222d',
+          gruvbox: '#1d2021',
+          dracula: '#171922',
+          ember: '#1a1010'
+        };
+        const themeColors = {
+          gray: '#18191b',
+          coal: '#101113',
+          'lights-out': '#000000',
+          nordic: '#1b222d',
+          gruvbox: '#1c1d1e',
+          dracula: '#1f2029',
+          ember: '#1c1110'
+        };
+        let theme = 'gray';
+        let background = themeBackgrounds.gray;
+        let themeColor = themeColors.gray;
 
         try {
           const rawSettings = window.localStorage.getItem('izci.appearance-settings');
           const settings = rawSettings ? JSON.parse(rawSettings) : null;
-          theme = settings?.colorTheme === 'dracula' ? 'dracula' : 'gruvbox';
-          useSystemFont = settings?.useSystemFont === true;
+          const savedTheme = settings?.colorTheme;
+
+          if (savedTheme === 'chameleon') {
+            const savedHue = Number(settings?.chameleonHue);
+            const savedSaturation = Number(settings?.chameleonSaturation);
+            const hue = Number.isFinite(savedHue)
+              ? Math.min(Math.max(Math.round(savedHue), 0), 359)
+              : 210;
+            const saturation = Number.isFinite(savedSaturation)
+              ? Math.min(Math.max(Math.round(savedSaturation), 0), 100)
+              : 76;
+            const surfaceSaturation = Math.round(saturation * 0.32);
+            theme = savedTheme;
+            background = `hsl(${hue} ${surfaceSaturation}% 9%)`;
+            themeColor = `hsl(${hue} ${surfaceSaturation}% 11%)`;
+          } else if (Object.hasOwn(themeBackgrounds, savedTheme)) {
+            theme = savedTheme;
+            background = themeBackgrounds[theme];
+            themeColor = themeColors[theme];
+          }
         } catch {
-          theme = 'gruvbox';
-          useSystemFont = false;
+          theme = 'gray';
         }
 
         root.dataset.theme = theme;
-        root.dataset.systemFont = useSystemFont ? 'true' : 'false';
+        root.style.setProperty('--initial-background', background);
 
         const themeColorMeta = document.querySelector('meta[name="theme-color"]');
         if (themeColorMeta) {
-          themeColorMeta.setAttribute('content', theme === 'dracula' ? '#1f2029' : '#1c1d1e');
+          themeColorMeta.setAttribute('content', themeColor);
         }
       })();
     </script>
     <style>
       :root {
         color-scheme: dark;
-        background: #1d2021;
-      }
-
-      :root[data-theme='dracula'] {
-        background: #171922;
+        --initial-background: #18191b;
+        background: var(--initial-background);
       }
 
       html,
@@ -51,13 +84,7 @@
       #app {
         min-height: 100%;
         margin: 0;
-        background-color: #1d2021;
-      }
-
-      html[data-theme='dracula'],
-      html[data-theme='dracula'] body,
-      html[data-theme='dracula'] #app {
-        background-color: #171922;
+        background-color: var(--initial-background);
       }
     </style>
   </head>

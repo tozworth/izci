@@ -67,6 +67,27 @@ function buildWindowFeatures(features: PopupWindowDefinition['features']): strin
     .join(',');
 }
 
+function primePopupBackground(windowRef: Window): void {
+  const backgroundColor = getComputedStyle(document.documentElement).backgroundColor || '#18191b';
+  const popupDocument = windowRef.document;
+
+  popupDocument.title = 'izci Options';
+  popupDocument.documentElement.style.colorScheme = 'dark';
+  popupDocument.documentElement.style.backgroundColor = backgroundColor;
+  popupDocument.body.style.margin = '0';
+  popupDocument.body.style.backgroundColor = backgroundColor;
+}
+
+function navigatePrimedPopup(windowRef: Window, url: string): void {
+  windowRef.requestAnimationFrame(() => {
+    windowRef.setTimeout(() => {
+      if (!windowRef.closed) {
+        windowRef.location.replace(url);
+      }
+    }, 0);
+  });
+}
+
 const popupRefs = new Map<PopupWindowId, Window | null>();
 let hasMainWindowLifecycleListeners = false;
 
@@ -120,7 +141,7 @@ function openPopupWindow(id: PopupWindowId, pathOverride?: string): Window | nul
   }
 
   const nextWindow = window.open(
-    popupUrl.href,
+    '',
     definition.name,
     buildWindowFeatures(getPopupFeatures(optionsState
       ? {
@@ -134,13 +155,10 @@ function openPopupWindow(id: PopupWindowId, pathOverride?: string): Window | nul
     return null;
   }
 
+  primePopupBackground(nextWindow);
   popupRefs.set(id, nextWindow);
   attachMainWindowLifecycleListeners();
-  nextWindow.addEventListener('beforeunload', () => {
-    if (popupRefs.get(id) === nextWindow) {
-      popupRefs.set(id, null);
-    }
-  });
+  navigatePrimedPopup(nextWindow, popupUrl.href);
   nextWindow.focus();
 
   return nextWindow;
