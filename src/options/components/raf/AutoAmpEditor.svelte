@@ -32,8 +32,8 @@
     rafSettings.updateEffect(settings.id, (effect) => effect.type === 'auto-amp' ? { ...effect, ...changes } : effect);
   }
 
-  function updateMode(event: Event) {
-    update({ mode: (event.currentTarget as HTMLSelectElement).value as RafAutoAmpMode });
+  function updateMode(mode: RafAutoAmpMode) {
+    update({ mode });
   }
 
   function updateNumber(event: Event, key: NumericKey) {
@@ -50,15 +50,15 @@
 
 <div class="auto-amp-editor">
   <div class="primary-controls">
-    <label class="mode-control">
+    <div class="mode-control">
       <span>{$t('options.raf.autoAmp.mode', { default: 'Auto' })}</span>
-      <select value={settings.mode} on:change={updateMode}>
-        <option value="off">{$t('options.raf.autoAmp.modes.off', { default: 'Off' })}</option>
-        <option value="reduce">{$t('options.raf.autoAmp.modes.reduce', { default: 'Reduce' })}</option>
-        <option value="increase">{$t('options.raf.autoAmp.modes.increase', { default: 'Increase' })}</option>
-        <option value="dynamic">{$t('options.raf.autoAmp.modes.dynamic', { default: 'Dynamic (both)' })}</option>
-      </select>
-    </label>
+      <div class="mode-switch" role="group" aria-label={$t('options.raf.autoAmp.mode', { default: 'Auto' })}>
+        <button class:active={settings.mode === 'off'} aria-pressed={settings.mode === 'off'} on:click={() => updateMode('off')}>{$t('options.raf.autoAmp.modes.off', { default: 'Off' })}</button>
+        <button class:active={settings.mode === 'reduce'} aria-pressed={settings.mode === 'reduce'} on:click={() => updateMode('reduce')}>{$t('options.raf.autoAmp.modes.reduce', { default: 'Reduce' })}</button>
+        <button class:active={settings.mode === 'increase'} aria-pressed={settings.mode === 'increase'} on:click={() => updateMode('increase')}>{$t('options.raf.autoAmp.modes.increase', { default: 'Increase' })}</button>
+        <button class:active={settings.mode === 'dynamic'} aria-pressed={settings.mode === 'dynamic'} on:click={() => updateMode('dynamic')}>{$t('options.raf.autoAmp.modes.dynamic', { default: 'Dynamic' })}</button>
+      </div>
+    </div>
 
     <label class="gain-control">
       <span>{automatic ? $t('options.raf.autoAmp.appliedGain', { default: 'Applied gain' }) : $t('options.raf.autoAmp.gain', { default: 'Gain' })}</span>
@@ -117,12 +117,16 @@
 
 <style>
   .auto-amp-editor { display: grid; gap: 12px; padding: 2px; }
-  .primary-controls { display: grid; grid-template-columns: minmax(150px, 0.55fr) minmax(220px, 1fr); gap: 14px; align-items: end; }
-  .mode-control { display: grid; grid-template-columns: 42px minmax(100px, 1fr); align-items: center; gap: 7px; }
+  .primary-controls { display: grid; grid-template-columns: minmax(260px, 0.8fr) minmax(220px, 1fr); gap: 14px; align-items: end; }
+  .mode-control { display: grid; grid-template-columns: 42px minmax(200px, 1fr); align-items: center; gap: 7px; }
   .mode-control span,
   .gain-control > span,
   .automatic-controls label > span { color: var(--text-strong); font-size: 10px; font-weight: 700; }
-  select { min-width: 0; height: 27px; border: 1px solid var(--border-faint); border-radius: 4px; background: var(--input-bg); color: var(--text); }
+  .mode-switch { min-width: 0; display: inline-flex; border: 1px solid var(--border-faint); border-radius: 999px; overflow: hidden; }
+  .mode-switch button { min-width: 0; min-height: 24px; padding: 2px 8px; flex: 1 1 auto; border-radius: 0; background: transparent; color: var(--muted-strong); font-size: 10px; white-space: nowrap; }
+  .mode-switch button + button { border-left: 1px solid var(--border-faint); }
+  .mode-switch button.active { background: var(--accent); color: var(--accent-text, #fff); }
+  .mode-switch button:hover:not(.active) { background: var(--hover-surface); color: var(--text-strong); }
   .gain-control,
   .automatic-controls label { min-width: 0; display: grid; grid-template-columns: 76px minmax(80px, 1fr) 68px; align-items: center; gap: 7px; }
   .automatic-controls { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px 14px; padding-top: 11px; border-top: 1px solid var(--border-faint); }

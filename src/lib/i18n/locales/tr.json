@@ -270,7 +270,7 @@
           "off": "Kapalı",
           "reduce": "Azalt",
           "increase": "Artır",
-          "dynamic": "Dinamik (ikisi de)"
+          "dynamic": "Dinamik"
         },
         "appliedGain": "Uygulanan kazanç",
         "gain": "Kazanç",

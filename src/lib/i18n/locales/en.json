@@ -270,7 +270,7 @@
           "off": "Off",
           "reduce": "Reduce",
           "increase": "Increase",
-          "dynamic": "Dynamic (both)"
+          "dynamic": "Dynamic"
         },
         "appliedGain": "Applied gain",
         "gain": "Gain",
