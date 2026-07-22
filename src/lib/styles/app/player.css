@@ -756,6 +756,10 @@
   align-self: stretch;
 }
 
+.compact-player-bar.video-track-active .player-track-group {
+  padding-left: 0.45rem;
+}
+
 .compact-player-bar .player-artwork-button,
 .compact-player-bar .player-artwork {
   align-self: stretch;

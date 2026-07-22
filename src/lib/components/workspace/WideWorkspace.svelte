@@ -51,6 +51,7 @@
   const dispatch = createEventDispatcher<{
     resizeStart: WideWorkspaceResizeStartDetail;
     seek: number;
+    volumeStep: number;
     tabChange: WorkspaceTab;
     tabClose: WorkspaceTab;
     tabMove: WorkspaceTabMoveDetail;
@@ -199,7 +200,10 @@
         </div>
 
         {#if videoActive && panel.id === 'center'}
-          <VideoStage element={videoElement} />
+          <VideoStage
+            element={videoElement}
+            on:volumeStep={(event) => dispatch('volumeStep', event.detail)}
+          />
         {/if}
       </div>
 

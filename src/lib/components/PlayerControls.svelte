@@ -428,6 +428,7 @@
   class="player-bar"
   class:now-playing-player={presentation === 'now-playing'}
   class:compact-player-bar={compactPlayerBar}
+  class:video-track-active={displayTrack?.kind === 'video'}
   class:artwork-background-active={artworkBackgroundActive}
   class:artwork-background-bright={artworkBackgroundActive && artworkBackgroundBright}
   class:visualizer-backdrop-active={visualizerBackdropActive}

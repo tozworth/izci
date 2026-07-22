@@ -43,6 +43,10 @@
     lyricsTheaterSmoothScroll: appearance.lyrics.theaterSmoothScroll
   };
 
+  function clampVolume(volume: number): number {
+    return Math.min(Math.max(volume, 0), 1);
+  }
+
   export let snapshotStore: Readable<PlaybackSnapshot>;
   export let playbackSnapshot: PlaybackSnapshot;
   export let isNowPlayingLayoutActive: boolean;
@@ -131,6 +135,11 @@
     zoneEffects={workspaceZoneEffects}
     zoneArtworkSettings={workspaceZoneArtworkSettings}
     on:seek={(event) => onSeek(event.detail)}
+    on:volumeStep={(event) => {
+      if (!playbackSnapshot.muted) {
+        onVolume(clampVolume(playbackSnapshot.volume + event.detail));
+      }
+    }}
     on:tabChange={(event) => onTabChange(event.detail)}
     on:tabClose={(event) => onTabClose(event.detail)}
     on:tabMove={(event) => onWideTabMove(event.detail)}
