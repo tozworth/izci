@@ -32,7 +32,7 @@
       "about": "Hakkında",
       "installApp": "izci'yi kur...",
       "installDescription": "Kompakt bir pencere, daha iyi sistem entegrasyonu, \"Birlikte aç\" desteği ve otomatik güncellemeler için izci'yi kurun.",
-      "playlist": "Çalma Listesi",
+      "playlist": "Liste",
       "library": "Kütüphane",
       "trackDetails": "Parça Detayları",
       "lyrics": "Sözler",
@@ -201,8 +201,8 @@
       "removeFromFavorites": "Favorilerden kaldır",
       "addToFavorites": "Favorilere ekle",
       "separateSubsongs": "Altparçaları böl",
-      "addToPlaylist": "Çalma listesine ekle",
-      "replacePlaylist": "Çalma listesinin üzerine yaz",
+      "addToPlaylist": "Listeye ekle",
+      "replacePlaylist": "Listeyi değiştir",
       "resetPlayCount": "Çalma sayısını sıfırla",
       "remove": "Listeden kaldır"
     },
@@ -219,14 +219,14 @@
       "on": "Karıştır açık",
       "off": "Karıştır kapalı"
     },
-    "title": "Çalma Listesi",
+    "title": "Liste",
     "summary": {
       "filteredTracks": "{total} parçadan {visible} {total, plural, one {görünür} other {görünür}} · {duration}",
       "tracks": "{count, plural, one {# parça} other {# parça}} · {duration}"
     },
     "repeat": {
       "currentTrack": "Mevcut parçayı tekrarla",
-      "playlist": "Çalma listesini tekrarla",
+      "playlist": "Listeyi tekrarla",
       "off": "Tekrar kapalı"
     },
     "listRegion": "{name} listesi"
@@ -249,7 +249,7 @@
     "resizePanels": "{before} ile {after} arasını yeniden boyutlandır",
     "dropOnPanel": "{panel} üzerine bırak",
     "tabs": {
-      "playlist": "Çalma Listesi",
+      "playlist": "Liste",
       "library": "Kütüphane",
       "details": "Detaylar",
       "lyrics": "Sözler",
@@ -404,7 +404,7 @@
         "formats": "Bildiğimiz müzik dosyalarının yanı sıra izci modüllerini de çalar",
         "formatsNote": "Evet, izci modüllerini çalar!!!",
         "library": "Albüm resimli, şarkı sözlü, oynatma sayılı \"eh işte\" bir kütüphane",
-        "workspace": "Kenetlenebilir sekmeli alan, kocaman ve kasvetli bir Şimdi Yürütülüyor görünümü, ve \"mini mod\"",
+        "workspace": "Kenetlenebilir sekmeli alan, kocaman bir Şimdi Yürütülüyor görünümü, ve \"mini mod\"",
         "pwa": "PWA güzellikleri: dosya ilişkilendirmeleri, medya kontrol tuşları, özel pencere kenarı",
         "pwaNote": "Tarayıcın bunlara saygı duyarsa tabii (bende çalışıyo)",
         "backdrops": "Bölge başına albüm resmi ve görselleştirici artalanları",
@@ -414,7 +414,7 @@
       },
       "credits": "izci için Howler.js, Chiptune3 (libopenmpt WASM), ve Material Symbols olmazsa olmazdır.",
       "seeFull": "Tüm",
-      "thirdPartyLicenses": "üçüncü taraf lisansları için tıklayın"
+      "thirdPartyLicenses": "lisanslar için tıklayın"
     },
     "appearance": {
       "themes": {
@@ -449,7 +449,7 @@
           "hint": "İnce pencerede kütüphane görünümünün yalnızca başlık satırlarına dönüşmesini engeller."
         },
         "libraryArtwork": {
-          "title": "Kütüphane'de albüm resmi artalanını göster",
+          "title": "Kütüphanede albüm resmi artalanını göster",
           "hint": "Bir albümü açtıktan sonra parçalarının arkasında bulanık albüm kapağı gösterir."
         },
         "compactPlayerBar": {
@@ -466,7 +466,7 @@
         },
         "windowTitle": {
           "title": "Pencere başlığında parça adını göster",
-          "hint": "Geçerli parça başlığını ana uygulama penceresinin başlığında gösterir. Her zaman yalnızca \"izci\" göstermek için kapatın."
+          "hint": "Geçerli parça başlığını izci başlığında gösterir. Her zaman \"izci\" göstermek için kapatın."
         },
         "heading": "Arayüz"
       },
@@ -524,7 +524,7 @@
       },
       "heading": "Artalanlar",
       "artworkBlur": {
-        "title": "Albüm resmi bulanıklaştırması"
+        "title": "Albüm resmi bulanıklığı"
       },
       "artworkBrightness": {
         "title": "Albüm resmi parlaklığı"
@@ -674,7 +674,7 @@
       "heading": "Şimdi Yürütülüyor",
       "openWhenMaximized": {
         "title": "Ekranı kapladığında aç",
-        "hint": "Ana pencere ekranı kapladığında veya tam ekran olduğunda Şimdi Yürütülüyor'a geçer."
+        "hint": "izci ekranı kapladığında veya tam ekran (F11) olduğunda Şimdi Yürütülüyor'a geçer."
       },
       "hideSideChrome": {
         "title": "Sol paneli gizleme süresi",
@@ -708,11 +708,11 @@
       },
       "follow": {
         "title": "Mevcut satırı takip et",
-        "hint": "Bir modül çalarken mevcut satırı görünümde tutmak için otomatik olarak kaydırır."
+        "hint": "Modül oynatılırken otomatik kaydırarak mevcut satırı görünür tutar."
       },
       "alwaysCenter": {
-        "title": "Mevcut satırı her zaman ortala",
-        "hint": "Oynatma çubuğunun tüm örüntü boyunca dikey olarak ortada kalması için ilk ve son satırların çevresine boşluk ekler."
+        "title": "Mevcut satır ortada kalsın",
+        "hint": "Oynatılan satırı dikey olarak ortada tutar."
       },
       "smoothScroll": {
         "title": "Kaygan satır ilerlemesi",
@@ -804,9 +804,9 @@
       },
       "associatedFiles": {
         "title": "izci ile açılan dosyalar",
-        "hint": "İşletim sistemi dosya ilişkilendirmeleri üzerinden açılan dosyaların geçerli çalma listesini nasıl etkileyeceğini seçer.",
+        "hint": "İşletim sistemi dosya ilişkilendirmeleri üzerinden açılan dosyaların çalma listesini nasıl etkileyeceğini seçer.",
         "add": "Listeye eklenir",
-        "replace": "Listenin üzerine yazar"
+        "replace": "Listeyi değiştirir"
       },
       "playerBar": {
         "heading": "Oynatma Çubuğu"
