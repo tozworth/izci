@@ -82,6 +82,15 @@
     ].filter((entry): entry is MetadataEntry => Boolean(entry && entry.value.length > 0));
   }
 
+  function formatReplayGainValue(value: number): string {
+    const formatted = new Intl.NumberFormat(undefined, {
+      maximumFractionDigits: 2,
+      signDisplay: 'exceptZero'
+    }).format(value);
+
+    return `${formatted} dB`;
+  }
+
   $: title = track?.metadata?.title?.trim() || '';
   $: showTrackSection = title.length > 0;
   $: artist = track?.metadata?.artist?.trim() || '';
@@ -113,6 +122,22 @@
         : ''
       : tracker
     : '';
+  $: replayGain = track?.kind === 'stream' ? track.metadata?.replayGain : undefined;
+  $: replayGainParts = [
+    typeof replayGain?.trackGainDb === 'number'
+      ? $t('main.trackDetails.replayGainTrack', {
+          default: 'Track {gain}',
+          values: { gain: formatReplayGainValue(replayGain.trackGainDb) }
+        })
+      : '',
+    typeof replayGain?.albumGainDb === 'number'
+      ? $t('main.trackDetails.replayGainAlbum', {
+          default: 'Album {gain}',
+          values: { gain: formatReplayGainValue(replayGain.albumGainDb) }
+        })
+      : ''
+  ].filter(Boolean);
+  $: replayGainSummary = replayGainParts.join(' · ');
   $: patternSummary =
     track?.kind === 'module' && typeof patterns === 'number'
       ? $t('main.trackDetails.patternCount', {
@@ -205,27 +230,63 @@
         </section>
       {/if}
 
-      <section class="detail-section format-section">
-        <div class="format-primary">
-          <p class="section-heading">
-            <span class="material-symbols-outlined section-icon" aria-hidden="true">equalizer</span>
-            <span>{$t('main.trackDetails.format', { default: 'Format' })}</span>
-          </p>
-          <p class="format-value">{formatValue}</p>
-        </div>
-        {#if formatDetail || patternSummary || subsongSummary}
-          <div class="format-copy">
-            {#if formatDetail}
-              <p class="format-detail">{formatDetail}</p>
-            {/if}
-            {#if patternSummary}
-              <p class="pattern-value">{patternSummary}</p>
-            {/if}
-            {#if subsongSummary}
-              <p class="subsong-value">{subsongSummary}</p>
-            {/if}
+      <section class="detail-section technical-section">
+        <dl class="metadata-list">
+          <div class="metadata-row">
+            <dt>
+              <span
+                class="material-symbols-outlined metadata-icon"
+                title={$t('main.trackDetails.format', { default: 'Format' })}
+                aria-label={$t('main.trackDetails.format', { default: 'Format' })}
+              >equalizer</span>
+            </dt>
+            <dd>
+              <span>{formatValue}</span>
+              {#if formatDetail}
+                <span class="technical-detail">{formatDetail}</span>
+              {/if}
+            </dd>
           </div>
-        {/if}
+
+          {#if replayGainSummary}
+            <div class="metadata-row">
+              <dt>
+                <span
+                  class="material-symbols-outlined metadata-icon"
+                  title={$t('main.trackDetails.replayGain', { default: 'ReplayGain' })}
+                  aria-label={$t('main.trackDetails.replayGain', { default: 'ReplayGain' })}
+                >volume_up</span>
+              </dt>
+              <dd>{replayGainSummary}</dd>
+            </div>
+          {/if}
+
+          {#if patternSummary}
+            <div class="metadata-row">
+              <dt>
+                <span
+                  class="material-symbols-outlined metadata-icon"
+                  title={$t('main.trackDetails.patterns', { default: 'Patterns' })}
+                  aria-label={$t('main.trackDetails.patterns', { default: 'Patterns' })}
+                >grid_view</span>
+              </dt>
+              <dd>{patternSummary}</dd>
+            </div>
+          {/if}
+
+          {#if subsongSummary}
+            <div class="metadata-row">
+              <dt>
+                <span
+                  class="material-symbols-outlined metadata-icon"
+                  title={$t('main.trackDetails.subsongs', { default: 'Subsongs' })}
+                  aria-label={$t('main.trackDetails.subsongs', { default: 'Subsongs' })}
+                >queue_music</span>
+              </dt>
+              <dd class="technical-detail">{subsongSummary}</dd>
+            </div>
+          {/if}
+        </dl>
       </section>
 
       {#if notes}
@@ -432,52 +493,12 @@
     overflow-wrap: anywhere;
   }
 
-  .format-section {
-    display: grid;
-    gap: 0.18rem;
-  }
-
-  .format-primary {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 0.8rem;
-  }
-
-  .format-primary .section-heading {
-    flex: 0 0 auto;
-  }
-
-  .format-value {
-    margin: 0;
-    text-align: right;
-    color: var(--text);
-  }
-
-  .format-detail {
-    margin: 0;
-    text-align: right;
+  .technical-detail {
     color: var(--muted);
   }
 
-  .format-copy {
-    display: flex;
-    flex-wrap: wrap;
-    justify-content: flex-end;
-    column-gap: 0.65rem;
-    row-gap: 0.1rem;
-  }
-
-  .pattern-value {
-    margin: 0;
-    text-align: right;
-    color: var(--text);
-  }
-
-  .subsong-value {
-    margin: 0;
-    text-align: right;
-    color: var(--muted);
+  .metadata-row dd .technical-detail {
+    margin-left: 0.42rem;
   }
 
   .notes-block {
