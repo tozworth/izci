@@ -123,6 +123,7 @@ export interface PatternViewerSettings {
   rowNumberBase: PatternRowNumberBase;
   colorScheme: PatternColorScheme;
   followPlayback: boolean;
+  alwaysCenterActiveRow: boolean;
   smoothScroll: boolean;
   showChannelNames: boolean;
   highlightBeatRows: boolean;

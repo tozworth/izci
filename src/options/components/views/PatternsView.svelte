@@ -14,7 +14,7 @@
   import type { PatternViewerSettings } from '$lib/types';
 
   type NumericSetting = 'fontSize' | 'rowHeight' | 'channelWidth';
-  type ToggleSetting = 'followPlayback' | 'smoothScroll' | 'showChannelNames' | 'highlightBeatRows';
+  type ToggleSetting = 'followPlayback' | 'alwaysCenterActiveRow' | 'smoothScroll' | 'showChannelNames' | 'highlightBeatRows';
 
   const NUMERIC_SETTINGS: Array<{
     key: NumericSetting;
@@ -54,7 +54,12 @@
     {
       key: 'followPlayback',
       title: 'Follow the playhead',
-      hint: 'Keeps the active row centered while a module plays.'
+      hint: 'Scrolls automatically to keep the current row in view while a module plays.'
+    },
+    {
+      key: 'alwaysCenterActiveRow',
+      title: 'Always center current row',
+      hint: 'Adds space around the first and last rows so the playhead stays vertically centered for the entire pattern.'
     },
     {
       key: 'smoothScroll',
@@ -129,12 +134,14 @@
   }
   function toggleTitle(setting: typeof TOGGLE_SETTINGS[number]): string {
     if (setting.key === 'followPlayback') return $t('options.patterns.follow.title', { default: 'Follow the playhead' });
+    if (setting.key === 'alwaysCenterActiveRow') return $t('options.patterns.alwaysCenter.title', { default: 'Always center current row' });
     if (setting.key === 'smoothScroll') return $t('options.patterns.smoothScroll.title', { default: 'Smooth playhead scrolling' });
     if (setting.key === 'showChannelNames') return $t('options.patterns.channelNames.title', { default: 'Show channel names' });
     return $t('options.patterns.highlightBeats.title', { default: 'Highlight beat rows' });
   }
   function toggleHint(setting: typeof TOGGLE_SETTINGS[number]): string {
-    if (setting.key === 'followPlayback') return $t('options.patterns.follow.hint', { default: 'Keeps the active row centered while a module plays.' });
+    if (setting.key === 'followPlayback') return $t('options.patterns.follow.hint', { default: 'Scrolls automatically to keep the current row in view while a module plays.' });
+    if (setting.key === 'alwaysCenterActiveRow') return $t('options.patterns.alwaysCenter.hint', { default: 'Adds space around the first and last rows so the playhead stays vertically centered for the entire pattern.' });
     if (setting.key === 'smoothScroll') return $t('options.patterns.smoothScroll.hint', { default: 'Animates row centering instead of stepping directly to the current row.' });
     if (setting.key === 'showChannelNames') return $t('options.patterns.channelNames.hint', { default: 'Adds module-provided names beside channel numbers when they are available.' });
     return $t('options.patterns.highlightBeats.hint', { default: 'Adds a subtle guide every four rows behind the moving playhead.' });
@@ -203,7 +210,7 @@
           <input
             type="checkbox"
             checked={$patternViewerSettings[setting.key]}
-            disabled={setting.key === 'smoothScroll' && !$patternViewerSettings.followPlayback}
+            disabled={(setting.key === 'alwaysCenterActiveRow' || setting.key === 'smoothScroll') && !$patternViewerSettings.followPlayback}
             on:change={(event) => updateToggle(event, setting.key)}
           />
         </SettingsField>

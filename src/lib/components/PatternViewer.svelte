@@ -10,6 +10,8 @@
   export let playbackSnapshot: PlaybackSnapshot | null = null;
 
   let viewport: HTMLDivElement | null = null;
+  let viewportHeight = 0;
+  let channelHeaderHeight = 0;
   let lastFollowKey = '';
   let followFrame = 0;
 
@@ -27,12 +29,16 @@
   $: orderCount = song?.orders.length ?? 0;
   $: rowCount = pattern?.rows.length ?? 0;
   $: activeRow = Math.min(Math.max(snapshot.row, 0), Math.max(rowCount - 1, 0));
-  $: followKey = `${snapshot.trackId ?? ''}:${snapshot.order}:${patternIndex}:${activeRow}`;
+  $: followKey = `${snapshot.trackId ?? ''}:${snapshot.order}:${patternIndex}:${activeRow}:${$patternViewerSettings.rowHeight}:${$patternViewerSettings.alwaysCenterActiveRow}`;
+  $: centerSpacerHeight = $patternViewerSettings.followPlayback && $patternViewerSettings.alwaysCenterActiveRow
+    ? Math.max((viewportHeight - channelHeaderHeight - $patternViewerSettings.rowHeight) / 2, 0)
+    : 0;
   $: patternGridStyle = [
     `--pattern-channel-count: ${Math.max(channelCount, 1)}`,
     `--pattern-font-size: ${$patternViewerSettings.fontSize}px`,
     `--pattern-row-height: ${$patternViewerSettings.rowHeight}px`,
-    `--pattern-channel-width: ${$patternViewerSettings.channelWidth}px`
+    `--pattern-channel-width: ${$patternViewerSettings.channelWidth}px`,
+    `--pattern-center-spacer-height: ${centerSpacerHeight}px`
   ].join('; ');
   $: if ($patternViewerSettings.followPlayback && pattern && followKey !== lastFollowKey) {
     lastFollowKey = followKey;
@@ -52,6 +58,45 @@
     return formatIndex(value, width);
   }
 
+  function measurePatternViewport(node: HTMLDivElement) {
+    const channelHeader = node.querySelector<HTMLElement>('.pattern-channel-header');
+
+    const updateMeasurements = () => {
+      const nextViewportHeight = node.clientHeight;
+      const nextChannelHeaderHeight = channelHeader?.offsetHeight ?? 0;
+
+      if (nextViewportHeight === viewportHeight && nextChannelHeaderHeight === channelHeaderHeight) {
+        return;
+      }
+
+      viewportHeight = nextViewportHeight;
+      channelHeaderHeight = nextChannelHeaderHeight;
+
+      if ($patternViewerSettings.followPlayback && pattern) {
+        void centerActiveRow();
+      }
+    };
+
+    updateMeasurements();
+
+    const observer = typeof ResizeObserver === 'undefined'
+      ? null
+      : new ResizeObserver(updateMeasurements);
+    observer?.observe(node);
+
+    if (channelHeader) {
+      observer?.observe(channelHeader);
+    }
+
+    return {
+      destroy() {
+        observer?.disconnect();
+        viewportHeight = 0;
+        channelHeaderHeight = 0;
+      }
+    };
+  }
+
   async function centerActiveRow(): Promise<void> {
     await tick();
     window.cancelAnimationFrame(followFrame);
@@ -62,8 +107,13 @@
         return;
       }
 
+      const stickyHeaderHeight = $patternViewerSettings.alwaysCenterActiveRow
+        ? channelHeaderHeight
+        : 0;
       const top = Math.max(
-        activeRowElement.offsetTop - (viewport.clientHeight - activeRowElement.offsetHeight) / 2,
+        activeRowElement.offsetTop
+          - stickyHeaderHeight
+          - (viewport.clientHeight - stickyHeaderHeight - activeRowElement.offsetHeight) / 2,
         0
       );
       viewport.scrollTo({
@@ -102,6 +152,7 @@
     <div
       class="pattern-scroll"
       bind:this={viewport}
+      use:measurePatternViewport
       style={patternGridStyle}
       data-window-dismiss-ignore-scroll
       role="table"
@@ -299,6 +350,10 @@
 
   .pattern-row {
     min-height: var(--pattern-row-height);
+  }
+
+  .pattern-body {
+    padding-block: var(--pattern-center-spacer-height);
   }
 
   .pattern-row-number,

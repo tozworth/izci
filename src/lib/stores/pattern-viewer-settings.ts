@@ -17,6 +17,7 @@ export const DEFAULT_PATTERN_VIEWER_SETTINGS: PatternViewerSettings = {
   rowNumberBase: 'hex',
   colorScheme: 'conventional',
   followPlayback: true,
+  alwaysCenterActiveRow: true,
   smoothScroll: false,
   showChannelNames: true,
   highlightBeatRows: true
@@ -70,6 +71,10 @@ export function normalizePatternViewerSettings(value: unknown): PatternViewerSet
       typeof source.followPlayback === 'boolean'
         ? source.followPlayback
         : DEFAULT_PATTERN_VIEWER_SETTINGS.followPlayback,
+    alwaysCenterActiveRow:
+      typeof source.alwaysCenterActiveRow === 'boolean'
+        ? source.alwaysCenterActiveRow
+        : DEFAULT_PATTERN_VIEWER_SETTINGS.alwaysCenterActiveRow,
     smoothScroll:
       typeof source.smoothScroll === 'boolean'
         ? source.smoothScroll

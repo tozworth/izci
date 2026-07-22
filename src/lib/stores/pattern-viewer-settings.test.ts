@@ -21,6 +21,7 @@ describe('pattern viewer settings', () => {
         rowNumberBase: 'decimal',
         colorScheme: 'monochrome',
         followPlayback: false,
+        alwaysCenterActiveRow: false,
         smoothScroll: true,
         showChannelNames: false,
         highlightBeatRows: false
@@ -32,6 +33,7 @@ describe('pattern viewer settings', () => {
       rowNumberBase: 'decimal',
       colorScheme: 'monochrome',
       followPlayback: false,
+      alwaysCenterActiveRow: false,
       smoothScroll: true,
       showChannelNames: false,
       highlightBeatRows: false

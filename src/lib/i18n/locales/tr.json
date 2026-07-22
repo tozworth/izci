@@ -708,7 +708,11 @@
       },
       "follow": {
         "title": "Mevcut satırı takip et",
-        "hint": "Bir modül çalarken etkin satırı ortada tutar."
+        "hint": "Bir modül çalarken mevcut satırı görünümde tutmak için otomatik olarak kaydırır."
+      },
+      "alwaysCenter": {
+        "title": "Mevcut satırı her zaman ortala",
+        "hint": "Oynatma çubuğunun tüm örüntü boyunca dikey olarak ortada kalması için ilk ve son satırların çevresine boşluk ekler."
       },
       "smoothScroll": {
         "title": "Kaygan satır ilerlemesi",

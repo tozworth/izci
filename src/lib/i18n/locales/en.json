@@ -708,7 +708,11 @@
       },
       "follow": {
         "title": "Follow the playhead",
-        "hint": "Keeps the active row centered while a module plays."
+        "hint": "Scrolls automatically to keep the current row in view while a module plays."
+      },
+      "alwaysCenter": {
+        "title": "Always center current row",
+        "hint": "Adds space around the first and last rows so the playhead stays vertically centered for the entire pattern."
       },
       "smoothScroll": {
         "title": "Smooth playhead scrolling",
