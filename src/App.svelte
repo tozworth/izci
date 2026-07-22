@@ -2,6 +2,7 @@
   import { onDestroy } from 'svelte';
   import { t } from 'svelte-i18n';
   import PlayerControls from '$lib/components/PlayerControls.svelte';
+  import PlaybackResumeBanner from '$lib/components/PlaybackResumeBanner.svelte';
   import SharedBackdropArtwork from '$lib/components/SharedBackdropArtwork.svelte';
   import SharedBackdropVisualizer from '$lib/components/SharedBackdropVisualizer.svelte';
   import TopMenuBar from '$lib/components/TopMenuBar.svelte';
@@ -35,6 +36,10 @@
     type LyricsPresentationState
   } from '$lib/services/lyrics-presentation';
   import { createPlaybackCommandsController } from '$lib/services/playback-commands';
+  import {
+    createPlaybackProgressController,
+    type PlaybackProgressState
+  } from '$lib/services/playback-progress';
   import { createPlaybackRestorationController } from '$lib/services/playback-restoration';
   import { forceServiceWorkerUpdateCheck } from '$lib/services/pwa-updates';
   import { createWorkspaceShellController } from '$lib/services/workspace-shell';
@@ -146,6 +151,7 @@
     row: 0
   };
   let patternAvailability: ContextualTabAvailability = 'unavailable';
+  let playbackProgressState: PlaybackProgressState = { notice: null };
 
   let fileInput: HTMLInputElement | null = null;
   let innerWidth = typeof window !== 'undefined' ? window.innerWidth : 0;
@@ -205,6 +211,10 @@
     show: () => workspaceShell.showWorkspaceTab('patterns'),
     close: () => workspaceShell.closeWorkspaceTab('patterns')
   });
+  const playbackProgress = createPlaybackProgressController({
+    track: playerController.currentTrack,
+    snapshot: playerController.snapshot
+  });
   const playbackCommands = createPlaybackCommandsController({
     getPlayingTrack: () => playingTrack,
     getSelectedPlaylistTrack: () => selectedPlaylistItem,
@@ -215,7 +225,10 @@
       (collection === 'library' ? libraryItems : playlistItems).find((item) => item.id === id) ?? null,
     selectTrack: workspaceShell.selectTrack,
     setActiveWorkspaceTab: workspaceShell.setActiveWorkspaceTab,
-    cleanupRemovedItems: workspaceCollections.cleanupRemovedItems
+    cleanupRemovedItems: workspaceCollections.cleanupRemovedItems,
+    resolveResumePosition: (track) => playbackProgress.resolveResumePosition(track),
+    notifyTrackResumed: (track, currentTime) =>
+      playbackProgress.showResumeNotice(track, currentTime)
   });
   const playCountTracker = createPlayCountTracker({
     incrementLibraryPlayCount: workspaceCollections.incrementLibraryPlayCount
@@ -305,6 +318,9 @@
   const unsubscribeWorkspaceShell = workspaceShell.subscribe((value) => (workspaceShellState = value));
   const unsubscribePlaybackCommands = playbackCommands.subscribe(
     (value) => (playbackCommandsState = value)
+  );
+  const unsubscribePlaybackProgress = playbackProgress.subscribe(
+    (value) => (playbackProgressState = value)
   );
   const unsubscribeArtworkPresentation = artworkPresentation.subscribe(
     (value) => (artworkPresentationState = value)
@@ -639,6 +655,14 @@
     playbackCommands.seek(seconds);
   }
 
+  function startCurrentTrackOver(): void {
+    const notice = playbackProgressState.notice;
+    if (!playingTrack || !notice || playingTrack.id !== notice.trackId) return;
+
+    void playbackProgress.clearProgress(playingTrack);
+    seekPlayback(0);
+  }
+
   async function handleMenuOpenFiles(target: WorkspaceCollection = workspaceShellState.activeCollection) {
     await importController.openFiles(target);
   }
@@ -776,6 +800,7 @@
 
   onDestroy(() => {
     playbackRestoration.destroy();
+    playbackProgress.destroy();
     artworkPresentation.destroy();
     lyricsPresentation.destroy();
     playCountTracker.destroy();
@@ -798,6 +823,7 @@
     unsubscribePlaybackStatus();
     unsubscribeWorkspaceShell();
     unsubscribePlaybackCommands();
+    unsubscribePlaybackProgress();
     unsubscribeArtworkPresentation();
     unsubscribeLyricsPresentation();
     unsubscribeWindowMiniMode();
@@ -925,6 +951,14 @@
   {/if}
   {#if playbackStatus.error && !miniModeActive}
     <aside class="error-banner">{localizePlaybackError(playbackStatus.error)}</aside>
+  {/if}
+
+  {#if playbackProgressState.notice}
+    <PlaybackResumeBanner
+      currentTime={playbackProgressState.notice.currentTime}
+      on:startOver={startCurrentTrackOver}
+      on:dismiss={playbackProgress.dismissNotice}
+    />
   {/if}
 
   {#if !isNowPlayingLayoutActive}

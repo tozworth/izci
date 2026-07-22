@@ -61,6 +61,11 @@
       "channelAbbreviation": "CH",
       "cellDescription": "Channel {number}: {value}"
     },
+    "playbackProgress": {
+      "resumedAt": "Resumed at {position}",
+      "startOver": "Start over",
+      "dismiss": "Dismiss resume message"
+    },
     "player": {
       "quips": {
         "scout": "İzci means scout. Tracker was already taken.",
@@ -788,8 +793,19 @@
         "title": "ReplayGain",
         "hint": "Applies streamed-file ReplayGain tags, preferring track or album gain when both are available."
       },
+      "rememberProgress": {
+        "off": "Off",
+        "everyFile": "Every file",
+        "minutes": "{minutes} min",
+        "hours": "{hours} h",
+        "title": "Remember progress",
+        "hint": "Automatically resumes unfinished files at least this long when you return to them."
+      },
       "startup": {
         "heading": "Startup"
+      },
+      "progress": {
+        "heading": "Progress"
       },
       "volume": {
         "heading": "Volume"
@@ -808,23 +824,6 @@
       "showRafToggle": {
         "title": "Show Raf toggle in player bar",
         "hint": "Shows the rack bypass control beside volume while Raf is enabled. Right-clicking it opens Raf options."
-      }
-    },
-    "video": {
-      "heading": "Video",
-      "autoResizeWindow": {
-        "title": "Auto resize window",
-        "hint": "Resizes an unsuitable player window to 1280 × 720 when video starts, then restores it when non-video playback begins."
-      },
-      "viewportArea": {
-        "title": "Video viewport area",
-        "hint": "Chooses which open workspace panels the video covers.",
-        "options": {
-          "center": "Center panel",
-          "leftCenter": "Left and center",
-          "centerRight": "Center and right",
-          "all": "All panels"
-        }
       }
     },
     "tracks": {
@@ -851,6 +850,23 @@
       "favoriteToggle": {
         "title": "Show favorite toggle",
         "hint": "Show a heart button after the transport controls for adding or removing the current track or module subsong from Favorites."
+      }
+    },
+    "video": {
+      "viewportArea": {
+        "options": {
+          "leftCenter": "Left and center",
+          "centerRight": "Center and right",
+          "all": "All panels",
+          "center": "Center panel"
+        },
+        "title": "Video viewport area",
+        "hint": "Chooses which open workspace panels the video covers."
+      },
+      "heading": "Video",
+      "autoResizeWindow": {
+        "title": "Auto resize window",
+        "hint": "Resizes an unsuitable player window to 1280 × 720 when video starts, then restores it when non-video playback begins."
       }
     },
     "visualizer": {

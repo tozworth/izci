@@ -11,9 +11,10 @@
 
 ## Non-negotiable behavior
 
-- Preserve both playback paths:
+- Preserve all playback paths:
   - streams (`mp3`, `wav`, `flac`, `ogg`, `opus`) use Howler in HTML5 audio mode;
-  - tracker modules (`mod`, `xm`, `s3m`, `it`, `mo3`) use Chiptune3/libopenmpt and Web Audio.
+  - tracker modules (`mod`, `xm`, `s3m`, `it`, `mo3`) use Chiptune3/libopenmpt and Web Audio;
+  - videos (`mp4`, `m4v`, `mov`, `webm`, `mkv`) use a native video element with audio routed through the shared Web Audio graph when Chromium permits it.
 - Do not route streams through Chiptune3 or real module audio through a media element. Modules mirror transport state to Chromium through the silent native media-session anchor.
 - Preserve offline PWA behavior. Target Chromium/Blink desktop and installed-PWA integrations; prefer progressive enhancement over broad compatibility shims.
 - Keep the app frontend-only and local-first. Do not introduce required servers, accounts, cloud storage, or network-dependent flows.
@@ -41,6 +42,7 @@
 - `src/lib/components/playlist-panel/`: playlist/library UI and UI-local helpers.
 - `src/lib/services/`: playback, audio graph, metadata, imports, browser/PWA integration, workspace controllers, and other side effects.
 - `src/lib/stores/`: persisted state, collection state, normalization, and cross-window sync.
+- `src/lib/i18n/`: English source catalog, Turkish translations, and localization runtime. Follow its README workflow when interface copy changes.
 - `src/lib/utils/`: stateless shared helpers.
 - `src/options/`: separate Options Vite/Svelte entrypoint and settings UI. Options edits stores; it does not own audio nodes or main-window library mutation.
 - `src/lib/types.ts`: shared domain types and canonical internally supported extensions.
@@ -51,20 +53,21 @@
 
 - `player-controller.ts` owns backend switching and the shared playback snapshot.
 - `playback-commands.ts` owns app-level play/load/seek/navigation sequencing.
-- `howler-player.ts` and `module-player.ts` own their respective backends.
+- `howler-player.ts`, `module-player.ts`, and `video-player.ts` own their respective backends; `player-controller.ts` remains the only backend switcher.
 - `module-player.ts`, `chiptune-loader.ts`, the libopenmpt worklet, and its Vite asset emission form one coupled module pipeline.
 - `media-session.ts` owns Chromium media metadata/actions and the silent module transport anchor.
 - `audio-bus.ts` owns the shared Web Audio routing. The intended graph is:
-  `Howler/Chiptune3 source -> ingress/ReplayGain -> Raf -> analyser -> master volume -> destination`.
+  `Howler/Chiptune3/video source -> ingress/ReplayGain -> Raf -> analyser -> master volume -> destination`.
 - Player volume/mute belongs after Raf. Stream ReplayGain is a deliberate pre-Raf adjustment. Howler backend volume is only a fallback when media-element Web Audio routing is unavailable.
-- `raf-engine.ts` and `raf-effects/` own DSP. Raf settings are normalized, synchronized, and applied independently of the Options window lifecycle. Parameter updates should be differential and smoothed from a finite anchored value.
+- `raf-engine.ts` and `raf-effects/` own DSP. Raf settings are normalized, synchronized, and applied independently of the Options window lifecycle. Parameter updates should be differential and smoothed from a finite anchored value. Video bypasses Auto Amp but otherwise uses the shared chain.
+- `raf-auto-amp-meter.ts` transports live Auto Amp telemetry between windows; it is presentation state and must not be persisted.
 - The visualizer consumes the shared post-Raf analyser and remains independent of artwork backdrop selection.
 
 ## Files, metadata, and library
 
 - Extension/kind inference and supported-format behavior stay centralized in `src/lib/types.ts` and `src/lib/utils/files.ts`.
 - Unknown-extension verification applies only to unknown files: when enabled, a separate muted OpenMPT probe must accept them; when disabled, normal module playback may succeed or fail.
-- Only streamed formats receive object URLs. Preserve `ensureLoaded()` and File System Access permission behavior during materialization.
+- Only media-element formats (streams and videos) receive object URLs. Preserve `ensureLoaded()` and File System Access permission behavior during materialization.
 - `playlist.ts` remains the public playlist/library store facade; focused sibling modules own persistence, materialization, selection, metadata, navigation, and deduplication.
 - Playlist and library persist separately. The library deduplicates; the playlist does not.
 - `PlaylistItem.path` is the canonical persisted/display path. Do not add a parallel folder-path cache.
@@ -76,6 +79,8 @@
 
 - Playlist, Library, Track Details, Lyrics, and Patterns are dockable workspace tabs. Placement/open state lives in `workspace-panel-state.ts`; wide panel proportions live in `workspace-panel-layout.ts`.
 - `workspace-shell.ts` owns app-level workspace selection, tab, panel, and resize coordination. Layout-specific markup stays in `src/lib/components/workspace/`.
+- `contextual-tab-presentation.ts` owns automatic Lyrics/Patterns tab visibility; components supply availability and dispatch workspace actions.
+- `VideoStage.svelte` only hosts the player-owned video element. Video viewport settings live in `video-settings.ts`; temporary desktop-window sizing and restoration live in `window-video.ts`.
 - Artwork and visualizer backdrops are shared layers clipped to requesting zones. Keep contrast state local to each zone; the menu/title bar remains on the active theme rather than becoming an artwork surface.
 - Artwork loading, cleanup, palette/brightness analysis, and presentation side effects remain transient and service-owned.
 - Window Controls Overlay state comes from `window-controls-overlay.ts`; components must react to live geometry/visibility rather than assuming overlay mode.

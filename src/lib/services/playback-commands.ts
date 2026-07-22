@@ -25,6 +25,8 @@ interface CreatePlaybackCommandsControllerOptions {
   selectTrack: (collection: WorkspaceCollection, id: string) => void;
   setActiveWorkspaceTab: (tab: WorkspaceTab) => void;
   cleanupRemovedItems: (items: PlaylistItem[]) => void;
+  resolveResumePosition?: (track: PlaylistItem) => Promise<number>;
+  notifyTrackResumed?: (track: PlaylistItem, currentTime: number) => void;
 }
 
 const initialState: PlaybackCommandsState = {
@@ -40,7 +42,9 @@ export function createPlaybackCommandsController({
   getTrackById,
   selectTrack,
   setActiveWorkspaceTab,
-  cleanupRemovedItems
+  cleanupRemovedItems,
+  resolveResumePosition = async () => 0,
+  notifyTrackResumed = () => undefined
 }: CreatePlaybackCommandsControllerOptions) {
   let state = initialState;
   let playRequestSequence = 0;
@@ -86,11 +90,21 @@ export function createPlaybackCommandsController({
     }
 
     if (getPlayingTrack()?.id !== playableTrack.id) {
-      await playerController.load(playableTrack, { autoPlay: true });
+      const initialPosition = await resolveResumePosition(playableTrack);
 
       if (requestId !== playRequestSequence) {
         clearPendingPlaybackTrackId(playableTrack.id);
+        return;
       }
+
+      await playerController.load(playableTrack, { autoPlay: true, initialPosition });
+
+      if (requestId !== playRequestSequence) {
+        clearPendingPlaybackTrackId(playableTrack.id);
+        return;
+      }
+
+      if (initialPosition > 0) notifyTrackResumed(playableTrack, initialPosition);
 
       return;
     }

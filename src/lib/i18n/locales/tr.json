@@ -61,6 +61,11 @@
       "channelAbbreviation": "KNL",
       "cellDescription": "Kanal {number}: {value}"
     },
+    "playbackProgress": {
+      "resumedAt": "{position} konumundan devam edildi",
+      "startOver": "Baştan başlat",
+      "dismiss": "Devam iletisini kapat"
+    },
     "player": {
       "quips": {
         "scout": "İzci aslında \"tracker\"dan daha çok \"scout\" a yakın. Ama neyse.",
@@ -788,8 +793,19 @@
         "title": "ReplayGain",
         "hint": "Akış dosyalarındaki ReplayGain etiketlerini uygular; hem parça hem albüm kazancı varsa seçili olanı yeğler."
       },
+      "rememberProgress": {
+        "off": "Kapalı",
+        "everyFile": "Her dosya",
+        "minutes": "{minutes} dk",
+        "hours": "{hours} sa",
+        "title": "İlerlemeyi hatırla",
+        "hint": "En az bu uzunluktaki yarım kalmış dosyaları geri döndüğünüzde otomatik olarak kaldığı yerden sürdürür."
+      },
       "startup": {
         "heading": "Başlangıç"
+      },
+      "progress": {
+        "heading": "İlerleme"
       },
       "volume": {
         "heading": "Ses düzeyi"
@@ -808,23 +824,6 @@
       "showRafToggle": {
         "title": "Raf düğmesini oynatıcıda göster",
         "hint": "Raf etkin olduğunda ses düzeyinin yanında açma/kapama düğmesini gösterir. Sağ tıklayınca Raf ayarlarını açar."
-      }
-    },
-    "video": {
-      "heading": "Video",
-      "autoResizeWindow": {
-        "title": "Pencereyi otomatik boyutlandır",
-        "hint": "Uygun olmayan oynatıcı penceresini video başladığında 1280 × 720 boyutuna getirir; video olmayan bir parça başladığında önceki boyutu geri yükler."
-      },
-      "viewportArea": {
-        "title": "Video görüntü alanı",
-        "hint": "Videonun hangi açık çalışma alanı panellerini kaplayacağını seçer.",
-        "options": {
-          "center": "Orta panel",
-          "leftCenter": "Sol ve orta",
-          "centerRight": "Orta ve sağ",
-          "all": "Tüm paneller"
-        }
       }
     },
     "tracks": {
@@ -851,6 +850,23 @@
       "favoriteToggle": {
         "title": "Favorileme düğmesini göster",
         "hint": "Geçerli parçayı veya modül altparçasını Favoriler'e ekleyip kaldıran bir kalp düğmesi gösterir."
+      }
+    },
+    "video": {
+      "viewportArea": {
+        "options": {
+          "leftCenter": "Sol ve orta",
+          "centerRight": "Orta ve sağ",
+          "all": "Tüm paneller",
+          "center": "Orta panel"
+        },
+        "title": "Video görüntü alanı",
+        "hint": "Videonun hangi açık çalışma alanı panellerini kaplayacağını seçer."
+      },
+      "heading": "Video",
+      "autoResizeWindow": {
+        "title": "Pencereyi otomatik boyutlandır",
+        "hint": "Uygun olmayan oynatıcı penceresini video başladığında 1280 × 720 boyutuna getirir; video olmayan bir parça başladığında önceki boyutu geri yükler."
       }
     },
     "visualizer": {

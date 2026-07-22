@@ -176,14 +176,16 @@ export class HowlerPlayerService {
   }
 
   seek(seconds: number): void {
+    const nextPosition = Math.max(seconds, 0);
     const wasPlaying = this.#howl?.playing() ?? false;
+    this.#initialPosition = nextPosition;
 
     if (wasPlaying) {
       this.#shouldTrackProgress = true;
     }
 
-    this.#howl?.seek(seconds);
-    this.#publishProgress(true, seconds);
+    this.#howl?.seek(nextPosition);
+    this.#publishProgress(true, nextPosition);
 
     if (wasPlaying) {
       this.#startTicking();

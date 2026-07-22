@@ -19,10 +19,14 @@ export const PLAYBACK_RESTORE_MODE_OPTIONS: Array<{
   { value: 'position-and-state', label: 'Position and state' }
 ];
 
+export const REMEMBER_PROGRESS_DURATION_MINUTES = [null, 0, 5, 15, 30, 60, 120, 300, 600] as const;
+export const DEFAULT_REMEMBER_PROGRESS_DURATION_INDEX = 4;
+
 export const DEFAULT_PLAYBACK_SETTINGS: PlaybackSettings = {
   logarithmicVolume: true,
   replayGainMode: 'track',
   restoreMode: 'disabled',
+  rememberProgressDurationIndex: DEFAULT_REMEMBER_PROGRESS_DURATION_INDEX,
   enableRaf: false,
   showRafToggleInPlayerBar: false
 };
@@ -39,6 +43,17 @@ export function normalizePlaybackRestoreMode(value: unknown): PlaybackRestoreMod
     : DEFAULT_PLAYBACK_SETTINGS.restoreMode;
 }
 
+export function normalizeRememberProgressDurationIndex(value: unknown): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return DEFAULT_REMEMBER_PROGRESS_DURATION_INDEX;
+  }
+
+  return Math.min(
+    Math.max(Math.round(value), 0),
+    REMEMBER_PROGRESS_DURATION_MINUTES.length - 1
+  );
+}
+
 function normalizeSettings(value: unknown): PlaybackSettings {
   const source = value && typeof value === 'object' ? (value as Partial<PlaybackSettings>) : {};
 
@@ -49,6 +64,9 @@ function normalizeSettings(value: unknown): PlaybackSettings {
         : DEFAULT_PLAYBACK_SETTINGS.logarithmicVolume,
     replayGainMode: normalizeReplayGainMode(source.replayGainMode),
     restoreMode: normalizePlaybackRestoreMode(source.restoreMode),
+    rememberProgressDurationIndex: normalizeRememberProgressDurationIndex(
+      source.rememberProgressDurationIndex
+    ),
     enableRaf:
       typeof source.enableRaf === 'boolean' ? source.enableRaf : DEFAULT_PLAYBACK_SETTINGS.enableRaf,
     showRafToggleInPlayerBar:

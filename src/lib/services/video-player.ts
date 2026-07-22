@@ -80,8 +80,9 @@ export class VideoPlayerService {
       return;
     }
 
+    this.#initialPosition = Math.max(seconds, 0);
     const duration = Number.isFinite(element.duration) ? element.duration : Number.POSITIVE_INFINITY;
-    element.currentTime = Math.min(Math.max(seconds, 0), duration);
+    element.currentTime = Math.min(this.#initialPosition, duration);
     this.#publishProgress();
   }
 

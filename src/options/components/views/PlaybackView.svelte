@@ -1,11 +1,24 @@
 <script lang="ts">
   import { t } from 'svelte-i18n';
   import SettingsField from '../SettingsField.svelte';
-  import { PLAYBACK_RESTORE_MODE_OPTIONS, REPLAY_GAIN_MODE_OPTIONS, playbackSettings } from '$lib/stores/playback-settings';
+  import {
+    PLAYBACK_RESTORE_MODE_OPTIONS,
+    REMEMBER_PROGRESS_DURATION_MINUTES,
+    REPLAY_GAIN_MODE_OPTIONS,
+    normalizeRememberProgressDurationIndex,
+    playbackSettings
+  } from '$lib/stores/playback-settings';
   import type { PlaybackRestoreMode, ReplayGainMode } from '$lib/types';
 
   function checked(event: Event) { return (event.currentTarget as HTMLInputElement).checked; }
   function handlePlaybackRestoreModeChange(event: Event) { playbackSettings.update({ restoreMode: (event.currentTarget as HTMLSelectElement).value as PlaybackRestoreMode }); }
+  function handleRememberProgressDurationChange(event: Event) {
+    playbackSettings.update({
+      rememberProgressDurationIndex: normalizeRememberProgressDurationIndex(
+        (event.currentTarget as HTMLInputElement).valueAsNumber
+      )
+    });
+  }
   function handleLogarithmicVolumeToggle(event: Event) { playbackSettings.update({ logarithmicVolume: checked(event) }); }
   function handleReplayGainModeChange(event: Event) { playbackSettings.update({ replayGainMode: (event.currentTarget as HTMLSelectElement).value as ReplayGainMode }); }
   function handleEnableRafToggle(event: Event) { playbackSettings.update({ enableRaf: checked(event) }); }
@@ -19,6 +32,21 @@
     if (value === 'track') return $t('options.playback.replayGain.options.track', { default: 'Track' });
     if (value === 'album') return $t('options.playback.replayGain.options.album', { default: 'Album' });
     return $t('options.playback.replayGain.options.off', { default: 'Off' });
+  }
+  function rememberProgressDurationLabel(index: number): string {
+    const minutes = REMEMBER_PROGRESS_DURATION_MINUTES[index] ?? null;
+    if (minutes === null) return $t('options.playback.rememberProgress.off', { default: 'Off' });
+    if (minutes === 0) return $t('options.playback.rememberProgress.everyFile', { default: 'Every file' });
+    if (minutes < 60) {
+      return $t('options.playback.rememberProgress.minutes', {
+        default: '{minutes} min',
+        values: { minutes }
+      });
+    }
+    return $t('options.playback.rememberProgress.hours', {
+      default: '{hours} h',
+      values: { hours: minutes / 60 }
+    });
   }
 </script>
 
@@ -35,6 +63,28 @@
               <option value={option.value}>{restoreModeLabel(option.value)}</option>
             {/each}
           </select>
+      </SettingsField>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>{$t('options.playback.progress.heading', { default: 'Progress' })}</h2>
+    <div class="field-grid">
+      <SettingsField
+        title={$t('options.playback.rememberProgress.title', { default: 'Remember progress' })}
+        hint={$t('options.playback.rememberProgress.hint', { default: 'Automatically resumes unfinished files at least this long when you return to them.' })}
+      >
+          <input
+            type="range"
+            min="0"
+            max={REMEMBER_PROGRESS_DURATION_MINUTES.length - 1}
+            step="1"
+            value={$playbackSettings.rememberProgressDurationIndex}
+            on:input={handleRememberProgressDurationChange}
+          />
+          <span class="field-output">
+            {rememberProgressDurationLabel($playbackSettings.rememberProgressDurationIndex)}
+          </span>
       </SettingsField>
     </div>
   </div>

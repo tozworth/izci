@@ -340,6 +340,7 @@ export interface PlaybackSettings {
   logarithmicVolume: boolean;
   replayGainMode: ReplayGainMode;
   restoreMode: PlaybackRestoreMode;
+  rememberProgressDurationIndex: number;
   enableRaf: boolean;
   showRafToggleInPlayerBar: boolean;
 }
