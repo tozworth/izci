@@ -11,6 +11,7 @@
     ModulePatternSnapshot,
     PlaybackSnapshot,
     PlaylistItem,
+    VideoViewportArea,
     WorkspacePanelId,
     WorkspaceTab
   } from '$lib/types';
@@ -52,6 +53,7 @@
   export let isNowPlayingLayoutActive: boolean;
   export let videoElement: HTMLVideoElement | null;
   export let videoActive = false;
+  export let videoViewportArea: VideoViewportArea = 'center';
   export let workspaceState: WorkspaceShellState;
   export let playlistPanelHandlers: WorkspacePanelHandlers;
   export let libraryPanelHandlers: WorkspacePanelHandlers;
@@ -130,6 +132,7 @@
     isCompactWorkspace={workspaceState.isCompactWorkspace}
     {videoElement}
     {videoActive}
+    {videoViewportArea}
     backdropArtwork={artworkState.visibleArtworkBackground}
     zoneArtworkBright={workspaceZoneArtworkBright}
     zoneEffects={workspaceZoneEffects}

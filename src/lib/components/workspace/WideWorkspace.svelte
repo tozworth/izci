@@ -7,6 +7,7 @@
   import type {
     BackdropZoneEffect,
     BackdropZoneArtworkSettings,
+    VideoViewportArea,
     WorkspacePanelId,
     WorkspaceTab
   } from '$lib/types';
@@ -30,6 +31,7 @@
   export let isCompactWorkspace = false;
   export let videoElement: HTMLVideoElement | null = null;
   export let videoActive = false;
+  export let videoViewportArea: VideoViewportArea = 'center';
   export let backdropArtwork: LoadedStreamArtwork | null = null;
   export let artworkBackgroundBright = false;
   export let zoneEffects: Record<WorkspacePanelId, BackdropZoneEffect> = {
@@ -64,6 +66,43 @@
   $: hiddenPanels = workspacePanels.filter(
     (panel) => !panel.isOpen && !panel.isResponsiveCollapsed
   );
+  $: videoPanelIds = getVideoPanelIds(videoViewportArea);
+  $: coveredVideoPanels = visiblePanels.filter((panel) => videoPanelIds.has(panel.id));
+  $: videoOverlayStyle = resolveVideoOverlayStyle(
+    visiblePanels,
+    coveredVideoPanels,
+    panelWidths,
+    resizerWidth
+  );
+
+  function getVideoPanelIds(area: VideoViewportArea): Set<WorkspacePanelId> {
+    if (area === 'left-center') return new Set(['left', 'center']);
+    if (area === 'center-right') return new Set(['center', 'right']);
+    if (area === 'all') return new Set(['left', 'center', 'right']);
+    return new Set(['center']);
+  }
+
+  function resolveVideoOverlayStyle(
+    panels: WorkspacePanelDefinition[],
+    coveredPanels: WorkspacePanelDefinition[],
+    widths: Record<WorkspacePanelId, number>,
+    separatorWidth: number
+  ): string {
+    if (coveredPanels.length === 0) {
+      return '';
+    }
+
+    const firstIndex = panels.indexOf(coveredPanels[0]);
+    const lastIndex = panels.indexOf(coveredPanels[coveredPanels.length - 1]);
+    const left = panels
+      .slice(0, firstIndex)
+      .reduce((total, panel) => total + widths[panel.id] + separatorWidth, 0);
+    const right = panels
+      .slice(lastIndex + 1)
+      .reduce((total, panel) => total + widths[panel.id] + separatorWidth, 0);
+
+    return `left: ${left}px; right: ${right}px;`;
+  }
 
   function getPanelLabel(panelId: WorkspacePanelId): string {
     switch (panelId) {
@@ -147,8 +186,8 @@
       >
         <div
           class="workspace-panel-surface"
-          class:is-video-covered={videoActive && panel.id === 'center'}
-          inert={videoActive && panel.id === 'center' ? true : undefined}
+          class:is-video-covered={videoActive && videoPanelIds.has(panel.id)}
+          inert={videoActive && videoPanelIds.has(panel.id) ? true : undefined}
         >
           <BackdropZone
             effect={zoneEffects[panel.backdropPanelId]}
@@ -199,12 +238,6 @@
           </BackdropZone>
         </div>
 
-        {#if videoActive && panel.id === 'center'}
-          <VideoStage
-            element={videoElement}
-            on:volumeStep={(event) => dispatch('volumeStep', event.detail)}
-          />
-        {/if}
       </div>
 
       {#if index < visiblePanels.length - 1}
@@ -227,6 +260,15 @@
     {/each}
   {:else}
     <div class="workspace-empty-surface" aria-label={$t('workspace.empty', { default: 'Workspace is empty' })}></div>
+  {/if}
+
+  {#if videoActive && coveredVideoPanels.length > 0}
+    <div class="video-viewport-overlay" style={videoOverlayStyle}>
+      <VideoStage
+        element={videoElement}
+        on:volumeStep={(event) => dispatch('volumeStep', event.detail)}
+      />
+    </div>
   {/if}
 
   {#if draggedTabId}
@@ -254,5 +296,15 @@
 
   .workspace-panel-surface.is-video-covered {
     visibility: hidden;
+  }
+
+  .video-viewport-overlay {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    z-index: 7;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
   }
 </style>

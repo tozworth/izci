@@ -53,6 +53,10 @@
   import { windowControlsOverlayState } from '$lib/services/window-controls-overlay';
   import { windowDisplayState } from '$lib/services/window-display-state';
   import { windowFullscreen } from '$lib/services/window-fullscreen';
+  import {
+    ensureComfortableVideoWindowSize,
+    restoreVideoWindowSize
+  } from '$lib/services/window-video';
   import { appearanceSettings } from '$lib/stores/appearance-settings';
   import { metadataSettings } from '$lib/stores/metadata-settings';
   import { favoritesStore, libraryStore, playlistStore } from '$lib/stores/playlist';
@@ -62,6 +66,7 @@
   import { rafSettings } from '$lib/stores/raf-settings';
   import { isRafPresetDirty, rafPresets } from '$lib/stores/raf-presets';
   import { trackSettings } from '$lib/stores/track-settings';
+  import { videoSettings } from '$lib/stores/video-settings';
   import type {
     LyricsDisplayStyle,
     ModulePatternSnapshot,
@@ -153,6 +158,7 @@
   let isNowPlayingLayoutActive = false;
   let isNowPlayingChromeHidden = false;
   let isFullscreenNowPlayingChromeHidden = false;
+  let videoTrackActive = false;
   let documentTitle = 'izci';
   let effectiveLyricsDisplayStyle: LyricsDisplayStyle = 'timestamped';
   let lyricsAutoScroll = true;
@@ -398,6 +404,8 @@
       : selectedPlaylistItem;
   $: livePlayingTrack = resolveTrackSnapshot(playingTrack, selectedItem, playlistItems, libraryItems);
   $: playerDisplayTrack = livePlayingTrack;
+  $: videoTrackActive = playerDisplayTrack?.kind === 'video';
+  $: syncVideoWindowSize(videoTrackActive, $videoSettings.autoResizeWindow);
   $: favoriteTargetTrack = playerDisplayTrack?.kind === 'module' && playbackSnapshot.subsong !== undefined
     ? { ...playerDisplayTrack, subsong: playbackSnapshot.subsong }
     : playerDisplayTrack;
@@ -643,6 +651,15 @@
     void importController.handleFileInputChange(event);
   }
 
+  function syncVideoWindowSize(active: boolean, autoResizeWindow: boolean): void {
+    if (active && autoResizeWindow) {
+      ensureComfortableVideoWindowSize();
+      return;
+    }
+
+    restoreVideoWindowSize();
+  }
+
   function handleOpenOptions(view?: OptionsViewName) {
     windowManager.openOptions(view);
   }
@@ -869,7 +886,8 @@
       {playbackSnapshot}
       {isNowPlayingLayoutActive}
       videoElement={playerController.videoElement}
-      videoActive={playerDisplayTrack?.kind === 'video'}
+      videoActive={videoTrackActive}
+      videoViewportArea={$videoSettings.viewportArea}
       workspaceState={workspaceShellState}
       {playlistPanelHandlers}
       {libraryPanelHandlers}

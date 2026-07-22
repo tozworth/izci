@@ -76,6 +76,7 @@ export type PlaybackState = 'idle' | 'loading' | 'playing' | 'paused' | 'ended' 
 export type ModuleInterpolationFilter = 1 | 2 | 4 | 8;
 export type PlaylistRepeatMode = 'off' | 'one' | 'all';
 export type PlaybackRestoreMode = 'disabled' | 'position' | 'position-and-state';
+export type VideoViewportArea = 'center' | 'left-center' | 'center-right' | 'all';
 export type SortDirection = 'asc' | 'desc';
 export type LibraryColumnId = 'title' | 'artist' | 'album' | 'folder' | 'format' | 'duration' | 'plays';
 export type LibraryViewId = 'favorites' | 'songs' | 'artists' | 'albums' | 'genres' | 'years' | 'formats' | 'folders';
@@ -455,4 +456,9 @@ export interface PlaybackSnapshot {
   subsong?: number;
   subsongCount?: number;
   error?: string;
+}
+
+export interface VideoSettings {
+  autoResizeWindow: boolean;
+  viewportArea: VideoViewportArea;
 }

@@ -14,6 +14,7 @@
   import FoldersView from './components/views/FoldersView.svelte';
   import LicensesView from './components/views/LicensesView.svelte';
   import VisualizerView from './components/views/VisualizerView.svelte';
+  import VideoView from './components/views/VideoView.svelte';
   import RafView from './components/raf/RafView.svelte';
   import { windowControlsOverlayState } from '$lib/services/window-controls-overlay';
   import {
@@ -29,6 +30,7 @@
   import { rafSettings } from '$lib/stores/raf-settings';
   import { trackSettings } from '$lib/stores/track-settings';
   import { visualizerSettings } from '$lib/stores/visualizer-settings';
+  import { videoSettings } from '$lib/stores/video-settings';
   import {
     OPTIONS_VIEW_GROUPS,
     OPTIONS_VIEWS,
@@ -54,6 +56,7 @@
       case 'now-playing': return translate('options.views.nowPlaying', { default: 'Now Playing' });
       case 'lyrics': return translate('options.views.lyrics', { default: 'Lyrics' });
       case 'playback': return translate('options.views.playback', { default: 'Playback' });
+      case 'video': return translate('options.views.video', { default: 'Video' });
       case 'raf': return 'Raf';
       case 'visualizer': return translate('options.views.visualizer', { default: 'Visualizer' });
       case 'patterns': return translate('options.views.patterns', { default: 'Patterns' });
@@ -68,7 +71,7 @@
 
   function parentViewId(view: OptionsViewName): OptionsViewName | null {
     if (view === 'backdrops' || view === 'now-playing' || view === 'visualizer' || view === 'patterns' || view === 'lyrics') return 'appearance';
-    if (view === 'raf' || view === 'modules') return 'playback';
+    if (view === 'video' || view === 'raf' || view === 'modules') return 'playback';
     if (view === 'folders' || view === 'metadata') return 'tracks';
     if (view === 'licenses') return 'about';
     return null;
@@ -92,6 +95,8 @@
       appearanceSettings.reset();
     } else if (activeView === 'playback') {
       playbackSettings.reset();
+    } else if (activeView === 'video') {
+      videoSettings.reset();
     } else if (activeView === 'visualizer') {
       visualizerSettings.reset();
     } else if (activeView === 'patterns') {
@@ -271,6 +276,10 @@
 
       {#if activeView === 'playback'}
         <PlaybackView />
+      {/if}
+
+      {#if activeView === 'video'}
+        <VideoView />
       {/if}
 
       {#if activeView === 'visualizer'}

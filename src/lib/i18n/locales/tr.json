@@ -810,6 +810,23 @@
         "hint": "Raf etkin olduğunda ses düzeyinin yanında açma/kapama düğmesini gösterir. Sağ tıklayınca Raf ayarlarını açar."
       }
     },
+    "video": {
+      "heading": "Video",
+      "autoResizeWindow": {
+        "title": "Pencereyi otomatik boyutlandır",
+        "hint": "Uygun olmayan oynatıcı penceresini video başladığında 1280 × 720 boyutuna getirir; video olmayan bir parça başladığında önceki boyutu geri yükler."
+      },
+      "viewportArea": {
+        "title": "Video görüntü alanı",
+        "hint": "Videonun hangi açık çalışma alanı panellerini kaplayacağını seçer.",
+        "options": {
+          "center": "Orta panel",
+          "leftCenter": "Sol ve orta",
+          "centerRight": "Orta ve sağ",
+          "all": "Tüm paneller"
+        }
+      }
+    },
     "tracks": {
       "adding": {
         "heading": "Parça Ekleme"
@@ -902,6 +919,7 @@
       "nowPlaying": "Şimdi Yürütülüyor",
       "lyrics": "Sözler",
       "playback": "Oynatım",
+      "video": "Video",
       "visualizer": "Görselleştirme",
       "patterns": "Örüntüler",
       "modules": "Modüller",

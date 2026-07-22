@@ -810,6 +810,23 @@
         "hint": "Shows the rack bypass control beside volume while Raf is enabled. Right-clicking it opens Raf options."
       }
     },
+    "video": {
+      "heading": "Video",
+      "autoResizeWindow": {
+        "title": "Auto resize window",
+        "hint": "Resizes an unsuitable player window to 1280 × 720 when video starts, then restores it when non-video playback begins."
+      },
+      "viewportArea": {
+        "title": "Video viewport area",
+        "hint": "Chooses which open workspace panels the video covers.",
+        "options": {
+          "center": "Center panel",
+          "leftCenter": "Left and center",
+          "centerRight": "Center and right",
+          "all": "All panels"
+        }
+      }
+    },
     "tracks": {
       "adding": {
         "heading": "Adding Tracks"
@@ -902,6 +919,7 @@
       "nowPlaying": "Now Playing",
       "lyrics": "Lyrics",
       "playback": "Playback",
+      "video": "Video",
       "visualizer": "Visualizer",
       "patterns": "Patterns",
       "modules": "Modules",
