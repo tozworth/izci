@@ -7,7 +7,12 @@ import {
   supportsDirectoryPicker,
   supportsOpenFilePicker
 } from './import-controller';
-import { MODULE_EXTENSIONS, STREAM_EXTENSIONS, type WorkspaceCollection } from '$lib/types';
+import {
+  MODULE_EXTENSIONS,
+  STREAM_EXTENSIONS,
+  VIDEO_EXTENSIONS,
+  type WorkspaceCollection
+} from '$lib/types';
 
 type PickerWindow = Window & typeof globalThis;
 
@@ -26,13 +31,15 @@ function pickerWindow(value: object): PickerWindow {
 describe('import controller', () => {
   it('keeps picker accept lists aligned with supported extensions', () => {
     expect(FILE_INPUT_ACCEPT.split(',')).toEqual(
-      [...STREAM_EXTENSIONS, ...MODULE_EXTENSIONS].map((extension) => `.${extension}`)
+      [...STREAM_EXTENSIONS, ...MODULE_EXTENSIONS, ...VIDEO_EXTENSIONS].map((extension) => `.${extension}`)
     );
     expect(OPEN_FILE_PICKER_OPTIONS.multiple).toBe(true);
     expect(OPEN_FILE_PICKER_OPTIONS.types?.[0].accept).toMatchObject({
       'audio/flac': ['.flac'],
       'audio/ogg': ['.ogg', '.opus'],
-      'audio/x-openmpt': MODULE_EXTENSIONS.map((extension) => `.${extension}`)
+      'audio/x-openmpt': MODULE_EXTENSIONS.map((extension) => `.${extension}`),
+      'video/mp4': ['.mp4', '.m4v'],
+      'video/x-matroska': ['.mkv']
     });
   });
 

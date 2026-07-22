@@ -13,6 +13,7 @@
   import WorkspaceResizer from '$lib/components/workspace/WorkspaceResizer.svelte';
   import WorkspaceTabBar from '$lib/components/workspace/WorkspaceTabBar.svelte';
   import WorkspaceTabContent from '$lib/components/workspace/WorkspaceTabContent.svelte';
+  import VideoStage from '$lib/components/workspace/VideoStage.svelte';
   import { hasWorkspaceTabDragData, readWorkspaceTabDragData } from './drag';
   import type {
     WideWorkspaceResizeStartDetail,
@@ -27,6 +28,8 @@
   export let resizerWidth = 1;
   export let isResizing = false;
   export let isCompactWorkspace = false;
+  export let videoElement: HTMLVideoElement | null = null;
+  export let videoActive = false;
   export let backdropArtwork: LoadedStreamArtwork | null = null;
   export let artworkBackgroundBright = false;
   export let zoneEffects: Record<WorkspacePanelId, BackdropZoneEffect> = {
@@ -141,15 +144,20 @@
         on:drop={(event) => handlePanelDrop(event, panel.id)}
         on:dragleave={(event) => handlePanelDragLeave(event, panel.id)}
       >
-        <BackdropZone
-          effect={zoneEffects[panel.backdropPanelId]}
-          artwork={backdropArtwork}
-          artworkSettings={zoneArtworkSettings[panel.backdropPanelId]}
-          artworkBright={zoneArtworkBright[panel.backdropPanelId] || artworkBackgroundBright}
-          fillParent={true}
-          zoneId={panel.backdropPanelId}
+        <div
+          class="workspace-panel-surface"
+          class:is-video-covered={videoActive && panel.id === 'center'}
+          inert={videoActive && panel.id === 'center' ? true : undefined}
         >
-          <div class="workspace-dock-panel-content">
+          <BackdropZone
+            effect={zoneEffects[panel.backdropPanelId]}
+            artwork={backdropArtwork}
+            artworkSettings={zoneArtworkSettings[panel.backdropPanelId]}
+            artworkBright={zoneArtworkBright[panel.backdropPanelId] || artworkBackgroundBright}
+            fillParent={true}
+            zoneId={panel.backdropPanelId}
+          >
+            <div class="workspace-dock-panel-content">
             <WorkspaceTabBar
               tabs={panel.tabs}
               activeTab={panel.activeTab}
@@ -186,8 +194,13 @@
                 aria-label={$t('workspace.panelEmpty', { default: '{panel} is empty', values: { panel: getPanelLabel(panel.id) } })}
               ></div>
             {/if}
-          </div>
-        </BackdropZone>
+            </div>
+          </BackdropZone>
+        </div>
+
+        {#if videoActive && panel.id === 'center'}
+          <VideoStage element={videoElement} />
+        {/if}
       </div>
 
       {#if index < visiblePanels.length - 1}
@@ -226,3 +239,16 @@
     {/each}
   {/if}
 </main>
+
+<style>
+  .workspace-panel-surface {
+    min-width: 0;
+    min-height: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  .workspace-panel-surface.is-video-covered {
+    visibility: hidden;
+  }
+</style>

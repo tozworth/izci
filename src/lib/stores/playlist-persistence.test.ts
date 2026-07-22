@@ -63,6 +63,22 @@ describe('playlist persistence helpers', () => {
     expect(normalizeStoredItem({ ...serializeItem(moduleItem), subsong: -1 })).not.toHaveProperty('subsong');
   });
 
+  it('round-trips handle-backed video items', () => {
+    const videoItem = item({
+      name: 'Clip.webm',
+      extension: 'webm',
+      kind: 'video',
+      fileHandle
+    });
+
+    expect(normalizeStoredItem(serializeItem(videoItem))).toMatchObject({
+      name: 'Clip.webm',
+      extension: 'webm',
+      kind: 'video',
+      fileHandle
+    });
+  });
+
   it('rejects invalid stored items and strips non-file handles', () => {
     expect(normalizeStoredItem(null)).toBeNull();
     expect(normalizeStoredItem({ id: 'x', name: 'Track.flac', extension: 'flac', kind: 'stream' })).toBeNull();

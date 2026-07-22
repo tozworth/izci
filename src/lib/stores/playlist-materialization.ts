@@ -4,7 +4,7 @@ import { inferExtension, inferKind } from '$lib/utils/files';
 type FileSystemPermissionState = 'granted' | 'denied' | 'prompt';
 
 function createObjectUrl(item: Pick<PlaylistItem, 'kind'>, file: File): string | undefined {
-  return item.kind === 'stream' ? URL.createObjectURL(file) : undefined;
+  return item.kind === 'stream' || item.kind === 'video' ? URL.createObjectURL(file) : undefined;
 }
 
 export function revokeObjectUrl(item: Pick<PlaylistItem, 'objectUrl'>): void {
@@ -38,7 +38,7 @@ async function requestHandlePermission(handle: FileSystemFileHandle): Promise<Fi
 }
 
 export async function materializePlaylistItem(item: PlaylistItem, prompt = false): Promise<PlaylistItem | null> {
-  if (item.file && (item.kind !== 'stream' || item.objectUrl)) {
+  if (item.file && (item.kind === 'module' || item.objectUrl)) {
     return item;
   }
 

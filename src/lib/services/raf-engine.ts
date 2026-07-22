@@ -3,7 +3,7 @@ import { RAF_PARAMETER_RAMP_SECONDS, disconnectNode, setAudioParam, type RafEffe
 import { rafSettings } from '$lib/stores/raf-settings';
 import { playbackSettings } from '$lib/stores/playback-settings';
 import { publishRafMeter } from '$lib/services/raf-meter';
-import type { RafEffectSettings, RafRackSettings } from '$lib/types';
+import type { RafEffectSettings, RafEffectType, RafRackSettings } from '$lib/types';
 import type { Unsubscriber } from 'svelte/store';
 
 interface LiveEffect {
@@ -35,6 +35,7 @@ export class RafEngine {
   #settings: RafRackSettings | null = null;
   #unsubscribers: Unsubscriber[];
   #featureEnabled = false;
+  #bypassedEffectTypes = new Set<RafEffectType>();
   #disposeTimers = new Set<ReturnType<typeof setTimeout>>();
   #destroyed = false;
 
@@ -76,6 +77,16 @@ export class RafEngine {
     disconnectNode(this.#outputAnalyser);
     disconnectNode(this.output);
     this.#activeChain = null;
+  }
+
+  setBypassedEffectTypes(types: Iterable<RafEffectType>): void {
+    this.#bypassedEffectTypes = new Set(types);
+
+    for (const effect of this.#activeChain?.effects ?? []) {
+      const enabled = this.#isEffectEnabled(effect.settings, effect.processor);
+      setAudioParam(effect.dryGain.gain, enabled ? 0 : 1, this.context);
+      setAudioParam(effect.wetGain.gain, enabled ? 1 : 0, this.context);
+    }
   }
 
   #applySettings(settings: RafRackSettings): void {
@@ -160,7 +171,7 @@ export class RafEngine {
       console.error(`Raf could not construct effect ${settings.id}; using its dry path.`, error);
     }
 
-    const enabled = settings.enabled && processor !== null;
+    const enabled = this.#isEffectEnabled(settings, processor);
     dryGain.gain.value = enabled ? 0 : 1;
     wetGain.gain.value = enabled ? 1 : 0;
 
@@ -172,13 +183,17 @@ export class RafEngine {
     if (liveEffect.processor) {
       liveEffect.definition.updateNode(liveEffect.processor, settings, this.context, previousSettings);
     }
-    const enabled = settings.enabled && liveEffect.processor !== null;
-    const previouslyEnabled = previousSettings.enabled && liveEffect.processor !== null;
+    const enabled = this.#isEffectEnabled(settings, liveEffect.processor);
+    const previouslyEnabled = this.#isEffectEnabled(previousSettings, liveEffect.processor);
     if (enabled !== previouslyEnabled) {
       setAudioParam(liveEffect.dryGain.gain, enabled ? 0 : 1, this.context);
       setAudioParam(liveEffect.wetGain.gain, enabled ? 1 : 0, this.context);
     }
     liveEffect.settings = settings;
+  }
+
+  #isEffectEnabled(settings: RafEffectSettings, processor: RafEffectNode | null): boolean {
+    return settings.enabled && processor !== null && !this.#bypassedEffectTypes.has(settings.type);
   }
 
   #setRackEnabled(enabled: boolean): void {

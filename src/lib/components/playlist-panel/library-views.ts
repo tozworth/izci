@@ -15,7 +15,7 @@ export interface LibraryGroup {
   label: string;
   secondary: string;
   placeholder?: 'artist' | 'album' | 'genre' | 'year' | 'format' | 'folder';
-  secondaryKind?: 'trackerModule' | 'stream';
+  secondaryKind?: 'trackerModule' | 'stream' | 'video';
   items: PlaylistItem[];
   duration: number;
 }
@@ -112,14 +112,14 @@ function getGroupValues(
       return normalized(item.extension)
         ? [{
             label: normalized(item.extension).toUpperCase(),
-            secondary: item.kind === 'module' ? 'Tracker module' : 'Stream',
-            secondaryKind: item.kind === 'module' ? 'trackerModule' : 'stream'
+            secondary: item.kind === 'module' ? 'Tracker module' : item.kind === 'video' ? 'Video' : 'Stream',
+            secondaryKind: item.kind === 'module' ? 'trackerModule' : item.kind
           }]
         : [{
             label: 'Unknown format',
-            secondary: item.kind === 'module' ? 'Tracker module' : 'Stream',
+            secondary: item.kind === 'module' ? 'Tracker module' : item.kind === 'video' ? 'Video' : 'Stream',
             placeholder: 'format',
-            secondaryKind: item.kind === 'module' ? 'trackerModule' : 'stream'
+            secondaryKind: item.kind === 'module' ? 'trackerModule' : item.kind
           }];
     case 'folders':
       return [getFolderValues(item)];

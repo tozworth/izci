@@ -1,6 +1,7 @@
 import { visualizerService } from '$lib/services/visualizer';
 import { RafEngine } from '$lib/services/raf-engine';
 import { setAudioParam } from '$lib/services/raf-effects/shared';
+import type { RafEffectType } from '$lib/types';
 
 type AudioBusSource = AudioNode | MediaElementAudioSourceNode;
 
@@ -14,6 +15,7 @@ export class AudioBusService {
   #mediaSources = new WeakMap<HTMLMediaElement, MediaElementAudioSourceNode>();
   #inputGain = 1;
   #outputGain = 1;
+  #bypassedRafEffectTypes = new Set<RafEffectType>();
 
   get context(): AudioContext {
     this.#ensureGraph();
@@ -94,6 +96,16 @@ export class AudioBusService {
     }
   }
 
+  setRafEffectBypass(type: RafEffectType, bypassed: boolean): void {
+    if (bypassed) {
+      this.#bypassedRafEffectTypes.add(type);
+    } else {
+      this.#bypassedRafEffectTypes.delete(type);
+    }
+
+    this.#rafEngine?.setBypassedEffectTypes(this.#bypassedRafEffectTypes);
+  }
+
   destroy(): void {
     this.disconnect(this.#activeSource);
     visualizerService.clear();
@@ -153,6 +165,7 @@ export class AudioBusService {
     const output = context.createGain();
     const analyser = context.createAnalyser();
     const rafEngine = new RafEngine(context);
+    rafEngine.setBypassedEffectTypes(this.#bypassedRafEffectTypes);
 
     input.gain.value = this.#inputGain;
     output.gain.value = this.#outputGain;

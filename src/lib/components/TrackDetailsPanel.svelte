@@ -106,21 +106,25 @@
     year: $t('main.trackDetails.year', { default: 'Year' })
   } satisfies MetadataLabels;
   $: metadataEntries = buildStreamMetadataEntries(track, metadataLabels);
-  $: tracker = track ? resolveModuleTrackerName(track.extension, track.metadata?.trackerType) : '';
+  $: tracker = track?.kind === 'module'
+    ? resolveModuleTrackerName(track.extension, track.metadata?.trackerType)
+    : '';
   $: patterns = track?.metadata?.patterns;
   $: notes = track?.metadata?.message?.trim() || '';
   $: bitrate = track?.kind === 'stream' ? track.metadata?.bitrate : undefined;
   $: formatValue = track
-    ? track.kind === 'stream'
-      ? track.extension.toUpperCase()
-      : resolveModuleDisplayFormat(track.extension, track.metadata)
+    ? track.kind === 'module'
+      ? resolveModuleDisplayFormat(track.extension, track.metadata)
+      : track.extension.toUpperCase()
     : '';
   $: formatDetail = track
     ? track.kind === 'stream'
       ? bitrate
         ? `${bitrate} kbps`
         : ''
-      : tracker
+      : track.kind === 'module'
+        ? tracker
+        : ''
     : '';
   $: replayGain = track?.kind === 'stream' ? track.metadata?.replayGain : undefined;
   $: replayGainParts = [
@@ -199,7 +203,7 @@
     <div class="details-content" class:compact-workspace={isCompactWorkspace}>
       {#if showTrackSection}
         <section class="detail-section track-copy">
-          {#if artwork}
+          {#if artwork && track.kind !== 'video'}
             <div class="track-artwork" aria-hidden="true">
               <img class="track-artwork-image" src={artwork.url} alt="" />
             </div>

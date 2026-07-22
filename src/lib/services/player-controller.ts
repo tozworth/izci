@@ -2,6 +2,7 @@ import { writable } from 'svelte/store';
 import { audioBusService } from '$lib/services/audio-bus';
 import { HowlerPlayerService } from '$lib/services/howler-player';
 import { ModulePlayerService } from '$lib/services/module-player';
+import { VideoPlayerService } from '$lib/services/video-player';
 import { metadataSettings } from '$lib/stores/metadata-settings';
 import { modulePlaybackSettings } from '$lib/stores/module-playback-settings';
 import { playbackSettings } from '$lib/stores/playback-settings';
@@ -110,6 +111,7 @@ function createPlayerController() {
         : 1
     );
     audioBusService.setOutputGain(sliderVolumeToGain(effectiveVolume, playbackConfig.logarithmicVolume));
+    audioBusService.setRafEffectBypass('auto-amp', activeTrack?.kind === 'video');
 
     // This is audible only if Chromium cannot route Howler's media element
     // through the shared Web Audio graph.
@@ -119,6 +121,7 @@ function createPlayerController() {
       streamReplayGain,
       playbackConfig.replayGainMode
     );
+    services.video.setFallbackVolume(sliderVolumeToGain(effectiveVolume, playbackConfig.logarithmicVolume));
   };
 
   const setConfiguredVolume = (nextVolume: number) => {
@@ -164,7 +167,8 @@ function createPlayerController() {
       onMetadata,
       onModulePattern,
       () => onSnapshot({ state: 'ended' })
-    )
+    ),
+    video: new VideoPlayerService(onSnapshot, onMetadata, () => onSnapshot({ state: 'ended' }))
   };
   const unsubscribeModuleSettings = modulePlaybackSettings.subscribe((settings) => {
     void services.module.applySettings(settings);
@@ -192,6 +196,9 @@ function createPlayerController() {
     status,
     currentTrack,
     modulePattern,
+    get videoElement() {
+      return services.video.element;
+    },
     async load(
       track: PlaylistItem,
       options: { autoPlay?: boolean; initialPosition?: number } = {}
@@ -204,11 +211,12 @@ function createPlayerController() {
       currentTrack.set(preparedTrack);
       services.stream.destroy();
       services.module.stop({ silent: true });
+      services.video.unload();
 
       if (preparedTrack.kind === 'stream') {
         services.stream.load(preparedTrack, { autoPlay, initialPosition });
         applyBackendVolume();
-      } else {
+      } else if (preparedTrack.kind === 'module') {
         const pendingDuration = preparedTrack.metadata?.duration ?? 0;
         const loadPromise = services.module.load(preparedTrack);
 
@@ -239,6 +247,9 @@ function createPlayerController() {
         }
 
         return;
+      } else {
+        services.video.load(preparedTrack, { autoPlay, initialPosition });
+        applyBackendVolume();
       }
 
       onSnapshot({
@@ -316,6 +327,7 @@ function createPlayerController() {
       currentTrack.set(null);
       services.stream.destroy();
       services.module.stop();
+      services.video.unload();
       onSnapshot({
         ...initialSnapshot,
         volume,
@@ -349,6 +361,7 @@ function createPlayerController() {
       unsubscribePlaybackSettings();
       services.stream.destroy();
       services.module.destroy();
+      services.video.destroy();
       audioBusService.destroy();
     }
   };

@@ -144,6 +144,8 @@
       secondary = $t('playlist.library.trackerModule', { default: 'Tracker module' });
     } else if (group.secondaryKind === 'stream') {
       secondary = $t('playlist.library.stream', { default: 'Stream' });
+    } else if (group.secondaryKind === 'video') {
+      secondary = $t('playlist.library.video', { default: 'Video' });
     }
 
     return { ...group, label, secondary };

@@ -46,6 +46,8 @@
   export let snapshotStore: Readable<PlaybackSnapshot>;
   export let playbackSnapshot: PlaybackSnapshot;
   export let isNowPlayingLayoutActive: boolean;
+  export let videoElement: HTMLVideoElement | null;
+  export let videoActive = false;
   export let workspaceState: WorkspaceShellState;
   export let playlistPanelHandlers: WorkspacePanelHandlers;
   export let libraryPanelHandlers: WorkspacePanelHandlers;
@@ -122,6 +124,8 @@
     resizerWidth={WORKSPACE_RESIZER_WIDTH}
     isResizing={workspaceState.isResizing}
     isCompactWorkspace={workspaceState.isCompactWorkspace}
+    {videoElement}
+    {videoActive}
     backdropArtwork={artworkState.visibleArtworkBackground}
     zoneArtworkBright={workspaceZoneArtworkBright}
     zoneEffects={workspaceZoneEffects}

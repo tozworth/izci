@@ -1,6 +1,7 @@
 import {
   MODULE_EXTENSIONS,
   STREAM_EXTENSIONS,
+  VIDEO_EXTENSIONS,
   type PlaylistItem,
   type TrackKind,
   type TrackMetadata
@@ -101,7 +102,7 @@ export function markFileAsModule(file: File): void {
 }
 
 function createTrackObjectUrl(kind: TrackKind, file: File): string | undefined {
-  return kind === 'stream' ? URL.createObjectURL(file) : undefined;
+  return kind === 'stream' || kind === 'video' ? URL.createObjectURL(file) : undefined;
 }
 
 export function inferExtension(fileName: string): string {
@@ -171,6 +172,10 @@ export function inferKind(extension: string): TrackKind | null {
 
   if (MODULE_EXTENSIONS.includes(extension as (typeof MODULE_EXTENSIONS)[number])) {
     return 'module';
+  }
+
+  if (VIDEO_EXTENSIONS.includes(extension as (typeof VIDEO_EXTENSIONS)[number])) {
+    return 'video';
   }
 
   return null;

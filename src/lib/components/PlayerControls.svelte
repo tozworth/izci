@@ -433,21 +433,23 @@
   style={rootStyle}
 >
   <div class="player-track-group">
-    <button
-      type="button"
-      class="player-artwork-button"
-      aria-label={$t('main.player.showCurrentTrackDetails', { default: 'Show current track details' })}
-      disabled={!displayTrack}
-      on:click={handleShowTrack}
-    >
-      <div class="player-artwork" aria-hidden="true">
-        {#if artwork}
-          <img class="player-artwork-image" src={artwork.url} alt="" />
-        {:else}
-          <div class="player-artwork-placeholder"></div>
-        {/if}
-      </div>
-    </button>
+    {#if displayTrack?.kind !== 'video'}
+      <button
+        type="button"
+        class="player-artwork-button"
+        aria-label={$t('main.player.showCurrentTrackDetails', { default: 'Show current track details' })}
+        disabled={!displayTrack}
+        on:click={handleShowTrack}
+      >
+        <div class="player-artwork" aria-hidden="true">
+          {#if artwork}
+            <img class="player-artwork-image" src={artwork.url} alt="" />
+          {:else}
+            <div class="player-artwork-placeholder"></div>
+          {/if}
+        </div>
+      </button>
+    {/if}
 
     <div class="player-track">
       {#if displayTrack}

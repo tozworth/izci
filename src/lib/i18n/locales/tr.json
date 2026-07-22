@@ -4,10 +4,11 @@
       "fileAccess": "Bu dosyaya erişilemedi. Tekrar ekleyin veya erişim izin verin.",
       "moduleDecode": "libopenmpt, bu modülü çözemedi.",
       "modulePlayback": "Modül oynatımı başarısız.",
+      "videoDecode": "Chromium bu videoyu çözemedi.",
       "generic": "Oynatım başarısız."
     },
     "import": {
-      "supportedAudioFiles": "Desteklenen ses dosyaları"
+      "supportedMediaFiles": "Desteklenen medya dosyaları"
     },
     "lyrics": {
       "playTrack": "Sözleri görüntülemek için bir parça oynatın.",
@@ -173,6 +174,7 @@
       "unknownFolder": "Bilinmeyen klasör",
       "trackerModule": "İzci modülü",
       "stream": "Akış",
+      "video": "Video",
       "summary": {
         "filteredArtists": "{visible} sanatçıdan {total} {total, plural, one {} other {}}",
         "filteredAlbums": "{visible} albümden {total} {total, plural, one {} other {}}",

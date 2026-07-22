@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { MODULE_EXTENSIONS } from '$lib/types';
+import { MODULE_EXTENSIONS, VIDEO_EXTENSIONS } from '$lib/types';
 
 import {
   buildPlaylistItems,
@@ -41,6 +41,7 @@ describe('file helpers', () => {
     expect(inferKind('flac')).toBe('stream');
     expect(inferKind('xm')).toBe('module');
     expect(MODULE_EXTENSIONS.every((extension) => inferKind(extension) === 'module')).toBe(true);
+    expect(VIDEO_EXTENSIONS.every((extension) => inferKind(extension) === 'video')).toBe(true);
     expect(inferKind('txt')).toBeNull();
   });
 

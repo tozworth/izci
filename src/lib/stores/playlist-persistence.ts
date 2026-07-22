@@ -53,7 +53,7 @@ export function normalizeStoredItem(value: unknown): StoredPlaylistItem | null {
     typeof source.id !== 'string' ||
     typeof source.name !== 'string' ||
     typeof source.extension !== 'string' ||
-    (source.kind !== 'stream' && source.kind !== 'module') ||
+    (source.kind !== 'stream' && source.kind !== 'module' && source.kind !== 'video') ||
     typeof source.size !== 'number'
   ) {
     return null;

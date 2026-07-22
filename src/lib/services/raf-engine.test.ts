@@ -107,4 +107,21 @@ describe('RafEngine', () => {
     expect(dryGain.gain.ramps.at(-1)).toBe(1);
     engine.destroy();
   });
+
+  it('bypasses and restores one effect type without changing rack settings', () => {
+    const context = new FakeContext();
+    const engine = new RafEngine(context as unknown as BaseAudioContext);
+    rafSettings.addEffect('auto-amp');
+    const settingsBeforeBypass = rafSettings.getSnapshot();
+    const effectPathGains = context.gains;
+
+    engine.setBypassedEffectTypes(['auto-amp']);
+    expect(effectPathGains.some((gain) => gain.gain.ramps.at(-1) === 0)).toBe(true);
+    expect(effectPathGains.some((gain) => gain.gain.ramps.at(-1) === 1)).toBe(true);
+    expect(rafSettings.getSnapshot()).toEqual(settingsBeforeBypass);
+
+    engine.setBypassedEffectTypes([]);
+    expect(rafSettings.getSnapshot()).toEqual(settingsBeforeBypass);
+    engine.destroy();
+  });
 });

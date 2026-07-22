@@ -325,6 +325,9 @@
     if (message === 'Module playback failed.') {
       return $t('main.playbackErrors.modulePlayback', { default: 'Module playback failed.' });
     }
+    if (message === 'Chromium could not decode this video.') {
+      return $t('main.playbackErrors.videoDecode', { default: 'Chromium could not decode this video.' });
+    }
     return $t('main.playbackErrors.generic', { default: 'Playback failed.' });
   }
 
@@ -332,7 +335,7 @@
     addFiles: (files, target) => workspaceCollections.handleAddFiles(files, target),
     clickFileInput: () => fileInput?.click(),
     getOpenFilePickerDescription: () =>
-      $t('main.import.supportedAudioFiles', { default: 'Supported audio files' })
+      $t('main.import.supportedMediaFiles', { default: 'Supported media files' })
   });
   const appShortcuts = createAppShortcuts({
     getState: () => ({
@@ -417,7 +420,8 @@
   $: isNowPlayingLayoutActive =
     (nowPlayingViewActive || (isAutomaticNowPlayingEligible && !autoNowPlayingSuppressed)) &&
     isNowPlayingViewportEligible &&
-    !miniModeActive;
+    !miniModeActive &&
+    playerDisplayTrack?.kind !== 'video';
   $: isFullscreenNowPlayingChromeHidden =
     isNowPlayingLayoutActive && $windowDisplayState.fullscreen && isNowPlayingChromeHidden;
   $: if (!isNowPlayingLayoutActive || !$windowDisplayState.fullscreen) {
@@ -864,6 +868,8 @@
       snapshotStore={playerController.snapshot}
       {playbackSnapshot}
       {isNowPlayingLayoutActive}
+      videoElement={playerController.videoElement}
+      videoActive={playerDisplayTrack?.kind === 'video'}
       workspaceState={workspaceShellState}
       {playlistPanelHandlers}
       {libraryPanelHandlers}

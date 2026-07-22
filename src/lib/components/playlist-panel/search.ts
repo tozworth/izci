@@ -17,7 +17,7 @@ function getSearchValues(item: PlaylistItem, columnIds?: LibraryColumnId[]): str
     item.metadata?.albumArtist?.trim() ?? '',
     item.metadata?.genre?.trim() ?? '',
     item.metadata?.year?.trim() ?? '',
-    item.kind === 'module' ? 'tracker module' : 'stream'
+    item.kind === 'module' ? 'tracker module' : item.kind
   ].filter(Boolean);
 }
 

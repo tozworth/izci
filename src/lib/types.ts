@@ -1,4 +1,5 @@
 export const STREAM_EXTENSIONS = ['mp3', 'wav', 'flac', 'ogg', 'opus'] as const;
+export const VIDEO_EXTENSIONS = ['mp4', 'm4v', 'mov', 'webm', 'mkv'] as const;
 export const MODULE_EXTENSIONS = [
   'mptm',
   'mod',
@@ -70,7 +71,7 @@ export const MODULE_EXTENSIONS = [
   'mmcmp'
 ] as const;
 
-export type TrackKind = 'stream' | 'module';
+export type TrackKind = 'stream' | 'module' | 'video';
 export type PlaybackState = 'idle' | 'loading' | 'playing' | 'paused' | 'ended' | 'error';
 export type ModuleInterpolationFilter = 1 | 2 | 4 | 8;
 export type PlaylistRepeatMode = 'off' | 'one' | 'all';

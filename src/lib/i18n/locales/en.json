@@ -4,10 +4,11 @@
       "fileAccess": "Could not access this file. Re-add it or grant file access.",
       "moduleDecode": "libopenmpt failed to decode this module.",
       "modulePlayback": "Module playback failed.",
+      "videoDecode": "Chromium could not decode this video.",
       "generic": "Playback failed."
     },
     "import": {
-      "supportedAudioFiles": "Supported audio files"
+      "supportedMediaFiles": "Supported media files"
     },
     "lyrics": {
       "playTrack": "Play a track to view lyrics.",
@@ -173,6 +174,7 @@
       "unknownFolder": "Unknown folder",
       "trackerModule": "Tracker module",
       "stream": "Stream",
+      "video": "Video",
       "summary": {
         "filteredArtists": "{visible} of {total} {total, plural, one {artist} other {artists}}",
         "filteredAlbums": "{visible} of {total} {total, plural, one {album} other {albums}}",
