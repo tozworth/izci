@@ -92,6 +92,7 @@
   const COMPACT_VOLUME_OPEN_DELAY_MS = 120;
   const RANGE_THUMB_SIZE_REM = 1.05;
   const PLAYER_BAR_RESERVE_PROPERTY = '--player-bar-measured-reserve';
+  const SEEK_WHEEL_STEP_SECONDS = 5;
 
   let playerBarElement: HTMLElement | null = null;
   let playerBarResizeObserver: ResizeObserver | null = null;
@@ -130,8 +131,14 @@
     }
 
     const delta = event.deltaY < 0 ? 1 : -1;
-    const step = Math.max(snapshot.duration / 100, 1);
-    dispatch('seek', clamp(snapshot.currentTime + delta * step, 0, snapshot.duration));
+    dispatch(
+      'seek',
+      clamp(
+        snapshot.currentTime + delta * SEEK_WHEEL_STEP_SECONDS,
+        0,
+        snapshot.duration
+      )
+    );
   }
 
   function beginSeekPointer(): void {
