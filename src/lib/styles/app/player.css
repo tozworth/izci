@@ -749,7 +749,8 @@
 }
 
 .compact-player-bar.video-track-active .player-track-group {
-  padding-left: 0.45rem;
+  min-height: 32px;
+  padding-left: 0.6rem;
 }
 
 .compact-player-bar .player-artwork-button,
