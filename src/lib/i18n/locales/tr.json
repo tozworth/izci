@@ -40,6 +40,7 @@
       "patterns": "Örüntüler",
       "miniMode": "Mini mod",
       "nowPlaying": "Şimdi Yürütülüyor",
+      "pictureInPicturePlayer": "Pencere içinde pencere oynatıcı",
       "options": "Ayarlar...",
       "file": "Dosya",
       "view": "Görünüm",
@@ -138,6 +139,12 @@
       "notes": "Notlar",
       "emptyTitle": "İncelemek için parça seçin.",
       "emptyDescription": "Çalma listesi ve kütüphane seçimlerinin metaverileri burada görünür."
+    },
+    "documentPip": {
+      "heading": "Pencere içinde pencere oynatıcı",
+      "nothingPlaying": "Yürütülen parça yok",
+      "ready": "Hazır",
+      "seek": "Konum"
     }
   },
   "playlist": {

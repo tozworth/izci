@@ -27,6 +27,7 @@
     | 'togglePatterns'
     | 'toggleMiniMode'
     | 'toggleNowPlayingView'
+    | 'toggleDocumentPip'
     | 'exit';
 
   const MENU_ITEMS_ONLY_PADDING = 28;
@@ -69,6 +70,8 @@
 
   export let miniModeActive = false;
   export let nowPlayingViewActive = false;
+  export let documentPipSupported = false;
+  export let documentPipActive = false;
   export let patternsVisible = false;
   export let installAvailable = false;
   export let showInstallHint = false;
@@ -89,6 +92,7 @@
     togglePatterns: void;
     toggleMiniMode: void;
     toggleNowPlayingView: void;
+    toggleDocumentPip: void;
     exit: void;
   }>();
 
@@ -181,6 +185,13 @@
       label: $t('main.menu.nowPlaying', { default: 'Now Playing' }),
       icon: nowPlayingViewActive ? 'check' : 'album'
     },
+    ...(documentPipSupported
+      ? [{
+          id: 'toggleDocumentPip',
+          label: $t('main.menu.pictureInPicturePlayer', { default: 'Picture-in-picture player' }),
+          icon: documentPipActive ? 'check' : 'picture_in_picture_alt'
+        } satisfies MenuActionItem]
+      : []),
     {
       id: 'openOptions',
       label: $t('main.menu.options', { default: 'Options...' }),

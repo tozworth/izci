@@ -40,6 +40,7 @@
       "patterns": "Patterns",
       "miniMode": "Mini mode",
       "nowPlaying": "Now Playing",
+      "pictureInPicturePlayer": "Picture-in-picture player",
       "options": "Options...",
       "file": "File",
       "view": "View",
@@ -138,6 +139,12 @@
       "notes": "Notes",
       "emptyTitle": "Select a track to inspect it.",
       "emptyDescription": "Playlist and library selections both surface their metadata here."
+    },
+    "documentPip": {
+      "heading": "Picture-in-picture player",
+      "nothingPlaying": "Nothing playing",
+      "ready": "Ready when you are",
+      "seek": "Seek"
     }
   },
   "playlist": {

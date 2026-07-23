@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
+  import { writable } from 'svelte/store';
   import { t } from 'svelte-i18n';
   import PlayerControls from '$lib/components/PlayerControls.svelte';
   import PlaybackResumeBanner from '$lib/components/PlaybackResumeBanner.svelte';
@@ -36,6 +37,7 @@
     type LyricsPresentationState
   } from '$lib/services/lyrics-presentation';
   import { createPlaybackCommandsController } from '$lib/services/playback-commands';
+  import { createDocumentPipController, type DocumentPipState } from '$lib/services/document-pip';
   import {
     createPlaybackProgressController,
     type PlaybackProgressState
@@ -152,6 +154,14 @@
   };
   let patternAvailability: ContextualTabAvailability = 'unavailable';
   let playbackProgressState: PlaybackProgressState = { notice: null };
+  let documentPipState: DocumentPipState = {
+    supported: false,
+    active: false,
+    opening: false
+  };
+  const documentPipTrack = writable<PlaylistItem | null>(null);
+  const documentPipSelectedTrack = writable<PlaylistItem | null>(null);
+  const documentPipArtworkUrl = writable<string | null>(null);
 
   let fileInput: HTMLInputElement | null = null;
   let innerWidth = typeof window !== 'undefined' ? window.innerWidth : 0;
@@ -229,6 +239,20 @@
     resolveResumePosition: (track) => playbackProgress.resolveResumePosition(track),
     notifyTrackResumed: (track, currentTime) =>
       playbackProgress.showResumeNotice(track, currentTime)
+  });
+  const documentPip = createDocumentPipController({
+    snapshot: playerController.snapshot,
+    track: documentPipTrack,
+    selectedTrack: documentPipSelectedTrack,
+    artworkUrl: documentPipArtworkUrl,
+    handlers: {
+      togglePlayback: () => void playbackCommands.togglePlayback(),
+      previousTrack: () => void playbackCommands.stepTrack(-1),
+      nextTrack: () => void playbackCommands.stepTrack(1),
+      seek: seekPlayback,
+      setVolume: (volume) => playerController.setVolume(volume),
+      toggleMute: () => playerController.toggleMute()
+    }
   });
   const playCountTracker = createPlayCountTracker({
     incrementLibraryPlayCount: workspaceCollections.incrementLibraryPlayCount
@@ -332,6 +356,7 @@
     (value) => (miniModeActive = value.active)
   );
   const unsubscribeAppInstall = appInstallService.subscribe((value) => (appInstallState = value));
+  const unsubscribeDocumentPip = documentPip.subscribe((value) => (documentPipState = value));
 
   function localizePlaybackError(message: string): string {
     if (message === 'Could not access this file. Re-add it or grant file access.') {
@@ -420,6 +445,9 @@
       : selectedPlaylistItem;
   $: livePlayingTrack = resolveTrackSnapshot(playingTrack, selectedItem, playlistItems, libraryItems);
   $: playerDisplayTrack = livePlayingTrack;
+  $: documentPipTrack.set(playerDisplayTrack);
+  $: documentPipSelectedTrack.set(selectedPlaylistItem);
+  $: documentPipArtworkUrl.set(artworkPresentationState.displayedArtwork?.url ?? null);
   $: videoTrackActive = playerDisplayTrack?.kind === 'video';
   $: syncVideoWindowSize(videoTrackActive, $videoSettings.autoResizeWindow);
   $: favoriteTargetTrack = playerDisplayTrack?.kind === 'module' && playbackSnapshot.subsong !== undefined
@@ -828,6 +856,8 @@
     unsubscribeLyricsPresentation();
     unsubscribeWindowMiniMode();
     unsubscribeAppInstall();
+    unsubscribeDocumentPip();
+    documentPip.destroy();
     appInstallService.destroy();
     unsubscribeLaunchedFiles();
     stopLibraryFolderCommands();
@@ -886,6 +916,8 @@
   <TopMenuBar
     {miniModeActive}
     nowPlayingViewActive={isNowPlayingLayoutActive}
+    documentPipSupported={documentPipState.supported}
+    documentPipActive={documentPipState.active || documentPipState.opening}
     patternsVisible={workspaceShellState.isPatternsPanelVisible}
     installAvailable={appInstallState.available}
     showInstallHint={appInstallState.showHint}
@@ -903,6 +935,7 @@
     on:togglePatterns={togglePatterns}
     on:toggleMiniMode={() => windowMiniMode.toggle()}
     on:toggleNowPlayingView={toggleNowPlayingView}
+    on:toggleDocumentPip={() => documentPip.toggle()}
     on:exit={() => windowManager.exit()}
   />
 
