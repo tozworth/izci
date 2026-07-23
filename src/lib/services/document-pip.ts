@@ -16,6 +16,10 @@ interface WindowWithDocumentPictureInPicture extends Window {
   documentPictureInPicture?: DocumentPictureInPictureApi;
 }
 
+interface MinimizeCapableWindow {
+  minimize?: () => Promise<void>;
+}
+
 export interface DocumentPipState {
   supported: boolean;
   active: boolean;
@@ -46,6 +50,24 @@ export function supportsDocumentPictureInPicture(
     : window as WindowWithDocumentPictureInPicture
 ): boolean {
   return typeof windowLike?.documentPictureInPicture?.requestWindow === 'function';
+}
+
+export async function minimizeDocumentPipOpener(
+  windowLike: MinimizeCapableWindow | undefined = typeof window === 'undefined'
+    ? undefined
+    : window as Window & MinimizeCapableWindow
+): Promise<boolean> {
+  if (typeof windowLike?.minimize !== 'function') {
+    return false;
+  }
+
+  try {
+    await windowLike.minimize();
+    return true;
+  } catch {
+    // Additional Windowing Controls are limited to permitted installed-PWA windows.
+    return false;
+  }
 }
 
 function copyDocumentStyles(source: Document, target: Document): Promise<void> {
@@ -247,6 +269,7 @@ export function createDocumentPipController({
       });
 
       setState({ active: true, opening: false });
+      void minimizeDocumentPipOpener();
     } catch (error) {
       const failedWindow = pipWindow;
       releaseView();

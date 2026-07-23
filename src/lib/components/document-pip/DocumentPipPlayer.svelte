@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import { t } from 'svelte-i18n';
   import type { Readable } from 'svelte/store';
   import type { PlaybackSnapshot, PlaylistItem } from '$lib/types';
@@ -15,6 +16,11 @@
   export let onVolume: (volume: number) => void;
   export let onToggleMute: () => void;
 
+  const RANGE_THUMB_SIZE_REM = 0.78;
+  const SEEK_STEP_SECONDS = 5;
+  const VOLUME_STEP = 0.05;
+
+  let rootElement: HTMLElement | null = null;
   let seekPreview = 0;
   let seekPointerActive = false;
 
@@ -30,9 +36,68 @@
     return Math.min(Math.max(value, min), max);
   }
 
-  function toProgressStyle(value: number, max: number): string {
-    const progress = max > 0 ? clamp((value / max) * 100, 0, 100) : 0;
-    return `--pip-progress: ${progress}%;`;
+  function toRangeProgressStyle(value: number, max: number): string {
+    const percent = max > 0 ? clamp((value / max) * 100, 0, 100) : 0;
+    let fillEnd = '0px';
+
+    if (percent >= 100) {
+      fillEnd = '100%';
+    } else if (percent > 0) {
+      const thumbCenterOffsetRem = RANGE_THUMB_SIZE_REM * (0.5 - percent / 100);
+      const offsetSign = thumbCenterOffsetRem < 0 ? '-' : '+';
+      fillEnd = `calc(${percent}% ${offsetSign} ${Math.abs(thumbCenterOffsetRem).toFixed(4)}rem)`;
+    }
+
+    return `--pip-range-progress: ${percent}%; --pip-range-fill-end: ${fillEnd};`;
+  }
+
+  function handleSeekWheel(event: WheelEvent): void {
+    if (!track || snapshot.duration <= 0) {
+      return;
+    }
+
+    const direction = event.deltaY < 0 ? 1 : -1;
+    onSeek(clamp(snapshot.currentTime + direction * SEEK_STEP_SECONDS, 0, snapshot.duration));
+  }
+
+  function handleVolumeWheel(event: WheelEvent): void {
+    if (snapshot.muted) {
+      return;
+    }
+
+    const direction = event.deltaY < 0 ? 1 : -1;
+    onVolume(clamp(snapshot.volume + direction * VOLUME_STEP, 0, 1));
+  }
+
+  function shouldIgnoreSeekKeyTarget(target: EventTarget | null): boolean {
+    if (!target || typeof (target as HTMLElement).tagName !== 'string') {
+      return false;
+    }
+
+    const element = target as HTMLElement;
+    return element.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(element.tagName);
+  }
+
+  function handleWindowKeydown(event: KeyboardEvent): void {
+    if (
+      (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') ||
+      event.ctrlKey ||
+      event.altKey ||
+      event.shiftKey ||
+      event.metaKey ||
+      shouldIgnoreSeekKeyTarget(event.target)
+    ) {
+      return;
+    }
+
+    event.preventDefault();
+
+    if (!track || snapshot.duration <= 0) {
+      return;
+    }
+
+    const direction = event.key === 'ArrowLeft' ? -1 : 1;
+    onSeek(clamp(snapshot.currentTime + direction * SEEK_STEP_SECONDS, 0, snapshot.duration));
   }
 
   function beginSeek(): void {
@@ -72,9 +137,20 @@
 
     return snapshot.volume < 0.5 ? 'volume_down' : 'volume_up';
   }
+
+  onMount(() => {
+    const pipWindow = rootElement?.ownerDocument.defaultView;
+    pipWindow?.addEventListener('keydown', handleWindowKeydown);
+
+    return () => pipWindow?.removeEventListener('keydown', handleWindowKeydown);
+  });
 </script>
 
-<main class="document-pip-player" aria-label={$t('main.documentPip.heading', { default: 'Mini player' })}>
+<main
+  bind:this={rootElement}
+  class="document-pip-player"
+  aria-label={$t('main.documentPip.heading', { default: 'Mini player' })}
+>
   <div class="pip-track-row">
     <div class="pip-artwork" aria-hidden="true">
       {#if artworkUrl}
@@ -134,7 +210,8 @@
 
   <div class="pip-control-row">
     <span class="pip-time">{formatDuration(displayedSeekTime)}</span>
-    <div class="pip-range" style={toProgressStyle(displayedSeekTime, Math.max(snapshot.duration, 1))}>
+    <div class="pip-range" style={toRangeProgressStyle(displayedSeekTime, Math.max(snapshot.duration, 1))}>
+      <span class="pip-range-fill" aria-hidden="true"></span>
       <input
         aria-label={$t('main.documentPip.seek', { default: 'Seek' })}
         type="range"
@@ -147,21 +224,28 @@
         on:input={previewSeek}
         on:pointerup={commitSeek}
         on:pointercancel={cancelSeek}
+        on:wheel|preventDefault={handleSeekWheel}
       />
     </div>
     <span class="pip-time">{formatDuration(track ? snapshot.duration : 0)}</span>
     <button
       type="button"
       class="pip-volume-button"
-      aria-label={snapshot.muted
+      aria-label={snapshot.muted || snapshot.volume <= 0
         ? $t('main.player.unmute', { default: 'Unmute' })
         : $t('main.player.mute', { default: 'Mute' })}
       aria-pressed={snapshot.muted}
       on:click={onToggleMute}
+      on:wheel|preventDefault={handleVolumeWheel}
     >
       <span class="material-symbols-outlined" aria-hidden="true">{getVolumeIcon()}</span>
     </button>
-    <div class="pip-range pip-volume-range" style={toProgressStyle(snapshot.volume, 1)}>
+    <div
+      class="pip-range pip-volume-range"
+      data-muted={snapshot.muted ? 'true' : 'false'}
+      style={toRangeProgressStyle(snapshot.volume, 1)}
+    >
+      <span class="pip-range-fill" aria-hidden="true"></span>
       <input
         aria-label={$t('main.player.volume', { default: 'Volume' })}
         type="range"
@@ -171,6 +255,7 @@
         value={snapshot.volume}
         disabled={snapshot.muted}
         on:input={(event) => onVolume(Number((event.currentTarget as HTMLInputElement).value))}
+        on:wheel|preventDefault={handleVolumeWheel}
       />
     </div>
   </div>
@@ -189,6 +274,11 @@
     color: var(--text);
     font-size: 0.85rem;
     overflow: hidden;
+  }
+
+  .document-pip-player,
+  .document-pip-player * {
+    cursor: default;
   }
 
   .pip-track-row,
@@ -264,7 +354,6 @@
     border-radius: 999px;
     background: transparent;
     color: var(--text);
-    cursor: pointer;
   }
 
   button:hover:not(:disabled) {
@@ -278,7 +367,6 @@
 
   button:disabled {
     color: var(--muted);
-    cursor: default;
     opacity: 0.44;
   }
 
@@ -331,7 +419,8 @@
   }
 
   .pip-range {
-    --pip-progress: 0%;
+    --pip-range-progress: 0%;
+    --pip-range-fill-end: 0px;
     position: relative;
     display: flex;
     height: 0.82rem;
@@ -339,22 +428,28 @@
     min-width: 3.5rem;
   }
 
-  .pip-range::before {
+  .pip-range::before,
+  .pip-range-fill {
     position: absolute;
     left: 0;
     right: 0;
     top: 50%;
     height: 0.3rem;
-    border: 1px solid var(--border-strong);
     border-radius: 999px;
-    background: linear-gradient(
-      to right,
-      var(--accent-strong) 0 var(--pip-progress),
-      color-mix(in srgb, var(--bg-soft) 82%, black) var(--pip-progress) 100%
-    );
     content: '';
     pointer-events: none;
     transform: translateY(-50%);
+  }
+
+  .pip-range::before {
+    border: 1px solid var(--border-strong);
+    background: color-mix(in srgb, var(--bg-soft) 82%, black);
+  }
+
+  .pip-range-fill {
+    right: auto;
+    width: var(--pip-range-fill-end);
+    background: var(--accent-strong);
   }
 
   .pip-range input {
@@ -366,7 +461,6 @@
     margin: 0;
     border: 0;
     background: transparent;
-    cursor: pointer;
   }
 
   .pip-range input::-webkit-slider-runnable-track {
@@ -387,11 +481,11 @@
   }
 
   .pip-range input:disabled {
-    cursor: default;
     opacity: 0.42;
   }
 
-  .pip-range:has(input:disabled)::before {
+  .pip-range:has(input:disabled)::before,
+  .pip-range:has(input:disabled) .pip-range-fill {
     opacity: 0.42;
   }
 
@@ -402,10 +496,16 @@
 
   .pip-volume-button .material-symbols-outlined {
     font-size: 1.2rem;
+    font-variation-settings: 'wght' 500;
   }
 
   .pip-volume-range {
     min-width: 0;
+  }
+
+  .pip-volume-range[data-muted='true'] .pip-range-fill,
+  .pip-volume-range[data-muted='true'] input::-webkit-slider-thumb {
+    background: color-mix(in srgb, var(--muted) 82%, transparent);
   }
 
   @media (max-width: 360px) {
