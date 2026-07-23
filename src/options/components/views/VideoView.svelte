@@ -1,8 +1,7 @@
 <script lang="ts">
   import { t } from 'svelte-i18n';
   import SettingsField from '../SettingsField.svelte';
-  import { VIDEO_VIEWPORT_AREA_OPTIONS, videoSettings } from '$lib/stores/video-settings';
-  import type { VideoViewportArea } from '$lib/types';
+  import { videoSettings } from '$lib/stores/video-settings';
 
   function handleAutoResizeWindowToggle(event: Event) {
     videoSettings.update({
@@ -10,23 +9,10 @@
     });
   }
 
-  function handleViewportAreaChange(event: Event) {
+  function handleAutoEnterTheaterToggle(event: Event) {
     videoSettings.update({
-      viewportArea: (event.currentTarget as HTMLSelectElement).value as VideoViewportArea
+      autoEnterTheater: (event.currentTarget as HTMLInputElement).checked
     });
-  }
-
-  function viewportAreaLabel(value: VideoViewportArea): string {
-    if (value === 'left-center') {
-      return $t('options.video.viewportArea.options.leftCenter', { default: 'Left and center' });
-    }
-    if (value === 'center-right') {
-      return $t('options.video.viewportArea.options.centerRight', { default: 'Center and right' });
-    }
-    if (value === 'all') {
-      return $t('options.video.viewportArea.options.all', { default: 'All panels' });
-    }
-    return $t('options.video.viewportArea.options.center', { default: 'Center panel' });
   }
 </script>
 
@@ -47,14 +33,15 @@
       </SettingsField>
 
       <SettingsField
-        title={$t('options.video.viewportArea.title', { default: 'Video viewport area' })}
-        hint={$t('options.video.viewportArea.hint', { default: 'Chooses which open workspace panels the video covers.' })}
+        title={$t('options.video.autoEnterTheater.title', { default: 'Auto enter theater' })}
+        hint={$t('options.video.autoEnterTheater.hint', { default: 'Opens video playback in theater automatically when a video starts.' })}
+        checkbox
       >
-        <select value={$videoSettings.viewportArea} on:change={handleViewportAreaChange}>
-          {#each VIDEO_VIEWPORT_AREA_OPTIONS as option}
-            <option value={option.value}>{viewportAreaLabel(option.value)}</option>
-          {/each}
-        </select>
+        <input
+          type="checkbox"
+          checked={$videoSettings.autoEnterTheater}
+          on:change={handleAutoEnterTheaterToggle}
+        />
       </SettingsField>
     </div>
   </div>

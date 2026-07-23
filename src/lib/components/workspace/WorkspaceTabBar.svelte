@@ -39,7 +39,7 @@
 
   function getMeasurementSignature(): string {
     return `${closeable ? 'closeable' : 'fixed'}:${tabs
-      .map((tab) => `${tab.id}:${tab.icon}:${getTabLabel(tab)}`)
+      .map((tab) => `${tab.id}:${tab.icon}:${getTabLabel(tab)}:${tab.closeable !== false ? 'closeable' : 'fixed'}`)
       .join('|')}`;
   }
 
@@ -50,6 +50,7 @@
       case 'details': return $t('workspace.tabs.details', { default: 'Details' });
       case 'lyrics': return $t('workspace.tabs.lyrics', { default: 'Lyrics' });
       case 'patterns': return $t('workspace.tabs.patterns', { default: 'Patterns' });
+      case 'video': return $t('workspace.tabs.video', { default: 'Video' });
       default: return tab.label;
     }
   }
@@ -195,8 +196,12 @@
     dropIndicator = null;
   }
 
+  function isTabCloseable(tabId: WorkspaceTab): boolean {
+    return closeable && tabs.find((tab) => tab.id === tabId)?.closeable !== false;
+  }
+
   function closeTab(tabId: WorkspaceTab) {
-    if (closeable) {
+    if (isTabCloseable(tabId)) {
       dispatch('tabClose', tabId);
     }
   }
@@ -207,7 +212,7 @@
   }
 
   function handleTabAuxClick(event: MouseEvent, tabId: WorkspaceTab) {
-    if (event.button !== 1 || !closeable) {
+    if (event.button !== 1 || !isTabCloseable(tabId)) {
       return;
     }
 
@@ -216,8 +221,8 @@
     closeTab(tabId);
   }
 
-  function handleTabMouseDown(event: MouseEvent) {
-    if (event.button !== 1 || !closeable) {
+  function handleTabMouseDown(event: MouseEvent, tabId: WorkspaceTab) {
+    if (event.button !== 1 || !isTabCloseable(tabId)) {
       return;
     }
 
@@ -270,7 +275,7 @@
   {#each tabs as tab}
     <div
       class="workspace-tab-shell"
-      class:has-close={closeable}
+      class:has-close={closeable && tab.closeable !== false}
       class:drop-before={dropIndicator?.tabId === tab.id && dropIndicator.position === 'before'}
       class:drop-after={dropIndicator?.tabId === tab.id && dropIndicator.position === 'after'}
       role="presentation"
@@ -293,13 +298,13 @@
         title={getTabLabel(tab)}
         on:click={() => dispatch('tabChange', tab.id)}
         on:auxclick={(event) => handleTabAuxClick(event, tab.id)}
-        on:mousedown={handleTabMouseDown}
+        on:mousedown={(event) => handleTabMouseDown(event, tab.id)}
       >
         <span class="material-symbols-outlined" aria-hidden="true">{tab.icon}</span>
         <span class="workspace-tab-label">{getTabLabel(tab)}</span>
       </button>
 
-      {#if closeable}
+      {#if closeable && tab.closeable !== false}
         <span class="workspace-tab-close-slot">
           <button
             type="button"
@@ -309,7 +314,7 @@
             draggable="false"
             on:click={(event) => handleTabCloseClick(event, tab.id)}
             on:auxclick={(event) => handleTabAuxClick(event, tab.id)}
-            on:mousedown={handleTabMouseDown}
+            on:mousedown={(event) => handleTabMouseDown(event, tab.id)}
           >
             <span class="material-symbols-outlined" aria-hidden="true">close</span>
           </button>
@@ -320,13 +325,13 @@
 
   <div class="workspace-tabs-measure" aria-hidden="true" bind:this={tabMeasurementElement}>
     {#each tabs as tab}
-      <div class="workspace-tab-shell" class:has-close={closeable}>
+      <div class="workspace-tab-shell" class:has-close={closeable && tab.closeable !== false}>
         <span class="workspace-tab">
           <span class="material-symbols-outlined" aria-hidden="true">{tab.icon}</span>
           <span class="workspace-tab-label">{getTabLabel(tab)}</span>
         </span>
 
-        {#if closeable}
+        {#if closeable && tab.closeable !== false}
           <span class="workspace-tab-close-slot">
             <span class="workspace-tab-close-button">
               <span class="material-symbols-outlined" aria-hidden="true">close</span>

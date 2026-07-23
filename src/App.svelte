@@ -8,6 +8,7 @@
   import SharedBackdropVisualizer from '$lib/components/SharedBackdropVisualizer.svelte';
   import TopMenuBar from '$lib/components/TopMenuBar.svelte';
   import AppWorkspace from '$lib/components/workspace/AppWorkspace.svelte';
+  import VideoTheater from '$lib/components/workspace/VideoTheater.svelte';
   import type {
     WorkspacePanelHandlers
   } from '$lib/components/workspace/types';
@@ -174,6 +175,10 @@
   let isNowPlayingChromeHidden = false;
   let isFullscreenNowPlayingChromeHidden = false;
   let videoTrackActive = false;
+  let videoTheaterActive = false;
+  let videoTheaterControlsHidden = false;
+  let videoPresentationSignature = '';
+  let videoTheaterTopInset = 0;
   let documentTitle = 'izci';
   let effectiveLyricsDisplayStyle: LyricsDisplayStyle = 'timestamped';
   let lyricsAutoScroll = true;
@@ -445,6 +450,14 @@
   $: miniPlayerArtworkUrl.set(artworkPresentationState.displayedArtwork?.url ?? null);
   $: videoTrackActive = playerDisplayTrack?.kind === 'video';
   $: syncVideoWindowSize(videoTrackActive, $videoSettings.autoResizeWindow);
+  $: syncVideoPresentation(playerDisplayTrack, $videoSettings.autoEnterTheater);
+  $: videoTheaterTopInset = $windowControlsOverlayState.visible
+    ? Math.max(
+        0,
+        $windowControlsOverlayState.titlebarAreaRect.y +
+          $windowControlsOverlayState.titlebarAreaRect.height
+      )
+    : 0;
   $: favoriteTargetTrack = playerDisplayTrack?.kind === 'module' && playbackSnapshot.subsong !== undefined
     ? { ...playerDisplayTrack, subsong: playbackSnapshot.subsong }
     : playerDisplayTrack;
@@ -705,6 +718,54 @@
     restoreVideoWindowSize();
   }
 
+  function syncVideoPresentation(track: PlaylistItem | null, autoEnterTheater: boolean): void {
+    const videoActive = track?.kind === 'video';
+    const signature = videoActive
+      ? `${track.id}:${autoEnterTheater ? 'auto' : 'manual'}`
+      : 'inactive';
+
+    if (signature === videoPresentationSignature) {
+      return;
+    }
+
+    videoPresentationSignature = signature;
+
+    if (videoActive) {
+      workspaceShell.showWorkspaceTab('video');
+      if (autoEnterTheater) {
+        videoTheaterActive = true;
+      }
+      return;
+    }
+
+    videoTheaterActive = false;
+    videoTheaterControlsHidden = false;
+    workspaceShell.closeWorkspaceTab('video');
+  }
+
+  function toggleVideoTheater(): void {
+    if (!videoTrackActive) {
+      return;
+    }
+
+    videoTheaterActive = !videoTheaterActive;
+    if (!videoTheaterActive) {
+      videoTheaterControlsHidden = false;
+    }
+  }
+
+  function handleAppKeydown(event: KeyboardEvent): void {
+    if (videoTheaterActive && event.key === 'Escape') {
+      event.preventDefault();
+      event.stopPropagation();
+      videoTheaterActive = false;
+      videoTheaterControlsHidden = false;
+      return;
+    }
+
+    appShortcuts.handleKeydown(event);
+  }
+
   function handleOpenOptions(view?: OptionsViewName) {
     windowManager.openOptions(view);
   }
@@ -855,7 +916,7 @@
   bind:innerWidth
   bind:innerHeight
   on:contextmenu={appShortcuts.handleContextMenu}
-  on:keydown={appShortcuts.handleKeydown}
+  on:keydown={handleAppKeydown}
   on:pointermove={(event) => workspaceShell.handlePanelResizeMove(event)}
   on:pointerup={() => workspaceShell.endPanelResize()}
   on:pointercancel={() => workspaceShell.endPanelResize()}
@@ -865,6 +926,8 @@
   class="app-shell"
   class:compact-workspace={workspaceShellState.isCompactWorkspace}
   class:now-playing-mode={isNowPlayingLayoutActive}
+  class:video-theater-mode={videoTheaterActive}
+  class:video-theater-controls-hidden={videoTheaterActive && videoTheaterControlsHidden}
   class:now-playing-theater-chrome-hidden={isFullscreenNowPlayingChromeHidden}
   class:window-chrome-transition-bypass={artworkPresentationState.isWindowChromeTransitionBypassed}
   class:window-controls-overlay-active={$windowControlsOverlayState.visible}
@@ -894,6 +957,7 @@
   />
 
   <TopMenuBar
+    inactive={videoTheaterActive && !$windowControlsOverlayState.visible}
     nowPlayingViewActive={isNowPlayingLayoutActive}
     miniPlayerSupported={miniPlayerState.supported}
     miniPlayerActive={miniPlayerState.active || miniPlayerState.opening}
@@ -922,8 +986,8 @@
     {playbackSnapshot}
     {isNowPlayingLayoutActive}
     videoElement={playerController.videoElement}
-    videoActive={videoTrackActive}
-    videoViewportArea={$videoSettings.viewportArea}
+    {videoTheaterActive}
+    inactive={videoTheaterActive}
     workspaceState={workspaceShellState}
     {playlistPanelHandlers}
     {libraryPanelHandlers}
@@ -957,7 +1021,24 @@
     onVolume={(volume) => playerController.setVolume(volume)}
     onMute={() => playerController.toggleMute()}
     onShowTrack={handleShowPlayerTrackDetails}
+    onToggleVideoTheater={toggleVideoTheater}
   />
+
+  {#if videoTheaterActive}
+    <VideoTheater
+      element={playerController.videoElement}
+      topInset={videoTheaterTopInset}
+      on:controlsHiddenChange={(event) => (videoTheaterControlsHidden = event.detail)}
+      on:toggleVideoTheater={toggleVideoTheater}
+      on:volumeStep={(event) => {
+        if (!playbackSnapshot.muted) {
+          playerController.setVolume(
+            Math.min(Math.max(playbackSnapshot.volume + event.detail, 0), 1)
+          );
+        }
+      }}
+    />
+  {/if}
   {#if playbackStatus.error}
     <aside class="error-banner">{localizePlaybackError(playbackStatus.error)}</aside>
   {/if}
@@ -972,6 +1053,7 @@
 
   {#if !isNowPlayingLayoutActive}
     <PlayerControls
+      presentation={videoTheaterActive ? 'theater' : 'bar'}
       snapshotStore={playerController.snapshot}
       track={playerDisplayTrack}
       selectedTrack={selectedPlaylistItem}
@@ -988,6 +1070,8 @@
       rafPresets={$rafPresets.presets}
       selectedRafPresetId={$rafPresets.selectedPresetId}
       rafPresetDirty={isRafPresetDirty($rafPresets, $rafSettings)}
+      showVideoTheaterToggle={videoTrackActive}
+      {videoTheaterActive}
       on:toggle={() => void playbackCommands.togglePlayback()}
       on:previous={() => void playbackCommands.stepTrack(-1)}
       on:next={() => void playbackCommands.stepTrack(1)}
@@ -1001,6 +1085,7 @@
       on:applyRafPreset={(event) => rafPresets.apply(event.detail)}
       on:openRafOptions={() => handleOpenOptions('raf')}
       on:showTrack={(event) => handleShowPlayerTrackDetails(event.detail)}
+      on:toggleVideoTheater={toggleVideoTheater}
     />
   {/if}
 </div>

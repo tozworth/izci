@@ -76,7 +76,6 @@ export type PlaybackState = 'idle' | 'loading' | 'playing' | 'paused' | 'ended' 
 export type ModuleInterpolationFilter = 1 | 2 | 4 | 8;
 export type PlaylistRepeatMode = 'off' | 'one' | 'all';
 export type PlaybackRestoreMode = 'disabled' | 'position' | 'position-and-state';
-export type VideoViewportArea = 'center' | 'left-center' | 'center-right' | 'all';
 export type SortDirection = 'asc' | 'desc';
 export type LibraryColumnId = 'title' | 'artist' | 'album' | 'folder' | 'format' | 'duration' | 'plays';
 export type LibraryViewId = 'favorites' | 'songs' | 'artists' | 'albums' | 'genres' | 'years' | 'formats' | 'folders';
@@ -102,12 +101,19 @@ export type VisualizerColorSource = 'theme' | 'artwork';
 export type LyricsDisplayStyle = 'plain' | 'timestamped' | 'theater';
 export type LyricsFontSizeSettings = Record<LyricsDisplayStyle, number>;
 export type WorkspaceCollection = 'playlist' | 'library';
-export type WorkspaceTab = WorkspaceCollection | 'details' | 'lyrics' | 'patterns';
+export type WorkspaceTab = WorkspaceCollection | 'details' | 'lyrics' | 'patterns' | 'video';
 export type ContextualWorkspaceTab = Extract<WorkspaceTab, 'lyrics' | 'patterns'>;
 export type ContextualTabAutomation = 'manual' | 'open' | 'open-close';
 export type ContextualTabSettings = Record<ContextualWorkspaceTab, ContextualTabAutomation>;
 export type WorkspacePanelId = 'left' | 'center' | 'right';
-export const WORKSPACE_TABS: WorkspaceTab[] = ['playlist', 'library', 'details', 'lyrics', 'patterns'];
+export const WORKSPACE_TABS: WorkspaceTab[] = [
+  'playlist',
+  'library',
+  'details',
+  'lyrics',
+  'patterns',
+  'video'
+];
 export const WORKSPACE_PANEL_IDS: WorkspacePanelId[] = ['left', 'center', 'right'];
 export interface WorkspaceResizeHandle {
   before: WorkspacePanelId;
@@ -461,5 +467,5 @@ export interface PlaybackSnapshot {
 
 export interface VideoSettings {
   autoResizeWindow: boolean;
-  viewportArea: VideoViewportArea;
+  autoEnterTheater: boolean;
 }

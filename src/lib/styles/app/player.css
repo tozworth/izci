@@ -879,6 +879,10 @@
   font-size: 0.9rem;
 }
 
+.compact-player-bar .video-theater-toggle .material-symbols-outlined {
+  font-size: 0.9rem;
+}
+
 .compact-player-bar .volume-label .material-symbols-outlined {
   font-size: 1rem;
 }
@@ -1076,6 +1080,56 @@
 
   .player-bar:not(.compact-player-bar):not(.now-playing-player) .volume-range {
     width: 6rem;
+  }
+}
+
+.player-bar.theater-player-bar {
+  left: 50%;
+  right: auto;
+  bottom: clamp(0.7rem, 2.4vh, 1.35rem);
+  width: min(calc(100vw - 1.5rem), 72rem);
+  border: 1px solid var(--player-bar-separator);
+  border-radius: 0.8rem;
+  background: color-mix(in srgb, var(--player-bar-background, var(--menu-bar-bg)) 92%, transparent);
+  box-shadow:
+    0 1.1rem 3.2rem rgba(0, 0, 0, 0.44),
+    0 0.2rem 0.7rem rgba(0, 0, 0, 0.28);
+  animation: video-theater-player-enter 180ms ease-out;
+  transform: translateX(-50%);
+  transition:
+    opacity 160ms ease-out,
+    transform 180ms ease-out,
+    color var(--artwork-ui-transition-duration) linear,
+    background-color var(--artwork-ui-transition-duration) linear,
+    border-color var(--artwork-ui-transition-duration) linear,
+    box-shadow var(--artwork-ui-transition-duration) linear;
+  z-index: 50;
+}
+
+.player-bar.theater-player-bar:not(.compact-player-bar) .volume {
+  width: 100%;
+}
+
+.player-bar.theater-player-bar:not(.compact-player-bar) .volume-range {
+  width: 100%;
+  min-width: 6rem;
+}
+
+.app-shell.video-theater-controls-hidden .player-bar.theater-player-bar {
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, calc(100% + 1.5rem));
+}
+
+@keyframes video-theater-player-enter {
+  from {
+    opacity: 0;
+    transform: translate(-50%, calc(100% + 1.5rem));
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(-50%);
   }
 }
 

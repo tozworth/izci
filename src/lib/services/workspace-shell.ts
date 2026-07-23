@@ -74,6 +74,7 @@ export interface WorkspaceShellState {
   isDetailsPanelVisible: boolean;
   isLyricsPanelVisible: boolean;
   isPatternsPanelVisible: boolean;
+  isVideoPanelVisible: boolean;
   isRightPanelVisible: boolean;
   isCompactWorkspace: boolean;
   isResizing: boolean;
@@ -92,7 +93,8 @@ const allWorkspaceTabs: Record<WorkspaceTab, WorkspaceTabDefinition> = {
   library: { id: 'library', icon: 'library_music', label: 'Library' },
   details: { id: 'details', icon: 'info', label: 'Details' },
   lyrics: { id: 'lyrics', icon: 'lyrics', label: 'Lyrics' },
-  patterns: { id: 'patterns', icon: 'view_timeline', label: 'Patterns' }
+  patterns: { id: 'patterns', icon: 'view_timeline', label: 'Patterns' },
+  video: { id: 'video', icon: 'movie', label: 'Video', closeable: false }
 };
 
 function isWorkspaceCollection(tab: WorkspaceTab): tab is WorkspaceCollection {
@@ -129,7 +131,8 @@ function cloneLastPanelByTab(
     library: lastPanelByTab.library,
     details: lastPanelByTab.details,
     lyrics: lastPanelByTab.lyrics,
-    patterns: lastPanelByTab.patterns
+    patterns: lastPanelByTab.patterns,
+    video: lastPanelByTab.video
   };
 }
 
@@ -363,6 +366,7 @@ function createInitialState(
     isDetailsPanelVisible: isWorkspaceTabOpen(savedPanelState, 'details'),
     isLyricsPanelVisible: isWorkspaceTabOpen(savedPanelState, 'lyrics'),
     isPatternsPanelVisible: isWorkspaceTabOpen(savedPanelState, 'patterns'),
+    isVideoPanelVisible: isWorkspaceTabOpen(savedPanelState, 'video'),
     isRightPanelVisible: logicalVisiblePanels.includes('right'),
     isCompactWorkspace: responsivePanels.collapsedPanels.length > 0 && visibleWorkspacePanels.length === 1,
     isResizing: false,
@@ -508,6 +512,7 @@ export function createWorkspaceShellController({
       isDetailsPanelVisible: isWorkspaceTabOpen(savedPanelState, 'details'),
       isLyricsPanelVisible: isWorkspaceTabOpen(savedPanelState, 'lyrics'),
       isPatternsPanelVisible: isWorkspaceTabOpen(savedPanelState, 'patterns'),
+      isVideoPanelVisible: isWorkspaceTabOpen(savedPanelState, 'video'),
       isRightPanelVisible: logicalVisiblePanels.includes('right'),
       isCompactWorkspace:
         responsivePanels.collapsedPanels.length > 0 && visibleWorkspacePanels.length === 1,

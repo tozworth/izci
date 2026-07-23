@@ -11,7 +11,6 @@
     ModulePatternSnapshot,
     PlaybackSnapshot,
     PlaylistItem,
-    VideoViewportArea,
     WorkspacePanelId,
     WorkspaceTab
   } from '$lib/types';
@@ -39,6 +38,8 @@
     lyricsAutoScroll,
     lyricsFontSize,
     lyricsResumeAutoScrollToken,
+    videoElement,
+    videoTheaterActive,
     lyricsTheaterDowntimeDots: appearance.lyrics.theaterDowntimeDots,
     lyricsTheaterDowntimeThresholdSeconds: appearance.lyrics.theaterDowntimeThresholdSeconds,
     lyricsTheaterSmoothScroll: appearance.lyrics.theaterSmoothScroll
@@ -52,8 +53,8 @@
   export let playbackSnapshot: PlaybackSnapshot;
   export let isNowPlayingLayoutActive: boolean;
   export let videoElement: HTMLVideoElement | null;
-  export let videoActive = false;
-  export let videoViewportArea: VideoViewportArea = 'center';
+  export let videoTheaterActive = false;
+  export let inactive = false;
   export let workspaceState: WorkspaceShellState;
   export let playlistPanelHandlers: WorkspacePanelHandlers;
   export let libraryPanelHandlers: WorkspacePanelHandlers;
@@ -91,6 +92,7 @@
   export let onVolume: (volume: number) => void;
   export let onMute: () => void;
   export let onShowTrack: (id: string) => void;
+  export let onToggleVideoTheater: () => void;
 </script>
 
 {#if isNowPlayingLayoutActive}
@@ -130,9 +132,7 @@
     resizerWidth={WORKSPACE_RESIZER_WIDTH}
     isResizing={workspaceState.isResizing}
     isCompactWorkspace={workspaceState.isCompactWorkspace}
-    {videoElement}
-    {videoActive}
-    {videoViewportArea}
+    {inactive}
     backdropArtwork={artworkState.visibleArtworkBackground}
     zoneArtworkBright={workspaceZoneArtworkBright}
     zoneEffects={workspaceZoneEffects}
@@ -143,6 +143,7 @@
         onVolume(clampVolume(playbackSnapshot.volume + event.detail));
       }
     }}
+    on:toggleVideoTheater={onToggleVideoTheater}
     on:tabChange={(event) => onTabChange(event.detail)}
     on:tabClose={(event) => onTabClose(event.detail)}
     on:tabMove={(event) => onWideTabMove(event.detail)}

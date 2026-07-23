@@ -73,6 +73,7 @@
   export let patternsVisible = false;
   export let installAvailable = false;
   export let showInstallHint = false;
+  export let inactive = false;
   const displayVersion = formatDisplayVersion(appVersion);
 
   const dispatch = createEventDispatcher<{
@@ -412,6 +413,7 @@
   class:menu-bar-compact={isCompactMenu}
   style={overlayInlineStyle}
   aria-label={$t('main.menu.applicationMenu', { default: 'Application menu' })}
+  inert={inactive ? true : undefined}
 >
   {#if isCompactMenu}
     <button

@@ -3,14 +3,14 @@ import { DEFAULT_VIDEO_SETTINGS, normalizeVideoSettings } from './video-settings
 
 describe('normalizeVideoSettings', () => {
   it('accepts supported video settings', () => {
-    expect(normalizeVideoSettings({ autoResizeWindow: true, viewportArea: 'all' })).toEqual({
+    expect(normalizeVideoSettings({ autoResizeWindow: true, autoEnterTheater: true })).toEqual({
       autoResizeWindow: true,
-      viewportArea: 'all'
+      autoEnterTheater: true
     });
   });
 
   it('falls back to defaults for unsupported values', () => {
-    expect(normalizeVideoSettings({ autoResizeWindow: 'yes', viewportArea: 'left' })).toEqual(
+    expect(normalizeVideoSettings({ autoResizeWindow: 'yes', autoEnterTheater: 'yes' })).toEqual(
       DEFAULT_VIDEO_SETTINGS
     );
   });

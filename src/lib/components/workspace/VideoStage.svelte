@@ -3,7 +3,10 @@
 
   export let element: HTMLVideoElement | null = null;
 
-  const dispatch = createEventDispatcher<{ volumeStep: number }>();
+  const dispatch = createEventDispatcher<{
+    volumeStep: number;
+    toggleVideoTheater: void;
+  }>();
   const VOLUME_WHEEL_STEP = 0.05;
 
   let host: HTMLDivElement | null = null;
@@ -41,6 +44,7 @@
   class="video-stage"
   aria-label="Video playback"
   on:wheel|preventDefault={handleWheel}
+  on:dblclick={() => dispatch('toggleVideoTheater')}
 ></div>
 
 <style>

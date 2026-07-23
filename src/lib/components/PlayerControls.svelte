@@ -59,7 +59,7 @@
   export let artworkBackgroundBright = false;
   export let backdropEffect: BackdropZoneEffect = 'visualizer';
   export let backdropArtworkSettings: BackdropZoneArtworkSettings | null = null;
-  export let presentation: 'bar' | 'now-playing' = 'bar';
+  export let presentation: 'bar' | 'now-playing' | 'theater' = 'bar';
   export let useArtworkColorsOverride: boolean | null = null;
   export let artworkColorSurfaceBright = false;
   export let hasCollectionItems = false;
@@ -71,6 +71,8 @@
   export let rafPresets: RafPreset[] = [];
   export let selectedRafPresetId: string | null = null;
   export let rafPresetDirty = false;
+  export let showVideoTheaterToggle = false;
+  export let videoTheaterActive = false;
 
   const dispatch = createEventDispatcher<{
     toggle: void;
@@ -86,6 +88,7 @@
     applyRafPreset: string;
     openRafOptions: void;
     showTrack: string;
+    toggleVideoTheater: void;
   }>();
 
   const COMPACT_VOLUME_QUERY = '(max-width: 349px)';
@@ -100,7 +103,7 @@
   let viewportUsesCompactVolume = false;
   let isCompactVolume = false;
   let isVolumePopupOpen = false;
-  let volumePopupTimer: ReturnType<typeof window.setTimeout> | null = null;
+  let volumePopupTimer: number | null = null;
   let playerArtworkPalette: PlayerArtworkPalette | null = null;
   let playerArtworkPaletteUrl: string | undefined = undefined;
   let playerArtworkPaletteToken = 0;
@@ -119,7 +122,7 @@
     backend: null,
     error: undefined
   };
-  $: containerElement = presentation === 'bar' ? 'footer' : 'section';
+  $: containerElement = presentation === 'now-playing' ? 'section' : 'footer';
 
   function clamp(value: number, min: number, max: number): number {
     return Math.min(Math.max(value, min), max);
@@ -368,7 +371,7 @@
   $: snapshot = $snapshotStore;
   $: if (!seekPointerActive) seekPreview = snapshot.currentTime;
   $: displayedSeekTime = seekPointerActive ? seekPreview : snapshot.currentTime;
-  $: compactPlayerBar = presentation === 'bar' && $appearanceSettings.compactPlayerBar;
+  $: compactPlayerBar = presentation !== 'now-playing' && $appearanceSettings.compactPlayerBar;
   $: isCompactVolume = viewportUsesCompactVolume || compactPlayerBar;
   $: displayTrack = track;
   $: displayDuration = track ? snapshot.duration : 0;
@@ -427,6 +430,7 @@
   bind:this={playerBarElement}
   class="player-bar"
   class:now-playing-player={presentation === 'now-playing'}
+  class:theater-player-bar={presentation === 'theater'}
   class:compact-player-bar={compactPlayerBar}
   class:video-track-active={displayTrack?.kind === 'video'}
   class:artwork-background-active={artworkBackgroundActive}
@@ -434,7 +438,9 @@
   class:visualizer-backdrop-active={visualizerBackdropActive}
   aria-label={presentation === 'now-playing'
     ? $t('main.player.nowPlayingControls', { default: 'Now Playing controls' })
-    : undefined}
+    : presentation === 'theater'
+      ? $t('main.player.videoTheaterControls', { default: 'Video theater controls' })
+      : undefined}
   data-artwork-zone={artworkBackgroundActive ? 'true' : null}
   data-visualizer-zone={visualizerBackdropActive ? 'true' : null}
   data-backdrop-zone-id={presentation === 'bar' ? 'player' : null}
@@ -560,7 +566,25 @@
       >
         <span class="material-symbols-outlined" aria-hidden="true">skip_next</span>
       </button>
-      {#if presentation === 'bar' && showFavoriteToggle}
+      {#if showVideoTheaterToggle}
+        <button
+          type="button"
+          class="transport-button video-theater-toggle"
+          aria-label={videoTheaterActive
+            ? $t('main.player.exitVideoTheater', { default: 'Exit video theater' })
+            : $t('main.player.enterVideoTheater', { default: 'Enter video theater' })}
+          aria-pressed={videoTheaterActive}
+          title={videoTheaterActive
+            ? $t('main.player.exitVideoTheater', { default: 'Exit video theater' })
+            : $t('main.player.enterVideoTheater', { default: 'Enter video theater' })}
+          on:click={() => dispatch('toggleVideoTheater')}
+        >
+          <span class="material-symbols-outlined" aria-hidden="true">
+            {videoTheaterActive ? 'close_fullscreen' : 'fit_screen'}
+          </span>
+        </button>
+      {/if}
+      {#if presentation !== 'now-playing' && showFavoriteToggle}
         <button
           type="button"
           class="favorite-toggle"
@@ -589,7 +613,7 @@
       data-popup-open={isCompactVolume && isVolumePopupOpen ? 'true' : 'false'}
       on:mouseleave={closeVolumePopup}
     >
-    {#if presentation === 'bar' && showRafToggle}
+    {#if presentation !== 'now-playing' && showRafToggle}
       <button
         type="button"
         class:active={rafEnabled}

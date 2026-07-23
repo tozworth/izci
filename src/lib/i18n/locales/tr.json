@@ -49,24 +49,20 @@
       "updateCurrent": "güncel",
       "updateFailed": "güncelleme başarısız"
     },
-    "patterns": {
-      "modulePatterns": "Modül örüntüleri",
-      "channelCount": "{count, plural, one {# kanal} other {# kanal}}",
-      "playbackPosition": "Örüntü oynatım yeri",
-      "orderAbbreviation": "SIR",
-      "patternAbbreviation": "ÖRN",
-      "rowAbbreviation": "SAT",
-      "patternLabel": "Örüntü {position}",
-      "channelLabel": "Kanal {number}",
-      "channelAbbreviation": "KNL",
-      "cellDescription": "Kanal {number}: {value}"
-    },
-    "playbackProgress": {
-      "resumedAt": "{position} konumundan devam edildi",
-      "startOver": "Baştan başlat",
-      "dismiss": "Devam iletisini kapat"
+    "miniPlayer": {
+      "heading": "Mini oynatıcı",
+      "nothingPlaying": "Yürütülen parça yok",
+      "ready": "Hazır",
+      "seek": "Konum"
     },
     "player": {
+      "previousTrack": "Önceki parça",
+      "pausePlayback": "Oynatmayı duraklat",
+      "playPlayback": "Oynatmayı devam ettir",
+      "nextTrack": "Sonraki parça",
+      "unmute": "Sesi aç",
+      "mute": "Sesi kapat",
+      "volume": "Ses düzeyi",
       "quips": {
         "scout": "İzci aslında \"tracker\"dan daha çok \"scout\" a yakın. Ama neyse.",
         "xmplayRam": "Düşünsene: XMPlay, ama 9 GB RAM yiyor.",
@@ -91,28 +87,41 @@
         "worksOnMachine": "Bende çalışıyo."
       },
       "nowPlayingControls": "Şimdi Yürütülüyor kontrolleri",
+      "videoTheaterControls": "Video sineması kontrolleri",
       "showCurrentTrackDetails": "Mevcut parçanın detaylarını göster",
       "welcome": "izci'ye hoş geldin!",
       "ready": "Hazır",
       "dropFilesToBegin": "Başlamak için dosya sürükle",
-      "previousTrack": "Önceki parça",
       "previousTrackWithSubsongHint": "Önceki parça · Önceki altparça için sağ tıkla",
-      "pausePlayback": "Oynatmayı duraklat",
-      "playPlayback": "Oynatmayı devam ettir",
-      "nextTrack": "Sonraki parça",
       "nextTrackWithSubsongHint": "Sonraki parça · Sonraki altparça için sağ tıkla",
+      "exitVideoTheater": "Video sinemasından çık",
+      "enterVideoTheater": "Video sinemasına gir",
       "removeFromFavorites": "Favorilerden kaldır",
       "addToFavorites": "Favorilere ekle",
       "bypassRaf": "Raf'ı geç",
       "powerOnRaf": "Raf'ı aç",
       "bypassRafWithPresetHint": "Raf'ı geç · Önayarlar için sağ tıkla",
       "powerOnRafWithPresetHint": "Raf'ı aç · Önayarlar için sağ tıkla",
-      "unmute": "Sesi aç",
-      "mute": "Sesi kapat",
-      "volume": "Ses düzeyi",
       "rafPresets": "Raf önayarları",
       "noRafPresets": "Raf önayarları yok",
       "openRaf": "Raf'ı aç"
+    },
+    "patterns": {
+      "modulePatterns": "Modül örüntüleri",
+      "channelCount": "{count, plural, one {# kanal} other {# kanal}}",
+      "playbackPosition": "Örüntü oynatım yeri",
+      "orderAbbreviation": "SIR",
+      "patternAbbreviation": "ÖRN",
+      "rowAbbreviation": "SAT",
+      "patternLabel": "Örüntü {position}",
+      "channelLabel": "Kanal {number}",
+      "channelAbbreviation": "KNL",
+      "cellDescription": "Kanal {number}: {value}"
+    },
+    "playbackProgress": {
+      "resumedAt": "{position} konumundan devam edildi",
+      "startOver": "Baştan başlat",
+      "dismiss": "Devam iletisini kapat"
     },
     "trackDetails": {
       "album": "Albüm",
@@ -138,17 +147,38 @@
       "notes": "Notlar",
       "emptyTitle": "İncelemek için parça seçin.",
       "emptyDescription": "Çalma listesi ve kütüphane seçimlerinin metaverileri burada görünür."
-    },
-    "miniPlayer": {
-      "heading": "Mini oynatıcı",
-      "nothingPlaying": "Yürütülen parça yok",
-      "ready": "Hazır",
-      "seek": "Konum"
     }
   },
   "playlist": {
-    "title": "Liste",
     "library": {
+      "columns": {
+        "sortBy": "{column} sütununa göre sırala",
+        "resize": "{column} sütununu boyutlandır",
+        "title": "Başlık",
+        "artist": "Sanatçı",
+        "album": "Albüm",
+        "folder": "Klasör",
+        "format": "Tür",
+        "duration": "Süre",
+        "plays": "Yürütme sayısı"
+      },
+      "groupSongCount": "{count, plural, one {# parça} other {# parça}}",
+      "views": {
+        "favorites": "Favoriler",
+        "songs": "Parçalar",
+        "artists": "Sanatçılar",
+        "albums": "Albümler",
+        "genres": "Tarzlar",
+        "years": "Yıllar",
+        "formats": "Türler",
+        "folders": "Klasörler",
+        "label": "Kütüphane görünümleri"
+      },
+      "search": "Kütüphaneyi ara",
+      "closeSearch": "Kütüphane aramayı kapat",
+      "backToGroups": "Gruplara geri dön",
+      "back": "Geri",
+      "filter": "Kütüphaneyi filtrele",
       "title": "Kütüphane",
       "unknownArtist": "Bilinmeyen sanatçı",
       "unknownAlbum": "Bilinmeyen albüm",
@@ -159,17 +189,6 @@
       "trackerModule": "İzci modülü",
       "stream": "Akış",
       "video": "Video",
-      "columns": {
-        "title": "Başlık",
-        "artist": "Sanatçı",
-        "album": "Albüm",
-        "folder": "Klasör",
-        "format": "Tür",
-        "duration": "Süre",
-        "plays": "Yürütme sayısı",
-        "sortBy": "{column} sütununa göre sırala",
-        "resize": "{column} sütununu boyutlandır"
-      },
       "summary": {
         "filteredArtists": "{visible} sanatçıdan {total} {total, plural, one {} other {}}",
         "filteredAlbums": "{visible} albümden {total} {total, plural, one {} other {}}",
@@ -187,35 +206,8 @@
       },
       "noResults": "\"{query}\" ile eşleşen kütüphane ögesi yok.",
       "favoritesEmpty": "Favorilenen parça ve altparçalar burada görünür.",
-      "empty": "Kütüphaneniz boş. Dosya veya klasör sürükleyin.",
-      "groupSongCount": "{count, plural, one {# parça} other {# parça}}",
-      "views": {
-        "favorites": "Favoriler",
-        "songs": "Parçalar",
-        "artists": "Sanatçılar",
-        "albums": "Albümler",
-        "genres": "Tarzlar",
-        "years": "Yıllar",
-        "formats": "Türler",
-        "folders": "Klasörler",
-        "label": "Kütüphane görünümleri"
-      },
-      "search": "Kütüphaneyi ara",
-      "closeSearch": "Kütüphane aramayı kapat",
-      "backToGroups": "Gruplara geri dön",
-      "back": "Geri",
-      "filter": "Kütüphaneyi filtrele"
+      "empty": "Kütüphaneniz boş. Dosya veya klasör sürükleyin."
     },
-    "summary": {
-      "filteredTracks": "{total} parçadan {visible} {total, plural, one {görünür} other {görünür}} · {duration}",
-      "tracks": "{count, plural, one {# parça} other {# parça}} · {duration}"
-    },
-    "repeat": {
-      "currentTrack": "Mevcut parçayı tekrarla",
-      "playlist": "Listeyi tekrarla",
-      "off": "Tekrar kapalı"
-    },
-    "listRegion": "{name} listesi",
     "addFiles": "Dosya ekle",
     "searchPlaceholder": "Ara",
     "actions": {
@@ -242,7 +234,18 @@
       "enable": "Karıştırmayı aç",
       "on": "Karıştır açık",
       "off": "Karıştır kapalı"
-    }
+    },
+    "title": "Liste",
+    "summary": {
+      "filteredTracks": "{total} parçadan {visible} {total, plural, one {görünür} other {görünür}} · {duration}",
+      "tracks": "{count, plural, one {# parça} other {# parça}} · {duration}"
+    },
+    "repeat": {
+      "currentTrack": "Mevcut parçayı tekrarla",
+      "playlist": "Listeyi tekrarla",
+      "off": "Tekrar kapalı"
+    },
+    "listRegion": "{name} listesi"
   },
   "workspace": {
     "nowPlaying": {
@@ -257,6 +260,9 @@
       "right": "Sağ panel"
     },
     "empty": "Çalışma alanı boş",
+    "videoTheater": {
+      "title": "Video sineması"
+    },
     "panelTabs": "{panel} sekmeleri",
     "panelEmpty": "{panel} boş",
     "resizePanels": "{before} ile {after} arasını yeniden boyutlandır",
@@ -267,6 +273,7 @@
       "details": "Detaylar",
       "lyrics": "Sözler",
       "patterns": "Örüntüler",
+      "video": "Video",
       "label": "Çalışma alanı sekmeleri",
       "closeNamed": "{tab} sekmesini kapat",
       "close": "Kapat"
@@ -276,14 +283,6 @@
     "description": "İzci modülü destekli, çevrimdışı PWA müzik çalar."
   },
   "options": {
-    "tools": {
-      "collapseHints": "Alan ipuçlarını daralt",
-      "expandHints": "Alan ipuçlarını genişlet",
-      "label": "Sayfa araçları",
-      "resetPage": "Geçerli sayfayı varsayılanlara sıfırla"
-    },
-    "windowTitle": "izci Ayarları",
-    "categories": "Ayar kategorileri",
     "raf": {
       "autoAmp": {
         "mode": "Otomatik",
@@ -867,20 +866,14 @@
       }
     },
     "video": {
-      "viewportArea": {
-        "options": {
-          "leftCenter": "Sol ve orta",
-          "centerRight": "Orta ve sağ",
-          "all": "Tüm paneller",
-          "center": "Orta panel"
-        },
-        "title": "Video görüntü alanı",
-        "hint": "Videonun hangi açık çalışma alanı panellerini kaplayacağını seçer."
-      },
       "heading": "Video",
       "autoResizeWindow": {
         "title": "Pencereyi otomatik boyutlandır",
         "hint": "Uygun olmayan oynatıcı penceresini video başladığında 1280 × 720 boyutuna getirir; video olmayan bir parça başladığında önceki boyutu geri yükler."
+      },
+      "autoEnterTheater": {
+        "title": "Sinemaya otomatik gir",
+        "hint": "Video başladığında oynatımı otomatik olarak sinema görünümünde açar."
       }
     },
     "visualizer": {
@@ -943,21 +936,13 @@
       },
       "heading": "Oynatıcı Artalanı"
     },
-    "views": {
-      "appearance": "Görünüm",
-      "backdrops": "Artalanlar",
-      "nowPlaying": "Şimdi Yürütülüyor",
-      "lyrics": "Sözler",
-      "playback": "Oynatım",
-      "video": "Video",
-      "visualizer": "Görselleştirme",
-      "patterns": "Örüntüler",
-      "modules": "Modüller",
-      "tracks": "Parçalar",
-      "folders": "Klasörler",
-      "metadata": "Metaveri",
-      "about": "Hakkında",
-      "licenses": "Lisanslar"
-    }
+    "tools": {
+      "collapseHints": "Alan ipuçlarını daralt",
+      "expandHints": "Alan ipuçlarını genişlet",
+      "label": "Sayfa araçları",
+      "resetPage": "Geçerli sayfayı varsayılanlara sıfırla"
+    },
+    "windowTitle": "izci Ayarları",
+    "categories": "Ayar kategorileri"
   }
 }

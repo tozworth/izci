@@ -53,6 +53,7 @@ export interface WorkspaceTabDefinition {
   id: WorkspaceTab;
   icon: string;
   label: string;
+  closeable?: boolean;
 }
 
 export interface WorkspaceTabContentProps {
@@ -74,6 +75,8 @@ export interface WorkspaceTabContentProps {
   lyricsTheaterDowntimeThresholdSeconds: number;
   lyricsTheaterSmoothScroll: boolean;
   lyricsResumeAutoScrollToken: number;
+  videoElement: HTMLVideoElement | null;
+  videoTheaterActive: boolean;
 }
 
 export interface WorkspacePanelDefinition {

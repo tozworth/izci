@@ -3,6 +3,7 @@
   import PatternViewer from '$lib/components/PatternViewer.svelte';
   import PlaylistPanel from '$lib/components/PlaylistPanel.svelte';
   import TrackDetailsPanel from '$lib/components/TrackDetailsPanel.svelte';
+  import VideoStage from '$lib/components/workspace/VideoStage.svelte';
   import type { WorkspaceTab } from '$lib/types';
   import type { WorkspaceTabContentProps } from './types';
 
@@ -71,10 +72,29 @@
     hideEyebrow={true}
     on:seek
   />
-{:else}
+{:else if tab === 'patterns'}
   <PatternViewer
     track={content.patternTrack}
     snapshot={content.modulePatternSnapshot}
     playbackSnapshot={content.playbackSnapshot}
   />
+{:else}
+  <div class="video-tab-stage">
+    <VideoStage
+      element={content.videoTheaterActive ? null : content.videoElement}
+      on:volumeStep
+      on:toggleVideoTheater
+    />
+  </div>
 {/if}
+
+<style>
+  .video-tab-stage {
+    position: relative;
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+    overflow: hidden;
+    background: #000;
+  }
+</style>

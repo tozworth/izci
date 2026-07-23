@@ -7,14 +7,12 @@
   import type {
     BackdropZoneEffect,
     BackdropZoneArtworkSettings,
-    VideoViewportArea,
     WorkspacePanelId,
     WorkspaceTab
   } from '$lib/types';
   import WorkspaceResizer from '$lib/components/workspace/WorkspaceResizer.svelte';
   import WorkspaceTabBar from '$lib/components/workspace/WorkspaceTabBar.svelte';
   import WorkspaceTabContent from '$lib/components/workspace/WorkspaceTabContent.svelte';
-  import VideoStage from '$lib/components/workspace/VideoStage.svelte';
   import { hasWorkspaceTabDragData, readWorkspaceTabDragData } from './drag';
   import type {
     WideWorkspaceResizeStartDetail,
@@ -29,9 +27,7 @@
   export let resizerWidth = 1;
   export let isResizing = false;
   export let isCompactWorkspace = false;
-  export let videoElement: HTMLVideoElement | null = null;
-  export let videoActive = false;
-  export let videoViewportArea: VideoViewportArea = 'center';
+  export let inactive = false;
   export let backdropArtwork: LoadedStreamArtwork | null = null;
   export let artworkBackgroundBright = false;
   export let zoneEffects: Record<WorkspacePanelId, BackdropZoneEffect> = {
@@ -54,6 +50,7 @@
     resizeStart: WideWorkspaceResizeStartDetail;
     seek: number;
     volumeStep: number;
+    toggleVideoTheater: void;
     tabChange: WorkspaceTab;
     tabClose: WorkspaceTab;
     tabMove: WorkspaceTabMoveDetail;
@@ -66,44 +63,6 @@
   $: hiddenPanels = workspacePanels.filter(
     (panel) => !panel.isOpen && !panel.isResponsiveCollapsed
   );
-  $: videoPanelIds = getVideoPanelIds(videoViewportArea);
-  $: coveredVideoPanels = visiblePanels.filter((panel) => videoPanelIds.has(panel.id));
-  $: videoOverlayStyle = resolveVideoOverlayStyle(
-    visiblePanels,
-    coveredVideoPanels,
-    panelWidths,
-    resizerWidth
-  );
-
-  function getVideoPanelIds(area: VideoViewportArea): Set<WorkspacePanelId> {
-    if (area === 'left-center') return new Set(['left', 'center']);
-    if (area === 'center-right') return new Set(['center', 'right']);
-    if (area === 'all') return new Set(['left', 'center', 'right']);
-    return new Set(['center']);
-  }
-
-  function resolveVideoOverlayStyle(
-    panels: WorkspacePanelDefinition[],
-    coveredPanels: WorkspacePanelDefinition[],
-    widths: Record<WorkspacePanelId, number>,
-    separatorWidth: number
-  ): string {
-    if (coveredPanels.length === 0) {
-      return '';
-    }
-
-    const firstIndex = panels.indexOf(coveredPanels[0]);
-    const lastIndex = panels.indexOf(coveredPanels[coveredPanels.length - 1]);
-    const left = panels
-      .slice(0, firstIndex)
-      .reduce((total, panel) => total + widths[panel.id] + separatorWidth, 0);
-    const right = panels
-      .slice(lastIndex + 1)
-      .reduce((total, panel) => total + widths[panel.id] + separatorWidth, 0);
-
-    return `left: ${left}px; right: ${right}px;`;
-  }
-
   function getPanelLabel(panelId: WorkspacePanelId): string {
     switch (panelId) {
       case 'left': return $t('workspace.panels.left', { default: 'Left panel' });
@@ -171,6 +130,7 @@
   class="workspace workspace-resizable workspace-dock-layout"
   class:is-resizing={isResizing}
   class:is-dragging-tab={draggedTabId !== null}
+  inert={inactive ? true : undefined}
 >
   {#if visiblePanels.length > 0}
     {#each visiblePanels as panel, index (panel.id)}
@@ -184,11 +144,7 @@
         on:drop={(event) => handlePanelDrop(event, panel.id)}
         on:dragleave={(event) => handlePanelDragLeave(event, panel.id)}
       >
-        <div
-          class="workspace-panel-surface"
-          class:is-video-covered={videoActive && videoPanelIds.has(panel.id)}
-          inert={videoActive && videoPanelIds.has(panel.id) ? true : undefined}
-        >
+        <div class="workspace-panel-surface">
           <BackdropZone
             effect={zoneEffects[panel.backdropPanelId]}
             artwork={backdropArtwork}
@@ -226,6 +182,8 @@
                   visualizerBackdropActive={hasVisualizerBackdrop(zoneEffects[panel.backdropPanelId])}
                   {isCompactWorkspace}
                   on:seek
+                  on:volumeStep={(event) => dispatch('volumeStep', event.detail)}
+                  on:toggleVideoTheater={() => dispatch('toggleVideoTheater')}
                 />
               </div>
             {:else}
@@ -262,15 +220,6 @@
     <div class="workspace-empty-surface" aria-label={$t('workspace.empty', { default: 'Workspace is empty' })}></div>
   {/if}
 
-  {#if videoActive && coveredVideoPanels.length > 0}
-    <div class="video-viewport-overlay" style={videoOverlayStyle}>
-      <VideoStage
-        element={videoElement}
-        on:volumeStep={(event) => dispatch('volumeStep', event.detail)}
-      />
-    </div>
-  {/if}
-
   {#if draggedTabId}
     {#each hiddenPanels as panel (panel.id)}
       <div
@@ -294,17 +243,4 @@
     height: 100%;
   }
 
-  .workspace-panel-surface.is-video-covered {
-    visibility: hidden;
-  }
-
-  .video-viewport-overlay {
-    position: absolute;
-    top: 0;
-    bottom: 0;
-    z-index: 7;
-    min-width: 0;
-    min-height: 0;
-    overflow: hidden;
-  }
 </style>

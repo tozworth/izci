@@ -49,24 +49,20 @@
       "updateCurrent": "up to date",
       "updateFailed": "update check failed"
     },
-    "patterns": {
-      "modulePatterns": "Module patterns",
-      "channelCount": "{count, plural, one {# channel} other {# channels}}",
-      "playbackPosition": "Pattern playback position",
-      "orderAbbreviation": "ORD",
-      "patternAbbreviation": "PAT",
-      "rowAbbreviation": "ROW",
-      "patternLabel": "Pattern {position}",
-      "channelLabel": "Channel {number}",
-      "channelAbbreviation": "CH",
-      "cellDescription": "Channel {number}: {value}"
-    },
-    "playbackProgress": {
-      "resumedAt": "Resumed at {position}",
-      "startOver": "Start over",
-      "dismiss": "Dismiss resume message"
+    "miniPlayer": {
+      "heading": "Mini player",
+      "nothingPlaying": "Nothing playing",
+      "ready": "Ready when you are",
+      "seek": "Seek"
     },
     "player": {
+      "previousTrack": "Previous track",
+      "pausePlayback": "Pause playback",
+      "playPlayback": "Play playback",
+      "nextTrack": "Next track",
+      "unmute": "Unmute",
+      "mute": "Mute",
+      "volume": "Volume",
       "quips": {
         "scout": "İzci means scout. Tracker was already taken.",
         "xmplayRam": "What if XMPlay used 9 GB of RAM?",
@@ -91,28 +87,41 @@
         "worksOnMachine": "Works on my machine."
       },
       "nowPlayingControls": "Now Playing controls",
+      "videoTheaterControls": "Video theater controls",
       "showCurrentTrackDetails": "Show current track details",
       "welcome": "Welcome to izci!",
       "ready": "Ready",
       "dropFilesToBegin": "Drop files to begin",
-      "previousTrack": "Previous track",
       "previousTrackWithSubsongHint": "Previous track · Right-click for previous subsong",
-      "pausePlayback": "Pause playback",
-      "playPlayback": "Play playback",
-      "nextTrack": "Next track",
       "nextTrackWithSubsongHint": "Next track · Right-click for next subsong",
+      "exitVideoTheater": "Exit video theater",
+      "enterVideoTheater": "Enter video theater",
       "removeFromFavorites": "Remove from favorites",
       "addToFavorites": "Add to favorites",
       "bypassRaf": "Bypass Raf",
       "powerOnRaf": "Power on Raf",
       "bypassRafWithPresetHint": "Bypass Raf · Right-click for presets",
       "powerOnRafWithPresetHint": "Power on Raf · Right-click for presets",
-      "unmute": "Unmute",
-      "mute": "Mute",
-      "volume": "Volume",
       "rafPresets": "Raf presets",
       "noRafPresets": "No Raf presets",
       "openRaf": "Open Raf"
+    },
+    "patterns": {
+      "modulePatterns": "Module patterns",
+      "channelCount": "{count, plural, one {# channel} other {# channels}}",
+      "playbackPosition": "Pattern playback position",
+      "orderAbbreviation": "ORD",
+      "patternAbbreviation": "PAT",
+      "rowAbbreviation": "ROW",
+      "patternLabel": "Pattern {position}",
+      "channelLabel": "Channel {number}",
+      "channelAbbreviation": "CH",
+      "cellDescription": "Channel {number}: {value}"
+    },
+    "playbackProgress": {
+      "resumedAt": "Resumed at {position}",
+      "startOver": "Start over",
+      "dismiss": "Dismiss resume message"
     },
     "trackDetails": {
       "album": "Album",
@@ -138,17 +147,38 @@
       "notes": "Notes",
       "emptyTitle": "Select a track to inspect it.",
       "emptyDescription": "Playlist and library selections both surface their metadata here."
-    },
-    "miniPlayer": {
-      "heading": "Mini player",
-      "nothingPlaying": "Nothing playing",
-      "ready": "Ready when you are",
-      "seek": "Seek"
     }
   },
   "playlist": {
-    "title": "Playlist",
     "library": {
+      "columns": {
+        "sortBy": "Sort by {column}",
+        "resize": "Resize {column} column",
+        "title": "Title",
+        "artist": "Artist",
+        "album": "Album",
+        "folder": "Folder",
+        "format": "Format",
+        "duration": "Duration",
+        "plays": "Plays"
+      },
+      "groupSongCount": "{count, plural, one {# song} other {# songs}}",
+      "views": {
+        "favorites": "Favorites",
+        "songs": "Songs",
+        "artists": "Artists",
+        "albums": "Albums",
+        "genres": "Genres",
+        "years": "Years",
+        "formats": "Formats",
+        "folders": "Folders",
+        "label": "Library views"
+      },
+      "search": "Search library",
+      "closeSearch": "Close library search",
+      "backToGroups": "Back to groups",
+      "back": "Back",
+      "filter": "Filter library",
       "title": "Library",
       "unknownArtist": "Unknown artist",
       "unknownAlbum": "Unknown album",
@@ -159,17 +189,6 @@
       "trackerModule": "Tracker module",
       "stream": "Stream",
       "video": "Video",
-      "columns": {
-        "title": "Title",
-        "artist": "Artist",
-        "album": "Album",
-        "folder": "Folder",
-        "format": "Format",
-        "duration": "Duration",
-        "plays": "Plays",
-        "sortBy": "Sort by {column}",
-        "resize": "Resize {column} column"
-      },
       "summary": {
         "filteredArtists": "{visible} of {total} {total, plural, one {artist} other {artists}}",
         "filteredAlbums": "{visible} of {total} {total, plural, one {album} other {albums}}",
@@ -187,35 +206,8 @@
       },
       "noResults": "No library results match \"{query}\".",
       "favoritesEmpty": "Favorite tracks and subsongs will appear here.",
-      "empty": "Your library is empty. Add files or drop a folder here.",
-      "groupSongCount": "{count, plural, one {# song} other {# songs}}",
-      "views": {
-        "favorites": "Favorites",
-        "songs": "Songs",
-        "artists": "Artists",
-        "albums": "Albums",
-        "genres": "Genres",
-        "years": "Years",
-        "formats": "Formats",
-        "folders": "Folders",
-        "label": "Library views"
-      },
-      "search": "Search library",
-      "closeSearch": "Close library search",
-      "backToGroups": "Back to groups",
-      "back": "Back",
-      "filter": "Filter library"
+      "empty": "Your library is empty. Add files or drop a folder here."
     },
-    "summary": {
-      "filteredTracks": "{visible} of {total} {total, plural, one {song} other {songs}} · {duration}",
-      "tracks": "{count, plural, one {# song} other {# songs}} · {duration}"
-    },
-    "repeat": {
-      "currentTrack": "Repeat current track",
-      "playlist": "Repeat playlist",
-      "off": "Repeat off"
-    },
-    "listRegion": "{name} list",
     "addFiles": "Add files",
     "searchPlaceholder": "Search",
     "actions": {
@@ -242,7 +234,18 @@
       "enable": "Enable shuffle",
       "on": "Shuffle on",
       "off": "Shuffle off"
-    }
+    },
+    "title": "Playlist",
+    "summary": {
+      "filteredTracks": "{visible} of {total} {total, plural, one {song} other {songs}} · {duration}",
+      "tracks": "{count, plural, one {# song} other {# songs}} · {duration}"
+    },
+    "repeat": {
+      "currentTrack": "Repeat current track",
+      "playlist": "Repeat playlist",
+      "off": "Repeat off"
+    },
+    "listRegion": "{name} list"
   },
   "workspace": {
     "nowPlaying": {
@@ -257,6 +260,9 @@
       "right": "Right panel"
     },
     "empty": "Workspace is empty",
+    "videoTheater": {
+      "title": "Video theater"
+    },
     "panelTabs": "{panel} tabs",
     "panelEmpty": "{panel} is empty",
     "resizePanels": "Resize {before} and {after}",
@@ -267,6 +273,7 @@
       "details": "Details",
       "lyrics": "Lyrics",
       "patterns": "Patterns",
+      "video": "Video",
       "label": "Workspace tabs",
       "closeNamed": "Close {tab}",
       "close": "Close"
@@ -276,14 +283,6 @@
     "description": "Offline-first PWA music player with tracker module support."
   },
   "options": {
-    "tools": {
-      "collapseHints": "Collapse field hints",
-      "expandHints": "Expand field hints",
-      "label": "Page tools",
-      "resetPage": "Reset current page to defaults"
-    },
-    "windowTitle": "izci Options",
-    "categories": "Options categories",
     "raf": {
       "autoAmp": {
         "mode": "Auto",
@@ -867,20 +866,14 @@
       }
     },
     "video": {
-      "viewportArea": {
-        "options": {
-          "leftCenter": "Left and center",
-          "centerRight": "Center and right",
-          "all": "All panels",
-          "center": "Center panel"
-        },
-        "title": "Video viewport area",
-        "hint": "Chooses which open workspace panels the video covers."
-      },
       "heading": "Video",
       "autoResizeWindow": {
         "title": "Auto resize window",
         "hint": "Resizes an unsuitable player window to 1280 × 720 when video starts, then restores it when non-video playback begins."
+      },
+      "autoEnterTheater": {
+        "title": "Auto enter theater",
+        "hint": "Opens video playback in theater automatically when a video starts."
       }
     },
     "visualizer": {
@@ -943,21 +936,13 @@
       },
       "heading": "Player Background"
     },
-    "views": {
-      "appearance": "Appearance",
-      "backdrops": "Backdrops",
-      "nowPlaying": "Now Playing",
-      "lyrics": "Lyrics",
-      "playback": "Playback",
-      "video": "Video",
-      "visualizer": "Visualizer",
-      "patterns": "Patterns",
-      "modules": "Modules",
-      "tracks": "Tracks",
-      "folders": "Folders",
-      "metadata": "Metadata",
-      "about": "About",
-      "licenses": "Licenses"
-    }
+    "tools": {
+      "collapseHints": "Collapse field hints",
+      "expandHints": "Expand field hints",
+      "label": "Page tools",
+      "resetPage": "Reset current page to defaults"
+    },
+    "windowTitle": "izci Options",
+    "categories": "Options categories"
   }
 }
