@@ -37,7 +37,7 @@
     type LyricsPresentationState
   } from '$lib/services/lyrics-presentation';
   import { createPlaybackCommandsController } from '$lib/services/playback-commands';
-  import { createDocumentPipController, type DocumentPipState } from '$lib/services/document-pip';
+  import { createMiniPlayerController, type MiniPlayerState } from '$lib/services/mini-player';
   import {
     createPlaybackProgressController,
     type PlaybackProgressState
@@ -153,14 +153,14 @@
   };
   let patternAvailability: ContextualTabAvailability = 'unavailable';
   let playbackProgressState: PlaybackProgressState = { notice: null };
-  let documentPipState: DocumentPipState = {
+  let miniPlayerState: MiniPlayerState = {
     supported: false,
     active: false,
     opening: false
   };
-  const documentPipTrack = writable<PlaylistItem | null>(null);
-  const documentPipSelectedTrack = writable<PlaylistItem | null>(null);
-  const documentPipArtworkUrl = writable<string | null>(null);
+  const miniPlayerTrack = writable<PlaylistItem | null>(null);
+  const miniPlayerSelectedTrack = writable<PlaylistItem | null>(null);
+  const miniPlayerArtworkUrl = writable<string | null>(null);
 
   let fileInput: HTMLInputElement | null = null;
   let innerWidth = typeof window !== 'undefined' ? window.innerWidth : 0;
@@ -239,11 +239,11 @@
     notifyTrackResumed: (track, currentTime) =>
       playbackProgress.showResumeNotice(track, currentTime)
   });
-  const documentPip = createDocumentPipController({
+  const miniPlayer = createMiniPlayerController({
     snapshot: playerController.snapshot,
-    track: documentPipTrack,
-    selectedTrack: documentPipSelectedTrack,
-    artworkUrl: documentPipArtworkUrl,
+    track: miniPlayerTrack,
+    selectedTrack: miniPlayerSelectedTrack,
+    artworkUrl: miniPlayerArtworkUrl,
     handlers: {
       togglePlayback: () => void playbackCommands.togglePlayback(),
       previousTrack: () => void playbackCommands.stepTrack(-1),
@@ -351,7 +351,7 @@
     (value) => (lyricsPresentationState = value)
   );
   const unsubscribeAppInstall = appInstallService.subscribe((value) => (appInstallState = value));
-  const unsubscribeDocumentPip = documentPip.subscribe((value) => (documentPipState = value));
+  const unsubscribeMiniPlayer = miniPlayer.subscribe((value) => (miniPlayerState = value));
 
   function localizePlaybackError(message: string): string {
     if (message === 'Could not access this file. Re-add it or grant file access.') {
@@ -414,7 +414,7 @@
           : workspaceShell.selectAllTracks(collection),
       openFiles: () => handleMenuOpenFiles(),
       openOptions: () => handleOpenOptions(),
-      toggleMiniPlayer: () => documentPip.toggle(),
+      toggleMiniPlayer: () => miniPlayer.toggle(),
       exit: () => windowManager.exit()
     }
   });
@@ -440,9 +440,9 @@
       : selectedPlaylistItem;
   $: livePlayingTrack = resolveTrackSnapshot(playingTrack, selectedItem, playlistItems, libraryItems);
   $: playerDisplayTrack = livePlayingTrack;
-  $: documentPipTrack.set(playerDisplayTrack);
-  $: documentPipSelectedTrack.set(selectedPlaylistItem);
-  $: documentPipArtworkUrl.set(artworkPresentationState.displayedArtwork?.url ?? null);
+  $: miniPlayerTrack.set(playerDisplayTrack);
+  $: miniPlayerSelectedTrack.set(selectedPlaylistItem);
+  $: miniPlayerArtworkUrl.set(artworkPresentationState.displayedArtwork?.url ?? null);
   $: videoTrackActive = playerDisplayTrack?.kind === 'video';
   $: syncVideoWindowSize(videoTrackActive, $videoSettings.autoResizeWindow);
   $: favoriteTargetTrack = playerDisplayTrack?.kind === 'module' && playbackSnapshot.subsong !== undefined
@@ -837,8 +837,8 @@
     unsubscribeArtworkPresentation();
     unsubscribeLyricsPresentation();
     unsubscribeAppInstall();
-    unsubscribeDocumentPip();
-    documentPip.destroy();
+    unsubscribeMiniPlayer();
+    miniPlayer.destroy();
     appInstallService.destroy();
     unsubscribeLaunchedFiles();
     stopLibraryFolderCommands();
@@ -895,8 +895,8 @@
 
   <TopMenuBar
     nowPlayingViewActive={isNowPlayingLayoutActive}
-    documentPipSupported={documentPipState.supported}
-    documentPipActive={documentPipState.active || documentPipState.opening}
+    miniPlayerSupported={miniPlayerState.supported}
+    miniPlayerActive={miniPlayerState.active || miniPlayerState.opening}
     patternsVisible={workspaceShellState.isPatternsPanelVisible}
     installAvailable={appInstallState.available}
     showInstallHint={appInstallState.showHint}
@@ -912,7 +912,7 @@
     on:showTrackDetails={showTrackDetails}
     on:showLyrics={showTrackLyrics}
     on:togglePatterns={togglePatterns}
-    on:toggleMiniPlayer={() => documentPip.toggle()}
+    on:toggleMiniPlayer={() => miniPlayer.toggle()}
     on:toggleNowPlayingView={toggleNowPlayingView}
     on:exit={() => windowManager.exit()}
   />

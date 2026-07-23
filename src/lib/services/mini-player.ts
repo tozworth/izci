@@ -1,32 +1,32 @@
 import { mount, unmount } from 'svelte';
 import { writable, type Readable } from 'svelte/store';
-import DocumentPipPlayer from '$lib/components/document-pip/DocumentPipPlayer.svelte';
+import MiniPlayer from '$lib/components/mini-player/MiniPlayer.svelte';
 import type { PlaybackSnapshot, PlaylistItem } from '$lib/types';
 
-interface DocumentPictureInPictureOptions {
+interface MiniPlayerWindowOptions {
   width?: number;
   height?: number;
 }
 
-interface DocumentPictureInPictureApi {
-  requestWindow(options?: DocumentPictureInPictureOptions): Promise<Window>;
+interface MiniPlayerWindowApi {
+  requestWindow(options?: MiniPlayerWindowOptions): Promise<Window>;
 }
 
-interface WindowWithDocumentPictureInPicture extends Window {
-  documentPictureInPicture?: DocumentPictureInPictureApi;
+interface WindowWithMiniPlayerApi extends Window {
+  documentPictureInPicture?: MiniPlayerWindowApi;
 }
 
 interface MinimizeCapableWindow {
   minimize?: () => Promise<void>;
 }
 
-export interface DocumentPipState {
+export interface MiniPlayerState {
   supported: boolean;
   active: boolean;
   opening: boolean;
 }
 
-interface CreateDocumentPipControllerOptions {
+interface CreateMiniPlayerControllerOptions {
   snapshot: Readable<PlaybackSnapshot>;
   track: Readable<PlaylistItem | null>;
   selectedTrack: Readable<PlaylistItem | null>;
@@ -41,18 +41,18 @@ interface CreateDocumentPipControllerOptions {
   };
 }
 
-const DOCUMENT_PIP_WIDTH = 440;
-const DOCUMENT_PIP_HEIGHT = 138;
+const MINI_PLAYER_WIDTH = 440;
+const MINI_PLAYER_HEIGHT = 138;
 
-export function supportsDocumentPictureInPicture(
-  windowLike: WindowWithDocumentPictureInPicture | undefined = typeof window === 'undefined'
+export function supportsMiniPlayer(
+  windowLike: WindowWithMiniPlayerApi | undefined = typeof window === 'undefined'
     ? undefined
-    : window as WindowWithDocumentPictureInPicture
+    : window as WindowWithMiniPlayerApi
 ): boolean {
   return typeof windowLike?.documentPictureInPicture?.requestWindow === 'function';
 }
 
-export async function minimizeDocumentPipOpener(
+export async function minimizeMiniPlayerOpener(
   windowLike: MinimizeCapableWindow | undefined = typeof window === 'undefined'
     ? undefined
     : window as Window & MinimizeCapableWindow
@@ -103,14 +103,14 @@ function copyDocumentStyles(source: Document, target: Document): Promise<void> {
 function concealDocumentUntilReady(source: Document, target: Document): () => void {
   const bootstrapBackground = source.defaultView?.getComputedStyle(source.body).background;
   const bootstrapStyle = target.createElement('style');
-  bootstrapStyle.dataset.documentPipBootstrap = '';
+  bootstrapStyle.dataset.miniPlayerBootstrap = '';
   bootstrapStyle.textContent = `
     html,
     body {
       width: 100%;
       height: 100%;
       margin: 0;
-      background: var(--document-pip-bootstrap-background, #18191b);
+      background: var(--mini-player-bootstrap-background, #18191b);
       overflow: hidden;
     }
 
@@ -120,14 +120,14 @@ function concealDocumentUntilReady(source: Document, target: Document): () => vo
   `;
 
   if (bootstrapBackground) {
-    target.documentElement.style.setProperty('--document-pip-bootstrap-background', bootstrapBackground);
+    target.documentElement.style.setProperty('--mini-player-bootstrap-background', bootstrapBackground);
   }
 
   target.head.prepend(bootstrapStyle);
 
   return () => {
     bootstrapStyle.remove();
-    target.documentElement.style.removeProperty('--document-pip-bootstrap-background');
+    target.documentElement.style.removeProperty('--mini-player-bootstrap-background');
   };
 }
 
@@ -148,17 +148,17 @@ function syncDocumentRoot(source: Document, target: Document): void {
   }
 }
 
-export function createDocumentPipController({
+export function createMiniPlayerController({
   snapshot,
   track,
   selectedTrack,
   artworkUrl,
   handlers
-}: CreateDocumentPipControllerOptions) {
-  const supported = supportsDocumentPictureInPicture();
-  const store = writable<DocumentPipState>({ supported, active: false, opening: false });
-  let state: DocumentPipState = { supported, active: false, opening: false };
-  let pipWindow: Window | null = null;
+}: CreateMiniPlayerControllerOptions) {
+  const supported = supportsMiniPlayer();
+  const store = writable<MiniPlayerState>({ supported, active: false, opening: false });
+  let state: MiniPlayerState = { supported, active: false, opening: false };
+  let miniPlayerWindow: Window | null = null;
   let mountedView: Record<string, unknown> | null = null;
   let rootObserver: MutationObserver | null = null;
   let destroyed = false;
@@ -167,13 +167,13 @@ export function createDocumentPipController({
     state = value;
   });
 
-  function setState(patch: Partial<DocumentPipState>): void {
+  function setState(patch: Partial<MiniPlayerState>): void {
     store.set({ ...state, ...patch });
   }
 
   function releaseView(): void {
-    const currentWindow = pipWindow;
-    pipWindow = null;
+    const currentWindow = miniPlayerWindow;
+    miniPlayerWindow = null;
     rootObserver?.disconnect();
     rootObserver = null;
 
@@ -194,12 +194,12 @@ export function createDocumentPipController({
       return;
     }
 
-    if (pipWindow && !pipWindow.closed) {
-      pipWindow.focus();
+    if (miniPlayerWindow && !miniPlayerWindow.closed) {
+      miniPlayerWindow.focus();
       return;
     }
 
-    const api = (window as WindowWithDocumentPictureInPicture).documentPictureInPicture;
+    const api = (window as WindowWithMiniPlayerApi).documentPictureInPicture;
 
     if (!api) {
       return;
@@ -209,8 +209,8 @@ export function createDocumentPipController({
 
     try {
       const nextWindow = await api.requestWindow({
-        width: DOCUMENT_PIP_WIDTH,
-        height: DOCUMENT_PIP_HEIGHT
+        width: MINI_PLAYER_WIDTH,
+        height: MINI_PLAYER_HEIGHT
       });
 
       if (destroyed) {
@@ -218,7 +218,7 @@ export function createDocumentPipController({
         return;
       }
 
-      pipWindow = nextWindow;
+      miniPlayerWindow = nextWindow;
       nextWindow.document.title = 'izci';
       syncDocumentRoot(document, nextWindow.document);
       const revealDocument = concealDocumentUntilReady(document, nextWindow.document);
@@ -226,15 +226,15 @@ export function createDocumentPipController({
 
       await copyDocumentStyles(document, nextWindow.document);
 
-      if (destroyed || pipWindow !== nextWindow || nextWindow.closed) {
+      if (destroyed || miniPlayerWindow !== nextWindow || nextWindow.closed) {
         return;
       }
 
       const target = nextWindow.document.createElement('div');
-      target.id = 'document-pip-root';
+      target.id = 'mini-player-root';
       nextWindow.document.body.replaceChildren(target);
 
-      mountedView = mount(DocumentPipPlayer, {
+      mountedView = mount(MiniPlayer, {
         target,
         props: {
           snapshotStore: snapshot,
@@ -252,15 +252,15 @@ export function createDocumentPipController({
 
       await nextWindow.document.fonts.ready;
 
-      if (destroyed || pipWindow !== nextWindow || nextWindow.closed) {
+      if (destroyed || miniPlayerWindow !== nextWindow || nextWindow.closed) {
         return;
       }
 
       revealDocument();
 
       rootObserver = new MutationObserver(() => {
-        if (pipWindow && !pipWindow.closed) {
-          syncDocumentRoot(document, pipWindow.document);
+        if (miniPlayerWindow && !miniPlayerWindow.closed) {
+          syncDocumentRoot(document, miniPlayerWindow.document);
         }
       });
       rootObserver.observe(document.documentElement, {
@@ -269,9 +269,9 @@ export function createDocumentPipController({
       });
 
       setState({ active: true, opening: false });
-      void minimizeDocumentPipOpener();
+      void minimizeMiniPlayerOpener();
     } catch (error) {
-      const failedWindow = pipWindow;
+      const failedWindow = miniPlayerWindow;
       releaseView();
       failedWindow?.close();
 
@@ -284,7 +284,7 @@ export function createDocumentPipController({
   }
 
   function close(): void {
-    const currentWindow = pipWindow;
+    const currentWindow = miniPlayerWindow;
     releaseView();
 
     if (currentWindow && !currentWindow.closed) {
@@ -293,7 +293,7 @@ export function createDocumentPipController({
   }
 
   function toggle(): void {
-    if (state.active || pipWindow) {
+    if (state.active || miniPlayerWindow) {
       close();
       return;
     }

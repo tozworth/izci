@@ -48,7 +48,7 @@
       fillEnd = `calc(${percent}% ${offsetSign} ${Math.abs(thumbCenterOffsetRem).toFixed(4)}rem)`;
     }
 
-    return `--pip-range-progress: ${percent}%; --pip-range-fill-end: ${fillEnd};`;
+    return `--mini-player-range-progress: ${percent}%; --mini-player-range-fill-end: ${fillEnd};`;
   }
 
   function handleSeekWheel(event: WheelEvent): void {
@@ -139,20 +139,20 @@
   }
 
   onMount(() => {
-    const pipWindow = rootElement?.ownerDocument.defaultView;
-    pipWindow?.addEventListener('keydown', handleWindowKeydown);
+    const miniPlayerWindow = rootElement?.ownerDocument.defaultView;
+    miniPlayerWindow?.addEventListener('keydown', handleWindowKeydown);
 
-    return () => pipWindow?.removeEventListener('keydown', handleWindowKeydown);
+    return () => miniPlayerWindow?.removeEventListener('keydown', handleWindowKeydown);
   });
 </script>
 
 <main
   bind:this={rootElement}
-  class="document-pip-player"
-  aria-label={$t('main.documentPip.heading', { default: 'Mini player' })}
+  class="mini-player"
+  aria-label={$t('main.miniPlayer.heading', { default: 'Mini player' })}
 >
-  <div class="pip-track-row">
-    <div class="pip-artwork" aria-hidden="true">
+  <div class="mini-player-track-row">
+    <div class="mini-player-artwork" aria-hidden="true">
       {#if artworkUrl}
         <img src={artworkUrl} alt="" />
       {:else}
@@ -162,20 +162,20 @@
       {/if}
     </div>
 
-    <div class="pip-track-copy">
+    <div class="mini-player-track-copy">
       <strong title={displayTrack ? getTrackDisplayTitle(displayTrack) : undefined}>
         {displayTrack
           ? getTrackDisplayTitle(displayTrack)
-          : $t('main.documentPip.nothingPlaying', { default: 'Nothing playing' })}
+          : $t('main.miniPlayer.nothingPlaying', { default: 'Nothing playing' })}
       </strong>
       <span title={displayTrack ? getTrackDisplaySubtitle(displayTrack) : undefined}>
         {displayTrack
           ? getTrackDisplaySubtitle(displayTrack) || displayTrack.path || displayTrack.name
-          : $t('main.documentPip.ready', { default: 'Ready when you are' })}
+          : $t('main.miniPlayer.ready', { default: 'Ready when you are' })}
       </span>
     </div>
 
-    <div class="pip-transport">
+    <div class="mini-player-transport">
       <button
         type="button"
         aria-label={$t('main.player.previousTrack', { default: 'Previous track' })}
@@ -186,7 +186,7 @@
       </button>
       <button
         type="button"
-        class="pip-primary-button"
+        class="mini-player-primary-button"
         aria-label={snapshot.state === 'playing'
           ? $t('main.player.pausePlayback', { default: 'Pause playback' })
           : $t('main.player.playPlayback', { default: 'Play playback' })}
@@ -208,12 +208,12 @@
     </div>
   </div>
 
-  <div class="pip-control-row">
-    <span class="pip-time">{formatDuration(displayedSeekTime)}</span>
-    <div class="pip-range" style={toRangeProgressStyle(displayedSeekTime, Math.max(snapshot.duration, 1))}>
-      <span class="pip-range-fill" aria-hidden="true"></span>
+  <div class="mini-player-control-row">
+    <span class="mini-player-time">{formatDuration(displayedSeekTime)}</span>
+    <div class="mini-player-range" style={toRangeProgressStyle(displayedSeekTime, Math.max(snapshot.duration, 1))}>
+      <span class="mini-player-range-fill" aria-hidden="true"></span>
       <input
-        aria-label={$t('main.documentPip.seek', { default: 'Seek' })}
+        aria-label={$t('main.miniPlayer.seek', { default: 'Seek' })}
         type="range"
         min="0"
         max={Math.max(snapshot.duration, 1)}
@@ -227,10 +227,10 @@
         on:wheel|preventDefault={handleSeekWheel}
       />
     </div>
-    <span class="pip-time">{formatDuration(track ? snapshot.duration : 0)}</span>
+    <span class="mini-player-time">{formatDuration(track ? snapshot.duration : 0)}</span>
     <button
       type="button"
-      class="pip-volume-button"
+      class="mini-player-volume-button"
       aria-label={snapshot.muted || snapshot.volume <= 0
         ? $t('main.player.unmute', { default: 'Unmute' })
         : $t('main.player.mute', { default: 'Mute' })}
@@ -241,11 +241,11 @@
       <span class="material-symbols-outlined" aria-hidden="true">{getVolumeIcon()}</span>
     </button>
     <div
-      class="pip-range pip-volume-range"
+      class="mini-player-range mini-player-volume-range"
       data-muted={snapshot.muted ? 'true' : 'false'}
       style={toRangeProgressStyle(snapshot.volume, 1)}
     >
-      <span class="pip-range-fill" aria-hidden="true"></span>
+      <span class="mini-player-range-fill" aria-hidden="true"></span>
       <input
         aria-label={$t('main.player.volume', { default: 'Volume' })}
         type="range"
@@ -262,7 +262,7 @@
 </main>
 
 <style>
-  .document-pip-player {
+  .mini-player {
     display: grid;
     min-width: 0;
     height: 100vh;
@@ -276,24 +276,24 @@
     overflow: hidden;
   }
 
-  .document-pip-player,
-  .document-pip-player * {
+  .mini-player,
+  .mini-player * {
     cursor: default;
   }
 
-  .pip-track-row,
-  .pip-control-row,
-  .pip-transport {
+  .mini-player-track-row,
+  .mini-player-control-row,
+  .mini-player-transport {
     display: flex;
     align-items: center;
     min-width: 0;
   }
 
-  .pip-track-row {
+  .mini-player-track-row {
     gap: 0.58rem;
   }
 
-  .pip-artwork {
+  .mini-player-artwork {
     display: grid;
     width: 3.2rem;
     height: 3.2rem;
@@ -306,41 +306,41 @@
     overflow: hidden;
   }
 
-  .pip-artwork img {
+  .mini-player-artwork img {
     width: 100%;
     height: 100%;
     object-fit: cover;
   }
 
-  .pip-artwork .material-symbols-outlined {
+  .mini-player-artwork .material-symbols-outlined {
     font-size: 1.55rem;
   }
 
-  .pip-track-copy {
+  .mini-player-track-copy {
     display: grid;
     min-width: 0;
     flex: 1;
     gap: 0.18rem;
   }
 
-  .pip-track-copy strong,
-  .pip-track-copy span {
+  .mini-player-track-copy strong,
+  .mini-player-track-copy span {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
-  .pip-track-copy strong {
+  .mini-player-track-copy strong {
     color: var(--text-strong);
     font-size: 0.94rem;
   }
 
-  .pip-track-copy span {
+  .mini-player-track-copy span {
     color: var(--muted);
     font-size: 0.78rem;
   }
 
-  .pip-transport {
+  .mini-player-transport {
     flex: 0 0 auto;
     gap: 0.16rem;
   }
@@ -370,7 +370,7 @@
     opacity: 0.44;
   }
 
-  .pip-transport button {
+  .mini-player-transport button {
     width: 2.2rem;
     height: 2.2rem;
     border-radius: 0;
@@ -379,33 +379,33 @@
       filter 120ms ease-out;
   }
 
-  .pip-transport button:hover:not(:disabled) {
+  .mini-player-transport button:hover:not(:disabled) {
     background: transparent;
     filter:
       drop-shadow(0 0 0.38rem color-mix(in srgb, currentColor 68%, transparent))
       drop-shadow(0 0 0.95rem color-mix(in srgb, var(--accent-strong) 46%, transparent));
   }
 
-  .pip-transport button .material-symbols-outlined {
+  .mini-player-transport button .material-symbols-outlined {
     font-size: 1.6rem;
   }
 
-  .pip-transport .pip-primary-button {
+  .mini-player-transport .mini-player-primary-button {
     width: 2.7rem;
     height: 2.7rem;
   }
 
-  .pip-transport .pip-primary-button .material-symbols-outlined {
+  .mini-player-transport .mini-player-primary-button .material-symbols-outlined {
     font-size: 2rem;
   }
 
-  .pip-control-row {
+  .mini-player-control-row {
     display: grid;
     grid-template-columns: 2.9rem minmax(5rem, 1fr) 2.9rem 1.75rem 4.8rem;
     gap: 0.38rem;
   }
 
-  .pip-time {
+  .mini-player-time {
     display: inline-flex;
     height: 0.82rem;
     align-items: center;
@@ -418,9 +418,9 @@
     transform: translateY(-0.02rem);
   }
 
-  .pip-range {
-    --pip-range-progress: 0%;
-    --pip-range-fill-end: 0px;
+  .mini-player-range {
+    --mini-player-range-progress: 0%;
+    --mini-player-range-fill-end: 0px;
     position: relative;
     display: flex;
     height: 0.82rem;
@@ -428,8 +428,8 @@
     min-width: 3.5rem;
   }
 
-  .pip-range::before,
-  .pip-range-fill {
+  .mini-player-range::before,
+  .mini-player-range-fill {
     position: absolute;
     left: 0;
     right: 0;
@@ -441,18 +441,18 @@
     transform: translateY(-50%);
   }
 
-  .pip-range::before {
+  .mini-player-range::before {
     border: 1px solid var(--border-strong);
     background: color-mix(in srgb, var(--bg-soft) 82%, black);
   }
 
-  .pip-range-fill {
+  .mini-player-range-fill {
     right: auto;
-    width: var(--pip-range-fill-end);
+    width: var(--mini-player-range-fill-end);
     background: var(--accent-strong);
   }
 
-  .pip-range input {
+  .mini-player-range input {
     appearance: none;
     position: relative;
     z-index: 1;
@@ -463,13 +463,13 @@
     background: transparent;
   }
 
-  .pip-range input::-webkit-slider-runnable-track {
+  .mini-player-range input::-webkit-slider-runnable-track {
     height: 0.3rem;
     border-radius: 999px;
     background: transparent;
   }
 
-  .pip-range input::-webkit-slider-thumb {
+  .mini-player-range input::-webkit-slider-thumb {
     appearance: none;
     width: 0.78rem;
     height: 0.78rem;
@@ -480,50 +480,50 @@
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.32);
   }
 
-  .pip-range input:disabled {
+  .mini-player-range input:disabled {
     opacity: 0.42;
   }
 
-  .pip-range:has(input:disabled)::before,
-  .pip-range:has(input:disabled) .pip-range-fill {
+  .mini-player-range:has(input:disabled)::before,
+  .mini-player-range:has(input:disabled) .mini-player-range-fill {
     opacity: 0.42;
   }
 
-  .pip-volume-button {
+  .mini-player-volume-button {
     width: 1.75rem;
     height: 1.75rem;
   }
 
-  .pip-volume-button .material-symbols-outlined {
+  .mini-player-volume-button .material-symbols-outlined {
     font-size: 1.2rem;
     font-variation-settings: 'wght' 500;
   }
 
-  .pip-volume-range {
+  .mini-player-volume-range {
     min-width: 0;
   }
 
-  .pip-volume-range[data-muted='true'] .pip-range-fill,
-  .pip-volume-range[data-muted='true'] input::-webkit-slider-thumb {
+  .mini-player-volume-range[data-muted='true'] .mini-player-range-fill,
+  .mini-player-volume-range[data-muted='true'] input::-webkit-slider-thumb {
     background: color-mix(in srgb, var(--muted) 82%, transparent);
   }
 
   @media (max-width: 360px) {
-    .document-pip-player {
+    .mini-player {
       padding: 0.48rem;
     }
 
-    .pip-artwork {
+    .mini-player-artwork {
       width: 2.7rem;
       height: 2.7rem;
       flex-basis: 2.7rem;
     }
 
-    .pip-volume-range {
+    .mini-player-volume-range {
       display: none;
     }
 
-    .pip-control-row {
+    .mini-player-control-row {
       grid-template-columns: 2.9rem minmax(3rem, 1fr) 2.9rem 1.75rem;
     }
   }

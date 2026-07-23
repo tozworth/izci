@@ -68,8 +68,8 @@
   ] satisfies MenuActionItem[];
 
   export let nowPlayingViewActive = false;
-  export let documentPipSupported = false;
-  export let documentPipActive = false;
+  export let miniPlayerSupported = false;
+  export let miniPlayerActive = false;
   export let patternsVisible = false;
   export let installAvailable = false;
   export let showInstallHint = false;
@@ -170,11 +170,11 @@
       label: $t('main.menu.patterns', { default: 'Patterns' }),
       icon: patternsVisible ? 'check' : 'view_timeline'
     },
-    ...(documentPipSupported
+    ...(miniPlayerSupported
       ? [{
           id: 'toggleMiniPlayer',
           label: $t('main.menu.miniPlayer', { default: 'Mini player' }),
-          icon: documentPipActive ? 'check' : 'picture_in_picture_alt',
+          icon: miniPlayerActive ? 'check' : 'picture_in_picture_alt',
           shortcut: 'Ctrl+M',
           separatorBefore: true
         } satisfies MenuActionItem]

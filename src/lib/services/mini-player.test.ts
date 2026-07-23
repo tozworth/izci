@@ -1,24 +1,24 @@
 import { describe, expect, it } from 'vitest';
-import { minimizeDocumentPipOpener, supportsDocumentPictureInPicture } from './document-pip';
+import { minimizeMiniPlayerOpener, supportsMiniPlayer } from './mini-player';
 
-describe('supportsDocumentPictureInPicture', () => {
+describe('supportsMiniPlayer', () => {
   it('detects the requestWindow capability', () => {
-    expect(supportsDocumentPictureInPicture({
+    expect(supportsMiniPlayer({
       documentPictureInPicture: { requestWindow: async () => ({}) as Window }
     } as unknown as Window)).toBe(true);
   });
 
   it('rejects absent and incomplete implementations', () => {
-    expect(supportsDocumentPictureInPicture(undefined)).toBe(false);
-    expect(supportsDocumentPictureInPicture({} as Window)).toBe(false);
+    expect(supportsMiniPlayer(undefined)).toBe(false);
+    expect(supportsMiniPlayer({} as Window)).toBe(false);
   });
 });
 
-describe('minimizeDocumentPipOpener', () => {
+describe('minimizeMiniPlayerOpener', () => {
   it('minimizes a capable opener window', async () => {
     let minimizeCalls = 0;
 
-    await expect(minimizeDocumentPipOpener({
+    await expect(minimizeMiniPlayerOpener({
       minimize: async () => {
         minimizeCalls += 1;
       }
@@ -27,8 +27,8 @@ describe('minimizeDocumentPipOpener', () => {
   });
 
   it('degrades when minimization is unavailable or denied', async () => {
-    await expect(minimizeDocumentPipOpener(undefined)).resolves.toBe(false);
-    await expect(minimizeDocumentPipOpener({
+    await expect(minimizeMiniPlayerOpener(undefined)).resolves.toBe(false);
+    await expect(minimizeMiniPlayerOpener({
       minimize: async () => {
         throw new DOMException('Permission denied.', 'NotAllowedError');
       }

@@ -139,7 +139,7 @@
       "emptyTitle": "İncelemek için parça seçin.",
       "emptyDescription": "Çalma listesi ve kütüphane seçimlerinin metaverileri burada görünür."
     },
-    "documentPip": {
+    "miniPlayer": {
       "heading": "Mini oynatıcı",
       "nothingPlaying": "Yürütülen parça yok",
       "ready": "Hazır",

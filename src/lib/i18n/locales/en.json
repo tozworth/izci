@@ -139,7 +139,7 @@
       "emptyTitle": "Select a track to inspect it.",
       "emptyDescription": "Playlist and library selections both surface their metadata here."
     },
-    "documentPip": {
+    "miniPlayer": {
       "heading": "Mini player",
       "nothingPlaying": "Nothing playing",
       "ready": "Ready when you are",
