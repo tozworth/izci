@@ -266,9 +266,9 @@
     display: grid;
     min-width: 0;
     height: 100vh;
-    min-height: 7rem;
-    padding: 0.62rem;
-    gap: 0.58rem;
+    min-height: 6.25rem;
+    padding: 0.36rem 0.5rem;
+    gap: 0.32rem;
     align-content: center;
     background: var(--body-background);
     color: var(--text);
@@ -510,7 +510,7 @@
 
   @media (max-width: 360px) {
     .mini-player {
-      padding: 0.48rem;
+      padding: 0.3rem 0.42rem;
     }
 
     .mini-player-artwork {

@@ -42,8 +42,8 @@ interface CreateMiniPlayerControllerOptions {
   };
 }
 
-const MINI_PLAYER_WIDTH = 440;
-const MINI_PLAYER_HEIGHT = 138;
+const MINI_PLAYER_WIDTH = 350;
+const MINI_PLAYER_HEIGHT = 100;
 
 export function supportsMiniPlayer(
   windowLike: WindowWithMiniPlayerApi | undefined = typeof window === 'undefined'
