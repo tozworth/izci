@@ -82,6 +82,7 @@
   <div class="video-tab-stage">
     <VideoStage
       element={content.videoTheaterActive ? null : content.videoElement}
+      parkingHost={content.videoParkingHost}
       on:volumeStep
       on:toggleVideoTheater
     />

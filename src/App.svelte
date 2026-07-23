@@ -128,6 +128,7 @@
   let favoriteTargetTrack: PlaylistItem | null = null;
   let lyricsTrack: PlaylistItem | null = null;
   let playingTrack: PlaylistItem | null = null;
+  let videoParkingHost: HTMLDivElement | null = null;
   let shuffleEnabled = false;
   let repeatMode: PlaylistRepeatMode = 'off';
   let playbackStatus: Pick<PlaybackSnapshot, 'state' | 'volume' | 'backend' | 'error'> = {
@@ -955,6 +956,7 @@
     accept={FILE_INPUT_ACCEPT}
     on:change={handleMenuInput}
   />
+  <div bind:this={videoParkingHost} hidden aria-hidden="true"></div>
 
   <TopMenuBar
     inactive={videoTheaterActive && !$windowControlsOverlayState.visible}
@@ -986,6 +988,7 @@
     {playbackSnapshot}
     {isNowPlayingLayoutActive}
     videoElement={playerController.videoElement}
+    {videoParkingHost}
     {videoTheaterActive}
     inactive={videoTheaterActive}
     workspaceState={workspaceShellState}
@@ -1027,6 +1030,7 @@
   {#if videoTheaterActive}
     <VideoTheater
       element={playerController.videoElement}
+      parkingHost={videoParkingHost}
       topInset={videoTheaterTopInset}
       on:controlsHiddenChange={(event) => (videoTheaterControlsHidden = event.detail)}
       on:toggleVideoTheater={toggleVideoTheater}

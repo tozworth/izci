@@ -39,6 +39,7 @@
     lyricsFontSize,
     lyricsResumeAutoScrollToken,
     videoElement,
+    videoParkingHost,
     videoTheaterActive,
     lyricsTheaterDowntimeDots: appearance.lyrics.theaterDowntimeDots,
     lyricsTheaterDowntimeThresholdSeconds: appearance.lyrics.theaterDowntimeThresholdSeconds,
@@ -53,6 +54,7 @@
   export let playbackSnapshot: PlaybackSnapshot;
   export let isNowPlayingLayoutActive: boolean;
   export let videoElement: HTMLVideoElement | null;
+  export let videoParkingHost: HTMLDivElement | null;
   export let videoTheaterActive = false;
   export let inactive = false;
   export let workspaceState: WorkspaceShellState;

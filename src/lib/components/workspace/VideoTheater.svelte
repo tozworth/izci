@@ -4,6 +4,7 @@
   import VideoStage from './VideoStage.svelte';
 
   export let element: HTMLVideoElement | null = null;
+  export let parkingHost: HTMLDivElement | null = null;
   export let topInset = 0;
 
   const CONTROLS_HIDE_DELAY_MS = 2400;
@@ -67,6 +68,7 @@
 >
   <VideoStage
     {element}
+    {parkingHost}
     on:volumeStep={(event) => dispatch('volumeStep', event.detail)}
     on:toggleVideoTheater={() => dispatch('toggleVideoTheater')}
   />

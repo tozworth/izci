@@ -76,6 +76,7 @@ export interface WorkspaceTabContentProps {
   lyricsTheaterSmoothScroll: boolean;
   lyricsResumeAutoScrollToken: number;
   videoElement: HTMLVideoElement | null;
+  videoParkingHost: HTMLDivElement | null;
   videoTheaterActive: boolean;
 }
 

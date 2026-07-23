@@ -2,6 +2,7 @@
   import { createEventDispatcher, onDestroy } from 'svelte';
 
   export let element: HTMLVideoElement | null = null;
+  export let parkingHost: HTMLDivElement | null = null;
 
   const dispatch = createEventDispatcher<{
     volumeStep: number;
@@ -33,7 +34,7 @@
 
   onDestroy(() => {
     if (element?.parentElement === host) {
-      element.remove();
+      parkingHost?.appendChild(element);
     }
   });
 </script>
