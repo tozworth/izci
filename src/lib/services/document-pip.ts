@@ -48,12 +48,20 @@ export function supportsDocumentPictureInPicture(
   return typeof windowLike?.documentPictureInPicture?.requestWindow === 'function';
 }
 
-function copyDocumentStyles(source: Document, target: Document): void {
+function copyDocumentStyles(source: Document, target: Document): Promise<void> {
+  const pendingStyles: Promise<void>[] = [];
+
   for (const styleSheet of Array.from(source.styleSheets)) {
     if (styleSheet.href) {
       const link = target.createElement('link');
       link.rel = 'stylesheet';
       link.href = styleSheet.href;
+
+      pendingStyles.push(new Promise((resolve) => {
+        link.addEventListener('load', () => resolve(), { once: true });
+        link.addEventListener('error', () => resolve(), { once: true });
+      }));
+
       target.head.append(link);
       continue;
     }
@@ -66,6 +74,39 @@ function copyDocumentStyles(source: Document, target: Document): void {
       // Cross-origin stylesheets cannot expose cssRules. Linked sheets are handled above.
     }
   }
+
+  return Promise.all(pendingStyles).then(() => undefined);
+}
+
+function concealDocumentUntilReady(source: Document, target: Document): () => void {
+  const bootstrapBackground = source.defaultView?.getComputedStyle(source.body).background;
+  const bootstrapStyle = target.createElement('style');
+  bootstrapStyle.dataset.documentPipBootstrap = '';
+  bootstrapStyle.textContent = `
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      background: var(--document-pip-bootstrap-background, #18191b);
+      overflow: hidden;
+    }
+
+    body {
+      visibility: hidden !important;
+    }
+  `;
+
+  if (bootstrapBackground) {
+    target.documentElement.style.setProperty('--document-pip-bootstrap-background', bootstrapBackground);
+  }
+
+  target.head.prepend(bootstrapStyle);
+
+  return () => {
+    bootstrapStyle.remove();
+    target.documentElement.style.removeProperty('--document-pip-bootstrap-background');
+  };
 }
 
 function syncDocumentRoot(source: Document, target: Document): void {
@@ -157,8 +198,15 @@ export function createDocumentPipController({
 
       pipWindow = nextWindow;
       nextWindow.document.title = 'izci';
-      copyDocumentStyles(document, nextWindow.document);
       syncDocumentRoot(document, nextWindow.document);
+      const revealDocument = concealDocumentUntilReady(document, nextWindow.document);
+      nextWindow.addEventListener('pagehide', releaseView, { once: true });
+
+      await copyDocumentStyles(document, nextWindow.document);
+
+      if (destroyed || pipWindow !== nextWindow || nextWindow.closed) {
+        return;
+      }
 
       const target = nextWindow.document.createElement('div');
       target.id = 'document-pip-root';
@@ -180,6 +228,14 @@ export function createDocumentPipController({
         }
       }) as Record<string, unknown>;
 
+      await nextWindow.document.fonts.ready;
+
+      if (destroyed || pipWindow !== nextWindow || nextWindow.closed) {
+        return;
+      }
+
+      revealDocument();
+
       rootObserver = new MutationObserver(() => {
         if (pipWindow && !pipWindow.closed) {
           syncDocumentRoot(document, pipWindow.document);
@@ -190,7 +246,6 @@ export function createDocumentPipController({
         attributeFilter: ['class', 'style', 'data-theme', 'lang', 'dir']
       });
 
-      nextWindow.addEventListener('pagehide', releaseView, { once: true });
       setState({ active: true, opening: false });
     } catch (error) {
       const failedWindow = pipWindow;
