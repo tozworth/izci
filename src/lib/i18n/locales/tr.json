@@ -936,6 +936,22 @@
       },
       "heading": "Oynatıcı Artalanı"
     },
+    "views": {
+      "appearance": "Görünüm",
+      "backdrops": "Artalanlar",
+      "nowPlaying": "Şimdi Yürütülüyor",
+      "lyrics": "Sözler",
+      "playback": "Oynatım",
+      "video": "Video",
+      "visualizer": "Görselleştirme",
+      "patterns": "Örüntüler",
+      "modules": "Modüller",
+      "tracks": "Parçalar",
+      "folders": "Klasörler",
+      "metadata": "Metaveri",
+      "about": "Hakkında",
+      "licenses": "Lisanslar"
+    },
     "tools": {
       "collapseHints": "Alan ipuçlarını daralt",
       "expandHints": "Alan ipuçlarını genişlet",

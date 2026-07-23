@@ -49,23 +49,23 @@
   }
   let fieldHintsExpanded = false;
 
-  function viewLabel(view: OptionsViewName, translate: typeof $t): string {
+  function viewLabel(view: OptionsViewName, _translate: typeof $t): string {
     switch (view) {
-      case 'appearance': return translate('options.views.appearance', { default: 'Appearance' });
-      case 'backdrops': return translate('options.views.backdrops', { default: 'Backdrops' });
-      case 'now-playing': return translate('options.views.nowPlaying', { default: 'Now Playing' });
-      case 'lyrics': return translate('options.views.lyrics', { default: 'Lyrics' });
-      case 'playback': return translate('options.views.playback', { default: 'Playback' });
-      case 'video': return translate('options.views.video', { default: 'Video' });
+      case 'appearance': return $t('options.views.appearance', { default: 'Appearance' });
+      case 'backdrops': return $t('options.views.backdrops', { default: 'Backdrops' });
+      case 'now-playing': return $t('options.views.nowPlaying', { default: 'Now Playing' });
+      case 'lyrics': return $t('options.views.lyrics', { default: 'Lyrics' });
+      case 'playback': return $t('options.views.playback', { default: 'Playback' });
+      case 'video': return $t('options.views.video', { default: 'Video' });
       case 'raf': return 'Raf';
-      case 'visualizer': return translate('options.views.visualizer', { default: 'Visualizer' });
-      case 'patterns': return translate('options.views.patterns', { default: 'Patterns' });
-      case 'modules': return translate('options.views.modules', { default: 'Modules' });
-      case 'tracks': return translate('options.views.tracks', { default: 'Tracks' });
-      case 'folders': return translate('options.views.folders', { default: 'Folders' });
-      case 'metadata': return translate('options.views.metadata', { default: 'Metadata' });
-      case 'about': return translate('options.views.about', { default: 'About' });
-      case 'licenses': return translate('options.views.licenses', { default: 'Licenses' });
+      case 'visualizer': return $t('options.views.visualizer', { default: 'Visualizer' });
+      case 'patterns': return $t('options.views.patterns', { default: 'Patterns' });
+      case 'modules': return $t('options.views.modules', { default: 'Modules' });
+      case 'tracks': return $t('options.views.tracks', { default: 'Tracks' });
+      case 'folders': return $t('options.views.folders', { default: 'Folders' });
+      case 'metadata': return $t('options.views.metadata', { default: 'Metadata' });
+      case 'about': return $t('options.views.about', { default: 'About' });
+      case 'licenses': return $t('options.views.licenses', { default: 'Licenses' });
     }
   }
 

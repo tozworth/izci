@@ -936,6 +936,22 @@
       },
       "heading": "Player Background"
     },
+    "views": {
+      "appearance": "Appearance",
+      "backdrops": "Backdrops",
+      "nowPlaying": "Now Playing",
+      "lyrics": "Lyrics",
+      "playback": "Playback",
+      "video": "Video",
+      "visualizer": "Visualizer",
+      "patterns": "Patterns",
+      "modules": "Modules",
+      "tracks": "Tracks",
+      "folders": "Folders",
+      "metadata": "Metadata",
+      "about": "About",
+      "licenses": "Licenses"
+    },
     "tools": {
       "collapseHints": "Collapse field hints",
       "expandHints": "Expand field hints",
