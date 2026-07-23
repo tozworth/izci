@@ -38,9 +38,8 @@
       "trackDetails": "Parça Detayları",
       "lyrics": "Sözler",
       "patterns": "Örüntüler",
-      "miniMode": "Mini mod",
+      "miniPlayer": "Mini oynatıcı",
       "nowPlaying": "Şimdi Yürütülüyor",
-      "pictureInPicturePlayer": "Pencere içinde pencere oynatıcı",
       "options": "Ayarlar...",
       "file": "Dosya",
       "view": "Görünüm",
@@ -141,42 +140,15 @@
       "emptyDescription": "Çalma listesi ve kütüphane seçimlerinin metaverileri burada görünür."
     },
     "documentPip": {
-      "heading": "Pencere içinde pencere oynatıcı",
+      "heading": "Mini oynatıcı",
       "nothingPlaying": "Yürütülen parça yok",
       "ready": "Hazır",
       "seek": "Konum"
     }
   },
   "playlist": {
+    "title": "Liste",
     "library": {
-      "columns": {
-        "sortBy": "{column} sütununa göre sırala",
-        "resize": "{column} sütununu boyutlandır",
-        "title": "Başlık",
-        "artist": "Sanatçı",
-        "album": "Albüm",
-        "folder": "Klasör",
-        "format": "Tür",
-        "duration": "Süre",
-        "plays": "Yürütme sayısı"
-      },
-      "groupSongCount": "{count, plural, one {# parça} other {# parça}}",
-      "views": {
-        "favorites": "Favoriler",
-        "songs": "Parçalar",
-        "artists": "Sanatçılar",
-        "albums": "Albümler",
-        "genres": "Tarzlar",
-        "years": "Yıllar",
-        "formats": "Türler",
-        "folders": "Klasörler",
-        "label": "Kütüphane görünümleri"
-      },
-      "search": "Kütüphaneyi ara",
-      "closeSearch": "Kütüphane aramayı kapat",
-      "backToGroups": "Gruplara geri dön",
-      "back": "Geri",
-      "filter": "Kütüphaneyi filtrele",
       "title": "Kütüphane",
       "unknownArtist": "Bilinmeyen sanatçı",
       "unknownAlbum": "Bilinmeyen albüm",
@@ -187,6 +159,17 @@
       "trackerModule": "İzci modülü",
       "stream": "Akış",
       "video": "Video",
+      "columns": {
+        "title": "Başlık",
+        "artist": "Sanatçı",
+        "album": "Albüm",
+        "folder": "Klasör",
+        "format": "Tür",
+        "duration": "Süre",
+        "plays": "Yürütme sayısı",
+        "sortBy": "{column} sütununa göre sırala",
+        "resize": "{column} sütununu boyutlandır"
+      },
       "summary": {
         "filteredArtists": "{visible} sanatçıdan {total} {total, plural, one {} other {}}",
         "filteredAlbums": "{visible} albümden {total} {total, plural, one {} other {}}",
@@ -204,8 +187,35 @@
       },
       "noResults": "\"{query}\" ile eşleşen kütüphane ögesi yok.",
       "favoritesEmpty": "Favorilenen parça ve altparçalar burada görünür.",
-      "empty": "Kütüphaneniz boş. Dosya veya klasör sürükleyin."
+      "empty": "Kütüphaneniz boş. Dosya veya klasör sürükleyin.",
+      "groupSongCount": "{count, plural, one {# parça} other {# parça}}",
+      "views": {
+        "favorites": "Favoriler",
+        "songs": "Parçalar",
+        "artists": "Sanatçılar",
+        "albums": "Albümler",
+        "genres": "Tarzlar",
+        "years": "Yıllar",
+        "formats": "Türler",
+        "folders": "Klasörler",
+        "label": "Kütüphane görünümleri"
+      },
+      "search": "Kütüphaneyi ara",
+      "closeSearch": "Kütüphane aramayı kapat",
+      "backToGroups": "Gruplara geri dön",
+      "back": "Geri",
+      "filter": "Kütüphaneyi filtrele"
     },
+    "summary": {
+      "filteredTracks": "{total} parçadan {visible} {total, plural, one {görünür} other {görünür}} · {duration}",
+      "tracks": "{count, plural, one {# parça} other {# parça}} · {duration}"
+    },
+    "repeat": {
+      "currentTrack": "Mevcut parçayı tekrarla",
+      "playlist": "Listeyi tekrarla",
+      "off": "Tekrar kapalı"
+    },
+    "listRegion": "{name} listesi",
     "addFiles": "Dosya ekle",
     "searchPlaceholder": "Ara",
     "actions": {
@@ -232,18 +242,7 @@
       "enable": "Karıştırmayı aç",
       "on": "Karıştır açık",
       "off": "Karıştır kapalı"
-    },
-    "title": "Liste",
-    "summary": {
-      "filteredTracks": "{total} parçadan {visible} {total, plural, one {görünür} other {görünür}} · {duration}",
-      "tracks": "{count, plural, one {# parça} other {# parça}} · {duration}"
-    },
-    "repeat": {
-      "currentTrack": "Mevcut parçayı tekrarla",
-      "playlist": "Listeyi tekrarla",
-      "off": "Tekrar kapalı"
-    },
-    "listRegion": "{name} listesi"
+    }
   },
   "workspace": {
     "nowPlaying": {
@@ -277,6 +276,14 @@
     "description": "İzci modülü destekli, çevrimdışı PWA müzik çalar."
   },
   "options": {
+    "tools": {
+      "collapseHints": "Alan ipuçlarını daralt",
+      "expandHints": "Alan ipuçlarını genişlet",
+      "label": "Sayfa araçları",
+      "resetPage": "Geçerli sayfayı varsayılanlara sıfırla"
+    },
+    "windowTitle": "izci Ayarları",
+    "categories": "Ayar kategorileri",
     "raf": {
       "autoAmp": {
         "mode": "Otomatik",
@@ -436,7 +443,7 @@
         "formats": "Bildiğimiz müzik dosyalarının yanı sıra izci modüllerini de çalar",
         "formatsNote": "Evet, izci modüllerini çalar!!!",
         "library": "Albüm resimli, şarkı sözlü, oynatma sayılı \"eh işte\" bir kütüphane",
-        "workspace": "Kenetlenebilir sekmeli alan, kocaman bir Şimdi Yürütülüyor görünümü, ve \"mini mod\"",
+        "workspace": "Kenetlenebilir sekmeli alan, kocaman bir Şimdi Yürütülüyor görünümü ve mini oynatıcı",
         "pwa": "PWA güzellikleri: dosya ilişkilendirmeleri, medya kontrol tuşları, özel pencere kenarı",
         "pwaNote": "Tarayıcın bunlara saygı duyarsa tabii (bende çalışıyo)",
         "backdrops": "Bölge başına albüm resmi ve görselleştirici artalanları",
@@ -951,14 +958,6 @@
       "metadata": "Metaveri",
       "about": "Hakkında",
       "licenses": "Lisanslar"
-    },
-    "tools": {
-      "collapseHints": "Alan ipuçlarını daralt",
-      "expandHints": "Alan ipuçlarını genişlet",
-      "label": "Sayfa araçları",
-      "resetPage": "Geçerli sayfayı varsayılanlara sıfırla"
-    },
-    "windowTitle": "izci Ayarları",
-    "categories": "Ayar kategorileri"
+    }
   }
 }

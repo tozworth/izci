@@ -25,9 +25,8 @@
     | 'showTrackDetails'
     | 'showLyrics'
     | 'togglePatterns'
-    | 'toggleMiniMode'
+    | 'toggleMiniPlayer'
     | 'toggleNowPlayingView'
-    | 'toggleDocumentPip'
     | 'exit';
 
   const MENU_ITEMS_ONLY_PADDING = 28;
@@ -68,7 +67,6 @@
     }
   ] satisfies MenuActionItem[];
 
-  export let miniModeActive = false;
   export let nowPlayingViewActive = false;
   export let documentPipSupported = false;
   export let documentPipActive = false;
@@ -90,9 +88,8 @@
     showTrackDetails: void;
     showLyrics: void;
     togglePatterns: void;
-    toggleMiniMode: void;
+    toggleMiniPlayer: void;
     toggleNowPlayingView: void;
-    toggleDocumentPip: void;
     exit: void;
   }>();
 
@@ -173,25 +170,20 @@
       label: $t('main.menu.patterns', { default: 'Patterns' }),
       icon: patternsVisible ? 'check' : 'view_timeline'
     },
-    {
-      id: 'toggleMiniMode',
-      label: $t('main.menu.miniMode', { default: 'Mini mode' }),
-      icon: miniModeActive ? 'check' : 'picture_in_picture_alt',
-      shortcut: 'Ctrl+M',
-      separatorBefore: true
-    },
+    ...(documentPipSupported
+      ? [{
+          id: 'toggleMiniPlayer',
+          label: $t('main.menu.miniPlayer', { default: 'Mini player' }),
+          icon: documentPipActive ? 'check' : 'picture_in_picture_alt',
+          shortcut: 'Ctrl+M',
+          separatorBefore: true
+        } satisfies MenuActionItem]
+      : []),
     {
       id: 'toggleNowPlayingView',
       label: $t('main.menu.nowPlaying', { default: 'Now Playing' }),
       icon: nowPlayingViewActive ? 'check' : 'album'
     },
-    ...(documentPipSupported
-      ? [{
-          id: 'toggleDocumentPip',
-          label: $t('main.menu.pictureInPicturePlayer', { default: 'Picture-in-picture player' }),
-          icon: documentPipActive ? 'check' : 'picture_in_picture_alt'
-        } satisfies MenuActionItem]
-      : []),
     {
       id: 'openOptions',
       label: $t('main.menu.options', { default: 'Options...' }),

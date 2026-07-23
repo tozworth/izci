@@ -36,7 +36,7 @@ interface AppShortcutHandlers {
   selectAllTracks: (collection: WorkspaceCollection) => void;
   openFiles: () => void | Promise<void>;
   openOptions: () => void;
-  toggleMiniMode: () => void;
+  toggleMiniPlayer: () => void;
   exit: () => void;
 }
 
@@ -252,7 +252,7 @@ export function createAppShortcuts({ getState, handlers }: CreateAppShortcutsOpt
         break;
       case 'm':
         event.preventDefault();
-        handlers.toggleMiniMode();
+        handlers.toggleMiniPlayer();
         break;
       case 'q':
         event.preventDefault();

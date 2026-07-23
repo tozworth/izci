@@ -55,10 +55,6 @@
     bottom: 0.5rem;
   }
 
-  :global(.app-shell.mini-mode) .resume-banner {
-    bottom: 0.25rem;
-  }
-
   :global(.player-bar:not(.now-playing-player) > .player-range > .range-control) {
     anchor-name: --player-seek;
   }

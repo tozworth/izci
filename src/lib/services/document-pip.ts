@@ -256,7 +256,7 @@ export function createDocumentPipController({
         return;
       }
 
-      console.warn('Could not open the picture-in-picture player.', error);
+      console.warn('Could not open the mini player.', error);
     }
   }
 

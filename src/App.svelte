@@ -50,7 +50,6 @@
   import { playerController } from '$lib/services/player-controller';
   import { createWorkspaceCollectionsController } from '$lib/services/workspace-collections';
   import { windowManager } from '$lib/services/window-manager';
-  import { windowMiniMode } from '$lib/services/window-mini-mode';
   import {
     ensureComfortableNowPlayingWindowSize,
     NOW_PLAYING_MIN_VIEWPORT_HEIGHT,
@@ -273,7 +272,6 @@
       playbackCommandsState.pendingPlaybackTrackId === trackId || playingTrack?.id === trackId
   });
   let artworkPresentationState = artworkPresentation.getSnapshot();
-  let miniModeActive = windowMiniMode.getSnapshot().active;
   let backdropPresentation: AppBackdropPresentation;
   let appInstallState: AppInstallState = { available: false, showHint: false };
   const unsubscribePlaylistItems = playlistItemsStore.subscribe((value) => (playlistItems = value));
@@ -352,9 +350,6 @@
   const unsubscribeLyricsPresentation = lyricsPresentation.subscribe(
     (value) => (lyricsPresentationState = value)
   );
-  const unsubscribeWindowMiniMode = windowMiniMode.subscribe(
-    (value) => (miniModeActive = value.active)
-  );
   const unsubscribeAppInstall = appInstallService.subscribe((value) => (appInstallState = value));
   const unsubscribeDocumentPip = documentPip.subscribe((value) => (documentPipState = value));
 
@@ -419,7 +414,7 @@
           : workspaceShell.selectAllTracks(collection),
       openFiles: () => handleMenuOpenFiles(),
       openOptions: () => handleOpenOptions(),
-      toggleMiniMode: () => windowMiniMode.toggle(),
+      toggleMiniPlayer: () => documentPip.toggle(),
       exit: () => windowManager.exit()
     }
   });
@@ -472,7 +467,6 @@
   $: isNowPlayingLayoutActive =
     (nowPlayingViewActive || (isAutomaticNowPlayingEligible && !autoNowPlayingSuppressed)) &&
     isNowPlayingViewportEligible &&
-    !miniModeActive &&
     playerDisplayTrack?.kind !== 'video';
   $: isFullscreenNowPlayingChromeHidden =
     isNowPlayingLayoutActive && $windowDisplayState.fullscreen && isNowPlayingChromeHidden;
@@ -504,7 +498,6 @@
   $: lyricsFontSize = $appearanceSettings.lyrics.fontSizes[effectiveLyricsDisplayStyle];
   $: backdropPresentation = resolveAppBackdropPresentation({
     isNowPlayingLayoutActive,
-    miniModeActive,
     workspaceState: workspaceShellState,
     backdropZones: $appearanceSettings.backdropZones,
     backdropZoneArtwork: $appearanceSettings.backdropZoneArtwork,
@@ -730,14 +723,7 @@
       return;
     }
 
-    if (miniModeActive) {
-      windowMiniMode.exit();
-      window.requestAnimationFrame(() => {
-        ensureComfortableNowPlayingWindowSize();
-      });
-    } else {
-      ensureComfortableNowPlayingWindowSize();
-    }
+    ensureComfortableNowPlayingWindowSize();
 
     autoNowPlayingSuppressed = false;
     appearanceSettings.update({
@@ -810,10 +796,6 @@
       return;
     }
 
-    if (miniModeActive) {
-      windowMiniMode.exit();
-    }
-
     enableNowPlayingView();
     await windowFullscreen.enter();
   }
@@ -854,7 +836,6 @@
     unsubscribePlaybackProgress();
     unsubscribeArtworkPresentation();
     unsubscribeLyricsPresentation();
-    unsubscribeWindowMiniMode();
     unsubscribeAppInstall();
     unsubscribeDocumentPip();
     documentPip.destroy();
@@ -883,7 +864,6 @@
 <div
   class="app-shell"
   class:compact-workspace={workspaceShellState.isCompactWorkspace}
-  class:mini-mode={miniModeActive}
   class:now-playing-mode={isNowPlayingLayoutActive}
   class:now-playing-theater-chrome-hidden={isFullscreenNowPlayingChromeHidden}
   class:window-chrome-transition-bypass={artworkPresentationState.isWindowChromeTransitionBypassed}
@@ -914,7 +894,6 @@
   />
 
   <TopMenuBar
-    {miniModeActive}
     nowPlayingViewActive={isNowPlayingLayoutActive}
     documentPipSupported={documentPipState.supported}
     documentPipActive={documentPipState.active || documentPipState.opening}
@@ -933,56 +912,53 @@
     on:showTrackDetails={showTrackDetails}
     on:showLyrics={showTrackLyrics}
     on:togglePatterns={togglePatterns}
-    on:toggleMiniMode={() => windowMiniMode.toggle()}
+    on:toggleMiniPlayer={() => documentPip.toggle()}
     on:toggleNowPlayingView={toggleNowPlayingView}
-    on:toggleDocumentPip={() => documentPip.toggle()}
     on:exit={() => windowManager.exit()}
   />
 
-  {#if !miniModeActive}
-    <AppWorkspace
-      snapshotStore={playerController.snapshot}
-      {playbackSnapshot}
-      {isNowPlayingLayoutActive}
-      videoElement={playerController.videoElement}
-      videoActive={videoTrackActive}
-      videoViewportArea={$videoSettings.viewportArea}
-      workspaceState={workspaceShellState}
-      {playlistPanelHandlers}
-      {libraryPanelHandlers}
-      {selectedPlaylistItem}
-      {playerDisplayTrack}
-      {lyricsTrack}
-      {modulePatternSnapshot}
-      artworkState={artworkPresentationState}
-      appearance={$appearanceSettings}
-      artworkBackgroundBrightByZone={backdropPresentation.artworkBackgroundBrightByZone}
-      workspaceZoneArtworkBright={backdropPresentation.workspaceZoneArtworkBright}
-      workspaceZoneEffects={backdropPresentation.workspaceZoneEffects}
-      workspaceZoneArtworkSettings={backdropPresentation.workspaceZoneArtworkSettings}
-      {effectiveLyricsDisplayStyle}
-      {lyricsAutoScroll}
-      {lyricsFontSize}
-      {lyricsResumeAutoScrollToken}
-      onCloseNowPlaying={closeNowPlayingView}
-      onChromeHiddenChange={(hidden) => (isNowPlayingChromeHidden = hidden)}
-      onTabChange={handleNowPlayingTabChange}
-      onTabClose={(tab) => workspaceShell.closeWorkspaceTab(tab)}
-      onTabbedTabMove={(detail) => workspaceShell.moveTabbedWorkspaceTab(detail)}
-      onWideTabMove={(detail) => workspaceShell.moveWorkspaceTab(detail)}
-      onResizeStart={(detail) => workspaceShell.handleWideWorkspaceResizeStart(detail)}
-      onTogglePlayback={() => void playbackCommands.togglePlayback()}
-      onPreviousTrack={() => void playbackCommands.stepTrack(-1)}
-      onNextTrack={() => void playbackCommands.stepTrack(1)}
-      onPreviousSubsong={() => playerController.stepSubsong(-1)}
-      onNextSubsong={() => playerController.stepSubsong(1)}
-      onSeek={seekPlayback}
-      onVolume={(volume) => playerController.setVolume(volume)}
-      onMute={() => playerController.toggleMute()}
-      onShowTrack={handleShowPlayerTrackDetails}
-    />
-  {/if}
-  {#if playbackStatus.error && !miniModeActive}
+  <AppWorkspace
+    snapshotStore={playerController.snapshot}
+    {playbackSnapshot}
+    {isNowPlayingLayoutActive}
+    videoElement={playerController.videoElement}
+    videoActive={videoTrackActive}
+    videoViewportArea={$videoSettings.viewportArea}
+    workspaceState={workspaceShellState}
+    {playlistPanelHandlers}
+    {libraryPanelHandlers}
+    {selectedPlaylistItem}
+    {playerDisplayTrack}
+    {lyricsTrack}
+    {modulePatternSnapshot}
+    artworkState={artworkPresentationState}
+    appearance={$appearanceSettings}
+    artworkBackgroundBrightByZone={backdropPresentation.artworkBackgroundBrightByZone}
+    workspaceZoneArtworkBright={backdropPresentation.workspaceZoneArtworkBright}
+    workspaceZoneEffects={backdropPresentation.workspaceZoneEffects}
+    workspaceZoneArtworkSettings={backdropPresentation.workspaceZoneArtworkSettings}
+    {effectiveLyricsDisplayStyle}
+    {lyricsAutoScroll}
+    {lyricsFontSize}
+    {lyricsResumeAutoScrollToken}
+    onCloseNowPlaying={closeNowPlayingView}
+    onChromeHiddenChange={(hidden) => (isNowPlayingChromeHidden = hidden)}
+    onTabChange={handleNowPlayingTabChange}
+    onTabClose={(tab) => workspaceShell.closeWorkspaceTab(tab)}
+    onTabbedTabMove={(detail) => workspaceShell.moveTabbedWorkspaceTab(detail)}
+    onWideTabMove={(detail) => workspaceShell.moveWorkspaceTab(detail)}
+    onResizeStart={(detail) => workspaceShell.handleWideWorkspaceResizeStart(detail)}
+    onTogglePlayback={() => void playbackCommands.togglePlayback()}
+    onPreviousTrack={() => void playbackCommands.stepTrack(-1)}
+    onNextTrack={() => void playbackCommands.stepTrack(1)}
+    onPreviousSubsong={() => playerController.stepSubsong(-1)}
+    onNextSubsong={() => playerController.stepSubsong(1)}
+    onSeek={seekPlayback}
+    onVolume={(volume) => playerController.setVolume(volume)}
+    onMute={() => playerController.toggleMute()}
+    onShowTrack={handleShowPlayerTrackDetails}
+  />
+  {#if playbackStatus.error}
     <aside class="error-banner">{localizePlaybackError(playbackStatus.error)}</aside>
   {/if}
 

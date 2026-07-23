@@ -15,7 +15,6 @@ import type {
 
 interface AppBackdropPresentationInput {
   isNowPlayingLayoutActive: boolean;
-  miniModeActive: boolean;
   workspaceState: WorkspaceShellState;
   backdropZones: BackdropZoneSettings;
   backdropZoneArtwork: BackdropZoneArtworkSettingsMap;
@@ -52,7 +51,6 @@ function resolveZoneArtworkBackgroundBright(
 
 export function resolveAppBackdropPresentation({
   isNowPlayingLayoutActive,
-  miniModeActive,
   workspaceState,
   backdropZones,
   backdropZoneArtwork,
@@ -64,9 +62,7 @@ export function resolveAppBackdropPresentation({
 }: AppBackdropPresentationInput): AppBackdropPresentation {
   const activeZoneIds: BackdropZoneId[] = isNowPlayingLayoutActive
     ? ['nowPlaying']
-    : miniModeActive
-      ? ['player']
-      : ['left', 'center', 'right', 'player'];
+    : ['left', 'center', 'right', 'player'];
   const activeEffects = activeZoneIds.map((zoneId) => backdropZones[zoneId]);
   const isArtworkBackdropRequested = activeEffects.some(hasArtworkBackdrop);
   const isVisualizerBackdropRequested = activeEffects.some(hasVisualizerBackdrop);
@@ -122,11 +118,9 @@ export function resolveAppBackdropPresentation({
   const geometryKey = [
     isNowPlayingLayoutActive
       ? 'now-playing'
-      : miniModeActive
-        ? 'mini'
-        : workspaceState.isCompactWorkspace
-          ? 'compact'
-          : 'wide',
+      : workspaceState.isCompactWorkspace
+        ? 'compact'
+        : 'wide',
     workspaceState.activeWorkspaceTab,
     workspaceState.visibleWorkspacePanels.join(','),
     workspaceState.workspaceTabs.map((tab) => tab.id).join(','),

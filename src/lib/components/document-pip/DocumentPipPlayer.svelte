@@ -74,7 +74,7 @@
   }
 </script>
 
-<main class="document-pip-player" aria-label={$t('main.documentPip.heading', { default: 'Picture-in-picture player' })}>
+<main class="document-pip-player" aria-label={$t('main.documentPip.heading', { default: 'Mini player' })}>
   <div class="pip-track-row">
     <div class="pip-artwork" aria-hidden="true">
       {#if artworkUrl}

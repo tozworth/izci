@@ -122,7 +122,7 @@
         <span>{$t('options.about.features.formats', { default: 'Plays usual streamed formats and tracker modules' })}<small class="feature-note">{$t('options.about.features.formatsNote', { default: 'It plays tracker modules!!!' })}</small></span>
       </li>
       <li><span class="material-symbols-outlined feature-icon" aria-hidden="true">auto_stories</span><span>{$t('options.about.features.library', { default: 'A decent library with artwork, lyrics, and play counts' })}</span></li>
-      <li><span class="material-symbols-outlined feature-icon" aria-hidden="true">tab_group</span><span>{$t('options.about.features.workspace', { default: 'Dockable tabbed workspace, a big moody Now Playing view, and a mini mode' })}</span></li>
+      <li><span class="material-symbols-outlined feature-icon" aria-hidden="true">tab_group</span><span>{$t('options.about.features.workspace', { default: 'Dockable tabbed workspace, a big moody Now Playing view, and a mini player' })}</span></li>
       <li>
         <span class="material-symbols-outlined feature-icon" aria-hidden="true">desktop_windows</span>
         <span>{$t('options.about.features.pwa', { default: 'PWA niceties: file associations, media keys, custom window border' })}<small class="feature-note">{$t('options.about.features.pwaNote', { default: 'Only if your browser respects them (works on my machine)' })}</small></span>

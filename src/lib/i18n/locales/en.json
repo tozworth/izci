@@ -38,9 +38,8 @@
       "trackDetails": "Track Details",
       "lyrics": "Lyrics",
       "patterns": "Patterns",
-      "miniMode": "Mini mode",
+      "miniPlayer": "Mini player",
       "nowPlaying": "Now Playing",
-      "pictureInPicturePlayer": "Picture-in-picture player",
       "options": "Options...",
       "file": "File",
       "view": "View",
@@ -141,42 +140,15 @@
       "emptyDescription": "Playlist and library selections both surface their metadata here."
     },
     "documentPip": {
-      "heading": "Picture-in-picture player",
+      "heading": "Mini player",
       "nothingPlaying": "Nothing playing",
       "ready": "Ready when you are",
       "seek": "Seek"
     }
   },
   "playlist": {
+    "title": "Playlist",
     "library": {
-      "columns": {
-        "sortBy": "Sort by {column}",
-        "resize": "Resize {column} column",
-        "title": "Title",
-        "artist": "Artist",
-        "album": "Album",
-        "folder": "Folder",
-        "format": "Format",
-        "duration": "Duration",
-        "plays": "Plays"
-      },
-      "groupSongCount": "{count, plural, one {# song} other {# songs}}",
-      "views": {
-        "favorites": "Favorites",
-        "songs": "Songs",
-        "artists": "Artists",
-        "albums": "Albums",
-        "genres": "Genres",
-        "years": "Years",
-        "formats": "Formats",
-        "folders": "Folders",
-        "label": "Library views"
-      },
-      "search": "Search library",
-      "closeSearch": "Close library search",
-      "backToGroups": "Back to groups",
-      "back": "Back",
-      "filter": "Filter library",
       "title": "Library",
       "unknownArtist": "Unknown artist",
       "unknownAlbum": "Unknown album",
@@ -187,6 +159,17 @@
       "trackerModule": "Tracker module",
       "stream": "Stream",
       "video": "Video",
+      "columns": {
+        "title": "Title",
+        "artist": "Artist",
+        "album": "Album",
+        "folder": "Folder",
+        "format": "Format",
+        "duration": "Duration",
+        "plays": "Plays",
+        "sortBy": "Sort by {column}",
+        "resize": "Resize {column} column"
+      },
       "summary": {
         "filteredArtists": "{visible} of {total} {total, plural, one {artist} other {artists}}",
         "filteredAlbums": "{visible} of {total} {total, plural, one {album} other {albums}}",
@@ -204,8 +187,35 @@
       },
       "noResults": "No library results match \"{query}\".",
       "favoritesEmpty": "Favorite tracks and subsongs will appear here.",
-      "empty": "Your library is empty. Add files or drop a folder here."
+      "empty": "Your library is empty. Add files or drop a folder here.",
+      "groupSongCount": "{count, plural, one {# song} other {# songs}}",
+      "views": {
+        "favorites": "Favorites",
+        "songs": "Songs",
+        "artists": "Artists",
+        "albums": "Albums",
+        "genres": "Genres",
+        "years": "Years",
+        "formats": "Formats",
+        "folders": "Folders",
+        "label": "Library views"
+      },
+      "search": "Search library",
+      "closeSearch": "Close library search",
+      "backToGroups": "Back to groups",
+      "back": "Back",
+      "filter": "Filter library"
     },
+    "summary": {
+      "filteredTracks": "{visible} of {total} {total, plural, one {song} other {songs}} · {duration}",
+      "tracks": "{count, plural, one {# song} other {# songs}} · {duration}"
+    },
+    "repeat": {
+      "currentTrack": "Repeat current track",
+      "playlist": "Repeat playlist",
+      "off": "Repeat off"
+    },
+    "listRegion": "{name} list",
     "addFiles": "Add files",
     "searchPlaceholder": "Search",
     "actions": {
@@ -232,18 +242,7 @@
       "enable": "Enable shuffle",
       "on": "Shuffle on",
       "off": "Shuffle off"
-    },
-    "title": "Playlist",
-    "summary": {
-      "filteredTracks": "{visible} of {total} {total, plural, one {song} other {songs}} · {duration}",
-      "tracks": "{count, plural, one {# song} other {# songs}} · {duration}"
-    },
-    "repeat": {
-      "currentTrack": "Repeat current track",
-      "playlist": "Repeat playlist",
-      "off": "Repeat off"
-    },
-    "listRegion": "{name} list"
+    }
   },
   "workspace": {
     "nowPlaying": {
@@ -277,6 +276,14 @@
     "description": "Offline-first PWA music player with tracker module support."
   },
   "options": {
+    "tools": {
+      "collapseHints": "Collapse field hints",
+      "expandHints": "Expand field hints",
+      "label": "Page tools",
+      "resetPage": "Reset current page to defaults"
+    },
+    "windowTitle": "izci Options",
+    "categories": "Options categories",
     "raf": {
       "autoAmp": {
         "mode": "Auto",
@@ -436,7 +443,7 @@
         "formats": "Plays usual streamed formats and tracker modules",
         "formatsNote": "It plays tracker modules!!!",
         "library": "A decent library with artwork, lyrics, and play counts",
-        "workspace": "Dockable tabbed workspace, a big moody Now Playing view, and a mini mode",
+        "workspace": "Dockable tabbed workspace, a big moody Now Playing view, and a mini player",
         "pwa": "PWA niceties: file associations, media keys, custom window border",
         "pwaNote": "Only if your browser respects them (works on my machine)",
         "backdrops": "Per-zone artwork and visualizer backdrops",
@@ -951,14 +958,6 @@
       "metadata": "Metadata",
       "about": "About",
       "licenses": "Licenses"
-    },
-    "tools": {
-      "collapseHints": "Collapse field hints",
-      "expandHints": "Expand field hints",
-      "label": "Page tools",
-      "resetPage": "Reset current page to defaults"
-    },
-    "windowTitle": "izci Options",
-    "categories": "Options categories"
+    }
   }
 }
