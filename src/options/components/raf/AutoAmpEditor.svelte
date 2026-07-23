@@ -133,7 +133,6 @@
   input[type='range'] { width: 100%; min-width: 0; accent-color: var(--accent-strong); }
   input[type='range']:disabled { opacity: 0.72; }
   output { color: var(--text-strong); font-size: 10px; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
-  .explanation { margin: 0; color: var(--muted); font-size: 9px; line-height: 1.45; }
   @container (max-width: 600px) {
     .primary-controls,
     .automatic-controls { grid-template-columns: 1fr; }
