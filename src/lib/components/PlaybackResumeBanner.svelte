@@ -55,16 +55,6 @@
     bottom: 0.5rem;
   }
 
-  :global(.player-bar:not(.now-playing-player) > .player-range > .range-control) {
-    anchor-name: --player-seek;
-  }
-
-  :global(.app-shell:has(> .player-bar.compact-player-bar)) .resume-banner {
-    position-anchor: --player-seek;
-    left: anchor(left);
-    bottom: calc(anchor(top) + 0.18rem);
-  }
-
   button {
     padding: 0;
     background: transparent;
