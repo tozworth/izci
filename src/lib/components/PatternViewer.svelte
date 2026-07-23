@@ -315,7 +315,6 @@
     min-height: 0;
     overflow: auto;
     overscroll-behavior: contain;
-    scrollbar-color: color-mix(in srgb, var(--accent) 40%, var(--border-soft)) transparent;
   }
 
   .pattern-grid {

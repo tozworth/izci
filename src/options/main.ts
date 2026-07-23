@@ -3,9 +3,11 @@ import { mount } from 'svelte';
 import OptionsApp from './OptionsApp.svelte';
 import './app.css';
 import { initializeTheme } from '$lib/services/theme';
+import { initializeScrollbarVisibility } from '$lib/services/scrollbar-visibility';
 import { initializeLocalization } from '$lib/i18n';
 
 initializeTheme();
+initializeScrollbarVisibility();
 initializeLocalization();
 
 mount(OptionsApp, {

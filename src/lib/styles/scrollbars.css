@@ -1,0 +1,77 @@
+/* Chromium scrollbars shared by the player, popups, and Options window. */
+@property --izci-scrollbar-visibility {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
+}
+
+* {
+  --izci-scrollbar-visibility: 0;
+}
+
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+*::-webkit-scrollbar-track {
+  background: color-mix(
+    in srgb,
+    color-mix(in srgb, var(--bg-base) 82%, transparent) calc(var(--izci-scrollbar-visibility) * 100%),
+    transparent
+  );
+}
+
+*::-webkit-scrollbar-thumb {
+  min-width: 28px;
+  min-height: 28px;
+  /* Grow inward from the outer edge as the thumb fades in. */
+  border: solid transparent;
+  border-width:
+    calc(6px - var(--izci-scrollbar-visibility) * 4px)
+    2px
+    2px
+    calc(6px - var(--izci-scrollbar-visibility) * 4px);
+  border-radius: 999px;
+  background: color-mix(
+    in srgb,
+    color-mix(in srgb, var(--accent) 58%, var(--bg-soft)) calc(var(--izci-scrollbar-visibility) * 100%),
+    transparent
+  );
+  background-clip: padding-box;
+}
+
+.izci-scrollbar-active,
+.izci-scrollbar-near {
+  --izci-scrollbar-visibility: 1;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  border-width: 2px;
+  background: color-mix(in srgb, var(--accent-strong) 72%, var(--bg-soft));
+  background-clip: padding-box;
+}
+
+*::-webkit-scrollbar-thumb:active {
+  border-width: 2px;
+  background: var(--accent-strong);
+  background-clip: padding-box;
+}
+
+*::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-button {
+  display: none;
+}
+
+@media (forced-colors: active) {
+  *::-webkit-scrollbar,
+  *::-webkit-scrollbar-track,
+  *::-webkit-scrollbar-thumb,
+  *::-webkit-scrollbar-corner,
+  *::-webkit-scrollbar-button {
+    all: revert;
+  }
+}
