@@ -1,5 +1,6 @@
 import { mount, unmount } from 'svelte';
 import { writable, type Readable } from 'svelte/store';
+import materialSymbolsFontUrl from '@material-symbols/font-400/material-symbols-outlined.woff2?url';
 import MiniPlayer from '$lib/components/mini-player/MiniPlayer.svelte';
 import type { PlaybackSnapshot, PlaylistItem } from '$lib/types';
 
@@ -74,10 +75,21 @@ function copyDocumentStyles(source: Document, target: Document): Promise<void> {
   const pendingStyles: Promise<void>[] = [];
 
   for (const styleSheet of Array.from(source.styleSheets)) {
+    try {
+      const style = target.createElement('style');
+      style.textContent = Array.from(styleSheet.cssRules, (rule) => rule.cssText).join('\n');
+      style.media = styleSheet.media.mediaText;
+      target.head.append(style);
+      continue;
+    } catch {
+      // Cross-origin stylesheets do not expose cssRules and must remain linked.
+    }
+
     if (styleSheet.href) {
       const link = target.createElement('link');
       link.rel = 'stylesheet';
       link.href = styleSheet.href;
+      link.media = styleSheet.media.mediaText;
 
       pendingStyles.push(new Promise((resolve) => {
         link.addEventListener('load', () => resolve(), { once: true });
@@ -85,19 +97,44 @@ function copyDocumentStyles(source: Document, target: Document): Promise<void> {
       }));
 
       target.head.append(link);
-      continue;
-    }
-
-    try {
-      const style = target.createElement('style');
-      style.textContent = Array.from(styleSheet.cssRules, (rule) => rule.cssText).join('\n');
-      target.head.append(style);
-    } catch {
-      // Cross-origin stylesheets cannot expose cssRules. Linked sheets are handled above.
     }
   }
 
   return Promise.all(pendingStyles).then(() => undefined);
+}
+
+export async function installMiniPlayerMaterialSymbols(target: Document): Promise<() => void> {
+  try {
+    const response = await fetch(materialSymbolsFontUrl);
+
+    if (!response.ok) {
+      return () => undefined;
+    }
+
+    const fontFace = new FontFace(
+      'izci Mini Player Material Symbols',
+      await response.arrayBuffer(),
+      { style: 'normal', weight: '400', display: 'block' }
+    );
+    await fontFace.load();
+    target.fonts.add(fontFace);
+
+    const style = target.createElement('style');
+    style.textContent = `
+      .material-symbols-outlined {
+        font-family: "izci Mini Player Material Symbols";
+      }
+    `;
+    target.head.append(style);
+
+    return () => {
+      style.remove();
+      target.fonts.delete(fontFace);
+    };
+  } catch {
+    // Keep the copied @font-face as an online fallback if the cached font cannot be materialized.
+    return () => undefined;
+  }
 }
 
 function concealDocumentUntilReady(source: Document, target: Document): () => void {
@@ -161,6 +198,7 @@ export function createMiniPlayerController({
   let miniPlayerWindow: Window | null = null;
   let mountedView: Record<string, unknown> | null = null;
   let rootObserver: MutationObserver | null = null;
+  let releaseMaterialSymbols: (() => void) | null = null;
   let destroyed = false;
 
   const unsubscribeState = store.subscribe((value) => {
@@ -176,6 +214,8 @@ export function createMiniPlayerController({
     miniPlayerWindow = null;
     rootObserver?.disconnect();
     rootObserver = null;
+    releaseMaterialSymbols?.();
+    releaseMaterialSymbols = null;
 
     if (currentWindow) {
       currentWindow.removeEventListener('pagehide', releaseView);
@@ -226,9 +266,14 @@ export function createMiniPlayerController({
 
       await copyDocumentStyles(document, nextWindow.document);
 
+      const releaseNextMaterialSymbols = await installMiniPlayerMaterialSymbols(nextWindow.document);
+
       if (destroyed || miniPlayerWindow !== nextWindow || nextWindow.closed) {
+        releaseNextMaterialSymbols();
         return;
       }
+
+      releaseMaterialSymbols = releaseNextMaterialSymbols;
 
       const target = nextWindow.document.createElement('div');
       target.id = 'mini-player-root';
