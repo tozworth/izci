@@ -1091,7 +1091,7 @@
   width: min(calc(100vw - 1.5rem), 72rem);
   border: 1px solid var(--player-bar-separator);
   border-radius: 0.8rem;
-  background: color-mix(in srgb, var(--player-bar-background, var(--menu-bar-bg)) 92%, transparent);
+  background: color-mix(in srgb, var(--player-bar-background, var(--menu-bar-bg)) 80%, transparent);
   box-shadow:
     0 1.1rem 3.2rem rgba(0, 0, 0, 0.44),
     0 0.2rem 0.7rem rgba(0, 0, 0, 0.28);
