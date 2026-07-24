@@ -457,6 +457,7 @@
     "appearance": {
       "themes": {
         "gray": "Gri (varsayılan)",
+        "ash": "Ash",
         "coal": "Kömür",
         "lightsOut": "Işıksız",
         "nordic": "Nordic",

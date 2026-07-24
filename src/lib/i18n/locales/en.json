@@ -457,6 +457,7 @@
     "appearance": {
       "themes": {
         "gray": "Gray (default)",
+        "ash": "Ash",
         "coal": "Coal",
         "lightsOut": "Lights Out",
         "nordic": "Nordic",

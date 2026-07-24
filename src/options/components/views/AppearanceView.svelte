@@ -75,6 +75,7 @@
   function themeLabel(value: ColorTheme): string {
     switch (value) {
       case 'gray': return $t('options.appearance.themes.gray', { default: 'Gray (default)' });
+      case 'ash': return $t('options.appearance.themes.ash', { default: 'Ash' });
       case 'coal': return $t('options.appearance.themes.coal', { default: 'Coal' });
       case 'lights-out': return $t('options.appearance.themes.lightsOut', { default: 'Lights Out' });
       case 'nordic': return $t('options.appearance.themes.nordic', { default: 'Nordic' });

@@ -81,6 +81,7 @@ export type LibraryColumnId = 'title' | 'artist' | 'album' | 'folder' | 'format'
 export type LibraryViewId = 'favorites' | 'songs' | 'artists' | 'albums' | 'genres' | 'years' | 'formats' | 'folders';
 export type ColorTheme =
   | 'gray'
+  | 'ash'
   | 'coal'
   | 'lights-out'
   | 'nordic'

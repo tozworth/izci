@@ -50,6 +50,16 @@
   --text: rgba(248, 246, 241, 0.96);
   --text-strong: rgba(255, 255, 255, 0.98);
   --muted: rgba(248, 246, 241, 0.72);
+  --muted-strong: rgba(248, 246, 241, 0.88);
+  --accent: #aab5c1;
+  --accent-strong: #d1d7df;
+  --accent-text: #1b1e22;
+  --visualizer-high: rgba(247, 248, 250, 0.9);
+  --visualizer-mid: rgba(178, 186, 197, 0.62);
+  --visualizer-low: rgba(116, 124, 136, 0.24);
+  --visualizer-glow: rgba(197, 204, 214, 0.34);
+  --visualizer-bars: rgba(197, 204, 214, 0.76);
+  --visualizer-blocks: rgba(247, 248, 250, 0.68);
   --bg-soft: color-mix(
     in srgb,
     rgba(255, 250, 242, 0.58) var(--artwork-zone-light-mix),
@@ -87,6 +97,20 @@
 }
 
 .player-bar.visualizer-backdrop-active:not(.artwork-background-active) {
+  color-scheme: dark;
+  --text: #e4e7eb;
+  --text-strong: #f7f8fa;
+  --muted: #9aa3ad;
+  --muted-strong: #c5cad0;
+  --accent: #aab5c1;
+  --accent-strong: #d1d7df;
+  --accent-text: #1b1e22;
+  --visualizer-high: rgba(247, 248, 250, 0.9);
+  --visualizer-mid: rgba(178, 186, 197, 0.62);
+  --visualizer-low: rgba(116, 124, 136, 0.24);
+  --visualizer-glow: rgba(197, 204, 214, 0.34);
+  --visualizer-bars: rgba(197, 204, 214, 0.76);
+  --visualizer-blocks: rgba(247, 248, 250, 0.68);
   --player-bar-background:
     linear-gradient(90deg, rgba(18, 19, 28, 0.28), rgba(18, 19, 28, 0.16) 50%, rgba(18, 19, 28, 0.28));
   --player-bar-backdrop-blur: 2px;
@@ -110,6 +134,10 @@
   --text: #241b12;
   --text-strong: #130d08;
   --muted: rgba(36, 27, 18, 0.76);
+  --muted-strong: rgba(36, 27, 18, 0.92);
+  --accent: #65543f;
+  --accent-strong: #4e402f;
+  --accent-text: #fffaf2;
   --visualizer-high: rgba(42, 31, 20, 0.44);
   --visualizer-mid: rgba(122, 83, 26, 0.34);
   --visualizer-low: rgba(38, 78, 57, 0.18);

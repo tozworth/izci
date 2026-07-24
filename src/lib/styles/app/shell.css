@@ -144,6 +144,25 @@
   color-scheme: dark;
   --artwork-zone-brightness: var(--shared-zone-artwork-brightness, 0.42);
   --artwork-zone-light-mix: 0%;
+  --text: #e4e7eb;
+  --text-strong: #f7f8fa;
+  --muted: #9aa3ad;
+  --muted-strong: #c5cad0;
+  --accent: #aab5c1;
+  --accent-strong: #d1d7df;
+  --accent-text: #1b1e22;
+  --accent-strong-soft: rgba(209, 215, 223, 0.08);
+  --accent-strong-faint: rgba(209, 215, 223, 0.12);
+  --accent-strong-border-hover: rgba(209, 215, 223, 0.4);
+  --accent-focus-border: rgba(209, 215, 223, 0.32);
+  --accent-dashed-border: rgba(170, 181, 193, 0.24);
+  --visualizer-high: rgba(247, 248, 250, 0.9);
+  --visualizer-mid: rgba(178, 186, 197, 0.62);
+  --visualizer-low: rgba(116, 124, 136, 0.24);
+  --visualizer-glow: rgba(197, 204, 214, 0.34);
+  --visualizer-bars: rgba(197, 204, 214, 0.76);
+  --visualizer-blocks: rgba(247, 248, 250, 0.68);
+  --danger: #ef6f6c;
   --panel-backdrop-blur: var(--shared-zone-surface-blur, 28px);
   --panel-backdrop-saturate: 1.18;
   --chrome-backdrop-blur: var(--shared-zone-surface-blur, 28px);
@@ -205,6 +224,7 @@
     rgba(52, 39, 25, 0.04) var(--artwork-zone-light-mix),
     rgba(255, 255, 255, 0.05)
   );
+  --hover-surface: var(--hover-control);
   --hover-control: color-mix(
     in srgb,
     rgba(52, 39, 25, 0.09) var(--artwork-zone-light-mix),
@@ -216,6 +236,7 @@
       var(--artwork-zone-light-mix),
     color-mix(in srgb, var(--accent-strong) 14%, transparent)
   );
+  --selection-strong: color-mix(in srgb, var(--accent-strong) 22%, transparent);
   --playlist-header-background: color-mix(
     in srgb,
     rgba(255, 250, 244, 0.88) var(--artwork-zone-light-mix),
@@ -255,6 +276,15 @@
   --text-strong: #130d08;
   --muted: rgba(36, 27, 18, 0.76);
   --muted-strong: rgba(36, 27, 18, 0.92);
+  --accent: #65543f;
+  --accent-strong: #4e402f;
+  --accent-text: #fffaf2;
+  --accent-strong-soft: rgba(78, 64, 47, 0.08);
+  --accent-strong-faint: rgba(78, 64, 47, 0.12);
+  --accent-strong-border-hover: rgba(78, 64, 47, 0.4);
+  --accent-focus-border: rgba(78, 64, 47, 0.32);
+  --accent-dashed-border: rgba(101, 84, 63, 0.24);
+  --danger: #9b3f3c;
   --visualizer-high: rgba(42, 31, 20, 0.44);
   --visualizer-mid: rgba(122, 83, 26, 0.34);
   --visualizer-low: rgba(38, 78, 57, 0.18);
@@ -262,6 +292,23 @@
   --visualizer-bars: rgba(75, 53, 34, 0.38);
   --visualizer-blocks: rgba(42, 31, 20, 0.36);
   --visualizer-blend-mode: multiply;
+}
+
+.backdrop-zone.visualizer-backdrop-active:not(.artwork-backdrop-bright) {
+  color-scheme: dark;
+  --text: #e4e7eb;
+  --text-strong: #f7f8fa;
+  --muted: #9aa3ad;
+  --muted-strong: #c5cad0;
+  --accent: #aab5c1;
+  --accent-strong: #d1d7df;
+  --accent-text: #1b1e22;
+  --visualizer-high: rgba(247, 248, 250, 0.9);
+  --visualizer-mid: rgba(178, 186, 197, 0.62);
+  --visualizer-low: rgba(116, 124, 136, 0.24);
+  --visualizer-glow: rgba(197, 204, 214, 0.34);
+  --visualizer-bars: rgba(197, 204, 214, 0.76);
+  --visualizer-blocks: rgba(247, 248, 250, 0.68);
 }
 
 .backdrop-zone.visualizer-backdrop-active {

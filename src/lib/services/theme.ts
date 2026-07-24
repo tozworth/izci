@@ -7,6 +7,7 @@ import type { ColorTheme } from '$lib/types';
 
 export const COLOR_THEME_OPTIONS: Array<{ value: ColorTheme; label: string }> = [
   { value: 'gray', label: 'Gray (default)' },
+  { value: 'ash', label: 'Ash' },
   { value: 'coal', label: 'Coal' },
   { value: 'lights-out', label: 'Lights Out' },
   { value: 'nordic', label: 'Nordic' },
@@ -18,6 +19,7 @@ export const COLOR_THEME_OPTIONS: Array<{ value: ColorTheme; label: string }> = 
 
 const THEME_COLOR_BY_THEME: Record<ColorTheme, string> = {
   gray: '#18191b',
+  ash: '#e4e3e0',
   coal: '#101113',
   'lights-out': '#000000',
   nordic: '#1b222d',

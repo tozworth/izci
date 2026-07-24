@@ -156,6 +156,7 @@ export function hasVisualizerBackdrop(effect: BackdropZoneEffect): boolean {
 function normalizeColorTheme(value: unknown): ColorTheme {
   switch (value) {
     case 'gray':
+    case 'ash':
     case 'coal':
     case 'lights-out':
     case 'nordic':
