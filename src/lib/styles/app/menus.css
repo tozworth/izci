@@ -59,6 +59,20 @@ body:has(.menu-list[data-menu-interactive='true']) .menu-bar.window-controls-ove
   box-shadow: none;
 }
 
+.app-shell.video-fullscreen-mode .menu-bar {
+  transition:
+    opacity 160ms ease-out,
+    transform 180ms ease-out,
+    box-shadow 180ms ease-out;
+}
+
+.app-shell.video-fullscreen-mode.video-theater-controls-hidden .menu-bar {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(calc(-100% - var(--window-frame-safe-top)));
+  box-shadow: none;
+}
+
 .menu-bar.window-controls-overlay-active.menu-bar-compact {
   min-height: max(
     1.55rem,

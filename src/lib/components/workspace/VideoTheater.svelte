@@ -8,6 +8,7 @@
   export let element: HTMLVideoElement | null = null;
   export let parkingHost: HTMLDivElement | null = null;
   export let topInset = 0;
+  export let chromeInset = 0;
   export let fitMode: VideoFitMode = 'contain';
   export let snapshot: PlaybackSnapshot | null = null;
   export let pictureInPictureSupported = false;
@@ -71,7 +72,7 @@
 <section
   class="video-theater"
   class:is-controls-hidden={controlsHidden}
-  style={`top: ${topInset}px;`}
+  style={`top: ${topInset}px; --video-theater-chrome-inset: ${chromeInset}px;`}
   aria-label={$t('workspace.videoTheater.title', { default: 'Video theater' })}
 >
   <VideoStage

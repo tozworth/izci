@@ -412,6 +412,17 @@
   height: var(--window-frame-safe-top);
 }
 
+.app-shell.video-fullscreen-mode .window-frame-safe-strip {
+  transition:
+    opacity 160ms ease-out,
+    transform 180ms ease-out;
+}
+
+.app-shell.video-fullscreen-mode.video-theater-controls-hidden .window-frame-safe-strip {
+  opacity: 0;
+  transform: translateY(calc(-100% - var(--window-frame-safe-top)));
+}
+
 .app-shell.now-playing-theater-chrome-hidden .window-frame-safe-strip {
   opacity: 0;
 }

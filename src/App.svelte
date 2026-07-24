@@ -180,10 +180,12 @@
   let videoTrackActive = false;
   let videoTheaterActive = false;
   let videoTheaterControlsHidden = false;
+  let isFullscreenVideoTheater = false;
   let videoPictureInPictureSupported = false;
   let videoSeekFeedback: VideoSeekFeedback | null = null;
   let videoSeekFeedbackId = 0;
   let videoPresentationSignature = '';
+  let videoTheaterChromeInset = 0;
   let videoTheaterTopInset = 0;
   let topMenuBarHeight = 0;
   let documentTitle = 'izci';
@@ -461,13 +463,19 @@
     videoTrackActive && playerController.videoPictureInPictureSupported;
   $: syncVideoWindowSize(videoTrackActive, $videoSettings.autoResizeWindow);
   $: syncVideoPresentation(playerDisplayTrack, $videoSettings.autoEnterTheater);
-  $: videoTheaterTopInset = $windowControlsOverlayState.visible
+  $: if (videoTrackActive && $windowDisplayState.fullscreen && !videoTheaterActive) {
+    videoTheaterActive = true;
+  }
+  $: isFullscreenVideoTheater =
+    videoTrackActive && videoTheaterActive && $windowDisplayState.fullscreen;
+  $: videoTheaterChromeInset = $windowControlsOverlayState.visible
     ? Math.max(
         0,
         $windowControlsOverlayState.titlebarAreaRect.y +
           $windowControlsOverlayState.titlebarAreaRect.height
       )
     : topMenuBarHeight;
+  $: videoTheaterTopInset = isFullscreenVideoTheater ? 0 : videoTheaterChromeInset;
   $: favoriteTargetTrack = playerDisplayTrack?.kind === 'module' && playbackSnapshot.subsong !== undefined
     ? { ...playerDisplayTrack, subsong: playbackSnapshot.subsong }
     : playerDisplayTrack;
@@ -979,6 +987,7 @@
   class:compact-workspace={workspaceShellState.isCompactWorkspace}
   class:now-playing-mode={isNowPlayingLayoutActive}
   class:video-theater-mode={videoTheaterActive}
+  class:video-fullscreen-mode={isFullscreenVideoTheater}
   class:video-theater-controls-hidden={videoTheaterActive && videoTheaterControlsHidden}
   class:now-playing-theater-chrome-hidden={isFullscreenNowPlayingChromeHidden}
   class:window-chrome-transition-bypass={artworkPresentationState.isWindowChromeTransitionBypassed}
@@ -1095,6 +1104,7 @@
       element={playerController.videoElement}
       parkingHost={videoParkingHost}
       topInset={videoTheaterTopInset}
+      chromeInset={isFullscreenVideoTheater ? videoTheaterChromeInset : 0}
       fitMode={$videoSettings.fitMode}
       snapshot={playbackSnapshot}
       pictureInPictureSupported={videoPictureInPictureSupported}
