@@ -96,6 +96,7 @@
   const COMPACT_VOLUME_OPEN_DELAY_MS = 120;
   const RANGE_THUMB_SIZE_REM = 1.05;
   const PLAYER_BAR_RESERVE_PROPERTY = '--player-bar-measured-reserve';
+  const THEATER_PLAYER_BAR_HEIGHT_PROPERTY = '--video-theater-player-height';
   const SEEK_WHEEL_STEP_SECONDS = 5;
 
   let playerBarElement: HTMLElement | null = null;
@@ -306,16 +307,22 @@
     getAppShell()?.style.removeProperty(PLAYER_BAR_RESERVE_PROPERTY);
   }
 
+  function clearTheaterPlayerBarHeight() {
+    getAppShell()?.style.removeProperty(THEATER_PLAYER_BAR_HEIGHT_PROPERTY);
+  }
+
   function syncPlayerBarReserve() {
     playerBarReserveFrame = null;
 
-    if (presentation !== 'bar') {
+    if (presentation === 'now-playing') {
       clearPlayerBarReserve();
+      clearTheaterPlayerBarHeight();
       return;
     }
 
     if (!playerBarElement) {
       clearPlayerBarReserve();
+      clearTheaterPlayerBarHeight();
       return;
     }
 
@@ -323,10 +330,19 @@
 
     if (height <= 0) {
       clearPlayerBarReserve();
+      clearTheaterPlayerBarHeight();
       return;
     }
 
-    getAppShell()?.style.setProperty(PLAYER_BAR_RESERVE_PROPERTY, `${height}px`);
+    const appShell = getAppShell();
+    if (presentation === 'theater') {
+      appShell?.style.removeProperty(PLAYER_BAR_RESERVE_PROPERTY);
+      appShell?.style.setProperty(THEATER_PLAYER_BAR_HEIGHT_PROPERTY, `${height}px`);
+      return;
+    }
+
+    appShell?.style.removeProperty(THEATER_PLAYER_BAR_HEIGHT_PROPERTY);
+    appShell?.style.setProperty(PLAYER_BAR_RESERVE_PROPERTY, `${height}px`);
   }
 
   function schedulePlayerBarReserveSync() {
@@ -349,7 +365,7 @@
     mediaQuery.addEventListener('change', syncCompactVolume);
     schedulePlayerBarReserveSync();
 
-    if (presentation === 'bar' && typeof ResizeObserver !== 'undefined' && playerBarElement) {
+    if (typeof ResizeObserver !== 'undefined' && playerBarElement) {
       playerBarResizeObserver = new ResizeObserver(schedulePlayerBarReserveSync);
       playerBarResizeObserver.observe(playerBarElement);
     }
@@ -366,6 +382,7 @@
       }
 
       clearPlayerBarReserve();
+      clearTheaterPlayerBarHeight();
     };
   });
 
@@ -373,6 +390,7 @@
   $: if (!seekPointerActive) seekPreview = snapshot.currentTime;
   $: displayedSeekTime = seekPointerActive ? seekPreview : snapshot.currentTime;
   $: compactPlayerBar = presentation !== 'now-playing' && $appearanceSettings.compactPlayerBar;
+  $: if (presentation) schedulePlayerBarReserveSync();
   $: isCompactVolume = viewportUsesCompactVolume || compactPlayerBar;
   $: displayTrack = track;
   $: displayDuration = track ? snapshot.duration : 0;

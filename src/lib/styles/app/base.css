@@ -1,6 +1,8 @@
 :root {
   --player-bar-reserve: calc(6.3125rem + env(safe-area-inset-bottom, 0px));
   --player-bar-reserve-tabbed: var(--player-bar-reserve);
+  --video-theater-player-bottom: clamp(0.7rem, 2.4vh, 1.35rem);
+  --video-theater-player-left: max(0.75rem, calc((100vw - 72rem) / 2));
   --track-artwork-radius: 0.25rem;
   --artwork-background-transition-duration: 320ms;
   --artwork-ui-transition-duration: 320ms;

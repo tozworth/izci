@@ -55,6 +55,16 @@
     bottom: 0.5rem;
   }
 
+  :global(.app-shell.video-theater-mode) .resume-banner {
+    left: var(--video-theater-player-left);
+    bottom: calc(
+      var(--video-theater-player-height, var(--player-bar-reserve)) +
+      var(--video-theater-player-bottom) +
+      0.35rem
+    );
+    z-index: 40;
+  }
+
   button {
     padding: 0;
     background: transparent;
