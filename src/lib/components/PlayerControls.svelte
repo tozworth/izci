@@ -8,6 +8,7 @@
   } from '$lib/services/artwork-palette';
   import type { LoadedStreamArtwork } from '$lib/services/stream-artwork';
   import { sessionIdlePlayerQuip, type IdlePlayerQuipId } from '$lib/services/idle-player-copy';
+  import HoverTooltip from '$lib/components/HoverTooltip.svelte';
   import { portal } from '$lib/components/playlist-panel/actions/portal';
   import { windowDismiss } from '$lib/components/playlist-panel/actions/window-dismiss';
   import {
@@ -527,11 +528,6 @@
         type="button"
         class="transport-button transport-button-previous"
         aria-label={$t('main.player.previousTrack', { default: 'Previous track' })}
-        title={displaySubsongCount > 1
-          ? $t('main.player.previousTrackWithSubsongHint', {
-              default: 'Previous track · Right-click for previous subsong'
-            })
-          : $t('main.player.previousTrack', { default: 'Previous track' })}
         on:click={() => dispatch('previous')}
         on:contextmenu={(event) => handleSubsongStep(event, -1)}
         disabled={!track && !selectedTrack}
@@ -555,11 +551,6 @@
         type="button"
         class="transport-button transport-button-next"
         aria-label={$t('main.player.nextTrack', { default: 'Next track' })}
-        title={displaySubsongCount > 1
-          ? $t('main.player.nextTrackWithSubsongHint', {
-              default: 'Next track · Right-click for next subsong'
-            })
-          : $t('main.player.nextTrack', { default: 'Next track' })}
         on:click={() => dispatch('next')}
         on:contextmenu={(event) => handleSubsongStep(event, 1)}
         disabled={!track && !selectedTrack}
@@ -569,39 +560,43 @@
       {#if showVideoTheaterToggle}
         <button
           type="button"
-          class="transport-button video-theater-toggle"
+          class="transport-button video-theater-toggle hover-tooltip-anchor"
           aria-label={videoTheaterActive
             ? $t('main.player.exitVideoTheater', { default: 'Exit video theater' })
             : $t('main.player.enterVideoTheater', { default: 'Enter video theater' })}
           aria-pressed={videoTheaterActive}
-          title={videoTheaterActive
-            ? $t('main.player.exitVideoTheater', { default: 'Exit video theater' })
-            : $t('main.player.enterVideoTheater', { default: 'Enter video theater' })}
           on:click={() => dispatch('toggleVideoTheater')}
         >
           <span class="material-symbols-outlined" aria-hidden="true">
             {videoTheaterActive ? 'close_fullscreen' : 'fit_screen'}
           </span>
+          <HoverTooltip placement="above" align="center" nowrap>
+            {videoTheaterActive
+              ? $t('main.player.exitVideoTheater', { default: 'Exit video theater' })
+              : $t('main.player.enterVideoTheater', { default: 'Enter video theater' })}
+          </HoverTooltip>
         </button>
       {/if}
       {#if presentation !== 'now-playing' && showFavoriteToggle}
         <button
           type="button"
-          class="favorite-toggle"
+          class="favorite-toggle hover-tooltip-anchor"
           class:active={favorite}
           aria-label={favorite
             ? $t('main.player.removeFromFavorites', { default: 'Remove from favorites' })
             : $t('main.player.addToFavorites', { default: 'Add to favorites' })}
           aria-pressed={favorite}
-          title={favorite
-            ? $t('main.player.removeFromFavorites', { default: 'Remove from favorites' })
-            : $t('main.player.addToFavorites', { default: 'Add to favorites' })}
           disabled={!track}
           on:click={() => dispatch('toggleFavorite')}
         >
           <span class="material-symbols-outlined" aria-hidden="true">
             {favorite ? 'favorite' : 'favorite_border'}
           </span>
+          <HoverTooltip placement="above" align="center" nowrap>
+            {favorite
+              ? $t('main.player.removeFromFavorites', { default: 'Remove from favorites' })
+              : $t('main.player.addToFavorites', { default: 'Add to favorites' })}
+          </HoverTooltip>
         </button>
       {/if}
     </div>
@@ -617,22 +612,24 @@
       <button
         type="button"
         class:active={rafEnabled}
-        class="raf-toggle"
+        class="raf-toggle hover-tooltip-anchor"
         aria-label={rafEnabled
           ? $t('main.player.bypassRaf', { default: 'Bypass Raf' })
           : $t('main.player.powerOnRaf', { default: 'Power on Raf' })}
         aria-pressed={rafEnabled}
-        title={rafEnabled
-          ? $t('main.player.bypassRafWithPresetHint', {
-              default: 'Bypass Raf · Right-click for presets'
-            })
-          : $t('main.player.powerOnRafWithPresetHint', {
-              default: 'Power on Raf · Right-click for presets'
-            })}
         on:click={() => dispatch('toggleRaf')}
         on:contextmenu|preventDefault|stopPropagation={openRafPresetMenu}
       >
         <span class="material-symbols-outlined" aria-hidden="true">power_settings_new</span>
+        <HoverTooltip placement="above" align="center" nowrap>
+          {rafEnabled
+            ? $t('main.player.bypassRafWithPresetHint', {
+                default: 'Bypass Raf · Right-click for presets'
+              })
+            : $t('main.player.powerOnRafWithPresetHint', {
+                default: 'Power on Raf · Right-click for presets'
+              })}
+        </HoverTooltip>
       </button>
     {/if}
     <div class="volume-control">
