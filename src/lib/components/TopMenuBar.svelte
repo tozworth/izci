@@ -8,11 +8,11 @@
   import MenuSurface from '$lib/components/MenuSurface.svelte';
   import { pwaUpdateStatus, type PwaUpdateStatus } from '$lib/services/pwa-updates';
   import { windowControlsOverlayState } from '$lib/services/window-controls-overlay';
-  import type { MenuActionItem } from '$lib/types';
+  import type { MenuActionItem, VideoFitMode } from '$lib/types';
   import { formatDisplayVersion } from '$lib/utils/version';
   import type { OptionsViewName } from '../../options/views';
 
-  type MenuId = 'file' | 'view' | 'help';
+  type MenuId = 'file' | 'view' | 'video' | 'help';
   type MenuActionId =
     | 'openFiles'
     | 'openFolder'
@@ -27,6 +27,8 @@
     | 'togglePatterns'
     | 'toggleMiniPlayer'
     | 'toggleNowPlayingView'
+    | 'videoFitContain'
+    | 'videoFitCover'
     | 'exit';
 
   const MENU_ITEMS_ONLY_PADDING = 28;
@@ -71,6 +73,8 @@
   export let miniPlayerSupported = false;
   export let miniPlayerActive = false;
   export let patternsVisible = false;
+  export let videoActive = false;
+  export let videoFitMode: VideoFitMode = 'contain';
   export let installAvailable = false;
   export let showInstallHint = false;
   export let inactive = false;
@@ -91,6 +95,7 @@
     togglePatterns: void;
     toggleMiniPlayer: void;
     toggleNowPlayingView: void;
+    setVideoFit: VideoFitMode;
     exit: void;
   }>();
 
@@ -104,6 +109,7 @@
   let compactMenuTriggerElement: HTMLButtonElement | null = null;
   let fileMenuTriggerElement: HTMLButtonElement | null = null;
   let viewMenuTriggerElement: HTMLButtonElement | null = null;
+  let videoMenuTriggerElement: HTMLButtonElement | null = null;
   let helpMenuTriggerElement: HTMLButtonElement | null = null;
   let menuBarWidth = Number.POSITIVE_INFINITY;
   let availableTitlebarWidth = Number.POSITIVE_INFINITY;
@@ -193,6 +199,18 @@
       separatorBefore: true
     }
   ] satisfies MenuActionItem[];
+  $: videoMenuItems = [
+    {
+      id: 'videoFitContain',
+      label: $t('main.video.fit', { default: 'Fit to window' }),
+      icon: videoFitMode === 'contain' ? 'check' : 'fit_screen'
+    },
+    {
+      id: 'videoFitCover',
+      label: $t('main.video.fill', { default: 'Fill window' }),
+      icon: videoFitMode === 'cover' ? 'check' : 'crop_free'
+    }
+  ] satisfies MenuActionItem[];
   $: compactMenuItems = [
     {
       id: 'file',
@@ -206,6 +224,14 @@
       icon: 'visibility',
       children: viewMenuItems
     },
+    ...(videoActive
+      ? [{
+          id: 'video',
+          label: $t('main.video.menu', { default: 'Video' }),
+          icon: 'movie',
+          children: videoMenuItems
+        } satisfies MenuActionItem]
+      : []),
     {
       id: 'help',
       label: $t('main.menu.help', { default: 'Help' }),
@@ -234,6 +260,9 @@
     activeMenu = null;
   } else {
     compactMenuOpen = false;
+  }
+  $: if (!videoActive && activeMenu === 'video') {
+    activeMenu = null;
   }
   $: if (activeMenu !== null) {
     updateMenuPosition(activeMenu);
@@ -340,6 +369,10 @@
 
   function runMenuAction(action: MenuActionId) {
     closeMenus();
+    if (action === 'videoFitContain' || action === 'videoFitCover') {
+      dispatch('setVideoFit', action === 'videoFitContain' ? 'contain' : 'cover');
+      return;
+    }
     dispatch(action);
   }
 
@@ -348,7 +381,11 @@
       return fileMenuTriggerElement;
     }
 
-    return menuId === 'view' ? viewMenuTriggerElement : helpMenuTriggerElement;
+    if (menuId === 'view') {
+      return viewMenuTriggerElement;
+    }
+
+    return menuId === 'video' ? videoMenuTriggerElement : helpMenuTriggerElement;
   }
 
   function updateMenuPosition(menuId: MenuId) {
@@ -499,6 +536,35 @@
           />
         {/if}
       </div>
+
+      {#if videoActive}
+        <div class="menu-root" role="none" on:pointerenter={() => handleMenuHover('video')}>
+          <button
+            bind:this={videoMenuTriggerElement}
+            class:active={activeMenu === 'video'}
+            class="menu-trigger"
+            data-menu-interactive="true"
+            type="button"
+            aria-haspopup="menu"
+            aria-expanded={activeMenu === 'video'}
+            on:pointerdown={(event) => handleRootPointerDown(event, 'video')}
+            on:click={() => handleRootClick('video')}
+          >
+            {$t('main.video.menu', { default: 'Video' })}
+          </button>
+          {#if activeMenu === 'video'}
+            <MenuSurface
+              items={videoMenuItems}
+              x={menuPopupX}
+              y={menuPopupY}
+              ariaLabel={$t('main.video.menu', { default: 'Video' })}
+              activateOnPointerUpPointerId={menubarPressPointerId}
+              on:action={(event) => runMenuAction(event.detail as MenuActionId)}
+              on:dismiss={closeMenus}
+            />
+          {/if}
+        </div>
+      {/if}
 
       <div class="menu-root" role="none" on:pointerenter={() => handleMenuHover('help')}>
         <button

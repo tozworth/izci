@@ -123,6 +123,16 @@
       "startOver": "Baştan başlat",
       "dismiss": "Devam iletisini kapat"
     },
+    "video": {
+      "fit": "Pencereye sığdır",
+      "fill": "Pencereyi doldur",
+      "menu": "Video",
+      "volume": "Ses %{percent}",
+      "seekForward": "{seconds} sn ileri",
+      "seekBackward": "{seconds} sn geri",
+      "playback": "Video oynatma",
+      "pictureInPicture": "Resim İçinde Resim"
+    },
     "trackDetails": {
       "album": "Albüm",
       "albumArtist": "Albüm Sanatçısı",

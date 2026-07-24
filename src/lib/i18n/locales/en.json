@@ -123,6 +123,16 @@
       "startOver": "Start over",
       "dismiss": "Dismiss resume message"
     },
+    "video": {
+      "fit": "Fit to window",
+      "fill": "Fill window",
+      "menu": "Video",
+      "volume": "Volume {percent}%",
+      "seekForward": "Forward {seconds}s",
+      "seekBackward": "Back {seconds}s",
+      "playback": "Video playback",
+      "pictureInPicture": "Picture in Picture"
+    },
     "trackDetails": {
       "album": "Album",
       "albumArtist": "Album Artist",

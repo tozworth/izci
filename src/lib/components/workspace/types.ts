@@ -6,6 +6,7 @@ import type {
   PlaylistItem,
   PlaylistRepeatMode,
   PlaylistSelection,
+  VideoFitMode,
   WorkspaceJumpRequest,
   WorkspacePanelId,
   WorkspaceResizeHandle,
@@ -78,6 +79,14 @@ export interface WorkspaceTabContentProps {
   videoElement: HTMLVideoElement | null;
   videoParkingHost: HTMLDivElement | null;
   videoTheaterActive: boolean;
+  videoFitMode: VideoFitMode;
+  videoPictureInPictureSupported: boolean;
+  videoSeekFeedback: VideoSeekFeedback | null;
+}
+
+export interface VideoSeekFeedback {
+  id: number;
+  deltaSeconds: number;
 }
 
 export interface WorkspacePanelDefinition {

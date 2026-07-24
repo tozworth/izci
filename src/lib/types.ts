@@ -469,7 +469,10 @@ export interface PlaybackSnapshot {
   error?: string;
 }
 
+export type VideoFitMode = 'contain' | 'cover';
+
 export interface VideoSettings {
   autoResizeWindow: boolean;
   autoEnterTheater: boolean;
+  fitMode: VideoFitMode;
 }

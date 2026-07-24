@@ -83,8 +83,14 @@
     <VideoStage
       element={content.videoTheaterActive ? null : content.videoElement}
       parkingHost={content.videoParkingHost}
+      fitMode={content.videoFitMode}
+      snapshot={content.playbackSnapshot}
+      pictureInPictureSupported={content.videoPictureInPictureSupported}
+      seekFeedback={content.videoSeekFeedback}
       on:volumeStep
       on:toggleVideoTheater
+      on:togglePictureInPicture
+      on:setVideoFit
     />
   </div>
 {/if}

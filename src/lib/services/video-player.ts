@@ -30,6 +30,37 @@ export class VideoPlayerService {
     return this.#ensureElement();
   }
 
+  get pictureInPictureSupported(): boolean {
+    const element = this.#ensureElement();
+
+    return Boolean(
+      element &&
+      typeof document !== 'undefined' &&
+      document.pictureInPictureEnabled &&
+      typeof element.requestPictureInPicture === 'function'
+    );
+  }
+
+  async togglePictureInPicture(): Promise<boolean> {
+    const element = this.#element;
+
+    if (!element || !this.#active || !this.pictureInPictureSupported) {
+      return false;
+    }
+
+    try {
+      if (document.pictureInPictureElement === element) {
+        await document.exitPictureInPicture();
+        return false;
+      }
+
+      await element.requestPictureInPicture();
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
   load(track: PlaylistItem, options: VideoLoadOptions = {}): void {
     if (!track.objectUrl) {
       throw new Error('Expected an object URL for video playback.');
@@ -107,6 +138,9 @@ export class VideoPlayerService {
     }
 
     element.pause();
+    if (typeof document !== 'undefined' && document.pictureInPictureElement === element) {
+      void document.exitPictureInPicture().catch(() => undefined);
+    }
     element.removeAttribute('src');
     element.load();
   }
@@ -126,7 +160,7 @@ export class VideoPlayerService {
     element.preload = 'metadata';
     element.playsInline = true;
     element.controls = false;
-    element.disablePictureInPicture = true;
+    element.disablePictureInPicture = false;
     element.setAttribute('aria-label', 'Video playback');
     element.addEventListener('loadedmetadata', () => this.#handleLoadedMetadata());
     element.addEventListener('durationchange', () => this.#publishProgress());

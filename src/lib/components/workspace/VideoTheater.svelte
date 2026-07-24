@@ -1,16 +1,24 @@
 <script lang="ts">
   import { createEventDispatcher, onMount } from 'svelte';
   import { t } from 'svelte-i18n';
+  import type { PlaybackSnapshot, VideoFitMode } from '$lib/types';
+  import type { VideoSeekFeedback } from './types';
   import VideoStage from './VideoStage.svelte';
 
   export let element: HTMLVideoElement | null = null;
   export let parkingHost: HTMLDivElement | null = null;
   export let topInset = 0;
+  export let fitMode: VideoFitMode = 'contain';
+  export let snapshot: PlaybackSnapshot | null = null;
+  export let pictureInPictureSupported = false;
+  export let seekFeedback: VideoSeekFeedback | null = null;
 
   const CONTROLS_HIDE_DELAY_MS = 2400;
   const dispatch = createEventDispatcher<{
     controlsHiddenChange: boolean;
     toggleVideoTheater: void;
+    togglePictureInPicture: void;
+    setVideoFit: VideoFitMode;
     volumeStep: number;
   }>();
 
@@ -69,8 +77,14 @@
   <VideoStage
     {element}
     {parkingHost}
+    {fitMode}
+    {snapshot}
+    {pictureInPictureSupported}
+    {seekFeedback}
     on:volumeStep={(event) => dispatch('volumeStep', event.detail)}
     on:toggleVideoTheater={() => dispatch('toggleVideoTheater')}
+    on:togglePictureInPicture={() => dispatch('togglePictureInPicture')}
+    on:setVideoFit={(event) => dispatch('setVideoFit', event.detail)}
   />
 </section>
 

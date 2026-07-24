@@ -199,6 +199,12 @@ function createPlayerController() {
     get videoElement() {
       return services.video.element;
     },
+    get videoPictureInPictureSupported() {
+      return services.video.pictureInPictureSupported;
+    },
+    toggleVideoPictureInPicture() {
+      return services.video.togglePictureInPicture();
+    },
     async load(
       track: PlaylistItem,
       options: { autoPlay?: boolean; initialPosition?: number } = {}

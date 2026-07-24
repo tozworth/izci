@@ -1,4 +1,4 @@
-import type { VideoSettings } from '$lib/types';
+import type { VideoFitMode, VideoSettings } from '$lib/types';
 import { createSettingsStore } from './persistent-store';
 
 export const VIDEO_SETTINGS_STORAGE_KEY = 'izci.video-settings';
@@ -6,8 +6,13 @@ export const VIDEO_SETTINGS_CHANNEL = 'izci-video-settings';
 
 export const DEFAULT_VIDEO_SETTINGS: VideoSettings = {
   autoResizeWindow: false,
-  autoEnterTheater: false
+  autoEnterTheater: false,
+  fitMode: 'contain'
 };
+
+function normalizeFitMode(value: unknown): VideoFitMode {
+  return value === 'cover' ? value : DEFAULT_VIDEO_SETTINGS.fitMode;
+}
 
 export function normalizeVideoSettings(value: unknown): VideoSettings {
   const source = value && typeof value === 'object' ? (value as Partial<VideoSettings>) : {};
@@ -20,7 +25,8 @@ export function normalizeVideoSettings(value: unknown): VideoSettings {
     autoEnterTheater:
       typeof source.autoEnterTheater === 'boolean'
         ? source.autoEnterTheater
-        : DEFAULT_VIDEO_SETTINGS.autoEnterTheater
+        : DEFAULT_VIDEO_SETTINGS.autoEnterTheater,
+    fitMode: normalizeFitMode(source.fitMode)
   };
 }
 

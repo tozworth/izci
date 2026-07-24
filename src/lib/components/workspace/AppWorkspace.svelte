@@ -11,6 +11,7 @@
     ModulePatternSnapshot,
     PlaybackSnapshot,
     PlaylistItem,
+    VideoFitMode,
     WorkspacePanelId,
     WorkspaceTab
   } from '$lib/types';
@@ -18,6 +19,7 @@
   import WideWorkspace from './WideWorkspace.svelte';
   import type {
     WideWorkspaceResizeStartDetail,
+    VideoSeekFeedback,
     WorkspacePanelHandlers,
     WorkspaceTabMoveDetail
   } from './types';
@@ -41,6 +43,9 @@
     videoElement,
     videoParkingHost,
     videoTheaterActive,
+    videoFitMode,
+    videoPictureInPictureSupported,
+    videoSeekFeedback,
     lyricsTheaterDowntimeDots: appearance.lyrics.theaterDowntimeDots,
     lyricsTheaterDowntimeThresholdSeconds: appearance.lyrics.theaterDowntimeThresholdSeconds,
     lyricsTheaterSmoothScroll: appearance.lyrics.theaterSmoothScroll
@@ -56,6 +61,9 @@
   export let videoElement: HTMLVideoElement | null;
   export let videoParkingHost: HTMLDivElement | null;
   export let videoTheaterActive = false;
+  export let videoFitMode: VideoFitMode = 'contain';
+  export let videoPictureInPictureSupported = false;
+  export let videoSeekFeedback: VideoSeekFeedback | null = null;
   export let inactive = false;
   export let workspaceState: WorkspaceShellState;
   export let playlistPanelHandlers: WorkspacePanelHandlers;
@@ -95,6 +103,8 @@
   export let onMute: () => void;
   export let onShowTrack: (id: string) => void;
   export let onToggleVideoTheater: () => void;
+  export let onToggleVideoPictureInPicture: () => void;
+  export let onSetVideoFit: (fitMode: VideoFitMode) => void;
 </script>
 
 {#if isNowPlayingLayoutActive}
@@ -146,6 +156,8 @@
       }
     }}
     on:toggleVideoTheater={onToggleVideoTheater}
+    on:togglePictureInPicture={onToggleVideoPictureInPicture}
+    on:setVideoFit={(event) => onSetVideoFit(event.detail)}
     on:tabChange={(event) => onTabChange(event.detail)}
     on:tabClose={(event) => onTabClose(event.detail)}
     on:tabMove={(event) => onWideTabMove(event.detail)}

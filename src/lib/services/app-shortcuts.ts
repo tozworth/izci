@@ -9,6 +9,7 @@ const KEYBOARD_VOLUME_STEP = 0.05;
 
 export interface AppShortcutState {
   isNowPlayingLayoutActive: boolean;
+  videoTrackActive: boolean;
   isRightPanelVisible: boolean;
   activeCollection: WorkspaceCollection;
   playlistSelectionIds: string[];
@@ -20,7 +21,7 @@ export interface AppShortcutState {
 }
 
 interface AppShortcutHandlers {
-  toggleFullscreenNowPlaying: () => void | Promise<void>;
+  toggleFullscreenPresentation: () => void | Promise<void>;
   closeNowPlayingView: () => void;
   closeActiveRightPanel: () => void;
   removePlaylistItems: (ids: string[]) => void;
@@ -89,7 +90,22 @@ export function createAppShortcuts({ getState, handlers }: CreateAppShortcutsOpt
 
     if (event.key === 'Enter' && event.altKey && !event.ctrlKey && !event.shiftKey && !event.metaKey) {
       event.preventDefault();
-      void handlers.toggleFullscreenNowPlaying();
+      void handlers.toggleFullscreenPresentation();
+      return;
+    }
+
+    if (
+      state.videoTrackActive &&
+      event.key.toLowerCase() === 'f' &&
+      !event.repeat &&
+      !event.ctrlKey &&
+      !event.altKey &&
+      !event.shiftKey &&
+      !event.metaKey &&
+      !shouldIgnoreKeyboardTarget(event.target)
+    ) {
+      event.preventDefault();
+      void handlers.toggleFullscreenPresentation();
       return;
     }
 

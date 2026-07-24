@@ -10,6 +10,7 @@
   import AppWorkspace from '$lib/components/workspace/AppWorkspace.svelte';
   import VideoTheater from '$lib/components/workspace/VideoTheater.svelte';
   import type {
+    VideoSeekFeedback,
     WorkspacePanelHandlers
   } from '$lib/components/workspace/types';
   import {
@@ -81,6 +82,7 @@
     PlaylistItem,
     PlaylistRepeatMode,
     PlaylistSelection,
+    VideoFitMode,
     WorkspaceCollection,
     WorkspaceTab
   } from '$lib/types';
@@ -178,6 +180,9 @@
   let videoTrackActive = false;
   let videoTheaterActive = false;
   let videoTheaterControlsHidden = false;
+  let videoPictureInPictureSupported = false;
+  let videoSeekFeedback: VideoSeekFeedback | null = null;
+  let videoSeekFeedbackId = 0;
   let videoPresentationSignature = '';
   let videoTheaterTopInset = 0;
   let documentTitle = 'izci';
@@ -388,6 +393,7 @@
   const appShortcuts = createAppShortcuts({
     getState: () => ({
       isNowPlayingLayoutActive,
+      videoTrackActive,
       isRightPanelVisible: workspaceShellState.isRightPanelVisible,
       activeCollection: workspaceShellState.activeCollection,
       playlistSelectionIds,
@@ -398,7 +404,7 @@
       playbackSnapshot
     }),
     handlers: {
-      toggleFullscreenNowPlaying,
+      toggleFullscreenPresentation,
       closeNowPlayingView,
       closeActiveRightPanel,
       removePlaylistItems: workspaceCollections.removePlaylistItems,
@@ -450,6 +456,8 @@
   $: miniPlayerSelectedTrack.set(selectedPlaylistItem);
   $: miniPlayerArtworkUrl.set(artworkPresentationState.displayedArtwork?.url ?? null);
   $: videoTrackActive = playerDisplayTrack?.kind === 'video';
+  $: videoPictureInPictureSupported =
+    videoTrackActive && playerController.videoPictureInPictureSupported;
   $: syncVideoWindowSize(videoTrackActive, $videoSettings.autoResizeWindow);
   $: syncVideoPresentation(playerDisplayTrack, $videoSettings.autoEnterTheater);
   $: videoTheaterTopInset = $windowControlsOverlayState.visible
@@ -686,6 +694,13 @@
   }
 
   function seekPlayback(seconds: number): void {
+    const seekDelta = seconds - playbackSnapshot.currentTime;
+    if (videoTrackActive && Math.abs(seekDelta) >= 0.5) {
+      videoSeekFeedback = {
+        id: ++videoSeekFeedbackId,
+        deltaSeconds: seekDelta
+      };
+    }
     lyricsPresentation.resumeAutoScroll();
     playbackCommands.seek(seconds);
   }
@@ -741,11 +756,19 @@
 
     videoTheaterActive = false;
     videoTheaterControlsHidden = false;
+    if (windowFullscreen.isControllerFullscreenActive()) {
+      void windowFullscreen.exit();
+    }
     workspaceShell.closeWorkspaceTab('video');
   }
 
   function toggleVideoTheater(): void {
     if (!videoTrackActive) {
+      return;
+    }
+
+    if (typeof document !== 'undefined' && document.fullscreenElement) {
+      void windowFullscreen.exit();
       return;
     }
 
@@ -755,8 +778,35 @@
     }
   }
 
+  function setVideoFit(fitMode: VideoFitMode): void {
+    videoSettings.update({ fitMode });
+  }
+
+  async function toggleVideoPictureInPicture(): Promise<void> {
+    await playerController.toggleVideoPictureInPicture();
+  }
+
+  async function toggleVideoFullscreen(): Promise<void> {
+    if (typeof document !== 'undefined' && document.fullscreenElement) {
+      await windowFullscreen.exit();
+      return;
+    }
+
+    videoTheaterActive = true;
+    videoTheaterControlsHidden = false;
+    await windowFullscreen.enter();
+  }
+
+  function toggleFullscreenPresentation(): void | Promise<void> {
+    return videoTrackActive ? toggleVideoFullscreen() : toggleFullscreenNowPlaying();
+  }
+
   function handleAppKeydown(event: KeyboardEvent): void {
     if (videoTheaterActive && event.key === 'Escape') {
+      if (typeof document !== 'undefined' && document.fullscreenElement) {
+        return;
+      }
+
       event.preventDefault();
       event.stopPropagation();
       videoTheaterActive = false;
@@ -964,6 +1014,8 @@
     miniPlayerSupported={miniPlayerState.supported}
     miniPlayerActive={miniPlayerState.active || miniPlayerState.opening}
     patternsVisible={workspaceShellState.isPatternsPanelVisible}
+    videoActive={videoTrackActive}
+    videoFitMode={$videoSettings.fitMode}
     installAvailable={appInstallState.available}
     showInstallHint={appInstallState.showHint}
     on:openFiles={() => void handleMenuOpenFiles()}
@@ -980,6 +1032,7 @@
     on:togglePatterns={togglePatterns}
     on:toggleMiniPlayer={() => miniPlayer.toggle()}
     on:toggleNowPlayingView={toggleNowPlayingView}
+    on:setVideoFit={(event) => setVideoFit(event.detail)}
     on:exit={() => windowManager.exit()}
   />
 
@@ -990,6 +1043,9 @@
     videoElement={playerController.videoElement}
     {videoParkingHost}
     {videoTheaterActive}
+    videoFitMode={$videoSettings.fitMode}
+    {videoPictureInPictureSupported}
+    {videoSeekFeedback}
     inactive={videoTheaterActive}
     workspaceState={workspaceShellState}
     {playlistPanelHandlers}
@@ -1025,6 +1081,8 @@
     onMute={() => playerController.toggleMute()}
     onShowTrack={handleShowPlayerTrackDetails}
     onToggleVideoTheater={toggleVideoTheater}
+    onToggleVideoPictureInPicture={() => void toggleVideoPictureInPicture()}
+    onSetVideoFit={setVideoFit}
   />
 
   {#if videoTheaterActive}
@@ -1032,8 +1090,14 @@
       element={playerController.videoElement}
       parkingHost={videoParkingHost}
       topInset={videoTheaterTopInset}
+      fitMode={$videoSettings.fitMode}
+      snapshot={playbackSnapshot}
+      pictureInPictureSupported={videoPictureInPictureSupported}
+      seekFeedback={videoSeekFeedback}
       on:controlsHiddenChange={(event) => (videoTheaterControlsHidden = event.detail)}
       on:toggleVideoTheater={toggleVideoTheater}
+      on:togglePictureInPicture={() => void toggleVideoPictureInPicture()}
+      on:setVideoFit={(event) => setVideoFit(event.detail)}
       on:volumeStep={(event) => {
         if (!playbackSnapshot.muted) {
           playerController.setVolume(

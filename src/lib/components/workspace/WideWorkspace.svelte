@@ -7,6 +7,7 @@
   import type {
     BackdropZoneEffect,
     BackdropZoneArtworkSettings,
+    VideoFitMode,
     WorkspacePanelId,
     WorkspaceTab
   } from '$lib/types';
@@ -51,6 +52,8 @@
     seek: number;
     volumeStep: number;
     toggleVideoTheater: void;
+    togglePictureInPicture: void;
+    setVideoFit: VideoFitMode;
     tabChange: WorkspaceTab;
     tabClose: WorkspaceTab;
     tabMove: WorkspaceTabMoveDetail;
@@ -184,6 +187,8 @@
                   on:seek
                   on:volumeStep={(event) => dispatch('volumeStep', event.detail)}
                   on:toggleVideoTheater={() => dispatch('toggleVideoTheater')}
+                  on:togglePictureInPicture={() => dispatch('togglePictureInPicture')}
+                  on:setVideoFit={(event) => dispatch('setVideoFit', event.detail)}
                 />
               </div>
             {:else}
