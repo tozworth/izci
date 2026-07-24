@@ -29,6 +29,8 @@
     | 'toggleNowPlayingView'
     | 'videoFitContain'
     | 'videoFitCover'
+    | 'toggleVideoPictureInPicture'
+    | 'toggleVideoTheater'
     | 'exit';
 
   const MENU_ITEMS_ONLY_PADDING = 28;
@@ -75,6 +77,8 @@
   export let patternsVisible = false;
   export let videoActive = false;
   export let videoFitMode: VideoFitMode = 'contain';
+  export let videoPictureInPictureSupported = false;
+  export let videoTheaterActive = false;
   export let installAvailable = false;
   export let showInstallHint = false;
   export let inactive = false;
@@ -96,6 +100,8 @@
     toggleMiniPlayer: void;
     toggleNowPlayingView: void;
     setVideoFit: VideoFitMode;
+    toggleVideoPictureInPicture: void;
+    toggleVideoTheater: void;
     exit: void;
   }>();
 
@@ -209,6 +215,22 @@
       id: 'videoFitCover',
       label: $t('main.video.fill', { default: 'Fill window' }),
       icon: videoFitMode === 'cover' ? 'check' : 'crop_free'
+    },
+    ...(videoPictureInPictureSupported
+      ? [{
+          id: 'toggleVideoPictureInPicture',
+          label: $t('main.video.pictureInPicture', { default: 'Picture in Picture' }),
+          icon: 'picture_in_picture_alt',
+          separatorBefore: true
+        } satisfies MenuActionItem]
+      : []),
+    {
+      id: 'toggleVideoTheater',
+      label: videoTheaterActive
+        ? $t('main.player.exitVideoTheater', { default: 'Exit video theater' })
+        : $t('main.player.enterVideoTheater', { default: 'Enter video theater' }),
+      icon: videoTheaterActive ? 'check' : 'fit_screen',
+      separatorBefore: !videoPictureInPictureSupported
     }
   ] satisfies MenuActionItem[];
   $: compactMenuItems = [
@@ -371,6 +393,14 @@
     closeMenus();
     if (action === 'videoFitContain' || action === 'videoFitCover') {
       dispatch('setVideoFit', action === 'videoFitContain' ? 'contain' : 'cover');
+      return;
+    }
+    if (action === 'toggleVideoPictureInPicture') {
+      dispatch('toggleVideoPictureInPicture');
+      return;
+    }
+    if (action === 'toggleVideoTheater') {
+      dispatch('toggleVideoTheater');
       return;
     }
     dispatch(action);

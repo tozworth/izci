@@ -1016,6 +1016,8 @@
     patternsVisible={workspaceShellState.isPatternsPanelVisible}
     videoActive={videoTrackActive}
     videoFitMode={$videoSettings.fitMode}
+    {videoPictureInPictureSupported}
+    {videoTheaterActive}
     installAvailable={appInstallState.available}
     showInstallHint={appInstallState.showHint}
     on:openFiles={() => void handleMenuOpenFiles()}
@@ -1033,6 +1035,8 @@
     on:toggleMiniPlayer={() => miniPlayer.toggle()}
     on:toggleNowPlayingView={toggleNowPlayingView}
     on:setVideoFit={(event) => setVideoFit(event.detail)}
+    on:toggleVideoPictureInPicture={() => void toggleVideoPictureInPicture()}
+    on:toggleVideoTheater={toggleVideoTheater}
     on:exit={() => windowManager.exit()}
   />
 

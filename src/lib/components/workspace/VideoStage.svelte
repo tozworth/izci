@@ -12,6 +12,7 @@
   export let snapshot: PlaybackSnapshot | null = null;
   export let pictureInPictureSupported = false;
   export let seekFeedback: VideoSeekFeedback | null = null;
+  export let controlsHidden = false;
 
   const dispatch = createEventDispatcher<{
     volumeStep: number;
@@ -212,6 +213,7 @@
   bind:this={host}
   class="video-stage"
   class:video-fill={fitMode === 'cover'}
+  class:controls-hidden={controlsHidden}
   aria-label={$t('main.video.playback', { default: 'Video playback' })}
   on:wheel|preventDefault={handleWheel}
   on:dblclick={() => dispatch('toggleVideoTheater')}
@@ -310,7 +312,17 @@
     filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.78));
     opacity: 0.74;
     cursor: pointer;
-    transition: color 90ms ease-out, background-color 90ms ease-out, opacity 90ms ease-out;
+    transition:
+      color 90ms ease-out,
+      background-color 90ms ease-out,
+      opacity 160ms ease-out,
+      transform 180ms ease-out;
+  }
+
+  .video-stage.controls-hidden .video-pip-button {
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(calc(-100% - 1.35rem));
   }
 
   .video-pip-button:hover,

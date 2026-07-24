@@ -81,6 +81,7 @@
     {snapshot}
     {pictureInPictureSupported}
     {seekFeedback}
+    controlsHidden={controlsHidden}
     on:volumeStep={(event) => dispatch('volumeStep', event.detail)}
     on:toggleVideoTheater={() => dispatch('toggleVideoTheater')}
     on:togglePictureInPicture={() => dispatch('togglePictureInPicture')}
