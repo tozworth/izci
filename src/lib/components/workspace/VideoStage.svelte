@@ -22,6 +22,7 @@
   const VOLUME_WHEEL_STEP = 0.05;
   const STATUS_HIDE_DELAY_MS = 1250;
   const CENTER_FEEDBACK_HIDE_DELAY_MS = 650;
+  const SEEK_STATE_FEEDBACK_SUPPRESSION_TIMEOUT_MS = 5000;
 
   let host: HTMLDivElement | null = null;
   let contextMenuOpen = false;
@@ -32,6 +33,8 @@
   let centerFeedbackIcon: 'play_arrow' | 'pause' | null = null;
   let statusHideTimer: number | null = null;
   let centerFeedbackHideTimer: number | null = null;
+  let seekStateFeedbackSuppressionTimer: number | null = null;
+  let suppressSeekStateFeedback = false;
   let observedElement: HTMLVideoElement | null = null;
   let observedState: PlaybackSnapshot['state'] | null = null;
   let observedVolume = 0;
@@ -76,6 +79,24 @@
     }, CENTER_FEEDBACK_HIDE_DELAY_MS);
   }
 
+  function clearSeekStateFeedbackSuppression(): void {
+    clearTimer(seekStateFeedbackSuppressionTimer);
+    seekStateFeedbackSuppressionTimer = null;
+    suppressSeekStateFeedback = false;
+  }
+
+  function suppressStateFeedbackForSeek(): void {
+    clearTimer(centerFeedbackHideTimer);
+    centerFeedbackHideTimer = null;
+    centerFeedbackIcon = null;
+    clearTimer(seekStateFeedbackSuppressionTimer);
+    suppressSeekStateFeedback = true;
+    seekStateFeedbackSuppressionTimer = window.setTimeout(
+      clearSeekStateFeedbackSuppression,
+      SEEK_STATE_FEEDBACK_SUPPRESSION_TIMEOUT_MS
+    );
+  }
+
   function observeSnapshot(nextElement: HTMLVideoElement | null, nextSnapshot: PlaybackSnapshot | null): void {
     if (!nextElement || !nextSnapshot) {
       observedElement = null;
@@ -103,9 +124,14 @@
     }
 
     if (nextSnapshot.state !== observedState) {
-      if (nextSnapshot.state === 'playing') {
+      if (
+        suppressSeekStateFeedback &&
+        (nextSnapshot.state === 'playing' || nextSnapshot.state === 'paused')
+      ) {
+        clearSeekStateFeedbackSuppression();
+      } else if (observedState === 'paused' && nextSnapshot.state === 'playing') {
         showCenterFeedback('play_arrow');
-      } else if (nextSnapshot.state === 'paused') {
+      } else if (observedState === 'playing' && nextSnapshot.state === 'paused') {
         showCenterFeedback('pause');
       }
       observedState = nextSnapshot.state;
@@ -118,6 +144,12 @@
     }
 
     observedSeekFeedbackId = feedback.id;
+    clearTimer(centerFeedbackHideTimer);
+    centerFeedbackHideTimer = null;
+    centerFeedbackIcon = null;
+    if (snapshot?.state === 'playing' || snapshot?.state === 'loading') {
+      suppressStateFeedbackForSeek();
+    }
     const seconds = Math.max(1, Math.round(Math.abs(feedback.deltaSeconds)));
     showStatus(feedback.deltaSeconds >= 0
       ? $t('main.video.seekForward', {
@@ -168,6 +200,7 @@
   onDestroy(() => {
     clearTimer(statusHideTimer);
     clearTimer(centerFeedbackHideTimer);
+    clearTimer(seekStateFeedbackSuppressionTimer);
     if (element?.parentElement === host) {
       parkingHost?.appendChild(element);
     }
@@ -210,7 +243,7 @@
     <span class="video-center-feedback material-symbols-outlined" aria-hidden="true">
       {centerFeedbackIcon}
     </span>
-  {:else if element && snapshot?.state === 'loading'}
+  {:else if element && snapshot?.state === 'loading' && !suppressSeekStateFeedback}
     <span class="video-center-feedback video-buffering material-symbols-outlined" aria-hidden="true">
       progress_activity
     </span>
