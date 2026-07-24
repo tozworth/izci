@@ -72,6 +72,12 @@ import {
   SLOPTIMIZER_SLOP_MIN,
   SLOPTIMIZER_SPEED_MAX,
   SLOPTIMIZER_SPEED_MIN,
+  SLOPTIMIZER_UPWARD_BOOST_MAX_DB,
+  SLOPTIMIZER_UPWARD_BOOST_MIN_DB,
+  SLOPTIMIZER_UPWARD_RATIO_MAX,
+  SLOPTIMIZER_UPWARD_RATIO_MIN,
+  SLOPTIMIZER_UPWARD_THRESHOLD_MAX_DB,
+  SLOPTIMIZER_UPWARD_THRESHOLD_MIN_DB,
   SLOPTIMIZER_CROSSOVERS,
   createSloptimizerNode,
   disposeSloptimizerNode,
@@ -211,6 +217,9 @@ function normalizeSloptimizer(value: unknown): RafSloptimizerSettings | null {
     'highCrossoverHz',
     'density',
     'speed',
+    'upwardRatio',
+    'upwardThresholdDb',
+    'upwardMaximumBoostDb',
     'ceilingDb'
   ] as const;
   if (!numericKeys.every((key) => typeof source[key] === 'number' && Number.isFinite(source[key]))) return null;
@@ -237,6 +246,17 @@ function normalizeSloptimizer(value: unknown): RafSloptimizerSettings | null {
     ),
     density: clamp(source.density as number, SLOPTIMIZER_DENSITY_MIN, SLOPTIMIZER_DENSITY_MAX),
     speed: clamp(source.speed as number, SLOPTIMIZER_SPEED_MIN, SLOPTIMIZER_SPEED_MAX),
+    upwardRatio: clamp(source.upwardRatio as number, SLOPTIMIZER_UPWARD_RATIO_MIN, SLOPTIMIZER_UPWARD_RATIO_MAX),
+    upwardThresholdDb: clamp(
+      source.upwardThresholdDb as number,
+      SLOPTIMIZER_UPWARD_THRESHOLD_MIN_DB,
+      SLOPTIMIZER_UPWARD_THRESHOLD_MAX_DB
+    ),
+    upwardMaximumBoostDb: clamp(
+      source.upwardMaximumBoostDb as number,
+      SLOPTIMIZER_UPWARD_BOOST_MIN_DB,
+      SLOPTIMIZER_UPWARD_BOOST_MAX_DB
+    ),
     ceilingDb: clamp(source.ceilingDb as number, SLOPTIMIZER_CEILING_MIN_DB, SLOPTIMIZER_CEILING_MAX_DB)
   };
   return customized ? normalized : { ...normalized, ...mapSlopToParameters(slop) };

@@ -270,6 +270,9 @@ export function sameEffectSettings(first: RafEffectSettings, second: RafEffectSe
         && first.highCrossoverHz === candidate.highCrossoverHz
         && first.density === candidate.density
         && first.speed === candidate.speed
+        && first.upwardRatio === candidate.upwardRatio
+        && first.upwardThresholdDb === candidate.upwardThresholdDb
+        && first.upwardMaximumBoostDb === candidate.upwardMaximumBoostDb
         && first.ceilingDb === candidate.ceilingDb;
     }
     case 'reverb': {

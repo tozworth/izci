@@ -9,6 +9,7 @@ import { GRAPHIC_EQ_FREQUENCIES, GRAPHIC_EQ_Q, createGraphicEqNode, updateGraphi
 import { createStereoWidthNode, stereoWidthToMidSideGains, updateStereoWidthNode } from './mid-side';
 import { createReverbNode, createRoomImpulse, reverbMixToGains, updateReverbNode } from './reverb';
 import {
+  calculateUpwardBoostDb,
   createSafeLimiterCurve,
   createSloptimizerNode,
   mapSlopToParameters,
@@ -117,11 +118,38 @@ describe('Sloptimizer DSP', () => {
     const zero = mapSlopToParameters(0);
     const middle = mapSlopToParameters(50);
     const maximum = mapSlopToParameters(100);
-    expect(zero).toMatchObject({ lowLiftDb: 0, midLiftDb: 0, highLiftDb: 0, density: 0, ceilingDb: 0 });
+    expect(zero).toMatchObject({
+      lowLiftDb: 0,
+      midLiftDb: 0,
+      highLiftDb: 0,
+      density: 0,
+      upwardRatio: 1,
+      upwardMaximumBoostDb: 0,
+      ceilingDb: 0
+    });
     expect(middle.density).toBeGreaterThan(50);
     expect(middle.lowLiftDb).toBeGreaterThan(middle.midLiftDb);
     expect(middle.highLiftDb).toBeGreaterThan(middle.lowLiftDb);
-    expect(maximum).toMatchObject({ lowLiftDb: 8, midLiftDb: 4.5, highLiftDb: 11.5, density: 100, speed: 80, ceilingDb: -1 });
+    expect(maximum).toMatchObject({
+      lowLiftDb: 8,
+      midLiftDb: 4.5,
+      highLiftDb: 11.5,
+      density: 100,
+      speed: 80,
+      upwardRatio: 4,
+      upwardThresholdDb: -24,
+      upwardMaximumBoostDb: 12,
+      ceilingDb: -1
+    });
+  });
+
+  it('boosts only the useful range below the upward threshold', () => {
+    expect(calculateUpwardBoostDb(-18, -24, 4, 12)).toBe(0);
+    expect(calculateUpwardBoostDb(-32, -24, 4, 12)).toBe(6);
+    expect(calculateUpwardBoostDb(-60, -24, 4, 12)).toBe(12);
+    expect(calculateUpwardBoostDb(-69, -24, 4, 12)).toBe(6);
+    expect(calculateUpwardBoostDb(-72, -24, 4, 12)).toBe(0);
+    expect(calculateUpwardBoostDb(-32, -24, 1, 12)).toBe(0);
   });
 
   it('uses a dry path at zero and a bounded three-band maximizer when active', () => {

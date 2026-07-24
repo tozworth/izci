@@ -15,6 +15,12 @@
     SLOPTIMIZER_SLOP_MIN,
     SLOPTIMIZER_SPEED_MAX,
     SLOPTIMIZER_SPEED_MIN,
+    SLOPTIMIZER_UPWARD_BOOST_MAX_DB,
+    SLOPTIMIZER_UPWARD_BOOST_MIN_DB,
+    SLOPTIMIZER_UPWARD_RATIO_MAX,
+    SLOPTIMIZER_UPWARD_RATIO_MIN,
+    SLOPTIMIZER_UPWARD_THRESHOLD_MAX_DB,
+    SLOPTIMIZER_UPWARD_THRESHOLD_MIN_DB,
     mapSlopToParameters
   } from '$lib/services/raf-effects/sloptimizer';
   import { rafMeter } from '$lib/services/raf-meter';
@@ -23,7 +29,7 @@
 
   export let settings: RafSloptimizerSettings;
 
-  type AdvancedKey = 'lowLiftDb' | 'midLiftDb' | 'highLiftDb' | 'lowCrossoverHz' | 'highCrossoverHz' | 'density' | 'speed' | 'ceilingDb';
+  type AdvancedKey = 'lowLiftDb' | 'midLiftDb' | 'highLiftDb' | 'lowCrossoverHz' | 'highCrossoverHz' | 'density' | 'speed' | 'upwardRatio' | 'upwardThresholdDb' | 'upwardMaximumBoostDb' | 'ceilingDb';
 
   function updateSlop(event: Event) {
     const slop = (event.currentTarget as HTMLInputElement).valueAsNumber;
@@ -99,6 +105,9 @@
       <label><span>{$t('options.raf.sloptimizer.highLift', { default: 'High lift' })}</span><input type="range" min={SLOPTIMIZER_LIFT_MIN_DB} max={SLOPTIMIZER_LIFT_MAX_DB} step="0.1" value={settings.highLiftDb} on:input={(event) => updateAdvanced(event, 'highLiftDb')} /><output>{formatDb(settings.highLiftDb)}</output></label>
       <label><span>{$t('options.raf.sloptimizer.density', { default: 'Density' })}</span><input type="range" min={SLOPTIMIZER_DENSITY_MIN} max={SLOPTIMIZER_DENSITY_MAX} step="1" value={settings.density} on:input={(event) => updateAdvanced(event, 'density')} /><output>{settings.density.toFixed(0)}%</output></label>
       <label><span>{$t('options.raf.sloptimizer.speed', { default: 'Speed' })}</span><input type="range" min={SLOPTIMIZER_SPEED_MIN} max={SLOPTIMIZER_SPEED_MAX} step="1" value={settings.speed} on:input={(event) => updateAdvanced(event, 'speed')} /><output>{settings.speed.toFixed(0)}%</output></label>
+      <label><span>{$t('options.raf.sloptimizer.upwardRatio', { default: 'Upward ratio' })}</span><input type="range" min={SLOPTIMIZER_UPWARD_RATIO_MIN} max={SLOPTIMIZER_UPWARD_RATIO_MAX} step="0.1" value={settings.upwardRatio} on:input={(event) => updateAdvanced(event, 'upwardRatio')} /><output>{settings.upwardRatio.toFixed(1)}:1</output></label>
+      <label><span>{$t('options.raf.sloptimizer.upwardThreshold', { default: 'Upward threshold' })}</span><input type="range" min={SLOPTIMIZER_UPWARD_THRESHOLD_MIN_DB} max={SLOPTIMIZER_UPWARD_THRESHOLD_MAX_DB} step="0.5" value={settings.upwardThresholdDb} on:input={(event) => updateAdvanced(event, 'upwardThresholdDb')} /><output>{formatDb(settings.upwardThresholdDb)}</output></label>
+      <label><span>{$t('options.raf.sloptimizer.upwardRange', { default: 'Upward range' })}</span><input type="range" min={SLOPTIMIZER_UPWARD_BOOST_MIN_DB} max={SLOPTIMIZER_UPWARD_BOOST_MAX_DB} step="0.5" value={settings.upwardMaximumBoostDb} on:input={(event) => updateAdvanced(event, 'upwardMaximumBoostDb')} /><output>{formatDb(settings.upwardMaximumBoostDb)}</output></label>
       <label><span>{$t('options.raf.sloptimizer.ceiling', { default: 'Ceiling' })}</span><input type="range" min={SLOPTIMIZER_CEILING_MIN_DB} max={SLOPTIMIZER_CEILING_MAX_DB} step="0.1" value={settings.ceilingDb} on:input={(event) => updateAdvanced(event, 'ceilingDb')} /><output>{formatDb(settings.ceilingDb)}</output></label>
     </div>
     <div class="crossover-section">

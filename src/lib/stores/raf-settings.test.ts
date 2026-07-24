@@ -52,6 +52,9 @@ describe('normalizeRafSettings', () => {
           highCrossoverHz: 4_000,
           density: 60,
           speed: 55,
+          upwardRatio: 2,
+          upwardThresholdDb: -30,
+          upwardMaximumBoostDb: 8,
           ceilingDb: -1
         },
         {
@@ -172,6 +175,9 @@ describe('normalizeRafSettings', () => {
         highCrossoverHz: 20_000,
         density: 120,
         speed: -10,
+        upwardRatio: 20,
+        upwardThresholdDb: -100,
+        upwardMaximumBoostDb: 40,
         ceilingDb: -20
       }]
     });
@@ -185,6 +191,9 @@ describe('normalizeRafSettings', () => {
       highCrossoverHz: 8_000,
       density: 100,
       speed: 0,
+      upwardRatio: 8,
+      upwardThresholdDb: -60,
+      upwardMaximumBoostDb: 24,
       ceilingDb: -6
     });
   });
