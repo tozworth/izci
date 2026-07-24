@@ -81,7 +81,7 @@
   export let videoTheaterActive = false;
   export let installAvailable = false;
   export let showInstallHint = false;
-  export let inactive = false;
+  export let height = 0;
   const displayVersion = formatDisplayVersion(appVersion);
 
   const dispatch = createEventDispatcher<{
@@ -475,12 +475,12 @@
 <nav
   bind:this={menuBarElement}
   bind:clientWidth={menuBarWidth}
+  bind:clientHeight={height}
   class="menu-bar"
   class:window-controls-overlay-active={overlayState.visible}
   class:menu-bar-compact={isCompactMenu}
   style={overlayInlineStyle}
   aria-label={$t('main.menu.applicationMenu', { default: 'Application menu' })}
-  inert={inactive ? true : undefined}
 >
   {#if isCompactMenu}
     <button

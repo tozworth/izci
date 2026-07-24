@@ -185,6 +185,7 @@
   let videoSeekFeedbackId = 0;
   let videoPresentationSignature = '';
   let videoTheaterTopInset = 0;
+  let topMenuBarHeight = 0;
   let documentTitle = 'izci';
   let effectiveLyricsDisplayStyle: LyricsDisplayStyle = 'timestamped';
   let lyricsAutoScroll = true;
@@ -466,7 +467,7 @@
         $windowControlsOverlayState.titlebarAreaRect.y +
           $windowControlsOverlayState.titlebarAreaRect.height
       )
-    : 0;
+    : topMenuBarHeight;
   $: favoriteTargetTrack = playerDisplayTrack?.kind === 'module' && playbackSnapshot.subsong !== undefined
     ? { ...playerDisplayTrack, subsong: playbackSnapshot.subsong }
     : playerDisplayTrack;
@@ -1009,7 +1010,7 @@
   <div bind:this={videoParkingHost} hidden aria-hidden="true"></div>
 
   <TopMenuBar
-    inactive={videoTheaterActive && !$windowControlsOverlayState.visible}
+    bind:height={topMenuBarHeight}
     nowPlayingViewActive={isNowPlayingLayoutActive}
     miniPlayerSupported={miniPlayerState.supported}
     miniPlayerActive={miniPlayerState.active || miniPlayerState.opening}

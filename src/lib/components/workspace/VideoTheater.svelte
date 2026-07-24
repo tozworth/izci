@@ -94,7 +94,7 @@
     position: fixed;
     inset-inline: 0;
     bottom: 0;
-    z-index: 45;
+    z-index: 39;
     overflow: hidden;
     background: #000;
   }
