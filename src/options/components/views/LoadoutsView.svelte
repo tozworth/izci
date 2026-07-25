@@ -620,7 +620,7 @@
     place-items: center;
     width: 22px;
     height: 26px;
-    color: var(--muted-strong);
+    color: var(--accent-strong);
     border-radius: 4px;
   }
 
@@ -628,10 +628,6 @@
   .category-glyph:focus-visible {
     outline: 1px solid var(--accent);
     outline-offset: -2px;
-  }
-
-  .type-glyph > .material-symbols-outlined {
-    color: var(--accent-strong);
   }
 
   .loadout-name {
@@ -666,6 +662,14 @@
 
   .row-actions {
     justify-content: flex-end;
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .loadout-row:hover .row-actions,
+  .row-actions:focus-within {
+    opacity: 1;
+    pointer-events: auto;
   }
 
   .empty-row {
