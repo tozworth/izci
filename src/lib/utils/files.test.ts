@@ -6,6 +6,7 @@ import {
   buildSeparatedSubsongItems,
   extractDroppedContent,
   extractDroppedFiles,
+  formatDuration,
   inferArtistTitleFromFileName,
   inferExtension,
   inferKind,
@@ -35,6 +36,13 @@ function directoryHandle(name: string, children: FileSystemHandle[]): FileSystem
 }
 
 describe('file helpers', () => {
+  it('formats durations with an hours field when needed', () => {
+    expect(formatDuration(88 * 60 + 12)).toBe('01:28:12');
+    expect(formatDuration(728 * 60 + 43)).toBe('12:08:43');
+    expect(formatDuration(3599.9)).toBe('59:59');
+    expect(formatDuration(3600)).toBe('01:00:00');
+  });
+
   it('infers supported file extensions and playback kinds', () => {
     expect(inferExtension('Track.FLAC')).toBe('flac');
     expect(inferExtension('README')).toBe('');
