@@ -1,4 +1,8 @@
 import { readFileHandleFiles } from '$lib/utils/files';
+import {
+  filesystemFolders,
+  resolveFilesystemFileLocation
+} from '$lib/services/filesystem-folders';
 
 type LaunchedFilesListener = (files: File[]) => void | Promise<void>;
 type PrimaryInstanceRecord = {
@@ -17,9 +21,9 @@ type FileLaunchCoordinationMessage =
       primaryId: string;
     }
   | {
-      type: 'launched-files';
+      type: 'launched-file-handles';
       targetId: string;
-      files: File[];
+      handles: FileSystemFileHandle[];
     };
 
 const pendingFileBatches: File[][] = [];
@@ -214,13 +218,13 @@ function handleCoordinationMessage(event: MessageEvent<FileLaunchCoordinationMes
       resolve(message.primaryId);
       return;
     }
-    case 'launched-files':
+    case 'launched-file-handles':
       if (message.targetId !== instanceId) {
         return;
       }
 
       claimPrimaryInstanceIfNeeded(true);
-      enqueueLaunchedFiles(message.files);
+      void enqueueLaunchedFileHandles(message.handles).catch(reportLaunchError);
       focusCurrentWindow();
       return;
   }
@@ -293,7 +297,7 @@ async function findPrimaryInstance(): Promise<string | null> {
   return null;
 }
 
-async function relayLaunchedFilesToPrimary(files: File[]): Promise<boolean> {
+async function relayLaunchedFileHandlesToPrimary(handles: FileSystemFileHandle[]): Promise<boolean> {
   const primaryId = await findPrimaryInstance();
 
   if (!primaryId || !broadcastChannel) {
@@ -301,11 +305,17 @@ async function relayLaunchedFilesToPrimary(files: File[]): Promise<boolean> {
     return false;
   }
 
-  broadcastChannel.postMessage({
-    type: 'launched-files',
-    targetId: primaryId,
-    files
-  } satisfies FileLaunchCoordinationMessage);
+  try {
+    broadcastChannel.postMessage({
+      type: 'launched-file-handles',
+      targetId: primaryId,
+      handles
+    } satisfies FileLaunchCoordinationMessage);
+  } catch {
+    claimPrimaryInstanceIfNeeded(true);
+    return false;
+  }
+
   closeCurrentWindow();
   return true;
 }
@@ -349,6 +359,23 @@ function enqueueLaunchedFiles(files: File[]): void {
   void flushPendingFileBatches().catch(reportLaunchError);
 }
 
+async function enqueueLaunchedFileHandles(handles: FileSystemFileHandle[]): Promise<void> {
+  await filesystemFolders.ready();
+  const folders = filesystemFolders.getSnapshot();
+  const files = await readFileHandleFiles(handles, async (handle) => {
+    const location = await resolveFilesystemFileLocation(handle, folders);
+
+    return location
+      ? {
+          path: location.path,
+          sourceFolderId: location.folderId
+        }
+      : undefined;
+  });
+
+  if (files.length > 0) enqueueLaunchedFiles(files);
+}
+
 async function handleLaunch(launchParams: LaunchParams): Promise<void> {
   const handles = getLaunchFileHandles(launchParams);
 
@@ -356,17 +383,11 @@ async function handleLaunch(launchParams: LaunchParams): Promise<void> {
     return;
   }
 
-  const files = await readFileHandleFiles(handles);
-
-  if (files.length === 0) {
+  if (await relayLaunchedFileHandlesToPrimary(handles)) {
     return;
   }
 
-  if (await relayLaunchedFilesToPrimary(files)) {
-    return;
-  }
-
-  enqueueLaunchedFiles(files);
+  await enqueueLaunchedFileHandles(handles);
 }
 
 function ensureLaunchQueue(): void {

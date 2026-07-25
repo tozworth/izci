@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   getDroppedDirectoryHandles,
-  queryFilesystemFolderPermission
+  queryFilesystemFolderPermission,
+  resolveFilesystemFileLocation,
+  type FilesystemFolder
 } from './filesystem-folders';
 
 function directoryHandle(overrides: Partial<FileSystemDirectoryHandle> = {}): FileSystemDirectoryHandle {
@@ -11,6 +13,22 @@ function directoryHandle(overrides: Partial<FileSystemDirectoryHandle> = {}): Fi
     async *values() {},
     ...overrides
   } as FileSystemDirectoryHandle;
+}
+
+function rememberedFolder(
+  id: string,
+  name: string,
+  handle: FileSystemDirectoryHandle
+): FilesystemFolder {
+  return {
+    id,
+    name,
+    handle,
+    addedAt: 1,
+    permission: 'granted',
+    libraryMode: null,
+    lastScanStatus: 'never'
+  };
 }
 
 describe('filesystem folder helpers', () => {
@@ -50,5 +68,42 @@ describe('filesystem folder helpers', () => {
     } as unknown as DataTransfer;
 
     await expect(getDroppedDirectoryHandles(dataTransfer)).resolves.toEqual([folder]);
+  });
+
+  it('resolves a launched file to its unique remembered folder and canonical path', async () => {
+    const track = {
+      kind: 'file',
+      name: 'Track.flac',
+      getFile: async () => new File([], 'Track.flac')
+    } as FileSystemFileHandle;
+    const music = rememberedFolder('music-id', 'Music', directoryHandle({
+      resolve: async (candidate) => candidate === track ? ['Artist', 'Track.flac'] : null
+    }));
+    const other = rememberedFolder('other-id', 'Other', directoryHandle({
+      name: 'Other',
+      resolve: async () => null
+    }));
+
+    await expect(resolveFilesystemFileLocation(track, [music, other])).resolves.toEqual({
+      folderId: 'music-id',
+      path: 'Music/Artist/Track.flac'
+    });
+  });
+
+  it('does not guess when a launched file belongs to multiple remembered roots', async () => {
+    const track = {
+      kind: 'file',
+      name: 'Track.flac',
+      getFile: async () => new File([], 'Track.flac')
+    } as FileSystemFileHandle;
+    const parent = rememberedFolder('parent-id', 'Music', directoryHandle({
+      resolve: async () => ['Album', 'Track.flac']
+    }));
+    const nested = rememberedFolder('nested-id', 'Album', directoryHandle({
+      name: 'Album',
+      resolve: async () => ['Track.flac']
+    }));
+
+    await expect(resolveFilesystemFileLocation(track, [parent, nested])).resolves.toBeNull();
   });
 });

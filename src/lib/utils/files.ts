@@ -39,7 +39,12 @@ type ChromiumDataTransferItem = DataTransferItem & {
 interface ImportedFileSource {
   fileHandle?: FileSystemFileHandle;
   path?: string;
+  sourceFolderId?: string;
 }
+
+export type FileHandleSourceResolver = (
+  handle: FileSystemFileHandle
+) => ImportedFileSource | undefined | Promise<ImportedFileSource | undefined>;
 
 interface DirectoryReadOptions {
   maxDepth?: number;
@@ -87,7 +92,8 @@ function registerImportedFile(file: File, source: ImportedFileSource): File {
 
   importedFileSources.set(file, {
     fileHandle: source.fileHandle ?? existing?.fileHandle,
-    path: normalizePath(source.path) ?? existing?.path
+    path: normalizePath(source.path) ?? existing?.path,
+    sourceFolderId: source.sourceFolderId ?? existing?.sourceFolderId
   });
 
   return file;
@@ -196,6 +202,7 @@ function createPlaylistItem(file: File): PlaylistItem | null {
     file,
     fileHandle: source?.fileHandle,
     path: source?.path,
+    sourceFolderId: source?.sourceFolderId,
     name: file.name,
     extension,
     kind,
@@ -303,8 +310,20 @@ export async function readDirectoryFiles(
   return files;
 }
 
-export async function readFileHandleFiles(handles: FileSystemFileHandle[]): Promise<File[]> {
-  return await Promise.all(handles.map((handle) => readFileHandle(handle)));
+export async function readFileHandleFiles(
+  handles: FileSystemFileHandle[],
+  resolveSource?: FileHandleSourceResolver
+): Promise<File[]> {
+  return await Promise.all(
+    handles.map(async (handle) => {
+      const source = await resolveSource?.(handle);
+      const file = await readFileHandle(handle, source?.path ?? handle.name);
+      return registerImportedFile(file, {
+        ...source,
+        fileHandle: handle
+      });
+    })
+  );
 }
 
 export interface DroppedContent {

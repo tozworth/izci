@@ -27,6 +27,11 @@ export interface FilesystemFolder {
   lastScanFailure?: LibraryFolderScanFailure;
 }
 
+export interface FilesystemFileLocation {
+  folderId: string;
+  path: string;
+}
+
 type StoredFilesystemFolder = Omit<FilesystemFolder, 'permission'>;
 
 const DATABASE_NAME = 'izci-filesystem';
@@ -180,6 +185,32 @@ async function sameDirectory(
   } catch {
     return false;
   }
+}
+
+export async function resolveFilesystemFileLocation(
+  handle: FileSystemFileHandle,
+  folders: FilesystemFolder[]
+): Promise<FilesystemFileLocation | null> {
+  const matches: FilesystemFileLocation[] = [];
+
+  for (const folder of folders) {
+    if (typeof folder.handle.resolve !== 'function') continue;
+
+    try {
+      const relativePath = await folder.handle.resolve(handle);
+
+      if (relativePath && relativePath.length > 0) {
+        matches.push({
+          folderId: folder.id,
+          path: [folder.name, ...relativePath].join('/')
+        });
+      }
+    } catch {
+      // A stale or unavailable remembered root cannot identify this file.
+    }
+  }
+
+  return matches.length === 1 ? matches[0] : null;
 }
 
 function stripRuntimeState(folder: FilesystemFolder): StoredFilesystemFolder {

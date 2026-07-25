@@ -13,6 +13,7 @@ import {
   mergeInferredArtistTitle,
   getTrackDisplayTitle,
   getTrackPlaylistLabel,
+  readFileHandleFiles,
   readDirectoryFiles,
   stripFileExtension
 } from './files';
@@ -122,6 +123,20 @@ describe('file helpers', () => {
       { name: 'Root.xm', path: 'Music/Root.xm' }
     ]);
     expect(items.find((item) => item.name === 'Nested.mod')?.fileHandle).toBe(nestedTrack);
+  });
+
+  it('attaches resolved folder context when reading launched file handles', async () => {
+    const track = fileHandle(new File(['track'], 'Track.flac'));
+    const files = await readFileHandleFiles([track], () => ({
+      path: 'Music/Artist/Track.flac',
+      sourceFolderId: 'music-id'
+    }));
+
+    expect(buildPlaylistItems(files)[0]).toMatchObject({
+      fileHandle: track,
+      path: 'Music/Artist/Track.flac',
+      sourceFolderId: 'music-id'
+    });
   });
 
   it('limits directory traversal by subfolder depth', async () => {
