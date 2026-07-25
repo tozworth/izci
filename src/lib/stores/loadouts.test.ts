@@ -42,6 +42,7 @@ describe('loadout persistence normalization', () => {
         target: { type: 'type', recognizedType: 'XM' },
         settings: {
           playback: { playbackRate: 99, trueSpeed: true, replayGainMode: 'wat' },
+          raf: { presetName: '  Clean  ', enabled: false },
           modules: { repeatCount: -99, interpolationFilter: 7 }
         },
         createdAt: 10,
@@ -56,6 +57,7 @@ describe('loadout persistence normalization', () => {
       trueSpeed: true,
       replayGainMode: 'track'
     });
+    expect(state.loadouts[0].settings.raf).toEqual({ presetName: 'Clean', enabled: false });
     expect(state.loadouts[0].settings.modules).toMatchObject({
       repeatCount: -1,
       interpolationFilter: 1

@@ -2,6 +2,8 @@ import { writable } from 'svelte/store';
 import { afterEach, describe, expect, it } from 'vitest';
 import type { FilesystemFolder } from './filesystem-folders';
 import {
+  applyLoadoutSettings,
+  captureLoadoutSettings,
   getLoadoutFileKey,
   matchesLoadoutTarget,
   resolveAutomaticLoadouts,
@@ -11,6 +13,8 @@ import {
 } from './loadouts';
 import { loadouts as loadoutStore } from '$lib/stores/loadouts';
 import { playbackSettings } from '$lib/stores/playback-settings';
+import { rafPresets } from '$lib/stores/raf-presets';
+import { rafSettings } from '$lib/stores/raf-settings';
 import type { Loadout, LoadoutState, LoadoutTrackContext, PlaylistItem } from '$lib/types';
 
 const folder = {
@@ -124,10 +128,52 @@ describe('automatic loadout resolution', () => {
 
 describe('automatic loadout runtime', () => {
   const originalPlayback = playbackSettings.getSnapshot();
+  const originalRafSettings = rafSettings.getSnapshot();
 
   afterEach(() => {
     loadoutStore.reset();
     playbackSettings.set(originalPlayback);
+    rafPresets.reset();
+    rafSettings.replace(originalRafSettings);
+  });
+
+  it('captures and reapplies the Raf enabled state with its preset', () => {
+    rafSettings.reset();
+    rafSettings.setEnabled(false);
+    rafPresets.create('Clean');
+
+    const captured = captureLoadoutSettings(['raf']);
+    expect(captured?.raf).toEqual({ presetName: 'Clean', enabled: false });
+
+    rafSettings.setEnabled(true);
+    applyLoadoutSettings(captured!);
+    expect(rafSettings.getSnapshot().enabled).toBe(false);
+  });
+
+  it('turns Raf off when switching from a Raf-on loadout to a Raf-off loadout', () => {
+    rafSettings.reset();
+    const preset = rafPresets.create('Track rack')!;
+    const rafOnTrack: PlaylistItem = {
+      id: 'raf-on', name: 'Raf on.flac', extension: 'flac', kind: 'stream', size: 10, lastModified: 1
+    };
+    const rafOffTrack: PlaylistItem = {
+      id: 'raf-off', name: 'Raf off.flac', extension: 'flac', kind: 'stream', size: 11, lastModified: 2
+    };
+    loadoutStore.create('Raf on', { type: 'file', fileKey: getLoadoutFileKey(rafOnTrack) }, {
+      raf: { presetName: preset.name, enabled: true }
+    });
+    loadoutStore.create('Raf off', { type: 'file', fileKey: getLoadoutFileKey(rafOffTrack) }, {
+      raf: { presetName: preset.name, enabled: false }
+    });
+    const tracks = writable<PlaylistItem | null>(null);
+    const stop = startLoadoutRuntime(tracks);
+
+    tracks.set(rafOnTrack);
+    expect(rafSettings.getSnapshot().enabled).toBe(true);
+
+    tracks.set(rafOffTrack);
+    expect(rafSettings.getSnapshot().enabled).toBe(false);
+    stop();
   });
 
   it('restores the previous category settings before an unmatched track inherits them', () => {

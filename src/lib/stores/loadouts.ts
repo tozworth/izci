@@ -85,9 +85,12 @@ function normalizeSettings(value: unknown): LoadoutSettings | null {
   const playback = normalizePlayback(source.playback);
   const appearance = normalizeAppearance(source.appearance);
   const rafPresetName = normalizeText(source.raf?.presetName, 80);
+  const rafEnabled = typeof source.raf?.enabled === 'boolean' ? source.raf.enabled : null;
 
   if (playback) settings.playback = playback;
-  if (rafPresetName) settings.raf = { presetName: rafPresetName };
+  if (rafPresetName && rafEnabled !== null) {
+    settings.raf = { presetName: rafPresetName, enabled: rafEnabled };
+  }
   if (source.modules && typeof source.modules === 'object') {
     settings.modules = normalizeModulePlaybackSettings(source.modules);
   }

@@ -204,7 +204,7 @@ export function captureLoadoutSettings(
   if (selected.has('raf')) {
     const state = rafPresets.getSnapshot();
     const preset = state.presets.find((candidate) => candidate.id === state.selectedPresetId)!;
-    settings.raf = { presetName: preset.name };
+    settings.raf = { presetName: preset.name, enabled: rafSettings.getSnapshot().enabled };
   }
   if (selected.has('modules')) {
     settings.modules = { ...modulePlaybackSettings.getSnapshot() };
@@ -225,7 +225,10 @@ export function applyLoadoutSettings(settings: LoadoutSettings): void {
     const preset = rafPresets.getSnapshot().presets.find(
       (candidate) => normalizedComparisonText(candidate.name) === normalizedComparisonText(settings.raf!.presetName)
     );
-    if (preset) rafPresets.apply(preset.id);
+    if (preset) {
+      rafPresets.apply(preset.id);
+      rafSettings.setEnabled(settings.raf.enabled);
+    }
   }
   if (settings.modules) modulePlaybackSettings.set(settings.modules);
   if (settings.appearance) {

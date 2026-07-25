@@ -399,6 +399,11 @@ export interface LoadoutPlaybackSettings {
   replayGainMode: ReplayGainMode;
 }
 
+export interface LoadoutRafSettings {
+  presetName: string;
+  enabled: boolean;
+}
+
 export interface LoadoutAppearanceSettings {
   backdropZones: BackdropZoneSettings;
   visualizer: VisualizerSettings;
@@ -406,7 +411,7 @@ export interface LoadoutAppearanceSettings {
 
 export interface LoadoutSettings {
   playback?: LoadoutPlaybackSettings;
-  raf?: { presetName: string };
+  raf?: LoadoutRafSettings;
   modules?: ModulePlaybackSettings;
   appearance?: LoadoutAppearanceSettings;
 }
