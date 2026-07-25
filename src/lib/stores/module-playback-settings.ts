@@ -51,7 +51,7 @@ function toInterpolationFilter(value: unknown): ModuleInterpolationFilter {
   return DEFAULT_MODULE_PLAYBACK_SETTINGS.interpolationFilter;
 }
 
-function normalizeSettings(value: unknown): ModulePlaybackSettings {
+export function normalizeModulePlaybackSettings(value: unknown): ModulePlaybackSettings {
   const source = value && typeof value === 'object' ? (value as Partial<ModulePlaybackSettings>) : {};
 
   return {
@@ -80,5 +80,5 @@ export const modulePlaybackSettings = createSettingsStore({
   storageKey: MODULE_PLAYBACK_SETTINGS_STORAGE_KEY,
   channelName: MODULE_PLAYBACK_SETTINGS_CHANNEL,
   defaultValue: DEFAULT_MODULE_PLAYBACK_SETTINGS,
-  normalize: normalizeSettings
+  normalize: normalizeModulePlaybackSettings
 });

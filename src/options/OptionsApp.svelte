@@ -7,6 +7,7 @@
   import LyricsView from './components/views/LyricsView.svelte';
   import MetadataView from './components/views/MetadataView.svelte';
   import ModulesView from './components/views/ModulesView.svelte';
+  import LoadoutsView from './components/views/LoadoutsView.svelte';
   import NowPlayingView from './components/views/NowPlayingView.svelte';
   import PlaybackView from './components/views/PlaybackView.svelte';
   import PatternsView from './components/views/PatternsView.svelte';
@@ -61,6 +62,7 @@
       case 'visualizer': return $t('options.views.visualizer', { default: 'Visualizer' });
       case 'patterns': return $t('options.views.patterns', { default: 'Patterns' });
       case 'modules': return $t('options.views.modules', { default: 'Modules' });
+      case 'loadouts': return $t('options.views.loadouts', { default: 'Loadouts' });
       case 'tracks': return $t('options.views.tracks', { default: 'Tracks' });
       case 'folders': return $t('options.views.folders', { default: 'Folders' });
       case 'metadata': return $t('options.views.metadata', { default: 'Metadata' });
@@ -296,6 +298,10 @@
 
       {#if activeView === 'modules'}
         <ModulesView />
+      {/if}
+
+      {#if activeView === 'loadouts'}
+        <LoadoutsView />
       {/if}
 
       {#if activeView === 'tracks'}

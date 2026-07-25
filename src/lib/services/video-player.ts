@@ -18,6 +18,8 @@ export class VideoPlayerService {
   #initialPosition = 0;
   #initialPositionApplied = false;
   #fallbackVolume = 1;
+  #playbackRate = 1;
+  #trueSpeed = false;
   #trackSize = 0;
 
   constructor(
@@ -122,6 +124,12 @@ export class VideoPlayerService {
     this.#applyOutputVolume();
   }
 
+  setPlaybackRate(playbackRate: number, trueSpeed: boolean): void {
+    this.#playbackRate = playbackRate;
+    this.#trueSpeed = trueSpeed;
+    this.#applyPlaybackRate();
+  }
+
   unload(): void {
     const element = this.#element;
 
@@ -161,6 +169,8 @@ export class VideoPlayerService {
     element.playsInline = true;
     element.controls = false;
     element.disablePictureInPicture = false;
+    this.#element = element;
+    this.#applyPlaybackRate();
     element.setAttribute('aria-label', 'Video playback');
     element.addEventListener('loadedmetadata', () => this.#handleLoadedMetadata());
     element.addEventListener('durationchange', () => this.#publishProgress());
@@ -194,8 +204,17 @@ export class VideoPlayerService {
       this.onSnapshot({ state: 'error', error: this.#resolveErrorMessage(element.error) });
     });
 
-    this.#element = element;
     return element;
+  }
+
+  #applyPlaybackRate(): void {
+    if (!this.#element) {
+      return;
+    }
+
+    this.#element.defaultPlaybackRate = this.#playbackRate;
+    this.#element.playbackRate = this.#playbackRate;
+    this.#element.preservesPitch = !this.#trueSpeed;
   }
 
   #handleLoadedMetadata(): void {

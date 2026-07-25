@@ -188,6 +188,8 @@ function createPlayerController() {
   });
   const unsubscribePlaybackSettings = playbackSettings.subscribe((settings) => {
     playbackConfig = settings;
+    services.stream.setPlaybackRate(settings.playbackRate, settings.trueSpeed);
+    services.video.setPlaybackRate(settings.playbackRate, settings.trueSpeed);
     applyBackendVolume();
   });
 

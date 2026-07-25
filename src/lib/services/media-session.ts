@@ -1,5 +1,5 @@
 import type { Readable } from 'svelte/store';
-import type { PlaybackSnapshot, PlaylistItem } from '$lib/types';
+import type { PlaybackSettings, PlaybackSnapshot, PlaylistItem } from '$lib/types';
 import {
   getTrackArtworkLoadKey,
   loadTrackArtwork,
@@ -32,6 +32,7 @@ interface MediaSessionHandlers {
 interface MediaSessionConnectOptions {
   snapshot: Readable<PlaybackSnapshot>;
   track: Readable<PlaylistItem | null>;
+  settings: Readable<PlaybackSettings>;
   handlers: MediaSessionHandlers;
 }
 
@@ -45,6 +46,7 @@ function clamp(value: number, min: number, max: number): number {
 function createMediaSessionService() {
   let snapshot: PlaybackSnapshot | null = null;
   let track: PlaylistItem | null = null;
+  let playbackRate = 1;
   let transportAnchor: HTMLAudioElement | null = null;
   let transportHandlers: MediaSessionHandlers | null = null;
   let ignoredTransportPlayEvents = 0;
@@ -205,11 +207,14 @@ function createMediaSessionService() {
       return;
     }
 
+    const positionPlaybackRate = snapshot?.state === 'playing'
+      ? track.kind === 'module' ? 1 : playbackRate
+      : 0;
     const nextState: PublishedPositionState = {
       trackId: track.id,
       duration,
       position: clamp(snapshot?.currentTime ?? 0, 0, duration),
-      playbackRate: snapshot?.state === 'playing' ? 1 : 0,
+      playbackRate: positionPlaybackRate,
       playbackState: snapshot?.state ?? 'idle'
     };
 
@@ -398,7 +403,7 @@ function createMediaSessionService() {
       audio.pause();
       audio.currentTime = 0;
     },
-    connect({ snapshot: snapshotStore, track: trackStore, handlers }: MediaSessionConnectOptions): () => void {
+    connect({ snapshot: snapshotStore, track: trackStore, settings: settingsStore, handlers }: MediaSessionConnectOptions): () => void {
       const mediaSession = getMediaSession();
 
       if (!mediaSession) {
@@ -424,13 +429,19 @@ function createMediaSessionService() {
         trackArtworkKey = nextArtworkKey;
         void syncTrackArtwork(mediaSession, value);
       });
+      const unsubscribeSettings = settingsStore.subscribe((value) => {
+        playbackRate = value.playbackRate;
+        syncPositionState(mediaSession);
+      });
 
       return () => {
         unsubscribeSnapshot();
         unsubscribeTrack();
+        unsubscribeSettings();
         artworkLoadToken += 1;
         snapshot = null;
         track = null;
+        playbackRate = 1;
         trackArtworkKey = '';
         clearTrackArtwork();
         transportHandlers = null;

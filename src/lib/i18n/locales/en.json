@@ -86,17 +86,15 @@
         "whatPwa": "What even is a PWA?",
         "worksOnMachine": "Works on my machine."
       },
+      "exitFullscreen": "Exit fullscreen",
+      "exitVideoTheater": "Exit video theater",
+      "enterVideoTheater": "Enter video theater",
       "nowPlayingControls": "Now Playing controls",
       "videoTheaterControls": "Video theater controls",
       "showCurrentTrackDetails": "Show current track details",
       "welcome": "Welcome to izci!",
       "ready": "Ready",
       "dropFilesToBegin": "Drop files to begin",
-      "previousTrackWithSubsongHint": "Previous track · Right-click for previous subsong",
-      "nextTrackWithSubsongHint": "Next track · Right-click for next subsong",
-      "exitVideoTheater": "Exit video theater",
-      "enterVideoTheater": "Enter video theater",
-      "exitFullscreen": "Exit fullscreen",
       "removeFromFavorites": "Remove from favorites",
       "addToFavorites": "Add to favorites",
       "bypassRaf": "Bypass Raf",
@@ -127,12 +125,12 @@
     "video": {
       "fit": "Fit to window",
       "fill": "Fill window",
+      "pictureInPicture": "Picture in Picture",
       "menu": "Video",
       "volume": "Volume {percent}%",
       "seekForward": "Forward {seconds}s",
       "seekBackward": "Back {seconds}s",
-      "playback": "Video playback",
-      "pictureInPicture": "Picture in Picture"
+      "playback": "Video playback"
     },
     "trackDetails": {
       "album": "Album",
@@ -632,6 +630,49 @@
     "licenses": {
       "documentLabel": "izci license and third-party notices"
     },
+    "loadouts": {
+      "types": {
+        "file": "File",
+        "path": "Folder",
+        "type": "Type",
+        "tags": "Tags",
+        "preset": "Preset"
+      },
+      "categories": {
+        "playback": "Playback",
+        "raf": "Raf preset",
+        "modules": "Modules",
+        "appearance": "Appearance"
+      },
+      "capture": {
+        "heading": "Save current settings",
+        "hint": "Choose what identifies the loadout and which current settings it captures.",
+        "type": "Loadout type",
+        "tagsPlaceholder": "Filename or metadata regex",
+        "presetPlaceholder": "Preset name",
+        "noTarget": "No current target available",
+        "name": "Loadout name or matcher",
+        "categories": "Settings categories",
+        "invalidRegex": "Enter a valid regular expression.",
+        "noFolder": "The current file is not associated with a unique remembered FSA folder.",
+        "noRecognizedType": "The current file does not have a recognized type yet."
+      },
+      "actions": {
+        "add": "Add loadout",
+        "forLoadout": "Actions for {name}",
+        "load": "Load",
+        "update": "Update from current settings",
+        "delete": "Delete"
+      },
+      "list": {
+        "heading": "Loadouts",
+        "hint": "Load applies a saved set. Update replaces its settings from their normal Options pages.",
+        "label": "Saved loadouts",
+        "empty": "No loadouts saved.",
+        "savedCategories": "Saved categories"
+      },
+      "automatic": "Automatically apply matching loadouts"
+    },
     "lyrics": {
       "styles": {
         "plain": "Plain text",
@@ -832,6 +873,17 @@
       "startup": {
         "heading": "Startup"
       },
+      "speed": {
+        "heading": "Speed"
+      },
+      "playbackRate": {
+        "title": "Playback speed",
+        "hint": "Changes the playback speed of streamed audio and video. Tracker modules use their own tempo and pitch controls."
+      },
+      "trueSpeed": {
+        "title": "True speed",
+        "hint": "Disables timestretching so pitch rises or falls along with playback speed."
+      },
       "progress": {
         "heading": "Progress"
       },
@@ -961,6 +1013,7 @@
       "visualizer": "Visualizer",
       "patterns": "Patterns",
       "modules": "Modules",
+      "loadouts": "Loadouts",
       "tracks": "Tracks",
       "folders": "Folders",
       "metadata": "Metadata",

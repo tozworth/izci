@@ -347,6 +347,8 @@ export interface AppearanceSettings {
 }
 
 export interface PlaybackSettings {
+  playbackRate: number;
+  trueSpeed: boolean;
   logarithmicVolume: boolean;
   replayGainMode: ReplayGainMode;
   restoreMode: PlaybackRestoreMode;
@@ -368,6 +370,59 @@ export interface VisualizerSettings {
   triangleBaseSpeed: number;
   triangleReactiveSpeed: number;
   triangleBorderWidth: number;
+}
+
+export type LoadoutType = 'file' | 'path' | 'type' | 'tags' | 'preset';
+export type LoadoutCategory = 'playback' | 'raf' | 'modules' | 'appearance';
+
+export interface LoadoutTrackContext {
+  name: string;
+  path?: string;
+  sourceFolderId?: string;
+  extension: string;
+  kind: TrackKind;
+  size: number;
+  lastModified: number;
+  metadata?: TrackMetadata;
+}
+
+export type LoadoutTarget =
+  | { type: 'file'; fileKey: string }
+  | { type: 'path'; folderId: string; folderName: string }
+  | { type: 'type'; recognizedType: string }
+  | { type: 'tags'; pattern: string }
+  | { type: 'preset' };
+
+export interface LoadoutPlaybackSettings {
+  playbackRate: number;
+  trueSpeed: boolean;
+  replayGainMode: ReplayGainMode;
+}
+
+export interface LoadoutAppearanceSettings {
+  backdropZones: BackdropZoneSettings;
+  visualizer: VisualizerSettings;
+}
+
+export interface LoadoutSettings {
+  playback?: LoadoutPlaybackSettings;
+  raf?: { presetName: string };
+  modules?: ModulePlaybackSettings;
+  appearance?: LoadoutAppearanceSettings;
+}
+
+export interface Loadout {
+  id: string;
+  name: string;
+  target: LoadoutTarget;
+  settings: LoadoutSettings;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface LoadoutState {
+  automaticEnabled: boolean;
+  loadouts: Loadout[];
 }
 
 export interface PlaylistItem {

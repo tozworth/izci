@@ -86,17 +86,15 @@
         "whatPwa": "PWA ne lan?",
         "worksOnMachine": "Bende çalışıyo."
       },
+      "exitFullscreen": "Tam ekrandan çık",
+      "exitVideoTheater": "Video sinemasından çık",
+      "enterVideoTheater": "Video sinemasına gir",
       "nowPlayingControls": "Şimdi Yürütülüyor kontrolleri",
       "videoTheaterControls": "Video sineması kontrolleri",
       "showCurrentTrackDetails": "Mevcut parçanın detaylarını göster",
       "welcome": "izci'ye hoş geldin!",
       "ready": "Hazır",
       "dropFilesToBegin": "Başlamak için dosya sürükle",
-      "previousTrackWithSubsongHint": "Önceki parça · Önceki altparça için sağ tıkla",
-      "nextTrackWithSubsongHint": "Sonraki parça · Sonraki altparça için sağ tıkla",
-      "exitVideoTheater": "Video sinemasından çık",
-      "enterVideoTheater": "Video sinemasına gir",
-      "exitFullscreen": "Tam ekrandan çık",
       "removeFromFavorites": "Favorilerden kaldır",
       "addToFavorites": "Favorilere ekle",
       "bypassRaf": "Raf'ı geç",
@@ -127,12 +125,12 @@
     "video": {
       "fit": "Pencereye sığdır",
       "fill": "Pencereyi doldur",
+      "pictureInPicture": "Resim İçinde Resim",
       "menu": "Video",
       "volume": "Ses %{percent}",
       "seekForward": "{seconds} sn ileri",
       "seekBackward": "{seconds} sn geri",
-      "playback": "Video oynatma",
-      "pictureInPicture": "Resim İçinde Resim"
+      "playback": "Video oynatma"
     },
     "trackDetails": {
       "album": "Albüm",
@@ -632,6 +630,49 @@
     "licenses": {
       "documentLabel": "izci lisansı ve üçüncü taraf bildirimleri"
     },
+    "loadouts": {
+      "types": {
+        "file": "File",
+        "path": "Folder",
+        "type": "Type",
+        "tags": "Tags",
+        "preset": "Preset"
+      },
+      "categories": {
+        "playback": "Playback",
+        "raf": "Raf preset",
+        "modules": "Modules",
+        "appearance": "Appearance"
+      },
+      "capture": {
+        "heading": "Save current settings",
+        "hint": "Choose what identifies the loadout and which current settings it captures.",
+        "type": "Loadout type",
+        "tagsPlaceholder": "Filename or metadata regex",
+        "presetPlaceholder": "Preset name",
+        "noTarget": "No current target available",
+        "name": "Loadout name or matcher",
+        "categories": "Settings categories",
+        "invalidRegex": "Enter a valid regular expression.",
+        "noFolder": "The current file is not associated with a unique remembered FSA folder.",
+        "noRecognizedType": "The current file does not have a recognized type yet."
+      },
+      "actions": {
+        "add": "Add loadout",
+        "forLoadout": "Actions for {name}",
+        "load": "Load",
+        "update": "Update from current settings",
+        "delete": "Delete"
+      },
+      "list": {
+        "heading": "Loadouts",
+        "hint": "Load applies a saved set. Update replaces its settings from their normal Options pages.",
+        "label": "Saved loadouts",
+        "empty": "No loadouts saved.",
+        "savedCategories": "Saved categories"
+      },
+      "automatic": "Automatically apply matching loadouts"
+    },
     "lyrics": {
       "styles": {
         "plain": "Düz yazı",
@@ -832,6 +873,17 @@
       "startup": {
         "heading": "Başlangıç"
       },
+      "speed": {
+        "heading": "Hız"
+      },
+      "playbackRate": {
+        "title": "Oynatma hızı",
+        "hint": "Akış biçimindeki ses ve videoların oynatma hızını değiştirir. Tracker modülleri kendi tempo ve perde denetimlerini kullanır."
+      },
+      "trueSpeed": {
+        "title": "Gerçek hız",
+        "hint": "Zaman esnetmeyi devre dışı bırakır; böylece perde, oynatma hızıyla birlikte yükselir veya düşer."
+      },
       "progress": {
         "heading": "İlerleme"
       },
@@ -961,6 +1013,7 @@
       "visualizer": "Görselleştirme",
       "patterns": "Örüntüler",
       "modules": "Modüller",
+      "loadouts": "Loadouts",
       "tracks": "Parçalar",
       "folders": "Klasörler",
       "metadata": "Metaveri",

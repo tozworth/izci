@@ -2,9 +2,13 @@
   import { t } from 'svelte-i18n';
   import SettingsField from '../SettingsField.svelte';
   import {
+    PLAYBACK_RATE_MAX,
+    PLAYBACK_RATE_MIN,
+    PLAYBACK_RATE_STEP,
     PLAYBACK_RESTORE_MODE_OPTIONS,
     REMEMBER_PROGRESS_DURATION_MINUTES,
     REPLAY_GAIN_MODE_OPTIONS,
+    normalizePlaybackRate,
     normalizeRememberProgressDurationIndex,
     playbackSettings
   } from '$lib/stores/playback-settings';
@@ -19,6 +23,14 @@
       )
     });
   }
+  function handlePlaybackRateChange(event: Event) {
+    playbackSettings.update({
+      playbackRate: normalizePlaybackRate(
+        (event.currentTarget as HTMLInputElement).valueAsNumber
+      )
+    });
+  }
+  function handleTrueSpeedToggle(event: Event) { playbackSettings.update({ trueSpeed: checked(event) }); }
   function handleLogarithmicVolumeToggle(event: Event) { playbackSettings.update({ logarithmicVolume: checked(event) }); }
   function handleReplayGainModeChange(event: Event) { playbackSettings.update({ replayGainMode: (event.currentTarget as HTMLSelectElement).value as ReplayGainMode }); }
   function handleEnableRafToggle(event: Event) { playbackSettings.update({ enableRaf: checked(event) }); }
@@ -48,6 +60,9 @@
       values: { hours: minutes / 60 }
     });
   }
+  function playbackRateLabel(value: number): string {
+    return `${value.toFixed(2).replace(/\.?0+$/, '')}×`;
+  }
 </script>
 
 <article class="view">
@@ -63,6 +78,38 @@
               <option value={option.value}>{restoreModeLabel(option.value)}</option>
             {/each}
           </select>
+      </SettingsField>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>{$t('options.playback.speed.heading', { default: 'Speed' })}</h2>
+    <div class="field-grid">
+      <SettingsField
+        title={$t('options.playback.playbackRate.title', { default: 'Playback speed' })}
+        hint={$t('options.playback.playbackRate.hint', { default: 'Changes the playback speed of streamed audio and video. Tracker modules use their own tempo and pitch controls.' })}
+      >
+          <input
+            type="range"
+            min={PLAYBACK_RATE_MIN}
+            max={PLAYBACK_RATE_MAX}
+            step={PLAYBACK_RATE_STEP}
+            value={$playbackSettings.playbackRate}
+            on:input={handlePlaybackRateChange}
+          />
+          <span class="field-output">{playbackRateLabel($playbackSettings.playbackRate)}</span>
+      </SettingsField>
+
+      <SettingsField
+        title={$t('options.playback.trueSpeed.title', { default: 'True speed' })}
+        hint={$t('options.playback.trueSpeed.hint', { default: 'Disables timestretching so pitch rises or falls along with playback speed.' })}
+        checkbox
+      >
+          <input
+            type="checkbox"
+            checked={$playbackSettings.trueSpeed}
+            on:change={handleTrueSpeedToggle}
+          />
       </SettingsField>
     </div>
   </div>

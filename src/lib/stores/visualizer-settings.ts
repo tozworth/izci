@@ -54,7 +54,7 @@ function normalizeNumber(value: unknown, fallback: number, min: number, max: num
   return Math.min(Math.max(numberValue, min), max);
 }
 
-function normalizeSettings(value: unknown): VisualizerSettings {
+export function normalizeVisualizerSettings(value: unknown): VisualizerSettings {
   const source = value && typeof value === 'object' ? (value as Partial<VisualizerSettings>) : {};
 
   return {
@@ -97,5 +97,5 @@ export const visualizerSettings = createSettingsStore({
   storageKey: VISUALIZER_SETTINGS_STORAGE_KEY,
   channelName: VISUALIZER_SETTINGS_CHANNEL,
   defaultValue: DEFAULT_VISUALIZER_SETTINGS,
-  normalize: normalizeSettings
+  normalize: normalizeVisualizerSettings
 });

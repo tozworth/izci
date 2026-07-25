@@ -31,6 +31,8 @@ export class HowlerPlayerService {
   #replayGainMode: ReplayGainMode = 'track';
   #replayGain: ReplayGainMetadata | undefined;
   #fallbackVolume = 1;
+  #playbackRate = 1;
+  #trueSpeed = false;
   #lastPublishedCurrentTime = -1;
   #lastPublishedDuration = -1;
   #onSnapshot: SnapshotHandler;
@@ -158,6 +160,7 @@ export class HowlerPlayerService {
         this.#onSnapshot({ state: 'error', error: String(message) });
       }
     });
+    this.#howl.rate(this.#playbackRate);
 
   }
 
@@ -209,6 +212,13 @@ export class HowlerPlayerService {
     this.#applyOutputVolume();
   }
 
+  setPlaybackRate(playbackRate: number, trueSpeed: boolean): void {
+    this.#playbackRate = playbackRate;
+    this.#trueSpeed = trueSpeed;
+    this.#howl?.rate(playbackRate);
+    this.#applyPitchPreservation();
+  }
+
   destroy(): void {
     this.#loadToken += 1;
     this.#autoPlayOnLoad = false;
@@ -234,7 +244,18 @@ export class HowlerPlayerService {
 
     audioBusService.disconnect(this.#audioSource);
     this.#audioSource = audioBusService.connectHtmlMediaElement(mediaElement);
+    this.#applyPitchPreservation();
     this.#applyOutputVolume();
+  }
+
+  #applyPitchPreservation(): void {
+    const mediaElement = (this.#howl as HowlWithSounds | null)?._sounds?.find(
+      (sound) => sound._node instanceof HTMLMediaElement
+    )?._node;
+
+    if (mediaElement) {
+      mediaElement.preservesPitch = !this.#trueSpeed;
+    }
   }
 
   #applyOutputVolume(): void {

@@ -393,7 +393,7 @@ function normalizeBackdropZoneArtwork(
   return settings;
 }
 
-function normalizeSettings(value: unknown): AppearanceSettings {
+export function normalizeAppearanceSettings(value: unknown): AppearanceSettings {
   const source =
     value && typeof value === 'object'
       ? (value as Partial<AppearanceSettings> & Record<string, unknown>)
@@ -428,5 +428,5 @@ export const appearanceSettings = createSettingsStore({
   storageKey: APPEARANCE_SETTINGS_STORAGE_KEY,
   channelName: APPEARANCE_SETTINGS_CHANNEL,
   defaultValue: DEFAULT_APPEARANCE_SETTINGS,
-  normalize: normalizeSettings
+  normalize: normalizeAppearanceSettings
 });

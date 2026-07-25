@@ -38,6 +38,7 @@
     createLyricsPresentationController,
     type LyricsPresentationState
   } from '$lib/services/lyrics-presentation';
+  import { startLoadoutRuntime } from '$lib/services/loadouts';
   import { createPlaybackCommandsController } from '$lib/services/playback-commands';
   import { createMiniPlayerController, type MiniPlayerState } from '$lib/services/mini-player';
   import {
@@ -111,6 +112,7 @@
   } = favoritesStore;
   const modulePatternStore = playerController.modulePattern;
   const stopLibraryFolderCommands = startLibraryFolderCommandListener();
+  const stopLoadoutRuntime = startLoadoutRuntime(playerController.currentTrack);
 
   let playlistItems: PlaylistItem[] = [];
   let libraryItems: PlaylistItem[] = [];
@@ -440,6 +442,7 @@
   const disconnectMediaSession = mediaSessionService.connect({
     snapshot: playerController.snapshot,
     track: playerController.currentTrack,
+    settings: playbackSettings,
     handlers: {
       play: () => void playbackCommands.play(),
       pause: () => playbackCommands.pause(),
@@ -968,6 +971,7 @@
     appInstallService.destroy();
     unsubscribeLaunchedFiles();
     stopLibraryFolderCommands();
+    stopLoadoutRuntime();
     disconnectMediaSession();
     playerController.destroy();
   });

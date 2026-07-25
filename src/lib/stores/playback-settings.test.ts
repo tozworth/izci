@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import {
   DEFAULT_REMEMBER_PROGRESS_DURATION_INDEX,
+  normalizePlaybackRate,
   normalizePlaybackRestoreMode,
   normalizeRememberProgressDurationIndex
 } from './playback-settings';
@@ -26,5 +27,13 @@ describe('playback settings helpers', () => {
     expect(normalizeRememberProgressDurationIndex('4')).toBe(
       DEFAULT_REMEMBER_PROGRESS_DURATION_INDEX
     );
+  });
+
+  it('normalizes playback rates to the supported slider range and step', () => {
+    expect(normalizePlaybackRate(1)).toBe(1);
+    expect(normalizePlaybackRate(1.234)).toBe(1.25);
+    expect(normalizePlaybackRate(0.1)).toBe(0.5);
+    expect(normalizePlaybackRate(4)).toBe(2);
+    expect(normalizePlaybackRate('1.5')).toBe(1);
   });
 });

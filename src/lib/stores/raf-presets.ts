@@ -73,6 +73,12 @@ const store = createPersistentStore({
 export const rafPresets = {
   subscribe: store.subscribe,
   getSnapshot: store.getSnapshot,
+  setSelectedPresetId(id: string | null): RafPresetState {
+    return store.update((state) => ({
+      ...state,
+      selectedPresetId: id && state.presets.some((preset) => preset.id === id) ? id : null
+    }));
+  },
   create(name: string, settings: RafRackSettings = rafSettings.getSnapshot()): RafPreset | null {
     const normalizedName = normalizePresetName(name);
     if (!normalizedName) return null;

@@ -25,6 +25,7 @@ declare module 'howler' {
     pause(id?: number): Howl;
     stop(id?: number): Howl;
     seek(seek?: number, id?: number): number | Howl;
+    rate(rate?: number, id?: number): number | Howl;
     volume(volume?: number, id?: number): number | Howl;
     unload(): void;
     playing(id?: number): boolean;

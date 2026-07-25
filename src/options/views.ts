@@ -9,6 +9,7 @@ export type OptionsViewName =
   | 'visualizer'
   | 'patterns'
   | 'modules'
+  | 'loadouts'
   | 'tracks'
   | 'folders'
   | 'metadata'
@@ -110,6 +111,14 @@ export const OPTIONS_VIEW_GROUPS: OptionsViewDefinition[][] = [
       parentLabel: 'Playback',
       hasHints: true,
       resettable: true
+    },
+    {
+      id: 'loadouts',
+      label: 'Loadouts',
+      icon: 'bookmark_manager',
+      parentLabel: '',
+      hasHints: true,
+      resettable: false
     }
   ],
   [
