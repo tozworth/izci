@@ -96,6 +96,20 @@ export function createAppShortcuts({ getState, handlers }: CreateAppShortcutsOpt
 
     if (
       state.videoTrackActive &&
+      event.key === 'F11' &&
+      !event.repeat &&
+      !event.ctrlKey &&
+      !event.altKey &&
+      !event.shiftKey &&
+      !event.metaKey
+    ) {
+      event.preventDefault();
+      void handlers.toggleFullscreenPresentation();
+      return;
+    }
+
+    if (
+      state.videoTrackActive &&
       event.key.toLowerCase() === 'f' &&
       !event.repeat &&
       !event.ctrlKey &&

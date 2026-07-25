@@ -181,6 +181,7 @@
   let videoTheaterActive = false;
   let videoTheaterControlsHidden = false;
   let isFullscreenVideoTheater = false;
+  let videoFullscreenExitAction = false;
   let videoPictureInPictureSupported = false;
   let videoSeekFeedback: VideoSeekFeedback | null = null;
   let videoSeekFeedbackId = 0;
@@ -468,6 +469,10 @@
   }
   $: isFullscreenVideoTheater =
     videoTrackActive && videoTheaterActive && $windowDisplayState.fullscreen;
+  $: videoFullscreenExitAction =
+    isFullscreenVideoTheater &&
+    typeof document !== 'undefined' &&
+    Boolean(document.fullscreenElement);
   $: videoTheaterChromeInset = $windowControlsOverlayState.visible
     ? Math.max(
         0,
@@ -1155,6 +1160,7 @@
       rafPresetDirty={isRafPresetDirty($rafPresets, $rafSettings)}
       showVideoTheaterToggle={videoTrackActive}
       {videoTheaterActive}
+      videoFullscreenActive={videoFullscreenExitAction}
       on:toggle={() => void playbackCommands.togglePlayback()}
       on:previous={() => void playbackCommands.stepTrack(-1)}
       on:next={() => void playbackCommands.stepTrack(1)}

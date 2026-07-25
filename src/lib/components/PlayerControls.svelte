@@ -74,6 +74,7 @@
   export let rafPresetDirty = false;
   export let showVideoTheaterToggle = false;
   export let videoTheaterActive = false;
+  export let videoFullscreenActive = false;
 
   const dispatch = createEventDispatcher<{
     toggle: void;
@@ -125,6 +126,11 @@
     error: undefined
   };
   $: containerElement = presentation === 'now-playing' ? 'section' : 'footer';
+  $: videoTheaterToggleLabel = videoFullscreenActive
+    ? $t('main.player.exitFullscreen', { default: 'Exit fullscreen' })
+    : videoTheaterActive
+      ? $t('main.player.exitVideoTheater', { default: 'Exit video theater' })
+      : $t('main.player.enterVideoTheater', { default: 'Enter video theater' });
 
   function clamp(value: number, min: number, max: number): number {
     return Math.min(Math.max(value, min), max);
@@ -579,9 +585,7 @@
         <button
           type="button"
           class="transport-button video-theater-toggle hover-tooltip-anchor"
-          aria-label={videoTheaterActive
-            ? $t('main.player.exitVideoTheater', { default: 'Exit video theater' })
-            : $t('main.player.enterVideoTheater', { default: 'Enter video theater' })}
+          aria-label={videoTheaterToggleLabel}
           aria-pressed={videoTheaterActive}
           on:click={() => dispatch('toggleVideoTheater')}
         >
@@ -589,9 +593,7 @@
             {videoTheaterActive ? 'close_fullscreen' : 'fit_screen'}
           </span>
           <HoverTooltip placement="above" align="center" nowrap>
-            {videoTheaterActive
-              ? $t('main.player.exitVideoTheater', { default: 'Exit video theater' })
-              : $t('main.player.enterVideoTheater', { default: 'Enter video theater' })}
+            {videoTheaterToggleLabel}
           </HoverTooltip>
         </button>
       {/if}
