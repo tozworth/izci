@@ -374,6 +374,19 @@ export interface VisualizerSettings {
 
 export type LoadoutType = 'file' | 'path' | 'type' | 'tags' | 'preset';
 export type LoadoutCategory = 'playback' | 'raf' | 'modules' | 'appearance';
+export type LoadoutColor =
+  | 'white'
+  | 'red'
+  | 'orange'
+  | 'amber'
+  | 'lime'
+  | 'green'
+  | 'teal'
+  | 'cyan'
+  | 'blue'
+  | 'indigo'
+  | 'violet'
+  | 'magenta';
 
 export interface LoadoutTrackContext {
   name: string;
@@ -419,6 +432,7 @@ export interface LoadoutSettings {
 export interface Loadout {
   id: string;
   name: string;
+  color?: LoadoutColor;
   target: LoadoutTarget;
   settings: LoadoutSettings;
   createdAt: number;

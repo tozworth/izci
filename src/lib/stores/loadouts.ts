@@ -1,6 +1,7 @@
 import type {
   Loadout,
   LoadoutAppearanceSettings,
+  LoadoutColor,
   LoadoutPlaybackSettings,
   LoadoutSettings,
   LoadoutState,
@@ -21,6 +22,10 @@ export const DEFAULT_LOADOUT_STATE: LoadoutState = {
 };
 
 const LOADOUT_TYPES: LoadoutType[] = ['file', 'path', 'type', 'tags', 'preset'];
+export const LOADOUT_COLORS: LoadoutColor[] = [
+  'white', 'red', 'orange', 'amber', 'lime', 'green',
+  'teal', 'cyan', 'blue', 'indigo', 'violet', 'magenta'
+];
 
 function normalizeText(value: unknown, maximumLength = 240): string | null {
   if (typeof value !== 'string') return null;
@@ -110,6 +115,9 @@ function normalizeLoadout(value: unknown, ids: Set<string>): Loadout | null {
   const source = value as Partial<Loadout>;
   const id = normalizeText(source.id, 128);
   const name = normalizeText(source.name);
+  const color = LOADOUT_COLORS.includes(source.color as LoadoutColor)
+    ? source.color as LoadoutColor
+    : undefined;
   const target = normalizeTarget(source.target);
   const settings = normalizeSettings(source.settings);
 
@@ -119,6 +127,7 @@ function normalizeLoadout(value: unknown, ids: Set<string>): Loadout | null {
   return {
     id,
     name,
+    ...(color ? { color } : {}),
     target,
     settings,
     createdAt,
@@ -179,6 +188,34 @@ export const loadouts = {
       loadouts: state.loadouts.map((loadout) => {
         if (loadout.id !== id) return loadout;
         updated = { ...loadout, settings: normalized, updatedAt: Date.now() };
+        return updated;
+      })
+    }));
+    return updated;
+  },
+  rename(id: string, name: string): Loadout | null {
+    const normalized = normalizeText(name);
+    if (!normalized) return null;
+    let updated: Loadout | null = null;
+    store.update((state) => ({
+      ...state,
+      loadouts: state.loadouts.map((loadout) => {
+        if (loadout.id !== id) return loadout;
+        updated = { ...loadout, name: normalized, updatedAt: Date.now() };
+        return updated;
+      })
+    }));
+    return updated;
+  },
+  setColor(id: string, color?: LoadoutColor): Loadout | null {
+    if (color !== undefined && !LOADOUT_COLORS.includes(color)) return null;
+    let updated: Loadout | null = null;
+    store.update((state) => ({
+      ...state,
+      loadouts: state.loadouts.map((loadout) => {
+        if (loadout.id !== id) return loadout;
+        const { color: _previousColor, ...rest } = loadout;
+        updated = { ...rest, ...(color ? { color } : {}), updatedAt: Date.now() };
         return updated;
       })
     }));

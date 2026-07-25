@@ -631,6 +631,20 @@
       "documentLabel": "izci lisansı ve üçüncü taraf bildirimleri"
     },
     "loadouts": {
+      "colors": {
+        "white": "White",
+        "red": "Red",
+        "orange": "Orange",
+        "amber": "Amber",
+        "lime": "Lime",
+        "green": "Green",
+        "teal": "Teal",
+        "cyan": "Cyan",
+        "blue": "Blue",
+        "indigo": "Indigo",
+        "violet": "Violet",
+        "magenta": "Magenta"
+      },
       "types": {
         "file": "File",
         "path": "Folder",
@@ -652,6 +666,17 @@
         "repeatCount": "{count} repeats",
         "defaults": "Defaults"
       },
+      "actions": {
+        "renamePrompt": "Rename loadout:",
+        "add": "Add loadout",
+        "dragToReorder": "Drag {name} to reorder",
+        "forLoadout": "Actions for {name}",
+        "load": "Load",
+        "update": "Update from current settings",
+        "delete": "Delete",
+        "rename": "Rename",
+        "setColor": "Set color"
+      },
       "capture": {
         "heading": "Save current settings",
         "hint": "Choose what identifies the loadout and which current settings it captures.",
@@ -664,14 +689,6 @@
         "invalidRegex": "Enter a valid regular expression.",
         "noFolder": "The current file is not associated with a unique remembered FSA folder.",
         "noRecognizedType": "The current file does not have a recognized type yet."
-      },
-      "actions": {
-        "add": "Add loadout",
-        "dragToReorder": "Drag {name} to reorder",
-        "forLoadout": "Actions for {name}",
-        "load": "Load",
-        "update": "Update from current settings",
-        "delete": "Delete"
       },
       "list": {
         "heading": "Loadouts",

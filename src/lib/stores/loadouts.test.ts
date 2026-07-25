@@ -63,4 +63,16 @@ describe('loadout persistence normalization', () => {
       interpolationFilter: 1
     });
   });
+
+  it('persists only predefined colors and supports renaming and clearing colors', () => {
+    const settings = { playback: { playbackRate: 1, trueSpeed: false, replayGainMode: 'off' as const } };
+    const created = loadouts.create('Original', { type: 'preset' }, settings)!;
+
+    expect(loadouts.rename(created.id, '  Renamed  ')?.name).toBe('Renamed');
+    expect(loadouts.setColor(created.id, 'white')?.color).toBe('white');
+    expect(loadouts.setColor(created.id)?.color).toBeUndefined();
+    expect(normalizeLoadoutState({
+      loadouts: [{ ...created, color: 'chartreuse' }]
+    }).loadouts[0].color).toBeUndefined();
+  });
 });
