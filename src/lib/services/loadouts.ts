@@ -234,31 +234,19 @@ export function applyLoadoutSettings(settings: LoadoutSettings): void {
   }
 }
 
-const TYPE_SPECIFICITY: Record<LoadoutType, number> = {
-  file: 4,
-  path: 3,
-  tags: 2,
-  type: 1,
-  preset: 0
-};
-
 export function resolveAutomaticLoadouts(
   state: LoadoutState,
   track: LoadoutTrackContext,
   folders: FilesystemFolder[]
 ): Partial<Record<LoadoutCategory, Loadout>> {
   if (!state.automaticEnabled) return {};
-  const candidates = state.loadouts
-    .filter((loadout) => matchesLoadoutTarget(loadout.target, track, folders))
-    .sort((left, right) =>
-      TYPE_SPECIFICITY[right.target.type] - TYPE_SPECIFICITY[left.target.type] ||
-      right.updatedAt - left.updatedAt
-    );
+  const loadout = state.loadouts.find((candidate) =>
+    matchesLoadoutTarget(candidate.target, track, folders)
+  );
+  if (!loadout) return {};
   const resolved: Partial<Record<LoadoutCategory, Loadout>> = {};
-  for (const loadout of candidates) {
-    for (const category of getLoadoutCategories(loadout.settings)) {
-      if (!resolved[category]) resolved[category] = loadout;
-    }
+  for (const category of getLoadoutCategories(loadout.settings)) {
+    resolved[category] = loadout;
   }
   return resolved;
 }

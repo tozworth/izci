@@ -181,6 +181,16 @@ export const loadouts = {
     }));
     return updated;
   },
+  move(id: string, targetIndex: number): LoadoutState {
+    return store.update((state) => {
+      const sourceIndex = state.loadouts.findIndex((loadout) => loadout.id === id);
+      if (sourceIndex < 0) return state;
+      const nextLoadouts = [...state.loadouts];
+      const [movedLoadout] = nextLoadouts.splice(sourceIndex, 1);
+      nextLoadouts.splice(Math.min(Math.max(targetIndex, 0), nextLoadouts.length), 0, movedLoadout);
+      return { ...state, loadouts: nextLoadouts };
+    });
+  },
   delete(id: string): LoadoutState {
     return store.update((state) => ({
       ...state,

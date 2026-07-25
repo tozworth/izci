@@ -1,5 +1,7 @@
-import { describe, expect, it } from 'vitest';
-import { DEFAULT_LOADOUT_STATE, normalizeLoadoutState } from './loadouts';
+import { afterEach, describe, expect, it } from 'vitest';
+import { DEFAULT_LOADOUT_STATE, loadouts, normalizeLoadoutState } from './loadouts';
+
+afterEach(() => loadouts.reset());
 
 describe('loadout persistence normalization', () => {
   it('defaults automatic loading on and rejects malformed or empty loadouts', () => {
@@ -8,6 +10,27 @@ describe('loadout persistence normalization', () => {
       automaticEnabled: true,
       loadouts: []
     });
+  });
+
+  it('moves loadouts by stable ID and clamps the destination', () => {
+    const settings = { playback: { playbackRate: 1, trueSpeed: false, replayGainMode: 'off' as const } };
+    const first = loadouts.create('First', { type: 'preset' }, settings)!;
+    const second = loadouts.create('Second', { type: 'preset' }, settings)!;
+    const third = loadouts.create('Third', { type: 'preset' }, settings)!;
+
+    loadouts.move(third.id, 0);
+    expect(loadouts.getSnapshot().loadouts.map((loadout) => loadout.id)).toEqual([
+      third.id,
+      first.id,
+      second.id
+    ]);
+
+    loadouts.move(third.id, 99);
+    expect(loadouts.getSnapshot().loadouts.map((loadout) => loadout.id)).toEqual([
+      first.id,
+      second.id,
+      third.id
+    ]);
   });
 
   it('normalizes captured settings at their owning store boundaries', () => {

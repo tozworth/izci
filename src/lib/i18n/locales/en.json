@@ -659,6 +659,7 @@
       },
       "actions": {
         "add": "Add loadout",
+        "dragToReorder": "Drag {name} to reorder",
         "forLoadout": "Actions for {name}",
         "load": "Load",
         "update": "Update from current settings",
@@ -666,7 +667,7 @@
       },
       "list": {
         "heading": "Loadouts",
-        "hint": "Load applies a saved set. Update replaces its settings from their normal Options pages.",
+        "hint": "Drag to set priority. The first automatic match from top to bottom is applied.",
         "label": "Saved loadouts",
         "empty": "No loadouts saved.",
         "savedCategories": "Saved categories"

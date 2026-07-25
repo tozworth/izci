@@ -659,6 +659,7 @@
       },
       "actions": {
         "add": "Add loadout",
+        "dragToReorder": "Drag {name} to reorder",
         "forLoadout": "Actions for {name}",
         "load": "Load",
         "update": "Update from current settings",

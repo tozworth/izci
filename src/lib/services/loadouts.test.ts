@@ -76,42 +76,39 @@ describe('loadout matching', () => {
 });
 
 describe('automatic loadout resolution', () => {
-  it('layers the most specific matching loadout independently per category', () => {
+  it('applies only the first matching loadout from top to bottom', () => {
     const currentTrack = track();
+    const fileOverride = loadout('file-override', { type: 'file', fileKey: getLoadoutFileKey(currentTrack) }, {
+      playback: { playbackRate: 1.25, trueSpeed: true, replayGainMode: 'album' }
+    });
+    const folderBaseline = loadout('folder-baseline', { type: 'path', folderId: folder.id, folderName: folder.name }, {
+      playback: { playbackRate: 0.9, trueSpeed: false, replayGainMode: 'track' },
+      appearance: {
+        backdropZones: { left: 'none', center: 'none', right: 'none', player: 'none', nowPlaying: 'artwork' },
+        visualizer: {
+          style: 'bars', colorSource: 'theme', height: 0.5, transparency: 0.4,
+          frameRateLimit: 60, normalizationStrength: 0.4, triangleCount: 64,
+          triangleMinSize: 0.1, triangleMaxSize: 0.5, triangleBaseSpeed: 1,
+          triangleReactiveSpeed: 1, triangleBorderWidth: 1
+        }
+      }
+    });
     const state: LoadoutState = {
       automaticEnabled: true,
-      loadouts: [
-        loadout('type-modules', { type: 'type', recognizedType: 'xm' }, {
-          modules: {
-            repeatCount: -1,
-            stereoSeparation: 100,
-            panStrength: 100,
-            interpolationFilter: 8,
-            tempoFactor: 1,
-            pitchFactor: 1
-          }
-        }),
-        loadout('folder-appearance', { type: 'path', folderId: folder.id, folderName: folder.name }, {
-          appearance: {
-            backdropZones: { left: 'none', center: 'none', right: 'none', player: 'none', nowPlaying: 'artwork' },
-            visualizer: {
-              style: 'bars', colorSource: 'theme', height: 0.5, transparency: 0.4,
-              frameRateLimit: 60, normalizationStrength: 0.4, triangleCount: 64,
-              triangleMinSize: 0.1, triangleMaxSize: 0.5, triangleBaseSpeed: 1,
-              triangleReactiveSpeed: 1, triangleBorderWidth: 1
-            }
-          }
-        }),
-        loadout('file-playback', { type: 'file', fileKey: getLoadoutFileKey(currentTrack) }, {
-          playback: { playbackRate: 1.25, trueSpeed: true, replayGainMode: 'album' }
-        })
-      ]
+      loadouts: [fileOverride, folderBaseline]
     };
 
     const resolved = resolveAutomaticLoadouts(state, currentTrack, [folder]);
-    expect(resolved.playback?.id).toBe('file-playback');
-    expect(resolved.appearance?.id).toBe('folder-appearance');
-    expect(resolved.modules?.id).toBe('type-modules');
+    expect(resolved.playback?.id).toBe('file-override');
+    expect(resolved.appearance).toBeUndefined();
+
+    const reordered = resolveAutomaticLoadouts(
+      { ...state, loadouts: [folderBaseline, fileOverride] },
+      currentTrack,
+      [folder]
+    );
+    expect(reordered.playback?.id).toBe('folder-baseline');
+    expect(reordered.appearance?.id).toBe('folder-baseline');
   });
 
   it('never automatically selects manual presets', () => {

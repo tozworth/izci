@@ -37,6 +37,8 @@
   let loadoutType: LoadoutType = 'file';
   let manualText = '';
   let selectedCategories = new Set<LoadoutCategory>();
+  let draggedLoadoutId: string | null = null;
+  let dropBoundary: number | null = null;
 
   function typeLabel(type: LoadoutType): string {
     if (type === 'file') return $t('options.loadouts.types.file', { default: 'File' });
@@ -83,6 +85,43 @@
 
   function handleCaptureKeydown(event: KeyboardEvent): void {
     if (event.key === 'Enter' && !saveDisabled) createLoadout();
+  }
+
+  function startLoadoutDrag(event: DragEvent, loadout: Loadout, index: number): void {
+    draggedLoadoutId = loadout.id;
+    dropBoundary = index;
+    if (!event.dataTransfer) return;
+    event.dataTransfer.setData('text/plain', loadout.id);
+    event.dataTransfer.effectAllowed = 'move';
+  }
+
+  function updateDropBoundary(event: DragEvent, index: number): void {
+    if (!draggedLoadoutId) return;
+    event.preventDefault();
+    if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+    const bounds = (event.currentTarget as HTMLElement).getBoundingClientRect();
+    dropBoundary = event.clientY < bounds.top + bounds.height / 2 ? index : index + 1;
+  }
+
+  function dropLoadout(event: DragEvent): void {
+    event.preventDefault();
+    if (draggedLoadoutId && dropBoundary !== null) {
+      const sourceIndex = $loadouts.loadouts.findIndex((loadout) => loadout.id === draggedLoadoutId);
+      const targetIndex = dropBoundary > sourceIndex ? dropBoundary - 1 : dropBoundary;
+      loadouts.move(draggedLoadoutId, targetIndex);
+    }
+    clearLoadoutDrag();
+  }
+
+  function clearLoadoutDrag(): void {
+    draggedLoadoutId = null;
+    dropBoundary = null;
+  }
+
+  function handleReorderKeydown(event: KeyboardEvent, loadout: Loadout, index: number): void {
+    if (event.key !== 'ArrowUp' && event.key !== 'ArrowDown') return;
+    event.preventDefault();
+    loadouts.move(loadout.id, index + (event.key === 'ArrowUp' ? -1 : 1));
   }
 
   onMount(() => {
@@ -174,7 +213,7 @@
     <div class="list-heading">
       <div>
         <h2>{$t('options.loadouts.list.heading', { default: 'Loadouts' })}</h2>
-        <p class="field-hint">{$t('options.loadouts.list.hint', { default: 'Load applies a saved set. Update replaces its settings from their normal Options pages.' })}</p>
+        <p class="field-hint">{$t('options.loadouts.list.hint', { default: 'Drag to set priority. The first automatic match from top to bottom is applied.' })}</p>
       </div>
       <label class="auto-toggle">
         <input
@@ -186,15 +225,36 @@
       </label>
     </div>
 
-    <div class="loadout-list" role="list" aria-label={$t('options.loadouts.list.label', { default: 'Saved loadouts' })}>
+    <div
+      class="loadout-list"
+      class:show-tail-drop-line={draggedLoadoutId !== null && dropBoundary === $loadouts.loadouts.length}
+      role="list"
+      aria-label={$t('options.loadouts.list.label', { default: 'Saved loadouts' })}
+      on:drop={dropLoadout}
+      on:dragend={clearLoadoutDrag}
+    >
       {#if $loadouts.loadouts.length === 0}
         <div class="empty-row">
           <span class="material-symbols-outlined" aria-hidden="true">bookmark_remove</span>
           <span>{$t('options.loadouts.list.empty', { default: 'No loadouts saved.' })}</span>
         </div>
       {:else}
-        {#each $loadouts.loadouts as loadout (loadout.id)}
-          <div class="loadout-row" role="listitem">
+        {#each $loadouts.loadouts as loadout, index (loadout.id)}
+          <div
+            class="loadout-row"
+            class:is-dragging={draggedLoadoutId === loadout.id}
+            class:show-drop-line={draggedLoadoutId !== null && dropBoundary === index}
+            role="listitem"
+            on:dragover={(event) => updateDropBoundary(event, index)}
+          >
+            <button
+              class="drag-handle"
+              draggable="true"
+              title={$t('options.loadouts.actions.dragToReorder', { default: 'Drag {name} to reorder', values: { name: loadout.name } })}
+              aria-label={$t('options.loadouts.actions.dragToReorder', { default: 'Drag {name} to reorder', values: { name: loadout.name } })}
+              on:dragstart={(event) => startLoadoutDrag(event, loadout, index)}
+              on:keydown={(event) => handleReorderKeydown(event, loadout, index)}
+            ><span class="material-symbols-outlined" aria-hidden="true">drag_indicator</span></button>
             <span class="type-glyph hover-tooltip-anchor" role="img" aria-label={typeLabel(loadout.target.type)}>
               <span class="material-symbols-outlined" aria-hidden="true">{TYPE_ICONS[loadout.target.type]}</span>
               <HoverTooltip align="left">{typeLabel(loadout.target.type)}</HoverTooltip>
@@ -351,18 +411,20 @@
   }
 
   .loadout-list {
+    position: relative;
     margin-top: 8px;
     border-top: 1px solid var(--border-faint);
     border-bottom: 1px solid var(--border-faint);
   }
 
   .loadout-row {
+    position: relative;
     min-height: 32px;
     display: grid;
-    grid-template-columns: 22px minmax(90px, 1fr) max-content max-content;
+    grid-template-columns: 18px 22px minmax(90px, 1fr) max-content max-content;
     align-items: center;
-    gap: 7px;
-    padding: 0 4px 0 7px;
+    gap: 5px;
+    padding: 0 4px 0 2px;
     border-bottom: 1px solid var(--border-faint);
   }
 
@@ -373,6 +435,56 @@
   .loadout-row:hover,
   .loadout-row:focus-within {
     background: var(--hover-surface);
+  }
+
+  .loadout-row.is-dragging {
+    opacity: 0.55;
+  }
+
+  .loadout-row.show-drop-line::before,
+  .loadout-list.show-tail-drop-line::after {
+    content: '';
+    position: absolute;
+    z-index: 2;
+    left: 2px;
+    right: 2px;
+    top: -1px;
+    height: 2px;
+    background: var(--accent-strong);
+    pointer-events: none;
+  }
+
+  .loadout-list.show-tail-drop-line::after {
+    top: auto;
+    bottom: -1px;
+  }
+
+  .drag-handle {
+    width: 18px;
+    height: 32px;
+    padding: 0;
+    display: grid;
+    place-items: center;
+    border-radius: 0;
+    background: transparent;
+    color: var(--muted);
+    cursor: grab;
+    opacity: 0;
+  }
+
+  .loadout-row:hover .drag-handle,
+  .loadout-row:focus-within .drag-handle,
+  .drag-handle:focus-visible {
+    opacity: 1;
+  }
+
+  .drag-handle:hover,
+  .drag-handle:focus-visible {
+    color: var(--text-strong);
+  }
+
+  .drag-handle:active {
+    cursor: grabbing;
   }
 
   .type-glyph,
