@@ -398,7 +398,6 @@ export function startLoadoutRuntime(trackStore: Readable<PlaylistItem | null>): 
   const reconcileAutomatic = () => {
     const nextTrackKey = track ? getLoadoutFileKey(track) : null;
     if (nextTrackKey !== activeTrackKey) {
-      restoreAll();
       activeTrackKey = nextTrackKey;
       clearManualSuppressions();
     }
@@ -420,13 +419,21 @@ export function startLoadoutRuntime(trackStore: Readable<PlaylistItem | null>): 
         : undefined;
 
       if (activeTokens[category] === nextToken) continue;
-      restoreCategory(category);
 
-      if (nextToken && categorySettings) {
-        baselines[category] = captureRuntimeBaseline(category);
-        activeTokens[category] = nextToken;
-        applyLoadoutSettings({ [category]: categorySettings });
+      if (!nextToken || !categorySettings) {
+        restoreCategory(category);
+        continue;
       }
+
+      // Keep the original non-loadout baseline while moving directly between
+      // automatic overrides. Restoring and immediately recapturing it at every
+      // track boundary lets rapid changes promote transient settings into the
+      // next baseline before the category ever becomes unmatched.
+      if (!activeTokens[category]) {
+        baselines[category] = captureRuntimeBaseline(category);
+      }
+      activeTokens[category] = nextToken;
+      applyLoadoutSettings({ [category]: categorySettings });
     }
   };
 

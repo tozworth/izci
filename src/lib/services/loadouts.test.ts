@@ -230,6 +230,54 @@ describe('automatic loadout runtime', () => {
     stop();
   });
 
+  it('keeps one Raf baseline while rapidly moving between matching tracks', () => {
+    rafSettings.reset();
+    rafSettings.addEffect('stereo-width');
+    const widePreset = rafPresets.create('Wide track')!;
+    rafSettings.reset();
+    rafSettings.addEffect('crystalizer');
+    const brightPreset = rafPresets.create('Bright track')!;
+    rafSettings.replace({ enabled: false, effects: [] });
+    rafPresets.setSelectedPresetId(null);
+
+    const wideTrack: PlaylistItem = {
+      id: 'wide', name: 'Wide.flac', extension: 'flac', kind: 'stream', size: 10, lastModified: 1
+    };
+    const brightTrack: PlaylistItem = {
+      id: 'bright', name: 'Bright.flac', extension: 'flac', kind: 'stream', size: 11, lastModified: 2
+    };
+    loadoutStore.create('Wide', { type: 'file', fileKey: getLoadoutFileKey(wideTrack) }, {
+      raf: { presetName: widePreset.name, enabled: true }
+    });
+    loadoutStore.create('Bright', { type: 'file', fileKey: getLoadoutFileKey(brightTrack) }, {
+      raf: { presetName: brightPreset.name, enabled: true }
+    });
+
+    const tracks = writable<PlaylistItem | null>(null);
+    const stop = startLoadoutRuntime(tracks);
+    tracks.set(wideTrack);
+
+    const observedRacks: ReturnType<typeof rafSettings.getSnapshot>[] = [];
+    const unsubscribe = rafSettings.subscribe((settings) => observedRacks.push(settings));
+    observedRacks.length = 0;
+    tracks.set(brightTrack);
+
+    expect(observedRacks.some((settings) => settings.effects.length === 0)).toBe(false);
+    expect(rafSettings.getSnapshot().effects[0]?.type).toBe('crystalizer');
+
+    for (let index = 0; index < 20; index += 1) {
+      tracks.set(index % 2 === 0 ? wideTrack : brightTrack);
+    }
+    tracks.set({
+      id: 'plain', name: 'Plain.mp3', extension: 'mp3', kind: 'stream', size: 12, lastModified: 3
+    });
+
+    expect(rafSettings.getSnapshot()).toEqual({ enabled: false, effects: [] });
+    expect(rafPresets.getSnapshot().selectedPresetId).toBeNull();
+    unsubscribe();
+    stop();
+  });
+
   it('restores active overrides when automatic application is disabled', () => {
     playbackSettings.update({ playbackRate: 1, trueSpeed: false, replayGainMode: 'track' });
     loadoutStore.reset();
