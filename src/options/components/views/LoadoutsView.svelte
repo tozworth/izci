@@ -319,19 +319,17 @@
 
   <section class="section">
     <div class="list-heading">
-      <div>
-        <h2>{$t('options.loadouts.list.heading', { default: 'Loadouts' })}</h2>
-        <p class="field-hint">{$t('options.loadouts.list.hint', { default: 'Drag to set priority. The first automatic match from top to bottom is applied.' })}</p>
-      </div>
+      <h2>{$t('options.loadouts.list.heading', { default: 'Loadouts' })}</h2>
       <label class="auto-toggle">
+        <span>{$t('options.loadouts.automatic', { default: 'Auto-apply' })}</span>
         <input
           type="checkbox"
           checked={$loadouts.automaticEnabled}
           on:change={(event) => loadouts.setAutomaticEnabled((event.currentTarget as HTMLInputElement).checked)}
         />
-        <span>{$t('options.loadouts.automatic', { default: 'Automatically apply matching loadouts' })}</span>
       </label>
     </div>
+    <p class="field-hint">{$t('options.loadouts.list.hint', { default: 'Drag to set priority. The first automatic match from top to bottom is applied.' })}</p>
 
     <div
       class="loadout-list"
@@ -427,9 +425,13 @@
   .section-heading,
   .list-heading {
     display: flex;
-    align-items: start;
+    align-items: center;
     justify-content: space-between;
     gap: 12px;
+  }
+
+  .section-heading {
+    align-items: start;
   }
 
   .section-heading h2,
