@@ -14,7 +14,7 @@
   } from '$lib/services/loadout-setting-differences';
   import {
     LOADOUT_CATEGORIES,
-    applyLoadoutSettings,
+    applyManualLoadoutSettings,
     canCaptureLoadoutCategories,
     captureLoadoutSettings,
     createLoadoutTarget,
@@ -471,7 +471,7 @@
                 icon="download"
                 label={$t('options.loadouts.actions.load', { default: 'Load' })}
                 placement="above"
-                on:click={() => applyLoadoutSettings(loadout.settings)}
+                on:click={() => applyManualLoadoutSettings(loadout.settings)}
               />
               <OptionGlyphButton
                 icon="save"

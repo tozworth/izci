@@ -33,6 +33,8 @@ export const LOADOUT_CATEGORIES: LoadoutCategory[] = [
   'appearance'
 ];
 
+const MANUAL_LOADOUT_CHANNEL = 'izci-manual-loadout';
+
 export interface LoadoutFolderContext {
   id: string;
   name: string;
@@ -257,6 +259,41 @@ type RuntimeLoadoutBaseline =
   | { category: 'modules'; value: ModulePlaybackSettings }
   | { category: 'appearance'; value: LoadoutAppearanceSettings };
 
+type ManualLoadoutCommand = {
+  type: 'apply';
+  baselines: RuntimeLoadoutBaseline[];
+};
+
+const manualLoadoutHandlers = new Set<(baselines: RuntimeLoadoutBaseline[]) => void>();
+let manualLoadoutChannel: BroadcastChannel | null = null;
+
+function isRuntimeLoadoutBaseline(value: unknown): value is RuntimeLoadoutBaseline {
+  if (!value || typeof value !== 'object') return false;
+  const source = value as Partial<RuntimeLoadoutBaseline>;
+  return LOADOUT_CATEGORIES.includes(source.category as LoadoutCategory) && 'value' in source;
+}
+
+function normalizeManualLoadoutCommand(value: unknown): ManualLoadoutCommand | null {
+  if (!value || typeof value !== 'object') return null;
+  const source = value as Partial<ManualLoadoutCommand>;
+  if (source.type !== 'apply' || !Array.isArray(source.baselines)) return null;
+  const baselines = source.baselines.filter(isRuntimeLoadoutBaseline);
+  return baselines.length === source.baselines.length ? { type: 'apply', baselines } : null;
+}
+
+function getManualLoadoutChannel(): BroadcastChannel | null {
+  if (manualLoadoutChannel || typeof window === 'undefined' || !('BroadcastChannel' in window)) {
+    return manualLoadoutChannel;
+  }
+  manualLoadoutChannel = new BroadcastChannel(MANUAL_LOADOUT_CHANNEL);
+  manualLoadoutChannel.addEventListener('message', (event) => {
+    const command = normalizeManualLoadoutCommand(event.data);
+    if (!command) return;
+    for (const handler of manualLoadoutHandlers) handler(command.baselines);
+  });
+  return manualLoadoutChannel;
+}
+
 function captureRuntimeBaseline(category: LoadoutCategory): RuntimeLoadoutBaseline {
   switch (category) {
     case 'playback': {
@@ -310,6 +347,18 @@ function restoreRuntimeBaseline(baseline: RuntimeLoadoutBaseline): void {
   }
 }
 
+/**
+ * Applies a loadout as a durable manual settings change. Active automatic
+ * overrides for the same categories are abandoned without restoring their old
+ * baselines, so a later track change cannot undo the manual load.
+ */
+export function applyManualLoadoutSettings(settings: LoadoutSettings): void {
+  applyLoadoutSettings(settings);
+  const baselines = getLoadoutCategories(settings).map(captureRuntimeBaseline);
+  for (const handler of manualLoadoutHandlers) handler(baselines);
+  getManualLoadoutChannel()?.postMessage({ type: 'apply', baselines } satisfies ManualLoadoutCommand);
+}
+
 export function startLoadoutRuntime(trackStore: Readable<PlaylistItem | null>): () => void {
   let track: LoadoutTrackContext | null = null;
   let state = loadouts.getSnapshot();
@@ -317,6 +366,7 @@ export function startLoadoutRuntime(trackStore: Readable<PlaylistItem | null>): 
   let activeTrackKey: string | null = null;
   const activeTokens: Partial<Record<LoadoutCategory, string>> = {};
   const baselines: Partial<Record<LoadoutCategory, RuntimeLoadoutBaseline>> = {};
+  const manuallySuppressedTrackKeys: Partial<Record<LoadoutCategory, string>> = {};
 
   const restoreCategory = (category: LoadoutCategory) => {
     const baseline = baselines[category];
@@ -329,21 +379,40 @@ export function startLoadoutRuntime(trackStore: Readable<PlaylistItem | null>): 
     for (const category of [...LOADOUT_CATEGORIES].reverse()) restoreCategory(category);
   };
 
+  const clearManualSuppressions = () => {
+    for (const category of LOADOUT_CATEGORIES) delete manuallySuppressedTrackKeys[category];
+  };
+
+  const commitManualBaselines = (committedBaselines: RuntimeLoadoutBaseline[]) => {
+    for (const baseline of committedBaselines) {
+      delete activeTokens[baseline.category];
+      delete baselines[baseline.category];
+      if (activeTrackKey) manuallySuppressedTrackKeys[baseline.category] = activeTrackKey;
+      restoreRuntimeBaseline(baseline);
+    }
+  };
+
+  manualLoadoutHandlers.add(commitManualBaselines);
+  getManualLoadoutChannel();
+
   const reconcileAutomatic = () => {
     const nextTrackKey = track ? getLoadoutFileKey(track) : null;
     if (nextTrackKey !== activeTrackKey) {
       restoreAll();
       activeTrackKey = nextTrackKey;
+      clearManualSuppressions();
     }
 
     if (!track || !state.automaticEnabled) {
       restoreAll();
+      if (!state.automaticEnabled) clearManualSuppressions();
       return;
     }
 
     const resolved = resolveAutomaticLoadouts(state, track, folders);
 
     for (const category of LOADOUT_CATEGORIES) {
+      if (manuallySuppressedTrackKeys[category] === activeTrackKey) continue;
       const loadout = resolved[category];
       const categorySettings = loadout?.settings[category];
       const nextToken = loadout && categorySettings
@@ -390,6 +459,7 @@ export function startLoadoutRuntime(trackStore: Readable<PlaylistItem | null>): 
     stopLoadouts();
     stopTrack();
     stopPublisher();
+    manualLoadoutHandlers.delete(commitManualBaselines);
     restoreAll();
   };
 }

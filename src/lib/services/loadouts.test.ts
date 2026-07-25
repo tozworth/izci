@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import type { FilesystemFolder } from './filesystem-folders';
 import {
   applyLoadoutSettings,
+  applyManualLoadoutSettings,
   captureLoadoutSettings,
   getLoadoutFileKey,
   matchesLoadoutTarget,
@@ -248,5 +249,39 @@ describe('automatic loadout runtime', () => {
       replayGainMode: 'track'
     });
     stop();
+  });
+
+  it('commits a manual load without restoring the automatic baseline later', () => {
+    playbackSettings.update({ playbackRate: 1, trueSpeed: false, replayGainMode: 'track' });
+    loadoutStore.reset();
+    loadoutStore.create('FLAC', { type: 'type', recognizedType: 'flac' }, {
+      playback: { playbackRate: 2, trueSpeed: true, replayGainMode: 'off' }
+    });
+    const tracks = writable<PlaylistItem | null>({
+      id: 'flac', name: 'Song.flac', extension: 'flac', kind: 'stream', size: 1, lastModified: 1
+    });
+    const stop = startLoadoutRuntime(tracks);
+    expect(playbackSettings.getSnapshot().playbackRate).toBe(2);
+
+    applyManualLoadoutSettings({
+      playback: { playbackRate: 0.75, trueSpeed: false, replayGainMode: 'album' }
+    });
+    expect(playbackSettings.getSnapshot()).toMatchObject({
+      playbackRate: 0.75,
+      trueSpeed: false,
+      replayGainMode: 'album'
+    });
+
+    playbackSettings.update({ playbackRate: 0.8 });
+    tracks.set({
+      id: 'mp3', name: 'Next.mp3', extension: 'mp3', kind: 'stream', size: 2, lastModified: 2
+    });
+    expect(playbackSettings.getSnapshot()).toMatchObject({
+      playbackRate: 0.8,
+      trueSpeed: false,
+      replayGainMode: 'album'
+    });
+    stop();
+    expect(playbackSettings.getSnapshot().playbackRate).toBe(0.8);
   });
 });
