@@ -2,8 +2,14 @@
   import { onMount } from 'svelte';
   import { t } from 'svelte-i18n';
   import HoverTooltip from '$lib/components/HoverTooltip.svelte';
+  import { translate } from '$lib/i18n';
   import { filesystemFolders } from '$lib/services/filesystem-folders';
   import { loadoutTrackContext } from '$lib/services/loadout-track-context';
+  import {
+    getLoadoutSettingDifferences,
+    type LoadoutSettingDifference,
+    type LoadoutSettingDifferenceKey
+  } from '$lib/services/loadout-setting-differences';
   import {
     LOADOUT_CATEGORIES,
     applyLoadoutSettings,
@@ -53,6 +59,108 @@
     if (category === 'raf') return $t('options.loadouts.categories.raf', { default: 'Raf preset' });
     if (category === 'modules') return $t('options.loadouts.categories.modules', { default: 'Modules' });
     return $t('options.loadouts.categories.appearance', { default: 'Appearance' });
+  }
+
+  function translatedOption(key: string, fallback: string): string {
+    return translate(key, { default: fallback });
+  }
+
+  function settingLabel(key: LoadoutSettingDifferenceKey): string {
+    if (key === 'playbackRate') return translatedOption('options.playback.playbackRate.title', 'Playback speed');
+    if (key === 'trueSpeed') return translatedOption('options.playback.trueSpeed.title', 'True speed');
+    if (key === 'replayGainMode') return translatedOption('options.playback.replayGain.title', 'ReplayGain');
+    if (key === 'rafEnabled') return $t('options.loadouts.tooltip.rafEnabled', { default: 'Raf' });
+    if (key === 'interpolationFilter') return translatedOption('options.modules.interpolation.title', 'Interpolation');
+    if (key === 'stereoSeparation') return translatedOption('options.modules.stereoSeparation.title', 'Stereo separation (MOD)');
+    if (key === 'panStrength') return translatedOption('options.modules.panStrength.title', 'Pan strength');
+    if (key === 'repeatCount') return translatedOption('options.modules.looping.title', 'Looping');
+    if (key === 'tempoFactor') return translatedOption('options.modules.tempoFactor.title', 'Tempo factor');
+    if (key === 'pitchFactor') return translatedOption('options.modules.pitchFactor.title', 'Pitch factor');
+    if (key === 'backdropLeft') return translatedOption('options.backdrops.zones.left', 'Left');
+    if (key === 'backdropCenter') return translatedOption('options.backdrops.zones.center', 'Center');
+    if (key === 'backdropRight') return translatedOption('options.backdrops.zones.right', 'Right');
+    if (key === 'backdropPlayer') return translatedOption('options.backdrops.zones.player', 'Player Bar');
+    if (key === 'backdropNowPlaying') return translatedOption('options.backdrops.zones.nowPlaying', 'Now Playing');
+    if (key === 'visualizerStyle') return $t('options.loadouts.tooltip.visualizer', { default: 'Visualizer' });
+    if (key === 'visualizerColorSource') return translatedOption('options.visualizer.colorSource.title', 'Color source');
+    if (key === 'visualizerHeight') return translatedOption('options.visualizer.height.title', 'Height');
+    if (key === 'visualizerTransparency') return translatedOption('options.visualizer.opacity.title', 'Opacity');
+    if (key === 'visualizerFrameRateLimit') return translatedOption('options.visualizer.frameCap.title', 'Frame cap');
+    if (key === 'visualizerNormalizationStrength') return translatedOption('options.visualizer.normalization.title', 'Normalization');
+    if (key === 'visualizerTriangleCount') return translatedOption('options.visualizer.triangleCount.title', 'Triangle count');
+    if (key === 'visualizerTriangleMinSize') return translatedOption('options.visualizer.triangleMinSize.title', 'Minimum triangle size');
+    if (key === 'visualizerTriangleMaxSize') return translatedOption('options.visualizer.triangleMaxSize.title', 'Maximum triangle size');
+    if (key === 'visualizerTriangleBaseSpeed') return translatedOption('options.visualizer.triangleBaseSpeed.title', 'Base rise speed');
+    if (key === 'visualizerTriangleReactiveSpeed') return translatedOption('options.visualizer.triangleReactiveSpeed.title', 'Reactive rise speed');
+    return translatedOption('options.visualizer.triangleBorderWidth.title', 'Border thickness');
+  }
+
+  function backdropEffectLabel(value: string): string {
+    if (value === 'none') return translatedOption('options.backdrops.effects.none', 'None');
+    if (value === 'artwork') return translatedOption('options.backdrops.effects.artwork', 'Artwork');
+    if (value === 'visualizer') return translatedOption('options.backdrops.effects.visualizer', 'Visualizer');
+    return translatedOption('options.backdrops.effects.both', 'Both');
+  }
+
+  function visualizerStyleLabel(value: string): string {
+    if (value === 'bars') return translatedOption('options.visualizer.options.bars', 'Spectrum bars');
+    if (value === 'mirror') return translatedOption('options.visualizer.options.mirror', 'Mirror bloom');
+    if (value === 'blocks') return translatedOption('options.visualizer.options.blocks', 'Pixel blocks');
+    if (value === 'triangles') return translatedOption('options.visualizer.options.triangles', 'Rhythm triangles');
+    return translatedOption('options.visualizer.options.wave', 'Uniform wave');
+  }
+
+  function settingValue(difference: LoadoutSettingDifference): string {
+    const { key, value } = difference;
+    if (key === 'trueSpeed' || key === 'rafEnabled') {
+      return value
+        ? $t('options.loadouts.tooltip.on', { default: 'on' })
+        : $t('options.loadouts.tooltip.off', { default: 'off' });
+    }
+    if (key === 'playbackRate') return `${value}x`;
+    if (key === 'replayGainMode') {
+      if (value === 'album') return translatedOption('options.playback.replayGain.options.album', 'Album');
+      if (value === 'off') return translatedOption('options.playback.replayGain.options.off', 'Off');
+      return translatedOption('options.playback.replayGain.options.track', 'Track');
+    }
+    if (key === 'interpolationFilter') return `${value}-tap`;
+    if (key === 'stereoSeparation' || key === 'panStrength') return `${value}%`;
+    if (key === 'repeatCount') {
+      if (value === -1) return translatedOption('options.modules.looping.forever', 'Loop forever');
+      if (value === 0) return translatedOption('options.modules.looping.once', 'Play once');
+      return $t('options.loadouts.tooltip.repeatCount', { default: '{count} repeats', values: { count: value } });
+    }
+    if (key === 'tempoFactor' || key === 'pitchFactor') {
+      const numericValue = Number(value);
+      return `${Math.round(numericValue * 100)}% (${numericValue.toFixed(2)}x)`;
+    }
+    if (key.startsWith('backdrop')) return backdropEffectLabel(String(value));
+    if (key === 'visualizerStyle') return visualizerStyleLabel(String(value));
+    if (key === 'visualizerColorSource') {
+      return value === 'artwork'
+        ? translatedOption('options.visualizer.options.artwork', 'Follow artwork')
+        : translatedOption('options.visualizer.options.theme', 'Follow theme');
+    }
+    if (key === 'visualizerHeight' || key === 'visualizerTransparency' || key === 'visualizerNormalizationStrength'
+      || key === 'visualizerTriangleMinSize' || key === 'visualizerTriangleMaxSize') {
+      return `${Math.round(Number(value) * 100)}%`;
+    }
+    if (key === 'visualizerFrameRateLimit') return `${value} fps`;
+    if (key === 'visualizerTriangleBaseSpeed' || key === 'visualizerTriangleReactiveSpeed') return `${Number(value).toFixed(2)}x`;
+    if (key === 'visualizerTriangleBorderWidth') return `${value}px`;
+    return String(value);
+  }
+
+  function categoryAriaLabel(loadout: Loadout, category: LoadoutCategory): string {
+    const differences = getLoadoutSettingDifferences(loadout.settings, category);
+    if (differences.length === 0) {
+      return `${categoryLabel(category)}. ${$t('options.loadouts.tooltip.defaults', { default: 'Defaults' })}`;
+    }
+    const details = differences.map((difference) => difference.key === 'rafPresetName'
+      ? String(difference.value)
+      : `${settingLabel(difference.key)}: ${settingValue(difference)}`
+    );
+    return [categoryLabel(category), ...details].join('. ');
   }
 
   function toggleCategory(category: LoadoutCategory): void {
@@ -262,9 +370,27 @@
             <span class="loadout-name" title={loadout.name}>{loadout.name}</span>
             <span class="saved-categories" aria-label={$t('options.loadouts.list.savedCategories', { default: 'Saved categories' })}>
               {#each getLoadoutCategories(loadout.settings) as category}
-                <span class="category-glyph hover-tooltip-anchor" role="img" aria-label={categoryLabel(category)}>
+                {@const differences = getLoadoutSettingDifferences(loadout.settings, category)}
+                <span class="category-glyph hover-tooltip-anchor" role="img" aria-label={categoryAriaLabel(loadout, category)}>
                   <span class="material-symbols-outlined" aria-hidden="true">{CATEGORY_ICONS[category]}</span>
-                  <HoverTooltip placement="above" align="center">{categoryLabel(category)}</HoverTooltip>
+                  <HoverTooltip placement="above" align="center">
+                    <span class="loadout-tooltip">
+                      <strong>{categoryLabel(category)}</strong>
+                      {#if differences.length === 0}
+                        <span class="loadout-tooltip-defaults">{$t('options.loadouts.tooltip.defaults', { default: 'Defaults' })}</span>
+                      {:else}
+                        {#each differences as difference}
+                          <span class="loadout-tooltip-line">
+                            {#if difference.key === 'rafPresetName'}
+                              {difference.value}
+                            {:else}
+                              <span>{settingLabel(difference.key)}:</span> {settingValue(difference)}
+                            {/if}
+                          </span>
+                        {/each}
+                      {/if}
+                    </span>
+                  </HoverTooltip>
                 </span>
               {/each}
             </span>
@@ -517,6 +643,25 @@
 
   .saved-categories {
     padding: 0 2px;
+  }
+
+  .loadout-tooltip {
+    display: grid;
+    gap: 2px;
+    min-width: max-content;
+    text-align: left;
+  }
+
+  .loadout-tooltip strong {
+    margin-bottom: 1px;
+  }
+
+  .loadout-tooltip-line {
+    display: block;
+  }
+
+  .loadout-tooltip-defaults {
+    color: var(--muted);
   }
 
   .row-actions {

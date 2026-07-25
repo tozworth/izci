@@ -150,6 +150,30 @@ describe('automatic loadout runtime', () => {
     expect(rafSettings.getSnapshot().enabled).toBe(false);
   });
 
+  it('applies the Raf rack and bypass state before selecting the loadout preset', () => {
+    rafSettings.reset();
+    const oldPreset = rafPresets.create('Old rack')!;
+    rafSettings.addEffect('stereo-width');
+    const newPreset = rafPresets.create('New rack')!;
+    rafPresets.apply(oldPreset.id);
+
+    let rackWhenNewPresetWasSelected = rafSettings.getSnapshot();
+    const unsubscribe = rafPresets.subscribe((state) => {
+      if (state.selectedPresetId === newPreset.id) {
+        rackWhenNewPresetWasSelected = structuredClone(rafSettings.getSnapshot());
+      }
+    });
+
+    applyLoadoutSettings({ raf: { presetName: newPreset.name, enabled: false } });
+    unsubscribe();
+
+    expect(rackWhenNewPresetWasSelected).toEqual({
+      enabled: false,
+      effects: newPreset.settings.effects
+    });
+    expect(rafSettings.getSnapshot()).toEqual(rackWhenNewPresetWasSelected);
+  });
+
   it('turns Raf off when switching from a Raf-on loadout to a Raf-off loadout', () => {
     rafSettings.reset();
     const preset = rafPresets.create('Track rack')!;

@@ -644,6 +644,14 @@
         "modules": "Modules",
         "appearance": "Appearance"
       },
+      "tooltip": {
+        "rafEnabled": "Raf",
+        "visualizer": "Visualizer",
+        "on": "on",
+        "off": "off",
+        "repeatCount": "{count} repeats",
+        "defaults": "Defaults"
+      },
       "capture": {
         "heading": "Save current settings",
         "hint": "Choose what identifies the loadout and which current settings it captures.",

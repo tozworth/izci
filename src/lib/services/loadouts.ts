@@ -225,10 +225,7 @@ export function applyLoadoutSettings(settings: LoadoutSettings): void {
     const preset = rafPresets.getSnapshot().presets.find(
       (candidate) => normalizedComparisonText(candidate.name) === normalizedComparisonText(settings.raf!.presetName)
     );
-    if (preset) {
-      rafPresets.apply(preset.id);
-      rafSettings.setEnabled(settings.raf.enabled);
-    }
+    if (preset) rafPresets.apply(preset.id, settings.raf.enabled);
   }
   if (settings.modules) modulePlaybackSettings.set(settings.modules);
   if (settings.appearance) {

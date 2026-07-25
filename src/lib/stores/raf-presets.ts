@@ -89,11 +89,12 @@ export const rafPresets = {
     }));
     return preset;
   },
-  apply(id: string): RafRackSettings | null {
+  apply(id: string, enabled = rafSettings.getSnapshot().enabled): RafRackSettings | null {
     const preset = store.getSnapshot().presets.find((candidate) => candidate.id === id);
     if (!preset) return null;
+    const settings = rafSettings.replace({ enabled, effects: preset.settings.effects });
     store.update((state) => ({ ...state, selectedPresetId: id }));
-    return rafSettings.replace({ enabled: rafSettings.getSnapshot().enabled, effects: preset.settings.effects });
+    return settings;
   },
   save(): RafPreset | null {
     const state = store.getSnapshot();
