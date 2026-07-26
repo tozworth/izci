@@ -1,23 +1,27 @@
-# izci
+# izci agent docs
 
-`izci` (Turkish for "tracker") is a local-first, offline-capable Chromium PWA music player with first-class tracker module support. It has no backend and operates on user-selected local files and File System Access handles.
+`izci` is a PWA media player. It has no backend, operates on local files and File System Access handles.
+
+## Core principles
+
+- Offline PWA, mainly targeting Chromium/Blink for maximum API flexibility.
+- Desktop-style design: tight margins, no overstyling, no extraneous hyperlinks or pointer cursors. Basically, before working on UI, check whether the output is "too website-y" and redesign as needed.
+- Goldilocks factor: izci intentionally exposes many obscure settings ("Count track as played after (s)", "Logarithmic volume", "Keep columns visible in narrow library panels"...) - when adding a substantial feature, consider its accompanying Goldilocks controls under a valid Options category
+- The project is pre-alpha and has one (1) user. Compatibility is intentionally scorched-earth: prefer clean current-version state, key, and schema changes over legacy/adapter/migration slop.
 
 ## Keep this file small
 
 - This is an operating guide, not a source index, feature inventory, changelog, or design history.
 - Update it only when a durable project-wide constraint, major ownership boundary, or top-level workflow changes.
 - Do not add per-file summaries, UI option inventories, implementation trivia, or notes that can be learned quickly from the code.
-- The project is pre-alpha and has one active user. Compatibility is intentionally scorched-earth: prefer clean current-version state, key, and schema changes over adapters or migrations unless explicitly requested.
 
 ## Non-negotiable behavior
 
 - Preserve all playback paths:
-  - streams (`mp3`, `wav`, `flac`, `ogg`, `opus`) use Howler in HTML5 audio mode;
+  - streamed / "regular" audio (`mp3`, `wav`, `flac`, `ogg`, `opus`) use Howler in HTML5 audio mode;
   - tracker modules (`mod`, `xm`, `s3m`, `it`, `mo3`) use Chiptune3/libopenmpt and Web Audio;
   - videos (`mp4`, `m4v`, `mov`, `webm`, `mkv`) use a native video element with audio routed through the shared Web Audio graph when Chromium permits it.
 - Do not route streams through Chiptune3 or real module audio through a media element. Modules mirror transport state to Chromium through the silent native media-session anchor.
-- Preserve offline PWA behavior. Target Chromium/Blink desktop and installed-PWA integrations; prefer progressive enhancement over broad compatibility shims.
-- Keep the app frontend-only and local-first. Do not introduce required servers, accounts, cloud storage, or network-dependent flows.
 - Keep playback, persistence, DSP, and browser-integration logic in services/stores. Svelte components should primarily render and dispatch events.
 - Preserve persistence boundaries:
   - playlist and library collections: IndexedDB;
@@ -31,6 +35,7 @@
 - Ignore `node_modules/`, `dist/`, and `dev-dist/` unless the task explicitly concerns generated output or dependencies.
 - After every source change, run `npm run build` so the user's hot-reload output remains current. Run focused tests and/or `npm run check` when relevant.
 - Documentation-only changes do not require a build.
+- Localization automation may update `en.json` and `tr.json`, but never `en-askew.json`; Askew is a manually curated inside joke, and automatically maintaining it would be wasted effort.
 - Do not start dev/preview servers or inspect the app in a browser unless explicitly asked.
 - Do not treat Codex's built-in browser as proof of installed-PWA-only behavior such as Window Controls Overlay, file handlers, or desktop window integration.
 

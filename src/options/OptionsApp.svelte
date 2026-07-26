@@ -58,7 +58,7 @@
       case 'lyrics': return $t('options.views.lyrics', { default: 'Lyrics' });
       case 'playback': return $t('options.views.playback', { default: 'Playback' });
       case 'video': return $t('options.views.video', { default: 'Video' });
-      case 'raf': return 'Raf';
+      case 'raf': return $t('options.views.raf', { default: 'Raf' });
       case 'visualizer': return $t('options.views.visualizer', { default: 'Visualizer' });
       case 'patterns': return $t('options.views.patterns', { default: 'Patterns' });
       case 'modules': return $t('options.views.modules', { default: 'Modules' });

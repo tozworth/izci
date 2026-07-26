@@ -1,9 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { DEFAULT_APP_LOCALE, initializeLocalization, normalizeAppLocale, translate } from './index';
+import {
+  DEFAULT_APP_LOCALE,
+  appLocale,
+  initializeLocalization,
+  normalizeAppLocale,
+  translate
+} from './index';
 
 describe('normalizeAppLocale', () => {
   it('accepts supported locales', () => {
     expect(normalizeAppLocale('en')).toBe('en');
+    expect(normalizeAppLocale('en-askew')).toBe('en-askew');
     expect(normalizeAppLocale('tr')).toBe('tr');
   });
 
@@ -18,5 +25,12 @@ describe('localization runtime', () => {
   it('formats default English messages after initialization', () => {
     initializeLocalization();
     expect(translate('test.default-message', { default: 'Default message' })).toBe('Default message');
+  });
+
+  it('loads Askew messages when the locale changes', () => {
+    initializeLocalization();
+    appLocale.set('en-askew');
+    expect(translate('options.views.raf')).toBe('Shelf');
+    appLocale.reset();
   });
 });

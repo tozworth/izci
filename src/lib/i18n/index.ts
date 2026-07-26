@@ -2,15 +2,17 @@ import { addMessages, init, locale as svelteI18nLocale, t } from 'svelte-i18n';
 import { get } from 'svelte/store';
 import { createPersistentStore } from '$lib/stores/persistent-store';
 import en from './locales/en.json';
+import enAskew from './locales/en-askew.json';
 import tr from './locales/tr.json';
 
-export type AppLocale = 'en' | 'tr';
+export type AppLocale = 'en' | 'en-askew' | 'tr';
 
 export const APP_LOCALE_STORAGE_KEY = 'izci.locale';
 export const APP_LOCALE_CHANNEL = 'izci.locale';
 export const DEFAULT_APP_LOCALE: AppLocale = 'en';
 export const APP_LOCALE_OPTIONS: ReadonlyArray<{ value: AppLocale; label: string }> = [
   { value: 'en', label: 'English' },
+  { value: 'en-askew', label: 'English (Askew)' },
   { value: 'tr', label: 'Türkçe' }
 ];
 
@@ -31,7 +33,7 @@ export interface TranslationOptions {
 let initialized = false;
 
 export function normalizeAppLocale(value: unknown): AppLocale {
-  return value === 'tr' ? 'tr' : DEFAULT_APP_LOCALE;
+  return value === 'en-askew' || value === 'tr' ? value : DEFAULT_APP_LOCALE;
 }
 
 export function initializeLocalization(): void {
@@ -39,6 +41,7 @@ export function initializeLocalization(): void {
   initialized = true;
 
   addMessages('en', en);
+  addMessages('en-askew', enAskew);
   addMessages('tr', tr);
   void init({
     fallbackLocale: DEFAULT_APP_LOCALE,
