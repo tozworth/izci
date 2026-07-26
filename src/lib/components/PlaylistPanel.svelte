@@ -23,7 +23,7 @@
   import LibraryGroupList from '$lib/components/playlist-panel/LibraryGroupList.svelte';
   import LibraryColumnsHeader from '$lib/components/playlist-panel/LibraryColumnsHeader.svelte';
   import TrackList from '$lib/components/playlist-panel/TrackList.svelte';
-  import PanelContextMenu from '$lib/components/playlist-panel/PanelContextMenu.svelte';
+  import MenuSurface from '$lib/components/MenuSurface.svelte';
   import { buildOrderedSelection, isToggleSelection } from '$lib/components/playlist-panel/selection';
   import {
     compareItems,
@@ -33,11 +33,7 @@
     type ColumnDropIndicator,
     type LibraryColumnWidths
   } from '$lib/components/playlist-panel/library-columns';
-  import {
-    clampContextMenuPosition,
-    type ColumnVisibilityAction,
-    type PlaylistPanelContextMenu
-  } from '$lib/components/playlist-panel/context-menu';
+  import type { PlaylistPanelContextMenu } from '$lib/components/playlist-panel/context-menu';
   import {
     filterItemsByQuery,
     formatTotalDuration,
@@ -92,7 +88,6 @@
   const TABLE_SIDE_PADDING = 19.2;
 
   let contextMenu: PlaylistPanelContextMenu | null = null;
-  let contextMenuElement: HTMLDivElement | null = null;
   let dropzoneElement: HTMLDivElement | null = null;
   let headerElement: HTMLDivElement | null = null;
   let columnsHeaderElement: HTMLDivElement | null = null;
@@ -429,19 +424,6 @@
     }
   }
 
-  function clampContextMenu() {
-    if (!contextMenu || !contextMenuElement || typeof window === 'undefined') {
-      return;
-    }
-
-    contextMenu = clampContextMenuPosition(
-      contextMenu,
-      contextMenuElement,
-      window.innerWidth,
-      window.innerHeight
-    );
-  }
-
   function updatePlaylistHeaderState() {
     playlistHeaderCovered = (dropzoneElement?.scrollTop ?? 0) > 0;
   }
@@ -471,7 +453,7 @@
     dispatch('activate', id);
   }
 
-  async function handleItemContextMenu(event: MouseEvent, id: string) {
+  function handleItemContextMenu(event: MouseEvent, id: string) {
     event.preventDefault();
 
     const itemIsSelected = displaySelectedIds.includes(id);
@@ -499,11 +481,9 @@
       ids: itemIsSelected ? displaySelectedIds : [id]
     };
 
-    await tick();
-    clampContextMenu();
   }
 
-  async function handleLibraryGroupContextMenu(event: MouseEvent, key: string) {
+  function handleLibraryGroupContextMenu(event: MouseEvent, key: string) {
     event.preventDefault();
 
     const group = libraryGroups.find((entry) => entry.key === key);
@@ -526,11 +506,9 @@
       ids
     };
 
-    await tick();
-    clampContextMenu();
   }
 
-  async function handleColumnContextMenu(event: MouseEvent) {
+  function handleColumnContextMenu(event: MouseEvent) {
     if (layout !== 'columns' || isCompactColumnLayout) {
       return;
     }
@@ -542,8 +520,6 @@
       y: event.clientY
     };
 
-    await tick();
-    clampContextMenu();
   }
 
   function handleContextAction(actionId: string) {
@@ -571,13 +547,49 @@
     libraryViewSettings.setColumnVisibility(columnId, visible);
   }
 
-  function handleColumnContextAction({ columnId, visible }: ColumnVisibilityAction) {
-    if (visible && visibleColumnCount === 1) {
+  function handleColumnContextAction(actionId: string) {
+    const column = orderedColumns.find((candidate) => `toggle-column:${candidate.id}` === actionId);
+
+    if (!column || (column.visible && visibleColumnCount === 1)) {
       return;
     }
 
-    handleColumnVisibilityChange(columnId, !visible);
+    handleColumnVisibilityChange(column.id, !column.visible);
     closeContextMenu();
+  }
+
+  function getContextMenuActionLabel(action: MenuActionItem): string {
+    switch (action.id) {
+      case 'track-details': return $t('playlist.actions.trackDetails', { default: 'Track details' });
+      case 'toggle-library': return action.icon === 'remove_circle'
+        ? $t('playlist.actions.removeFromLibrary', { default: 'Remove from library' })
+        : $t('playlist.actions.addToLibrary', { default: 'Add to library' });
+      case 'toggle-favorite': return action.icon === 'heart_minus'
+        ? $t('playlist.actions.removeFromFavorites', { default: 'Remove from favorites' })
+        : $t('playlist.actions.addToFavorites', { default: 'Add to favorites' });
+      case 'separate-subsongs': return $t('playlist.actions.separateSubsongs', { default: 'Separate subsongs' });
+      case 'add-to-playlist': return $t('playlist.actions.addToPlaylist', { default: 'Add to playlist' });
+      case 'replace-playlist': return $t('playlist.actions.replacePlaylist', { default: 'Replace playlist' });
+      case 'reset-play-count': return $t('playlist.actions.resetPlayCount', { default: 'Reset play count' });
+      case 'remove-favorite': return $t('playlist.actions.removeFromFavorites', { default: 'Remove from favorites' });
+      case 'remove': return $t('playlist.actions.remove', { default: 'Remove' });
+      default: return action.label;
+    }
+  }
+
+  function getContextMenuShortcut(shortcut: string | undefined): string | undefined {
+    return shortcut === 'Delete'
+      ? $t('playlist.shortcuts.delete', { default: 'Delete' })
+      : shortcut;
+  }
+
+  function handleMenuAction(actionId: string) {
+    if (contextMenu?.kind === 'columns') {
+      handleColumnContextAction(actionId);
+      return;
+    }
+
+    handleContextAction(actionId);
   }
 
   function handleSearchToggle() {
@@ -823,6 +835,22 @@
   $: contextMenuActions = contextMenu?.kind === 'items' ? getContextMenuActions(contextMenu.ids) : [];
   $: storedVisibleColumns = orderedColumns.filter((column) => column.visible);
   $: visibleColumnCount = storedVisibleColumns.length;
+  $: contextMenuItems = contextMenu?.kind === 'columns'
+    ? orderedColumns.map((column) => ({
+        id: `toggle-column:${column.id}`,
+        label: column.label,
+        icon: column.visible ? 'check_box' : 'check_box_outline_blank',
+        checked: column.visible,
+        disabled: column.visible && visibleColumnCount === 1
+      } satisfies MenuActionItem))
+    : contextMenuActions.map((action) => ({
+        ...action,
+        label: getContextMenuActionLabel(action),
+        shortcut: getContextMenuShortcut(action.shortcut)
+      }));
+  $: contextMenuAriaLabel = contextMenu?.kind === 'columns'
+    ? $t('playlist.contextMenu.columns', { default: '{panel} columns', values: { panel: localizedPanelTitle } })
+    : $t('playlist.contextMenu.itemActions', { default: '{panel} item actions', values: { panel: localizedPanelTitle } });
   $: isCompactColumnLayout =
     layout === 'columns' &&
     dropzoneWidth > 0 &&
@@ -1001,17 +1029,16 @@
       </div>
     {/if}
 
-    <PanelContextMenu
-      bind:menuElement={contextMenuElement}
-      menu={contextMenu}
-      panelTitle={localizedPanelTitle}
-      itemActions={contextMenuActions}
-      {orderedColumns}
-      {visibleColumnCount}
-      on:dismiss={handleWindowDismiss}
-      on:action={(event) => handleContextAction(event.detail)}
-      on:columnToggle={(event) => handleColumnContextAction(event.detail)}
-    />
+    {#if contextMenu}
+      <MenuSurface
+        items={contextMenuItems}
+        x={contextMenu.x}
+        y={contextMenu.y}
+        ariaLabel={contextMenuAriaLabel}
+        on:dismiss={handleWindowDismiss}
+        on:action={(event) => handleMenuAction(event.detail)}
+      />
+    {/if}
   </div>
 </section>
 

@@ -66,6 +66,10 @@
   }
 
   function handleItemSelect(item: MenuActionItem) {
+    if (item.disabled) {
+      return;
+    }
+
     if (item.children?.length) {
       if (canShowHoverSubmenus) {
         activeSubmenuId = activeSubmenuId === item.id ? null : item.id;
@@ -151,7 +155,12 @@
 </script>
 
 {#if nested}
-  <div bind:this={menuElement} class="menu-list menu-surface menu-surface-nested" role="menu" aria-label={resolvedAriaLabel}>
+  <div
+    bind:this={menuElement}
+    class="menu-list menu-surface menu-surface-nested"
+    role="menu"
+    aria-label={resolvedAriaLabel}
+  >
     {#each displayedItems as item (item.id)}
       {#if item.separatorBefore}
         <div class="menu-separator" role="separator" aria-hidden="true"></div>
@@ -160,7 +169,9 @@
       <div class="menu-entry-group" role="none" on:pointerenter={() => openSubmenu(item)}>
         <button
           type="button"
-          role="menuitem"
+          role={item.checked === undefined ? 'menuitem' : 'menuitemcheckbox'}
+          aria-checked={item.checked}
+          disabled={item.disabled}
           class:submenu-open={activeSubmenuId === item.id}
           class:menu-item-parent={item.children?.length}
           class:menu-item-attention={item.attention}
@@ -181,8 +192,8 @@
           </span>
           {#if item.children?.length}
             <span class="material-symbols-outlined menu-item-chevron" aria-hidden="true">chevron_right</span>
-          {:else}
-            <span class="menu-item-shortcut" aria-hidden="true">{item.shortcut ?? ''}</span>
+          {:else if item.shortcut}
+            <span class="menu-item-shortcut" aria-hidden="true">{item.shortcut}</span>
           {/if}
         </button>
 
@@ -214,7 +225,6 @@
       <button type="button" role="menuitem" class="menu-back-button" on:click={goBack}>
         <span class="material-symbols-outlined menu-item-icon" aria-hidden="true">arrow_back</span>
         <span class="menu-item-label">{$t('main.menu.back', { default: 'Back' })}</span>
-        <span class="menu-item-shortcut" aria-hidden="true"></span>
       </button>
       <div class="menu-separator" role="separator" aria-hidden="true"></div>
     {/if}
@@ -227,7 +237,9 @@
       <div class="menu-entry-group" role="none" on:pointerenter={() => openSubmenu(item)}>
         <button
           type="button"
-          role="menuitem"
+          role={item.checked === undefined ? 'menuitem' : 'menuitemcheckbox'}
+          aria-checked={item.checked}
+          disabled={item.disabled}
           class:submenu-open={activeSubmenuId === item.id}
           class:menu-item-parent={item.children?.length}
           class:menu-item-drilldown={shouldUseSubmenuDrilldown && item.children?.length}
@@ -251,8 +263,8 @@
             <span class="material-symbols-outlined menu-item-chevron" aria-hidden="true">
               {shouldUseSubmenuDrilldown ? 'chevron_right' : 'chevron_right'}
             </span>
-          {:else}
-            <span class="menu-item-shortcut" aria-hidden="true">{item.shortcut ?? ''}</span>
+          {:else if item.shortcut}
+            <span class="menu-item-shortcut" aria-hidden="true">{item.shortcut}</span>
           {/if}
         </button>
 

@@ -479,6 +479,8 @@ export interface MenuActionItem {
   icon?: string;
   iconColor?: string;
   shortcut?: string;
+  checked?: boolean;
+  disabled?: boolean;
   separatorBefore?: boolean;
   attention?: boolean;
   children?: MenuActionItem[];
