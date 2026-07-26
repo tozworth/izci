@@ -349,6 +349,7 @@ export interface AppearanceSettings {
 export interface PlaybackSettings {
   playbackRate: number;
   trueSpeed: boolean;
+  restartCurrentTrackOnPrevious: boolean;
   logarithmicVolume: boolean;
   replayGainMode: ReplayGainMode;
   restoreMode: PlaybackRestoreMode;

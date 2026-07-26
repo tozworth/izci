@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_REMEMBER_PROGRESS_DURATION_INDEX,
   normalizePlaybackRate,
+  normalizePlaybackSettings,
   normalizePlaybackRestoreMode,
   normalizeRememberProgressDurationIndex
 } from './playback-settings';
@@ -35,5 +36,10 @@ describe('playback settings helpers', () => {
     expect(normalizePlaybackRate(0.1)).toBe(0.5);
     expect(normalizePlaybackRate(4)).toBe(2);
     expect(normalizePlaybackRate('1.5')).toBe(1);
+  });
+
+  it('defaults the Previous restart behavior on and preserves an explicit opt-out', () => {
+    expect(normalizePlaybackSettings({}).restartCurrentTrackOnPrevious).toBe(true);
+    expect(normalizePlaybackSettings({ restartCurrentTrackOnPrevious: false }).restartCurrentTrackOnPrevious).toBe(false);
   });
 });

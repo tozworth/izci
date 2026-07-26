@@ -19,6 +19,8 @@ interface CreatePlaybackCommandsControllerOptions {
   getPlayingTrack: () => PlaylistItem | null;
   getSelectedPlaylistTrack: () => PlaylistItem | null;
   getPlaybackState: () => PlaybackSnapshot['state'];
+  getPlaybackCurrentTime: () => number;
+  shouldRestartCurrentTrackOnPrevious: () => boolean;
   getShuffleEnabled: () => boolean;
   getRepeatMode: () => PlaylistRepeatMode;
   getTrackById: (collection: WorkspaceCollection, id: string) => PlaylistItem | null;
@@ -33,10 +35,27 @@ const initialState: PlaybackCommandsState = {
   pendingPlaybackTrackId: null
 };
 
+export const PREVIOUS_TRACK_RESTART_THRESHOLD_SECONDS = 3;
+
+export function shouldRestartForPrevious(
+  direction: -1 | 1,
+  enabled: boolean,
+  hasPlayingTrack: boolean,
+  currentTime: number
+): boolean {
+  return direction === -1
+    && enabled
+    && hasPlayingTrack
+    && Number.isFinite(currentTime)
+    && currentTime >= PREVIOUS_TRACK_RESTART_THRESHOLD_SECONDS;
+}
+
 export function createPlaybackCommandsController({
   getPlayingTrack,
   getSelectedPlaylistTrack,
   getPlaybackState,
+  getPlaybackCurrentTime,
+  shouldRestartCurrentTrackOnPrevious,
   getShuffleEnabled,
   getRepeatMode,
   getTrackById,
@@ -247,6 +266,16 @@ export function createPlaybackCommandsController({
   }
 
   async function stepTrack(direction: -1 | 1): Promise<void> {
+    if (shouldRestartForPrevious(
+      direction,
+      shouldRestartCurrentTrackOnPrevious(),
+      getPlayingTrack() !== null,
+      getPlaybackCurrentTime()
+    )) {
+      playerController.seek(0);
+      return;
+    }
+
     const nextTrack = playlistStore.resolveStepTrack({
       currentId: getPlayingTrack()?.id,
       selectedId: getSelectedPlaylistTrack()?.id,

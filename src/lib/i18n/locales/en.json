@@ -944,6 +944,13 @@
       "startup": {
         "heading": "Startup"
       },
+      "navigation": {
+        "heading": "Navigation"
+      },
+      "restartCurrentTrackOnPrevious": {
+        "title": "Previous restarts current track",
+        "hint": "Restarts the current track when Previous is pressed after 3 seconds; press it again to go to the previous track."
+      },
       "speed": {
         "heading": "Speed"
       },

@@ -31,6 +31,7 @@
     });
   }
   function handleTrueSpeedToggle(event: Event) { playbackSettings.update({ trueSpeed: checked(event) }); }
+  function handleRestartCurrentTrackOnPreviousToggle(event: Event) { playbackSettings.update({ restartCurrentTrackOnPrevious: checked(event) }); }
   function handleLogarithmicVolumeToggle(event: Event) { playbackSettings.update({ logarithmicVolume: checked(event) }); }
   function handleReplayGainModeChange(event: Event) { playbackSettings.update({ replayGainMode: (event.currentTarget as HTMLSelectElement).value as ReplayGainMode }); }
   function handleEnableRafToggle(event: Event) { playbackSettings.update({ enableRaf: checked(event) }); }
@@ -78,6 +79,23 @@
               <option value={option.value}>{restoreModeLabel(option.value)}</option>
             {/each}
           </select>
+      </SettingsField>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>{$t('options.playback.navigation.heading', { default: 'Navigation' })}</h2>
+    <div class="field-grid">
+      <SettingsField
+        title={$t('options.playback.restartCurrentTrackOnPrevious.title', { default: 'Previous restarts current track' })}
+        hint={$t('options.playback.restartCurrentTrackOnPrevious.hint', { default: 'Restarts the current track when Previous is pressed after 3 seconds; press it again to go to the previous track.' })}
+        checkbox
+      >
+          <input
+            type="checkbox"
+            checked={$playbackSettings.restartCurrentTrackOnPrevious}
+            on:change={handleRestartCurrentTrackOnPreviousToggle}
+          />
       </SettingsField>
     </div>
   </div>

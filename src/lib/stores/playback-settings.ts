@@ -28,6 +28,7 @@ export const PLAYBACK_RATE_STEP = 0.05;
 export const DEFAULT_PLAYBACK_SETTINGS: PlaybackSettings = {
   playbackRate: 1,
   trueSpeed: false,
+  restartCurrentTrackOnPrevious: true,
   logarithmicVolume: true,
   replayGainMode: 'track',
   restoreMode: 'disabled',
@@ -78,6 +79,10 @@ export function normalizePlaybackSettings(value: unknown): PlaybackSettings {
       typeof source.trueSpeed === 'boolean'
         ? source.trueSpeed
         : DEFAULT_PLAYBACK_SETTINGS.trueSpeed,
+    restartCurrentTrackOnPrevious:
+      typeof source.restartCurrentTrackOnPrevious === 'boolean'
+        ? source.restartCurrentTrackOnPrevious
+        : DEFAULT_PLAYBACK_SETTINGS.restartCurrentTrackOnPrevious,
     logarithmicVolume:
       typeof source.logarithmicVolume === 'boolean'
         ? source.logarithmicVolume

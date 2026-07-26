@@ -245,6 +245,8 @@
     getPlayingTrack: () => playingTrack,
     getSelectedPlaylistTrack: () => selectedPlaylistItem,
     getPlaybackState: () => playbackStatus.state,
+    getPlaybackCurrentTime: () => playbackSnapshot.currentTime,
+    shouldRestartCurrentTrackOnPrevious: () => $playbackSettings.restartCurrentTrackOnPrevious,
     getShuffleEnabled: () => shuffleEnabled,
     getRepeatMode: () => repeatMode,
     getTrackById: (collection, id) =>

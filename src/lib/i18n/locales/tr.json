@@ -944,6 +944,13 @@
       "startup": {
         "heading": "Başlangıç"
       },
+      "navigation": {
+        "heading": "Gezinme"
+      },
+      "restartCurrentTrackOnPrevious": {
+        "title": "Önceki geçerli parçayı baştan başlatır",
+        "hint": "3 saniye geçtikten sonra Önceki'ye basıldığında geçerli parçayı baştan başlatır; önceki parçaya gitmek için tekrar basın."
+      },
       "speed": {
         "heading": "Hız"
       },
