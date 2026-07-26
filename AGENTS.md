@@ -7,13 +7,13 @@
 - Offline PWA, mainly targeting Chromium/Blink for maximum API flexibility.
 - Desktop-style design: tight margins, no overstyling, no extraneous hyperlinks or pointer cursors. Basically, before working on UI, check whether the output is "too website-y" and redesign as needed.
 - Goldilocks factor: izci intentionally exposes many obscure settings ("Count track as played after (s)", "Logarithmic volume", "Keep columns visible in narrow library panels"...) - when adding a substantial feature, consider its accompanying Goldilocks controls under a valid Options category
-- The project is pre-alpha and has one (1) user. Compatibility is intentionally scorched-earth: prefer clean current-version state, key, and schema changes over legacy/adapter/migration slop.
+- The project is pre-alpha and has one (1) user. Compatibility is intentionally scorched-earth: prefer clean current-version state over legacy/adapter/migration slop.
 
 ## Keep this file small
 
-- This is an operating guide, not a source index, feature inventory, changelog, or design history.
+- This is an operating guide, not a source index, feature inventory, or changelog.
 - Update it only when a durable project-wide constraint, major ownership boundary, or top-level workflow changes.
-- Do not add per-file summaries, UI option inventories, implementation trivia, or notes that can be learned quickly from the code.
+- Do not add per-file summaries, implementation trivia, or anything else that can be grepped in 3 seconds.
 
 ## Non-negotiable behavior
 
@@ -21,7 +21,6 @@
   - streamed / "regular" audio (`mp3`, `wav`, `flac`, `ogg`, `opus`) use Howler in HTML5 audio mode;
   - tracker modules (`mod`, `xm`, `s3m`, `it`, `mo3`) use Chiptune3/libopenmpt and Web Audio;
   - videos (`mp4`, `m4v`, `mov`, `webm`, `mkv`) use a native video element with audio routed through the shared Web Audio graph when Chromium permits it.
-- Do not route streams through Chiptune3 or real module audio through a media element. Modules mirror transport state to Chromium through the silent native media-session anchor.
 - Keep playback, persistence, DSP, and browser-integration logic in services/stores. Svelte components should primarily render and dispatch events.
 - Preserve persistence boundaries:
   - playlist and library collections: IndexedDB;
