@@ -25,6 +25,11 @@
   import { LOADOUT_COLORS, loadouts } from '$lib/stores/loadouts';
   import { rafPresets } from '$lib/stores/raf-presets';
   import type { Loadout, LoadoutCategory, LoadoutColor, LoadoutType } from '$lib/types';
+  import {
+    getLoadoutColorValue,
+    LOADOUT_COLOR_VALUES,
+    LOADOUT_TYPE_ICONS
+  } from '$lib/utils/loadout-presentation';
   import OptionGlyphButton from '../OptionGlyphButton.svelte';
 
   const LOADOUT_TYPES: LoadoutType[] = ['file', 'path', 'type', 'tags', 'preset'];
@@ -34,28 +39,6 @@
     modules: 'memory',
     appearance: 'palette'
   };
-  const TYPE_ICONS: Record<LoadoutType, string> = {
-    file: 'audio_file',
-    path: 'folder',
-    type: 'extension',
-    tags: 'tag',
-    preset: 'bookmark'
-  };
-  const LOADOUT_COLOR_VALUES: Record<LoadoutColor, string> = {
-    white: '#f5f5f5',
-    red: '#ef5350',
-    orange: '#ff8a3d',
-    amber: '#f6bd3a',
-    lime: '#a6ce39',
-    green: '#43b96e',
-    teal: '#35b7a5',
-    cyan: '#35b9d5',
-    blue: '#4f8ee8',
-    indigo: '#6674dc',
-    violet: '#9569df',
-    magenta: '#d858b0'
-  };
-
   let loadoutType: LoadoutType = 'file';
   let manualText = '';
   let selectedCategories = new Set<LoadoutCategory>();
@@ -423,7 +406,7 @@
             class:is-dragging={draggedLoadoutId === loadout.id}
             class:show-drop-line={draggedLoadoutId !== null && dropBoundary === index}
             role="listitem"
-            style={`--loadout-color: ${loadout.color ? LOADOUT_COLOR_VALUES[loadout.color] : 'var(--accent-strong)'};`}
+            style={`--loadout-color: ${getLoadoutColorValue(loadout.color)};`}
             on:dragover={(event) => updateDropBoundary(event, index)}
             on:contextmenu={(event) => openLoadoutContextMenu(event, loadout.id)}
           >
@@ -436,7 +419,7 @@
               on:keydown={(event) => handleReorderKeydown(event, loadout, index)}
             ><span class="material-symbols-outlined" aria-hidden="true">drag_indicator</span></button>
             <span class="type-glyph hover-tooltip-anchor" role="img" aria-label={typeLabel(loadout.target.type)}>
-              <span class="material-symbols-outlined" aria-hidden="true">{TYPE_ICONS[loadout.target.type]}</span>
+              <span class="material-symbols-outlined" aria-hidden="true">{LOADOUT_TYPE_ICONS[loadout.target.type]}</span>
               <HoverTooltip align="left">{typeLabel(loadout.target.type)}</HoverTooltip>
             </span>
             <span class="loadout-name" title={loadout.name}>{loadout.name}</span>

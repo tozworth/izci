@@ -6,14 +6,17 @@
   import { t } from 'svelte-i18n';
   import { version as appVersion } from '../../../package.json';
   import MenuSurface from '$lib/components/MenuSurface.svelte';
+  import { applyManualLoadoutSettings } from '$lib/services/loadouts';
   import { pwaUpdateStatus, type PwaUpdateStatus } from '$lib/services/pwa-updates';
   import { windowControlsOverlayState } from '$lib/services/window-controls-overlay';
+  import { loadouts } from '$lib/stores/loadouts';
   import type { MenuActionItem, VideoFitMode } from '$lib/types';
+  import { getLoadoutColorValue, LOADOUT_TYPE_ICONS } from '$lib/utils/loadout-presentation';
   import { formatDisplayVersion } from '$lib/utils/version';
   import type { OptionsViewName } from '../../options/views';
 
   type MenuId = 'app' | 'file' | 'view' | 'video' | 'help';
-  type MenuActionId =
+  type DispatchedMenuActionId =
     | 'openFiles'
     | 'openFolder'
     | 'installApp'
@@ -27,17 +30,35 @@
     | 'togglePatterns'
     | 'toggleMiniPlayer'
     | 'toggleNowPlayingView'
+    | 'exit';
+  type MenuActionId =
+    | DispatchedMenuActionId
+    | 'openLoadouts'
     | 'videoFitContain'
     | 'videoFitCover'
     | 'toggleVideoPictureInPicture'
     | 'toggleVideoTheater'
-    | 'exit';
+    | `applyLoadout:${string}`;
 
   const MENU_ITEMS_ONLY_PADDING = 28;
   const MENU_ITEMS_WITH_VERSION_PADDING = 40;
   const FALLBACK_MENU_GROUPS_WIDTH = 140;
   const FALLBACK_MENU_BRAND_WIDTH = 88;
 
+  $: loadoutMenuItems = [
+    {
+      id: 'openLoadouts',
+      label: $t('main.menu.openLoadouts', { default: 'Open loadouts' }),
+      icon: 'bookmark_manager'
+    },
+    ...$loadouts.loadouts.map((loadout, index) => ({
+      id: `applyLoadout:${loadout.id}`,
+      label: loadout.name,
+      icon: LOADOUT_TYPE_ICONS[loadout.target.type],
+      iconColor: getLoadoutColorValue(loadout.color),
+      separatorBefore: index === 0
+    }))
+  ] satisfies MenuActionItem[];
   $: appMenuItems = [
     ...(installAvailable
       ? [{
@@ -58,6 +79,12 @@
       icon: 'settings',
       shortcut: 'Ctrl+P',
       separatorBefore: installAvailable
+    },
+    {
+      id: 'loadouts',
+      label: $t('main.menu.loadouts', { default: 'Loadouts' }),
+      icon: 'bookmarks',
+      children: loadoutMenuItems
     },
     {
       id: 'openAbout',
@@ -390,6 +417,18 @@
 
   function runMenuAction(action: MenuActionId) {
     closeMenus();
+    if (action === 'openLoadouts') {
+      dispatch('openOptions', { view: 'loadouts' });
+      return;
+    }
+    if (action.startsWith('applyLoadout:')) {
+      const loadoutId = action.slice('applyLoadout:'.length);
+      const loadout = loadouts.getSnapshot().loadouts.find((candidate) => candidate.id === loadoutId);
+      if (loadout) {
+        applyManualLoadoutSettings(loadout.settings);
+      }
+      return;
+    }
     if (action === 'videoFitContain' || action === 'videoFitCover') {
       dispatch('setVideoFit', action === 'videoFitContain' ? 'contain' : 'cover');
       return;
@@ -402,7 +441,7 @@
       dispatch('toggleVideoTheater');
       return;
     }
-    dispatch(action);
+    dispatch(action as DispatchedMenuActionId);
   }
 
   function getMenuTriggerElement(menuId: MenuId) {

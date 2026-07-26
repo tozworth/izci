@@ -172,6 +172,7 @@
           <span
             class="material-symbols-outlined menu-item-icon"
             class:favorite-filled={item.icon === 'heart_minus'}
+            style:color={item.iconColor}
             aria-hidden="true"
           >{item.icon ?? 'label'}</span>
           <span class="menu-item-copy">
@@ -239,6 +240,7 @@
           <span
             class="material-symbols-outlined menu-item-icon"
             class:favorite-filled={item.icon === 'heart_minus'}
+            style:color={item.iconColor}
             aria-hidden="true"
           >{item.icon ?? 'label'}</span>
           <span class="menu-item-copy">

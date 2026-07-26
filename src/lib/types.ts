@@ -477,6 +477,7 @@ export interface MenuActionItem {
   label: string;
   description?: string;
   icon?: string;
+  iconColor?: string;
   shortcut?: string;
   separatorBefore?: boolean;
   attention?: boolean;
