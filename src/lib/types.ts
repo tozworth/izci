@@ -400,7 +400,7 @@ export interface LoadoutTrackContext {
 }
 
 export type LoadoutTarget =
-  | { type: 'file'; fileKey: string }
+  | { type: 'file'; fileKey: string; fileName?: string }
   | { type: 'path'; folderId: string; folderName: string }
   | { type: 'type'; recognizedType: string }
   | { type: 'tags'; pattern: string }

@@ -41,7 +41,8 @@ function normalizeTarget(value: unknown): LoadoutTarget | null {
   switch (source.type) {
     case 'file': {
       const fileKey = normalizeText(source.fileKey, 640);
-      return fileKey ? { type: 'file', fileKey } : null;
+      const fileName = normalizeText(source.fileName, 240);
+      return fileKey ? { type: 'file', fileKey, ...(fileName ? { fileName } : {}) } : null;
     }
     case 'path': {
       const folderId = normalizeText(source.folderId, 128);
@@ -201,7 +202,10 @@ export const loadouts = {
       ...state,
       loadouts: state.loadouts.map((loadout) => {
         if (loadout.id !== id) return loadout;
-        updated = { ...loadout, name: normalized, updatedAt: Date.now() };
+        const target = loadout.target.type === 'file' && !loadout.target.fileName
+          ? { ...loadout.target, fileName: loadout.name }
+          : loadout.target;
+        updated = { ...loadout, name: normalized, target, updatedAt: Date.now() };
         return updated;
       })
     }));

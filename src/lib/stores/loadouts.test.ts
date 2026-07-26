@@ -75,4 +75,15 @@ describe('loadout persistence normalization', () => {
       loadouts: [{ ...created, color: 'chartreuse' }]
     }).loadouts[0].color).toBeUndefined();
   });
+
+  it('preserves a legacy file loadout name as its source when renaming', () => {
+    const settings = { playback: { playbackRate: 1, trueSpeed: false, replayGainMode: 'off' as const } };
+    const created = loadouts.create('Track.flac', { type: 'file', fileKey: 'track.flac:1:2' }, settings)!;
+
+    expect(loadouts.rename(created.id, 'Headphones')?.target).toEqual({
+      type: 'file',
+      fileKey: 'track.flac:1:2',
+      fileName: 'Track.flac'
+    });
+  });
 });

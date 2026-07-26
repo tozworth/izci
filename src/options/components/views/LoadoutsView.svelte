@@ -27,6 +27,7 @@
   import type { Loadout, LoadoutCategory, LoadoutColor, LoadoutType } from '$lib/types';
   import {
     getLoadoutColorValue,
+    getLoadoutTargetText,
     LOADOUT_COLOR_VALUES,
     LOADOUT_TYPE_ICONS
   } from '$lib/utils/loadout-presentation';
@@ -401,6 +402,7 @@
         </div>
       {:else}
         {#each $loadouts.loadouts as loadout, index (loadout.id)}
+          {@const targetText = getLoadoutTargetText(loadout.target)}
           <div
             class="loadout-row"
             class:is-dragging={draggedLoadoutId === loadout.id}
@@ -422,7 +424,12 @@
               <span class="material-symbols-outlined" aria-hidden="true">{LOADOUT_TYPE_ICONS[loadout.target.type]}</span>
               <HoverTooltip align="left">{typeLabel(loadout.target.type)}</HoverTooltip>
             </span>
-            <span class="loadout-name" title={loadout.name}>{loadout.name}</span>
+            <span class:has-source={targetText && targetText !== loadout.name} class="loadout-label">
+              <span class="loadout-name" title={loadout.name}>{loadout.name}</span>
+              {#if targetText && targetText !== loadout.name}
+                <span class="loadout-source" title={targetText}>{targetText}</span>
+              {/if}
+            </span>
             <span class="saved-categories" aria-label={$t('options.loadouts.list.savedCategories', { default: 'Saved categories' })}>
               {#each getLoadoutCategories(loadout.settings) as category}
                 {@const differences = getLoadoutSettingDifferences(loadout.settings, category)}
@@ -741,11 +748,29 @@
     outline-offset: -2px;
   }
 
-  .loadout-name {
+  .loadout-label,
+  .loadout-name,
+  .loadout-source {
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  .loadout-label {
+    display: grid;
+    align-content: center;
+    line-height: 1;
+  }
+
+  .loadout-label.has-source .loadout-name {
+    font-size: 0.76rem;
+  }
+
+  .loadout-source {
+    color: var(--muted);
+    font-size: 0.62rem;
+    line-height: 1.05;
   }
 
   .saved-categories {

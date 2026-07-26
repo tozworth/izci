@@ -161,7 +161,10 @@ export function createLoadoutTarget(
   if (!track) return null;
 
   if (type === 'file') {
-    return { name: track.name, target: { type: 'file', fileKey: getLoadoutFileKey(track) } };
+    return {
+      name: track.name,
+      target: { type: 'file', fileKey: getLoadoutFileKey(track), fileName: track.name }
+    };
   }
   if (type === 'path') {
     const folder = resolveLoadoutFolderContext(track, folders);
