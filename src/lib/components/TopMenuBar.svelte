@@ -12,7 +12,7 @@
   import { formatDisplayVersion } from '$lib/utils/version';
   import type { OptionsViewName } from '../../options/views';
 
-  type MenuId = 'file' | 'view' | 'video' | 'help';
+  type MenuId = 'app' | 'file' | 'view' | 'video' | 'help';
   type MenuActionId =
     | 'openFiles'
     | 'openFolder'
@@ -38,7 +38,41 @@
   const FALLBACK_MENU_GROUPS_WIDTH = 140;
   const FALLBACK_MENU_BRAND_WIDTH = 88;
 
-  $: baseFileMenuItems = [
+  $: appMenuItems = [
+    ...(installAvailable
+      ? [{
+          id: 'installApp',
+          label: $t('main.menu.installApp', { default: 'Install izci...' }),
+          description: showInstallHint || installHintPresentedInOpenMenu
+            ? $t('main.menu.installDescription', {
+                default: 'Install the PWA to get file associations, a compact title bar, better OS integration and automatic updates.'
+              })
+            : undefined,
+          icon: 'install_desktop',
+          attention: showInstallHint || installHintPresentedInOpenMenu
+        } satisfies MenuActionItem]
+      : []),
+    {
+      id: 'openOptions',
+      label: $t('main.menu.options', { default: 'Options...' }),
+      icon: 'settings',
+      shortcut: 'Ctrl+P',
+      separatorBefore: installAvailable
+    },
+    {
+      id: 'openAbout',
+      label: $t('main.menu.about', { default: 'About' }),
+      icon: 'info'
+    },
+    {
+      id: 'exit',
+      label: $t('main.menu.exit', { default: 'Exit' }),
+      icon: 'logout',
+      shortcut: 'Ctrl+Q',
+      separatorBefore: true
+    }
+  ] satisfies MenuActionItem[];
+  $: fileMenuItems = [
     {
       id: 'openFiles',
       label: $t('main.menu.openFiles', { default: 'Open files...' }),
@@ -49,13 +83,6 @@
       id: 'openFolder',
       label: $t('main.menu.openFolder', { default: 'Open folder...' }),
       icon: 'folder_open'
-    },
-    {
-      id: 'exit',
-      label: $t('main.menu.exit', { default: 'Exit' }),
-      icon: 'logout',
-      shortcut: 'Ctrl+Q',
-      separatorBefore: true
     }
   ] satisfies MenuActionItem[];
   $: helpMenuItems = [
@@ -63,11 +90,6 @@
       id: 'forceUpdate',
       label: $t('main.menu.forceUpdate', { default: 'Force update' }),
       icon: 'sync'
-    },
-    {
-      id: 'openAbout',
-      label: $t('main.menu.about', { default: 'About' }),
-      icon: 'info'
     }
   ] satisfies MenuActionItem[];
 
@@ -113,6 +135,7 @@
   let menuPopupY = 8;
   let menuBarElement: HTMLElement | null = null;
   let compactMenuTriggerElement: HTMLButtonElement | null = null;
+  let appMenuTriggerElement: HTMLButtonElement | null = null;
   let fileMenuTriggerElement: HTMLButtonElement | null = null;
   let viewMenuTriggerElement: HTMLButtonElement | null = null;
   let videoMenuTriggerElement: HTMLButtonElement | null = null;
@@ -137,25 +160,6 @@
     displayedUpdateStatus = pendingUpdateStatus;
     updateIndicatorVisible = true;
   }
-
-  $: fileMenuItems = [
-    ...baseFileMenuItems.slice(0, 2),
-    ...(installAvailable
-      ? [{
-          id: 'installApp',
-          label: $t('main.menu.installApp', { default: 'Install izci...' }),
-          description: showInstallHint || installHintPresentedInOpenMenu
-            ? $t('main.menu.installDescription', {
-                default: 'Install the PWA to get file associations, a compact title bar, better OS integration and automatic updates.'
-              })
-            : undefined,
-          icon: 'install_desktop',
-          separatorBefore: true,
-          attention: showInstallHint || installHintPresentedInOpenMenu
-        } satisfies MenuActionItem]
-      : []),
-    baseFileMenuItems[2]
-  ];
 
   $: viewMenuItems = [
     {
@@ -196,13 +200,6 @@
       id: 'toggleNowPlayingView',
       label: $t('main.menu.nowPlaying', { default: 'Now Playing' }),
       icon: nowPlayingViewActive ? 'check' : 'album'
-    },
-    {
-      id: 'openOptions',
-      label: $t('main.menu.options', { default: 'Options...' }),
-      icon: 'settings',
-      shortcut: 'Ctrl+P',
-      separatorBefore: true
     }
   ] satisfies MenuActionItem[];
   $: videoMenuItems = [
@@ -234,10 +231,12 @@
     }
   ] satisfies MenuActionItem[];
   $: compactMenuItems = [
+    ...appMenuItems,
     {
       id: 'file',
       label: $t('main.menu.file', { default: 'File' }),
       icon: 'folder',
+      separatorBefore: true,
       children: fileMenuItems
     },
     {
@@ -296,10 +295,10 @@
     const nextMenu = activeMenu === menuId ? null : menuId;
     activeMenu = nextMenu;
 
-    if (nextMenu === 'file' && showInstallHint) {
+    if (nextMenu === 'app' && showInstallHint) {
       installHintPresentedInOpenMenu = true;
       dispatch('acknowledgeInstallHint');
-    } else if (nextMenu !== 'file') {
+    } else if (nextMenu !== 'app') {
       installHintPresentedInOpenMenu = false;
     }
 
@@ -335,10 +334,10 @@
     event.preventDefault();
     compactMenuOpen = false;
     activeMenu = menuId;
-    if (menuId === 'file' && showInstallHint) {
+    if (menuId === 'app' && showInstallHint) {
       installHintPresentedInOpenMenu = true;
       dispatch('acknowledgeInstallHint');
-    } else if (menuId !== 'file') {
+    } else if (menuId !== 'app') {
       installHintPresentedInOpenMenu = false;
     }
     menubarPressPointerId = event.pointerId;
@@ -407,6 +406,10 @@
   }
 
   function getMenuTriggerElement(menuId: MenuId) {
+    if (menuId === 'app') {
+      return appMenuTriggerElement;
+    }
+
     if (menuId === 'file') {
       return fileMenuTriggerElement;
     }
@@ -493,7 +496,8 @@
       aria-expanded={compactMenuOpen}
       on:click={toggleCompactMenu}
     >
-      <strong>izci</strong>
+      <span class="izci-menu-glyph" aria-hidden="true"></span>
+      <span class="sr-only">{$t('main.menu.applicationMenu', { default: 'Application menu' })}</span>
       <span class="material-symbols-outlined compact-menu-chevron" aria-hidden="true">
         {compactMenuOpen ? 'expand_less' : 'expand_more'}
       </span>
@@ -512,12 +516,40 @@
     {/if}
   {:else}
     <div class="menu-groups" bind:clientWidth={menuGroupsWidth}>
+      <div class="menu-root" role="none" on:pointerenter={() => handleMenuHover('app')}>
+        <button
+          bind:this={appMenuTriggerElement}
+          class:active={activeMenu === 'app'}
+          class="menu-trigger app-menu-trigger"
+          class:install-hint-visible={showInstallHint}
+          data-menu-interactive="true"
+          type="button"
+          aria-label={$t('main.menu.applicationMenu', { default: 'Application menu' })}
+          aria-haspopup="menu"
+          aria-expanded={activeMenu === 'app'}
+          on:pointerdown={(event) => handleRootPointerDown(event, 'app')}
+          on:click={() => handleRootClick('app')}
+        >
+          <span class="izci-menu-glyph" aria-hidden="true"></span>
+        </button>
+        {#if activeMenu === 'app'}
+          <MenuSurface
+            items={appMenuItems}
+            x={menuPopupX}
+            y={menuPopupY}
+            ariaLabel={$t('main.menu.applicationMenu', { default: 'Application menu' })}
+            activateOnPointerUpPointerId={menubarPressPointerId}
+            on:action={(event) => runMenuAction(event.detail as MenuActionId)}
+            on:dismiss={closeMenus}
+          />
+        {/if}
+      </div>
+
       <div class="menu-root" role="none" on:pointerenter={() => handleMenuHover('file')}>
         <button
           bind:this={fileMenuTriggerElement}
           class:active={activeMenu === 'file'}
           class="menu-trigger"
-          class:install-hint-visible={showInstallHint}
           data-menu-interactive="true"
           type="button"
           aria-haspopup="menu"

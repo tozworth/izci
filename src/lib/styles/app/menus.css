@@ -10,7 +10,7 @@
   gap: 1rem;
   width: 100%;
   min-height: 1.9rem;
-  padding: max(env(safe-area-inset-top, 0px), 0px) 0.65rem 0;
+  padding: max(env(safe-area-inset-top, 0px), 0px) 0.65rem 0 0;
   background-color: var(--window-topbar-bg);
   box-shadow: 0 1px 0 var(--hairline);
   color: var(--window-topbar-text);
@@ -26,7 +26,8 @@
 .menu-bar-compact {
   gap: 0.35rem;
   min-height: 1.7rem;
-  padding-inline: 0.35rem;
+  padding-left: 0;
+  padding-right: 0.35rem;
 }
 
 .menu-bar.window-controls-overlay-active {
@@ -38,7 +39,7 @@
     calc(var(--window-controls-overlay-y, env(titlebar-area-y, 0px)) - var(--window-frame-safe-top)),
     0px
   );
-  padding-left: max(0.65rem, var(--window-controls-overlay-x, env(titlebar-area-x, 0px)));
+  padding-left: max(0px, var(--window-controls-overlay-x, env(titlebar-area-x, 0px)));
   padding-right: max(
     0px,
     calc(
@@ -78,7 +79,7 @@ body:has(.menu-list[data-menu-interactive='true']) .menu-bar.window-controls-ove
     1.55rem,
     calc(var(--window-controls-overlay-height, env(titlebar-area-height, 1.55rem)) - var(--window-frame-safe-top))
   );
-  padding-left: max(0.3rem, var(--window-controls-overlay-x, env(titlebar-area-x, 0px)));
+  padding-left: max(0px, var(--window-controls-overlay-x, env(titlebar-area-x, 0px)));
   padding-right: max(
     0px,
     calc(
@@ -116,7 +117,6 @@ body:has(.menu-list[data-menu-interactive='true']) .menu-bar.window-controls-ove
   align-items: center;
   justify-content: center;
   min-height: 1.65rem;
-  padding: 0.2rem 0.45rem;
   border-radius: 0.4rem;
   border: 0;
   background: transparent;
@@ -132,13 +132,54 @@ body:has(.menu-list[data-menu-interactive='true']) .menu-bar.window-controls-ove
   background-color: var(--hover-surface);
 }
 
+.app-menu-trigger {
+  padding: 0 0.1rem 0 0.5rem;
+}
+
+.app-menu-trigger:hover,
+.app-menu-trigger.active,
+.compact-menu-trigger:hover,
+.compact-menu-trigger[aria-expanded='true'] {
+  background-color: transparent;
+}
+
+.izci-menu-glyph {
+  display: inline-block;
+  width: 1.25rem;
+  height: 1.25rem;
+  flex: 0 0 auto;
+  background-color: currentColor;
+  -webkit-mask: url('/icons/izci-mark.svg') center / contain no-repeat;
+  mask: url('/icons/izci-mark.svg') center / contain no-repeat;
+  transition:
+    color 120ms ease,
+    filter 120ms ease-out;
+}
+
+.app-menu-trigger:hover .izci-menu-glyph,
+.app-menu-trigger.active .izci-menu-glyph,
+.compact-menu-trigger:hover .izci-menu-glyph,
+.compact-menu-trigger[aria-expanded='true'] .izci-menu-glyph {
+  color: var(--accent-strong);
+  transition-duration: 0ms;
+  filter:
+    drop-shadow(0 0 0.42rem color-mix(in srgb, currentColor 88%, transparent))
+    drop-shadow(0 0 1.15rem color-mix(in srgb, var(--accent-strong) 72%, transparent));
+}
+
 .compact-menu-trigger {
   gap: 0.2rem;
   min-height: 1.55rem;
-  padding: 0.12rem 0.38rem 0.12rem 0.46rem;
+  padding: 0.12rem 0.32rem 0.12rem 0.24rem;
   border-radius: 999px;
   font-size: 0.84rem;
   letter-spacing: 0.02em;
+}
+
+.compact-menu-trigger .izci-menu-glyph {
+  width: 1.2rem;
+  height: 1.2rem;
+  color: var(--text-strong);
 }
 
 .compact-menu-trigger strong {
