@@ -511,7 +511,7 @@
 
   .notes-block pre {
     margin: 0;
-    font: 0.9rem/1.5 'IBM Plex Mono', 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+    font: 0.82rem/1.5 'IBM Plex Mono', 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
     white-space: pre-wrap;
     word-break: break-word;
     color: var(--text);
