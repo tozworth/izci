@@ -223,7 +223,7 @@ function createFilesystemFoldersStore(): Readable<FilesystemFolder[]> & {
   refresh(): Promise<FilesystemFolder[]>;
   remember(
     handle: FileSystemDirectoryHandle,
-    options?: { libraryMode?: LibraryFolderMode | null }
+    options?: { libraryMode?: LibraryFolderMode | null; preferredId?: string }
   ): Promise<FilesystemFolder>;
   rememberMany(handles: FileSystemDirectoryHandle[]): Promise<FilesystemFolder[]>;
   requestPermission(id: string): Promise<FilesystemFolderPermission>;
@@ -324,7 +324,10 @@ function createFilesystemFoldersStore(): Readable<FilesystemFolder[]> & {
         }
 
         remembered = {
-          id: crypto.randomUUID(),
+          id:
+            options.preferredId && !current.some((folder) => folder.id === options.preferredId)
+              ? options.preferredId
+              : crypto.randomUUID(),
           name: handle.name,
           handle,
           addedAt: Date.now(),

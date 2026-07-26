@@ -221,6 +221,17 @@
     },
     "addFiles": "Add files",
     "searchPlaceholder": "Search",
+    "shuffle": {
+      "disable": "Disable shuffle",
+      "enable": "Enable shuffle",
+      "on": "Shuffle on",
+      "off": "Shuffle off"
+    },
+    "title": "Playlist",
+    "summary": {
+      "filteredTracks": "{visible} of {total} {total, plural, one {song} other {songs}} · {duration}",
+      "tracks": "{count, plural, one {# song} other {# songs}} · {duration}"
+    },
     "actions": {
       "trackDetails": "Track details",
       "removeFromLibrary": "Remove from library",
@@ -236,25 +247,14 @@
     "shortcuts": {
       "delete": "Delete"
     },
-    "contextMenu": {
-      "itemActions": "{panel} item actions",
-      "columns": "{panel} columns"
-    },
-    "shuffle": {
-      "disable": "Disable shuffle",
-      "enable": "Enable shuffle",
-      "on": "Shuffle on",
-      "off": "Shuffle off"
-    },
-    "title": "Playlist",
-    "summary": {
-      "filteredTracks": "{visible} of {total} {total, plural, one {song} other {songs}} · {duration}",
-      "tracks": "{count, plural, one {# song} other {# songs}} · {duration}"
-    },
     "repeat": {
       "currentTrack": "Repeat current track",
       "playlist": "Repeat playlist",
       "off": "Repeat off"
+    },
+    "contextMenu": {
+      "columns": "{panel} columns",
+      "itemActions": "{panel} item actions"
     },
     "listRegion": "{name} list"
   },
@@ -583,6 +583,41 @@
         "title": "Artwork brightness"
       }
     },
+    "backups": {
+      "locateFilesDescription": "Original library files",
+      "heading": "Backups",
+      "description": "Move izci settings and library data between app origins or keep a portable copy on disk.",
+      "actions": {
+        "create": "Create backup…",
+        "restore": "Restore backup…",
+        "openFolders": "Open Folders",
+        "locate": "Locate…"
+      },
+      "status": {
+        "created": "Backup created.",
+        "restored": "Backup restored. {matched} tracks were matched immediately; {pending} still need their original location.",
+        "located": "Located files were restored to the library.",
+        "mismatch": "None of the selected files matched the pending library tracks.",
+        "unsupported": "This backup was created with an unsupported backup format.",
+        "invalid": "This is not a valid izci backup.",
+        "failed": "The backup operation failed."
+      },
+      "pending": {
+        "heading": "Files still needed",
+        "from": "Backup from {origin}, created {date}",
+        "folders": "{folders} folders · {tracks} tracks",
+        "foldersHint": "Open Folders and use Locate… for each missing root.",
+        "looseFiles": "{tracks} loose library files",
+        "looseFilesHint": "Select the original files so izci can restore their handles."
+      },
+      "contents": {
+        "heading": "What is included",
+        "included": "User-facing options, workspace settings, Raf presets, loadouts, library tracks and metadata, favorites, folder descriptors, play counts, and remembered playback positions.",
+        "excludedHeading": "Not included",
+        "excluded": "Media files, file and directory handles, artwork cache, lyrics, live meters, pattern snapshots, object URLs, temporary window state, update timestamps, and cross-window coordination state.",
+        "privacy": "Backups are not encrypted. They can contain filenames, paths, metadata, favorites, and listening progress."
+      }
+    },
     "folders": {
       "scan": {
         "scanning": "Scanning…",
@@ -615,6 +650,14 @@
         "removeFromLibrary": "Remove from library",
         "checkAccess": "Check access",
         "forget": "Forget folder"
+      },
+      "restore": {
+        "success": "Folder located and matching library tracks restored.",
+        "mismatch": "That folder did not contain any of the expected library tracks.",
+        "failed": "The folder could not be restored.",
+        "locationMissing": "Location missing",
+        "waiting": "Waiting for location",
+        "locate": "Locate…"
       },
       "table": {
         "label": "Known folders",
@@ -1046,6 +1089,7 @@
       "tracks": "Tracks",
       "folders": "Folders",
       "metadata": "Metadata",
+      "backups": "Backups",
       "about": "About",
       "licenses": "Licenses"
     },

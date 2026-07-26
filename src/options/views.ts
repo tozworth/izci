@@ -13,6 +13,7 @@ export type OptionsViewName =
   | 'tracks'
   | 'folders'
   | 'metadata'
+  | 'backups'
   | 'about'
   | 'licenses';
 
@@ -145,6 +146,16 @@ export const OPTIONS_VIEW_GROUPS: OptionsViewDefinition[][] = [
       parentLabel: 'Tracks',
       hasHints: true,
       resettable: true
+    }
+  ],
+  [
+    {
+      id: 'backups',
+      label: 'Backups',
+      icon: 'archive',
+      parentLabel: '',
+      hasHints: false,
+      resettable: false
     }
   ],
   [

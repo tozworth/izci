@@ -4,6 +4,7 @@
   import AboutView from './components/views/AboutView.svelte';
   import AppearanceView from './components/views/AppearanceView.svelte';
   import BackdropsView from './components/views/BackdropsView.svelte';
+  import BackupsView from './components/views/BackupsView.svelte';
   import LyricsView from './components/views/LyricsView.svelte';
   import MetadataView from './components/views/MetadataView.svelte';
   import ModulesView from './components/views/ModulesView.svelte';
@@ -66,6 +67,7 @@
       case 'tracks': return $t('options.views.tracks', { default: 'Tracks' });
       case 'folders': return $t('options.views.folders', { default: 'Folders' });
       case 'metadata': return $t('options.views.metadata', { default: 'Metadata' });
+      case 'backups': return $t('options.views.backups', { default: 'Backups' });
       case 'about': return $t('options.views.about', { default: 'About' });
       case 'licenses': return $t('options.views.licenses', { default: 'Licenses' });
     }
@@ -314,6 +316,10 @@
 
       {#if activeView === 'metadata'}
         <MetadataView />
+      {/if}
+
+      {#if activeView === 'backups'}
+        <BackupsView onOpenFolders={() => setActiveView('folders')} />
       {/if}
 
       {#if activeView === 'about'}

@@ -221,6 +221,17 @@
     },
     "addFiles": "Dosya ekle",
     "searchPlaceholder": "Ara",
+    "shuffle": {
+      "disable": "Karıştırmayı kapat",
+      "enable": "Karıştırmayı aç",
+      "on": "Karıştır açık",
+      "off": "Karıştır kapalı"
+    },
+    "title": "Liste",
+    "summary": {
+      "filteredTracks": "{total} parçadan {visible} {total, plural, one {görünür} other {görünür}} · {duration}",
+      "tracks": "{count, plural, one {# parça} other {# parça}} · {duration}"
+    },
     "actions": {
       "trackDetails": "Parça detayları",
       "removeFromLibrary": "Kütüphaneden kaldır",
@@ -236,25 +247,14 @@
     "shortcuts": {
       "delete": "Delete"
     },
-    "contextMenu": {
-      "itemActions": "{panel} ögesi eylemleri",
-      "columns": "{panel} sütunları"
-    },
-    "shuffle": {
-      "disable": "Karıştırmayı kapat",
-      "enable": "Karıştırmayı aç",
-      "on": "Karıştır açık",
-      "off": "Karıştır kapalı"
-    },
-    "title": "Liste",
-    "summary": {
-      "filteredTracks": "{total} parçadan {visible} {total, plural, one {görünür} other {görünür}} · {duration}",
-      "tracks": "{count, plural, one {# parça} other {# parça}} · {duration}"
-    },
     "repeat": {
       "currentTrack": "Mevcut parçayı tekrarla",
       "playlist": "Listeyi tekrarla",
       "off": "Tekrar kapalı"
+    },
+    "contextMenu": {
+      "columns": "{panel} sütunları",
+      "itemActions": "{panel} ögesi eylemleri"
     },
     "listRegion": "{name} listesi"
   },
@@ -583,6 +583,41 @@
         "title": "Albüm resmi parlaklığı"
       }
     },
+    "backups": {
+      "locateFilesDescription": "Özgün kütüphane dosyaları",
+      "heading": "Yedekler",
+      "description": "izci ayarlarını ve kütüphane verilerini uygulama adresleri arasında taşıyın veya diskte taşınabilir bir kopya saklayın.",
+      "actions": {
+        "create": "Yedek oluştur…",
+        "restore": "Yedeği geri yükle…",
+        "openFolders": "Klasörleri aç",
+        "locate": "Bul…"
+      },
+      "status": {
+        "created": "Yedek oluşturuldu.",
+        "restored": "Yedek geri yüklendi. {matched} parça hemen eşleşti; {pending} parça için özgün konum hâlâ gerekli.",
+        "located": "Bulunan dosyalar kütüphaneye geri yüklendi.",
+        "mismatch": "Seçilen dosyaların hiçbiri bekleyen kütüphane parçalarıyla eşleşmedi.",
+        "unsupported": "Bu yedek, desteklenmeyen bir yedek biçimiyle oluşturulmuş.",
+        "invalid": "Bu geçerli bir izci yedeği değil.",
+        "failed": "Yedek işlemi başarısız oldu."
+      },
+      "pending": {
+        "heading": "Hâlâ gereken dosyalar",
+        "from": "{origin} kaynağından yedek, oluşturulma: {date}",
+        "folders": "{folders} klasör · {tracks} parça",
+        "foldersHint": "Klasörleri açın ve eksik her kök için Bul… seçeneğini kullanın.",
+        "looseFiles": "{tracks} bağımsız kütüphane dosyası",
+        "looseFilesHint": "izci'nin tanıtıcılarını geri yükleyebilmesi için özgün dosyaları seçin."
+      },
+      "contents": {
+        "heading": "Dâhil edilenler",
+        "included": "Kullanıcıya dönük seçenekler, çalışma alanı ayarları, Raf önayarları, dizilimler, kütüphane parçaları ve metaverileri, favoriler, klasör tanımları, çalma sayıları ve hatırlanan oynatma konumları.",
+        "excludedHeading": "Dâhil edilmeyenler",
+        "excluded": "Medya dosyaları, dosya ve klasör tanıtıcıları, albüm resmi önbelleği, şarkı sözleri, canlı ölçerler, desen anlık görüntüleri, nesne URL'leri, geçici pencere durumu, güncelleme zaman damgaları ve pencereler arası eşgüdüm durumu.",
+        "privacy": "Yedekler şifrelenmez. Dosya adlarını, yolları, metaverileri, favorileri ve dinleme ilerlemesini içerebilirler."
+      }
+    },
     "folders": {
       "scan": {
         "scanning": "Taranıyor…",
@@ -615,6 +650,14 @@
         "removeFromLibrary": "Kütüphaneden kaldır",
         "checkAccess": "Erişimi kontrol et",
         "forget": "Klasörü unut"
+      },
+      "restore": {
+        "success": "Klasör bulundu ve eşleşen kütüphane parçaları geri yüklendi.",
+        "mismatch": "Bu klasörde beklenen kütüphane parçalarından hiçbiri yoktu.",
+        "failed": "Klasör geri yüklenemedi.",
+        "locationMissing": "Konum eksik",
+        "waiting": "Konum bekleniyor",
+        "locate": "Bul…"
       },
       "table": {
         "label": "Bilinen klasörler",
@@ -1046,6 +1089,7 @@
       "tracks": "Parçalar",
       "folders": "Klasörler",
       "metadata": "Metaveri",
+      "backups": "Yedekler",
       "about": "Hakkında",
       "licenses": "Lisanslar"
     },

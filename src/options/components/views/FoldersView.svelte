@@ -9,6 +9,11 @@
     type FilesystemFolderPermission
   } from '$lib/services/filesystem-folders';
   import { requestLibraryFolderScan } from '$lib/services/library-folder-coordination';
+  import {
+    locatePendingFolder,
+    pendingBackupRestore,
+    type PortableFolderRecord
+  } from '$lib/services/backups';
 
   type PickerWindow = Window & typeof globalThis & {
     showDirectoryPicker?: () => Promise<FileSystemDirectoryHandle>;
@@ -23,6 +28,7 @@
 
   let dropActive = false;
   let busyIds = new Set<string>();
+  let restoreStatus: 'idle' | 'success' | 'mismatch' | 'failed' = 'idle';
 
   function setBusy(id: string, busy: boolean) {
     busyIds = new Set(busy ? [...busyIds, id] : [...busyIds].filter((value) => value !== id));
@@ -76,6 +82,19 @@
     if (folder.libraryMode === 'launch') return 'published_with_changes';
     if (folder.libraryMode === 'manual') return 'check';
     return null;
+  }
+
+  function pendingLibraryModeLabel(folder: PortableFolderRecord): string {
+    if (folder.libraryMode === 'launch') return $t('options.folders.library.scanOnLaunch', { default: 'Scan on launch' });
+    if (folder.libraryMode === 'manual') return $t('options.folders.library.inLibrary', { default: 'In library' });
+    return $t('options.folders.library.notInLibrary', { default: 'Not in library' });
+  }
+
+  function pendingTrackCount(folderId: string): number {
+    return (
+      $pendingBackupRestore.tracks.filter((track) => track.sourceFolderId === folderId).length +
+      $pendingBackupRestore.favorites.filter((track) => track.sourceFolderId === folderId).length
+    );
   }
 
   function queueScan(folder: FilesystemFolder) {
@@ -169,6 +188,32 @@
     }
   }
 
+  async function locateRestoredFolder(folder: PortableFolderRecord) {
+    const pickerWindow = window as PickerWindow;
+    if (!pickerWindow.showDirectoryPicker) {
+      restoreStatus = 'failed';
+      return;
+    }
+    setBusy(folder.id, true);
+    restoreStatus = 'idle';
+    try {
+      const handle = await pickerWindow.showDirectoryPicker();
+      const result = await locatePendingFolder(folder.id, handle);
+      restoreStatus = result.status === 'success' ? 'success' : 'mismatch';
+      if (result.status === 'success') {
+        try {
+          window.opener?.location.reload();
+        } catch {
+          // A standalone Options window has no same-origin opener to refresh.
+        }
+      }
+    } catch (error) {
+      if (!(error instanceof DOMException && error.name === 'AbortError')) restoreStatus = 'failed';
+    } finally {
+      setBusy(folder.id, false);
+    }
+  }
+
   onMount(() => void filesystemFolders.refresh());
 </script>
 
@@ -195,11 +240,24 @@
     </div>
   </div>
 
+  {#if restoreStatus !== 'idle'}
+    <div class:error={restoreStatus !== 'success'} class="restore-status" role="status">
+      <span class="material-symbols-outlined" aria-hidden="true">{restoreStatus === 'success' ? 'check_circle' : 'error'}</span>
+      {#if restoreStatus === 'success'}
+        <span>{$t('options.folders.restore.success', { default: 'Folder located and matching library tracks restored.' })}</span>
+      {:else if restoreStatus === 'mismatch'}
+        <span>{$t('options.folders.restore.mismatch', { default: 'That folder did not contain any of the expected library tracks.' })}</span>
+      {:else}
+        <span>{$t('options.folders.restore.failed', { default: 'The folder could not be restored.' })}</span>
+      {/if}
+    </div>
+  {/if}
+
   <div
     class="folder-table-scroll"
     role="table"
     aria-label={$t('options.folders.table.label', { default: 'Known folders' })}
-    aria-rowcount={$filesystemFolders.length + 1}
+    aria-rowcount={$filesystemFolders.length + $pendingBackupRestore.folders.length + 1}
   >
     <div class="folder-table" role="rowgroup">
       <div class="folder-header" role="row">
@@ -211,7 +269,7 @@
         <span class="actions-heading" role="columnheader">{$t('options.folders.table.actions', { default: 'Actions' })}</span>
       </div>
 
-      {#if $filesystemFolders.length === 0}
+      {#if $filesystemFolders.length === 0 && $pendingBackupRestore.folders.length === 0}
         <div class="empty-row" role="row">
           <span class="material-symbols-outlined" aria-hidden="true">folder_off</span>
           <span role="cell">{$t('options.folders.empty', { default: 'No known folders. Add or drop one here.' })}</span>
@@ -314,6 +372,53 @@
             </div>
           </div>
         {/each}
+        {#each $pendingBackupRestore.folders as folder, index (folder.id)}
+          <div class="folder-row pending-folder-row" role="row" aria-rowindex={$filesystemFolders.length + index + 2}>
+            <div class="folder-name" role="cell" title={folder.name}>
+              <span class="material-symbols-outlined folder-icon" aria-hidden="true">folder_off</span>
+              <span>{folder.name}</span>
+            </div>
+            <div
+              class="access-cell status-error"
+              role="cell"
+              title={$t('options.folders.restore.locationMissing', { default: 'Location missing' })}
+              aria-label={$t('options.folders.restore.locationMissing', { default: 'Location missing' })}
+            >
+              <span class="material-symbols-outlined" aria-hidden="true">link_off</span>
+            </div>
+            <span
+              class="library-cell"
+              role="cell"
+              title={pendingLibraryModeLabel(folder)}
+              aria-label={pendingLibraryModeLabel(folder)}
+            >
+              {#if folder.libraryMode === 'launch'}
+                <span class="material-symbols-outlined" aria-hidden="true">published_with_changes</span>
+              {:else if folder.libraryMode === 'manual'}
+                <span class="material-symbols-outlined" aria-hidden="true">check</span>
+              {:else}
+                <span aria-hidden="true">—</span>
+              {/if}
+            </span>
+            <span class="text-cell scan-cell status-error" role="cell">
+              {$t('options.folders.restore.waiting', { default: 'Waiting for location' })}
+            </span>
+            <span class="text-cell tracks-cell" role="cell">
+              {new Intl.NumberFormat($locale || undefined).format(pendingTrackCount(folder.id))}
+            </span>
+            <div class="row-actions always-visible" role="cell">
+              <button
+                class="locate-button"
+                type="button"
+                disabled={busyIds.has(folder.id)}
+                on:click={() => void locateRestoredFolder(folder)}
+              >
+                <span class="material-symbols-outlined" aria-hidden="true">folder_open</span>
+                {$t('options.folders.restore.locate', { default: 'Locate…' })}
+              </button>
+            </div>
+          </div>
+        {/each}
       {/if}
     </div>
   </div>
@@ -351,6 +456,56 @@
     align-items: center;
     justify-content: flex-end;
     gap: 1px;
+  }
+
+  .row-actions.always-visible {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .pending-folder-row {
+    background: color-mix(in srgb, var(--accent) 5%, transparent);
+  }
+
+  .locate-button {
+    min-height: 24px;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 7px;
+    border: 1px solid var(--menu-bar-border);
+    border-radius: 5px;
+    background: var(--bg-input);
+    color: var(--text);
+  }
+
+  .locate-button:hover:not(:disabled) {
+    background: var(--hover-surface);
+    color: var(--text-strong);
+  }
+
+  .locate-button:disabled {
+    opacity: 0.5;
+  }
+
+  .locate-button .material-symbols-outlined {
+    font-size: 16px;
+  }
+
+  .restore-status {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    margin-top: 8px;
+    padding: 6px 8px;
+    border: 1px solid color-mix(in srgb, var(--accent) 38%, var(--border-faint));
+    border-radius: 6px;
+    color: var(--text-strong);
+  }
+
+  .restore-status.error,
+  .status-error {
+    color: #df8d72;
   }
 
   .row-actions {

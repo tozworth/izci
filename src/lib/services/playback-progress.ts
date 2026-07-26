@@ -135,6 +135,69 @@ async function readProgress(identity: string): Promise<PlaybackProgressRecord | 
   });
 }
 
+export async function readAllPlaybackProgress(): Promise<PlaybackProgressRecord[]> {
+  const database = await openDatabase();
+  if (!database) return [];
+
+  return await new Promise((resolve) => {
+    const transaction = database.transaction(STORE_NAME, 'readonly');
+    const request = transaction.objectStore(STORE_NAME).getAll();
+    let result: PlaybackProgressRecord[] = [];
+    request.onsuccess = () => {
+      result = Array.isArray(request.result)
+        ? request.result
+            .map(normalizePlaybackProgressRecord)
+            .filter((record): record is PlaybackProgressRecord => record !== null)
+        : [];
+    };
+    request.onerror = () => {
+      result = [];
+    };
+    transaction.oncomplete = () => {
+      database.close();
+      resolve(result);
+    };
+    transaction.onerror = transaction.onabort = () => {
+      database.close();
+      resolve([]);
+    };
+  });
+}
+
+export async function mergePlaybackProgress(records: PlaybackProgressRecord[]): Promise<number> {
+  const normalized = records
+    .map(normalizePlaybackProgressRecord)
+    .filter((record): record is PlaybackProgressRecord => record !== null);
+  if (normalized.length === 0) return 0;
+
+  const database = await openDatabase();
+  if (!database) return 0;
+
+  return await new Promise((resolve) => {
+    const transaction = database.transaction(STORE_NAME, 'readwrite');
+    const store = transaction.objectStore(STORE_NAME);
+    let restored = 0;
+    for (const record of normalized) {
+      const request = store.get(record.identity);
+      request.onsuccess = () => {
+        const current = normalizePlaybackProgressRecord(request.result);
+        if (!current || record.updatedAt >= current.updatedAt) {
+          store.put(record);
+          restored += 1;
+        }
+      };
+    }
+    transaction.oncomplete = () => {
+      database.close();
+      resolve(restored);
+    };
+    transaction.onerror = transaction.onabort = () => {
+      database.close();
+      resolve(0);
+    };
+  });
+}
+
 async function writeProgress(record: PlaybackProgressRecord): Promise<void> {
   const database = await openDatabase();
   if (!database) return;
