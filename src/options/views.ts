@@ -113,14 +113,6 @@ export const OPTIONS_VIEW_GROUPS: OptionsViewDefinition[][] = [
       hasHints: true,
       resettable: true
     },
-    {
-      id: 'loadouts',
-      label: 'Loadouts',
-      icon: 'bookmark_manager',
-      parentLabel: '',
-      hasHints: true,
-      resettable: false
-    }
   ],
   [
     {
@@ -146,6 +138,16 @@ export const OPTIONS_VIEW_GROUPS: OptionsViewDefinition[][] = [
       parentLabel: 'Tracks',
       hasHints: true,
       resettable: true
+    }
+  ],
+  [
+    {
+      id: 'loadouts',
+      label: 'Loadouts',
+      icon: 'bookmark_manager',
+      parentLabel: '',
+      hasHints: true,
+      resettable: false
     }
   ],
   [
