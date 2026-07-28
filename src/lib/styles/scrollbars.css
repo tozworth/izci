@@ -66,6 +66,55 @@
   display: none;
 }
 
+html.izci-overlay-vertical-scrollbars *::-webkit-scrollbar {
+  width: 0;
+}
+
+.izci-vertical-scrollbar-overlay {
+  position: fixed;
+  z-index: 2147483646;
+  width: 10px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 180ms ease-out;
+}
+
+.izci-vertical-scrollbar-overlay.is-visible {
+  opacity: 1;
+}
+
+.izci-vertical-scrollbar-overlay::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--bg-base) 82%, transparent);
+}
+
+.izci-vertical-scrollbar-overlay-thumb {
+  position: absolute;
+  inset-inline: 0;
+  min-height: 28px;
+  pointer-events: auto;
+  touch-action: none;
+  cursor: default;
+}
+
+.izci-vertical-scrollbar-overlay-thumb::before {
+  content: "";
+  position: absolute;
+  inset: 2px 2px 2px 2px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 58%, var(--bg-soft));
+}
+
+.izci-vertical-scrollbar-overlay-thumb:hover::before {
+  background: color-mix(in srgb, var(--accent-strong) 72%, var(--bg-soft));
+}
+
+.izci-vertical-scrollbar-overlay-thumb:active::before {
+  background: var(--accent-strong);
+}
+
 @media (forced-colors: active) {
   *::-webkit-scrollbar,
   *::-webkit-scrollbar-track,
@@ -73,5 +122,15 @@
   *::-webkit-scrollbar-corner,
   *::-webkit-scrollbar-button {
     all: revert;
+  }
+
+  .izci-vertical-scrollbar-overlay {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .izci-vertical-scrollbar-overlay {
+    transition: none;
   }
 }

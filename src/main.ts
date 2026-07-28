@@ -13,7 +13,7 @@ if (import.meta.env.PROD) {
 }
 
 initializeTheme();
-initializeScrollbarVisibility();
+initializeScrollbarVisibility({ overlayVertical: true });
 initializeLocalization();
 
 mount(App, {
