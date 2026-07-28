@@ -91,10 +91,15 @@ export type ColorTheme =
   | 'gruvbox'
   | 'dracula'
   | 'ember'
-  | 'chameleon';
+  | 'chameleon-light'
+  | 'chameleon-dark';
 export type ColorScheme = 'light' | 'dark';
 export type ColorThemeMode = 'system' | ColorScheme;
-export type LightColorTheme = 'pale-light' | 'solarized-light' | 'nordic-light';
+export type LightColorTheme =
+  | 'pale-light'
+  | 'solarized-light'
+  | 'nordic-light'
+  | 'chameleon-light';
 export type DarkColorTheme = Exclude<ColorTheme, LightColorTheme>;
 export type BackdropZoneId = 'left' | 'center' | 'right' | 'player' | 'nowPlaying';
 export type BackdropZoneEffect = 'none' | 'artwork' | 'visualizer' | 'both';

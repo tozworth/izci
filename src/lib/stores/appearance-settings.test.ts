@@ -26,8 +26,8 @@ describe('normalizeAppearanceSettings theme selection', () => {
   it('keeps valid scheme-specific themes and rejects themes from the other scheme', () => {
     const settings = normalizeAppearanceSettings({
       colorThemeMode: 'light',
-      lightColorTheme: 'nordic-light',
-      darkColorTheme: 'dracula'
+      lightColorTheme: 'chameleon-light',
+      darkColorTheme: 'chameleon-dark'
     });
     const invalidSettings = normalizeAppearanceSettings({
       colorThemeMode: 'sepia',
@@ -36,8 +36,8 @@ describe('normalizeAppearanceSettings theme selection', () => {
     });
 
     expect(settings.colorThemeMode).toBe('light');
-    expect(settings.lightColorTheme).toBe('nordic-light');
-    expect(settings.darkColorTheme).toBe('dracula');
+    expect(settings.lightColorTheme).toBe('chameleon-light');
+    expect(settings.darkColorTheme).toBe('chameleon-dark');
     expect(invalidSettings.colorThemeMode).toBe('system');
     expect(invalidSettings.lightColorTheme).toBe(DEFAULT_LIGHT_COLOR_THEME);
     expect(invalidSettings.darkColorTheme).toBe(DEFAULT_DARK_COLOR_THEME);

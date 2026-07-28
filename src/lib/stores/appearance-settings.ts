@@ -168,6 +168,7 @@ function normalizeLightColorTheme(value: unknown): LightColorTheme {
     case 'pale-light':
     case 'solarized-light':
     case 'nordic-light':
+    case 'chameleon-light':
       return value;
     default:
       return DEFAULT_LIGHT_COLOR_THEME;
@@ -183,7 +184,7 @@ function normalizeDarkColorTheme(value: unknown): DarkColorTheme {
     case 'gruvbox':
     case 'dracula':
     case 'ember':
-    case 'chameleon':
+    case 'chameleon-dark':
       return value;
     default:
       return DEFAULT_DARK_COLOR_THEME;

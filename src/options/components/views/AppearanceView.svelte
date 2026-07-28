@@ -98,7 +98,8 @@
       case 'gruvbox': return $t('options.appearance.themes.gruvbox', { default: 'Gruvbox' });
       case 'dracula': return $t('options.appearance.themes.dracula', { default: 'Dracula' });
       case 'ember': return $t('options.appearance.themes.ember', { default: 'Ember' });
-      case 'chameleon': return $t('options.appearance.themes.chameleon', { default: 'Chameleon' });
+      case 'chameleon-light':
+      case 'chameleon-dark': return $t('options.appearance.themes.chameleon', { default: 'Chameleon' });
     }
   }
 
@@ -174,7 +175,7 @@
         </select>
       </SettingsField>
 
-      {#if activeColorTheme === 'chameleon'}
+      {#if activeColorTheme === 'chameleon-light' || activeColorTheme === 'chameleon-dark'}
         <SettingsField
           title={$t('options.appearance.chameleonColor.title', { default: 'Chameleon color' })}
           hint={$t('options.appearance.chameleonColor.hint', { default: "Fine-tunes Chameleon's hue. This choice is remembered when you use another theme." })}

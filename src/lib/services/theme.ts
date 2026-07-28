@@ -14,10 +14,11 @@ export const COLOR_THEME_OPTIONS: Array<{ value: ColorTheme; scheme: ColorScheme
   { value: 'solarized-dark', scheme: 'dark' },
   { value: 'nordic-light', scheme: 'light' },
   { value: 'nordic-dark', scheme: 'dark' },
+  { value: 'chameleon-light', scheme: 'light' },
   { value: 'gruvbox', scheme: 'dark' },
   { value: 'dracula', scheme: 'dark' },
   { value: 'ember', scheme: 'dark' },
-  { value: 'chameleon', scheme: 'dark' }
+  { value: 'chameleon-dark', scheme: 'dark' }
 ];
 
 export const systemColorScheme = readable<ColorScheme>('dark', (set) => {
@@ -37,10 +38,11 @@ const THEME_COLOR_BY_THEME: Record<ColorTheme, string> = {
   'solarized-dark': '#002b36',
   'nordic-light': '#e5e9f0',
   'nordic-dark': '#1b222d',
+  'chameleon-light': '#e5e9ed',
   gruvbox: '#1c1d1e',
   dracula: '#1f2029',
   ember: '#1c1110',
-  chameleon: '#141a20'
+  'chameleon-dark': '#141a20'
 };
 
 let initialized = false;
@@ -50,9 +52,11 @@ function applyThemeColor(
   chameleonHue: number,
   chameleonSaturation: number
 ): void {
-  const themeColor = theme === 'chameleon'
-    ? `hsl(${chameleonHue} ${Math.round(chameleonSaturation * 0.32)}% 11%)`
-    : THEME_COLOR_BY_THEME[theme];
+  const themeColor = theme === 'chameleon-light'
+    ? `hsl(${chameleonHue} ${Math.round(chameleonSaturation * 0.32)}% 90%)`
+    : theme === 'chameleon-dark'
+      ? `hsl(${chameleonHue} ${Math.round(chameleonSaturation * 0.32)}% 11%)`
+      : THEME_COLOR_BY_THEME[theme];
   let themeColorMeta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
 
   if (!themeColorMeta) {
