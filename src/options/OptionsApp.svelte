@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { t } from 'svelte-i18n';
+  import HoverTooltip from '$lib/components/HoverTooltip.svelte';
   import AboutView from './components/views/AboutView.svelte';
   import AppearanceView from './components/views/AppearanceView.svelte';
   import BackdropsView from './components/views/BackdropsView.svelte';
@@ -22,16 +23,17 @@
   import {
     getOptionsWindowState,
     rememberOptionsActiveView,
+    rememberShowAdvancedTweaks,
     rememberOptionsWindowSize
   } from '$lib/services/options-window-state';
-  import { appearanceSettings } from '$lib/stores/appearance-settings';
-  import { metadataSettings } from '$lib/stores/metadata-settings';
+  import { appearanceSettings, DEFAULT_APPEARANCE_SETTINGS } from '$lib/stores/appearance-settings';
+  import { DEFAULT_METADATA_SETTINGS, metadataSettings } from '$lib/stores/metadata-settings';
   import { modulePlaybackSettings } from '$lib/stores/module-playback-settings';
-  import { playbackSettings } from '$lib/stores/playback-settings';
-  import { patternViewerSettings } from '$lib/stores/pattern-viewer-settings';
+  import { DEFAULT_PLAYBACK_SETTINGS, playbackSettings } from '$lib/stores/playback-settings';
+  import { DEFAULT_PATTERN_VIEWER_SETTINGS, patternViewerSettings } from '$lib/stores/pattern-viewer-settings';
   import { rafSettings } from '$lib/stores/raf-settings';
-  import { trackSettings } from '$lib/stores/track-settings';
-  import { visualizerSettings } from '$lib/stores/visualizer-settings';
+  import { DEFAULT_TRACK_SETTINGS, trackSettings } from '$lib/stores/track-settings';
+  import { DEFAULT_VISUALIZER_SETTINGS, visualizerSettings } from '$lib/stores/visualizer-settings';
   import { videoSettings } from '$lib/stores/video-settings';
   import {
     OPTIONS_VIEW_GROUPS,
@@ -42,14 +44,17 @@
     type OptionsViewName
   } from './views';
 
+  const initialOptionsWindowState = getOptionsWindowState();
   const requestedView = getOptionsViewFromLocation(window.location);
   let activeView: OptionsViewName = window.location.search
     ? requestedView
-    : getOptionsWindowState().activeView;
+    : initialOptionsWindowState.activeView;
   if (activeView === 'raf' && !playbackSettings.getSnapshot().enableRaf) {
     activeView = 'playback';
   }
   let fieldHintsExpanded = false;
+  let showAdvancedTweaks = initialOptionsWindowState.showAdvancedTweaks;
+  let advancedTweaksModified = false;
 
   function viewLabel(view: OptionsViewName, _translate: typeof $t): string {
     switch (view) {
@@ -116,6 +121,11 @@
     }
   }
 
+  function toggleAdvancedTweaks() {
+    showAdvancedTweaks = !showAdvancedTweaks;
+    rememberShowAdvancedTweaks(showAdvancedTweaks);
+  }
+
   function handleWindowContextMenu(event: MouseEvent) {
     event.preventDefault();
   }
@@ -168,10 +178,61 @@
   $: activeViewDefinition = OPTIONS_VIEWS[activeView];
   $: canResetCurrentView = activeViewDefinition.resettable;
   $: canToggleHints = activeViewDefinition.hasHints;
+  $: canToggleAdvancedTweaks = activeViewDefinition.hasAdvancedTweaks === true;
   $: hintToggleLabel = fieldHintsExpanded
     ? $t('options.tools.collapseHints', { default: 'Collapse field hints' })
     : $t('options.tools.expandHints', { default: 'Expand field hints' });
   $: activeParentView = parentViewId(activeView);
+  $: {
+    switch (activeView) {
+      case 'appearance':
+        advancedTweaksModified =
+          $appearanceSettings.keepLibraryColumnsVisibleInNarrowLayout !== DEFAULT_APPEARANCE_SETTINGS.keepLibraryColumnsVisibleInNarrowLayout ||
+          $appearanceSettings.keepEmptyWorkspacePanelsOpen !== DEFAULT_APPEARANCE_SETTINGS.keepEmptyWorkspacePanelsOpen;
+        break;
+      case 'lyrics':
+        advancedTweaksModified =
+          $appearanceSettings.lyrics.theaterDowntimeThresholdSeconds !== DEFAULT_APPEARANCE_SETTINGS.lyrics.theaterDowntimeThresholdSeconds;
+        break;
+      case 'playback':
+        advancedTweaksModified =
+          $playbackSettings.rememberProgressDurationIndex !== DEFAULT_PLAYBACK_SETTINGS.rememberProgressDurationIndex ||
+          $playbackSettings.logarithmicVolume !== DEFAULT_PLAYBACK_SETTINGS.logarithmicVolume;
+        break;
+      case 'visualizer':
+        advancedTweaksModified =
+          $visualizerSettings.frameRateLimit !== DEFAULT_VISUALIZER_SETTINGS.frameRateLimit ||
+          $visualizerSettings.normalizationStrength !== DEFAULT_VISUALIZER_SETTINGS.normalizationStrength ||
+          $visualizerSettings.triangleCount !== DEFAULT_VISUALIZER_SETTINGS.triangleCount ||
+          $visualizerSettings.triangleMinSize !== DEFAULT_VISUALIZER_SETTINGS.triangleMinSize ||
+          $visualizerSettings.triangleMaxSize !== DEFAULT_VISUALIZER_SETTINGS.triangleMaxSize ||
+          $visualizerSettings.triangleBaseSpeed !== DEFAULT_VISUALIZER_SETTINGS.triangleBaseSpeed ||
+          $visualizerSettings.triangleReactiveSpeed !== DEFAULT_VISUALIZER_SETTINGS.triangleReactiveSpeed ||
+          $visualizerSettings.triangleBorderWidth !== DEFAULT_VISUALIZER_SETTINGS.triangleBorderWidth;
+        break;
+      case 'patterns':
+        advancedTweaksModified =
+          $patternViewerSettings.rowHeight !== DEFAULT_PATTERN_VIEWER_SETTINGS.rowHeight ||
+          $patternViewerSettings.channelWidth !== DEFAULT_PATTERN_VIEWER_SETTINGS.channelWidth;
+        break;
+      case 'tracks':
+        advancedTweaksModified =
+          $trackSettings.folderNestingLimit !== DEFAULT_TRACK_SETTINGS.folderNestingLimit ||
+          $trackSettings.verifyAddedFiles !== DEFAULT_TRACK_SETTINGS.verifyAddedFiles;
+        break;
+      case 'metadata':
+        advancedTweaksModified =
+          $metadataSettings.playCountThresholdSeconds !== DEFAULT_METADATA_SETTINGS.playCountThresholdSeconds;
+        break;
+      default:
+        advancedTweaksModified = false;
+    }
+  }
+  $: advancedTweaksToggleLabel = showAdvancedTweaks
+    ? $t('options.tools.hideAdvancedTweaks', { default: 'Hide advanced tweaks' })
+    : advancedTweaksModified
+      ? $t('options.tools.showAdvancedTweaksModified', { default: 'Show advanced tweaks — some differ from defaults' })
+      : $t('options.tools.showAdvancedTweaks', { default: 'Show advanced tweaks' });
 </script>
 
 <svelte:head>
@@ -185,6 +246,7 @@
 <div
   class="options-shell"
   class:hints-expanded={fieldHintsExpanded}
+  class:advanced-tweaks-visible={showAdvancedTweaks}
   class:window-controls-overlay-active={overlayState.visible}
 >
   <header
@@ -210,27 +272,40 @@
 
     <div class="window-topbar-tools" aria-label={$t('options.tools.label', { default: 'Page tools' })}>
       <button
-        class="tool-button"
+        class="tool-button hover-tooltip-anchor"
+        class:is-active={showAdvancedTweaks || advancedTweaksModified}
+        type="button"
+        aria-label={advancedTweaksToggleLabel}
+        aria-pressed={showAdvancedTweaks}
+        disabled={!canToggleAdvancedTweaks}
+        on:click={toggleAdvancedTweaks}
+      >
+        <span class="material-symbols-outlined" aria-hidden="true">tune</span>
+        <HoverTooltip>{advancedTweaksToggleLabel}</HoverTooltip>
+      </button>
+
+      <button
+        class="tool-button hover-tooltip-anchor"
         type="button"
         aria-label={hintToggleLabel}
-        title={hintToggleLabel}
         disabled={!canToggleHints}
         on:click={() => (fieldHintsExpanded = !fieldHintsExpanded)}
       >
         <span class="material-symbols-outlined" aria-hidden="true">
           {fieldHintsExpanded ? 'unfold_less' : 'unfold_more'}
         </span>
+        <HoverTooltip>{hintToggleLabel}</HoverTooltip>
       </button>
 
       <button
-        class="tool-button"
+        class="tool-button hover-tooltip-anchor"
         type="button"
         aria-label={$t('options.tools.resetPage', { default: 'Reset current page to defaults' })}
-        title={$t('options.tools.resetPage', { default: 'Reset current page to defaults' })}
         disabled={!canResetCurrentView}
         on:click={resetCurrentView}
       >
         <span class="material-symbols-outlined" aria-hidden="true">restart_alt</span>
+        <HoverTooltip>{$t('options.tools.resetPage', { default: 'Reset current page to defaults' })}</HoverTooltip>
       </button>
 
     </div>

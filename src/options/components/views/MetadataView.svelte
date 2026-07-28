@@ -30,6 +30,7 @@
       <SettingsField
         title={$t('options.metadata.playCountThreshold.title', { default: 'Count track as played after (seconds)' })}
         hint={$t('options.metadata.playCountThreshold.hint', { default: 'Only tracks that are in the library update their play count.' })}
+        advanced
       >
           <input
             type="number"

@@ -177,7 +177,11 @@
 
     <div class="field-grid">
       {#each NUMERIC_SETTINGS as setting (setting.key)}
-        <SettingsField title={numericTitle(setting)} hint={numericHint(setting)}>
+        <SettingsField
+          title={numericTitle(setting)}
+          hint={numericHint(setting)}
+          advanced={setting.key === 'rowHeight' || setting.key === 'channelWidth'}
+        >
           <input
             type="range"
             min={setting.min}

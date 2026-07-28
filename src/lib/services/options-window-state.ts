@@ -10,12 +10,14 @@ export interface OptionsWindowState {
   activeView: OptionsViewName;
   width: number;
   height: number;
+  showAdvancedTweaks: boolean;
 }
 
 const defaultState: OptionsWindowState = {
   activeView: DEFAULT_OPTIONS_VIEW,
   width: DEFAULT_WIDTH,
-  height: DEFAULT_HEIGHT
+  height: DEFAULT_HEIGHT,
+  showAdvancedTweaks: false
 };
 
 function normalizeDimension(value: unknown, fallback: number, minimum: number): number {
@@ -33,7 +35,8 @@ function normalizeState(value: unknown): OptionsWindowState {
   return {
     activeView: isOptionsViewName(candidate.activeView) ? candidate.activeView : DEFAULT_OPTIONS_VIEW,
     width: normalizeDimension(candidate.width, DEFAULT_WIDTH, MIN_WIDTH),
-    height: normalizeDimension(candidate.height, DEFAULT_HEIGHT, MIN_HEIGHT)
+    height: normalizeDimension(candidate.height, DEFAULT_HEIGHT, MIN_HEIGHT),
+    showAdvancedTweaks: candidate.showAdvancedTweaks === true
   };
 }
 
@@ -64,4 +67,8 @@ export function rememberOptionsWindowSize(width: number, height: number): void {
     width: normalizeDimension(width, DEFAULT_WIDTH, MIN_WIDTH),
     height: normalizeDimension(height, DEFAULT_HEIGHT, MIN_HEIGHT)
   });
+}
+
+export function rememberShowAdvancedTweaks(showAdvancedTweaks: boolean): void {
+  persist({ ...getOptionsWindowState(), showAdvancedTweaks });
 }

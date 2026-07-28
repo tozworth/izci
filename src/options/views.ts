@@ -26,6 +26,7 @@ export interface OptionsViewDefinition {
   icon: string;
   parentLabel: string;
   hasHints: boolean;
+  hasAdvancedTweaks?: boolean;
   resettable: boolean;
 }
 
@@ -37,6 +38,7 @@ export const OPTIONS_VIEW_GROUPS: OptionsViewDefinition[][] = [
       icon: 'palette',
       parentLabel: '',
       hasHints: true,
+      hasAdvancedTweaks: true,
       resettable: true
     },
     {
@@ -61,6 +63,7 @@ export const OPTIONS_VIEW_GROUPS: OptionsViewDefinition[][] = [
       icon: 'graphic_eq',
       parentLabel: 'Appearance',
       hasHints: true,
+      hasAdvancedTweaks: true,
       resettable: true
     },
     {
@@ -69,6 +72,7 @@ export const OPTIONS_VIEW_GROUPS: OptionsViewDefinition[][] = [
       icon: 'view_timeline',
       parentLabel: 'Appearance',
       hasHints: true,
+      hasAdvancedTweaks: true,
       resettable: true
     },
     {
@@ -77,6 +81,7 @@ export const OPTIONS_VIEW_GROUPS: OptionsViewDefinition[][] = [
       icon: 'lyrics',
       parentLabel: 'Appearance',
       hasHints: true,
+      hasAdvancedTweaks: true,
       resettable: true
     },
     {
@@ -85,6 +90,7 @@ export const OPTIONS_VIEW_GROUPS: OptionsViewDefinition[][] = [
       icon: 'play_circle',
       parentLabel: '',
       hasHints: true,
+      hasAdvancedTweaks: true,
       resettable: true
     }
   ],
@@ -121,6 +127,7 @@ export const OPTIONS_VIEW_GROUPS: OptionsViewDefinition[][] = [
       icon: 'library_music',
       parentLabel: '',
       hasHints: true,
+      hasAdvancedTweaks: true,
       resettable: true
     },
     {
@@ -137,6 +144,7 @@ export const OPTIONS_VIEW_GROUPS: OptionsViewDefinition[][] = [
       icon: 'tag',
       parentLabel: 'Tracks',
       hasHints: true,
+      hasAdvancedTweaks: true,
       resettable: true
     }
   ],

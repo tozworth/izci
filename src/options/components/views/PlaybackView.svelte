@@ -138,6 +138,7 @@
       <SettingsField
         title={$t('options.playback.rememberProgress.title', { default: 'Remember progress' })}
         hint={$t('options.playback.rememberProgress.hint', { default: 'Automatically resumes unfinished files at least this long when you return to them.' })}
+        advanced
       >
           <input
             type="range"
@@ -157,7 +158,7 @@
   <div class="section">
     <h2>{$t('options.playback.volume.heading', { default: 'Volume' })}</h2>
     <div class="field-grid">
-      <SettingsField title={$t('options.playback.logarithmicVolume.title', { default: 'Logarithmic volume' })} hint={$t('options.playback.logarithmicVolume.hint', { default: 'Shapes the volume slider for gentler low-end changes.' })} checkbox>
+      <SettingsField title={$t('options.playback.logarithmicVolume.title', { default: 'Logarithmic volume' })} hint={$t('options.playback.logarithmicVolume.hint', { default: 'Shapes the volume slider for gentler low-end changes.' })} advanced checkbox>
           <input
             type="checkbox"
             checked={$playbackSettings.logarithmicVolume}

@@ -211,6 +211,10 @@ code {
   color: var(--text-strong);
 }
 
+.tool-button.is-active {
+  color: var(--accent-strong);
+}
+
 .tool-button:disabled {
   opacity: 0.4;
   cursor: default;
@@ -680,6 +684,25 @@ code {
 
 .field:first-child {
   border-top: 1px solid var(--border-faint);
+}
+
+.options-shell:not(.advanced-tweaks-visible) .advanced-tweak {
+  display: none;
+}
+
+.options-shell:not(.advanced-tweaks-visible)
+  .field-grid > .field:nth-child(1 of .field:not(.advanced-tweak)) {
+  border-top: 1px solid var(--border-faint);
+}
+
+.options-shell:not(.advanced-tweaks-visible)
+  .section:has(> .field-grid > .advanced-tweak):not(:has(> .field-grid > .field:not(.advanced-tweak))) {
+  display: none;
+}
+
+.advanced-tweaks-visible .advanced-tweak .field-title {
+  color: var(--muted-strong);
+  font-style: italic;
 }
 
 .field-copy {

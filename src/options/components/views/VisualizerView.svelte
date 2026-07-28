@@ -24,6 +24,7 @@
     step: number;
     scale?: number;
     preserveFraction?: boolean;
+    advanced?: boolean;
     visibility?: Visibility;
     format: (value: number) => string;
   }
@@ -52,42 +53,43 @@
     {
       key: 'frameRateLimit', title: 'Frame cap', min: MIN_VISUALIZER_FRAME_RATE_LIMIT,
       max: MAX_VISUALIZER_FRAME_RATE_LIMIT, step: 1,
+      advanced: true,
       format: (value) => `${Math.round(value)} fps`,
       hint: 'Limits how often every visualizer style redraws, from battery-friendlier motion to high-refresh displays.'
     },
     {
       key: 'normalizationStrength', title: 'Normalization', min: 0, max: 100, step: 1,
-      scale: 100, visibility: 'standard', format: (value) => `${Math.round(value * 100)}%`,
+      scale: 100, visibility: 'standard', advanced: true, format: (value) => `${Math.round(value * 100)}%`,
       hint: 'Balances low, mid, and high frequency bands so bass-heavy or bright tracks still use the full visual range.'
     },
     {
       key: 'triangleCount', title: 'Triangle count', min: 8, max: 160, step: 1,
-      visibility: 'triangles', format: (value) => `${Math.round(value)}`,
+      visibility: 'triangles', advanced: true, format: (value) => `${Math.round(value)}`,
       hint: 'Sets how many triangle shapes are kept active in the player background.'
     },
     {
       key: 'triangleMinSize', title: 'Minimum triangle size', min: 4, max: 80, step: 1,
-      scale: 100, visibility: 'triangles', format: (value) => `${Math.round(value * 100)}%`,
+      scale: 100, visibility: 'triangles', advanced: true, format: (value) => `${Math.round(value * 100)}%`,
       hint: 'Sets the smallest triangle size as a percentage of the player bar height.'
     },
     {
       key: 'triangleMaxSize', title: 'Maximum triangle size', min: 8, max: 120, step: 1,
-      scale: 100, visibility: 'triangles', format: (value) => `${Math.round(value * 100)}%`,
+      scale: 100, visibility: 'triangles', advanced: true, format: (value) => `${Math.round(value * 100)}%`,
       hint: 'Sets the largest triangle size as a percentage of the player bar height.'
     },
     {
       key: 'triangleBaseSpeed', title: 'Base rise speed', min: 20, max: 300, step: 1,
-      scale: 100, visibility: 'triangles', format: formatFactor,
+      scale: 100, visibility: 'triangles', advanced: true, format: formatFactor,
       hint: 'Multiplies the baseline upward movement before rhythm response is applied.'
     },
     {
       key: 'triangleReactiveSpeed', title: 'Reactive rise speed', min: 0, max: 300, step: 1,
-      scale: 100, visibility: 'triangles', format: formatFactor,
+      scale: 100, visibility: 'triangles', advanced: true, format: formatFactor,
       hint: 'Multiplies the extra upward speed added by amplitude and beat pulses.'
     },
     {
       key: 'triangleBorderWidth', title: 'Border thickness', min: 0, max: 12, step: 0.25,
-      preserveFraction: true, visibility: 'triangles', format: (value) => `${value.toFixed(2)}px`,
+      preserveFraction: true, visibility: 'triangles', advanced: true, format: (value) => `${value.toFixed(2)}px`,
       hint: 'Sets a fixed outline width shared by every triangle, regardless of size.'
     }
   ];
@@ -176,7 +178,7 @@
       {/each}
 
       {#each visibleRangeSettings as setting (setting.key)}
-        <label class="field">
+        <label class="field" class:advanced-tweak={setting.advanced === true}>
           <div class="field-copy">
             <span class="field-title">{descriptorTitle(setting)}</span>
           </div>

@@ -85,6 +85,7 @@
         <SettingsField
           title={$t('options.lyrics.downtimeAfter.title', { default: 'Downtime after' })}
           hint={$t('options.lyrics.downtimeAfter.hint', { default: 'Sets how long a synced lyric gap must last before Theater shows the break marker.' })}
+          advanced
         >
             <input
               type="range"

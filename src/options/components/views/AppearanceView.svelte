@@ -244,7 +244,12 @@
       </SettingsField>
 
       {#each INTERFACE_TOGGLES as toggle (toggle.key)}
-        <SettingsField title={toggleTitle(toggle)} hint={toggleHint(toggle)} checkbox>
+        <SettingsField
+          title={toggleTitle(toggle)}
+          hint={toggleHint(toggle)}
+          advanced={toggle.key === 'keepLibraryColumnsVisibleInNarrowLayout' || toggle.key === 'keepEmptyWorkspacePanelsOpen'}
+          checkbox
+        >
           <input
             type="checkbox"
             checked={$appearanceSettings[toggle.key]}
