@@ -111,16 +111,23 @@
     layerRevealFrame = null;
   }
 
-  function scheduleLayerCleanup(): void {
+  function scheduleLayerCleanup(retainedUrl: string | null): void {
     clearLayerCleanupTimer();
 
-    if (!artworkLayers.some((layer) => !layer.visible)) {
+    if (
+      retainedUrl !== null &&
+      artworkLayers.length === 1 &&
+      artworkLayers[0]?.url === retainedUrl &&
+      artworkLayers[0]?.visible
+    ) {
       return;
     }
 
     layerCleanupTimer = setTimeout(() => {
       layerCleanupTimer = null;
-      artworkLayers = artworkLayers.filter((layer) => layer.visible);
+      artworkLayers = retainedUrl
+        ? artworkLayers.filter((layer) => layer.url === retainedUrl)
+        : [];
       scheduleGeometryRefresh();
     }, ARTWORK_LAYER_CLEANUP_MS);
   }
@@ -128,9 +135,9 @@
   function revealArtworkLayer(url: string): void {
     if (typeof window === 'undefined') {
       artworkLayers = artworkLayers.map((layer) =>
-        layer.url === url ? { ...layer, visible: true } : { ...layer, visible: false }
+        layer.url === url ? { ...layer, visible: true } : layer
       );
-      scheduleLayerCleanup();
+      scheduleLayerCleanup(url);
       return;
     }
 
@@ -138,9 +145,9 @@
     layerRevealFrame = window.requestAnimationFrame(() => {
       layerRevealFrame = null;
       artworkLayers = artworkLayers.map((layer) =>
-        layer.url === url ? { ...layer, visible: true } : { ...layer, visible: false }
+        layer.url === url ? { ...layer, visible: true } : layer
       );
-      scheduleLayerCleanup();
+      scheduleLayerCleanup(url);
     });
   }
 
@@ -201,7 +208,7 @@
 
     if (!nextUrl) {
       artworkLayers = artworkLayers.map((layer) => ({ ...layer, visible: false }));
-      scheduleLayerCleanup();
+      scheduleLayerCleanup(null);
       scheduleGeometryRefresh();
       return;
     }
@@ -210,7 +217,7 @@
     const preservedLayers = artworkLayers.filter((layer) => layer.url !== nextUrl);
 
     if (existingLayer) {
-      artworkLayers = [...preservedLayers, existingLayer];
+      artworkLayers = [...preservedLayers, { ...existingLayer, visible: false }];
       void revealArtworkLayerAfterDecode(nextUrl);
     } else {
       artworkLayers = [...preservedLayers, { id: nextUrl, url: nextUrl, visible: false }];
