@@ -159,7 +159,10 @@ function normalizeColorTheme(value: unknown): ColorTheme {
     case 'ash':
     case 'coal':
     case 'lights-out':
-    case 'nordic':
+    case 'solarized-light':
+    case 'solarized-dark':
+    case 'nordic-light':
+    case 'nordic-dark':
     case 'gruvbox':
     case 'dracula':
     case 'ember':

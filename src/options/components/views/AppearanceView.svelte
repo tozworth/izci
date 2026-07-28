@@ -78,7 +78,10 @@
       case 'ash': return $t('options.appearance.themes.ash', { default: 'Ash' });
       case 'coal': return $t('options.appearance.themes.coal', { default: 'Coal' });
       case 'lights-out': return $t('options.appearance.themes.lightsOut', { default: 'Lights Out' });
-      case 'nordic': return $t('options.appearance.themes.nordic', { default: 'Nordic' });
+      case 'solarized-light': return $t('options.appearance.themes.solarizedLight', { default: 'Solarized Light' });
+      case 'solarized-dark': return $t('options.appearance.themes.solarizedDark', { default: 'Solarized Dark' });
+      case 'nordic-light': return $t('options.appearance.themes.nordicLight', { default: 'Nordic Light' });
+      case 'nordic-dark': return $t('options.appearance.themes.nordicDark', { default: 'Nordic Dark' });
       case 'gruvbox': return $t('options.appearance.themes.gruvbox', { default: 'Gruvbox' });
       case 'dracula': return $t('options.appearance.themes.dracula', { default: 'Dracula' });
       case 'ember': return $t('options.appearance.themes.ember', { default: 'Ember' });
