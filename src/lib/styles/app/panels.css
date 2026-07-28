@@ -18,6 +18,10 @@
   color: var(--text);
 }
 
+.backdrop-zone:is(.artwork-backdrop-active, .visualizer-backdrop-active) .panel {
+  border-color: transparent;
+}
+
 .playlist-panel {
   position: relative;
   backdrop-filter: none;

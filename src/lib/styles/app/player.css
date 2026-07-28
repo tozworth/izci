@@ -153,7 +153,7 @@
 }
 
 .player-bar.artwork-background-active {
-  box-shadow: 0 -1px 0 var(--hairline);
+  box-shadow: none;
 }
 
 .player-bar.artwork-background-active.artwork-background-bright.visualizer-backdrop-active {
@@ -1198,6 +1198,10 @@
 
 .player-bar.now-playing-player::before {
   display: none;
+}
+
+.player-bar:is(.artwork-background-active, .visualizer-backdrop-active) {
+  border-color: transparent;
 }
 
 .player-bar.now-playing-player .player-track-group {
