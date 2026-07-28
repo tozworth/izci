@@ -29,7 +29,6 @@ import {
 export const LOADOUT_CATEGORIES: LoadoutCategory[] = [
   'playback',
   'raf',
-  'modules',
   'appearance'
 ];
 
@@ -187,6 +186,7 @@ export function canCaptureLoadoutCategories(categories: Iterable<LoadoutCategory
   const selected = new Set(categories);
   if (selected.size === 0) return false;
   if (!selected.has('raf')) return true;
+  if (!playbackSettings.getSnapshot().enableRaf) return false;
   const state = rafPresets.getSnapshot();
   return state.presets.some((preset) => preset.id === state.selectedPresetId);
 }
@@ -203,16 +203,14 @@ export function captureLoadoutSettings(
     settings.playback = {
       playbackRate: playback.playbackRate,
       trueSpeed: playback.trueSpeed,
-      replayGainMode: playback.replayGainMode
+      replayGainMode: playback.replayGainMode,
+      modules: { ...modulePlaybackSettings.getSnapshot() }
     };
   }
   if (selected.has('raf')) {
     const state = rafPresets.getSnapshot();
     const preset = state.presets.find((candidate) => candidate.id === state.selectedPresetId)!;
     settings.raf = { presetName: preset.name, enabled: rafSettings.getSnapshot().enabled };
-  }
-  if (selected.has('modules')) {
-    settings.modules = { ...modulePlaybackSettings.getSnapshot() };
   }
   if (selected.has('appearance')) {
     settings.appearance = {
@@ -225,14 +223,16 @@ export function captureLoadoutSettings(
 }
 
 export function applyLoadoutSettings(settings: LoadoutSettings): void {
-  if (settings.playback) playbackSettings.update(settings.playback);
+  if (settings.playback) {
+    playbackSettings.update(settings.playback);
+    modulePlaybackSettings.set(settings.playback.modules);
+  }
   if (settings.raf) {
     const preset = rafPresets.getSnapshot().presets.find(
       (candidate) => normalizedComparisonText(candidate.name) === normalizedComparisonText(settings.raf!.presetName)
     );
     if (preset) rafPresets.apply(preset.id, settings.raf.enabled);
   }
-  if (settings.modules) modulePlaybackSettings.set(settings.modules);
   if (settings.appearance) {
     appearanceSettings.update({ backdropZones: settings.appearance.backdropZones });
     visualizerSettings.set(settings.appearance.visualizer);
@@ -259,7 +259,6 @@ export function resolveAutomaticLoadouts(
 type RuntimeLoadoutBaseline =
   | { category: 'playback'; value: LoadoutPlaybackSettings }
   | { category: 'raf'; value: { selectedPresetId: string | null; settings: RafRackSettings } }
-  | { category: 'modules'; value: ModulePlaybackSettings }
   | { category: 'appearance'; value: LoadoutAppearanceSettings };
 
 type ManualLoadoutCommand = {
@@ -306,7 +305,8 @@ function captureRuntimeBaseline(category: LoadoutCategory): RuntimeLoadoutBaseli
         value: {
           playbackRate: playback.playbackRate,
           trueSpeed: playback.trueSpeed,
-          replayGainMode: playback.replayGainMode
+          replayGainMode: playback.replayGainMode,
+          modules: { ...modulePlaybackSettings.getSnapshot() }
         }
       };
     }
@@ -318,8 +318,6 @@ function captureRuntimeBaseline(category: LoadoutCategory): RuntimeLoadoutBaseli
           settings: structuredClone(rafSettings.getSnapshot())
         }
       };
-    case 'modules':
-      return { category, value: { ...modulePlaybackSettings.getSnapshot() } };
     case 'appearance':
       return {
         category,
@@ -335,13 +333,11 @@ function restoreRuntimeBaseline(baseline: RuntimeLoadoutBaseline): void {
   switch (baseline.category) {
     case 'playback':
       playbackSettings.update(baseline.value);
+      modulePlaybackSettings.set(baseline.value.modules);
       break;
     case 'raf':
       rafSettings.replace(baseline.value.settings);
       rafPresets.setSelectedPresetId(baseline.value.selectedPresetId);
-      break;
-    case 'modules':
-      modulePlaybackSettings.set(baseline.value);
       break;
     case 'appearance':
       appearanceSettings.update({ backdropZones: baseline.value.backdropZones });

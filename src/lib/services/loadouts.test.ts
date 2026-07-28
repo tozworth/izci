@@ -13,10 +13,21 @@ import {
   startLoadoutRuntime
 } from './loadouts';
 import { loadouts as loadoutStore } from '$lib/stores/loadouts';
+import { DEFAULT_MODULE_PLAYBACK_SETTINGS, modulePlaybackSettings } from '$lib/stores/module-playback-settings';
 import { playbackSettings } from '$lib/stores/playback-settings';
 import { rafPresets } from '$lib/stores/raf-presets';
 import { rafSettings } from '$lib/stores/raf-settings';
-import type { Loadout, LoadoutState, LoadoutTrackContext, PlaylistItem } from '$lib/types';
+import type { Loadout, LoadoutPlaybackSettings, LoadoutState, LoadoutTrackContext, PlaylistItem } from '$lib/types';
+
+function playback(
+  values: Pick<LoadoutPlaybackSettings, 'playbackRate' | 'trueSpeed' | 'replayGainMode'>,
+  modules: Partial<LoadoutPlaybackSettings['modules']> = {}
+): LoadoutPlaybackSettings {
+  return {
+    ...values,
+    modules: { ...DEFAULT_MODULE_PLAYBACK_SETTINGS, ...modules }
+  };
+}
 
 const folder = {
   id: 'folder-1',
@@ -84,10 +95,10 @@ describe('automatic loadout resolution', () => {
   it('applies only the first matching loadout from top to bottom', () => {
     const currentTrack = track();
     const fileOverride = loadout('file-override', { type: 'file', fileKey: getLoadoutFileKey(currentTrack) }, {
-      playback: { playbackRate: 1.25, trueSpeed: true, replayGainMode: 'album' }
+      playback: playback({ playbackRate: 1.25, trueSpeed: true, replayGainMode: 'album' })
     });
     const folderBaseline = loadout('folder-baseline', { type: 'path', folderId: folder.id, folderName: folder.name }, {
-      playback: { playbackRate: 0.9, trueSpeed: false, replayGainMode: 'track' },
+      playback: playback({ playbackRate: 0.9, trueSpeed: false, replayGainMode: 'track' }),
       appearance: {
         backdropZones: { left: 'none', center: 'none', right: 'none', player: 'none', nowPlaying: 'artwork' },
         visualizer: {
@@ -120,7 +131,7 @@ describe('automatic loadout resolution', () => {
     const state: LoadoutState = {
       automaticEnabled: true,
       loadouts: [loadout('manual', { type: 'preset' }, {
-        playback: { playbackRate: 2, trueSpeed: false, replayGainMode: 'off' }
+        playback: playback({ playbackRate: 2, trueSpeed: false, replayGainMode: 'off' })
       })]
     };
     expect(resolveAutomaticLoadouts(state, track(), [folder])).toEqual({});
@@ -129,16 +140,38 @@ describe('automatic loadout resolution', () => {
 
 describe('automatic loadout runtime', () => {
   const originalPlayback = playbackSettings.getSnapshot();
+  const originalModules = modulePlaybackSettings.getSnapshot();
   const originalRafSettings = rafSettings.getSnapshot();
 
   afterEach(() => {
     loadoutStore.reset();
     playbackSettings.set(originalPlayback);
+    modulePlaybackSettings.set(originalModules);
     rafPresets.reset();
     rafSettings.replace(originalRafSettings);
   });
 
+  it('captures media and module controls as one playback category', () => {
+    playbackSettings.update({ playbackRate: 1.25, trueSpeed: true, replayGainMode: 'album' });
+    modulePlaybackSettings.update({ panStrength: 140, tempoFactor: 1.5 });
+
+    expect(captureLoadoutSettings(['playback'])?.playback).toEqual(
+      playback(
+        { playbackRate: 1.25, trueSpeed: true, replayGainMode: 'album' },
+        { panStrength: 140, tempoFactor: 1.5 }
+      )
+    );
+  });
+
+  it('does not capture Raf while the feature is disabled', () => {
+    playbackSettings.update({ enableRaf: false });
+    rafPresets.create('Dormant rack');
+
+    expect(captureLoadoutSettings(['raf'])).toBeNull();
+  });
+
   it('captures and reapplies the Raf enabled state with its preset', () => {
+    playbackSettings.update({ enableRaf: true });
     rafSettings.reset();
     rafSettings.setEnabled(false);
     rafPresets.create('Clean');
@@ -203,9 +236,13 @@ describe('automatic loadout runtime', () => {
 
   it('restores the previous category settings before an unmatched track inherits them', () => {
     playbackSettings.update({ playbackRate: 0.8, trueSpeed: true, replayGainMode: 'off' });
+    modulePlaybackSettings.update({ panStrength: 70 });
     loadoutStore.reset();
     loadoutStore.create('FLAC', { type: 'type', recognizedType: 'flac' }, {
-      playback: { playbackRate: 1.5, trueSpeed: false, replayGainMode: 'album' }
+      playback: playback(
+        { playbackRate: 1.5, trueSpeed: false, replayGainMode: 'album' },
+        { panStrength: 140 }
+      )
     });
     const tracks = writable<PlaylistItem | null>(null);
     const stop = startLoadoutRuntime(tracks);
@@ -218,6 +255,7 @@ describe('automatic loadout runtime', () => {
       trueSpeed: false,
       replayGainMode: 'album'
     });
+    expect(modulePlaybackSettings.getSnapshot().panStrength).toBe(140);
 
     tracks.set({
       id: 'mp3', name: 'Next.mp3', extension: 'mp3', kind: 'stream', size: 2, lastModified: 2
@@ -227,6 +265,7 @@ describe('automatic loadout runtime', () => {
       trueSpeed: true,
       replayGainMode: 'off'
     });
+    expect(modulePlaybackSettings.getSnapshot().panStrength).toBe(70);
     stop();
   });
 
@@ -282,7 +321,7 @@ describe('automatic loadout runtime', () => {
     playbackSettings.update({ playbackRate: 1, trueSpeed: false, replayGainMode: 'track' });
     loadoutStore.reset();
     loadoutStore.create('FLAC', { type: 'type', recognizedType: 'flac' }, {
-      playback: { playbackRate: 2, trueSpeed: true, replayGainMode: 'off' }
+      playback: playback({ playbackRate: 2, trueSpeed: true, replayGainMode: 'off' })
     });
     const tracks = writable<PlaylistItem | null>({
       id: 'flac', name: 'Song.flac', extension: 'flac', kind: 'stream', size: 1, lastModified: 1
@@ -303,7 +342,7 @@ describe('automatic loadout runtime', () => {
     playbackSettings.update({ playbackRate: 1, trueSpeed: false, replayGainMode: 'track' });
     loadoutStore.reset();
     loadoutStore.create('FLAC', { type: 'type', recognizedType: 'flac' }, {
-      playback: { playbackRate: 2, trueSpeed: true, replayGainMode: 'off' }
+      playback: playback({ playbackRate: 2, trueSpeed: true, replayGainMode: 'off' })
     });
     const tracks = writable<PlaylistItem | null>({
       id: 'flac', name: 'Song.flac', extension: 'flac', kind: 'stream', size: 1, lastModified: 1
@@ -312,7 +351,7 @@ describe('automatic loadout runtime', () => {
     expect(playbackSettings.getSnapshot().playbackRate).toBe(2);
 
     applyManualLoadoutSettings({
-      playback: { playbackRate: 0.75, trueSpeed: false, replayGainMode: 'album' }
+      playback: playback({ playbackRate: 0.75, trueSpeed: false, replayGainMode: 'album' })
     });
     expect(playbackSettings.getSnapshot()).toMatchObject({
       playbackRate: 0.75,

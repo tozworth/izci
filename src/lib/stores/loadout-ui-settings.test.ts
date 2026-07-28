@@ -16,7 +16,7 @@ describe('loadout UI settings', () => {
       normalizeLoadoutUiSettings({
         captureCategories: ['modules', 'playback', 'modules', 'nope']
       }).captureCategories
-    ).toEqual(['modules', 'playback']);
+    ).toEqual(['playback']);
     expect(normalizeLoadoutUiSettings({ captureCategories: [] }).captureCategories).toEqual([]);
   });
 });

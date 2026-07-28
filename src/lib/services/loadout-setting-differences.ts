@@ -67,16 +67,15 @@ export function getLoadoutSettingDifferences(
     addDifference(differences, 'playbackRate', settings.playback.playbackRate, DEFAULT_PLAYBACK_SETTINGS.playbackRate);
     addDifference(differences, 'trueSpeed', settings.playback.trueSpeed, DEFAULT_PLAYBACK_SETTINGS.trueSpeed);
     addDifference(differences, 'replayGainMode', settings.playback.replayGainMode, DEFAULT_PLAYBACK_SETTINGS.replayGainMode);
+    addDifference(differences, 'interpolationFilter', settings.playback.modules.interpolationFilter, DEFAULT_MODULE_PLAYBACK_SETTINGS.interpolationFilter);
+    addDifference(differences, 'stereoSeparation', settings.playback.modules.stereoSeparation, DEFAULT_MODULE_PLAYBACK_SETTINGS.stereoSeparation);
+    addDifference(differences, 'panStrength', settings.playback.modules.panStrength, DEFAULT_MODULE_PLAYBACK_SETTINGS.panStrength);
+    addDifference(differences, 'repeatCount', settings.playback.modules.repeatCount, DEFAULT_MODULE_PLAYBACK_SETTINGS.repeatCount);
+    addDifference(differences, 'tempoFactor', settings.playback.modules.tempoFactor, DEFAULT_MODULE_PLAYBACK_SETTINGS.tempoFactor);
+    addDifference(differences, 'pitchFactor', settings.playback.modules.pitchFactor, DEFAULT_MODULE_PLAYBACK_SETTINGS.pitchFactor);
   } else if (category === 'raf' && settings.raf) {
     differences.push({ key: 'rafPresetName', value: settings.raf.presetName });
     addDifference(differences, 'rafEnabled', settings.raf.enabled, DEFAULT_RAF_SETTINGS.enabled);
-  } else if (category === 'modules' && settings.modules) {
-    addDifference(differences, 'interpolationFilter', settings.modules.interpolationFilter, DEFAULT_MODULE_PLAYBACK_SETTINGS.interpolationFilter);
-    addDifference(differences, 'stereoSeparation', settings.modules.stereoSeparation, DEFAULT_MODULE_PLAYBACK_SETTINGS.stereoSeparation);
-    addDifference(differences, 'panStrength', settings.modules.panStrength, DEFAULT_MODULE_PLAYBACK_SETTINGS.panStrength);
-    addDifference(differences, 'repeatCount', settings.modules.repeatCount, DEFAULT_MODULE_PLAYBACK_SETTINGS.repeatCount);
-    addDifference(differences, 'tempoFactor', settings.modules.tempoFactor, DEFAULT_MODULE_PLAYBACK_SETTINGS.tempoFactor);
-    addDifference(differences, 'pitchFactor', settings.modules.pitchFactor, DEFAULT_MODULE_PLAYBACK_SETTINGS.pitchFactor);
   } else if (category === 'appearance' && settings.appearance) {
     for (const zone of BACKDROP_ZONE_IDS) {
       addDifference(

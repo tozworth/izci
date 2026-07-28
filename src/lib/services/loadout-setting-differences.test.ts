@@ -8,7 +8,12 @@ import { getLoadoutSettingDifferences } from './loadout-setting-differences';
 describe('loadout setting differences', () => {
   it('returns only playback values that differ from defaults', () => {
     expect(getLoadoutSettingDifferences({
-      playback: { playbackRate: 0.75, trueSpeed: true, replayGainMode: 'track' }
+      playback: {
+        playbackRate: 0.75,
+        trueSpeed: true,
+        replayGainMode: 'track',
+        modules: { ...DEFAULT_MODULE_PLAYBACK_SETTINGS }
+      }
     }, 'playback')).toEqual([
       { key: 'playbackRate', value: 0.75 },
       { key: 'trueSpeed', value: true }
@@ -24,10 +29,15 @@ describe('loadout setting differences', () => {
     ]);
   });
 
-  it('filters default module values', () => {
+  it('includes non-default module values under playback', () => {
     expect(getLoadoutSettingDifferences({
-      modules: { ...DEFAULT_MODULE_PLAYBACK_SETTINGS, panStrength: 0 }
-    }, 'modules')).toEqual([{ key: 'panStrength', value: 0 }]);
+      playback: {
+        playbackRate: 1,
+        trueSpeed: false,
+        replayGainMode: 'track',
+        modules: { ...DEFAULT_MODULE_PLAYBACK_SETTINGS, panStrength: 0 }
+      }
+    }, 'playback')).toEqual([{ key: 'panStrength', value: 0 }]);
   });
 
   it('reports changed backdrops and applicable visualizer settings', () => {

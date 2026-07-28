@@ -1,5 +1,13 @@
 import { afterEach, describe, expect, it } from 'vitest';
+import { DEFAULT_MODULE_PLAYBACK_SETTINGS } from './module-playback-settings';
 import { DEFAULT_LOADOUT_STATE, loadouts, normalizeLoadoutState } from './loadouts';
+
+const playback = {
+  playbackRate: 1,
+  trueSpeed: false,
+  replayGainMode: 'off' as const,
+  modules: { ...DEFAULT_MODULE_PLAYBACK_SETTINGS }
+};
 
 afterEach(() => loadouts.reset());
 
@@ -13,7 +21,7 @@ describe('loadout persistence normalization', () => {
   });
 
   it('moves loadouts by stable ID and clamps the destination', () => {
-    const settings = { playback: { playbackRate: 1, trueSpeed: false, replayGainMode: 'off' as const } };
+    const settings = { playback };
     const first = loadouts.create('First', { type: 'preset' }, settings)!;
     const second = loadouts.create('Second', { type: 'preset' }, settings)!;
     const third = loadouts.create('Third', { type: 'preset' }, settings)!;
@@ -41,9 +49,13 @@ describe('loadout persistence normalization', () => {
         name: 'XM',
         target: { type: 'type', recognizedType: 'XM' },
         settings: {
-          playback: { playbackRate: 99, trueSpeed: true, replayGainMode: 'wat' },
+          playback: {
+            playbackRate: 99,
+            trueSpeed: true,
+            replayGainMode: 'wat',
+            modules: { repeatCount: -99, interpolationFilter: 7 }
+          },
           raf: { presetName: '  Clean  ', enabled: false },
-          modules: { repeatCount: -99, interpolationFilter: 7 }
         },
         createdAt: 10,
         updatedAt: 20
@@ -55,17 +67,18 @@ describe('loadout persistence normalization', () => {
     expect(state.loadouts[0].settings.playback).toEqual({
       playbackRate: 2,
       trueSpeed: true,
-      replayGainMode: 'track'
+      replayGainMode: 'track',
+      modules: {
+        ...DEFAULT_MODULE_PLAYBACK_SETTINGS,
+        repeatCount: -1,
+        interpolationFilter: 1
+      }
     });
     expect(state.loadouts[0].settings.raf).toEqual({ presetName: 'Clean', enabled: false });
-    expect(state.loadouts[0].settings.modules).toMatchObject({
-      repeatCount: -1,
-      interpolationFilter: 1
-    });
   });
 
   it('persists only predefined colors and supports renaming and clearing colors', () => {
-    const settings = { playback: { playbackRate: 1, trueSpeed: false, replayGainMode: 'off' as const } };
+    const settings = { playback };
     const created = loadouts.create('Original', { type: 'preset' }, settings)!;
 
     expect(loadouts.rename(created.id, '  Renamed  ')?.name).toBe('Renamed');
@@ -77,7 +90,7 @@ describe('loadout persistence normalization', () => {
   });
 
   it('preserves a legacy file loadout name as its source when renaming', () => {
-    const settings = { playback: { playbackRate: 1, trueSpeed: false, replayGainMode: 'off' as const } };
+    const settings = { playback };
     const created = loadouts.create('Track.flac', { type: 'file', fileKey: 'track.flac:1:2' }, settings)!;
 
     expect(loadouts.rename(created.id, 'Headphones')?.target).toEqual({

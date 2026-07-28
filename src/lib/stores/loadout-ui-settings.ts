@@ -6,7 +6,6 @@ export const LOADOUT_UI_SETTINGS_CHANNEL = 'izci-loadout-ui-settings';
 export const DEFAULT_LOADOUT_CAPTURE_CATEGORIES: LoadoutCategory[] = [
   'playback',
   'raf',
-  'modules',
   'appearance'
 ];
 
@@ -15,7 +14,7 @@ export interface LoadoutUiSettings {
 }
 
 function isLoadoutCategory(value: unknown): value is LoadoutCategory {
-  return value === 'playback' || value === 'raf' || value === 'modules' || value === 'appearance';
+  return value === 'playback' || value === 'raf' || value === 'appearance';
 }
 
 export function normalizeLoadoutUiSettings(value: unknown): LoadoutUiSettings {

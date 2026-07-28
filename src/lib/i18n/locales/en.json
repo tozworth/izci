@@ -700,7 +700,6 @@
       "categories": {
         "playback": "Playback",
         "raf": "Raf preset",
-        "modules": "Modules",
         "appearance": "Appearance"
       },
       "tooltip": {

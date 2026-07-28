@@ -374,7 +374,7 @@ export interface VisualizerSettings {
 }
 
 export type LoadoutType = 'file' | 'path' | 'type' | 'tags' | 'preset';
-export type LoadoutCategory = 'playback' | 'raf' | 'modules' | 'appearance';
+export type LoadoutCategory = 'playback' | 'raf' | 'appearance';
 export type LoadoutColor =
   | 'white'
   | 'red'
@@ -411,6 +411,7 @@ export interface LoadoutPlaybackSettings {
   playbackRate: number;
   trueSpeed: boolean;
   replayGainMode: ReplayGainMode;
+  modules: ModulePlaybackSettings;
 }
 
 export interface LoadoutRafSettings {
@@ -426,7 +427,6 @@ export interface LoadoutAppearanceSettings {
 export interface LoadoutSettings {
   playback?: LoadoutPlaybackSettings;
   raf?: LoadoutRafSettings;
-  modules?: ModulePlaybackSettings;
   appearance?: LoadoutAppearanceSettings;
 }
 

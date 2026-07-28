@@ -23,6 +23,7 @@
   } from '$lib/services/loadouts';
   import { loadoutUiSettings } from '$lib/stores/loadout-ui-settings';
   import { LOADOUT_COLORS, loadouts } from '$lib/stores/loadouts';
+  import { playbackSettings } from '$lib/stores/playback-settings';
   import { rafPresets } from '$lib/stores/raf-presets';
   import type { Loadout, LoadoutCategory, LoadoutColor, LoadoutType } from '$lib/types';
   import {
@@ -37,7 +38,6 @@
   const CATEGORY_ICONS: Record<LoadoutCategory, string> = {
     playback: 'play_circle',
     raf: 'tune',
-    modules: 'memory',
     appearance: 'palette'
   };
   let loadoutType: LoadoutType = 'file';
@@ -74,7 +74,6 @@
   function categoryLabel(category: LoadoutCategory): string {
     if (category === 'playback') return $t('options.loadouts.categories.playback', { default: 'Playback' });
     if (category === 'raf') return $t('options.loadouts.categories.raf', { default: 'Raf preset' });
-    if (category === 'modules') return $t('options.loadouts.categories.modules', { default: 'Modules' });
     return $t('options.loadouts.categories.appearance', { default: 'Appearance' });
   }
 
@@ -296,7 +295,12 @@
   $: rafPresetAvailable = $rafPresets.presets.some(
     (preset) => preset.id === $rafPresets.selectedPresetId
   );
-  $: selectedCategories = new Set($loadoutUiSettings.captureCategories);
+  $: availableCaptureCategories = LOADOUT_CATEGORIES.filter(
+    (category) => category !== 'raf' || $playbackSettings.enableRaf
+  );
+  $: selectedCategories = new Set(
+    $loadoutUiSettings.captureCategories.filter((category) => availableCaptureCategories.includes(category))
+  );
   $: targetPreview = createLoadoutTarget(
     loadoutType,
     $loadoutTrackContext,
@@ -345,7 +349,7 @@
       />
 
       <div class="category-toggles" aria-label={$t('options.loadouts.capture.categories', { default: 'Settings categories' })}>
-        {#each LOADOUT_CATEGORIES as category}
+        {#each availableCaptureCategories as category}
           <OptionGlyphButton
             icon={CATEGORY_ICONS[category]}
             label={categoryLabel(category)}

@@ -66,11 +66,13 @@ function normalizeTarget(value: unknown): LoadoutTarget | null {
 
 function normalizePlayback(value: unknown): LoadoutPlaybackSettings | undefined {
   if (!value || typeof value !== 'object') return undefined;
+  const source = value as Partial<LoadoutPlaybackSettings>;
   const normalized = normalizePlaybackSettings(value);
   return {
     playbackRate: normalized.playbackRate,
     trueSpeed: normalized.trueSpeed,
-    replayGainMode: normalized.replayGainMode
+    replayGainMode: normalized.replayGainMode,
+    modules: normalizeModulePlaybackSettings(source.modules)
   };
 }
 
@@ -96,9 +98,6 @@ function normalizeSettings(value: unknown): LoadoutSettings | null {
   if (playback) settings.playback = playback;
   if (rafPresetName && rafEnabled !== null) {
     settings.raf = { presetName: rafPresetName, enabled: rafEnabled };
-  }
-  if (source.modules && typeof source.modules === 'object') {
-    settings.modules = normalizeModulePlaybackSettings(source.modules);
   }
   if (appearance) settings.appearance = appearance;
 
