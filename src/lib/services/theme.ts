@@ -4,22 +4,10 @@ import {
   SYSTEM_FONT_FAMILY
 } from '$lib/stores/appearance-settings';
 import type { ColorScheme, ColorTheme } from '$lib/types';
+import { COLOR_THEME_DEFINITIONS, findColorThemeDefinition } from '$lib/theme-definitions';
 import { readable } from 'svelte/store';
 
-export const COLOR_THEME_OPTIONS: Array<{ value: ColorTheme; scheme: ColorScheme }> = [
-  { value: 'pale-light', scheme: 'light' },
-  { value: 'pale-dark', scheme: 'dark' },
-  { value: 'lights-out', scheme: 'dark' },
-  { value: 'solarized-light', scheme: 'light' },
-  { value: 'solarized-dark', scheme: 'dark' },
-  { value: 'nordic-light', scheme: 'light' },
-  { value: 'nordic-dark', scheme: 'dark' },
-  { value: 'chameleon-light', scheme: 'light' },
-  { value: 'gruvbox', scheme: 'dark' },
-  { value: 'dracula', scheme: 'dark' },
-  { value: 'ember', scheme: 'dark' },
-  { value: 'chameleon-dark', scheme: 'dark' }
-];
+export { COLOR_THEME_DEFINITIONS } from '$lib/theme-definitions';
 
 export const systemColorScheme = readable<ColorScheme>('dark', (set) => {
   if (typeof window === 'undefined') return;
@@ -30,33 +18,18 @@ export const systemColorScheme = readable<ColorScheme>('dark', (set) => {
   return () => query.removeEventListener('change', update);
 });
 
-const THEME_COLOR_BY_THEME: Record<ColorTheme, string> = {
-  'pale-light': '#e4e3e0',
-  'pale-dark': '#101113',
-  'lights-out': '#000000',
-  'solarized-light': '#eee8d5',
-  'solarized-dark': '#002b36',
-  'nordic-light': '#e5e9f0',
-  'nordic-dark': '#1b222d',
-  'chameleon-light': '#e5e9ed',
-  gruvbox: '#1c1d1e',
-  dracula: '#1f2029',
-  ember: '#1c1110',
-  'chameleon-dark': '#141a20'
-};
-
 let initialized = false;
 
 function applyThemeColor(
   theme: ColorTheme,
+  scheme: ColorScheme,
   chameleonHue: number,
   chameleonSaturation: number
 ): void {
-  const themeColor = theme === 'chameleon-light'
-    ? `hsl(${chameleonHue} ${Math.round(chameleonSaturation * 0.32)}% 90%)`
-    : theme === 'chameleon-dark'
-      ? `hsl(${chameleonHue} ${Math.round(chameleonSaturation * 0.32)}% 11%)`
-      : THEME_COLOR_BY_THEME[theme];
+  const themeColor = theme === 'chameleon'
+    ? `hsl(${chameleonHue} ${Math.round(chameleonSaturation * 0.32)}% ${scheme === 'light' ? 90 : 11}%)`
+    : findColorThemeDefinition(theme)?.variants[scheme]?.themeColor;
+  if (!themeColor) return;
   let themeColorMeta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
 
   if (!themeColorMeta) {
@@ -70,6 +43,7 @@ function applyThemeColor(
 
 function applyTheme(
   theme: ColorTheme,
+  scheme: ColorScheme,
   chameleonHue: number,
   chameleonSaturation: number,
   fontFamily: string
@@ -79,6 +53,7 @@ function applyTheme(
   }
 
   document.documentElement.dataset.theme = theme;
+  document.documentElement.dataset.colorScheme = scheme;
   document.documentElement.style.setProperty('--chameleon-hue', String(chameleonHue));
   document.documentElement.style.setProperty(
     '--chameleon-surface-saturation',
@@ -106,7 +81,7 @@ function applyTheme(
       ? 'var(--system-font-family)'
       : `${JSON.stringify(fontFamily)}, var(--system-font-family)`
   );
-  applyThemeColor(theme, chameleonHue, chameleonSaturation);
+  applyThemeColor(theme, scheme, chameleonHue, chameleonSaturation);
 }
 
 export function initializeTheme(): void {
@@ -124,6 +99,7 @@ export function initializeTheme(): void {
       : settings.darkColorTheme;
     applyTheme(
       theme,
+      scheme,
       settings.chameleonHue,
       settings.chameleonSaturation,
       settings.fontFamily

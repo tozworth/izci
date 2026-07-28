@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import SettingsField from '../SettingsField.svelte';
-  import { COLOR_THEME_OPTIONS, systemColorScheme } from '$lib/services/theme';
+  import { COLOR_THEME_DEFINITIONS, systemColorScheme } from '$lib/services/theme';
   import { t } from 'svelte-i18n';
   import { APP_LOCALE_OPTIONS, appLocale } from '$lib/i18n';
   import { hasLocalFontAccessPermission, queryLocalFontFamilies, supportsLocalFontAccess } from '$lib/services/local-fonts';
@@ -14,7 +14,7 @@
     SYSTEM_FONT_FAMILY,
     appearanceSettings
   } from '$lib/stores/appearance-settings';
-  import type { ColorTheme, ColorThemeMode, ContextualTabAutomation, ContextualWorkspaceTab, DarkColorTheme, LightColorTheme } from '$lib/types';
+  import type { ColorTheme, ColorThemeMode, ContextualTabAutomation, ContextualWorkspaceTab } from '$lib/types';
 
   type BooleanAppearanceSetting =
     | 'useArtworkPlayerColors'
@@ -47,13 +47,13 @@
   $: activeColorTheme = effectiveColorScheme === 'light'
     ? $appearanceSettings.lightColorTheme
     : $appearanceSettings.darkColorTheme;
-  $: availableColorThemes = COLOR_THEME_OPTIONS.filter((option) => option.scheme === effectiveColorScheme);
+  $: availableColorThemes = COLOR_THEME_DEFINITIONS.filter((theme) => theme.variants[effectiveColorScheme]);
 
   function handleColorThemeChange(event: Event) {
     const value = (event.currentTarget as HTMLSelectElement).value;
     appearanceSettings.update(effectiveColorScheme === 'light'
-      ? { lightColorTheme: value as LightColorTheme }
-      : { darkColorTheme: value as DarkColorTheme });
+      ? { lightColorTheme: value as ColorTheme }
+      : { darkColorTheme: value as ColorTheme });
   }
   function handleColorThemeModeChange(event: Event) { appearanceSettings.update({ colorThemeMode: (event.currentTarget as HTMLSelectElement).value as ColorThemeMode }); }
   function handleLanguageChange(event: Event) { appLocale.set((event.currentTarget as HTMLSelectElement).value); }
@@ -88,18 +88,14 @@
 
   function themeLabel(value: ColorTheme): string {
     switch (value) {
-      case 'pale-light':
-      case 'pale-dark': return $t('options.appearance.themes.pale', { default: 'Pale (default)' });
+      case 'pale': return $t('options.appearance.themes.pale', { default: 'Pale (default)' });
       case 'lights-out': return $t('options.appearance.themes.lightsOut', { default: 'Lights Out' });
-      case 'solarized-light':
-      case 'solarized-dark': return $t('options.appearance.themes.solarized', { default: 'Solarized' });
-      case 'nordic-light':
-      case 'nordic-dark': return $t('options.appearance.themes.nordic', { default: 'Nordic' });
+      case 'solarized': return $t('options.appearance.themes.solarized', { default: 'Solarized' });
+      case 'nordic': return $t('options.appearance.themes.nordic', { default: 'Nordic' });
       case 'gruvbox': return $t('options.appearance.themes.gruvbox', { default: 'Gruvbox' });
       case 'dracula': return $t('options.appearance.themes.dracula', { default: 'Dracula' });
       case 'ember': return $t('options.appearance.themes.ember', { default: 'Ember' });
-      case 'chameleon-light':
-      case 'chameleon-dark': return $t('options.appearance.themes.chameleon', { default: 'Chameleon' });
+      case 'chameleon': return $t('options.appearance.themes.chameleon', { default: 'Chameleon' });
     }
   }
 
@@ -161,8 +157,8 @@
     <div class="field-grid">
       <SettingsField title={$t('options.appearance.theme.title', { default: 'Color theme' })} hint={$t('options.appearance.theme.hint', { default: 'Sets the global color theme.' })}>
           <select value={activeColorTheme} on:change={handleColorThemeChange}>
-            {#each availableColorThemes as option}
-              <option value={option.value}>{themeLabel(option.value)}</option>
+            {#each availableColorThemes as theme}
+              <option value={theme.value}>{themeLabel(theme.value)}</option>
             {/each}
           </select>
       </SettingsField>
@@ -175,7 +171,7 @@
         </select>
       </SettingsField>
 
-      {#if activeColorTheme === 'chameleon-light' || activeColorTheme === 'chameleon-dark'}
+      {#if activeColorTheme === 'chameleon'}
         <SettingsField
           title={$t('options.appearance.chameleonColor.title', { default: 'Chameleon color' })}
           hint={$t('options.appearance.chameleonColor.hint', { default: "Fine-tunes Chameleon's hue. This choice is remembered when you use another theme." })}

@@ -310,7 +310,7 @@ export function createMiniPlayerController({
       });
       rootObserver.observe(document.documentElement, {
         attributes: true,
-        attributeFilter: ['class', 'style', 'data-theme', 'lang', 'dir']
+        attributeFilter: ['class', 'style', 'data-theme', 'data-color-scheme', 'lang', 'dir']
       });
 
       setState({ active: true, opening: false });

@@ -5,22 +5,22 @@ import type {
   BackdropZoneEffect,
   BackdropZoneId,
   BackdropZoneSettings,
+  ColorTheme,
   ColorThemeMode,
   ContextualTabAutomation,
   ContextualTabSettings,
-  DarkColorTheme,
-  LightColorTheme,
   LyricsFontSizeSettings,
   LyricsDisplayStyle,
   LyricsSettings
 } from '$lib/types';
+import { hasColorThemeVariant } from '$lib/theme-definitions';
 import { createSettingsStore } from './persistent-store';
 
 export const APPEARANCE_SETTINGS_STORAGE_KEY = 'izci.appearance-settings';
 export const APPEARANCE_SETTINGS_CHANNEL = 'izci.appearance-settings';
 export const DEFAULT_COLOR_THEME_MODE: ColorThemeMode = 'system';
-export const DEFAULT_LIGHT_COLOR_THEME: LightColorTheme = 'pale-light';
-export const DEFAULT_DARK_COLOR_THEME: DarkColorTheme = 'pale-dark';
+export const DEFAULT_LIGHT_COLOR_THEME: ColorTheme = 'pale';
+export const DEFAULT_DARK_COLOR_THEME: ColorTheme = 'pale';
 export const MIN_CHAMELEON_HUE = 0;
 export const MAX_CHAMELEON_HUE = 359;
 export const DEFAULT_CHAMELEON_HUE = 210;
@@ -163,32 +163,12 @@ function normalizeColorThemeMode(value: unknown): ColorThemeMode {
   return value === 'light' || value === 'dark' ? value : DEFAULT_COLOR_THEME_MODE;
 }
 
-function normalizeLightColorTheme(value: unknown): LightColorTheme {
-  switch (value) {
-    case 'pale-light':
-    case 'solarized-light':
-    case 'nordic-light':
-    case 'chameleon-light':
-      return value;
-    default:
-      return DEFAULT_LIGHT_COLOR_THEME;
-  }
+function normalizeLightColorTheme(value: unknown): ColorTheme {
+  return hasColorThemeVariant(value, 'light') ? value : DEFAULT_LIGHT_COLOR_THEME;
 }
 
-function normalizeDarkColorTheme(value: unknown): DarkColorTheme {
-  switch (value) {
-    case 'pale-dark':
-    case 'lights-out':
-    case 'solarized-dark':
-    case 'nordic-dark':
-    case 'gruvbox':
-    case 'dracula':
-    case 'ember':
-    case 'chameleon-dark':
-      return value;
-    default:
-      return DEFAULT_DARK_COLOR_THEME;
-  }
+function normalizeDarkColorTheme(value: unknown): ColorTheme {
+  return hasColorThemeVariant(value, 'dark') ? value : DEFAULT_DARK_COLOR_THEME;
 }
 
 export function normalizeChameleonHue(value: unknown): number {
