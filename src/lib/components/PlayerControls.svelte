@@ -396,7 +396,6 @@
   $: if (!seekPointerActive) seekPreview = snapshot.currentTime;
   $: displayedSeekTime = seekPointerActive ? seekPreview : snapshot.currentTime;
   $: compactPlayerBar = presentation !== 'now-playing' && $appearanceSettings.compactPlayerBar;
-  $: if (presentation) schedulePlayerBarReserveSync();
   $: isCompactVolume = viewportUsesCompactVolume || compactPlayerBar;
   $: displayTrack = track;
   $: displayDuration = track ? snapshot.duration : 0;
@@ -408,6 +407,14 @@
     : 0;
   $: artworkBackgroundActive = hasArtworkBackdrop(backdropEffect) && Boolean(artwork);
   $: visualizerBackdropActive = hasVisualizerBackdrop(backdropEffect);
+  $: if (
+    presentation &&
+    compactPlayerBar !== undefined &&
+    artworkBackgroundActive !== undefined &&
+    visualizerBackdropActive !== undefined
+  ) {
+    schedulePlayerBarReserveSync();
+  }
   $: playerArtworkPaletteActive =
     (useArtworkColorsOverride ?? $appearanceSettings.useArtworkPlayerColors) &&
     artwork !== null &&

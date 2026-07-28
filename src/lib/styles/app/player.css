@@ -1204,6 +1204,10 @@
   border-color: transparent;
 }
 
+.player-bar[data-backdrop-zone-id='player']:is(.artwork-background-active, .visualizer-backdrop-active) {
+  border-top-width: 0;
+}
+
 .player-bar.now-playing-player .player-track-group {
   flex-direction: column;
   align-items: stretch;
