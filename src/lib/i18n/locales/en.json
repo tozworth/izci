@@ -201,9 +201,13 @@
         "folders": "{count, plural, one {# folder} other {# folders}}",
         "groupsAndSongs": "{groups} · {songs, plural, one {# song} other {# songs}}"
       },
+      "unpin": "Unpin",
+      "pinToTop": "Pin to top",
       "noResults": "No library results match \"{query}\".",
       "favoritesEmpty": "Favorite tracks and subsongs will appear here.",
       "empty": "Your library is empty. Add files or drop a folder here.",
+      "openGroup": "Open {group}",
+      "unpinNamed": "Unpin {group}",
       "groupSongCount": "{count, plural, one {# song} other {# songs}}",
       "views": {
         "favorites": "Favorites",
@@ -248,6 +252,7 @@
     },
     "contextMenu": {
       "columns": "{panel} columns",
+      "libraryGroupActions": "Library group actions",
       "itemActions": "{panel} item actions"
     },
     "listRegion": "{name} list",

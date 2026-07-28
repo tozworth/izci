@@ -44,6 +44,7 @@
     filterLibraryGroupItems,
     filterLibraryGroups,
     getLibraryViewTooltipDetails,
+    orderLibraryGroups,
     type LibraryGroup,
     type LibraryGroupViewId
   } from '$lib/components/playlist-panel/library-views';
@@ -485,6 +486,10 @@
   function handleLibraryGroupContextMenu(event: MouseEvent, key: string) {
     event.preventDefault();
 
+    if (!groupView) {
+      return;
+    }
+
     const group = libraryGroups.find((entry) => entry.key === key);
 
     if (!group) {
@@ -499,10 +504,13 @@
     });
 
     contextMenu = {
-      kind: 'items',
+      kind: 'library-group',
       x: event.clientX,
       y: event.clientY,
-      ids
+      ids,
+      view: groupView,
+      key,
+      pinned: $libraryViewSettings.pinnedGroupKeys[groupView].includes(key)
     };
 
   }
@@ -522,7 +530,7 @@
   }
 
   function handleContextAction(actionId: string) {
-    if (!contextMenu || contextMenu.kind !== 'items') {
+    if (!contextMenu || (contextMenu.kind !== 'items' && contextMenu.kind !== 'library-group')) {
       return;
     }
 
@@ -588,7 +596,31 @@
       return;
     }
 
+    if (contextMenu?.kind === 'library-group' && actionId === 'pin-library-group') {
+      libraryViewSettings.pinGroup(contextMenu.view, contextMenu.key);
+      closeContextMenu();
+      return;
+    }
+
+    if (contextMenu?.kind === 'library-group' && actionId === 'unpin-library-group') {
+      libraryViewSettings.unpinGroup(contextMenu.view, contextMenu.key);
+      closeContextMenu();
+      return;
+    }
+
     handleContextAction(actionId);
+  }
+
+  function handleLibraryGroupUnpin(key: string) {
+    if (!groupView) return;
+    libraryViewSettings.unpinGroup(groupView, key);
+  }
+
+  function handleLibraryGroupMove(
+    detail: { key: string; targetKey: string; position: 'before' | 'after' }
+  ) {
+    if (!groupView) return;
+    libraryViewSettings.movePinnedGroup(groupView, detail.key, detail.targetKey, detail.position);
   }
 
   function handleSearchToggle() {
@@ -773,7 +805,9 @@
   $: libraryGroups = groupView
     ? buildLibraryGroups(items, groupView, $locale ?? undefined).map(localizeLibraryGroup)
     : [];
-  $: visibleLibraryGroups = groupView ? filterLibraryGroups(libraryGroups, normalizedSearchQuery) : [];
+  $: pinnedLibraryGroupKeys = groupView ? $libraryViewSettings.pinnedGroupKeys[groupView] : [];
+  $: orderedLibraryGroups = groupView ? orderLibraryGroups(libraryGroups, pinnedLibraryGroupKeys) : [];
+  $: visibleLibraryGroups = groupView ? filterLibraryGroups(orderedLibraryGroups, normalizedSearchQuery) : [];
   $: visibleGroupSongCount = new Set(
     visibleLibraryGroups.flatMap((group) => group.items.map((item) => item.id))
   ).size;
@@ -830,7 +864,9 @@
         : $t('playlist.repeat.off', { default: 'Repeat off' });
   $: localizedPanelTitle = localizePanelLabel(panelTitle);
   $: localizedRegionLabel = localizePanelLabel(regionLabel);
-  $: contextMenuActions = contextMenu?.kind === 'items' ? getContextMenuActions(contextMenu.ids) : [];
+  $: contextMenuActions = contextMenu?.kind === 'items' || contextMenu?.kind === 'library-group'
+    ? getContextMenuActions(contextMenu.ids)
+    : [];
   $: storedVisibleColumns = orderedColumns.filter((column) => column.visible);
   $: visibleColumnCount = storedVisibleColumns.length;
   $: contextMenuItems = contextMenu?.kind === 'columns'
@@ -841,14 +877,30 @@
         checked: column.visible,
         disabled: column.visible && visibleColumnCount === 1
       } satisfies MenuActionItem))
-    : contextMenuActions.map((action) => ({
-        ...action,
-        label: getContextMenuActionLabel(action),
-        shortcut: getContextMenuShortcut(action.shortcut)
-      }));
+    : [
+        ...(contextMenu?.kind === 'library-group'
+          ? [{
+              id: contextMenu.pinned ? 'unpin-library-group' : 'pin-library-group',
+              label: contextMenu.pinned
+                ? $t('playlist.library.unpin', { default: 'Unpin' })
+                : $t('playlist.library.pinToTop', { default: 'Pin to top' }),
+              icon: contextMenu.pinned ? 'keep_off' : 'keep'
+            } satisfies MenuActionItem]
+          : []),
+        ...contextMenuActions.map((action, index) => ({
+          ...action,
+          separatorBefore: contextMenu?.kind === 'library-group' && index === 0
+            ? true
+            : action.separatorBefore,
+          label: getContextMenuActionLabel(action),
+          shortcut: getContextMenuShortcut(action.shortcut)
+        }))
+      ];
   $: contextMenuAriaLabel = contextMenu?.kind === 'columns'
     ? $t('playlist.contextMenu.columns', { default: '{panel} columns', values: { panel: localizedPanelTitle } })
-    : $t('playlist.contextMenu.itemActions', { default: '{panel} item actions', values: { panel: localizedPanelTitle } });
+    : contextMenu?.kind === 'library-group'
+      ? $t('playlist.contextMenu.libraryGroupActions', { default: 'Library group actions' })
+      : $t('playlist.contextMenu.itemActions', { default: '{panel} item actions', values: { panel: localizedPanelTitle } });
   $: isCompactColumnLayout =
     layout === 'columns' &&
     dropzoneWidth > 0 &&
@@ -997,8 +1049,11 @@
           groups={visibleLibraryGroups}
           view={groupView}
           artworkUrls={albumArtworkUrls}
+          pinnedKeys={pinnedLibraryGroupKeys}
           on:open={(event) => handleLibraryGroupOpen(event.detail)}
           on:contextMenu={(event) => void handleLibraryGroupContextMenu(event.detail.event, event.detail.key)}
+          on:unpin={(event) => handleLibraryGroupUnpin(event.detail)}
+          on:movePin={(event) => handleLibraryGroupMove(event.detail)}
         />
       {:else if displayItems.length > 0}
         <TrackList

@@ -51,4 +51,20 @@ describe('library view settings', () => {
     expect(artists.order[0]).toBe('duration');
     expect(artists.sort).toEqual({ columnId: 'album', direction: 'asc' });
   });
+
+  it('keeps independently ordered pins for each grouped view', () => {
+    libraryViewSettings.pinGroup('artists', 'artists:first');
+    libraryViewSettings.pinGroup('artists', 'artists:second');
+    libraryViewSettings.pinGroup('albums', 'albums:only');
+    libraryViewSettings.movePinnedGroup('artists', 'artists:second', 'artists:first', 'before');
+
+    expect(libraryViewSettings.getSnapshot().pinnedGroupKeys.artists).toEqual([
+      'artists:second',
+      'artists:first'
+    ]);
+    expect(libraryViewSettings.getSnapshot().pinnedGroupKeys.albums).toEqual(['albums:only']);
+
+    libraryViewSettings.unpinGroup('artists', 'artists:second');
+    expect(libraryViewSettings.getSnapshot().pinnedGroupKeys.artists).toEqual(['artists:first']);
+  });
 });

@@ -4,7 +4,8 @@ import {
   buildLibraryGroups,
   filterLibraryGroupItems,
   filterLibraryGroups,
-  getLibraryViewTooltipDetails
+  getLibraryViewTooltipDetails,
+  orderLibraryGroups
 } from './library-views';
 
 function track(id: string, metadata: PlaylistItem['metadata'], path?: string): PlaylistItem {
@@ -76,5 +77,13 @@ describe('library view projections', () => {
     expect(details.songs).toBe('3 · 02:30');
     expect(details.artists).toBe('2');
     expect(details.albums).toBe('3');
+  });
+
+  it('places pinned groups first in pin order and leaves other groups sorted', () => {
+    const groups = buildLibraryGroups(tracks, 'artists');
+    const keys = groups.map((group) => group.key);
+    const ordered = orderLibraryGroups(groups, [keys[1], 'missing', keys[0]]);
+
+    expect(ordered.map((group) => group.key)).toEqual([keys[1], keys[0], ...keys.slice(2)]);
   });
 });

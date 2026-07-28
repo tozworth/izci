@@ -79,6 +79,7 @@ export type PlaybackRestoreMode = 'disabled' | 'position' | 'position-and-state'
 export type SortDirection = 'asc' | 'desc';
 export type LibraryColumnId = 'title' | 'artist' | 'album' | 'folder' | 'format' | 'duration' | 'plays';
 export type LibraryViewId = 'favorites' | 'songs' | 'artists' | 'albums' | 'genres' | 'years' | 'formats' | 'folders';
+export type LibraryGroupViewId = Exclude<LibraryViewId, 'favorites' | 'songs'>;
 export type ColorTheme =
   | 'gray'
   | 'ash'
@@ -506,6 +507,7 @@ export interface LibraryViewTableSettings {
 export interface LibraryViewSettings {
   activeView: LibraryViewId;
   views: Record<LibraryViewId, LibraryViewTableSettings>;
+  pinnedGroupKeys: Record<LibraryGroupViewId, string[]>;
   searchQuery: string;
 }
 

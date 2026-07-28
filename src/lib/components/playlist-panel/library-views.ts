@@ -1,8 +1,8 @@
-import type { LibraryViewId, PlaylistItem } from '$lib/types';
+import type { LibraryGroupViewId, LibraryViewId, PlaylistItem } from '$lib/types';
 import { getFolderFromPath, getTrackDisplayTitle } from '$lib/utils/files';
 import { filterItemsByQuery, formatTotalDuration, getTotalDuration, matchesSearchQuery } from './search';
 
-export type LibraryGroupViewId = Exclude<LibraryViewId, 'favorites' | 'songs'>;
+export type { LibraryGroupViewId } from '$lib/types';
 
 export interface LibraryViewDefinition {
   id: LibraryViewId;
@@ -201,6 +201,19 @@ export function groupMatchesSearchQuery(group: LibraryGroup, normalizedQuery: st
 
 export function filterLibraryGroups(groups: LibraryGroup[], normalizedQuery: string): LibraryGroup[] {
   return normalizedQuery ? groups.filter((group) => groupMatchesSearchQuery(group, normalizedQuery)) : groups;
+}
+
+export function orderLibraryGroups(groups: LibraryGroup[], pinnedKeys: string[]): LibraryGroup[] {
+  if (pinnedKeys.length === 0) return groups;
+
+  const groupsByKey = new Map(groups.map((group) => [group.key, group]));
+  const pinnedKeySet = new Set(pinnedKeys);
+  const pinnedGroups = pinnedKeys.flatMap((key) => {
+    const group = groupsByKey.get(key);
+    return group ? [group] : [];
+  });
+
+  return [...pinnedGroups, ...groups.filter((group) => !pinnedKeySet.has(group.key))];
 }
 
 export function getLibraryViewTooltipDetails(

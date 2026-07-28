@@ -1,5 +1,6 @@
 import type {
   LibraryColumnId,
+  LibraryGroupViewId,
   LibraryViewId,
   LibraryViewSettings,
   LibraryViewTableSettings,
@@ -12,6 +13,14 @@ export const LIBRARY_VIEW_SETTINGS_CHANNEL = 'izci-library-view-settings-v5';
 export const LIBRARY_VIEW_IDS: LibraryViewId[] = [
   'favorites',
   'songs',
+  'artists',
+  'albums',
+  'genres',
+  'years',
+  'formats',
+  'folders'
+];
+export const LIBRARY_GROUP_VIEW_IDS: LibraryGroupViewId[] = [
   'artists',
   'albums',
   'genres',
@@ -114,9 +123,17 @@ function createDefaultViews(): LibraryViewSettings['views'] {
   ) as LibraryViewSettings['views'];
 }
 
+function createDefaultPinnedGroupKeys(): LibraryViewSettings['pinnedGroupKeys'] {
+  return LIBRARY_GROUP_VIEW_IDS.reduce((result, view) => {
+    result[view] = [];
+    return result;
+  }, {} as LibraryViewSettings['pinnedGroupKeys']);
+}
+
 const DEFAULT_LIBRARY_VIEW_SETTINGS: LibraryViewSettings = {
   activeView: 'songs',
   views: createDefaultViews(),
+  pinnedGroupKeys: createDefaultPinnedGroupKeys(),
   searchQuery: ''
 };
 
@@ -161,6 +178,12 @@ function normalizeDirection(value: unknown): SortDirection {
 
 function normalizeSearchQuery(value: unknown): string {
   return typeof value === 'string' ? value : '';
+}
+
+function normalizePinnedGroupKeys(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+
+  return Array.from(new Set(value.filter((key): key is string => typeof key === 'string' && key !== '')));
 }
 
 function normalizeViewSettings(value: unknown, view: LibraryViewId): LibraryViewTableSettings {
@@ -217,6 +240,10 @@ function normalizeSettings(value: unknown): LibraryViewSettings {
     source.views && typeof source.views === 'object'
       ? (source.views as Partial<Record<LibraryViewId, unknown>>)
       : {};
+  const pinnedGroupKeysSource =
+    source.pinnedGroupKeys && typeof source.pinnedGroupKeys === 'object'
+      ? (source.pinnedGroupKeys as Partial<Record<LibraryGroupViewId, unknown>>)
+      : {};
 
   return {
     activeView: LIBRARY_VIEW_IDS.includes(source.activeView as LibraryViewId)
@@ -225,6 +252,9 @@ function normalizeSettings(value: unknown): LibraryViewSettings {
     views: Object.fromEntries(
       LIBRARY_VIEW_IDS.map((view) => [view, normalizeViewSettings(viewsSource[view], view)])
     ) as LibraryViewSettings['views'],
+    pinnedGroupKeys: Object.fromEntries(
+      LIBRARY_GROUP_VIEW_IDS.map((view) => [view, normalizePinnedGroupKeys(pinnedGroupKeysSource[view])])
+    ) as LibraryViewSettings['pinnedGroupKeys'],
     searchQuery: normalizeSearchQuery(source.searchQuery)
   };
 }
@@ -378,6 +408,56 @@ export const libraryViewSettings = {
       ...settings,
       searchQuery: normalizeSearchQuery(searchQuery)
     }));
+  },
+  pinGroup(view: LibraryGroupViewId, key: string): LibraryViewSettings {
+    return updateSettings((settings) => {
+      const pinnedKeys = settings.pinnedGroupKeys[view];
+
+      if (!key || pinnedKeys.includes(key)) return settings;
+
+      return {
+        ...settings,
+        pinnedGroupKeys: {
+          ...settings.pinnedGroupKeys,
+          [view]: [...pinnedKeys, key]
+        }
+      };
+    });
+  },
+  unpinGroup(view: LibraryGroupViewId, key: string): LibraryViewSettings {
+    return updateSettings((settings) => ({
+      ...settings,
+      pinnedGroupKeys: {
+        ...settings.pinnedGroupKeys,
+        [view]: settings.pinnedGroupKeys[view].filter((pinnedKey) => pinnedKey !== key)
+      }
+    }));
+  },
+  movePinnedGroup(
+    view: LibraryGroupViewId,
+    key: string,
+    targetKey: string,
+    position: 'before' | 'after'
+  ): LibraryViewSettings {
+    return updateSettings((settings) => {
+      const pinnedKeys = settings.pinnedGroupKeys[view];
+
+      if (key === targetKey || !pinnedKeys.includes(key) || !pinnedKeys.includes(targetKey)) {
+        return settings;
+      }
+
+      const nextKeys = pinnedKeys.filter((pinnedKey) => pinnedKey !== key);
+      const targetIndex = nextKeys.indexOf(targetKey);
+      nextKeys.splice(position === 'after' ? targetIndex + 1 : targetIndex, 0, key);
+
+      return {
+        ...settings,
+        pinnedGroupKeys: {
+          ...settings.pinnedGroupKeys,
+          [view]: nextKeys
+        }
+      };
+    });
   },
   reset: store.reset
 };

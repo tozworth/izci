@@ -1,3 +1,5 @@
+import type { LibraryGroupViewId } from '$lib/types';
+
 export type PlaylistPanelContextMenu =
   | {
       kind: 'items';
@@ -9,4 +11,13 @@ export type PlaylistPanelContextMenu =
       kind: 'columns';
       x: number;
       y: number;
+    }
+  | {
+      kind: 'library-group';
+      x: number;
+      y: number;
+      ids: string[];
+      view: LibraryGroupViewId;
+      key: string;
+      pinned: boolean;
     };

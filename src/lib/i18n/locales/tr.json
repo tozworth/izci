@@ -201,9 +201,13 @@
         "folders": "{count, plural, one {# klasör} other {# klasör}}",
         "groupsAndSongs": "{groups} · {songs, plural, one {# parça} other {# parça}}"
       },
+      "unpin": "Sabitlemeyi kaldır",
+      "pinToTop": "Üste sabitle",
       "noResults": "\"{query}\" ile eşleşen kütüphane ögesi yok.",
       "favoritesEmpty": "Favorilenen parça ve altparçalar burada görünür.",
       "empty": "Kütüphaneniz boş. Dosya veya klasör sürükleyin.",
+      "openGroup": "{group} grubunu aç",
+      "unpinNamed": "{group} sabitlemesini kaldır",
       "groupSongCount": "{count, plural, one {# parça} other {# parça}}",
       "views": {
         "favorites": "Favoriler",
@@ -248,6 +252,7 @@
     },
     "contextMenu": {
       "columns": "{panel} sütunları",
+      "libraryGroupActions": "Kütüphane grubu eylemleri",
       "itemActions": "{panel} ögesi eylemleri"
     },
     "listRegion": "{name} listesi",
