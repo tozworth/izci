@@ -1,0 +1,258 @@
+.player-bar.compact-player-bar {
+  grid-template-columns: minmax(10rem, 1fr) minmax(5rem, 10rem) auto;
+  grid-template-areas: 'track range controls';
+  gap: 0.35rem;
+  min-height: 0;
+  max-height: none;
+  padding: 0 0.45rem env(safe-area-inset-bottom, 0px) 0;
+  --player-range-track-size: 0.25rem;
+  --player-range-thumb-size: 0.62rem;
+}
+
+.player-bar.compact-player-bar:has(.volume[data-popup-open='true']) {
+  overflow: visible;
+}
+
+.compact-player-bar .player-track-group {
+  gap: 0.38rem;
+  align-self: stretch;
+}
+
+.compact-player-bar.video-track-active .player-track-group {
+  min-height: 32px;
+  padding-left: 0.6rem;
+}
+
+.compact-player-bar .player-artwork-button,
+.compact-player-bar .player-artwork {
+  width: 32px;
+  height: 32px;
+  min-height: 32px;
+  max-height: 32px;
+  border-radius: 0;
+}
+
+.compact-player-bar .player-artwork-button {
+  align-self: center;
+  flex: 0 0 32px;
+}
+
+.compact-player-bar .player-artwork {
+  display: block;
+  box-shadow: none;
+}
+
+.compact-player-bar .player-track {
+  display: flex;
+  align-items: baseline;
+  gap: 0.35rem;
+  font-size: 0.78rem;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.compact-player-bar .player-track-title {
+  width: auto;
+  flex: 0 1 auto;
+}
+
+.compact-player-bar .player-track strong {
+  font-size: 0.8rem;
+}
+
+.compact-player-bar .player-track-subtitle,
+.compact-player-bar .player-track > span {
+  flex: 1 1 auto;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.compact-player-bar .player-actions {
+  gap: 0.05rem;
+}
+
+.compact-player-bar .player-control-strip {
+  grid-area: controls;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.05rem;
+  min-width: 0;
+}
+
+.compact-player-bar .transport-button,
+.compact-player-bar .transport-button-primary {
+  width: 1.65rem;
+  height: 1.65rem;
+}
+
+.compact-player-bar .transport-button .material-symbols-outlined,
+.compact-player-bar .transport-button-primary .material-symbols-outlined {
+  font-size: 1.18rem;
+}
+
+.compact-player-bar .player-range {
+  grid-template-columns: auto minmax(3rem, 1fr) auto;
+  gap: 0.28rem;
+  width: 100%;
+  max-width: 10rem;
+  justify-self: end;
+}
+
+.compact-player-bar .player-range > span {
+  height: var(--player-range-thumb-size);
+  font-size: 0.66rem;
+}
+
+.compact-player-bar .volume {
+  min-width: auto;
+  justify-self: end;
+  padding-left: 0;
+  overflow: visible;
+  gap: 0.05rem;
+  --player-range-track-size: 0.52rem;
+  --player-range-thumb-size: 1.05rem;
+}
+
+.compact-player-bar .volume-control {
+  display: block;
+  flex: 0 0 auto;
+  overflow: visible;
+}
+
+.compact-player-bar .player-control-strip :is(.transport-button, .favorite-toggle, .raf-toggle, .volume-label) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.65rem;
+  height: 1.65rem;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  transition:
+    color 120ms ease,
+    filter 120ms ease-out;
+}
+
+.compact-player-bar .player-control-strip .material-symbols-outlined {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.18rem;
+  height: 1.18rem;
+  flex: 0 0 1.18rem;
+  font-size: 1.18rem;
+  line-height: 1;
+  font-variation-settings: 'wght' 400;
+}
+
+.compact-player-bar .favorite-toggle .material-symbols-outlined {
+  font-size: 0.9rem;
+}
+
+.compact-player-bar .raf-toggle .material-symbols-outlined {
+  font-size: 0.9rem;
+}
+
+.compact-player-bar .video-theater-toggle .material-symbols-outlined {
+  font-size: 0.9rem;
+}
+
+.compact-player-bar .volume-label .material-symbols-outlined {
+  font-size: 1rem;
+}
+
+.compact-player-bar .favorite-toggle.active .material-symbols-outlined {
+  font-variation-settings: 'FILL' 1, 'wght' 400;
+}
+
+.compact-player-bar .player-control-strip :is(.transport-button, .favorite-toggle, .raf-toggle, .volume-label):hover:not(:disabled) {
+  background: transparent;
+  filter:
+    drop-shadow(0 0 0.38rem color-mix(in srgb, currentColor 68%, transparent))
+    drop-shadow(0 0 0.95rem color-mix(in srgb, var(--accent-strong) 46%, transparent));
+}
+
+.compact-player-bar .volume-popup {
+  display: none;
+}
+
+.compact-player-bar .volume[data-popup-open='true'] .volume-popup {
+  position: absolute;
+  left: 50%;
+  bottom: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  height: 8.75rem;
+  padding: 0.7rem 0 0.35rem;
+  transform: translateX(-50%);
+  z-index: 1;
+}
+
+.compact-player-bar .volume-popup-track {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.4rem;
+  height: 7.7rem;
+  border-radius: 0.5rem;
+  background-color: var(--bg-volume-popup);
+}
+
+.compact-player-bar .volume-popup-track .volume-range {
+  width: var(--player-range-thumb-size);
+  height: 7rem;
+  align-items: center;
+  justify-content: center;
+}
+
+.compact-player-bar .volume-popup-track .volume-range::before,
+.compact-player-bar .volume-popup-track .volume-range .range-control-fill {
+  display: block;
+  left: 50%;
+  right: auto;
+  top: 0;
+  bottom: 0;
+  width: var(--player-range-track-size);
+  height: auto;
+  transform: translateX(-50%);
+}
+
+.compact-player-bar .volume-popup-track .volume-range .range-control-fill {
+  top: auto;
+  height: var(--player-range-progress);
+}
+
+.compact-player-bar .volume-popup input[type='range'] {
+  width: var(--player-range-track-size);
+  height: 7rem;
+  writing-mode: vertical-lr;
+  direction: rtl;
+}
+
+.compact-player-bar .volume-popup .range-control input[type='range']::-webkit-slider-runnable-track {
+  width: var(--player-range-track-size);
+  height: 100%;
+}
+
+.compact-player-bar .volume-popup input[type='range']::-webkit-slider-thumb {
+  margin-left: calc((var(--player-range-track-size) - var(--player-range-thumb-size)) / 2);
+  margin-top: 0;
+}
+
+@media (max-width: 560px) {
+  .player-bar.compact-player-bar {
+    grid-template-columns: minmax(5rem, 1fr) minmax(4rem, 7rem) auto;
+  }
+
+  .compact-player-bar .player-range > span {
+    display: none;
+  }
+
+  .compact-player-bar .player-range {
+    grid-template-columns: minmax(3rem, 1fr);
+  }
+}

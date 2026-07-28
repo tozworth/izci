@@ -1,0 +1,49 @@
+.player-bar.theater-player-bar {
+  left: 50%;
+  right: auto;
+  bottom: var(--video-theater-player-bottom);
+  width: min(calc(100vw - 1.5rem), 72rem);
+  border: 1px solid var(--player-bar-separator);
+  border-radius: 0.3rem;
+  background: color-mix(in srgb, var(--player-bar-background, var(--menu-bar-bg)) 80%, transparent);
+  box-shadow:
+    0 1.1rem 3.2rem rgba(0, 0, 0, 0.44),
+    0 0.2rem 0.7rem rgba(0, 0, 0, 0.28);
+  animation: video-theater-player-enter 180ms ease-out;
+  transform: translateX(-50%);
+  transition:
+    opacity 160ms ease-out,
+    transform 180ms ease-out,
+    color var(--artwork-ui-transition-duration) linear,
+    background-color var(--artwork-ui-transition-duration) linear,
+    border-color var(--artwork-ui-transition-duration) linear,
+    box-shadow var(--artwork-ui-transition-duration) linear;
+  z-index: 50;
+}
+
+.player-bar.theater-player-bar:not(.compact-player-bar) .volume {
+  width: 100%;
+}
+
+.player-bar.theater-player-bar:not(.compact-player-bar) .volume-range {
+  width: 100%;
+  min-width: 6rem;
+}
+
+.app-shell.video-theater-controls-hidden .player-bar.theater-player-bar {
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, calc(100% + 1.5rem));
+}
+
+@keyframes video-theater-player-enter {
+  from {
+    opacity: 0;
+    transform: translate(-50%, calc(100% + 1.5rem));
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(-50%);
+  }
+}
