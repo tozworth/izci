@@ -410,6 +410,7 @@
   }
 
   .track-artwork {
+    justify-self: center;
     width: min(100%, 16rem);
     aspect-ratio: 1;
     border-radius: var(--track-artwork-radius);
