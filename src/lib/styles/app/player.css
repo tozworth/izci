@@ -96,6 +96,11 @@
   );
 }
 
+.player-bar[data-backdrop-zone-id='player'].artwork-background-active {
+  /* Let the shared artwork dimmer be the sole brightness treatment for this zone. */
+  --menu-bar-bg: transparent;
+}
+
 .player-bar.visualizer-backdrop-active:not(.artwork-background-active) {
   color-scheme: dark;
   --text: #e4e7eb;
