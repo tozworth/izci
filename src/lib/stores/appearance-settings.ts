@@ -5,9 +5,11 @@ import type {
   BackdropZoneEffect,
   BackdropZoneId,
   BackdropZoneSettings,
-  ColorTheme,
+  ColorThemeMode,
   ContextualTabAutomation,
   ContextualTabSettings,
+  DarkColorTheme,
+  LightColorTheme,
   LyricsFontSizeSettings,
   LyricsDisplayStyle,
   LyricsSettings
@@ -16,7 +18,9 @@ import { createSettingsStore } from './persistent-store';
 
 export const APPEARANCE_SETTINGS_STORAGE_KEY = 'izci.appearance-settings';
 export const APPEARANCE_SETTINGS_CHANNEL = 'izci.appearance-settings';
-export const DEFAULT_COLOR_THEME: ColorTheme = 'gray';
+export const DEFAULT_COLOR_THEME_MODE: ColorThemeMode = 'system';
+export const DEFAULT_LIGHT_COLOR_THEME: LightColorTheme = 'pale-light';
+export const DEFAULT_DARK_COLOR_THEME: DarkColorTheme = 'pale-dark';
 export const MIN_CHAMELEON_HUE = 0;
 export const MAX_CHAMELEON_HUE = 359;
 export const DEFAULT_CHAMELEON_HUE = 210;
@@ -124,7 +128,9 @@ export const DEFAULT_LYRICS_SETTINGS: LyricsSettings = {
   autoFocusInNowPlaying: true
 };
 export const DEFAULT_APPEARANCE_SETTINGS: AppearanceSettings = {
-  colorTheme: DEFAULT_COLOR_THEME,
+  colorThemeMode: DEFAULT_COLOR_THEME_MODE,
+  lightColorTheme: DEFAULT_LIGHT_COLOR_THEME,
+  darkColorTheme: DEFAULT_DARK_COLOR_THEME,
   chameleonHue: DEFAULT_CHAMELEON_HUE,
   chameleonSaturation: DEFAULT_CHAMELEON_SATURATION,
   useArtworkPlayerColors: false,
@@ -153,15 +159,26 @@ export function hasVisualizerBackdrop(effect: BackdropZoneEffect): boolean {
   return effect === 'visualizer' || effect === 'both';
 }
 
-function normalizeColorTheme(value: unknown): ColorTheme {
+function normalizeColorThemeMode(value: unknown): ColorThemeMode {
+  return value === 'light' || value === 'dark' ? value : DEFAULT_COLOR_THEME_MODE;
+}
+
+function normalizeLightColorTheme(value: unknown): LightColorTheme {
   switch (value) {
-    case 'gray':
-    case 'ash':
-    case 'coal':
-    case 'lights-out':
+    case 'pale-light':
     case 'solarized-light':
-    case 'solarized-dark':
     case 'nordic-light':
+      return value;
+    default:
+      return DEFAULT_LIGHT_COLOR_THEME;
+  }
+}
+
+function normalizeDarkColorTheme(value: unknown): DarkColorTheme {
+  switch (value) {
+    case 'pale-dark':
+    case 'lights-out':
+    case 'solarized-dark':
     case 'nordic-dark':
     case 'gruvbox':
     case 'dracula':
@@ -169,7 +186,7 @@ function normalizeColorTheme(value: unknown): ColorTheme {
     case 'chameleon':
       return value;
     default:
-      return DEFAULT_COLOR_THEME;
+      return DEFAULT_DARK_COLOR_THEME;
   }
 }
 
@@ -403,7 +420,9 @@ export function normalizeAppearanceSettings(value: unknown): AppearanceSettings 
       : {};
 
   return {
-    colorTheme: normalizeColorTheme(source.colorTheme),
+    colorThemeMode: normalizeColorThemeMode(source.colorThemeMode),
+    lightColorTheme: normalizeLightColorTheme(source.lightColorTheme),
+    darkColorTheme: normalizeDarkColorTheme(source.darkColorTheme),
     chameleonHue: normalizeChameleonHue(source.chameleonHue),
     chameleonSaturation: normalizeChameleonSaturation(source.chameleonSaturation),
     useArtworkPlayerColors: source.useArtworkPlayerColors === true,

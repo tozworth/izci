@@ -507,14 +507,10 @@
     },
     "appearance": {
       "themes": {
-        "gray": "Gri (varsayılan)",
-        "ash": "Ash",
-        "coal": "Kömür",
+        "pale": "Soluk (varsayılan)",
         "lightsOut": "Işıksız",
-        "solarizedLight": "Solarized Açık",
-        "solarizedDark": "Solarized Koyu",
-        "nordicLight": "Nordic Açık",
-        "nordicDark": "Nordic Koyu",
+        "solarized": "Solarized",
+        "nordic": "Nordic",
         "gruvbox": "Gruvbox",
         "dracula": "Dracula",
         "ember": "Köz",
@@ -572,6 +568,13 @@
         "heading": "Pencere Teması",
         "title": "Tema",
         "hint": "Genel renk temasını belirler."
+      },
+      "themeMode": {
+        "title": "Görünüm",
+        "hint": "Sistem renk tercihini izler veya seçili görünümü korur.",
+        "system": "Sistem varsayılanı",
+        "light": "Açık",
+        "dark": "Koyu"
       },
       "chameleonColor": {
         "title": "Bukalemun rengi",

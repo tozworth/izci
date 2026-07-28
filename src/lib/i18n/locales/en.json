@@ -507,14 +507,10 @@
     },
     "appearance": {
       "themes": {
-        "gray": "Gray (default)",
-        "ash": "Ash",
-        "coal": "Coal",
+        "pale": "Pale (default)",
         "lightsOut": "Lights Out",
-        "solarizedLight": "Solarized Light",
-        "solarizedDark": "Solarized Dark",
-        "nordicLight": "Nordic Light",
-        "nordicDark": "Nordic Dark",
+        "solarized": "Solarized",
+        "nordic": "Nordic",
         "gruvbox": "Gruvbox",
         "dracula": "Dracula",
         "ember": "Ember",
@@ -572,6 +568,13 @@
         "heading": "Window Theme",
         "title": "Color theme",
         "hint": "Sets the global color theme."
+      },
+      "themeMode": {
+        "title": "Appearance",
+        "hint": "Follows the system color preference or keeps the selected appearance.",
+        "system": "Follow system",
+        "light": "Light",
+        "dark": "Dark"
       },
       "chameleonColor": {
         "title": "Chameleon color",

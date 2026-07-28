@@ -81,9 +81,8 @@ export type LibraryColumnId = 'title' | 'artist' | 'album' | 'folder' | 'format'
 export type LibraryViewId = 'favorites' | 'songs' | 'artists' | 'albums' | 'genres' | 'years' | 'formats' | 'folders';
 export type LibraryGroupViewId = Exclude<LibraryViewId, 'favorites' | 'songs'>;
 export type ColorTheme =
-  | 'gray'
-  | 'ash'
-  | 'coal'
+  | 'pale-light'
+  | 'pale-dark'
   | 'lights-out'
   | 'solarized-light'
   | 'solarized-dark'
@@ -93,6 +92,10 @@ export type ColorTheme =
   | 'dracula'
   | 'ember'
   | 'chameleon';
+export type ColorScheme = 'light' | 'dark';
+export type ColorThemeMode = 'system' | ColorScheme;
+export type LightColorTheme = 'pale-light' | 'solarized-light' | 'nordic-light';
+export type DarkColorTheme = Exclude<ColorTheme, LightColorTheme>;
 export type BackdropZoneId = 'left' | 'center' | 'right' | 'player' | 'nowPlaying';
 export type BackdropZoneEffect = 'none' | 'artwork' | 'visualizer' | 'both';
 export type BackdropZoneSettings = Record<BackdropZoneId, BackdropZoneEffect>;
@@ -329,7 +332,9 @@ export interface LyricsSettings {
 }
 
 export interface AppearanceSettings {
-  colorTheme: ColorTheme;
+  colorThemeMode: ColorThemeMode;
+  lightColorTheme: LightColorTheme;
+  darkColorTheme: DarkColorTheme;
   chameleonHue: number;
   chameleonSaturation: number;
   useArtworkPlayerColors: boolean;

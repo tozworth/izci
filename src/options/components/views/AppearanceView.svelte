@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import SettingsField from '../SettingsField.svelte';
-  import { COLOR_THEME_OPTIONS } from '$lib/services/theme';
+  import { COLOR_THEME_OPTIONS, systemColorScheme } from '$lib/services/theme';
   import { t } from 'svelte-i18n';
   import { APP_LOCALE_OPTIONS, appLocale } from '$lib/i18n';
   import { hasLocalFontAccessPermission, queryLocalFontFamilies, supportsLocalFontAccess } from '$lib/services/local-fonts';
@@ -14,7 +14,7 @@
     SYSTEM_FONT_FAMILY,
     appearanceSettings
   } from '$lib/stores/appearance-settings';
-  import type { ColorTheme, ContextualTabAutomation, ContextualWorkspaceTab } from '$lib/types';
+  import type { ColorTheme, ColorThemeMode, ContextualTabAutomation, ContextualWorkspaceTab, DarkColorTheme, LightColorTheme } from '$lib/types';
 
   type BooleanAppearanceSetting =
     | 'useArtworkPlayerColors'
@@ -41,7 +41,21 @@
   let localFontPermissionChecked = !localFontAccessSupported;
 
   function checked(event: Event) { return (event.currentTarget as HTMLInputElement).checked; }
-  function handleColorThemeChange(event: Event) { appearanceSettings.update({ colorTheme: (event.currentTarget as HTMLSelectElement).value as ColorTheme }); }
+  $: effectiveColorScheme = $appearanceSettings.colorThemeMode === 'system'
+    ? $systemColorScheme
+    : $appearanceSettings.colorThemeMode;
+  $: activeColorTheme = effectiveColorScheme === 'light'
+    ? $appearanceSettings.lightColorTheme
+    : $appearanceSettings.darkColorTheme;
+  $: availableColorThemes = COLOR_THEME_OPTIONS.filter((option) => option.scheme === effectiveColorScheme);
+
+  function handleColorThemeChange(event: Event) {
+    const value = (event.currentTarget as HTMLSelectElement).value;
+    appearanceSettings.update(effectiveColorScheme === 'light'
+      ? { lightColorTheme: value as LightColorTheme }
+      : { darkColorTheme: value as DarkColorTheme });
+  }
+  function handleColorThemeModeChange(event: Event) { appearanceSettings.update({ colorThemeMode: (event.currentTarget as HTMLSelectElement).value as ColorThemeMode }); }
   function handleLanguageChange(event: Event) { appLocale.set((event.currentTarget as HTMLSelectElement).value); }
   function handleChameleonHueInput(event: Event) { appearanceSettings.update({ chameleonHue: Number((event.currentTarget as HTMLInputElement).value) }); }
   function handleChameleonSaturationInput(event: Event) { appearanceSettings.update({ chameleonSaturation: Number((event.currentTarget as HTMLInputElement).value) }); }
@@ -74,14 +88,13 @@
 
   function themeLabel(value: ColorTheme): string {
     switch (value) {
-      case 'gray': return $t('options.appearance.themes.gray', { default: 'Gray (default)' });
-      case 'ash': return $t('options.appearance.themes.ash', { default: 'Ash' });
-      case 'coal': return $t('options.appearance.themes.coal', { default: 'Coal' });
+      case 'pale-light':
+      case 'pale-dark': return $t('options.appearance.themes.pale', { default: 'Pale (default)' });
       case 'lights-out': return $t('options.appearance.themes.lightsOut', { default: 'Lights Out' });
-      case 'solarized-light': return $t('options.appearance.themes.solarizedLight', { default: 'Solarized Light' });
-      case 'solarized-dark': return $t('options.appearance.themes.solarizedDark', { default: 'Solarized Dark' });
-      case 'nordic-light': return $t('options.appearance.themes.nordicLight', { default: 'Nordic Light' });
-      case 'nordic-dark': return $t('options.appearance.themes.nordicDark', { default: 'Nordic Dark' });
+      case 'solarized-light':
+      case 'solarized-dark': return $t('options.appearance.themes.solarized', { default: 'Solarized' });
+      case 'nordic-light':
+      case 'nordic-dark': return $t('options.appearance.themes.nordic', { default: 'Nordic' });
       case 'gruvbox': return $t('options.appearance.themes.gruvbox', { default: 'Gruvbox' });
       case 'dracula': return $t('options.appearance.themes.dracula', { default: 'Dracula' });
       case 'ember': return $t('options.appearance.themes.ember', { default: 'Ember' });
@@ -146,14 +159,22 @@
     <h2>{$t('options.appearance.theme.heading', { default: 'Window Theme' })}</h2>
     <div class="field-grid">
       <SettingsField title={$t('options.appearance.theme.title', { default: 'Color theme' })} hint={$t('options.appearance.theme.hint', { default: 'Sets the global color theme.' })}>
-          <select value={$appearanceSettings.colorTheme} on:change={handleColorThemeChange}>
-            {#each COLOR_THEME_OPTIONS as option}
+          <select value={activeColorTheme} on:change={handleColorThemeChange}>
+            {#each availableColorThemes as option}
               <option value={option.value}>{themeLabel(option.value)}</option>
             {/each}
           </select>
       </SettingsField>
 
-      {#if $appearanceSettings.colorTheme === 'chameleon'}
+      <SettingsField title={$t('options.appearance.themeMode.title', { default: 'Appearance' })} hint={$t('options.appearance.themeMode.hint', { default: 'Follows the system color preference or keeps the selected appearance.' })}>
+        <select value={$appearanceSettings.colorThemeMode} on:change={handleColorThemeModeChange}>
+          <option value="system">{$t('options.appearance.themeMode.system', { default: 'Follow system' })}</option>
+          <option value="light">{$t('options.appearance.themeMode.light', { default: 'Light' })}</option>
+          <option value="dark">{$t('options.appearance.themeMode.dark', { default: 'Dark' })}</option>
+        </select>
+      </SettingsField>
+
+      {#if activeColorTheme === 'chameleon'}
         <SettingsField
           title={$t('options.appearance.chameleonColor.title', { default: 'Chameleon color' })}
           hint={$t('options.appearance.chameleonColor.hint', { default: "Fine-tunes Chameleon's hue. This choice is remembered when you use another theme." })}

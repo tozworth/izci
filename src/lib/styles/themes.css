@@ -4,7 +4,7 @@
   --system-font-family: system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, Cantarell, "Noto Sans", sans-serif;
 }
 :root,
-:root[data-theme='gray'] {
+:root[data-theme='pale-dark'] {
   color-scheme: dark;
   font-family: var(--app-font-family);
   --bg-base: #18191b;
@@ -80,7 +80,7 @@
   --dropzone-background: linear-gradient(180deg, rgba(228, 231, 235, 0.022), transparent 18%);
 }
 
-:root[data-theme='ash'] {
+:root[data-theme='pale-light'] {
   color-scheme: light;
   --bg-base: #e8e7e4;
   --menu-bar-bg: #e4e3e0;
@@ -156,7 +156,7 @@
   --dropzone-background: linear-gradient(180deg, rgba(255, 255, 255, 0.16), transparent 18%);
 }
 
-:root[data-theme='coal'] {
+:root[data-theme='pale-dark'] {
   --bg-base: #101113;
   --menu-bar-bg: #101113;
   --window-topbar-bg: #101113;

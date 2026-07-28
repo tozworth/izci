@@ -2,14 +2,47 @@ import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_CHAMELEON_HUE,
   DEFAULT_CHAMELEON_SATURATION,
+  DEFAULT_DARK_COLOR_THEME,
+  DEFAULT_LIGHT_COLOR_THEME,
   MAX_CHAMELEON_HUE,
   MIN_CHAMELEON_HUE,
   MAX_CHAMELEON_SATURATION,
   MIN_CHAMELEON_SATURATION,
   normalizeChameleonHue,
   normalizeChameleonSaturation,
+  normalizeAppearanceSettings,
   normalizeContextualTabAutomation
 } from './appearance-settings';
+
+describe('normalizeAppearanceSettings theme selection', () => {
+  it('defaults to following the system with a remembered theme for each scheme', () => {
+    const settings = normalizeAppearanceSettings(undefined);
+
+    expect(settings.colorThemeMode).toBe('system');
+    expect(settings.lightColorTheme).toBe(DEFAULT_LIGHT_COLOR_THEME);
+    expect(settings.darkColorTheme).toBe(DEFAULT_DARK_COLOR_THEME);
+  });
+
+  it('keeps valid scheme-specific themes and rejects themes from the other scheme', () => {
+    const settings = normalizeAppearanceSettings({
+      colorThemeMode: 'light',
+      lightColorTheme: 'nordic-light',
+      darkColorTheme: 'dracula'
+    });
+    const invalidSettings = normalizeAppearanceSettings({
+      colorThemeMode: 'sepia',
+      lightColorTheme: 'dracula',
+      darkColorTheme: 'pale-light'
+    });
+
+    expect(settings.colorThemeMode).toBe('light');
+    expect(settings.lightColorTheme).toBe('nordic-light');
+    expect(settings.darkColorTheme).toBe('dracula');
+    expect(invalidSettings.colorThemeMode).toBe('system');
+    expect(invalidSettings.lightColorTheme).toBe(DEFAULT_LIGHT_COLOR_THEME);
+    expect(invalidSettings.darkColorTheme).toBe(DEFAULT_DARK_COLOR_THEME);
+  });
+});
 
 describe('normalizeChameleonHue', () => {
   it('keeps a valid hue independently usable by the appearance store', () => {

@@ -470,9 +470,7 @@
     },
     "appearance": {
       "themes": {
-        "gray": "Government gray (factory circumstance)",
-        "ash": "After-fire powder",
-        "coal": "Compressed ancient forest",
+        "pale": "Pale (factory circumstance)",
         "lightsOut": "Electricity bill unpaid",
         "nordic": "Cold northern furniture",
         "gruvbox": "Old computer",

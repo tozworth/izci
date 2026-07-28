@@ -3,27 +3,35 @@ import {
   MAX_CHAMELEON_SATURATION,
   SYSTEM_FONT_FAMILY
 } from '$lib/stores/appearance-settings';
-import type { ColorTheme } from '$lib/types';
+import type { ColorScheme, ColorTheme } from '$lib/types';
+import { readable } from 'svelte/store';
 
-export const COLOR_THEME_OPTIONS: Array<{ value: ColorTheme; label: string }> = [
-  { value: 'gray', label: 'Gray (default)' },
-  { value: 'ash', label: 'Ash' },
-  { value: 'coal', label: 'Coal' },
-  { value: 'lights-out', label: 'Lights Out' },
-  { value: 'solarized-light', label: 'Solarized Light' },
-  { value: 'solarized-dark', label: 'Solarized Dark' },
-  { value: 'nordic-light', label: 'Nordic Light' },
-  { value: 'nordic-dark', label: 'Nordic Dark' },
-  { value: 'gruvbox', label: 'Gruvbox' },
-  { value: 'dracula', label: 'Dracula' },
-  { value: 'ember', label: 'Ember' },
-  { value: 'chameleon', label: 'Chameleon' }
+export const COLOR_THEME_OPTIONS: Array<{ value: ColorTheme; scheme: ColorScheme }> = [
+  { value: 'pale-light', scheme: 'light' },
+  { value: 'pale-dark', scheme: 'dark' },
+  { value: 'lights-out', scheme: 'dark' },
+  { value: 'solarized-light', scheme: 'light' },
+  { value: 'solarized-dark', scheme: 'dark' },
+  { value: 'nordic-light', scheme: 'light' },
+  { value: 'nordic-dark', scheme: 'dark' },
+  { value: 'gruvbox', scheme: 'dark' },
+  { value: 'dracula', scheme: 'dark' },
+  { value: 'ember', scheme: 'dark' },
+  { value: 'chameleon', scheme: 'dark' }
 ];
 
+export const systemColorScheme = readable<ColorScheme>('dark', (set) => {
+  if (typeof window === 'undefined') return;
+  const query = window.matchMedia('(prefers-color-scheme: dark)');
+  const update = () => set(query.matches ? 'dark' : 'light');
+  update();
+  query.addEventListener('change', update);
+  return () => query.removeEventListener('change', update);
+});
+
 const THEME_COLOR_BY_THEME: Record<ColorTheme, string> = {
-  gray: '#18191b',
-  ash: '#e4e3e0',
-  coal: '#101113',
+  'pale-light': '#e4e3e0',
+  'pale-dark': '#101113',
   'lights-out': '#000000',
   'solarized-light': '#eee8d5',
   'solarized-dark': '#002b36',
@@ -103,19 +111,26 @@ export function initializeTheme(): void {
   }
 
   initialized = true;
-  const initialSettings = appearanceSettings.getSnapshot();
-  applyTheme(
-    initialSettings.colorTheme,
-    initialSettings.chameleonHue,
-    initialSettings.chameleonSaturation,
-    initialSettings.fontFamily
-  );
-  appearanceSettings.subscribe((settings) => {
+  let settings = appearanceSettings.getSnapshot();
+  let systemScheme: ColorScheme = 'dark';
+  const update = () => {
+    const scheme = settings.colorThemeMode === 'system' ? systemScheme : settings.colorThemeMode;
+    const theme: ColorTheme = scheme === 'light'
+      ? settings.lightColorTheme
+      : settings.darkColorTheme;
     applyTheme(
-      settings.colorTheme,
+      theme,
       settings.chameleonHue,
       settings.chameleonSaturation,
       settings.fontFamily
     );
+  };
+  systemColorScheme.subscribe((nextScheme) => {
+    systemScheme = nextScheme;
+    update();
+  });
+  appearanceSettings.subscribe((nextSettings) => {
+    settings = nextSettings;
+    update();
   });
 }
