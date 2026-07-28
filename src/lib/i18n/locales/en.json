@@ -61,7 +61,9 @@
       "patternLabel": "Pattern {position}",
       "channelLabel": "Channel {number}",
       "channelAbbreviation": "CH",
-      "cellDescription": "Channel {number}: {value}"
+      "cellDescription": "Channel {number}: {value}",
+      "noModule": "Play a tracker module to view its patterns.",
+      "unsupported": "Pattern data is not available for this tracker module."
     },
     "playbackProgress": {
       "resumedAt": "Resumed at {position}",

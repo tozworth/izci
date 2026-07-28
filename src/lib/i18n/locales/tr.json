@@ -61,7 +61,9 @@
       "patternLabel": "Örüntü {position}",
       "channelLabel": "Kanal {number}",
       "channelAbbreviation": "KNL",
-      "cellDescription": "Kanal {number}: {value}"
+      "cellDescription": "Kanal {number}: {value}",
+      "noModule": "Örüntülerini görüntülemek için bir tracker modülü oynatın.",
+      "unsupported": "Bu tracker modülü için örüntü verileri kullanılamıyor."
     },
     "playbackProgress": {
       "resumedAt": "{position} konumundan devam edildi",

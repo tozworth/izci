@@ -243,6 +243,14 @@
         {/each}
       </div>
     </div>
+  {:else if track?.kind !== 'module'}
+    <div class="pattern-empty-state">
+      <p>{$t('main.patterns.noModule', { default: 'Play a tracker module to view its patterns.' })}</p>
+    </div>
+  {:else}
+    <div class="pattern-empty-state">
+      <p>{$t('main.patterns.unsupported', { default: 'Pattern data is not available for this tracker module.' })}</p>
+    </div>
   {/if}
 </section>
 
@@ -256,9 +264,23 @@
     min-width: 0;
     min-height: 0;
     overflow: hidden;
-    background:
-      radial-gradient(circle at 50% 38%, color-mix(in srgb, var(--accent) 6%, transparent), transparent 44%),
-      color-mix(in srgb, var(--bg-base) 93%, transparent);
+    background: var(--bg-elevated);
+  }
+
+  .pattern-empty-state {
+    display: grid;
+    grid-row: 1 / -1;
+    place-items: center;
+    min-width: 0;
+    min-height: 0;
+    padding: 1rem;
+    color: var(--muted);
+    font-size: 0.72rem;
+    text-align: center;
+  }
+
+  .pattern-empty-state p {
+    margin: 0;
   }
 
   .pattern-toolbar {
