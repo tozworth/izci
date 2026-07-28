@@ -89,7 +89,6 @@
 
   let contextMenu: PlaylistPanelContextMenu | null = null;
   let dropzoneElement: HTMLDivElement | null = null;
-  let headerElement: HTMLDivElement | null = null;
   let columnsHeaderElement: HTMLDivElement | null = null;
   let searchInputElement: HTMLInputElement | null = null;
   let playlistHeaderCovered = false;
@@ -741,10 +740,9 @@
       return;
     }
 
-    const headerHeight = headerElement?.offsetHeight ?? 0;
-    const visibleHeight = Math.max(dropzoneElement.clientHeight - headerHeight, row.offsetHeight);
+    const visibleHeight = Math.max(dropzoneElement.clientHeight, row.offsetHeight);
     const rowTop = row.offsetTop;
-    const centeredTop = rowTop - headerHeight - (visibleHeight - row.offsetHeight) / 2;
+    const centeredTop = rowTop - (visibleHeight - row.offsetHeight) / 2;
     const maxScrollTop = Math.max(dropzoneElement.scrollHeight - dropzoneElement.clientHeight, 0);
     dropzoneElement.scrollTo({
       top: clamp(centeredTop, 0, maxScrollTop)
@@ -918,17 +916,13 @@
   {/if}
 
   <div
-    bind:this={dropzoneElement}
-    bind:clientWidth={dropzoneWidth}
     class="dropzone playlist-dropzone"
     role="region"
     aria-label={$t('playlist.listRegion', { default: '{name} list', values: { name: localizedRegionLabel } })}
     on:dragover|preventDefault
     on:drop={handleDrop}
-    on:scroll={updatePlaylistHeaderState}
   >
     <div
-      bind:this={headerElement}
       class="panel-header playlist-panel-header"
       class:is-covered={playlistHeaderCovered}
       class:has-column-header={showTrackRows && filteredItems.length > 0 && layout === 'columns' && !isCompactColumnLayout}
@@ -992,42 +986,49 @@
       {/if}
     </div>
 
-    {#if !showTrackRows && visibleLibraryGroups.length > 0 && groupView}
-      <LibraryGroupList
-        groups={visibleLibraryGroups}
-        view={groupView}
-        artworkUrls={albumArtworkUrls}
-        on:open={(event) => handleLibraryGroupOpen(event.detail)}
-        on:contextMenu={(event) => void handleLibraryGroupContextMenu(event.detail.event, event.detail.key)}
-      />
-    {:else if displayItems.length > 0}
-      <TrackList
-        {displayItems}
-        selectedIds={displaySelectedIds}
-        playingId={displayPlayingId}
-        {layout}
-        {isCompactColumnLayout}
-        {visibleColumns}
-        {tableTemplateColumns}
-        {tableColumnGap}
-        {hideTrackFormat}
-        on:itemClick={(event) => handleItemClick(event.detail.event, event.detail.id)}
-        on:itemDoubleClick={(event) => handleItemDoubleClick(event.detail)}
-        on:itemContextMenu={(event) => void handleItemContextMenu(event.detail.event, event.detail.id)}
-      />
-    {:else if displaySourceItems.length > 0 && normalizedSearchQuery}
-      <div class="empty-state playlist-filter-empty">
-        <p>{$t('playlist.library.noResults', { default: 'No library results match "{query}".', values: { query: searchQuery.trim() } })}</p>
-      </div>
-    {:else if favoritesViewActive && favoriteItems.length === 0}
-      <div class="empty-state playlist-filter-empty favorites-empty-note">
-        <p>{$t('playlist.library.favoritesEmpty', { default: 'Favorite tracks and subsongs will appear here.' })}</p>
-      </div>
-    {:else if libraryMode && items.length === 0}
-      <div class="empty-state playlist-filter-empty">
-        <p>{$t('playlist.library.empty', { default: 'Your library is empty. Add files or drop a folder here.' })}</p>
-      </div>
-    {/if}
+    <div
+      bind:this={dropzoneElement}
+      bind:clientWidth={dropzoneWidth}
+      class="playlist-scroll-region"
+      on:scroll={updatePlaylistHeaderState}
+    >
+      {#if !showTrackRows && visibleLibraryGroups.length > 0 && groupView}
+        <LibraryGroupList
+          groups={visibleLibraryGroups}
+          view={groupView}
+          artworkUrls={albumArtworkUrls}
+          on:open={(event) => handleLibraryGroupOpen(event.detail)}
+          on:contextMenu={(event) => void handleLibraryGroupContextMenu(event.detail.event, event.detail.key)}
+        />
+      {:else if displayItems.length > 0}
+        <TrackList
+          {displayItems}
+          selectedIds={displaySelectedIds}
+          playingId={displayPlayingId}
+          {layout}
+          {isCompactColumnLayout}
+          {visibleColumns}
+          {tableTemplateColumns}
+          {tableColumnGap}
+          {hideTrackFormat}
+          on:itemClick={(event) => handleItemClick(event.detail.event, event.detail.id)}
+          on:itemDoubleClick={(event) => handleItemDoubleClick(event.detail)}
+          on:itemContextMenu={(event) => void handleItemContextMenu(event.detail.event, event.detail.id)}
+        />
+      {:else if displaySourceItems.length > 0 && normalizedSearchQuery}
+        <div class="empty-state playlist-filter-empty">
+          <p>{$t('playlist.library.noResults', { default: 'No library results match "{query}".', values: { query: searchQuery.trim() } })}</p>
+        </div>
+      {:else if favoritesViewActive && favoriteItems.length === 0}
+        <div class="empty-state playlist-filter-empty favorites-empty-note">
+          <p>{$t('playlist.library.favoritesEmpty', { default: 'Favorite tracks and subsongs will appear here.' })}</p>
+        </div>
+      {:else if libraryMode && items.length === 0}
+        <div class="empty-state playlist-filter-empty">
+          <p>{$t('playlist.library.empty', { default: 'Your library is empty. Add files or drop a folder here.' })}</p>
+        </div>
+      {/if}
+    </div>
 
     {#if contextMenu}
       <MenuSurface
@@ -1095,6 +1096,14 @@
 
   .playlist-panel-header.has-column-header {
     padding-bottom: 0;
+  }
+
+  .playlist-scroll-region {
+    position: relative;
+    min-height: 0;
+    flex: 1;
+    overflow-x: hidden;
+    overflow-y: auto;
   }
 
   .playlist-filter-empty {

@@ -61,17 +61,18 @@
 }
 
 .playlist-dropzone {
+  display: flex;
+  flex-direction: column;
   margin: 0;
   border: 0;
   border-radius: 0;
   background: var(--dropzone-background);
-  overflow-x: hidden;
-  overflow-y: auto;
+  overflow: hidden;
 }
 
 .playlist-panel-header {
-  position: sticky;
-  top: 0;
+  position: relative;
+  flex: 0 0 auto;
   z-index: 10;
   padding: 0.4rem 0.55rem 0;
   background: transparent;
