@@ -788,11 +788,16 @@
 
 .compact-player-bar .player-artwork-button,
 .compact-player-bar .player-artwork {
-  align-self: stretch;
   width: 32px;
-  height: 100%;
+  height: 32px;
   min-height: 32px;
+  max-height: 32px;
   border-radius: 0;
+}
+
+.compact-player-bar .player-artwork-button {
+  align-self: center;
+  flex: 0 0 32px;
 }
 
 .compact-player-bar .player-artwork {
