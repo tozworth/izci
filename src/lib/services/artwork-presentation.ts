@@ -30,6 +30,7 @@ export interface ArtworkPresentationState {
 interface CreateArtworkPresentationControllerOptions {
   resolveTrackSnapshot: (track: PlaylistItem | null) => PlaylistItem | null;
   isPlaybackDetailsPending: (trackId: string) => boolean;
+  loadArtwork?: typeof loadTrackArtwork;
 }
 
 const ARTWORK_BACKGROUND_TRANSITION_MS = 320;
@@ -143,7 +144,8 @@ export function hasSameTrackMetadata(left: PlaylistItem | null, right: PlaylistI
 
 export function createArtworkPresentationController({
   resolveTrackSnapshot,
-  isPlaybackDetailsPending
+  isPlaybackDetailsPending,
+  loadArtwork = loadTrackArtwork
 }: CreateArtworkPresentationControllerOptions) {
   let state = createInitialState();
   let detailsTargetTrack: PlaylistItem | null = null;
@@ -370,7 +372,13 @@ export function createArtworkPresentationController({
         return;
       }
 
-      const artwork = await loadTrackArtwork(track);
+      let artwork: LoadedStreamArtwork | null = null;
+
+      try {
+        artwork = await loadArtwork(track);
+      } catch {
+        artwork = null;
+      }
 
       if (loadToken !== artworkLoadToken) {
         revokeTrackArtwork(artwork);

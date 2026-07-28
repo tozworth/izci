@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
 
-import { hasSameTrackMetadata, resolveTrackSnapshot } from './artwork-presentation';
+import {
+  createArtworkPresentationController,
+  hasSameTrackMetadata,
+  resolveTrackSnapshot
+} from './artwork-presentation';
+import type { LoadedStreamArtwork } from './stream-artwork';
 import type { PlaylistItem } from '$lib/types';
 
 function item(id: string, overrides: Partial<PlaylistItem> = {}): PlaylistItem {
@@ -38,5 +43,52 @@ describe('artwork presentation helpers', () => {
       )
     ).toBe(true);
     expect(hasSameTrackMetadata(item('a', { metadata: { title: 'One' } }), item('a'))).toBe(false);
+  });
+
+  it('keeps displayed artwork while the next track artwork is loading, then clears it when absent', async () => {
+    const firstArtwork: LoadedStreamArtwork = {
+      url: 'blob:first',
+      mediaImage: { src: 'blob:first' }
+    };
+    let resolveSecondArtwork: (artwork: LoadedStreamArtwork | null) => void = () => {};
+    const secondArtwork = new Promise<LoadedStreamArtwork | null>((resolve) => {
+      resolveSecondArtwork = resolve;
+    });
+    const controller = createArtworkPresentationController({
+      resolveTrackSnapshot: (track) => track,
+      isPlaybackDetailsPending: () => false,
+      loadArtwork: (track) => track?.id === 'first' ? Promise.resolve(firstArtwork) : secondArtwork
+    });
+
+    await controller.syncDisplayedArtwork(item('first'));
+    expect(controller.getSnapshot().displayedArtwork).toBe(firstArtwork);
+
+    const switching = controller.syncDisplayedArtwork(item('second'));
+    expect(controller.getSnapshot().displayedArtwork).toBe(firstArtwork);
+
+    resolveSecondArtwork(null);
+    await switching;
+    expect(controller.getSnapshot().displayedArtwork).toBeNull();
+    controller.destroy();
+  });
+
+  it('clears stale displayed artwork when the next artwork load fails', async () => {
+    const firstArtwork: LoadedStreamArtwork = {
+      url: 'blob:first',
+      mediaImage: { src: 'blob:first' }
+    };
+    const controller = createArtworkPresentationController({
+      resolveTrackSnapshot: (track) => track,
+      isPlaybackDetailsPending: () => false,
+      loadArtwork: (track) => track?.id === 'first'
+        ? Promise.resolve(firstArtwork)
+        : Promise.reject(new Error('unreadable file'))
+    });
+
+    await controller.syncDisplayedArtwork(item('first'));
+    await controller.syncDisplayedArtwork(item('second'));
+
+    expect(controller.getSnapshot().displayedArtwork).toBeNull();
+    controller.destroy();
   });
 });

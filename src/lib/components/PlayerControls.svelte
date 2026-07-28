@@ -246,9 +246,9 @@
   async function syncPlayerArtworkPalette(url: string | undefined): Promise<void> {
     const token = ++playerArtworkPaletteToken;
     playerArtworkPaletteUrl = url;
-    playerArtworkPalette = null;
 
     if (!url) {
+      playerArtworkPalette = null;
       return;
     }
 
@@ -410,6 +410,7 @@
   $: visualizerBackdropActive = hasVisualizerBackdrop(backdropEffect);
   $: playerArtworkPaletteActive =
     (useArtworkColorsOverride ?? $appearanceSettings.useArtworkPlayerColors) &&
+    artwork !== null &&
     playerArtworkPalette !== null;
   $: playerArtworkColors = (artworkColorSurfaceBright || (artworkBackgroundActive && artworkBackgroundBright))
     ? playerArtworkPalette?.onLightBackground ?? null
