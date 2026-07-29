@@ -7,6 +7,7 @@
   } from '$lib/services/raf-effects/crystalizer';
   import { rafSettings } from '$lib/stores/raf-settings';
   import type { RafCrystalizerSettings } from '$lib/types';
+  import HoverTooltip from '$lib/components/HoverTooltip.svelte';
 
   export let settings: RafCrystalizerSettings;
 
@@ -46,27 +47,27 @@
     <div class:muted={settings.bandMuted[index]} class:bypassed={settings.bandBypassed[index]} class="crystalizer-band">
       <div class="band-actions">
         <button
+          class="hover-tooltip-anchor"
           class:active={settings.bandMuted[index]}
           on:click={() => toggleMute(index)}
-          title={settings.bandMuted[index]
-            ? $t('options.raf.crystalizer.unmuteBand', { default: 'Unmute {frequency} Hz band', values: { frequency } })
-            : $t('options.raf.crystalizer.muteBand', { default: 'Mute {frequency} Hz band', values: { frequency } })}
           aria-label={settings.bandMuted[index]
             ? $t('options.raf.crystalizer.unmuteBand', { default: 'Unmute {frequency} Hz band', values: { frequency } })
             : $t('options.raf.crystalizer.muteBand', { default: 'Mute {frequency} Hz band', values: { frequency } })}
           aria-pressed={settings.bandMuted[index]}
-        >M</button>
+        >M<HoverTooltip>{settings.bandMuted[index]
+          ? $t('options.raf.crystalizer.unmuteBand', { default: 'Unmute {frequency} Hz band', values: { frequency } })
+          : $t('options.raf.crystalizer.muteBand', { default: 'Mute {frequency} Hz band', values: { frequency } })}</HoverTooltip></button>
         <button
+          class="hover-tooltip-anchor"
           class:active={settings.bandBypassed[index]}
           on:click={() => toggleBypass(index)}
-          title={settings.bandBypassed[index]
-            ? $t('options.raf.crystalizer.processBand', { default: 'Process {frequency} Hz band', values: { frequency } })
-            : $t('options.raf.crystalizer.bypassBand', { default: 'Bypass {frequency} Hz band', values: { frequency } })}
           aria-label={settings.bandBypassed[index]
             ? $t('options.raf.crystalizer.processBand', { default: 'Process {frequency} Hz band', values: { frequency } })
             : $t('options.raf.crystalizer.bypassBand', { default: 'Bypass {frequency} Hz band', values: { frequency } })}
           aria-pressed={settings.bandBypassed[index]}
-        >B</button>
+        >B<HoverTooltip>{settings.bandBypassed[index]
+          ? $t('options.raf.crystalizer.processBand', { default: 'Process {frequency} Hz band', values: { frequency } })
+          : $t('options.raf.crystalizer.bypassBand', { default: 'Bypass {frequency} Hz band', values: { frequency } })}</HoverTooltip></button>
       </div>
       <span class="band-value">{settings.bandIntensities[index] > 0 ? '+' : ''}{settings.bandIntensities[index].toFixed(0)}</span>
       <input

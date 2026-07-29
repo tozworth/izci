@@ -3,6 +3,7 @@
   import { t } from 'svelte-i18n';
   import { portal } from '$lib/components/playlist-panel/actions/portal';
   import { windowDismiss } from '$lib/components/playlist-panel/actions/window-dismiss';
+  import HoverTooltip from '$lib/components/HoverTooltip.svelte';
   import { RAF_EFFECT_DEFINITIONS, RAF_EFFECT_REGISTRY } from '$lib/services/raf-effect-registry';
   import { rafSettings } from '$lib/stores/raf-settings';
   import type { RafEffectSettings, RafEffectType } from '$lib/types';
@@ -186,8 +187,9 @@
       <strong>{$t('options.raf.effects.heading', { default: 'Effects' })}</strong>
       <div class="effects-sidebar-actions" aria-label={$t('options.raf.effects.listActions', { default: 'Effect list actions' })}>
         <details class="sidebar-add-menu" bind:this={addMenu}>
-          <summary title={$t('options.raf.effects.add', { default: 'Add effect' })} aria-label={$t('options.raf.effects.add', { default: 'Add effect' })}>
+          <summary class="hover-tooltip-anchor" aria-label={$t('options.raf.effects.add', { default: 'Add effect' })}>
             <span class="material-symbols-outlined" aria-hidden="true">add</span>
+            <HoverTooltip>{$t('options.raf.effects.add', { default: 'Add effect' })}</HoverTooltip>
           </summary>
           <div class="sidebar-add-menu-items">
             {#each RAF_EFFECT_DEFINITIONS as definition}
@@ -199,12 +201,11 @@
           </div>
         </details>
         <button
-          class="remove"
+          class="remove hover-tooltip-anchor"
           on:click={() => selectedEffect && removeEffect(selectedEffect.id)}
           disabled={!selectedEffect}
-          title={$t('options.raf.effects.removeSelected', { default: 'Remove selected effect' })}
           aria-label={$t('options.raf.effects.removeSelected', { default: 'Remove selected effect' })}
-        ><span class="material-symbols-outlined" aria-hidden="true">delete</span></button>
+        ><span class="material-symbols-outlined" aria-hidden="true">delete</span><HoverTooltip>{$t('options.raf.effects.removeSelected', { default: 'Remove selected effect' })}</HoverTooltip></button>
       </div>
     </header>
 
@@ -220,13 +221,12 @@
           on:dragover={(event) => updateDropBoundary(event, index)}
         >
           <button
-            class="drag-handle"
+            class="drag-handle hover-tooltip-anchor"
             draggable="true"
             on:dragstart={(event) => startDrag(event, effect.id, index)}
             on:contextmenu={(event) => openEffectContextMenu(event, effect.id)}
-            title={$t('options.raf.effects.dragToReorder', { default: 'Drag {effect} to reorder', values: { effect: effectTypeName(effect.type) } })}
             aria-label={$t('options.raf.effects.dragToReorder', { default: 'Drag {effect} to reorder', values: { effect: effectTypeName(effect.type) } })}
-          ><span class="material-symbols-outlined" aria-hidden="true">drag_indicator</span></button>
+          ><span class="material-symbols-outlined" aria-hidden="true">drag_indicator</span><HoverTooltip>{$t('options.raf.effects.dragToReorder', { default: 'Drag {effect} to reorder', values: { effect: effectTypeName(effect.type) } })}</HoverTooltip></button>
           <button
             class="effect-list-item"
             on:click={() => (selectedEffectId = effect.id)}
@@ -287,14 +287,15 @@
         {/if}
         <div class="effect-config-actions">
           <button
+            class="hover-tooltip-anchor"
             class:active={selectedEffect.enabled}
             on:click={() => toggleEffect(selectedEffect)}
-            title={selectedEffect.enabled ? $t('options.raf.effects.bypass', { default: 'Bypass effect' }) : $t('options.raf.effects.powerOn', { default: 'Power on effect' })}
             aria-label={selectedEffect.enabled ? $t('options.raf.effects.bypass', { default: 'Bypass effect' }) : $t('options.raf.effects.powerOn', { default: 'Power on effect' })}
             aria-pressed={selectedEffect.enabled}
-          ><span class="material-symbols-outlined" aria-hidden="true">power_settings_new</span></button>
-          <button on:click={() => rafSettings.resetEffect(selectedEffect.id)} title={$t('options.raf.effects.reset', { default: 'Reset effect' })} aria-label={$t('options.raf.effects.reset', { default: 'Reset effect' })}>
+          ><span class="material-symbols-outlined" aria-hidden="true">power_settings_new</span><HoverTooltip>{selectedEffect.enabled ? $t('options.raf.effects.bypass', { default: 'Bypass effect' }) : $t('options.raf.effects.powerOn', { default: 'Power on effect' })}</HoverTooltip></button>
+          <button class="hover-tooltip-anchor" on:click={() => rafSettings.resetEffect(selectedEffect.id)} aria-label={$t('options.raf.effects.reset', { default: 'Reset effect' })}>
             <span class="material-symbols-outlined" aria-hidden="true">restart_alt</span>
+            <HoverTooltip>{$t('options.raf.effects.reset', { default: 'Reset effect' })}</HoverTooltip>
           </button>
         </div>
       </header>

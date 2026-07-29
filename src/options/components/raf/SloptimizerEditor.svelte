@@ -26,6 +26,7 @@
   import { rafMeter } from '$lib/services/raf-meter';
   import { rafSettings } from '$lib/stores/raf-settings';
   import type { RafSloptimizerSettings } from '$lib/types';
+  import HoverTooltip from '$lib/components/HoverTooltip.svelte';
 
   export let settings: RafSloptimizerSettings;
 
@@ -119,8 +120,9 @@
     </div>
     <div class="advanced-footer">
       <span>{$t('options.raf.sloptimizer.stockCrossovers', { default: 'Stock crossovers: 180 Hz / 3 kHz' })}</span>
-      <button on:click={resetMapping} disabled={!settings.customized} title={$t('options.raf.sloptimizer.restoreMapping', { default: 'Restore the stock macro mapping at the current Slop value' })}>
+      <button class="hover-tooltip-anchor" on:click={resetMapping} disabled={!settings.customized}>
         <span class="material-symbols-outlined" aria-hidden="true">restart_alt</span> {$t('options.raf.sloptimizer.resetMapping', { default: 'Reset mapping' })}
+        <HoverTooltip>{$t('options.raf.sloptimizer.restoreMapping', { default: 'Restore the stock macro mapping at the current Slop value' })}</HoverTooltip>
       </button>
     </div>
   {/if}

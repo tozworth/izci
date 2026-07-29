@@ -11,6 +11,7 @@
   import { rafSettings } from '$lib/stores/raf-settings';
   import { isRafPresetDirty, rafPresets } from '$lib/stores/raf-presets';
   import { rafMeter } from '$lib/services/raf-meter';
+  import HoverTooltip from '$lib/components/HoverTooltip.svelte';
   import RafEffectsWorkspace from './RafEffectsWorkspace.svelte';
 
   let transferMenu: HTMLDetailsElement;
@@ -110,13 +111,15 @@
 
 <article class="raf-view">
   <div class="raf-toolbar" aria-label={$t('options.raf.controls', { default: 'Raf controls' })}>
-    <button class:active={$rafSettings.enabled} on:click={() => rafSettings.setEnabled(!$rafSettings.enabled)} title={$rafSettings.enabled ? $t('options.raf.bypass', { default: 'Bypass Raf' }) : $t('options.raf.powerOn', { default: 'Power on Raf' })} aria-label={$rafSettings.enabled ? $t('options.raf.bypass', { default: 'Bypass Raf' }) : $t('options.raf.powerOn', { default: 'Power on Raf' })} aria-pressed={$rafSettings.enabled}>
+    <button class="hover-tooltip-anchor" class:active={$rafSettings.enabled} on:click={() => rafSettings.setEnabled(!$rafSettings.enabled)} aria-label={$rafSettings.enabled ? $t('options.raf.bypass', { default: 'Bypass Raf' }) : $t('options.raf.powerOn', { default: 'Power on Raf' })} aria-pressed={$rafSettings.enabled}>
       <span class="material-symbols-outlined" aria-hidden="true">power_settings_new</span>
+      <HoverTooltip>{$rafSettings.enabled ? $t('options.raf.bypass', { default: 'Bypass Raf' }) : $t('options.raf.powerOn', { default: 'Power on Raf' })}</HoverTooltip>
     </button>
     <details class="preset-menu" bind:this={presetMenu}>
-      <summary title={$t('options.raf.presets.choose', { default: 'Choose a Raf preset' })} aria-label={$t('options.raf.presets.choose', { default: 'Choose a Raf preset' })}>
+      <summary class="hover-tooltip-anchor" aria-label={$t('options.raf.presets.choose', { default: 'Choose a Raf preset' })}>
         <span class="preset-summary-name">{selectedPreset?.name ?? $t('options.raf.presets.label', { default: 'Presets' })}{presetDirty ? ' *' : ''}</span>
         <span class="material-symbols-outlined" aria-hidden="true">arrow_drop_down</span>
+        <HoverTooltip>{$t('options.raf.presets.choose', { default: 'Choose a Raf preset' })}</HoverTooltip>
       </summary>
       <div class="preset-menu-items">
         <button class="new-preset" on:click={createPreset}>
@@ -126,16 +129,19 @@
           <div class="preset-separator" aria-hidden="true"></div>
           {#each $rafPresets.presets as preset (preset.id)}
             <div class="preset-entry" class:selected={preset.id === $rafPresets.selectedPresetId}>
-              <button class="preset-select" on:click={() => selectPreset(preset.id)} title={$t('options.raf.presets.apply', { default: 'Apply {preset}', values: { preset: preset.name } })}>
+              <button class="preset-select hover-tooltip-anchor" on:click={() => selectPreset(preset.id)}>
                 <span class="material-symbols-outlined preset-check" aria-hidden="true">check</span>
                 <span>{preset.name}</span>
+                <HoverTooltip>{$t('options.raf.presets.apply', { default: 'Apply {preset}', values: { preset: preset.name } })}</HoverTooltip>
               </button>
               <div class="preset-entry-actions">
-                <button on:click={() => renamePreset(preset.id, preset.name)} title={$t('options.raf.presets.rename', { default: 'Rename {preset}', values: { preset: preset.name } })} aria-label={$t('options.raf.presets.rename', { default: 'Rename {preset}', values: { preset: preset.name } })}>
+                <button class="hover-tooltip-anchor" on:click={() => renamePreset(preset.id, preset.name)} aria-label={$t('options.raf.presets.rename', { default: 'Rename {preset}', values: { preset: preset.name } })}>
                   <span class="material-symbols-outlined" aria-hidden="true">edit</span>
+                  <HoverTooltip>{$t('options.raf.presets.rename', { default: 'Rename {preset}', values: { preset: preset.name } })}</HoverTooltip>
                 </button>
-                <button on:click={() => rafPresets.delete(preset.id)} title={$t('options.raf.presets.delete', { default: 'Delete {preset}', values: { preset: preset.name } })} aria-label={$t('options.raf.presets.delete', { default: 'Delete {preset}', values: { preset: preset.name } })}>
+                <button class="hover-tooltip-anchor" on:click={() => rafPresets.delete(preset.id)} aria-label={$t('options.raf.presets.delete', { default: 'Delete {preset}', values: { preset: preset.name } })}>
                   <span class="material-symbols-outlined" aria-hidden="true">delete</span>
+                  <HoverTooltip>{$t('options.raf.presets.delete', { default: 'Delete {preset}', values: { preset: preset.name } })}</HoverTooltip>
                 </button>
               </div>
             </div>
@@ -143,11 +149,12 @@
         {/if}
       </div>
     </details>
-    <button class="save-preset" on:click={() => rafPresets.save()} disabled={!presetDirty} title={$t('options.raf.presets.save', { default: 'Save changes to preset' })} aria-label={$t('options.raf.presets.save', { default: 'Save changes to preset' })}>
+    <button class="save-preset hover-tooltip-anchor" on:click={() => rafPresets.save()} disabled={!presetDirty} aria-label={$t('options.raf.presets.save', { default: 'Save changes to preset' })}>
       <span class="material-symbols-outlined" aria-hidden="true">save</span>
+      <HoverTooltip>{$t('options.raf.presets.save', { default: 'Save changes to preset' })}</HoverTooltip>
     </button>
     <details class="transfer-menu" bind:this={transferMenu}>
-      <summary title={$t('options.raf.transfer.label', { default: 'Import or export rack settings' })} aria-label={$t('options.raf.transfer.label', { default: 'Import or export rack settings' })}><span class="material-symbols-outlined" aria-hidden="true">import_export</span></summary>
+      <summary class="hover-tooltip-anchor" aria-label={$t('options.raf.transfer.label', { default: 'Import or export rack settings' })}><span class="material-symbols-outlined" aria-hidden="true">import_export</span><HoverTooltip>{$t('options.raf.transfer.label', { default: 'Import or export rack settings' })}</HoverTooltip></summary>
       <div class="transfer-menu-items">
         <button on:click={() => runTransfer(() => importRafSettingsClipboard(), $t('options.raf.transfer.imported', { default: 'Rack imported' }))}>
           <span class="material-symbols-outlined" aria-hidden="true">content_paste</span>{$t('options.raf.transfer.importClipboard', { default: 'Import from clipboard' })}
@@ -155,8 +162,9 @@
         <button on:click={() => { closeTransferMenu(); fileInput.click(); }}>
           <span class="material-symbols-outlined" aria-hidden="true">file_open</span>{$t('options.raf.transfer.importJson', { default: 'Import JSON' })}
         </button>
-        <button title={$t('options.raf.transfer.copyHint', { default: 'Copy rack settings to the clipboard' })} on:click={() => runTransfer(() => exportRafSettingsClipboard(), $t('options.raf.transfer.copied', { default: 'Rack copied' }))}>
+        <button class="hover-tooltip-anchor" on:click={() => runTransfer(() => exportRafSettingsClipboard(), $t('options.raf.transfer.copied', { default: 'Rack copied' }))}>
           <span class="material-symbols-outlined" aria-hidden="true">content_copy</span>{$t('options.raf.transfer.exportClipboard', { default: 'Export to clipboard' })}
+          <HoverTooltip>{$t('options.raf.transfer.copyHint', { default: 'Copy rack settings to the clipboard' })}</HoverTooltip>
         </button>
         <button on:click={() => runTransfer(() => exportRafSettingsFile(), $t('options.raf.transfer.exported', { default: 'Rack exported' }))}>
           <span class="material-symbols-outlined" aria-hidden="true">download</span>{$t('options.raf.transfer.exportJson', { default: 'Export JSON' })}
@@ -168,10 +176,10 @@
       <span class:failed={transferFailed} class="transfer-status" role="status">{transferStatus}</span>
     {/if}
     <div class="meter-readouts" aria-label={$t('options.raf.meter.levels', { default: 'Raf input and output peak levels' })}>
-      <span title={$t('options.raf.meter.inputPeak', { default: 'Raf input peak' })}>{$t('options.raf.meter.inputAbbreviation', { default: 'IN' })} {formatDb($rafMeter.inputDb)} dB</span>
-      <span title={$t('options.raf.meter.outputPeak', { default: 'Raf output peak' })}>{$t('options.raf.meter.outputAbbreviation', { default: 'OUT' })} {formatDb($rafMeter.outputDb)} dB</span>
+      <span class="hover-tooltip-anchor">{$t('options.raf.meter.inputAbbreviation', { default: 'IN' })} {formatDb($rafMeter.inputDb)} dB<HoverTooltip>{$t('options.raf.meter.inputPeak', { default: 'Raf input peak' })}</HoverTooltip></span>
+      <span class="hover-tooltip-anchor">{$t('options.raf.meter.outputAbbreviation', { default: 'OUT' })} {formatDb($rafMeter.outputDb)} dB<HoverTooltip>{$t('options.raf.meter.outputPeak', { default: 'Raf output peak' })}</HoverTooltip></span>
     </div>
-    <span class:clipping={$rafMeter.clipping} class="clip-warning" title={$rafMeter.clipping ? $t('options.raf.meter.clipping', { default: "Help me, I'm clipping!" }) : $t('options.raf.meter.noClipping', { default: 'No clipping detected' })} aria-label={$rafMeter.clipping ? $t('options.raf.meter.clipping', { default: "Help me, I'm clipping!" }) : $t('options.raf.meter.noClipping', { default: 'No clipping detected' })}>!</span>
+    <span class:clipping={$rafMeter.clipping} class="clip-warning hover-tooltip-anchor" aria-label={$rafMeter.clipping ? $t('options.raf.meter.clipping', { default: "Help me, I'm clipping!" }) : $t('options.raf.meter.noClipping', { default: 'No clipping detected' })}>!<HoverTooltip>{$rafMeter.clipping ? $t('options.raf.meter.clipping', { default: "Help me, I'm clipping!" }) : $t('options.raf.meter.noClipping', { default: 'No clipping detected' })}</HoverTooltip></span>
   </div>
 
   <RafEffectsWorkspace />
