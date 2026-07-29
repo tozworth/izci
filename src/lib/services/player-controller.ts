@@ -1,5 +1,6 @@
 import { writable } from 'svelte/store';
 import { audioBusService } from '$lib/services/audio-bus';
+import { HivelyPlayerService } from '$lib/services/ahx-player';
 import { HowlerPlayerService } from '$lib/services/howler-player';
 import { ModulePlayerService } from '$lib/services/module-player';
 import { VideoPlayerService } from '$lib/services/video-player';
@@ -8,13 +9,14 @@ import { modulePlaybackSettings } from '$lib/stores/module-playback-settings';
 import { playbackSettings } from '$lib/stores/playback-settings';
 import { DEFAULT_PLAYER_VOLUME, playerVolume } from '$lib/stores/player-volume';
 import { applyReplayGain, sliderVolumeToGain } from '$lib/services/volume';
-import type {
-  ModulePatternSnapshot,
-  PlaybackSnapshot,
-  PlaybackState,
-  PlaylistItem,
-  TrackKind,
-  TrackMetadata
+import {
+  HIVELY_MODULE_EXTENSIONS,
+  type ModulePatternSnapshot,
+  type PlaybackSnapshot,
+  type PlaybackState,
+  type PlaylistItem,
+  type TrackKind,
+  type TrackMetadata
 } from '$lib/types';
 import { mergeInferredArtistTitle } from '$lib/utils/files';
 
@@ -50,6 +52,12 @@ const initialModulePatternSnapshot: ModulePatternSnapshot = {
   pattern: 0,
   row: 0
 };
+
+function isHivelyModule(track: PlaylistItem): boolean {
+  return HIVELY_MODULE_EXTENSIONS.includes(
+    track.extension.toLowerCase() as (typeof HIVELY_MODULE_EXTENSIONS)[number]
+  );
+}
 
 function createPlayerController() {
   let volume = playerVolume.getSnapshot();
@@ -168,10 +176,24 @@ function createPlayerController() {
       onModulePattern,
       () => onSnapshot({ state: 'ended' })
     ),
+    hively: new HivelyPlayerService(
+      onSnapshot,
+      onMetadata,
+      onModulePattern,
+      () => onSnapshot({ state: 'ended' })
+    ),
     video: new VideoPlayerService(onSnapshot, onMetadata, () => onSnapshot({ state: 'ended' }))
+  };
+  const activePlaybackService = () => {
+    if (!activeTrack) return null;
+    if (activeTrack.kind === 'module') {
+      return isHivelyModule(activeTrack) ? services.hively : services.module;
+    }
+    return services[activeTrack.kind];
   };
   const unsubscribeModuleSettings = modulePlaybackSettings.subscribe((settings) => {
     void services.module.applySettings(settings);
+    void services.hively.applySettings(settings);
   });
   const unsubscribeMetadataSettings = metadataSettings.subscribe((settings) => {
     metadataConfig = settings;
@@ -219,6 +241,7 @@ function createPlayerController() {
       currentTrack.set(preparedTrack);
       services.stream.destroy();
       services.module.stop({ silent: true });
+      services.hively.stop({ silent: true });
       services.video.unload();
 
       if (preparedTrack.kind === 'stream') {
@@ -226,7 +249,8 @@ function createPlayerController() {
         applyBackendVolume();
       } else if (preparedTrack.kind === 'module') {
         const pendingDuration = preparedTrack.metadata?.duration ?? 0;
-        const loadPromise = services.module.load(preparedTrack);
+        const moduleService = isHivelyModule(preparedTrack) ? services.hively : services.module;
+        const loadPromise = moduleService.load(preparedTrack);
 
         onSnapshot({
           state: autoPlay ? 'playing' : 'loading',
@@ -242,14 +266,14 @@ function createPlayerController() {
         applyBackendVolume();
 
         if (desiredPlaybackState === 'playing') {
-          services.module.play();
+          moduleService.play();
           if (initialPosition > 0) {
-            services.module.seek(initialPosition);
+            moduleService.seek(initialPosition);
           }
         } else if (initialPosition > 0) {
-          services.module.play();
-          services.module.seek(initialPosition);
-          services.module.pause();
+          moduleService.play();
+          moduleService.seek(initialPosition);
+          moduleService.pause();
         } else if (latestState === 'loading') {
           onSnapshot({ state: 'paused', error: undefined });
         }
@@ -276,7 +300,7 @@ function createPlayerController() {
       }
 
       desiredPlaybackState = 'playing';
-      services[activeTrack.kind].play();
+      activePlaybackService()?.play();
     },
     pause() {
       if (!activeTrack) {
@@ -284,7 +308,7 @@ function createPlayerController() {
       }
 
       desiredPlaybackState = 'paused';
-      services[activeTrack.kind].pause();
+      activePlaybackService()?.pause();
 
       if (latestState === 'loading' || latestState === 'playing') {
         onSnapshot({ state: 'paused', error: undefined });
@@ -295,14 +319,15 @@ function createPlayerController() {
         return;
       }
 
-      services[activeTrack.kind].seek(seconds);
+      activePlaybackService()?.seek(seconds);
     },
     stepSubsong(direction: -1 | 1) {
       if (!activeTrack || activeTrack.kind !== 'module') {
         return;
       }
 
-      const subsong = services.module.stepSubsong(direction);
+      const subsong = (isHivelyModule(activeTrack) ? services.hively : services.module)
+        .stepSubsong(direction);
 
       if (subsong === null) {
         return;
@@ -335,6 +360,7 @@ function createPlayerController() {
       currentTrack.set(null);
       services.stream.destroy();
       services.module.stop();
+      services.hively.stop();
       services.video.unload();
       onSnapshot({
         ...initialSnapshot,
@@ -369,6 +395,7 @@ function createPlayerController() {
       unsubscribePlaybackSettings();
       services.stream.destroy();
       services.module.destroy();
+      services.hively.destroy();
       services.video.destroy();
       audioBusService.destroy();
     }

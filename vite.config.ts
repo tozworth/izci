@@ -108,7 +108,7 @@ export default defineConfig({
         ]
       } as Record<string, unknown>,
       workbox: {
-        globPatterns: ['**/*.{js,css,html,svg,png,woff2,mem}'],
+        globPatterns: ['**/*.{js,css,html,svg,png,woff2,mem,wasm,txt}'],
         navigateFallbackDenylist: [/^\/options\.html(?:\?|$)/],
         ignoreURLParametersMatching: [/^utm_/, /^fbclid$/, /^view$/],
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024

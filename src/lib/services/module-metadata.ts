@@ -1,8 +1,38 @@
 import { createChiptunePlayer } from '$lib/services/chiptune-loader';
-import type { PlaylistItem, TrackMetadata } from '$lib/types';
+import { HIVELY_MODULE_EXTENSIONS, type PlaylistItem, type TrackMetadata } from '$lib/types';
 import type { Chiptune3Metadata, ChiptuneJsPlayer } from 'chiptune3';
 
 const MODULE_METADATA_TIMEOUT_MS = 10_000;
+
+export function parseHivelyMetadata(buffer: ArrayBuffer): TrackMetadata | null {
+  const bytes = new Uint8Array(buffer);
+  if (bytes.length < 16) {
+    return null;
+  }
+
+  const isAhx = bytes[0] === 0x54 && bytes[1] === 0x48 && bytes[2] === 0x58 && bytes[3] < 3;
+  const isHvl = bytes[0] === 0x48 && bytes[1] === 0x56 && bytes[2] === 0x4c && bytes[3] < 2;
+  if (!isAhx && !isHvl) return null;
+
+  const titleOffset = (bytes[4] << 8) | bytes[5];
+  let title: string | undefined;
+  if (titleOffset < bytes.length) {
+    let titleEnd = titleOffset;
+    while (titleEnd < bytes.length && bytes[titleEnd] !== 0 && titleEnd - titleOffset < 128) titleEnd++;
+    const decoded = new TextDecoder().decode(bytes.subarray(titleOffset, titleEnd)).trim();
+    title = decoded || undefined;
+  }
+
+  return {
+    title,
+    trackerType: isHvl ? 'HivelyTracker' : "Abyss' Highest eXperience",
+    originalType: isHvl ? 'hvl' : 'ahx',
+    channels: isHvl ? (bytes[8] >> 2) + 4 : 4,
+    instruments: bytes[12],
+    orders: ((bytes[6] & 0x0f) << 8) | bytes[7],
+    subsongs: bytes[13] + 1
+  };
+}
 
 function toNumber(value: unknown): number | undefined {
   return typeof value === 'number' && Number.isFinite(value)
@@ -74,8 +104,17 @@ export async function loadModuleMetadata(track: PlaylistItem | null): Promise<Tr
       return null;
     }
 
-    const player = await createChiptunePlayer({});
     const buffer = await file.arrayBuffer();
+
+    if (
+      HIVELY_MODULE_EXTENSIONS.includes(
+        track.extension.toLowerCase() as (typeof HIVELY_MODULE_EXTENSIONS)[number]
+      )
+    ) {
+      return parseHivelyMetadata(buffer);
+    }
+
+    const player = await createChiptunePlayer({});
 
     return await new Promise<TrackMetadata | null>((resolve) => {
       let settled = false;

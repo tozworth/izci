@@ -18,7 +18,7 @@ izci is mostly a personal hobby project. It has already reached "daily driver" s
 
 ## Features
 
-- Plays common audio formats (`mp3`, `wav`, `flac`, `ogg`, `opus`) and tracker modules (`mod`, `xm`, `s3m`, `it`, `mo3` and more via included libopenmpt WASM)
+- Plays common audio formats (`mp3`, `wav`, `flac`, `ogg`, `opus`) and tracker modules (`mod`, `xm`, `s3m`, `it`, `mo3` and more via included libopenmpt WASM; `ahx` and `hvl` via the included HivelyTracker replayer)
 - Persistent, auto-updating library with playcounts and favorites
 - OS-level file associations
 - Reads embedded metadata, artwork, time-synced lyrics, ReplayGain for audio tracks; plus instrument names and patterns for modules
@@ -68,12 +68,12 @@ Vite will print the local address, which you can then open in "any browser" (see
 
 ## Built with
 
-[Svelte](https://svelte.dev/), [Vite](https://vite.dev/), [Howler.js](https://howlerjs.com/) (standard audio formats), [Chiptune3](https://github.com/DrSnuggles/chiptune) (tracker modules; based on libopenmpt WASM).
+[Svelte](https://svelte.dev/), [Vite](https://vite.dev/), [Howler.js](https://howlerjs.com/) (standard audio formats), [Chiptune3](https://github.com/DrSnuggles/chiptune) (tracker modules; based on libopenmpt WASM), and the [HivelyTracker](https://github.com/pete-gordon/hivelytracker) replayer (`ahx` and `hvl`).
 
 ## License
 
 izci's original code, documentation, and assets are licensed under the MIT License.
-Bundled third-party components remain under their respective licenses, including MIT-licensed Chiptune3, Howler.js, Svelte, and Workbox; BSD-3-Clause-licensed libopenmpt; and Apache-2.0-licensed Material Symbols.
+Bundled third-party components remain under their respective licenses, including MIT-licensed Chiptune3, Howler.js, Svelte, and Workbox; BSD-3-Clause-licensed libopenmpt and the HivelyTracker replayer; and Apache-2.0-licensed Material Symbols.
 
 See [LICENSE.md](LICENSE.md) for the full license and third-party notices.
 

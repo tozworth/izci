@@ -1,6 +1,8 @@
 export const STREAM_EXTENSIONS = ['mp3', 'wav', 'flac', 'ogg', 'opus'] as const;
 export const VIDEO_EXTENSIONS = ['mp4', 'm4v', 'mov', 'webm', 'mkv'] as const;
+export const HIVELY_MODULE_EXTENSIONS = ['ahx', 'hvl'] as const;
 export const MODULE_EXTENSIONS = [
+  ...HIVELY_MODULE_EXTENSIONS,
   'mptm',
   'mod',
   's3m',
