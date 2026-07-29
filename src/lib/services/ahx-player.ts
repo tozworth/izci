@@ -1,8 +1,13 @@
 import { audioBusService } from '$lib/services/audio-bus';
+import {
+  createHivelyPatternSong,
+  type HivelyPatternData
+} from '$lib/services/hively-patterns';
 import { mediaSessionService } from '$lib/services/media-session';
 import { modulePlaybackSettings } from '$lib/stores/module-playback-settings';
 import type {
   ModulePatternSnapshot,
+  ModulePatternSong,
   ModulePlaybackSettings,
   PlaybackSnapshot,
   PlaylistItem,
@@ -18,13 +23,16 @@ interface StopOptions {
 }
 
 interface AhxWorkletMessage {
-  type: 'loaded' | 'metadata' | 'progress' | 'ended' | 'error';
+  type: 'loaded' | 'metadata' | 'pattern-data' | 'pattern-progress' | 'progress' | 'ended' | 'error';
+  data?: HivelyPatternData;
   message?: string;
   metadata?: TrackMetadata;
   currentTime?: number;
   duration?: number;
   subsong?: number;
   subsongCount?: number;
+  order?: number;
+  row?: number;
 }
 
 const LOAD_TIMEOUT_MS = 10_000;
@@ -59,6 +67,9 @@ export class HivelyPlayerService {
   #started = false;
   #subsong = 0;
   #subsongCount = 1;
+  #patternSong: ModulePatternSong | null = null;
+  #patternOrder = 0;
+  #patternRow = 0;
   #settings = modulePlaybackSettings.getSnapshot();
   #onSnapshot: SnapshotHandler;
   #onMetadata: MetadataHandler;
@@ -86,6 +97,9 @@ export class HivelyPlayerService {
     this.#started = false;
     this.#subsong = this.#normalizeSubsong(track.subsong, track.metadata?.subsongs);
     this.#subsongCount = this.#normalizeSubsongCount(track.metadata?.subsongs);
+    this.#patternSong = null;
+    this.#patternOrder = 0;
+    this.#patternRow = 0;
     this.#onPattern(null);
     this.#onSnapshot({
       backend: 'module',
@@ -194,6 +208,9 @@ export class HivelyPlayerService {
     this.#started = false;
     this.#subsong = 0;
     this.#subsongCount = 1;
+    this.#patternSong = null;
+    this.#patternOrder = 0;
+    this.#patternRow = 0;
     this.#onPattern(null);
     this.#disposeNode();
     mediaSessionService.deactivateTransportAnchor();
@@ -241,6 +258,18 @@ export class HivelyPlayerService {
       this.#onMetadata(message.metadata);
       return;
     }
+    if (message.type === 'pattern-data' && message.data) {
+      const song = createHivelyPatternSong(message.data);
+      this.#patternSong = song;
+      this.#publishPattern(song);
+      return;
+    }
+    if (message.type === 'pattern-progress') {
+      this.#patternOrder = this.#normalizePatternPosition(message.order);
+      this.#patternRow = this.#normalizePatternPosition(message.row);
+      if (this.#patternSong) this.#publishPattern(this.#patternSong);
+      return;
+    }
     if (message.type === 'progress') {
       this.#subsong = this.#normalizeSubsong(message.subsong, message.subsongCount);
       this.#subsongCount = this.#normalizeSubsongCount(message.subsongCount);
@@ -257,6 +286,14 @@ export class HivelyPlayerService {
       this.#onEnded();
       mediaSessionService.pauseTransportAnchor();
     }
+  }
+
+  #publishPattern(song: ModulePatternSong): void {
+    const order = Math.min(this.#patternOrder, Math.max(song.orders.length - 1, 0));
+    const pattern = song.orders[order]?.pat ?? 0;
+    const rowCount = song.patterns[pattern]?.rows.length ?? 0;
+    const row = Math.min(this.#patternRow, Math.max(rowCount - 1, 0));
+    this.#onPattern({ song, order, pattern, row });
   }
 
   #disposeNode(): void {
@@ -293,6 +330,12 @@ export class HivelyPlayerService {
     const normalizedCount = this.#normalizeSubsongCount(count);
     return typeof value === 'number' && Number.isFinite(value)
       ? Math.min(Math.max(Math.trunc(value), 0), normalizedCount - 1)
+      : 0;
+  }
+
+  #normalizePatternPosition(value: unknown): number {
+    return typeof value === 'number' && Number.isFinite(value)
+      ? Math.max(0, Math.trunc(value))
       : 0;
   }
 }

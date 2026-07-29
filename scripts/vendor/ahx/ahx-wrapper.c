@@ -24,6 +24,8 @@ static uint32_t mix_frame_samples = 0;
 static uint32_t current_frame = 0;
 static uint32_t duration_frames = 0;
 static uint32_t active_subsong = 0;
+static uint32_t display_order = 0;
+static uint32_t display_row = 0;
 static uint32_t interpolation_filter = 1;
 static int32_t interpolation_4tap[AHX_INTERPOLATION_PHASES][4];
 static int32_t interpolation_8tap[AHX_INTERPOLATION_PHASES][8];
@@ -226,6 +228,8 @@ static void release_tune(void) {
   current_frame = 0;
   duration_frames = 0;
   active_subsong = 0;
+  display_order = 0;
+  display_row = 0;
 }
 
 static uint32_t measure_duration(uint32_t subsong) {
@@ -280,6 +284,8 @@ int ahx_load(const uint8_t *data, uint32_t length, uint32_t frequency, uint32_t 
   active_subsong = 0;
   duration_frames = measure_duration(active_subsong);
   hvl_InitSubsong(tune, active_subsong);
+  display_order = tune->ht_PosNr;
+  display_row = tune->ht_NoteNr;
   return 1;
 }
 
@@ -291,11 +297,15 @@ int ahx_select_subsong(uint32_t subsong) {
   current_frame = 0;
   duration_frames = measure_duration(subsong);
   hvl_InitSubsong(tune, subsong);
+  display_order = tune->ht_PosNr;
+  display_row = tune->ht_NoteNr;
   return 1;
 }
 
 int ahx_decode_frame(void) {
   if (!tune || !mix_buffer || tune->ht_SongEndReached) return 0;
+  display_order = tune->ht_PosNr;
+  display_row = tune->ht_NoteNr;
   if (interpolation_filter == 1) {
     hvl_DecodeFrame(tune, mix_buffer, &mix_buffer[2], 4);
   } else {
@@ -318,6 +328,8 @@ void ahx_seek_frame(uint32_t target_frame) {
     hvl_DecodeFrame(tune, mix_buffer, &mix_buffer[2], 4);
     current_frame++;
   }
+  display_order = tune->ht_PosNr;
+  display_row = tune->ht_NoteNr;
 }
 
 int ahx_ended(void) { return tune ? tune->ht_SongEndReached : 1; }
@@ -330,3 +342,47 @@ uint32_t ahx_channel_count(void) { return tune ? tune->ht_Channels : 0; }
 uint32_t ahx_instrument_count(void) { return tune ? tune->ht_InstrumentNr : 0; }
 uint32_t ahx_order_count(void) { return tune ? tune->ht_PositionNr : 0; }
 uint32_t ahx_title(void) { return tune ? (uint32_t)(uintptr_t)tune->ht_Name : 0; }
+uint32_t ahx_track_length(void) { return tune ? tune->ht_TrackLength : 0; }
+uint32_t ahx_track_count(void) { return tune ? tune->ht_TrackNr + 1 : 0; }
+uint32_t ahx_current_order(void) { return tune ? display_order : 0; }
+uint32_t ahx_current_row(void) { return tune ? display_row : 0; }
+
+int32_t ahx_position_track(uint32_t position, uint32_t channel) {
+  if (!tune || position >= tune->ht_PositionNr || channel >= tune->ht_Channels) return -1;
+  return tune->ht_Positions[position].pos_Track[channel];
+}
+
+int32_t ahx_position_transpose(uint32_t position, uint32_t channel) {
+  if (!tune || position >= tune->ht_PositionNr || channel >= tune->ht_Channels) return 0;
+  return tune->ht_Positions[position].pos_Transpose[channel];
+}
+
+static const struct hvl_step *find_step(uint32_t track, uint32_t row) {
+  if (!tune || track > tune->ht_TrackNr || row >= tune->ht_TrackLength) return NULL;
+  return &tune->ht_Tracks[track][row];
+}
+
+uint32_t ahx_step_note(uint32_t track, uint32_t row) {
+  const struct hvl_step *step = find_step(track, row);
+  return step ? step->stp_Note : 0;
+}
+
+uint32_t ahx_step_instrument(uint32_t track, uint32_t row) {
+  const struct hvl_step *step = find_step(track, row);
+  return step ? step->stp_Instrument : 0;
+}
+
+uint32_t ahx_step_effect(uint32_t track, uint32_t row) {
+  const struct hvl_step *step = find_step(track, row);
+  return step ? step->stp_FX : 0;
+}
+
+uint32_t ahx_step_effect_param(uint32_t track, uint32_t row) {
+  const struct hvl_step *step = find_step(track, row);
+  return step ? step->stp_FXParam : 0;
+}
+
+uint32_t ahx_instrument_name(uint32_t instrument) {
+  if (!tune || instrument == 0 || instrument > tune->ht_InstrumentNr) return 0;
+  return (uint32_t)(uintptr_t)tune->ht_Instruments[instrument].ins_Name;
+}

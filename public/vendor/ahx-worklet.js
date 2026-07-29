@@ -15,6 +15,8 @@ class AhxReplayProcessor extends AudioWorkletProcessor {
     this.endedPublished = false;
     this.playedSamples = 0;
     this.lastProgressSamples = 0;
+    this.lastPatternOrder = -1;
+    this.lastPatternRow = -1;
     this.port.onmessage = (event) => void this.handleMessage(event.data);
   }
 
@@ -84,6 +86,8 @@ class AhxReplayProcessor extends AudioWorkletProcessor {
     this.resetBufferedFrame();
     this.playing = false;
     this.publishMetadata();
+    this.publishPatternData();
+    this.publishPatternProgress(true);
     this.publishProgress(true);
     this.port.postMessage({ type: 'loaded' });
   }
@@ -117,6 +121,68 @@ class AhxReplayProcessor extends AudioWorkletProcessor {
     });
   }
 
+  publishPatternData() {
+    const core = this.exports;
+    if (!core) return;
+    const channelCount = core.ahx_channel_count();
+    const positionCount = core.ahx_order_count();
+    const trackCount = core.ahx_track_count();
+    const trackLength = core.ahx_track_length();
+    const instrumentCount = core.ahx_instrument_count();
+    const positionTracks = new Uint8Array(positionCount * channelCount);
+    const positionTransposes = new Int8Array(positionCount * channelCount);
+    const steps = new Uint8Array(trackCount * trackLength * 4);
+    const instrumentNames = [];
+
+    for (let position = 0; position < positionCount; position++) {
+      for (let channel = 0; channel < channelCount; channel++) {
+        const index = position * channelCount + channel;
+        positionTracks[index] = core.ahx_position_track(position, channel);
+        positionTransposes[index] = core.ahx_position_transpose(position, channel);
+      }
+    }
+
+    for (let track = 0; track < trackCount; track++) {
+      for (let row = 0; row < trackLength; row++) {
+        const index = (track * trackLength + row) * 4;
+        steps[index] = core.ahx_step_note(track, row);
+        steps[index + 1] = core.ahx_step_instrument(track, row);
+        steps[index + 2] = core.ahx_step_effect(track, row);
+        steps[index + 3] = core.ahx_step_effect_param(track, row);
+      }
+    }
+
+    for (let instrument = 1; instrument <= instrumentCount; instrument++) {
+      instrumentNames.push(this.readString(core.ahx_instrument_name(instrument)));
+    }
+
+    this.port.postMessage({
+      type: 'pattern-data',
+      data: {
+        channelCount,
+        instrumentNames,
+        positionCount,
+        positionTracks,
+        positionTransposes,
+        steps,
+        subsongCount: core.ahx_subsong_count(),
+        trackCount,
+        trackLength
+      }
+    }, [positionTracks.buffer, positionTransposes.buffer, steps.buffer]);
+  }
+
+  publishPatternProgress(force = false) {
+    const core = this.exports;
+    if (!core) return;
+    const order = core.ahx_current_order();
+    const row = core.ahx_current_row();
+    if (!force && order === this.lastPatternOrder && row === this.lastPatternRow) return;
+    this.lastPatternOrder = order;
+    this.lastPatternRow = row;
+    this.port.postMessage({ type: 'pattern-progress', order, row });
+  }
+
   resetBufferedFrame() {
     this.frameOffset = 0;
     this.frameSamples = 0;
@@ -124,6 +190,8 @@ class AhxReplayProcessor extends AudioWorkletProcessor {
     this.endedPublished = false;
     this.playedSamples = (this.exports?.ahx_current_frame() ?? 0) * (sampleRate / FRAMES_PER_SECOND);
     this.lastProgressSamples = this.playedSamples;
+    this.lastPatternOrder = -1;
+    this.lastPatternRow = -1;
   }
 
   seek(seconds) {
@@ -132,6 +200,7 @@ class AhxReplayProcessor extends AudioWorkletProcessor {
     const target = Math.min(Math.max(Number(seconds) || 0, 0), duration || Number.MAX_SAFE_INTEGER);
     this.exports.ahx_seek_frame(Math.floor(target * FRAMES_PER_SECOND));
     this.resetBufferedFrame();
+    this.publishPatternProgress(true);
     this.publishProgress(true);
   }
 
@@ -142,6 +211,7 @@ class AhxReplayProcessor extends AudioWorkletProcessor {
     this.subsong = normalized;
     this.resetBufferedFrame();
     this.publishMetadata();
+    this.publishPatternProgress(true);
     this.publishProgress(true);
   }
 
@@ -174,6 +244,7 @@ class AhxReplayProcessor extends AudioWorkletProcessor {
     this.frameSamples = core.ahx_frame_samples();
     this.frameOffset = 0;
     this.frameIsLast = core.ahx_ended() !== 0 && !this.repeat;
+    this.publishPatternProgress();
     return this.frameSamples > 0;
   }
 
