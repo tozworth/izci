@@ -31,7 +31,7 @@ New-Item -ItemType Directory -Force -Path $outputDirectory | Out-Null
   -s STANDALONE_WASM=1 `
   -s FILESYSTEM=0 `
   -s ALLOW_MEMORY_GROWTH=1 `
-  -s EXPORTED_FUNCTIONS=_malloc,_free,_ahx_init,_ahx_load,_ahx_unload,_ahx_select_subsong,_ahx_decode_frame,_ahx_seek_frame,_ahx_ended,_ahx_mix_buffer,_ahx_frame_samples,_ahx_current_frame,_ahx_duration_frames,_ahx_subsong_count,_ahx_channel_count,_ahx_instrument_count,_ahx_order_count,_ahx_title `
+  -s EXPORTED_FUNCTIONS=_malloc,_free,_ahx_init,_ahx_load,_ahx_unload,_ahx_select_subsong,_ahx_decode_frame,_ahx_set_interpolation,_ahx_seek_frame,_ahx_ended,_ahx_mix_buffer,_ahx_frame_samples,_ahx_current_frame,_ahx_duration_frames,_ahx_subsong_count,_ahx_channel_count,_ahx_instrument_count,_ahx_order_count,_ahx_title `
   -o (Join-Path $outputDirectory 'hively-replay.wasm')
 
 if ($LASTEXITCODE -ne 0) {

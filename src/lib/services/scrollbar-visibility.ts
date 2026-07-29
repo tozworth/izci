@@ -10,6 +10,9 @@ const OVERLAY_THUMB_CLASS = 'izci-vertical-scrollbar-overlay-thumb';
 const OVERLAY_WIDTH_PX = 10;
 const MIN_THUMB_SIZE_PX = 28;
 
+export const SCROLLBAR_VISIBILITY_IGNORE_SCROLL_ATTRIBUTE =
+  'data-scrollbar-visibility-ignore-scroll';
+
 type ScrollAxis = 'horizontal' | 'vertical';
 
 interface ScrollbarVisibilityOptions {
@@ -225,7 +228,11 @@ export function initializeScrollbarVisibility(
   }
 
   function handleScroll(event: Event): void {
-    if (!(event.target instanceof HTMLElement) || !isScrollable(event.target, 'vertical')) return;
+    if (
+      !(event.target instanceof HTMLElement)
+      || event.target.hasAttribute(SCROLLBAR_VISIBILITY_IGNORE_SCROLL_ATTRIBUTE)
+      || !isScrollable(event.target, 'vertical')
+    ) return;
     showTemporarily(event.target);
     scheduleOverlayRender();
   }

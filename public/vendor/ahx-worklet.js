@@ -40,6 +40,9 @@ class AhxReplayProcessor extends AudioWorkletProcessor {
         case 'repeat':
           this.repeat = message.enabled === true;
           break;
+        case 'interpolation':
+          this.exports?.ahx_set_interpolation(message.filter);
+          break;
         case 'dispose':
           this.exports?.ahx_unload();
           this.exports = null;
@@ -71,6 +74,7 @@ class AhxReplayProcessor extends AudioWorkletProcessor {
     const loaded = exports.ahx_load(input, bytes.byteLength, sampleRate, message.stereo ?? 2);
     exports.free(input);
     if (!loaded) throw new Error('HivelyTracker failed to decode this module.');
+    exports.ahx_set_interpolation(message.interpolationFilter);
 
     this.exports = exports;
     this.repeat = message.repeat === true;

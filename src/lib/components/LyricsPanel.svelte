@@ -11,6 +11,7 @@
     stripLrcTimestamps,
     type LoadedLyrics
   } from '$lib/services/lyrics';
+  import { SCROLLBAR_VISIBILITY_IGNORE_SCROLL_ATTRIBUTE } from '$lib/services/scrollbar-visibility';
   import type { LyricsDisplayStyle, PlaybackSnapshot, PlaylistItem } from '$lib/types';
 
   export let track: PlaylistItem | null = null;
@@ -181,23 +182,27 @@
   function clearProgrammaticScrollTimer(): void {
     if (programmaticScrollTimer === null) {
       scroller?.removeAttribute(WINDOW_DISMISS_IGNORE_SCROLL_ATTRIBUTE);
+      scroller?.removeAttribute(SCROLLBAR_VISIBILITY_IGNORE_SCROLL_ATTRIBUTE);
       return;
     }
 
     clearTimeout(programmaticScrollTimer);
     programmaticScrollTimer = null;
     scroller?.removeAttribute(WINDOW_DISMISS_IGNORE_SCROLL_ATTRIBUTE);
+    scroller?.removeAttribute(SCROLLBAR_VISIBILITY_IGNORE_SCROLL_ATTRIBUTE);
   }
 
   function markProgrammaticScroll(): void {
     isProgrammaticScroll = true;
     clearProgrammaticScrollTimer();
     scroller?.setAttribute(WINDOW_DISMISS_IGNORE_SCROLL_ATTRIBUTE, '');
+    scroller?.setAttribute(SCROLLBAR_VISIBILITY_IGNORE_SCROLL_ATTRIBUTE, '');
 
     programmaticScrollTimer = setTimeout(() => {
       isProgrammaticScroll = false;
       programmaticScrollTimer = null;
       scroller?.removeAttribute(WINDOW_DISMISS_IGNORE_SCROLL_ATTRIBUTE);
+      scroller?.removeAttribute(SCROLLBAR_VISIBILITY_IGNORE_SCROLL_ATTRIBUTE);
     }, PROGRAMMATIC_SCROLL_MS);
   }
 

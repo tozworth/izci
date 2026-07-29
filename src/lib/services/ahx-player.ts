@@ -153,6 +153,7 @@ export class HivelyPlayerService {
             // Hively's scale is 0 (mono) to 4 (Paula-style hard stereo).
             // The existing stereo-separation setting is intentionally MOD-only.
             stereo: 2,
+            interpolationFilter: this.#settings.interpolationFilter,
             repeat: this.#settings.repeatCount === -1,
             subsong: this.#subsong
           },
@@ -228,6 +229,9 @@ export class HivelyPlayerService {
     if (!this.#node) return;
     if (previous.repeatCount !== settings.repeatCount) {
       this.#node.port.postMessage({ type: 'repeat', enabled: settings.repeatCount === -1 });
+    }
+    if (previous.interpolationFilter !== settings.interpolationFilter) {
+      this.#node.port.postMessage({ type: 'interpolation', filter: settings.interpolationFilter });
     }
   }
 
