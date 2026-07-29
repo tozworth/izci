@@ -99,6 +99,7 @@ export default defineConfig({
               'audio/x-s3m': ['.s3m'],
               'audio/x-it': ['.it'],
               'audio/x-mo3': ['.mo3'],
+              'audio/x-hivelytracker': ['.ahx', '.hvl'],
               'video/mp4': ['.mp4', '.m4v'],
               'video/quicktime': ['.mov'],
               'video/webm': ['.webm'],
