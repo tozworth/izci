@@ -4,6 +4,25 @@ import type { Chiptune3Metadata, ChiptuneJsPlayer } from 'chiptune3';
 
 const MODULE_METADATA_TIMEOUT_MS = 10_000;
 
+interface HivelyName {
+  value: string;
+  nextOffset: number;
+}
+
+function readHivelyName(bytes: Uint8Array, offset: number): HivelyName | null {
+  if (offset < 0 || offset >= bytes.length) {
+    return null;
+  }
+
+  let end = offset;
+  while (end < bytes.length && bytes[end] !== 0) end++;
+
+  return {
+    value: new TextDecoder().decode(bytes.subarray(offset, Math.min(end, offset + 128))).trim(),
+    nextOffset: Math.min(end + 1, bytes.length)
+  };
+}
+
 export function parseHivelyMetadata(buffer: ArrayBuffer): TrackMetadata | null {
   const bytes = new Uint8Array(buffer);
   if (bytes.length < 16) {
@@ -15,22 +34,30 @@ export function parseHivelyMetadata(buffer: ArrayBuffer): TrackMetadata | null {
   if (!isAhx && !isHvl) return null;
 
   const titleOffset = (bytes[4] << 8) | bytes[5];
-  let title: string | undefined;
-  if (titleOffset < bytes.length) {
-    let titleEnd = titleOffset;
-    while (titleEnd < bytes.length && bytes[titleEnd] !== 0 && titleEnd - titleOffset < 128) titleEnd++;
-    const decoded = new TextDecoder().decode(bytes.subarray(titleOffset, titleEnd)).trim();
-    title = decoded || undefined;
+  const instrumentCount = bytes[12];
+  const titleName = readHivelyName(bytes, titleOffset);
+  const instrumentNames: string[] = [];
+  let nameOffset = titleName?.nextOffset ?? bytes.length;
+
+  for (let index = 0; index < instrumentCount; index++) {
+    const instrumentName = readHivelyName(bytes, nameOffset);
+    if (!instrumentName) break;
+    instrumentNames.push(instrumentName.value);
+    nameOffset = instrumentName.nextOffset;
   }
 
+  const message = instrumentNames.join('\n').trim();
+
   return {
-    title,
+    title: titleName?.value || undefined,
     trackerType: isHvl ? 'HivelyTracker' : "Abyss' Highest eXperience",
     originalType: isHvl ? 'hvl' : 'ahx',
     channels: isHvl ? (bytes[8] >> 2) + 4 : 4,
-    instruments: bytes[12],
+    tracks: bytes[11],
+    instruments: instrumentCount,
     orders: ((bytes[6] & 0x0f) << 8) | bytes[7],
-    subsongs: bytes[13] + 1
+    subsongs: bytes[13] + 1,
+    message: message || undefined
   };
 }
 

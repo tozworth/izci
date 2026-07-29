@@ -109,6 +109,7 @@
   $: tracker = track?.kind === 'module'
     ? resolveModuleTrackerName(track.extension, track.metadata?.trackerType)
     : '';
+  $: tracks = track?.metadata?.tracks;
   $: patterns = track?.metadata?.patterns;
   $: notes = track?.metadata?.message?.trim() || '';
   $: bitrate = track?.kind === 'stream' ? track.metadata?.bitrate : undefined;
@@ -147,6 +148,13 @@
       ? $t('main.trackDetails.patternCount', {
           default: '{count, plural, one {# pattern} other {# patterns}}',
           values: { count: patterns }
+        })
+      : '';
+  $: trackSummary =
+    track?.kind === 'module' && typeof tracks === 'number'
+      ? $t('main.trackDetails.trackCount', {
+          default: '{count, plural, one {# track} other {# tracks}}',
+          values: { count: tracks }
         })
       : '';
   $: subsongCount = track?.kind === 'module' ? Math.max(track.metadata?.subsongs ?? 1, 1) : 1;
@@ -275,6 +283,19 @@
                 >grid_view</span>
               </dt>
               <dd>{patternSummary}</dd>
+            </div>
+          {/if}
+
+          {#if trackSummary}
+            <div class="metadata-row">
+              <dt>
+                <span
+                  class="material-symbols-outlined metadata-icon"
+                  title={$t('main.trackDetails.tracks', { default: 'Tracks' })}
+                  aria-label={$t('main.trackDetails.tracks', { default: 'Tracks' })}
+                >timeline</span>
+              </dt>
+              <dd>{trackSummary}</dd>
             </div>
           {/if}
 

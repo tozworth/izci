@@ -153,7 +153,9 @@
       "subsongs": "Subsongs",
       "notes": "Notes",
       "emptyTitle": "Select a track to inspect it.",
-      "emptyDescription": "Playlist and library selections both surface their metadata here."
+      "emptyDescription": "Playlist and library selections both surface their metadata here.",
+      "trackCount": "{count, plural, one {# track} other {# tracks}}",
+      "tracks": "Tracks"
     },
     "miniPlayer": {
       "heading": "Mini player",

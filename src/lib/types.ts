@@ -285,6 +285,7 @@ export interface TrackMetadata {
   duration?: number;
   bitrate?: number;
   channels?: number;
+  tracks?: number;
   patterns?: number;
   instruments?: number;
   orders?: number;

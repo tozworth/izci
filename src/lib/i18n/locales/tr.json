@@ -153,7 +153,9 @@
       "subsongs": "Altparçalar",
       "notes": "Notlar",
       "emptyTitle": "İncelemek için parça seçin.",
-      "emptyDescription": "Çalma listesi ve kütüphane seçimlerinin metaverileri burada görünür."
+      "emptyDescription": "Çalma listesi ve kütüphane seçimlerinin metaverileri burada görünür.",
+      "trackCount": "{count, plural, one {# iz} other {# iz}}",
+      "tracks": "İzler"
     },
     "miniPlayer": {
       "heading": "Mini oynatıcı",
