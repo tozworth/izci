@@ -18,7 +18,8 @@ body,
 }
 
 button,
-input {
+input,
+select {
   font: inherit;
 }
 
@@ -405,6 +406,123 @@ input {
   margin-top: auto;
 }
 
+.clip-export-dialog {
+  width: min(31rem, calc(100vw - 2rem));
+  max-width: none;
+  padding: 0;
+  overflow: hidden;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-strong);
+  border-radius: 0.42rem;
+  box-shadow: 0 1rem 3rem rgb(0 0 0 / 38%);
+  color: var(--text);
+}
+
+.clip-export-dialog::backdrop {
+  background: rgb(0 0 0 / 58%);
+  backdrop-filter: blur(1.5px);
+}
+
+.clip-export-dialog form {
+  display: flex;
+  flex-direction: column;
+}
+
+.clip-export-dialog header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 0.8rem 0.65rem;
+  background: var(--window-topbar-bg);
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.clip-export-dialog h2,
+.clip-export-dialog p {
+  margin: 0;
+}
+
+.clip-export-dialog h2 {
+  color: var(--text-strong);
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.clip-export-dialog header p {
+  margin-top: 0.2rem;
+  color: var(--muted);
+  font-size: 0.7rem;
+}
+
+.export-settings-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem;
+  padding: 0.8rem;
+}
+
+.export-settings-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.28rem;
+  color: var(--muted);
+  font-size: 0.7rem;
+}
+
+.export-settings-grid select {
+  width: 100%;
+  min-height: 1.9rem;
+  padding: 0.28rem 1.6rem 0.28rem 0.42rem;
+  background: var(--bg-input);
+  border: 1px solid var(--border-soft);
+  border-radius: 0.25rem;
+  color: var(--text-strong);
+}
+
+.export-settings-grid select:focus {
+  border-color: var(--accent-focus-border);
+  outline: 1px solid var(--accent-focus-border);
+}
+
+.export-settings-grid select:disabled {
+  opacity: 0.5;
+}
+
+.export-format-note {
+  min-height: 2.4rem;
+  margin: 0 0.8rem 0.75rem !important;
+  padding: 0.5rem 0.58rem;
+  background: color-mix(in srgb, var(--bg-soft) 72%, transparent);
+  border: 1px solid var(--border-soft);
+  border-radius: 0.28rem;
+  color: var(--muted);
+  font-size: 0.7rem;
+  line-height: 1.35;
+}
+
+.export-dialog-error {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0 0.8rem 0.75rem !important;
+  color: var(--danger);
+  font-size: 0.7rem;
+}
+
+.export-dialog-error .material-symbols-outlined {
+  font-size: 1rem;
+}
+
+.clip-export-dialog footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.4rem;
+  padding: 0.58rem 0.8rem;
+  background: var(--window-topbar-bg);
+  border-top: 1px solid var(--border-soft);
+}
+
 .clip-tag-shell > footer {
   display: flex;
   align-items: center;
@@ -457,6 +575,12 @@ input {
 
   .render-badge {
     margin-left: 0;
+  }
+}
+
+@media (max-width: 460px) {
+  .export-settings-grid {
+    grid-template-columns: minmax(0, 1fr);
   }
 }
 

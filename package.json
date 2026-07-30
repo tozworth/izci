@@ -18,9 +18,12 @@
   },
   "dependencies": {
     "@material-symbols/font-400": "^0.40.2",
+    "@mediabunny/flac-encoder": "^1.52.0",
+    "@mediabunny/mp3-encoder": "^1.52.0",
     "chiptune3": "^0.8.4",
     "fflate": "^0.8.3",
     "howler": "^2.2.4",
+    "mediabunny": "^1.52.0",
     "svelte": "^5.38.7",
     "svelte-i18n": "^4.0.1"
   },

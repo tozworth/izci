@@ -58,7 +58,7 @@
   ] satisfies MenuActionItem[];
   $: fileItems = [
     { id: 'open', label: $t('clipTag.menu.open', { default: 'Open audio...' }), icon: 'file_open', shortcut: 'Ctrl+O' },
-    { id: 'saveClip', label: $t('clipTag.menu.saveClip', { default: 'Export clip as WAV...' }), icon: 'save', shortcut: 'Ctrl+S', disabled: !canSaveClip, separatorBefore: true },
+    { id: 'saveClip', label: $t('clipTag.menu.saveClip', { default: 'Export clip...' }), icon: 'save', shortcut: 'Ctrl+S', disabled: !canSaveClip, separatorBefore: true },
     { id: 'saveTags', label: $t('clipTag.menu.saveTags', { default: 'Save tagged copy...' }), icon: 'new_label', disabled: !canSaveTags },
     { id: 'close', label: $t('clipTag.menu.close', { default: 'Close Clip and Tag' }), icon: 'close', shortcut: 'Ctrl+W', separatorBefore: true }
   ] satisfies MenuActionItem[];

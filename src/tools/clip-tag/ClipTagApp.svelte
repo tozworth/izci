@@ -7,12 +7,12 @@
   import { loadEmbeddedStreamArtwork, loadTrackMetadata } from '$lib/services/stream-artwork';
   import { inferArtistTitleFromFileName, inferExtension, stripFileExtension } from '$lib/utils/files';
   import ClipTagMenuBar from './ClipTagMenuBar.svelte';
+  import ClipExportDialog from './ClipExportDialog.svelte';
   import WaveformEditor from './WaveformEditor.svelte';
   import {
     clipDuration,
     createInitialClipState,
     cutSelection,
-    encodeWav,
     keepSelection,
     loadAudioFile,
     materializeClip,
@@ -21,7 +21,13 @@
     type AudioLoadProgress,
     type ClipEditState
   } from './clip-audio';
-  import { buildId3Tag, EMPTY_TAGS, parseId3, tagMp3, type EditableTags } from './tag-writer';
+  import { EMPTY_TAGS, parseId3, tagMp3, type EditableTags } from './tag-writer';
+  import {
+    ClipExportUnavailableError,
+    DEFAULT_CLIP_EXPORT_OPTIONS,
+    type ClipExportFormat,
+    type ClipExportOptions
+  } from './clip-export-options';
 
   type ToolTab = 'clip' | 'tags';
   const ACCEPTED_EXTENSIONS = [...STREAM_EXTENSIONS, ...MODULE_EXTENSIONS];
@@ -41,6 +47,7 @@
   let activeTab: ToolTab = 'clip';
   let fileInput: HTMLInputElement;
   let artworkInput: HTMLInputElement;
+  let exportDialog: ClipExportDialog;
   let sourceFile: File | null = null;
   let sourceBuffer: AudioBuffer | null = null;
   let waveformBuffer: AudioBuffer | null = null;
@@ -65,14 +72,22 @@
   let previewPlaying = false;
   let playhead = 0;
   let previewFrame = 0;
+  let exporting = false;
+  let exportingFormat: ClipExportFormat = 'wav';
+  let savingTags = false;
 
   $: duration = clipDuration(editState);
   $: selectionDuration = Math.max(0, editState.selectionEnd - editState.selectionStart);
   $: hasSelection = selectionDuration > 0.001;
   $: canUndo = undoStack.length > 0;
   $: canRedo = redoStack.length > 0;
-  $: canEdit = Boolean(sourceBuffer && waveformBuffer && !loading);
-  $: statusText = errorMessage || noticeMessage || (loadProgress
+  $: canEdit = Boolean(sourceBuffer && waveformBuffer && !loading && !exporting && !savingTags);
+  $: canSaveTags = Boolean(sourceFile && sourceBuffer && !loading && !exporting && !savingTags);
+  $: statusText = errorMessage || (exporting
+    ? $t('clipTag.encoding', { default: 'Encoding {format}...', values: { format: exportingFormat.toUpperCase() } })
+    : savingTags
+      ? $t('clipTag.savingTags', { default: 'Writing tagged copy...' })
+      : noticeMessage) || (loadProgress
     ? loadProgress.detail
     : sourceFile
       ? `${formatTime(duration)} · ${waveformBuffer?.sampleRate.toLocaleString() ?? 0} Hz · ${waveformBuffer?.numberOfChannels ?? 0} ch`
@@ -282,43 +297,78 @@
     previewFrame = requestAnimationFrame(tickPreview);
   }
 
-  async function exportClip(): Promise<void> {
-    if (!waveformBuffer || !sourceFile) return;
+  function openExportDialog(): void {
+    if (!canEdit) return;
+    errorMessage = '';
+    exportDialog.show();
+  }
+
+  async function exportClip(options: ClipExportOptions): Promise<void> {
+    if (!waveformBuffer || !sourceFile || exporting) return;
+    exporting = true;
+    exportingFormat = options.format;
+    errorMessage = '';
+    noticeMessage = '';
     try {
-      const id3 = await buildId3Tag(tags, artwork);
-      const blob = encodeWav(waveformBuffer, id3);
-      await saveBlob(blob, `${stripFileExtension(sourceFile.name)}-clip.wav`);
+      const { encodeAudioExport } = await import('./clip-export');
+      const blob = await encodeAudioExport(waveformBuffer, options, tags, artwork);
+      await saveBlob(blob, `${stripFileExtension(sourceFile.name)}-clip.${options.format}`);
       noticeMessage = $t('clipTag.clipSaved', { default: 'Clip exported.' });
+      exportDialog.close();
     } catch (error) {
-      if ((error as DOMException)?.name !== 'AbortError') errorMessage = $t('clipTag.saveFailed', { default: 'The file could not be saved.' });
+      if ((error as DOMException)?.name !== 'AbortError') {
+        errorMessage = error instanceof ClipExportUnavailableError
+          ? $t('clipTag.encoderUnavailable', {
+              default: '{format} encoding is not available in this browser.',
+              values: { format: error.format.toUpperCase() }
+            })
+          : $t('clipTag.saveFailed', { default: 'The file could not be saved.' });
+      }
+    } finally {
+      exporting = false;
     }
   }
 
   async function saveTaggedCopy(): Promise<void> {
-    if (!sourceFile || !sourceBuffer) return;
+    if (!sourceFile || !sourceBuffer || savingTags) return;
+    savingTags = true;
+    errorMessage = '';
+    noticeMessage = '';
     try {
       const extension = inferExtension(sourceFile.name);
       if (extension === 'mp3') {
         await saveBlob(await tagMp3(sourceFile, tags, artwork), `${stripFileExtension(sourceFile.name)}-tagged.mp3`);
+      } else if (extension === 'wav' || extension === 'flac' || extension === 'ogg' || extension === 'opus') {
+        const { tagContainerAudio } = await import('./tag-container-audio');
+        await saveBlob(
+          await tagContainerAudio(sourceFile, extension, tags, artwork),
+          `${stripFileExtension(sourceFile.name)}-tagged.${extension}`
+        );
       } else {
-        const id3 = await buildId3Tag(tags, artwork);
-        await saveBlob(encodeWav(sourceBuffer, id3), `${stripFileExtension(sourceFile.name)}-tagged.wav`);
+        const { encodeAudioExport } = await import('./clip-export');
+        await saveBlob(
+          await encodeAudioExport(sourceBuffer, DEFAULT_CLIP_EXPORT_OPTIONS, tags, artwork),
+          `${stripFileExtension(sourceFile.name)}-tagged.wav`
+        );
       }
       noticeMessage = $t('clipTag.tagsSaved', { default: 'Tagged copy saved.' });
     } catch (error) {
       if ((error as DOMException)?.name !== 'AbortError') errorMessage = $t('clipTag.saveFailed', { default: 'The file could not be saved.' });
+    } finally {
+      savingTags = false;
     }
   }
 
   function handleKeydown(event: KeyboardEvent): void {
     if (!event.ctrlKey && !event.metaKey) return;
+    if (exportDialog?.isOpen()) return;
     const target = event.target;
     const editingText = target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement;
     const key = event.key.toLowerCase();
     if (key === 'o') { event.preventDefault(); fileInput.click(); }
     else if (key === 'p') { event.preventDefault(); windowManagerOpenOptions(); }
     else if (key === 'w') { event.preventDefault(); window.close(); }
-    else if (key === 's') { event.preventDefault(); void (activeTab === 'clip' ? exportClip() : saveTaggedCopy()); }
+    else if (key === 's') { event.preventDefault(); activeTab === 'clip' ? openExportDialog() : void saveTaggedCopy(); }
     else if (!editingText && key === 'z') { event.preventDefault(); undo(); }
     else if (!editingText && key === 'y') { event.preventDefault(); redo(); }
     else if (!editingText && key === 'a' && activeTab === 'clip') { event.preventDefault(); selectAll(); }
@@ -367,11 +417,11 @@
   <ClipTagMenuBar
     fileName={sourceFile?.name ?? ''}
     canSaveClip={canEdit}
-    canSaveTags={Boolean(sourceFile && sourceBuffer)}
+    {canSaveTags}
     {canUndo}
     {canRedo}
     on:open={() => fileInput.click()}
-    on:saveClip={() => void exportClip()}
+    on:saveClip={openExportDialog}
     on:saveTags={() => void saveTaggedCopy()}
     on:close={() => window.close()}
     on:undo={undo}
@@ -415,8 +465,8 @@
             <span class="material-symbols-outlined" aria-hidden="true">play_circle</span><HoverTooltip>{$t('clipTag.clip.previewAll', { default: 'Preview full clip' })}</HoverTooltip>
           </button>
           <div class="toolbar-spacer"></div>
-          <button class="text-button primary" type="button" disabled={!canEdit} on:click={() => void exportClip()}>
-            <span class="material-symbols-outlined" aria-hidden="true">save</span>{$t('clipTag.clip.export', { default: 'Export WAV' })}
+          <button class="text-button primary" type="button" disabled={!canEdit} on:click={openExportDialog}>
+            <span class="material-symbols-outlined" aria-hidden="true">save</span>{$t('clipTag.clip.exportOpen', { default: 'Export...' })}
           </button>
         </div>
 
@@ -489,12 +539,28 @@
             <button class="text-button" type="button" disabled={!sourceFile} on:click={() => artworkInput.click()}><span class="material-symbols-outlined" aria-hidden="true">folder_open</span>{$t('clipTag.tags.browse', { default: 'Browse...' })}</button>
             <button class="icon-button hover-tooltip-anchor" type="button" disabled={!artwork} aria-label={$t('clipTag.tags.removeArtwork', { default: 'Remove artwork' })} on:click={() => replaceArtwork(null)}><span class="material-symbols-outlined" aria-hidden="true">delete</span><HoverTooltip>{$t('clipTag.tags.removeArtwork', { default: 'Remove artwork' })}</HoverTooltip></button>
           </div>
-          <p>{sourceFile && inferExtension(sourceFile.name) !== 'mp3' ? $t('clipTag.tags.wavNote', { default: 'This format is saved as a tagged WAV copy; the source file is never changed.' }) : $t('clipTag.tags.mp3Note', { default: 'A new MP3 copy is written; the source file is never changed.' })}</p>
-          <button class="text-button primary save-tags-button" type="button" disabled={!sourceFile || !sourceBuffer} on:click={() => void saveTaggedCopy()}><span class="material-symbols-outlined" aria-hidden="true">new_label</span>{$t('clipTag.menu.saveTags', { default: 'Save tagged copy...' })}</button>
+          <p>
+            {#if sourceFile && ['wav', 'mp3', 'flac', 'ogg', 'opus'].includes(inferExtension(sourceFile.name))}
+              {$t('clipTag.tags.copyNote', { default: 'A new {format} copy is written without changing the source file.', values: { format: inferExtension(sourceFile.name).toUpperCase() } })}
+            {:else}
+              {$t('clipTag.tags.renderedCopyNote', { default: 'Modules are rendered to a tagged WAV copy; the source file is never changed.' })}
+            {/if}
+          </p>
+          <button class="text-button primary save-tags-button" type="button" disabled={!canSaveTags} on:click={() => void saveTaggedCopy()}><span class="material-symbols-outlined" aria-hidden="true">new_label</span>{$t('clipTag.menu.saveTags', { default: 'Save tagged copy...' })}</button>
         </aside>
       </section>
     {/if}
   </main>
+
+  <ClipExportDialog
+    bind:this={exportDialog}
+    busy={exporting}
+    {errorMessage}
+    sourceSampleRate={waveformBuffer?.sampleRate ?? 0}
+    sourceChannels={waveformBuffer?.numberOfChannels ?? 0}
+    on:export={(event) => void exportClip(event.detail)}
+    on:close={() => { if (!exporting) errorMessage = ''; }}
+  />
 
   <footer class:error={Boolean(errorMessage)}>
     <span class="material-symbols-outlined" aria-hidden="true">{errorMessage ? 'error' : loading ? 'progress_activity' : 'info'}</span>
