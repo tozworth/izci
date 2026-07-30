@@ -1059,6 +1059,8 @@
     on:forceUpdate={() => void handleForceUpdate()}
     on:openAbout={handleOpenAbout}
     on:openClipTag={() => windowManager.openPopup('clipTag')}
+    on:openLoudness={() => windowManager.openPopup('loudness')}
+    on:openSpectrogram={() => windowManager.openPopup('spectrogram')}
     on:showPlaylist={showPlaylist}
     on:showLibrary={showLibrary}
     on:showTrackDetails={showTrackDetails}

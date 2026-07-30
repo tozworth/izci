@@ -5,9 +5,11 @@
   import TabStrip from '$lib/components/TabStrip.svelte';
   import { MODULE_EXTENSIONS, STREAM_EXTENSIONS } from '$lib/types';
   import { loadTrackLyrics } from '$lib/services/lyrics';
+  import { RAF_EFFECT_REGISTRY } from '$lib/services/raf-effect-registry';
   import { loadEmbeddedStreamArtwork, loadTrackMetadata } from '$lib/services/stream-artwork';
   import { inferArtistTitleFromFileName, inferExtension, stripFileExtension } from '$lib/utils/files';
   import ClipTagMenuBar from './ClipTagMenuBar.svelte';
+  import ClipEffectDialog from './ClipEffectDialog.svelte';
   import ClipExportDialog from './ClipExportDialog.svelte';
   import LyricsEditor from './LyricsEditor.svelte';
   import WaveformEditor from './WaveformEditor.svelte';
@@ -18,7 +20,11 @@
     keepSelection,
     loadAudioFile,
     materializeClip,
+    replaceAudioBufferRange,
+    replaceSelectionRanges,
     saveBlob,
+    sliceAudioBuffer,
+    sliceClipRanges,
     updateSelection,
     type AudioLoadProgress,
     type ClipEditState
@@ -31,10 +37,21 @@
     type ClipExportFormat,
     type ClipExportOptions
   } from './clip-export-options';
+  import { blendRenderedEdges, renderRafEffect } from './clip-effects';
   import { MAX_WAVEFORM_ZOOM, zoomWaveformViewport } from './waveform-viewport';
+  import type { RafEffectSettings, RafEffectType } from '$lib/types';
 
-  type ToolTab = 'clip' | 'tags' | 'lyrics';
+  type ToolTab = 'edit' | 'tags' | 'lyrics';
   type TagField = Exclude<keyof EditableTags, 'lyrics'>;
+  interface EditSnapshot {
+    state: ClipEditState;
+    buffer: AudioBuffer;
+  }
+  interface AudioClipboard {
+    buffer: AudioBuffer;
+    ranges: ClipEditState['ranges'];
+  }
+  const MAX_EDIT_HISTORY = 12;
   const ACCEPTED_EXTENSIONS = [...STREAM_EXTENSIONS, ...MODULE_EXTENSIONS];
   const FILE_ACCEPT = ACCEPTED_EXTENSIONS.map((extension) => `.${extension}`).join(',');
   const OPEN_FILE_PICKER_OPTIONS: OpenFilePickerOptions = {
@@ -56,17 +73,19 @@
     { key: 'discNumber' }
   ];
 
-  let activeTab: ToolTab = 'clip';
+  let activeTab: ToolTab = 'edit';
   let fileInput: HTMLInputElement;
   let artworkInput: HTMLInputElement;
   let exportDialog: ClipExportDialog;
+  let effectDialog: ClipEffectDialog;
   let sourceFile: File | null = null;
   let sourceFileHandle: FileSystemFileHandle | null = null;
   let sourceBuffer: AudioBuffer | null = null;
   let waveformBuffer: AudioBuffer | null = null;
   let editState: ClipEditState = createInitialClipState(0);
-  let undoStack: ClipEditState[] = [];
-  let redoStack: ClipEditState[] = [];
+  let undoStack: EditSnapshot[] = [];
+  let redoStack: EditSnapshot[] = [];
+  let audioClipboard: AudioClipboard | null = null;
   let loading = false;
   let loadProgress: AudioLoadProgress | null = null;
   let errorMessage = '';
@@ -89,15 +108,17 @@
   let exporting = false;
   let exportingFormat: ClipExportFormat = 'wav';
   let savingTags = false;
+  let processingEffect = false;
   let waveformZoom = 1;
   let waveformScrollStart = 0;
 
   $: duration = clipDuration(editState);
   $: selectionDuration = Math.max(0, editState.selectionEnd - editState.selectionStart);
   $: hasSelection = selectionDuration > 0.001;
-  $: canUndo = activeTab === 'clip' && undoStack.length > 0;
-  $: canRedo = activeTab === 'clip' && redoStack.length > 0;
-  $: canEdit = Boolean(sourceBuffer && waveformBuffer && !loading && !exporting && !savingTags);
+  $: canUndo = activeTab === 'edit' && undoStack.length > 0;
+  $: canRedo = activeTab === 'edit' && redoStack.length > 0;
+  $: canEdit = Boolean(sourceBuffer && waveformBuffer && !loading && !exporting && !savingTags && !processingEffect);
+  $: canPaste = Boolean(canEdit && audioClipboard && activeTab === 'edit');
   $: canSaveTags = Boolean(sourceFile && sourceBuffer && !loading && !exporting && !savingTags);
   $: canSaveInPlace = Boolean(
     canSaveTags
@@ -105,7 +126,9 @@
     && sourceFile
     && (STREAM_EXTENSIONS as readonly string[]).includes(inferExtension(sourceFile.name))
   );
-  $: statusText = errorMessage || (exporting
+  $: statusText = errorMessage || (processingEffect
+    ? $t('clipTag.effects.rendering', { default: 'Rendering selection...' })
+    : exporting
     ? $t('clipTag.encoding', { default: 'Encoding {format}...', values: { format: exportingFormat.toUpperCase() } })
     : savingTags
       ? $t('clipTag.savingTags', { default: 'Writing tagged copy...' })
@@ -163,40 +186,103 @@
     playhead = Math.min(playhead, tab === 'lyrics' ? sourceBuffer?.duration ?? 0 : duration);
   }
 
-  function refreshWaveform(): void {
-    waveformBuffer = sourceBuffer ? materializeClip(sourceBuffer, editState) : null;
+  function snapshot(): EditSnapshot | null {
+    return waveformBuffer ? { state: editState, buffer: waveformBuffer } : null;
   }
 
-  function commitEdit(next: ClipEditState): void {
+  function commitEdit(nextState: ClipEditState, nextBuffer: AudioBuffer, notice = ''): void {
+    const previous = snapshot();
+    if (!previous) return;
     stopPreview();
-    undoStack = [...undoStack, editState];
+    undoStack = [...undoStack, previous].slice(-MAX_EDIT_HISTORY);
     redoStack = [];
-    editState = next;
-    refreshWaveform();
+    editState = nextState;
+    waveformBuffer = nextBuffer;
+    playhead = Math.min(nextState.selectionStart, nextBuffer.duration);
+    noticeMessage = notice;
   }
 
   function undo(): void {
     const previous = undoStack.at(-1);
-    if (!previous) return;
+    const current = snapshot();
+    if (!previous || !current) return;
     stopPreview();
-    redoStack = [editState, ...redoStack];
+    redoStack = [current, ...redoStack].slice(0, MAX_EDIT_HISTORY);
     undoStack = undoStack.slice(0, -1);
-    editState = previous;
-    refreshWaveform();
+    editState = previous.state;
+    waveformBuffer = previous.buffer;
+    playhead = Math.min(editState.selectionStart, waveformBuffer.duration);
+    noticeMessage = $t('clipTag.edit.undoNotice', { default: 'Edit undone.' });
   }
 
   function redo(): void {
     const next = redoStack[0];
-    if (!next) return;
+    const current = snapshot();
+    if (!next || !current) return;
     stopPreview();
-    undoStack = [...undoStack, editState];
+    undoStack = [...undoStack, current].slice(-MAX_EDIT_HISTORY);
     redoStack = redoStack.slice(1);
-    editState = next;
-    refreshWaveform();
+    editState = next.state;
+    waveformBuffer = next.buffer;
+    playhead = Math.min(editState.selectionStart, waveformBuffer.duration);
+    noticeMessage = $t('clipTag.edit.redoNotice', { default: 'Edit restored.' });
   }
 
   function selectAll(): void {
     editState = updateSelection(editState, 0, duration);
+  }
+
+  function copySelection(): boolean {
+    if (!waveformBuffer || !hasSelection) return false;
+    audioClipboard = {
+      buffer: sliceAudioBuffer(waveformBuffer, editState.selectionStart, editState.selectionEnd),
+      ranges: sliceClipRanges(editState.ranges, editState.selectionStart, editState.selectionEnd)
+    };
+    noticeMessage = $t('clipTag.edit.copied', {
+      default: 'Copied {duration} of audio.',
+      values: { duration: formatTime(selectionDuration) }
+    });
+    return true;
+  }
+
+  function deleteSelection(copyFirst = false): void {
+    if (!waveformBuffer || !hasSelection || (copyFirst && !copySelection())) return;
+    const nextState = cutSelection(editState);
+    const nextBuffer = replaceAudioBufferRange(
+      waveformBuffer,
+      editState.selectionStart,
+      editState.selectionEnd,
+      null
+    );
+    commitEdit(
+      nextState,
+      nextBuffer,
+      copyFirst
+        ? $t('clipTag.edit.cutNotice', { default: 'Selection cut.' })
+        : $t('clipTag.edit.deletedNotice', { default: 'Selection deleted.' })
+    );
+  }
+
+  function pasteAudio(): void {
+    if (!waveformBuffer || !audioClipboard) return;
+    const nextBuffer = replaceAudioBufferRange(
+      waveformBuffer,
+      editState.selectionStart,
+      editState.selectionEnd,
+      audioClipboard.buffer
+    );
+    const nextState = replaceSelectionRanges(editState, audioClipboard.ranges);
+    commitEdit(nextState, nextBuffer, $t('clipTag.edit.pastedNotice', { default: 'Audio pasted.' }));
+  }
+
+  function trimToSelection(): void {
+    if (!waveformBuffer || !hasSelection) return;
+    commitEdit(
+      keepSelection(editState),
+      sliceAudioBuffer(waveformBuffer, editState.selectionStart, editState.selectionEnd),
+      $t('clipTag.edit.trimmedNotice', { default: 'Trimmed to selection.' })
+    );
+    resetWaveformViewport();
   }
 
   function replaceArtwork(next: Blob | null): void {
@@ -208,7 +294,7 @@
   async function openFile(file: File, fileHandle: FileSystemFileHandle | null = null): Promise<void> {
     const extension = inferExtension(file.name);
     if (!ACCEPTED_EXTENSIONS.includes(extension as (typeof ACCEPTED_EXTENSIONS)[number])) {
-      errorMessage = $t('clipTag.unsupported', { default: 'This file type is not supported by Clip and Tag.' });
+      errorMessage = $t('clipTag.unsupported', { default: 'This file type is not supported by Edit and Tag.' });
       return;
     }
 
@@ -224,6 +310,7 @@
     waveformBuffer = null;
     undoStack = [];
     redoStack = [];
+    audioClipboard = null;
     tags = { ...EMPTY_TAGS };
     replaceArtwork(null);
 
@@ -268,7 +355,7 @@
       renderedModule = loaded.renderedModule;
       renderedFromCache = loaded.fromCache;
       editState = createInitialClipState(loaded.buffer.duration);
-      refreshWaveform();
+      waveformBuffer = materializeClip(loaded.buffer, editState);
       noticeMessage = loaded.renderedModule
         ? loaded.fromCache
           ? $t('clipTag.moduleCached', { default: 'Loaded cached module render.' })
@@ -387,9 +474,93 @@
 
   async function startPreview(selectionOnly: boolean): Promise<void> {
     if (!waveformBuffer) return;
-    const start = selectionOnly && hasSelection ? editState.selectionStart : 0;
+    const start = selectionOnly && hasSelection
+      ? editState.selectionStart
+      : playhead >= waveformBuffer.duration - 0.001 ? 0 : Math.max(0, playhead);
     const end = selectionOnly && hasSelection ? editState.selectionEnd : waveformBuffer.duration;
     await startBufferPreview(waveformBuffer, start, end, 'clip');
+  }
+
+  function toggleEditorPreview(selectionOnly = false): void {
+    if (previewPlaying && previewMode === 'clip') stopPreview();
+    else void startPreview(selectionOnly);
+  }
+
+  function seekEditor(position: number): void {
+    stopPreview();
+    playhead = Math.max(0, Math.min(position, duration));
+  }
+
+  function zoomToSelection(): void {
+    if (!hasSelection || selectionDuration <= 0) return;
+    waveformZoom = Math.min(MAX_WAVEFORM_ZOOM, Math.max(1, duration / selectionDuration));
+    waveformScrollStart = editState.selectionStart;
+  }
+
+  function openEffectDialog(type?: RafEffectType): void {
+    if (!canEdit || !hasSelection) return;
+    errorMessage = '';
+    effectDialog.show(type);
+  }
+
+  async function processEffect(
+    settings: RafEffectSettings,
+    edgeBlendMs: number
+  ): Promise<AudioBuffer | null> {
+    if (!waveformBuffer || !hasSelection || processingEffect) return null;
+    const currentBuffer = waveformBuffer;
+    const start = editState.selectionStart;
+    const end = editState.selectionEnd;
+    processingEffect = true;
+    errorMessage = '';
+    noticeMessage = '';
+    stopPreview();
+    try {
+      const original = sliceAudioBuffer(currentBuffer, start, end);
+      const processed = await renderRafEffect(original, settings);
+      return blendRenderedEdges(
+        original,
+        processed,
+        edgeBlendMs,
+        start > 0.0005,
+        end < currentBuffer.duration - 0.0005
+      );
+    } catch (error) {
+      errorMessage = error instanceof Error
+        ? error.message
+        : $t('clipTag.effects.failed', { default: 'The effect could not be rendered.' });
+      return null;
+    } finally {
+      processingEffect = false;
+    }
+  }
+
+  async function previewEffect(settings: RafEffectSettings, edgeBlendMs: number): Promise<void> {
+    if (previewPlaying && previewMode === 'clip') {
+      stopPreview();
+      return;
+    }
+    const processed = await processEffect(settings, edgeBlendMs);
+    if (processed) await startBufferPreview(processed, 0, processed.duration, 'clip');
+  }
+
+  async function applyEffect(settings: RafEffectSettings, edgeBlendMs: number): Promise<void> {
+    if (!waveformBuffer) return;
+    const currentBuffer = waveformBuffer;
+    const start = editState.selectionStart;
+    const end = editState.selectionEnd;
+    const processed = await processEffect(settings, edgeBlendMs);
+    if (!processed || waveformBuffer !== currentBuffer) return;
+    const nextBuffer = replaceAudioBufferRange(currentBuffer, start, end, processed);
+    commitEdit(
+      editState,
+      nextBuffer,
+      $t('clipTag.effects.applied', {
+        default: '{effect} applied to selection.',
+        values: { effect: settings.displayName || RAF_EFFECT_REGISTRY[settings.type].name }
+      })
+    );
+    effectDialog.close();
   }
 
   async function startLyricsPreview(): Promise<void> {
@@ -427,7 +598,7 @@
       const exportTags = { ...tags, lyrics: remapLyricsToClip(tags.lyrics, editState.ranges) };
       const blob = await encodeAudioExport(waveformBuffer, options, exportTags, artwork);
       await saveBlob(blob, `${stripFileExtension(sourceFile.name)}-clip.${options.format}`);
-      noticeMessage = $t('clipTag.clipSaved', { default: 'Clip exported.' });
+      noticeMessage = $t('clipTag.clipSaved', { default: 'Audio exported.' });
       exportDialog.close();
     } catch (error) {
       if ((error as DOMException)?.name !== 'AbortError') {
@@ -502,19 +673,33 @@
   }
 
   function handleKeydown(event: KeyboardEvent): void {
-    if (!event.ctrlKey && !event.metaKey) return;
-    if (exportDialog?.isOpen()) return;
+    if (exportDialog?.isOpen() || effectDialog?.isOpen()) return;
     const target = event.target;
     const editingText = target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement;
     const key = event.key.toLowerCase();
+    if (!editingText && activeTab === 'edit' && key === ' ' && !event.ctrlKey && !event.metaKey) {
+      event.preventDefault();
+      toggleEditorPreview(false);
+      return;
+    }
+    if (!editingText && activeTab === 'edit' && (key === 'delete' || key === 'backspace')) {
+      event.preventDefault();
+      deleteSelection();
+      return;
+    }
+    if (!event.ctrlKey && !event.metaKey) return;
     if (key === 'o') { event.preventDefault(); void chooseAudioFile(); }
     else if (key === 'p') { event.preventDefault(); windowManagerOpenOptions(); }
     else if (key === 'w') { event.preventDefault(); window.close(); }
-    else if (key === 's' && event.shiftKey && activeTab !== 'clip') { event.preventDefault(); void saveTaggedCopy(); }
-    else if (key === 's') { event.preventDefault(); activeTab === 'clip' ? openExportDialog() : canSaveInPlace ? void saveTaggedInPlace() : void saveTaggedCopy(); }
-    else if (!editingText && key === 'z' && activeTab === 'clip') { event.preventDefault(); undo(); }
-    else if (!editingText && key === 'y' && activeTab === 'clip') { event.preventDefault(); redo(); }
-    else if (!editingText && key === 'a' && activeTab === 'clip') { event.preventDefault(); selectAll(); }
+    else if (key === 's' && event.shiftKey && activeTab !== 'edit') { event.preventDefault(); void saveTaggedCopy(); }
+    else if (key === 's') { event.preventDefault(); activeTab === 'edit' ? openExportDialog() : canSaveInPlace ? void saveTaggedInPlace() : void saveTaggedCopy(); }
+    else if (!editingText && key === 'z' && event.shiftKey && activeTab === 'edit') { event.preventDefault(); redo(); }
+    else if (!editingText && key === 'z' && activeTab === 'edit') { event.preventDefault(); undo(); }
+    else if (!editingText && key === 'y' && activeTab === 'edit') { event.preventDefault(); redo(); }
+    else if (!editingText && key === 'a' && activeTab === 'edit') { event.preventDefault(); selectAll(); }
+    else if (!editingText && key === 'x' && activeTab === 'edit') { event.preventDefault(); deleteSelection(true); }
+    else if (!editingText && key === 'c' && activeTab === 'edit') { event.preventDefault(); copySelection(); }
+    else if (!editingText && key === 'v' && activeTab === 'edit') { event.preventDefault(); pasteAudio(); }
   }
 
   function windowManagerOpenOptions(): void {
@@ -550,7 +735,7 @@
   });
 </script>
 
-<svelte:head><title>{sourceFile ? `${sourceFile.name} — Clip and Tag` : 'izci Clip and Tag'}</title></svelte:head>
+<svelte:head><title>{sourceFile ? `${sourceFile.name} — Edit and Tag` : 'izci Edit and Tag'}</title></svelte:head>
 
 <div class="clip-tag-shell">
   <div class="window-frame-safe-strip" aria-hidden="true"></div>
@@ -565,6 +750,8 @@
     {canSaveInPlace}
     {canUndo}
     {canRedo}
+    canCut={activeTab === 'edit' && canEdit && hasSelection}
+    {canPaste}
     on:open={() => void chooseAudioFile()}
     on:saveClip={openExportDialog}
     on:saveInPlace={() => void saveTaggedInPlace()}
@@ -573,13 +760,19 @@
     on:undo={undo}
     on:redo={redo}
     on:selectAll={selectAll}
+    on:cut={() => deleteSelection(true)}
+    on:copy={() => copySelection()}
+    on:paste={pasteAudio}
+    on:delete={() => deleteSelection()}
+    on:trim={trimToSelection}
+    on:effect={(event) => openEffectDialog(event.detail)}
   />
 
   <main class="tool-workspace">
-    <TabStrip ariaLabel={$t('clipTag.tabs.label', { default: 'Clip and Tag tools' })} className="tool-tabs" flushStart>
-      <button class="tab-strip-tab" class:active={activeTab === 'clip'} type="button" role="tab" aria-selected={activeTab === 'clip'} on:click={() => setActiveTab('clip')}>
-        <span class="material-symbols-outlined" aria-hidden="true">content_cut</span>
-        {$t('clipTag.tabs.clip', { default: 'Clip' })}
+    <TabStrip ariaLabel={$t('clipTag.tabs.label', { default: 'Edit and Tag tools' })} className="tool-tabs" flushStart>
+      <button class="tab-strip-tab" class:active={activeTab === 'edit'} type="button" role="tab" aria-selected={activeTab === 'edit'} on:click={() => setActiveTab('edit')}>
+        <span class="material-symbols-outlined" aria-hidden="true">edit_audio</span>
+        {$t('clipTag.tabs.edit', { default: 'Edit' })}
       </button>
       <button class="tab-strip-tab" class:active={activeTab === 'tags'} type="button" role="tab" aria-selected={activeTab === 'tags'} on:click={() => setActiveTab('tags')}>
         <span class="material-symbols-outlined" aria-hidden="true">new_label</span>
@@ -591,43 +784,40 @@
       </button>
     </TabStrip>
 
-    {#if activeTab === 'clip'}
-      <section class="clip-workbench" aria-label={$t('clipTag.tabs.clip', { default: 'Clip' })}>
-        <div class="tool-row clip-toolbar" role="toolbar" aria-label={$t('clipTag.clip.toolbar', { default: 'Clip tools' })}>
-          <button class="icon-button hover-tooltip-anchor" type="button" disabled={!canEdit || !hasSelection} aria-label={$t('clipTag.clip.cut', { default: 'Cut selection' })} on:click={() => commitEdit(cutSelection(editState))}>
-            <span class="material-symbols-outlined" aria-hidden="true">content_cut</span><HoverTooltip>{$t('clipTag.clip.cut', { default: 'Cut selection' })}</HoverTooltip>
-          </button>
-          <button class="icon-button hover-tooltip-anchor" type="button" disabled={!canEdit || !hasSelection} aria-label={$t('clipTag.clip.keep', { default: 'Keep selection' })} on:click={() => commitEdit(keepSelection(editState))}>
-            <span class="material-symbols-outlined" aria-hidden="true">content_paste</span><HoverTooltip>{$t('clipTag.clip.keep', { default: 'Keep selection' })}</HoverTooltip>
-          </button>
+    {#if activeTab === 'edit'}
+      <section class="clip-workbench" aria-label={$t('clipTag.tabs.edit', { default: 'Edit' })}>
+        <div class="tool-row clip-toolbar" role="toolbar" aria-label={$t('clipTag.edit.toolbar', { default: 'Audio editing tools' })}>
+          <div class="toolbar-group" aria-label={$t('clipTag.edit.history', { default: 'History' })}>
+            <button class="icon-button hover-tooltip-anchor" type="button" disabled={!canUndo} aria-label={$t('clipTag.menu.undo', { default: 'Undo' })} on:click={undo}><span class="material-symbols-outlined" aria-hidden="true">undo</span><HoverTooltip>{$t('clipTag.menu.undo', { default: 'Undo' })}</HoverTooltip></button>
+            <button class="icon-button hover-tooltip-anchor" type="button" disabled={!canRedo} aria-label={$t('clipTag.menu.redo', { default: 'Redo' })} on:click={redo}><span class="material-symbols-outlined" aria-hidden="true">redo</span><HoverTooltip>{$t('clipTag.menu.redo', { default: 'Redo' })}</HoverTooltip></button>
+          </div>
           <span class="toolbar-separator" aria-hidden="true"></span>
-          <button class="icon-button hover-tooltip-anchor" type="button" disabled={!canUndo} aria-label={$t('clipTag.menu.undo', { default: 'Undo' })} on:click={undo}>
-            <span class="material-symbols-outlined" aria-hidden="true">undo</span><HoverTooltip>{$t('clipTag.menu.undo', { default: 'Undo' })}</HoverTooltip>
-          </button>
-          <button class="icon-button hover-tooltip-anchor" type="button" disabled={!canRedo} aria-label={$t('clipTag.menu.redo', { default: 'Redo' })} on:click={redo}>
-            <span class="material-symbols-outlined" aria-hidden="true">redo</span><HoverTooltip>{$t('clipTag.menu.redo', { default: 'Redo' })}</HoverTooltip>
-          </button>
+          <div class="toolbar-group" aria-label={$t('clipTag.edit.clipboard', { default: 'Clipboard' })}>
+            <button class="icon-button hover-tooltip-anchor" type="button" disabled={!canEdit || !hasSelection} aria-label={$t('clipTag.edit.cut', { default: 'Cut' })} on:click={() => deleteSelection(true)}><span class="material-symbols-outlined" aria-hidden="true">content_cut</span><HoverTooltip>{$t('clipTag.edit.cutShortcut', { default: 'Cut · Ctrl+X' })}</HoverTooltip></button>
+            <button class="icon-button hover-tooltip-anchor" type="button" disabled={!canEdit || !hasSelection} aria-label={$t('clipTag.edit.copy', { default: 'Copy' })} on:click={() => copySelection()}><span class="material-symbols-outlined" aria-hidden="true">content_copy</span><HoverTooltip>{$t('clipTag.edit.copyShortcut', { default: 'Copy · Ctrl+C' })}</HoverTooltip></button>
+            <button class="icon-button hover-tooltip-anchor" type="button" disabled={!canPaste} aria-label={$t('clipTag.edit.paste', { default: 'Paste' })} on:click={pasteAudio}><span class="material-symbols-outlined" aria-hidden="true">content_paste</span><HoverTooltip>{$t('clipTag.edit.pasteShortcut', { default: 'Paste · Ctrl+V' })}</HoverTooltip></button>
+            <button class="icon-button hover-tooltip-anchor" type="button" disabled={!canEdit || !hasSelection} aria-label={$t('clipTag.edit.delete', { default: 'Delete' })} on:click={() => deleteSelection()}><span class="material-symbols-outlined" aria-hidden="true">delete</span><HoverTooltip>{$t('clipTag.edit.deleteShortcut', { default: 'Delete selection · Del' })}</HoverTooltip></button>
+            <button class="icon-button hover-tooltip-anchor" type="button" disabled={!canEdit || !hasSelection} aria-label={$t('clipTag.edit.trim', { default: 'Trim to selection' })} on:click={trimToSelection}><span class="material-symbols-outlined" aria-hidden="true">content_cut</span><HoverTooltip>{$t('clipTag.edit.trim', { default: 'Trim to selection' })}</HoverTooltip></button>
+          </div>
           <span class="toolbar-separator" aria-hidden="true"></span>
-          <button class="icon-button hover-tooltip-anchor" class:is-active={previewPlaying} type="button" disabled={!canEdit} aria-label={$t('clipTag.clip.previewSelection', { default: 'Preview selection' })} on:click={() => previewPlaying ? stopPreview() : void startPreview(true)}>
-            <span class="material-symbols-outlined" aria-hidden="true">{previewPlaying ? 'stop' : 'play_arrow'}</span><HoverTooltip>{$t('clipTag.clip.previewSelection', { default: 'Preview selection' })}</HoverTooltip>
-          </button>
-          <button class="icon-button hover-tooltip-anchor" type="button" disabled={!canEdit} aria-label={$t('clipTag.clip.previewAll', { default: 'Preview full clip' })} on:click={() => void startPreview(false)}>
-            <span class="material-symbols-outlined" aria-hidden="true">play_circle</span><HoverTooltip>{$t('clipTag.clip.previewAll', { default: 'Preview full clip' })}</HoverTooltip>
-          </button>
+          <button class="text-button effects-button" type="button" disabled={!canEdit || !hasSelection} on:click={() => openEffectDialog()}><span class="material-symbols-outlined" aria-hidden="true">auto_fix_high</span>{$t('clipTag.effects.button', { default: 'Effects...' })}</button>
+          <span class="toolbar-separator" aria-hidden="true"></span>
+          <div class="toolbar-group transport-group" aria-label={$t('clipTag.edit.transport', { default: 'Navigation and preview' })}>
+            <button class="icon-button hover-tooltip-anchor" type="button" disabled={!canEdit} aria-label={$t('clipTag.edit.selectionStart', { default: 'Go to selection start' })} on:click={() => seekEditor(hasSelection ? editState.selectionStart : 0)}><span class="material-symbols-outlined" aria-hidden="true">skip_previous</span><HoverTooltip>{$t('clipTag.edit.selectionStart', { default: 'Go to selection start' })}</HoverTooltip></button>
+            <button class="icon-button transport-play hover-tooltip-anchor" class:is-active={previewPlaying && previewMode === 'clip'} type="button" disabled={!canEdit} aria-label={$t('clipTag.edit.play', { default: 'Play from cursor' })} on:click={() => toggleEditorPreview(false)}><span class="material-symbols-outlined" aria-hidden="true">{previewPlaying && previewMode === 'clip' ? 'stop' : 'play_arrow'}</span><HoverTooltip>{$t('clipTag.edit.playShortcut', { default: 'Play from cursor · Space' })}</HoverTooltip></button>
+            <button class="icon-button hover-tooltip-anchor" type="button" disabled={!canEdit || !hasSelection} aria-label={$t('clipTag.edit.playSelection', { default: 'Play selection' })} on:click={() => toggleEditorPreview(true)}><span class="material-symbols-outlined" aria-hidden="true">play_circle</span><HoverTooltip>{$t('clipTag.edit.playSelection', { default: 'Play selection' })}</HoverTooltip></button>
+            <button class="icon-button hover-tooltip-anchor" type="button" disabled={!canEdit} aria-label={$t('clipTag.edit.selectionEnd', { default: 'Go to selection end' })} on:click={() => seekEditor(hasSelection ? editState.selectionEnd : duration)}><span class="material-symbols-outlined" aria-hidden="true">skip_next</span><HoverTooltip>{$t('clipTag.edit.selectionEnd', { default: 'Go to selection end' })}</HoverTooltip></button>
+            <span class="transport-time">{formatTime(playhead)} / {formatTime(duration)}</span>
+          </div>
           <div class="toolbar-spacer"></div>
-          <button class="icon-button hover-tooltip-anchor" type="button" disabled={!canEdit || waveformZoom <= 1} aria-label={$t('clipTag.clip.zoomOut', { default: 'Zoom out' })} on:click={() => setWaveformZoom(waveformZoom / 2)}>
-            <span class="material-symbols-outlined" aria-hidden="true">zoom_out</span><HoverTooltip>{$t('clipTag.clip.zoomOut', { default: 'Zoom out' })}</HoverTooltip>
-          </button>
-          <button class="text-button zoom-level-button hover-tooltip-anchor" type="button" disabled={!canEdit || waveformZoom <= 1} aria-label={$t('clipTag.clip.fitWaveform', { default: 'Fit waveform (Ctrl+wheel to zoom)' })} on:click={resetWaveformViewport}>
-            {formatWaveformZoom(waveformZoom)}<HoverTooltip>{$t('clipTag.clip.fitWaveform', { default: 'Fit waveform (Ctrl+wheel to zoom)' })}</HoverTooltip>
-          </button>
-          <button class="icon-button hover-tooltip-anchor" type="button" disabled={!canEdit || waveformZoom >= MAX_WAVEFORM_ZOOM} aria-label={$t('clipTag.clip.zoomIn', { default: 'Zoom in' })} on:click={() => setWaveformZoom(waveformZoom * 2)}>
-            <span class="material-symbols-outlined" aria-hidden="true">zoom_in</span><HoverTooltip>{$t('clipTag.clip.zoomIn', { default: 'Zoom in' })}</HoverTooltip>
-          </button>
+          <div class="toolbar-group zoom-group" aria-label={$t('clipTag.edit.zoom', { default: 'Zoom' })}>
+            <button class="icon-button hover-tooltip-anchor" type="button" disabled={!canEdit || waveformZoom <= 1} aria-label={$t('clipTag.clip.zoomOut', { default: 'Zoom out' })} on:click={() => setWaveformZoom(waveformZoom / 2)}><span class="material-symbols-outlined" aria-hidden="true">zoom_out</span><HoverTooltip>{$t('clipTag.clip.zoomOut', { default: 'Zoom out' })}</HoverTooltip></button>
+            <button class="text-button zoom-level-button hover-tooltip-anchor" type="button" disabled={!canEdit || waveformZoom <= 1} aria-label={$t('clipTag.clip.fitWaveform', { default: 'Fit waveform (Ctrl+wheel to zoom)' })} on:click={resetWaveformViewport}>{formatWaveformZoom(waveformZoom)}<HoverTooltip>{$t('clipTag.clip.fitWaveform', { default: 'Fit waveform (Ctrl+wheel to zoom)' })}</HoverTooltip></button>
+            <button class="icon-button hover-tooltip-anchor" type="button" disabled={!canEdit || waveformZoom >= MAX_WAVEFORM_ZOOM} aria-label={$t('clipTag.clip.zoomIn', { default: 'Zoom in' })} on:click={() => setWaveformZoom(waveformZoom * 2)}><span class="material-symbols-outlined" aria-hidden="true">zoom_in</span><HoverTooltip>{$t('clipTag.clip.zoomIn', { default: 'Zoom in' })}</HoverTooltip></button>
+            <button class="icon-button hover-tooltip-anchor" type="button" disabled={!canEdit || !hasSelection} aria-label={$t('clipTag.edit.zoomSelection', { default: 'Zoom to selection' })} on:click={zoomToSelection}><span class="material-symbols-outlined" aria-hidden="true">zoom_in_map</span><HoverTooltip>{$t('clipTag.edit.zoomSelection', { default: 'Zoom to selection' })}</HoverTooltip></button>
+          </div>
           <span class="toolbar-separator" aria-hidden="true"></span>
-          <button class="text-button primary" type="button" disabled={!canEdit} on:click={openExportDialog}>
-            <span class="material-symbols-outlined" aria-hidden="true">save</span>{$t('clipTag.clip.exportOpen', { default: 'Export...' })}
-          </button>
+          <button class="text-button primary export-button" type="button" disabled={!canEdit} on:click={openExportDialog}><span class="material-symbols-outlined" aria-hidden="true">save</span>{$t('clipTag.clip.exportOpen', { default: 'Export...' })}</button>
         </div>
 
         <div class="waveform-frame" class:is-loading={loading}>
@@ -640,7 +830,7 @@
             bind:zoom={waveformZoom}
             bind:scrollStart={waveformScrollStart}
             on:selection={(event) => (editState = updateSelection(editState, event.detail.start, event.detail.end))}
-            on:seek={(event) => (playhead = event.detail)}
+            on:seek={(event) => seekEditor(event.detail)}
           />
           {#if !sourceFile && !loading}
             <button class="empty-drop-target" type="button" on:click={() => void chooseAudioFile()}>
@@ -732,6 +922,16 @@
       />
     {/if}
   </main>
+
+  <ClipEffectDialog
+    bind:this={effectDialog}
+    busy={processingEffect}
+    previewing={previewPlaying && previewMode === 'clip'}
+    {selectionDuration}
+    on:preview={(event) => void previewEffect(event.detail.settings, event.detail.edgeBlendMs)}
+    on:apply={(event) => void applyEffect(event.detail.settings, event.detail.edgeBlendMs)}
+    on:close={stopPreview}
+  />
 
   <ClipExportDialog
     bind:this={exportDialog}

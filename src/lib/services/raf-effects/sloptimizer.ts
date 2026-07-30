@@ -64,6 +64,7 @@ export interface SloptimizerNode extends RafEffectNode {
   nodes: AudioNode[];
   latestSettings: RafSloptimizerSettings;
   disposed: boolean;
+  ready: Promise<void>;
 }
 
 export function mapSlopToParameters(slop: number): SloptimizerMacroParameters {
@@ -154,9 +155,10 @@ export function createSloptimizerNode(
     saturator,
     nodes,
     latestSettings: settings,
-    disposed: false
+    disposed: false,
+    ready: Promise.resolve()
   };
-  void activateUpwardProcessors(node, context);
+  node.ready = activateUpwardProcessors(node, context);
   return node;
 }
 

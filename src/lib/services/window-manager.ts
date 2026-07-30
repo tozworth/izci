@@ -155,7 +155,16 @@ function openPopupWindow(id: PopupWindowId, pathOverride?: string): Window | nul
     return null;
   }
 
-  primePopupBackground(nextWindow, id === 'options' ? 'izci Options' : 'izci Clip and Tag');
+  primePopupBackground(
+    nextWindow,
+    id === 'options'
+      ? 'izci Options'
+      : id === 'clipTag'
+        ? 'izci Edit and Tag'
+        : id === 'loudness'
+          ? 'izci Loudness'
+          : 'izci Spectrogram'
+  );
   popupRefs.set(id, nextWindow);
   attachMainWindowLifecycleListeners();
   navigatePrimedPopup(nextWindow, popupUrl.href);

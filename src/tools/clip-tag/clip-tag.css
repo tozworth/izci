@@ -131,10 +131,63 @@ select {
 .clip-toolbar {
   min-height: 2.25rem;
   padding: 0.25rem 0.35rem;
+  overflow-x: auto;
+  overflow-y: hidden;
   background: var(--clip-tag-view-background);
   border: 0;
   border-bottom: 1px solid var(--border-soft);
   border-radius: 0;
+  scrollbar-width: thin;
+  white-space: nowrap;
+}
+
+.toolbar-group {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.12rem;
+}
+
+.effects-button {
+  flex: 0 0 auto;
+  border-color: color-mix(in srgb, var(--accent-strong) 48%, var(--border-soft));
+  background: color-mix(in srgb, var(--accent-strong) 12%, var(--bg-soft));
+  color: var(--text-strong);
+  font-weight: 600;
+}
+
+.effects-button:hover:not(:disabled) {
+  border-color: var(--accent-strong);
+  background: color-mix(in srgb, var(--accent-strong) 18%, var(--bg-soft));
+}
+
+.transport-play {
+  margin-inline: 0.08rem;
+  border-color: var(--border-soft);
+  background: var(--bg-soft);
+}
+
+.transport-play.is-active {
+  border-color: var(--accent-strong);
+  background: color-mix(in srgb, var(--accent-strong) 15%, var(--bg-soft));
+  color: var(--accent-strong);
+}
+
+.transport-time {
+  min-width: 9.8rem;
+  padding: 0 0.28rem;
+  color: var(--muted);
+  font-size: 0.65rem;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.zoom-group {
+  margin-left: 0.15rem;
+}
+
+.export-button {
+  flex: 0 0 auto;
 }
 
 .lyrics-workbench {
@@ -331,7 +384,7 @@ select {
 }
 
 .toolbar-spacer {
-  flex: 1;
+  flex: 1 0 0.4rem;
 }
 
 .zoom-level-button {
@@ -412,7 +465,7 @@ select {
   gap: 0.45rem 0.8rem;
   min-height: 2.45rem;
   padding: 0.35rem 0.5rem;
-  background: var(--clip-tag-view-background);
+  background: color-mix(in srgb, var(--window-topbar-bg) 74%, var(--clip-tag-view-background));
   border: 0;
   border-top: 1px solid var(--border-soft);
   border-radius: 0;
@@ -438,6 +491,10 @@ select {
 .selection-readout strong {
   color: var(--text-strong);
   font-variant-numeric: tabular-nums;
+}
+
+.selection-readout label:first-child {
+  margin-left: 0.08rem;
 }
 
 .render-badge {

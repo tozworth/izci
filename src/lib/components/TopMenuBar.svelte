@@ -24,6 +24,8 @@
     | 'forceUpdate'
     | 'openAbout'
     | 'openClipTag'
+    | 'openLoudness'
+    | 'openSpectrogram'
     | 'showPlaylist'
     | 'showLibrary'
     | 'showTrackDetails'
@@ -116,8 +118,18 @@
   $: toolsMenuItems = [
     {
       id: 'openClipTag',
-      label: $t('main.menu.clipAndTag', { default: 'Clip and Tag...' }),
+      label: $t('main.menu.clipAndTag', { default: 'Edit and Tag...' }),
       icon: 'content_cut'
+    },
+    {
+      id: 'openLoudness',
+      label: $t('main.menu.loudness', { default: 'Loudness...' }),
+      icon: 'graphic_eq'
+    },
+    {
+      id: 'openSpectrogram',
+      label: $t('main.menu.spectrogram', { default: 'Spectrogram...' }),
+      icon: 'waterfall_chart'
     }
   ] satisfies MenuActionItem[];
   $: helpMenuItems = [
@@ -150,6 +162,8 @@
     forceUpdate: void;
     openAbout: void;
     openClipTag: void;
+    openLoudness: void;
+    openSpectrogram: void;
     showPlaylist: void;
     showLibrary: void;
     showTrackDetails: void;

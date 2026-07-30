@@ -44,7 +44,7 @@ export function updateSelection(state: ClipEditState, start: number, end: number
   return { ...state, selectionStart: safeStart, selectionEnd: safeEnd };
 }
 
-function sliceLogicalRange(ranges: ClipRange[], start: number, end: number): ClipRange[] {
+export function sliceClipRanges(ranges: ClipRange[], start: number, end: number): ClipRange[] {
   const next: ClipRange[] = [];
   let cursor = 0;
 
@@ -67,7 +67,7 @@ function sliceLogicalRange(ranges: ClipRange[], start: number, end: number): Cli
 }
 
 export function keepSelection(state: ClipEditState): ClipEditState {
-  const ranges = sliceLogicalRange(state.ranges, state.selectionStart, state.selectionEnd);
+  const ranges = sliceClipRanges(state.ranges, state.selectionStart, state.selectionEnd);
   const duration = ranges.reduce((total, range) => total + range.end - range.start, 0);
   return { ranges, selectionStart: 0, selectionEnd: duration };
 }
@@ -75,12 +75,75 @@ export function keepSelection(state: ClipEditState): ClipEditState {
 export function cutSelection(state: ClipEditState): ClipEditState {
   const duration = clipDuration(state);
   const ranges = [
-    ...sliceLogicalRange(state.ranges, 0, state.selectionStart),
-    ...sliceLogicalRange(state.ranges, state.selectionEnd, duration)
+    ...sliceClipRanges(state.ranges, 0, state.selectionStart),
+    ...sliceClipRanges(state.ranges, state.selectionEnd, duration)
   ];
   const nextDuration = ranges.reduce((total, range) => total + range.end - range.start, 0);
   const cursor = Math.min(state.selectionStart, nextDuration);
   return { ranges, selectionStart: cursor, selectionEnd: cursor };
+}
+
+export function replaceSelectionRanges(state: ClipEditState, insertedRanges: ClipRange[]): ClipEditState {
+  const duration = clipDuration(state);
+  const insertionDuration = insertedRanges.reduce(
+    (total, range) => total + Math.max(0, range.end - range.start),
+    0
+  );
+  const ranges = [
+    ...sliceClipRanges(state.ranges, 0, state.selectionStart),
+    ...insertedRanges.map((range) => ({ ...range })),
+    ...sliceClipRanges(state.ranges, state.selectionEnd, duration)
+  ];
+  return {
+    ranges,
+    selectionStart: state.selectionStart,
+    selectionEnd: state.selectionStart + insertionDuration
+  };
+}
+
+function createCompatibleBuffer(source: AudioBuffer, length: number): AudioBuffer {
+  return new AudioBuffer({
+    length: Math.max(1, length),
+    numberOfChannels: source.numberOfChannels,
+    sampleRate: source.sampleRate
+  });
+}
+
+export function sliceAudioBuffer(source: AudioBuffer, start: number, end: number): AudioBuffer {
+  const readStart = Math.min(source.length, Math.max(0, Math.round(start * source.sampleRate)));
+  const readEnd = Math.min(source.length, Math.max(readStart, Math.round(end * source.sampleRate)));
+  const output = createCompatibleBuffer(source, readEnd - readStart);
+  for (let channel = 0; channel < source.numberOfChannels; channel += 1) {
+    output.copyToChannel(source.getChannelData(channel).subarray(readStart, readEnd), channel);
+  }
+  return output;
+}
+
+export function replaceAudioBufferRange(
+  source: AudioBuffer,
+  start: number,
+  end: number,
+  replacement: AudioBuffer | null
+): AudioBuffer {
+  if (replacement && (
+    replacement.sampleRate !== source.sampleRate
+    || replacement.numberOfChannels !== source.numberOfChannels
+  )) {
+    throw new Error('Pasted audio must use the same sample rate and channel layout.');
+  }
+
+  const readStart = Math.min(source.length, Math.max(0, Math.round(start * source.sampleRate)));
+  const readEnd = Math.min(source.length, Math.max(readStart, Math.round(end * source.sampleRate)));
+  const replacementLength = replacement?.length ?? 0;
+  const output = createCompatibleBuffer(source, source.length - (readEnd - readStart) + replacementLength);
+
+  for (let channel = 0; channel < source.numberOfChannels; channel += 1) {
+    const outputData = output.getChannelData(channel);
+    outputData.set(source.getChannelData(channel).subarray(0, readStart), 0);
+    if (replacement) outputData.set(replacement.getChannelData(channel), readStart);
+    outputData.set(source.getChannelData(channel).subarray(readEnd), readStart + replacementLength);
+  }
+  return output;
 }
 
 export function materializeClip(source: AudioBuffer, state: ClipEditState): AudioBuffer {

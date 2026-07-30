@@ -72,7 +72,7 @@
   <form on:submit|preventDefault={submit}>
     <header>
       <div>
-        <h2 id="clip-export-title">{$t('clipTag.exportDialog.title', { default: 'Export clip' })}</h2>
+        <h2 id="clip-export-title">{$t('clipTag.exportDialog.title', { default: 'Export audio' })}</h2>
         <p id="clip-export-summary">{$t('clipTag.exportDialog.summary', { default: 'Choose the output encoding and audio configuration.' })}</p>
       </div>
       <button class="icon-button" type="button" disabled={busy} aria-label={$t('clipTag.exportDialog.cancel', { default: 'Cancel' })} on:click={closeDialog}>

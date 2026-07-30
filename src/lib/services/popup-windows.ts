@@ -26,6 +26,28 @@ export const popupWindows = {
       resizable: true,
       scrollbars: false
     }
+  },
+  loudness: {
+    name: 'izci-loudness',
+    path: '/loudness.html',
+    features: {
+      popup: true,
+      width: 1060,
+      height: 650,
+      resizable: true,
+      scrollbars: false
+    }
+  },
+  spectrogram: {
+    name: 'izci-spectrogram',
+    path: '/spectrogram.html',
+    features: {
+      popup: true,
+      width: 1020,
+      height: 680,
+      resizable: true,
+      scrollbars: false
+    }
   }
 } satisfies Record<string, PopupWindowDefinition>;
 

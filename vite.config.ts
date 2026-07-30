@@ -15,7 +15,9 @@ export default defineConfig({
       input: {
         main: fileURLToPath(new URL('./index.html', import.meta.url)),
         options: fileURLToPath(new URL('./options.html', import.meta.url)),
-        clipTag: fileURLToPath(new URL('./clip-tag.html', import.meta.url))
+        clipTag: fileURLToPath(new URL('./clip-tag.html', import.meta.url)),
+        loudness: fileURLToPath(new URL('./loudness.html', import.meta.url)),
+        spectrogram: fileURLToPath(new URL('./spectrogram.html', import.meta.url))
       }
     }
   },
@@ -111,7 +113,7 @@ export default defineConfig({
       } as Record<string, unknown>,
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,woff2,mem,wasm,txt}'],
-        navigateFallbackDenylist: [/^\/(?:options|clip-tag)\.html(?:\?|$)/],
+        navigateFallbackDenylist: [/^\/(?:options|clip-tag|loudness|spectrogram)\.html(?:\?|$)/],
         ignoreURLParametersMatching: [/^utm_/, /^fbclid$/, /^view$/],
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024
       }

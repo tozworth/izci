@@ -3,15 +3,17 @@
   import { t } from 'svelte-i18n';
   import MenuSurface from '$lib/components/MenuSurface.svelte';
   import { applyManualLoadoutSettings } from '$lib/services/loadouts';
+  import { RAF_EFFECT_DEFINITIONS } from '$lib/services/raf-effect-registry';
   import { windowControlsOverlayState } from '$lib/services/window-controls-overlay';
   import { windowManager } from '$lib/services/window-manager';
   import { loadouts } from '$lib/stores/loadouts';
-  import type { MenuActionItem } from '$lib/types';
+  import type { MenuActionItem, RafEffectType } from '$lib/types';
   import { getLoadoutColorValue, LOADOUT_TYPE_ICONS } from '$lib/utils/loadout-presentation';
 
-  type MenuId = 'app' | 'file' | 'edit';
+  type MenuId = 'app' | 'file' | 'edit' | 'effects';
   type ActionId = 'open' | 'saveClip' | 'saveInPlace' | 'saveAs' | 'close' | 'undo' | 'redo' | 'selectAll'
-    | 'openOptions' | 'openLoadouts' | 'openAbout' | `applyLoadout:${string}`;
+    | 'cut' | 'copy' | 'paste' | 'delete' | 'trim'
+    | 'openOptions' | 'openLoadouts' | 'openAbout' | `applyLoadout:${string}` | `effect:${RafEffectType}`;
 
   export let fileName = '';
   export let canSaveClip = false;
@@ -19,7 +21,9 @@
   export let canSaveInPlace = false;
   export let canUndo = false;
   export let canRedo = false;
-  export let activeTool: 'clip' | 'tags' | 'lyrics' = 'clip';
+  export let canCut = false;
+  export let canPaste = false;
+  export let activeTool: 'edit' | 'tags' | 'lyrics' = 'edit';
 
   const dispatch = createEventDispatcher<{
     open: void;
@@ -30,6 +34,12 @@
     undo: void;
     redo: void;
     selectAll: void;
+    cut: void;
+    copy: void;
+    paste: void;
+    delete: void;
+    trim: void;
+    effect: RafEffectType;
   }>();
 
   let activeMenu: MenuId | null = null;
@@ -38,6 +48,7 @@
   let appTrigger: HTMLButtonElement;
   let fileTrigger: HTMLButtonElement;
   let editTrigger: HTMLButtonElement;
+  let effectsTrigger: HTMLButtonElement;
 
   $: loadoutItems = [
     {
@@ -57,23 +68,35 @@
     { id: 'openOptions', label: $t('main.menu.options', { default: 'Options...' }), icon: 'settings', shortcut: 'Ctrl+P' },
     { id: 'loadouts', label: $t('main.menu.loadouts', { default: 'Loadouts' }), icon: 'bookmarks', children: loadoutItems },
     { id: 'openAbout', label: $t('main.menu.about', { default: 'About' }), icon: 'info' },
-    { id: 'close', label: $t('clipTag.menu.close', { default: 'Close Clip and Tag' }), icon: 'close', shortcut: 'Ctrl+W', separatorBefore: true }
+    { id: 'close', label: $t('clipTag.menu.close', { default: 'Close Edit and Tag' }), icon: 'close', shortcut: 'Ctrl+W', separatorBefore: true }
   ] satisfies MenuActionItem[];
   $: fileItems = [
     { id: 'open', label: $t('clipTag.menu.open', { default: 'Open audio...' }), icon: 'file_open', shortcut: 'Ctrl+O' },
-    ...(activeTool === 'clip'
-      ? [{ id: 'saveClip', label: $t('clipTag.menu.saveClip', { default: 'Export clip...' }), icon: 'save', shortcut: 'Ctrl+S', disabled: !canSaveClip, separatorBefore: true }]
+    ...(activeTool === 'edit'
+      ? [{ id: 'saveClip', label: $t('clipTag.menu.saveClip', { default: 'Export audio...' }), icon: 'save', shortcut: 'Ctrl+S', disabled: !canSaveClip, separatorBefore: true }]
       : [
           { id: 'saveInPlace', label: $t('clipTag.menu.saveInPlace', { default: 'Save' }), icon: 'save', shortcut: 'Ctrl+S', disabled: !canSaveInPlace, separatorBefore: true },
           { id: 'saveAs', label: $t('clipTag.menu.saveAs', { default: 'Save as...' }), icon: 'save_as', shortcut: 'Ctrl+Shift+S', disabled: !canSaveTags }
         ]),
-    { id: 'close', label: $t('clipTag.menu.close', { default: 'Close Clip and Tag' }), icon: 'close', shortcut: 'Ctrl+W', separatorBefore: true }
+    { id: 'close', label: $t('clipTag.menu.close', { default: 'Close Edit and Tag' }), icon: 'close', shortcut: 'Ctrl+W', separatorBefore: true }
   ] satisfies MenuActionItem[];
   $: editItems = [
     { id: 'undo', label: $t('clipTag.menu.undo', { default: 'Undo' }), icon: 'undo', shortcut: 'Ctrl+Z', disabled: !canUndo },
     { id: 'redo', label: $t('clipTag.menu.redo', { default: 'Redo' }), icon: 'redo', shortcut: 'Ctrl+Y', disabled: !canRedo },
-    { id: 'selectAll', label: $t('clipTag.menu.selectAll', { default: 'Select all' }), icon: 'select_all', shortcut: 'Ctrl+A', disabled: !canSaveClip, separatorBefore: true }
+    { id: 'cut', label: $t('clipTag.edit.cut', { default: 'Cut' }), icon: 'content_cut', shortcut: 'Ctrl+X', disabled: !canCut, separatorBefore: true },
+    { id: 'copy', label: $t('clipTag.edit.copy', { default: 'Copy' }), icon: 'content_copy', shortcut: 'Ctrl+C', disabled: !canCut },
+    { id: 'paste', label: $t('clipTag.edit.paste', { default: 'Paste' }), icon: 'content_paste', shortcut: 'Ctrl+V', disabled: !canPaste },
+    { id: 'delete', label: $t('clipTag.edit.delete', { default: 'Delete' }), icon: 'delete', shortcut: 'Del', disabled: !canCut },
+    { id: 'trim', label: $t('clipTag.edit.trim', { default: 'Trim to selection' }), icon: 'crop', disabled: !canCut, separatorBefore: true },
+    { id: 'selectAll', label: $t('clipTag.menu.selectAll', { default: 'Select all' }), icon: 'select_all', shortcut: 'Ctrl+A', disabled: !canSaveClip }
   ] satisfies MenuActionItem[];
+  $: effectItems = RAF_EFFECT_DEFINITIONS.map((definition, index) => ({
+    id: `effect:${definition.type}`,
+    label: definition.name,
+    icon: definition.icon,
+    disabled: !canCut,
+    separatorBefore: index === 0
+  })) satisfies MenuActionItem[];
 
   $: overlay = $windowControlsOverlayState;
   $: rect = overlay.titlebarAreaRect;
@@ -82,7 +105,7 @@
     : '';
 
   function triggerFor(menu: MenuId): HTMLButtonElement {
-    return menu === 'app' ? appTrigger : menu === 'file' ? fileTrigger : editTrigger;
+    return menu === 'app' ? appTrigger : menu === 'file' ? fileTrigger : menu === 'edit' ? editTrigger : effectsTrigger;
   }
 
   function openMenu(menu: MenuId): void {
@@ -112,8 +135,13 @@
       if (loadout) applyManualLoadoutSettings(loadout.settings);
       return;
     }
+    if (action.startsWith('effect:')) {
+      dispatch('effect', action.slice(7) as RafEffectType);
+      return;
+    }
     if (action === 'open' || action === 'saveClip' || action === 'saveInPlace' || action === 'saveAs' || action === 'close'
-      || action === 'undo' || action === 'redo' || action === 'selectAll') {
+      || action === 'undo' || action === 'redo' || action === 'selectAll' || action === 'cut' || action === 'copy'
+      || action === 'paste' || action === 'delete' || action === 'trim') {
       dispatch(action);
     }
   }
@@ -170,9 +198,15 @@
         <MenuSurface items={editItems} x={menuX} y={menuY} on:action={(event) => run(event.detail as ActionId)} on:dismiss={() => (activeMenu = null)} />
       {/if}
     </div>
+    <div class="menu-root" role="none" on:pointerenter={() => hoverMenu('effects')}>
+      <button bind:this={effectsTrigger} class="menu-trigger" class:active={activeMenu === 'effects'} data-menu-interactive="true" type="button" aria-haspopup="menu" aria-expanded={activeMenu === 'effects'} on:click={() => openMenu('effects')}>{$t('clipTag.effects.menu', { default: 'Effects' })}</button>
+      {#if activeMenu === 'effects'}
+        <MenuSurface items={effectItems} x={menuX} y={menuY} on:action={(event) => run(event.detail as ActionId)} on:dismiss={() => (activeMenu = null)} />
+      {/if}
+    </div>
   </div>
   <div class="clip-tag-window-title" aria-live="polite">
-    <strong>{$t('clipTag.title', { default: 'Clip and Tag' })}</strong>
+    <strong>{$t('clipTag.title', { default: 'Edit and Tag' })}</strong>
     {#if fileName}<span>{fileName}</span>{/if}
   </div>
 </nav>

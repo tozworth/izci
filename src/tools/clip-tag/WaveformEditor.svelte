@@ -23,21 +23,27 @@
 
   let canvas: HTMLCanvasElement;
   let waveformLayer: HTMLCanvasElement;
+  let overviewCanvas: HTMLCanvasElement;
+  let overviewWaveformLayer: HTMLCanvasElement;
   let resizeObserver: ResizeObserver | null = null;
   let dragMode: 'start' | 'end' | 'new' | null = null;
   let dragOrigin = 0;
   let drawFrame = 0;
   let waveformFrame = 0;
+  let overviewDrawFrame = 0;
+  let overviewWaveformFrame = 0;
   let selectionFrame = 0;
   let pendingSelection: { start: number; end: number } | null = null;
+  let overviewDragMode: 'viewport' | 'seek' | null = null;
+  let overviewPointerOrigin = 0;
+  let overviewScrollOrigin = 0;
+  let overviewPointerMoved = false;
 
   $: duration = buffer?.duration ?? 0;
   $: normalizedZoom = normalizeWaveformZoom(zoom);
   $: visibleDuration = waveformViewportDuration(duration, normalizedZoom);
-  $: maximumScrollStart = Math.max(0, duration - visibleDuration);
   $: clampedScrollStart = clampWaveformScrollStart(scrollStart, duration, normalizedZoom);
   $: visibleEnd = Math.min(duration, clampedScrollStart + visibleDuration);
-  $: navigatorStep = Math.max(0.001, visibleDuration / 500);
 
   function timeAtClientX(clientX: number): number {
     if (!canvas || !buffer) return 0;
@@ -59,6 +65,23 @@
     if (waveformLayer && (waveformLayer.width !== width || waveformLayer.height !== height)) {
       waveformLayer.width = width;
       waveformLayer.height = height;
+    }
+    return { width, height, ratio };
+  }
+
+  function prepareOverviewCanvas(): { width: number; height: number; ratio: number } | null {
+    if (!overviewCanvas) return null;
+    const rect = overviewCanvas.getBoundingClientRect();
+    const ratio = window.devicePixelRatio || 1;
+    const width = Math.max(1, Math.round(rect.width * ratio));
+    const height = Math.max(1, Math.round(rect.height * ratio));
+    if (overviewCanvas.width !== width || overviewCanvas.height !== height) {
+      overviewCanvas.width = width;
+      overviewCanvas.height = height;
+    }
+    if (overviewWaveformLayer && (overviewWaveformLayer.width !== width || overviewWaveformLayer.height !== height)) {
+      overviewWaveformLayer.width = width;
+      overviewWaveformLayer.height = height;
     }
     return { width, height, ratio };
   }
@@ -130,27 +153,36 @@
     const channels = Array.from({ length: buffer.numberOfChannels }, (_, index) => buffer!.getChannelData(index));
     const firstSample = clampedScrollStart * buffer.sampleRate;
     const samplesPerPixel = visibleDuration * buffer.sampleRate / width;
-    const middle = height / 2;
+    const laneHeight = height / channels.length;
     context.strokeStyle = styles.getPropertyValue('--waveform-color').trim() || '#aeb7c2';
     context.lineWidth = Math.max(1, ratio);
-    context.beginPath();
-    for (let x = 0; x < width; x += 1) {
-      const start = Math.max(0, Math.floor(firstSample + x * samplesPerPixel));
-      const end = Math.max(start + 1, Math.min(buffer.length, Math.ceil(firstSample + (x + 1) * samplesPerPixel)));
-      let minimum = 1;
-      let maximum = -1;
-      const stride = Math.max(1, Math.floor((end - start) / 32));
-      for (let index = start; index < end; index += stride) {
-        let sample = 0;
-        for (const channel of channels) sample += channel[index] ?? 0;
-        sample /= channels.length;
-        minimum = Math.min(minimum, sample);
-        maximum = Math.max(maximum, sample);
+    channels.forEach((channel, channelIndex) => {
+      const middle = laneHeight * channelIndex + laneHeight / 2;
+      context.beginPath();
+      for (let x = 0; x < width; x += 1) {
+        const start = Math.max(0, Math.floor(firstSample + x * samplesPerPixel));
+        const end = Math.max(start + 1, Math.min(buffer.length, Math.ceil(firstSample + (x + 1) * samplesPerPixel)));
+        let minimum = 1;
+        let maximum = -1;
+        const stride = Math.max(1, Math.floor((end - start) / 32));
+        for (let index = start; index < end; index += stride) {
+          const sample = channel[index] ?? 0;
+          minimum = Math.min(minimum, sample);
+          maximum = Math.max(maximum, sample);
+        }
+        context.moveTo(x + 0.5, middle - maximum * laneHeight * 0.38);
+        context.lineTo(x + 0.5, middle - minimum * laneHeight * 0.38);
       }
-      context.moveTo(x + 0.5, middle - maximum * middle * 0.82);
-      context.lineTo(x + 0.5, middle - minimum * middle * 0.82);
-    }
-    context.stroke();
+      context.stroke();
+      context.strokeStyle = styles.getPropertyValue('--waveform-zero').trim() || '#4b5057';
+      context.globalAlpha = 0.5;
+      context.beginPath();
+      context.moveTo(0, Math.round(middle) + 0.5);
+      context.lineTo(width, Math.round(middle) + 0.5);
+      context.stroke();
+      context.globalAlpha = 1;
+      context.strokeStyle = styles.getPropertyValue('--waveform-color').trim() || '#aeb7c2';
+    });
     requestDraw();
   }
 
@@ -160,6 +192,114 @@
       waveformFrame = 0;
       rebuildWaveformLayer();
     });
+  }
+
+  function rebuildOverviewWaveform(): void {
+    const dimensions = prepareOverviewCanvas();
+    if (!dimensions) return;
+    const { width, height, ratio } = dimensions;
+    const context = overviewWaveformLayer.getContext('2d');
+    if (!context) return;
+    const styles = getComputedStyle(overviewCanvas);
+    context.clearRect(0, 0, width, height);
+    context.fillStyle = styles.getPropertyValue('--waveform-overview-background').trim() || '#111315';
+    context.fillRect(0, 0, width, height);
+
+    if (!buffer || buffer.length === 0 || duration <= 0) {
+      context.strokeStyle = styles.getPropertyValue('--waveform-zero').trim() || '#4b5057';
+      context.lineWidth = Math.max(1, ratio);
+      context.beginPath();
+      context.moveTo(0, height / 2);
+      context.lineTo(width, height / 2);
+      context.stroke();
+      requestOverviewDraw();
+      return;
+    }
+
+    const channels = Array.from({ length: buffer.numberOfChannels }, (_, index) => buffer!.getChannelData(index));
+    const samplesPerPixel = buffer.length / width;
+    const laneHeight = height / channels.length;
+    context.strokeStyle = styles.getPropertyValue('--waveform-overview-color').trim() || '#74808c';
+    context.lineWidth = Math.max(1, ratio);
+
+    channels.forEach((channel, channelIndex) => {
+      const middle = laneHeight * channelIndex + laneHeight / 2;
+      context.beginPath();
+      for (let x = 0; x < width; x += 1) {
+        const start = Math.max(0, Math.floor(x * samplesPerPixel));
+        const end = Math.max(start + 1, Math.min(buffer!.length, Math.ceil((x + 1) * samplesPerPixel)));
+        let minimum = 1;
+        let maximum = -1;
+        const stride = Math.max(1, Math.floor((end - start) / 16));
+        for (let index = start; index < end; index += stride) {
+          const sample = channel[index] ?? 0;
+          minimum = Math.min(minimum, sample);
+          maximum = Math.max(maximum, sample);
+        }
+        context.moveTo(x + 0.5, middle - maximum * laneHeight * 0.39);
+        context.lineTo(x + 0.5, middle - minimum * laneHeight * 0.39);
+      }
+      context.stroke();
+    });
+    requestOverviewDraw();
+  }
+
+  function requestOverviewWaveformBuild(): void {
+    if (overviewWaveformFrame) return;
+    overviewWaveformFrame = requestAnimationFrame(() => {
+      overviewWaveformFrame = 0;
+      rebuildOverviewWaveform();
+    });
+  }
+
+  function drawOverview(): void {
+    overviewDrawFrame = 0;
+    const dimensions = prepareOverviewCanvas();
+    if (!dimensions) return;
+    const { width, height, ratio } = dimensions;
+    const context = overviewCanvas.getContext('2d');
+    if (!context) return;
+    context.clearRect(0, 0, width, height);
+    if (!buffer || duration <= 0) return;
+    const styles = getComputedStyle(overviewCanvas);
+
+    const selectionX = selectionStart / duration * width;
+    const selectionWidth = Math.max(0, (selectionEnd - selectionStart) / duration * width);
+    context.fillStyle = styles.getPropertyValue('--waveform-overview-selection').trim() || 'rgba(154, 190, 224, 0.2)';
+    context.fillRect(selectionX, 0, selectionWidth, height);
+
+    const viewportX = clampedScrollStart / duration * width;
+    const viewportWidth = Math.max(2 * ratio, visibleDuration / duration * width);
+    context.fillStyle = styles.getPropertyValue('--waveform-overview-outside').trim() || 'rgba(0, 0, 0, 0.46)';
+    context.fillRect(0, 0, Math.max(0, viewportX), height);
+    context.fillRect(Math.min(width, viewportX + viewportWidth), 0, Math.max(0, width - viewportX - viewportWidth), height);
+    context.strokeStyle = styles.getPropertyValue('--waveform-overview-viewport').trim() || '#c6d0dc';
+    context.lineWidth = Math.max(1, ratio);
+    context.strokeRect(
+      Math.max(0.5 * ratio, viewportX + 0.5 * ratio),
+      0.5 * ratio,
+      Math.max(1, Math.min(width - viewportX - ratio, viewportWidth - ratio)),
+      Math.max(1, height - ratio)
+    );
+
+    if (normalizedZoom > 1) {
+      context.fillStyle = styles.getPropertyValue('--waveform-overview-viewport').trim() || '#c6d0dc';
+      const handleWidth = Math.max(2 * ratio, Math.min(4 * ratio, viewportWidth * 0.08));
+      context.fillRect(viewportX, height * 0.28, handleWidth, height * 0.44);
+      context.fillRect(viewportX + viewportWidth - handleWidth, height * 0.28, handleWidth, height * 0.44);
+    }
+
+    const playheadX = Math.max(0, Math.min(width, playhead / duration * width));
+    context.strokeStyle = styles.getPropertyValue('--waveform-playhead').trim() || '#efb34f';
+    context.lineWidth = Math.max(1, ratio);
+    context.beginPath();
+    context.moveTo(playheadX, 0);
+    context.lineTo(playheadX, height);
+    context.stroke();
+  }
+
+  function requestOverviewDraw(): void {
+    if (!overviewDrawFrame) overviewDrawFrame = requestAnimationFrame(drawOverview);
   }
 
   function draw(): void {
@@ -185,6 +325,13 @@
       context.moveTo(x, 0);
       context.lineTo(x, height);
       context.stroke();
+      context.fillStyle = styles.getPropertyValue('--waveform-handle').trim() || '#d8dee7';
+      context.beginPath();
+      context.moveTo(x, 0);
+      context.lineTo(x + (x === selectionX ? 7 : -7) * ratio, 0);
+      context.lineTo(x, 7 * ratio);
+      context.closePath();
+      context.fill();
     }
 
     if (playhead >= clampedScrollStart && playhead <= visibleEnd) {
@@ -195,6 +342,13 @@
       context.moveTo(x, 0);
       context.lineTo(x, height);
       context.stroke();
+      context.fillStyle = styles.getPropertyValue('--waveform-playhead').trim() || '#efb34f';
+      context.beginPath();
+      context.moveTo(x - 4 * ratio, 0);
+      context.lineTo(x + 4 * ratio, 0);
+      context.lineTo(x, 6 * ratio);
+      context.closePath();
+      context.fill();
     }
   }
 
@@ -280,14 +434,115 @@
     );
   }
 
+  function overviewTimeAtClientX(clientX: number): number {
+    if (!overviewCanvas || duration <= 0) return 0;
+    const rect = overviewCanvas.getBoundingClientRect();
+    const position = Math.min(Math.max((clientX - rect.left) / Math.max(rect.width, 1), 0), 1);
+    return position * duration;
+  }
+
+  function seekFromOverview(clientX: number, recenter = true): void {
+    const time = overviewTimeAtClientX(clientX);
+    dispatch('seek', time);
+    if (recenter && normalizedZoom > 1 && (time < clampedScrollStart || time > visibleEnd)) {
+      scrollStart = clampWaveformScrollStart(time - visibleDuration / 2, duration, normalizedZoom);
+    }
+  }
+
+  function handleOverviewPointerDown(event: PointerEvent): void {
+    if (disabled || !buffer || duration <= 0) return;
+    overviewCanvas.focus();
+    overviewCanvas.setPointerCapture(event.pointerId);
+    const rect = overviewCanvas.getBoundingClientRect();
+    const viewportStartX = clampedScrollStart / duration * rect.width;
+    const viewportEndX = visibleEnd / duration * rect.width;
+    const localX = event.clientX - rect.left;
+    overviewPointerOrigin = event.clientX;
+    overviewScrollOrigin = clampedScrollStart;
+    overviewPointerMoved = false;
+    overviewDragMode = normalizedZoom > 1 && localX >= viewportStartX && localX <= viewportEndX
+      ? 'viewport'
+      : 'seek';
+    if (overviewDragMode === 'seek') seekFromOverview(event.clientX);
+  }
+
+  function handleOverviewPointerMove(event: PointerEvent): void {
+    if (!overviewDragMode || !buffer) return;
+    const rect = overviewCanvas.getBoundingClientRect();
+    const deltaX = event.clientX - overviewPointerOrigin;
+    if (Math.abs(deltaX) > 3) overviewPointerMoved = true;
+    if (overviewDragMode === 'viewport') {
+      scrollStart = clampWaveformScrollStart(
+        overviewScrollOrigin + deltaX / Math.max(rect.width, 1) * duration,
+        duration,
+        normalizedZoom
+      );
+      return;
+    }
+    seekFromOverview(event.clientX);
+  }
+
+  function handleOverviewPointerUp(event: PointerEvent): void {
+    if (!overviewDragMode) return;
+    overviewCanvas.releasePointerCapture(event.pointerId);
+    if (overviewDragMode === 'viewport' && !overviewPointerMoved) seekFromOverview(event.clientX, false);
+    overviewDragMode = null;
+  }
+
+  function handleOverviewKeydown(event: KeyboardEvent): void {
+    if (disabled || !buffer || duration <= 0) return;
+    const seekStep = Math.max(0.001, duration / (event.altKey ? 1_000 : 100));
+    if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+      event.preventDefault();
+      const direction = event.key === 'ArrowLeft' ? -1 : 1;
+      const next = Math.max(0, Math.min(duration, playhead + seekStep * direction));
+      dispatch('seek', next);
+      if (normalizedZoom > 1 && (next < clampedScrollStart || next > visibleEnd)) {
+        scrollStart = clampWaveformScrollStart(next - visibleDuration / 2, duration, normalizedZoom);
+      }
+    } else if (event.key === 'Home' || event.key === 'End') {
+      event.preventDefault();
+      const next = event.key === 'Home' ? 0 : duration;
+      dispatch('seek', next);
+      if (normalizedZoom > 1) scrollStart = clampWaveformScrollStart(next - visibleDuration / 2, duration, normalizedZoom);
+    }
+  }
+
+  function handleKeydown(event: KeyboardEvent): void {
+    if (disabled || !buffer) return;
+    const step = Math.max(0.001, visibleDuration / (event.altKey ? 1_000 : 100));
+    let position: number | null = null;
+    if (event.key === 'ArrowLeft') position = playhead - step;
+    else if (event.key === 'ArrowRight') position = playhead + step;
+    else if (event.key === 'Home') position = 0;
+    else if (event.key === 'End') position = duration;
+    else if (event.key === 'PageUp' && normalizedZoom > 1) {
+      scrollStart = clampWaveformScrollStart(scrollStart - visibleDuration * 0.8, duration, normalizedZoom);
+    } else if (event.key === 'PageDown' && normalizedZoom > 1) {
+      scrollStart = clampWaveformScrollStart(scrollStart + visibleDuration * 0.8, duration, normalizedZoom);
+    } else return;
+    event.preventDefault();
+    if (position === null) return;
+    position = Math.max(0, Math.min(duration, position));
+    if (event.shiftKey) dispatch('selection', { start: Math.min(playhead, position), end: Math.max(playhead, position) });
+    dispatch('seek', position);
+  }
+
   onMount(() => {
-    resizeObserver = new ResizeObserver(requestWaveformBuild);
+    resizeObserver = new ResizeObserver(() => {
+      requestWaveformBuild();
+      requestOverviewWaveformBuild();
+    });
     resizeObserver.observe(canvas);
+    resizeObserver.observe(overviewCanvas);
     rebuildWaveformLayer();
+    rebuildOverviewWaveform();
     return () => {
       resizeObserver?.disconnect();
       cancelAnimationFrame(drawFrame);
       cancelAnimationFrame(waveformFrame);
+      cancelAnimationFrame(overviewDrawFrame);
+      cancelAnimationFrame(overviewWaveformFrame);
       cancelAnimationFrame(selectionFrame);
     };
   });
@@ -306,6 +561,20 @@
     clampedScrollStart;
     requestDraw();
   }
+
+  $: if (overviewCanvas) {
+    buffer;
+    requestOverviewWaveformBuild();
+  }
+
+  $: if (overviewCanvas) {
+    selectionStart;
+    selectionEnd;
+    playhead;
+    clampedScrollStart;
+    visibleDuration;
+    requestOverviewDraw();
+  }
 </script>
 
 <div class="waveform-editor" class:disabled>
@@ -314,27 +583,36 @@
     <canvas
       bind:this={canvas}
       class="waveform-overlay"
-      aria-label={$t('clipTag.clip.waveform', { default: 'Audio waveform and clip selection' })}
+      tabindex="0"
+      aria-label={$t('clipTag.clip.waveform', { default: 'Editable audio waveform and selection' })}
       on:pointerdown={handlePointerDown}
       on:pointermove={handlePointerMove}
       on:pointerup={handlePointerUp}
       on:pointercancel={() => (dragMode = null)}
       on:wheel={handleWheel}
-    >{$t('clipTag.clip.waveform', { default: 'Audio waveform and clip selection' })}</canvas>
+      on:keydown={handleKeydown}
+      on:dblclick={() => dispatch('selection', { start: 0, end: duration })}
+    >{$t('clipTag.clip.waveform', { default: 'Editable audio waveform and selection' })}</canvas>
   </div>
-  <div class="waveform-navigator" class:is-hidden={normalizedZoom <= 1}>
-    <span>{formatTimelineTime(clampedScrollStart, 0.1)}</span>
-    <input
-      type="range"
-      min="0"
-      max={maximumScrollStart}
-      step={navigatorStep}
-      value={clampedScrollStart}
-      disabled={!buffer || normalizedZoom <= 1}
-      aria-label={$t('clipTag.clip.scrollWaveform', { default: 'Scroll waveform' })}
-      on:input={(event) => (scrollStart = Number(event.currentTarget.value))}
-    />
-    <span>{formatTimelineTime(visibleEnd, 0.1)}</span>
+  <div class="waveform-overview" class:dragging={overviewDragMode === 'viewport'}>
+    <canvas bind:this={overviewWaveformLayer} class="overview-waveform-layer" aria-hidden="true"></canvas>
+    <canvas
+      bind:this={overviewCanvas}
+      class="overview-overlay"
+      tabindex="0"
+      role="slider"
+      aria-label={$t('clipTag.clip.waveformOverview', { default: 'Full waveform overview and seek bar' })}
+      aria-valuemin="0"
+      aria-valuemax={duration}
+      aria-valuenow={playhead}
+      aria-valuetext={formatTimelineTime(playhead, 0.1)}
+      on:pointerdown={handleOverviewPointerDown}
+      on:pointermove={handleOverviewPointerMove}
+      on:pointerup={handleOverviewPointerUp}
+      on:pointercancel={() => (overviewDragMode = null)}
+      on:keydown={handleOverviewKeydown}
+      on:dblclick={() => { zoom = 1; scrollStart = 0; }}
+    >{$t('clipTag.clip.waveformOverview', { default: 'Full waveform overview and seek bar' })}</canvas>
   </div>
 </div>
 
@@ -342,7 +620,7 @@
   .waveform-editor {
     position: relative;
     display: grid;
-    grid-template-rows: minmax(0, 1fr) 1.65rem;
+    grid-template-rows: minmax(0, 1fr) 3.35rem;
     width: 100%;
     height: 100%;
     min-height: 190px;
@@ -354,6 +632,11 @@
     --waveform-selection: color-mix(in srgb, var(--accent-strong) 16%, transparent);
     --waveform-handle: var(--accent-strong);
     --waveform-playhead: #efb34f;
+    --waveform-overview-background: color-mix(in srgb, var(--bg-input) 94%, black);
+    --waveform-overview-color: color-mix(in srgb, var(--accent-strong) 46%, var(--muted));
+    --waveform-overview-selection: color-mix(in srgb, var(--accent-strong) 22%, transparent);
+    --waveform-overview-outside: rgb(0 0 0 / 52%);
+    --waveform-overview-viewport: color-mix(in srgb, var(--accent-strong) 72%, var(--text-strong));
   }
 
   .waveform-surface {
@@ -375,42 +658,46 @@
 
   .waveform-overlay {
     touch-action: none;
-    cursor: text;
+    cursor: crosshair;
+    outline: 0;
   }
 
-  .waveform-navigator {
-    display: grid;
-    grid-template-columns: 4.6rem minmax(3rem, 1fr) 4.6rem;
-    align-items: center;
-    gap: 0.42rem;
-    padding: 0 0.5rem;
-    background: color-mix(in srgb, var(--bg-soft) 72%, var(--bg-input));
+  .waveform-overlay:focus-visible {
+    box-shadow: inset 0 0 0 1px var(--accent-focus-border);
+  }
+
+  .waveform-overview {
+    position: relative;
+    min-height: 0;
+    background: var(--waveform-overview-background);
     border-top: 1px solid var(--border-soft);
-    color: var(--muted);
-    font-size: 0.65rem;
-    font-variant-numeric: tabular-nums;
+    box-shadow: inset 0 1px color-mix(in srgb, var(--border-soft) 45%, transparent);
   }
 
-  .waveform-navigator span:last-child {
-    text-align: right;
+  .overview-waveform-layer {
+    pointer-events: none;
   }
 
-  .waveform-navigator input {
-    width: 100%;
-    height: 1rem;
-    margin: 0;
-    accent-color: var(--accent-strong);
+  .overview-overlay {
+    cursor: pointer;
+    touch-action: none;
+    outline: 0;
   }
 
-  .waveform-navigator.is-hidden {
-    opacity: 0.48;
+  .waveform-overview.dragging .overview-overlay {
+    cursor: grabbing;
+  }
+
+  .overview-overlay:focus-visible {
+    box-shadow: inset 0 0 0 1px var(--accent-focus-border);
   }
 
   .waveform-editor.disabled {
     opacity: 0.55;
   }
 
-  .waveform-editor.disabled .waveform-overlay {
+  .waveform-editor.disabled .waveform-overlay,
+  .waveform-editor.disabled .overview-overlay {
     cursor: default;
   }
 </style>
