@@ -1,4 +1,10 @@
 .workspace {
+  --workspace-shell-tab-active-background: color-mix(
+    in srgb,
+    var(--bg-elevated) 84%,
+    var(--accent-strong-soft)
+  );
+  --workspace-shell-tab-active-icon-color: var(--accent-strong);
   display: grid;
   position: relative;
   z-index: 2;
@@ -250,7 +256,7 @@
   top: 50%;
   right: 0.35rem;
   z-index: 3;
-  transform: translateY(-56%);
+  transform: translateY(-50%);
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -322,6 +328,13 @@
 }
 
 .dock-panel-tabs {
+  --workspace-tab-text: var(--window-topbar-text);
+  --workspace-tab-muted: var(--window-topbar-muted);
+  --tab-strip-active-color: var(--window-topbar-text-strong);
+  --tab-strip-hover-color: var(--window-topbar-text-strong);
+  --tab-strip-active-icon-color: var(--workspace-shell-tab-active-icon-color);
+  --tab-strip-active-background: var(--workspace-shell-tab-active-background);
+  --tab-strip-border: var(--window-topbar-hairline);
   flex: 0 0 auto;
 }
 

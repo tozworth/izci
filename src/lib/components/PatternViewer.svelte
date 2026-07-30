@@ -2,6 +2,7 @@
   import { onDestroy, tick } from 'svelte';
   import { t } from 'svelte-i18n';
   import { isPatternCellEmpty, splitPatternCell } from '$lib/services/pattern-presentation';
+  import { SCROLLBAR_VISIBILITY_IGNORE_SCROLL_ATTRIBUTE } from '$lib/services/scrollbar-visibility';
   import { patternViewerSettings } from '$lib/stores/pattern-viewer-settings';
   import type {
     ModulePatternSnapshot,
@@ -20,7 +21,11 @@
   let song: ModulePatternSong | null = null;
   let lastFollowKey = '';
   let followRequest = 0;
+  let ignoredScrollElement: HTMLElement | null = null;
+  let ignoredScrollTimer: ReturnType<typeof setTimeout> | null = null;
   let destroyed = false;
+
+  const PROGRAMMATIC_SCROLL_MS = 720;
 
   $: isCurrentModule = track?.kind === 'module' && snapshot.trackId === track.id;
   $: syncSong(isCurrentModule ? snapshot.song : null);
@@ -140,6 +145,8 @@
       0
     );
 
+    markProgrammaticScroll(viewport);
+
     if ($patternViewerSettings.smoothScroll && playbackSnapshot?.state === 'playing') {
       viewport.scrollTo({ top, behavior: 'smooth' });
       return;
@@ -150,9 +157,27 @@
     viewport.scrollTop = top;
   }
 
+  function clearProgrammaticScroll(): void {
+    if (ignoredScrollTimer !== null) {
+      clearTimeout(ignoredScrollTimer);
+      ignoredScrollTimer = null;
+    }
+
+    ignoredScrollElement?.removeAttribute(SCROLLBAR_VISIBILITY_IGNORE_SCROLL_ATTRIBUTE);
+    ignoredScrollElement = null;
+  }
+
+  function markProgrammaticScroll(element: HTMLElement): void {
+    clearProgrammaticScroll();
+    ignoredScrollElement = element;
+    element.setAttribute(SCROLLBAR_VISIBILITY_IGNORE_SCROLL_ATTRIBUTE, '');
+    ignoredScrollTimer = setTimeout(clearProgrammaticScroll, PROGRAMMATIC_SCROLL_MS);
+  }
+
   onDestroy(() => {
     destroyed = true;
     followRequest += 1;
+    clearProgrammaticScroll();
   });
 </script>
 

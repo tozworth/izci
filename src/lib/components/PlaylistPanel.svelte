@@ -1118,6 +1118,8 @@
     --accent: #aab5c1;
     --accent-strong: #d1d7df;
     --accent-text: #1b1e22;
+    --accent-strong-soft: rgba(209, 215, 223, 0.08);
+    --bg-elevated: rgba(18, 19, 24, 0.44);
     --border: rgba(255, 255, 255, 0.16);
     --border-strong: rgba(255, 255, 255, 0.18);
     --border-soft: rgba(255, 255, 255, 0.12);

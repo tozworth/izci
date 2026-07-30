@@ -230,10 +230,12 @@ export function initializeScrollbarVisibility(
   function handleScroll(event: Event): void {
     if (
       !(event.target instanceof HTMLElement)
-      || event.target.hasAttribute(SCROLLBAR_VISIBILITY_IGNORE_SCROLL_ATTRIBUTE)
       || !isScrollable(event.target, 'vertical')
     ) return;
-    showTemporarily(event.target);
+
+    if (!event.target.hasAttribute(SCROLLBAR_VISIBILITY_IGNORE_SCROLL_ATTRIBUTE)) {
+      showTemporarily(event.target);
+    }
     scheduleOverlayRender();
   }
 
