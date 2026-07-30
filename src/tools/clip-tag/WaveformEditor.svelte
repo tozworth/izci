@@ -7,6 +7,12 @@
     waveformViewportDuration,
     zoomWaveformViewport
   } from './waveform-viewport';
+  import {
+    buildWaveformPeakPyramid,
+    waveformPeakAt,
+    waveformPeakBucketSize,
+    type WaveformPeakPyramid
+  } from './waveform-peaks';
 
   export let buffer: AudioBuffer | null = null;
   export let selectionStart = 0;
@@ -38,6 +44,8 @@
   let overviewPointerOrigin = 0;
   let overviewScrollOrigin = 0;
   let overviewPointerMoved = false;
+  let peakBuffer: AudioBuffer | null = null;
+  let peakPyramid: WaveformPeakPyramid | null = null;
 
   $: duration = buffer?.duration ?? 0;
   $: normalizedZoom = normalizeWaveformZoom(zoom);
@@ -128,6 +136,47 @@
     }
   }
 
+  function peaksForBuffer(audioBuffer: AudioBuffer): WaveformPeakPyramid {
+    if (peakBuffer !== audioBuffer || !peakPyramid) {
+      peakBuffer = audioBuffer;
+      peakPyramid = buildWaveformPeakPyramid(
+        Array.from({ length: audioBuffer.numberOfChannels }, (_, index) => audioBuffer.getChannelData(index))
+      );
+    }
+    return peakPyramid;
+  }
+
+  function drawWaveformChannels(
+    context: CanvasRenderingContext2D,
+    audioBuffer: AudioBuffer,
+    width: number,
+    height: number,
+    firstSample: number,
+    samplesPerPixel: number,
+    amplitude: number
+  ): void {
+    const peaks = peaksForBuffer(audioBuffer);
+    const bucketSize = waveformPeakBucketSize(samplesPerPixel);
+    const firstBucket = Math.floor(firstSample / bucketSize) * bucketSize;
+    const finalSample = Math.min(audioBuffer.length, firstSample + width * samplesPerPixel);
+    const finalBucket = Math.ceil(finalSample / bucketSize) * bucketSize;
+    const laneHeight = height / audioBuffer.numberOfChannels;
+
+    for (let channelIndex = 0; channelIndex < audioBuffer.numberOfChannels; channelIndex += 1) {
+      const middle = laneHeight * channelIndex + laneHeight / 2;
+      context.beginPath();
+      for (let bucketStart = firstBucket; bucketStart < finalBucket; bucketStart += bucketSize) {
+        if (bucketStart < 0 || bucketStart >= audioBuffer.length) continue;
+        const { minimum, maximum } = waveformPeakAt(peaks, channelIndex, bucketStart, bucketSize);
+        const bucketEnd = Math.min(audioBuffer.length, bucketStart + bucketSize);
+        const x = ((bucketStart + bucketEnd) / 2 - firstSample) / samplesPerPixel;
+        context.moveTo(x, middle - maximum * laneHeight * amplitude);
+        context.lineTo(x, middle - minimum * laneHeight * amplitude);
+      }
+      context.stroke();
+    }
+  }
+
   function rebuildWaveformLayer(): void {
     const dimensions = prepareCanvas();
     if (!dimensions) return;
@@ -150,30 +199,14 @@
     }
 
     drawTimeline(context, width, height, ratio);
-    const channels = Array.from({ length: buffer.numberOfChannels }, (_, index) => buffer!.getChannelData(index));
     const firstSample = clampedScrollStart * buffer.sampleRate;
     const samplesPerPixel = visibleDuration * buffer.sampleRate / width;
-    const laneHeight = height / channels.length;
+    const laneHeight = height / buffer.numberOfChannels;
     context.strokeStyle = styles.getPropertyValue('--waveform-color').trim() || '#aeb7c2';
     context.lineWidth = Math.max(1, ratio);
-    channels.forEach((channel, channelIndex) => {
+    drawWaveformChannels(context, buffer, width, height, firstSample, samplesPerPixel, 0.38);
+    for (let channelIndex = 0; channelIndex < buffer.numberOfChannels; channelIndex += 1) {
       const middle = laneHeight * channelIndex + laneHeight / 2;
-      context.beginPath();
-      for (let x = 0; x < width; x += 1) {
-        const start = Math.max(0, Math.floor(firstSample + x * samplesPerPixel));
-        const end = Math.max(start + 1, Math.min(buffer.length, Math.ceil(firstSample + (x + 1) * samplesPerPixel)));
-        let minimum = 1;
-        let maximum = -1;
-        const stride = Math.max(1, Math.floor((end - start) / 32));
-        for (let index = start; index < end; index += stride) {
-          const sample = channel[index] ?? 0;
-          minimum = Math.min(minimum, sample);
-          maximum = Math.max(maximum, sample);
-        }
-        context.moveTo(x + 0.5, middle - maximum * laneHeight * 0.38);
-        context.lineTo(x + 0.5, middle - minimum * laneHeight * 0.38);
-      }
-      context.stroke();
       context.strokeStyle = styles.getPropertyValue('--waveform-zero').trim() || '#4b5057';
       context.globalAlpha = 0.5;
       context.beginPath();
@@ -182,7 +215,7 @@
       context.stroke();
       context.globalAlpha = 1;
       context.strokeStyle = styles.getPropertyValue('--waveform-color').trim() || '#aeb7c2';
-    });
+    }
     requestDraw();
   }
 
@@ -216,31 +249,10 @@
       return;
     }
 
-    const channels = Array.from({ length: buffer.numberOfChannels }, (_, index) => buffer!.getChannelData(index));
     const samplesPerPixel = buffer.length / width;
-    const laneHeight = height / channels.length;
     context.strokeStyle = styles.getPropertyValue('--waveform-overview-color').trim() || '#74808c';
     context.lineWidth = Math.max(1, ratio);
-
-    channels.forEach((channel, channelIndex) => {
-      const middle = laneHeight * channelIndex + laneHeight / 2;
-      context.beginPath();
-      for (let x = 0; x < width; x += 1) {
-        const start = Math.max(0, Math.floor(x * samplesPerPixel));
-        const end = Math.max(start + 1, Math.min(buffer!.length, Math.ceil((x + 1) * samplesPerPixel)));
-        let minimum = 1;
-        let maximum = -1;
-        const stride = Math.max(1, Math.floor((end - start) / 16));
-        for (let index = start; index < end; index += stride) {
-          const sample = channel[index] ?? 0;
-          minimum = Math.min(minimum, sample);
-          maximum = Math.max(maximum, sample);
-        }
-        context.moveTo(x + 0.5, middle - maximum * laneHeight * 0.39);
-        context.lineTo(x + 0.5, middle - minimum * laneHeight * 0.39);
-      }
-      context.stroke();
-    });
+    drawWaveformChannels(context, buffer, width, height, 0, samplesPerPixel, 0.39);
     requestOverviewDraw();
   }
 
