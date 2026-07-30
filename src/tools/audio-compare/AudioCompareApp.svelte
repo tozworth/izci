@@ -469,7 +469,7 @@
 
 <svelte:head><title>{fileSummary ? `${fileSummary} — Audio Compare` : 'izci Audio Compare'}</title></svelte:head>
 
-<div class="audio-compare-shell">
+<div class="tool-shell audio-compare-shell">
   <div class="window-frame-safe-strip" aria-hidden="true"></div>
   <input bind:this={fileInputA} class="sr-only" type="file" accept={FILE_ACCEPT} on:change={(event) => handleFileInput('a', event)} />
   <input bind:this={fileInputB} class="sr-only" type="file" accept={FILE_ACCEPT} on:change={(event) => handleFileInput('b', event)} />
@@ -500,7 +500,7 @@
     <button class="tab-strip-tab" class:active={activeTab === 'abx'} type="button" role="tab" aria-selected={activeTab === 'abx'} on:click={() => setActiveTab('abx')}><span class="material-symbols-outlined" aria-hidden="true">quiz</span>{$t('audioCompare.tabs.abx', { default: 'Blind ABX' })}</button>
   </TabStrip>
 
-  <div class="tool-row compare-toolbar" role="toolbar" aria-label={$t('audioCompare.toolbar', { default: 'Audio comparison controls' })}>
+  <div class="tool-row tool-toolbar compare-toolbar" role="toolbar" aria-label={$t('audioCompare.toolbar', { default: 'Audio comparison controls' })}>
     <div class="toolbar-group">
       <button class="text-button source-open" class:active={activeSource === 'a'} type="button" on:click={() => void chooseSource('a')}><span class="source-key">A</span>{$t('audioCompare.openShort', { default: 'Open' })}</button>
       <button class="text-button source-open" class:active={activeSource === 'b'} type="button" on:click={() => void chooseSource('b')}><span class="source-key">B</span>{$t('audioCompare.openShort', { default: 'Open' })}</button>
@@ -628,7 +628,7 @@
     </main>
   {/if}
 
-  <footer class:error={Boolean(errorMessage)}>
+  <footer class="tool-status-bar" class:error={Boolean(errorMessage)}>
     <span class="material-symbols-outlined" aria-hidden="true">{errorMessage ? 'error' : loadingSource ? 'progress_activity' : 'info'}</span>
     <span>{statusMessage}</span>
     {#if comparisonDuration > 0}<span class="range-summary">{$t('audioCompare.selectionSummary', { default: 'Selection {start}–{end}', values: { start: formatTime(selectionStart), end: formatTime(selectionEnd) } })}</span>{/if}

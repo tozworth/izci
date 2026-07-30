@@ -391,7 +391,7 @@
   role="region"
   aria-label={$t('loudness.title', { default: 'Loudness' })}
   class:drag-active={dragActive}
-  class="loudness-shell"
+  class="tool-shell loudness-shell"
   on:dragenter|preventDefault={() => dragActive = true}
   on:dragover|preventDefault={() => dragActive = true}
   on:dragleave={(event) => { if (event.currentTarget === event.target) dragActive = false; }}
@@ -417,7 +417,7 @@
     on:stop={stopAnalysis}
   />
 
-  <div class="tool-row loudness-toolbar" role="toolbar" aria-label={$t('loudness.toolbar', { default: 'Loudness tools' })}>
+  <div class="tool-row tool-toolbar loudness-toolbar" role="toolbar" aria-label={$t('loudness.toolbar', { default: 'Loudness tools' })}>
     <div class="toolbar-group">
       <button class="icon-button hover-tooltip-anchor" type="button" on:click={chooseFiles} disabled={busy} aria-label={$t('loudness.addFiles', { default: 'Add files...' })}>
         <span class="material-symbols-outlined" aria-hidden="true">audio_file</span>
@@ -500,7 +500,7 @@
         </div>
       {:else}
         <div class="empty-state">
-          <button class="empty-drop-target" type="button" on:click={() => void chooseFiles()}>
+          <button class="tool-empty-state empty-drop-target" type="button" on:click={() => void chooseFiles()}>
             <span class="material-symbols-outlined" aria-hidden="true">audio_file</span>
             <strong>{$t('loudness.empty', { default: 'Add audio' })}</strong>
             <span>{$t('loudness.emptyHint', { default: 'or drop files and folders here' })}</span>
@@ -510,12 +510,12 @@
     </div>
   </main>
 
-  <footer class:error={Boolean(errorMessage)}>
+  <footer class="tool-status-bar" class:error={Boolean(errorMessage)}>
     {#if errorMessage || message || busy}<span class="material-symbols-outlined">{errorMessage ? 'error' : busy ? 'progress_activity' : 'info'}</span>{/if}
     <span>{errorMessage || message}</span>
     <span class="summary">{rows.length} {$t('loudness.files', { default: 'files' })} · {analyzedSelectedRows.length} {$t('loudness.analyzedCount', { default: 'analyzed' })}</span>
   </footer>
 
-  {#if dragActive}<div class="drop-overlay">{$t('loudness.drop', { default: 'Drop audio files or folders' })}</div>{/if}
+  {#if dragActive}<div class="tool-drop-overlay">{$t('loudness.drop', { default: 'Drop audio files or folders' })}</div>{/if}
   <input bind:this={fileInput} class="hidden-input" type="file" multiple accept={ACCEPTED_EXTENSIONS.join(',')} on:change={handleFileInput} />
 </div>

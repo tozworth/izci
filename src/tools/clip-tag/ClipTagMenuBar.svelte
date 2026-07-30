@@ -205,7 +205,7 @@
       {/if}
     </div>
   </div>
-  <div class="clip-tag-window-title" aria-live="polite">
+  <div class="tool-window-title clip-tag-window-title" aria-live="polite">
     <strong>{$t('clipTag.title', { default: 'Edit and Tag' })}</strong>
     {#if fileName}<span>{fileName}</span>{/if}
   </div>

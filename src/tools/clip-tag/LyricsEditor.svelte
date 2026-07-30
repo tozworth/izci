@@ -153,7 +153,7 @@
 </script>
 
 <section class="lyrics-workbench" aria-label={$t('clipTag.tabs.lyrics', { default: 'Lyrics' })}>
-  <div class="tool-row lyrics-toolbar" role="toolbar" aria-label={$t('clipTag.lyrics.toolbar', { default: 'Lyrics tools' })}>
+  <div class="tool-row tool-toolbar lyrics-toolbar" role="toolbar" aria-label={$t('clipTag.lyrics.toolbar', { default: 'Lyrics tools' })}>
     <button class="text-button primary stamp-step-button hover-tooltip-anchor" type="button" disabled={disabled} on:click={() => stamp(true)}>
       <span class="material-symbols-outlined" aria-hidden="true">more_time</span>{$t('clipTag.lyrics.stampAndStep', { default: 'Stamp and step' })}
       <HoverTooltip>{$t('clipTag.lyrics.stampAndStepShortcut', { default: 'Stamp and step (Ctrl+Enter)' })}</HoverTooltip>

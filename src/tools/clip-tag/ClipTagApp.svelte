@@ -747,7 +747,7 @@
 
 <svelte:head><title>{sourceFile ? `${sourceFile.name} — Edit and Tag` : 'izci Edit and Tag'}</title></svelte:head>
 
-<div class="clip-tag-shell">
+<div class="tool-shell clip-tag-shell">
   <div class="window-frame-safe-strip" aria-hidden="true"></div>
   <input bind:this={fileInput} class="sr-only" type="file" accept={FILE_ACCEPT} on:change={handleFileInput} />
   <input bind:this={artworkInput} class="sr-only" type="file" accept="image/*" on:change={handleArtworkInput} />
@@ -796,7 +796,7 @@
 
     {#if activeTab === 'edit'}
       <section class="clip-workbench" aria-label={$t('clipTag.tabs.edit', { default: 'Edit' })}>
-        <div class="tool-row clip-toolbar" role="toolbar" aria-label={$t('clipTag.edit.toolbar', { default: 'Audio editing tools' })}>
+        <div class="tool-row tool-toolbar clip-toolbar" role="toolbar" aria-label={$t('clipTag.edit.toolbar', { default: 'Audio editing tools' })}>
           <div class="toolbar-group" aria-label={$t('clipTag.edit.history', { default: 'History' })}>
             <button class="icon-button hover-tooltip-anchor" type="button" disabled={!canUndo} aria-label={$t('clipTag.menu.undo', { default: 'Undo' })} on:click={undo}><span class="material-symbols-outlined" aria-hidden="true">undo</span><HoverTooltip>{$t('clipTag.menu.undo', { default: 'Undo' })}</HoverTooltip></button>
             <button class="icon-button hover-tooltip-anchor" type="button" disabled={!canRedo} aria-label={$t('clipTag.menu.redo', { default: 'Redo' })} on:click={redo}><span class="material-symbols-outlined" aria-hidden="true">redo</span><HoverTooltip>{$t('clipTag.menu.redo', { default: 'Redo' })}</HoverTooltip></button>
@@ -843,7 +843,7 @@
             on:seek={(event) => seekEditor(event.detail)}
           />
           {#if !sourceFile && !loading}
-            <button class="empty-drop-target" type="button" on:click={() => void chooseAudioFile()}>
+            <button class="tool-empty-state empty-drop-target" type="button" on:click={() => void chooseAudioFile()}>
               <span class="material-symbols-outlined" aria-hidden="true">audio_file</span>
               <strong>{$t('clipTag.openPrompt', { default: 'Open audio' })}</strong>
               <span>{$t('clipTag.dropPrompt', { default: 'or drop a file here' })}</span>
@@ -953,7 +953,7 @@
     on:close={() => { if (!exporting) errorMessage = ''; }}
   />
 
-  <footer class:error={Boolean(errorMessage)}>
+  <footer class="tool-status-bar" class:error={Boolean(errorMessage)}>
     <span class="material-symbols-outlined" aria-hidden="true">{errorMessage ? 'error' : loading ? 'progress_activity' : 'info'}</span>
     <span>{statusText}</span>
   </footer>

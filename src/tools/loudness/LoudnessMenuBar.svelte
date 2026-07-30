@@ -158,7 +158,7 @@
       {#if activeMenu === 'analysis'}<MenuSurface items={analysisItems} x={menuX} y={menuY} on:action={(event) => run(event.detail as ActionId)} on:dismiss={() => activeMenu = null} />{/if}
     </div>
   </div>
-  <div class="loudness-window-title" aria-live="polite">
+  <div class="tool-window-title loudness-window-title" aria-live="polite">
     <strong>{$t('loudness.title', { default: 'Loudness' })}</strong>
     {#if fileSummary}<span>{fileSummary}</span>{/if}
   </div>

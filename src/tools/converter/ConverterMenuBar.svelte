@@ -159,7 +159,7 @@
       {#if activeMenu === 'conversion'}<MenuSurface items={conversionItems} x={menuX} y={menuY} on:action={(event) => run(event.detail as ActionId)} on:dismiss={() => activeMenu = null} />{/if}
     </div>
   </div>
-  <div class="converter-window-title" aria-live="polite">
+  <div class="tool-window-title converter-window-title" aria-live="polite">
     <strong>{$t('converter.title', { default: 'Converter' })}</strong>
     {#if fileSummary}<span>{fileSummary}</span>{/if}
   </div>

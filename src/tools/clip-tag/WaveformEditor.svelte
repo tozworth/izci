@@ -634,7 +634,7 @@
   .waveform-editor {
     position: relative;
     display: grid;
-    grid-template-rows: minmax(0, 1fr) 3.35rem;
+    grid-template-rows: minmax(0, 1fr) 3rem;
     width: 100%;
     height: 100%;
     min-height: 190px;

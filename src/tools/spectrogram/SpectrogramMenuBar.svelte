@@ -135,7 +135,7 @@
       {/if}
     </div>
   </div>
-  <div class="spectrogram-window-title" aria-live="polite">
+  <div class="tool-window-title spectrogram-window-title" aria-live="polite">
     <strong>{$t('spectrogram.title', { default: 'Spectrogram' })}</strong>
     {#if fileName}<span>{fileName}</span>{/if}
   </div>

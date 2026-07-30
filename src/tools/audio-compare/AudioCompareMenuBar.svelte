@@ -162,7 +162,7 @@
       {#if activeMenu === 'compare'}<MenuSurface items={compareItems} x={menuX} y={menuY} on:action={(event) => run(event.detail as ActionId)} on:dismiss={() => activeMenu = null} />{/if}
     </div>
   </div>
-  <div class="audio-compare-window-title" aria-live="polite">
+  <div class="tool-window-title audio-compare-window-title" aria-live="polite">
     <strong>{$t('audioCompare.title', { default: 'Audio Compare' })}</strong>
     {#if fileSummary}<span>{fileSummary}</span>{/if}
   </div>

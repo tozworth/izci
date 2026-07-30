@@ -102,7 +102,7 @@
         <div class="loading-overlay"><span class="material-symbols-outlined spinning" aria-hidden="true">progress_activity</span><span>{loadingDetail}</span></div>
       {/if}
     {:else}
-      <button class="empty-source" type="button" on:click|stopPropagation={() => dispatch('open')}>
+      <button class="tool-empty-state empty-source" type="button" on:click|stopPropagation={() => dispatch('open')}>
         <span class="material-symbols-outlined" aria-hidden="true">audio_file</span>
         <strong>{$t('audioCompare.openSource', { default: 'Open source {source}', values: { source: sourceLabel } })}</strong>
         <span>{$t('audioCompare.dropHint', { default: 'or drop an audio file here' })}</span>
@@ -126,7 +126,7 @@
     overflow: hidden;
     background: color-mix(in srgb, var(--bg-elevated) 62%, var(--bg-base));
     border: 1px solid var(--border-soft);
-    border-radius: 0.25rem;
+    border-radius: var(--tool-panel-radius);
   }
 
   .source-panel.active {
@@ -142,9 +142,9 @@
   header {
     display: flex;
     align-items: center;
-    gap: 0.42rem;
-    min-height: 2.45rem;
-    padding: 0.3rem 0.38rem;
+    gap: 0.35rem;
+    min-height: 2.2rem;
+    padding: 0.25rem 0.35rem;
     background: color-mix(in srgb, var(--window-topbar-bg) 72%, var(--bg-elevated));
     border-bottom: 1px solid var(--border-soft);
   }
@@ -156,7 +156,7 @@
     height: 1.45rem;
     flex: 0 0 auto;
     border: 1px solid color-mix(in srgb, var(--accent-strong) 55%, var(--border));
-    border-radius: 0.22rem;
+    border-radius: var(--tool-panel-radius);
     background: color-mix(in srgb, var(--accent-strong) 13%, var(--bg-soft));
     color: var(--accent-strong);
     font-size: 0.72rem;
@@ -192,18 +192,12 @@
     display: flex;
     width: 100%;
     height: 100%;
-    min-height: 180px;
+    min-height: 160px;
     align-items: center;
     justify-content: center;
     flex-direction: column;
     gap: 0.32rem;
-    background: color-mix(in srgb, var(--bg-input) 94%, transparent);
-    color: var(--muted);
   }
-
-  .empty-source:hover { background: color-mix(in srgb, var(--accent-strong) 6%, var(--bg-input)); color: var(--text); }
-  .empty-source > .material-symbols-outlined { color: var(--accent-strong); font-size: 2rem; }
-  .empty-source strong { color: var(--text-strong); font-weight: 600; }
 
   .loading-overlay {
     position: absolute;
@@ -224,9 +218,9 @@
   footer {
     display: flex;
     align-items: center;
-    gap: 0.85rem;
-    min-height: 2rem;
-    padding: 0.28rem 0.5rem;
+    gap: 0.7rem;
+    min-height: 1.8rem;
+    padding: 0.22rem 0.4rem;
     background: color-mix(in srgb, var(--window-topbar-bg) 70%, var(--bg-elevated));
     border-top: 1px solid var(--border-soft);
     color: var(--muted);
@@ -236,18 +230,5 @@
   footer label { display: inline-flex; align-items: center; gap: 0.28rem; white-space: nowrap; }
   footer input { margin: 0; accent-color: var(--accent-strong); }
 
-  .icon-button {
-    display: inline-flex;
-    width: 1.82rem;
-    min-height: 1.75rem;
-    flex: 0 0 auto;
-    align-items: center;
-    justify-content: center;
-    border: 1px solid transparent;
-    border-radius: 0.3rem;
-    background: transparent;
-    color: var(--text);
-  }
-  .icon-button:hover { border-color: var(--border-soft); background: var(--hover-surface); color: var(--text-strong); }
-  .icon-button .material-symbols-outlined { font-size: 1.08rem; }
+  .icon-button { flex: 0 0 auto; }
 </style>

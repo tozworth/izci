@@ -197,7 +197,7 @@
 
 <svelte:head><title>{sourceFile ? `${sourceFile.name} — Spectrogram` : 'izci Spectrogram'}</title></svelte:head>
 
-<div class="spectrogram-shell">
+<div class="tool-shell spectrogram-shell">
   <div class="window-frame-safe-strip" aria-hidden="true"></div>
   <SpectrogramMenuBar
     fileName={sourceFile?.name ?? ''}
@@ -205,13 +205,13 @@
     on:close={() => window.close()}
   />
 
-  <section class="toolbar" aria-label={$t('spectrogram.toolbar', { default: 'Spectrogram tools' })}>
-    <button type="button" on:click={() => void chooseFile()}>
+  <section class="tool-row tool-toolbar spectrogram-toolbar" aria-label={$t('spectrogram.toolbar', { default: 'Spectrogram tools' })}>
+    <button class="text-button" type="button" on:click={() => void chooseFile()}>
       <span class="material-symbols-outlined" aria-hidden="true">file_open</span>
       {$t('spectrogram.open', { default: 'Open...' })}
     </button>
     {#if loading}
-      <button type="button" on:click={() => analysisController?.abort()}>
+      <button class="text-button" type="button" on:click={() => analysisController?.abort()}>
         <span class="material-symbols-outlined" aria-hidden="true">stop</span>
         {$t('spectrogram.stop', { default: 'Stop' })}
       </button>
@@ -246,7 +246,7 @@
         <span>{Math.round(progress * 100)}%</span>
       </div>
     {:else}
-      <button class="empty-state" type="button" on:click={() => void chooseFile()}>
+      <button class="tool-empty-state empty-state" type="button" on:click={() => void chooseFile()}>
         <span class="material-symbols-outlined" aria-hidden="true">waterfall_chart</span>
         <strong>{$t('spectrogram.empty', { default: 'Open a streamed audio file' })}</strong>
         <span>{$t('spectrogram.emptyHint', { default: 'MP3, WAV, FLAC, Ogg, or Opus · you can also drop a file here' })}</span>
@@ -254,12 +254,12 @@
     {/if}
   </main>
 
-  <footer class:error={Boolean(errorMessage)}>
+  <footer class="tool-status-bar" class:error={Boolean(errorMessage)}>
     <span class="material-symbols-outlined" aria-hidden="true">{errorMessage ? 'error' : 'info'}</span>
     <span>{errorMessage || fileDetails || $t('spectrogram.caveat', { default: 'A sharp cutoff can suggest a lossy source, but it is not proof by itself.' })}</span>
     {#if analysis}<span class="summary">{analysis.fftSize} FFT · {analysis.binCount} {$t('spectrogram.bins', { default: 'bins' })}</span>{/if}
   </footer>
 
   <input bind:this={fileInput} class="hidden-input" type="file" accept={FILE_ACCEPT} on:change={() => void handleFileInput()} />
-  {#if dragActive}<div class="drop-overlay">{$t('spectrogram.drop', { default: 'Drop streamed audio file' })}</div>{/if}
+  {#if dragActive}<div class="tool-drop-overlay">{$t('spectrogram.drop', { default: 'Drop streamed audio file' })}</div>{/if}
 </div>

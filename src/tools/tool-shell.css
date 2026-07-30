@@ -1,0 +1,258 @@
+:root {
+  --tool-view-background: color-mix(in srgb, var(--bg-elevated) 78%, var(--bg-base));
+  --tool-toolbar-height: 2.2rem;
+  --tool-control-height: 1.7rem;
+  --tool-status-height: 1.6rem;
+  --tool-gutter: 0.35rem;
+  --tool-panel-radius: 0.22rem;
+  background: var(--bg-base);
+  color: var(--text);
+}
+
+html,
+body,
+#app {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+input[type='checkbox'] {
+  margin: 0;
+  accent-color: var(--accent-strong);
+}
+
+.tool-shell {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--body-background);
+  color: var(--text);
+}
+
+.window-frame-safe-strip {
+  position: fixed;
+  inset: 0 0 auto;
+  z-index: 100;
+  height: var(--window-frame-safe-top);
+  background: var(--window-topbar-bg);
+  pointer-events: none;
+}
+
+.tool-window-title {
+  display: flex;
+  align-items: baseline;
+  gap: 0.42rem;
+  min-width: 0;
+  margin-left: auto;
+  padding: 0 0.6rem;
+  color: var(--muted);
+  font-size: 0.7rem;
+  line-height: 1;
+  pointer-events: none;
+  -webkit-app-region: drag;
+}
+
+.tool-window-title strong {
+  color: var(--text-strong);
+  font-size: 0.78rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.tool-window-title span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tool-tabs {
+  --tab-strip-text: var(--text);
+  --tab-strip-muted: var(--muted);
+  --tab-strip-active-color: var(--text-strong);
+  --tab-strip-hover-color: var(--text-strong);
+  --tab-strip-active-icon-color: var(--accent-strong);
+  --tab-strip-background: var(--menu-bar-bg);
+  --tab-strip-active-background: var(--tool-view-background);
+  --tab-strip-border: var(--border-soft);
+  --tab-strip-gap: 0.1rem;
+  --tab-strip-tab-min-height: 1.65rem;
+  --tab-strip-tab-padding: 0.2rem 0.4rem 0.28rem;
+  z-index: 10;
+  padding: 0;
+  overflow: hidden;
+}
+
+.tool-tabs .tab-strip-tab {
+  flex: 0 1 auto;
+  font: inherit;
+}
+
+.tool-tabs .tab-strip-tab .material-symbols-outlined {
+  font-size: 0.92rem;
+}
+
+.tool-row,
+.toolbar-group {
+  display: flex;
+  align-items: center;
+}
+
+.tool-toolbar {
+  gap: 0.24rem;
+  min-height: var(--tool-toolbar-height);
+  padding: 0.22rem 0.35rem;
+  overflow-x: auto;
+  overflow-y: hidden;
+  background: var(--tool-view-background);
+  border-bottom: 1px solid var(--border-soft);
+  scrollbar-width: thin;
+  white-space: nowrap;
+}
+
+.toolbar-group {
+  flex: 0 0 auto;
+  gap: 0.1rem;
+}
+
+.toolbar-separator,
+.tool-toolbar .separator {
+  flex: 0 0 auto;
+  width: 1px;
+  height: 1.2rem;
+  margin: 0 0.1rem;
+  background: var(--border-soft);
+}
+
+.toolbar-spacer {
+  flex: 1 0 0.35rem;
+  min-width: 0.35rem;
+}
+
+.icon-button,
+.text-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.3rem;
+  min-height: var(--tool-control-height);
+  padding: 0.22rem 0.45rem;
+  border: 1px solid transparent;
+  border-radius: 0.28rem;
+  background: transparent;
+  color: var(--text);
+}
+
+.icon-button {
+  width: 1.78rem;
+  padding: 0;
+}
+
+.icon-button:hover:not(:disabled),
+.text-button:hover:not(:disabled),
+.icon-button.is-active {
+  border-color: var(--border-soft);
+  background: var(--hover-surface);
+  color: var(--text-strong);
+}
+
+.text-button.primary {
+  border-color: var(--accent-focus-border);
+  background: color-mix(in srgb, var(--accent-strong) 13%, var(--bg-soft));
+  color: var(--text-strong);
+}
+
+.icon-button:disabled,
+.text-button:disabled {
+  opacity: 0.4;
+}
+
+.icon-button.danger {
+  color: var(--danger);
+}
+
+.tool-toolbar .material-symbols-outlined,
+.icon-button .material-symbols-outlined,
+.text-button .material-symbols-outlined {
+  font-size: 1rem;
+}
+
+.tool-empty-state {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 0.32rem;
+  border: 0;
+  border-radius: 0;
+  background: color-mix(in srgb, var(--bg-input) 94%, transparent);
+  color: var(--muted);
+}
+
+.tool-empty-state:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--accent-strong) 6%, var(--bg-input));
+  color: var(--text);
+}
+
+.tool-empty-state > .material-symbols-outlined {
+  color: var(--accent-strong);
+  font-size: 2rem;
+}
+
+.tool-empty-state strong {
+  color: var(--text-strong);
+  font-weight: 600;
+}
+
+.tool-status-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: var(--tool-status-height);
+  padding: 0.2rem 0.6rem;
+  overflow: hidden;
+  background: var(--window-topbar-bg);
+  border-top: 1px solid var(--menu-bar-border);
+  color: var(--muted);
+  font-size: 0.68rem;
+  white-space: nowrap;
+}
+
+.tool-status-bar.error {
+  color: var(--danger);
+}
+
+.tool-status-bar > .material-symbols-outlined {
+  flex: 0 0 auto;
+  font-size: 0.92rem;
+}
+
+.tool-status-bar .summary {
+  margin-left: auto;
+  white-space: nowrap;
+}
+
+.tool-drop-overlay {
+  position: fixed;
+  inset: 0.4rem;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  border: 1px dashed var(--accent);
+  background: color-mix(in srgb, var(--bg-base) 88%, transparent);
+  color: var(--text);
+  font-size: 0.8rem;
+}
+
+.hidden-input {
+  display: none;
+}

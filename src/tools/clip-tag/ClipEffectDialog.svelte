@@ -264,24 +264,24 @@
   .clip-effect-dialog { width: min(54rem, calc(100vw - 2rem)); max-width: none; height: min(35rem, calc(100vh - 2rem)); max-height: none; padding: 0; overflow: hidden; border: 1px solid var(--border-strong); border-radius: 0.38rem; background: var(--bg-elevated); box-shadow: 0 1.2rem 3.5rem rgb(0 0 0 / 48%); color: var(--text); }
   .clip-effect-dialog::backdrop { background: rgb(0 0 0 / 60%); backdrop-filter: blur(1.5px); }
   .effect-dialog-shell { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; height: 100%; }
-  header, footer { display: flex; align-items: center; gap: 0.45rem; padding: 0.62rem 0.72rem; background: var(--window-topbar-bg); }
+  header, footer { display: flex; align-items: center; gap: 0.35rem; padding: 0.48rem 0.6rem; background: var(--window-topbar-bg); }
   header { justify-content: space-between; border-bottom: 1px solid var(--border-soft); }
   h2, p { margin: 0; }
   h2 { color: var(--text-strong); font-size: 0.92rem; font-weight: 650; }
   header p { margin-top: 0.16rem; color: var(--muted); font-size: 0.68rem; }
   .effect-dialog-body { display: grid; grid-template-columns: 10.5rem minmax(0, 1fr); min-height: 0; }
-  nav { display: flex; flex-direction: column; gap: 0.12rem; padding: 0.4rem; overflow-y: auto; border-right: 1px solid var(--border-soft); background: color-mix(in srgb, var(--bg-soft) 74%, var(--bg-base)); }
-  nav button { display: flex; align-items: center; gap: 0.48rem; min-height: 2rem; padding: 0.32rem 0.45rem; border: 1px solid transparent; border-radius: 0.24rem; background: transparent; color: var(--muted); text-align: left; }
+  nav { display: flex; flex-direction: column; gap: 0.08rem; padding: 0.3rem; overflow-y: auto; border-right: 1px solid var(--border-soft); background: color-mix(in srgb, var(--bg-soft) 74%, var(--bg-base)); }
+  nav button { display: flex; align-items: center; gap: 0.4rem; min-height: 1.8rem; padding: 0.25rem 0.38rem; border: 1px solid transparent; border-radius: 0.24rem; background: transparent; color: var(--muted); text-align: left; }
   nav button:hover { background: var(--hover-surface); color: var(--text); }
   nav button.active { border-color: var(--accent-focus-border); background: color-mix(in srgb, var(--accent-strong) 10%, var(--bg-soft)); color: var(--text-strong); }
   nav .material-symbols-outlined { font-size: 1.05rem; color: var(--accent-strong); }
-  .effect-settings { min-width: 0; min-height: 0; padding: 0.75rem; overflow: auto; background: color-mix(in srgb, var(--bg-elevated) 80%, var(--bg-base)); }
-  .effect-heading { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 0.5rem; padding-bottom: 0.65rem; margin-bottom: 0.75rem; border-bottom: 1px solid var(--border-soft); }
-  .effect-heading > .material-symbols-outlined { font-size: 1.45rem; color: var(--accent-strong); }
+  .effect-settings { min-width: 0; min-height: 0; padding: 0.55rem; overflow: auto; background: color-mix(in srgb, var(--bg-elevated) 80%, var(--bg-base)); }
+  .effect-heading { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 0.42rem; padding-bottom: 0.48rem; margin-bottom: 0.55rem; border-bottom: 1px solid var(--border-soft); }
+  .effect-heading > .material-symbols-outlined { font-size: 1.25rem; color: var(--accent-strong); }
   .effect-heading div { display: grid; gap: 0.1rem; }
   .effect-heading strong { color: var(--text-strong); font-size: 0.8rem; }
   .effect-heading small { color: var(--muted); font-size: 0.64rem; }
-  .setting-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-content: start; gap: 0.72rem 1rem; }
+  .setting-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-content: start; gap: 0.55rem 0.8rem; }
   .setting-grid.single { grid-template-columns: minmax(0, 1fr); }
   .setting-grid label, .render-options label { display: grid; grid-template-columns: 5.8rem minmax(5rem, 1fr) 4.5rem; align-items: center; gap: 0.45rem; color: var(--muted); font-size: 0.68rem; }
   .setting-grid label.wide, .setting-grid .wide { grid-column: 1 / -1; }
@@ -303,12 +303,12 @@
   .band-switches button:hover, .band-switches button.active { border-color: var(--accent-strong); background: var(--hover-surface); color: var(--accent-strong); }
   .setting-grid .advanced-toggle { grid-template-columns: 7rem auto; justify-content: start; }
   .advanced-toggle input { width: auto; margin: 0; accent-color: var(--accent-strong); }
-  .render-options { display: grid; grid-template-columns: minmax(15rem, 1fr) minmax(12rem, 1fr); align-items: center; gap: 0.8rem; margin-top: 1rem; padding: 0.6rem; border: 1px solid var(--border-soft); background: color-mix(in srgb, var(--bg-soft) 72%, transparent); }
+  .render-options { display: grid; grid-template-columns: minmax(15rem, 1fr) minmax(12rem, 1fr); align-items: center; gap: 0.65rem; margin-top: 0.7rem; padding: 0.48rem; border: 1px solid var(--border-soft); background: color-mix(in srgb, var(--bg-soft) 72%, transparent); }
   .render-options p { color: var(--muted); font-size: 0.64rem; line-height: 1.35; }
   footer { justify-content: flex-end; border-top: 1px solid var(--border-soft); }
   .processing-status { flex: 1; color: var(--muted); font-size: 0.68rem; }
-  .icon-button, .text-button { display: inline-flex; align-items: center; justify-content: center; gap: 0.3rem; min-height: 1.75rem; padding: 0.25rem 0.52rem; border: 1px solid transparent; border-radius: 0.26rem; background: transparent; color: var(--text); }
-  .icon-button { width: 1.8rem; padding: 0; }
+  .icon-button, .text-button { display: inline-flex; align-items: center; justify-content: center; gap: 0.3rem; min-height: var(--tool-control-height); padding: 0.22rem 0.45rem; border: 1px solid transparent; border-radius: 0.26rem; background: transparent; color: var(--text); }
+  .icon-button { width: 1.78rem; padding: 0; }
   .icon-button:hover:not(:disabled), .text-button:hover:not(:disabled) { border-color: var(--border-soft); background: var(--hover-surface); }
   .text-button.primary { border-color: var(--accent-focus-border); background: color-mix(in srgb, var(--accent-strong) 15%, var(--bg-soft)); color: var(--text-strong); }
   button:disabled { opacity: 0.42; }

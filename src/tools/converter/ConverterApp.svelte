@@ -427,7 +427,7 @@
 />
 
 <div class="window-frame-safe-strip" aria-hidden="true"></div>
-<div class="converter-shell" aria-label={$t('converter.title', { default: 'Converter' })}>
+<div class="tool-shell converter-shell" aria-label={$t('converter.title', { default: 'Converter' })}>
   <ConverterMenuBar
     {fileSummary}
     {busy}
@@ -449,7 +449,7 @@
 
   <input bind:this={fileInput} class="hidden-input" type="file" multiple accept={FILE_ACCEPT} on:change={handleFileInput} />
 
-  <div class="converter-toolbar" role="toolbar" aria-label={$t('converter.toolbar', { default: 'Converter tools' })}>
+  <div class="tool-toolbar converter-toolbar" role="toolbar" aria-label={$t('converter.toolbar', { default: 'Converter tools' })}>
     <div class="toolbar-group">
       <button class="icon-button hover-tooltip-anchor" type="button" on:click={chooseFiles} disabled={busy} aria-label={$t('converter.addFiles', { default: 'Add files...' })}>
         <span class="material-symbols-outlined" aria-hidden="true">note_add</span><HoverTooltip>{$t('converter.addFiles', { default: 'Add files...' })}</HoverTooltip>
@@ -494,7 +494,7 @@
       <div class="table-body">
         {#if rows.length === 0}
           <div class="empty-state">
-            <button class="empty-drop-target" type="button" on:click={chooseFiles}>
+            <button class="tool-empty-state empty-drop-target" type="button" on:click={chooseFiles}>
               <span class="material-symbols-outlined" aria-hidden="true">sync_alt</span>
               <strong>{$t('converter.empty', { default: 'Add media to convert' })}</strong>
               <span>{$t('converter.emptyHint', { default: 'or drop files and folders here' })}</span>
@@ -634,12 +634,12 @@
     </aside>
   </main>
 
-  <footer class:error={Boolean(errorMessage)}>
+  <footer class="tool-status-bar" class:error={Boolean(errorMessage)}>
     <span>{errorMessage || message || (outputDirectory
       ? $t('converter.readyOutput', { default: 'Ready · output to {name}', values: { name: outputDirectory.name } })
       : $t('converter.chooseOutputPrompt', { default: 'Choose an output folder before converting.' }))}</span>
     <span class="summary">{rows.length} {$t('converter.files', { default: 'files' })} · {selectedRows.length} {$t('converter.selected', { default: 'selected' })}</span>
   </footer>
 
-  {#if dragActive}<div class="drop-overlay">{$t('converter.drop', { default: 'Drop media files or folders' })}</div>{/if}
+  {#if dragActive}<div class="tool-drop-overlay">{$t('converter.drop', { default: 'Drop media files or folders' })}</div>{/if}
 </div>
