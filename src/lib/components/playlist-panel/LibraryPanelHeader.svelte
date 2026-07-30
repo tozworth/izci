@@ -258,7 +258,7 @@
     color: var(--accent-strong);
     background: var(--library-active-tab-background);
     border-color: var(--border-soft);
-    border-bottom-color: var(--border-soft);
+    border-bottom-color: var(--library-active-tab-background);
     border-radius: 0.36rem 0.36rem 0 0;
     z-index: 1;
   }
