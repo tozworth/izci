@@ -207,6 +207,12 @@ export async function analyzeLoudness(
   }
 }
 
+export function analyzeAudioBufferLoudness(buffer: AudioBuffer): LoudnessAnalysis {
+  const accumulator = new LoudnessAccumulator(buffer.sampleRate, buffer.numberOfChannels);
+  accumulator.addBuffer(buffer);
+  return accumulator.finish();
+}
+
 export function replayGainForLoudness(integratedLufs: number, targetLufs: number): number {
   return Number.isFinite(integratedLufs) ? targetLufs - integratedLufs : 0;
 }

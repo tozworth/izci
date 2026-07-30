@@ -89,6 +89,18 @@ function navigatePrimedPopup(windowRef: Window, url: string): void {
   });
 }
 
+function getPopupTitle(id: PopupWindowId): string {
+  const titles: Record<PopupWindowId, string> = {
+    audioCompare: 'izci Audio Compare',
+    options: 'izci Options',
+    clipTag: 'izci Edit and Tag',
+    converter: 'izci Converter',
+    loudness: 'izci Loudness',
+    spectrogram: 'izci Spectrogram'
+  };
+  return titles[id];
+}
+
 const popupRefs = new Map<PopupWindowId, Window | null>();
 let hasMainWindowLifecycleListeners = false;
 
@@ -163,16 +175,7 @@ function openPopupWindow(id: PopupWindowId, pathOverride?: string): Window | nul
     return null;
   }
 
-  primePopupBackground(
-    nextWindow,
-    id === 'options'
-      ? 'izci Options'
-      : id === 'clipTag'
-        ? 'izci Edit and Tag'
-        : id === 'loudness'
-          ? 'izci Loudness'
-          : 'izci Spectrogram'
-  );
+  primePopupBackground(nextWindow, getPopupTitle(id));
   popupRefs.set(id, nextWindow);
   attachMainWindowLifecycleListeners();
   navigatePrimedPopup(nextWindow, popupUrl.href);

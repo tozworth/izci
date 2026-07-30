@@ -23,7 +23,9 @@
     | 'openOptions'
     | 'forceUpdate'
     | 'openAbout'
+    | 'openAudioCompare'
     | 'openClipTag'
+    | 'openConverter'
     | 'openLoudness'
     | 'openSpectrogram'
     | 'showPlaylist'
@@ -117,9 +119,19 @@
   ] satisfies MenuActionItem[];
   $: toolsMenuItems = [
     {
+      id: 'openAudioCompare',
+      label: $t('main.menu.audioCompare', { default: 'Audio Compare...' }),
+      icon: 'compare_arrows'
+    },
+    {
       id: 'openClipTag',
       label: $t('main.menu.clipAndTag', { default: 'Edit and Tag...' }),
       icon: 'content_cut'
+    },
+    {
+      id: 'openConverter',
+      label: $t('main.menu.converter', { default: 'Converter...' }),
+      icon: 'sync_alt'
     },
     {
       id: 'openLoudness',
@@ -161,7 +173,9 @@
     openOptions: { view?: OptionsViewName } | undefined;
     forceUpdate: void;
     openAbout: void;
+    openAudioCompare: void;
     openClipTag: void;
+    openConverter: void;
     openLoudness: void;
     openSpectrogram: void;
     showPlaylist: void;

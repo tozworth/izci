@@ -231,13 +231,26 @@ interface ModuleRenderWorkerMessage {
 async function renderModuleOffline(
   file: File,
   extension: string,
-  onProgress: (progress: AudioLoadProgress) => void
+  onProgress: (progress: AudioLoadProgress) => void,
+  signal?: AbortSignal
 ): Promise<AudioBuffer> {
   const moduleBytes = await file.arrayBuffer();
   const renderer = new Worker(new URL('./module-render.worker.ts', import.meta.url), { type: 'module' });
 
   return await new Promise<AudioBuffer>((resolve, reject) => {
-    const finish = () => renderer.terminate();
+    const handleAbort = () => {
+      finish();
+      reject(new DOMException('Module rendering cancelled.', 'AbortError'));
+    };
+    const finish = () => {
+      renderer.terminate();
+      signal?.removeEventListener('abort', handleAbort);
+    };
+    signal?.addEventListener('abort', handleAbort, { once: true });
+    if (signal?.aborted) {
+      handleAbort();
+      return;
+    }
     renderer.onerror = () => {
       finish();
       reject(new Error('The offline module renderer failed to start.'));
@@ -293,7 +306,8 @@ async function renderModuleOffline(
 
 export async function loadAudioFile(
   file: File,
-  onProgress: (progress: AudioLoadProgress) => void = () => undefined
+  onProgress: (progress: AudioLoadProgress) => void = () => undefined,
+  signal?: AbortSignal
 ): Promise<{ buffer: AudioBuffer; renderedModule: boolean; fromCache: boolean }> {
   const extension = inferExtension(file.name);
   const isModule = MODULE_EXTENSIONS.includes(extension as (typeof MODULE_EXTENSIONS)[number]);
@@ -314,7 +328,7 @@ export async function loadAudioFile(
   if (cached) return { buffer: cached, renderedModule: true, fromCache: true };
 
   onProgress({ phase: 'rendering', progress: 0, detail: 'Preparing module renderer' });
-  const buffer = await renderModuleOffline(file, extension, onProgress);
+  const buffer = await renderModuleOffline(file, extension, onProgress, signal);
   moduleRenderCache.set(key, buffer);
   return { buffer, renderedModule: true, fromCache: false };
 }

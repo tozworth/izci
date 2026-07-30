@@ -21,6 +21,8 @@
   export let disabled = false;
   export let zoom = 1;
   export let scrollStart = 0;
+  export let waveformLabel = '';
+  export let overviewLabel = '';
 
   const dispatch = createEventDispatcher<{
     selection: { start: number; end: number };
@@ -596,7 +598,7 @@
       bind:this={canvas}
       class="waveform-overlay"
       tabindex="0"
-      aria-label={$t('clipTag.clip.waveform', { default: 'Editable audio waveform and selection' })}
+      aria-label={waveformLabel || $t('clipTag.clip.waveform', { default: 'Editable audio waveform and selection' })}
       on:pointerdown={handlePointerDown}
       on:pointermove={handlePointerMove}
       on:pointerup={handlePointerUp}
@@ -604,7 +606,7 @@
       on:wheel={handleWheel}
       on:keydown={handleKeydown}
       on:dblclick={() => dispatch('selection', { start: 0, end: duration })}
-    >{$t('clipTag.clip.waveform', { default: 'Editable audio waveform and selection' })}</canvas>
+    >{waveformLabel || $t('clipTag.clip.waveform', { default: 'Editable audio waveform and selection' })}</canvas>
   </div>
   <div class="waveform-overview" class:dragging={overviewDragMode === 'viewport'}>
     <canvas bind:this={overviewWaveformLayer} class="overview-waveform-layer" aria-hidden="true"></canvas>
@@ -613,7 +615,7 @@
       class="overview-overlay"
       tabindex="0"
       role="slider"
-      aria-label={$t('clipTag.clip.waveformOverview', { default: 'Full waveform overview and seek bar' })}
+      aria-label={overviewLabel || $t('clipTag.clip.waveformOverview', { default: 'Full waveform overview and seek bar' })}
       aria-valuemin="0"
       aria-valuemax={duration}
       aria-valuenow={playhead}
@@ -624,7 +626,7 @@
       on:pointercancel={() => (overviewDragMode = null)}
       on:keydown={handleOverviewKeydown}
       on:dblclick={() => { zoom = 1; scrollStart = 0; }}
-    >{$t('clipTag.clip.waveformOverview', { default: 'Full waveform overview and seek bar' })}</canvas>
+    >{overviewLabel || $t('clipTag.clip.waveformOverview', { default: 'Full waveform overview and seek bar' })}</canvas>
   </div>
 </div>
 

@@ -5,6 +5,17 @@ export interface PopupWindowDefinition {
 }
 
 export const popupWindows = {
+  audioCompare: {
+    name: 'izci-audio-compare',
+    path: '/audio-compare.html',
+    features: {
+      popup: true,
+      width: 1120,
+      height: 720,
+      resizable: true,
+      scrollbars: false
+    }
+  },
   options: {
     name: 'izci-options',
     path: '/options.html',
@@ -23,6 +34,17 @@ export const popupWindows = {
       popup: true,
       width: 980,
       height: 680,
+      resizable: true,
+      scrollbars: false
+    }
+  },
+  converter: {
+    name: 'izci-converter',
+    path: '/converter.html',
+    features: {
+      popup: true,
+      width: 1120,
+      height: 720,
       resizable: true,
       scrollbars: false
     }

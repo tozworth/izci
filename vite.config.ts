@@ -10,12 +10,17 @@ export default defineConfig({
   preview: {
     allowedHosts: true
   },
+  worker: {
+    format: 'es'
+  },
   build: {
     rollupOptions: {
       input: {
         main: fileURLToPath(new URL('./index.html', import.meta.url)),
         options: fileURLToPath(new URL('./options.html', import.meta.url)),
+        audioCompare: fileURLToPath(new URL('./audio-compare.html', import.meta.url)),
         clipTag: fileURLToPath(new URL('./clip-tag.html', import.meta.url)),
+        converter: fileURLToPath(new URL('./converter.html', import.meta.url)),
         loudness: fileURLToPath(new URL('./loudness.html', import.meta.url)),
         spectrogram: fileURLToPath(new URL('./spectrogram.html', import.meta.url))
       }
@@ -113,7 +118,7 @@ export default defineConfig({
       } as Record<string, unknown>,
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,woff2,mem,wasm,txt}'],
-        navigateFallbackDenylist: [/^\/(?:options|clip-tag|loudness|spectrogram)\.html(?:\?|$)/],
+        navigateFallbackDenylist: [/^\/(?:options|audio-compare|clip-tag|converter|loudness|spectrogram)\.html(?:\?|$)/],
         ignoreURLParametersMatching: [/^utm_/, /^fbclid$/, /^view$/],
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024
       }

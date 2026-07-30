@@ -1063,7 +1063,9 @@
     on:openOptions={(event) => handleOpenOptions(event.detail?.view)}
     on:forceUpdate={() => void handleForceUpdate()}
     on:openAbout={handleOpenAbout}
+    on:openAudioCompare={() => windowManager.openPopup('audioCompare')}
     on:openClipTag={() => windowManager.openPopup('clipTag')}
+    on:openConverter={() => windowManager.openPopup('converter')}
     on:openLoudness={() => windowManager.openPopup('loudness')}
     on:openSpectrogram={() => windowManager.openPopup('spectrogram')}
     on:showPlaylist={showPlaylist}
