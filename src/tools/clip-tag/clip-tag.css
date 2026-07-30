@@ -2,6 +2,8 @@
 @import "../../lib/styles/scrollbars.css";
 @import "../../lib/styles/app/base.css";
 @import "../../lib/styles/app/menus.css";
+@import "../../lib/styles/app/player/base.css";
+@import "../../lib/styles/app/player/compact.css";
 
 :root {
   background: var(--bg-base);
@@ -151,27 +153,8 @@ select {
   scrollbar-width: thin;
 }
 
-.lyrics-clock {
-  min-width: 4.8rem;
-  color: var(--text-strong);
-  font-size: 0.75rem;
-  font-variant-numeric: tabular-nums;
-  text-align: center;
-}
-
 .stamp-step-button {
   white-space: nowrap;
-}
-
-.stamp-step-button kbd {
-  margin-left: 0.2rem;
-  padding: 0.05rem 0.22rem;
-  background: color-mix(in srgb, var(--bg-input) 72%, transparent);
-  border: 1px solid var(--border-soft);
-  border-radius: 0.2rem;
-  color: var(--muted);
-  font-size: 0.6rem;
-  font-weight: 400;
 }
 
 .lyrics-count {
@@ -276,33 +259,30 @@ select {
   opacity: 0.55;
 }
 
-.lyrics-transport {
-  display: grid;
-  grid-template-columns: 4.8rem minmax(6rem, 1fr) 4.8rem minmax(12rem, auto);
-  align-items: center;
-  gap: 0.5rem;
-  min-height: 2.35rem;
-  padding: 0.32rem 0.55rem;
-  border-top: 1px solid var(--border-soft);
-  color: var(--muted);
-  font-size: 0.68rem;
-}
-
-.lyrics-transport > span:not(.lyrics-hint) {
-  color: var(--text-strong);
-  font-variant-numeric: tabular-nums;
-  text-align: center;
-}
-
-.lyrics-transport input[type="range"] {
+.lyrics-player-bar.player-bar.compact-player-bar {
+  position: relative;
+  inset: auto;
+  z-index: auto;
   width: 100%;
-  accent-color: var(--accent-strong);
+  min-height: 2rem;
+  padding: 0 0.45rem 0 0;
+  border-top: 1px solid var(--border-soft);
+  background: var(--window-topbar-bg);
 }
 
-.lyrics-hint {
+.lyrics-player-bar .player-track-group {
+  min-width: 0;
+  padding-left: 0.55rem;
+}
+
+.lyrics-player-bar .player-track strong,
+.lyrics-player-bar .player-track span {
   overflow: hidden;
   text-overflow: ellipsis;
-  white-space: nowrap;
+}
+
+.lyrics-player-bar .player-control-strip {
+  align-self: stretch;
 }
 
 .icon-button,
@@ -579,8 +559,10 @@ select {
   line-height: 1.35;
 }
 
-.save-tags-button {
-  width: 100%;
+.tag-save-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.18rem;
   margin-top: auto;
 }
 
@@ -747,7 +729,7 @@ select {
 
   .artwork-actions,
   .artwork-editor p,
-  .save-tags-button {
+  .tag-save-actions {
     grid-column: 2;
   }
 
@@ -755,13 +737,6 @@ select {
     margin-left: 0;
   }
 
-  .lyrics-transport {
-    grid-template-columns: 4.5rem minmax(5rem, 1fr) 4.5rem;
-  }
-
-  .lyrics-hint {
-    display: none;
-  }
 }
 
 @media (max-width: 460px) {

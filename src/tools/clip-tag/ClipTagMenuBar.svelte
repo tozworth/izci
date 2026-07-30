@@ -10,19 +10,22 @@
   import { getLoadoutColorValue, LOADOUT_TYPE_ICONS } from '$lib/utils/loadout-presentation';
 
   type MenuId = 'app' | 'file' | 'edit';
-  type ActionId = 'open' | 'saveClip' | 'saveTags' | 'close' | 'undo' | 'redo' | 'selectAll'
+  type ActionId = 'open' | 'saveClip' | 'saveInPlace' | 'saveAs' | 'close' | 'undo' | 'redo' | 'selectAll'
     | 'openOptions' | 'openLoadouts' | 'openAbout' | `applyLoadout:${string}`;
 
   export let fileName = '';
   export let canSaveClip = false;
   export let canSaveTags = false;
+  export let canSaveInPlace = false;
   export let canUndo = false;
   export let canRedo = false;
+  export let activeTool: 'clip' | 'tags' | 'lyrics' = 'clip';
 
   const dispatch = createEventDispatcher<{
     open: void;
     saveClip: void;
-    saveTags: void;
+    saveInPlace: void;
+    saveAs: void;
     close: void;
     undo: void;
     redo: void;
@@ -58,8 +61,12 @@
   ] satisfies MenuActionItem[];
   $: fileItems = [
     { id: 'open', label: $t('clipTag.menu.open', { default: 'Open audio...' }), icon: 'file_open', shortcut: 'Ctrl+O' },
-    { id: 'saveClip', label: $t('clipTag.menu.saveClip', { default: 'Export clip...' }), icon: 'save', shortcut: 'Ctrl+S', disabled: !canSaveClip, separatorBefore: true },
-    { id: 'saveTags', label: $t('clipTag.menu.saveTags', { default: 'Save tagged copy...' }), icon: 'new_label', disabled: !canSaveTags },
+    ...(activeTool === 'clip'
+      ? [{ id: 'saveClip', label: $t('clipTag.menu.saveClip', { default: 'Export clip...' }), icon: 'save', shortcut: 'Ctrl+S', disabled: !canSaveClip, separatorBefore: true }]
+      : [
+          { id: 'saveInPlace', label: $t('clipTag.menu.saveInPlace', { default: 'Save' }), icon: 'save', shortcut: 'Ctrl+S', disabled: !canSaveInPlace, separatorBefore: true },
+          { id: 'saveAs', label: $t('clipTag.menu.saveAs', { default: 'Save as...' }), icon: 'save_as', shortcut: 'Ctrl+Shift+S', disabled: !canSaveTags }
+        ]),
     { id: 'close', label: $t('clipTag.menu.close', { default: 'Close Clip and Tag' }), icon: 'close', shortcut: 'Ctrl+W', separatorBefore: true }
   ] satisfies MenuActionItem[];
   $: editItems = [
@@ -105,7 +112,7 @@
       if (loadout) applyManualLoadoutSettings(loadout.settings);
       return;
     }
-    if (action === 'open' || action === 'saveClip' || action === 'saveTags' || action === 'close'
+    if (action === 'open' || action === 'saveClip' || action === 'saveInPlace' || action === 'saveAs' || action === 'close'
       || action === 'undo' || action === 'redo' || action === 'selectAll') {
       dispatch(action);
     }

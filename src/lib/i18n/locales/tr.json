@@ -1198,6 +1198,7 @@
     "encoderUnavailable": "{format} kodlama bu tarayıcıda kullanılamıyor.",
     "saveFailed": "Dosya kaydedilemedi.",
     "tagsSaved": "Etiketli kopya kaydedildi.",
+    "tagsSavedInPlace": "Değişiklikler kaynak dosyaya kaydedildi.",
     "tabs": {
       "label": "Kırp ve Etiketle araçları",
       "clip": "Kırp",
@@ -1207,7 +1208,8 @@
     "menu": {
       "undo": "Geri al",
       "redo": "Yinele",
-      "saveTags": "Etiketli kopyayı kaydet...",
+      "saveInPlace": "Kaydet",
+      "saveAs": "Farklı kaydet...",
       "close": "Kırp ve Etiketle'yi kapat",
       "open": "Ses dosyası aç...",
       "saveClip": "Klibi dışa aktar...",
@@ -1223,14 +1225,10 @@
     "title": "Kırp ve Etiketle",
     "lyrics": {
       "toolbar": "Söz araçları",
-      "backFive": "5 saniye geri",
-      "pause": "Duraklat",
-      "play": "Oynat",
       "stampAndStep": "Damgala ve ilerle",
+      "stampAndStepShortcut": "Damgala ve ilerle (Ctrl+Enter)",
       "stamp": "Seçili satırı damgala",
       "clearStamp": "Zaman damgasını temizle",
-      "earlier": "Zaman damgasını 0,1 saniye erkene al",
-      "later": "Zaman damgasını 0,1 saniye ileri al",
       "addLine": "Satır ekle",
       "deleteLine": "Satırı sil",
       "sort": "Zaman damgasına göre sırala",
@@ -1239,11 +1237,15 @@
       "timestamp": "Zaman damgası",
       "line": "Söz satırı",
       "selectLine": "{number}. satırı seç",
+      "seekToLine": "{number}. satıra git",
       "timestampForLine": "{number}. satırın zaman damgası",
       "linePlaceholder": "Söz satırını girin",
       "textForLine": "{number}. satırın sözleri",
       "position": "Oynatma konumu",
-      "hint": "Bir satır seçin, oynatmayı başlatın ve her satır başlarken damgalayın."
+      "backFive": "5 saniye geri",
+      "pause": "Duraklat",
+      "play": "Oynat",
+      "forwardFive": "5 saniye ileri"
     }
   }
 }

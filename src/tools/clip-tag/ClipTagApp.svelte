@@ -37,6 +37,13 @@
   type TagField = Exclude<keyof EditableTags, 'lyrics'>;
   const ACCEPTED_EXTENSIONS = [...STREAM_EXTENSIONS, ...MODULE_EXTENSIONS];
   const FILE_ACCEPT = ACCEPTED_EXTENSIONS.map((extension) => `.${extension}`).join(',');
+  const OPEN_FILE_PICKER_OPTIONS: OpenFilePickerOptions = {
+    multiple: false,
+    types: [{
+      description: 'Audio files',
+      accept: { 'audio/*': ACCEPTED_EXTENSIONS.map((extension) => `.${extension}`) }
+    }]
+  };
   const TAG_FIELDS: Array<{ key: TagField; wide?: boolean }> = [
     { key: 'title', wide: true },
     { key: 'artist' },
@@ -54,6 +61,7 @@
   let artworkInput: HTMLInputElement;
   let exportDialog: ClipExportDialog;
   let sourceFile: File | null = null;
+  let sourceFileHandle: FileSystemFileHandle | null = null;
   let sourceBuffer: AudioBuffer | null = null;
   let waveformBuffer: AudioBuffer | null = null;
   let editState: ClipEditState = createInitialClipState(0);
@@ -91,6 +99,12 @@
   $: canRedo = activeTab === 'clip' && redoStack.length > 0;
   $: canEdit = Boolean(sourceBuffer && waveformBuffer && !loading && !exporting && !savingTags);
   $: canSaveTags = Boolean(sourceFile && sourceBuffer && !loading && !exporting && !savingTags);
+  $: canSaveInPlace = Boolean(
+    canSaveTags
+    && sourceFileHandle?.createWritable
+    && sourceFile
+    && (STREAM_EXTENSIONS as readonly string[]).includes(inferExtension(sourceFile.name))
+  );
   $: statusText = errorMessage || (exporting
     ? $t('clipTag.encoding', { default: 'Encoding {format}...', values: { format: exportingFormat.toUpperCase() } })
     : savingTags
@@ -191,7 +205,7 @@
     artworkUrl = next ? URL.createObjectURL(next) : '';
   }
 
-  async function openFile(file: File): Promise<void> {
+  async function openFile(file: File, fileHandle: FileSystemFileHandle | null = null): Promise<void> {
     const extension = inferExtension(file.name);
     if (!ACCEPTED_EXTENSIONS.includes(extension as (typeof ACCEPTED_EXTENSIONS)[number])) {
       errorMessage = $t('clipTag.unsupported', { default: 'This file type is not supported by Clip and Tag.' });
@@ -205,6 +219,7 @@
     errorMessage = '';
     noticeMessage = '';
     sourceFile = file;
+    sourceFileHandle = fileHandle;
     sourceBuffer = null;
     waveformBuffer = null;
     undoStack = [];
@@ -261,10 +276,29 @@
         : '';
     } catch (error) {
       sourceFile = null;
+      sourceFileHandle = null;
       errorMessage = error instanceof Error ? error.message : $t('clipTag.loadFailed', { default: 'The audio file could not be opened.' });
     } finally {
       loading = false;
       loadProgress = null;
+    }
+  }
+
+  async function chooseAudioFile(): Promise<void> {
+    const pickerWindow = window as Window & {
+      showOpenFilePicker?: (options?: OpenFilePickerOptions) => Promise<FileSystemFileHandle[]>;
+    };
+    if (!pickerWindow.showOpenFilePicker) {
+      fileInput.click();
+      return;
+    }
+    try {
+      const [handle] = await pickerWindow.showOpenFilePicker(OPEN_FILE_PICKER_OPTIONS);
+      if (handle) await openFile(await handle.getFile(), handle);
+    } catch (error) {
+      if ((error as DOMException)?.name !== 'AbortError') {
+        errorMessage = error instanceof Error ? error.message : $t('clipTag.loadFailed', { default: 'The audio file could not be opened.' });
+      }
     }
   }
 
@@ -282,10 +316,20 @@
     if (file?.type.startsWith('image/')) replaceArtwork(file);
   }
 
-  function handleWindowDrop(event: DragEvent): void {
+  async function handleWindowDrop(event: DragEvent): Promise<void> {
     event.preventDefault();
+    let droppedHandle: FileSystemHandle | null | undefined;
+    try {
+      droppedHandle = await event.dataTransfer?.items[0]?.getAsFileSystemHandle?.();
+    } catch {
+      droppedHandle = null;
+    }
+    if (droppedHandle?.kind === 'file') {
+      await openFile(await (droppedHandle as FileSystemFileHandle).getFile(), droppedHandle as FileSystemFileHandle);
+      return;
+    }
     const file = event.dataTransfer?.files[0];
-    if (file) void openFile(file);
+    if (file) await openFile(file);
   }
 
   function handleArtworkDrop(event: DragEvent): void {
@@ -399,29 +443,57 @@
     }
   }
 
+  async function createTaggedOutput(): Promise<{ blob: Blob; suggestedName: string }> {
+    if (!sourceFile || !sourceBuffer) throw new Error('No source file is loaded.');
+    const extension = inferExtension(sourceFile.name);
+    if (extension === 'mp3') {
+      return {
+        blob: await tagMp3(sourceFile, tags, artwork),
+        suggestedName: `${stripFileExtension(sourceFile.name)}-tagged.mp3`
+      };
+    }
+    if (extension === 'wav' || extension === 'flac' || extension === 'ogg' || extension === 'opus') {
+      const { tagContainerAudio } = await import('./tag-container-audio');
+      return {
+        blob: await tagContainerAudio(sourceFile, extension, tags, artwork),
+        suggestedName: `${stripFileExtension(sourceFile.name)}-tagged.${extension}`
+      };
+    }
+    const { encodeAudioExport } = await import('./clip-export');
+    return {
+      blob: await encodeAudioExport(sourceBuffer, DEFAULT_CLIP_EXPORT_OPTIONS, tags, artwork),
+      suggestedName: `${stripFileExtension(sourceFile.name)}-tagged.wav`
+    };
+  }
+
   async function saveTaggedCopy(): Promise<void> {
     if (!sourceFile || !sourceBuffer || savingTags) return;
     savingTags = true;
     errorMessage = '';
     noticeMessage = '';
     try {
-      const extension = inferExtension(sourceFile.name);
-      if (extension === 'mp3') {
-        await saveBlob(await tagMp3(sourceFile, tags, artwork), `${stripFileExtension(sourceFile.name)}-tagged.mp3`);
-      } else if (extension === 'wav' || extension === 'flac' || extension === 'ogg' || extension === 'opus') {
-        const { tagContainerAudio } = await import('./tag-container-audio');
-        await saveBlob(
-          await tagContainerAudio(sourceFile, extension, tags, artwork),
-          `${stripFileExtension(sourceFile.name)}-tagged.${extension}`
-        );
-      } else {
-        const { encodeAudioExport } = await import('./clip-export');
-        await saveBlob(
-          await encodeAudioExport(sourceBuffer, DEFAULT_CLIP_EXPORT_OPTIONS, tags, artwork),
-          `${stripFileExtension(sourceFile.name)}-tagged.wav`
-        );
-      }
+      const output = await createTaggedOutput();
+      await saveBlob(output.blob, output.suggestedName);
       noticeMessage = $t('clipTag.tagsSaved', { default: 'Tagged copy saved.' });
+    } catch (error) {
+      if ((error as DOMException)?.name !== 'AbortError') errorMessage = $t('clipTag.saveFailed', { default: 'The file could not be saved.' });
+    } finally {
+      savingTags = false;
+    }
+  }
+
+  async function saveTaggedInPlace(): Promise<void> {
+    if (!canSaveInPlace || !sourceFileHandle?.createWritable || savingTags) return;
+    savingTags = true;
+    errorMessage = '';
+    noticeMessage = '';
+    try {
+      const output = await createTaggedOutput();
+      const writable = await sourceFileHandle.createWritable();
+      await writable.write(output.blob);
+      await writable.close();
+      sourceFile = await sourceFileHandle.getFile();
+      noticeMessage = $t('clipTag.tagsSavedInPlace', { default: 'Changes saved to the source file.' });
     } catch (error) {
       if ((error as DOMException)?.name !== 'AbortError') errorMessage = $t('clipTag.saveFailed', { default: 'The file could not be saved.' });
     } finally {
@@ -435,10 +507,11 @@
     const target = event.target;
     const editingText = target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement;
     const key = event.key.toLowerCase();
-    if (key === 'o') { event.preventDefault(); fileInput.click(); }
+    if (key === 'o') { event.preventDefault(); void chooseAudioFile(); }
     else if (key === 'p') { event.preventDefault(); windowManagerOpenOptions(); }
     else if (key === 'w') { event.preventDefault(); window.close(); }
-    else if (key === 's') { event.preventDefault(); activeTab === 'clip' ? openExportDialog() : void saveTaggedCopy(); }
+    else if (key === 's' && event.shiftKey && activeTab !== 'clip') { event.preventDefault(); void saveTaggedCopy(); }
+    else if (key === 's') { event.preventDefault(); activeTab === 'clip' ? openExportDialog() : canSaveInPlace ? void saveTaggedInPlace() : void saveTaggedCopy(); }
     else if (!editingText && key === 'z' && activeTab === 'clip') { event.preventDefault(); undo(); }
     else if (!editingText && key === 'y' && activeTab === 'clip') { event.preventDefault(); redo(); }
     else if (!editingText && key === 'a' && activeTab === 'clip') { event.preventDefault(); selectAll(); }
@@ -486,13 +559,16 @@
 
   <ClipTagMenuBar
     fileName={sourceFile?.name ?? ''}
+    activeTool={activeTab}
     canSaveClip={canEdit}
     {canSaveTags}
+    {canSaveInPlace}
     {canUndo}
     {canRedo}
-    on:open={() => fileInput.click()}
+    on:open={() => void chooseAudioFile()}
     on:saveClip={openExportDialog}
-    on:saveTags={() => void saveTaggedCopy()}
+    on:saveInPlace={() => void saveTaggedInPlace()}
+    on:saveAs={() => void saveTaggedCopy()}
     on:close={() => window.close()}
     on:undo={undo}
     on:redo={redo}
@@ -567,7 +643,7 @@
             on:seek={(event) => (playhead = event.detail)}
           />
           {#if !sourceFile && !loading}
-            <button class="empty-drop-target" type="button" on:click={() => fileInput.click()}>
+            <button class="empty-drop-target" type="button" on:click={() => void chooseAudioFile()}>
               <span class="material-symbols-outlined" aria-hidden="true">audio_file</span>
               <strong>{$t('clipTag.openPrompt', { default: 'Open audio' })}</strong>
               <span>{$t('clipTag.dropPrompt', { default: 'or drop a file here' })}</span>
@@ -632,7 +708,10 @@
               {$t('clipTag.tags.renderedCopyNote', { default: 'Modules are rendered to a tagged WAV copy; the source file is never changed.' })}
             {/if}
           </p>
-          <button class="text-button primary save-tags-button" type="button" disabled={!canSaveTags} on:click={() => void saveTaggedCopy()}><span class="material-symbols-outlined" aria-hidden="true">new_label</span>{$t('clipTag.menu.saveTags', { default: 'Save tagged copy...' })}</button>
+          <div class="tag-save-actions">
+            <button class="icon-button hover-tooltip-anchor" type="button" disabled={!canSaveInPlace} aria-label={$t('clipTag.menu.saveInPlace', { default: 'Save' })} on:click={() => void saveTaggedInPlace()}><span class="material-symbols-outlined" aria-hidden="true">save</span><HoverTooltip>{$t('clipTag.menu.saveInPlace', { default: 'Save' })}</HoverTooltip></button>
+            <button class="icon-button hover-tooltip-anchor" type="button" disabled={!canSaveTags} aria-label={$t('clipTag.menu.saveAs', { default: 'Save as...' })} on:click={() => void saveTaggedCopy()}><span class="material-symbols-outlined" aria-hidden="true">save_as</span><HoverTooltip>{$t('clipTag.menu.saveAs', { default: 'Save as...' })}</HoverTooltip></button>
+          </div>
         </aside>
       </section>
     {:else}
@@ -642,11 +721,14 @@
         duration={sourceBuffer?.duration ?? 0}
         disabled={!canSaveTags}
         playing={previewPlaying && previewMode === 'lyrics'}
+        trackTitle={sourceFile?.name ?? ''}
+        {canSaveInPlace}
         getCurrentTime={getPreviewPosition}
         on:change={(event) => (tags = { ...tags, lyrics: event.detail })}
         on:togglePlayback={toggleLyricsPreview}
         on:seek={(event) => seekLyrics(event.detail)}
-        on:save={() => void saveTaggedCopy()}
+        on:saveInPlace={() => void saveTaggedInPlace()}
+        on:saveAs={() => void saveTaggedCopy()}
       />
     {/if}
   </main>

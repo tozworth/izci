@@ -1198,6 +1198,7 @@
     "encoderUnavailable": "{format} encoding is not available in this browser.",
     "saveFailed": "The file could not be saved.",
     "tagsSaved": "Tagged copy saved.",
+    "tagsSavedInPlace": "Changes saved to the source file.",
     "tabs": {
       "label": "Clip and Tag tools",
       "clip": "Clip",
@@ -1207,7 +1208,8 @@
     "menu": {
       "undo": "Undo",
       "redo": "Redo",
-      "saveTags": "Save tagged copy...",
+      "saveInPlace": "Save",
+      "saveAs": "Save as...",
       "close": "Close Clip and Tag",
       "open": "Open audio...",
       "saveClip": "Export clip...",
@@ -1223,14 +1225,10 @@
     "title": "Clip and Tag",
     "lyrics": {
       "toolbar": "Lyrics tools",
-      "backFive": "Back 5 seconds",
-      "pause": "Pause",
-      "play": "Play",
       "stampAndStep": "Stamp and step",
+      "stampAndStepShortcut": "Stamp and step (Ctrl+Enter)",
       "stamp": "Stamp selected line",
       "clearStamp": "Clear timestamp",
-      "earlier": "Move timestamp 0.1 seconds earlier",
-      "later": "Move timestamp 0.1 seconds later",
       "addLine": "Add line",
       "deleteLine": "Delete line",
       "sort": "Sort by timestamp",
@@ -1239,11 +1237,15 @@
       "timestamp": "Timestamp",
       "line": "Lyric line",
       "selectLine": "Select line {number}",
+      "seekToLine": "Seek to line {number}",
       "timestampForLine": "Timestamp for line {number}",
       "linePlaceholder": "Enter lyric line",
       "textForLine": "Lyrics for line {number}",
       "position": "Playback position",
-      "hint": "Select a line, start playback, then stamp each line as it begins."
+      "backFive": "Back 5 seconds",
+      "pause": "Pause",
+      "play": "Play",
+      "forwardFive": "Forward 5 seconds"
     }
   }
 }
