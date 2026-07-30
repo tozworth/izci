@@ -94,7 +94,6 @@
     content: "";
     position: absolute;
     inset: 0 -0.55rem;
-    border-top: 1px solid var(--border-subtle);
     border-bottom: 1px solid var(--border-soft);
     background: color-mix(in srgb, var(--playlist-header-background) 72%, var(--bg-elevated));
     pointer-events: none;

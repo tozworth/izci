@@ -976,6 +976,9 @@
   >
     <div
       class="panel-header playlist-panel-header"
+      class:library-mode={libraryMode}
+      class:compact-heading={hideEyebrow}
+      class:has-secondary-library-row={libraryMode && (showSearchInput || Boolean(selectedLibraryGroup))}
       class:is-covered={playlistHeaderCovered}
       class:has-column-header={showTrackRows && filteredItems.length > 0 && layout === 'columns' && !isCompactColumnLayout}
     >
@@ -1149,8 +1152,22 @@
     padding-bottom: 0.36rem;
   }
 
+  .playlist-panel-header.library-mode {
+    padding: 0.025rem 0.45rem;
+  }
+
+  .playlist-panel-header.compact-heading:not(.has-column-header),
+  .playlist-panel-header.library-mode:not(.has-column-header):not(.has-secondary-library-row) {
+    height: 1.7rem;
+  }
+
   .playlist-panel-header.has-column-header {
     padding-bottom: 0;
+  }
+
+  .playlist-panel-header.library-mode.has-column-header {
+    gap: 0;
+    padding-top: 0.05rem;
   }
 
   .playlist-scroll-region {

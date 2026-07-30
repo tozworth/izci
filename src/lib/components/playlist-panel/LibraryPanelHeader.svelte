@@ -66,7 +66,7 @@
       {#each LIBRARY_VIEW_DEFINITIONS as view}
         <button
           type="button"
-          class="library-toolbar-button hover-tooltip-anchor"
+          class="library-toolbar-button library-view-tab hover-tooltip-anchor"
           class:active={activeView === view.id}
           role="tab"
           aria-selected={activeView === view.id}
@@ -156,7 +156,7 @@
     z-index: 2;
     display: flex;
     flex-direction: column;
-    gap: 0.36rem;
+    gap: 0.24rem;
     width: 100%;
   }
 
@@ -165,6 +165,7 @@
   }
 
   .library-toolbar {
+    position: relative;
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -172,27 +173,45 @@
     container-type: inline-size;
   }
 
+  .library-toolbar::after {
+    content: "";
+    position: absolute;
+    z-index: 0;
+    right: -0.45rem;
+    bottom: 0;
+    left: -0.45rem;
+    height: 1px;
+    background: var(--border-soft);
+    pointer-events: none;
+  }
+
   .library-view-tabs,
   .library-primary-actions {
     display: inline-flex;
     align-items: center;
-    gap: 0.12rem;
+    gap: 0.14rem;
   }
 
   .library-view-tabs {
-    flex: 0 1 auto;
+    flex: 1 1 auto;
     min-width: 0;
     justify-content: flex-start;
+    align-self: stretch;
+    align-items: flex-end;
+    gap: 0;
+    padding-inline: 0.08rem;
   }
 
   .library-view-tabs .library-toolbar-button {
-    flex: 0 0 auto;
-    min-width: 1rem;
+    flex: 1 1 0;
+    width: auto;
+    min-width: 1.4rem;
+    max-width: 2.25rem;
   }
 
   .library-primary-actions {
     flex-shrink: 0;
-    padding-left: 0.26rem;
+    padding-left: 0.22rem;
     border-left: 1px solid var(--border-subtle);
   }
 
@@ -203,14 +222,14 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 1.58rem;
-    height: 1.58rem;
+    width: 1.4rem;
+    height: 1.65rem;
     padding: 0;
     color: var(--muted);
     background: transparent;
-    border: 0;
-    border-radius: 4px;
-    transition: color 150ms ease, background-color 150ms ease;
+    border: 1px solid transparent;
+    border-radius: 0.3rem;
+    transition: color 150ms ease, background-color 150ms ease, border-color 150ms ease;
   }
 
   .library-toolbar-button:hover,
@@ -222,7 +241,26 @@
   }
 
   .library-toolbar-button.active {
-    box-shadow: inset 0 -2px 0 var(--accent-strong);
+    box-shadow: none;
+  }
+
+  .library-view-tab {
+    border-radius: 0;
+  }
+
+  .library-view-tab:hover {
+    border-radius: 0.36rem 0.36rem 0 0;
+  }
+
+  .library-view-tab.active {
+    --library-active-tab-background: color-mix(in srgb, var(--bg-elevated) 84%, var(--accent-strong-soft));
+    margin-bottom: 0;
+    color: var(--accent-strong);
+    background: var(--library-active-tab-background);
+    border-color: var(--border-soft);
+    border-bottom-color: var(--border-soft);
+    border-radius: 0.36rem 0.36rem 0 0;
+    z-index: 1;
   }
 
   .library-toolbar-button .material-symbols-outlined,
@@ -236,8 +274,8 @@
     align-items: center;
     gap: 0.35rem;
     min-width: 0;
-    height: 1.85rem;
-    padding: 0 0.26rem 0 0.5rem;
+    height: 1.5rem;
+    padding: 0 0.2rem 0 0.42rem;
     color: var(--muted);
     background: var(--bg-search);
     border: 1px solid var(--border-soft);
@@ -318,7 +356,7 @@
 
   @container (max-width: 13rem) {
     .library-toolbar-button {
-      width: 1.35rem;
+      width: 1.3rem;
     }
 
     .library-view-tabs,
@@ -327,7 +365,7 @@
     }
 
     .library-view-tabs .library-toolbar-button {
-      min-width: 0.85rem;
+      min-width: 1.18rem;
     }
   }
 </style>
