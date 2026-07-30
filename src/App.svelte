@@ -87,7 +87,7 @@
     WorkspaceCollection,
     WorkspaceTab
   } from '$lib/types';
-  import type { OptionsViewName } from './options/views';
+  import { isOptionsViewName, type OptionsViewName } from './options/views';
   import { getFavoriteIdentity, getTrackDisplayTitle, getTrackIdentity } from '$lib/utils/files';
   import { favoritesHaveAllTracks } from '$lib/services/workspace-actions';
 
@@ -844,6 +844,15 @@
     handleOpenOptions('about');
   }
 
+  function handlePopupWindowMessage(event: MessageEvent): void {
+    if (event.origin !== window.location.origin || event.data?.type !== 'izci:open-options') {
+      return;
+    }
+
+    const view = isOptionsViewName(event.data.view) ? event.data.view : undefined;
+    windowManager.openOptions(view);
+  }
+
   async function handleForceUpdate() {
     await forceServiceWorkerUpdateCheck();
   }
@@ -991,6 +1000,7 @@
   on:pointermove={(event) => workspaceShell.handlePanelResizeMove(event)}
   on:pointerup={() => workspaceShell.endPanelResize()}
   on:pointercancel={() => workspaceShell.endPanelResize()}
+  on:message={handlePopupWindowMessage}
 />
 
 <div
@@ -1048,6 +1058,7 @@
     on:openOptions={(event) => handleOpenOptions(event.detail?.view)}
     on:forceUpdate={() => void handleForceUpdate()}
     on:openAbout={handleOpenAbout}
+    on:openClipTag={() => windowManager.openPopup('clipTag')}
     on:showPlaylist={showPlaylist}
     on:showLibrary={showLibrary}
     on:showTrackDetails={showTrackDetails}

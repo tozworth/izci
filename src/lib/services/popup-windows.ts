@@ -15,6 +15,17 @@ export const popupWindows = {
       resizable: true,
       scrollbars: true
     }
+  },
+  clipTag: {
+    name: 'izci-clip-and-tag',
+    path: '/clip-tag.html',
+    features: {
+      popup: true,
+      width: 980,
+      height: 680,
+      resizable: true,
+      scrollbars: false
+    }
   }
 } satisfies Record<string, PopupWindowDefinition>;
 

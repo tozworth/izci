@@ -67,11 +67,11 @@ function buildWindowFeatures(features: PopupWindowDefinition['features']): strin
     .join(',');
 }
 
-function primePopupBackground(windowRef: Window): void {
+function primePopupBackground(windowRef: Window, title: string): void {
   const backgroundColor = getComputedStyle(document.documentElement).backgroundColor || '#18191b';
   const popupDocument = windowRef.document;
 
-  popupDocument.title = 'izci Options';
+  popupDocument.title = title;
   popupDocument.documentElement.style.colorScheme = 'dark';
   popupDocument.documentElement.style.backgroundColor = backgroundColor;
   popupDocument.body.style.margin = '0';
@@ -155,7 +155,7 @@ function openPopupWindow(id: PopupWindowId, pathOverride?: string): Window | nul
     return null;
   }
 
-  primePopupBackground(nextWindow);
+  primePopupBackground(nextWindow, id === 'options' ? 'izci Options' : 'izci Clip and Tag');
   popupRefs.set(id, nextWindow);
   attachMainWindowLifecycleListeners();
   navigatePrimedPopup(nextWindow, popupUrl.href);

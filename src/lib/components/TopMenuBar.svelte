@@ -15,7 +15,7 @@
   import { formatDisplayVersion } from '$lib/utils/version';
   import type { OptionsViewName } from '../../options/views';
 
-  type MenuId = 'app' | 'file' | 'view' | 'video' | 'help';
+  type MenuId = 'app' | 'file' | 'tools' | 'view' | 'video' | 'help';
   type DispatchedMenuActionId =
     | 'openFiles'
     | 'openFolder'
@@ -23,6 +23,7 @@
     | 'openOptions'
     | 'forceUpdate'
     | 'openAbout'
+    | 'openClipTag'
     | 'showPlaylist'
     | 'showLibrary'
     | 'showTrackDetails'
@@ -112,6 +113,13 @@
       icon: 'folder_open'
     }
   ] satisfies MenuActionItem[];
+  $: toolsMenuItems = [
+    {
+      id: 'openClipTag',
+      label: $t('main.menu.clipAndTag', { default: 'Clip and Tag...' }),
+      icon: 'content_cut'
+    }
+  ] satisfies MenuActionItem[];
   $: helpMenuItems = [
     {
       id: 'forceUpdate',
@@ -141,6 +149,7 @@
     openOptions: { view?: OptionsViewName } | undefined;
     forceUpdate: void;
     openAbout: void;
+    openClipTag: void;
     showPlaylist: void;
     showLibrary: void;
     showTrackDetails: void;
@@ -164,6 +173,7 @@
   let compactMenuTriggerElement: HTMLButtonElement | null = null;
   let appMenuTriggerElement: HTMLButtonElement | null = null;
   let fileMenuTriggerElement: HTMLButtonElement | null = null;
+  let toolsMenuTriggerElement: HTMLButtonElement | null = null;
   let viewMenuTriggerElement: HTMLButtonElement | null = null;
   let videoMenuTriggerElement: HTMLButtonElement | null = null;
   let helpMenuTriggerElement: HTMLButtonElement | null = null;
@@ -265,6 +275,12 @@
       icon: 'folder',
       separatorBefore: true,
       children: fileMenuItems
+    },
+    {
+      id: 'tools',
+      label: $t('main.menu.tools', { default: 'Tools' }),
+      icon: 'construction',
+      children: toolsMenuItems
     },
     {
       id: 'view',
@@ -453,6 +469,10 @@
       return fileMenuTriggerElement;
     }
 
+    if (menuId === 'tools') {
+      return toolsMenuTriggerElement;
+    }
+
     if (menuId === 'view') {
       return viewMenuTriggerElement;
     }
@@ -604,6 +624,33 @@
             x={menuPopupX}
             y={menuPopupY}
             ariaLabel={$t('main.menu.file', { default: 'File' })}
+            activateOnPointerUpPointerId={menubarPressPointerId}
+            on:action={(event) => runMenuAction(event.detail as MenuActionId)}
+            on:dismiss={closeMenus}
+          />
+        {/if}
+      </div>
+
+      <div class="menu-root" role="none" on:pointerenter={() => handleMenuHover('tools')}>
+        <button
+          bind:this={toolsMenuTriggerElement}
+          class:active={activeMenu === 'tools'}
+          class="menu-trigger"
+          data-menu-interactive="true"
+          type="button"
+          aria-haspopup="menu"
+          aria-expanded={activeMenu === 'tools'}
+          on:pointerdown={(event) => handleRootPointerDown(event, 'tools')}
+          on:click={() => handleRootClick('tools')}
+        >
+          {$t('main.menu.tools', { default: 'Tools' })}
+        </button>
+        {#if activeMenu === 'tools'}
+          <MenuSurface
+            items={toolsMenuItems}
+            x={menuPopupX}
+            y={menuPopupY}
+            ariaLabel={$t('main.menu.tools', { default: 'Tools' })}
             activateOnPointerUpPointerId={menubarPressPointerId}
             on:action={(event) => runMenuAction(event.detail as MenuActionId)}
             on:dismiss={closeMenus}

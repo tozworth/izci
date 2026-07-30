@@ -14,7 +14,8 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: fileURLToPath(new URL('./index.html', import.meta.url)),
-        options: fileURLToPath(new URL('./options.html', import.meta.url))
+        options: fileURLToPath(new URL('./options.html', import.meta.url)),
+        clipTag: fileURLToPath(new URL('./clip-tag.html', import.meta.url))
       }
     }
   },
@@ -110,7 +111,7 @@ export default defineConfig({
       } as Record<string, unknown>,
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,woff2,mem,wasm,txt}'],
-        navigateFallbackDenylist: [/^\/options\.html(?:\?|$)/],
+        navigateFallbackDenylist: [/^\/(?:options|clip-tag)\.html(?:\?|$)/],
         ignoreURLParametersMatching: [/^utm_/, /^fbclid$/, /^view$/],
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024
       }
