@@ -124,24 +124,26 @@
 .workspace-tabs {
   --workspace-tab-text: var(--text);
   --workspace-tab-muted: var(--muted);
-  display: flex;
-  align-items: center;
-  gap: 0.1rem;
+  --tab-strip-text: var(--workspace-tab-text);
+  --tab-strip-muted: var(--workspace-tab-muted);
+  --tab-strip-active-color: var(--text-strong);
+  --tab-strip-hover-color: var(--text-strong);
+  --tab-strip-active-icon-color: var(--accent-strong);
+  --tab-strip-background: var(--menu-bar-bg);
+  --tab-strip-active-background: color-mix(in srgb, var(--bg-elevated) 84%, var(--accent-strong-soft));
+  --tab-strip-border: var(--border-soft);
+  --tab-strip-gap: 0.1rem;
+  --tab-strip-tab-padding: 0.22rem 0.4rem 0.32rem;
   position: sticky;
   top: 0;
   z-index: 10;
   padding: 0;
-  color: var(--workspace-tab-text);
-  background-color: var(--menu-bar-bg);
   backdrop-filter:
     blur(var(--chrome-backdrop-blur, 16px))
     saturate(var(--chrome-backdrop-saturate, 1));
   -webkit-backdrop-filter:
     blur(var(--chrome-backdrop-blur, 16px))
     saturate(var(--chrome-backdrop-saturate, 1));
-  box-shadow: 0 1px 0 var(--hairline);
-  border-bottom: 1px solid var(--border-soft);
-  isolation: isolate;
   min-width: 0;
   max-width: 100%;
   overflow: hidden;
@@ -150,29 +152,14 @@
 .app-shell.window-controls-overlay-active .workspace-tabs {
   --workspace-tab-text: var(--window-topbar-text);
   --workspace-tab-muted: var(--window-topbar-muted);
-  background-color: var(--window-topbar-bg);
-  box-shadow: 0 1px 0 var(--window-topbar-hairline);
-  border-bottom-color: transparent;
+  --tab-strip-background: var(--window-topbar-bg);
+  --tab-strip-border: var(--window-topbar-hairline);
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
 }
 
 .workspace-tab {
-  display: inline-flex;
-  align-items: center;
   flex: 0 1 auto;
-  gap: 0.3rem;
-  min-width: 0;
-  padding: 0.22rem 0.4rem 0.38rem;
-  background: transparent;
-  border: 0;
-  border-bottom: 2px solid transparent;
-  color: var(--workspace-tab-muted);
-  line-height: 1;
-  transition:
-    background 180ms ease,
-    border-bottom-color 180ms ease,
-    color 180ms ease;
 }
 
 .workspace-tab-shell {
@@ -214,15 +201,6 @@
 
 .workspace-tab-shell.drop-after::after {
   right: -1px;
-}
-
-.workspace-tab:hover {
-  color: var(--workspace-tab-text);
-}
-
-.workspace-tab.active {
-  border-bottom-color: var(--accent-strong);
-  color: var(--workspace-tab-text);
 }
 
 .workspace-tab .material-symbols-outlined {
@@ -271,6 +249,7 @@
   position: absolute;
   top: 50%;
   right: 0.35rem;
+  z-index: 3;
   transform: translateY(-56%);
   display: inline-flex;
   align-items: center;
@@ -286,13 +265,15 @@
   width: 1rem;
   height: 1rem;
   padding: 0;
-  color: var(--workspace-tab-muted);
+  color: var(--workspace-tab-text);
   background: transparent;
+  border-radius: 0.24rem;
   opacity: 0;
   pointer-events: none;
   transition:
     opacity 160ms ease,
-    color 160ms ease;
+    color 160ms ease,
+    background-color 160ms ease;
 }
 
 .workspace-tab-shell:hover .workspace-tab-close-button,
@@ -303,7 +284,8 @@
 
 .workspace-tab-close-button:hover,
 .workspace-tab-close-button:focus-visible {
-  color: var(--workspace-tab-text);
+  color: var(--text-strong);
+  background-color: var(--hover-control);
 }
 
 .workspace-tab-close-button .material-symbols-outlined {
@@ -527,19 +509,18 @@
 .now-playing-tabs {
   --workspace-tab-text: var(--text);
   --workspace-tab-muted: var(--muted);
-  display: flex;
-  align-items: center;
-  gap: 0.18rem;
+  --tab-strip-background: transparent;
+  --tab-strip-active-background: var(--now-playing-pane-fill);
+  --tab-strip-border: color-mix(in srgb, var(--border-soft) 56%, transparent);
+  --tab-strip-gap: 0.18rem;
+  --tab-strip-tab-gap: 0.34rem;
+  --tab-strip-tab-min-height: 2.25rem;
+  --tab-strip-tab-padding: 0.18rem 0.58rem 0.32rem;
   flex: 0 0 auto;
   padding: 0.5rem 0.72rem 0;
   border-radius: 8px 8px 0 0;
-  border-bottom: 1px solid color-mix(in srgb, var(--border-soft) 42%, transparent);
-  background: transparent;
-  background-color: transparent;
-  box-shadow: none;
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
-  isolation: auto;
   position: relative;
   top: auto;
   z-index: 1;
@@ -557,35 +538,14 @@
 .app-shell.window-controls-overlay-active .now-playing-tabs {
   --workspace-tab-text: var(--text);
   --workspace-tab-muted: var(--muted);
-  border-bottom-color: color-mix(in srgb, var(--border-soft) 42%, transparent);
-  background: transparent;
-  background-color: transparent;
-  box-shadow: none;
+  --tab-strip-background: transparent;
+  --tab-strip-border: color-mix(in srgb, var(--border-soft) 56%, transparent);
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
 }
 
 .now-playing-tabs .workspace-tab {
-  gap: 0.34rem;
-  min-height: 2.25rem;
-  padding: 0.18rem 0.58rem 0.52rem;
-  border: 0;
-  border-bottom: 2px solid transparent;
-  border-radius: 0;
-  color: var(--workspace-tab-muted);
-  background: transparent;
-  line-height: 1;
-}
-
-.now-playing-tabs .workspace-tab:hover {
-  color: var(--workspace-tab-text);
-  background-color: transparent;
-}
-
-.now-playing-tabs .workspace-tab.active {
-  border-bottom-color: var(--accent-strong);
-  color: var(--workspace-tab-text);
-  background: transparent;
+  flex: 0 1 auto;
 }
 
 .now-playing-tabs .workspace-tab .material-symbols-outlined {

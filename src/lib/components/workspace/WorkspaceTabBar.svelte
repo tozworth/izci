@@ -1,6 +1,7 @@
 <script lang="ts">
   import { createEventDispatcher, onMount, tick } from 'svelte';
   import { t } from 'svelte-i18n';
+  import TabStrip from '$lib/components/TabStrip.svelte';
   import type { WorkspacePanelId, WorkspaceTab } from '$lib/types';
   import type {
     WorkspaceTabDefinition,
@@ -30,7 +31,7 @@
   }>();
 
   let dropIndicator: { tabId: WorkspaceTab; position: 'before' | 'after' } | null = null;
-  let tabBarElement: HTMLDivElement;
+  let tabBarElement: HTMLDivElement | null = null;
   let tabMeasurementElement: HTMLDivElement;
   let isIconOnly = false;
   let resizeObserver: ResizeObserver | null = null;
@@ -261,13 +262,12 @@
     : ariaLabel;
 </script>
 
-<div
-  class={`workspace-tabs ${className}`.trim()}
-  class:is-icon-only={isIconOnly}
-  bind:this={tabBarElement}
-  role="tablist"
-  aria-label={localizedAriaLabel}
-  tabindex="-1"
+<TabStrip
+  className={`workspace-tabs ${className} ${isIconOnly ? 'is-icon-only' : ''}`.trim()}
+  bind:element={tabBarElement}
+  ariaLabel={localizedAriaLabel}
+  flushStart
+  tabIndex={-1}
   on:dragover={handleBarDragOver}
   on:drop={handleBarDrop}
   on:dragleave={handleBarDragLeave}
@@ -288,7 +288,7 @@
       <button
         type="button"
         class:active={activeTab === tab.id}
-        class="workspace-tab"
+        class="tab-strip-tab workspace-tab"
         role="tab"
         aria-label={getTabLabel(tab)}
         aria-selected={activeTab === tab.id}
@@ -326,7 +326,7 @@
   <div class="workspace-tabs-measure" aria-hidden="true" bind:this={tabMeasurementElement}>
     {#each tabs as tab}
       <div class="workspace-tab-shell" class:has-close={closeable && tab.closeable !== false}>
-        <span class="workspace-tab">
+        <span class="tab-strip-tab workspace-tab">
           <span class="material-symbols-outlined" aria-hidden="true">{tab.icon}</span>
           <span class="workspace-tab-label">{getTabLabel(tab)}</span>
         </span>
@@ -341,4 +341,4 @@
       </div>
     {/each}
   </div>
-</div>
+</TabStrip>

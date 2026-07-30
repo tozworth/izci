@@ -2,6 +2,7 @@
   import { afterUpdate, createEventDispatcher, tick } from 'svelte';
   import { t } from 'svelte-i18n';
   import HoverTooltip from '$lib/components/HoverTooltip.svelte';
+  import TabStrip from '$lib/components/TabStrip.svelte';
   import type { LibraryViewId } from '$lib/types';
   import { LIBRARY_VIEW_DEFINITIONS } from './library-views';
 
@@ -62,11 +63,14 @@
 
 <div class="library-header">
   <div class="library-toolbar">
-    <div class="library-view-tabs" aria-label={$t('playlist.library.views.label', { default: 'Library views' })} role="tablist">
+    <TabStrip
+      className="library-view-tabs"
+      ariaLabel={$t('playlist.library.views.label', { default: 'Library views' })}
+    >
       {#each LIBRARY_VIEW_DEFINITIONS as view}
         <button
           type="button"
-          class="library-toolbar-button library-view-tab hover-tooltip-anchor"
+          class="tab-strip-tab library-toolbar-button library-view-tab hover-tooltip-anchor"
           class:active={activeView === view.id}
           role="tab"
           aria-selected={activeView === view.id}
@@ -81,7 +85,7 @@
           </HoverTooltip>
         </button>
       {/each}
-    </div>
+    </TabStrip>
 
     <div class="library-primary-actions">
       <button
@@ -185,14 +189,15 @@
     pointer-events: none;
   }
 
-  .library-view-tabs,
+  :global(.library-view-tabs),
   .library-primary-actions {
     display: inline-flex;
     align-items: center;
     gap: 0.14rem;
   }
 
-  .library-view-tabs {
+  :global(.library-view-tabs) {
+    --tab-strip-active-background: color-mix(in srgb, var(--bg-elevated) 84%, var(--accent-strong-soft));
     flex: 1 1 auto;
     min-width: 0;
     justify-content: flex-start;
@@ -202,7 +207,7 @@
     padding-inline: 0.08rem;
   }
 
-  .library-view-tabs .library-toolbar-button {
+  :global(.library-view-tabs) .library-toolbar-button {
     flex: 1 1 0;
     width: auto;
     min-width: 1.4rem;
@@ -242,25 +247,6 @@
 
   .library-toolbar-button.active {
     box-shadow: none;
-  }
-
-  .library-view-tab {
-    border-radius: 0;
-  }
-
-  .library-view-tab:hover {
-    border-radius: 0.36rem 0.36rem 0 0;
-  }
-
-  .library-view-tab.active {
-    --library-active-tab-background: color-mix(in srgb, var(--bg-elevated) 84%, var(--accent-strong-soft));
-    margin-bottom: 0;
-    color: var(--accent-strong);
-    background: var(--library-active-tab-background);
-    border-color: var(--border-soft);
-    border-bottom-color: var(--library-active-tab-background);
-    border-radius: 0.36rem 0.36rem 0 0;
-    z-index: 1;
   }
 
   .library-toolbar-button .material-symbols-outlined,
@@ -359,12 +345,12 @@
       width: 1.3rem;
     }
 
-    .library-view-tabs,
+    :global(.library-view-tabs),
     .library-primary-actions {
       gap: 0;
     }
 
-    .library-view-tabs .library-toolbar-button {
+    :global(.library-view-tabs) .library-toolbar-button {
       min-width: 1.18rem;
     }
   }
