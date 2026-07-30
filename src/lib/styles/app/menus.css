@@ -12,15 +12,13 @@
   min-height: 1.9rem;
   padding: max(env(safe-area-inset-top, 0px), 0px) 0.65rem 0 0;
   background-color: var(--window-topbar-bg);
-  box-shadow: 0 1px 0 var(--hairline);
   color: var(--window-topbar-text);
   position: sticky;
   top: 0;
   z-index: 40;
   transition:
     opacity 420ms ease,
-    transform 420ms ease,
-    box-shadow 420ms ease;
+    transform 420ms ease;
 }
 
 .menu-bar-compact {
@@ -57,21 +55,18 @@ body:has(.menu-list[data-menu-interactive='true']) .menu-bar.window-controls-ove
   opacity: 0;
   pointer-events: none;
   transform: translateY(calc(-100% - var(--window-frame-safe-top)));
-  box-shadow: none;
 }
 
 .app-shell.video-fullscreen-mode .menu-bar {
   transition:
     opacity 160ms ease-out,
-    transform 180ms ease-out,
-    box-shadow 180ms ease-out;
+    transform 180ms ease-out;
 }
 
 .app-shell.video-fullscreen-mode.video-theater-controls-hidden .menu-bar {
   opacity: 0;
   pointer-events: none;
   transform: translateY(calc(-100% - var(--window-frame-safe-top)));
-  box-shadow: none;
 }
 
 .menu-bar.window-controls-overlay-active.menu-bar-compact {
