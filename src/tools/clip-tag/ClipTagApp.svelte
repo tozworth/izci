@@ -5,6 +5,7 @@
   import TabStrip from '$lib/components/TabStrip.svelte';
   import { MODULE_EXTENSIONS, STREAM_EXTENSIONS } from '$lib/types';
   import { loadTrackLyrics } from '$lib/services/lyrics';
+  import { listenForCurrentToolTrack } from '$lib/services/tool-track-context';
   import { RAF_EFFECT_REGISTRY } from '$lib/services/raf-effect-registry';
   import { loadEmbeddedStreamArtwork, loadTrackMetadata } from '$lib/services/stream-artwork';
   import { inferArtistTitleFromFileName, inferExtension, stripFileExtension } from '$lib/utils/files';
@@ -712,6 +713,14 @@
 
   onMount(() => {
     const wasOpenedByMain = window.opener !== null;
+    const stopListeningForTrack = listenForCurrentToolTrack((track) => {
+      if (
+        track.kind !== 'video'
+        && ACCEPTED_EXTENSIONS.includes(inferExtension(track.file.name) as (typeof ACCEPTED_EXTENSIONS)[number])
+      ) {
+        void openFile(track.file, track.fileHandle ?? null);
+      }
+    });
     const closeIfOrphaned = () => {
       if (wasOpenedByMain && (!window.opener || window.opener.closed)) window.close();
     };
@@ -721,6 +730,7 @@
     window.addEventListener('drop', handleWindowDrop);
     window.addEventListener('focus', closeIfOrphaned);
     return () => {
+      stopListeningForTrack();
       window.clearInterval(interval);
       window.removeEventListener('keydown', handleKeydown);
       window.removeEventListener('drop', handleWindowDrop);

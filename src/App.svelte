@@ -76,6 +76,7 @@
   import { isRafPresetDirty, rafPresets } from '$lib/stores/raf-presets';
   import { trackSettings } from '$lib/stores/track-settings';
   import { videoSettings } from '$lib/stores/video-settings';
+  import { respondToToolTrackRequest } from '$lib/services/tool-track-context';
   import type {
     LyricsDisplayStyle,
     ModulePatternSnapshot,
@@ -845,6 +846,10 @@
   }
 
   function handlePopupWindowMessage(event: MessageEvent): void {
+    if (respondToToolTrackRequest(event, playingTrack)) {
+      return;
+    }
+
     if (event.origin !== window.location.origin || event.data?.type !== 'izci:open-options') {
       return;
     }

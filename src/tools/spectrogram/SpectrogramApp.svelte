@@ -2,6 +2,7 @@
   import { onDestroy, onMount } from 'svelte';
   import { t } from 'svelte-i18n';
   import { STREAM_EXTENSIONS } from '$lib/types';
+  import { listenForCurrentToolTrack } from '$lib/services/tool-track-context';
   import { inferExtension } from '$lib/utils/files';
   import SpectrogramCanvas from './SpectrogramCanvas.svelte';
   import SpectrogramMenuBar from './SpectrogramMenuBar.svelte';
@@ -171,12 +172,18 @@
 
   onMount(() => {
     const preventDefault = (event: DragEvent) => event.preventDefault();
+    const stopListeningForTrack = listenForCurrentToolTrack((track) => {
+      if (track.kind === 'stream' && isStreamedAudio(track.file)) {
+        void openFile(track.file, track.fileHandle ?? null);
+      }
+    });
     window.addEventListener('dragover', preventDefault);
     window.addEventListener('drop', handleDrop);
     window.addEventListener('dragenter', handleDragEnter);
     window.addEventListener('dragleave', handleDragLeave);
     window.addEventListener('keydown', handleWindowKeydown);
     return () => {
+      stopListeningForTrack();
       window.removeEventListener('dragover', preventDefault);
       window.removeEventListener('drop', handleDrop);
       window.removeEventListener('dragenter', handleDragEnter);

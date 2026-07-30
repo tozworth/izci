@@ -1,5 +1,6 @@
 import { popupWindows, type PopupWindowDefinition, type PopupWindowId } from '$lib/services/popup-windows';
 import { getOptionsWindowState } from '$lib/services/options-window-state';
+import { OPEN_CURRENT_TOOL_TRACK_MESSAGE } from '$lib/services/tool-track-context';
 import { buildOptionsWindowPath, type OptionsViewName } from '../../options/views';
 
 function isOpenWindow(windowRef: Window | null | undefined): windowRef is Window {
@@ -134,6 +135,13 @@ function openPopupWindow(id: PopupWindowId, pathOverride?: string): Window | nul
       || existingWindow.location.search !== popupUrl.search
     ) {
       existingWindow.location.replace(popupUrl.href);
+    }
+
+    if (id !== 'options') {
+      existingWindow.postMessage(
+        { type: OPEN_CURRENT_TOOL_TRACK_MESSAGE },
+        window.location.origin
+      );
     }
 
     existingWindow.focus();

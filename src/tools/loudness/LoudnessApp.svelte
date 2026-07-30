@@ -1,8 +1,10 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import { t } from 'svelte-i18n';
   import HoverTooltip from '$lib/components/HoverTooltip.svelte';
   import { STREAM_EXTENSIONS } from '$lib/types';
   import { inferExtension } from '$lib/utils/files';
+  import { listenForCurrentToolTrack } from '$lib/services/tool-track-context';
   import {
     analyzeLoudness,
     computeIntegratedLoudness,
@@ -87,15 +89,24 @@
     return ACCEPTED_EXTENSIONS.includes(`.${inferExtension(file.name)}`);
   }
 
-  function addRows(nextRows: LoudnessRow[]): void {
+  function addRows(nextRows: LoudnessRow[], silent = false): void {
     const known = new Set(rows.map((row) => row.id));
     const accepted = nextRows.filter((row) => isAccepted(row.file) && !known.has(row.id));
     rows = [...rows, ...accepted];
-    message = accepted.length > 0
-      ? ''
-      : $t('loudness.noNewFiles', { default: 'No new supported audio files were found.' });
+    if (accepted.length > 0 || !silent) {
+      message = accepted.length > 0
+        ? ''
+        : $t('loudness.noNewFiles', { default: 'No new supported audio files were found.' });
+    }
     errorMessage = '';
   }
+
+  onMount(() => listenForCurrentToolTrack((track) => {
+    if (track.kind !== 'stream' || !isAccepted(track.file)) return;
+    addRows([
+      makeRow(track.file, track.fileHandle ?? null, track.path || track.file.name)
+    ], true);
+  }));
 
   async function rowsFromHandles(handles: FileSystemFileHandle[]): Promise<LoudnessRow[]> {
     return await Promise.all(handles.map(async (handle) => makeRow(await handle.getFile(), handle, handle.name)));
