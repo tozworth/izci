@@ -264,7 +264,7 @@
     min-width: 0;
     min-height: 0;
     overflow: hidden;
-    background: var(--bg-elevated);
+    background: var(--bg-base);
   }
 
   .pattern-empty-state {
@@ -461,14 +461,13 @@
 
   .pattern-row.beat:not(.active) .pattern-cell,
   .pattern-row.beat:not(.active) .pattern-row-number {
-    background-color: color-mix(in srgb, var(--accent) 3.5%, transparent);
+    background: color-mix(in srgb, var(--accent) 4%, transparent);
   }
 
   .pattern-row.active .pattern-cell,
   .pattern-row.active .pattern-row-number {
-    border-bottom-color: color-mix(in srgb, var(--accent) 44%, transparent);
-    background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 17%, var(--bg-elevated)), color-mix(in srgb, var(--accent) 8%, var(--bg-base)));
-    box-shadow: inset 0 1px color-mix(in srgb, var(--accent) 22%, transparent), inset 0 -1px color-mix(in srgb, var(--accent) 22%, transparent);
+    color: var(--text-strong);
+    background: color-mix(in srgb, var(--accent) 14%, var(--bg-base));
   }
 
   .pattern-row.active .pattern-row-number {
