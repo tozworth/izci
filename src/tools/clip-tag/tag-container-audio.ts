@@ -42,6 +42,9 @@ export async function tagContainerAudio(
             const preservedRaw = { ...inputMetadata.raw };
             delete preservedRaw.COMPOSER;
             delete preservedRaw.TCOM;
+            delete preservedRaw.LYRICS;
+            delete preservedRaw.SYNCEDLYRICS;
+            delete preservedRaw['SYNCED LYRICS'];
             return {
               ...inputMetadata,
               ...editedMetadata,

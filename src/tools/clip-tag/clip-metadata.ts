@@ -31,6 +31,7 @@ export async function editableTagsToMetadata(
     discNumber: disc.number,
     discsTotal: disc.total,
     date: Number.isFinite(year) && year > 0 ? new Date(Date.UTC(year, 0, 1)) : undefined,
+    lyrics: tags.lyrics.trim() || undefined,
     images: artwork
       ? [{
           data: new Uint8Array(await artwork.arrayBuffer()),

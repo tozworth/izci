@@ -10,7 +10,8 @@ describe('ID3 tag writer', () => {
       artist: 'An artist',
       album: 'An album',
       year: '2026',
-      trackNumber: '3/9'
+      trackNumber: '3/9',
+      lyrics: '[0:01.250]First line\n[0:04.500]Second line'
     }, artwork);
     const parsed = parseId3(encoded);
 
@@ -19,7 +20,8 @@ describe('ID3 tag writer', () => {
       artist: 'An artist',
       album: 'An album',
       year: '2026',
-      trackNumber: '3/9'
+      trackNumber: '3/9',
+      lyrics: '[0:01.250]First line\n[0:04.500]Second line'
     });
     expect(parsed.artwork?.type).toBe('image/png');
     expect(new Uint8Array(await parsed.artwork!.arrayBuffer())).toEqual(new Uint8Array([1, 2, 3, 4]));

@@ -17,7 +17,7 @@ export interface TheaterLyricRow {
 export interface LoadedLyrics {
   raw: string;
   lines: TimedLyricLine[];
-  source: 'vorbis-comments';
+  source: 'vorbis-comments' | 'embedded-metadata';
 }
 
 const VORBIS_LYRICS_KEYS = ['LYRICS', 'SYNCEDLYRICS', 'SYNCED LYRICS'];
@@ -220,7 +220,19 @@ async function loadTrackLyricsUncached(track: PlaylistItem): Promise<LoadedLyric
   }
 
   const bytes = new Uint8Array(await file.arrayBuffer());
-  const raw = findVorbisLyricsComment(extractStreamVorbisComments(bytes, track.extension));
+  let raw = findVorbisLyricsComment(extractStreamVorbisComments(bytes, track.extension));
+  let source: LoadedLyrics['source'] = 'vorbis-comments';
+
+  if (!raw) {
+    const { ALL_FORMATS, BlobSource, Input } = await import('mediabunny');
+    const input = new Input({ source: new BlobSource(file), formats: ALL_FORMATS });
+    try {
+      raw = (await input.getMetadataTags()).lyrics?.trim() ?? '';
+      source = 'embedded-metadata';
+    } finally {
+      input.dispose();
+    }
+  }
 
   if (!raw) {
     return null;
@@ -235,7 +247,7 @@ async function loadTrackLyricsUncached(track: PlaylistItem): Promise<LoadedLyric
   return {
     raw,
     lines,
-    source: 'vorbis-comments'
+    source
   };
 }
 

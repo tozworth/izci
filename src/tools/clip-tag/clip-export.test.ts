@@ -11,7 +11,8 @@ const TAGS: EditableTags = {
   genre: 'Genre',
   year: '2026',
   trackNumber: '3/12',
-  discNumber: '2/3'
+  discNumber: '2/3',
+  lyrics: '[0:01.250]Line'
 };
 
 describe('clip export metadata', () => {
@@ -28,6 +29,7 @@ describe('clip export metadata', () => {
       tracksTotal: 12,
       discNumber: 2,
       discsTotal: 3,
+      lyrics: '[0:01.250]Line',
       raw: { COMPOSER: 'Composer' }
     });
     expect(metadata.images?.[0]).toMatchObject({

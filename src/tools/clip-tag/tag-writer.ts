@@ -8,6 +8,7 @@ export interface EditableTags {
   year: string;
   trackNumber: string;
   discNumber: string;
+  lyrics: string;
 }
 
 export interface ParsedTags {
@@ -24,7 +25,8 @@ export const EMPTY_TAGS: EditableTags = {
   genre: '',
   year: '',
   trackNumber: '',
-  discNumber: ''
+  discNumber: '',
+  lyrics: ''
 };
 
 const FRAME_TO_FIELD: Record<string, keyof EditableTags> = {
@@ -90,6 +92,24 @@ function findZero(bytes: Uint8Array, start: number): number {
   return bytes.byteLength;
 }
 
+function findDoubleZero(bytes: Uint8Array, start: number): number {
+  for (let index = start; index + 1 < bytes.byteLength; index += 2) {
+    if (bytes[index] === 0 && bytes[index + 1] === 0) return index;
+  }
+  return bytes.byteLength;
+}
+
+function decodeLyricsFrame(data: Uint8Array): string {
+  if (data.byteLength < 5) return '';
+  const encoding = data[0];
+  const descriptionStart = 4;
+  const descriptionEnd = encoding === 1 || encoding === 2
+    ? findDoubleZero(data, descriptionStart)
+    : findZero(data, descriptionStart);
+  const lyricsStart = Math.min(data.byteLength, descriptionEnd + (encoding === 1 || encoding === 2 ? 2 : 1));
+  return decodeText(concat([new Uint8Array([encoding]), data.subarray(lyricsStart)]));
+}
+
 function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
   return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
 }
@@ -113,6 +133,7 @@ export function parseId3(fileBytes: Uint8Array): ParsedTags {
     if (frameSize <= 0 || dataEnd > tagEnd) break;
     const field = FRAME_TO_FIELD[frameId];
     if (field) tags[field] = decodeText(fileBytes.subarray(dataStart, dataEnd));
+    if (frameId === 'USLT') tags.lyrics = decodeLyricsFrame(fileBytes.subarray(dataStart, dataEnd));
 
     if (frameId === 'APIC' && frameSize > 4) {
       const frame = fileBytes.subarray(dataStart, dataEnd);
@@ -154,6 +175,17 @@ function textFrame(id: string, value: string): Uint8Array | null {
   return frame(id, concat([new Uint8Array([3]), new TextEncoder().encode(normalized)]));
 }
 
+function lyricsFrame(value: string): Uint8Array | null {
+  const normalized = value.trim();
+  if (!normalized) return null;
+  return frame('USLT', concat([
+    new Uint8Array([3]),
+    new TextEncoder().encode('und'),
+    new Uint8Array([0]),
+    new TextEncoder().encode(normalized)
+  ]));
+}
+
 export async function buildId3Tag(
   tags: EditableTags,
   artwork: Blob | null,
@@ -175,6 +207,8 @@ export async function buildId3Tag(
     const next = textFrame(id, value);
     if (next) frames.push(next);
   }
+  const nextLyrics = lyricsFrame(tags.lyrics);
+  if (nextLyrics) frames.push(nextLyrics);
 
   if (artwork) {
     const mime = new TextEncoder().encode(artwork.type || 'image/jpeg');
@@ -209,7 +243,7 @@ function extractPreservedFrames(bytes: Uint8Array): Uint8Array[] {
   if (bytes.byteLength < 10 || String.fromCharCode(...bytes.subarray(0, 3)) !== 'ID3') return [];
   const version = bytes[3];
   const tagEnd = Math.min(bytes.byteLength, 10 + synchsafe(bytes, 6));
-  const managedIds = new Set([...Object.keys(FRAME_TO_FIELD), 'APIC']);
+  const managedIds = new Set([...Object.keys(FRAME_TO_FIELD), 'APIC', 'USLT']);
   const preserved: Uint8Array[] = [];
   let offset = 10;
 

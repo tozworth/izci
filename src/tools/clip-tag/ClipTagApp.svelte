@@ -4,10 +4,12 @@
   import HoverTooltip from '$lib/components/HoverTooltip.svelte';
   import TabStrip from '$lib/components/TabStrip.svelte';
   import { MODULE_EXTENSIONS, STREAM_EXTENSIONS } from '$lib/types';
+  import { loadTrackLyrics } from '$lib/services/lyrics';
   import { loadEmbeddedStreamArtwork, loadTrackMetadata } from '$lib/services/stream-artwork';
   import { inferArtistTitleFromFileName, inferExtension, stripFileExtension } from '$lib/utils/files';
   import ClipTagMenuBar from './ClipTagMenuBar.svelte';
   import ClipExportDialog from './ClipExportDialog.svelte';
+  import LyricsEditor from './LyricsEditor.svelte';
   import WaveformEditor from './WaveformEditor.svelte';
   import {
     clipDuration,
@@ -22,17 +24,20 @@
     type ClipEditState
   } from './clip-audio';
   import { EMPTY_TAGS, parseId3, tagMp3, type EditableTags } from './tag-writer';
+  import { remapLyricsToClip } from './lyrics-editor';
   import {
     ClipExportUnavailableError,
     DEFAULT_CLIP_EXPORT_OPTIONS,
     type ClipExportFormat,
     type ClipExportOptions
   } from './clip-export-options';
+  import { MAX_WAVEFORM_ZOOM, zoomWaveformViewport } from './waveform-viewport';
 
-  type ToolTab = 'clip' | 'tags';
+  type ToolTab = 'clip' | 'tags' | 'lyrics';
+  type TagField = Exclude<keyof EditableTags, 'lyrics'>;
   const ACCEPTED_EXTENSIONS = [...STREAM_EXTENSIONS, ...MODULE_EXTENSIONS];
   const FILE_ACCEPT = ACCEPTED_EXTENSIONS.map((extension) => `.${extension}`).join(',');
-  const TAG_FIELDS: Array<{ key: keyof EditableTags; wide?: boolean }> = [
+  const TAG_FIELDS: Array<{ key: TagField; wide?: boolean }> = [
     { key: 'title', wide: true },
     { key: 'artist' },
     { key: 'albumArtist' },
@@ -69,18 +74,21 @@
   let previewStartedAt = 0;
   let previewOffset = 0;
   let previewEnd = 0;
+  let previewMode: 'clip' | 'lyrics' = 'clip';
   let previewPlaying = false;
   let playhead = 0;
   let previewFrame = 0;
   let exporting = false;
   let exportingFormat: ClipExportFormat = 'wav';
   let savingTags = false;
+  let waveformZoom = 1;
+  let waveformScrollStart = 0;
 
   $: duration = clipDuration(editState);
   $: selectionDuration = Math.max(0, editState.selectionEnd - editState.selectionStart);
   $: hasSelection = selectionDuration > 0.001;
-  $: canUndo = undoStack.length > 0;
-  $: canRedo = redoStack.length > 0;
+  $: canUndo = activeTab === 'clip' && undoStack.length > 0;
+  $: canRedo = activeTab === 'clip' && redoStack.length > 0;
   $: canEdit = Boolean(sourceBuffer && waveformBuffer && !loading && !exporting && !savingTags);
   $: canSaveTags = Boolean(sourceFile && sourceBuffer && !loading && !exporting && !savingTags);
   $: statusText = errorMessage || (exporting
@@ -100,7 +108,27 @@
     return `${minutes}:${seconds.toFixed(3).padStart(6, '0')}`;
   }
 
-  function tagFieldLabel(key: keyof EditableTags): string {
+  function formatWaveformZoom(value: number): string {
+    return `${Number(value.toFixed(value < 10 ? 1 : 0))}\u00d7`;
+  }
+
+  function setWaveformZoom(nextZoom: number): void {
+    const next = zoomWaveformViewport(
+      waveformScrollStart,
+      waveformBuffer?.duration ?? 0,
+      waveformZoom,
+      nextZoom
+    );
+    waveformZoom = next.zoom;
+    waveformScrollStart = next.start;
+  }
+
+  function resetWaveformViewport(): void {
+    waveformZoom = 1;
+    waveformScrollStart = 0;
+  }
+
+  function tagFieldLabel(key: TagField): string {
     switch (key) {
       case 'title': return $t('clipTag.tags.title', { default: 'Title' });
       case 'artist': return $t('clipTag.tags.artist', { default: 'Artist' });
@@ -112,6 +140,13 @@
       case 'trackNumber': return $t('clipTag.tags.track', { default: 'Track' });
       case 'discNumber': return $t('clipTag.tags.disc', { default: 'Disc' });
     }
+  }
+
+  function setActiveTab(tab: ToolTab): void {
+    if (activeTab === tab) return;
+    stopPreview();
+    activeTab = tab;
+    playhead = Math.min(playhead, tab === 'lyrics' ? sourceBuffer?.duration ?? 0 : duration);
   }
 
   function refreshWaveform(): void {
@@ -164,6 +199,7 @@
     }
 
     stopPreview();
+    resetWaveformViewport();
     loading = true;
     loadProgress = null;
     errorMessage = '';
@@ -173,12 +209,13 @@
     waveformBuffer = null;
     undoStack = [];
     redoStack = [];
+    tags = { ...EMPTY_TAGS };
     replaceArtwork(null);
 
     try {
       const bytes = new Uint8Array(await file.arrayBuffer());
       const parsed = extension === 'mp3' ? parseId3(bytes) : { tags: { ...EMPTY_TAGS }, artwork: null };
-      if (extension === 'flac' || extension === 'ogg' || extension === 'opus') {
+      if ((STREAM_EXTENSIONS as readonly string[]).includes(extension)) {
         const track = {
           id: `clip-tag:${file.name}:${file.size}:${file.lastModified}`,
           file,
@@ -188,16 +225,18 @@
           size: file.size,
           lastModified: file.lastModified
         };
-        const [metadata, embeddedArtwork] = await Promise.all([
+        const [metadata, embeddedArtwork, embeddedLyrics] = await Promise.all([
           loadTrackMetadata(track),
-          loadEmbeddedStreamArtwork(track)
+          loadEmbeddedStreamArtwork(track),
+          loadTrackLyrics(track).catch(() => null)
         ]);
         if (metadata) {
-          for (const key of Object.keys(EMPTY_TAGS) as Array<keyof EditableTags>) {
+          for (const { key } of TAG_FIELDS) {
             parsed.tags[key] = metadata[key] ?? parsed.tags[key];
           }
         }
         if (embeddedArtwork) parsed.artwork = embeddedArtwork.blob;
+        if (embeddedLyrics) parsed.tags.lyrics = embeddedLyrics.raw;
       }
       const inferred = inferArtistTitleFromFileName(file.name);
       tags = {
@@ -210,6 +249,7 @@
         loadProgress = progress;
       });
       sourceBuffer = loaded.buffer;
+      playhead = 0;
       renderedModule = loaded.renderedModule;
       renderedFromCache = loaded.fromCache;
       editState = createInitialClipState(loaded.buffer.duration);
@@ -262,7 +302,13 @@
     previewFrame = requestAnimationFrame(tickPreview);
   }
 
+  function getPreviewPosition(): number {
+    if (!previewPlaying) return playhead;
+    return Math.min(previewOffset + (performance.now() - previewStartedAt) / 1000, previewEnd);
+  }
+
   function stopPreview(): void {
+    if (previewPlaying) playhead = getPreviewPosition();
     previewSource?.stop();
     previewSource?.disconnect();
     previewSource = null;
@@ -270,15 +316,12 @@
     cancelAnimationFrame(previewFrame);
   }
 
-  async function startPreview(selectionOnly: boolean): Promise<void> {
-    if (!waveformBuffer) return;
+  async function startBufferPreview(buffer: AudioBuffer, start: number, end: number, mode: 'clip' | 'lyrics'): Promise<void> {
     stopPreview();
     previewContext ??= new AudioContext();
     await previewContext.resume();
-    const start = selectionOnly && hasSelection ? editState.selectionStart : 0;
-    const end = selectionOnly && hasSelection ? editState.selectionEnd : waveformBuffer.duration;
     const source = previewContext.createBufferSource();
-    source.buffer = waveformBuffer;
+    source.buffer = buffer;
     source.connect(previewContext.destination);
     source.onended = () => {
       if (previewSource !== source) return;
@@ -290,11 +333,37 @@
     previewSource = source;
     previewOffset = start;
     previewEnd = end;
+    previewMode = mode;
     previewStartedAt = performance.now();
     previewPlaying = true;
     playhead = start;
     source.start(0, start, Math.max(0.001, end - start));
     previewFrame = requestAnimationFrame(tickPreview);
+  }
+
+  async function startPreview(selectionOnly: boolean): Promise<void> {
+    if (!waveformBuffer) return;
+    const start = selectionOnly && hasSelection ? editState.selectionStart : 0;
+    const end = selectionOnly && hasSelection ? editState.selectionEnd : waveformBuffer.duration;
+    await startBufferPreview(waveformBuffer, start, end, 'clip');
+  }
+
+  async function startLyricsPreview(): Promise<void> {
+    if (!sourceBuffer) return;
+    const start = playhead >= sourceBuffer.duration - 0.001 ? 0 : Math.max(0, Math.min(playhead, sourceBuffer.duration));
+    await startBufferPreview(sourceBuffer, start, sourceBuffer.duration, 'lyrics');
+  }
+
+  function toggleLyricsPreview(): void {
+    if (previewPlaying && previewMode === 'lyrics') stopPreview();
+    else void startLyricsPreview();
+  }
+
+  function seekLyrics(position: number): void {
+    const resume = previewPlaying && previewMode === 'lyrics';
+    stopPreview();
+    playhead = Math.max(0, Math.min(position, sourceBuffer?.duration ?? 0));
+    if (resume) void startLyricsPreview();
   }
 
   function openExportDialog(): void {
@@ -311,7 +380,8 @@
     noticeMessage = '';
     try {
       const { encodeAudioExport } = await import('./clip-export');
-      const blob = await encodeAudioExport(waveformBuffer, options, tags, artwork);
+      const exportTags = { ...tags, lyrics: remapLyricsToClip(tags.lyrics, editState.ranges) };
+      const blob = await encodeAudioExport(waveformBuffer, options, exportTags, artwork);
       await saveBlob(blob, `${stripFileExtension(sourceFile.name)}-clip.${options.format}`);
       noticeMessage = $t('clipTag.clipSaved', { default: 'Clip exported.' });
       exportDialog.close();
@@ -369,8 +439,8 @@
     else if (key === 'p') { event.preventDefault(); windowManagerOpenOptions(); }
     else if (key === 'w') { event.preventDefault(); window.close(); }
     else if (key === 's') { event.preventDefault(); activeTab === 'clip' ? openExportDialog() : void saveTaggedCopy(); }
-    else if (!editingText && key === 'z') { event.preventDefault(); undo(); }
-    else if (!editingText && key === 'y') { event.preventDefault(); redo(); }
+    else if (!editingText && key === 'z' && activeTab === 'clip') { event.preventDefault(); undo(); }
+    else if (!editingText && key === 'y' && activeTab === 'clip') { event.preventDefault(); redo(); }
     else if (!editingText && key === 'a' && activeTab === 'clip') { event.preventDefault(); selectAll(); }
   }
 
@@ -431,13 +501,17 @@
 
   <main class="tool-workspace">
     <TabStrip ariaLabel={$t('clipTag.tabs.label', { default: 'Clip and Tag tools' })} className="tool-tabs" flushStart>
-      <button class="tab-strip-tab" class:active={activeTab === 'clip'} type="button" role="tab" aria-selected={activeTab === 'clip'} on:click={() => (activeTab = 'clip')}>
+      <button class="tab-strip-tab" class:active={activeTab === 'clip'} type="button" role="tab" aria-selected={activeTab === 'clip'} on:click={() => setActiveTab('clip')}>
         <span class="material-symbols-outlined" aria-hidden="true">content_cut</span>
         {$t('clipTag.tabs.clip', { default: 'Clip' })}
       </button>
-      <button class="tab-strip-tab" class:active={activeTab === 'tags'} type="button" role="tab" aria-selected={activeTab === 'tags'} on:click={() => (activeTab = 'tags')}>
+      <button class="tab-strip-tab" class:active={activeTab === 'tags'} type="button" role="tab" aria-selected={activeTab === 'tags'} on:click={() => setActiveTab('tags')}>
         <span class="material-symbols-outlined" aria-hidden="true">new_label</span>
         {$t('clipTag.tabs.tags', { default: 'Tags' })}
+      </button>
+      <button class="tab-strip-tab" class:active={activeTab === 'lyrics'} type="button" role="tab" aria-selected={activeTab === 'lyrics'} on:click={() => setActiveTab('lyrics')}>
+        <span class="material-symbols-outlined" aria-hidden="true">lyrics</span>
+        {$t('clipTag.tabs.lyrics', { default: 'Lyrics' })}
       </button>
     </TabStrip>
 
@@ -465,6 +539,16 @@
             <span class="material-symbols-outlined" aria-hidden="true">play_circle</span><HoverTooltip>{$t('clipTag.clip.previewAll', { default: 'Preview full clip' })}</HoverTooltip>
           </button>
           <div class="toolbar-spacer"></div>
+          <button class="icon-button hover-tooltip-anchor" type="button" disabled={!canEdit || waveformZoom <= 1} aria-label={$t('clipTag.clip.zoomOut', { default: 'Zoom out' })} on:click={() => setWaveformZoom(waveformZoom / 2)}>
+            <span class="material-symbols-outlined" aria-hidden="true">zoom_out</span><HoverTooltip>{$t('clipTag.clip.zoomOut', { default: 'Zoom out' })}</HoverTooltip>
+          </button>
+          <button class="text-button zoom-level-button hover-tooltip-anchor" type="button" disabled={!canEdit || waveformZoom <= 1} aria-label={$t('clipTag.clip.fitWaveform', { default: 'Fit waveform (Ctrl+wheel to zoom)' })} on:click={resetWaveformViewport}>
+            {formatWaveformZoom(waveformZoom)}<HoverTooltip>{$t('clipTag.clip.fitWaveform', { default: 'Fit waveform (Ctrl+wheel to zoom)' })}</HoverTooltip>
+          </button>
+          <button class="icon-button hover-tooltip-anchor" type="button" disabled={!canEdit || waveformZoom >= MAX_WAVEFORM_ZOOM} aria-label={$t('clipTag.clip.zoomIn', { default: 'Zoom in' })} on:click={() => setWaveformZoom(waveformZoom * 2)}>
+            <span class="material-symbols-outlined" aria-hidden="true">zoom_in</span><HoverTooltip>{$t('clipTag.clip.zoomIn', { default: 'Zoom in' })}</HoverTooltip>
+          </button>
+          <span class="toolbar-separator" aria-hidden="true"></span>
           <button class="text-button primary" type="button" disabled={!canEdit} on:click={openExportDialog}>
             <span class="material-symbols-outlined" aria-hidden="true">save</span>{$t('clipTag.clip.exportOpen', { default: 'Export...' })}
           </button>
@@ -477,6 +561,8 @@
             selectionEnd={editState.selectionEnd}
             {playhead}
             disabled={!canEdit}
+            bind:zoom={waveformZoom}
+            bind:scrollStart={waveformScrollStart}
             on:selection={(event) => (editState = updateSelection(editState, event.detail.start, event.detail.end))}
             on:seek={(event) => (playhead = event.detail)}
           />
@@ -506,7 +592,7 @@
           {#if renderedModule}<span class="render-badge"><span class="material-symbols-outlined" aria-hidden="true">memory</span>{renderedFromCache ? $t('clipTag.cached', { default: 'Cached render' }) : $t('clipTag.rendered', { default: 'Rendered module' })}</span>{/if}
         </div>
       </section>
-    {:else}
+    {:else if activeTab === 'tags'}
       <section class="tags-workbench" aria-label={$t('clipTag.tabs.tags', { default: 'Tags' })}>
         <div class="tag-form">
           {#each TAG_FIELDS as field}
@@ -549,6 +635,19 @@
           <button class="text-button primary save-tags-button" type="button" disabled={!canSaveTags} on:click={() => void saveTaggedCopy()}><span class="material-symbols-outlined" aria-hidden="true">new_label</span>{$t('clipTag.menu.saveTags', { default: 'Save tagged copy...' })}</button>
         </aside>
       </section>
+    {:else}
+      <LyricsEditor
+        value={tags.lyrics}
+        currentTime={playhead}
+        duration={sourceBuffer?.duration ?? 0}
+        disabled={!canSaveTags}
+        playing={previewPlaying && previewMode === 'lyrics'}
+        getCurrentTime={getPreviewPosition}
+        on:change={(event) => (tags = { ...tags, lyrics: event.detail })}
+        on:togglePlayback={toggleLyricsPreview}
+        on:seek={(event) => seekLyrics(event.detail)}
+        on:save={() => void saveTaggedCopy()}
+      />
     {/if}
   </main>
 

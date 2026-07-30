@@ -135,6 +135,176 @@ select {
   border-radius: 0;
 }
 
+.lyrics-workbench {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  min-height: 0;
+  background: var(--clip-tag-view-background);
+}
+
+.lyrics-toolbar {
+  min-height: 2.45rem;
+  padding: 0.25rem 0.35rem;
+  overflow-x: auto;
+  background: var(--clip-tag-view-background);
+  border-bottom: 1px solid var(--border-soft);
+  scrollbar-width: thin;
+}
+
+.lyrics-clock {
+  min-width: 4.8rem;
+  color: var(--text-strong);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.stamp-step-button {
+  white-space: nowrap;
+}
+
+.stamp-step-button kbd {
+  margin-left: 0.2rem;
+  padding: 0.05rem 0.22rem;
+  background: color-mix(in srgb, var(--bg-input) 72%, transparent);
+  border: 1px solid var(--border-soft);
+  border-radius: 0.2rem;
+  color: var(--muted);
+  font-size: 0.6rem;
+  font-weight: 400;
+}
+
+.lyrics-count {
+  color: var(--muted);
+  font-size: 0.68rem;
+  white-space: nowrap;
+}
+
+.lyrics-editor {
+  min-height: 0;
+  overflow: auto;
+  background: var(--bg-input);
+}
+
+.lyrics-grid-header,
+.lyric-editor-row {
+  display: grid;
+  grid-template-columns: 2.5rem 6.7rem minmax(12rem, 1fr);
+  align-items: center;
+}
+
+.lyrics-grid-header {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  min-height: 1.7rem;
+  background: var(--window-topbar-bg);
+  border-bottom: 1px solid var(--border-soft);
+  color: var(--muted);
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.035em;
+}
+
+.lyrics-grid-header span {
+  padding: 0 0.42rem;
+}
+
+.lyric-editor-row {
+  min-height: 2.08rem;
+  border-bottom: 1px solid color-mix(in srgb, var(--border-soft) 68%, transparent);
+  box-shadow: inset 3px 0 transparent;
+}
+
+.lyric-editor-row:hover {
+  background: color-mix(in srgb, var(--hover-surface) 68%, transparent);
+}
+
+.lyric-editor-row.selected {
+  background: color-mix(in srgb, var(--accent-strong) 8%, var(--bg-input));
+  box-shadow: inset 3px 0 var(--accent-strong);
+}
+
+.lyric-editor-row.active:not(.selected) {
+  background: color-mix(in srgb, var(--accent-strong) 5%, var(--bg-input));
+}
+
+.lyric-editor-row.active .line-number,
+.lyric-editor-row.active .lyric-time-input {
+  color: var(--accent-strong);
+}
+
+.line-number {
+  align-self: stretch;
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.lyric-time-input,
+.lyric-text-input {
+  width: 100%;
+  min-width: 0;
+  height: 100%;
+  min-height: 2.05rem;
+  padding: 0.25rem 0.42rem;
+  background: transparent;
+  border: 0;
+  border-left: 1px solid color-mix(in srgb, var(--border-soft) 68%, transparent);
+  border-radius: 0;
+  color: var(--text-strong);
+  outline: 0;
+  user-select: text;
+}
+
+.lyric-time-input {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.lyric-time-input:focus,
+.lyric-text-input:focus {
+  background: color-mix(in srgb, var(--accent-strong) 5%, transparent);
+  box-shadow: inset 0 0 0 1px var(--accent-focus-border);
+}
+
+.lyrics-editor.is-disabled {
+  opacity: 0.55;
+}
+
+.lyrics-transport {
+  display: grid;
+  grid-template-columns: 4.8rem minmax(6rem, 1fr) 4.8rem minmax(12rem, auto);
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.35rem;
+  padding: 0.32rem 0.55rem;
+  border-top: 1px solid var(--border-soft);
+  color: var(--muted);
+  font-size: 0.68rem;
+}
+
+.lyrics-transport > span:not(.lyrics-hint) {
+  color: var(--text-strong);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.lyrics-transport input[type="range"] {
+  width: 100%;
+  accent-color: var(--accent-strong);
+}
+
+.lyrics-hint {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .icon-button,
 .text-button {
   display: inline-flex;
@@ -182,6 +352,14 @@ select {
 
 .toolbar-spacer {
   flex: 1;
+}
+
+.zoom-level-button {
+  min-width: 2.7rem;
+  padding-inline: 0.35rem;
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-variant-numeric: tabular-nums;
 }
 
 .waveform-frame {
@@ -575,6 +753,14 @@ select {
 
   .render-badge {
     margin-left: 0;
+  }
+
+  .lyrics-transport {
+    grid-template-columns: 4.5rem minmax(5rem, 1fr) 4.5rem;
+  }
+
+  .lyrics-hint {
+    display: none;
   }
 }
 
