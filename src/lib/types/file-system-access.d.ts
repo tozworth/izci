@@ -27,10 +27,13 @@ interface FileSystemHandle {
 interface FileSystemFileHandle extends FileSystemHandle {
   readonly kind: 'file';
   getFile(): Promise<File>;
-  createWritable?(): Promise<{
-    write(data: Blob): Promise<void>;
-    close(): Promise<void>;
-  }>;
+  createWritable?(options?: { keepExistingData?: boolean }): Promise<FileSystemWritableFileStream>;
+}
+
+interface FileSystemWritableFileStream extends WritableStream {
+  write(data: FileSystemWriteChunkType): Promise<void>;
+  seek(position: number): Promise<void>;
+  truncate(size: number): Promise<void>;
 }
 
 interface FileSystemDirectoryHandle extends FileSystemHandle {

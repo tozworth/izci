@@ -17,6 +17,33 @@ function item(id: string, overrides: Partial<PlaylistItem> = {}): PlaylistItem {
 }
 
 describe('library folder reconciliation', () => {
+  it('applies verified external updates without changing identity or play count', () => {
+    const store = createTrackCollectionStore({ dbName: 'test-library-external-update', dedupe: true });
+    store.add([
+      item('stable-id', {
+        metadata: { title: 'Old title', artist: 'Artist', playCount: 9 }
+      })
+    ]);
+
+    store.applyExternalUpdate('stable-id', {
+      path: 'Music/Artist/Renamed.flac',
+      name: 'Renamed.flac',
+      size: 120,
+      lastModified: 2,
+      metadata: { title: 'New title', album: 'Album', playCount: 0 }
+    });
+
+    expect(get(store.items)[0]).toMatchObject({
+      id: 'stable-id',
+      path: 'Music/Artist/Renamed.flac',
+      name: 'Renamed.flac',
+      size: 120,
+      lastModified: 2,
+      metadata: { title: 'New title', album: 'Album', playCount: 9 }
+    });
+    expect(get(store.items)[0].metadata?.artist).toBeUndefined();
+  });
+
   it('adopts matching manual tracks and preserves their identity and metadata', () => {
     const store = createTrackCollectionStore({ dbName: 'test-library-adopt', dedupe: true });
     store.add([item('manual', { metadata: { title: 'Track', playCount: 4 } })]);

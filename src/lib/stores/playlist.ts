@@ -36,6 +36,22 @@ export interface TrackCollectionStoreConfig {
   getIdentity?: (item: PlaylistItem) => string;
 }
 
+export type ExternalTrackUpdate = Partial<
+  Pick<
+    PlaylistItem,
+    | 'file'
+    | 'fileHandle'
+    | 'path'
+    | 'sourceFolderId'
+    | 'name'
+    | 'extension'
+    | 'kind'
+    | 'size'
+    | 'lastModified'
+    | 'metadata'
+  >
+>;
+
 export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
   const items = writable<PlaylistItem[]>([]);
   const selection = writable<PlaylistSelection>(emptySelection);
@@ -389,6 +405,54 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
         );
         queuePersist();
       });
+    },
+    applyExternalUpdate(id: string, patch: ExternalTrackUpdate) {
+      let updatedItem: PlaylistItem | null = null;
+
+      const executed = runOrQueue(() => {
+        items.update((existing) =>
+          existing.map((item) => {
+            if (item.id !== id) return item;
+
+            const existingPlayCount = item.metadata?.playCount;
+            const { playCount: _externalPlayCount, ...externalMetadata } = patch.metadata ?? {};
+            const metadata = patch.metadata === undefined
+              ? item.metadata
+              : {
+                  ...externalMetadata,
+                  ...(existingPlayCount === undefined ? {} : { playCount: existingPlayCount })
+                };
+            const fileChanged =
+              patch.file !== undefined
+              || patch.fileHandle !== undefined
+              || patch.path !== undefined
+              || patch.name !== undefined
+              || patch.extension !== undefined
+              || patch.kind !== undefined
+              || patch.size !== undefined
+              || patch.lastModified !== undefined;
+
+            if (fileChanged) revokeObjectUrl(item);
+
+            updatedItem = {
+              ...item,
+              ...patch,
+              id: item.id,
+              metadata,
+              subsong: item.subsong,
+              ...(fileChanged ? { file: patch.file, objectUrl: undefined } : {})
+            };
+            return updatedItem;
+          })
+        );
+
+        if (updatedItem) {
+          navigation.reset();
+          queuePersist();
+        }
+      });
+
+      return executed ? updatedItem : null;
     },
     toggleShuffle() {
       runOrQueue(() => {

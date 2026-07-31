@@ -22,7 +22,9 @@ export default defineConfig({
         clipTag: fileURLToPath(new URL('./clip-tag.html', import.meta.url)),
         converter: fileURLToPath(new URL('./converter.html', import.meta.url)),
         loudness: fileURLToPath(new URL('./loudness.html', import.meta.url)),
-        spectrogram: fileURLToPath(new URL('./spectrogram.html', import.meta.url))
+        spectrogram: fileURLToPath(new URL('./spectrogram.html', import.meta.url)),
+        troubadour: fileURLToPath(new URL('./troubadour.html', import.meta.url)),
+        troubadourOptions: fileURLToPath(new URL('./troubadour-options.html', import.meta.url))
       }
     }
   },
@@ -118,7 +120,9 @@ export default defineConfig({
       } as Record<string, unknown>,
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,woff2,mem,wasm,txt}'],
-        navigateFallbackDenylist: [/^\/(?:options|audio-compare|clip-tag|converter|loudness|spectrogram)\.html(?:\?|$)/],
+        navigateFallbackDenylist: [
+          /^\/(?:options|audio-compare|clip-tag|converter|loudness|spectrogram|troubadour|troubadour-options)\.html(?:\?|$)/
+        ],
         ignoreURLParametersMatching: [/^utm_/, /^fbclid$/, /^view$/],
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024
       }

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { t } from 'svelte-i18n';
-  import HoverTooltip from '$lib/components/HoverTooltip.svelte';
+  import OptionsView, { type SharedOptionsViewDefinition } from '$lib/components/options/OptionsView.svelte';
   import AboutView from './components/views/AboutView.svelte';
   import AppearanceView from './components/views/AppearanceView.svelte';
   import BackdropsView from './components/views/BackdropsView.svelte';
@@ -19,7 +19,6 @@
   import VisualizerView from './components/views/VisualizerView.svelte';
   import VideoView from './components/views/VideoView.svelte';
   import RafView from './components/raf/RafView.svelte';
-  import { windowControlsOverlayState } from '$lib/services/window-controls-overlay';
   import {
     getOptionsWindowState,
     rememberOptionsActiveView,
@@ -52,7 +51,6 @@
   if (activeView === 'raf' && !playbackSettings.getSnapshot().enableRaf) {
     activeView = 'playback';
   }
-  let fieldHintsExpanded = false;
   let showAdvancedTweaks = initialOptionsWindowState.showAdvancedTweaks;
   let advancedTweaksModified = false;
 
@@ -121,25 +119,9 @@
     }
   }
 
-  function toggleAdvancedTweaks() {
-    showAdvancedTweaks = !showAdvancedTweaks;
-    rememberShowAdvancedTweaks(showAdvancedTweaks);
-  }
-
-  function handleWindowContextMenu(event: MouseEvent) {
-    event.preventDefault();
-  }
-
   onMount(() => {
     rememberOptionsActiveView(activeView);
-    const rememberWindowSize = () => rememberOptionsWindowSize(window.outerWidth, window.outerHeight);
     const syncActiveViewFromLocation = () => setActiveView(getOptionsViewFromLocation(window.location));
-    const wasOpenedByMainWindow = window.opener !== null;
-    const closeIfMainWindowClosed = () => {
-      if (wasOpenedByMainWindow && (!window.opener || window.opener.closed)) {
-        window.close();
-      }
-    };
     const handleMessage = (event: MessageEvent) => {
       if (
         event.origin === window.location.origin &&
@@ -151,38 +133,28 @@
     };
 
     window.addEventListener('popstate', syncActiveViewFromLocation);
-    window.addEventListener('resize', rememberWindowSize);
     window.addEventListener('message', handleMessage);
-    window.addEventListener('focus', closeIfMainWindowClosed);
-    document.addEventListener('visibilitychange', closeIfMainWindowClosed);
-    const openerCheckInterval = window.setInterval(closeIfMainWindowClosed, 1000);
 
     return () => {
-      window.clearInterval(openerCheckInterval);
       window.removeEventListener('popstate', syncActiveViewFromLocation);
       window.removeEventListener('message', handleMessage);
-      window.removeEventListener('resize', rememberWindowSize);
-      window.removeEventListener('focus', closeIfMainWindowClosed);
-      document.removeEventListener('visibilitychange', closeIfMainWindowClosed);
     };
   });
 
-  $: overlayState = $windowControlsOverlayState;
   $: if (activeView === 'raf' && !$playbackSettings.enableRaf) {
     setActiveView('playback');
   }
-  $: overlayRect = overlayState.titlebarAreaRect;
-  $: overlayInlineStyle = overlayState.visible
-    ? `--window-controls-overlay-x: ${overlayRect.x}px; --window-controls-overlay-y: ${overlayRect.y}px; --window-controls-overlay-width: ${overlayRect.width}px; --window-controls-overlay-height: ${overlayRect.height}px;`
-    : '';
-  $: activeViewDefinition = OPTIONS_VIEWS[activeView];
-  $: canResetCurrentView = activeViewDefinition.resettable;
-  $: canToggleHints = activeViewDefinition.hasHints;
-  $: canToggleAdvancedTweaks = activeViewDefinition.hasAdvancedTweaks === true;
-  $: hintToggleLabel = fieldHintsExpanded
-    ? $t('options.tools.collapseHints', { default: 'Collapse field hints' })
-    : $t('options.tools.expandHints', { default: 'Expand field hints' });
-  $: activeParentView = parentViewId(activeView);
+  $: sharedViewGroups = OPTIONS_VIEW_GROUPS.map((group) => group.map((view): SharedOptionsViewDefinition => ({
+    ...view,
+    label: viewLabel(view.id, $t),
+    parentId: parentViewId(view.id),
+    hidden: view.id === 'raf' && !$playbackSettings.enableRaf
+  })));
+  $: auxiliaryViews = [{
+    ...OPTIONS_VIEWS.licenses,
+    label: viewLabel('licenses', $t),
+    parentId: 'about'
+  } satisfies SharedOptionsViewDefinition];
   $: {
     switch (activeView) {
       case 'appearance':
@@ -228,115 +200,29 @@
         advancedTweaksModified = false;
     }
   }
-  $: advancedTweaksToggleLabel = showAdvancedTweaks
-    ? $t('options.tools.hideAdvancedTweaks', { default: 'Hide advanced tweaks' })
-    : advancedTweaksModified
-      ? $t('options.tools.showAdvancedTweaksModified', { default: 'Show advanced tweaks — some differ from defaults' })
-      : $t('options.tools.showAdvancedTweaks', { default: 'Show advanced tweaks' });
 </script>
 
-<svelte:head>
-  <title>{$t('options.windowTitle', { default: 'izci Options' })}</title>
-</svelte:head>
-
-<svelte:window
-  on:contextmenu={handleWindowContextMenu}
-/>
-
-<div
-  class="options-shell"
-  class:hints-expanded={fieldHintsExpanded}
-  class:advanced-tweaks-visible={showAdvancedTweaks}
-  class:window-controls-overlay-active={overlayState.visible}
+<OptionsView
+  windowTitle={$t('options.windowTitle', { default: 'izci Options' })}
+  pageToolsLabel={$t('options.tools.label', { default: 'Page tools' })}
+  categoriesLabel={$t('options.categories', { default: 'Options categories' })}
+  groups={sharedViewGroups}
+  {auxiliaryViews}
+  activeView={activeView}
+  bind:showAdvancedTweaks
+  advancedTweaksModified={advancedTweaksModified}
+  expandHintsLabel={$t('options.tools.expandHints', { default: 'Expand field hints' })}
+  collapseHintsLabel={$t('options.tools.collapseHints', { default: 'Collapse field hints' })}
+  showAdvancedTweaksLabel={$t('options.tools.showAdvancedTweaks', { default: 'Show advanced tweaks' })}
+  showModifiedAdvancedTweaksLabel={$t('options.tools.showAdvancedTweaksModified', { default: 'Show advanced tweaks — some differ from defaults' })}
+  hideAdvancedTweaksLabel={$t('options.tools.hideAdvancedTweaks', { default: 'Hide advanced tweaks' })}
+  resetPageLabel={$t('options.tools.resetPage', { default: 'Reset current page to defaults' })}
+  contentClass={activeView === 'raf' ? 'raf-content' : ''}
+  on:select={(event) => setActiveView(event.detail.view as OptionsViewName)}
+  on:reset={resetCurrentView}
+  on:advancedvisibilitychange={(event) => rememberShowAdvancedTweaks(event.detail.visible)}
+  on:windowresize={(event) => rememberOptionsWindowSize(event.detail.width, event.detail.height)}
 >
-  <header
-    class="window-topbar"
-    class:window-controls-overlay-active={overlayState.visible}
-    style={overlayInlineStyle}
-  >
-    <div class="window-topbar-title" aria-live="polite">
-      <span class="window-topbar-prefix">{$t('options.windowTitle', { default: 'izci Options' })}</span>
-      <span class="material-symbols-outlined window-topbar-separator window-topbar-prefix-separator" aria-hidden="true">
-        chevron_right
-      </span>
-      <span class="window-topbar-breadcrumbs">
-        {#if activeParentView}
-          <span class="window-topbar-crumb window-topbar-parent">{viewLabel(activeParentView, $t)}</span>
-          <span class="material-symbols-outlined window-topbar-separator window-topbar-parent-separator" aria-hidden="true">
-            chevron_right
-          </span>
-        {/if}
-        <span class="window-topbar-crumb is-current">{viewLabel(activeView, $t)}</span>
-      </span>
-    </div>
-
-    <div class="window-topbar-tools" aria-label={$t('options.tools.label', { default: 'Page tools' })}>
-      <button
-        class="tool-button hover-tooltip-anchor"
-        class:is-active={showAdvancedTweaks || advancedTweaksModified}
-        type="button"
-        aria-label={advancedTweaksToggleLabel}
-        aria-pressed={showAdvancedTweaks}
-        disabled={!canToggleAdvancedTweaks}
-        on:click={toggleAdvancedTweaks}
-      >
-        <span class="material-symbols-outlined" aria-hidden="true">tune</span>
-        <HoverTooltip>{advancedTweaksToggleLabel}</HoverTooltip>
-      </button>
-
-      <button
-        class="tool-button hover-tooltip-anchor"
-        type="button"
-        aria-label={hintToggleLabel}
-        disabled={!canToggleHints}
-        on:click={() => (fieldHintsExpanded = !fieldHintsExpanded)}
-      >
-        <span class="material-symbols-outlined" aria-hidden="true">
-          {fieldHintsExpanded ? 'unfold_less' : 'unfold_more'}
-        </span>
-        <HoverTooltip>{hintToggleLabel}</HoverTooltip>
-      </button>
-
-      <button
-        class="tool-button hover-tooltip-anchor"
-        type="button"
-        aria-label={$t('options.tools.resetPage', { default: 'Reset current page to defaults' })}
-        disabled={!canResetCurrentView}
-        on:click={resetCurrentView}
-      >
-        <span class="material-symbols-outlined" aria-hidden="true">restart_alt</span>
-        <HoverTooltip>{$t('options.tools.resetPage', { default: 'Reset current page to defaults' })}</HoverTooltip>
-      </button>
-
-    </div>
-  </header>
-
-  <main class="options-main">
-    <aside class="tree-panel" aria-label={$t('options.categories', { default: 'Options categories' })}>
-      <div class="tree" role="tree" aria-label={$t('options.categories', { default: 'Options categories' })}>
-        {#each OPTIONS_VIEW_GROUPS as group}
-          <div class="tree-group" role="none">
-            {#each group as view}
-              {#if view.id !== 'raf' || $playbackSettings.enableRaf}
-                <button
-                  class="tree-item"
-                  class:child={view.parentLabel !== ''}
-                  type="button"
-                  role="treeitem"
-                  aria-selected={activeView === view.id}
-                  on:click={() => setActiveView(view.id)}
-                >
-                  <span class="material-symbols-outlined" aria-hidden="true">{view.icon}</span>
-                  <span class="tree-label">{viewLabel(view.id, $t)}</span>
-                </button>
-              {/if}
-            {/each}
-          </div>
-        {/each}
-      </div>
-    </aside>
-
-    <section class="content-panel" class:raf-content={activeView === 'raf'} aria-live="polite">
       {#if activeView === 'appearance'}
         <AppearanceView />
       {/if}
@@ -404,6 +290,4 @@
       {#if activeView === 'licenses'}
         <LicensesView />
       {/if}
-    </section>
-  </main>
-</div>
+</OptionsView>

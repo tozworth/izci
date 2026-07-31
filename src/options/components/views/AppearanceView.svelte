@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import SettingsField from '../SettingsField.svelte';
+  import SettingsField from '$lib/components/options/SettingsField.svelte';
   import { COLOR_THEME_DEFINITIONS, systemColorScheme } from '$lib/services/theme';
   import { t } from 'svelte-i18n';
   import { APP_LOCALE_OPTIONS, appLocale } from '$lib/i18n';

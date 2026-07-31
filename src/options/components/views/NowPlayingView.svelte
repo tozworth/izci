@@ -1,6 +1,6 @@
 <script lang="ts">
   import { t } from 'svelte-i18n';
-  import SettingsField from '../SettingsField.svelte';
+  import SettingsField from '$lib/components/options/SettingsField.svelte';
   import {
     MIN_NOW_PLAYING_PANEL_AUTO_HIDE_SECONDS, NOW_PLAYING_PANEL_AUTO_HIDE_NEVER_SECONDS,
     appearanceSettings, normalizeNowPlayingPanelAutoHideDelaySeconds

@@ -23,6 +23,7 @@
     hasSameTrackMetadata,
     resolveTrackSnapshot
   } from '$lib/services/artwork-presentation';
+  import { invalidateCachedArtwork } from '$lib/services/artwork-cache';
   import { createImportController, FILE_INPUT_ACCEPT } from '$lib/services/import-controller';
   import {
     createContextualTabPresentationController,
@@ -77,6 +78,15 @@
   import { trackSettings } from '$lib/stores/track-settings';
   import { videoSettings } from '$lib/stores/video-settings';
   import { respondToToolTrackRequest } from '$lib/services/tool-track-context';
+  import {
+    buildTroubadourBatchContext,
+    readTroubadourBatchResult,
+    REQUEST_TROUBADOUR_BATCH_CONTEXT_MESSAGE,
+    respondToTroubadourBatchContextRequest,
+    type TroubadourBatchContext,
+    type TroubadourBatchItemResult,
+    type TroubadourTrackReference
+  } from '$lib/services/troubadour-sync';
   import type {
     LyricsDisplayStyle,
     ModulePatternSnapshot,
@@ -124,6 +134,7 @@
   let librarySelectionAnchorId: string | null = null;
   let favoriteSelectionIds: string[] = [];
   let favoriteSelectionAnchorId: string | null = null;
+  let lastTroubadourContext: TroubadourBatchContext | null = null;
   let selectedPlaylistItem: PlaylistItem | null = null;
   let selectedLibraryItem: PlaylistItem | null = null;
   let selectedFavoriteItem: PlaylistItem | null = null;
@@ -845,8 +856,164 @@
     handleOpenOptions('about');
   }
 
+  function createTroubadourContext(): TroubadourBatchContext {
+    const playlistIdSet = new Set(playlistSelectionIds);
+    const libraryIdSet = new Set(librarySelectionIds);
+    const favoriteIdSet = new Set(favoriteSelectionIds);
+
+    return buildTroubadourBatchContext(
+      [
+        { collection: 'current', items: playingTrack ? [playingTrack] : [] },
+        { collection: 'playlist', items: playlistItems.filter((item) => playlistIdSet.has(item.id)) },
+        { collection: 'library', items: libraryItems.filter((item) => libraryIdSet.has(item.id)) },
+        { collection: 'favorites', items: favoriteItems.filter((item) => favoriteIdSet.has(item.id)) }
+      ],
+      filesystemFolders.getSnapshot()
+    );
+  }
+
+  function getTroubadourResultReferences(result: TroubadourBatchItemResult): TroubadourTrackReference[] {
+    const contextReferences = result.contextId
+      ? lastTroubadourContext?.tracks.find((track) => track.contextId === result.contextId)?.references ?? []
+      : [];
+    const unique = new Map<string, TroubadourTrackReference>();
+
+    for (const reference of [...(result.references ?? []), ...contextReferences]) {
+      unique.set(`${reference.collection}:${reference.id}`, reference);
+    }
+
+    return [...unique.values()];
+  }
+
+  function getTroubadourContextTrack(result: TroubadourBatchItemResult) {
+    if (result.contextId) {
+      const direct = lastTroubadourContext?.tracks.find((track) => track.contextId === result.contextId);
+      if (direct) return direct;
+    }
+
+    const references = getTroubadourResultReferences(result);
+    return lastTroubadourContext?.tracks.find((track) => track.references.some((candidate) =>
+      references.some((reference) => (
+        reference.collection === candidate.collection && reference.id === candidate.id
+      ))
+    ));
+  }
+
+  async function isTroubadourResultMatch(
+    item: PlaylistItem,
+    collection: TroubadourTrackReference['collection'],
+    result: TroubadourBatchItemResult
+  ): Promise<boolean> {
+    const references = getTroubadourResultReferences(result);
+
+    if (references.some((reference) => reference.collection === collection && reference.id === item.id)) {
+      return true;
+    }
+
+    const contextTrack = getTroubadourContextTrack(result);
+    const originalPath = result.originalPath ?? contextTrack?.path;
+    let pathMismatch = false;
+
+    if (originalPath && item.path) {
+      const normalize = (path: string) => path.replace(/\\/g, '/').replace(/^\/+/, '').toLowerCase();
+      if (normalize(originalPath) === normalize(item.path)) return true;
+      pathMismatch = true;
+    }
+
+    const originalHandle = result.originalFileHandle ?? contextTrack?.fileHandle;
+
+    if (originalHandle && item.fileHandle) {
+      if (originalHandle === item.fileHandle) return true;
+
+      try {
+        if (typeof originalHandle.isSameEntry === 'function' && await originalHandle.isSameEntry(item.fileHandle)) {
+          return true;
+        }
+      } catch {
+        // Stale handles can still be matched by the immutable source fingerprint below.
+      }
+    }
+
+    if (pathMismatch) return false;
+
+    const originalName = result.originalName ?? contextTrack?.name;
+    const originalSize = result.originalSize ?? contextTrack?.size;
+    const originalLastModified = result.originalLastModified ?? contextTrack?.lastModified;
+    return Boolean(
+      originalName
+      && originalSize !== undefined
+      && originalLastModified !== undefined
+      && item.name.toLowerCase() === originalName.toLowerCase()
+      && item.size === originalSize
+      && item.lastModified === originalLastModified
+    );
+  }
+
+  function getTroubadourExternalPatch(result: TroubadourBatchItemResult) {
+    return {
+      ...(result.file ? { file: result.file } : {}),
+      ...(result.fileHandle ? { fileHandle: result.fileHandle } : {}),
+      ...(result.path !== undefined ? { path: result.path } : {}),
+      ...(result.sourceFolderId !== undefined ? { sourceFolderId: result.sourceFolderId } : {}),
+      ...(result.name !== undefined ? { name: result.name } : {}),
+      ...(result.extension !== undefined ? { extension: result.extension } : {}),
+      ...(result.kind !== undefined ? { kind: result.kind } : {}),
+      ...(result.size !== undefined ? { size: result.size } : {}),
+      ...(result.lastModified !== undefined ? { lastModified: result.lastModified } : {}),
+      ...(result.metadata !== undefined ? { metadata: result.metadata } : {})
+    };
+  }
+
+  async function applyTroubadourResult(results: TroubadourBatchItemResult[]): Promise<void> {
+    const successfulResults = results.filter((result) => result.success);
+    const invalidatedTrackIds = new Set<string>();
+
+    for (const result of successfulResults) {
+      const patch = getTroubadourExternalPatch(result);
+      const collections = [
+        { name: 'playlist' as const, items: playlistItems, store: playlistStore },
+        { name: 'library' as const, items: libraryItems, store: libraryStore },
+        { name: 'favorites' as const, items: favoriteItems, store: favoritesStore }
+      ];
+
+      for (const collection of collections) {
+        for (const item of collection.items) {
+          if (await isTroubadourResultMatch(item, collection.name, result)) {
+            collection.store.applyExternalUpdate(item.id, patch);
+            invalidatedTrackIds.add(item.id);
+          }
+        }
+      }
+
+      if (playingTrack && await isTroubadourResultMatch(playingTrack, 'current', result)) {
+        playerController.refreshCurrentTrack(playingTrack.id, patch);
+        invalidatedTrackIds.add(playingTrack.id);
+      }
+    }
+
+    await invalidateCachedArtwork(invalidatedTrackIds);
+  }
+
   function handlePopupWindowMessage(event: MessageEvent): void {
     if (respondToToolTrackRequest(event, playingTrack)) {
+      return;
+    }
+
+    const troubadourWindow = windowManager.getPopup('troubadour');
+
+    if (event.data?.type === REQUEST_TROUBADOUR_BATCH_CONTEXT_MESSAGE) {
+      const context = createTroubadourContext();
+
+      if (respondToTroubadourBatchContextRequest(event, troubadourWindow, context)) {
+        lastTroubadourContext = context;
+        return;
+      }
+    }
+
+    const troubadourResult = readTroubadourBatchResult(event, troubadourWindow);
+
+    if (troubadourResult) {
+      void applyTroubadourResult(troubadourResult.results);
       return;
     }
 
@@ -1068,6 +1235,7 @@
     on:openConverter={() => windowManager.openPopup('converter')}
     on:openLoudness={() => windowManager.openPopup('loudness')}
     on:openSpectrogram={() => windowManager.openPopup('spectrogram')}
+    on:openTroubadour={() => windowManager.openPopup('troubadour')}
     on:showPlaylist={showPlaylist}
     on:showLibrary={showLibrary}
     on:showTrackDetails={showTrackDetails}

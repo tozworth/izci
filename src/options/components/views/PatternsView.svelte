@@ -1,6 +1,6 @@
 <script lang="ts">
   import { t } from 'svelte-i18n';
-  import SettingsField from '../SettingsField.svelte';
+  import SettingsField from '$lib/components/options/SettingsField.svelte';
   import { isPatternCellEmpty, splitPatternCell } from '$lib/services/pattern-presentation';
   import {
     MAX_PATTERN_CHANNEL_WIDTH,

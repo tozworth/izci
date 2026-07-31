@@ -1,6 +1,6 @@
 <script lang="ts">
   import { t } from 'svelte-i18n';
-  import SettingsField from '../SettingsField.svelte';
+  import SettingsField from '$lib/components/options/SettingsField.svelte';
   import { MAX_FOLDER_NESTING_LIMIT, MIN_FOLDER_NESTING_LIMIT, normalizeFolderNestingLimit, trackSettings } from '$lib/stores/track-settings';
 
   function handleFolderNestingLimitChange(event: Event) {

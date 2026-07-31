@@ -1,6 +1,6 @@
 <script lang="ts">
   import { t } from 'svelte-i18n';
-  import SettingsField from '../SettingsField.svelte';
+  import SettingsField from '$lib/components/options/SettingsField.svelte';
   import { videoSettings } from '$lib/stores/video-settings';
 
   function handleAutoResizeWindowToggle(event: Event) {

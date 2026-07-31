@@ -1,5 +1,5 @@
-@import "../lib/styles/themes.css";
-@import "../lib/styles/scrollbars.css";
+@import "./themes.css";
+@import "./scrollbars.css";
 
 :root {
   background: var(--bg-base);
@@ -869,6 +869,77 @@ code {
   padding: 4px 8px;
   color: var(--text);
   background: var(--bg-input);
+}
+
+.field input[type="text"] {
+  width: min(22rem, 42vw);
+  border: 1px solid var(--menu-bar-border);
+  border-radius: 6px;
+  padding: 4px 8px;
+  background: var(--bg-input);
+  color: var(--text);
+  user-select: text;
+}
+
+.field input[type="text"].compact-text-input {
+  width: 4rem;
+}
+
+.field input[type="text"].wide-text-input {
+  width: min(34rem, 56vw);
+  font-family: "IBM Plex Mono", "SFMono-Regular", monospace;
+  font-size: 0.74rem;
+}
+
+.options-page-note {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 0.72rem;
+  line-height: 1.45;
+}
+
+.capability-list {
+  margin: 0 0 10px;
+  border-top: 1px solid var(--border-faint);
+}
+
+.capability-list > div {
+  display: grid;
+  grid-template-columns: minmax(9rem, 0.45fr) minmax(0, 1fr);
+  gap: 10px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border-faint);
+}
+
+.capability-list dt {
+  color: var(--text);
+}
+
+.capability-list dd {
+  margin: 0;
+  color: var(--muted-strong);
+  user-select: text;
+}
+
+.options-action-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 1.8rem;
+  padding: 4px 9px;
+  border: 1px solid var(--menu-bar-border);
+  border-radius: 5px;
+  background: var(--bg-input);
+  color: var(--text);
+}
+
+.options-action-button:hover {
+  background: var(--hover-surface);
+  color: var(--text-strong);
+}
+
+.options-action-button.danger-action {
+  color: var(--danger);
 }
 
 .field-hint {

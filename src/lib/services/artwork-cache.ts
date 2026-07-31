@@ -372,3 +372,35 @@ export function getCachedArtworkThumbnail(
   pendingLoads.set(loadKey, request);
   return request;
 }
+
+export async function invalidateCachedArtwork(trackIds: Iterable<string>): Promise<void> {
+  const ids = [...new Set(trackIds)].filter(Boolean);
+
+  if (ids.length === 0) return;
+
+  for (const id of ids) {
+    for (const key of pendingLoads.keys()) {
+      if (key.startsWith(`${id}:`)) pendingLoads.delete(key);
+    }
+  }
+
+  const database = await openArtworkDatabase();
+
+  if (!database) return;
+
+  await new Promise<void>((resolve) => {
+    const transaction = database.transaction(SOURCE_STORE_NAME, 'readwrite');
+    const store = transaction.objectStore(SOURCE_STORE_NAME);
+
+    for (const id of ids) store.delete(id);
+
+    transaction.oncomplete = () => {
+      database.close();
+      resolve();
+    };
+    transaction.onerror = transaction.onabort = () => {
+      database.close();
+      resolve();
+    };
+  });
+}

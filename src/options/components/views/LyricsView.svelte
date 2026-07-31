@@ -1,6 +1,6 @@
 <script lang="ts">
   import { t } from 'svelte-i18n';
-  import SettingsField from '../SettingsField.svelte';
+  import SettingsField from '$lib/components/options/SettingsField.svelte';
   import {
     LYRICS_FONT_SIZE_LIMITS, LYRICS_STYLE_OPTIONS,
     MAX_LYRICS_DOWNTIME_THRESHOLD_SECONDS, MIN_LYRICS_DOWNTIME_THRESHOLD_SECONDS,

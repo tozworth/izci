@@ -28,6 +28,21 @@ interface PlaybackStatusSnapshot {
   error?: string;
 }
 
+export type CurrentTrackExternalUpdate = Partial<
+  Pick<
+    PlaylistItem,
+    | 'fileHandle'
+    | 'path'
+    | 'sourceFolderId'
+    | 'name'
+    | 'extension'
+    | 'kind'
+    | 'size'
+    | 'lastModified'
+    | 'metadata'
+  >
+>;
+
 const initialSnapshot: PlaybackSnapshot = {
   state: 'idle',
   currentTime: 0,
@@ -388,6 +403,32 @@ function createPlayerController() {
       activeTrack = nextTrack;
       currentTrack.set(nextTrack);
       applyBackendVolume();
+    },
+    refreshCurrentTrack(id: string, patch: CurrentTrackExternalUpdate) {
+      if (!activeTrack || activeTrack.id !== id) return false;
+
+      const existingPlayCount = activeTrack.metadata?.playCount;
+      const { playCount: _externalPlayCount, ...externalMetadata } = patch.metadata ?? {};
+      const metadata = patch.metadata === undefined
+        ? activeTrack.metadata
+        : {
+            ...externalMetadata,
+            ...(existingPlayCount === undefined ? {} : { playCount: existingPlayCount })
+          };
+      const nextTrack: PlaylistItem = {
+        ...activeTrack,
+        ...patch,
+        id: activeTrack.id,
+        file: activeTrack.file,
+        objectUrl: activeTrack.objectUrl,
+        subsong: activeTrack.subsong,
+        metadata: mergeInferredArtistTitle(metadata ?? {}, patch.name ?? activeTrack.name, metadataConfig.inferFromFilename)
+      };
+
+      activeTrack = nextTrack;
+      currentTrack.set(nextTrack);
+      applyBackendVolume();
+      return true;
     },
     destroy() {
       unsubscribeModuleSettings();

@@ -1,6 +1,7 @@
 import { popupWindows, type PopupWindowDefinition, type PopupWindowId } from '$lib/services/popup-windows';
 import { getOptionsWindowState } from '$lib/services/options-window-state';
 import { OPEN_CURRENT_TOOL_TRACK_MESSAGE } from '$lib/services/tool-track-context';
+import { OPEN_TROUBADOUR_BATCH_CONTEXT_MESSAGE } from '$lib/services/troubadour-sync';
 import { buildOptionsWindowPath, type OptionsViewName } from '../../options/views';
 
 function isOpenWindow(windowRef: Window | null | undefined): windowRef is Window {
@@ -96,7 +97,9 @@ function getPopupTitle(id: PopupWindowId): string {
     clipTag: 'izci Edit and Tag',
     converter: 'izci Converter',
     loudness: 'izci Loudness',
-    spectrogram: 'izci Spectrogram'
+    spectrogram: 'izci Spectrogram',
+    troubadour: 'izci Troubadour',
+    troubadourOptions: 'izci Troubadour Options'
   };
   return titles[id];
 }
@@ -120,6 +123,12 @@ function closePopupWindow(id: PopupWindowId): void {
 
 function closeAllPopupWindows(): void {
   for (const id of getPopupWindowIds()) {
+    // Troubadour owns file-write jobs and is intentionally allowed to finish
+    // them after its main izci opener exits. Its own window-manager instance
+    // still closes the Troubadour Options child when Troubadour itself exits.
+    if (id === 'troubadour' && !window.location.pathname.includes('troubadour')) {
+      continue;
+    }
     closePopupWindow(id);
   }
 }
@@ -149,7 +158,12 @@ function openPopupWindow(id: PopupWindowId, pathOverride?: string): Window | nul
       existingWindow.location.replace(popupUrl.href);
     }
 
-    if (id !== 'options') {
+    if (id === 'troubadour') {
+      existingWindow.postMessage(
+        { type: OPEN_TROUBADOUR_BATCH_CONTEXT_MESSAGE },
+        window.location.origin
+      );
+    } else if (id !== 'options' && id !== 'troubadourOptions') {
       existingWindow.postMessage(
         { type: OPEN_CURRENT_TOOL_TRACK_MESSAGE },
         window.location.origin
@@ -201,6 +215,10 @@ export const windowManager = {
     }
 
     return openPopupWindow('options', view ? buildOptionsWindowPath(view) : undefined);
+  },
+  getPopup(id: PopupWindowId): Window | null {
+    const windowRef = popupRefs.get(id);
+    return isOpenWindow(windowRef) ? windowRef : null;
   },
   exit() {
     closeAllPopupWindows();

@@ -1,16 +1,13 @@
 import {
-  ALL_FORMATS,
-  BlobSource,
-  BufferTarget,
-  Conversion,
-  FlacOutputFormat,
-  Input,
-  Mp3OutputFormat,
-  OggOutputFormat,
-  Output,
-  WavOutputFormat,
   type MetadataTags
 } from 'mediabunny';
+import {
+  SUPPORTED_METADATA_EXTENSIONS,
+  isMetadataExtension,
+  remuxMetadataToBlob,
+  remuxMetadataToWritable,
+  type MetadataExtension
+} from '$lib/services/media-metadata';
 import { inferExtension } from '$lib/utils/files';
 
 export interface ReplayGainValues {
@@ -20,8 +17,8 @@ export interface ReplayGainValues {
   albumPeak?: number;
 }
 
-export const REPLAYGAIN_WRITABLE_EXTENSIONS = ['mp3', 'wav', 'flac', 'ogg', 'opus'] as const;
-type ReplayGainWritableExtension = (typeof REPLAYGAIN_WRITABLE_EXTENSIONS)[number];
+export const REPLAYGAIN_WRITABLE_EXTENSIONS = SUPPORTED_METADATA_EXTENSIONS;
+type ReplayGainWritableExtension = MetadataExtension;
 
 function formatGain(value: number): string {
   return `${value >= 0 ? '+' : ''}${value.toFixed(2)} dB`;
@@ -68,53 +65,31 @@ export function mergeReplayGainMetadata(
   return { ...metadata, raw };
 }
 
-function createOutputFormat(extension: ReplayGainWritableExtension) {
-  switch (extension) {
-    case 'mp3': return new Mp3OutputFormat();
-    case 'wav': return new WavOutputFormat({ metadataFormat: 'id3' });
-    case 'flac': return new FlacOutputFormat();
-    case 'ogg':
-    case 'opus': return new OggOutputFormat();
-  }
-}
-
 export async function buildReplayGainTaggedFile(file: File, values: ReplayGainValues): Promise<Blob> {
-  const extension = inferExtension(file.name) as ReplayGainWritableExtension;
-  if (!REPLAYGAIN_WRITABLE_EXTENSIONS.includes(extension)) {
+  const extension = inferExtension(file.name);
+  if (!isMetadataExtension(extension)) {
     throw new Error('ReplayGain writing is not supported for this file type.');
   }
-  const input = new Input({ source: new BlobSource(file), formats: ALL_FORMATS });
-  const target = new BufferTarget();
-  const output = new Output({ format: createOutputFormat(extension), target });
-  try {
-    const conversion = await Conversion.init({
-      input,
-      output,
-      tags: (metadata) => mergeReplayGainMetadata(metadata, values, extension),
-      showWarnings: false
-    });
-    if (!conversion.isValid) throw new Error('The file cannot be remuxed safely with ReplayGain tags.');
-    await conversion.execute();
-  } finally {
-    input.dispose();
-  }
-  if (!target.buffer) throw new Error('The tagged file was not produced.');
-  return new Blob([target.buffer], { type: file.type || 'application/octet-stream' });
+  return remuxMetadataToBlob(
+    file,
+    extension,
+    (metadata) => mergeReplayGainMetadata(metadata, values, extension)
+  );
 }
 
 export async function writeReplayGainInPlace(
   handle: FileSystemFileHandle,
   values: ReplayGainValues
 ): Promise<void> {
-  const tagged = await buildReplayGainTaggedFile(await handle.getFile(), values);
   if (!handle.createWritable) throw new Error('This file handle does not allow in-place writing.');
-  const writable = await handle.createWritable();
-  try {
-    await writable.write(tagged);
-    await writable.close();
-  } catch (error) {
-    const abortable = writable as typeof writable & { abort?: () => Promise<void> };
-    await abortable.abort?.().catch(() => undefined);
-    throw error;
-  }
+  const file = await handle.getFile();
+  const extension = inferExtension(file.name);
+  if (!isMetadataExtension(extension)) throw new Error('ReplayGain writing is not supported for this file type.');
+  const writable = await handle.createWritable({ keepExistingData: false });
+  await remuxMetadataToWritable(
+    file,
+    extension,
+    (metadata) => mergeReplayGainMetadata(metadata, values, extension),
+    writable
+  );
 }

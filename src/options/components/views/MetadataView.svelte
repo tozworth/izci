@@ -1,6 +1,6 @@
 <script lang="ts">
   import { t } from 'svelte-i18n';
-  import SettingsField from '../SettingsField.svelte';
+  import SettingsField from '$lib/components/options/SettingsField.svelte';
   import {
     MAX_PLAY_COUNT_THRESHOLD_SECONDS, MIN_PLAY_COUNT_THRESHOLD_SECONDS,
     metadataSettings, normalizePlayCountThresholdSeconds

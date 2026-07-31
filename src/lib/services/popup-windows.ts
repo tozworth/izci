@@ -70,6 +70,28 @@ export const popupWindows = {
       resizable: true,
       scrollbars: false
     }
+  },
+  troubadour: {
+    name: 'izci-troubadour',
+    path: '/troubadour.html',
+    features: {
+      popup: true,
+      width: 1280,
+      height: 820,
+      resizable: true,
+      scrollbars: false
+    }
+  },
+  troubadourOptions: {
+    name: 'izci-troubadour-options',
+    path: '/troubadour-options.html',
+    features: {
+      popup: true,
+      width: 760,
+      height: 560,
+      resizable: true,
+      scrollbars: true
+    }
   }
 } satisfies Record<string, PopupWindowDefinition>;
 

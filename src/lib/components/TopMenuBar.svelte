@@ -28,6 +28,7 @@
     | 'openConverter'
     | 'openLoudness'
     | 'openSpectrogram'
+    | 'openTroubadour'
     | 'showPlaylist'
     | 'showLibrary'
     | 'showTrackDetails'
@@ -119,6 +120,11 @@
   ] satisfies MenuActionItem[];
   $: toolsMenuItems = [
     {
+      id: 'openTroubadour',
+      label: $t('main.menu.troubadour', { default: 'Troubadour...' }),
+      icon: 'library_music'
+    },
+    {
       id: 'openAudioCompare',
       label: $t('main.menu.audioCompare', { default: 'Audio Compare...' }),
       icon: 'compare_arrows'
@@ -178,6 +184,7 @@
     openConverter: void;
     openLoudness: void;
     openSpectrogram: void;
+    openTroubadour: void;
     showPlaylist: void;
     showLibrary: void;
     showTrackDetails: void;
