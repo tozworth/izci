@@ -21,6 +21,7 @@
   } from '$lib/stores/troubadour-settings';
   import { STREAM_EXTENSIONS, type MenuActionItem } from '$lib/types';
   import LoudnessTab from './LoudnessTab.svelte';
+  import LyricsEditor from './LyricsEditor.svelte';
   import SpectrogramTab from './SpectrogramTab.svelte';
   import TroubadourMenuBar from './TroubadourMenuBar.svelte';
   import {
@@ -31,6 +32,7 @@
     type TroubadourWorkbenchItem
   } from './troubadour-controller';
   import type { RenamePreviewRow } from './rename-job';
+  import { createLyricsPreview, type LyricsPreviewState } from './lyrics-preview';
 
   const SETTINGS_TO_FIELDS: Record<TroubadourMetadataField, MediaMetadataFieldName> = {
     title: 'title', artist: 'artist', albumArtist: 'albumArtist', album: 'album', date: 'date',
@@ -52,7 +54,16 @@
   const ITEM_DRAG_MIME = 'application/x-izci-troubadour-items';
 
   const controller = createTroubadourController();
+  const lyricsPreview = createLyricsPreview();
   let state = controller.getSnapshot();
+  let lyricsPreviewState: LyricsPreviewState = {
+    currentTime: 0,
+    duration: 0,
+    playing: false,
+    ready: false,
+    error: ''
+  };
+  let lyricsPreviewKey = '';
   let settings: TroubadourSettings = troubadourSettings.getSnapshot();
   let activeTab: TroubadourTab = settings.lastActiveTab;
   let fileInput: HTMLInputElement;
@@ -82,6 +93,7 @@
   let spectrogramItemId: string | null = null;
 
   const unsubscribeController = controller.subscribe((value) => (state = value));
+  const unsubscribeLyricsPreview = lyricsPreview.subscribe((value) => (lyricsPreviewState = value));
   const unsubscribeSettings = troubadourSettings.subscribe((value) => {
     settings = value;
     if (!state.busy) renameTemplate = value.renameTemplate;
@@ -92,6 +104,10 @@
   $: writableDirtyItems = dirtyItems.filter((item) => item.fileHandle && item.document);
   $: visibleFields = settings.visibleMetadataFields.map((field) => SETTINGS_TO_FIELDS[field]);
   $: selectedPrimary = selectedItems[0] ?? null;
+  $: lyricsItem = selectedItems.length === 1 && selectedPrimary?.document && isSpectrogramItem(selectedPrimary)
+    ? selectedPrimary
+    : null;
+  $: lyricsValue = lyricsItem ? effectiveFields(lyricsItem)?.lyrics ?? '' : '';
   $: spectrogramItem = state.items.find((item) => item.id === spectrogramItemId) ?? null;
   $: selectedAppliedDocuments = selectedItems
     .filter((item) => item.document)
@@ -114,6 +130,14 @@
   $: updateArtworkUrl(selectedArtwork);
   $: if (activeTab === 'spectrogram' && !spectrogramItemId && selectedPrimary && isSpectrogramItem(selectedPrimary)) {
     spectrogramItemId = selectedPrimary.id;
+  }
+  $: syncLyricsPreview(lyricsItem);
+
+  function syncLyricsPreview(item: TroubadourWorkbenchItem | null): void {
+    const key = item ? `${item.id}:${item.file.size}:${item.file.lastModified}` : '';
+    if (key === lyricsPreviewKey) return;
+    lyricsPreviewKey = key;
+    lyricsPreview.setFile(item?.file ?? null);
   }
 
   function updateArtworkUrl(artwork: MediaArtwork | null) {
@@ -291,6 +315,7 @@
   }
 
   function setActiveTab(tab: TroubadourTab): void {
+    if (activeTab === 'lyrics' && tab !== 'lyrics') lyricsPreview.pause();
     activeTab = tab;
     troubadourSettings.update({ lastActiveTab: tab });
   }
@@ -584,6 +609,8 @@
   onDestroy(() => {
     unsubscribeController();
     unsubscribeSettings();
+    unsubscribeLyricsPreview();
+    lyricsPreview.destroy();
     if (artworkUrl) URL.revokeObjectURL(artworkUrl);
   });
 </script>
@@ -655,6 +682,7 @@
   <TabStrip className="tool-tabs troubadour-tabs" ariaLabel={$t('troubadour.workbench.tabs', { default: 'Troubadour workbench tabs' })}>
     <button class="tab-strip-tab" class:active={activeTab === 'metadata'} type="button" role="tab" aria-selected={activeTab === 'metadata'} on:click={() => setActiveTab('metadata')}><span class="material-symbols-outlined">library_music</span>{$t('troubadour.workbench.metadataTab', { default: 'Metadata' })}</button>
     <button class="tab-strip-tab" class:active={activeTab === 'rename'} type="button" role="tab" aria-selected={activeTab === 'rename'} on:click={() => setActiveTab('rename')}><span class="material-symbols-outlined">drive_file_rename_outline</span>{$t('troubadour.workbench.renameTab', { default: 'Rename' })}</button>
+    <button class="tab-strip-tab" class:active={activeTab === 'lyrics'} type="button" role="tab" aria-selected={activeTab === 'lyrics'} on:click={() => setActiveTab('lyrics')}><span class="material-symbols-outlined">lyrics</span>{$t('troubadour.lyrics.tab', { default: 'Lyrics' })}</button>
     <button class="tab-strip-tab" class:active={activeTab === 'loudness'} type="button" role="tab" aria-selected={activeTab === 'loudness'} on:click={() => setActiveTab('loudness')}><span class="material-symbols-outlined">graphic_eq</span>{$t('loudness.title', { default: 'Loudness' })}</button>
     <button class="tab-strip-tab" class:active={activeTab === 'spectrogram'} type="button" role="tab" aria-selected={activeTab === 'spectrogram'} on:click={() => openSpectrogram()} disabled={!isSpectrogramItem(spectrogramItem ?? selectedPrimary)}><span class="material-symbols-outlined">waterfall_chart</span>{$t('spectrogram.title', { default: 'Spectrogram' })}</button>
   </TabStrip>
@@ -780,6 +808,23 @@
       on:written={() => void controller.reloadSelected()}
       on:busyChange={(event) => loudnessBusy = event.detail}
     />
+  {:else if activeTab === 'lyrics'}
+    {#key lyricsItem?.id ?? 'no-lyrics-track'}
+      <LyricsEditor
+        value={lyricsValue}
+        currentTime={lyricsPreviewState.currentTime}
+        duration={lyricsPreviewState.duration}
+        disabled={!lyricsItem}
+        playbackDisabled={!lyricsPreviewState.ready}
+        playing={lyricsPreviewState.playing}
+        trackTitle={lyricsItem?.file.name ?? ''}
+        previewError={lyricsPreviewState.error}
+        getCurrentTime={lyricsPreview.getCurrentTime}
+        on:change={(event) => lyricsItem && controller.editItemField(lyricsItem.id, 'lyrics', event.detail)}
+        on:togglePlayback={() => void lyricsPreview.togglePlayback()}
+        on:seek={(event) => lyricsPreview.seek(event.detail)}
+      />
+    {/key}
   {:else}
     <SpectrogramTab item={spectrogramItem} />
   {/if}

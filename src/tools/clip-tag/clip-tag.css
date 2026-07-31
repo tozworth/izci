@@ -2,8 +2,6 @@
 @import "../../lib/styles/scrollbars.css";
 @import "../../lib/styles/app/base.css";
 @import "../../lib/styles/app/menus.css";
-@import "../../lib/styles/app/player/base.css";
-@import "../../lib/styles/app/player/compact.css";
 @import "../tool-shell.css";
 
 .clip-tag-shell {
@@ -39,12 +37,6 @@
   min-height: 0;
   padding: 0;
   background: var(--clip-tag-view-background);
-}
-
-.artwork-actions {
-  display: flex;
-  align-items: center;
-  gap: 0.24rem;
 }
 
 .clip-toolbar {
@@ -93,149 +85,6 @@
 
 .export-button {
   flex: 0 0 auto;
-}
-
-.lyrics-workbench {
-  display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
-  min-height: 0;
-  background: var(--clip-tag-view-background);
-}
-
-.lyrics-toolbar {
-  min-height: var(--tool-toolbar-height);
-}
-
-.stamp-step-button {
-  white-space: nowrap;
-}
-
-.lyrics-count {
-  color: var(--muted);
-  font-size: 0.68rem;
-  white-space: nowrap;
-}
-
-.lyrics-editor {
-  min-height: 0;
-  overflow: auto;
-  background: var(--bg-input);
-}
-
-.lyrics-grid-header,
-.lyric-editor-row {
-  display: grid;
-  grid-template-columns: 2.5rem 6.7rem minmax(12rem, 1fr);
-  align-items: center;
-}
-
-.lyrics-grid-header {
-  position: sticky;
-  top: 0;
-  z-index: 2;
-  min-height: 1.7rem;
-  background: var(--window-topbar-bg);
-  border-bottom: 1px solid var(--border-soft);
-  color: var(--muted);
-  font-size: 0.65rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.035em;
-}
-
-.lyrics-grid-header span {
-  padding: 0 0.42rem;
-}
-
-.lyric-editor-row {
-  min-height: 2.08rem;
-  border-bottom: 1px solid color-mix(in srgb, var(--border-soft) 68%, transparent);
-  box-shadow: inset 3px 0 transparent;
-}
-
-.lyric-editor-row:hover {
-  background: color-mix(in srgb, var(--hover-surface) 68%, transparent);
-}
-
-.lyric-editor-row.selected {
-  background: color-mix(in srgb, var(--accent-strong) 8%, var(--bg-input));
-  box-shadow: inset 3px 0 var(--accent-strong);
-}
-
-.lyric-editor-row.active:not(.selected) {
-  background: color-mix(in srgb, var(--accent-strong) 5%, var(--bg-input));
-}
-
-.lyric-editor-row.active .line-number,
-.lyric-editor-row.active .lyric-time-input {
-  color: var(--accent-strong);
-}
-
-.line-number {
-  align-self: stretch;
-  border: 0;
-  background: transparent;
-  color: var(--muted);
-  font-size: 0.68rem;
-  font-variant-numeric: tabular-nums;
-}
-
-.lyric-time-input,
-.lyric-text-input {
-  width: 100%;
-  min-width: 0;
-  height: 100%;
-  min-height: 2.05rem;
-  padding: 0.25rem 0.42rem;
-  background: transparent;
-  border: 0;
-  border-left: 1px solid color-mix(in srgb, var(--border-soft) 68%, transparent);
-  border-radius: 0;
-  color: var(--text-strong);
-  outline: 0;
-  user-select: text;
-}
-
-.lyric-time-input {
-  color: var(--muted);
-  font-size: 0.72rem;
-  font-variant-numeric: tabular-nums;
-}
-
-.lyric-time-input:focus,
-.lyric-text-input:focus {
-  background: color-mix(in srgb, var(--accent-strong) 5%, transparent);
-  box-shadow: inset 0 0 0 1px var(--accent-focus-border);
-}
-
-.lyrics-editor.is-disabled {
-  opacity: 0.55;
-}
-
-.lyrics-player-bar.player-bar.compact-player-bar {
-  position: relative;
-  inset: auto;
-  z-index: auto;
-  width: 100%;
-  min-height: 2rem;
-  padding: 0 0.45rem 0 0;
-  border-top: 1px solid var(--border-soft);
-  background: var(--window-topbar-bg);
-}
-
-.lyrics-player-bar .player-track-group {
-  min-width: 0;
-  padding-left: 0.55rem;
-}
-
-.lyrics-player-bar .player-track strong,
-.lyrics-player-bar .player-track span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.lyrics-player-bar .player-control-strip {
-  align-self: stretch;
 }
 
 .zoom-level-button {
@@ -342,120 +191,6 @@
 
 .render-badge .material-symbols-outlined {
   font-size: 0.95rem;
-}
-
-.tags-workbench {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) 230px;
-  gap: 0.4rem;
-  min-height: 0;
-  padding: 0.4rem;
-  background: var(--clip-tag-view-background);
-  overflow: auto;
-}
-
-.tag-form {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  align-content: start;
-  gap: 0.4rem 0.5rem;
-  padding: 0.45rem;
-  background: color-mix(in srgb, var(--bg-elevated) 62%, transparent);
-  border: 1px solid var(--border-soft);
-  border-radius: var(--tool-panel-radius);
-}
-
-.tag-form label {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  color: var(--muted);
-  font-size: 0.72rem;
-}
-
-.tag-form label.wide {
-  grid-column: 1 / -1;
-}
-
-.tag-form input {
-  width: 100%;
-  min-height: var(--tool-control-height);
-  padding: 0.22rem 0.35rem;
-  background: var(--bg-input);
-  border: 1px solid var(--border-soft);
-  border-radius: var(--tool-panel-radius);
-  color: var(--text-strong);
-  user-select: text;
-}
-
-.tag-form input:focus {
-  border-color: var(--accent-focus-border);
-  outline: 1px solid var(--accent-focus-border);
-}
-
-.artwork-editor {
-  display: flex;
-  flex-direction: column;
-  min-height: 0;
-  padding: 0.45rem;
-  background: color-mix(in srgb, var(--bg-elevated) 62%, transparent);
-  border: 1px solid var(--border-soft);
-  border-radius: var(--tool-panel-radius);
-}
-
-.artwork-editor h2 {
-  margin: 0 0 0.4rem;
-  color: var(--text-strong);
-  font-size: 0.78rem;
-  font-weight: 600;
-}
-
-.artwork-drop {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-direction: column;
-  gap: 0.35rem;
-  width: 100%;
-  aspect-ratio: 1;
-  overflow: hidden;
-  background: var(--bg-input);
-  border: 1px dashed var(--accent-dashed-border);
-  border-radius: 0.28rem;
-  color: var(--muted);
-}
-
-.artwork-drop.is-dragging {
-  background: var(--accent-strong-soft);
-  border-color: var(--accent-strong-border-hover);
-}
-
-.artwork-drop img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-}
-
-.artwork-drop > .material-symbols-outlined {
-  font-size: 2rem;
-}
-
-.artwork-actions {
-  margin-top: 0.45rem;
-}
-
-.artwork-editor p {
-  margin: 0.45rem 0;
-  color: var(--muted);
-  font-size: 0.68rem;
-  line-height: 1.35;
-}
-
-.tag-save-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.18rem;
-  margin-top: auto;
 }
 
 .clip-export-dialog {
@@ -582,31 +317,9 @@
 }
 
 @media (max-width: 680px) {
-  .tags-workbench {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .artwork-editor {
-    display: grid;
-    grid-template-columns: 130px minmax(0, 1fr);
-    gap: 0.5rem;
-  }
-
-  .artwork-editor h2,
-  .artwork-drop {
-    grid-column: 1;
-  }
-
-  .artwork-actions,
-  .artwork-editor p,
-  .tag-save-actions {
-    grid-column: 2;
-  }
-
   .render-badge {
     margin-left: 0;
   }
-
 }
 
 @media (max-width: 460px) {

@@ -27,9 +27,9 @@ export const popupWindows = {
       scrollbars: true
     }
   },
-  clipTag: {
-    name: 'izci-clip-and-tag',
-    path: '/clip-tag.html',
+  editor: {
+    name: 'izci-editor',
+    path: '/editor.html',
     features: {
       popup: true,
       width: 980,

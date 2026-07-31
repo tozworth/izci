@@ -225,6 +225,7 @@ export function createTroubadourController(
   clearSelection(): void;
   removeSelected(): void;
   editField(field: MediaMetadataFieldName, value: string | null): void;
+  editItemField(id: string, field: MediaMetadataFieldName, value: string | null): void;
   resetField(field: MediaMetadataFieldName): void;
   addArtwork(artwork: MediaArtworkInput, behavior?: 'preserve' | 'replace-kind' | 'reject'): void;
   replaceArtwork(artworkId: string, artwork: MediaArtworkInput): void;
@@ -492,6 +493,14 @@ export function createTroubadourController(
       const selected = new Set(state.selectedIds);
       setStaged({
         items: state.items.map((item) => selected.has(item.id) && item.document
+          ? { ...item, patch: { ...item.patch, [field]: value }, state: 'dirty', error: '' }
+          : item),
+        albums: state.albums
+      });
+    },
+    editItemField(id: string, field: MediaMetadataFieldName, value: string | null) {
+      setStaged({
+        items: state.items.map((item) => item.id === id && item.document
           ? { ...item, patch: { ...item.patch, [field]: value }, state: 'dirty', error: '' }
           : item),
         albums: state.albums

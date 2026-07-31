@@ -9,23 +9,22 @@
     parseLyricsTimestamp,
     serializeLyrics,
     type EditableLyricLine
-  } from './lyrics-editor';
+  } from '$lib/utils/timestamped-lyrics';
 
   export let value = '';
   export let currentTime = 0;
   export let duration = 0;
   export let disabled = true;
+  export let playbackDisabled = true;
   export let playing = false;
   export let trackTitle = '';
-  export let canSaveInPlace = false;
+  export let previewError = '';
   export let getCurrentTime: () => number = () => currentTime;
 
   const dispatch = createEventDispatcher<{
     change: string;
     togglePlayback: void;
     seek: number;
-    saveInPlace: void;
-    saveAs: void;
   }>();
 
   let editorElement: HTMLDivElement;
@@ -152,49 +151,43 @@
   }
 </script>
 
-<section class="lyrics-workbench" aria-label={$t('clipTag.tabs.lyrics', { default: 'Lyrics' })}>
-  <div class="tool-row tool-toolbar lyrics-toolbar" role="toolbar" aria-label={$t('clipTag.lyrics.toolbar', { default: 'Lyrics tools' })}>
+<section class="lyrics-workbench" aria-label={$t('troubadour.lyrics.tab', { default: 'Lyrics' })}>
+  <div class="tool-row tool-toolbar lyrics-toolbar" role="toolbar" aria-label={$t('troubadour.lyrics.toolbar', { default: 'Lyrics tools' })}>
     <button class="text-button primary stamp-step-button hover-tooltip-anchor" type="button" disabled={disabled} on:click={() => stamp(true)}>
-      <span class="material-symbols-outlined" aria-hidden="true">more_time</span>{$t('clipTag.lyrics.stampAndStep', { default: 'Stamp and step' })}
-      <HoverTooltip>{$t('clipTag.lyrics.stampAndStepShortcut', { default: 'Stamp and step (Ctrl+Enter)' })}</HoverTooltip>
+      <span class="material-symbols-outlined" aria-hidden="true">more_time</span>{$t('troubadour.lyrics.stampAndStep', { default: 'Stamp and step' })}
+      <HoverTooltip>{$t('troubadour.lyrics.stampAndStepShortcut', { default: 'Stamp and step (Ctrl+Enter)' })}</HoverTooltip>
     </button>
-    <button class="icon-button hover-tooltip-anchor" type="button" disabled={disabled} aria-label={$t('clipTag.lyrics.stamp', { default: 'Stamp selected line' })} on:click={() => stamp(false)}>
-      <span class="material-symbols-outlined" aria-hidden="true">timer</span><HoverTooltip>{$t('clipTag.lyrics.stamp', { default: 'Stamp selected line' })}</HoverTooltip>
+    <button class="icon-button hover-tooltip-anchor" type="button" disabled={disabled} aria-label={$t('troubadour.lyrics.stamp', { default: 'Stamp selected line' })} on:click={() => stamp(false)}>
+      <span class="material-symbols-outlined" aria-hidden="true">timer</span><HoverTooltip>{$t('troubadour.lyrics.stamp', { default: 'Stamp selected line' })}</HoverTooltip>
     </button>
-    <button class="icon-button hover-tooltip-anchor" type="button" disabled={disabled || lines[selectedIndex]?.time === null} aria-label={$t('clipTag.lyrics.clearStamp', { default: 'Clear timestamp' })} on:click={() => updateLine(selectedIndex, { time: null })}>
-      <span class="material-symbols-outlined" aria-hidden="true">timer_off</span><HoverTooltip>{$t('clipTag.lyrics.clearStamp', { default: 'Clear timestamp' })}</HoverTooltip>
+    <button class="icon-button hover-tooltip-anchor" type="button" disabled={disabled || lines[selectedIndex]?.time === null} aria-label={$t('troubadour.lyrics.clearStamp', { default: 'Clear timestamp' })} on:click={() => updateLine(selectedIndex, { time: null })}>
+      <span class="material-symbols-outlined" aria-hidden="true">timer_off</span><HoverTooltip>{$t('troubadour.lyrics.clearStamp', { default: 'Clear timestamp' })}</HoverTooltip>
     </button>
     <span class="toolbar-separator" aria-hidden="true"></span>
-    <button class="icon-button hover-tooltip-anchor" type="button" disabled={disabled} aria-label={$t('clipTag.lyrics.addLine', { default: 'Add line' })} on:click={() => insertLine()}>
-      <span class="material-symbols-outlined" aria-hidden="true">playlist_add</span><HoverTooltip>{$t('clipTag.lyrics.addLine', { default: 'Add line' })}</HoverTooltip>
+    <button class="icon-button hover-tooltip-anchor" type="button" disabled={disabled} aria-label={$t('troubadour.lyrics.addLine', { default: 'Add line' })} on:click={() => insertLine()}>
+      <span class="material-symbols-outlined" aria-hidden="true">playlist_add</span><HoverTooltip>{$t('troubadour.lyrics.addLine', { default: 'Add line' })}</HoverTooltip>
     </button>
-    <button class="icon-button hover-tooltip-anchor" type="button" disabled={disabled} aria-label={$t('clipTag.lyrics.deleteLine', { default: 'Delete line' })} on:click={deleteLine}>
-      <span class="material-symbols-outlined" aria-hidden="true">delete</span><HoverTooltip>{$t('clipTag.lyrics.deleteLine', { default: 'Delete line' })}</HoverTooltip>
+    <button class="icon-button hover-tooltip-anchor" type="button" disabled={disabled} aria-label={$t('troubadour.lyrics.deleteLine', { default: 'Delete line' })} on:click={deleteLine}>
+      <span class="material-symbols-outlined" aria-hidden="true">delete</span><HoverTooltip>{$t('troubadour.lyrics.deleteLine', { default: 'Delete line' })}</HoverTooltip>
     </button>
-    <button class="icon-button hover-tooltip-anchor" type="button" disabled={disabled || timedCount < 2} aria-label={$t('clipTag.lyrics.sort', { default: 'Sort by timestamp' })} on:click={sortLines}>
-      <span class="material-symbols-outlined" aria-hidden="true">sort</span><HoverTooltip>{$t('clipTag.lyrics.sort', { default: 'Sort by timestamp' })}</HoverTooltip>
+    <button class="icon-button hover-tooltip-anchor" type="button" disabled={disabled || timedCount < 2} aria-label={$t('troubadour.lyrics.sort', { default: 'Sort by timestamp' })} on:click={sortLines}>
+      <span class="material-symbols-outlined" aria-hidden="true">sort</span><HoverTooltip>{$t('troubadour.lyrics.sort', { default: 'Sort by timestamp' })}</HoverTooltip>
     </button>
     <div class="toolbar-spacer"></div>
-    <span class="lyrics-count">{$t('clipTag.lyrics.stampedCount', { default: '{stamped}/{total} stamped', values: { stamped: timedCount, total: lines.length } })}</span>
-    <button class="icon-button hover-tooltip-anchor" type="button" disabled={disabled || !canSaveInPlace} aria-label={$t('clipTag.menu.saveInPlace', { default: 'Save' })} on:click={() => dispatch('saveInPlace')}>
-      <span class="material-symbols-outlined" aria-hidden="true">save</span><HoverTooltip>{$t('clipTag.menu.saveInPlace', { default: 'Save' })}</HoverTooltip>
-    </button>
-    <button class="icon-button hover-tooltip-anchor" type="button" disabled={disabled} aria-label={$t('clipTag.menu.saveAs', { default: 'Save as...' })} on:click={() => dispatch('saveAs')}>
-      <span class="material-symbols-outlined" aria-hidden="true">save_as</span><HoverTooltip>{$t('clipTag.menu.saveAs', { default: 'Save as...' })}</HoverTooltip>
-    </button>
+    <span class="lyrics-count">{$t('troubadour.lyrics.stampedCount', { default: '{stamped}/{total} stamped', values: { stamped: timedCount, total: lines.length } })}</span>
   </div>
 
-  <div bind:this={editorElement} class="lyrics-editor" class:is-disabled={disabled} role="grid" aria-label={$t('clipTag.lyrics.editor', { default: 'Timestamped lyrics editor' })}>
+  <div bind:this={editorElement} class="lyrics-editor" class:is-disabled={disabled} role="grid" aria-label={$t('troubadour.lyrics.editor', { default: 'Timestamped lyrics editor' })}>
     <div class="lyrics-grid-header" role="row">
       <span role="columnheader">#</span>
-      <span role="columnheader">{$t('clipTag.lyrics.timestamp', { default: 'Timestamp' })}</span>
-      <span role="columnheader">{$t('clipTag.lyrics.line', { default: 'Lyric line' })}</span>
+      <span role="columnheader">{$t('troubadour.lyrics.timestamp', { default: 'Timestamp' })}</span>
+      <span role="columnheader">{$t('troubadour.lyrics.line', { default: 'Lyric line' })}</span>
     </div>
     {#each lines as line, index}
       <div class="lyric-editor-row" class:selected={selectedIndex === index} class:active={activeIndex === index} data-line-index={index} role="row">
-        <button class="line-number" type="button" disabled={disabled} aria-label={line.time === null ? $t('clipTag.lyrics.selectLine', { default: 'Select line {number}', values: { number: index + 1 } }) : $t('clipTag.lyrics.seekToLine', { default: 'Seek to line {number}', values: { number: index + 1 } })} on:click={() => selectAndSeek(index)}>{index + 1}</button>
-        <input class="lyric-time-input" type="text" inputmode="decimal" value={line.time === null ? '' : formatLyricsTimestamp(line.time)} placeholder="--:--.---" disabled={disabled} aria-label={$t('clipTag.lyrics.timestampForLine', { default: 'Timestamp for line {number}', values: { number: index + 1 } })} on:focus={() => (selectedIndex = index)} on:change={(event) => handleTimestampChange(index, event)} />
-        <input class="lyric-text-input" type="text" value={line.text} placeholder={$t('clipTag.lyrics.linePlaceholder', { default: 'Enter lyric line' })} disabled={disabled} aria-label={$t('clipTag.lyrics.textForLine', { default: 'Lyrics for line {number}', values: { number: index + 1 } })} on:focus={() => (selectedIndex = index)} on:input={(event) => updateLine(index, { text: event.currentTarget.value })} on:keydown={(event) => handleTextKeydown(index, event)} />
+        <button class="line-number" type="button" disabled={disabled} aria-label={line.time === null ? $t('troubadour.lyrics.selectLine', { default: 'Select line {number}', values: { number: index + 1 } }) : $t('troubadour.lyrics.seekToLine', { default: 'Seek to line {number}', values: { number: index + 1 } })} on:click={() => selectAndSeek(index)}>{index + 1}</button>
+        <input class="lyric-time-input" type="text" inputmode="decimal" value={line.time === null ? '' : formatLyricsTimestamp(line.time)} placeholder="--:--.---" disabled={disabled} aria-label={$t('troubadour.lyrics.timestampForLine', { default: 'Timestamp for line {number}', values: { number: index + 1 } })} on:focus={() => (selectedIndex = index)} on:change={(event) => handleTimestampChange(index, event)} />
+        <input class="lyric-text-input" type="text" value={line.text} placeholder={$t('troubadour.lyrics.linePlaceholder', { default: 'Enter lyric line' })} disabled={disabled} aria-label={$t('troubadour.lyrics.textForLine', { default: 'Lyrics for line {number}', values: { number: index + 1 } })} on:focus={() => (selectedIndex = index)} on:input={(event) => updateLine(index, { text: event.currentTarget.value })} on:keydown={(event) => handleTextKeydown(index, event)} />
       </div>
     {/each}
   </div>
@@ -202,27 +195,27 @@
   <div class="lyrics-player-bar player-bar compact-player-bar">
     <div class="player-track-group">
       <div class="player-track">
-        <strong>{trackTitle || $t('clipTag.tabs.lyrics', { default: 'Lyrics' })}</strong>
-        <span>{$t('clipTag.lyrics.stampedCount', { default: '{stamped}/{total} stamped', values: { stamped: timedCount, total: lines.length } })}</span>
+        <strong>{trackTitle || $t('troubadour.lyrics.noTrack', { default: 'Select one track' })}</strong>
+        <span>{previewError || $t('troubadour.lyrics.stampedCount', { default: '{stamped}/{total} stamped', values: { stamped: timedCount, total: lines.length } })}</span>
       </div>
     </div>
     <div class="player-range">
       <span>{formatDuration(currentTime)}</span>
       <div class="range-control" style={rangeProgressStyle}>
         <span class="range-control-fill" aria-hidden="true"></span>
-        <input type="range" min="0" max={Math.max(duration, 0.001)} step="0.001" value={Math.min(currentTime, duration)} disabled={disabled} aria-label={$t('clipTag.lyrics.position', { default: 'Playback position' })} on:input={(event) => dispatch('seek', Number(event.currentTarget.value))} />
+        <input type="range" min="0" max={Math.max(duration, 0.001)} step="0.001" value={Math.min(currentTime, duration)} disabled={disabled || playbackDisabled} aria-label={$t('troubadour.lyrics.position', { default: 'Playback position' })} on:input={(event) => dispatch('seek', Number(event.currentTarget.value))} />
       </div>
       <span>{formatDuration(duration)}</span>
     </div>
     <div class="player-control-strip">
       <div class="player-actions">
-        <button class="transport-button" type="button" disabled={disabled} aria-label={$t('clipTag.lyrics.backFive', { default: 'Back 5 seconds' })} on:click={() => dispatch('seek', Math.max(0, getCurrentTime() - 5))}>
+        <button class="transport-button" type="button" disabled={disabled || playbackDisabled} aria-label={$t('troubadour.lyrics.backFive', { default: 'Back 5 seconds' })} on:click={() => dispatch('seek', Math.max(0, getCurrentTime() - 5))}>
           <span class="material-symbols-outlined" aria-hidden="true">replay_5</span>
         </button>
-        <button class="transport-button transport-button-primary" type="button" disabled={disabled} aria-label={playing ? $t('clipTag.lyrics.pause', { default: 'Pause' }) : $t('clipTag.lyrics.play', { default: 'Play' })} on:click={() => dispatch('togglePlayback')}>
+        <button class="transport-button transport-button-primary" type="button" disabled={disabled || playbackDisabled} aria-label={playing ? $t('troubadour.lyrics.pause', { default: 'Pause' }) : $t('troubadour.lyrics.play', { default: 'Play' })} on:click={() => dispatch('togglePlayback')}>
           <span class="material-symbols-outlined" aria-hidden="true">{playing ? 'pause' : 'play_arrow'}</span>
         </button>
-        <button class="transport-button" type="button" disabled={disabled} aria-label={$t('clipTag.lyrics.forwardFive', { default: 'Forward 5 seconds' })} on:click={() => dispatch('seek', Math.min(duration, getCurrentTime() + 5))}>
+        <button class="transport-button" type="button" disabled={disabled || playbackDisabled} aria-label={$t('troubadour.lyrics.forwardFive', { default: 'Forward 5 seconds' })} on:click={() => dispatch('seek', Math.min(duration, getCurrentTime() + 5))}>
           <span class="material-symbols-outlined" aria-hidden="true">forward_5</span>
         </button>
       </div>

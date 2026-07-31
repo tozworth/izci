@@ -94,7 +94,7 @@ function getPopupTitle(id: PopupWindowId): string {
   const titles: Record<PopupWindowId, string> = {
     audioCompare: 'izci Audio Compare',
     options: 'izci Options',
-    clipTag: 'izci Edit and Tag',
+    editor: 'izci Editor',
     converter: 'izci Converter',
     troubadour: 'izci Troubadour',
     troubadourOptions: 'izci Troubadour Options'

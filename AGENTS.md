@@ -49,7 +49,7 @@
 - `src/lib/i18n/`: English source catalog, Turkish translations, and localization runtime. Follow its README workflow when interface copy changes.
 - `src/lib/utils/`: stateless shared helpers.
 - `src/options/`: separate Options Vite/Svelte entrypoint and settings UI. Options edits stores; it does not own audio nodes or main-window library mutation.
-- `src/tools/`: standalone Audio Compare, Edit & Tag, Converter, Loudness, and Spectrogram window entrypoints, UI, and feature-local processing; `tool-shell.css` supplies their shared desktop-window styling.
+- `src/tools/`: standalone Audio Compare, Editor, Converter, Loudness, and Spectrogram window entrypoints, UI, and feature-local processing; `tool-shell.css` supplies their shared desktop-window styling.
 - `src/lib/types.ts`: shared domain types and canonical internally supported extensions.
 - `vite.config.ts`: build/PWA configuration, manifest/file handlers, and Chiptune3 worklet emission.
 - `public/`: icons and other static assets.
@@ -93,10 +93,10 @@
 
 ## Tools windows
 
-- Tools are separate Vite pages entered through `audio-compare.html`, `clip-tag.html`, `converter.html`, and `troubadour.html`; each page mounts its matching app under `src/tools/<tool>/main.ts`. Loudness and Spectrogram are Troubadour workbench tabs rather than separate pages.
+- Tools are separate Vite pages entered through `audio-compare.html`, `editor.html`, `converter.html`, and `troubadour.html`; each page mounts its matching app under `src/tools/<tool>/main.ts`. Lyrics, Loudness, and Spectrogram are Troubadour workbench tabs rather than separate pages.
 - `TopMenuBar.svelte` owns main-window Tools menu presentation. Window paths and default dimensions belong in `src/lib/services/popup-windows.ts`; opening/reuse behavior stays in `window-manager.ts`.
 - Keep each tool's analysis, workers, exports, and tests in its `src/tools/<tool>/` directory. Adding or removing a tool page also requires updating the multi-page inputs and PWA navigation fallback denylist in `vite.config.ts`.
-- Troubadour is a transient metadata, artwork, album-grouping, and rename workbench; its controller owns workbench state and jobs, its settings live separately from main-player settings, and it must not directly mutate playlist or library persistence.
+- Troubadour is a transient metadata, artwork, timestamped-lyrics, album-grouping, and rename workbench; its controller owns workbench state and jobs, its settings live separately from main-player settings, and it must not directly mutate playlist or library persistence.
 - `troubadour-options.html` hosts Troubadour's dedicated Options view, while shared metadata readers and writers remain outside Troubadour for reuse by other tools.
 
 ## Imports, PWA, and browser integration

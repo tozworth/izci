@@ -201,7 +201,7 @@ Troubadour needs a shared normalized metadata model with:
 - Targeted artwork edits
 - Separate per-file document and job states
 
-Reuse and harden the existing izci metadata/tagging work rather than creating a third independent writer. Edit & Tag, Loudness, and Troubadour should share format adapters and preservation rules where their responsibilities overlap.
+Reuse and harden the existing izci metadata/tagging work rather than creating another independent writer. Editor exports, Loudness, and Troubadour should share format adapters and preservation rules where their responsibilities overlap.
 
 Every in-place write follows this contract:
 

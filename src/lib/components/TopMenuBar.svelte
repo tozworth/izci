@@ -24,7 +24,7 @@
     | 'forceUpdate'
     | 'openAbout'
     | 'openAudioCompare'
-    | 'openClipTag'
+    | 'openEditor'
     | 'openConverter'
     | 'openTroubadour'
     | 'showPlaylist'
@@ -128,8 +128,8 @@
       icon: 'compare_arrows'
     },
     {
-      id: 'openClipTag',
-      label: $t('main.menu.clipAndTag', { default: 'Edit and Tag...' }),
+      id: 'openEditor',
+      label: $t('main.menu.editor', { default: 'Editor...' }),
       icon: 'content_cut'
     },
     {
@@ -168,7 +168,7 @@
     forceUpdate: void;
     openAbout: void;
     openAudioCompare: void;
-    openClipTag: void;
+    openEditor: void;
     openConverter: void;
     openTroubadour: void;
     showPlaylist: void;

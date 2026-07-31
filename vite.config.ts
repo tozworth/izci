@@ -19,7 +19,7 @@ export default defineConfig({
         main: fileURLToPath(new URL('./index.html', import.meta.url)),
         options: fileURLToPath(new URL('./options.html', import.meta.url)),
         audioCompare: fileURLToPath(new URL('./audio-compare.html', import.meta.url)),
-        clipTag: fileURLToPath(new URL('./clip-tag.html', import.meta.url)),
+        editor: fileURLToPath(new URL('./editor.html', import.meta.url)),
         converter: fileURLToPath(new URL('./converter.html', import.meta.url)),
         troubadour: fileURLToPath(new URL('./troubadour.html', import.meta.url)),
         troubadourOptions: fileURLToPath(new URL('./troubadour-options.html', import.meta.url))
@@ -119,7 +119,7 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,woff2,mem,wasm,txt}'],
         navigateFallbackDenylist: [
-          /^\/(?:options|audio-compare|clip-tag|converter|troubadour|troubadour-options)\.html(?:\?|$)/
+          /^\/(?:options|audio-compare|editor|converter|troubadour|troubadour-options)\.html(?:\?|$)/
         ],
         ignoreURLParametersMatching: [/^utm_/, /^fbclid$/, /^view$/],
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024

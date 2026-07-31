@@ -1231,7 +1231,7 @@
     on:forceUpdate={() => void handleForceUpdate()}
     on:openAbout={handleOpenAbout}
     on:openAudioCompare={() => windowManager.openPopup('audioCompare')}
-    on:openClipTag={() => windowManager.openPopup('clipTag')}
+    on:openEditor={() => windowManager.openPopup('editor')}
     on:openConverter={() => windowManager.openPopup('converter')}
     on:openTroubadour={() => windowManager.openPopup('troubadour')}
     on:showPlaylist={showPlaylist}
