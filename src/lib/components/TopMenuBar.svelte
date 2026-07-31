@@ -15,7 +15,7 @@
   import { formatDisplayVersion } from '$lib/utils/version';
   import type { OptionsViewName } from '../../options/views';
 
-  type MenuId = 'app' | 'file' | 'tools' | 'view' | 'video' | 'help';
+  type MenuId = 'app' | 'file' | 'view' | 'video' | 'help';
   type DispatchedMenuActionId =
     | 'openFiles'
     | 'openFolder'
@@ -91,36 +91,10 @@
       children: loadoutMenuItems
     },
     {
-      id: 'openAbout',
-      label: $t('main.menu.about', { default: 'About' }),
-      icon: 'info'
-    },
-    {
-      id: 'exit',
-      label: $t('main.menu.exit', { default: 'Exit' }),
-      icon: 'logout',
-      shortcut: 'Ctrl+Q',
-      separatorBefore: true
-    }
-  ] satisfies MenuActionItem[];
-  $: fileMenuItems = [
-    {
-      id: 'openFiles',
-      label: $t('main.menu.openFiles', { default: 'Open files...' }),
-      icon: 'file_open',
-      shortcut: 'Ctrl+O'
-    },
-    {
-      id: 'openFolder',
-      label: $t('main.menu.openFolder', { default: 'Open folder...' }),
-      icon: 'folder_open'
-    }
-  ] satisfies MenuActionItem[];
-  $: toolsMenuItems = [
-    {
       id: 'openTroubadour',
       label: $t('main.menu.troubadour', { default: 'Troubadour...' }),
-      icon: 'library_music'
+      icon: 'library_music',
+      separatorBefore: true
     },
     {
       id: 'openAudioCompare',
@@ -136,6 +110,31 @@
       id: 'openConverter',
       label: $t('main.menu.converter', { default: 'Converter...' }),
       icon: 'sync_alt'
+    },
+    {
+      id: 'openAbout',
+      label: $t('main.menu.about', { default: 'About' }),
+      icon: 'info',
+      separatorBefore: true
+    },
+    {
+      id: 'exit',
+      label: $t('main.menu.exit', { default: 'Exit' }),
+      icon: 'logout',
+      shortcut: 'Ctrl+Q'
+    }
+  ] satisfies MenuActionItem[];
+  $: fileMenuItems = [
+    {
+      id: 'openFiles',
+      label: $t('main.menu.openFiles', { default: 'Open files...' }),
+      icon: 'file_open',
+      shortcut: 'Ctrl+O'
+    },
+    {
+      id: 'openFolder',
+      label: $t('main.menu.openFolder', { default: 'Open folder...' }),
+      icon: 'folder_open'
     }
   ] satisfies MenuActionItem[];
   $: helpMenuItems = [
@@ -194,7 +193,6 @@
   let compactMenuTriggerElement: HTMLButtonElement | null = null;
   let appMenuTriggerElement: HTMLButtonElement | null = null;
   let fileMenuTriggerElement: HTMLButtonElement | null = null;
-  let toolsMenuTriggerElement: HTMLButtonElement | null = null;
   let viewMenuTriggerElement: HTMLButtonElement | null = null;
   let videoMenuTriggerElement: HTMLButtonElement | null = null;
   let helpMenuTriggerElement: HTMLButtonElement | null = null;
@@ -296,12 +294,6 @@
       icon: 'folder',
       separatorBefore: true,
       children: fileMenuItems
-    },
-    {
-      id: 'tools',
-      label: $t('main.menu.tools', { default: 'Tools' }),
-      icon: 'construction',
-      children: toolsMenuItems
     },
     {
       id: 'view',
@@ -490,10 +482,6 @@
       return fileMenuTriggerElement;
     }
 
-    if (menuId === 'tools') {
-      return toolsMenuTriggerElement;
-    }
-
     if (menuId === 'view') {
       return viewMenuTriggerElement;
     }
@@ -645,33 +633,6 @@
             x={menuPopupX}
             y={menuPopupY}
             ariaLabel={$t('main.menu.file', { default: 'File' })}
-            activateOnPointerUpPointerId={menubarPressPointerId}
-            on:action={(event) => runMenuAction(event.detail as MenuActionId)}
-            on:dismiss={closeMenus}
-          />
-        {/if}
-      </div>
-
-      <div class="menu-root" role="none" on:pointerenter={() => handleMenuHover('tools')}>
-        <button
-          bind:this={toolsMenuTriggerElement}
-          class:active={activeMenu === 'tools'}
-          class="menu-trigger"
-          data-menu-interactive="true"
-          type="button"
-          aria-haspopup="menu"
-          aria-expanded={activeMenu === 'tools'}
-          on:pointerdown={(event) => handleRootPointerDown(event, 'tools')}
-          on:click={() => handleRootClick('tools')}
-        >
-          {$t('main.menu.tools', { default: 'Tools' })}
-        </button>
-        {#if activeMenu === 'tools'}
-          <MenuSurface
-            items={toolsMenuItems}
-            x={menuPopupX}
-            y={menuPopupY}
-            ariaLabel={$t('main.menu.tools', { default: 'Tools' })}
             activateOnPointerUpPointerId={menubarPressPointerId}
             on:action={(event) => runMenuAction(event.detail as MenuActionId)}
             on:dismiss={closeMenus}
