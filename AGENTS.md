@@ -49,6 +49,7 @@
 - `src/lib/i18n/`: English source catalog, Turkish translations, and localization runtime. Follow its README workflow when interface copy changes.
 - `src/lib/utils/`: stateless shared helpers.
 - `src/options/`: separate Options Vite/Svelte entrypoint and settings UI. Options edits stores; it does not own audio nodes or main-window library mutation.
+- `src/tools/`: standalone Audio Compare, Edit & Tag, Converter, Loudness, and Spectrogram window entrypoints, UI, and feature-local processing; `tool-shell.css` supplies their shared desktop-window styling.
 - `src/lib/types.ts`: shared domain types and canonical internally supported extensions.
 - `vite.config.ts`: build/PWA configuration, manifest/file handlers, and Chiptune3 worklet emission.
 - `public/`: icons and other static assets.
@@ -89,6 +90,12 @@
 - Artwork loading, cleanup, palette/brightness analysis, and presentation side effects remain transient and service-owned.
 - Window Controls Overlay state comes from `window-controls-overlay.ts`; components must react to live geometry/visibility rather than assuming overlay mode.
 - Popup definitions belong in `popup-windows.ts`; popup behavior belongs in `window-manager.ts` or a focused service.
+
+## Tools windows
+
+- Tools are separate Vite pages entered through `audio-compare.html`, `clip-tag.html`, `converter.html`, `loudness.html`, and `spectrogram.html`; each page mounts its matching app under `src/tools/<tool>/main.ts`.
+- `TopMenuBar.svelte` owns main-window Tools menu presentation. Window paths and default dimensions belong in `src/lib/services/popup-windows.ts`; opening/reuse behavior stays in `window-manager.ts`.
+- Keep each tool's analysis, workers, exports, and tests in its `src/tools/<tool>/` directory. Adding or removing a tool page also requires updating the multi-page inputs and PWA navigation fallback denylist in `vite.config.ts`.
 
 ## Imports, PWA, and browser integration
 
