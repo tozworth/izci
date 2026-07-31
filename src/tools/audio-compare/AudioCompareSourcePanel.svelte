@@ -25,6 +25,7 @@
   const dispatch = createEventDispatcher<{
     activate: void;
     open: void;
+    contextMenu: MouseEvent;
     selection: { start: number; end: number };
     seek: number;
     toggleInvert: void;
@@ -57,7 +58,16 @@
   }
 </script>
 
-<section class="source-panel" class:active class:drag-active={dragActive} data-source={id} role="group" aria-label={$t('audioCompare.sourceGroup', { default: 'Comparison source {source}', values: { source: sourceLabel } })} on:pointerdown={() => dispatch('activate')}>
+<section
+  class="source-panel"
+  class:active
+  class:drag-active={dragActive}
+  data-source={id}
+  role="group"
+  aria-label={$t('audioCompare.sourceGroup', { default: 'Comparison source {source}', values: { source: sourceLabel } })}
+  on:pointerdown={() => dispatch('activate')}
+  on:contextmenu|preventDefault|stopPropagation={(event) => dispatch('contextMenu', event)}
+>
   <header>
     <span class="source-badge">{sourceLabel}</span>
     <div class="source-identity">

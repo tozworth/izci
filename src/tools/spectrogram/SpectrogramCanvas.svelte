@@ -1,10 +1,12 @@
 <script lang="ts">
-  import { onDestroy, onMount } from 'svelte';
+  import { createEventDispatcher, onDestroy, onMount } from 'svelte';
   import { t } from 'svelte-i18n';
   import type { SpectrogramAnalysis } from './spectrogram-analyzer';
 
   export let analysis: SpectrogramAnalysis;
   export let floorDb = -120;
+
+  const dispatch = createEventDispatcher<{ contextMenu: MouseEvent }>();
 
   const LEFT = 55;
   const RIGHT = 64;
@@ -217,7 +219,12 @@
   }
 </script>
 
-<div bind:this={host} class="spectrogram-canvas-host">
+<!-- svelte-ignore a11y_no_static_element_interactions -->
+<div
+  bind:this={host}
+  class="spectrogram-canvas-host"
+  on:contextmenu|preventDefault={(event) => dispatch('contextMenu', event)}
+>
   <canvas
     bind:this={canvas}
     aria-label={$t('spectrogram.graphLabel', { default: 'Audio spectrogram: time from left to right, frequency from bottom to top, and color showing level in dBFS' })}

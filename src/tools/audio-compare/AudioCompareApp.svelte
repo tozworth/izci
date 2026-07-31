@@ -2,6 +2,7 @@
   import { onDestroy, onMount } from 'svelte';
   import { t } from 'svelte-i18n';
   import HoverTooltip from '$lib/components/HoverTooltip.svelte';
+  import MenuSurface from '$lib/components/MenuSurface.svelte';
   import TabStrip from '$lib/components/TabStrip.svelte';
   import {
     AudioComparisonEngine,
@@ -14,9 +15,10 @@
   } from '$lib/services/audio-comparison';
   import { listenForCurrentToolTrack } from '$lib/services/tool-track-context';
   import { windowManager } from '$lib/services/window-manager';
-  import { MODULE_EXTENSIONS, STREAM_EXTENSIONS } from '$lib/types';
+  import { MODULE_EXTENSIONS, STREAM_EXTENSIONS, type MenuActionItem } from '$lib/types';
   import { inferExtension } from '$lib/utils/files';
   import { loadAudioFile, type AudioLoadProgress } from '../clip-tag/clip-audio';
+  import { MAX_WAVEFORM_ZOOM } from '../clip-tag/waveform-viewport';
   import { analyzeAudioBufferLoudness } from '../loudness/loudness-analyzer';
   import AudioCompareMenuBar from './AudioCompareMenuBar.svelte';
   import AudioCompareSourcePanel from './AudioCompareSourcePanel.svelte';
@@ -88,6 +90,10 @@
   let noticeMessage = '';
   let animationFrame = 0;
   let loadTokens: Record<ComparisonSourceId, number> = { a: 0, b: 0 };
+  let contextMenuSource: ComparisonSourceId | null = null;
+  let abxContextMenuOpen = false;
+  let contextMenuX = 0;
+  let contextMenuY = 0;
 
   let abxTrialCount = 10;
   let abxTarget: ComparisonSourceId | null = null;
@@ -117,9 +123,281 @@
       : $t('audioCompare.emptyHint', { default: 'Open two audio files for synchronized comparison.' }));
   $: fileSummary = [sourceA.file?.name, sourceB.file?.name].filter(Boolean).join('  ↔  ');
   $: score = abxResults.filter((result) => result.correct).length;
+  $: contextMenuItems = contextMenuSource ? buildSourceContextMenu(contextMenuSource) : [];
+  $: abxContextMenuItems = buildAbxContextMenu(
+    abxTrialCount,
+    abxAudition,
+    Boolean(abxTarget),
+    playing,
+    loopEnabled,
+    gainMatchEnabled,
+    abxResults.length,
+    abxComplete,
+    canCompare,
+    canPlay
+  );
 
   function getSource(id: ComparisonSourceId): CompareSource {
     return id === 'a' ? sourceA : sourceB;
+  }
+
+  function buildSourceContextMenu(id: ComparisonSourceId): MenuActionItem[] {
+    const source = getSource(id);
+    const sourceLabel = id.toUpperCase();
+    const sourceZoom = id === 'a' ? zoomA : zoomB;
+    return [
+      {
+        id: 'open',
+        label: $t('audioCompare.replaceSource', {
+          default: 'Open or replace source {source}',
+          values: { source: sourceLabel }
+        }),
+        icon: 'file_open'
+      },
+      {
+        id: 'audition',
+        label: id === 'a'
+          ? $t('audioCompare.auditionA', { default: 'Listen to A' })
+          : $t('audioCompare.auditionB', { default: 'Listen to B' }),
+        icon: comparisonMode === id ? 'check' : id === 'a' ? 'looks_one' : 'looks_two',
+        disabled: !source.buffer,
+        separatorBefore: true
+      },
+      {
+        id: 'playPause',
+        label: playing
+          ? $t('audioCompare.pause', { default: 'Pause' })
+          : $t('audioCompare.play', { default: 'Play' }),
+        icon: playing ? 'pause' : 'play_arrow',
+        shortcut: 'Space',
+        disabled: !canPlay
+      },
+      {
+        id: 'stop',
+        label: $t('audioCompare.stop', { default: 'Stop' }),
+        icon: 'stop',
+        disabled: !canPlay
+      },
+      {
+        id: 'selectAll',
+        label: $t('clipTag.menu.selectAll', { default: 'Select all' }),
+        icon: 'select_all',
+        shortcut: 'Ctrl+A',
+        disabled: !canPlay,
+        separatorBefore: true
+      },
+      {
+        id: 'zoom',
+        label: $t('clipTag.edit.zoom', { default: 'Zoom' }),
+        icon: 'zoom_in',
+        disabled: !source.buffer,
+        children: [
+          {
+            id: 'zoomIn',
+            label: $t('clipTag.clip.zoomIn', { default: 'Zoom in' }),
+            icon: 'zoom_in',
+            disabled: sourceZoom >= MAX_WAVEFORM_ZOOM
+          },
+          {
+            id: 'zoomOut',
+            label: $t('clipTag.clip.zoomOut', { default: 'Zoom out' }),
+            icon: 'zoom_out',
+            disabled: sourceZoom <= 1
+          },
+          {
+            id: 'fit',
+            label: $t('clipTag.clip.fitWaveform', { default: 'Fit waveform (Ctrl+wheel to zoom)' }),
+            icon: 'fit_screen',
+            disabled: sourceZoom <= 1,
+            separatorBefore: true
+          }
+        ]
+      },
+      {
+        id: 'invert',
+        label: $t('audioCompare.invertPolarity', { default: 'Invert polarity' }),
+        icon: 'swap_vert',
+        checked: source.inverted,
+        disabled: !source.buffer,
+        separatorBefore: true
+      },
+      {
+        id: 'swap',
+        label: $t('audioCompare.swapChannels', { default: 'Swap L/R' }),
+        icon: 'swap_horiz',
+        checked: source.channelsSwapped,
+        disabled: !source.buffer || source.buffer.numberOfChannels !== 2
+      },
+      {
+        id: 'loop',
+        label: $t('audioCompare.loopSelection', { default: 'Loop selection' }),
+        icon: loopEnabled ? 'repeat_on' : 'repeat',
+        checked: loopEnabled,
+        disabled: !canPlay,
+        separatorBefore: true
+      },
+      {
+        id: 'gainMatch',
+        label: $t('audioCompare.loudnessMatch', { default: 'Loudness match' }),
+        icon: 'balance',
+        checked: gainMatchEnabled,
+        disabled: !canCompare
+      },
+      {
+        id: 'crossfade',
+        label: $t('audioCompare.crossfade', { default: 'Switch fade' }),
+        icon: 'linear_scale',
+        children: [0, 25, 50, 100, 250].map((milliseconds) => ({
+          id: `crossfade:${milliseconds}`,
+          label: `${milliseconds} ms`,
+          icon: crossfadeMs === milliseconds ? 'radio_button_checked' : 'radio_button_unchecked'
+        }))
+      }
+    ];
+  }
+
+  function openSourceContextMenu(event: MouseEvent, id: ComparisonSourceId): void {
+    activeSource = id;
+    abxContextMenuOpen = false;
+    contextMenuSource = id;
+    contextMenuX = event.clientX;
+    contextMenuY = event.clientY;
+  }
+
+  function setSourceZoom(id: ComparisonSourceId, value: number): void {
+    const nextZoom = Math.max(1, Math.min(MAX_WAVEFORM_ZOOM, value));
+    if (id === 'a') {
+      zoomA = nextZoom;
+      if (nextZoom === 1) scrollA = 0;
+    } else {
+      zoomB = nextZoom;
+      if (nextZoom === 1) scrollB = 0;
+    }
+  }
+
+  function runSourceContextAction(action: string): void {
+    const id = contextMenuSource;
+    contextMenuSource = null;
+    if (!id) return;
+    if (action === 'open') void chooseSource(id);
+    else if (action === 'audition') setComparisonMode(id);
+    else if (action === 'playPause') void togglePlayback();
+    else if (action === 'stop') stopPlayback();
+    else if (action === 'selectAll') updateSelection(0, comparisonDuration);
+    else if (action === 'invert') toggleTransform(id, 'inverted');
+    else if (action === 'swap') toggleTransform(id, 'channelsSwapped');
+    else if (action === 'loop') toggleLoop();
+    else if (action === 'gainMatch') toggleGainMatch();
+    else if (action === 'zoomIn') setSourceZoom(id, (id === 'a' ? zoomA : zoomB) * 2);
+    else if (action === 'zoomOut') setSourceZoom(id, (id === 'a' ? zoomA : zoomB) / 2);
+    else if (action === 'fit') setSourceZoom(id, 1);
+    else if (action.startsWith('crossfade:')) updateCrossfade(Number(action.slice(10)));
+  }
+
+  function buildAbxContextMenu(
+    trialCount: number,
+    audition: AbxAudition,
+    sessionRunning: boolean,
+    isPlaying: boolean,
+    loops: boolean,
+    matchesGain: boolean,
+    resultCount: number,
+    sessionComplete: boolean,
+    sourcesReady: boolean,
+    playable: boolean
+  ): MenuActionItem[] {
+    return [
+      {
+        id: 'startSession',
+        label: sessionRunning || resultCount > 0 || sessionComplete
+          ? $t('audioCompare.abx.restart', { default: 'Restart session' })
+          : $t('audioCompare.abx.start', { default: 'Start session' }),
+        icon: 'quiz',
+        disabled: !sourcesReady
+      },
+      {
+        id: 'auditionA',
+        label: $t('audioCompare.auditionA', { default: 'Listen to A' }),
+        icon: audition === 'a' ? 'radio_button_checked' : 'looks_one',
+        disabled: !sourcesReady,
+        separatorBefore: true
+      },
+      {
+        id: 'auditionB',
+        label: $t('audioCompare.auditionB', { default: 'Listen to B' }),
+        icon: audition === 'b' ? 'radio_button_checked' : 'looks_two',
+        disabled: !sourcesReady
+      },
+      {
+        id: 'auditionX',
+        label: $t('audioCompare.abx.unknown', { default: 'Unknown' }),
+        icon: audition === 'x' ? 'radio_button_checked' : 'question_mark',
+        disabled: !sessionRunning
+      },
+      {
+        id: 'playPause',
+        label: isPlaying
+          ? $t('audioCompare.pause', { default: 'Pause' })
+          : $t('audioCompare.play', { default: 'Play' }),
+        icon: isPlaying ? 'pause' : 'play_arrow',
+        shortcut: 'Space',
+        disabled: !playable,
+        separatorBefore: true
+      },
+      {
+        id: 'stop',
+        label: $t('audioCompare.stop', { default: 'Stop' }),
+        icon: 'stop',
+        disabled: !playable
+      },
+      {
+        id: 'trials',
+        label: $t('audioCompare.abx.trials', { default: 'Trials' }),
+        icon: 'format_list_numbered',
+        disabled: sessionRunning,
+        separatorBefore: true,
+        children: [5, 10, 20].map((count) => ({
+          id: `trials:${count}`,
+          label: String(count),
+          icon: trialCount === count ? 'radio_button_checked' : 'radio_button_unchecked'
+        }))
+      },
+      {
+        id: 'loop',
+        label: $t('audioCompare.loopSelection', { default: 'Loop selection' }),
+        icon: loops ? 'repeat_on' : 'repeat',
+        checked: loops,
+        disabled: !playable,
+        separatorBefore: true
+      },
+      {
+        id: 'gainMatch',
+        label: $t('audioCompare.loudnessMatch', { default: 'Loudness match' }),
+        icon: 'balance',
+        checked: matchesGain,
+        disabled: !sourcesReady
+      }
+    ];
+  }
+
+  function openAbxContextMenu(event: MouseEvent): void {
+    contextMenuSource = null;
+    abxContextMenuOpen = true;
+    contextMenuX = event.clientX;
+    contextMenuY = event.clientY;
+  }
+
+  function runAbxContextAction(action: string): void {
+    abxContextMenuOpen = false;
+    if (action === 'startSession') startAbxSession();
+    else if (action === 'auditionA') setAbxAudition('a');
+    else if (action === 'auditionB') setAbxAudition('b');
+    else if (action === 'auditionX') setAbxAudition('x');
+    else if (action === 'playPause') void togglePlayback();
+    else if (action === 'stop') stopPlayback();
+    else if (action === 'loop') toggleLoop();
+    else if (action === 'gainMatch') toggleGainMatch();
+    else if (action.startsWith('trials:')) abxTrialCount = Number(action.slice(7));
   }
 
   function setSource(id: ComparisonSourceId, source: CompareSource): void {
@@ -553,6 +831,7 @@
         bind:scrollStart={scrollA}
         on:activate={() => activeSource = 'a'}
         on:open={() => void chooseSource('a')}
+        on:contextMenu={(event) => openSourceContextMenu(event.detail, 'a')}
         on:selection={(event) => updateSelection(event.detail.start, event.detail.end)}
         on:seek={(event) => seek(event.detail)}
         on:toggleInvert={() => toggleTransform('a', 'inverted')}
@@ -578,6 +857,7 @@
         bind:scrollStart={scrollB}
         on:activate={() => activeSource = 'b'}
         on:open={() => void chooseSource('b')}
+        on:contextMenu={(event) => openSourceContextMenu(event.detail, 'b')}
         on:selection={(event) => updateSelection(event.detail.start, event.detail.end)}
         on:seek={(event) => seek(event.detail)}
         on:toggleInvert={() => toggleTransform('b', 'inverted')}
@@ -594,7 +874,8 @@
         <button class="text-button primary" type="button" disabled={!canCompare} on:click={startAbxSession}>{abxTarget || abxResults.length > 0 || abxComplete ? $t('audioCompare.abx.restart', { default: 'Restart session' }) : $t('audioCompare.abx.start', { default: 'Start session' })}</button>
       </section>
 
-      <section class="abx-console">
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <section class="abx-console" on:contextmenu|preventDefault={openAbxContextMenu}>
         {#if !canCompare}
           <div class="abx-empty"><span class="material-symbols-outlined" aria-hidden="true">quiz</span><strong>{$t('audioCompare.abx.needSources', { default: 'Two sources are required' })}</strong><span>{$t('audioCompare.abx.needSourcesHint', { default: 'Load A and B in the Compare tab first.' })}</span></div>
         {:else if !abxTarget && !abxComplete}
@@ -626,6 +907,33 @@
         </div>
       </section>
     </main>
+  {/if}
+
+  {#if contextMenuSource}
+    <MenuSurface
+      items={contextMenuItems}
+      x={contextMenuX}
+      y={contextMenuY}
+      ariaLabel={$t('audioCompare.sourceGroup', {
+        default: 'Comparison source {source}',
+        values: { source: contextMenuSource.toUpperCase() }
+      })}
+      enableOverflowSubmenuFallback
+      on:action={(event) => runSourceContextAction(event.detail)}
+      on:dismiss={() => (contextMenuSource = null)}
+    />
+  {/if}
+
+  {#if abxContextMenuOpen}
+    <MenuSurface
+      items={abxContextMenuItems}
+      x={contextMenuX}
+      y={contextMenuY}
+      ariaLabel={$t('audioCompare.tabs.abx', { default: 'Blind ABX' })}
+      enableOverflowSubmenuFallback
+      on:action={(event) => runAbxContextAction(event.detail)}
+      on:dismiss={() => (abxContextMenuOpen = false)}
+    />
   {/if}
 
   <footer class="tool-status-bar" class:error={Boolean(errorMessage)}>

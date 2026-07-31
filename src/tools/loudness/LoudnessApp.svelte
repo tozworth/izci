@@ -2,7 +2,8 @@
   import { onMount } from 'svelte';
   import { t } from 'svelte-i18n';
   import HoverTooltip from '$lib/components/HoverTooltip.svelte';
-  import { STREAM_EXTENSIONS } from '$lib/types';
+  import MenuSurface from '$lib/components/MenuSurface.svelte';
+  import { STREAM_EXTENSIONS, type MenuActionItem } from '$lib/types';
   import { inferExtension } from '$lib/utils/files';
   import { listenForCurrentToolTrack } from '$lib/services/tool-track-context';
   import {
@@ -57,6 +58,9 @@
   let message = '';
   let errorMessage = '';
   let abortController: AbortController | null = null;
+  let contextMenuRowId: string | null = null;
+  let contextMenuX = 0;
+  let contextMenuY = 0;
 
   $: selectedRows = rows.filter((row) => row.selected);
   $: analyzedSelectedRows = selectedRows.filter((row) => row.analysis && row.state !== 'analyzing');
@@ -68,6 +72,7 @@
   $: effectiveTargetLufs = Number.isFinite(targetLufs)
     ? Math.min(-5, Math.max(-30, targetLufs))
     : DEFAULT_REPLAYGAIN_TARGET_LUFS;
+  $: contextMenuItems = contextMenuRowId ? buildRowContextMenu() : [];
 
   function makeRow(file: File, handle: FileSystemFileHandle | null, path: string): LoudnessRow {
     return {
@@ -203,6 +208,113 @@
 
   function setAllSelected(selected: boolean): void {
     rows = rows.map((row) => ({ ...row, selected }));
+  }
+
+  function buildRowContextMenu(): MenuActionItem[] {
+    const row = rows.find((candidate) => candidate.id === contextMenuRowId);
+    return [
+      {
+        id: 'analyze',
+        label: $t('loudness.analyzeSelected', { default: 'Analyze selected' }),
+        icon: 'query_stats',
+        disabled: busy || selectedRows.length === 0
+      },
+      {
+        id: 'stop',
+        label: $t('loudness.stop', { default: 'Stop' }),
+        icon: 'stop_circle',
+        disabled: !abortController
+      },
+      {
+        id: 'write',
+        label: $t('loudness.writeSelected', { default: 'Write tags in-place' }),
+        icon: 'save',
+        shortcut: 'Ctrl+S',
+        disabled: busy || writableSelectedRows.length === 0
+      },
+      {
+        id: 'toggleRow',
+        label: $t('converter.selectFile', {
+          default: 'Select {name}',
+          values: { name: row?.file.name ?? '' }
+        }),
+        icon: 'check_box',
+        checked: Boolean(row?.selected),
+        disabled: busy,
+        separatorBefore: true
+      },
+      {
+        id: 'selectAll',
+        label: $t('loudness.selectAll', { default: 'Select all' }),
+        icon: 'select_all',
+        shortcut: 'Ctrl+A',
+        disabled: busy || rows.length === 0
+      },
+      {
+        id: 'selectNone',
+        label: $t('loudness.menu.selectNone', { default: 'Select none' }),
+        icon: 'deselect',
+        disabled: busy || rows.length === 0
+      },
+      {
+        id: 'target',
+        label: $t('loudness.targetShort', { default: 'Target' }),
+        icon: 'track_changes',
+        disabled: busy,
+        separatorBefore: true,
+        children: [-14, -16, -18, -23].map((value) => ({
+          id: `target:${value}`,
+          label: `${value} LUFS`,
+          icon: effectiveTargetLufs === value ? 'radio_button_checked' : 'radio_button_unchecked'
+        }))
+      },
+      {
+        id: 'grouping',
+        label: $t('loudness.albumGrouping', { default: 'Album grouping' }),
+        icon: 'library_music',
+        disabled: busy,
+        children: [
+          { id: 'grouping:tags', label: $t('loudness.group.tags', { default: 'Album tags, then folder' }), icon: albumGrouping === 'tags' ? 'radio_button_checked' : 'radio_button_unchecked' },
+          { id: 'grouping:folder', label: $t('loudness.group.folder', { default: 'Containing folder' }), icon: albumGrouping === 'folder' ? 'radio_button_checked' : 'radio_button_unchecked' },
+          { id: 'grouping:all', label: $t('loudness.group.all', { default: 'All analyzed files' }), icon: albumGrouping === 'all' ? 'radio_button_checked' : 'radio_button_unchecked' },
+          { id: 'grouping:none', label: $t('loudness.group.none', { default: 'Track gain only' }), icon: albumGrouping === 'none' ? 'radio_button_checked' : 'radio_button_unchecked' }
+        ]
+      },
+      {
+        id: 'removeSelected',
+        label: $t('loudness.removeSelected', { default: 'Remove selected' }),
+        icon: 'remove',
+        disabled: busy || selectedRows.length === 0,
+        separatorBefore: true
+      }
+    ];
+  }
+
+  function openRowContextMenu(event: MouseEvent, row: LoudnessRow): void {
+    if (!busy && !row.selected) {
+      rows = rows.map((candidate) => ({ ...candidate, selected: candidate.id === row.id }));
+    }
+    contextMenuRowId = row.id;
+    contextMenuX = event.clientX;
+    contextMenuY = event.clientY;
+  }
+
+  function runRowContextAction(action: string): void {
+    const rowId = contextMenuRowId;
+    contextMenuRowId = null;
+    if (action === 'analyze') void analyzeSelected();
+    else if (action === 'stop') stopAnalysis();
+    else if (action === 'write') void writeSelected();
+    else if (action === 'toggleRow' && rowId && !busy) {
+      rows = rows.map((row) => row.id === rowId ? { ...row, selected: !row.selected } : row);
+    } else if (action === 'selectAll') setAllSelected(true);
+    else if (action === 'selectNone') setAllSelected(false);
+    else if (action === 'removeSelected') removeSelected();
+    else if (action.startsWith('target:')) targetLufs = Number(action.slice(7));
+    else if (action.startsWith('grouping:')) {
+      albumGrouping = action.slice(9) as AlbumGrouping;
+      recomputeAlbums();
+    }
   }
 
   function folderOf(path: string): string {
@@ -481,7 +593,14 @@
     </div>
     <div class="table-body">
       {#each rows as row (row.id)}
-        <div class:error={row.state === 'error'} class="result-row" role="row">
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <div
+          class:error={row.state === 'error'}
+          class="result-row"
+          role="row"
+          tabindex="-1"
+          on:contextmenu|preventDefault={(event) => openRowContextMenu(event, row)}
+        >
           <label class="check-cell"><input type="checkbox" bind:checked={row.selected} disabled={busy} /></label>
           <div class="file-cell" title={row.path}>
             <strong>{row.file.name}</strong>
@@ -509,6 +628,18 @@
       {/each}
     </div>
   </main>
+
+  {#if contextMenuRowId}
+    <MenuSurface
+      items={contextMenuItems}
+      x={contextMenuX}
+      y={contextMenuY}
+      ariaLabel={$t('loudness.menu.analysis', { default: 'Analysis' })}
+      enableOverflowSubmenuFallback
+      on:action={(event) => runRowContextAction(event.detail)}
+      on:dismiss={() => (contextMenuRowId = null)}
+    />
+  {/if}
 
   <footer class="tool-status-bar" class:error={Boolean(errorMessage)}>
     {#if errorMessage || message || busy}<span class="material-symbols-outlined">{errorMessage ? 'error' : busy ? 'progress_activity' : 'info'}</span>{/if}

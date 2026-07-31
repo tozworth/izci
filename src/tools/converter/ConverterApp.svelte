@@ -2,7 +2,8 @@
   import { onMount } from 'svelte';
   import { t } from 'svelte-i18n';
   import HoverTooltip from '$lib/components/HoverTooltip.svelte';
-  import { MODULE_EXTENSIONS, STREAM_EXTENSIONS, VIDEO_EXTENSIONS } from '$lib/types';
+  import MenuSurface from '$lib/components/MenuSurface.svelte';
+  import { MODULE_EXTENSIONS, STREAM_EXTENSIONS, VIDEO_EXTENSIONS, type MenuActionItem } from '$lib/types';
   import { listenForCurrentToolTrack } from '$lib/services/tool-track-context';
   import { inferExtension } from '$lib/utils/files';
   import ConverterMenuBar from './ConverterMenuBar.svelte';
@@ -85,6 +86,9 @@
   let message = '';
   let errorMessage = '';
   let abortController: AbortController | null = null;
+  let contextMenuRowId: string | null = null;
+  let contextMenuX = 0;
+  let contextMenuY = 0;
 
   $: selectedRows = rows.filter((row) => row.selected);
   $: allSelected = rows.length > 0 && rows.every((row) => row.selected);
@@ -99,6 +103,7 @@
   $: fileSummary = rows.length === 1
     ? rows[0].file.name
     : rows.length > 1 ? `${rows.length} ${$t('converter.files', { default: 'files' })}` : '';
+  $: contextMenuItems = contextMenuRowId ? buildRowContextMenu() : [];
 
   onMount(() => {
     void detectConverterCapabilities().then((value) => {
@@ -279,6 +284,91 @@
 
   function setAllSelected(selected: boolean): void {
     rows = rows.map((row) => ({ ...row, selected }));
+  }
+
+  function buildRowContextMenu(): MenuActionItem[] {
+    const row = rows.find((candidate) => candidate.id === contextMenuRowId);
+    return [
+      {
+        id: 'start',
+        label: $t('converter.start', { default: 'Convert selected' }),
+        icon: 'sync_alt',
+        shortcut: 'Ctrl+S',
+        disabled: !canStart
+      },
+      {
+        id: 'stop',
+        label: $t('converter.stop', { default: 'Stop' }),
+        icon: 'stop_circle',
+        disabled: !busy
+      },
+      {
+        id: 'chooseOutput',
+        label: $t('converter.chooseOutput', { default: 'Choose output folder...' }),
+        icon: 'drive_file_move',
+        disabled: busy,
+        separatorBefore: true
+      },
+      {
+        id: 'toggleRow',
+        label: $t('converter.selectFile', {
+          default: 'Select {name}',
+          values: { name: row?.file.name ?? '' }
+        }),
+        icon: 'check_box',
+        checked: Boolean(row?.selected),
+        disabled: busy
+      },
+      {
+        id: 'selectAll',
+        label: $t('converter.selectAll', { default: 'Select all' }),
+        icon: 'select_all',
+        shortcut: 'Ctrl+A',
+        disabled: busy || rows.length === 0
+      },
+      {
+        id: 'selectNone',
+        label: $t('converter.menu.selectNone', { default: 'Select none' }),
+        icon: 'deselect',
+        disabled: busy || rows.length === 0
+      },
+      {
+        id: 'removeSelected',
+        label: $t('converter.removeSelected', { default: 'Remove selected' }),
+        icon: 'remove',
+        disabled: busy || selectedRows.length === 0,
+        separatorBefore: true
+      },
+      {
+        id: 'clearFinished',
+        label: $t('converter.clearFinished', { default: 'Clear finished' }),
+        icon: 'filter_alt_off',
+        disabled: busy || finishedRows.length === 0
+      }
+    ];
+  }
+
+  function openRowContextMenu(event: MouseEvent, row: ConverterRow): void {
+    if (!busy && !row.selected) {
+      rows = rows.map((candidate) => ({ ...candidate, selected: candidate.id === row.id }));
+    }
+    contextMenuRowId = row.id;
+    contextMenuX = event.clientX;
+    contextMenuY = event.clientY;
+  }
+
+  function runRowContextAction(action: string): void {
+    const rowId = contextMenuRowId;
+    contextMenuRowId = null;
+    if (action === 'start') void startConversion();
+    else if (action === 'stop') stopConversion();
+    else if (action === 'chooseOutput') void chooseOutput();
+    else if (action === 'toggleRow' && rowId && !busy) {
+      rows = rows.map((row) => row.id === rowId ? { ...row, selected: !row.selected } : row);
+    } else if (action === 'selectAll') setAllSelected(true);
+    else if (action === 'selectNone') setAllSelected(false);
+    else if (action === 'removeSelected') removeSelected();
+    else if (action === 'clearFinished') clearFinished();
   }
 
   function outputDirectoriesFor(row: ConverterRow, snapshot: ConverterSettings): string[] {
@@ -502,7 +592,13 @@
           </div>
         {:else}
           {#each rows as row (row.id)}
-            <div class:error={row.state === 'error'} class:finished={row.state === 'done'} class="result-row">
+            <!-- svelte-ignore a11y_no_static_element_interactions -->
+            <div
+              class:error={row.state === 'error'}
+              class:finished={row.state === 'done'}
+              class="result-row"
+              on:contextmenu|preventDefault={(event) => openRowContextMenu(event, row)}
+            >
               <label class="check-cell"><input type="checkbox" bind:checked={row.selected} disabled={busy} aria-label={$t('converter.selectFile', { default: 'Select {name}', values: { name: row.file.name } })} /></label>
               <div class="file-cell" title={row.path}><strong>{row.file.name}</strong><span>{row.path}</span></div>
               <span>{inferExtension(row.file.name).toUpperCase()} · {formatBytes(row.file.size)}</span>
@@ -633,6 +729,17 @@
       </p>
     </aside>
   </main>
+
+  {#if contextMenuRowId}
+    <MenuSurface
+      items={contextMenuItems}
+      x={contextMenuX}
+      y={contextMenuY}
+      ariaLabel={$t('converter.queue', { default: 'Conversion queue' })}
+      on:action={(event) => runRowContextAction(event.detail)}
+      on:dismiss={() => (contextMenuRowId = null)}
+    />
+  {/if}
 
   <footer class="tool-status-bar" class:error={Boolean(errorMessage)}>
     <span>{errorMessage || message || (outputDirectory

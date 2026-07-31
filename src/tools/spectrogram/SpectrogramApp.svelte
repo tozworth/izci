@@ -1,7 +1,8 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
   import { t } from 'svelte-i18n';
-  import { STREAM_EXTENSIONS } from '$lib/types';
+  import MenuSurface from '$lib/components/MenuSurface.svelte';
+  import { STREAM_EXTENSIONS, type MenuActionItem } from '$lib/types';
   import { listenForCurrentToolTrack } from '$lib/services/tool-track-context';
   import { inferExtension } from '$lib/utils/files';
   import SpectrogramCanvas from './SpectrogramCanvas.svelte';
@@ -35,10 +36,85 @@
   let dragDepth = 0;
   let dragActive = false;
   let analysisController: AbortController | null = null;
+  let contextMenuOpen = false;
+  let contextMenuX = 0;
+  let contextMenuY = 0;
 
   $: fileDetails = analysis && sourceFile
     ? `${analysis.codec.toUpperCase()} · ${(analysis.sampleRate / 1000).toFixed(1)} kHz · ${analysis.channels} ch · ${formatDuration(analysis.duration)} · ${formatBytes(sourceFile.size)}`
     : '';
+  $: contextMenuItems = buildContextMenu(fftSize, floorDb, loading, Boolean(sourceFile));
+
+  function buildContextMenu(
+    currentFftSize: number,
+    currentFloorDb: number,
+    isLoading: boolean,
+    hasSource: boolean
+  ): MenuActionItem[] {
+    return [
+      {
+        id: 'open',
+        label: sourceFile
+          ? $t('spectrogram.menu.open', { default: 'Open audio...' })
+          : $t('spectrogram.open', { default: 'Open...' }),
+        icon: 'file_open'
+      },
+      {
+        id: 'reanalyze',
+        label: $t('spectrogram.reanalyze', { default: 'Regenerate spectrum' }),
+        icon: 'refresh',
+        disabled: isLoading || !hasSource,
+        separatorBefore: true
+      },
+      {
+        id: 'stop',
+        label: $t('spectrogram.stop', { default: 'Stop' }),
+        icon: 'stop',
+        disabled: !isLoading
+      },
+      {
+        id: 'fft',
+        label: $t('spectrogram.fftSize', { default: 'FFT size' }),
+        icon: 'graphic_eq',
+        disabled: isLoading,
+        separatorBefore: true,
+        children: SPECTROGRAM_FFT_SIZES.map((size) => ({
+          id: `fft:${size}`,
+          label: String(size),
+          icon: currentFftSize === size ? 'radio_button_checked' : 'radio_button_unchecked'
+        }))
+      },
+      {
+        id: 'floor',
+        label: $t('spectrogram.range', { default: 'Floor' }),
+        icon: 'contrast',
+        children: [-80, -100, -120, -140].map((value) => ({
+          id: `floor:${value}`,
+          label: `−${Math.abs(value)} dBFS`,
+          icon: currentFloorDb === value ? 'radio_button_checked' : 'radio_button_unchecked'
+        }))
+      }
+    ];
+  }
+
+  function openContextMenu(event: MouseEvent): void {
+    contextMenuX = event.clientX;
+    contextMenuY = event.clientY;
+    contextMenuOpen = true;
+  }
+
+  function runContextMenuAction(action: string): void {
+    contextMenuOpen = false;
+    if (action === 'open') void chooseFile();
+    else if (action === 'reanalyze' && sourceFile) void openFile(sourceFile, sourceHandle);
+    else if (action === 'stop') analysisController?.abort();
+    else if (action.startsWith('fft:')) {
+      fftSize = Number(action.slice(4));
+      changeFftSize();
+    } else if (action.startsWith('floor:')) {
+      floorDb = Number(action.slice(6));
+    }
+  }
 
   function formatDuration(seconds: number): string {
     const hours = Math.floor(seconds / 3600);
@@ -237,7 +313,7 @@
 
   <main>
     {#if analysis}
-      <SpectrogramCanvas {analysis} {floorDb} />
+      <SpectrogramCanvas {analysis} {floorDb} on:contextMenu={(event) => openContextMenu(event.detail)} />
     {:else if loading}
       <div class="analysis-state">
         <span class="material-symbols-outlined spinning" aria-hidden="true">progress_activity</span>
@@ -253,6 +329,18 @@
       </button>
     {/if}
   </main>
+
+  {#if contextMenuOpen}
+    <MenuSurface
+      items={contextMenuItems}
+      x={contextMenuX}
+      y={contextMenuY}
+      ariaLabel={$t('spectrogram.graphLabel', { default: 'Audio spectrogram: time from left to right, frequency from bottom to top, and color showing level in dBFS' })}
+      enableOverflowSubmenuFallback
+      on:action={(event) => runContextMenuAction(event.detail)}
+      on:dismiss={() => (contextMenuOpen = false)}
+    />
+  {/if}
 
   <footer class="tool-status-bar" class:error={Boolean(errorMessage)}>
     <span class="material-symbols-outlined" aria-hidden="true">{errorMessage ? 'error' : 'info'}</span>

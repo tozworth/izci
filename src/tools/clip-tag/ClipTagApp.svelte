@@ -2,11 +2,12 @@
   import { onDestroy, onMount } from 'svelte';
   import { t } from 'svelte-i18n';
   import HoverTooltip from '$lib/components/HoverTooltip.svelte';
+  import MenuSurface from '$lib/components/MenuSurface.svelte';
   import TabStrip from '$lib/components/TabStrip.svelte';
   import { MODULE_EXTENSIONS, STREAM_EXTENSIONS } from '$lib/types';
   import { loadTrackLyrics } from '$lib/services/lyrics';
   import { listenForCurrentToolTrack } from '$lib/services/tool-track-context';
-  import { RAF_EFFECT_REGISTRY } from '$lib/services/raf-effect-registry';
+  import { RAF_EFFECT_DEFINITIONS, RAF_EFFECT_REGISTRY } from '$lib/services/raf-effect-registry';
   import { loadEmbeddedStreamArtwork, loadTrackMetadata } from '$lib/services/stream-artwork';
   import { inferArtistTitleFromFileName, inferExtension, stripFileExtension } from '$lib/utils/files';
   import ClipTagMenuBar from './ClipTagMenuBar.svelte';
@@ -40,7 +41,7 @@
   } from './clip-export-options';
   import { blendRenderedEdges, renderRafEffect } from './clip-effects';
   import { MAX_WAVEFORM_ZOOM, zoomWaveformViewport } from './waveform-viewport';
-  import type { RafEffectSettings, RafEffectType } from '$lib/types';
+  import type { MenuActionItem, RafEffectSettings, RafEffectType } from '$lib/types';
 
   type ToolTab = 'edit' | 'tags' | 'lyrics';
   type TagField = Exclude<keyof EditableTags, 'lyrics'>;
@@ -112,6 +113,9 @@
   let processingEffect = false;
   let waveformZoom = 1;
   let waveformScrollStart = 0;
+  let contextMenuKind: 'waveform' | 'artwork' | null = null;
+  let contextMenuX = 0;
+  let contextMenuY = 0;
 
   $: duration = clipDuration(editState);
   $: selectionDuration = Math.max(0, editState.selectionEnd - editState.selectionStart);
@@ -138,6 +142,11 @@
     : sourceFile
       ? `${formatTime(duration)} · ${waveformBuffer?.sampleRate.toLocaleString() ?? 0} Hz · ${waveformBuffer?.numberOfChannels ?? 0} ch`
       : $t('clipTag.emptyHint', { default: 'Open or drop an audio file to begin.' }));
+  $: contextMenuItems = contextMenuKind === 'waveform'
+    ? buildWaveformContextMenu()
+    : contextMenuKind === 'artwork'
+      ? buildArtworkContextMenu()
+      : [];
 
   function formatTime(value: number): string {
     if (!Number.isFinite(value)) return '0:00.000';
@@ -164,6 +173,177 @@
   function resetWaveformViewport(): void {
     waveformZoom = 1;
     waveformScrollStart = 0;
+  }
+
+  function buildWaveformContextMenu(): MenuActionItem[] {
+    return [
+      {
+        id: 'undo',
+        label: $t('clipTag.menu.undo', { default: 'Undo' }),
+        icon: 'undo',
+        shortcut: 'Ctrl+Z',
+        disabled: !canUndo
+      },
+      {
+        id: 'redo',
+        label: $t('clipTag.menu.redo', { default: 'Redo' }),
+        icon: 'redo',
+        shortcut: 'Ctrl+Y',
+        disabled: !canRedo
+      },
+      {
+        id: 'cut',
+        label: $t('clipTag.edit.cut', { default: 'Cut' }),
+        icon: 'content_cut',
+        shortcut: 'Ctrl+X',
+        disabled: !canEdit || !hasSelection,
+        separatorBefore: true
+      },
+      {
+        id: 'copy',
+        label: $t('clipTag.edit.copy', { default: 'Copy' }),
+        icon: 'content_copy',
+        shortcut: 'Ctrl+C',
+        disabled: !canEdit || !hasSelection
+      },
+      {
+        id: 'paste',
+        label: $t('clipTag.edit.paste', { default: 'Paste' }),
+        icon: 'content_paste',
+        shortcut: 'Ctrl+V',
+        disabled: !canPaste
+      },
+      {
+        id: 'delete',
+        label: $t('clipTag.edit.delete', { default: 'Delete' }),
+        icon: 'delete',
+        shortcut: 'Del',
+        disabled: !canEdit || !hasSelection
+      },
+      {
+        id: 'trim',
+        label: $t('clipTag.edit.trim', { default: 'Trim to selection' }),
+        icon: 'crop',
+        disabled: !canEdit || !hasSelection,
+        separatorBefore: true
+      },
+      {
+        id: 'selectAll',
+        label: $t('clipTag.menu.selectAll', { default: 'Select all' }),
+        icon: 'select_all',
+        shortcut: 'Ctrl+A',
+        disabled: !canEdit
+      },
+      {
+        id: 'effects',
+        label: $t('clipTag.effects.button', { default: 'Effects...' }),
+        icon: 'auto_fix_high',
+        disabled: !canEdit || !hasSelection,
+        separatorBefore: true,
+        children: RAF_EFFECT_DEFINITIONS.map((definition) => ({
+          id: `effect:${definition.type}`,
+          label: definition.name,
+          icon: definition.icon
+        }))
+      },
+      {
+        id: 'play',
+        label: previewPlaying && previewMode === 'clip'
+          ? $t('audioCompare.stop', { default: 'Stop' })
+          : $t('clipTag.edit.play', { default: 'Play from cursor' }),
+        icon: previewPlaying && previewMode === 'clip' ? 'stop' : 'play_arrow',
+        shortcut: 'Space',
+        disabled: !canEdit,
+        separatorBefore: true
+      },
+      {
+        id: 'playSelection',
+        label: $t('clipTag.edit.playSelection', { default: 'Play selection' }),
+        icon: 'play_circle',
+        disabled: !canEdit || !hasSelection
+      },
+      {
+        id: 'zoom',
+        label: $t('clipTag.edit.zoom', { default: 'Zoom' }),
+        icon: 'zoom_in',
+        children: [
+          { id: 'zoomIn', label: $t('clipTag.clip.zoomIn', { default: 'Zoom in' }), icon: 'zoom_in', disabled: !canEdit || waveformZoom >= MAX_WAVEFORM_ZOOM },
+          { id: 'zoomOut', label: $t('clipTag.clip.zoomOut', { default: 'Zoom out' }), icon: 'zoom_out', disabled: !canEdit || waveformZoom <= 1 },
+          { id: 'fit', label: $t('clipTag.clip.fitWaveform', { default: 'Fit waveform (Ctrl+wheel to zoom)' }), icon: 'fit_screen', disabled: !canEdit || waveformZoom <= 1, separatorBefore: true },
+          { id: 'zoomSelection', label: $t('clipTag.edit.zoomSelection', { default: 'Zoom to selection' }), icon: 'zoom_in_map', disabled: !canEdit || !hasSelection }
+        ]
+      },
+      {
+        id: 'export',
+        label: $t('clipTag.clip.exportOpen', { default: 'Export...' }),
+        icon: 'save',
+        shortcut: 'Ctrl+S',
+        disabled: !canEdit,
+        separatorBefore: true
+      }
+    ];
+  }
+
+  function buildArtworkContextMenu(): MenuActionItem[] {
+    return [
+      {
+        id: 'browseArtwork',
+        label: $t('clipTag.tags.browse', { default: 'Browse...' }),
+        icon: 'folder_open',
+        disabled: !sourceFile
+      },
+      {
+        id: 'removeArtwork',
+        label: $t('clipTag.tags.removeArtwork', { default: 'Remove artwork' }),
+        icon: 'delete',
+        disabled: !artwork
+      },
+      {
+        id: 'saveInPlace',
+        label: $t('clipTag.menu.saveInPlace', { default: 'Save' }),
+        icon: 'save',
+        shortcut: 'Ctrl+S',
+        disabled: !canSaveInPlace,
+        separatorBefore: true
+      },
+      {
+        id: 'saveAs',
+        label: $t('clipTag.menu.saveAs', { default: 'Save as...' }),
+        icon: 'save_as',
+        shortcut: 'Ctrl+Shift+S',
+        disabled: !canSaveTags
+      }
+    ];
+  }
+
+  function openContextMenu(event: MouseEvent, kind: 'waveform' | 'artwork'): void {
+    contextMenuKind = kind;
+    contextMenuX = event.clientX;
+    contextMenuY = event.clientY;
+  }
+
+  function runContextMenuAction(action: string): void {
+    contextMenuKind = null;
+    if (action === 'undo') undo();
+    else if (action === 'redo') redo();
+    else if (action === 'cut') deleteSelection(true);
+    else if (action === 'copy') copySelection();
+    else if (action === 'paste') pasteAudio();
+    else if (action === 'delete') deleteSelection();
+    else if (action === 'trim') trimToSelection();
+    else if (action === 'selectAll') selectAll();
+    else if (action === 'play') toggleEditorPreview(false);
+    else if (action === 'playSelection') toggleEditorPreview(true);
+    else if (action === 'zoomIn') setWaveformZoom(waveformZoom * 2);
+    else if (action === 'zoomOut') setWaveformZoom(waveformZoom / 2);
+    else if (action === 'fit') resetWaveformViewport();
+    else if (action === 'zoomSelection') zoomToSelection();
+    else if (action === 'export') openExportDialog();
+    else if (action === 'browseArtwork') artworkInput.click();
+    else if (action === 'removeArtwork') replaceArtwork(null);
+    else if (action === 'saveInPlace') void saveTaggedInPlace();
+    else if (action === 'saveAs') void saveTaggedCopy();
+    else if (action.startsWith('effect:')) openEffectDialog(action.slice(7) as RafEffectType);
   }
 
   function tagFieldLabel(key: TagField): string {
@@ -830,7 +1010,12 @@
           <button class="text-button primary export-button" type="button" disabled={!canEdit} on:click={openExportDialog}><span class="material-symbols-outlined" aria-hidden="true">save</span>{$t('clipTag.clip.exportOpen', { default: 'Export...' })}</button>
         </div>
 
-        <div class="waveform-frame" class:is-loading={loading}>
+        <!-- svelte-ignore a11y_no_static_element_interactions -->
+        <div
+          class="waveform-frame"
+          class:is-loading={loading}
+          on:contextmenu|preventDefault={(event) => openContextMenu(event, 'waveform')}
+        >
           <WaveformEditor
             buffer={waveformBuffer}
             selectionStart={editState.selectionStart}
@@ -885,6 +1070,7 @@
             class:is-dragging={artworkDragActive}
             role="region"
             aria-label={$t('clipTag.tags.artworkDropZone', { default: 'Artwork drop zone' })}
+            on:contextmenu|preventDefault={(event) => openContextMenu(event, 'artwork')}
             on:dragenter={(event) => { event.preventDefault(); artworkDragActive = true; }}
             on:dragover={(event) => event.preventDefault()}
             on:dragleave={() => (artworkDragActive = false)}
@@ -932,6 +1118,20 @@
       />
     {/if}
   </main>
+
+  {#if contextMenuKind}
+    <MenuSurface
+      items={contextMenuItems}
+      x={contextMenuX}
+      y={contextMenuY}
+      ariaLabel={contextMenuKind === 'waveform'
+        ? $t('clipTag.clip.waveform', { default: 'Editable audio waveform and selection' })
+        : $t('clipTag.tags.artwork', { default: 'Artwork' })}
+      enableOverflowSubmenuFallback
+      on:action={(event) => runContextMenuAction(event.detail)}
+      on:dismiss={() => (contextMenuKind = null)}
+    />
+  {/if}
 
   <ClipEffectDialog
     bind:this={effectDialog}

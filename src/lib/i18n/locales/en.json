@@ -1575,6 +1575,7 @@
     "openFailed": "The audio file could not be opened.",
     "toolbar": "Spectrogram tools",
     "open": "Open...",
+    "reanalyze": "Regenerate spectrum",
     "stop": "Stop",
     "fftSize": "FFT size",
     "range": "Floor",

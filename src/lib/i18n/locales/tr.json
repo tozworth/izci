@@ -1575,6 +1575,7 @@
     "openFailed": "Ses dosyası açılamadı.",
     "toolbar": "Spektrogram araçları",
     "open": "Aç...",
+    "reanalyze": "Spektrumu yeniden oluştur",
     "stop": "Durdur",
     "fftSize": "FFT boyutu",
     "range": "Alt sınır",
