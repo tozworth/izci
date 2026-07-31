@@ -72,17 +72,17 @@
   <form on:submit|preventDefault={submit}>
     <header>
       <div>
-        <h2 id="clip-export-title">{$t('clipTag.exportDialog.title', { default: 'Export audio' })}</h2>
-        <p id="clip-export-summary">{$t('clipTag.exportDialog.summary', { default: 'Choose the output encoding and audio configuration.' })}</p>
+        <h2 id="clip-export-title">{$t('editor.exportDialog.title', { default: 'Export audio' })}</h2>
+        <p id="clip-export-summary">{$t('editor.exportDialog.summary', { default: 'Choose the output encoding and audio configuration.' })}</p>
       </div>
-      <button class="icon-button" type="button" disabled={busy} aria-label={$t('clipTag.exportDialog.cancel', { default: 'Cancel' })} on:click={closeDialog}>
+      <button class="icon-button" type="button" disabled={busy} aria-label={$t('editor.exportDialog.cancel', { default: 'Cancel' })} on:click={closeDialog}>
         <span class="material-symbols-outlined" aria-hidden="true">close</span>
       </button>
     </header>
 
     <div class="export-settings-grid">
       <label>
-        <span>{$t('clipTag.exportDialog.format', { default: 'Format' })}</span>
+        <span>{$t('editor.exportDialog.format', { default: 'Format' })}</span>
         <select bind:this={formatSelect} bind:value={format} disabled={busy}>
           {#each CLIP_EXPORT_FORMATS as option}
             <option value={option}>{option.toUpperCase()}</option>
@@ -92,7 +92,7 @@
 
       {#if isLossy}
         <label>
-          <span>{$t('clipTag.exportDialog.bitrate', { default: 'Bitrate' })}</span>
+          <span>{$t('editor.exportDialog.bitrate', { default: 'Bitrate' })}</span>
           {#if format === 'opus'}
             <select bind:value={opusBitrateKbps} disabled={busy}>
               {#each OPUS_BITRATES as bitrate}<option value={bitrate}>{bitrate} kbps</option>{/each}
@@ -105,7 +105,7 @@
         </label>
       {:else}
         <label>
-          <span>{$t('clipTag.exportDialog.bitDepth', { default: 'Bit depth' })}</span>
+          <span>{$t('editor.exportDialog.bitDepth', { default: 'Bit depth' })}</span>
           {#if format === 'flac'}
             <select bind:value={flacBitDepth} disabled={busy}>
               <option value={16}>16-bit</option>
@@ -122,12 +122,12 @@
       {/if}
 
       <label>
-        <span>{$t('clipTag.exportDialog.sampleRate', { default: 'Sample rate' })}</span>
+        <span>{$t('editor.exportDialog.sampleRate', { default: 'Sample rate' })}</span>
         {#if format === 'opus'}
           <select disabled><option>48,000 Hz</option></select>
         {:else}
           <select bind:value={sampleRate} disabled={busy}>
-            <option value="source">{$t('clipTag.exportDialog.sourceRate', { default: 'Source ({rate} Hz)', values: { rate: sourceSampleRate.toLocaleString() } })}</option>
+            <option value="source">{$t('editor.exportDialog.sourceRate', { default: 'Source ({rate} Hz)', values: { rate: sourceSampleRate.toLocaleString() } })}</option>
             <option value={44_100}>44,100 Hz</option>
             <option value={48_000}>48,000 Hz</option>
           </select>
@@ -135,20 +135,20 @@
       </label>
 
       <label>
-        <span>{$t('clipTag.exportDialog.channels', { default: 'Channels' })}</span>
+        <span>{$t('editor.exportDialog.channels', { default: 'Channels' })}</span>
         <select bind:value={channels} disabled={busy}>
-          <option value="source">{$t('clipTag.exportDialog.sourceChannels', { default: 'Source ({count})', values: { count: sourceChannels } })}</option>
-          <option value={1}>{$t('clipTag.exportDialog.mono', { default: 'Mono' })}</option>
-          <option value={2}>{$t('clipTag.exportDialog.stereo', { default: 'Stereo' })}</option>
+          <option value="source">{$t('editor.exportDialog.sourceChannels', { default: 'Source ({count})', values: { count: sourceChannels } })}</option>
+          <option value={1}>{$t('editor.exportDialog.mono', { default: 'Mono' })}</option>
+          <option value={2}>{$t('editor.exportDialog.stereo', { default: 'Stereo' })}</option>
         </select>
       </label>
 
       {#if format === 'opus'}
         <label>
-          <span>{$t('clipTag.exportDialog.bitrateMode', { default: 'Bitrate mode' })}</span>
+          <span>{$t('editor.exportDialog.bitrateMode', { default: 'Bitrate mode' })}</span>
           <select bind:value={bitrateMode} disabled={busy}>
-            <option value="variable">{$t('clipTag.exportDialog.variable', { default: 'Variable (VBR)' })}</option>
-            <option value="constant">{$t('clipTag.exportDialog.constant', { default: 'Constant (CBR)' })}</option>
+            <option value="variable">{$t('editor.exportDialog.variable', { default: 'Variable (VBR)' })}</option>
+            <option value="constant">{$t('editor.exportDialog.constant', { default: 'Constant (CBR)' })}</option>
           </select>
         </label>
       {/if}
@@ -156,13 +156,13 @@
 
     <p class="export-format-note">
       {#if format === 'wav'}
-        {$t('clipTag.exportDialog.wavNote', { default: 'Uncompressed audio with ID3 metadata.' })}
+        {$t('editor.exportDialog.wavNote', { default: 'Uncompressed audio with ID3 metadata.' })}
       {:else if format === 'flac'}
-        {$t('clipTag.exportDialog.flacNote', { default: 'Lossless compression with Vorbis comments and embedded artwork.' })}
+        {$t('editor.exportDialog.flacNote', { default: 'Lossless compression with Vorbis comments and embedded artwork.' })}
       {:else if format === 'mp3'}
-        {$t('clipTag.exportDialog.mp3Note', { default: 'LAME MP3 encoding with ID3 metadata.' })}
+        {$t('editor.exportDialog.mp3Note', { default: 'LAME MP3 encoding with ID3 metadata.' })}
       {:else}
-        {$t('clipTag.exportDialog.opusNote', { default: 'Opus in an Ogg container with Vorbis comments and embedded artwork.' })}
+        {$t('editor.exportDialog.opusNote', { default: 'Opus in an Ogg container with Vorbis comments and embedded artwork.' })}
       {/if}
     </p>
 
@@ -171,12 +171,12 @@
     {/if}
 
     <footer>
-      <button class="text-button" type="button" disabled={busy} on:click={closeDialog}>{$t('clipTag.exportDialog.cancel', { default: 'Cancel' })}</button>
+      <button class="text-button" type="button" disabled={busy} on:click={closeDialog}>{$t('editor.exportDialog.cancel', { default: 'Cancel' })}</button>
       <button class="text-button primary" type="submit" disabled={busy}>
         <span class="material-symbols-outlined" class:spinning={busy} aria-hidden="true">{busy ? 'progress_activity' : 'save'}</span>
         {busy
-          ? $t('clipTag.encoding', { default: 'Encoding {format}...', values: { format: format.toUpperCase() } })
-          : $t('clipTag.clip.export', { default: 'Export {format}', values: { format: format.toUpperCase() } })}
+          ? $t('editor.encoding', { default: 'Encoding {format}...', values: { format: format.toUpperCase() } })
+          : $t('editor.clip.export', { default: 'Export {format}', values: { format: format.toUpperCase() } })}
       </button>
     </footer>
   </form>

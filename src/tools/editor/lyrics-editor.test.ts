@@ -7,7 +7,7 @@ import {
   serializeLyrics
 } from './lyrics-editor';
 
-describe('Clip and Tag lyrics editor helpers', () => {
+describe('Editor lyrics editor helpers', () => {
   it('parses plain and multiply timestamped LRC lines', () => {
     expect(parseLyricsForEditor('[ar:Artist]\n[00:01.250][00:02.50]Hello\nPlain')).toEqual([
       { time: 1.25, text: 'Hello' },

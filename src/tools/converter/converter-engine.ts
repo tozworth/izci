@@ -7,7 +7,7 @@ import {
 } from 'mediabunny';
 import { MODULE_EXTENSIONS } from '$lib/types';
 import { inferExtension } from '$lib/utils/files';
-import { loadAudioFile } from '../clip-tag/clip-audio';
+import { loadAudioFile } from '../editor/clip-audio';
 import type { ConverterSettings } from './converter-options';
 
 export interface ConverterProgress {

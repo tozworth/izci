@@ -1202,7 +1202,7 @@
     "dropHint": "or drop an audio file here",
     "stereoOnly": "Available for stereo sources"
   },
-  "clipTag": {
+  "editor": {
     "menu": {
       "selectAll": "Tümünü seç",
       "undo": "Geri al",

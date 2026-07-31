@@ -49,7 +49,7 @@
 - `src/lib/i18n/`: English source catalog, Turkish translations, and localization runtime. Follow its README workflow when interface copy changes.
 - `src/lib/utils/`: stateless shared helpers.
 - `src/options/`: separate Options Vite/Svelte entrypoint and settings UI. Options edits stores; it does not own audio nodes or main-window library mutation.
-- `src/tools/`: standalone Audio Compare, Editor, Converter, Loudness, and Spectrogram window entrypoints, UI, and feature-local processing; `tool-shell.css` supplies their shared desktop-window styling.
+- `src/tools/`: standalone Audio Compare, Editor, Converter, and Troubadour window code; `tool-shell.css` supplies their shared desktop-window styling.
 - `src/lib/types.ts`: shared domain types and canonical internally supported extensions.
 - `vite.config.ts`: build/PWA configuration, manifest/file handlers, and Chiptune3 worklet emission.
 - `public/`: icons and other static assets.

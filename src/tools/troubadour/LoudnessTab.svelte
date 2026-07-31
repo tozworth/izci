@@ -10,8 +10,8 @@
     DEFAULT_REPLAYGAIN_TARGET_LUFS,
     replayGainForLoudness,
     type LoudnessAnalysis
-  } from '../loudness/loudness-analyzer';
-  import { writeReplayGainInPlace } from '../loudness/replaygain-writer';
+  } from './loudness-analyzer';
+  import { writeReplayGainInPlace } from './replaygain-writer';
   import type { TroubadourWorkbenchItem } from './troubadour-controller';
 
   type RowState = 'ready' | 'analyzing' | 'analyzed' | 'writing' | 'written' | 'error';

@@ -17,9 +17,9 @@
   import { windowManager } from '$lib/services/window-manager';
   import { MODULE_EXTENSIONS, STREAM_EXTENSIONS, type MenuActionItem } from '$lib/types';
   import { inferExtension } from '$lib/utils/files';
-  import { loadAudioFile, type AudioLoadProgress } from '../clip-tag/clip-audio';
-  import { MAX_WAVEFORM_ZOOM } from '../clip-tag/waveform-viewport';
-  import { analyzeAudioBufferLoudness } from '../loudness/loudness-analyzer';
+  import { loadAudioFile, type AudioLoadProgress } from '../editor/clip-audio';
+  import { MAX_WAVEFORM_ZOOM } from '../editor/waveform-viewport';
+  import { analyzeAudioBufferLoudness } from '../troubadour/loudness-analyzer';
   import AudioCompareMenuBar from './AudioCompareMenuBar.svelte';
   import AudioCompareSourcePanel from './AudioCompareSourcePanel.svelte';
 
@@ -180,7 +180,7 @@
       },
       {
         id: 'selectAll',
-        label: $t('clipTag.menu.selectAll', { default: 'Select all' }),
+        label: $t('editor.menu.selectAll', { default: 'Select all' }),
         icon: 'select_all',
         shortcut: 'Ctrl+A',
         disabled: !canPlay,
@@ -188,25 +188,25 @@
       },
       {
         id: 'zoom',
-        label: $t('clipTag.edit.zoom', { default: 'Zoom' }),
+        label: $t('editor.edit.zoom', { default: 'Zoom' }),
         icon: 'zoom_in',
         disabled: !source.buffer,
         children: [
           {
             id: 'zoomIn',
-            label: $t('clipTag.clip.zoomIn', { default: 'Zoom in' }),
+            label: $t('editor.clip.zoomIn', { default: 'Zoom in' }),
             icon: 'zoom_in',
             disabled: sourceZoom >= MAX_WAVEFORM_ZOOM
           },
           {
             id: 'zoomOut',
-            label: $t('clipTag.clip.zoomOut', { default: 'Zoom out' }),
+            label: $t('editor.clip.zoomOut', { default: 'Zoom out' }),
             icon: 'zoom_out',
             disabled: sourceZoom <= 1
           },
           {
             id: 'fit',
-            label: $t('clipTag.clip.fitWaveform', { default: 'Fit waveform (Ctrl+wheel to zoom)' }),
+            label: $t('editor.clip.fitWaveform', { default: 'Fit waveform (Ctrl+wheel to zoom)' }),
             icon: 'fit_screen',
             disabled: sourceZoom <= 1,
             separatorBefore: true

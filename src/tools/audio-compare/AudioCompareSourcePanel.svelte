@@ -3,7 +3,7 @@
   import { t } from 'svelte-i18n';
   import HoverTooltip from '$lib/components/HoverTooltip.svelte';
   import type { ComparisonSourceId } from '$lib/services/audio-comparison';
-  import WaveformEditor from '../clip-tag/WaveformEditor.svelte';
+  import WaveformEditor from '../editor/WaveformEditor.svelte';
 
   export let id: ComparisonSourceId;
   export let file: File | null = null;

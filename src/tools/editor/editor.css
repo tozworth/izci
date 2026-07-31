@@ -4,17 +4,17 @@
 @import "../../lib/styles/app/menus.css";
 @import "../tool-shell.css";
 
-.clip-tag-shell {
-  --clip-tag-view-background: var(--tool-view-background);
+.editor-shell {
+  --editor-view-background: var(--tool-view-background);
   display: grid;
   grid-template-rows: auto minmax(0, 1fr) auto;
 }
 
-.clip-tag-menu-bar {
+.editor-menu-bar {
   box-shadow: none;
 }
 
-.clip-tag-window-title span {
+.editor-window-title span {
   max-width: min(38vw, 360px);
 }
 
@@ -36,7 +36,7 @@
   grid-template-rows: auto minmax(210px, 1fr) auto;
   min-height: 0;
   padding: 0;
-  background: var(--clip-tag-view-background);
+  background: var(--editor-view-background);
 }
 
 .clip-toolbar {
@@ -135,10 +135,10 @@
 }
 
 .spinning {
-  animation: clip-tag-spin 850ms linear infinite;
+  animation: editor-spin 850ms linear infinite;
 }
 
-@keyframes clip-tag-spin {
+@keyframes editor-spin {
   to { transform: rotate(360deg); }
 }
 
@@ -149,7 +149,7 @@
   gap: 0.35rem 0.65rem;
   min-height: 2.2rem;
   padding: 0.25rem 0.4rem;
-  background: color-mix(in srgb, var(--window-topbar-bg) 74%, var(--clip-tag-view-background));
+  background: color-mix(in srgb, var(--window-topbar-bg) 74%, var(--editor-view-background));
   border: 0;
   border-top: 1px solid var(--border-soft);
   border-radius: 0;
@@ -310,7 +310,7 @@
   border-top: 1px solid var(--border-soft);
 }
 
-.clip-tag-shell > footer span:last-child {
+.editor-shell > footer span:last-child {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;

@@ -3,13 +3,13 @@ import { mount } from 'svelte';
 import { initializeLocalization } from '$lib/i18n';
 import { initializeScrollbarVisibility } from '$lib/services/scrollbar-visibility';
 import { initializeTheme } from '$lib/services/theme';
-import ClipTagApp from './ClipTagApp.svelte';
-import './clip-tag.css';
+import EditorApp from './EditorApp.svelte';
+import './editor.css';
 
 initializeTheme();
 initializeScrollbarVisibility();
 initializeLocalization();
 
-mount(ClipTagApp, {
+mount(EditorApp, {
   target: document.getElementById('app')!
 });

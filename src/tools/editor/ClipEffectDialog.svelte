@@ -155,16 +155,16 @@
   <div class="effect-dialog-shell">
     <header>
       <div>
-        <h2>{$t('clipTag.effects.title', { default: 'Apply Raf Effect' })}</h2>
-        <p>{$t('clipTag.effects.subtitle', { default: 'Destructively process the selected audio with one effect.' })}</p>
+        <h2>{$t('editor.effects.title', { default: 'Apply Raf Effect' })}</h2>
+        <p>{$t('editor.effects.subtitle', { default: 'Destructively process the selected audio with one effect.' })}</p>
       </div>
-      <button class="icon-button" type="button" disabled={busy} aria-label={$t('clipTag.effects.close', { default: 'Close effects' })} on:click={requestClose}>
+      <button class="icon-button" type="button" disabled={busy} aria-label={$t('editor.effects.close', { default: 'Close effects' })} on:click={requestClose}>
         <span class="material-symbols-outlined" aria-hidden="true">close</span>
       </button>
     </header>
 
     <div class="effect-dialog-body">
-      <nav aria-label={$t('clipTag.effects.available', { default: 'Available Raf effects' })}>
+      <nav aria-label={$t('editor.effects.available', { default: 'Available Raf effects' })}>
         {#each RAF_EFFECT_DEFINITIONS as definition}
           <button class:active={selectedType === definition.type} type="button" on:click={() => selectType(definition.type)}>
             <span class="material-symbols-outlined" aria-hidden="true">{definition.icon}</span>
@@ -176,23 +176,23 @@
       <section class="effect-settings" aria-live="polite">
         <div class="effect-heading">
           <span class="material-symbols-outlined" aria-hidden="true">{RAF_EFFECT_REGISTRY[selectedType].icon}</span>
-          <div><strong>{RAF_EFFECT_REGISTRY[selectedType].name}</strong><small>{selectionDuration.toFixed(3)} s {$t('clipTag.effects.selection', { default: 'selection' })}</small></div>
+          <div><strong>{RAF_EFFECT_REGISTRY[selectedType].name}</strong><small>{selectionDuration.toFixed(3)} s {$t('editor.effects.selection', { default: 'selection' })}</small></div>
           <button class="text-button" type="button" disabled={busy} on:click={() => { settings = RAF_EFFECT_REGISTRY[selectedType].createDefault(`clip-effect-${selectedType}`); settingsByType.set(selectedType, settings); }}>
-            <span class="material-symbols-outlined" aria-hidden="true">restart_alt</span>{$t('clipTag.effects.defaults', { default: 'Defaults' })}
+            <span class="material-symbols-outlined" aria-hidden="true">restart_alt</span>{$t('editor.effects.defaults', { default: 'Defaults' })}
           </button>
         </div>
 
         {#if settings.type === 'auto-amp'}
           {@const autoAmp = settings as RafAutoAmpSettings}
           <div class="setting-grid">
-            <label class="wide"><span>{$t('clipTag.effects.autoAmp.mode', { default: 'Mode' })}</span><select value={autoAmp.mode} on:change={(event) => update({ mode: event.currentTarget.value as RafAutoAmpMode })}><option value="off">{$t('clipTag.effects.autoAmp.manual', { default: 'Manual gain' })}</option><option value="reduce">{$t('clipTag.effects.autoAmp.reduce', { default: 'Reduce only' })}</option><option value="increase">{$t('clipTag.effects.autoAmp.increase', { default: 'Increase only' })}</option><option value="dynamic">{$t('clipTag.effects.autoAmp.dynamic', { default: 'Reduce or increase' })}</option></select></label>
+            <label class="wide"><span>{$t('editor.effects.autoAmp.mode', { default: 'Mode' })}</span><select value={autoAmp.mode} on:change={(event) => update({ mode: event.currentTarget.value as RafAutoAmpMode })}><option value="off">{$t('editor.effects.autoAmp.manual', { default: 'Manual gain' })}</option><option value="reduce">{$t('editor.effects.autoAmp.reduce', { default: 'Reduce only' })}</option><option value="increase">{$t('editor.effects.autoAmp.increase', { default: 'Increase only' })}</option><option value="dynamic">{$t('editor.effects.autoAmp.dynamic', { default: 'Reduce or increase' })}</option></select></label>
             {#if autoAmp.mode === 'off'}
-              <label><span>{$t('clipTag.effects.autoAmp.gain', { default: 'Gain' })}</span><input type="range" min={AUTO_AMP_GAIN_MIN_DB} max={AUTO_AMP_GAIN_MAX_DB} step="0.1" value={autoAmp.gainDb} on:input={(event) => updateNumber(event, 'gainDb')} /><output>{formatDb(autoAmp.gainDb)}</output></label>
+              <label><span>{$t('editor.effects.autoAmp.gain', { default: 'Gain' })}</span><input type="range" min={AUTO_AMP_GAIN_MIN_DB} max={AUTO_AMP_GAIN_MAX_DB} step="0.1" value={autoAmp.gainDb} on:input={(event) => updateNumber(event, 'gainDb')} /><output>{formatDb(autoAmp.gainDb)}</output></label>
             {:else}
-              <label><span>{$t('clipTag.effects.autoAmp.target', { default: 'Target peak' })}</span><input type="range" min={AUTO_AMP_TARGET_MIN_DB} max={AUTO_AMP_TARGET_MAX_DB} step="0.1" value={autoAmp.targetDb} on:input={(event) => updateNumber(event, 'targetDb')} /><output>{formatDb(autoAmp.targetDb)}</output></label>
-              {#if autoAmp.mode === 'reduce' || autoAmp.mode === 'dynamic'}<label><span>{$t('clipTag.effects.autoAmp.reduction', { default: 'Max reduction' })}</span><input type="range" min="0" max={AUTO_AMP_REDUCTION_MAX_DB} step="0.5" value={autoAmp.maximumReductionDb} on:input={(event) => updateNumber(event, 'maximumReductionDb')} /><output>−{autoAmp.maximumReductionDb.toFixed(1)} dB</output></label>{/if}
-              {#if autoAmp.mode === 'increase' || autoAmp.mode === 'dynamic'}<label><span>{$t('clipTag.effects.autoAmp.boost', { default: 'Max boost' })}</span><input type="range" min="0" max={AUTO_AMP_BOOST_MAX_DB} step="0.5" value={autoAmp.maximumBoostDb} on:input={(event) => updateNumber(event, 'maximumBoostDb')} /><output>+{autoAmp.maximumBoostDb.toFixed(1)} dB</output></label>{/if}
-              <p class="effect-note wide">{$t('clipTag.effects.autoAmp.scanNote', { default: 'Offline Auto Amp scans the whole selection and applies one stable gain.' })}</p>
+              <label><span>{$t('editor.effects.autoAmp.target', { default: 'Target peak' })}</span><input type="range" min={AUTO_AMP_TARGET_MIN_DB} max={AUTO_AMP_TARGET_MAX_DB} step="0.1" value={autoAmp.targetDb} on:input={(event) => updateNumber(event, 'targetDb')} /><output>{formatDb(autoAmp.targetDb)}</output></label>
+              {#if autoAmp.mode === 'reduce' || autoAmp.mode === 'dynamic'}<label><span>{$t('editor.effects.autoAmp.reduction', { default: 'Max reduction' })}</span><input type="range" min="0" max={AUTO_AMP_REDUCTION_MAX_DB} step="0.5" value={autoAmp.maximumReductionDb} on:input={(event) => updateNumber(event, 'maximumReductionDb')} /><output>−{autoAmp.maximumReductionDb.toFixed(1)} dB</output></label>{/if}
+              {#if autoAmp.mode === 'increase' || autoAmp.mode === 'dynamic'}<label><span>{$t('editor.effects.autoAmp.boost', { default: 'Max boost' })}</span><input type="range" min="0" max={AUTO_AMP_BOOST_MAX_DB} step="0.5" value={autoAmp.maximumBoostDb} on:input={(event) => updateNumber(event, 'maximumBoostDb')} /><output>+{autoAmp.maximumBoostDb.toFixed(1)} dB</output></label>{/if}
+              <p class="effect-note wide">{$t('editor.effects.autoAmp.scanNote', { default: 'Offline Auto Amp scans the whole selection and applies one stable gain.' })}</p>
             {/if}
           </div>
         {:else if settings.type === 'graphic-eq'}
@@ -203,7 +203,7 @@
           </div>
         {:else if settings.type === 'stereo-width'}
           {@const stereo = settings as RafStereoWidthSettings}
-          <div class="setting-grid single"><label><span>{$t('clipTag.effects.stereo.width', { default: 'Stereo width' })}</span><input type="range" min={STEREO_WIDTH_MIN_DB} max={STEREO_WIDTH_MAX_DB} step="0.5" value={stereo.widthDb} on:input={(event) => updateNumber(event, 'widthDb')} /><output>{formatDb(stereo.widthDb)}</output></label></div>
+          <div class="setting-grid single"><label><span>{$t('editor.effects.stereo.width', { default: 'Stereo width' })}</span><input type="range" min={STEREO_WIDTH_MIN_DB} max={STEREO_WIDTH_MAX_DB} step="0.5" value={stereo.widthDb} on:input={(event) => updateNumber(event, 'widthDb')} /><output>{formatDb(stereo.widthDb)}</output></label></div>
         {:else if settings.type === 'crystalizer'}
           {@const crystalizer = settings as RafCrystalizerSettings}
           <div class="vertical-bank crystalizer-bank">
@@ -217,45 +217,45 @@
         {:else if settings.type === 'sloptimizer'}
           {@const sloptimizer = settings as RafSloptimizerSettings}
           <div class="setting-grid">
-            <label class="wide"><span>{$t('clipTag.effects.sloptimizer.slop', { default: 'Slop' })}</span><input type="range" min={SLOPTIMIZER_SLOP_MIN} max={SLOPTIMIZER_SLOP_MAX} step="1" value={sloptimizer.slop} on:input={updateSlop} /><output>{sloptimizer.slop.toFixed(0)}%</output></label>
-            <label class="advanced-toggle wide"><span>{$t('clipTag.effects.sloptimizer.advanced', { default: 'Advanced controls' })}</span><input type="checkbox" checked={sloptimizer.advanced} on:change={(event) => update({ advanced: event.currentTarget.checked })} /></label>
+            <label class="wide"><span>{$t('editor.effects.sloptimizer.slop', { default: 'Slop' })}</span><input type="range" min={SLOPTIMIZER_SLOP_MIN} max={SLOPTIMIZER_SLOP_MAX} step="1" value={sloptimizer.slop} on:input={updateSlop} /><output>{sloptimizer.slop.toFixed(0)}%</output></label>
+            <label class="advanced-toggle wide"><span>{$t('editor.effects.sloptimizer.advanced', { default: 'Advanced controls' })}</span><input type="checkbox" checked={sloptimizer.advanced} on:change={(event) => update({ advanced: event.currentTarget.checked })} /></label>
             {#if sloptimizer.advanced}
-              <label><span>{$t('clipTag.effects.sloptimizer.low', { default: 'Low lift' })}</span><input type="range" min={SLOPTIMIZER_LIFT_MIN_DB} max={SLOPTIMIZER_LIFT_MAX_DB} step="0.1" value={sloptimizer.lowLiftDb} on:input={(event) => updateNumber(event, 'lowLiftDb')} /><output>{formatDb(sloptimizer.lowLiftDb)}</output></label>
-              <label><span>{$t('clipTag.effects.sloptimizer.mid', { default: 'Mid lift' })}</span><input type="range" min={SLOPTIMIZER_LIFT_MIN_DB} max={SLOPTIMIZER_LIFT_MAX_DB} step="0.1" value={sloptimizer.midLiftDb} on:input={(event) => updateNumber(event, 'midLiftDb')} /><output>{formatDb(sloptimizer.midLiftDb)}</output></label>
-              <label><span>{$t('clipTag.effects.sloptimizer.high', { default: 'High lift' })}</span><input type="range" min={SLOPTIMIZER_LIFT_MIN_DB} max={SLOPTIMIZER_LIFT_MAX_DB} step="0.1" value={sloptimizer.highLiftDb} on:input={(event) => updateNumber(event, 'highLiftDb')} /><output>{formatDb(sloptimizer.highLiftDb)}</output></label>
-              <label><span>{$t('clipTag.effects.sloptimizer.density', { default: 'Density' })}</span><input type="range" min={SLOPTIMIZER_DENSITY_MIN} max={SLOPTIMIZER_DENSITY_MAX} step="1" value={sloptimizer.density} on:input={(event) => updateNumber(event, 'density')} /><output>{sloptimizer.density.toFixed(0)}%</output></label>
-              <label><span>{$t('clipTag.effects.sloptimizer.speed', { default: 'Speed' })}</span><input type="range" min={SLOPTIMIZER_SPEED_MIN} max={SLOPTIMIZER_SPEED_MAX} step="1" value={sloptimizer.speed} on:input={(event) => updateNumber(event, 'speed')} /><output>{sloptimizer.speed.toFixed(0)}%</output></label>
-              <label><span>{$t('clipTag.effects.sloptimizer.upwardRatio', { default: 'Upward ratio' })}</span><input type="range" min={SLOPTIMIZER_UPWARD_RATIO_MIN} max={SLOPTIMIZER_UPWARD_RATIO_MAX} step="0.1" value={sloptimizer.upwardRatio} on:input={(event) => updateNumber(event, 'upwardRatio')} /><output>{sloptimizer.upwardRatio.toFixed(1)}:1</output></label>
-              <label><span>{$t('clipTag.effects.sloptimizer.upwardThreshold', { default: 'Upward threshold' })}</span><input type="range" min={SLOPTIMIZER_UPWARD_THRESHOLD_MIN_DB} max={SLOPTIMIZER_UPWARD_THRESHOLD_MAX_DB} step="0.5" value={sloptimizer.upwardThresholdDb} on:input={(event) => updateNumber(event, 'upwardThresholdDb')} /><output>{formatDb(sloptimizer.upwardThresholdDb)}</output></label>
-              <label><span>{$t('clipTag.effects.sloptimizer.upwardRange', { default: 'Upward range' })}</span><input type="range" min={SLOPTIMIZER_UPWARD_BOOST_MIN_DB} max={SLOPTIMIZER_UPWARD_BOOST_MAX_DB} step="0.5" value={sloptimizer.upwardMaximumBoostDb} on:input={(event) => updateNumber(event, 'upwardMaximumBoostDb')} /><output>{formatDb(sloptimizer.upwardMaximumBoostDb)}</output></label>
-              <label><span>{$t('clipTag.effects.sloptimizer.ceiling', { default: 'Ceiling' })}</span><input type="range" min={SLOPTIMIZER_CEILING_MIN_DB} max={SLOPTIMIZER_CEILING_MAX_DB} step="0.1" value={sloptimizer.ceilingDb} on:input={(event) => updateNumber(event, 'ceilingDb')} /><output>{formatDb(sloptimizer.ceilingDb)}</output></label>
-              <label><span>{$t('clipTag.effects.sloptimizer.lowCrossover', { default: 'Low crossover' })}</span><input type="range" min={SLOPTIMIZER_LOW_CROSSOVER_MIN_HZ} max={SLOPTIMIZER_LOW_CROSSOVER_MAX_HZ} step="5" value={sloptimizer.lowCrossoverHz} on:input={(event) => updateNumber(event, 'lowCrossoverHz')} /><output>{formatFrequency(sloptimizer.lowCrossoverHz)} Hz</output></label>
-              <label><span>{$t('clipTag.effects.sloptimizer.highCrossover', { default: 'High crossover' })}</span><input type="range" min={SLOPTIMIZER_HIGH_CROSSOVER_MIN_HZ} max={SLOPTIMIZER_HIGH_CROSSOVER_MAX_HZ} step="100" value={sloptimizer.highCrossoverHz} on:input={(event) => updateNumber(event, 'highCrossoverHz')} /><output>{formatFrequency(sloptimizer.highCrossoverHz)} Hz</output></label>
+              <label><span>{$t('editor.effects.sloptimizer.low', { default: 'Low lift' })}</span><input type="range" min={SLOPTIMIZER_LIFT_MIN_DB} max={SLOPTIMIZER_LIFT_MAX_DB} step="0.1" value={sloptimizer.lowLiftDb} on:input={(event) => updateNumber(event, 'lowLiftDb')} /><output>{formatDb(sloptimizer.lowLiftDb)}</output></label>
+              <label><span>{$t('editor.effects.sloptimizer.mid', { default: 'Mid lift' })}</span><input type="range" min={SLOPTIMIZER_LIFT_MIN_DB} max={SLOPTIMIZER_LIFT_MAX_DB} step="0.1" value={sloptimizer.midLiftDb} on:input={(event) => updateNumber(event, 'midLiftDb')} /><output>{formatDb(sloptimizer.midLiftDb)}</output></label>
+              <label><span>{$t('editor.effects.sloptimizer.high', { default: 'High lift' })}</span><input type="range" min={SLOPTIMIZER_LIFT_MIN_DB} max={SLOPTIMIZER_LIFT_MAX_DB} step="0.1" value={sloptimizer.highLiftDb} on:input={(event) => updateNumber(event, 'highLiftDb')} /><output>{formatDb(sloptimizer.highLiftDb)}</output></label>
+              <label><span>{$t('editor.effects.sloptimizer.density', { default: 'Density' })}</span><input type="range" min={SLOPTIMIZER_DENSITY_MIN} max={SLOPTIMIZER_DENSITY_MAX} step="1" value={sloptimizer.density} on:input={(event) => updateNumber(event, 'density')} /><output>{sloptimizer.density.toFixed(0)}%</output></label>
+              <label><span>{$t('editor.effects.sloptimizer.speed', { default: 'Speed' })}</span><input type="range" min={SLOPTIMIZER_SPEED_MIN} max={SLOPTIMIZER_SPEED_MAX} step="1" value={sloptimizer.speed} on:input={(event) => updateNumber(event, 'speed')} /><output>{sloptimizer.speed.toFixed(0)}%</output></label>
+              <label><span>{$t('editor.effects.sloptimizer.upwardRatio', { default: 'Upward ratio' })}</span><input type="range" min={SLOPTIMIZER_UPWARD_RATIO_MIN} max={SLOPTIMIZER_UPWARD_RATIO_MAX} step="0.1" value={sloptimizer.upwardRatio} on:input={(event) => updateNumber(event, 'upwardRatio')} /><output>{sloptimizer.upwardRatio.toFixed(1)}:1</output></label>
+              <label><span>{$t('editor.effects.sloptimizer.upwardThreshold', { default: 'Upward threshold' })}</span><input type="range" min={SLOPTIMIZER_UPWARD_THRESHOLD_MIN_DB} max={SLOPTIMIZER_UPWARD_THRESHOLD_MAX_DB} step="0.5" value={sloptimizer.upwardThresholdDb} on:input={(event) => updateNumber(event, 'upwardThresholdDb')} /><output>{formatDb(sloptimizer.upwardThresholdDb)}</output></label>
+              <label><span>{$t('editor.effects.sloptimizer.upwardRange', { default: 'Upward range' })}</span><input type="range" min={SLOPTIMIZER_UPWARD_BOOST_MIN_DB} max={SLOPTIMIZER_UPWARD_BOOST_MAX_DB} step="0.5" value={sloptimizer.upwardMaximumBoostDb} on:input={(event) => updateNumber(event, 'upwardMaximumBoostDb')} /><output>{formatDb(sloptimizer.upwardMaximumBoostDb)}</output></label>
+              <label><span>{$t('editor.effects.sloptimizer.ceiling', { default: 'Ceiling' })}</span><input type="range" min={SLOPTIMIZER_CEILING_MIN_DB} max={SLOPTIMIZER_CEILING_MAX_DB} step="0.1" value={sloptimizer.ceilingDb} on:input={(event) => updateNumber(event, 'ceilingDb')} /><output>{formatDb(sloptimizer.ceilingDb)}</output></label>
+              <label><span>{$t('editor.effects.sloptimizer.lowCrossover', { default: 'Low crossover' })}</span><input type="range" min={SLOPTIMIZER_LOW_CROSSOVER_MIN_HZ} max={SLOPTIMIZER_LOW_CROSSOVER_MAX_HZ} step="5" value={sloptimizer.lowCrossoverHz} on:input={(event) => updateNumber(event, 'lowCrossoverHz')} /><output>{formatFrequency(sloptimizer.lowCrossoverHz)} Hz</output></label>
+              <label><span>{$t('editor.effects.sloptimizer.highCrossover', { default: 'High crossover' })}</span><input type="range" min={SLOPTIMIZER_HIGH_CROSSOVER_MIN_HZ} max={SLOPTIMIZER_HIGH_CROSSOVER_MAX_HZ} step="100" value={sloptimizer.highCrossoverHz} on:input={(event) => updateNumber(event, 'highCrossoverHz')} /><output>{formatFrequency(sloptimizer.highCrossoverHz)} Hz</output></label>
             {/if}
           </div>
         {:else}
           {@const reverb = settings as RafReverbSettings}
           <div class="setting-grid">
-            <label><span>{$t('clipTag.effects.reverb.mix', { default: 'Mix' })}</span><input type="range" min={REVERB_MIX_MIN} max={REVERB_MIX_MAX} step="1" value={reverb.mix} on:input={(event) => updateNumber(event, 'mix')} /><output>{reverb.mix.toFixed(0)}%</output></label>
-            <label><span>{$t('clipTag.effects.reverb.room', { default: 'Room size' })}</span><input type="range" min={REVERB_ROOM_SIZE_MIN} max={REVERB_ROOM_SIZE_MAX} step="1" value={reverb.roomSize} on:input={(event) => updateNumber(event, 'roomSize')} /><output>{reverb.roomSize.toFixed(0)}%</output></label>
-            <label><span>{$t('clipTag.effects.reverb.decay', { default: 'Decay' })}</span><input type="range" min={REVERB_DECAY_MIN_SECONDS} max={REVERB_DECAY_MAX_SECONDS} step="0.1" value={reverb.decaySeconds} on:input={(event) => updateNumber(event, 'decaySeconds')} /><output>{reverb.decaySeconds.toFixed(1)} s</output></label>
-            <label><span>{$t('clipTag.effects.reverb.preDelay', { default: 'Pre-delay' })}</span><input type="range" min={REVERB_PRE_DELAY_MIN_MS} max={REVERB_PRE_DELAY_MAX_MS} step="1" value={reverb.preDelayMs} on:input={(event) => updateNumber(event, 'preDelayMs')} /><output>{reverb.preDelayMs.toFixed(0)} ms</output></label>
-            <label><span>{$t('clipTag.effects.reverb.damping', { default: 'Damping' })}</span><input type="range" min={REVERB_DAMPING_MIN_HZ} max={REVERB_DAMPING_MAX_HZ} step="100" value={reverb.dampingHz} on:input={(event) => updateNumber(event, 'dampingHz')} /><output>{formatFrequency(reverb.dampingHz)} Hz</output></label>
+            <label><span>{$t('editor.effects.reverb.mix', { default: 'Mix' })}</span><input type="range" min={REVERB_MIX_MIN} max={REVERB_MIX_MAX} step="1" value={reverb.mix} on:input={(event) => updateNumber(event, 'mix')} /><output>{reverb.mix.toFixed(0)}%</output></label>
+            <label><span>{$t('editor.effects.reverb.room', { default: 'Room size' })}</span><input type="range" min={REVERB_ROOM_SIZE_MIN} max={REVERB_ROOM_SIZE_MAX} step="1" value={reverb.roomSize} on:input={(event) => updateNumber(event, 'roomSize')} /><output>{reverb.roomSize.toFixed(0)}%</output></label>
+            <label><span>{$t('editor.effects.reverb.decay', { default: 'Decay' })}</span><input type="range" min={REVERB_DECAY_MIN_SECONDS} max={REVERB_DECAY_MAX_SECONDS} step="0.1" value={reverb.decaySeconds} on:input={(event) => updateNumber(event, 'decaySeconds')} /><output>{reverb.decaySeconds.toFixed(1)} s</output></label>
+            <label><span>{$t('editor.effects.reverb.preDelay', { default: 'Pre-delay' })}</span><input type="range" min={REVERB_PRE_DELAY_MIN_MS} max={REVERB_PRE_DELAY_MAX_MS} step="1" value={reverb.preDelayMs} on:input={(event) => updateNumber(event, 'preDelayMs')} /><output>{reverb.preDelayMs.toFixed(0)} ms</output></label>
+            <label><span>{$t('editor.effects.reverb.damping', { default: 'Damping' })}</span><input type="range" min={REVERB_DAMPING_MIN_HZ} max={REVERB_DAMPING_MAX_HZ} step="100" value={reverb.dampingHz} on:input={(event) => updateNumber(event, 'dampingHz')} /><output>{formatFrequency(reverb.dampingHz)} Hz</output></label>
           </div>
         {/if}
 
         <div class="render-options">
-          <label><span>{$t('clipTag.effects.edgeBlend', { default: 'Edge blend' })}</span><input type="range" min="0" max="50" step="1" bind:value={edgeBlendMs} /><output>{edgeBlendMs} ms</output></label>
-          <p>{$t('clipTag.effects.edgeBlendHint', { default: 'Crossfades the processed region at edit boundaries to prevent clicks.' })}</p>
+          <label><span>{$t('editor.effects.edgeBlend', { default: 'Edge blend' })}</span><input type="range" min="0" max="50" step="1" bind:value={edgeBlendMs} /><output>{edgeBlendMs} ms</output></label>
+          <p>{$t('editor.effects.edgeBlendHint', { default: 'Crossfades the processed region at edit boundaries to prevent clicks.' })}</p>
         </div>
       </section>
     </div>
 
     <footer>
-      <span class="processing-status" aria-live="polite">{busy ? $t('clipTag.effects.rendering', { default: 'Rendering selection...' }) : ''}</span>
-      <button class="text-button" type="button" disabled={busy} on:click={() => dispatch('preview', { settings, edgeBlendMs })}><span class="material-symbols-outlined" aria-hidden="true">{previewing ? 'stop' : 'play_arrow'}</span>{previewing ? $t('clipTag.effects.stop', { default: 'Stop' }) : $t('clipTag.effects.preview', { default: 'Preview' })}</button>
-      <button class="text-button" type="button" disabled={busy} on:click={requestClose}>{$t('clipTag.effects.cancel', { default: 'Cancel' })}</button>
-      <button class="text-button primary" type="button" disabled={busy || selectionDuration <= 0} on:click={() => dispatch('apply', { settings, edgeBlendMs })}><span class="material-symbols-outlined" aria-hidden="true">auto_fix_high</span>{$t('clipTag.effects.apply', { default: 'Apply' })}</button>
+      <span class="processing-status" aria-live="polite">{busy ? $t('editor.effects.rendering', { default: 'Rendering selection...' }) : ''}</span>
+      <button class="text-button" type="button" disabled={busy} on:click={() => dispatch('preview', { settings, edgeBlendMs })}><span class="material-symbols-outlined" aria-hidden="true">{previewing ? 'stop' : 'play_arrow'}</span>{previewing ? $t('editor.effects.stop', { default: 'Stop' }) : $t('editor.effects.preview', { default: 'Preview' })}</button>
+      <button class="text-button" type="button" disabled={busy} on:click={requestClose}>{$t('editor.effects.cancel', { default: 'Cancel' })}</button>
+      <button class="text-button primary" type="button" disabled={busy || selectionDuration <= 0} on:click={() => dispatch('apply', { settings, edgeBlendMs })}><span class="material-symbols-outlined" aria-hidden="true">auto_fix_high</span>{$t('editor.effects.apply', { default: 'Apply' })}</button>
     </footer>
   </div>
 </dialog>

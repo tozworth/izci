@@ -63,22 +63,22 @@
     { id: 'openOptions', label: $t('main.menu.options', { default: 'Options...' }), icon: 'settings', shortcut: 'Ctrl+P' },
     { id: 'loadouts', label: $t('main.menu.loadouts', { default: 'Loadouts' }), icon: 'bookmarks', children: loadoutItems },
     { id: 'openAbout', label: $t('main.menu.about', { default: 'About' }), icon: 'info' },
-    { id: 'close', label: $t('clipTag.menu.close', { default: 'Close Editor' }), icon: 'close', shortcut: 'Ctrl+W', separatorBefore: true }
+    { id: 'close', label: $t('editor.menu.close', { default: 'Close Editor' }), icon: 'close', shortcut: 'Ctrl+W', separatorBefore: true }
   ] satisfies MenuActionItem[];
   $: fileItems = [
-    { id: 'open', label: $t('clipTag.menu.open', { default: 'Open audio...' }), icon: 'file_open', shortcut: 'Ctrl+O' },
-    { id: 'saveClip', label: $t('clipTag.menu.saveClip', { default: 'Export audio...' }), icon: 'save', shortcut: 'Ctrl+S', disabled: !canSaveClip, separatorBefore: true },
-    { id: 'close', label: $t('clipTag.menu.close', { default: 'Close Editor' }), icon: 'close', shortcut: 'Ctrl+W', separatorBefore: true }
+    { id: 'open', label: $t('editor.menu.open', { default: 'Open audio...' }), icon: 'file_open', shortcut: 'Ctrl+O' },
+    { id: 'saveClip', label: $t('editor.menu.saveClip', { default: 'Export audio...' }), icon: 'save', shortcut: 'Ctrl+S', disabled: !canSaveClip, separatorBefore: true },
+    { id: 'close', label: $t('editor.menu.close', { default: 'Close Editor' }), icon: 'close', shortcut: 'Ctrl+W', separatorBefore: true }
   ] satisfies MenuActionItem[];
   $: editItems = [
-    { id: 'undo', label: $t('clipTag.menu.undo', { default: 'Undo' }), icon: 'undo', shortcut: 'Ctrl+Z', disabled: !canUndo },
-    { id: 'redo', label: $t('clipTag.menu.redo', { default: 'Redo' }), icon: 'redo', shortcut: 'Ctrl+Y', disabled: !canRedo },
-    { id: 'cut', label: $t('clipTag.edit.cut', { default: 'Cut' }), icon: 'content_cut', shortcut: 'Ctrl+X', disabled: !canCut, separatorBefore: true },
-    { id: 'copy', label: $t('clipTag.edit.copy', { default: 'Copy' }), icon: 'content_copy', shortcut: 'Ctrl+C', disabled: !canCut },
-    { id: 'paste', label: $t('clipTag.edit.paste', { default: 'Paste' }), icon: 'content_paste', shortcut: 'Ctrl+V', disabled: !canPaste },
-    { id: 'delete', label: $t('clipTag.edit.delete', { default: 'Delete' }), icon: 'delete', shortcut: 'Del', disabled: !canCut },
-    { id: 'trim', label: $t('clipTag.edit.trim', { default: 'Trim to selection' }), icon: 'crop', disabled: !canCut, separatorBefore: true },
-    { id: 'selectAll', label: $t('clipTag.menu.selectAll', { default: 'Select all' }), icon: 'select_all', shortcut: 'Ctrl+A', disabled: !canSaveClip }
+    { id: 'undo', label: $t('editor.menu.undo', { default: 'Undo' }), icon: 'undo', shortcut: 'Ctrl+Z', disabled: !canUndo },
+    { id: 'redo', label: $t('editor.menu.redo', { default: 'Redo' }), icon: 'redo', shortcut: 'Ctrl+Y', disabled: !canRedo },
+    { id: 'cut', label: $t('editor.edit.cut', { default: 'Cut' }), icon: 'content_cut', shortcut: 'Ctrl+X', disabled: !canCut, separatorBefore: true },
+    { id: 'copy', label: $t('editor.edit.copy', { default: 'Copy' }), icon: 'content_copy', shortcut: 'Ctrl+C', disabled: !canCut },
+    { id: 'paste', label: $t('editor.edit.paste', { default: 'Paste' }), icon: 'content_paste', shortcut: 'Ctrl+V', disabled: !canPaste },
+    { id: 'delete', label: $t('editor.edit.delete', { default: 'Delete' }), icon: 'delete', shortcut: 'Del', disabled: !canCut },
+    { id: 'trim', label: $t('editor.edit.trim', { default: 'Trim to selection' }), icon: 'crop', disabled: !canCut, separatorBefore: true },
+    { id: 'selectAll', label: $t('editor.menu.selectAll', { default: 'Select all' }), icon: 'select_all', shortcut: 'Ctrl+A', disabled: !canSaveClip }
   ] satisfies MenuActionItem[];
   $: effectItems = RAF_EFFECT_DEFINITIONS.map((definition, index) => ({
     id: `effect:${definition.type}`,
@@ -162,7 +162,7 @@
 </script>
 
 <nav
-  class="menu-bar clip-tag-menu-bar"
+  class="menu-bar editor-menu-bar"
   class:window-controls-overlay-active={overlay.visible}
   style={overlayStyle}
   aria-label={$t('main.menu.applicationMenu', { default: 'Application menu' })}
@@ -183,20 +183,20 @@
       {/if}
     </div>
     <div class="menu-root" role="none" on:pointerenter={() => hoverMenu('edit')}>
-      <button bind:this={editTrigger} class="menu-trigger" class:active={activeMenu === 'edit'} data-menu-interactive="true" type="button" aria-haspopup="menu" aria-expanded={activeMenu === 'edit'} on:click={() => openMenu('edit')}>{$t('clipTag.menu.edit', { default: 'Edit' })}</button>
+      <button bind:this={editTrigger} class="menu-trigger" class:active={activeMenu === 'edit'} data-menu-interactive="true" type="button" aria-haspopup="menu" aria-expanded={activeMenu === 'edit'} on:click={() => openMenu('edit')}>{$t('editor.menu.edit', { default: 'Edit' })}</button>
       {#if activeMenu === 'edit'}
         <MenuSurface items={editItems} x={menuX} y={menuY} on:action={(event) => run(event.detail as ActionId)} on:dismiss={() => (activeMenu = null)} />
       {/if}
     </div>
     <div class="menu-root" role="none" on:pointerenter={() => hoverMenu('effects')}>
-      <button bind:this={effectsTrigger} class="menu-trigger" class:active={activeMenu === 'effects'} data-menu-interactive="true" type="button" aria-haspopup="menu" aria-expanded={activeMenu === 'effects'} on:click={() => openMenu('effects')}>{$t('clipTag.effects.menu', { default: 'Effects' })}</button>
+      <button bind:this={effectsTrigger} class="menu-trigger" class:active={activeMenu === 'effects'} data-menu-interactive="true" type="button" aria-haspopup="menu" aria-expanded={activeMenu === 'effects'} on:click={() => openMenu('effects')}>{$t('editor.effects.menu', { default: 'Effects' })}</button>
       {#if activeMenu === 'effects'}
         <MenuSurface items={effectItems} x={menuX} y={menuY} on:action={(event) => run(event.detail as ActionId)} on:dismiss={() => (activeMenu = null)} />
       {/if}
     </div>
   </div>
-  <div class="tool-window-title clip-tag-window-title" aria-live="polite">
-    <strong>{$t('clipTag.title', { default: 'Editor' })}</strong>
+  <div class="tool-window-title editor-window-title" aria-live="polite">
+    <strong>{$t('editor.title', { default: 'Editor' })}</strong>
     {#if fileName}<span>{fileName}</span>{/if}
   </div>
 </nav>
