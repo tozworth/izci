@@ -43,8 +43,7 @@
     files: [
       'backupPolicy', 'postWriteVerification', 'writeConcurrency', 'externalChangeBehavior',
       'batchErrorBehavior', 'destructiveClearConfirmationThreshold'
-    ],
-    advanced: ['largeFileThresholdMb', 'diagnosticJobReporting']
+    ]
   };
 
   const initialWindowState = getTroubadourOptionsWindowState();
@@ -61,7 +60,6 @@
       case 'artwork': return $t('troubadour.options.artwork.label', { default: 'Artwork' });
       case 'rename': return $t('troubadour.options.rename.label', { default: 'Rename' });
       case 'files': return $t('troubadour.options.files.label', { default: 'Files and safety' });
-      case 'advanced': return $t('troubadour.options.advanced.label', { default: 'Advanced' });
     }
   }
 
@@ -86,8 +84,7 @@
     const keys: Partial<Record<TroubadourOptionsViewName, (keyof TroubadourSettings)[]>> = {
       metadata: ['rawTagVisibility', 'validationSeverity'],
       rename: ['missingTokenPolicy', 'collisionPolicy', 'enableFolderTemplates', 'copyVerification'],
-      files: ['writeConcurrency', 'externalChangeBehavior', 'destructiveClearConfirmationThreshold'],
-      advanced: ['largeFileThresholdMb', 'diagnosticJobReporting']
+      files: ['writeConcurrency', 'externalChangeBehavior', 'destructiveClearConfirmationThreshold']
     };
     return (keys[view] ?? []).some((key) => JSON.stringify(settings[key]) !== JSON.stringify(DEFAULT_TROUBADOUR_SETTINGS[key]));
   }

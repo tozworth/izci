@@ -5,12 +5,12 @@
   import { windowControlsOverlayState } from '$lib/services/window-controls-overlay';
   import type { MenuActionItem } from '$lib/types';
 
-  type MenuId = 'app' | 'file' | 'edit' | 'album' | 'tools' | 'help';
+  type MenuId = 'app' | 'file' | 'edit' | 'album' | 'tools';
   type ActionId =
     | 'addFiles' | 'addFolder' | 'addFromIzci' | 'save' | 'saveAll' | 'close'
     | 'undo' | 'redo' | 'selectAll' | 'remove' | 'reload'
     | 'createAlbum' | 'autoGroup' | 'renumber' | 'dissolveAlbum'
-    | 'previewRename' | 'applyRename' | 'options' | 'about';
+    | 'previewRename' | 'applyRename' | 'options';
 
   export let canSave = false;
   export let canUndo = false;
@@ -28,7 +28,6 @@
 
   $: appItems = [
     { id: 'options', label: $t('troubadour.menu.options', { default: 'Troubadour Options...' }), icon: 'settings', shortcut: 'Ctrl+,' },
-    { id: 'about', label: $t('troubadour.menu.about', { default: 'About Troubadour' }), icon: 'info' },
     { id: 'close', label: $t('troubadour.menu.close', { default: 'Close Troubadour' }), icon: 'close', shortcut: 'Ctrl+W', separatorBefore: true }
   ] satisfies MenuActionItem[];
   $: fileItems = [
@@ -57,10 +56,6 @@
     { id: 'applyRename', label: $t('troubadour.menu.applyRename', { default: 'Apply valid renames' }), icon: 'drive_file_rename_outline', disabled: !canRename || busy },
     { id: 'options', label: $t('troubadour.menu.options', { default: 'Troubadour Options...' }), icon: 'settings', shortcut: 'Ctrl+,', separatorBefore: true }
   ] satisfies MenuActionItem[];
-  $: helpItems = [
-    { id: 'about', label: $t('troubadour.menu.about', { default: 'About Troubadour' }), icon: 'info' }
-  ] satisfies MenuActionItem[];
-
   $: overlay = $windowControlsOverlayState;
   $: rect = overlay.titlebarAreaRect;
   $: overlayStyle = overlay.visible
@@ -76,7 +71,7 @@
     if (menu === 'file') return fileItems;
     if (menu === 'edit') return editItems;
     if (menu === 'album') return albumItems;
-    return menu === 'tools' ? toolsItems : helpItems;
+    return toolsItems;
   }
 
   function labelFor(menu: MenuId): string {
@@ -84,8 +79,7 @@
     if (menu === 'file') return $t('main.menu.file', { default: 'File' });
     if (menu === 'edit') return $t('troubadour.menu.edit', { default: 'Edit' });
     if (menu === 'album') return $t('troubadour.menu.album', { default: 'Album' });
-    if (menu === 'tools') return $t('main.menu.tools', { default: 'Tools' });
-    return $t('main.menu.help', { default: 'Help' });
+    return $t('main.menu.tools', { default: 'Tools' });
   }
 
   function openMenu(menu: MenuId): void {
@@ -123,7 +117,7 @@
   aria-label={$t('main.menu.applicationMenu', { default: 'Application menu' })}
 >
   <div class="menu-groups">
-    {#each ['app', 'file', 'edit', 'album', 'tools', 'help'] as menuName}
+    {#each ['app', 'file', 'edit', 'album', 'tools'] as menuName}
       {@const menu = menuName as MenuId}
       <div class="menu-root" role="none" on:pointerenter={() => hoverMenu(menu)}>
         <button

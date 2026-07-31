@@ -11,6 +11,15 @@ function byteHash(data: Uint8Array): string {
   return (hash >>> 0).toString(16).padStart(8, '0');
 }
 
+export function isSameArtworkFile(
+  first: Pick<MediaArtworkInput, 'data' | 'mimeType'>,
+  second: Pick<MediaArtworkInput, 'data' | 'mimeType'>
+): boolean {
+  if (first.mimeType.toLowerCase() !== second.mimeType.toLowerCase()
+    || first.data.byteLength !== second.data.byteLength) return false;
+  return first.data.every((byte, index) => byte === second.data[index]);
+}
+
 function imageDimensions(data: Uint8Array, mimeType: string): { width?: number; height?: number } {
   const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
   if (mimeType.toLowerCase() === 'image/png' && data.byteLength >= 24) {

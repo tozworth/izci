@@ -1,4 +1,5 @@
 import { writable, type Readable } from 'svelte/store';
+import { isSameArtworkFile } from '$lib/services/media-metadata/artwork';
 import { applyMetadataPatch } from '$lib/services/media-metadata/merge';
 import { getMetadataCapabilities } from '$lib/services/media-metadata/format';
 import { readMetadataDocument } from '$lib/services/media-metadata/reader';
@@ -514,6 +515,7 @@ export function createTroubadourController(
         items: state.items.map((item) => {
           if (!selected.has(item.id) || !item.document) return item;
           const current = applyMetadataPatch(item.document, item.patch, item.artworkEdits).artwork;
+          if (current.some((candidate) => isSameArtworkFile(candidate, artwork))) return item;
           if (behavior === 'reject' && current.length) return item;
           const sameKind = behavior === 'replace-kind'
             ? current.find((candidate) => candidate.kind === artwork.kind)
@@ -561,6 +563,7 @@ export function createTroubadourController(
         items: state.items.map((item) => {
           if (!albumItems.has(item.id) || !item.document) return item;
           const current = applyMetadataPatch(item.document, item.patch, item.artworkEdits).artwork;
+          if (current.some((candidate) => isSameArtworkFile(candidate, artwork))) return item;
           if (behavior === 'reject' && current.length) return item;
           const sameKind = behavior === 'replace-kind'
             ? current.find((candidate) => candidate.kind === artwork.kind)

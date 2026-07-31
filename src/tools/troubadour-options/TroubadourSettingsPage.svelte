@@ -84,7 +84,7 @@
     <div class="section">
       <h2>{$t('troubadour.options.general.workspace', { default: 'Workspace' })}</h2>
       <div class="field-grid">
-        <SettingsField title={$t('troubadour.options.general.rawPane', { default: 'Raw-files pane width (%)' })}>
+        <SettingsField title={$t('troubadour.options.general.rawPane', { default: 'Files pane width (%)' })}>
           <input type="number" min="20" max="80" value={$troubadourSettings.paneLayout.rawFilesPercent} on:change={(event) => updatePaneLayout('rawFilesPercent', event)} />
         </SettingsField>
         <SettingsField title={$t('troubadour.options.general.inspectorPane', { default: 'Inspector height (%)' })}>
@@ -286,31 +286,6 @@
           <input type="number" min="1" max="1000" value={$troubadourSettings.destructiveClearConfirmationThreshold} on:change={(event) => updateNumber('destructiveClearConfirmationThreshold', event)} />
         </SettingsField>
       </div>
-    </div>
-  {:else}
-    <div class="section">
-      <h2>{$t('troubadour.options.advanced.processing', { default: 'Processing' })}</h2>
-      <div class="field-grid">
-        <SettingsField title={$t('troubadour.options.advanced.largeFile', { default: 'Large-file threshold (MB)' })} hint={$t('troubadour.options.advanced.largeFileHint', { default: 'Shows additional progress and memory-use warnings; it does not block the file.' })} advanced>
-          <input type="number" min="64" max="16384" value={$troubadourSettings.largeFileThresholdMb} on:change={(event) => updateNumber('largeFileThresholdMb', event)} />
-        </SettingsField>
-        <SettingsField title={$t('troubadour.options.advanced.diagnostics', { default: 'Diagnostic job reporting' })} hint={$t('troubadour.options.advanced.diagnosticsHint', { default: 'Retains detailed results in the transient workbench until it closes.' })} advanced checkbox>
-          <input type="checkbox" checked={$troubadourSettings.diagnosticJobReporting} on:change={(event) => updateCheckbox('diagnosticJobReporting', event)} />
-        </SettingsField>
-      </div>
-    </div>
-
-    <div class="section">
-      <h2>{$t('troubadour.options.advanced.capabilities', { default: 'Capabilities' })}</h2>
-      <dl class="capability-list">
-        <div><dt>{$t('troubadour.options.advanced.writable', { default: 'Writable metadata' })}</dt><dd>MP3, FLAC, Ogg Vorbis, Ogg Opus, WAV</dd></div>
-        <div><dt>{$t('troubadour.options.advanced.offline', { default: 'Network providers' })}</dt><dd>{$t('troubadour.options.advanced.offlineValue', { default: 'Offline only — MusicBrainz is not enabled' })}</dd></div>
-        <div><dt>{$t('troubadour.options.advanced.transient', { default: 'Workbench storage' })}</dt><dd>{$t('troubadour.options.advanced.transientValue', { default: 'Transient; files and staged edits are not persisted' })}</dd></div>
-      </dl>
-      <button class="options-action-button danger-action" type="button" on:click={() => troubadourSettings.reset()}>
-        <span class="material-symbols-outlined" aria-hidden="true">restart_alt</span>
-        {$t('troubadour.options.advanced.resetAll', { default: 'Reset all Troubadour settings' })}
-      </button>
     </div>
   {/if}
 </article>

@@ -75,6 +75,7 @@
   let lastContext: TroubadourBatchContext | null = null;
   let pendingAlbumName = '';
   let forceNextContext = false;
+  let collapsedAlbumIds = new Set<string>();
 
   const unsubscribeController = controller.subscribe((value) => (state = value));
   const unsubscribeSettings = troubadourSettings.subscribe((value) => {
@@ -98,6 +99,7 @@
   $: selectedArtwork = selectedApplied?.artwork.find((artwork) => artwork.id === selectedArtworkId)
     ?? selectedApplied?.artwork[0]
     ?? null;
+  $: selectedRememberedFolder = state.rememberedFolders.find((folder) => folder.id === rememberedFolderId) ?? null;
   $: rawEntries = selectedPrimary?.document
     ? Object.entries(selectedPrimary.document.raw).sort(([left], [right]) => left.localeCompare(right))
     : [];
@@ -120,6 +122,13 @@
   function requestContext() {
     forceNextContext = true;
     window.opener?.postMessage({ type: REQUEST_TROUBADOUR_BATCH_CONTEXT_MESSAGE }, window.location.origin);
+  }
+
+  function toggleAlbum(albumId: string): void {
+    const next = new Set(collapsedAlbumIds);
+    if (next.has(albumId)) next.delete(albumId);
+    else next.add(albumId);
+    collapsedAlbumIds = next;
   }
 
   async function acceptContext(context: TroubadourBatchContext, force = false) {
@@ -594,7 +603,6 @@
     on:previewRename={() => void previewRenames()}
     on:applyRename={() => void applyRenames(false)}
     on:options={openOptions}
-    on:about={openOptions}
   />
 
   <div class="tool-row tool-toolbar troubadour-toolbar" role="toolbar" aria-label={$t('troubadour.workbench.commands', { default: 'Troubadour commands' })}>
@@ -613,8 +621,9 @@
     <button class="icon-button hover-tooltip-anchor" type="button" aria-label={$t('troubadour.menu.undo', { default: 'Undo staged change' })} disabled={!state.canUndo || state.busy} on:click={() => controller.undo()}><span class="material-symbols-outlined">undo</span><HoverTooltip>{$t('troubadour.menu.undo', { default: 'Undo staged change' })}</HoverTooltip></button>
     <button class="icon-button hover-tooltip-anchor" type="button" aria-label={$t('troubadour.menu.redo', { default: 'Redo staged change' })} disabled={!state.canRedo || state.busy} on:click={() => controller.redo()}><span class="material-symbols-outlined">redo</span><HoverTooltip>{$t('troubadour.menu.redo', { default: 'Redo staged change' })}</HoverTooltip></button>
     <span class="toolbar-separator"></span>
-    <label class="remembered-folder-control"><span>{$t('troubadour.workbench.rememberedRoot', { default: 'Remembered root' })}</span><select bind:value={rememberedFolderId} disabled={!state.rememberedFolders.length || state.busy}><option value="">{$t('troubadour.workbench.none', { default: 'None' })}</option>{#each state.rememberedFolders as folder}<option value={folder.id}>{folder.name} · {folder.permission}</option>{/each}</select></label>
-    <button class="text-button" type="button" disabled={!rememberedFolderId || state.busy} on:click={() => void addRememberedFolder()}>{$t('troubadour.workbench.addRoot', { default: 'Add root' })}</button>
+    <label class="remembered-folder-control hover-tooltip-anchor"><span class="material-symbols-outlined" aria-hidden="true">folder_shared</span><select bind:value={rememberedFolderId} aria-label={$t('troubadour.workbench.chooseLibraryFolder', { default: 'Choose a folder from your izci library' })} disabled={!state.rememberedFolders.length || state.busy}><option value="">{$t('troubadour.workbench.none', { default: 'None' })}</option>{#each state.rememberedFolders as folder}<option value={folder.id}>{folder.name}</option>{/each}</select><HoverTooltip>{$t('troubadour.workbench.chooseLibraryFolder', { default: 'Choose a folder from your izci library' })}</HoverTooltip></label>
+    {#if selectedRememberedFolder}<span class="root-permission hover-tooltip-anchor" class:granted={selectedRememberedFolder.permission === 'granted'} aria-label={selectedRememberedFolder.permission === 'granted' ? $t('troubadour.workbench.folderReady', { default: 'Folder is ready to use' }) : $t('troubadour.workbench.folderNeedsAccess', { default: 'Folder may ask for access' })}><span class="material-symbols-outlined" aria-hidden="true">{selectedRememberedFolder.permission === 'granted' ? 'verified' : 'lock'}</span><HoverTooltip>{selectedRememberedFolder.permission === 'granted' ? $t('troubadour.workbench.folderReady', { default: 'Folder is ready to use' }) : $t('troubadour.workbench.folderNeedsAccess', { default: 'Folder may ask for access' })}</HoverTooltip></span>{/if}
+    <button class="icon-button hover-tooltip-anchor" type="button" aria-label={$t('troubadour.workbench.addLibraryFolder', { default: 'Add selected library folder' })} disabled={!rememberedFolderId || state.busy} on:click={() => void addRememberedFolder()}><span class="material-symbols-outlined" aria-hidden="true">drive_folder_upload</span><HoverTooltip>{$t('troubadour.workbench.addLibraryFolder', { default: 'Add selected library folder' })}</HoverTooltip></button>
     <span class="toolbar-spacer"></span>
     <button class="icon-button hover-tooltip-anchor" type="button" aria-label={$t('troubadour.workbench.options', { default: 'Troubadour Options' })} on:click={openOptions}><span class="material-symbols-outlined">settings</span><HoverTooltip>{$t('troubadour.workbench.options', { default: 'Troubadour Options' })}</HoverTooltip></button>
   </div>
@@ -627,8 +636,8 @@
   {#if activeTab === 'metadata'}
     <main class="troubadour-workbench" style={layoutStyle}>
       <section class="upper-workbench">
-        <section class="pane raw-files-pane" aria-label={$t('troubadour.workbench.rawFiles', { default: 'Raw files' })}>
-          <header class="pane-header"><strong>{$t('troubadour.workbench.rawFiles', { default: 'Raw files' })}</strong><span>{$t('troubadour.workbench.rawSummary', { default: '{unassigned} unassigned · {unsupported} unsupported', values: { unassigned: state.items.filter((item) => !item.albumId).length, unsupported: state.items.filter((item) => item.state === 'unsupported').length } })}</span></header>
+        <section class="pane raw-files-pane" aria-label={$t('troubadour.workbench.files', { default: 'Files' })}>
+          <header class="pane-header"><strong>{$t('troubadour.workbench.files', { default: 'Files' })}</strong><span>{$t('troubadour.workbench.rawSummary', { default: '{unassigned} unassigned · {unsupported} unsupported', values: { unassigned: state.items.filter((item) => !item.albumId).length, unsupported: state.items.filter((item) => item.state === 'unsupported').length } })}</span></header>
           <div class="dense-grid file-grid" role="grid" aria-label={$t('troubadour.workbench.loadedFiles', { default: 'Loaded files' })}>
             <div class="grid-header" role="row"><span>{$t('troubadour.workbench.state', { default: 'State' })}</span><span>{$t('troubadour.workbench.file', { default: 'File' })}</span><span>{$t('troubadour.workbench.path', { default: 'Path' })}</span><span>{$t('troubadour.workbench.format', { default: 'Format' })}</span></div>
             {#each state.items as item (item.id)}
@@ -645,14 +654,14 @@
           <header class="pane-header"><strong>{$t('troubadour.workbench.albums', { default: 'Albums' })}</strong><span>{$t('troubadour.workbench.groupCount', { default: '{count} groups', values: { count: state.albums.length } })}</span></header>
           <div class="album-tree" role="tree">
             {#each state.albums as album (album.id)}
-              <section class="album-node" class:selected={state.selectedAlbumId === album.id} class:drop-target={dragAlbumId === album.id} role="treeitem" tabindex="-1" aria-selected={state.selectedAlbumId === album.id} on:dragover={(event) => dragOverAlbum(event, album)} on:dragleave={(event) => leaveAlbum(event, album)} on:drop={(event) => dropOnAlbum(event, album)}>
-                <button class="album-heading" type="button" on:click={() => controller.selectAlbum(album.id)}><span class="material-symbols-outlined">album</span><span><strong>{album.title}</strong><small>{album.albumArtist || $t('troubadour.workbench.variousUnknown', { default: 'Various / unknown' })} · {$t('troubadour.workbench.trackCount', { default: '{count} tracks', values: { count: album.itemIds.length } })}</small></span><span class="album-state">{album.itemIds.some((id) => dirtyItems.some((item) => item.id === id)) ? $t('troubadour.workbench.dirty', { default: 'dirty' }) : $t('troubadour.workbench.clean', { default: 'clean' })}</span></button>
-                <div class="disc-tree" role="group">
+              <section class="album-node" class:selected={state.selectedAlbumId === album.id} class:drop-target={dragAlbumId === album.id} role="treeitem" tabindex="-1" aria-selected={state.selectedAlbumId === album.id} aria-expanded={!collapsedAlbumIds.has(album.id)} on:dragover={(event) => dragOverAlbum(event, album)} on:dragleave={(event) => leaveAlbum(event, album)} on:drop={(event) => dropOnAlbum(event, album)}>
+                <div class="album-heading"><button class="album-chevron hover-tooltip-anchor" type="button" aria-label={collapsedAlbumIds.has(album.id) ? $t('troubadour.workbench.expandAlbum', { default: 'Expand album' }) : $t('troubadour.workbench.collapseAlbum', { default: 'Collapse album' })} on:click={() => toggleAlbum(album.id)}><span class="material-symbols-outlined">{collapsedAlbumIds.has(album.id) ? 'chevron_right' : 'expand_more'}</span><HoverTooltip>{collapsedAlbumIds.has(album.id) ? $t('troubadour.workbench.expandAlbum', { default: 'Expand album' }) : $t('troubadour.workbench.collapseAlbum', { default: 'Collapse album' })}</HoverTooltip></button><button class="album-summary" type="button" on:click={() => controller.selectAlbum(album.id)}><strong>{album.title}</strong><small>{album.albumArtist || $t('troubadour.workbench.variousUnknown', { default: 'Various / unknown' })} · {$t('troubadour.workbench.trackCount', { default: '{count} tracks', values: { count: album.itemIds.length } })}</small>{#if album.itemIds.some((id) => dirtyItems.some((item) => item.id === id))}<span class="album-modified-dot" title={$t('troubadour.workbench.modified', { default: 'Modified' })}></span>{/if}</button></div>
+                {#if !collapsedAlbumIds.has(album.id)}<div class="disc-tree" role="group">
                   {#each album.itemIds as itemId, index}
                     {@const item = state.items.find((candidate) => candidate.id === itemId)}
                     {#if item}<button class="album-track" class:selected={state.selectedIds.includes(item.id)} type="button" draggable="true" on:dragstart={(event) => beginItemDrag(event, item)} on:click={(event) => selectRow(event, item)}><span class="track-position">{effectiveFields(item)?.trackNumber || index + 1}</span><span>{effectiveFields(item)?.title || item.file.name}</span><small>{item.extension.toUpperCase()}</small></button>{/if}
                   {/each}
-                </div>
+                </div>{/if}
               </section>
             {/each}
             {#if !state.albums.length}<div class="album-empty"><span class="material-symbols-outlined">account_tree</span><span>{$t('troubadour.workbench.albumEmpty', { default: 'Select files and create an album, or use Auto-group.' })}</span></div>{/if}
@@ -693,7 +702,7 @@
               <div class="artwork-mixed"><span class="material-symbols-outlined">difference</span><span>{$t('troubadour.workbench.mixedArtworkHint', { default: 'Selected files contain different embedded images.' })}</span></div>
             {/if}
             {#each selectedApplied?.artwork ?? [] as artwork}
-              <button type="button" class:selected={selectedArtwork?.id === artwork.id} on:click={() => selectedArtworkId = artwork.id}><span class="material-symbols-outlined">image</span><span><strong>{artwork.kind}</strong><small>{artwork.mimeType} · {artwork.width && artwork.height ? `${artwork.width}×${artwork.height} · ` : ''}{Math.ceil(artwork.size / 1024)} KiB</small></span></button>
+              <button type="button" class:selected={selectedArtwork?.id === artwork.id} on:click={() => selectedArtworkId = artwork.id}><span class="material-symbols-outlined">image</span><span><strong>{artwork.kind}</strong> <small>{artwork.mimeType}{artwork.width && artwork.height ? ` - ${artwork.width}×${artwork.height}` : ''} - {Math.ceil(artwork.size / 1024)} KiB</small></span></button>
             {/each}
           </div>
           <div class="artwork-preview" class:empty={!artworkUrl} class:fit-cover={settings.artworkPreviewFit === 'cover'} class:fit-actual={settings.artworkPreviewFit === 'actual'}>{#if artworkUrl}<img src={artworkUrl} alt={$t('troubadour.workbench.selectedArtwork', { default: 'Selected embedded artwork' })} />{:else}<span class="material-symbols-outlined">hide_image</span><span>{artworkMixed ? $t('troubadour.workbench.mixedArtwork', { default: 'Mixed artwork' }) : $t('troubadour.workbench.noArtwork', { default: 'No common artwork' })}</span>{/if}</div>

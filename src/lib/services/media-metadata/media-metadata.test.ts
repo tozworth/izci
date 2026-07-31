@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
+import { isSameArtworkFile } from './artwork';
 import { applyMetadataPatch } from './merge';
 import { queryMetadataWritePermission, requestMetadataWritePermission } from './permissions';
 import { readMetadataDocument } from './reader';
@@ -39,6 +40,13 @@ function emptyFields(overrides: Partial<MediaMetadataFields> = {}): MediaMetadat
 }
 
 describe('metadata patch merging', () => {
+  it('recognizes identical artwork files without conflating different bytes or MIME types', () => {
+    const artwork = { data: new Uint8Array([1, 2, 3]), mimeType: 'image/jpeg' };
+    expect(isSameArtworkFile(artwork, { data: new Uint8Array([1, 2, 3]), mimeType: 'IMAGE/JPEG' })).toBe(true);
+    expect(isSameArtworkFile(artwork, { data: new Uint8Array([1, 2, 4]), mimeType: 'image/jpeg' })).toBe(false);
+    expect(isSameArtworkFile(artwork, { data: new Uint8Array([1, 2, 3]), mimeType: 'image/png' })).toBe(false);
+  });
+
   it('distinguishes untouched fields from explicit clears and preserves unknown raw frames', () => {
     const document: MetadataDocument = {
       extension: 'mp3',

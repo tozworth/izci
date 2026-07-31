@@ -1,6 +1,6 @@
 import type { SharedOptionsViewDefinition } from '$lib/components/options/OptionsView.svelte';
 
-export type TroubadourOptionsViewName = 'general' | 'metadata' | 'artwork' | 'rename' | 'files' | 'advanced';
+export type TroubadourOptionsViewName = 'general' | 'metadata' | 'artwork' | 'rename' | 'files';
 
 export const DEFAULT_TROUBADOUR_OPTIONS_VIEW: TroubadourOptionsViewName = 'general';
 
@@ -12,8 +12,7 @@ export const TROUBADOUR_OPTIONS_VIEW_GROUPS: SharedOptionsViewDefinition[][] = [
     { id: 'rename', label: 'Rename', icon: 'drive_file_rename_outline', hasHints: true, hasAdvancedTweaks: true, resettable: true }
   ],
   [
-    { id: 'files', label: 'Files and safety', icon: 'verified_user', hasHints: true, hasAdvancedTweaks: true, resettable: true },
-    { id: 'advanced', label: 'Advanced', icon: 'settings_suggest', hasHints: true, hasAdvancedTweaks: true, resettable: true }
+    { id: 'files', label: 'Files and safety', icon: 'verified_user', hasHints: true, hasAdvancedTweaks: true, resettable: true }
   ]
 ];
 
