@@ -239,6 +239,7 @@ export function createTroubadourController(
   createAlbum(title?: string): string | null;
   autoGroup(fallback?: 'folder' | 'none'): void;
   dissolveAlbum(id: string): void;
+  assignItemsToAlbum(itemIds: string[], id: string): void;
   assignSelectionToAlbum(id: string): void;
   reorderAlbum(id: string, itemIds: string[]): void;
   renumberAlbum(id: string, start?: number, padTo?: number): void;
@@ -268,6 +269,21 @@ export function createTroubadourController(
     });
   };
   const selectionItems = () => state.items.filter((item) => state.selectedIds.includes(item.id));
+  const assignItemsToAlbum = (itemIds: string[], id: string) => {
+    const target = state.albums.find((album) => album.id === id);
+    const assigned = new Set(itemIds.filter((itemId) => state.items.some((item) => item.id === itemId)));
+    if (!target || !assigned.size) return;
+    setStaged({
+      items: state.items.map((item) => assigned.has(item.id) ? { ...item, albumId: id } : item),
+      albums: state.albums.map((album) => ({
+        ...album,
+        itemIds: album.id === id
+          ? [...new Set([...album.itemIds, ...assigned])]
+          : album.itemIds.filter((itemId) => !assigned.has(itemId))
+      })).filter((album) => album.itemIds.length > 0)
+    });
+    setState({ selectedAlbumId: null });
+  };
 
   async function addLoadingItems(nextItems: TroubadourWorkbenchItem[], concurrency: number): Promise<void> {
     const known = new Set(state.items.map((item) => `${item.path}\u0000${item.file.size}\u0000${item.file.lastModified}`));
@@ -593,19 +609,9 @@ export function createTroubadourController(
       });
       if (state.selectedAlbumId === id) setState({ selectedAlbumId: null });
     },
+    assignItemsToAlbum,
     assignSelectionToAlbum(id: string) {
-      const selected = new Set(state.selectedIds);
-      const target = state.albums.find((album) => album.id === id);
-      if (!target) return;
-      setStaged({
-        items: state.items.map((item) => selected.has(item.id) ? { ...item, albumId: id } : item),
-        albums: state.albums.map((album) => ({
-          ...album,
-          itemIds: album.id === id
-            ? [...new Set([...album.itemIds, ...state.selectedIds])]
-            : album.itemIds.filter((itemId) => !selected.has(itemId))
-        })).filter((album) => album.itemIds.length > 0)
-      });
+      assignItemsToAlbum(state.selectedIds, id);
     },
     reorderAlbum(id: string, itemIds: string[]) {
       const album = state.albums.find((candidate) => candidate.id === id);

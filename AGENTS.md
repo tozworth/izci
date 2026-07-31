@@ -93,9 +93,11 @@
 
 ## Tools windows
 
-- Tools are separate Vite pages entered through `audio-compare.html`, `clip-tag.html`, `converter.html`, `loudness.html`, and `spectrogram.html`; each page mounts its matching app under `src/tools/<tool>/main.ts`.
+- Tools are separate Vite pages entered through `audio-compare.html`, `clip-tag.html`, `converter.html`, `loudness.html`, `spectrogram.html`, and `troubadour.html`; each page mounts its matching app under `src/tools/<tool>/main.ts`.
 - `TopMenuBar.svelte` owns main-window Tools menu presentation. Window paths and default dimensions belong in `src/lib/services/popup-windows.ts`; opening/reuse behavior stays in `window-manager.ts`.
 - Keep each tool's analysis, workers, exports, and tests in its `src/tools/<tool>/` directory. Adding or removing a tool page also requires updating the multi-page inputs and PWA navigation fallback denylist in `vite.config.ts`.
+- Troubadour is a transient metadata, artwork, album-grouping, and rename workbench; its controller owns workbench state and jobs, its settings live separately from main-player settings, and it must not directly mutate playlist or library persistence.
+- `troubadour-options.html` hosts Troubadour's dedicated Options view, while shared metadata readers and writers remain outside Troubadour for reuse by other tools.
 
 ## Imports, PWA, and browser integration
 

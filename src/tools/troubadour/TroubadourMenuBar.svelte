@@ -5,7 +5,7 @@
   import { windowControlsOverlayState } from '$lib/services/window-controls-overlay';
   import type { MenuActionItem } from '$lib/types';
 
-  type MenuId = 'file' | 'edit' | 'album' | 'tools' | 'help';
+  type MenuId = 'app' | 'file' | 'edit' | 'album' | 'tools' | 'help';
   type ActionId =
     | 'addFiles' | 'addFolder' | 'addFromIzci' | 'save' | 'saveAll' | 'close'
     | 'undo' | 'redo' | 'selectAll' | 'remove' | 'reload'
@@ -26,6 +26,11 @@
   let menuX = 8;
   let menuY = 34;
 
+  $: appItems = [
+    { id: 'options', label: $t('troubadour.menu.options', { default: 'Troubadour Options...' }), icon: 'settings', shortcut: 'Ctrl+,' },
+    { id: 'about', label: $t('troubadour.menu.about', { default: 'About Troubadour' }), icon: 'info' },
+    { id: 'close', label: $t('troubadour.menu.close', { default: 'Close Troubadour' }), icon: 'close', shortcut: 'Ctrl+W', separatorBefore: true }
+  ] satisfies MenuActionItem[];
   $: fileItems = [
     { id: 'addFiles', label: $t('troubadour.menu.addFiles', { default: 'Add files...' }), icon: 'audio_file', shortcut: 'Ctrl+O', disabled: busy },
     { id: 'addFolder', label: $t('troubadour.menu.addFolder', { default: 'Add folder...' }), icon: 'folder_open', shortcut: 'Ctrl+Shift+O', disabled: busy },
@@ -67,6 +72,7 @@
   }
 
   function itemsFor(menu: MenuId): MenuActionItem[] {
+    if (menu === 'app') return appItems;
     if (menu === 'file') return fileItems;
     if (menu === 'edit') return editItems;
     if (menu === 'album') return albumItems;
@@ -74,6 +80,7 @@
   }
 
   function labelFor(menu: MenuId): string {
+    if (menu === 'app') return 'izci';
     if (menu === 'file') return $t('main.menu.file', { default: 'File' });
     if (menu === 'edit') return $t('troubadour.menu.edit', { default: 'Edit' });
     if (menu === 'album') return $t('troubadour.menu.album', { default: 'Album' });
@@ -116,19 +123,21 @@
   aria-label={$t('main.menu.applicationMenu', { default: 'Application menu' })}
 >
   <div class="menu-groups">
-    {#each ['file', 'edit', 'album', 'tools', 'help'] as menuName}
+    {#each ['app', 'file', 'edit', 'album', 'tools', 'help'] as menuName}
       {@const menu = menuName as MenuId}
       <div class="menu-root" role="none" on:pointerenter={() => hoverMenu(menu)}>
         <button
           class="menu-trigger"
+          class:app-menu-trigger={menu === 'app'}
           class:active={activeMenu === menu}
           data-menu-interactive="true"
           data-troubadour-menu={menu}
           type="button"
+          aria-label={menu === 'app' ? 'izci' : undefined}
           aria-haspopup="menu"
           aria-expanded={activeMenu === menu}
           on:click={() => openMenu(menu)}
-        >{labelFor(menu)}</button>
+        >{#if menu === 'app'}<span class="izci-menu-glyph" aria-hidden="true"></span>{:else}{labelFor(menu)}{/if}</button>
         {#if activeMenu === menu}
           <MenuSurface items={itemsFor(menu)} x={menuX} y={menuY} on:action={(event) => run(event.detail)} on:dismiss={() => activeMenu = null} />
         {/if}

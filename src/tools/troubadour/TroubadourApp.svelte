@@ -47,6 +47,7 @@
       }
     }]
   };
+  const ITEM_DRAG_MIME = 'application/x-izci-troubadour-items';
 
   const controller = createTroubadourController();
   let state = controller.getSnapshot();
@@ -55,6 +56,7 @@
   let fileInput: HTMLInputElement;
   let artworkInput: HTMLInputElement;
   let dragActive = false;
+  let dragAlbumId: string | null = null;
   let rawFilesPercent = settings.paneLayout.rawFilesPercent;
   let inspectorPercent = settings.paneLayout.inspectorPercent;
   let artworkPercent = settings.paneLayout.artworkPercent;
@@ -192,6 +194,7 @@
   async function handleDrop(event: DragEvent): Promise<void> {
     event.preventDefault();
     dragActive = false;
+    if (isItemDrag(event)) return;
     if (!event.dataTransfer) return;
     try {
       await controller.ingestDropped(event.dataTransfer, settings.folderScanDepth, settings.metadataReadConcurrency);
@@ -365,12 +368,57 @@
 
   function beginItemDrag(event: DragEvent, item: TroubadourWorkbenchItem): void {
     if (!state.selectedIds.includes(item.id)) controller.select(item.id);
-    event.dataTransfer?.setData('application/x-izci-troubadour-items', JSON.stringify(controller.getSnapshot().selectedIds));
+    dragActive = false;
+    const dataTransfer = event.dataTransfer;
+    if (!dataTransfer) return;
+    dataTransfer.effectAllowed = 'move';
+    dataTransfer.setData(ITEM_DRAG_MIME, JSON.stringify(controller.getSnapshot().selectedIds));
+  }
+
+  function isItemDrag(event: DragEvent): boolean {
+    return Array.from(event.dataTransfer?.types ?? []).includes(ITEM_DRAG_MIME);
+  }
+
+  function handleWindowDragOver(event: DragEvent): void {
+    if (isItemDrag(event)) {
+      dragActive = false;
+      return;
+    }
+    if (!Array.from(event.dataTransfer?.types ?? []).includes('Files')) return;
+    event.preventDefault();
+    dragActive = true;
+    if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy';
+  }
+
+  function handleWindowDragLeave(event: DragEvent): void {
+    if (!isItemDrag(event) && event.relatedTarget === null) dragActive = false;
+  }
+
+  function dragOverAlbum(event: DragEvent, album: TroubadourAlbum): void {
+    if (!isItemDrag(event)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+    dragAlbumId = album.id;
+  }
+
+  function leaveAlbum(event: DragEvent, album: TroubadourAlbum): void {
+    const pane = event.currentTarget as HTMLElement;
+    if (event.relatedTarget instanceof Node && pane.contains(event.relatedTarget)) return;
+    if (dragAlbumId === album.id) dragAlbumId = null;
   }
 
   function dropOnAlbum(event: DragEvent, album: TroubadourAlbum): void {
+    if (!isItemDrag(event)) return;
     event.preventDefault();
-    controller.assignSelectionToAlbum(album.id);
+    event.stopPropagation();
+    dragAlbumId = null;
+    try {
+      const itemIds = JSON.parse(event.dataTransfer?.getData(ITEM_DRAG_MIME) ?? '[]');
+      if (Array.isArray(itemIds)) controller.assignItemsToAlbum(itemIds.filter((id): id is string => typeof id === 'string'), album.id);
+    } catch {
+      // Ignore malformed internal drag data.
+    }
   }
 
   function editField(field: MediaMetadataFieldName, event: Event): void {
@@ -512,7 +560,7 @@
 </script>
 
 <svelte:head><title>{$t('troubadour.windowTitle', { default: 'izci Troubadour' })}</title></svelte:head>
-<svelte:window on:keydown={handleKeydown} on:dragover={(event) => { event.preventDefault(); dragActive = true; }} on:dragleave={() => dragActive = false} on:drop={handleDrop} on:contextmenu={(event) => { if (event.target === document.body) event.preventDefault(); }} />
+<svelte:window on:keydown={handleKeydown} on:dragover={handleWindowDragOver} on:dragleave={handleWindowDragLeave} on:drop={handleDrop} on:dragend={() => { dragActive = false; dragAlbumId = null; }} on:contextmenu={(event) => { if (event.target === document.body) event.preventDefault(); }} />
 
 <div class="tool-shell troubadour-shell">
   <div class="window-frame-safe-strip" aria-hidden="true"></div>
@@ -549,7 +597,7 @@
     on:about={openOptions}
   />
 
-  <div class="tool-toolbar troubadour-toolbar" role="toolbar" aria-label={$t('troubadour.workbench.commands', { default: 'Troubadour commands' })}>
+  <div class="tool-row tool-toolbar troubadour-toolbar" role="toolbar" aria-label={$t('troubadour.workbench.commands', { default: 'Troubadour commands' })}>
     {#each [
       { icon: 'audio_file', label: $t('troubadour.workbench.addFiles', { default: 'Add files' }), action: () => void chooseFiles() },
       { icon: 'folder_open', label: $t('troubadour.workbench.addFolder', { default: 'Add folder' }), action: () => void chooseFolder() },
@@ -597,12 +645,12 @@
           <header class="pane-header"><strong>{$t('troubadour.workbench.albums', { default: 'Albums' })}</strong><span>{$t('troubadour.workbench.groupCount', { default: '{count} groups', values: { count: state.albums.length } })}</span></header>
           <div class="album-tree" role="tree">
             {#each state.albums as album (album.id)}
-              <section class="album-node" class:selected={state.selectedAlbumId === album.id} role="treeitem" tabindex="-1" aria-selected={state.selectedAlbumId === album.id} on:dragover={(event) => event.preventDefault()} on:drop={(event) => dropOnAlbum(event, album)}>
+              <section class="album-node" class:selected={state.selectedAlbumId === album.id} class:drop-target={dragAlbumId === album.id} role="treeitem" tabindex="-1" aria-selected={state.selectedAlbumId === album.id} on:dragover={(event) => dragOverAlbum(event, album)} on:dragleave={(event) => leaveAlbum(event, album)} on:drop={(event) => dropOnAlbum(event, album)}>
                 <button class="album-heading" type="button" on:click={() => controller.selectAlbum(album.id)}><span class="material-symbols-outlined">album</span><span><strong>{album.title}</strong><small>{album.albumArtist || $t('troubadour.workbench.variousUnknown', { default: 'Various / unknown' })} · {$t('troubadour.workbench.trackCount', { default: '{count} tracks', values: { count: album.itemIds.length } })}</small></span><span class="album-state">{album.itemIds.some((id) => dirtyItems.some((item) => item.id === id)) ? $t('troubadour.workbench.dirty', { default: 'dirty' }) : $t('troubadour.workbench.clean', { default: 'clean' })}</span></button>
                 <div class="disc-tree" role="group">
                   {#each album.itemIds as itemId, index}
                     {@const item = state.items.find((candidate) => candidate.id === itemId)}
-                    {#if item}<button class="album-track" class:selected={state.selectedIds.includes(item.id)} type="button" on:click={(event) => selectRow(event, item)}><span class="track-position">{effectiveFields(item)?.trackNumber || index + 1}</span><span>{effectiveFields(item)?.title || item.file.name}</span><small>{item.extension.toUpperCase()}</small></button>{/if}
+                    {#if item}<button class="album-track" class:selected={state.selectedIds.includes(item.id)} type="button" draggable="true" on:dragstart={(event) => beginItemDrag(event, item)} on:click={(event) => selectRow(event, item)}><span class="track-position">{effectiveFields(item)?.trackNumber || index + 1}</span><span>{effectiveFields(item)?.title || item.file.name}</span><small>{item.extension.toUpperCase()}</small></button>{/if}
                   {/each}
                 </div>
               </section>
@@ -650,8 +698,8 @@
           </div>
           <div class="artwork-preview" class:empty={!artworkUrl} class:fit-cover={settings.artworkPreviewFit === 'cover'} class:fit-actual={settings.artworkPreviewFit === 'actual'}>{#if artworkUrl}<img src={artworkUrl} alt={$t('troubadour.workbench.selectedArtwork', { default: 'Selected embedded artwork' })} />{:else}<span class="material-symbols-outlined">hide_image</span><span>{artworkMixed ? $t('troubadour.workbench.mixedArtwork', { default: 'Mixed artwork' }) : $t('troubadour.workbench.noArtwork', { default: 'No common artwork' })}</span>{/if}</div>
           <div class="artwork-actions">
-            <button class="text-button" type="button" disabled={!selectedItems.some((item) => item.document)} on:click={() => openArtworkPicker('add')}><span class="material-symbols-outlined">add_photo_alternate</span>{$t('troubadour.workbench.addArtwork', { default: 'Add' })}</button>
-            <button class="text-button" type="button" disabled={!selectedArtwork || artworkMixed} on:click={() => openArtworkPicker('replace')}><span class="material-symbols-outlined">find_replace</span>{$t('troubadour.workbench.replaceArtwork', { default: 'Replace' })}</button>
+            <button class="icon-button hover-tooltip-anchor" type="button" aria-label={$t('troubadour.workbench.addArtwork', { default: 'Add' })} disabled={!selectedItems.some((item) => item.document)} on:click={() => openArtworkPicker('add')}><span class="material-symbols-outlined">add_photo_alternate</span><HoverTooltip>{$t('troubadour.workbench.addArtwork', { default: 'Add' })}</HoverTooltip></button>
+            <button class="icon-button hover-tooltip-anchor" type="button" aria-label={$t('troubadour.workbench.replaceArtwork', { default: 'Replace' })} disabled={!selectedArtwork || artworkMixed} on:click={() => openArtworkPicker('replace')}><span class="material-symbols-outlined">find_replace</span><HoverTooltip>{$t('troubadour.workbench.replaceArtwork', { default: 'Replace' })}</HoverTooltip></button>
             <select class="artwork-kind" aria-label={$t('troubadour.workbench.artworkKind', { default: 'Artwork kind' })} value={selectedArtwork?.kind ?? ''} disabled={!selectedArtwork || artworkMixed} on:change={(event) => setArtworkKind(event.currentTarget.value as MediaArtwork['kind'])}><option value="coverFront">{$t('troubadour.workbench.frontCover', { default: 'Front' })}</option><option value="coverBack">{$t('troubadour.workbench.backCover', { default: 'Back' })}</option><option value="unknown">{$t('troubadour.workbench.otherArtwork', { default: 'Other' })}</option></select>
             <button class="icon-button hover-tooltip-anchor" type="button" aria-label={$t('troubadour.workbench.removeArtwork', { default: 'Remove artwork' })} disabled={!selectedArtwork || artworkMixed} on:click={() => selectedArtwork && controller.removeArtwork(selectedArtwork.id)}><span class="material-symbols-outlined">delete</span><HoverTooltip>{$t('troubadour.workbench.removeSelectedArtwork', { default: 'Remove selected artwork' })}</HoverTooltip></button>
             <button class="icon-button hover-tooltip-anchor" type="button" aria-label={$t('troubadour.workbench.clearArtwork', { default: 'Clear all artwork' })} disabled={!selectedAppliedDocuments.some((document) => document.artwork.length)} on:click={clearArtwork}><span class="material-symbols-outlined">delete_sweep</span><HoverTooltip>{$t('troubadour.workbench.clearSelectedArtwork', { default: 'Clear artwork from selected files' })}</HoverTooltip></button>

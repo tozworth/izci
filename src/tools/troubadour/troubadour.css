@@ -233,6 +233,12 @@
   border-bottom: 1px solid var(--border-faint);
 }
 
+.album-node.drop-target {
+  outline: 1px solid var(--accent-strong);
+  outline-offset: -1px;
+  background: color-mix(in srgb, var(--accent-strong) 8%, transparent);
+}
+
 .album-heading,
 .album-track,
 .artwork-list button {
@@ -559,14 +565,16 @@
 .artwork-actions {
   display: flex;
   align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
   gap: 0.12rem;
-  overflow-x: auto;
   padding: 0.2rem 0.3rem;
   border-top: 1px solid var(--border-soft);
   background: var(--bg-soft);
 }
 
 .artwork-kind {
+  flex: 0 0 auto;
   min-width: 4.3rem;
   max-width: 5.5rem;
 }
