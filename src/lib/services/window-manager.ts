@@ -1,5 +1,6 @@
 import { popupWindows, type PopupWindowDefinition, type PopupWindowId } from '$lib/services/popup-windows';
 import { getOptionsWindowState } from '$lib/services/options-window-state';
+import { getPopupWindowSize } from '$lib/services/popup-window-state';
 import { OPEN_CURRENT_TOOL_TRACK_MESSAGE } from '$lib/services/tool-track-context';
 import { OPEN_TROUBADOUR_BATCH_CONTEXT_MESSAGE } from '$lib/services/troubadour-sync';
 import { buildOptionsWindowPath, type OptionsViewName } from '../../options/views';
@@ -145,6 +146,7 @@ function openPopupWindow(id: PopupWindowId, pathOverride?: string): Window | nul
   const existingWindow = popupRefs.get(id);
   const definition = popupWindows[id];
   const optionsState = id === 'options' ? getOptionsWindowState() : null;
+  const storedSize = getPopupWindowSize(id);
   const popupPath = pathOverride ?? (optionsState ? buildOptionsWindowPath(optionsState.activeView) : definition.path);
   const popupUrl = new URL(popupPath, window.location.href);
 
@@ -175,12 +177,10 @@ function openPopupWindow(id: PopupWindowId, pathOverride?: string): Window | nul
   const nextWindow = window.open(
     '',
     definition.name,
-    buildWindowFeatures(getPopupFeatures(optionsState
-      ? {
-          ...definition,
-          features: { ...definition.features, width: optionsState.width, height: optionsState.height }
-        }
-      : definition))
+    buildWindowFeatures(getPopupFeatures({
+      ...definition,
+      features: { ...definition.features, ...storedSize }
+    }))
   );
 
   if (!nextWindow) {

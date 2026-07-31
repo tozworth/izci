@@ -22,8 +22,7 @@
   import {
     getOptionsWindowState,
     rememberOptionsActiveView,
-    rememberShowAdvancedTweaks,
-    rememberOptionsWindowSize
+    rememberShowAdvancedTweaks
   } from '$lib/services/options-window-state';
   import { appearanceSettings, DEFAULT_APPEARANCE_SETTINGS } from '$lib/stores/appearance-settings';
   import { DEFAULT_METADATA_SETTINGS, metadataSettings } from '$lib/stores/metadata-settings';
@@ -221,7 +220,6 @@
   on:select={(event) => setActiveView(event.detail.view as OptionsViewName)}
   on:reset={resetCurrentView}
   on:advancedvisibilitychange={(event) => rememberShowAdvancedTweaks(event.detail.visible)}
-  on:windowresize={(event) => rememberOptionsWindowSize(event.detail.width, event.detail.height)}
 >
       {#if activeView === 'appearance'}
         <AppearanceView />

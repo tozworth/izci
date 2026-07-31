@@ -37,7 +37,6 @@
     select: { view: string };
     reset: { view: string };
     advancedvisibilitychange: { visible: boolean };
-    windowresize: { width: number; height: number };
   }>();
 
   function handleWindowContextMenu(event: MouseEvent): void {
@@ -69,24 +68,18 @@
 
   onMount(() => {
     const wasOpenedByHostWindow = window.opener !== null;
-    const reportWindowSize = () => dispatch('windowresize', {
-      width: window.outerWidth,
-      height: window.outerHeight
-    });
     const closeIfHostWindowClosed = () => {
       if (wasOpenedByHostWindow && (!window.opener || window.opener.closed)) {
         window.close();
       }
     };
 
-    window.addEventListener('resize', reportWindowSize);
     window.addEventListener('focus', closeIfHostWindowClosed);
     document.addEventListener('visibilitychange', closeIfHostWindowClosed);
     const openerCheckInterval = window.setInterval(closeIfHostWindowClosed, 1000);
 
     return () => {
       window.clearInterval(openerCheckInterval);
-      window.removeEventListener('resize', reportWindowSize);
       window.removeEventListener('focus', closeIfHostWindowClosed);
       document.removeEventListener('visibilitychange', closeIfHostWindowClosed);
     };

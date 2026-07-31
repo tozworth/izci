@@ -18,8 +18,7 @@
   import {
     getTroubadourOptionsWindowState,
     rememberTroubadourOptionsActiveView,
-    rememberTroubadourOptionsAdvancedVisibility,
-    rememberTroubadourOptionsWindowSize
+    rememberTroubadourOptionsAdvancedVisibility
   } from './window-state';
 
   const PAGE_KEYS: Record<TroubadourOptionsViewName, (keyof TroubadourSettings)[]> = {
@@ -134,7 +133,6 @@
   on:select={(event) => setActiveView(event.detail.view as TroubadourOptionsViewName)}
   on:reset={resetCurrentPage}
   on:advancedvisibilitychange={(event) => rememberTroubadourOptionsAdvancedVisibility(event.detail.visible)}
-  on:windowresize={(event) => rememberTroubadourOptionsWindowSize(event.detail.width, event.detail.height)}
 >
   <TroubadourSettingsPage view={activeView} />
 </OptionsView>

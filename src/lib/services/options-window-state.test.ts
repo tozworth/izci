@@ -24,14 +24,12 @@ describe('options window state', () => {
     vi.unstubAllGlobals();
   });
 
-  it('hides advanced tweaks by default, including for older persisted state', () => {
+  it('hides advanced tweaks by default, including when persisted state omits it', () => {
     expect(getOptionsWindowState().showAdvancedTweaks).toBe(false);
 
-    values.set(STORAGE_KEY, JSON.stringify({ activeView: 'tracks', width: 720, height: 500 }));
+    values.set(STORAGE_KEY, JSON.stringify({ activeView: 'tracks' }));
     expect(getOptionsWindowState()).toMatchObject({
       activeView: 'tracks',
-      width: 720,
-      height: 500,
       showAdvancedTweaks: false
     });
   });
