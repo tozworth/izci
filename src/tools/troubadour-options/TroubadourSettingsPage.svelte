@@ -97,6 +97,8 @@
           <select value={$troubadourSettings.lastActiveTab} on:change={(event) => updateSelect('lastActiveTab', event)}>
             <option value="metadata">{$t('troubadour.options.metadata.label', { default: 'Metadata' })}</option>
             <option value="rename">{$t('troubadour.options.rename.label', { default: 'Rename' })}</option>
+            <option value="loudness">{$t('loudness.title', { default: 'Loudness' })}</option>
+            <option value="spectrogram">{$t('spectrogram.title', { default: 'Spectrogram' })}</option>
           </select>
         </SettingsField>
         <SettingsField title={$t('troubadour.options.general.confirmDirtyRemoval', { default: 'Confirm removing dirty items' })} hint={$t('troubadour.options.general.confirmDirtyRemovalHint', { default: 'Removal only discards staged work; it never deletes source files.' })} checkbox>

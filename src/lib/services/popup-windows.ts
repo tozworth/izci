@@ -49,17 +49,6 @@ export const popupWindows = {
       scrollbars: false
     }
   },
-  spectrogram: {
-    name: 'izci-spectrogram',
-    path: '/spectrogram.html',
-    features: {
-      popup: true,
-      width: 1020,
-      height: 680,
-      resizable: true,
-      scrollbars: false
-    }
-  },
   troubadour: {
     name: 'izci-troubadour',
     path: '/troubadour.html',

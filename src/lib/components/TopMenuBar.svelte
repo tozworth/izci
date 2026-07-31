@@ -26,7 +26,6 @@
     | 'openAudioCompare'
     | 'openClipTag'
     | 'openConverter'
-    | 'openSpectrogram'
     | 'openTroubadour'
     | 'showPlaylist'
     | 'showLibrary'
@@ -137,11 +136,6 @@
       id: 'openConverter',
       label: $t('main.menu.converter', { default: 'Converter...' }),
       icon: 'sync_alt'
-    },
-    {
-      id: 'openSpectrogram',
-      label: $t('main.menu.spectrogram', { default: 'Spectrogram...' }),
-      icon: 'waterfall_chart'
     }
   ] satisfies MenuActionItem[];
   $: helpMenuItems = [
@@ -176,7 +170,6 @@
     openAudioCompare: void;
     openClipTag: void;
     openConverter: void;
-    openSpectrogram: void;
     openTroubadour: void;
     showPlaylist: void;
     showLibrary: void;

@@ -96,7 +96,6 @@ function getPopupTitle(id: PopupWindowId): string {
     options: 'izci Options',
     clipTag: 'izci Edit and Tag',
     converter: 'izci Converter',
-    spectrogram: 'izci Spectrogram',
     troubadour: 'izci Troubadour',
     troubadourOptions: 'izci Troubadour Options'
   };

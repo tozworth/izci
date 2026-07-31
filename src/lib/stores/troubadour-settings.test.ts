@@ -40,6 +40,10 @@ describe('normalizeTroubadourSettings', () => {
     expect(normalizeTroubadourSettings({ lastActiveTab: 'loudness' }).lastActiveTab).toBe('loudness');
   });
 
+  it('keeps Spectrogram as a restorable Troubadour tab', () => {
+    expect(normalizeTroubadourSettings({ lastActiveTab: 'spectrogram' }).lastActiveTab).toBe('spectrogram');
+  });
+
   it('rejects invalid enums instead of carrying unreleased settings shapes forward', () => {
     const settings = normalizeTroubadourSettings({
       initialLoad: 'playlist',

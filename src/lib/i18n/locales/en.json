@@ -39,7 +39,6 @@
       "audioCompare": "Audio Compare...",
       "clipAndTag": "Edit and Tag...",
       "converter": "Converter...",
-      "spectrogram": "Spectrogram...",
       "forceUpdate": "Force update",
       "playlist": "Playlist",
       "library": "Library",
@@ -1517,30 +1516,6 @@
     "selected": "selected",
     "drop": "Drop media files or folders"
   },
-  "spectrogram": {
-    "menu": {
-      "open": "Open audio...",
-      "close": "Close Spectrogram"
-    },
-    "open": "Open...",
-    "reanalyze": "Regenerate spectrum",
-    "stop": "Stop",
-    "fftSize": "FFT size",
-    "range": "Floor",
-    "unsupported": "Spectrogram supports streamed audio only: MP3, WAV, FLAC, Ogg, and Opus.",
-    "failed": "The spectrogram could not be generated.",
-    "openFailed": "The audio file could not be opened.",
-    "toolbar": "Spectrogram tools",
-    "hoverHint": "Hover the plot for exact time and frequency.",
-    "analyzing": "Analyzing spectrum...",
-    "empty": "Open a streamed audio file",
-    "emptyHint": "MP3, WAV, FLAC, Ogg, or Opus · you can also drop a file here",
-    "graphLabel": "Audio spectrogram: time from left to right, frequency from bottom to top, and color showing level in dBFS",
-    "caveat": "A sharp cutoff can suggest a lossy source, but it is not proof by itself.",
-    "bins": "bins",
-    "drop": "Drop streamed audio file",
-    "title": "Spectrogram"
-  },
   "loudness": {
     "cancelled": "Analysis cancelled.",
     "analysisComplete": "Analysis complete.",
@@ -1587,8 +1562,24 @@
     "files": "files",
     "analyzedCount": "analyzed"
   },
+  "spectrogram": {
+    "graphLabel": "Audio spectrogram: time from left to right, frequency from bottom to top, and color showing level in dBFS",
+    "reanalyze": "Regenerate spectrum",
+    "stop": "Stop",
+    "fftSize": "FFT size",
+    "range": "Floor",
+    "failed": "The spectrogram could not be generated.",
+    "toolbar": "Spectrogram tools",
+    "analyzing": "Analyzing spectrum...",
+    "empty": "Open a streamed audio file",
+    "emptyHint": "MP3, WAV, FLAC, Ogg, or Opus · you can also drop a file here",
+    "caveat": "A sharp cutoff can suggest a lossy source, but it is not proof by itself.",
+    "bins": "bins",
+    "title": "Spectrogram"
+  },
   "troubadour": {
     "workbench": {
+      "selectSpectrogramFile": "Select a streamed audio file from Metadata, then open Spectrogram.",
       "operationFailed": "The operation failed.",
       "folderUnavailable": "Folder access is unavailable. Use Add files instead.",
       "confirmDirtyRemoval": "Remove staged dirty files from the workbench? Source files will not be deleted.",
@@ -1691,6 +1682,7 @@
       "drop": "Drop files or folders into the transient workbench"
     },
     "menu": {
+      "spectrogram": "Open selected file in Spectrogram",
       "createAlbum": "Create album from selection",
       "remove": "Remove from workbench",
       "addFromIzci": "Add current izci selection",

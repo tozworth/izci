@@ -19,8 +19,9 @@
     type TroubadourSettings,
     type TroubadourTab
   } from '$lib/stores/troubadour-settings';
-  import type { MenuActionItem } from '$lib/types';
+  import { STREAM_EXTENSIONS, type MenuActionItem } from '$lib/types';
   import LoudnessTab from './LoudnessTab.svelte';
+  import SpectrogramTab from './SpectrogramTab.svelte';
   import TroubadourMenuBar from './TroubadourMenuBar.svelte';
   import {
     createTroubadourController,
@@ -78,6 +79,7 @@
   let forceNextContext = false;
   let collapsedAlbumIds = new Set<string>();
   let loudnessBusy = false;
+  let spectrogramItemId: string | null = null;
 
   const unsubscribeController = controller.subscribe((value) => (state = value));
   const unsubscribeSettings = troubadourSettings.subscribe((value) => {
@@ -90,6 +92,7 @@
   $: writableDirtyItems = dirtyItems.filter((item) => item.fileHandle && item.document);
   $: visibleFields = settings.visibleMetadataFields.map((field) => SETTINGS_TO_FIELDS[field]);
   $: selectedPrimary = selectedItems[0] ?? null;
+  $: spectrogramItem = state.items.find((item) => item.id === spectrogramItemId) ?? null;
   $: selectedAppliedDocuments = selectedItems
     .filter((item) => item.document)
     .map((item) => applyMetadataPatch(item.document!, item.patch, item.artworkEdits));
@@ -109,6 +112,9 @@
   $: contextMenuItems = contextItemId ? buildContextMenuItems() : [];
   $: layoutStyle = `--raw-files-percent: ${rawFilesPercent}%; --inspector-percent: ${inspectorPercent}%; --artwork-percent: ${artworkPercent}%;`;
   $: updateArtworkUrl(selectedArtwork);
+  $: if (activeTab === 'spectrogram' && !spectrogramItemId && selectedPrimary && isSpectrogramItem(selectedPrimary)) {
+    spectrogramItemId = selectedPrimary.id;
+  }
 
   function updateArtworkUrl(artwork: MediaArtwork | null) {
     const key = artwork?.id ?? '';
@@ -289,6 +295,16 @@
     troubadourSettings.update({ lastActiveTab: tab });
   }
 
+  function isSpectrogramItem(item: TroubadourWorkbenchItem | null | undefined): boolean {
+    return Boolean(item && (STREAM_EXTENSIONS as readonly string[]).includes(item.extension));
+  }
+
+  function openSpectrogram(item: TroubadourWorkbenchItem | null = selectedPrimary): void {
+    if (!item || !isSpectrogramItem(item)) return;
+    spectrogramItemId = item.id;
+    setActiveTab('spectrogram');
+  }
+
   function openOptions(): void {
     windowManager.openPopup('troubadourOptions');
   }
@@ -303,6 +319,7 @@
     const item = state.items.find((candidate) => candidate.id === contextItemId);
     return [
       { id: 'copyPath', label: $t('troubadour.workbench.copyPath', { default: 'Copy path' }), icon: 'content_copy', disabled: !item?.path },
+      { id: 'spectrogram', label: $t('troubadour.menu.spectrogram', { default: 'Open selected file in Spectrogram' }), icon: 'waterfall_chart', disabled: !isSpectrogramItem(item), separatorBefore: true },
       { id: 'createAlbum', label: $t('troubadour.menu.createAlbum', { default: 'Create album from selection' }), icon: 'create_new_folder', separatorBefore: true },
       ...state.albums.map((album, index) => ({
         id: `assign:${album.id}`,
@@ -326,6 +343,7 @@
     const item = state.items.find((candidate) => candidate.id === contextItemId);
     contextItemId = null;
     if (action === 'copyPath' && item) await navigator.clipboard?.writeText(item.path);
+    else if (action === 'spectrogram' && item) openSpectrogram(item);
     else if (action === 'createAlbum') createAlbum();
     else if (action.startsWith('assign:')) controller.assignSelectionToAlbum(action.slice(7));
     else if (action === 'remove') removeSelected();
@@ -585,6 +603,7 @@
     canRemove={state.selectedIds.length > 0}
     canAlbum={state.selectedIds.length > 0 || Boolean(state.selectedAlbumId)}
     canRename={renameRows.some((row) => row.enabled)}
+    canSpectrogram={isSpectrogramItem(selectedPrimary)}
     busy={state.busy || loudnessBusy}
     {summary}
     on:addFiles={() => void chooseFiles()}
@@ -604,6 +623,7 @@
     on:dissolveAlbum={() => state.selectedAlbumId && controller.dissolveAlbum(state.selectedAlbumId)}
     on:previewRename={() => void previewRenames()}
     on:applyRename={() => void applyRenames(false)}
+    on:spectrogram={() => openSpectrogram()}
     on:options={openOptions}
   />
 
@@ -615,7 +635,7 @@
     ] as tool}
       <button class="icon-button hover-tooltip-anchor" type="button" aria-label={tool.label} disabled={state.busy || loudnessBusy} on:click={tool.action}><span class="material-symbols-outlined" aria-hidden="true">{tool.icon}</span><HoverTooltip>{tool.label}</HoverTooltip></button>
     {/each}
-    {#if activeTab !== 'loudness'}
+    {#if activeTab === 'metadata' || activeTab === 'rename'}
       <span class="toolbar-separator"></span>
       <button class="icon-button hover-tooltip-anchor" type="button" aria-label={$t('troubadour.workbench.createAlbum', { default: 'Create album' })} disabled={!state.selectedIds.length || state.busy} on:click={createAlbum}><span class="material-symbols-outlined">create_new_folder</span><HoverTooltip>{$t('troubadour.workbench.createAlbum', { default: 'Create album' })}</HoverTooltip></button>
       <button class="icon-button hover-tooltip-anchor" type="button" aria-label={$t('troubadour.workbench.autoGroup', { default: 'Auto-group' })} disabled={state.busy} on:click={() => controller.autoGroup(settings.autoGroupFallback)}><span class="material-symbols-outlined">auto_awesome_motion</span><HoverTooltip>{$t('troubadour.workbench.autoGroup', { default: 'Auto-group' })}</HoverTooltip></button>
@@ -636,6 +656,7 @@
     <button class="tab-strip-tab" class:active={activeTab === 'metadata'} type="button" role="tab" aria-selected={activeTab === 'metadata'} on:click={() => setActiveTab('metadata')}><span class="material-symbols-outlined">library_music</span>{$t('troubadour.workbench.metadataTab', { default: 'Metadata' })}</button>
     <button class="tab-strip-tab" class:active={activeTab === 'rename'} type="button" role="tab" aria-selected={activeTab === 'rename'} on:click={() => setActiveTab('rename')}><span class="material-symbols-outlined">drive_file_rename_outline</span>{$t('troubadour.workbench.renameTab', { default: 'Rename' })}</button>
     <button class="tab-strip-tab" class:active={activeTab === 'loudness'} type="button" role="tab" aria-selected={activeTab === 'loudness'} on:click={() => setActiveTab('loudness')}><span class="material-symbols-outlined">graphic_eq</span>{$t('loudness.title', { default: 'Loudness' })}</button>
+    <button class="tab-strip-tab" class:active={activeTab === 'spectrogram'} type="button" role="tab" aria-selected={activeTab === 'spectrogram'} on:click={() => openSpectrogram()} disabled={!isSpectrogramItem(spectrogramItem ?? selectedPrimary)}><span class="material-symbols-outlined">waterfall_chart</span>{$t('spectrogram.title', { default: 'Spectrogram' })}</button>
   </TabStrip>
 
   {#if activeTab === 'metadata'}
@@ -664,7 +685,7 @@
                 {#if !collapsedAlbumIds.has(album.id)}<div class="disc-tree" role="group">
                   {#each album.itemIds as itemId, index}
                     {@const item = state.items.find((candidate) => candidate.id === itemId)}
-                    {#if item}<button class="album-track" class:selected={state.selectedIds.includes(item.id)} type="button" draggable="true" on:dragstart={(event) => beginItemDrag(event, item)} on:click={(event) => selectRow(event, item)}><span class="track-position">{effectiveFields(item)?.trackNumber || index + 1}</span><span>{effectiveFields(item)?.title || item.file.name}</span><small>{item.extension.toUpperCase()}</small></button>{/if}
+                    {#if item}<button class="album-track" class:selected={state.selectedIds.includes(item.id)} type="button" draggable="true" on:dragstart={(event) => beginItemDrag(event, item)} on:click={(event) => selectRow(event, item)} on:contextmenu={(event) => openContextMenu(event, item)}><span class="track-position">{effectiveFields(item)?.trackNumber || index + 1}</span><span>{effectiveFields(item)?.title || item.file.name}</span><small>{item.extension.toUpperCase()}</small></button>{/if}
                   {/each}
                 </div>{/if}
               </section>
@@ -747,7 +768,7 @@
       </section>
       <footer class="rename-actions"><span>{$t('troubadour.workbench.renameSummary', { default: '{ready} ready · {blocked} blocked', values: { ready: renameRows.filter((row) => row.enabled).length, blocked: renameRows.filter((row) => row.problems.length).length } })}</span>{#if renameRows.some((row) => row.problems.includes('permission-required'))}<button class="text-button" type="button" disabled={state.busy} on:click={() => void grantRenameAccess()}><span class="material-symbols-outlined">lock_open</span>{$t('troubadour.workbench.grantAccess', { default: 'Grant access' })}</button>{/if}<button class="text-button" type="button" disabled={!renameRows.some((row) => row.enabled) || state.busy} on:click={() => void applyRenames(true)}>{$t('troubadour.workbench.saveThenRename', { default: 'Save tags then rename' })}</button><button class="text-button primary" type="button" disabled={!renameRows.some((row) => row.enabled) || state.busy} on:click={() => void applyRenames(false)}><span class="material-symbols-outlined">drive_file_rename_outline</span>{$t('troubadour.workbench.applyRenames', { default: 'Apply renames' })}</button></footer>
     </main>
-  {:else}
+  {:else if activeTab === 'loudness'}
     <LoudnessTab
       items={state.items}
       selectedIds={state.selectedIds}
@@ -759,9 +780,11 @@
       on:written={() => void controller.reloadSelected()}
       on:busyChange={(event) => loudnessBusy = event.detail}
     />
+  {:else}
+    <SpectrogramTab item={spectrogramItem} />
   {/if}
 
-  {#if activeTab !== 'loudness'}<footer class="tool-status-bar" class:error={Boolean(state.error || renameError)}>
+  {#if activeTab !== 'loudness' && activeTab !== 'spectrogram'}<footer class="tool-status-bar" class:error={Boolean(state.error || renameError)}>
     <span class="material-symbols-outlined" aria-hidden="true">{state.busy ? 'progress_activity' : state.error || renameError ? 'error' : 'info'}</span>
     <span>{state.error || renameError || state.message || $t('troubadour.workbench.offlineReady', { default: 'Offline workbench ready. Source files are unchanged.' })}</span>
     {#if selectedPrimary}<span class="current-path" title={selectedPrimary.path}>{selectedPrimary.path}</span>{/if}

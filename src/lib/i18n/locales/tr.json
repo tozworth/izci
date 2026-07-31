@@ -39,7 +39,6 @@
       "audioCompare": "Audio Compare...",
       "clipAndTag": "Düzenle ve Etiketle...",
       "converter": "Converter...",
-      "spectrogram": "Spektrogram...",
       "forceUpdate": "Zorla güncelle",
       "playlist": "Liste",
       "library": "Kütüphane",
@@ -1517,30 +1516,6 @@
     "selected": "selected",
     "drop": "Drop media files or folders"
   },
-  "spectrogram": {
-    "menu": {
-      "open": "Ses aç...",
-      "close": "Spektrogramı kapat"
-    },
-    "open": "Aç...",
-    "reanalyze": "Spektrumu yeniden oluştur",
-    "stop": "Durdur",
-    "fftSize": "FFT boyutu",
-    "range": "Alt sınır",
-    "unsupported": "Spektrogram yalnızca akış seslerini destekler: MP3, WAV, FLAC, Ogg ve Opus.",
-    "failed": "Spektrogram oluşturulamadı.",
-    "openFailed": "Ses dosyası açılamadı.",
-    "toolbar": "Spektrogram araçları",
-    "hoverHint": "Kesin zaman ve frekans için grafiğin üzerine gelin.",
-    "analyzing": "Spektrum inceleniyor...",
-    "empty": "Bir akış ses dosyası açın",
-    "emptyHint": "MP3, WAV, FLAC, Ogg veya Opus · buraya dosya da bırakabilirsiniz",
-    "graphLabel": "Ses spektrogramı: zaman soldan sağa, frekans aşağıdan yukarı; renk ise dBFS cinsinden düzeyi gösterir",
-    "caveat": "Keskin bir kesim kaynağın kayıplı olduğunu düşündürebilir, ancak tek başına kanıt değildir.",
-    "bins": "bant",
-    "drop": "Akış ses dosyasını bırakın",
-    "title": "Spektrogram"
-  },
   "loudness": {
     "cancelled": "Analysis cancelled.",
     "analysisComplete": "Bulk analysis complete.",
@@ -1587,8 +1562,24 @@
     "files": "files",
     "analyzedCount": "analyzed"
   },
+  "spectrogram": {
+    "graphLabel": "Ses spektrogramı: zaman soldan sağa, frekans aşağıdan yukarı; renk ise dBFS cinsinden düzeyi gösterir",
+    "reanalyze": "Spektrumu yeniden oluştur",
+    "stop": "Durdur",
+    "fftSize": "FFT boyutu",
+    "range": "Alt sınır",
+    "failed": "Spektrogram oluşturulamadı.",
+    "toolbar": "Spektrogram araçları",
+    "analyzing": "Spektrum inceleniyor...",
+    "empty": "Bir akış ses dosyası açın",
+    "emptyHint": "MP3, WAV, FLAC, Ogg veya Opus · buraya dosya da bırakabilirsiniz",
+    "caveat": "Keskin bir kesim kaynağın kayıplı olduğunu düşündürebilir, ancak tek başına kanıt değildir.",
+    "bins": "bant",
+    "title": "Spektrogram"
+  },
   "troubadour": {
     "workbench": {
+      "selectSpectrogramFile": "Select a streamed audio file from Metadata, then open Spectrogram.",
       "operationFailed": "İşlem başarısız oldu.",
       "folderUnavailable": "Klasör erişimi kullanılamıyor. Bunun yerine Dosya ekle'yi kullanın.",
       "confirmDirtyRemoval": "Aşamalı değişiklikleri olan dosyalar çalışma alanından kaldırılsın mı? Kaynak dosyalar silinmez.",
@@ -1691,6 +1682,7 @@
       "drop": "Dosya veya klasörleri geçici çalışma alanına bırakın"
     },
     "menu": {
+      "spectrogram": "Open selected file in Spectrogram",
       "createAlbum": "Seçimden albüm oluştur",
       "remove": "Çalışma alanından kaldır",
       "addFromIzci": "Geçerli izci seçimini ekle",

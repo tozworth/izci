@@ -20,6 +20,87 @@
   min-height: 2.1rem;
 }
 
+.spectrogram-tab {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  overflow: hidden;
+}
+
+.spectrogram-toolbar label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.28rem;
+  color: var(--muted);
+  font-size: 0.7rem;
+  white-space: nowrap;
+}
+
+.spectrogram-toolbar select {
+  min-width: 6.4rem;
+  min-height: var(--tool-control-height);
+  padding: 0.22rem 1.4rem 0.22rem 0.35rem;
+  border: 1px solid var(--border-soft);
+  border-radius: 0.2rem;
+  background: var(--bg-input);
+  color: var(--text);
+}
+
+.spectrogram-toolbar .toolbar-note {
+  min-width: 12rem;
+  margin-left: auto;
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.spectrogram-view {
+  min-width: 0;
+  min-height: 0;
+  padding: 0.3rem;
+  background: color-mix(in srgb, var(--bg-base) 86%, #000);
+}
+
+.spectrogram-canvas-host {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+.spectrogram-canvas-host canvas {
+  display: block;
+  touch-action: none;
+}
+
+.spectrogram-tab .analysis-state {
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 0.55rem;
+  width: 100%;
+  height: 100%;
+  color: var(--muted);
+}
+
+.spectrogram-tab .analysis-state strong {
+  color: var(--text);
+}
+
+.spectrogram-tab .analysis-state progress {
+  width: min(24rem, 52vw);
+  height: 0.35rem;
+  accent-color: var(--accent-strong);
+}
+
+.spectrogram-tab .tool-status-bar > span:nth-child(2) {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .remembered-folder-control {
   display: flex;
   align-items: center;

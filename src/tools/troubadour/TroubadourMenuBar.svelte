@@ -10,7 +10,7 @@
     | 'addFiles' | 'addFolder' | 'addFromIzci' | 'save' | 'saveAll' | 'close'
     | 'undo' | 'redo' | 'selectAll' | 'remove' | 'reload'
     | 'createAlbum' | 'autoGroup' | 'renumber' | 'dissolveAlbum'
-    | 'previewRename' | 'applyRename' | 'options';
+    | 'previewRename' | 'applyRename' | 'spectrogram' | 'options';
 
   export let canSave = false;
   export let canUndo = false;
@@ -18,6 +18,7 @@
   export let canRemove = false;
   export let canAlbum = false;
   export let canRename = false;
+  export let canSpectrogram = false;
   export let busy = false;
   export let summary = '';
 
@@ -54,6 +55,7 @@
   $: toolsItems = [
     { id: 'previewRename', label: $t('troubadour.menu.previewRename', { default: 'Preview renames' }), icon: 'preview', disabled: busy },
     { id: 'applyRename', label: $t('troubadour.menu.applyRename', { default: 'Apply valid renames' }), icon: 'drive_file_rename_outline', disabled: !canRename || busy },
+    { id: 'spectrogram', label: $t('troubadour.menu.spectrogram', { default: 'Open selected file in Spectrogram' }), icon: 'waterfall_chart', disabled: !canSpectrogram || busy, separatorBefore: true },
     { id: 'options', label: $t('troubadour.menu.options', { default: 'Troubadour Options...' }), icon: 'settings', shortcut: 'Ctrl+,', separatorBefore: true }
   ] satisfies MenuActionItem[];
   $: overlay = $windowControlsOverlayState;
