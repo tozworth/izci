@@ -39,7 +39,6 @@
       "audioCompare": "Audio Compare...",
       "clipAndTag": "Edit and Tag...",
       "converter": "Converter...",
-      "loudness": "Loudness...",
       "spectrogram": "Spectrogram...",
       "forceUpdate": "Force update",
       "playlist": "Playlist",
@@ -1518,58 +1517,6 @@
     "selected": "selected",
     "drop": "Drop media files or folders"
   },
-  "loudness": {
-    "files": "files",
-    "noNewFiles": "No new supported audio files were found.",
-    "folderPickerUnavailable": "Folder access is unavailable here. Use Add files instead.",
-    "analyzeSelected": "Analyze selected",
-    "stop": "Stop",
-    "writeSelected": "Write tags in-place",
-    "selectAll": "Select all",
-    "menu": {
-      "selectNone": "Select none",
-      "analysis": "Analysis",
-      "close": "Close Loudness",
-      "selection": "Selection"
-    },
-    "targetShort": "Target",
-    "albumGrouping": "Album grouping",
-    "group": {
-      "tags": "Album tags, then folder",
-      "folder": "Containing folder",
-      "all": "All analyzed files",
-      "none": "Track gain only"
-    },
-    "removeSelected": "Remove selected",
-    "cancelled": "Analysis cancelled.",
-    "analysisComplete": "Analysis complete.",
-    "writeComplete": "Wrote ReplayGain tags to {count} files.",
-    "status": {
-      "ready": "Ready",
-      "readOnly": "Analyze only",
-      "analyzing": "Analyzing...",
-      "analyzingPercent": "Analyzing {percent}%",
-      "analyzed": "Analyzed",
-      "writing": "Writing...",
-      "written": "Tagged",
-      "error": "Failed",
-      "label": "Status"
-    },
-    "title": "Loudness",
-    "toolbar": "Loudness tools",
-    "addFiles": "Add files...",
-    "addFolder": "Add folder...",
-    "parallelShort": "Jobs",
-    "file": "File",
-    "integrated": "Integrated",
-    "peak": "Sample peak",
-    "trackGain": "Track gain",
-    "albumGain": "Album gain",
-    "empty": "Add audio",
-    "emptyHint": "or drop files and folders here",
-    "analyzedCount": "analyzed",
-    "drop": "Drop audio files or folders"
-  },
   "spectrogram": {
     "menu": {
       "open": "Open audio...",
@@ -1593,6 +1540,52 @@
     "bins": "bins",
     "drop": "Drop streamed audio file",
     "title": "Spectrogram"
+  },
+  "loudness": {
+    "cancelled": "Analysis cancelled.",
+    "analysisComplete": "Analysis complete.",
+    "writeComplete": "Wrote ReplayGain tags to {count} files.",
+    "status": {
+      "saveStagedFirst": "Save staged metadata before writing gain tags",
+      "ready": "Ready",
+      "readOnly": "Analyze only",
+      "analyzing": "Analyzing...",
+      "analyzingPercent": "Analyzing {percent}%",
+      "analyzed": "Analyzed",
+      "writing": "Writing...",
+      "written": "Tagged",
+      "error": "Failed",
+      "label": "Status"
+    },
+    "analyzeSelected": "Analyze selected",
+    "stop": "Stop",
+    "writeSelected": "Write tags in-place",
+    "selectAll": "Select all",
+    "menu": {
+      "selectNone": "Select none",
+      "analysis": "Analysis"
+    },
+    "removeSelected": "Remove selected",
+    "title": "Loudness",
+    "toolbar": "Loudness tools",
+    "targetShort": "Target",
+    "albumGrouping": "Album grouping",
+    "group": {
+      "tags": "Album tags, then folder",
+      "folder": "Containing folder",
+      "all": "All analyzed files",
+      "none": "Track gain only"
+    },
+    "parallelShort": "Jobs",
+    "file": "File",
+    "integrated": "Integrated",
+    "peak": "Sample peak",
+    "trackGain": "Track gain",
+    "albumGain": "Album gain",
+    "empty": "Add audio",
+    "emptyHint": "or drop files and folders here",
+    "files": "files",
+    "analyzedCount": "analyzed"
   },
   "troubadour": {
     "workbench": {

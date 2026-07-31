@@ -30,7 +30,7 @@ export const TROUBADOUR_METADATA_FIELDS = [
 export type TroubadourMetadataField = typeof TROUBADOUR_METADATA_FIELDS[number];
 export type TroubadourInitialLoad = 'current-track' | 'current-selection' | 'nothing';
 export type TroubadourAutoGroupFallback = 'folder' | 'none';
-export type TroubadourTab = 'metadata' | 'rename';
+export type TroubadourTab = 'metadata' | 'rename' | 'loudness';
 export type TroubadourMultiValueDisplay = 'joined' | 'first' | 'count';
 export type TroubadourDateDisplay = 'verbatim' | 'year' | 'localized';
 export type TroubadourAlbumEditPolicy = 'all-writable' | 'supported-only' | 'ask';
@@ -214,7 +214,7 @@ export function normalizeTroubadourSettings(value: unknown): TroubadourSettings 
       inspectorPercent: normalizeTroubadourInteger(paneLayout.inspectorPercent, DEFAULT_TROUBADOUR_SETTINGS.paneLayout.inspectorPercent, 20, 70),
       artworkPercent: normalizeTroubadourInteger(paneLayout.artworkPercent, DEFAULT_TROUBADOUR_SETTINGS.paneLayout.artworkPercent, 18, 55)
     },
-    lastActiveTab: enumValue(source.lastActiveTab, ['metadata', 'rename'], DEFAULT_TROUBADOUR_SETTINGS.lastActiveTab),
+    lastActiveTab: enumValue(source.lastActiveTab, ['metadata', 'rename', 'loudness'], DEFAULT_TROUBADOUR_SETTINGS.lastActiveTab),
     confirmDirtyRemoval: booleanValue(source.confirmDirtyRemoval, DEFAULT_TROUBADOUR_SETTINGS.confirmDirtyRemoval),
 
     visibleMetadataFields: normalizeTroubadourMetadataFields(source.visibleMetadataFields),

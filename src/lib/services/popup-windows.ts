@@ -49,17 +49,6 @@ export const popupWindows = {
       scrollbars: false
     }
   },
-  loudness: {
-    name: 'izci-loudness',
-    path: '/loudness.html',
-    features: {
-      popup: true,
-      width: 1060,
-      height: 650,
-      resizable: true,
-      scrollbars: false
-    }
-  },
   spectrogram: {
     name: 'izci-spectrogram',
     path: '/spectrogram.html',

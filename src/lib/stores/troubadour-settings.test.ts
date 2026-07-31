@@ -36,6 +36,10 @@ describe('normalizeTroubadourSettings', () => {
     expect(settings.paneLayout).toEqual({ rawFilesPercent: 20, inspectorPercent: 70, artworkPercent: 32 });
   });
 
+  it('keeps Loudness as a restorable Troubadour tab', () => {
+    expect(normalizeTroubadourSettings({ lastActiveTab: 'loudness' }).lastActiveTab).toBe('loudness');
+  });
+
   it('rejects invalid enums instead of carrying unreleased settings shapes forward', () => {
     const settings = normalizeTroubadourSettings({
       initialLoad: 'playlist',

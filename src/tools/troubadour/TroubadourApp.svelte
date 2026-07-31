@@ -20,6 +20,7 @@
     type TroubadourTab
   } from '$lib/stores/troubadour-settings';
   import type { MenuActionItem } from '$lib/types';
+  import LoudnessTab from './LoudnessTab.svelte';
   import TroubadourMenuBar from './TroubadourMenuBar.svelte';
   import {
     createTroubadourController,
@@ -76,6 +77,7 @@
   let pendingAlbumName = '';
   let forceNextContext = false;
   let collapsedAlbumIds = new Set<string>();
+  let loudnessBusy = false;
 
   const unsubscribeController = controller.subscribe((value) => (state = value));
   const unsubscribeSettings = troubadourSettings.subscribe((value) => {
@@ -583,7 +585,7 @@
     canRemove={state.selectedIds.length > 0}
     canAlbum={state.selectedIds.length > 0 || Boolean(state.selectedAlbumId)}
     canRename={renameRows.some((row) => row.enabled)}
-    busy={state.busy}
+    busy={state.busy || loudnessBusy}
     {summary}
     on:addFiles={() => void chooseFiles()}
     on:addFolder={() => void chooseFolder()}
@@ -611,19 +613,21 @@
       { icon: 'folder_open', label: $t('troubadour.workbench.addFolder', { default: 'Add folder' }), action: () => void chooseFolder() },
       { icon: 'playlist_add', label: $t('troubadour.menu.addFromIzci', { default: 'Add current izci selection' }), action: requestContext }
     ] as tool}
-      <button class="icon-button hover-tooltip-anchor" type="button" aria-label={tool.label} disabled={state.busy} on:click={tool.action}><span class="material-symbols-outlined" aria-hidden="true">{tool.icon}</span><HoverTooltip>{tool.label}</HoverTooltip></button>
+      <button class="icon-button hover-tooltip-anchor" type="button" aria-label={tool.label} disabled={state.busy || loudnessBusy} on:click={tool.action}><span class="material-symbols-outlined" aria-hidden="true">{tool.icon}</span><HoverTooltip>{tool.label}</HoverTooltip></button>
     {/each}
-    <span class="toolbar-separator"></span>
-    <button class="icon-button hover-tooltip-anchor" type="button" aria-label={$t('troubadour.workbench.createAlbum', { default: 'Create album' })} disabled={!state.selectedIds.length || state.busy} on:click={createAlbum}><span class="material-symbols-outlined">create_new_folder</span><HoverTooltip>{$t('troubadour.workbench.createAlbum', { default: 'Create album' })}</HoverTooltip></button>
-    <button class="icon-button hover-tooltip-anchor" type="button" aria-label={$t('troubadour.workbench.autoGroup', { default: 'Auto-group' })} disabled={state.busy} on:click={() => controller.autoGroup(settings.autoGroupFallback)}><span class="material-symbols-outlined">auto_awesome_motion</span><HoverTooltip>{$t('troubadour.workbench.autoGroup', { default: 'Auto-group' })}</HoverTooltip></button>
-    <span class="toolbar-separator"></span>
-    <button class="icon-button hover-tooltip-anchor" type="button" aria-label={$t('troubadour.workbench.saveTags', { default: 'Save staged tags' })} disabled={!writableDirtyItems.length || state.busy} on:click={() => void save(false)}><span class="material-symbols-outlined">save</span><HoverTooltip>{$t('troubadour.workbench.saveTags', { default: 'Save staged tags' })}</HoverTooltip></button>
-    <button class="icon-button hover-tooltip-anchor" type="button" aria-label={$t('troubadour.menu.undo', { default: 'Undo staged change' })} disabled={!state.canUndo || state.busy} on:click={() => controller.undo()}><span class="material-symbols-outlined">undo</span><HoverTooltip>{$t('troubadour.menu.undo', { default: 'Undo staged change' })}</HoverTooltip></button>
-    <button class="icon-button hover-tooltip-anchor" type="button" aria-label={$t('troubadour.menu.redo', { default: 'Redo staged change' })} disabled={!state.canRedo || state.busy} on:click={() => controller.redo()}><span class="material-symbols-outlined">redo</span><HoverTooltip>{$t('troubadour.menu.redo', { default: 'Redo staged change' })}</HoverTooltip></button>
-    <span class="toolbar-separator"></span>
-    <label class="remembered-folder-control hover-tooltip-anchor"><span class="material-symbols-outlined" aria-hidden="true">folder_shared</span><select bind:value={rememberedFolderId} aria-label={$t('troubadour.workbench.chooseLibraryFolder', { default: 'Choose a folder from your izci library' })} disabled={!state.rememberedFolders.length || state.busy}><option value="">{$t('troubadour.workbench.none', { default: 'None' })}</option>{#each state.rememberedFolders as folder}<option value={folder.id}>{folder.name}</option>{/each}</select><HoverTooltip>{$t('troubadour.workbench.chooseLibraryFolder', { default: 'Choose a folder from your izci library' })}</HoverTooltip></label>
-    {#if selectedRememberedFolder}<span class="root-permission hover-tooltip-anchor" class:granted={selectedRememberedFolder.permission === 'granted'} aria-label={selectedRememberedFolder.permission === 'granted' ? $t('troubadour.workbench.folderReady', { default: 'Folder is ready to use' }) : $t('troubadour.workbench.folderNeedsAccess', { default: 'Folder may ask for access' })}><span class="material-symbols-outlined" aria-hidden="true">{selectedRememberedFolder.permission === 'granted' ? 'verified' : 'lock'}</span><HoverTooltip>{selectedRememberedFolder.permission === 'granted' ? $t('troubadour.workbench.folderReady', { default: 'Folder is ready to use' }) : $t('troubadour.workbench.folderNeedsAccess', { default: 'Folder may ask for access' })}</HoverTooltip></span>{/if}
-    <button class="icon-button hover-tooltip-anchor" type="button" aria-label={$t('troubadour.workbench.addLibraryFolder', { default: 'Add selected library folder' })} disabled={!rememberedFolderId || state.busy} on:click={() => void addRememberedFolder()}><span class="material-symbols-outlined" aria-hidden="true">drive_folder_upload</span><HoverTooltip>{$t('troubadour.workbench.addLibraryFolder', { default: 'Add selected library folder' })}</HoverTooltip></button>
+    {#if activeTab !== 'loudness'}
+      <span class="toolbar-separator"></span>
+      <button class="icon-button hover-tooltip-anchor" type="button" aria-label={$t('troubadour.workbench.createAlbum', { default: 'Create album' })} disabled={!state.selectedIds.length || state.busy} on:click={createAlbum}><span class="material-symbols-outlined">create_new_folder</span><HoverTooltip>{$t('troubadour.workbench.createAlbum', { default: 'Create album' })}</HoverTooltip></button>
+      <button class="icon-button hover-tooltip-anchor" type="button" aria-label={$t('troubadour.workbench.autoGroup', { default: 'Auto-group' })} disabled={state.busy} on:click={() => controller.autoGroup(settings.autoGroupFallback)}><span class="material-symbols-outlined">auto_awesome_motion</span><HoverTooltip>{$t('troubadour.workbench.autoGroup', { default: 'Auto-group' })}</HoverTooltip></button>
+      <span class="toolbar-separator"></span>
+      <button class="icon-button hover-tooltip-anchor" type="button" aria-label={$t('troubadour.workbench.saveTags', { default: 'Save staged tags' })} disabled={!writableDirtyItems.length || state.busy} on:click={() => void save(false)}><span class="material-symbols-outlined">save</span><HoverTooltip>{$t('troubadour.workbench.saveTags', { default: 'Save staged tags' })}</HoverTooltip></button>
+      <button class="icon-button hover-tooltip-anchor" type="button" aria-label={$t('troubadour.menu.undo', { default: 'Undo staged change' })} disabled={!state.canUndo || state.busy} on:click={() => controller.undo()}><span class="material-symbols-outlined">undo</span><HoverTooltip>{$t('troubadour.menu.undo', { default: 'Undo staged change' })}</HoverTooltip></button>
+      <button class="icon-button hover-tooltip-anchor" type="button" aria-label={$t('troubadour.menu.redo', { default: 'Redo staged change' })} disabled={!state.canRedo || state.busy} on:click={() => controller.redo()}><span class="material-symbols-outlined">redo</span><HoverTooltip>{$t('troubadour.menu.redo', { default: 'Redo staged change' })}</HoverTooltip></button>
+      <span class="toolbar-separator"></span>
+      <label class="remembered-folder-control hover-tooltip-anchor"><span class="material-symbols-outlined" aria-hidden="true">folder_shared</span><select bind:value={rememberedFolderId} aria-label={$t('troubadour.workbench.chooseLibraryFolder', { default: 'Choose a folder from your izci library' })} disabled={!state.rememberedFolders.length || state.busy}><option value="">{$t('troubadour.workbench.none', { default: 'None' })}</option>{#each state.rememberedFolders as folder}<option value={folder.id}>{folder.name}</option>{/each}</select><HoverTooltip>{$t('troubadour.workbench.chooseLibraryFolder', { default: 'Choose a folder from your izci library' })}</HoverTooltip></label>
+      {#if selectedRememberedFolder}<span class="root-permission hover-tooltip-anchor" class:granted={selectedRememberedFolder.permission === 'granted'} aria-label={selectedRememberedFolder.permission === 'granted' ? $t('troubadour.workbench.folderReady', { default: 'Folder is ready to use' }) : $t('troubadour.workbench.folderNeedsAccess', { default: 'Folder may ask for access' })}><span class="material-symbols-outlined" aria-hidden="true">{selectedRememberedFolder.permission === 'granted' ? 'verified' : 'lock'}</span><HoverTooltip>{selectedRememberedFolder.permission === 'granted' ? $t('troubadour.workbench.folderReady', { default: 'Folder is ready to use' }) : $t('troubadour.workbench.folderNeedsAccess', { default: 'Folder may ask for access' })}</HoverTooltip></span>{/if}
+      <button class="icon-button hover-tooltip-anchor" type="button" aria-label={$t('troubadour.workbench.addLibraryFolder', { default: 'Add selected library folder' })} disabled={!rememberedFolderId || state.busy} on:click={() => void addRememberedFolder()}><span class="material-symbols-outlined" aria-hidden="true">drive_folder_upload</span><HoverTooltip>{$t('troubadour.workbench.addLibraryFolder', { default: 'Add selected library folder' })}</HoverTooltip></button>
+    {/if}
     <span class="toolbar-spacer"></span>
     <button class="icon-button hover-tooltip-anchor" type="button" aria-label={$t('troubadour.workbench.options', { default: 'Troubadour Options' })} on:click={openOptions}><span class="material-symbols-outlined">settings</span><HoverTooltip>{$t('troubadour.workbench.options', { default: 'Troubadour Options' })}</HoverTooltip></button>
   </div>
@@ -631,6 +635,7 @@
   <TabStrip className="tool-tabs troubadour-tabs" ariaLabel={$t('troubadour.workbench.tabs', { default: 'Troubadour workbench tabs' })}>
     <button class="tab-strip-tab" class:active={activeTab === 'metadata'} type="button" role="tab" aria-selected={activeTab === 'metadata'} on:click={() => setActiveTab('metadata')}><span class="material-symbols-outlined">library_music</span>{$t('troubadour.workbench.metadataTab', { default: 'Metadata' })}</button>
     <button class="tab-strip-tab" class:active={activeTab === 'rename'} type="button" role="tab" aria-selected={activeTab === 'rename'} on:click={() => setActiveTab('rename')}><span class="material-symbols-outlined">drive_file_rename_outline</span>{$t('troubadour.workbench.renameTab', { default: 'Rename' })}</button>
+    <button class="tab-strip-tab" class:active={activeTab === 'loudness'} type="button" role="tab" aria-selected={activeTab === 'loudness'} on:click={() => setActiveTab('loudness')}><span class="material-symbols-outlined">graphic_eq</span>{$t('loudness.title', { default: 'Loudness' })}</button>
   </TabStrip>
 
   {#if activeTab === 'metadata'}
@@ -723,7 +728,7 @@
         </section>
       </section>
     </main>
-  {:else}
+  {:else if activeTab === 'rename'}
     <main class="rename-workbench">
       <section class="rename-controls">
         <label><span>{$t('troubadour.workbench.template', { default: 'Template' })}</span><input bind:value={renameTemplate} spellcheck="false" on:keydown={(event) => event.key === 'Enter' && void previewRenames()} /></label>
@@ -742,15 +747,27 @@
       </section>
       <footer class="rename-actions"><span>{$t('troubadour.workbench.renameSummary', { default: '{ready} ready · {blocked} blocked', values: { ready: renameRows.filter((row) => row.enabled).length, blocked: renameRows.filter((row) => row.problems.length).length } })}</span>{#if renameRows.some((row) => row.problems.includes('permission-required'))}<button class="text-button" type="button" disabled={state.busy} on:click={() => void grantRenameAccess()}><span class="material-symbols-outlined">lock_open</span>{$t('troubadour.workbench.grantAccess', { default: 'Grant access' })}</button>{/if}<button class="text-button" type="button" disabled={!renameRows.some((row) => row.enabled) || state.busy} on:click={() => void applyRenames(true)}>{$t('troubadour.workbench.saveThenRename', { default: 'Save tags then rename' })}</button><button class="text-button primary" type="button" disabled={!renameRows.some((row) => row.enabled) || state.busy} on:click={() => void applyRenames(false)}><span class="material-symbols-outlined">drive_file_rename_outline</span>{$t('troubadour.workbench.applyRenames', { default: 'Apply renames' })}</button></footer>
     </main>
+  {:else}
+    <LoudnessTab
+      items={state.items}
+      selectedIds={state.selectedIds}
+      workbenchBusy={state.busy}
+      on:toggleSelection={(event) => controller.select(event.detail, { additive: true })}
+      on:selectAll={() => controller.selectAll()}
+      on:clearSelection={() => controller.clearSelection()}
+      on:removeSelected={removeSelected}
+      on:written={() => void controller.reloadSelected()}
+      on:busyChange={(event) => loudnessBusy = event.detail}
+    />
   {/if}
 
-  <footer class="tool-status-bar" class:error={Boolean(state.error || renameError)}>
+  {#if activeTab !== 'loudness'}<footer class="tool-status-bar" class:error={Boolean(state.error || renameError)}>
     <span class="material-symbols-outlined" aria-hidden="true">{state.busy ? 'progress_activity' : state.error || renameError ? 'error' : 'info'}</span>
     <span>{state.error || renameError || state.message || $t('troubadour.workbench.offlineReady', { default: 'Offline workbench ready. Source files are unchanged.' })}</span>
     {#if selectedPrimary}<span class="current-path" title={selectedPrimary.path}>{selectedPrimary.path}</span>{/if}
     {#if state.activeJob}<span>{state.activeJob}{state.jobProgress !== null ? ` · ${Math.round(state.jobProgress * 100)}%` : ''}</span>{/if}
     <span class="summary">{$t('troubadour.workbench.statusSummary', { default: '{total} total · {selected} selected · {dirty} dirty · {permission} permission', values: { total: state.items.length, selected: state.selectedIds.length, dirty: dirtyItems.length, permission: state.items.filter((item) => item.state === 'permission-required').length } })}</span>
-  </footer>
+  </footer>{/if}
 
   {#if dragActive}<div class="tool-drop-overlay" aria-hidden="true">{$t('troubadour.workbench.drop', { default: 'Drop files or folders into the transient workbench' })}</div>{/if}
   {#if contextItemId}<MenuSurface items={contextMenuItems} x={contextMenuX} y={contextMenuY} on:action={(event) => void runContextAction(event.detail)} on:dismiss={() => contextItemId = null} />{/if}

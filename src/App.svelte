@@ -1233,7 +1233,6 @@
     on:openAudioCompare={() => windowManager.openPopup('audioCompare')}
     on:openClipTag={() => windowManager.openPopup('clipTag')}
     on:openConverter={() => windowManager.openPopup('converter')}
-    on:openLoudness={() => windowManager.openPopup('loudness')}
     on:openSpectrogram={() => windowManager.openPopup('spectrogram')}
     on:openTroubadour={() => windowManager.openPopup('troubadour')}
     on:showPlaylist={showPlaylist}

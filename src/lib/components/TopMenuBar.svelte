@@ -26,7 +26,6 @@
     | 'openAudioCompare'
     | 'openClipTag'
     | 'openConverter'
-    | 'openLoudness'
     | 'openSpectrogram'
     | 'openTroubadour'
     | 'showPlaylist'
@@ -140,11 +139,6 @@
       icon: 'sync_alt'
     },
     {
-      id: 'openLoudness',
-      label: $t('main.menu.loudness', { default: 'Loudness...' }),
-      icon: 'graphic_eq'
-    },
-    {
       id: 'openSpectrogram',
       label: $t('main.menu.spectrogram', { default: 'Spectrogram...' }),
       icon: 'waterfall_chart'
@@ -182,7 +176,6 @@
     openAudioCompare: void;
     openClipTag: void;
     openConverter: void;
-    openLoudness: void;
     openSpectrogram: void;
     openTroubadour: void;
     showPlaylist: void;
