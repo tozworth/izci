@@ -1631,8 +1631,6 @@
       "resizeUpper": "Resize file and album panes",
       "albums": "Albums",
       "groupCount": "{count} groups",
-      "expandAlbum": "Expand album",
-      "collapseAlbum": "Collapse album",
       "variousUnknown": "Various / unknown",
       "trackCount": "{count} tracks",
       "modified": "Modified",
