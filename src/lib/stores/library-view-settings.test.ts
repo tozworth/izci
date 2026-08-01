@@ -12,8 +12,7 @@ describe('library view settings', () => {
     for (const view of Object.values(views)) {
       expect(view.columns.folder.visible).toBe(false);
       expect(view.columns.format.visible).toBe(false);
-      expect(view.columns.disc.visible).toBe(false);
-      expect(view.columns.track.visible).toBe(false);
+      expect(view.columns.discAndTrack.visible).toBe(false);
     }
 
     expect(views.songs.columns.artist.visible).toBe(true);
@@ -26,14 +25,12 @@ describe('library view settings', () => {
   it('allows optional columns to be restored per view', () => {
     libraryViewSettings.setColumnVisibility('folder', true);
     libraryViewSettings.setColumnVisibility('format', true);
-    libraryViewSettings.setColumnVisibility('disc', true);
-    libraryViewSettings.setColumnVisibility('track', true);
+    libraryViewSettings.setColumnVisibility('discAndTrack', true);
 
     const songs = libraryViewSettings.getSnapshot().views.songs;
     expect(songs.columns.folder.visible).toBe(true);
     expect(songs.columns.format.visible).toBe(true);
-    expect(songs.columns.disc.visible).toBe(true);
-    expect(songs.columns.track.visible).toBe(true);
+    expect(songs.columns.discAndTrack.visible).toBe(true);
   });
 
   it('keeps column visibility, widths, order, and sorting independent per view', () => {

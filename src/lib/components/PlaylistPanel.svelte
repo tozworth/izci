@@ -151,8 +151,7 @@
       case 'title': return $t('playlist.library.columns.title', { default: 'Title' });
       case 'artist': return $t('playlist.library.columns.artist', { default: 'Artist' });
       case 'album': return $t('playlist.library.columns.album', { default: 'Album' });
-      case 'disc': return $t('playlist.library.columns.disc', { default: 'Disc' });
-      case 'track': return $t('playlist.library.columns.track', { default: 'Track' });
+      case 'discAndTrack': return $t('playlist.library.columns.discAndTrack', { default: 'Track' });
       case 'folder': return $t('playlist.library.columns.folder', { default: 'Folder' });
       case 'format': return $t('playlist.library.columns.format', { default: 'Format' });
       case 'duration': return $t('playlist.library.columns.duration', { default: 'Duration' });

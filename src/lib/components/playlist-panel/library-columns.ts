@@ -31,6 +31,12 @@ export type ColumnDropIndicator = {
 
 const stringCollators = new Map<string, Intl.Collator>();
 
+type TrackPosition = {
+  display: string;
+  disc: number | null;
+  track: number | null;
+};
+
 function getStringCollator(locale?: string): Intl.Collator {
   const key = locale ?? '';
   const existing = stringCollators.get(key);
@@ -67,6 +73,25 @@ export function getTrackPlayCount(item: PlaylistItem): string {
   return Number.isFinite(playCount) && playCount > 0 ? String(Math.floor(playCount)) : '';
 }
 
+function parsePositionNumber(value: string): number | null {
+  const match = value.match(/^\d+/);
+  if (!match) return null;
+
+  const number = Number(match[0]);
+  return Number.isFinite(number) ? number : null;
+}
+
+function getTrackPosition(item: PlaylistItem): TrackPosition {
+  const discText = item.metadata?.discNumber?.trim() ?? '';
+  const trackText = item.metadata?.trackNumber?.trim() ?? '';
+
+  return {
+    display: discText && trackText ? `${discText} / ${trackText}` : discText || trackText,
+    disc: parsePositionNumber(discText),
+    track: parsePositionNumber(trackText)
+  };
+}
+
 export function getColumnTextValue(item: PlaylistItem, columnId: LibraryColumnId): string {
   switch (columnId) {
     case 'title':
@@ -75,10 +100,8 @@ export function getColumnTextValue(item: PlaylistItem, columnId: LibraryColumnId
       return item.metadata?.artist?.trim() ?? '';
     case 'album':
       return item.metadata?.album?.trim() ?? '';
-    case 'disc':
-      return item.metadata?.discNumber?.trim() ?? '';
-    case 'track':
-      return item.metadata?.trackNumber?.trim() ?? '';
+    case 'discAndTrack':
+      return getTrackPosition(item).display;
     case 'folder':
       return getFolderFromPath(item.path)?.trim() ?? '';
     case 'format':
@@ -91,8 +114,7 @@ export function getColumnTextValue(item: PlaylistItem, columnId: LibraryColumnId
 }
 
 export function isRightAlignedColumn(columnId: LibraryColumnId): boolean {
-  return columnId === 'disc'
-    || columnId === 'track'
+  return columnId === 'discAndTrack'
     || columnId === 'format'
     || columnId === 'duration'
     || columnId === 'plays';
@@ -228,6 +250,22 @@ function compareByColumn(
   direction: 'asc' | 'desc',
   stringCollator: Intl.Collator
 ): number {
+  if (columnId === 'discAndTrack') {
+    const leftPosition = getTrackPosition(left);
+    const rightPosition = getTrackPosition(right);
+    const compareNumber = (leftValue: number | null, rightValue: number | null): number => {
+      if (leftValue === null || rightValue === null) {
+        if (leftValue === rightValue) return 0;
+        return leftValue === null ? 1 : -1;
+      }
+
+      return direction === 'desc' ? rightValue - leftValue : leftValue - rightValue;
+    };
+    const discComparison = compareNumber(leftPosition.disc, rightPosition.disc);
+
+    return discComparison || compareNumber(leftPosition.track, rightPosition.track);
+  }
+
   if (columnId === 'duration') {
     const leftDuration = left.metadata?.duration ?? 0;
     const rightDuration = right.metadata?.duration ?? 0;
