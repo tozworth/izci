@@ -1,5 +1,6 @@
 <script lang="ts">
   import { t } from 'svelte-i18n';
+  import HoverTooltip from '$lib/components/HoverTooltip.svelte';
   import type { LoadedStreamArtwork } from '$lib/services/stream-artwork';
   import type { PlaylistItem } from '$lib/types';
   import { resolveModuleDisplayFormat, resolveModuleTrackerName } from '$lib/utils/files';
@@ -196,13 +197,13 @@
     {#if showCloseButton}
       <button
         type="button"
-        class="details-close-button"
+        class="details-close-button hover-tooltip-anchor"
         aria-label={$t('main.trackDetails.closePanel', { default: 'Close Track Details' })}
-        title={$t('main.common.close', { default: 'Close' })}
         on:click={onClose}
       >
         <span class="details-close-label" aria-hidden="true">{$t('main.common.close', { default: 'Close' })}</span>
         <span class="material-symbols-outlined details-close-icon" aria-hidden="true">close</span>
+        <HoverTooltip nowrap>{$t('main.common.close', { default: 'Close' })}</HoverTooltip>
       </button>
     {/if}
   </div>
@@ -228,12 +229,12 @@
           <dl class="metadata-list">
             {#each metadataEntries as entry}
               <div class="metadata-row">
-                <dt>
+                <dt class="hover-tooltip-anchor">
                   <span
                     class="material-symbols-outlined metadata-icon"
-                    title={entry.label}
                     aria-label={entry.label}
                   >{entry.icon}</span>
+                  <HoverTooltip align="left" nowrap>{entry.label}</HoverTooltip>
                 </dt>
                 <dd>{entry.value}</dd>
               </div>
@@ -245,12 +246,12 @@
       <section class="detail-section technical-section">
         <dl class="metadata-list">
           <div class="metadata-row">
-            <dt>
+            <dt class="hover-tooltip-anchor">
               <span
                 class="material-symbols-outlined metadata-icon"
-                title={$t('main.trackDetails.format', { default: 'Format' })}
                 aria-label={$t('main.trackDetails.format', { default: 'Format' })}
               >equalizer</span>
+              <HoverTooltip align="left" nowrap>{$t('main.trackDetails.format', { default: 'Format' })}</HoverTooltip>
             </dt>
             <dd>
               <span>{formatValue}</span>
@@ -262,12 +263,12 @@
 
           {#if replayGainSummary}
             <div class="metadata-row">
-              <dt>
+              <dt class="hover-tooltip-anchor">
                 <span
                   class="material-symbols-outlined metadata-icon"
-                  title={$t('main.trackDetails.replayGain', { default: 'ReplayGain' })}
                   aria-label={$t('main.trackDetails.replayGain', { default: 'ReplayGain' })}
                 >volume_up</span>
+                <HoverTooltip align="left" nowrap>{$t('main.trackDetails.replayGain', { default: 'ReplayGain' })}</HoverTooltip>
               </dt>
               <dd>{replayGainSummary}</dd>
             </div>
@@ -275,12 +276,12 @@
 
           {#if patternSummary}
             <div class="metadata-row">
-              <dt>
+              <dt class="hover-tooltip-anchor">
                 <span
                   class="material-symbols-outlined metadata-icon"
-                  title={$t('main.trackDetails.patterns', { default: 'Patterns' })}
                   aria-label={$t('main.trackDetails.patterns', { default: 'Patterns' })}
                 >grid_view</span>
+                <HoverTooltip align="left" nowrap>{$t('main.trackDetails.patterns', { default: 'Patterns' })}</HoverTooltip>
               </dt>
               <dd>{patternSummary}</dd>
             </div>
@@ -288,12 +289,12 @@
 
           {#if trackSummary}
             <div class="metadata-row">
-              <dt>
+              <dt class="hover-tooltip-anchor">
                 <span
                   class="material-symbols-outlined metadata-icon"
-                  title={$t('main.trackDetails.tracks', { default: 'Tracks' })}
                   aria-label={$t('main.trackDetails.tracks', { default: 'Tracks' })}
                 >timeline</span>
+                <HoverTooltip align="left" nowrap>{$t('main.trackDetails.tracks', { default: 'Tracks' })}</HoverTooltip>
               </dt>
               <dd>{trackSummary}</dd>
             </div>
@@ -301,12 +302,12 @@
 
           {#if subsongSummary}
             <div class="metadata-row">
-              <dt>
+              <dt class="hover-tooltip-anchor">
                 <span
                   class="material-symbols-outlined metadata-icon"
-                  title={$t('main.trackDetails.subsongs', { default: 'Subsongs' })}
                   aria-label={$t('main.trackDetails.subsongs', { default: 'Subsongs' })}
                 >queue_music</span>
+                <HoverTooltip align="left" nowrap>{$t('main.trackDetails.subsongs', { default: 'Subsongs' })}</HoverTooltip>
               </dt>
               <dd class="technical-detail">{subsongSummary}</dd>
             </div>
