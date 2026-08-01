@@ -36,6 +36,7 @@ import type {
 } from '$lib/types';
 import { WORKSPACE_PANEL_IDS } from '$lib/types';
 import { getOtherWorkspaceCollection } from '$lib/services/workspace-actions';
+import { moveDockTab } from '$lib/services/dock-layout';
 
 type TrackCollectionStore = typeof playlistStore;
 
@@ -691,24 +692,13 @@ export function createWorkspaceShellController({
         return;
       }
 
-      nextPanelState.panels[sourcePanelId] = nextPanelState.panels[sourcePanelId].filter(
-        (tab) => tab !== detail.tabId
-      );
-      const targetTabs = nextPanelState.panels[targetPanelId].filter(
-        (tab) => tab !== detail.tabId
-      );
-      let insertIndex = targetTabs.length;
-
-      if (detail.targetTabId && detail.targetTabId !== detail.tabId) {
-        const targetIndex = targetTabs.indexOf(detail.targetTabId);
-
-        if (targetIndex >= 0) {
-          insertIndex = detail.position === 'before' ? targetIndex : targetIndex + 1;
-        }
-      }
-
-      targetTabs.splice(insertIndex, 0, detail.tabId);
-      nextPanelState.panels[targetPanelId] = targetTabs;
+      nextPanelState.panels = moveDockTab(nextPanelState.panels, WORKSPACE_PANEL_IDS, {
+        tabId: detail.tabId,
+        sourceZoneId: sourcePanelId,
+        targetZoneId: targetPanelId,
+        targetTabId: detail.targetTabId,
+        position: detail.position
+      });
       nextPanelState.activeTabsByPanel[targetPanelId] = detail.tabId;
       nextPanelState.lastPanelByTab[detail.tabId] = targetPanelId;
       ensurePanelOpen(nextPanelState, targetPanelId);

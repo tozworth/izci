@@ -14,13 +14,14 @@
   import WorkspaceResizer from '$lib/components/workspace/WorkspaceResizer.svelte';
   import WorkspaceTabBar from '$lib/components/workspace/WorkspaceTabBar.svelte';
   import WorkspaceTabContent from '$lib/components/workspace/WorkspaceTabContent.svelte';
-  import { hasWorkspaceTabDragData, readWorkspaceTabDragData } from './drag';
+  import { hasDockTabDragData, readDockTabDragData } from '$lib/components/docking/drag';
   import type {
     WideWorkspaceResizeStartDetail,
     WorkspacePanelDefinition,
     WorkspaceTabContentProps,
     WorkspaceTabMoveDetail
   } from './types';
+  import { WORKSPACE_DOCK_SCOPE } from './types';
 
   export let content: WorkspaceTabContentProps;
   export let workspacePanels: WorkspacePanelDefinition[] = [];
@@ -75,7 +76,7 @@
   }
 
   function handlePanelDragOver(event: DragEvent, panelId: WorkspacePanelId) {
-    if (!hasWorkspaceTabDragData(event.dataTransfer)) {
+    if (!hasDockTabDragData(event.dataTransfer, WORKSPACE_DOCK_SCOPE)) {
       return;
     }
 
@@ -87,7 +88,7 @@
   }
 
   function handlePanelDrop(event: DragEvent, panelId: WorkspacePanelId) {
-    const dragData = readWorkspaceTabDragData(event.dataTransfer);
+    const dragData = readDockTabDragData(event.dataTransfer, WORKSPACE_DOCK_SCOPE);
 
     if (!dragData) {
       return;
@@ -96,7 +97,8 @@
     event.preventDefault();
     dropTargetPanelId = null;
     dispatch('tabMove', {
-      ...dragData,
+      tabId: dragData.tabId as WorkspaceTab,
+      sourcePanelId: dragData.sourceZoneId as WorkspacePanelId | undefined,
       targetPanelId: panelId,
       position: 'end'
     });

@@ -325,11 +325,9 @@
       {/if}
     </div>
   {:else}
-    <div class="empty-state align-start" class:compact-workspace={isCompactWorkspace}>
-      <p>{$t('main.trackDetails.emptyTitle', { default: 'Select a track to inspect it.' })}</p>
-      <p>{$t('main.trackDetails.emptyDescription', {
-        default: 'Playlist and library selections both surface their metadata here.'
-      })}</p>
+    <div class="empty-state details-empty-state" class:compact-workspace={isCompactWorkspace}>
+      <span class="material-symbols-outlined details-empty-icon" aria-hidden="true">info</span>
+      <p>{$t('main.trackDetails.emptyTitle', { default: 'Select a track to view details.' })}</p>
     </div>
   {/if}
 </section>
@@ -410,6 +408,21 @@
   .details-content.compact-workspace,
   .empty-state.compact-workspace {
     padding-bottom: calc(7rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  .details-empty-state {
+    align-content: center;
+    justify-items: center;
+    flex: 1;
+    gap: 0.35rem;
+  }
+
+  .details-empty-state p {
+    margin: 0;
+  }
+
+  .details-empty-icon {
+    font-size: 1.15rem;
   }
 
   .detail-section {

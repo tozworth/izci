@@ -6,6 +6,7 @@
     troubadourSettings,
     type TroubadourSettings
   } from '$lib/stores/troubadour-settings';
+  import { troubadourWorkspaceState } from '$lib/stores/troubadour-workspace';
   import type { TroubadourOptionsViewName } from './views';
 
   export let view: TroubadourOptionsViewName;
@@ -30,16 +31,6 @@
 
   function updateText(key: SettingKey, event: Event): void {
     updateValue(key, (event.currentTarget as HTMLInputElement).value);
-  }
-
-  function updatePaneLayout(key: keyof TroubadourSettings['paneLayout'], event: Event): void {
-    troubadourSettings.set({
-      ...troubadourSettings.getSnapshot(),
-      paneLayout: {
-        ...troubadourSettings.getSnapshot().paneLayout,
-        [key]: (event.currentTarget as HTMLInputElement).value
-      }
-    });
   }
 
   function updateMetadataFields(event: Event): void {
@@ -84,22 +75,8 @@
     <div class="section">
       <h2>{$t('troubadour.options.general.workspace', { default: 'Workspace' })}</h2>
       <div class="field-grid">
-        <SettingsField title={$t('troubadour.options.general.rawPane', { default: 'Files pane width (%)' })}>
-          <input type="number" min="20" max="80" value={$troubadourSettings.paneLayout.rawFilesPercent} on:change={(event) => updatePaneLayout('rawFilesPercent', event)} />
-        </SettingsField>
-        <SettingsField title={$t('troubadour.options.general.inspectorPane', { default: 'Inspector height (%)' })}>
-          <input type="number" min="20" max="70" value={$troubadourSettings.paneLayout.inspectorPercent} on:change={(event) => updatePaneLayout('inspectorPercent', event)} />
-        </SettingsField>
-        <SettingsField title={$t('troubadour.options.general.artworkPane', { default: 'Artwork pane width (%)' })}>
-          <input type="number" min="18" max="55" value={$troubadourSettings.paneLayout.artworkPercent} on:change={(event) => updatePaneLayout('artworkPercent', event)} />
-        </SettingsField>
-        <SettingsField title={$t('troubadour.options.general.lastTab', { default: 'Last active tab' })}>
-          <select value={$troubadourSettings.lastActiveTab} on:change={(event) => updateSelect('lastActiveTab', event)}>
-            <option value="metadata">{$t('troubadour.options.metadata.label', { default: 'Metadata' })}</option>
-            <option value="rename">{$t('troubadour.options.rename.label', { default: 'Rename' })}</option>
-            <option value="loudness">{$t('loudness.title', { default: 'Loudness' })}</option>
-            <option value="spectrogram">{$t('spectrogram.title', { default: 'Spectrogram' })}</option>
-          </select>
+        <SettingsField title={$t('troubadour.options.general.docking', { default: 'Docking layout' })} hint={$t('troubadour.options.general.dockingHint', { default: 'Drag tabs to reorder them or use the docking compass to move them among ten workspace zones.' })}>
+          <button type="button" on:click={() => troubadourWorkspaceState.reset()}>{$t('troubadour.options.general.resetDocking', { default: 'Reset layout' })}</button>
         </SettingsField>
         <SettingsField title={$t('troubadour.options.general.confirmDirtyRemoval', { default: 'Confirm removing dirty items' })} hint={$t('troubadour.options.general.confirmDirtyRemovalHint', { default: 'Removal only discards staged work; it never deletes source files.' })} checkbox>
           <input type="checkbox" checked={$troubadourSettings.confirmDirtyRemoval} on:change={(event) => updateCheckbox('confirmDirtyRemoval', event)} />

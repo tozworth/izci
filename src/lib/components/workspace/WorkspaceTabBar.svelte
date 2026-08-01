@@ -1,18 +1,15 @@
 <script lang="ts">
-  import { createEventDispatcher, onMount, tick } from 'svelte';
+  import { createEventDispatcher } from 'svelte';
   import { t } from 'svelte-i18n';
-  import TabStrip from '$lib/components/TabStrip.svelte';
+  import DockableTabStrip from '$lib/components/DockableTabStrip.svelte';
+  import type { DockTabMoveDetail } from '$lib/components/docking/types';
   import type { WorkspacePanelId, WorkspaceTab } from '$lib/types';
   import type {
     WorkspaceTabDefinition,
     WorkspaceTabDragDetail,
     WorkspaceTabMoveDetail
   } from './types';
-  import {
-    hasWorkspaceTabDragData,
-    readWorkspaceTabDragData,
-    writeWorkspaceTabDragData
-  } from './drag';
+  import { WORKSPACE_DOCK_SCOPE } from './types';
 
   export let tabs: WorkspaceTabDefinition[] = [];
   export let activeTab: WorkspaceTab | null = null;
@@ -30,20 +27,6 @@
     tabMove: WorkspaceTabMoveDetail;
   }>();
 
-  let dropIndicator: { tabId: WorkspaceTab; position: 'before' | 'after' } | null = null;
-  let tabBarElement: HTMLDivElement | null = null;
-  let tabMeasurementElement: HTMLDivElement;
-  let isIconOnly = false;
-  let resizeObserver: ResizeObserver | null = null;
-  let iconOnlyUpdateScheduled = false;
-  let tabMeasurementSignature = '';
-
-  function getMeasurementSignature(): string {
-    return `${closeable ? 'closeable' : 'fixed'}:${tabs
-      .map((tab) => `${tab.id}:${tab.icon}:${getTabLabel(tab)}:${tab.closeable !== false ? 'closeable' : 'fixed'}`)
-      .join('|')}`;
-  }
-
   function getTabLabel(tab: WorkspaceTabDefinition): string {
     switch (tab.id) {
       case 'playlist': return $t('workspace.tabs.playlist', { default: 'Playlist' });
@@ -56,289 +39,40 @@
     }
   }
 
-  function updateIconOnly() {
-    if (!tabBarElement || !tabMeasurementElement) {
-      return;
-    }
-
-    const availableWidth = tabBarElement.clientWidth;
-    const requiredWidth = Math.ceil(tabMeasurementElement.scrollWidth);
-    isIconOnly = availableWidth > 0 && requiredWidth > availableWidth;
-  }
-
-  function scheduleIconOnlyUpdate() {
-    if (iconOnlyUpdateScheduled) {
-      return;
-    }
-
-    iconOnlyUpdateScheduled = true;
-    void tick().then(() => {
-      iconOnlyUpdateScheduled = false;
-      updateIconOnly();
+  function handleTabMove(detail: DockTabMoveDetail): void {
+    dispatch('tabMove', {
+      tabId: detail.tabId as WorkspaceTab,
+      sourcePanelId: detail.sourceZoneId as WorkspacePanelId | undefined,
+      targetPanelId: detail.targetZoneId as WorkspacePanelId | undefined,
+      targetTabId: detail.targetTabId as WorkspaceTab | undefined,
+      position: detail.position
     });
   }
 
-  function getDropPosition(event: DragEvent, element: HTMLElement): 'before' | 'after' {
-    const rect = element.getBoundingClientRect();
-    return event.clientX < rect.left + rect.width / 2 ? 'before' : 'after';
-  }
-
-  function getMoveDetail(
-    event: DragEvent,
-    targetTabId: WorkspaceTab | undefined,
-    position: WorkspaceTabMoveDetail['position']
-  ): WorkspaceTabMoveDetail | null {
-    const dragData = readWorkspaceTabDragData(event.dataTransfer);
-
-    if (!dragData) {
-      return null;
-    }
-
-    return {
-      ...dragData,
-      targetPanelId: panelId ?? undefined,
-      targetTabId,
-      position
-    };
-  }
-
-  function handleDragStart(event: DragEvent, tabId: WorkspaceTab) {
-    if (!dragEnabled || !event.dataTransfer) {
-      event.preventDefault();
-      return;
-    }
-
-    const detail = {
-      tabId,
-      sourcePanelId: panelId ?? undefined
-    };
-
-    writeWorkspaceTabDragData(event.dataTransfer, detail);
-    dispatch('tabDragStart', detail);
-  }
-
-  function handleDragEnd() {
-    dropIndicator = null;
-    dispatch('tabDragEnd');
-  }
-
-  function handleTabDragOver(event: DragEvent, tabId: WorkspaceTab) {
-    if (!hasWorkspaceTabDragData(event.dataTransfer)) {
-      return;
-    }
-
-    event.preventDefault();
-    event.stopPropagation();
-    if (event.dataTransfer) {
-      event.dataTransfer.dropEffect = 'move';
-    }
-    const currentTarget = event.currentTarget;
-
-    if (currentTarget instanceof HTMLElement) {
-      dropIndicator = {
-        tabId,
-        position: getDropPosition(event, currentTarget)
-      };
-    }
-  }
-
-  function handleTabDrop(event: DragEvent, tabId: WorkspaceTab) {
-    const position = dropIndicator?.tabId === tabId ? dropIndicator.position : 'after';
-    const detail = getMoveDetail(event, tabId, position);
-
-    if (!detail) {
-      return;
-    }
-
-    event.preventDefault();
-    event.stopPropagation();
-    dropIndicator = null;
-    dispatch('tabMove', detail);
-  }
-
-  function handleBarDragOver(event: DragEvent) {
-    if (!hasWorkspaceTabDragData(event.dataTransfer)) {
-      return;
-    }
-
-    event.preventDefault();
-    event.stopPropagation();
-    if (event.dataTransfer) {
-      event.dataTransfer.dropEffect = 'move';
-    }
-    dropIndicator = null;
-  }
-
-  function handleBarDrop(event: DragEvent) {
-    const detail = getMoveDetail(event, undefined, 'end');
-
-    if (!detail) {
-      return;
-    }
-
-    event.preventDefault();
-    event.stopPropagation();
-    dropIndicator = null;
-    dispatch('tabMove', detail);
-  }
-
-  function handleBarDragLeave(event: DragEvent) {
-    const currentTarget = event.currentTarget;
-    const relatedTarget = event.relatedTarget;
-
-    if (
-      currentTarget instanceof HTMLElement &&
-      relatedTarget instanceof Node &&
-      currentTarget.contains(relatedTarget)
-    ) {
-      return;
-    }
-
-    dropIndicator = null;
-  }
-
-  function isTabCloseable(tabId: WorkspaceTab): boolean {
-    return closeable && tabs.find((tab) => tab.id === tabId)?.closeable !== false;
-  }
-
-  function closeTab(tabId: WorkspaceTab) {
-    if (isTabCloseable(tabId)) {
-      dispatch('tabClose', tabId);
-    }
-  }
-
-  function handleTabCloseClick(event: MouseEvent, tabId: WorkspaceTab) {
-    event.stopPropagation();
-    closeTab(tabId);
-  }
-
-  function handleTabAuxClick(event: MouseEvent, tabId: WorkspaceTab) {
-    if (event.button !== 1 || !isTabCloseable(tabId)) {
-      return;
-    }
-
-    event.preventDefault();
-    event.stopPropagation();
-    closeTab(tabId);
-  }
-
-  function handleTabMouseDown(event: MouseEvent, tabId: WorkspaceTab) {
-    if (event.button !== 1 || !isTabCloseable(tabId)) {
-      return;
-    }
-
-    event.preventDefault();
-  }
-
-  onMount(() => {
-    resizeObserver = new ResizeObserver(scheduleIconOnlyUpdate);
-
-    if (tabBarElement) {
-      resizeObserver.observe(tabBarElement);
-    }
-
-    if (tabMeasurementElement) {
-      resizeObserver.observe(tabMeasurementElement);
-    }
-
-    scheduleIconOnlyUpdate();
-
-    return () => {
-      resizeObserver?.disconnect();
-      resizeObserver = null;
-    };
-  });
-
-  $: {
-    const nextMeasurementSignature = getMeasurementSignature();
-
-    if (nextMeasurementSignature !== tabMeasurementSignature) {
-      tabMeasurementSignature = nextMeasurementSignature;
-      scheduleIconOnlyUpdate();
-    }
-  }
+  $: localizedTabs = tabs.map((tab) => ({ ...tab, label: getTabLabel(tab) }));
   $: localizedAriaLabel = ariaLabel === 'Workspace tabs'
     ? $t('workspace.tabs.label', { default: 'Workspace tabs' })
     : ariaLabel;
 </script>
 
-<TabStrip
-  className={`workspace-tabs ${className} ${isIconOnly ? 'is-icon-only' : ''}`.trim()}
-  bind:element={tabBarElement}
+<DockableTabStrip
+  tabs={localizedTabs}
+  activeTab={activeTab}
+  zoneId={panelId}
+  dragScope={WORKSPACE_DOCK_SCOPE}
   ariaLabel={localizedAriaLabel}
-  flushStart
-  tabIndex={-1}
-  on:dragover={handleBarDragOver}
-  on:drop={handleBarDrop}
-  on:dragleave={handleBarDragLeave}
->
-  {#each tabs as tab}
-    <div
-      class="workspace-tab-shell"
-      class:has-close={closeable && tab.closeable !== false}
-      class:drop-before={dropIndicator?.tabId === tab.id && dropIndicator.position === 'before'}
-      class:drop-after={dropIndicator?.tabId === tab.id && dropIndicator.position === 'after'}
-      role="presentation"
-      draggable={dragEnabled}
-      on:dragstart={(event) => handleDragStart(event, tab.id)}
-      on:dragend={handleDragEnd}
-      on:dragover={(event) => handleTabDragOver(event, tab.id)}
-      on:drop={(event) => handleTabDrop(event, tab.id)}
-    >
-      <button
-        type="button"
-        class:active={activeTab === tab.id}
-        class="tab-strip-tab workspace-tab"
-        role="tab"
-        aria-label={getTabLabel(tab)}
-        aria-selected={activeTab === tab.id}
-        aria-controls={`workspace-tab-panel-${panelId ?? 'tabs'}-${tab.id}`}
-        id={`workspace-tab-${panelId ?? 'tabs'}-${tab.id}`}
-        draggable="false"
-        title={getTabLabel(tab)}
-        on:click={() => dispatch('tabChange', tab.id)}
-        on:auxclick={(event) => handleTabAuxClick(event, tab.id)}
-        on:mousedown={(event) => handleTabMouseDown(event, tab.id)}
-      >
-        <span class="material-symbols-outlined" aria-hidden="true">{tab.icon}</span>
-        <span class="workspace-tab-label">{getTabLabel(tab)}</span>
-      </button>
-
-      {#if closeable && tab.closeable !== false}
-        <span class="workspace-tab-close-slot">
-          <button
-            type="button"
-            class="workspace-tab-close-button"
-            aria-label={$t('workspace.tabs.closeNamed', { default: 'Close {tab}', values: { tab: getTabLabel(tab) } })}
-            title={$t('workspace.tabs.close', { default: 'Close' })}
-            draggable="false"
-            on:click={(event) => handleTabCloseClick(event, tab.id)}
-            on:auxclick={(event) => handleTabAuxClick(event, tab.id)}
-            on:mousedown={(event) => handleTabMouseDown(event, tab.id)}
-          >
-            <span class="material-symbols-outlined" aria-hidden="true">close</span>
-          </button>
-        </span>
-      {/if}
-    </div>
-  {/each}
-
-  <div class="workspace-tabs-measure" aria-hidden="true" bind:this={tabMeasurementElement}>
-    {#each tabs as tab}
-      <div class="workspace-tab-shell" class:has-close={closeable && tab.closeable !== false}>
-        <span class="tab-strip-tab workspace-tab">
-          <span class="material-symbols-outlined" aria-hidden="true">{tab.icon}</span>
-          <span class="workspace-tab-label">{getTabLabel(tab)}</span>
-        </span>
-
-        {#if closeable && tab.closeable !== false}
-          <span class="workspace-tab-close-slot">
-            <span class="workspace-tab-close-button">
-              <span class="material-symbols-outlined" aria-hidden="true">close</span>
-            </span>
-          </span>
-        {/if}
-      </div>
-    {/each}
-  </div>
-</TabStrip>
+  className={`workspace-tabs ${className}`.trim()}
+  {closeable}
+  {dragEnabled}
+  closeLabel={$t('workspace.tabs.close', { default: 'Close' })}
+  closeNamedLabel={(label) => $t('workspace.tabs.closeNamed', { default: 'Close {tab}', values: { tab: label } })}
+  idPrefix="workspace-tab"
+  on:tabChange={(event) => dispatch('tabChange', event.detail as WorkspaceTab)}
+  on:tabClose={(event) => dispatch('tabClose', event.detail as WorkspaceTab)}
+  on:tabMove={(event) => handleTabMove(event.detail)}
+  on:tabDragStart={(event) => dispatch('tabDragStart', {
+    tabId: event.detail.tabId as WorkspaceTab,
+    sourcePanelId: event.detail.sourceZoneId as WorkspacePanelId | undefined
+  })}
+  on:tabDragEnd={() => dispatch('tabDragEnd')}
+/>

@@ -24,7 +24,7 @@
   const PAGE_KEYS: Record<TroubadourOptionsViewName, (keyof TroubadourSettings)[]> = {
     general: [
       'initialLoad', 'folderScanDepth', 'metadataReadConcurrency', 'autoGroupOnLoad',
-      'autoGroupFallback', 'paneLayout', 'lastActiveTab', 'confirmDirtyRemoval'
+      'autoGroupFallback', 'confirmDirtyRemoval'
     ],
     metadata: [
       'visibleMetadataFields', 'multiValueDisplay', 'dateDisplay', 'albumEditPolicy',

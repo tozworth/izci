@@ -30,7 +30,6 @@ export const TROUBADOUR_METADATA_FIELDS = [
 export type TroubadourMetadataField = typeof TROUBADOUR_METADATA_FIELDS[number];
 export type TroubadourInitialLoad = 'current-track' | 'current-selection' | 'nothing';
 export type TroubadourAutoGroupFallback = 'folder' | 'none';
-export type TroubadourTab = 'metadata' | 'rename' | 'lyrics' | 'loudness' | 'spectrogram';
 export type TroubadourMultiValueDisplay = 'joined' | 'first' | 'count';
 export type TroubadourDateDisplay = 'verbatim' | 'year' | 'localized';
 export type TroubadourAlbumEditPolicy = 'all-writable' | 'supported-only' | 'ask';
@@ -51,20 +50,12 @@ export type TroubadourPostWriteVerification = 'managed-fields' | 'full-metadata'
 export type TroubadourExternalChangeBehavior = 'stop' | 'reload-unchanged';
 export type TroubadourBatchErrorBehavior = 'continue' | 'stop';
 
-export interface TroubadourPaneLayoutSettings {
-  rawFilesPercent: number;
-  inspectorPercent: number;
-  artworkPercent: number;
-}
-
 export interface TroubadourSettings {
   initialLoad: TroubadourInitialLoad;
   folderScanDepth: number;
   metadataReadConcurrency: number;
   autoGroupOnLoad: boolean;
   autoGroupFallback: TroubadourAutoGroupFallback;
-  paneLayout: TroubadourPaneLayoutSettings;
-  lastActiveTab: TroubadourTab;
   confirmDirtyRemoval: boolean;
 
   visibleMetadataFields: TroubadourMetadataField[];
@@ -109,12 +100,6 @@ export const DEFAULT_TROUBADOUR_SETTINGS: TroubadourSettings = {
   metadataReadConcurrency: 4,
   autoGroupOnLoad: true,
   autoGroupFallback: 'folder',
-  paneLayout: {
-    rawFilesPercent: 38,
-    inspectorPercent: 38,
-    artworkPercent: 28
-  },
-  lastActiveTab: 'metadata',
   confirmDirtyRemoval: true,
 
   visibleMetadataFields: [...TROUBADOUR_METADATA_FIELDS],
@@ -201,20 +186,12 @@ function normalizeReplacement(value: unknown): string {
 
 export function normalizeTroubadourSettings(value: unknown): TroubadourSettings {
   const source = isObject(value) ? value : {};
-  const paneLayout = isObject(source.paneLayout) ? source.paneLayout : {};
-
   return {
     initialLoad: enumValue(source.initialLoad, ['current-track', 'current-selection', 'nothing'], DEFAULT_TROUBADOUR_SETTINGS.initialLoad),
     folderScanDepth: normalizeTroubadourInteger(source.folderScanDepth, DEFAULT_TROUBADOUR_SETTINGS.folderScanDepth, 0, 64),
     metadataReadConcurrency: normalizeTroubadourInteger(source.metadataReadConcurrency, DEFAULT_TROUBADOUR_SETTINGS.metadataReadConcurrency, 1, 12),
     autoGroupOnLoad: booleanValue(source.autoGroupOnLoad, DEFAULT_TROUBADOUR_SETTINGS.autoGroupOnLoad),
     autoGroupFallback: enumValue(source.autoGroupFallback, ['folder', 'none'], DEFAULT_TROUBADOUR_SETTINGS.autoGroupFallback),
-    paneLayout: {
-      rawFilesPercent: normalizeTroubadourInteger(paneLayout.rawFilesPercent, DEFAULT_TROUBADOUR_SETTINGS.paneLayout.rawFilesPercent, 20, 80),
-      inspectorPercent: normalizeTroubadourInteger(paneLayout.inspectorPercent, DEFAULT_TROUBADOUR_SETTINGS.paneLayout.inspectorPercent, 20, 70),
-      artworkPercent: normalizeTroubadourInteger(paneLayout.artworkPercent, DEFAULT_TROUBADOUR_SETTINGS.paneLayout.artworkPercent, 18, 55)
-    },
-    lastActiveTab: enumValue(source.lastActiveTab, ['metadata', 'rename', 'lyrics', 'loudness', 'spectrogram'], DEFAULT_TROUBADOUR_SETTINGS.lastActiveTab),
     confirmDirtyRemoval: booleanValue(source.confirmDirtyRemoval, DEFAULT_TROUBADOUR_SETTINGS.confirmDirtyRemoval),
 
     visibleMetadataFields: normalizeTroubadourMetadataFields(source.visibleMetadataFields),

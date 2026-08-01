@@ -1,9 +1,12 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
   import { t } from 'svelte-i18n';
+  import DockableTabStrip from '$lib/components/DockableTabStrip.svelte';
   import HoverTooltip from '$lib/components/HoverTooltip.svelte';
   import MenuSurface from '$lib/components/MenuSurface.svelte';
-  import TabStrip from '$lib/components/TabStrip.svelte';
+  import { hasDockTabDragData, readDockTabDragData } from '$lib/components/docking/drag';
+  import type { DockTabDefinition, DockTabMoveDetail } from '$lib/components/docking/types';
+  import { resizeDockPairWeights, resolveDockSplit } from '$lib/services/dock-layout';
   import { applyMetadataPatch } from '$lib/services/media-metadata/merge';
   import type { MediaArtwork, MediaMetadataFieldName } from '$lib/services/media-metadata/types';
   import {
@@ -16,13 +19,24 @@
   import {
     troubadourSettings,
     type TroubadourMetadataField,
-    type TroubadourSettings,
-    type TroubadourTab
+    type TroubadourSettings
   } from '$lib/stores/troubadour-settings';
+  import {
+    TROUBADOUR_DOCK_REGIONS,
+    TROUBADOUR_DOCK_SCOPE,
+    isTroubadourTab,
+    troubadourWorkspaceState,
+    type TroubadourDockLayout,
+    type TroubadourDockRegionId,
+    type TroubadourDockZoneId,
+    type TroubadourTab,
+    type TroubadourWorkspaceState
+  } from '$lib/stores/troubadour-workspace';
   import { STREAM_EXTENSIONS, type MenuActionItem } from '$lib/types';
   import LoudnessTab from './LoudnessTab.svelte';
   import LyricsEditor from './LyricsEditor.svelte';
   import SpectrogramTab from './SpectrogramTab.svelte';
+  import TroubadourDockCompass from './TroubadourDockCompass.svelte';
   import TroubadourMenuBar from './TroubadourMenuBar.svelte';
   import {
     createTroubadourController,
@@ -32,6 +46,7 @@
     type TroubadourWorkbenchItem
   } from './troubadour-controller';
   import type { RenamePreviewRow } from './rename-job';
+  import type { TroubadourDockGuide } from './troubadour-dock';
   import { createLyricsPreview, type LyricsPreviewState } from './lyrics-preview';
 
   const SETTINGS_TO_FIELDS: Record<TroubadourMetadataField, MediaMetadataFieldName> = {
@@ -65,14 +80,16 @@
   };
   let lyricsPreviewKey = '';
   let settings: TroubadourSettings = troubadourSettings.getSnapshot();
-  let activeTab: TroubadourTab = settings.lastActiveTab;
+  let dockState: TroubadourWorkspaceState = troubadourWorkspaceState.getSnapshot();
   let fileInput: HTMLInputElement;
   let artworkInput: HTMLInputElement;
   let dragActive = false;
   let dragAlbumId: string | null = null;
-  let rawFilesPercent = settings.paneLayout.rawFilesPercent;
-  let inspectorPercent = settings.paneLayout.inspectorPercent;
-  let artworkPercent = settings.paneLayout.artworkPercent;
+  let draggedDockTabId: TroubadourTab | null = null;
+  let dockDropZoneId: TroubadourDockZoneId | null = null;
+  let dockWorkspaceElement: HTMLElement;
+  let dockResizeCleanup: (() => void) | null = null;
+  let isDockResizing = false;
   let renameTemplate = settings.renameTemplate;
   let renameRows: RenamePreviewRow[] = [];
   let renameError = '';
@@ -97,6 +114,14 @@
   const unsubscribeSettings = troubadourSettings.subscribe((value) => {
     settings = value;
     if (!state.busy) renameTemplate = value.renameTemplate;
+  });
+  const unsubscribeWorkspace = troubadourWorkspaceState.subscribe((value) => {
+    const lyricsWasActive = Object.values(dockState.activeTabsByZone).includes('lyrics');
+    dockState = value;
+
+    if (lyricsWasActive && !Object.values(value.activeTabsByZone).includes('lyrics')) {
+      lyricsPreview.pause();
+    }
   });
 
   $: selectedItems = state.items.filter((item) => state.selectedIds.includes(item.id));
@@ -126,9 +151,46 @@
     : [];
   $: summary = state.items.length ? `${state.items.length} files · ${dirtyItems.length} dirty` : '';
   $: contextMenuItems = contextItemId ? buildContextMenuItems() : [];
-  $: layoutStyle = `--raw-files-percent: ${rawFilesPercent}%; --inspector-percent: ${inspectorPercent}%; --artwork-percent: ${artworkPercent}%;`;
+  $: dockTabsById = {
+    files: { id: 'files', icon: 'audio_file', label: $t('troubadour.workbench.files', { default: 'Files' }) },
+    albums: { id: 'albums', icon: 'album', label: $t('troubadour.workbench.albums', { default: 'Albums' }) },
+    metadata: { id: 'metadata', icon: 'library_music', label: $t('troubadour.workbench.metadataTab', { default: 'Metadata' }) },
+    rename: { id: 'rename', icon: 'drive_file_rename_outline', label: $t('troubadour.workbench.renameTab', { default: 'Rename' }) },
+    lyrics: { id: 'lyrics', icon: 'lyrics', label: $t('troubadour.lyrics.tab', { default: 'Lyrics' }) },
+    loudness: { id: 'loudness', icon: 'graphic_eq', label: $t('loudness.title', { default: 'Loudness' }) },
+    spectrogram: {
+      id: 'spectrogram',
+      icon: 'waterfall_chart',
+      label: $t('spectrogram.title', { default: 'Spectrogram' }),
+      disabled: !isSpectrogramItem(spectrogramItem ?? selectedPrimary)
+    }
+  } satisfies Record<TroubadourTab, DockTabDefinition>;
+  $: dockGuides = buildDockGuides();
+  $: metadataWorkbenchVisible = (['files', 'albums', 'metadata', 'rename'] as TroubadourTab[])
+    .some((tab) => isDockTabActive(tab));
+  $: visibleDockRows = (['top', 'middle', 'bottom'] as const)
+    .filter((regionId) => regionId === 'middle'
+      ? (['left', 'middle', 'right'] as TroubadourDockRegionId[]).some((id) => hasDockRegion(id))
+      : hasDockRegion(regionId));
+  $: visibleDockColumns = (['left', 'middle', 'right'] as const)
+    .filter((regionId) => hasDockRegion(regionId));
+  $: dockRowResizePairs = adjacentPairs(visibleDockRows);
+  $: dockColumnResizePairs = adjacentPairs(visibleDockColumns);
+  $: hasMainDockRegion = visibleDockColumns.length > 0;
+  $: dockLayoutStyle = [
+    `--dock-top-track: ${hasDockRegion('top') ? `minmax(0, ${dockState.layout.rows.top}fr)` : '0px'}`,
+    `--dock-after-top-track: ${dockRowResizePairs.some((pair) => pair.before === 'top') ? '3px' : '0px'}`,
+    `--dock-main-track: ${hasMainDockRegion ? `minmax(0, ${dockState.layout.rows.middle}fr)` : '0px'}`,
+    `--dock-after-middle-row-track: ${dockRowResizePairs.some((pair) => pair.before === 'middle') ? '3px' : '0px'}`,
+    `--dock-bottom-track: ${hasDockRegion('bottom') ? `minmax(0, ${dockState.layout.rows.bottom}fr)` : '0px'}`,
+    `--dock-left-track: ${hasDockRegion('left') ? `minmax(0, ${dockState.layout.columns.left}fr)` : '0px'}`,
+    `--dock-after-left-track: ${dockColumnResizePairs.some((pair) => pair.before === 'left') ? '3px' : '0px'}`,
+    `--dock-middle-track: ${hasDockRegion('middle') ? `minmax(0, ${dockState.layout.columns.middle}fr)` : hasMainDockRegion ? '0px' : 'minmax(0, 1fr)'}`,
+    `--dock-after-middle-column-track: ${dockColumnResizePairs.some((pair) => pair.before === 'middle') ? '3px' : '0px'}`,
+    `--dock-right-track: ${hasDockRegion('right') ? `minmax(0, ${dockState.layout.columns.right}fr)` : '0px'}`
+  ].join('; ');
   $: updateArtworkUrl(selectedArtwork);
-  $: if (activeTab === 'spectrogram' && !spectrogramItemId && selectedPrimary && isSpectrogramItem(selectedPrimary)) {
+  $: if (isDockTabActive('spectrogram') && !spectrogramItemId && selectedPrimary && isSpectrogramItem(selectedPrimary)) {
     spectrogramItemId = selectedPrimary.id;
   }
   $: syncLyricsPreview(lyricsItem);
@@ -138,6 +200,206 @@
     if (key === lyricsPreviewKey) return;
     lyricsPreviewKey = key;
     lyricsPreview.setFile(item?.file ?? null);
+  }
+
+  function buildDockGuides(): TroubadourDockGuide[] {
+    const labels: Record<TroubadourDockRegionId, { label: string; icon: string; halves: [string, string] }> = {
+      top: {
+        label: $t('troubadour.dock.top', { default: 'Top zones' }),
+        icon: 'vertical_align_top',
+        halves: [$t('troubadour.dock.topLeft', { default: 'Top left' }), $t('troubadour.dock.topRight', { default: 'Top right' })]
+      },
+      left: {
+        label: $t('troubadour.dock.left', { default: 'Left zones' }),
+        icon: 'align_horizontal_left',
+        halves: [$t('troubadour.dock.leftTop', { default: 'Left top' }), $t('troubadour.dock.leftBottom', { default: 'Left bottom' })]
+      },
+      middle: {
+        label: $t('troubadour.dock.middle', { default: 'Middle zones' }),
+        icon: 'select_window',
+        halves: [$t('troubadour.dock.middleTop', { default: 'Middle top' }), $t('troubadour.dock.middleBottom', { default: 'Middle bottom' })]
+      },
+      right: {
+        label: $t('troubadour.dock.right', { default: 'Right zones' }),
+        icon: 'align_horizontal_right',
+        halves: [$t('troubadour.dock.rightTop', { default: 'Right top' }), $t('troubadour.dock.rightBottom', { default: 'Right bottom' })]
+      },
+      bottom: {
+        label: $t('troubadour.dock.bottom', { default: 'Bottom zones' }),
+        icon: 'vertical_align_bottom',
+        halves: [$t('troubadour.dock.bottomLeft', { default: 'Bottom left' }), $t('troubadour.dock.bottomRight', { default: 'Bottom right' })]
+      }
+    };
+
+    return TROUBADOUR_DOCK_REGIONS.map((region) => ({
+      ...region,
+      icon: labels[region.id].icon,
+      label: labels[region.id].label,
+      zoneLabels: labels[region.id].halves
+    }));
+  }
+
+  function adjacentPairs<T>(items: readonly T[]): Array<{ before: T; after: T }> {
+    return items.slice(0, -1).map((before, index) => ({ before, after: items[index + 1] }));
+  }
+
+  function tabsForDockZone(zoneId: TroubadourDockZoneId): DockTabDefinition[] {
+    return dockState.zones[zoneId].map((tab) => dockTabsById[tab]);
+  }
+
+  function hasDockRegion(regionId: TroubadourDockRegionId): boolean {
+    const region = TROUBADOUR_DOCK_REGIONS.find((candidate) => candidate.id === regionId);
+    return Boolean(region?.zones.some((zoneId) => dockState.zones[zoneId].length > 0));
+  }
+
+  function dockRegionStyle(regionId: TroubadourDockRegionId): string {
+    const region = TROUBADOUR_DOCK_REGIONS.find((candidate) => candidate.id === regionId)!;
+    const firstVisible = dockState.zones[region.zones[0]].length > 0;
+    const secondVisible = dockState.zones[region.zones[1]].length > 0;
+    const split = dockState.layout.splits[regionId];
+
+    return [
+      `--dock-first-zone-track: ${firstVisible ? `minmax(0, ${split}fr)` : '0px'}`,
+      `--dock-half-resizer-track: ${firstVisible && secondVisible ? '3px' : '0px'}`,
+      `--dock-second-zone-track: ${secondVisible ? `minmax(0, ${1 - split}fr)` : '0px'}`
+    ].join('; ');
+  }
+
+  function dockRegionLabel(regionId: 'top' | 'middle' | 'bottom' | 'left' | 'right'): string {
+    switch (regionId) {
+      case 'top': return $t('troubadour.dock.top', { default: 'Top zones' });
+      case 'middle': return $t('troubadour.dock.middle', { default: 'Middle zones' });
+      case 'bottom': return $t('troubadour.dock.bottom', { default: 'Bottom zones' });
+      case 'left': return $t('troubadour.dock.left', { default: 'Left zones' });
+      case 'right': return $t('troubadour.dock.right', { default: 'Right zones' });
+    }
+  }
+
+  function getMainResizeElement(regionId: 'top' | 'middle' | 'bottom' | 'left' | 'right'): HTMLElement | null {
+    if (regionId !== 'middle' || visibleDockColumns.includes('middle')) {
+      return dockWorkspaceElement.querySelector<HTMLElement>(`[data-dock-region="${regionId}"]`);
+    }
+
+    const middleBandRegion = visibleDockColumns[0];
+    return middleBandRegion
+      ? dockWorkspaceElement.querySelector<HTMLElement>(`[data-dock-region="${middleBandRegion}"]`)
+      : null;
+  }
+
+  function replaceDockLayoutAxis(
+    layout: TroubadourDockLayout,
+    axis: 'rows' | 'columns',
+    before: string,
+    after: string,
+    beforeWeight: number,
+    afterWeight: number
+  ): TroubadourDockLayout {
+    return {
+      ...layout,
+      [axis]: {
+        ...layout[axis],
+        [before]: beforeWeight,
+        [after]: afterWeight
+      }
+    } as TroubadourDockLayout;
+  }
+
+  function beginMainDockResize(
+    axis: 'rows' | 'columns',
+    before: 'top' | 'middle' | 'bottom' | 'left' | 'right',
+    after: 'top' | 'middle' | 'bottom' | 'left' | 'right',
+    event: PointerEvent
+  ): void {
+    const beforeElement = getMainResizeElement(before);
+    const afterElement = getMainResizeElement(after);
+
+    if (!beforeElement || !afterElement) return;
+
+    event.preventDefault();
+    dockResizeCleanup?.();
+    const beforeBounds = beforeElement.getBoundingClientRect();
+    const afterBounds = afterElement.getBoundingClientRect();
+    const horizontal = axis === 'columns';
+    const beforeSize = horizontal ? beforeBounds.width : beforeBounds.height;
+    const afterSize = horizontal ? afterBounds.width : afterBounds.height;
+    const startCoordinate = horizontal ? event.clientX : event.clientY;
+    const startLayout = dockState.layout;
+    const axisLayout = startLayout[axis] as Record<string, number>;
+
+    const move = (moveEvent: PointerEvent) => {
+      const coordinate = horizontal ? moveEvent.clientX : moveEvent.clientY;
+      const next = resizeDockPairWeights({
+        beforeSize,
+        afterSize,
+        beforeWeight: axisLayout[before],
+        afterWeight: axisLayout[after],
+        delta: coordinate - startCoordinate,
+        minimumSize: horizontal ? 140 : 84
+      });
+      troubadourWorkspaceState.setLayout(replaceDockLayoutAxis(
+        startLayout,
+        axis,
+        before,
+        after,
+        next.beforeWeight,
+        next.afterWeight
+      ));
+    };
+    const stop = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', stop);
+      window.removeEventListener('pointercancel', stop);
+      dockResizeCleanup = null;
+      isDockResizing = false;
+    };
+
+    isDockResizing = true;
+    dockResizeCleanup = stop;
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', stop, { once: true });
+    window.addEventListener('pointercancel', stop, { once: true });
+  }
+
+  function beginDockHalfResize(regionId: TroubadourDockRegionId, event: PointerEvent): void {
+    const region = TROUBADOUR_DOCK_REGIONS.find((candidate) => candidate.id === regionId);
+    const regionElement = dockWorkspaceElement.querySelector<HTMLElement>(`[data-dock-region="${regionId}"]`);
+
+    if (!region || !regionElement) return;
+
+    event.preventDefault();
+    dockResizeCleanup?.();
+    const bounds = regionElement.getBoundingClientRect();
+    const horizontal = region.split === 'horizontal';
+    const startLayout = dockState.layout;
+
+    const move = (moveEvent: PointerEvent) => {
+      const dimension = horizontal ? bounds.width : bounds.height;
+      const position = horizontal
+        ? moveEvent.clientX - bounds.left
+        : moveEvent.clientY - bounds.top;
+      const split = resolveDockSplit(position, dimension, horizontal ? 120 : 72);
+      troubadourWorkspaceState.setLayout({
+        ...startLayout,
+        splits: { ...startLayout.splits, [regionId]: split }
+      });
+    };
+    const stop = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', stop);
+      window.removeEventListener('pointercancel', stop);
+      dockResizeCleanup = null;
+      isDockResizing = false;
+    };
+
+    isDockResizing = true;
+    dockResizeCleanup = stop;
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', stop, { once: true });
+    window.addEventListener('pointercancel', stop, { once: true });
+  }
+
+  function isDockTabActive(tab: TroubadourTab): boolean {
+    return Object.values(dockState.activeTabsByZone).includes(tab);
   }
 
   function updateArtworkUrl(artwork: MediaArtwork | null) {
@@ -265,8 +527,7 @@
 
   async function previewRenames(): Promise<void> {
     renameError = '';
-    activeTab = 'rename';
-    troubadourSettings.update({ lastActiveTab: 'rename' });
+    setActiveTab('rename');
     try {
       renameRows = await controller.buildRenamePreview(renameTemplate, {
         illegalCharacterReplacement: settings.illegalCharacterReplacement,
@@ -315,9 +576,58 @@
   }
 
   function setActiveTab(tab: TroubadourTab): void {
-    if (activeTab === 'lyrics' && tab !== 'lyrics') lyricsPreview.pause();
-    activeTab = tab;
-    troubadourSettings.update({ lastActiveTab: tab });
+    troubadourWorkspaceState.setActiveTab(tab);
+  }
+
+  function moveDockTab(detail: DockTabMoveDetail): void {
+    troubadourWorkspaceState.moveTab(detail);
+    draggedDockTabId = null;
+    dockDropZoneId = null;
+  }
+
+  function handleDockTabDragStart(tabId: string): void {
+    draggedDockTabId = isTroubadourTab(tabId) ? tabId : null;
+    dragActive = false;
+  }
+
+  function handleDockTabDragEnd(): void {
+    draggedDockTabId = null;
+    dockDropZoneId = null;
+  }
+
+  function handleDockPanelDragOver(event: DragEvent, zoneId: TroubadourDockZoneId): void {
+    if (!hasDockTabDragData(event.dataTransfer, TROUBADOUR_DOCK_SCOPE)) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+    dockDropZoneId = zoneId;
+  }
+
+  function handleDockPanelDrop(event: DragEvent, zoneId: TroubadourDockZoneId): void {
+    const dragData = readDockTabDragData(event.dataTransfer, TROUBADOUR_DOCK_SCOPE);
+
+    if (!dragData) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    moveDockTab({ ...dragData, targetZoneId: zoneId, position: 'end' });
+  }
+
+  function handleDockPanelDragLeave(event: DragEvent, zoneId: TroubadourDockZoneId): void {
+    if (
+      event.relatedTarget instanceof Node &&
+      event.currentTarget instanceof HTMLElement &&
+      event.currentTarget.contains(event.relatedTarget)
+    ) {
+      return;
+    }
+
+    if (dockDropZoneId === zoneId) dockDropZoneId = null;
   }
 
   function isSpectrogramItem(item: TroubadourWorkbenchItem | null | undefined): boolean {
@@ -534,6 +844,21 @@
     if (file) stageArtwork(await artworkFromFile(file), 'add');
   }
 
+  function handleArtworkDragOver(event: DragEvent): void {
+    if (!Array.from(event.dataTransfer?.types ?? []).includes('Files')) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+  }
+
+  function handleArtworkDrop(event: DragEvent): void {
+    if (Array.from(event.dataTransfer?.types ?? []).includes('Files')) {
+      void dropArtwork(event);
+    }
+  }
+
   function clearArtwork(): void {
     const affected = selectedAppliedDocuments.filter((document) => document.artwork.length).length;
     if (affected >= settings.destructiveClearConfirmationThreshold && !window.confirm($t('troubadour.workbench.confirmClearArtwork', {
@@ -569,24 +894,6 @@
     setTimeout(() => URL.revokeObjectURL(link.href), 0);
   }
 
-  function beginResize(kind: 'raw' | 'inspector' | 'artwork', event: PointerEvent): void {
-    event.preventDefault();
-    const shell = (event.currentTarget as HTMLElement).closest('.troubadour-workbench') as HTMLElement;
-    const bounds = shell.getBoundingClientRect();
-    const move = (moveEvent: PointerEvent) => {
-      if (kind === 'raw') rawFilesPercent = Math.min(75, Math.max(25, ((moveEvent.clientX - bounds.left) / bounds.width) * 100));
-      else if (kind === 'artwork') artworkPercent = Math.min(50, Math.max(18, ((bounds.right - moveEvent.clientX) / bounds.width) * 100));
-      else inspectorPercent = Math.min(65, Math.max(25, ((bounds.bottom - moveEvent.clientY) / bounds.height) * 100));
-    };
-    const up = () => {
-      window.removeEventListener('pointermove', move);
-      window.removeEventListener('pointerup', up);
-      troubadourSettings.update({ paneLayout: { rawFilesPercent, inspectorPercent, artworkPercent } });
-    };
-    window.addEventListener('pointermove', move);
-    window.addEventListener('pointerup', up, { once: true });
-  }
-
   function handleKeydown(event: KeyboardEvent): void {
     const editing = event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement || event.target instanceof HTMLSelectElement;
     if (event.key === 'Delete' && !editing) removeSelected();
@@ -607,8 +914,10 @@
   }
 
   onDestroy(() => {
+    dockResizeCleanup?.();
     unsubscribeController();
     unsubscribeSettings();
+    unsubscribeWorkspace();
     unsubscribeLyricsPreview();
     lyricsPreview.destroy();
     if (artworkUrl) URL.revokeObjectURL(artworkUrl);
@@ -616,7 +925,7 @@
 </script>
 
 <svelte:head><title>{$t('troubadour.windowTitle', { default: 'izci Troubadour' })}</title></svelte:head>
-<svelte:window on:keydown={handleKeydown} on:dragover={handleWindowDragOver} on:dragleave={handleWindowDragLeave} on:drop={handleDrop} on:dragend={() => { dragActive = false; dragAlbumId = null; }} on:contextmenu={(event) => { if (event.target === document.body) event.preventDefault(); }} />
+<svelte:window on:keydown={handleKeydown} on:dragover={handleWindowDragOver} on:dragleave={handleWindowDragLeave} on:drop={handleDrop} on:dragend={() => { dragActive = false; dragAlbumId = null; handleDockTabDragEnd(); }} on:contextmenu={(event) => { if (event.target === document.body) event.preventDefault(); }} />
 
 <div class="tool-shell troubadour-shell">
   <div class="window-frame-safe-strip" aria-hidden="true"></div>
@@ -662,7 +971,7 @@
     ] as tool}
       <button class="icon-button hover-tooltip-anchor" type="button" aria-label={tool.label} disabled={state.busy || loudnessBusy} on:click={tool.action}><span class="material-symbols-outlined" aria-hidden="true">{tool.icon}</span><HoverTooltip>{tool.label}</HoverTooltip></button>
     {/each}
-    {#if activeTab === 'metadata' || activeTab === 'rename'}
+    {#if metadataWorkbenchVisible}
       <span class="toolbar-separator"></span>
       <button class="icon-button hover-tooltip-anchor" type="button" aria-label={$t('troubadour.workbench.createAlbum', { default: 'Create album' })} disabled={!state.selectedIds.length || state.busy} on:click={createAlbum}><span class="material-symbols-outlined">create_new_folder</span><HoverTooltip>{$t('troubadour.workbench.createAlbum', { default: 'Create album' })}</HoverTooltip></button>
       <button class="icon-button hover-tooltip-anchor" type="button" aria-label={$t('troubadour.workbench.autoGroup', { default: 'Auto-group' })} disabled={state.busy} on:click={() => controller.autoGroup(settings.autoGroupFallback)}><span class="material-symbols-outlined">auto_awesome_motion</span><HoverTooltip>{$t('troubadour.workbench.autoGroup', { default: 'Auto-group' })}</HoverTooltip></button>
@@ -679,19 +988,57 @@
     <button class="icon-button hover-tooltip-anchor" type="button" aria-label={$t('troubadour.workbench.options', { default: 'Troubadour Options' })} on:click={openOptions}><span class="material-symbols-outlined">settings</span><HoverTooltip>{$t('troubadour.workbench.options', { default: 'Troubadour Options' })}</HoverTooltip></button>
   </div>
 
-  <TabStrip className="tool-tabs troubadour-tabs" ariaLabel={$t('troubadour.workbench.tabs', { default: 'Troubadour workbench tabs' })}>
-    <button class="tab-strip-tab" class:active={activeTab === 'metadata'} type="button" role="tab" aria-selected={activeTab === 'metadata'} on:click={() => setActiveTab('metadata')}><span class="material-symbols-outlined">library_music</span>{$t('troubadour.workbench.metadataTab', { default: 'Metadata' })}</button>
-    <button class="tab-strip-tab" class:active={activeTab === 'rename'} type="button" role="tab" aria-selected={activeTab === 'rename'} on:click={() => setActiveTab('rename')}><span class="material-symbols-outlined">drive_file_rename_outline</span>{$t('troubadour.workbench.renameTab', { default: 'Rename' })}</button>
-    <button class="tab-strip-tab" class:active={activeTab === 'lyrics'} type="button" role="tab" aria-selected={activeTab === 'lyrics'} on:click={() => setActiveTab('lyrics')}><span class="material-symbols-outlined">lyrics</span>{$t('troubadour.lyrics.tab', { default: 'Lyrics' })}</button>
-    <button class="tab-strip-tab" class:active={activeTab === 'loudness'} type="button" role="tab" aria-selected={activeTab === 'loudness'} on:click={() => setActiveTab('loudness')}><span class="material-symbols-outlined">graphic_eq</span>{$t('loudness.title', { default: 'Loudness' })}</button>
-    <button class="tab-strip-tab" class:active={activeTab === 'spectrogram'} type="button" role="tab" aria-selected={activeTab === 'spectrogram'} on:click={() => openSpectrogram()} disabled={!isSpectrogramItem(spectrogramItem ?? selectedPrimary)}><span class="material-symbols-outlined">waterfall_chart</span>{$t('spectrogram.title', { default: 'Spectrogram' })}</button>
-  </TabStrip>
-
-  {#if activeTab === 'metadata'}
-    <main class="troubadour-workbench" style={layoutStyle}>
-      <section class="upper-workbench">
+  <main
+    class="troubadour-dock-workspace"
+    class:is-dragging-tab={draggedDockTabId !== null}
+    class:is-resizing={isDockResizing}
+    style={dockLayoutStyle}
+    bind:this={dockWorkspaceElement}
+  >
+    {#each TROUBADOUR_DOCK_REGIONS as region (region.id)}
+      {#if hasDockRegion(region.id)}
+        <section
+          class={`troubadour-dock-region region-${region.id} split-${region.split}`}
+          style={dockRegionStyle(region.id)}
+          data-dock-region={region.id}
+        >
+          {#each region.zones as zoneId (zoneId)}
+            {#if dockState.zones[zoneId].length}
+              {@const zoneActiveTab = dockState.activeTabsByZone[zoneId]}
+              <section
+                class="troubadour-dock-panel"
+                class:is-first-dock-zone={zoneId === region.zones[0]}
+                class:is-second-dock-zone={zoneId === region.zones[1]}
+                class:is-drop-target={dockDropZoneId === zoneId}
+                data-dock-zone={zoneId}
+                aria-label={zoneActiveTab ? dockTabsById[zoneActiveTab].label : undefined}
+                on:dragover={(event) => handleDockPanelDragOver(event, zoneId)}
+                on:drop={(event) => handleDockPanelDrop(event, zoneId)}
+                on:dragleave={(event) => handleDockPanelDragLeave(event, zoneId)}
+              >
+                <DockableTabStrip
+                  tabs={tabsForDockZone(zoneId)}
+                  activeTab={zoneActiveTab}
+                  {zoneId}
+                  dragScope={TROUBADOUR_DOCK_SCOPE}
+                  ariaLabel={$t('troubadour.dock.zoneTabs', { default: '{zone} tabs', values: { zone: zoneId } })}
+                  className="tool-tabs troubadour-zone-tabs"
+                  compactWhenNarrow
+                  idPrefix="troubadour-tab"
+                  on:tabChange={(event) => isTroubadourTab(event.detail) && setActiveTab(event.detail)}
+                  on:tabMove={(event) => moveDockTab(event.detail)}
+                  on:tabDragStart={(event) => handleDockTabDragStart(event.detail.tabId)}
+                  on:tabDragEnd={handleDockTabDragEnd}
+                />
+                <div
+                  class="troubadour-dock-panel-content"
+                  role="tabpanel"
+                  id={`troubadour-tab-panel-${zoneId}-${zoneActiveTab ?? 'empty'}`}
+                  aria-labelledby={zoneActiveTab ? `troubadour-tab-${zoneId}-${zoneActiveTab}` : undefined}
+                >
+      {#if zoneActiveTab === 'files'}
         <section class="pane raw-files-pane" aria-label={$t('troubadour.workbench.files', { default: 'Files' })}>
-          <header class="pane-header"><strong>{$t('troubadour.workbench.files', { default: 'Files' })}</strong><span>{$t('troubadour.workbench.rawSummary', { default: '{unassigned} unassigned · {unsupported} unsupported', values: { unassigned: state.items.filter((item) => !item.albumId).length, unsupported: state.items.filter((item) => item.state === 'unsupported').length } })}</span></header>
+          <header class="pane-header pane-summary-header"><span>{$t('troubadour.workbench.rawSummary', { default: '{unassigned} unassigned · {unsupported} unsupported', values: { unassigned: state.items.filter((item) => !item.albumId).length, unsupported: state.items.filter((item) => item.state === 'unsupported').length } })}</span></header>
           <div class="dense-grid file-grid" role="grid" aria-label={$t('troubadour.workbench.loadedFiles', { default: 'Loaded files' })}>
             <div class="grid-header" role="row"><span>{$t('troubadour.workbench.state', { default: 'State' })}</span><span>{$t('troubadour.workbench.file', { default: 'File' })}</span><span>{$t('troubadour.workbench.path', { default: 'Path' })}</span><span>{$t('troubadour.workbench.format', { default: 'Format' })}</span></div>
             {#each state.items as item (item.id)}
@@ -703,9 +1050,9 @@
             {#if !state.items.length}<button class="tool-empty-state raw-empty" type="button" on:click={() => void chooseFiles()}><span class="material-symbols-outlined">audio_file</span><strong>{$t('troubadour.workbench.empty', { default: 'Add files or drop folders here' })}</strong><span>{$t('troubadour.workbench.transientHint', { default: 'Nothing is changed until Save or Apply renames.' })}</span></button>{/if}
           </div>
         </section>
-        <div class="splitter vertical-splitter" role="separator" aria-label={$t('troubadour.workbench.resizeUpper', { default: 'Resize file and album panes' })} on:pointerdown={(event) => beginResize('raw', event)}></div>
+      {:else if zoneActiveTab === 'albums'}
         <section class="pane albums-pane" aria-label={$t('troubadour.workbench.albums', { default: 'Albums' })}>
-          <header class="pane-header"><strong>{$t('troubadour.workbench.albums', { default: 'Albums' })}</strong><span>{$t('troubadour.workbench.groupCount', { default: '{count} groups', values: { count: state.albums.length } })}</span></header>
+          <header class="pane-header pane-summary-header"><span>{$t('troubadour.workbench.groupCount', { default: '{count} groups', values: { count: state.albums.length } })}</span></header>
           <div class="album-tree" role="tree">
             {#each state.albums as album (album.id)}
               <section class="album-node" class:selected={state.selectedAlbumId === album.id} class:drop-target={dragAlbumId === album.id} role="treeitem" tabindex="-1" aria-selected={state.selectedAlbumId === album.id} aria-expanded={!collapsedAlbumIds.has(album.id)} on:dragover={(event) => dragOverAlbum(event, album)} on:dragleave={(event) => leaveAlbum(event, album)} on:drop={(event) => dropOnAlbum(event, album)}>
@@ -721,11 +1068,10 @@
             {#if !state.albums.length}<div class="album-empty"><span class="material-symbols-outlined">account_tree</span><span>{$t('troubadour.workbench.albumEmpty', { default: 'Select files and create an album, or use Auto-group.' })}</span></div>{/if}
           </div>
         </section>
-      </section>
-      <div class="splitter horizontal-splitter" role="separator" aria-label={$t('troubadour.workbench.resizeInspector', { default: 'Resize inspector' })} on:pointerdown={(event) => beginResize('inspector', event)}></div>
-      <section class="inspector-workbench">
+      {:else if zoneActiveTab === 'metadata'}
+      <section class="metadata-tab-workbench">
         <section class="pane metadata-inspector" aria-label={$t('troubadour.workbench.metadataInspector', { default: 'Metadata inspector' })}>
-          <header class="pane-header"><strong>{$t('troubadour.workbench.metadataTab', { default: 'Metadata' })}</strong><span>{selectedItems.length ? $t('troubadour.workbench.selectedCount', { default: '{count} selected', values: { count: selectedItems.length } }) : $t('troubadour.workbench.selectToEdit', { default: 'Select files to edit' })}</span></header>
+          <header class="pane-header pane-summary-header"><span>{selectedItems.length ? $t('troubadour.workbench.selectedCount', { default: '{count} selected', values: { count: selectedItems.length } }) : $t('troubadour.workbench.selectToEdit', { default: 'Select files to edit' })}</span></header>
           <div class="property-grid">
             {#each visibleFields as field}
               {@const fieldState = selectedFieldValue(state.items, state.selectedIds, field)}
@@ -748,8 +1094,7 @@
             {#if rawExpanded}<div class="raw-grid"><div class="raw-header"><span>{$t('troubadour.workbench.tag', { default: 'Tag' })}</span><span>{$t('troubadour.workbench.rawValue', { default: 'Raw value' })}</span></div>{#each rawEntries as [key, value]}<div class="raw-row"><code>{key}</code><span>{typeof value === 'string' ? value : value instanceof Uint8Array ? $t('troubadour.workbench.binaryBytes', { default: 'Binary · {count} B', values: { count: value.byteLength } }) : JSON.stringify(value)}</span></div>{/each}</div>{/if}
           {/if}
         </section>
-        <div class="splitter artwork-splitter" role="separator" aria-label={$t('troubadour.workbench.resizeArtwork', { default: 'Resize artwork inspector' })} on:pointerdown={(event) => beginResize('artwork', event)}></div>
-        <section class="pane artwork-inspector" aria-label={$t('troubadour.workbench.artworkInspector', { default: 'Artwork inspector' })} on:dragover={(event) => { event.preventDefault(); event.stopPropagation(); }} on:drop={(event) => void dropArtwork(event)}>
+        <section class="pane artwork-inspector" aria-label={$t('troubadour.workbench.artworkInspector', { default: 'Artwork inspector' })} on:dragover={handleArtworkDragOver} on:drop={handleArtworkDrop}>
           <header class="pane-header"><strong>{$t('troubadour.workbench.artwork', { default: 'Artwork' })}</strong><span>{artworkMixed ? $t('troubadour.workbench.mixedArtwork', { default: 'Mixed artwork' }) : $t('troubadour.workbench.imageCount', { default: '{count} images', values: { count: selectedApplied?.artwork.length ?? 0 } })}</span></header>
           <div class="artwork-content">
             <div class="artwork-list" role="listbox" aria-label={$t('troubadour.workbench.embeddedImages', { default: 'Embedded images' })}>
@@ -776,8 +1121,7 @@
           {#if selectedArtwork && (selectedArtwork.size > settings.artworkSizeWarningMb * 1024 * 1024 || (selectedArtwork.width ?? 0) > settings.artworkDimensionWarningPx || (selectedArtwork.height ?? 0) > settings.artworkDimensionWarningPx)}<p class="artwork-warning"><span class="material-symbols-outlined">warning</span>{$t('troubadour.workbench.artworkWarning', { default: 'This image exceeds the configured warning threshold. It will not be resized automatically.' })}</p>{/if}
         </section>
       </section>
-    </main>
-  {:else if activeTab === 'rename'}
+  {:else if zoneActiveTab === 'rename'}
     <main class="rename-workbench">
       <section class="rename-controls">
         <label><span>{$t('troubadour.workbench.template', { default: 'Template' })}</span><input bind:value={renameTemplate} spellcheck="false" on:keydown={(event) => event.key === 'Enter' && void previewRenames()} /></label>
@@ -796,7 +1140,7 @@
       </section>
       <footer class="rename-actions"><span>{$t('troubadour.workbench.renameSummary', { default: '{ready} ready · {blocked} blocked', values: { ready: renameRows.filter((row) => row.enabled).length, blocked: renameRows.filter((row) => row.problems.length).length } })}</span>{#if renameRows.some((row) => row.problems.includes('permission-required'))}<button class="text-button" type="button" disabled={state.busy} on:click={() => void grantRenameAccess()}><span class="material-symbols-outlined">lock_open</span>{$t('troubadour.workbench.grantAccess', { default: 'Grant access' })}</button>{/if}<button class="text-button" type="button" disabled={!renameRows.some((row) => row.enabled) || state.busy} on:click={() => void applyRenames(true)}>{$t('troubadour.workbench.saveThenRename', { default: 'Save tags then rename' })}</button><button class="text-button primary" type="button" disabled={!renameRows.some((row) => row.enabled) || state.busy} on:click={() => void applyRenames(false)}><span class="material-symbols-outlined">drive_file_rename_outline</span>{$t('troubadour.workbench.applyRenames', { default: 'Apply renames' })}</button></footer>
     </main>
-  {:else if activeTab === 'loudness'}
+  {:else if zoneActiveTab === 'loudness'}
     <LoudnessTab
       items={state.items}
       selectedIds={state.selectedIds}
@@ -808,7 +1152,7 @@
       on:written={() => void controller.reloadSelected()}
       on:busyChange={(event) => loudnessBusy = event.detail}
     />
-  {:else if activeTab === 'lyrics'}
+  {:else if zoneActiveTab === 'lyrics'}
     {#key lyricsItem?.id ?? 'no-lyrics-track'}
       <LyricsEditor
         value={lyricsValue}
@@ -825,11 +1169,55 @@
         on:seek={(event) => lyricsPreview.seek(event.detail)}
       />
     {/key}
-  {:else}
+  {:else if zoneActiveTab === 'spectrogram'}
     <SpectrogramTab item={spectrogramItem} />
   {/if}
 
-  {#if activeTab !== 'loudness' && activeTab !== 'spectrogram'}<footer class="tool-status-bar" class:error={Boolean(state.error || renameError)}>
+                </div>
+              </section>
+            {/if}
+          {/each}
+          {#if dockState.zones[region.zones[0]].length && dockState.zones[region.zones[1]].length}
+            <div
+              class="dock-zone-half-resizer"
+              class:is-horizontal={region.split === 'horizontal'}
+              class:is-vertical={region.split === 'vertical'}
+              role="separator"
+              aria-label={$t('troubadour.dock.resizeHalves', { default: 'Resize {region}', values: { region: dockRegionLabel(region.id) } })}
+              on:pointerdown={(event) => beginDockHalfResize(region.id, event)}
+            ></div>
+          {/if}
+        </section>
+      {/if}
+    {/each}
+
+    {#each dockColumnResizePairs as pair (`${pair.before}-${pair.after}`)}
+      <div
+        class={`dock-main-resizer dock-main-column-resizer separator-after-${pair.before}`}
+        role="separator"
+        aria-label={$t('troubadour.dock.resizeMain', { default: 'Resize {before} and {after}', values: { before: dockRegionLabel(pair.before), after: dockRegionLabel(pair.after) } })}
+        on:pointerdown={(event) => beginMainDockResize('columns', pair.before, pair.after, event)}
+      ></div>
+    {/each}
+
+    {#each dockRowResizePairs as pair (`${pair.before}-${pair.after}`)}
+      <div
+        class={`dock-main-resizer dock-main-row-resizer separator-after-${pair.before}`}
+        role="separator"
+        aria-label={$t('troubadour.dock.resizeMain', { default: 'Resize {before} and {after}', values: { before: dockRegionLabel(pair.before), after: dockRegionLabel(pair.after) } })}
+        on:pointerdown={(event) => beginMainDockResize('rows', pair.before, pair.after, event)}
+      ></div>
+    {/each}
+
+    <TroubadourDockCompass
+      visible={draggedDockTabId !== null}
+      ariaLabel={$t('troubadour.dock.compass', { default: 'Docking compass' })}
+      guides={dockGuides}
+      on:tabMove={(event) => moveDockTab(event.detail)}
+    />
+  </main>
+
+  {#if metadataWorkbenchVisible || isDockTabActive('lyrics')}<footer class="tool-status-bar" class:error={Boolean(state.error || renameError)}>
     <span class="material-symbols-outlined" aria-hidden="true">{state.busy ? 'progress_activity' : state.error || renameError ? 'error' : 'info'}</span>
     <span>{state.error || renameError || state.message || $t('troubadour.workbench.offlineReady', { default: 'Offline workbench ready. Source files are unchanged.' })}</span>
     {#if selectedPrimary}<span class="current-path" title={selectedPrimary.path}>{selectedPrimary.path}</span>{/if}

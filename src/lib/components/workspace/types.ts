@@ -15,6 +15,8 @@ import type {
 import type { LoadedStreamArtwork } from '$lib/services/stream-artwork';
 import type { Readable } from 'svelte/store';
 
+export const WORKSPACE_DOCK_SCOPE = 'main-workspace';
+
 export interface WorkspacePanelProps {
   items: PlaylistItem[];
   selectedIds: string[];

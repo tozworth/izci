@@ -12,7 +12,6 @@ describe('normalizeTroubadourSettings', () => {
     const settings = normalizeTroubadourSettings(undefined);
 
     expect(settings).toEqual(DEFAULT_TROUBADOUR_SETTINGS);
-    expect(settings.paneLayout).not.toBe(DEFAULT_TROUBADOUR_SETTINGS.paneLayout);
     expect(settings.visibleMetadataFields).not.toBe(DEFAULT_TROUBADOUR_SETTINGS.visibleMetadataFields);
   });
 
@@ -23,8 +22,7 @@ describe('normalizeTroubadourSettings', () => {
       writeConcurrency: 0,
       folderScanDepth: '7',
       collisionPolicy: 'counter',
-      backupPolicy: 'sibling',
-      paneLayout: { rawFilesPercent: 5, inspectorPercent: 90, artworkPercent: 32 }
+      backupPolicy: 'sibling'
     });
 
     expect(settings.initialLoad).toBe('nothing');
@@ -33,15 +31,6 @@ describe('normalizeTroubadourSettings', () => {
     expect(settings.folderScanDepth).toBe(7);
     expect(settings.collisionPolicy).toBe('counter');
     expect(settings.backupPolicy).toBe('sibling');
-    expect(settings.paneLayout).toEqual({ rawFilesPercent: 20, inspectorPercent: 70, artworkPercent: 32 });
-  });
-
-  it('keeps Loudness as a restorable Troubadour tab', () => {
-    expect(normalizeTroubadourSettings({ lastActiveTab: 'loudness' }).lastActiveTab).toBe('loudness');
-  });
-
-  it('keeps Spectrogram as a restorable Troubadour tab', () => {
-    expect(normalizeTroubadourSettings({ lastActiveTab: 'spectrogram' }).lastActiveTab).toBe('spectrogram');
   });
 
   it('rejects invalid enums instead of carrying unreleased settings shapes forward', () => {
