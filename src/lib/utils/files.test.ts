@@ -123,6 +123,7 @@ describe('file helpers', () => {
       { name: 'Root.xm', path: 'Music/Root.xm' }
     ]);
     expect(items.find((item) => item.name === 'Nested.mod')?.fileHandle).toBe(nestedTrack);
+    expect(items.every((item) => item.file === undefined && item.objectUrl === undefined)).toBe(true);
   });
 
   it('attaches resolved folder context when reading launched file handles', async () => {

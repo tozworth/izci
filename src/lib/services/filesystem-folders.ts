@@ -39,6 +39,22 @@ const DATABASE_VERSION = 1;
 const STORE_NAME = 'folders';
 const STATE_KEY = 'state';
 const CHANNEL_NAME = 'izci-filesystem-folders';
+const FOLDER_ACCESS_TIMEOUT_MS = 3_000;
+
+async function settleWithin<T>(promise: Promise<T>, timeoutMs: number): Promise<T | undefined> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<undefined>((resolve) => {
+        timeoutId = setTimeout(() => resolve(undefined), timeoutMs);
+      })
+    ]);
+  } finally {
+    if (timeoutId !== undefined) clearTimeout(timeoutId);
+  }
+}
 
 function isDirectoryHandle(value: unknown): value is FileSystemDirectoryHandle {
   if (!value || typeof value !== 'object') return false;
@@ -139,13 +155,16 @@ async function writeStoredFolders(folders: StoredFilesystemFolder[]): Promise<vo
 
 export async function queryFilesystemFolderPermission(
   handle: FileSystemDirectoryHandle,
-  probe = true
+  probe = true,
+  timeoutMs = FOLDER_ACCESS_TIMEOUT_MS
 ): Promise<FilesystemFolderPermission> {
   let permission: FileSystemPermissionState = 'granted';
 
   try {
     if (typeof handle.queryPermission === 'function') {
-      permission = await handle.queryPermission({ mode: 'read' });
+      const queriedPermission = await settleWithin(handle.queryPermission({ mode: 'read' }), timeoutMs);
+      if (!queriedPermission) return 'unavailable';
+      permission = queriedPermission;
     }
   } catch {
     return 'unavailable';
@@ -154,7 +173,8 @@ export async function queryFilesystemFolderPermission(
   if (permission !== 'granted' || !probe) return permission;
 
   try {
-    await handle.values().next();
+    const probeResult = await settleWithin(handle.values().next(), timeoutMs);
+    if (!probeResult) return 'unavailable';
     return 'granted';
   } catch {
     return 'unavailable';
@@ -220,7 +240,7 @@ function stripRuntimeState(folder: FilesystemFolder): StoredFilesystemFolder {
 
 function createFilesystemFoldersStore(): Readable<FilesystemFolder[]> & {
   ready(): Promise<void>;
-  refresh(): Promise<FilesystemFolder[]>;
+  refresh(options?: { probe?: boolean }): Promise<FilesystemFolder[]>;
   remember(
     handle: FileSystemDirectoryHandle,
     options?: { libraryMode?: LibraryFolderMode | null; preferredId?: string }
@@ -249,12 +269,18 @@ function createFilesystemFoldersStore(): Readable<FilesystemFolder[]> & {
 
   store.subscribe((value) => (snapshot = value));
 
-  async function load(): Promise<FilesystemFolder[]> {
+  async function load(probe = false): Promise<FilesystemFolder[]> {
     const stored = await readStoredFolders();
+    store.set(
+      stored.map((folder) => ({
+        ...folder,
+        permission: snapshot.find((candidate) => candidate.id === folder.id)?.permission ?? 'unavailable'
+      }))
+    );
     const folders = await Promise.all(
       stored.map(async (folder) => ({
         ...folder,
-        permission: await queryFilesystemFolderPermission(folder.handle)
+        permission: await queryFilesystemFolderPermission(folder.handle, probe)
       }))
     );
     store.set(folders);
@@ -294,9 +320,9 @@ function createFilesystemFoldersStore(): Readable<FilesystemFolder[]> & {
   if (typeof window !== 'undefined') {
     if ('BroadcastChannel' in window) {
       channel = new BroadcastChannel(CHANNEL_NAME);
-      channel.addEventListener('message', () => void load());
+      channel.addEventListener('message', () => void load(false));
     }
-    void load().finally(() => {
+    void load(false).finally(() => {
       resolveReady?.();
       resolveReady = null;
     });
@@ -305,7 +331,7 @@ function createFilesystemFoldersStore(): Readable<FilesystemFolder[]> & {
   return {
     subscribe: store.subscribe,
     ready: () => readyPromise,
-    refresh: load,
+    refresh: (options = {}) => load(options.probe === true),
     getSnapshot: () => snapshot,
     async remember(handle, options = {}) {
       let remembered: FilesystemFolder | null = null;
@@ -316,7 +342,7 @@ function createFilesystemFoldersStore(): Readable<FilesystemFolder[]> & {
               ...folder,
               name: handle.name,
               handle,
-              permission: await queryFilesystemFolderPermission(handle),
+              permission: await queryFilesystemFolderPermission(handle, false),
               libraryMode: options.libraryMode === undefined ? folder.libraryMode : options.libraryMode
             };
             return current.map((candidate) => (candidate.id === folder.id ? remembered! : candidate));
@@ -331,7 +357,7 @@ function createFilesystemFoldersStore(): Readable<FilesystemFolder[]> & {
           name: handle.name,
           handle,
           addedAt: Date.now(),
-          permission: await queryFilesystemFolderPermission(handle),
+          permission: await queryFilesystemFolderPermission(handle, false),
           libraryMode: options.libraryMode ?? null,
           lastScanStatus: 'never'
         };

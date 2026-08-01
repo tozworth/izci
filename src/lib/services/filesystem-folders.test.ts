@@ -56,6 +56,17 @@ describe('filesystem folder helpers', () => {
     await expect(queryFilesystemFolderPermission(handle)).resolves.toBe('unavailable');
   });
 
+  it('does not wait indefinitely for an unavailable directory probe', async () => {
+    const handle = directoryHandle({
+      queryPermission: async () => 'granted',
+      values: (() => ({
+        next: () => new Promise(() => {})
+      })) as unknown as FileSystemDirectoryHandle['values']
+    });
+
+    await expect(queryFilesystemFolderPermission(handle, true, 10)).resolves.toBe('unavailable');
+  });
+
   it('collects only reusable directory handles from a drop', async () => {
     const folder = directoryHandle();
     const file = { kind: 'file', name: 'Track.flac', getFile: async () => new File([], 'Track.flac') };

@@ -16,6 +16,24 @@ interface ScheduleMetadataParsingOptions {
   queuePersist: () => void;
 }
 
+const METADATA_IO_TIMEOUT_MS = 15_000;
+const MEDIA_DURATION_TIMEOUT_MS = 10_000;
+
+async function settleMetadataTask<T>(task: Promise<T>): Promise<T | null> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+  try {
+    return await Promise.race([
+      task.catch(() => null),
+      new Promise<null>((resolve) => {
+        timeoutId = setTimeout(() => resolve(null), METADATA_IO_TIMEOUT_MS);
+      })
+    ]);
+  } finally {
+    if (timeoutId !== undefined) clearTimeout(timeoutId);
+  }
+}
+
 function scheduleBackgroundTask(callback: (deadline: BackgroundDeadline) => void): void {
   if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
     window.requestIdleCallback(callback, { timeout: 100 });
@@ -71,8 +89,10 @@ async function readStreamDuration(item: PlaylistItem): Promise<number | undefine
 
   return await new Promise((resolve) => {
     const audio = new Audio();
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
 
     const cleanup = () => {
+      if (timeoutId !== undefined) clearTimeout(timeoutId);
       audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
       audio.removeEventListener('error', handleError);
       audio.src = '';
@@ -95,6 +115,7 @@ async function readStreamDuration(item: PlaylistItem): Promise<number | undefine
     audio.preload = 'metadata';
     audio.addEventListener('loadedmetadata', handleLoadedMetadata, { once: true });
     audio.addEventListener('error', handleError, { once: true });
+    timeoutId = setTimeout(handleError, MEDIA_DURATION_TIMEOUT_MS);
     audio.src = objectUrl;
   });
 }
@@ -177,7 +198,7 @@ export function scheduleMetadataParsing({
     if (pendingEmbeddedMetadataItem) {
       active = true;
 
-      void loadTrackMetadata(pendingEmbeddedMetadataItem)
+      void settleMetadataTask(loadTrackMetadata(pendingEmbeddedMetadataItem))
         .then(async (metadata) => {
           const itemId = pendingEmbeddedMetadataItem?.id;
 
@@ -222,7 +243,7 @@ export function scheduleMetadataParsing({
             return;
           }
 
-          const duration = await readStreamDuration(refreshedItem);
+          const duration = await settleMetadataTask(readStreamDuration(refreshedItem));
 
           if (!duration || duration <= 0) {
             return;
@@ -263,7 +284,7 @@ export function scheduleMetadataParsing({
     if (pendingModuleMetadataItem) {
       active = true;
 
-      void loadModuleMetadata(pendingModuleMetadataItem)
+      void settleMetadataTask(loadModuleMetadata(pendingModuleMetadataItem))
         .then((metadata) => {
           if (!metadata) {
             return;
@@ -314,7 +335,7 @@ export function scheduleMetadataParsing({
     if (pendingDurationItem) {
       active = true;
 
-      void readStreamDuration(pendingDurationItem)
+      void settleMetadataTask(readStreamDuration(pendingDurationItem))
         .then((duration) => {
           if (!duration || duration <= 0) {
             return;

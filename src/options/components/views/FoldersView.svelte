@@ -234,7 +234,7 @@
       <OptionGlyphButton
         icon="refresh"
         label={$t('options.folders.actions.checkAllAccess', { default: 'Check all folder access' })}
-        on:click={() => void filesystemFolders.refresh()}
+        on:click={() => void filesystemFolders.refresh({ probe: true })}
       />
       <OptionGlyphButton icon="create_new_folder" label={$t('options.folders.actions.add', { default: 'Add folder' })} on:click={() => void browseFolder()} />
     </div>

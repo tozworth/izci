@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import { getTrackArtworkLoadKey, loadTrackMetadata } from './stream-artwork';
 import type { PlaylistItem } from '$lib/types';
@@ -223,6 +223,15 @@ describe('stream artwork metadata helpers', () => {
       },
       embeddedMetadataLoaded: true
     });
+  });
+
+  it('does not read an entire media file for background metadata', async () => {
+    const file = mp3File([id3UserTextFrame('replaygain_track_gain', '-4.00 dB')]);
+    const fullRead = vi.spyOn(file, 'arrayBuffer');
+
+    await loadTrackMetadata(item({ name: file.name, extension: 'mp3', file }));
+
+    expect(fullRead).not.toHaveBeenCalled();
   });
 
   it('returns null for formats without embedded stream metadata support', async () => {

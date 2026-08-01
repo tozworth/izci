@@ -23,6 +23,10 @@
   import LibraryGroupList from '$lib/components/playlist-panel/LibraryGroupList.svelte';
   import LibraryColumnsHeader from '$lib/components/playlist-panel/LibraryColumnsHeader.svelte';
   import TrackList from '$lib/components/playlist-panel/TrackList.svelte';
+  import {
+    DEFAULT_TRACK_ROW_HEIGHT,
+    TRACK_LIST_VIRTUALIZATION_THRESHOLD
+  } from '$lib/components/playlist-panel/track-list-virtualization';
   import MenuSurface from '$lib/components/MenuSurface.svelte';
   import { buildOrderedSelection, isToggleSelection } from '$lib/components/playlist-panel/selection';
   import {
@@ -94,6 +98,9 @@
   let searchInputElement: HTMLInputElement | null = null;
   let playlistHeaderCovered = false;
   let dropzoneWidth = 0;
+  let dropzoneHeight = 0;
+  let dropzoneScrollTop = 0;
+  let trackRowHeight = DEFAULT_TRACK_ROW_HEIGHT;
   let searchInputExpanded = false;
   let draggedColumnId: LibraryColumnId | null = null;
   let dropIndicator: ColumnDropIndicator | null = null;
@@ -347,6 +354,7 @@
   }
 
   async function focusTrackRow(id: string) {
+    await scrollTrackIntoView(id);
     await tick();
 
     if (!dropzoneElement || typeof CSS === 'undefined' || typeof CSS.escape !== 'function') {
@@ -357,7 +365,6 @@
       `[data-track-id="${CSS.escape(id)}"] [data-track-row-button]`
     );
     rowButton?.focus();
-    await scrollTrackIntoView(id);
   }
 
   function handleWindowKeydown(event: KeyboardEvent) {
@@ -426,7 +433,8 @@
   }
 
   function updatePlaylistHeaderState() {
-    playlistHeaderCovered = (dropzoneElement?.scrollTop ?? 0) > 0;
+    dropzoneScrollTop = dropzoneElement?.scrollTop ?? 0;
+    playlistHeaderCovered = dropzoneScrollTop > 0;
   }
 
   function emitSelection(event: MouseEvent, id: string) {
@@ -767,6 +775,18 @@
       return;
     }
 
+    if (displayItems.length > TRACK_LIST_VIRTUALIZATION_THRESHOLD) {
+      const index = displayItems.findIndex((item) => item.id === id);
+      if (index < 0) return;
+
+      const centeredTop = index * trackRowHeight - (dropzoneElement.clientHeight - trackRowHeight) / 2;
+      const maxScrollTop = Math.max(displayItems.length * trackRowHeight - dropzoneElement.clientHeight, 0);
+      dropzoneElement.scrollTo({ top: clamp(centeredTop, 0, maxScrollTop) });
+      dropzoneScrollTop = dropzoneElement.scrollTop;
+      await tick();
+      return;
+    }
+
     const row = dropzoneElement.querySelector<HTMLElement>(`[data-track-id="${CSS.escape(id)}"]`);
 
     if (!row) {
@@ -1045,6 +1065,7 @@
     <div
       bind:this={dropzoneElement}
       bind:clientWidth={dropzoneWidth}
+      bind:clientHeight={dropzoneHeight}
       class="playlist-scroll-region"
       on:scroll={updatePlaylistHeaderState}
     >
@@ -1070,9 +1091,13 @@
           {tableTemplateColumns}
           {tableColumnGap}
           {hideTrackFormat}
+          scrollTop={dropzoneScrollTop}
+          viewportHeight={dropzoneHeight}
+          rowHeight={trackRowHeight}
           on:itemClick={(event) => handleItemClick(event.detail.event, event.detail.id)}
           on:itemDoubleClick={(event) => handleItemDoubleClick(event.detail)}
           on:itemContextMenu={(event) => void handleItemContextMenu(event.detail.event, event.detail.id)}
+          on:rowHeight={(event) => trackRowHeight = event.detail}
         />
       {:else if displaySourceItems.length > 0 && normalizedSearchQuery}
         <div class="empty-state playlist-filter-empty">

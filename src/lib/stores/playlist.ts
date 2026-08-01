@@ -54,6 +54,8 @@ export type ExternalTrackUpdate = Partial<
   >
 >;
 
+const PERSIST_DEBOUNCE_MS = 400;
+
 export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
   const items = writable<PlaylistItem[]>([]);
   const selection = writable<PlaylistSelection>(emptySelection);
@@ -63,7 +65,9 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
   let selectionState: PlaylistSelection = emptySelection;
   let playbackOptionsState: PlaylistPlaybackOptions = defaultPlaybackOptions;
   let hydrated = typeof window === 'undefined';
-  let persistQueued = false;
+  let persistTimer: ReturnType<typeof setTimeout> | undefined;
+  let persistInFlight = false;
+  let persistDirty = false;
   let shouldCompactStoredState = false;
   const pendingOperations: Array<() => void> = [];
   const navigation = createPlaylistNavigation(() => itemList);
@@ -101,21 +105,28 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
   });
 
   function queuePersist(): void {
-    if (!hydrated || persistQueued) {
+    if (!hydrated) {
       return;
     }
 
-    persistQueued = true;
+    persistDirty = true;
+    if (persistTimer !== undefined || persistInFlight) return;
 
-    queueMicrotask(() => {
-      persistQueued = false;
+    persistTimer = setTimeout(() => {
+      persistTimer = undefined;
+      if (!persistDirty || persistInFlight) return;
 
+      persistDirty = false;
+      persistInFlight = true;
       void persistStoredState(config.dbName, {
         items: itemList.map(serializeItem).filter((item): item is StoredPlaylistItem => item !== null),
         selection: selectionState,
         playbackOptions: playbackOptionsState
+      }).finally(() => {
+        persistInFlight = false;
+        if (persistDirty) queuePersist();
       });
-    });
+    }, PERSIST_DEBOUNCE_MS);
   }
 
   function applyStoredState(state: StoredPlaylistState | null): void {

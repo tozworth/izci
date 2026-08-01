@@ -7,6 +7,8 @@ const VORBIS_PACKET_MARKER = 'vorbis';
 const METADATA_BLOCK_PICTURE_KEY = 'METADATA_BLOCK_PICTURE';
 const FLAC_VORBIS_COMMENT_BLOCK_TYPE = 4;
 const FLAC_PICTURE_BLOCK_TYPE = 6;
+const STREAM_METADATA_HEAD_BYTES = 4 * 1024 * 1024;
+const MP3_METADATA_TAIL_BYTES = 1024 * 1024;
 
 interface ParsedArtwork {
   mimeType: string;
@@ -760,6 +762,32 @@ function extractStreamData(bytes: Uint8Array, extension: string): ParsedStreamDa
   };
 }
 
+function mergeTrackMetadata(first: TrackMetadata, second: TrackMetadata): TrackMetadata {
+  return {
+    ...first,
+    ...second,
+    replayGain:
+      first.replayGain || second.replayGain
+        ? { ...first.replayGain, ...second.replayGain }
+        : undefined
+  };
+}
+
+async function readStreamMetadata(file: File, extension: string): Promise<TrackMetadata> {
+  const head = new Uint8Array(
+    await file.slice(0, Math.min(file.size, STREAM_METADATA_HEAD_BYTES)).arrayBuffer()
+  );
+  const headMetadata = extractStreamData(head, extension).metadata;
+
+  if (extension !== 'mp3' || file.size <= STREAM_METADATA_HEAD_BYTES) {
+    return headMetadata;
+  }
+
+  const tailStart = Math.max(STREAM_METADATA_HEAD_BYTES, file.size - MP3_METADATA_TAIL_BYTES);
+  const tail = new Uint8Array(await file.slice(tailStart).arrayBuffer());
+  return mergeTrackMetadata(headMetadata, parseMp3Data(tail).metadata);
+}
+
 function canLoadStreamMetadata(extension: string): boolean {
   return extension === 'flac' || extension === 'opus' || extension === 'ogg' || extension === 'mp3';
 }
@@ -791,9 +819,8 @@ export async function loadTrackMetadata(track: PlaylistItem | null): Promise<Tra
     return null;
   }
 
-  const bytes = new Uint8Array(await file.arrayBuffer());
   const metadata: TrackMetadata = {
-    ...extractStreamData(bytes, track.extension).metadata,
+    ...(await readStreamMetadata(file, track.extension)),
     embeddedMetadataLoaded: true
   };
 

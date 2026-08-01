@@ -196,10 +196,11 @@ function createPlaylistItem(file: File): PlaylistItem | null {
   }
 
   const source = getImportedFileSource(file);
+  const retainedFile = source?.fileHandle ? undefined : file;
 
   return {
     id: crypto.randomUUID(),
-    file,
+    file: retainedFile,
     fileHandle: source?.fileHandle,
     path: source?.path,
     sourceFolderId: source?.sourceFolderId,
@@ -208,7 +209,7 @@ function createPlaylistItem(file: File): PlaylistItem | null {
     kind,
     size: file.size,
     lastModified: file.lastModified,
-    objectUrl: createTrackObjectUrl(kind, file)
+    objectUrl: retainedFile ? createTrackObjectUrl(kind, retainedFile) : undefined
   };
 }
 
