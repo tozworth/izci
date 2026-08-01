@@ -19,8 +19,10 @@ import type {
   TroubadourBatchItemResult,
   TroubadourBatchTrack,
   TroubadourRememberedFolder,
-  TroubadourTrackReference
+  TroubadourTrackReference,
+  TroubadourWriteTarget
 } from '$lib/services/troubadour-sync';
+import { requestTroubadourWritePreparation } from '$lib/services/troubadour-sync';
 import { inferExtension, inferKind } from '$lib/utils/files';
 import { autoGroupTracks, renumberAlbumTracks } from './grouping';
 import { createHistory, pushHistory, redoHistory, undoHistory, type HistoryState } from './history';
@@ -131,6 +133,13 @@ function itemState(item: TroubadourWorkbenchItem): WorkbenchItemState {
   return itemDirty(item) ? 'dirty' : item.state === 'failed' || item.state === 'conflicted' ? item.state : 'ready';
 }
 
+async function materializeWorkbenchFile(file: File): Promise<File> {
+  return new File([await file.arrayBuffer()], file.name, {
+    type: file.type,
+    lastModified: file.lastModified
+  });
+}
+
 export function effectiveFields(item: TroubadourWorkbenchItem): MediaMetadataFields | null {
   return item.document ? applyMetadataPatch(item.document, item.patch, item.artworkEdits).fields : null;
 }
@@ -190,6 +199,18 @@ function metadataTrackForGrouping(item: TroubadourWorkbenchItem) {
     albumArtist: fields?.albumArtist,
     discNumber: fields?.discNumber,
     trackNumber: fields?.trackNumber
+  };
+}
+
+function writeTargetForItem(item: TroubadourWorkbenchItem): TroubadourWriteTarget {
+  return {
+    contextId: item.contextId,
+    references: item.references,
+    originalPath: item.path,
+    originalName: item.file.name,
+    originalSize: item.file.size,
+    originalLastModified: item.file.lastModified,
+    originalFileHandle: item.fileHandle ?? undefined
   };
 }
 
@@ -271,6 +292,25 @@ export function createTroubadourController(
     });
   };
   const selectionItems = () => state.items.filter((item) => state.selectedIds.includes(item.id));
+  const prepareItemForSave = async (id: string): Promise<TroubadourWorkbenchItem | null> => {
+    const source = state.items.find((item) => item.id === id);
+    if (!source) return null;
+    const item = {
+      ...source,
+      file: await materializeWorkbenchFile(source.file),
+      state: 'saving' as const,
+      error: ''
+    };
+    setStaged({
+      items: state.items.map((candidate) => candidate.id === item.id ? item : candidate),
+      albums: state.albums
+    }, false);
+    history = createHistory(cloneStaged({ items: state.items, albums: state.albums }));
+    setState({ canUndo: false, canRedo: false });
+    // Let component references and object URLs switch to the memory-backed File.
+    await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    return item;
+  };
   const assignItemsToAlbum = (itemIds: string[], id: string) => {
     const target = state.albums.find((album) => album.id === id);
     const assigned = new Set(itemIds.filter((itemId) => state.items.some((item) => item.id === itemId)));
@@ -341,7 +381,7 @@ export function createTroubadourController(
     parentHandle: FileSystemDirectoryHandle | null,
     base: Partial<TroubadourWorkbenchItem> = {}
   ): Promise<TroubadourWorkbenchItem> {
-    const file = await handle.getFile();
+    const file = await materializeWorkbenchFile(await handle.getFile());
     const extension = inferExtension(file.name);
     return {
       id: base.id ?? crypto.randomUUID(),
@@ -396,8 +436,9 @@ export function createTroubadourController(
       const items: TroubadourWorkbenchItem[] = [];
       for (const track of tracks) {
         try {
-          const file = track.fileHandle ? await track.fileHandle.getFile() : track.file;
-          if (!file) continue;
+          const sourceFile = track.fileHandle ? await track.fileHandle.getFile() : track.file;
+          if (!sourceFile) continue;
+          const file = await materializeWorkbenchFile(sourceFile);
           const parentHandle = await resolveParentHandle(track.path, track.sourceFolderId, state.rememberedFolders);
           items.push({
             id: track.contextId || crypto.randomUUID(),
@@ -646,7 +687,7 @@ export function createTroubadourController(
       const targets = selectionItems().filter((item) => !itemDirty(item) && item.fileHandle && item.document);
       await Promise.all(targets.map(async (item) => {
         try {
-          const file = await item.fileHandle!.getFile();
+          const file = await materializeWorkbenchFile(await item.fileHandle!.getFile());
           const document = await readMetadataDocument(file, item.extension);
           setStaged({
             items: state.items.map((candidate) => candidate.id === item.id
@@ -666,30 +707,39 @@ export function createTroubadourController(
       setState({ message: `${targets.length} unchanged file${targets.length === 1 ? '' : 's'} reloaded.` });
     },
     async saveSelectedOrAll(options: { all?: boolean; requestPermission?: boolean; verify?: boolean } = {}) {
-      const selectedDirty = selectionItems().filter((item) => itemDirty(item));
-      const targets = (options.all || !selectedDirty.length ? state.items : selectedDirty)
-        .filter((item) => itemDirty(item) && item.document && item.fileHandle);
+      const selectedDirtyIds = selectionItems().filter((item) => itemDirty(item)).map((item) => item.id);
+      const targetIds = (options.all || !selectedDirtyIds.length ? state.items.map((item) => item.id) : selectedDirtyIds)
+        .filter((id) => {
+          const item = state.items.find((candidate) => candidate.id === id);
+          return Boolean(item && itemDirty(item) && item.document && item.fileHandle);
+        });
       const results: TroubadourBatchItemResult[] = [];
       // Invoke every permission request before yielding so Chromium still sees the
       // direct Save user activation. Already-granted handles resolve without UI.
       const permissionRequests = options.requestPermission === false
         ? []
-        : targets.map((item) => requestMetadataWritePermission(item.fileHandle!));
+        : targetIds.map((id) => requestMetadataWritePermission(state.items.find((item) => item.id === id)!.fileHandle!));
+      const playbackPreparation = requestTroubadourWritePreparation(
+        targetIds
+          .map((id) => state.items.find((item) => item.id === id))
+          .filter((item): item is TroubadourWorkbenchItem => Boolean(item))
+          .map(writeTargetForItem)
+      );
       setState({ busy: true, activeJob: 'Saving metadata', jobProgress: 0, error: '' });
-      await Promise.all(permissionRequests);
-      for (let index = 0; index < targets.length; index += 1) {
-        const item = targets[index];
-        setStaged({
-          items: state.items.map((candidate) => candidate.id === item.id ? { ...candidate, state: 'saving', error: '' } : candidate),
-          albums: state.albums
-        }, false);
+      await Promise.all([...permissionRequests, playbackPreparation]);
+      for (let index = 0; index < targetIds.length; index += 1) {
+        // Chromium keeps disk-backed File snapshots open on Windows. Replace the
+        // workbench reference (and therefore any preview object URL) with a memory
+        // copy before the atomic writable tries to swap the original file.
+        const item = await prepareItemForSave(targetIds[index]);
+        if (!item) continue;
         try {
           const result = await saveItem({
             item,
             requestPermission: options.requestPermission !== false,
             verify: options.verify !== false
           });
-          const file = await item.fileHandle!.getFile();
+          const file = await materializeWorkbenchFile(await item.fileHandle!.getFile());
           setStaged({
             items: state.items.map((candidate) => candidate.id === item.id ? {
               ...candidate,
@@ -753,7 +803,7 @@ export function createTroubadourController(
             originalLastModified: item.file.lastModified
           });
         }
-        setState({ jobProgress: (index + 1) / targets.length });
+        setState({ jobProgress: (index + 1) / targetIds.length });
       }
       setState({
         busy: false,
@@ -761,7 +811,7 @@ export function createTroubadourController(
         jobProgress: null,
         canUndo: false,
         canRedo: false,
-        message: targets.length ? `${results.filter((result) => result.success).length} of ${targets.length} files saved.` : 'No writable dirty files.'
+        message: targetIds.length ? `${results.filter((result) => result.success).length} of ${targetIds.length} files saved.` : 'No writable dirty files.'
       });
       history = createHistory(cloneStaged({ items: state.items, albums: state.albums }));
       return results;

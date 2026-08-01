@@ -5,7 +5,6 @@ import {
   Conversion,
   Input,
   Output,
-  StreamTarget,
   type MetadataTags
 } from 'mediabunny';
 import { createMetadataOutputFormat, metadataMimeType } from './format';
@@ -13,6 +12,24 @@ import type { MetadataExtension } from './types';
 import { MetadataWriteError } from './types';
 
 export type MetadataTagsSource = MetadataTags | ((source: MetadataTags) => MetadataTags | Promise<MetadataTags>);
+
+async function writeBlobToWritable(
+  writable: FileSystemWritableFileStream,
+  blob: Blob
+): Promise<void> {
+  if (typeof writable.write === 'function' && typeof writable.close === 'function') {
+    await writable.write(blob);
+    await writable.close();
+    return;
+  }
+  const writer = writable.getWriter();
+  try {
+    await writer.write(blob as unknown as FileSystemWriteChunkType);
+    await writer.close();
+  } finally {
+    writer.releaseLock();
+  }
+}
 
 async function executeConversion(
   input: Input,
@@ -63,15 +80,15 @@ export async function remuxMetadataToWritable(
   writable: FileSystemWritableFileStream,
   signal?: AbortSignal
 ): Promise<void> {
-  const input = new Input({ source: new BlobSource(sourceFile), formats: ALL_FORMATS });
-  const target = new StreamTarget(writable, { chunked: true });
-  const output = new Output({ format: createMetadataOutputFormat(extension), target });
+  const blob = await remuxMetadataToBlob(sourceFile, extension, tags, signal);
+  signal?.throwIfAborted();
   try {
-    await executeConversion(input, output, tags, signal);
+    // Chromium's atomic File System Access commit is much more reliable when it
+    // receives one plain Blob write than when a remuxer owns/positions the native
+    // stream. Keeping the remux in memory also guarantees cleanup stays unlocked.
+    await writeBlobToWritable(writable, blob);
   } catch (error) {
     await writable.abort(error).catch(() => undefined);
     throw error;
-  } finally {
-    input.dispose();
   }
 }

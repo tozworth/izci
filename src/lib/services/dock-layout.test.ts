@@ -38,6 +38,25 @@ describe('dock layout', () => {
     expect(next.left).toEqual(['metadata', 'files', 'albums']);
   });
 
+  it('keeps one membership per tab across repeated cross-zone moves', () => {
+    const initial = { left: ['files'], middle: ['albums'], right: ['metadata'] } satisfies Record<Zone, Tab[]>;
+    const afterFirstMove = moveDockTab<Tab, Zone>(initial, ZONES, {
+      tabId: 'files',
+      sourceZoneId: 'left',
+      targetZoneId: 'middle',
+      position: 'end'
+    });
+    const afterSecondMove = moveDockTab<Tab, Zone>(afterFirstMove, ZONES, {
+      tabId: 'files',
+      sourceZoneId: 'middle',
+      targetZoneId: 'right',
+      position: 'end'
+    });
+
+    expect(Object.values(afterSecondMove).flat()).toEqual(['albums', 'metadata', 'files']);
+    expect(Object.values(afterSecondMove).flat().filter((tab) => tab === 'files')).toHaveLength(1);
+  });
+
   it('resizes adjacent weighted tracks while preserving their combined weight', () => {
     const next = resizeDockPairWeights({
       beforeSize: 300,

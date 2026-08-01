@@ -6,6 +6,8 @@ export const REQUEST_TROUBADOUR_BATCH_CONTEXT_MESSAGE = 'izci:troubadour:request
 export const OPEN_TROUBADOUR_BATCH_CONTEXT_MESSAGE = 'izci:troubadour:open-batch-context';
 export const TROUBADOUR_BATCH_CONTEXT_MESSAGE = 'izci:troubadour:batch-context';
 export const TROUBADOUR_BATCH_RESULT_MESSAGE = 'izci:troubadour:batch-result';
+export const PREPARE_TROUBADOUR_WRITE_MESSAGE = 'izci:troubadour:prepare-write';
+export const TROUBADOUR_WRITE_READY_MESSAGE = 'izci:troubadour:write-ready';
 
 export type TroubadourCollection = 'current' | 'playlist' | 'library' | 'favorites';
 
@@ -71,6 +73,45 @@ export interface TroubadourBatchItemResult {
 
 export interface TroubadourBatchResult {
   results: TroubadourBatchItemResult[];
+}
+
+export interface TroubadourWriteTarget {
+  references?: TroubadourTrackReference[];
+  contextId?: string;
+  originalPath?: string;
+  originalName?: string;
+  originalSize?: number;
+  originalLastModified?: number;
+  originalFileHandle?: FileSystemFileHandle;
+}
+
+export interface TroubadourWritePreparationRequest {
+  requestId: string;
+  targets: TroubadourWriteTarget[];
+}
+
+export async function detachTrackForMetadataWrite(
+  track: PlaylistItem,
+  options: { autoPlay: boolean; initialPosition: number },
+  loadTrack: (track: PlaylistItem, options: { autoPlay: boolean; initialPosition: number }) => Promise<void>
+): Promise<boolean> {
+  if (!track.file || !track.objectUrl || (track.kind !== 'stream' && track.kind !== 'video')) return false;
+
+  const file = new File([await track.file.arrayBuffer()], track.file.name, {
+    type: track.file.type,
+    lastModified: track.file.lastModified
+  });
+  const objectUrl = URL.createObjectURL(file);
+
+  try {
+    await loadTrack({ ...track, file, objectUrl }, options);
+  } catch (error) {
+    URL.revokeObjectURL(objectUrl);
+    throw error;
+  }
+
+  URL.revokeObjectURL(track.objectUrl);
+  return true;
 }
 
 function isTrackKind(value: unknown): value is TrackKind {
@@ -243,6 +284,91 @@ export function readTroubadourBatchResult(
       .map(normalizeResultItem)
       .filter((item: TroubadourBatchItemResult | null): item is TroubadourBatchItemResult => item !== null)
   };
+}
+
+function normalizeWriteTarget(value: unknown): TroubadourWriteTarget | null {
+  if (!value || typeof value !== 'object') return null;
+  const source = value as Partial<TroubadourWriteTarget>;
+  return {
+    references: Array.isArray(source.references) ? source.references.filter(isReference) : undefined,
+    contextId: typeof source.contextId === 'string' ? source.contextId : undefined,
+    originalPath: typeof source.originalPath === 'string' ? source.originalPath : undefined,
+    originalName: typeof source.originalName === 'string' ? source.originalName : undefined,
+    originalSize: typeof source.originalSize === 'number' && Number.isFinite(source.originalSize)
+      ? source.originalSize
+      : undefined,
+    originalLastModified:
+      typeof source.originalLastModified === 'number' && Number.isFinite(source.originalLastModified)
+        ? source.originalLastModified
+        : undefined,
+    originalFileHandle: isFileHandle(source.originalFileHandle) ? source.originalFileHandle : undefined
+  };
+}
+
+export function readTroubadourWritePreparationRequest(
+  event: MessageEvent,
+  expectedSource: Window | null
+): TroubadourWritePreparationRequest | null {
+  if (
+    expectedSource === null
+    || event.origin !== window.location.origin
+    || event.source !== expectedSource
+    || event.data?.type !== PREPARE_TROUBADOUR_WRITE_MESSAGE
+    || typeof event.data.requestId !== 'string'
+    || !Array.isArray(event.data.targets)
+  ) {
+    return null;
+  }
+
+  return {
+    requestId: event.data.requestId,
+    targets: event.data.targets
+      .map(normalizeWriteTarget)
+      .filter((target: TroubadourWriteTarget | null): target is TroubadourWriteTarget => target !== null)
+  };
+}
+
+export function respondToTroubadourWritePreparation(
+  target: Window,
+  requestId: string,
+  targetOrigin = window.location.origin
+): void {
+  target.postMessage({ type: TROUBADOUR_WRITE_READY_MESSAGE, requestId }, targetOrigin);
+}
+
+export async function requestTroubadourWritePreparation(
+  targets: TroubadourWriteTarget[],
+  timeoutMs = 30_000
+): Promise<boolean> {
+  if (typeof window === 'undefined' || !window.opener || window.opener.closed) return false;
+  const opener = window.opener;
+  const requestId = crypto.randomUUID();
+
+  return await new Promise<boolean>((resolve) => {
+    const finish = (ready: boolean) => {
+      window.clearTimeout(timeout);
+      window.removeEventListener('message', handleMessage);
+      resolve(ready);
+    };
+    const handleMessage = (event: MessageEvent) => {
+      if (
+        event.origin === window.location.origin
+        && event.source === opener
+        && event.data?.type === TROUBADOUR_WRITE_READY_MESSAGE
+        && event.data.requestId === requestId
+      ) {
+        finish(true);
+      }
+    };
+    const timeout = window.setTimeout(() => finish(false), timeoutMs);
+    window.addEventListener('message', handleMessage);
+
+    try {
+      opener.postMessage({ type: PREPARE_TROUBADOUR_WRITE_MESSAGE, requestId, targets }, window.location.origin);
+    } catch {
+      finish(false);
+    }
+  });
 }
 
 export function listenForTroubadourBatchContext(

@@ -80,12 +80,16 @@
   import { respondToToolTrackRequest } from '$lib/services/tool-track-context';
   import {
     buildTroubadourBatchContext,
+    detachTrackForMetadataWrite,
     readTroubadourBatchResult,
+    readTroubadourWritePreparationRequest,
     REQUEST_TROUBADOUR_BATCH_CONTEXT_MESSAGE,
     respondToTroubadourBatchContextRequest,
+    respondToTroubadourWritePreparation,
     type TroubadourBatchContext,
     type TroubadourBatchItemResult,
-    type TroubadourTrackReference
+    type TroubadourTrackReference,
+    type TroubadourWriteTarget
   } from '$lib/services/troubadour-sync';
   import type {
     LyricsDisplayStyle,
@@ -872,7 +876,9 @@
     );
   }
 
-  function getTroubadourResultReferences(result: TroubadourBatchItemResult): TroubadourTrackReference[] {
+  type TroubadourMatchTarget = TroubadourBatchItemResult | TroubadourWriteTarget;
+
+  function getTroubadourResultReferences(result: TroubadourMatchTarget): TroubadourTrackReference[] {
     const contextReferences = result.contextId
       ? lastTroubadourContext?.tracks.find((track) => track.contextId === result.contextId)?.references ?? []
       : [];
@@ -885,7 +891,7 @@
     return [...unique.values()];
   }
 
-  function getTroubadourContextTrack(result: TroubadourBatchItemResult) {
+  function getTroubadourContextTrack(result: TroubadourMatchTarget) {
     if (result.contextId) {
       const direct = lastTroubadourContext?.tracks.find((track) => track.contextId === result.contextId);
       if (direct) return direct;
@@ -902,7 +908,7 @@
   async function isTroubadourResultMatch(
     item: PlaylistItem,
     collection: TroubadourTrackReference['collection'],
-    result: TroubadourBatchItemResult
+    result: TroubadourMatchTarget
   ): Promise<boolean> {
     const references = getTroubadourResultReferences(result);
 
@@ -947,6 +953,24 @@
       && item.size === originalSize
       && item.lastModified === originalLastModified
     );
+  }
+
+  async function preparePlaybackForTroubadourWrite(targets: TroubadourWriteTarget[]): Promise<void> {
+    const track = playingTrack;
+    if (!track) return;
+
+    for (const target of targets) {
+      if (!await isTroubadourResultMatch(track, 'current', target)) continue;
+      await detachTrackForMetadataWrite(
+        track,
+        {
+          autoPlay: playbackStatus.state === 'playing',
+          initialPosition: playbackSnapshot.currentTime
+        },
+        (detachedTrack, options) => playerController.load(detachedTrack, options)
+      );
+      return;
+    }
   }
 
   function getTroubadourExternalPatch(result: TroubadourBatchItemResult) {
@@ -1000,6 +1024,13 @@
     }
 
     const troubadourWindow = windowManager.getPopup('troubadour');
+
+    const writePreparation = readTroubadourWritePreparationRequest(event, troubadourWindow);
+    if (writePreparation && troubadourWindow) {
+      void preparePlaybackForTroubadourWrite(writePreparation.targets)
+        .finally(() => respondToTroubadourWritePreparation(troubadourWindow, writePreparation.requestId));
+      return;
+    }
 
     if (event.data?.type === REQUEST_TROUBADOUR_BATCH_CONTEXT_MESSAGE) {
       const context = createTroubadourContext();

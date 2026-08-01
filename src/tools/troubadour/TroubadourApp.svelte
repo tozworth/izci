@@ -83,7 +83,7 @@
     ready: false,
     error: ''
   };
-  let lyricsPreviewKey = '';
+  let lyricsPreviewFile: File | null = null;
   let settings: TroubadourSettings = troubadourSettings.getSnapshot();
   let dockState: TroubadourWorkspaceState = troubadourWorkspaceState.getSnapshot();
   let fileInput: HTMLInputElement;
@@ -206,9 +206,9 @@
   $: syncLyricsPreview(lyricsItem);
 
   function syncLyricsPreview(item: TroubadourWorkbenchItem | null): void {
-    const key = item ? `${item.id}:${item.file.size}:${item.file.lastModified}` : '';
-    if (key === lyricsPreviewKey) return;
-    lyricsPreviewKey = key;
+    const file = item?.file ?? null;
+    if (file === lyricsPreviewFile) return;
+    lyricsPreviewFile = file;
     lyricsPreview.setFile(item?.file ?? null);
   }
 
@@ -251,10 +251,6 @@
 
   function adjacentPairs<T>(items: readonly T[]): Array<{ before: T; after: T }> {
     return items.slice(0, -1).map((before, index) => ({ before, after: items[index + 1] }));
-  }
-
-  function tabsForDockZone(zoneId: TroubadourDockZoneId): DockTabDefinition[] {
-    return dockState.zones[zoneId].map((tab) => dockTabsById[tab]);
   }
 
   function dockRegionStyle(
@@ -1026,7 +1022,7 @@
                 on:dragleave={(event) => handleDockPanelDragLeave(event, zoneId)}
               >
                 <DockableTabStrip
-                  tabs={tabsForDockZone(zoneId)}
+                  tabs={dockState.zones[zoneId].map((tab) => dockTabsById[tab])}
                   activeTab={zoneActiveTab}
                   {zoneId}
                   dragScope={TROUBADOUR_DOCK_SCOPE}
@@ -1047,7 +1043,6 @@
                 >
       {#if zoneActiveTab === 'files'}
         <section class="pane raw-files-pane" aria-label={$t('troubadour.workbench.files', { default: 'Files' })}>
-          <header class="pane-header pane-summary-header"><span>{$t('troubadour.workbench.rawSummary', { default: '{unassigned} unassigned · {unsupported} unsupported', values: { unassigned: state.items.filter((item) => !item.albumId).length, unsupported: state.items.filter((item) => item.state === 'unsupported').length } })}</span></header>
           <div class="dense-grid file-grid" role="grid" aria-label={$t('troubadour.workbench.loadedFiles', { default: 'Loaded files' })}>
             <div class="grid-header" role="row"><span>{$t('troubadour.workbench.state', { default: 'State' })}</span><span>{$t('troubadour.workbench.file', { default: 'File' })}</span><span>{$t('troubadour.workbench.path', { default: 'Path' })}</span><span>{$t('troubadour.workbench.format', { default: 'Format' })}</span></div>
             {#each state.items as item (item.id)}
@@ -1061,7 +1056,6 @@
         </section>
       {:else if zoneActiveTab === 'albums'}
         <section class="pane albums-pane" aria-label={$t('troubadour.workbench.albums', { default: 'Albums' })}>
-          <header class="pane-header pane-summary-header"><span>{$t('troubadour.workbench.groupCount', { default: '{count} groups', values: { count: state.albums.length } })}</span></header>
           <div class="album-tree" role="tree">
             {#each state.albums as album (album.id)}
               <section class="album-node" class:selected={state.selectedAlbumId === album.id} class:drop-target={dragAlbumId === album.id} role="treeitem" tabindex="-1" aria-selected={state.selectedAlbumId === album.id} aria-expanded={!collapsedAlbumIds.has(album.id)} on:dragover={(event) => dragOverAlbum(event, album)} on:dragleave={(event) => leaveAlbum(event, album)} on:drop={(event) => dropOnAlbum(event, album)}>
@@ -1080,7 +1074,6 @@
       {:else if zoneActiveTab === 'metadata'}
       <section class="metadata-tab-workbench">
         <section class="pane metadata-inspector" aria-label={$t('troubadour.workbench.metadataInspector', { default: 'Metadata inspector' })}>
-          <header class="pane-header pane-summary-header"><span>{selectedItems.length ? $t('troubadour.workbench.selectedCount', { default: '{count} selected', values: { count: selectedItems.length } }) : $t('troubadour.workbench.selectToEdit', { default: 'Select files to edit' })}</span></header>
           <div class="property-grid">
             {#each visibleFields as field}
               {@const fieldState = selectedFieldValue(state.items, state.selectedIds, field)}
@@ -1104,7 +1097,6 @@
           {/if}
         </section>
         <section class="pane artwork-inspector" aria-label={$t('troubadour.workbench.artworkInspector', { default: 'Artwork inspector' })} on:dragover={handleArtworkDragOver} on:drop={handleArtworkDrop}>
-          <header class="pane-header"><strong>{$t('troubadour.workbench.artwork', { default: 'Artwork' })}</strong><span>{artworkMixed ? $t('troubadour.workbench.mixedArtwork', { default: 'Mixed artwork' }) : $t('troubadour.workbench.imageCount', { default: '{count} images', values: { count: selectedApplied?.artwork.length ?? 0 } })}</span></header>
           <div class="artwork-content">
             <div class="artwork-list" role="listbox" aria-label={$t('troubadour.workbench.embeddedImages', { default: 'Embedded images' })}>
               {#if artworkMixed}

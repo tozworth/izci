@@ -33,6 +33,13 @@ function artworkEqual(first: readonly MediaArtwork[], second: readonly MediaArtw
   });
 }
 
+async function materializeSourceFile(file: File): Promise<File> {
+  return new File([await file.arrayBuffer()], file.name, {
+    type: file.type,
+    lastModified: file.lastModified
+  });
+}
+
 function verifyPatch(
   result: MetadataDocument,
   expected: ReturnType<typeof applyMetadataPatch>,
@@ -64,7 +71,10 @@ export async function writeMetadataDocumentInPlace(
     throw new MetadataWriteError('unsupported-format', `.${document.extension} metadata is not supported.`);
   }
   const expected = applyMetadataPatch(document, patch, artworkPatch);
-  const currentFile = await handle.getFile();
+  // A disk-backed File snapshot can become unreadable as soon as Chromium opens a
+  // writable for the same entry. Materialize it before createWritable() so the
+  // remux never races the source handle it is replacing.
+  const currentFile = await materializeSourceFile(await handle.getFile());
   const currentFingerprint = await fingerprintFile(currentFile);
   if (!fingerprintsMatch(document.fingerprint, currentFingerprint)) {
     throw new MetadataWriteError(
@@ -104,7 +114,11 @@ export async function writeMetadataDocumentInPlace(
     throw new MetadataWriteError('remux-failed', 'Metadata could not be written.', { cause: error });
   }
 
-  const result = await readMetadataDocument(await handle.getFile(), document.extension);
+  // Keep the verification reader detached from the filesystem entry too. Even
+  // after Input.dispose(), Chromium may retain state associated with a BlobSource
+  // long enough for the next atomic replace to fail at close().
+  const writtenFile = await materializeSourceFile(await handle.getFile());
+  const result = await readMetadataDocument(writtenFile, document.extension);
   const shouldVerify = options.verify !== false;
   if (shouldVerify) verifyPatch(result, expected, patch, artworkPatch);
   return { document: result, verified: shouldVerify };

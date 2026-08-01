@@ -55,7 +55,7 @@
 .lyrics-grid-header,
 .lyric-editor-row {
   display: grid;
-  grid-template-columns: 2.5rem 6.7rem minmax(12rem, 1fr);
+  grid-template-columns: 1.8rem 5.5rem minmax(12rem, 1fr);
   align-items: center;
 }
 
@@ -78,7 +78,7 @@
 }
 
 .lyric-editor-row {
-  min-height: 2.08rem;
+  min-height: 1.65rem;
   border-bottom: 1px solid color-mix(in srgb, var(--border-soft) 68%, transparent);
   box-shadow: inset 3px 0 transparent;
 }
@@ -115,8 +115,8 @@
   width: 100%;
   min-width: 0;
   height: 100%;
-  min-height: 2.05rem;
-  padding: 0.25rem 0.42rem;
+  min-height: 1.62rem;
+  padding: 0.12rem 0.35rem;
   background: transparent;
   border: 0;
   border-left: 1px solid color-mix(in srgb, var(--border-soft) 68%, transparent);
@@ -172,7 +172,7 @@
   min-width: 0;
   min-height: 0;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-rows: auto minmax(0, 1fr);
   overflow: hidden;
 }
 
@@ -195,15 +195,6 @@
   color: var(--text);
 }
 
-.spectrogram-toolbar .toolbar-note {
-  min-width: 12rem;
-  margin-left: auto;
-  color: var(--muted);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .spectrogram-view {
   min-width: 0;
   min-height: 0;
@@ -220,6 +211,18 @@
 .spectrogram-canvas-host canvas {
   display: block;
   touch-action: none;
+}
+
+.spectrogram-empty-state {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  color: color-mix(in srgb, var(--muted) 46%, transparent);
+}
+
+.spectrogram-empty-state .material-symbols-outlined {
+  font-size: 2rem;
 }
 
 .spectrogram-tab .analysis-state {
@@ -240,13 +243,6 @@
   width: min(24rem, 52vw);
   height: 0.35rem;
   accent-color: var(--accent-strong);
-}
-
-.spectrogram-tab .tool-status-bar > span:nth-child(2) {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .remembered-folder-control {
@@ -510,31 +506,6 @@
   background: color-mix(in srgb, var(--bg-input) 90%, var(--bg-base));
 }
 
-.pane-header {
-  height: 1.55rem;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.5rem;
-  padding: 0 0.45rem;
-  border-bottom: 1px solid var(--border-soft);
-  background: var(--window-topbar-bg);
-  color: var(--muted);
-  font-size: 0.66rem;
-  white-space: nowrap;
-}
-
-.pane-header strong {
-  color: var(--text-strong);
-  font-size: 0.7rem;
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
-}
-
-.pane-summary-header {
-  justify-content: flex-end;
-}
-
 @container (max-width: 580px) {
   .metadata-tab-workbench {
     grid-template-columns: minmax(0, 1fr);
@@ -549,7 +520,7 @@
 }
 
 .file-grid {
-  height: calc(100% - 1.55rem);
+  height: 100%;
   display: grid;
   grid-auto-rows: 1.55rem;
   align-content: start;
@@ -644,7 +615,7 @@
 
 .raw-empty {
   position: absolute;
-  inset: 3.1rem 0 0;
+  inset: 1.55rem 0 0;
   height: auto;
 }
 
@@ -654,7 +625,7 @@
 }
 
 .album-tree {
-  height: calc(100% - 1.55rem);
+  height: 100%;
   overflow: auto;
 }
 
@@ -796,11 +767,11 @@
 .metadata-inspector,
 .artwork-inspector {
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-rows: minmax(0, 1fr) auto;
 }
 
 .metadata-inspector {
-  grid-template-rows: auto minmax(0, 1fr) auto auto;
+  grid-template-rows: minmax(0, 1fr) auto auto;
 }
 
 .property-grid {
@@ -941,7 +912,7 @@
 }
 
 .artwork-inspector {
-  grid-template-rows: auto minmax(5rem, 1fr) auto auto;
+  grid-template-rows: minmax(5rem, 1fr) auto auto;
 }
 
 .artwork-content {

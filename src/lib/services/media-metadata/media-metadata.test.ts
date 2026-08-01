@@ -3,7 +3,7 @@ import { isSameArtworkFile } from './artwork';
 import { applyMetadataPatch } from './merge';
 import { queryMetadataWritePermission, requestMetadataWritePermission } from './permissions';
 import { readMetadataDocument } from './reader';
-import { remuxMetadataToBlob } from './remux';
+import { remuxMetadataToBlob, remuxMetadataToWritable } from './remux';
 import type { MediaMetadataFields, MetadataDocument } from './types';
 import { writeMetadataDocumentInPlace } from './writer';
 
@@ -109,20 +109,22 @@ describe('metadata fixtures and writes', () => {
     expect(reread.artwork[0].data).toEqual(new Uint8Array([1, 2, 3]));
   });
 
-  it('streams an in-place write and verifies the committed metadata', async () => {
+  it('writes in place and verifies the committed metadata', async () => {
     let current = makeSilentWav();
     const document = await readMetadataDocument(current, 'wav');
     const createWritable = vi.fn(async () => {
       let staged = new Uint8Array();
       return new WritableStream({
-        write(chunk: { type: 'write'; position: number; data: Uint8Array }) {
-          const needed = chunk.position + chunk.data.byteLength;
+        async write(chunk: Blob | { type: 'write'; position: number; data: Uint8Array }) {
+          const position = chunk instanceof Blob ? 0 : chunk.position;
+          const data = chunk instanceof Blob ? new Uint8Array(await chunk.arrayBuffer()) : chunk.data;
+          const needed = position + data.byteLength;
           if (needed > staged.byteLength) {
             const expanded = new Uint8Array(needed);
             expanded.set(staged);
             staged = expanded;
           }
-          staged.set(chunk.data, chunk.position);
+          staged.set(data, position);
         },
         close() {
           current = new File([staged], 'silence.wav', { type: 'audio/wav', lastModified: 456 });
@@ -140,6 +142,87 @@ describe('metadata fixtures and writes', () => {
     expect(result.verified).toBe(true);
     expect(result.document.fields.title).toBe('Committed');
     expect(createWritable).toHaveBeenCalledWith({ keepExistingData: false });
+  });
+
+  it('materializes disk-backed files before remuxing and verifying', async () => {
+    class DiskBackedFile extends File {
+      invalidated = false;
+      sliceReads = 0;
+
+      override async arrayBuffer(): Promise<ArrayBuffer> {
+        if (this.invalidated) throw new DOMException('The source snapshot is no longer readable.', 'NotReadableError');
+        return super.arrayBuffer();
+      }
+
+      override slice(start?: number, end?: number, contentType?: string): Blob {
+        this.sliceReads += 1;
+        const source = this;
+        const slice = super.slice(start, end, contentType);
+        const read = slice.arrayBuffer.bind(slice);
+        slice.arrayBuffer = async () => {
+          if (source.invalidated) throw new DOMException('The source snapshot is no longer readable.', 'NotReadableError');
+          return read();
+        };
+        return slice;
+      }
+    }
+
+    const initial = makeSilentWav();
+    let current: File = new DiskBackedFile([await initial.arrayBuffer()], initial.name, {
+      type: initial.type,
+      lastModified: initial.lastModified
+    });
+    const document = await readMetadataDocument(current, 'wav');
+    const createWritable = vi.fn(async () => {
+      (current as DiskBackedFile).invalidated = true;
+      let staged = new Uint8Array();
+      return new WritableStream({
+        async write(chunk: Blob | { type: 'write'; position: number; data: Uint8Array }) {
+          const position = chunk instanceof Blob ? 0 : chunk.position;
+          const data = chunk instanceof Blob ? new Uint8Array(await chunk.arrayBuffer()) : chunk.data;
+          const needed = position + data.byteLength;
+          if (needed > staged.byteLength) {
+            const expanded = new Uint8Array(needed);
+            expanded.set(staged);
+            staged = expanded;
+          }
+          staged.set(data, position);
+        },
+        close() {
+          current = new DiskBackedFile([staged], initial.name, { type: initial.type, lastModified: 456 });
+        }
+      }) as FileSystemWritableFileStream;
+    });
+    const handle = {
+      kind: 'file', name: current.name,
+      getFile: async () => current,
+      queryPermission: async () => 'granted' as const,
+      createWritable
+    } as unknown as FileSystemFileHandle;
+
+    const result = await writeMetadataDocumentInPlace(handle, document, { title: 'Stable source' });
+
+    expect(result.document.fields.title).toBe('Stable source');
+    expect(createWritable).toHaveBeenCalledOnce();
+    expect((current as DiskBackedFile).sliceReads).toBe(0);
+  });
+
+  it('releases the native writable lock when finalizing the remux fails', async () => {
+    const writable = new WritableStream({
+      write: () => undefined,
+      close: () => {
+        throw new DOMException('The atomic commit failed.', 'InvalidStateError');
+      }
+    }) as FileSystemWritableFileStream;
+
+    await expect(remuxMetadataToWritable(
+      makeSilentWav(),
+      'wav',
+      { title: 'Uncommitted' },
+      writable
+    )).rejects.toMatchObject({ name: 'InvalidStateError' });
+
+    expect(writable.locked).toBe(false);
   });
 
   it('blocks an externally changed file before creating a writable', async () => {
