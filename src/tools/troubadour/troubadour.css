@@ -8,7 +8,7 @@
 
 .troubadour-shell {
   display: grid;
-  grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
   min-width: 760px;
   min-height: 500px;
 }

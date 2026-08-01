@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import {
   findDockTabZone,
   moveDockTab,
+  normalizeVisibleDockWeights,
   resizeDockPairWeights,
+  resolveDockSplitWeights,
   resolveDockSplit
 } from './dock-layout';
 
@@ -63,5 +65,22 @@ describe('dock layout', () => {
     expect(resized.afterWeight).toBeCloseTo(0.66);
     expect(resolveDockSplit(20, 1000, 120)).toBe(0.12);
     expect(resolveDockSplit(980, 1000, 120)).toBe(0.88);
+  });
+
+  it('removes hidden tracks and lets the remaining tracks fill the layout', () => {
+    expect(normalizeVisibleDockWeights<'top' | 'middle' | 'bottom'>(
+      { top: 0.2, middle: 0.6, bottom: 0.2 },
+      ['middle']
+    )).toEqual({ top: 0, middle: 1, bottom: 0 });
+    expect(normalizeVisibleDockWeights<'left' | 'middle' | 'right'>(
+      { left: 0.28, middle: 0.46, right: 0.26 },
+      ['left', 'right']
+    )).toEqual({ left: 0.28 / 0.54, middle: 0, right: 0.26 / 0.54 });
+  });
+
+  it('expands a lone inner zone instead of preserving an empty half', () => {
+    expect(resolveDockSplitWeights(true, false, 0.3)).toEqual({ first: 1, second: 0 });
+    expect(resolveDockSplitWeights(false, true, 0.3)).toEqual({ first: 0, second: 1 });
+    expect(resolveDockSplitWeights(true, true, 0.3)).toEqual({ first: 0.3, second: 0.7 });
   });
 });

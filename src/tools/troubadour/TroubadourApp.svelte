@@ -6,7 +6,12 @@
   import MenuSurface from '$lib/components/MenuSurface.svelte';
   import { hasDockTabDragData, readDockTabDragData } from '$lib/components/docking/drag';
   import type { DockTabDefinition, DockTabMoveDetail } from '$lib/components/docking/types';
-  import { resizeDockPairWeights, resolveDockSplit } from '$lib/services/dock-layout';
+  import {
+    normalizeVisibleDockWeights,
+    resizeDockPairWeights,
+    resolveDockSplit,
+    resolveDockSplitWeights
+  } from '$lib/services/dock-layout';
   import { applyMetadataPatch } from '$lib/services/media-metadata/merge';
   import type { MediaArtwork, MediaMetadataFieldName } from '$lib/services/media-metadata/types';
   import {
@@ -168,26 +173,31 @@
   $: dockGuides = buildDockGuides();
   $: metadataWorkbenchVisible = (['files', 'albums', 'metadata', 'rename'] as TroubadourTab[])
     .some((tab) => isDockTabActive(tab));
+  $: occupiedDockRegionIds = TROUBADOUR_DOCK_REGIONS
+    .filter((region) => region.zones.some((zoneId) => dockState.zones[zoneId].length > 0))
+    .map((region) => region.id);
   $: visibleDockRows = (['top', 'middle', 'bottom'] as const)
     .filter((regionId) => regionId === 'middle'
-      ? (['left', 'middle', 'right'] as TroubadourDockRegionId[]).some((id) => hasDockRegion(id))
-      : hasDockRegion(regionId));
+      ? (['left', 'middle', 'right'] as TroubadourDockRegionId[]).some((id) => occupiedDockRegionIds.includes(id))
+      : occupiedDockRegionIds.includes(regionId));
   $: visibleDockColumns = (['left', 'middle', 'right'] as const)
-    .filter((regionId) => hasDockRegion(regionId));
+    .filter((regionId) => occupiedDockRegionIds.includes(regionId));
   $: dockRowResizePairs = adjacentPairs(visibleDockRows);
   $: dockColumnResizePairs = adjacentPairs(visibleDockColumns);
   $: hasMainDockRegion = visibleDockColumns.length > 0;
+  $: dockRowWeights = normalizeVisibleDockWeights(dockState.layout.rows, visibleDockRows);
+  $: dockColumnWeights = normalizeVisibleDockWeights(dockState.layout.columns, visibleDockColumns);
   $: dockLayoutStyle = [
-    `--dock-top-track: ${hasDockRegion('top') ? `minmax(0, ${dockState.layout.rows.top}fr)` : '0px'}`,
+    `--dock-top-track: ${visibleDockRows.includes('top') ? `minmax(0, ${dockRowWeights.top}fr)` : '0px'}`,
     `--dock-after-top-track: ${dockRowResizePairs.some((pair) => pair.before === 'top') ? '3px' : '0px'}`,
-    `--dock-main-track: ${hasMainDockRegion ? `minmax(0, ${dockState.layout.rows.middle}fr)` : '0px'}`,
+    `--dock-main-track: ${hasMainDockRegion ? `minmax(0, ${dockRowWeights.middle}fr)` : '0px'}`,
     `--dock-after-middle-row-track: ${dockRowResizePairs.some((pair) => pair.before === 'middle') ? '3px' : '0px'}`,
-    `--dock-bottom-track: ${hasDockRegion('bottom') ? `minmax(0, ${dockState.layout.rows.bottom}fr)` : '0px'}`,
-    `--dock-left-track: ${hasDockRegion('left') ? `minmax(0, ${dockState.layout.columns.left}fr)` : '0px'}`,
+    `--dock-bottom-track: ${visibleDockRows.includes('bottom') ? `minmax(0, ${dockRowWeights.bottom}fr)` : '0px'}`,
+    `--dock-left-track: ${visibleDockColumns.includes('left') ? `minmax(0, ${dockColumnWeights.left}fr)` : '0px'}`,
     `--dock-after-left-track: ${dockColumnResizePairs.some((pair) => pair.before === 'left') ? '3px' : '0px'}`,
-    `--dock-middle-track: ${hasDockRegion('middle') ? `minmax(0, ${dockState.layout.columns.middle}fr)` : hasMainDockRegion ? '0px' : 'minmax(0, 1fr)'}`,
+    `--dock-middle-track: ${visibleDockColumns.includes('middle') ? `minmax(0, ${dockColumnWeights.middle}fr)` : hasMainDockRegion ? '0px' : 'minmax(0, 1fr)'}`,
     `--dock-after-middle-column-track: ${dockColumnResizePairs.some((pair) => pair.before === 'middle') ? '3px' : '0px'}`,
-    `--dock-right-track: ${hasDockRegion('right') ? `minmax(0, ${dockState.layout.columns.right}fr)` : '0px'}`
+    `--dock-right-track: ${visibleDockColumns.includes('right') ? `minmax(0, ${dockColumnWeights.right}fr)` : '0px'}`
   ].join('; ');
   $: updateArtworkUrl(selectedArtwork);
   $: if (isDockTabActive('spectrogram') && !spectrogramItemId && selectedPrimary && isSpectrogramItem(selectedPrimary)) {
@@ -247,21 +257,20 @@
     return dockState.zones[zoneId].map((tab) => dockTabsById[tab]);
   }
 
-  function hasDockRegion(regionId: TroubadourDockRegionId): boolean {
-    const region = TROUBADOUR_DOCK_REGIONS.find((candidate) => candidate.id === regionId);
-    return Boolean(region?.zones.some((zoneId) => dockState.zones[zoneId].length > 0));
-  }
-
-  function dockRegionStyle(regionId: TroubadourDockRegionId): string {
+  function dockRegionStyle(
+    regionId: TroubadourDockRegionId,
+    workspaceState: TroubadourWorkspaceState
+  ): string {
     const region = TROUBADOUR_DOCK_REGIONS.find((candidate) => candidate.id === regionId)!;
-    const firstVisible = dockState.zones[region.zones[0]].length > 0;
-    const secondVisible = dockState.zones[region.zones[1]].length > 0;
-    const split = dockState.layout.splits[regionId];
+    const firstVisible = workspaceState.zones[region.zones[0]].length > 0;
+    const secondVisible = workspaceState.zones[region.zones[1]].length > 0;
+    const split = workspaceState.layout.splits[regionId];
+    const weights = resolveDockSplitWeights(firstVisible, secondVisible, split);
 
     return [
-      `--dock-first-zone-track: ${firstVisible ? `minmax(0, ${split}fr)` : '0px'}`,
+      `--dock-first-zone-track: ${firstVisible ? `minmax(0, ${weights.first}fr)` : '0px'}`,
       `--dock-half-resizer-track: ${firstVisible && secondVisible ? '3px' : '0px'}`,
-      `--dock-second-zone-track: ${secondVisible ? `minmax(0, ${1 - split}fr)` : '0px'}`
+      `--dock-second-zone-track: ${secondVisible ? `minmax(0, ${weights.second}fr)` : '0px'}`
     ].join('; ');
   }
 
@@ -996,10 +1005,10 @@
     bind:this={dockWorkspaceElement}
   >
     {#each TROUBADOUR_DOCK_REGIONS as region (region.id)}
-      {#if hasDockRegion(region.id)}
+      {#if occupiedDockRegionIds.includes(region.id)}
         <section
           class={`troubadour-dock-region region-${region.id} split-${region.split}`}
-          style={dockRegionStyle(region.id)}
+          style={dockRegionStyle(region.id, dockState)}
           data-dock-region={region.id}
         >
           {#each region.zones as zoneId (zoneId)}

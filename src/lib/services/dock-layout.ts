@@ -9,6 +9,36 @@ interface DockPairResizeOptions {
   minimumSize: number;
 }
 
+export function normalizeVisibleDockWeights<TId extends string>(
+  weights: Record<TId, number>,
+  visibleIds: readonly TId[]
+): Record<TId, number> {
+  const visible = new Set(visibleIds);
+  const total = visibleIds.reduce((sum, id) => sum + weights[id], 0);
+
+  return Object.fromEntries(
+    Object.entries(weights).map(([id, weight]) => [
+      id,
+      visible.has(id as TId) && total > 0 ? (weight as number) / total : 0
+    ])
+  ) as Record<TId, number>;
+}
+
+export function resolveDockSplitWeights(
+  firstVisible: boolean,
+  secondVisible: boolean,
+  split: number
+): { first: number; second: number } {
+  if (firstVisible && secondVisible) {
+    return { first: split, second: 1 - split };
+  }
+
+  return {
+    first: firstVisible ? 1 : 0,
+    second: secondVisible ? 1 : 0
+  };
+}
+
 export function resizeDockPairWeights({
   beforeSize,
   afterSize,
