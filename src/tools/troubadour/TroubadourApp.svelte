@@ -113,6 +113,7 @@
   let collapsedAlbumIds = new Set<string>();
   let loudnessBusy = false;
   let spectrogramItemId: string | null = null;
+  let loadingSource: 'files' | 'folder' | 'library-folder' | null = null;
 
   const unsubscribeController = controller.subscribe((value) => (state = value));
   const unsubscribeLyricsPreview = lyricsPreview.subscribe((value) => (lyricsPreviewState = value));
@@ -458,9 +459,12 @@
       return;
     }
     try {
+      loadingSource = 'files';
       await controller.ingestHandles(await picker.showOpenFilePicker(OPEN_FILE_OPTIONS), settings.metadataReadConcurrency);
     } catch (error) {
       handleError(error);
+    } finally {
+      loadingSource = null;
     }
   }
 
@@ -472,10 +476,13 @@
     }
     try {
       const directory = await picker.showDirectoryPicker({ mode: 'read' });
+      loadingSource = 'folder';
       await controller.ingestDirectory(directory, settings.folderScanDepth, settings.metadataReadConcurrency);
       if (settings.autoGroupOnLoad) controller.autoGroup(settings.autoGroupFallback);
     } catch (error) {
       handleError(error);
+    } finally {
+      loadingSource = null;
     }
   }
 
@@ -483,10 +490,13 @@
     const folder = state.rememberedFolders.find((candidate) => candidate.id === rememberedFolderId);
     if (!folder) return;
     try {
+      loadingSource = 'library-folder';
       await controller.ingestDirectory(folder.handle, settings.folderScanDepth, settings.metadataReadConcurrency);
       if (settings.autoGroupOnLoad) controller.autoGroup(settings.autoGroupFallback);
     } catch (error) {
       handleError(error);
+    } finally {
+      loadingSource = null;
     }
   }
 
@@ -496,7 +506,14 @@
     input.value = '';
     const transfer = new DataTransfer();
     files.forEach((file) => transfer.items.add(file));
-    await controller.ingestDropped(transfer, settings.folderScanDepth, settings.metadataReadConcurrency);
+    try {
+      loadingSource = 'files';
+      await controller.ingestDropped(transfer, settings.folderScanDepth, settings.metadataReadConcurrency);
+    } catch (error) {
+      handleError(error);
+    } finally {
+      loadingSource = null;
+    }
   }
 
   async function handleDrop(event: DragEvent): Promise<void> {
@@ -970,11 +987,11 @@
 
   <div class="tool-row tool-toolbar troubadour-toolbar" role="toolbar" aria-label={$t('troubadour.workbench.commands', { default: 'Troubadour commands' })}>
     {#each [
-      { icon: 'audio_file', label: $t('troubadour.workbench.addFiles', { default: 'Add files' }), action: () => void chooseFiles() },
-      { icon: 'folder_open', label: $t('troubadour.workbench.addFolder', { default: 'Add folder' }), action: () => void chooseFolder() },
-      { icon: 'playlist_add', label: $t('troubadour.menu.addFromIzci', { default: 'Add current izci selection' }), action: requestContext }
+      { icon: loadingSource === 'files' ? 'progress_activity' : 'audio_file', spinning: loadingSource === 'files', label: $t('troubadour.workbench.addFiles', { default: 'Add files' }), action: () => void chooseFiles() },
+      { icon: loadingSource === 'folder' ? 'progress_activity' : 'folder_open', spinning: loadingSource === 'folder', label: $t('troubadour.workbench.addFolder', { default: 'Add folder' }), action: () => void chooseFolder() },
+      { icon: 'playlist_add', spinning: false, label: $t('troubadour.menu.addFromIzci', { default: 'Add current izci selection' }), action: requestContext }
     ] as tool}
-      <button class="icon-button hover-tooltip-anchor" type="button" aria-label={tool.label} disabled={state.busy || loudnessBusy} on:click={tool.action}><span class="material-symbols-outlined" aria-hidden="true">{tool.icon}</span><HoverTooltip>{tool.label}</HoverTooltip></button>
+      <button class="icon-button hover-tooltip-anchor" type="button" aria-label={tool.label} disabled={state.busy || loudnessBusy} on:click={tool.action}><span class="material-symbols-outlined" class:spinning={tool.spinning} aria-hidden="true">{tool.icon}</span><HoverTooltip>{tool.label}</HoverTooltip></button>
     {/each}
     {#if metadataWorkbenchVisible}
       <span class="toolbar-separator"></span>
@@ -987,7 +1004,7 @@
       <span class="toolbar-separator"></span>
       <label class="remembered-folder-control hover-tooltip-anchor"><span class="material-symbols-outlined" aria-hidden="true">folder_shared</span><select bind:value={rememberedFolderId} aria-label={$t('troubadour.workbench.chooseLibraryFolder', { default: 'Choose a folder from your izci library' })} disabled={!state.rememberedFolders.length || state.busy}><option value="">{$t('troubadour.workbench.none', { default: 'None' })}</option>{#each state.rememberedFolders as folder}<option value={folder.id}>{folder.name}</option>{/each}</select><HoverTooltip>{$t('troubadour.workbench.chooseLibraryFolder', { default: 'Choose a folder from your izci library' })}</HoverTooltip></label>
       {#if selectedRememberedFolder}<span class="root-permission hover-tooltip-anchor" class:granted={selectedRememberedFolder.permission === 'granted'} aria-label={selectedRememberedFolder.permission === 'granted' ? $t('troubadour.workbench.folderReady', { default: 'Folder is ready to use' }) : $t('troubadour.workbench.folderNeedsAccess', { default: 'Folder may ask for access' })}><span class="material-symbols-outlined" aria-hidden="true">{selectedRememberedFolder.permission === 'granted' ? 'verified' : 'lock'}</span><HoverTooltip>{selectedRememberedFolder.permission === 'granted' ? $t('troubadour.workbench.folderReady', { default: 'Folder is ready to use' }) : $t('troubadour.workbench.folderNeedsAccess', { default: 'Folder may ask for access' })}</HoverTooltip></span>{/if}
-      <button class="icon-button hover-tooltip-anchor" type="button" aria-label={$t('troubadour.workbench.addLibraryFolder', { default: 'Add selected library folder' })} disabled={!rememberedFolderId || state.busy} on:click={() => void addRememberedFolder()}><span class="material-symbols-outlined" aria-hidden="true">drive_folder_upload</span><HoverTooltip>{$t('troubadour.workbench.addLibraryFolder', { default: 'Add selected library folder' })}</HoverTooltip></button>
+      <button class="icon-button hover-tooltip-anchor" type="button" aria-label={$t('troubadour.workbench.addLibraryFolder', { default: 'Add selected library folder' })} disabled={!rememberedFolderId || state.busy} on:click={() => void addRememberedFolder()}><span class="material-symbols-outlined" class:spinning={loadingSource === 'library-folder'} aria-hidden="true">{loadingSource === 'library-folder' ? 'progress_activity' : 'drive_folder_upload'}</span><HoverTooltip>{$t('troubadour.workbench.addLibraryFolder', { default: 'Add selected library folder' })}</HoverTooltip></button>
     {/if}
     <span class="toolbar-spacer"></span>
     <button class="icon-button hover-tooltip-anchor" type="button" aria-label={$t('troubadour.workbench.options', { default: 'Troubadour Options' })} on:click={openOptions}><span class="material-symbols-outlined">settings</span><HoverTooltip>{$t('troubadour.workbench.options', { default: 'Troubadour Options' })}</HoverTooltip></button>
@@ -1219,10 +1236,9 @@
   </main>
 
   {#if metadataWorkbenchVisible || isDockTabActive('lyrics')}<footer class="tool-status-bar" class:error={Boolean(state.error || renameError)}>
-    <span class="material-symbols-outlined" aria-hidden="true">{state.busy ? 'progress_activity' : state.error || renameError ? 'error' : 'info'}</span>
-    <span>{state.error || renameError || state.message || $t('troubadour.workbench.offlineReady', { default: 'Offline workbench ready. Source files are unchanged.' })}</span>
+    <span class="material-symbols-outlined" class:spinning={state.busy} aria-hidden="true">{state.busy ? 'progress_activity' : state.error || renameError ? 'error' : 'info'}</span>
+    <span>{state.error || renameError || (state.activeJob ? `${state.activeJob}${state.jobProgress !== null ? ` · ${Math.round(state.jobProgress * 100)}%` : ''}` : state.message) || $t('troubadour.workbench.offlineReady', { default: 'Offline workbench ready. Source files are unchanged.' })}</span>
     {#if selectedPrimary}<span class="current-path" title={selectedPrimary.path}>{selectedPrimary.path}</span>{/if}
-    {#if state.activeJob}<span>{state.activeJob}{state.jobProgress !== null ? ` · ${Math.round(state.jobProgress * 100)}%` : ''}</span>{/if}
     <span class="summary">{$t('troubadour.workbench.statusSummary', { default: '{total} total · {selected} selected · {dirty} dirty · {permission} permission', values: { total: state.items.length, selected: state.selectedIds.length, dirty: dirtyItems.length, permission: state.items.filter((item) => item.state === 'permission-required').length } })}</span>
   </footer>{/if}
 

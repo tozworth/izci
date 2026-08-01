@@ -327,6 +327,24 @@ export function createTroubadourController(
     setState({ selectedAlbumId: null });
   };
 
+  async function runLoadingJob(
+    initialJob: string,
+    concurrency: number,
+    collectItems: (
+      report: (activeJob: string, jobProgress?: number | null) => void
+    ) => Promise<TroubadourWorkbenchItem[]>
+  ): Promise<void> {
+    setState({ busy: true, activeJob: initialJob, jobProgress: null, error: '' });
+    try {
+      const items = await collectItems((activeJob, jobProgress = null) => {
+        setState({ activeJob, jobProgress });
+      });
+      await addLoadingItems(items, concurrency);
+    } finally {
+      setState({ busy: false, activeJob: '', jobProgress: null });
+    }
+  }
+
   async function addLoadingItems(nextItems: TroubadourWorkbenchItem[], concurrency: number): Promise<void> {
     const known = new Set(state.items.map((item) => `${item.path}\u0000${item.file.size}\u0000${item.file.lastModified}`));
     const unique = nextItems.filter((item) => {
@@ -343,6 +361,15 @@ export function createTroubadourController(
     const items = [...state.items, ...unique];
     setStaged({ items, albums: state.albums }, false);
     let index = 0;
+    let completed = 0;
+    const reportCompleted = () => {
+      completed += 1;
+      setState({
+        activeJob: `Reading metadata · ${completed} of ${unique.length} files`,
+        jobProgress: completed / unique.length
+      });
+    };
+    setState({ activeJob: `Reading metadata · 0 of ${unique.length} files`, jobProgress: 0 });
     const workers = Array.from({ length: Math.min(Math.max(1, Math.trunc(concurrency)), unique.length) }, async () => {
       while (index < unique.length && generation === loadGeneration) {
         const current = unique[index++];
@@ -351,6 +378,7 @@ export function createTroubadourController(
             items: state.items.map((item) => item.id === current.id ? { ...item, state: 'unsupported' } : item),
             albums: state.albums
           }, false);
+          reportCompleted();
           continue;
         }
         try {
@@ -368,6 +396,8 @@ export function createTroubadourController(
               : item),
             albums: state.albums
           }, false);
+        } finally {
+          reportCompleted();
         }
       }
     });
@@ -408,17 +438,20 @@ export function createTroubadourController(
     directory: FileSystemDirectoryHandle,
     path: string,
     maxDepth: number,
+    onFileFound?: () => void,
     depth = 0
   ): Promise<TroubadourWorkbenchItem[]> {
     const found: TroubadourWorkbenchItem[] = [];
     for await (const entry of directory.values()) {
       if (entry.kind === 'file') {
+        onFileFound?.();
         found.push(await itemFromHandle(entry as FileSystemFileHandle, `${path}/${entry.name}`, directory));
       } else if (depth < maxDepth) {
         found.push(...await walkDirectory(
           entry as FileSystemDirectoryHandle,
           `${path}/${entry.name}`,
           maxDepth,
+          onFileFound,
           depth + 1
         ));
       }
@@ -433,65 +466,93 @@ export function createTroubadourController(
       setState({ rememberedFolders: folders });
     },
     async ingestBatchTracks(tracks: TroubadourBatchTrack[], concurrency = 3) {
-      const items: TroubadourWorkbenchItem[] = [];
-      for (const track of tracks) {
-        try {
-          const sourceFile = track.fileHandle ? await track.fileHandle.getFile() : track.file;
-          if (!sourceFile) continue;
-          const file = await materializeWorkbenchFile(sourceFile);
-          const parentHandle = await resolveParentHandle(track.path, track.sourceFolderId, state.rememberedFolders);
-          items.push({
-            id: track.contextId || crypto.randomUUID(),
-            contextId: track.contextId,
-            references: track.references,
-            file,
-            fileHandle: track.fileHandle ?? null,
-            parentHandle,
-            path: track.path || file.name,
-            sourceFolderId: track.sourceFolderId,
-            extension: track.extension || inferExtension(file.name),
-            kind: track.kind,
-            state: 'loading',
-            document: null,
-            patch: {},
-            artworkEdits: [],
-            albumId: null,
-            error: '',
-            jobProgress: null
-          });
-        } catch {
-          // Stale handles are represented only when a File snapshot is available.
+      await runLoadingJob('Opening izci files', concurrency, async (report) => {
+        const items: TroubadourWorkbenchItem[] = [];
+        for (let index = 0; index < tracks.length; index += 1) {
+          const track = tracks[index];
+          try {
+            const sourceFile = track.fileHandle ? await track.fileHandle.getFile() : track.file;
+            if (!sourceFile) continue;
+            const file = await materializeWorkbenchFile(sourceFile);
+            const parentHandle = await resolveParentHandle(track.path, track.sourceFolderId, state.rememberedFolders);
+            items.push({
+              id: track.contextId || crypto.randomUUID(),
+              contextId: track.contextId,
+              references: track.references,
+              file,
+              fileHandle: track.fileHandle ?? null,
+              parentHandle,
+              path: track.path || file.name,
+              sourceFolderId: track.sourceFolderId,
+              extension: track.extension || inferExtension(file.name),
+              kind: track.kind,
+              state: 'loading',
+              document: null,
+              patch: {},
+              artworkEdits: [],
+              albumId: null,
+              error: '',
+              jobProgress: null
+            });
+          } catch {
+            // Stale handles are represented only when a File snapshot is available.
+          } finally {
+            report(`Opening izci files · ${index + 1} of ${tracks.length}`, tracks.length ? (index + 1) / tracks.length : null);
+          }
         }
-      }
-      await addLoadingItems(items, concurrency);
+        return items;
+      });
     },
     async ingestHandles(handles: FileSystemFileHandle[], concurrency = 3) {
-      await addLoadingItems(await Promise.all(handles.map((handle) => itemFromHandle(handle, handle.name, null))), concurrency);
+      await runLoadingJob('Opening files', concurrency, async (report) => {
+        const items: TroubadourWorkbenchItem[] = [];
+        for (let index = 0; index < handles.length; index += 1) {
+          const handle = handles[index];
+          items.push(await itemFromHandle(handle, handle.name, null));
+          report(`Opening files · ${index + 1} of ${handles.length}`, (index + 1) / handles.length);
+        }
+        return items;
+      });
     },
     async ingestDirectory(handle: FileSystemDirectoryHandle, maxDepth = Number.POSITIVE_INFINITY, concurrency = 3) {
-      await addLoadingItems(await walkDirectory(handle, handle.name, maxDepth), concurrency);
+      await runLoadingJob(`Scanning ${handle.name} · 0 files found`, concurrency, async (report) => {
+        let found = 0;
+        return await walkDirectory(handle, handle.name, maxDepth, () => {
+          found += 1;
+          report(`Scanning ${handle.name} · ${found} file${found === 1 ? '' : 's'} found`);
+        });
+      });
     },
     async ingestDropped(dataTransfer: DataTransfer, maxDepth = Number.POSITIVE_INFINITY, concurrency = 3) {
-      const items: TroubadourWorkbenchItem[] = [];
-      for (const transferItem of Array.from(dataTransfer.items)) {
-        const handle = await transferItem.getAsFileSystemHandle?.().catch(() => null);
-        if (handle?.kind === 'file') {
-          items.push(await itemFromHandle(handle as FileSystemFileHandle, handle.name, null));
-        } else if (handle?.kind === 'directory') {
-          items.push(...await walkDirectory(handle as FileSystemDirectoryHandle, handle.name, maxDepth));
+      await runLoadingJob('Scanning dropped items · 0 files found', concurrency, async (report) => {
+        const items: TroubadourWorkbenchItem[] = [];
+        let found = 0;
+        const reportFound = () => {
+          found += 1;
+          report(`Scanning dropped items · ${found} file${found === 1 ? '' : 's'} found`);
+        };
+        for (const transferItem of Array.from(dataTransfer.items)) {
+          const handle = await transferItem.getAsFileSystemHandle?.().catch(() => null);
+          if (handle?.kind === 'file') {
+            reportFound();
+            items.push(await itemFromHandle(handle as FileSystemFileHandle, handle.name, null));
+          } else if (handle?.kind === 'directory') {
+            items.push(...await walkDirectory(handle as FileSystemDirectoryHandle, handle.name, maxDepth, reportFound));
+          }
         }
-      }
-      if (!items.length) {
-        for (const file of Array.from(dataTransfer.files)) {
-          const extension = inferExtension(file.name);
-          items.push({
-            id: crypto.randomUUID(), references: [], file, fileHandle: null, parentHandle: null,
-            path: file.webkitRelativePath || file.name, extension, kind: inferKind(extension) ?? 'stream', state: 'loading',
-            document: null, patch: {}, artworkEdits: [], albumId: null, error: '', jobProgress: null
-          });
+        if (!items.length) {
+          for (const file of Array.from(dataTransfer.files)) {
+            reportFound();
+            const extension = inferExtension(file.name);
+            items.push({
+              id: crypto.randomUUID(), references: [], file, fileHandle: null, parentHandle: null,
+              path: file.webkitRelativePath || file.name, extension, kind: inferKind(extension) ?? 'stream', state: 'loading',
+              document: null, patch: {}, artworkEdits: [], albumId: null, error: '', jobProgress: null
+            });
+          }
         }
-      }
-      await addLoadingItems(items, concurrency);
+        return items;
+      });
     },
     select(id: string, options: { additive?: boolean; range?: boolean } = {}) {
       const index = state.items.findIndex((item) => item.id === id);
