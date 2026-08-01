@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import SettingsField from '$lib/components/options/SettingsField.svelte';
+  import FontFamilyPicker from '../FontFamilyPicker.svelte';
   import { COLOR_THEME_DEFINITIONS, systemColorScheme } from '$lib/services/theme';
   import { t } from 'svelte-i18n';
   import { APP_LOCALE_OPTIONS, appLocale } from '$lib/i18n';
@@ -24,6 +25,7 @@
     | 'showLibraryAlbumArtworkBackdrop'
     | 'showIdlePlayerQuips'
     | 'showTrackTitleInWindowTitle';
+  type FontFamilyOption = { value: string; label: string };
   const INTERFACE_TOGGLES: Array<{ key: BooleanAppearanceSetting; title: string; hint: string }> = [
     { key: 'keepLibraryColumnsVisibleInNarrowLayout', title: 'Keep columns visible in narrow library panels', hint: 'Prevents the slim-window library view from collapsing to title-only rows.' },
     { key: 'showLibraryAlbumArtworkBackdrop', title: 'Show album artwork backdrop in Library', hint: 'Shows a blurred album cover behind its songs after you open an album.' },
@@ -60,7 +62,7 @@
   function handleChameleonHueInput(event: Event) { appearanceSettings.update({ chameleonHue: Number((event.currentTarget as HTMLInputElement).value) }); }
   function handleChameleonSaturationInput(event: Event) { appearanceSettings.update({ chameleonSaturation: Number((event.currentTarget as HTMLInputElement).value) }); }
   function handleAppearanceToggle(event: Event, key: BooleanAppearanceSetting) { appearanceSettings.update({ [key]: checked(event) }); }
-  function handleFontFamilyChange(event: Event) { appearanceSettings.update({ fontFamily: (event.currentTarget as HTMLSelectElement).value }); }
+  function handleFontFamilyChange(event: CustomEvent<string>) { appearanceSettings.update({ fontFamily: event.detail }); }
   function handleContextualTabChange(event: Event, tab: ContextualWorkspaceTab) {
     appearanceSettings.update({
       contextualTabs: {
@@ -133,6 +135,14 @@
       if (granted) { localFontAccessGranted = true; void loadLocalFonts(); }
     });
   });
+
+  $: fontFamilyOptions = [
+    { value: SYSTEM_FONT_FAMILY, label: $t('options.appearance.font.system', { default: 'System' }) },
+    ...($appearanceSettings.fontFamily !== SYSTEM_FONT_FAMILY && !localFontFamilies.includes($appearanceSettings.fontFamily)
+      ? [{ value: $appearanceSettings.fontFamily, label: $appearanceSettings.fontFamily }]
+      : []),
+    ...localFontFamilies.map((family) => ({ value: family, label: family }))
+  ] satisfies FontFamilyOption[];
 </script>
 
 <article class="view">
@@ -235,15 +245,12 @@
     <h2>{$t('options.appearance.interface.heading', { default: 'Interface' })}</h2>
     <div class="field-grid">
       <SettingsField title={$t('options.appearance.font.title', { default: 'Font' })} fieldClass="font-field" controlClass="font-control">
-          <select value={$appearanceSettings.fontFamily} on:change={handleFontFamilyChange}>
-            <option value={SYSTEM_FONT_FAMILY}>{$t('options.appearance.font.system', { default: 'System' })}</option>
-            {#if $appearanceSettings.fontFamily !== SYSTEM_FONT_FAMILY && !localFontFamilies.includes($appearanceSettings.fontFamily)}
-              <option value={$appearanceSettings.fontFamily}>{$appearanceSettings.fontFamily}</option>
-            {/if}
-            {#each localFontFamilies as family}
-              <option value={family}>{family}</option>
-            {/each}
-          </select>
+          <FontFamilyPicker
+            value={$appearanceSettings.fontFamily}
+            options={fontFamilyOptions}
+            label={$t('options.appearance.font.title', { default: 'Font' })}
+            on:change={handleFontFamilyChange}
+          />
           {#if localFontAccessSupported && localFontPermissionChecked && !localFontAccessGranted}
             <a href="#local-fonts" on:click={handleUseLocalFonts} aria-disabled={localFontsLoading}>
               {localFontsLoading ? $t('options.appearance.font.loading', { default: 'Loading local fonts…' }) : $t('options.appearance.font.useLocal', { default: 'Use local fonts…' })}
