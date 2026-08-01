@@ -75,6 +75,10 @@ export function getColumnTextValue(item: PlaylistItem, columnId: LibraryColumnId
       return item.metadata?.artist?.trim() ?? '';
     case 'album':
       return item.metadata?.album?.trim() ?? '';
+    case 'disc':
+      return item.metadata?.discNumber?.trim() ?? '';
+    case 'track':
+      return item.metadata?.trackNumber?.trim() ?? '';
     case 'folder':
       return getFolderFromPath(item.path)?.trim() ?? '';
     case 'format':
@@ -87,7 +91,11 @@ export function getColumnTextValue(item: PlaylistItem, columnId: LibraryColumnId
 }
 
 export function isRightAlignedColumn(columnId: LibraryColumnId): boolean {
-  return columnId === 'format' || columnId === 'duration' || columnId === 'plays';
+  return columnId === 'disc'
+    || columnId === 'track'
+    || columnId === 'format'
+    || columnId === 'duration'
+    || columnId === 'plays';
 }
 
 export function fitWidthsToAvailableWidth(

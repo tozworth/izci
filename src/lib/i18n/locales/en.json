@@ -176,6 +176,8 @@
         "title": "Title",
         "artist": "Artist",
         "album": "Album",
+        "disc": "Disc",
+        "track": "Track",
         "folder": "Folder",
         "format": "Format",
         "duration": "Duration",

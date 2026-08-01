@@ -29,6 +29,8 @@ describe('library column helpers', () => {
         title: ' Tagged Title ',
         artist: ' Artist ',
         album: ' Album ',
+        discNumber: ' 2/3 ',
+        trackNumber: ' 7/12 ',
         duration: 125
       },
       path: 'Music/Artist/Album/Track.flac'
@@ -37,6 +39,8 @@ describe('library column helpers', () => {
     expect(getColumnTextValue(track, 'title')).toBe('Tagged Title');
     expect(getColumnTextValue(track, 'artist')).toBe('Artist');
     expect(getColumnTextValue(track, 'album')).toBe('Album');
+    expect(getColumnTextValue(track, 'disc')).toBe('2/3');
+    expect(getColumnTextValue(track, 'track')).toBe('7/12');
     expect(getColumnTextValue(track, 'folder')).toBe('Music/Artist/Album');
     expect(getColumnTextValue(track, 'format')).toBe('FLAC');
     expect(getTrackDuration(track)).toBe('02:05');
@@ -132,6 +136,26 @@ describe('library column helpers', () => {
       'five',
       'two',
       'none'
+    ]);
+
+    const numberedTracks = [
+      item('track-ten', { metadata: { title: 'Ten', discNumber: '2', trackNumber: '10' } }),
+      item('track-two', { metadata: { title: 'Two', discNumber: '1', trackNumber: '2' } }),
+      item('track-one', { metadata: { title: 'One', discNumber: '1', trackNumber: '1' } }),
+      item('unnumbered', { metadata: { title: 'Unnumbered' } })
+    ];
+
+    expect([...numberedTracks].sort((left, right) => compareItems(left, right, { columnId: 'track', direction: 'asc' })).map((track) => track.id)).toEqual([
+      'track-one',
+      'track-two',
+      'track-ten',
+      'unnumbered'
+    ]);
+    expect([...numberedTracks].sort((left, right) => compareItems(left, right, { columnId: 'disc', direction: 'asc' })).map((track) => track.id)).toEqual([
+      'track-one',
+      'track-two',
+      'track-ten',
+      'unnumbered'
     ]);
   });
 });

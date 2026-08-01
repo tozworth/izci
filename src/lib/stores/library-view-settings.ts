@@ -28,11 +28,23 @@ export const LIBRARY_GROUP_VIEW_IDS: LibraryGroupViewId[] = [
   'formats',
   'folders'
 ];
-export const LIBRARY_COLUMN_IDS: LibraryColumnId[] = ['title', 'artist', 'album', 'folder', 'format', 'duration', 'plays'];
+export const LIBRARY_COLUMN_IDS: LibraryColumnId[] = [
+  'title',
+  'artist',
+  'album',
+  'disc',
+  'track',
+  'folder',
+  'format',
+  'duration',
+  'plays'
+];
 export const LIBRARY_COLUMN_LABELS: Record<LibraryColumnId, string> = {
   title: 'Title',
   artist: 'Artist',
   album: 'Album',
+  disc: 'Disc',
+  track: 'Track',
   folder: 'Folder',
   format: 'Format',
   duration: 'Duration',
@@ -42,6 +54,8 @@ export const LIBRARY_COLUMN_DEFAULT_WIDTHS: Record<LibraryColumnId, number> = {
   title: 300,
   artist: 220,
   album: 220,
+  disc: 72,
+  track: 72,
   folder: 220,
   format: 96,
   duration: 104,
@@ -51,6 +65,8 @@ export const LIBRARY_COLUMN_MIN_WIDTHS: Record<LibraryColumnId, number> = {
   title: 72,
   artist: 72,
   album: 72,
+  disc: 48,
+  track: 48,
   folder: 72,
   format: 48,
   duration: 48,
@@ -69,6 +85,14 @@ function createDefaultColumns(view: LibraryViewId): LibraryViewTableSettings['co
     },
     album: {
       width: LIBRARY_COLUMN_DEFAULT_WIDTHS.album,
+      visible: false
+    },
+    disc: {
+      width: LIBRARY_COLUMN_DEFAULT_WIDTHS.disc,
+      visible: false
+    },
+    track: {
+      width: LIBRARY_COLUMN_DEFAULT_WIDTHS.track,
       visible: false
     },
     folder: {

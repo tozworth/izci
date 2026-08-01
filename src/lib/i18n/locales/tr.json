@@ -176,6 +176,8 @@
         "title": "Başlık",
         "artist": "Sanatçı",
         "album": "Albüm",
+        "disc": "Disk",
+        "track": "Parça",
         "folder": "Klasör",
         "format": "Tür",
         "duration": "Süre",

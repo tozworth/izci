@@ -79,7 +79,16 @@ export type ModuleInterpolationFilter = 1 | 2 | 4 | 8;
 export type PlaylistRepeatMode = 'off' | 'one' | 'all';
 export type PlaybackRestoreMode = 'disabled' | 'position' | 'position-and-state';
 export type SortDirection = 'asc' | 'desc';
-export type LibraryColumnId = 'title' | 'artist' | 'album' | 'folder' | 'format' | 'duration' | 'plays';
+export type LibraryColumnId =
+  | 'title'
+  | 'artist'
+  | 'album'
+  | 'disc'
+  | 'track'
+  | 'folder'
+  | 'format'
+  | 'duration'
+  | 'plays';
 export type LibraryViewId = 'favorites' | 'songs' | 'artists' | 'albums' | 'genres' | 'years' | 'formats' | 'folders';
 export type LibraryGroupViewId = Exclude<LibraryViewId, 'favorites' | 'songs'>;
 export type ColorTheme =
