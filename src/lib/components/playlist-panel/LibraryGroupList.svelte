@@ -158,13 +158,13 @@
           <span class="library-group-pin-spacer" aria-hidden="true"></span>
         {/if}
         <span class="library-group-meta">
-          <span>{$t('playlist.library.groupSongCount', {
+          <span class="library-group-song-count">{$t('playlist.library.groupSongCount', {
             default: '{count, plural, one {# song} other {# songs}}',
             values: { count: group.items.length }
           })}</span>
           {#if group.duration > 0}
             <span class="library-group-meta-divider" aria-hidden="true">·</span>
-            <span>{formatTotalDuration(group.duration)}</span>
+            <span class="library-group-runtime">{formatTotalDuration(group.duration)}</span>
           {/if}
         </span>
         <span class="library-group-open material-symbols-outlined" aria-hidden="true">chevron_right</span>
@@ -175,6 +175,7 @@
 
 <style>
   .library-group-list {
+    container: library-groups / inline-size;
     list-style: none;
     margin: 0;
     padding: 0 0.5rem 0.65rem;
@@ -359,5 +360,24 @@
 
   .library-group-meta-divider {
     color: var(--border-soft);
+  }
+
+  @container library-groups (max-width: 26rem) {
+    .library-group-runtime,
+    .library-group-meta-divider {
+      display: none;
+    }
+  }
+
+  @container library-groups (max-width: 20rem) {
+    .library-group-meta {
+      display: none;
+    }
+  }
+
+  @container library-groups (max-width: 14rem) {
+    .library-group-secondary {
+      display: none;
+    }
   }
 </style>
