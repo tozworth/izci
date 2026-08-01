@@ -80,11 +80,17 @@ export class AudioBusService {
     }
   }
 
-  setInputGain(gain: number): void {
+  setInputGain(gain: number, immediate = false): void {
     this.#inputGain = Math.max(gain, 0);
 
     if (this.#input && this.#context) {
-      setAudioParam(this.#input.gain, this.#inputGain, this.#context);
+      if (immediate) {
+        const now = this.#context.currentTime;
+        this.#input.gain.cancelScheduledValues(now);
+        this.#input.gain.setValueAtTime(this.#inputGain, now);
+      } else {
+        setAudioParam(this.#input.gain, this.#inputGain, this.#context);
+      }
     }
   }
 

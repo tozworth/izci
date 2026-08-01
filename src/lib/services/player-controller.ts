@@ -3,6 +3,7 @@ import { audioBusService } from '$lib/services/audio-bus';
 import { HivelyPlayerService } from '$lib/services/ahx-player';
 import { HowlerPlayerService } from '$lib/services/howler-player';
 import { ModulePlayerService } from '$lib/services/module-player';
+import { loadTrackMetadata } from '$lib/services/stream-artwork';
 import { VideoPlayerService } from '$lib/services/video-player';
 import { metadataSettings } from '$lib/stores/metadata-settings';
 import { modulePlaybackSettings } from '$lib/stores/module-playback-settings';
@@ -81,6 +82,7 @@ function createPlayerController() {
   let playbackConfig = playbackSettings.getSnapshot();
   let desiredPlaybackState: 'playing' | 'paused' = 'paused';
   let latestState: PlaybackState = initialSnapshot.state;
+  let loadSequence = 0;
   const snapshot = writable<PlaybackSnapshot>({ ...initialSnapshot, volume });
   const status = writable<PlaybackStatusSnapshot>({ ...initialStatusSnapshot, volume });
   const currentTrack = writable<PlaylistItem | null>(null);
@@ -124,14 +126,15 @@ function createPlayerController() {
   const hasSameMetadata = (left: TrackMetadata | undefined, right: TrackMetadata | undefined): boolean =>
     JSON.stringify(left ?? {}) === JSON.stringify(right ?? {});
 
-  const applyBackendVolume = () => {
+  const applyBackendVolume = (immediateInputGain = false) => {
     const effectiveVolume = muted ? 0 : volume;
     const streamReplayGain = activeTrack?.kind === 'stream' ? activeTrack.metadata?.replayGain : undefined;
 
     audioBusService.setInputGain(
       activeTrack?.kind === 'stream'
         ? applyReplayGain(1, streamReplayGain, playbackConfig.replayGainMode)
-        : 1
+        : 1,
+      immediateInputGain
     );
     audioBusService.setOutputGain(sliderVolumeToGain(effectiveVolume, playbackConfig.logarithmicVolume));
     audioBusService.setRafEffectBypass('auto-amp', activeTrack?.kind === 'video');
@@ -248,9 +251,27 @@ function createPlayerController() {
       track: PlaylistItem,
       options: { autoPlay?: boolean; initialPosition?: number } = {}
     ) {
+      const loadId = ++loadSequence;
       const autoPlay = options.autoPlay === true;
       const initialPosition = Math.max(options.initialPosition ?? 0, 0);
-      const preparedTrack = applyMetadataInference(track);
+      let preparedTrack = applyMetadataInference(track);
+
+      if (
+        preparedTrack.kind === 'stream' &&
+        playbackConfig.replayGainMode !== 'off' &&
+        preparedTrack.metadata?.embeddedMetadataLoaded !== true
+      ) {
+        const embeddedMetadata = await loadTrackMetadata(preparedTrack).catch(() => null);
+
+        if (loadId !== loadSequence) {
+          return;
+        }
+
+        if (embeddedMetadata) {
+          preparedTrack = applyMetadataInference(preparedTrack, embeddedMetadata);
+        }
+      }
+
       desiredPlaybackState = autoPlay ? 'playing' : 'paused';
       activeTrack = preparedTrack;
       currentTrack.set(preparedTrack);
@@ -260,8 +281,10 @@ function createPlayerController() {
       services.video.unload();
 
       if (preparedTrack.kind === 'stream') {
+        // ReplayGain is track-bound state, so install it without a ramp before
+        // the new media element has any opportunity to become audible.
+        applyBackendVolume(true);
         services.stream.load(preparedTrack, { autoPlay, initialPosition });
-        applyBackendVolume();
       } else if (preparedTrack.kind === 'module') {
         const pendingDuration = preparedTrack.metadata?.duration ?? 0;
         const moduleService = isHivelyModule(preparedTrack) ? services.hively : services.module;
@@ -278,6 +301,11 @@ function createPlayerController() {
         });
 
         await loadPromise;
+
+        if (loadId !== loadSequence) {
+          return;
+        }
+
         applyBackendVolume();
 
         if (desiredPlaybackState === 'playing') {
@@ -370,6 +398,7 @@ function createPlayerController() {
       onSnapshot({ volume, muted });
     },
     unload() {
+      loadSequence += 1;
       desiredPlaybackState = 'paused';
       activeTrack = null;
       currentTrack.set(null);
@@ -431,6 +460,7 @@ function createPlayerController() {
       return true;
     },
     destroy() {
+      loadSequence += 1;
       unsubscribeModuleSettings();
       unsubscribeMetadataSettings();
       unsubscribePlaybackSettings();

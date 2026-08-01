@@ -20,9 +20,17 @@ class FakeAudioNode {
 
 class FakeAudioParam {
   value = 1;
+  readonly setCalls: Array<{ value: number; time: number }> = [];
+  readonly rampCalls: Array<{ value: number; time: number }> = [];
   cancelScheduledValues(): void {}
-  setValueAtTime(value: number): void { this.value = value; }
-  linearRampToValueAtTime(value: number): void { this.value = value; }
+  setValueAtTime(value: number, time: number): void {
+    this.value = value;
+    this.setCalls.push({ value, time });
+  }
+  linearRampToValueAtTime(value: number, time: number): void {
+    this.value = value;
+    this.rampCalls.push({ value, time });
+  }
 }
 
 class FakeGainNode extends FakeAudioNode {
@@ -50,6 +58,7 @@ class FakeAudioContext {
   readonly analysers: FakeAnalyserNode[] = [];
   readonly mediaSources: FakeMediaElementSourceNode[] = [];
   state: AudioContextState = 'suspended';
+  currentTime = 0;
   closeCalls = 0;
   resumeCalls = 0;
 
@@ -120,6 +129,16 @@ describe('AudioBusService', () => {
 
     expect(input.gain.value).toBe(0.75);
     expect(output.gain.value).toBe(0.25);
+  });
+
+  it('can install track-bound input gain without an audible ramp', () => {
+    const context = bus.context as unknown as FakeAudioContext;
+    const [input] = context.gains;
+
+    bus.setInputGain(0.25, true);
+
+    expect(input.gain.setCalls.at(-1)).toEqual({ value: 0.25, time: 0 });
+    expect(input.gain.rampCalls).toHaveLength(0);
   });
 
   it('switches module sources without rebuilding the shared graph', () => {

@@ -6,8 +6,10 @@ import type {
   PlaylistSelection
 } from '$lib/types';
 import { splitUniqueItems } from './playlist-dedupe';
+import { loadTrackMetadata } from '$lib/services/stream-artwork';
 import { materializePlaylistItem, revokeObjectUrl } from './playlist-materialization';
 import { scheduleMetadataParsing } from './playlist-metadata';
+import { playbackSettings } from './playback-settings';
 import { createPlaylistNavigation } from './playlist-navigation';
 import {
   defaultPlaybackOptions,
@@ -225,7 +227,28 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
         return null;
       }
 
-      if (materializedItem === item) {
+      let playableItem = materializedItem;
+
+      if (
+        playableItem.kind === 'stream' &&
+        playbackSettings.getSnapshot().replayGainMode !== 'off' &&
+        playableItem.metadata?.embeddedMetadataLoaded !== true
+      ) {
+        const embeddedMetadata = await loadTrackMetadata(playableItem).catch(() => null);
+
+        if (embeddedMetadata) {
+          const latestItem = itemList.find((entry) => entry.id === id) ?? playableItem;
+          playableItem = {
+            ...playableItem,
+            metadata: {
+              ...latestItem.metadata,
+              ...embeddedMetadata
+            }
+          };
+        }
+      }
+
+      if (playableItem === item) {
         return item;
       }
 
@@ -235,16 +258,16 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
             return entry;
           }
 
-          if (entry.objectUrl && entry.objectUrl !== materializedItem.objectUrl) {
+          if (entry.objectUrl && entry.objectUrl !== playableItem.objectUrl) {
             revokeObjectUrl(entry);
           }
 
-          return materializedItem;
+          return playableItem;
         })
       );
       queuePersist();
 
-      return materializedItem;
+      return playableItem;
     },
     add(newItems: PlaylistItem[]) {
       let addedItems: PlaylistItem[] = [];
