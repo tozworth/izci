@@ -8,6 +8,7 @@
     parseLyricsForEditor,
     parseLyricsTimestamp,
     serializeLyrics,
+    shiftLyricsTimestamps,
     type EditableLyricLine
   } from '$lib/utils/timestamped-lyrics';
 
@@ -123,6 +124,10 @@
     selectedIndex = 0;
   }
 
+  function shiftTimestamps(offsetSeconds: number): void {
+    commit(shiftLyricsTimestamps(lines, offsetSeconds));
+  }
+
   function handleTimestampChange(index: number, event: Event): void {
     const input = event.currentTarget as HTMLInputElement;
     if (!input.value.trim()) {
@@ -172,6 +177,13 @@
     </button>
     <button class="icon-button hover-tooltip-anchor" type="button" disabled={disabled || timedCount < 2} aria-label={$t('troubadour.lyrics.sort', { default: 'Sort by timestamp' })} on:click={sortLines}>
       <span class="material-symbols-outlined" aria-hidden="true">sort</span><HoverTooltip>{$t('troubadour.lyrics.sort', { default: 'Sort by timestamp' })}</HoverTooltip>
+    </button>
+    <span class="toolbar-separator" aria-hidden="true"></span>
+    <button class="icon-button timestamp-shift-button hover-tooltip-anchor" type="button" disabled={disabled || timedCount === 0} aria-label={$t('troubadour.lyrics.shiftEarlier', { default: 'Shift every timestamp 0.1 seconds earlier' })} on:click={() => shiftTimestamps(-0.1)}>
+      <span class="material-symbols-outlined" aria-hidden="true">keyboard_double_arrow_left</span><HoverTooltip>{$t('troubadour.lyrics.shiftEarlier', { default: 'Shift every timestamp 0.1 seconds earlier' })}</HoverTooltip>
+    </button>
+    <button class="icon-button timestamp-shift-button hover-tooltip-anchor" type="button" disabled={disabled || timedCount === 0} aria-label={$t('troubadour.lyrics.shiftLater', { default: 'Shift every timestamp 0.1 seconds later' })} on:click={() => shiftTimestamps(0.1)}>
+      <span class="material-symbols-outlined" aria-hidden="true">keyboard_double_arrow_right</span><HoverTooltip>{$t('troubadour.lyrics.shiftLater', { default: 'Shift every timestamp 0.1 seconds later' })}</HoverTooltip>
     </button>
     <div class="toolbar-spacer"></div>
     <span class="lyrics-count">{$t('troubadour.lyrics.stampedCount', { default: '{stamped}/{total} stamped', values: { stamped: timedCount, total: lines.length } })}</span>

@@ -54,6 +54,15 @@ export function parseLyricsTimestamp(value: string): number | null {
   return timestampFromMatch(match);
 }
 
+export function shiftLyricsTimestamps(lines: EditableLyricLine[], offsetSeconds: number): EditableLyricLine[] {
+  const offsetMilliseconds = Math.round(offsetSeconds * 1000);
+  if (!Number.isFinite(offsetSeconds) || offsetMilliseconds === 0) return lines;
+
+  return lines.map((line) => line.time === null
+    ? line
+    : { ...line, time: Math.max(0, Math.round(line.time * 1000) + offsetMilliseconds) / 1000 });
+}
+
 export function serializeLyrics(lines: EditableLyricLine[]): string {
   return lines
     .map((line) => `${line.time === null ? '' : `[${formatLyricsTimestamp(line.time)}]`}${line.text}`)

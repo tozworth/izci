@@ -1522,6 +1522,8 @@
       "addLine": "Satır ekle",
       "deleteLine": "Satırı sil",
       "sort": "Zaman damgasına göre sırala",
+      "shiftEarlier": "Tüm zaman damgalarını 0,1 saniye erkene kaydır",
+      "shiftLater": "Tüm zaman damgalarını 0,1 saniye geçe kaydır",
       "stampedCount": "{stamped}/{total} damgalı",
       "editor": "Zaman damgalı söz düzenleyici",
       "timestamp": "Zaman damgası",

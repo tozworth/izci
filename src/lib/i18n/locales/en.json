@@ -1522,6 +1522,8 @@
       "addLine": "Add line",
       "deleteLine": "Delete line",
       "sort": "Sort by timestamp",
+      "shiftEarlier": "Shift every timestamp 0.1 seconds earlier",
+      "shiftLater": "Shift every timestamp 0.1 seconds later",
       "stampedCount": "{stamped}/{total} stamped",
       "editor": "Timestamped lyrics editor",
       "timestamp": "Timestamp",
