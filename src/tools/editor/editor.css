@@ -10,14 +10,6 @@
   grid-template-rows: auto minmax(0, 1fr) auto;
 }
 
-.editor-menu-bar {
-  box-shadow: none;
-}
-
-.editor-window-title span {
-  max-width: min(38vw, 360px);
-}
-
 .tool-workspace {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);

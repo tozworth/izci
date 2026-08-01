@@ -10,12 +10,6 @@
   grid-template-rows: auto auto auto minmax(0, 1fr) auto;
 }
 
-.audio-compare-menu-bar { box-shadow: none; }
-
-.audio-compare-window-title span {
-  max-width: min(44vw, 500px);
-}
-
 .source-switch {
   display: inline-flex;
   align-items: center;

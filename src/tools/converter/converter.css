@@ -10,14 +10,6 @@
   grid-template-rows: auto auto minmax(0, 1fr) auto;
 }
 
-.converter-menu-bar {
-  box-shadow: none;
-}
-
-.converter-window-title span {
-  max-width: min(42vw, 420px);
-}
-
 fieldset:disabled {
   opacity: 0.42;
 }

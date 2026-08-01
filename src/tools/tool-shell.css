@@ -46,33 +46,6 @@ input[type='checkbox'] {
   pointer-events: none;
 }
 
-.tool-window-title {
-  display: flex;
-  align-items: baseline;
-  gap: 0.42rem;
-  min-width: 0;
-  margin-left: auto;
-  padding: 0 0.6rem;
-  color: var(--muted);
-  font-size: 0.7rem;
-  line-height: 1;
-  pointer-events: none;
-  -webkit-app-region: drag;
-}
-
-.tool-window-title strong {
-  color: var(--text-strong);
-  font-size: 0.78rem;
-  font-weight: 600;
-  white-space: nowrap;
-}
-
-.tool-window-title span {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .tool-tabs {
   --tab-strip-text: var(--text);
   --tab-strip-muted: var(--muted);

@@ -502,6 +502,17 @@ export interface MenuActionItem {
   children?: MenuActionItem[];
 }
 
+export interface WindowMenuGroup {
+  id: string;
+  label: string;
+  items: MenuActionItem[];
+  icon?: string;
+  application?: boolean;
+  attention?: boolean;
+}
+
+export type WindowMenuSubtitleTone = 'muted' | 'success' | 'current' | 'warning';
+
 export interface LibraryViewColumnState {
   width: number;
   visible: boolean;

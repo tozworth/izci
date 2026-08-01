@@ -16,6 +16,8 @@
   position: sticky;
   top: 0;
   z-index: 40;
+  border-bottom: 1px solid var(--hairline);
+  box-shadow: none;
   transition:
     opacity 420ms ease,
     transform 420ms ease;
@@ -125,6 +127,23 @@ body:has(.menu-list[data-menu-interactive='true']) .menu-bar.window-controls-ove
 .menu-trigger.active,
 .menu-trigger:hover {
   background-color: var(--hover-surface);
+}
+
+.menu-trigger.menu-attention::after {
+  width: 0.42rem;
+  height: 0.42rem;
+  margin-left: 0.18rem;
+  border-radius: 999px;
+  background: #e5a92f;
+  box-shadow: 0 0 0 0 rgba(229, 169, 47, 0.42);
+  content: '';
+  animation: menu-attention-pulse 1.4s ease-out 1;
+}
+
+@keyframes menu-attention-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(229, 169, 47, 0.42); }
+  70% { box-shadow: 0 0 0 0.36rem rgba(229, 169, 47, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(229, 169, 47, 0); }
 }
 
 .app-menu-trigger {
@@ -278,6 +297,7 @@ body:has(.menu-list[data-menu-interactive='true']) .menu-bar.window-controls-ove
   display: inline-flex;
   align-items: baseline;
   margin-left: auto;
+  min-width: 0;
   gap: 0.45rem;
   padding: 0.2rem 0.35rem;
   white-space: nowrap;
@@ -294,36 +314,35 @@ body:has(.menu-list[data-menu-interactive='true']) .menu-brand {
   -webkit-app-region: no-drag;
 }
 
-.menu-brand-hidden {
-  position: absolute;
-  visibility: hidden;
-  pointer-events: none;
-}
-
 .menu-brand strong {
-  color: var(--accent-strong);
-  font-size: 0.84rem;
-  letter-spacing: 0.04em;
+  flex: 0 0 auto;
+  color: var(--text-strong);
+  font-size: 0.78rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
 }
 
 .menu-brand span {
+  min-width: 0;
+  overflow: hidden;
   color: var(--muted);
-  font-size: 0.75rem;
+  font-size: 0.7rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.menu-brand .menu-version-indicator {
-  display: inline-flex;
-  align-items: baseline;
-}
-
-.menu-version-indicator .menu-update-completed {
+.menu-brand .menu-update-completed {
   color: #9ee6aa;
 }
 
-.menu-version-indicator .menu-update-current {
+.menu-brand .menu-update-current {
   color: #79dce8;
 }
 
-.menu-version-indicator .menu-update-failed {
+.menu-brand .menu-update-failed {
   color: #f2bd7d;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .menu-trigger.menu-attention::after { animation: none; }
 }

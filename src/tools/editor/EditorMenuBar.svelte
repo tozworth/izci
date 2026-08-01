@@ -1,16 +1,14 @@
 <script lang="ts">
-  import { createEventDispatcher, onDestroy } from 'svelte';
+  import { createEventDispatcher } from 'svelte';
   import { t } from 'svelte-i18n';
-  import MenuSurface from '$lib/components/MenuSurface.svelte';
+  import WindowMenuBar from '$lib/components/WindowMenuBar.svelte';
   import { applyManualLoadoutSettings } from '$lib/services/loadouts';
   import { RAF_EFFECT_DEFINITIONS } from '$lib/services/raf-effect-registry';
-  import { windowControlsOverlayState } from '$lib/services/window-controls-overlay';
   import { windowManager } from '$lib/services/window-manager';
   import { loadouts } from '$lib/stores/loadouts';
-  import type { MenuActionItem, RafEffectType } from '$lib/types';
+  import type { MenuActionItem, RafEffectType, WindowMenuGroup } from '$lib/types';
   import { getLoadoutColorValue, LOADOUT_TYPE_ICONS } from '$lib/utils/loadout-presentation';
 
-  type MenuId = 'app' | 'file' | 'edit' | 'effects';
   type ActionId = 'open' | 'saveClip' | 'close' | 'undo' | 'redo' | 'selectAll'
     | 'cut' | 'copy' | 'paste' | 'delete' | 'trim'
     | 'openOptions' | 'openLoadouts' | 'openAbout' | `applyLoadout:${string}` | `effect:${RafEffectType}`;
@@ -36,14 +34,6 @@
     trim: void;
     effect: RafEffectType;
   }>();
-
-  let activeMenu: MenuId | null = null;
-  let menuX = 8;
-  let menuY = 36;
-  let appTrigger: HTMLButtonElement;
-  let fileTrigger: HTMLButtonElement;
-  let editTrigger: HTMLButtonElement;
-  let effectsTrigger: HTMLButtonElement;
 
   $: loadoutItems = [
     {
@@ -88,35 +78,34 @@
     separatorBefore: index === 0
   })) satisfies MenuActionItem[];
 
-  $: overlay = $windowControlsOverlayState;
-  $: rect = overlay.titlebarAreaRect;
-  $: overlayStyle = overlay.visible
-    ? `--window-controls-overlay-x: ${rect.x}px; --window-controls-overlay-y: ${rect.y}px; --window-controls-overlay-width: ${rect.width}px; --window-controls-overlay-height: ${rect.height}px;`
-    : '';
-
-  function triggerFor(menu: MenuId): HTMLButtonElement {
-    return menu === 'app' ? appTrigger : menu === 'file' ? fileTrigger : menu === 'edit' ? editTrigger : effectsTrigger;
-  }
-
-  function openMenu(menu: MenuId): void {
-    activeMenu = activeMenu === menu ? null : menu;
-    if (activeMenu) {
-      const bounds = triggerFor(activeMenu).getBoundingClientRect();
-      menuX = bounds.left;
-      menuY = bounds.bottom + 6;
+  $: menuGroups = [
+    {
+      id: 'app',
+      label: $t('main.menu.applicationMenu', { default: 'Application menu' }),
+      items: appItems,
+      application: true
+    },
+    {
+      id: 'file',
+      label: $t('main.menu.file', { default: 'File' }),
+      icon: 'folder',
+      items: fileItems
+    },
+    {
+      id: 'edit',
+      label: $t('editor.menu.edit', { default: 'Edit' }),
+      icon: 'edit',
+      items: editItems
+    },
+    {
+      id: 'effects',
+      label: $t('editor.effects.menu', { default: 'Effects' }),
+      icon: 'tune',
+      items: effectItems
     }
-  }
-
-  function hoverMenu(menu: MenuId): void {
-    if (!activeMenu || activeMenu === menu) return;
-    activeMenu = menu;
-    const bounds = triggerFor(menu).getBoundingClientRect();
-    menuX = bounds.left;
-    menuY = bounds.bottom + 6;
-  }
+  ] satisfies WindowMenuGroup[];
 
   function run(action: ActionId): void {
-    activeMenu = null;
     if (action === 'openOptions') return requestOptions();
     if (action === 'openLoadouts') return requestOptions('loadouts');
     if (action === 'openAbout') return requestOptions('about');
@@ -144,59 +133,12 @@
     windowManager.openOptions(view);
   }
 
-  function handleWindowPointerDown(event: PointerEvent): void {
-    const target = event.target;
-    if (activeMenu && (!(target instanceof Element) || !target.closest('[data-menu-interactive="true"]'))) activeMenu = null;
-  }
-
-  function handleWindowKeydown(event: KeyboardEvent): void {
-    if (event.key === 'Escape') activeMenu = null;
-  }
-
-  window.addEventListener('pointerdown', handleWindowPointerDown);
-  window.addEventListener('keydown', handleWindowKeydown);
-  onDestroy(() => {
-    window.removeEventListener('pointerdown', handleWindowPointerDown);
-    window.removeEventListener('keydown', handleWindowKeydown);
-  });
 </script>
 
-<nav
-  class="menu-bar editor-menu-bar"
-  class:window-controls-overlay-active={overlay.visible}
-  style={overlayStyle}
-  aria-label={$t('main.menu.applicationMenu', { default: 'Application menu' })}
->
-  <div class="menu-groups">
-    <div class="menu-root" role="none" on:pointerenter={() => hoverMenu('app')}>
-      <button bind:this={appTrigger} class="menu-trigger app-menu-trigger" class:active={activeMenu === 'app'} data-menu-interactive="true" type="button" aria-label="izci" aria-haspopup="menu" aria-expanded={activeMenu === 'app'} on:click={() => openMenu('app')}>
-        <span class="izci-menu-glyph" aria-hidden="true"></span>
-      </button>
-      {#if activeMenu === 'app'}
-        <MenuSurface items={appItems} x={menuX} y={menuY} on:action={(event) => run(event.detail as ActionId)} on:dismiss={() => (activeMenu = null)} />
-      {/if}
-    </div>
-    <div class="menu-root" role="none" on:pointerenter={() => hoverMenu('file')}>
-      <button bind:this={fileTrigger} class="menu-trigger" class:active={activeMenu === 'file'} data-menu-interactive="true" type="button" aria-haspopup="menu" aria-expanded={activeMenu === 'file'} on:click={() => openMenu('file')}>{$t('main.menu.file', { default: 'File' })}</button>
-      {#if activeMenu === 'file'}
-        <MenuSurface items={fileItems} x={menuX} y={menuY} on:action={(event) => run(event.detail as ActionId)} on:dismiss={() => (activeMenu = null)} />
-      {/if}
-    </div>
-    <div class="menu-root" role="none" on:pointerenter={() => hoverMenu('edit')}>
-      <button bind:this={editTrigger} class="menu-trigger" class:active={activeMenu === 'edit'} data-menu-interactive="true" type="button" aria-haspopup="menu" aria-expanded={activeMenu === 'edit'} on:click={() => openMenu('edit')}>{$t('editor.menu.edit', { default: 'Edit' })}</button>
-      {#if activeMenu === 'edit'}
-        <MenuSurface items={editItems} x={menuX} y={menuY} on:action={(event) => run(event.detail as ActionId)} on:dismiss={() => (activeMenu = null)} />
-      {/if}
-    </div>
-    <div class="menu-root" role="none" on:pointerenter={() => hoverMenu('effects')}>
-      <button bind:this={effectsTrigger} class="menu-trigger" class:active={activeMenu === 'effects'} data-menu-interactive="true" type="button" aria-haspopup="menu" aria-expanded={activeMenu === 'effects'} on:click={() => openMenu('effects')}>{$t('editor.effects.menu', { default: 'Effects' })}</button>
-      {#if activeMenu === 'effects'}
-        <MenuSurface items={effectItems} x={menuX} y={menuY} on:action={(event) => run(event.detail as ActionId)} on:dismiss={() => (activeMenu = null)} />
-      {/if}
-    </div>
-  </div>
-  <div class="tool-window-title editor-window-title" aria-live="polite">
-    <strong>{$t('editor.title', { default: 'Editor' })}</strong>
-    {#if fileName}<span>{fileName}</span>{/if}
-  </div>
-</nav>
+<WindowMenuBar
+  groups={menuGroups}
+  title={$t('editor.title', { default: 'Editor' })}
+  subtitle={fileName}
+  ariaLabel={$t('main.menu.applicationMenu', { default: 'Application menu' })}
+  on:action={(event) => run(event.detail as ActionId)}
+/>

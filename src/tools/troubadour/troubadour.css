@@ -13,11 +13,6 @@
   min-height: 500px;
 }
 
-.troubadour-menu-bar {
-  min-height: 2.05rem;
-  border-bottom: 1px solid var(--menu-bar-border);
-}
-
 .troubadour-toolbar {
   min-height: 2.1rem;
 }

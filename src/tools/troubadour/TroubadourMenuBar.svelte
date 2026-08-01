@@ -1,11 +1,9 @@
 <script lang="ts">
-  import { createEventDispatcher, onDestroy } from 'svelte';
+  import { createEventDispatcher } from 'svelte';
   import { t } from 'svelte-i18n';
-  import MenuSurface from '$lib/components/MenuSurface.svelte';
-  import { windowControlsOverlayState } from '$lib/services/window-controls-overlay';
-  import type { MenuActionItem } from '$lib/types';
+  import WindowMenuBar from '$lib/components/WindowMenuBar.svelte';
+  import type { MenuActionItem, WindowMenuGroup } from '$lib/types';
 
-  type MenuId = 'app' | 'file' | 'edit' | 'album' | 'tools';
   type ActionId =
     | 'addFiles' | 'addFolder' | 'addFromIzci' | 'save' | 'saveAll' | 'close'
     | 'undo' | 'redo' | 'selectAll' | 'remove' | 'reload'
@@ -23,9 +21,6 @@
   export let summary = '';
 
   const dispatch = createEventDispatcher<Record<ActionId, void>>();
-  let activeMenu: MenuId | null = null;
-  let menuX = 8;
-  let menuY = 34;
 
   $: appItems = [
     { id: 'options', label: $t('troubadour.menu.options', { default: 'Troubadour Options...' }), icon: 'settings', shortcut: 'Ctrl+,' },
@@ -58,90 +53,48 @@
     { id: 'spectrogram', label: $t('troubadour.menu.spectrogram', { default: 'Open selected file in Spectrogram' }), icon: 'waterfall_chart', disabled: !canSpectrogram || busy, separatorBefore: true },
     { id: 'options', label: $t('troubadour.menu.options', { default: 'Troubadour Options...' }), icon: 'settings', shortcut: 'Ctrl+,', separatorBefore: true }
   ] satisfies MenuActionItem[];
-  $: overlay = $windowControlsOverlayState;
-  $: rect = overlay.titlebarAreaRect;
-  $: overlayStyle = overlay.visible
-    ? `--window-controls-overlay-x: ${rect.x}px; --window-controls-overlay-y: ${rect.y}px; --window-controls-overlay-width: ${rect.width}px; --window-controls-overlay-height: ${rect.height}px;`
-    : '';
-
-  function triggerFor(menu: MenuId): HTMLButtonElement {
-    return document.querySelector(`[data-troubadour-menu="${menu}"]`)!;
-  }
-
-  function itemsFor(menu: MenuId): MenuActionItem[] {
-    if (menu === 'app') return appItems;
-    if (menu === 'file') return fileItems;
-    if (menu === 'edit') return editItems;
-    if (menu === 'album') return albumItems;
-    return toolsItems;
-  }
-
-  function labelFor(menu: MenuId): string {
-    if (menu === 'app') return 'izci';
-    if (menu === 'file') return $t('main.menu.file', { default: 'File' });
-    if (menu === 'edit') return $t('troubadour.menu.edit', { default: 'Edit' });
-    if (menu === 'album') return $t('troubadour.menu.album', { default: 'Album' });
-    return $t('main.menu.tools', { default: 'Tools' });
-  }
-
-  function openMenu(menu: MenuId): void {
-    activeMenu = activeMenu === menu ? null : menu;
-    if (!activeMenu) return;
-    const bounds = triggerFor(activeMenu).getBoundingClientRect();
-    menuX = bounds.left;
-    menuY = bounds.bottom + 5;
-  }
-
-  function hoverMenu(menu: MenuId): void {
-    if (!activeMenu || activeMenu === menu) return;
-    activeMenu = menu;
-    const bounds = triggerFor(menu).getBoundingClientRect();
-    menuX = bounds.left;
-    menuY = bounds.bottom + 5;
-  }
+  $: menuGroups = [
+    {
+      id: 'app',
+      label: $t('main.menu.applicationMenu', { default: 'Application menu' }),
+      items: appItems,
+      application: true
+    },
+    {
+      id: 'file',
+      label: $t('main.menu.file', { default: 'File' }),
+      icon: 'folder',
+      items: fileItems
+    },
+    {
+      id: 'edit',
+      label: $t('troubadour.menu.edit', { default: 'Edit' }),
+      icon: 'edit',
+      items: editItems
+    },
+    {
+      id: 'album',
+      label: $t('troubadour.menu.album', { default: 'Album' }),
+      icon: 'album',
+      items: albumItems
+    },
+    {
+      id: 'tools',
+      label: $t('main.menu.tools', { default: 'Tools' }),
+      icon: 'construction',
+      items: toolsItems
+    }
+  ] satisfies WindowMenuGroup[];
 
   function run(action: string): void {
-    activeMenu = null;
     dispatch(action as ActionId);
   }
-
-  const closeOutside = (event: PointerEvent) => {
-    if (activeMenu && (!(event.target instanceof Element) || !event.target.closest('[data-menu-interactive="true"]'))) activeMenu = null;
-  };
-  window.addEventListener('pointerdown', closeOutside);
-  onDestroy(() => window.removeEventListener('pointerdown', closeOutside));
 </script>
 
-<nav
-  class="menu-bar troubadour-menu-bar"
-  class:window-controls-overlay-active={overlay.visible}
-  style={overlayStyle}
-  aria-label={$t('main.menu.applicationMenu', { default: 'Application menu' })}
->
-  <div class="menu-groups">
-    {#each ['app', 'file', 'edit', 'album', 'tools'] as menuName}
-      {@const menu = menuName as MenuId}
-      <div class="menu-root" role="none" on:pointerenter={() => hoverMenu(menu)}>
-        <button
-          class="menu-trigger"
-          class:app-menu-trigger={menu === 'app'}
-          class:active={activeMenu === menu}
-          data-menu-interactive="true"
-          data-troubadour-menu={menu}
-          type="button"
-          aria-label={menu === 'app' ? 'izci' : undefined}
-          aria-haspopup="menu"
-          aria-expanded={activeMenu === menu}
-          on:click={() => openMenu(menu)}
-        >{#if menu === 'app'}<span class="izci-menu-glyph" aria-hidden="true"></span>{:else}{labelFor(menu)}{/if}</button>
-        {#if activeMenu === menu}
-          <MenuSurface items={itemsFor(menu)} x={menuX} y={menuY} on:action={(event) => run(event.detail)} on:dismiss={() => activeMenu = null} />
-        {/if}
-      </div>
-    {/each}
-  </div>
-  <div class="tool-window-title" aria-live="polite">
-    <strong>{$t('troubadour.title', { default: 'Troubadour' })}</strong>
-    {#if summary}<span>{summary}</span>{/if}
-  </div>
-</nav>
+<WindowMenuBar
+  groups={menuGroups}
+  title={$t('troubadour.title', { default: 'Troubadour' })}
+  subtitle={summary}
+  ariaLabel={$t('main.menu.applicationMenu', { default: 'Application menu' })}
+  on:action={(event) => run(event.detail)}
+/>
