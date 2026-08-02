@@ -441,8 +441,11 @@
     const tracks = !force && settings.initialLoad === 'current-track'
       ? context.tracks.filter((track) => track.references.some((reference) => reference.collection === 'current'))
       : context.tracks;
-    await controller.ingestBatchTracks(tracks, settings.metadataReadConcurrency);
-    if (settings.autoGroupOnLoad) controller.autoGroup(settings.autoGroupFallback);
+    await controller.ingestBatchTracks(
+      tracks,
+      settings.metadataReadConcurrency,
+      settings.autoGroupOnLoad ? settings.autoGroupFallback : undefined
+    );
   }
 
   onMount(() => listenForTroubadourBatchContext((context) => void acceptContext(context)));
@@ -460,7 +463,11 @@
     }
     try {
       loadingSource = 'files';
-      await controller.ingestHandles(await picker.showOpenFilePicker(OPEN_FILE_OPTIONS), settings.metadataReadConcurrency);
+      await controller.ingestHandles(
+        await picker.showOpenFilePicker(OPEN_FILE_OPTIONS),
+        settings.metadataReadConcurrency,
+        settings.autoGroupOnLoad ? settings.autoGroupFallback : undefined
+      );
     } catch (error) {
       handleError(error);
     } finally {
@@ -477,8 +484,12 @@
     try {
       const directory = await picker.showDirectoryPicker({ mode: 'read' });
       loadingSource = 'folder';
-      await controller.ingestDirectory(directory, settings.folderScanDepth, settings.metadataReadConcurrency);
-      if (settings.autoGroupOnLoad) controller.autoGroup(settings.autoGroupFallback);
+      await controller.ingestDirectory(
+        directory,
+        settings.folderScanDepth,
+        settings.metadataReadConcurrency,
+        settings.autoGroupOnLoad ? settings.autoGroupFallback : undefined
+      );
     } catch (error) {
       handleError(error);
     } finally {
@@ -491,8 +502,12 @@
     if (!folder) return;
     try {
       loadingSource = 'library-folder';
-      await controller.ingestDirectory(folder.handle, settings.folderScanDepth, settings.metadataReadConcurrency);
-      if (settings.autoGroupOnLoad) controller.autoGroup(settings.autoGroupFallback);
+      await controller.ingestDirectory(
+        folder.handle,
+        settings.folderScanDepth,
+        settings.metadataReadConcurrency,
+        settings.autoGroupOnLoad ? settings.autoGroupFallback : undefined
+      );
     } catch (error) {
       handleError(error);
     } finally {
@@ -508,7 +523,12 @@
     files.forEach((file) => transfer.items.add(file));
     try {
       loadingSource = 'files';
-      await controller.ingestDropped(transfer, settings.folderScanDepth, settings.metadataReadConcurrency);
+      await controller.ingestDropped(
+        transfer,
+        settings.folderScanDepth,
+        settings.metadataReadConcurrency,
+        settings.autoGroupOnLoad ? settings.autoGroupFallback : undefined
+      );
     } catch (error) {
       handleError(error);
     } finally {
@@ -522,8 +542,12 @@
     if (isItemDrag(event)) return;
     if (!event.dataTransfer) return;
     try {
-      await controller.ingestDropped(event.dataTransfer, settings.folderScanDepth, settings.metadataReadConcurrency);
-      if (settings.autoGroupOnLoad) controller.autoGroup(settings.autoGroupFallback);
+      await controller.ingestDropped(
+        event.dataTransfer,
+        settings.folderScanDepth,
+        settings.metadataReadConcurrency,
+        settings.autoGroupOnLoad ? settings.autoGroupFallback : undefined
+      );
     } catch (error) {
       handleError(error);
     }

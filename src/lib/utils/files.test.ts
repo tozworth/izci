@@ -1,9 +1,10 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { MODULE_EXTENSIONS, VIDEO_EXTENSIONS } from '$lib/types';
 
 import {
   buildPlaylistItems,
   buildSeparatedSubsongItems,
+  discoverDirectoryFiles,
   extractDroppedContent,
   extractDroppedFiles,
   formatDuration,
@@ -124,6 +125,20 @@ describe('file helpers', () => {
     ]);
     expect(items.find((item) => item.name === 'Nested.mod')?.fileHandle).toBe(nestedTrack);
     expect(items.every((item) => item.file === undefined && item.objectUrl === undefined)).toBe(true);
+  });
+
+  it('discovers directory handles and parent context without opening files', async () => {
+    const track = fileHandle(new File(['track'], 'Track.flac'));
+    const getFile = vi.spyOn(track, 'getFile');
+    const album = directoryHandle('Album', [track]);
+    const root = directoryHandle('Music', [album]);
+
+    await expect(discoverDirectoryFiles(root)).resolves.toEqual([{
+      fileHandle: track,
+      parentHandle: album,
+      path: 'Music/Album/Track.flac'
+    }]);
+    expect(getFile).not.toHaveBeenCalled();
   });
 
   it('attaches resolved folder context when reading launched file handles', async () => {

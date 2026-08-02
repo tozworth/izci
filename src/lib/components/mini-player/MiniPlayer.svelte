@@ -1,9 +1,10 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onDestroy, onMount } from 'svelte';
   import { t } from 'svelte-i18n';
   import type { Readable } from 'svelte/store';
   import type { PlaybackSnapshot, PlaylistItem } from '$lib/types';
   import { formatDuration, getTrackDisplaySubtitle, getTrackDisplayTitle } from '$lib/utils/files';
+  import { createWheelSeekController } from '$lib/services/wheel-seek';
 
   export let snapshotStore: Readable<PlaybackSnapshot>;
   export let trackStore: Readable<PlaylistItem | null>;
@@ -23,14 +24,15 @@
   let rootElement: HTMLElement | null = null;
   let seekPreview = 0;
   let seekPointerActive = false;
+  let seekWheelActive = false;
 
   $: snapshot = $snapshotStore;
   $: track = $trackStore;
   $: selectedTrack = $selectedTrackStore;
   $: artworkUrl = $artworkUrlStore;
   $: displayTrack = track ?? selectedTrack;
-  $: displayedSeekTime = seekPointerActive ? seekPreview : snapshot.currentTime;
-  $: if (!seekPointerActive) seekPreview = snapshot.currentTime;
+  $: displayedSeekTime = seekPointerActive || seekWheelActive ? seekPreview : snapshot.currentTime;
+  $: if (!seekPointerActive && !seekWheelActive) seekPreview = snapshot.currentTime;
 
   function clamp(value: number, min: number, max: number): number {
     return Math.min(Math.max(value, min), max);
@@ -52,13 +54,19 @@
   }
 
   function handleSeekWheel(event: WheelEvent): void {
-    if (!track || snapshot.duration <= 0) {
-      return;
-    }
-
-    const direction = event.deltaY < 0 ? 1 : -1;
-    onSeek(clamp(snapshot.currentTime + direction * SEEK_STEP_SECONDS, 0, snapshot.duration));
+    wheelSeek.step(event.deltaY);
   }
+
+  const wheelSeek = createWheelSeekController({
+    getCurrentTime: () => snapshot.currentTime,
+    getDuration: () => snapshot.duration,
+    getContextKey: () => track?.id ?? null,
+    onPreview: (seconds) => {
+      seekWheelActive = seconds !== null;
+      if (seconds !== null) seekPreview = seconds;
+    },
+    onCommit: onSeek
+  });
 
   function handleVolumeWheel(event: WheelEvent): void {
     if (snapshot.muted) {
@@ -101,6 +109,7 @@
   }
 
   function beginSeek(): void {
+    wheelSeek.cancel();
     seekPointerActive = true;
     seekPreview = snapshot.currentTime;
   }
@@ -110,6 +119,7 @@
     seekPreview = seconds;
 
     if (!seekPointerActive) {
+      wheelSeek.cancel();
       onSeek(seconds);
     }
   }
@@ -129,6 +139,8 @@
     seekPointerActive = false;
     seekPreview = snapshot.currentTime;
   }
+
+  onDestroy(wheelSeek.cancel);
 
   function getVolumeIcon(): string {
     if (snapshot.muted || snapshot.volume <= 0) {

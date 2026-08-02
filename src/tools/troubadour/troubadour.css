@@ -546,7 +546,7 @@
   position: sticky;
   top: 0;
   z-index: 2;
-  height: 1.55rem;
+  height: 1.45rem;
   border-bottom: 1px solid var(--border-soft);
   background: var(--bg-soft);
   color: var(--muted-strong);
@@ -569,7 +569,7 @@
 
 .file-row {
   width: 100%;
-  height: 1.55rem;
+  height: 1.45rem;
   padding: 0;
   border-radius: 0;
   background: transparent;
@@ -618,7 +618,7 @@
 
 .raw-empty {
   position: absolute;
-  inset: 1.55rem 0 0;
+  inset: 1.45rem 0 0;
   height: auto;
 }
 
@@ -655,7 +655,7 @@
 
 .album-heading {
   width: 100%;
-  height: 1.55rem;
+  height: 1.45rem;
   display: flex;
   align-items: center;
   gap: 0.35rem;
@@ -730,7 +730,7 @@
 
 .album-track {
   grid-template-columns: 2rem minmax(0, 1fr) 3.5rem;
-  height: 1.45rem;
+  height: 1.35rem;
   padding: 0 0.35rem 0 0;
   font-size: 0.68rem;
 }
@@ -782,7 +782,7 @@
 }
 
 .property-row {
-  min-height: 1.72rem;
+  min-height: 1.6rem;
   display: grid;
   grid-template-columns: minmax(7rem, 0.55fr) minmax(9rem, 1.1fr) minmax(7rem, 0.75fr) 1.55rem 1.55rem;
   align-items: stretch;

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { createEventDispatcher, onMount, tick } from 'svelte';
+  import { createEventDispatcher, onDestroy, onMount, tick } from 'svelte';
   import { t } from 'svelte-i18n';
   import {
     extractArtworkPalette,
@@ -8,6 +8,7 @@
   } from '$lib/services/artwork-palette';
   import type { LoadedStreamArtwork } from '$lib/services/stream-artwork';
   import { sessionIdlePlayerQuip, type IdlePlayerQuipId } from '$lib/services/idle-player-copy';
+  import { createWheelSeekController } from '$lib/services/wheel-seek';
   import HoverTooltip from '$lib/components/HoverTooltip.svelte';
   import RatingPicker from '$lib/components/RatingPicker.svelte';
   import { portal } from '$lib/components/playlist-panel/actions/portal';
@@ -102,8 +103,6 @@
   const RANGE_THUMB_SIZE_REM = 1.05;
   const PLAYER_BAR_RESERVE_PROPERTY = '--player-bar-measured-reserve';
   const THEATER_PLAYER_BAR_HEIGHT_PROPERTY = '--video-theater-player-height';
-  const SEEK_WHEEL_STEP_SECONDS = 5;
-
   let playerBarElement: HTMLElement | null = null;
   let favoriteToggleElement: HTMLButtonElement | null = null;
   let ratingPickerX = 0;
@@ -123,6 +122,7 @@
   let rafPresetMenuElement: HTMLDivElement | null = null;
   let seekPreview = 0;
   let seekPointerActive = false;
+  let seekWheelActive = false;
   let snapshot: PlaybackSnapshot = {
     state: 'idle',
     currentTime: 0,
@@ -151,22 +151,22 @@
   }
 
   function handleSeekWheel(event: WheelEvent) {
-    if (!track || snapshot.duration <= 0) {
-      return;
-    }
-
-    const delta = event.deltaY < 0 ? 1 : -1;
-    dispatch(
-      'seek',
-      clamp(
-        snapshot.currentTime + delta * SEEK_WHEEL_STEP_SECONDS,
-        0,
-        snapshot.duration
-      )
-    );
+    wheelSeek.step(event.deltaY);
   }
 
+  const wheelSeek = createWheelSeekController({
+    getCurrentTime: () => snapshot.currentTime,
+    getDuration: () => snapshot.duration,
+    getContextKey: () => track?.id ?? null,
+    onPreview: (seconds) => {
+      seekWheelActive = seconds !== null;
+      if (seconds !== null) seekPreview = seconds;
+    },
+    onCommit: (seconds) => dispatch('seek', seconds)
+  });
+
   function beginSeekPointer(): void {
+    wheelSeek.cancel();
     seekPointerActive = true;
     seekPreview = snapshot.currentTime;
   }
@@ -178,6 +178,7 @@
     // Keyboard changes are discrete, so apply them immediately. Pointer drags
     // commit once on release to avoid backend progress updates fighting the thumb.
     if (!seekPointerActive) {
+      wheelSeek.cancel();
       dispatch('seek', seconds);
     }
   }
@@ -197,6 +198,8 @@
     seekPointerActive = false;
     seekPreview = snapshot.currentTime;
   }
+
+  onDestroy(wheelSeek.cancel);
 
   function handleVolumeWheel(event: WheelEvent) {
     if (snapshot.muted) {
@@ -407,8 +410,8 @@
   });
 
   $: snapshot = $snapshotStore;
-  $: if (!seekPointerActive) seekPreview = snapshot.currentTime;
-  $: displayedSeekTime = seekPointerActive ? seekPreview : snapshot.currentTime;
+  $: if (!seekPointerActive && !seekWheelActive) seekPreview = snapshot.currentTime;
+  $: displayedSeekTime = seekPointerActive || seekWheelActive ? seekPreview : snapshot.currentTime;
   $: compactPlayerBar = presentation !== 'now-playing' && $appearanceSettings.compactPlayerBar;
   $: isCompactVolume = viewportUsesCompactVolume || compactPlayerBar;
   $: displayTrack = track;

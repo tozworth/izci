@@ -46,8 +46,20 @@ export type FileHandleSourceResolver = (
   handle: FileSystemFileHandle
 ) => ImportedFileSource | undefined | Promise<ImportedFileSource | undefined>;
 
-interface DirectoryReadOptions {
+export interface DirectoryReadOptions {
   maxDepth?: number;
+  readConcurrency?: number;
+}
+
+export interface DirectoryDiscoveryOptions {
+  maxDepth?: number;
+  onFileFound?: (file: DiscoveredDirectoryFile) => void;
+}
+
+export interface DiscoveredDirectoryFile {
+  fileHandle: FileSystemFileHandle;
+  parentHandle: FileSystemDirectoryHandle;
+  path: string;
 }
 
 const fileNameCollator = new Intl.Collator(undefined, {
@@ -285,20 +297,58 @@ async function readDirectoryEntryFiles(
 export async function readDirectoryFiles(
   handle: FileSystemDirectoryHandle,
   options: DirectoryReadOptions = {},
-  path = handle.name,
-  depth = 0
+  path = handle.name
 ): Promise<File[]> {
-  const files: File[] = [];
+  const discovered = await discoverDirectoryFilesAtPath(handle, options, path);
+  const files = new Array<File>(discovered.length);
+  let index = 0;
+  const workerCount = Math.min(
+    Math.max(1, Math.trunc(options.readConcurrency ?? 16)),
+    discovered.length
+  );
+
+  const workers = Array.from({ length: workerCount }, async () => {
+    while (index < discovered.length) {
+      const currentIndex = index++;
+      const current = discovered[currentIndex];
+      files[currentIndex] = await readFileHandle(current.fileHandle, current.path);
+    }
+  });
+
+  await Promise.all(workers);
+  return files;
+}
+
+export async function discoverDirectoryFiles(
+  handle: FileSystemDirectoryHandle,
+  options: DirectoryDiscoveryOptions = {}
+): Promise<DiscoveredDirectoryFile[]> {
+  return await discoverDirectoryFilesAtPath(handle, options, handle.name);
+}
+
+async function discoverDirectoryFilesAtPath(
+  handle: FileSystemDirectoryHandle,
+  options: DirectoryDiscoveryOptions,
+  path: string,
+  depth = 0
+): Promise<DiscoveredDirectoryFile[]> {
+  const files: DiscoveredDirectoryFile[] = [];
   const maxDepth = options.maxDepth ?? Number.POSITIVE_INFINITY;
 
   for await (const entry of handle.values()) {
     if (entry.kind === 'file') {
       const fileHandle = entry as FileSystemFileHandle;
-      files.push(await readFileHandle(fileHandle, `${path}/${fileHandle.name}`));
+      const file = {
+        fileHandle,
+        parentHandle: handle,
+        path: `${path}/${fileHandle.name}`
+      };
+      files.push(file);
+      options.onFileFound?.(file);
     } else if (entry.kind === 'directory' && depth < maxDepth) {
       const directoryHandle = entry as FileSystemDirectoryHandle;
       files.push(
-        ...(await readDirectoryFiles(
+        ...(await discoverDirectoryFilesAtPath(
           directoryHandle,
           options,
           `${path}/${directoryHandle.name}`,

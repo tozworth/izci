@@ -23,7 +23,11 @@ import type {
   TroubadourWriteTarget
 } from '$lib/services/troubadour-sync';
 import { requestTroubadourWritePreparation } from '$lib/services/troubadour-sync';
-import { inferExtension, inferKind } from '$lib/utils/files';
+import {
+  discoverDirectoryFiles,
+  inferExtension,
+  inferKind
+} from '$lib/utils/files';
 import { autoGroupTracks, renumberAlbumTracks } from './grouping';
 import { createHistory, pushHistory, redoHistory, undoHistory, type HistoryState } from './history';
 import {
@@ -133,11 +137,22 @@ function itemState(item: TroubadourWorkbenchItem): WorkbenchItemState {
   return itemDirty(item) ? 'dirty' : item.state === 'failed' || item.state === 'conflicted' ? item.state : 'ready';
 }
 
+export type TroubadourAutoGroupFallback = 'folder' | 'none';
+
 async function materializeWorkbenchFile(file: File): Promise<File> {
   return new File([await file.arrayBuffer()], file.name, {
     type: file.type,
     lastModified: file.lastModified
   });
+}
+
+const LOAD_COMMIT_BATCH_SIZE = 64;
+const LOAD_PROGRESS_INTERVAL_MS = 250;
+
+interface DiscoveredWorkbenchFile {
+  fileHandle: FileSystemFileHandle;
+  parentHandle: FileSystemDirectoryHandle | null;
+  path: string;
 }
 
 export function effectiveFields(item: TroubadourWorkbenchItem): MediaMetadataFields | null {
@@ -236,10 +251,28 @@ export function createTroubadourController(
 ): Readable<TroubadourWorkbenchState> & {
   getSnapshot(): TroubadourWorkbenchState;
   setRememberedFolders(folders: TroubadourRememberedFolder[]): void;
-  ingestBatchTracks(tracks: TroubadourBatchTrack[], concurrency?: number): Promise<void>;
-  ingestHandles(handles: FileSystemFileHandle[], concurrency?: number): Promise<void>;
-  ingestDirectory(handle: FileSystemDirectoryHandle, maxDepth?: number, concurrency?: number): Promise<void>;
-  ingestDropped(dataTransfer: DataTransfer, maxDepth?: number, concurrency?: number): Promise<void>;
+  ingestBatchTracks(
+    tracks: TroubadourBatchTrack[],
+    concurrency?: number,
+    autoGroupFallback?: TroubadourAutoGroupFallback
+  ): Promise<void>;
+  ingestHandles(
+    handles: FileSystemFileHandle[],
+    concurrency?: number,
+    autoGroupFallback?: TroubadourAutoGroupFallback
+  ): Promise<void>;
+  ingestDirectory(
+    handle: FileSystemDirectoryHandle,
+    maxDepth?: number,
+    concurrency?: number,
+    autoGroupFallback?: TroubadourAutoGroupFallback
+  ): Promise<void>;
+  ingestDropped(
+    dataTransfer: DataTransfer,
+    maxDepth?: number,
+    concurrency?: number,
+    autoGroupFallback?: TroubadourAutoGroupFallback
+  ): Promise<void>;
   select(id: string, options?: { additive?: boolean; range?: boolean }): void;
   selectAlbum(id: string): void;
   selectAll(): void;
@@ -281,12 +314,30 @@ export function createTroubadourController(
   store.subscribe((value) => (state = value));
 
   const setState = (patch: Partial<TroubadourWorkbenchState>) => store.set({ ...state, ...patch });
-  const setStaged = (staged: StagedWorkbenchState, record = true) => {
+  const setStaged = (
+    staged: StagedWorkbenchState,
+    record = true,
+    statePatch: Partial<TroubadourWorkbenchState> = {}
+  ) => {
     const next = cloneStaged(staged);
     history = record ? pushHistory(history, next) : { ...history, present: next };
     store.set({
       ...state,
       ...next,
+      ...statePatch,
+      canUndo: history.undo.length > 0,
+      canRedo: history.redo.length > 0
+    });
+  };
+  const setTransientStaged = (
+    staged: StagedWorkbenchState,
+    statePatch: Partial<TroubadourWorkbenchState> = {}
+  ) => {
+    history = { ...history, present: staged };
+    store.set({
+      ...state,
+      ...staged,
+      ...statePatch,
       canUndo: history.undo.length > 0,
       canRedo: history.redo.length > 0
     });
@@ -332,20 +383,25 @@ export function createTroubadourController(
     concurrency: number,
     collectItems: (
       report: (activeJob: string, jobProgress?: number | null) => void
-    ) => Promise<TroubadourWorkbenchItem[]>
+    ) => Promise<TroubadourWorkbenchItem[]>,
+    autoGroupFallback?: TroubadourAutoGroupFallback
   ): Promise<void> {
     setState({ busy: true, activeJob: initialJob, jobProgress: null, error: '' });
     try {
       const items = await collectItems((activeJob, jobProgress = null) => {
         setState({ activeJob, jobProgress });
       });
-      await addLoadingItems(items, concurrency);
+      await addLoadingItems(items, concurrency, autoGroupFallback);
     } finally {
       setState({ busy: false, activeJob: '', jobProgress: null });
     }
   }
 
-  async function addLoadingItems(nextItems: TroubadourWorkbenchItem[], concurrency: number): Promise<void> {
+  async function addLoadingItems(
+    nextItems: TroubadourWorkbenchItem[],
+    concurrency: number,
+    autoGroupFallback?: TroubadourAutoGroupFallback
+  ): Promise<void> {
     const known = new Set(state.items.map((item) => `${item.path}\u0000${item.file.size}\u0000${item.file.lastModified}`));
     const unique = nextItems.filter((item) => {
       const key = `${item.path}\u0000${item.file.size}\u0000${item.file.lastModified}`;
@@ -358,50 +414,66 @@ export function createTroubadourController(
       return;
     }
     const generation = loadGeneration;
-    const items = [...state.items, ...unique];
-    setStaged({ items, albums: state.albums }, false);
+    let workingItems = [...state.items, ...unique];
+    let workingAlbums = state.albums;
+    const applyAutomaticGrouping = () => {
+      if (autoGroupFallback === undefined) return;
+      const proposed = autoGroupTracks(workingItems.map(metadataTrackForGrouping), autoGroupFallback);
+      const albumByItem = new Map(proposed.flatMap((album) => album.itemIds.map((itemId) => [itemId, album.id])));
+      workingItems = workingItems.map((item) => ({ ...item, albumId: albumByItem.get(item.id) ?? null }));
+      workingAlbums = proposed;
+    };
+    applyAutomaticGrouping();
+    const positions = new Map(workingItems.map((item, itemIndex) => [item.id, itemIndex]));
     let index = 0;
     let completed = 0;
-    const reportCompleted = () => {
-      completed += 1;
-      setState({
+    let pendingUpdates = 0;
+    let lastCommitAt = Date.now();
+    const commitUpdates = (force = false) => {
+      if (!pendingUpdates) return;
+      const now = Date.now();
+      if (!force && pendingUpdates < LOAD_COMMIT_BATCH_SIZE && now - lastCommitAt < LOAD_PROGRESS_INTERVAL_MS) {
+        return;
+      }
+      pendingUpdates = 0;
+      lastCommitAt = now;
+      applyAutomaticGrouping();
+      setTransientStaged({ items: [...workingItems], albums: workingAlbums }, {
         activeJob: `Reading metadata · ${completed} of ${unique.length} files`,
         jobProgress: completed / unique.length
       });
     };
-    setState({ activeJob: `Reading metadata · 0 of ${unique.length} files`, jobProgress: 0 });
+    setTransientStaged({ items: [...workingItems], albums: workingAlbums }, {
+      activeJob: `Reading metadata · 0 of ${unique.length} files`,
+      jobProgress: 0
+    });
     const workers = Array.from({ length: Math.min(Math.max(1, Math.trunc(concurrency)), unique.length) }, async () => {
       while (index < unique.length && generation === loadGeneration) {
         const current = unique[index++];
+        let replacement: TroubadourWorkbenchItem;
         if (!getMetadataCapabilities(current.extension)) {
-          setStaged({
-            items: state.items.map((item) => item.id === current.id ? { ...item, state: 'unsupported' } : item),
-            albums: state.albums
-          }, false);
-          reportCompleted();
-          continue;
+          replacement = { ...current, state: 'unsupported' };
+        } else {
+          try {
+            const document = await readMetadataDocument(current.file, current.extension);
+            replacement = { ...current, document, state: 'ready', error: '' };
+          } catch (error) {
+            replacement = {
+              ...current,
+              state: 'unreadable',
+              error: error instanceof Error ? error.message : 'Metadata could not be read.'
+            };
+          }
         }
-        try {
-          const document = await readMetadataDocument(current.file, current.extension);
-          setStaged({
-            items: state.items.map((item) => item.id === current.id
-              ? { ...item, document, state: 'ready', error: '' }
-              : item),
-            albums: state.albums
-          }, false);
-        } catch (error) {
-          setStaged({
-            items: state.items.map((item) => item.id === current.id
-              ? { ...item, state: 'unreadable', error: error instanceof Error ? error.message : 'Metadata could not be read.' }
-              : item),
-            albums: state.albums
-          }, false);
-        } finally {
-          reportCompleted();
-        }
+        const position = positions.get(current.id);
+        if (position !== undefined) workingItems[position] = replacement;
+        completed += 1;
+        pendingUpdates += 1;
+        commitUpdates();
       }
     });
     await Promise.all(workers);
+    commitUpdates(true);
     setState({ message: `${unique.length} file${unique.length === 1 ? '' : 's'} loaded.` });
   }
 
@@ -411,7 +483,7 @@ export function createTroubadourController(
     parentHandle: FileSystemDirectoryHandle | null,
     base: Partial<TroubadourWorkbenchItem> = {}
   ): Promise<TroubadourWorkbenchItem> {
-    const file = await materializeWorkbenchFile(await handle.getFile());
+    const file = await handle.getFile();
     const extension = inferExtension(file.name);
     return {
       id: base.id ?? crypto.randomUUID(),
@@ -434,29 +506,39 @@ export function createTroubadourController(
     };
   }
 
-  async function walkDirectory(
-    directory: FileSystemDirectoryHandle,
-    path: string,
-    maxDepth: number,
-    onFileFound?: () => void,
-    depth = 0
+  async function itemsFromDiscoveredFiles(
+    discovered: DiscoveredWorkbenchFile[],
+    concurrency: number,
+    report: (activeJob: string, jobProgress?: number | null) => void,
+    label: string
   ): Promise<TroubadourWorkbenchItem[]> {
-    const found: TroubadourWorkbenchItem[] = [];
-    for await (const entry of directory.values()) {
-      if (entry.kind === 'file') {
-        onFileFound?.();
-        found.push(await itemFromHandle(entry as FileSystemFileHandle, `${path}/${entry.name}`, directory));
-      } else if (depth < maxDepth) {
-        found.push(...await walkDirectory(
-          entry as FileSystemDirectoryHandle,
-          `${path}/${entry.name}`,
-          maxDepth,
-          onFileFound,
-          depth + 1
-        ));
+    const eligible = discovered.filter((entry) => getMetadataCapabilities(inferExtension(entry.fileHandle.name)));
+    const items = new Array<TroubadourWorkbenchItem | undefined>(eligible.length);
+    let index = 0;
+    let completed = 0;
+    let lastReported = 0;
+    const workerCount = Math.min(Math.max(1, Math.trunc(concurrency)), eligible.length);
+    const workers = Array.from({ length: workerCount }, async () => {
+      while (index < eligible.length) {
+        const currentIndex = index++;
+        const current = eligible[currentIndex];
+        try {
+          items[currentIndex] = await itemFromHandle(
+            current.fileHandle,
+            current.path,
+            current.parentHandle
+          );
+        } finally {
+          completed += 1;
+          if (completed === eligible.length || completed - lastReported >= LOAD_COMMIT_BATCH_SIZE) {
+            lastReported = completed;
+            report(`Opening ${label} · ${completed} of ${eligible.length} files`, completed / eligible.length);
+          }
+        }
       }
-    }
-    return found;
+    });
+    await Promise.all(workers);
+    return items.filter((item): item is TroubadourWorkbenchItem => item !== undefined);
   }
 
   const api = {
@@ -465,83 +547,132 @@ export function createTroubadourController(
     setRememberedFolders(folders: TroubadourRememberedFolder[]) {
       setState({ rememberedFolders: folders });
     },
-    async ingestBatchTracks(tracks: TroubadourBatchTrack[], concurrency = 3) {
+    async ingestBatchTracks(
+      tracks: TroubadourBatchTrack[],
+      concurrency = 3,
+      autoGroupFallback?: TroubadourAutoGroupFallback
+    ) {
       await runLoadingJob('Opening izci files', concurrency, async (report) => {
-        const items: TroubadourWorkbenchItem[] = [];
-        for (let index = 0; index < tracks.length; index += 1) {
-          const track = tracks[index];
-          try {
-            const sourceFile = track.fileHandle ? await track.fileHandle.getFile() : track.file;
-            if (!sourceFile) continue;
-            const file = await materializeWorkbenchFile(sourceFile);
-            const parentHandle = await resolveParentHandle(track.path, track.sourceFolderId, state.rememberedFolders);
-            items.push({
-              id: track.contextId || crypto.randomUUID(),
-              contextId: track.contextId,
-              references: track.references,
-              file,
-              fileHandle: track.fileHandle ?? null,
-              parentHandle,
-              path: track.path || file.name,
-              sourceFolderId: track.sourceFolderId,
-              extension: track.extension || inferExtension(file.name),
-              kind: track.kind,
-              state: 'loading',
-              document: null,
-              patch: {},
-              artworkEdits: [],
-              albumId: null,
-              error: '',
-              jobProgress: null
-            });
-          } catch {
-            // Stale handles are represented only when a File snapshot is available.
-          } finally {
-            report(`Opening izci files · ${index + 1} of ${tracks.length}`, tracks.length ? (index + 1) / tracks.length : null);
+        const eligible = tracks.filter((track) => getMetadataCapabilities(track.extension));
+        const items = new Array<TroubadourWorkbenchItem | undefined>(eligible.length);
+        let index = 0;
+        let completed = 0;
+        let lastReported = 0;
+        const workers = Array.from({
+          length: Math.min(Math.max(1, Math.trunc(concurrency)), eligible.length)
+        }, async () => {
+          while (index < eligible.length) {
+            const currentIndex = index++;
+            const track = eligible[currentIndex];
+            try {
+              const sourceFile = track.fileHandle ? await track.fileHandle.getFile() : track.file;
+              if (!sourceFile) continue;
+              const parentHandle = await resolveParentHandle(track.path, track.sourceFolderId, state.rememberedFolders);
+              items[currentIndex] = {
+                id: track.contextId || crypto.randomUUID(),
+                contextId: track.contextId,
+                references: track.references,
+                file: sourceFile,
+                fileHandle: track.fileHandle ?? null,
+                parentHandle,
+                path: track.path || sourceFile.name,
+                sourceFolderId: track.sourceFolderId,
+                extension: track.extension || inferExtension(sourceFile.name),
+                kind: track.kind,
+                state: 'loading',
+                document: null,
+                patch: {},
+                artworkEdits: [],
+                albumId: null,
+                error: '',
+                jobProgress: null
+              };
+            } catch {
+              // Stale handles are represented only when a File snapshot is available.
+            } finally {
+              completed += 1;
+              if (completed === eligible.length || completed - lastReported >= LOAD_COMMIT_BATCH_SIZE) {
+                lastReported = completed;
+                report(`Opening izci files · ${completed} of ${eligible.length}`, completed / eligible.length);
+              }
+            }
           }
-        }
-        return items;
-      });
+        });
+        await Promise.all(workers);
+        return items.filter((item): item is TroubadourWorkbenchItem => item !== undefined);
+      }, autoGroupFallback);
     },
-    async ingestHandles(handles: FileSystemFileHandle[], concurrency = 3) {
+    async ingestHandles(
+      handles: FileSystemFileHandle[],
+      concurrency = 3,
+      autoGroupFallback?: TroubadourAutoGroupFallback
+    ) {
       await runLoadingJob('Opening files', concurrency, async (report) => {
-        const items: TroubadourWorkbenchItem[] = [];
-        for (let index = 0; index < handles.length; index += 1) {
-          const handle = handles[index];
-          items.push(await itemFromHandle(handle, handle.name, null));
-          report(`Opening files · ${index + 1} of ${handles.length}`, (index + 1) / handles.length);
-        }
-        return items;
-      });
+        return await itemsFromDiscoveredFiles(
+          handles.map((fileHandle) => ({ fileHandle, path: fileHandle.name, parentHandle: null })),
+          concurrency,
+          report,
+          'files'
+        );
+      }, autoGroupFallback);
     },
-    async ingestDirectory(handle: FileSystemDirectoryHandle, maxDepth = Number.POSITIVE_INFINITY, concurrency = 3) {
+    async ingestDirectory(
+      handle: FileSystemDirectoryHandle,
+      maxDepth = Number.POSITIVE_INFINITY,
+      concurrency = 3,
+      autoGroupFallback?: TroubadourAutoGroupFallback
+    ) {
       await runLoadingJob(`Scanning ${handle.name} · 0 files found`, concurrency, async (report) => {
         let found = 0;
-        return await walkDirectory(handle, handle.name, maxDepth, () => {
-          found += 1;
-          report(`Scanning ${handle.name} · ${found} file${found === 1 ? '' : 's'} found`);
+        let lastReported = 0;
+        const discovered = await discoverDirectoryFiles(handle, {
+          maxDepth,
+          onFileFound: () => {
+            found += 1;
+            if (found - lastReported >= LOAD_COMMIT_BATCH_SIZE) {
+              lastReported = found;
+              report(`Scanning ${handle.name} · ${found} files found`);
+            }
+          }
         });
-      });
+        report(`Scanning ${handle.name} · ${found} file${found === 1 ? '' : 's'} found`);
+        return await itemsFromDiscoveredFiles(discovered, concurrency, report, handle.name);
+      }, autoGroupFallback);
     },
-    async ingestDropped(dataTransfer: DataTransfer, maxDepth = Number.POSITIVE_INFINITY, concurrency = 3) {
+    async ingestDropped(
+      dataTransfer: DataTransfer,
+      maxDepth = Number.POSITIVE_INFINITY,
+      concurrency = 3,
+      autoGroupFallback?: TroubadourAutoGroupFallback
+    ) {
       await runLoadingJob('Scanning dropped items · 0 files found', concurrency, async (report) => {
         const items: TroubadourWorkbenchItem[] = [];
         let found = 0;
+        let lastReported = 0;
         const reportFound = () => {
           found += 1;
-          report(`Scanning dropped items · ${found} file${found === 1 ? '' : 's'} found`);
+          if (found - lastReported >= LOAD_COMMIT_BATCH_SIZE) {
+            lastReported = found;
+            report(`Scanning dropped items · ${found} files found`);
+          }
         };
         for (const transferItem of Array.from(dataTransfer.items)) {
           const handle = await transferItem.getAsFileSystemHandle?.().catch(() => null);
           if (handle?.kind === 'file') {
-            reportFound();
-            items.push(await itemFromHandle(handle as FileSystemFileHandle, handle.name, null));
+            const fileHandle = handle as FileSystemFileHandle;
+            if (getMetadataCapabilities(inferExtension(fileHandle.name))) {
+              reportFound();
+              items.push(await itemFromHandle(fileHandle, fileHandle.name, null));
+            }
           } else if (handle?.kind === 'directory') {
-            items.push(...await walkDirectory(handle as FileSystemDirectoryHandle, handle.name, maxDepth, reportFound));
+            const directory = handle as FileSystemDirectoryHandle;
+            const discovered = await discoverDirectoryFiles(directory, { maxDepth, onFileFound: reportFound });
+            items.push(...await itemsFromDiscoveredFiles(discovered, concurrency, report, 'dropped files'));
           }
         }
         if (!items.length) {
           for (const file of Array.from(dataTransfer.files)) {
+            if (!getMetadataCapabilities(inferExtension(file.name))) continue;
             reportFound();
             const extension = inferExtension(file.name);
             items.push({
@@ -551,8 +682,9 @@ export function createTroubadourController(
             });
           }
         }
+        report(`Scanning dropped items · ${found} file${found === 1 ? '' : 's'} found`);
         return items;
-      });
+      }, autoGroupFallback);
     },
     select(id: string, options: { additive?: boolean; range?: boolean } = {}) {
       const index = state.items.findIndex((item) => item.id === id);
