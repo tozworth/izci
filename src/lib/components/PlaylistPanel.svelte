@@ -850,9 +850,7 @@
   $: displaySelectionAnchorId = favoritesViewActive ? favoriteSelectionAnchorId : selectionAnchorId;
   $: displayPlayingId = favoritesViewActive ? favoritePlayingId : playingId;
   $: if (activeLibraryView !== lastActiveLibraryView) {
-    selectedGroupKey = libraryGroupRequest?.view === activeLibraryView
-      ? libraryGroupRequest.groupKey
-      : null;
+    selectedGroupKey = null;
     lastActiveLibraryView = activeLibraryView;
   }
   $: searchQuery = showSearchControl ? $libraryViewSettings.searchQuery : '';
