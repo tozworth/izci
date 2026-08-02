@@ -14,6 +14,7 @@ import {
   getSeparatedSubsongPlaylistLabel,
   getTrackDisplayTitle
 } from '$lib/utils/files';
+import { formatTrackRating, normalizeTrackRating } from '$lib/services/track-ratings';
 
 export type LibraryColumnWidths = Partial<Record<LibraryColumnId, number>>;
 
@@ -108,6 +109,8 @@ export function getColumnTextValue(item: PlaylistItem, columnId: LibraryColumnId
       return formatTrackType(item);
     case 'duration':
       return getTrackDuration(item);
+    case 'rating':
+      return formatTrackRating(item.rating);
     case 'plays':
       return getTrackPlayCount(item);
   }
@@ -117,6 +120,7 @@ export function isRightAlignedColumn(columnId: LibraryColumnId): boolean {
   return columnId === 'discAndTrack'
     || columnId === 'format'
     || columnId === 'duration'
+    || columnId === 'rating'
     || columnId === 'plays';
 }
 
@@ -298,6 +302,18 @@ function compareByColumn(
     }
 
     return direction === 'desc' ? rightPlayCount - leftPlayCount : leftPlayCount - rightPlayCount;
+  }
+
+  if (columnId === 'rating') {
+    const leftRating = normalizeTrackRating(left.rating);
+    const rightRating = normalizeTrackRating(right.rating);
+
+    if (leftRating === undefined || rightRating === undefined) {
+      if (leftRating === rightRating) return 0;
+      return leftRating === undefined ? 1 : -1;
+    }
+
+    return direction === 'desc' ? rightRating - leftRating : leftRating - rightRating;
   }
 
   const leftValue = getColumnTextValue(left, columnId).trim();

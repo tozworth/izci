@@ -9,6 +9,7 @@
   import type { LoadedStreamArtwork } from '$lib/services/stream-artwork';
   import { sessionIdlePlayerQuip, type IdlePlayerQuipId } from '$lib/services/idle-player-copy';
   import HoverTooltip from '$lib/components/HoverTooltip.svelte';
+  import RatingPicker from '$lib/components/RatingPicker.svelte';
   import { portal } from '$lib/components/playlist-panel/actions/portal';
   import { windowDismiss } from '$lib/components/playlist-panel/actions/window-dismiss';
   import {
@@ -67,6 +68,8 @@
   export let collectionsReady = true;
   export let showFavoriteToggle = false;
   export let favorite = false;
+  export let ratingsEnabled = false;
+  export let rating = 0;
   export let showRafToggle = false;
   export let rafEnabled = true;
   export let rafPresets: RafPreset[] = [];
@@ -86,6 +89,7 @@
     volume: number;
     mute: void;
     toggleFavorite: void;
+    rate: number | undefined;
     toggleRaf: void;
     applyRafPreset: string;
     openRafOptions: void;
@@ -101,6 +105,9 @@
   const SEEK_WHEEL_STEP_SECONDS = 5;
 
   let playerBarElement: HTMLElement | null = null;
+  let favoriteToggleElement: HTMLButtonElement | null = null;
+  let ratingPickerX = 0;
+  let ratingPickerY = 0;
   let playerBarResizeObserver: ResizeObserver | null = null;
   let playerBarReserveFrame: number | null = null;
   let viewportUsesCompactVolume = false;
@@ -134,6 +141,13 @@
 
   function clamp(value: number, min: number, max: number): number {
     return Math.min(Math.max(value, min), max);
+  }
+
+  function positionRatingPicker() {
+    if (!favoriteToggleElement || typeof window === 'undefined') return;
+    const bounds = favoriteToggleElement.getBoundingClientRect();
+    ratingPickerX = clamp(bounds.left + bounds.width / 2, 58, window.innerWidth - 58);
+    ratingPickerY = bounds.top;
   }
 
   function handleSeekWheel(event: WheelEvent) {
@@ -606,26 +620,46 @@
         </button>
       {/if}
       {#if presentation !== 'now-playing' && showFavoriteToggle}
-        <button
-          type="button"
-          class="favorite-toggle hover-tooltip-anchor"
-          class:active={favorite}
-          aria-label={favorite
-            ? $t('main.player.removeFromFavorites', { default: 'Remove from favorites' })
-            : $t('main.player.addToFavorites', { default: 'Add to favorites' })}
-          aria-pressed={favorite}
-          disabled={!track}
-          on:click={() => dispatch('toggleFavorite')}
-        >
-          <span class="material-symbols-outlined" aria-hidden="true">
-            {favorite ? 'favorite' : 'favorite_border'}
-          </span>
-          <HoverTooltip placement="above" align="center" nowrap>
-            {favorite
+        <div class="favorite-rating-control">
+          <button
+            bind:this={favoriteToggleElement}
+            type="button"
+            class="favorite-toggle hover-tooltip-anchor"
+            class:active={favorite}
+            aria-label={favorite
               ? $t('main.player.removeFromFavorites', { default: 'Remove from favorites' })
               : $t('main.player.addToFavorites', { default: 'Add to favorites' })}
-          </HoverTooltip>
-        </button>
+            aria-pressed={favorite}
+            disabled={!track}
+            on:mouseenter={positionRatingPicker}
+            on:focus={positionRatingPicker}
+            on:click={() => dispatch('toggleFavorite')}
+          >
+            <span class="material-symbols-outlined" aria-hidden="true">
+              {favorite ? 'favorite' : 'favorite_border'}
+            </span>
+            {#if !ratingsEnabled}
+              <HoverTooltip placement="above" align="center" nowrap>
+                {favorite
+                  ? $t('main.player.removeFromFavorites', { default: 'Remove from favorites' })
+                  : $t('main.player.addToFavorites', { default: 'Add to favorites' })}
+              </HoverTooltip>
+            {/if}
+          </button>
+          {#if ratingsEnabled && track}
+            <div
+              class="player-rating-picker"
+              use:portal
+              style={`--rating-picker-x: ${ratingPickerX}px; --rating-picker-y: ${ratingPickerY}px;`}
+            >
+              <RatingPicker
+                {rating}
+                compact={presentation === 'theater'}
+                on:change={(event) => dispatch('rate', event.detail)}
+              />
+            </div>
+          {/if}
+        </div>
       {/if}
     </div>
 

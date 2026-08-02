@@ -24,6 +24,11 @@
       showFavoriteToggleInPlayerBar: (event.currentTarget as HTMLInputElement).checked
     });
   }
+  function handleRatingsToggle(event: Event) {
+    trackSettings.update({
+      enableRatings: (event.currentTarget as HTMLInputElement).checked
+    });
+  }
 </script>
 
 <article class="view">
@@ -95,6 +100,23 @@
           type="checkbox"
           checked={$trackSettings.showFavoriteToggleInPlayerBar}
           on:change={handleFavoriteToggleVisibility}
+        />
+      </SettingsField>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>{$t('options.tracks.ratings.heading', { default: 'Ratings' })}</h2>
+    <div class="field-grid">
+      <SettingsField
+        title={$t('options.tracks.ratings.title', { default: 'Enable track ratings' })}
+        hint={$t('options.tracks.ratings.hint', { default: 'Show half-star rating controls and the Rating library column. Turning this off hides ratings without deleting them.' })}
+        checkbox
+      >
+        <input
+          type="checkbox"
+          checked={$trackSettings.enableRatings}
+          on:change={handleRatingsToggle}
         />
       </SettingsField>
     </div>

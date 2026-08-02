@@ -17,6 +17,7 @@
   import { prepareImportedFiles } from '$lib/services/file-verification';
   import { createAlbumArtworkController } from '$lib/services/album-artwork';
   import { trackSettings } from '$lib/stores/track-settings';
+  import { normalizeTrackRating } from '$lib/services/track-ratings';
   import { extractDroppedContent } from '$lib/utils/files';
   import PlaylistPanelHeader from '$lib/components/playlist-panel/PlaylistPanelHeader.svelte';
   import LibraryPanelHeader from '$lib/components/playlist-panel/LibraryPanelHeader.svelte';
@@ -167,6 +168,7 @@
       case 'folder': return $t('playlist.library.columns.folder', { default: 'Folder' });
       case 'format': return $t('playlist.library.columns.format', { default: 'Format' });
       case 'duration': return $t('playlist.library.columns.duration', { default: 'Duration' });
+      case 'rating': return $t('playlist.library.columns.rating', { default: 'Rating' });
       case 'plays': return $t('playlist.library.columns.plays', { default: 'Plays' });
       default: return fallback;
     }
@@ -594,6 +596,8 @@
       case 'toggle-favorite': return action.icon === 'heart_minus'
         ? $t('playlist.actions.removeFromFavorites', { default: 'Remove from favorites' })
         : $t('playlist.actions.addToFavorites', { default: 'Add to favorites' });
+      case 'rate': return $t('playlist.actions.rate', { default: 'Rate' });
+      case 'rate:clear': return $t('playlist.actions.clearRating', { default: 'Clear rating' });
       case 'separate-subsongs': return $t('playlist.actions.separateSubsongs', { default: 'Separate subsongs' });
       case 'add-to-playlist': return $t('playlist.actions.addToPlaylist', { default: 'Add to playlist' });
       case 'replace-playlist': return $t('playlist.actions.replacePlaylist', { default: 'Replace playlist' });
@@ -843,9 +847,18 @@
     }
   }
 
-  $: activeLibraryView = libraryMode ? $libraryViewSettings.activeView : 'songs';
+  $: activeLibraryView = libraryMode
+    ? !$trackSettings.enableRatings && $libraryViewSettings.activeView === 'ratings'
+      ? 'songs'
+      : $libraryViewSettings.activeView
+    : 'songs';
   $: favoritesViewActive = libraryMode && activeLibraryView === 'favorites';
-  $: displaySourceItems = favoritesViewActive ? favoriteItems : items;
+  $: ratingsViewActive = libraryMode && activeLibraryView === 'ratings';
+  $: displaySourceItems = favoritesViewActive
+    ? favoriteItems
+    : ratingsViewActive
+      ? items.filter((item) => normalizeTrackRating(item.rating) !== undefined)
+      : items;
   $: displaySelectedIds = favoritesViewActive ? favoriteSelectedIds : selectedIds;
   $: displaySelectionAnchorId = favoritesViewActive ? favoriteSelectionAnchorId : selectionAnchorId;
   $: displayPlayingId = favoritesViewActive ? favoritePlayingId : playingId;
@@ -859,9 +872,15 @@
   $: activeLibraryTableSettings = $libraryViewSettings.views[activeLibraryView];
   $: orderedColumns = layout === 'columns'
     ? getOrderedColumns(activeLibraryTableSettings.order, activeLibraryTableSettings.columns)
+        .filter((column) => $trackSettings.enableRatings || column.id !== 'rating')
         .map((column) => ({ ...column, label: getColumnLabel(column.id, column.label) }))
+        .map((column, _index, columns) =>
+          columns.some((candidate) => candidate.visible)
+            ? column
+            : { ...column, visible: column.id === 'title' }
+        )
     : [];
-  $: groupView = activeLibraryView === 'songs' || activeLibraryView === 'favorites'
+  $: groupView = activeLibraryView === 'songs' || activeLibraryView === 'favorites' || activeLibraryView === 'ratings'
     ? null
     : activeLibraryView as LibraryGroupViewId;
   $: libraryGroups = groupView
@@ -901,8 +920,8 @@
     previousSelectedAlbumArtworkUrl = selectedAlbumArtworkUrl;
     bypassAlbumBackdropTransitions();
   }
-  $: showTrackRows = !libraryMode || activeLibraryView === 'songs' || activeLibraryView === 'favorites' || Boolean(selectedLibraryGroup);
-  $: unfilteredDisplayItems = libraryMode && activeLibraryView !== 'songs' && activeLibraryView !== 'favorites'
+  $: showTrackRows = !libraryMode || activeLibraryView === 'songs' || activeLibraryView === 'favorites' || activeLibraryView === 'ratings' || Boolean(selectedLibraryGroup);
+  $: unfilteredDisplayItems = libraryMode && activeLibraryView !== 'songs' && activeLibraryView !== 'favorites' && activeLibraryView !== 'ratings'
     ? selectedLibraryGroup?.items ?? []
     : displaySourceItems;
   $: filteredItems = selectedLibraryGroup
@@ -981,7 +1000,9 @@
     dropzoneWidth < 280 &&
     !$appearanceSettings.keepLibraryColumnsVisibleInNarrowLayout;
   $: hideTrackFormat = layout === 'list' && dropzoneWidth > 0 && dropzoneWidth < 280;
-  $: activeSort = activeLibraryTableSettings.sort;
+  $: activeSort = !$trackSettings.enableRatings && activeLibraryTableSettings.sort.columnId === 'rating'
+    ? { columnId: 'title' as const, direction: activeLibraryTableSettings.sort.direction }
+    : activeLibraryTableSettings.sort;
   $: tableInnerWidth = Math.max(0, dropzoneWidth - TABLE_SIDE_PADDING);
   $: availableColumnWidth = Math.max(0, tableInnerWidth - Math.max(0, visibleColumnCount - 1) * COLUMN_GAP);
   $: resolvedColumnWidths =
@@ -1068,6 +1089,7 @@
         <LibraryPanelHeader
           bind:searchInputElement={searchInputElement}
           activeView={activeLibraryView}
+          ratingsEnabled={$trackSettings.enableRatings}
           summary={librarySummary}
           tooltipDetails={libraryTooltipDetails}
           groupLabel={selectedLibraryGroup?.label ?? ''}
@@ -1168,6 +1190,10 @@
       {:else if favoritesViewActive && favoriteItems.length === 0}
         <div class="empty-state playlist-filter-empty favorites-empty-note">
           <p>{$t('playlist.library.favoritesEmpty', { default: 'Favorite tracks and subsongs will appear here.' })}</p>
+        </div>
+      {:else if ratingsViewActive && displaySourceItems.length === 0}
+        <div class="empty-state playlist-filter-empty favorites-empty-note">
+          <p>{$t('playlist.library.ratingsEmpty', { default: 'Rated tracks will appear here.' })}</p>
         </div>
       {:else if libraryMode && items.length === 0}
         <div class="empty-state playlist-filter-empty">

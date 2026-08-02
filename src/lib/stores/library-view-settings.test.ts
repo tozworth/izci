@@ -9,10 +9,11 @@ describe('library view settings', () => {
   it('provides context-aware column defaults for grouped views', () => {
     const views = libraryViewSettings.getSnapshot().views;
 
-    for (const view of Object.values(views)) {
+    for (const [viewId, view] of Object.entries(views)) {
       expect(view.columns.folder.visible).toBe(false);
-      expect(view.columns.format.visible).toBe(false);
+      expect(view.columns.format.visible).toBe(viewId === 'ratings');
       expect(view.columns.discAndTrack.visible).toBe(false);
+      expect(view.columns.rating.visible).toBe(viewId === 'ratings');
     }
 
     expect(views.songs.columns.artist.visible).toBe(true);
@@ -20,17 +21,23 @@ describe('library view settings', () => {
     expect(views.artists.columns.artist.visible).toBe(false);
     expect(views.artists.columns.album.visible).toBe(true);
     expect(views.albums.columns.album.visible).toBe(false);
+    expect(views.ratings.order.slice(0, 5)).toEqual(['rating', 'title', 'artist', 'format', 'duration']);
+    expect(views.ratings.sort).toEqual({ columnId: 'rating', direction: 'desc' });
+    expect(views.ratings.order.filter((id) => views.ratings.columns[id].visible))
+      .toEqual(['rating', 'title', 'artist', 'format', 'duration']);
   });
 
   it('allows optional columns to be restored per view', () => {
     libraryViewSettings.setColumnVisibility('folder', true);
     libraryViewSettings.setColumnVisibility('format', true);
     libraryViewSettings.setColumnVisibility('discAndTrack', true);
+    libraryViewSettings.setColumnVisibility('rating', true);
 
     const songs = libraryViewSettings.getSnapshot().views.songs;
     expect(songs.columns.folder.visible).toBe(true);
     expect(songs.columns.format.visible).toBe(true);
     expect(songs.columns.discAndTrack.visible).toBe(true);
+    expect(songs.columns.rating.visible).toBe(true);
   });
 
   it('keeps column visibility, widths, order, and sorting independent per view', () => {

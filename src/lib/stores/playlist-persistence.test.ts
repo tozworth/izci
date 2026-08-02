@@ -63,6 +63,13 @@ describe('playlist persistence helpers', () => {
     expect(normalizeStoredItem({ ...serializeItem(moduleItem), subsong: -1 })).not.toHaveProperty('subsong');
   });
 
+  it('round-trips normalized half-star ratings', () => {
+    const ratedItem = item({ fileHandle, rating: 3.6 });
+
+    expect(serializeItem(ratedItem)).toMatchObject({ rating: 3.5 });
+    expect(normalizeStoredItem(serializeItem(ratedItem))).toMatchObject({ rating: 3.5 });
+  });
+
   it('round-trips handle-backed video items', () => {
     const videoItem = item({
       name: 'Clip.webm',

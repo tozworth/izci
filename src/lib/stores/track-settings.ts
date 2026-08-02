@@ -12,7 +12,8 @@ export const DEFAULT_TRACK_SETTINGS: TrackSettings = {
   verifyAddedFiles: false,
   deduplicatePlaylist: true,
   associatedFileAction: 'replace',
-  showFavoriteToggleInPlayerBar: false
+  showFavoriteToggleInPlayerBar: false,
+  enableRatings: true
 };
 
 export function normalizeFolderNestingLimit(value: unknown): number {
@@ -53,7 +54,11 @@ export function normalizeTrackSettings(value: unknown): TrackSettings {
     showFavoriteToggleInPlayerBar:
       typeof source.showFavoriteToggleInPlayerBar === 'boolean'
         ? source.showFavoriteToggleInPlayerBar
-        : DEFAULT_TRACK_SETTINGS.showFavoriteToggleInPlayerBar
+        : DEFAULT_TRACK_SETTINGS.showFavoriteToggleInPlayerBar,
+    enableRatings:
+      typeof source.enableRatings === 'boolean'
+        ? source.enableRatings
+        : DEFAULT_TRACK_SETTINGS.enableRatings
   };
 }
 

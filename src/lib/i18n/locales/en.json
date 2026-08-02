@@ -110,7 +110,9 @@
       "powerOnRafWithPresetHint": "Power on Raf · Right-click for presets",
       "rafPresets": "Raf presets",
       "noRafPresets": "No Raf presets",
-      "openRaf": "Open Raf"
+      "openRaf": "Open Raf",
+      "rateTrack": "Rate track",
+      "setRating": "Set rating to {rating} stars"
     },
     "patterns": {
       "modulePatterns": "Module patterns",
@@ -185,6 +187,7 @@
         "folder": "Folder",
         "format": "Format",
         "duration": "Duration",
+        "rating": "Rating",
         "plays": "Plays"
       },
       "openGroup": "Open {group}",
@@ -195,6 +198,7 @@
       "groupSongCount": "{count, plural, one {# song} other {# songs}}",
       "views": {
         "favorites": "Favorites",
+        "ratings": "Ratings",
         "songs": "Songs",
         "artists": "Artists",
         "albums": "Albums",
@@ -237,6 +241,7 @@
       "pinToTop": "Pin to top",
       "noResults": "No library results match \"{query}\".",
       "favoritesEmpty": "Favorite tracks and subsongs will appear here.",
+      "ratingsEmpty": "Rated tracks will appear here.",
       "empty": "Your library is empty. Add files or drop a folder here."
     },
     "addFiles": "Add files",
@@ -259,6 +264,8 @@
       "addToLibrary": "Add to library",
       "removeFromFavorites": "Remove from favorites",
       "addToFavorites": "Add to favorites",
+      "rate": "Rate",
+      "clearRating": "Clear rating",
       "separateSubsongs": "Separate subsongs",
       "addToPlaylist": "Add to playlist",
       "replacePlaylist": "Replace playlist",
@@ -1039,6 +1046,11 @@
       "favoriteToggle": {
         "title": "Show favorite toggle",
         "hint": "Show a heart button after the transport controls for adding or removing the current track or module subsong from Favorites."
+      },
+      "ratings": {
+        "heading": "Ratings",
+        "title": "Enable track ratings",
+        "hint": "Show half-star rating controls and the Rating library column. Turning this off hides ratings without deleting them."
       }
     },
     "video": {

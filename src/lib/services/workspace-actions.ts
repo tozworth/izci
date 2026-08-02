@@ -6,6 +6,7 @@ import {
   type TrackLibraryNavigationTarget
 } from '$lib/services/library-navigation';
 import { getFavoriteIdentity, getTrackIdentity } from '$lib/utils/files';
+import { buildTrackRatingAction } from '$lib/services/track-ratings';
 
 const GO_TO_LIBRARY_ACTION_PREFIX = 'go-to-library-';
 
@@ -135,7 +136,8 @@ export function buildPlaylistContextActions(
   playlistItems: PlaylistItem[],
   libraryItems: PlaylistItem[],
   ids: string[],
-  favoriteItems: PlaylistItem[] = []
+  favoriteItems: PlaylistItem[] = [],
+  ratingsEnabled = true
 ): MenuActionItem[] {
   const tracks = buildSelectedWorkspaceTracks(playlistItems, ids);
   const inLibrary = libraryHasAllTracks(libraryItems, tracks);
@@ -161,6 +163,7 @@ export function buildPlaylistContextActions(
       icon: inLibrary ? 'remove_circle' : 'library_add'
     },
     buildFavoriteToggleAction(favoriteItems, tracks),
+    ...(ratingsEnabled && tracks.length > 0 ? [buildTrackRatingAction(tracks)] : []),
     ...(canSeparateSubsongs
       ? [{
           id: 'separate-subsongs',
@@ -181,7 +184,8 @@ export function buildPlaylistContextActions(
 export function buildLibraryContextActions(
   libraryItems: PlaylistItem[] = [],
   favoriteItems: PlaylistItem[] = [],
-  ids: string[] = []
+  ids: string[] = [],
+  ratingsEnabled = true
 ): MenuActionItem[] {
   const tracks = buildSelectedWorkspaceTracks(libraryItems, ids);
   const goToLibrary = tracks.length === 1
@@ -206,6 +210,7 @@ export function buildLibraryContextActions(
       icon: 'info'
     },
     buildFavoriteToggleAction(favoriteItems, tracks),
+    ...(ratingsEnabled && tracks.length > 0 ? [buildTrackRatingAction(tracks)] : []),
     {
       id: 'reset-play-count',
       label: 'Reset play count',
@@ -224,7 +229,8 @@ export function buildLibraryContextActions(
 export function buildFavoritesContextActions(
   favoriteItems: PlaylistItem[] = [],
   libraryItems: PlaylistItem[] = [],
-  ids: string[] = []
+  ids: string[] = [],
+  ratingsEnabled = true
 ): MenuActionItem[] {
   const tracks = buildSelectedWorkspaceTracks(favoriteItems, ids);
   const goToLibrary = tracks.length === 1
@@ -248,6 +254,7 @@ export function buildFavoritesContextActions(
       label: 'Track details',
       icon: 'info'
     },
+    ...(ratingsEnabled && tracks.length > 0 ? [buildTrackRatingAction(tracks)] : []),
     {
       id: 'remove-favorite',
       label: 'Remove from favorites',

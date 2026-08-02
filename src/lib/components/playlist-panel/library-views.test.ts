@@ -9,7 +9,7 @@ import {
   orderLibraryGroups
 } from './library-views';
 
-function track(id: string, metadata: PlaylistItem['metadata'], path?: string): PlaylistItem {
+function track(id: string, metadata: PlaylistItem['metadata'], path?: string, rating?: number): PlaylistItem {
   return {
     id,
     name: `${id}.flac`,
@@ -18,7 +18,8 @@ function track(id: string, metadata: PlaylistItem['metadata'], path?: string): P
     size: 0,
     lastModified: 0,
     path,
-    metadata
+    metadata,
+    rating
   };
 }
 
@@ -69,12 +70,13 @@ describe('library view projections', () => {
 
   it('builds count details for every root view regardless of the active tab', () => {
     const details = getLibraryViewTooltipDetails([
-      { ...tracks[0], metadata: { ...tracks[0].metadata, duration: 60 } },
+      { ...tracks[0], metadata: { ...tracks[0].metadata, duration: 60 }, rating: 4.5 },
       { ...tracks[1], metadata: { ...tracks[1].metadata, duration: 90 } },
       tracks[2]
     ], [tracks[0]], '');
 
     expect(details.favorites).toBe('1');
+    expect(details.ratings).toBe('1 · 01:00');
     expect(details.songs).toBe('3 · 02:30');
     expect(details.artists).toBe('2');
     expect(details.albums).toBe('3');

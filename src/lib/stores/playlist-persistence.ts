@@ -1,4 +1,5 @@
 import type { PlaylistItem, PlaylistPlaybackOptions, PlaylistRepeatMode, PlaylistSelection } from '$lib/types';
+import { normalizeTrackRating } from '$lib/services/track-ratings';
 
 export interface StoredPlaylistItem {
   id: string;
@@ -11,6 +12,7 @@ export interface StoredPlaylistItem {
   path?: string;
   sourceFolderId?: string;
   metadata?: PlaylistItem['metadata'];
+  rating?: number;
   subsong?: number;
 }
 
@@ -48,6 +50,7 @@ export function normalizeStoredItem(value: unknown): StoredPlaylistItem | null {
     typeof source.subsong === 'number' && Number.isFinite(source.subsong) && source.subsong >= 0
       ? Math.trunc(source.subsong)
       : undefined;
+  const rating = normalizeTrackRating(source.rating);
 
   if (
     typeof source.id !== 'string' ||
@@ -70,6 +73,7 @@ export function normalizeStoredItem(value: unknown): StoredPlaylistItem | null {
     path: typeof source.path === 'string' ? source.path : undefined,
     sourceFolderId: typeof source.sourceFolderId === 'string' ? source.sourceFolderId : undefined,
     metadata: source.metadata,
+    ...(rating !== undefined ? { rating } : {}),
     ...(subsong !== undefined ? { subsong } : {})
   };
 }
@@ -78,6 +82,8 @@ export function serializeItem(item: PlaylistItem): StoredPlaylistItem | null {
   if (!item.fileHandle) {
     return null;
   }
+
+  const rating = normalizeTrackRating(item.rating);
 
   return {
     id: item.id,
@@ -90,6 +96,7 @@ export function serializeItem(item: PlaylistItem): StoredPlaylistItem | null {
     path: item.path,
     sourceFolderId: item.sourceFolderId,
     metadata: item.metadata,
+    ...(rating !== undefined ? { rating } : {}),
     ...(item.subsong !== undefined ? { subsong: item.subsong } : {})
   };
 }

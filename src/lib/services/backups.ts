@@ -16,6 +16,7 @@ import { favoritesStore, libraryStore } from '$lib/stores/playlist';
 import { normalizeStoredItem } from '$lib/stores/playlist-persistence';
 import { trackSettings } from '$lib/stores/track-settings';
 import type { PlaylistItem, TrackMetadata } from '$lib/types';
+import { normalizeTrackRating } from '$lib/services/track-ratings';
 import {
   buildPlaylistItems,
   getFavoriteIdentity,
@@ -80,6 +81,7 @@ export interface PortableTrackRecord {
   path?: string;
   sourceFolderId?: string;
   metadata?: TrackMetadata;
+  rating?: number;
   subsong?: number;
 }
 
@@ -142,6 +144,7 @@ function portableTrack(item: PlaylistItem): PortableTrackRecord {
     path: item.path,
     sourceFolderId: item.sourceFolderId,
     metadata: item.metadata,
+    rating: normalizeTrackRating(item.rating),
     ...(item.subsong !== undefined ? { subsong: item.subsong } : {})
   };
 }
@@ -482,6 +485,10 @@ function mergeMetadata(current: TrackMetadata | undefined, restored: TrackMetada
   };
 }
 
+function mergeRating(current: number | undefined, restored: number | undefined): number | undefined {
+  return normalizeTrackRating(restored) ?? normalizeTrackRating(current);
+}
+
 function matchExistingTracks(records: PortableTrackRecord[]): {
   matched: number;
   pending: PortableTrackRecord[];
@@ -497,6 +504,7 @@ function matchExistingTracks(records: PortableTrackRecord[]): {
       continue;
     }
     libraryStore.updateMetadata(existing.id, mergeMetadata(existing.metadata, record.metadata));
+    libraryStore.updateRating(existing.id, mergeRating(existing.rating, record.rating));
     matched += 1;
   }
   return { matched, pending };
@@ -520,8 +528,14 @@ function restoreFavorites(records: PortableTrackRecord[]): {
     const existing = favoriteByIdentity.get(identity);
     if (existing) {
       favoritesStore.updateMetadata(existing.id, mergeMetadata(existing.metadata, record.metadata));
+      favoritesStore.updateRating(existing.id, mergeRating(existing.rating, record.rating));
     } else {
-      favoritesStore.add([{ ...libraryItem, id: record.id, metadata: mergeMetadata(libraryItem.metadata, record.metadata) }]);
+      favoritesStore.add([{
+        ...libraryItem,
+        id: record.id,
+        metadata: mergeMetadata(libraryItem.metadata, record.metadata),
+        rating: mergeRating(libraryItem.rating, record.rating)
+      }]);
     }
     restored += 1;
   }
@@ -611,7 +625,8 @@ export async function locatePendingFolder(
       ...item,
       id: restored?.id ?? item.id,
       sourceFolderId: remembered.id,
-      metadata: mergeMetadata(item.metadata, restored?.metadata)
+      metadata: mergeMetadata(item.metadata, restored?.metadata),
+      rating: mergeRating(item.rating, restored?.rating)
     };
   });
   if (descriptor.libraryMode) {
@@ -642,7 +657,12 @@ export async function locatePendingFolder(
     const key = folderTrackKey(favorite, descriptor.name);
     const materializedItem = libraryByFolderKey.get(key) ?? discoveredByFolderKey.get(key);
     if (!materializedItem) continue;
-    favoritesStore.add([{ ...materializedItem, id: favorite.id, metadata: mergeMetadata(materializedItem.metadata, favorite.metadata) }]);
+    favoritesStore.add([{
+      ...materializedItem,
+      id: favorite.id,
+      metadata: mergeMetadata(materializedItem.metadata, favorite.metadata),
+      rating: mergeRating(materializedItem.rating, favorite.rating)
+    }]);
   }
 
   await pendingBackupRestore.update((state) => {
@@ -687,7 +707,12 @@ export async function locatePendingFiles(handles: FileSystemFileHandle[]): Promi
     const restored = expectedByIdentity.get(getTrackIdentity(item)) ?? expectedByFingerprint.get(trackFingerprint(item));
     if (!restored) continue;
     restoredIds.add(restored.id);
-    added.push({ ...item, id: restored.id, metadata: mergeMetadata(item.metadata, restored.metadata) });
+    added.push({
+      ...item,
+      id: restored.id,
+      metadata: mergeMetadata(item.metadata, restored.metadata),
+      rating: mergeRating(item.rating, restored.rating)
+    });
   }
   libraryStore.add(added);
 
@@ -697,7 +722,12 @@ export async function locatePendingFiles(handles: FileSystemFileHandle[]): Promi
   for (const favorite of pending.favorites.filter((track) => !track.sourceFolderId)) {
     const materializedItem = selectedByIdentity.get(getFavoriteIdentity(favorite)) ?? selectedByFingerprint.get(trackFingerprint(favorite));
     if (!materializedItem) continue;
-    favoritesStore.add([{ ...materializedItem, id: favorite.id, metadata: mergeMetadata(materializedItem.metadata, favorite.metadata) }]);
+    favoritesStore.add([{
+      ...materializedItem,
+      id: favorite.id,
+      metadata: mergeMetadata(materializedItem.metadata, favorite.metadata),
+      rating: mergeRating(materializedItem.rating, favorite.rating)
+    }]);
     restoredFavoriteIds.add(favorite.id);
   }
   await pendingBackupRestore.update((state) => ({

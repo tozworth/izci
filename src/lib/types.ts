@@ -87,9 +87,10 @@ export type LibraryColumnId =
   | 'folder'
   | 'format'
   | 'duration'
+  | 'rating'
   | 'plays';
-export type LibraryViewId = 'favorites' | 'songs' | 'artists' | 'albums' | 'genres' | 'years' | 'formats' | 'folders';
-export type LibraryGroupViewId = Exclude<LibraryViewId, 'favorites' | 'songs'>;
+export type LibraryViewId = 'favorites' | 'ratings' | 'songs' | 'artists' | 'albums' | 'genres' | 'years' | 'formats' | 'folders';
+export type LibraryGroupViewId = Exclude<LibraryViewId, 'favorites' | 'ratings' | 'songs'>;
 export type ColorTheme =
   | 'pale'
   | 'lights-out'
@@ -325,6 +326,7 @@ export interface TrackSettings {
   deduplicatePlaylist: boolean;
   associatedFileAction: 'add' | 'replace';
   showFavoriteToggleInPlayerBar: boolean;
+  enableRatings: boolean;
 }
 
 export interface LyricsSettings {
@@ -474,6 +476,8 @@ export interface PlaylistItem {
   lastModified: number;
   objectUrl?: string;
   metadata?: TrackMetadata;
+  /** App-owned half-star rating from 0.5 through 5. */
+  rating?: number;
   /** Zero-based module subsong selected by a separated playlist entry. */
   subsong?: number;
 }
@@ -501,6 +505,10 @@ export interface MenuActionItem {
   separatorBefore?: boolean;
   attention?: boolean;
   children?: MenuActionItem[];
+  ratingPicker?: {
+    value: number;
+    actionPrefix: string;
+  };
 }
 
 export interface WindowMenuGroup {

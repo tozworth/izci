@@ -316,6 +316,36 @@
   flex-wrap: nowrap;
 }
 
+.favorite-rating-control {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.player-rating-picker {
+  position: fixed;
+  left: var(--rating-picker-x);
+  top: var(--rating-picker-y);
+  z-index: 70;
+  padding-bottom: 0.22rem;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: translate(-50%, calc(-100% + 0.18rem));
+  transition: opacity 90ms ease, transform 90ms ease, visibility 0s linear 90ms;
+}
+
+body:has(.favorite-rating-control:hover) .player-rating-picker,
+body:has(.favorite-rating-control:focus-within) .player-rating-picker,
+.player-rating-picker:hover,
+.player-rating-picker:focus-within {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+  transform: translate(-50%, -100%);
+  transition-delay: 0s;
+}
+
 .player-control-strip {
   display: contents;
 }
@@ -596,4 +626,3 @@
   --player-range-thumb: color-mix(in srgb, var(--muted) 82%, transparent);
   --player-range-border: color-mix(in srgb, var(--muted) 40%, transparent);
 }
-

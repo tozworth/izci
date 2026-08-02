@@ -5,6 +5,7 @@
   import type { MenuActionItem } from '$lib/types';
   import { portal } from '$lib/components/playlist-panel/actions/portal';
   import { windowDismiss } from '$lib/components/playlist-panel/actions/window-dismiss';
+  import RatingMenuSurface from '$lib/components/RatingMenuSurface.svelte';
 
   export let items: MenuActionItem[] = [];
   export let x = 0;
@@ -17,6 +18,7 @@
   type MenuLevel = {
     label: string;
     items: MenuActionItem[];
+    ratingPicker?: MenuActionItem['ratingPicker'];
   };
 
   const dispatch = createEventDispatcher<{
@@ -34,10 +36,15 @@
 
   $: currentLevel = navigationStack[navigationStack.length - 1] ?? null;
   $: displayedItems = currentLevel?.items ?? items;
+  $: displayedRatingPicker = currentLevel?.ratingPicker;
   $: resolvedAriaLabel = currentLevel?.label
     ?? ariaLabel
     ?? $t('main.menu.genericMenu', { default: 'Menu' });
   $: canShowHoverSubmenus = nested || !shouldUseSubmenuDrilldown;
+
+  function hasSubmenu(item: MenuActionItem): boolean {
+    return Boolean(item.children?.length || item.ratingPicker);
+  }
 
   function closeSubmenu() {
     activeSubmenuId = null;
@@ -48,15 +55,19 @@
       return;
     }
 
-    activeSubmenuId = item.children?.length ? item.id : null;
+    activeSubmenuId = hasSubmenu(item) ? item.id : null;
   }
 
   function enterSubmenu(item: MenuActionItem) {
-    if (!item.children?.length) {
+    if (!hasSubmenu(item)) {
       return;
     }
 
-    navigationStack = [...navigationStack, { label: item.label, items: item.children }];
+    navigationStack = [...navigationStack, {
+      label: item.label,
+      items: item.children ?? [],
+      ratingPicker: item.ratingPicker
+    }];
     activeSubmenuId = null;
   }
 
@@ -70,7 +81,7 @@
       return;
     }
 
-    if (item.children?.length) {
+    if (hasSubmenu(item)) {
       if (canShowHoverSubmenus) {
         activeSubmenuId = activeSubmenuId === item.id ? null : item.id;
         return;
@@ -121,7 +132,7 @@
       return;
     }
 
-    const hasChildMenus = items.some((item) => (item.children?.length ?? 0) > 0);
+    const hasChildMenus = items.some(hasSubmenu);
     const minimumSubmenuWidth = 208;
     shouldUseSubmenuDrilldown =
       hasChildMenus && resolvedX + menuElement.offsetWidth + minimumSubmenuWidth + padding > window.innerWidth;
@@ -173,10 +184,10 @@
           aria-checked={item.checked}
           disabled={item.disabled}
           class:submenu-open={activeSubmenuId === item.id}
-          class:menu-item-parent={item.children?.length}
+          class:menu-item-parent={hasSubmenu(item)}
           class:menu-item-attention={item.attention}
-          aria-haspopup={item.children?.length ? 'menu' : undefined}
-          aria-expanded={item.children?.length ? activeSubmenuId === item.id : undefined}
+          aria-haspopup={hasSubmenu(item) ? 'menu' : undefined}
+          aria-expanded={hasSubmenu(item) ? activeSubmenuId === item.id : undefined}
           on:pointerup={(event) => handleItemPointerUp(event, item)}
           on:click={() => handleItemClick(item)}
         >
@@ -190,7 +201,7 @@
             <span class="menu-item-label">{item.label}</span>
             {#if item.description}<span class="menu-item-description">{item.description}</span>{/if}
           </span>
-          {#if item.children?.length}
+          {#if hasSubmenu(item)}
             <span class="material-symbols-outlined menu-item-chevron" aria-hidden="true">chevron_right</span>
           {:else if item.shortcut}
             <span class="menu-item-shortcut" aria-hidden="true">{item.shortcut}</span>
@@ -203,6 +214,14 @@
             items={item.children}
             ariaLabel={item.label}
             activateOnPointerUpPointerId={activateOnPointerUpPointerId}
+            on:action={(event) => dispatch('action', event.detail)}
+            on:dismiss={() => dispatch('dismiss')}
+          />
+        {:else if item.ratingPicker && activeSubmenuId === item.id}
+          <RatingMenuSurface
+            value={item.ratingPicker.value}
+            actionPrefix={item.ratingPicker.actionPrefix}
+            ariaLabel={item.label}
             on:action={(event) => dispatch('action', event.detail)}
             on:dismiss={() => dispatch('dismiss')}
           />
@@ -229,6 +248,17 @@
       <div class="menu-separator" role="separator" aria-hidden="true"></div>
     {/if}
 
+    {#if displayedRatingPicker}
+      <RatingMenuSurface
+        nested={false}
+        value={displayedRatingPicker.value}
+        actionPrefix={displayedRatingPicker.actionPrefix}
+        ariaLabel={resolvedAriaLabel}
+        on:action={(event) => dispatch('action', event.detail)}
+        on:dismiss={() => dispatch('dismiss')}
+      />
+    {/if}
+
     {#each displayedItems as item (item.id)}
       {#if item.separatorBefore}
         <div class="menu-separator" role="separator" aria-hidden="true"></div>
@@ -241,11 +271,11 @@
           aria-checked={item.checked}
           disabled={item.disabled}
           class:submenu-open={activeSubmenuId === item.id}
-          class:menu-item-parent={item.children?.length}
-          class:menu-item-drilldown={shouldUseSubmenuDrilldown && item.children?.length}
+          class:menu-item-parent={hasSubmenu(item)}
+          class:menu-item-drilldown={shouldUseSubmenuDrilldown && hasSubmenu(item)}
           class:menu-item-attention={item.attention}
-          aria-haspopup={item.children?.length ? 'menu' : undefined}
-          aria-expanded={item.children?.length ? activeSubmenuId === item.id : undefined}
+          aria-haspopup={hasSubmenu(item) ? 'menu' : undefined}
+          aria-expanded={hasSubmenu(item) ? activeSubmenuId === item.id : undefined}
           on:pointerup={(event) => handleItemPointerUp(event, item)}
           on:click={() => handleItemClick(item)}
         >
@@ -259,7 +289,7 @@
             <span class="menu-item-label">{item.label}</span>
             {#if item.description}<span class="menu-item-description">{item.description}</span>{/if}
           </span>
-          {#if item.children?.length}
+          {#if hasSubmenu(item)}
             <span class="material-symbols-outlined menu-item-chevron" aria-hidden="true">
               {shouldUseSubmenuDrilldown ? 'chevron_right' : 'chevron_right'}
             </span>
@@ -274,6 +304,14 @@
             items={item.children}
             ariaLabel={item.label}
             activateOnPointerUpPointerId={activateOnPointerUpPointerId}
+            on:action={(event) => dispatch('action', event.detail)}
+            on:dismiss={() => dispatch('dismiss')}
+          />
+        {:else if canShowHoverSubmenus && item.ratingPicker && activeSubmenuId === item.id}
+          <RatingMenuSurface
+            value={item.ratingPicker.value}
+            actionPrefix={item.ratingPicker.actionPrefix}
+            ariaLabel={item.label}
             on:action={(event) => dispatch('action', event.detail)}
             on:dismiss={() => dispatch('dismiss')}
           />

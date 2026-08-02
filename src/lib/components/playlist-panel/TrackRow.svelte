@@ -45,7 +45,14 @@
           class:is-duration={column.id === 'duration'}
           title={getColumnTextValue(item, column.id)}
         >
-          {getColumnTextValue(item, column.id)}
+          {#if column.id === 'rating' && getColumnTextValue(item, column.id)}
+            <span class="track-rating-value">
+              {getColumnTextValue(item, column.id)}
+              <span class="material-symbols-outlined track-rating-star" aria-hidden="true">star</span>
+            </span>
+          {:else}
+            {getColumnTextValue(item, column.id)}
+          {/if}
         </span>
       {/each}
     </button>
@@ -119,6 +126,19 @@
 
   .track-table-cell.is-duration {
     color: var(--muted);
+  }
+
+  .track-rating-value {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.22rem;
+  }
+
+  .track-rating-star {
+    color: #e6ae27;
+    font-size: 0.92rem;
+    line-height: 1;
+    font-variation-settings: 'FILL' 1, 'wght' 500, 'GRAD' 0, 'opsz' 20;
   }
 
   li .track-table-row-button:hover::before {

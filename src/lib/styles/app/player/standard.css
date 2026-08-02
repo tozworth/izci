@@ -77,6 +77,10 @@
     filter 120ms ease-out;
 }
 
+.player-bar:not(.compact-player-bar):not(.now-playing-player) .favorite-rating-control {
+  order: -1;
+}
+
 .player-bar:not(.compact-player-bar):not(.now-playing-player) .favorite-toggle:hover:not(:disabled) {
   background: transparent;
   transition-duration: 0ms;

@@ -36,4 +36,9 @@ describe('track settings helpers', () => {
   it('hides the player-bar favorite toggle by default', () => {
     expect(DEFAULT_TRACK_SETTINGS.showFavoriteToggleInPlayerBar).toBe(false);
   });
+
+  it('enables ratings by default and preserves the feature opt-out', () => {
+    expect(DEFAULT_TRACK_SETTINGS.enableRatings).toBe(true);
+    expect(normalizeTrackSettings({ enableRatings: false }).enableRatings).toBe(false);
+  });
 });

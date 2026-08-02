@@ -1394,6 +1394,8 @@
       {collectionsReady}
       showFavoriteToggle={$trackSettings.showFavoriteToggleInPlayerBar}
       favorite={favoriteTargetTrack ? favoritesHaveAllTracks(favoriteItems, [favoriteTargetTrack]) : false}
+      ratingsEnabled={$trackSettings.enableRatings}
+      rating={favoriteTargetTrack?.rating ?? 0}
       showRafToggle={$playbackSettings.enableRaf && $playbackSettings.showRafToggleInPlayerBar}
       rafEnabled={$rafSettings.enabled}
       rafPresets={$rafPresets.presets}
@@ -1411,6 +1413,7 @@
       on:volume={(event) => playerController.setVolume(event.detail)}
       on:mute={() => playerController.toggleMute()}
       on:toggleFavorite={() => favoriteTargetTrack && workspaceCollections.toggleFavoriteTracks([favoriteTargetTrack])}
+      on:rate={(event) => favoriteTargetTrack && workspaceCollections.rateTracks([favoriteTargetTrack], event.detail)}
       on:toggleRaf={() => rafSettings.setEnabled(!$rafSettings.enabled)}
       on:applyRafPreset={(event) => rafPresets.apply(event.detail)}
       on:openRafOptions={() => handleOpenOptions('raf')}

@@ -7,6 +7,7 @@
   import { LIBRARY_VIEW_DEFINITIONS } from './library-views';
 
   export let activeView: LibraryViewId = 'songs';
+  export let ratingsEnabled = true;
   export let summary = '';
   export let tooltipDetails: Record<LibraryViewId, string>;
   export let groupLabel = '';
@@ -49,6 +50,7 @@
   function getViewLabel(view: LibraryViewId, fallback: string): string {
     switch (view) {
       case 'favorites': return $t('playlist.library.views.favorites', { default: 'Favorites' });
+      case 'ratings': return $t('playlist.library.views.ratings', { default: 'Ratings' });
       case 'songs': return $t('playlist.library.views.songs', { default: 'Songs' });
       case 'artists': return $t('playlist.library.views.artists', { default: 'Artists' });
       case 'albums': return $t('playlist.library.views.albums', { default: 'Albums' });
@@ -67,7 +69,7 @@
       className="library-view-tabs"
       ariaLabel={$t('playlist.library.views.label', { default: 'Library views' })}
     >
-      {#each LIBRARY_VIEW_DEFINITIONS as view}
+      {#each LIBRARY_VIEW_DEFINITIONS.filter((view) => ratingsEnabled || view.id !== 'ratings') as view}
         <button
           type="button"
           class="tab-strip-tab library-toolbar-button library-view-tab hover-tooltip-anchor"

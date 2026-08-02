@@ -110,7 +110,9 @@
       "powerOnRafWithPresetHint": "Raf'ı aç · Önayarlar için sağ tıkla",
       "rafPresets": "Raf önayarları",
       "noRafPresets": "Raf önayarları yok",
-      "openRaf": "Raf'ı aç"
+      "openRaf": "Raf'ı aç",
+      "rateTrack": "Parçayı puanla",
+      "setRating": "Puanı {rating} yıldız olarak ayarla"
     },
     "patterns": {
       "modulePatterns": "Modül örüntüleri",
@@ -185,6 +187,7 @@
         "folder": "Klasör",
         "format": "Tür",
         "duration": "Süre",
+        "rating": "Puan",
         "plays": "Yürütme sayısı"
       },
       "openGroup": "{group} grubunu aç",
@@ -195,6 +198,7 @@
       "groupSongCount": "{count, plural, one {# parça} other {# parça}}",
       "views": {
         "favorites": "Favoriler",
+        "ratings": "Puanlar",
         "songs": "Parçalar",
         "artists": "Sanatçılar",
         "albums": "Albümler",
@@ -237,6 +241,7 @@
       "pinToTop": "Üste sabitle",
       "noResults": "\"{query}\" ile eşleşen kütüphane ögesi yok.",
       "favoritesEmpty": "Favorilenen parça ve altparçalar burada görünür.",
+      "ratingsEmpty": "Puanlanan parçalar burada görünür.",
       "empty": "Kütüphaneniz boş. Dosya veya klasör sürükleyin."
     },
     "addFiles": "Dosya ekle",
@@ -259,6 +264,8 @@
       "addToLibrary": "Kütüphaneye ekle",
       "removeFromFavorites": "Favorilerden kaldır",
       "addToFavorites": "Favorilere ekle",
+      "rate": "Puanla",
+      "clearRating": "Puanı temizle",
       "separateSubsongs": "Altparçaları böl",
       "addToPlaylist": "Listeye ekle",
       "replacePlaylist": "Listeyi değiştir",
@@ -1039,6 +1046,11 @@
       "favoriteToggle": {
         "title": "Favorileme düğmesini göster",
         "hint": "Geçerli parçayı veya modül altparçasını Favoriler'e ekleyip kaldıran bir kalp düğmesi gösterir."
+      },
+      "ratings": {
+        "heading": "Puanlar",
+        "title": "Parça puanlarını etkinleştir",
+        "hint": "Yarım yıldızlı puanlama kontrollerini ve Puan kütüphane sütununu gösterir. Bunu kapatmak puanları silmeden gizler."
       }
     },
     "video": {

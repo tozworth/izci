@@ -93,6 +93,16 @@ describe('workspace actions', () => {
       .toContainEqual(expect.objectContaining({ id: 'toggle-favorite', label: 'Add to favorites' }));
   });
 
+  it('offers ten half-star ratings only when ratings are enabled', () => {
+    const track = item('track', { rating: 4 });
+    const enabled = buildPlaylistContextActions([track], [], ['track'], [], true);
+    const disabled = buildPlaylistContextActions([track], [], ['track'], [], false);
+    const ratingAction = enabled.find((action) => action.id === 'rate');
+
+    expect(ratingAction?.ratingPicker).toEqual({ value: 4, actionPrefix: 'rate:' });
+    expect(disabled.map((action) => action.id)).not.toContain('rate');
+  });
+
   it('places a destination-aware Go to submenu directly above Track details for one track', () => {
     const libraryTrack = item('library', {
       path: '/Music/Track.flac',

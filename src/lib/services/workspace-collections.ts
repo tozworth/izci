@@ -13,6 +13,8 @@ import {
 } from '$lib/services/workspace-actions';
 import type { TrackLibraryNavigationTarget } from '$lib/services/library-navigation';
 import { favoritesStore, libraryStore, playlistStore } from '$lib/stores/playlist';
+import { trackSettings } from '$lib/stores/track-settings';
+import { normalizeTrackRating, parseTrackRatingAction } from '$lib/services/track-ratings';
 import type {
   MenuActionItem,
   PlaylistItem,
@@ -21,7 +23,8 @@ import type {
 import {
   buildPlaylistItems,
   buildSeparatedSubsongItems,
-  clonePlaylistItems
+  clonePlaylistItems,
+  getTrackIdentity
 } from '$lib/utils/files';
 
 export interface WorkspaceCollectionState {
@@ -108,17 +111,57 @@ export function createWorkspaceCollectionsController({
 
   function getPlaylistContextActions(ids: string[]): MenuActionItem[] {
     const { playlistItems, libraryItems } = getState();
-    return buildPlaylistContextActions(playlistItems, libraryItems, ids, getState().favoriteItems);
+    return buildPlaylistContextActions(
+      playlistItems,
+      libraryItems,
+      ids,
+      getState().favoriteItems,
+      trackSettings.getSnapshot().enableRatings
+    );
   }
 
   function getLibraryContextActions(ids: string[]): MenuActionItem[] {
     const { libraryItems, favoriteItems } = getState();
-    return buildLibraryContextActions(libraryItems, favoriteItems, ids);
+    return buildLibraryContextActions(
+      libraryItems,
+      favoriteItems,
+      ids,
+      trackSettings.getSnapshot().enableRatings
+    );
   }
 
   function getFavoriteContextActions(ids: string[]): MenuActionItem[] {
     const { favoriteItems, libraryItems } = getState();
-    return buildFavoritesContextActions(favoriteItems, libraryItems, ids);
+    return buildFavoritesContextActions(
+      favoriteItems,
+      libraryItems,
+      ids,
+      trackSettings.getSnapshot().enableRatings
+    );
+  }
+
+  function rateTracks(tracks: PlaylistItem[], value: number | undefined): void {
+    const rating = normalizeTrackRating(value);
+    const identities = new Set(tracks.map((track) => getTrackIdentity(track)));
+
+    for (const { items, store } of [
+      { items: getState().playlistItems, store: playlistStore },
+      { items: getState().libraryItems, store: libraryStore },
+      { items: getState().favoriteItems, store: favoritesStore }
+    ]) {
+      for (const item of items) {
+        if (identities.has(getTrackIdentity(item))) {
+          store.updateRating(item.id, rating);
+        }
+      }
+    }
+  }
+
+  function handleRatingAction(actionId: string, tracks: PlaylistItem[]): boolean {
+    const action = parseTrackRatingAction(actionId);
+    if (!action.matched || !trackSettings.getSnapshot().enableRatings) return false;
+    rateTracks(tracks, action.rating);
+    return true;
   }
 
   function handleLibraryNavigationAction(actionId: string, tracks: PlaylistItem[]): boolean {
@@ -177,6 +220,8 @@ export function createWorkspaceCollectionsController({
       return;
     }
 
+    if (handleRatingAction(actionId, tracks)) return;
+
     if (handleLibraryNavigationAction(actionId, tracks)) return;
 
     if (actionId === 'track-details') {
@@ -212,6 +257,8 @@ export function createWorkspaceCollectionsController({
       return;
     }
 
+    if (handleRatingAction(actionId, tracks)) return;
+
     if (handleLibraryNavigationAction(actionId, tracks)) return;
 
     if (actionId === 'track-details') {
@@ -246,6 +293,8 @@ export function createWorkspaceCollectionsController({
       return;
     }
 
+    if (handleRatingAction(actionId, tracks)) return;
+
     if (handleLibraryNavigationAction(actionId, tracks)) return;
 
     if (actionId === 'track-details') {
@@ -277,6 +326,7 @@ export function createWorkspaceCollectionsController({
     handlePlaylistContextAction,
     handleLibraryContextAction,
     handleFavoriteContextAction,
-    toggleFavoriteTracks
+    toggleFavoriteTracks,
+    rateTracks
   };
 }

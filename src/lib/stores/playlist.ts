@@ -467,6 +467,14 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
         queuePersist();
       });
     },
+    updateRating(id: string, rating: number | undefined) {
+      runOrQueue(() => {
+        items.update((existing) =>
+          existing.map((item) => item.id === id ? { ...item, rating } : item)
+        );
+        queuePersist();
+      });
+    },
     applyExternalUpdate(id: string, patch: ExternalTrackUpdate) {
       let updatedItem: PlaylistItem | null = null;
 
@@ -582,6 +590,7 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
           ...candidate,
           id: existing.id,
           metadata: preservedMetadata,
+          rating: existing.rating,
           file: contentChanged ? candidate.file : existing.file ?? candidate.file,
           objectUrl: contentChanged ? candidate.objectUrl : existing.objectUrl ?? candidate.objectUrl
         };

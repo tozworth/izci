@@ -1,6 +1,7 @@
 import type { LibraryGroupViewId, LibraryViewId, PlaylistItem } from '$lib/types';
 import { getFolderFromPath, getTrackDisplayTitle } from '$lib/utils/files';
 import { filterItemsByQuery, formatTotalDuration, getTotalDuration, matchesSearchQuery } from './search';
+import { normalizeTrackRating } from '$lib/services/track-ratings';
 
 export type { LibraryGroupViewId } from '$lib/types';
 
@@ -27,6 +28,7 @@ type LibraryGroupValue = Pick<LibraryGroup, 'label' | 'secondary' | 'placeholder
 
 export const LIBRARY_VIEW_DEFINITIONS: LibraryViewDefinition[] = [
   { id: 'favorites', label: 'Favorites', icon: 'favorite' },
+  { id: 'ratings', label: 'Ratings', icon: 'star' },
   { id: 'songs', label: 'Songs', icon: 'music_note' },
   { id: 'artists', label: 'Artists', icon: 'person' },
   { id: 'albums', label: 'Albums', icon: 'album' },
@@ -370,16 +372,19 @@ export function getLibraryViewTooltipDetails(
 ): Record<LibraryViewId, string> {
   const filteredSongs = filterItemsByQuery(items, normalizedQuery);
   const filteredFavorites = filterItemsByQuery(favoriteItems, normalizedQuery);
+  const ratedItems = items.filter((item) => normalizeTrackRating(item.rating) !== undefined);
+  const filteredRatings = filterItemsByQuery(ratedItems, normalizedQuery);
   const songCount = normalizedQuery && filteredSongs.length !== items.length
     ? `${filteredSongs.length} of ${items.length}`
     : String(filteredSongs.length);
   const details = {
     favorites: String(filteredFavorites.length),
+    ratings: `${filteredRatings.length} · ${formatTotalDuration(getTotalDuration(filteredRatings))}`,
     songs: `${songCount} · ${formatTotalDuration(getTotalDuration(filteredSongs))}`
   } as Record<LibraryViewId, string>;
 
   for (const definition of LIBRARY_VIEW_DEFINITIONS) {
-    if (definition.id === 'favorites' || definition.id === 'songs') continue;
+    if (definition.id === 'favorites' || definition.id === 'ratings' || definition.id === 'songs') continue;
 
     if (!normalizedQuery) {
       details[definition.id] = String(countLibraryGroups(items, definition.id));

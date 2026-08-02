@@ -8,10 +8,11 @@ import type {
 } from '$lib/types';
 import { createPersistentStore } from './persistent-store';
 
-export const LIBRARY_VIEW_SETTINGS_STORAGE_KEY = 'izci.library-view-settings.v5';
-export const LIBRARY_VIEW_SETTINGS_CHANNEL = 'izci-library-view-settings-v5';
+export const LIBRARY_VIEW_SETTINGS_STORAGE_KEY = 'izci.library-view-settings.v6';
+export const LIBRARY_VIEW_SETTINGS_CHANNEL = 'izci-library-view-settings-v6';
 export const LIBRARY_VIEW_IDS: LibraryViewId[] = [
   'favorites',
+  'ratings',
   'songs',
   'artists',
   'albums',
@@ -36,6 +37,7 @@ export const LIBRARY_COLUMN_IDS: LibraryColumnId[] = [
   'folder',
   'format',
   'duration',
+  'rating',
   'plays'
 ];
 export const LIBRARY_COLUMN_LABELS: Record<LibraryColumnId, string> = {
@@ -46,6 +48,7 @@ export const LIBRARY_COLUMN_LABELS: Record<LibraryColumnId, string> = {
   folder: 'Folder',
   format: 'Format',
   duration: 'Duration',
+  rating: 'Rating',
   plays: 'Plays'
 };
 export const LIBRARY_COLUMN_DEFAULT_WIDTHS: Record<LibraryColumnId, number> = {
@@ -56,6 +59,7 @@ export const LIBRARY_COLUMN_DEFAULT_WIDTHS: Record<LibraryColumnId, number> = {
   folder: 220,
   format: 96,
   duration: 104,
+  rating: 104,
   plays: 88
 };
 export const LIBRARY_COLUMN_MIN_WIDTHS: Record<LibraryColumnId, number> = {
@@ -66,6 +70,7 @@ export const LIBRARY_COLUMN_MIN_WIDTHS: Record<LibraryColumnId, number> = {
   folder: 72,
   format: 48,
   duration: 48,
+  rating: 44,
   plays: 48
 };
 
@@ -99,14 +104,24 @@ function createDefaultColumns(view: LibraryViewId): LibraryViewTableSettings['co
       width: LIBRARY_COLUMN_DEFAULT_WIDTHS.duration,
       visible: true
     },
+    rating: {
+      width: LIBRARY_COLUMN_DEFAULT_WIDTHS.rating,
+      visible: false
+    },
     plays: {
       width: LIBRARY_COLUMN_DEFAULT_WIDTHS.plays,
       visible: false
     }
   };
 
-  if (view !== 'favorites' && view !== 'songs' && view !== 'albums') {
+  if (view !== 'favorites' && view !== 'ratings' && view !== 'songs' && view !== 'albums') {
     columns.album.visible = true;
+  }
+
+  if (view === 'ratings') {
+    for (const columnId of LIBRARY_COLUMN_IDS) {
+      columns[columnId].visible = ['rating', 'title', 'artist', 'format', 'duration'].includes(columnId);
+    }
   }
 
   const redundantColumn: Partial<Record<LibraryViewId, LibraryColumnId>> = {
@@ -123,12 +138,16 @@ function createDefaultColumns(view: LibraryViewId): LibraryViewTableSettings['co
 }
 
 function createDefaultViewSettings(view: LibraryViewId): LibraryViewTableSettings {
+  const order = view === 'ratings'
+    ? ['rating', 'title', 'artist', 'format', 'duration', 'album', 'discAndTrack', 'folder', 'plays'] satisfies LibraryColumnId[]
+    : [...LIBRARY_COLUMN_IDS];
+
   return {
-    order: [...LIBRARY_COLUMN_IDS],
+    order,
     columns: createDefaultColumns(view),
     sort: {
-      columnId: 'title',
-      direction: 'asc'
+      columnId: view === 'ratings' ? 'rating' : 'title',
+      direction: view === 'ratings' ? 'desc' : 'asc'
     }
   };
 }

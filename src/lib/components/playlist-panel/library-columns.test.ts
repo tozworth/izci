@@ -45,6 +45,7 @@ describe('library column helpers', () => {
     expect(getTrackDuration(track)).toBe('02:05');
     expect(getTrackDuration(item('missing-duration'))).toBe('');
     expect(getTrackPlayCount(item('plays', { metadata: { playCount: 3 } }))).toBe('3');
+    expect(getColumnTextValue(item('rated', { rating: 3.5 }), 'rating')).toBe('3.5');
     expect(getColumnTextValue(item('missing-plays'), 'plays')).toBe('');
   });
 
@@ -134,6 +135,17 @@ describe('library column helpers', () => {
     expect([...playCountTracks].sort((left, right) => compareItems(left, right, { columnId: 'plays', direction: 'desc' })).map((track) => track.id)).toEqual([
       'five',
       'two',
+      'none'
+    ]);
+
+    const ratedTracks = [
+      item('half', { rating: 0.5 }),
+      item('five', { rating: 5 }),
+      item('none')
+    ];
+    expect([...ratedTracks].sort((left, right) => compareItems(left, right, { columnId: 'rating', direction: 'desc' })).map((track) => track.id)).toEqual([
+      'five',
+      'half',
       'none'
     ]);
 
