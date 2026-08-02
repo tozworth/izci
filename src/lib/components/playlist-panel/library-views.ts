@@ -14,6 +14,9 @@ export interface LibraryGroup {
   key: string;
   label: string;
   secondary: string;
+  parentKey?: string;
+  depth?: number;
+  hasChildren?: boolean;
   placeholder?: 'artist' | 'album' | 'genre' | 'year' | 'format' | 'folder';
   secondaryKind?: 'trackerModule' | 'stream' | 'video';
   items: PlaylistItem[];
@@ -77,18 +80,6 @@ function getYearValue(item: PlaylistItem): LibraryGroupValue {
     : { label: 'Unknown year', secondary: '', placeholder: 'year' };
 }
 
-function getFolderValues(item: PlaylistItem): LibraryGroupValue {
-  const folder = normalized(getFolderFromPath(item.path));
-
-  if (!folder) return { label: 'Unknown folder', secondary: '', placeholder: 'folder' };
-
-  const segments = folder.split('/').filter(Boolean);
-  return {
-    label: segments.at(-1) ?? folder,
-    secondary: segments.length > 1 ? folder : ''
-  };
-}
-
 function getGroupValues(
   item: PlaylistItem,
   view: LibraryGroupViewId
@@ -122,8 +113,92 @@ function getGroupValues(
             secondaryKind: item.kind === 'module' ? 'trackerModule' : item.kind
           }];
     case 'folders':
-      return [getFolderValues(item)];
+      return [];
   }
+}
+
+function buildFolderGroups(items: PlaylistItem[], collator: Intl.Collator): LibraryGroup[] {
+  const groups = new Map<string, LibraryGroup>();
+
+  for (const item of items) {
+    const folder = normalized(getFolderFromPath(item.path));
+
+    if (!folder) {
+      const key = groupKey('folders', '__unknown:folder');
+      const existing = groups.get(key);
+      if (existing) existing.items.push(item);
+      else groups.set(key, {
+        key,
+        label: 'Unknown folder',
+        secondary: '',
+        placeholder: 'folder',
+        items: [item],
+        duration: 0,
+        depth: 0,
+        hasChildren: false
+      });
+      continue;
+    }
+
+    const segments = folder.split('/').filter(Boolean);
+    let parentKey: string | undefined;
+
+    for (let index = 0; index < segments.length; index += 1) {
+      const path = segments.slice(0, index + 1).join('/');
+      const key = groupKey('folders', path);
+      const existing = groups.get(key);
+
+      if (existing) {
+        existing.items.push(item);
+      } else {
+        groups.set(key, {
+          key,
+          label: segments[index],
+          secondary: '',
+          parentKey,
+          depth: index,
+          hasChildren: false,
+          items: [item],
+          duration: 0
+        });
+      }
+
+      if (parentKey) {
+        const parent = groups.get(parentKey);
+        if (parent) parent.hasChildren = true;
+      }
+      parentKey = key;
+    }
+  }
+
+  const finalized = new Map(
+    Array.from(groups.values()).map((group) => [group.key, {
+      ...group,
+      items: [...group.items].sort((left, right) =>
+        collator.compare(getTrackDisplayTitle(left), getTrackDisplayTitle(right))
+      ),
+      duration: getTotalDuration(group.items)
+    }])
+  );
+  const childrenByParent = new Map<string | undefined, LibraryGroup[]>();
+
+  for (const group of finalized.values()) {
+    const siblings = childrenByParent.get(group.parentKey) ?? [];
+    siblings.push(group);
+    childrenByParent.set(group.parentKey, siblings);
+  }
+
+  const ordered: LibraryGroup[] = [];
+  const visit = (parentKey: string | undefined) => {
+    const children = childrenByParent.get(parentKey) ?? [];
+    children.sort((left, right) => compareGroups(left, right, 'folders', collator));
+    for (const child of children) {
+      ordered.push(child);
+      visit(child.key);
+    }
+  };
+  visit(undefined);
+  return ordered;
 }
 
 function compareGroups(
@@ -153,6 +228,8 @@ export function buildLibraryGroups(
 ): LibraryGroup[] {
   const groups = new Map<string, LibraryGroup>();
   const collator = getCollator(locale);
+
+  if (view === 'folders') return buildFolderGroups(items, collator);
 
   for (const item of items) {
     for (const value of getGroupValues(item, view)) {
@@ -200,7 +277,22 @@ export function groupMatchesSearchQuery(group: LibraryGroup, normalizedQuery: st
 }
 
 export function filterLibraryGroups(groups: LibraryGroup[], normalizedQuery: string): LibraryGroup[] {
-  return normalizedQuery ? groups.filter((group) => groupMatchesSearchQuery(group, normalizedQuery)) : groups;
+  if (!normalizedQuery) return groups;
+
+  const matchingKeys = new Set(
+    groups.filter((group) => groupMatchesSearchQuery(group, normalizedQuery)).map((group) => group.key)
+  );
+  const groupsByKey = new Map(groups.map((group) => [group.key, group]));
+
+  for (const key of [...matchingKeys]) {
+    let parentKey = groupsByKey.get(key)?.parentKey;
+    while (parentKey) {
+      matchingKeys.add(parentKey);
+      parentKey = groupsByKey.get(parentKey)?.parentKey;
+    }
+  }
+
+  return groups.filter((group) => matchingKeys.has(group.key));
 }
 
 export function orderLibraryGroups(groups: LibraryGroup[], pinnedKeys: string[]): LibraryGroup[] {

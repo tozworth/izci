@@ -9,6 +9,7 @@
   export let view: LibraryGroupViewId = 'artists';
   export let artworkUrls: Record<string, string> = {};
   export let pinnedKeys: string[] = [];
+  export let searchActive = false;
 
   const dispatch = createEventDispatcher<{
     open: string;
@@ -19,8 +20,20 @@
 
   let draggedKey: string | null = null;
   let dropTarget: { key: string; position: 'before' | 'after' } | null = null;
+  let expandedKeys = new Set<string>();
 
   $: pinnedKeySet = new Set(pinnedKeys);
+  $: groupsByKey = new Map(groups.map((group) => [group.key, group]));
+  $: visibleGroups = view !== 'folders' || searchActive
+    ? groups
+    : groups.filter((group) => {
+        let parentKey = group.parentKey;
+        while (parentKey) {
+          if (!expandedKeys.has(parentKey)) return false;
+          parentKey = groupsByKey.get(parentKey)?.parentKey;
+        }
+        return true;
+      });
 
   const icons: Record<LibraryGroupViewId, string> = {
     artists: 'person',
@@ -91,12 +104,20 @@
     draggedKey = null;
     dropTarget = null;
   }
+
+  function toggleFolder(event: MouseEvent, key: string) {
+    event.stopPropagation();
+    const next = new Set(expandedKeys);
+    if (next.has(key)) next.delete(key);
+    else next.add(key);
+    expandedKeys = next;
+  }
 </script>
 
 <ul class="library-group-list" on:dragover={handleListDragOver} on:drop={handleListDrop}>
-  {#each groups as group, index (group.key)}
+  {#each visibleGroups as group, index (group.key)}
     {@const pinned = pinnedKeySet.has(group.key)}
-    {@const pinnedBoundary = pinned && Boolean(groups[index + 1]) && !pinnedKeySet.has(groups[index + 1].key)}
+    {@const pinnedBoundary = pinned && Boolean(visibleGroups[index + 1]) && !pinnedKeySet.has(visibleGroups[index + 1].key)}
     <li
       class:pinned
       class:pinned-boundary={pinnedBoundary}
@@ -111,6 +132,8 @@
       <div
         class="library-group-row"
         class:album-row={view === 'albums'}
+        class:folder-tree-row={view === 'folders'}
+        style:--folder-depth={group.depth ?? 0}
         role="group"
         on:contextmenu={(event) => dispatch('contextMenu', { key: group.key, event })}
       >
@@ -123,6 +146,23 @@
           })}
           on:click={() => dispatch('open', group.key)}
         ></button>
+        {#if view === 'folders'}
+          {#if group.hasChildren}
+            <button
+              type="button"
+              class="library-folder-disclosure"
+              aria-label={expandedKeys.has(group.key)
+                ? $t('playlist.library.collapseFolder', { default: 'Collapse {folder}', values: { folder: group.label } })
+                : $t('playlist.library.expandFolder', { default: 'Expand {folder}', values: { folder: group.label } })}
+              aria-expanded={expandedKeys.has(group.key) || searchActive}
+              on:click={(event) => toggleFolder(event, group.key)}
+            >
+              <span class="material-symbols-outlined" aria-hidden="true">{expandedKeys.has(group.key) || searchActive ? 'expand_more' : 'chevron_right'}</span>
+            </button>
+          {:else}
+            <span class="library-folder-disclosure-spacer" aria-hidden="true"></span>
+          {/if}
+        {/if}
         {#if view === 'albums' && artworkUrls[group.key]}
           <img class="library-group-artwork" src={artworkUrls[group.key]} alt="" />
         {:else}
@@ -235,6 +275,11 @@
     border-radius: 4px;
   }
 
+  .library-group-row.folder-tree-row {
+    grid-template-columns: auto auto minmax(0, 1fr) 1rem auto auto;
+    padding-left: calc(0.24rem + var(--folder-depth) * 0.9rem);
+  }
+
   .library-group-hit-target {
     position: absolute;
     z-index: 0;
@@ -259,6 +304,36 @@
 
   .library-group-row > .library-group-unpin {
     pointer-events: auto;
+  }
+
+  .library-group-row > .library-folder-disclosure {
+    pointer-events: auto;
+  }
+
+  .library-folder-disclosure,
+  .library-folder-disclosure-spacer {
+    width: 0.9rem;
+    height: 1rem;
+  }
+
+  .library-folder-disclosure {
+    display: grid;
+    place-items: center;
+    padding: 0;
+    color: var(--muted);
+    background: transparent;
+    border: 0;
+    border-radius: 2px;
+  }
+
+  .library-folder-disclosure:hover,
+  .library-folder-disclosure:focus-visible {
+    color: var(--text-strong);
+    background: var(--hover);
+  }
+
+  .library-folder-disclosure .material-symbols-outlined {
+    font-size: 0.9rem;
   }
 
   .library-group-row.album-row {

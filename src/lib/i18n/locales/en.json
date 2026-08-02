@@ -183,6 +183,8 @@
         "plays": "Plays"
       },
       "openGroup": "Open {group}",
+      "collapseFolder": "Collapse {folder}",
+      "expandFolder": "Expand {folder}",
       "unpinNamed": "Unpin {group}",
       "unpin": "Unpin",
       "groupSongCount": "{count, plural, one {# song} other {# songs}}",

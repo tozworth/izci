@@ -183,6 +183,8 @@
         "plays": "Yürütme sayısı"
       },
       "openGroup": "{group} grubunu aç",
+      "collapseFolder": "{folder} klasörünü daralt",
+      "expandFolder": "{folder} klasörünü genişlet",
       "unpinNamed": "{group} sabitlemesini kaldır",
       "unpin": "Sabitlemeyi kaldır",
       "groupSongCount": "{count, plural, one {# parça} other {# parça}}",

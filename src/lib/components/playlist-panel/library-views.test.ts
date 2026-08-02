@@ -86,4 +86,34 @@ describe('library view projections', () => {
 
     expect(ordered.map((group) => group.key)).toEqual([keys[1], keys[0], ...keys.slice(2)]);
   });
+
+  it('builds folders as a depth-first tree with ancestor song totals', () => {
+    const folders = buildLibraryGroups([
+      track('one', { title: 'One' }, 'Opus/Artist/Album/one.flac'),
+      track('two', { title: 'Two' }, 'Opus/Artist/Other/two.flac'),
+      track('three', { title: 'Three' }, 'Archive/three.flac')
+    ], 'folders');
+
+    expect(folders.map((group) => [group.label, group.depth, group.items.length, group.hasChildren])).toEqual([
+      ['Archive', 0, 1, false],
+      ['Opus', 0, 2, true],
+      ['Artist', 1, 2, true],
+      ['Album', 2, 1, false],
+      ['Other', 2, 1, false]
+    ]);
+    expect(folders.find((group) => group.label === 'Artist')?.parentKey)
+      .toBe(folders.find((group) => group.label === 'Opus')?.key);
+  });
+
+  it('retains folder ancestors when search matches a descendant folder', () => {
+    const folders = buildLibraryGroups([
+      track('one', { title: 'One' }, 'Opus/Artist/Special Album/one.flac')
+    ], 'folders');
+
+    expect(filterLibraryGroups(folders, 'special').map((group) => group.label)).toEqual([
+      'Opus',
+      'Artist',
+      'Special Album'
+    ]);
+  });
 });

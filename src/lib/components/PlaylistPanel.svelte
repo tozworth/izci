@@ -827,7 +827,11 @@
     ? buildLibraryGroups(items, groupView, $locale ?? undefined).map(localizeLibraryGroup)
     : [];
   $: pinnedLibraryGroupKeys = groupView ? $libraryViewSettings.pinnedGroupKeys[groupView] : [];
-  $: orderedLibraryGroups = groupView ? orderLibraryGroups(libraryGroups, pinnedLibraryGroupKeys) : [];
+  $: orderedLibraryGroups = groupView === 'folders'
+    ? libraryGroups
+    : groupView
+      ? orderLibraryGroups(libraryGroups, pinnedLibraryGroupKeys)
+      : [];
   $: visibleLibraryGroups = groupView ? filterLibraryGroups(orderedLibraryGroups, normalizedSearchQuery) : [];
   $: visibleGroupSongCount = new Set(
     visibleLibraryGroups.flatMap((group) => group.items.map((item) => item.id))
@@ -899,7 +903,7 @@
         disabled: column.visible && visibleColumnCount === 1
       } satisfies MenuActionItem))
     : [
-        ...(contextMenu?.kind === 'library-group'
+        ...(contextMenu?.kind === 'library-group' && contextMenu.view !== 'folders'
           ? [{
               id: contextMenu.pinned ? 'unpin-library-group' : 'pin-library-group',
               label: contextMenu.pinned
@@ -910,7 +914,7 @@
           : []),
         ...contextMenuActions.map((action, index) => ({
           ...action,
-          separatorBefore: contextMenu?.kind === 'library-group' && index === 0
+          separatorBefore: contextMenu?.kind === 'library-group' && contextMenu.view !== 'folders' && index === 0
             ? true
             : action.separatorBefore,
           label: getContextMenuActionLabel(action),
@@ -1074,7 +1078,8 @@
           groups={visibleLibraryGroups}
           view={groupView}
           artworkUrls={albumArtworkUrls}
-          pinnedKeys={pinnedLibraryGroupKeys}
+          pinnedKeys={groupView === 'folders' ? [] : pinnedLibraryGroupKeys}
+          searchActive={Boolean(normalizedSearchQuery)}
           on:open={(event) => handleLibraryGroupOpen(event.detail)}
           on:contextMenu={(event) => void handleLibraryGroupContextMenu(event.detail.event, event.detail.key)}
           on:unpin={(event) => handleLibraryGroupUnpin(event.detail)}
