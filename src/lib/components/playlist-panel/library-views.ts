@@ -52,6 +52,10 @@ function normalized(value: string | undefined): string {
   return value?.trim() ?? '';
 }
 
+function getPrimaryArtist(item: PlaylistItem): string {
+  return normalized(item.metadata?.albumArtist) || normalized(item.metadata?.artist);
+}
+
 function groupKey(view: LibraryGroupViewId, label: string, secondary = ''): string {
   return `${view}:${label.toLowerCase()}\u0000${secondary.toLowerCase()}`;
 }
@@ -85,10 +89,12 @@ function getGroupValues(
   view: LibraryGroupViewId
 ): LibraryGroupValue[] {
   switch (view) {
-    case 'artists':
-      return normalized(item.metadata?.artist)
-        ? [{ label: normalized(item.metadata?.artist), secondary: '' }]
+    case 'artists': {
+      const artist = getPrimaryArtist(item);
+      return artist
+        ? [{ label: artist, secondary: '' }]
         : [{ label: 'Unknown artist', secondary: '', placeholder: 'artist' }];
+    }
     case 'albums': {
       const album = normalized(item.metadata?.album);
       const label = album || 'Unknown album';

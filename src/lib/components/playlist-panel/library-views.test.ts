@@ -122,4 +122,19 @@ describe('library view projections', () => {
       'Special Album'
     ]);
   });
+
+  it('uses album artist as the primary artist while keeping artist as a fallback', () => {
+    const artists = buildLibraryGroups([
+      track('lead', { artist: 'Big Giant Circles', albumArtist: 'Big Giant Circles' }),
+      track('feature-one', { artist: 'Big Giant Circles feat. Alex Brandon', albumArtist: 'Big Giant Circles' }),
+      track('feature-two', { artist: 'Big Giant Circles feat. C418', albumArtist: 'Big Giant Circles' }),
+      track('fallback', { artist: 'Solo Artist' })
+    ], 'artists');
+
+    expect(artists.map((group) => [group.label, group.items.map((item) => item.id)])).toEqual([
+      ['Big Giant Circles', ['feature-one', 'feature-two', 'lead']],
+      ['Solo Artist', ['fallback']]
+    ]);
+    expect(countLibraryGroups(artists.flatMap((group) => group.items), 'artists')).toBe(2);
+  });
 });
