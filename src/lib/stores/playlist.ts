@@ -55,6 +55,7 @@ export type ExternalTrackUpdate = Partial<
 >;
 
 const PERSIST_DEBOUNCE_MS = 400;
+const BACKGROUND_PERSIST_DEBOUNCE_MS = 5_000;
 
 export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
   const items = writable<PlaylistItem[]>([]);
@@ -68,6 +69,8 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
   let persistTimer: ReturnType<typeof setTimeout> | undefined;
   let persistInFlight = false;
   let persistDirty = false;
+  let persistDueAt = 0;
+  let pendingPersistDelayMs = Number.POSITIVE_INFINITY;
   let shouldCompactStoredState = false;
   const pendingOperations: Array<() => void> = [];
   const navigation = createPlaylistNavigation(() => itemList);
@@ -104,19 +107,30 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
     return $items.find((item) => item.id === primaryId) ?? null;
   });
 
-  function queuePersist(): void {
+  function queuePersist(delayMs = PERSIST_DEBOUNCE_MS): void {
     if (!hydrated) {
       return;
     }
 
     persistDirty = true;
-    if (persistTimer !== undefined || persistInFlight) return;
+    pendingPersistDelayMs = Math.min(pendingPersistDelayMs, Math.max(0, delayMs));
+    if (persistInFlight) return;
+
+    const requestedDueAt = Date.now() + pendingPersistDelayMs;
+    if (persistTimer !== undefined) {
+      if (persistDueAt <= requestedDueAt) return;
+      clearTimeout(persistTimer);
+    }
+
+    persistDueAt = requestedDueAt;
 
     persistTimer = setTimeout(() => {
       persistTimer = undefined;
+      persistDueAt = 0;
       if (!persistDirty || persistInFlight) return;
 
       persistDirty = false;
+      pendingPersistDelayMs = Number.POSITIVE_INFINITY;
       persistInFlight = true;
       void persistStoredState(config.dbName, {
         items: itemList.map(serializeItem).filter((item): item is StoredPlaylistItem => item !== null),
@@ -124,9 +138,9 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
         playbackOptions: playbackOptionsState
       }).finally(() => {
         persistInFlight = false;
-        if (persistDirty) queuePersist();
+        if (persistDirty) queuePersist(pendingPersistDelayMs);
       });
-    }, PERSIST_DEBOUNCE_MS);
+    }, Math.max(0, requestedDueAt - Date.now()));
   }
 
   function applyStoredState(state: StoredPlaylistState | null): void {
@@ -199,7 +213,9 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
           targetItems: itemList,
           getItemList: () => itemList,
           updateItems: (updater) => items.update(updater),
-          queuePersist
+          queuePersist: (complete) => queuePersist(
+            complete ? PERSIST_DEBOUNCE_MS : BACKGROUND_PERSIST_DEBOUNCE_MS
+          )
         });
       })
       .finally(() => {
@@ -307,7 +323,9 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
           targetItems: uniqueItems,
           getItemList: () => itemList,
           updateItems: (updater) => items.update(updater),
-          queuePersist
+          queuePersist: (complete) => queuePersist(
+            complete ? PERSIST_DEBOUNCE_MS : BACKGROUND_PERSIST_DEBOUNCE_MS
+          )
         });
         queuePersist();
       });
@@ -338,7 +356,9 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
           targetItems: uniqueItems,
           getItemList: () => itemList,
           updateItems: (updater) => items.update(updater),
-          queuePersist
+          queuePersist: (complete) => queuePersist(
+            complete ? PERSIST_DEBOUNCE_MS : BACKGROUND_PERSIST_DEBOUNCE_MS
+          )
         });
         queuePersist();
       });
@@ -584,7 +604,9 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
         targetItems: [...addedItems, ...updatedItems],
         getItemList: () => itemList,
         updateItems: (updater) => items.update(updater),
-        queuePersist
+        queuePersist: (complete) => queuePersist(
+          complete ? PERSIST_DEBOUNCE_MS : BACKGROUND_PERSIST_DEBOUNCE_MS
+        )
       });
       queuePersist();
 

@@ -28,6 +28,12 @@ function uint32LE(value: number): Uint8Array {
   return bytes;
 }
 
+function uint16LE(value: number): Uint8Array {
+  const bytes = new Uint8Array(2);
+  new DataView(bytes.buffer).setUint16(0, value, true);
+  return bytes;
+}
+
 function uint32BE(value: number): Uint8Array {
   const bytes = new Uint8Array(4);
   new DataView(bytes.buffer).setUint32(0, value);
@@ -65,11 +71,13 @@ function flacFile(comments: string[]): File {
   });
 }
 
-function oggPage(packets: Uint8Array[]): Uint8Array {
+function oggPage(packets: Uint8Array[], granule = 0): Uint8Array {
   const header = new Uint8Array(27);
   header.set(textEncoder.encode('OggS'), 0);
   header[26] = packets.length;
-  new DataView(header.buffer).setUint32(14, 1, true);
+  const view = new DataView(header.buffer);
+  view.setBigUint64(6, BigInt(granule), true);
+  view.setUint32(14, 1, true);
 
   return concatBytes(header, new Uint8Array(packets.map((packet) => packet.byteLength)), ...packets);
 }
@@ -232,6 +240,58 @@ describe('stream artwork metadata helpers', () => {
     await loadTrackMetadata(item({ name: file.name, extension: 'mp3', file }));
 
     expect(fullRead).not.toHaveBeenCalled();
+  });
+
+  it('skips embedded picture payloads during background metadata reads', async () => {
+    const picture = 'A'.repeat(2 * 1024 * 1024);
+    const file = flacFile([
+      `METADATA_BLOCK_PICTURE=${picture}`,
+      'TITLE=After Artwork'
+    ]);
+    const sliceRead = vi.spyOn(file, 'slice');
+
+    const metadata = await loadTrackMetadata(item({ name: file.name, file }));
+    const requestedBytes = sliceRead.mock.calls.reduce((total, [start, end]) =>
+      total + Math.max(0, Number(end) - Number(start)), 0);
+
+    expect(metadata?.title).toBe('After Artwork');
+    expect(requestedBytes).toBeLessThan(16 * 1024);
+  });
+
+  it('uses bounded head and tail ranges for large Opus files', async () => {
+    const tagged = opusFile(['TITLE=Bounded Read']);
+    const file = new File([tagged, new Uint8Array(2 * 1024 * 1024)], 'Large.opus', {
+      type: 'audio/opus'
+    });
+    const sliceRead = vi.spyOn(file, 'slice');
+
+    const metadata = await loadTrackMetadata(item({ name: file.name, extension: 'opus', file }));
+    const requestedBytes = sliceRead.mock.calls.reduce((total, [start, end]) =>
+      total + Math.max(0, Number(end) - Number(start)), 0);
+
+    expect(metadata?.title).toBe('Bounded Read');
+    expect(requestedBytes).toBeLessThan(128 * 1024);
+  });
+
+  it('derives Opus duration from bounded header and final-page reads', async () => {
+    const preSkip = 312;
+    const opusHead = concatBytes(
+      textEncoder.encode('OpusHead'),
+      new Uint8Array([1, 2]),
+      uint16LE(preSkip),
+      uint32LE(48_000),
+      new Uint8Array([0, 0, 0])
+    );
+    const opusTags = concatBytes(textEncoder.encode('OpusTags'), vorbisCommentPacket(['TITLE=One Second']));
+    const file = new File([
+      toArrayBuffer(oggPage([opusHead, opusTags], 48_000 + preSkip))
+    ], 'Duration.opus', { type: 'audio/opus' });
+
+    await expect(loadTrackMetadata(item({ name: file.name, extension: 'opus', file }))).resolves.toMatchObject({
+      title: 'One Second',
+      duration: 1,
+      embeddedMetadataLoaded: true
+    });
   });
 
   it('returns null for formats without embedded stream metadata support', async () => {

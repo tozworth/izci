@@ -267,6 +267,40 @@ export function buildLibraryGroups(
     .sort((left, right) => compareGroups(left, right, view, collator));
 }
 
+export function countLibraryGroups(items: PlaylistItem[], view: LibraryGroupViewId): number {
+  const keys = new Set<string>();
+
+  if (view === 'folders') {
+    for (const item of items) {
+      const folder = normalized(getFolderFromPath(item.path));
+
+      if (!folder) {
+        keys.add(groupKey('folders', '__unknown:folder'));
+        continue;
+      }
+
+      const segments = folder.split('/').filter(Boolean);
+      for (let index = 0; index < segments.length; index += 1) {
+        keys.add(groupKey('folders', segments.slice(0, index + 1).join('/')));
+      }
+    }
+
+    return keys.size;
+  }
+
+  for (const item of items) {
+    for (const value of getGroupValues(item, view)) {
+      keys.add(groupKey(
+        view,
+        value.placeholder ? `__unknown:${value.placeholder}` : value.label,
+        value.secondaryKind ? `__kind:${value.secondaryKind}` : value.secondary
+      ));
+    }
+  }
+
+  return keys.size;
+}
+
 export function groupMatchesSearchQuery(group: LibraryGroup, normalizedQuery: string): boolean {
   if (!normalizedQuery) return true;
 
@@ -326,6 +360,11 @@ export function getLibraryViewTooltipDetails(
 
   for (const definition of LIBRARY_VIEW_DEFINITIONS) {
     if (definition.id === 'favorites' || definition.id === 'songs') continue;
+
+    if (!normalizedQuery) {
+      details[definition.id] = String(countLibraryGroups(items, definition.id));
+      continue;
+    }
 
     const groups = buildLibraryGroups(items, definition.id, locale);
     const visibleGroups = filterLibraryGroups(groups, normalizedQuery);

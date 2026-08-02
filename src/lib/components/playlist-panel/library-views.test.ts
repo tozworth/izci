@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { PlaylistItem } from '$lib/types';
 import {
   buildLibraryGroups,
+  countLibraryGroups,
   filterLibraryGroupItems,
   filterLibraryGroups,
   getLibraryViewTooltipDetails,
@@ -77,6 +78,11 @@ describe('library view projections', () => {
     expect(details.songs).toBe('3 · 02:30');
     expect(details.artists).toBe('2');
     expect(details.albums).toBe('3');
+  });
+
+  it('counts nested folders and multi-value groups without constructing sorted projections', () => {
+    expect(countLibraryGroups(tracks, 'genres')).toBe(3);
+    expect(countLibraryGroups(tracks, 'folders')).toBe(3);
   });
 
   it('places pinned groups first in pin order and leaves other groups sorted', () => {

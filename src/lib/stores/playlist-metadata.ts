@@ -13,11 +13,13 @@ interface ScheduleMetadataParsingOptions {
   targetItems: PlaylistItem[];
   getItemList: () => PlaylistItem[];
   updateItems: (updater: (items: PlaylistItem[]) => PlaylistItem[]) => void;
-  queuePersist: () => void;
+  queuePersist: (complete: boolean) => void;
 }
 
 const METADATA_IO_TIMEOUT_MS = 15_000;
 const MEDIA_DURATION_TIMEOUT_MS = 10_000;
+const METADATA_BATCH_SIZE = 64;
+const METADATA_READ_CONCURRENCY = 2;
 
 async function settleMetadataTask<T>(task: Promise<T>): Promise<T | null> {
   let timeoutId: ReturnType<typeof setTimeout> | undefined;
@@ -132,250 +134,101 @@ export function scheduleMetadataParsing({
 
   let index = 0;
   let active = false;
+  let scheduledPersist = false;
 
-  const processChunk = (deadline: BackgroundDeadline) => {
-    if (active) {
-      return;
-    }
+  const resolveMetadata = async (item: PlaylistItem): Promise<TrackMetadata | null> => {
+    let metadata = buildInitialMetadata(item) ?? item.metadata ?? {};
 
-    const updates: Array<{ id: string; metadata: TrackMetadata }> = [];
-    let pendingEmbeddedMetadataItem: PlaylistItem | null = null;
-    let pendingDurationItem: PlaylistItem | null = null;
-    let pendingModuleMetadataItem: PlaylistItem | null = null;
-
-    while (index < targetItems.length && (deadline.didTimeout || deadline.timeRemaining() > 2)) {
-      const item = targetItems[index];
-      index += 1;
-
-      const currentItem = getItemList().find((entry) => entry.id === item.id);
-
-      if (!currentItem) {
-        continue;
-      }
-
-      const metadata = buildInitialMetadata(item);
-      const mergedMetadata = metadata ? { ...currentItem.metadata, ...metadata } : currentItem.metadata;
-
-      if (metadata && JSON.stringify(currentItem.metadata ?? {}) !== JSON.stringify(mergedMetadata ?? {})) {
-        updates.push({ id: item.id, metadata: mergedMetadata ?? {} });
-      }
-
-      if (shouldReadEmbeddedStreamMetadata(currentItem)) {
-        pendingEmbeddedMetadataItem = currentItem;
-        break;
-      }
-
-      if ((currentItem.metadata?.duration ?? 0) <= 0) {
-        if (currentItem.kind === 'stream') {
-          pendingDurationItem = currentItem;
-          break;
-        }
-
-        if (currentItem.kind === 'module') {
-          pendingModuleMetadataItem = currentItem;
-          break;
-        }
+    if (shouldReadEmbeddedStreamMetadata(item)) {
+      const embeddedMetadata = await settleMetadataTask(loadTrackMetadata(item));
+      if (embeddedMetadata) {
+        metadata = mergeInferredArtistTitle(
+          { ...metadata, ...embeddedMetadata },
+          item.name,
+          metadataSettings.getSnapshot().inferFromFilename
+        );
       }
     }
 
-    if (updates.length > 0) {
-      const updatesById = new Map(updates.map((update) => [update.id, update.metadata]));
-
-      updateItems((existing) =>
-        existing.map((item) => {
-          const metadata = updatesById.get(item.id);
-          return metadata
-            ? {
-                ...item,
-                metadata
-              }
-            : item;
-        })
-      );
-      queuePersist();
-    }
-
-    if (pendingEmbeddedMetadataItem) {
-      active = true;
-
-      void settleMetadataTask(loadTrackMetadata(pendingEmbeddedMetadataItem))
-        .then(async (metadata) => {
-          const itemId = pendingEmbeddedMetadataItem?.id;
-
-          if (!itemId) {
-            return;
-          }
-
-          const currentItem = getItemList().find((entry) => entry.id === itemId);
-
-          if (!currentItem) {
-            return;
-          }
-
-          if (metadata) {
-            const mergedMetadata = mergeInferredArtistTitle(
-              {
-                ...currentItem.metadata,
-                ...metadata
-              },
-              currentItem.name,
-              metadataSettings.getSnapshot().inferFromFilename
-            );
-
-            if (JSON.stringify(currentItem.metadata ?? {}) !== JSON.stringify(mergedMetadata ?? {})) {
-              updateItems((existing) =>
-                existing.map((item) =>
-                  item.id === itemId
-                    ? {
-                        ...item,
-                        metadata: mergedMetadata
-                      }
-                    : item
-                )
-              );
-              queuePersist();
-            }
-          }
-
-          const refreshedItem = getItemList().find((entry) => entry.id === itemId);
-
-          if (!refreshedItem || refreshedItem.kind !== 'stream' || (refreshedItem.metadata?.duration ?? 0) > 0) {
-            return;
-          }
-
-          const duration = await settleMetadataTask(readStreamDuration(refreshedItem));
-
-          if (!duration || duration <= 0) {
-            return;
-          }
-
-          const latestItem = getItemList().find((entry) => entry.id === itemId);
-
-          if (!latestItem) {
-            return;
-          }
-
-          updateItems((existing) =>
-            existing.map((item) =>
-              item.id === itemId
-                ? {
-                    ...item,
-                    metadata: {
-                      ...latestItem.metadata,
-                      duration
-                    }
-                  }
-                : item
-            )
-          );
-          queuePersist();
-        })
-        .finally(() => {
-          active = false;
-
-          if (index < targetItems.length) {
-            scheduleBackgroundTask(processChunk);
-          }
-        });
-
-      return;
-    }
-
-    if (pendingModuleMetadataItem) {
-      active = true;
-
-      void settleMetadataTask(loadModuleMetadata(pendingModuleMetadataItem))
-        .then((metadata) => {
-          if (!metadata) {
-            return;
-          }
-
-          const currentItem = getItemList().find((entry) => entry.id === pendingModuleMetadataItem?.id);
-
-          if (!currentItem) {
-            return;
-          }
-
-          const mergedMetadata = mergeInferredArtistTitle(
-            {
-              ...currentItem.metadata,
-              ...metadata
-            },
-            currentItem.name,
+    if ((metadata.duration ?? 0) <= 0) {
+      if (item.kind === 'stream') {
+        const duration = await settleMetadataTask(readStreamDuration(item));
+        if (duration && duration > 0) metadata = { ...metadata, duration };
+      } else if (item.kind === 'module') {
+        const moduleMetadata = await settleMetadataTask(loadModuleMetadata(item));
+        if (moduleMetadata) {
+          metadata = mergeInferredArtistTitle(
+            { ...metadata, ...moduleMetadata },
+            item.name,
             metadataSettings.getSnapshot().inferFromFilename
           );
+        }
+      }
+    }
 
-          if (JSON.stringify(currentItem.metadata ?? {}) === JSON.stringify(mergedMetadata ?? {})) {
-            return;
-          }
+    return JSON.stringify(item.metadata ?? {}) === JSON.stringify(metadata) ? null : metadata;
+  };
 
-          updateItems((existing) =>
-            existing.map((item) =>
-              item.id === pendingModuleMetadataItem?.id
-                ? {
-                    ...item,
-                    metadata: mergedMetadata
-                  }
-                : item
-            )
-          );
-          queuePersist();
-        })
-        .finally(() => {
-          active = false;
+  const resolveBatch = async (batch: PlaylistItem[]): Promise<Array<{ id: string; metadata: TrackMetadata }>> => {
+    const results: Array<{ id: string; metadata: TrackMetadata }> = [];
+    let nextIndex = 0;
 
-          if (index < targetItems.length) {
-            scheduleBackgroundTask(processChunk);
-          }
-        });
+    const worker = async () => {
+      while (nextIndex < batch.length) {
+        const item = batch[nextIndex];
+        nextIndex += 1;
+        const metadata = await resolveMetadata(item);
+        if (metadata) results.push({ id: item.id, metadata });
+      }
+    };
 
+    await Promise.all(
+      Array.from({ length: Math.min(METADATA_READ_CONCURRENCY, batch.length) }, () => worker())
+    );
+    return results;
+  };
+
+  const processChunk = (_deadline: BackgroundDeadline) => {
+    if (active) return;
+
+    const currentById = new Map(getItemList().map((item) => [item.id, item]));
+    const batch: PlaylistItem[] = [];
+
+    while (index < targetItems.length && batch.length < METADATA_BATCH_SIZE) {
+      const currentItem = currentById.get(targetItems[index].id);
+      index += 1;
+      if (currentItem) batch.push(currentItem);
+    }
+
+    if (batch.length === 0) {
+      if (index < targetItems.length) scheduleBackgroundTask(processChunk);
       return;
     }
 
-    if (pendingDurationItem) {
-      active = true;
+    active = true;
+    void resolveBatch(batch)
+      .then((updates) => {
+        if (updates.length === 0) return;
 
-      void settleMetadataTask(readStreamDuration(pendingDurationItem))
-        .then((duration) => {
-          if (!duration || duration <= 0) {
-            return;
-          }
+        const updatesById = new Map(updates.map((update) => [update.id, update.metadata]));
+        updateItems((existing) =>
+          existing.map((item) => {
+            const metadata = updatesById.get(item.id);
+            return metadata ? { ...item, metadata } : item;
+          })
+        );
+        scheduledPersist = true;
+        queuePersist(index >= targetItems.length);
+      })
+      .finally(() => {
+        active = false;
 
-          const currentItem = getItemList().find((entry) => entry.id === pendingDurationItem?.id);
-
-          if (!currentItem) {
-            return;
-          }
-
-          updateItems((existing) =>
-            existing.map((item) =>
-              item.id === pendingDurationItem?.id
-                ? {
-                    ...item,
-                    metadata: {
-                      ...currentItem.metadata,
-                      duration
-                    }
-                  }
-                : item
-            )
-          );
-          queuePersist();
-        })
-        .finally(() => {
-          active = false;
-
-          if (index < targetItems.length) {
-            scheduleBackgroundTask(processChunk);
-          }
-        });
-
-      return;
-    }
-
-    if (index < targetItems.length) {
-      scheduleBackgroundTask(processChunk);
-    }
+        if (index < targetItems.length) {
+          scheduleBackgroundTask(processChunk);
+        } else if (scheduledPersist) {
+          queuePersist(true);
+        }
+      });
   };
 
   scheduleBackgroundTask(processChunk);

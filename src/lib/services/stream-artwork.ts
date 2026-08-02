@@ -7,8 +7,13 @@ const VORBIS_PACKET_MARKER = 'vorbis';
 const METADATA_BLOCK_PICTURE_KEY = 'METADATA_BLOCK_PICTURE';
 const FLAC_VORBIS_COMMENT_BLOCK_TYPE = 4;
 const FLAC_PICTURE_BLOCK_TYPE = 6;
-const STREAM_METADATA_HEAD_BYTES = 4 * 1024 * 1024;
+const STREAM_METADATA_MAX_HEAD_BYTES = 4 * 1024 * 1024;
+const STREAM_METADATA_EAGER_HEAD_BYTES = 32 * 1024;
 const MP3_METADATA_TAIL_BYTES = 1024 * 1024;
+const OGG_METADATA_SCAN_LIMIT_BYTES = 64 * 1024 * 1024;
+const OGG_DURATION_TAIL_BYTES = 80 * 1024;
+const VORBIS_COMMENT_KEY_PROBE_BYTES = 512;
+const VORBIS_TEXT_COMMENT_LIMIT_BYTES = 256 * 1024;
 
 interface ParsedArtwork {
   mimeType: string;
@@ -773,19 +778,368 @@ function mergeTrackMetadata(first: TrackMetadata, second: TrackMetadata): TrackM
   };
 }
 
-async function readStreamMetadata(file: File, extension: string): Promise<TrackMetadata> {
-  const head = new Uint8Array(
-    await file.slice(0, Math.min(file.size, STREAM_METADATA_HEAD_BYTES)).arrayBuffer()
-  );
-  const headMetadata = extractStreamData(head, extension).metadata;
+interface FileByteRange {
+  offset: number;
+  length: number;
+}
 
-  if (extension !== 'mp3' || file.size <= STREAM_METADATA_HEAD_BYTES) {
-    return headMetadata;
+async function readFileBytes(file: File, offset: number, length: number): Promise<Uint8Array> {
+  if (length <= 0 || offset >= file.size) return new Uint8Array();
+  return new Uint8Array(await file.slice(offset, Math.min(file.size, offset + length)).arrayBuffer());
+}
+
+class FileRangeReader {
+  readonly #file: File;
+  readonly #ranges: FileByteRange[];
+  #rangeIndex = 0;
+  #rangeOffset = 0;
+  #remaining: number;
+
+  constructor(file: File, ranges: FileByteRange[]) {
+    this.#file = file;
+    this.#ranges = ranges.filter((range) => range.length > 0);
+    this.#remaining = this.#ranges.reduce((total, range) => total + range.length, 0);
   }
 
-  const tailStart = Math.max(STREAM_METADATA_HEAD_BYTES, file.size - MP3_METADATA_TAIL_BYTES);
-  const tail = new Uint8Array(await file.slice(tailStart).arrayBuffer());
+  get remaining(): number {
+    return this.#remaining;
+  }
+
+  skip(length: number): boolean {
+    if (length < 0 || length > this.#remaining) return false;
+
+    let remaining = length;
+    while (remaining > 0) {
+      const range = this.#ranges[this.#rangeIndex];
+      const available = range.length - this.#rangeOffset;
+      const consumed = Math.min(remaining, available);
+      this.#rangeOffset += consumed;
+      this.#remaining -= consumed;
+      remaining -= consumed;
+
+      if (this.#rangeOffset === range.length) {
+        this.#rangeIndex += 1;
+        this.#rangeOffset = 0;
+      }
+    }
+
+    return true;
+  }
+
+  async read(length: number): Promise<Uint8Array | null> {
+    if (length < 0 || length > this.#remaining) return null;
+
+    const result = new Uint8Array(length);
+    let resultOffset = 0;
+
+    while (resultOffset < length) {
+      const range = this.#ranges[this.#rangeIndex];
+      const available = range.length - this.#rangeOffset;
+      const requested = Math.min(length - resultOffset, available);
+      const bytes = await readFileBytes(this.#file, range.offset + this.#rangeOffset, requested);
+
+      if (bytes.byteLength !== requested) return null;
+      result.set(bytes, resultOffset);
+      resultOffset += requested;
+      this.skip(requested);
+    }
+
+    return result;
+  }
+
+  async readUint32LE(): Promise<number | null> {
+    const bytes = await this.read(4);
+    return bytes ? new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength).getUint32(0, true) : null;
+  }
+}
+
+async function readVorbisMetadata(
+  file: File,
+  ranges: FileByteRange[],
+  expectedPrefix?: Uint8Array
+): Promise<TrackMetadata> {
+  const reader = new FileRangeReader(file, ranges);
+
+  if (expectedPrefix) {
+    const prefix = await reader.read(expectedPrefix.byteLength);
+    if (!prefix || prefix.some((value, index) => value !== expectedPrefix[index])) return {};
+  }
+
+  const vendorLength = await reader.readUint32LE();
+  if (vendorLength === null || !reader.skip(vendorLength)) return {};
+
+  const commentCount = await reader.readUint32LE();
+  if (commentCount === null) return {};
+
+  const metadata: TrackMetadata = {};
+
+  for (let index = 0; index < commentCount && reader.remaining >= 4; index += 1) {
+    const commentLength = await reader.readUint32LE();
+    if (commentLength === null || commentLength > reader.remaining) break;
+
+    const probeLength = Math.min(commentLength, VORBIS_COMMENT_KEY_PROBE_BYTES);
+    const probe = await reader.read(probeLength);
+    if (!probe) break;
+
+    const separatorIndex = probe.indexOf(0x3d);
+    const remainingCommentLength = commentLength - probeLength;
+
+    if (separatorIndex <= 0) {
+      reader.skip(remainingCommentLength);
+      continue;
+    }
+
+    const key = new TextDecoder().decode(probe.subarray(0, separatorIndex)).trim();
+
+    if (key.toUpperCase() === METADATA_BLOCK_PICTURE_KEY) {
+      reader.skip(remainingCommentLength);
+      continue;
+    }
+
+    if (commentLength > VORBIS_TEXT_COMMENT_LIMIT_BYTES) {
+      reader.skip(remainingCommentLength);
+      continue;
+    }
+
+    const remainder = await reader.read(remainingCommentLength);
+    if (!remainder) break;
+
+    const valueBytes = concatUint8Arrays(probe.subarray(separatorIndex + 1), remainder);
+    applyVorbisComment(metadata, key, new TextDecoder().decode(valueBytes));
+  }
+
+  return metadata;
+}
+
+function concatUint8Arrays(first: Uint8Array, second: Uint8Array): Uint8Array {
+  const result = new Uint8Array(first.byteLength + second.byteLength);
+  result.set(first, 0);
+  result.set(second, first.byteLength);
+  return result;
+}
+
+async function findOggPacketRanges(file: File, targetPacketIndex: number): Promise<{
+  ranges: FileByteRange[];
+  streamSerial: number;
+} | null> {
+  let offset = 0;
+  let activeStreamSerial: number | null = null;
+  let packetIndex = 0;
+  const ranges: FileByteRange[] = [];
+
+  while (offset + 27 <= file.size && offset < OGG_METADATA_SCAN_LIMIT_BYTES) {
+    const header = await readFileBytes(file, offset, 27);
+    if (
+      header.byteLength !== 27 ||
+      header[0] !== 0x4f ||
+      header[1] !== 0x67 ||
+      header[2] !== 0x67 ||
+      header[3] !== 0x53
+    ) {
+      return null;
+    }
+
+    const view = new DataView(header.buffer, header.byteOffset, header.byteLength);
+    const pageSegments = header[26];
+    const segmentTable = await readFileBytes(file, offset + 27, pageSegments);
+    if (segmentTable.byteLength !== pageSegments) return null;
+
+    const streamSerial = view.getUint32(14, true);
+    activeStreamSerial ??= streamSerial;
+    let pageDataOffset = offset + 27 + pageSegments;
+
+    if (streamSerial === activeStreamSerial) {
+      for (const segmentLength of segmentTable) {
+        if (packetIndex === targetPacketIndex && segmentLength > 0) {
+          ranges.push({ offset: pageDataOffset, length: segmentLength });
+        }
+
+        pageDataOffset += segmentLength;
+
+        if (segmentLength < 255) {
+          if (packetIndex === targetPacketIndex) {
+            return { ranges, streamSerial: activeStreamSerial };
+          }
+          packetIndex += 1;
+        }
+      }
+    } else {
+      pageDataOffset += segmentTable.reduce((total, length) => total + length, 0);
+    }
+
+    offset = pageDataOffset;
+  }
+
+  return null;
+}
+
+async function readLastOggGranule(file: File, streamSerial: number): Promise<bigint | null> {
+  const tailLength = Math.min(file.size, OGG_DURATION_TAIL_BYTES);
+  const tailOffset = file.size - tailLength;
+  const tail = await readFileBytes(file, tailOffset, tailLength);
+
+  for (let offset = tail.byteLength - 27; offset >= 0; offset -= 1) {
+    if (
+      tail[offset] !== 0x4f ||
+      tail[offset + 1] !== 0x67 ||
+      tail[offset + 2] !== 0x67 ||
+      tail[offset + 3] !== 0x53 ||
+      tail[offset + 4] !== 0
+    ) {
+      continue;
+    }
+
+    const view = new DataView(tail.buffer, tail.byteOffset + offset, 27);
+    if (view.getUint32(14, true) !== streamSerial) continue;
+
+    const pageSegments = tail[offset + 26];
+    const segmentTableEnd = offset + 27 + pageSegments;
+    if (segmentTableEnd > tail.byteLength) continue;
+
+    let pageEnd = segmentTableEnd;
+    for (let index = offset + 27; index < segmentTableEnd; index += 1) pageEnd += tail[index];
+    if (pageEnd > tail.byteLength) continue;
+
+    const low = BigInt(view.getUint32(6, true));
+    const high = BigInt(view.getUint32(10, true));
+    const granule = (high << 32n) | low;
+    return granule === 0xffffffffffffffffn ? null : granule;
+  }
+
+  return null;
+}
+
+async function readOggMetadata(file: File, extension: 'opus' | 'ogg'): Promise<TrackMetadata> {
+  const head = await readFileBytes(file, 0, Math.min(file.size, STREAM_METADATA_EAGER_HEAD_BYTES));
+  const eagerTagsPacket = extension === 'opus'
+    ? extractOpusTagPacket(head)
+    : extractOggVorbisCommentPacket(head);
+  let metadata: TrackMetadata;
+
+  if (eagerTagsPacket) {
+    metadata = parseVorbisCommentsPacket(eagerTagsPacket, extension === 'opus' ? 8 : 7).metadata;
+  } else {
+    const tagsPacket = await findOggPacketRanges(file, 1);
+    if (!tagsPacket) return {};
+
+    const prefix = extension === 'opus'
+      ? new TextEncoder().encode(OPUS_TAGS_MARKER)
+      : concatUint8Arrays(new Uint8Array([0x03]), new TextEncoder().encode(VORBIS_PACKET_MARKER));
+    metadata = await readVorbisMetadata(file, tagsPacket.ranges, prefix);
+  }
+
+  const eagerIdentification = extractOggPacket(head, 0);
+  let identification = eagerIdentification?.subarray(0, extension === 'opus' ? 12 : 16) ?? null;
+  let streamSerial = head.byteLength >= 18
+    ? new DataView(head.buffer, head.byteOffset, head.byteLength).getUint32(14, true)
+    : null;
+
+  if (!identification || streamSerial === null) {
+    const identificationPacket = await findOggPacketRanges(file, 0);
+    if (!identificationPacket) return metadata;
+
+    const identificationReader = new FileRangeReader(file, identificationPacket.ranges);
+    identification = await identificationReader.read(extension === 'opus' ? 12 : 16);
+    streamSerial = identificationPacket.streamSerial;
+  }
+
+  const granule = await readLastOggGranule(file, streamSerial);
+
+  if (!identification || granule === null) return metadata;
+
+  if (
+    extension === 'opus' &&
+    identification.byteLength >= 12 &&
+    new TextDecoder().decode(identification.subarray(0, 8)) === 'OpusHead'
+  ) {
+    const preSkip = new DataView(identification.buffer, identification.byteOffset, identification.byteLength).getUint16(10, true);
+    const samples = granule - BigInt(preSkip);
+    if (samples > 0n) metadata.duration = Number(samples) / 48_000;
+  }
+
+  if (
+    extension === 'ogg' &&
+    identification.byteLength >= 16 &&
+    identification[0] === 0x01 &&
+    new TextDecoder().decode(identification.subarray(1, 7)) === VORBIS_PACKET_MARKER
+  ) {
+    const sampleRate = new DataView(identification.buffer, identification.byteOffset, identification.byteLength).getUint32(12, true);
+    if (sampleRate > 0 && granule > 0n) metadata.duration = Number(granule) / sampleRate;
+  }
+
+  return metadata;
+}
+
+async function readFlacMetadata(file: File): Promise<TrackMetadata> {
+  const marker = await readFileBytes(file, 0, 4);
+  if (new TextDecoder().decode(marker) !== FLAC_MARKER) return {};
+
+  const metadata: TrackMetadata = {};
+  let offset = 4;
+
+  while (offset + 4 <= file.size && offset < STREAM_METADATA_MAX_HEAD_BYTES) {
+    const header = await readFileBytes(file, offset, 4);
+    if (header.byteLength !== 4) break;
+
+    const isLastBlock = (header[0] & 0x80) !== 0;
+    const blockType = header[0] & 0x7f;
+    const blockLength = (header[1] << 16) | (header[2] << 8) | header[3];
+    const blockOffset = offset + 4;
+
+    if (blockOffset + blockLength > file.size) break;
+
+    if (blockType === 0 && blockLength >= 18) {
+      const streamInfo = await readFileBytes(file, blockOffset, Math.min(blockLength, 34));
+      if (streamInfo.byteLength >= 18) {
+        const sampleRate = (streamInfo[10] << 12) | (streamInfo[11] << 4) | (streamInfo[12] >> 4);
+        const totalSamples =
+          (BigInt(streamInfo[13] & 0x0f) << 32n) |
+          (BigInt(streamInfo[14]) << 24n) |
+          (BigInt(streamInfo[15]) << 16n) |
+          (BigInt(streamInfo[16]) << 8n) |
+          BigInt(streamInfo[17]);
+        if (sampleRate > 0 && totalSamples > 0n) metadata.duration = Number(totalSamples) / sampleRate;
+      }
+    }
+
+    if (blockType === FLAC_VORBIS_COMMENT_BLOCK_TYPE) {
+      if (blockLength <= STREAM_METADATA_EAGER_HEAD_BYTES) {
+        const comments = await readFileBytes(file, blockOffset, blockLength);
+        Object.assign(metadata, parseVorbisCommentsPacket(comments, 0).metadata);
+      } else {
+        Object.assign(metadata, await readVorbisMetadata(file, [{ offset: blockOffset, length: blockLength }]));
+      }
+    }
+
+    offset = blockOffset + blockLength;
+    if (isLastBlock) break;
+  }
+
+  return metadata;
+}
+
+async function readMp3Metadata(file: File): Promise<TrackMetadata> {
+  const header = await readFileBytes(file, 0, Math.min(file.size, 10));
+  let headMetadata: TrackMetadata = {};
+  let headLength = header.byteLength;
+
+  if (header.byteLength === 10 && new TextDecoder().decode(header.subarray(0, 3)) === ID3_MARKER) {
+    headLength = Math.min(file.size, 10 + readSynchsafeUint32(new DataView(header.buffer), 6), STREAM_METADATA_MAX_HEAD_BYTES);
+    headMetadata = parseMp3Data(await readFileBytes(file, 0, headLength)).metadata;
+  }
+
+  const tailLength = Math.min(file.size, MP3_METADATA_TAIL_BYTES);
+  if (tailLength === 0 || (tailLength === file.size && headLength === file.size)) return headMetadata;
+
+  const tail = await readFileBytes(file, file.size - tailLength, tailLength);
   return mergeTrackMetadata(headMetadata, parseMp3Data(tail).metadata);
+}
+
+async function readStreamMetadata(file: File, extension: string): Promise<TrackMetadata> {
+  if (extension === 'flac') return readFlacMetadata(file);
+  if (extension === 'opus' || extension === 'ogg') return readOggMetadata(file, extension);
+  if (extension === 'mp3') return readMp3Metadata(file);
+  return {};
 }
 
 function canLoadStreamMetadata(extension: string): boolean {
