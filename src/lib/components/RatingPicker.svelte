@@ -82,8 +82,8 @@
     height: 1.45rem;
     padding: 0 0.28rem;
     color: color-mix(in srgb, var(--text) 38%, transparent);
-    background: var(--surface-raised, var(--surface));
-    border: 1px solid var(--border-subtle, var(--border));
+    background: var(--menu-popover-bg);
+    border: 1px solid var(--border);
     border-radius: 4px;
     box-shadow: 0 0.28rem 0.85rem color-mix(in srgb, #000 28%, transparent);
     white-space: nowrap;

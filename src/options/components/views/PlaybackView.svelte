@@ -12,7 +12,11 @@
     FADE_DURATION_MAX_SECONDS,
     FADE_DURATION_MIN_SECONDS,
     FADE_DURATION_STEP_SECONDS,
+    MANUAL_TRACK_CHANGE_FADE_PERCENT_MAX,
+    MANUAL_TRACK_CHANGE_FADE_PERCENT_MIN,
+    MANUAL_TRACK_CHANGE_FADE_PERCENT_STEP,
     normalizeFadeDurationSeconds,
+    normalizeManualTrackChangeFadePercent,
     normalizePlaybackRate,
     normalizeRememberProgressDurationIndex,
     playbackSettings
@@ -48,7 +52,7 @@
     });
   }
   function handleFadeDurationChange(event: Event) { playbackSettings.update({ fadeDurationSeconds: normalizeFadeDurationSeconds((event.currentTarget as HTMLInputElement).valueAsNumber) }); }
-  function handleFadeOnManualTrackChangeToggle(event: Event) { playbackSettings.update({ fadeOnManualTrackChange: checked(event) }); }
+  function handleManualTrackChangeFadePercentChange(event: Event) { playbackSettings.update({ manualTrackChangeFadePercent: normalizeManualTrackChangeFadePercent((event.currentTarget as HTMLInputElement).valueAsNumber) }); }
   function handleLogarithmicVolumeToggle(event: Event) { playbackSettings.update({ logarithmicVolume: checked(event) }); }
   function handleReplayGainModeChange(event: Event) { playbackSettings.update({ replayGainMode: (event.currentTarget as HTMLSelectElement).value as ReplayGainMode }); }
   function handleEnableRafToggle(event: Event) { playbackSettings.update({ enableRaf: checked(event) }); }
@@ -85,6 +89,15 @@
   }
   function playbackRateLabel(value: number): string {
     return `${value.toFixed(2).replace(/\.?0+$/, '')}×`;
+  }
+  function manualTrackChangeFadeLabel(value: number): string {
+    if (value === MANUAL_TRACK_CHANGE_FADE_PERCENT_MIN) {
+      return $t('options.playback.transitions.manual.off', { default: 'Off' });
+    }
+    if (value === MANUAL_TRACK_CHANGE_FADE_PERCENT_MAX) {
+      return $t('options.playback.transitions.manual.fullDuration', { default: 'Full duration' });
+    }
+    return `${value}%`;
   }
 </script>
 
@@ -170,16 +183,19 @@
 
       <SettingsField
         title={$t('options.playback.transitions.manual.title', { default: 'Fade manual track changes' })}
-        hint={$t('options.playback.transitions.manual.hint', { default: 'Also uses the selected transition when you choose Previous, Next, or another track.' })}
+        hint={$t('options.playback.transitions.manual.hint', { default: 'Sets how much of the standard fade or crossfade duration applies when you choose Previous, Next, or another track.' })}
         advanced
-        checkbox
       >
           <input
-            type="checkbox"
-            checked={$playbackSettings.fadeOnManualTrackChange}
+            type="range"
+            min={MANUAL_TRACK_CHANGE_FADE_PERCENT_MIN}
+            max={MANUAL_TRACK_CHANGE_FADE_PERCENT_MAX}
+            step={MANUAL_TRACK_CHANGE_FADE_PERCENT_STEP}
+            value={$playbackSettings.manualTrackChangeFadePercent}
             disabled={$playbackSettings.transitionMode === 'none'}
-            on:change={handleFadeOnManualTrackChangeToggle}
+            on:input={handleManualTrackChangeFadePercentChange}
           />
+          <span class="field-output">{manualTrackChangeFadeLabel($playbackSettings.manualTrackChangeFadePercent)}</span>
       </SettingsField>
     </div>
   </div>

@@ -10,7 +10,15 @@
   import { sessionIdlePlayerQuip, type IdlePlayerQuipId } from '$lib/services/idle-player-copy';
   import { createWheelSeekController } from '$lib/services/wheel-seek';
   import HoverTooltip from '$lib/components/HoverTooltip.svelte';
+  import MenuSurface from '$lib/components/MenuSurface.svelte';
   import RatingPicker from '$lib/components/RatingPicker.svelte';
+  import {
+    addPlaybackBookmark,
+    deletePlaybackBookmark,
+    getPlaybackBookmarkFileKey,
+    getPlaybackBookmarks,
+    type PlaybackBookmark
+  } from '$lib/services/playback-bookmarks';
   import { portal } from '$lib/components/playlist-panel/actions/portal';
   import { windowDismiss } from '$lib/components/playlist-panel/actions/window-dismiss';
   import {
@@ -24,6 +32,7 @@
   import type {
     BackdropZoneArtworkSettings,
     BackdropZoneEffect,
+    MenuActionItem,
     PlaybackSnapshot,
     PlaylistItem,
     RafPreset
@@ -121,6 +130,11 @@
   let rafPresetMenuX = 0;
   let rafPresetMenuY = 0;
   let rafPresetMenuElement: HTMLDivElement | null = null;
+  let bookmarkMenuOpen = false;
+  let bookmarkMenuX = 0;
+  let bookmarkMenuY = 0;
+  let bookmarks: PlaybackBookmark[] = [];
+  let loadedBookmarkTrackKey: string | null = null;
   let seekPreview = 0;
   let seekPointerActive = false;
   let seekWheelActive = false;
@@ -166,7 +180,14 @@
     onCommit: (seconds) => dispatch('seek', seconds)
   });
 
-  function beginSeekPointer(): void {
+  function beginSeekPointer(event: PointerEvent): void {
+    // A secondary click on the seek control is for the player context menu,
+    // not the beginning of a seek gesture. Treating it as a drag can make the
+    // range input commit a tiny position change when the menu opens.
+    if (event.button !== 0) {
+      event.preventDefault();
+      return;
+    }
     wheelSeek.cancel();
     seekPointerActive = true;
     seekPreview = snapshot.currentTime;
@@ -185,7 +206,7 @@
   }
 
   function commitSeekPointer(event: PointerEvent): void {
-    if (!seekPointerActive) {
+    if (event.button !== 0 || !seekPointerActive) {
       return;
     }
 
@@ -254,6 +275,32 @@
 
   function closeRafPresetMenu() {
     rafPresetMenuOpen = false;
+  }
+
+  function openBookmarkMenu(event: MouseEvent): void {
+    event.preventDefault();
+    event.stopPropagation();
+    bookmarkMenuX = event.clientX;
+    bookmarkMenuY = event.clientY;
+    bookmarkMenuOpen = true;
+  }
+
+  function handleBookmarkAction(action: string): void {
+    if (!track) return;
+    if (action === 'bookmark:add') {
+      const name = window.prompt($t('main.player.bookmarkNamePrompt', { default: 'Name this bookmark:' }));
+      if (name === null) return;
+      bookmarks = addPlaybackBookmark(track, snapshot.currentTime, name);
+      return;
+    }
+    if (action.startsWith('bookmark:delete:')) {
+      bookmarks = deletePlaybackBookmark(track, action.slice('bookmark:delete:'.length));
+      return;
+    }
+    if (action.startsWith('bookmark:seek:')) {
+      const bookmark = bookmarks.find(({ id }) => id === action.slice('bookmark:seek:'.length));
+      if (bookmark) dispatch('seek', bookmark.time);
+    }
   }
 
   function applyRafPreset(id: string) {
@@ -417,6 +464,37 @@
   $: isCompactVolume = viewportUsesCompactVolume || compactPlayerBar;
   $: displayTrack = track;
   $: displayDuration = track ? snapshot.duration : 0;
+  $: bookmarkTrackKey = track ? getPlaybackBookmarkFileKey(track) : null;
+  $: if (bookmarkTrackKey !== loadedBookmarkTrackKey) {
+    loadedBookmarkTrackKey = bookmarkTrackKey;
+    bookmarks = track ? getPlaybackBookmarks(track) : [];
+    bookmarkMenuOpen = false;
+  }
+  $: bookmarkMenuItems = [{
+    id: 'bookmarks',
+    label: $t('main.player.bookmarks', { default: 'Bookmarks' }),
+    icon: 'bookmarks',
+    disabled: !track,
+    children: [
+      ...bookmarks.map((bookmark): MenuActionItem => ({
+        id: `bookmark:seek:${bookmark.id}`,
+        label: bookmark.name,
+        shortcut: formatDuration(bookmark.time),
+        icon: 'bookmark',
+        removeActionId: `bookmark:delete:${bookmark.id}`,
+        removeLabel: $t('main.player.deleteBookmark', {
+          default: 'Delete bookmark {name}',
+          values: { name: bookmark.name }
+        })
+      })),
+      {
+        id: 'bookmark:add',
+        label: $t('main.player.addBookmark', { default: 'Add bookmark' }),
+        icon: 'bookmark_add',
+        separatorBefore: bookmarks.length > 0
+      }
+    ]
+  } satisfies MenuActionItem];
   $: displaySubsongCount = displayTrack?.kind === 'module'
     ? Math.max(snapshot.subsongCount ?? displayTrack.metadata?.subsongs ?? 1, 1)
     : 1;
@@ -468,6 +546,7 @@
     }
 
     event.preventDefault();
+    event.stopPropagation();
     if (direction < 0) {
       dispatch('previousSubsong');
     } else {
@@ -476,6 +555,7 @@
   }
 </script>
 
+<!-- svelte-ignore a11y_no_static_element_interactions -->
 <svelte:element
   this={containerElement}
   bind:this={playerBarElement}
@@ -496,6 +576,7 @@
   data-visualizer-zone={visualizerBackdropActive ? 'true' : null}
   data-backdrop-zone-id={presentation === 'bar' ? 'player' : null}
   style={rootStyle}
+  on:contextmenu={openBookmarkMenu}
 >
   <div class="player-track-group">
     {#if displayTrack?.kind !== 'video'}
@@ -749,6 +830,18 @@
     </div>
   </div>
 </svelte:element>
+
+{#if bookmarkMenuOpen}
+  <MenuSurface
+    items={bookmarkMenuItems}
+    x={bookmarkMenuX}
+    y={bookmarkMenuY}
+    ariaLabel={$t('main.player.playerMenu', { default: 'Player' })}
+    enableOverflowSubmenuFallback
+    on:action={(event) => handleBookmarkAction(event.detail)}
+    on:dismiss={() => (bookmarkMenuOpen = false)}
+  />
+{/if}
 
 {#if rafPresetMenuOpen}
   <div

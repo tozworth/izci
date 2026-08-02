@@ -26,7 +26,7 @@ interface CreatePlaybackCommandsControllerOptions {
   getTransitionMode: () => PlaybackTransitionMode;
   getGaplessPlaybackEnabled: () => boolean;
   getFadeDurationSeconds: () => number;
-  getFadeOnManualTrackChange: () => boolean;
+  getManualTrackChangeFadePercent: () => number;
   getShuffleEnabled: () => boolean;
   getRepeatMode: () => PlaylistRepeatMode;
   getTrackById: (collection: WorkspaceCollection, id: string) => PlaylistItem | null;
@@ -61,6 +61,17 @@ export function isAutomaticFadeWindow(
     && currentTime >= Math.max(duration - Math.min(Math.max(fadeDurationSeconds, 0), duration), 0);
 }
 
+export function resolveManualTransitionDurationSeconds(
+  fadeDurationSeconds: number,
+  manualTrackChangeFadePercent: number
+): number {
+  const duration = Number.isFinite(fadeDurationSeconds) ? Math.max(fadeDurationSeconds, 0) : 0;
+  const percentage = Number.isFinite(manualTrackChangeFadePercent)
+    ? Math.min(Math.max(manualTrackChangeFadePercent, 0), 100)
+    : 0;
+  return duration * percentage / 100;
+}
+
 export function shouldRestartForPrevious(
   direction: -1 | 1,
   enabled: boolean,
@@ -84,7 +95,7 @@ export function createPlaybackCommandsController({
   getTransitionMode,
   getGaplessPlaybackEnabled,
   getFadeDurationSeconds,
-  getFadeOnManualTrackChange,
+  getManualTrackChangeFadePercent,
   getShuffleEnabled,
   getRepeatMode,
   getTrackById,
@@ -157,16 +168,20 @@ export function createPlaybackCommandsController({
       }
 
       const mode = effectiveTransitionMode();
+      const manualTransitionDurationSeconds = resolveManualTransitionDurationSeconds(
+        getFadeDurationSeconds(),
+        getManualTrackChangeFadePercent()
+      );
       const shouldTransition =
         options.manualTransition === true &&
-        getFadeOnManualTrackChange() &&
+        manualTransitionDurationSeconds > 0 &&
         mode !== 'none' &&
         initialPosition === 0;
 
       if (shouldTransition) {
         manualTransitionCount += 1;
         try {
-          await playerController.transitionTo(playableTrack, mode, getFadeDurationSeconds());
+          await playerController.transitionTo(playableTrack, mode, manualTransitionDurationSeconds);
         } finally {
           manualTransitionCount = Math.max(manualTransitionCount - 1, 0);
         }

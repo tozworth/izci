@@ -41,6 +41,9 @@ export const PLAYBACK_RATE_STEP = 0.05;
 export const FADE_DURATION_MIN_SECONDS = 0.5;
 export const FADE_DURATION_MAX_SECONDS = 30;
 export const FADE_DURATION_STEP_SECONDS = 0.5;
+export const MANUAL_TRACK_CHANGE_FADE_PERCENT_MIN = 0;
+export const MANUAL_TRACK_CHANGE_FADE_PERCENT_MAX = 100;
+export const MANUAL_TRACK_CHANGE_FADE_PERCENT_STEP = 5;
 
 export const DEFAULT_PLAYBACK_SETTINGS: PlaybackSettings = {
   playbackRate: 1,
@@ -49,7 +52,7 @@ export const DEFAULT_PLAYBACK_SETTINGS: PlaybackSettings = {
   transitionMode: 'none',
   gaplessPlayback: true,
   fadeDurationSeconds: 5,
-  fadeOnManualTrackChange: false,
+  manualTrackChangeFadePercent: 0,
   logarithmicVolume: true,
   replayGainMode: 'track',
   restoreMode: 'disabled',
@@ -72,6 +75,19 @@ export function normalizeFadeDurationSeconds(value: unknown): number {
   const clamped = Math.min(Math.max(value, FADE_DURATION_MIN_SECONDS), FADE_DURATION_MAX_SECONDS);
   const stepped = Math.round(clamped / FADE_DURATION_STEP_SECONDS) * FADE_DURATION_STEP_SECONDS;
   return Number(stepped.toFixed(1));
+}
+
+export function normalizeManualTrackChangeFadePercent(value: unknown): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return DEFAULT_PLAYBACK_SETTINGS.manualTrackChangeFadePercent;
+  }
+
+  const clamped = Math.min(
+    Math.max(value, MANUAL_TRACK_CHANGE_FADE_PERCENT_MIN),
+    MANUAL_TRACK_CHANGE_FADE_PERCENT_MAX
+  );
+  return Math.round(clamped / MANUAL_TRACK_CHANGE_FADE_PERCENT_STEP)
+    * MANUAL_TRACK_CHANGE_FADE_PERCENT_STEP;
 }
 
 function normalizeReplayGainMode(value: unknown): ReplayGainMode {
@@ -131,10 +147,9 @@ export function normalizePlaybackSettings(value: unknown): PlaybackSettings {
         : requestedTransitionMode,
     gaplessPlayback,
     fadeDurationSeconds: normalizeFadeDurationSeconds(source.fadeDurationSeconds),
-    fadeOnManualTrackChange:
-      typeof source.fadeOnManualTrackChange === 'boolean'
-        ? source.fadeOnManualTrackChange
-        : DEFAULT_PLAYBACK_SETTINGS.fadeOnManualTrackChange,
+    manualTrackChangeFadePercent: normalizeManualTrackChangeFadePercent(
+      source.manualTrackChangeFadePercent
+    ),
     logarithmicVolume:
       typeof source.logarithmicVolume === 'boolean'
         ? source.logarithmicVolume

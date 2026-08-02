@@ -275,7 +275,7 @@
     getTransitionMode: () => $playbackSettings.transitionMode,
     getGaplessPlaybackEnabled: () => $playbackSettings.gaplessPlayback,
     getFadeDurationSeconds: () => $playbackSettings.fadeDurationSeconds,
-    getFadeOnManualTrackChange: () => $playbackSettings.fadeOnManualTrackChange,
+    getManualTrackChangeFadePercent: () => $playbackSettings.manualTrackChangeFadePercent,
     getShuffleEnabled: () => shuffleEnabled,
     getRepeatMode: () => repeatMode,
     getTrackById: (collection, id) =>

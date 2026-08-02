@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_REMEMBER_PROGRESS_DURATION_INDEX,
   normalizeFadeDurationSeconds,
+  normalizeManualTrackChangeFadePercent,
   normalizePlaybackRate,
   normalizePlaybackSettings,
   normalizePlaybackRestoreMode,
@@ -51,6 +52,13 @@ describe('playback settings helpers', () => {
     expect(normalizeFadeDurationSeconds(4.74)).toBe(4.5);
     expect(normalizeFadeDurationSeconds(0)).toBe(0.5);
     expect(normalizeFadeDurationSeconds(60)).toBe(30);
+  });
+
+  it('normalizes the manual track-change fade percentage to the slider range and step', () => {
+    expect(normalizeManualTrackChangeFadePercent(47)).toBe(45);
+    expect(normalizeManualTrackChangeFadePercent(-1)).toBe(0);
+    expect(normalizeManualTrackChangeFadePercent(101)).toBe(100);
+    expect(normalizeManualTrackChangeFadePercent('50')).toBe(0);
   });
 
   it('turns a persisted crossfade into fade out when gapless playback is disabled', () => {

@@ -25,6 +25,7 @@
     },
     "menu": {
       "genericMenu": "Menü",
+      "delete": "Delete",
       "back": "Geri",
       "openLoadouts": "Dizilimleri aç",
       "installApp": "izci'yi kur...",
@@ -97,6 +98,10 @@
       "exitFullscreen": "Tam ekrandan çık",
       "exitVideoTheater": "Video sinemasından çık",
       "enterVideoTheater": "Video sinemasına gir",
+      "bookmarkNamePrompt": "Name this bookmark:",
+      "bookmarks": "Bookmarks",
+      "deleteBookmark": "Delete bookmark {name}",
+      "addBookmark": "Add bookmark",
       "nowPlayingControls": "Şimdi Yürütülüyor kontrolleri",
       "videoTheaterControls": "Video sineması kontrolleri",
       "showCurrentTrackDetails": "Mevcut parçanın detaylarını göster",
@@ -109,6 +114,7 @@
       "powerOnRaf": "Raf'ı aç",
       "bypassRafWithPresetHint": "Raf'ı geç · Önayarlar için sağ tıkla",
       "powerOnRafWithPresetHint": "Raf'ı aç · Önayarlar için sağ tıkla",
+      "playerMenu": "Player",
       "rafPresets": "Raf önayarları",
       "noRafPresets": "Raf önayarları yok",
       "openRaf": "Raf'ı aç",
@@ -975,6 +981,12 @@
           "fadeout": "Sönümleme",
           "crossfade": "Çapraz geçiş"
         },
+        "manual": {
+          "off": "Kapalı",
+          "fullDuration": "Tam süre",
+          "title": "Elle parça değişimlerini sönümle",
+          "hint": "Önceki, Sonraki veya başka bir parçayı seçtiğinizde standart sönümleme ya da çapraz geçiş süresinin ne kadarının uygulanacağını ayarlar."
+        },
         "heading": "Geçişler",
         "mode": {
           "title": "Parça geçişi",
@@ -987,10 +999,6 @@
         "duration": {
           "title": "Sönümleme süresi",
           "hint": "Sönümleme veya örtüşme süresini ayarlar."
-        },
-        "manual": {
-          "title": "Elle parça değişimlerini sönümle",
-          "hint": "Önceki, Sonraki veya başka bir parçayı seçtiğinizde de seçili geçişi kullanır."
         }
       },
       "rememberProgress": {

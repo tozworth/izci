@@ -17,6 +17,7 @@
   export let activateOnPointerUpPointerId: number | null = null;
 
   type MenuLevel = {
+    sourceItemId: string;
     label: string;
     items: MenuActionItem[];
     ratingPicker?: MenuActionItem['ratingPicker'];
@@ -33,6 +34,7 @@
   let resolvedY = y;
   let shouldUseSubmenuDrilldown = false;
   let navigationStack: MenuLevel[] = [];
+  let observedItems = items;
   let suppressNextClickItemId: string | null = null;
 
   $: currentLevel = navigationStack[navigationStack.length - 1] ?? null;
@@ -65,6 +67,7 @@
     }
 
     navigationStack = [...navigationStack, {
+      sourceItemId: item.id,
       label: item.label,
       items: item.children ?? [],
       ratingPicker: item.ratingPicker
@@ -94,6 +97,12 @@
 
     dispatch('action', item.id);
     dispatch('dismiss');
+  }
+
+  function handleRemove(event: MouseEvent, item: MenuActionItem) {
+    event.preventDefault();
+    event.stopPropagation();
+    if (item.removeActionId) dispatch('action', item.removeActionId);
   }
 
   function handleItemClick(item: MenuActionItem) {
@@ -139,8 +148,32 @@
       hasChildMenus && resolvedX + menuElement.offsetWidth + minimumSubmenuWidth + padding > window.innerWidth;
   }
 
+  function refreshNavigationStack(): void {
+    let sourceItems = items;
+    const refreshed: MenuLevel[] = [];
+
+    for (const level of navigationStack) {
+      const sourceItem = sourceItems.find(({ id }) => id === level.sourceItemId);
+      if (!sourceItem || !hasSubmenu(sourceItem)) break;
+      const childItems = sourceItem.children ?? [];
+      refreshed.push({
+        sourceItemId: sourceItem.id,
+        label: sourceItem.label,
+        items: childItems,
+        ratingPicker: sourceItem.ratingPicker
+      });
+      sourceItems = childItems;
+    }
+
+    navigationStack = refreshed;
+  }
+
   $: resolvedX = x;
   $: resolvedY = y;
+  $: if (items !== observedItems) {
+    observedItems = items;
+    refreshNavigationStack();
+  }
   $: if (!shouldUseSubmenuDrilldown && navigationStack.length > 0) {
     navigationStack = [];
   }
@@ -209,6 +242,14 @@
             <span class="menu-item-shortcut" aria-hidden="true">{item.shortcut}</span>
           {/if}
         </button>
+        {#if item.removeActionId}
+          <button
+            type="button"
+            class="menu-item-remove"
+            aria-label={item.removeLabel ?? $t('main.menu.delete', { default: 'Delete' })}
+            on:click={(event) => handleRemove(event, item)}
+          ><span class="material-symbols-outlined" aria-hidden="true">close</span></button>
+        {/if}
 
         {#if item.children?.length && activeSubmenuId === item.id}
           <svelte:self
@@ -299,6 +340,14 @@
             <span class="menu-item-shortcut" aria-hidden="true">{item.shortcut}</span>
           {/if}
         </button>
+        {#if item.removeActionId}
+          <button
+            type="button"
+            class="menu-item-remove"
+            aria-label={item.removeLabel ?? $t('main.menu.delete', { default: 'Delete' })}
+            on:click={(event) => handleRemove(event, item)}
+          ><span class="material-symbols-outlined" aria-hidden="true">close</span></button>
+        {/if}
 
         {#if canShowHoverSubmenus && item.children?.length && activeSubmenuId === item.id}
           <svelte:self
@@ -342,6 +391,33 @@
 
   .menu-entry-group {
     position: relative;
+  }
+
+  .menu-entry-group:has(.menu-item-remove) > button:first-of-type {
+    padding-right: 2rem;
+  }
+
+  button.menu-item-remove {
+    position: absolute;
+    top: 50%;
+    right: 0.28rem;
+    display: grid;
+    width: 1.45rem;
+    min-width: 0;
+    height: 1.45rem;
+    padding: 0;
+    place-items: center;
+    opacity: 0;
+    transform: translateY(-50%);
+  }
+
+  button.menu-item-remove .material-symbols-outlined {
+    font-size: 1rem;
+  }
+
+  .menu-entry-group:hover > .menu-item-remove,
+  .menu-entry-group:focus-within > .menu-item-remove {
+    opacity: 1;
   }
 
   .menu-item-chevron {

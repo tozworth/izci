@@ -372,7 +372,7 @@ export interface PlaybackSettings {
   transitionMode: PlaybackTransitionMode;
   gaplessPlayback: boolean;
   fadeDurationSeconds: number;
-  fadeOnManualTrackChange: boolean;
+  manualTrackChangeFadePercent: number;
   logarithmicVolume: boolean;
   replayGainMode: ReplayGainMode;
   restoreMode: PlaybackRestoreMode;
@@ -509,6 +509,9 @@ export interface MenuActionItem {
   disabled?: boolean;
   separatorBefore?: boolean;
   attention?: boolean;
+  /** Optional secondary action shown at the trailing edge while the item is hovered. */
+  removeActionId?: string;
+  removeLabel?: string;
   children?: MenuActionItem[];
   ratingPicker?: {
     value: number;

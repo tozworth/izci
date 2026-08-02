@@ -25,6 +25,7 @@
     },
     "menu": {
       "genericMenu": "Menu",
+      "delete": "Delete",
       "back": "Back",
       "openLoadouts": "Open loadouts",
       "installApp": "Install izci...",
@@ -97,6 +98,10 @@
       "exitFullscreen": "Exit fullscreen",
       "exitVideoTheater": "Exit video theater",
       "enterVideoTheater": "Enter video theater",
+      "bookmarkNamePrompt": "Name this bookmark:",
+      "bookmarks": "Bookmarks",
+      "deleteBookmark": "Delete bookmark {name}",
+      "addBookmark": "Add bookmark",
       "nowPlayingControls": "Now Playing controls",
       "videoTheaterControls": "Video theater controls",
       "showCurrentTrackDetails": "Show current track details",
@@ -109,6 +114,7 @@
       "powerOnRaf": "Power on Raf",
       "bypassRafWithPresetHint": "Bypass Raf · Right-click for presets",
       "powerOnRafWithPresetHint": "Power on Raf · Right-click for presets",
+      "playerMenu": "Player",
       "rafPresets": "Raf presets",
       "noRafPresets": "No Raf presets",
       "openRaf": "Open Raf",
@@ -975,6 +981,12 @@
           "fadeout": "Fade out",
           "crossfade": "Crossfade"
         },
+        "manual": {
+          "off": "Off",
+          "fullDuration": "Full duration",
+          "title": "Fade manual track changes",
+          "hint": "Sets how much of the standard fade or crossfade duration applies when you choose Previous, Next, or another track."
+        },
         "heading": "Transitions",
         "mode": {
           "title": "Track transition",
@@ -987,10 +999,6 @@
         "duration": {
           "title": "Fade length",
           "hint": "Sets the fade-out or overlap duration."
-        },
-        "manual": {
-          "title": "Fade manual track changes",
-          "hint": "Also uses the selected transition when you choose Previous, Next, or another track."
         }
       },
       "rememberProgress": {

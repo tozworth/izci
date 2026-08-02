@@ -171,7 +171,7 @@
           $playbackSettings.logarithmicVolume !== DEFAULT_PLAYBACK_SETTINGS.logarithmicVolume ||
           $playbackSettings.gaplessPlayback !== DEFAULT_PLAYBACK_SETTINGS.gaplessPlayback ||
           $playbackSettings.fadeDurationSeconds !== DEFAULT_PLAYBACK_SETTINGS.fadeDurationSeconds ||
-          $playbackSettings.fadeOnManualTrackChange !== DEFAULT_PLAYBACK_SETTINGS.fadeOnManualTrackChange;
+          $playbackSettings.manualTrackChangeFadePercent !== DEFAULT_PLAYBACK_SETTINGS.manualTrackChangeFadePercent;
         break;
       case 'visualizer':
         advancedTweaksModified =

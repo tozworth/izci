@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   PREVIOUS_TRACK_RESTART_THRESHOLD_SECONDS,
   isAutomaticFadeWindow,
+  resolveManualTransitionDurationSeconds,
   resolveEffectiveTransitionMode,
   shouldRestartForPrevious
 } from './playback-commands';
@@ -40,5 +41,12 @@ describe('track transition behavior', () => {
     expect(isAutomaticFadeWindow(55, 60, 5)).toBe(true);
     expect(isAutomaticFadeWindow(2, 3, 10)).toBe(true);
     expect(isAutomaticFadeWindow(0, 0, 5)).toBe(false);
+  });
+
+  it('scales manual transitions from off through the full standard duration', () => {
+    expect(resolveManualTransitionDurationSeconds(8, 0)).toBe(0);
+    expect(resolveManualTransitionDurationSeconds(8, 25)).toBe(2);
+    expect(resolveManualTransitionDurationSeconds(8, 100)).toBe(8);
+    expect(resolveManualTransitionDurationSeconds(8, 150)).toBe(8);
   });
 });
