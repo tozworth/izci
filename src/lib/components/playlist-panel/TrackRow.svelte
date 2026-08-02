@@ -43,6 +43,7 @@
           class="track-table-cell"
           class:is-right-aligned={isRightAlignedColumn(column.id)}
           class:is-duration={column.id === 'duration'}
+          class:is-rating={column.id === 'rating'}
           title={getColumnTextValue(item, column.id)}
         >
           {#if column.id === 'rating' && getColumnTextValue(item, column.id)}
@@ -128,6 +129,10 @@
     color: var(--muted);
   }
 
+  .track-table-cell.is-rating {
+    text-overflow: clip;
+  }
+
   .track-rating-value {
     display: inline-flex;
     align-items: center;
@@ -135,7 +140,8 @@
   }
 
   .track-rating-star {
-    color: #e6ae27;
+    flex-shrink: 0;
+    color: var(--accent-strong);
     font-size: 0.92rem;
     line-height: 1;
     font-variation-settings: 'FILL' 1, 'wght' 500, 'GRAD' 0, 'opsz' 20;

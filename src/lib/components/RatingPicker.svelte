@@ -19,8 +19,12 @@
     return fill >= 1 ? 'star' : fill >= 0.5 ? 'star_half' : 'star';
   }
 
-  function isStarFilled(star: number): boolean {
+  function isStarRated(star: number): boolean {
     return displayedRating - (star - 1) >= 0.5;
+  }
+
+  function isStarFilled(star: number): boolean {
+    return displayedRating - (star - 1) >= 1;
   }
 
   function select(value: number) {
@@ -40,6 +44,7 @@
   {#each stars as star, index}
     <span
       class="material-symbols-outlined rating-star"
+      class:rated={isStarRated(star)}
       class:filled={isStarFilled(star)}
       style={`grid-column: ${index * 2 + 1} / span 2; grid-row: 1;`}
       aria-hidden="true"
@@ -96,10 +101,13 @@
     font-variation-settings: 'FILL' 0, 'wght' 500, 'GRAD' 0, 'opsz' 20;
   }
 
-  .rating-star.filled {
+  .rating-star.rated {
     color: #e6ae27;
-    font-variation-settings: 'FILL' 1, 'wght' 500, 'GRAD' 0, 'opsz' 20;
     filter: drop-shadow(0 0 0.2rem color-mix(in srgb, #e6ae27 45%, transparent));
+  }
+
+  .rating-star.filled {
+    font-variation-settings: 'FILL' 1, 'wght' 500, 'GRAD' 0, 'opsz' 20;
   }
 
   .rating-hit {
