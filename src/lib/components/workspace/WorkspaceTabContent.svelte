@@ -42,11 +42,14 @@
     on:setSelection={(event) => content.libraryPanelHandlers.setSelection?.(event)}
     on:activate={content.libraryPanelHandlers.activate}
     on:contextAction={content.libraryPanelHandlers.contextAction}
+    on:libraryGroupRequestHandled={(event) => content.libraryPanelHandlers.libraryGroupRequestHandled?.(event)}
   />
 {:else if tab === 'details'}
   <TrackDetailsPanel
     track={content.selectedItem}
     artwork={content.detailsArtwork}
+    libraryTargets={content.detailsLibraryTargets}
+    onNavigateToLibrary={content.navigateTrackDetailsToLibrary}
     {artworkBackgroundActive}
     {artworkBackgroundBright}
     {visualizerBackdropActive}

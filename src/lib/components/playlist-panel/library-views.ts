@@ -123,6 +123,20 @@ function getGroupValues(
   }
 }
 
+export function getLibraryGroupIdentities(
+  item: PlaylistItem,
+  view: Exclude<LibraryGroupViewId, 'folders'>
+): Array<Pick<LibraryGroup, 'key' | 'label'>> {
+  return getGroupValues(item, view).map((value) => ({
+    key: groupKey(
+      view,
+      value.placeholder ? `__unknown:${value.placeholder}` : value.label,
+      value.secondaryKind ? `__kind:${value.secondaryKind}` : value.secondary
+    ),
+    label: value.label
+  }));
+}
+
 function buildFolderGroups(items: PlaylistItem[], collator: Intl.Collator): LibraryGroup[] {
   const groups = new Map<string, LibraryGroup>();
 

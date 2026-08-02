@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  buildFavoritesContextActions,
   buildLibraryContextActions,
   buildPlaylistContextActions,
   buildSelectedWorkspaceTracks,
@@ -8,7 +9,8 @@ import {
   getEquivalentFavoriteIds,
   getOtherWorkspaceCollection,
   favoritesHaveAllTracks,
-  libraryHasAllTracks
+  libraryHasAllTracks,
+  resolveTrackLibraryNavigationAction
 } from './workspace-actions';
 import type { PlaylistItem } from '$lib/types';
 
@@ -55,12 +57,14 @@ describe('workspace actions', () => {
     expect(
       buildPlaylistContextActions(playlistTracks, libraryTracks, ['playlist-alpha']).map((action) => action.id)
     ).not.toContain('track-lyrics');
-    expect(buildPlaylistContextActions(playlistTracks, libraryTracks, ['playlist-alpha'])[1]).toMatchObject({
+    expect(buildPlaylistContextActions(playlistTracks, libraryTracks, ['playlist-alpha'])
+      .find((action) => action.id === 'toggle-library')).toMatchObject({
       id: 'toggle-library',
       label: 'Remove from library',
       icon: 'remove_circle'
     });
-    expect(buildPlaylistContextActions(playlistTracks, [], ['playlist-alpha'])[1]).toMatchObject({
+    expect(buildPlaylistContextActions(playlistTracks, [], ['playlist-alpha'])
+      .find((action) => action.id === 'toggle-library')).toMatchObject({
       id: 'toggle-library',
       label: 'Add to library',
       icon: 'library_add'
@@ -87,6 +91,58 @@ describe('workspace actions', () => {
       .toContainEqual(expect.objectContaining({ id: 'toggle-favorite', label: 'Remove from favorites' }));
     expect(buildLibraryContextActions([track], [], ['track']))
       .toContainEqual(expect.objectContaining({ id: 'toggle-favorite', label: 'Add to favorites' }));
+  });
+
+  it('places a destination-aware Go to submenu directly above Track details for one track', () => {
+    const libraryTrack = item('library', {
+      path: '/Music/Track.flac',
+      metadata: {
+        artist: 'Artist',
+        album: 'Album',
+        genre: 'Rock; Electronic',
+        year: '2024'
+      }
+    });
+    const playlistTrack = { ...libraryTrack, id: 'playlist' };
+    const playlistActions = buildPlaylistContextActions(
+      [playlistTrack],
+      [libraryTrack],
+      ['playlist']
+    );
+    const goToIndex = playlistActions.findIndex((action) => action.id === 'go-to-library');
+
+    expect(goToIndex).toBeGreaterThanOrEqual(0);
+    expect(playlistActions[goToIndex + 1]?.id).toBe('track-details');
+    expect(playlistActions[goToIndex].children?.map((action) => action.id)).toEqual([
+      'go-to-library-artist',
+      'go-to-library-album',
+      'go-to-library-genre',
+      'go-to-library-year',
+      'go-to-library-format'
+    ]);
+    expect(resolveTrackLibraryNavigationAction(
+      'go-to-library-album',
+      playlistTrack,
+      [libraryTrack]
+    )).toMatchObject({ view: 'albums', trackId: 'library' });
+
+    const favoriteActions = buildFavoritesContextActions(
+      [{ ...playlistTrack, id: 'favorite' }],
+      [libraryTrack],
+      ['favorite']
+    );
+    expect(favoriteActions.findIndex((action) => action.id === 'go-to-library') + 1)
+      .toBe(favoriteActions.findIndex((action) => action.id === 'track-details'));
+  });
+
+  it('omits the Go to submenu for multi-track selections and tracks outside the library', () => {
+    const first = item('first', { path: '/Music/First.flac' });
+    const second = item('second', { path: '/Music/Second.flac' });
+
+    expect(buildPlaylistContextActions([first], [], ['first']).map((action) => action.id))
+      .not.toContain('go-to-library');
+    expect(buildLibraryContextActions([first, second], [], ['first', 'second']).map((action) => action.id))
+      .not.toContain('go-to-library');
   });
 
   it('offers subsong separation only for one unsplit multi-subsong module', () => {

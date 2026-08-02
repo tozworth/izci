@@ -47,10 +47,10 @@
       "patterns": "Patterns",
       "miniPlayer": "Mini player",
       "nowPlaying": "Now Playing",
+      "applicationMenu": "Application menu",
       "file": "File",
       "view": "View",
       "help": "Help",
-      "applicationMenu": "Application menu",
       "updateUpdated": "updated!",
       "updateCurrent": "up to date",
       "updateFailed": "update check failed",
@@ -131,25 +131,21 @@
       "startOver": "Start over",
       "dismiss": "Dismiss resume message"
     },
-    "video": {
-      "fit": "Fit to window",
-      "fill": "Fill window",
-      "pictureInPicture": "Picture in Picture",
-      "menu": "Video",
-      "volume": "Volume {percent}%",
-      "seekForward": "Forward {seconds}s",
-      "seekBackward": "Back {seconds}s",
-      "playback": "Video playback"
-    },
     "trackDetails": {
       "album": "Album",
+      "genre": "Genre",
+      "year": "Year",
+      "format": "Format",
       "albumArtist": "Album Artist",
       "composer": "Composer",
       "discAndTrack": "Disc / Track",
       "discNumber": "Disc Number",
-      "genre": "Genre",
       "trackNumber": "Track Number",
-      "year": "Year",
+      "goToArtist": "Go to artist",
+      "goToAlbum": "Go to album",
+      "goToGenre": "Go to genre",
+      "goToYear": "Go to year",
+      "goToFormat": "Go to format",
       "replayGainTrack": "Track {gain}",
       "replayGainAlbum": "Album {gain}",
       "patternCount": "{count, plural, one {# pattern} other {# patterns}}",
@@ -159,13 +155,22 @@
       "subsongAvailable": "Subsongs: {count, plural, one {# available} other {# available}}",
       "heading": "Track Details",
       "closePanel": "Close Track Details",
-      "format": "Format",
       "replayGain": "ReplayGain",
       "patterns": "Patterns",
       "tracks": "Tracks",
       "subsongs": "Subsongs",
       "notes": "Notes",
       "emptyTitle": "Select a track to view details."
+    },
+    "video": {
+      "fit": "Fit to window",
+      "fill": "Fill window",
+      "pictureInPicture": "Picture in Picture",
+      "menu": "Video",
+      "volume": "Volume {percent}%",
+      "seekForward": "Forward {seconds}s",
+      "seekBackward": "Back {seconds}s",
+      "playback": "Video playback"
     }
   },
   "playlist": {
@@ -248,6 +253,7 @@
       "tracks": "{count, plural, one {# song} other {# songs}} · {duration}"
     },
     "actions": {
+      "goTo": "Go to...",
       "trackDetails": "Track details",
       "removeFromLibrary": "Remove from library",
       "addToLibrary": "Add to library",
@@ -538,6 +544,17 @@
         },
         "heading": "Interface"
       },
+      "font": {
+        "system": "System",
+        "title": "Font",
+        "loading": "Loading local fonts…",
+        "useLocal": "Use local fonts…",
+        "noFonts": "No local fonts were returned.",
+        "permissionDenied": "Local font permission was not granted.",
+        "loadFailed": "Local fonts could not be loaded.",
+        "hint": "Applies the system interface font or a permitted local font across the app.",
+        "unsupported": "Local Font Access is not supported by this browser."
+      },
       "language": {
         "section": "Language",
         "title": "Interface language",
@@ -570,17 +587,6 @@
       "artworkPlayerColors": {
         "title": "Use artwork colors for player",
         "hint": "Tints the player bar from the current artwork, with the selected theme as fallback."
-      },
-      "font": {
-        "title": "Font",
-        "system": "System",
-        "loading": "Loading local fonts…",
-        "useLocal": "Use local fonts…",
-        "noFonts": "No local fonts were returned.",
-        "permissionDenied": "Local font permission was not granted.",
-        "loadFailed": "Local fonts could not be loaded.",
-        "hint": "Applies the system interface font or a permitted local font across the app.",
-        "unsupported": "Local Font Access is not supported by this browser."
       }
     },
     "backdrops": {
@@ -1547,7 +1553,6 @@
       "forwardFive": "Forward 5 seconds"
     },
     "workbench": {
-      "selectSpectrogramFile": "Select a streamed audio file from Metadata, then open Spectrogram.",
       "files": "Files",
       "albums": "Albums",
       "metadataTab": "Metadata",
@@ -1572,7 +1577,6 @@
       "folderNeedsAccess": "Folder may ask for access",
       "addLibraryFolder": "Add selected library folder",
       "options": "Troubadour Options",
-      "rawSummary": "{unassigned} unassigned · {unsupported} unsupported",
       "loadedFiles": "Loaded files",
       "state": "State",
       "file": "File",
@@ -1580,14 +1584,11 @@
       "format": "Format",
       "empty": "Add files or drop folders here",
       "transientHint": "Nothing is changed until Save or Apply renames.",
-      "groupCount": "{count} groups",
       "variousUnknown": "Various / unknown",
       "trackCount": "{count} tracks",
       "modified": "Modified",
       "albumEmpty": "Select files and create an album, or use Auto-group.",
       "metadataInspector": "Metadata inspector",
-      "selectedCount": "{count} selected",
-      "selectToEdit": "Select files to edit",
       "staged": "Staged",
       "originalVaries": "Original values vary",
       "clearField": "Clear {field}",
@@ -1599,12 +1600,10 @@
       "rawValue": "Raw value",
       "binaryBytes": "Binary · {count} B",
       "artworkInspector": "Artwork inspector",
-      "artwork": "Artwork",
-      "mixedArtwork": "Mixed artwork",
-      "imageCount": "{count} images",
       "embeddedImages": "Embedded images",
       "mixedArtworkHint": "Selected files contain different embedded images.",
       "selectedArtwork": "Selected embedded artwork",
+      "mixedArtwork": "Mixed artwork",
       "noArtwork": "No common artwork",
       "addArtwork": "Add",
       "replaceArtwork": "Replace",
@@ -1852,17 +1851,11 @@
   },
   "spectrogram": {
     "graphLabel": "Audio spectrogram: time from left to right, frequency from bottom to top, and color showing level in dBFS",
-    "reanalyze": "Regenerate spectrum",
     "stop": "Stop",
     "fftSize": "FFT size",
     "range": "Floor",
-    "failed": "The spectrogram could not be generated.",
     "toolbar": "Spectrogram tools",
     "analyzing": "Analyzing spectrum...",
-    "empty": "Open a streamed audio file",
-    "emptyHint": "MP3, WAV, FLAC, Ogg, or Opus · you can also drop a file here",
-    "caveat": "A sharp cutoff can suggest a lossy source, but it is not proof by itself.",
-    "bins": "bins",
     "title": "Spectrogram"
   }
 }

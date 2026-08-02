@@ -8,11 +8,16 @@ import type {
   PlaylistSelection,
   VideoFitMode,
   WorkspaceJumpRequest,
+  WorkspaceLibraryGroupRequest,
   WorkspacePanelId,
   WorkspaceResizeHandle,
   WorkspaceTab
 } from '$lib/types';
 import type { LoadedStreamArtwork } from '$lib/services/stream-artwork';
+import type {
+  TrackLibraryNavigationTarget,
+  TrackLibraryNavigationTargets
+} from '$lib/services/library-navigation';
 import type { Readable } from 'svelte/store';
 
 export const WORKSPACE_DOCK_SCOPE = 'main-workspace';
@@ -37,6 +42,7 @@ export interface WorkspacePanelProps {
   shuffleEnabled?: boolean;
   repeatMode?: PlaylistRepeatMode;
   jumpToItemRequest?: WorkspaceJumpRequest | null;
+  libraryGroupRequest?: WorkspaceLibraryGroupRequest | null;
   getContextMenuActions?: (ids: string[]) => MenuActionItem[];
 }
 
@@ -48,6 +54,7 @@ export interface WorkspacePanelHandlers {
   setSelection?: (event: CustomEvent<PlaylistSelection>) => void;
   activate: (event: CustomEvent<string>) => void;
   contextAction: (event: CustomEvent<{ actionId: string; ids: string[] }>) => void;
+  libraryGroupRequestHandled?: (event: CustomEvent<number>) => void;
   toggleShuffle?: () => void;
   cycleRepeat?: () => void;
 }
@@ -71,6 +78,8 @@ export interface WorkspaceTabContentProps {
   patternTrack: PlaylistItem | null;
   modulePatternSnapshot: ModulePatternSnapshot;
   detailsArtwork: LoadedStreamArtwork | null;
+  detailsLibraryTargets: TrackLibraryNavigationTargets;
+  navigateTrackDetailsToLibrary: (target: TrackLibraryNavigationTarget) => void;
   lyricsDisplayStyle: LyricsDisplayStyle;
   lyricsAutoScroll: boolean;
   lyricsFontSize: number;

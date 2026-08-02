@@ -1,6 +1,10 @@
 <script lang="ts">
   import type { Readable } from 'svelte/store';
   import type { ArtworkPresentationState } from '$lib/services/artwork-presentation';
+  import type {
+    TrackLibraryNavigationTarget,
+    TrackLibraryNavigationTargets
+  } from '$lib/services/library-navigation';
   import { WORKSPACE_RESIZER_WIDTH } from '$lib/services/workspace-layout';
   import type { WorkspaceShellState } from '$lib/services/workspace-shell';
   import type {
@@ -36,6 +40,8 @@
     patternTrack: playerDisplayTrack,
     modulePatternSnapshot,
     detailsArtwork: artworkState.visibleDetailsArtwork,
+    detailsLibraryTargets,
+    navigateTrackDetailsToLibrary: onNavigateTrackDetailsToLibrary,
     lyricsDisplayStyle: effectiveLyricsDisplayStyle,
     lyricsAutoScroll,
     lyricsFontSize,
@@ -73,6 +79,8 @@
   export let lyricsTrack: PlaylistItem | null;
   export let modulePatternSnapshot: ModulePatternSnapshot;
   export let artworkState: ArtworkPresentationState;
+  export let detailsLibraryTargets: TrackLibraryNavigationTargets = {};
+  export let onNavigateTrackDetailsToLibrary: (target: TrackLibraryNavigationTarget) => void = () => {};
   export let appearance: AppearanceSettings;
   export let artworkBackgroundBrightByZone: Record<'nowPlaying', boolean> &
     Partial<Record<WorkspacePanelId, boolean>>;

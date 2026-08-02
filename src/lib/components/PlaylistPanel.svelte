@@ -11,7 +11,8 @@
     MenuActionItem,
     PlaylistItem,
     PlaylistRepeatMode,
-    PlaylistSelection
+    PlaylistSelection,
+    WorkspaceLibraryGroupRequest
   } from '$lib/types';
   import { prepareImportedFiles } from '$lib/services/file-verification';
   import { createAlbumArtworkController } from '$lib/services/album-artwork';
@@ -22,6 +23,7 @@
   import LibraryAlbumBackdrop from '$lib/components/playlist-panel/LibraryAlbumBackdrop.svelte';
   import LibraryGroupList from '$lib/components/playlist-panel/LibraryGroupList.svelte';
   import LibraryColumnsHeader from '$lib/components/playlist-panel/LibraryColumnsHeader.svelte';
+  import { findRequestedLibraryGroup } from '$lib/components/playlist-panel/library-group-navigation';
   import TrackList from '$lib/components/playlist-panel/TrackList.svelte';
   import {
     DEFAULT_TRACK_ROW_HEIGHT,
@@ -73,6 +75,7 @@
   export let shuffleEnabled = false;
   export let repeatMode: PlaylistRepeatMode = 'off';
   export let jumpToItemRequest: { id: string; token: number } | null = null;
+  export let libraryGroupRequest: WorkspaceLibraryGroupRequest | null = null;
   export let getContextMenuActions: (ids: string[]) => MenuActionItem[] = () => [
     { id: 'remove', label: 'Remove', icon: 'delete' }
   ];
@@ -85,6 +88,7 @@
     setSelection: PlaylistSelection;
     activate: string;
     contextAction: { actionId: string; ids: string[] };
+    libraryGroupRequestHandled: number;
     toggleShuffle: void;
     cycleRepeat: void;
   }>();
@@ -111,6 +115,7 @@
   let resizeStartX = 0;
   let resizeStartWidths: LibraryColumnWidths = {};
   let lastHandledJumpToken = 0;
+  let lastHandledLibraryGroupToken = 0;
   let selectedGroupKey: string | null = null;
   let lastActiveLibraryView: LibraryViewId | null = null;
   const libraryGroupScrollPositions = new Map<LibraryViewId, number>();
@@ -576,6 +581,12 @@
 
   function getContextMenuActionLabel(action: MenuActionItem): string {
     switch (action.id) {
+      case 'go-to-library': return $t('playlist.actions.goTo', { default: 'Go to...' });
+      case 'go-to-library-artist': return $t('playlist.library.columns.artist', { default: 'Artist' });
+      case 'go-to-library-album': return $t('main.trackDetails.album', { default: 'Album' });
+      case 'go-to-library-genre': return $t('main.trackDetails.genre', { default: 'Genre' });
+      case 'go-to-library-year': return $t('main.trackDetails.year', { default: 'Year' });
+      case 'go-to-library-format': return $t('main.trackDetails.format', { default: 'Format' });
       case 'track-details': return $t('playlist.actions.trackDetails', { default: 'Track details' });
       case 'toggle-library': return action.icon === 'remove_circle'
         ? $t('playlist.actions.removeFromLibrary', { default: 'Remove from library' })
@@ -802,6 +813,36 @@
     });
   }
 
+  function localizeContextMenuAction(action: MenuActionItem): MenuActionItem {
+    return {
+      ...action,
+      label: getContextMenuActionLabel(action),
+      shortcut: getContextMenuShortcut(action.shortcut),
+      children: action.children?.map(localizeContextMenuAction)
+    };
+  }
+
+  async function openRequestedLibraryGroup(
+    request: WorkspaceLibraryGroupRequest,
+    group: LibraryGroup
+  ) {
+    if (!libraryMode) return;
+
+    try {
+      libraryViewSettings.setSearchQuery('');
+      searchInputExpanded = false;
+      selectedGroupKey = group.key;
+      dispatch('setSelection', {
+        ids: [request.trackId],
+        anchorId: request.trackId,
+        focusId: request.trackId
+      });
+      await scrollTrackIntoView(request.trackId);
+    } finally {
+      dispatch('libraryGroupRequestHandled', request.token);
+    }
+  }
+
   $: activeLibraryView = libraryMode ? $libraryViewSettings.activeView : 'songs';
   $: favoritesViewActive = libraryMode && activeLibraryView === 'favorites';
   $: displaySourceItems = favoritesViewActive ? favoriteItems : items;
@@ -809,7 +850,9 @@
   $: displaySelectionAnchorId = favoritesViewActive ? favoriteSelectionAnchorId : selectionAnchorId;
   $: displayPlayingId = favoritesViewActive ? favoritePlayingId : playingId;
   $: if (activeLibraryView !== lastActiveLibraryView) {
-    selectedGroupKey = null;
+    selectedGroupKey = libraryGroupRequest?.view === activeLibraryView
+      ? libraryGroupRequest.groupKey
+      : null;
     lastActiveLibraryView = activeLibraryView;
   }
   $: searchQuery = showSearchControl ? $libraryViewSettings.searchQuery : '';
@@ -826,6 +869,11 @@
   $: libraryGroups = groupView
     ? buildLibraryGroups(items, groupView, $locale ?? undefined).map(localizeLibraryGroup)
     : [];
+  $: requestedLibraryGroup = findRequestedLibraryGroup(
+    libraryGroupRequest,
+    activeLibraryView,
+    libraryGroups
+  );
   $: pinnedLibraryGroupKeys = groupView ? $libraryViewSettings.pinnedGroupKeys[groupView] : [];
   $: orderedLibraryGroups = groupView === 'folders'
     ? libraryGroups
@@ -890,7 +938,9 @@
   $: localizedPanelTitle = localizePanelLabel(panelTitle);
   $: localizedRegionLabel = localizePanelLabel(regionLabel);
   $: contextMenuActions = contextMenu?.kind === 'items' || contextMenu?.kind === 'library-group'
-    ? getContextMenuActions(contextMenu.ids)
+    ? getContextMenuActions(contextMenu.ids).filter((action) =>
+        contextMenu?.kind === 'items' || action.id !== 'go-to-library'
+      )
     : [];
   $: storedVisibleColumns = orderedColumns.filter((column) => column.visible);
   $: visibleColumnCount = storedVisibleColumns.length;
@@ -912,14 +962,15 @@
               icon: contextMenu.pinned ? 'keep_off' : 'keep'
             } satisfies MenuActionItem]
           : []),
-        ...contextMenuActions.map((action, index) => ({
-          ...action,
-          separatorBefore: contextMenu?.kind === 'library-group' && contextMenu.view !== 'folders' && index === 0
-            ? true
-            : action.separatorBefore,
-          label: getContextMenuActionLabel(action),
-          shortcut: getContextMenuShortcut(action.shortcut)
-        }))
+        ...contextMenuActions.map((action, index) => {
+          const localizedAction = localizeContextMenuAction(action);
+          return {
+            ...localizedAction,
+            separatorBefore: contextMenu?.kind === 'library-group' && contextMenu.view !== 'folders' && index === 0
+              ? true
+              : localizedAction.separatorBefore
+          };
+        })
       ];
   $: contextMenuAriaLabel = contextMenu?.kind === 'columns'
     ? $t('playlist.contextMenu.columns', { default: '{panel} columns', values: { panel: localizedPanelTitle } })
@@ -969,6 +1020,14 @@
   $: if (jumpToItemRequest && jumpToItemRequest.token !== lastHandledJumpToken) {
     lastHandledJumpToken = jumpToItemRequest.token;
     void scrollTrackIntoView(jumpToItemRequest.id);
+  }
+  $: if (
+    libraryGroupRequest
+    && requestedLibraryGroup
+    && libraryGroupRequest.token !== lastHandledLibraryGroupToken
+  ) {
+    lastHandledLibraryGroupToken = libraryGroupRequest.token;
+    void openRequestedLibraryGroup(libraryGroupRequest, requestedLibraryGroup);
   }
 </script>
 

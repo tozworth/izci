@@ -1,6 +1,11 @@
 <script lang="ts">
   import { t } from 'svelte-i18n';
   import HoverTooltip from '$lib/components/HoverTooltip.svelte';
+  import type {
+    TrackLibraryNavigationField,
+    TrackLibraryNavigationTarget,
+    TrackLibraryNavigationTargets
+  } from '$lib/services/library-navigation';
   import type { LoadedStreamArtwork } from '$lib/services/stream-artwork';
   import type { PlaylistItem } from '$lib/types';
   import { resolveModuleDisplayFormat, resolveModuleTrackerName } from '$lib/utils/files';
@@ -15,11 +20,14 @@
   export let fillParent = false;
   export let showCloseButton = false;
   export let onClose: () => void = () => {};
+  export let libraryTargets: TrackLibraryNavigationTargets = {};
+  export let onNavigateToLibrary: (target: TrackLibraryNavigationTarget) => void = () => {};
 
   interface MetadataEntry {
     label: string;
     icon: string;
     value: string;
+    libraryField?: TrackLibraryNavigationField;
   }
 
   interface MetadataLabels {
@@ -40,6 +48,12 @@
   function metadataValuesMatch(left: string, right: string): boolean {
     return left.normalize('NFKC').replace(/\s+/g, ' ').toLowerCase()
       === right.normalize('NFKC').replace(/\s+/g, ' ').toLowerCase();
+  }
+
+  function navigateToLibrary(field: TrackLibraryNavigationField | undefined): void {
+    if (!field) return;
+    const target = libraryTargets[field];
+    if (target) onNavigateToLibrary(target);
   }
 
   function buildTrackNumberEntry(metadata: PlaylistItem['metadata'], labels: MetadataLabels): MetadataEntry | null {
@@ -72,12 +86,12 @@
     return [
       title && metadataValuesMatch(album, title)
         ? null
-        : { label: labels.album, icon: 'album', value: album },
+        : { label: labels.album, icon: 'album', value: album, libraryField: 'album' },
       artist && metadataValuesMatch(albumArtist, artist)
         ? null
         : { label: labels.albumArtist, icon: 'person', value: albumArtist },
-      { label: labels.genre, icon: 'category', value: trimMetadataValue(metadata?.genre) },
-      { label: labels.year, icon: 'calendar_month', value: trimMetadataValue(metadata?.year) },
+      { label: labels.genre, icon: 'category', value: trimMetadataValue(metadata?.genre), libraryField: 'genre' },
+      { label: labels.year, icon: 'calendar_month', value: trimMetadataValue(metadata?.year), libraryField: 'year' },
       trackNumberEntry,
       { label: labels.composer, icon: 'edit_note', value: trimMetadataValue(metadata?.composer) }
     ].filter((entry): entry is MetadataEntry => Boolean(entry && entry.value.length > 0));
@@ -107,6 +121,13 @@
     year: $t('main.trackDetails.year', { default: 'Year' })
   } satisfies MetadataLabels;
   $: metadataEntries = buildStreamMetadataEntries(track, metadataLabels);
+  $: libraryTooltipLabels = {
+    artist: $t('main.trackDetails.goToArtist', { default: 'Go to artist' }),
+    album: $t('main.trackDetails.goToAlbum', { default: 'Go to album' }),
+    genre: $t('main.trackDetails.goToGenre', { default: 'Go to genre' }),
+    year: $t('main.trackDetails.goToYear', { default: 'Go to year' }),
+    format: $t('main.trackDetails.goToFormat', { default: 'Go to format' })
+  } satisfies Record<TrackLibraryNavigationField, string>;
   $: tracker = track?.kind === 'module'
     ? resolveModuleTrackerName(track.extension, track.metadata?.trackerType)
     : '';
@@ -219,7 +240,19 @@
           {/if}
           <h2 class="track-title">{title}</h2>
           {#if showArtist}
-            <p class="track-artist">{artist}</p>
+            {#if libraryTargets.artist}
+              <button
+                type="button"
+                class="track-artist details-library-link hover-tooltip-anchor"
+                aria-label={libraryTooltipLabels.artist}
+                on:click={() => navigateToLibrary('artist')}
+              >
+                <span>{artist}</span>
+                <HoverTooltip align="left" nowrap>{libraryTooltipLabels.artist}</HoverTooltip>
+              </button>
+            {:else}
+              <p class="track-artist">{artist}</p>
+            {/if}
           {/if}
         </section>
       {/if}
@@ -236,7 +269,21 @@
                   >{entry.icon}</span>
                   <HoverTooltip align="left" nowrap>{entry.label}</HoverTooltip>
                 </dt>
-                <dd>{entry.value}</dd>
+                <dd>
+                  {#if entry.libraryField && libraryTargets[entry.libraryField]}
+                    <button
+                      type="button"
+                      class="details-library-link hover-tooltip-anchor"
+                      aria-label={libraryTooltipLabels[entry.libraryField]}
+                      on:click={() => navigateToLibrary(entry.libraryField)}
+                    >
+                      <span>{entry.value}</span>
+                      <HoverTooltip align="left" nowrap>{libraryTooltipLabels[entry.libraryField]}</HoverTooltip>
+                    </button>
+                  {:else}
+                    {entry.value}
+                  {/if}
+                </dd>
               </div>
             {/each}
           </dl>
@@ -254,9 +301,24 @@
               <HoverTooltip align="left" nowrap>{$t('main.trackDetails.format', { default: 'Format' })}</HoverTooltip>
             </dt>
             <dd>
-              <span>{formatValue}</span>
-              {#if formatDetail}
-                <span class="technical-detail">{formatDetail}</span>
+              {#if libraryTargets.format}
+                <button
+                  type="button"
+                  class="details-library-link hover-tooltip-anchor"
+                  aria-label={libraryTooltipLabels.format}
+                  on:click={() => navigateToLibrary('format')}
+                >
+                  <span>{formatValue}</span>
+                  {#if formatDetail}
+                    <span class="technical-detail">{formatDetail}</span>
+                  {/if}
+                  <HoverTooltip align="left" nowrap>{libraryTooltipLabels.format}</HoverTooltip>
+                </button>
+              {:else}
+                <span>{formatValue}</span>
+                {#if formatDetail}
+                  <span class="technical-detail">{formatDetail}</span>
+                {/if}
               {/if}
             </dd>
           </div>
@@ -526,6 +588,38 @@
     display: block;
     font-size: 1rem;
     transform: translateY(0.1rem);
+  }
+
+  button.track-artist {
+    justify-self: start;
+  }
+
+  .details-library-link {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.42rem;
+    min-width: 0;
+    max-width: 100%;
+    margin: -0.08rem -0.2rem;
+    padding: 0.08rem 0.2rem;
+    border-radius: 0.22rem;
+    color: inherit;
+    background: transparent;
+    text-align: left;
+    overflow-wrap: anywhere;
+    transition: color 90ms ease-out, background 90ms ease-out, box-shadow 90ms ease-out;
+  }
+
+  .details-library-link:hover,
+  .details-library-link:focus-visible {
+    color: var(--text-strong);
+    background: color-mix(in srgb, var(--accent) 9%, transparent);
+    box-shadow: 0 0 0.5rem color-mix(in srgb, var(--accent) 22%, transparent);
+  }
+
+  .details-library-link:focus-visible {
+    outline: 1px solid color-mix(in srgb, var(--accent) 70%, transparent);
+    outline-offset: 1px;
   }
 
   .metadata-row dd {

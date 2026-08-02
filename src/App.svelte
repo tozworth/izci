@@ -8,6 +8,11 @@
   import SharedBackdropVisualizer from '$lib/components/SharedBackdropVisualizer.svelte';
   import TopMenuBar from '$lib/components/TopMenuBar.svelte';
   import AppWorkspace from '$lib/components/workspace/AppWorkspace.svelte';
+  import {
+    resolveTrackLibraryNavigationTargets,
+    type TrackLibraryNavigationTarget,
+    type TrackLibraryNavigationTargets
+  } from '$lib/services/library-navigation';
   import VideoTheater from '$lib/components/workspace/VideoTheater.svelte';
   import type {
     VideoSeekFeedback,
@@ -147,6 +152,7 @@
   let playerDisplayTrack: PlaylistItem | null = null;
   let favoriteTargetTrack: PlaylistItem | null = null;
   let lyricsTrack: PlaylistItem | null = null;
+  let detailsLibraryTargets: TrackLibraryNavigationTargets = {};
   let playingTrack: PlaylistItem | null = null;
   let videoParkingHost: HTMLDivElement | null = null;
   let shuffleEnabled = false;
@@ -221,7 +227,7 @@
     getPlaylistContextActions: (ids) => workspaceCollections.getPlaylistContextActions(ids),
     getLibraryContextActions: (ids) =>
       libraryViewSettings.getSnapshot().activeView === 'favorites'
-        ? workspaceCollections.getFavoriteContextActions()
+        ? workspaceCollections.getFavoriteContextActions(ids)
         : workspaceCollections.getLibraryContextActions(ids)
   });
   let workspaceShellState = workspaceShell.getSnapshot();
@@ -239,7 +245,8 @@
       focusCollection: (collection) => workspaceShell.focusCollection(collection),
       selectTrack: (collection, id) => workspaceShell.selectTrack(collection, id),
       showTrackDetails: () => workspaceShell.showTrackDetails(),
-      showTrackLyrics: () => workspaceShell.showTrackLyrics()
+      showTrackLyrics: () => workspaceShell.showTrackLyrics(),
+      showLibraryGroup: (target) => workspaceShell.showLibraryGroup(target)
     }
   });
   const lyricsPresentation = createLyricsPresentationController({
@@ -600,6 +607,10 @@
     void artworkPresentation.syncDetailsDisplay();
   }
   $: void artworkPresentation.syncDisplayedArtwork(playerDisplayTrack);
+  $: detailsLibraryTargets = resolveTrackLibraryNavigationTargets(
+    artworkPresentationState.detailsDisplayTrack,
+    libraryItems
+  );
   $: void artworkPresentation.syncArtworkBrightness(
     artworkPresentationState.visibleArtworkBackground,
     backdropPresentation.isArtworkBackdropRequested
@@ -628,6 +639,7 @@
     select: (event) => handleLibraryPanelSelect(event),
     setSelection: (event) => handleLibraryPanelSetSelection(event),
     activate: (event) => void activateLibraryPanelTrack(event.detail),
+    libraryGroupRequestHandled: (event) => workspaceShell.clearLibraryGroupRequest(event.detail),
     contextAction: (event) =>
       $libraryViewSettings.activeView === 'favorites'
         ? workspaceCollections.handleFavoriteContextAction(event.detail.actionId, event.detail.ids)
@@ -953,6 +965,10 @@
       && item.size === originalSize
       && item.lastModified === originalLastModified
     );
+  }
+
+  function navigateTrackDetailsToLibrary(target: TrackLibraryNavigationTarget) {
+    workspaceShell.showLibraryGroup(target);
   }
 
   async function preparePlaybackForTroubadourWrite(targets: TroubadourWriteTarget[]): Promise<void> {
@@ -1297,6 +1313,8 @@
     {lyricsTrack}
     {modulePatternSnapshot}
     artworkState={artworkPresentationState}
+    {detailsLibraryTargets}
+    onNavigateTrackDetailsToLibrary={navigateTrackDetailsToLibrary}
     appearance={$appearanceSettings}
     artworkBackgroundBrightByZone={backdropPresentation.artworkBackgroundBrightByZone}
     workspaceZoneArtworkBright={backdropPresentation.workspaceZoneArtworkBright}

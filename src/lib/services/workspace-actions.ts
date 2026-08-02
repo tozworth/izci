@@ -1,5 +1,24 @@
 import type { MenuActionItem, PlaylistItem, WorkspaceCollection } from '$lib/types';
+import {
+  resolveTrackLibraryNavigationTargets,
+  TRACK_LIBRARY_NAVIGATION_FIELDS,
+  type TrackLibraryNavigationField,
+  type TrackLibraryNavigationTarget
+} from '$lib/services/library-navigation';
 import { getFavoriteIdentity, getTrackIdentity } from '$lib/utils/files';
+
+const GO_TO_LIBRARY_ACTION_PREFIX = 'go-to-library-';
+
+const libraryNavigationActionPresentation: Record<
+  TrackLibraryNavigationField,
+  Pick<MenuActionItem, 'label' | 'icon'>
+> = {
+  artist: { label: 'Artist', icon: 'person' },
+  album: { label: 'Album', icon: 'album' },
+  genre: { label: 'Genre', icon: 'category' },
+  year: { label: 'Year', icon: 'calendar_month' },
+  format: { label: 'Format', icon: 'equalizer' }
+};
 
 export function getOtherWorkspaceCollection(
   collection: WorkspaceCollection
@@ -80,6 +99,38 @@ function buildFavoriteToggleAction(
   };
 }
 
+function buildGoToLibraryAction(
+  track: PlaylistItem | undefined,
+  libraryItems: PlaylistItem[]
+): MenuActionItem | null {
+  if (!track) return null;
+
+  const targets = resolveTrackLibraryNavigationTargets(track, libraryItems);
+  const children = TRACK_LIBRARY_NAVIGATION_FIELDS.flatMap((field) => {
+    if (!targets[field]) return [];
+    return [{
+      id: `${GO_TO_LIBRARY_ACTION_PREFIX}${field}`,
+      ...libraryNavigationActionPresentation[field]
+    }];
+  });
+
+  return children.length > 0
+    ? { id: 'go-to-library', label: 'Go to...', icon: 'arrow_forward', children }
+    : null;
+}
+
+export function resolveTrackLibraryNavigationAction(
+  actionId: string,
+  track: PlaylistItem | undefined,
+  libraryItems: PlaylistItem[]
+): TrackLibraryNavigationTarget | null {
+  if (!track || !actionId.startsWith(GO_TO_LIBRARY_ACTION_PREFIX)) return null;
+
+  const field = actionId.slice(GO_TO_LIBRARY_ACTION_PREFIX.length) as TrackLibraryNavigationField;
+  if (!TRACK_LIBRARY_NAVIGATION_FIELDS.includes(field)) return null;
+  return resolveTrackLibraryNavigationTargets(track, libraryItems)[field] ?? null;
+}
+
 export function buildPlaylistContextActions(
   playlistItems: PlaylistItem[],
   libraryItems: PlaylistItem[],
@@ -93,8 +144,12 @@ export function buildPlaylistContextActions(
     tracks[0].kind === 'module' &&
     tracks[0].subsong === undefined &&
     (tracks[0].metadata?.subsongs ?? 0) > 1;
+  const goToLibrary = tracks.length === 1
+    ? buildGoToLibraryAction(tracks[0], libraryItems)
+    : null;
 
   return [
+    ...(goToLibrary ? [goToLibrary] : []),
     {
       id: 'track-details',
       label: 'Track details',
@@ -129,6 +184,9 @@ export function buildLibraryContextActions(
   ids: string[] = []
 ): MenuActionItem[] {
   const tracks = buildSelectedWorkspaceTracks(libraryItems, ids);
+  const goToLibrary = tracks.length === 1
+    ? buildGoToLibraryAction(tracks[0], libraryItems)
+    : null;
 
   return [
     {
@@ -141,6 +199,7 @@ export function buildLibraryContextActions(
       label: 'Replace playlist',
       icon: 'playlist_play'
     },
+    ...(goToLibrary ? [goToLibrary] : []),
     {
       id: 'track-details',
       label: 'Track details',
@@ -162,7 +221,16 @@ export function buildLibraryContextActions(
   ];
 }
 
-export function buildFavoritesContextActions(): MenuActionItem[] {
+export function buildFavoritesContextActions(
+  favoriteItems: PlaylistItem[] = [],
+  libraryItems: PlaylistItem[] = [],
+  ids: string[] = []
+): MenuActionItem[] {
+  const tracks = buildSelectedWorkspaceTracks(favoriteItems, ids);
+  const goToLibrary = tracks.length === 1
+    ? buildGoToLibraryAction(tracks[0], libraryItems)
+    : null;
+
   return [
     {
       id: 'add-to-playlist',
@@ -174,6 +242,7 @@ export function buildFavoritesContextActions(): MenuActionItem[] {
       label: 'Replace playlist',
       icon: 'playlist_play'
     },
+    ...(goToLibrary ? [goToLibrary] : []),
     {
       id: 'track-details',
       label: 'Track details',

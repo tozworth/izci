@@ -8,8 +8,10 @@ import {
   getEquivalentFavoriteIds,
   getEquivalentLibraryIds,
   favoritesHaveAllTracks,
-  libraryHasAllTracks
+  libraryHasAllTracks,
+  resolveTrackLibraryNavigationAction
 } from '$lib/services/workspace-actions';
+import type { TrackLibraryNavigationTarget } from '$lib/services/library-navigation';
 import { favoritesStore, libraryStore, playlistStore } from '$lib/stores/playlist';
 import type {
   MenuActionItem,
@@ -37,6 +39,7 @@ interface WorkspaceCollectionHandlers {
   selectTrack: (collection: WorkspaceCollection, id: string) => void;
   showTrackDetails: () => void;
   showTrackLyrics: () => void;
+  showLibraryGroup: (target: TrackLibraryNavigationTarget) => void;
 }
 
 interface CreateWorkspaceCollectionsControllerOptions {
@@ -48,8 +51,6 @@ export function createWorkspaceCollectionsController({
   getState,
   handlers
 }: CreateWorkspaceCollectionsControllerOptions) {
-  const favoriteContextActions = buildFavoritesContextActions();
-
   function cleanupRemovedItems(items: PlaylistItem[]): void {
     for (const item of items) {
       if (item.objectUrl) {
@@ -115,8 +116,23 @@ export function createWorkspaceCollectionsController({
     return buildLibraryContextActions(libraryItems, favoriteItems, ids);
   }
 
-  function getFavoriteContextActions(): MenuActionItem[] {
-    return favoriteContextActions;
+  function getFavoriteContextActions(ids: string[]): MenuActionItem[] {
+    const { favoriteItems, libraryItems } = getState();
+    return buildFavoritesContextActions(favoriteItems, libraryItems, ids);
+  }
+
+  function handleLibraryNavigationAction(actionId: string, tracks: PlaylistItem[]): boolean {
+    if (tracks.length !== 1) return false;
+
+    const target = resolveTrackLibraryNavigationAction(
+      actionId,
+      tracks[0],
+      getState().libraryItems
+    );
+    if (!target) return false;
+
+    handlers.showLibraryGroup(target);
+    return true;
   }
 
   function incrementLibraryPlayCount(libraryItemId: string): void {
@@ -161,6 +177,8 @@ export function createWorkspaceCollectionsController({
       return;
     }
 
+    if (handleLibraryNavigationAction(actionId, tracks)) return;
+
     if (actionId === 'track-details') {
       handlers.showTrackDetails();
     } else if (actionId === 'track-lyrics') {
@@ -194,6 +212,8 @@ export function createWorkspaceCollectionsController({
       return;
     }
 
+    if (handleLibraryNavigationAction(actionId, tracks)) return;
+
     if (actionId === 'track-details') {
       handlers.showTrackDetails();
     } else if (actionId === 'track-lyrics') {
@@ -225,6 +245,8 @@ export function createWorkspaceCollectionsController({
     if (tracks.length === 0) {
       return;
     }
+
+    if (handleLibraryNavigationAction(actionId, tracks)) return;
 
     if (actionId === 'track-details') {
       handlers.showTrackDetails();

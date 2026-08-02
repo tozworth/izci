@@ -47,10 +47,10 @@
       "patterns": "Örüntüler",
       "miniPlayer": "Mini oynatıcı",
       "nowPlaying": "Şimdi Yürütülüyor",
+      "applicationMenu": "Uygulama menüsü",
       "file": "Dosya",
       "view": "Görünüm",
       "help": "Yardım",
-      "applicationMenu": "Uygulama menüsü",
       "updateUpdated": "güncellendi!",
       "updateCurrent": "güncel",
       "updateFailed": "güncelleme başarısız",
@@ -131,25 +131,21 @@
       "startOver": "Baştan başlat",
       "dismiss": "Devam iletisini kapat"
     },
-    "video": {
-      "fit": "Pencereye sığdır",
-      "fill": "Pencereyi doldur",
-      "pictureInPicture": "Resim İçinde Resim",
-      "menu": "Video",
-      "volume": "Ses %{percent}",
-      "seekForward": "{seconds} sn ileri",
-      "seekBackward": "{seconds} sn geri",
-      "playback": "Video oynatma"
-    },
     "trackDetails": {
       "album": "Albüm",
+      "genre": "Tarz",
+      "year": "Yıl",
+      "format": "Tür",
       "albumArtist": "Albüm Sanatçısı",
       "composer": "Besteci",
       "discAndTrack": "Disk / Parça",
       "discNumber": "Disk Sayısı",
-      "genre": "Tarz",
       "trackNumber": "Parça Numarası",
-      "year": "Yıl",
+      "goToArtist": "Sanatçıya git",
+      "goToAlbum": "Albüme git",
+      "goToGenre": "Tarza git",
+      "goToYear": "Yıla git",
+      "goToFormat": "Türe git",
       "replayGainTrack": "Parça {gain}",
       "replayGainAlbum": "Albüm {gain}",
       "patternCount": "{count, plural, one {# örüntü} other {# örüntü}}",
@@ -159,13 +155,22 @@
       "subsongAvailable": "Altparçalar: {count, plural, one {# tane} other {# tane}}",
       "heading": "Parça Detayları",
       "closePanel": "Parça Detaylarını Kapat",
-      "format": "Tür",
       "replayGain": "ReplayGain",
       "patterns": "Örüntüler",
       "tracks": "İzler",
       "subsongs": "Altparçalar",
       "notes": "Notlar",
       "emptyTitle": "Detayları görüntülemek için bir parça seçin."
+    },
+    "video": {
+      "fit": "Pencereye sığdır",
+      "fill": "Pencereyi doldur",
+      "pictureInPicture": "Resim İçinde Resim",
+      "menu": "Video",
+      "volume": "Ses %{percent}",
+      "seekForward": "{seconds} sn ileri",
+      "seekBackward": "{seconds} sn geri",
+      "playback": "Video oynatma"
     }
   },
   "playlist": {
@@ -248,6 +253,7 @@
       "tracks": "{count, plural, one {# parça} other {# parça}} · {duration}"
     },
     "actions": {
+      "goTo": "Git...",
       "trackDetails": "Parça detayları",
       "removeFromLibrary": "Kütüphaneden kaldır",
       "addToLibrary": "Kütüphaneye ekle",
@@ -538,6 +544,17 @@
         },
         "heading": "Arayüz"
       },
+      "font": {
+        "system": "Sistem",
+        "title": "Yazı tipi",
+        "loading": "Yerel yazı tipleri yükleniyor…",
+        "useLocal": "Yerel yazı tiplerini kullan…",
+        "noFonts": "Yerel yazı tipi bulunamadı.",
+        "permissionDenied": "Yerel yazı tipi izni verilmedi.",
+        "loadFailed": "Yerel yazı tipleri yüklenemedi.",
+        "hint": "Sistem arayüzü yazı tipini, veya izin verilmiş bir yerel yazı tipini uygulamanın tamamına uygular.",
+        "unsupported": "Bu tarayıcı Local Font Access API'ını desteklemiyor."
+      },
       "language": {
         "section": "Dil",
         "title": "Arayüz dili",
@@ -570,17 +587,6 @@
       "artworkPlayerColors": {
         "title": "Oynatıcıda albüm renklerini kullan",
         "hint": "Oynatıcı çubuğunu mevcut albüm resminin renklerine boyar; renk bulunamazsa seçili temayı kullanır."
-      },
-      "font": {
-        "title": "Yazı tipi",
-        "system": "Sistem",
-        "loading": "Yerel yazı tipleri yükleniyor…",
-        "useLocal": "Yerel yazı tiplerini kullan…",
-        "noFonts": "Yerel yazı tipi bulunamadı.",
-        "permissionDenied": "Yerel yazı tipi izni verilmedi.",
-        "loadFailed": "Yerel yazı tipleri yüklenemedi.",
-        "hint": "Sistem arayüzü yazı tipini, veya izin verilmiş bir yerel yazı tipini uygulamanın tamamına uygular.",
-        "unsupported": "Bu tarayıcı Local Font Access API'ını desteklemiyor."
       }
     },
     "backdrops": {
@@ -1547,7 +1553,6 @@
       "forwardFive": "5 saniye ileri"
     },
     "workbench": {
-      "selectSpectrogramFile": "Select a streamed audio file from Metadata, then open Spectrogram.",
       "files": "Dosyalar",
       "albums": "Albümler",
       "metadataTab": "Üstveri",
@@ -1572,7 +1577,6 @@
       "folderNeedsAccess": "Klasör erişim isteyebilir",
       "addLibraryFolder": "Seçili kitaplık klasörünü ekle",
       "options": "Troubadour Seçenekleri",
-      "rawSummary": "{unassigned} atanmamış · {unsupported} desteklenmeyen",
       "loadedFiles": "Yüklenen dosyalar",
       "state": "Durum",
       "file": "Dosya",
@@ -1580,14 +1584,11 @@
       "format": "Biçim",
       "empty": "Dosya ekleyin veya klasörleri buraya bırakın",
       "transientHint": "Kaydet veya Yeniden adlandırmaları uygula komutuna kadar hiçbir şey değiştirilmez.",
-      "groupCount": "{count} grup",
       "variousUnknown": "Çeşitli / bilinmiyor",
       "trackCount": "{count} parça",
       "modified": "Değişmiş",
       "albumEmpty": "Dosyaları seçip albüm oluşturun veya Otomatik grupla'yı kullanın.",
       "metadataInspector": "Üstveri denetçisi",
-      "selectedCount": "{count} seçili",
-      "selectToEdit": "Düzenlemek için dosya seçin",
       "staged": "Aşamalı",
       "originalVaries": "Özgün değerler değişiyor",
       "clearField": "{field} alanını temizle",
@@ -1599,12 +1600,10 @@
       "rawValue": "Ham değer",
       "binaryBytes": "İkili · {count} B",
       "artworkInspector": "Görsel denetçisi",
-      "artwork": "Görsel",
-      "mixedArtwork": "Karışık görsel",
-      "imageCount": "{count} görsel",
       "embeddedImages": "Gömülü görseller",
       "mixedArtworkHint": "Seçili dosyalar farklı gömülü görseller içeriyor.",
       "selectedArtwork": "Seçili gömülü görsel",
+      "mixedArtwork": "Karışık görsel",
       "noArtwork": "Ortak görsel yok",
       "addArtwork": "Ekle",
       "replaceArtwork": "Değiştir",
@@ -1852,17 +1851,11 @@
   },
   "spectrogram": {
     "graphLabel": "Ses spektrogramı: zaman soldan sağa, frekans aşağıdan yukarı; renk ise dBFS cinsinden düzeyi gösterir",
-    "reanalyze": "Spektrumu yeniden oluştur",
     "stop": "Durdur",
     "fftSize": "FFT boyutu",
     "range": "Alt sınır",
-    "failed": "Spektrogram oluşturulamadı.",
     "toolbar": "Spektrogram araçları",
     "analyzing": "Spektrum inceleniyor...",
-    "empty": "Bir akış ses dosyası açın",
-    "emptyHint": "MP3, WAV, FLAC, Ogg veya Opus · buraya dosya da bırakabilirsiniz",
-    "caveat": "Keskin bir kesim kaynağın kayıplı olduğunu düşündürebilir, ancak tek başına kanıt değildir.",
-    "bins": "bant",
     "title": "Spektrogram"
   }
 }

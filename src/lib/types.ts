@@ -562,6 +562,13 @@ export interface WorkspaceJumpRequest {
   token: number;
 }
 
+export interface WorkspaceLibraryGroupRequest {
+  view: LibraryGroupViewId;
+  groupKey: string;
+  trackId: string;
+  token: number;
+}
+
 export interface PlaybackSnapshot {
   state: PlaybackState;
   currentTime: number;

@@ -14,6 +14,7 @@ import {
 } from '$lib/services/workspace-layout';
 import { libraryStore, playlistStore } from '$lib/stores/playlist';
 import { workspacePanelLayout } from '$lib/stores/workspace-panel-layout';
+import { libraryViewSettings } from '$lib/stores/library-view-settings';
 import {
   getDefaultWorkspacePanelForTab,
   workspacePanelState
@@ -25,6 +26,7 @@ import type {
   PlaylistSelection,
   WorkspaceCollection,
   WorkspaceJumpRequest,
+  WorkspaceLibraryGroupRequest,
   WorkspacePanelActiveTabsSettings,
   WorkspacePanelId,
   WorkspacePanelLayoutSettings,
@@ -87,6 +89,7 @@ export interface WorkspaceShellState {
   playlistPanelProps: WorkspacePanelProps;
   libraryPanelProps: WorkspacePanelProps;
   playlistJumpRequest: WorkspaceJumpRequest | null;
+  libraryGroupRequest: WorkspaceLibraryGroupRequest | null;
 }
 
 const allWorkspaceTabs: Record<WorkspaceTab, WorkspaceTabDefinition> = {
@@ -384,6 +387,7 @@ function createInitialState(
     ),
     workspaceTabs: buildWorkspaceTabs(savedPanelState),
     playlistJumpRequest: null,
+    libraryGroupRequest: null,
     playlistPanelProps: createPlaylistPanelProps(getPlaylistContextActions),
     libraryPanelProps: createLibraryPanelProps(getLibraryContextActions)
   };
@@ -554,6 +558,7 @@ export function createWorkspaceShellController({
         showShuffleControl: false,
         showRepeatControl: false,
         showSearchControl: true,
+        libraryGroupRequest: state.libraryGroupRequest,
         getContextMenuActions: getLibraryContextActions
       }
     };
@@ -741,6 +746,24 @@ export function createWorkspaceShellController({
         }
       };
       publishState();
+    },
+    showLibraryGroup(target: Omit<WorkspaceLibraryGroupRequest, 'token'>): void {
+      state = {
+        ...state,
+        libraryGroupRequest: {
+          ...target,
+          token: (state.libraryGroupRequest?.token ?? 0) + 1
+        }
+      };
+      recomputeDerivedState();
+      libraryViewSettings.setActiveView(target.view);
+      this.showWorkspaceTab('library');
+      recomputeDerivedState();
+    },
+    clearLibraryGroupRequest(token: number): void {
+      if (state.libraryGroupRequest?.token !== token) return;
+      state = { ...state, libraryGroupRequest: null };
+      recomputeDerivedState();
     },
     showTrackDetails(): void {
       this.showWorkspaceTab('details');
