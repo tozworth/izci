@@ -402,6 +402,7 @@ export function createWorkspaceShellController({
   let resizeState: PanelResizeState | null = null;
   let lastInputs: WorkspaceShellInputs | null = null;
   let state = createInitialState(getPlaylistContextActions, getLibraryContextActions);
+  let libraryGroupRequestToken = 0;
   const store = writable(state);
 
   function publishState(): void {
@@ -535,6 +536,7 @@ export function createWorkspaceShellController({
       playlistPanelProps: {
         items: lastInputs.playlistItems,
         selectedIds: lastInputs.playlistSelectionIds,
+        keyboardActive: savedPanelState.activeCollection === 'playlist',
         playingId: lastInputs.playingTrackId,
         jumpToItemRequest: state.playlistJumpRequest,
         panelTitle: 'Playlist',
@@ -546,6 +548,7 @@ export function createWorkspaceShellController({
       libraryPanelProps: {
         items: lastInputs.libraryItems,
         selectedIds: lastInputs.librarySelectionIds,
+        keyboardActive: savedPanelState.activeCollection === 'library',
         selectionAnchorId: lastInputs.librarySelectionAnchorId,
         playingId: null,
         favoriteItems: lastInputs.favoriteItems,
@@ -748,11 +751,12 @@ export function createWorkspaceShellController({
       publishState();
     },
     showLibraryGroup(target: Omit<WorkspaceLibraryGroupRequest, 'token'>): void {
+      libraryGroupRequestToken += 1;
       state = {
         ...state,
         libraryGroupRequest: {
           ...target,
-          token: (state.libraryGroupRequest?.token ?? 0) + 1
+          token: libraryGroupRequestToken
         }
       };
       recomputeDerivedState();

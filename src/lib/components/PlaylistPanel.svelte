@@ -32,6 +32,7 @@
   } from '$lib/components/playlist-panel/track-list-virtualization';
   import MenuSurface from '$lib/components/MenuSurface.svelte';
   import { buildOrderedSelection, isToggleSelection } from '$lib/components/playlist-panel/selection';
+  import { buildSelectAllSelection } from '$lib/stores/playlist-selection';
   import {
     compareItems,
     fitWidthsToAvailableWidth,
@@ -77,6 +78,7 @@
   export let repeatMode: PlaylistRepeatMode = 'off';
   export let jumpToItemRequest: { id: string; token: number } | null = null;
   export let libraryGroupRequest: WorkspaceLibraryGroupRequest | null = null;
+  export let keyboardActive = false;
   export let getContextMenuActions: (ids: string[]) => MenuActionItem[] = () => [
     { id: 'remove', label: 'Remove', icon: 'delete' }
   ];
@@ -414,6 +416,27 @@
   }
 
   function handleWindowKeydownCapture(event: KeyboardEvent) {
+    const editingTarget = event.target instanceof HTMLElement
+      && (event.target.matches('input, textarea, select') || event.target.isContentEditable);
+
+    if (
+      keyboardActive
+      && event.key.toLowerCase() === 'a'
+      && event.ctrlKey
+      && !event.altKey
+      && !event.shiftKey
+      && !event.metaKey
+      && !editingTarget
+    ) {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+
+      if (showTrackRows) {
+        dispatch('setSelection', buildSelectAllSelection(displayItems));
+      }
+      return;
+    }
+
     if (
       event.key !== 'Escape' ||
       event.ctrlKey ||

@@ -24,6 +24,7 @@
     on:addFolders={(event) => content.playlistPanelHandlers.addFolders?.(event.detail)}
     on:openFiles={content.playlistPanelHandlers.openFiles}
     on:select={content.playlistPanelHandlers.select}
+    on:setSelection={(event) => content.playlistPanelHandlers.setSelection?.(event)}
     on:activate={content.playlistPanelHandlers.activate}
     on:contextAction={content.playlistPanelHandlers.contextAction}
     on:toggleShuffle={() => content.playlistPanelHandlers.toggleShuffle?.()}

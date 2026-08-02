@@ -43,6 +43,7 @@ export interface WorkspacePanelProps {
   repeatMode?: PlaylistRepeatMode;
   jumpToItemRequest?: WorkspaceJumpRequest | null;
   libraryGroupRequest?: WorkspaceLibraryGroupRequest | null;
+  keyboardActive?: boolean;
   getContextMenuActions?: (ids: string[]) => MenuActionItem[];
 }
 

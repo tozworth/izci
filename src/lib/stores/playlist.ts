@@ -15,9 +15,9 @@ import { createPlaylistNavigation } from './playlist-navigation';
 import {
   defaultPlaybackOptions,
   normalizePlaybackOptions,
-  normalizeStoredItem,
   persistStoredState,
   readStoredState,
+  restoreStoredItem,
   serializeItem,
   type StoredPlaylistItem,
   type StoredPlaylistState
@@ -149,24 +149,8 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
   function applyStoredState(state: StoredPlaylistState | null): void {
     const storedItems = Array.isArray(state?.items) ? state.items : [];
     const normalizedItems = storedItems
-      .map(normalizeStoredItem)
-      .filter((item): item is StoredPlaylistItem => item !== null)
-      .filter((item) => item.fileHandle)
-      .map(
-        (item): PlaylistItem => ({
-          id: item.id,
-          fileHandle: item.fileHandle,
-          path: item.path,
-          sourceFolderId: item.sourceFolderId,
-          name: item.name,
-          extension: item.extension,
-          kind: item.kind,
-          size: item.size,
-          lastModified: item.lastModified,
-          metadata: item.metadata,
-          subsong: item.subsong
-        })
-      );
+      .map(restoreStoredItem)
+      .filter((item): item is PlaylistItem => item !== null);
 
     const { uniqueItems } = splitUniqueItems(normalizedItems, {
       dedupe: shouldDedupe(),

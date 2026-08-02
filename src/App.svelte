@@ -626,6 +626,7 @@
     addFolders: (handles) => void filesystemFolders.rememberMany(handles),
     openFiles: () => void handleMenuOpenFiles('playlist'),
     select: (event) => handleSelect('playlist', event),
+    setSelection: (event) => handleSetSelection('playlist', event),
     activate: (event) => void playbackCommands.activatePlaylistTrack(event.detail),
     contextAction: (event) =>
       workspaceCollections.handlePlaylistContextAction(event.detail.actionId, event.detail.ids),

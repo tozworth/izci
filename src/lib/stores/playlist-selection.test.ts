@@ -83,6 +83,14 @@ describe('playlist selection helpers', () => {
     });
   });
 
+  it('builds select-all state from the displayed projection only', () => {
+    expect(buildSelectAllSelection([items[1], items[3]])).toEqual({
+      ids: ['b', 'd'],
+      anchorId: 'b',
+      focusId: 'd'
+    });
+  });
+
   it('selects the next available item when removing the active selection', () => {
     const selection = resolveSelectSelection(items, emptySelection, 'b');
     const remainingItems = [item('a'), item('c'), item('d')];

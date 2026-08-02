@@ -5,6 +5,7 @@
   import type { MenuActionItem } from '$lib/types';
   import { portal } from '$lib/components/playlist-panel/actions/portal';
   import { windowDismiss } from '$lib/components/playlist-panel/actions/window-dismiss';
+  import { keepMenuInViewport } from '$lib/components/playlist-panel/actions/menu-viewport';
   import RatingMenuSurface from '$lib/components/RatingMenuSurface.svelte';
 
   export let items: MenuActionItem[] = [];
@@ -169,6 +170,7 @@
   <div
     bind:this={menuElement}
     class="menu-list menu-surface menu-surface-nested"
+    use:keepMenuInViewport
     role="menu"
     aria-label={resolvedAriaLabel}
   >

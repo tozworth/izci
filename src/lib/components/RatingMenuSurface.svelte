@@ -1,6 +1,7 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import RatingPicker from '$lib/components/RatingPicker.svelte';
+  import { keepMenuInViewport } from '$lib/components/playlist-panel/actions/menu-viewport';
 
   export let value = 0;
   export let actionPrefix = 'rate:';
@@ -18,6 +19,7 @@
 <div
   class="rating-menu-surface"
   class:rating-menu-surface-nested={nested}
+  use:keepMenuInViewport={nested}
   role="menu"
   aria-label={ariaLabel}
 >

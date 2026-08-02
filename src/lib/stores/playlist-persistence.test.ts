@@ -4,6 +4,7 @@ import {
   defaultPlaybackOptions,
   normalizePlaybackOptions,
   normalizeStoredItem,
+  restoreStoredItem,
   serializeItem
 } from './playlist-persistence';
 import type { PlaylistItem } from '$lib/types';
@@ -68,6 +69,26 @@ describe('playlist persistence helpers', () => {
 
     expect(serializeItem(ratedItem)).toMatchObject({ rating: 3.5 });
     expect(normalizeStoredItem(serializeItem(ratedItem))).toMatchObject({ rating: 3.5 });
+    expect(restoreStoredItem(serializeItem(ratedItem))).toMatchObject({ rating: 3.5 });
+  });
+
+  it('restores persisted fields into a handle-backed runtime item', () => {
+    expect(restoreStoredItem(serializeItem(item({
+      fileHandle,
+      path: '/Music/Track.flac',
+      sourceFolderId: 'music-root',
+      metadata: { title: 'Track' },
+      rating: 4.5,
+      subsong: 2
+    })))).toMatchObject({
+      fileHandle,
+      path: '/Music/Track.flac',
+      sourceFolderId: 'music-root',
+      metadata: { title: 'Track' },
+      rating: 4.5,
+      subsong: 2
+    });
+    expect(restoreStoredItem(serializeItem(item({ rating: 4.5 })))).toBeNull();
   });
 
   it('round-trips handle-backed video items', () => {

@@ -13,19 +13,16 @@
 
   $: normalizedRating = normalizeTrackRating(rating) ?? 0;
   $: displayedRating = previewRating ?? normalizedRating;
-
-  function getStarSymbol(star: number): 'star' | 'star_half' {
+  $: starStates = stars.map((star, index) => {
     const fill = displayedRating - (star - 1);
-    return fill >= 1 ? 'star' : fill >= 0.5 ? 'star_half' : 'star';
-  }
-
-  function isStarRated(star: number): boolean {
-    return displayedRating - (star - 1) >= 0.5;
-  }
-
-  function isStarFilled(star: number): boolean {
-    return displayedRating - (star - 1) >= 1;
-  }
+    return {
+      star,
+      index,
+      symbol: fill >= 1 ? 'star' : fill >= 0.5 ? 'star_half' : 'star',
+      rated: fill >= 0.5,
+      filled: fill >= 1
+    };
+  });
 
   function select(value: number) {
     dispatch('change', normalizedRating === value ? undefined : value);
@@ -41,37 +38,37 @@
   aria-label={$t('main.player.rateTrack', { default: 'Rate track' })}
   on:mouseleave={() => previewRating = undefined}
 >
-  {#each stars as star, index}
+  {#each starStates as starState}
     <span
       class="material-symbols-outlined rating-star"
-      class:rated={isStarRated(star)}
-      class:filled={isStarFilled(star)}
-      style={`grid-column: ${index * 2 + 1} / span 2; grid-row: 1;`}
+      class:rated={starState.rated}
+      class:filled={starState.filled}
+      style={`grid-column: ${starState.index * 2 + 1} / span 2; grid-row: 1;`}
       aria-hidden="true"
     >
-      {getStarSymbol(star)}
+      {starState.symbol}
     </span>
     <button
       type="button"
       class="rating-hit rating-hit-left"
-      style={`grid-column: ${index * 2 + 1}; grid-row: 1;`}
-      aria-label={$t('main.player.setRating', { default: 'Set rating to {rating} stars', values: { rating: star - 0.5 } })}
-      aria-pressed={normalizedRating === star - 0.5}
-      on:mouseenter={() => previewRating = star - 0.5}
-      on:focus={() => previewRating = star - 0.5}
+      style={`grid-column: ${starState.index * 2 + 1}; grid-row: 1;`}
+      aria-label={$t('main.player.setRating', { default: 'Set rating to {rating} stars', values: { rating: starState.star - 0.5 } })}
+      aria-pressed={normalizedRating === starState.star - 0.5}
+      on:mouseenter={() => previewRating = starState.star - 0.5}
+      on:focus={() => previewRating = starState.star - 0.5}
       on:blur={() => previewRating = undefined}
-      on:click|stopPropagation={() => select(star - 0.5)}
+      on:click|stopPropagation={() => select(starState.star - 0.5)}
     ></button>
     <button
       type="button"
       class="rating-hit rating-hit-right"
-      style={`grid-column: ${index * 2 + 2}; grid-row: 1;`}
-      aria-label={$t('main.player.setRating', { default: 'Set rating to {rating} stars', values: { rating: star } })}
-      aria-pressed={normalizedRating === star}
-      on:mouseenter={() => previewRating = star}
-      on:focus={() => previewRating = star}
+      style={`grid-column: ${starState.index * 2 + 2}; grid-row: 1;`}
+      aria-label={$t('main.player.setRating', { default: 'Set rating to {rating} stars', values: { rating: starState.star } })}
+      aria-pressed={normalizedRating === starState.star}
+      on:mouseenter={() => previewRating = starState.star}
+      on:focus={() => previewRating = starState.star}
       on:blur={() => previewRating = undefined}
-      on:click|stopPropagation={() => select(star)}
+      on:click|stopPropagation={() => select(starState.star)}
     ></button>
   {/each}
 </div>

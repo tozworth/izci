@@ -78,6 +78,29 @@ export function normalizeStoredItem(value: unknown): StoredPlaylistItem | null {
   };
 }
 
+export function restoreStoredItem(value: unknown): PlaylistItem | null {
+  const item = normalizeStoredItem(value);
+
+  if (!item?.fileHandle) {
+    return null;
+  }
+
+  return {
+    id: item.id,
+    fileHandle: item.fileHandle,
+    path: item.path,
+    sourceFolderId: item.sourceFolderId,
+    name: item.name,
+    extension: item.extension,
+    kind: item.kind,
+    size: item.size,
+    lastModified: item.lastModified,
+    metadata: item.metadata,
+    rating: item.rating,
+    subsong: item.subsong
+  };
+}
+
 export function serializeItem(item: PlaylistItem): StoredPlaylistItem | null {
   if (!item.fileHandle) {
     return null;
