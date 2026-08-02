@@ -1017,6 +1017,10 @@
         "title": "Eklenen dosyaları doğrula",
         "hint": "Bilinmeyen dosya uzantılarını önce ayrı bir OpenMPT'de bi güzel kontrol eder. Kapalıysa izci, bilinmeyen her dosyayı izci modülü olarak ekler ve çalışıp çalışmadığını görmeyi size bırakır. Resmî OpenMPT uzantıları her türlü kabul edilir."
       },
+      "deduplicatePlaylist": {
+        "title": "Çalma listesine eklenenleri tekilleştir",
+        "hint": "Çalma listesinde zaten bulunan parçaları ve aynı eklemede yinelenen parçaları atlar."
+      },
       "associatedFiles": {
         "title": "izci ile açılan dosyalar",
         "hint": "İşletim sistemi dosya ilişkilendirmeleri üzerinden açılan dosyaların çalma listesini nasıl etkileyeceğini seçer.",

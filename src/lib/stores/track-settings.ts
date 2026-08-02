@@ -10,6 +10,7 @@ export const MAX_FOLDER_NESTING_LIMIT = 64;
 export const DEFAULT_TRACK_SETTINGS: TrackSettings = {
   folderNestingLimit: DEFAULT_FOLDER_NESTING_LIMIT,
   verifyAddedFiles: false,
+  deduplicatePlaylist: true,
   associatedFileAction: 'replace',
   showFavoriteToggleInPlayerBar: false
 };
@@ -32,7 +33,7 @@ export function normalizeFolderNestingLimit(value: unknown): number {
   );
 }
 
-function normalizeSettings(value: unknown): TrackSettings {
+export function normalizeTrackSettings(value: unknown): TrackSettings {
   const source = value && typeof value === 'object' ? (value as Partial<TrackSettings>) : {};
 
   return {
@@ -41,6 +42,10 @@ function normalizeSettings(value: unknown): TrackSettings {
       typeof source.verifyAddedFiles === 'boolean'
         ? source.verifyAddedFiles
         : DEFAULT_TRACK_SETTINGS.verifyAddedFiles,
+    deduplicatePlaylist:
+      typeof source.deduplicatePlaylist === 'boolean'
+        ? source.deduplicatePlaylist
+        : DEFAULT_TRACK_SETTINGS.deduplicatePlaylist,
     associatedFileAction:
       source.associatedFileAction === 'add' || source.associatedFileAction === 'replace'
         ? source.associatedFileAction
@@ -56,5 +61,5 @@ export const trackSettings = createSettingsStore({
   storageKey: TRACK_SETTINGS_STORAGE_KEY,
   channelName: TRACK_SETTINGS_CHANNEL,
   defaultValue: DEFAULT_TRACK_SETTINGS,
-  normalize: normalizeSettings
+  normalize: normalizeTrackSettings
 });

@@ -9,6 +9,9 @@
   function handleVerifyAddedFilesToggle(event: Event) {
     trackSettings.update({ verifyAddedFiles: (event.currentTarget as HTMLInputElement).checked });
   }
+  function handlePlaylistDeduplicationToggle(event: Event) {
+    trackSettings.update({ deduplicatePlaylist: (event.currentTarget as HTMLInputElement).checked });
+  }
   function handleAssociatedFileActionChange(event: Event) {
     const associatedFileAction = (event.currentTarget as HTMLSelectElement).value;
 
@@ -52,6 +55,19 @@
             type="checkbox"
             checked={$trackSettings.verifyAddedFiles}
             on:change={handleVerifyAddedFilesToggle}
+          />
+      </SettingsField>
+
+      <SettingsField
+        title={$t('options.tracks.deduplicatePlaylist.title', { default: 'Deduplicate playlist additions' })}
+        hint={$t('options.tracks.deduplicatePlaylist.hint', { default: 'Skip tracks already in the playlist and repeated tracks within the same addition.' })}
+        advanced
+        checkbox
+      >
+          <input
+            type="checkbox"
+            checked={$trackSettings.deduplicatePlaylist}
+            on:change={handlePlaylistDeduplicationToggle}
           />
       </SettingsField>
 

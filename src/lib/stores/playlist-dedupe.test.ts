@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { splitUniqueItems } from './playlist-dedupe';
+import { createTrackCollectionStore } from './playlist';
 import type { PlaylistItem } from '$lib/types';
 
 function item(id: string, overrides: Partial<PlaylistItem> = {}): PlaylistItem {
@@ -50,5 +51,22 @@ describe('playlist dedupe', () => {
       dedupe: true,
       getIdentity: (entry) => `${entry.name}:${entry.subsong ?? 'all'}`
     }).uniqueItems).toEqual([first, second]);
+  });
+
+  it('supports a live dedupe preference and resolves an existing equivalent', () => {
+    let dedupe = true;
+    const store = createTrackCollectionStore({
+      dbName: 'test-playlist-live-dedupe',
+      dedupe: () => dedupe
+    });
+    const first = item('first', { path: '/Music/Alpha.wav', name: 'Alpha.wav', extension: 'wav' });
+    const duplicate = item('duplicate', { path: '/music/alpha.wav', name: 'Alpha.wav', extension: 'wav' });
+
+    expect(store.add([first])).toEqual([first]);
+    expect(store.add([duplicate])).toEqual([]);
+    expect(store.findEquivalent(duplicate)?.id).toBe(first.id);
+
+    dedupe = false;
+    expect(store.add([duplicate])).toEqual([duplicate]);
   });
 });

@@ -525,6 +525,7 @@
   .metadata-icon {
     display: block;
     font-size: 1rem;
+    transform: translateY(0.1rem);
   }
 
   .metadata-row dd {

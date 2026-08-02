@@ -10,6 +10,7 @@ import { loadTrackMetadata } from '$lib/services/stream-artwork';
 import { materializePlaylistItem, revokeObjectUrl } from './playlist-materialization';
 import { scheduleMetadataParsing } from './playlist-metadata';
 import { playbackSettings } from './playback-settings';
+import { trackSettings } from './track-settings';
 import { createPlaylistNavigation } from './playlist-navigation';
 import {
   defaultPlaybackOptions,
@@ -34,7 +35,7 @@ import { getFavoriteIdentity, getTrackIdentity } from '$lib/utils/files';
 
 export interface TrackCollectionStoreConfig {
   dbName: string;
-  dedupe: boolean;
+  dedupe: boolean | (() => boolean);
   getIdentity?: (item: PlaylistItem) => string;
 }
 
@@ -74,6 +75,8 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
   let shouldCompactStoredState = false;
   const pendingOperations: Array<() => void> = [];
   const navigation = createPlaylistNavigation(() => itemList);
+  const shouldDedupe = () => typeof config.dedupe === 'function' ? config.dedupe() : config.dedupe;
+  const getIdentity = config.getIdentity ?? getTrackIdentity;
   let resolveReady: (() => void) | null = null;
   const readyPromise = hydrated
     ? Promise.resolve()
@@ -166,8 +169,8 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
       );
 
     const { uniqueItems } = splitUniqueItems(normalizedItems, {
-      dedupe: config.dedupe,
-      getIdentity: config.getIdentity
+      dedupe: shouldDedupe(),
+      getIdentity
     });
     const restoredItemIds = new Set(uniqueItems.map((item) => item.id));
     const restoredSelection = normalizeStoredSelection(state?.selection, restoredItemIds);
@@ -241,6 +244,10 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
     ready() {
       return readyPromise;
     },
+    findEquivalent(item: PlaylistItem) {
+      const identity = getIdentity(item);
+      return itemList.find((entry) => getIdentity(entry) === identity) ?? null;
+    },
     async ensureLoaded(id: string, options: { prompt?: boolean } = {}) {
       const item = itemList.find((entry) => entry.id === id);
 
@@ -301,9 +308,9 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
 
       const executed = runOrQueue(() => {
         const { uniqueItems, duplicateItems } = splitUniqueItems(newItems, {
-          dedupe: config.dedupe,
+          dedupe: shouldDedupe(),
           existingItems: itemList,
-          getIdentity: config.getIdentity
+          getIdentity
         });
 
         for (const item of duplicateItems) {
@@ -340,8 +347,8 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
         removedItems = [...itemList];
 
         const { uniqueItems, duplicateItems } = splitUniqueItems(newItems, {
-          dedupe: config.dedupe,
-          getIdentity: config.getIdentity
+          dedupe: shouldDedupe(),
+          getIdentity
         });
 
         for (const item of duplicateItems) {
@@ -639,7 +646,8 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
 
 export const playlistStore = createTrackCollectionStore({
   dbName: 'izci-playlist',
-  dedupe: false
+  dedupe: () => trackSettings.getSnapshot().deduplicatePlaylist,
+  getIdentity: getFavoriteIdentity
 });
 
 export const libraryStore = createTrackCollectionStore({

@@ -1017,6 +1017,10 @@
         "title": "Verify added files",
         "hint": "Check unknown file extensions in a separate muted OpenMPT player before adding them. When disabled, izci adds any unknown file as a tracker module and lets normal playback report whether it works. Official OpenMPT extensions are accepted directly either way."
       },
+      "deduplicatePlaylist": {
+        "title": "Deduplicate playlist additions",
+        "hint": "Skip tracks already in the playlist and repeated tracks within the same addition."
+      },
       "associatedFiles": {
         "title": "Files opened with izci",
         "hint": "Choose how files opened through operating-system file associations affect the current playlist.",

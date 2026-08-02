@@ -159,7 +159,8 @@ export function createPlaybackCommandsController({
       return;
     }
 
-    const [playlistTrack] = playlistStore.add(clonePlaylistItems([track]));
+    const [addedTrack] = playlistStore.add(clonePlaylistItems([track]));
+    const playlistTrack = addedTrack ?? playlistStore.findEquivalent(track);
 
     if (!playlistTrack) {
       return;
@@ -170,7 +171,8 @@ export function createPlaybackCommandsController({
   }
 
   async function activateFavoriteTrack(track: PlaylistItem): Promise<void> {
-    const [playlistTrack] = playlistStore.add(clonePlaylistItems([track]));
+    const [addedTrack] = playlistStore.add(clonePlaylistItems([track]));
+    const playlistTrack = addedTrack ?? playlistStore.findEquivalent(track);
 
     if (!playlistTrack) {
       return;
@@ -201,12 +203,15 @@ export function createPlaybackCommandsController({
       cleanupRemovedItems(replacement.removedItems);
     }
 
-    if (addedItems.length === 0) {
+    const targetTrack = addedItems[0]
+      ?? (action === 'add' ? playlistStore.findEquivalent(nextItems[0]) : null);
+
+    if (!targetTrack) {
       return;
     }
 
-    selectTrack('playlist', addedItems[0].id);
-    await playTrack(addedItems[0]);
+    selectTrack('playlist', targetTrack.id);
+    await playTrack(targetTrack);
   }
 
   async function play(): Promise<void> {

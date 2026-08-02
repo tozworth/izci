@@ -322,6 +322,7 @@ export interface MetadataSettings {
 export interface TrackSettings {
   folderNestingLimit: number;
   verifyAddedFiles: boolean;
+  deduplicatePlaylist: boolean;
   associatedFileAction: 'add' | 'replace';
   showFavoriteToggleInPlayerBar: boolean;
 }

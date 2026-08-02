@@ -5,7 +5,8 @@ import {
   DEFAULT_FOLDER_NESTING_LIMIT,
   MAX_FOLDER_NESTING_LIMIT,
   MIN_FOLDER_NESTING_LIMIT,
-  normalizeFolderNestingLimit
+  normalizeFolderNestingLimit,
+  normalizeTrackSettings
 } from './track-settings';
 
 describe('track settings helpers', () => {
@@ -24,6 +25,12 @@ describe('track settings helpers', () => {
 
   it('keeps replacement as the default associated-file action', () => {
     expect(DEFAULT_TRACK_SETTINGS.associatedFileAction).toBe('replace');
+  });
+
+  it('deduplicates playlist additions by default and preserves the opt-out', () => {
+    expect(DEFAULT_TRACK_SETTINGS.deduplicatePlaylist).toBe(true);
+    expect(normalizeTrackSettings({}).deduplicatePlaylist).toBe(true);
+    expect(normalizeTrackSettings({ deduplicatePlaylist: false }).deduplicatePlaylist).toBe(false);
   });
 
   it('hides the player-bar favorite toggle by default', () => {
