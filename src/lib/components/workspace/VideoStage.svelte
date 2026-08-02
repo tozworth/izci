@@ -37,6 +37,7 @@
   let seekStateFeedbackSuppressionTimer: number | null = null;
   let suppressSeekStateFeedback = false;
   let observedElement: HTMLVideoElement | null = null;
+  let attachedElement: HTMLVideoElement | null = null;
   let observedState: PlaybackSnapshot['state'] | null = null;
   let observedVolume = 0;
   let observedMuted = false;
@@ -185,9 +186,13 @@
   }
 
   function attachElement(): void {
+    if (attachedElement && attachedElement !== element && attachedElement.parentElement === host) {
+      parkingHost?.appendChild(attachedElement);
+    }
     if (host && element && element.parentElement !== host) {
       host.appendChild(element);
     }
+    attachedElement = element;
   }
 
   $: {
@@ -202,8 +207,8 @@
     clearTimer(statusHideTimer);
     clearTimer(centerFeedbackHideTimer);
     clearTimer(seekStateFeedbackSuppressionTimer);
-    if (element?.parentElement === host) {
-      parkingHost?.appendChild(element);
+    if (attachedElement?.parentElement === host) {
+      parkingHost?.appendChild(attachedElement);
     }
   });
 </script>

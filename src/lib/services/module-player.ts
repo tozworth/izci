@@ -37,6 +37,7 @@ export class ModulePlayerService {
   #lastPublishedPattern = -1;
   #lastPublishedRow = -1;
   #settings = modulePlaybackSettings.getSnapshot();
+  #transitionGain = 1;
   #onSnapshot: SnapshotHandler;
   #onMetadata: MetadataHandler;
   #onPattern: PatternHandler;
@@ -90,6 +91,7 @@ export class ModulePlayerService {
 
     this.#player = player;
     audioBusService.connectAudioNode(player.gain);
+    audioBusService.setSourceGain(player.gain, this.#transitionGain);
     mediaSessionService.activateTransportAnchor();
     mediaSessionService.pauseTransportAnchor();
     const buffer = await track.file.arrayBuffer();
@@ -223,6 +225,11 @@ export class ModulePlayerService {
     this.#applyRuntimeSettings();
   }
 
+  setTransitionGain(gain: number, durationSeconds = 0): void {
+    this.#transitionGain = Math.max(gain, 0);
+    audioBusService.setSourceGain(this.#player?.gain ?? null, this.#transitionGain, durationSeconds);
+  }
+
   async #createPlayer(loadToken: number = this.#loadToken): Promise<ChiptuneJsPlayer> {
     const player = await createChiptunePlayer(this.#toPlayerConfig(this.#settings));
 
@@ -275,6 +282,7 @@ export class ModulePlayerService {
 
     this.#player = player;
     audioBusService.connectAudioNode(player.gain);
+    audioBusService.setSourceGain(player.gain, this.#transitionGain);
     mediaSessionService.activateTransportAnchor();
 
     if (!wasStarted || !buffer || !this.#player) {

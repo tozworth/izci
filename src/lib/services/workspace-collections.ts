@@ -43,6 +43,7 @@ interface WorkspaceCollectionHandlers {
   showTrackDetails: () => void;
   showTrackLyrics: () => void;
   showLibraryGroup: (target: TrackLibraryNavigationTarget) => void;
+  playPlaylist: () => void;
 }
 
 interface CreateWorkspaceCollectionsControllerOptions {
@@ -278,6 +279,14 @@ export function createWorkspaceCollectionsController({
       playerController.unload();
       if (addedItems.length > 0) {
         handlers.selectTrack('playlist', addedItems[0].id);
+      }
+    } else if (actionId === 'shuffle-play') {
+      const { removedItems, addedItems } = playlistStore.replaceAll(clonePlaylistItems(tracks));
+      cleanupRemovedItems(removedItems);
+      playerController.unload();
+      playlistStore.setShuffleEnabled(true);
+      if (addedItems.length > 0) {
+        handlers.playPlaylist();
       }
     } else if (actionId === 'reset-play-count') {
       resetLibraryPlayCounts(ids);

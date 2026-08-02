@@ -63,6 +63,7 @@
       "seek": "Konum"
     },
     "player": {
+      "enterNowPlaying": "Şimdi Yürütülüyor'a geç",
       "previousTrack": "Önceki parça",
       "pausePlayback": "Oynatmayı duraklat",
       "playPlayback": "Oynatmayı devam ettir",
@@ -269,6 +270,7 @@
       "separateSubsongs": "Altparçaları böl",
       "addToPlaylist": "Listeye ekle",
       "replacePlaylist": "Listeyi değiştir",
+      "shufflePlay": "Karışık çal",
       "resetPlayCount": "Çalma sayısını sıfırla",
       "remove": "Listeden kaldır"
     },
@@ -966,6 +968,30 @@
         },
         "title": "ReplayGain",
         "hint": "Akış dosyalarındaki ReplayGain etiketlerini uygular; hem parça hem albüm kazancı varsa seçili olanı yeğler."
+      },
+      "transitions": {
+        "options": {
+          "none": "Yok",
+          "fadeout": "Sönümleme",
+          "crossfade": "Çapraz geçiş"
+        },
+        "heading": "Geçişler",
+        "mode": {
+          "title": "Parça geçişi",
+          "hint": "Doğrudan geçer, biten parçayı sessizliğe sönümler veya bitişik parçaları üst üste bindirir."
+        },
+        "gapless": {
+          "title": "Boşluksuz çalma",
+          "hint": "Geçerli parça bitmeden sonraki dosyayı hazırlar. Bunu kapatmak çapraz geçişi de devre dışı bırakır."
+        },
+        "duration": {
+          "title": "Sönümleme süresi",
+          "hint": "Sönümleme veya örtüşme süresini ayarlar."
+        },
+        "manual": {
+          "title": "Elle parça değişimlerini sönümle",
+          "hint": "Önceki, Sonraki veya başka bir parçayı seçtiğinizde de seçili geçişi kullanır."
+        }
       },
       "rememberProgress": {
         "off": "Kapalı",

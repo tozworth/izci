@@ -517,6 +517,17 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
         queuePersist();
       });
     },
+    setShuffleEnabled(enabled: boolean) {
+      runOrQueue(() => {
+        if (playbackOptionsState.shuffle === enabled) return;
+        playbackOptions.update((value) => ({
+          ...value,
+          shuffle: enabled
+        }));
+        navigation.reset();
+        queuePersist();
+      });
+    },
     cycleRepeatMode() {
       runOrQueue(() => {
         playbackOptions.update((value) => ({

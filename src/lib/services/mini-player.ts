@@ -39,6 +39,7 @@ interface CreateMiniPlayerControllerOptions {
     seek: (seconds: number) => void;
     setVolume: (volume: number) => void;
     toggleMute: () => void;
+    enterNowPlaying: () => void;
   };
 }
 
@@ -291,7 +292,8 @@ export function createMiniPlayerController({
           onNextTrack: handlers.nextTrack,
           onSeek: handlers.seek,
           onVolume: handlers.setVolume,
-          onToggleMute: handlers.toggleMute
+          onToggleMute: handlers.toggleMute,
+          onEnterNowPlaying: handlers.enterNowPlaying
         }
       }) as Record<string, unknown>;
 

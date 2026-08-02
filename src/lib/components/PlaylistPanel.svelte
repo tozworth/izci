@@ -18,6 +18,7 @@
   import { createAlbumArtworkController } from '$lib/services/album-artwork';
   import { trackSettings } from '$lib/stores/track-settings';
   import { normalizeTrackRating } from '$lib/services/track-ratings';
+  import { buildLibraryGroupContextActions } from '$lib/services/workspace-actions';
   import { extractDroppedContent } from '$lib/utils/files';
   import PlaylistPanelHeader from '$lib/components/playlist-panel/PlaylistPanelHeader.svelte';
   import LibraryPanelHeader from '$lib/components/playlist-panel/LibraryPanelHeader.svelte';
@@ -624,6 +625,7 @@
       case 'separate-subsongs': return $t('playlist.actions.separateSubsongs', { default: 'Separate subsongs' });
       case 'add-to-playlist': return $t('playlist.actions.addToPlaylist', { default: 'Add to playlist' });
       case 'replace-playlist': return $t('playlist.actions.replacePlaylist', { default: 'Replace playlist' });
+      case 'shuffle-play': return $t('playlist.actions.shufflePlay', { default: 'Shuffle play' });
       case 'reset-play-count': return $t('playlist.actions.resetPlayCount', { default: 'Reset play count' });
       case 'remove-favorite': return $t('playlist.actions.removeFromFavorites', { default: 'Remove from favorites' });
       case 'remove': return $t('playlist.actions.remove', { default: 'Remove' });
@@ -849,6 +851,15 @@
     };
   }
 
+  function buildContextMenuActions(menu: PlaylistPanelContextMenu | null): MenuActionItem[] {
+    if (!menu || menu.kind === 'columns') return [];
+
+    const actions = getContextMenuActions(menu.ids);
+    return menu.kind === 'library-group'
+      ? buildLibraryGroupContextActions(actions)
+      : actions;
+  }
+
   async function openRequestedLibraryGroup(
     request: WorkspaceLibraryGroupRequest,
     group: LibraryGroup
@@ -977,11 +988,7 @@
         : $t('playlist.repeat.off', { default: 'Repeat off' });
   $: localizedPanelTitle = localizePanelLabel(panelTitle);
   $: localizedRegionLabel = localizePanelLabel(regionLabel);
-  $: contextMenuActions = contextMenu?.kind === 'items' || contextMenu?.kind === 'library-group'
-    ? getContextMenuActions(contextMenu.ids).filter((action) =>
-        contextMenu?.kind === 'items' || action.id !== 'go-to-library'
-      )
-    : [];
+  $: contextMenuActions = buildContextMenuActions(contextMenu);
   $: storedVisibleColumns = orderedColumns.filter((column) => column.visible);
   $: visibleColumnCount = storedVisibleColumns.length;
   $: contextMenuItems = contextMenu?.kind === 'columns'

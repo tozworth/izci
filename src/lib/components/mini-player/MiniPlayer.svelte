@@ -16,6 +16,7 @@
   export let onSeek: (seconds: number) => void;
   export let onVolume: (volume: number) => void;
   export let onToggleMute: () => void;
+  export let onEnterNowPlaying: () => void;
 
   const RANGE_THUMB_SIZE_REM = 0.78;
   const SEEK_STEP_SECONDS = 5;
@@ -164,7 +165,13 @@
   aria-label={$t('main.miniPlayer.heading', { default: 'Mini player' })}
 >
   <div class="mini-player-track-row">
-    <div class="mini-player-artwork" aria-hidden="true">
+    <button
+      type="button"
+      class="mini-player-artwork"
+      aria-label={$t('main.player.enterNowPlaying', { default: 'Enter Now Playing' })}
+      disabled={!displayTrack}
+      on:click={onEnterNowPlaying}
+    >
       {#if artworkUrl}
         <img src={artworkUrl} alt="" />
       {:else}
@@ -172,7 +179,8 @@
           {displayTrack?.kind === 'module' ? 'graphic_eq' : displayTrack?.kind === 'video' ? 'movie' : 'music_note'}
         </span>
       {/if}
-    </div>
+      <span class="mini-player-artwork-fullscreen material-symbols-outlined" aria-hidden="true">fullscreen</span>
+    </button>
 
     <div class="mini-player-track-copy">
       <strong title={displayTrack ? getTrackDisplayTitle(displayTrack) : undefined}>
@@ -306,6 +314,7 @@
   }
 
   .mini-player-artwork {
+    position: relative;
     display: grid;
     width: 3.2rem;
     height: 3.2rem;
@@ -316,6 +325,7 @@
     background: color-mix(in srgb, var(--bg-soft) 76%, transparent);
     color: var(--muted);
     overflow: hidden;
+    padding: 0;
   }
 
   .mini-player-artwork img {
@@ -326,6 +336,22 @@
 
   .mini-player-artwork .material-symbols-outlined {
     font-size: 1.55rem;
+  }
+
+  .mini-player-artwork .mini-player-artwork-fullscreen {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    color: #fff;
+    background: rgba(0, 0, 0, 0.42);
+    opacity: 0;
+    transition: opacity 120ms ease;
+  }
+
+  .mini-player-artwork:hover:not(:disabled) .mini-player-artwork-fullscreen,
+  .mini-player-artwork:focus-visible .mini-player-artwork-fullscreen {
+    opacity: 1;
   }
 
   .mini-player-track-copy {

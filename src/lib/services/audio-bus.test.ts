@@ -22,6 +22,7 @@ class FakeAudioParam {
   value = 1;
   readonly setCalls: Array<{ value: number; time: number }> = [];
   readonly rampCalls: Array<{ value: number; time: number }> = [];
+  readonly curveCalls: Array<{ values: number[]; time: number; duration: number }> = [];
   cancelScheduledValues(): void {}
   setValueAtTime(value: number, time: number): void {
     this.value = value;
@@ -30,6 +31,10 @@ class FakeAudioParam {
   linearRampToValueAtTime(value: number, time: number): void {
     this.value = value;
     this.rampCalls.push({ value, time });
+  }
+  setValueCurveAtTime(values: Float32Array, time: number, duration: number): void {
+    this.value = values.at(-1) ?? this.value;
+    this.curveCalls.push({ values: Array.from(values), time, duration });
   }
 }
 
@@ -141,7 +146,7 @@ describe('AudioBusService', () => {
     expect(input.gain.rampCalls).toHaveLength(0);
   });
 
-  it('switches module sources without rebuilding the shared graph', () => {
+  it('mixes two sources through independent gains without rebuilding the shared graph', () => {
     const context = bus.context as unknown as FakeAudioContext;
     const first = new FakeAudioNode(context);
     const second = new FakeAudioNode(context);
@@ -150,8 +155,19 @@ describe('AudioBusService', () => {
     bus.connectAudioNode(second as unknown as AudioNode);
 
     expect(FakeAudioContext.instances).toHaveLength(1);
-    expect(first.disconnections).toEqual([context.gains[0]]);
-    expect(second.connections).toEqual([context.gains[0]]);
+    expect(first.disconnections).toEqual([]);
+    expect(first.connections).toHaveLength(1);
+    expect(second.connections).toHaveLength(1);
+    expect(first.connections[0]).not.toBe(second.connections[0]);
+    expect(first.connections[0].connections).toEqual([context.gains[0]]);
+    expect(second.connections[0].connections).toEqual([context.gains[0]]);
+
+    bus.setSourceGain(first as unknown as AudioNode, 0, 2);
+    const curve = (first.connections[0] as FakeGainNode).gain.curveCalls.at(-1);
+    expect(curve?.duration).toBe(2);
+    expect(curve?.values[0]).toBe(1);
+    expect(curve?.values.at(-1)).toBe(0);
+    expect(curve?.values[Math.floor((curve?.values.length ?? 0) / 2)]).toBeLessThan(0.5);
   });
 
   it('reuses the media source tied to a Howler media element', () => {

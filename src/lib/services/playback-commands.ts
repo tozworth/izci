@@ -3,6 +3,7 @@ import { playerController } from '$lib/services/player-controller';
 import { playlistStore } from '$lib/stores/playlist';
 import type {
   PlaybackSnapshot,
+  PlaybackTransitionMode,
   PlaylistItem,
   PlaylistRepeatMode,
   WorkspaceCollection,
@@ -20,7 +21,12 @@ interface CreatePlaybackCommandsControllerOptions {
   getSelectedPlaylistTrack: () => PlaylistItem | null;
   getPlaybackState: () => PlaybackSnapshot['state'];
   getPlaybackCurrentTime: () => number;
+  getPlaybackDuration: () => number;
   shouldRestartCurrentTrackOnPrevious: () => boolean;
+  getTransitionMode: () => PlaybackTransitionMode;
+  getGaplessPlaybackEnabled: () => boolean;
+  getFadeDurationSeconds: () => number;
+  getFadeOnManualTrackChange: () => boolean;
   getShuffleEnabled: () => boolean;
   getRepeatMode: () => PlaylistRepeatMode;
   getTrackById: (collection: WorkspaceCollection, id: string) => PlaylistItem | null;
@@ -36,6 +42,24 @@ const initialState: PlaybackCommandsState = {
 };
 
 export const PREVIOUS_TRACK_RESTART_THRESHOLD_SECONDS = 3;
+
+export function resolveEffectiveTransitionMode(
+  mode: PlaybackTransitionMode,
+  gaplessPlayback: boolean
+): PlaybackTransitionMode {
+  return mode === 'crossfade' && !gaplessPlayback ? 'fadeout' : mode;
+}
+
+export function isAutomaticFadeWindow(
+  currentTime: number,
+  duration: number,
+  fadeDurationSeconds: number
+): boolean {
+  return Number.isFinite(currentTime)
+    && Number.isFinite(duration)
+    && duration > 0
+    && currentTime >= Math.max(duration - Math.min(Math.max(fadeDurationSeconds, 0), duration), 0);
+}
 
 export function shouldRestartForPrevious(
   direction: -1 | 1,
@@ -55,7 +79,12 @@ export function createPlaybackCommandsController({
   getSelectedPlaylistTrack,
   getPlaybackState,
   getPlaybackCurrentTime,
+  getPlaybackDuration,
   shouldRestartCurrentTrackOnPrevious,
+  getTransitionMode,
+  getGaplessPlaybackEnabled,
+  getFadeDurationSeconds,
+  getFadeOnManualTrackChange,
   getShuffleEnabled,
   getRepeatMode,
   getTrackById,
@@ -67,6 +96,10 @@ export function createPlaybackCommandsController({
 }: CreatePlaybackCommandsControllerOptions) {
   let state = initialState;
   let playRequestSequence = 0;
+  let preparationSequence = 0;
+  let automaticFadeTrackId: string | null = null;
+  let automaticCrossfadeTrackId: string | null = null;
+  let manualTransitionCount = 0;
   const store = writable(state);
 
   function publishState(): void {
@@ -92,7 +125,14 @@ export function createPlaybackCommandsController({
     setPendingPlaybackTrackId(null);
   }
 
-  async function playTrack(track: PlaylistItem): Promise<void> {
+  function effectiveTransitionMode(): PlaybackTransitionMode {
+    return resolveEffectiveTransitionMode(getTransitionMode(), getGaplessPlaybackEnabled());
+  }
+
+  async function playTrack(
+    track: PlaylistItem,
+    options: { manualTransition?: boolean } = {}
+  ): Promise<void> {
     const requestId = ++playRequestSequence;
     setPendingPlaybackTrackId(track.id);
     const playableTrack = await playlistStore.ensureLoaded(track.id, { prompt: true });
@@ -116,7 +156,23 @@ export function createPlaybackCommandsController({
         return;
       }
 
-      await playerController.load(playableTrack, { autoPlay: true, initialPosition });
+      const mode = effectiveTransitionMode();
+      const shouldTransition =
+        options.manualTransition === true &&
+        getFadeOnManualTrackChange() &&
+        mode !== 'none' &&
+        initialPosition === 0;
+
+      if (shouldTransition) {
+        manualTransitionCount += 1;
+        try {
+          await playerController.transitionTo(playableTrack, mode, getFadeDurationSeconds());
+        } finally {
+          manualTransitionCount = Math.max(manualTransitionCount - 1, 0);
+        }
+      } else {
+        await playerController.load(playableTrack, { autoPlay: true, initialPosition });
+      }
 
       if (requestId !== playRequestSequence) {
         clearPendingPlaybackTrackId(playableTrack.id);
@@ -149,7 +205,7 @@ export function createPlaybackCommandsController({
     }
 
     selectTrack('playlist', id);
-    await playTrack(track);
+    await playTrack(track, { manualTransition: true });
   }
 
   async function activateLibraryTrack(id: string): Promise<void> {
@@ -167,7 +223,7 @@ export function createPlaybackCommandsController({
     }
 
     selectTrack('playlist', playlistTrack.id);
-    await playTrack(playlistTrack);
+    await playTrack(playlistTrack, { manualTransition: true });
   }
 
   async function activateFavoriteTrack(track: PlaylistItem): Promise<void> {
@@ -179,7 +235,7 @@ export function createPlaybackCommandsController({
     }
 
     selectTrack('playlist', playlistTrack.id);
-    await playTrack(playlistTrack);
+    await playTrack(playlistTrack, { manualTransition: true });
   }
 
   async function importLaunchedFiles(files: File[], action: 'add' | 'replace'): Promise<void> {
@@ -294,10 +350,64 @@ export function createPlaybackCommandsController({
     }
 
     selectTrack('playlist', nextTrack.id);
-    await playTrack(nextTrack);
+    await playTrack(nextTrack, { manualTransition: true });
+  }
+
+  async function prepareUpcomingTrack(): Promise<void> {
+    const currentTrack = getPlayingTrack();
+
+    if (!currentTrack || !getGaplessPlaybackEnabled()) return;
+    const nextTrack = playlistStore.resolveTrackEnd({
+      currentId: currentTrack.id,
+      shuffle: getShuffleEnabled(),
+      repeatMode: getRepeatMode()
+    });
+    if (!nextTrack) return;
+
+    const requestId = ++preparationSequence;
+    const playableTrack = await playlistStore.ensureLoaded(nextTrack.id, { prompt: false });
+    if (
+      requestId !== preparationSequence ||
+      getPlayingTrack()?.id !== currentTrack.id ||
+      !playableTrack
+    ) return;
+    await playerController.prepareNext(playableTrack);
+  }
+
+  async function handlePlaybackProgress(): Promise<void> {
+    const currentTrack = getPlayingTrack();
+    if (!currentTrack || getPlaybackState() !== 'playing') return;
+    const duration = getPlaybackDuration();
+    const currentTime = getPlaybackCurrentTime();
+    const mode = effectiveTransitionMode();
+    if (mode === 'none') return;
+    const fadeSeconds = Math.min(getFadeDurationSeconds(), duration);
+    if (!isAutomaticFadeWindow(currentTime, duration, fadeSeconds)) return;
+
+    if (mode === 'fadeout' && automaticFadeTrackId !== currentTrack.id) {
+      automaticFadeTrackId = currentTrack.id;
+      playerController.fadeOut(fadeSeconds);
+      return;
+    }
+
+    if (mode === 'crossfade' && automaticCrossfadeTrackId !== currentTrack.id) {
+      automaticCrossfadeTrackId = currentTrack.id;
+      const nextTrack = playlistStore.resolveTrackEnd({
+        currentId: currentTrack.id,
+        shuffle: getShuffleEnabled(),
+        repeatMode: getRepeatMode()
+      });
+      if (!nextTrack) return;
+      if (!playerController.hasPreparedTrack(nextTrack.id)) await prepareUpcomingTrack();
+      if (getPlayingTrack()?.id !== currentTrack.id) return;
+      if (playerController.commitPrepared(nextTrack.id, fadeSeconds)) {
+        selectTrack('playlist', nextTrack.id);
+      }
+    }
   }
 
   async function handleTrackEnded(): Promise<void> {
+    if (manualTransitionCount > 0) return;
     const nextTrack = playlistStore.resolveTrackEnd({
       currentId: getPlayingTrack()?.id,
       shuffle: getShuffleEnabled(),
@@ -309,6 +419,7 @@ export function createPlaybackCommandsController({
     }
 
     selectTrack('playlist', nextTrack.id);
+    if (playerController.commitPrepared(nextTrack.id)) return;
     await playTrack(nextTrack);
   }
 
@@ -323,6 +434,9 @@ export function createPlaybackCommandsController({
       }
 
       clearPendingPlaybackTrackId(track.id);
+      preparationSequence += 1;
+      automaticFadeTrackId = null;
+      automaticCrossfadeTrackId = null;
     },
     playTrack,
     activatePlaylistTrack,
@@ -335,6 +449,8 @@ export function createPlaybackCommandsController({
     seek,
     togglePlayback,
     stepTrack,
+    prepareUpcomingTrack,
+    handlePlaybackProgress,
     handleTrackEnded
   };
 }

@@ -78,6 +78,7 @@ export type PlaybackState = 'idle' | 'loading' | 'playing' | 'paused' | 'ended' 
 export type ModuleInterpolationFilter = 1 | 2 | 4 | 8;
 export type PlaylistRepeatMode = 'off' | 'one' | 'all';
 export type PlaybackRestoreMode = 'disabled' | 'position' | 'position-and-state';
+export type PlaybackTransitionMode = 'none' | 'fadeout' | 'crossfade';
 export type SortDirection = 'asc' | 'desc';
 export type LibraryColumnId =
   | 'title'
@@ -368,6 +369,10 @@ export interface PlaybackSettings {
   playbackRate: number;
   trueSpeed: boolean;
   restartCurrentTrackOnPrevious: boolean;
+  transitionMode: PlaybackTransitionMode;
+  gaplessPlayback: boolean;
+  fadeDurationSeconds: number;
+  fadeOnManualTrackChange: boolean;
   logarithmicVolume: boolean;
   replayGainMode: ReplayGainMode;
   restoreMode: PlaybackRestoreMode;

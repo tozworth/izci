@@ -232,6 +232,7 @@
 }
 
 .player-artwork {
+  position: relative;
   flex: 0 0 auto;
   width: 56px;
   height: 56px;
@@ -246,6 +247,23 @@
   transition:
     background var(--artwork-ui-transition-duration) linear,
     box-shadow var(--artwork-ui-transition-duration) linear;
+}
+
+.player-artwork-fullscreen {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  font-size: 1.75rem;
+  background: rgba(0, 0, 0, 0.42);
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.player-artwork-button.now-playing-entry:hover .player-artwork-fullscreen,
+.player-artwork-button.now-playing-entry:focus-visible .player-artwork-fullscreen {
+  opacity: 1;
 }
 
 .player-artwork-image,

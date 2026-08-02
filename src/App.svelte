@@ -246,7 +246,8 @@
       selectTrack: (collection, id) => workspaceShell.selectTrack(collection, id),
       showTrackDetails: () => workspaceShell.showTrackDetails(),
       showTrackLyrics: () => workspaceShell.showTrackLyrics(),
-      showLibraryGroup: (target) => workspaceShell.showLibraryGroup(target)
+      showLibraryGroup: (target) => workspaceShell.showLibraryGroup(target),
+      playPlaylist: playPlaylistFromCollectionAction
     }
   });
   const lyricsPresentation = createLyricsPresentationController({
@@ -269,7 +270,12 @@
     getSelectedPlaylistTrack: () => selectedPlaylistItem,
     getPlaybackState: () => playbackStatus.state,
     getPlaybackCurrentTime: () => playbackSnapshot.currentTime,
+    getPlaybackDuration: () => playbackSnapshot.duration,
     shouldRestartCurrentTrackOnPrevious: () => $playbackSettings.restartCurrentTrackOnPrevious,
+    getTransitionMode: () => $playbackSettings.transitionMode,
+    getGaplessPlaybackEnabled: () => $playbackSettings.gaplessPlayback,
+    getFadeDurationSeconds: () => $playbackSettings.fadeDurationSeconds,
+    getFadeOnManualTrackChange: () => $playbackSettings.fadeOnManualTrackChange,
     getShuffleEnabled: () => shuffleEnabled,
     getRepeatMode: () => repeatMode,
     getTrackById: (collection, id) =>
@@ -292,7 +298,13 @@
       nextTrack: () => void playbackCommands.stepTrack(1),
       seek: seekPlayback,
       setVolume: (volume) => playerController.setVolume(volume),
-      toggleMute: () => playerController.toggleMute()
+      toggleMute: () => playerController.toggleMute(),
+      enterNowPlaying: () => {
+        if (!isNowPlayingLayoutActive) {
+          toggleNowPlayingView();
+        }
+        window.focus();
+      }
     }
   });
   const playCountTracker = createPlayCountTracker({
@@ -377,7 +389,12 @@
   const unsubscribePlaybackSnapshot = playerController.snapshot.subscribe((value) => {
     playbackSnapshot = value;
     if (value.state === 'playing') appInstallService.markEngaged();
+    void playbackCommands.handlePlaybackProgress();
   });
+
+  function playPlaylistFromCollectionAction(): void {
+    void playbackCommands.play();
+  }
   const unsubscribePlaybackStatus = playerController.status.subscribe((value) => (playbackStatus = value));
   const unsubscribeWorkspaceShell = workspaceShell.subscribe((value) => (workspaceShellState = value));
   const unsubscribePlaybackCommands = playbackCommands.subscribe(
@@ -1168,6 +1185,10 @@
     previousPlaybackState = playbackStatus.state;
   }
 
+  $: if ($playbackSettings.gaplessPlayback && playingTrack) {
+    void playbackCommands.prepareUpcomingTrack();
+  }
+
   onDestroy(() => {
     playbackRestoration.destroy();
     playbackProgress.destroy();
@@ -1419,6 +1440,7 @@
       on:applyRafPreset={(event) => rafPresets.apply(event.detail)}
       on:openRafOptions={() => handleOpenOptions('raf')}
       on:showTrack={(event) => handleShowPlayerTrackDetails(event.detail)}
+      on:enterNowPlaying={toggleNowPlayingView}
       on:toggleVideoTheater={toggleVideoTheater}
     />
   {/if}

@@ -1,4 +1,9 @@
-import type { PlaybackRestoreMode, PlaybackSettings, ReplayGainMode } from '$lib/types';
+import type {
+  PlaybackRestoreMode,
+  PlaybackSettings,
+  PlaybackTransitionMode,
+  ReplayGainMode
+} from '$lib/types';
 import { createSettingsStore } from './persistent-store';
 
 export const PLAYBACK_SETTINGS_STORAGE_KEY = 'izci.playback-settings';
@@ -19,16 +24,32 @@ export const PLAYBACK_RESTORE_MODE_OPTIONS: Array<{
   { value: 'position-and-state', label: 'Position and state' }
 ];
 
+export const PLAYBACK_TRANSITION_MODE_OPTIONS: Array<{
+  value: PlaybackTransitionMode;
+  label: string;
+}> = [
+  { value: 'none', label: 'None' },
+  { value: 'fadeout', label: 'Fade out' },
+  { value: 'crossfade', label: 'Crossfade' }
+];
+
 export const REMEMBER_PROGRESS_DURATION_MINUTES = [null, 0, 5, 15, 30, 60, 120, 300, 600] as const;
 export const DEFAULT_REMEMBER_PROGRESS_DURATION_INDEX = 4;
 export const PLAYBACK_RATE_MIN = 0.5;
 export const PLAYBACK_RATE_MAX = 2;
 export const PLAYBACK_RATE_STEP = 0.05;
+export const FADE_DURATION_MIN_SECONDS = 0.5;
+export const FADE_DURATION_MAX_SECONDS = 30;
+export const FADE_DURATION_STEP_SECONDS = 0.5;
 
 export const DEFAULT_PLAYBACK_SETTINGS: PlaybackSettings = {
   playbackRate: 1,
   trueSpeed: false,
   restartCurrentTrackOnPrevious: true,
+  transitionMode: 'none',
+  gaplessPlayback: true,
+  fadeDurationSeconds: 5,
+  fadeOnManualTrackChange: false,
   logarithmicVolume: true,
   replayGainMode: 'track',
   restoreMode: 'disabled',
@@ -36,6 +57,22 @@ export const DEFAULT_PLAYBACK_SETTINGS: PlaybackSettings = {
   enableRaf: false,
   showRafToggleInPlayerBar: false
 };
+
+export function normalizePlaybackTransitionMode(value: unknown): PlaybackTransitionMode {
+  return value === 'none' || value === 'fadeout' || value === 'crossfade'
+    ? value
+    : DEFAULT_PLAYBACK_SETTINGS.transitionMode;
+}
+
+export function normalizeFadeDurationSeconds(value: unknown): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return DEFAULT_PLAYBACK_SETTINGS.fadeDurationSeconds;
+  }
+
+  const clamped = Math.min(Math.max(value, FADE_DURATION_MIN_SECONDS), FADE_DURATION_MAX_SECONDS);
+  const stepped = Math.round(clamped / FADE_DURATION_STEP_SECONDS) * FADE_DURATION_STEP_SECONDS;
+  return Number(stepped.toFixed(1));
+}
 
 function normalizeReplayGainMode(value: unknown): ReplayGainMode {
   return value === 'off' || value === 'track' || value === 'album'
@@ -72,6 +109,11 @@ export function normalizePlaybackRate(value: unknown): number {
 
 export function normalizePlaybackSettings(value: unknown): PlaybackSettings {
   const source = value && typeof value === 'object' ? (value as Partial<PlaybackSettings>) : {};
+  const gaplessPlayback =
+    typeof source.gaplessPlayback === 'boolean'
+      ? source.gaplessPlayback
+      : DEFAULT_PLAYBACK_SETTINGS.gaplessPlayback;
+  const requestedTransitionMode = normalizePlaybackTransitionMode(source.transitionMode);
 
   return {
     playbackRate: normalizePlaybackRate(source.playbackRate),
@@ -83,6 +125,16 @@ export function normalizePlaybackSettings(value: unknown): PlaybackSettings {
       typeof source.restartCurrentTrackOnPrevious === 'boolean'
         ? source.restartCurrentTrackOnPrevious
         : DEFAULT_PLAYBACK_SETTINGS.restartCurrentTrackOnPrevious,
+    transitionMode:
+      !gaplessPlayback && requestedTransitionMode === 'crossfade'
+        ? 'fadeout'
+        : requestedTransitionMode,
+    gaplessPlayback,
+    fadeDurationSeconds: normalizeFadeDurationSeconds(source.fadeDurationSeconds),
+    fadeOnManualTrackChange:
+      typeof source.fadeOnManualTrackChange === 'boolean'
+        ? source.fadeOnManualTrackChange
+        : DEFAULT_PLAYBACK_SETTINGS.fadeOnManualTrackChange,
     logarithmicVolume:
       typeof source.logarithmicVolume === 'boolean'
         ? source.logarithmicVolume

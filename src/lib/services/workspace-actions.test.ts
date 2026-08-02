@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   buildFavoritesContextActions,
   buildLibraryContextActions,
+  buildLibraryGroupContextActions,
   buildPlaylistContextActions,
   buildSelectedWorkspaceTracks,
   getEquivalentLibraryIds,
@@ -180,5 +181,22 @@ describe('workspace actions', () => {
         })
       ])
     );
+  });
+
+  it('adds shuffle play only when library actions are adapted for a grouped category', () => {
+    const flatActions = buildLibraryContextActions([item('track')], [], ['track']);
+    const groupedActions = buildLibraryGroupContextActions(flatActions);
+
+    expect(flatActions.map((action) => action.id)).not.toContain('shuffle-play');
+    expect(groupedActions.map((action) => action.id)).toEqual([
+      'add-to-playlist',
+      'replace-playlist',
+      'shuffle-play',
+      'track-details',
+      'toggle-favorite',
+      'rate',
+      'reset-play-count',
+      'remove'
+    ]);
   });
 });

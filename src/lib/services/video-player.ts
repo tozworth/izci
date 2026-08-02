@@ -18,6 +18,10 @@ export class VideoPlayerService {
   #initialPosition = 0;
   #initialPositionApplied = false;
   #fallbackVolume = 1;
+  #transitionGain = 1;
+  #fallbackRampFrame: number | null = null;
+  #pendingLoadResolve: (() => void) | null = null;
+  #pendingLoadReject: ((error: Error) => void) | null = null;
   #playbackRate = 1;
   #trueSpeed = false;
   #trackSize = 0;
@@ -63,7 +67,7 @@ export class VideoPlayerService {
     }
   }
 
-  load(track: PlaylistItem, options: VideoLoadOptions = {}): void {
+  load(track: PlaylistItem, options: VideoLoadOptions = {}): Promise<void> {
     if (!track.objectUrl) {
       throw new Error('Expected an object URL for video playback.');
     }
@@ -80,6 +84,10 @@ export class VideoPlayerService {
     this.#initialPosition = Math.max(options.initialPosition ?? 0, 0);
     this.#initialPositionApplied = false;
     this.#trackSize = track.size;
+    const ready = new Promise<void>((resolve, reject) => {
+      this.#pendingLoadResolve = resolve;
+      this.#pendingLoadReject = reject;
+    });
     this.onSnapshot({
       backend: 'video',
       state: 'loading',
@@ -94,6 +102,7 @@ export class VideoPlayerService {
     if (this.#autoPlay) {
       this.#requestPlay();
     }
+    return ready;
   }
 
   play(): void {
@@ -130,6 +139,22 @@ export class VideoPlayerService {
     this.#applyPlaybackRate();
   }
 
+  setTransitionGain(gain: number, durationSeconds = 0): void {
+    this.#transitionGain = Math.max(gain, 0);
+
+    if (this.#audioSource) {
+      this.#cancelFallbackRamp();
+      audioBusService.setSourceGain(this.#audioSource, this.#transitionGain, durationSeconds);
+    } else if (durationSeconds > 0 && this.#element) {
+      this.#rampFallbackVolume(
+        Math.min(this.#fallbackVolume * this.#transitionGain, 1),
+        durationSeconds
+      );
+    } else {
+      this.#applyOutputVolume();
+    }
+  }
+
   unload(): void {
     const element = this.#element;
 
@@ -138,6 +163,8 @@ export class VideoPlayerService {
     this.#initialPosition = 0;
     this.#initialPositionApplied = false;
     this.#trackSize = 0;
+    this.#settlePendingLoad();
+    this.#cancelFallbackRamp();
     audioBusService.disconnect(this.#audioSource);
     this.#audioSource = null;
 
@@ -165,7 +192,7 @@ export class VideoPlayerService {
     }
 
     const element = document.createElement('video');
-    element.preload = 'metadata';
+    element.preload = 'auto';
     element.playsInline = true;
     element.controls = false;
     element.disablePictureInPicture = false;
@@ -201,7 +228,9 @@ export class VideoPlayerService {
     });
     element.addEventListener('error', () => {
       if (!this.#active) return;
-      this.onSnapshot({ state: 'error', error: this.#resolveErrorMessage(element.error) });
+      const error = new Error(this.#resolveErrorMessage(element.error));
+      this.onSnapshot({ state: 'error', error: error.message });
+      this.#settlePendingLoad(error);
     });
 
     return element;
@@ -234,6 +263,7 @@ export class VideoPlayerService {
 
     const bitrate = duration > 0 ? Math.round((this.#trackSize * 8) / duration / 1000) : undefined;
     this.onMetadata({ duration, bitrate });
+    this.#settlePendingLoad();
     this.#publishProgress();
 
     if (this.#autoPlay) {
@@ -267,13 +297,49 @@ export class VideoPlayerService {
     }
 
     this.#audioSource = audioBusService.connectHtmlMediaElement(element);
+    audioBusService.setSourceGain(this.#audioSource, this.#transitionGain);
     this.#applyOutputVolume();
   }
 
   #applyOutputVolume(): void {
     if (this.#element) {
-      this.#element.volume = this.#audioSource ? 1 : this.#fallbackVolume;
+      this.#element.volume = this.#audioSource
+        ? 1
+        : Math.min(this.#fallbackVolume * this.#transitionGain, 1);
     }
+  }
+
+  #rampFallbackVolume(target: number, durationSeconds: number): void {
+    const element = this.#element;
+    if (!element) return;
+    this.#cancelFallbackRamp();
+    const startedAt = performance.now();
+    const start = element.volume;
+    const durationMilliseconds = Math.max(durationSeconds * 1000, 1);
+    const tick = (now: number) => {
+      if (!this.#element) return;
+      const progress = Math.min(Math.max((now - startedAt) / durationMilliseconds, 0), 1);
+      const shapedProgress = 1 - (1 - progress) ** 2;
+      this.#element.volume = start + (target - start) * shapedProgress;
+      if (progress < 1) this.#fallbackRampFrame = requestAnimationFrame(tick);
+      else this.#fallbackRampFrame = null;
+    };
+    this.#fallbackRampFrame = requestAnimationFrame(tick);
+  }
+
+  #cancelFallbackRamp(): void {
+    if (this.#fallbackRampFrame === null) return;
+    cancelAnimationFrame(this.#fallbackRampFrame);
+    this.#fallbackRampFrame = null;
+  }
+
+  #settlePendingLoad(error?: Error): void {
+    const resolve = this.#pendingLoadResolve;
+    const reject = this.#pendingLoadReject;
+    this.#pendingLoadResolve = null;
+    this.#pendingLoadReject = null;
+    if (error) reject?.(error);
+    else resolve?.();
   }
 
   #publishProgress(): void {

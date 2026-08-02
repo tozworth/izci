@@ -6,13 +6,18 @@
     PLAYBACK_RATE_MIN,
     PLAYBACK_RATE_STEP,
     PLAYBACK_RESTORE_MODE_OPTIONS,
+    PLAYBACK_TRANSITION_MODE_OPTIONS,
     REMEMBER_PROGRESS_DURATION_MINUTES,
     REPLAY_GAIN_MODE_OPTIONS,
+    FADE_DURATION_MAX_SECONDS,
+    FADE_DURATION_MIN_SECONDS,
+    FADE_DURATION_STEP_SECONDS,
+    normalizeFadeDurationSeconds,
     normalizePlaybackRate,
     normalizeRememberProgressDurationIndex,
     playbackSettings
   } from '$lib/stores/playback-settings';
-  import type { PlaybackRestoreMode, ReplayGainMode } from '$lib/types';
+  import type { PlaybackRestoreMode, PlaybackTransitionMode, ReplayGainMode } from '$lib/types';
 
   function checked(event: Event) { return (event.currentTarget as HTMLInputElement).checked; }
   function handlePlaybackRestoreModeChange(event: Event) { playbackSettings.update({ restoreMode: (event.currentTarget as HTMLSelectElement).value as PlaybackRestoreMode }); }
@@ -32,6 +37,18 @@
   }
   function handleTrueSpeedToggle(event: Event) { playbackSettings.update({ trueSpeed: checked(event) }); }
   function handleRestartCurrentTrackOnPreviousToggle(event: Event) { playbackSettings.update({ restartCurrentTrackOnPrevious: checked(event) }); }
+  function handleTransitionModeChange(event: Event) { playbackSettings.update({ transitionMode: (event.currentTarget as HTMLSelectElement).value as PlaybackTransitionMode }); }
+  function handleGaplessPlaybackToggle(event: Event) {
+    const gaplessPlayback = checked(event);
+    playbackSettings.update({
+      gaplessPlayback,
+      ...(!gaplessPlayback && $playbackSettings.transitionMode === 'crossfade'
+        ? { transitionMode: 'fadeout' as const }
+        : {})
+    });
+  }
+  function handleFadeDurationChange(event: Event) { playbackSettings.update({ fadeDurationSeconds: normalizeFadeDurationSeconds((event.currentTarget as HTMLInputElement).valueAsNumber) }); }
+  function handleFadeOnManualTrackChangeToggle(event: Event) { playbackSettings.update({ fadeOnManualTrackChange: checked(event) }); }
   function handleLogarithmicVolumeToggle(event: Event) { playbackSettings.update({ logarithmicVolume: checked(event) }); }
   function handleReplayGainModeChange(event: Event) { playbackSettings.update({ replayGainMode: (event.currentTarget as HTMLSelectElement).value as ReplayGainMode }); }
   function handleEnableRafToggle(event: Event) { playbackSettings.update({ enableRaf: checked(event) }); }
@@ -45,6 +62,11 @@
     if (value === 'track') return $t('options.playback.replayGain.options.track', { default: 'Track' });
     if (value === 'album') return $t('options.playback.replayGain.options.album', { default: 'Album' });
     return $t('options.playback.replayGain.options.off', { default: 'Off' });
+  }
+  function transitionModeLabel(value: PlaybackTransitionMode): string {
+    if (value === 'none') return $t('options.playback.transitions.options.none', { default: 'None' });
+    if (value === 'fadeout') return $t('options.playback.transitions.options.fadeout', { default: 'Fade out' });
+    return $t('options.playback.transitions.options.crossfade', { default: 'Crossfade' });
   }
   function rememberProgressDurationLabel(index: number): string {
     const minutes = REMEMBER_PROGRESS_DURATION_MINUTES[index] ?? null;
@@ -95,6 +117,68 @@
             type="checkbox"
             checked={$playbackSettings.restartCurrentTrackOnPrevious}
             on:change={handleRestartCurrentTrackOnPreviousToggle}
+          />
+      </SettingsField>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>{$t('options.playback.transitions.heading', { default: 'Transitions' })}</h2>
+    <div class="field-grid">
+      <SettingsField
+        title={$t('options.playback.transitions.mode.title', { default: 'Track transition' })}
+        hint={$t('options.playback.transitions.mode.hint', { default: 'Cuts directly, fades the outgoing track to silence, or overlaps adjacent tracks.' })}
+      >
+          <select value={$playbackSettings.transitionMode} on:change={handleTransitionModeChange}>
+            {#each PLAYBACK_TRANSITION_MODE_OPTIONS as option}
+              <option value={option.value} disabled={option.value === 'crossfade' && !$playbackSettings.gaplessPlayback}>
+                {transitionModeLabel(option.value)}
+              </option>
+            {/each}
+          </select>
+      </SettingsField>
+
+      <SettingsField
+        title={$t('options.playback.transitions.gapless.title', { default: 'Gapless playback' })}
+        hint={$t('options.playback.transitions.gapless.hint', { default: 'Prepares the next file before the current one ends. Turning this off also disables crossfade.' })}
+        advanced
+        checkbox
+      >
+          <input
+            type="checkbox"
+            checked={$playbackSettings.gaplessPlayback}
+            on:change={handleGaplessPlaybackToggle}
+          />
+      </SettingsField>
+
+      <SettingsField
+        title={$t('options.playback.transitions.duration.title', { default: 'Fade length' })}
+        hint={$t('options.playback.transitions.duration.hint', { default: 'Sets the fade-out or overlap duration.' })}
+        advanced
+      >
+          <input
+            type="range"
+            min={FADE_DURATION_MIN_SECONDS}
+            max={FADE_DURATION_MAX_SECONDS}
+            step={FADE_DURATION_STEP_SECONDS}
+            value={$playbackSettings.fadeDurationSeconds}
+            disabled={$playbackSettings.transitionMode === 'none'}
+            on:input={handleFadeDurationChange}
+          />
+          <span class="field-output">{$playbackSettings.fadeDurationSeconds} s</span>
+      </SettingsField>
+
+      <SettingsField
+        title={$t('options.playback.transitions.manual.title', { default: 'Fade manual track changes' })}
+        hint={$t('options.playback.transitions.manual.hint', { default: 'Also uses the selected transition when you choose Previous, Next, or another track.' })}
+        advanced
+        checkbox
+      >
+          <input
+            type="checkbox"
+            checked={$playbackSettings.fadeOnManualTrackChange}
+            disabled={$playbackSettings.transitionMode === 'none'}
+            on:change={handleFadeOnManualTrackChangeToggle}
           />
       </SettingsField>
     </div>

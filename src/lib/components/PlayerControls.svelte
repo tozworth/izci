@@ -96,6 +96,7 @@
     openRafOptions: void;
     showTrack: string;
     toggleVideoTheater: void;
+    enterNowPlaying: void;
   }>();
 
   const COMPACT_VOLUME_QUERY = '(max-width: 349px)';
@@ -501,15 +502,23 @@
       <button
         type="button"
         class="player-artwork-button"
-        aria-label={$t('main.player.showCurrentTrackDetails', { default: 'Show current track details' })}
+        class:now-playing-entry={presentation !== 'now-playing'}
+        aria-label={presentation === 'now-playing'
+          ? $t('main.player.showCurrentTrackDetails', { default: 'Show current track details' })
+          : $t('main.player.enterNowPlaying', { default: 'Enter Now Playing' })}
         disabled={!displayTrack}
-        on:click={handleShowTrack}
+        on:click={presentation === 'now-playing'
+          ? handleShowTrack
+          : () => dispatch('enterNowPlaying')}
       >
         <div class="player-artwork" aria-hidden="true">
           {#if artwork}
             <img class="player-artwork-image" src={artwork.url} alt="" />
           {:else}
             <div class="player-artwork-placeholder"></div>
+          {/if}
+          {#if presentation !== 'now-playing'}
+            <span class="player-artwork-fullscreen material-symbols-outlined">fullscreen</span>
           {/if}
         </div>
       </button>

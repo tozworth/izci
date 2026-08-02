@@ -168,7 +168,10 @@
       case 'playback':
         advancedTweaksModified =
           $playbackSettings.rememberProgressDurationIndex !== DEFAULT_PLAYBACK_SETTINGS.rememberProgressDurationIndex ||
-          $playbackSettings.logarithmicVolume !== DEFAULT_PLAYBACK_SETTINGS.logarithmicVolume;
+          $playbackSettings.logarithmicVolume !== DEFAULT_PLAYBACK_SETTINGS.logarithmicVolume ||
+          $playbackSettings.gaplessPlayback !== DEFAULT_PLAYBACK_SETTINGS.gaplessPlayback ||
+          $playbackSettings.fadeDurationSeconds !== DEFAULT_PLAYBACK_SETTINGS.fadeDurationSeconds ||
+          $playbackSettings.fadeOnManualTrackChange !== DEFAULT_PLAYBACK_SETTINGS.fadeOnManualTrackChange;
         break;
       case 'visualizer':
         advancedTweaksModified =

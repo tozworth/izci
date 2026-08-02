@@ -226,6 +226,21 @@ export function buildLibraryContextActions(
   ];
 }
 
+export function buildLibraryGroupContextActions(actions: MenuActionItem[]): MenuActionItem[] {
+  return actions
+    .filter((action) => action.id !== 'go-to-library')
+    .flatMap((action) => action.id === 'replace-playlist'
+      ? [
+          action,
+          {
+            id: 'shuffle-play',
+            label: 'Shuffle play',
+            icon: 'shuffle'
+          }
+        ]
+      : [action]);
+}
+
 export function buildFavoritesContextActions(
   favoriteItems: PlaylistItem[] = [],
   libraryItems: PlaylistItem[] = [],

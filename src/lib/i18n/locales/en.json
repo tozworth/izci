@@ -63,6 +63,7 @@
       "seek": "Seek"
     },
     "player": {
+      "enterNowPlaying": "Enter Now Playing",
       "previousTrack": "Previous track",
       "pausePlayback": "Pause playback",
       "playPlayback": "Play playback",
@@ -269,6 +270,7 @@
       "separateSubsongs": "Separate subsongs",
       "addToPlaylist": "Add to playlist",
       "replacePlaylist": "Replace playlist",
+      "shufflePlay": "Shuffle play",
       "resetPlayCount": "Reset play count",
       "remove": "Remove"
     },
@@ -966,6 +968,30 @@
         },
         "title": "ReplayGain",
         "hint": "Applies streamed-file ReplayGain tags, preferring track or album gain when both are available."
+      },
+      "transitions": {
+        "options": {
+          "none": "None",
+          "fadeout": "Fade out",
+          "crossfade": "Crossfade"
+        },
+        "heading": "Transitions",
+        "mode": {
+          "title": "Track transition",
+          "hint": "Cuts directly, fades the outgoing track to silence, or overlaps adjacent tracks."
+        },
+        "gapless": {
+          "title": "Gapless playback",
+          "hint": "Prepares the next file before the current one ends. Turning this off also disables crossfade."
+        },
+        "duration": {
+          "title": "Fade length",
+          "hint": "Sets the fade-out or overlap duration."
+        },
+        "manual": {
+          "title": "Fade manual track changes",
+          "hint": "Also uses the selected transition when you choose Previous, Next, or another track."
+        }
       },
       "rememberProgress": {
         "off": "Off",

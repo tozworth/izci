@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest';
 
 import {
   DEFAULT_REMEMBER_PROGRESS_DURATION_INDEX,
+  normalizeFadeDurationSeconds,
   normalizePlaybackRate,
   normalizePlaybackSettings,
   normalizePlaybackRestoreMode,
+  normalizePlaybackTransitionMode,
   normalizeRememberProgressDurationIndex
 } from './playback-settings';
 
@@ -41,5 +43,20 @@ describe('playback settings helpers', () => {
   it('defaults the Previous restart behavior on and preserves an explicit opt-out', () => {
     expect(normalizePlaybackSettings({}).restartCurrentTrackOnPrevious).toBe(true);
     expect(normalizePlaybackSettings({ restartCurrentTrackOnPrevious: false }).restartCurrentTrackOnPrevious).toBe(false);
+  });
+
+  it('normalizes transition modes and fade duration', () => {
+    expect(normalizePlaybackTransitionMode('crossfade')).toBe('crossfade');
+    expect(normalizePlaybackTransitionMode('invalid')).toBe('none');
+    expect(normalizeFadeDurationSeconds(4.74)).toBe(4.5);
+    expect(normalizeFadeDurationSeconds(0)).toBe(0.5);
+    expect(normalizeFadeDurationSeconds(60)).toBe(30);
+  });
+
+  it('turns a persisted crossfade into fade out when gapless playback is disabled', () => {
+    expect(normalizePlaybackSettings({
+      transitionMode: 'crossfade',
+      gaplessPlayback: false
+    }).transitionMode).toBe('fadeout');
   });
 });

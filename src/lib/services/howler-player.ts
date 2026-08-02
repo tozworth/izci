@@ -31,10 +31,14 @@ export class HowlerPlayerService {
   #replayGainMode: ReplayGainMode = 'track';
   #replayGain: ReplayGainMetadata | undefined;
   #fallbackVolume = 1;
+  #transitionGain = 1;
+  #fallbackRampFrame: number | null = null;
   #playbackRate = 1;
   #trueSpeed = false;
   #lastPublishedCurrentTime = -1;
   #lastPublishedDuration = -1;
+  #pendingLoadResolve: (() => void) | null = null;
+  #pendingLoadReject: ((error: Error) => void) | null = null;
   #onSnapshot: SnapshotHandler;
   #onMetadata: MetadataHandler;
   #onEnded: EndHandler;
@@ -45,7 +49,7 @@ export class HowlerPlayerService {
     this.#onEnded = onEnded;
   }
 
-  load(track: PlaylistItem, options: StreamLoadOptions = {}): void {
+  load(track: PlaylistItem, options: StreamLoadOptions = {}): Promise<void> {
     if (!track.objectUrl) {
       throw new Error('Expected an object URL for streamable audio.');
     }
@@ -64,6 +68,10 @@ export class HowlerPlayerService {
       error: undefined
     });
 
+    const ready = new Promise<void>((resolve, reject) => {
+      this.#pendingLoadResolve = resolve;
+      this.#pendingLoadReject = reject;
+    });
     this.#howl = new Howl({
       src: [track.objectUrl],
       // Use a real media element so Chromium keeps native media controls alive while paused.
@@ -82,6 +90,7 @@ export class HowlerPlayerService {
           duration,
           bitrate
         });
+        this.#settlePendingLoad();
 
         if (initialPosition > 0) {
           this.#howl?.seek(initialPosition);
@@ -150,7 +159,9 @@ export class HowlerPlayerService {
           return;
         }
 
-        this.#onSnapshot({ state: 'error', error: String(message) });
+        const error = new Error(String(message));
+        this.#onSnapshot({ state: 'error', error: error.message });
+        this.#settlePendingLoad(error);
       },
       onplayerror: (_id: number, message: unknown) => {
         if (!this.#isActiveLoad(loadToken)) {
@@ -161,7 +172,7 @@ export class HowlerPlayerService {
       }
     });
     this.#howl.rate(this.#playbackRate);
-
+    return ready;
   }
 
   play(): void {
@@ -219,7 +230,25 @@ export class HowlerPlayerService {
     this.#applyPitchPreservation();
   }
 
+  setTransitionGain(gain: number, durationSeconds = 0): void {
+    this.#transitionGain = Math.max(gain, 0);
+
+    if (this.#audioSource) {
+      audioBusService.setSourceGain(this.#audioSource, this.#transitionGain, durationSeconds);
+      return;
+    }
+
+    const target = this.#fallbackVolume * this.#transitionGain;
+    if (durationSeconds > 0 && this.#howl) {
+      this.#rampFallbackVolume(target, durationSeconds);
+    } else {
+      this.#cancelFallbackRamp();
+      this.#howl?.volume(target);
+    }
+  }
+
   destroy(): void {
+    this.#settlePendingLoad();
     this.#loadToken += 1;
     this.#autoPlayOnLoad = false;
     this.#initialPosition = 0;
@@ -227,6 +256,7 @@ export class HowlerPlayerService {
     this.#replayGain = undefined;
     this.#resetPublishedProgress();
     this.#stopTicking();
+    this.#cancelFallbackRamp();
     audioBusService.disconnect(this.#audioSource);
     this.#audioSource = null;
     this.#howl?.unload();
@@ -244,6 +274,8 @@ export class HowlerPlayerService {
 
     audioBusService.disconnect(this.#audioSource);
     this.#audioSource = audioBusService.connectHtmlMediaElement(mediaElement);
+    if (this.#audioSource) this.#cancelFallbackRamp();
+    audioBusService.setSourceGain(this.#audioSource, this.#transitionGain);
     this.#applyPitchPreservation();
     this.#applyOutputVolume();
   }
@@ -261,7 +293,7 @@ export class HowlerPlayerService {
   #applyOutputVolume(): void {
     // Routed streams receive ReplayGain and master volume in the shared graph.
     // Keep native Howler gain handling only for the progressive fallback path.
-    this.#howl?.volume(this.#audioSource ? 1 : this.#fallbackVolume);
+    this.#howl?.volume(this.#audioSource ? 1 : this.#fallbackVolume * this.#transitionGain);
   }
 
   #startTicking(): void {
@@ -330,5 +362,38 @@ export class HowlerPlayerService {
 
   #isActiveLoad(loadToken: number): boolean {
     return this.#howl !== null && loadToken === this.#loadToken;
+  }
+
+  #rampFallbackVolume(target: number, durationSeconds: number): void {
+    const howl = this.#howl;
+    if (!howl) return;
+    this.#cancelFallbackRamp();
+    const startedAt = performance.now();
+    const start = Number(howl.volume());
+    const durationMilliseconds = Math.max(durationSeconds * 1000, 1);
+    const tick = (now: number) => {
+      if (!this.#howl) return;
+      const progress = Math.min(Math.max((now - startedAt) / durationMilliseconds, 0), 1);
+      const shapedProgress = 1 - (1 - progress) ** 2;
+      this.#howl.volume(start + (target - start) * shapedProgress);
+      if (progress < 1) this.#fallbackRampFrame = requestAnimationFrame(tick);
+      else this.#fallbackRampFrame = null;
+    };
+    this.#fallbackRampFrame = requestAnimationFrame(tick);
+  }
+
+  #cancelFallbackRamp(): void {
+    if (this.#fallbackRampFrame === null) return;
+    cancelAnimationFrame(this.#fallbackRampFrame);
+    this.#fallbackRampFrame = null;
+  }
+
+  #settlePendingLoad(error?: Error): void {
+    const resolve = this.#pendingLoadResolve;
+    const reject = this.#pendingLoadReject;
+    this.#pendingLoadResolve = null;
+    this.#pendingLoadReject = null;
+    if (error) reject?.(error);
+    else resolve?.();
   }
 }

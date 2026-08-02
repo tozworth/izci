@@ -71,6 +71,7 @@ export class HivelyPlayerService {
   #patternOrder = 0;
   #patternRow = 0;
   #settings = modulePlaybackSettings.getSnapshot();
+  #transitionGain = 1;
   #onSnapshot: SnapshotHandler;
   #onMetadata: MetadataHandler;
   #onPattern: PatternHandler;
@@ -127,6 +128,7 @@ export class HivelyPlayerService {
     const gain = context.createGain();
     node.connect(gain);
     audioBusService.connectAudioNode(gain);
+    audioBusService.setSourceGain(gain, this.#transitionGain);
     this.#node = node;
     this.#gain = gain;
 
@@ -250,6 +252,11 @@ export class HivelyPlayerService {
     if (previous.interpolationFilter !== settings.interpolationFilter) {
       this.#node.port.postMessage({ type: 'interpolation', filter: settings.interpolationFilter });
     }
+  }
+
+  setTransitionGain(gain: number, durationSeconds = 0): void {
+    this.#transitionGain = Math.max(gain, 0);
+    audioBusService.setSourceGain(this.#gain, this.#transitionGain, durationSeconds);
   }
 
   #handleWorkletMessage(message: AhxWorkletMessage): void {
