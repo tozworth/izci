@@ -1310,10 +1310,10 @@
       "waveformOverview": "Full waveform overview and seek bar"
     },
     "effects": {
-      "title": "Apply Raf Effect",
-      "subtitle": "Destructively process the selected audio with one effect.",
+      "title": "Apply effect",
+      "subtitle": "Destructively process the selected audio.",
       "close": "Close effects",
-      "available": "Available Raf effects",
+      "available": "Available effects",
       "selection": "selection",
       "defaults": "Defaults",
       "autoAmp": {
@@ -1330,6 +1330,16 @@
       },
       "stereo": {
         "width": "Stereo width"
+      },
+      "speed": {
+        "mode": "Speed mode",
+        "speed": "Speed",
+        "pitch": "Pitch",
+        "tempo": "Tempo",
+        "factor": "Factor",
+        "speedHint": "Changes playback speed and pitch together.",
+        "pitchHint": "Changes pitch while preserving duration.",
+        "tempoHint": "Changes duration while preserving pitch."
       },
       "sloptimizer": {
         "slop": "Slop",

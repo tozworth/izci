@@ -36,9 +36,9 @@
     type ClipExportFormat,
     type ClipExportOptions
   } from './clip-export-options';
-  import { blendRenderedEdges, renderRafEffect } from './clip-effects';
+  import { blendRenderedEdges, isClipSpeedEffect, renderClipEffect, type ClipEffectSettings } from './clip-effects';
   import { MAX_WAVEFORM_ZOOM, zoomWaveformViewport } from './waveform-viewport';
-  import type { MenuActionItem, RafEffectSettings, RafEffectType } from '$lib/types';
+  import type { MenuActionItem, RafEffectType } from '$lib/types';
 
   type TagField = Exclude<keyof EditableTags, 'lyrics'>;
   interface EditSnapshot {
@@ -283,7 +283,7 @@
     else if (action === 'fit') resetWaveformViewport();
     else if (action === 'zoomSelection') zoomToSelection();
     else if (action === 'export') openExportDialog();
-    else if (action.startsWith('effect:')) openEffectDialog(action.slice(7) as RafEffectType);
+    else if (action.startsWith('effect:')) openEffectDialog(action.slice(7) as RafEffectType | 'speed');
   }
 
   function snapshot(): EditSnapshot | null {
@@ -576,14 +576,14 @@
     waveformScrollStart = editState.selectionStart;
   }
 
-  function openEffectDialog(type?: RafEffectType): void {
+  function openEffectDialog(type?: RafEffectType | 'speed'): void {
     if (!canEdit || !hasSelection) return;
     errorMessage = '';
     effectDialog.show(type);
   }
 
   async function processEffect(
-    settings: RafEffectSettings,
+    settings: ClipEffectSettings,
     edgeBlendMs: number
   ): Promise<AudioBuffer | null> {
     if (!waveformBuffer || !hasSelection || processingEffect) return null;
@@ -596,8 +596,8 @@
     stopPreview();
     try {
       const original = sliceAudioBuffer(currentBuffer, start, end);
-      const processed = await renderRafEffect(original, settings);
-      return blendRenderedEdges(
+      const processed = await renderClipEffect(original, settings);
+      return isClipSpeedEffect(settings) ? processed : blendRenderedEdges(
         original,
         processed,
         edgeBlendMs,
@@ -614,7 +614,7 @@
     }
   }
 
-  async function previewEffect(settings: RafEffectSettings, edgeBlendMs: number): Promise<void> {
+  async function previewEffect(settings: ClipEffectSettings, edgeBlendMs: number): Promise<void> {
     if (previewPlaying && previewMode === 'clip') {
       stopPreview();
       return;
@@ -623,7 +623,7 @@
     if (processed) await startBufferPreview(processed, 0, processed.duration, 'clip');
   }
 
-  async function applyEffect(settings: RafEffectSettings, edgeBlendMs: number): Promise<void> {
+  async function applyEffect(settings: ClipEffectSettings, edgeBlendMs: number): Promise<void> {
     if (!waveformBuffer) return;
     const currentBuffer = waveformBuffer;
     const start = editState.selectionStart;
@@ -636,7 +636,7 @@
       nextBuffer,
       $t('editor.effects.applied', {
         default: '{effect} applied to selection.',
-        values: { effect: settings.displayName || RAF_EFFECT_REGISTRY[settings.type].name }
+        values: { effect: settings.displayName || (isClipSpeedEffect(settings) ? 'Speed' : RAF_EFFECT_REGISTRY[settings.type].name) }
       })
     );
     effectDialog.close();

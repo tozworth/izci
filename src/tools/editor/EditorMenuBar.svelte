@@ -4,6 +4,7 @@
   import WindowMenuBar from '$lib/components/WindowMenuBar.svelte';
   import { applyManualLoadoutSettings } from '$lib/services/loadouts';
   import { RAF_EFFECT_DEFINITIONS } from '$lib/services/raf-effect-registry';
+  import { SPEED_EFFECT } from './clip-effects';
   import { windowManager } from '$lib/services/window-manager';
   import { loadouts } from '$lib/stores/loadouts';
   import type { MenuActionItem, RafEffectType, WindowMenuGroup } from '$lib/types';
@@ -11,7 +12,7 @@
 
   type ActionId = 'open' | 'saveClip' | 'close' | 'undo' | 'redo' | 'selectAll'
     | 'cut' | 'copy' | 'paste' | 'delete' | 'trim' | 'toggleTwoChannelView'
-    | 'openOptions' | 'openLoadouts' | 'openAbout' | `applyLoadout:${string}` | `effect:${RafEffectType}`;
+    | 'openOptions' | 'openLoadouts' | 'openAbout' | `applyLoadout:${string}` | `effect:${RafEffectType | 'speed'}`;
 
   export let fileName = '';
   export let canSaveClip = false;
@@ -33,7 +34,7 @@
     paste: void;
     delete: void;
     trim: void;
-    effect: RafEffectType;
+    effect: RafEffectType | 'speed';
     toggleTwoChannelView: void;
   }>();
 
@@ -72,7 +73,7 @@
     { id: 'trim', label: $t('editor.edit.trim', { default: 'Trim to selection' }), icon: 'crop', disabled: !canCut, separatorBefore: true },
     { id: 'selectAll', label: $t('editor.menu.selectAll', { default: 'Select all' }), icon: 'select_all', shortcut: 'Ctrl+A', disabled: !canSaveClip }
   ] satisfies MenuActionItem[];
-  $: effectItems = RAF_EFFECT_DEFINITIONS.map((definition) => ({
+  $: effectItems = [...RAF_EFFECT_DEFINITIONS, SPEED_EFFECT].map((definition) => ({
     id: `effect:${definition.type}`,
     label: definition.name,
     icon: definition.icon,
@@ -130,7 +131,7 @@
       return;
     }
     if (action.startsWith('effect:')) {
-      dispatch('effect', action.slice(7) as RafEffectType);
+      dispatch('effect', action.slice(7) as RafEffectType | 'speed');
       return;
     }
     if (action === 'toggleTwoChannelView') {

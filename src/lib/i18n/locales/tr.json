@@ -1310,10 +1310,10 @@
       "waveformOverview": "Tam dalga biçimi özeti ve konum çubuğu"
     },
     "effects": {
-      "title": "Raf Efekti Uygula",
-      "subtitle": "Seçili sesi tek bir efektle kalıcı olarak işleyin.",
+      "title": "Efekt uygula",
+      "subtitle": "Seçili sesi kalıcı olarak işleyin.",
       "close": "Efektleri kapat",
-      "available": "Kullanılabilir Raf efektleri",
+      "available": "Kullanılabilir efektler",
       "selection": "seçim",
       "defaults": "Varsayılanlar",
       "autoAmp": {
@@ -1330,6 +1330,16 @@
       },
       "stereo": {
         "width": "Stereo genişliği"
+      },
+      "speed": {
+        "mode": "Hız modu",
+        "speed": "Hız",
+        "pitch": "Perde",
+        "tempo": "Tempo",
+        "factor": "Katsayı",
+        "speedHint": "Oynatma hızını ve perdeyi birlikte değiştirir.",
+        "pitchHint": "Süreyi koruyarak perdeyi değiştirir.",
+        "tempoHint": "Perdeyi koruyarak süreyi değiştirir."
       },
       "sloptimizer": {
         "slop": "Slop",

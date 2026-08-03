@@ -52,11 +52,11 @@
     SLOPTIMIZER_UPWARD_THRESHOLD_MIN_DB,
     mapSlopToParameters
   } from '$lib/services/raf-effects/sloptimizer';
+  import { createSpeedEffectSettings, SPEED_EFFECT, type ClipEffectSettings, type ClipSpeedMode } from './clip-effects';
   import type {
     RafAutoAmpMode,
     RafAutoAmpSettings,
     RafCrystalizerSettings,
-    RafEffectSettings,
     RafEffectType,
     RafGraphicEqSettings,
     RafReverbSettings,
@@ -69,18 +69,20 @@
   export let selectionDuration = 0;
 
   const dispatch = createEventDispatcher<{
-    apply: { settings: RafEffectSettings; edgeBlendMs: number };
-    preview: { settings: RafEffectSettings; edgeBlendMs: number };
+    apply: { settings: ClipEffectSettings; edgeBlendMs: number };
+    preview: { settings: ClipEffectSettings; edgeBlendMs: number };
     close: void;
   }>();
 
   let dialog: HTMLDialogElement;
-  let selectedType: RafEffectType = 'graphic-eq';
-  let settings: RafEffectSettings = RAF_EFFECT_REGISTRY[selectedType].createDefault('clip-effect');
-  let settingsByType = new Map<RafEffectType, RafEffectSettings>();
+  type ClipEffectType = RafEffectType | 'speed';
+  const EFFECT_DEFINITIONS = [...RAF_EFFECT_DEFINITIONS, SPEED_EFFECT];
+  let selectedType: ClipEffectType = 'graphic-eq';
+  let settings: ClipEffectSettings = RAF_EFFECT_REGISTRY['graphic-eq'].createDefault('clip-effect');
+  let settingsByType = new Map<ClipEffectType, ClipEffectSettings>();
   let edgeBlendMs = 5;
 
-  function show(type: RafEffectType = selectedType): void {
+  function show(type: ClipEffectType = selectedType): void {
     selectType(type);
     if (!dialog.open) dialog.showModal();
   }
@@ -99,14 +101,29 @@
     close();
   }
 
-  function selectType(type: RafEffectType): void {
+  function selectType(type: ClipEffectType): void {
     settingsByType.set(selectedType, settings);
     selectedType = type;
-    settings = settingsByType.get(type) ?? RAF_EFFECT_REGISTRY[type].createDefault(`clip-effect-${type}`);
+    settings = settingsByType.get(type) ?? (type === 'speed'
+      ? createSpeedEffectSettings()
+      : RAF_EFFECT_REGISTRY[type].createDefault(`clip-effect-${type}`));
+  }
+
+  function effectName(): string {
+    return selectedType === 'speed' ? SPEED_EFFECT.name : RAF_EFFECT_REGISTRY[selectedType].name;
+  }
+
+  function effectIcon(): string {
+    return selectedType === 'speed' ? SPEED_EFFECT.icon : RAF_EFFECT_REGISTRY[selectedType].icon;
+  }
+
+  function resetSettings(): void {
+    settings = selectedType === 'speed' ? createSpeedEffectSettings() : RAF_EFFECT_REGISTRY[selectedType].createDefault(`clip-effect-${selectedType}`);
+    settingsByType.set(selectedType, settings);
   }
 
   function update(changes: Record<string, unknown>): void {
-    settings = { ...settings, ...changes } as RafEffectSettings;
+    settings = { ...settings, ...changes } as ClipEffectSettings;
     settingsByType.set(selectedType, settings);
   }
 
@@ -155,8 +172,8 @@
   <div class="effect-dialog-shell">
     <header>
       <div>
-        <h2>{$t('editor.effects.title', { default: 'Apply Raf Effect' })}</h2>
-        <p>{$t('editor.effects.subtitle', { default: 'Destructively process the selected audio with one effect.' })}</p>
+        <h2>{$t('editor.effects.title', { default: 'Apply effect' })}</h2>
+        <p>{$t('editor.effects.subtitle', { default: 'Destructively process the selected audio.' })}</p>
       </div>
       <button class="icon-button" type="button" disabled={busy} aria-label={$t('editor.effects.close', { default: 'Close effects' })} on:click={requestClose}>
         <span class="material-symbols-outlined" aria-hidden="true">close</span>
@@ -164,8 +181,8 @@
     </header>
 
     <div class="effect-dialog-body">
-      <nav aria-label={$t('editor.effects.available', { default: 'Available Raf effects' })}>
-        {#each RAF_EFFECT_DEFINITIONS as definition}
+      <nav aria-label={$t('editor.effects.available', { default: 'Available effects' })}>
+        {#each EFFECT_DEFINITIONS as definition}
           <button class:active={selectedType === definition.type} type="button" on:click={() => selectType(definition.type)}>
             <span class="material-symbols-outlined" aria-hidden="true">{definition.icon}</span>
             <span>{definition.name}</span>
@@ -175,14 +192,24 @@
 
       <section class="effect-settings" aria-live="polite">
         <div class="effect-heading">
-          <span class="material-symbols-outlined" aria-hidden="true">{RAF_EFFECT_REGISTRY[selectedType].icon}</span>
-          <div><strong>{RAF_EFFECT_REGISTRY[selectedType].name}</strong><small>{selectionDuration.toFixed(3)} s {$t('editor.effects.selection', { default: 'selection' })}</small></div>
-          <button class="text-button" type="button" disabled={busy} on:click={() => { settings = RAF_EFFECT_REGISTRY[selectedType].createDefault(`clip-effect-${selectedType}`); settingsByType.set(selectedType, settings); }}>
+          <span class="material-symbols-outlined" aria-hidden="true">{effectIcon()}</span>
+          <div><strong>{effectName()}</strong><small>{selectionDuration.toFixed(3)} s {$t('editor.effects.selection', { default: 'selection' })}</small></div>
+          <button class="text-button" type="button" disabled={busy} on:click={resetSettings}>
             <span class="material-symbols-outlined" aria-hidden="true">restart_alt</span>{$t('editor.effects.defaults', { default: 'Defaults' })}
           </button>
         </div>
 
-        {#if settings.type === 'auto-amp'}
+        {#if settings.type === 'speed'}
+          <div class="setting-grid single">
+            <div class="speed-mode-pill" role="group" aria-label={$t('editor.effects.speed.mode', { default: 'Speed mode' })}>
+              {#each ['speed', 'pitch', 'tempo'] as mode}
+                <button class:active={settings.mode === mode} type="button" on:click={() => update({ mode: mode as ClipSpeedMode })}>{mode === 'speed' ? $t('editor.effects.speed.speed', { default: 'Speed' }) : mode === 'pitch' ? $t('editor.effects.speed.pitch', { default: 'Pitch' }) : $t('editor.effects.speed.tempo', { default: 'Tempo' })}</button>
+              {/each}
+            </div>
+            <label><span>{$t('editor.effects.speed.factor', { default: 'Factor' })}</span><input type="range" min="0.25" max="4" step="0.01" value={settings.factor} on:input={(event) => updateNumber(event, 'factor')} /><output>{settings.factor.toFixed(2)}×</output></label>
+            <p class="effect-note">{settings.mode === 'speed' ? $t('editor.effects.speed.speedHint', { default: 'Changes playback speed and pitch together.' }) : settings.mode === 'pitch' ? $t('editor.effects.speed.pitchHint', { default: 'Changes pitch while preserving duration.' }) : $t('editor.effects.speed.tempoHint', { default: 'Changes duration while preserving pitch.' })}</p>
+          </div>
+        {:else if settings.type === 'auto-amp'}
           {@const autoAmp = settings as RafAutoAmpSettings}
           <div class="setting-grid">
             <label class="wide"><span>{$t('editor.effects.autoAmp.mode', { default: 'Mode' })}</span><select value={autoAmp.mode} on:change={(event) => update({ mode: event.currentTarget.value as RafAutoAmpMode })}><option value="off">{$t('editor.effects.autoAmp.manual', { default: 'Manual gain' })}</option><option value="reduce">{$t('editor.effects.autoAmp.reduce', { default: 'Reduce only' })}</option><option value="increase">{$t('editor.effects.autoAmp.increase', { default: 'Increase only' })}</option><option value="dynamic">{$t('editor.effects.autoAmp.dynamic', { default: 'Reduce or increase' })}</option></select></label>
@@ -244,10 +271,12 @@
           </div>
         {/if}
 
+        {#if settings.type !== 'speed'}
         <div class="render-options">
           <label><span>{$t('editor.effects.edgeBlend', { default: 'Edge blend' })}</span><input type="range" min="0" max="50" step="1" bind:value={edgeBlendMs} /><output>{edgeBlendMs} ms</output></label>
           <p>{$t('editor.effects.edgeBlendHint', { default: 'Crossfades the processed region at edit boundaries to prevent clicks.' })}</p>
         </div>
+        {/if}
       </section>
     </div>
 
@@ -283,6 +312,10 @@
   .effect-heading small { color: var(--muted); font-size: 0.64rem; }
   .setting-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-content: start; gap: 0.55rem 0.8rem; }
   .setting-grid.single { grid-template-columns: minmax(0, 1fr); }
+  .speed-mode-pill { display: inline-flex; justify-self: start; overflow: hidden; border: 1px solid var(--border-soft); border-radius: 999px; background: var(--bg-input); }
+  .speed-mode-pill button { min-height: 1.65rem; padding: 0.15rem 0.6rem; border: 0; border-right: 1px solid var(--border-soft); background: transparent; color: var(--muted); font-size: 0.68rem; }
+  .speed-mode-pill button:last-child { border-right: 0; }
+  .speed-mode-pill button.active { background: color-mix(in srgb, var(--accent-strong) 18%, var(--bg-soft)); color: var(--text-strong); }
   .setting-grid label, .render-options label { display: grid; grid-template-columns: 5.8rem minmax(5rem, 1fr) 4.5rem; align-items: center; gap: 0.45rem; color: var(--muted); font-size: 0.68rem; }
   .setting-grid label.wide, .setting-grid .wide { grid-column: 1 / -1; }
   select { min-height: 1.8rem; padding: 0.2rem 0.35rem; border: 1px solid var(--border-soft); border-radius: 0.22rem; background: var(--bg-input); color: var(--text); }

@@ -2,6 +2,31 @@ import { RAF_EFFECT_REGISTRY } from '$lib/services/raf-effect-registry';
 import { clampAutoGain } from '$lib/services/raf-effects/auto-amp';
 import type { RafAutoAmpSettings, RafEffectSettings } from '$lib/types';
 
+export type ClipSpeedMode = 'speed' | 'pitch' | 'tempo';
+
+export interface ClipSpeedEffectSettings {
+  type: 'speed';
+  displayName: 'Speed';
+  mode: ClipSpeedMode;
+  factor: number;
+}
+
+export type ClipEffectSettings = RafEffectSettings | ClipSpeedEffectSettings;
+
+export const SPEED_EFFECT = {
+  type: 'speed' as const,
+  name: 'Speed',
+  icon: 'speed'
+};
+
+export function isClipSpeedEffect(settings: ClipEffectSettings): settings is ClipSpeedEffectSettings {
+  return settings.type === 'speed';
+}
+
+export function createSpeedEffectSettings(): ClipSpeedEffectSettings {
+  return { type: 'speed', displayName: 'Speed', mode: 'speed', factor: 1 };
+}
+
 function createBufferLike(source: AudioBuffer): AudioBuffer {
   return new AudioBuffer({
     length: Math.max(1, source.length),
@@ -94,6 +119,72 @@ export async function renderRafEffect(
   } finally {
     definition.disposeNode(effect);
   }
+}
+
+function clampSpeedFactor(value: number): number {
+  return Number.isFinite(value) ? Math.min(4, Math.max(0.25, value)) : 1;
+}
+
+function resampleBuffer(source: AudioBuffer, factor: number): AudioBuffer {
+  const output = new AudioBuffer({
+    length: Math.max(1, Math.round(source.length / factor)),
+    numberOfChannels: source.numberOfChannels,
+    sampleRate: source.sampleRate
+  });
+  for (let channel = 0; channel < source.numberOfChannels; channel += 1) {
+    const input = source.getChannelData(channel);
+    const samples = output.getChannelData(channel);
+    for (let index = 0; index < samples.length; index += 1) {
+      const position = index * factor;
+      const lower = Math.min(input.length - 1, Math.floor(position));
+      const upper = Math.min(input.length - 1, lower + 1);
+      samples[index] = input[lower] * (1 - (position - lower)) + input[upper] * (position - lower);
+    }
+  }
+  return output;
+}
+
+/** A compact overlap-add stretcher for destructive editor operations. */
+function timeStretchBuffer(source: AudioBuffer, speed: number): AudioBuffer {
+  const grainSize = Math.min(2_048, Math.max(256, 2 ** Math.floor(Math.log2(Math.max(256, source.sampleRate / 20)))));
+  const synthesisHop = Math.floor(grainSize / 4);
+  const analysisHop = synthesisHop * speed;
+  const outputLength = Math.max(1, Math.round(source.length / speed));
+  const output = new AudioBuffer({ length: outputLength, numberOfChannels: source.numberOfChannels, sampleRate: source.sampleRate });
+  const weights = new Float32Array(outputLength);
+  const window = new Float32Array(grainSize);
+  for (let index = 0; index < grainSize; index += 1) window[index] = Math.sin(Math.PI * (index + 0.5) / grainSize);
+
+  for (let outputStart = 0, grain = 0; outputStart < outputLength; outputStart += synthesisHop, grain += 1) {
+    const inputStart = Math.min(source.length - 1, Math.round(grain * analysisHop));
+    for (let index = 0; index < grainSize && outputStart + index < outputLength; index += 1) {
+      const sourceIndex = inputStart + index;
+      if (sourceIndex >= source.length) break;
+      const weight = window[index];
+      weights[outputStart + index] += weight;
+      for (let channel = 0; channel < source.numberOfChannels; channel += 1) {
+        output.getChannelData(channel)[outputStart + index] += source.getChannelData(channel)[sourceIndex] * weight;
+      }
+    }
+  }
+  for (let channel = 0; channel < output.numberOfChannels; channel += 1) {
+    const samples = output.getChannelData(channel);
+    for (let index = 0; index < samples.length; index += 1) if (weights[index] > 0) samples[index] /= weights[index];
+  }
+  return output;
+}
+
+export async function renderClipEffect(source: AudioBuffer, settings: ClipEffectSettings): Promise<AudioBuffer> {
+  if (!isClipSpeedEffect(settings)) return renderRafEffect(source, settings);
+  const factor = clampSpeedFactor(settings.factor);
+  if (factor === 1) {
+    const output = createBufferLike(source);
+    for (let channel = 0; channel < source.numberOfChannels; channel += 1) output.copyToChannel(source.getChannelData(channel), channel);
+    return output;
+  }
+  if (settings.mode === 'speed') return resampleBuffer(source, factor);
+  if (settings.mode === 'tempo') return timeStretchBuffer(source, factor);
+  return timeStretchBuffer(resampleBuffer(source, factor), 1 / factor);
 }
 
 export function blendRenderedEdges(
