@@ -79,6 +79,8 @@ input[type='checkbox'] {
 }
 
 .tool-toolbar {
+  display: flex;
+  align-items: center;
   gap: 0.24rem;
   min-height: var(--tool-toolbar-height);
   padding: 0.22rem 0.35rem;
