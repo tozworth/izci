@@ -67,6 +67,29 @@ describe('multiplayer protocol', () => {
     expect(decoded).toEqual(message);
   });
 
+  it('accepts bounded artwork messages and reassembles their chunked data URLs', () => {
+    const message: HostMessage = {
+      kind: 'artwork',
+      artwork: {
+        trackId: 'one',
+        assetId: 'a'.repeat(64),
+        dataUrl: `data:image/webp;base64,${'A'.repeat(30_000)}`,
+        mimeType: 'image/webp',
+        width: 1024,
+        height: 1024
+      }
+    };
+    const frames = encodeMultiplayerMessage(message);
+    const decode = createMultiplayerMessageDecoder(isHostMessage);
+
+    expect(frames.length).toBeGreaterThan(1);
+    expect(frames.map(decode).find(Boolean)).toEqual(message);
+    expect(isHostMessage({
+      ...message,
+      artwork: { ...message.artwork, dataUrl: 'https://example.test/art.webp' }
+    })).toBe(false);
+  });
+
   it('accepts invite codes directly or from an izci room link', () => {
     const code = 'a1b2c3d4';
     expect(normalizeInviteCode(code)).toBe(code);

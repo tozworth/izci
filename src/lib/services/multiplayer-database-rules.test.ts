@@ -7,6 +7,7 @@ import {
   type RulesTestEnvironment
 } from '@firebase/rules-unit-testing';
 import { get, ref, set } from 'firebase/database';
+import { MULTIPLAYER_PROTOCOL_VERSION } from './multiplayer-protocol';
 
 const emulatorAvailable = Boolean(process.env.FIREBASE_DATABASE_EMULATOR_HOST);
 const describeWithEmulator = emulatorAvailable ? describe : describe.skip;
@@ -39,11 +40,28 @@ describeWithEmulator('multiplayer Realtime Database rules', () => {
   it('lets the host create the room and own all host signaling', async () => {
     const database = environment.authenticatedContext(hostUid).database();
     await assertSucceeds(set(ref(database, `multiplayer/rooms/${room}`), {
-      meta: { hostUid, protocolVersion: 2, hostName: 'Scout host', createdAt: Date.now() }
+      meta: {
+        hostUid,
+        protocolVersion: MULTIPLAYER_PROTOCOL_VERSION,
+        hostName: 'Scout host',
+        createdAt: Date.now()
+      }
     }));
     await assertSucceeds(set(ref(database, `multiplayer/rooms/${room}/peers/${clientUid}/host`), {
       description: { type: 'answer', sdp: 'answer-sdp' },
       createdAt: Date.now()
+    }));
+  });
+
+  it('rejects signaling rooms from older protocol versions', async () => {
+    const database = environment.authenticatedContext(hostUid).database();
+    await assertFails(set(ref(database, 'multiplayer/rooms/z9y8x7w6'), {
+      meta: {
+        hostUid,
+        protocolVersion: MULTIPLAYER_PROTOCOL_VERSION - 1,
+        hostName: 'Outdated host',
+        createdAt: Date.now()
+      }
     }));
   });
 

@@ -91,4 +91,28 @@ describe('artwork presentation helpers', () => {
     expect(controller.getSnapshot().displayedArtwork).toBeNull();
     controller.destroy();
   });
+
+  it('reloads artwork for the same track when its external artwork key changes', async () => {
+    let artworkVersion = 'missing';
+    const controller = createArtworkPresentationController({
+      resolveTrackSnapshot: (track) => track,
+      isPlaybackDetailsPending: () => false,
+      getArtworkLoadKey: (track) => track ? `${track.id}:${artworkVersion}` : '',
+      loadArtwork: () => Promise.resolve(artworkVersion === 'missing'
+        ? null
+        : {
+            url: `data:image/webp;base64,${artworkVersion}`,
+            mediaImage: { src: `data:image/webp;base64,${artworkVersion}` }
+          })
+    });
+    const track = item('remote');
+
+    await controller.syncDisplayedArtwork(track);
+    expect(controller.getSnapshot().displayedArtwork).toBeNull();
+
+    artworkVersion = 'received';
+    await controller.syncDisplayedArtwork(track);
+    expect(controller.getSnapshot().displayedArtwork?.url).toBe('data:image/webp;base64,received');
+    controller.destroy();
+  });
 });

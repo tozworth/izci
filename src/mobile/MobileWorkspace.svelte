@@ -21,6 +21,12 @@
   } from '$lib/types';
   import type { Readable } from 'svelte/store';
   import type { TrackLibraryNavigationTargets, TrackLibraryNavigationTarget } from '$lib/services/library-navigation';
+  import type {
+    MultiplayerClient,
+    MultiplayerConnectionStatus,
+    MultiplayerMode
+  } from '$lib/services/multiplayer-session';
+  import type { MultiplayerRecent } from '$lib/stores/multiplayer-recents';
   import type { VideoSeekFeedback, WorkspacePanelHandlers, WorkspaceTabContentProps } from '$lib/components/workspace/types';
   import MobileMenuDrawer from './MobileMenuDrawer.svelte';
   import { resolveHorizontalSwipe, shouldIgnoreSwipeTarget, type SwipePoint } from './tab-swipe';
@@ -62,6 +68,13 @@
   export let lyricsResumeAutoScrollToken: number;
   export let installAvailable = false;
   export let videoAvailable = false;
+  export let multiplayerEnabled = false;
+  export let multiplayerMode: MultiplayerMode = 'idle';
+  export let multiplayerConnectionStatus: MultiplayerConnectionStatus = 'idle';
+  export let multiplayerInviteCode: string | null = null;
+  export let multiplayerHostName: string | null = null;
+  export let multiplayerClients: MultiplayerClient[] = [];
+  export let multiplayerRecents: MultiplayerRecent[] = [];
 
   const dispatch = createEventDispatcher<{
     tabChange: WorkspaceTab;
@@ -73,6 +86,13 @@
     openOptions: void;
     openAbout: void;
     install: void;
+    multiplayerHost: void;
+    multiplayerStopHosting: void;
+    multiplayerJoin: void;
+    multiplayerJoinRecent: string;
+    multiplayerLeave: void;
+    multiplayerCopyInvite: void;
+    multiplayerKick: string;
     togglePatterns: void;
     toggle: void;
     previous: void;
@@ -271,6 +291,16 @@
                 on:mute={() => dispatch('mute')}
                 on:showTrack={(event) => dispatch('showTrack', event.detail)}
               />
+              {#if multiplayerMode !== 'idle' && multiplayerHostName}
+                <div
+                  class="mobile-multiplayer-pill"
+                  class:is-disconnected={multiplayerConnectionStatus === 'disconnected' || multiplayerConnectionStatus === 'error'}
+                  title={$t('main.multiplayer.label', { default: 'Multiplayer' })}
+                >
+                  <span class="material-symbols-outlined" aria-hidden="true">cast_connected</span>
+                  <span>{multiplayerHostName}</span>
+                </div>
+              {/if}
             </div>
           </BackdropZone>
         {:else}
@@ -331,6 +361,13 @@
   {installAvailable}
   videoAvailable={videoAvailable}
   patternsVisible={workspaceState.isPatternsPanelVisible}
+  {multiplayerEnabled}
+  {multiplayerMode}
+  {multiplayerConnectionStatus}
+  {multiplayerInviteCode}
+  {multiplayerHostName}
+  {multiplayerClients}
+  {multiplayerRecents}
   on:close={() => (menuOpen = false)}
   on:openFiles={() => dispatch('openFiles')}
   on:openFolder={() => dispatch('openFolder')}
@@ -340,4 +377,11 @@
   on:openOptions={() => dispatch('openOptions')}
   on:openAbout={() => dispatch('openAbout')}
   on:install={() => dispatch('install')}
+  on:multiplayerHost={() => dispatch('multiplayerHost')}
+  on:multiplayerStopHosting={() => dispatch('multiplayerStopHosting')}
+  on:multiplayerJoin={() => dispatch('multiplayerJoin')}
+  on:multiplayerJoinRecent={(event) => dispatch('multiplayerJoinRecent', event.detail)}
+  on:multiplayerLeave={() => dispatch('multiplayerLeave')}
+  on:multiplayerCopyInvite={() => dispatch('multiplayerCopyInvite')}
+  on:multiplayerKick={(event) => dispatch('multiplayerKick', event.detail)}
 />

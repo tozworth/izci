@@ -31,6 +31,10 @@
     resolveTrackSnapshot
   } from '$lib/services/artwork-presentation';
   import { invalidateCachedArtwork } from '$lib/services/artwork-cache';
+  import {
+    getTrackArtworkLoadKey,
+    loadTrackArtwork
+  } from '$lib/services/stream-artwork';
   import { createImportController, FILE_INPUT_ACCEPT } from '$lib/services/import-controller';
   import {
     createContextualTabPresentationController,
@@ -118,6 +122,10 @@
     createMultiplayerSession,
     type MultiplayerSessionState
   } from '$lib/services/multiplayer-session';
+  import {
+    getRemoteArtworkLoadKey,
+    toLoadedMultiplayerArtwork
+  } from '$lib/services/multiplayer-artwork';
   import type { MultiplayerCommand } from '$lib/services/multiplayer-protocol';
   import {
     buildSelectAllSelection,
@@ -227,6 +235,7 @@
       track: null,
       sentAt: 0
     },
+    remoteArtwork: null,
     message: null
   };
   let isMultiplayerClient = false;
@@ -612,7 +621,13 @@
     resolveTrackSnapshot: (track) =>
       resolveTrackSnapshot(track, selectedItem, playlistItems, libraryItems),
     isPlaybackDetailsPending: (trackId) =>
-      playbackCommandsState.pendingPlaybackTrackId === trackId || playingTrack?.id === trackId
+      playbackCommandsState.pendingPlaybackTrackId === trackId || playingTrack?.id === trackId,
+    loadArtwork: (track) => multiplayerState.mode === 'client'
+      ? Promise.resolve(toLoadedMultiplayerArtwork(track, multiplayerState.remoteArtwork))
+      : loadTrackArtwork(track),
+    getArtworkLoadKey: (track) => multiplayerState.mode === 'client'
+      ? getRemoteArtworkLoadKey(track, multiplayerState.remoteArtwork)
+      : getTrackArtworkLoadKey(track)
   });
   let artworkPresentationState = artworkPresentation.getSnapshot();
   let backdropPresentation: AppBackdropPresentation;
@@ -1816,6 +1831,13 @@
     {lyricsResumeAutoScrollToken}
     installAvailable={appInstallState.available}
     videoAvailable={videoTrackActive}
+    multiplayerEnabled={$experimentalSettings.multiplayer}
+    multiplayerMode={multiplayerState.mode}
+    multiplayerConnectionStatus={multiplayerState.connectionStatus}
+    multiplayerInviteCode={multiplayerState.inviteCode}
+    multiplayerHostName={multiplayerState.hostName}
+    multiplayerClients={multiplayerState.clients}
+    multiplayerRecents={$multiplayerRecents}
     on:tabChange={(event) => workspaceShell.showWorkspaceTab(event.detail)}
     on:toggleNowPlaying={toggleNowPlayingView}
     on:closeNowPlaying={closeNowPlayingView}
@@ -1825,6 +1847,13 @@
     on:openOptions={() => handleOpenOptions()}
     on:openAbout={handleOpenAbout}
     on:install={() => void appInstallService.prompt()}
+    on:multiplayerHost={() => void handleMultiplayerHost()}
+    on:multiplayerStopHosting={() => void multiplayerSession.stopHosting()}
+    on:multiplayerJoin={() => void handleMultiplayerJoin()}
+    on:multiplayerJoinRecent={(event) => void joinMultiplayer(event.detail)}
+    on:multiplayerLeave={() => void multiplayerSession.leave()}
+    on:multiplayerCopyInvite={() => void copyMultiplayerInvite()}
+    on:multiplayerKick={(event) => void multiplayerSession.kick(event.detail)}
     on:togglePatterns={togglePatterns}
     on:toggle={togglePlayback}
     on:previous={() => stepTrack(-1)}

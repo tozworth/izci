@@ -1,11 +1,24 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import { t } from 'svelte-i18n';
+  import type {
+    MultiplayerClient,
+    MultiplayerConnectionStatus,
+    MultiplayerMode
+  } from '$lib/services/multiplayer-session';
+  import type { MultiplayerRecent } from '$lib/stores/multiplayer-recents';
 
   export let open = false;
   export let installAvailable = false;
   export let videoAvailable = false;
   export let patternsVisible = false;
+  export let multiplayerEnabled = false;
+  export let multiplayerMode: MultiplayerMode = 'idle';
+  export let multiplayerConnectionStatus: MultiplayerConnectionStatus = 'idle';
+  export let multiplayerInviteCode: string | null = null;
+  export let multiplayerHostName: string | null = null;
+  export let multiplayerClients: MultiplayerClient[] = [];
+  export let multiplayerRecents: MultiplayerRecent[] = [];
 
   type DrawerAction =
     | 'openFiles'
@@ -15,7 +28,12 @@
     | 'showVideo'
     | 'openOptions'
     | 'openAbout'
-    | 'install';
+    | 'install'
+    | 'multiplayerHost'
+    | 'multiplayerStopHosting'
+    | 'multiplayerJoin'
+    | 'multiplayerLeave'
+    | 'multiplayerCopyInvite';
 
   const dispatch = createEventDispatcher<{
     close: void;
@@ -27,10 +45,25 @@
     openOptions: void;
     openAbout: void;
     install: void;
+    multiplayerHost: void;
+    multiplayerStopHosting: void;
+    multiplayerJoin: void;
+    multiplayerJoinRecent: string;
+    multiplayerLeave: void;
+    multiplayerCopyInvite: void;
+    multiplayerKick: string;
   }>();
 
   function run(action: DrawerAction): void {
     dispatch(action, undefined);
+    dispatch('close');
+  }
+
+  function runWithDetail(
+    action: 'multiplayerJoinRecent' | 'multiplayerKick',
+    detail: string
+  ): void {
+    dispatch(action, detail);
     dispatch('close');
   }
 
@@ -95,6 +128,71 @@
         </button>
       {/if}
     </section>
+
+    {#if multiplayerEnabled}
+      <section>
+        <h2>{$t('main.multiplayer.label', { default: 'Multiplayer' })}</h2>
+        {#if multiplayerMode === 'idle'}
+          <button type="button" on:click={() => run('multiplayerHost')}>
+            <span class="material-symbols-outlined" aria-hidden="true">cast</span>
+            <span>{$t('main.multiplayer.host', { default: 'Host' })}</span>
+          </button>
+          <button type="button" on:click={() => run('multiplayerJoin')}>
+            <span class="material-symbols-outlined" aria-hidden="true">cast_connected</span>
+            <span>{$t('main.multiplayer.join', { default: 'Join...' })}</span>
+          </button>
+          {#if multiplayerRecents.length > 0}
+            <div class="mobile-drawer-subheading">{$t('main.multiplayer.recents', { default: 'Recents' })}</div>
+            {#each multiplayerRecents as recent (recent.inviteCode)}
+              <button type="button" on:click={() => runWithDetail('multiplayerJoinRecent', recent.inviteCode)}>
+                <span class="material-symbols-outlined" aria-hidden="true">history</span>
+                <span>{recent.name}</span>
+              </button>
+            {/each}
+          {/if}
+        {:else if multiplayerMode === 'hosting'}
+          <div class="mobile-drawer-status">
+            <span class="material-symbols-outlined" aria-hidden="true">cast_connected</span>
+            <span>
+              <strong>{$t('main.multiplayer.hosting', { default: 'Hosting' })}</strong>
+              {#if multiplayerInviteCode}<small>{multiplayerInviteCode}</small>{/if}
+            </span>
+          </div>
+          <button type="button" on:click={() => run('multiplayerCopyInvite')}>
+            <span class="material-symbols-outlined" aria-hidden="true">content_copy</span>
+            <span>{$t('main.multiplayer.copyInvite', { default: 'Copy invite code' })}</span>
+          </button>
+          <button type="button" on:click={() => run('multiplayerStopHosting')}>
+            <span class="material-symbols-outlined" aria-hidden="true">cast_off</span>
+            <span>{$t('main.multiplayer.stopHosting', { default: 'Stop hosting' })}</span>
+          </button>
+          {#each multiplayerClients as client (client.id)}
+            <button type="button" on:click={() => runWithDetail('multiplayerKick', client.id)}>
+              <span class="material-symbols-outlined" aria-hidden="true">person_remove</span>
+              <span>{$t('main.multiplayer.kick', { default: 'Kick {name}', values: { name: client.name } })}</span>
+            </button>
+          {/each}
+        {:else}
+          <div class="mobile-drawer-status" class:is-disconnected={multiplayerConnectionStatus === 'disconnected' || multiplayerConnectionStatus === 'error'}>
+            <span class="material-symbols-outlined" aria-hidden="true">
+              {multiplayerConnectionStatus === 'connected' ? 'cast_connected' : 'signal_disconnected'}
+            </span>
+            <span>
+              <strong>{multiplayerHostName ?? $t('main.multiplayer.connecting', { default: 'Connecting...' })}</strong>
+              <small>{multiplayerConnectionStatus === 'connected'
+                ? $t('main.multiplayer.connected', { default: 'Connected' })
+                : multiplayerConnectionStatus === 'connecting'
+                  ? $t('main.multiplayer.connecting', { default: 'Connecting...' })
+                  : $t('main.multiplayer.disconnected', { default: 'Disconnected' })}</small>
+            </span>
+          </div>
+          <button type="button" on:click={() => run('multiplayerLeave')}>
+            <span class="material-symbols-outlined" aria-hidden="true">logout</span>
+            <span>{$t('main.multiplayer.leave', { default: 'Leave' })}</span>
+          </button>
+        {/if}
+      </section>
+    {/if}
 
     <section>
       <h2>{$t('mobile.menu.app', { default: 'App' })}</h2>

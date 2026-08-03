@@ -23,7 +23,8 @@
       "connecting": "Connecting...",
       "disconnected": "Disconnected",
       "leave": "Leave",
-      "label": "Multiplayer"
+      "label": "Multiplayer",
+      "connected": "Connected"
     },
     "lyrics": {
       "playTrack": "Sözleri görüntülemek için bir parça oynatın.",

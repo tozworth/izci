@@ -8,8 +8,10 @@ import type {
 
 export type MultiplayerCollection = 'playlist' | 'library' | 'favorites';
 
-export const MULTIPLAYER_PROTOCOL_VERSION = 2;
+export const MULTIPLAYER_PROTOCOL_VERSION = 3;
 export const MULTIPLAYER_FRAME_CHUNK_SIZE = 12_000;
+
+const MULTIPLAYER_ARTWORK_DATA_URL_MAX_LENGTH = 8 * 1024 * 1024;
 
 export type MultiplayerCommand =
   | { type: 'transport.toggle'; commandId: string }
@@ -51,10 +53,20 @@ export interface MultiplayerPlayback {
   sentAt: number;
 }
 
+export interface MultiplayerArtwork {
+  trackId: string;
+  assetId: string;
+  dataUrl: string;
+  mimeType: string;
+  width: number;
+  height: number;
+}
+
 export type HostMessage =
   | { kind: 'hello'; version: number; name: string }
   | { kind: 'catalog'; catalog: MultiplayerCatalog }
   | { kind: 'playback'; playback: MultiplayerPlayback }
+  | { kind: 'artwork'; artwork: MultiplayerArtwork | null }
   | { kind: 'ack'; commandId: string; accepted: boolean; message?: string }
   | { kind: 'kicked' };
 
@@ -170,7 +182,31 @@ export function isHostMessage(value: unknown): value is HostMessage {
       && isPlaybackSnapshot(playback.snapshot)
       && (playback.track === null || isRemotePlaylistItem(playback.track));
   }
+  if (message.kind === 'artwork') {
+    return message.artwork === null || isMultiplayerArtwork(message.artwork);
+  }
   return false;
+}
+
+function isMultiplayerArtwork(value: unknown): value is MultiplayerArtwork {
+  if (!value || typeof value !== 'object') return false;
+  const artwork = value as Partial<MultiplayerArtwork>;
+  return typeof artwork.trackId === 'string'
+    && artwork.trackId.length > 0
+    && artwork.trackId.length <= 200
+    && typeof artwork.assetId === 'string'
+    && /^[a-f0-9]{64}$/.test(artwork.assetId)
+    && typeof artwork.dataUrl === 'string'
+    && artwork.dataUrl.length <= MULTIPLAYER_ARTWORK_DATA_URL_MAX_LENGTH
+    && /^data:image\/[a-z0-9.+-]+;base64,/i.test(artwork.dataUrl)
+    && typeof artwork.mimeType === 'string'
+    && /^image\/[a-z0-9.+-]+$/i.test(artwork.mimeType)
+    && Number.isInteger(artwork.width)
+    && (artwork.width ?? 0) > 0
+    && (artwork.width ?? 0) <= 4096
+    && Number.isInteger(artwork.height)
+    && (artwork.height ?? 0) > 0
+    && (artwork.height ?? 0) <= 4096;
 }
 
 export function encodeMultiplayerMessage(message: HostMessage | ClientMessage): string[] {

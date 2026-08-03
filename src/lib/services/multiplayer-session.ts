@@ -4,6 +4,10 @@ import type { PlaybackSnapshot, PlaylistItem, PlaylistRepeatMode } from '$lib/ty
 import { experimentalSettings } from '$lib/stores/experimental-settings';
 import { rememberMultiplayerHost } from '$lib/stores/multiplayer-recents';
 import {
+  getMultiplayerArtworkTrackKey,
+  loadMultiplayerArtwork
+} from './multiplayer-artwork';
+import {
   MULTIPLAYER_PROTOCOL_VERSION,
   createMultiplayerMessageDecoder,
   encodeMultiplayerMessage,
@@ -12,6 +16,7 @@ import {
   sanitizePlaylistItem,
   type ClientMessage,
   type HostMessage,
+  type MultiplayerArtwork,
   type MultiplayerCatalog,
   type MultiplayerCommand,
   type MultiplayerCommandInput,
@@ -70,6 +75,7 @@ export interface MultiplayerSessionState {
   clients: MultiplayerClient[];
   remoteCatalog: MultiplayerCatalog;
   remotePlayback: MultiplayerPlayback;
+  remoteArtwork: MultiplayerArtwork | null;
   message: string | null;
 }
 
@@ -141,6 +147,7 @@ export function createMultiplayerSession({
     clients: [],
     remoteCatalog: EMPTY_CATALOG,
     remotePlayback: EMPTY_REMOTE_PLAYBACK,
+    remoteArtwork: null,
     message: null
   };
   const store = writable(state);
@@ -158,6 +165,9 @@ export function createMultiplayerSession({
   let lastCatalogSources: Pick<MultiplayerHostState, 'playlist' | 'library' | 'favorites' | 'shuffleEnabled' | 'repeatMode'> | null = null;
   let lastPlaybackSource: PlaybackSnapshot | null = null;
   let lastTrackSource: PlaylistItem | null = null;
+  let latestHostArtwork: MultiplayerArtwork | null = null;
+  let hostArtworkTrackKey = '';
+  let hostArtworkLoadToken = 0;
 
   function publish(patch: Partial<MultiplayerSessionState>): void {
     state = { ...state, ...patch };
@@ -351,6 +361,7 @@ export function createMultiplayerSession({
       hostName: null,
       remoteCatalog: EMPTY_CATALOG,
       remotePlayback: EMPTY_REMOTE_PLAYBACK,
+      remoteArtwork: null,
       message: null
     });
 
@@ -444,6 +455,7 @@ export function createMultiplayerSession({
       if (!message) return;
       if (message.kind === 'catalog') publish({ remoteCatalog: message.catalog });
       if (message.kind === 'playback') publish({ remotePlayback: message.playback });
+      if (message.kind === 'artwork') publish({ remoteArtwork: message.artwork });
       if (message.kind === 'kicked') {
         publish({ connectionStatus: 'disconnected', message: 'The host removed this client.' });
         peer.pc.close();
@@ -507,6 +519,8 @@ export function createMultiplayerSession({
       lastTrackSource = next.track;
       broadcast({ kind: 'playback', playback: buildPlayback(next) });
     }
+
+    syncHostArtwork(next.track);
   }
 
   function primeHostState(): void {
@@ -521,12 +535,35 @@ export function createMultiplayerSession({
     };
     lastPlaybackSource = latestHostState.playback;
     lastTrackSource = latestHostState.track;
+    syncHostArtwork(latestHostState.track);
   }
 
   function sendCurrentState(peer: PeerConnection): void {
     if (!latestHostState) return;
     sendToPeer(peer, { kind: 'catalog', catalog: buildCatalog(latestHostState) });
     sendToPeer(peer, { kind: 'playback', playback: buildPlayback(latestHostState) });
+    sendToPeer(peer, { kind: 'artwork', artwork: latestHostArtwork });
+  }
+
+  function syncHostArtwork(track: PlaylistItem | null): void {
+    const nextTrackKey = getMultiplayerArtworkTrackKey(track);
+    if (nextTrackKey === hostArtworkTrackKey) return;
+
+    hostArtworkTrackKey = nextTrackKey;
+    latestHostArtwork = null;
+    const loadToken = ++hostArtworkLoadToken;
+    broadcast({ kind: 'artwork', artwork: null });
+
+    if (!track) return;
+
+    void loadMultiplayerArtwork(track).then((artwork) => {
+      if (loadToken !== hostArtworkLoadToken || hostArtworkTrackKey !== nextTrackKey) return;
+      latestHostArtwork = artwork;
+      broadcast({ kind: 'artwork', artwork });
+    }).catch(() => {
+      if (loadToken !== hostArtworkLoadToken || hostArtworkTrackKey !== nextTrackKey) return;
+      latestHostArtwork = null;
+    });
   }
 
   function buildCatalog(source: MultiplayerHostState): MultiplayerCatalog {
@@ -619,6 +656,7 @@ export function createMultiplayerSession({
       clients: [],
       remoteCatalog: EMPTY_CATALOG,
       remotePlayback: EMPTY_REMOTE_PLAYBACK,
+      remoteArtwork: null,
       message: null
     });
   }
@@ -652,6 +690,9 @@ export function createMultiplayerSession({
     lastCatalogSources = null;
     lastPlaybackSource = null;
     lastTrackSource = null;
+    latestHostArtwork = null;
+    hostArtworkTrackKey = '';
+    hostArtworkLoadToken += 1;
   }
 
   return {
@@ -779,5 +820,8 @@ async function waitForIceGathering(pc: RTCPeerConnection): Promise<void> {
 }
 
 function errorMessage(error: unknown, fallback: string): string {
+  if (error instanceof Error && /permission[_ -]?denied/i.test(error.message)) {
+    return 'Multiplayer signaling was rejected by the server. The app and server may be out of sync.';
+  }
   return error instanceof Error && error.message ? error.message : fallback;
 }

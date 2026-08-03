@@ -31,6 +31,7 @@ interface CreateArtworkPresentationControllerOptions {
   resolveTrackSnapshot: (track: PlaylistItem | null) => PlaylistItem | null;
   isPlaybackDetailsPending: (trackId: string) => boolean;
   loadArtwork?: typeof loadTrackArtwork;
+  getArtworkLoadKey?: typeof getTrackArtworkLoadKey;
 }
 
 const ARTWORK_BACKGROUND_TRANSITION_MS = 320;
@@ -145,7 +146,8 @@ export function hasSameTrackMetadata(left: PlaylistItem | null, right: PlaylistI
 export function createArtworkPresentationController({
   resolveTrackSnapshot,
   isPlaybackDetailsPending,
-  loadArtwork = loadTrackArtwork
+  loadArtwork = loadTrackArtwork,
+  getArtworkLoadKey = getTrackArtworkLoadKey
 }: CreateArtworkPresentationControllerOptions) {
   let state = createInitialState();
   let detailsTargetTrack: PlaylistItem | null = null;
@@ -356,7 +358,7 @@ export function createArtworkPresentationController({
       }
     },
     async syncDisplayedArtwork(track: PlaylistItem | null): Promise<void> {
-      const nextArtworkKey = getTrackArtworkLoadKey(track);
+      const nextArtworkKey = getArtworkLoadKey(track);
 
       if (nextArtworkKey === displayedArtworkKey) {
         return;
@@ -391,7 +393,7 @@ export function createArtworkPresentationController({
     },
     async syncDetailsDisplay(): Promise<void> {
       const track = detailsTargetTrack;
-      const nextDetailsKey = getTrackArtworkLoadKey(track);
+      const nextDetailsKey = getArtworkLoadKey(track);
 
       if (nextDetailsKey === detailsDisplayRequestKey) {
         return;
@@ -405,7 +407,7 @@ export function createArtworkPresentationController({
         return;
       }
 
-      const artwork = await loadTrackArtwork(track);
+      const artwork = await loadArtwork(track);
 
       if (loadToken !== detailsArtworkLoadToken) {
         revokeTrackArtwork(artwork);

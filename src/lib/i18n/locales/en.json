@@ -23,7 +23,8 @@
       "connecting": "Connecting...",
       "disconnected": "Disconnected",
       "leave": "Leave",
-      "label": "Multiplayer"
+      "label": "Multiplayer",
+      "connected": "Connected"
     },
     "lyrics": {
       "playTrack": "Play a track to view lyrics.",
