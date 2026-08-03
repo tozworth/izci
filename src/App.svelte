@@ -8,6 +8,8 @@
   import SharedBackdropVisualizer from '$lib/components/SharedBackdropVisualizer.svelte';
   import TopMenuBar from '$lib/components/TopMenuBar.svelte';
   import AppWorkspace from '$lib/components/workspace/AppWorkspace.svelte';
+  import MobileWorkspace from './mobile/MobileWorkspace.svelte';
+  import { isMobileNavigator } from './mobile/mobile-device';
   import {
     resolveTrackLibraryNavigationTargets,
     type TrackLibraryNavigationTarget,
@@ -107,7 +109,7 @@
     WorkspaceCollection,
     WorkspaceTab
   } from '$lib/types';
-  import { isOptionsViewName, type OptionsViewName } from './options/views';
+  import { buildOptionsWindowPath, isOptionsViewName, type OptionsViewName } from './options/views';
   import { getFavoriteIdentity, getTrackDisplayTitle, getTrackIdentity } from '$lib/utils/files';
   import { favoritesHaveAllTracks } from '$lib/services/workspace-actions';
   import { experimentalSettings } from '$lib/stores/experimental-settings';
@@ -130,6 +132,7 @@
     shuffleEnabled: shuffleStore,
     repeatMode: repeatStore
   } = playlistStore;
+  const mobileMode = isMobileNavigator(typeof navigator === 'undefined' ? null : navigator);
   const {
     items: libraryItemsStore,
     selection: librarySelectionStore,
@@ -891,8 +894,10 @@
     autoNowPlayingSuppressed = false;
   }
   $: isNowPlayingViewportEligible =
-    innerWidth >= NOW_PLAYING_MIN_VIEWPORT_WIDTH &&
-    innerHeight >= NOW_PLAYING_MIN_VIEWPORT_HEIGHT;
+    mobileMode || (
+      innerWidth >= NOW_PLAYING_MIN_VIEWPORT_WIDTH &&
+      innerHeight >= NOW_PLAYING_MIN_VIEWPORT_HEIGHT
+    );
   $: isNowPlayingLayoutActive =
     (nowPlayingViewActive || (isAutomaticNowPlayingEligible && !autoNowPlayingSuppressed)) &&
     isNowPlayingViewportEligible &&
@@ -1281,6 +1286,10 @@
   }
 
   function handleOpenOptions(view?: OptionsViewName) {
+    if (mobileMode) {
+      window.location.assign(buildOptionsWindowPath(view));
+      return;
+    }
     windowManager.openOptions(view);
   }
 
@@ -1536,7 +1545,9 @@
       return;
     }
 
-    ensureComfortableNowPlayingWindowSize();
+    if (!mobileMode) {
+      ensureComfortableNowPlayingWindowSize();
+    }
 
     autoNowPlayingSuppressed = false;
     appearanceSettings.update({
@@ -1549,7 +1560,9 @@
       autoNowPlayingSuppressed = true;
     }
 
-    restoreNowPlayingWindowSize();
+    if (!mobileMode) {
+      restoreNowPlayingWindowSize();
+    }
     appearanceSettings.update({
       nowPlayingViewActive: false
     });
@@ -1684,6 +1697,7 @@
 
 <div
   class="app-shell"
+  class:mobile-mode={mobileMode}
   class:compact-workspace={workspaceShellState.isCompactWorkspace}
   class:now-playing-mode={isNowPlayingLayoutActive}
   class:video-theater-mode={videoTheaterActive}
@@ -1718,6 +1732,7 @@
   />
   <div bind:this={videoParkingHost} hidden aria-hidden="true"></div>
 
+  {#if !mobileMode}
   <TopMenuBar
     bind:height={topMenuBarHeight}
     nowPlayingViewActive={isNowPlayingLayoutActive}
@@ -1766,7 +1781,64 @@
     on:toggleVideoTheater={toggleVideoTheater}
     on:exit={() => windowManager.exit()}
   />
+  {/if}
 
+  {#if mobileMode}
+  <MobileWorkspace
+    snapshotStore={displayPlaybackSnapshotStore}
+    {playbackSnapshot}
+    nowPlayingActive={isNowPlayingLayoutActive}
+    videoElement={playerController.videoElement}
+    {videoParkingHost}
+    {videoTheaterActive}
+    videoFitMode={$videoSettings.fitMode}
+    {videoPictureInPictureSupported}
+    {videoSeekFeedback}
+    inactive={videoTheaterActive}
+    workspaceState={workspaceShellState}
+    {playlistPanelHandlers}
+    {libraryPanelHandlers}
+    {selectedPlaylistItem}
+    {playerDisplayTrack}
+    {lyricsTrack}
+    {modulePatternSnapshot}
+    artworkState={artworkPresentationState}
+    {detailsLibraryTargets}
+    onNavigateTrackDetailsToLibrary={navigateTrackDetailsToLibrary}
+    appearance={$appearanceSettings}
+    zoneEffects={backdropPresentation.workspaceZoneEffects}
+    zoneArtworkSettings={backdropPresentation.workspaceZoneArtworkSettings}
+    zoneArtworkBright={backdropPresentation.workspaceZoneArtworkBright}
+    {effectiveLyricsDisplayStyle}
+    {lyricsAutoScroll}
+    {lyricsFontSize}
+    {lyricsResumeAutoScrollToken}
+    installAvailable={appInstallState.available}
+    videoAvailable={videoTrackActive}
+    on:tabChange={(event) => workspaceShell.showWorkspaceTab(event.detail)}
+    on:toggleNowPlaying={toggleNowPlayingView}
+    on:closeNowPlaying={closeNowPlayingView}
+    on:openFiles={() => void handleMenuOpenFiles()}
+    on:openFolder={() => void handleMenuOpenFolder()}
+    on:manageFolders={() => handleOpenOptions('folders')}
+    on:openOptions={() => handleOpenOptions()}
+    on:openAbout={handleOpenAbout}
+    on:install={() => void appInstallService.prompt()}
+    on:togglePatterns={togglePatterns}
+    on:toggle={togglePlayback}
+    on:previous={() => stepTrack(-1)}
+    on:next={() => stepTrack(1)}
+    on:previousSubsong={() => playerController.stepSubsong(-1)}
+    on:nextSubsong={() => playerController.stepSubsong(1)}
+    on:seek={(event) => seekPlayback(event.detail)}
+    on:volume={(event) => setPlayerVolume(event.detail)}
+    on:mute={togglePlayerMute}
+    on:showTrack={(event) => handleShowPlayerTrackDetails(event.detail)}
+    on:toggleVideoTheater={toggleVideoTheater}
+    on:togglePictureInPicture={() => void toggleVideoPictureInPicture()}
+    on:setVideoFit={(event) => setVideoFit(event.detail)}
+  />
+  {:else}
   <AppWorkspace
     snapshotStore={displayPlaybackSnapshotStore}
     {playbackSnapshot}
@@ -1817,6 +1889,7 @@
     onToggleVideoPictureInPicture={() => void toggleVideoPictureInPicture()}
     onSetVideoFit={setVideoFit}
   />
+  {/if}
 
   {#if videoTheaterActive}
     <VideoTheater

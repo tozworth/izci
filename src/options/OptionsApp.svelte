@@ -2,24 +2,9 @@
   import { onMount } from 'svelte';
   import { t } from 'svelte-i18n';
   import OptionsView, { type SharedOptionsViewDefinition } from '$lib/components/options/OptionsView.svelte';
-  import AboutView from './components/views/AboutView.svelte';
-  import AppearanceView from './components/views/AppearanceView.svelte';
-  import BackdropsView from './components/views/BackdropsView.svelte';
-  import BackupsView from './components/views/BackupsView.svelte';
-  import ExperimentalView from './components/views/ExperimentalView.svelte';
-  import LyricsView from './components/views/LyricsView.svelte';
-  import MetadataView from './components/views/MetadataView.svelte';
-  import ModulesView from './components/views/ModulesView.svelte';
-  import LoadoutsView from './components/views/LoadoutsView.svelte';
-  import NowPlayingView from './components/views/NowPlayingView.svelte';
-  import PlaybackView from './components/views/PlaybackView.svelte';
-  import PatternsView from './components/views/PatternsView.svelte';
-  import TracksView from './components/views/TracksView.svelte';
-  import FoldersView from './components/views/FoldersView.svelte';
-  import LicensesView from './components/views/LicensesView.svelte';
-  import VisualizerView from './components/views/VisualizerView.svelte';
-  import VideoView from './components/views/VideoView.svelte';
-  import RafView from './components/raf/RafView.svelte';
+  import OptionsContent from './OptionsContent.svelte';
+  import MobileOptionsView from '../mobile/MobileOptionsView.svelte';
+  import { isMobileNavigator } from '../mobile/mobile-device';
   import {
     getOptionsWindowState,
     rememberOptionsActiveView,
@@ -45,6 +30,7 @@
   } from './views';
 
   const initialOptionsWindowState = getOptionsWindowState();
+  const mobileMode = isMobileNavigator(typeof navigator === 'undefined' ? null : navigator);
   const requestedView = getOptionsViewFromLocation(window.location);
   let activeView: OptionsViewName = window.location.search
     ? requestedView
@@ -209,6 +195,28 @@
   }
 </script>
 
+{#if mobileMode}
+<MobileOptionsView
+  windowTitle={$t('options.windowTitle', { default: 'izci Options' })}
+  groups={sharedViewGroups}
+  {auxiliaryViews}
+  activeView={activeView}
+  bind:showAdvancedTweaks
+  advancedTweaksModified={advancedTweaksModified}
+  expandHintsLabel={$t('options.tools.expandHints', { default: 'Expand field hints' })}
+  collapseHintsLabel={$t('options.tools.collapseHints', { default: 'Collapse field hints' })}
+  showAdvancedTweaksLabel={$t('options.tools.showAdvancedTweaks', { default: 'Show advanced tweaks' })}
+  showModifiedAdvancedTweaksLabel={$t('options.tools.showAdvancedTweaksModified', { default: 'Show advanced tweaks — some differ from defaults' })}
+  hideAdvancedTweaksLabel={$t('options.tools.hideAdvancedTweaks', { default: 'Hide advanced tweaks' })}
+  resetPageLabel={$t('options.tools.resetPage', { default: 'Reset current page to defaults' })}
+  contentClass={activeView === 'raf' ? 'raf-content' : ''}
+  on:select={(event) => setActiveView(event.detail.view as OptionsViewName)}
+  on:reset={resetCurrentView}
+  on:advancedvisibilitychange={(event) => rememberShowAdvancedTweaks(event.detail.visible)}
+>
+  <OptionsContent {activeView} onSelectView={setActiveView} />
+</MobileOptionsView>
+{:else}
 <OptionsView
   windowTitle={$t('options.windowTitle', { default: 'izci Options' })}
   pageToolsLabel={$t('options.tools.label', { default: 'Page tools' })}
@@ -229,75 +237,6 @@
   on:reset={resetCurrentView}
   on:advancedvisibilitychange={(event) => rememberShowAdvancedTweaks(event.detail.visible)}
 >
-      {#if activeView === 'appearance'}
-        <AppearanceView />
-      {/if}
-
-      {#if activeView === 'backdrops'}
-        <BackdropsView />
-      {/if}
-
-      {#if activeView === 'now-playing'}
-        <NowPlayingView />
-      {/if}
-
-      {#if activeView === 'lyrics'}
-        <LyricsView />
-      {/if}
-
-      {#if activeView === 'playback'}
-        <PlaybackView />
-      {/if}
-
-      {#if activeView === 'video'}
-        <VideoView />
-      {/if}
-
-      {#if activeView === 'visualizer'}
-        <VisualizerView />
-      {/if}
-
-      {#if activeView === 'patterns'}
-        <PatternsView />
-      {/if}
-
-      {#if activeView === 'raf'}
-        <RafView />
-      {/if}
-
-      {#if activeView === 'modules'}
-        <ModulesView />
-      {/if}
-
-      {#if activeView === 'loadouts'}
-        <LoadoutsView />
-      {/if}
-
-      {#if activeView === 'tracks'}
-        <TracksView />
-      {/if}
-
-      {#if activeView === 'folders'}
-        <FoldersView />
-      {/if}
-
-      {#if activeView === 'metadata'}
-        <MetadataView />
-      {/if}
-
-      {#if activeView === 'backups'}
-        <BackupsView onOpenFolders={() => setActiveView('folders')} />
-      {/if}
-
-      {#if activeView === 'experimental'}
-        <ExperimentalView />
-      {/if}
-
-      {#if activeView === 'about'}
-        <AboutView onOpenLicenses={() => setActiveView('licenses')} />
-      {/if}
-
-      {#if activeView === 'licenses'}
-        <LicensesView />
-      {/if}
+  <OptionsContent {activeView} onSelectView={setActiveView} />
 </OptionsView>
+{/if}

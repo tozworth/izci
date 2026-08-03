@@ -7,12 +7,15 @@ import { initializeTheme } from '$lib/services/theme';
 import { initializeScrollbarVisibility } from '$lib/services/scrollbar-visibility';
 import { registerAppServiceWorker } from '$lib/services/pwa-updates';
 import { initializeLocalization } from '$lib/i18n';
+import { initializeMobileDocument } from './mobile/mobile-device';
+import './mobile/mobile.css';
 
 if (import.meta.env.PROD) {
   registerAppServiceWorker();
 }
 
 initializeTheme();
+initializeMobileDocument();
 initializeScrollbarVisibility({ overlayVertical: true });
 initializeLocalization();
 

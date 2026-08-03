@@ -346,7 +346,40 @@
   "pwa": {
     "description": "İzci modülü destekli, çevrimdışı PWA müzik çalar."
   },
+  "mobile": {
+    "menu": {
+      "close": "Menüyü kapat",
+      "label": "Ana menü",
+      "offlinePlayer": "Çevrimdışı medya oynatıcı",
+      "addMedia": "Medya ekle",
+      "app": "Uygulama",
+      "open": "Menüyü aç"
+    },
+    "options": {
+      "hideTweaks": "İnce ayarları gizle",
+      "showTweaks": "İnce ayarları göster",
+      "collapseHints": "İpuçlarını daralt",
+      "expandHints": "İpuçlarını genişlet",
+      "back": "Oynatıcıya dön",
+      "title": "Ayarlar",
+      "categories": "Kategori seç",
+      "resetPage": "Sayfayı sıfırla"
+    },
+    "navigation": {
+      "swipeRegion": "Görünümler arasında kaydır",
+      "label": "Ana gezinme"
+    }
+  },
   "options": {
+    "tools": {
+      "label": "Sayfa araçları",
+      "expandHints": "Alan ipuçlarını genişlet",
+      "collapseHints": "Alan ipuçlarını daralt",
+      "showAdvancedTweaks": "Gelişmiş ince ayarları göster",
+      "showAdvancedTweaksModified": "Gelişmiş ince ayarları göster — bazıları varsayılanlardan farklı",
+      "hideAdvancedTweaks": "Gelişmiş ince ayarları gizle",
+      "resetPage": "Geçerli sayfayı varsayılanlara sıfırla"
+    },
     "raf": {
       "autoAmp": {
         "mode": "Otomatik",
@@ -1204,15 +1237,6 @@
       "licenses": "Lisanslar"
     },
     "windowTitle": "izci Ayarları",
-    "tools": {
-      "label": "Sayfa araçları",
-      "expandHints": "Alan ipuçlarını genişlet",
-      "collapseHints": "Alan ipuçlarını daralt",
-      "showAdvancedTweaks": "Gelişmiş ince ayarları göster",
-      "showAdvancedTweaksModified": "Gelişmiş ince ayarları göster — bazıları varsayılanlardan farklı",
-      "hideAdvancedTweaks": "Gelişmiş ince ayarları gizle",
-      "resetPage": "Geçerli sayfayı varsayılanlara sıfırla"
-    },
     "categories": "Ayar kategorileri"
   },
   "audioCompare": {

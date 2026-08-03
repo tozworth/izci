@@ -8,7 +8,11 @@
     getTrackDuration,
     isRightAlignedColumn
   } from './library-columns';
-  import { getTrackPlaylistLabel } from '$lib/utils/files';
+  import {
+    getTrackDisplaySubtitle,
+    getTrackDisplayTitle,
+    getTrackPlaylistLabel
+  } from '$lib/utils/files';
 
   export let item: PlaylistItem;
   export let selected = false;
@@ -16,6 +20,7 @@
   export let layout: 'list' | 'columns' = 'list';
   export let visibleColumns: LibraryPanelColumn[] = [];
   export let hideTrackFormat = false;
+  export let mobilePresentation = false;
 
   const dispatch = createEventDispatcher<{
     itemClick: { id: string; event: MouseEvent };
@@ -24,6 +29,8 @@
   }>();
 
   $: trackTitle = getTrackPlaylistLabel(item);
+  $: mobileTrackTitle = getTrackDisplayTitle(item);
+  $: mobileTrackArtist = getTrackDisplaySubtitle(item);
   $: trackDuration = getTrackDuration(item);
 </script>
 
@@ -68,7 +75,16 @@
       on:dblclick={() => dispatch('itemDoubleClick', item.id)}
       on:contextmenu={(event) => dispatch('itemContextMenu', { id: item.id, event })}
     >
-      <span class="track-name">{trackTitle}</span>
+      {#if mobilePresentation}
+        <span class="mobile-track-copy">
+          <span class="mobile-track-title">{mobileTrackTitle}</span>
+          {#if mobileTrackArtist}
+            <span class="mobile-track-artist">{mobileTrackArtist}</span>
+          {/if}
+        </span>
+      {:else}
+        <span class="track-name">{trackTitle}</span>
+      {/if}
       {#if !hideTrackFormat || trackDuration}
         <span class="track-meta" class:has-duration={Boolean(trackDuration)}>
           {#if !hideTrackFormat}

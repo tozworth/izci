@@ -81,6 +81,7 @@
   export let libraryGroupRequest: WorkspaceLibraryGroupRequest | null = null;
   export let keyboardActive = false;
   export let readOnly = false;
+  export let mobilePresentation = false;
   export let getContextMenuActions: (ids: string[]) => MenuActionItem[] = () => [
     { id: 'remove', label: 'Remove', icon: 'delete' }
   ];
@@ -488,6 +489,12 @@
   }
 
   function handleItemClick(event: MouseEvent, id: string) {
+    if (mobilePresentation && !event.shiftKey && !event.ctrlKey && !event.metaKey && !event.altKey) {
+      dispatch('activate', id);
+      closeContextMenu();
+      return;
+    }
+
     emitSelection(event, id);
     closeContextMenu();
   }
@@ -1029,11 +1036,13 @@
       ? $t('playlist.contextMenu.libraryGroupActions', { default: 'Library group actions' })
       : $t('playlist.contextMenu.itemActions', { default: '{panel} item actions', values: { panel: localizedPanelTitle } });
   $: isCompactColumnLayout =
+    !mobilePresentation &&
     layout === 'columns' &&
     dropzoneWidth > 0 &&
     dropzoneWidth < 280 &&
     !$appearanceSettings.keepLibraryColumnsVisibleInNarrowLayout;
-  $: hideTrackFormat = layout === 'list' && dropzoneWidth > 0 && dropzoneWidth < 280;
+  $: presentationLayout = mobilePresentation ? 'list' : layout;
+  $: hideTrackFormat = presentationLayout === 'list' && dropzoneWidth > 0 && dropzoneWidth < 280;
   $: activeSort = !$trackSettings.enableRatings && activeLibraryTableSettings.sort.columnId === 'rating'
     ? { columnId: 'title' as const, direction: activeLibraryTableSettings.sort.direction }
     : activeLibraryTableSettings.sort;
@@ -1061,7 +1070,7 @@
       : filteredItems;
   $: tableTemplateColumns = visibleColumns.map((column) => `minmax(${column.width}px, ${column.width}px)`).join(' ');
   $: tableColumnGap = `${COLUMN_GAP}px`;
-  $: if (contextMenu?.kind === 'columns' && (layout !== 'columns' || isCompactColumnLayout || !showTrackRows)) {
+  $: if (contextMenu?.kind === 'columns' && (presentationLayout !== 'columns' || isCompactColumnLayout || !showTrackRows)) {
     closeContextMenu();
   }
   $: if (!showSearchControl) {
@@ -1117,7 +1126,7 @@
       class:compact-heading={hideEyebrow}
       class:has-secondary-library-row={libraryMode && (showSearchInput || Boolean(selectedLibraryGroup))}
       class:is-covered={playlistHeaderCovered}
-      class:has-column-header={showTrackRows && filteredItems.length > 0 && layout === 'columns' && !isCompactColumnLayout}
+      class:has-column-header={showTrackRows && filteredItems.length > 0 && presentationLayout === 'columns' && !isCompactColumnLayout}
     >
       {#if libraryMode}
         <LibraryPanelHeader
@@ -1163,7 +1172,7 @@
         />
       {/if}
 
-      {#if showTrackRows && filteredItems.length > 0 && layout === 'columns' && !isCompactColumnLayout}
+      {#if showTrackRows && filteredItems.length > 0 && presentationLayout === 'columns' && !isCompactColumnLayout}
         <LibraryColumnsHeader
           bind:headerElement={columnsHeaderElement}
           {visibleColumns}
@@ -1205,12 +1214,13 @@
           {displayItems}
           selectedIds={displaySelectedIds}
           playingId={displayPlayingId}
-          {layout}
+          layout={presentationLayout}
           {isCompactColumnLayout}
           {visibleColumns}
           {tableTemplateColumns}
           {tableColumnGap}
           {hideTrackFormat}
+          {mobilePresentation}
           scrollTop={dropzoneScrollTop}
           viewportHeight={dropzoneHeight}
           rowHeight={trackRowHeight}

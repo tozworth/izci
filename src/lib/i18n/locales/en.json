@@ -346,7 +346,40 @@
   "pwa": {
     "description": "Offline-first PWA music player with tracker module support."
   },
+  "mobile": {
+    "menu": {
+      "close": "Close menu",
+      "label": "Main menu",
+      "offlinePlayer": "Offline media player",
+      "addMedia": "Add media",
+      "app": "App",
+      "open": "Open menu"
+    },
+    "options": {
+      "hideTweaks": "Hide tweaks",
+      "showTweaks": "Show tweaks",
+      "collapseHints": "Collapse hints",
+      "expandHints": "Expand hints",
+      "back": "Back to player",
+      "title": "Options",
+      "categories": "Choose category",
+      "resetPage": "Reset page"
+    },
+    "navigation": {
+      "swipeRegion": "Swipe between views",
+      "label": "Primary navigation"
+    }
+  },
   "options": {
+    "tools": {
+      "label": "Page tools",
+      "expandHints": "Expand field hints",
+      "collapseHints": "Collapse field hints",
+      "showAdvancedTweaks": "Show advanced tweaks",
+      "showAdvancedTweaksModified": "Show advanced tweaks — some differ from defaults",
+      "hideAdvancedTweaks": "Hide advanced tweaks",
+      "resetPage": "Reset current page to defaults"
+    },
     "raf": {
       "autoAmp": {
         "mode": "Auto",
@@ -1204,15 +1237,6 @@
       "licenses": "Licenses"
     },
     "windowTitle": "izci Options",
-    "tools": {
-      "label": "Page tools",
-      "expandHints": "Expand field hints",
-      "collapseHints": "Collapse field hints",
-      "showAdvancedTweaks": "Show advanced tweaks",
-      "showAdvancedTweaksModified": "Show advanced tweaks — some differ from defaults",
-      "hideAdvancedTweaks": "Hide advanced tweaks",
-      "resetPage": "Reset current page to defaults"
-    },
     "categories": "Options categories"
   },
   "audioCompare": {

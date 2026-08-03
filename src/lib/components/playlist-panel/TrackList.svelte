@@ -14,6 +14,7 @@
   export let tableTemplateColumns = '';
   export let tableColumnGap = '4px';
   export let hideTrackFormat = false;
+  export let mobilePresentation = false;
   export let scrollTop = 0;
   export let viewportHeight = 0;
   export let rowHeight = 28;
@@ -57,6 +58,7 @@
           selected={selectedIdSet.has(item.id)}
           playing={item.id === playingId}
           {visibleColumns}
+          {mobilePresentation}
           on:itemClick={(event) => dispatch('itemClick', event.detail)}
           on:itemDoubleClick={(event) => dispatch('itemDoubleClick', event.detail)}
           on:itemContextMenu={(event) => dispatch('itemContextMenu', event.detail)}
@@ -79,6 +81,7 @@
         selected={selectedIdSet.has(item.id)}
         playing={item.id === playingId}
         {hideTrackFormat}
+        {mobilePresentation}
         on:itemClick={(event) => dispatch('itemClick', event.detail)}
         on:itemDoubleClick={(event) => dispatch('itemDoubleClick', event.detail)}
         on:itemContextMenu={(event) => dispatch('itemContextMenu', event.detail)}

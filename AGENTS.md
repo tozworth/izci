@@ -91,6 +91,14 @@
 - Window Controls Overlay state comes from `window-controls-overlay.ts`; components must react to live geometry/visibility rather than assuming overlay mode.
 - Popup definitions belong in `popup-windows.ts`; popup behavior belongs in `window-manager.ts` or a focused service.
 
+## Mobile mode
+
+- Mobile mode is selected from User-Agent Client Hints / navigator signals in `src/mobile/mobile-device.ts`; narrow desktop windows continue to use the desktop UI.
+- Keep the bespoke mobile shell, navigation, gestures, Options presentation, and overrides under `src/mobile/`. Do not fold mobile CSS into the standard desktop stylesheets.
+- The primary mobile pager order is Playlist, Library, Now Playing, Lyrics, then Track Details. Keep bottom-nav taps and horizontal swipes consistent with that order, and exclude controls with their own horizontal gestures from page swiping.
+- Mobile playlist and flat Library views use touch-first list rows rather than library columns; tapping a track plays it. Desktop selection and double-click behavior must remain unchanged.
+- Mobile Options is a full-page presentation of the shared Options content. Tool windows are intentionally not exposed in mobile mode for now.
+
 ## Tools windows
 
 - Tools are separate Vite pages entered through `audio-compare.html`, `editor.html`, `converter.html`, and `troubadour.html`; each page mounts its matching app under `src/tools/<tool>/main.ts`. Lyrics, Loudness, and Spectrogram are Troubadour workbench tabs rather than separate pages.

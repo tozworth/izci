@@ -65,7 +65,7 @@
 </script>
 
 <div class="library-header">
-  <div class="library-toolbar">
+  <div class="library-toolbar" data-mobile-swipe-lock>
     <TabStrip
       className="library-view-tabs"
       ariaLabel={$t('playlist.library.views.label', { default: 'Library views' })}
@@ -81,6 +81,7 @@
           on:click={() => dispatch('viewChange', view.id)}
         >
           <span class="material-symbols-outlined" aria-hidden="true">{view.icon}</span>
+          <span class="library-view-label">{getViewLabel(view.id, view.label)}</span>
           <HoverTooltip align={view.id === 'favorites' ? 'left' : 'center'} nowrap>
             <strong>{getViewLabel(view.id, view.label)}</strong>{#if !showBack && tooltipDetails[view.id]}
               <span class="library-tooltip-detail">{tooltipDetails[view.id]}</span>
@@ -171,6 +172,10 @@
 
   .library-tooltip-detail {
     margin-left: 0.28rem;
+  }
+
+  .library-view-label {
+    display: none;
   }
 
   .library-toolbar {
