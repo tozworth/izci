@@ -81,6 +81,7 @@
   let settings: ClipEffectSettings = RAF_EFFECT_REGISTRY['graphic-eq'].createDefault('clip-effect');
   let settingsByType = new Map<ClipEffectType, ClipEffectSettings>();
   let edgeBlendMs = 5;
+  $: selectedDefinition = selectedType === 'speed' ? SPEED_EFFECT : RAF_EFFECT_REGISTRY[selectedType];
 
   function show(type: ClipEffectType = selectedType): void {
     selectType(type);
@@ -107,14 +108,6 @@
     settings = settingsByType.get(type) ?? (type === 'speed'
       ? createSpeedEffectSettings()
       : RAF_EFFECT_REGISTRY[type].createDefault(`clip-effect-${type}`));
-  }
-
-  function effectName(): string {
-    return selectedType === 'speed' ? SPEED_EFFECT.name : RAF_EFFECT_REGISTRY[selectedType].name;
-  }
-
-  function effectIcon(): string {
-    return selectedType === 'speed' ? SPEED_EFFECT.icon : RAF_EFFECT_REGISTRY[selectedType].icon;
   }
 
   function resetSettings(): void {
@@ -173,7 +166,6 @@
     <header>
       <div>
         <h2>{$t('editor.effects.title', { default: 'Apply effect' })}</h2>
-        <p>{$t('editor.effects.subtitle', { default: 'Destructively process the selected audio.' })}</p>
       </div>
       <button class="icon-button" type="button" disabled={busy} aria-label={$t('editor.effects.close', { default: 'Close effects' })} on:click={requestClose}>
         <span class="material-symbols-outlined" aria-hidden="true">close</span>
@@ -192,8 +184,8 @@
 
       <section class="effect-settings" aria-live="polite">
         <div class="effect-heading">
-          <span class="material-symbols-outlined" aria-hidden="true">{effectIcon()}</span>
-          <div><strong>{effectName()}</strong><small>{selectionDuration.toFixed(3)} s {$t('editor.effects.selection', { default: 'selection' })}</small></div>
+          <span class="material-symbols-outlined" aria-hidden="true">{selectedDefinition.icon}</span>
+          <div><strong>{selectedDefinition.name}</strong><small>{selectionDuration.toFixed(3)} s {$t('editor.effects.selection', { default: 'selection' })}</small></div>
           <button class="text-button" type="button" disabled={busy} on:click={resetSettings}>
             <span class="material-symbols-outlined" aria-hidden="true">restart_alt</span>{$t('editor.effects.defaults', { default: 'Defaults' })}
           </button>
@@ -293,11 +285,10 @@
   .clip-effect-dialog { width: min(54rem, calc(100vw - 2rem)); max-width: none; height: min(35rem, calc(100vh - 2rem)); max-height: none; padding: 0; overflow: hidden; border: 1px solid var(--border-strong); border-radius: 0.38rem; background: var(--bg-elevated); box-shadow: 0 1.2rem 3.5rem rgb(0 0 0 / 48%); color: var(--text); }
   .clip-effect-dialog::backdrop { background: rgb(0 0 0 / 60%); backdrop-filter: blur(1.5px); }
   .effect-dialog-shell { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; height: 100%; }
-  header, footer { display: flex; align-items: center; gap: 0.35rem; padding: 0.48rem 0.6rem; background: var(--window-topbar-bg); }
+  header, footer { display: flex; align-items: center; gap: 0.35rem; padding: 0.32rem 0.6rem; background: var(--window-topbar-bg); }
   header { justify-content: space-between; border-bottom: 1px solid var(--border-soft); }
   h2, p { margin: 0; }
   h2 { color: var(--text-strong); font-size: 0.92rem; font-weight: 650; }
-  header p { margin-top: 0.16rem; color: var(--muted); font-size: 0.68rem; }
   .effect-dialog-body { display: grid; grid-template-columns: 10.5rem minmax(0, 1fr); min-height: 0; }
   nav { display: flex; flex-direction: column; gap: 0.08rem; padding: 0.3rem; overflow-y: auto; border-right: 1px solid var(--border-soft); background: color-mix(in srgb, var(--bg-soft) 74%, var(--bg-base)); }
   nav button { display: flex; align-items: center; gap: 0.4rem; min-height: 1.8rem; padding: 0.25rem 0.38rem; border: 1px solid transparent; border-radius: 0.24rem; background: transparent; color: var(--muted); text-align: left; }
@@ -305,7 +296,7 @@
   nav button.active { border-color: var(--accent-focus-border); background: color-mix(in srgb, var(--accent-strong) 10%, var(--bg-soft)); color: var(--text-strong); }
   nav .material-symbols-outlined { font-size: 1.05rem; color: var(--accent-strong); }
   .effect-settings { min-width: 0; min-height: 0; padding: 0.55rem; overflow: auto; background: color-mix(in srgb, var(--bg-elevated) 80%, var(--bg-base)); }
-  .effect-heading { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 0.42rem; padding-bottom: 0.48rem; margin-bottom: 0.55rem; border-bottom: 1px solid var(--border-soft); }
+  .effect-heading { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 0.42rem; padding-bottom: 0.38rem; margin-bottom: 0.45rem; border-bottom: 1px solid var(--border-soft); }
   .effect-heading > .material-symbols-outlined { font-size: 1.25rem; color: var(--accent-strong); }
   .effect-heading div { display: grid; gap: 0.1rem; }
   .effect-heading strong { color: var(--text-strong); font-size: 0.8rem; }

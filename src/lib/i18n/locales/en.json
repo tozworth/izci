@@ -1311,11 +1311,20 @@
     },
     "effects": {
       "title": "Apply effect",
-      "subtitle": "Destructively process the selected audio.",
       "close": "Close effects",
       "available": "Available effects",
       "selection": "selection",
       "defaults": "Defaults",
+      "speed": {
+        "mode": "Speed mode",
+        "speed": "Speed",
+        "pitch": "Pitch",
+        "tempo": "Tempo",
+        "factor": "Factor",
+        "speedHint": "Changes playback speed and pitch together.",
+        "pitchHint": "Changes pitch while preserving duration.",
+        "tempoHint": "Changes duration while preserving pitch."
+      },
       "autoAmp": {
         "mode": "Mode",
         "manual": "Manual gain",
@@ -1330,16 +1339,6 @@
       },
       "stereo": {
         "width": "Stereo width"
-      },
-      "speed": {
-        "mode": "Speed mode",
-        "speed": "Speed",
-        "pitch": "Pitch",
-        "tempo": "Tempo",
-        "factor": "Factor",
-        "speedHint": "Changes playback speed and pitch together.",
-        "pitchHint": "Changes pitch while preserving duration.",
-        "tempoHint": "Changes duration while preserving pitch."
       },
       "sloptimizer": {
         "slop": "Slop",

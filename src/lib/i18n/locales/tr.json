@@ -1311,11 +1311,20 @@
     },
     "effects": {
       "title": "Efekt uygula",
-      "subtitle": "Seçili sesi kalıcı olarak işleyin.",
       "close": "Efektleri kapat",
       "available": "Kullanılabilir efektler",
       "selection": "seçim",
       "defaults": "Varsayılanlar",
+      "speed": {
+        "mode": "Hız modu",
+        "speed": "Hız",
+        "pitch": "Perde",
+        "tempo": "Tempo",
+        "factor": "Katsayı",
+        "speedHint": "Oynatma hızını ve perdeyi birlikte değiştirir.",
+        "pitchHint": "Süreyi koruyarak perdeyi değiştirir.",
+        "tempoHint": "Perdeyi koruyarak süreyi değiştirir."
+      },
       "autoAmp": {
         "mode": "Mod",
         "manual": "Elle kazanç",
@@ -1330,16 +1339,6 @@
       },
       "stereo": {
         "width": "Stereo genişliği"
-      },
-      "speed": {
-        "mode": "Hız modu",
-        "speed": "Hız",
-        "pitch": "Perde",
-        "tempo": "Tempo",
-        "factor": "Katsayı",
-        "speedHint": "Oynatma hızını ve perdeyi birlikte değiştirir.",
-        "pitchHint": "Süreyi koruyarak perdeyi değiştirir.",
-        "tempoHint": "Perdeyi koruyarak süreyi değiştirir."
       },
       "sloptimizer": {
         "slop": "Slop",

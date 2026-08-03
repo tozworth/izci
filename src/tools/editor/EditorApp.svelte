@@ -631,8 +631,11 @@
     const processed = await processEffect(settings, edgeBlendMs);
     if (!processed || waveformBuffer !== currentBuffer) return;
     const nextBuffer = replaceAudioBufferRange(currentBuffer, start, end, processed);
+    const nextState = isClipSpeedEffect(settings)
+      ? replaceSelectionRanges(editState, [{ start, end: start + processed.duration }])
+      : editState;
     commitEdit(
-      editState,
+      nextState,
       nextBuffer,
       $t('editor.effects.applied', {
         default: '{effect} applied to selection.',
