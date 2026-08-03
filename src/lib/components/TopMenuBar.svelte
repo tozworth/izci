@@ -451,7 +451,7 @@
   subtitle={menuSubtitle}
   subtitleTone={menuSubtitleTone}
   ariaLabel={$t('main.menu.applicationMenu', { default: 'Application menu' })}
-  multiplayerConnectionTone={multiplayerMode === 'idle'
+  multiplayerConnectionTone={multiplayerMode !== 'client'
     ? 'none'
     : multiplayerConnectionStatus === 'connected'
       ? 'connected'
