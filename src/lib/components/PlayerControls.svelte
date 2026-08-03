@@ -555,7 +555,6 @@
   }
 </script>
 
-<!-- svelte-ignore a11y_no_static_element_interactions -->
 <svelte:element
   this={containerElement}
   bind:this={playerBarElement}
@@ -576,7 +575,6 @@
   data-visualizer-zone={visualizerBackdropActive ? 'true' : null}
   data-backdrop-zone-id={presentation === 'bar' ? 'player' : null}
   style={rootStyle}
-  on:contextmenu={openBookmarkMenu}
 >
   <div class="player-track-group">
     {#if displayTrack?.kind !== 'video'}
@@ -642,7 +640,12 @@
 
   <div class="player-range">
     <span>{formatDuration(displayedSeekTime)}</span>
-    <div class="range-control" style={toRangeProgressStyle(displayedSeekTime, Math.max(displayDuration, 1))}>
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div
+      class="range-control"
+      style={toRangeProgressStyle(displayedSeekTime, Math.max(displayDuration, 1))}
+      on:contextmenu={openBookmarkMenu}
+    >
       <span class="range-control-fill" aria-hidden="true"></span>
       <input
         type="range"
