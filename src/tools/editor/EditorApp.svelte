@@ -85,8 +85,6 @@
   let loadProgress: AudioLoadProgress | null = null;
   let errorMessage = '';
   let noticeMessage = '';
-  let renderedModule = false;
-  let renderedFromCache = false;
   let tags: EditableTags = { ...EMPTY_TAGS };
   let artwork: Blob | null = null;
   let previewContext: AudioContext | null = null;
@@ -103,6 +101,7 @@
   let processingEffect = false;
   let waveformZoom = 1;
   let waveformScrollStart = 0;
+  let twoChannelView = false;
   let contextMenuOpen = false;
   let contextMenuX = 0;
   let contextMenuY = 0;
@@ -450,8 +449,6 @@
       });
       sourceBuffer = loaded.buffer;
       playhead = 0;
-      renderedModule = loaded.renderedModule;
-      renderedFromCache = loaded.fromCache;
       editState = createInitialClipState(loaded.buffer.duration);
       waveformBuffer = materializeClip(loaded.buffer, editState);
       noticeMessage = loaded.renderedModule
@@ -761,6 +758,7 @@
     {canRedo}
     canCut={canEdit && hasSelection}
     {canPaste}
+    {twoChannelView}
     on:open={() => void chooseAudioFile()}
     on:saveClip={openExportDialog}
     on:close={() => window.close()}
@@ -773,6 +771,7 @@
     on:delete={() => deleteSelection()}
     on:trim={trimToSelection}
     on:effect={(event) => openEffectDialog(event.detail)}
+    on:toggleTwoChannelView={() => (twoChannelView = !twoChannelView)}
   />
 
   <main class="clip-workbench" aria-label={$t('editor.tabs.edit', { default: 'Edit' })}>
@@ -822,6 +821,7 @@
             selectionEnd={editState.selectionEnd}
             {playhead}
             disabled={!canEdit}
+            {twoChannelView}
             bind:zoom={waveformZoom}
             bind:scrollStart={waveformScrollStart}
             on:selection={(event) => (editState = updateSelection(editState, event.detail.start, event.detail.end))}
@@ -845,13 +845,6 @@
           {/if}
         </div>
 
-        <div class="selection-readout">
-          <label>{$t('editor.clip.start', { default: 'Start' })}<input type="number" min="0" max={duration} step="0.001" value={editState.selectionStart.toFixed(3)} disabled={!canEdit} on:change={(event) => (editState = updateSelection(editState, Number(event.currentTarget.value), editState.selectionEnd))} /></label>
-          <label>{$t('editor.clip.end', { default: 'End' })}<input type="number" min="0" max={duration} step="0.001" value={editState.selectionEnd.toFixed(3)} disabled={!canEdit} on:change={(event) => (editState = updateSelection(editState, editState.selectionStart, Number(event.currentTarget.value)))} /></label>
-          <span>{$t('editor.clip.selection', { default: 'Selection' })}: <strong>{formatTime(selectionDuration)}</strong></span>
-          <span>{$t('editor.clip.output', { default: 'Output' })}: <strong>{formatTime(duration)}</strong></span>
-          {#if renderedModule}<span class="render-badge"><span class="material-symbols-outlined" aria-hidden="true">memory</span>{renderedFromCache ? $t('editor.cached', { default: 'Cached render' }) : $t('editor.rendered', { default: 'Rendered module' })}</span>{/if}
-        </div>
   </main>
 
   {#if contextMenuOpen}

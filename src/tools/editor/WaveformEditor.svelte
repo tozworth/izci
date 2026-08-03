@@ -19,6 +19,7 @@
   export let selectionEnd = 0;
   export let playhead = 0;
   export let disabled = false;
+  export let twoChannelView = false;
   export let zoom = 1;
   export let scrollStart = 0;
   export let waveformLabel = '';
@@ -162,9 +163,10 @@
     const firstBucket = Math.floor(firstSample / bucketSize) * bucketSize;
     const finalSample = Math.min(audioBuffer.length, firstSample + width * samplesPerPixel);
     const finalBucket = Math.ceil(finalSample / bucketSize) * bucketSize;
-    const laneHeight = height / audioBuffer.numberOfChannels;
+    const channelCount = Math.min(audioBuffer.numberOfChannels, twoChannelView ? 2 : 1);
+    const laneHeight = height / channelCount;
 
-    for (let channelIndex = 0; channelIndex < audioBuffer.numberOfChannels; channelIndex += 1) {
+    for (let channelIndex = 0; channelIndex < channelCount; channelIndex += 1) {
       const middle = laneHeight * channelIndex + laneHeight / 2;
       context.beginPath();
       for (let bucketStart = firstBucket; bucketStart < finalBucket; bucketStart += bucketSize) {
@@ -203,11 +205,12 @@
     drawTimeline(context, width, height, ratio);
     const firstSample = clampedScrollStart * buffer.sampleRate;
     const samplesPerPixel = visibleDuration * buffer.sampleRate / width;
-    const laneHeight = height / buffer.numberOfChannels;
+    const channelCount = Math.min(buffer.numberOfChannels, twoChannelView ? 2 : 1);
+    const laneHeight = height / channelCount;
     context.strokeStyle = styles.getPropertyValue('--waveform-color').trim() || '#aeb7c2';
     context.lineWidth = Math.max(1, ratio);
     drawWaveformChannels(context, buffer, width, height, firstSample, samplesPerPixel, 0.38);
-    for (let channelIndex = 0; channelIndex < buffer.numberOfChannels; channelIndex += 1) {
+    for (let channelIndex = 0; channelIndex < channelCount; channelIndex += 1) {
       const middle = laneHeight * channelIndex + laneHeight / 2;
       context.strokeStyle = styles.getPropertyValue('--waveform-zero').trim() || '#4b5057';
       context.globalAlpha = 0.5;
@@ -563,6 +566,7 @@
 
   $: if (canvas) {
     buffer;
+    twoChannelView;
     normalizedZoom;
     clampedScrollStart;
     requestWaveformBuild();
@@ -578,6 +582,7 @@
 
   $: if (overviewCanvas) {
     buffer;
+    twoChannelView;
     requestOverviewWaveformBuild();
   }
 

@@ -32,8 +32,8 @@ export const popupWindows = {
     path: '/editor.html',
     features: {
       popup: true,
-      width: 980,
-      height: 680,
+      width: 900,
+      height: 350,
       resizable: true,
       scrollbars: false
     }

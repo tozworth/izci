@@ -10,7 +10,7 @@
   import { getLoadoutColorValue, LOADOUT_TYPE_ICONS } from '$lib/utils/loadout-presentation';
 
   type ActionId = 'open' | 'saveClip' | 'close' | 'undo' | 'redo' | 'selectAll'
-    | 'cut' | 'copy' | 'paste' | 'delete' | 'trim'
+    | 'cut' | 'copy' | 'paste' | 'delete' | 'trim' | 'toggleTwoChannelView'
     | 'openOptions' | 'openLoadouts' | 'openAbout' | `applyLoadout:${string}` | `effect:${RafEffectType}`;
 
   export let fileName = '';
@@ -19,6 +19,7 @@
   export let canRedo = false;
   export let canCut = false;
   export let canPaste = false;
+  export let twoChannelView = false;
 
   const dispatch = createEventDispatcher<{
     open: void;
@@ -33,6 +34,7 @@
     delete: void;
     trim: void;
     effect: RafEffectType;
+    toggleTwoChannelView: void;
   }>();
 
   $: loadoutItems = [
@@ -70,13 +72,20 @@
     { id: 'trim', label: $t('editor.edit.trim', { default: 'Trim to selection' }), icon: 'crop', disabled: !canCut, separatorBefore: true },
     { id: 'selectAll', label: $t('editor.menu.selectAll', { default: 'Select all' }), icon: 'select_all', shortcut: 'Ctrl+A', disabled: !canSaveClip }
   ] satisfies MenuActionItem[];
-  $: effectItems = RAF_EFFECT_DEFINITIONS.map((definition, index) => ({
+  $: effectItems = RAF_EFFECT_DEFINITIONS.map((definition) => ({
     id: `effect:${definition.type}`,
     label: definition.name,
     icon: definition.icon,
-    disabled: !canCut,
-    separatorBefore: index === 0
+    disabled: !canCut
   })) satisfies MenuActionItem[];
+  $: viewItems = [
+    {
+      id: 'toggleTwoChannelView',
+      label: $t('editor.view.twoChannelWaveform', { default: 'Two-channel waveform' }),
+      icon: twoChannelView ? 'check' : 'graphic_eq',
+      checked: twoChannelView
+    }
+  ] satisfies MenuActionItem[];
 
   $: menuGroups = [
     {
@@ -102,6 +111,12 @@
       label: $t('editor.effects.menu', { default: 'Effects' }),
       icon: 'tune',
       items: effectItems
+    },
+    {
+      id: 'view',
+      label: $t('main.menu.view', { default: 'View' }),
+      icon: 'visibility',
+      items: viewItems
     }
   ] satisfies WindowMenuGroup[];
 
@@ -116,6 +131,10 @@
     }
     if (action.startsWith('effect:')) {
       dispatch('effect', action.slice(7) as RafEffectType);
+      return;
+    }
+    if (action === 'toggleTwoChannelView') {
+      dispatch('toggleTwoChannelView');
       return;
     }
     if (action === 'open' || action === 'saveClip' || action === 'close'

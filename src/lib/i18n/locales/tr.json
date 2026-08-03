@@ -1306,10 +1306,6 @@
       "fitWaveform": "Dalga biçimini sığdır (yakınlaştırmak için Ctrl+tekerlek)",
       "export": "{format} olarak aktar",
       "exportOpen": "Dışa aktar...",
-      "start": "Başlangıç",
-      "end": "Bitiş",
-      "selection": "Seçim",
-      "output": "Çıktı",
       "waveform": "Düzenlenebilir ses dalga biçimi ve seçim",
       "waveformOverview": "Tam dalga biçimi özeti ve konum çubuğu"
     },
@@ -1406,8 +1402,9 @@
     "dropPrompt": "veya buraya bir dosya bırakın",
     "rendering": "Modül ses dosyasına işleniyor...",
     "decoding": "Ses çözümleniyor...",
-    "cached": "Önbellekteki işleme",
-    "rendered": "İşlenmiş modül",
+    "view": {
+      "twoChannelWaveform": "İki kanallı dalga biçimi"
+    },
     "title": "Düzenleyici"
   },
   "converter": {

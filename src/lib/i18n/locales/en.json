@@ -1306,10 +1306,6 @@
       "fitWaveform": "Fit waveform (Ctrl+wheel to zoom)",
       "export": "Export {format}",
       "exportOpen": "Export...",
-      "start": "Start",
-      "end": "End",
-      "selection": "Selection",
-      "output": "Output",
       "waveform": "Editable audio waveform and selection",
       "waveformOverview": "Full waveform overview and seek bar"
     },
@@ -1406,8 +1402,9 @@
     "dropPrompt": "or drop a file here",
     "rendering": "Rendering module to audio...",
     "decoding": "Decoding audio...",
-    "cached": "Cached render",
-    "rendered": "Rendered module",
+    "view": {
+      "twoChannelWaveform": "Two-channel waveform"
+    },
     "title": "Editor"
   },
   "converter": {
