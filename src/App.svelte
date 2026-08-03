@@ -1809,6 +1809,7 @@
     zoneEffects={backdropPresentation.workspaceZoneEffects}
     zoneArtworkSettings={backdropPresentation.workspaceZoneArtworkSettings}
     zoneArtworkBright={backdropPresentation.workspaceZoneArtworkBright}
+    nowPlayingArtworkBright={backdropPresentation.artworkBackgroundBrightByZone.nowPlaying}
     {effectiveLyricsDisplayStyle}
     {lyricsAutoScroll}
     {lyricsFontSize}

@@ -55,6 +55,7 @@
   export let zoneEffects: Record<WorkspacePanelId, BackdropZoneEffect>;
   export let zoneArtworkSettings: Pick<BackdropZoneArtworkSettingsMap, WorkspacePanelId>;
   export let zoneArtworkBright: Record<WorkspacePanelId, boolean>;
+  export let nowPlayingArtworkBright = false;
   export let effectiveLyricsDisplayStyle: LyricsDisplayStyle;
   export let lyricsAutoScroll: boolean;
   export let lyricsFontSize: number;
@@ -241,7 +242,7 @@
             effect={appearance.backdropZones.nowPlaying}
             artwork={artworkState.visibleArtworkBackground}
             artworkSettings={appearance.backdropZoneArtwork.nowPlaying}
-            artworkBright={false}
+            artworkBright={nowPlayingArtworkBright}
             fillParent={true}
             zoneId="nowPlaying"
           >

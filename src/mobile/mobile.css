@@ -43,7 +43,8 @@ html[data-izci-mobile='true'] select {
   min-width: 0;
   min-height: 0;
   overflow: hidden;
-  background: var(--body-background);
+  /* Shared backdrop layers sit behind the workspace and are clipped to registered zones. */
+  background: transparent;
 }
 
 .mobile-app-header {
