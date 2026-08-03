@@ -17,6 +17,7 @@
   import type { OptionsViewName } from '../../options/views';
   import type {
     MultiplayerClient,
+    MultiplayerAudioStatus,
     MultiplayerConnectionStatus,
     MultiplayerMode
   } from '$lib/services/multiplayer-session';
@@ -45,6 +46,7 @@
     | 'multiplayerJoin'
     | 'multiplayerLeave'
     | 'multiplayerCopyInvite'
+    | 'multiplayerResumeAudio'
     | 'exit';
   type MenuActionId =
     | DispatchedMenuActionId
@@ -130,8 +132,18 @@
                 ? $t('main.multiplayer.connecting', { default: 'Connecting...' })
                 : $t('main.multiplayer.disconnected', { default: 'Disconnected' }),
             icon: multiplayerConnectionStatus === 'connected' ? 'cast_connected' : 'signal_disconnected',
+            description: multiplayerConnectionStatus === 'connected'
+              ? multiplayerAudioStatusLabel(multiplayerAudioStatus)
+              : undefined,
             disabled: true
           },
+          ...(multiplayerAudioStatus === 'blocked'
+            ? [{
+                id: 'multiplayerResumeAudio',
+                label: $t('main.multiplayer.startListening', { default: 'Start listening' }),
+                icon: 'play_circle'
+              } satisfies MenuActionItem]
+            : []),
           {
             id: 'multiplayerLeave',
             label: $t('main.multiplayer.leave', { default: 'Leave' }),
@@ -262,6 +274,7 @@
   export let multiplayerEnabled = false;
   export let multiplayerMode: MultiplayerMode = 'idle';
   export let multiplayerConnectionStatus: MultiplayerConnectionStatus = 'idle';
+  export let multiplayerAudioStatus: MultiplayerAudioStatus = 'idle';
   export let multiplayerInviteCode: string | null = null;
   export let multiplayerHostName: string | null = null;
   export let multiplayerClients: MultiplayerClient[] = [];
@@ -293,6 +306,7 @@
     multiplayerJoinRecent: string;
     multiplayerLeave: void;
     multiplayerCopyInvite: void;
+    multiplayerResumeAudio: void;
     multiplayerKick: string;
     setVideoFit: VideoFitMode;
     toggleVideoPictureInPicture: void;
@@ -301,6 +315,15 @@
   }>();
   let installHintPresentedInOpenMenu = false;
   let menuSubtitleTone: WindowMenuSubtitleTone = 'muted';
+
+  function multiplayerAudioStatusLabel(status: MultiplayerAudioStatus): string {
+    if (status === 'playing') return $t('main.multiplayer.audio.listening', { default: 'Listening' });
+    if (status === 'blocked') return $t('main.multiplayer.audio.blocked', { default: 'Audio needs permission' });
+    if (status === 'disabled') return $t('main.multiplayer.audio.disabled', { default: 'Host audio is off' });
+    if (status === 'video-disabled') return $t('main.multiplayer.audio.videoDisabled', { default: 'Video audio is off' });
+    if (status === 'unavailable') return $t('main.multiplayer.audio.unavailable', { default: 'Audio unavailable' });
+    return $t('main.multiplayer.audio.connecting', { default: 'Audio connecting...' });
+  }
 
   $: viewMenuItems = [
     {

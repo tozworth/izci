@@ -11,6 +11,9 @@ export class AudioBusService {
   #output: GainNode | null = null;
   #rafEngine: RafEngine | null = null;
   #analyser: AnalyserNode | null = null;
+  #broadcastGain: GainNode | null = null;
+  #broadcastDestination: MediaStreamAudioDestinationNode | null = null;
+  #broadcastGainValue = 1;
   #sourceGains = new Map<AudioBusSource, GainNode>();
   #mediaSources = new WeakMap<HTMLMediaElement, MediaElementAudioSourceNode>();
   #inputGain = 1;
@@ -78,6 +81,61 @@ export class AudioBusService {
     this.#sourceGains.delete(source);
   }
 
+  connectMediaStreamAfterRaf(stream: MediaStream | null): MediaStreamAudioSourceNode | null {
+    if (!stream || stream.getAudioTracks().length === 0) return null;
+
+    this.#ensureGraph();
+
+    try {
+      const source = this.context.createMediaStreamSource(stream);
+      this.#connectSource(source, this.#analyser);
+      return source;
+    } catch {
+      return null;
+    }
+  }
+
+  getBroadcastTrack(): MediaStreamTrack | null {
+    this.#ensureGraph();
+    if (!this.#context || !this.#analyser) return null;
+
+    if (!this.#broadcastDestination) {
+      const gain = this.#context.createGain();
+      const destination = this.#context.createMediaStreamDestination();
+      gain.gain.value = this.#broadcastGainValue;
+      this.#analyser.connect(gain);
+      gain.connect(destination);
+      this.#broadcastGain = gain;
+      this.#broadcastDestination = destination;
+    }
+
+    const track = this.#broadcastDestination.stream.getAudioTracks()[0] ?? null;
+    if (track && 'contentHint' in track) track.contentHint = 'music';
+    return track;
+  }
+
+  setBroadcastGain(gain: number): void {
+    this.#broadcastGainValue = Math.max(gain, 0);
+    if (!this.#broadcastGain || !this.#context) return;
+    setAudioParam(this.#broadcastGain.gain, this.#broadcastGainValue, this.#context);
+  }
+
+  releaseBroadcastTrack(): void {
+    const destination = this.#broadcastDestination;
+    if (!destination) return;
+
+    for (const track of destination.stream.getTracks()) track.stop();
+    try {
+      this.#analyser?.disconnect(this.#broadcastGain as GainNode);
+      this.#broadcastGain?.disconnect();
+      destination.disconnect();
+    } catch {
+      // The graph may already be closing.
+    }
+    this.#broadcastGain = null;
+    this.#broadcastDestination = null;
+  }
+
   setSourceGain(source: AudioBusSource | null, gain: number, durationSeconds = 0): void {
     if (!source || !this.#context) return;
     const sourceGain = this.#sourceGains.get(source);
@@ -109,10 +167,11 @@ export class AudioBusService {
     }
   }
 
-  resume(): void {
+  async resume(): Promise<boolean> {
     if (this.#context?.state === 'suspended') {
-      void this.#context.resume().catch(() => undefined);
+      await this.#context.resume().catch(() => undefined);
     }
+    return this.#context?.state === 'running';
   }
 
   setInputGain(gain: number, immediate = false): void {
@@ -149,6 +208,7 @@ export class AudioBusService {
 
   destroy(): void {
     for (const source of this.#sourceGains.keys()) this.disconnect(source);
+    this.releaseBroadcastTrack();
     visualizerService.clear();
 
     try {
@@ -167,6 +227,8 @@ export class AudioBusService {
     this.#output = null;
     this.#rafEngine = null;
     this.#analyser = null;
+    this.#broadcastGain = null;
+    this.#broadcastDestination = null;
     this.#mediaSources = new WeakMap();
     this.#sourceGains.clear();
 
@@ -175,15 +237,15 @@ export class AudioBusService {
     }
   }
 
-  #connectSource(source: AudioBusSource): void {
-    if (this.#sourceGains.has(source) || !this.#input || !this.#context) {
+  #connectSource(source: AudioBusSource, target: AudioNode | null = this.#input): void {
+    if (this.#sourceGains.has(source) || !target || !this.#context) {
       return;
     }
 
     const sourceGain = this.#context.createGain();
     sourceGain.gain.value = 1;
     source.connect(sourceGain);
-    sourceGain.connect(this.#input);
+    sourceGain.connect(target);
     this.#sourceGains.set(source, sourceGain);
   }
 

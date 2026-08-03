@@ -11,20 +11,28 @@
       "supportedMediaFiles": "Desteklenen medya dosyaları"
     },
     "multiplayer": {
-      "enterInvite": "Enter the host invite code",
-      "copyInviteFallback": "Copy this invite code",
-      "host": "Host",
-      "join": "Join...",
-      "recents": "Recents",
-      "hosting": "Hosting",
-      "copyInvite": "Copy invite code",
-      "stopHosting": "Stop hosting",
-      "kick": "Kick {name}",
-      "connecting": "Connecting...",
-      "disconnected": "Disconnected",
-      "leave": "Leave",
-      "label": "Multiplayer",
-      "connected": "Connected"
+      "enterInvite": "Sunucunun davet kodunu girin",
+      "copyInviteFallback": "Bu davet kodunu kopyalayın",
+      "host": "Sunucu ol",
+      "join": "Katıl...",
+      "recents": "Son kullanılanlar",
+      "hosting": "Sunucu",
+      "copyInvite": "Davet kodunu kopyala",
+      "stopHosting": "Sunucuyu durdur",
+      "kick": "{name} bağlantısını kes",
+      "connecting": "Bağlanıyor...",
+      "disconnected": "Bağlantı kesildi",
+      "startListening": "Dinlemeyi başlat",
+      "leave": "Ayrıl",
+      "label": "Çok Oyunculu",
+      "audio": {
+        "listening": "Dinleniyor",
+        "blocked": "Ses için izin gerekiyor",
+        "disabled": "Sunucu sesi kapalı",
+        "videoDisabled": "Video sesi kapalı",
+        "unavailable": "Ses kullanılamıyor",
+        "connecting": "Ses bağlanıyor..."
+      }
     },
     "lyrics": {
       "playTrack": "Sözleri görüntülemek için bir parça oynatın.",
@@ -712,12 +720,28 @@
       }
     },
     "experimental": {
-      "heading": "Experiments",
+      "heading": "Deneyler",
       "multiplayer": {
-        "title": "izci Multiplayer",
-        "hint": "Lets this izci host or remotely control another izci on the same local network. Sessions exchange playlist, library and transport state, never media.",
-        "name": "Name this izci",
-        "nameHint": "Shown to hosts and clients in multiplayer sessions."
+        "title": "izci Çok Oyunculu",
+        "hint": "Bu izci'nin sunucu olmasını veya paylaşımlı bir dinleme oturumuna katılmasını sağlar. İlk bağlantıyı Firebase kurar; ses doğrudan eşler arasında iletilir.",
+        "name": "Bu izci'yi adlandır",
+        "nameHint": "Çok oyunculu oturumlarda sunucu ve istemcilere gösterilir.",
+        "streamAudio": {
+          "title": "Dinleyicilere ses aktar",
+          "hint": "Sunucunun Raf sonrası sesini doğrudan bağlı eşlere gönderir. Sunucunun ses düzeyi ve sessiz ayarı dinleyicileri etkilemez."
+        },
+        "opusBitrate": {
+          "title": "Opus VBR bit hızı",
+          "hint": "Her dinleyici için yaklaşık bit hızı üst sınırını belirler. Yüksek değerler sunucuda daha fazla bant genişliği ve kodlama gücü kullanır."
+        },
+        "videoAudio": {
+          "title": "Videoların sesini dâhil et",
+          "hint": "Sunucu video oynatırken ses parçasını göndermeyi sürdürür; video görüntüsü hiçbir zaman iletilmez."
+        },
+        "maxListeners": {
+          "title": "Azami dinleyici",
+          "hint": "Sunucu her eş için ayrı bir akış kodlayıp gönderdiğinden yeni dinleyicilerin sayısını sınırlar."
+        }
       }
     },
     "folders": {

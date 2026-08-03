@@ -55,6 +55,34 @@ class FakeMediaElementSourceNode extends FakeAudioNode {
   }
 }
 
+class FakeMediaStreamTrack {
+  contentHint = '';
+  stopCalls = 0;
+  stop(): void {
+    this.stopCalls += 1;
+  }
+}
+
+class FakeMediaStream {
+  readonly track = new FakeMediaStreamTrack();
+  getAudioTracks(): MediaStreamTrack[] {
+    return [this.track as unknown as MediaStreamTrack];
+  }
+  getTracks(): MediaStreamTrack[] {
+    return this.getAudioTracks();
+  }
+}
+
+class FakeMediaStreamDestinationNode extends FakeAudioNode {
+  readonly stream = new FakeMediaStream();
+}
+
+class FakeMediaStreamSourceNode extends FakeAudioNode {
+  constructor(context: FakeAudioContext, readonly mediaStream: MediaStream) {
+    super(context);
+  }
+}
+
 class FakeAudioContext {
   static instances: FakeAudioContext[] = [];
 
@@ -62,6 +90,8 @@ class FakeAudioContext {
   readonly gains: FakeGainNode[] = [];
   readonly analysers: FakeAnalyserNode[] = [];
   readonly mediaSources: FakeMediaElementSourceNode[] = [];
+  readonly streamDestinations: FakeMediaStreamDestinationNode[] = [];
+  readonly streamSources: FakeMediaStreamSourceNode[] = [];
   state: AudioContextState = 'suspended';
   currentTime = 0;
   closeCalls = 0;
@@ -87,6 +117,18 @@ class FakeAudioContext {
     const node = new FakeMediaElementSourceNode(this, element);
     this.mediaSources.push(node);
     return node as unknown as MediaElementAudioSourceNode;
+  }
+
+  createMediaStreamDestination(): MediaStreamAudioDestinationNode {
+    const node = new FakeMediaStreamDestinationNode(this);
+    this.streamDestinations.push(node);
+    return node as unknown as MediaStreamAudioDestinationNode;
+  }
+
+  createMediaStreamSource(stream: MediaStream): MediaStreamAudioSourceNode {
+    const node = new FakeMediaStreamSourceNode(this, stream);
+    this.streamSources.push(node);
+    return node as unknown as MediaStreamAudioSourceNode;
   }
 
   async resume(): Promise<void> {
@@ -190,5 +232,32 @@ describe('AudioBusService', () => {
 
     expect(context.resumeCalls).toBe(1);
     expect(context.state).toBe('running');
+  });
+
+  it('branches post-Raf audio to a reusable music broadcast track before player volume', () => {
+    const first = bus.getBroadcastTrack();
+    const second = bus.getBroadcastTrack();
+    const context = bus.context as unknown as FakeAudioContext;
+    const [analyser] = context.analysers;
+    const destination = context.streamDestinations[0];
+    const broadcastGain = context.gains.at(-1)!;
+
+    expect(first).toBe(second);
+    expect((first as unknown as FakeMediaStreamTrack).contentHint).toBe('music');
+    expect(analyser.connections).toContain(broadcastGain);
+    expect(broadcastGain.connections).toEqual([destination]);
+
+    bus.releaseBroadcastTrack();
+    expect((first as unknown as FakeMediaStreamTrack).stopCalls).toBe(1);
+  });
+
+  it('connects received multiplayer audio after Raf but before the shared analyser and output', () => {
+    const stream = new FakeMediaStream() as unknown as MediaStream;
+    const source = bus.connectMediaStreamAfterRaf(stream) as unknown as FakeMediaStreamSourceNode;
+    const context = bus.context as unknown as FakeAudioContext;
+    const [analyser] = context.analysers;
+
+    expect(source.mediaStream).toBe(stream);
+    expect(source.connections[0].connections).toEqual([analyser]);
   });
 });

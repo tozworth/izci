@@ -333,6 +333,10 @@ export interface TrackSettings {
 export interface ExperimentalSettings {
   multiplayer: boolean;
   izciName: string;
+  multiplayerStreamAudio: boolean;
+  multiplayerOpusBitrateKbps: number;
+  multiplayerIncludeVideoAudio: boolean;
+  multiplayerMaxListeners: number;
 }
 
 export interface LyricsSettings {

@@ -16,7 +16,7 @@
     "check": "svelte-check --tsconfig ./tsconfig.json",
     "firebase:deploy:multiplayer": "firebase deploy --only auth,database --project izci-pwa",
     "hosting:preview": "npm run build && firebase hosting:channel:deploy preview --expires 7d --project izci-pwa",
-    "hosting:deploy": "npm run build && firebase deploy --only hosting --project izci-pwa"
+    "hosting:deploy": "npm run build && firebase deploy --only auth,database,hosting --project izci-pwa"
   },
   "dependencies": {
     "@material-symbols/font-400": "^0.40.2",

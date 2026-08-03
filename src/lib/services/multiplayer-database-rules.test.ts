@@ -51,6 +51,10 @@ describeWithEmulator('multiplayer Realtime Database rules', () => {
       description: { type: 'answer', sdp: 'answer-sdp' },
       createdAt: Date.now()
     }));
+    await assertSucceeds(set(ref(database, `multiplayer/rooms/${room}/peers/${clientUid}/host`), {
+      error: 'host-full',
+      createdAt: Date.now()
+    }));
   });
 
   it('rejects signaling rooms from older protocol versions', async () => {

@@ -8,7 +8,7 @@
           ".write": "auth != null && ((!data.exists() && newData.child('meta').child('hostUid').val() === auth.uid) || (data.exists() && data.child('meta').child('hostUid').val() === auth.uid))",
           "meta": {
             ".read": "auth != null",
-            ".validate": "newData.hasChildren(['hostUid', 'protocolVersion', 'hostName', 'createdAt']) && newData.child('hostUid').isString() && newData.child('hostUid').val() === auth.uid && newData.child('protocolVersion').isNumber() && newData.child('protocolVersion').val() === 3 && newData.child('hostName').isString() && newData.child('hostName').val().length > 0 && newData.child('hostName').val().length <= 48 && newData.child('createdAt').isNumber()",
+            ".validate": "newData.hasChildren(['hostUid', 'protocolVersion', 'hostName', 'createdAt']) && newData.child('hostUid').isString() && newData.child('hostUid').val() === auth.uid && newData.child('protocolVersion').isNumber() && newData.child('protocolVersion').val() === 4 && newData.child('hostName').isString() && newData.child('hostName').val().length > 0 && newData.child('hostName').val().length <= 48 && newData.child('createdAt').isNumber()",
             "hostUid": { ".validate": "newData.isString()" },
             "protocolVersion": { ".validate": "newData.isNumber()" },
             "hostName": { ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 48" },
@@ -34,13 +34,14 @@
                 "$other": { ".validate": false }
               },
               "host": {
-                ".validate": "!newData.exists() || (newData.hasChildren(['description', 'createdAt']) && newData.child('description').child('type').val() === 'answer' && newData.child('description').child('sdp').isString() && newData.child('description').child('sdp').val().length > 0 && newData.child('description').child('sdp').val().length <= 50000 && newData.child('createdAt').isNumber())",
+                ".validate": "!newData.exists() || ((newData.hasChildren(['description', 'createdAt']) && newData.child('description').child('type').val() === 'answer' && newData.child('description').child('sdp').isString() && newData.child('description').child('sdp').val().length > 0 && newData.child('description').child('sdp').val().length <= 50000 && newData.child('createdAt').isNumber()) || (newData.hasChildren(['error', 'createdAt']) && newData.child('error').val() === 'host-full' && newData.child('createdAt').isNumber()))",
                 "description": {
                   ".validate": "newData.hasChildren(['type', 'sdp']) && newData.child('type').val() === 'answer' && newData.child('sdp').isString() && newData.child('sdp').val().length > 0 && newData.child('sdp').val().length <= 50000",
                   "type": { ".validate": "newData.val() === 'answer'" },
                   "sdp": { ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 50000" },
                   "$other": { ".validate": false }
                 },
+                "error": { ".validate": "newData.val() === 'host-full'" },
                 "createdAt": { ".validate": "newData.isNumber()" },
                 "$other": { ".validate": false }
               }

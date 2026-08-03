@@ -6,6 +6,12 @@ export const EXPERIMENTAL_SETTINGS_CHANNEL = 'izci-experimental-settings';
 
 const NAME_ALPHABET = 'abcdefghijklmnopqrstuvwxyz0123456789';
 
+export const MULTIPLAYER_OPUS_BITRATE_MIN_KBPS = 32;
+export const MULTIPLAYER_OPUS_BITRATE_MAX_KBPS = 160;
+export const MULTIPLAYER_OPUS_BITRATE_STEP_KBPS = 8;
+export const MULTIPLAYER_MAX_LISTENERS_MIN = 1;
+export const MULTIPLAYER_MAX_LISTENERS_MAX = 8;
+
 export function createDefaultIzciName(): string {
   const bytes = new Uint8Array(4);
   crypto.getRandomValues(bytes);
@@ -22,8 +28,18 @@ const defaultIzciName = createDefaultIzciName();
 
 export const DEFAULT_EXPERIMENTAL_SETTINGS: ExperimentalSettings = {
   multiplayer: false,
-  izciName: defaultIzciName
+  izciName: defaultIzciName,
+  multiplayerStreamAudio: true,
+  multiplayerOpusBitrateKbps: 128,
+  multiplayerIncludeVideoAudio: true,
+  multiplayerMaxListeners: 4
 };
+
+function normalizeBoundedInteger(value: unknown, fallback: number, min: number, max: number): number {
+  return typeof value === 'number' && Number.isFinite(value)
+    ? Math.min(Math.max(Math.round(value), min), max)
+    : fallback;
+}
 
 export function normalizeExperimentalSettings(value: unknown): ExperimentalSettings {
   const source = value && typeof value === 'object'
@@ -34,7 +50,25 @@ export function normalizeExperimentalSettings(value: unknown): ExperimentalSetti
     multiplayer: typeof source.multiplayer === 'boolean'
       ? source.multiplayer
       : DEFAULT_EXPERIMENTAL_SETTINGS.multiplayer,
-    izciName: normalizeIzciName(source.izciName, defaultIzciName)
+    izciName: normalizeIzciName(source.izciName, defaultIzciName),
+    multiplayerStreamAudio: typeof source.multiplayerStreamAudio === 'boolean'
+      ? source.multiplayerStreamAudio
+      : DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerStreamAudio,
+    multiplayerOpusBitrateKbps: normalizeBoundedInteger(
+      source.multiplayerOpusBitrateKbps,
+      DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerOpusBitrateKbps,
+      MULTIPLAYER_OPUS_BITRATE_MIN_KBPS,
+      MULTIPLAYER_OPUS_BITRATE_MAX_KBPS
+    ),
+    multiplayerIncludeVideoAudio: typeof source.multiplayerIncludeVideoAudio === 'boolean'
+      ? source.multiplayerIncludeVideoAudio
+      : DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerIncludeVideoAudio,
+    multiplayerMaxListeners: normalizeBoundedInteger(
+      source.multiplayerMaxListeners,
+      DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerMaxListeners,
+      MULTIPLAYER_MAX_LISTENERS_MIN,
+      MULTIPLAYER_MAX_LISTENERS_MAX
+    )
   };
 }
 

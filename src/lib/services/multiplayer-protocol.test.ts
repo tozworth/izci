@@ -35,8 +35,8 @@ describe('multiplayer protocol', () => {
     expect(isMultiplayerCommand({ type: 'transport.play', commandId: '1' })).toBe(true);
     expect(isMultiplayerCommand({ type: 'transport.pause', commandId: '1' })).toBe(true);
     expect(isMultiplayerCommand({ type: 'transport.stop', commandId: '1' })).toBe(true);
-    expect(isMultiplayerCommand({ type: 'transport.volume', commandId: '1', volume: 0.5 })).toBe(true);
-    expect(isMultiplayerCommand({ type: 'transport.volume', commandId: '1', volume: 4 })).toBe(false);
+    expect(isMultiplayerCommand({ type: 'transport.volume', commandId: '1', volume: 0.5 })).toBe(false);
+    expect(isMultiplayerCommand({ type: 'transport.mute', commandId: '1' })).toBe(false);
     expect(isMultiplayerCommand({ type: 'playlist.replace', commandId: '1', items: [] })).toBe(false);
   });
 
@@ -87,6 +87,21 @@ describe('multiplayer protocol', () => {
     expect(isHostMessage({
       ...message,
       artwork: { ...message.artwork, dataUrl: 'https://example.test/art.webp' }
+    })).toBe(false);
+  });
+
+  it('accepts explicit host audio availability states', () => {
+    expect(isHostMessage({
+      kind: 'audio',
+      audio: { enabled: true, reason: null }
+    })).toBe(true);
+    expect(isHostMessage({
+      kind: 'audio',
+      audio: { enabled: false, reason: 'video-disabled' }
+    })).toBe(true);
+    expect(isHostMessage({
+      kind: 'audio',
+      audio: { enabled: false, reason: 'network' }
     })).toBe(false);
   });
 

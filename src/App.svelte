@@ -236,6 +236,7 @@
       sentAt: 0
     },
     remoteArtwork: null,
+    audioStatus: 'idle',
     message: null
   };
   let isMultiplayerClient = false;
@@ -449,12 +450,6 @@
         if (!playingTrack || command.seconds > playbackSnapshot.duration + 1) return false;
         seekPlayback(command.seconds);
         return true;
-      case 'transport.volume':
-        playerController.setVolume(command.volume);
-        return true;
-      case 'transport.mute':
-        playerController.toggleMute();
-        return true;
       case 'playlist.shuffle':
         playlistStore.toggleShuffle();
         return true;
@@ -550,7 +545,7 @@
 
   function setPlayerVolume(volume: number): void {
     if (isMultiplayerClient) {
-      multiplayerSession.sendCommand({ type: 'transport.volume', volume });
+      playerController.setVolume(volume);
       return;
     }
     playerController.setVolume(volume);
@@ -558,7 +553,7 @@
 
   function togglePlayerMute(): void {
     if (isMultiplayerClient) {
-      multiplayerSession.sendCommand({ type: 'transport.mute' });
+      playerController.toggleMute();
       return;
     }
     playerController.toggleMute();
@@ -843,7 +838,11 @@
     : localSelectedFavoriteItem;
   $: playingTrack = isMultiplayerClient ? multiplayerState.remotePlayback.track : localPlayingTrack;
   $: playbackSnapshot = isMultiplayerClient
-    ? multiplayerState.remotePlayback.snapshot
+    ? {
+        ...multiplayerState.remotePlayback.snapshot,
+        volume: localPlaybackSnapshot.volume,
+        muted: localPlaybackSnapshot.muted
+      }
     : localPlaybackSnapshot;
   $: playbackStatus = isMultiplayerClient
     ? {
@@ -1762,6 +1761,7 @@
     multiplayerEnabled={$experimentalSettings.multiplayer}
     multiplayerMode={multiplayerState.mode}
     multiplayerConnectionStatus={multiplayerState.connectionStatus}
+    multiplayerAudioStatus={multiplayerState.audioStatus}
     multiplayerInviteCode={multiplayerState.inviteCode}
     multiplayerHostName={multiplayerState.hostName}
     multiplayerClients={multiplayerState.clients}
@@ -1790,6 +1790,7 @@
     on:multiplayerJoinRecent={(event) => void joinMultiplayer(event.detail)}
     on:multiplayerLeave={() => void multiplayerSession.leave()}
     on:multiplayerCopyInvite={() => void copyMultiplayerInvite()}
+    on:multiplayerResumeAudio={() => void multiplayerSession.resumeAudio()}
     on:multiplayerKick={(event) => void multiplayerSession.kick(event.detail)}
     on:setVideoFit={(event) => setVideoFit(event.detail)}
     on:toggleVideoPictureInPicture={() => void toggleVideoPictureInPicture()}
@@ -1834,6 +1835,7 @@
     multiplayerEnabled={$experimentalSettings.multiplayer}
     multiplayerMode={multiplayerState.mode}
     multiplayerConnectionStatus={multiplayerState.connectionStatus}
+    multiplayerAudioStatus={multiplayerState.audioStatus}
     multiplayerInviteCode={multiplayerState.inviteCode}
     multiplayerHostName={multiplayerState.hostName}
     multiplayerClients={multiplayerState.clients}
@@ -1853,6 +1855,7 @@
     on:multiplayerJoinRecent={(event) => void joinMultiplayer(event.detail)}
     on:multiplayerLeave={() => void multiplayerSession.leave()}
     on:multiplayerCopyInvite={() => void copyMultiplayerInvite()}
+    on:multiplayerResumeAudio={() => void multiplayerSession.resumeAudio()}
     on:multiplayerKick={(event) => void multiplayerSession.kick(event.detail)}
     on:togglePatterns={togglePatterns}
     on:toggle={togglePlayback}

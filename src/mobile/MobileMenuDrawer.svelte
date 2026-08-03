@@ -3,6 +3,7 @@
   import { t } from 'svelte-i18n';
   import type {
     MultiplayerClient,
+    MultiplayerAudioStatus,
     MultiplayerConnectionStatus,
     MultiplayerMode
   } from '$lib/services/multiplayer-session';
@@ -15,6 +16,7 @@
   export let multiplayerEnabled = false;
   export let multiplayerMode: MultiplayerMode = 'idle';
   export let multiplayerConnectionStatus: MultiplayerConnectionStatus = 'idle';
+  export let multiplayerAudioStatus: MultiplayerAudioStatus = 'idle';
   export let multiplayerInviteCode: string | null = null;
   export let multiplayerHostName: string | null = null;
   export let multiplayerClients: MultiplayerClient[] = [];
@@ -33,7 +35,8 @@
     | 'multiplayerStopHosting'
     | 'multiplayerJoin'
     | 'multiplayerLeave'
-    | 'multiplayerCopyInvite';
+    | 'multiplayerCopyInvite'
+    | 'multiplayerResumeAudio';
 
   const dispatch = createEventDispatcher<{
     close: void;
@@ -51,6 +54,7 @@
     multiplayerJoinRecent: string;
     multiplayerLeave: void;
     multiplayerCopyInvite: void;
+    multiplayerResumeAudio: void;
     multiplayerKick: string;
   }>();
 
@@ -72,6 +76,15 @@
       event.preventDefault();
       dispatch('close');
     }
+  }
+
+  function multiplayerAudioStatusLabel(status: MultiplayerAudioStatus): string {
+    if (status === 'playing') return $t('main.multiplayer.audio.listening', { default: 'Listening' });
+    if (status === 'blocked') return $t('main.multiplayer.audio.blocked', { default: 'Audio needs permission' });
+    if (status === 'disabled') return $t('main.multiplayer.audio.disabled', { default: 'Host audio is off' });
+    if (status === 'video-disabled') return $t('main.multiplayer.audio.videoDisabled', { default: 'Video audio is off' });
+    if (status === 'unavailable') return $t('main.multiplayer.audio.unavailable', { default: 'Audio unavailable' });
+    return $t('main.multiplayer.audio.connecting', { default: 'Audio connecting...' });
   }
 </script>
 
@@ -180,12 +193,18 @@
             <span>
               <strong>{multiplayerHostName ?? $t('main.multiplayer.connecting', { default: 'Connecting...' })}</strong>
               <small>{multiplayerConnectionStatus === 'connected'
-                ? $t('main.multiplayer.connected', { default: 'Connected' })
+                ? multiplayerAudioStatusLabel(multiplayerAudioStatus)
                 : multiplayerConnectionStatus === 'connecting'
                   ? $t('main.multiplayer.connecting', { default: 'Connecting...' })
                   : $t('main.multiplayer.disconnected', { default: 'Disconnected' })}</small>
             </span>
           </div>
+          {#if multiplayerAudioStatus === 'blocked'}
+            <button type="button" on:click={() => run('multiplayerResumeAudio')}>
+              <span class="material-symbols-outlined" aria-hidden="true">play_circle</span>
+              <span>{$t('main.multiplayer.startListening', { default: 'Start listening' })}</span>
+            </button>
+          {/if}
           <button type="button" on:click={() => run('multiplayerLeave')}>
             <span class="material-symbols-outlined" aria-hidden="true">logout</span>
             <span>{$t('main.multiplayer.leave', { default: 'Leave' })}</span>

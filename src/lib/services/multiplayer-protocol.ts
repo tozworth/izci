@@ -8,7 +8,7 @@ import type {
 
 export type MultiplayerCollection = 'playlist' | 'library' | 'favorites';
 
-export const MULTIPLAYER_PROTOCOL_VERSION = 3;
+export const MULTIPLAYER_PROTOCOL_VERSION = 4;
 export const MULTIPLAYER_FRAME_CHUNK_SIZE = 12_000;
 
 const MULTIPLAYER_ARTWORK_DATA_URL_MAX_LENGTH = 8 * 1024 * 1024;
@@ -21,8 +21,6 @@ export type MultiplayerCommand =
   | { type: 'transport.previous'; commandId: string }
   | { type: 'transport.next'; commandId: string }
   | { type: 'transport.seek'; commandId: string; seconds: number }
-  | { type: 'transport.volume'; commandId: string; volume: number }
-  | { type: 'transport.mute'; commandId: string }
   | { type: 'playlist.shuffle'; commandId: string }
   | { type: 'playlist.repeat'; commandId: string }
   | {
@@ -62,10 +60,16 @@ export interface MultiplayerArtwork {
   height: number;
 }
 
+export interface MultiplayerAudioAvailability {
+  enabled: boolean;
+  reason: 'host-disabled' | 'video-disabled' | null;
+}
+
 export type HostMessage =
   | { kind: 'hello'; version: number; name: string }
   | { kind: 'catalog'; catalog: MultiplayerCatalog }
   | { kind: 'playback'; playback: MultiplayerPlayback }
+  | { kind: 'audio'; audio: MultiplayerAudioAvailability }
   | { kind: 'artwork'; artwork: MultiplayerArtwork | null }
   | { kind: 'ack'; commandId: string; accepted: boolean; message?: string }
   | { kind: 'kicked' };
@@ -115,7 +119,6 @@ export function isMultiplayerCommand(value: unknown): value is MultiplayerComman
     case 'transport.stop':
     case 'transport.previous':
     case 'transport.next':
-    case 'transport.mute':
     case 'playlist.shuffle':
     case 'playlist.repeat':
       return true;
@@ -124,11 +127,6 @@ export function isMultiplayerCommand(value: unknown): value is MultiplayerComman
         && Number.isFinite(command.seconds)
         && command.seconds >= 0
         && command.seconds <= 60 * 60 * 24 * 7;
-    case 'transport.volume':
-      return typeof command.volume === 'number'
-        && Number.isFinite(command.volume)
-        && command.volume >= 0
-        && command.volume <= 1;
     case 'collection.activate':
       return (command.collection === 'playlist'
         || command.collection === 'library'
@@ -181,6 +179,14 @@ export function isHostMessage(value: unknown): value is HostMessage {
       && typeof playback?.sentAt === 'number'
       && isPlaybackSnapshot(playback.snapshot)
       && (playback.track === null || isRemotePlaylistItem(playback.track));
+  }
+  if (message.kind === 'audio') {
+    const audio = message.audio as Partial<MultiplayerAudioAvailability> | undefined;
+    return Boolean(audio)
+      && typeof audio?.enabled === 'boolean'
+      && (audio.reason === null
+        || audio.reason === 'host-disabled'
+        || audio.reason === 'video-disabled');
   }
   if (message.kind === 'artwork') {
     return message.artwork === null || isMultiplayerArtwork(message.artwork);

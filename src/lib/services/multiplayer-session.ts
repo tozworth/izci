@@ -8,6 +8,10 @@ import {
   loadMultiplayerArtwork
 } from './multiplayer-artwork';
 import {
+  multiplayerAudioService,
+  type MultiplayerReceiverAudioStatus
+} from './multiplayer-audio';
+import {
   MULTIPLAYER_PROTOCOL_VERSION,
   createMultiplayerMessageDecoder,
   encodeMultiplayerMessage,
@@ -16,6 +20,7 @@ import {
   sanitizePlaylistItem,
   type ClientMessage,
   type HostMessage,
+  type MultiplayerAudioAvailability,
   type MultiplayerArtwork,
   type MultiplayerCatalog,
   type MultiplayerCommand,
@@ -59,6 +64,7 @@ const EMPTY_REMOTE_PLAYBACK: MultiplayerPlayback = {
 
 export type MultiplayerMode = 'idle' | 'hosting' | 'client';
 export type MultiplayerConnectionStatus = 'idle' | 'connecting' | 'connected' | 'disconnected' | 'error';
+export type MultiplayerAudioStatus = MultiplayerReceiverAudioStatus | 'disabled' | 'video-disabled';
 
 export interface MultiplayerClient {
   id: string;
@@ -76,6 +82,7 @@ export interface MultiplayerSessionState {
   remoteCatalog: MultiplayerCatalog;
   remotePlayback: MultiplayerPlayback;
   remoteArtwork: MultiplayerArtwork | null;
+  audioStatus: MultiplayerAudioStatus;
   message: string | null;
 }
 
@@ -107,6 +114,12 @@ interface SignalOffer {
   createdAt: number;
 }
 
+interface SignalAnswer {
+  description?: RTCSessionDescriptionInit;
+  error?: 'host-full';
+  createdAt?: number;
+}
+
 interface PeerConnection {
   id: string;
   name: string;
@@ -115,6 +128,7 @@ interface PeerConnection {
   outgoing: string[];
   flushing: boolean;
   decode: ReturnType<typeof createMultiplayerMessageDecoder<ClientMessage>>;
+  audioSender: RTCRtpSender | null;
 }
 
 interface CreateMultiplayerSessionOptions {
@@ -132,6 +146,7 @@ export interface MultiplayerSessionController extends Readable<MultiplayerSessio
   leave(): Promise<void>;
   kick(clientId: string): Promise<void>;
   sendCommand(command: MultiplayerCommandInput): boolean;
+  resumeAudio(): Promise<boolean>;
   updateHostState(next: MultiplayerHostState): void;
   destroy(): void;
 }
@@ -148,6 +163,7 @@ export function createMultiplayerSession({
     remoteCatalog: EMPTY_CATALOG,
     remotePlayback: EMPTY_REMOTE_PLAYBACK,
     remoteArtwork: null,
+    audioStatus: 'idle',
     message: null
   };
   const store = writable(state);
@@ -168,6 +184,17 @@ export function createMultiplayerSession({
   let latestHostArtwork: MultiplayerArtwork | null = null;
   let hostArtworkTrackKey = '';
   let hostArtworkLoadToken = 0;
+  let latestAudioAvailability: MultiplayerAudioAvailability = {
+    enabled: false,
+    reason: 'host-disabled'
+  };
+  const rejectedPeerIds = new Set<string>();
+  let multiplayerSettings = experimentalSettings.getSnapshot();
+
+  const unsubscribeSettings = experimentalSettings.subscribe((settings) => {
+    multiplayerSettings = settings;
+    if (state.mode === 'hosting') syncHostAudio(latestHostState?.track ?? null);
+  });
 
   function publish(patch: Partial<MultiplayerSessionState>): void {
     state = { ...state, ...patch };
@@ -193,6 +220,7 @@ export function createMultiplayerSession({
       mode: 'hosting',
       connectionStatus: 'connecting',
       hostName: getLocalName(),
+      audioStatus: 'idle',
       message: null
     });
 
@@ -265,6 +293,27 @@ export function createMultiplayerSession({
 
   async function acceptClientOffer(inviteCode: string, id: string, offer: SignalOffer): Promise<void> {
     if (!firebaseRuntime || state.mode !== 'hosting') return;
+    if (hostPeers.size >= multiplayerSettings.multiplayerMaxListeners) {
+      if (!rejectedPeerIds.has(id)) {
+        rejectedPeerIds.add(id);
+        await firebaseRuntime.set(
+          firebaseRuntime.ref(
+            firebaseRuntime.database,
+            `multiplayer/rooms/${inviteCode}/peers/${id}/host`
+          ),
+          { error: 'host-full', createdAt: Date.now() } satisfies SignalAnswer
+        );
+        window.setTimeout(() => {
+          rejectedPeerIds.delete(id);
+          if (!firebaseRuntime || state.mode !== 'hosting') return;
+          void firebaseRuntime.remove(firebaseRuntime.ref(
+            firebaseRuntime.database,
+            `multiplayer/rooms/${inviteCode}/peers/${id}`
+          ));
+        }, 5_000);
+      }
+      return;
+    }
     const peer = createPeer(id, sanitizeClientName(offer.name));
     hostPeers.set(id, peer);
     updateClient(id, {
@@ -284,8 +333,22 @@ export function createMultiplayerSession({
 
     try {
       await peer.pc.setRemoteDescription(offer.description);
+      const audioTransceiver = peer.pc.getTransceivers().find(
+        (transceiver) => transceiver.receiver.track.kind === 'audio'
+      );
+      if (audioTransceiver) {
+        preferOpus(audioTransceiver);
+        audioTransceiver.direction = 'sendonly';
+        peer.audioSender = audioTransceiver.sender;
+        await peer.audioSender.replaceTrack(
+          multiplayerSettings.multiplayerStreamAudio
+            ? multiplayerAudioService.getHostTrack()
+            : null
+        );
+      }
       const answer = await peer.pc.createAnswer();
       await peer.pc.setLocalDescription(answer);
+      await applyAudioBitrate(peer);
       await waitForIceGathering(peer.pc);
       if (!firebaseRuntime || state.mode !== 'hosting') return;
       await firebaseRuntime.set(
@@ -362,6 +425,7 @@ export function createMultiplayerSession({
       remoteCatalog: EMPTY_CATALOG,
       remotePlayback: EMPTY_REMOTE_PLAYBACK,
       remoteArtwork: null,
+      audioStatus: 'connecting',
       message: null
     });
 
@@ -379,6 +443,7 @@ export function createMultiplayerSession({
       publish({ hostName: sanitizeClientName(meta.hostName ?? 'Host') });
 
       const peer = createPeer(firebase.uid, getLocalName());
+      preferOpus(peer.pc.addTransceiver('audio', { direction: 'recvonly' }));
       const channel = peer.pc.createDataChannel('izci-control', { ordered: true });
       peer.channel = channel;
       clientPeer = peer;
@@ -413,7 +478,17 @@ export function createMultiplayerSession({
       stopAnswerListener = firebase.onValue(
         firebase.ref(firebase.database, `multiplayer/rooms/${inviteCode}/peers/${firebase.uid}/host`),
         (snapshot) => {
-          const answer = snapshot.val() as { description?: RTCSessionDescriptionInit } | null;
+          const answer = snapshot.val() as SignalAnswer | null;
+          if (answer?.error === 'host-full') {
+            publish({
+              connectionStatus: 'error',
+              audioStatus: 'unavailable',
+              message: 'That multiplayer host has reached its listener limit.'
+            });
+            peer.pc.close();
+            if (firebaseRuntime && ownPeerRef) void firebaseRuntime.remove(ownPeerRef);
+            return;
+          }
           if (!answer?.description || peer.pc.remoteDescription) return;
           void peer.pc.setRemoteDescription(answer.description).catch(() => {
             publish({ connectionStatus: 'error', message: 'The host answer could not be applied.' });
@@ -426,6 +501,7 @@ export function createMultiplayerSession({
         mode: 'idle',
         connectionStatus: 'error',
         hostName: null,
+        audioStatus: 'unavailable',
         message: errorMessage(error, 'Could not join that multiplayer session.')
       });
       throw error;
@@ -456,8 +532,23 @@ export function createMultiplayerSession({
       if (message.kind === 'catalog') publish({ remoteCatalog: message.catalog });
       if (message.kind === 'playback') publish({ remotePlayback: message.playback });
       if (message.kind === 'artwork') publish({ remoteArtwork: message.artwork });
+      if (message.kind === 'audio') {
+        latestAudioAvailability = message.audio;
+        if (!message.audio.enabled) {
+          publish({
+            audioStatus: message.audio.reason === 'video-disabled' ? 'video-disabled' : 'disabled'
+          });
+        } else if (state.audioStatus === 'disabled' || state.audioStatus === 'video-disabled') {
+          publish({ audioStatus: 'connecting' });
+        }
+        if (message.audio.enabled) void multiplayerAudioService.resumeRemoteAudio();
+      }
       if (message.kind === 'kicked') {
-        publish({ connectionStatus: 'disconnected', message: 'The host removed this client.' });
+        publish({
+          connectionStatus: 'disconnected',
+          audioStatus: 'unavailable',
+          message: 'The host removed this client.'
+        });
         peer.pc.close();
       }
       if (message.kind === 'hello' && message.version !== MULTIPLAYER_PROTOCOL_VERSION) {
@@ -471,14 +562,32 @@ export function createMultiplayerSession({
     };
     channel.onclose = () => {
       if (state.mode === 'client' && state.connectionStatus !== 'error') {
-        publish({ connectionStatus: 'disconnected', message: state.message ?? 'Connection to the host was lost.' });
+        publish({
+          connectionStatus: 'disconnected',
+          audioStatus: 'unavailable',
+          message: state.message ?? 'Connection to the host was lost.'
+        });
       }
     };
     peer.pc.onconnectionstatechange = () => {
       if (peer.pc.connectionState === 'connected') publish({ connectionStatus: 'connected' });
       if (peer.pc.connectionState === 'failed' || peer.pc.connectionState === 'disconnected') {
-        publish({ connectionStatus: 'disconnected', message: 'Connection to the host was lost.' });
+        publish({
+          connectionStatus: 'disconnected',
+          audioStatus: 'unavailable',
+          message: 'Connection to the host was lost.'
+        });
       }
+    };
+    peer.pc.ontrack = (event) => {
+      if (event.track.kind !== 'audio') return;
+      const stream = event.streams[0] ?? new MediaStream([event.track]);
+      void multiplayerAudioService.attachRemoteTrack(event.track, stream, (audioStatus) => {
+        if (state.mode !== 'client') return;
+        if (!latestAudioAvailability.enabled
+          && (audioStatus === 'connecting' || audioStatus === 'playing')) return;
+        publish({ audioStatus });
+      });
     };
   }
 
@@ -521,6 +630,7 @@ export function createMultiplayerSession({
     }
 
     syncHostArtwork(next.track);
+    syncHostAudio(next.track);
   }
 
   function primeHostState(): void {
@@ -536,6 +646,7 @@ export function createMultiplayerSession({
     lastPlaybackSource = latestHostState.playback;
     lastTrackSource = latestHostState.track;
     syncHostArtwork(latestHostState.track);
+    syncHostAudio(latestHostState.track);
   }
 
   function sendCurrentState(peer: PeerConnection): void {
@@ -543,6 +654,50 @@ export function createMultiplayerSession({
     sendToPeer(peer, { kind: 'catalog', catalog: buildCatalog(latestHostState) });
     sendToPeer(peer, { kind: 'playback', playback: buildPlayback(latestHostState) });
     sendToPeer(peer, { kind: 'artwork', artwork: latestHostArtwork });
+    sendToPeer(peer, { kind: 'audio', audio: latestAudioAvailability });
+  }
+
+  function syncHostAudio(track: PlaylistItem | null): void {
+    const enabled = multiplayerSettings.multiplayerStreamAudio
+      && (multiplayerSettings.multiplayerIncludeVideoAudio || track?.kind !== 'video');
+    const nextAvailability: MultiplayerAudioAvailability = {
+      enabled,
+      reason: multiplayerSettings.multiplayerStreamAudio
+        ? enabled ? null : 'video-disabled'
+        : 'host-disabled'
+    };
+    multiplayerAudioService.setHostAudible(enabled);
+
+    if (multiplayerSettings.multiplayerStreamAudio) {
+      const hostTrack = multiplayerAudioService.getHostTrack();
+      for (const peer of hostPeers.values()) {
+        if (peer.audioSender?.track !== hostTrack) {
+          void peer.audioSender?.replaceTrack(hostTrack).catch(() => undefined);
+        }
+        void applyAudioBitrate(peer);
+      }
+    } else {
+      for (const peer of hostPeers.values()) {
+        if (peer.audioSender?.track) void peer.audioSender.replaceTrack(null).catch(() => undefined);
+      }
+    }
+
+    if (nextAvailability.enabled !== latestAudioAvailability.enabled
+      || nextAvailability.reason !== latestAudioAvailability.reason) {
+      latestAudioAvailability = nextAvailability;
+      broadcast({ kind: 'audio', audio: nextAvailability });
+    }
+  }
+
+  async function applyAudioBitrate(peer: PeerConnection): Promise<void> {
+    const sender = peer.audioSender;
+    if (!sender) return;
+    const parameters = sender.getParameters();
+    if (parameters.encodings.length === 0) return;
+    for (const encoding of parameters.encodings) {
+      encoding.maxBitrate = multiplayerSettings.multiplayerOpusBitrateKbps * 1_000;
+    }
+    await sender.setParameters(parameters).catch(() => undefined);
   }
 
   function syncHostArtwork(track: PlaylistItem | null): void {
@@ -641,6 +796,7 @@ export function createMultiplayerSession({
       inviteCode: null,
       hostName: null,
       clients: [],
+      audioStatus: 'idle',
       message: null
     });
   }
@@ -657,6 +813,7 @@ export function createMultiplayerSession({
       remoteCatalog: EMPTY_CATALOG,
       remotePlayback: EMPTY_REMOTE_PLAYBACK,
       remoteArtwork: null,
+      audioStatus: 'idle',
       message: null
     });
   }
@@ -670,6 +827,8 @@ export function createMultiplayerSession({
     hostPeers.clear();
     clientPeer?.pc.close();
     clientPeer = null;
+    multiplayerAudioService.clearRemoteTrack();
+    multiplayerAudioService.releaseHostTrack();
 
     try {
       if (removeRemote && firebaseRuntime && state.mode === 'hosting' && roomRef) {
@@ -693,6 +852,8 @@ export function createMultiplayerSession({
     latestHostArtwork = null;
     hostArtworkTrackKey = '';
     hostArtworkLoadToken += 1;
+    rejectedPeerIds.clear();
+    latestAudioAvailability = { enabled: false, reason: 'host-disabled' };
   }
 
   return {
@@ -704,8 +865,10 @@ export function createMultiplayerSession({
     leave,
     kick,
     sendCommand,
+    resumeAudio: () => multiplayerAudioService.resumeRemoteAudio(),
     updateHostState,
     destroy() {
+      unsubscribeSettings();
       void resetSession(true);
     }
   };
@@ -744,8 +907,21 @@ function createPeer(id: string, name: string): PeerConnection {
     channel: null,
     outgoing: [],
     flushing: false,
-    decode: createMultiplayerMessageDecoder(isClientMessage)
+    decode: createMultiplayerMessageDecoder(isClientMessage),
+    audioSender: null
   };
+}
+
+function preferOpus(transceiver: RTCRtpTransceiver): void {
+  const codecs = RTCRtpSender.getCapabilities?.('audio')?.codecs.filter(
+    (codec) => codec.mimeType.toLowerCase() === 'audio/opus'
+  ) ?? [];
+  if (codecs.length === 0) return;
+  try {
+    transceiver.setCodecPreferences(codecs);
+  } catch {
+    // The browser's default audio codec order still normally prefers Opus.
+  }
 }
 
 function isClientMessage(value: unknown): value is ClientMessage {

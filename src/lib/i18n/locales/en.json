@@ -22,9 +22,17 @@
       "kick": "Kick {name}",
       "connecting": "Connecting...",
       "disconnected": "Disconnected",
+      "startListening": "Start listening",
       "leave": "Leave",
       "label": "Multiplayer",
-      "connected": "Connected"
+      "audio": {
+        "listening": "Listening",
+        "blocked": "Audio needs permission",
+        "disabled": "Host audio is off",
+        "videoDisabled": "Video audio is off",
+        "unavailable": "Audio unavailable",
+        "connecting": "Audio connecting..."
+      }
     },
     "lyrics": {
       "playTrack": "Play a track to view lyrics.",
@@ -715,9 +723,25 @@
       "heading": "Experiments",
       "multiplayer": {
         "title": "izci Multiplayer",
-        "hint": "Lets this izci host or remotely control another izci on the same local network. Sessions exchange playlist, library and transport state, never media.",
+        "hint": "Lets this izci host or join a shared listening session. Firebase handles the handshake; audio travels directly between peers.",
         "name": "Name this izci",
-        "nameHint": "Shown to hosts and clients in multiplayer sessions."
+        "nameHint": "Shown to hosts and clients in multiplayer sessions.",
+        "streamAudio": {
+          "title": "Stream audio to listeners",
+          "hint": "Sends the host’s post-Raf audio directly to connected peers. The host’s volume and mute do not affect listeners."
+        },
+        "opusBitrate": {
+          "title": "Opus VBR bitrate",
+          "hint": "Sets the best-effort bitrate ceiling for each listener. Higher rates use more host bandwidth and encoding work."
+        },
+        "videoAudio": {
+          "title": "Include audio from videos",
+          "hint": "Keeps sending the soundtrack when the host plays a video; video pictures are never transmitted."
+        },
+        "maxListeners": {
+          "title": "Maximum listeners",
+          "hint": "Limits new listeners because the host encodes and sends one stream per peer."
+        }
       }
     },
     "folders": {

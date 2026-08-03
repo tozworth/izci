@@ -23,6 +23,7 @@
   import type { TrackLibraryNavigationTargets, TrackLibraryNavigationTarget } from '$lib/services/library-navigation';
   import type {
     MultiplayerClient,
+    MultiplayerAudioStatus,
     MultiplayerConnectionStatus,
     MultiplayerMode
   } from '$lib/services/multiplayer-session';
@@ -71,6 +72,7 @@
   export let multiplayerEnabled = false;
   export let multiplayerMode: MultiplayerMode = 'idle';
   export let multiplayerConnectionStatus: MultiplayerConnectionStatus = 'idle';
+  export let multiplayerAudioStatus: MultiplayerAudioStatus = 'idle';
   export let multiplayerInviteCode: string | null = null;
   export let multiplayerHostName: string | null = null;
   export let multiplayerClients: MultiplayerClient[] = [];
@@ -92,6 +94,7 @@
     multiplayerJoinRecent: string;
     multiplayerLeave: void;
     multiplayerCopyInvite: void;
+    multiplayerResumeAudio: void;
     multiplayerKick: string;
     togglePatterns: void;
     toggle: void;
@@ -364,6 +367,7 @@
   {multiplayerEnabled}
   {multiplayerMode}
   {multiplayerConnectionStatus}
+  {multiplayerAudioStatus}
   {multiplayerInviteCode}
   {multiplayerHostName}
   {multiplayerClients}
@@ -383,5 +387,6 @@
   on:multiplayerJoinRecent={(event) => dispatch('multiplayerJoinRecent', event.detail)}
   on:multiplayerLeave={() => dispatch('multiplayerLeave')}
   on:multiplayerCopyInvite={() => dispatch('multiplayerCopyInvite')}
+  on:multiplayerResumeAudio={() => dispatch('multiplayerResumeAudio')}
   on:multiplayerKick={(event) => dispatch('multiplayerKick', event.detail)}
 />
