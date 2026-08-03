@@ -111,6 +111,7 @@
   import { getFavoriteIdentity, getTrackDisplayTitle, getTrackIdentity } from '$lib/utils/files';
   import { favoritesHaveAllTracks } from '$lib/services/workspace-actions';
   import { experimentalSettings } from '$lib/stores/experimental-settings';
+  import { multiplayerRecents } from '$lib/stores/multiplayer-recents';
   import {
     createMultiplayerSession,
     type MultiplayerSessionState
@@ -208,6 +209,7 @@
     mode: 'idle',
     connectionStatus: 'idle',
     inviteCode: null,
+    hostName: null,
     clients: [],
     remoteCatalog: {
       revision: 0,
@@ -1503,7 +1505,10 @@
       $t('main.multiplayer.enterInvite', { default: 'Enter the host invite code' })
     );
     if (!inviteCode) return;
+    await joinMultiplayer(inviteCode);
+  }
 
+  async function joinMultiplayer(inviteCode: string): Promise<void> {
     playerController.pause();
     try {
       await multiplayerSession.join(inviteCode);
@@ -1728,7 +1733,9 @@
     multiplayerMode={multiplayerState.mode}
     multiplayerConnectionStatus={multiplayerState.connectionStatus}
     multiplayerInviteCode={multiplayerState.inviteCode}
+    multiplayerHostName={multiplayerState.hostName}
     multiplayerClients={multiplayerState.clients}
+    multiplayerRecents={$multiplayerRecents}
     on:openFiles={() => void handleMenuOpenFiles()}
     on:openFolder={() => void handleMenuOpenFolder()}
     on:installApp={() => void appInstallService.prompt()}
@@ -1750,6 +1757,7 @@
     on:multiplayerHost={() => void handleMultiplayerHost()}
     on:multiplayerStopHosting={() => void multiplayerSession.stopHosting()}
     on:multiplayerJoin={() => void handleMultiplayerJoin()}
+    on:multiplayerJoinRecent={(event) => void joinMultiplayer(event.detail)}
     on:multiplayerLeave={() => void multiplayerSession.leave()}
     on:multiplayerCopyInvite={() => void copyMultiplayerInvite()}
     on:multiplayerKick={(event) => void multiplayerSession.kick(event.detail)}

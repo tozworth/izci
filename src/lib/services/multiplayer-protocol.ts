@@ -8,7 +8,7 @@ import type {
 
 export type MultiplayerCollection = 'playlist' | 'library' | 'favorites';
 
-export const MULTIPLAYER_PROTOCOL_VERSION = 1;
+export const MULTIPLAYER_PROTOCOL_VERSION = 2;
 export const MULTIPLAYER_FRAME_CHUNK_SIZE = 12_000;
 
 export type MultiplayerCommand =
@@ -52,14 +52,14 @@ export interface MultiplayerPlayback {
 }
 
 export type HostMessage =
-  | { kind: 'hello'; version: number }
+  | { kind: 'hello'; version: number; name: string }
   | { kind: 'catalog'; catalog: MultiplayerCatalog }
   | { kind: 'playback'; playback: MultiplayerPlayback }
   | { kind: 'ack'; commandId: string; accepted: boolean; message?: string }
   | { kind: 'kicked' };
 
 export type ClientMessage =
-  | { kind: 'hello'; version: number; name: string }
+  | { kind: 'hello'; version: number; name: string; platform: string }
   | { kind: 'command'; command: MultiplayerCommand };
 
 interface ChunkFrame {
@@ -143,7 +143,9 @@ export function isRemotePlaylistItem(value: unknown): value is PlaylistItem {
 export function isHostMessage(value: unknown): value is HostMessage {
   if (!value || typeof value !== 'object') return false;
   const message = value as Partial<HostMessage> & Record<string, unknown>;
-  if (message.kind === 'hello') return message.version === MULTIPLAYER_PROTOCOL_VERSION;
+  if (message.kind === 'hello') {
+    return message.version === MULTIPLAYER_PROTOCOL_VERSION && typeof message.name === 'string';
+  }
   if (message.kind === 'kicked') return true;
   if (message.kind === 'ack') {
     return typeof message.commandId === 'string' && typeof message.accepted === 'boolean';

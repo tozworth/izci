@@ -355,23 +355,23 @@
     transition: filter 120ms ease-out;
   }
 
-  .window-controls-overlay-active.multiplayer-connected .izci-menu-glyph-glow {
+  .multiplayer-connected .izci-menu-glyph-glow {
     filter:
       drop-shadow(0 0 0.28rem rgb(176 255 120 / 0.9))
       drop-shadow(0 0 0.72rem rgb(176 255 120 / 0.58));
   }
 
-  .window-controls-overlay-active.multiplayer-connected .izci-menu-glyph-glow :global(.izci-menu-glyph) {
+  .multiplayer-connected .izci-menu-glyph-glow :global(.izci-menu-glyph) {
     color: rgb(204 255 166);
   }
 
-  .window-controls-overlay-active.multiplayer-disconnected .izci-menu-glyph-glow {
+  .multiplayer-disconnected .izci-menu-glyph-glow {
     filter:
       drop-shadow(0 0 0.28rem rgb(255 118 118 / 0.88))
       drop-shadow(0 0 0.72rem rgb(255 118 118 / 0.52));
   }
 
-  .window-controls-overlay-active.multiplayer-disconnected .izci-menu-glyph-glow :global(.izci-menu-glyph) {
+  .multiplayer-disconnected .izci-menu-glyph-glow :global(.izci-menu-glyph) {
     color: rgb(255 166 166);
   }
 </style>

@@ -332,6 +332,7 @@ export interface TrackSettings {
 
 export interface ExperimentalSettings {
   multiplayer: boolean;
+  izciName: string;
 }
 
 export interface LyricsSettings {

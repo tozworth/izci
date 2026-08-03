@@ -8,6 +8,12 @@
       multiplayer: (event.currentTarget as HTMLInputElement).checked
     });
   }
+
+  function handleIzciNameChange(event: Event) {
+    experimentalSettings.update({
+      izciName: (event.currentTarget as HTMLInputElement).value
+    });
+  }
 </script>
 
 <article class="view">
@@ -23,6 +29,17 @@
           type="checkbox"
           checked={$experimentalSettings.multiplayer}
           on:change={handleMultiplayerToggle}
+        />
+      </SettingsField>
+      <SettingsField
+        title={$t('options.experimental.multiplayer.name', { default: 'Name this izci' })}
+        hint={$t('options.experimental.multiplayer.nameHint', { default: 'Shown to hosts and clients in multiplayer sessions.' })}
+      >
+        <input
+          type="text"
+          maxlength="48"
+          value={$experimentalSettings.izciName}
+          on:change={handleIzciNameChange}
         />
       </SettingsField>
     </div>

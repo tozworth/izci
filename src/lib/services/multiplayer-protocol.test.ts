@@ -68,9 +68,11 @@ describe('multiplayer protocol', () => {
   });
 
   it('accepts invite codes directly or from an izci room link', () => {
-    const code = 'abcdefghijklmnopqrstuvwx';
+    const code = 'a1b2c3d4';
     expect(normalizeInviteCode(code)).toBe(code);
     expect(normalizeInviteCode(`https://izci.example/#room=${code}`)).toBe(code);
+    expect(normalizeInviteCode('A1B2C3D4')).toBeNull();
+    expect(normalizeInviteCode('abcdefghijklmnopqrstuvwx')).toBeNull();
     expect(normalizeInviteCode('not a room')).toBeNull();
   });
 });

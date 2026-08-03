@@ -14,7 +14,7 @@ const describeWithEmulator = emulatorAvailable ? describe : describe.skip;
 describeWithEmulator('multiplayer Realtime Database rules', () => {
   let environment: RulesTestEnvironment;
   const projectId = 'izci-multiplayer-rules-test';
-  const room = 'abcdefghijklmnopqrstuvwx';
+  const room = 'a1b2c3d4';
   const hostUid = 'host-user';
   const clientUid = 'client-user';
 
@@ -39,7 +39,7 @@ describeWithEmulator('multiplayer Realtime Database rules', () => {
   it('lets the host create the room and own all host signaling', async () => {
     const database = environment.authenticatedContext(hostUid).database();
     await assertSucceeds(set(ref(database, `multiplayer/rooms/${room}`), {
-      meta: { hostUid, protocolVersion: 1, createdAt: Date.now() }
+      meta: { hostUid, protocolVersion: 2, hostName: 'Scout host', createdAt: Date.now() }
     }));
     await assertSucceeds(set(ref(database, `multiplayer/rooms/${room}/peers/${clientUid}/host`), {
       description: { type: 'answer', sdp: 'answer-sdp' },
@@ -52,6 +52,7 @@ describeWithEmulator('multiplayer Realtime Database rules', () => {
     const otherDatabase = environment.authenticatedContext('other-client').database();
     const offer = {
       name: 'Living room phone',
+      platform: 'Android',
       description: { type: 'offer', sdp: 'offer-sdp' },
       createdAt: Date.now()
     };
@@ -77,12 +78,13 @@ describeWithEmulator('multiplayer Realtime Database rules', () => {
     const database = environment.authenticatedContext(clientUid).database();
     await assertFails(set(
       ref(database, `multiplayer/rooms/${room}/peers/${clientUid}/client`),
-      { name: 'Client', description: { type: 'offer' }, createdAt: Date.now(), library: ['nope'] }
+      { name: 'Client', platform: 'Android', description: { type: 'offer' }, createdAt: Date.now(), library: ['nope'] }
     ));
     await assertFails(set(
       ref(database, `multiplayer/rooms/${room}/peers/${clientUid}/client`),
       {
         name: 'Client',
+        platform: 'Android',
         description: { type: 'offer', sdp: 'offer-sdp', payload: 'nope' },
         createdAt: Date.now()
       }
@@ -91,6 +93,7 @@ describeWithEmulator('multiplayer Realtime Database rules', () => {
       ref(database, `multiplayer/rooms/${room}/peers/${clientUid}/client`),
       {
         name: 'Client',
+        platform: 'Android',
         description: { type: 'offer', sdp: 'x'.repeat(50_001) },
         createdAt: Date.now()
       }

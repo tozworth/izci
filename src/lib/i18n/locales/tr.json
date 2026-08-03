@@ -15,14 +15,13 @@
       "copyInviteFallback": "Copy this invite code",
       "host": "Host",
       "join": "Join...",
+      "recents": "Recents",
       "hosting": "Hosting",
       "copyInvite": "Copy invite code",
       "stopHosting": "Stop hosting",
-      "connected": "Connected",
+      "kick": "Kick {name}",
       "connecting": "Connecting...",
       "disconnected": "Disconnected",
-      "kick": "Kick {name}",
-      "connectedToHost": "Connected to host",
       "leave": "Leave",
       "label": "Multiplayer"
     },
@@ -682,7 +681,9 @@
       "heading": "Experiments",
       "multiplayer": {
         "title": "izci Multiplayer",
-        "hint": "Lets this izci host or remotely control another izci on the same local network. Sessions exchange playlist, library and transport state, never media."
+        "hint": "Lets this izci host or remotely control another izci on the same local network. Sessions exchange playlist, library and transport state, never media.",
+        "name": "Name this izci",
+        "nameHint": "Shown to hosts and clients in multiplayer sessions."
       }
     },
     "folders": {

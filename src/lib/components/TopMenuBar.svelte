@@ -20,6 +20,7 @@
     MultiplayerConnectionStatus,
     MultiplayerMode
   } from '$lib/services/multiplayer-session';
+  import type { MultiplayerRecent } from '$lib/stores/multiplayer-recents';
 
   type DispatchedMenuActionId =
     | 'openFiles'
@@ -54,6 +55,7 @@
     | 'toggleVideoPictureInPicture'
     | 'toggleVideoTheater'
     | `multiplayerKick:${string}`
+    | `multiplayerJoinRecent:${string}`
     | `applyLoadout:${string}`;
 
   $: multiplayerMenuItems = multiplayerMode === 'idle'
@@ -67,7 +69,24 @@
           id: 'multiplayerJoin',
           label: $t('main.multiplayer.join', { default: 'Join...' }),
           icon: 'login'
-        }
+        },
+        ...(multiplayerRecents.length > 0
+          ? [
+              {
+                id: 'multiplayerRecents',
+                label: $t('main.multiplayer.recents', { default: 'Recents' }),
+                icon: 'history',
+                disabled: true,
+                separatorBefore: true
+              } satisfies MenuActionItem,
+              ...multiplayerRecents.map((recent) => ({
+                id: `multiplayerJoinRecent:${recent.inviteCode}`,
+                label: recent.name,
+                description: recent.inviteCode,
+                icon: 'cast'
+              } satisfies MenuActionItem))
+            ]
+          : [])
       ] satisfies MenuActionItem[]
     : multiplayerMode === 'hosting'
       ? [
@@ -91,11 +110,7 @@
           ...multiplayerClients.map((client, index): MenuActionItem => ({
             id: `multiplayerClient:${client.id}`,
             label: client.name,
-            description: client.status === 'connected'
-              ? $t('main.multiplayer.connected', { default: 'Connected' })
-              : client.status === 'connecting'
-                ? $t('main.multiplayer.connecting', { default: 'Connecting...' })
-                : $t('main.multiplayer.disconnected', { default: 'Disconnected' }),
+            description: client.platform,
             icon: client.status === 'connected' ? 'smartphone' : 'signal_disconnected',
             disabled: true,
             separatorBefore: index === 0,
@@ -110,7 +125,7 @@
           {
             id: 'multiplayerStatus',
             label: multiplayerConnectionStatus === 'connected'
-              ? $t('main.multiplayer.connectedToHost', { default: 'Connected to host' })
+              ? multiplayerHostName ?? $t('main.multiplayer.host', { default: 'Host' })
               : multiplayerConnectionStatus === 'connecting'
                 ? $t('main.multiplayer.connecting', { default: 'Connecting...' })
                 : $t('main.multiplayer.disconnected', { default: 'Disconnected' }),
@@ -248,7 +263,9 @@
   export let multiplayerMode: MultiplayerMode = 'idle';
   export let multiplayerConnectionStatus: MultiplayerConnectionStatus = 'idle';
   export let multiplayerInviteCode: string | null = null;
+  export let multiplayerHostName: string | null = null;
   export let multiplayerClients: MultiplayerClient[] = [];
+  export let multiplayerRecents: MultiplayerRecent[] = [];
   const displayVersion = formatDisplayVersion(appVersion);
 
   const dispatch = createEventDispatcher<{
@@ -273,6 +290,7 @@
     multiplayerHost: void;
     multiplayerStopHosting: void;
     multiplayerJoin: void;
+    multiplayerJoinRecent: string;
     multiplayerLeave: void;
     multiplayerCopyInvite: void;
     multiplayerKick: string;
@@ -425,6 +443,10 @@
     }
     if (action.startsWith('multiplayerKick:')) {
       dispatch('multiplayerKick', action.slice('multiplayerKick:'.length));
+      return;
+    }
+    if (action.startsWith('multiplayerJoinRecent:')) {
+      dispatch('multiplayerJoinRecent', action.slice('multiplayerJoinRecent:'.length));
       return;
     }
     if (action === 'videoFitContain' || action === 'videoFitCover') {

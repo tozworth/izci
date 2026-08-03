@@ -1,6 +1,8 @@
 import { writable, type Readable } from 'svelte/store';
 import type { Database, DatabaseReference, OnDisconnect, Unsubscribe } from 'firebase/database';
 import type { PlaybackSnapshot, PlaylistItem, PlaylistRepeatMode } from '$lib/types';
+import { experimentalSettings } from '$lib/stores/experimental-settings';
+import { rememberMultiplayerHost } from '$lib/stores/multiplayer-recents';
 import {
   MULTIPLAYER_PROTOCOL_VERSION,
   createMultiplayerMessageDecoder,
@@ -56,6 +58,7 @@ export type MultiplayerConnectionStatus = 'idle' | 'connecting' | 'connected' | 
 export interface MultiplayerClient {
   id: string;
   name: string;
+  platform: string;
   status: 'connecting' | 'connected' | 'disconnected';
 }
 
@@ -63,6 +66,7 @@ export interface MultiplayerSessionState {
   mode: MultiplayerMode;
   connectionStatus: MultiplayerConnectionStatus;
   inviteCode: string | null;
+  hostName: string | null;
   clients: MultiplayerClient[];
   remoteCatalog: MultiplayerCatalog;
   remotePlayback: MultiplayerPlayback;
@@ -92,6 +96,7 @@ interface FirebaseRuntime {
 
 interface SignalOffer {
   name: string;
+  platform: string;
   description: RTCSessionDescriptionInit;
   createdAt: number;
 }
@@ -132,6 +137,7 @@ export function createMultiplayerSession({
     mode: 'idle',
     connectionStatus: 'idle',
     inviteCode: null,
+    hostName: null,
     clients: [],
     remoteCatalog: EMPTY_CATALOG,
     remotePlayback: EMPTY_REMOTE_PLAYBACK,
@@ -162,13 +168,23 @@ export function createMultiplayerSession({
     const existing = state.clients.find((client) => client.id === id);
     const clients = existing
       ? state.clients.map((client) => client.id === id ? { ...client, ...patch } : client)
-      : [...state.clients, { id, name: patch.name ?? 'Guest', status: patch.status ?? 'connecting' }];
+      : [...state.clients, {
+          id,
+          name: patch.name ?? 'Guest',
+          platform: patch.platform ?? 'Unknown',
+          status: patch.status ?? 'connecting'
+        }];
     publish({ clients });
   }
 
   async function startHosting(): Promise<string> {
     await resetSession(true);
-    publish({ mode: 'hosting', connectionStatus: 'connecting', message: null });
+    publish({
+      mode: 'hosting',
+      connectionStatus: 'connecting',
+      hostName: getLocalName(),
+      message: null
+    });
 
     try {
       const firebase = await loadFirebase();
@@ -180,6 +196,7 @@ export function createMultiplayerSession({
         meta: {
           hostUid: firebase.uid,
           protocolVersion: MULTIPLAYER_PROTOCOL_VERSION,
+          hostName: getLocalName(),
           createdAt: Date.now()
         }
       });
@@ -229,6 +246,7 @@ export function createMultiplayerSession({
       publish({
         mode: 'idle',
         connectionStatus: 'error',
+        hostName: null,
         message: errorMessage(error, 'Could not start multiplayer hosting.')
       });
       throw error;
@@ -239,7 +257,11 @@ export function createMultiplayerSession({
     if (!firebaseRuntime || state.mode !== 'hosting') return;
     const peer = createPeer(id, sanitizeClientName(offer.name));
     hostPeers.set(id, peer);
-    updateClient(id, { name: peer.name, status: 'connecting' });
+    updateClient(id, {
+      name: peer.name,
+      platform: sanitizePlatform(offer.platform),
+      status: 'connecting'
+    });
 
     peer.pc.ondatachannel = (event) => attachHostChannel(peer, event.channel);
     peer.pc.onconnectionstatechange = () => {
@@ -274,7 +296,11 @@ export function createMultiplayerSession({
     peer.channel = channel;
     channel.onopen = () => {
       updateClient(peer.id, { status: 'connected' });
-      sendToPeer(peer, { kind: 'hello', version: MULTIPLAYER_PROTOCOL_VERSION });
+      sendToPeer(peer, {
+        kind: 'hello',
+        version: MULTIPLAYER_PROTOCOL_VERSION,
+        name: getLocalName()
+      });
       sendCurrentState(peer);
     };
     channel.onmessage = (event) => {
@@ -283,7 +309,7 @@ export function createMultiplayerSession({
       if (!message) return;
       if (message.kind === 'hello') {
         peer.name = sanitizeClientName(message.name);
-        updateClient(peer.id, { name: peer.name });
+        updateClient(peer.id, { name: peer.name, platform: sanitizePlatform(message.platform) });
         return;
       }
       if (message.kind === 'command' && isMultiplayerCommand(message.command)) {
@@ -304,7 +330,8 @@ export function createMultiplayerSession({
     channel.onclose = () => updateClient(peer.id, { status: 'disconnected' });
     sendToPeer(peer, {
       kind: 'hello',
-      version: MULTIPLAYER_PROTOCOL_VERSION
+      version: MULTIPLAYER_PROTOCOL_VERSION,
+      name: getLocalName()
     });
   }
 
@@ -321,6 +348,7 @@ export function createMultiplayerSession({
       mode: 'client',
       connectionStatus: 'connecting',
       inviteCode,
+      hostName: null,
       remoteCatalog: EMPTY_CATALOG,
       remotePlayback: EMPTY_REMOTE_PLAYBACK,
       message: null
@@ -330,12 +358,16 @@ export function createMultiplayerSession({
       const firebase = await loadFirebase();
       firebaseRuntime = firebase;
       const metaRef = firebase.ref(firebase.database, `multiplayer/rooms/${inviteCode}/meta`);
-      const meta = (await firebase.get(metaRef)).val() as { protocolVersion?: number } | null;
+      const meta = (await firebase.get(metaRef)).val() as {
+        protocolVersion?: number;
+        hostName?: string;
+      } | null;
       if (!meta || meta.protocolVersion !== MULTIPLAYER_PROTOCOL_VERSION) {
         throw new Error('That multiplayer session is unavailable or incompatible.');
       }
+      publish({ hostName: sanitizeClientName(meta.hostName ?? 'Host') });
 
-      const peer = createPeer(firebase.uid, getClientName());
+      const peer = createPeer(firebase.uid, getLocalName());
       const channel = peer.pc.createDataChannel('izci-control', { ordered: true });
       peer.channel = channel;
       clientPeer = peer;
@@ -362,6 +394,7 @@ export function createMultiplayerSession({
         `multiplayer/rooms/${inviteCode}/peers/${firebase.uid}/client`
       ), {
         name: peer.name,
+        platform: getClientPlatform(),
         description: peer.pc.localDescription?.toJSON(),
         createdAt: Date.now()
       });
@@ -381,6 +414,7 @@ export function createMultiplayerSession({
       publish({
         mode: 'idle',
         connectionStatus: 'error',
+        hostName: null,
         message: errorMessage(error, 'Could not join that multiplayer session.')
       });
       throw error;
@@ -394,10 +428,14 @@ export function createMultiplayerSession({
 
     channel.onopen = () => {
       publish({ connectionStatus: 'connected', message: null });
+      if (state.inviteCode && state.hostName) {
+        rememberMultiplayerHost(state.hostName, state.inviteCode);
+      }
       sendToPeer(peer, {
         kind: 'hello',
         version: MULTIPLAYER_PROTOCOL_VERSION,
-        name: peer.name
+        name: peer.name,
+        platform: getClientPlatform()
       });
     };
     channel.onmessage = (event) => {
@@ -412,6 +450,11 @@ export function createMultiplayerSession({
       }
       if (message.kind === 'hello' && message.version !== MULTIPLAYER_PROTOCOL_VERSION) {
         publish({ connectionStatus: 'error', message: 'The host uses an incompatible protocol.' });
+      }
+      if (message.kind === 'hello') {
+        const hostName = sanitizeClientName(message.name);
+        publish({ hostName });
+        if (state.inviteCode) rememberMultiplayerHost(hostName, state.inviteCode);
       }
     };
     channel.onclose = () => {
@@ -559,6 +602,7 @@ export function createMultiplayerSession({
       mode: 'idle',
       connectionStatus: 'idle',
       inviteCode: null,
+      hostName: null,
       clients: [],
       message: null
     });
@@ -571,6 +615,7 @@ export function createMultiplayerSession({
       mode: 'idle',
       connectionStatus: 'idle',
       inviteCode: null,
+      hostName: null,
       clients: [],
       remoteCatalog: EMPTY_CATALOG,
       remotePlayback: EMPTY_REMOTE_PLAYBACK,
@@ -666,7 +711,9 @@ function isClientMessage(value: unknown): value is ClientMessage {
   if (!value || typeof value !== 'object') return false;
   const message = value as Partial<ClientMessage> & Record<string, unknown>;
   if (message.kind === 'hello') {
-    return message.version === MULTIPLAYER_PROTOCOL_VERSION && typeof message.name === 'string';
+    return message.version === MULTIPLAYER_PROTOCOL_VERSION
+      && typeof message.name === 'string'
+      && typeof message.platform === 'string';
   }
   return message.kind === 'command' && isMultiplayerCommand(message.command);
 }
@@ -675,36 +722,44 @@ function isSignalOffer(value: unknown): value is SignalOffer {
   if (!value || typeof value !== 'object') return false;
   const offer = value as Partial<SignalOffer>;
   return typeof offer.name === 'string'
+    && typeof offer.platform === 'string'
     && typeof offer.createdAt === 'number'
     && Boolean(offer.description)
     && (offer.description?.type === 'offer');
 }
 
 function createInviteCode(): string {
-  const bytes = new Uint8Array(18);
+  const alphabet = 'abcdefghijklmnopqrstuvwxyz0123456789';
+  const bytes = new Uint8Array(8);
   crypto.getRandomValues(bytes);
-  return btoa(String.fromCharCode(...bytes))
-    .replace(/\+/g, '-')
-    .replace(/\//g, '_')
-    .replace(/=+$/g, '');
+  return Array.from(bytes, (byte) => alphabet[byte % alphabet.length]).join('');
 }
 
 export function normalizeInviteCode(value: string): string | null {
   const trimmed = value.trim();
-  const fragmentMatch = trimmed.match(/(?:^|[#?&])(?:multiplayer|room)=([A-Za-z0-9_-]{16,80})/);
-  const code = fragmentMatch?.[1] ?? trimmed.replace(/\s+/g, '');
-  return /^[A-Za-z0-9_-]{16,80}$/.test(code) ? code : null;
+  const fragmentMatch = trimmed.match(/(?:^|[#?&])(?:multiplayer|room)=([a-z0-9]{8})(?![a-z0-9])/);
+  const code = fragmentMatch?.[1] ?? trimmed;
+  return /^[a-z0-9]{8}$/.test(code) ? code : null;
 }
 
-function getClientName(): string {
+function getLocalName(): string {
+  return sanitizeClientName(experimentalSettings.getSnapshot().izciName);
+}
+
+function getClientPlatform(): string {
   const platform = (navigator as Navigator & { userAgentData?: { platform?: string } }).userAgentData?.platform
     || navigator.platform;
-  return sanitizeClientName(platform ? `${platform} client` : 'Guest client');
+  return sanitizePlatform(platform || 'Unknown');
 }
 
 function sanitizeClientName(value: string): string {
   const name = value.trim().replace(/[\u0000-\u001f\u007f]/g, '').slice(0, 48);
   return name || 'Guest client';
+}
+
+function sanitizePlatform(value: string): string {
+  const platform = value.trim().replace(/[\u0000-\u001f\u007f]/g, '').slice(0, 32);
+  return platform || 'Unknown';
 }
 
 async function waitForIceGathering(pc: RTCPeerConnection): Promise<void> {
