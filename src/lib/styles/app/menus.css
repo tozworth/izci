@@ -23,6 +23,14 @@
     transform 420ms ease;
 }
 
+.main-workspace-menu-bar {
+  border-bottom: 0;
+}
+
+.main-workspace-menu-bar .menu-brand strong {
+  color: var(--accent-strong);
+}
+
 .menu-bar-compact {
   gap: 0.35rem;
   min-height: 1.7rem;

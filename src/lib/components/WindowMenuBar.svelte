@@ -13,6 +13,7 @@
 
   export let groups: WindowMenuGroup[] = [];
   export let title = '';
+  export let mainWorkspace = false;
   export let subtitle = '';
   export let subtitleTone: WindowMenuSubtitleTone = 'muted';
   export let ariaLabel = 'Application menu';
@@ -252,6 +253,7 @@
   bind:clientWidth={menuBarWidth}
   bind:clientHeight={height}
   class="menu-bar"
+  class:main-workspace-menu-bar={mainWorkspace}
   class:window-controls-overlay-active={overlayState.visible}
   class:menu-bar-compact={isCompactMenu}
   style={overlayInlineStyle}

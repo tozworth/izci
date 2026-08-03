@@ -19,6 +19,7 @@
   type DispatchedMenuActionId =
     | 'openFiles'
     | 'openFolder'
+    | 'manageFolders'
     | 'installApp'
     | 'openOptions'
     | 'forceUpdate'
@@ -130,6 +131,12 @@
       id: 'openFolder',
       label: $t('main.menu.openFolder', { default: 'Open folder...' }),
       icon: 'folder_open'
+    },
+    {
+      id: 'manageFolders',
+      label: $t('main.menu.manageFolders', { default: 'Manage folders...' }),
+      icon: 'folder_copy',
+      separatorBefore: true
     }
   ] satisfies MenuActionItem[];
   $: helpMenuItems = [
@@ -143,7 +150,6 @@
   export let nowPlayingViewActive = false;
   export let miniPlayerSupported = false;
   export let miniPlayerActive = false;
-  export let patternsVisible = false;
   export let videoActive = false;
   export let videoFitMode: VideoFitMode = 'contain';
   export let videoPictureInPictureSupported = false;
@@ -204,7 +210,7 @@
     {
       id: 'togglePatterns',
       label: $t('main.menu.patterns', { default: 'Patterns' }),
-      icon: patternsVisible ? 'check' : 'view_timeline'
+      icon: 'view_timeline'
     },
     ...(miniPlayerSupported
       ? [{
@@ -305,6 +311,10 @@
       dispatch('openOptions', { view: 'loadouts' });
       return;
     }
+    if (action === 'manageFolders') {
+      dispatch('openOptions', { view: 'folders' });
+      return;
+    }
     if (action.startsWith('applyLoadout:')) {
       const loadoutId = action.slice('applyLoadout:'.length);
       const loadout = loadouts.getSnapshot().loadouts.find((candidate) => candidate.id === loadoutId);
@@ -333,6 +343,7 @@
   bind:height
   groups={menuGroups}
   title="izci"
+  mainWorkspace={true}
   subtitle={menuSubtitle}
   subtitleTone={menuSubtitleTone}
   ariaLabel={$t('main.menu.applicationMenu', { default: 'Application menu' })}

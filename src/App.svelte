@@ -1285,7 +1285,6 @@
     nowPlayingViewActive={isNowPlayingLayoutActive}
     miniPlayerSupported={miniPlayerState.supported}
     miniPlayerActive={miniPlayerState.active || miniPlayerState.opening}
-    patternsVisible={workspaceShellState.isPatternsPanelVisible}
     videoActive={videoTrackActive}
     videoFitMode={$videoSettings.fitMode}
     {videoPictureInPictureSupported}
