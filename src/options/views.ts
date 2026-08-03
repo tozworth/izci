@@ -14,6 +14,7 @@ export type OptionsViewName =
   | 'folders'
   | 'metadata'
   | 'backups'
+  | 'experimental'
   | 'about'
   | 'licenses';
 
@@ -166,6 +167,16 @@ export const OPTIONS_VIEW_GROUPS: OptionsViewDefinition[][] = [
       parentLabel: '',
       hasHints: false,
       resettable: false
+    }
+  ],
+  [
+    {
+      id: 'experimental',
+      label: 'Experimental',
+      icon: 'science',
+      parentLabel: '',
+      hasHints: true,
+      resettable: true
     }
   ],
   [

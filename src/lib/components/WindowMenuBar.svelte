@@ -17,6 +17,7 @@
   export let subtitle = '';
   export let subtitleTone: WindowMenuSubtitleTone = 'muted';
   export let ariaLabel = 'Application menu';
+  export let multiplayerConnectionTone: 'none' | 'connected' | 'disconnected' = 'none';
   export let height = 0;
 
   const dispatch = createEventDispatcher<{
@@ -256,6 +257,8 @@
   class:main-workspace-menu-bar={mainWorkspace}
   class:window-controls-overlay-active={overlayState.visible}
   class:menu-bar-compact={isCompactMenu}
+  class:multiplayer-connected={multiplayerConnectionTone === 'connected'}
+  class:multiplayer-disconnected={multiplayerConnectionTone === 'disconnected'}
   style={overlayInlineStyle}
   aria-label={ariaLabel}
 >
@@ -340,3 +343,13 @@
     {/if}
   </div>
 </nav>
+
+<style>
+  .window-controls-overlay-active.multiplayer-connected :global(.izci-menu-glyph) {
+    filter: drop-shadow(0 0 0.28rem rgb(176 255 120 / 0.86));
+  }
+
+  .window-controls-overlay-active.multiplayer-disconnected :global(.izci-menu-glyph) {
+    filter: drop-shadow(0 0 0.28rem rgb(255 118 118 / 0.84));
+  }
+</style>

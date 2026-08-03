@@ -80,6 +80,7 @@
   export let jumpToItemRequest: { id: string; token: number } | null = null;
   export let libraryGroupRequest: WorkspaceLibraryGroupRequest | null = null;
   export let keyboardActive = false;
+  export let readOnly = false;
   export let getContextMenuActions: (ids: string[]) => MenuActionItem[] = () => [
     { id: 'remove', label: 'Remove', icon: 'delete' }
   ];
@@ -285,6 +286,8 @@
 
   async function handleDrop(event: DragEvent) {
     event.preventDefault();
+
+    if (readOnly) return;
 
     if (!event.dataTransfer) {
       return;
@@ -494,6 +497,7 @@
   }
 
   function handleItemContextMenu(event: MouseEvent, id: string) {
+    if (readOnly) return;
     event.preventDefault();
 
     const itemIsSelected = displaySelectedIds.includes(id);
@@ -1104,7 +1108,7 @@
     class="dropzone playlist-dropzone"
     role="region"
     aria-label={$t('playlist.listRegion', { default: '{name} list', values: { name: localizedRegionLabel } })}
-    on:dragover|preventDefault
+    on:dragover={(event) => { if (!readOnly) event.preventDefault(); }}
     on:drop={handleDrop}
   >
     <div
@@ -1126,6 +1130,7 @@
           showBack={Boolean(selectedLibraryGroup)}
           {showSearchInput}
           {searchQuery}
+          {readOnly}
           on:viewChange={(event) => handleLibraryViewChange(event.detail)}
           on:back={handleLibraryGroupBack}
           on:searchToggle={handleSearchToggle}
@@ -1148,6 +1153,7 @@
           {repeatMode}
           {repeatIcon}
           {repeatLabel}
+          {readOnly}
           on:searchToggle={handleSearchToggle}
           on:searchInput={(event) => handleSearchInput(event.detail)}
           on:searchClose={handleSearchClose}

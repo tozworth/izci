@@ -15,11 +15,15 @@
   import { getLoadoutColorValue, LOADOUT_TYPE_ICONS } from '$lib/utils/loadout-presentation';
   import { formatDisplayVersion } from '$lib/utils/version';
   import type { OptionsViewName } from '../../options/views';
+  import type {
+    MultiplayerClient,
+    MultiplayerConnectionStatus,
+    MultiplayerMode
+  } from '$lib/services/multiplayer-session';
 
   type DispatchedMenuActionId =
     | 'openFiles'
     | 'openFolder'
-    | 'manageFolders'
     | 'installApp'
     | 'openOptions'
     | 'forceUpdate'
@@ -35,15 +39,90 @@
     | 'togglePatterns'
     | 'toggleMiniPlayer'
     | 'toggleNowPlayingView'
+    | 'multiplayerHost'
+    | 'multiplayerStopHosting'
+    | 'multiplayerJoin'
+    | 'multiplayerLeave'
+    | 'multiplayerCopyInvite'
     | 'exit';
   type MenuActionId =
     | DispatchedMenuActionId
+    | 'manageFolders'
     | 'openLoadouts'
     | 'videoFitContain'
     | 'videoFitCover'
     | 'toggleVideoPictureInPicture'
     | 'toggleVideoTheater'
+    | `multiplayerKick:${string}`
     | `applyLoadout:${string}`;
+
+  $: multiplayerMenuItems = multiplayerMode === 'idle'
+    ? [
+        {
+          id: 'multiplayerHost',
+          label: $t('main.multiplayer.host', { default: 'Host' }),
+          icon: 'cast'
+        },
+        {
+          id: 'multiplayerJoin',
+          label: $t('main.multiplayer.join', { default: 'Join...' }),
+          icon: 'login'
+        }
+      ] satisfies MenuActionItem[]
+    : multiplayerMode === 'hosting'
+      ? [
+          {
+            id: 'multiplayerStatus',
+            label: $t('main.multiplayer.hosting', { default: 'Hosting' }),
+            description: multiplayerInviteCode ?? undefined,
+            icon: 'cast_connected',
+            disabled: true
+          },
+          {
+            id: 'multiplayerCopyInvite',
+            label: $t('main.multiplayer.copyInvite', { default: 'Copy invite code' }),
+            icon: 'content_copy'
+          },
+          {
+            id: 'multiplayerStopHosting',
+            label: $t('main.multiplayer.stopHosting', { default: 'Stop hosting' }),
+            icon: 'stop_circle'
+          },
+          ...multiplayerClients.map((client, index): MenuActionItem => ({
+            id: `multiplayerClient:${client.id}`,
+            label: client.name,
+            description: client.status === 'connected'
+              ? $t('main.multiplayer.connected', { default: 'Connected' })
+              : client.status === 'connecting'
+                ? $t('main.multiplayer.connecting', { default: 'Connecting...' })
+                : $t('main.multiplayer.disconnected', { default: 'Disconnected' }),
+            icon: client.status === 'connected' ? 'smartphone' : 'signal_disconnected',
+            disabled: true,
+            separatorBefore: index === 0,
+            removeActionId: `multiplayerKick:${client.id}`,
+            removeLabel: $t('main.multiplayer.kick', {
+              default: 'Kick {name}',
+              values: { name: client.name }
+            })
+          }))
+        ] satisfies MenuActionItem[]
+      : [
+          {
+            id: 'multiplayerStatus',
+            label: multiplayerConnectionStatus === 'connected'
+              ? $t('main.multiplayer.connectedToHost', { default: 'Connected to host' })
+              : multiplayerConnectionStatus === 'connecting'
+                ? $t('main.multiplayer.connecting', { default: 'Connecting...' })
+                : $t('main.multiplayer.disconnected', { default: 'Disconnected' }),
+            icon: multiplayerConnectionStatus === 'connected' ? 'cast_connected' : 'signal_disconnected',
+            disabled: true
+          },
+          {
+            id: 'multiplayerLeave',
+            label: $t('main.multiplayer.leave', { default: 'Leave' }),
+            icon: 'logout'
+          }
+        ] satisfies MenuActionItem[];
 
   $: loadoutMenuItems = [
     {
@@ -86,6 +165,14 @@
       icon: 'bookmarks',
       children: loadoutMenuItems
     },
+    ...(multiplayerEnabled
+      ? [{
+          id: 'multiplayer',
+          label: $t('main.multiplayer.label', { default: 'Multiplayer' }),
+          icon: 'cast',
+          children: multiplayerMenuItems
+        } satisfies MenuActionItem]
+      : []),
     {
       id: 'openTroubadour',
       label: $t('main.menu.troubadour', { default: 'Troubadour...' }),
@@ -157,6 +244,11 @@
   export let installAvailable = false;
   export let showInstallHint = false;
   export let height = 0;
+  export let multiplayerEnabled = false;
+  export let multiplayerMode: MultiplayerMode = 'idle';
+  export let multiplayerConnectionStatus: MultiplayerConnectionStatus = 'idle';
+  export let multiplayerInviteCode: string | null = null;
+  export let multiplayerClients: MultiplayerClient[] = [];
   const displayVersion = formatDisplayVersion(appVersion);
 
   const dispatch = createEventDispatcher<{
@@ -178,6 +270,12 @@
     togglePatterns: void;
     toggleMiniPlayer: void;
     toggleNowPlayingView: void;
+    multiplayerHost: void;
+    multiplayerStopHosting: void;
+    multiplayerJoin: void;
+    multiplayerLeave: void;
+    multiplayerCopyInvite: void;
+    multiplayerKick: string;
     setVideoFit: VideoFitMode;
     toggleVideoPictureInPicture: void;
     toggleVideoTheater: void;
@@ -263,12 +361,14 @@
       application: true,
       attention: showInstallHint
     },
-    {
-      id: 'file',
-      label: $t('main.menu.file', { default: 'File' }),
-      icon: 'folder',
-      items: fileMenuItems
-    },
+    ...(multiplayerMode !== 'client'
+      ? [{
+          id: 'file',
+          label: $t('main.menu.file', { default: 'File' }),
+          icon: 'folder',
+          items: fileMenuItems
+        } satisfies WindowMenuGroup]
+      : []),
     {
       id: 'view',
       label: $t('main.menu.view', { default: 'View' }),
@@ -323,6 +423,10 @@
       }
       return;
     }
+    if (action.startsWith('multiplayerKick:')) {
+      dispatch('multiplayerKick', action.slice('multiplayerKick:'.length));
+      return;
+    }
     if (action === 'videoFitContain' || action === 'videoFitCover') {
       dispatch('setVideoFit', action === 'videoFitContain' ? 'contain' : 'cover');
       return;
@@ -347,6 +451,11 @@
   subtitle={menuSubtitle}
   subtitleTone={menuSubtitleTone}
   ariaLabel={$t('main.menu.applicationMenu', { default: 'Application menu' })}
+  multiplayerConnectionTone={multiplayerMode === 'idle'
+    ? 'none'
+    : multiplayerConnectionStatus === 'connected'
+      ? 'connected'
+      : 'disconnected'}
   on:menuopen={(event) => {
     if (event.detail === 'app' && showInstallHint) {
       installHintPresentedInOpenMenu = true;

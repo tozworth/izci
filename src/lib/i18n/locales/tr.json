@@ -10,6 +10,22 @@
     "import": {
       "supportedMediaFiles": "Desteklenen medya dosyaları"
     },
+    "multiplayer": {
+      "enterInvite": "Enter the host invite code",
+      "copyInviteFallback": "Copy this invite code",
+      "host": "Host",
+      "join": "Join...",
+      "hosting": "Hosting",
+      "copyInvite": "Copy invite code",
+      "stopHosting": "Stop hosting",
+      "connected": "Connected",
+      "connecting": "Connecting...",
+      "disconnected": "Disconnected",
+      "kick": "Kick {name}",
+      "connectedToHost": "Connected to host",
+      "leave": "Leave",
+      "label": "Multiplayer"
+    },
     "lyrics": {
       "playTrack": "Sözleri görüntülemek için bir parça oynatın.",
       "reading": "Gömülü sözler okunuyor...",
@@ -662,6 +678,13 @@
         "privacy": "Yedekler şifrelenmez. Dosya adlarını, yolları, metaverileri, favorileri ve dinleme ilerlemesini içerebilirler."
       }
     },
+    "experimental": {
+      "heading": "Experiments",
+      "multiplayer": {
+        "title": "izci Multiplayer",
+        "hint": "Lets this izci host or remotely control another izci on the same local network. Sessions exchange playlist, library and transport state, never media."
+      }
+    },
     "folders": {
       "scan": {
         "scanning": "Taranıyor…",
@@ -1175,6 +1198,7 @@
       "folders": "Klasörler",
       "metadata": "Metaveri",
       "backups": "Yedekler",
+      "experimental": "Experimental",
       "about": "Hakkında",
       "licenses": "Lisanslar"
     },

@@ -64,11 +64,22 @@ interface WorkspaceShellInputs {
   shuffleEnabled: boolean;
   repeatMode: PlaylistRepeatMode;
   keepEmptyWorkspacePanelsOpen: boolean;
+  readOnly?: boolean;
 }
 
 interface CreateWorkspaceShellControllerOptions {
   getPlaylistContextActions: (ids: string[]) => MenuActionItem[];
   getLibraryContextActions: (ids: string[]) => MenuActionItem[];
+  collectionSelection?: {
+    clear: (collection: WorkspaceCollection) => void;
+    select: (
+      collection: WorkspaceCollection,
+      id: string,
+      options?: { range?: boolean; toggle?: boolean }
+    ) => void;
+    set: (collection: WorkspaceCollection, selection: PlaylistSelection) => void;
+    selectAll: (collection: WorkspaceCollection) => void;
+  };
 }
 
 export interface WorkspaceShellState {
@@ -395,7 +406,8 @@ function createInitialState(
 
 export function createWorkspaceShellController({
   getPlaylistContextActions,
-  getLibraryContextActions
+  getLibraryContextActions,
+  collectionSelection
 }: CreateWorkspaceShellControllerOptions) {
   let panelLayout = workspacePanelLayout.getSnapshot();
   let savedPanelState = workspacePanelState.getSnapshot();
@@ -446,6 +458,11 @@ export function createWorkspaceShellController({
 
   function clearSelection(collection: WorkspaceCollection): void {
     if (getSelectionIds(collection).length === 0) {
+      return;
+    }
+
+    if (collectionSelection) {
+      collectionSelection.clear(collection);
       return;
     }
 
@@ -543,6 +560,7 @@ export function createWorkspaceShellController({
         regionLabel: 'Playlist',
         shuffleEnabled: lastInputs.shuffleEnabled,
         repeatMode: lastInputs.repeatMode,
+        readOnly: lastInputs.readOnly,
         getContextMenuActions: getPlaylistContextActions
       },
       libraryPanelProps: {
@@ -562,6 +580,7 @@ export function createWorkspaceShellController({
         showRepeatControl: false,
         showSearchControl: true,
         libraryGroupRequest: state.libraryGroupRequest,
+        readOnly: lastInputs.readOnly,
         getContextMenuActions: getLibraryContextActions
       }
     };
@@ -598,16 +617,28 @@ export function createWorkspaceShellController({
     ): void {
       clearOtherSelection(collection);
       updateActiveWorkspaceTab(collection);
+      if (collectionSelection) {
+        collectionSelection.select(collection, id, options);
+        return;
+      }
       getCollectionStore(collection).select(id, options);
     },
     setCollectionSelection(collection: WorkspaceCollection, nextSelection: PlaylistSelection): void {
       clearOtherSelection(collection);
       updateActiveWorkspaceTab(collection);
+      if (collectionSelection) {
+        collectionSelection.set(collection, nextSelection);
+        return;
+      }
       getCollectionStore(collection).setSelection(nextSelection);
     },
     selectAllTracks(collection: WorkspaceCollection): void {
       clearOtherSelection(collection);
       updateActiveWorkspaceTab(collection);
+      if (collectionSelection) {
+        collectionSelection.selectAll(collection);
+        return;
+      }
       getCollectionStore(collection).selectAll();
     },
     focusCollection(collection: WorkspaceCollection): void {

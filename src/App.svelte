@@ -110,6 +110,17 @@
   import { isOptionsViewName, type OptionsViewName } from './options/views';
   import { getFavoriteIdentity, getTrackDisplayTitle, getTrackIdentity } from '$lib/utils/files';
   import { favoritesHaveAllTracks } from '$lib/services/workspace-actions';
+  import { experimentalSettings } from '$lib/stores/experimental-settings';
+  import {
+    createMultiplayerSession,
+    type MultiplayerSessionState
+  } from '$lib/services/multiplayer-session';
+  import type { MultiplayerCommand } from '$lib/services/multiplayer-protocol';
+  import {
+    buildSelectAllSelection,
+    emptySelection,
+    resolveSelectSelection
+  } from '$lib/stores/playlist-selection';
 
   const {
     items: playlistItemsStore,
@@ -134,16 +145,31 @@
   const stopLibraryFolderCommands = startLibraryFolderCommandListener();
   const stopLoadoutRuntime = startLoadoutRuntime(playerController.currentTrack);
 
+  let localPlaylistItems: PlaylistItem[] = [];
+  let localLibraryItems: PlaylistItem[] = [];
+  let localFavoriteItems: PlaylistItem[] = [];
   let playlistItems: PlaylistItem[] = [];
   let libraryItems: PlaylistItem[] = [];
   let favoriteItems: PlaylistItem[] = [];
+  let localCollectionsReady = false;
   let collectionsReady = false;
+  let localPlaylistSelectionIds: string[] = [];
+  let localLibrarySelectionIds: string[] = [];
+  let localLibrarySelectionAnchorId: string | null = null;
+  let localFavoriteSelectionIds: string[] = [];
+  let localFavoriteSelectionAnchorId: string | null = null;
   let playlistSelectionIds: string[] = [];
   let librarySelectionIds: string[] = [];
   let librarySelectionAnchorId: string | null = null;
   let favoriteSelectionIds: string[] = [];
   let favoriteSelectionAnchorId: string | null = null;
+  let remotePlaylistSelection: PlaylistSelection = emptySelection;
+  let remoteLibrarySelection: PlaylistSelection = emptySelection;
+  let remoteFavoriteSelection: PlaylistSelection = emptySelection;
   let lastTroubadourContext: TroubadourBatchContext | null = null;
+  let localSelectedPlaylistItem: PlaylistItem | null = null;
+  let localSelectedLibraryItem: PlaylistItem | null = null;
+  let localSelectedFavoriteItem: PlaylistItem | null = null;
   let selectedPlaylistItem: PlaylistItem | null = null;
   let selectedLibraryItem: PlaylistItem | null = null;
   let selectedFavoriteItem: PlaylistItem | null = null;
@@ -153,17 +179,21 @@
   let favoriteTargetTrack: PlaylistItem | null = null;
   let lyricsTrack: PlaylistItem | null = null;
   let detailsLibraryTargets: TrackLibraryNavigationTargets = {};
+  let localPlayingTrack: PlaylistItem | null = null;
   let playingTrack: PlaylistItem | null = null;
   let videoParkingHost: HTMLDivElement | null = null;
+  let localShuffleEnabled = false;
+  let localRepeatMode: PlaylistRepeatMode = 'off';
   let shuffleEnabled = false;
   let repeatMode: PlaylistRepeatMode = 'off';
-  let playbackStatus: Pick<PlaybackSnapshot, 'state' | 'volume' | 'backend' | 'error'> = {
+  let localPlaybackStatus: Pick<PlaybackSnapshot, 'state' | 'volume' | 'backend' | 'error'> = {
     state: 'idle',
     volume: DEFAULT_PLAYER_VOLUME,
     backend: null,
     error: undefined
   };
-  let playbackSnapshot: PlaybackSnapshot = {
+  let playbackStatus = localPlaybackStatus;
+  let localPlaybackSnapshot: PlaybackSnapshot = {
     state: 'idle',
     currentTime: 0,
     duration: 0,
@@ -172,6 +202,30 @@
     backend: null,
     error: undefined
   };
+  let playbackSnapshot = localPlaybackSnapshot;
+  const displayPlaybackSnapshotStore = writable<PlaybackSnapshot>(localPlaybackSnapshot);
+  let multiplayerState: MultiplayerSessionState = {
+    mode: 'idle',
+    connectionStatus: 'idle',
+    inviteCode: null,
+    clients: [],
+    remoteCatalog: {
+      revision: 0,
+      playlist: [],
+      library: [],
+      favorites: [],
+      shuffleEnabled: false,
+      repeatMode: 'off'
+    },
+    remotePlayback: {
+      snapshot: localPlaybackSnapshot,
+      track: null,
+      sentAt: 0
+    },
+    message: null
+  };
+  let isMultiplayerClient = false;
+  let multiplayerShutdownRequested = false;
   let modulePatternSnapshot: ModulePatternSnapshot = {
     trackId: null,
     song: null,
@@ -189,6 +243,68 @@
   const miniPlayerTrack = writable<PlaylistItem | null>(null);
   const miniPlayerSelectedTrack = writable<PlaylistItem | null>(null);
   const miniPlayerArtworkUrl = writable<string | null>(null);
+
+  function getRemoteSelection(collection: WorkspaceCollection): PlaylistSelection {
+    return collection === 'playlist' ? remotePlaylistSelection : remoteLibrarySelection;
+  }
+
+  function setRemoteSelection(collection: WorkspaceCollection, selection: PlaylistSelection): void {
+    if (collection === 'playlist') {
+      remotePlaylistSelection = selection;
+    } else {
+      remoteLibrarySelection = selection;
+    }
+  }
+
+  function clearCollectionSelection(collection: WorkspaceCollection): void {
+    if (isMultiplayerClient) {
+      setRemoteSelection(collection, emptySelection);
+      return;
+    }
+    (collection === 'playlist' ? playlistStore : libraryStore).setSelection(emptySelection);
+  }
+
+  function selectCollectionTrack(
+    collection: WorkspaceCollection,
+    id: string,
+    options?: { range?: boolean; toggle?: boolean }
+  ): void {
+    if (!isMultiplayerClient) {
+      (collection === 'playlist' ? playlistStore : libraryStore).select(id, options);
+      return;
+    }
+    const items = collection === 'playlist' ? playlistItems : libraryItems;
+    setRemoteSelection(
+      collection,
+      resolveSelectSelection(items, getRemoteSelection(collection), id, options)
+    );
+  }
+
+  function setCollectionSelection(collection: WorkspaceCollection, selection: PlaylistSelection): void {
+    if (isMultiplayerClient) {
+      const items = collection === 'playlist' ? playlistItems : libraryItems;
+      const itemIds = new Set(items.map((item) => item.id));
+      const ids = selection.ids.filter((id) => itemIds.has(id));
+      setRemoteSelection(collection, {
+        ids,
+        anchorId: selection.anchorId && itemIds.has(selection.anchorId) ? selection.anchorId : ids[0] ?? null,
+        focusId: selection.focusId && itemIds.has(selection.focusId) ? selection.focusId : ids.at(-1) ?? null
+      });
+      return;
+    }
+    (collection === 'playlist' ? playlistStore : libraryStore).setSelection(selection);
+  }
+
+  function selectAllCollectionTracks(collection: WorkspaceCollection): void {
+    if (isMultiplayerClient) {
+      setRemoteSelection(
+        collection,
+        buildSelectAllSelection(collection === 'playlist' ? playlistItems : libraryItems)
+      );
+      return;
+    }
+    (collection === 'playlist' ? playlistStore : libraryStore).selectAll();
+  }
 
   let fileInput: HTMLInputElement | null = null;
   let innerWidth = typeof window !== 'undefined' ? window.innerWidth : 0;
@@ -228,7 +344,13 @@
     getLibraryContextActions: (ids) =>
       libraryViewSettings.getSnapshot().activeView === 'favorites'
         ? workspaceCollections.getFavoriteContextActions(ids)
-        : workspaceCollections.getLibraryContextActions(ids)
+        : workspaceCollections.getLibraryContextActions(ids),
+    collectionSelection: {
+      clear: clearCollectionSelection,
+      select: selectCollectionTrack,
+      set: setCollectionSelection,
+      selectAll: selectAllCollectionTracks
+    }
   });
   let workspaceShellState = workspaceShell.getSnapshot();
   const workspaceCollections = createWorkspaceCollectionsController({
@@ -287,18 +409,180 @@
     notifyTrackResumed: (track, currentTime) =>
       playbackProgress.showResumeNotice(track, currentTime)
   });
+  async function handleMultiplayerHostCommand(command: MultiplayerCommand): Promise<boolean> {
+    if (multiplayerState.mode !== 'hosting') return false;
+
+    switch (command.type) {
+      case 'transport.toggle':
+        await playbackCommands.togglePlayback();
+        return true;
+      case 'transport.play':
+        await playbackCommands.play();
+        return true;
+      case 'transport.pause':
+        playbackCommands.pause();
+        return true;
+      case 'transport.stop':
+        playbackCommands.stop();
+        return true;
+      case 'transport.previous':
+        await playbackCommands.stepTrack(-1);
+        return true;
+      case 'transport.next':
+        await playbackCommands.stepTrack(1);
+        return true;
+      case 'transport.seek':
+        if (!playingTrack || command.seconds > playbackSnapshot.duration + 1) return false;
+        seekPlayback(command.seconds);
+        return true;
+      case 'transport.volume':
+        playerController.setVolume(command.volume);
+        return true;
+      case 'transport.mute':
+        playerController.toggleMute();
+        return true;
+      case 'playlist.shuffle':
+        playlistStore.toggleShuffle();
+        return true;
+      case 'playlist.repeat':
+        playlistStore.cycleRepeatMode();
+        return true;
+      case 'collection.activate': {
+        const items = command.collection === 'playlist'
+          ? playlistItems
+          : command.collection === 'favorites'
+            ? favoriteItems
+            : libraryItems;
+        if (!items.some((item) => item.id === command.itemId)) return false;
+        if (command.collection === 'playlist') {
+          await playbackCommands.activatePlaylistTrack(command.itemId);
+        } else if (command.collection === 'favorites') {
+          const track = favoriteItems.find((item) => item.id === command.itemId);
+          if (!track) return false;
+          await playbackCommands.activateFavoriteTrack(track);
+        } else {
+          await playbackCommands.activateLibraryTrack(command.itemId);
+        }
+        return true;
+      }
+    }
+  }
+  const multiplayerSession = createMultiplayerSession({
+    handleHostCommand: handleMultiplayerHostCommand
+  });
+  multiplayerState = multiplayerSession.getSnapshot();
+  const unsubscribeMultiplayer = multiplayerSession.subscribe((value) => {
+    multiplayerState = value;
+    if (value.mode !== 'client') return;
+
+    const playlistIds = new Set(value.remoteCatalog.playlist.map((item) => item.id));
+    const libraryIds = new Set(value.remoteCatalog.library.map((item) => item.id));
+    const favoriteIds = new Set(value.remoteCatalog.favorites.map((item) => item.id));
+    remotePlaylistSelection = pruneSelection(remotePlaylistSelection, playlistIds);
+    remoteLibrarySelection = pruneSelection(remoteLibrarySelection, libraryIds);
+    remoteFavoriteSelection = pruneSelection(remoteFavoriteSelection, favoriteIds);
+  });
+
+  function pruneSelection(selection: PlaylistSelection, ids: Set<string>): PlaylistSelection {
+    const retained = selection.ids.filter((id) => ids.has(id));
+    return {
+      ids: retained,
+      anchorId: selection.anchorId && ids.has(selection.anchorId) ? selection.anchorId : retained[0] ?? null,
+      focusId: selection.focusId && ids.has(selection.focusId) ? selection.focusId : retained.at(-1) ?? null
+    };
+  }
+
+  function togglePlayback(): void {
+    if (isMultiplayerClient) {
+      multiplayerSession.sendCommand({ type: 'transport.toggle' });
+      return;
+    }
+    void playbackCommands.togglePlayback();
+  }
+
+  function playPlayback(): void {
+    if (isMultiplayerClient) {
+      multiplayerSession.sendCommand({ type: 'transport.play' });
+      return;
+    }
+    void playbackCommands.play();
+  }
+
+  function pausePlayback(): void {
+    if (isMultiplayerClient) {
+      multiplayerSession.sendCommand({ type: 'transport.pause' });
+      return;
+    }
+    playbackCommands.pause();
+  }
+
+  function stopPlayback(): void {
+    if (isMultiplayerClient) {
+      multiplayerSession.sendCommand({ type: 'transport.stop' });
+      return;
+    }
+    playbackCommands.stop();
+  }
+
+  function stepTrack(direction: -1 | 1): void {
+    if (isMultiplayerClient) {
+      multiplayerSession.sendCommand({
+        type: direction < 0 ? 'transport.previous' : 'transport.next'
+      });
+      return;
+    }
+    void playbackCommands.stepTrack(direction);
+  }
+
+  function setPlayerVolume(volume: number): void {
+    if (isMultiplayerClient) {
+      multiplayerSession.sendCommand({ type: 'transport.volume', volume });
+      return;
+    }
+    playerController.setVolume(volume);
+  }
+
+  function togglePlayerMute(): void {
+    if (isMultiplayerClient) {
+      multiplayerSession.sendCommand({ type: 'transport.mute' });
+      return;
+    }
+    playerController.toggleMute();
+  }
+
+  function togglePlaylistShuffle(): void {
+    if (isMultiplayerClient) {
+      multiplayerSession.sendCommand({ type: 'playlist.shuffle' });
+      return;
+    }
+    playlistStore.toggleShuffle();
+  }
+
+  function cyclePlaylistRepeat(): void {
+    if (isMultiplayerClient) {
+      multiplayerSession.sendCommand({ type: 'playlist.repeat' });
+      return;
+    }
+    playlistStore.cycleRepeatMode();
+  }
+
+  function activateMultiplayerTrack(collection: WorkspaceCollection | 'favorites', id: string): boolean {
+    if (!isMultiplayerClient) return false;
+    multiplayerSession.sendCommand({ type: 'collection.activate', collection, itemId: id });
+    return true;
+  }
   const miniPlayer = createMiniPlayerController({
     snapshot: playerController.snapshot,
     track: miniPlayerTrack,
     selectedTrack: miniPlayerSelectedTrack,
     artworkUrl: miniPlayerArtworkUrl,
     handlers: {
-      togglePlayback: () => void playbackCommands.togglePlayback(),
-      previousTrack: () => void playbackCommands.stepTrack(-1),
-      nextTrack: () => void playbackCommands.stepTrack(1),
+      togglePlayback,
+      previousTrack: () => stepTrack(-1),
+      nextTrack: () => stepTrack(1),
       seek: seekPlayback,
-      setVolume: (volume) => playerController.setVolume(volume),
-      toggleMute: () => playerController.toggleMute(),
+      setVolume: setPlayerVolume,
+      toggleMute: togglePlayerMute,
       enterNowPlaying: () => {
         if (!isNowPlayingLayoutActive) {
           toggleNowPlayingView();
@@ -328,42 +612,42 @@
   let artworkPresentationState = artworkPresentation.getSnapshot();
   let backdropPresentation: AppBackdropPresentation;
   let appInstallState: AppInstallState = { available: false, showHint: false };
-  const unsubscribePlaylistItems = playlistItemsStore.subscribe((value) => (playlistItems = value));
-  const unsubscribeLibraryItems = libraryItemsStore.subscribe((value) => (libraryItems = value));
-  const unsubscribeFavoriteItems = favoriteItemsStore.subscribe((value) => (favoriteItems = value));
+  const unsubscribePlaylistItems = playlistItemsStore.subscribe((value) => (localPlaylistItems = value));
+  const unsubscribeLibraryItems = libraryItemsStore.subscribe((value) => (localLibraryItems = value));
+  const unsubscribeFavoriteItems = favoriteItemsStore.subscribe((value) => (localFavoriteItems = value));
   void Promise.all([playlistStore.ready(), libraryStore.ready(), favoritesStore.ready()]).then(async () => {
-    collectionsReady = true;
+    localCollectionsReady = true;
     void scanLaunchLibraryFolders();
     await playbackRestoration.restore();
   });
   const unsubscribePlaylistSelectedIds = playlistSelectedIdsStore.subscribe(
-    (value) => (playlistSelectionIds = value)
+    (value) => (localPlaylistSelectionIds = value)
   );
   const unsubscribeLibrarySelectedIds = librarySelectedIdsStore.subscribe(
-    (value) => (librarySelectionIds = value)
+    (value) => (localLibrarySelectionIds = value)
   );
   const unsubscribeLibrarySelection = librarySelectionStore.subscribe(
-    (value) => (librarySelectionAnchorId = value.anchorId)
+    (value) => (localLibrarySelectionAnchorId = value.anchorId)
   );
   const unsubscribeFavoriteSelectedIds = favoriteSelectedIdsStore.subscribe(
-    (value) => (favoriteSelectionIds = value)
+    (value) => (localFavoriteSelectionIds = value)
   );
   const unsubscribeFavoriteSelection = favoriteSelectionStore.subscribe(
-    (value) => (favoriteSelectionAnchorId = value.anchorId)
+    (value) => (localFavoriteSelectionAnchorId = value.anchorId)
   );
   const unsubscribePlaylistSelectedTrack = playlistSelectedTrackStore.subscribe(
-    (value) => (selectedPlaylistItem = value)
+    (value) => (localSelectedPlaylistItem = value)
   );
   const unsubscribeLibrarySelectedTrack = librarySelectedTrackStore.subscribe(
-    (value) => (selectedLibraryItem = value)
+    (value) => (localSelectedLibraryItem = value)
   );
   const unsubscribeFavoriteSelectedTrack = favoriteSelectedTrackStore.subscribe(
-    (value) => (selectedFavoriteItem = value)
+    (value) => (localSelectedFavoriteItem = value)
   );
-  const unsubscribeShuffle = shuffleStore.subscribe((value) => (shuffleEnabled = value));
-  const unsubscribeRepeat = repeatStore.subscribe((value) => (repeatMode = value));
+  const unsubscribeShuffle = shuffleStore.subscribe((value) => (localShuffleEnabled = value));
+  const unsubscribeRepeat = repeatStore.subscribe((value) => (localRepeatMode = value));
   const unsubscribeTrack = playerController.currentTrack.subscribe((value) => {
-    playingTrack = value;
+    localPlayingTrack = value;
     playbackCommands.notifyCurrentTrackChanged(value);
 
     if (!value?.metadata) {
@@ -374,28 +658,30 @@
 
     const playingIdentity = getTrackIdentity(value);
 
-    for (const item of libraryItems) {
+    for (const item of localLibraryItems) {
       if (getTrackIdentity(item) === playingIdentity) {
         libraryStore.updateMetadata(item.id, value.metadata);
       }
     }
 
-    for (const item of favoriteItems) {
+    for (const item of localFavoriteItems) {
       if (getTrackIdentity(item) === playingIdentity) {
         favoritesStore.updateMetadata(item.id, value.metadata);
       }
     }
   });
   const unsubscribePlaybackSnapshot = playerController.snapshot.subscribe((value) => {
-    playbackSnapshot = value;
+    localPlaybackSnapshot = value;
     if (value.state === 'playing') appInstallService.markEngaged();
-    void playbackCommands.handlePlaybackProgress();
+    if (multiplayerState.mode !== 'client') {
+      void playbackCommands.handlePlaybackProgress();
+    }
   });
 
   function playPlaylistFromCollectionAction(): void {
     void playbackCommands.play();
   }
-  const unsubscribePlaybackStatus = playerController.status.subscribe((value) => (playbackStatus = value));
+  const unsubscribePlaybackStatus = playerController.status.subscribe((value) => (localPlaybackStatus = value));
   const unsubscribeWorkspaceShell = workspaceShell.subscribe((value) => (workspaceShellState = value));
   const unsubscribePlaybackCommands = playbackCommands.subscribe(
     (value) => (playbackCommandsState = value)
@@ -455,24 +741,33 @@
       toggleFullscreenPresentation,
       closeNowPlayingView,
       closeActiveRightPanel,
-      removePlaylistItems: workspaceCollections.removePlaylistItems,
+      removePlaylistItems: (ids) => {
+        if (!isMultiplayerClient) workspaceCollections.removePlaylistItems(ids);
+      },
       removeLibraryItems: (ids) =>
-        $libraryViewSettings.activeView === 'favorites'
+        isMultiplayerClient
+          ? undefined
+          : $libraryViewSettings.activeView === 'favorites'
           ? workspaceCollections.handleFavoriteContextAction('remove-favorite', ids)
           : workspaceCollections.removeLibraryItems(ids),
       cycleWorkspaceTab,
       seek: seekPlayback,
-      stepTrack: (direction) => playbackCommands.stepTrack(direction),
-      setVolume: (volume) => playerController.setVolume(volume),
-      activatePlaylistTrack: (id) => playbackCommands.activatePlaylistTrack(id),
+      stepTrack,
+      setVolume: setPlayerVolume,
+      activatePlaylistTrack: (id) => {
+        if (activateMultiplayerTrack('playlist', id)) return;
+        return playbackCommands.activatePlaylistTrack(id);
+      },
       activateLibraryTrack: (id) => activateLibraryPanelTrack(id),
-      togglePlayback: () => playbackCommands.togglePlayback(),
-      toggleMute: () => playerController.toggleMute(),
+      togglePlayback,
+      toggleMute: togglePlayerMute,
       selectAllTracks: (collection) =>
         collection === 'library' && $libraryViewSettings.activeView === 'favorites'
-          ? favoritesStore.selectAll()
+          ? isMultiplayerClient
+            ? (remoteFavoriteSelection = buildSelectAllSelection(favoriteItems))
+            : favoritesStore.selectAll()
           : workspaceShell.selectAllTracks(collection),
-      openFiles: () => handleMenuOpenFiles(),
+      openFiles: () => { if (!isMultiplayerClient) void handleMenuOpenFiles(); },
       openOptions: () => handleOpenOptions(),
       toggleMiniPlayer: () => miniPlayer.toggle(),
       exit: () => windowManager.exit()
@@ -482,18 +777,69 @@
     void playbackCommands.importLaunchedFiles(files, $trackSettings.associatedFileAction)
   );
   const disconnectMediaSession = mediaSessionService.connect({
-    snapshot: playerController.snapshot,
-    track: playerController.currentTrack,
+    snapshot: displayPlaybackSnapshotStore,
+    track: miniPlayerTrack,
     settings: playbackSettings,
     handlers: {
-      play: () => void playbackCommands.play(),
-      pause: () => playbackCommands.pause(),
-      stop: () => playbackCommands.stop(),
-      previousTrack: () => void playbackCommands.stepTrack(-1),
-      nextTrack: () => void playbackCommands.stepTrack(1),
+      play: playPlayback,
+      pause: pausePlayback,
+      stop: stopPlayback,
+      previousTrack: () => stepTrack(-1),
+      nextTrack: () => stepTrack(1),
       seekTo: seekPlayback
     }
   });
+
+  $: isMultiplayerClient = multiplayerState.mode === 'client';
+  $: playlistItems = isMultiplayerClient ? multiplayerState.remoteCatalog.playlist : localPlaylistItems;
+  $: libraryItems = isMultiplayerClient ? multiplayerState.remoteCatalog.library : localLibraryItems;
+  $: favoriteItems = isMultiplayerClient ? multiplayerState.remoteCatalog.favorites : localFavoriteItems;
+  $: collectionsReady = isMultiplayerClient
+    ? multiplayerState.connectionStatus === 'connected' && multiplayerState.remoteCatalog.revision > 0
+    : localCollectionsReady;
+  $: playlistSelectionIds = isMultiplayerClient
+    ? remotePlaylistSelection.ids
+    : localPlaylistSelectionIds;
+  $: librarySelectionIds = isMultiplayerClient
+    ? remoteLibrarySelection.ids
+    : localLibrarySelectionIds;
+  $: librarySelectionAnchorId = isMultiplayerClient
+    ? remoteLibrarySelection.anchorId
+    : localLibrarySelectionAnchorId;
+  $: favoriteSelectionIds = isMultiplayerClient
+    ? remoteFavoriteSelection.ids
+    : localFavoriteSelectionIds;
+  $: favoriteSelectionAnchorId = isMultiplayerClient
+    ? remoteFavoriteSelection.anchorId
+    : localFavoriteSelectionAnchorId;
+  $: selectedPlaylistItem = isMultiplayerClient
+    ? playlistItems.find((item) => item.id === (remotePlaylistSelection.focusId ?? remotePlaylistSelection.ids.at(-1))) ?? null
+    : localSelectedPlaylistItem;
+  $: selectedLibraryItem = isMultiplayerClient
+    ? libraryItems.find((item) => item.id === (remoteLibrarySelection.focusId ?? remoteLibrarySelection.ids.at(-1))) ?? null
+    : localSelectedLibraryItem;
+  $: selectedFavoriteItem = isMultiplayerClient
+    ? favoriteItems.find((item) => item.id === (remoteFavoriteSelection.focusId ?? remoteFavoriteSelection.ids.at(-1))) ?? null
+    : localSelectedFavoriteItem;
+  $: playingTrack = isMultiplayerClient ? multiplayerState.remotePlayback.track : localPlayingTrack;
+  $: playbackSnapshot = isMultiplayerClient
+    ? multiplayerState.remotePlayback.snapshot
+    : localPlaybackSnapshot;
+  $: playbackStatus = isMultiplayerClient
+    ? {
+        state: playbackSnapshot.state,
+        volume: playbackSnapshot.volume,
+        backend: playbackSnapshot.backend,
+        error: playbackSnapshot.error
+      }
+    : localPlaybackStatus;
+  $: shuffleEnabled = isMultiplayerClient
+    ? multiplayerState.remoteCatalog.shuffleEnabled
+    : localShuffleEnabled;
+  $: repeatMode = isMultiplayerClient
+    ? multiplayerState.remoteCatalog.repeatMode
+    : localRepeatMode;
+  $: displayPlaybackSnapshotStore.set(playbackSnapshot);
 
   $: selectedItem =
     workspaceShellState.activeCollection === 'library'
@@ -504,11 +850,11 @@
   $: miniPlayerTrack.set(playerDisplayTrack);
   $: miniPlayerSelectedTrack.set(selectedPlaylistItem);
   $: miniPlayerArtworkUrl.set(artworkPresentationState.displayedArtwork?.url ?? null);
-  $: videoTrackActive = playerDisplayTrack?.kind === 'video';
+  $: videoTrackActive = !isMultiplayerClient && playerDisplayTrack?.kind === 'video';
   $: videoPictureInPictureSupported =
     videoTrackActive && playerController.videoPictureInPictureSupported;
   $: syncVideoWindowSize(videoTrackActive, $videoSettings.autoResizeWindow);
-  $: syncVideoPresentation(playerDisplayTrack, $videoSettings.autoEnterTheater);
+  $: syncVideoPresentation(isMultiplayerClient ? null : playerDisplayTrack, $videoSettings.autoEnterTheater);
   $: if (videoTrackActive && $windowDisplayState.fullscreen && !videoTheaterActive) {
     videoTheaterActive = true;
   }
@@ -532,7 +878,7 @@
   $: lyricsTrack = livePlayingTrack;
   $: modulePatternSnapshot = $modulePatternStore;
   $: patternAvailability = resolvePatternTabAvailability(
-    playingTrack,
+    isMultiplayerClient ? null : playingTrack,
     modulePatternSnapshot,
     playbackStatus.state
   );
@@ -593,9 +939,9 @@
       ? getTrackDisplayTitle(livePlayingTrack)
       : 'izci';
   $: playCountTracker.sync({
-    track: playingTrack,
-    playbackState: playbackStatus.state,
-    libraryItems,
+    track: isMultiplayerClient ? null : playingTrack,
+    playbackState: isMultiplayerClient ? 'idle' : playbackStatus.state,
+    libraryItems: isMultiplayerClient ? localLibraryItems : libraryItems,
     thresholdSeconds: $metadataSettings.playCountThresholdSeconds
   });
   $: workspaceShell.sync({
@@ -614,8 +960,26 @@
     playingTrackId: playingTrack?.id ?? null,
     shuffleEnabled,
     repeatMode,
-    keepEmptyWorkspacePanelsOpen: $appearanceSettings.keepEmptyWorkspacePanelsOpen
+    keepEmptyWorkspacePanelsOpen: $appearanceSettings.keepEmptyWorkspacePanelsOpen,
+    readOnly: isMultiplayerClient
   });
+  $: multiplayerSession.updateHostState({
+    playlist: localPlaylistItems,
+    library: localLibraryItems,
+    favorites: localFavoriteItems,
+    shuffleEnabled: localShuffleEnabled,
+    repeatMode: localRepeatMode,
+    playback: localPlaybackSnapshot,
+    track: localPlayingTrack
+  });
+  $: if ($experimentalSettings.multiplayer || multiplayerState.mode === 'idle') {
+    multiplayerShutdownRequested = false;
+  } else if (!multiplayerShutdownRequested) {
+    multiplayerShutdownRequested = true;
+    void (multiplayerState.mode === 'hosting'
+      ? multiplayerSession.stopHosting()
+      : multiplayerSession.leave());
+  }
   $: {
     artworkPresentation.syncSelection(
       selectedItem,
@@ -639,29 +1003,38 @@
   $: artworkPresentation.setWindowControlsOverlayVisible($windowControlsOverlayState.visible);
 
   const playlistPanelHandlers: WorkspacePanelHandlers = {
-    addFiles: (files) => workspaceCollections.handleAddFiles(files, 'playlist'),
-    addFolders: (handles) => void filesystemFolders.rememberMany(handles),
-    openFiles: () => void handleMenuOpenFiles('playlist'),
+    addFiles: (files) => { if (!isMultiplayerClient) workspaceCollections.handleAddFiles(files, 'playlist'); },
+    addFolders: (handles) => { if (!isMultiplayerClient) void filesystemFolders.rememberMany(handles); },
+    openFiles: () => { if (!isMultiplayerClient) void handleMenuOpenFiles('playlist'); },
     select: (event) => handleSelect('playlist', event),
     setSelection: (event) => handleSetSelection('playlist', event),
-    activate: (event) => void playbackCommands.activatePlaylistTrack(event.detail),
-    contextAction: (event) =>
-      workspaceCollections.handlePlaylistContextAction(event.detail.actionId, event.detail.ids),
-    toggleShuffle: () => playlistStore.toggleShuffle(),
-    cycleRepeat: () => playlistStore.cycleRepeatMode()
+    activate: (event) => {
+      if (!activateMultiplayerTrack('playlist', event.detail)) {
+        void playbackCommands.activatePlaylistTrack(event.detail);
+      }
+    },
+    contextAction: (event) => {
+      if (!isMultiplayerClient) {
+        workspaceCollections.handlePlaylistContextAction(event.detail.actionId, event.detail.ids);
+      }
+    },
+    toggleShuffle: togglePlaylistShuffle,
+    cycleRepeat: cyclePlaylistRepeat
   };
   const libraryPanelHandlers: WorkspacePanelHandlers = {
-    addFiles: (files) => workspaceCollections.handleAddFiles(files, 'library'),
-    addFolders: (handles) => void filesystemFolders.rememberMany(handles),
-    openFiles: () => void handleMenuOpenFiles('library'),
+    addFiles: (files) => { if (!isMultiplayerClient) workspaceCollections.handleAddFiles(files, 'library'); },
+    addFolders: (handles) => { if (!isMultiplayerClient) void filesystemFolders.rememberMany(handles); },
+    openFiles: () => { if (!isMultiplayerClient) void handleMenuOpenFiles('library'); },
     select: (event) => handleLibraryPanelSelect(event),
     setSelection: (event) => handleLibraryPanelSetSelection(event),
     activate: (event) => void activateLibraryPanelTrack(event.detail),
     libraryGroupRequestHandled: (event) => workspaceShell.clearLibraryGroupRequest(event.detail),
-    contextAction: (event) =>
+    contextAction: (event) => {
+      if (isMultiplayerClient) return;
       $libraryViewSettings.activeView === 'favorites'
         ? workspaceCollections.handleFavoriteContextAction(event.detail.actionId, event.detail.ids)
-        : workspaceCollections.handleLibraryContextAction(event.detail.actionId, event.detail.ids)
+        : workspaceCollections.handleLibraryContextAction(event.detail.actionId, event.detail.ids);
+    }
   };
 
   $: {
@@ -671,7 +1044,9 @@
       playingTrack.id === livePlayingTrack.id &&
       !hasSameTrackMetadata(playingTrack, livePlayingTrack)
     ) {
-      playerController.refreshCurrentTrackMetadata(livePlayingTrack.id, livePlayingTrack.metadata);
+      if (!isMultiplayerClient) {
+        playerController.refreshCurrentTrackMetadata(livePlayingTrack.id, livePlayingTrack.metadata);
+      }
     }
   }
 
@@ -698,16 +1073,29 @@
     }
 
     workspaceShell.focusCollection('library');
-    favoritesStore.select(event.detail.id, {
-      range: event.detail.range,
-      toggle: event.detail.toggle
-    });
+    if (isMultiplayerClient) {
+      remoteFavoriteSelection = resolveSelectSelection(
+        favoriteItems,
+        remoteFavoriteSelection,
+        event.detail.id,
+        { range: event.detail.range, toggle: event.detail.toggle }
+      );
+    } else {
+      favoritesStore.select(event.detail.id, {
+        range: event.detail.range,
+        toggle: event.detail.toggle
+      });
+    }
   }
 
   function handleLibraryPanelSetSelection(event: CustomEvent<PlaylistSelection>) {
     if ($libraryViewSettings.activeView === 'favorites') {
       workspaceShell.focusCollection('library');
-      favoritesStore.setSelection(event.detail);
+      if (isMultiplayerClient) {
+        remoteFavoriteSelection = event.detail;
+      } else {
+        favoritesStore.setSelection(event.detail);
+      }
       return;
     }
 
@@ -715,6 +1103,10 @@
   }
 
   async function activateLibraryPanelTrack(id: string) {
+    if (activateMultiplayerTrack(
+      $libraryViewSettings.activeView === 'favorites' ? 'favorites' : 'library',
+      id
+    )) return;
     if ($libraryViewSettings.activeView !== 'favorites') {
       await playbackCommands.activateLibraryTrack(id);
       return;
@@ -759,6 +1151,10 @@
   }
 
   function seekPlayback(seconds: number): void {
+    if (isMultiplayerClient) {
+      multiplayerSession.sendCommand({ type: 'transport.seek', seconds });
+      return;
+    }
     const seekDelta = seconds - playbackSnapshot.currentTime;
     if (videoTrackActive && Math.abs(seekDelta) >= 0.5) {
       videoSeekFeedback = {
@@ -1094,6 +1490,41 @@
     await forceServiceWorkerUpdateCheck();
   }
 
+  async function handleMultiplayerHost(): Promise<void> {
+    try {
+      await multiplayerSession.startHosting();
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : 'Could not start multiplayer hosting.');
+    }
+  }
+
+  async function handleMultiplayerJoin(): Promise<void> {
+    const inviteCode = window.prompt(
+      $t('main.multiplayer.enterInvite', { default: 'Enter the host invite code' })
+    );
+    if (!inviteCode) return;
+
+    playerController.pause();
+    try {
+      await multiplayerSession.join(inviteCode);
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : 'Could not join that multiplayer session.');
+    }
+  }
+
+  async function copyMultiplayerInvite(): Promise<void> {
+    const inviteCode = multiplayerState.inviteCode;
+    if (!inviteCode) return;
+    try {
+      await navigator.clipboard.writeText(inviteCode);
+    } catch {
+      window.prompt(
+        $t('main.multiplayer.copyInviteFallback', { default: 'Copy this invite code' }),
+        inviteCode
+      );
+    }
+  }
+
   function toggleNowPlayingView() {
     if (isNowPlayingLayoutActive) {
       closeNowPlayingView();
@@ -1178,14 +1609,14 @@
   }
 
   $: if (playbackStatus.state !== previousPlaybackState) {
-    if (playbackStatus.state === 'ended') {
+    if (!isMultiplayerClient && playbackStatus.state === 'ended') {
       void playbackCommands.handleTrackEnded();
     }
 
     previousPlaybackState = playbackStatus.state;
   }
 
-  $: if ($playbackSettings.gaplessPlayback && playingTrack) {
+  $: if (!isMultiplayerClient && $playbackSettings.gaplessPlayback && playingTrack) {
     void playbackCommands.prepareUpcomingTrack();
   }
 
@@ -1219,6 +1650,8 @@
     unsubscribeLyricsPresentation();
     unsubscribeAppInstall();
     unsubscribeMiniPlayer();
+    unsubscribeMultiplayer();
+    multiplayerSession.destroy();
     miniPlayer.destroy();
     appInstallService.destroy();
     unsubscribeLaunchedFiles();
@@ -1291,6 +1724,11 @@
     {videoTheaterActive}
     installAvailable={appInstallState.available}
     showInstallHint={appInstallState.showHint}
+    multiplayerEnabled={$experimentalSettings.multiplayer}
+    multiplayerMode={multiplayerState.mode}
+    multiplayerConnectionStatus={multiplayerState.connectionStatus}
+    multiplayerInviteCode={multiplayerState.inviteCode}
+    multiplayerClients={multiplayerState.clients}
     on:openFiles={() => void handleMenuOpenFiles()}
     on:openFolder={() => void handleMenuOpenFolder()}
     on:installApp={() => void appInstallService.prompt()}
@@ -1309,6 +1747,12 @@
     on:togglePatterns={togglePatterns}
     on:toggleMiniPlayer={() => miniPlayer.toggle()}
     on:toggleNowPlayingView={toggleNowPlayingView}
+    on:multiplayerHost={() => void handleMultiplayerHost()}
+    on:multiplayerStopHosting={() => void multiplayerSession.stopHosting()}
+    on:multiplayerJoin={() => void handleMultiplayerJoin()}
+    on:multiplayerLeave={() => void multiplayerSession.leave()}
+    on:multiplayerCopyInvite={() => void copyMultiplayerInvite()}
+    on:multiplayerKick={(event) => void multiplayerSession.kick(event.detail)}
     on:setVideoFit={(event) => setVideoFit(event.detail)}
     on:toggleVideoPictureInPicture={() => void toggleVideoPictureInPicture()}
     on:toggleVideoTheater={toggleVideoTheater}
@@ -1316,7 +1760,7 @@
   />
 
   <AppWorkspace
-    snapshotStore={playerController.snapshot}
+    snapshotStore={displayPlaybackSnapshotStore}
     {playbackSnapshot}
     {isNowPlayingLayoutActive}
     videoElement={playerController.videoElement}
@@ -1352,14 +1796,14 @@
     onTabbedTabMove={(detail) => workspaceShell.moveTabbedWorkspaceTab(detail)}
     onWideTabMove={(detail) => workspaceShell.moveWorkspaceTab(detail)}
     onResizeStart={(detail) => workspaceShell.handleWideWorkspaceResizeStart(detail)}
-    onTogglePlayback={() => void playbackCommands.togglePlayback()}
-    onPreviousTrack={() => void playbackCommands.stepTrack(-1)}
-    onNextTrack={() => void playbackCommands.stepTrack(1)}
+    onTogglePlayback={togglePlayback}
+    onPreviousTrack={() => stepTrack(-1)}
+    onNextTrack={() => stepTrack(1)}
     onPreviousSubsong={() => playerController.stepSubsong(-1)}
     onNextSubsong={() => playerController.stepSubsong(1)}
     onSeek={seekPlayback}
-    onVolume={(volume) => playerController.setVolume(volume)}
-    onMute={() => playerController.toggleMute()}
+    onVolume={setPlayerVolume}
+    onMute={togglePlayerMute}
     onShowTrack={handleShowPlayerTrackDetails}
     onToggleVideoTheater={toggleVideoTheater}
     onToggleVideoPictureInPicture={() => void toggleVideoPictureInPicture()}
@@ -1404,7 +1848,7 @@
   {#if !isNowPlayingLayoutActive}
     <PlayerControls
       presentation={videoTheaterActive ? 'theater' : 'bar'}
-      snapshotStore={playerController.snapshot}
+      snapshotStore={displayPlaybackSnapshotStore}
       track={playerDisplayTrack}
       selectedTrack={selectedPlaylistItem}
       artwork={artworkPresentationState.displayedArtwork}
@@ -1413,11 +1857,11 @@
       artworkBackgroundBright={backdropPresentation.artworkBackgroundBrightByZone.player}
       hasCollectionItems={playlistItems.length > 0 || libraryItems.length > 0 || favoriteItems.length > 0}
       {collectionsReady}
-      showFavoriteToggle={$trackSettings.showFavoriteToggleInPlayerBar}
+      showFavoriteToggle={!isMultiplayerClient && $trackSettings.showFavoriteToggleInPlayerBar}
       favorite={favoriteTargetTrack ? favoritesHaveAllTracks(favoriteItems, [favoriteTargetTrack]) : false}
-      ratingsEnabled={$trackSettings.enableRatings}
+      ratingsEnabled={!isMultiplayerClient && $trackSettings.enableRatings}
       rating={favoriteTargetTrack?.rating ?? 0}
-      showRafToggle={$playbackSettings.enableRaf && $playbackSettings.showRafToggleInPlayerBar}
+      showRafToggle={!isMultiplayerClient && $playbackSettings.enableRaf && $playbackSettings.showRafToggleInPlayerBar}
       rafEnabled={$rafSettings.enabled}
       rafPresets={$rafPresets.presets}
       selectedRafPresetId={$rafPresets.selectedPresetId}
@@ -1425,14 +1869,14 @@
       showVideoTheaterToggle={videoTrackActive}
       {videoTheaterActive}
       videoFullscreenActive={videoFullscreenExitAction}
-      on:toggle={() => void playbackCommands.togglePlayback()}
-      on:previous={() => void playbackCommands.stepTrack(-1)}
-      on:next={() => void playbackCommands.stepTrack(1)}
+      on:toggle={togglePlayback}
+      on:previous={() => stepTrack(-1)}
+      on:next={() => stepTrack(1)}
       on:previousSubsong={() => playerController.stepSubsong(-1)}
       on:nextSubsong={() => playerController.stepSubsong(1)}
       on:seek={(event) => seekPlayback(event.detail)}
-      on:volume={(event) => playerController.setVolume(event.detail)}
-      on:mute={() => playerController.toggleMute()}
+      on:volume={(event) => setPlayerVolume(event.detail)}
+      on:mute={togglePlayerMute}
       on:toggleFavorite={() => favoriteTargetTrack && workspaceCollections.toggleFavoriteTracks([favoriteTargetTrack])}
       on:rate={(event) => favoriteTargetTrack && workspaceCollections.rateTracks([favoriteTargetTrack], event.detail)}
       on:toggleRaf={() => rafSettings.setEnabled(!$rafSettings.enabled)}

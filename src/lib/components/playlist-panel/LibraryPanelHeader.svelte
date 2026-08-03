@@ -15,6 +15,7 @@
   export let showSearchInput = false;
   export let searchQuery = '';
   export let searchInputElement: HTMLInputElement | null = null;
+  export let readOnly = false;
 
   const dispatch = createEventDispatcher<{
     viewChange: LibraryViewId;
@@ -100,15 +101,17 @@
         <span class="material-symbols-outlined" aria-hidden="true">search</span>
         <HoverTooltip>{$t('playlist.library.search', { default: 'Search library' })}</HoverTooltip>
       </button>
-      <button
-        type="button"
-        class="library-toolbar-button hover-tooltip-anchor"
-        aria-label={$t('playlist.addFiles', { default: 'Add files' })}
-        on:click={() => dispatch('openFiles')}
-      >
-        <span class="material-symbols-outlined" aria-hidden="true">add</span>
-        <HoverTooltip>{$t('playlist.addFiles', { default: 'Add files' })}</HoverTooltip>
-      </button>
+      {#if !readOnly}
+        <button
+          type="button"
+          class="library-toolbar-button hover-tooltip-anchor"
+          aria-label={$t('playlist.addFiles', { default: 'Add files' })}
+          on:click={() => dispatch('openFiles')}
+        >
+          <span class="material-symbols-outlined" aria-hidden="true">add</span>
+          <HoverTooltip>{$t('playlist.addFiles', { default: 'Add files' })}</HoverTooltip>
+        </button>
+      {/if}
     </div>
   </div>
 

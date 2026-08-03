@@ -9,3 +9,4 @@ coverage
 .firebase/
 .firebaserc
 firebase-debug.log
+database-debug.log

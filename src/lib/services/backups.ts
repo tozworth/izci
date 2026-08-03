@@ -38,6 +38,7 @@ const BACKUP_CHANNEL_NAME = 'izci-backup-restore';
 // This is deliberately an allowlist. Coordination, window, update, and transient keys do not belong in backups.
 export const BACKED_UP_SETTINGS_KEYS = [
   'izci.appearance-settings',
+  'izci.experimental-settings',
   'izci.library-view-settings.v5',
   'izci.loadout-ui-settings',
   'izci.loadouts',

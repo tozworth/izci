@@ -1,0 +1,76 @@
+import { describe, expect, it } from 'vitest';
+import {
+  createMultiplayerMessageDecoder,
+  encodeMultiplayerMessage,
+  isHostMessage,
+  isMultiplayerCommand,
+  sanitizePlaylistItem,
+  type HostMessage
+} from './multiplayer-protocol';
+import { normalizeInviteCode } from './multiplayer-session';
+
+describe('multiplayer protocol', () => {
+  it('removes local file capabilities from shared tracks', () => {
+    const file = new File(['audio'], 'song.mp3', { type: 'audio/mpeg' });
+    const item = sanitizePlaylistItem({
+      id: 'one',
+      file,
+      objectUrl: 'blob:secret',
+      name: 'song.mp3',
+      path: 'Music/song.mp3',
+      extension: 'mp3',
+      kind: 'stream',
+      size: 5,
+      lastModified: 1,
+      metadata: { title: 'Song' }
+    });
+
+    expect(item).toMatchObject({ id: 'one', path: 'Music/song.mp3', metadata: { title: 'Song' } });
+    expect(item.file).toBeUndefined();
+    expect(item.fileHandle).toBeUndefined();
+    expect(item.objectUrl).toBeUndefined();
+  });
+
+  it('rejects commands outside the finite command surface', () => {
+    expect(isMultiplayerCommand({ type: 'transport.play', commandId: '1' })).toBe(true);
+    expect(isMultiplayerCommand({ type: 'transport.pause', commandId: '1' })).toBe(true);
+    expect(isMultiplayerCommand({ type: 'transport.stop', commandId: '1' })).toBe(true);
+    expect(isMultiplayerCommand({ type: 'transport.volume', commandId: '1', volume: 0.5 })).toBe(true);
+    expect(isMultiplayerCommand({ type: 'transport.volume', commandId: '1', volume: 4 })).toBe(false);
+    expect(isMultiplayerCommand({ type: 'playlist.replace', commandId: '1', items: [] })).toBe(false);
+  });
+
+  it('reassembles chunked catalog messages', () => {
+    const message: HostMessage = {
+      kind: 'catalog',
+      catalog: {
+        revision: 3,
+        playlist: Array.from({ length: 500 }, (_, index) => ({
+          id: String(index),
+          name: `song-${index}-${'x'.repeat(40)}.mp3`,
+          extension: 'mp3',
+          kind: 'stream' as const,
+          size: 1,
+          lastModified: 1
+        })),
+        library: [],
+        favorites: [],
+        shuffleEnabled: false,
+        repeatMode: 'off'
+      }
+    };
+    const frames = encodeMultiplayerMessage(message);
+    const decode = createMultiplayerMessageDecoder(isHostMessage);
+    const decoded = frames.map(decode).find(Boolean);
+
+    expect(frames.length).toBeGreaterThan(1);
+    expect(decoded).toEqual(message);
+  });
+
+  it('accepts invite codes directly or from an izci room link', () => {
+    const code = 'abcdefghijklmnopqrstuvwx';
+    expect(normalizeInviteCode(code)).toBe(code);
+    expect(normalizeInviteCode(`https://izci.example/#room=${code}`)).toBe(code);
+    expect(normalizeInviteCode('not a room')).toBeNull();
+  });
+});

@@ -330,6 +330,10 @@ export interface TrackSettings {
   enableRatings: boolean;
 }
 
+export interface ExperimentalSettings {
+  multiplayer: boolean;
+}
+
 export interface LyricsSettings {
   displayStyle: LyricsDisplayStyle;
   autoScroll: boolean;

@@ -1,4 +1,12 @@
 {
+  "auth": {
+    "providers": {
+      "anonymous": true
+    }
+  },
+  "database": {
+    "rules": "database.rules.json"
+  },
   "hosting": {
     "public": "dist",
     "ignore": [

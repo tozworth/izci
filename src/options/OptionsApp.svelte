@@ -6,6 +6,7 @@
   import AppearanceView from './components/views/AppearanceView.svelte';
   import BackdropsView from './components/views/BackdropsView.svelte';
   import BackupsView from './components/views/BackupsView.svelte';
+  import ExperimentalView from './components/views/ExperimentalView.svelte';
   import LyricsView from './components/views/LyricsView.svelte';
   import MetadataView from './components/views/MetadataView.svelte';
   import ModulesView from './components/views/ModulesView.svelte';
@@ -33,6 +34,7 @@
   import { DEFAULT_TRACK_SETTINGS, trackSettings } from '$lib/stores/track-settings';
   import { DEFAULT_VISUALIZER_SETTINGS, visualizerSettings } from '$lib/stores/visualizer-settings';
   import { videoSettings } from '$lib/stores/video-settings';
+  import { experimentalSettings } from '$lib/stores/experimental-settings';
   import {
     OPTIONS_VIEW_GROUPS,
     OPTIONS_VIEWS,
@@ -70,6 +72,7 @@
       case 'folders': return $t('options.views.folders', { default: 'Folders' });
       case 'metadata': return $t('options.views.metadata', { default: 'Metadata' });
       case 'backups': return $t('options.views.backups', { default: 'Backups' });
+      case 'experimental': return $t('options.views.experimental', { default: 'Experimental' });
       case 'about': return $t('options.views.about', { default: 'About' });
       case 'licenses': return $t('options.views.licenses', { default: 'Licenses' });
     }
@@ -115,6 +118,8 @@
       trackSettings.reset();
     } else if (activeView === 'metadata') {
       metadataSettings.reset();
+    } else if (activeView === 'experimental') {
+      experimentalSettings.reset();
     }
   }
 
@@ -282,6 +287,10 @@
 
       {#if activeView === 'backups'}
         <BackupsView onOpenFolders={() => setActiveView('folders')} />
+      {/if}
+
+      {#if activeView === 'experimental'}
+        <ExperimentalView />
       {/if}
 
       {#if activeView === 'about'}

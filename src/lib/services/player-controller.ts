@@ -98,7 +98,7 @@ function createPlayerController() {
   let operationSequence = 0;
   let prepareSequence = 0;
   let bundleSequence = 0;
-  let outgoingTimer: ReturnType<typeof setTimeout> | null = null;
+  let outgoingTimer: number | null = null;
   const bundles = new Set<PlaybackBundle>();
 
   const snapshot = writable<PlaybackSnapshot>({ ...initialSnapshot, volume });

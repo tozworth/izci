@@ -15,6 +15,7 @@
   export let repeatMode: PlaylistRepeatMode = 'off';
   export let repeatIcon = 'repeat';
   export let repeatLabel = 'Repeat off';
+  export let readOnly = false;
 
   let shuffleRecentlyDisabled = false;
   let repeatRecentlyDisabled = false;
@@ -150,15 +151,17 @@
         <span class="material-symbols-outlined" aria-hidden="true">{repeatIcon}</span>
       </button>
     {/if}
-    <button
-      type="button"
-      class="playlist-add-files"
-      aria-label={$t('playlist.addFiles', { default: 'Add files' })}
-      title={$t('playlist.addFiles', { default: 'Add files' })}
-      on:click={() => dispatch('openFiles')}
-    >
-      <span class="material-symbols-outlined" aria-hidden="true">add</span>
-    </button>
+    {#if !readOnly}
+      <button
+        type="button"
+        class="playlist-add-files"
+        aria-label={$t('playlist.addFiles', { default: 'Add files' })}
+        title={$t('playlist.addFiles', { default: 'Add files' })}
+        on:click={() => dispatch('openFiles')}
+      >
+        <span class="material-symbols-outlined" aria-hidden="true">add</span>
+      </button>
+    {/if}
   </div>
 </div>
 

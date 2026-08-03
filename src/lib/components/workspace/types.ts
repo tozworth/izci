@@ -44,6 +44,7 @@ export interface WorkspacePanelProps {
   jumpToItemRequest?: WorkspaceJumpRequest | null;
   libraryGroupRequest?: WorkspaceLibraryGroupRequest | null;
   keyboardActive?: boolean;
+  readOnly?: boolean;
   getContextMenuActions?: (ids: string[]) => MenuActionItem[];
 }
 
