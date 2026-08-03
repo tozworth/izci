@@ -378,7 +378,7 @@
     z-index: 60;
   }
 
-  .menu-surface:has(.menu-item-description) {
+  .menu-surface:not(.menu-surface-nested):has(> .menu-entry-group > button .menu-item-description) {
     width: min(22rem, calc(100vw - 1rem));
   }
 
@@ -387,6 +387,16 @@
     top: -0.3rem;
     left: calc(100% + 0.2rem);
     z-index: 1;
+  }
+
+  .menu-surface-nested:has(> .menu-entry-group > button .menu-item-description) {
+    width: min(13rem, calc(100vw - 1rem));
+  }
+
+  .menu-surface-nested .menu-item-description {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .menu-entry-group {
