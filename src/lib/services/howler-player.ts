@@ -40,6 +40,8 @@ export class HowlerPlayerService {
   #lastPublishedDuration = -1;
   #pendingLoadResolve: (() => void) | null = null;
   #pendingLoadReject: ((error: Error) => void) | null = null;
+  #loaded = false;
+  #playPending = false;
   #onSnapshot: SnapshotHandler;
   #onMetadata: MetadataHandler;
   #onEnded: EndHandler;
@@ -83,6 +85,7 @@ export class HowlerPlayerService {
           return;
         }
 
+        this.#loaded = true;
         this.#connectAudioBus();
         const duration = this.#howl?.duration() ?? 0;
         const initialPosition = Math.min(this.#initialPosition, duration);
@@ -98,7 +101,7 @@ export class HowlerPlayerService {
         }
 
         if (this.#autoPlayOnLoad) {
-          this.#howl?.play();
+          this.#startPlayback();
           return;
         }
 
@@ -109,6 +112,7 @@ export class HowlerPlayerService {
           return;
         }
 
+        this.#playPending = false;
         this.#connectAudioBus();
         audioBusService.resume();
         this.#shouldTrackProgress = true;
@@ -121,6 +125,7 @@ export class HowlerPlayerService {
           return;
         }
 
+        this.#playPending = false;
         this.#shouldTrackProgress = false;
         this.#stopTicking();
         this.#publishProgress(true);
@@ -131,6 +136,7 @@ export class HowlerPlayerService {
           return;
         }
 
+        this.#playPending = false;
         this.#shouldTrackProgress = false;
         this.#stopTicking();
         this.#resetPublishedProgress();
@@ -141,6 +147,7 @@ export class HowlerPlayerService {
           return;
         }
 
+        this.#playPending = false;
         this.#shouldTrackProgress = false;
         this.#stopTicking();
         this.#publishProgress(true, this.#howl?.duration() ?? 0, this.#howl?.duration() ?? 0);
@@ -160,6 +167,8 @@ export class HowlerPlayerService {
           return;
         }
 
+        this.#loaded = false;
+        this.#playPending = false;
         const error = new Error(String(message));
         this.#onSnapshot({ state: 'error', error: error.message });
         this.#settlePendingLoad(error);
@@ -169,6 +178,7 @@ export class HowlerPlayerService {
           return;
         }
 
+        this.#playPending = false;
         this.#onSnapshot({ state: 'error', error: String(message) });
       }
     });
@@ -179,15 +189,18 @@ export class HowlerPlayerService {
   play(): void {
     this.#autoPlayOnLoad = true;
     void audioBusService.resume();
-    this.#howl?.play();
+    this.#startPlayback();
   }
 
   pause(): void {
     this.#autoPlayOnLoad = false;
+    this.#playPending = false;
     this.#howl?.pause();
   }
 
   stop(): void {
+    this.#autoPlayOnLoad = false;
+    this.#playPending = false;
     this.#howl?.stop();
   }
 
@@ -253,6 +266,8 @@ export class HowlerPlayerService {
     this.#settlePendingLoad();
     this.#loadToken += 1;
     this.#autoPlayOnLoad = false;
+    this.#loaded = false;
+    this.#playPending = false;
     this.#initialPosition = 0;
     this.#shouldTrackProgress = false;
     this.#replayGain = undefined;
@@ -280,6 +295,15 @@ export class HowlerPlayerService {
     audioBusService.setSourceGain(this.#audioSource, this.#transitionGain);
     this.#applyPitchPreservation();
     this.#applyOutputVolume();
+  }
+
+  #startPlayback(): void {
+    const howl = this.#howl;
+    if (!howl || !this.#loaded || this.#playPending || howl.playing()) return;
+
+    this.#playPending = true;
+    const soundId = howl.play();
+    if (soundId === null) this.#playPending = false;
   }
 
   #applyPitchPreservation(): void {

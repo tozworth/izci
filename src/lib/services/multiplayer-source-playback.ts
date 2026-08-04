@@ -8,7 +8,7 @@ interface SavedPlayback {
   snapshot: PlaybackSnapshot;
 }
 
-class MultiplayerSourcePlaybackService {
+export class MultiplayerSourcePlaybackService {
   #savedPlayback: SavedPlayback | null = null;
   #latestPlayback: MultiplayerPlayback | null = null;
   #activeTrackId: string | null = null;
@@ -107,10 +107,10 @@ class MultiplayerSourcePlaybackService {
 
     if (playback.snapshot.state === 'playing') {
       if (drift > 1) playerController.seek(target);
-      playerController.play();
+      if (local.state !== 'playing') playerController.play();
       return;
     }
-    playerController.pause();
+    if (local.state === 'playing' || local.state === 'loading') playerController.pause();
     if (drift > 0.25 && playback.snapshot.state !== 'idle') playerController.seek(target);
   }
 
