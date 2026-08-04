@@ -234,18 +234,22 @@ describe('AudioBusService', () => {
     expect(context.state).toBe('running');
   });
 
-  it('branches post-Raf audio to a reusable music broadcast track before player volume', () => {
+  it('branches pre-Raf audio by default and can move a reusable broadcast track post-Raf', () => {
     const first = bus.getBroadcastTrack();
-    const second = bus.getBroadcastTrack();
     const context = bus.context as unknown as FakeAudioContext;
+    const [input] = context.gains;
     const [analyser] = context.analysers;
     const destination = context.streamDestinations[0];
     const broadcastGain = context.gains.at(-1)!;
 
-    expect(first).toBe(second);
     expect((first as unknown as FakeMediaStreamTrack).contentHint).toBe('music');
-    expect(analyser.connections).toContain(broadcastGain);
+    expect(input.connections).toContain(broadcastGain);
     expect(broadcastGain.connections).toEqual([destination]);
+
+    const second = bus.getBroadcastTrack(true);
+    expect(second).toBe(first);
+    expect(input.disconnections).toContain(broadcastGain);
+    expect(analyser.connections).toContain(broadcastGain);
 
     bus.releaseBroadcastTrack();
     expect((first as unknown as FakeMediaStreamTrack).stopCalls).toBe(1);

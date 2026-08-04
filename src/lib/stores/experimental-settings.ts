@@ -30,6 +30,7 @@ export const DEFAULT_EXPERIMENTAL_SETTINGS: ExperimentalSettings = {
   multiplayer: false,
   izciName: defaultIzciName,
   multiplayerStreamAudio: true,
+  multiplayerSendPostRaf: false,
   multiplayerOpusBitrateKbps: 128,
   multiplayerIncludeVideoAudio: true,
   multiplayerMaxListeners: 4
@@ -54,6 +55,9 @@ export function normalizeExperimentalSettings(value: unknown): ExperimentalSetti
     multiplayerStreamAudio: typeof source.multiplayerStreamAudio === 'boolean'
       ? source.multiplayerStreamAudio
       : DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerStreamAudio,
+    multiplayerSendPostRaf: typeof source.multiplayerSendPostRaf === 'boolean'
+      ? source.multiplayerSendPostRaf
+      : DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerSendPostRaf,
     multiplayerOpusBitrateKbps: normalizeBoundedInteger(
       source.multiplayerOpusBitrateKbps,
       DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerOpusBitrateKbps,

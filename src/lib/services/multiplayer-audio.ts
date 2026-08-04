@@ -13,10 +13,11 @@ export class MultiplayerAudioService {
   #remoteElement: HTMLAudioElement | null = null;
   #remoteSource: MediaElementAudioSourceNode | null = null;
   #remoteTrack: MediaStreamTrack | null = null;
+  #remotePostRaf: boolean | null = null;
   #onStatus: StatusHandler = () => undefined;
 
-  getHostTrack(): MediaStreamTrack | null {
-    return audioBusService.getBroadcastTrack();
+  getHostTrack(postRaf: boolean): MediaStreamTrack | null {
+    return audioBusService.getBroadcastTrack(postRaf);
   }
 
   setHostAudible(audible: boolean): void {
@@ -30,6 +31,7 @@ export class MultiplayerAudioService {
   async attachRemoteTrack(
     track: MediaStreamTrack,
     stream: MediaStream,
+    postRaf: boolean,
     onStatus: StatusHandler
   ): Promise<void> {
     this.clearRemoteTrack();
@@ -48,7 +50,10 @@ export class MultiplayerAudioService {
     element.style.pointerEvents = 'none';
     document.body?.appendChild(element);
     this.#remoteElement = element;
-    this.#remoteSource = audioBusService.connectHtmlMediaElementAfterRaf(element);
+    this.#remotePostRaf = postRaf;
+    this.#remoteSource = postRaf
+      ? audioBusService.connectHtmlMediaElementAfterRaf(element)
+      : audioBusService.connectHtmlMediaElement(element);
 
     if (!this.#remoteSource) {
       this.#publish('unavailable');
@@ -60,6 +65,16 @@ export class MultiplayerAudioService {
     track.onended = () => this.#publish('unavailable');
     this.#publish('connecting');
     await this.resumeRemoteAudio();
+  }
+
+  setRemotePostRaf(postRaf: boolean): void {
+    if (!this.#remoteElement || !this.#remoteSource || this.#remotePostRaf === postRaf) return;
+    audioBusService.disconnect(this.#remoteSource);
+    this.#remotePostRaf = postRaf;
+    this.#remoteSource = postRaf
+      ? audioBusService.connectHtmlMediaElementAfterRaf(this.#remoteElement)
+      : audioBusService.connectHtmlMediaElement(this.#remoteElement);
+    if (!this.#remoteSource) this.#publish('unavailable');
   }
 
   async resumeRemoteAudio(): Promise<boolean> {
@@ -95,6 +110,7 @@ export class MultiplayerAudioService {
     this.#remoteElement = null;
     this.#remoteSource = null;
     this.#remoteTrack = null;
+    this.#remotePostRaf = null;
     this.#publish('idle');
     this.#onStatus = () => undefined;
   }

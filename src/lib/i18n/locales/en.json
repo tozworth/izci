@@ -744,7 +744,7 @@
         "nameHint": "Shown to hosts and clients in multiplayer sessions.",
         "streamAudio": {
           "title": "Stream audio to listeners",
-          "hint": "Sends the host’s post-Raf audio directly to connected peers. The host’s volume and mute do not affect listeners."
+          "hint": "Sends the host’s audio directly to connected peers. The host’s volume and mute do not affect listeners."
         },
         "opusBitrate": {
           "title": "Opus VBR bitrate",
@@ -757,6 +757,10 @@
         "maxListeners": {
           "title": "Maximum listeners",
           "hint": "Limits new listeners because the host encodes and sends one stream per peer."
+        },
+        "postRaf": {
+          "title": "Send post-Raf audio",
+          "hint": "Applies the host’s Raf rack before streaming. When off, listeners receive pre-Raf audio and can apply their own Raf settings."
         },
         "diagnostics": {
           "heading": "Connection diagnostics",

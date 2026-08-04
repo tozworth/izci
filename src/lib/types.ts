@@ -334,6 +334,7 @@ export interface ExperimentalSettings {
   multiplayer: boolean;
   izciName: string;
   multiplayerStreamAudio: boolean;
+  multiplayerSendPostRaf: boolean;
   multiplayerOpusBitrateKbps: number;
   multiplayerIncludeVideoAudio: boolean;
   multiplayerMaxListeners: number;

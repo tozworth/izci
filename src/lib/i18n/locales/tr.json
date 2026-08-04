@@ -744,7 +744,7 @@
         "nameHint": "Çok oyunculu oturumlarda sunucu ve istemcilere gösterilir.",
         "streamAudio": {
           "title": "Dinleyicilere ses aktar",
-          "hint": "Sunucunun Raf sonrası sesini doğrudan bağlı eşlere gönderir. Sunucunun ses düzeyi ve sessiz ayarı dinleyicileri etkilemez."
+          "hint": "Sunucunun sesini doğrudan bağlı eşlere gönderir. Sunucunun ses düzeyi ve sessiz ayarı dinleyicileri etkilemez."
         },
         "opusBitrate": {
           "title": "Opus VBR bit hızı",
@@ -757,6 +757,10 @@
         "maxListeners": {
           "title": "Azami dinleyici",
           "hint": "Sunucu her eş için ayrı bir akış kodlayıp gönderdiğinden yeni dinleyicilerin sayısını sınırlar."
+        },
+        "postRaf": {
+          "title": "Raf sonrası sesi gönder",
+          "hint": "Aktarımdan önce sunucunun Raf rafını uygular. Kapalıyken dinleyiciler Raf öncesi sesi alır ve kendi Raf ayarlarını uygulayabilir."
         },
         "diagnostics": {
           "heading": "Bağlantı tanılama",

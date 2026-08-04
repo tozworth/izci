@@ -13,6 +13,7 @@ export class AudioBusService {
   #analyser: AnalyserNode | null = null;
   #broadcastGain: GainNode | null = null;
   #broadcastDestination: MediaStreamAudioDestinationNode | null = null;
+  #broadcastSource: AudioNode | null = null;
   #broadcastGainValue = 1;
   #sourceGains = new Map<AudioBusSource, GainNode>();
   #mediaSources = new WeakMap<HTMLMediaElement, MediaElementAudioSourceNode>();
@@ -106,19 +107,30 @@ export class AudioBusService {
     }
   }
 
-  getBroadcastTrack(): MediaStreamTrack | null {
+  getBroadcastTrack(postRaf = false): MediaStreamTrack | null {
     this.#ensureGraph();
-    if (!this.#context || !this.#analyser) return null;
+    if (!this.#context || !this.#input || !this.#analyser) return null;
+
+    const source = postRaf ? this.#analyser : this.#input;
 
     if (!this.#broadcastDestination) {
       const gain = this.#context.createGain();
       const destination = this.#context.createMediaStreamDestination();
       destination.channelCount = 2;
       gain.gain.value = this.#broadcastGainValue;
-      this.#analyser.connect(gain);
+      source.connect(gain);
       gain.connect(destination);
       this.#broadcastGain = gain;
       this.#broadcastDestination = destination;
+      this.#broadcastSource = source;
+    } else if (this.#broadcastSource !== source && this.#broadcastGain) {
+      try {
+        this.#broadcastSource?.disconnect(this.#broadcastGain);
+      } catch {
+        // The previous branch may already have been disconnected during graph teardown.
+      }
+      source.connect(this.#broadcastGain);
+      this.#broadcastSource = source;
     }
 
     const track = this.#broadcastDestination.stream.getAudioTracks()[0] ?? null;
@@ -138,7 +150,7 @@ export class AudioBusService {
 
     for (const track of destination.stream.getTracks()) track.stop();
     try {
-      this.#analyser?.disconnect(this.#broadcastGain as GainNode);
+      this.#broadcastSource?.disconnect(this.#broadcastGain as GainNode);
       this.#broadcastGain?.disconnect();
       destination.disconnect();
     } catch {
@@ -146,6 +158,7 @@ export class AudioBusService {
     }
     this.#broadcastGain = null;
     this.#broadcastDestination = null;
+    this.#broadcastSource = null;
   }
 
   setSourceGain(source: AudioBusSource | null, gain: number, durationSeconds = 0): void {
@@ -241,6 +254,7 @@ export class AudioBusService {
     this.#analyser = null;
     this.#broadcastGain = null;
     this.#broadcastDestination = null;
+    this.#broadcastSource = null;
     this.#mediaSources = new WeakMap();
     this.#sourceGains.clear();
 

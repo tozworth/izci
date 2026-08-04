@@ -237,6 +237,7 @@ export function createMultiplayerSession({
   let hostArtworkLoadToken = 0;
   let latestAudioAvailability: MultiplayerAudioAvailability = {
     enabled: false,
+    postRaf: false,
     reason: 'host-disabled'
   };
   const rejectedPeerIds = new Set<string>();
@@ -443,7 +444,7 @@ export function createMultiplayerSession({
         peer.audioSender = audioTransceiver.sender;
         await peer.audioSender.replaceTrack(
           multiplayerSettings.multiplayerStreamAudio
-            ? multiplayerAudioService.getHostTrack()
+            ? multiplayerAudioService.getHostTrack(multiplayerSettings.multiplayerSendPostRaf)
             : null
         );
       }
@@ -777,6 +778,7 @@ export function createMultiplayerSession({
       }
       if (message.kind === 'audio') {
         latestAudioAvailability = message.audio;
+        multiplayerAudioService.setRemotePostRaf(message.audio.postRaf);
         if (!message.audio.enabled) {
           publish({
             audioStatus: message.audio.reason === 'video-disabled' ? 'video-disabled' : 'disabled',
@@ -844,17 +846,22 @@ export function createMultiplayerSession({
       if (event.track.kind !== 'audio') return;
       startReceiverBitrateMonitor(peer);
       const stream = event.streams[0] ?? new MediaStream([event.track]);
-      void multiplayerAudioService.attachRemoteTrack(event.track, stream, (audioStatus) => {
-        if (state.mode !== 'client') return;
-        if (!latestAudioAvailability.enabled
-          && (audioStatus === 'connecting' || audioStatus === 'playing')) return;
-        publish({
-          audioStatus,
-          averageAudioBitrateKbps: audioStatus === 'playing'
-            ? state.averageAudioBitrateKbps
-            : null
-        });
-      });
+      void multiplayerAudioService.attachRemoteTrack(
+        event.track,
+        stream,
+        latestAudioAvailability.postRaf,
+        (audioStatus) => {
+          if (state.mode !== 'client') return;
+          if (!latestAudioAvailability.enabled
+            && (audioStatus === 'connecting' || audioStatus === 'playing')) return;
+          publish({
+            audioStatus,
+            averageAudioBitrateKbps: audioStatus === 'playing'
+              ? state.averageAudioBitrateKbps
+              : null
+          });
+        }
+      );
     };
   }
 
@@ -1028,6 +1035,7 @@ export function createMultiplayerSession({
       && (multiplayerSettings.multiplayerIncludeVideoAudio || track?.kind !== 'video');
     const nextAvailability: MultiplayerAudioAvailability = {
       enabled,
+      postRaf: multiplayerSettings.multiplayerSendPostRaf,
       reason: multiplayerSettings.multiplayerStreamAudio
         ? enabled ? null : 'video-disabled'
         : 'host-disabled'
@@ -1035,7 +1043,7 @@ export function createMultiplayerSession({
     multiplayerAudioService.setHostAudible(enabled);
 
     if (multiplayerSettings.multiplayerStreamAudio) {
-      const hostTrack = multiplayerAudioService.getHostTrack();
+      const hostTrack = multiplayerAudioService.getHostTrack(multiplayerSettings.multiplayerSendPostRaf);
       for (const peer of hostPeers.values()) {
         if (peer.audioSender?.track !== hostTrack) {
           void peer.audioSender?.replaceTrack(hostTrack).catch(() => undefined);
@@ -1049,6 +1057,7 @@ export function createMultiplayerSession({
     }
 
     if (nextAvailability.enabled !== latestAudioAvailability.enabled
+      || nextAvailability.postRaf !== latestAudioAvailability.postRaf
       || nextAvailability.reason !== latestAudioAvailability.reason) {
       latestAudioAvailability = nextAvailability;
       broadcast({ kind: 'audio', audio: nextAvailability });
@@ -1249,7 +1258,7 @@ export function createMultiplayerSession({
     hostArtworkTrackKey = '';
     hostArtworkLoadToken += 1;
     rejectedPeerIds.clear();
-    latestAudioAvailability = { enabled: false, reason: 'host-disabled' };
+    latestAudioAvailability = { enabled: false, postRaf: false, reason: 'host-disabled' };
   }
 
   return {

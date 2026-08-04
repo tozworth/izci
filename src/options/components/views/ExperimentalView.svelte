@@ -31,6 +31,10 @@
     experimentalSettings.update({ multiplayerStreamAudio: checked(event) });
   }
 
+  function handleSendPostRafToggle(event: Event) {
+    experimentalSettings.update({ multiplayerSendPostRaf: checked(event) });
+  }
+
   function handleOpusBitrateChange(event: Event) {
     experimentalSettings.update({
       multiplayerOpusBitrateKbps: (event.currentTarget as HTMLInputElement).valueAsNumber
@@ -76,13 +80,25 @@
       </SettingsField>
       <SettingsField
         title={$t('options.experimental.multiplayer.streamAudio.title', { default: 'Stream audio to listeners' })}
-        hint={$t('options.experimental.multiplayer.streamAudio.hint', { default: 'Sends the host’s post-Raf audio directly to connected peers. The host’s volume and mute do not affect listeners.' })}
+        hint={$t('options.experimental.multiplayer.streamAudio.hint', { default: 'Sends the host’s audio directly to connected peers. The host’s volume and mute do not affect listeners.' })}
         checkbox
       >
         <input
           type="checkbox"
           checked={$experimentalSettings.multiplayerStreamAudio}
           on:change={handleStreamAudioToggle}
+        />
+      </SettingsField>
+      <SettingsField
+        title={$t('options.experimental.multiplayer.postRaf.title', { default: 'Send post-Raf audio' })}
+        hint={$t('options.experimental.multiplayer.postRaf.hint', { default: 'Applies the host’s Raf rack before streaming. When off, listeners receive pre-Raf audio and can apply their own Raf settings.' })}
+        checkbox
+      >
+        <input
+          type="checkbox"
+          checked={$experimentalSettings.multiplayerSendPostRaf}
+          disabled={!$experimentalSettings.multiplayerStreamAudio}
+          on:change={handleSendPostRafToggle}
         />
       </SettingsField>
       <SettingsField

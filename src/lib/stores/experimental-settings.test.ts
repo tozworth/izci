@@ -16,6 +16,7 @@ describe('experimental settings', () => {
 
     expect(normalized).toMatchObject({
       multiplayerStreamAudio: true,
+      multiplayerSendPostRaf: false,
       multiplayerOpusBitrateKbps: DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerOpusBitrateKbps,
       multiplayerIncludeVideoAudio: true,
       multiplayerMaxListeners: DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerMaxListeners
