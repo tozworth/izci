@@ -60,7 +60,9 @@ import {
   type MultiplayerCatalog,
   type MultiplayerCommand,
   type MultiplayerCommandInput,
-  type MultiplayerPlayback
+  type MultiplayerPlayback,
+  type MultiplayerPlaybackPreparation,
+  type MultiplayerPlaybackPreparationAudio
 } from './multiplayer-protocol';
 
 const FIREBASE_CONFIG = {
@@ -94,6 +96,23 @@ export function shouldTransferMultiplayerSourceFile(
 ): boolean {
   if (!audioEnabled || !track?.file || track.kind === 'video' || limitMiB === 0) return false;
   return limitMiB < 0 || track.file.size < limitMiB * 1024 * 1024;
+}
+
+export function isMultiplayerPlaybackPreparationReady(
+  preparation: MultiplayerPlaybackPreparation,
+  state: {
+    remoteTrackId: string | null;
+    receiveAudio: boolean;
+    loadedSourceTrackId: string | null;
+    streamReady: boolean;
+  }
+): boolean {
+  if (state.remoteTrackId !== preparation.trackId) return false;
+  if (!state.receiveAudio || preparation.audio === 'none') return true;
+  if (preparation.audio === 'file') {
+    return state.loadedSourceTrackId === preparation.trackId;
+  }
+  return state.streamReady;
 }
 
 const EMPTY_PLAYBACK: PlaybackSnapshot = {
@@ -267,6 +286,8 @@ interface CreateMultiplayerSessionOptions {
     command: MultiplayerCommand,
     client: Pick<MultiplayerClient, 'id' | 'name'>
   ) => boolean | Promise<boolean>;
+  pauseHostPlayback: () => void;
+  resumeHostPlayback: () => void;
 }
 
 export interface MultiplayerSessionController extends Readable<MultiplayerSessionState> {
@@ -279,6 +300,7 @@ export interface MultiplayerSessionController extends Readable<MultiplayerSessio
   kick(clientId: string): Promise<void>;
   togglePairing(clientId: string): Promise<void>;
   sendCommand(command: MultiplayerCommandInput): boolean;
+  cancelPendingPlayback(): boolean;
   resumeAudio(): Promise<boolean>;
   setReceiveAudio(enabled: boolean): void;
   updateHostState(next: MultiplayerHostState): void;
@@ -286,7 +308,9 @@ export interface MultiplayerSessionController extends Readable<MultiplayerSessio
 }
 
 export function createMultiplayerSession({
-  handleHostCommand
+  handleHostCommand,
+  pauseHostPlayback,
+  resumeHostPlayback
 }: CreateMultiplayerSessionOptions): MultiplayerSessionController {
   let state: MultiplayerSessionState = {
     mode: 'idle',
@@ -321,6 +345,8 @@ export function createMultiplayerSession({
   let stopAnswerListener: Unsubscribe | null = null;
   let clientPeer: PeerConnection | null = null;
   let pendingClientSourceFile: { trackId: string; file: File } | null = null;
+  let pendingClientPlaybackPreparation: MultiplayerPlaybackPreparation | null = null;
+  let clientRemoteAudioReady = false;
   let reconnectTimer: number | null = null;
   let reconnectAttempts = 0;
   let reconnectInFlight = false;
@@ -344,6 +370,11 @@ export function createMultiplayerSession({
     postRaf: false,
     reason: 'host-disabled'
   };
+  let hostPlaybackPreparation: {
+    preparation: MultiplayerPlaybackPreparation;
+    pendingPeerIds: Set<string>;
+  } | null = null;
+  let bypassHostPlaybackGateTrackId: string | null = null;
   const rejectedPeerIds = new Set<string>();
   const acceptingPeerIds = new Set<string>();
   const answeredTurnCredentialRequestIds = new Set<string>();
@@ -352,10 +383,19 @@ export function createMultiplayerSession({
   const unsubscribeSettings = experimentalSettings.subscribe((settings) => {
     const audioBufferChanged = settings.multiplayerAudioBufferMs
       !== multiplayerSettings.multiplayerAudioBufferMs;
+    const waitForClientsDisabled = multiplayerSettings.multiplayerWaitForClients
+      && !settings.multiplayerWaitForClients;
     multiplayerSettings = settings;
     if (state.mode === 'hosting') {
       syncHostAudio(latestHostState?.track ?? null);
       syncHostSourceFiles(latestHostState?.track ?? null);
+      if (waitForClientsDisabled) {
+        releasePreparedHostPlayback();
+      } else if (hostPlaybackPreparation
+        && hostPlaybackPreparation.preparation.audio
+          !== resolvePlaybackPreparationAudio(latestAudioAvailability)) {
+        beginHostPlaybackPreparation(hostPlaybackPreparation.preparation.trackId);
+      }
     }
     if (state.mode === 'client' && clientPeer && audioBufferChanged) {
       applyClientAudioBuffer(clientPeer);
@@ -443,6 +483,7 @@ export function createMultiplayerSession({
               clearPeerConnectionTimer(peer);
               peer.pc.close();
               hostPeers.delete(id);
+              removePeerFromHostPlaybackPreparation(id);
               publish({ clients: state.clients.filter((client) => client.id !== id) });
               if (firebaseRuntime && state.mode === 'hosting') {
                 void firebaseRuntime.remove(firebaseRuntime.ref(
@@ -586,6 +627,7 @@ export function createMultiplayerSession({
       }
       if (status === 'failed' || status === 'disconnected' || status === 'closed') {
         updateClient(id, { status: 'disconnected' });
+        removePeerFromHostPlaybackPreparation(id);
       }
       if (status === 'failed') publish({ message: describeIceFailure(peer, peer.name) });
     };
@@ -707,8 +749,14 @@ export function createMultiplayerSession({
             message: 'The host could not apply that command.'
           }));
       }
+      if (message.kind === 'playback.ready') {
+        acceptClientPlaybackReady(peer, message.preparationId);
+      }
     };
-    channel.onclose = () => updateClient(peer.id, { status: 'disconnected' });
+    channel.onclose = () => {
+      updateClient(peer.id, { status: 'disconnected' });
+      removePeerFromHostPlaybackPreparation(peer.id);
+    };
     sendToPeer(peer, {
       kind: 'hello',
       version: MULTIPLAYER_PROTOCOL_VERSION,
@@ -830,6 +878,8 @@ export function createMultiplayerSession({
       mediaChannel.binaryType = 'arraybuffer';
       peer.mediaChannel = mediaChannel;
       clientPeer = peer;
+      pendingClientPlaybackPreparation = null;
+      clientRemoteAudioReady = false;
       attachClientChannel(peer);
       attachClientMediaChannel(peer);
 
@@ -976,6 +1026,11 @@ export function createMultiplayerSession({
         publish({ remotePlayback: message.playback });
         multiplayerSourcePlaybackService.syncPlayback(message.playback);
         loadPendingClientSourceFile(peer);
+        sendClientPlaybackReadyIfPossible(peer);
+      }
+      if (message.kind === 'playback.prepare') {
+        pendingClientPlaybackPreparation = message.preparation;
+        sendClientPlaybackReadyIfPossible(peer);
       }
       if (message.kind === 'artwork') {
         publish({
@@ -989,6 +1044,7 @@ export function createMultiplayerSession({
       }
       if (message.kind === 'audio') {
         latestAudioAvailability = message.audio;
+        if (!message.audio.enabled) clientRemoteAudioReady = false;
         if (!state.receiveAudio) {
           multiplayerSourcePlaybackService.setEnabled(false);
           publish({ audioStatus: 'refused', averageAudioBitrateKbps: null });
@@ -1009,6 +1065,7 @@ export function createMultiplayerSession({
           multiplayerSourcePlaybackService.clearSourceTrack();
           attachClientRemoteAudio(peer);
         }
+        sendClientPlaybackReadyIfPossible(peer);
       }
       if (message.kind === 'kicked') {
         allowClientReconnect = false;
@@ -1094,6 +1151,8 @@ export function createMultiplayerSession({
               ? state.averageAudioBitrateKbps
               : null
           });
+          clientRemoteAudioReady = audioStatus === 'playing';
+          sendClientPlaybackReadyIfPossible(peer);
         }
       );
     };
@@ -1108,6 +1167,8 @@ export function createMultiplayerSession({
     void multiplayerAudioService.attachRemoteTrack(track, new MediaStream([track]), (audioStatus) => {
       if (state.mode === 'client' && state.receiveAudio && latestAudioAvailability.enabled) {
         publish({ audioStatus });
+        clientRemoteAudioReady = audioStatus === 'playing';
+        sendClientPlaybackReadyIfPossible(peer);
       }
     });
   }
@@ -1176,6 +1237,26 @@ export function createMultiplayerSession({
     void multiplayerSourcePlaybackService.loadFile(remoteTrack, pending.file).then((loaded) => {
       if (clientPeer !== peer || !state.receiveAudio) return;
       publish({ audioStatus: loaded ? 'playing' : 'unavailable', averageAudioBitrateKbps: null });
+      sendClientPlaybackReadyIfPossible(peer);
+    });
+  }
+
+  function sendClientPlaybackReadyIfPossible(peer: PeerConnection): void {
+    const preparation = pendingClientPlaybackPreparation;
+    if (!preparation || clientPeer !== peer) return;
+    const remoteTrackId = state.remotePlayback.track?.id ?? null;
+    if (!isMultiplayerPlaybackPreparationReady(preparation, {
+      remoteTrackId,
+      receiveAudio: state.receiveAudio,
+      loadedSourceTrackId: multiplayerSourcePlaybackService.isTrackReady(preparation.trackId)
+        ? preparation.trackId
+        : null,
+      streamReady: clientRemoteAudioReady
+    })) return;
+    pendingClientPlaybackPreparation = null;
+    sendToPeer(peer, {
+      kind: 'playback.ready',
+      preparationId: preparation.preparationId
     });
   }
 
@@ -1300,6 +1381,7 @@ export function createMultiplayerSession({
     if (state.mode !== 'client' || !clientPeer) return;
 
     multiplayerSourcePlaybackService.setEnabled(enabled);
+    if (!enabled) sendClientPlaybackReadyIfPossible(clientPeer);
     if (latestAudioAvailability.sourceFile) {
       multiplayerAudioService.clearRemoteTrack();
       publish({
@@ -1396,36 +1478,118 @@ export function createMultiplayerSession({
   }
 
   function updateHostState(next: MultiplayerHostState): void {
-    latestHostState = next;
-    if (state.mode !== 'hosting') return;
+    let effectiveNext = next;
+    if (state.mode !== 'hosting') {
+      latestHostState = next;
+      return;
+    }
+
+    const nextTrackId = next.track?.id ?? null;
+    const shouldGatePlayback = multiplayerSettings.multiplayerWaitForClients
+      && next.playback.state === 'playing'
+      && nextTrackId !== null
+      && (lastPlaybackSource?.state !== 'playing' || lastTrackSource?.id !== nextTrackId)
+      && bypassHostPlaybackGateTrackId !== nextTrackId
+      && connectedHostPeers().length > 0;
+
+    if (bypassHostPlaybackGateTrackId === nextTrackId && next.playback.state === 'playing') {
+      bypassHostPlaybackGateTrackId = null;
+    } else if (shouldGatePlayback) {
+      pauseHostPlayback();
+      effectiveNext = {
+        ...next,
+        playback: { ...next.playback, state: 'paused' }
+      };
+    }
+
+    latestHostState = effectiveNext;
 
     const catalogChanged = !lastCatalogSources
-      || lastCatalogSources.playlist !== next.playlist
-      || lastCatalogSources.library !== next.library
-      || lastCatalogSources.favorites !== next.favorites
-      || lastCatalogSources.shuffleEnabled !== next.shuffleEnabled
-      || lastCatalogSources.repeatMode !== next.repeatMode;
+      || lastCatalogSources.playlist !== effectiveNext.playlist
+      || lastCatalogSources.library !== effectiveNext.library
+      || lastCatalogSources.favorites !== effectiveNext.favorites
+      || lastCatalogSources.shuffleEnabled !== effectiveNext.shuffleEnabled
+      || lastCatalogSources.repeatMode !== effectiveNext.repeatMode;
     if (catalogChanged) {
       catalogRevision += 1;
       lastCatalogSources = {
-        playlist: next.playlist,
-        library: next.library,
-        favorites: next.favorites,
-        shuffleEnabled: next.shuffleEnabled,
-        repeatMode: next.repeatMode
+        playlist: effectiveNext.playlist,
+        library: effectiveNext.library,
+        favorites: effectiveNext.favorites,
+        shuffleEnabled: effectiveNext.shuffleEnabled,
+        repeatMode: effectiveNext.repeatMode
       };
-      broadcast({ kind: 'catalog', catalog: buildCatalog(next) });
+      broadcast({ kind: 'catalog', catalog: buildCatalog(effectiveNext) });
     }
 
-    if (lastPlaybackSource !== next.playback || lastTrackSource !== next.track) {
-      lastPlaybackSource = next.playback;
-      lastTrackSource = next.track;
-      broadcast({ kind: 'playback', playback: buildPlayback(next) });
+    if (lastPlaybackSource !== effectiveNext.playback || lastTrackSource !== effectiveNext.track) {
+      lastPlaybackSource = effectiveNext.playback;
+      lastTrackSource = effectiveNext.track;
+      broadcast({ kind: 'playback', playback: buildPlayback(effectiveNext) });
     }
 
-    syncHostArtwork(next.track);
-    syncHostAudio(next.track);
-    syncHostSourceFiles(next.track);
+    syncHostArtwork(effectiveNext.track);
+    syncHostAudio(effectiveNext.track);
+    syncHostSourceFiles(effectiveNext.track);
+    if (shouldGatePlayback) beginHostPlaybackPreparation(nextTrackId);
+  }
+
+  function connectedHostPeers(): PeerConnection[] {
+    return Array.from(hostPeers.values()).filter(
+      (peer) => peer.channel?.readyState === 'open'
+    );
+  }
+
+  function beginHostPlaybackPreparation(trackId: string): void {
+    const peers = connectedHostPeers();
+    if (peers.length === 0) {
+      bypassHostPlaybackGateTrackId = trackId;
+      resumeHostPlayback();
+      return;
+    }
+    const preparation: MultiplayerPlaybackPreparation = {
+      preparationId: crypto.randomUUID(),
+      trackId,
+      audio: resolvePlaybackPreparationAudio(latestAudioAvailability)
+    };
+    hostPlaybackPreparation = {
+      preparation,
+      pendingPeerIds: new Set(peers.map((peer) => peer.id))
+    };
+    for (const peer of peers) {
+      sendToPeer(peer, { kind: 'playback.prepare', preparation });
+    }
+  }
+
+  function acceptClientPlaybackReady(peer: PeerConnection, preparationId: string): void {
+    const pending = hostPlaybackPreparation;
+    if (!pending || pending.preparation.preparationId !== preparationId) return;
+    pending.pendingPeerIds.delete(peer.id);
+    if (pending.pendingPeerIds.size === 0) releasePreparedHostPlayback();
+  }
+
+  function removePeerFromHostPlaybackPreparation(peerId: string): void {
+    const pending = hostPlaybackPreparation;
+    if (!pending || !pending.pendingPeerIds.delete(peerId)) return;
+    if (pending.pendingPeerIds.size === 0) releasePreparedHostPlayback();
+  }
+
+  function releasePreparedHostPlayback(): void {
+    const pending = hostPlaybackPreparation;
+    if (!pending) return;
+    hostPlaybackPreparation = null;
+    if (state.mode !== 'hosting'
+      || latestHostState?.track?.id !== pending.preparation.trackId
+      || latestHostState.playback.state === 'playing') return;
+    bypassHostPlaybackGateTrackId = pending.preparation.trackId;
+    resumeHostPlayback();
+  }
+
+  function cancelPendingPlayback(): boolean {
+    if (!hostPlaybackPreparation) return false;
+    hostPlaybackPreparation = null;
+    bypassHostPlaybackGateTrackId = null;
+    return true;
   }
 
   function primeHostState(): void {
@@ -1453,6 +1617,13 @@ export function createMultiplayerSession({
       sendToPeer(peer, { kind: 'artwork', artwork: latestHostArtwork });
     }
     sendToPeer(peer, { kind: 'audio', audio: latestAudioAvailability });
+    if (hostPlaybackPreparation) {
+      hostPlaybackPreparation.pendingPeerIds.add(peer.id);
+      sendToPeer(peer, {
+        kind: 'playback.prepare',
+        preparation: hostPlaybackPreparation.preparation
+      });
+    }
   }
 
   function syncHostAudio(track: PlaylistItem | null): void {
@@ -1699,6 +1870,7 @@ export function createMultiplayerSession({
       sendToPeer(peer, { kind: 'kicked' });
       window.setTimeout(() => peer.pc.close(), 80);
       hostPeers.delete(clientId);
+      removePeerFromHostPlaybackPreparation(clientId);
     }
     publish({ clients: state.clients.filter((client) => client.id !== clientId) });
     if (firebaseRuntime && state.inviteCode) {
@@ -1775,6 +1947,10 @@ export function createMultiplayerSession({
     multiplayerAudioService.clearRemoteTrack();
     multiplayerSourcePlaybackService.clearLoadedFile();
     pendingClientSourceFile = null;
+    pendingClientPlaybackPreparation = null;
+    clientRemoteAudioReady = false;
+    hostPlaybackPreparation = null;
+    bypassHostPlaybackGateTrackId = null;
     multiplayerAudioService.releaseHostTrack();
 
     try {
@@ -1828,6 +2004,7 @@ export function createMultiplayerSession({
     kick,
     togglePairing,
     sendCommand,
+    cancelPendingPlayback,
     resumeAudio: () => multiplayerSourcePlaybackService.resume()
       ? Promise.resolve(true)
       : multiplayerAudioService.resumeRemoteAudio(),
@@ -2146,7 +2323,19 @@ function isClientMessage(value: unknown): value is ClientMessage {
       && typeof message.name === 'string'
       && typeof message.platform === 'string';
   }
+  if (message.kind === 'playback.ready') {
+    return typeof message.preparationId === 'string'
+      && message.preparationId.length > 0
+      && message.preparationId.length <= 80;
+  }
   return message.kind === 'command' && isMultiplayerCommand(message.command);
+}
+
+function resolvePlaybackPreparationAudio(
+  availability: MultiplayerAudioAvailability
+): MultiplayerPlaybackPreparationAudio {
+  if (availability.sourceFile) return 'file';
+  return availability.enabled ? 'stream' : 'none';
 }
 
 function isSignalOffer(value: unknown): value is SignalOffer {

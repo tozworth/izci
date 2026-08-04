@@ -33,6 +33,10 @@
     });
   }
 
+  function handleWaitForClientsToggle(event: Event) {
+    experimentalSettings.update({ multiplayerWaitForClients: checked(event) });
+  }
+
   function handleStreamAudioToggle(event: Event) {
     experimentalSettings.update({ multiplayerStreamAudio: checked(event) });
   }
@@ -127,6 +131,17 @@
           maxlength="48"
           value={$experimentalSettings.izciName}
           on:change={handleIzciNameChange}
+        />
+      </SettingsField>
+      <SettingsField
+        title={$t('options.experimental.multiplayer.waitForClients.title', { default: 'Wait for clients' })}
+        hint={$t('options.experimental.multiplayer.waitForClients.hint', { default: 'Before starting a track, waits until every connected listener has loaded its transferred file or tuned to the audio stream.' })}
+        checkbox
+      >
+        <input
+          type="checkbox"
+          checked={$experimentalSettings.multiplayerWaitForClients}
+          on:change={handleWaitForClientsToggle}
         />
       </SettingsField>
       <SettingsField

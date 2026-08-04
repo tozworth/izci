@@ -8,7 +8,7 @@ import type {
 
 export type MultiplayerCollection = 'playlist' | 'library' | 'favorites';
 
-export const MULTIPLAYER_PROTOCOL_VERSION = 10;
+export const MULTIPLAYER_PROTOCOL_VERSION = 11;
 export const MULTIPLAYER_FRAME_CHUNK_SIZE = 12_000;
 
 const MULTIPLAYER_ARTWORK_DATA_URL_MAX_LENGTH = 8 * 1024 * 1024;
@@ -67,11 +67,20 @@ export interface MultiplayerAudioAvailability {
   reason: 'host-disabled' | null;
 }
 
+export type MultiplayerPlaybackPreparationAudio = 'file' | 'stream' | 'none';
+
+export interface MultiplayerPlaybackPreparation {
+  preparationId: string;
+  trackId: string;
+  audio: MultiplayerPlaybackPreparationAudio;
+}
+
 export type HostMessage =
   | { kind: 'hello'; version: number; name: string; appVersion: string }
   | { kind: 'pairing'; paired: boolean; hostId: string; name: string }
   | { kind: 'catalog'; catalog: MultiplayerCatalog }
   | { kind: 'playback'; playback: MultiplayerPlayback }
+  | { kind: 'playback.prepare'; preparation: MultiplayerPlaybackPreparation }
   | { kind: 'audio'; audio: MultiplayerAudioAvailability }
   | { kind: 'artwork'; artwork: MultiplayerArtwork | null }
   | { kind: 'ack'; commandId: string; accepted: boolean; message?: string }
@@ -79,7 +88,8 @@ export type HostMessage =
 
 export type ClientMessage =
   | { kind: 'hello'; version: number; name: string; platform: string }
-  | { kind: 'command'; command: MultiplayerCommand };
+  | { kind: 'command'; command: MultiplayerCommand }
+  | { kind: 'playback.ready'; preparationId: string };
 
 interface ChunkFrame {
   kind: 'chunk';
@@ -192,6 +202,19 @@ export function isHostMessage(value: unknown): value is HostMessage {
       && typeof playback?.sentAt === 'number'
       && isPlaybackSnapshot(playback.snapshot)
       && (playback.track === null || isRemotePlaylistItem(playback.track));
+  }
+  if (message.kind === 'playback.prepare') {
+    const preparation = message.preparation as Partial<MultiplayerPlaybackPreparation> | undefined;
+    return Boolean(preparation)
+      && typeof preparation?.preparationId === 'string'
+      && preparation.preparationId.length > 0
+      && preparation.preparationId.length <= 80
+      && typeof preparation.trackId === 'string'
+      && preparation.trackId.length > 0
+      && preparation.trackId.length <= 200
+      && (preparation.audio === 'file'
+        || preparation.audio === 'stream'
+        || preparation.audio === 'none');
   }
   if (message.kind === 'audio') {
     const audio = message.audio as Partial<MultiplayerAudioAvailability> | undefined;

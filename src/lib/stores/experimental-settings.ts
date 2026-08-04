@@ -49,6 +49,7 @@ const defaultIzciName = createDefaultIzciName();
 export const DEFAULT_EXPERIMENTAL_SETTINGS: ExperimentalSettings = {
   multiplayer: false,
   izciName: defaultIzciName,
+  multiplayerWaitForClients: false,
   multiplayerTurnUrl: '',
   multiplayerTurnSecret: '',
   multiplayerTurnCredentialHours: 12,
@@ -86,6 +87,9 @@ export function normalizeExperimentalSettings(value: unknown): ExperimentalSetti
       ? source.multiplayer
       : DEFAULT_EXPERIMENTAL_SETTINGS.multiplayer,
     izciName: normalizeIzciName(source.izciName, defaultIzciName),
+    multiplayerWaitForClients: typeof source.multiplayerWaitForClients === 'boolean'
+      ? source.multiplayerWaitForClients
+      : DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerWaitForClients,
     multiplayerTurnUrl: normalizeMultiplayerTurnUrl(source.multiplayerTurnUrl),
     multiplayerTurnSecret: normalizeSingleLine(
       source.multiplayerTurnSecret,

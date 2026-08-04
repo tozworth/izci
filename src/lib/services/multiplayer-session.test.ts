@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { isMultiplayerClientTransportHealthy, shouldTransferMultiplayerSourceFile } from './multiplayer-session';
+import {
+  isMultiplayerClientTransportHealthy,
+  isMultiplayerPlaybackPreparationReady,
+  shouldTransferMultiplayerSourceFile
+} from './multiplayer-session';
 import type { PlaylistItem } from '$lib/types';
 
 describe('multiplayer client lifecycle', () => {
@@ -44,5 +48,48 @@ describe('multiplayer source-file selection', () => {
     const track = trackWithSize(1);
     expect(shouldTransferMultiplayerSourceFile({ ...track, kind: 'video' }, -1)).toBe(false);
     expect(shouldTransferMultiplayerSourceFile(track, -1, false)).toBe(false);
+  });
+});
+
+describe('multiplayer playback preparation', () => {
+  const baseState = {
+    remoteTrackId: 'track',
+    receiveAudio: true,
+    loadedSourceTrackId: null,
+    streamReady: false
+  };
+
+  it('waits for a transferred file to be loaded for the requested track', () => {
+    const preparation = { preparationId: 'one', trackId: 'track', audio: 'file' as const };
+    expect(isMultiplayerPlaybackPreparationReady(preparation, baseState)).toBe(false);
+    expect(isMultiplayerPlaybackPreparationReady(preparation, {
+      ...baseState,
+      loadedSourceTrackId: 'track'
+    })).toBe(true);
+    expect(isMultiplayerPlaybackPreparationReady(preparation, {
+      ...baseState,
+      remoteTrackId: 'other',
+      loadedSourceTrackId: 'track'
+    })).toBe(false);
+  });
+
+  it('waits for a stream to be listening', () => {
+    const preparation = { preparationId: 'one', trackId: 'track', audio: 'stream' as const };
+    expect(isMultiplayerPlaybackPreparationReady(preparation, baseState)).toBe(false);
+    expect(isMultiplayerPlaybackPreparationReady(preparation, {
+      ...baseState,
+      streamReady: true
+    })).toBe(true);
+  });
+
+  it('does not block clients that opted out of audio or sessions with no audio', () => {
+    expect(isMultiplayerPlaybackPreparationReady(
+      { preparationId: 'one', trackId: 'track', audio: 'file' },
+      { ...baseState, receiveAudio: false }
+    )).toBe(true);
+    expect(isMultiplayerPlaybackPreparationReady(
+      { preparationId: 'one', trackId: 'track', audio: 'none' },
+      baseState
+    )).toBe(true);
   });
 });

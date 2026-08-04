@@ -333,6 +333,7 @@ export interface TrackSettings {
 export interface ExperimentalSettings {
   multiplayer: boolean;
   izciName: string;
+  multiplayerWaitForClients: boolean;
   multiplayerTurnUrl: string;
   multiplayerTurnSecret: string;
   multiplayerTurnCredentialHours: number;

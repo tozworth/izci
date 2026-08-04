@@ -17,6 +17,7 @@ describe('experimental settings', () => {
     });
 
     expect(normalized).toMatchObject({
+      multiplayerWaitForClients: false,
       multiplayerTurnUrl: '',
       multiplayerTurnSecret: '',
       multiplayerTurnCredentialHours: 12,

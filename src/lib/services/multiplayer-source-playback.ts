@@ -121,6 +121,10 @@ export class MultiplayerSourcePlaybackService {
     return this.#activeTrackId !== null;
   }
 
+  isTrackReady(trackId: string): boolean {
+    return this.#activeTrackId === trackId;
+  }
+
   #applyLatestPlayback(forceSeek = false): void {
     const playback = this.#latestPlayback;
     if (!this.#enabled || !playback?.track || playback.track.id !== this.#activeTrackId) return;

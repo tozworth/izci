@@ -762,6 +762,10 @@
         "hint": "Lets this izci host or join a shared listening session. Firebase handles the handshake; audio travels directly between peers.",
         "name": "Name this izci",
         "nameHint": "Shown to hosts and clients in multiplayer sessions.",
+        "waitForClients": {
+          "title": "Wait for clients",
+          "hint": "Before starting a track, waits until every connected listener has loaded its transferred file or tuned to the audio stream."
+        },
         "turnUrl": {
           "title": "TURN server",
           "hint": "Host-only relay endpoint, such as relay.example.net:3478 or turns:relay.example.net:5349. Listeners receive it with temporary credentials."

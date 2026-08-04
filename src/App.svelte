@@ -457,15 +457,18 @@
 
     switch (command.type) {
       case 'transport.toggle':
+        if (multiplayerSession.cancelPendingPlayback()) return true;
         await playbackCommands.togglePlayback();
         return true;
       case 'transport.play':
         await playbackCommands.play();
         return true;
       case 'transport.pause':
+        multiplayerSession.cancelPendingPlayback();
         playbackCommands.pause();
         return true;
       case 'transport.stop':
+        multiplayerSession.cancelPendingPlayback();
         playbackCommands.stop();
         return true;
       case 'transport.previous':
@@ -505,7 +508,9 @@
     }
   }
   const multiplayerSession = createMultiplayerSession({
-    handleHostCommand: handleMultiplayerHostCommand
+    handleHostCommand: handleMultiplayerHostCommand,
+    pauseHostPlayback: () => playbackCommands.pause(),
+    resumeHostPlayback: () => { void playbackCommands.play(); }
   });
   multiplayerState = multiplayerSession.getSnapshot();
   const unsubscribeMultiplayer = multiplayerSession.subscribe((value) => {
@@ -588,6 +593,7 @@
       multiplayerSession.sendCommand({ type: 'transport.toggle' });
       return;
     }
+    if (multiplayerState.mode === 'hosting' && multiplayerSession.cancelPendingPlayback()) return;
     void playbackCommands.togglePlayback();
   }
 
@@ -604,6 +610,7 @@
       multiplayerSession.sendCommand({ type: 'transport.pause' });
       return;
     }
+    multiplayerSession.cancelPendingPlayback();
     playbackCommands.pause();
   }
 
@@ -612,6 +619,7 @@
       multiplayerSession.sendCommand({ type: 'transport.stop' });
       return;
     }
+    multiplayerSession.cancelPendingPlayback();
     playbackCommands.stop();
   }
 
@@ -781,7 +789,7 @@
   });
 
   function playPlaylistFromCollectionAction(): void {
-    void playbackCommands.play();
+    playPlayback();
   }
   const unsubscribePlaybackStatus = playerController.status.subscribe((value) => (localPlaybackStatus = value));
   const unsubscribeWorkspaceShell = workspaceShell.subscribe((value) => (workspaceShellState = value));

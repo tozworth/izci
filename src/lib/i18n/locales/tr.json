@@ -762,6 +762,10 @@
         "hint": "Bu izci'nin sunucu olmasını veya paylaşımlı bir dinleme oturumuna katılmasını sağlar. İlk bağlantıyı Firebase kurar; ses doğrudan eşler arasında iletilir.",
         "name": "Bu izci'yi adlandır",
         "nameHint": "Çok oyunculu oturumlarda sunucu ve istemcilere gösterilir.",
+        "waitForClients": {
+          "title": "İstemcileri bekle",
+          "hint": "Bir parçayı başlatmadan önce bağlı tüm dinleyicilerin aktarılan dosyayı yüklemesini veya ses akışına bağlanmasını bekler."
+        },
         "turnUrl": {
           "title": "TURN server",
           "hint": "Optional relay endpoint, such as relay.example.net:3478 or turns:relay.example.net:5349. A bare address uses turn: automatically."

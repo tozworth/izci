@@ -124,6 +124,33 @@ describe('multiplayer protocol', () => {
     })).toBe(false);
   });
 
+  it('accepts bounded playback preparation messages', () => {
+    expect(isHostMessage({
+      kind: 'playback.prepare',
+      preparation: {
+        preparationId: 'prepare-1',
+        trackId: 'track-1',
+        audio: 'file'
+      }
+    })).toBe(true);
+    expect(isHostMessage({
+      kind: 'playback.prepare',
+      preparation: {
+        preparationId: '',
+        trackId: 'track-1',
+        audio: 'file'
+      }
+    })).toBe(false);
+    expect(isHostMessage({
+      kind: 'playback.prepare',
+      preparation: {
+        preparationId: 'prepare-1',
+        trackId: 'track-1',
+        audio: 'buffering'
+      }
+    })).toBe(false);
+  });
+
   it('accepts only bounded pairing identity messages', () => {
     expect(isHostMessage({
       kind: 'pairing',
