@@ -39,6 +39,7 @@
       "startListening": "Dinlemeyi başlat",
       "leave": "Ayrıl",
       "audio": {
+        "listeningBitrate": "Dinleniyor · {bitrate} kbps",
         "listening": "Dinleniyor",
         "blocked": "Ses için izin gerekiyor",
         "disabled": "Sunucu sesi kapalı",

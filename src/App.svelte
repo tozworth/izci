@@ -246,6 +246,7 @@
     },
     remoteArtwork: null,
     audioStatus: 'idle',
+    averageAudioBitrateKbps: null,
     connectionDetail: null,
     message: null
   };
@@ -1874,6 +1875,7 @@
     multiplayerMode={multiplayerState.mode}
     multiplayerConnectionStatus={multiplayerState.connectionStatus}
     multiplayerAudioStatus={multiplayerState.audioStatus}
+    multiplayerAudioBitrateKbps={multiplayerState.averageAudioBitrateKbps}
     multiplayerInviteCode={multiplayerState.inviteCode}
     multiplayerHostName={multiplayerState.hostName}
     multiplayerClients={multiplayerState.clients}
@@ -1952,6 +1954,7 @@
     multiplayerMode={multiplayerState.mode}
     multiplayerConnectionStatus={multiplayerState.connectionStatus}
     multiplayerAudioStatus={multiplayerState.audioStatus}
+    multiplayerAudioBitrateKbps={multiplayerState.averageAudioBitrateKbps}
     multiplayerInviteCode={multiplayerState.inviteCode}
     multiplayerHostName={multiplayerState.hostName}
     multiplayerClients={multiplayerState.clients}

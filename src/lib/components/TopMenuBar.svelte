@@ -167,7 +167,7 @@
                 : $t('main.multiplayer.disconnected', { default: 'Disconnected' }),
             icon: multiplayerConnectionStatus === 'connected' ? 'cast_connected' : 'signal_disconnected',
             description: multiplayerConnectionStatus === 'connected'
-              ? multiplayerAudioStatusLabel(multiplayerAudioStatus)
+              ? multiplayerAudioStatusLabel(multiplayerAudioStatus, multiplayerAudioBitrateKbps)
               : undefined,
             disabled: true
           },
@@ -309,6 +309,7 @@
   export let multiplayerMode: MultiplayerMode = 'idle';
   export let multiplayerConnectionStatus: MultiplayerConnectionStatus = 'idle';
   export let multiplayerAudioStatus: MultiplayerAudioStatus = 'idle';
+  export let multiplayerAudioBitrateKbps: number | null = null;
   export let multiplayerInviteCode: string | null = null;
   export let multiplayerHostName: string | null = null;
   export let multiplayerClients: MultiplayerClient[] = [];
@@ -354,7 +355,13 @@
   let installHintPresentedInOpenMenu = false;
   let menuSubtitleTone: WindowMenuSubtitleTone = 'muted';
 
-  function multiplayerAudioStatusLabel(status: MultiplayerAudioStatus): string {
+  function multiplayerAudioStatusLabel(status: MultiplayerAudioStatus, bitrateKbps: number | null): string {
+    if (status === 'playing' && bitrateKbps !== null) {
+      return $t('main.multiplayer.audio.listeningBitrate', {
+        default: 'Listening · {bitrate} kbps',
+        values: { bitrate: bitrateKbps }
+      });
+    }
     if (status === 'playing') return $t('main.multiplayer.audio.listening', { default: 'Listening' });
     if (status === 'blocked') return $t('main.multiplayer.audio.blocked', { default: 'Audio needs permission' });
     if (status === 'disabled') return $t('main.multiplayer.audio.disabled', { default: 'Host audio is off' });

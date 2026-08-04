@@ -39,6 +39,7 @@
       "startListening": "Start listening",
       "leave": "Leave",
       "audio": {
+        "listeningBitrate": "Listening · {bitrate} kbps",
         "listening": "Listening",
         "blocked": "Audio needs permission",
         "disabled": "Host audio is off",

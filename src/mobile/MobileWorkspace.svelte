@@ -74,6 +74,7 @@
   export let multiplayerMode: MultiplayerMode = 'idle';
   export let multiplayerConnectionStatus: MultiplayerConnectionStatus = 'idle';
   export let multiplayerAudioStatus: MultiplayerAudioStatus = 'idle';
+  export let multiplayerAudioBitrateKbps: number | null = null;
   export let multiplayerInviteCode: string | null = null;
   export let multiplayerHostName: string | null = null;
   export let multiplayerClients: MultiplayerClient[] = [];
@@ -373,6 +374,7 @@
   {multiplayerMode}
   {multiplayerConnectionStatus}
   {multiplayerAudioStatus}
+  {multiplayerAudioBitrateKbps}
   {multiplayerInviteCode}
   {multiplayerHostName}
   {multiplayerClients}

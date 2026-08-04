@@ -16,6 +16,10 @@ import {
   type MultiplayerReceiverAudioStatus
 } from './multiplayer-audio';
 import {
+  updateReceivedBitrateWindow,
+  type ReceivedByteSample
+} from './multiplayer-receiver-bitrate';
+import {
   MULTIPLAYER_PROTOCOL_VERSION,
   createMultiplayerMessageDecoder,
   encodeMultiplayerMessage,
@@ -43,6 +47,7 @@ const FIREBASE_CONFIG = {
 } as const;
 
 const ICE_CONNECTION_TIMEOUT_MS = 15_000;
+const RECEIVER_BITRATE_SAMPLE_INTERVAL_MS = 1_000;
 
 const EMPTY_PLAYBACK: PlaybackSnapshot = {
   state: 'idle',
@@ -90,6 +95,7 @@ export interface MultiplayerSessionState {
   remotePlayback: MultiplayerPlayback;
   remoteArtwork: MultiplayerArtwork | null;
   audioStatus: MultiplayerAudioStatus;
+  averageAudioBitrateKbps: number | null;
   connectionDetail: string | null;
   message: string | null;
 }
@@ -151,6 +157,8 @@ interface PeerConnection {
   flushing: boolean;
   decode: ReturnType<typeof createMultiplayerMessageDecoder<ClientMessage>>;
   audioSender: RTCRtpSender | null;
+  pendingAudioBitrate: number | null;
+  audioBitrateUpdate: Promise<void> | null;
   localCandidateTypes: Set<string>;
   remoteCandidateTypes: Set<string>;
   pendingRemoteCandidates: Map<string, SignalCandidate>;
@@ -194,6 +202,7 @@ export function createMultiplayerSession({
     remotePlayback: EMPTY_REMOTE_PLAYBACK,
     remoteArtwork: null,
     audioStatus: 'idle',
+    averageAudioBitrateKbps: null,
     connectionDetail: null,
     message: null
   };
@@ -212,6 +221,9 @@ export function createMultiplayerSession({
   let reconnectTimer: number | null = null;
   let reconnectAttempts = 0;
   let reconnectInFlight = false;
+  let receiverBitrateTimer: number | null = null;
+  let receiverBitrateSampling = false;
+  let receiverBitrateSamples: ReceivedByteSample[] = [];
   let allowClientReconnect = false;
   let clientHiddenAt: number | null = null;
   let latestHostState: MultiplayerHostState | null = null;
@@ -591,6 +603,7 @@ export function createMultiplayerSession({
       remotePlayback: reconnecting ? state.remotePlayback : EMPTY_REMOTE_PLAYBACK,
       remoteArtwork: reconnecting ? state.remoteArtwork : null,
       audioStatus: 'connecting',
+      averageAudioBitrateKbps: null,
       connectionDetail: 'Signing in to multiplayer signaling...',
       message: null
     });
@@ -765,7 +778,8 @@ export function createMultiplayerSession({
         latestAudioAvailability = message.audio;
         if (!message.audio.enabled) {
           publish({
-            audioStatus: message.audio.reason === 'video-disabled' ? 'video-disabled' : 'disabled'
+            audioStatus: message.audio.reason === 'video-disabled' ? 'video-disabled' : 'disabled',
+            averageAudioBitrateKbps: null
           });
         } else if (state.audioStatus === 'disabled' || state.audioStatus === 'video-disabled') {
           publish({ audioStatus: 'connecting' });
@@ -827,14 +841,69 @@ export function createMultiplayerSession({
     };
     peer.pc.ontrack = (event) => {
       if (event.track.kind !== 'audio') return;
+      startReceiverBitrateMonitor(peer);
       const stream = event.streams[0] ?? new MediaStream([event.track]);
       void multiplayerAudioService.attachRemoteTrack(event.track, stream, (audioStatus) => {
         if (state.mode !== 'client') return;
         if (!latestAudioAvailability.enabled
           && (audioStatus === 'connecting' || audioStatus === 'playing')) return;
-        publish({ audioStatus });
+        publish({
+          audioStatus,
+          averageAudioBitrateKbps: audioStatus === 'playing'
+            ? state.averageAudioBitrateKbps
+            : null
+        });
       });
     };
+  }
+
+  function startReceiverBitrateMonitor(peer: PeerConnection): void {
+    clearReceiverBitrateMonitor();
+    receiverBitrateSamples = [];
+
+    const sample = async () => {
+      if (receiverBitrateSampling || clientPeer !== peer || state.mode !== 'client') return;
+      receiverBitrateSampling = true;
+      try {
+        const stats = await peer.pc.getStats();
+        let bytesReceived = 0;
+        let foundAudio = false;
+        stats.forEach((report) => {
+          if (report.type !== 'inbound-rtp') return;
+          const inbound = report as RTCInboundRtpStreamStats & { mediaType?: string };
+          if ((inbound.kind ?? inbound.mediaType) !== 'audio') return;
+          if (typeof inbound.bytesReceived !== 'number') return;
+          bytesReceived += inbound.bytesReceived;
+          foundAudio = true;
+        });
+        if (!foundAudio || clientPeer !== peer) return;
+        const next = updateReceivedBitrateWindow(receiverBitrateSamples, {
+          timestamp: performance.now(),
+          bytesReceived
+        });
+        receiverBitrateSamples = next.samples;
+        if (state.audioStatus === 'playing'
+          && next.averageKbps !== state.averageAudioBitrateKbps) {
+          publish({ averageAudioBitrateKbps: next.averageKbps });
+        }
+      } catch {
+        // Receiver stats are optional; audio playback continues without a bitrate readout.
+      } finally {
+        receiverBitrateSampling = false;
+      }
+    };
+
+    void sample();
+    receiverBitrateTimer = window.setInterval(
+      () => void sample(),
+      RECEIVER_BITRATE_SAMPLE_INTERVAL_MS
+    );
+  }
+
+  function clearReceiverBitrateMonitor(): void {
+    if (receiverBitrateTimer !== null) window.clearInterval(receiverBitrateTimer);
+    receiverBitrateTimer = null;
+    receiverBitrateSamples = [];
   }
 
   function scheduleClientReconnect(delay?: number): void {
@@ -986,14 +1055,24 @@ export function createMultiplayerSession({
   }
 
   async function applyAudioBitrate(peer: PeerConnection): Promise<void> {
-    const sender = peer.audioSender;
-    if (!sender) return;
-    const parameters = sender.getParameters();
-    if (parameters.encodings.length === 0) return;
-    for (const encoding of parameters.encodings) {
-      encoding.maxBitrate = multiplayerSettings.multiplayerOpusBitrateKbps * 1_000;
-    }
-    await sender.setParameters(parameters).catch(() => undefined);
+    peer.pendingAudioBitrate = multiplayerSettings.multiplayerOpusBitrateKbps * 1_000;
+    if (peer.audioBitrateUpdate) return peer.audioBitrateUpdate;
+
+    peer.audioBitrateUpdate = (async () => {
+      while (peer.pendingAudioBitrate !== null) {
+        const bitrate = peer.pendingAudioBitrate;
+        peer.pendingAudioBitrate = null;
+        const sender = peer.audioSender;
+        if (!sender) continue;
+        const parameters = sender.getParameters();
+        if (parameters.encodings.length === 0) continue;
+        for (const encoding of parameters.encodings) encoding.maxBitrate = bitrate;
+        await sender.setParameters(parameters).catch(() => undefined);
+      }
+    })().finally(() => {
+      peer.audioBitrateUpdate = null;
+    });
+    return peer.audioBitrateUpdate;
   }
 
   function syncHostArtwork(track: PlaylistItem | null): void {
@@ -1095,6 +1174,7 @@ export function createMultiplayerSession({
       hostName: null,
       clients: [],
       audioStatus: 'idle',
+      averageAudioBitrateKbps: null,
       connectionDetail: null,
       message: null
     });
@@ -1115,12 +1195,14 @@ export function createMultiplayerSession({
       remotePlayback: EMPTY_REMOTE_PLAYBACK,
       remoteArtwork: null,
       audioStatus: 'idle',
+      averageAudioBitrateKbps: null,
       connectionDetail: null,
       message: null
     });
   }
 
   async function resetSession(removeRemote: boolean): Promise<void> {
+    clearReceiverBitrateMonitor();
     stopPeersListener?.();
     stopAnswerListener?.();
     stopPeersListener = null;
@@ -1235,6 +1317,8 @@ function createPeer(id: string, name: string): PeerConnection {
     flushing: false,
     decode: createMultiplayerMessageDecoder(isClientMessage),
     audioSender: null,
+    pendingAudioBitrate: null,
+    audioBitrateUpdate: null,
     localCandidateTypes: new Set(),
     remoteCandidateTypes: new Set(),
     pendingRemoteCandidates: new Map(),
