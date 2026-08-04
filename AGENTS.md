@@ -120,7 +120,7 @@
 - Requests to "add an experiment" mean opt-in exploratory UI unless a permanent home is specified.
 - The first active experiment adds an Options -> Experimental page and synchronized `experimental-settings.ts`; experiments default off.
 - Runtime behavior still belongs in its normal service/store/component owner behind a clean feature gate.
-- Multiplayer is the current experiment: one izci hosts its catalog and playback state, while joined izci clients provide a remote view and transport/track controls. The host remains authoritative and clients never receive media data.
+- Multiplayer is the current experiment: one izci hosts its catalog and playback state, while joined izci clients provide a remote view, transport/track controls and streamed audio. The host remains authoritative.
 - Multiplayer uses Firebase Realtime Database for short-lived room signaling and WebRTC data channels for peer traffic. Keep session lifecycle in `multiplayer-session.ts`, wire contracts/versioning in `multiplayer-protocol.ts`, and persisted recent hosts separate from playlist/library data.
 
 ## Change checklist
