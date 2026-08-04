@@ -15,6 +15,7 @@ import {
   multiplayerAudioService,
   type MultiplayerReceiverAudioStatus
 } from './multiplayer-audio';
+import { enableOpusStereo } from './multiplayer-opus';
 import {
   updateReceivedBitrateWindow,
   type ReceivedByteSample
@@ -446,7 +447,7 @@ export function createMultiplayerSession({
             : null
         );
       }
-      const answer = await peer.pc.createAnswer();
+      const answer = enableOpusStereo(await peer.pc.createAnswer());
       const answerPath = `multiplayer/rooms/${inviteCode}/peers/${id}/host`;
       const startCandidatePublishing = prepareCandidatePublisher(
         peer,
@@ -643,7 +644,7 @@ export function createMultiplayerSession({
       ownPeerRef = clientSignalRef;
       peerDisconnect = disconnect;
 
-      const offer = await peer.pc.createOffer();
+      const offer = enableOpusStereo(await peer.pc.createOffer());
       publish({ connectionDetail: 'Creating an ICE connection offer...' });
       const startCandidatePublishing = prepareCandidatePublisher(
         peer,

@@ -113,6 +113,7 @@ export class AudioBusService {
     if (!this.#broadcastDestination) {
       const gain = this.#context.createGain();
       const destination = this.#context.createMediaStreamDestination();
+      destination.channelCount = 2;
       gain.gain.value = this.#broadcastGainValue;
       this.#analyser.connect(gain);
       gain.connect(destination);
