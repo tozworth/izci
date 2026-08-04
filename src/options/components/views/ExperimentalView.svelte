@@ -1,6 +1,7 @@
 <script lang="ts">
   import { t } from 'svelte-i18n';
   import SettingsField from '$lib/components/options/SettingsField.svelte';
+  import MultiplayerMark from '$lib/components/multiplayer/MultiplayerMark.svelte';
   import {
     MULTIPLAYER_MAX_LISTENERS_MAX,
     MULTIPLAYER_MAX_LISTENERS_MIN,
@@ -49,7 +50,7 @@
 
 <article class="view">
   <div class="section">
-    <h2>{$t('options.experimental.heading', { default: 'Experiments' })}</h2>
+    <h2>{$t('options.experimental.multiplayer.category', { default: 'Multiplayer' })}</h2>
     <div class="field-grid">
       <SettingsField
         title={$t('options.experimental.multiplayer.title', { default: 'izci Multiplayer' })}
@@ -126,5 +127,61 @@
         <span class="field-output">{$experimentalSettings.multiplayerMaxListeners}</span>
       </SettingsField>
     </div>
+    <aside class="multiplayer-footnotes" aria-labelledby="multiplayer-diagnostics-heading">
+      <div class="multiplayer-diagnostics-header">
+        <MultiplayerMark
+          size="0.7rem"
+          label={$t('main.multiplayer.markLabel', { default: 'izci multiplayer' })}
+        />
+        <h3 id="multiplayer-diagnostics-heading">
+          {$t('options.experimental.multiplayer.diagnostics.heading', { default: 'Connection diagnostics' })}
+        </h3>
+      </div>
+      <p>
+        {$t('options.experimental.multiplayer.diagnostics.signaling', { default: 'Firebase only exchanges the invite, session descriptions, and ICE candidates. Playback controls, catalog data, artwork, and audio use the resulting peer connection.' })}
+      </p>
+      <p>
+        {$t('options.experimental.multiplayer.diagnostics.direct', { default: 'izci asks Cloudflare and Google STUN servers for public ICE candidates, then tries direct routes. TURN relay is not configured, so restrictive NAT or firewall combinations can still prevent a connection.' })}
+      </p>
+      <p>
+        {$t('options.experimental.multiplayer.diagnostics.upnp', { default: 'A static public IP or router UPnP does not guarantee success: Chromium chooses its own ICE ports and izci does not request a UPnP port mapping.' })}
+      </p>
+      <p>
+        {$t('options.experimental.multiplayer.diagnostics.messages', { default: 'Failure to gather candidates points to browser or network policy; local-only candidates point to STUN failure; candidates on both sides with no connection point to NAT or firewall filtering.' })}
+      </p>
+      <p>
+        {$t('options.experimental.multiplayer.diagnostics.tailnet', { default: 'A successful Tailscale connection may use tailnet addresses, router port mapping, or DERP. It does not prove that the same devices have a usable direct route with Tailscale off.' })}
+      </p>
+    </aside>
   </div>
 </article>
+
+<style>
+  .multiplayer-footnotes {
+    margin-top: 0.75rem;
+    padding: 0.65rem 0.75rem;
+    border: 1px solid var(--border-faint);
+    border-radius: 0.4rem;
+    background: color-mix(in srgb, var(--bg-input) 72%, transparent);
+    color: var(--muted);
+  }
+
+  .multiplayer-footnotes h3 {
+    margin: 0;
+    color: var(--muted-strong);
+    font-size: 0.74rem;
+  }
+
+  .multiplayer-diagnostics-header {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    margin-bottom: 0.45rem;
+  }
+
+  .multiplayer-footnotes p {
+    margin: 0.3rem 0 0;
+    font-size: 0.7rem;
+    line-height: 1.42;
+  }
+</style>

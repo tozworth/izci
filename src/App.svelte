@@ -6,6 +6,8 @@
   import PlaybackResumeBanner from '$lib/components/PlaybackResumeBanner.svelte';
   import SharedBackdropArtwork from '$lib/components/SharedBackdropArtwork.svelte';
   import SharedBackdropVisualizer from '$lib/components/SharedBackdropVisualizer.svelte';
+  import StatusToast from '$lib/components/StatusToast.svelte';
+  import MultiplayerConnectionDialog from '$lib/components/multiplayer/MultiplayerConnectionDialog.svelte';
   import TopMenuBar from '$lib/components/TopMenuBar.svelte';
   import AppWorkspace from '$lib/components/workspace/AppWorkspace.svelte';
   import MobileWorkspace from './mobile/MobileWorkspace.svelte';
@@ -33,7 +35,8 @@
   import { invalidateCachedArtwork } from '$lib/services/artwork-cache';
   import {
     getTrackArtworkLoadKey,
-    loadTrackArtwork
+    loadTrackArtwork,
+    type LoadedStreamArtwork
   } from '$lib/services/stream-artwork';
   import { createImportController, FILE_INPUT_ACCEPT } from '$lib/services/import-controller';
   import {
@@ -220,6 +223,8 @@
   };
   let playbackSnapshot = localPlaybackSnapshot;
   const displayPlaybackSnapshotStore = writable<PlaybackSnapshot>(localPlaybackSnapshot);
+  const mediaSessionArtworkOverrideStore = writable<LoadedStreamArtwork | null | undefined>(undefined);
+  const multiplayerClientMediaSessionStore = writable(false);
   let multiplayerState: MultiplayerSessionState = {
     mode: 'idle',
     connectionStatus: 'idle',
@@ -241,8 +246,16 @@
     },
     remoteArtwork: null,
     audioStatus: 'idle',
+    connectionDetail: null,
     message: null
   };
+  let multiplayerToastMessage: string | null = null;
+  let multiplayerToastTimer: number | null = null;
+  let lastMultiplayerToastMessage: string | null = null;
+  let multiplayerConnectionDialogOpen = false;
+  let multiplayerConnectionDialogError: string | null = null;
+  let multiplayerConnectionOperation: 'hosting' | 'joining' = 'joining';
+  let multiplayerConnectionTargetName: string | null = null;
   let isMultiplayerClient = false;
   let multiplayerShutdownRequested = false;
   let modulePatternSnapshot: ModulePatternSnapshot = {
@@ -486,6 +499,23 @@
   multiplayerState = multiplayerSession.getSnapshot();
   const unsubscribeMultiplayer = multiplayerSession.subscribe((value) => {
     multiplayerState = value;
+    if (multiplayerConnectionDialogOpen
+      && (value.connectionStatus === 'error' || value.connectionStatus === 'disconnected')
+      && value.message
+      && value.message !== 'Reconnecting to the host...') {
+      multiplayerConnectionDialogError = value.message;
+    }
+    if (value.connectionStatus === 'connected' && value.message === null) {
+      lastMultiplayerToastMessage = null;
+      multiplayerConnectionDialogOpen = false;
+      multiplayerConnectionDialogError = null;
+    }
+    if (value.message
+      && value.message !== lastMultiplayerToastMessage
+      && value.message !== 'Reconnecting to the host...'
+      && !multiplayerConnectionDialogOpen) {
+      showMultiplayerToast(value.message);
+    }
     if (value.mode !== 'client') return;
 
     const playlistIds = new Set(value.remoteCatalog.playlist.map((item) => item.id));
@@ -495,6 +525,43 @@
     remoteLibrarySelection = pruneSelection(remoteLibrarySelection, libraryIds);
     remoteFavoriteSelection = pruneSelection(remoteFavoriteSelection, favoriteIds);
   });
+
+  function showMultiplayerToast(message: string): void {
+    lastMultiplayerToastMessage = message;
+    multiplayerToastMessage = message;
+    if (multiplayerToastTimer !== null) window.clearTimeout(multiplayerToastTimer);
+    multiplayerToastTimer = window.setTimeout(dismissMultiplayerToast, 9_000);
+  }
+
+  function dismissMultiplayerToast(): void {
+    if (multiplayerToastTimer !== null) window.clearTimeout(multiplayerToastTimer);
+    multiplayerToastTimer = null;
+    multiplayerToastMessage = null;
+  }
+
+  function beginMultiplayerConnection(
+    operation: 'hosting' | 'joining',
+    targetName: string | null = null
+  ): void {
+    multiplayerConnectionOperation = operation;
+    multiplayerConnectionTargetName = targetName;
+    multiplayerConnectionDialogError = null;
+    multiplayerConnectionDialogOpen = true;
+  }
+
+  function failMultiplayerConnection(error: unknown, fallback: string): void {
+    multiplayerConnectionDialogError = error instanceof Error ? error.message : fallback;
+    multiplayerConnectionDialogOpen = true;
+  }
+
+  function dismissMultiplayerConnectionDialog(): void {
+    multiplayerConnectionDialogOpen = false;
+    multiplayerConnectionDialogError = null;
+    if (multiplayerState.mode === 'client') void multiplayerSession.leave();
+    else if (multiplayerState.mode === 'hosting' && multiplayerState.connectionStatus !== 'connected') {
+      void multiplayerSession.stopHosting();
+    }
+  }
 
   function pruneSelection(selection: PlaylistSelection, ids: Set<string>): PlaylistSelection {
     const retained = selection.ids.filter((id) => ids.has(id));
@@ -799,6 +866,8 @@
     snapshot: displayPlaybackSnapshotStore,
     track: miniPlayerTrack,
     settings: playbackSettings,
+    artworkOverride: mediaSessionArtworkOverrideStore,
+    transportAnchorActive: multiplayerClientMediaSessionStore,
     handlers: {
       play: playPlayback,
       pause: pausePlayback,
@@ -810,6 +879,27 @@
   });
 
   $: isMultiplayerClient = multiplayerState.mode === 'client';
+  $: multiplayerConnectionFailed = multiplayerConnectionDialogError !== null
+    || multiplayerState.connectionStatus === 'error'
+    || multiplayerState.connectionStatus === 'disconnected';
+  $: multiplayerConnectionResolvedTarget = multiplayerState.hostName
+    ?? multiplayerConnectionTargetName;
+  $: multiplayerConnectionNotice = multiplayerConnectionFailed
+    ? $t('main.multiplayer.connectionNoticeFailed', { default: 'Connection failed' })
+    : multiplayerConnectionOperation === 'hosting'
+      ? $t('main.multiplayer.startingHost', { default: 'Starting multiplayer host' })
+      : multiplayerConnectionResolvedTarget
+        ? $t('main.multiplayer.connectingTo', {
+            default: 'Connecting to {name}',
+            values: { name: multiplayerConnectionResolvedTarget }
+          })
+        : $t('main.multiplayer.connectingToHost', { default: 'Connecting to host' });
+  $: multiplayerConnectionStatusLine = multiplayerConnectionDialogError
+    ?? multiplayerState.connectionDetail
+    ?? multiplayerState.message
+    ?? (multiplayerConnectionOperation === 'hosting'
+      ? $t('main.multiplayer.preparingRoom', { default: 'Preparing the signaling room...' })
+      : $t('main.multiplayer.preparingConnection', { default: 'Preparing the connection...' }));
   $: playlistItems = isMultiplayerClient ? multiplayerState.remoteCatalog.playlist : localPlaylistItems;
   $: libraryItems = isMultiplayerClient ? multiplayerState.remoteCatalog.library : localLibraryItems;
   $: favoriteItems = isMultiplayerClient ? multiplayerState.remoteCatalog.favorites : localFavoriteItems;
@@ -863,6 +953,7 @@
     ? multiplayerState.remoteCatalog.repeatMode
     : localRepeatMode;
   $: displayPlaybackSnapshotStore.set(playbackSnapshot);
+  $: multiplayerClientMediaSessionStore.set(isMultiplayerClient);
 
   $: selectedItem =
     workspaceShellState.activeCollection === 'library'
@@ -873,6 +964,9 @@
   $: miniPlayerTrack.set(playerDisplayTrack);
   $: miniPlayerSelectedTrack.set(selectedPlaylistItem);
   $: miniPlayerArtworkUrl.set(artworkPresentationState.displayedArtwork?.url ?? null);
+  $: mediaSessionArtworkOverrideStore.set(isMultiplayerClient
+    ? toLoadedMultiplayerArtwork(playerDisplayTrack, multiplayerState.remoteArtwork)
+    : undefined);
   $: videoTrackActive = !isMultiplayerClient && playerDisplayTrack?.kind === 'video';
   $: videoPictureInPictureSupported =
     videoTrackActive && playerController.videoPictureInPictureSupported;
@@ -1520,10 +1614,11 @@
   }
 
   async function handleMultiplayerHost(): Promise<void> {
+    beginMultiplayerConnection('hosting');
     try {
       await multiplayerSession.startHosting();
     } catch (error) {
-      window.alert(error instanceof Error ? error.message : 'Could not start multiplayer hosting.');
+      failMultiplayerConnection(error, 'Could not start multiplayer hosting.');
     }
   }
 
@@ -1536,20 +1631,23 @@
   }
 
   async function joinMultiplayer(inviteCode: string): Promise<void> {
+    beginMultiplayerConnection('joining');
     playerController.pause();
     try {
       await multiplayerSession.join(inviteCode);
     } catch (error) {
-      window.alert(error instanceof Error ? error.message : 'Could not join that multiplayer session.');
+      failMultiplayerConnection(error, 'Could not join that multiplayer session.');
     }
   }
 
   async function joinPairedMultiplayer(hostId: string): Promise<void> {
+    const pairing = $multiplayerPairings.find((candidate) => candidate.hostId === hostId);
+    beginMultiplayerConnection('joining', pairing?.name ?? null);
     playerController.pause();
     try {
       await multiplayerSession.joinPaired(hostId);
     } catch (error) {
-      window.alert(error instanceof Error ? error.message : 'Could not join that paired host.');
+      failMultiplayerConnection(error, 'Could not join that paired host.');
     }
   }
 
@@ -1666,6 +1764,7 @@
   }
 
   onDestroy(() => {
+    dismissMultiplayerToast();
     playbackRestoration.destroy();
     playbackProgress.destroy();
     artworkPresentation.destroy();
@@ -1970,6 +2069,27 @@
   {/if}
   {#if playbackStatus.error}
     <aside class="error-banner">{localizePlaybackError(playbackStatus.error)}</aside>
+  {/if}
+
+  {#if multiplayerToastMessage}
+    <StatusToast
+      title={$t('main.multiplayer.connectionFailed', { default: 'Multiplayer connection failed' })}
+      message={multiplayerToastMessage}
+      dismissLabel={$t('main.common.close', { default: 'Close' })}
+      on:dismiss={dismissMultiplayerToast}
+    />
+  {/if}
+
+  {#if multiplayerConnectionDialogOpen}
+    <MultiplayerConnectionDialog
+      title={$t('main.multiplayer.label', { default: 'Multiplayer' })}
+      notice={multiplayerConnectionNotice}
+      statusLine={multiplayerConnectionStatusLine}
+      failed={multiplayerConnectionFailed}
+      closeLabel={$t('main.common.close', { default: 'Close' })}
+      markLabel={$t('main.multiplayer.markLabel', { default: 'izci multiplayer' })}
+      on:dismiss={dismissMultiplayerConnectionDialog}
+    />
   {/if}
 
   {#if playbackProgressState.notice}

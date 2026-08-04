@@ -42,6 +42,8 @@ const FIREBASE_CONFIG = {
   databaseURL: 'https://izci-pwa-default-rtdb.europe-west1.firebasedatabase.app'
 } as const;
 
+const ICE_CONNECTION_TIMEOUT_MS = 15_000;
+
 const EMPTY_PLAYBACK: PlaybackSnapshot = {
   state: 'idle',
   currentTime: 0,
@@ -88,6 +90,7 @@ export interface MultiplayerSessionState {
   remotePlayback: MultiplayerPlayback;
   remoteArtwork: MultiplayerArtwork | null;
   audioStatus: MultiplayerAudioStatus;
+  connectionDetail: string | null;
   message: string | null;
 }
 
@@ -125,6 +128,14 @@ interface SignalAnswer {
   createdAt?: number;
 }
 
+interface SignalCandidate {
+  candidate: string;
+  sdpMid: string;
+  sdpMLineIndex: number;
+}
+
+type SignalCandidates = Record<string, SignalCandidate>;
+
 interface PairedClientRecord {
   name: string;
   platform: string;
@@ -140,6 +151,12 @@ interface PeerConnection {
   flushing: boolean;
   decode: ReturnType<typeof createMultiplayerMessageDecoder<ClientMessage>>;
   audioSender: RTCRtpSender | null;
+  localCandidateTypes: Set<string>;
+  remoteCandidateTypes: Set<string>;
+  pendingRemoteCandidates: Map<string, SignalCandidate>;
+  appliedRemoteCandidateIds: Set<string>;
+  candidateErrors: string[];
+  connectionTimer: number | null;
 }
 
 interface CreateMultiplayerSessionOptions {
@@ -177,6 +194,7 @@ export function createMultiplayerSession({
     remotePlayback: EMPTY_REMOTE_PLAYBACK,
     remoteArtwork: null,
     audioStatus: 'idle',
+    connectionDetail: null,
     message: null
   };
   const store = writable(state);
@@ -245,11 +263,13 @@ export function createMultiplayerSession({
       connectionStatus: 'connecting',
       hostName: getLocalName(),
       audioStatus: 'idle',
+      connectionDetail: 'Creating a Firebase signaling room...',
       message: null
     });
 
     try {
       const firebase = await loadFirebase();
+      publish({ connectionDetail: 'Publishing the multiplayer room...' });
       const inviteCode = createInviteCode();
       const nextRoomRef = firebase.ref(firebase.database, `multiplayer/rooms/${inviteCode}`);
       firebaseRuntime = firebase;
@@ -283,7 +303,10 @@ export function createMultiplayerSession({
       stopPeersListener = firebase.onValue(
         firebase.ref(firebase.database, `multiplayer/rooms/${inviteCode}/peers`),
         (snapshot) => {
-          const peers = snapshot.val() as Record<string, { client?: SignalOffer }> | null;
+          const peers = snapshot.val() as Record<string, {
+            client?: SignalOffer;
+            clientCandidates?: SignalCandidates;
+          }> | null;
           const liveIds = new Set(
             Object.entries(peers ?? {})
               .filter(([, peerSignal]) => isSignalOffer(peerSignal.client))
@@ -291,6 +314,7 @@ export function createMultiplayerSession({
           );
           for (const [id, peer] of hostPeers) {
             if (!liveIds.has(id)) {
+              clearPeerConnectionTimer(peer);
               peer.pc.close();
               hostPeers.delete(id);
               publish({ clients: state.clients.filter((client) => client.id !== id) });
@@ -304,7 +328,15 @@ export function createMultiplayerSession({
           }
           for (const [id, peerSignal] of Object.entries(peers ?? {})) {
             if (!hostPeers.has(id) && isSignalOffer(peerSignal.client)) {
-              void acceptClientOffer(inviteCode, id, peerSignal.client);
+              void acceptClientOffer(
+                inviteCode,
+                id,
+                peerSignal.client,
+                peerSignal.clientCandidates ?? {}
+              );
+            } else {
+              const peer = hostPeers.get(id);
+              if (peer) stageRemoteCandidates(peer, peerSignal.clientCandidates ?? {});
             }
           }
         }
@@ -313,7 +345,8 @@ export function createMultiplayerSession({
       publish({
         mode: 'hosting',
         connectionStatus: 'connected',
-        inviteCode
+        inviteCode,
+        connectionDetail: null
       });
       primeHostState();
       return inviteCode;
@@ -323,13 +356,19 @@ export function createMultiplayerSession({
         mode: 'idle',
         connectionStatus: 'error',
         hostName: null,
+        connectionDetail: errorMessage(error, 'Could not start multiplayer hosting.'),
         message: errorMessage(error, 'Could not start multiplayer hosting.')
       });
       throw error;
     }
   }
 
-  async function acceptClientOffer(inviteCode: string, id: string, offer: SignalOffer): Promise<void> {
+  async function acceptClientOffer(
+    inviteCode: string,
+    id: string,
+    offer: SignalOffer,
+    candidates: SignalCandidates
+  ): Promise<void> {
     if (!firebaseRuntime || state.mode !== 'hosting') return;
     if (hostPeers.size >= multiplayerSettings.multiplayerMaxListeners) {
       if (!rejectedPeerIds.has(id)) {
@@ -368,14 +407,20 @@ export function createMultiplayerSession({
     peer.pc.ondatachannel = (event) => attachHostChannel(peer, event.channel);
     peer.pc.onconnectionstatechange = () => {
       const status = peer.pc.connectionState;
-      if (status === 'connected') updateClient(id, { status: 'connected' });
+      if (status === 'connected') {
+        clearPeerConnectionTimer(peer);
+        updateClient(id, { status: 'connected' });
+        publish({ message: null });
+      }
       if (status === 'failed' || status === 'disconnected' || status === 'closed') {
         updateClient(id, { status: 'disconnected' });
       }
+      if (status === 'failed') publish({ message: describeIceFailure(peer, peer.name) });
     };
 
     try {
       await peer.pc.setRemoteDescription(offer.description);
+      stageRemoteCandidates(peer, candidates);
       const audioTransceiver = peer.pc.getTransceivers().find(
         (transceiver) => transceiver.receiver.track.kind === 'audio'
       );
@@ -390,21 +435,38 @@ export function createMultiplayerSession({
         );
       }
       const answer = await peer.pc.createAnswer();
+      const answerPath = `multiplayer/rooms/${inviteCode}/peers/${id}/host`;
+      const startCandidatePublishing = prepareCandidatePublisher(
+        peer,
+        `${answerPath}Candidates`,
+        () => firebaseRuntime,
+        () => {
+          clearPeerConnectionTimer(peer);
+          publish({
+            message: `Could not send ICE candidates for ${peer.name}. The deployed Firebase rules may be out of date.`
+          });
+        }
+      );
       await peer.pc.setLocalDescription(answer);
       await applyAudioBitrate(peer);
-      await waitForIceGathering(peer.pc);
       if (!firebaseRuntime || state.mode !== 'hosting') return;
       await firebaseRuntime.set(
-        firebaseRuntime.ref(
-          firebaseRuntime.database,
-          `multiplayer/rooms/${inviteCode}/peers/${id}/host`
-        ),
+        firebaseRuntime.ref(firebaseRuntime.database, answerPath),
         { description: peer.pc.localDescription?.toJSON(), createdAt: Date.now() }
       );
-    } catch {
+      startCandidatePublishing();
+      startPeerConnectionTimer(peer, () => {
+        if (peer.pc.connectionState === 'connected' || state.mode !== 'hosting') return;
+        updateClient(id, { status: 'disconnected' });
+        publish({ message: describeIceFailure(peer, peer.name) });
+      });
+    } catch (error) {
       peer.pc.close();
       hostPeers.delete(id);
       updateClient(id, { status: 'disconnected' });
+      publish({
+        message: `Could not finish the connection to ${peer.name}: ${errorMessage(error, 'ICE signaling failed.')}`
+      });
     }
   }
 
@@ -440,6 +502,7 @@ export function createMultiplayerSession({
   function attachHostChannel(peer: PeerConnection, channel: RTCDataChannel): void {
     peer.channel = channel;
     channel.onopen = () => {
+      clearPeerConnectionTimer(peer);
       updateClient(peer.id, { status: 'connected' });
       sendToPeer(peer, {
         kind: 'hello',
@@ -528,12 +591,14 @@ export function createMultiplayerSession({
       remotePlayback: reconnecting ? state.remotePlayback : EMPTY_REMOTE_PLAYBACK,
       remoteArtwork: reconnecting ? state.remoteArtwork : null,
       audioStatus: 'connecting',
+      connectionDetail: 'Signing in to multiplayer signaling...',
       message: null
     });
 
     try {
       const firebase = await loadFirebase();
       firebaseRuntime = firebase;
+      publish({ connectionDetail: 'Looking up the multiplayer session...' });
       const metaRef = firebase.ref(firebase.database, `multiplayer/rooms/${inviteCode}/meta`);
       const meta = (await firebase.get(metaRef)).val() as {
         protocolVersion?: number;
@@ -543,6 +608,7 @@ export function createMultiplayerSession({
         throw new Error('That multiplayer session is unavailable or incompatible.');
       }
       publish({ hostName: sanitizeClientName(meta.hostName ?? 'Host') });
+      publish({ connectionDetail: 'Preparing a direct peer connection...' });
 
       const peer = createPeer(firebase.uid, getLocalName());
       preferOpus(peer.pc.addTransceiver('audio', { direction: 'recvonly' }));
@@ -565,37 +631,77 @@ export function createMultiplayerSession({
       peerDisconnect = disconnect;
 
       const offer = await peer.pc.createOffer();
+      publish({ connectionDetail: 'Creating an ICE connection offer...' });
+      const startCandidatePublishing = prepareCandidatePublisher(
+        peer,
+        `multiplayer/rooms/${inviteCode}/peers/${firebase.uid}/clientCandidates`,
+        () => firebaseRuntime,
+        () => {
+          allowClientReconnect = false;
+          clearPeerConnectionTimer(peer);
+          publish({
+            connectionStatus: 'error',
+            audioStatus: 'unavailable',
+            message: 'Could not send ICE candidates. The deployed Firebase multiplayer rules may be out of date.'
+          });
+        }
+      );
       await peer.pc.setLocalDescription(offer);
-      await waitForIceGathering(peer.pc);
-      await firebase.set(firebase.ref(
-        firebase.database,
-        `multiplayer/rooms/${inviteCode}/peers/${firebase.uid}/client`
-      ), {
+      publish({ connectionDetail: 'Gathering and sending ICE candidates...' });
+      await firebase.set(clientSignalRef, {
         name: peer.name,
         platform: getClientPlatform(),
         description: peer.pc.localDescription?.toJSON(),
         createdAt: Date.now()
       });
+      startCandidatePublishing();
+      publish({ connectionDetail: `Waiting for ${state.hostName ?? 'the host'} to answer...` });
+      startPeerConnectionTimer(peer, () => {
+        if (clientPeer !== peer || peer.pc.connectionState === 'connected') return;
+        publish({
+          connectionStatus: 'disconnected',
+          audioStatus: 'unavailable',
+          connectionDetail: describeIceFailure(peer),
+          message: describeIceFailure(peer)
+        });
+        scheduleClientReconnect(2_000);
+      });
 
       stopAnswerListener = firebase.onValue(
-        firebase.ref(firebase.database, `multiplayer/rooms/${inviteCode}/peers/${firebase.uid}/host`),
+        nextPeerRef,
         (snapshot) => {
-          const answer = snapshot.val() as SignalAnswer | null;
+          const signal = snapshot.val() as {
+            host?: SignalAnswer;
+            hostCandidates?: SignalCandidates;
+          } | null;
+          const answer = signal?.host;
           if (answer?.error === 'host-full') {
             allowClientReconnect = false;
+            clearPeerConnectionTimer(peer);
             publish({
               connectionStatus: 'error',
               audioStatus: 'unavailable',
+              connectionDetail: 'The host has reached its listener limit.',
               message: 'That multiplayer host has reached its listener limit.'
             });
             peer.pc.close();
             if (firebaseRuntime && ownPeerRef) void firebaseRuntime.remove(ownPeerRef);
             return;
           }
+          stageRemoteCandidates(peer, signal?.hostCandidates ?? {});
           if (!answer?.description || peer.pc.remoteDescription) return;
-          void peer.pc.setRemoteDescription(answer.description).catch(() => {
-            publish({ connectionStatus: 'error', message: 'The host answer could not be applied.' });
-          });
+          publish({ connectionDetail: 'Checking direct ICE routes...' });
+          void peer.pc.setRemoteDescription(answer.description)
+            .then(() => flushRemoteCandidates(peer))
+            .catch((error) => {
+              clearPeerConnectionTimer(peer);
+              publish({
+                connectionStatus: 'error',
+                audioStatus: 'unavailable',
+                connectionDetail: 'The host answer was rejected by the browser.',
+                message: `The host answer could not be applied: ${errorMessage(error, 'invalid session description')}`
+              });
+            });
         }
       );
     } catch (error) {
@@ -605,6 +711,7 @@ export function createMultiplayerSession({
           mode: 'client',
           connectionStatus: 'disconnected',
           audioStatus: 'unavailable',
+          connectionDetail: 'The signaling attempt failed; preparing another attempt...',
           message: 'Reconnecting to the host...'
         });
       } else {
@@ -614,6 +721,7 @@ export function createMultiplayerSession({
           connectionStatus: 'error',
           hostName: null,
           audioStatus: 'unavailable',
+          connectionDetail: errorMessage(error, 'Could not join that multiplayer session.'),
           message: errorMessage(error, 'Could not join that multiplayer session.')
         });
       }
@@ -631,7 +739,7 @@ export function createMultiplayerSession({
       reconnectAttempts = 0;
       reconnectInFlight = false;
       clearReconnectTimer();
-      publish({ connectionStatus: 'connected', message: null });
+      publish({ connectionStatus: 'connected', connectionDetail: null, message: null });
       if (state.inviteCode && state.hostName) {
         rememberMultiplayerHost(state.hostName, state.inviteCode);
       }
@@ -688,6 +796,9 @@ export function createMultiplayerSession({
         publish({
           connectionStatus: allowClientReconnect ? 'connecting' : 'disconnected',
           audioStatus: 'unavailable',
+          connectionDetail: allowClientReconnect
+            ? 'The peer connection closed; preparing another attempt...'
+            : state.message ?? 'Connection to the host was lost.',
           message: allowClientReconnect
             ? 'Reconnecting to the host...'
             : state.message ?? 'Connection to the host was lost.'
@@ -698,11 +809,20 @@ export function createMultiplayerSession({
     peer.pc.onconnectionstatechange = () => {
       if (clientPeer !== peer) return;
       if (peer.pc.connectionState === 'connected') {
+        clearPeerConnectionTimer(peer);
         reconnectAttempts = 0;
         clearReconnectTimer();
-        publish({ connectionStatus: 'connected', message: null });
+        publish({ connectionStatus: 'connected', connectionDetail: null, message: null });
       }
-      if (peer.pc.connectionState === 'failed') scheduleClientReconnect(1_000);
+      if (peer.pc.connectionState === 'failed') {
+        publish({
+          connectionStatus: 'disconnected',
+          audioStatus: 'unavailable',
+          connectionDetail: describeIceFailure(peer),
+          message: describeIceFailure(peer)
+        });
+        scheduleClientReconnect(1_000);
+      }
       if (peer.pc.connectionState === 'disconnected') scheduleClientReconnect(4_000);
     };
     peer.pc.ontrack = (event) => {
@@ -731,6 +851,7 @@ export function createMultiplayerSession({
       publish({
         connectionStatus: 'connecting',
         audioStatus: 'connecting',
+        connectionDetail: 'Reconnecting and gathering fresh ICE candidates...',
         message: 'Reconnecting to the host...'
       });
       void connectClient(inviteCode, true)
@@ -949,6 +1070,7 @@ export function createMultiplayerSession({
     if (state.mode !== 'hosting') return;
     const peer = hostPeers.get(clientId);
     if (peer) {
+      clearPeerConnectionTimer(peer);
       sendToPeer(peer, { kind: 'kicked' });
       window.setTimeout(() => peer.pc.close(), 80);
       hostPeers.delete(clientId);
@@ -973,6 +1095,7 @@ export function createMultiplayerSession({
       hostName: null,
       clients: [],
       audioStatus: 'idle',
+      connectionDetail: null,
       message: null
     });
   }
@@ -992,6 +1115,7 @@ export function createMultiplayerSession({
       remotePlayback: EMPTY_REMOTE_PLAYBACK,
       remoteArtwork: null,
       audioStatus: 'idle',
+      connectionDetail: null,
       message: null
     });
   }
@@ -1001,10 +1125,14 @@ export function createMultiplayerSession({
     stopAnswerListener?.();
     stopPeersListener = null;
     stopAnswerListener = null;
-    for (const peer of hostPeers.values()) peer.pc.close();
+    for (const peer of hostPeers.values()) {
+      clearPeerConnectionTimer(peer);
+      peer.pc.close();
+    }
     hostPeers.clear();
     const previousClientPeer = clientPeer;
     clientPeer = null;
+    if (previousClientPeer) clearPeerConnectionTimer(previousClientPeer);
     previousClientPeer?.pc.close();
     multiplayerAudioService.clearRemoteTrack();
     multiplayerAudioService.releaseHostTrack();
@@ -1106,8 +1234,147 @@ function createPeer(id: string, name: string): PeerConnection {
     outgoing: [],
     flushing: false,
     decode: createMultiplayerMessageDecoder(isClientMessage),
-    audioSender: null
+    audioSender: null,
+    localCandidateTypes: new Set(),
+    remoteCandidateTypes: new Set(),
+    pendingRemoteCandidates: new Map(),
+    appliedRemoteCandidateIds: new Set(),
+    candidateErrors: [],
+    connectionTimer: null
   };
+}
+
+function prepareCandidatePublisher(
+  peer: PeerConnection,
+  path: string,
+  getFirebase: () => FirebaseRuntime | null,
+  reportFailure: () => void
+): () => void {
+  let ready = false;
+  let sequence = 0;
+  let writeFailed = false;
+  const queued: SignalCandidate[] = [];
+
+  function write(candidate: SignalCandidate): void {
+    const firebase = getFirebase();
+    if (!firebase) return;
+    const id = `c${String(sequence).padStart(3, '0')}`;
+    sequence += 1;
+    void firebase.set(firebase.ref(firebase.database, `${path}/${id}`), candidate).catch((error) => {
+      peer.candidateErrors.push(errorMessage(error, 'candidate signaling failed'));
+      if (writeFailed) return;
+      writeFailed = true;
+      reportFailure();
+    });
+  }
+
+  peer.pc.onicecandidate = (event) => {
+    if (!event.candidate) return;
+    const candidate = toSignalCandidate(event.candidate);
+    noteCandidateType(peer.localCandidateTypes, candidate.candidate);
+    if (ready) write(candidate);
+    else queued.push(candidate);
+  };
+  peer.pc.onicecandidateerror = (event) => {
+    const detail = [event.errorCode, event.errorText].filter(Boolean).join(' ');
+    if (detail) peer.candidateErrors.push(detail);
+  };
+
+  return () => {
+    ready = true;
+    for (const candidate of queued.splice(0)) write(candidate);
+  };
+}
+
+function toSignalCandidate(candidate: RTCIceCandidate): SignalCandidate {
+  return {
+    candidate: candidate.candidate,
+    sdpMid: candidate.sdpMid ?? '',
+    sdpMLineIndex: candidate.sdpMLineIndex ?? 0
+  };
+}
+
+function stageRemoteCandidates(peer: PeerConnection, candidates: SignalCandidates): void {
+  for (const [id, candidate] of Object.entries(candidates)) {
+    if (peer.appliedRemoteCandidateIds.has(id)
+      || peer.pendingRemoteCandidates.has(id)
+      || !isSignalCandidate(candidate)) continue;
+    peer.pendingRemoteCandidates.set(id, candidate);
+    noteCandidateType(peer.remoteCandidateTypes, candidate.candidate);
+  }
+  void flushRemoteCandidates(peer);
+}
+
+async function flushRemoteCandidates(peer: PeerConnection): Promise<void> {
+  if (!peer.pc.remoteDescription) return;
+  for (const [id, candidate] of [...peer.pendingRemoteCandidates]) {
+    try {
+      await peer.pc.addIceCandidate(candidate);
+      peer.appliedRemoteCandidateIds.add(id);
+      peer.pendingRemoteCandidates.delete(id);
+    } catch (error) {
+      peer.candidateErrors.push(errorMessage(error, 'remote candidate rejected'));
+      peer.pendingRemoteCandidates.delete(id);
+    }
+  }
+}
+
+function isSignalCandidate(value: unknown): value is SignalCandidate {
+  if (!value || typeof value !== 'object') return false;
+  const candidate = value as Partial<SignalCandidate>;
+  return typeof candidate.candidate === 'string'
+    && candidate.candidate.length > 0
+    && typeof candidate.sdpMid === 'string'
+    && typeof candidate.sdpMLineIndex === 'number';
+}
+
+function noteCandidateType(target: Set<string>, candidate: string): void {
+  const type = candidate.match(/(?:^|\s)typ\s+([a-z]+)/i)?.[1]?.toLowerCase();
+  if (type) target.add(type);
+}
+
+function startPeerConnectionTimer(peer: PeerConnection, handleTimeout: () => void): void {
+  clearPeerConnectionTimer(peer);
+  peer.connectionTimer = window.setTimeout(() => {
+    peer.connectionTimer = null;
+    handleTimeout();
+  }, ICE_CONNECTION_TIMEOUT_MS);
+}
+
+function clearPeerConnectionTimer(peer: PeerConnection): void {
+  if (peer.connectionTimer === null) return;
+  window.clearTimeout(peer.connectionTimer);
+  peer.connectionTimer = null;
+}
+
+function describeIceFailure(peer: PeerConnection, peerName?: string): string {
+  const subject = peerName ? `Connection to ${peerName}` : 'Multiplayer connection';
+  const local = [...peer.localCandidateTypes];
+  const remote = [...peer.remoteCandidateTypes];
+  const rejected = peer.candidateErrors.length;
+  if (peer.candidateErrors.some((error) => /permission|signaling|rules/i.test(error))) {
+    return `${subject} failed because ICE candidates could not be written to Firebase. The deployed multiplayer rules may be out of date.`;
+  }
+  if (local.length === 0) {
+    return `${subject} failed because this device gathered no ICE candidates. Check browser WebRTC policy and network access.`;
+  }
+  if (!local.includes('srflx')) {
+    return `${subject} failed with ${formatCandidateTypes(local)} candidates only; STUN did not provide this device a public route.`;
+  }
+  if (remote.length === 0) {
+    return `${subject} failed because the other device supplied no usable ICE candidates.`;
+  }
+  return `${subject} failed after exchanging ${formatCandidateTypes(local)} local and ${formatCandidateTypes(remote)} remote candidates${rejected > 0 ? `; ${rejected} candidate error${rejected === 1 ? '' : 's'} occurred` : ''}. A NAT or firewall blocked every direct route; izci has no TURN fallback.`;
+}
+
+function formatCandidateTypes(types: string[]): string {
+  const labels: Record<string, string> = {
+    host: 'local',
+    srflx: 'STUN',
+    prflx: 'peer-reflexive',
+    relay: 'relay'
+  };
+  return types.map((type) => labels[type] ?? type).join('/') || 'unknown';
 }
 
 function preferOpus(transceiver: RTCRtpTransceiver): void {
@@ -1175,22 +1442,6 @@ function sanitizeClientName(value: string): string {
 function sanitizePlatform(value: string): string {
   const platform = value.trim().replace(/[\u0000-\u001f\u007f]/g, '').slice(0, 32);
   return platform || 'Unknown';
-}
-
-async function waitForIceGathering(pc: RTCPeerConnection): Promise<void> {
-  if (pc.iceGatheringState === 'complete') return;
-  await new Promise<void>((resolve) => {
-    const timeout = window.setTimeout(done, 5_000);
-    function done() {
-      window.clearTimeout(timeout);
-      pc.removeEventListener('icegatheringstatechange', handleChange);
-      resolve();
-    }
-    function handleChange() {
-      if (pc.iceGatheringState === 'complete') done();
-    }
-    pc.addEventListener('icegatheringstatechange', handleChange);
-  });
 }
 
 function errorMessage(error: unknown, fallback: string): string {

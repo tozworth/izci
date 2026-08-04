@@ -8,7 +8,7 @@ import type {
 
 export type MultiplayerCollection = 'playlist' | 'library' | 'favorites';
 
-export const MULTIPLAYER_PROTOCOL_VERSION = 5;
+export const MULTIPLAYER_PROTOCOL_VERSION = 6;
 export const MULTIPLAYER_FRAME_CHUNK_SIZE = 12_000;
 
 const MULTIPLAYER_ARTWORK_DATA_URL_MAX_LENGTH = 8 * 1024 * 1024;

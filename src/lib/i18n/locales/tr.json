@@ -11,8 +11,17 @@
       "supportedMediaFiles": "Desteklenen medya dosyaları"
     },
     "multiplayer": {
+      "connectionNoticeFailed": "Bağlantı kurulamadı",
+      "startingHost": "Çok oyunculu sunucu başlatılıyor",
+      "connectingTo": "{name} aygıtına bağlanılıyor",
+      "connectingToHost": "Sunucuya bağlanılıyor",
+      "preparingRoom": "Sinyalleşme odası hazırlanıyor...",
+      "preparingConnection": "Bağlantı hazırlanıyor...",
       "enterInvite": "Sunucunun davet kodunu girin",
       "copyInviteFallback": "Bu davet kodunu kopyalayın",
+      "connectionFailed": "Çok oyunculu bağlantı kurulamadı",
+      "label": "Çok Oyunculu",
+      "markLabel": "izci çok oyunculu",
       "host": "Sunucu ol",
       "join": "Katıl...",
       "pairedHosts": "Eşleştirilmiş sunucular",
@@ -29,7 +38,6 @@
       "disconnected": "Bağlantı kesildi",
       "startListening": "Dinlemeyi başlat",
       "leave": "Ayrıl",
-      "label": "Çok Oyunculu",
       "audio": {
         "listening": "Dinleniyor",
         "blocked": "Ses için izin gerekiyor",
@@ -41,6 +49,9 @@
       "unpairClient": "{name} eşleştirmesini kaldır",
       "pairClientMobile": "{name} ile eşleştir"
     },
+    "common": {
+      "close": "Kapat"
+    },
     "lyrics": {
       "playTrack": "Sözleri görüntülemek için bir parça oynatın.",
       "reading": "Gömülü sözler okunuyor...",
@@ -50,9 +61,6 @@
       "closePanel": "Sözleri Kapat",
       "synced": "Eşitlenmiş sözler",
       "instrumentalBreak": "Enstrümantal arası"
-    },
-    "common": {
-      "close": "Kapat"
     },
     "menu": {
       "genericMenu": "Menü",
@@ -727,8 +735,8 @@
       }
     },
     "experimental": {
-      "heading": "Deneyler",
       "multiplayer": {
+        "category": "Çok oyunculu",
         "title": "izci Çok Oyunculu",
         "hint": "Bu izci'nin sunucu olmasını veya paylaşımlı bir dinleme oturumuna katılmasını sağlar. İlk bağlantıyı Firebase kurar; ses doğrudan eşler arasında iletilir.",
         "name": "Bu izci'yi adlandır",
@@ -748,6 +756,14 @@
         "maxListeners": {
           "title": "Azami dinleyici",
           "hint": "Sunucu her eş için ayrı bir akış kodlayıp gönderdiğinden yeni dinleyicilerin sayısını sınırlar."
+        },
+        "diagnostics": {
+          "heading": "Bağlantı tanılama",
+          "signaling": "Firebase yalnızca daveti, oturum açıklamalarını ve ICE adaylarını iletir. Oynatma kontrolleri, katalog verileri, görseller ve ses, kurulan eş bağlantısını kullanır.",
+          "direct": "izci, genel ICE adayları için Cloudflare ve Google STUN sunucularına başvurur ve ardından doğrudan yolları dener. TURN aktarıcısı yapılandırılmadığından kısıtlayıcı NAT veya güvenlik duvarı birleşimleri bağlantıyı yine de engelleyebilir.",
+          "upnp": "Sabit genel IP veya yönlendiricide UPnP başarıyı garanti etmez: Chromium kendi ICE portlarını seçer ve izci UPnP port eşlemesi istemez.",
+          "messages": "Hiç aday toplanamaması tarayıcı ya da ağ ilkesine; yalnızca yerel aday bulunması STUN arızasına; iki tarafta da aday olup bağlantı kurulamaması NAT ya da güvenlik duvarı filtrelemesine işaret eder.",
+          "tailnet": "Başarılı bir Tailscale bağlantısı tailnet adreslerini, yönlendirici port eşlemesini veya DERP'i kullanabilir. Bu, Tailscale kapalıyken aynı aygıtlar arasında kullanılabilir bir doğrudan yol bulunduğunu kanıtlamaz."
         }
       }
     },

@@ -11,8 +11,17 @@
       "supportedMediaFiles": "Supported media files"
     },
     "multiplayer": {
+      "connectionNoticeFailed": "Connection failed",
+      "startingHost": "Starting multiplayer host",
+      "connectingTo": "Connecting to {name}",
+      "connectingToHost": "Connecting to host",
+      "preparingRoom": "Preparing the signaling room...",
+      "preparingConnection": "Preparing the connection...",
       "enterInvite": "Enter the host invite code",
       "copyInviteFallback": "Copy this invite code",
+      "connectionFailed": "Multiplayer connection failed",
+      "label": "Multiplayer",
+      "markLabel": "izci multiplayer",
       "host": "Host",
       "join": "Join...",
       "pairedHosts": "Paired hosts",
@@ -29,7 +38,6 @@
       "disconnected": "Disconnected",
       "startListening": "Start listening",
       "leave": "Leave",
-      "label": "Multiplayer",
       "audio": {
         "listening": "Listening",
         "blocked": "Audio needs permission",
@@ -41,6 +49,9 @@
       "unpairClient": "Unpair {name}",
       "pairClientMobile": "Pair {name}"
     },
+    "common": {
+      "close": "Close"
+    },
     "lyrics": {
       "playTrack": "Play a track to view lyrics.",
       "reading": "Reading embedded lyrics...",
@@ -50,9 +61,6 @@
       "closePanel": "Close Lyrics",
       "synced": "Synced lyrics",
       "instrumentalBreak": "Instrumental break"
-    },
-    "common": {
-      "close": "Close"
     },
     "menu": {
       "genericMenu": "Menu",
@@ -727,8 +735,8 @@
       }
     },
     "experimental": {
-      "heading": "Experiments",
       "multiplayer": {
+        "category": "Multiplayer",
         "title": "izci Multiplayer",
         "hint": "Lets this izci host or join a shared listening session. Firebase handles the handshake; audio travels directly between peers.",
         "name": "Name this izci",
@@ -748,6 +756,14 @@
         "maxListeners": {
           "title": "Maximum listeners",
           "hint": "Limits new listeners because the host encodes and sends one stream per peer."
+        },
+        "diagnostics": {
+          "heading": "Connection diagnostics",
+          "signaling": "Firebase only exchanges the invite, session descriptions, and ICE candidates. Playback controls, catalog data, artwork, and audio use the resulting peer connection.",
+          "direct": "izci asks Cloudflare and Google STUN servers for public ICE candidates, then tries direct routes. TURN relay is not configured, so restrictive NAT or firewall combinations can still prevent a connection.",
+          "upnp": "A static public IP or router UPnP does not guarantee success: Chromium chooses its own ICE ports and izci does not request a UPnP port mapping.",
+          "messages": "Failure to gather candidates points to browser or network policy; local-only candidates point to STUN failure; candidates on both sides with no connection point to NAT or firewall filtering.",
+          "tailnet": "A successful Tailscale connection may use tailnet addresses, router port mapping, or DERP. It does not prove that the same devices have a usable direct route with Tailscale off."
         }
       }
     },

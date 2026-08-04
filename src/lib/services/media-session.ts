@@ -33,11 +33,48 @@ interface MediaSessionConnectOptions {
   snapshot: Readable<PlaybackSnapshot>;
   track: Readable<PlaylistItem | null>;
   settings: Readable<PlaybackSettings>;
+  artworkOverride?: Readable<LoadedStreamArtwork | null | undefined>;
+  transportAnchorActive?: Readable<boolean>;
   handlers: MediaSessionHandlers;
 }
 
-const SILENT_AUDIO_DATA_URI =
-  'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA';
+const TRANSPORT_ANCHOR_DURATION_SECONDS = 8;
+const TRANSPORT_ANCHOR_SAMPLE_RATE = 8_000;
+
+function createTransportAnchorUrl(): string {
+  const sampleCount = TRANSPORT_ANCHOR_DURATION_SECONDS * TRANSPORT_ANCHOR_SAMPLE_RATE;
+  const bytesPerSample = 2;
+  const dataLength = sampleCount * bytesPerSample;
+  const buffer = new ArrayBuffer(44 + dataLength);
+  const view = new DataView(buffer);
+
+  function writeText(offset: number, value: string): void {
+    for (let index = 0; index < value.length; index += 1) {
+      view.setUint8(offset + index, value.charCodeAt(index));
+    }
+  }
+
+  writeText(0, 'RIFF');
+  view.setUint32(4, 36 + dataLength, true);
+  writeText(8, 'WAVE');
+  writeText(12, 'fmt ');
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, 1, true);
+  view.setUint32(24, TRANSPORT_ANCHOR_SAMPLE_RATE, true);
+  view.setUint32(28, TRANSPORT_ANCHOR_SAMPLE_RATE * bytesPerSample, true);
+  view.setUint16(32, bytesPerSample, true);
+  view.setUint16(34, 16, true);
+  writeText(36, 'data');
+  view.setUint32(40, dataLength, true);
+
+  // Avoid browsers optimizing a completely silent resource away while remaining inaudible.
+  for (let index = 0; index < sampleCount; index += 1) {
+    view.setInt16(44 + index * bytesPerSample, index % 2 === 0 ? 1 : -1, true);
+  }
+
+  return URL.createObjectURL(new Blob([buffer], { type: 'audio/wav' }));
+}
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
@@ -48,6 +85,7 @@ function createMediaSessionService() {
   let track: PlaylistItem | null = null;
   let playbackRate = 1;
   let transportAnchor: HTMLAudioElement | null = null;
+  let transportAnchorUrl = '';
   let transportHandlers: MediaSessionHandlers | null = null;
   let ignoredTransportPlayEvents = 0;
   let ignoredTransportPauseEvents = 0;
@@ -55,6 +93,9 @@ function createMediaSessionService() {
   let trackArtwork: LoadedStreamArtwork | null = null;
   let trackArtworkKey = '';
   let artworkLoadToken = 0;
+  let artworkOverride: LoadedStreamArtwork | null | undefined;
+  let ownsTransportAnchor = false;
+  let ownedTransportAnchorState: 'inactive' | 'paused' | 'playing' = 'inactive';
 
   function getMediaSession(): MediaSession | null {
     if (typeof navigator === 'undefined' || !('mediaSession' in navigator)) {
@@ -104,7 +145,8 @@ function createMediaSessionService() {
     }
 
     transportAnchor = document.createElement('audio');
-    transportAnchor.src = SILENT_AUDIO_DATA_URI;
+    transportAnchorUrl = createTransportAnchorUrl();
+    transportAnchor.src = transportAnchorUrl;
     transportAnchor.loop = true;
     transportAnchor.preload = 'auto';
     transportAnchor.volume = 1;
@@ -240,6 +282,25 @@ function createMediaSessionService() {
     syncPositionState(mediaSession);
   }
 
+  function syncOwnedTransportAnchor(): void {
+    if (!ownsTransportAnchor) {
+      return;
+    }
+
+    const nextState = snapshot?.state === 'playing' ? 'playing' : 'paused';
+    if (ownedTransportAnchorState === nextState) {
+      return;
+    }
+
+    ensureTransportAnchor();
+    ownedTransportAnchorState = nextState;
+    if (nextState === 'playing') {
+      mediaSessionService.playTransportAnchor();
+    } else {
+      mediaSessionService.pauseTransportAnchor();
+    }
+  }
+
   async function syncTrackArtwork(mediaSession: MediaSession, activeTrack: PlaylistItem | null): Promise<void> {
     const loadToken = ++artworkLoadToken;
 
@@ -373,19 +434,22 @@ function createMediaSessionService() {
     playTransportAnchor(): void {
       const audio = ensureTransportAnchor();
 
-      if (!audio) {
+      if (!audio || !audio.paused) {
         return;
       }
 
       ignoredTransportPlayEvents += 1;
       void audio.play().catch(() => {
         ignoredTransportPlayEvents = Math.max(ignoredTransportPlayEvents - 1, 0);
+        if (ownsTransportAnchor && snapshot?.state === 'playing') {
+          ownedTransportAnchorState = 'inactive';
+        }
       });
     },
     pauseTransportAnchor(): void {
       const audio = transportAnchor;
 
-      if (!audio) {
+      if (!audio || audio.paused) {
         return;
       }
 
@@ -399,11 +463,20 @@ function createMediaSessionService() {
         return;
       }
 
-      ignoredTransportPauseEvents += 1;
-      audio.pause();
+      if (!audio.paused) {
+        ignoredTransportPauseEvents += 1;
+        audio.pause();
+      }
       audio.currentTime = 0;
     },
-    connect({ snapshot: snapshotStore, track: trackStore, settings: settingsStore, handlers }: MediaSessionConnectOptions): () => void {
+    connect({
+      snapshot: snapshotStore,
+      track: trackStore,
+      settings: settingsStore,
+      artworkOverride: artworkOverrideStore,
+      transportAnchorActive: transportAnchorActiveStore,
+      handlers
+    }: MediaSessionConnectOptions): () => void {
       const mediaSession = getMediaSession();
 
       if (!mediaSession) {
@@ -416,10 +489,17 @@ function createMediaSessionService() {
       const unsubscribeSnapshot = snapshotStore.subscribe((value) => {
         snapshot = value;
         syncSession(mediaSession);
+        syncOwnedTransportAnchor();
       });
       const unsubscribeTrack = trackStore.subscribe((value) => {
         const nextArtworkKey = getTrackArtworkLoadKey(value);
         track = value;
+
+        if (artworkOverride !== undefined) {
+          trackArtwork = artworkOverride;
+          syncSession(mediaSession);
+          return;
+        }
 
         if (nextArtworkKey === trackArtworkKey) {
           syncSession(mediaSession);
@@ -433,17 +513,53 @@ function createMediaSessionService() {
         playbackRate = value.playbackRate;
         syncPositionState(mediaSession);
       });
+      const unsubscribeArtworkOverride = artworkOverrideStore?.subscribe((value) => {
+        const wasOverridden = artworkOverride !== undefined;
+        artworkOverride = value;
+
+        if (value === undefined) {
+          if (wasOverridden) {
+            artworkLoadToken += 1;
+            clearTrackArtwork();
+            void syncTrackArtwork(mediaSession, track);
+          }
+          return;
+        }
+
+        artworkLoadToken += 1;
+        clearTrackArtwork();
+        trackArtwork = value;
+        syncSession(mediaSession);
+      }) ?? (() => undefined);
+      const unsubscribeTransportAnchor = transportAnchorActiveStore?.subscribe((value) => {
+        const previouslyOwned = ownsTransportAnchor;
+        ownsTransportAnchor = value;
+
+        if (!value && previouslyOwned) {
+          mediaSessionService.deactivateTransportAnchor();
+          ownedTransportAnchorState = 'inactive';
+          return;
+        }
+
+        syncOwnedTransportAnchor();
+      }) ?? (() => undefined);
 
       return () => {
         unsubscribeSnapshot();
         unsubscribeTrack();
         unsubscribeSettings();
+        unsubscribeArtworkOverride();
+        unsubscribeTransportAnchor();
         artworkLoadToken += 1;
         snapshot = null;
         track = null;
         playbackRate = 1;
         trackArtworkKey = '';
+        artworkOverride = undefined;
         clearTrackArtwork();
+        if (ownsTransportAnchor) mediaSessionService.deactivateTransportAnchor();
+        ownsTransportAnchor = false;
+        ownedTransportAnchorState = 'inactive';
         transportHandlers = null;
         syncSession(mediaSession);
         clearHandlers();

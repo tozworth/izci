@@ -51,6 +51,10 @@ describeWithEmulator('multiplayer Realtime Database rules', () => {
       description: { type: 'answer', sdp: 'answer-sdp' },
       createdAt: Date.now()
     }));
+    await assertSucceeds(set(
+      ref(database, `multiplayer/rooms/${room}/peers/${clientUid}/hostCandidates/c000`),
+      { candidate: 'candidate:host', sdpMid: '0', sdpMLineIndex: 0 }
+    ));
     await assertSucceeds(set(ref(database, `multiplayer/rooms/${room}/peers/${clientUid}/host`), {
       error: 'host-full',
       createdAt: Date.now()
@@ -84,14 +88,26 @@ describeWithEmulator('multiplayer Realtime Database rules', () => {
       ref(clientDatabase, `multiplayer/rooms/${room}/peers/${clientUid}/client`),
       offer
     ));
+    await assertSucceeds(set(
+      ref(clientDatabase, `multiplayer/rooms/${room}/peers/${clientUid}/clientCandidates/c000`),
+      { candidate: 'candidate:client', sdpMid: '0', sdpMLineIndex: 0 }
+    ));
     await assertSucceeds(get(ref(clientDatabase, `multiplayer/rooms/${room}/peers/${clientUid}/host`)));
     await assertFails(set(
       ref(otherDatabase, `multiplayer/rooms/${room}/peers/${clientUid}/client`),
       offer
     ));
     await assertFails(set(
+      ref(otherDatabase, `multiplayer/rooms/${room}/peers/${clientUid}/clientCandidates/c001`),
+      { candidate: 'candidate:forged', sdpMid: '0', sdpMLineIndex: 0 }
+    ));
+    await assertFails(set(
       ref(clientDatabase, `multiplayer/rooms/${room}/peers/${clientUid}/host`),
       { description: { type: 'answer', sdp: 'forged' }, createdAt: Date.now() }
+    ));
+    await assertFails(set(
+      ref(clientDatabase, `multiplayer/rooms/${room}/peers/${clientUid}/clientCandidates/invalid`),
+      { candidate: '', sdpMid: '0', sdpMLineIndex: 0 }
     ));
     await assertFails(get(ref(clientDatabase, `multiplayer/rooms/${room}/peers`)));
   });

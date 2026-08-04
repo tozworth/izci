@@ -37,7 +37,16 @@ export class MultiplayerAudioService {
     this.#remoteTrack = track;
     const element = new Audio();
     element.autoplay = true;
+    element.preload = 'auto';
     element.srcObject = stream;
+    element.setAttribute('playsinline', '');
+    element.setAttribute('aria-hidden', 'true');
+    element.style.position = 'fixed';
+    element.style.width = '1px';
+    element.style.height = '1px';
+    element.style.opacity = '0';
+    element.style.pointerEvents = 'none';
+    document.body?.appendChild(element);
     this.#remoteElement = element;
     this.#remoteSource = audioBusService.connectHtmlMediaElementAfterRaf(element);
 
@@ -81,6 +90,7 @@ export class MultiplayerAudioService {
       this.#remoteElement.srcObject = null;
       this.#remoteElement.removeAttribute('src');
       this.#remoteElement.load();
+      this.#remoteElement.remove();
     }
     this.#remoteElement = null;
     this.#remoteSource = null;
