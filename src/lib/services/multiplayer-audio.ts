@@ -12,9 +12,7 @@ type StatusHandler = (status: MultiplayerReceiverAudioStatus) => void;
 export class MultiplayerAudioService {
   #remoteElement: HTMLAudioElement | null = null;
   #remoteSource: MediaStreamAudioSourceNode | null = null;
-  #remoteStream: MediaStream | null = null;
   #remoteTrack: MediaStreamTrack | null = null;
-  #remotePostRaf: boolean | null = null;
   #onStatus: StatusHandler = () => undefined;
 
   getHostTrack(postRaf: boolean): MediaStreamTrack | null {
@@ -32,7 +30,6 @@ export class MultiplayerAudioService {
   async attachRemoteTrack(
     track: MediaStreamTrack,
     stream: MediaStream,
-    postRaf: boolean,
     onStatus: StatusHandler
   ): Promise<void> {
     this.clearRemoteTrack();
@@ -52,11 +49,10 @@ export class MultiplayerAudioService {
     element.style.pointerEvents = 'none';
     document.body?.appendChild(element);
     this.#remoteElement = element;
-    this.#remoteStream = stream;
-    this.#remotePostRaf = postRaf;
-    this.#remoteSource = postRaf
-      ? audioBusService.connectMediaStreamAfterRaf(stream)
-      : audioBusService.connectMediaStream(stream);
+    // The sender's post-Raf flag describes the transmitted signal; it must not
+    // take control of the listener's rack. Always enter through the local Raf
+    // input so each listener can independently enable or bypass their effects.
+    this.#remoteSource = audioBusService.connectMediaStream(stream);
 
     if (!this.#remoteSource) {
       this.#publish('unavailable');
@@ -68,17 +64,6 @@ export class MultiplayerAudioService {
     track.onended = () => this.#publish('unavailable');
     this.#publish('connecting');
     await this.resumeRemoteAudio();
-  }
-
-  setRemotePostRaf(postRaf: boolean): void {
-    if (!this.#remoteElement || !this.#remoteSource || !this.#remoteStream
-      || this.#remotePostRaf === postRaf) return;
-    audioBusService.disconnect(this.#remoteSource);
-    this.#remotePostRaf = postRaf;
-    this.#remoteSource = postRaf
-      ? audioBusService.connectMediaStreamAfterRaf(this.#remoteStream)
-      : audioBusService.connectMediaStream(this.#remoteStream);
-    if (!this.#remoteSource) this.#publish('unavailable');
   }
 
   async resumeRemoteAudio(): Promise<boolean> {
@@ -113,9 +98,7 @@ export class MultiplayerAudioService {
     }
     this.#remoteElement = null;
     this.#remoteSource = null;
-    this.#remoteStream = null;
     this.#remoteTrack = null;
-    this.#remotePostRaf = null;
     this.#publish('idle');
     this.#onStatus = () => undefined;
   }

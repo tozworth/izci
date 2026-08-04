@@ -57,7 +57,7 @@ describe('MultiplayerAudioService', () => {
   it('feeds pre-Raf WebRTC audio directly into the local Raf graph', async () => {
     const statuses: string[] = [];
 
-    await service.attachRemoteTrack(track, stream, false, (status) => statuses.push(status));
+    await service.attachRemoteTrack(track, stream, (status) => statuses.push(status));
 
     expect(audioBus.connectMediaStream).toHaveBeenCalledWith(stream);
     expect(audioBus.connectMediaStreamAfterRaf).not.toHaveBeenCalled();
@@ -66,12 +66,10 @@ describe('MultiplayerAudioService', () => {
     expect(statuses.at(-1)).toBe('playing');
   });
 
-  it('moves the direct WebRTC source after Raf when the host mode changes', async () => {
-    await service.attachRemoteTrack(track, stream, false, () => undefined);
-    audioBus.disconnect.mockClear();
-    service.setRemotePostRaf(true);
+  it('keeps the listener in control of local Raf routing', async () => {
+    await service.attachRemoteTrack(track, stream, () => undefined);
 
-    expect(audioBus.disconnect).toHaveBeenCalledOnce();
-    expect(audioBus.connectMediaStreamAfterRaf).toHaveBeenCalledWith(stream);
+    expect(audioBus.connectMediaStream).toHaveBeenCalledWith(stream);
+    expect(audioBus.connectMediaStreamAfterRaf).not.toHaveBeenCalled();
   });
 });

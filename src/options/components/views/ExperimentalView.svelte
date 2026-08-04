@@ -105,6 +105,7 @@
         hint={$t('options.experimental.multiplayer.nameHint', { default: 'Shown to hosts and clients in multiplayer sessions.' })}
       >
         <input
+          class="multiplayer-text-input"
           type="text"
           maxlength="48"
           value={$experimentalSettings.izciName}
@@ -139,7 +140,7 @@
         hint={$t('options.experimental.multiplayer.turnUrl.hint', { default: 'Host-only relay endpoint, such as relay.example.net:3478 or turns:relay.example.net:5349. Listeners receive it with temporary credentials.' })}
       >
         <input
-          class="wide-text-input"
+          class="multiplayer-text-input multiplayer-endpoint-input"
           type="text"
           spellcheck="false"
           autocomplete="off"
@@ -153,6 +154,7 @@
         hint={$t('options.experimental.multiplayer.turnSecret.hint', { default: 'Host-only shared secret configured on the relay. Listeners receive encrypted temporary credentials and do not need this setting.' })}
       >
         <input
+          class="multiplayer-text-input"
           type="password"
           autocomplete="current-password"
           value={$experimentalSettings.multiplayerTurnSecret}
@@ -272,6 +274,15 @@
 </article>
 
 <style>
+  :global(html:not([data-izci-mobile='true'])) input.multiplayer-text-input {
+    width: min(12rem, 32vw);
+  }
+
+  input.multiplayer-endpoint-input {
+    font-family: "IBM Plex Mono", "SFMono-Regular", monospace;
+    font-size: 0.74rem;
+  }
+
   .multiplayer-footnotes {
     margin-top: 0.75rem;
     padding: 0.65rem 0.75rem;

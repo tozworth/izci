@@ -868,7 +868,6 @@ export function createMultiplayerSession({
       }
       if (message.kind === 'audio') {
         latestAudioAvailability = message.audio;
-        multiplayerAudioService.setRemotePostRaf(message.audio.postRaf);
         if (!message.audio.enabled) {
           publish({
             audioStatus: message.audio.reason === 'video-disabled' ? 'video-disabled' : 'disabled',
@@ -940,7 +939,6 @@ export function createMultiplayerSession({
       void multiplayerAudioService.attachRemoteTrack(
         event.track,
         stream,
-        latestAudioAvailability.postRaf,
         (audioStatus) => {
           if (state.mode !== 'client') return;
           if (!latestAudioAvailability.enabled

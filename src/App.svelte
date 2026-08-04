@@ -129,6 +129,7 @@
     createMultiplayerSession,
     type MultiplayerSessionState
   } from '$lib/services/multiplayer-session';
+  import { resolveMultiplayerPlayingTrackSelection } from '$lib/services/multiplayer-selection';
   import {
     getRemoteArtworkLoadKey,
     toLoadedMultiplayerArtwork
@@ -185,6 +186,7 @@
   let remotePlaylistSelection: PlaylistSelection = emptySelection;
   let remoteLibrarySelection: PlaylistSelection = emptySelection;
   let remoteFavoriteSelection: PlaylistSelection = emptySelection;
+  let observedRemotePlayingTrackId: string | null = null;
   let lastTroubadourContext: TroubadourBatchContext | null = null;
   let localSelectedPlaylistItem: PlaylistItem | null = null;
   let localSelectedLibraryItem: PlaylistItem | null = null;
@@ -932,6 +934,17 @@
     ? favoriteItems.find((item) => item.id === (remoteFavoriteSelection.focusId ?? remoteFavoriteSelection.ids.at(-1))) ?? null
     : localSelectedFavoriteItem;
   $: playingTrack = isMultiplayerClient ? multiplayerState.remotePlayback.track : localPlayingTrack;
+  $: {
+    const selectionSync = resolveMultiplayerPlayingTrackSelection(
+      observedRemotePlayingTrackId,
+      isMultiplayerClient ? playingTrack?.id ?? null : null,
+      playlistItems
+    );
+    observedRemotePlayingTrackId = selectionSync.observedTrackId;
+    if (isMultiplayerClient && selectionSync.selection) {
+      workspaceShell.setCollectionSelection('playlist', selectionSync.selection);
+    }
+  }
   $: playbackSnapshot = isMultiplayerClient
     ? {
         ...multiplayerState.remotePlayback.snapshot,
@@ -2119,7 +2132,7 @@
       favorite={favoriteTargetTrack ? favoritesHaveAllTracks(favoriteItems, [favoriteTargetTrack]) : false}
       ratingsEnabled={!isMultiplayerClient && $trackSettings.enableRatings}
       rating={favoriteTargetTrack?.rating ?? 0}
-      showRafToggle={!isMultiplayerClient && $playbackSettings.enableRaf && $playbackSettings.showRafToggleInPlayerBar}
+      showRafToggle={$playbackSettings.enableRaf && $playbackSettings.showRafToggleInPlayerBar}
       rafEnabled={$rafSettings.enabled}
       rafPresets={$rafPresets.presets}
       selectedRafPresetId={$rafPresets.selectedPresetId}

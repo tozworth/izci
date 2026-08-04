@@ -356,13 +356,15 @@
   }
 
   .multiplayer-connected .izci-menu-glyph-glow {
+    --multiplayer-connected-color: light-dark(rgb(48 112 60), rgb(204 255 166));
+    color: var(--multiplayer-connected-color);
     filter:
-      drop-shadow(0 0 0.28rem rgb(176 255 120 / 0.9))
-      drop-shadow(0 0 0.72rem rgb(176 255 120 / 0.58));
+      drop-shadow(0 0 0.24rem color-mix(in srgb, currentColor 52%, transparent))
+      drop-shadow(0 0 0.64rem color-mix(in srgb, currentColor 28%, transparent));
   }
 
   .multiplayer-connected .izci-menu-glyph-glow :global(.izci-menu-glyph) {
-    color: rgb(204 255 166);
+    color: var(--multiplayer-connected-color);
   }
 
   .multiplayer-disconnected .izci-menu-glyph-glow {
