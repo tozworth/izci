@@ -149,6 +149,8 @@
     repeatMode: repeatStore
   } = playlistStore;
   const mobileMode = isMobileNavigator(typeof navigator === 'undefined' ? null : navigator);
+  let mobileOptionsOpen = false;
+  let mobileOptionsView: OptionsViewName | undefined = undefined;
   const {
     items: libraryItemsStore,
     selection: librarySelectionStore,
@@ -1424,7 +1426,8 @@
 
   function handleOpenOptions(view?: OptionsViewName) {
     if (mobileMode) {
-      window.location.assign(buildOptionsWindowPath(view));
+      mobileOptionsView = view;
+      mobileOptionsOpen = true;
       return;
     }
     windowManager.openOptions(view);
@@ -2178,3 +2181,16 @@
     />
   {/if}
 </div>
+
+{#if mobileMode && mobileOptionsOpen}
+  <div class="mobile-options-overlay">
+    {#await import('./options/OptionsApp.svelte') then optionsModule}
+      <svelte:component
+        this={optionsModule.default}
+        embedded
+        initialView={mobileOptionsView}
+        on:close={() => (mobileOptionsOpen = false)}
+      />
+    {/await}
+  </div>
+{/if}

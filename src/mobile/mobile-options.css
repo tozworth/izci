@@ -3,6 +3,15 @@ html[data-izci-mobile='true'] {
   overscroll-behavior: none;
 }
 
+.mobile-options-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  min-width: 0;
+  min-height: 0;
+  background: var(--options-body-background);
+}
+
 .mobile-options-shell {
   display: grid;
   grid-template-rows: calc(3.55rem + env(safe-area-inset-top, 0px)) auto minmax(0, 1fr);

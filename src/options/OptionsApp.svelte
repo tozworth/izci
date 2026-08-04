@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { createEventDispatcher, onMount } from 'svelte';
   import { t } from 'svelte-i18n';
   import OptionsView, { type SharedOptionsViewDefinition } from '$lib/components/options/OptionsView.svelte';
   import OptionsContent from './OptionsContent.svelte';
@@ -29,12 +29,19 @@
     type OptionsViewName
   } from './views';
 
+  export let embedded = false;
+  export let initialView: OptionsViewName | undefined = undefined;
+
+  const dispatch = createEventDispatcher<{ close: void }>();
+
   const initialOptionsWindowState = getOptionsWindowState();
   const mobileMode = isMobileNavigator(typeof navigator === 'undefined' ? null : navigator);
   const requestedView = getOptionsViewFromLocation(window.location);
-  let activeView: OptionsViewName = window.location.search
-    ? requestedView
-    : initialOptionsWindowState.activeView;
+  let activeView: OptionsViewName = initialView ?? (embedded
+    ? initialOptionsWindowState.activeView
+    : window.location.search
+      ? requestedView
+      : initialOptionsWindowState.activeView);
   if (activeView === 'raf' && !playbackSettings.getSnapshot().enableRaf) {
     activeView = 'playback';
   }
@@ -79,9 +86,11 @@
     activeView = view;
     rememberOptionsActiveView(view);
 
-    const nextUrl = buildOptionsWindowPath(view);
-    if (`${window.location.pathname}${window.location.search}` !== nextUrl) {
-      window.history.replaceState(null, '', nextUrl);
+    if (!embedded) {
+      const nextUrl = buildOptionsWindowPath(view);
+      if (`${window.location.pathname}${window.location.search}` !== nextUrl) {
+        window.history.replaceState(null, '', nextUrl);
+      }
     }
   }
 
@@ -111,6 +120,10 @@
 
   onMount(() => {
     rememberOptionsActiveView(activeView);
+    if (embedded) {
+      return;
+    }
+
     const syncActiveViewFromLocation = () => setActiveView(getOptionsViewFromLocation(window.location));
     const handleMessage = (event: MessageEvent) => {
       if (
@@ -210,7 +223,9 @@
   hideAdvancedTweaksLabel={$t('options.tools.hideAdvancedTweaks', { default: 'Hide advanced tweaks' })}
   resetPageLabel={$t('options.tools.resetPage', { default: 'Reset current page to defaults' })}
   contentClass={activeView === 'raf' ? 'raf-content' : ''}
+  {embedded}
   on:select={(event) => setActiveView(event.detail.view as OptionsViewName)}
+  on:back={() => dispatch('close')}
   on:reset={resetCurrentView}
   on:advancedvisibilitychange={(event) => rememberShowAdvancedTweaks(event.detail.visible)}
 >

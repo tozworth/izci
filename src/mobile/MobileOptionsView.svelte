@@ -16,11 +16,13 @@
   export let hideAdvancedTweaksLabel = 'Hide advanced tweaks';
   export let resetPageLabel = 'Reset current page to defaults';
   export let contentClass = '';
+  export let embedded = false;
 
   const dispatch = createEventDispatcher<{
     select: { view: string };
     reset: { view: string };
     advancedvisibilitychange: { visible: boolean };
+    back: void;
   }>();
 
   let categoriesOpen = false;
@@ -53,6 +55,11 @@
   }
 
   function goBack(): void {
+    if (embedded) {
+      dispatch('back');
+      return;
+    }
+
     if (window.history.length > 1 && document.referrer.startsWith(window.location.origin)) {
       window.history.back();
       return;

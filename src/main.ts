@@ -9,6 +9,7 @@ import { registerAppServiceWorker } from '$lib/services/pwa-updates';
 import { initializeLocalization } from '$lib/i18n';
 import { initializeMobileDocument } from './mobile/mobile-device';
 import './mobile/mobile.css';
+import './mobile/mobile-options.css';
 
 if (import.meta.env.PROD) {
   registerAppServiceWorker();
