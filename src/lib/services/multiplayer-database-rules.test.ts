@@ -96,6 +96,29 @@ describeWithEmulator('multiplayer Realtime Database rules', () => {
     await assertFails(get(ref(clientDatabase, `multiplayer/rooms/${room}/peers`)));
   });
 
+  it('lets only paired clients discover the host current room', async () => {
+    const hostDatabase = environment.authenticatedContext(hostUid).database();
+    const clientDatabase = environment.authenticatedContext(clientUid).database();
+    const otherDatabase = environment.authenticatedContext('other-client').database();
+    await assertSucceeds(set(
+      ref(hostDatabase, `multiplayer/hosts/${hostUid}/paired/${clientUid}`),
+      { name: 'Phone', platform: 'Android', pairedAt: Date.now() }
+    ));
+    await assertSucceeds(set(ref(hostDatabase, `multiplayer/hosts/${hostUid}/directory`), {
+      currentRoom: room,
+      hostName: 'Scout host',
+      protocolVersion: MULTIPLAYER_PROTOCOL_VERSION,
+      updatedAt: Date.now()
+    }));
+
+    await assertSucceeds(get(ref(clientDatabase, `multiplayer/hosts/${hostUid}/directory`)));
+    await assertFails(get(ref(otherDatabase, `multiplayer/hosts/${hostUid}/directory`)));
+    await assertFails(set(
+      ref(clientDatabase, `multiplayer/hosts/${hostUid}/paired/${clientUid}`),
+      { name: 'Forged', platform: 'Android', pairedAt: Date.now() }
+    ));
+  });
+
   it('rejects arbitrary client payloads', async () => {
     const database = environment.authenticatedContext(clientUid).database();
     await assertFails(set(

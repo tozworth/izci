@@ -119,6 +119,10 @@
   import { experimentalSettings } from '$lib/stores/experimental-settings';
   import { multiplayerRecents } from '$lib/stores/multiplayer-recents';
   import {
+    forgetMultiplayerPairing,
+    multiplayerPairings
+  } from '$lib/stores/multiplayer-pairings';
+  import {
     createMultiplayerSession,
     type MultiplayerSessionState
   } from '$lib/services/multiplayer-session';
@@ -1540,6 +1544,15 @@
     }
   }
 
+  async function joinPairedMultiplayer(hostId: string): Promise<void> {
+    playerController.pause();
+    try {
+      await multiplayerSession.joinPaired(hostId);
+    } catch (error) {
+      window.alert(error instanceof Error ? error.message : 'Could not join that paired host.');
+    }
+  }
+
   async function copyMultiplayerInvite(): Promise<void> {
     const inviteCode = multiplayerState.inviteCode;
     if (!inviteCode) return;
@@ -1766,6 +1779,7 @@
     multiplayerHostName={multiplayerState.hostName}
     multiplayerClients={multiplayerState.clients}
     multiplayerRecents={$multiplayerRecents}
+    multiplayerPairings={$multiplayerPairings}
     on:openFiles={() => void handleMenuOpenFiles()}
     on:openFolder={() => void handleMenuOpenFolder()}
     on:installApp={() => void appInstallService.prompt()}
@@ -1788,10 +1802,13 @@
     on:multiplayerStopHosting={() => void multiplayerSession.stopHosting()}
     on:multiplayerJoin={() => void handleMultiplayerJoin()}
     on:multiplayerJoinRecent={(event) => void joinMultiplayer(event.detail)}
+    on:multiplayerJoinPaired={(event) => void joinPairedMultiplayer(event.detail)}
+    on:multiplayerForgetPairing={(event) => forgetMultiplayerPairing(event.detail)}
     on:multiplayerLeave={() => void multiplayerSession.leave()}
     on:multiplayerCopyInvite={() => void copyMultiplayerInvite()}
     on:multiplayerResumeAudio={() => void multiplayerSession.resumeAudio()}
     on:multiplayerKick={(event) => void multiplayerSession.kick(event.detail)}
+    on:multiplayerTogglePair={(event) => void multiplayerSession.togglePairing(event.detail)}
     on:setVideoFit={(event) => setVideoFit(event.detail)}
     on:toggleVideoPictureInPicture={() => void toggleVideoPictureInPicture()}
     on:toggleVideoTheater={toggleVideoTheater}
@@ -1840,6 +1857,7 @@
     multiplayerHostName={multiplayerState.hostName}
     multiplayerClients={multiplayerState.clients}
     multiplayerRecents={$multiplayerRecents}
+    multiplayerPairings={$multiplayerPairings}
     on:tabChange={(event) => workspaceShell.showWorkspaceTab(event.detail)}
     on:toggleNowPlaying={toggleNowPlayingView}
     on:closeNowPlaying={closeNowPlayingView}
@@ -1853,10 +1871,13 @@
     on:multiplayerStopHosting={() => void multiplayerSession.stopHosting()}
     on:multiplayerJoin={() => void handleMultiplayerJoin()}
     on:multiplayerJoinRecent={(event) => void joinMultiplayer(event.detail)}
+    on:multiplayerJoinPaired={(event) => void joinPairedMultiplayer(event.detail)}
+    on:multiplayerForgetPairing={(event) => forgetMultiplayerPairing(event.detail)}
     on:multiplayerLeave={() => void multiplayerSession.leave()}
     on:multiplayerCopyInvite={() => void copyMultiplayerInvite()}
     on:multiplayerResumeAudio={() => void multiplayerSession.resumeAudio()}
     on:multiplayerKick={(event) => void multiplayerSession.kick(event.detail)}
+    on:multiplayerTogglePair={(event) => void multiplayerSession.togglePairing(event.detail)}
     on:togglePatterns={togglePatterns}
     on:toggle={togglePlayback}
     on:previous={() => stepTrack(-1)}

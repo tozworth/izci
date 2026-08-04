@@ -26,6 +26,17 @@ export class AudioBusService {
   }
 
   connectHtmlMediaElement(element: HTMLMediaElement | null): MediaElementAudioSourceNode | null {
+    return this.#connectHtmlMediaElement(element, 'input');
+  }
+
+  connectHtmlMediaElementAfterRaf(element: HTMLMediaElement | null): MediaElementAudioSourceNode | null {
+    return this.#connectHtmlMediaElement(element, 'analyser');
+  }
+
+  #connectHtmlMediaElement(
+    element: HTMLMediaElement | null,
+    target: 'input' | 'analyser'
+  ): MediaElementAudioSourceNode | null {
     if (!element) {
       return null;
     }
@@ -40,7 +51,7 @@ export class AudioBusService {
         this.#mediaSources.set(element, source);
       }
 
-      this.#connectSource(source);
+      this.#connectSource(source, target === 'analyser' ? this.#analyser : this.#input);
       return source;
     } catch {
       // If Web Audio cannot adopt the element, leave Howler's native output untouched.

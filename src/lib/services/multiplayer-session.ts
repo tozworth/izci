@@ -4,6 +4,10 @@ import type { PlaybackSnapshot, PlaylistItem, PlaylistRepeatMode } from '$lib/ty
 import { experimentalSettings } from '$lib/stores/experimental-settings';
 import { rememberMultiplayerHost } from '$lib/stores/multiplayer-recents';
 import {
+  forgetMultiplayerPairing,
+  rememberMultiplayerPairing
+} from '$lib/stores/multiplayer-pairings';
+import {
   getMultiplayerArtworkTrackKey,
   loadMultiplayerArtwork
 } from './multiplayer-artwork';
@@ -71,6 +75,7 @@ export interface MultiplayerClient {
   name: string;
   platform: string;
   status: 'connecting' | 'connected' | 'disconnected';
+  paired: boolean;
 }
 
 export interface MultiplayerSessionState {
@@ -120,6 +125,12 @@ interface SignalAnswer {
   createdAt?: number;
 }
 
+interface PairedClientRecord {
+  name: string;
+  platform: string;
+  pairedAt: number;
+}
+
 interface PeerConnection {
   id: string;
   name: string;
@@ -143,8 +154,10 @@ export interface MultiplayerSessionController extends Readable<MultiplayerSessio
   startHosting(): Promise<string>;
   stopHosting(): Promise<void>;
   join(inviteCode: string): Promise<void>;
+  joinPaired(hostId: string): Promise<void>;
   leave(): Promise<void>;
   kick(clientId: string): Promise<void>;
+  togglePairing(clientId: string): Promise<void>;
   sendCommand(command: MultiplayerCommandInput): boolean;
   resumeAudio(): Promise<boolean>;
   updateHostState(next: MultiplayerHostState): void;
@@ -170,12 +183,19 @@ export function createMultiplayerSession({
   const hostPeers = new Map<string, PeerConnection>();
   let firebaseRuntime: FirebaseRuntime | null = null;
   let roomRef: DatabaseReference | null = null;
+  let hostDirectoryRef: DatabaseReference | null = null;
   let ownPeerRef: DatabaseReference | null = null;
   let roomDisconnect: OnDisconnect | null = null;
+  let hostDirectoryDisconnect: OnDisconnect | null = null;
   let peerDisconnect: OnDisconnect | null = null;
   let stopPeersListener: Unsubscribe | null = null;
   let stopAnswerListener: Unsubscribe | null = null;
   let clientPeer: PeerConnection | null = null;
+  let reconnectTimer: number | null = null;
+  let reconnectAttempts = 0;
+  let reconnectInFlight = false;
+  let allowClientReconnect = false;
+  let clientHiddenAt: number | null = null;
   let latestHostState: MultiplayerHostState | null = null;
   let catalogRevision = 0;
   let lastCatalogSources: Pick<MultiplayerHostState, 'playlist' | 'library' | 'favorites' | 'shuffleEnabled' | 'repeatMode'> | null = null;
@@ -195,6 +215,8 @@ export function createMultiplayerSession({
     multiplayerSettings = settings;
     if (state.mode === 'hosting') syncHostAudio(latestHostState?.track ?? null);
   });
+  window.addEventListener('online', handleClientResume);
+  document.addEventListener('visibilitychange', handleClientResume);
 
   function publish(patch: Partial<MultiplayerSessionState>): void {
     state = { ...state, ...patch };
@@ -209,12 +231,14 @@ export function createMultiplayerSession({
           id,
           name: patch.name ?? 'Guest',
           platform: patch.platform ?? 'Unknown',
-          status: patch.status ?? 'connecting'
+          status: patch.status ?? 'connecting',
+          paired: patch.paired ?? false
         }];
     publish({ clients });
   }
 
   async function startHosting(): Promise<string> {
+    allowClientReconnect = false;
     await resetSession(true);
     publish({
       mode: 'hosting',
@@ -230,6 +254,11 @@ export function createMultiplayerSession({
       const nextRoomRef = firebase.ref(firebase.database, `multiplayer/rooms/${inviteCode}`);
       firebaseRuntime = firebase;
       roomRef = nextRoomRef;
+      const nextHostDirectoryRef = firebase.ref(
+        firebase.database,
+        `multiplayer/hosts/${firebase.uid}/directory`
+      );
+      hostDirectoryRef = nextHostDirectoryRef;
       await firebase.set(nextRoomRef, {
         meta: {
           hostUid: firebase.uid,
@@ -240,8 +269,17 @@ export function createMultiplayerSession({
       });
       const disconnect = firebase.onDisconnect(nextRoomRef);
       await disconnect.remove();
+      await firebase.set(nextHostDirectoryRef, {
+        currentRoom: inviteCode,
+        hostName: getLocalName(),
+        protocolVersion: MULTIPLAYER_PROTOCOL_VERSION,
+        updatedAt: Date.now()
+      });
+      const directoryDisconnect = firebase.onDisconnect(nextHostDirectoryRef);
+      await directoryDisconnect.remove();
 
       roomDisconnect = disconnect;
+      hostDirectoryDisconnect = directoryDisconnect;
       stopPeersListener = firebase.onValue(
         firebase.ref(firebase.database, `multiplayer/rooms/${inviteCode}/peers`),
         (snapshot) => {
@@ -280,7 +318,7 @@ export function createMultiplayerSession({
       primeHostState();
       return inviteCode;
     } catch (error) {
-      await resetSession(false);
+      await resetSession(true);
       publish({
         mode: 'idle',
         connectionStatus: 'error',
@@ -316,10 +354,15 @@ export function createMultiplayerSession({
     }
     const peer = createPeer(id, sanitizeClientName(offer.name));
     hostPeers.set(id, peer);
+    const pairingSnapshot = await firebaseRuntime.get(firebaseRuntime.ref(
+      firebaseRuntime.database,
+      `multiplayer/hosts/${firebaseRuntime.uid}/paired/${id}`
+    ));
     updateClient(id, {
       name: peer.name,
       platform: sanitizePlatform(offer.platform),
-      status: 'connecting'
+      status: 'connecting',
+      paired: pairingSnapshot.exists()
     });
 
     peer.pc.ondatachannel = (event) => attachHostChannel(peer, event.channel);
@@ -363,6 +406,35 @@ export function createMultiplayerSession({
       hostPeers.delete(id);
       updateClient(id, { status: 'disconnected' });
     }
+  }
+
+  async function togglePairing(clientId: string): Promise<void> {
+    if (!firebaseRuntime || state.mode !== 'hosting') return;
+    const client = state.clients.find((candidate) => candidate.id === clientId);
+    const peer = hostPeers.get(clientId);
+    if (!client || !peer) return;
+
+    const pairingRef = firebaseRuntime.ref(
+      firebaseRuntime.database,
+      `multiplayer/hosts/${firebaseRuntime.uid}/paired/${clientId}`
+    );
+    const paired = !client.paired;
+    if (paired) {
+      await firebaseRuntime.set(pairingRef, {
+        name: client.name,
+        platform: client.platform,
+        pairedAt: Date.now()
+      } satisfies PairedClientRecord);
+    } else {
+      await firebaseRuntime.remove(pairingRef);
+    }
+    updateClient(clientId, { paired });
+    sendToPeer(peer, {
+      kind: 'pairing',
+      paired,
+      hostId: firebaseRuntime.uid,
+      name: getLocalName()
+    });
   }
 
   function attachHostChannel(peer: PeerConnection, channel: RTCDataChannel): void {
@@ -409,6 +481,36 @@ export function createMultiplayerSession({
   }
 
   async function join(rawInviteCode: string): Promise<void> {
+    allowClientReconnect = true;
+    reconnectAttempts = 0;
+    await connectClient(rawInviteCode, false);
+    if (state.connectionStatus !== 'connected') scheduleClientReconnect(15_000);
+  }
+
+  async function joinPaired(hostId: string): Promise<void> {
+    if (!/^[A-Za-z0-9_-]{1,128}$/.test(hostId)) {
+      throw new Error('That paired multiplayer host is invalid.');
+    }
+    const firebase = await loadFirebase();
+    const directory = (await firebase.get(firebase.ref(
+      firebase.database,
+      `multiplayer/hosts/${hostId}/directory`
+    ))).val() as {
+      currentRoom?: string;
+      hostName?: string;
+      protocolVersion?: number;
+    } | null;
+    if (!directory
+      || directory.protocolVersion !== MULTIPLAYER_PROTOCOL_VERSION
+      || !normalizeInviteCode(directory.currentRoom ?? '')) {
+      throw new Error('That paired host is not currently hosting.');
+    }
+    rememberMultiplayerPairing(hostId, sanitizeClientName(directory.hostName ?? 'Host'));
+    await join(directory.currentRoom!);
+  }
+
+  async function connectClient(rawInviteCode: string, reconnecting: boolean): Promise<void> {
+    clearReconnectTimer();
     await resetSession(true);
     const inviteCode = normalizeInviteCode(rawInviteCode);
     if (!inviteCode) {
@@ -422,9 +524,9 @@ export function createMultiplayerSession({
       connectionStatus: 'connecting',
       inviteCode,
       hostName: null,
-      remoteCatalog: EMPTY_CATALOG,
-      remotePlayback: EMPTY_REMOTE_PLAYBACK,
-      remoteArtwork: null,
+      remoteCatalog: reconnecting ? state.remoteCatalog : EMPTY_CATALOG,
+      remotePlayback: reconnecting ? state.remotePlayback : EMPTY_REMOTE_PLAYBACK,
+      remoteArtwork: reconnecting ? state.remoteArtwork : null,
       audioStatus: 'connecting',
       message: null
     });
@@ -480,6 +582,7 @@ export function createMultiplayerSession({
         (snapshot) => {
           const answer = snapshot.val() as SignalAnswer | null;
           if (answer?.error === 'host-full') {
+            allowClientReconnect = false;
             publish({
               connectionStatus: 'error',
               audioStatus: 'unavailable',
@@ -496,14 +599,24 @@ export function createMultiplayerSession({
         }
       );
     } catch (error) {
-      await resetSession(false);
-      publish({
-        mode: 'idle',
-        connectionStatus: 'error',
-        hostName: null,
-        audioStatus: 'unavailable',
-        message: errorMessage(error, 'Could not join that multiplayer session.')
-      });
+      await resetSession(true);
+      if (reconnecting && allowClientReconnect) {
+        publish({
+          mode: 'client',
+          connectionStatus: 'disconnected',
+          audioStatus: 'unavailable',
+          message: 'Reconnecting to the host...'
+        });
+      } else {
+        allowClientReconnect = false;
+        publish({
+          mode: 'idle',
+          connectionStatus: 'error',
+          hostName: null,
+          audioStatus: 'unavailable',
+          message: errorMessage(error, 'Could not join that multiplayer session.')
+        });
+      }
       throw error;
     }
   }
@@ -514,6 +627,10 @@ export function createMultiplayerSession({
     const decode = createMultiplayerMessageDecoder(isHostMessage);
 
     channel.onopen = () => {
+      if (clientPeer !== peer) return;
+      reconnectAttempts = 0;
+      reconnectInFlight = false;
+      clearReconnectTimer();
       publish({ connectionStatus: 'connected', message: null });
       if (state.inviteCode && state.hostName) {
         rememberMultiplayerHost(state.hostName, state.inviteCode);
@@ -532,6 +649,10 @@ export function createMultiplayerSession({
       if (message.kind === 'catalog') publish({ remoteCatalog: message.catalog });
       if (message.kind === 'playback') publish({ remotePlayback: message.playback });
       if (message.kind === 'artwork') publish({ remoteArtwork: message.artwork });
+      if (message.kind === 'pairing') {
+        if (message.paired) rememberMultiplayerPairing(message.hostId, message.name);
+        else forgetMultiplayerPairing(message.hostId);
+      }
       if (message.kind === 'audio') {
         latestAudioAvailability = message.audio;
         if (!message.audio.enabled) {
@@ -544,6 +665,7 @@ export function createMultiplayerSession({
         if (message.audio.enabled) void multiplayerAudioService.resumeRemoteAudio();
       }
       if (message.kind === 'kicked') {
+        allowClientReconnect = false;
         publish({
           connectionStatus: 'disconnected',
           audioStatus: 'unavailable',
@@ -561,23 +683,27 @@ export function createMultiplayerSession({
       }
     };
     channel.onclose = () => {
+      if (clientPeer !== peer) return;
       if (state.mode === 'client' && state.connectionStatus !== 'error') {
         publish({
-          connectionStatus: 'disconnected',
+          connectionStatus: allowClientReconnect ? 'connecting' : 'disconnected',
           audioStatus: 'unavailable',
-          message: state.message ?? 'Connection to the host was lost.'
+          message: allowClientReconnect
+            ? 'Reconnecting to the host...'
+            : state.message ?? 'Connection to the host was lost.'
         });
+        scheduleClientReconnect(1_000);
       }
     };
     peer.pc.onconnectionstatechange = () => {
-      if (peer.pc.connectionState === 'connected') publish({ connectionStatus: 'connected' });
-      if (peer.pc.connectionState === 'failed' || peer.pc.connectionState === 'disconnected') {
-        publish({
-          connectionStatus: 'disconnected',
-          audioStatus: 'unavailable',
-          message: 'Connection to the host was lost.'
-        });
+      if (clientPeer !== peer) return;
+      if (peer.pc.connectionState === 'connected') {
+        reconnectAttempts = 0;
+        clearReconnectTimer();
+        publish({ connectionStatus: 'connected', message: null });
       }
+      if (peer.pc.connectionState === 'failed') scheduleClientReconnect(1_000);
+      if (peer.pc.connectionState === 'disconnected') scheduleClientReconnect(4_000);
     };
     peer.pc.ontrack = (event) => {
       if (event.track.kind !== 'audio') return;
@@ -589,6 +715,55 @@ export function createMultiplayerSession({
         publish({ audioStatus });
       });
     };
+  }
+
+  function scheduleClientReconnect(delay?: number): void {
+    if (!allowClientReconnect || state.mode !== 'client' || reconnectInFlight || reconnectTimer !== null) return;
+    const inviteCode = state.inviteCode;
+    if (!inviteCode) return;
+    const backoff = [2_000, 5_000, 10_000, 20_000, 30_000];
+    const wait = delay ?? backoff[Math.min(reconnectAttempts, backoff.length - 1)];
+    reconnectTimer = window.setTimeout(() => {
+      reconnectTimer = null;
+      if (!allowClientReconnect || state.mode !== 'client') return;
+      reconnectInFlight = true;
+      reconnectAttempts += 1;
+      publish({
+        connectionStatus: 'connecting',
+        audioStatus: 'connecting',
+        message: 'Reconnecting to the host...'
+      });
+      void connectClient(inviteCode, true)
+        .then(() => {
+          reconnectInFlight = false;
+          if (state.connectionStatus !== 'connected') scheduleClientReconnect(15_000);
+        })
+        .catch(() => {
+          reconnectInFlight = false;
+          scheduleClientReconnect();
+        });
+    }, wait);
+  }
+
+  function clearReconnectTimer(): void {
+    if (reconnectTimer === null) return;
+    window.clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+  }
+
+  function handleClientResume(): void {
+    if (document.visibilityState === 'hidden') {
+      clientHiddenAt = Date.now();
+      return;
+    }
+    const suspendedFor = clientHiddenAt === null ? 0 : Date.now() - clientHiddenAt;
+    clientHiddenAt = null;
+    if (state.mode !== 'client' || !allowClientReconnect) return;
+    if (clientPeer?.pc.connectionState === 'connected'
+      && clientPeer.channel?.readyState === 'open'
+      && suspendedFor < 10_000) return;
+    clearReconnectTimer();
+    scheduleClientReconnect(0);
   }
 
   function sendCommand(command: MultiplayerCommandInput): boolean {
@@ -789,6 +964,7 @@ export function createMultiplayerSession({
 
   async function stopHosting(): Promise<void> {
     if (state.mode !== 'hosting') return;
+    allowClientReconnect = false;
     await resetSession(true);
     publish({
       mode: 'idle',
@@ -803,6 +979,8 @@ export function createMultiplayerSession({
 
   async function leave(): Promise<void> {
     if (state.mode !== 'client') return;
+    allowClientReconnect = false;
+    clearReconnectTimer();
     await resetSession(true);
     publish({
       mode: 'idle',
@@ -825,8 +1003,9 @@ export function createMultiplayerSession({
     stopAnswerListener = null;
     for (const peer of hostPeers.values()) peer.pc.close();
     hostPeers.clear();
-    clientPeer?.pc.close();
+    const previousClientPeer = clientPeer;
     clientPeer = null;
+    previousClientPeer?.pc.close();
     multiplayerAudioService.clearRemoteTrack();
     multiplayerAudioService.releaseHostTrack();
 
@@ -836,14 +1015,20 @@ export function createMultiplayerSession({
       } else if (removeRemote && firebaseRuntime && ownPeerRef) {
         await firebaseRuntime.remove(ownPeerRef);
       }
+      if (removeRemote && firebaseRuntime && state.mode === 'hosting' && hostDirectoryRef) {
+        await firebaseRuntime.remove(hostDirectoryRef);
+      }
     } catch {
       // The disconnect registration remains a best-effort cleanup fallback.
     }
     await roomDisconnect?.cancel().catch(() => undefined);
+    await hostDirectoryDisconnect?.cancel().catch(() => undefined);
     await peerDisconnect?.cancel().catch(() => undefined);
     roomDisconnect = null;
+    hostDirectoryDisconnect = null;
     peerDisconnect = null;
     roomRef = null;
+    hostDirectoryRef = null;
     ownPeerRef = null;
     firebaseRuntime = null;
     lastCatalogSources = null;
@@ -862,12 +1047,18 @@ export function createMultiplayerSession({
     startHosting,
     stopHosting,
     join,
+    joinPaired,
     leave,
     kick,
+    togglePairing,
     sendCommand,
     resumeAudio: () => multiplayerAudioService.resumeRemoteAudio(),
     updateHostState,
     destroy() {
+      allowClientReconnect = false;
+      clearReconnectTimer();
+      window.removeEventListener('online', handleClientResume);
+      document.removeEventListener('visibilitychange', handleClientResume);
       unsubscribeSettings();
       void resetSession(true);
     }
@@ -883,6 +1074,8 @@ async function loadFirebase(): Promise<FirebaseRuntime> {
   const app = appModule.getApps().find((candidate) => candidate.options.projectId === FIREBASE_CONFIG.projectId)
     ?? appModule.initializeApp(FIREBASE_CONFIG);
   const auth = authModule.getAuth(app);
+  await authModule.setPersistence(auth, authModule.browserLocalPersistence);
+  await auth.authStateReady();
   const credential = auth.currentUser
     ? { user: auth.currentUser }
     : await authModule.signInAnonymously(auth);

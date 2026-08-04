@@ -28,6 +28,7 @@
     MultiplayerMode
   } from '$lib/services/multiplayer-session';
   import type { MultiplayerRecent } from '$lib/stores/multiplayer-recents';
+  import type { MultiplayerPairing } from '$lib/stores/multiplayer-pairings';
   import type { VideoSeekFeedback, WorkspacePanelHandlers, WorkspaceTabContentProps } from '$lib/components/workspace/types';
   import MobileMenuDrawer from './MobileMenuDrawer.svelte';
   import { resolveHorizontalSwipe, shouldIgnoreSwipeTarget, type SwipePoint } from './tab-swipe';
@@ -77,6 +78,7 @@
   export let multiplayerHostName: string | null = null;
   export let multiplayerClients: MultiplayerClient[] = [];
   export let multiplayerRecents: MultiplayerRecent[] = [];
+  export let multiplayerPairings: MultiplayerPairing[] = [];
 
   const dispatch = createEventDispatcher<{
     tabChange: WorkspaceTab;
@@ -92,10 +94,13 @@
     multiplayerStopHosting: void;
     multiplayerJoin: void;
     multiplayerJoinRecent: string;
+    multiplayerJoinPaired: string;
+    multiplayerForgetPairing: string;
     multiplayerLeave: void;
     multiplayerCopyInvite: void;
     multiplayerResumeAudio: void;
     multiplayerKick: string;
+    multiplayerTogglePair: string;
     togglePatterns: void;
     toggle: void;
     previous: void;
@@ -372,6 +377,7 @@
   {multiplayerHostName}
   {multiplayerClients}
   {multiplayerRecents}
+  {multiplayerPairings}
   on:close={() => (menuOpen = false)}
   on:openFiles={() => dispatch('openFiles')}
   on:openFolder={() => dispatch('openFolder')}
@@ -385,8 +391,11 @@
   on:multiplayerStopHosting={() => dispatch('multiplayerStopHosting')}
   on:multiplayerJoin={() => dispatch('multiplayerJoin')}
   on:multiplayerJoinRecent={(event) => dispatch('multiplayerJoinRecent', event.detail)}
+  on:multiplayerJoinPaired={(event) => dispatch('multiplayerJoinPaired', event.detail)}
+  on:multiplayerForgetPairing={(event) => dispatch('multiplayerForgetPairing', event.detail)}
   on:multiplayerLeave={() => dispatch('multiplayerLeave')}
   on:multiplayerCopyInvite={() => dispatch('multiplayerCopyInvite')}
   on:multiplayerResumeAudio={() => dispatch('multiplayerResumeAudio')}
   on:multiplayerKick={(event) => dispatch('multiplayerKick', event.detail)}
+  on:multiplayerTogglePair={(event) => dispatch('multiplayerTogglePair', event.detail)}
 />

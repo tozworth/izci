@@ -8,7 +8,7 @@
           ".write": "auth != null && ((!data.exists() && newData.child('meta').child('hostUid').val() === auth.uid) || (data.exists() && data.child('meta').child('hostUid').val() === auth.uid))",
           "meta": {
             ".read": "auth != null",
-            ".validate": "newData.hasChildren(['hostUid', 'protocolVersion', 'hostName', 'createdAt']) && newData.child('hostUid').isString() && newData.child('hostUid').val() === auth.uid && newData.child('protocolVersion').isNumber() && newData.child('protocolVersion').val() === 4 && newData.child('hostName').isString() && newData.child('hostName').val().length > 0 && newData.child('hostName').val().length <= 48 && newData.child('createdAt').isNumber()",
+            ".validate": "newData.hasChildren(['hostUid', 'protocolVersion', 'hostName', 'createdAt']) && newData.child('hostUid').isString() && newData.child('hostUid').val() === auth.uid && newData.child('protocolVersion').isNumber() && newData.child('protocolVersion').val() === 5 && newData.child('hostName').isString() && newData.child('hostName').val().length > 0 && newData.child('hostName').val().length <= 48 && newData.child('createdAt').isNumber()",
             "hostUid": { ".validate": "newData.isString()" },
             "protocolVersion": { ".validate": "newData.isNumber()" },
             "hostName": { ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 48" },
@@ -45,6 +45,31 @@
                 "createdAt": { ".validate": "newData.isNumber()" },
                 "$other": { ".validate": false }
               }
+            }
+          }
+        }
+      },
+      "hosts": {
+        "$hostUid": {
+          "directory": {
+            ".read": "auth != null && (auth.uid === $hostUid || root.child('multiplayer').child('hosts').child($hostUid).child('paired').child(auth.uid).exists())",
+            ".write": "auth != null && auth.uid === $hostUid",
+            ".validate": "!newData.exists() || (newData.hasChildren(['currentRoom', 'hostName', 'protocolVersion', 'updatedAt']) && newData.child('currentRoom').isString() && newData.child('currentRoom').val().matches(/^[a-z0-9]{8}$/) && newData.child('hostName').isString() && newData.child('hostName').val().length > 0 && newData.child('hostName').val().length <= 48 && newData.child('protocolVersion').val() === 5 && newData.child('updatedAt').isNumber())",
+            "currentRoom": { ".validate": "newData.isString() && newData.val().matches(/^[a-z0-9]{8}$/)" },
+            "hostName": { ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 48" },
+            "protocolVersion": { ".validate": "newData.val() === 5" },
+            "updatedAt": { ".validate": "newData.isNumber()" },
+            "$other": { ".validate": false }
+          },
+          "paired": {
+            "$clientUid": {
+              ".read": "auth != null && (auth.uid === $hostUid || auth.uid === $clientUid)",
+              ".write": "auth != null && auth.uid === $hostUid",
+              ".validate": "!newData.exists() || (newData.hasChildren(['name', 'platform', 'pairedAt']) && newData.child('name').isString() && newData.child('name').val().length > 0 && newData.child('name').val().length <= 48 && newData.child('platform').isString() && newData.child('platform').val().length > 0 && newData.child('platform').val().length <= 32 && newData.child('pairedAt').isNumber())",
+              "name": { ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 48" },
+              "platform": { ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 32" },
+              "pairedAt": { ".validate": "newData.isNumber()" },
+              "$other": { ".validate": false }
             }
           }
         }

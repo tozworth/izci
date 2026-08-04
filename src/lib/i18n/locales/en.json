@@ -15,10 +15,15 @@
       "copyInviteFallback": "Copy this invite code",
       "host": "Host",
       "join": "Join...",
+      "pairedHosts": "Paired hosts",
+      "instantJoin": "Join without a code",
+      "forgetPairing": "Forget pairing with {name}",
       "recents": "Recents",
       "hosting": "Hosting",
       "copyInvite": "Copy invite code",
       "stopHosting": "Stop hosting",
+      "pairedClient": "{platform} · Paired",
+      "pairClient": "{platform} · Select to pair",
       "kick": "Kick {name}",
       "connecting": "Connecting...",
       "disconnected": "Disconnected",
@@ -32,7 +37,9 @@
         "videoDisabled": "Video audio is off",
         "unavailable": "Audio unavailable",
         "connecting": "Audio connecting..."
-      }
+      },
+      "unpairClient": "Unpair {name}",
+      "pairClientMobile": "Pair {name}"
     },
     "lyrics": {
       "playTrack": "Play a track to view lyrics.",

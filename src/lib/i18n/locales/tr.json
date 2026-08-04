@@ -15,10 +15,15 @@
       "copyInviteFallback": "Bu davet kodunu kopyalayın",
       "host": "Sunucu ol",
       "join": "Katıl...",
+      "pairedHosts": "Eşleştirilmiş sunucular",
+      "instantJoin": "Kod kullanmadan katıl",
+      "forgetPairing": "{name} ile eşleştirmeyi unut",
       "recents": "Son kullanılanlar",
       "hosting": "Sunucu",
       "copyInvite": "Davet kodunu kopyala",
       "stopHosting": "Sunucuyu durdur",
+      "pairedClient": "{platform} · Eşleştirildi",
+      "pairClient": "{platform} · Eşleştirmek için seçin",
       "kick": "{name} bağlantısını kes",
       "connecting": "Bağlanıyor...",
       "disconnected": "Bağlantı kesildi",
@@ -32,7 +37,9 @@
         "videoDisabled": "Video sesi kapalı",
         "unavailable": "Ses kullanılamıyor",
         "connecting": "Ses bağlanıyor..."
-      }
+      },
+      "unpairClient": "{name} eşleştirmesini kaldır",
+      "pairClientMobile": "{name} ile eşleştir"
     },
     "lyrics": {
       "playTrack": "Sözleri görüntülemek için bir parça oynatın.",

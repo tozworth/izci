@@ -260,4 +260,14 @@ describe('AudioBusService', () => {
     expect(source.mediaStream).toBe(stream);
     expect(source.connections[0].connections).toEqual([analyser]);
   });
+
+  it('routes a multiplayer media element after Raf without applying the host effects again', () => {
+    const element = {} as HTMLMediaElement;
+    const source = bus.connectHtmlMediaElementAfterRaf(element) as unknown as FakeMediaElementSourceNode;
+    const context = bus.context as unknown as FakeAudioContext;
+    const [analyser] = context.analysers;
+
+    expect(source.mediaElement).toBe(element);
+    expect(source.connections[0].connections).toEqual([analyser]);
+  });
 });

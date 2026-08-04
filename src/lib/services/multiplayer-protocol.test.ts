@@ -105,6 +105,21 @@ describe('multiplayer protocol', () => {
     })).toBe(false);
   });
 
+  it('accepts only bounded pairing identity messages', () => {
+    expect(isHostMessage({
+      kind: 'pairing',
+      paired: true,
+      hostId: 'persistent_host-id',
+      name: 'Living room'
+    })).toBe(true);
+    expect(isHostMessage({
+      kind: 'pairing',
+      paired: true,
+      hostId: '../host',
+      name: 'Living room'
+    })).toBe(false);
+  });
+
   it('accepts invite codes directly or from an izci room link', () => {
     const code = 'a1b2c3d4';
     expect(normalizeInviteCode(code)).toBe(code);

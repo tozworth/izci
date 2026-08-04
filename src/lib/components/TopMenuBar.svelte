@@ -22,6 +22,7 @@
     MultiplayerMode
   } from '$lib/services/multiplayer-session';
   import type { MultiplayerRecent } from '$lib/stores/multiplayer-recents';
+  import type { MultiplayerPairing } from '$lib/stores/multiplayer-pairings';
 
   type DispatchedMenuActionId =
     | 'openFiles'
@@ -57,6 +58,9 @@
     | 'toggleVideoPictureInPicture'
     | 'toggleVideoTheater'
     | `multiplayerKick:${string}`
+    | `multiplayerTogglePair:${string}`
+    | `multiplayerJoinPaired:${string}`
+    | `multiplayerForgetPairing:${string}`
     | `multiplayerJoinRecent:${string}`
     | `applyLoadout:${string}`;
 
@@ -72,6 +76,28 @@
           label: $t('main.multiplayer.join', { default: 'Join...' }),
           icon: 'login'
         },
+        ...(multiplayerPairings.length > 0
+          ? [
+              {
+                id: 'multiplayerPairedHosts',
+                label: $t('main.multiplayer.pairedHosts', { default: 'Paired hosts' }),
+                icon: 'link',
+                disabled: true,
+                separatorBefore: true
+              } satisfies MenuActionItem,
+              ...multiplayerPairings.map((pairing) => ({
+                id: `multiplayerJoinPaired:${pairing.hostId}`,
+                label: pairing.name,
+                description: $t('main.multiplayer.instantJoin', { default: 'Join without a code' }),
+                icon: 'cast_connected',
+                removeActionId: `multiplayerForgetPairing:${pairing.hostId}`,
+                removeLabel: $t('main.multiplayer.forgetPairing', {
+                  default: 'Forget pairing with {name}',
+                  values: { name: pairing.name }
+                })
+              } satisfies MenuActionItem))
+            ]
+          : []),
         ...(multiplayerRecents.length > 0
           ? [
               {
@@ -79,7 +105,7 @@
                 label: $t('main.multiplayer.recents', { default: 'Recents' }),
                 icon: 'history',
                 disabled: true,
-                separatorBefore: true
+                separatorBefore: multiplayerPairings.length === 0
               } satisfies MenuActionItem,
               ...multiplayerRecents.map((recent) => ({
                 id: `multiplayerJoinRecent:${recent.inviteCode}`,
@@ -110,11 +136,19 @@
             icon: 'stop_circle'
           },
           ...multiplayerClients.map((client, index): MenuActionItem => ({
-            id: `multiplayerClient:${client.id}`,
+            id: `multiplayerTogglePair:${client.id}`,
             label: client.name,
-            description: client.platform,
-            icon: client.status === 'connected' ? 'smartphone' : 'signal_disconnected',
-            disabled: true,
+            description: client.paired
+              ? $t('main.multiplayer.pairedClient', {
+                  default: '{platform} · Paired',
+                  values: { platform: client.platform }
+                })
+              : $t('main.multiplayer.pairClient', {
+                  default: '{platform} · Select to pair',
+                  values: { platform: client.platform }
+                }),
+            icon: client.paired ? 'link' : client.status === 'connected' ? 'smartphone' : 'signal_disconnected',
+            disabled: client.status !== 'connected',
             separatorBefore: index === 0,
             removeActionId: `multiplayerKick:${client.id}`,
             removeLabel: $t('main.multiplayer.kick', {
@@ -279,6 +313,7 @@
   export let multiplayerHostName: string | null = null;
   export let multiplayerClients: MultiplayerClient[] = [];
   export let multiplayerRecents: MultiplayerRecent[] = [];
+  export let multiplayerPairings: MultiplayerPairing[] = [];
   const displayVersion = formatDisplayVersion(appVersion);
 
   const dispatch = createEventDispatcher<{
@@ -304,10 +339,13 @@
     multiplayerStopHosting: void;
     multiplayerJoin: void;
     multiplayerJoinRecent: string;
+    multiplayerJoinPaired: string;
+    multiplayerForgetPairing: string;
     multiplayerLeave: void;
     multiplayerCopyInvite: void;
     multiplayerResumeAudio: void;
     multiplayerKick: string;
+    multiplayerTogglePair: string;
     setVideoFit: VideoFitMode;
     toggleVideoPictureInPicture: void;
     toggleVideoTheater: void;
@@ -466,6 +504,18 @@
     }
     if (action.startsWith('multiplayerKick:')) {
       dispatch('multiplayerKick', action.slice('multiplayerKick:'.length));
+      return;
+    }
+    if (action.startsWith('multiplayerTogglePair:')) {
+      dispatch('multiplayerTogglePair', action.slice('multiplayerTogglePair:'.length));
+      return;
+    }
+    if (action.startsWith('multiplayerJoinPaired:')) {
+      dispatch('multiplayerJoinPaired', action.slice('multiplayerJoinPaired:'.length));
+      return;
+    }
+    if (action.startsWith('multiplayerForgetPairing:')) {
+      dispatch('multiplayerForgetPairing', action.slice('multiplayerForgetPairing:'.length));
       return;
     }
     if (action.startsWith('multiplayerJoinRecent:')) {

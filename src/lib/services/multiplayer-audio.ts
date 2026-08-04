@@ -10,7 +10,8 @@ export type MultiplayerReceiverAudioStatus =
 type StatusHandler = (status: MultiplayerReceiverAudioStatus) => void;
 
 export class MultiplayerAudioService {
-  #remoteSource: MediaStreamAudioSourceNode | null = null;
+  #remoteElement: HTMLAudioElement | null = null;
+  #remoteSource: MediaElementAudioSourceNode | null = null;
   #remoteTrack: MediaStreamTrack | null = null;
   #onStatus: StatusHandler = () => undefined;
 
@@ -34,7 +35,11 @@ export class MultiplayerAudioService {
     this.clearRemoteTrack();
     this.#onStatus = onStatus;
     this.#remoteTrack = track;
-    this.#remoteSource = audioBusService.connectMediaStreamAfterRaf(stream);
+    const element = new Audio();
+    element.autoplay = true;
+    element.srcObject = stream;
+    this.#remoteElement = element;
+    this.#remoteSource = audioBusService.connectHtmlMediaElementAfterRaf(element);
 
     if (!this.#remoteSource) {
       this.#publish('unavailable');
@@ -49,14 +54,19 @@ export class MultiplayerAudioService {
   }
 
   async resumeRemoteAudio(): Promise<boolean> {
-    if (!this.#remoteSource || !this.#remoteTrack || this.#remoteTrack.readyState === 'ended') {
+    if (!this.#remoteElement || !this.#remoteSource || !this.#remoteTrack
+      || this.#remoteTrack.readyState === 'ended') {
       this.#publish('unavailable');
       return false;
     }
 
-    const running = await audioBusService.resume();
-    this.#publish(running ? 'playing' : 'blocked');
-    return running;
+    const [running, playing] = await Promise.all([
+      audioBusService.resume(),
+      this.#remoteElement.play().then(() => true).catch(() => false)
+    ]);
+    const audible = running && playing && !this.#remoteTrack.muted;
+    this.#publish(audible ? 'playing' : running && playing ? 'connecting' : 'blocked');
+    return audible;
   }
 
   clearRemoteTrack(): void {
@@ -66,6 +76,13 @@ export class MultiplayerAudioService {
       this.#remoteTrack.onended = null;
     }
     audioBusService.disconnect(this.#remoteSource);
+    if (this.#remoteElement) {
+      this.#remoteElement.pause();
+      this.#remoteElement.srcObject = null;
+      this.#remoteElement.removeAttribute('src');
+      this.#remoteElement.load();
+    }
+    this.#remoteElement = null;
     this.#remoteSource = null;
     this.#remoteTrack = null;
     this.#publish('idle');
