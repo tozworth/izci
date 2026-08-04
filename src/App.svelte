@@ -230,6 +230,7 @@
   let multiplayerState: MultiplayerSessionState = {
     mode: 'idle',
     connectionStatus: 'idle',
+    reconnecting: false,
     inviteCode: null,
     hostName: null,
     clients: [],
@@ -1893,6 +1894,7 @@
     multiplayerEnabled={$experimentalSettings.multiplayer}
     multiplayerMode={multiplayerState.mode}
     multiplayerConnectionStatus={multiplayerState.connectionStatus}
+    multiplayerReconnecting={multiplayerState.reconnecting}
     multiplayerAudioStatus={multiplayerState.audioStatus}
     multiplayerConnectionRoute={multiplayerState.connectionRoute}
     multiplayerAudioBitrateKbps={multiplayerState.averageAudioBitrateKbps}
@@ -1973,6 +1975,7 @@
     multiplayerEnabled={$experimentalSettings.multiplayer}
     multiplayerMode={multiplayerState.mode}
     multiplayerConnectionStatus={multiplayerState.connectionStatus}
+    multiplayerReconnecting={multiplayerState.reconnecting}
     multiplayerAudioStatus={multiplayerState.audioStatus}
     multiplayerConnectionRoute={multiplayerState.connectionRoute}
     multiplayerAudioBitrateKbps={multiplayerState.averageAudioBitrateKbps}

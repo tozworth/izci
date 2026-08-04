@@ -117,6 +117,7 @@ export interface MultiplayerClient {
 export interface MultiplayerSessionState {
   mode: MultiplayerMode;
   connectionStatus: MultiplayerConnectionStatus;
+  reconnecting: boolean;
   inviteCode: string | null;
   hostName: string | null;
   clients: MultiplayerClient[];
@@ -235,6 +236,7 @@ export function createMultiplayerSession({
   let state: MultiplayerSessionState = {
     mode: 'idle',
     connectionStatus: 'idle',
+    reconnecting: false,
     inviteCode: null,
     hostName: null,
     clients: [],
@@ -687,6 +689,7 @@ export function createMultiplayerSession({
     publish({
       mode: 'client',
       connectionStatus: 'connecting',
+      reconnecting,
       inviteCode,
       hostName: null,
       remoteCatalog: reconnecting ? state.remoteCatalog : EMPTY_CATALOG,
@@ -855,7 +858,7 @@ export function createMultiplayerSession({
       reconnectAttempts = 0;
       reconnectInFlight = false;
       clearReconnectTimer();
-      publish({ connectionStatus: 'connected', connectionDetail: null, message: null });
+      publish({ connectionStatus: 'connected', reconnecting: false, connectionDetail: null, message: null });
       if (state.inviteCode && state.hostName) {
         rememberMultiplayerHost(state.hostName, state.inviteCode);
       }
@@ -917,6 +920,7 @@ export function createMultiplayerSession({
       if (state.mode === 'client' && state.connectionStatus !== 'error') {
         publish({
           connectionStatus: allowClientReconnect ? 'connecting' : 'disconnected',
+          reconnecting: allowClientReconnect,
           audioStatus: 'unavailable',
           connectionDetail: allowClientReconnect
             ? 'The peer connection closed; preparing another attempt...'
@@ -934,12 +938,13 @@ export function createMultiplayerSession({
         clearPeerConnectionTimer(peer);
         reconnectAttempts = 0;
         clearReconnectTimer();
-        publish({ connectionStatus: 'connected', connectionDetail: null, message: null });
+        publish({ connectionStatus: 'connected', reconnecting: false, connectionDetail: null, message: null });
         void updateClientConnectionRoute(peer);
       }
       if (peer.pc.connectionState === 'failed') {
         publish({
           connectionStatus: 'disconnected',
+          reconnecting: allowClientReconnect,
           audioStatus: 'unavailable',
           connectionDetail: describeIceFailure(peer),
           message: describeIceFailure(peer)
@@ -1049,6 +1054,7 @@ export function createMultiplayerSession({
       reconnectAttempts += 1;
       publish({
         connectionStatus: 'connecting',
+        reconnecting: true,
         audioStatus: 'connecting',
         connectionDetail: 'Reconnecting and gathering fresh ICE candidates...',
         message: 'Reconnecting to the host...'
@@ -1318,6 +1324,7 @@ export function createMultiplayerSession({
     publish({
       mode: 'idle',
       connectionStatus: 'idle',
+      reconnecting: false,
       inviteCode: null,
       hostName: null,
       clients: [],
@@ -1337,6 +1344,7 @@ export function createMultiplayerSession({
     publish({
       mode: 'idle',
       connectionStatus: 'idle',
+      reconnecting: false,
       inviteCode: null,
       hostName: null,
       clients: [],

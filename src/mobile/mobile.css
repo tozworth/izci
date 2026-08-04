@@ -382,6 +382,14 @@ html[data-izci-mobile='true'] select {
   color: var(--danger);
 }
 
+.mobile-drawer-status.is-reconnecting {
+  color: light-dark(rgb(164 76 0), rgb(255 184 92));
+}
+
+.mobile-drawer-status.is-relayed {
+  color: light-dark(rgb(0 107 126), rgb(116 230 255));
+}
+
 @keyframes mobile-scrim-in {
   from { opacity: 0; }
   to { opacity: 1; }
@@ -594,6 +602,20 @@ html[data-izci-mobile='true'] select {
   color: var(--danger);
   background: color-mix(in srgb, var(--danger) 10%, transparent);
   border-color: color-mix(in srgb, var(--danger) 32%, transparent);
+}
+
+.mobile-multiplayer-pill.is-reconnecting {
+  --mobile-multiplayer-state-color: light-dark(rgb(164 76 0), rgb(255 184 92));
+  color: var(--mobile-multiplayer-state-color);
+  background: color-mix(in srgb, var(--mobile-multiplayer-state-color) 10%, transparent);
+  border-color: color-mix(in srgb, var(--mobile-multiplayer-state-color) 32%, transparent);
+}
+
+.mobile-multiplayer-pill.is-relayed {
+  --mobile-multiplayer-state-color: light-dark(rgb(0 107 126), rgb(116 230 255));
+  color: var(--mobile-multiplayer-state-color);
+  background: color-mix(in srgb, var(--mobile-multiplayer-state-color) 10%, transparent);
+  border-color: color-mix(in srgb, var(--mobile-multiplayer-state-color) 32%, transparent);
 }
 
 /* Mobile collection density and targets are intentionally independent from desktop. */

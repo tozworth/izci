@@ -74,6 +74,7 @@
   export let multiplayerEnabled = false;
   export let multiplayerMode: MultiplayerMode = 'idle';
   export let multiplayerConnectionStatus: MultiplayerConnectionStatus = 'idle';
+  export let multiplayerReconnecting = false;
   export let multiplayerAudioStatus: MultiplayerAudioStatus = 'idle';
   export let multiplayerConnectionRoute: MultiplayerConnectionRoute | null = null;
   export let multiplayerAudioBitrateKbps: number | null = null;
@@ -306,6 +307,8 @@
                 <div
                   class="mobile-multiplayer-pill"
                   class:is-disconnected={multiplayerConnectionStatus === 'disconnected' || multiplayerConnectionStatus === 'error'}
+                  class:is-reconnecting={multiplayerReconnecting}
+                  class:is-relayed={multiplayerConnectionStatus === 'connected' && multiplayerConnectionRoute === 'relayed'}
                   title={$t('main.multiplayer.label', { default: 'Multiplayer' })}
                 >
                   <span class="material-symbols-outlined" aria-hidden="true">cast_connected</span>
@@ -375,6 +378,7 @@
   {multiplayerEnabled}
   {multiplayerMode}
   {multiplayerConnectionStatus}
+  {multiplayerReconnecting}
   {multiplayerAudioStatus}
   {multiplayerConnectionRoute}
   {multiplayerAudioBitrateKbps}

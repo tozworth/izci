@@ -309,6 +309,7 @@
   export let multiplayerEnabled = false;
   export let multiplayerMode: MultiplayerMode = 'idle';
   export let multiplayerConnectionStatus: MultiplayerConnectionStatus = 'idle';
+  export let multiplayerReconnecting = false;
   export let multiplayerAudioStatus: MultiplayerAudioStatus = 'idle';
   export let multiplayerConnectionRoute: MultiplayerConnectionRoute | null = null;
   export let multiplayerAudioBitrateKbps: number | null = null;
@@ -565,7 +566,9 @@
   multiplayerConnectionTone={multiplayerMode !== 'client'
     ? 'none'
     : multiplayerConnectionStatus === 'connected'
-      ? 'connected'
+      ? multiplayerConnectionRoute === 'relayed' ? 'relayed' : 'connected'
+      : multiplayerReconnecting
+        ? 'reconnecting'
       : 'disconnected'}
   on:menuopen={(event) => {
     if (event.detail === 'app' && showInstallHint) {

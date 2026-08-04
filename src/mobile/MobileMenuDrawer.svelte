@@ -18,6 +18,7 @@
   export let multiplayerEnabled = false;
   export let multiplayerMode: MultiplayerMode = 'idle';
   export let multiplayerConnectionStatus: MultiplayerConnectionStatus = 'idle';
+  export let multiplayerReconnecting = false;
   export let multiplayerAudioStatus: MultiplayerAudioStatus = 'idle';
   export let multiplayerConnectionRoute: MultiplayerConnectionRoute | null = null;
   export let multiplayerAudioBitrateKbps: number | null = null;
@@ -243,7 +244,12 @@
             </button>
           {/each}
         {:else}
-          <div class="mobile-drawer-status" class:is-disconnected={multiplayerConnectionStatus === 'disconnected' || multiplayerConnectionStatus === 'error'}>
+          <div
+            class="mobile-drawer-status"
+            class:is-disconnected={!multiplayerReconnecting && (multiplayerConnectionStatus === 'disconnected' || multiplayerConnectionStatus === 'error')}
+            class:is-reconnecting={multiplayerReconnecting}
+            class:is-relayed={multiplayerConnectionStatus === 'connected' && multiplayerConnectionRoute === 'relayed'}
+          >
             <span class="material-symbols-outlined" aria-hidden="true">
               {multiplayerConnectionStatus === 'connected' ? 'cast_connected' : 'signal_disconnected'}
             </span>

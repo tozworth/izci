@@ -17,7 +17,7 @@
   export let subtitle = '';
   export let subtitleTone: WindowMenuSubtitleTone = 'muted';
   export let ariaLabel = 'Application menu';
-  export let multiplayerConnectionTone: 'none' | 'connected' | 'disconnected' = 'none';
+  export let multiplayerConnectionTone: 'none' | 'connected' | 'reconnecting' | 'relayed' | 'disconnected' = 'none';
   export let height = 0;
 
   const dispatch = createEventDispatcher<{
@@ -258,6 +258,8 @@
   class:window-controls-overlay-active={overlayState.visible}
   class:menu-bar-compact={isCompactMenu}
   class:multiplayer-connected={multiplayerConnectionTone === 'connected'}
+  class:multiplayer-reconnecting={multiplayerConnectionTone === 'reconnecting'}
+  class:multiplayer-relayed={multiplayerConnectionTone === 'relayed'}
   class:multiplayer-disconnected={multiplayerConnectionTone === 'disconnected'}
   style={overlayInlineStyle}
   aria-label={ariaLabel}
@@ -367,13 +369,39 @@
     color: var(--multiplayer-connected-color);
   }
 
-  .multiplayer-disconnected .izci-menu-glyph-glow {
+  .multiplayer-reconnecting .izci-menu-glyph-glow {
+    --multiplayer-reconnecting-color: light-dark(rgb(164 76 0), rgb(255 184 92));
+    color: var(--multiplayer-reconnecting-color);
     filter:
-      drop-shadow(0 0 0.28rem rgb(255 118 118 / 0.88))
-      drop-shadow(0 0 0.72rem rgb(255 118 118 / 0.52));
+      drop-shadow(0 0 0.24rem color-mix(in srgb, currentColor 52%, transparent))
+      drop-shadow(0 0 0.64rem color-mix(in srgb, currentColor 28%, transparent));
+  }
+
+  .multiplayer-reconnecting .izci-menu-glyph-glow :global(.izci-menu-glyph) {
+    color: var(--multiplayer-reconnecting-color);
+  }
+
+  .multiplayer-relayed .izci-menu-glyph-glow {
+    --multiplayer-relayed-color: light-dark(rgb(0 107 126), rgb(116 230 255));
+    color: var(--multiplayer-relayed-color);
+    filter:
+      drop-shadow(0 0 0.24rem color-mix(in srgb, currentColor 52%, transparent))
+      drop-shadow(0 0 0.64rem color-mix(in srgb, currentColor 28%, transparent));
+  }
+
+  .multiplayer-relayed .izci-menu-glyph-glow :global(.izci-menu-glyph) {
+    color: var(--multiplayer-relayed-color);
+  }
+
+  .multiplayer-disconnected .izci-menu-glyph-glow {
+    --multiplayer-disconnected-color: light-dark(rgb(174 45 45), rgb(255 166 166));
+    color: var(--multiplayer-disconnected-color);
+    filter:
+      drop-shadow(0 0 0.28rem color-mix(in srgb, currentColor 58%, transparent))
+      drop-shadow(0 0 0.72rem color-mix(in srgb, currentColor 34%, transparent));
   }
 
   .multiplayer-disconnected .izci-menu-glyph-glow :global(.izci-menu-glyph) {
-    color: rgb(255 166 166);
+    color: var(--multiplayer-disconnected-color);
   }
 </style>
