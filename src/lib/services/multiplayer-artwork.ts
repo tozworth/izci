@@ -30,12 +30,23 @@ export async function loadMultiplayerArtwork(
 
 export function getRemoteArtworkLoadKey(
   track: PlaylistItem | null,
-  artwork: MultiplayerArtwork | null
+  artwork: MultiplayerArtwork | null,
+  resolvedTrackKey: string
 ): string {
   if (!track) return '';
+
+  const trackKey = getMultiplayerArtworkTrackKey(track);
+  if (resolvedTrackKey !== trackKey) {
+    return resolvedTrackKey
+      ? artwork
+        ? `${resolvedTrackKey}:${artwork.assetId}`
+        : `${resolvedTrackKey}:no-artwork`
+      : '';
+  }
+
   return artwork?.trackId === track.id
-    ? `${track.id}:${artwork.assetId}`
-    : `${track.id}:no-artwork`;
+    ? `${trackKey}:${artwork.assetId}`
+    : `${trackKey}:no-artwork`;
 }
 
 export function toLoadedMultiplayerArtwork(

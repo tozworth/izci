@@ -247,6 +247,7 @@
       sentAt: 0
     },
     remoteArtwork: null,
+    remoteArtworkResolvedTrackKey: '',
     audioStatus: 'idle',
     averageAudioBitrateKbps: null,
     connectionDetail: null,
@@ -695,7 +696,11 @@
       ? Promise.resolve(toLoadedMultiplayerArtwork(track, multiplayerState.remoteArtwork))
       : loadTrackArtwork(track),
     getArtworkLoadKey: (track) => multiplayerState.mode === 'client'
-      ? getRemoteArtworkLoadKey(track, multiplayerState.remoteArtwork)
+      ? getRemoteArtworkLoadKey(
+          track,
+          multiplayerState.remoteArtwork,
+          multiplayerState.remoteArtworkResolvedTrackKey
+        )
       : getTrackArtworkLoadKey(track)
   });
   let artworkPresentationState = artworkPresentation.getSnapshot();

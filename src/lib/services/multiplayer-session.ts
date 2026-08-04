@@ -119,6 +119,7 @@ export interface MultiplayerSessionState {
   remoteCatalog: MultiplayerCatalog;
   remotePlayback: MultiplayerPlayback;
   remoteArtwork: MultiplayerArtwork | null;
+  remoteArtworkResolvedTrackKey: string;
   audioStatus: MultiplayerAudioStatus;
   averageAudioBitrateKbps: number | null;
   connectionDetail: string | null;
@@ -235,6 +236,7 @@ export function createMultiplayerSession({
     remoteCatalog: EMPTY_CATALOG,
     remotePlayback: EMPTY_REMOTE_PLAYBACK,
     remoteArtwork: null,
+    remoteArtworkResolvedTrackKey: '',
     audioStatus: 'idle',
     averageAudioBitrateKbps: null,
     connectionDetail: null,
@@ -266,6 +268,7 @@ export function createMultiplayerSession({
   let lastTrackSource: PlaylistItem | null = null;
   let latestHostArtwork: MultiplayerArtwork | null = null;
   let hostArtworkTrackKey = '';
+  let hostArtworkResolvedTrackKey = '';
   let hostArtworkLoadToken = 0;
   let latestAudioAvailability: MultiplayerAudioAvailability = {
     enabled: false,
@@ -683,6 +686,7 @@ export function createMultiplayerSession({
       remoteCatalog: reconnecting ? state.remoteCatalog : EMPTY_CATALOG,
       remotePlayback: reconnecting ? state.remotePlayback : EMPTY_REMOTE_PLAYBACK,
       remoteArtwork: reconnecting ? state.remoteArtwork : null,
+      remoteArtworkResolvedTrackKey: reconnecting ? state.remoteArtworkResolvedTrackKey : '',
       audioStatus: 'connecting',
       averageAudioBitrateKbps: null,
       connectionDetail: 'Signing in to multiplayer signaling...',
@@ -861,7 +865,12 @@ export function createMultiplayerSession({
       if (!message) return;
       if (message.kind === 'catalog') publish({ remoteCatalog: message.catalog });
       if (message.kind === 'playback') publish({ remotePlayback: message.playback });
-      if (message.kind === 'artwork') publish({ remoteArtwork: message.artwork });
+      if (message.kind === 'artwork') {
+        publish({
+          remoteArtwork: message.artwork,
+          remoteArtworkResolvedTrackKey: getMultiplayerArtworkTrackKey(state.remotePlayback.track)
+        });
+      }
       if (message.kind === 'pairing') {
         if (message.paired) rememberMultiplayerPairing(message.hostId, message.name);
         else forgetMultiplayerPairing(message.hostId);
@@ -1125,7 +1134,9 @@ export function createMultiplayerSession({
     if (!latestHostState) return;
     sendToPeer(peer, { kind: 'catalog', catalog: buildCatalog(latestHostState) });
     sendToPeer(peer, { kind: 'playback', playback: buildPlayback(latestHostState) });
-    sendToPeer(peer, { kind: 'artwork', artwork: latestHostArtwork });
+    if (hostArtworkResolvedTrackKey === hostArtworkTrackKey) {
+      sendToPeer(peer, { kind: 'artwork', artwork: latestHostArtwork });
+    }
     sendToPeer(peer, { kind: 'audio', audio: latestAudioAvailability });
   }
 
@@ -1193,19 +1204,26 @@ export function createMultiplayerSession({
     if (nextTrackKey === hostArtworkTrackKey) return;
 
     hostArtworkTrackKey = nextTrackKey;
+    hostArtworkResolvedTrackKey = '';
     latestHostArtwork = null;
     const loadToken = ++hostArtworkLoadToken;
-    broadcast({ kind: 'artwork', artwork: null });
 
-    if (!track) return;
+    if (!track) {
+      hostArtworkResolvedTrackKey = nextTrackKey;
+      broadcast({ kind: 'artwork', artwork: null });
+      return;
+    }
 
     void loadMultiplayerArtwork(track).then((artwork) => {
       if (loadToken !== hostArtworkLoadToken || hostArtworkTrackKey !== nextTrackKey) return;
       latestHostArtwork = artwork;
+      hostArtworkResolvedTrackKey = nextTrackKey;
       broadcast({ kind: 'artwork', artwork });
     }).catch(() => {
       if (loadToken !== hostArtworkLoadToken || hostArtworkTrackKey !== nextTrackKey) return;
       latestHostArtwork = null;
+      hostArtworkResolvedTrackKey = nextTrackKey;
+      broadcast({ kind: 'artwork', artwork: null });
     });
   }
 
@@ -1307,6 +1325,7 @@ export function createMultiplayerSession({
       remoteCatalog: EMPTY_CATALOG,
       remotePlayback: EMPTY_REMOTE_PLAYBACK,
       remoteArtwork: null,
+      remoteArtworkResolvedTrackKey: '',
       audioStatus: 'idle',
       averageAudioBitrateKbps: null,
       connectionDetail: null,
@@ -1359,6 +1378,7 @@ export function createMultiplayerSession({
     lastTrackSource = null;
     latestHostArtwork = null;
     hostArtworkTrackKey = '';
+    hostArtworkResolvedTrackKey = '';
     hostArtworkLoadToken += 1;
     rejectedPeerIds.clear();
     acceptingPeerIds.clear();
