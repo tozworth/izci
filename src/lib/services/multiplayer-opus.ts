@@ -1,4 +1,13 @@
-const OPUS_STEREO_PARAMETERS = ['stereo=1', 'sprop-stereo=1'] as const;
+const OPUS_STREAM_PARAMETERS = [
+  'stereo=1',
+  'sprop-stereo=1',
+  'useinbandfec=1',
+  'usedtx=0',
+  'cbr=0'
+] as const;
+const REPLACED_OPUS_PARAMETERS = new Set(
+  OPUS_STREAM_PARAMETERS.map((parameter) => parameter.split('=', 1)[0])
+);
 
 export function enableOpusStereo(
   description: RTCSessionDescriptionInit
@@ -27,9 +36,9 @@ export function enableOpusStereo(
       .map((parameter) => parameter.trim())
       .filter((parameter) => {
         const name = parameter.split('=', 1)[0].toLowerCase();
-        return name !== 'stereo' && name !== 'sprop-stereo';
+        return !REPLACED_OPUS_PARAMETERS.has(name);
       });
-    parameters.push(...OPUS_STEREO_PARAMETERS);
+    parameters.push(...OPUS_STREAM_PARAMETERS);
     return `a=fmtp:${match[1]} ${parameters.join(';')}`;
   });
 
@@ -42,7 +51,7 @@ export function enableOpusStereo(
     stereoLines.splice(
       rtpmapIndex + 1,
       0,
-      `a=fmtp:${payloadType} ${OPUS_STEREO_PARAMETERS.join(';')}`
+      `a=fmtp:${payloadType} ${OPUS_STREAM_PARAMETERS.join(';')}`
     );
   }
 

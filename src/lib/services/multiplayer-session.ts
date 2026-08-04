@@ -16,6 +16,7 @@ import {
   type MultiplayerReceiverAudioStatus
 } from './multiplayer-audio';
 import { enableOpusStereo } from './multiplayer-opus';
+import { setMultiplayerReceiverBuffer } from './multiplayer-receiver';
 import {
   updateReceivedBitrateWindow,
   type ReceivedByteSample
@@ -244,8 +245,13 @@ export function createMultiplayerSession({
   let multiplayerSettings = experimentalSettings.getSnapshot();
 
   const unsubscribeSettings = experimentalSettings.subscribe((settings) => {
+    const audioBufferChanged = settings.multiplayerAudioBufferMs
+      !== multiplayerSettings.multiplayerAudioBufferMs;
     multiplayerSettings = settings;
     if (state.mode === 'hosting') syncHostAudio(latestHostState?.track ?? null);
+    if (state.mode === 'client' && clientPeer && audioBufferChanged) {
+      applyClientAudioBuffer(clientPeer);
+    }
   });
   window.addEventListener('online', handleClientResume);
   document.addEventListener('visibilitychange', handleClientResume);
@@ -627,7 +633,12 @@ export function createMultiplayerSession({
       publish({ connectionDetail: 'Preparing a direct peer connection...' });
 
       const peer = createPeer(firebase.uid, getLocalName());
-      preferOpus(peer.pc.addTransceiver('audio', { direction: 'recvonly' }));
+      const audioTransceiver = peer.pc.addTransceiver('audio', { direction: 'recvonly' });
+      preferOpus(audioTransceiver);
+      setMultiplayerReceiverBuffer(
+        audioTransceiver.receiver,
+        multiplayerSettings.multiplayerAudioBufferMs
+      );
       const channel = peer.pc.createDataChannel('izci-control', { ordered: true });
       peer.channel = channel;
       clientPeer = peer;
@@ -845,6 +856,7 @@ export function createMultiplayerSession({
     };
     peer.pc.ontrack = (event) => {
       if (event.track.kind !== 'audio') return;
+      setMultiplayerReceiverBuffer(event.receiver, multiplayerSettings.multiplayerAudioBufferMs);
       startReceiverBitrateMonitor(peer);
       const stream = event.streams[0] ?? new MediaStream([event.track]);
       void multiplayerAudioService.attachRemoteTrack(
@@ -864,6 +876,13 @@ export function createMultiplayerSession({
         }
       );
     };
+  }
+
+  function applyClientAudioBuffer(peer: PeerConnection): void {
+    for (const receiver of peer.pc.getReceivers()) {
+      if (receiver.track.kind !== 'audio') continue;
+      setMultiplayerReceiverBuffer(receiver, multiplayerSettings.multiplayerAudioBufferMs);
+    }
   }
 
   function startReceiverBitrateMonitor(peer: PeerConnection): void {
@@ -960,7 +979,11 @@ export function createMultiplayerSession({
     if (state.mode !== 'client' || !allowClientReconnect) return;
     if (clientPeer?.pc.connectionState === 'connected'
       && clientPeer.channel?.readyState === 'open'
-      && suspendedFor < 10_000) return;
+      && suspendedFor < 10_000) {
+      applyClientAudioBuffer(clientPeer);
+      if (latestAudioAvailability.enabled) void multiplayerAudioService.resumeRemoteAudio();
+      return;
+    }
     clearReconnectTimer();
     scheduleClientReconnect(0);
   }
@@ -1077,7 +1100,11 @@ export function createMultiplayerSession({
         if (!sender) continue;
         const parameters = sender.getParameters();
         if (parameters.encodings.length === 0) continue;
-        for (const encoding of parameters.encodings) encoding.maxBitrate = bitrate;
+        for (const encoding of parameters.encodings) {
+          encoding.maxBitrate = bitrate;
+          encoding.priority = 'high';
+          encoding.networkPriority = 'high';
+        }
         await sender.setParameters(parameters).catch(() => undefined);
       }
     })().finally(() => {

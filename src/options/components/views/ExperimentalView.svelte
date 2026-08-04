@@ -3,6 +3,9 @@
   import SettingsField from '$lib/components/options/SettingsField.svelte';
   import MultiplayerMark from '$lib/components/multiplayer/MultiplayerMark.svelte';
   import {
+    MULTIPLAYER_AUDIO_BUFFER_MAX_MS,
+    MULTIPLAYER_AUDIO_BUFFER_MIN_MS,
+    MULTIPLAYER_AUDIO_BUFFER_STEP_MS,
     MULTIPLAYER_MAX_LISTENERS_MAX,
     MULTIPLAYER_MAX_LISTENERS_MIN,
     MULTIPLAYER_OPUS_BITRATE_MAX_KBPS,
@@ -38,6 +41,12 @@
   function handleOpusBitrateChange(event: Event) {
     experimentalSettings.update({
       multiplayerOpusBitrateKbps: (event.currentTarget as HTMLInputElement).valueAsNumber
+    });
+  }
+
+  function handleAudioBufferChange(event: Event) {
+    experimentalSettings.update({
+      multiplayerAudioBufferMs: (event.currentTarget as HTMLInputElement).valueAsNumber
     });
   }
 
@@ -115,6 +124,20 @@
           on:input={handleOpusBitrateChange}
         />
         <span class="field-output">{$experimentalSettings.multiplayerOpusBitrateKbps} kbps</span>
+      </SettingsField>
+      <SettingsField
+        title={$t('options.experimental.multiplayer.audioBuffer.title', { default: 'Listener audio buffer' })}
+        hint={$t('options.experimental.multiplayer.audioBuffer.hint', { default: 'Adds receiver delay to absorb network and mobile scheduling jitter. Increase it for cleaner playback; decrease it for faster control response.' })}
+      >
+        <input
+          type="range"
+          min={MULTIPLAYER_AUDIO_BUFFER_MIN_MS}
+          max={MULTIPLAYER_AUDIO_BUFFER_MAX_MS}
+          step={MULTIPLAYER_AUDIO_BUFFER_STEP_MS}
+          value={$experimentalSettings.multiplayerAudioBufferMs}
+          on:input={handleAudioBufferChange}
+        />
+        <span class="field-output">{$experimentalSettings.multiplayerAudioBufferMs} ms</span>
       </SettingsField>
       <SettingsField
         title={$t('options.experimental.multiplayer.videoAudio.title', { default: 'Include audio from videos' })}

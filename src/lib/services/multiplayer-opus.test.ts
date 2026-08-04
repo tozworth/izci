@@ -9,13 +9,13 @@ describe('multiplayer Opus negotiation', () => {
         'v=0',
         'm=audio 9 UDP/TLS/RTP/SAVPF 111',
         'a=rtpmap:111 opus/48000/2',
-        'a=fmtp:111 minptime=10;stereo=0;useinbandfec=1;sprop-stereo=0',
+        'a=fmtp:111 minptime=10;stereo=0;useinbandfec=0;sprop-stereo=0;usedtx=1;cbr=1',
         ''
       ].join('\r\n')
     });
 
     expect(description.sdp).toContain(
-      'a=fmtp:111 minptime=10;useinbandfec=1;stereo=1;sprop-stereo=1\r\n'
+      'a=fmtp:111 minptime=10;stereo=1;sprop-stereo=1;useinbandfec=1;usedtx=0;cbr=0\r\n'
     );
   });
 
@@ -26,7 +26,7 @@ describe('multiplayer Opus negotiation', () => {
     });
 
     expect(description.sdp).toContain(
-      'a=rtpmap:109 opus/48000/2\na=fmtp:109 stereo=1;sprop-stereo=1\n'
+      'a=rtpmap:109 opus/48000/2\na=fmtp:109 stereo=1;sprop-stereo=1;useinbandfec=1;usedtx=0;cbr=0\n'
     );
   });
 

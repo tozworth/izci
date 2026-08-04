@@ -9,6 +9,9 @@ const NAME_ALPHABET = 'abcdefghijklmnopqrstuvwxyz0123456789';
 export const MULTIPLAYER_OPUS_BITRATE_MIN_KBPS = 32;
 export const MULTIPLAYER_OPUS_BITRATE_MAX_KBPS = 160;
 export const MULTIPLAYER_OPUS_BITRATE_STEP_KBPS = 8;
+export const MULTIPLAYER_AUDIO_BUFFER_MIN_MS = 100;
+export const MULTIPLAYER_AUDIO_BUFFER_MAX_MS = 4_000;
+export const MULTIPLAYER_AUDIO_BUFFER_STEP_MS = 50;
 export const MULTIPLAYER_MAX_LISTENERS_MIN = 1;
 export const MULTIPLAYER_MAX_LISTENERS_MAX = 8;
 
@@ -32,6 +35,7 @@ export const DEFAULT_EXPERIMENTAL_SETTINGS: ExperimentalSettings = {
   multiplayerStreamAudio: true,
   multiplayerSendPostRaf: false,
   multiplayerOpusBitrateKbps: 128,
+  multiplayerAudioBufferMs: 750,
   multiplayerIncludeVideoAudio: true,
   multiplayerMaxListeners: 4
 };
@@ -63,6 +67,12 @@ export function normalizeExperimentalSettings(value: unknown): ExperimentalSetti
       DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerOpusBitrateKbps,
       MULTIPLAYER_OPUS_BITRATE_MIN_KBPS,
       MULTIPLAYER_OPUS_BITRATE_MAX_KBPS
+    ),
+    multiplayerAudioBufferMs: normalizeBoundedInteger(
+      source.multiplayerAudioBufferMs,
+      DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerAudioBufferMs,
+      MULTIPLAYER_AUDIO_BUFFER_MIN_MS,
+      MULTIPLAYER_AUDIO_BUFFER_MAX_MS
     ),
     multiplayerIncludeVideoAudio: typeof source.multiplayerIncludeVideoAudio === 'boolean'
       ? source.multiplayerIncludeVideoAudio
