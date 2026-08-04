@@ -24,6 +24,19 @@
       "markLabel": "izci çok oyunculu",
       "host": "Sunucu ol",
       "join": "Katıl...",
+      "freeplay": {
+        "label": "Freeplay",
+        "preferenceEnabled": "Uyumlu eşleştirmeler için etkin",
+        "preferenceDisabled": "Seçenekler'de devre dışı",
+        "pairedHost": "Freeplay · Kod kullanmadan katıl",
+        "pairedClientActive": "{platform} · Eşleştirildi · Freeplay",
+        "pairedClientReady": "{platform} · Eşleştirildi · Freeplay hazır",
+        "active": "Bağımsız sunucu kitaplığı oynatımı",
+        "inactive": "Eşleştirildi; Freeplay aygıtlardan birinde kapalı",
+        "unpaired": "İki aygıt da etkinleştirip eşleştirince kullanılabilir",
+        "unpairClient": "{name} eşleştirmesini kaldır · Freeplay",
+        "ready": "Freeplay hazır"
+      },
       "pairedHosts": "Eşleştirilmiş sunucular",
       "instantJoin": "Kod kullanmadan katıl",
       "forgetPairing": "{name} ile eşleştirmeyi unut",
@@ -785,6 +798,11 @@
         "maxListeners": {
           "title": "Azami konuk",
           "hint": "Ses aktarımı etkin olsun veya olmasın, sunucuya aynı anda kaç konuğun bağlanabileceğini sınırlar."
+        },
+        "freeplay": {
+          "category": "Çok Oyunculu Freeplay",
+          "title": "Freeplay'i etkinleştir",
+          "hint": "Her iki izci aygıtı da Freeplay'i etkinleştirip eşleştiğinde dinleyici, bu sunucunun kitaplığına göz atabilir ve parçaları bağımsız bir zaman çizelgesinde çalabilir. Anlaşma gelecek bağlantılar için hatırlanır."
         },
         "audioCategory": "Çok Oyunculu Ses",
         "streamAudio": {

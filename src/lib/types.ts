@@ -338,6 +338,7 @@ export interface ExperimentalSettings {
   multiplayerTurnSecret: string;
   multiplayerTurnCredentialHours: number;
   multiplayerForceTurn: boolean;
+  multiplayerFreeplay: boolean;
   multiplayerStreamAudio: boolean;
   multiplayerFileTransferLimitMiB: number;
   multiplayerSendPostRaf: boolean;

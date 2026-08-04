@@ -41,6 +41,10 @@
     experimentalSettings.update({ multiplayerStreamAudio: checked(event) });
   }
 
+  function handleFreeplayToggle(event: Event) {
+    experimentalSettings.update({ multiplayerFreeplay: checked(event) });
+  }
+
   function handleFileTransferLimitChange(event: Event) {
     const index = (event.currentTarget as HTMLInputElement).valueAsNumber;
     experimentalSettings.update({
@@ -210,6 +214,23 @@
           on:input={handleMaxListenersChange}
         />
         <span class="field-output">{$experimentalSettings.multiplayerMaxListeners}</span>
+      </SettingsField>
+    </div>
+  </div>
+  <div class="section">
+    <h2>{$t('options.experimental.multiplayer.freeplay.category', { default: 'Multiplayer Freeplay' })}</h2>
+    <div class="field-grid">
+      <SettingsField
+        title={$t('options.experimental.multiplayer.freeplay.title', { default: 'Enable Freeplay' })}
+        hint={$t('options.experimental.multiplayer.freeplay.hint', { default: 'When both izci devices enable Freeplay and pair, the listener can browse and play this host’s library on an independent timeline. The agreement is remembered for future connections.' })}
+        checkbox
+      >
+        <input
+          type="checkbox"
+          checked={$experimentalSettings.multiplayerFreeplay}
+          disabled={!$experimentalSettings.multiplayer}
+          on:change={handleFreeplayToggle}
+        />
       </SettingsField>
     </div>
   </div>

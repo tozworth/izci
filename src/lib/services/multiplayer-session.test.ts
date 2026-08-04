@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
   isMultiplayerClientTransportHealthy,
+  isMultiplayerFreeplayActive,
   isMultiplayerPlaybackPreparationReady,
   shouldTransferMultiplayerSourceFile
 } from './multiplayer-session';
@@ -48,6 +49,22 @@ describe('multiplayer source-file selection', () => {
     const track = trackWithSize(1);
     expect(shouldTransferMultiplayerSourceFile({ ...track, kind: 'video' }, -1)).toBe(false);
     expect(shouldTransferMultiplayerSourceFile(track, -1, false)).toBe(false);
+  });
+});
+
+describe('Freeplay pairing negotiation', () => {
+  const enabledPairing = {
+    paired: true,
+    freeplayPaired: true,
+    hostEnabled: true,
+    clientEnabled: true
+  };
+
+  it('activates only for a persisted pairing with both current opt-ins', () => {
+    expect(isMultiplayerFreeplayActive(enabledPairing)).toBe(true);
+    for (const key of Object.keys(enabledPairing) as Array<keyof typeof enabledPairing>) {
+      expect(isMultiplayerFreeplayActive({ ...enabledPairing, [key]: false })).toBe(false);
+    }
   });
 });
 

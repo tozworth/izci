@@ -54,6 +54,7 @@ export const DEFAULT_EXPERIMENTAL_SETTINGS: ExperimentalSettings = {
   multiplayerTurnSecret: '',
   multiplayerTurnCredentialHours: 12,
   multiplayerForceTurn: false,
+  multiplayerFreeplay: false,
   multiplayerStreamAudio: true,
   multiplayerFileTransferLimitMiB: 0,
   multiplayerSendPostRaf: false,
@@ -104,6 +105,9 @@ export function normalizeExperimentalSettings(value: unknown): ExperimentalSetti
     multiplayerForceTurn: typeof source.multiplayerForceTurn === 'boolean'
       ? source.multiplayerForceTurn
       : DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerForceTurn,
+    multiplayerFreeplay: typeof source.multiplayerFreeplay === 'boolean'
+      ? source.multiplayerFreeplay
+      : DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerFreeplay,
     multiplayerStreamAudio: typeof source.multiplayerStreamAudio === 'boolean'
       ? source.multiplayerStreamAudio
       : DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerStreamAudio,

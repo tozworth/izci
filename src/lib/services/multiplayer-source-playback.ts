@@ -1,4 +1,5 @@
 import { get } from 'svelte/store';
+import type { Unsubscriber } from 'svelte/store';
 import { playerController } from '$lib/services/player-controller';
 import type { MultiplayerPlayback } from '$lib/services/multiplayer-protocol';
 import type { PlaybackSnapshot, PlaylistItem } from '$lib/types';
@@ -15,13 +16,23 @@ export class MultiplayerSourcePlaybackService {
   #activeObjectUrl: string | null = null;
   #loadToken = 0;
   #enabled = true;
+  #onEnded: ((trackId: string) => void) | null = null;
+  #unsubscribeEnded: Unsubscriber | null = null;
+  #previousPlaybackState: PlaybackSnapshot['state'] = 'idle';
 
-  beginClientSession(): void {
+  beginClientSession(onEnded?: (trackId: string) => void): void {
     if (this.#savedPlayback) return;
     this.#savedPlayback = {
       track: get(playerController.currentTrack),
       snapshot: get(playerController.snapshot)
     };
+    this.#onEnded = onEnded ?? null;
+    this.#previousPlaybackState = get(playerController.snapshot).state;
+    this.#unsubscribeEnded = playerController.snapshot.subscribe((snapshot) => {
+      const ended = snapshot.state === 'ended' && this.#previousPlaybackState !== 'ended';
+      this.#previousPlaybackState = snapshot.state;
+      if (ended && this.#activeTrackId) this.#onEnded?.(this.#activeTrackId);
+    });
   }
 
   async endClientSession(): Promise<void> {
@@ -29,6 +40,9 @@ export class MultiplayerSourcePlaybackService {
     this.#savedPlayback = null;
     this.#latestPlayback = null;
     this.#enabled = true;
+    this.#unsubscribeEnded?.();
+    this.#unsubscribeEnded = null;
+    this.#onEnded = null;
     this.#clearRemotePlayback();
     if (!saved?.track) return;
     await playerController.load(saved.track, {

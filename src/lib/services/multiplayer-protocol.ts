@@ -8,7 +8,7 @@ import type {
 
 export type MultiplayerCollection = 'playlist' | 'library' | 'favorites';
 
-export const MULTIPLAYER_PROTOCOL_VERSION = 11;
+export const MULTIPLAYER_PROTOCOL_VERSION = 12;
 export const MULTIPLAYER_FRAME_CHUNK_SIZE = 12_000;
 
 const MULTIPLAYER_ARTWORK_DATA_URL_MAX_LENGTH = 8 * 1024 * 1024;
@@ -77,7 +77,14 @@ export interface MultiplayerPlaybackPreparation {
 
 export type HostMessage =
   | { kind: 'hello'; version: number; name: string; appVersion: string }
-  | { kind: 'pairing'; paired: boolean; hostId: string; name: string }
+  | {
+      kind: 'pairing';
+      paired: boolean;
+      freeplayPaired: boolean;
+      freeplayActive: boolean;
+      hostId: string;
+      name: string;
+    }
   | { kind: 'catalog'; catalog: MultiplayerCatalog }
   | { kind: 'playback'; playback: MultiplayerPlayback }
   | { kind: 'playback.prepare'; preparation: MultiplayerPlaybackPreparation }
@@ -87,9 +94,11 @@ export type HostMessage =
   | { kind: 'kicked' };
 
 export type ClientMessage =
-  | { kind: 'hello'; version: number; name: string; platform: string }
+  | { kind: 'hello'; version: number; name: string; platform: string; freeplayEnabled: boolean }
+  | { kind: 'freeplay.preference'; enabled: boolean }
   | { kind: 'command'; command: MultiplayerCommand }
-  | { kind: 'playback.ready'; preparationId: string };
+  | { kind: 'playback.ready'; preparationId: string }
+  | { kind: 'playback.ended'; trackId: string };
 
 interface ChunkFrame {
   kind: 'chunk';
@@ -174,6 +183,8 @@ export function isHostMessage(value: unknown): value is HostMessage {
   if (message.kind === 'kicked') return true;
   if (message.kind === 'pairing') {
     return typeof message.paired === 'boolean'
+      && typeof message.freeplayPaired === 'boolean'
+      && typeof message.freeplayActive === 'boolean'
       && typeof message.hostId === 'string'
       && /^[A-Za-z0-9_-]{1,128}$/.test(message.hostId)
       && typeof message.name === 'string'

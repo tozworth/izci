@@ -236,6 +236,8 @@
     inviteCode: null,
     hostName: null,
     hostVersion: null,
+    freeplayPaired: false,
+    freeplay: false,
     clients: [],
     remoteCatalog: {
       revision: 0,
@@ -514,7 +516,9 @@
   });
   multiplayerState = multiplayerSession.getSnapshot();
   const unsubscribeMultiplayer = multiplayerSession.subscribe((value) => {
+    const enteredFreeplay = value.freeplay && !multiplayerState.freeplay;
     multiplayerState = value;
+    if (enteredFreeplay) workspaceShell.setActiveWorkspaceTab('library');
     if (multiplayerConnectionDialogOpen
       && (value.connectionStatus === 'error' || value.connectionStatus === 'disconnected')
       && value.message
@@ -1914,6 +1918,9 @@
     multiplayerConnectionRoute={multiplayerState.connectionRoute}
     multiplayerAudioBitrateKbps={multiplayerState.averageAudioBitrateKbps}
     multiplayerHostVersion={multiplayerState.hostVersion}
+    multiplayerFreeplayEnabled={$experimentalSettings.multiplayerFreeplay}
+    multiplayerFreeplayPaired={multiplayerState.freeplayPaired}
+    multiplayerFreeplay={multiplayerState.freeplay}
     multiplayerReceiveAudio={multiplayerState.receiveAudio}
     multiplayerConnectionStats={multiplayerState.connectionStats}
     multiplayerInviteCode={multiplayerState.inviteCode}
@@ -2000,6 +2007,8 @@
     multiplayerAudioBitrateKbps={multiplayerState.averageAudioBitrateKbps}
     multiplayerInviteCode={multiplayerState.inviteCode}
     multiplayerHostName={multiplayerState.hostName}
+    multiplayerFreeplayPaired={multiplayerState.freeplayPaired}
+    multiplayerFreeplay={multiplayerState.freeplay}
     multiplayerClients={multiplayerState.clients}
     multiplayerRecents={$multiplayerRecents}
     multiplayerPairings={$multiplayerPairings}

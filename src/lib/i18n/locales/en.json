@@ -24,6 +24,19 @@
       "markLabel": "izci multiplayer",
       "host": "Host",
       "join": "Join...",
+      "freeplay": {
+        "label": "Freeplay",
+        "preferenceEnabled": "Enabled for compatible pairings",
+        "preferenceDisabled": "Disabled in Options",
+        "pairedHost": "Freeplay · Join without a code",
+        "pairedClientActive": "{platform} · Paired · Freeplay",
+        "pairedClientReady": "{platform} · Paired · Freeplay ready",
+        "active": "Independent host library playback",
+        "inactive": "Paired; Freeplay is disabled on one device",
+        "unpaired": "Available after both devices enable it and pair",
+        "unpairClient": "Unpair {name} · Freeplay",
+        "ready": "Freeplay ready"
+      },
       "pairedHosts": "Paired hosts",
       "instantJoin": "Join without a code",
       "forgetPairing": "Forget pairing with {name}",
@@ -785,6 +798,11 @@
         "maxListeners": {
           "title": "Maximum guests",
           "hint": "Limits how many guests can connect to the host at once, whether or not audio streaming is enabled."
+        },
+        "freeplay": {
+          "category": "Multiplayer Freeplay",
+          "title": "Enable Freeplay",
+          "hint": "When both izci devices enable Freeplay and pair, the listener can browse and play this host’s library on an independent timeline. The agreement is remembered for future connections."
         },
         "audioCategory": "Multiplayer Audio",
         "streamAudio": {

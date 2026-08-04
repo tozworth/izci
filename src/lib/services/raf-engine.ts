@@ -35,7 +35,7 @@ export class RafEngine {
   #outputAnalyser: AnalyserNode;
   #inputMeterSamples: Float32Array<ArrayBuffer>;
   #outputMeterSamples: Float32Array<ArrayBuffer>;
-  #meterTimer: ReturnType<typeof setInterval>;
+  #meterTimer: ReturnType<typeof setInterval> | null;
   #activeChain: LiveChain | null = null;
   #settings: RafRackSettings | null = null;
   #unsubscribers: Unsubscriber[];
@@ -45,7 +45,10 @@ export class RafEngine {
   #activeChainDisconnectTimer: ReturnType<typeof setTimeout> | null = null;
   #destroyed = false;
 
-  constructor(readonly context: BaseAudioContext) {
+  constructor(
+    readonly context: BaseAudioContext,
+    { publishMeters = true }: { publishMeters?: boolean } = {}
+  ) {
     this.input = context.createGain();
     this.output = context.createGain();
     this.#dryGain = context.createGain();
@@ -72,14 +75,14 @@ export class RafEngine {
       }),
       rafSettings.subscribe((settings) => this.#applySettings(settings))
     ];
-    this.#meterTimer = setInterval(() => this.#publishMeters(), 100);
+    this.#meterTimer = publishMeters ? setInterval(() => this.#publishMeters(), 100) : null;
   }
 
   destroy(): void {
     if (this.#destroyed) return;
     this.#destroyed = true;
     this.#unsubscribers.forEach((unsubscribe) => unsubscribe());
-    clearInterval(this.#meterTimer);
+    if (this.#meterTimer !== null) clearInterval(this.#meterTimer);
     this.#cancelActiveChainDisconnect();
     for (const timer of this.#disposeTimers) clearTimeout(timer);
     this.#disposeTimers.clear();

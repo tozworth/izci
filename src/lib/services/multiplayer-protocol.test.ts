@@ -155,12 +155,16 @@ describe('multiplayer protocol', () => {
     expect(isHostMessage({
       kind: 'pairing',
       paired: true,
+      freeplayPaired: true,
+      freeplayActive: true,
       hostId: 'persistent_host-id',
       name: 'Living room'
     })).toBe(true);
     expect(isHostMessage({
       kind: 'pairing',
       paired: true,
+      freeplayPaired: false,
+      freeplayActive: false,
       hostId: '../host',
       name: 'Living room'
     })).toBe(false);

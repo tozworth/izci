@@ -80,6 +80,8 @@
   export let multiplayerAudioBitrateKbps: number | null = null;
   export let multiplayerInviteCode: string | null = null;
   export let multiplayerHostName: string | null = null;
+  export let multiplayerFreeplayPaired = false;
+  export let multiplayerFreeplay = false;
   export let multiplayerClients: MultiplayerClient[] = [];
   export let multiplayerRecents: MultiplayerRecent[] = [];
   export let multiplayerPairings: MultiplayerPairing[] = [];
@@ -309,9 +311,11 @@
                   class:is-disconnected={multiplayerConnectionStatus === 'disconnected' || multiplayerConnectionStatus === 'error'}
                   class:is-reconnecting={multiplayerReconnecting}
                   class:is-relayed={multiplayerConnectionStatus === 'connected' && multiplayerConnectionRoute === 'relayed'}
-                  title={$t('main.multiplayer.label', { default: 'Multiplayer' })}
+                  title={multiplayerFreeplay
+                    ? $t('main.multiplayer.freeplay.label', { default: 'Freeplay' })
+                    : $t('main.multiplayer.label', { default: 'Multiplayer' })}
                 >
-                  <span class="material-symbols-outlined" aria-hidden="true">cast_connected</span>
+                  <span class="material-symbols-outlined" aria-hidden="true">{multiplayerFreeplay ? 'queue_music' : 'cast_connected'}</span>
                   <span>{multiplayerHostName}</span>
                 </div>
               {/if}
@@ -384,6 +388,8 @@
   {multiplayerAudioBitrateKbps}
   {multiplayerInviteCode}
   {multiplayerHostName}
+  {multiplayerFreeplayPaired}
+  {multiplayerFreeplay}
   {multiplayerClients}
   {multiplayerRecents}
   {multiplayerPairings}
