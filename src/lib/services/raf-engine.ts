@@ -13,12 +13,15 @@ interface LiveEffect {
   nodes: AudioNode[];
   dryGain: GainNode;
   wetGain: GainNode;
+  wetConnected: boolean;
+  disconnectTimer: ReturnType<typeof setTimeout> | null;
 }
 
 interface LiveChain {
   input: GainNode;
   outputGain: GainNode;
   effects: LiveEffect[];
+  connected: boolean;
 }
 
 const GRAPH_CROSSFADE_SECONDS = 0.02;
@@ -30,6 +33,8 @@ export class RafEngine {
   #dryGain: GainNode;
   #inputAnalyser: AnalyserNode;
   #outputAnalyser: AnalyserNode;
+  #inputMeterSamples: Float32Array<ArrayBuffer>;
+  #outputMeterSamples: Float32Array<ArrayBuffer>;
   #meterTimer: ReturnType<typeof setInterval>;
   #activeChain: LiveChain | null = null;
   #settings: RafRackSettings | null = null;
@@ -37,6 +42,7 @@ export class RafEngine {
   #featureEnabled = false;
   #bypassedEffectTypes = new Set<RafEffectType>();
   #disposeTimers = new Set<ReturnType<typeof setTimeout>>();
+  #activeChainDisconnectTimer: ReturnType<typeof setTimeout> | null = null;
   #destroyed = false;
 
   constructor(readonly context: BaseAudioContext) {
@@ -47,6 +53,12 @@ export class RafEngine {
     this.#outputAnalyser = context.createAnalyser();
     this.#inputAnalyser.fftSize = 2048;
     this.#outputAnalyser.fftSize = 2048;
+    this.#inputMeterSamples = new Float32Array(
+      new ArrayBuffer(this.#inputAnalyser.fftSize * Float32Array.BYTES_PER_ELEMENT)
+    );
+    this.#outputMeterSamples = new Float32Array(
+      new ArrayBuffer(this.#outputAnalyser.fftSize * Float32Array.BYTES_PER_ELEMENT)
+    );
     this.input.connect(this.#inputAnalyser);
     this.#inputAnalyser.connect(this.#dryGain);
     this.#dryGain.connect(this.#outputAnalyser);
@@ -68,6 +80,7 @@ export class RafEngine {
     this.#destroyed = true;
     this.#unsubscribers.forEach((unsubscribe) => unsubscribe());
     clearInterval(this.#meterTimer);
+    this.#cancelActiveChainDisconnect();
     for (const timer of this.#disposeTimers) clearTimeout(timer);
     this.#disposeTimers.clear();
     if (this.#activeChain) this.#disposeChain(this.#activeChain);
@@ -80,12 +93,15 @@ export class RafEngine {
   }
 
   setBypassedEffectTypes(types: Iterable<RafEffectType>): void {
-    this.#bypassedEffectTypes = new Set(types);
+    const previousTypes = this.#bypassedEffectTypes;
+    const nextTypes = new Set(types);
+    if (sameSet(previousTypes, nextTypes)) return;
+    this.#bypassedEffectTypes = nextTypes;
 
     for (const effect of this.#activeChain?.effects ?? []) {
+      if (previousTypes.has(effect.settings.type) === nextTypes.has(effect.settings.type)) continue;
       const enabled = this.#isEffectEnabled(effect.settings, effect.processor);
-      setAudioParam(effect.dryGain.gain, enabled ? 0 : 1, this.context);
-      setAudioParam(effect.wetGain.gain, enabled ? 1 : 0, this.context);
+      this.#setEffectEnabled(effect, enabled);
     }
   }
 
@@ -116,10 +132,9 @@ export class RafEngine {
     this.#activeChain = nextChain;
 
     nextChain.outputGain.gain.value = 0;
-    this.#inputAnalyser.connect(nextChain.input);
-    nextChain.outputGain.connect(this.#outputAnalyser);
 
     const rackEnabled = this.#featureEnabled && settings.enabled;
+    if (rackEnabled) this.#connectChain(nextChain);
     const target = rackEnabled ? 1 : 0;
     setAudioParam(nextChain.outputGain.gain, target, this.context, GRAPH_CROSSFADE_SECONDS);
     setAudioParam(this.#dryGain.gain, rackEnabled ? 0 : 1, this.context, GRAPH_CROSSFADE_SECONDS);
@@ -148,7 +163,7 @@ export class RafEngine {
     }
 
     previous.connect(outputGain);
-    return { input, outputGain, effects: liveEffects };
+    return { input, outputGain, effects: liveEffects, connected: false };
   }
 
   #createEffect(settings: RafEffectSettings): LiveEffect {
@@ -164,9 +179,6 @@ export class RafEngine {
 
     try {
       processor = definition.createNode(this.context, settings);
-      entry.connect(processor.input);
-      processor.output.connect(wetGain);
-      wetGain.connect(exit);
     } catch (error) {
       console.error(`Raf could not construct effect ${settings.id}; using its dry path.`, error);
     }
@@ -174,8 +186,24 @@ export class RafEngine {
     const enabled = this.#isEffectEnabled(settings, processor);
     dryGain.gain.value = enabled ? 0 : 1;
     wetGain.gain.value = enabled ? 1 : 0;
+    let wetConnected = false;
+    if (enabled && processor) {
+      entry.connect(processor.input);
+      processor.output.connect(wetGain);
+      wetGain.connect(exit);
+      wetConnected = true;
+    }
 
-    return { settings, definition, processor, nodes: [entry, exit, dryGain, wetGain], dryGain, wetGain };
+    return {
+      settings,
+      definition,
+      processor,
+      nodes: [entry, exit, dryGain, wetGain],
+      dryGain,
+      wetGain,
+      wetConnected,
+      disconnectTimer: null
+    };
   }
 
   #updateEffect(liveEffect: LiveEffect, settings: RafEffectSettings): void {
@@ -185,10 +213,7 @@ export class RafEngine {
     }
     const enabled = this.#isEffectEnabled(settings, liveEffect.processor);
     const previouslyEnabled = this.#isEffectEnabled(previousSettings, liveEffect.processor);
-    if (enabled !== previouslyEnabled) {
-      setAudioParam(liveEffect.dryGain.gain, enabled ? 0 : 1, this.context);
-      setAudioParam(liveEffect.wetGain.gain, enabled ? 1 : 0, this.context);
-    }
+    if (enabled !== previouslyEnabled) this.#setEffectEnabled(liveEffect, enabled);
     liveEffect.settings = settings;
   }
 
@@ -197,25 +222,85 @@ export class RafEngine {
   }
 
   #setRackEnabled(enabled: boolean): void {
+    this.#cancelActiveChainDisconnect();
+    if (enabled && this.#activeChain) this.#connectChain(this.#activeChain);
     setAudioParam(this.#dryGain.gain, enabled ? 0 : 1, this.context);
     if (this.#activeChain) setAudioParam(this.#activeChain.outputGain.gain, enabled ? 1 : 0, this.context);
+    if (!enabled && this.#activeChain?.connected) {
+      const chain = this.#activeChain;
+      this.#activeChainDisconnectTimer = setTimeout(() => {
+        this.#activeChainDisconnectTimer = null;
+        if (this.#activeChain === chain) this.#disconnectChain(chain);
+      }, GRAPH_CROSSFADE_SECONDS * 1000 + 5);
+    }
   }
 
   #disposeChain(chain: LiveChain): void {
+    this.#disconnectChain(chain);
     disconnectNode(chain.input);
     disconnectNode(chain.outputGain);
     for (const effect of chain.effects) {
+      if (effect.disconnectTimer !== null) clearTimeout(effect.disconnectTimer);
       effect.nodes.forEach(disconnectNode);
       if (effect.processor) effect.definition.disposeNode(effect.processor);
     }
   }
 
+  #connectChain(chain: LiveChain): void {
+    if (chain.connected) return;
+    this.#inputAnalyser.connect(chain.input);
+    chain.outputGain.connect(this.#outputAnalyser);
+    chain.connected = true;
+  }
+
+  #disconnectChain(chain: LiveChain): void {
+    if (!chain.connected) return;
+    try {
+      this.#inputAnalyser.disconnect(chain.input);
+      chain.outputGain.disconnect(this.#outputAnalyser);
+    } catch {
+      // A replaced graph can already be detached while its crossfade timer settles.
+    }
+    chain.connected = false;
+  }
+
+  #cancelActiveChainDisconnect(): void {
+    if (this.#activeChainDisconnectTimer === null) return;
+    clearTimeout(this.#activeChainDisconnectTimer);
+    this.#activeChainDisconnectTimer = null;
+  }
+
+  #setEffectEnabled(effect: LiveEffect, enabled: boolean): void {
+    if (effect.disconnectTimer !== null) {
+      clearTimeout(effect.disconnectTimer);
+      effect.disconnectTimer = null;
+    }
+
+    if (enabled && effect.processor && !effect.wetConnected) {
+      effect.nodes[0].connect(effect.processor.input);
+      effect.processor.output.connect(effect.wetGain);
+      effect.wetGain.connect(effect.nodes[1]);
+      effect.wetConnected = true;
+    }
+
+    setAudioParam(effect.dryGain.gain, enabled ? 0 : 1, this.context);
+    setAudioParam(effect.wetGain.gain, enabled ? 1 : 0, this.context);
+
+    if (!enabled && effect.processor && effect.wetConnected) {
+      effect.disconnectTimer = setTimeout(() => {
+        effect.disconnectTimer = null;
+        disconnectFrom(effect.nodes[0], effect.processor!.input);
+        disconnectFrom(effect.processor!.output, effect.wetGain);
+        disconnectFrom(effect.wetGain, effect.nodes[1]);
+        effect.wetConnected = false;
+      }, RAF_PARAMETER_RAMP_SECONDS * 1000 + 5);
+    }
+  }
+
   #publishMeters(): void {
-    const input = new Float32Array(this.#inputAnalyser.fftSize);
-    const output = new Float32Array(this.#outputAnalyser.fftSize);
-    this.#inputAnalyser.getFloatTimeDomainData(input);
-    this.#outputAnalyser.getFloatTimeDomainData(output);
-    publishRafMeter(peakDb(input), peakDb(output));
+    this.#inputAnalyser.getFloatTimeDomainData(this.#inputMeterSamples);
+    this.#outputAnalyser.getFloatTimeDomainData(this.#outputMeterSamples);
+    publishRafMeter(peakDb(this.#inputMeterSamples), peakDb(this.#outputMeterSamples));
   }
 }
 
@@ -288,4 +373,16 @@ export function sameEffectSettings(first: RafEffectSettings, second: RafEffectSe
 
 function sameArray<T>(first: T[], second: T[]): boolean {
   return first.length === second.length && first.every((value, index) => value === second[index]);
+}
+
+function sameSet<T>(first: Set<T>, second: Set<T>): boolean {
+  return first.size === second.size && [...first].every((value) => second.has(value));
+}
+
+function disconnectFrom(source: AudioNode, destination: AudioNode): void {
+  try {
+    source.disconnect(destination);
+  } catch {
+    // A chain replacement can dispose either side while a crossfade timer settles.
+  }
 }

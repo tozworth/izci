@@ -144,6 +144,9 @@ export function createPlaybackCommandsController({
     track: PlaylistItem,
     options: { manualTransition?: boolean } = {}
   ): Promise<void> {
+    // Start (or resume) the shared context while the initiating tap still carries
+    // mobile browser user activation; file permission/materialization may await.
+    void playerController.resumeAudio();
     const requestId = ++playRequestSequence;
     setPendingPlaybackTrackId(track.id);
     const playableTrack = await playlistStore.ensureLoaded(track.id, { prompt: true });
@@ -286,6 +289,7 @@ export function createPlaybackCommandsController({
   }
 
   async function play(): Promise<void> {
+    void playerController.resumeAudio();
     const playingTrack = getPlayingTrack();
 
     if (playingTrack) {

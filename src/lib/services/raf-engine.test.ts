@@ -108,6 +108,46 @@ describe('RafEngine', () => {
     engine.destroy();
   });
 
+  it('detaches and reconnects the wet rack around a full bypass', () => {
+    playbackSettings.update({ enableRaf: true });
+    const context = new FakeContext();
+    const engine = new RafEngine(context as unknown as BaseAudioContext);
+    const inputAnalyser = context.analysers[0];
+    const connectionsBeforeBypass = inputAnalyser.connections.length;
+
+    rafSettings.setEnabled(false);
+    vi.advanceTimersByTime(30);
+    expect(inputAnalyser.disconnectCalls).toBeGreaterThan(0);
+
+    rafSettings.setEnabled(true);
+    expect(inputAnalyser.connections.length).toBeGreaterThan(connectionsBeforeBypass);
+    engine.destroy();
+  });
+
+  it('detaches a bypassed effect processor and reconnects it when enabled', () => {
+    playbackSettings.update({ enableRaf: true });
+    const context = new FakeContext();
+    const engine = new RafEngine(context as unknown as BaseAudioContext);
+    rafSettings.addEffect('graphic-eq');
+    const effect = rafSettings.getSnapshot().effects[0] as RafGraphicEqSettings;
+    const processorInput = context.gains.find((gain) =>
+      gain.connections.some(({ destination }) => destination === context.filters.at(-11))
+    );
+    const entry = context.gains.find((gain) =>
+      gain.connections.some(({ destination }) => destination === processorInput)
+    );
+    expect(entry).toBeDefined();
+    const connectionCount = entry!.connections.length;
+
+    rafSettings.updateEffect(effect.id, (current) => ({ ...current, enabled: false }));
+    vi.advanceTimersByTime(25);
+    expect(entry!.disconnectCalls).toBeGreaterThan(0);
+
+    rafSettings.updateEffect(effect.id, (current) => ({ ...current, enabled: true }));
+    expect(entry!.connections.length).toBeGreaterThan(connectionCount);
+    engine.destroy();
+  });
+
   it('bypasses and restores one effect type without changing rack settings', () => {
     const context = new FakeContext();
     const engine = new RafEngine(context as unknown as BaseAudioContext);

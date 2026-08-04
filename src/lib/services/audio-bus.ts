@@ -204,8 +204,14 @@ export class AudioBusService {
   }
 
   async resume(): Promise<boolean> {
-    if (this.#context?.state === 'suspended') {
-      await this.#context.resume().catch(() => undefined);
+    try {
+      this.#ensureGraph();
+    } catch {
+      return false;
+    }
+    const context = this.#context;
+    if (context && context.state !== 'running' && context.state !== 'closed') {
+      await context.resume().catch(() => undefined);
     }
     return this.#context?.state === 'running';
   }
@@ -233,6 +239,11 @@ export class AudioBusService {
   }
 
   setRafEffectBypass(type: RafEffectType, bypassed: boolean): void {
+    const changed = bypassed
+      ? !this.#bypassedRafEffectTypes.has(type)
+      : this.#bypassedRafEffectTypes.has(type);
+    if (!changed) return;
+
     if (bypassed) {
       this.#bypassedRafEffectTypes.add(type);
     } else {
@@ -303,7 +314,10 @@ export class AudioBusService {
       throw new Error('Web Audio is unavailable in this browser.');
     }
 
-    const context = new AudioContextConstructor();
+    // izci is a media player, not an instrument. The default interactive hint gives
+    // mobile Chromium very little render-buffer headroom and is prone to underruns
+    // once the Raf graph becomes non-trivial.
+    const context = new AudioContextConstructor({ latencyHint: 'playback' });
     const input = context.createGain();
     const output = context.createGain();
     const analyser = context.createAnalyser();

@@ -222,6 +222,17 @@ function createPlayerController() {
 
   activeBundle = createBundle();
 
+  function resumeAudioAfterInterruption(): void {
+    if (typeof document === 'undefined' || document.visibilityState === 'hidden'
+      || desiredPlaybackState !== 'playing') return;
+    void audioBusService.resume();
+  }
+
+  if (typeof document !== 'undefined') {
+    document.addEventListener('visibilitychange', resumeAudioAfterInterruption);
+  }
+  if (typeof window !== 'undefined') window.addEventListener('pageshow', resumeAudioAfterInterruption);
+
   function bundleService(bundle: PlaybackBundle) {
     const track = bundle.track;
     if (!track) return null;
@@ -518,6 +529,9 @@ function createPlayerController() {
     get videoPictureInPictureSupported() {
       return activeBundle.video.pictureInPictureSupported;
     },
+    resumeAudio() {
+      return audioBusService.resume();
+    },
     toggleVideoPictureInPicture() {
       return activeBundle.video.togglePictureInPicture();
     },
@@ -658,6 +672,10 @@ function createPlayerController() {
     },
     destroy() {
       operationSequence += 1;
+      if (typeof document !== 'undefined') {
+        document.removeEventListener('visibilitychange', resumeAudioAfterInterruption);
+      }
+      if (typeof window !== 'undefined') window.removeEventListener('pageshow', resumeAudioAfterInterruption);
       unsubscribeModuleSettings();
       unsubscribeMetadataSettings();
       unsubscribePlaybackSettings();

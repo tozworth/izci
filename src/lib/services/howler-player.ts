@@ -18,6 +18,7 @@ interface StreamLoadOptions {
 }
 
 const PROGRESS_PUBLISH_INTERVAL_SECONDS = 0.125;
+const PROGRESS_POLL_INTERVAL_MILLISECONDS = 125;
 
 export class HowlerPlayerService {
   #howl: Howl | null = null;
@@ -25,7 +26,7 @@ export class HowlerPlayerService {
   #loadToken = 0;
   #autoPlayOnLoad = false;
   #initialPosition = 0;
-  #tickFrame: number | null = null;
+  #tickTimer: number | null = null;
   #shouldTrackProgress = false;
   #useLogarithmicVolume = true;
   #replayGainMode: ReplayGainMode = 'track';
@@ -177,6 +178,7 @@ export class HowlerPlayerService {
 
   play(): void {
     this.#autoPlayOnLoad = true;
+    void audioBusService.resume();
     this.#howl?.play();
   }
 
@@ -297,7 +299,7 @@ export class HowlerPlayerService {
   }
 
   #startTicking(): void {
-    if (this.#tickFrame !== null) {
+    if (this.#tickTimer !== null) {
       return;
     }
 
@@ -305,16 +307,16 @@ export class HowlerPlayerService {
   }
 
   #stopTicking(): void {
-    if (this.#tickFrame === null) {
+    if (this.#tickTimer === null) {
       return;
     }
 
-    cancelAnimationFrame(this.#tickFrame);
-    this.#tickFrame = null;
+    window.clearTimeout(this.#tickTimer);
+    this.#tickTimer = null;
   }
 
   #tick(): void {
-    this.#tickFrame = null;
+    this.#tickTimer = null;
 
     if (!this.#howl) {
       return;
@@ -324,7 +326,7 @@ export class HowlerPlayerService {
 
     if (!isPlaying) {
       if (this.#shouldTrackProgress) {
-        this.#tickFrame = requestAnimationFrame(() => this.#tick());
+        this.#scheduleTick();
       }
       return;
     }
@@ -333,7 +335,14 @@ export class HowlerPlayerService {
     const duration = this.#howl.duration();
 
     this.#publishProgress(false, currentTime, duration);
-    this.#tickFrame = requestAnimationFrame(() => this.#tick());
+    this.#scheduleTick();
+  }
+
+  #scheduleTick(): void {
+    this.#tickTimer = window.setTimeout(
+      () => this.#tick(),
+      PROGRESS_POLL_INTERVAL_MILLISECONDS
+    );
   }
 
   #publishProgress(

@@ -85,6 +85,7 @@ class FakeMediaStreamSourceNode extends FakeAudioNode {
 
 class FakeAudioContext {
   static instances: FakeAudioContext[] = [];
+  static constructorOptions: AudioContextOptions[] = [];
 
   readonly destination = new FakeAudioNode(this);
   readonly gains: FakeGainNode[] = [];
@@ -97,8 +98,9 @@ class FakeAudioContext {
   closeCalls = 0;
   resumeCalls = 0;
 
-  constructor() {
+  constructor(options: AudioContextOptions = {}) {
     FakeAudioContext.instances.push(this);
+    FakeAudioContext.constructorOptions.push(options);
   }
 
   createGain(): GainNode {
@@ -147,6 +149,7 @@ describe('AudioBusService', () => {
 
   beforeEach(() => {
     FakeAudioContext.instances = [];
+    FakeAudioContext.constructorOptions = [];
     vi.stubGlobal('window', { AudioContext: FakeAudioContext });
     bus = new AudioBusService();
   });
@@ -165,6 +168,7 @@ describe('AudioBusService', () => {
     expect(context.gains.some((gain) => gain.connections.includes(analyser))).toBe(true);
     expect(analyser.connections).toEqual([output]);
     expect(output.connections).toEqual([context.destination]);
+    expect(FakeAudioContext.constructorOptions).toEqual([{ latencyHint: 'playback' }]);
   });
 
   it('applies source gain before Raf and player volume after the analyser', () => {
@@ -232,6 +236,14 @@ describe('AudioBusService', () => {
 
     expect(context.resumeCalls).toBe(1);
     expect(context.state).toBe('running');
+  });
+
+  it('creates and resumes the graph when playback starts before a source is connected', async () => {
+    await bus.resume();
+
+    expect(FakeAudioContext.instances).toHaveLength(1);
+    expect(FakeAudioContext.instances[0].resumeCalls).toBe(1);
+    expect(FakeAudioContext.instances[0].state).toBe('running');
   });
 
   it('branches pre-Raf audio by default and can move a reusable broadcast track post-Raf', () => {
