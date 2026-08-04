@@ -745,14 +745,6 @@
         "hint": "Bu izci'nin sunucu olmasını veya paylaşımlı bir dinleme oturumuna katılmasını sağlar. İlk bağlantıyı Firebase kurar; ses doğrudan eşler arasında iletilir.",
         "name": "Bu izci'yi adlandır",
         "nameHint": "Çok oyunculu oturumlarda sunucu ve istemcilere gösterilir.",
-        "streamAudio": {
-          "title": "Dinleyicilere ses aktar",
-          "hint": "Sunucunun sesini doğrudan bağlı eşlere gönderir. Sunucunun ses düzeyi ve sessiz ayarı dinleyicileri etkilemez."
-        },
-        "postRaf": {
-          "title": "Raf sonrası sesi gönder",
-          "hint": "Aktarımdan önce sunucunun Raf rafını uygular. Kapalıyken dinleyiciler Raf öncesi sesi alır ve kendi Raf ayarlarını uygulayabilir."
-        },
         "turnUrl": {
           "title": "TURN server",
           "hint": "Optional relay endpoint, such as relay.example.net:3478 or turns:relay.example.net:5349. A bare address uses turn: automatically."
@@ -769,6 +761,19 @@
           "title": "Force TURN relay",
           "hint": "Uses relay candidates only. Enable temporarily to verify the relay or keep enabled when direct routes must never be used."
         },
+        "maxListeners": {
+          "title": "Azami konuk",
+          "hint": "Ses aktarımı etkin olsun veya olmasın, sunucuya aynı anda kaç konuğun bağlanabileceğini sınırlar."
+        },
+        "audioCategory": "Çok Oyunculu Ses",
+        "streamAudio": {
+          "title": "Dinleyicilere ses aktar",
+          "hint": "Sunucunun sesini doğrudan bağlı eşlere gönderir. Sunucunun ses düzeyi ve sessiz ayarı dinleyicileri etkilemez."
+        },
+        "postRaf": {
+          "title": "Raf sonrası sesi gönder",
+          "hint": "Aktarımdan önce sunucunun Raf rafını uygular. Kapalıyken dinleyiciler Raf öncesi sesi alır ve kendi Raf ayarlarını uygulayabilir."
+        },
         "opusBitrate": {
           "title": "Opus VBR bit hızı",
           "hint": "Her dinleyici için yaklaşık bit hızı üst sınırını belirler. Yüksek değerler sunucuda daha fazla bant genişliği ve kodlama gücü kullanır."
@@ -780,10 +785,6 @@
         "videoAudio": {
           "title": "Videoların sesini dâhil et",
           "hint": "Sunucu video oynatırken ses parçasını göndermeyi sürdürür; video görüntüsü hiçbir zaman iletilmez."
-        },
-        "maxListeners": {
-          "title": "Azami dinleyici",
-          "hint": "Sunucu her eş için ayrı bir akış kodlayıp gönderdiğinden yeni dinleyicilerin sayısını sınırlar."
         },
         "diagnostics": {
           "heading": "Bağlantı tanılama",

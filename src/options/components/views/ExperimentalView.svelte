@@ -113,29 +113,6 @@
         />
       </SettingsField>
       <SettingsField
-        title={$t('options.experimental.multiplayer.streamAudio.title', { default: 'Stream audio to listeners' })}
-        hint={$t('options.experimental.multiplayer.streamAudio.hint', { default: 'Sends the host’s audio directly to connected peers. The host’s volume and mute do not affect listeners.' })}
-        checkbox
-      >
-        <input
-          type="checkbox"
-          checked={$experimentalSettings.multiplayerStreamAudio}
-          on:change={handleStreamAudioToggle}
-        />
-      </SettingsField>
-      <SettingsField
-        title={$t('options.experimental.multiplayer.postRaf.title', { default: 'Send post-Raf audio' })}
-        hint={$t('options.experimental.multiplayer.postRaf.hint', { default: 'Applies the host’s Raf rack before streaming. When off, listeners receive pre-Raf audio and can apply their own Raf settings.' })}
-        checkbox
-      >
-        <input
-          type="checkbox"
-          checked={$experimentalSettings.multiplayerSendPostRaf}
-          disabled={!$experimentalSettings.multiplayerStreamAudio}
-          on:change={handleSendPostRafToggle}
-        />
-      </SettingsField>
-      <SettingsField
         title={$t('options.experimental.multiplayer.turnUrl.title', { default: 'TURN server' })}
         hint={$t('options.experimental.multiplayer.turnUrl.hint', { default: 'Host-only relay endpoint, such as relay.example.net:3478 or turns:relay.example.net:5349. Listeners receive it with temporary credentials.' })}
       >
@@ -189,6 +166,48 @@
         />
       </SettingsField>
       <SettingsField
+        title={$t('options.experimental.multiplayer.maxListeners.title', { default: 'Maximum guests' })}
+        hint={$t('options.experimental.multiplayer.maxListeners.hint', { default: 'Limits how many guests can connect to the host at once, whether or not audio streaming is enabled.' })}
+      >
+        <input
+          type="range"
+          min={MULTIPLAYER_MAX_LISTENERS_MIN}
+          max={MULTIPLAYER_MAX_LISTENERS_MAX}
+          step="1"
+          value={$experimentalSettings.multiplayerMaxListeners}
+          on:input={handleMaxListenersChange}
+        />
+        <span class="field-output">{$experimentalSettings.multiplayerMaxListeners}</span>
+      </SettingsField>
+    </div>
+  </div>
+  <div class="section">
+    <h2>{$t('options.experimental.multiplayer.audioCategory', { default: 'Multiplayer Audio' })}</h2>
+    <div class="field-grid">
+      <SettingsField
+        title={$t('options.experimental.multiplayer.streamAudio.title', { default: 'Stream audio to listeners' })}
+        hint={$t('options.experimental.multiplayer.streamAudio.hint', { default: 'Sends the host’s audio directly to connected peers. The host’s volume and mute do not affect listeners.' })}
+        checkbox
+      >
+        <input
+          type="checkbox"
+          checked={$experimentalSettings.multiplayerStreamAudio}
+          on:change={handleStreamAudioToggle}
+        />
+      </SettingsField>
+      <SettingsField
+        title={$t('options.experimental.multiplayer.postRaf.title', { default: 'Send post-Raf audio' })}
+        hint={$t('options.experimental.multiplayer.postRaf.hint', { default: 'Applies the host’s Raf rack before streaming. When off, listeners receive pre-Raf audio and can apply their own Raf settings.' })}
+        checkbox
+      >
+        <input
+          type="checkbox"
+          checked={$experimentalSettings.multiplayerSendPostRaf}
+          disabled={!$experimentalSettings.multiplayerStreamAudio}
+          on:change={handleSendPostRafToggle}
+        />
+      </SettingsField>
+      <SettingsField
         title={$t('options.experimental.multiplayer.opusBitrate.title', { default: 'Opus VBR bitrate' })}
         hint={$t('options.experimental.multiplayer.opusBitrate.hint', { default: 'Sets the best-effort bitrate ceiling for each listener. Higher rates use more host bandwidth and encoding work.' })}
       >
@@ -229,48 +248,34 @@
           on:change={handleIncludeVideoAudioToggle}
         />
       </SettingsField>
-      <SettingsField
-        title={$t('options.experimental.multiplayer.maxListeners.title', { default: 'Maximum listeners' })}
-        hint={$t('options.experimental.multiplayer.maxListeners.hint', { default: 'Limits new listeners because the host encodes and sends one stream per peer.' })}
-      >
-        <input
-          type="range"
-          min={MULTIPLAYER_MAX_LISTENERS_MIN}
-          max={MULTIPLAYER_MAX_LISTENERS_MAX}
-          step="1"
-          value={$experimentalSettings.multiplayerMaxListeners}
-          on:input={handleMaxListenersChange}
-        />
-        <span class="field-output">{$experimentalSettings.multiplayerMaxListeners}</span>
-      </SettingsField>
     </div>
-    <aside class="multiplayer-footnotes" aria-labelledby="multiplayer-diagnostics-heading">
-      <div class="multiplayer-diagnostics-header">
-        <MultiplayerMark
-          size="0.7rem"
-          label={$t('main.multiplayer.markLabel', { default: 'izci multiplayer' })}
-        />
-        <h3 id="multiplayer-diagnostics-heading">
-          {$t('options.experimental.multiplayer.diagnostics.heading', { default: 'Connection diagnostics' })}
-        </h3>
-      </div>
-      <p>
-        {$t('options.experimental.multiplayer.diagnostics.signaling', { default: 'Firebase only exchanges the invite, session descriptions, and ICE candidates. Playback controls, catalog data, artwork, and audio use the resulting peer connection.' })}
-      </p>
-      <p>
-        {$t('options.experimental.multiplayer.diagnostics.direct', { default: 'izci asks Cloudflare and Google STUN servers for public ICE candidates, then tries direct routes. When configured above, TURN adds a relay path for restrictive NAT or firewall combinations.' })}
-      </p>
-      <p>
-        {$t('options.experimental.multiplayer.diagnostics.upnp', { default: 'A static public IP or router UPnP does not guarantee success: Chromium chooses its own ICE ports and izci does not request a UPnP port mapping.' })}
-      </p>
-      <p>
-        {$t('options.experimental.multiplayer.diagnostics.messages', { default: 'Failure to gather candidates points to browser or network policy; local-only candidates point to STUN failure; candidates on both sides with no connection point to NAT or firewall filtering.' })}
-      </p>
-      <p>
-        {$t('options.experimental.multiplayer.diagnostics.tailnet', { default: 'A successful Tailscale connection may use tailnet addresses, router port mapping, or DERP. It does not prove that the same devices have a usable direct route with Tailscale off.' })}
-      </p>
-    </aside>
   </div>
+  <aside class="multiplayer-footnotes" aria-labelledby="multiplayer-diagnostics-heading">
+    <div class="multiplayer-diagnostics-header">
+      <MultiplayerMark
+        size="0.7rem"
+        label={$t('main.multiplayer.markLabel', { default: 'izci multiplayer' })}
+      />
+      <h3 id="multiplayer-diagnostics-heading">
+        {$t('options.experimental.multiplayer.diagnostics.heading', { default: 'Connection diagnostics' })}
+      </h3>
+    </div>
+    <p>
+      {$t('options.experimental.multiplayer.diagnostics.signaling', { default: 'Firebase only exchanges the invite, session descriptions, and ICE candidates. Playback controls, catalog data, artwork, and audio use the resulting peer connection.' })}
+    </p>
+    <p>
+      {$t('options.experimental.multiplayer.diagnostics.direct', { default: 'izci asks Cloudflare and Google STUN servers for public ICE candidates, then tries direct routes. When configured above, TURN adds a relay path for restrictive NAT or firewall combinations.' })}
+    </p>
+    <p>
+      {$t('options.experimental.multiplayer.diagnostics.upnp', { default: 'A static public IP or router UPnP does not guarantee success: Chromium chooses its own ICE ports and izci does not request a UPnP port mapping.' })}
+    </p>
+    <p>
+      {$t('options.experimental.multiplayer.diagnostics.messages', { default: 'Failure to gather candidates points to browser or network policy; local-only candidates point to STUN failure; candidates on both sides with no connection point to NAT or firewall filtering.' })}
+    </p>
+    <p>
+      {$t('options.experimental.multiplayer.diagnostics.tailnet', { default: 'A successful Tailscale connection may use tailnet addresses, router port mapping, or DERP. It does not prove that the same devices have a usable direct route with Tailscale off.' })}
+    </p>
+  </aside>
 </article>
 
 <style>

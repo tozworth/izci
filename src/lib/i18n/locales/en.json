@@ -745,14 +745,6 @@
         "hint": "Lets this izci host or join a shared listening session. Firebase handles the handshake; audio travels directly between peers.",
         "name": "Name this izci",
         "nameHint": "Shown to hosts and clients in multiplayer sessions.",
-        "streamAudio": {
-          "title": "Stream audio to listeners",
-          "hint": "Sends the host’s audio directly to connected peers. The host’s volume and mute do not affect listeners."
-        },
-        "postRaf": {
-          "title": "Send post-Raf audio",
-          "hint": "Applies the host’s Raf rack before streaming. When off, listeners receive pre-Raf audio and can apply their own Raf settings."
-        },
         "turnUrl": {
           "title": "TURN server",
           "hint": "Host-only relay endpoint, such as relay.example.net:3478 or turns:relay.example.net:5349. Listeners receive it with temporary credentials."
@@ -769,6 +761,19 @@
           "title": "Force TURN relay",
           "hint": "Uses relay candidates only on the host and listeners. Enable temporarily to verify the relay or keep enabled when direct routes must never be used."
         },
+        "maxListeners": {
+          "title": "Maximum guests",
+          "hint": "Limits how many guests can connect to the host at once, whether or not audio streaming is enabled."
+        },
+        "audioCategory": "Multiplayer Audio",
+        "streamAudio": {
+          "title": "Stream audio to listeners",
+          "hint": "Sends the host’s audio directly to connected peers. The host’s volume and mute do not affect listeners."
+        },
+        "postRaf": {
+          "title": "Send post-Raf audio",
+          "hint": "Applies the host’s Raf rack before streaming. When off, listeners receive pre-Raf audio and can apply their own Raf settings."
+        },
         "opusBitrate": {
           "title": "Opus VBR bitrate",
           "hint": "Sets the best-effort bitrate ceiling for each listener. Higher rates use more host bandwidth and encoding work."
@@ -780,10 +785,6 @@
         "videoAudio": {
           "title": "Include audio from videos",
           "hint": "Keeps sending the soundtrack when the host plays a video; video pictures are never transmitted."
-        },
-        "maxListeners": {
-          "title": "Maximum listeners",
-          "hint": "Limits new listeners because the host encodes and sends one stream per peer."
         },
         "diagnostics": {
           "heading": "Connection diagnostics",
