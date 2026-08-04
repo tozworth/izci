@@ -37,6 +37,7 @@ import {
   type MultiplayerTurnCredentialResponse
 } from './multiplayer-turn-credentials';
 import { setMultiplayerReceiverBuffer } from './multiplayer-receiver';
+import { multiplayerSourcePlaybackService } from './multiplayer-source-playback';
 import {
   updateReceivedBitrateWindow,
   type ReceivedByteSample
@@ -76,12 +77,23 @@ const ICE_CONNECTION_TIMEOUT_MS = 15_000;
 const TURN_CREDENTIAL_RESPONSE_TIMEOUT_MS = 15_000;
 const RECEIVER_BITRATE_SAMPLE_INTERVAL_MS = 1_000;
 const RECEIVE_AUDIO_STORAGE_KEY = 'izci.multiplayer.receive-audio';
+const SOURCE_FILE_CHUNK_SIZE = 16 * 1024;
+const SOURCE_FILE_QUEUE_LIMIT = 1024 * 1024;
 
 export function isMultiplayerClientTransportHealthy(
   connectionState: RTCPeerConnectionState,
   channelState: RTCDataChannelState | undefined
 ): boolean {
   return connectionState === 'connected' && channelState === 'open';
+}
+
+export function shouldTransferMultiplayerSourceFile(
+  track: PlaylistItem | null,
+  limitMiB: number,
+  audioEnabled = true
+): boolean {
+  if (!audioEnabled || !track?.file || track.kind === 'video' || limitMiB === 0) return false;
+  return limitMiB < 0 || track.file.size < limitMiB * 1024 * 1024;
 }
 
 const EMPTY_PLAYBACK: PlaybackSnapshot = {
@@ -110,7 +122,7 @@ const EMPTY_REMOTE_PLAYBACK: MultiplayerPlayback = {
 
 export type MultiplayerMode = 'idle' | 'hosting' | 'client';
 export type MultiplayerConnectionStatus = 'idle' | 'connecting' | 'connected' | 'disconnected' | 'error';
-export type MultiplayerAudioStatus = MultiplayerReceiverAudioStatus | 'disabled' | 'video-disabled' | 'refused';
+export type MultiplayerAudioStatus = MultiplayerReceiverAudioStatus | 'disabled' | 'refused';
 
 export interface MultiplayerConnectionStats {
   packetsReceived: number;
@@ -210,6 +222,21 @@ interface PairedClientRecord {
   pairedAt: number;
 }
 
+interface SourceFileBeginFrame {
+  kind: 'file.begin';
+  transferId: string;
+  trackId: string;
+  name: string;
+  type: string;
+  size: number;
+  lastModified: number;
+}
+
+interface SourceFileEndFrame {
+  kind: 'file.end';
+  transferId: string;
+}
+
 interface PeerConnection {
   id: string;
   name: string;
@@ -217,6 +244,12 @@ interface PeerConnection {
   channel: RTCDataChannel | null;
   outgoing: string[];
   flushing: boolean;
+  mediaChannel: RTCDataChannel | null;
+  mediaOutgoing: Array<string | ArrayBuffer>;
+  mediaQueuedBytes: number;
+  mediaFlushing: boolean;
+  mediaTransferToken: number;
+  sourceTrackKey: string;
   decode: ReturnType<typeof createMultiplayerMessageDecoder<ClientMessage>>;
   audioSender: RTCRtpSender | null;
   pendingAudioBitrate: number | null;
@@ -287,6 +320,7 @@ export function createMultiplayerSession({
   let stopPeersListener: Unsubscribe | null = null;
   let stopAnswerListener: Unsubscribe | null = null;
   let clientPeer: PeerConnection | null = null;
+  let pendingClientSourceFile: { trackId: string; file: File } | null = null;
   let reconnectTimer: number | null = null;
   let reconnectAttempts = 0;
   let reconnectInFlight = false;
@@ -306,6 +340,7 @@ export function createMultiplayerSession({
   let hostArtworkLoadToken = 0;
   let latestAudioAvailability: MultiplayerAudioAvailability = {
     enabled: false,
+    sourceFile: false,
     postRaf: false,
     reason: 'host-disabled'
   };
@@ -318,7 +353,10 @@ export function createMultiplayerSession({
     const audioBufferChanged = settings.multiplayerAudioBufferMs
       !== multiplayerSettings.multiplayerAudioBufferMs;
     multiplayerSettings = settings;
-    if (state.mode === 'hosting') syncHostAudio(latestHostState?.track ?? null);
+    if (state.mode === 'hosting') {
+      syncHostAudio(latestHostState?.track ?? null);
+      syncHostSourceFiles(latestHostState?.track ?? null);
+    }
     if (state.mode === 'client' && clientPeer && audioBufferChanged) {
       applyClientAudioBuffer(clientPeer);
     }
@@ -535,7 +573,10 @@ export function createMultiplayerSession({
       paired: pairingSnapshot.exists()
     });
 
-    peer.pc.ondatachannel = (event) => attachHostChannel(peer, event.channel);
+    peer.pc.ondatachannel = (event) => {
+      if (event.channel.label === 'izci-media') attachHostMediaChannel(peer, event.channel);
+      else attachHostChannel(peer, event.channel);
+    };
     peer.pc.onconnectionstatechange = () => {
       const status = peer.pc.connectionState;
       if (status === 'connected') {
@@ -679,8 +720,29 @@ export function createMultiplayerSession({
   async function join(rawInviteCode: string): Promise<void> {
     allowClientReconnect = true;
     reconnectAttempts = 0;
-    await connectClient(rawInviteCode, false);
-    if (state.connectionStatus !== 'connected') scheduleClientReconnect(15_000);
+    multiplayerSourcePlaybackService.beginClientSession();
+    multiplayerSourcePlaybackService.setEnabled(state.receiveAudio);
+    try {
+      await connectClient(rawInviteCode, false);
+      if (state.connectionStatus !== 'connected') scheduleClientReconnect(15_000);
+    } catch (error) {
+      await multiplayerSourcePlaybackService.endClientSession();
+      throw error;
+    }
+  }
+
+  function attachHostMediaChannel(peer: PeerConnection, channel: RTCDataChannel): void {
+    peer.mediaChannel = channel;
+    channel.binaryType = 'arraybuffer';
+    channel.bufferedAmountLowThreshold = 256 * 1024;
+    channel.onopen = () => syncPeerSourceFile(peer, latestHostState?.track ?? null);
+    channel.onbufferedamountlow = () => flushPeerMedia(peer);
+    channel.onclose = () => {
+      peer.mediaTransferToken += 1;
+      peer.mediaOutgoing = [];
+      peer.mediaQueuedBytes = 0;
+      peer.mediaFlushing = false;
+    };
   }
 
   async function joinPaired(hostId: string): Promise<void> {
@@ -764,8 +826,12 @@ export function createMultiplayerSession({
       );
       const channel = peer.pc.createDataChannel('izci-control', { ordered: true });
       peer.channel = channel;
+      const mediaChannel = peer.pc.createDataChannel('izci-media', { ordered: true });
+      mediaChannel.binaryType = 'arraybuffer';
+      peer.mediaChannel = mediaChannel;
       clientPeer = peer;
       attachClientChannel(peer);
+      attachClientMediaChannel(peer);
 
       const nextPeerRef = firebase.ref(
         firebase.database,
@@ -906,7 +972,11 @@ export function createMultiplayerSession({
       const message = decode(event.data);
       if (!message) return;
       if (message.kind === 'catalog') publish({ remoteCatalog: message.catalog });
-      if (message.kind === 'playback') publish({ remotePlayback: message.playback });
+      if (message.kind === 'playback') {
+        publish({ remotePlayback: message.playback });
+        multiplayerSourcePlaybackService.syncPlayback(message.playback);
+        loadPendingClientSourceFile(peer);
+      }
       if (message.kind === 'artwork') {
         publish({
           remoteArtwork: message.artwork,
@@ -920,19 +990,29 @@ export function createMultiplayerSession({
       if (message.kind === 'audio') {
         latestAudioAvailability = message.audio;
         if (!state.receiveAudio) {
+          multiplayerSourcePlaybackService.setEnabled(false);
           publish({ audioStatus: 'refused', averageAudioBitrateKbps: null });
+        } else if (message.audio.sourceFile) {
+          multiplayerAudioService.clearRemoteTrack();
+          multiplayerSourcePlaybackService.setEnabled(true);
+          publish({ audioStatus: multiplayerSourcePlaybackService.active ? 'playing' : 'connecting' });
         } else if (!message.audio.enabled) {
           publish({
-            audioStatus: message.audio.reason === 'video-disabled' ? 'video-disabled' : 'disabled',
+            audioStatus: 'disabled',
             averageAudioBitrateKbps: null
           });
-        } else if (state.audioStatus === 'disabled' || state.audioStatus === 'video-disabled') {
+          multiplayerSourcePlaybackService.clearSourceTrack();
+        } else if (state.audioStatus === 'disabled') {
           publish({ audioStatus: 'connecting' });
         }
-        if (message.audio.enabled && state.receiveAudio) void multiplayerAudioService.resumeRemoteAudio();
+        if (message.audio.enabled && state.receiveAudio) {
+          multiplayerSourcePlaybackService.clearSourceTrack();
+          attachClientRemoteAudio(peer);
+        }
       }
       if (message.kind === 'kicked') {
         allowClientReconnect = false;
+        multiplayerSourcePlaybackService.clearLoadedFile();
         publish({
           connectionStatus: 'disconnected',
           audioStatus: 'unavailable',
@@ -951,6 +1031,7 @@ export function createMultiplayerSession({
     };
     channel.onclose = () => {
       if (clientPeer !== peer) return;
+      multiplayerSourcePlaybackService.clearLoadedFile();
       if (state.mode === 'client' && state.connectionStatus !== 'error') {
         publish({
           connectionStatus: allowClientReconnect ? 'connecting' : 'disconnected',
@@ -992,9 +1073,12 @@ export function createMultiplayerSession({
       setMultiplayerReceiverBuffer(event.receiver, multiplayerSettings.multiplayerAudioBufferMs);
       startReceiverBitrateMonitor(peer);
       const stream = event.streams[0] ?? new MediaStream([event.track]);
-      if (!state.receiveAudio) {
+      if (!state.receiveAudio || latestAudioAvailability.sourceFile) {
         event.track.enabled = false;
-        publish({ audioStatus: 'refused', averageAudioBitrateKbps: null });
+        publish({
+          audioStatus: state.receiveAudio ? 'connecting' : 'refused',
+          averageAudioBitrateKbps: null
+        });
         return;
       }
       void multiplayerAudioService.attachRemoteTrack(
@@ -1013,6 +1097,84 @@ export function createMultiplayerSession({
         }
       );
     };
+  }
+
+  function attachClientRemoteAudio(peer: PeerConnection): void {
+    if (clientPeer !== peer || !state.receiveAudio || !latestAudioAvailability.enabled) return;
+    const receiver = peer.pc.getReceivers().find(({ track }) => track.kind === 'audio');
+    const track = receiver?.track;
+    if (!track || track.readyState === 'ended') return;
+    track.enabled = true;
+    void multiplayerAudioService.attachRemoteTrack(track, new MediaStream([track]), (audioStatus) => {
+      if (state.mode === 'client' && state.receiveAudio && latestAudioAvailability.enabled) {
+        publish({ audioStatus });
+      }
+    });
+  }
+
+  function attachClientMediaChannel(peer: PeerConnection): void {
+    const channel = peer.mediaChannel;
+    if (!channel) return;
+    channel.binaryType = 'arraybuffer';
+    let pending: {
+      frame: SourceFileBeginFrame;
+      chunks: ArrayBuffer[];
+      received: number;
+    } | null = null;
+
+    channel.onmessage = (event) => {
+      if (typeof event.data === 'string') {
+        const frame = parseSourceFileFrame(event.data);
+        if (!frame) return;
+        if (frame.kind === 'file.begin') {
+          pending = { frame, chunks: [], received: 0 };
+          multiplayerAudioService.clearRemoteTrack();
+          multiplayerSourcePlaybackService.clearLoadedFile();
+          if (state.receiveAudio) publish({ audioStatus: 'connecting', averageAudioBitrateKbps: null });
+          return;
+        }
+        if (!pending || pending.frame.transferId !== frame.transferId) return;
+        const complete = pending;
+        pending = null;
+        if (complete.received !== complete.frame.size) {
+          publish({ audioStatus: 'unavailable' });
+          return;
+        }
+        const file = new File(complete.chunks, complete.frame.name, {
+          type: complete.frame.type,
+          lastModified: complete.frame.lastModified
+        });
+        pendingClientSourceFile = { trackId: complete.frame.trackId, file };
+        loadPendingClientSourceFile(peer);
+        return;
+      }
+      if (!pending || !(event.data instanceof ArrayBuffer)) return;
+      if (pending.received + event.data.byteLength > pending.frame.size) {
+        pending = null;
+        publish({ audioStatus: 'unavailable' });
+        return;
+      }
+      pending.chunks.push(event.data);
+      pending.received += event.data.byteLength;
+    };
+    channel.onclose = () => {
+      pending = null;
+      if (clientPeer === peer && latestAudioAvailability.sourceFile) {
+        multiplayerSourcePlaybackService.clearLoadedFile();
+        publish({ audioStatus: 'unavailable' });
+      }
+    };
+  }
+
+  function loadPendingClientSourceFile(peer: PeerConnection): void {
+    const pending = pendingClientSourceFile;
+    const remoteTrack = state.remotePlayback.track;
+    if (!pending || !remoteTrack || remoteTrack.id !== pending.trackId) return;
+    pendingClientSourceFile = null;
+    void multiplayerSourcePlaybackService.loadFile(remoteTrack, pending.file).then((loaded) => {
+      if (clientPeer !== peer || !state.receiveAudio) return;
+      publish({ audioStatus: loaded ? 'playing' : 'unavailable', averageAudioBitrateKbps: null });
+    });
   }
 
   async function updateClientConnectionRoute(peer: PeerConnection): Promise<void> {
@@ -1135,6 +1297,18 @@ export function createMultiplayerSession({
     publish({ receiveAudio: enabled });
     if (state.mode !== 'client' || !clientPeer) return;
 
+    multiplayerSourcePlaybackService.setEnabled(enabled);
+    if (latestAudioAvailability.sourceFile) {
+      multiplayerAudioService.clearRemoteTrack();
+      publish({
+        audioStatus: enabled
+          ? multiplayerSourcePlaybackService.active ? 'playing' : 'connecting'
+          : 'refused',
+        averageAudioBitrateKbps: null
+      });
+      return;
+    }
+
     const receiver = clientPeer.pc.getReceivers().find(({ track }) => track.kind === 'audio');
     const track = receiver?.track;
     if (!track || track.readyState === 'ended') {
@@ -1148,14 +1322,10 @@ export function createMultiplayerSession({
       return;
     }
     if (!latestAudioAvailability.enabled) {
-      publish({
-        audioStatus: latestAudioAvailability.reason === 'video-disabled' ? 'video-disabled' : 'disabled'
-      });
+      publish({ audioStatus: 'disabled' });
       return;
     }
-    void multiplayerAudioService.attachRemoteTrack(track, new MediaStream([track]), (audioStatus) => {
-      if (state.mode === 'client' && state.receiveAudio) publish({ audioStatus });
-    });
+    attachClientRemoteAudio(clientPeer);
   }
 
   function scheduleClientReconnect(delay?: number): void {
@@ -1252,6 +1422,7 @@ export function createMultiplayerSession({
 
     syncHostArtwork(next.track);
     syncHostAudio(next.track);
+    syncHostSourceFiles(next.track);
   }
 
   function primeHostState(): void {
@@ -1268,6 +1439,7 @@ export function createMultiplayerSession({
     lastTrackSource = latestHostState.track;
     syncHostArtwork(latestHostState.track);
     syncHostAudio(latestHostState.track);
+    syncHostSourceFiles(latestHostState.track);
   }
 
   function sendCurrentState(peer: PeerConnection): void {
@@ -1281,18 +1453,21 @@ export function createMultiplayerSession({
   }
 
   function syncHostAudio(track: PlaylistItem | null): void {
-    const enabled = multiplayerSettings.multiplayerStreamAudio
-      && (multiplayerSettings.multiplayerIncludeVideoAudio || track?.kind !== 'video');
+    const sourceFile = shouldTransferMultiplayerSourceFile(
+      track,
+      multiplayerSettings.multiplayerFileTransferLimitMiB,
+      multiplayerSettings.multiplayerStreamAudio
+    );
+    const enabled = multiplayerSettings.multiplayerStreamAudio && !sourceFile;
     const nextAvailability: MultiplayerAudioAvailability = {
       enabled,
-      postRaf: multiplayerSettings.multiplayerSendPostRaf,
-      reason: multiplayerSettings.multiplayerStreamAudio
-        ? enabled ? null : 'video-disabled'
-        : 'host-disabled'
+      sourceFile,
+      postRaf: sourceFile ? false : multiplayerSettings.multiplayerSendPostRaf,
+      reason: multiplayerSettings.multiplayerStreamAudio ? null : 'host-disabled'
     };
     multiplayerAudioService.setHostAudible(enabled);
 
-    if (multiplayerSettings.multiplayerStreamAudio) {
+    if (enabled) {
       const hostTrack = multiplayerAudioService.getHostTrack(multiplayerSettings.multiplayerSendPostRaf);
       for (const peer of hostPeers.values()) {
         if (peer.audioSender?.track !== hostTrack) {
@@ -1308,10 +1483,67 @@ export function createMultiplayerSession({
 
     if (nextAvailability.enabled !== latestAudioAvailability.enabled
       || nextAvailability.postRaf !== latestAudioAvailability.postRaf
+      || nextAvailability.sourceFile !== latestAudioAvailability.sourceFile
       || nextAvailability.reason !== latestAudioAvailability.reason) {
       latestAudioAvailability = nextAvailability;
       broadcast({ kind: 'audio', audio: nextAvailability });
     }
+  }
+
+  function syncHostSourceFiles(track: PlaylistItem | null): void {
+    for (const peer of hostPeers.values()) syncPeerSourceFile(peer, track);
+  }
+
+  function syncPeerSourceFile(peer: PeerConnection, track: PlaylistItem | null): void {
+    const channel = peer.mediaChannel;
+    const shouldTransfer = shouldTransferMultiplayerSourceFile(
+      track,
+      multiplayerSettings.multiplayerFileTransferLimitMiB,
+      multiplayerSettings.multiplayerStreamAudio
+    );
+    const key = shouldTransfer && track
+      ? `${track.id}:${track.size}:${track.lastModified}`
+      : '';
+    if (!channel || channel.readyState !== 'open' || peer.sourceTrackKey === key) return;
+
+    peer.mediaTransferToken += 1;
+    peer.mediaOutgoing = [];
+    peer.mediaQueuedBytes = 0;
+    peer.sourceTrackKey = key;
+    if (!shouldTransfer || !track?.file) return;
+    const token = peer.mediaTransferToken;
+    void transferSourceFile(peer, track, track.file, token).catch(() => undefined);
+  }
+
+  async function transferSourceFile(
+    peer: PeerConnection,
+    track: PlaylistItem,
+    file: File,
+    token: number
+  ): Promise<void> {
+    const transferId = crypto.randomUUID();
+    queuePeerMedia(peer, JSON.stringify({
+      kind: 'file.begin',
+      transferId,
+      trackId: track.id,
+      name: file.name,
+      type: file.type,
+      size: file.size,
+      lastModified: file.lastModified
+    } satisfies SourceFileBeginFrame));
+
+    for (let offset = 0; offset < file.size; offset += SOURCE_FILE_CHUNK_SIZE) {
+      if (peer.mediaTransferToken !== token || peer.mediaChannel?.readyState !== 'open') return;
+      while (peer.mediaQueuedBytes >= SOURCE_FILE_QUEUE_LIMIT) {
+        await waitForMediaQueue(peer, token);
+        if (peer.mediaTransferToken !== token || peer.mediaChannel?.readyState !== 'open') return;
+      }
+      const chunk = await file.slice(offset, offset + SOURCE_FILE_CHUNK_SIZE).arrayBuffer();
+      if (peer.mediaTransferToken !== token) return;
+      queuePeerMedia(peer, chunk);
+    }
+    if (peer.mediaTransferToken !== token) return;
+    queuePeerMedia(peer, JSON.stringify({ kind: 'file.end', transferId } satisfies SourceFileEndFrame));
   }
 
   async function applyAudioBitrate(peer: PeerConnection): Promise<void> {
@@ -1416,6 +1648,46 @@ export function createMultiplayerSession({
     flush();
   }
 
+  function queuePeerMedia(peer: PeerConnection, frame: string | ArrayBuffer): void {
+    peer.mediaOutgoing.push(frame);
+    peer.mediaQueuedBytes += typeof frame === 'string' ? frame.length : frame.byteLength;
+    flushPeerMedia(peer);
+  }
+
+  function flushPeerMedia(peer: PeerConnection): void {
+    const channel = peer.mediaChannel;
+    if (peer.mediaFlushing || !channel || channel.readyState !== 'open') return;
+    peer.mediaFlushing = true;
+    const flush = () => {
+      const activeChannel = peer.mediaChannel;
+      if (!activeChannel || activeChannel.readyState !== 'open') {
+        peer.mediaFlushing = false;
+        return;
+      }
+      while (peer.mediaOutgoing.length > 0 && activeChannel.bufferedAmount < 512_000) {
+        const frame = peer.mediaOutgoing.shift()!;
+        peer.mediaQueuedBytes = Math.max(
+          0,
+          peer.mediaQueuedBytes - (typeof frame === 'string' ? frame.length : frame.byteLength)
+        );
+        if (typeof frame === 'string') activeChannel.send(frame);
+        else activeChannel.send(frame);
+      }
+      peer.mediaFlushing = false;
+      if (peer.mediaOutgoing.length > 0 && activeChannel.bufferedAmount < 512_000) {
+        flushPeerMedia(peer);
+      }
+    };
+    flush();
+  }
+
+  function waitForMediaQueue(peer: PeerConnection, token: number): Promise<void> {
+    if (peer.mediaQueuedBytes < SOURCE_FILE_QUEUE_LIMIT || peer.mediaTransferToken !== token) {
+      return Promise.resolve();
+    }
+    return new Promise((resolve) => window.setTimeout(resolve, 10));
+  }
+
   async function kick(clientId: string): Promise<void> {
     if (state.mode !== 'hosting') return;
     const peer = hostPeers.get(clientId);
@@ -1460,6 +1732,7 @@ export function createMultiplayerSession({
     allowClientReconnect = false;
     clearReconnectTimer();
     await resetSession(true);
+    await multiplayerSourcePlaybackService.endClientSession();
     publish({
       mode: 'idle',
       connectionStatus: 'idle',
@@ -1497,6 +1770,8 @@ export function createMultiplayerSession({
     if (previousClientPeer) clearPeerConnectionTimer(previousClientPeer);
     previousClientPeer?.pc.close();
     multiplayerAudioService.clearRemoteTrack();
+    multiplayerSourcePlaybackService.clearLoadedFile();
+    pendingClientSourceFile = null;
     multiplayerAudioService.releaseHostTrack();
 
     try {
@@ -1531,7 +1806,12 @@ export function createMultiplayerSession({
     rejectedPeerIds.clear();
     acceptingPeerIds.clear();
     answeredTurnCredentialRequestIds.clear();
-    latestAudioAvailability = { enabled: false, postRaf: false, reason: 'host-disabled' };
+    latestAudioAvailability = {
+      enabled: false,
+      sourceFile: false,
+      postRaf: false,
+      reason: 'host-disabled'
+    };
   }
 
   return {
@@ -1545,7 +1825,9 @@ export function createMultiplayerSession({
     kick,
     togglePairing,
     sendCommand,
-    resumeAudio: () => multiplayerAudioService.resumeRemoteAudio(),
+    resumeAudio: () => multiplayerSourcePlaybackService.resume()
+      ? Promise.resolve(true)
+      : multiplayerAudioService.resumeRemoteAudio(),
     setReceiveAudio,
     updateHostState,
     destroy() {
@@ -1565,6 +1847,39 @@ function createDirectIceSettings(): Parameters<typeof createMultiplayerRtcConfig
     multiplayerTurnUsername: '',
     multiplayerTurnCredential: '',
     multiplayerForceTurn: false
+  };
+}
+
+function parseSourceFileFrame(value: string): SourceFileBeginFrame | SourceFileEndFrame | null {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(value);
+  } catch {
+    return null;
+  }
+  if (!parsed || typeof parsed !== 'object') return null;
+  const frame = parsed as Record<string, unknown>;
+  if (frame.kind === 'file.end') {
+    return typeof frame.transferId === 'string' ? { kind: 'file.end', transferId: frame.transferId } : null;
+  }
+  if (frame.kind !== 'file.begin'
+    || typeof frame.transferId !== 'string'
+    || typeof frame.trackId !== 'string'
+    || typeof frame.name !== 'string'
+    || typeof frame.type !== 'string'
+    || typeof frame.size !== 'number'
+    || !Number.isSafeInteger(frame.size)
+    || frame.size < 0
+    || typeof frame.lastModified !== 'number'
+    || !Number.isFinite(frame.lastModified)) return null;
+  return {
+    kind: 'file.begin',
+    transferId: frame.transferId,
+    trackId: frame.trackId,
+    name: frame.name,
+    type: frame.type,
+    size: frame.size,
+    lastModified: frame.lastModified
   };
 }
 
@@ -1652,6 +1967,12 @@ function createPeer(
     channel: null,
     outgoing: [],
     flushing: false,
+    mediaChannel: null,
+    mediaOutgoing: [],
+    mediaQueuedBytes: 0,
+    mediaFlushing: false,
+    mediaTransferToken: 0,
+    sourceTrackKey: '',
     decode: createMultiplayerMessageDecoder(isClientMessage),
     audioSender: null,
     pendingAudioBitrate: null,
@@ -1738,6 +2059,7 @@ async function flushRemoteCandidates(peer: PeerConnection): Promise<void> {
       peer.pendingRemoteCandidates.delete(id);
     }
   }
+
 }
 
 function isSignalCandidate(value: unknown): value is SignalCandidate {

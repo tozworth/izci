@@ -338,10 +338,10 @@ export interface ExperimentalSettings {
   multiplayerTurnCredentialHours: number;
   multiplayerForceTurn: boolean;
   multiplayerStreamAudio: boolean;
+  multiplayerFileTransferLimitMiB: number;
   multiplayerSendPostRaf: boolean;
   multiplayerOpusBitrateKbps: number;
   multiplayerAudioBufferMs: number;
-  multiplayerIncludeVideoAudio: boolean;
   multiplayerMaxListeners: number;
 }
 

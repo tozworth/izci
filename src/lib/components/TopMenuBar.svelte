@@ -443,9 +443,7 @@
           ? $t('main.multiplayer.audio.refused', { default: 'Audio refused' })
         : status === 'disabled'
           ? $t('main.multiplayer.audio.disabled', { default: 'Host audio is off' })
-          : status === 'video-disabled'
-            ? $t('main.multiplayer.audio.videoDisabled', { default: 'Video audio is off' })
-            : status === 'unavailable'
+          : status === 'unavailable'
               ? $t('main.multiplayer.audio.unavailable', { default: 'Audio unavailable' })
               : $t('main.multiplayer.audio.connecting', { default: 'Audio connecting...' });
     const routeLabel = route === 'direct'

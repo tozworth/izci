@@ -53,7 +53,6 @@
         "blocked": "Ses için izin gerekiyor",
         "refused": "Ses reddedildi",
         "disabled": "Sunucu sesi kapalı",
-        "videoDisabled": "Video sesi kapalı",
         "unavailable": "Ses kullanılamıyor",
         "connecting": "Ses bağlanıyor..."
       },
@@ -752,6 +751,12 @@
     },
     "experimental": {
       "multiplayer": {
+        "fileTransfer": {
+          "every": "Her dosya",
+          "never": "Her zaman akış yap",
+          "title": "Şundan küçük dosyaları gönder",
+          "hint": "Daha küçük ses ve modül dosyalarını bütün olarak gönderir, ardından her dinleyicide işler. Daha büyük dosyalar ve tüm video sesleri sunucunun Opus akışını kullanır."
+        },
         "category": "Çok oyunculu",
         "title": "izci Çok Oyunculu",
         "hint": "Bu izci'nin sunucu olmasını veya paylaşımlı bir dinleme oturumuna katılmasını sağlar. İlk bağlantıyı Firebase kurar; ses doğrudan eşler arasında iletilir.",
@@ -779,8 +784,8 @@
         },
         "audioCategory": "Çok Oyunculu Ses",
         "streamAudio": {
-          "title": "Dinleyicilere ses aktar",
-          "hint": "Sunucunun sesini doğrudan bağlı eşlere gönderir. Sunucunun ses düzeyi ve sessiz ayarı dinleyicileri etkilemez."
+          "title": "Dinleyicilere ses gönder",
+          "hint": "Uygun dosyaları yerel çalma için gönderir, geri kalanını sunucudan yayınlar. Sunucunun ses düzeyi ve sessiz ayarı dinleyicileri etkilemez."
         },
         "postRaf": {
           "title": "Raf sonrası sesi gönder",
@@ -793,10 +798,6 @@
         "audioBuffer": {
           "title": "Dinleyici ses arabelleği",
           "hint": "Ağ ve mobil zamanlama dalgalanmalarını karşılamak için alıcı gecikmesi ekler. Daha temiz çalma için artırın; kontrollerin daha hızlı yanıt vermesi için azaltın."
-        },
-        "videoAudio": {
-          "title": "Videoların sesini dâhil et",
-          "hint": "Sunucu video oynatırken ses parçasını göndermeyi sürdürür; video görüntüsü hiçbir zaman iletilmez."
         },
         "diagnostics": {
           "heading": "Bağlantı tanılama",

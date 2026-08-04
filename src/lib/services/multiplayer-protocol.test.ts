@@ -108,15 +108,15 @@ describe('multiplayer protocol', () => {
   it('accepts explicit host audio availability states', () => {
     expect(isHostMessage({
       kind: 'audio',
-      audio: { enabled: true, postRaf: false, reason: null }
+      audio: { enabled: true, sourceFile: false, postRaf: false, reason: null }
     })).toBe(true);
     expect(isHostMessage({
       kind: 'audio',
-      audio: { enabled: false, postRaf: true, reason: 'video-disabled' }
+      audio: { enabled: false, sourceFile: true, postRaf: false, reason: null }
     })).toBe(true);
     expect(isHostMessage({
       kind: 'audio',
-      audio: { enabled: false, postRaf: false, reason: 'network' }
+      audio: { enabled: false, sourceFile: false, postRaf: false, reason: 'network' }
     })).toBe(false);
     expect(isHostMessage({
       kind: 'audio',

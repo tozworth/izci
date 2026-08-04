@@ -53,7 +53,6 @@
         "blocked": "Audio needs permission",
         "refused": "Audio refused",
         "disabled": "Host audio is off",
-        "videoDisabled": "Video audio is off",
         "unavailable": "Audio unavailable",
         "connecting": "Audio connecting..."
       },
@@ -752,6 +751,12 @@
     },
     "experimental": {
       "multiplayer": {
+        "fileTransfer": {
+          "every": "Every file",
+          "never": "Always stream",
+          "title": "Send files under",
+          "hint": "Sends smaller audio and module files whole, then renders them on each listener. Larger files and all video soundtracks use the host’s Opus stream."
+        },
         "category": "Multiplayer",
         "title": "izci Multiplayer",
         "hint": "Lets this izci host or join a shared listening session. Firebase handles the handshake; audio travels directly between peers.",
@@ -779,8 +784,8 @@
         },
         "audioCategory": "Multiplayer Audio",
         "streamAudio": {
-          "title": "Stream audio to listeners",
-          "hint": "Sends the host’s audio directly to connected peers. The host’s volume and mute do not affect listeners."
+          "title": "Send audio to listeners",
+          "hint": "Sends eligible files for local playback and streams the rest from the host. The host’s volume and mute do not affect listeners."
         },
         "postRaf": {
           "title": "Send post-Raf audio",
@@ -793,10 +798,6 @@
         "audioBuffer": {
           "title": "Listener audio buffer",
           "hint": "Adds receiver delay to absorb network and mobile scheduling jitter. Increase it for cleaner playback; decrease it for faster control response."
-        },
-        "videoAudio": {
-          "title": "Include audio from videos",
-          "hint": "Keeps sending the soundtrack when the host plays a video; video pictures are never transmitted."
         },
         "diagnostics": {
           "heading": "Connection diagnostics",

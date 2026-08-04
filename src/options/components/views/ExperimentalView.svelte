@@ -6,6 +6,7 @@
     MULTIPLAYER_AUDIO_BUFFER_MAX_MS,
     MULTIPLAYER_AUDIO_BUFFER_MIN_MS,
     MULTIPLAYER_AUDIO_BUFFER_STEP_MS,
+    MULTIPLAYER_FILE_TRANSFER_LIMITS_MIB,
     MULTIPLAYER_MAX_LISTENERS_MAX,
     MULTIPLAYER_MAX_LISTENERS_MIN,
     MULTIPLAYER_OPUS_BITRATE_MAX_KBPS,
@@ -34,6 +35,26 @@
 
   function handleStreamAudioToggle(event: Event) {
     experimentalSettings.update({ multiplayerStreamAudio: checked(event) });
+  }
+
+  function handleFileTransferLimitChange(event: Event) {
+    const index = (event.currentTarget as HTMLInputElement).valueAsNumber;
+    experimentalSettings.update({
+      multiplayerFileTransferLimitMiB: MULTIPLAYER_FILE_TRANSFER_LIMITS_MIB[index] ?? 0
+    });
+  }
+
+  function fileTransferLimitIndex(limit: number): number {
+    const index = MULTIPLAYER_FILE_TRANSFER_LIMITS_MIB.indexOf(
+      limit as (typeof MULTIPLAYER_FILE_TRANSFER_LIMITS_MIB)[number]
+    );
+    return index < 0 ? 0 : index;
+  }
+
+  function fileTransferLimitLabel(limit: number): string {
+    if (limit < 0) return $t('options.experimental.multiplayer.fileTransfer.every', { default: 'Every file' });
+    if (limit === 0) return $t('options.experimental.multiplayer.fileTransfer.never', { default: 'Always stream' });
+    return `${limit} MiB`;
   }
 
   function handleTurnUrlChange(event: Event) {
@@ -72,10 +93,6 @@
     experimentalSettings.update({
       multiplayerAudioBufferMs: (event.currentTarget as HTMLInputElement).valueAsNumber
     });
-  }
-
-  function handleIncludeVideoAudioToggle(event: Event) {
-    experimentalSettings.update({ multiplayerIncludeVideoAudio: checked(event) });
   }
 
   function handleMaxListenersChange(event: Event) {
@@ -185,8 +202,8 @@
     <h2>{$t('options.experimental.multiplayer.audioCategory', { default: 'Multiplayer Audio' })}</h2>
     <div class="field-grid">
       <SettingsField
-        title={$t('options.experimental.multiplayer.streamAudio.title', { default: 'Stream audio to listeners' })}
-        hint={$t('options.experimental.multiplayer.streamAudio.hint', { default: 'Sends the host’s audio directly to connected peers. The host’s volume and mute do not affect listeners.' })}
+        title={$t('options.experimental.multiplayer.streamAudio.title', { default: 'Send audio to listeners' })}
+        hint={$t('options.experimental.multiplayer.streamAudio.hint', { default: 'Sends eligible files for local playback and streams the rest from the host. The host’s volume and mute do not affect listeners.' })}
         checkbox
       >
         <input
@@ -196,6 +213,21 @@
         />
       </SettingsField>
       <SettingsField
+        title={$t('options.experimental.multiplayer.fileTransfer.title', { default: 'Send files under' })}
+        hint={$t('options.experimental.multiplayer.fileTransfer.hint', { default: 'Sends smaller audio and module files whole, then renders them on each listener. Larger files and all video soundtracks use the host’s Opus stream.' })}
+      >
+        <input
+          type="range"
+          min="0"
+          max={MULTIPLAYER_FILE_TRANSFER_LIMITS_MIB.length - 1}
+          step="1"
+          value={fileTransferLimitIndex($experimentalSettings.multiplayerFileTransferLimitMiB)}
+          disabled={!$experimentalSettings.multiplayerStreamAudio}
+          on:input={handleFileTransferLimitChange}
+        />
+        <span class="field-output">{fileTransferLimitLabel($experimentalSettings.multiplayerFileTransferLimitMiB)}</span>
+      </SettingsField>
+      <SettingsField
         title={$t('options.experimental.multiplayer.postRaf.title', { default: 'Send post-Raf audio' })}
         hint={$t('options.experimental.multiplayer.postRaf.hint', { default: 'Applies the host’s Raf rack before streaming. When off, listeners receive pre-Raf audio and can apply their own Raf settings.' })}
         checkbox
@@ -203,7 +235,7 @@
         <input
           type="checkbox"
           checked={$experimentalSettings.multiplayerSendPostRaf}
-          disabled={!$experimentalSettings.multiplayerStreamAudio}
+          disabled={!$experimentalSettings.multiplayerStreamAudio || $experimentalSettings.multiplayerFileTransferLimitMiB < 0}
           on:change={handleSendPostRafToggle}
         />
       </SettingsField>
@@ -217,7 +249,7 @@
           max={MULTIPLAYER_OPUS_BITRATE_MAX_KBPS}
           step={MULTIPLAYER_OPUS_BITRATE_STEP_KBPS}
           value={$experimentalSettings.multiplayerOpusBitrateKbps}
-          disabled={!$experimentalSettings.multiplayerStreamAudio}
+          disabled={!$experimentalSettings.multiplayerStreamAudio || $experimentalSettings.multiplayerFileTransferLimitMiB < 0}
           on:input={handleOpusBitrateChange}
         />
         <span class="field-output">{$experimentalSettings.multiplayerOpusBitrateKbps} kbps</span>
@@ -232,21 +264,10 @@
           max={MULTIPLAYER_AUDIO_BUFFER_MAX_MS}
           step={MULTIPLAYER_AUDIO_BUFFER_STEP_MS}
           value={$experimentalSettings.multiplayerAudioBufferMs}
+          disabled={!$experimentalSettings.multiplayerStreamAudio || $experimentalSettings.multiplayerFileTransferLimitMiB < 0}
           on:input={handleAudioBufferChange}
         />
         <span class="field-output">{$experimentalSettings.multiplayerAudioBufferMs} ms</span>
-      </SettingsField>
-      <SettingsField
-        title={$t('options.experimental.multiplayer.videoAudio.title', { default: 'Include audio from videos' })}
-        hint={$t('options.experimental.multiplayer.videoAudio.hint', { default: 'Keeps sending the soundtrack when the host plays a video; video pictures are never transmitted.' })}
-        checkbox
-      >
-        <input
-          type="checkbox"
-          checked={$experimentalSettings.multiplayerIncludeVideoAudio}
-          disabled={!$experimentalSettings.multiplayerStreamAudio}
-          on:change={handleIncludeVideoAudioToggle}
-        />
       </SettingsField>
     </div>
   </div>

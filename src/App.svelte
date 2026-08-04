@@ -747,6 +747,7 @@
   const unsubscribeRepeat = repeatStore.subscribe((value) => (localRepeatMode = value));
   const unsubscribeTrack = playerController.currentTrack.subscribe((value) => {
     localPlayingTrack = value;
+    if (multiplayerState.mode === 'client') return;
     playbackCommands.notifyCurrentTrackChanged(value);
 
     if (!value?.metadata) {

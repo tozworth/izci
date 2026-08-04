@@ -22,10 +22,10 @@ describe('experimental settings', () => {
       multiplayerTurnCredentialHours: 12,
       multiplayerForceTurn: false,
       multiplayerStreamAudio: true,
+      multiplayerFileTransferLimitMiB: 0,
       multiplayerSendPostRaf: false,
       multiplayerOpusBitrateKbps: DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerOpusBitrateKbps,
       multiplayerAudioBufferMs: DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerAudioBufferMs,
-      multiplayerIncludeVideoAudio: true,
       multiplayerMaxListeners: DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerMaxListeners
     });
   });
@@ -57,5 +57,14 @@ describe('experimental settings', () => {
       .toBe(MULTIPLAYER_AUDIO_BUFFER_MAX_MS);
     expect(normalizeExperimentalSettings({ multiplayerMaxListeners: 99 }).multiplayerMaxListeners)
       .toBe(MULTIPLAYER_MAX_LISTENERS_MAX);
+  });
+
+  it('accepts only the file-transfer slider values', () => {
+    expect(normalizeExperimentalSettings({ multiplayerFileTransferLimitMiB: 16 }).multiplayerFileTransferLimitMiB)
+      .toBe(16);
+    expect(normalizeExperimentalSettings({ multiplayerFileTransferLimitMiB: -1 }).multiplayerFileTransferLimitMiB)
+      .toBe(-1);
+    expect(normalizeExperimentalSettings({ multiplayerFileTransferLimitMiB: 3 }).multiplayerFileTransferLimitMiB)
+      .toBe(0);
   });
 });

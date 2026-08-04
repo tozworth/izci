@@ -8,7 +8,7 @@ import type {
 
 export type MultiplayerCollection = 'playlist' | 'library' | 'favorites';
 
-export const MULTIPLAYER_PROTOCOL_VERSION = 9;
+export const MULTIPLAYER_PROTOCOL_VERSION = 10;
 export const MULTIPLAYER_FRAME_CHUNK_SIZE = 12_000;
 
 const MULTIPLAYER_ARTWORK_DATA_URL_MAX_LENGTH = 8 * 1024 * 1024;
@@ -62,8 +62,9 @@ export interface MultiplayerArtwork {
 
 export interface MultiplayerAudioAvailability {
   enabled: boolean;
+  sourceFile: boolean;
   postRaf: boolean;
-  reason: 'host-disabled' | 'video-disabled' | null;
+  reason: 'host-disabled' | null;
 }
 
 export type HostMessage =
@@ -196,10 +197,10 @@ export function isHostMessage(value: unknown): value is HostMessage {
     const audio = message.audio as Partial<MultiplayerAudioAvailability> | undefined;
     return Boolean(audio)
       && typeof audio?.enabled === 'boolean'
+      && typeof audio.sourceFile === 'boolean'
       && typeof audio.postRaf === 'boolean'
       && (audio.reason === null
-        || audio.reason === 'host-disabled'
-        || audio.reason === 'video-disabled');
+        || audio.reason === 'host-disabled');
   }
   if (message.kind === 'artwork') {
     return message.artwork === null || isMultiplayerArtwork(message.artwork);
