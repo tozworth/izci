@@ -51,6 +51,13 @@ const FIREBASE_CONFIG = {
 const ICE_CONNECTION_TIMEOUT_MS = 15_000;
 const RECEIVER_BITRATE_SAMPLE_INTERVAL_MS = 1_000;
 
+export function isMultiplayerClientTransportHealthy(
+  connectionState: RTCPeerConnectionState,
+  channelState: RTCDataChannelState | undefined
+): boolean {
+  return connectionState === 'connected' && channelState === 'open';
+}
+
 const EMPTY_PLAYBACK: PlaybackSnapshot = {
   state: 'idle',
   currentTime: 0,
@@ -227,7 +234,6 @@ export function createMultiplayerSession({
   let receiverBitrateSampling = false;
   let receiverBitrateSamples: ReceivedByteSample[] = [];
   let allowClientReconnect = false;
-  let clientHiddenAt: number | null = null;
   let latestHostState: MultiplayerHostState | null = null;
   let catalogRevision = 0;
   let lastCatalogSources: Pick<MultiplayerHostState, 'playlist' | 'library' | 'favorites' | 'shuffleEnabled' | 'repeatMode'> | null = null;
@@ -970,16 +976,15 @@ export function createMultiplayerSession({
   }
 
   function handleClientResume(): void {
-    if (document.visibilityState === 'hidden') {
-      clientHiddenAt = Date.now();
-      return;
-    }
-    const suspendedFor = clientHiddenAt === null ? 0 : Date.now() - clientHiddenAt;
-    clientHiddenAt = null;
+    if (document.visibilityState === 'hidden') return;
     if (state.mode !== 'client' || !allowClientReconnect) return;
-    if (clientPeer?.pc.connectionState === 'connected'
-      && clientPeer.channel?.readyState === 'open'
-      && suspendedFor < 10_000) {
+    if (clientPeer && isMultiplayerClientTransportHealthy(
+      clientPeer.pc.connectionState,
+      clientPeer.channel?.readyState
+    )) {
+      // A long-lived background connection can remain healthy while Media Session keeps
+      // mobile playback alive. Elapsed hidden time alone is not a reason to replace it.
+      clearReconnectTimer();
       applyClientAudioBuffer(clientPeer);
       if (latestAudioAvailability.enabled) void multiplayerAudioService.resumeRemoteAudio();
       return;
