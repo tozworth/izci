@@ -8,10 +8,11 @@
           ".write": "auth != null && ((!data.exists() && newData.child('meta').child('hostUid').val() === auth.uid) || (data.exists() && data.child('meta').child('hostUid').val() === auth.uid))",
           "meta": {
             ".read": "auth != null",
-            ".validate": "newData.hasChildren(['hostUid', 'protocolVersion', 'hostName', 'createdAt']) && newData.child('hostUid').isString() && newData.child('hostUid').val() === auth.uid && newData.child('protocolVersion').isNumber() && newData.child('protocolVersion').val() === 7 && newData.child('hostName').isString() && newData.child('hostName').val().length > 0 && newData.child('hostName').val().length <= 48 && newData.child('createdAt').isNumber()",
+            ".validate": "newData.hasChildren(['hostUid', 'protocolVersion', 'hostName', 'turnRelay', 'createdAt']) && newData.child('hostUid').isString() && newData.child('hostUid').val() === auth.uid && newData.child('protocolVersion').isNumber() && newData.child('protocolVersion').val() === 8 && newData.child('hostName').isString() && newData.child('hostName').val().length > 0 && newData.child('hostName').val().length <= 48 && newData.child('turnRelay').isBoolean() && newData.child('createdAt').isNumber()",
             "hostUid": { ".validate": "newData.isString()" },
             "protocolVersion": { ".validate": "newData.isNumber()" },
             "hostName": { ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 48" },
+            "turnRelay": { ".validate": "newData.isBoolean()" },
             "createdAt": { ".validate": "newData.isNumber()" },
             "$other": { ".validate": false }
           },
@@ -19,6 +20,23 @@
             ".read": "auth != null && root.child('multiplayer').child('rooms').child($room).child('meta').child('hostUid').val() === auth.uid",
             "$uid": {
               ".read": "auth != null && auth.uid === $uid",
+              "credentialRequest": {
+                ".write": "auth != null && auth.uid === $uid && root.child('multiplayer').child('rooms').child($room).child('meta').exists()",
+                ".validate": "!newData.exists() || (newData.hasChildren(['requestId', 'publicKey', 'createdAt']) && newData.child('requestId').isString() && newData.child('requestId').val().matches(/^[a-f0-9]{24}$/) && newData.child('publicKey').isString() && newData.child('publicKey').val().length >= 80 && newData.child('publicKey').val().length <= 128 && newData.child('createdAt').isNumber())",
+                "requestId": { ".validate": "newData.isString() && newData.val().matches(/^[a-f0-9]{24}$/)" },
+                "publicKey": { ".validate": "newData.isString() && newData.val().length >= 80 && newData.val().length <= 128" },
+                "createdAt": { ".validate": "newData.isNumber()" },
+                "$other": { ".validate": false }
+              },
+              "credentialResponse": {
+                ".validate": "!newData.exists() || (newData.hasChildren(['requestId', 'publicKey', 'iv', 'ciphertext', 'createdAt']) && newData.child('requestId').isString() && newData.child('requestId').val().matches(/^[a-f0-9]{24}$/) && newData.child('publicKey').isString() && newData.child('publicKey').val().length >= 80 && newData.child('publicKey').val().length <= 128 && newData.child('iv').isString() && newData.child('iv').val().length >= 16 && newData.child('iv').val().length <= 32 && newData.child('ciphertext').isString() && newData.child('ciphertext').val().length > 0 && newData.child('ciphertext').val().length <= 4096 && newData.child('createdAt').isNumber())",
+                "requestId": { ".validate": "newData.isString() && newData.val().matches(/^[a-f0-9]{24}$/)" },
+                "publicKey": { ".validate": "newData.isString() && newData.val().length >= 80 && newData.val().length <= 128" },
+                "iv": { ".validate": "newData.isString() && newData.val().length >= 16 && newData.val().length <= 32" },
+                "ciphertext": { ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 4096" },
+                "createdAt": { ".validate": "newData.isNumber()" },
+                "$other": { ".validate": false }
+              },
               "client": {
                 ".write": "auth != null && auth.uid === $uid && root.child('multiplayer').child('rooms').child($room).child('meta').exists()",
                 ".validate": "!newData.exists() || (newData.hasChildren(['name', 'platform', 'description', 'createdAt']) && newData.child('name').isString() && newData.child('name').val().length > 0 && newData.child('name').val().length <= 48 && newData.child('platform').isString() && newData.child('platform').val().length > 0 && newData.child('platform').val().length <= 32 && newData.child('description').child('type').val() === 'offer' && newData.child('description').child('sdp').isString() && newData.child('description').child('sdp').val().length > 0 && newData.child('description').child('sdp').val().length <= 50000 && newData.child('createdAt').isNumber())",
@@ -73,10 +91,10 @@
           "directory": {
             ".read": "auth != null && (auth.uid === $hostUid || root.child('multiplayer').child('hosts').child($hostUid).child('paired').child(auth.uid).exists())",
             ".write": "auth != null && auth.uid === $hostUid",
-            ".validate": "!newData.exists() || (newData.hasChildren(['currentRoom', 'hostName', 'protocolVersion', 'updatedAt']) && newData.child('currentRoom').isString() && newData.child('currentRoom').val().matches(/^[a-z0-9]{8}$/) && newData.child('hostName').isString() && newData.child('hostName').val().length > 0 && newData.child('hostName').val().length <= 48 && newData.child('protocolVersion').val() === 7 && newData.child('updatedAt').isNumber())",
+            ".validate": "!newData.exists() || (newData.hasChildren(['currentRoom', 'hostName', 'protocolVersion', 'updatedAt']) && newData.child('currentRoom').isString() && newData.child('currentRoom').val().matches(/^[a-z0-9]{8}$/) && newData.child('hostName').isString() && newData.child('hostName').val().length > 0 && newData.child('hostName').val().length <= 48 && newData.child('protocolVersion').val() === 8 && newData.child('updatedAt').isNumber())",
             "currentRoom": { ".validate": "newData.isString() && newData.val().matches(/^[a-z0-9]{8}$/)" },
             "hostName": { ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 48" },
-            "protocolVersion": { ".validate": "newData.val() === 7" },
+            "protocolVersion": { ".validate": "newData.val() === 8" },
             "updatedAt": { ".validate": "newData.isNumber()" },
             "$other": { ".validate": false }
           },

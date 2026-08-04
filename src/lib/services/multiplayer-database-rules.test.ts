@@ -60,6 +60,7 @@ describeWithEmulator('multiplayer Realtime Database rules', () => {
         hostUid,
         protocolVersion: MULTIPLAYER_PROTOCOL_VERSION,
         hostName: 'Scout host',
+        turnRelay: true,
         createdAt: Date.now()
       }
     }));
@@ -84,6 +85,7 @@ describeWithEmulator('multiplayer Realtime Database rules', () => {
         hostUid,
         protocolVersion: MULTIPLAYER_PROTOCOL_VERSION - 1,
         hostName: 'Outdated host',
+        turnRelay: false,
         createdAt: Date.now()
       }
     }));
@@ -126,6 +128,45 @@ describeWithEmulator('multiplayer Realtime Database rules', () => {
       { candidate: '', sdpMid: '0', sdpMLineIndex: 0 }
     ));
     await assertFails(get(ref(clientDatabase, `multiplayer/rooms/${room}/peers`)));
+  });
+
+  it('scopes encrypted TURN credential exchange to the host and requesting client', async () => {
+    const hostDatabase = environment.authenticatedContext(hostUid).database();
+    const clientDatabase = environment.authenticatedContext(clientUid).database();
+    const otherDatabase = environment.authenticatedContext('other-client').database();
+    const request = {
+      requestId: 'a'.repeat(24),
+      publicKey: 'A'.repeat(88),
+      createdAt: Date.now()
+    };
+    const response = {
+      requestId: request.requestId,
+      publicKey: 'B'.repeat(88),
+      iv: 'C'.repeat(16),
+      ciphertext: 'D'.repeat(256),
+      createdAt: Date.now()
+    };
+
+    await assertSucceeds(set(ref(
+      clientDatabase,
+      `multiplayer/rooms/${room}/peers/${clientUid}/credentialRequest`
+    ), request));
+    await assertSucceeds(set(ref(
+      hostDatabase,
+      `multiplayer/rooms/${room}/peers/${clientUid}/credentialResponse`
+    ), response));
+    await assertSucceeds(get(ref(
+      clientDatabase,
+      `multiplayer/rooms/${room}/peers/${clientUid}/credentialResponse`
+    )));
+    await assertFails(set(ref(
+      otherDatabase,
+      `multiplayer/rooms/${room}/peers/${clientUid}/credentialRequest`
+    ), request));
+    await assertFails(get(ref(
+      otherDatabase,
+      `multiplayer/rooms/${room}/peers/${clientUid}/credentialResponse`
+    )));
   });
 
   it('lets only paired clients discover the host current room', async () => {

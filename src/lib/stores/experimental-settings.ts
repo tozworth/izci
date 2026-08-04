@@ -14,6 +14,10 @@ export const MULTIPLAYER_AUDIO_BUFFER_MAX_MS = 4_000;
 export const MULTIPLAYER_AUDIO_BUFFER_STEP_MS = 50;
 export const MULTIPLAYER_MAX_LISTENERS_MIN = 1;
 export const MULTIPLAYER_MAX_LISTENERS_MAX = 8;
+export const MULTIPLAYER_TURN_URL_MAX_LENGTH = 512;
+export const MULTIPLAYER_TURN_SECRET_MAX_LENGTH = 512;
+export const MULTIPLAYER_TURN_CREDENTIAL_HOURS_MIN = 1;
+export const MULTIPLAYER_TURN_CREDENTIAL_HOURS_MAX = 48;
 
 export function createDefaultIzciName(): string {
   const bytes = new Uint8Array(4);
@@ -27,11 +31,27 @@ export function normalizeIzciName(value: unknown, fallback: string): string {
   return name || fallback;
 }
 
+function normalizeSingleLine(value: unknown, maxLength: number): string {
+  return typeof value === 'string'
+    ? value.trim().replace(/[\u0000-\u001f\u007f]/g, '').slice(0, maxLength)
+    : '';
+}
+
+export function normalizeMultiplayerTurnUrl(value: unknown): string {
+  const url = normalizeSingleLine(value, MULTIPLAYER_TURN_URL_MAX_LENGTH);
+  if (!url) return '';
+  return /^(?:turn|turns):/i.test(url) ? url : `turn:${url}`;
+}
+
 const defaultIzciName = createDefaultIzciName();
 
 export const DEFAULT_EXPERIMENTAL_SETTINGS: ExperimentalSettings = {
   multiplayer: false,
   izciName: defaultIzciName,
+  multiplayerTurnUrl: '',
+  multiplayerTurnSecret: '',
+  multiplayerTurnCredentialHours: 12,
+  multiplayerForceTurn: false,
   multiplayerStreamAudio: true,
   multiplayerSendPostRaf: false,
   multiplayerOpusBitrateKbps: 128,
@@ -56,6 +76,20 @@ export function normalizeExperimentalSettings(value: unknown): ExperimentalSetti
       ? source.multiplayer
       : DEFAULT_EXPERIMENTAL_SETTINGS.multiplayer,
     izciName: normalizeIzciName(source.izciName, defaultIzciName),
+    multiplayerTurnUrl: normalizeMultiplayerTurnUrl(source.multiplayerTurnUrl),
+    multiplayerTurnSecret: normalizeSingleLine(
+      source.multiplayerTurnSecret,
+      MULTIPLAYER_TURN_SECRET_MAX_LENGTH
+    ),
+    multiplayerTurnCredentialHours: normalizeBoundedInteger(
+      source.multiplayerTurnCredentialHours,
+      DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerTurnCredentialHours,
+      MULTIPLAYER_TURN_CREDENTIAL_HOURS_MIN,
+      MULTIPLAYER_TURN_CREDENTIAL_HOURS_MAX
+    ),
+    multiplayerForceTurn: typeof source.multiplayerForceTurn === 'boolean'
+      ? source.multiplayerForceTurn
+      : DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerForceTurn,
     multiplayerStreamAudio: typeof source.multiplayerStreamAudio === 'boolean'
       ? source.multiplayerStreamAudio
       : DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerStreamAudio,

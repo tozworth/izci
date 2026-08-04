@@ -750,6 +750,22 @@
           "title": "Raf sonrası sesi gönder",
           "hint": "Aktarımdan önce sunucunun Raf rafını uygular. Kapalıyken dinleyiciler Raf öncesi sesi alır ve kendi Raf ayarlarını uygulayabilir."
         },
+        "turnUrl": {
+          "title": "TURN server",
+          "hint": "Optional relay endpoint, such as relay.example.net:3478 or turns:relay.example.net:5349. A bare address uses turn: automatically."
+        },
+        "turnSecret": {
+          "title": "TURN authentication secret",
+          "hint": "Host-only shared secret configured on the relay. Listeners receive encrypted temporary credentials and do not need this setting."
+        },
+        "turnLifetime": {
+          "title": "TURN credential lifetime",
+          "hint": "Sets the expiry of credentials minted for each listener. Longer values better tolerate long sessions and reconnects."
+        },
+        "forceTurn": {
+          "title": "Force TURN relay",
+          "hint": "Uses relay candidates only. Enable temporarily to verify the relay or keep enabled when direct routes must never be used."
+        },
         "opusBitrate": {
           "title": "Opus VBR bit hızı",
           "hint": "Her dinleyici için yaklaşık bit hızı üst sınırını belirler. Yüksek değerler sunucuda daha fazla bant genişliği ve kodlama gücü kullanır."

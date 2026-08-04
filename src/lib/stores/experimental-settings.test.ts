@@ -17,6 +17,10 @@ describe('experimental settings', () => {
     });
 
     expect(normalized).toMatchObject({
+      multiplayerTurnUrl: '',
+      multiplayerTurnSecret: '',
+      multiplayerTurnCredentialHours: 12,
+      multiplayerForceTurn: false,
       multiplayerStreamAudio: true,
       multiplayerSendPostRaf: false,
       multiplayerOpusBitrateKbps: DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerOpusBitrateKbps,
@@ -24,6 +28,22 @@ describe('experimental settings', () => {
       multiplayerIncludeVideoAudio: true,
       multiplayerMaxListeners: DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerMaxListeners
     });
+  });
+
+  it('normalizes TURN settings while keeping them opt-in', () => {
+    expect(normalizeExperimentalSettings({
+      multiplayerTurnUrl: ' relay.example.test:3478 ',
+      multiplayerTurnSecret: ' secret ',
+      multiplayerTurnCredentialHours: 999,
+      multiplayerForceTurn: true
+    })).toMatchObject({
+      multiplayerTurnUrl: 'turn:relay.example.test:3478',
+      multiplayerTurnSecret: 'secret',
+      multiplayerTurnCredentialHours: 48,
+      multiplayerForceTurn: true
+    });
+    expect(normalizeExperimentalSettings({ multiplayerForceTurn: true }).multiplayerTurnUrl)
+      .toBe('');
   });
 
   it('bounds bitrate and listener controls', () => {

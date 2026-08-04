@@ -11,6 +11,8 @@
     MULTIPLAYER_OPUS_BITRATE_MAX_KBPS,
     MULTIPLAYER_OPUS_BITRATE_MIN_KBPS,
     MULTIPLAYER_OPUS_BITRATE_STEP_KBPS,
+    MULTIPLAYER_TURN_CREDENTIAL_HOURS_MAX,
+    MULTIPLAYER_TURN_CREDENTIAL_HOURS_MIN,
     experimentalSettings
   } from '$lib/stores/experimental-settings';
 
@@ -32,6 +34,28 @@
 
   function handleStreamAudioToggle(event: Event) {
     experimentalSettings.update({ multiplayerStreamAudio: checked(event) });
+  }
+
+  function handleTurnUrlChange(event: Event) {
+    experimentalSettings.update({
+      multiplayerTurnUrl: (event.currentTarget as HTMLInputElement).value
+    });
+  }
+
+  function handleTurnSecretChange(event: Event) {
+    experimentalSettings.update({
+      multiplayerTurnSecret: (event.currentTarget as HTMLInputElement).value
+    });
+  }
+
+  function handleTurnCredentialHoursChange(event: Event) {
+    experimentalSettings.update({
+      multiplayerTurnCredentialHours: (event.currentTarget as HTMLInputElement).valueAsNumber
+    });
+  }
+
+  function handleForceTurnToggle(event: Event) {
+    experimentalSettings.update({ multiplayerForceTurn: checked(event) });
   }
 
   function handleSendPostRafToggle(event: Event) {
@@ -111,6 +135,58 @@
         />
       </SettingsField>
       <SettingsField
+        title={$t('options.experimental.multiplayer.turnUrl.title', { default: 'TURN server' })}
+        hint={$t('options.experimental.multiplayer.turnUrl.hint', { default: 'Host-only relay endpoint, such as relay.example.net:3478 or turns:relay.example.net:5349. Listeners receive it with temporary credentials.' })}
+      >
+        <input
+          class="wide-text-input"
+          type="text"
+          spellcheck="false"
+          autocomplete="off"
+          placeholder="turn:host:3478"
+          value={$experimentalSettings.multiplayerTurnUrl}
+          on:change={handleTurnUrlChange}
+        />
+      </SettingsField>
+      <SettingsField
+        title={$t('options.experimental.multiplayer.turnSecret.title', { default: 'TURN authentication secret' })}
+        hint={$t('options.experimental.multiplayer.turnSecret.hint', { default: 'Host-only shared secret configured on the relay. Listeners receive encrypted temporary credentials and do not need this setting.' })}
+      >
+        <input
+          type="password"
+          autocomplete="current-password"
+          value={$experimentalSettings.multiplayerTurnSecret}
+          on:change={handleTurnSecretChange}
+        />
+      </SettingsField>
+      <SettingsField
+        title={$t('options.experimental.multiplayer.turnLifetime.title', { default: 'TURN credential lifetime' })}
+        hint={$t('options.experimental.multiplayer.turnLifetime.hint', { default: 'Sets the expiry of credentials minted for each listener. Longer values better tolerate long sessions and reconnects.' })}
+      >
+        <input
+          type="range"
+          min={MULTIPLAYER_TURN_CREDENTIAL_HOURS_MIN}
+          max={MULTIPLAYER_TURN_CREDENTIAL_HOURS_MAX}
+          step="1"
+          value={$experimentalSettings.multiplayerTurnCredentialHours}
+          disabled={!$experimentalSettings.multiplayerTurnUrl || !$experimentalSettings.multiplayerTurnSecret}
+          on:input={handleTurnCredentialHoursChange}
+        />
+        <span class="field-output">{$experimentalSettings.multiplayerTurnCredentialHours} h</span>
+      </SettingsField>
+      <SettingsField
+        title={$t('options.experimental.multiplayer.forceTurn.title', { default: 'Force TURN relay' })}
+        hint={$t('options.experimental.multiplayer.forceTurn.hint', { default: 'Uses relay candidates only on the host and listeners. Enable temporarily to verify the relay or keep enabled when direct routes must never be used.' })}
+        checkbox
+      >
+        <input
+          type="checkbox"
+          checked={$experimentalSettings.multiplayerForceTurn}
+          disabled={!$experimentalSettings.multiplayerTurnUrl || !$experimentalSettings.multiplayerTurnSecret}
+          on:change={handleForceTurnToggle}
+        />
+      </SettingsField>
+      <SettingsField
         title={$t('options.experimental.multiplayer.opusBitrate.title', { default: 'Opus VBR bitrate' })}
         hint={$t('options.experimental.multiplayer.opusBitrate.hint', { default: 'Sets the best-effort bitrate ceiling for each listener. Higher rates use more host bandwidth and encoding work.' })}
       >
@@ -180,7 +256,7 @@
         {$t('options.experimental.multiplayer.diagnostics.signaling', { default: 'Firebase only exchanges the invite, session descriptions, and ICE candidates. Playback controls, catalog data, artwork, and audio use the resulting peer connection.' })}
       </p>
       <p>
-        {$t('options.experimental.multiplayer.diagnostics.direct', { default: 'izci asks Cloudflare and Google STUN servers for public ICE candidates, then tries direct routes. TURN relay is not configured, so restrictive NAT or firewall combinations can still prevent a connection.' })}
+        {$t('options.experimental.multiplayer.diagnostics.direct', { default: 'izci asks Cloudflare and Google STUN servers for public ICE candidates, then tries direct routes. When configured above, TURN adds a relay path for restrictive NAT or firewall combinations.' })}
       </p>
       <p>
         {$t('options.experimental.multiplayer.diagnostics.upnp', { default: 'A static public IP or router UPnP does not guarantee success: Chromium chooses its own ICE ports and izci does not request a UPnP port mapping.' })}

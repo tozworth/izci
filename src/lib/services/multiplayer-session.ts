@@ -1,6 +1,10 @@
 import { writable, type Readable } from 'svelte/store';
 import type { Database, DatabaseReference, OnDisconnect, Unsubscribe } from 'firebase/database';
-import type { PlaybackSnapshot, PlaylistItem, PlaylistRepeatMode } from '$lib/types';
+import type {
+  PlaybackSnapshot,
+  PlaylistItem,
+  PlaylistRepeatMode
+} from '$lib/types';
 import { experimentalSettings } from '$lib/stores/experimental-settings';
 import { rememberMultiplayerHost } from '$lib/stores/multiplayer-recents';
 import {
@@ -16,6 +20,17 @@ import {
   type MultiplayerReceiverAudioStatus
 } from './multiplayer-audio';
 import { enableOpusStereo } from './multiplayer-opus';
+import { createMultiplayerRtcConfiguration } from './multiplayer-ice';
+import {
+  createMultiplayerTurnCredentialRequest,
+  createMultiplayerTurnCredentialResponse,
+  createMultiplayerTurnIceSettings,
+  hasMultiplayerTurnIssuer,
+  isMultiplayerTurnCredentialRequest,
+  isMultiplayerTurnCredentialResponse,
+  type MultiplayerTurnCredentialRequest,
+  type MultiplayerTurnCredentialResponse
+} from './multiplayer-turn-credentials';
 import { setMultiplayerReceiverBuffer } from './multiplayer-receiver';
 import {
   updateReceivedBitrateWindow,
@@ -49,6 +64,7 @@ const FIREBASE_CONFIG = {
 } as const;
 
 const ICE_CONNECTION_TIMEOUT_MS = 15_000;
+const TURN_CREDENTIAL_RESPONSE_TIMEOUT_MS = 15_000;
 const RECEIVER_BITRATE_SAMPLE_INTERVAL_MS = 1_000;
 
 export function isMultiplayerClientTransportHealthy(
@@ -141,6 +157,15 @@ interface SignalAnswer {
   description?: RTCSessionDescriptionInit;
   error?: 'host-full';
   createdAt?: number;
+}
+
+interface SignalPeerRecord {
+  credentialRequest?: MultiplayerTurnCredentialRequest;
+  credentialResponse?: MultiplayerTurnCredentialResponse;
+  client?: SignalOffer;
+  clientCandidates?: SignalCandidates;
+  host?: SignalAnswer;
+  hostCandidates?: SignalCandidates;
 }
 
 interface SignalCandidate {
@@ -248,6 +273,8 @@ export function createMultiplayerSession({
     reason: 'host-disabled'
   };
   const rejectedPeerIds = new Set<string>();
+  const acceptingPeerIds = new Set<string>();
+  const answeredTurnCredentialRequestIds = new Set<string>();
   let multiplayerSettings = experimentalSettings.getSnapshot();
 
   const unsubscribeSettings = experimentalSettings.subscribe((settings) => {
@@ -310,6 +337,7 @@ export function createMultiplayerSession({
           hostUid: firebase.uid,
           protocolVersion: MULTIPLAYER_PROTOCOL_VERSION,
           hostName: getLocalName(),
+          turnRelay: hasMultiplayerTurnIssuer(multiplayerSettings),
           createdAt: Date.now()
         }
       });
@@ -329,10 +357,7 @@ export function createMultiplayerSession({
       stopPeersListener = firebase.onValue(
         firebase.ref(firebase.database, `multiplayer/rooms/${inviteCode}/peers`),
         (snapshot) => {
-          const peers = snapshot.val() as Record<string, {
-            client?: SignalOffer;
-            clientCandidates?: SignalCandidates;
-          }> | null;
+          const peers = snapshot.val() as Record<string, SignalPeerRecord> | null;
           const liveIds = new Set(
             Object.entries(peers ?? {})
               .filter(([, peerSignal]) => isSignalOffer(peerSignal.client))
@@ -353,13 +378,20 @@ export function createMultiplayerSession({
             }
           }
           for (const [id, peerSignal] of Object.entries(peers ?? {})) {
-            if (!hostPeers.has(id) && isSignalOffer(peerSignal.client)) {
+            if (isMultiplayerTurnCredentialRequest(peerSignal.credentialRequest)
+              && !answeredTurnCredentialRequestIds.has(peerSignal.credentialRequest.requestId)) {
+              void answerTurnCredentialRequest(inviteCode, id, peerSignal.credentialRequest);
+            }
+            if (!hostPeers.has(id)
+              && !acceptingPeerIds.has(id)
+              && isSignalOffer(peerSignal.client)) {
+              acceptingPeerIds.add(id);
               void acceptClientOffer(
                 inviteCode,
                 id,
                 peerSignal.client,
                 peerSignal.clientCandidates ?? {}
-              );
+              ).finally(() => acceptingPeerIds.delete(id));
             } else {
               const peer = hostPeers.get(id);
               if (peer) stageRemoteCandidates(peer, peerSignal.clientCandidates ?? {});
@@ -387,6 +419,32 @@ export function createMultiplayerSession({
         message
       });
       throw new Error(message);
+    }
+  }
+
+  async function answerTurnCredentialRequest(
+    inviteCode: string,
+    clientId: string,
+    request: MultiplayerTurnCredentialRequest
+  ): Promise<void> {
+    if (!firebaseRuntime || state.mode !== 'hosting') return;
+    answeredTurnCredentialRequestIds.add(request.requestId);
+    try {
+      const response = await createMultiplayerTurnCredentialResponse(
+        request,
+        multiplayerSettings,
+        clientId
+      );
+      if (!firebaseRuntime || state.mode !== 'hosting') return;
+      await firebaseRuntime.set(firebaseRuntime.ref(
+        firebaseRuntime.database,
+        `multiplayer/rooms/${inviteCode}/peers/${clientId}/credentialResponse`
+      ), response);
+    } catch (error) {
+      answeredTurnCredentialRequestIds.delete(request.requestId);
+      publish({
+        message: `Could not issue temporary TURN credentials: ${errorMessage(error, 'credential exchange failed')}`
+      });
     }
   }
 
@@ -418,8 +476,16 @@ export function createMultiplayerSession({
       }
       return;
     }
-    const peer = createPeer(id, sanitizeClientName(offer.name));
+    const peer = createPeer(
+      id,
+      sanitizeClientName(offer.name),
+      await createMultiplayerTurnIceSettings(multiplayerSettings, `host-${id}`)
+    );
     hostPeers.set(id, peer);
+    void firebaseRuntime.remove(firebaseRuntime.ref(
+      firebaseRuntime.database,
+      `multiplayer/rooms/${inviteCode}/peers/${id}/credentialResponse`
+    ));
     const pairingSnapshot = await firebaseRuntime.get(firebaseRuntime.ref(
       firebaseRuntime.database,
       `multiplayer/hosts/${firebaseRuntime.uid}/paired/${id}`
@@ -631,14 +697,20 @@ export function createMultiplayerSession({
       const meta = (await firebase.get(metaRef)).val() as {
         protocolVersion?: number;
         hostName?: string;
+        turnRelay?: boolean;
       } | null;
       if (!meta || meta.protocolVersion !== MULTIPLAYER_PROTOCOL_VERSION) {
         throw new Error('That multiplayer session is unavailable or incompatible.');
       }
       publish({ hostName: sanitizeClientName(meta.hostName ?? 'Host') });
-      publish({ connectionDetail: 'Preparing a direct peer connection...' });
+      const turnSettings = meta.turnRelay
+        ? await requestTemporaryTurnCredentials(firebase, inviteCode)
+        : createDirectIceSettings();
+      publish({ connectionDetail: meta.turnRelay
+        ? 'Preparing a peer connection with TURN fallback...'
+        : 'Preparing a direct peer connection...' });
 
-      const peer = createPeer(firebase.uid, getLocalName());
+      const peer = createPeer(firebase.uid, getLocalName(), turnSettings);
       const audioTransceiver = peer.pc.addTransceiver('audio', { direction: 'recvonly' });
       preferOpus(audioTransceiver);
       setMultiplayerReceiverBuffer(
@@ -1291,6 +1363,8 @@ export function createMultiplayerSession({
     hostArtworkTrackKey = '';
     hostArtworkLoadToken += 1;
     rejectedPeerIds.clear();
+    acceptingPeerIds.clear();
+    answeredTurnCredentialRequestIds.clear();
     latestAudioAvailability = { enabled: false, postRaf: false, reason: 'host-disabled' };
   }
 
@@ -1316,6 +1390,60 @@ export function createMultiplayerSession({
       void resetSession(true);
     }
   };
+}
+
+function createDirectIceSettings(): Parameters<typeof createMultiplayerRtcConfiguration>[0] {
+  return {
+    multiplayerTurnUrl: '',
+    multiplayerTurnUsername: '',
+    multiplayerTurnCredential: '',
+    multiplayerForceTurn: false
+  };
+}
+
+async function requestTemporaryTurnCredentials(
+  firebase: FirebaseRuntime,
+  inviteCode: string
+): Promise<Parameters<typeof createMultiplayerRtcConfiguration>[0]> {
+  const pending = await createMultiplayerTurnCredentialRequest();
+  const requestRef = firebase.ref(
+    firebase.database,
+    `multiplayer/rooms/${inviteCode}/peers/${firebase.uid}/credentialRequest`
+  );
+  const responseRef = firebase.ref(
+    firebase.database,
+    `multiplayer/rooms/${inviteCode}/peers/${firebase.uid}/credentialResponse`
+  );
+  await firebase.set(requestRef, pending.request);
+
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    let unsubscribe: Unsubscribe | null = null;
+    const finish = (
+      result: Parameters<typeof createMultiplayerRtcConfiguration>[0] | null,
+      error?: unknown
+    ) => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timeout);
+      unsubscribe?.();
+      void firebase.remove(requestRef).catch(() => undefined);
+      if (result) resolve(result);
+      else reject(error instanceof Error ? error : new Error('TURN credential exchange failed.'));
+    };
+    const timeout = window.setTimeout(() => {
+      finish(null, new Error('The host did not provide temporary TURN credentials in time.'));
+    }, TURN_CREDENTIAL_RESPONSE_TIMEOUT_MS);
+
+    unsubscribe = firebase.onValue(responseRef, (snapshot) => {
+      const response = snapshot.val() as unknown;
+      if (!isMultiplayerTurnCredentialResponse(response)
+        || response.requestId !== pending.request.requestId) return;
+      void pending.decrypt(response)
+        .then((settings) => finish(settings))
+        .catch((error) => finish(null, error));
+    });
+  });
 }
 
 async function loadFirebase(): Promise<FirebaseRuntime> {
@@ -1345,16 +1473,15 @@ async function loadFirebase(): Promise<FirebaseRuntime> {
   };
 }
 
-function createPeer(id: string, name: string): PeerConnection {
+function createPeer(
+  id: string,
+  name: string,
+  settings: Parameters<typeof createMultiplayerRtcConfiguration>[0]
+): PeerConnection {
   return {
     id,
     name,
-    pc: new RTCPeerConnection({
-      iceServers: [
-        { urls: 'stun:stun.cloudflare.com:3478' },
-        { urls: 'stun:stun.l.google.com:19302' }
-      ]
-    }),
+    pc: new RTCPeerConnection(createMultiplayerRtcConfiguration(settings)),
     channel: null,
     outgoing: [],
     flushing: false,
@@ -1491,7 +1618,10 @@ function describeIceFailure(peer: PeerConnection, peerName?: string): string {
   if (remote.length === 0) {
     return `${subject} failed because the other device supplied no usable ICE candidates.`;
   }
-  return `${subject} failed after exchanging ${formatCandidateTypes(local)} local and ${formatCandidateTypes(remote)} remote candidates${rejected > 0 ? `; ${rejected} candidate error${rejected === 1 ? '' : 's'} occurred` : ''}. A NAT or firewall blocked every direct route; izci has no TURN fallback.`;
+  if (local.includes('relay') || remote.includes('relay')) {
+    return `${subject} failed after exchanging ${formatCandidateTypes(local)} local and ${formatCandidateTypes(remote)} remote candidates${rejected > 0 ? `; ${rejected} candidate error${rejected === 1 ? '' : 's'} occurred` : ''}. The configured TURN relay did not produce a working route.`;
+  }
+  return `${subject} failed after exchanging ${formatCandidateTypes(local)} local and ${formatCandidateTypes(remote)} remote candidates${rejected > 0 ? `; ${rejected} candidate error${rejected === 1 ? '' : 's'} occurred` : ''}. A NAT or firewall blocked every direct route, and no relay candidate was available.`;
 }
 
 function formatCandidateTypes(types: string[]): string {

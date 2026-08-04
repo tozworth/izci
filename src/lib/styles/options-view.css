@@ -871,7 +871,8 @@ code {
   background: var(--bg-input);
 }
 
-.field input[type="text"] {
+.field input[type="text"],
+.field input[type="password"] {
   width: min(22rem, 42vw);
   border: 1px solid var(--menu-bar-border);
   border-radius: 6px;
@@ -885,7 +886,8 @@ code {
   width: 4rem;
 }
 
-.field input[type="text"].wide-text-input {
+.field input[type="text"].wide-text-input,
+.field input[type="password"].wide-text-input {
   width: min(34rem, 56vw);
   font-family: "IBM Plex Mono", "SFMono-Regular", monospace;
   font-size: 0.74rem;
