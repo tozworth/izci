@@ -1129,7 +1129,9 @@ export function createMultiplayerSession({
         if (frame.kind === 'file.begin') {
           pending = { frame, chunks: [], received: 0 };
           multiplayerAudioService.clearRemoteTrack();
-          multiplayerSourcePlaybackService.clearLoadedFile();
+          // Keep the current file audible until its replacement is completely received
+          // and prepared. Stopping the only active media element here lets mobile
+          // Chromium suspend a locked client before the remaining chunks can arrive.
           if (state.receiveAudio) publish({ audioStatus: 'connecting', averageAudioBitrateKbps: null });
           return;
         }
@@ -1375,7 +1377,8 @@ export function createMultiplayerSession({
       // mobile playback alive. Elapsed hidden time alone is not a reason to replace it.
       clearReconnectTimer();
       applyClientAudioBuffer(clientPeer);
-      if (latestAudioAvailability.enabled) void multiplayerAudioService.resumeRemoteAudio();
+      if (latestAudioAvailability.sourceFile) multiplayerSourcePlaybackService.resume();
+      else if (latestAudioAvailability.enabled) void multiplayerAudioService.resumeRemoteAudio();
       return;
     }
     clearReconnectTimer();
