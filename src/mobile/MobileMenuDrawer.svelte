@@ -7,6 +7,7 @@
     MultiplayerConnectionStatus,
     MultiplayerMode
   } from '$lib/services/multiplayer-session';
+  import type { MultiplayerConnectionRoute } from '$lib/services/multiplayer-ice';
   import type { MultiplayerRecent } from '$lib/stores/multiplayer-recents';
   import type { MultiplayerPairing } from '$lib/stores/multiplayer-pairings';
 
@@ -18,6 +19,7 @@
   export let multiplayerMode: MultiplayerMode = 'idle';
   export let multiplayerConnectionStatus: MultiplayerConnectionStatus = 'idle';
   export let multiplayerAudioStatus: MultiplayerAudioStatus = 'idle';
+  export let multiplayerConnectionRoute: MultiplayerConnectionRoute | null = null;
   export let multiplayerAudioBitrateKbps: number | null = null;
   export let multiplayerInviteCode: string | null = null;
   export let multiplayerHostName: string | null = null;
@@ -88,19 +90,26 @@
     }
   }
 
-  function multiplayerAudioStatusLabel(status: MultiplayerAudioStatus, bitrateKbps: number | null): string {
-    if (status === 'playing' && bitrateKbps !== null) {
-      return $t('main.multiplayer.audio.listeningBitrate', {
-        default: 'Listening · {bitrate} kbps',
-        values: { bitrate: bitrateKbps }
-      });
-    }
-    if (status === 'playing') return $t('main.multiplayer.audio.listening', { default: 'Listening' });
-    if (status === 'blocked') return $t('main.multiplayer.audio.blocked', { default: 'Audio needs permission' });
-    if (status === 'disabled') return $t('main.multiplayer.audio.disabled', { default: 'Host audio is off' });
-    if (status === 'video-disabled') return $t('main.multiplayer.audio.videoDisabled', { default: 'Video audio is off' });
-    if (status === 'unavailable') return $t('main.multiplayer.audio.unavailable', { default: 'Audio unavailable' });
-    return $t('main.multiplayer.audio.connecting', { default: 'Audio connecting...' });
+  function multiplayerAudioStatusLabel(status: MultiplayerAudioStatus, route: MultiplayerConnectionRoute | null, bitrateKbps: number | null): string {
+    const stateLabel = status === 'playing'
+      ? $t('main.multiplayer.audio.listening', { default: 'Listening' })
+      : status === 'blocked'
+        ? $t('main.multiplayer.audio.blocked', { default: 'Audio needs permission' })
+        : status === 'disabled'
+          ? $t('main.multiplayer.audio.disabled', { default: 'Host audio is off' })
+          : status === 'video-disabled'
+            ? $t('main.multiplayer.audio.videoDisabled', { default: 'Video audio is off' })
+            : status === 'unavailable'
+              ? $t('main.multiplayer.audio.unavailable', { default: 'Audio unavailable' })
+              : $t('main.multiplayer.audio.connecting', { default: 'Audio connecting...' });
+    const routeLabel = route === 'direct'
+      ? $t('main.multiplayer.route.direct', { default: 'Direct' })
+      : route === 'relayed'
+        ? $t('main.multiplayer.route.relayed', { default: 'Relayed' })
+        : null;
+    return [stateLabel, routeLabel, status === 'playing' && bitrateKbps !== null ? `${bitrateKbps} kbps` : null]
+      .filter(Boolean)
+      .join(' · ');
   }
 </script>
 
@@ -241,7 +250,7 @@
             <span>
               <strong>{multiplayerHostName ?? $t('main.multiplayer.connecting', { default: 'Connecting...' })}</strong>
               <small>{multiplayerConnectionStatus === 'connected'
-                ? multiplayerAudioStatusLabel(multiplayerAudioStatus, multiplayerAudioBitrateKbps)
+                ? multiplayerAudioStatusLabel(multiplayerAudioStatus, multiplayerConnectionRoute, multiplayerAudioBitrateKbps)
                 : multiplayerConnectionStatus === 'connecting'
                   ? $t('main.multiplayer.connecting', { default: 'Connecting...' })
                   : $t('main.multiplayer.disconnected', { default: 'Disconnected' })}</small>

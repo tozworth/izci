@@ -249,6 +249,7 @@
     remoteArtwork: null,
     remoteArtworkResolvedTrackKey: '',
     audioStatus: 'idle',
+    connectionRoute: null,
     averageAudioBitrateKbps: null,
     connectionDetail: null,
     message: null
@@ -1893,6 +1894,7 @@
     multiplayerMode={multiplayerState.mode}
     multiplayerConnectionStatus={multiplayerState.connectionStatus}
     multiplayerAudioStatus={multiplayerState.audioStatus}
+    multiplayerConnectionRoute={multiplayerState.connectionRoute}
     multiplayerAudioBitrateKbps={multiplayerState.averageAudioBitrateKbps}
     multiplayerInviteCode={multiplayerState.inviteCode}
     multiplayerHostName={multiplayerState.hostName}
@@ -1972,6 +1974,7 @@
     multiplayerMode={multiplayerState.mode}
     multiplayerConnectionStatus={multiplayerState.connectionStatus}
     multiplayerAudioStatus={multiplayerState.audioStatus}
+    multiplayerConnectionRoute={multiplayerState.connectionRoute}
     multiplayerAudioBitrateKbps={multiplayerState.averageAudioBitrateKbps}
     multiplayerInviteCode={multiplayerState.inviteCode}
     multiplayerHostName={multiplayerState.hostName}

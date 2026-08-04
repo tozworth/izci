@@ -39,13 +39,16 @@
       "startListening": "Dinlemeyi başlat",
       "leave": "Ayrıl",
       "audio": {
-        "listeningBitrate": "Dinleniyor · {bitrate} kbps",
         "listening": "Dinleniyor",
         "blocked": "Ses için izin gerekiyor",
         "disabled": "Sunucu sesi kapalı",
         "videoDisabled": "Video sesi kapalı",
         "unavailable": "Ses kullanılamıyor",
         "connecting": "Ses bağlanıyor..."
+      },
+      "route": {
+        "direct": "Doğrudan",
+        "relayed": "Aktarmalı"
       },
       "unpairClient": "{name} eşleştirmesini kaldır",
       "pairClientMobile": "{name} ile eşleştir"

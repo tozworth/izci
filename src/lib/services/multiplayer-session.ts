@@ -20,7 +20,11 @@ import {
   type MultiplayerReceiverAudioStatus
 } from './multiplayer-audio';
 import { enableOpusStereo } from './multiplayer-opus';
-import { createMultiplayerRtcConfiguration } from './multiplayer-ice';
+import {
+  createMultiplayerRtcConfiguration,
+  resolveMultiplayerConnectionRoute,
+  type MultiplayerConnectionRoute
+} from './multiplayer-ice';
 import {
   createMultiplayerTurnCredentialRequest,
   createMultiplayerTurnCredentialResponse,
@@ -121,6 +125,7 @@ export interface MultiplayerSessionState {
   remoteArtwork: MultiplayerArtwork | null;
   remoteArtworkResolvedTrackKey: string;
   audioStatus: MultiplayerAudioStatus;
+  connectionRoute: MultiplayerConnectionRoute | null;
   averageAudioBitrateKbps: number | null;
   connectionDetail: string | null;
   message: string | null;
@@ -238,6 +243,7 @@ export function createMultiplayerSession({
     remoteArtwork: null,
     remoteArtworkResolvedTrackKey: '',
     audioStatus: 'idle',
+    connectionRoute: null,
     averageAudioBitrateKbps: null,
     connectionDetail: null,
     message: null
@@ -688,6 +694,7 @@ export function createMultiplayerSession({
       remoteArtwork: reconnecting ? state.remoteArtwork : null,
       remoteArtworkResolvedTrackKey: reconnecting ? state.remoteArtworkResolvedTrackKey : '',
       audioStatus: 'connecting',
+      connectionRoute: null,
       averageAudioBitrateKbps: null,
       connectionDetail: 'Signing in to multiplayer signaling...',
       message: null
@@ -928,6 +935,7 @@ export function createMultiplayerSession({
         reconnectAttempts = 0;
         clearReconnectTimer();
         publish({ connectionStatus: 'connected', connectionDetail: null, message: null });
+        void updateClientConnectionRoute(peer);
       }
       if (peer.pc.connectionState === 'failed') {
         publish({
@@ -961,6 +969,15 @@ export function createMultiplayerSession({
         }
       );
     };
+  }
+
+  async function updateClientConnectionRoute(peer: PeerConnection): Promise<void> {
+    try {
+      const route = resolveMultiplayerConnectionRoute((await peer.pc.getStats()).values());
+      if (clientPeer === peer && route) publish({ connectionRoute: route });
+    } catch {
+      // Connection stats are optional; the client remains usable without a route label.
+    }
   }
 
   function applyClientAudioBuffer(peer: PeerConnection): void {
@@ -1305,6 +1322,7 @@ export function createMultiplayerSession({
       hostName: null,
       clients: [],
       audioStatus: 'idle',
+      connectionRoute: null,
       averageAudioBitrateKbps: null,
       connectionDetail: null,
       message: null
@@ -1327,6 +1345,7 @@ export function createMultiplayerSession({
       remoteArtwork: null,
       remoteArtworkResolvedTrackKey: '',
       audioStatus: 'idle',
+      connectionRoute: null,
       averageAudioBitrateKbps: null,
       connectionDetail: null,
       message: null

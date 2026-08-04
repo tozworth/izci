@@ -27,6 +27,7 @@
     MultiplayerConnectionStatus,
     MultiplayerMode
   } from '$lib/services/multiplayer-session';
+  import type { MultiplayerConnectionRoute } from '$lib/services/multiplayer-ice';
   import type { MultiplayerRecent } from '$lib/stores/multiplayer-recents';
   import type { MultiplayerPairing } from '$lib/stores/multiplayer-pairings';
   import type { VideoSeekFeedback, WorkspacePanelHandlers, WorkspaceTabContentProps } from '$lib/components/workspace/types';
@@ -74,6 +75,7 @@
   export let multiplayerMode: MultiplayerMode = 'idle';
   export let multiplayerConnectionStatus: MultiplayerConnectionStatus = 'idle';
   export let multiplayerAudioStatus: MultiplayerAudioStatus = 'idle';
+  export let multiplayerConnectionRoute: MultiplayerConnectionRoute | null = null;
   export let multiplayerAudioBitrateKbps: number | null = null;
   export let multiplayerInviteCode: string | null = null;
   export let multiplayerHostName: string | null = null;
@@ -374,6 +376,7 @@
   {multiplayerMode}
   {multiplayerConnectionStatus}
   {multiplayerAudioStatus}
+  {multiplayerConnectionRoute}
   {multiplayerAudioBitrateKbps}
   {multiplayerInviteCode}
   {multiplayerHostName}

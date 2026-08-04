@@ -39,13 +39,16 @@
       "startListening": "Start listening",
       "leave": "Leave",
       "audio": {
-        "listeningBitrate": "Listening · {bitrate} kbps",
         "listening": "Listening",
         "blocked": "Audio needs permission",
         "disabled": "Host audio is off",
         "videoDisabled": "Video audio is off",
         "unavailable": "Audio unavailable",
         "connecting": "Audio connecting..."
+      },
+      "route": {
+        "direct": "Direct",
+        "relayed": "Relayed"
       },
       "unpairClient": "Unpair {name}",
       "pairClientMobile": "Pair {name}"
