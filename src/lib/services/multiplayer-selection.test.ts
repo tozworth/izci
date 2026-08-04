@@ -7,7 +7,10 @@ function item(id: string): PlaylistItem {
     id,
     name: `${id}.mp3`,
     path: `${id}.mp3`,
-    kind: 'stream'
+    kind: 'stream',
+    extension: 'mp3',
+    size: 1,
+    lastModified: 1
   };
 }
 
