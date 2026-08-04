@@ -265,6 +265,16 @@ describe('AudioBusService', () => {
     expect(source.connections[0].connections).toEqual([analyser]);
   });
 
+  it('connects a received multiplayer stream through the local Raf input', () => {
+    const stream = new FakeMediaStream() as unknown as MediaStream;
+    const source = bus.connectMediaStream(stream) as unknown as FakeMediaStreamSourceNode;
+    const context = bus.context as unknown as FakeAudioContext;
+    const [input] = context.gains;
+
+    expect(source.mediaStream).toBe(stream);
+    expect(source.connections[0].connections).toEqual([input]);
+  });
+
   it('routes a multiplayer media element after Raf without applying the host effects again', () => {
     const element = {} as HTMLMediaElement;
     const source = bus.connectHtmlMediaElementAfterRaf(element) as unknown as FakeMediaElementSourceNode;
@@ -273,5 +283,16 @@ describe('AudioBusService', () => {
 
     expect(source.mediaElement).toBe(element);
     expect(source.connections[0].connections).toEqual([analyser]);
+  });
+
+  it('routes a pre-Raf multiplayer media element through the local Raf input', () => {
+    const element = {} as HTMLMediaElement;
+    const source = bus.connectHtmlMediaElement(element) as unknown as FakeMediaElementSourceNode;
+    const context = bus.context as unknown as FakeAudioContext;
+    const [input] = context.gains;
+
+    expect(source.connections[0].connections).toEqual([input]);
+    expect(input.connections).toHaveLength(1);
+    expect(input.connections[0]).not.toBe(context.analysers[0]);
   });
 });

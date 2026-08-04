@@ -366,14 +366,15 @@ export function createMultiplayerSession({
       return inviteCode;
     } catch (error) {
       await resetSession(true);
+      const message = errorMessage(error, 'Could not start multiplayer hosting.');
       publish({
         mode: 'idle',
         connectionStatus: 'error',
         hostName: null,
-        connectionDetail: errorMessage(error, 'Could not start multiplayer hosting.'),
-        message: errorMessage(error, 'Could not start multiplayer hosting.')
+        connectionDetail: message,
+        message
       });
-      throw error;
+      throw new Error(message);
     }
   }
 

@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "prebuild": "node scripts/sync-multiplayer-protocol.mjs",
     "build": "vite build",
     "sites:build": "npm run build && node scripts/prepare-sites-build.mjs",
     "i18n:extract": "svelte-i18n extract \"src/**/*.svelte\" src/lib/i18n/locales/en.json --overwrite",
@@ -13,6 +14,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:firebase-rules": "firebase emulators:exec --only database --project izci-pwa \"vitest run src/lib/services/multiplayer-database-rules.test.ts\"",
+    "multiplayer:protocol:check": "node scripts/sync-multiplayer-protocol.mjs --check",
     "check": "svelte-check --tsconfig ./tsconfig.json",
     "firebase:deploy:multiplayer": "firebase deploy --only auth,database --project izci-pwa",
     "hosting:preview": "npm run build && firebase hosting:channel:deploy preview --expires 7d --project izci-pwa",

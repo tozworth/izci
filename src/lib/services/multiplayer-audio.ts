@@ -11,7 +11,8 @@ type StatusHandler = (status: MultiplayerReceiverAudioStatus) => void;
 
 export class MultiplayerAudioService {
   #remoteElement: HTMLAudioElement | null = null;
-  #remoteSource: MediaElementAudioSourceNode | null = null;
+  #remoteSource: MediaStreamAudioSourceNode | null = null;
+  #remoteStream: MediaStream | null = null;
   #remoteTrack: MediaStreamTrack | null = null;
   #remotePostRaf: boolean | null = null;
   #onStatus: StatusHandler = () => undefined;
@@ -39,6 +40,7 @@ export class MultiplayerAudioService {
     this.#remoteTrack = track;
     const element = new Audio();
     element.autoplay = true;
+    element.muted = true;
     element.preload = 'auto';
     element.srcObject = stream;
     element.setAttribute('playsinline', '');
@@ -50,10 +52,11 @@ export class MultiplayerAudioService {
     element.style.pointerEvents = 'none';
     document.body?.appendChild(element);
     this.#remoteElement = element;
+    this.#remoteStream = stream;
     this.#remotePostRaf = postRaf;
     this.#remoteSource = postRaf
-      ? audioBusService.connectHtmlMediaElementAfterRaf(element)
-      : audioBusService.connectHtmlMediaElement(element);
+      ? audioBusService.connectMediaStreamAfterRaf(stream)
+      : audioBusService.connectMediaStream(stream);
 
     if (!this.#remoteSource) {
       this.#publish('unavailable');
@@ -68,12 +71,13 @@ export class MultiplayerAudioService {
   }
 
   setRemotePostRaf(postRaf: boolean): void {
-    if (!this.#remoteElement || !this.#remoteSource || this.#remotePostRaf === postRaf) return;
+    if (!this.#remoteElement || !this.#remoteSource || !this.#remoteStream
+      || this.#remotePostRaf === postRaf) return;
     audioBusService.disconnect(this.#remoteSource);
     this.#remotePostRaf = postRaf;
     this.#remoteSource = postRaf
-      ? audioBusService.connectHtmlMediaElementAfterRaf(this.#remoteElement)
-      : audioBusService.connectHtmlMediaElement(this.#remoteElement);
+      ? audioBusService.connectMediaStreamAfterRaf(this.#remoteStream)
+      : audioBusService.connectMediaStream(this.#remoteStream);
     if (!this.#remoteSource) this.#publish('unavailable');
   }
 
@@ -109,6 +113,7 @@ export class MultiplayerAudioService {
     }
     this.#remoteElement = null;
     this.#remoteSource = null;
+    this.#remoteStream = null;
     this.#remoteTrack = null;
     this.#remotePostRaf = null;
     this.#publish('idle');

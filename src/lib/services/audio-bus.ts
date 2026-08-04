@@ -93,14 +93,25 @@ export class AudioBusService {
     this.#sourceGains.delete(source);
   }
 
+  connectMediaStream(stream: MediaStream | null): MediaStreamAudioSourceNode | null {
+    return this.#connectMediaStream(stream, 'input');
+  }
+
   connectMediaStreamAfterRaf(stream: MediaStream | null): MediaStreamAudioSourceNode | null {
+    return this.#connectMediaStream(stream, 'analyser');
+  }
+
+  #connectMediaStream(
+    stream: MediaStream | null,
+    target: 'input' | 'analyser'
+  ): MediaStreamAudioSourceNode | null {
     if (!stream || stream.getAudioTracks().length === 0) return null;
 
     this.#ensureGraph();
 
     try {
       const source = this.context.createMediaStreamSource(stream);
-      this.#connectSource(source, this.#analyser);
+      this.#connectSource(source, target === 'analyser' ? this.#analyser : this.#input);
       return source;
     } catch {
       return null;

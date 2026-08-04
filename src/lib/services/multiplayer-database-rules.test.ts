@@ -12,6 +12,22 @@ import { MULTIPLAYER_PROTOCOL_VERSION } from './multiplayer-protocol';
 const emulatorAvailable = Boolean(process.env.FIREBASE_DATABASE_EMULATOR_HOST);
 const describeWithEmulator = emulatorAvailable ? describe : describe.skip;
 
+describe('multiplayer Realtime Database rule source', () => {
+  it('uses the current multiplayer protocol version', () => {
+    const rules = readFileSync(new URL('../../../database.rules.json', import.meta.url), 'utf8');
+    const versions = Array.from(
+      rules.matchAll(/protocolVersion(?:'\)\.val\(\)|"\s*:\s*\{\s*"\.validate"\s*:\s*"newData\.val\(\)) === (\d+)/g),
+      (match) => Number(match[1])
+    );
+
+    expect(versions).toEqual([
+      MULTIPLAYER_PROTOCOL_VERSION,
+      MULTIPLAYER_PROTOCOL_VERSION,
+      MULTIPLAYER_PROTOCOL_VERSION
+    ]);
+  });
+});
+
 describeWithEmulator('multiplayer Realtime Database rules', () => {
   let environment: RulesTestEnvironment;
   const projectId = 'izci-multiplayer-rules-test';
