@@ -233,6 +233,7 @@
     reconnecting: false,
     inviteCode: null,
     hostName: null,
+    hostVersion: null,
     clients: [],
     remoteCatalog: {
       revision: 0,
@@ -252,6 +253,8 @@
     audioStatus: 'idle',
     connectionRoute: null,
     averageAudioBitrateKbps: null,
+    receiveAudio: true,
+    connectionStats: null,
     connectionDetail: null,
     message: null
   };
@@ -1898,6 +1901,9 @@
     multiplayerAudioStatus={multiplayerState.audioStatus}
     multiplayerConnectionRoute={multiplayerState.connectionRoute}
     multiplayerAudioBitrateKbps={multiplayerState.averageAudioBitrateKbps}
+    multiplayerHostVersion={multiplayerState.hostVersion}
+    multiplayerReceiveAudio={multiplayerState.receiveAudio}
+    multiplayerConnectionStats={multiplayerState.connectionStats}
     multiplayerInviteCode={multiplayerState.inviteCode}
     multiplayerHostName={multiplayerState.hostName}
     multiplayerClients={multiplayerState.clients}
@@ -1930,6 +1936,7 @@
     on:multiplayerLeave={() => void multiplayerSession.leave()}
     on:multiplayerCopyInvite={() => void copyMultiplayerInvite()}
     on:multiplayerResumeAudio={() => void multiplayerSession.resumeAudio()}
+    on:multiplayerToggleAudio={(event) => multiplayerSession.setReceiveAudio(event.detail)}
     on:multiplayerKick={(event) => void multiplayerSession.kick(event.detail)}
     on:multiplayerTogglePair={(event) => void multiplayerSession.togglePairing(event.detail)}
     on:setVideoFit={(event) => setVideoFit(event.detail)}

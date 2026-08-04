@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  MULTIPLAYER_PROTOCOL_VERSION,
   createMultiplayerMessageDecoder,
   encodeMultiplayerMessage,
   isHostMessage,
@@ -10,6 +11,20 @@ import {
 import { normalizeInviteCode } from './multiplayer-session';
 
 describe('multiplayer protocol', () => {
+  it('requires the host app version in the protocol hello', () => {
+    expect(isHostMessage({
+      kind: 'hello',
+      version: MULTIPLAYER_PROTOCOL_VERSION,
+      name: 'Living room',
+      appVersion: '0.3.0'
+    })).toBe(true);
+    expect(isHostMessage({
+      kind: 'hello',
+      version: MULTIPLAYER_PROTOCOL_VERSION,
+      name: 'Living room'
+    })).toBe(false);
+  });
+
   it('removes local file capabilities from shared tracks', () => {
     const file = new File(['audio'], 'song.mp3', { type: 'audio/mpeg' });
     const item = sanitizePlaylistItem({

@@ -38,9 +38,20 @@
       "disconnected": "Disconnected",
       "startListening": "Start listening",
       "leave": "Leave",
+      "receiveAudio": "Receive audio",
+      "stats": {
+        "hostVersion": "Host izci",
+        "protocol": "Protocol",
+        "connection": "Connection",
+        "audio": "Audio",
+        "loss30s": "Loss · 30 s",
+        "lossTotal": "Loss · total",
+        "timing": "Jitter · RTT"
+      },
       "audio": {
         "listening": "Listening",
         "blocked": "Audio needs permission",
+        "refused": "Audio refused",
         "disabled": "Host audio is off",
         "videoDisabled": "Video audio is off",
         "unavailable": "Audio unavailable",
@@ -50,6 +61,7 @@
         "direct": "Direct",
         "relayed": "Relayed"
       },
+      "session": "Session",
       "unpairClient": "Unpair {name}",
       "pairClientMobile": "Pair {name}"
     },

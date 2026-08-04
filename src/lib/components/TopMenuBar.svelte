@@ -18,9 +18,11 @@
   import type {
     MultiplayerClient,
     MultiplayerAudioStatus,
+    MultiplayerConnectionStats,
     MultiplayerConnectionStatus,
     MultiplayerMode
   } from '$lib/services/multiplayer-session';
+  import { MULTIPLAYER_PROTOCOL_VERSION } from '$lib/services/multiplayer-protocol';
   import type { MultiplayerConnectionRoute } from '$lib/services/multiplayer-ice';
   import type { MultiplayerRecent } from '$lib/stores/multiplayer-recents';
   import type { MultiplayerPairing } from '$lib/stores/multiplayer-pairings';
@@ -58,6 +60,7 @@
     | 'videoFitCover'
     | 'toggleVideoPictureInPicture'
     | 'toggleVideoTheater'
+    | 'multiplayerToggleAudio'
     | `multiplayerKick:${string}`
     | `multiplayerTogglePair:${string}`
     | `multiplayerJoinPaired:${string}`
@@ -185,6 +188,75 @@
             icon: 'logout'
           }
         ] satisfies MenuActionItem[];
+
+  $: sessionMenuItems = [
+    ...multiplayerMenuItems,
+    {
+      id: 'multiplayerToggleAudio',
+      label: $t('main.multiplayer.receiveAudio', { default: 'Receive audio' }),
+      icon: multiplayerReceiveAudio ? 'check' : 'volume_off',
+      checked: multiplayerReceiveAudio,
+      separatorBefore: true
+    },
+    {
+      id: 'multiplayerStatHostVersion',
+      label: $t('main.multiplayer.stats.hostVersion', { default: 'Host izci' }),
+      shortcut: multiplayerHostVersion ? `v${multiplayerHostVersion}` : '—',
+      icon: 'info',
+      disabled: true,
+      separatorBefore: true
+    },
+    {
+      id: 'multiplayerStatProtocol',
+      label: $t('main.multiplayer.stats.protocol', { default: 'Protocol' }),
+      shortcut: `v${MULTIPLAYER_PROTOCOL_VERSION}`,
+      icon: 'lan',
+      disabled: true
+    },
+    {
+      id: 'multiplayerStatConnection',
+      label: $t('main.multiplayer.stats.connection', { default: 'Connection' }),
+      shortcut: formatConnectionStat(),
+      icon: 'route',
+      disabled: true
+    },
+    {
+      id: 'multiplayerStatAudio',
+      label: $t('main.multiplayer.stats.audio', { default: 'Audio' }),
+      shortcut: formatAudioStat(),
+      icon: 'graphic_eq',
+      disabled: true
+    },
+    {
+      id: 'multiplayerStatRecentLoss',
+      label: $t('main.multiplayer.stats.loss30s', { default: 'Loss · 30 s' }),
+      shortcut: formatPacketLoss(
+        multiplayerConnectionStats?.recentPacketsLost,
+        multiplayerConnectionStats?.recentPacketsReceived,
+        multiplayerConnectionStats?.recentPacketLossPercent
+      ),
+      icon: 'network_check',
+      disabled: true
+    },
+    {
+      id: 'multiplayerStatTotalLoss',
+      label: $t('main.multiplayer.stats.lossTotal', { default: 'Loss · total' }),
+      shortcut: formatPacketLoss(
+        multiplayerConnectionStats?.packetsLost,
+        multiplayerConnectionStats?.packetsReceived,
+        multiplayerConnectionStats?.packetLossPercent
+      ),
+      icon: 'monitoring',
+      disabled: true
+    },
+    {
+      id: 'multiplayerStatTiming',
+      label: $t('main.multiplayer.stats.timing', { default: 'Jitter · RTT' }),
+      shortcut: formatTimingStat(),
+      icon: 'speed',
+      disabled: true
+    }
+  ] satisfies MenuActionItem[];
 
   $: loadoutMenuItems = [
     {
@@ -315,6 +387,9 @@
   export let multiplayerAudioBitrateKbps: number | null = null;
   export let multiplayerInviteCode: string | null = null;
   export let multiplayerHostName: string | null = null;
+  export let multiplayerHostVersion: string | null = null;
+  export let multiplayerReceiveAudio = true;
+  export let multiplayerConnectionStats: MultiplayerConnectionStats | null = null;
   export let multiplayerClients: MultiplayerClient[] = [];
   export let multiplayerRecents: MultiplayerRecent[] = [];
   export let multiplayerPairings: MultiplayerPairing[] = [];
@@ -348,6 +423,7 @@
     multiplayerLeave: void;
     multiplayerCopyInvite: void;
     multiplayerResumeAudio: void;
+    multiplayerToggleAudio: boolean;
     multiplayerKick: string;
     multiplayerTogglePair: string;
     setVideoFit: VideoFitMode;
@@ -363,6 +439,8 @@
       ? $t('main.multiplayer.audio.listening', { default: 'Listening' })
       : status === 'blocked'
         ? $t('main.multiplayer.audio.blocked', { default: 'Audio needs permission' })
+        : status === 'refused'
+          ? $t('main.multiplayer.audio.refused', { default: 'Audio refused' })
         : status === 'disabled'
           ? $t('main.multiplayer.audio.disabled', { default: 'Host audio is off' })
           : status === 'video-disabled'
@@ -378,6 +456,34 @@
     return [stateLabel, routeLabel, status === 'playing' && bitrateKbps !== null ? `${bitrateKbps} kbps` : null]
       .filter(Boolean)
       .join(' · ');
+  }
+
+  function formatConnectionStat(): string {
+    const route = multiplayerConnectionRoute === 'direct'
+      ? $t('main.multiplayer.route.direct', { default: 'Direct' })
+      : multiplayerConnectionRoute === 'relayed'
+        ? $t('main.multiplayer.route.relayed', { default: 'Relayed' })
+        : null;
+    return [multiplayerConnectionStatus, route].filter(Boolean).join(' · ') || '—';
+  }
+
+  function formatAudioStat(): string {
+    if (!multiplayerReceiveAudio) return $t('main.multiplayer.audio.refused', { default: 'Refused' });
+    return [
+      multiplayerConnectionStats?.codec,
+      multiplayerAudioBitrateKbps === null ? null : `${multiplayerAudioBitrateKbps} kbps`
+    ].filter(Boolean).join(' · ') || '—';
+  }
+
+  function formatPacketLoss(lost?: number, received?: number, percent?: number | null): string {
+    if (lost === undefined || received === undefined) return '—';
+    return `${lost} / ${received + lost}${percent === null || percent === undefined ? '' : ` · ${percent}%`}`;
+  }
+
+  function formatTimingStat(): string {
+    const jitter = multiplayerConnectionStats?.jitterMs;
+    const rtt = multiplayerConnectionStats?.roundTripTimeMs;
+    return `${jitter === null || jitter === undefined ? '—' : `${jitter} ms`} · ${rtt === null || rtt === undefined ? '—' : `${rtt} ms`}`;
   }
 
   $: viewMenuItems = [
@@ -457,14 +563,20 @@
       application: true,
       attention: showInstallHint
     },
-    ...(multiplayerMode !== 'client'
+    ...(multiplayerMode === 'client'
       ? [{
+          id: 'session',
+          label: $t('main.multiplayer.session', { default: 'Session' }),
+          icon: 'cast_connected',
+          items: sessionMenuItems
+        } satisfies WindowMenuGroup]
+      : [{
           id: 'file',
           label: $t('main.menu.file', { default: 'File' }),
           icon: 'folder',
           items: fileMenuItems
         } satisfies WindowMenuGroup]
-      : []),
+    ),
     {
       id: 'view',
       label: $t('main.menu.view', { default: 'View' }),
@@ -503,6 +615,10 @@
           : 'muted';
 
   function runMenuAction(action: MenuActionId) {
+    if (action === 'multiplayerToggleAudio') {
+      dispatch('multiplayerToggleAudio', !multiplayerReceiveAudio);
+      return;
+    }
     if (action === 'openLoadouts') {
       dispatch('openOptions', { view: 'loadouts' });
       return;

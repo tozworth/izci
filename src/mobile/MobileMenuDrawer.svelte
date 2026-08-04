@@ -96,6 +96,8 @@
       ? $t('main.multiplayer.audio.listening', { default: 'Listening' })
       : status === 'blocked'
         ? $t('main.multiplayer.audio.blocked', { default: 'Audio needs permission' })
+        : status === 'refused'
+          ? $t('main.multiplayer.audio.refused', { default: 'Audio refused' })
         : status === 'disabled'
           ? $t('main.multiplayer.audio.disabled', { default: 'Host audio is off' })
           : status === 'video-disabled'

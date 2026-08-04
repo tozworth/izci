@@ -38,9 +38,20 @@
       "disconnected": "Bağlantı kesildi",
       "startListening": "Dinlemeyi başlat",
       "leave": "Ayrıl",
+      "receiveAudio": "Ses al",
+      "stats": {
+        "hostVersion": "Sunucu izci",
+        "protocol": "Protokol",
+        "connection": "Bağlantı",
+        "audio": "Ses",
+        "loss30s": "Kayıp · 30 sn",
+        "lossTotal": "Kayıp · toplam",
+        "timing": "Titreşim · RTT"
+      },
       "audio": {
         "listening": "Dinleniyor",
         "blocked": "Ses için izin gerekiyor",
+        "refused": "Ses reddedildi",
         "disabled": "Sunucu sesi kapalı",
         "videoDisabled": "Video sesi kapalı",
         "unavailable": "Ses kullanılamıyor",
@@ -50,6 +61,7 @@
         "direct": "Doğrudan",
         "relayed": "Aktarmalı"
       },
+      "session": "Oturum",
       "unpairClient": "{name} eşleştirmesini kaldır",
       "pairClientMobile": "{name} ile eşleştir"
     },

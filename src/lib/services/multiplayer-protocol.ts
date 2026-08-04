@@ -8,7 +8,7 @@ import type {
 
 export type MultiplayerCollection = 'playlist' | 'library' | 'favorites';
 
-export const MULTIPLAYER_PROTOCOL_VERSION = 8;
+export const MULTIPLAYER_PROTOCOL_VERSION = 9;
 export const MULTIPLAYER_FRAME_CHUNK_SIZE = 12_000;
 
 const MULTIPLAYER_ARTWORK_DATA_URL_MAX_LENGTH = 8 * 1024 * 1024;
@@ -67,7 +67,7 @@ export interface MultiplayerAudioAvailability {
 }
 
 export type HostMessage =
-  | { kind: 'hello'; version: number; name: string }
+  | { kind: 'hello'; version: number; name: string; appVersion: string }
   | { kind: 'pairing'; paired: boolean; hostId: string; name: string }
   | { kind: 'catalog'; catalog: MultiplayerCatalog }
   | { kind: 'playback'; playback: MultiplayerPlayback }
@@ -156,7 +156,9 @@ export function isHostMessage(value: unknown): value is HostMessage {
   if (!value || typeof value !== 'object') return false;
   const message = value as Partial<HostMessage> & Record<string, unknown>;
   if (message.kind === 'hello') {
-    return message.version === MULTIPLAYER_PROTOCOL_VERSION && typeof message.name === 'string';
+    return message.version === MULTIPLAYER_PROTOCOL_VERSION
+      && typeof message.name === 'string'
+      && typeof message.appVersion === 'string';
   }
   if (message.kind === 'kicked') return true;
   if (message.kind === 'pairing') {

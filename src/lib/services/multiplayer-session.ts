@@ -1,4 +1,5 @@
 import { writable, type Readable } from 'svelte/store';
+import { version as appVersion } from '../../../package.json';
 import type { Database, DatabaseReference, OnDisconnect, Unsubscribe } from 'firebase/database';
 import type {
   PlaybackSnapshot,
@@ -41,6 +42,10 @@ import {
   type ReceivedByteSample
 } from './multiplayer-receiver-bitrate';
 import {
+  updateMultiplayerPacketLossStats,
+  type MultiplayerReceiverCounterSample
+} from './multiplayer-receiver-stats';
+import {
   MULTIPLAYER_PROTOCOL_VERSION,
   createMultiplayerMessageDecoder,
   encodeMultiplayerMessage,
@@ -70,6 +75,7 @@ const FIREBASE_CONFIG = {
 const ICE_CONNECTION_TIMEOUT_MS = 15_000;
 const TURN_CREDENTIAL_RESPONSE_TIMEOUT_MS = 15_000;
 const RECEIVER_BITRATE_SAMPLE_INTERVAL_MS = 1_000;
+const RECEIVE_AUDIO_STORAGE_KEY = 'izci.multiplayer.receive-audio';
 
 export function isMultiplayerClientTransportHealthy(
   connectionState: RTCPeerConnectionState,
@@ -104,7 +110,19 @@ const EMPTY_REMOTE_PLAYBACK: MultiplayerPlayback = {
 
 export type MultiplayerMode = 'idle' | 'hosting' | 'client';
 export type MultiplayerConnectionStatus = 'idle' | 'connecting' | 'connected' | 'disconnected' | 'error';
-export type MultiplayerAudioStatus = MultiplayerReceiverAudioStatus | 'disabled' | 'video-disabled';
+export type MultiplayerAudioStatus = MultiplayerReceiverAudioStatus | 'disabled' | 'video-disabled' | 'refused';
+
+export interface MultiplayerConnectionStats {
+  packetsReceived: number;
+  packetsLost: number;
+  packetLossPercent: number | null;
+  recentPacketsReceived: number;
+  recentPacketsLost: number;
+  recentPacketLossPercent: number | null;
+  jitterMs: number | null;
+  roundTripTimeMs: number | null;
+  codec: string | null;
+}
 
 export interface MultiplayerClient {
   id: string;
@@ -120,6 +138,7 @@ export interface MultiplayerSessionState {
   reconnecting: boolean;
   inviteCode: string | null;
   hostName: string | null;
+  hostVersion: string | null;
   clients: MultiplayerClient[];
   remoteCatalog: MultiplayerCatalog;
   remotePlayback: MultiplayerPlayback;
@@ -128,6 +147,8 @@ export interface MultiplayerSessionState {
   audioStatus: MultiplayerAudioStatus;
   connectionRoute: MultiplayerConnectionRoute | null;
   averageAudioBitrateKbps: number | null;
+  receiveAudio: boolean;
+  connectionStats: MultiplayerConnectionStats | null;
   connectionDetail: string | null;
   message: string | null;
 }
@@ -226,6 +247,7 @@ export interface MultiplayerSessionController extends Readable<MultiplayerSessio
   togglePairing(clientId: string): Promise<void>;
   sendCommand(command: MultiplayerCommandInput): boolean;
   resumeAudio(): Promise<boolean>;
+  setReceiveAudio(enabled: boolean): void;
   updateHostState(next: MultiplayerHostState): void;
   destroy(): void;
 }
@@ -239,6 +261,7 @@ export function createMultiplayerSession({
     reconnecting: false,
     inviteCode: null,
     hostName: null,
+    hostVersion: null,
     clients: [],
     remoteCatalog: EMPTY_CATALOG,
     remotePlayback: EMPTY_REMOTE_PLAYBACK,
@@ -247,6 +270,8 @@ export function createMultiplayerSession({
     audioStatus: 'idle',
     connectionRoute: null,
     averageAudioBitrateKbps: null,
+    receiveAudio: readReceiveAudioPreference(),
+    connectionStats: null,
     connectionDetail: null,
     message: null
   };
@@ -268,6 +293,7 @@ export function createMultiplayerSession({
   let receiverBitrateTimer: number | null = null;
   let receiverBitrateSampling = false;
   let receiverBitrateSamples: ReceivedByteSample[] = [];
+  let receiverCounterSamples: MultiplayerReceiverCounterSample[] = [];
   let allowClientReconnect = false;
   let latestHostState: MultiplayerHostState | null = null;
   let catalogRevision = 0;
@@ -426,6 +452,7 @@ export function createMultiplayerSession({
         mode: 'idle',
         connectionStatus: 'error',
         hostName: null,
+        hostVersion: null,
         connectionDetail: message,
         message
       });
@@ -611,7 +638,8 @@ export function createMultiplayerSession({
       sendToPeer(peer, {
         kind: 'hello',
         version: MULTIPLAYER_PROTOCOL_VERSION,
-        name: getLocalName()
+        name: getLocalName(),
+        appVersion
       });
       sendCurrentState(peer);
     };
@@ -643,7 +671,8 @@ export function createMultiplayerSession({
     sendToPeer(peer, {
       kind: 'hello',
       version: MULTIPLAYER_PROTOCOL_VERSION,
-      name: getLocalName()
+      name: getLocalName(),
+      appVersion
     });
   }
 
@@ -692,13 +721,15 @@ export function createMultiplayerSession({
       reconnecting,
       inviteCode,
       hostName: null,
+      hostVersion: null,
       remoteCatalog: reconnecting ? state.remoteCatalog : EMPTY_CATALOG,
       remotePlayback: reconnecting ? state.remotePlayback : EMPTY_REMOTE_PLAYBACK,
       remoteArtwork: reconnecting ? state.remoteArtwork : null,
       remoteArtworkResolvedTrackKey: reconnecting ? state.remoteArtworkResolvedTrackKey : '',
-      audioStatus: 'connecting',
+      audioStatus: state.receiveAudio ? 'connecting' : 'refused',
       connectionRoute: null,
       averageAudioBitrateKbps: null,
+      connectionStats: null,
       connectionDetail: 'Signing in to multiplayer signaling...',
       message: null
     });
@@ -839,6 +870,7 @@ export function createMultiplayerSession({
           mode: 'idle',
           connectionStatus: 'error',
           hostName: null,
+          hostVersion: null,
           audioStatus: 'unavailable',
           connectionDetail: errorMessage(error, 'Could not join that multiplayer session.'),
           message: errorMessage(error, 'Could not join that multiplayer session.')
@@ -887,7 +919,9 @@ export function createMultiplayerSession({
       }
       if (message.kind === 'audio') {
         latestAudioAvailability = message.audio;
-        if (!message.audio.enabled) {
+        if (!state.receiveAudio) {
+          publish({ audioStatus: 'refused', averageAudioBitrateKbps: null });
+        } else if (!message.audio.enabled) {
           publish({
             audioStatus: message.audio.reason === 'video-disabled' ? 'video-disabled' : 'disabled',
             averageAudioBitrateKbps: null
@@ -895,7 +929,7 @@ export function createMultiplayerSession({
         } else if (state.audioStatus === 'disabled' || state.audioStatus === 'video-disabled') {
           publish({ audioStatus: 'connecting' });
         }
-        if (message.audio.enabled) void multiplayerAudioService.resumeRemoteAudio();
+        if (message.audio.enabled && state.receiveAudio) void multiplayerAudioService.resumeRemoteAudio();
       }
       if (message.kind === 'kicked') {
         allowClientReconnect = false;
@@ -911,7 +945,7 @@ export function createMultiplayerSession({
       }
       if (message.kind === 'hello') {
         const hostName = sanitizeClientName(message.name);
-        publish({ hostName });
+        publish({ hostName, hostVersion: message.appVersion });
         if (state.inviteCode) rememberMultiplayerHost(hostName, state.inviteCode);
       }
     };
@@ -958,6 +992,11 @@ export function createMultiplayerSession({
       setMultiplayerReceiverBuffer(event.receiver, multiplayerSettings.multiplayerAudioBufferMs);
       startReceiverBitrateMonitor(peer);
       const stream = event.streams[0] ?? new MediaStream([event.track]);
+      if (!state.receiveAudio) {
+        event.track.enabled = false;
+        publish({ audioStatus: 'refused', averageAudioBitrateKbps: null });
+        return;
+      }
       void multiplayerAudioService.attachRemoteTrack(
         event.track,
         stream,
@@ -995,6 +1034,7 @@ export function createMultiplayerSession({
   function startReceiverBitrateMonitor(peer: PeerConnection): void {
     clearReceiverBitrateMonitor();
     receiverBitrateSamples = [];
+    receiverCounterSamples = [];
 
     const sample = async () => {
       if (receiverBitrateSampling || clientPeer !== peer || state.mode !== 'client') return;
@@ -1003,20 +1043,67 @@ export function createMultiplayerSession({
         const stats = await peer.pc.getStats();
         let bytesReceived = 0;
         let foundAudio = false;
+        let packetsReceived = 0;
+        let packetsLost = 0;
+        let jitterMs: number | null = null;
+        let codec: string | null = null;
+        let codecId: string | null = null;
+        let roundTripTimeMs: number | null = null;
         stats.forEach((report) => {
-          if (report.type !== 'inbound-rtp') return;
-          const inbound = report as RTCInboundRtpStreamStats & { mediaType?: string };
-          if ((inbound.kind ?? inbound.mediaType) !== 'audio') return;
-          if (typeof inbound.bytesReceived !== 'number') return;
-          bytesReceived += inbound.bytesReceived;
-          foundAudio = true;
+          if (report.type === 'inbound-rtp') {
+            const inbound = report as RTCInboundRtpStreamStats & { mediaType?: string };
+            if ((inbound.kind ?? inbound.mediaType) !== 'audio') return;
+            if (typeof inbound.bytesReceived === 'number') bytesReceived += inbound.bytesReceived;
+            if (typeof inbound.packetsReceived === 'number') packetsReceived += inbound.packetsReceived;
+            if (typeof inbound.packetsLost === 'number') packetsLost += Math.max(0, inbound.packetsLost);
+            if (typeof inbound.jitter === 'number') jitterMs = inbound.jitter * 1_000;
+            if (typeof inbound.codecId === 'string') codecId = inbound.codecId;
+            foundAudio = true;
+            return;
+          }
+          if (report.type === 'candidate-pair') {
+            const pair = report as RTCIceCandidatePairStats;
+            if (pair.state === 'succeeded' && pair.nominated
+              && typeof pair.currentRoundTripTime === 'number') {
+              roundTripTimeMs = pair.currentRoundTripTime * 1_000;
+            }
+          }
         });
         if (!foundAudio || clientPeer !== peer) return;
+        if (codecId) {
+          const codecReport = stats.get(codecId) as {
+            mimeType?: string;
+            clockRate?: number;
+          } | undefined;
+          if (codecReport?.mimeType) {
+            codec = codecReport.mimeType.replace(/^audio\//i, '');
+            if (typeof codecReport.clockRate === 'number') codec += ` ${Math.round(codecReport.clockRate / 1_000)} kHz`;
+          }
+        }
         const next = updateReceivedBitrateWindow(receiverBitrateSamples, {
           timestamp: performance.now(),
           bytesReceived
         });
         receiverBitrateSamples = next.samples;
+        const loss = updateMultiplayerPacketLossStats(receiverCounterSamples, {
+          timestamp: performance.now(),
+          packetsReceived,
+          packetsLost
+        });
+        receiverCounterSamples = loss.samples;
+        publish({
+          connectionStats: {
+            packetsReceived: loss.totalReceived,
+            packetsLost: loss.totalLost,
+            packetLossPercent: loss.totalPercent,
+            recentPacketsReceived: loss.recentReceived,
+            recentPacketsLost: loss.recentLost,
+            recentPacketLossPercent: loss.recentPercent,
+            jitterMs: jitterMs === null ? null : Math.round(jitterMs * 10) / 10,
+            roundTripTimeMs: roundTripTimeMs === null ? null : Math.round(roundTripTimeMs),
+            codec
+          }
+        });
         if (state.audioStatus === 'playing'
           && next.averageKbps !== state.averageAudioBitrateKbps) {
           publish({ averageAudioBitrateKbps: next.averageKbps });
@@ -1039,6 +1126,36 @@ export function createMultiplayerSession({
     if (receiverBitrateTimer !== null) window.clearInterval(receiverBitrateTimer);
     receiverBitrateTimer = null;
     receiverBitrateSamples = [];
+    receiverCounterSamples = [];
+  }
+
+  function setReceiveAudio(enabled: boolean): void {
+    if (state.receiveAudio === enabled) return;
+    writeReceiveAudioPreference(enabled);
+    publish({ receiveAudio: enabled });
+    if (state.mode !== 'client' || !clientPeer) return;
+
+    const receiver = clientPeer.pc.getReceivers().find(({ track }) => track.kind === 'audio');
+    const track = receiver?.track;
+    if (!track || track.readyState === 'ended') {
+      publish({ audioStatus: enabled ? 'unavailable' : 'refused', averageAudioBitrateKbps: null });
+      return;
+    }
+    track.enabled = enabled;
+    if (!enabled) {
+      multiplayerAudioService.clearRemoteTrack();
+      publish({ audioStatus: 'refused', averageAudioBitrateKbps: null });
+      return;
+    }
+    if (!latestAudioAvailability.enabled) {
+      publish({
+        audioStatus: latestAudioAvailability.reason === 'video-disabled' ? 'video-disabled' : 'disabled'
+      });
+      return;
+    }
+    void multiplayerAudioService.attachRemoteTrack(track, new MediaStream([track]), (audioStatus) => {
+      if (state.mode === 'client' && state.receiveAudio) publish({ audioStatus });
+    });
   }
 
   function scheduleClientReconnect(delay?: number): void {
@@ -1327,10 +1444,12 @@ export function createMultiplayerSession({
       reconnecting: false,
       inviteCode: null,
       hostName: null,
+      hostVersion: null,
       clients: [],
       audioStatus: 'idle',
       connectionRoute: null,
       averageAudioBitrateKbps: null,
+      connectionStats: null,
       connectionDetail: null,
       message: null
     });
@@ -1347,6 +1466,7 @@ export function createMultiplayerSession({
       reconnecting: false,
       inviteCode: null,
       hostName: null,
+      hostVersion: null,
       clients: [],
       remoteCatalog: EMPTY_CATALOG,
       remotePlayback: EMPTY_REMOTE_PLAYBACK,
@@ -1355,6 +1475,7 @@ export function createMultiplayerSession({
       audioStatus: 'idle',
       connectionRoute: null,
       averageAudioBitrateKbps: null,
+      connectionStats: null,
       connectionDetail: null,
       message: null
     });
@@ -1425,6 +1546,7 @@ export function createMultiplayerSession({
     togglePairing,
     sendCommand,
     resumeAudio: () => multiplayerAudioService.resumeRemoteAudio(),
+    setReceiveAudio,
     updateHostState,
     destroy() {
       allowClientReconnect = false;
@@ -1744,6 +1866,23 @@ function sanitizeClientName(value: string): string {
 function sanitizePlatform(value: string): string {
   const platform = value.trim().replace(/[\u0000-\u001f\u007f]/g, '').slice(0, 32);
   return platform || 'Unknown';
+}
+
+function readReceiveAudioPreference(): boolean {
+  if (typeof window === 'undefined') return true;
+  try {
+    return window.localStorage.getItem(RECEIVE_AUDIO_STORAGE_KEY) !== 'false';
+  } catch {
+    return true;
+  }
+}
+
+function writeReceiveAudioPreference(enabled: boolean): void {
+  try {
+    window.localStorage.setItem(RECEIVE_AUDIO_STORAGE_KEY, String(enabled));
+  } catch {
+    // The in-memory choice still applies when storage is unavailable.
+  }
 }
 
 function errorMessage(error: unknown, fallback: string): string {
