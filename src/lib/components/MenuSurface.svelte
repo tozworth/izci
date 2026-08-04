@@ -40,6 +40,7 @@
   $: currentLevel = navigationStack[navigationStack.length - 1] ?? null;
   $: displayedItems = currentLevel?.items ?? items;
   $: displayedRatingPicker = currentLevel?.ratingPicker;
+  $: showsSessionStats = displayedItems.some((item) => item.id === 'multiplayerStatProtocol');
   $: resolvedAriaLabel = currentLevel?.label
     ?? ariaLabel
     ?? $t('main.menu.genericMenu', { default: 'Menu' });
@@ -203,6 +204,7 @@
   <div
     bind:this={menuElement}
     class="menu-list menu-surface menu-surface-nested"
+    class:menu-surface-session-stats={showsSessionStats}
     use:keepMenuInViewport
     role="menu"
     aria-label={resolvedAriaLabel}
@@ -276,6 +278,7 @@
   <div
     bind:this={menuElement}
     class="menu-list menu-surface"
+    class:menu-surface-session-stats={showsSessionStats}
     data-menu-interactive="true"
     use:portal
     use:windowDismiss={{ enabled: true, onDismiss: () => dispatch('dismiss') }}
@@ -380,6 +383,15 @@
 
   .menu-surface:not(.menu-surface-nested):has(> .menu-entry-group > button .menu-item-description) {
     width: min(22rem, calc(100vw - 1rem));
+  }
+
+  .menu-surface:not(.menu-surface-nested).menu-surface-session-stats:has(> .menu-entry-group > button .menu-item-description) {
+    width: min(19.5rem, calc(100vw - 1rem));
+  }
+
+  .menu-surface-session-stats .menu-item-shortcut {
+    min-width: 0;
+    font-variant-numeric: tabular-nums;
   }
 
   .menu-surface-nested {
