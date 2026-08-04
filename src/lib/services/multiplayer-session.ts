@@ -903,7 +903,12 @@ function createPeer(id: string, name: string): PeerConnection {
   return {
     id,
     name,
-    pc: new RTCPeerConnection({ iceServers: [] }),
+    pc: new RTCPeerConnection({
+      iceServers: [
+        { urls: 'stun:stun.cloudflare.com:3478' },
+        { urls: 'stun:stun.l.google.com:19302' }
+      ]
+    }),
     channel: null,
     outgoing: [],
     flushing: false,
