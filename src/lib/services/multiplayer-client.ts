@@ -45,6 +45,7 @@ import {
   isMultiplayerClientTransportHealthy,
   isMultiplayerPlaybackPreparationReady,
   sanitizeClientName,
+  sanitizeFreeplayQueueIds,
   writeReceiveAudioPreference
 } from './multiplayer-utils';
 import {
@@ -73,6 +74,19 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
     multiplayerSourcePlaybackService.setLocalTimeline(
       core.state.mode === 'client' && core.state.freeplay && core.latestAudioAvailability.sourceFile
     );
+  }
+
+  function setFreeplayQueue(itemIds: string[]): void {
+    const sanitized = sanitizeFreeplayQueueIds(itemIds);
+    publish({ freeplayQueue: sanitized });
+    sendFreeplayQueueToPeer();
+  }
+
+  function sendFreeplayQueueToPeer(): void {
+    const peer = core.clientPeer;
+    if (!peer || core.state.mode !== 'client' || !core.state.freeplay) return;
+    if (peer.channel?.readyState !== 'open') return;
+    sendToPeer(peer, { kind: 'freeplay.queue', itemIds: core.state.freeplayQueue });
   }
 
   async function join(rawInviteCode: string): Promise<void> {
@@ -145,6 +159,7 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
       hostVersion: null,
       freeplayPaired: reconnecting ? core.state.freeplayPaired : false,
       freeplay: reconnecting ? core.state.freeplay : false,
+      freeplayQueue: reconnecting ? core.state.freeplayQueue : [],
       remoteCatalog: reconnecting ? core.state.remoteCatalog : EMPTY_CATALOG,
       remotePlayback: reconnecting ? core.state.remotePlayback : EMPTY_REMOTE_PLAYBACK,
       remoteArtwork: reconnecting ? core.state.remoteArtwork : null,
@@ -365,6 +380,11 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
           freeplay: message.paired && message.freeplayActive
         });
         updateLocalTimelineMode();
+        if (message.paired && message.freeplayActive) {
+          // Reconnect creates a fresh host peer; re-sync the owned queue so the
+          // host can resolve it into the catalog and step within it.
+          sendFreeplayQueueToPeer();
+        }
       }
       if (message.kind === 'audio') {
         core.latestAudioAvailability = message.audio;
@@ -720,6 +740,7 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
       hostVersion: null,
       freeplayPaired: false,
       freeplay: false,
+      freeplayQueue: [],
       clients: [],
       remoteCatalog: EMPTY_CATALOG,
       remotePlayback: EMPTY_REMOTE_PLAYBACK,
@@ -746,6 +767,7 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
     joinPaired,
     leave,
     sendCommand,
+    setFreeplayQueue,
     setReceiveAudio,
     resumeAudio,
     applyClientAudioBuffer,

@@ -51,6 +51,7 @@ import {
   resolveMultiplayerFreeplayAgreement,
   resolvePlaybackPreparationAudio,
   sanitizeClientName,
+  sanitizeFreeplayQueueIds,
   sanitizePlatform,
   shouldTransferMultiplayerSourceFile
 } from './multiplayer-utils';
@@ -438,6 +439,11 @@ export function createMultiplayerHostSide(
         void syncPeerFreeplayMode(peer);
         return;
       }
+      if (message.kind === 'freeplay.queue' && peer.freeplay) {
+        peer.freeplayQueue = sanitizeFreeplayQueueIds(message.itemIds);
+        sendFreeplayCatalog(peer);
+        return;
+      }
       if (message.kind === 'command' && isMultiplayerCommand(message.command)) {
         void Promise.resolve(peer.freeplay
           ? handleFreeplayCommand(peer, message.command)
@@ -556,10 +562,11 @@ export function createMultiplayerHostSide(
       peer.freeplayArtworkLoadToken += 1;
       peer.sourceTrackKey = '';
       // Deactivating must not leave stale browse context behind: re-entering
-      // Freeplay should start from a clean collection/shuffle/repeat.
+      // Freeplay should start from a clean collection/shuffle/repeat/queue.
       peer.freeplayCollection = 'library';
       peer.freeplayShuffle = false;
       peer.freeplayRepeatMode = 'off';
+      peer.freeplayQueue = [];
       core.freeplaySelections.delete(peer.id);
       syncPeerSourceFile(peer, core.latestHostState?.track ?? null);
       await syncSharedPeerAudio(peer);
@@ -669,8 +676,8 @@ export function createMultiplayerHostSide(
     collection: MultiplayerCollection,
     itemId: string
   ): Promise<boolean> {
-    if (!core.latestHostState || collection === 'playlist' || !peer.freeplayPlayer) return false;
-    const items = freeplayCollectionItems(collection);
+    if (!core.latestHostState || !peer.freeplayPlayer) return false;
+    const items = freeplayCollectionItems(peer, collection);
     const source = items.find((item) => item.id === itemId);
     if (!source) return false;
     const track = await materializePlaylistItem(source, false);
@@ -717,7 +724,7 @@ export function createMultiplayerHostSide(
       player.seek(0);
       return player.play();
     }
-    const items = freeplayCollectionItems(peer.freeplayCollection);
+    const items = freeplayCollectionItems(peer, peer.freeplayCollection);
     const currentIndex = items.findIndex((item) => item.id === player.track?.id);
     if (fromEnded
       && peer.freeplayRepeatMode === 'off'
@@ -737,9 +744,32 @@ export function createMultiplayerHostSide(
     await stepFreeplayTrack(peer, 1, true);
   }
 
-  function freeplayCollectionItems(collection: MultiplayerCollection): PlaylistItem[] {
+  function freeplayCollectionItems(
+    peer: PeerConnection,
+    collection: MultiplayerCollection
+  ): PlaylistItem[] {
     if (!core.latestHostState) return [];
+    if (collection === 'playlist') return resolveFreeplayQueueItems(peer);
     return collection === 'favorites' ? core.latestHostState.favorites : core.latestHostState.library;
+  }
+
+  /**
+   * Resolves the peer's owned queue (ordered catalog item IDs) against the
+   * current host library and favorites. Items that no longer exist are dropped;
+   * the queue order is preserved.
+   */
+  function resolveFreeplayQueueItems(peer: PeerConnection): PlaylistItem[] {
+    if (!core.latestHostState || peer.freeplayQueue.length === 0) return [];
+    const byId = new Map<string, PlaylistItem>();
+    for (const item of [
+      ...core.latestHostState.library,
+      ...core.latestHostState.favorites
+    ]) {
+      if (!byId.has(item.id)) byId.set(item.id, item);
+    }
+    return peer.freeplayQueue
+      .map((id) => byId.get(id))
+      .filter((item): item is PlaylistItem => Boolean(item));
   }
 
   function sendFreeplayCatalog(peer: PeerConnection): void {
@@ -748,7 +778,7 @@ export function createMultiplayerHostSide(
       kind: 'catalog',
       catalog: {
         revision: core.catalogRevision,
-        playlist: [],
+        playlist: resolveFreeplayQueueItems(peer).map(sanitizePlaylistItem),
         library: core.latestHostState.library.map(sanitizePlaylistItem),
         favorites: core.latestHostState.favorites.map(sanitizePlaylistItem),
         shuffleEnabled: peer.freeplayShuffle,

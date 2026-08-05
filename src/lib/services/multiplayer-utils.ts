@@ -2,6 +2,7 @@ import type { PlaylistItem } from '$lib/types';
 import { experimentalSettings } from '$lib/stores/experimental-settings';
 import {
   MULTIPLAYER_PROTOCOL_VERSION,
+  MULTIPLAYER_QUEUE_MAX_ITEMS,
   isMultiplayerCommand,
   type ClientMessage,
   type MultiplayerAudioAvailability,
@@ -81,6 +82,13 @@ export function isClientMessage(value: unknown): value is ClientMessage {
   if (message.kind === 'freeplay.preference') {
     return typeof message.enabled === 'boolean';
   }
+  if (message.kind === 'freeplay.queue') {
+    return Array.isArray(message.itemIds)
+      && message.itemIds.length <= MULTIPLAYER_QUEUE_MAX_ITEMS
+      && message.itemIds.every((id) => typeof id === 'string'
+        && id.length > 0
+        && id.length <= 200);
+  }
   if (message.kind === 'playback.ready') {
     return typeof message.preparationId === 'string'
       && message.preparationId.length > 0
@@ -114,6 +122,19 @@ export function getClientPlatform(): string {
 export function sanitizeClientName(value: string): string {
   const name = value.trim().replace(/[\u0000-\u001f\u007f]/g, '').slice(0, 48);
   return name || 'Guest client';
+}
+
+export function sanitizeFreeplayQueueIds(itemIds: string[]): string[] {
+  const seen = new Set<string>();
+  const sanitized: string[] = [];
+  for (const id of itemIds) {
+    if (typeof id !== 'string' || id.length === 0 || id.length > 200) continue;
+    if (seen.has(id)) continue;
+    seen.add(id);
+    sanitized.push(id);
+    if (sanitized.length >= MULTIPLAYER_QUEUE_MAX_ITEMS) break;
+  }
+  return sanitized;
 }
 
 export function sanitizePlatform(value: string): string {

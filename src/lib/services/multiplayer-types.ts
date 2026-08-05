@@ -66,6 +66,12 @@ export interface MultiplayerSessionState {
   hostVersion: string | null;
   freeplayPaired: boolean;
   freeplay: boolean;
+  /**
+   * The Freeplay client's own ordered queue of catalog item IDs. The client
+   * curates it; the host resolves it into `remoteCatalog.playlist` and steps
+   * within it. Empty when Freeplay is inactive.
+   */
+  freeplayQueue: string[];
   clients: MultiplayerClient[];
   remoteCatalog: MultiplayerCatalog;
   remotePlayback: MultiplayerPlayback;
@@ -209,6 +215,12 @@ export interface PeerConnection {
   freeplayCollection: MultiplayerCollection;
   freeplayShuffle: boolean;
   freeplayRepeatMode: PlaylistRepeatMode;
+  /**
+   * The Freeplay client's owned queue (ordered catalog item IDs). Resolved into
+   * the per-peer catalog's `playlist` field and used as the stepping context
+   * when `freeplayCollection` is 'playlist'.
+   */
+  freeplayQueue: string[];
   freeplayPendingPreparation: MultiplayerPlaybackPreparation | null;
   freeplayArtwork: MultiplayerArtwork | null;
   freeplayArtworkTrackKey: string;
@@ -236,6 +248,7 @@ export interface MultiplayerSessionController extends Readable<MultiplayerSessio
   kick(clientId: string): Promise<void>;
   togglePairing(clientId: string): Promise<void>;
   sendCommand(command: MultiplayerCommandInput): boolean;
+  setFreeplayQueue(itemIds: string[]): void;
   cancelPendingPlayback(): boolean;
   resumeAudio(): Promise<boolean>;
   setReceiveAudio(enabled: boolean): void;
@@ -320,6 +333,7 @@ export interface MultiplayerClientSide {
   joinPaired(hostId: string): Promise<void>;
   leave(): Promise<void>;
   sendCommand(command: MultiplayerCommandInput): boolean;
+  setFreeplayQueue(itemIds: string[]): void;
   setReceiveAudio(enabled: boolean): void;
   resumeAudio(): Promise<boolean>;
   applyClientAudioBuffer(peer: PeerConnection): void;

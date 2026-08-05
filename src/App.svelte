@@ -238,6 +238,7 @@
     hostVersion: null,
     freeplayPaired: false,
     freeplay: false,
+    freeplayQueue: [],
     clients: [],
     remoteCatalog: {
       revision: 0,
@@ -386,9 +387,14 @@
     resumeAutoScrollToken: 0
   };
   const workspaceShell = createWorkspaceShellController({
-    getPlaylistContextActions: (ids) => workspaceCollections.getPlaylistContextActions(ids),
-    getLibraryContextActions: (ids) =>
-      libraryViewSettings.getSnapshot().activeView === 'favorites'
+    // Freeplay: the client's queue behaves like a local playlist — "Remove"
+    // (label localized in PlaylistPanel) with the Delete shortcut.
+    getPlaylistContextActions: (ids) => isFreeplayClient
+      ? [{ id: 'remove', label: 'Remove', icon: 'delete', shortcut: 'Delete' }]
+      : workspaceCollections.getPlaylistContextActions(ids),
+    getLibraryContextActions: (ids) => isFreeplayClient
+      ? [{ id: 'add-to-queue', label: 'Add to queue', icon: 'playlist_add' }]
+      : libraryViewSettings.getSnapshot().activeView === 'favorites'
         ? workspaceCollections.getFavoriteContextActions(ids)
         : workspaceCollections.getLibraryContextActions(ids),
     collectionSelection: {
@@ -693,6 +699,21 @@
     multiplayerSession.sendCommand({ type: 'collection.activate', collection, itemId: id });
     return true;
   }
+
+  function addToFreeplayQueue(ids: string[]): void {
+    if (!isFreeplayClient || ids.length === 0) return;
+    const queue = multiplayerState.freeplayQueue;
+    const next = [...queue, ...ids.filter((id) => !queue.includes(id))];
+    multiplayerSession.setFreeplayQueue(next);
+  }
+
+  function removeFromFreeplayQueue(ids: string[]): void {
+    if (!isFreeplayClient || ids.length === 0) return;
+    const removed = new Set(ids);
+    multiplayerSession.setFreeplayQueue(
+      multiplayerState.freeplayQueue.filter((id) => !removed.has(id))
+    );
+  }
   const miniPlayer = createMiniPlayerController({
     snapshot: playerController.snapshot,
     track: miniPlayerTrack,
@@ -875,6 +896,10 @@
       closeNowPlayingView,
       closeActiveRightPanel,
       removePlaylistItems: (ids) => {
+        if (isFreeplayClient) {
+          removeFromFreeplayQueue(ids);
+          return;
+        }
         if (!isMultiplayerClient) workspaceCollections.removePlaylistItems(ids);
       },
       removeLibraryItems: (ids) =>
@@ -926,6 +951,7 @@
   });
 
   $: isMultiplayerClient = multiplayerState.mode === 'client';
+  $: isFreeplayClient = isMultiplayerClient && multiplayerState.freeplay;
   $: isSourceFileFreeplayClient = isMultiplayerClient
     && multiplayerState.freeplay
     && multiplayerState.remoteSourceFile;
@@ -1141,7 +1167,7 @@
     shuffleEnabled,
     repeatMode,
     keepEmptyWorkspacePanelsOpen: $appearanceSettings.keepEmptyWorkspacePanelsOpen,
-    readOnly: isMultiplayerClient
+    readOnly: isMultiplayerClient && !isFreeplayClient
   });
   $: multiplayerSession.updateHostState({
     playlist: localPlaylistItems,
@@ -1194,6 +1220,10 @@
       }
     },
     contextAction: (event) => {
+      if (isFreeplayClient && event.detail.actionId === 'remove') {
+        removeFromFreeplayQueue(event.detail.ids);
+        return;
+      }
       if (!isMultiplayerClient) {
         workspaceCollections.handlePlaylistContextAction(event.detail.actionId, event.detail.ids);
       }
@@ -1210,6 +1240,10 @@
     activate: (event) => void activateLibraryPanelTrack(event.detail),
     libraryGroupRequestHandled: (event) => workspaceShell.clearLibraryGroupRequest(event.detail),
     contextAction: (event) => {
+      if (isFreeplayClient && event.detail.actionId === 'add-to-queue') {
+        addToFreeplayQueue(event.detail.ids);
+        return;
+      }
       if (isMultiplayerClient) return;
       $libraryViewSettings.activeView === 'favorites'
         ? workspaceCollections.handleFavoriteContextAction(event.detail.actionId, event.detail.ids)
@@ -1283,6 +1317,14 @@
   }
 
   async function activateLibraryPanelTrack(id: string) {
+    if (isFreeplayClient) {
+      // Sovereign Freeplay: picking a library track queues it for the client's
+      // own playlist and plays from the queue, so next/prev/shuffle/repeat
+      // drive the queue rather than the whole host collection.
+      addToFreeplayQueue([id]);
+      activateMultiplayerTrack('playlist', id);
+      return;
+    }
     if (activateMultiplayerTrack(
       $libraryViewSettings.activeView === 'favorites' ? 'favorites' : 'library',
       id

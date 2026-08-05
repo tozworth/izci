@@ -8,10 +8,20 @@ import type {
 
 export type MultiplayerCollection = 'playlist' | 'library' | 'favorites';
 
-// Version 13: source-file Freeplay makes the host timeline-passive; the client
-// owns playback and the host `playback` messages become a static selection.
-export const MULTIPLAYER_PROTOCOL_VERSION = 13;
+// Version 14: Freeplay clients own a queue; the host resolves it into the
+// catalog's playlist field and steps within it (next/prev/shuffle/repeat).
+export const MULTIPLAYER_PROTOCOL_VERSION = 14;
 export const MULTIPLAYER_FRAME_CHUNK_SIZE = 12_000;
+
+/**
+ * Wire-sanity bound for the Freeplay queue. Not a transport limit — the host
+ * already ships the whole library (potentially thousands of items) in the
+ * catalog, and the chunked-message reassembler handles payloads an order of
+ * magnitude larger. This only stops absurd input; it must comfortably exceed
+ * any realistic local library (a 7k-track "shuffle play all" queue is ~280 KB
+ * over the wire).
+ */
+export const MULTIPLAYER_QUEUE_MAX_ITEMS = 50_000;
 
 const MULTIPLAYER_ARTWORK_DATA_URL_MAX_LENGTH = 8 * 1024 * 1024;
 
@@ -98,6 +108,7 @@ export type HostMessage =
 export type ClientMessage =
   | { kind: 'hello'; version: number; name: string; platform: string; freeplayEnabled: boolean }
   | { kind: 'freeplay.preference'; enabled: boolean }
+  | { kind: 'freeplay.queue'; itemIds: string[] }
   | { kind: 'command'; command: MultiplayerCommand }
   | { kind: 'playback.ready'; preparationId: string }
   | { kind: 'playback.ended'; trackId: string };

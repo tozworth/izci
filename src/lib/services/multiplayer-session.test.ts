@@ -4,8 +4,10 @@ import {
   isMultiplayerFreeplayActive,
   isMultiplayerPlaybackPreparationReady,
   resolveMultiplayerFreeplayAgreement,
+  sanitizeFreeplayQueueIds,
   shouldTransferMultiplayerSourceFile
 } from './multiplayer-utils';
+import { MULTIPLAYER_QUEUE_MAX_ITEMS } from './multiplayer-protocol';
 import type { PlaylistItem } from '$lib/types';
 
 describe('multiplayer client lifecycle', () => {
@@ -132,5 +134,29 @@ describe('multiplayer playback preparation', () => {
       { preparationId: 'one', trackId: 'track', audio: 'none' },
       baseState
     )).toBe(true);
+  });
+});
+
+describe('Freeplay queue sanitization', () => {
+  it('deduplicates while preserving order', () => {
+    expect(sanitizeFreeplayQueueIds(['b', 'a', 'b', 'c'])).toEqual(['b', 'a', 'c']);
+  });
+
+  it('drops non-strings and out-of-bounds ids', () => {
+    expect(sanitizeFreeplayQueueIds([
+      'ok',
+      '',
+      'x'.repeat(201),
+      42 as unknown as string,
+      null as unknown as string
+    ])).toEqual(['ok']);
+  });
+
+  it('caps the queue at the wire-sanity bound (well beyond any realistic library)', () => {
+    const ids = Array.from(
+      { length: MULTIPLAYER_QUEUE_MAX_ITEMS + 2 },
+      (_, index) => `id-${index}`
+    );
+    expect(sanitizeFreeplayQueueIds(ids)).toHaveLength(MULTIPLAYER_QUEUE_MAX_ITEMS);
   });
 });

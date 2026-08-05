@@ -44,13 +44,23 @@ The `changed && !active` branch of `syncPeerFreeplayMode` now resets `freeplayCo
 - `syncFreeplayPlayerUpdate` now sends `{ kind: 'audio' }` only when the availability reference changed (`peer.freeplayAudioSent`). `MultiplayerFreeplayPlayer.#audio` is stable per loaded track, so this is once per load/`reconfigure`, not per progress tick. `sendCurrentState` records what it sent so a connect doesn't double-send.
 - `MultiplayerAudioService.attachRemoteTrack` is now idempotent for the same live track: it keeps the element/source and just refreshes the status handler + resumes instead of clearing and rebuilding. Defense-in-depth against any redundant `audio` message.
 
+## 8. Freeplay playlist was dead-empty — clients now own a queue (DONE)
+
+**Fixed:** the client's Playlist panel rendered `remoteCatalog.playlist`, which the host hardcoded to `[]` for Freeplay peers while rejecting `collection === 'playlist'` — so the panel was a permanent "0 songs" shell and the client could never curate anything. Freeplay is now a sovereign queue: the client owns an ordered list of host-catalog item IDs and the host steps within it.
+
+- New client message `{ kind: 'freeplay.queue', itemIds }` (full replacement, validated + capped at 5000 by `sanitizeFreeplayQueueIds`). The host stores it per-peer (`peer.freeplayQueue`), resolves it into the Freeplay catalog's `playlist` field (`resolveFreeplayQueueItems`), accepts `collection === 'playlist'` in `activateFreeplayTrack`, and next/prev/shuffle/repeat step within the queue once `freeplayCollection === 'playlist'`.
+- Client re-sends the queue on pairing/freeplay activation (reconnect creates a fresh host peer); queue resets with Freeplay exit and `leave()`.
+- UI (App.svelte): in Freeplay, double-clicking a library row adds it to the queue and plays from the queue; the Playlist panel shows the queue; context-menu Remove and the Delete key both remove from the queue. The client panel is no longer `readOnly` in Freeplay. The menu action stays the local-mode "Remove" label with the Delete shortcut (the panel localizes the `remove` id anyway).
+- Protocol bumped to 14 (database.rules.json synced by the prebuild script).
+
 ## Shared multiplayer
 
 - Keep `syncPeerSourceFile` key-guarded (`sourceTrackKey`) — it's correctly a no-op across 250 ms progress publishes, including in Freeplay. Don't "optimize" it into per-tick re-uploads.
 
 ## Verification
 
-- `npx vitest run src/lib/services/multiplayer-*` — 60 passed, 7 skipped (incl. new `MultiplayerAudioService` idempotent re-attach coverage).
+- `npx vitest run src/lib/services/multiplayer-*` — 63 passed, 7 skipped (incl. Freeplay queue sanitization coverage: dedupe, bounds, 5000 cap).
 - `npm run check` — 0 errors, 0 warnings.
 - `npm run build` — clean.
+- Live CDP verification (2026-08-05, client on Protocol v14): Freeplay queue populated by double-clicking host-library rows (dedup), Playlist panel shows the queue, next steps within the queue, context-menu Remove and Delete-key Remove both remove from the queue, and the context menu shows the Delete shortcut hint (local-mode parity).
 
