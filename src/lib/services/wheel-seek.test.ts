@@ -70,4 +70,47 @@ describe('createWheelSeekController', () => {
 
     expect(commits).toEqual([99]);
   });
+
+  it('uses the live step from a getter on every notch', () => {
+    let stepSeconds = 5;
+    let currentTime = 60;
+    const previews: number[] = [];
+    const controller = createWheelSeekController({
+      getCurrentTime: () => currentTime,
+      getDuration: () => 120,
+      getContextKey: () => 'track-a',
+      stepSeconds: () => stepSeconds,
+      onPreview: (seconds) => {
+        if (seconds !== null) previews.push(seconds);
+      },
+      onCommit: () => undefined
+    });
+
+    controller.step(1);
+    stepSeconds = 10;
+    controller.step(1);
+    stepSeconds = 2;
+    controller.step(1);
+
+    expect(previews).toEqual([55, 45, 43]);
+  });
+
+  it('falls back to the default step for an invalid getter value', () => {
+    let stepSeconds = 0;
+    const previews: number[] = [];
+    const controller = createWheelSeekController({
+      getCurrentTime: () => 100,
+      getDuration: () => 120,
+      getContextKey: () => 'track-a',
+      stepSeconds: () => stepSeconds,
+      onPreview: (seconds) => {
+        if (seconds !== null) previews.push(seconds);
+      },
+      onCommit: () => undefined
+    });
+
+    controller.step(1);
+
+    expect(previews).toEqual([95]);
+  });
 });

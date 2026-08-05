@@ -396,6 +396,8 @@ export interface PlaybackSettings {
   rememberProgressDurationIndex: number;
   enableRaf: boolean;
   showRafToggleInPlayerBar: boolean;
+  showTimeRemaining: boolean;
+  seekWheelStepSeconds: number;
 }
 
 export interface VisualizerSettings {

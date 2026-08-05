@@ -175,7 +175,8 @@
           $playbackSettings.logarithmicVolume !== DEFAULT_PLAYBACK_SETTINGS.logarithmicVolume ||
           $playbackSettings.gaplessPlayback !== DEFAULT_PLAYBACK_SETTINGS.gaplessPlayback ||
           $playbackSettings.fadeDurationSeconds !== DEFAULT_PLAYBACK_SETTINGS.fadeDurationSeconds ||
-          $playbackSettings.manualTrackChangeFadePercent !== DEFAULT_PLAYBACK_SETTINGS.manualTrackChangeFadePercent;
+          $playbackSettings.manualTrackChangeFadePercent !== DEFAULT_PLAYBACK_SETTINGS.manualTrackChangeFadePercent ||
+          $playbackSettings.seekWheelStepSeconds !== DEFAULT_PLAYBACK_SETTINGS.seekWheelStepSeconds;
         break;
       case 'visualizer':
         advancedTweaksModified =

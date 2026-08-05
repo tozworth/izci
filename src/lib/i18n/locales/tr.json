@@ -1179,6 +1179,14 @@
         "title": "İlerlemeyi hatırla",
         "hint": "En az bu uzunluktaki yarım kalmış dosyaları geri döndüğünüzde otomatik olarak kaldığı yerden sürdürür."
       },
+      "showTimeRemaining": {
+        "title": "Kalan süreyi göster",
+        "hint": "Toplam uzunluk yerine geçerli parçanın ne kadarının kaldığını gösterir."
+      },
+      "seekWheelStep": {
+        "title": "Tekerlek arama adımı",
+        "hint": "Arama çubuğu üzerinde her tekerlek çentiğinin kaç saniye aradığı."
+      },
       "startup": {
         "heading": "Başlangıç"
       },

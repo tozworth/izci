@@ -15,10 +15,13 @@
     MANUAL_TRACK_CHANGE_FADE_PERCENT_MAX,
     MANUAL_TRACK_CHANGE_FADE_PERCENT_MIN,
     MANUAL_TRACK_CHANGE_FADE_PERCENT_STEP,
+    MAX_SEEK_WHEEL_STEP_SECONDS,
+    MIN_SEEK_WHEEL_STEP_SECONDS,
     normalizeFadeDurationSeconds,
     normalizeManualTrackChangeFadePercent,
     normalizePlaybackRate,
     normalizeRememberProgressDurationIndex,
+    normalizeSeekWheelStepSeconds,
     playbackSettings
   } from '$lib/stores/playback-settings';
   import type { PlaybackRestoreMode, PlaybackTransitionMode, ReplayGainMode } from '$lib/types';
@@ -54,6 +57,8 @@
   function handleFadeDurationChange(event: Event) { playbackSettings.update({ fadeDurationSeconds: normalizeFadeDurationSeconds((event.currentTarget as HTMLInputElement).valueAsNumber) }); }
   function handleManualTrackChangeFadePercentChange(event: Event) { playbackSettings.update({ manualTrackChangeFadePercent: normalizeManualTrackChangeFadePercent((event.currentTarget as HTMLInputElement).valueAsNumber) }); }
   function handleLogarithmicVolumeToggle(event: Event) { playbackSettings.update({ logarithmicVolume: checked(event) }); }
+  function handleShowTimeRemainingToggle(event: Event) { playbackSettings.update({ showTimeRemaining: checked(event) }); }
+  function handleSeekWheelStepChange(event: Event) { playbackSettings.update({ seekWheelStepSeconds: normalizeSeekWheelStepSeconds((event.currentTarget as HTMLInputElement).valueAsNumber) }); }
   function handleReplayGainModeChange(event: Event) { playbackSettings.update({ replayGainMode: (event.currentTarget as HTMLSelectElement).value as ReplayGainMode }); }
   function handleEnableRafToggle(event: Event) { playbackSettings.update({ enableRaf: checked(event) }); }
   function handleShowRafToggleInPlayerBar(event: Event) { playbackSettings.update({ showRafToggleInPlayerBar: checked(event) }); }
@@ -251,6 +256,34 @@
           <span class="field-output">
             {rememberProgressDurationLabel($playbackSettings.rememberProgressDurationIndex)}
           </span>
+      </SettingsField>
+
+      <SettingsField
+        title={$t('options.playback.showTimeRemaining.title', { default: 'Show time remaining' })}
+        hint={$t('options.playback.showTimeRemaining.hint', { default: "Shows how much of the current track is left instead of its total length." })}
+        checkbox
+      >
+          <input
+            type="checkbox"
+            checked={$playbackSettings.showTimeRemaining}
+            on:change={handleShowTimeRemainingToggle}
+          />
+      </SettingsField>
+
+      <SettingsField
+        title={$t('options.playback.seekWheelStep.title', { default: 'Wheel seek step' })}
+        hint={$t('options.playback.seekWheelStep.hint', { default: 'How many seconds each wheel notch scrubs over the seek bar.' })}
+        advanced
+      >
+          <input
+            type="range"
+            min={MIN_SEEK_WHEEL_STEP_SECONDS}
+            max={MAX_SEEK_WHEEL_STEP_SECONDS}
+            step="1"
+            value={$playbackSettings.seekWheelStepSeconds}
+            on:input={handleSeekWheelStepChange}
+          />
+          <span class="field-output">{$playbackSettings.seekWheelStepSeconds} s</span>
       </SettingsField>
     </div>
   </div>

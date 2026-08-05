@@ -44,6 +44,9 @@ export const FADE_DURATION_STEP_SECONDS = 0.5;
 export const MANUAL_TRACK_CHANGE_FADE_PERCENT_MIN = 0;
 export const MANUAL_TRACK_CHANGE_FADE_PERCENT_MAX = 100;
 export const MANUAL_TRACK_CHANGE_FADE_PERCENT_STEP = 5;
+export const MIN_SEEK_WHEEL_STEP_SECONDS = 1;
+export const MAX_SEEK_WHEEL_STEP_SECONDS = 30;
+export const DEFAULT_SEEK_WHEEL_STEP_SECONDS = 5;
 
 export const DEFAULT_PLAYBACK_SETTINGS: PlaybackSettings = {
   playbackRate: 1,
@@ -58,7 +61,9 @@ export const DEFAULT_PLAYBACK_SETTINGS: PlaybackSettings = {
   restoreMode: 'disabled',
   rememberProgressDurationIndex: DEFAULT_REMEMBER_PROGRESS_DURATION_INDEX,
   enableRaf: false,
-  showRafToggleInPlayerBar: false
+  showRafToggleInPlayerBar: false,
+  showTimeRemaining: false,
+  seekWheelStepSeconds: DEFAULT_SEEK_WHEEL_STEP_SECONDS
 };
 
 export function normalizePlaybackTransitionMode(value: unknown): PlaybackTransitionMode {
@@ -88,6 +93,17 @@ export function normalizeManualTrackChangeFadePercent(value: unknown): number {
   );
   return Math.round(clamped / MANUAL_TRACK_CHANGE_FADE_PERCENT_STEP)
     * MANUAL_TRACK_CHANGE_FADE_PERCENT_STEP;
+}
+
+export function normalizeSeekWheelStepSeconds(value: unknown): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return DEFAULT_SEEK_WHEEL_STEP_SECONDS;
+  }
+
+  return Math.min(
+    Math.max(Math.round(value), MIN_SEEK_WHEEL_STEP_SECONDS),
+    MAX_SEEK_WHEEL_STEP_SECONDS
+  );
 }
 
 function normalizeReplayGainMode(value: unknown): ReplayGainMode {
@@ -164,7 +180,12 @@ export function normalizePlaybackSettings(value: unknown): PlaybackSettings {
     showRafToggleInPlayerBar:
       typeof source.showRafToggleInPlayerBar === 'boolean'
         ? source.showRafToggleInPlayerBar
-        : DEFAULT_PLAYBACK_SETTINGS.showRafToggleInPlayerBar
+        : DEFAULT_PLAYBACK_SETTINGS.showRafToggleInPlayerBar,
+    showTimeRemaining:
+      typeof source.showTimeRemaining === 'boolean'
+        ? source.showTimeRemaining
+        : DEFAULT_PLAYBACK_SETTINGS.showTimeRemaining,
+    seekWheelStepSeconds: normalizeSeekWheelStepSeconds(source.seekWheelStepSeconds)
   };
 }
 

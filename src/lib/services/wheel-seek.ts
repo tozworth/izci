@@ -4,12 +4,20 @@ interface WheelSeekControllerOptions {
   getContextKey: () => string | null;
   onPreview: (seconds: number | null) => void;
   onCommit: (seconds: number) => void;
-  stepSeconds?: number;
+  stepSeconds?: number | (() => number);
   settleDelayMs?: number;
 }
 
 const DEFAULT_STEP_SECONDS = 5;
 const DEFAULT_SETTLE_DELAY_MS = 80;
+
+function resolveStepSeconds(stepSeconds: number | (() => number) | undefined): number {
+  if (typeof stepSeconds === 'function') {
+    const value = stepSeconds();
+    return Number.isFinite(value) && value > 0 ? value : DEFAULT_STEP_SECONDS;
+  }
+  return stepSeconds ?? DEFAULT_STEP_SECONDS;
+}
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
@@ -21,7 +29,7 @@ export function createWheelSeekController({
   getContextKey,
   onPreview,
   onCommit,
-  stepSeconds = DEFAULT_STEP_SECONDS,
+  stepSeconds: stepSecondsOption,
   settleDelayMs = DEFAULT_SETTLE_DELAY_MS
 }: WheelSeekControllerOptions) {
   let target: number | null = null;
@@ -80,6 +88,8 @@ export function createWheelSeekController({
       target = clamp(getCurrentTime(), 0, duration);
       contextKey = nextContextKey;
     }
+
+    const stepSeconds = resolveStepSeconds(stepSecondsOption);
 
     target = clamp(
       target + (deltaY < 0 ? stepSeconds : -stepSeconds),

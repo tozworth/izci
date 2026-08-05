@@ -27,6 +27,7 @@
     hasVisualizerBackdrop,
     toBackdropZoneArtworkStyle
   } from '$lib/stores/appearance-settings';
+  import { playbackSettings } from '$lib/stores/playback-settings';
   import type { Readable } from 'svelte/store';
   import { formatDuration, getTrackDisplaySubtitle, getTrackDisplayTitle } from '$lib/utils/files';
   import type {
@@ -173,6 +174,7 @@
     getCurrentTime: () => snapshot.currentTime,
     getDuration: () => snapshot.duration,
     getContextKey: () => track?.id ?? null,
+    stepSeconds: () => playbackSettings.getSnapshot().seekWheelStepSeconds,
     onPreview: (seconds) => {
       seekWheelActive = seconds !== null;
       if (seconds !== null) seekPreview = seconds;
@@ -460,6 +462,10 @@
   $: snapshot = $snapshotStore;
   $: if (!seekPointerActive && !seekWheelActive) seekPreview = snapshot.currentTime;
   $: displayedSeekTime = seekPointerActive || seekWheelActive ? seekPreview : snapshot.currentTime;
+  $: displayEndTime = snapshot.duration;
+  $: displayEndLabel = $playbackSettings.showTimeRemaining
+    ? `-${formatDuration(Math.max(displayEndTime - displayedSeekTime, 0))}`
+    : formatDuration(displayEndTime);
   $: compactPlayerBar = presentation !== 'now-playing' && $appearanceSettings.compactPlayerBar;
   $: isCompactVolume = viewportUsesCompactVolume || compactPlayerBar;
   $: displayTrack = track;
@@ -661,7 +667,7 @@
         on:wheel|preventDefault={handleSeekWheel}
       />
     </div>
-    <span>{formatDuration(displayDuration)}</span>
+    <span>{displayEndLabel}</span>
   </div>
 
   <div class="player-control-strip">

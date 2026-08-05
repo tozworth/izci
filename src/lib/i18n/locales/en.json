@@ -1179,6 +1179,14 @@
         "title": "Remember progress",
         "hint": "Automatically resumes unfinished files at least this long when you return to them."
       },
+      "showTimeRemaining": {
+        "title": "Show time remaining",
+        "hint": "Shows how much of the current track is left instead of its total length."
+      },
+      "seekWheelStep": {
+        "title": "Wheel seek step",
+        "hint": "How many seconds each wheel notch scrubs over the seek bar."
+      },
       "startup": {
         "heading": "Startup"
       },

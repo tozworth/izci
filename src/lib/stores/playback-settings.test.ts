@@ -1,14 +1,16 @@
 import { describe, expect, it } from 'vitest';
-
 import {
   DEFAULT_REMEMBER_PROGRESS_DURATION_INDEX,
+  MAX_SEEK_WHEEL_STEP_SECONDS,
+  MIN_SEEK_WHEEL_STEP_SECONDS,
   normalizeFadeDurationSeconds,
   normalizeManualTrackChangeFadePercent,
   normalizePlaybackRate,
   normalizePlaybackSettings,
   normalizePlaybackRestoreMode,
   normalizePlaybackTransitionMode,
-  normalizeRememberProgressDurationIndex
+  normalizeRememberProgressDurationIndex,
+  normalizeSeekWheelStepSeconds
 } from './playback-settings';
 
 describe('playback settings helpers', () => {
@@ -66,5 +68,21 @@ describe('playback settings helpers', () => {
       transitionMode: 'crossfade',
       gaplessPlayback: false
     }).transitionMode).toBe('fadeout');
+  });
+
+  it('normalizes the wheel seek step to the supported range and step', () => {
+    expect(normalizeSeekWheelStepSeconds(7)).toBe(7);
+    expect(normalizeSeekWheelStepSeconds(3.6)).toBe(4);
+    expect(normalizeSeekWheelStepSeconds(0)).toBe(MIN_SEEK_WHEEL_STEP_SECONDS);
+    expect(normalizeSeekWheelStepSeconds(999)).toBe(MAX_SEEK_WHEEL_STEP_SECONDS);
+    expect(normalizeSeekWheelStepSeconds('5')).toBe(5);
+  });
+
+  it('defaults to total-duration display and the standard wheel step', () => {
+    const settings = normalizePlaybackSettings({});
+    expect(settings.showTimeRemaining).toBe(false);
+    expect(settings.seekWheelStepSeconds).toBe(5);
+    expect(normalizePlaybackSettings({ showTimeRemaining: true }).showTimeRemaining).toBe(true);
+    expect(normalizePlaybackSettings({ seekWheelStepSeconds: 9 }).seekWheelStepSeconds).toBe(9);
   });
 });
