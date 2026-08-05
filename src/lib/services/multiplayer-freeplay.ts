@@ -229,11 +229,6 @@ export class MultiplayerFreeplayPlayer {
     const source = context.createMediaElementSource(element);
     const destination = context.createMediaStreamDestination();
     destination.channelCount = 2;
-    this.#connectRenderer(source, destination, this.#audio.postRaf, track.kind === 'video');
-    this.#element = element;
-    this.#elementSource = source;
-    this.#destination = destination;
-    this.#objectUrl = objectUrl;
 
     await new Promise<void>((resolve, reject) => {
       const cleanup = () => {
@@ -246,6 +241,16 @@ export class MultiplayerFreeplayPlayer {
           disposeMediaRenderer(element, objectUrl, source, destination);
           return resolve();
         }
+        // The token gate owns every instance-field assignment (mirroring the module
+        // path): an older load's continuation must never republish a renderer that a
+        // newer load already disposed, or the orphaned element keeps playing and its
+        // object URL leaks.
+        this.#connectRenderer(source, destination, this.#audio.postRaf, track.kind === 'video');
+        this.#element = element;
+        this.#elementSource = source;
+        this.#destination = destination;
+        this.#objectUrl = objectUrl;
+        element.addEventListener('ended', this.#handleEnded);
         this.#snapshot = {
           ...this.#snapshot,
           duration: positiveNumber(element.duration) || this.#snapshot.duration
@@ -261,7 +266,6 @@ export class MultiplayerFreeplayPlayer {
       element.src = objectUrl;
       element.load();
     });
-    element.addEventListener('ended', this.#handleEnded);
   }
 
   async #loadModuleRenderer(track: PlaylistItem, token: number): Promise<void> {

@@ -2,40 +2,40 @@
 
 Notes from reviewing the rushed Freeplay MVP (commit `a32ec11`). Targets the Freeplay path hardest, with a couple of shared-multiplayer landmines. Goals: make the host a real library streaming server, kill redundant timeline work, and close the races that can leak renderers or silently no-op.
 
-## 1. Source-file Freeplay: the host must be timeline-passive (biggest issue)
+## 1. Source-file Freeplay: the host must be timeline-passive (DONE — commit `a142d51`)
 
-Today, when the file-transfer threshold covers a track (`sourceFile: true`), the host still builds a `MultiplayerFreeplayPlayer`, runs a **wall-clock synthetic timeline** (250 ms progress timer, `#syntheticStartedAt`), auto-advances on its own `#handleEnded`, and owns repeat/next/prev. Meanwhile the client renders the file locally but is **slaved** to that host clock: `syncPlayback` → `#applyLatestPlayback` seeks the client back to `expectedPosition(host)` on any >1 s drift.
+**Fixed in `a142d51` ("Multiplayer: attempt timeline-passive Freeplay fix"):**
+- Host `MultiplayerFreeplayPlayer` lost its wall-clock synthetic timeline (`#syntheticStartedAt`/`#syntheticStartPosition`, 250 ms progress timer, `#handleEnded` auto-advance). With no renderer (`sourceFile` delivery or host-disabled audio) it is passive: `play`/`pause`/`seek`/`stop` no-op, state stays `idle`, no live progress publishes.
+- Host keeps the materialized selection per client in `core.freeplaySelections` and re-serves the file through the key-guarded `syncPeerSourceFile` on media-channel open / update (resume/reconnect path).
+- Client owns the timeline via `MultiplayerSourcePlaybackService.setLocalTimeline`, gated on `mode === 'client' && freeplay && latestAudioAvailability.sourceFile`: transferred files start locally with `autoPlay`, `syncPlayback`/`#applyLatestPlayback` skip drift correction and play/pause mirroring entirely, and the client auto-advances on its own `ended` (sending `playback.ended`, or a local `replay()` for repeat-one). App transport handlers route play/pause/stop/seek to the local player controller in source-file Freeplay; next/prev/repeat stay on the `command` messages.
+- Backgrounded-tab stall root cause removed: a hidden client no longer drifts against a host clock it now ignores.
+- Protocol bumped to 13 (rules updated) to make the host `playback` messages a static selection rather than a live clock.
 
-This contradicts the design promise (independent timeline; host idles once the threshold is "every file"). It is also the cause of the backgrounded-tab stall: the client pauses drift correction while `document.hidden`, so a hidden client's local render falls out of lockstep with the host's synthetic clock.
+Remaining open points below are unaffected; streamed Freeplay stays host-authoritative (client is a passive WebRTC sink).
 
-**Intended shape for source-file Freeplay:**
-- Host = file server + command relay. Materialize + send the file the client asks for; hold "current selection" for resume/reconnect. No clock, no auto-advance, no live progress.
-- Client owns its timeline: plays locally, auto-advances on its own `ended`, drives `next/prev/seek/repeat` through existing `command` messages.
-- `syncPlayback` must stop drift-correcting the client against a host clock in `sourceFile` mode.
+## 2. Freeplay agreement is persisted only at pair time (DONE)
 
-Gate this on `audio.sourceFile`. **Streamed Freeplay stays host-authoritative** — the client is a passive WebRTC sink and has nothing else to sync to.
+**Fixed:** the agreement is now rewritten whenever either side's preference changes, not just on the pairing toggle.
 
-## 2. Freeplay agreement is persisted only at pair time
+- `syncPeerFreeplayMode` computes the combined agreement (`resolveMultiplayerFreeplayAgreement`: `paired && hostEnabled && clientEnabled`) and, when it diverges from the stored `peer.freeplayPaired`, persists it back to the pairing record before recomputing the active state. This runs on the client `hello` (reconnect), on `freeplay.preference`, and on the host's own settings change — so enabling Freeplay on both devices after pairing now activates immediately, and the stale-flag reconnect trap is gone.
+- `persistPairingAgreement` does a get+set preserving `name`/`platform`/`pairedAt`: the DB rules require the full record, so a bare `freeplay` child write would be rejected. `togglePairing` reuses the same helper for the pair-time write.
+- The client's own remembered pairing already follows along: the host sends the updated `freeplayPaired` via `pairing`, which the client persists through `rememberMultiplayerPairing`.
 
-The `freeplay` flag on a Firebase pairing record is written **only inside `togglePair`** (`multiplayer-session.ts:789`). Everywhere else liveness is recomputed from `peer.freeplayPaired`, which is read once from that DB record at connect.
+## 3. Async load race leaks a stale media renderer (DONE)
 
-So enabling Freeplay on both devices *after* they already paired never rewrites the agreement → `syncPeerFreeplayMode` recomputes against a stale flag → **Freeplay silently never activates until you re-pair.** Fix: write the combined agreement back to the pairing record whenever either device's preference changes, not just on the pairing toggle. Ideally the enable-later flow should just work (the Options hint implies it).
+**Fixed:** `#loadMediaRenderer` now assigns every instance field (`#element`, `#elementSource`, `#destination`, `#objectUrl`, and the `#raf` created by `#connectRenderer`) only inside the token-gated `loadedmetadata` handler, mirroring the module path. A superseded load's continuation can no longer republish a renderer after the newer load disposed it — no orphaned element, no leaked object URL, no wrong peer audio sender. The `ended` listener is also attached only once the renderer is actually live.
 
-## 3. Async load race leaks a stale media renderer
+## 4. Redundant host auto-advance paths (DONE — resolved by #1)
 
-In `MultiplayerFreeplayPlayer`, the module path token-guards before mutating state, but `#loadMediaRenderer` assigns `this.#element` / `#elementSource` / `#destination` / `#objectUrl` **mid-async** (right after `await audioBusService.resume()`), *before* its token-gated `loadedmetadata` resolves. If two `load()` calls interleave (e.g. `reconfigure()` from an Options change racing a client `collection.activate`), the older continuation can clobber `this.#element` with its own fresh element/objectURL after the newer load disposed it → orphaned element keeps playing, object URL never revoked, peer audio sender can point at the wrong track. Fix: only assign instance fields after the token check (mirror the module path).
+The host synthetic `ended` and client `playback.ended` no longer can both fire: with #1 the host has no renderer in source-file mode, so only the client's `playback.ended` advances the pair (host-side `playback.ended` handler keeps the `track.id ===` guard as stale-message safety). Streamed Freeplay stays a single host-driven path. Repeat-one in source-file mode is a purely local client `replay()` with no host round-trip. Nothing left to unwind.
 
-## 4. Redundant host auto-advance paths
+## 5. Shuffle never picks the first track on a fresh start (DONE — fixed in `a142d51`)
 
-In source-file Freeplay both the host synthetic `ended` and the client's `playback.ended` can fire for the same track. The `peer.freeplayPlayer?.track?.id === trackId` dedup guard prevents double-advance today, but that redundancy disappears once #1 lands (host stops clocking). Repeat-one in source-file mode currently depends on client drift correction to rewind locally — also retired by #1.
+`resolveFreeplayStep` already uses the full-range offset (`floor(random() * items.length)`) for the no-current-track case, so `items[0]` is reachable on a fresh shuffle start; the exclude-current offset only applies when a current track exists. Covered by the `picks from the full range on a fresh shuffle start` test.
 
-## 5. Shuffle never picks the first track on a fresh start
+## 6. Freeplay browse state not reset on exit (DONE)
 
-`resolveFreeplayStep` with `currentIndex = -1` computes `Math.max(-1,0) + offset` with `offset ∈ [1, len-1]`, so the first shuffled pick is never `items[0]`. Minor bias; fix the offset range for the no-current-track case.
-
-## 6. Freeplay browse state not reset on exit
-
-On deactivate (`syncPeerFreeplayMode`, `changed && !active`), artwork and pending preparation are cleared, but `freeplayCollection` / `freeplayShuffle` / `freeplayRepeatMode` are not. Re-entering Freeplay resumes stale context. Reset all of them on deactivate.
+The `changed && !active` branch of `syncPeerFreeplayMode` now resets `freeplayCollection` (to `'library'`), `freeplayShuffle` (to `false`), and `freeplayRepeatMode` (to `'off'`) alongside the existing artwork/preparation teardown, so re-entering Freeplay starts clean instead of resuming stale browse context.
 
 ## Shared multiplayer
 
@@ -43,6 +43,7 @@ On deactivate (`syncPeerFreeplayMode`, `changed && !active`), artwork and pendin
 
 ## Verification
 
-- Run `npx vitest run src/lib/services/multiplayer-*` and `npm run check` after changes.
-- The Freeplay navigation and pairing-negotiation tests (`multiplayer-freeplay.test.ts`, `multiplayer-session.test.ts`) cover `resolveFreeplayStep` and `isMultiplayerFreeplayActive` — extend them when #1/#5 change behavior.
-- `npm run build` before finishing (source change requirement).
+- `npx vitest run src/lib/services/multiplayer-*` — 58 passed (incl. the new `resolveMultiplayerFreeplayAgreement` coverage in `multiplayer-session.test.ts` and the fresh-shuffle-pick coverage in `multiplayer-freeplay.test.ts`).
+- `npm run check` — 0 errors, 0 warnings.
+- `npm run build` — clean.
+

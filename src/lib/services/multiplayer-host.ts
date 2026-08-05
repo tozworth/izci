@@ -48,6 +48,7 @@ import {
   errorMessage,
   getLocalName,
   isMultiplayerFreeplayActive,
+  resolveMultiplayerFreeplayAgreement,
   resolvePlaybackPreparationAudio,
   sanitizeClientName,
   sanitizePlatform,
@@ -372,18 +373,39 @@ export function createMultiplayerHostSide(
       && core.multiplayerSettings.multiplayerFreeplay
       && peer.clientFreeplayEnabled;
     if (paired) {
-      await core.firebaseRuntime.set(pairingRef, {
-        name: client.name,
-        platform: client.platform,
-        pairedAt: Date.now(),
-        freeplay: freeplayPaired
-      } satisfies PairedClientRecord);
+      await persistPairingAgreement(peer, freeplayPaired);
     } else {
       await core.firebaseRuntime.remove(pairingRef);
     }
     peer.paired = paired;
     peer.freeplayPaired = freeplayPaired;
     await syncPeerFreeplayMode(peer);
+  }
+
+  /**
+   * Writes (or reconciles) the pairing record with the given Freeplay agreement.
+   * The rules require the full record, so existing name/platform/pairedAt are
+   * preserved when the record already exists.
+   */
+  async function persistPairingAgreement(peer: PeerConnection, freeplay: boolean): Promise<void> {
+    if (!core.firebaseRuntime || core.state.mode !== 'hosting') return;
+    const pairingRef = core.firebaseRuntime.ref(
+      core.firebaseRuntime.database,
+      `multiplayer/hosts/${core.firebaseRuntime.uid}/paired/${peer.id}`
+    );
+    try {
+      const existing = (await core.firebaseRuntime.get(pairingRef)).val() as Partial<PairedClientRecord> | null;
+      const client = core.state.clients.find((candidate) => candidate.id === peer.id);
+      await core.firebaseRuntime.set(pairingRef, {
+        name: existing?.name ?? client?.name ?? peer.name,
+        platform: existing?.platform ?? client?.platform ?? 'Unknown',
+        pairedAt: existing?.pairedAt ?? Date.now(),
+        freeplay
+      } satisfies PairedClientRecord);
+    } catch {
+      // The in-memory agreement still governs this session; the record is reconciled
+      // on the next preference change or pair toggle.
+    }
   }
 
   function attachHostChannel(peer: PeerConnection, channel: RTCDataChannel): void {
@@ -471,6 +493,18 @@ export function createMultiplayerHostSide(
 
   async function syncPeerFreeplayMode(peer: PeerConnection): Promise<void> {
     if (!core.firebaseRuntime || core.state.mode !== 'hosting') return;
+    const agreement = resolveMultiplayerFreeplayAgreement({
+      paired: peer.paired,
+      hostEnabled: core.multiplayerSettings.multiplayerFreeplay,
+      clientEnabled: peer.clientFreeplayEnabled
+    });
+    if (peer.paired && agreement !== peer.freeplayPaired) {
+      // The agreement is read from the pairing record at connect, but it is only
+      // written at pair time. Rewrite it whenever either side's preference changes,
+      // so enabling Freeplay after pairing activates without re-pairing.
+      peer.freeplayPaired = agreement;
+      await persistPairingAgreement(peer, agreement);
+    }
     const active = isMultiplayerFreeplayActive({
       paired: peer.paired,
       freeplayPaired: peer.freeplayPaired,
@@ -521,6 +555,11 @@ export function createMultiplayerHostSide(
       peer.freeplayArtworkResolvedTrackKey = '';
       peer.freeplayArtworkLoadToken += 1;
       peer.sourceTrackKey = '';
+      // Deactivating must not leave stale browse context behind: re-entering
+      // Freeplay should start from a clean collection/shuffle/repeat.
+      peer.freeplayCollection = 'library';
+      peer.freeplayShuffle = false;
+      peer.freeplayRepeatMode = 'off';
       core.freeplaySelections.delete(peer.id);
       syncPeerSourceFile(peer, core.latestHostState?.track ?? null);
       await syncSharedPeerAudio(peer);

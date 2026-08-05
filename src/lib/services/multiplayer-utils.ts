@@ -39,6 +39,19 @@ export function isMultiplayerFreeplayActive(pairing: {
     && pairing.clientEnabled;
 }
 
+/**
+ * The combined Freeplay agreement for a pair: both sides currently opt in. This is
+ * what gets persisted to the pairing record (and what `freeplayPaired` restores from)
+ * so enabling Freeplay after pairing works without re-pairing.
+ */
+export function resolveMultiplayerFreeplayAgreement(pairing: {
+  paired: boolean;
+  hostEnabled: boolean;
+  clientEnabled: boolean;
+}): boolean {
+  return pairing.paired && pairing.hostEnabled && pairing.clientEnabled;
+}
+
 export function isMultiplayerPlaybackPreparationReady(
   preparation: MultiplayerPlaybackPreparation,
   state: {

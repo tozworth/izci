@@ -3,6 +3,7 @@ import {
   isMultiplayerClientTransportHealthy,
   isMultiplayerFreeplayActive,
   isMultiplayerPlaybackPreparationReady,
+  resolveMultiplayerFreeplayAgreement,
   shouldTransferMultiplayerSourceFile
 } from './multiplayer-utils';
 import type { PlaylistItem } from '$lib/types';
@@ -65,6 +66,29 @@ describe('Freeplay pairing negotiation', () => {
     for (const key of Object.keys(enabledPairing) as Array<keyof typeof enabledPairing>) {
       expect(isMultiplayerFreeplayActive({ ...enabledPairing, [key]: false })).toBe(false);
     }
+  });
+
+  it('resolves the combined agreement from the live preferences alone', () => {
+    expect(resolveMultiplayerFreeplayAgreement({
+      paired: true,
+      hostEnabled: true,
+      clientEnabled: true
+    })).toBe(true);
+    expect(resolveMultiplayerFreeplayAgreement({
+      paired: true,
+      hostEnabled: true,
+      clientEnabled: false
+    })).toBe(false);
+    expect(resolveMultiplayerFreeplayAgreement({
+      paired: true,
+      hostEnabled: false,
+      clientEnabled: true
+    })).toBe(false);
+    expect(resolveMultiplayerFreeplayAgreement({
+      paired: false,
+      hostEnabled: true,
+      clientEnabled: true
+    })).toBe(false);
   });
 });
 
