@@ -152,4 +152,55 @@ describe('MultiplayerSourcePlaybackService', () => {
     expect(controllerHarness.seek).not.toHaveBeenCalled();
     vi.unstubAllGlobals();
   });
+
+  it('stops drift-correcting and mirroring the host clock on the local timeline', async () => {
+    const service = new MultiplayerSourcePlaybackService();
+    service.setLocalTimeline(true);
+    service.syncPlayback(playback('playing'));
+    await service.loadFile(track, {} as File);
+    controllerHarness.snapshot = { ...controllerHarness.snapshot, state: 'playing', currentTime: 1 };
+
+    service.syncPlayback(playback('playing'));
+
+    expect(controllerHarness.seek).not.toHaveBeenCalled();
+    expect(controllerHarness.pause).not.toHaveBeenCalled();
+  });
+
+  it('starts a transferred file on the local timeline without the host position', async () => {
+    const service = new MultiplayerSourcePlaybackService();
+    service.setLocalTimeline(true);
+    service.syncPlayback(playback('playing'));
+
+    await service.loadFile(track, {} as File);
+
+    expect(controllerHarness.load).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'track-1' }),
+      { autoPlay: true, initialPosition: 0 }
+    );
+  });
+
+  it('restarts the current file for freeplay repeat-one', async () => {
+    const service = new MultiplayerSourcePlaybackService();
+    service.setLocalTimeline(true);
+    service.syncPlayback(playback('playing'));
+    await service.loadFile(track, {} as File);
+    controllerHarness.snapshot = { ...controllerHarness.snapshot, state: 'ended', currentTime: 180 };
+
+    expect(service.replay()).toBe(true);
+    expect(controllerHarness.seek).toHaveBeenCalledWith(0);
+    expect(controllerHarness.play).toHaveBeenCalled();
+  });
+
+  it('leaves local-timeline mode when the host clock is authoritative again', async () => {
+    const service = new MultiplayerSourcePlaybackService();
+    service.setLocalTimeline(true);
+    service.syncPlayback(playback('playing'));
+    await service.loadFile(track, {} as File);
+    controllerHarness.snapshot = { ...controllerHarness.snapshot, state: 'paused', currentTime: 1 };
+
+    service.setLocalTimeline(false);
+    service.syncPlayback(playback('playing'));
+
+    expect(controllerHarness.play).toHaveBeenCalled();
+  });
 });

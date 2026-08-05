@@ -8,7 +8,9 @@ import type {
 
 export type MultiplayerCollection = 'playlist' | 'library' | 'favorites';
 
-export const MULTIPLAYER_PROTOCOL_VERSION = 12;
+// Version 13: source-file Freeplay makes the host timeline-passive; the client
+// owns playback and the host `playback` messages become a static selection.
+export const MULTIPLAYER_PROTOCOL_VERSION = 13;
 export const MULTIPLAYER_FRAME_CHUNK_SIZE = 12_000;
 
 const MULTIPLAYER_ARTWORK_DATA_URL_MAX_LENGTH = 8 * 1024 * 1024;

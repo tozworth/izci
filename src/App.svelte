@@ -255,6 +255,7 @@
     remoteArtwork: null,
     remoteArtworkResolvedTrackKey: '',
     audioStatus: 'idle',
+    remoteSourceFile: false,
     connectionRoute: null,
     averageAudioBitrateKbps: null,
     receiveAudio: true,
@@ -594,6 +595,11 @@
 
   function togglePlayback(): void {
     if (isMultiplayerClient) {
+      if (isSourceFileFreeplayClient) {
+        if (playbackSnapshot.state === 'playing') playerController.pause();
+        else playerController.play();
+        return;
+      }
       multiplayerSession.sendCommand({ type: 'transport.toggle' });
       return;
     }
@@ -603,6 +609,10 @@
 
   function playPlayback(): void {
     if (isMultiplayerClient) {
+      if (isSourceFileFreeplayClient) {
+        playerController.play();
+        return;
+      }
       multiplayerSession.sendCommand({ type: 'transport.play' });
       return;
     }
@@ -611,6 +621,10 @@
 
   function pausePlayback(): void {
     if (isMultiplayerClient) {
+      if (isSourceFileFreeplayClient) {
+        playerController.pause();
+        return;
+      }
       multiplayerSession.sendCommand({ type: 'transport.pause' });
       return;
     }
@@ -620,6 +634,11 @@
 
   function stopPlayback(): void {
     if (isMultiplayerClient) {
+      if (isSourceFileFreeplayClient) {
+        playerController.seek(0);
+        playerController.pause();
+        return;
+      }
       multiplayerSession.sendCommand({ type: 'transport.stop' });
       return;
     }
@@ -907,6 +926,9 @@
   });
 
   $: isMultiplayerClient = multiplayerState.mode === 'client';
+  $: isSourceFileFreeplayClient = isMultiplayerClient
+    && multiplayerState.freeplay
+    && multiplayerState.remoteSourceFile;
   $: multiplayerConnectionFailed = multiplayerConnectionDialogError !== null
     || multiplayerState.connectionStatus === 'error'
     || multiplayerState.connectionStatus === 'disconnected';
@@ -970,14 +992,14 @@
       workspaceShell.setCollectionSelection('playlist', selectionSync.selection);
     }
   }
-  $: playbackSnapshot = isMultiplayerClient
+  $: playbackSnapshot = isMultiplayerClient && !isSourceFileFreeplayClient
     ? {
         ...multiplayerState.remotePlayback.snapshot,
         volume: localPlaybackSnapshot.volume,
         muted: localPlaybackSnapshot.muted
       }
     : localPlaybackSnapshot;
-  $: playbackStatus = isMultiplayerClient
+  $: playbackStatus = isMultiplayerClient && !isSourceFileFreeplayClient
     ? {
         state: playbackSnapshot.state,
         volume: playbackSnapshot.volume,
@@ -1310,6 +1332,10 @@
 
   function seekPlayback(seconds: number): void {
     if (isMultiplayerClient) {
+      if (isSourceFileFreeplayClient) {
+        playerController.seek(seconds);
+        return;
+      }
       multiplayerSession.sendCommand({ type: 'transport.seek', seconds });
       return;
     }

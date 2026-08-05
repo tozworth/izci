@@ -38,6 +38,7 @@ export function createMultiplayerSession({
     stopPeersListener: null,
     stopAnswerListener: null,
     hostPeers: new Map(),
+    freeplaySelections: new Map(),
     clientPeer: null,
     pendingClientSourceFile: null,
     pendingClientPlaybackPreparation: null,
@@ -108,6 +109,7 @@ export function createMultiplayerSession({
       peer.pc.close();
     }
     core.hostPeers.clear();
+    core.freeplaySelections.clear();
     const previousClientPeer = core.clientPeer;
     core.clientPeer = null;
     if (previousClientPeer) clearPeerConnectionTimer(previousClientPeer);
@@ -263,6 +265,7 @@ function getInitialState(): MultiplayerSessionState {
     remoteArtwork: null,
     remoteArtworkResolvedTrackKey: '',
     audioStatus: 'idle',
+    remoteSourceFile: false,
     connectionRoute: null,
     averageAudioBitrateKbps: null,
     receiveAudio: readReceiveAudioPreference(),

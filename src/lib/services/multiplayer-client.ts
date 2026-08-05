@@ -69,13 +69,25 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
     core.publish(patch);
   }
 
+  function updateLocalTimelineMode(): void {
+    multiplayerSourcePlaybackService.setLocalTimeline(
+      core.state.mode === 'client' && core.state.freeplay && core.latestAudioAvailability.sourceFile
+    );
+  }
+
   async function join(rawInviteCode: string): Promise<void> {
     core.allowClientReconnect = true;
     core.reconnectAttempts = 0;
     multiplayerSourcePlaybackService.beginClientSession((trackId) => {
-      if (core.clientPeer && core.state.mode === 'client' && core.state.freeplay) {
-        sendToPeer(core.clientPeer, { kind: 'playback.ended', trackId });
+      if (!core.clientPeer || core.state.mode !== 'client' || !core.state.freeplay) return;
+      if (core.latestAudioAvailability.sourceFile
+        && core.state.remoteCatalog.repeatMode === 'one') {
+        // Source-file Freeplay repeat-one is a purely local restart: the client owns
+        // its timeline, so looping the current file needs no host round-trip.
+        multiplayerSourcePlaybackService.replay();
+        return;
       }
+      sendToPeer(core.clientPeer, { kind: 'playback.ended', trackId });
     });
     multiplayerSourcePlaybackService.setEnabled(core.state.receiveAudio);
     try {
@@ -138,6 +150,7 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
       remoteArtwork: reconnecting ? core.state.remoteArtwork : null,
       remoteArtworkResolvedTrackKey: reconnecting ? core.state.remoteArtworkResolvedTrackKey : '',
       audioStatus: core.state.receiveAudio ? 'connecting' : 'refused',
+      remoteSourceFile: reconnecting ? core.state.remoteSourceFile : false,
       connectionRoute: null,
       averageAudioBitrateKbps: null,
       connectionStats: null,
@@ -351,9 +364,12 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
           freeplayPaired: message.paired && message.freeplayPaired,
           freeplay: message.paired && message.freeplayActive
         });
+        updateLocalTimelineMode();
       }
       if (message.kind === 'audio') {
         core.latestAudioAvailability = message.audio;
+        publish({ remoteSourceFile: message.audio.sourceFile });
+        updateLocalTimelineMode();
         if (!message.audio.enabled) core.clientRemoteAudioReady = false;
         if (!core.state.receiveAudio) {
           multiplayerSourcePlaybackService.setEnabled(false);
@@ -710,6 +726,7 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
       remoteArtwork: null,
       remoteArtworkResolvedTrackKey: '',
       audioStatus: 'idle',
+      remoteSourceFile: false,
       connectionRoute: null,
       averageAudioBitrateKbps: null,
       connectionStats: null,

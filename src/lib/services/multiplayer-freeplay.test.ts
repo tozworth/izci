@@ -26,4 +26,9 @@ describe('Freeplay navigation', () => {
     expect(resolveFreeplayStep(tracks, 'b', 1, true, () => 0)?.id).toBe('c');
     expect(resolveFreeplayStep(tracks, 'b', 1, true, () => 0.99)?.id).toBe('a');
   });
+
+  it('picks from the full range on a fresh shuffle start', () => {
+    expect(resolveFreeplayStep(tracks, null, 1, true, () => 0)?.id).toBe('a');
+    expect(resolveFreeplayStep(tracks, null, 1, true, () => 0.99)?.id).toBe('c');
+  });
 });

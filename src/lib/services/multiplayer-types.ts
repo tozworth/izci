@@ -72,6 +72,7 @@ export interface MultiplayerSessionState {
   remoteArtwork: MultiplayerArtwork | null;
   remoteArtworkResolvedTrackKey: string;
   audioStatus: MultiplayerAudioStatus;
+  remoteSourceFile: boolean;
   connectionRoute: MultiplayerConnectionRoute | null;
   averageAudioBitrateKbps: number | null;
   receiveAudio: boolean;
@@ -260,6 +261,12 @@ export interface MultiplayerSessionCore {
   stopPeersListener: Unsubscribe | null;
   stopAnswerListener: Unsubscribe | null;
   hostPeers: Map<string, PeerConnection>;
+  /**
+   * Materialized Freeplay selection per client id, kept across peer reconnects so
+   * the host can re-serve the current file after a transport drop. Cleared on
+   * explicit Freeplay deactivation and on full session reset.
+   */
+  freeplaySelections: Map<string, PlaylistItem>;
   clientPeer: PeerConnection | null;
   pendingClientSourceFile: { trackId: string; file: File } | null;
   pendingClientPlaybackPreparation: MultiplayerPlaybackPreparation | null;

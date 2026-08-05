@@ -95,6 +95,7 @@ export function createMultiplayerHostSide(
       freeplayPaired: false,
       freeplay: false,
       audioStatus: 'idle',
+      remoteSourceFile: false,
       connectionDetail: 'Creating a Firebase signaling room...',
       message: null
     });
@@ -505,6 +506,12 @@ export function createMultiplayerHostSide(
       });
       peer.freeplayPlayer = player;
       await peer.audioSender?.replaceTrack(null).catch(() => undefined);
+      const previousSelection = core.freeplaySelections.get(peer.id);
+      if (previousSelection) {
+        // Resume/reconnect: re-serve the held selection so the client can pick up
+        // where it left off. The media channel re-transfers the file on open.
+        await player.load(previousSelection, false);
+      }
     } else if (changed && !active) {
       peer.freeplayPendingPreparation = null;
       peer.freeplayPlayer?.destroy();
@@ -514,6 +521,7 @@ export function createMultiplayerHostSide(
       peer.freeplayArtworkResolvedTrackKey = '';
       peer.freeplayArtworkLoadToken += 1;
       peer.sourceTrackKey = '';
+      core.freeplaySelections.delete(peer.id);
       syncPeerSourceFile(peer, core.latestHostState?.track ?? null);
       await syncSharedPeerAudio(peer);
     }
@@ -623,6 +631,13 @@ export function createMultiplayerHostSide(
     if (!track || !peer.freeplay || !peer.freeplayPlayer) return false;
     peer.freeplayCollection = collection;
     peer.freeplayPendingPreparation = null;
+    core.freeplaySelections.set(peer.id, track);
+    if (peer.freeplayPlayer.track?.id === track.id) {
+      // Re-activating the current selection (e.g. single-track repeat-all) must not
+      // be deduplicated away: drop the transfer key so the file is re-sent and the
+      // client restarts the track on its own timeline.
+      peer.sourceTrackKey = '';
+    }
     const loaded = await peer.freeplayPlayer.load(track, false);
     if (!loaded || !peer.freeplay) return false;
 
@@ -1036,6 +1051,7 @@ export function createMultiplayerHostSide(
     if (peer) {
       clearPeerConnectionTimer(peer);
       peer.freeplayPlayer?.destroy();
+      core.freeplaySelections.delete(clientId);
       sendToPeer(peer, { kind: 'kicked' });
       window.setTimeout(() => peer.pc.close(), 80);
       core.hostPeers.delete(clientId);
@@ -1065,6 +1081,7 @@ export function createMultiplayerHostSide(
       freeplay: false,
       clients: [],
       audioStatus: 'idle',
+      remoteSourceFile: false,
       connectionRoute: null,
       averageAudioBitrateKbps: null,
       connectionStats: null,

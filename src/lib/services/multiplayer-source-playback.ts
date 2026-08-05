@@ -16,6 +16,7 @@ export class MultiplayerSourcePlaybackService {
   #activeObjectUrl: string | null = null;
   #loadToken = 0;
   #enabled = true;
+  #localTimeline = false;
   #onEnded: ((trackId: string) => void) | null = null;
   #unsubscribeEnded: Unsubscriber | null = null;
   #previousPlaybackState: PlaybackSnapshot['state'] = 'idle';
@@ -40,6 +41,7 @@ export class MultiplayerSourcePlaybackService {
     this.#savedPlayback = null;
     this.#latestPlayback = null;
     this.#enabled = true;
+    this.#localTimeline = false;
     this.#unsubscribeEnded?.();
     this.#unsubscribeEnded = null;
     this.#onEnded = null;
@@ -49,6 +51,18 @@ export class MultiplayerSourcePlaybackService {
       autoPlay: false,
       initialPosition: saved.snapshot.currentTime
     }).catch(() => undefined);
+  }
+
+  /**
+   * Marks the client as the timeline owner (source-file Freeplay). While set, the
+   * host clock is ignored: no drift correction, no play/pause mirroring, and new
+   * files start on the client's own terms. Shared (host-authoritative) source-file
+   * playback keeps following the host.
+   */
+  setLocalTimeline(active: boolean): void {
+    if (this.#localTimeline === active) return;
+    this.#localTimeline = active;
+    if (!active) this.#applyLatestPlayback();
   }
 
   setEnabled(enabled: boolean): void {
@@ -74,14 +88,20 @@ export class MultiplayerSourcePlaybackService {
     const token = ++this.#loadToken;
     const objectUrl = track.kind === 'stream' ? URL.createObjectURL(file) : undefined;
     const playableTrack: PlaylistItem = { ...track, file, objectUrl };
-    const snapshot = playback.snapshot;
-    const initialPosition = expectedPosition(playback);
+    const initialPosition = this.#localTimeline ? 0 : expectedPosition(playback);
     const previousObjectUrl = this.#activeObjectUrl;
 
     try {
-      if (this.#activeTrackId
+      if (this.#localTimeline) {
+        // The client owns its timeline: every received file is the result of its own
+        // activation/navigation (or a reconnect restore), so start it immediately.
+        await playerController.load(playableTrack, {
+          autoPlay: this.#enabled,
+          initialPosition
+        });
+      } else if (this.#activeTrackId
         && this.#enabled
-        && (snapshot.state === 'playing' || snapshot.state === 'loading')) {
+        && (playback.snapshot.state === 'playing' || playback.snapshot.state === 'loading')) {
         const ready = await playerController.prepareNext(playableTrack);
         if (token !== this.#loadToken) {
           if (objectUrl) URL.revokeObjectURL(objectUrl);
@@ -96,7 +116,7 @@ export class MultiplayerSourcePlaybackService {
         if (latestPosition > 0) playerController.seek(latestPosition);
       } else {
         await playerController.load(playableTrack, {
-          autoPlay: this.#enabled && snapshot.state === 'playing',
+          autoPlay: this.#enabled && playback.snapshot.state === 'playing',
           initialPosition
         });
       }
@@ -125,8 +145,19 @@ export class MultiplayerSourcePlaybackService {
     this.#clearRemotePlayback();
   }
 
+  /**
+   * Restarts the current file from the beginning (source-file Freeplay repeat-one).
+   */
+  replay(): boolean {
+    if (!this.#enabled || !this.#activeTrackId) return false;
+    playerController.seek(0);
+    if (get(playerController.snapshot).state !== 'playing') playerController.play();
+    return true;
+  }
+
   resume(): boolean {
     if (!this.#enabled || !this.#activeTrackId) return false;
+    if (this.#localTimeline) return true;
     this.#applyLatestPlayback();
     return true;
   }
@@ -140,6 +171,7 @@ export class MultiplayerSourcePlaybackService {
   }
 
   #applyLatestPlayback(forceSeek = false): void {
+    if (this.#localTimeline) return;
     const playback = this.#latestPlayback;
     if (!this.#enabled || !playback?.track || playback.track.id !== this.#activeTrackId) return;
     const local = get(playerController.snapshot);

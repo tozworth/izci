@@ -42,6 +42,10 @@ const EMPTY_SNAPSHOT: PlaybackSnapshot = {
 /**
  * A host-side player whose output exists only on a single peer's WebRTC sender.
  * It deliberately never enters the shared player controller or speaker graph.
+ *
+ * When the track is delivered as a source file (or audio is disabled), the host
+ * is timeline-passive: it only holds the current selection so the client can
+ * render it locally. No renderer, no clock, no auto-advance, no live progress.
  */
 export class MultiplayerFreeplayPlayer {
   #track: PlaylistItem | null = null;
@@ -54,8 +58,6 @@ export class MultiplayerFreeplayPlayer {
   #destination: MediaStreamAudioDestinationNode | null = null;
   #raf: RafEngine | null = null;
   #objectUrl: string | null = null;
-  #syntheticStartedAt = 0;
-  #syntheticStartPosition = 0;
   #progressTimer: number | null = null;
   #loadToken = 0;
   readonly #getAudioSettings: CreateMultiplayerFreeplayPlayerOptions['getAudioSettings'];
@@ -101,12 +103,10 @@ export class MultiplayerFreeplayPlayer {
     const token = ++this.#loadToken;
     this.#disposeRenderer();
     this.#track = track;
-    this.#syntheticStartPosition = Math.max(initialPosition, 0);
-    this.#syntheticStartedAt = 0;
     this.#snapshot = {
       ...EMPTY_SNAPSHOT,
       state: 'loading',
-      currentTime: this.#syntheticStartPosition,
+      currentTime: Math.max(initialPosition, 0),
       duration: positiveNumber(track.metadata?.duration),
       backend: track.kind
     };
@@ -125,8 +125,6 @@ export class MultiplayerFreeplayPlayer {
       if (this.#audio.enabled) {
         if (track.kind === 'module') await this.#loadModuleRenderer(track, token);
         else await this.#loadMediaRenderer(track, token);
-      } else if (track.kind !== 'module' && this.#snapshot.duration <= 0) {
-        this.#snapshot.duration = await probeMediaDuration(track.file, track.kind === 'video');
       }
     } catch {
       if (token !== this.#loadToken) return false;
@@ -136,10 +134,11 @@ export class MultiplayerFreeplayPlayer {
     }
 
     if (token !== this.#loadToken) return false;
+    const passive = !this.#audio.enabled;
     this.#snapshot = {
       ...this.#snapshot,
-      state: 'paused',
-      currentTime: Math.min(this.#syntheticStartPosition, finiteDuration(this.#snapshot.duration)),
+      state: passive ? 'idle' : 'paused',
+      currentTime: passive ? 0 : Math.min(this.#snapshot.currentTime, finiteDuration(this.#snapshot.duration)),
       error: undefined
     };
     this.seek(this.#snapshot.currentTime);
@@ -157,6 +156,9 @@ export class MultiplayerFreeplayPlayer {
 
   async play(): Promise<boolean> {
     if (!this.#track || this.#snapshot.state === 'loading' || this.#snapshot.state === 'error') return false;
+    // Timeline-passive selections (source-file delivery, host-disabled audio) have no
+    // renderer or clock; the client owns playback and the host has nothing to start.
+    if (!this.#element && !this.#modulePlayer) return true;
     try {
       if (this.#element) await this.#element.play();
       else if (this.#modulePlayer) {
@@ -168,10 +170,6 @@ export class MultiplayerFreeplayPlayer {
       this.#publish();
       return false;
     }
-    if (!this.#element && !this.#modulePlayer) {
-      this.#syntheticStartPosition = this.#snapshot.currentTime;
-      this.#syntheticStartedAt = performance.now();
-    }
     this.#snapshot = { ...this.#snapshot, state: 'playing', error: undefined };
     this.#startProgress();
     this.#publish();
@@ -180,11 +178,10 @@ export class MultiplayerFreeplayPlayer {
 
   pause(): boolean {
     if (!this.#track) return false;
+    if (!this.#element && !this.#modulePlayer) return true;
     const current = this.#currentSnapshot().currentTime;
     this.#element?.pause();
     this.#modulePlayer?.pause();
-    this.#syntheticStartPosition = current;
-    this.#syntheticStartedAt = 0;
     this.#snapshot = { ...this.#snapshot, state: 'paused', currentTime: current };
     this.#stopProgress();
     this.#publish();
@@ -200,14 +197,11 @@ export class MultiplayerFreeplayPlayer {
 
   seek(seconds: number): boolean {
     if (!this.#track || !Number.isFinite(seconds)) return false;
+    if (!this.#element && !this.#modulePlayer) return true;
     const duration = finiteDuration(this.#snapshot.duration);
     const target = Math.min(Math.max(seconds, 0), duration);
     if (this.#element) this.#element.currentTime = target;
     if (this.#modulePlayer) this.#modulePlayer.seek(target);
-    this.#syntheticStartPosition = target;
-    if (this.#snapshot.state === 'playing' && !this.#element && !this.#modulePlayer) {
-      this.#syntheticStartedAt = performance.now();
-    }
     this.#snapshot = { ...this.#snapshot, currentTime: target };
     this.#publish();
     return true;
@@ -226,6 +220,7 @@ export class MultiplayerFreeplayPlayer {
   async #loadMediaRenderer(track: PlaylistItem, token: number): Promise<void> {
     const context = audioBusService.context;
     await audioBusService.resume();
+    if (token !== this.#loadToken) return;
     const element = document.createElement(track.kind === 'video' ? 'video' : 'audio');
     element.preload = 'auto';
     element.setAttribute('playsinline', '');
@@ -247,7 +242,10 @@ export class MultiplayerFreeplayPlayer {
       };
       const loaded = () => {
         cleanup();
-        if (token !== this.#loadToken) return resolve();
+        if (token !== this.#loadToken) {
+          disposeMediaRenderer(element, objectUrl, source, destination);
+          return resolve();
+        }
         this.#snapshot = {
           ...this.#snapshot,
           duration: positiveNumber(element.duration) || this.#snapshot.duration
@@ -346,10 +344,6 @@ export class MultiplayerFreeplayPlayer {
     let currentTime = this.#snapshot.currentTime;
     if (this.#element) currentTime = positiveNumber(this.#element.currentTime);
     else if (this.#modulePlayer) currentTime = positiveNumber(this.#modulePlayer.currentTime);
-    else if (this.#snapshot.state === 'playing' && this.#syntheticStartedAt > 0) {
-      currentTime = this.#syntheticStartPosition
-        + Math.max(0, (performance.now() - this.#syntheticStartedAt) / 1_000);
-    }
     const duration = this.#snapshot.duration;
     if (duration > 0 && currentTime >= duration) {
       currentTime = duration;
@@ -417,7 +411,11 @@ export function resolveFreeplayStep(
   if (items.length === 0) return null;
   const currentIndex = items.findIndex((item) => item.id === currentTrackId);
   if (shuffle && items.length > 1) {
-    const offset = 1 + Math.floor(random() * (items.length - 1));
+    // With no current track the full range is fair game; otherwise exclude the
+    // current track so a shuffle step always moves somewhere else.
+    const offset = currentIndex < 0
+      ? Math.floor(random() * items.length)
+      : 1 + Math.floor(random() * (items.length - 1));
     return items[(Math.max(currentIndex, 0) + offset) % items.length] ?? null;
   }
   const start = currentIndex < 0 ? (direction > 0 ? -1 : 0) : currentIndex;
@@ -447,21 +445,21 @@ function disposeModulePlayer(player: ChiptuneJsPlayer): void {
   }
 }
 
-function probeMediaDuration(file: File, video: boolean): Promise<number> {
-  return new Promise((resolve) => {
-    const element = document.createElement(video ? 'video' : 'audio');
-    const url = URL.createObjectURL(file);
-    const finish = () => {
-      const duration = positiveNumber(element.duration);
-      element.removeAttribute('src');
-      element.load();
-      URL.revokeObjectURL(url);
-      resolve(duration);
-    };
-    element.addEventListener('loadedmetadata', finish, { once: true });
-    element.addEventListener('error', finish, { once: true });
-    element.preload = 'metadata';
-    element.src = url;
-    element.load();
-  });
+function disposeMediaRenderer(
+  element: HTMLMediaElement,
+  objectUrl: string,
+  source: MediaElementAudioSourceNode,
+  destination: MediaStreamAudioDestinationNode
+): void {
+  element.pause();
+  element.removeAttribute('src');
+  element.load();
+  try {
+    source.disconnect();
+    destination.disconnect();
+  } catch {
+    // A superseded renderer may already be partially detached.
+  }
+  for (const track of destination.stream.getTracks()) track.stop();
+  URL.revokeObjectURL(objectUrl);
 }
