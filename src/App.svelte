@@ -126,9 +126,9 @@
     multiplayerPairings
   } from '$lib/stores/multiplayer-pairings';
   import {
-    createMultiplayerSession,
-    type MultiplayerSessionState
+    createMultiplayerSession
   } from '$lib/services/multiplayer-session';
+  import type { MultiplayerSessionState } from '$lib/services/multiplayer-types';
   import { resolveMultiplayerPlayingTrackSelection } from '$lib/services/multiplayer-selection';
   import {
     getRemoteArtworkLoadKey,

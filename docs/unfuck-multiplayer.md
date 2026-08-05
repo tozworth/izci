@@ -37,10 +37,6 @@ In source-file Freeplay both the host synthetic `ended` and the client's `playba
 
 On deactivate (`syncPeerFreeplayMode`, `changed && !active`), artwork and pending preparation are cleared, but `freeplayCollection` / `freeplayShuffle` / `freeplayRepeatMode` are not. Re-entering Freeplay resumes stale context. Reset all of them on deactivate.
 
-## 7. Source-file Freeplay can't play videos
-
-The client's `loadFile` rejects `kind === 'video'` (`multiplayer-source-playback.ts:72`) and source-file mode creates no host renderer. So picking a host-library video with source-file transfer enabled stalls — it only works via host streamed audio. Decide: either reject/flag videos in the freeplay source-file path, or support local video rendering.
-
 ## Shared multiplayer
 
 - Keep `syncPeerSourceFile` key-guarded (`sourceTrackKey`) — it's correctly a no-op across 250 ms progress publishes, including in Freeplay. Don't "optimize" it into per-tick re-uploads.

@@ -21,7 +21,7 @@
     MultiplayerConnectionStats,
     MultiplayerConnectionStatus,
     MultiplayerMode
-  } from '$lib/services/multiplayer-session';
+  } from '$lib/services/multiplayer-types';
   import { MULTIPLAYER_PROTOCOL_VERSION } from '$lib/services/multiplayer-protocol';
   import type { MultiplayerConnectionRoute } from '$lib/services/multiplayer-ice';
   import type { MultiplayerRecent } from '$lib/stores/multiplayer-recents';
