@@ -606,7 +606,14 @@ export function createMultiplayerHostSide(
       track: update.playback.track ? sanitizePlaylistItem(update.playback.track) : null
     };
     sendToPeer(peer, { kind: 'playback', playback });
-    sendToPeer(peer, { kind: 'audio', audio: update.audio });
+    // Audio availability is stable per loaded track. Re-broadcasting it on every
+    // 250 ms progress publish makes the client tear down and rebuild its remote
+    // audio element 4x/sec: status flaps between "Audio connecting" and
+    // "Listening" and streamed audio stutters. Send only when it actually changed.
+    if (peer.freeplayAudioSent !== update.audio) {
+      peer.freeplayAudioSent = update.audio;
+      sendToPeer(peer, { kind: 'audio', audio: update.audio });
+    }
     const sender = peer.audioSender;
     if (sender?.track !== update.streamTrack) {
       void sender?.replaceTrack(update.streamTrack).then(() => applyAudioBitrate(peer, core.multiplayerSettings.multiplayerOpusBitrateKbps)).catch(() => undefined);
@@ -932,12 +939,14 @@ export function createMultiplayerHostSide(
             }
           : EMPTY_REMOTE_PLAYBACK
       });
-      sendToPeer(peer, { kind: 'audio', audio: player?.audio ?? {
+      const freeplayAudio = player?.audio ?? {
         enabled: false,
         sourceFile: false,
         postRaf: false,
         reason: core.multiplayerSettings.multiplayerStreamAudio ? null : 'host-disabled'
-      } });
+      };
+      sendToPeer(peer, { kind: 'audio', audio: freeplayAudio });
+      peer.freeplayAudioSent = freeplayAudio;
       if (peer.freeplayArtworkResolvedTrackKey === peer.freeplayArtworkTrackKey) {
         sendToPeer(peer, { kind: 'artwork', artwork: peer.freeplayArtwork });
       }

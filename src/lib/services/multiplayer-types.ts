@@ -214,6 +214,7 @@ export interface PeerConnection {
   freeplayArtworkTrackKey: string;
   freeplayArtworkResolvedTrackKey: string;
   freeplayArtworkLoadToken: number;
+  freeplayAudioSent: MultiplayerAudioAvailability | null;
 }
 
 export interface CreateMultiplayerSessionOptions {

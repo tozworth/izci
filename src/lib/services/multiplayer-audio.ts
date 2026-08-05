@@ -32,6 +32,15 @@ export class MultiplayerAudioService {
     stream: MediaStream,
     onStatus: StatusHandler
   ): Promise<void> {
+    // The same live track already feeds this pipeline: keep the element and just
+    // refresh the status handler + resume. Tearing down and rebuilding on every
+    // redundant `audio` message is what made streamed Freeplay stutter (the host
+    // re-broadcasts availability on each 250 ms progress publish).
+    if (this.#remoteTrack === track && this.#remoteElement && this.#remoteSource) {
+      this.#onStatus = onStatus;
+      await this.resumeRemoteAudio();
+      return;
+    }
     this.clearRemoteTrack();
     this.#onStatus = onStatus;
     this.#remoteTrack = track;

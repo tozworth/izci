@@ -51,7 +51,8 @@ export function createPeer(
     freeplayArtwork: null,
     freeplayArtworkTrackKey: '',
     freeplayArtworkResolvedTrackKey: '',
-    freeplayArtworkLoadToken: 0
+    freeplayArtworkLoadToken: 0,
+    freeplayAudioSent: null
   };
 }
 

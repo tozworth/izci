@@ -37,13 +37,20 @@ The host synthetic `ended` and client `playback.ended` no longer can both fire: 
 
 The `changed && !active` branch of `syncPeerFreeplayMode` now resets `freeplayCollection` (to `'library'`), `freeplayShuffle` (to `false`), and `freeplayRepeatMode` (to `'off'`) alongside the existing artwork/preparation teardown, so re-entering Freeplay starts clean instead of resuming stale browse context.
 
+## 7. Streamed Freeplay stutters / "Audio connecting" ↔ "Listening" flap (DONE)
+
+**Fixed:** the host re-broadcast `audio` availability on every 250 ms Freeplay progress publish, and the client treated each message as a signal to tear down and rebuild its WebRTC audio element (clear + new element + `connecting` → `playing`). At 4x/sec that read as rapid stutter with the status flapping between "Audio connecting" and "Listening". Sent-file Freeplay never churned (the `sourceFile` branch skips `attachClientRemoteAudio`), and standard multiplayer never spammed (its `syncHostAudio` is change-guarded) — matching the reported symptom profile exactly.
+
+- `syncFreeplayPlayerUpdate` now sends `{ kind: 'audio' }` only when the availability reference changed (`peer.freeplayAudioSent`). `MultiplayerFreeplayPlayer.#audio` is stable per loaded track, so this is once per load/`reconfigure`, not per progress tick. `sendCurrentState` records what it sent so a connect doesn't double-send.
+- `MultiplayerAudioService.attachRemoteTrack` is now idempotent for the same live track: it keeps the element/source and just refreshes the status handler + resumes instead of clearing and rebuilding. Defense-in-depth against any redundant `audio` message.
+
 ## Shared multiplayer
 
 - Keep `syncPeerSourceFile` key-guarded (`sourceTrackKey`) — it's correctly a no-op across 250 ms progress publishes, including in Freeplay. Don't "optimize" it into per-tick re-uploads.
 
 ## Verification
 
-- `npx vitest run src/lib/services/multiplayer-*` — 58 passed (incl. the new `resolveMultiplayerFreeplayAgreement` coverage in `multiplayer-session.test.ts` and the fresh-shuffle-pick coverage in `multiplayer-freeplay.test.ts`).
+- `npx vitest run src/lib/services/multiplayer-*` — 60 passed, 7 skipped (incl. new `MultiplayerAudioService` idempotent re-attach coverage).
 - `npm run check` — 0 errors, 0 warnings.
 - `npm run build` — clean.
 

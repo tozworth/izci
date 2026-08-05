@@ -16,7 +16,7 @@ describe('multiplayer protocol', () => {
       kind: 'hello',
       version: MULTIPLAYER_PROTOCOL_VERSION,
       name: 'Living room',
-      appVersion: '0.3.0'
+      appVersion: '0.3.1-a'
     })).toBe(true);
     expect(isHostMessage({
       kind: 'hello',

@@ -72,4 +72,36 @@ describe('MultiplayerAudioService', () => {
     expect(audioBus.connectMediaStream).toHaveBeenCalledWith(stream);
     expect(audioBus.connectMediaStreamAfterRaf).not.toHaveBeenCalled();
   });
+
+  it('does not tear down a live pipeline when the same track is re-attached', async () => {
+    const statuses: string[] = [];
+    const handler = (status: string) => statuses.push(status);
+    await service.attachRemoteTrack(track, stream, handler);
+
+    // A redundant audio message (e.g. a host progress publish) re-attaches the
+    // same receiver track. It must not clear the element and rebuild: that is
+    // what made streamed Freeplay stutter and flap between "Audio connecting"
+    // and "Listening".
+    await service.attachRemoteTrack(track, stream, handler);
+
+    expect(audioBus.disconnect).toHaveBeenCalledTimes(1); // initial clear only, null source
+    expect(element.remove).toHaveBeenCalledTimes(0);
+    expect(audioBus.connectMediaStream).toHaveBeenCalledTimes(1);
+    expect(statuses).toEqual(['connecting', 'playing', 'playing']);
+  });
+
+  it('rebuilds the pipeline when a different track is attached', async () => {
+    const otherTrack = {
+      muted: false,
+      readyState: 'live',
+      onmute: null,
+      onunmute: null,
+      onended: null
+    } as unknown as MediaStreamTrack;
+    await service.attachRemoteTrack(track, stream, () => undefined);
+    await service.attachRemoteTrack(otherTrack, stream, () => undefined);
+
+    expect(element.remove).toHaveBeenCalledTimes(1);
+    expect(audioBus.connectMediaStream).toHaveBeenCalledTimes(2);
+  });
 });
