@@ -393,7 +393,7 @@ export function createArtworkPresentationController({
     },
     async syncDetailsDisplay(): Promise<void> {
       const track = detailsTargetTrack;
-      const nextDetailsKey = getArtworkLoadKey(track);
+      const nextDetailsKey = getTrackArtworkLoadKey(track);
 
       if (nextDetailsKey === detailsDisplayRequestKey) {
         return;
