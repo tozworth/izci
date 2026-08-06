@@ -596,6 +596,7 @@
 
   .details-library-link {
     display: inline-flex;
+    flex-wrap: wrap;
     align-items: baseline;
     gap: 0.42rem;
     min-width: 0;
@@ -633,7 +634,7 @@
   }
 
   .metadata-row dd .technical-detail {
-    margin-left: 0.42rem;
+    display: block;
   }
 
   .notes-block {
