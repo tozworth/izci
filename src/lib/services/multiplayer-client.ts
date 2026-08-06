@@ -423,10 +423,15 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
           multiplayerSourcePlaybackService.setEnabled(false);
           publish({ audioStatus: 'refused', averageAudioBitrateKbps: null });
         } else if (message.audio.sourceFile) {
-          // Keep the receiver's jitter buffer draining (muted, out of the graph)
-          // instead of tearing the element down: a frozen buffer would replay the
-          // previous streamed track's tail when the next streamed track attaches.
+          // Source-file phase: the transferred track plays through the local
+          // player. Keep the remote element as a silent sink so the receiver's
+          // jitter buffer keeps advancing (the host's silence anchor feeds it
+          // through the interlude) instead of freezing with the previous
+          // streamed track's tail — and flush the buffer target so NetEq drops
+          // retained audio. The next streamed track then builds a FRESH
+          // pipeline (see attachClientRemoteAudio) that starts from silence.
           multiplayerAudioService.drainRemoteTrack();
+          flushClientReceiverBuffer(peer);
           multiplayerSourcePlaybackService.setEnabled(true);
           publish({ audioStatus: multiplayerSourcePlaybackService.active ? 'playing' : 'connecting' });
         } else if (!message.audio.enabled) {
@@ -541,6 +546,13 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
     const track = receiver?.track;
     if (!track || track.readyState === 'ended') return;
     track.enabled = true;
+    // A source-file interlude leaves the drained element behind. The user
+    // hears stale audio from it at the next streamed track, so a streamed
+    // track must build a FRESH pipeline: tear the old element down first,
+    // then attach (which creates a new element + new route). The receiver
+    // buffer was flushed during the interlude, so the fresh element starts
+    // from silence (a clean gap), never from retained old audio.
+    multiplayerAudioService.clearRemoteTrack();
     void multiplayerAudioService.attachRemoteTrack(track, new MediaStream([track]), (audioStatus) => {
       if (core.state.mode === 'client' && core.state.receiveAudio && core.latestAudioAvailability.enabled) {
         publish({ audioStatus });
@@ -548,6 +560,10 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
         sendClientPlaybackReadyIfPossible(peer);
       }
     });
+    // The interlude flushed the receiver buffer to zero; give the fresh
+    // streamed pipeline its configured jitter cushion back so steady-state
+    // playback is protected again.
+    applyClientAudioBuffer(peer);
   }
 
   function attachClientMediaChannel(peer: PeerConnection): void {
@@ -566,10 +582,13 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
         if (!frame) return;
         if (frame.kind === 'file.begin') {
           pending = { frame, chunks: [], received: 0 };
-          // Drain the WebRTC stream silently instead of clearing it: the jitter
-          // buffer must keep advancing during the source-file phase or the next
-          // streamed track replays the previous track's tail.
+          // Source-file phase: keep the remote element as a silent sink (see
+          // the audio message handler) and flush the receiver buffer, so the
+          // previous streamed track's retained audio cannot survive into the
+          // next streamed track. The transfer frame can arrive before the
+          // audio message — drain and flush in both.
           multiplayerAudioService.drainRemoteTrack();
+          flushClientReceiverBuffer(peer);
           // Keep the current file audible until its replacement is completely received
           // and prepared. Stopping the only active media element here lets mobile
           // Chromium suspend a locked client before the remaining chunks can arrive.
@@ -653,6 +672,20 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
     for (const receiver of peer.pc.getReceivers()) {
       if (receiver.track.kind !== 'audio') continue;
       setMultiplayerReceiverBuffer(receiver, core.multiplayerSettings.multiplayerAudioBufferMs);
+    }
+  }
+
+  /**
+   * Drops the receiver's retained audio at a streamed→source-file transition.
+   * The remote element is gone (no sink), so NetEq would otherwise freeze the
+   * jitter buffer holding the previous streamed track's tail and replay it when
+   * the next streamed track attaches. Flushing the target to zero discards it;
+   * the next streamed track starts from an empty buffer (a clean gap).
+   */
+  function flushClientReceiverBuffer(peer: PeerConnection): void {
+    for (const receiver of peer.pc.getReceivers()) {
+      if (receiver.track.kind !== 'audio') continue;
+      setMultiplayerReceiverBuffer(receiver, 0);
     }
   }
 

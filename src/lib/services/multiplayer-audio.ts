@@ -38,10 +38,10 @@ export class MultiplayerAudioService {
     // re-broadcasts availability on each 250 ms progress publish).
     if (this.#remoteTrack === track && this.#remoteElement) {
       if (!this.#remoteSource) {
-        // Drained state (source-file interlude): the element stayed attached and
-        // playing (muted, out of the graph) so the jitter buffer kept advancing.
-        // Reconnect the WebAudio route on the SAME element — no teardown/creation
-        // churn, so the next streamed track starts without a mid-stream glitch.
+        // The route was previously disconnected (e.g. an unavailable attach):
+        // reconnect the WebAudio route on the SAME element — no teardown/
+        // creation churn, so streamed playback starts without a mid-stream
+        // glitch.
         this.#remoteSource = audioBusService.connectMediaStream(stream);
         if (!this.#remoteSource) {
           this.#publish('unavailable');
@@ -106,14 +106,13 @@ export class MultiplayerAudioService {
   }
 
   /**
-   * Keeps the remote element attached and playing while the current track is
-   * delivered as a source file, but disconnects the WebAudio route so nothing
-   * is audible. A live consumer is what advances the receiver's jitter buffer:
-   * without one, the playout freezes holding the previous streamed track's
-   * tail, and the next streamed track replays it (~1 s of leftover audio).
-   * The drained audio is silence (the sender stops or emits silence), so the
-   * next `attachRemoteTrack` (which rebuilds because the route is gone) starts
-   * clean.
+   * Keeps the remote element attached and playing (muted, out of the graph)
+   * while the current track is delivered as a source file. The element is the
+   * receiver's only sink: without one the playout freezes holding the previous
+   * streamed track's tail, and the next streamed track would replay it. With
+   * the host's silence anchor feeding silence through the interlude, the sink
+   * advances the buffer through silence — the next streamed track starts from
+   * a clean gap.
    */
   drainRemoteTrack(): void {
     if (!this.#remoteElement || !this.#remoteTrack) return;
@@ -128,7 +127,7 @@ export class MultiplayerAudioService {
       this.#remoteTrack.onunmute = null;
       this.#remoteTrack.onended = null;
     }
-    audioBusService.disconnect(this.#remoteSource);
+    if (this.#remoteSource) audioBusService.disconnect(this.#remoteSource);
     if (this.#remoteElement) {
       this.#remoteElement.pause();
       this.#remoteElement.srcObject = null;

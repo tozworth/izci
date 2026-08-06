@@ -65,6 +65,16 @@ export class MultiplayerFreeplayPlayer {
    * track). Only `destroy()` stops the tracks.
    */
   #destination: MediaStreamAudioDestinationNode | null = null;
+  /**
+   * A permanently-running silent source feeding the shared destination. An
+   * input-less MediaStreamAudioDestinationNode emits ZERO RTP packets in
+   * Chromium (verified live), so during source-file interludes the peer's
+   * receiver would freeze holding the previous streamed track's tail and
+   * replay it at the next streamed track. Keeping a running constant source
+   * (offset 0) connected means silence keeps flowing, so the receiver buffer
+   * always holds silence — never stale audio. Only `destroy()` stops it.
+   */
+  #silenceAnchor: ConstantSourceNode | null = null;
   #raf: RafEngine | null = null;
   #objectUrl: string | null = null;
   #progressTimer: number | null = null;
@@ -234,6 +244,9 @@ export class MultiplayerFreeplayPlayer {
     this.#loadToken += 1;
     this.#stopProgress();
     this.#disposeRenderer();
+    this.#silenceAnchor?.stop();
+    this.#silenceAnchor?.disconnect();
+    this.#silenceAnchor = null;
     for (const track of this.#destination?.stream.getTracks() ?? []) track.stop();
     this.#destination = null;
     this.#track = null;
@@ -340,6 +353,17 @@ export class MultiplayerFreeplayPlayer {
     if (!this.#destination || this.#destination.context !== context) {
       const destination = context.createMediaStreamDestination();
       destination.channelCount = 2;
+      // A destination with no connected source emits NOTHING on the wire in
+      // Chromium (verified: 0 RTP packets). During source-file interludes the
+      // peer's receiver would then freeze holding the previous streamed track's
+      // tail. A running constant source at offset 0 keeps a silence RTP flow
+      // alive through the interlude, so the receiver buffer always advances
+      // through silence — the next streamed track starts clean.
+      const silenceAnchor = context.createConstantSource();
+      silenceAnchor.offset.value = 0;
+      silenceAnchor.connect(destination);
+      silenceAnchor.start();
+      this.#silenceAnchor = silenceAnchor;
       this.#destination = destination;
     }
     return this.#destination;

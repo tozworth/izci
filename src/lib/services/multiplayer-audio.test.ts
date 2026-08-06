@@ -84,7 +84,7 @@ describe('MultiplayerAudioService', () => {
     // and "Listening".
     await service.attachRemoteTrack(track, stream, handler);
 
-    expect(audioBus.disconnect).toHaveBeenCalledTimes(1); // initial clear only, null source
+    expect(audioBus.disconnect).toHaveBeenCalledTimes(0); // nothing connected yet
     expect(element.remove).toHaveBeenCalledTimes(0);
     expect(audioBus.connectMediaStream).toHaveBeenCalledTimes(1);
     expect(statuses).toEqual(['connecting', 'playing', 'playing']);
@@ -105,28 +105,46 @@ describe('MultiplayerAudioService', () => {
     expect(audioBus.connectMediaStream).toHaveBeenCalledTimes(2);
   });
 
-  it('drains the receiver without tearing the element down, then reconnects on re-attach', async () => {
+  it('drains the receiver without tearing the element down (source-file interlude sink)', async () => {
     await service.attachRemoteTrack(track, stream, () => undefined);
     audioBus.disconnect.mockClear();
+    element.remove.mockClear();
+    element.pause.mockClear();
 
-    // Source-file interlude: keep the element attached and playing (muted, out
-    // of the graph) so the jitter buffer keeps advancing.
+    // Source-file interlude: the element stays attached and playing (muted,
+    // out of the graph) so the receiver's jitter buffer keeps advancing —
+    // a frozen buffer would replay the previous streamed track's tail.
     service.drainRemoteTrack();
 
     expect(audioBus.disconnect).toHaveBeenCalledTimes(1);
     expect(element.remove).toHaveBeenCalledTimes(0);
     expect(element.pause).toHaveBeenCalledTimes(0);
     expect(element.play).toHaveBeenCalled();
+  });
 
-    // Re-attaching the same live track reconnects the route on the SAME element:
-    // no teardown/creation churn, so the next streamed track starts clean.
+  it('throws the stream away on a source-file interlude and rebuilds fresh on re-attach', async () => {
     await service.attachRemoteTrack(track, stream, () => undefined);
-    expect(element.remove).toHaveBeenCalledTimes(0);
+    audioBus.disconnect.mockClear();
+    element.remove.mockClear();
+    element.pause.mockClear();
+
+    // A streamed track must build a FRESH pipeline after an interlude: tear
+    // the drained element down, then attach (new element, new route). The
+    // receiver buffer was flushed during the interlude, so the fresh element
+    // starts from silence, never from retained old audio.
+    service.clearRemoteTrack();
+
+    expect(audioBus.disconnect).toHaveBeenCalledTimes(1);
+    expect(element.remove).toHaveBeenCalledTimes(1);
+    expect(element.pause).toHaveBeenCalledTimes(1);
+
+    await service.attachRemoteTrack(track, stream, () => undefined);
     expect(audioBus.connectMediaStream).toHaveBeenCalledTimes(2);
+    expect(element.remove).toHaveBeenCalledTimes(1); // only the original teardown
   });
 
   it('is a no-op when nothing is attached', () => {
-    service.drainRemoteTrack();
+    service.clearRemoteTrack();
     expect(audioBus.disconnect).not.toHaveBeenCalled();
   });
 });
