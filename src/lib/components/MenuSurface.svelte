@@ -402,7 +402,7 @@
   }
 
   .menu-surface-nested:has(> .menu-entry-group > button .menu-item-description) {
-    width: min(13rem, calc(100vw - 1rem));
+    width: min(14rem, calc(100vw - 1rem));
   }
 
   .menu-surface-nested .menu-item-description {
@@ -415,7 +415,7 @@
     position: relative;
   }
 
-  .menu-entry-group:has(.menu-item-remove) > button:first-of-type {
+  .menu-entry-group:has(> .menu-item-remove) > button:first-of-type {
     padding-right: 2rem;
   }
 
