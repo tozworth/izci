@@ -2083,8 +2083,6 @@
   },
   "logs": {
     "heading": "Logs",
-    "toolbar": "Log tools",
-    "levelsLabel": "Level filter",
     "levels": {
       "error": "Error",
       "warning": "Warning",
@@ -2093,7 +2091,6 @@
     },
     "autoScroll": "Auto-scroll",
     "copy": "Copy",
-    "copied": "Copied",
     "clear": "Clear",
     "exportLogs": "Export logs...",
     "entryCount": "{count} entries",
@@ -2101,7 +2098,7 @@
       "close": "Close Logs"
     },
     "empty": "No log entries yet.",
-    "levelFilter": "Log level",
+    "emptyFiltered": "No entries at the selected levels.",
     "columns": {
       "time": "Time",
       "level": "Level",

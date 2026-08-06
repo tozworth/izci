@@ -1,11 +1,9 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte';
   import { t } from 'svelte-i18n';
-  import SelectDropdown from '$lib/components/SelectDropdown.svelte';
   import {
     clearLogs,
     getLogEntries,
-    LOG_LEVELS,
     logError,
     logInfo,
     subscribeLogs,
@@ -20,44 +18,24 @@
     type LogColumnId,
     type LogColumnWidths
   } from './logs-columns';
+  import { logsLevelVisibility } from './logs-levels';
   import LogsMenuBar from './LogsMenuBar.svelte';
 
   const COLUMN_GAP = 4;
   const TABLE_SIDE_PADDING = 8;
 
-  // Severity ranks: picking a level shows it and everything more severe.
-  const LEVEL_SEVERITY: Record<LogLevel, number> = {
-    error: 0,
-    warning: 1,
-    info: 2,
-    debug: 3
-  };
-
   let entries: LogEntry[] = [];
-  let filter: LogLevel = 'debug';
+  // Independent per-level visibility: an entry shows if its level is ticked.
+  // Persisted via logsLevelVisibility (localStorage + BroadcastChannel).
+  $: enabledLevels = $logsLevelVisibility;
   let autoScroll = true;
-  let copied = false;
-  let copyTimer: ReturnType<typeof setTimeout> | undefined;
   let listElement: HTMLElement | undefined;
   let listWidth = 0;
   let resizingColumnId: LogColumnId | null = null;
   let resizeStartX = 0;
   let resizeStartWidths: LogColumnWidths = logsColumnWidths.getSnapshot();
 
-  $: visibleEntries = entries.filter(
-    (entry) => LEVEL_SEVERITY[entry.level] <= LEVEL_SEVERITY[filter]
-  );
-  $: counts = {
-    error: entries.filter((entry) => entry.level === 'error').length,
-    warning: entries.filter((entry) => LEVEL_SEVERITY[entry.level] <= LEVEL_SEVERITY.warning).length,
-    info: entries.filter((entry) => LEVEL_SEVERITY[entry.level] <= LEVEL_SEVERITY.info).length,
-    debug: entries.filter((entry) => LEVEL_SEVERITY[entry.level] <= LEVEL_SEVERITY.debug).length
-  };
-  $: levelMenuOptions = LOG_LEVELS.map((level) => ({
-    value: level,
-    label: `${levelLabel(level)} (${counts[level]})`
-  }));
-  $: levelFilterTooltip = $t('logs.levelFilter', { default: 'Log level' });
+  $: visibleEntries = entries.filter((entry) => enabledLevels[entry.level]);
   $: tableInnerWidth = Math.max(
     0,
     listWidth - 2 * TABLE_SIDE_PADDING - Math.max(0, LOG_COLUMN_IDS.length - 1) * COLUMN_GAP
@@ -73,16 +51,12 @@
     return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}.${pad(date.getMilliseconds(), 3)}`;
   }
 
-  function levelLabel(level: LogLevel): string {
+  function levelColumnLabel(level: LogLevel): string {
     switch (level) {
-      case 'error':
-        return $t('logs.levels.error', { default: 'Error' });
       case 'warning':
-        return $t('logs.levels.warning', { default: 'Warning' });
-      case 'info':
-        return $t('logs.levels.info', { default: 'Info' });
-      case 'debug':
-        return $t('logs.levels.debug', { default: 'Debug' });
+        return 'warn';
+      default:
+        return level;
     }
   }
 
@@ -182,14 +156,16 @@
     if (text.length === 0) return;
     try {
       await navigator.clipboard.writeText(text);
-      copied = true;
-      if (copyTimer) clearTimeout(copyTimer);
-      copyTimer = setTimeout(() => {
-        copied = false;
-      }, 1200);
     } catch {
       // Clipboard may be unavailable (non-secure context); nothing to surface.
     }
+  }
+
+  function toggleLevel(level: LogLevel): void {
+    logsLevelVisibility.setVisibility({
+      ...logsLevelVisibility.getSnapshot(),
+      [level]: !logsLevelVisibility.getSnapshot()[level]
+    });
   }
 
   function handleColumnResizeStart(event: PointerEvent, columnId: LogColumnId): void {
@@ -243,39 +219,18 @@
 <div class="tool-shell logs-shell" aria-label={$t('logs.heading', { default: 'Logs' })}>
   <LogsMenuBar
     entryCount={entries.length}
+    visibleEntryCount={visibleEntries.length}
+    autoScroll={autoScroll}
+    enabledLevels={enabledLevels}
     on:exportLogs={() => void exportLogs()}
+    on:copy={() => void copyVisible()}
+    on:clear={clearLogs}
+    on:toggleAutoScroll={() => {
+      autoScroll = !autoScroll;
+    }}
+    on:toggleLevel={(event) => toggleLevel(event.detail)}
     on:close={() => window.close()}
   />
-
-  <div class="tool-toolbar logs-toolbar" role="toolbar" aria-label={$t('logs.toolbar', { default: 'Log tools' })}>
-    <div class="logs-level-filter">
-      <SelectDropdown
-        value={filter}
-        options={levelMenuOptions}
-        label={$t('logs.levelsLabel', { default: 'Level filter' })}
-        tooltip={levelFilterTooltip}
-        menuMinWidth={190}
-        on:change={(event) => {
-          filter = event.detail as LogLevel;
-        }}
-      />
-    </div>
-    <span class="toolbar-spacer"></span>
-    <label class="logs-toolbar-check">
-      <input type="checkbox" bind:checked={autoScroll} />
-      <span>{$t('logs.autoScroll', { default: 'Auto-scroll' })}</span>
-    </label>
-    <button type="button" class="text-button logs-toolbar-control" onclick={() => void copyVisible()}>
-      <span class="material-symbols-outlined" aria-hidden="true">{copied ? 'check' : 'content_copy'}</span>
-      <span>{copied
-        ? $t('logs.copied', { default: 'Copied' })
-        : $t('logs.copy', { default: 'Copy' })}</span>
-    </button>
-    <button type="button" class="text-button logs-toolbar-control" onclick={clearLogs}>
-      <span class="material-symbols-outlined" aria-hidden="true">delete_sweep</span>
-      <span>{$t('logs.clear', { default: 'Clear' })}</span>
-    </button>
-  </div>
 
   <div
     class="logs-list"
@@ -307,13 +262,15 @@
 
     {#if visibleEntries.length === 0}
       <div class="logs-empty">
-        {$t('logs.empty', { default: 'No log entries yet.' })}
+        {entries.length === 0
+          ? $t('logs.empty', { default: 'No log entries yet.' })
+          : $t('logs.emptyFiltered', { default: 'No entries at the selected levels.' })}
       </div>
     {:else}
       {#each visibleEntries as entry (entry.id)}
         <div class="logs-row level-{entry.level}">
           <span class="logs-cell logs-time">{formatTime(entry.timestamp)}</span>
-          <span class="logs-cell logs-level">{entry.level}</span>
+          <span class="logs-cell logs-level">{levelColumnLabel(entry.level)}</span>
           <span class="logs-cell logs-source">{entry.source}</span>
           <span class="logs-cell logs-window" title={entry.window}>{entry.window}</span>
           <span class="logs-cell logs-message" title={entry.message}>{entry.message}</span>

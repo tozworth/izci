@@ -269,6 +269,16 @@ body:has(.menu-list[data-menu-interactive='true']) .menu-bar.window-controls-ove
   text-align: right;
 }
 
+.menu-item-check {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 1.25rem;
+  color: var(--menu-popover-text);
+  font-size: 1rem;
+  text-align: right;
+}
+
 .menu-item-icon {
   font-size: 0.9rem;
   color: var(--menu-popover-muted);

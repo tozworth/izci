@@ -20,38 +20,8 @@ input {
 
 .logs-shell {
   display: grid;
-  grid-template-rows: auto auto minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
   user-select: none;
-}
-
-.logs-level-filter {
-  display: flex;
-  flex: 0 0 auto;
-  align-items: center;
-}
-
-.logs-toolbar-check {
-  display: inline-flex;
-  flex: 0 0 auto;
-  align-items: center;
-  gap: 0.28rem;
-  min-height: var(--tool-control-height);
-  padding: 0 0.45rem;
-  border: 1px solid var(--border-soft);
-  border-radius: 0.28rem;
-  background: var(--bg-base);
-  color: var(--muted);
-  font-size: 0.7rem;
-  cursor: default;
-}
-
-.logs-toolbar-check input {
-  margin: 0;
-  accent-color: var(--accent-strong);
-}
-
-.logs-toolbar .material-symbols-outlined {
-  font-size: 0.95rem;
 }
 
 .logs-list {
@@ -77,8 +47,8 @@ input {
   align-items: stretch;
   min-height: 1.4rem;
   padding: 0 0.5rem;
-  background: var(--bg-soft);
-  border-bottom: 1px solid var(--border-soft);
+  background: var(--menu-bar-bg);
+  border-bottom: 1px solid var(--window-topbar-hairline);
 }
 
 .logs-column-header {

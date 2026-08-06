@@ -2083,8 +2083,6 @@
   },
   "logs": {
     "heading": "Günlük",
-    "toolbar": "Günlük araçları",
-    "levelsLabel": "Düzey filtresi",
     "levels": {
       "error": "Hata",
       "warning": "Uyarı",
@@ -2093,7 +2091,6 @@
     },
     "autoScroll": "Otomatik kaydır",
     "copy": "Kopyala",
-    "copied": "Kopyalandı",
     "clear": "Temizle",
     "exportLogs": "Günlüğü dışa aktar...",
     "entryCount": "{count} kayıt",
@@ -2101,7 +2098,7 @@
       "close": "Günlüğü kapat"
     },
     "empty": "Henüz kayıt yok.",
-    "levelFilter": "Günlük düzeyi",
+    "emptyFiltered": "Seçilen düzeylerde kayıt yok.",
     "columns": {
       "time": "Saat",
       "level": "Düzey",
