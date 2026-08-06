@@ -8,9 +8,12 @@ import type {
 
 export type MultiplayerCollection = 'playlist' | 'library' | 'favorites';
 
-// Version 14: Freeplay clients own a queue; the host resolves it into the
-// catalog's playlist field and steps within it (next/prev/shuffle/repeat).
-export const MULTIPLAYER_PROTOCOL_VERSION = 14;
+// Version 15: Freeplay shuffle/repeat flags move to a lightweight `state`
+// message (v14 carried them inside every catalog echo, so a toggle re-shipped
+// the whole library and in-flight echoes could clobber optimistic client
+// toggles). The catalog keeps the fields for plain multiplayer peers, which
+// still read the host playlist's flags from it.
+export const MULTIPLAYER_PROTOCOL_VERSION = 15;
 export const MULTIPLAYER_FRAME_CHUNK_SIZE = 12_000;
 
 /**
@@ -98,6 +101,11 @@ export type HostMessage =
       name: string;
     }
   | { kind: 'catalog'; catalog: MultiplayerCatalog }
+  | {
+      kind: 'state';
+      shuffleEnabled: boolean;
+      repeatMode: PlaylistRepeatMode;
+    }
   | { kind: 'playback'; playback: MultiplayerPlayback }
   | { kind: 'playback.prepare'; preparation: MultiplayerPlaybackPreparation }
   | { kind: 'audio'; audio: MultiplayerAudioAvailability }
@@ -219,6 +227,10 @@ export function isHostMessage(value: unknown): value is HostMessage {
       && catalog.favorites.every(isRemotePlaylistItem)
       && typeof catalog.shuffleEnabled === 'boolean'
       && (catalog.repeatMode === 'off' || catalog.repeatMode === 'one' || catalog.repeatMode === 'all');
+  }
+  if (message.kind === 'state') {
+    return typeof message.shuffleEnabled === 'boolean'
+      && (message.repeatMode === 'off' || message.repeatMode === 'one' || message.repeatMode === 'all');
   }
   if (message.kind === 'playback') {
     const playback = message.playback as Partial<MultiplayerPlayback> | undefined;

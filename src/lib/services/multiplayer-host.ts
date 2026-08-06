@@ -16,7 +16,7 @@ import {
 } from './multiplayer-artwork';
 import {
   MultiplayerFreeplayPlayer,
-  resolveFreeplayStep,
+  createFreeplayStepResolver,
   type MultiplayerFreeplayPlayerUpdate
 } from './multiplayer-freeplay';
 import {
@@ -45,6 +45,7 @@ import {
 import { flushPeerMedia, transferSourceFile } from './multiplayer-source-transfer';
 import { createInviteCode, isSignalOffer, loadFirebase } from './multiplayer-signaling';
 import {
+  cycleMultiplayerRepeatMode,
   errorMessage,
   getLocalName,
   isMultiplayerFreeplayActive,
@@ -441,6 +442,9 @@ export function createMultiplayerHostSide(
       }
       if (message.kind === 'freeplay.queue' && peer.freeplay) {
         peer.freeplayQueue = sanitizeFreeplayQueueIds(message.itemIds);
+        // The queue is the playlist stepping context; a replacement starts a
+        // fresh navigation session over the new items.
+        peer.freeplayNavigation?.reset();
         sendFreeplayCatalog(peer);
         return;
       }
@@ -545,6 +549,12 @@ export function createMultiplayerHostSide(
         }
       });
       peer.freeplayPlayer = player;
+      // Per-peer stepping context: same pseudorandom cycle + played-history Prev
+      // the local playlist uses, resolved against whatever collection this peer
+      // is currently browsing.
+      peer.freeplayNavigation = createFreeplayStepResolver(
+        () => freeplayCollectionItems(peer, peer.freeplayCollection)
+      );
       await peer.audioSender?.replaceTrack(null).catch(() => undefined);
       const previousSelection = core.freeplaySelections.get(peer.id);
       if (previousSelection) {
@@ -566,6 +576,7 @@ export function createMultiplayerHostSide(
       peer.freeplayCollection = 'library';
       peer.freeplayShuffle = false;
       peer.freeplayRepeatMode = 'off';
+      peer.freeplayNavigation = null;
       peer.freeplayQueue = [];
       core.freeplaySelections.delete(peer.id);
       syncPeerSourceFile(peer, core.latestHostState?.track ?? null);
@@ -658,13 +669,16 @@ export function createMultiplayerHostSide(
       }
       case 'playlist.shuffle':
         peer.freeplayShuffle = !peer.freeplayShuffle;
-        sendFreeplayCatalog(peer);
+        // A toggle restarts the shuffle cycle, mirroring the local store's
+        // navigation reset. Only the lightweight state message goes out — never
+        // a full catalog re-ship. The client flips its button optimistically and
+        // this message confirms the authoritative value.
+        peer.freeplayNavigation?.reset();
+        sendFreeplayState(peer);
         return true;
       case 'playlist.repeat':
-        peer.freeplayRepeatMode = peer.freeplayRepeatMode === 'off'
-          ? 'all'
-          : peer.freeplayRepeatMode === 'all' ? 'one' : 'off';
-        sendFreeplayCatalog(peer);
+        peer.freeplayRepeatMode = cycleMultiplayerRepeatMode(peer.freeplayRepeatMode);
+        sendFreeplayState(peer);
         return true;
       case 'collection.activate':
         return activateFreeplayTrack(peer, command.collection, command.itemId);
@@ -682,6 +696,11 @@ export function createMultiplayerHostSide(
     if (!source) return false;
     const track = await materializePlaylistItem(source, false);
     if (!track || !peer.freeplay || !peer.freeplayPlayer) return false;
+    if (peer.freeplayCollection !== collection) {
+      // Switching the stepping context (library/favorites/queue) starts a fresh
+      // navigation session over the new collection.
+      peer.freeplayNavigation?.reset();
+    }
     peer.freeplayCollection = collection;
     peer.freeplayPendingPreparation = null;
     core.freeplaySelections.set(peer.id, track);
@@ -694,7 +713,13 @@ export function createMultiplayerHostSide(
     const loaded = await peer.freeplayPlayer.load(track, false);
     if (!loaded || !peer.freeplay) return false;
 
-    if (!core.multiplayerSettings.multiplayerWaitForClients) {
+    // Source-file delivery and host-disabled audio are timeline-passive: the
+    // client starts the transferred file on its own timeline, so a client
+    // readiness handshake would be pure babysitting. Only streamed (WebRTC opus)
+    // playback needs the client attached before play starts — babysit the stream,
+    // not the client.
+    if (!core.multiplayerSettings.multiplayerWaitForClients
+      || !peer.freeplayPlayer.audio.enabled) {
       return peer.freeplayPlayer.play();
     }
     beginFreeplayPlaybackPreparation(peer);
@@ -724,19 +749,29 @@ export function createMultiplayerHostSide(
       player.seek(0);
       return player.play();
     }
-    const items = freeplayCollectionItems(peer, peer.freeplayCollection);
-    const currentIndex = items.findIndex((item) => item.id === player.track?.id);
-    if (fromEnded
-      && peer.freeplayRepeatMode === 'off'
-      && !peer.freeplayShuffle
-      && currentIndex === items.length - 1) return true;
-    const next = resolveFreeplayStep(
-      items,
-      player.track?.id ?? null,
-      direction,
-      peer.freeplayShuffle
-    );
-    return next ? activateFreeplayTrack(peer, peer.freeplayCollection, next.id) : false;
+    const navigation = peer.freeplayNavigation;
+    if (!navigation) return false;
+    const currentId = player.track?.id ?? null;
+    const next = fromEnded
+      ? navigation.resolveEnd({
+          currentId,
+          shuffle: peer.freeplayShuffle,
+          repeatMode: peer.freeplayRepeatMode
+        })
+      : navigation.resolveStep({
+          currentId,
+          direction,
+          shuffle: peer.freeplayShuffle,
+          wrap: peer.freeplayRepeatMode === 'all'
+        });
+    if (!next) return true;
+    if (next.id === currentId) {
+      // Only a single-track collection resolves back to itself. An ended single
+      // track is the end of the road (repeat-one is handled above); a manual
+      // Next on one keeps restarting it, like local playback.
+      return fromEnded;
+    }
+    return activateFreeplayTrack(peer, peer.freeplayCollection, next.id);
   }
 
   async function handleFreeplayTrackEnded(peer: PeerConnection, trackId: string): Promise<void> {
@@ -784,6 +819,21 @@ export function createMultiplayerHostSide(
         shuffleEnabled: peer.freeplayShuffle,
         repeatMode: peer.freeplayRepeatMode
       }
+    });
+  }
+
+  /**
+   * Lightweight per-peer Freeplay transport state. Shuffle/repeat toggles ship
+   * only this (never the whole catalog), and the client treats it as the
+   * authoritative flag source so catalog echoes can't clobber its optimistic
+   * button state.
+   */
+  function sendFreeplayState(peer: PeerConnection): void {
+    if (!peer.freeplay || peer.channel?.readyState !== 'open') return;
+    sendToPeer(peer, {
+      kind: 'state',
+      shuffleEnabled: peer.freeplayShuffle,
+      repeatMode: peer.freeplayRepeatMode
     });
   }
 
@@ -959,6 +1009,7 @@ export function createMultiplayerHostSide(
     if (!core.latestHostState) return;
     if (peer.freeplay) {
       sendFreeplayCatalog(peer);
+      sendFreeplayState(peer);
       const player = peer.freeplayPlayer;
       sendToPeer(peer, {
         kind: 'playback',

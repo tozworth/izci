@@ -3,7 +3,8 @@ import { audioBusService } from '$lib/services/audio-bus';
 import { createChiptunePlayer } from '$lib/services/chiptune-loader';
 import { RafEngine } from '$lib/services/raf-engine';
 import { modulePlaybackSettings } from '$lib/stores/module-playback-settings';
-import type { PlaybackSnapshot, PlaylistItem } from '$lib/types';
+import { createPlaylistNavigation } from '$lib/stores/playlist-navigation';
+import type { PlaybackSnapshot, PlaylistItem, PlaylistRepeatMode } from '$lib/types';
 import type {
   MultiplayerAudioAvailability,
   MultiplayerPlayback
@@ -405,25 +406,53 @@ export class MultiplayerFreeplayPlayer {
   }
 }
 
-export function resolveFreeplayStep(
-  items: PlaylistItem[],
-  currentTrackId: string | null,
-  direction: -1 | 1,
-  shuffle: boolean,
-  random = Math.random
-): PlaylistItem | null {
-  if (items.length === 0) return null;
-  const currentIndex = items.findIndex((item) => item.id === currentTrackId);
-  if (shuffle && items.length > 1) {
-    // With no current track the full range is fair game; otherwise exclude the
-    // current track so a shuffle step always moves somewhere else.
-    const offset = currentIndex < 0
-      ? Math.floor(random() * items.length)
-      : 1 + Math.floor(random() * (items.length - 1));
-    return items[(Math.max(currentIndex, 0) + offset) % items.length] ?? null;
-  }
-  const start = currentIndex < 0 ? (direction > 0 ? -1 : 0) : currentIndex;
-  return items[(start + direction + items.length) % items.length] ?? null;
+export interface FreeplayStepResolver {
+  /**
+   * Drops the shuffle session (history + upcoming cycle). Mirrors the local
+   * playlist store, which resets its navigation whenever shuffle toggles or the
+   * collection/queue is replaced.
+   */
+  reset(): void;
+  /**
+   * Steps from an explicit user action (Next/Prev). Shuffle mode keeps a played
+   * history so Prev walks back through what was actually played, and an upcoming
+   * cycle so a track is never re-picked before the collection is exhausted
+   * (wrapping to a fresh cycle only when `wrap` is set, i.e. repeat-all).
+   */
+  resolveStep(options: {
+    currentId?: string | null;
+    direction: -1 | 1;
+    shuffle: boolean;
+    wrap: boolean;
+  }): PlaylistItem | null;
+  /**
+   * Steps after a track ended (auto-advance). Handles repeat-one (same track),
+   * shuffle with repeat-all wrapping, and the repeat-off end-of-collection stop.
+   */
+  resolveEnd(options: {
+    currentId?: string | null;
+    shuffle: boolean;
+    repeatMode: PlaylistRepeatMode;
+  }): PlaylistItem | null;
+}
+
+/**
+ * Per-peer Freeplay stepping context. The host owns one instance per Freeplay
+ * peer, seeded with that peer's current collection (library/favorites/queue).
+ * This reuses the local playlist-navigation semantics so Freeplay shuffle is
+ * the same pseudorandom cycle the user gets locally: previous tracks are
+ * remembered (Prev walks the history), and Next never re-picks a track until
+ * the collection is exhausted.
+ */
+export function createFreeplayStepResolver(
+  getItems: () => PlaylistItem[]
+): FreeplayStepResolver {
+  const navigation = createPlaylistNavigation(getItems);
+  return {
+    reset: () => navigation.reset(),
+    resolveStep: (options) => navigation.resolveStepTrack(options),
+    resolveEnd: (options) => navigation.resolveTrackEnd(options)
+  };
 }
 
 function disabledAudioAvailability(): MultiplayerAudioAvailability {

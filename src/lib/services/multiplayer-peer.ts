@@ -47,6 +47,7 @@ export function createPeer(
     freeplayCollection: 'library',
     freeplayShuffle: false,
     freeplayRepeatMode: 'off',
+    freeplayNavigation: null,
     freeplayQueue: [],
     freeplayPendingPreparation: null,
     freeplayArtwork: null,

@@ -39,6 +39,7 @@ import {
   createReceiverBitrateMonitor
 } from './multiplayer-receiver-monitor';
 import {
+  cycleMultiplayerRepeatMode,
   errorMessage,
   getClientPlatform,
   getLocalName,
@@ -353,7 +354,29 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
       if (typeof event.data !== 'string') return;
       const message = decode(event.data);
       if (!message) return;
-      if (message.kind === 'catalog') publish({ remoteCatalog: message.catalog });
+      if (message.kind === 'catalog') {
+        publish({
+          remoteCatalog: {
+            ...message.catalog,
+            // Freeplay transport flags are delivered by `state` messages and the
+            // client's own optimistic toggles; the catalog still carries a
+            // snapshot (plain multiplayer peers read it there), but an in-flight
+            // catalog echo — e.g. a queue-change reply generated before the host
+            // applied a toggle — must never clobber the button state.
+            shuffleEnabled: core.state.remoteCatalog.shuffleEnabled,
+            repeatMode: core.state.remoteCatalog.repeatMode
+          }
+        });
+      }
+      if (message.kind === 'state') {
+        publish({
+          remoteCatalog: {
+            ...core.state.remoteCatalog,
+            shuffleEnabled: message.shuffleEnabled,
+            repeatMode: message.repeatMode
+          }
+        });
+      }
       if (message.kind === 'playback') {
         publish({ remotePlayback: message.playback });
         multiplayerSourcePlaybackService.syncPlayback(message.playback);
@@ -722,6 +745,27 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
       commandId: crypto.randomUUID()
     } as MultiplayerCommand;
     sendToPeer(core.clientPeer, { kind: 'command', command: completeCommand });
+    // Freeplay shuffle/repeat flags live on the host per peer. The host applies
+    // the identical toggle and no longer re-ships the whole catalog for it, so
+    // the client can flip its button optimistically: instant feedback with no
+    // round-trip, and no risk of drifting because the toggle is deterministic.
+    if (core.state.freeplay) {
+      if (command.type === 'playlist.shuffle') {
+        publish({
+          remoteCatalog: {
+            ...core.state.remoteCatalog,
+            shuffleEnabled: !core.state.remoteCatalog.shuffleEnabled
+          }
+        });
+      } else if (command.type === 'playlist.repeat') {
+        publish({
+          remoteCatalog: {
+            ...core.state.remoteCatalog,
+            repeatMode: cycleMultiplayerRepeatMode(core.state.remoteCatalog.repeatMode)
+          }
+        });
+      }
+    }
     return true;
   }
 

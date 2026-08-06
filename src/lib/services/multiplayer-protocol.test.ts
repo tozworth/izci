@@ -55,6 +55,20 @@ describe('multiplayer protocol', () => {
     expect(isMultiplayerCommand({ type: 'playlist.replace', commandId: '1', items: [] })).toBe(false);
   });
 
+  it('accepts the lightweight Freeplay state message', () => {
+    expect(isHostMessage({
+      kind: 'state',
+      shuffleEnabled: true,
+      repeatMode: 'all'
+    })).toBe(true);
+    expect(isHostMessage({
+      kind: 'state',
+      shuffleEnabled: true,
+      repeatMode: 'loop'
+    })).toBe(false);
+    expect(isHostMessage({ kind: 'state', shuffleEnabled: true })).toBe(false);
+  });
+
   it('reassembles chunked catalog messages', () => {
     const message: HostMessage = {
       kind: 'catalog',

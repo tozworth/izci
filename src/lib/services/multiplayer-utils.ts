@@ -1,4 +1,4 @@
-import type { PlaylistItem } from '$lib/types';
+import type { PlaylistItem, PlaylistRepeatMode } from '$lib/types';
 import { experimentalSettings } from '$lib/stores/experimental-settings';
 import {
   MULTIPLAYER_PROTOCOL_VERSION,
@@ -26,6 +26,15 @@ export function shouldTransferMultiplayerSourceFile(
 ): boolean {
   if (!audioEnabled || !track?.file || track.kind === 'video' || limitMiB === 0) return false;
   return limitMiB < 0 || track.file.size < limitMiB * 1024 * 1024;
+}
+
+/**
+ * The shared repeat-mode cycle: off → all → one → off. Both the host toggle and
+ * the client's optimistic button flip apply the same cycle, so it lives in one
+ * place to keep the two sides in lockstep.
+ */
+export function cycleMultiplayerRepeatMode(mode: PlaylistRepeatMode): PlaylistRepeatMode {
+  return mode === 'off' ? 'all' : mode === 'all' ? 'one' : 'off';
 }
 
 export function isMultiplayerFreeplayActive(pairing: {

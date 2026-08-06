@@ -25,7 +25,7 @@ import {
 } from './multiplayer-protocol';
 import type { MultiplayerReceiverAudioStatus } from './multiplayer-audio';
 import type { MultiplayerConnectionRoute } from './multiplayer-ice';
-import type { MultiplayerFreeplayPlayer } from './multiplayer-freeplay';
+import type { MultiplayerFreeplayPlayer, FreeplayStepResolver } from './multiplayer-freeplay';
 import type {
   MultiplayerTurnCredentialRequest,
   MultiplayerTurnCredentialResponse
@@ -215,6 +215,12 @@ export interface PeerConnection {
   freeplayCollection: MultiplayerCollection;
   freeplayShuffle: boolean;
   freeplayRepeatMode: PlaylistRepeatMode;
+  /**
+   * Per-peer Freeplay stepping context (shuffle history + upcoming cycle).
+   * Created when Freeplay activates, reset on shuffle toggles, queue/collection
+   * replacement, and Freeplay exit. Host-side only.
+   */
+  freeplayNavigation: FreeplayStepResolver | null;
   /**
    * The Freeplay client's owned queue (ordered catalog item IDs). Resolved into
    * the per-peer catalog's `playlist` field and used as the stepping context

@@ -53,14 +53,70 @@ The `changed && !active` branch of `syncPeerFreeplayMode` now resets `freeplayCo
 - UI (App.svelte): in Freeplay, double-clicking a library row adds it to the queue and plays from the queue; the Playlist panel shows the queue; context-menu Remove and the Delete key both remove from the queue. The client panel is no longer `readOnly` in Freeplay. The menu action stays the local-mode "Remove" label with the Delete shortcut (the panel localizes the `remove` id anyway).
 - Protocol bumped to 14 (database.rules.json synced by the prebuild script).
 
+## 9. Freeplay repeat/shuffle toggles lagged; the host re-shipped the whole catalog (DONE)
+
+**Fixed:** a toggle used to round-trip a full catalog echo (entire host library +
+favorites + queue) to the client, which is why the transport-bar buttons felt
+sluggish. The client now flips its buttons optimistically at send time, the host
+sends only a lightweight `state` message (`{ kind: 'state', shuffleEnabled,
+repeatMode }`), and the catalog no longer clobbers the flags.
+
+- New HostMessage `state` (protocol v15): the authoritative per-peer Freeplay
+  shuffle/repeat source. Sent on toggle and in `sendCurrentState` (reconnect /
+  activation restore). `isHostMessage` validates it; `MultiplayerCatalog` keeps
+  the fields for plain multiplayer peers, but Freeplay clients treat `state` as
+  the source of truth.
+- Client `catalog` handler preserves the current `shuffleEnabled`/`repeatMode`
+  across catalog replaces, so an in-flight echo (e.g. the queue-change reply
+  generated before the host applied a toggle) can't clobber an optimistic flip.
+  This matters for `replaceFreeplayQueueAndPlay`: its ordered send is
+  queue → toggle → activate, and the queue echo carries the pre-toggle snapshot.
+- `cycleMultiplayerRepeatMode` moved to `multiplayer-utils.ts` so the host
+  toggle and the client's optimistic flip share one cycle definition.
+
+## 10. Freeplay shuffle was stateless: no pseudorandom cycle, Prev walked list order (DONE)
+
+**Fixed:** `resolveFreeplayStep` picked a uniform random track (excluding only the
+current one) and Prev went to the previous item in collection order — nothing was
+remembered. Freeplay now reuses the local `createPlaylistNavigation` per peer, so
+shuffle is the same session the local playlist uses: a played-history stack + an
+upcoming cycle.
+
+- `createFreeplayStepResolver(getItems)` in `multiplayer-freeplay.ts` wraps the
+  local navigation factory; the host owns one instance per Freeplay peer
+  (`PeerConnection.freeplayNavigation`), seeded with `freeplayCollectionItems(peer,
+  peer.freeplayCollection)`.
+- Prev walks the played history (returns to what actually played, not the list
+  neighbor); Next never re-picks a track until the collection is exhausted, then
+  wraps to a fresh cycle only under repeat-all. Linear stepping now only wraps
+  with repeat-all too (local parity: repeat-off at the end is a no-op).
+- Session lifecycle mirrors the local store: reset on shuffle toggle, queue
+  replacement (`freeplay.queue`), collection switch (`activateFreeplayTrack`),
+  and Freeplay exit. Repeat-one stays a local host seek+play (streamed) or a
+  purely client-side `replay()` (source-file).
+- `multiplayer-freeplay.test.ts` rewritten to pin the new semantics (history
+  Prev, no-repeat-until-exhausted, repeat-all wrap, reset, end-of-collection
+  stop).
+
+## 11. Host babysat Freeplay clients outside opus streaming (DONE)
+
+**Fixed:** `activateFreeplayTrack` started a `playback.prepare`/`playback.ready`
+handshake whenever `multiplayerWaitForClients` was on — including source-file
+and host-disabled-audio selections, where the host player is timeline-passive and
+the client already starts the transferred file on its own timeline. The host was
+waiting for the client to confirm readiness it never needed. The handshake now
+only runs when the host actually streams (WebRTC opus): the host waits for the
+stream to be attached before `play()`, and otherwise does nothing but serve the
+selection — library streaming without client babysitting.
+
 ## Shared multiplayer
 
 - Keep `syncPeerSourceFile` key-guarded (`sourceTrackKey`) — it's correctly a no-op across 250 ms progress publishes, including in Freeplay. Don't "optimize" it into per-tick re-uploads.
 
 ## Verification
 
-- `npx vitest run src/lib/services/multiplayer-*` — 63 passed, 7 skipped (incl. Freeplay queue sanitization coverage: dedupe, bounds, 5000 cap).
+- `npx vitest run src/lib/services/multiplayer-*` — 67 passed, 7 skipped (Freeplay navigation: history-Prev, no-repeat-until-exhausted, repeat-all wrap, session reset, end-of-collection stop; protocol: `state` message validation).
 - `npm run check` — 0 errors, 0 warnings.
-- `npm run build` — clean.
-- Live CDP verification (2026-08-05, client on Protocol v14): Freeplay queue populated by double-clicking host-library rows (dedup), Playlist panel shows the queue, next steps within the queue, context-menu Remove and Delete-key Remove both remove from the queue, and the context menu shows the Delete shortcut hint (local-mode parity).
+- `npm run build` — clean (protocol 15 synced into database.rules.json by the prebuild script).
+- Live CDP verification (2026-08-06, client on Protocol v15): to be re-run — the instant-toggle, shuffle-cycle, Prev-history, and stream-handshake changes are service-level; the two-instance CDP recipe in the skill covers a host+client pair on one machine.
 
