@@ -12,6 +12,7 @@ type StatusHandler = (status: MultiplayerReceiverAudioStatus) => void;
 export class MultiplayerAudioService {
   #remoteElement: HTMLAudioElement | null = null;
   #remoteSource: MediaStreamAudioSourceNode | null = null;
+  #remoteStream: MediaStream | null = null;
   #remoteTrack: MediaStreamTrack | null = null;
   #onStatus: StatusHandler = () => undefined;
 
@@ -42,6 +43,7 @@ export class MultiplayerAudioService {
         // reconnect the WebAudio route on the SAME element — no teardown/
         // creation churn, so streamed playback starts without a mid-stream
         // glitch.
+        this.#remoteStream = stream;
         this.#remoteSource = audioBusService.connectMediaStream(stream);
         if (!this.#remoteSource) {
           this.#publish('unavailable');
@@ -58,6 +60,7 @@ export class MultiplayerAudioService {
     this.clearRemoteTrack();
     this.#onStatus = onStatus;
     this.#remoteTrack = track;
+    this.#remoteStream = stream;
     const element = new Audio();
     element.autoplay = true;
     element.muted = true;
@@ -87,6 +90,76 @@ export class MultiplayerAudioService {
     track.onended = () => this.#publish('unavailable');
     this.#publish('connecting');
     await this.resumeRemoteAudio();
+  }
+
+  /**
+   * Attaches the remote track to a FRESH element that stays out of the audible
+   * graph (muted, no WebAudio route) but is PLAYING — it is the receiver's
+   * sink, which is what lets NetEq's delay management run and build the
+   * jitter-buffer level toward the configured target while nothing is heard.
+   * The caller drives the phases (build the cushion, play it out) and then
+   * calls `connectRemoteRoute()` to make playback audible. Unlike
+   * `attachRemoteTrack`, this never reports 'playing' — the route is not
+   * connected, so the stream is not audible yet; the caller reports readiness
+   * itself once the cushion is built.
+   */
+  async attachRemoteTrackPrerolled(
+    track: MediaStreamTrack,
+    stream: MediaStream,
+    onStatus: StatusHandler
+  ): Promise<boolean> {
+    if (this.#remoteTrack === track && this.#remoteElement) {
+      // Redundant attach of the same live track: the element is already the
+      // preroll sink. Just refresh the status handler and keep playing.
+      this.#onStatus = onStatus;
+      this.#remoteStream = stream;
+      await this.#remoteElement.play().catch(() => undefined);
+      return true;
+    }
+    this.clearRemoteTrack();
+    this.#onStatus = onStatus;
+    this.#remoteTrack = track;
+    this.#remoteStream = stream;
+    const element = new Audio();
+    element.autoplay = true;
+    element.muted = true;
+    element.preload = 'auto';
+    element.srcObject = stream;
+    element.setAttribute('playsinline', '');
+    element.setAttribute('aria-hidden', 'true');
+    element.style.position = 'fixed';
+    element.style.width = '1px';
+    element.style.height = '1px';
+    element.style.opacity = '0';
+    element.style.pointerEvents = 'none';
+    document.body?.appendChild(element);
+    this.#remoteElement = element;
+    track.onmute = () => this.#publish('connecting');
+    track.onunmute = () => void this.resumeRemoteAudio();
+    track.onended = () => this.#publish('unavailable');
+    this.#publish('connecting');
+    await this.#remoteElement.play().catch(() => undefined);
+    return true;
+  }
+
+  /**
+   * Makes the prerolled element audible: connects the WebAudio route from the
+   * stored stream and resumes. The element has been consuming the receiver
+   * (muted) all along, so it is warm and the jitter buffer is at steady state
+   * — the audible start should be clean. No-op when nothing is prerolled.
+   */
+  async connectRemoteRoute(): Promise<boolean> {
+    if (!this.#remoteElement || !this.#remoteTrack || !this.#remoteStream) {
+      return false;
+    }
+    if (!this.#remoteSource) {
+      this.#remoteSource = audioBusService.connectMediaStream(this.#remoteStream);
+      if (!this.#remoteSource) {
+        this.#publish('unavailable');
+        return false;
+      }
+    }
+    return this.resumeRemoteAudio();
   }
 
   async resumeRemoteAudio(): Promise<boolean> {
@@ -137,6 +210,7 @@ export class MultiplayerAudioService {
     }
     this.#remoteElement = null;
     this.#remoteSource = null;
+    this.#remoteStream = null;
     this.#remoteTrack = null;
     this.#publish('idle');
     this.#onStatus = () => undefined;

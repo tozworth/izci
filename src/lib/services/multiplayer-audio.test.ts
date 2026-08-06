@@ -147,4 +147,59 @@ describe('MultiplayerAudioService', () => {
     service.clearRemoteTrack();
     expect(audioBus.disconnect).not.toHaveBeenCalled();
   });
+
+  it('prerolls a fresh element out of the audible graph, then routes it on demand', async () => {
+    const statuses: string[] = [];
+
+    const ok = await service.attachRemoteTrackPrerolled(track, stream, (status) => statuses.push(status));
+
+    expect(ok).toBe(true);
+    expect(element.muted).toBe(true);
+    expect(element.srcObject).toBe(stream);
+    expect(element.play).toHaveBeenCalled();
+    // The element consumes the receiver (the sink) but is NOT in the audible
+    // graph yet, and must not claim playback until the route is connected.
+    expect(audioBus.connectMediaStream).not.toHaveBeenCalled();
+    expect(statuses).toEqual(['connecting']);
+
+    await service.connectRemoteRoute();
+
+    expect(audioBus.connectMediaStream).toHaveBeenCalledWith(stream);
+    expect(statuses.at(-1)).toBe('playing');
+  });
+
+  it('does not report playing during the preroll until the route is connected', async () => {
+    const statuses: string[] = [];
+    await service.attachRemoteTrackPrerolled(track, stream, (status) => statuses.push(status));
+
+    expect(statuses).toEqual(['connecting']);
+    expect(statuses).not.toContain('playing');
+
+    await service.connectRemoteRoute();
+    expect(statuses.at(-1)).toBe('playing');
+  });
+
+  it('re-attaching the same track during the preroll does not rebuild the element', async () => {
+    const statuses: string[] = [];
+    await service.attachRemoteTrackPrerolled(track, stream, (status) => statuses.push(status));
+    await service.attachRemoteTrackPrerolled(track, stream, (status) => statuses.push(status));
+
+    expect(element.remove).not.toHaveBeenCalled();
+    expect(audioBus.connectMediaStream).not.toHaveBeenCalled();
+  });
+
+  it('connectRemoteRoute is a no-op without a prerolled element', async () => {
+    const ok = await service.connectRemoteRoute();
+    expect(ok).toBe(false);
+    expect(audioBus.connectMediaStream).not.toHaveBeenCalled();
+  });
+
+  it('clears the prerolled element without touching the (never connected) route', async () => {
+    await service.attachRemoteTrackPrerolled(track, stream, () => undefined);
+    audioBus.disconnect.mockClear();
+    service.clearRemoteTrack();
+
+    expect(element.remove).toHaveBeenCalledTimes(1);
+    expect(audioBus.disconnect).not.toHaveBeenCalled();
+  });
 });

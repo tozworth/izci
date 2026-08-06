@@ -99,6 +99,7 @@ export function createMultiplayerSession({
 
   async function resetSession(removeRemote: boolean): Promise<void> {
     client.clearReceiverMonitor();
+    client.resetStreamedAudioState();
     core.stopPeersListener?.();
     core.stopAnswerListener?.();
     core.stopPeersListener = null;

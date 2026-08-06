@@ -109,14 +109,121 @@ only runs when the host actually streams (WebRTC opus): the host waits for the
 stream to be attached before `play()`, and otherwise does nothing but serve the
 selection — library streaming without client babysitting.
 
+## 12. Direct streamed→streamed switches replay the old track's tail (DONE)
+
+**Fixed:** with the A→B→C path clean, switching straight between streamed tracks
+(A→C→A) glitched: the previous track (C) "freaked out" — cut out/stutter for
+~the jitter-buffer duration — before the new track (A) started. Root cause:
+streamed→streamed transitions never waited out the retained tail. The host
+disposes the old renderer at load start (wire → anchor silence) but defers the
+new `audio` availability until the renderer connects; the client then attached a
+FRESH element for the new track — which started by playing the old track's
+retained tail (~`multiplayerAudioBufferMs`) out of the jitter buffer.
+
+Key correction: a `jitterBufferTarget = 0` flush does NOT discard retained
+audio in this Chromium — NetEq keeps it queued at the front of the playout.
+The A→B→C path was clean only because the source-file interlude is SECONDS long:
+the drained element (silent sink) plays the retained tail out at real time
+before the next streamed track ever attaches. A streamed→streamed build
+(~100–500 ms) is shorter than the buffer, so the tail survived into the fresh
+pipeline.
+
+Second correction (the "inverted freak-out"): the retained tail is NOT
+`bufferMs` long — it is `bufferMs` PLUS the media element's own pipeline
+latency (~100–250 ms, measured indirectly: the first fix's residual "split
+second" ≈ the element latency). A wait of exactly `bufferMs` still leaves that
+element-latency slice of the old track in the playout, which the fresh element
+then replays as a short C blip after the silent gap.
+
+- The client's `playback` handler detects a load of a DIFFERENT track
+  (`snapshot.state === 'loading'` + track id change) while the current
+  availability is streamed-enabled, and immediately `drainRemoteTrack()` —
+  zero headroom: C stops the moment the loading message lands — while keeping
+  the element as the receiver's silent sink, and records when the tail began
+  playing out (`streamedDrainStartedAt`).
+- `attachClientRemoteAudio` (fired by the new track's `audio` message) now
+  waits `max(0, multiplayerAudioBufferMs + STREAMED_RETAINED_TAIL_MARGIN_MS
+  (250) − elapsedSinceDrain)` before tearing down the drained element and
+  building the fresh pipeline. The drained sink consumes the retained tail
+  during the wait, so the fresh element starts from the live position
+  (silence + the new track) — the old track is never heard after the tap, and
+  the switch is simply delayed by the buffer headroom + margin (explicitly
+  acceptable). A monotonic token makes concurrent attaches from rapid track
+  switches idempotent.
+- Streamed→source-file transitions drain at `playback(loading)` too (same
+  tick as before, ordered channel) — net behavior unchanged; the interlude's
+  own drain+flush still runs at the `audio(sourceFile)` message. The hook
+  skips source-file→streamed (availability not enabled; the interlude already
+  played the tail out) and same-track re-loads (id guard).
+
+## 13. Streamed track start stutters/slows for its first 1–2 s (DONE — REVISED 2026-08-06)
+
+**Fixed:** with all the switch paths clean, every streamed track START was
+glitchy AND slowdown-y for the first ~1–2 s, then fine. Root cause: the fresh
+element started AUDIBLE with the receiver's jitter-buffer level below the
+configured target. `jitterBufferTarget` is a SETPOINT, and NetEq's delay
+manager raises the level by time-stretching the playout (deceleration) — the
+audible slowdown IS the cushion build. The first attempt (restore the target
+at the drain + a no-sink fill wait on first attach) did NOT fix it: a
+no-sink receiver doesn't build (the delay manager needs a consuming sink),
+and the drain-raise budget was too short. The build must happen inaudibly,
+with a consuming sink, before the audible route exists.
+
+Final fix (client: `multiplayer-client.ts` + `multiplayer-audio.ts`; host:
+`multiplayer-host.ts`):
+
+- **Prerolled attach (`MultiplayerAudioService.attachRemoteTrackPrerolled` +
+  `connectRemoteRoute`):** the fresh element is created, MUTED and OUT of the
+  audible graph, but PLAYING — it is the receiver's sink, which is what lets
+  NetEq's delay management run. The caller drives three phases:
+  - Phase A (build): the element consumes the wire while the receiver level
+    builds toward the target; polled via receiver stats
+    (`jitterBufferDelay / jitterBufferEmittedCount`, meaningful only with the
+    sink attached), capped at ~`bufferMs + 500` ms (`STREAMED_PREROLL_BUILD_CAP_MS`).
+    The host is still PAUSED (readiness not yet reported), so the wire is the
+    anchor silence — the cushion is built from silence, NOT from the track, so
+    the track's beginning is buffered, not stretched/eaten.
+  - Phase B (playout): only now is readiness reported (`clientRemoteAudioReady
+    = true` + ready message → the host's `play()` gate releases) and the
+    silence cushion (~`bufferMs` + `STREAMED_RETAINED_TAIL_MARGIN_MS`) is
+    consumed at real time while the track's beginning accumulates behind it.
+  - Phase C (audible): `connectRemoteRoute()` — the element has been warm and
+    the receiver is at steady state, so the first audible sample is the
+    track's start with a full cushion. No slowdown, no intro skipped.
+- **Tail wait kept** (`streamedDrainStartedAt`): on switches, the drained
+  element must finish consuming the previous track's retained tail BEFORE the
+  preroll takes over, or the tail sits at the front of the fresh cushion and
+  replays when the route connects. The `playback(loading)` drain still
+  disconnects the old route instantly (zero headroom) and keeps the target
+  applied so the level holds.
+- **Host: streamed Freeplay ALWAYS gates on the readiness handshake**
+  (the `!multiplayerWaitForClients` bypass was removed for the streamed
+  case). The preroll needs the host paused during the build — if it played
+  immediately, the build would consume (stretched, muted) the track's
+  beginning and the intro would be skipped. All client types still release
+  the gate: receiveAudio-off and host-disabled clients report ready
+  instantly, source-file clients once their file is loaded, streamed clients
+  after Phase A.
+- **`ontrack` no longer attaches at all** — every streamed attach happens via
+  the `audio` message (which the host re-sends at join; `sendToPeer` buffers
+  until the channel opens, so it always arrives). A pre-availability attach
+  was a live zero-cushion sink playing the first seconds with the slowdown.
+
+Costs: the session's first streamed track starts after ~1.5–2.25 s of silence
+(Phase A build + Phase B playout); switches pay the tail wait (~0.5–1 s) plus
+Phase B (~1 s) — the "more waiting" the user explicitly accepted, in exchange
+for a stutter/slowdown-free start from the first sample. `multiplayerAudioBufferMs`
+scales the cushion and Phase B.
+
 ## Shared multiplayer
 
 - Keep `syncPeerSourceFile` key-guarded (`sourceTrackKey`) — it's correctly a no-op across 250 ms progress publishes, including in Freeplay. Don't "optimize" it into per-tick re-uploads.
 
 ## Verification
 
-- `npx vitest run src/lib/services/multiplayer-*` — 67 passed, 7 skipped (Freeplay navigation: history-Prev, no-repeat-until-exhausted, repeat-all wrap, session reset, end-of-collection stop; protocol: `state` message validation).
+- `npx vitest run src/lib/services/multiplayer-*` — 75 passed, 7 skipped (Freeplay navigation: history-Prev, no-repeat-until-exhausted, repeat-all wrap, session reset, end-of-collection stop; protocol: `state` message validation).
 - `npm run check` — 0 errors, 0 warnings.
 - `npm run build` — clean (protocol 15 synced into database.rules.json by the prebuild script).
-- Live CDP verification (2026-08-06, client on Protocol v15): to be re-run — the instant-toggle, shuffle-cycle, Prev-history, and stream-handshake changes are service-level; the two-instance CDP recipe in the skill covers a host+client pair on one machine.
+- Painpoint #13 (start stutter/slowdown): unit/check/build green; live two-instance verification pending — expected: every streamed track starts after a silence pre-roll (first track ~1.5–2.25 s, switches ~1.5–2 s) and is clean from the first audible sample; no slowdown, no skipped intro, no old-track replay; host stays paused until the client's readiness.
+- Live CDP verification (2026-08-06, client on Protocol v15): A→B→C streamed-transferred-streamed verified clean; #12 (direct streamed→streamed A→C→A glitch) — attempt 1 (drain+flush at loading) did NOT fix it: `jitterBufferTarget = 0` does not discard retained audio. Attempt 2 (drain at loading + attach waits `bufferMs − elapsed`) inverted the symptom to a short residual C blip — the retained tail is `bufferMs` PLUS the element's pipeline latency (~150 ms), so the wait under-estimated. Final fix: wait adds `STREAMED_RETAINED_TAIL_MARGIN_MS = 250`. Rig re-run needed — expected: C stops instantly on tap A, ~buffer+margin ms of silence, then A from its start (no C at all).
 

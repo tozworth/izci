@@ -4,7 +4,7 @@ import {
   multiplayerPairings,
   rememberMultiplayerPairing
 } from '$lib/stores/multiplayer-pairings';
-import { multiplayerAudioService } from './multiplayer-audio';
+import { multiplayerAudioService, type MultiplayerReceiverAudioStatus } from './multiplayer-audio';
 import { enableOpusStereo } from './multiplayer-opus';
 import { resolveMultiplayerConnectionRoute } from './multiplayer-ice';
 import { setMultiplayerReceiverBuffer } from './multiplayer-receiver';
@@ -60,12 +60,41 @@ import {
   type SourceFileBeginFrame
 } from './multiplayer-types';
 
+/**
+ * The streamed element's playout runs ~100-250 ms behind the receiver's
+ * jitter buffer (the HTMLMediaElement's own media-pipeline latency on top of
+ * the configured `multiplayerAudioBufferMs` target). The retained tail of the
+ * previous streamed track therefore spans `bufferMs + this margin`, and the
+ * fresh attach must wait that long for the silent drain sink to consume it —
+ * otherwise the fresh pipeline starts by replaying a slice of the old track.
+ */
+const STREAMED_RETAINED_TAIL_MARGIN_MS = 250;
+
+/**
+ * Cap for the preroll cushion build (Phase A in `attachClientRemoteAudio`):
+ * the time we wait for the receiver's jitter-buffer level to reach the
+ * configured target while the muted preroll element consumes. The build is
+ * polled against receiver stats and normally ends at ~`multiplayerAudioBufferMs`
+ * of wall time; the cap keeps a slow-to-build receiver from stalling the
+ * track for many seconds.
+ */
+const STREAMED_PREROLL_BUILD_CAP_MS = 2500;
+
 export function createMultiplayerClientSide(core: MultiplayerSessionCore): MultiplayerClientSide {
   const receiverMonitor = createReceiverBitrateMonitor({
     getState: () => core.state,
     publish: (patch) => core.publish(patch),
     isActivePeer: (peer) => core.clientPeer === peer
   });
+  // When the last streamed→streamed switch drained the remote element, this is
+  // when the previous track's retained tail (~buffer ms) began playing out
+  // through the silent sink. The attach waits the remainder out before the
+  // preroll takes over, so the old track can never sit at the front of the
+  // fresh cushion (and replay) when the route connects.
+  let streamedDrainStartedAt: number | null = null;
+  // Monotonic guard for concurrent async attaches (rapid track switches): only
+  // the most recent attach may touch the pipeline.
+  let clientAudioAttachToken = 0;
 
   function publish(patch: Parameters<MultiplayerSessionCore['publish']>[0]): void {
     core.publish(patch);
@@ -378,7 +407,28 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
         });
       }
       if (message.kind === 'playback') {
+        const previousTrackId = core.state.remotePlayback.track?.id ?? null;
+        const loadingNewTrack =
+          message.playback.snapshot.state === 'loading'
+          && message.playback.track?.id != null
+          && message.playback.track.id !== previousTrackId;
         publish({ remotePlayback: message.playback });
+        if (loadingNewTrack && core.latestAudioAvailability.enabled) {
+          // The host started loading a different streamed track. The streamed
+          // element must stop NOW (zero headroom) while staying attached as the
+          // receiver's silent sink — otherwise the retained tail of the
+          // previous track (~buffer ms, still queued in the receiver; a target
+          // flush does NOT discard it) stays audible until the fresh attach.
+          multiplayerAudioService.drainRemoteTrack();
+          streamedDrainStartedAt = Date.now();
+          // Keep the configured jitter cushion applied through the drain (a
+          // source-file interlude flushed it to 0): while the drained sink
+          // consumes the old tail from the front, incoming silence/new-track
+          // audio accumulates behind it toward the target, so the preroll that
+          // follows (attachClientRemoteAudio) starts from a level that is
+          // already at — or close to — the configured cushion.
+          applyClientAudioBuffer(peer);
+        }
         multiplayerSourcePlaybackService.syncPlayback(message.playback);
         loadPendingClientSourceFile(peer);
         sendClientPlaybackReadyIfPossible(peer);
@@ -511,59 +561,144 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
       if (event.track.kind !== 'audio') return;
       setMultiplayerReceiverBuffer(event.receiver, core.multiplayerSettings.multiplayerAudioBufferMs);
       receiverMonitor.start(peer);
-      const stream = event.streams[0] ?? new MediaStream([event.track]);
-      if (!core.state.receiveAudio || core.latestAudioAvailability.sourceFile) {
+      // No attach here: every streamed attach happens via the `audio` message
+      // (attachClientRemoteAudio), which runs the preroll (cushion build →
+      // playout → route) so the audible start is clean. An attach at ontrack
+      // would be a live zero-cushion sink playing the first seconds with the
+      // start-of-track slowdown.
+      if (!core.state.receiveAudio || core.latestAudioAvailability.sourceFile || !core.latestAudioAvailability.enabled) {
         event.track.enabled = false;
         publish({
           audioStatus: core.state.receiveAudio ? 'connecting' : 'refused',
           averageAudioBitrateKbps: null
         });
-        return;
       }
-      void multiplayerAudioService.attachRemoteTrack(
-        event.track,
-        stream,
-        (audioStatus) => {
-          if (core.state.mode !== 'client') return;
-          if (!core.latestAudioAvailability.enabled
-            && (audioStatus === 'connecting' || audioStatus === 'playing')) return;
-          publish({
-            audioStatus,
-            averageAudioBitrateKbps: audioStatus === 'playing'
-              ? core.state.averageAudioBitrateKbps
-              : null
-          });
-          core.clientRemoteAudioReady = audioStatus === 'playing';
-          sendClientPlaybackReadyIfPossible(peer);
-        }
-      );
     };
   }
 
-  function attachClientRemoteAudio(peer: PeerConnection): void {
+  async function attachClientRemoteAudio(peer: PeerConnection): Promise<void> {
     if (core.clientPeer !== peer || !core.state.receiveAudio || !core.latestAudioAvailability.enabled) return;
     const receiver = peer.pc.getReceivers().find(({ track }) => track.kind === 'audio');
     const track = receiver?.track;
     if (!track || track.readyState === 'ended') return;
     track.enabled = true;
-    // A source-file interlude leaves the drained element behind. The user
-    // hears stale audio from it at the next streamed track, so a streamed
-    // track must build a FRESH pipeline: tear the old element down first,
-    // then attach (which creates a new element + new route). The receiver
-    // buffer was flushed during the interlude, so the fresh element starts
-    // from silence (a clean gap), never from retained old audio.
-    multiplayerAudioService.clearRemoteTrack();
-    void multiplayerAudioService.attachRemoteTrack(track, new MediaStream([track]), (audioStatus) => {
+    const attachToken = ++clientAudioAttachToken;
+    const bufferMs = core.multiplayerSettings.multiplayerAudioBufferMs;
+    const statusHandler = (audioStatus: MultiplayerReceiverAudioStatus): void => {
       if (core.state.mode === 'client' && core.state.receiveAudio && core.latestAudioAvailability.enabled) {
         publish({ audioStatus });
         core.clientRemoteAudioReady = audioStatus === 'playing';
         sendClientPlaybackReadyIfPossible(peer);
       }
-    });
-    // The interlude flushed the receiver buffer to zero; give the fresh
-    // streamed pipeline its configured jitter cushion back so steady-state
-    // playback is protected again.
+    };
+    const bailIfSuperseded = (): boolean => attachToken !== clientAudioAttachToken
+      || core.clientPeer !== peer
+      || !core.state.receiveAudio
+      || !core.latestAudioAvailability.enabled;
+
+    // TAIL WAIT (switch path only) — the previous streamed track's retained
+    // tail (~bufferMs, still queued in the receiver; a target flush does NOT
+    // discard it) must be consumed by the DRAINED element before the preroll
+    // takes over, otherwise the tail sits at the front of the fresh cushion
+    // and the audible start replays a slice of the old track. The drained
+    // element has been consuming it since the playback(loading) drain; wait
+    // out the remainder (bufferMs + the element's own pipeline latency).
+    const drainStartedAt = streamedDrainStartedAt;
+    streamedDrainStartedAt = null;
+    const tailWaitMs = drainStartedAt === null
+      ? 0
+      : Math.max(0, bufferMs + STREAMED_RETAINED_TAIL_MARGIN_MS - (Date.now() - drainStartedAt));
+    if (tailWaitMs > 0) {
+      await new Promise((resolve) => window.setTimeout(resolve, tailWaitMs));
+      if (bailIfSuperseded()) return;
+    }
+
+    // PREROLL — the fresh element must NEVER start audible from an empty
+    // receiver buffer. The receiver's jitter-buffer target is a setpoint:
+    // while the element consumes with the level below it, NetEq holds back
+    // (time-stretches) toward the target, which is audible as the first
+    // ~1-2 s of the track being glitchy/slowed. So the fresh element attaches
+    // MUTED and out of the graph (the receiver's sink — consumption is what
+    // lets NetEq's delay management run), the cushion is built and played out
+    // inaudibly, and only then is the route connected.
+    //
+    // Phase A — build the cushion. The element consumes the wire (silence:
+    // the host stays paused until we report readiness) while NetEq holds back
+    // toward the target. The host's own audio only starts flowing AFTER the
+    // cushion exists, so its beginning is buffered, not stretched. Ends when
+    // the receiver's measured playout delay reaches the target (or a cap).
+    // After the tail wait the level is already at the target, so this phase
+    // ends immediately on the switch path.
     applyClientAudioBuffer(peer);
+    multiplayerAudioService.clearRemoteTrack();
+    const prerolled = await multiplayerAudioService.attachRemoteTrackPrerolled(
+      track,
+      new MediaStream([track]),
+      statusHandler
+    );
+    if (!prerolled || bailIfSuperseded()) return;
+    if (bufferMs > 0) {
+      await waitForReceiverCushion(peer, bufferMs);
+      if (bailIfSuperseded()) return;
+    }
+    // The cushion is in place: release the host's playback-preparation gate so
+    // the track starts playing into the receiver. The preroll element consumes
+    // the silence cushion at real time while the track's beginning accumulates
+    // behind it — nothing is audible yet.
+    core.clientRemoteAudioReady = true;
+    sendClientPlaybackReadyIfPossible(peer);
+    // Phase B — play out the cushion. The silence cushion (≈ bufferMs) plus
+    // the element's own pipeline latency must be consumed before the front of
+    // the receiver reaches the new track's beginning, so the audible start
+    // (Phase C) begins at the track's start with the full cushion in place.
+    if (bufferMs > 0) {
+      await new Promise((resolve) => window.setTimeout(resolve, bufferMs + STREAMED_RETAINED_TAIL_MARGIN_MS));
+      if (bailIfSuperseded()) return;
+    }
+    // Phase C — audible. The element has been warm and the receiver is at
+    // steady state the whole time, so the first sample the user hears is
+    // clean.
+    await multiplayerAudioService.connectRemoteRoute();
+  }
+
+  /**
+   * Waits for the audio receiver's jitter-buffer level to reach the configured
+   * cushion. The level is the average per-emitted-frame delay from the
+   * receiver stats (jitterBufferDelay / jitterBufferEmittedCount), which is
+   * meaningful only while a consumer (the preroll element) is attached — that
+   * is exactly the state this runs in. Falls through on a cap so a receiver
+   * that never builds (or a paused host) cannot stall the track indefinitely.
+   */
+  async function waitForReceiverCushion(peer: PeerConnection, bufferMs: number): Promise<void> {
+    const receiver = peer.pc.getReceivers().find(({ track }) => track.kind === 'audio');
+    if (!receiver) return;
+    const targetMs = Math.max(0, Math.round(bufferMs));
+    const thresholdMs = Math.max(200, targetMs - 100);
+    const capMs = Math.min(STREAMED_PREROLL_BUILD_CAP_MS, Math.max(1000, targetMs + 500));
+    const startedAt = Date.now();
+    while (Date.now() - startedAt < capMs) {
+      let levelMs = 0;
+      try {
+        const stats = await receiver.getStats();
+        for (const stat of stats.values()) {
+          if (stat.type !== 'inbound-rtp' || stat.kind !== 'audio') continue;
+          const { jitterBufferDelay, jitterBufferEmittedCount } = stat as unknown as {
+            jitterBufferDelay?: number;
+            jitterBufferEmittedCount?: number;
+          };
+          if (typeof jitterBufferDelay === 'number'
+            && typeof jitterBufferEmittedCount === 'number'
+            && jitterBufferEmittedCount > 0) {
+            levelMs = (jitterBufferDelay / jitterBufferEmittedCount) * 1000;
+          }
+          break;
+        }
+      } catch {
+        // Stats are optional; keep polling.
+      }
+      if (levelMs >= thresholdMs) return;
+      await new Promise((resolve) => window.setTimeout(resolve, 100));
+    }
   }
 
   function attachClientMediaChannel(peer: PeerConnection): void {
@@ -861,6 +996,14 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
     applyClientAudioBuffer,
     handleClientResume,
     clearReceiverMonitor: () => receiverMonitor.clear(),
+    // Session reset must also clear the streamed-attach closure state and
+    // invalidate any in-flight preroll attach (Phase A/B/C waits): a stale
+    // `streamedDrainStartedAt` would delay the next session's first attach,
+    // and bumping the token makes any pending continuation bail.
+    resetStreamedAudioState: () => {
+      streamedDrainStartedAt = null;
+      clientAudioAttachToken += 1;
+    },
     clearReconnectTimer
   };
 }

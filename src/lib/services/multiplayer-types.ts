@@ -345,5 +345,6 @@ export interface MultiplayerClientSide {
   applyClientAudioBuffer(peer: PeerConnection): void;
   handleClientResume(): void;
   clearReceiverMonitor(): void;
+  resetStreamedAudioState(): void;
   clearReconnectTimer(): void;
 }

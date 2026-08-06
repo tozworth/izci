@@ -723,10 +723,20 @@ export function createMultiplayerHostSide(
     // readiness handshake would be pure babysitting. Only streamed (WebRTC opus)
     // playback needs the client attached before play starts — babysit the stream,
     // not the client.
-    if (!core.multiplayerSettings.multiplayerWaitForClients
-      || !peer.freeplayPlayer.audio.enabled) {
+    if (!peer.freeplayPlayer.audio.enabled) {
+      // Host-disabled or source-file audio: the readiness handshake completes
+      // instantly for these (no stream to attach), so play right away.
       return peer.freeplayPlayer.play();
     }
+    // Streamed Freeplay audio ALWAYS waits for the client's readiness
+    // handshake, regardless of `multiplayerWaitForClients`: the client's
+    // streamed preroll (cushion build) requires the host to stay paused until
+    // the receiver is at steady state — if the host plays during the build,
+    // the track's beginning is consumed (stretched, muted) before the audible
+    // start and the intro is skipped. Every client type still releases the
+    // gate: receiveAudio-off and host-disabled clients report ready
+    // instantly, source-file clients once their file is loaded, streamed
+    // clients after the preroll.
     beginFreeplayPlaybackPreparation(peer);
     return true;
   }
