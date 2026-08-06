@@ -174,6 +174,21 @@ function isValidEntry(entry: LogEntry | undefined): entry is LogEntry {
   );
 }
 
+/**
+ * Blink dispatches benign global error events when a ResizeObserver cannot
+ * deliver its notifications within the frame budget — this fires routinely
+ * while resizing any window (the Logs popup included) and is not an app
+ * defect. Filtering keeps resize storms out of the log buffer.
+ */
+const BENIGN_GLOBAL_ERROR_MESSAGES = [
+  'ResizeObserver loop completed with undelivered notifications.',
+  'ResizeObserver loop limit exceeded'
+];
+
+function isBenignGlobalError(event: ErrorEvent): boolean {
+  return BENIGN_GLOBAL_ERROR_MESSAGES.includes(event.message);
+}
+
 function mirrorToConsole(entry: LogEntry): void {
   // Skip console mirroring outside browsers (node tests, workers without window).
   if (typeof window === 'undefined') return;
@@ -271,6 +286,7 @@ export function initLogging(): void {
 
   if (typeof window !== 'undefined') {
     window.addEventListener('error', (event) => {
+      if (isBenignGlobalError(event)) return;
       logError('system', 'Uncaught error', {
         message: event.message,
         file: event.filename,

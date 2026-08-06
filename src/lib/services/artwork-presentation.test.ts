@@ -115,4 +115,41 @@ describe('artwork presentation helpers', () => {
     expect(controller.getSnapshot().displayedArtwork?.url).toBe('data:image/webp;base64,received');
     controller.destroy();
   });
+
+  it('does not republish identical selection state on repeat syncs (resize churn)', async () => {
+    const controller = createArtworkPresentationController({
+      resolveTrackSnapshot: (track) => track,
+      isPlaybackDetailsPending: () => false,
+      loadArtwork: () => Promise.resolve(null)
+    });
+    const track = item('track', { metadata: { title: 'One' } });
+
+    // Mirror the app flow: selection first, then the details display commit.
+    controller.syncSelection(track, true);
+    await controller.syncDetailsDisplay();
+    expect(controller.getSnapshot().detailsDisplayTrack).toBe(track);
+
+    let publishCount = 0;
+    const unsubscribe = controller.subscribe(() => {
+      publishCount += 1;
+    });
+
+    controller.syncSelection(track, true);
+    controller.syncSelection(track, true);
+    controller.syncSelection(track, true);
+
+    // Subscription fires once on subscribe; identical re-syncs must not
+    // publish fresh state objects (they would cascade reactive recomputes,
+    // e.g. resolving library navigation targets on every window resize).
+    expect(publishCount).toBe(1);
+
+    // A newer object with the same id (e.g. metadata edited) still refreshes.
+    const updated = item('track', { metadata: { title: 'Two' } });
+    controller.syncSelection(updated, true);
+    expect(publishCount).toBe(2);
+    expect(controller.getSnapshot().detailsDisplayTrack).toBe(updated);
+
+    unsubscribe();
+    controller.destroy();
+  });
 });

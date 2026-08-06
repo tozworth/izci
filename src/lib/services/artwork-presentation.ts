@@ -348,8 +348,15 @@ export function createArtworkPresentationController({
       }
 
       if (selectedItem && state.detailsDisplayTrack?.id === selectedItem.id) {
-        state = { ...state, detailsDisplayTrack: selectedItem };
-        publishState();
+        // Refresh the displayed track only when the selection carries a newer
+        // object (e.g. metadata edited). The same reference means nothing
+        // changed; republishing would churn the reactive graph (resize storms
+        // re-sync the workspace shell, which re-runs this with an identical
+        // item) and cascade into expensive recomputations downstream.
+        if (state.detailsDisplayTrack !== selectedItem) {
+          state = { ...state, detailsDisplayTrack: selectedItem };
+          publishState();
+        }
         return;
       }
 

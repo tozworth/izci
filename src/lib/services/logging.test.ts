@@ -87,3 +87,41 @@ describe('logging basics', () => {
     expect(received).toHaveLength(2);
   });
 });
+
+describe('global error capture', () => {
+  it('ignores benign ResizeObserver loop errors but logs real uncaught errors', async () => {
+    const listeners = new Map<string, (event: unknown) => void>();
+    (globalThis as Record<string, unknown>).window = {
+      addEventListener: (type: string, listener: (event: unknown) => void) => {
+        listeners.set(type, listener);
+      }
+    };
+
+    try {
+      vi.resetModules();
+      const fresh = await import('./logging');
+      fresh.initLogging();
+
+      const fireError = (message: string, lineno = 0): void => {
+        listeners.get('error')?.({
+          message,
+          filename: 'http://localhost:4173/logs.html',
+          lineno,
+          colno: 0
+        } as ErrorEvent);
+      };
+
+      fireError('ResizeObserver loop completed with undelivered notifications.');
+      fireError('ResizeObserver loop limit exceeded');
+      expect(fresh.getLogEntries().filter((entry) => entry.message === 'Uncaught error')).toHaveLength(0);
+
+      fireError('Something actually broke', 42);
+      const captured = fresh.getLogEntries().filter((entry) => entry.message === 'Uncaught error');
+      expect(captured).toHaveLength(1);
+      expect(captured[0].details).toContain('Something actually broke');
+    } finally {
+      (globalThis as Record<string, unknown>).window = undefined;
+      vi.resetModules();
+    }
+  });
+});
