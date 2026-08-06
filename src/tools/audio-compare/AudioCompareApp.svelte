@@ -14,7 +14,6 @@
     type ComparisonSourceId
   } from '$lib/services/audio-comparison';
   import { listenForCurrentToolTrack } from '$lib/services/tool-track-context';
-  import { windowManager } from '$lib/services/window-manager';
   import { MODULE_EXTENSIONS, STREAM_EXTENSIONS, type MenuActionItem } from '$lib/types';
   import { inferExtension } from '$lib/utils/files';
   import { loadAudioFile, type AudioLoadProgress } from '../editor/clip-audio';
@@ -706,7 +705,6 @@
     if (key === '1') { event.preventDefault(); void chooseSource('a'); }
     else if (key === '2') { event.preventDefault(); void chooseSource('b'); }
     else if (key === 'o') { event.preventDefault(); void chooseSource(activeSource); }
-    else if (key === 'p') { event.preventDefault(); windowManager.openOptions(); }
     else if (key === 'w') { event.preventDefault(); window.close(); }
   }
 

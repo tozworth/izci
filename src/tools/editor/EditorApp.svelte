@@ -695,7 +695,6 @@
     }
     if (!event.ctrlKey && !event.metaKey) return;
     if (key === 'o') { event.preventDefault(); void chooseAudioFile(); }
-    else if (key === 'p') { event.preventDefault(); windowManagerOpenOptions(); }
     else if (key === 'w') { event.preventDefault(); window.close(); }
     else if (key === 's') { event.preventDefault(); openExportDialog(); }
     else if (!editingText && key === 'z' && event.shiftKey) { event.preventDefault(); redo(); }
@@ -705,14 +704,6 @@
     else if (!editingText && key === 'x') { event.preventDefault(); deleteSelection(true); }
     else if (!editingText && key === 'c') { event.preventDefault(); copySelection(); }
     else if (!editingText && key === 'v') { event.preventDefault(); pasteAudio(); }
-  }
-
-  function windowManagerOpenOptions(): void {
-    if (window.opener && !window.opener.closed) {
-      window.opener.postMessage({ type: 'izci:open-options' }, window.location.origin);
-      return;
-    }
-    import('$lib/services/window-manager').then(({ windowManager }) => windowManager.openOptions());
   }
 
   onMount(() => {

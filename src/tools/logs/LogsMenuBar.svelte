@@ -2,7 +2,6 @@
   import { createEventDispatcher } from 'svelte';
   import { t } from 'svelte-i18n';
   import WindowMenuBar from '$lib/components/WindowMenuBar.svelte';
-  import { windowManager } from '$lib/services/window-manager';
   import type { LogLevel } from '$lib/services/logging';
   import type { MenuActionItem, WindowMenuGroup } from '$lib/types';
 
@@ -27,18 +26,10 @@
 
   $: appItems = [
     {
-      id: 'openOptions',
-      label: $t('main.menu.options', { default: 'Options...' }),
-      icon: 'settings',
-      shortcut: 'Ctrl+P'
-    },
-    { id: 'openAbout', label: $t('main.menu.about', { default: 'About' }), icon: 'info' },
-    {
       id: 'close',
       label: $t('logs.menu.close', { default: 'Close Logs' }),
       icon: 'close',
-      shortcut: 'Ctrl+W',
-      separatorBefore: true
+      shortcut: 'Ctrl+W'
     }
   ] satisfies MenuActionItem[];
 
@@ -119,17 +110,7 @@
     }
   ] satisfies WindowMenuGroup[];
 
-  function requestOptions(view?: 'about'): void {
-    if (window.opener && !window.opener.closed) {
-      window.opener.postMessage({ type: 'izci:open-options', view }, window.location.origin);
-      return;
-    }
-    windowManager.openOptions(view);
-  }
-
   function run(action: string): void {
-    if (action === 'openOptions') return requestOptions();
-    if (action === 'openAbout') return requestOptions('about');
     if (action === 'close') dispatch('close');
     else if (action === 'exportLogs') dispatch('exportLogs');
     else if (action === 'copy') dispatch('copy');

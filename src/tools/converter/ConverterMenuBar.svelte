@@ -2,11 +2,10 @@
   import { createEventDispatcher, onDestroy } from 'svelte';
   import { t } from 'svelte-i18n';
   import WindowMenuBar from '$lib/components/WindowMenuBar.svelte';
-  import { windowManager } from '$lib/services/window-manager';
   import type { MenuActionItem, WindowMenuGroup } from '$lib/types';
 
   type ActionId = 'addFiles' | 'addFolder' | 'chooseOutput' | 'close' | 'selectAll' | 'selectNone'
-    | 'removeSelected' | 'clearFinished' | 'start' | 'stop' | 'openOptions' | 'openAbout';
+    | 'removeSelected' | 'clearFinished' | 'start' | 'stop';
 
   export let fileSummary = '';
   export let busy = false;
@@ -29,9 +28,7 @@
   }>();
 
   $: appItems = [
-    { id: 'openOptions', label: $t('main.menu.options', { default: 'Options...' }), icon: 'settings', shortcut: 'Ctrl+P' },
-    { id: 'openAbout', label: $t('main.menu.about', { default: 'About' }), icon: 'info' },
-    { id: 'close', label: $t('converter.menu.close', { default: 'Close Converter' }), icon: 'close', shortcut: 'Ctrl+W', separatorBefore: true }
+    { id: 'close', label: $t('converter.menu.close', { default: 'Close Converter' }), icon: 'close', shortcut: 'Ctrl+W' }
   ] satisfies MenuActionItem[];
   $: fileItems = [
     { id: 'addFiles', label: $t('converter.addFiles', { default: 'Add files...' }), icon: 'note_add', shortcut: 'Ctrl+O', disabled: busy },
@@ -77,17 +74,7 @@
     }
   ] satisfies WindowMenuGroup[];
 
-  function requestOptions(view?: 'about'): void {
-    if (window.opener && !window.opener.closed) {
-      window.opener.postMessage({ type: 'izci:open-options', view }, window.location.origin);
-      return;
-    }
-    windowManager.openOptions(view);
-  }
-
   function run(action: ActionId): void {
-    if (action === 'openOptions') return requestOptions();
-    if (action === 'openAbout') return requestOptions('about');
     dispatch(action);
   }
 

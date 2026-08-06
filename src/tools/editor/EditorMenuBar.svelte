@@ -2,17 +2,13 @@
   import { createEventDispatcher } from 'svelte';
   import { t } from 'svelte-i18n';
   import WindowMenuBar from '$lib/components/WindowMenuBar.svelte';
-  import { applyManualLoadoutSettings } from '$lib/services/loadouts';
   import { RAF_EFFECT_DEFINITIONS } from '$lib/services/raf-effect-registry';
   import { SPEED_EFFECT } from './clip-effects';
-  import { windowManager } from '$lib/services/window-manager';
-  import { loadouts } from '$lib/stores/loadouts';
   import type { MenuActionItem, RafEffectType, WindowMenuGroup } from '$lib/types';
-  import { getLoadoutColorValue, LOADOUT_TYPE_ICONS } from '$lib/utils/loadout-presentation';
 
   type ActionId = 'open' | 'saveClip' | 'close' | 'undo' | 'redo' | 'selectAll'
     | 'cut' | 'copy' | 'paste' | 'delete' | 'trim' | 'toggleTwoChannelView'
-    | 'openOptions' | 'openLoadouts' | 'openAbout' | `applyLoadout:${string}` | `effect:${RafEffectType | 'speed'}`;
+    | `effect:${RafEffectType | 'speed'}`;
 
   export let fileName = '';
   export let canSaveClip = false;
@@ -38,25 +34,8 @@
     toggleTwoChannelView: void;
   }>();
 
-  $: loadoutItems = [
-    {
-      id: 'openLoadouts',
-      label: $t('main.menu.openLoadouts', { default: 'Open loadouts' }),
-      icon: 'bookmark_manager'
-    },
-    ...$loadouts.loadouts.map((loadout, index) => ({
-      id: `applyLoadout:${loadout.id}`,
-      label: loadout.name,
-      icon: LOADOUT_TYPE_ICONS[loadout.target.type],
-      iconColor: getLoadoutColorValue(loadout.color),
-      separatorBefore: index === 0
-    }))
-  ] satisfies MenuActionItem[];
   $: appItems = [
-    { id: 'openOptions', label: $t('main.menu.options', { default: 'Options...' }), icon: 'settings', shortcut: 'Ctrl+P' },
-    { id: 'loadouts', label: $t('main.menu.loadouts', { default: 'Loadouts' }), icon: 'bookmarks', children: loadoutItems },
-    { id: 'openAbout', label: $t('main.menu.about', { default: 'About' }), icon: 'info' },
-    { id: 'close', label: $t('editor.menu.close', { default: 'Close Editor' }), icon: 'close', shortcut: 'Ctrl+W', separatorBefore: true }
+    { id: 'close', label: $t('editor.menu.close', { default: 'Close Editor' }), icon: 'close', shortcut: 'Ctrl+W' }
   ] satisfies MenuActionItem[];
   $: fileItems = [
     { id: 'open', label: $t('editor.menu.open', { default: 'Open audio...' }), icon: 'file_open', shortcut: 'Ctrl+O' },
@@ -122,14 +101,6 @@
   ] satisfies WindowMenuGroup[];
 
   function run(action: ActionId): void {
-    if (action === 'openOptions') return requestOptions();
-    if (action === 'openLoadouts') return requestOptions('loadouts');
-    if (action === 'openAbout') return requestOptions('about');
-    if (action.startsWith('applyLoadout:')) {
-      const loadout = loadouts.getSnapshot().loadouts.find((candidate) => candidate.id === action.slice(13));
-      if (loadout) applyManualLoadoutSettings(loadout.settings);
-      return;
-    }
     if (action.startsWith('effect:')) {
       dispatch('effect', action.slice(7) as RafEffectType | 'speed');
       return;
@@ -143,14 +114,6 @@
       || action === 'paste' || action === 'delete' || action === 'trim') {
       dispatch(action);
     }
-  }
-
-  function requestOptions(view?: 'loadouts' | 'about'): void {
-    if (window.opener && !window.opener.closed) {
-      window.opener.postMessage({ type: 'izci:open-options', view }, window.location.origin);
-      return;
-    }
-    windowManager.openOptions(view);
   }
 
 </script>

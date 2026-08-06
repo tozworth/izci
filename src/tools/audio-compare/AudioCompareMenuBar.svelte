@@ -2,15 +2,10 @@
   import { createEventDispatcher } from 'svelte';
   import { t } from 'svelte-i18n';
   import WindowMenuBar from '$lib/components/WindowMenuBar.svelte';
-  import { applyManualLoadoutSettings } from '$lib/services/loadouts';
-  import { windowManager } from '$lib/services/window-manager';
-  import { loadouts } from '$lib/stores/loadouts';
   import type { MenuActionItem, WindowMenuGroup } from '$lib/types';
-  import { getLoadoutColorValue, LOADOUT_TYPE_ICONS } from '$lib/utils/loadout-presentation';
 
   type ActionId = 'openA' | 'openB' | 'close' | 'playPause' | 'stop' | 'auditionA' | 'auditionB'
-    | 'difference' | 'toggleLoop' | 'toggleGainMatch' | 'openOptions' | 'openLoadouts' | 'openAbout'
-    | `applyLoadout:${string}`;
+    | 'difference' | 'toggleLoop' | 'toggleGainMatch';
 
   export let fileSummary = '';
   export let canPlay = false;
@@ -34,21 +29,8 @@
     toggleGainMatch: void;
   }>();
 
-  $: loadoutItems = [
-    { id: 'openLoadouts', label: $t('main.menu.openLoadouts', { default: 'Open loadouts' }), icon: 'bookmark_manager' },
-    ...$loadouts.loadouts.map((loadout, index) => ({
-      id: `applyLoadout:${loadout.id}`,
-      label: loadout.name,
-      icon: LOADOUT_TYPE_ICONS[loadout.target.type],
-      iconColor: getLoadoutColorValue(loadout.color),
-      separatorBefore: index === 0
-    }))
-  ] satisfies MenuActionItem[];
   $: appItems = [
-    { id: 'openOptions', label: $t('main.menu.options', { default: 'Options...' }), icon: 'settings', shortcut: 'Ctrl+P' },
-    { id: 'loadouts', label: $t('main.menu.loadouts', { default: 'Loadouts' }), icon: 'bookmarks', children: loadoutItems },
-    { id: 'openAbout', label: $t('main.menu.about', { default: 'About' }), icon: 'info' },
-    { id: 'close', label: $t('audioCompare.menu.close', { default: 'Close Audio Compare' }), icon: 'close', shortcut: 'Ctrl+W', separatorBefore: true }
+    { id: 'close', label: $t('audioCompare.menu.close', { default: 'Close Audio Compare' }), icon: 'close', shortcut: 'Ctrl+W' }
   ] satisfies MenuActionItem[];
   $: fileItems = [
     { id: 'openA', label: $t('audioCompare.openA', { default: 'Open source A...' }), icon: 'looks_one', shortcut: 'Ctrl+1' },
@@ -86,23 +68,7 @@
     }
   ] satisfies WindowMenuGroup[];
 
-  function requestOptions(view?: 'loadouts' | 'about'): void {
-    if (window.opener && !window.opener.closed) {
-      window.opener.postMessage({ type: 'izci:open-options', view }, window.location.origin);
-      return;
-    }
-    windowManager.openOptions(view);
-  }
-
   function run(action: ActionId): void {
-    if (action === 'openOptions') return requestOptions();
-    if (action === 'openLoadouts') return requestOptions('loadouts');
-    if (action === 'openAbout') return requestOptions('about');
-    if (action.startsWith('applyLoadout:')) {
-      const loadout = loadouts.getSnapshot().loadouts.find((candidate) => candidate.id === action.slice(13));
-      if (loadout) applyManualLoadoutSettings(loadout.settings);
-      return;
-    }
     if (action === 'openA' || action === 'openB' || action === 'close' || action === 'playPause'
       || action === 'stop' || action === 'auditionA' || action === 'auditionB' || action === 'difference'
       || action === 'toggleLoop' || action === 'toggleGainMatch') {
