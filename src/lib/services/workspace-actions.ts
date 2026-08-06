@@ -100,7 +100,7 @@ function buildFavoriteToggleAction(
   };
 }
 
-function buildGoToLibraryAction(
+export function buildGoToLibraryAction(
   track: PlaylistItem | undefined,
   libraryItems: PlaylistItem[]
 ): MenuActionItem | null {
@@ -275,6 +275,71 @@ export function buildFavoritesContextActions(
       label: 'Remove from favorites',
       icon: 'heart_minus',
       separatorBefore: true
+    }
+  ];
+}
+
+/**
+ * Freeplay menu variants: a Freeplay client browses the HOST's catalog and owns
+ * only its queue. It must see the same actions as local mode minus everything
+ * that would mutate host-owned state — favorites, ratings, play counts, library
+ * membership — and minus subsong separation, which rewrites queue items into
+ * IDs the host catalog cannot resolve. 'remove' stays on the playlist (queue)
+ * menu but not the library (host) menu.
+ */
+export function buildFreeplayPlaylistContextActions(
+  playlistItems: PlaylistItem[],
+  libraryItems: PlaylistItem[],
+  ids: string[]
+): MenuActionItem[] {
+  const tracks = buildSelectedWorkspaceTracks(playlistItems, ids);
+  const goToLibrary = tracks.length === 1
+    ? buildGoToLibraryAction(tracks[0], libraryItems)
+    : null;
+
+  return [
+    ...(goToLibrary ? [goToLibrary] : []),
+    {
+      id: 'track-details',
+      label: 'Track details',
+      icon: 'info'
+    },
+    {
+      id: 'remove',
+      label: 'Remove',
+      icon: 'delete',
+      shortcut: 'Delete',
+      separatorBefore: true
+    }
+  ];
+}
+
+export function buildFreeplayLibraryContextActions(
+  items: PlaylistItem[],
+  libraryItems: PlaylistItem[],
+  ids: string[]
+): MenuActionItem[] {
+  const tracks = buildSelectedWorkspaceTracks(items, ids);
+  const goToLibrary = tracks.length === 1
+    ? buildGoToLibraryAction(tracks[0], libraryItems)
+    : null;
+
+  return [
+    {
+      id: 'add-to-playlist',
+      label: 'Add to playlist',
+      icon: 'playlist_add'
+    },
+    {
+      id: 'replace-playlist',
+      label: 'Replace playlist',
+      icon: 'playlist_play'
+    },
+    ...(goToLibrary ? [goToLibrary] : []),
+    {
+      id: 'track-details',
+      label: 'Track details',
+      icon: 'info'
     }
   ];
 }

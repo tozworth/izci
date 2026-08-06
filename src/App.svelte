@@ -118,7 +118,13 @@
   } from '$lib/types';
   import { buildOptionsWindowPath, isOptionsViewName, type OptionsViewName } from './options/views';
   import { getFavoriteIdentity, getTrackDisplayTitle, getTrackIdentity } from '$lib/utils/files';
-  import { favoritesHaveAllTracks } from '$lib/services/workspace-actions';
+  import {
+    buildFreeplayLibraryContextActions,
+    buildFreeplayPlaylistContextActions,
+    buildSelectedWorkspaceTracks,
+    favoritesHaveAllTracks,
+    resolveTrackLibraryNavigationAction
+  } from '$lib/services/workspace-actions';
   import { experimentalSettings } from '$lib/stores/experimental-settings';
   import { multiplayerRecents } from '$lib/stores/multiplayer-recents';
   import {
@@ -387,13 +393,19 @@
     resumeAutoScrollToken: 0
   };
   const workspaceShell = createWorkspaceShellController({
-    // Freeplay: the client's queue behaves like a local playlist — "Remove"
-    // (label localized in PlaylistPanel) with the Delete shortcut.
+    // Freeplay: the client's playlist is its own queue, so the playlist menu
+    // mirrors local mode minus host-mutating actions (favorites, ratings,
+    // library membership, subsong splitting); the library menu keeps queue
+    // building plus replace/shuffle/go-to/navigation, all client-side.
     getPlaylistContextActions: (ids) => isFreeplayClient
-      ? [{ id: 'remove', label: 'Remove', icon: 'delete', shortcut: 'Delete' }]
+      ? buildFreeplayPlaylistContextActions(playlistItems, libraryItems, ids)
       : workspaceCollections.getPlaylistContextActions(ids),
     getLibraryContextActions: (ids) => isFreeplayClient
-      ? [{ id: 'add-to-queue', label: 'Add to queue', icon: 'playlist_add' }]
+      ? buildFreeplayLibraryContextActions(
+          libraryViewSettings.getSnapshot().activeView === 'favorites' ? favoriteItems : libraryItems,
+          libraryItems,
+          ids
+        )
       : libraryViewSettings.getSnapshot().activeView === 'favorites'
         ? workspaceCollections.getFavoriteContextActions(ids)
         : workspaceCollections.getLibraryContextActions(ids),
@@ -713,6 +725,60 @@
     multiplayerSession.setFreeplayQueue(
       multiplayerState.freeplayQueue.filter((id) => !removed.has(id))
     );
+  }
+
+  function handleFreeplayPlaylistContextAction(actionId: string, ids: string[]): void {
+    // 'remove' mutates the client-owned queue; the queue is the client's
+    // playlist, so it stays. Favorites/ratings/library actions never appear in
+    // the Freeplay menu (buildFreeplayPlaylistContextActions), so the remaining
+    // actions are purely presentational or navigate the client's own library.
+    if (actionId === 'remove') {
+      removeFromFreeplayQueue(ids);
+      return;
+    }
+    const tracks = buildSelectedWorkspaceTracks(playlistItems, ids);
+    if (tracks.length === 0) return;
+    if (handleFreeplayLibraryNavigationAction(actionId, tracks)) return;
+    if (actionId === 'track-details') workspaceShell.showTrackDetails();
+  }
+
+  function handleFreeplayLibraryContextAction(actionId: string, ids: string[]): void {
+    if (actionId === 'add-to-playlist') {
+      addToFreeplayQueue(ids);
+      return;
+    }
+    if (actionId === 'replace-playlist' || actionId === 'shuffle-play') {
+      replaceFreeplayQueueAndPlay(ids, actionId === 'shuffle-play');
+      return;
+    }
+    const sourceItems =
+      $libraryViewSettings.activeView === 'favorites' ? favoriteItems : libraryItems;
+    const tracks = buildSelectedWorkspaceTracks(sourceItems, ids);
+    if (tracks.length === 0) return;
+    if (handleFreeplayLibraryNavigationAction(actionId, tracks)) return;
+    if (actionId === 'track-details') workspaceShell.showTrackDetails();
+  }
+
+  function handleFreeplayLibraryNavigationAction(
+    actionId: string,
+    tracks: PlaylistItem[]
+  ): boolean {
+    if (tracks.length !== 1) return false;
+    const target = resolveTrackLibraryNavigationAction(actionId, tracks[0], libraryItems);
+    if (!target) return false;
+    workspaceShell.showLibraryGroup(target);
+    return true;
+  }
+
+  function replaceFreeplayQueueAndPlay(ids: string[], shuffle: boolean): void {
+    if (!isFreeplayClient || ids.length === 0) return;
+    // Ordered data channel: the queue replacement lands before the shuffle
+    // toggle and the activate, so the host resolves the new queue first.
+    multiplayerSession.setFreeplayQueue(ids);
+    if (shuffle && !multiplayerState.remoteCatalog.shuffleEnabled) {
+      multiplayerSession.sendCommand({ type: 'playlist.shuffle' });
+    }
+    activateMultiplayerTrack('playlist', ids[0]);
   }
   const miniPlayer = createMiniPlayerController({
     snapshot: playerController.snapshot,
@@ -1220,8 +1286,8 @@
       }
     },
     contextAction: (event) => {
-      if (isFreeplayClient && event.detail.actionId === 'remove') {
-        removeFromFreeplayQueue(event.detail.ids);
+      if (isFreeplayClient) {
+        handleFreeplayPlaylistContextAction(event.detail.actionId, event.detail.ids);
         return;
       }
       if (!isMultiplayerClient) {
@@ -1240,8 +1306,8 @@
     activate: (event) => void activateLibraryPanelTrack(event.detail),
     libraryGroupRequestHandled: (event) => workspaceShell.clearLibraryGroupRequest(event.detail),
     contextAction: (event) => {
-      if (isFreeplayClient && event.detail.actionId === 'add-to-queue') {
-        addToFreeplayQueue(event.detail.ids);
+      if (isFreeplayClient) {
+        handleFreeplayLibraryContextAction(event.detail.actionId, event.detail.ids);
         return;
       }
       if (isMultiplayerClient) return;

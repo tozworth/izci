@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 
 import {
   buildFavoritesContextActions,
+  buildFreeplayLibraryContextActions,
+  buildFreeplayPlaylistContextActions,
   buildLibraryContextActions,
   buildLibraryGroupContextActions,
   buildPlaylistContextActions,
@@ -197,6 +199,100 @@ describe('workspace actions', () => {
       'rate',
       'reset-play-count',
       'remove'
+    ]);
+  });
+
+  it('keeps the Freeplay playlist menu aligned with local minus host-owned actions', () => {
+    const track = item('track', {
+      path: '/Music/Track.flac',
+      metadata: { artist: 'Artist', album: 'Album' }
+    });
+    const actions = buildFreeplayPlaylistContextActions([track], [track], ['track']);
+
+    expect(actions.map((action) => action.id)).toEqual([
+      'go-to-library',
+      'track-details',
+      'remove'
+    ]);
+    expect(actions[0].children?.map((child) => child.id)).toEqual([
+      'go-to-library-artist',
+      'go-to-library-album',
+      'go-to-library-format'
+    ]);
+    expect(actions[2]).toMatchObject({ shortcut: 'Delete', separatorBefore: true });
+  });
+
+  it('keeps the Freeplay library menu aligned with local minus host-owned actions', () => {
+    const track = item('track', {
+      path: '/Music/Track.flac',
+      metadata: { artist: 'Artist' }
+    });
+    const actions = buildFreeplayLibraryContextActions([track], [track], ['track']);
+
+    expect(actions.map((action) => action.id)).toEqual([
+      'add-to-playlist',
+      'replace-playlist',
+      'go-to-library',
+      'track-details'
+    ]);
+  });
+
+  it('derives shuffle play from the Freeplay library menu in grouped categories', () => {
+    const track = item('track', { path: '/Music/Track.flac' });
+    const groupedActions = buildLibraryGroupContextActions(
+      buildFreeplayLibraryContextActions([track], [track], ['track'])
+    );
+
+    expect(groupedActions.map((action) => action.id)).toEqual([
+      'add-to-playlist',
+      'replace-playlist',
+      'shuffle-play',
+      'track-details'
+    ]);
+  });
+
+  it('never offers queue removal on the Freeplay library nor host removal on the Freeplay playlist', () => {
+    const track = item('track', { path: '/Music/Track.flac' });
+
+    expect(buildFreeplayPlaylistContextActions([track], [track], ['track']).map((a) => a.id))
+      .toContain('remove');
+    expect(buildFreeplayLibraryContextActions([track], [track], ['track']).map((a) => a.id))
+      .not.toContain('remove');
+  });
+
+  it('excludes favorites, ratings, play-count reset, and subsong splitting from Freeplay menus', () => {
+    const module = item('module', {
+      extension: 'xm',
+      kind: 'module',
+      metadata: { subsongs: 3 }
+    });
+    const playlistActions = buildFreeplayPlaylistContextActions([module], [], ['module']);
+    const libraryActions = buildFreeplayLibraryContextActions([module], [], ['module']);
+    const forbidden = [
+      'toggle-library',
+      'toggle-favorite',
+      'rate',
+      'rate:clear',
+      'reset-play-count',
+      'remove-favorite',
+      'separate-subsongs'
+    ];
+
+    for (const id of forbidden) {
+      expect(playlistActions.map((action) => action.id)).not.toContain(id);
+      expect(libraryActions.map((action) => action.id)).not.toContain(id);
+    }
+  });
+
+  it('omits Go to for multi-track Freeplay library selections', () => {
+    const first = item('first', { path: '/Music/First.flac' });
+    const second = item('second', { path: '/Music/Second.flac' });
+
+    expect(buildFreeplayLibraryContextActions([first, second], [first, second], ['first', 'second'])
+      .map((action) => action.id)).toEqual([
+      'add-to-playlist',
+      'replace-playlist',
+      'track-details'
     ]);
   });
 });
