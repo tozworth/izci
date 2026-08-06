@@ -1,5 +1,6 @@
 export type ComparisonSourceId = 'a' | 'b';
 export type ComparisonAuditionMode = ComparisonSourceId | 'difference';
+import { logDebug, logInfo } from '$lib/services/logging';
 
 export interface ComparisonRange {
   start: number;
@@ -95,6 +96,10 @@ export class AudioComparisonEngine {
     const position = this.getPosition();
     this.stopGraphs();
     this.buffers[id] = buffer;
+    logDebug('tools', 'Comparison buffer set', {
+      id,
+      duration: buffer?.duration ?? 0
+    });
     const duration = getComparisonDuration(this.buffers.a, this.buffers.b);
     this.range = normalizeComparisonRange(this.range, duration);
     this.pausedPosition = Math.min(position, duration);
@@ -103,6 +108,7 @@ export class AudioComparisonEngine {
 
   setAuditionMode(mode: ComparisonAuditionMode): void {
     this.auditionMode = mode;
+    logDebug('tools', 'Comparison audition mode', { mode });
     this.applyRouteGains();
   }
 
@@ -180,17 +186,23 @@ export class AudioComparisonEngine {
     this.pausedPosition = playbackStart;
     this.playing = true;
     this.applyRouteGains(true);
+    logInfo('tools', 'Comparison playback started', {
+      mode: this.auditionMode,
+      position: playbackStart
+    });
   }
 
   pause(): void {
     if (!this.playing) return;
     this.pausedPosition = this.getPosition();
     this.stopGraphs();
+    logDebug('tools', 'Comparison playback paused');
   }
 
   stop(): void {
     this.stopGraphs();
     this.pausedPosition = this.loop ? this.range.start : 0;
+    logDebug('tools', 'Comparison playback stopped');
   }
 
   seek(position: number): void {
@@ -215,6 +227,7 @@ export class AudioComparisonEngine {
     const context = this.context;
     this.context = null;
     if (context) await context.close();
+    logDebug('tools', 'Comparison engine closed');
   }
 
   private createSourceGraph(id: ComparisonSourceId, buffer: AudioBuffer): SourceGraph {

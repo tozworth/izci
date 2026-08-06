@@ -1,4 +1,5 @@
 import type { PlaylistItem, ReplayGainMetadata, TrackMetadata } from '$lib/types';
+import { logDebug, logWarning } from '$lib/services/logging';
 
 const FLAC_MARKER = 'fLaC';
 const ID3_MARKER = 'ID3';
@@ -1167,16 +1168,35 @@ export async function loadTrackMetadata(track: PlaylistItem | null): Promise<Tra
     return null;
   }
 
+  logDebug('library', 'loadTrackMetadata started', { id: track.id, extension: track.extension });
+
   const file = await resolveTrackFile(track);
 
   if (!file) {
     return null;
   }
 
-  const metadata: TrackMetadata = {
-    ...(await readStreamMetadata(file, track.extension)),
-    embeddedMetadataLoaded: true
-  };
+  let metadata: TrackMetadata;
+
+  try {
+    metadata = {
+      ...(await readStreamMetadata(file, track.extension)),
+      embeddedMetadataLoaded: true
+    };
+  } catch (error) {
+    logWarning('library', 'stream metadata parse failed', {
+      id: track.id,
+      error: error instanceof Error ? error.message : String(error)
+    });
+    return null;
+  }
+
+  logDebug('library', 'loadTrackMetadata completed', {
+    id: track.id,
+    fieldsDiscovered: Object.keys(metadata).length,
+    hasDuration: (metadata.duration ?? 0) > 0,
+    hasReplayGain: Boolean(metadata.replayGain && Object.keys(metadata.replayGain).length > 0)
+  });
 
   return metadata;
 }
@@ -1192,8 +1212,18 @@ export async function loadEmbeddedStreamArtwork(track: PlaylistItem | null): Pro
     return null;
   }
 
-  const bytes = new Uint8Array(await file.arrayBuffer());
-  const artwork = extractArtwork(bytes, track.extension);
+  let artwork: ParsedArtwork | null;
+
+  try {
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    artwork = extractArtwork(bytes, track.extension);
+  } catch (error) {
+    logWarning('library', 'embedded artwork extraction failed', {
+      id: track.id,
+      error: error instanceof Error ? error.message : String(error)
+    });
+    return null;
+  }
 
   if (!artwork || artwork.data.byteLength === 0) {
     return null;
@@ -1207,6 +1237,7 @@ export async function loadEmbeddedStreamArtwork(track: PlaylistItem | null): Pro
 }
 
 export async function loadTrackArtwork(track: PlaylistItem | null): Promise<LoadedStreamArtwork | null> {
+  logDebug('library', 'loadTrackArtwork started', { id: track?.id ?? null });
   const artwork = await loadEmbeddedStreamArtwork(track);
 
   if (!artwork) {
@@ -1214,6 +1245,7 @@ export async function loadTrackArtwork(track: PlaylistItem | null): Promise<Load
   }
 
   const url = URL.createObjectURL(artwork.blob);
+  logDebug('library', 'loadTrackArtwork completed', { id: track?.id ?? null });
 
   return {
     url,

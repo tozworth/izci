@@ -1,4 +1,5 @@
 import type { MenuActionItem, PlaylistItem } from '$lib/types';
+import { logInfo } from '$lib/services/logging';
 
 export const TRACK_RATING_VALUES = Array.from({ length: 10 }, (_, index) => (index + 1) / 2);
 export const TRACK_RATING_ACTION_PREFIX = 'rate:';
@@ -39,10 +40,18 @@ export function parseTrackRatingAction(actionId: string): { matched: boolean; ra
   }
 
   const value = actionId.slice(TRACK_RATING_ACTION_PREFIX.length);
+
   if (value === 'clear') {
+    logInfo('library', 'track rating cleared', { action: actionId });
     return { matched: true };
   }
 
   const rating = normalizeTrackRating(Number(value));
-  return rating === undefined ? { matched: false } : { matched: true, rating };
+
+  if (rating !== undefined) {
+    logInfo('library', 'track rating set', { action: actionId, rating });
+    return { matched: true, rating };
+  }
+
+  return { matched: false };
 }

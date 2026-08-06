@@ -1,4 +1,5 @@
 import { createChiptunePlayer } from '$lib/services/chiptune-loader';
+import { logDebug, logInfo, logWarning } from '$lib/services/logging';
 import { trackSettings } from '$lib/stores/track-settings';
 import {
   inferExtension,
@@ -35,6 +36,12 @@ export async function verifyModuleFile(file: File): Promise<boolean> {
     return false;
   }
 
+  logDebug('decode', 'Verifying unknown file as module', {
+    name: file.name,
+    size: file.size,
+    extension: inferExtension(file.name)
+  });
+
   let player: ChiptuneJsPlayer | null = null;
 
   try {
@@ -55,6 +62,17 @@ export async function verifyModuleFile(file: File): Promise<boolean> {
           disposeVerificationPlayer(player);
           player = null;
         }
+        if (accepted) {
+          logInfo('decode', 'Verified as module', {
+            name: file.name,
+            extension: inferExtension(file.name)
+          });
+        } else {
+          logWarning('decode', 'Not a playable module', {
+            name: file.name,
+            extension: inferExtension(file.name)
+          });
+        }
         resolve(accepted);
       };
 
@@ -71,10 +89,15 @@ export async function verifyModuleFile(file: File): Promise<boolean> {
         finish(false);
       }
     });
-  } catch {
+  } catch (error) {
     if (player) {
       disposeVerificationPlayer(player);
     }
+    logWarning('decode', 'Not a playable module — verification failed', {
+      name: file.name,
+      extension: inferExtension(file.name),
+      error: error instanceof Error ? error.message : String(error)
+    });
     return false;
   }
 }

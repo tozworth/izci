@@ -1,5 +1,6 @@
 import type { MultiplayerIceSettings } from './multiplayer-ice';
 import { createMultiplayerRtcConfiguration } from './multiplayer-ice';
+import { logDebug, logError, logWarning } from '$lib/services/logging';
 import {
   createMultiplayerMessageDecoder,
   encodeMultiplayerMessage,
@@ -96,12 +97,17 @@ export async function applyAudioBitrate(peer: PeerConnection, bitrateKbps: numbe
       if (!sender) continue;
       const parameters = sender.getParameters();
       if (parameters.encodings.length === 0) continue;
+      logDebug('multiplayer', 'Audio bitrate target', { bitrateKbps });
       for (const encoding of parameters.encodings) {
         encoding.maxBitrate = bitrate;
         encoding.priority = 'high';
         encoding.networkPriority = 'high';
       }
-      await sender.setParameters(parameters).catch(() => undefined);
+      await sender.setParameters(parameters).catch((error) => {
+        logWarning('multiplayer', 'Audio bitrate update failed', {
+          error: errorMessage(error, 'setParameters failed')
+        });
+      });
     }
   })().finally(() => {
     peer.audioBitrateUpdate = null;
@@ -127,6 +133,9 @@ export function prepareCandidatePublisher(
     sequence += 1;
     void firebase.set(firebase.ref(firebase.database, `${path}/${id}`), candidate).catch((error) => {
       peer.candidateErrors.push(errorMessage(error, 'candidate signaling failed'));
+      logError('multiplayer', 'ICE candidate write to signaling failed', {
+        error: errorMessage(error, 'candidate signaling failed')
+      });
       if (writeFailed) return;
       writeFailed = true;
       reportFailure();
@@ -142,7 +151,10 @@ export function prepareCandidatePublisher(
   };
   peer.pc.onicecandidateerror = (event) => {
     const detail = [event.errorCode, event.errorText].filter(Boolean).join(' ');
-    if (detail) peer.candidateErrors.push(detail);
+    if (detail) {
+      peer.candidateErrors.push(detail);
+      logWarning('multiplayer', 'ICE candidate gathering error', { detail });
+    }
   };
 
   return () => {
@@ -179,6 +191,9 @@ export async function flushRemoteCandidates(peer: PeerConnection): Promise<void>
       peer.pendingRemoteCandidates.delete(id);
     } catch (error) {
       peer.candidateErrors.push(errorMessage(error, 'remote candidate rejected'));
+      logWarning('multiplayer', 'Remote ICE candidate rejected', {
+        error: errorMessage(error, 'remote candidate rejected')
+      });
       peer.pendingRemoteCandidates.delete(id);
     }
   }
@@ -203,6 +218,9 @@ export function startPeerConnectionTimer(peer: PeerConnection, handleTimeout: ()
   clearPeerConnectionTimer(peer);
   peer.connectionTimer = window.setTimeout(() => {
     peer.connectionTimer = null;
+    logWarning('multiplayer', 'ICE connection attempt timed out', {
+      timeoutMs: ICE_CONNECTION_TIMEOUT_MS
+    });
     handleTimeout();
   }, ICE_CONNECTION_TIMEOUT_MS);
 }

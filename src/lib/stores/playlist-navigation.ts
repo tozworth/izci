@@ -1,4 +1,5 @@
 import type { PlaylistItem, PlaylistRepeatMode } from '$lib/types';
+import { logDebug, logInfo } from '$lib/services/logging';
 
 interface ShuffleSessionState {
   history: string[];
@@ -48,7 +49,14 @@ export function createPlaylistNavigation(getItems: () => PlaylistItem[]) {
     }
 
     const hasAlternativeTrack = getItems().some((item) => item.id !== currentTrack.id);
-    return hasAlternativeTrack ? null : currentTrack;
+
+    if (hasAlternativeTrack) {
+      logInfo('library', 'navigation: no-repeat-until-exhausted reached end', { currentId: baseId });
+      return null;
+    }
+
+    logInfo('library', 'navigation: only one track remains, repeating', { currentId: baseId });
+    return currentTrack;
   }
 
   function buildShuffleCycle(currentId: string | null): string[] {
@@ -125,6 +133,7 @@ export function createPlaylistNavigation(getItems: () => PlaylistItem[]) {
     }
 
     const nextIndex = currentIndex + direction;
+    logDebug('library', 'navigation linear step', { direction, index: nextIndex, baseId: baseId ?? undefined });
 
     if (nextIndex >= 0 && nextIndex < itemList.length) {
       return itemList[nextIndex];
@@ -134,6 +143,7 @@ export function createPlaylistNavigation(getItems: () => PlaylistItem[]) {
       return resolveExhaustedStepTrack(baseId);
     }
 
+    logInfo('library', 'navigation wrapped at end/start', { direction });
     return direction > 0 ? itemList[0] : itemList[itemList.length - 1];
   }
 
@@ -150,6 +160,7 @@ export function createPlaylistNavigation(getItems: () => PlaylistItem[]) {
 
     if (direction < 0) {
       if (shuffleSession.cursor > 0) {
+        logDebug('library', 'navigation history previous', { index: shuffleSession.cursor - 1 });
         return getTrackById(shuffleSession.history[shuffleSession.cursor - 1] ?? null);
       }
 
@@ -168,6 +179,7 @@ export function createPlaylistNavigation(getItems: () => PlaylistItem[]) {
         cursor: previousCycle.length,
         upcoming: shuffleSession.upcoming
       };
+      logInfo('library', 'navigation wrapped at start (shuffle cycle)', { direction });
 
       return getTrackById(shuffleSession.history[shuffleSession.cursor - 1] ?? null);
     }
@@ -184,6 +196,7 @@ export function createPlaylistNavigation(getItems: () => PlaylistItem[]) {
         cursor: shuffleSession.history.length,
         upcoming: remaining
       };
+      logDebug('library', 'navigation shuffle pick', { nextId });
 
       return getTrackById(nextId);
     }
@@ -205,6 +218,8 @@ export function createPlaylistNavigation(getItems: () => PlaylistItem[]) {
       cursor: shuffleSession.history.length,
       upcoming: remaining
     };
+    logInfo('library', 'navigation wrapped at end (shuffle cycle)', { direction });
+    logDebug('library', 'navigation shuffle pick', { nextId });
 
     return getTrackById(nextId);
   }
@@ -234,6 +249,7 @@ export function createPlaylistNavigation(getItems: () => PlaylistItem[]) {
         cursor: 0,
         upcoming: shuffledIds.slice(1)
       };
+      logDebug('library', 'navigation shuffle start', { trackId: initialTrack.id });
 
       return initialTrack;
     },
@@ -246,6 +262,7 @@ export function createPlaylistNavigation(getItems: () => PlaylistItem[]) {
     }): PlaylistItem | null {
       const { currentId = null, selectedId = null, direction, shuffle = false, wrap = false } = options;
       const baseId = currentId ?? selectedId;
+      logDebug('library', 'navigation step', { direction, baseId: baseId ?? undefined, shuffle });
 
       if (shuffle) {
         if (!baseId) {

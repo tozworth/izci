@@ -103,6 +103,7 @@
       "audioCompare": "Audio Compare...",
       "editor": "Düzenleyici...",
       "converter": "Converter...",
+      "logs": "Günlük...",
       "about": "Hakkında",
       "exit": "Çık",
       "openFiles": "Dosya aç...",
@@ -2079,5 +2080,36 @@
     "toolbar": "Spektrogram araçları",
     "analyzing": "Spektrum inceleniyor...",
     "title": "Spektrogram"
+  },
+  "logs": {
+    "heading": "Günlük",
+    "toolbar": "Günlük araçları",
+    "levelsLabel": "Düzey filtresi",
+    "levels": {
+      "error": "Hata",
+      "warning": "Uyarı",
+      "info": "Bilgi",
+      "debug": "Hata ayıklama"
+    },
+    "autoScroll": "Otomatik kaydır",
+    "copy": "Kopyala",
+    "copied": "Kopyalandı",
+    "clear": "Temizle",
+    "exportLogs": "Günlüğü dışa aktar...",
+    "entryCount": "{count} kayıt",
+    "menu": {
+      "close": "Günlüğü kapat"
+    },
+    "empty": "Henüz kayıt yok.",
+    "levelFilter": "Günlük düzeyi",
+    "columns": {
+      "time": "Saat",
+      "level": "Düzey",
+      "source": "Kaynak",
+      "window": "Pencere",
+      "message": "Mesaj",
+      "details": "Ayrıntılar",
+      "resize": "{column} sütununu yeniden boyutlandır"
+    }
   }
 }

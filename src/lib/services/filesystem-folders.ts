@@ -1,4 +1,5 @@
 import { writable, type Readable } from 'svelte/store';
+import { logError, logInfo, logWarning } from '$lib/services/logging';
 
 export type FilesystemFolderPermission = 'granted' | 'prompt' | 'denied' | 'unavailable';
 export type LibraryFolderMode = 'manual' | 'launch';
@@ -363,6 +364,7 @@ function createFilesystemFoldersStore(): Readable<FilesystemFolder[]> & {
         };
         return [...current, remembered];
       });
+      logInfo('files', 'Managed folder added', { name: remembered!.name, id: remembered!.id });
       return remembered!;
     },
     async rememberMany(handles) {
@@ -383,7 +385,9 @@ function createFilesystemFoldersStore(): Readable<FilesystemFolder[]> & {
       return permission;
     },
     async forget(id) {
+      const target = snapshot.find((folder) => folder.id === id);
       await mutate((current) => current.filter((folder) => folder.id !== id));
+      logInfo('files', 'Managed folder removed', { id, name: target?.name });
     },
     async setLibraryMode(id, mode) {
       await mutate((current) =>
@@ -394,6 +398,30 @@ function createFilesystemFoldersStore(): Readable<FilesystemFolder[]> & {
       await mutate((current) =>
         current.map((folder) => (folder.id === id ? { ...folder, ...patch } : folder))
       );
+      const folderName = snapshot.find((folder) => folder.id === id)?.name;
+      switch (patch.lastScanStatus) {
+        case 'scanning':
+          logInfo('files', 'Folder scan started', { folder: folderName ?? id, id });
+          break;
+        case 'success':
+          logInfo('files', 'Folder scan completed', {
+            folder: folderName ?? id,
+            id,
+            ...(patch.lastScanTrackCount !== undefined ? { tracks: patch.lastScanTrackCount } : {})
+          });
+          break;
+        case 'permission-required':
+          logWarning('files', 'Folder scan blocked — permission required', {
+            folder: folderName ?? id,
+            id
+          });
+          break;
+        case 'error':
+          logError('files', 'Folder scan failed', { folder: folderName ?? id, id });
+          break;
+        default:
+          break;
+      }
     }
   };
 }

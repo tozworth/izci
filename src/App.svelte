@@ -2073,6 +2073,7 @@
     on:openEditor={() => windowManager.openPopup('editor')}
     on:openConverter={() => windowManager.openPopup('converter')}
     on:openTroubadour={() => windowManager.openPopup('troubadour')}
+    on:openLogs={() => windowManager.openPopup('logs')}
     on:showPlaylist={showPlaylist}
     on:showLibrary={showLibrary}
     on:showTrackDetails={showTrackDetails}

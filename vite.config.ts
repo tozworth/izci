@@ -22,7 +22,8 @@ export default defineConfig({
         editor: fileURLToPath(new URL('./editor.html', import.meta.url)),
         converter: fileURLToPath(new URL('./converter.html', import.meta.url)),
         troubadour: fileURLToPath(new URL('./troubadour.html', import.meta.url)),
-        troubadourOptions: fileURLToPath(new URL('./troubadour-options.html', import.meta.url))
+        troubadourOptions: fileURLToPath(new URL('./troubadour-options.html', import.meta.url)),
+        logs: fileURLToPath(new URL('./logs.html', import.meta.url))
       }
     }
   },
@@ -119,7 +120,7 @@ export default defineConfig({
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,woff2,mem,wasm,txt}'],
         navigateFallbackDenylist: [
-          /^\/(?:options|audio-compare|editor|converter|troubadour|troubadour-options)\.html(?:\?|$)/
+          /^\/(?:options|audio-compare|editor|converter|troubadour|troubadour-options|logs)\.html(?:\?|$)/
         ],
         ignoreURLParametersMatching: [/^utm_/, /^fbclid$/, /^view$/],
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024

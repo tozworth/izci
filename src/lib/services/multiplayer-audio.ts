@@ -1,4 +1,5 @@
 import { audioBusService } from '$lib/services/audio-bus';
+import { logDebug, logInfo, logWarning } from '$lib/services/logging';
 
 export type MultiplayerReceiverAudioStatus =
   | 'idle'
@@ -43,6 +44,7 @@ export class MultiplayerAudioService {
         // reconnect the WebAudio route on the SAME element — no teardown/
         // creation churn, so streamed playback starts without a mid-stream
         // glitch.
+        logDebug('multiplayer', 'Reconnecting remote audio route on existing element');
         this.#remoteStream = stream;
         this.#remoteSource = audioBusService.connectMediaStream(stream);
         if (!this.#remoteSource) {
@@ -58,6 +60,7 @@ export class MultiplayerAudioService {
       return;
     }
     this.clearRemoteTrack();
+    logInfo('multiplayer', 'Remote audio pipeline built (new track)');
     this.#onStatus = onStatus;
     this.#remoteTrack = track;
     this.#remoteStream = stream;
@@ -117,6 +120,7 @@ export class MultiplayerAudioService {
       return true;
     }
     this.clearRemoteTrack();
+    logDebug('multiplayer', 'Remote audio preroll element built (muted sink)');
     this.#onStatus = onStatus;
     this.#remoteTrack = track;
     this.#remoteStream = stream;
@@ -138,7 +142,9 @@ export class MultiplayerAudioService {
     track.onunmute = () => void this.resumeRemoteAudio();
     track.onended = () => this.#publish('unavailable');
     this.#publish('connecting');
-    await this.#remoteElement.play().catch(() => undefined);
+    await this.#remoteElement.play().catch(() => {
+      logWarning('multiplayer', 'Remote preroll element play failed (autoplay policy)');
+    });
     return true;
   }
 
@@ -159,6 +165,7 @@ export class MultiplayerAudioService {
         return false;
       }
     }
+    logDebug('multiplayer', 'Remote audio route connected (audible)');
     return this.resumeRemoteAudio();
   }
 
@@ -174,6 +181,7 @@ export class MultiplayerAudioService {
       this.#remoteElement.play().then(() => true).catch(() => false)
     ]);
     const audible = running && playing && !this.#remoteTrack.muted;
+    logDebug('multiplayer', 'Remote audio resume', { audible });
     this.#publish(audible ? 'playing' : running && playing ? 'connecting' : 'blocked');
     return audible;
   }
@@ -189,12 +197,14 @@ export class MultiplayerAudioService {
    */
   drainRemoteTrack(): void {
     if (!this.#remoteElement || !this.#remoteTrack) return;
+    logDebug('multiplayer', 'Remote element drained (silent sink for interlude)');
     audioBusService.disconnect(this.#remoteSource);
     this.#remoteSource = null;
     void this.#remoteElement.play().catch(() => undefined);
   }
 
   clearRemoteTrack(): void {
+    logDebug('multiplayer', 'Remote audio pipeline cleared');
     if (this.#remoteTrack) {
       this.#remoteTrack.onmute = null;
       this.#remoteTrack.onunmute = null;

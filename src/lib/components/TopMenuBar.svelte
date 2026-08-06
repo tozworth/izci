@@ -38,6 +38,7 @@
     | 'openEditor'
     | 'openConverter'
     | 'openTroubadour'
+    | 'openLogs'
     | 'showPlaylist'
     | 'showLibrary'
     | 'showTrackDetails'
@@ -406,6 +407,11 @@
   ] satisfies MenuActionItem[];
   $: helpMenuItems = [
     {
+      id: 'openLogs',
+      label: $t('main.menu.logs', { default: 'Logs...' }),
+      icon: 'terminal'
+    },
+    {
       id: 'forceUpdate',
       label: $t('main.menu.forceUpdate', { default: 'Force update' }),
       icon: 'sync'
@@ -454,6 +460,7 @@
     openEditor: void;
     openConverter: void;
     openTroubadour: void;
+    openLogs: void;
     showPlaylist: void;
     showLibrary: void;
     showTrackDetails: void;

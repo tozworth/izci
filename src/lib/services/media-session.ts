@@ -1,4 +1,5 @@
 import type { Readable } from 'svelte/store';
+import { logDebug, logWarning } from '$lib/services/logging';
 import type { PlaybackSettings, PlaybackSnapshot, PlaylistItem } from '$lib/types';
 import {
   getTrackArtworkLoadKey,
@@ -178,6 +179,7 @@ function createMediaSessionService() {
 
       void transportHandlers?.pause?.();
     });
+    logDebug('playback', 'Silent transport anchor created (module/media-session playback)');
 
     return transportAnchor;
   }
@@ -430,6 +432,7 @@ function createMediaSessionService() {
   return {
     activateTransportAnchor(): void {
       ensureTransportAnchor();
+      logDebug('playback', 'Transport anchor activated');
     },
     playTransportAnchor(): void {
       const audio = ensureTransportAnchor();
@@ -441,6 +444,7 @@ function createMediaSessionService() {
       ignoredTransportPlayEvents += 1;
       void audio.play().catch(() => {
         ignoredTransportPlayEvents = Math.max(ignoredTransportPlayEvents - 1, 0);
+        logWarning('playback', 'Transport anchor play failed (autoplay policy)');
         if (ownsTransportAnchor && snapshot?.state === 'playing') {
           ownedTransportAnchorState = 'inactive';
         }
@@ -462,6 +466,7 @@ function createMediaSessionService() {
       if (!audio) {
         return;
       }
+      logDebug('playback', 'Transport anchor deactivated');
 
       if (!audio.paused) {
         ignoredTransportPauseEvents += 1;

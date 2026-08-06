@@ -1,4 +1,5 @@
 import { writable, type Readable } from 'svelte/store';
+import { logDebug, logError, logInfo, logWarning } from '$lib/services/logging';
 import { isSameArtworkFile } from '$lib/services/media-metadata/artwork';
 import { applyMetadataPatch } from '$lib/services/media-metadata/merge';
 import { getMetadataCapabilities } from '$lib/services/media-metadata/format';
@@ -392,6 +393,10 @@ export function createTroubadourController(
         setState({ activeJob, jobProgress });
       });
       await addLoadingItems(items, concurrency, autoGroupFallback);
+      logInfo('tools', 'Troubadour loading job completed', {
+        job: initialJob,
+        items: items.length
+      });
     } finally {
       setState({ busy: false, activeJob: '', jobProgress: null });
     }
@@ -463,6 +468,10 @@ export function createTroubadourController(
               state: 'unreadable',
               error: error instanceof Error ? error.message : 'Metadata could not be read.'
             };
+            logDebug('tools', 'Troubadour metadata read failed', {
+              path: current.path,
+              error: replacement.error
+            });
           }
         }
         const position = positions.get(current.id);
@@ -474,6 +483,15 @@ export function createTroubadourController(
     });
     await Promise.all(workers);
     commitUpdates(true);
+    const unreadableCount = workingItems.filter((item) => item.state === 'unreadable').length;
+    if (unreadableCount > 0) {
+      logWarning('tools', 'Troubadour metadata read failed', {
+        failed: unreadableCount,
+        total: unique.length
+      });
+    } else {
+      logInfo('tools', 'Troubadour items loaded', { total: unique.length });
+    }
     setState({ message: `${unique.length} file${unique.length === 1 ? '' : 's'} loaded.` });
   }
 
@@ -607,6 +625,7 @@ export function createTroubadourController(
       concurrency = 3,
       autoGroupFallback?: TroubadourAutoGroupFallback
     ) {
+      logDebug('tools', 'Troubadour handle import', { handles: handles.length });
       await runLoadingJob('Opening files', concurrency, async (report) => {
         return await itemsFromDiscoveredFiles(
           handles.map((fileHandle) => ({ fileHandle, path: fileHandle.name, parentHandle: null })),
@@ -622,6 +641,7 @@ export function createTroubadourController(
       concurrency = 3,
       autoGroupFallback?: TroubadourAutoGroupFallback
     ) {
+      logInfo('tools', 'Troubadour directory scan started', { name: handle.name });
       await runLoadingJob(`Scanning ${handle.name} · 0 files found`, concurrency, async (report) => {
         let found = 0;
         let lastReported = 0;
@@ -636,6 +656,10 @@ export function createTroubadourController(
           }
         });
         report(`Scanning ${handle.name} · ${found} file${found === 1 ? '' : 's'} found`);
+        logInfo('tools', 'Troubadour directory scan completed', {
+          name: handle.name,
+          files: found
+        });
         return await itemsFromDiscoveredFiles(discovered, concurrency, report, handle.name);
       }, autoGroupFallback);
     },
@@ -645,6 +669,7 @@ export function createTroubadourController(
       concurrency = 3,
       autoGroupFallback?: TroubadourAutoGroupFallback
     ) {
+      logInfo('tools', 'Troubadour drop import', { items: dataTransfer.items.length });
       await runLoadingJob('Scanning dropped items · 0 files found', concurrency, async (report) => {
         const items: TroubadourWorkbenchItem[] = [];
         let found = 0;
@@ -920,6 +945,7 @@ export function createTroubadourController(
       );
       setState({ busy: true, activeJob: 'Saving metadata', jobProgress: 0, error: '' });
       await Promise.all([...permissionRequests, playbackPreparation]);
+      logInfo('tools', 'Troubadour save started', { targets: targetIds.length });
       for (let index = 0; index < targetIds.length; index += 1) {
         // Chromium keeps disk-backed File snapshots open on Windows. Replace the
         // workbench reference (and therefore any preview object URL) with a memory
@@ -976,10 +1002,17 @@ export function createTroubadourController(
             },
             artworkChanged: item.artworkEdits.length > 0
           });
+          logDebug('tools', 'Troubadour save ok', { path: item.path });
         } catch (error) {
           const message = error instanceof Error ? error.message : 'Metadata write failed.';
           const conflicted = error && typeof error === 'object' && 'code' in error && error.code === 'external-change';
           const permissionRequired = error && typeof error === 'object' && 'code' in error && error.code === 'permission-required';
+          logError('tools', 'Troubadour save failed', {
+            path: item.path,
+            error: message,
+            conflicted,
+            permissionRequired
+          });
           setStaged({
             items: state.items.map((candidate) => candidate.id === item.id
               ? { ...candidate, state: conflicted ? 'conflicted' : permissionRequired ? 'permission-required' : 'failed', error: message }
@@ -1007,6 +1040,10 @@ export function createTroubadourController(
         message: targetIds.length ? `${results.filter((result) => result.success).length} of ${targetIds.length} files saved.` : 'No writable dirty files.'
       });
       history = createHistory(cloneStaged({ items: state.items, albums: state.albums }));
+      logInfo('tools', 'Troubadour save completed', {
+        saved: results.filter((result) => result.success).length,
+        total: targetIds.length
+      });
       return results;
     },
     async buildRenamePreview(template: string, rules: FilenameRules = {}) {
@@ -1048,6 +1085,7 @@ export function createTroubadourController(
       const jobs: RenameJobResult[] = [];
       const results: TroubadourBatchItemResult[] = [];
       setState({ busy: true, activeJob: 'Renaming files', jobProgress: 0, error: '' });
+      logInfo('tools', 'Troubadour rename batch started', { targets: targets.length });
       for (let index = 0; index < targets.length; index += 1) {
         const row = targets[index];
         const item = state.items.find((candidate) => candidate.id === row.id)!;
@@ -1085,6 +1123,10 @@ export function createTroubadourController(
             lastModified: job.file.lastModified
           });
         } else {
+          logWarning('tools', 'Troubadour rename failed', {
+            path: row.path,
+            problems: row.problems
+          });
           results.push({
             success: false,
             contextId: item.contextId,
@@ -1100,6 +1142,10 @@ export function createTroubadourController(
       setState({ busy: false, activeJob: '', jobProgress: null, message: `${jobs.filter((job) => job.success).length} of ${targets.length} files renamed.` });
       history = createHistory(cloneStaged({ items: state.items, albums: state.albums }));
       setState({ canUndo: false, canRedo: false });
+      logInfo('tools', 'Troubadour rename batch completed', {
+        renamed: jobs.filter((job) => job.success).length,
+        total: targets.length
+      });
       return { jobs, results };
     }
   };

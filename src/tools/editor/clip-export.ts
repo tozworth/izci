@@ -13,6 +13,7 @@ import {
   type OutputFormat
 } from 'mediabunny';
 import { editableTagsToMetadata } from './clip-metadata';
+import { logDebug, logError, logInfo, logWarning } from '$lib/services/logging';
 import {
   ClipExportUnavailableError,
   type ClipExportOptions
@@ -61,6 +62,10 @@ export async function encodeAudioExport(
 ): Promise<Blob> {
   const config = resolveOutputConfig(options);
   await registerFallbackEncoder(config.codec);
+  logDebug('tools', 'Audio export started', {
+    format: options.format,
+    codec: config.codec
+  });
 
   const maximumChannels = options.format === 'mp3' || options.format === 'opus' ? 2 : 8;
   const numberOfChannels = options.channels === 'source'
@@ -73,6 +78,10 @@ export async function encodeAudioExport(
     ? new Quality({ bitrate: options.bitrateKbps * 1000, bitrateMode: options.bitrateMode })
     : undefined;
   if (!await canEncodeAudio(config.codec, { numberOfChannels, sampleRate, quality })) {
+    logWarning('tools', 'Audio export codec unavailable', {
+      format: options.format,
+      codec: config.codec
+    });
     throw new ClipExportUnavailableError(options.format);
   }
 
@@ -101,9 +110,20 @@ export async function encodeAudioExport(
   } catch (error) {
     source.close();
     await output.cancel();
+    logError('tools', 'Audio export failed', {
+      format: options.format,
+      error: error instanceof Error ? error.message : String(error)
+    });
     throw error;
   }
 
   if (!target.buffer) throw new Error('The encoded audio buffer was not produced.');
-  return new Blob([target.buffer], { type: config.mimeType });
+  const blob = new Blob([target.buffer], { type: config.mimeType });
+  logInfo('tools', 'Audio export completed', {
+    format: options.format,
+    bytes: blob.size,
+    channels: numberOfChannels,
+    sampleRate
+  });
+  return blob;
 }

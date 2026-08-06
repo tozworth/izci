@@ -1,4 +1,5 @@
 import { ALL_FORMATS, AudioBufferSink, BlobSource, Input } from 'mediabunny';
+import { logDebug, logError, logInfo } from '$lib/services/logging';
 
 export const DEFAULT_REPLAYGAIN_TARGET_LUFS = -18;
 
@@ -175,6 +176,7 @@ export async function analyzeLoudness(
     onProgress?: (progress: LoudnessProgress) => void;
   } = {}
 ): Promise<LoudnessAnalysis> {
+  logDebug('tools', 'Loudness analysis started', { name: file.name, size: file.size });
   const input = new Input({ source: new BlobSource(file), formats: ALL_FORMATS });
   try {
     const [track, metadata] = await Promise.all([input.getPrimaryAudioTrack(), input.getMetadataTags()]);
@@ -197,11 +199,25 @@ export async function analyzeLoudness(
     if (!accumulator) throw new Error('The audio track contained no decoded samples.');
     const result = accumulator.finish();
     options.onProgress?.({ seconds: result.duration, duration });
+    logInfo('tools', 'Loudness analysis completed', {
+      name: file.name,
+      integratedLufs: result.integratedLufs,
+      samplePeakDbfs: result.samplePeakDbfs,
+      duration: result.duration,
+      channels: result.channels,
+      sampleRate: result.sampleRate
+    });
     return {
       ...result,
       album: metadata.album?.trim() || undefined,
       albumArtist: metadata.albumArtist?.trim() || metadata.artist?.trim() || undefined
     };
+  } catch (error) {
+    logError('tools', 'Loudness analysis failed', {
+      name: file.name,
+      error: error instanceof Error ? error.message : String(error)
+    });
+    throw error;
   } finally {
     input.dispose();
   }

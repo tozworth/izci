@@ -1,5 +1,6 @@
 import { createChiptunePlayer } from '$lib/services/chiptune-loader';
 import { audioBusService } from '$lib/services/audio-bus';
+import { logDebug, logError, logInfo } from '$lib/services/logging';
 import { mediaSessionService } from '$lib/services/media-session';
 import { modulePlaybackSettings } from '$lib/stores/module-playback-settings';
 import type {
@@ -81,10 +82,26 @@ export class ModulePlayerService {
       subsongCount: this.#subsongCount,
       error: undefined
     });
+    logInfo('playback', 'Module load started', {
+      id: track.id,
+      name: track.name,
+      extension: track.extension,
+      subsong: this.#subsong
+    });
 
-    const player = await this.#createPlayer(loadToken);
+    let player: ChiptuneJsPlayer;
+    try {
+      player = await this.#createPlayer(loadToken);
+    } catch (error) {
+      logError('playback', 'Module player creation failed', {
+        extension: this.#trackExtension,
+        error: error instanceof Error ? error.message : String(error)
+      });
+      throw error;
+    }
 
     if (!this.#isActiveLoad(loadToken)) {
+      logDebug('playback', 'Module load superseded');
       this.#disposeDetachedPlayer(player);
       return;
     }
@@ -94,6 +111,7 @@ export class ModulePlayerService {
     audioBusService.setSourceGain(player.gain, this.#transitionGain);
     mediaSessionService.activateTransportAnchor();
     mediaSessionService.pauseTransportAnchor();
+    logInfo('playback', 'Module player created', { extension: this.#trackExtension });
     const buffer = await track.file.arrayBuffer();
 
     if (!this.#isActiveLoad(loadToken)) {
@@ -101,6 +119,7 @@ export class ModulePlayerService {
     }
 
     this.#buffer = buffer;
+    logDebug('playback', 'Module buffer read', { bytes: buffer.byteLength });
 
     this.#onMetadata({
       trackerType: track.extension.toUpperCase()
@@ -132,6 +151,7 @@ export class ModulePlayerService {
     this.#onSnapshot({ state: 'playing', error: undefined });
     this.#publishProgress(true);
     mediaSessionService.playTransportAnchor();
+    logInfo('playback', 'Module playing', { subsong: this.#subsong });
   }
 
   pause(): void {
@@ -144,6 +164,7 @@ export class ModulePlayerService {
     this.#publishProgress(true);
     this.#onSnapshot({ state: 'paused' });
     mediaSessionService.pauseTransportAnchor();
+    logDebug('playback', 'Module paused');
   }
 
   stop(options: StopOptions = {}): void {
@@ -159,6 +180,7 @@ export class ModulePlayerService {
     this.#onPattern(null);
     this.#disposePlayer();
     mediaSessionService.deactivateTransportAnchor();
+    logDebug('playback', 'Module stopped');
     if (!options.silent) {
       this.#onSnapshot({ state: 'paused', currentTime: 0, error: undefined });
     }
@@ -175,6 +197,7 @@ export class ModulePlayerService {
 
     this.#player.seek(seconds);
     this.#currentTime = seconds;
+    logDebug('playback', 'Module seek', { seconds });
     this.#publishProgress(true, seconds);
   }
 
@@ -199,6 +222,7 @@ export class ModulePlayerService {
       subsongCount: this.#subsongCount,
       error: undefined
     });
+    logDebug('playback', 'Module subsong stepped', { direction, subsong: nextSubsong });
 
     return nextSubsong;
   }
@@ -218,6 +242,7 @@ export class ModulePlayerService {
     }
 
     if (recreatePlayer) {
+      logDebug('playback', 'Module player recreating (settings change)');
       await this.#recreatePlayer();
       return;
     }
@@ -245,6 +270,7 @@ export class ModulePlayerService {
 
     this.#player = null;
     audioBusService.disconnect(player?.gain ?? null);
+    logDebug('playback', 'Module player disposed');
 
     if (!player) {
       return;
@@ -348,6 +374,7 @@ export class ModulePlayerService {
       this.#currentTime = duration;
       this.#publishProgress(true, duration, duration);
       this.#onSnapshot({ state: 'ended' });
+      logInfo('playback', 'Module ended', { subsong: this.#subsong });
       this.#onEnded();
     });
 
@@ -358,6 +385,10 @@ export class ModulePlayerService {
 
       this.#playing = false;
       this.#started = false;
+      logError('playback', 'Module playback error', {
+        type: error.type,
+        extension: this.#trackExtension
+      });
       this.#onSnapshot({
         state: 'error',
         error:
@@ -527,6 +558,7 @@ export class ModulePlayerService {
   }
 
   #disposeDetachedPlayer(player: ChiptuneJsPlayer): void {
+    logDebug('playback', 'Detached module player disposed (superseded load)');
     try {
       player.stop();
     } catch {

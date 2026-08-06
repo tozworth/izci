@@ -6,6 +6,7 @@ import {
   type TrackKind,
   type TrackMetadata
 } from '$lib/types';
+import { logDebug, logError, logInfo, logWarning } from '$lib/services/logging';
 
 interface ChromiumFileSystemEntry {
   isFile: boolean;
@@ -106,6 +107,12 @@ function registerImportedFile(file: File, source: ImportedFileSource): File {
     fileHandle: source.fileHandle ?? existing?.fileHandle,
     path: normalizePath(source.path) ?? existing?.path,
     sourceFolderId: source.sourceFolderId ?? existing?.sourceFolderId
+  });
+
+  logDebug('files', 'Imported file registered', {
+    name: file.name,
+    size: file.size,
+    kind: inferKind(inferExtension(file.name))
   });
 
   return file;
@@ -247,7 +254,17 @@ function readFileEntry(entry: ChromiumFileEntry): Promise<File> {
 }
 
 async function readFileHandle(handle: FileSystemFileHandle, path = handle.name): Promise<File> {
-  const file = await handle.getFile();
+  let file: File;
+  try {
+    file = await handle.getFile();
+  } catch (error) {
+    logError('files', 'Failed to read file handle', {
+      name: handle.name,
+      error: error instanceof Error ? error.message : String(error)
+    });
+    throw error;
+  }
+  logDebug('files', 'File handle read', { name: file.name, size: file.size });
   return registerImportedFile(file, {
     fileHandle: handle,
     path
@@ -270,11 +287,27 @@ export async function ensureFileHandleReadPermission(
     return 'granted';
   }
   try {
-    if ((await handle.queryPermission({ mode: 'read' })) === 'granted') {
+    const queried = await handle.queryPermission({ mode: 'read' });
+    if (queried === 'granted') {
+      logDebug('files', 'File handle read permission granted', { name: handle.name });
       return 'granted';
     }
-    return await handle.requestPermission({ mode: 'read' });
-  } catch {
+    const requested = await handle.requestPermission({ mode: 'read' });
+    if (requested === 'granted') {
+      logDebug('files', 'File handle read permission granted', { name: handle.name });
+    } else {
+      logWarning(
+        'files',
+        'File handle read permission not granted — handle-only materialization may silently fail',
+        { name: handle.name, state: requested }
+      );
+    }
+    return requested;
+  } catch (error) {
+    logWarning('files', 'File handle read permission unavailable', {
+      name: handle.name,
+      error: error instanceof Error ? error.message : String(error)
+    });
     return 'denied';
   }
 }
@@ -324,6 +357,8 @@ export async function readDirectoryFiles(
   options: DirectoryReadOptions = {},
   path = handle.name
 ): Promise<File[]> {
+  logInfo('files', 'Reading directory files', { name: handle.name });
+
   const discovered = await discoverDirectoryFilesAtPath(handle, options, path);
   const files = new Array<File>(discovered.length);
   let index = 0;
@@ -341,6 +376,7 @@ export async function readDirectoryFiles(
   });
 
   await Promise.all(workers);
+  logInfo('files', 'Directory read completed', { name: handle.name, files: files.length });
   return files;
 }
 
@@ -348,7 +384,9 @@ export async function discoverDirectoryFiles(
   handle: FileSystemDirectoryHandle,
   options: DirectoryDiscoveryOptions = {}
 ): Promise<DiscoveredDirectoryFile[]> {
-  return await discoverDirectoryFilesAtPath(handle, options, handle.name);
+  const files = await discoverDirectoryFilesAtPath(handle, options, handle.name);
+  logInfo('files', 'Directory discovery completed', { name: handle.name, discovered: files.length });
+  return files;
 }
 
 async function discoverDirectoryFilesAtPath(
@@ -390,7 +428,7 @@ export async function readFileHandleFiles(
   handles: FileSystemFileHandle[],
   resolveSource?: FileHandleSourceResolver
 ): Promise<File[]> {
-  return await Promise.all(
+  const files = await Promise.all(
     handles.map(async (handle) => {
       const source = await resolveSource?.(handle);
       const file = await readFileHandle(handle, source?.path ?? handle.name);
@@ -400,6 +438,8 @@ export async function readFileHandleFiles(
       });
     })
   );
+  logInfo('files', 'File handle batch read completed', { count: files.length });
+  return files;
 }
 
 export interface DroppedContent {
@@ -480,6 +520,10 @@ export async function extractDroppedContent(
   }
 
   if (files.length > 0) {
+    logInfo('files', 'Dropped content extracted', {
+      files: files.length,
+      directoryHandles: directoryHandles.length
+    });
     return { files, directoryHandles };
   }
 
@@ -487,6 +531,10 @@ export async function extractDroppedContent(
     pushFile(file);
   }
 
+  logInfo('files', 'Dropped content extracted', {
+    files: files.length,
+    directoryHandles: directoryHandles.length
+  });
   return { files, directoryHandles };
 }
 

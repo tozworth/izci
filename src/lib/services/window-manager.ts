@@ -98,7 +98,8 @@ function getPopupTitle(id: PopupWindowId): string {
     editor: 'izci Editor',
     converter: 'izci Converter',
     troubadour: 'izci Troubadour',
-    troubadourOptions: 'izci Troubadour Options'
+    troubadourOptions: 'izci Troubadour Options',
+    logs: 'izci Logs'
   };
   return titles[id];
 }
@@ -163,7 +164,7 @@ function openPopupWindow(id: PopupWindowId, pathOverride?: string): Window | nul
         { type: OPEN_TROUBADOUR_BATCH_CONTEXT_MESSAGE },
         window.location.origin
       );
-    } else if (id !== 'options' && id !== 'troubadourOptions') {
+    } else if (id !== 'options' && id !== 'troubadourOptions' && id !== 'logs') {
       existingWindow.postMessage(
         { type: OPEN_CURRENT_TOOL_TRACK_MESSAGE },
         window.location.origin

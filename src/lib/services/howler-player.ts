@@ -1,5 +1,6 @@
 import { Howl } from 'howler';
 import { audioBusService } from '$lib/services/audio-bus';
+import { logDebug, logError, logInfo, logWarning } from '$lib/services/logging';
 import type { PlaybackSnapshot, PlaylistItem, ReplayGainMetadata, ReplayGainMode, TrackMetadata } from '$lib/types';
 import { applyReplayGain, sliderVolumeToGain } from '$lib/services/volume';
 
@@ -70,6 +71,11 @@ export class HowlerPlayerService {
       duration: 0,
       error: undefined
     });
+    logInfo('playback', 'Stream load started', {
+      id: track.id,
+      name: track.name,
+      extension: track.extension
+    });
 
     const ready = new Promise<void>((resolve, reject) => {
       this.#pendingLoadResolve = resolve;
@@ -93,6 +99,11 @@ export class HowlerPlayerService {
         this.#onMetadata({
           duration,
           bitrate
+        });
+        logInfo('playback', 'Stream loaded', {
+          id: track.id,
+          duration,
+          ...(bitrate !== undefined ? { bitrate } : {})
         });
         this.#settlePendingLoad();
 
@@ -119,6 +130,7 @@ export class HowlerPlayerService {
         this.#publishProgress(true);
         this.#startTicking();
         this.#onSnapshot({ state: 'playing' });
+        logInfo('playback', 'Stream playing', { id: track.id });
       },
       onpause: () => {
         if (!this.#isActiveLoad(loadToken)) {
@@ -130,6 +142,7 @@ export class HowlerPlayerService {
         this.#stopTicking();
         this.#publishProgress(true);
         this.#onSnapshot({ state: 'paused' });
+        logDebug('playback', 'Stream paused', { id: track.id });
       },
       onstop: () => {
         if (!this.#isActiveLoad(loadToken)) {
@@ -141,6 +154,7 @@ export class HowlerPlayerService {
         this.#stopTicking();
         this.#resetPublishedProgress();
         this.#onSnapshot({ currentTime: 0, state: 'paused' });
+        logDebug('playback', 'Stream stopped', { id: track.id });
       },
       onend: () => {
         if (!this.#isActiveLoad(loadToken)) {
@@ -152,6 +166,7 @@ export class HowlerPlayerService {
         this.#stopTicking();
         this.#publishProgress(true, this.#howl?.duration() ?? 0, this.#howl?.duration() ?? 0);
         this.#onSnapshot({ state: 'ended' });
+        logInfo('playback', 'Stream ended', { id: track.id });
         this.#onEnded();
       },
       onseek: () => {
@@ -159,6 +174,7 @@ export class HowlerPlayerService {
           return;
         }
 
+        logDebug('playback', 'Stream seeked');
         this.#publishProgress(true);
         this.#startTicking();
       },
@@ -170,6 +186,7 @@ export class HowlerPlayerService {
         this.#loaded = false;
         this.#playPending = false;
         const error = new Error(String(message));
+        logError('playback', 'Stream load failed', { id: track.id, error: error.message });
         this.#onSnapshot({ state: 'error', error: error.message });
         this.#settlePendingLoad(error);
       },
@@ -179,6 +196,10 @@ export class HowlerPlayerService {
         }
 
         this.#playPending = false;
+        logWarning('playback', 'Stream play blocked by the browser', {
+          id: track.id,
+          error: String(message)
+        });
         this.#onSnapshot({ state: 'error', error: String(message) });
       }
     });
@@ -208,6 +229,7 @@ export class HowlerPlayerService {
     const nextPosition = Math.max(seconds, 0);
     const wasPlaying = this.#howl?.playing() ?? false;
     this.#initialPosition = nextPosition;
+    logDebug('playback', 'Stream seek', { seconds: nextPosition });
 
     if (wasPlaying) {
       this.#shouldTrackProgress = true;
@@ -241,12 +263,14 @@ export class HowlerPlayerService {
   setPlaybackRate(playbackRate: number, trueSpeed: boolean): void {
     this.#playbackRate = playbackRate;
     this.#trueSpeed = trueSpeed;
+    logDebug('playback', 'Playback rate set', { playbackRate, trueSpeed });
     this.#howl?.rate(playbackRate);
     this.#applyPitchPreservation();
   }
 
   setTransitionGain(gain: number, durationSeconds = 0): void {
     this.#transitionGain = Math.max(gain, 0);
+    logDebug('playback', 'Stream transition gain set', { gain, durationSeconds });
 
     if (this.#audioSource) {
       audioBusService.setSourceGain(this.#audioSource, this.#transitionGain, durationSeconds);
@@ -263,6 +287,7 @@ export class HowlerPlayerService {
   }
 
   destroy(): void {
+    logDebug('playback', 'Stream backend destroyed');
     this.#settlePendingLoad();
     this.#loadToken += 1;
     this.#autoPlayOnLoad = false;
@@ -319,7 +344,12 @@ export class HowlerPlayerService {
   #applyOutputVolume(): void {
     // Routed streams receive ReplayGain and master volume in the shared graph.
     // Keep native Howler gain handling only for the progressive fallback path.
-    this.#howl?.volume(this.#audioSource ? 1 : this.#fallbackVolume * this.#transitionGain);
+    if (!this.#audioSource) {
+      logDebug('playback', 'Stream volume via Howler fallback (Web Audio routing unavailable)');
+      this.#howl?.volume(this.#fallbackVolume * this.#transitionGain);
+      return;
+    }
+    this.#howl?.volume(1);
   }
 
   #startTicking(): void {

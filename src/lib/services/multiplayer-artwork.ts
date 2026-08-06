@@ -1,4 +1,5 @@
 import { getCachedArtworkThumbnail } from '$lib/services/artwork-cache';
+import { logDebug, logWarning } from '$lib/services/logging';
 import type { LoadedStreamArtwork } from '$lib/services/stream-artwork';
 import type { PlaylistItem } from '$lib/types';
 import type { MultiplayerArtwork } from './multiplayer-protocol';
@@ -14,18 +15,36 @@ export async function loadMultiplayerArtwork(
   track: PlaylistItem | null
 ): Promise<MultiplayerArtwork | null> {
   if (!track) return null;
+  logDebug('multiplayer', 'Remote artwork requested', { trackId: track.id });
 
-  const rendition = await getCachedArtworkThumbnail(track, MULTIPLAYER_ARTWORK_MAX_EDGE);
+  let rendition;
+  try {
+    rendition = await getCachedArtworkThumbnail(track, MULTIPLAYER_ARTWORK_MAX_EDGE);
+  } catch (error) {
+    logWarning('multiplayer', 'Remote artwork cache lookup failed', {
+      trackId: track.id,
+      error: error instanceof Error ? error.message : String(error)
+    });
+    return null;
+  }
   if (!rendition) return null;
 
-  return {
-    trackId: track.id,
-    assetId: rendition.assetId,
-    dataUrl: await blobToDataUrl(rendition.blob),
-    mimeType: rendition.blob.type || 'image/webp',
-    width: rendition.width,
-    height: rendition.height
-  };
+  try {
+    return {
+      trackId: track.id,
+      assetId: rendition.assetId,
+      dataUrl: await blobToDataUrl(rendition.blob),
+      mimeType: rendition.blob.type || 'image/webp',
+      width: rendition.width,
+      height: rendition.height
+    };
+  } catch (error) {
+    logWarning('multiplayer', 'Remote artwork encoding failed', {
+      trackId: track.id,
+      error: error instanceof Error ? error.message : String(error)
+    });
+    return null;
+  }
 }
 
 export function getRemoteArtworkLoadKey(

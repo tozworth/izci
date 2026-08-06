@@ -1,5 +1,6 @@
 import type { PlaylistItem, PlaylistPlaybackOptions, PlaylistRepeatMode, PlaylistSelection } from '$lib/types';
 import { normalizeTrackRating } from '$lib/services/track-ratings';
+import { logError, logInfo } from '$lib/services/logging';
 
 export interface StoredPlaylistItem {
   id: string;
@@ -176,7 +177,11 @@ export async function readStoredState(dbName: string): Promise<StoredPlaylistSta
         return;
       }
 
-      resolve(value as StoredPlaylistState);
+      const storedState = value as StoredPlaylistState;
+      logInfo('library', `[${dbName}] stored state restored`, {
+        items: storedState.items?.length ?? 0
+      });
+      resolve(storedState);
     };
     request.onerror = () => resolve(null);
     transaction.oncomplete = () => database.close();
@@ -202,11 +207,19 @@ export async function persistStoredState(dbName: string, state: StoredPlaylistSt
       database.close();
       resolve();
     };
-    transaction.onerror = () => {
+    transaction.onerror = (event) => {
+      const targetError = (event.target as { error?: unknown } | null)?.error;
+      logError('library', `[${dbName}] persist write failed`, {
+        error: targetError instanceof Error ? targetError.message : String(targetError)
+      });
       database.close();
       resolve();
     };
-    transaction.onabort = () => {
+    transaction.onabort = (event) => {
+      const targetError = (event.target as { error?: unknown } | null)?.error;
+      logError('library', `[${dbName}] persist write aborted`, {
+        error: targetError instanceof Error ? targetError.message : String(targetError)
+      });
       database.close();
       resolve();
     };

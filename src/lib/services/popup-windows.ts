@@ -70,6 +70,17 @@ export const popupWindows = {
       resizable: true,
       scrollbars: true
     }
+  },
+  logs: {
+    name: 'izci-logs',
+    path: '/logs.html',
+    features: {
+      popup: true,
+      width: 820,
+      height: 560,
+      resizable: true,
+      scrollbars: false
+    }
   }
 } satisfies Record<string, PopupWindowDefinition>;
 

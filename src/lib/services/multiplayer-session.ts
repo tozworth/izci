@@ -1,4 +1,5 @@
 import { writable } from 'svelte/store';
+import { logDebug, logInfo } from '$lib/services/logging';
 import type { ExperimentalSettings } from '$lib/types';
 import { experimentalSettings } from '$lib/stores/experimental-settings';
 import { multiplayerAudioService } from './multiplayer-audio';
@@ -98,6 +99,7 @@ export function createMultiplayerSession({
   const client = createMultiplayerClientSide(core);
 
   async function resetSession(removeRemote: boolean): Promise<void> {
+    logDebug('multiplayer', 'Multiplayer session reset', { removeRemote });
     client.clearReceiverMonitor();
     client.resetStreamedAudioState();
     core.stopPeersListener?.();
@@ -246,6 +248,7 @@ export function createMultiplayerSession({
       window.removeEventListener('online', client.handleClientResume);
       document.removeEventListener('visibilitychange', client.handleClientResume);
       unsubscribeSettings();
+      logInfo('multiplayer', 'Multiplayer session destroyed');
       void resetSession(true);
     }
   };

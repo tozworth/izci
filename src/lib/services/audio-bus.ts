@@ -1,6 +1,7 @@
 import { visualizerService } from '$lib/services/visualizer';
 import { RafEngine } from '$lib/services/raf-engine';
 import { setAudioParam } from '$lib/services/raf-effects/shared';
+import { logDebug, logError, logInfo, logWarning } from '$lib/services/logging';
 import type { RafEffectType } from '$lib/types';
 
 type AudioBusSource = AudioNode | MediaElementAudioSourceNode;
@@ -54,8 +55,11 @@ export class AudioBusService {
 
       this.#connectSource(source, target === 'analyser' ? this.#analyser : this.#input);
       return source;
-    } catch {
+    } catch (error) {
       // If Web Audio cannot adopt the element, leave Howler's native output untouched.
+      logWarning('playback', 'Media element Web Audio routing unavailable — native output fallback', {
+        error: error instanceof Error ? error.message : String(error)
+      });
       return null;
     }
   }
@@ -72,6 +76,7 @@ export class AudioBusService {
     }
 
     this.#connectSource(node);
+    logDebug('playback', 'Audio node connected to bus', { nodeType: node.constructor.name });
     return node;
   }
 
@@ -91,6 +96,7 @@ export class AudioBusService {
     }
 
     this.#sourceGains.delete(source);
+    logDebug('playback', 'Audio source disconnected from bus');
   }
 
   connectMediaStream(stream: MediaStream | null): MediaStreamAudioSourceNode | null {
@@ -113,7 +119,10 @@ export class AudioBusService {
       const source = this.context.createMediaStreamSource(stream);
       this.#connectSource(source, target === 'analyser' ? this.#analyser : this.#input);
       return source;
-    } catch {
+    } catch (error) {
+      logWarning('playback', 'Media stream Web Audio routing failed', {
+        error: error instanceof Error ? error.message : String(error)
+      });
       return null;
     }
   }
@@ -125,6 +134,7 @@ export class AudioBusService {
     const source = postRaf ? this.#analyser : this.#input;
 
     if (!this.#broadcastDestination) {
+      logDebug('playback', 'Broadcast destination created (multiplayer audio)');
       const gain = this.#context.createGain();
       const destination = this.#context.createMediaStreamDestination();
       destination.channelCount = 2;
@@ -158,6 +168,7 @@ export class AudioBusService {
   releaseBroadcastTrack(): void {
     const destination = this.#broadcastDestination;
     if (!destination) return;
+    logDebug('playback', 'Broadcast track released');
 
     for (const track of destination.stream.getTracks()) track.stop();
     try {
@@ -213,7 +224,13 @@ export class AudioBusService {
     if (context && context.state !== 'running' && context.state !== 'closed') {
       await context.resume().catch(() => undefined);
     }
-    return this.#context?.state === 'running';
+    const running = this.#context?.state === 'running';
+    if (running) {
+      logDebug('playback', 'Audio context running');
+    } else if (this.#context && this.#context.state !== 'closed') {
+      logWarning('playback', 'Audio context did not resume', { state: this.#context.state });
+    }
+    return running;
   }
 
   setInputGain(gain: number, immediate = false): void {
@@ -254,6 +271,7 @@ export class AudioBusService {
   }
 
   destroy(): void {
+    logInfo('playback', 'Audio graph destroyed');
     for (const source of this.#sourceGains.keys()) this.disconnect(source);
     this.releaseBroadcastTrack();
     visualizerService.clear();
@@ -311,6 +329,7 @@ export class AudioBusService {
       (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
 
     if (!AudioContextConstructor) {
+      logError('playback', 'Web Audio unavailable in this browser');
       throw new Error('Web Audio is unavailable in this browser.');
     }
 
@@ -337,6 +356,10 @@ export class AudioBusService {
     this.#rafEngine = rafEngine;
     this.#analyser = analyser;
     visualizerService.setAnalyser(analyser);
+    logInfo('playback', 'Audio graph created', {
+      state: context.state,
+      sampleRate: context.sampleRate
+    });
   }
 }
 

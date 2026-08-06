@@ -1,4 +1,5 @@
-import { readFileHandleFiles } from '$lib/utils/files';
+import { inferExtension, inferKind, readFileHandleFiles } from '$lib/utils/files';
+import { logError, logInfo } from '$lib/services/logging';
 import {
   filesystemFolders,
   resolveFilesystemFileLocation
@@ -44,6 +45,9 @@ const pendingPrimaryResolvers = new Map<string, (primaryId: string | null) => vo
 
 function reportLaunchError(error: unknown): void {
   console.error('Failed to process launched files.', error);
+  logError('files', 'Failed to process launched files', {
+    error: error instanceof Error ? error.message : String(error)
+  });
 }
 
 function createInstanceId(): string {
@@ -341,6 +345,7 @@ async function flushPendingFileBatches(): Promise<void> {
 
       try {
         await activeListener(files);
+        logInfo('files', 'Launch queue processed', { count: files.length });
       } catch (error) {
         reportLaunchError(error);
       }
@@ -373,6 +378,13 @@ async function enqueueLaunchedFileHandles(handles: FileSystemFileHandle[]): Prom
       : undefined;
   });
 
+  for (const file of files) {
+    logInfo('files', 'Launched file received', {
+      name: file.name,
+      size: file.size,
+      kind: inferKind(inferExtension(file.name))
+    });
+  }
   if (files.length > 0) enqueueLaunchedFiles(files);
 }
 

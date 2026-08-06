@@ -1,4 +1,5 @@
 import { fingerprintFile, fingerprintsMatch } from '$lib/services/media-metadata/fingerprint';
+import { logInfo, logWarning } from '$lib/services/logging';
 import type { MediaFileFingerprint } from '$lib/services/media-metadata/types';
 import { sanitizeFilename, validateFilename, type FilenameRules } from './rename-template';
 
@@ -273,6 +274,10 @@ export async function applyRename(
     } else {
       ({ handle: fileHandle, file } = await copyThenRemove({ ...row, file: current }, signal, verification));
     }
+    logInfo('tools', 'Rename applied', {
+      path: row.path,
+      proposedPath: row.proposedPath
+    });
     return {
       id: row.id,
       success: true,
@@ -283,6 +288,10 @@ export async function applyRename(
       fileHandle
     };
   } catch (error) {
+    logWarning('tools', 'Rename failed', {
+      path: row.path,
+      error: error instanceof Error ? error.message : 'Rename failed.'
+    });
     return {
       id: row.id,
       success: false,

@@ -1,4 +1,5 @@
 import { version as appVersion } from '../../../package.json';
+import { logError, logWarning, logInfo, logDebug } from '$lib/services/logging';
 import type { PlaylistItem } from '$lib/types';
 import { materializePlaylistItem } from '$lib/stores/playlist-materialization';
 import { multiplayerAudioService } from './multiplayer-audio';
@@ -192,10 +193,12 @@ export function createMultiplayerHostSide(
         connectionDetail: null
       });
       primeHostState();
+      logInfo('multiplayer', 'Multiplayer hosting started', { inviteCode });
       return inviteCode;
     } catch (error) {
       await core.resetSession(true);
       const message = errorMessage(error, 'Could not start multiplayer hosting.');
+      logError('multiplayer', 'Could not start multiplayer hosting', { error: message });
       publish({
         mode: 'idle',
         connectionStatus: 'error',
@@ -246,6 +249,7 @@ export function createMultiplayerHostSide(
     if (core.hostPeers.size >= core.multiplayerSettings.multiplayerMaxListeners) {
       if (!core.rejectedPeerIds.has(id)) {
         core.rejectedPeerIds.add(id);
+        logInfo('multiplayer', 'Client offer rejected (host full)', { client: sanitizeClientName(offer.name), reason: 'host-full' });
         await core.firebaseRuntime.set(
           core.firebaseRuntime.ref(
             core.firebaseRuntime.database,
@@ -270,6 +274,7 @@ export function createMultiplayerHostSide(
       await createMultiplayerTurnIceSettings(core.multiplayerSettings, `host-${id}`)
     );
     core.hostPeers.set(id, peer);
+    logInfo('multiplayer', 'Client offer accepted', { client: peer.name, platform: sanitizePlatform(offer.platform) });
     void core.firebaseRuntime.remove(core.firebaseRuntime.ref(
       core.firebaseRuntime.database,
       `multiplayer/rooms/${inviteCode}/peers/${id}/credentialResponse`
@@ -300,10 +305,16 @@ export function createMultiplayerHostSide(
         clearPeerConnectionTimer(peer);
         updateClient(id, { status: 'connected' });
         publish({ message: null });
+        logInfo('multiplayer', 'Client connected', { client: peer.name });
       }
       if (status === 'failed' || status === 'disconnected' || status === 'closed') {
         updateClient(id, { status: 'disconnected' });
         removePeerFromHostPlaybackPreparation(id);
+        if (status === 'failed') {
+          logWarning('multiplayer', 'Client connection failed', { client: peer.name });
+        } else {
+          logInfo('multiplayer', 'Client disconnected', { client: peer.name, reason: status });
+        }
       }
       if (status === 'failed') publish({ message: describeIceFailure(peer, peer.name) });
     };
@@ -354,6 +365,7 @@ export function createMultiplayerHostSide(
       peer.pc.close();
       core.hostPeers.delete(id);
       updateClient(id, { status: 'disconnected' });
+      logError('multiplayer', 'Could not finish connection to client', { client: peer.name, error: errorMessage(error, 'ICE signaling failed.') });
       publish({
         message: `Could not finish the connection to ${peer.name}: ${errorMessage(error, 'ICE signaling failed.')}`
       });
@@ -375,8 +387,10 @@ export function createMultiplayerHostSide(
       && core.multiplayerSettings.multiplayerFreeplay
       && peer.clientFreeplayEnabled;
     if (paired) {
+      logInfo('multiplayer', 'Pairing with client', { client: peer.name, freeplayPaired });
       await persistPairingAgreement(peer, freeplayPaired);
     } else {
+      logInfo('multiplayer', 'Unpairing from client', { client: peer.name });
       await core.firebaseRuntime.remove(pairingRef);
     }
     peer.paired = paired;
@@ -429,6 +443,9 @@ export function createMultiplayerHostSide(
       const message = peer.decode(event.data);
       if (!message) return;
       if (message.kind === 'hello') {
+        if (message.version !== MULTIPLAYER_PROTOCOL_VERSION) {
+          logError('multiplayer', 'Protocol version mismatch with client', { client: sanitizeClientName(message.name), clientVersion: message.version, hostVersion: MULTIPLAYER_PROTOCOL_VERSION });
+        }
         peer.name = sanitizeClientName(message.name);
         peer.clientFreeplayEnabled = message.freeplayEnabled;
         updateClient(peer.id, { name: peer.name, platform: sanitizePlatform(message.platform) });
@@ -452,22 +469,30 @@ export function createMultiplayerHostSide(
         void Promise.resolve(peer.freeplay
           ? handleFreeplayCommand(peer, message.command)
           : handleHostCommand(message.command, peer))
-          .then((accepted) => sendToPeer(peer, {
-            kind: 'ack',
-            commandId: message.command.commandId,
-            accepted,
-            ...(accepted ? {} : {
-              message: message.command.type === 'collection.activate'
-                ? 'The host could not play that track (file access unavailable). Re-import the track to grant the host persistent file access.'
-                : 'The host could not apply that command.'
-            })
-          }))
-          .catch(() => sendToPeer(peer, {
-            kind: 'ack',
-            commandId: message.command.commandId,
-            accepted: false,
-            message: 'The host could not apply that command.'
-          }));
+          .then((accepted) => {
+            if (!accepted) {
+              logWarning('multiplayer', 'Client command rejected', { client: peer.name, type: message.command.type, commandId: message.command.commandId, reason: message.command.type === 'collection.activate' ? 'file access unavailable' : 'command could not be applied' });
+            }
+            sendToPeer(peer, {
+              kind: 'ack',
+              commandId: message.command.commandId,
+              accepted,
+              ...(accepted ? {} : {
+                message: message.command.type === 'collection.activate'
+                  ? 'The host could not play that track (file access unavailable). Re-import the track to grant the host persistent file access.'
+                  : 'The host could not apply that command.'
+              })
+            });
+          })
+          .catch(() => {
+            logError('multiplayer', 'Client command handler threw', { client: peer.name, type: message.command.type, commandId: message.command.commandId });
+            sendToPeer(peer, {
+              kind: 'ack',
+              commandId: message.command.commandId,
+              accepted: false,
+              message: 'The host could not apply that command.'
+            });
+          });
       }
       if (message.kind === 'playback.ready') {
         acceptClientPlaybackReady(peer, message.preparationId);
@@ -480,6 +505,7 @@ export function createMultiplayerHostSide(
     channel.onclose = () => {
       updateClient(peer.id, { status: 'disconnected' });
       removePeerFromHostPlaybackPreparation(peer.id);
+      logDebug('multiplayer', 'Client channel closed', { client: peer.name });
     };
     sendToPeer(peer, {
       kind: 'hello',
@@ -530,6 +556,7 @@ export function createMultiplayerHostSide(
     peer.freeplay = active;
 
     if (changed && active) {
+      logInfo('multiplayer', 'Freeplay mode enabled for client', { client: peer.name });
       removePeerFromHostPlaybackPreparation(peer.id);
       peer.mediaTransferToken += 1;
       peer.mediaOutgoing = [];
@@ -568,6 +595,7 @@ export function createMultiplayerHostSide(
         await player.load(previousSelection, false);
       }
     } else if (changed && !active) {
+      logInfo('multiplayer', 'Freeplay mode disabled for client', { client: peer.name });
       peer.freeplayPendingPreparation = null;
       peer.freeplayPlayer?.destroy();
       peer.freeplayPlayer = null;
@@ -695,12 +723,21 @@ export function createMultiplayerHostSide(
     collection: MultiplayerCollection,
     itemId: string
   ): Promise<boolean> {
-    if (!core.latestHostState || !peer.freeplayPlayer) return false;
+    if (!core.latestHostState || !peer.freeplayPlayer) {
+      logWarning('freeplay', 'Freeplay activation refused (no host state or player)', { client: peer.name, collection, itemId });
+      return false;
+    }
     const items = freeplayCollectionItems(peer, collection);
     const source = items.find((item) => item.id === itemId);
-    if (!source) return false;
+    if (!source) {
+      logWarning('freeplay', 'Freeplay activation refused (item not in collection)', { client: peer.name, collection, itemId });
+      return false;
+    }
     const track = await materializePlaylistItem(source, false);
-    if (!track || !peer.freeplay || !peer.freeplayPlayer) return false;
+    if (!track || !peer.freeplay || !peer.freeplayPlayer) {
+      logError('freeplay', 'Freeplay activation refused (file access unavailable)', { client: peer.name, collection, itemId, error: 'track materialization returned null (FSA permission prompt or missing file)' });
+      return false;
+    }
     if (peer.freeplayCollection !== collection) {
       // Switching the stepping context (library/favorites/queue) starts a fresh
       // navigation session over the new collection.
@@ -716,7 +753,10 @@ export function createMultiplayerHostSide(
       peer.sourceTrackKey = '';
     }
     const loaded = await peer.freeplayPlayer.load(track, false);
-    if (!loaded || !peer.freeplay) return false;
+    if (!loaded || !peer.freeplay) {
+      logWarning('freeplay', 'Freeplay activation refused (renderer failed to load)', { client: peer.name, collection, itemId: track.id });
+      return false;
+    }
 
     // Source-file delivery and host-disabled audio are timeline-passive: the
     // client starts the transferred file on its own timeline, so a client
@@ -738,6 +778,7 @@ export function createMultiplayerHostSide(
     // instantly, source-file clients once their file is loaded, streamed
     // clients after the preroll.
     beginFreeplayPlaybackPreparation(peer);
+    logInfo('freeplay', 'Freeplay track activated', { client: peer.name, collection, trackId: track.id });
     return true;
   }
 
@@ -760,6 +801,7 @@ export function createMultiplayerHostSide(
   ): Promise<boolean> {
     const player = peer.freeplayPlayer;
     if (!player) return false;
+    logDebug('freeplay', 'Freeplay step', { client: peer.name, direction, fromEnded });
     if (fromEnded && peer.freeplayRepeatMode === 'one') {
       player.seek(0);
       return player.play();
@@ -791,6 +833,7 @@ export function createMultiplayerHostSide(
 
   async function handleFreeplayTrackEnded(peer: PeerConnection, trackId: string): Promise<void> {
     if (!peer.freeplay || peer.freeplayPlayer?.track?.id !== trackId) return;
+    logInfo('freeplay', 'Freeplay track ended', { client: peer.name, trackId });
     await stepFreeplayTrack(peer, 1, true);
   }
 
@@ -817,18 +860,22 @@ export function createMultiplayerHostSide(
     ]) {
       if (!byId.has(item.id)) byId.set(item.id, item);
     }
-    return peer.freeplayQueue
+    const resolved = peer.freeplayQueue
       .map((id) => byId.get(id))
       .filter((item): item is PlaylistItem => Boolean(item));
+    logDebug('multiplayer', 'Freeplay queue resolved', { client: peer.name, requested: peer.freeplayQueue.length, resolved: resolved.length });
+    return resolved;
   }
 
   function sendFreeplayCatalog(peer: PeerConnection): void {
     if (!core.latestHostState) return;
+    const playlist = resolveFreeplayQueueItems(peer);
+    logDebug('multiplayer', 'Sending Freeplay catalog', { client: peer.name, playlist: playlist.length, library: core.latestHostState.library.length, favorites: core.latestHostState.favorites.length, revision: core.catalogRevision });
     sendToPeer(peer, {
       kind: 'catalog',
       catalog: {
         revision: core.catalogRevision,
-        playlist: resolveFreeplayQueueItems(peer).map(sanitizePlaylistItem),
+        playlist: playlist.map(sanitizePlaylistItem),
         library: core.latestHostState.library.map(sanitizePlaylistItem),
         favorites: core.latestHostState.favorites.map(sanitizePlaylistItem),
         shuffleEnabled: peer.freeplayShuffle,
@@ -970,6 +1017,7 @@ export function createMultiplayerHostSide(
     const freeplayPreparation = peer.freeplayPendingPreparation;
     if (peer.freeplay && freeplayPreparation?.preparationId === preparationId) {
       peer.freeplayPendingPreparation = null;
+      logInfo('freeplay', 'Freeplay playback released by client readiness', { client: peer.name, trackId: peer.freeplayPlayer?.track?.id ?? null });
       void peer.freeplayPlayer?.play();
       return;
     }
@@ -1193,6 +1241,7 @@ export function createMultiplayerHostSide(
     if (core.state.mode !== 'hosting') return;
     const peer = core.hostPeers.get(clientId);
     if (peer) {
+      logInfo('multiplayer', 'Client kicked', { client: peer.name });
       clearPeerConnectionTimer(peer);
       peer.freeplayPlayer?.destroy();
       core.freeplaySelections.delete(clientId);
@@ -1232,6 +1281,7 @@ export function createMultiplayerHostSide(
       connectionDetail: null,
       message: null
     });
+    logInfo('multiplayer', 'Multiplayer hosting stopped');
   }
 
   return {

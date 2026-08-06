@@ -1,4 +1,5 @@
 import type { PlaylistItem } from '$lib/types';
+import { logDebug, logInfo, logWarning } from '$lib/services/logging';
 import type { PeerConnection, SourceFileBeginFrame, SourceFileEndFrame } from './multiplayer-types';
 
 export const SOURCE_FILE_CHUNK_SIZE = 16 * 1024;
@@ -51,6 +52,11 @@ export async function transferSourceFile(
   token: number
 ): Promise<void> {
   const transferId = crypto.randomUUID();
+  logInfo('multiplayer', 'Source file transfer started', {
+    trackId: track.id,
+    name: file.name,
+    bytes: file.size
+  });
   queuePeerMedia(peer, JSON.stringify({
     kind: 'file.begin',
     transferId,
@@ -62,17 +68,38 @@ export async function transferSourceFile(
   } satisfies SourceFileBeginFrame));
 
   for (let offset = 0; offset < file.size; offset += SOURCE_FILE_CHUNK_SIZE) {
-    if (peer.mediaTransferToken !== token || peer.mediaChannel?.readyState !== 'open') return;
+    if (peer.mediaTransferToken !== token || peer.mediaChannel?.readyState !== 'open') {
+      logWarning('multiplayer', 'Source file transfer aborted', {
+        name: file.name,
+        offset
+      });
+      return;
+    }
     while (peer.mediaQueuedBytes >= SOURCE_FILE_QUEUE_LIMIT) {
       await waitForMediaQueue(peer, token);
-      if (peer.mediaTransferToken !== token || peer.mediaChannel?.readyState !== 'open') return;
+      if (peer.mediaTransferToken !== token || peer.mediaChannel?.readyState !== 'open') {
+        logWarning('multiplayer', 'Source file transfer aborted (queue wait)', {
+          name: file.name
+        });
+        return;
+      }
     }
     const chunk = await file.slice(offset, offset + SOURCE_FILE_CHUNK_SIZE).arrayBuffer();
-    if (peer.mediaTransferToken !== token) return;
+    if (peer.mediaTransferToken !== token) {
+      logDebug('multiplayer', 'Source file transfer superseded', { name: file.name });
+      return;
+    }
     queuePeerMedia(peer, chunk);
   }
-  if (peer.mediaTransferToken !== token) return;
+  if (peer.mediaTransferToken !== token) {
+    logDebug('multiplayer', 'Source file transfer superseded before completion', { name: file.name });
+    return;
+  }
   queuePeerMedia(peer, JSON.stringify({ kind: 'file.end', transferId } satisfies SourceFileEndFrame));
+  logInfo('multiplayer', 'Source file transfer completed', {
+    name: file.name,
+    bytes: file.size
+  });
 }
 
 export function parseSourceFileFrame(value: string): SourceFileBeginFrame | SourceFileEndFrame | null {

@@ -2,6 +2,7 @@ export interface ConverterOutputLocation {
   directory: FileSystemDirectoryHandle;
   fileName: string;
 }
+import { logError, logInfo } from '$lib/services/logging';
 
 export async function resolveConverterOutputLocation(
   root: FileSystemDirectoryHandle,
@@ -30,8 +31,20 @@ export async function writeConverterOutput(location: ConverterOutputLocation, bl
   const handle = await location.directory.getFileHandle(location.fileName, { create: true });
   const writable = await handle.createWritable?.();
   if (!writable) throw new Error('This browser cannot write to the selected output folder.');
-  await writable.write(blob);
-  await writable.close();
+  try {
+    await writable.write(blob);
+    await writable.close();
+    logInfo('tools', 'Converter output written', {
+      fileName: location.fileName,
+      bytes: blob.size
+    });
+  } catch (error) {
+    logError('tools', 'Converter output write failed', {
+      fileName: location.fileName,
+      error: error instanceof Error ? error.message : String(error)
+    });
+    throw error;
+  }
 }
 
 export function converterOutputKey(directories: readonly string[], fileName: string): string {

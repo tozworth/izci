@@ -1,4 +1,5 @@
 import type { PeerConnection, MultiplayerSessionState } from './multiplayer-types';
+import { logDebug, logWarning } from '$lib/services/logging';
 import {
   updateReceivedBitrateWindow,
   type ReceivedByteSample
@@ -28,6 +29,7 @@ export function createReceiverBitrateMonitor({
   let sampling = false;
   let samples: ReceivedByteSample[] = [];
   let counterSamples: MultiplayerReceiverCounterSample[] = [];
+  let statsFailureLogged = false;
 
   function clear(): void {
     if (timer !== null) window.clearInterval(timer);
@@ -38,6 +40,8 @@ export function createReceiverBitrateMonitor({
 
   function start(peer: PeerConnection): void {
     clear();
+    logDebug('multiplayer', 'Receiver monitoring started');
+    statsFailureLogged = false;
 
     const sample = async () => {
       if (sampling || !isActivePeer(peer) || getState().mode !== 'client') return;
@@ -114,6 +118,10 @@ export function createReceiverBitrateMonitor({
         }
       } catch {
         // Receiver stats are optional; audio playback continues without a bitrate readout.
+        if (!statsFailureLogged) {
+          statsFailureLogged = true;
+          logWarning('multiplayer', 'Receiver stats sampling failed');
+        }
       } finally {
         sampling = false;
       }

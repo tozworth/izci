@@ -7,6 +7,7 @@ import { initializeTheme } from '$lib/services/theme';
 import { initializeScrollbarVisibility } from '$lib/services/scrollbar-visibility';
 import { registerAppServiceWorker } from '$lib/services/pwa-updates';
 import { initializeLocalization } from '$lib/i18n';
+import { initLogging } from '$lib/services/logging';
 import { initializeMobileDocument } from './mobile/mobile-device';
 import './mobile/mobile.css';
 import './mobile/mobile-options.css';
@@ -19,6 +20,7 @@ initializeTheme();
 initializeMobileDocument();
 initializeScrollbarVisibility({ overlayVertical: true });
 initializeLocalization();
+initLogging();
 
 mount(App, {
   target: document.getElementById('app')!

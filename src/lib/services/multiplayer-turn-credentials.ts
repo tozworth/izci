@@ -1,4 +1,5 @@
 import type { ExperimentalSettings } from '$lib/types';
+import { logDebug, logWarning } from '$lib/services/logging';
 import type { MultiplayerIceSettings } from './multiplayer-ice';
 
 const ECDH_ALGORITHM = { name: 'ECDH', namedCurve: 'P-256' } as const;
@@ -47,11 +48,13 @@ export async function createMultiplayerTurnCredentialRequest(): Promise<PendingM
     publicKey: encodeBase64(await crypto.subtle.exportKey('raw', keyPair.publicKey)),
     createdAt: Date.now()
   };
+  logDebug('multiplayer', 'TURN credential request created', { requestId: request.requestId });
 
   return {
     request,
     async decrypt(response) {
       if (response.requestId !== request.requestId) {
+        logWarning('multiplayer', 'TURN credential response mismatch');
         throw new Error('The TURN credential response does not match this request.');
       }
       const hostPublicKey = await crypto.subtle.importKey(
@@ -79,6 +82,7 @@ export async function createMultiplayerTurnCredentialResponse(
   now = Date.now()
 ): Promise<MultiplayerTurnCredentialResponse> {
   if (!hasMultiplayerTurnIssuer(settings)) {
+    logWarning('multiplayer', 'TURN issuer not configured — credential response unavailable');
     throw new Error('This host does not have a TURN credential issuer configured.');
   }
   const clientPublicKey = await crypto.subtle.importKey(
@@ -113,6 +117,7 @@ export async function createMultiplayerTurnIceSettings(
   now = Date.now()
 ): Promise<TransientTurnPayload> {
   if (!hasMultiplayerTurnIssuer(settings)) {
+    logWarning('multiplayer', 'TURN issuer not configured — direct connection only');
     return {
       multiplayerTurnUrl: '',
       multiplayerTurnUsername: '',

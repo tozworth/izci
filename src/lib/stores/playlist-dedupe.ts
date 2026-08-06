@@ -1,5 +1,6 @@
 import type { PlaylistItem } from '$lib/types';
 import { getTrackIdentity } from '$lib/utils/files';
+import { logDebug, logInfo } from '$lib/services/logging';
 
 export function splitUniqueItems(
   sourceItems: PlaylistItem[],
@@ -15,6 +16,7 @@ export function splitUniqueItems(
   const { dedupe, existingItems = [], getIdentity = getTrackIdentity } = options;
 
   if (!dedupe) {
+    logDebug('library', 'splitUniqueItems: no duplicates', { uniqueKept: sourceItems.length });
     return {
       uniqueItems: [...sourceItems],
       duplicateItems: []
@@ -35,6 +37,15 @@ export function splitUniqueItems(
 
     seen.add(key);
     uniqueItems.push(item);
+  }
+
+  if (duplicateItems.length > 0) {
+    logInfo('library', 'splitUniqueItems: duplicates dropped', {
+      uniqueKept: uniqueItems.length,
+      duplicatesDropped: duplicateItems.length
+    });
+  } else {
+    logDebug('library', 'splitUniqueItems: no duplicates', { uniqueKept: uniqueItems.length });
   }
 
   return {

@@ -1,4 +1,5 @@
 import type { Unsubscribe } from 'firebase/database';
+import { logDebug, logInfo, logWarning } from '$lib/services/logging';
 import type { MultiplayerIceSettings } from './multiplayer-ice';
 import type { FirebaseRuntime, SignalOffer } from './multiplayer-types';
 import {
@@ -65,6 +66,7 @@ export async function loadFirebase(): Promise<FirebaseRuntime> {
   const credential = auth.currentUser
     ? { user: auth.currentUser }
     : await authModule.signInAnonymously(auth);
+  logInfo('multiplayer', 'Firebase signaling ready', { uid: credential.user.uid });
 
   return {
     database: databaseModule.getDatabase(app),
@@ -83,6 +85,7 @@ export async function requestTemporaryTurnCredentials(
   inviteCode: string
 ): Promise<MultiplayerIceSettings> {
   const pending = await createMultiplayerTurnCredentialRequest();
+  logDebug('multiplayer', 'Requesting temporary TURN credentials', { inviteCode });
   const requestRef = firebase.ref(
     firebase.database,
     `multiplayer/rooms/${inviteCode}/peers/${firebase.uid}/credentialRequest`
@@ -106,9 +109,17 @@ export async function requestTemporaryTurnCredentials(
       unsubscribe?.();
       void firebase.remove(requestRef).catch(() => undefined);
       if (result) resolve(result);
-      else reject(error instanceof Error ? error : new Error('TURN credential exchange failed.'));
+      else {
+        logWarning('multiplayer', 'TURN credential exchange failed', {
+          error: error instanceof Error ? error.message : String(error)
+        });
+        reject(error instanceof Error ? error : new Error('TURN credential exchange failed.'));
+      }
     };
     const timeout = window.setTimeout(() => {
+      logWarning('multiplayer', 'TURN credential request timed out', {
+        timeoutMs: TURN_CREDENTIAL_RESPONSE_TIMEOUT_MS
+      });
       finish(null, new Error('The host did not provide temporary TURN credentials in time.'));
     }, TURN_CREDENTIAL_RESPONSE_TIMEOUT_MS);
 

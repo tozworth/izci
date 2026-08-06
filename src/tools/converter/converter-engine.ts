@@ -5,6 +5,7 @@ import {
   type AudioCodec,
   type VideoCodec
 } from 'mediabunny';
+import { logError, logInfo } from '$lib/services/logging';
 import { MODULE_EXTENSIONS } from '$lib/types';
 import { inferExtension } from '$lib/utils/files';
 import { loadAudioFile } from '../editor/clip-audio';
@@ -101,6 +102,7 @@ function runWorker(
       if (settled) return;
       settled = true;
       finish();
+      logError('tools', 'Conversion worker failed to start');
       reject(new Error('The conversion worker failed to start.'));
     };
     worker.onmessage = (event: MessageEvent<WorkerResponse>) => {
@@ -113,6 +115,7 @@ function runWorker(
       settled = true;
       finish();
       if (response.type === 'error') {
+        logError('tools', 'Conversion failed in worker', { message: response.message });
         reject(new Error(response.message));
       } else {
         resolve(new Blob([response.buffer], { type: response.mimeType }));
@@ -130,8 +133,15 @@ export async function convertMediaFile(
 ): Promise<Blob> {
   const extension = inferExtension(file.name);
   const isModule = MODULE_EXTENSIONS.includes(extension as (typeof MODULE_EXTENSIONS)[number]);
+  logInfo('tools', 'Conversion started', {
+    name: file.name,
+    size: file.size,
+    isModule
+  });
   if (!isModule) {
-    return await runWorker({ type: 'convert-file', file, settings }, [], signal, onProgress);
+    const blob = await runWorker({ type: 'convert-file', file, settings }, [], signal, onProgress);
+    logInfo('tools', 'Conversion completed', { name: file.name, bytes: blob.size });
+    return blob;
   }
 
   const loaded = await loadAudioFile(file, (progress) => {
@@ -141,13 +151,15 @@ export async function convertMediaFile(
   const channels = Array.from({ length: loaded.buffer.numberOfChannels }, (_, channel) =>
     loaded.buffer.getChannelData(channel).slice().buffer
   );
-  return await runWorker({
+  const blob = await runWorker({
     type: 'convert-pcm',
     channels,
     sampleRate: loaded.buffer.sampleRate,
     sourceName: file.name,
     settings
   }, channels, signal, onProgress);
+  logInfo('tools', 'Conversion completed', { name: file.name, bytes: blob.size });
+  return blob;
 }
 
 export async function runConcurrent<T>(

@@ -2,6 +2,7 @@ const PUBLIC_STUN_SERVERS: RTCIceServer[] = [
   { urls: 'stun:stun.cloudflare.com:3478' },
   { urls: 'stun:stun.l.google.com:19302' }
 ];
+import { logDebug } from '$lib/services/logging';
 
 export interface MultiplayerIceSettings {
   multiplayerTurnUrl: string;
@@ -48,6 +49,10 @@ export function resolveMultiplayerConnectionRoute(
 
 export function createMultiplayerRtcConfiguration(settings: MultiplayerIceSettings): RTCConfiguration {
   const turnUrl = settings.multiplayerTurnUrl.trim();
+  logDebug('multiplayer', 'ICE configuration created', {
+    turn: turnUrl !== '',
+    forceTurn: settings.multiplayerForceTurn && turnUrl !== ''
+  });
   const turnServer: RTCIceServer[] = turnUrl
     ? [{
         urls: createTurnUrls(turnUrl),

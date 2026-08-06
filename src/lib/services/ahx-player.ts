@@ -1,4 +1,5 @@
 import { audioBusService } from '$lib/services/audio-bus';
+import { logDebug, logError, logInfo } from '$lib/services/logging';
 import {
   createHivelyPatternSong,
   type HivelyPatternData
@@ -111,6 +112,12 @@ export class HivelyPlayerService {
       subsongCount: this.#subsongCount,
       error: undefined
     });
+    logInfo('playback', 'Hively load started', {
+      id: track.id,
+      name: track.name,
+      extension: track.extension,
+      subsong: this.#subsong
+    });
 
     const context = audioBusService.context;
     const [wasm, moduleBuffer] = await Promise.all([
@@ -119,6 +126,10 @@ export class HivelyPlayerService {
       ensureWorklet(context)
     ]).then(([core, module]) => [core, module] as const);
     if (loadToken !== this.#loadToken) return;
+    logDebug('playback', 'Hively core and module loaded', {
+      wasmBytes: wasm.byteLength,
+      moduleBytes: moduleBuffer.byteLength
+    });
 
     const node = new AudioWorkletNode(context, 'izci-ahx-replay', {
       numberOfInputs: 0,
@@ -177,11 +188,16 @@ export class HivelyPlayerService {
         );
       });
     } catch (error) {
+      logError('playback', 'Hively load failed', {
+        extension: track.extension,
+        error: error instanceof Error ? error.message : String(error)
+      });
       if (loadToken === this.#loadToken) this.#disposeNode();
       throw error;
     }
 
     if (loadToken !== this.#loadToken) return;
+    logInfo('playback', 'Hively worklet initialized', { extension: track.extension });
     mediaSessionService.activateTransportAnchor();
     mediaSessionService.pauseTransportAnchor();
   }
@@ -194,6 +210,7 @@ export class HivelyPlayerService {
     this.#started = true;
     this.#onSnapshot({ state: 'playing', error: undefined });
     mediaSessionService.playTransportAnchor();
+    logInfo('playback', 'Hively playing', { subsong: this.#subsong });
   }
 
   pause(): void {
@@ -202,6 +219,7 @@ export class HivelyPlayerService {
     this.#playing = false;
     this.#onSnapshot({ state: 'paused' });
     mediaSessionService.pauseTransportAnchor();
+    logDebug('playback', 'Hively paused');
   }
 
   stop(options: StopOptions = {}): void {
@@ -216,6 +234,7 @@ export class HivelyPlayerService {
     this.#onPattern(null);
     this.#disposeNode();
     mediaSessionService.deactivateTransportAnchor();
+    logDebug('playback', 'Hively stopped');
     if (!options.silent) this.#onSnapshot({ state: 'paused', currentTime: 0, error: undefined });
   }
 
@@ -225,6 +244,7 @@ export class HivelyPlayerService {
 
   seek(seconds: number): void {
     if (!this.#node || !this.#started) return;
+    logDebug('playback', 'Hively seek', { seconds });
     this.#node.port.postMessage({ type: 'seek', seconds });
   }
 
@@ -239,6 +259,7 @@ export class HivelyPlayerService {
       subsongCount: this.#subsongCount,
       error: undefined
     });
+    logDebug('playback', 'Hively subsong stepped', { direction, subsong: this.#subsong });
     return this.#subsong;
   }
 
@@ -290,6 +311,7 @@ export class HivelyPlayerService {
     }
     if (message.type === 'ended') {
       this.#playing = false;
+      logInfo('playback', 'Hively ended', { subsong: this.#subsong });
       this.#onEnded();
       mediaSessionService.pauseTransportAnchor();
     }
@@ -308,6 +330,7 @@ export class HivelyPlayerService {
     const gain = this.#gain;
     this.#node = null;
     this.#gain = null;
+    logDebug('playback', 'Hively node disposed');
     if (node) {
       try {
         node.port.postMessage({ type: 'dispose' });

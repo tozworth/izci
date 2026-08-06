@@ -1,6 +1,7 @@
 import { getLibraryGroupIdentities } from '$lib/components/playlist-panel/library-views';
 import type { LibraryGroupViewId, PlaylistItem } from '$lib/types';
 import { getTrackIdentity } from '$lib/utils/files';
+import { logDebug, logError, logInfo } from '$lib/services/logging';
 
 export const TRACK_LIBRARY_NAVIGATION_FIELDS = [
   'artist',
@@ -43,16 +44,35 @@ function findTarget(
   acceptedLabels?: string[]
 ): TrackLibraryNavigationTarget | null {
   const normalizedLabels = acceptedLabels?.map(normalize).filter(Boolean);
-  const trackGroups = getLibraryGroupIdentities(libraryTrack, view);
+  let trackGroups: Array<{ key: string; label: string }>;
+
+  try {
+    trackGroups = getLibraryGroupIdentities(libraryTrack, view);
+  } catch (error) {
+    logError('library', 'library group identity lookup failed', {
+      view,
+      trackId: libraryTrack.id,
+      error: error instanceof Error ? error.message : String(error)
+    });
+    return null;
+  }
+
   const group = normalizedLabels
     ? normalizedLabels
         .map((label) => trackGroups.find((candidate) => normalize(candidate.label) === label))
         .find(Boolean)
     : trackGroups[0];
 
-  return group
-    ? { view, groupKey: group.key, trackId: libraryTrack.id }
-    : null;
+  if (group) {
+    logDebug('library', 'library group navigation target', {
+      view,
+      groupKey: group.key,
+      trackId: libraryTrack.id
+    });
+    return { view, groupKey: group.key, trackId: libraryTrack.id };
+  }
+
+  return null;
 }
 
 export function resolveTrackLibraryNavigationTargets(
@@ -64,6 +84,7 @@ export function resolveTrackLibraryNavigationTargets(
   const libraryTrack = findEquivalentLibraryTrack(track, libraryItems);
   if (!libraryTrack) return {};
 
+  logInfo('library', 'library navigation activated', { trackId: libraryTrack.id });
   const targets: TrackLibraryNavigationTargets = {};
   const artist = track.metadata?.artist?.trim();
   const album = track.metadata?.album?.trim();

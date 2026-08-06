@@ -3,6 +3,7 @@ import { loadModuleMetadata } from '$lib/services/module-metadata';
 import { loadTrackMetadata } from '$lib/services/stream-artwork';
 import type { PlaylistItem, TrackMetadata } from '$lib/types';
 import { mergeInferredArtistTitle } from '$lib/utils/files';
+import { logDebug, logWarning } from '$lib/services/logging';
 
 interface BackgroundDeadline {
   didTimeout: boolean;
@@ -135,6 +136,7 @@ export function scheduleMetadataParsing({
   let index = 0;
   let active = false;
   let scheduledPersist = false;
+  let batchFailureCount = 0;
 
   const resolveMetadata = async (item: PlaylistItem): Promise<TrackMetadata | null> => {
     let metadata = buildInitialMetadata(item) ?? item.metadata ?? {};
@@ -177,8 +179,24 @@ export function scheduleMetadataParsing({
       while (nextIndex < batch.length) {
         const item = batch[nextIndex];
         nextIndex += 1;
-        const metadata = await resolveMetadata(item);
-        if (metadata) results.push({ id: item.id, metadata });
+
+        try {
+          const metadata = await resolveMetadata(item);
+
+          if (metadata) {
+            logDebug('library', 'metadata parsed for item', {
+              id: item.id,
+              discoveredFields: Object.keys(metadata).sort()
+            });
+            results.push({ id: item.id, metadata });
+          }
+        } catch (error) {
+          batchFailureCount += 1;
+          logDebug('library', 'metadata parsing failed for item', {
+            id: item.id,
+            error: error instanceof Error ? error.message : String(error)
+          });
+        }
       }
     };
 
@@ -206,6 +224,8 @@ export function scheduleMetadataParsing({
     }
 
     active = true;
+    batchFailureCount = 0;
+    logDebug('library', 'metadata parsing batch started', { items: batch.length });
     void resolveBatch(batch)
       .then((updates) => {
         if (updates.length === 0) return;
@@ -222,6 +242,15 @@ export function scheduleMetadataParsing({
       })
       .finally(() => {
         active = false;
+
+        if (batchFailureCount > 0) {
+          logWarning('library', 'metadata parsing batch finished with failures', {
+            items: batch.length,
+            failures: batchFailureCount
+          });
+        } else {
+          logDebug('library', 'metadata parsing batch completed', { items: batch.length });
+        }
 
         if (index < targetItems.length) {
           scheduleBackgroundTask(processChunk);

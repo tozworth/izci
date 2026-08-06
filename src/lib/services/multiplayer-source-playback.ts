@@ -1,6 +1,7 @@
 import { get } from 'svelte/store';
 import type { Unsubscriber } from 'svelte/store';
 import { playerController } from '$lib/services/player-controller';
+import { logError, logInfo, logDebug } from '$lib/services/logging';
 import type { MultiplayerPlayback } from '$lib/services/multiplayer-protocol';
 import type { PlaybackSnapshot, PlaylistItem } from '$lib/types';
 
@@ -32,7 +33,10 @@ export class MultiplayerSourcePlaybackService {
     this.#unsubscribeEnded = playerController.snapshot.subscribe((snapshot) => {
       const ended = snapshot.state === 'ended' && this.#previousPlaybackState !== 'ended';
       this.#previousPlaybackState = snapshot.state;
-      if (ended && this.#activeTrackId) this.#onEnded?.(this.#activeTrackId);
+      if (ended && this.#activeTrackId) {
+        logInfo('freeplay', 'Source-file playback ended, auto-advancing', { trackId: this.#activeTrackId });
+        this.#onEnded?.(this.#activeTrackId);
+      }
     });
   }
 
@@ -50,7 +54,9 @@ export class MultiplayerSourcePlaybackService {
     await playerController.load(saved.track, {
       autoPlay: false,
       initialPosition: saved.snapshot.currentTime
-    }).catch(() => undefined);
+    }).catch((error) => {
+      logError('freeplay', 'Could not restore local playback after client session', { error: error instanceof Error ? error.message : String(error) });
+    });
   }
 
   /**
@@ -62,7 +68,12 @@ export class MultiplayerSourcePlaybackService {
   setLocalTimeline(active: boolean): void {
     if (this.#localTimeline === active) return;
     this.#localTimeline = active;
-    if (!active) this.#applyLatestPlayback();
+    if (active) {
+      logInfo('freeplay', 'Client became timeline owner', { trackId: this.#activeTrackId });
+    } else {
+      logDebug('freeplay', 'Local timeline released', { trackId: this.#activeTrackId });
+      this.#applyLatestPlayback();
+    }
   }
 
   setEnabled(enabled: boolean): void {
@@ -120,7 +131,8 @@ export class MultiplayerSourcePlaybackService {
           initialPosition
         });
       }
-    } catch {
+    } catch (error) {
+      logError('freeplay', 'Source file load failed', { trackId: track.id, error: error instanceof Error ? error.message : String(error) });
       if (objectUrl) URL.revokeObjectURL(objectUrl);
       if (token === this.#loadToken) this.#clearRemotePlayback();
       return false;
@@ -133,6 +145,7 @@ export class MultiplayerSourcePlaybackService {
     this.#activeTrackId = track.id;
     if (previousObjectUrl && previousObjectUrl !== objectUrl) URL.revokeObjectURL(previousObjectUrl);
     this.#applyLatestPlayback();
+    logInfo('freeplay', 'Source file received', { trackId: track.id, bytes: file.size });
     return true;
   }
 
@@ -150,6 +163,7 @@ export class MultiplayerSourcePlaybackService {
    */
   replay(): boolean {
     if (!this.#enabled || !this.#activeTrackId) return false;
+    logDebug('freeplay', 'Replay (repeat-one)', { trackId: this.#activeTrackId });
     playerController.seek(0);
     if (get(playerController.snapshot).state !== 'playing') playerController.play();
     return true;

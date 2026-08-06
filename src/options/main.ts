@@ -7,6 +7,7 @@ import { initializeTheme } from '$lib/services/theme';
 import { initializePopupWindowSizePersistence } from '$lib/services/popup-window-state';
 import { initializeScrollbarVisibility } from '$lib/services/scrollbar-visibility';
 import { initializeLocalization } from '$lib/i18n';
+import { initLogging } from '$lib/services/logging';
 import { registerAppServiceWorker } from '$lib/services/pwa-updates';
 import { initializeMobileDocument } from '../mobile/mobile-device';
 
@@ -18,6 +19,7 @@ initializeTheme();
 initializeMobileDocument();
 initializeScrollbarVisibility();
 initializeLocalization();
+initLogging();
 initializePopupWindowSizePersistence('options');
 
 mount(OptionsApp, {

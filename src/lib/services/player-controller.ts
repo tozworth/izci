@@ -2,6 +2,7 @@ import { writable } from 'svelte/store';
 import { audioBusService } from '$lib/services/audio-bus';
 import { HivelyPlayerService } from '$lib/services/ahx-player';
 import { HowlerPlayerService } from '$lib/services/howler-player';
+import { logDebug, logError, logInfo, logWarning } from '$lib/services/logging';
 import { mediaSessionService } from '$lib/services/media-session';
 import { ModulePlayerService } from '$lib/services/module-player';
 import { loadTrackMetadata } from '$lib/services/stream-artwork';
@@ -424,14 +425,31 @@ function createPlayerController() {
     options: { autoPlay?: boolean; initialPosition?: number } = {}
   ): Promise<void> {
     const requestId = ++operationSequence;
+    logInfo('playback', 'Track load requested', {
+      id: track.id,
+      name: track.name,
+      kind: track.kind,
+      autoPlay: options.autoPlay === true
+    });
     clearPrepared();
     clearOutgoing();
     desiredPlaybackState = options.autoPlay === true ? 'playing' : 'paused';
     setBundleTransitionGain(activeBundle, 1);
-    const loaded = await loadIntoBundle(activeBundle, track, options);
+    let loaded: boolean;
+    try {
+      loaded = await loadIntoBundle(activeBundle, track, options);
+    } catch (error) {
+      logError('playback', 'Track load failed', {
+        id: track.id,
+        kind: track.kind,
+        error: error instanceof Error ? error.message : String(error)
+      });
+      throw error;
+    }
     if (requestId !== operationSequence || !loaded || !activeBundle.track) return;
     currentTrack.set(activeBundle.track);
     publishActiveBundle(options.autoPlay ? 'playing' : activeBundle.snapshot.state);
+    logInfo('playback', 'Track load completed', { id: track.id, kind: track.kind });
     syncModuleTransportAnchor();
   }
 
@@ -445,6 +463,7 @@ function createPlayerController() {
     preparedBundle = bundle;
     bundle.targetTrackId = track.id;
     setBundleTransitionGain(bundle, 0);
+    logDebug('playback', 'Preparing next track', { id: track.id, name: track.name });
     bundle.readiness = (async () => {
       try {
         const loaded = await loadIntoBundle(bundle, track, { autoPlay: false });
@@ -460,17 +479,20 @@ function createPlayerController() {
       preparedBundle = null;
     }
     if (!ready) {
+      logWarning('playback', 'Prepared track load failed', { id: track.id });
       syncModuleTransportAnchor();
       return false;
     }
 
     syncModuleTransportAnchor();
+    logDebug('playback', 'Prepared track ready', { id: track.id });
     return true;
   }
 
   function commitPrepared(trackId: string, crossfadeSeconds = 0): boolean {
     if (!preparedBundle?.ready || !preparedBundle.track || preparedBundle.track.id !== trackId) return false;
     operationSequence += 1;
+    logInfo('playback', 'Prepared track committed', { id: trackId, crossfadeSeconds });
     clearOutgoing();
     const previous = activeBundle;
     const incoming = preparedBundle;
@@ -571,6 +593,7 @@ function createPlayerController() {
       setBundleTransitionGain(activeBundle, 1);
       bundleService(activeBundle)?.play();
       syncModuleTransportAnchor();
+      logInfo('playback', 'Play requested');
     },
     pause() {
       if (!activeBundle.track) return;
@@ -582,12 +605,14 @@ function createPlayerController() {
         publish({ state: 'paused', error: undefined });
       }
       syncModuleTransportAnchor();
+      logInfo('playback', 'Pause requested');
     },
     seek(seconds: number) {
       if (!activeBundle.track) return;
       clearOutgoing();
       setBundleTransitionGain(activeBundle, 1);
       bundleService(activeBundle)?.seek(seconds);
+      logDebug('playback', 'Seek requested', { seconds });
     },
     stepSubsong(direction: -1 | 1) {
       const track = activeBundle.track;
@@ -622,6 +647,7 @@ function createPlayerController() {
       destroyBundle(activeBundle);
       activeBundle = createBundle();
       currentTrack.set(null);
+      logInfo('playback', 'Playback unloaded');
       modulePattern.set({ ...initialModulePatternSnapshot });
       publish({
         ...initialSnapshot,
@@ -635,6 +661,7 @@ function createPlayerController() {
       syncModuleTransportAnchor();
     },
     reportError(message: string) {
+      logError('playback', 'Playback error reported', { message });
       publish({ state: 'error', error: message });
     },
     refreshCurrentTrackMetadata(id: string, metadata: TrackMetadata | undefined) {

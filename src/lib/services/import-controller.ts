@@ -6,6 +6,7 @@ import {
 } from '$lib/types';
 import { prepareImportedFiles } from '$lib/services/file-verification';
 import { filesystemFolders } from '$lib/services/filesystem-folders';
+import { logDebug, logError, logInfo, logWarning } from '$lib/services/logging';
 import { trackSettings } from '$lib/stores/track-settings';
 import {
   ensureFileHandleReadPermission,
@@ -106,29 +107,49 @@ export function createImportController(options: ImportControllerOptions) {
         const handles = await pickerWindow.showOpenFilePicker?.(
           createOpenFilePickerOptions(getOpenFilePickerDescription())
         );
+        if (!handles || handles.length === 0) {
+          logInfo('files', 'File picker cancelled', { target });
+        }
         // Ask for persistent read access while a user gesture is available:
         // the picker's implicit grant can lapse across reloads, and later
         // handle-only materialization (e.g. host-side Freeplay playback) has
         // no gesture to prompt with. Handles the user declines are skipped.
         const grantedHandles: FileSystemFileHandle[] = [];
         for (const handle of handles ?? []) {
-          if ((await ensureFileHandleReadPermission(handle)) === 'granted') {
+          const permission = await ensureFileHandleReadPermission(handle);
+          if (permission === 'granted') {
+            logDebug('files', 'Import handle permission granted', { name: handle.name });
             grantedHandles.push(handle);
+          } else {
+            logWarning('files', 'Import skipped — file handle permission not granted', {
+              name: handle.name,
+              permission
+            });
           }
         }
         const pickedFiles = grantedHandles.length > 0
           ? await readFileHandleFiles(grantedHandles)
           : [];
         const files = await prepareImportedFiles(pickedFiles);
+        logInfo('files', 'File import completed', {
+          target,
+          files: files.length,
+          skipped: pickedFiles.length - files.length
+        });
 
         if (files.length > 0) {
           options.addFiles(files, target);
         }
       } catch (error) {
         if (isAbortError(error)) {
+          logInfo('files', 'File picker cancelled', { target });
           return;
         }
 
+        logError('files', 'File import failed', {
+          target,
+          error: error instanceof Error ? error.message : String(error)
+        });
         throw error;
       }
     },
@@ -141,11 +162,21 @@ export function createImportController(options: ImportControllerOptions) {
 
       try {
         const directoryHandle = await pickerWindow.showDirectoryPicker?.();
-        if (directoryHandle) {
+        if (!directoryHandle) {
+          logInfo('files', 'Folder picker cancelled', { target });
+        } else {
           // Persistent read access to the directory covers its whole subtree;
           // without the explicit grant the imported file handles can lapse to
           // 'prompt' and later handle-only materialization silently fails.
-          await ensureFileHandleReadPermission(directoryHandle);
+          const permission = await ensureFileHandleReadPermission(directoryHandle);
+          if (permission === 'granted') {
+            logDebug('files', 'Folder read permission granted', { name: directoryHandle.name });
+          } else {
+            logWarning('files', 'Folder read permission not granted — imported handles may lapse', {
+              name: directoryHandle.name,
+              permission
+            });
+          }
           await filesystemFolders.remember(directoryHandle);
         }
         const discoveredFiles = directoryHandle
@@ -154,15 +185,25 @@ export function createImportController(options: ImportControllerOptions) {
             })
           : [];
         const files = await prepareImportedFiles(discoveredFiles);
+        logInfo('files', 'Folder import completed', {
+          name: directoryHandle?.name,
+          files: files.length,
+          skipped: discoveredFiles.length - files.length
+        });
 
         if (files.length > 0) {
           options.addFiles(files, target);
         }
       } catch (error) {
         if (isAbortError(error)) {
+          logInfo('files', 'Folder picker cancelled', { target });
           return;
         }
 
+        logError('files', 'Folder import failed', {
+          target,
+          error: error instanceof Error ? error.message : String(error)
+        });
         throw error;
       }
     },

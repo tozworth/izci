@@ -1,5 +1,6 @@
 import type { ChiptuneJsPlayer } from 'chiptune3';
 import { audioBusService } from '$lib/services/audio-bus';
+import { logError, logInfo, logDebug } from '$lib/services/logging';
 import { createChiptunePlayer } from '$lib/services/chiptune-loader';
 import { RafEngine } from '$lib/services/raf-engine';
 import { modulePlaybackSettings } from '$lib/stores/module-playback-settings';
@@ -134,6 +135,13 @@ export class MultiplayerFreeplayPlayer {
     const enabled = settings.enabled && !settings.sourceFile;
     const sourceFile = settings.enabled && settings.sourceFile;
     this.#sourceFile = sourceFile ? track.file : null;
+    logInfo('freeplay', 'Freeplay load started', {
+      id: track.id,
+      name: track.name,
+      source: enabled ? 'streamed' : 'source-file',
+      autoPlay,
+      initialPosition
+    });
     // Streamed-audio availability is deferred until the renderer is connected:
     // the client switches away from source-file playback (and reconnects the
     // WebRTC route) on this message, so publishing it before the renderer is
@@ -147,6 +155,7 @@ export class MultiplayerFreeplayPlayer {
         postRaf: false,
         reason: settings.enabled ? null : 'host-disabled'
       };
+      logDebug('freeplay', 'Audio availability published', { id: track.id, enabled: false, sourceFile, reason: settings.enabled ? null : 'host-disabled' });
     }
     this.#publish();
 
@@ -155,17 +164,22 @@ export class MultiplayerFreeplayPlayer {
         if (track.kind === 'module') await this.#loadModuleRenderer(track, token, settings.postRaf);
         else await this.#loadMediaRenderer(track, token, settings.postRaf);
       }
-    } catch {
+    } catch (error) {
       if (token !== this.#loadToken) return false;
+      logError('freeplay', 'Freeplay render failed', { id: track.id, error: error instanceof Error ? error.message : String(error) });
       if (enabled) this.#audio = { enabled: true, sourceFile: false, postRaf: settings.postRaf, reason: null };
       this.#snapshot = { ...this.#snapshot, state: 'error', error: 'Freeplay could not render this track.' };
       this.#publish();
       return false;
     }
 
-    if (token !== this.#loadToken) return false;
+    if (token !== this.#loadToken) {
+      logDebug('freeplay', 'Load superseded', { id: track.id });
+      return false;
+    }
     if (enabled) {
       this.#audio = { enabled: true, sourceFile: false, postRaf: settings.postRaf, reason: null };
+      logDebug('freeplay', 'Audio availability published', { id: track.id, enabled: true, sourceFile: false, reason: null });
     }
     const passive = !enabled;
     this.#snapshot = {
@@ -192,14 +206,16 @@ export class MultiplayerFreeplayPlayer {
     // Timeline-passive selections (source-file delivery, host-disabled audio) have no
     // renderer or clock; the client owns playback and the host has nothing to start.
     if (!this.#element && !this.#modulePlayer) return true;
+    logDebug('freeplay', 'Freeplay play', { id: this.#track.id });
     try {
       if (this.#element) await this.#element.play();
       else if (this.#modulePlayer) {
         if (this.#snapshot.currentTime > 0) this.#modulePlayer.seek(this.#snapshot.currentTime);
         this.#modulePlayer.unpause();
       }
-    } catch {
+    } catch (error) {
       this.#snapshot = { ...this.#snapshot, state: 'error', error: 'Freeplay audio could not start.' };
+      logError('freeplay', 'Freeplay audio could not start', { id: this.#track?.id ?? null, error: error instanceof Error ? error.message : String(error) });
       this.#publish();
       return false;
     }
@@ -212,6 +228,7 @@ export class MultiplayerFreeplayPlayer {
   pause(): boolean {
     if (!this.#track) return false;
     if (!this.#element && !this.#modulePlayer) return true;
+    logDebug('freeplay', 'Freeplay pause', { id: this.#track.id });
     const current = this.#currentSnapshot().currentTime;
     this.#element?.pause();
     this.#modulePlayer?.pause();
@@ -223,6 +240,7 @@ export class MultiplayerFreeplayPlayer {
 
   stop(): boolean {
     if (!this.#track) return false;
+    logDebug('freeplay', 'Freeplay stop', { id: this.#track.id });
     this.pause();
     this.seek(0);
     return true;
@@ -233,6 +251,7 @@ export class MultiplayerFreeplayPlayer {
     if (!this.#element && !this.#modulePlayer) return true;
     const duration = finiteDuration(this.#snapshot.duration);
     const target = Math.min(Math.max(seconds, 0), duration);
+    logDebug('freeplay', 'Freeplay seek', { id: this.#track.id, target });
     if (this.#element) this.#element.currentTime = target;
     if (this.#modulePlayer) this.#modulePlayer.seek(target);
     this.#snapshot = { ...this.#snapshot, currentTime: target };
@@ -241,6 +260,7 @@ export class MultiplayerFreeplayPlayer {
   }
 
   destroy(): void {
+    logDebug('freeplay', 'Freeplay player destroyed', { id: this.#track?.id ?? null });
     this.#loadToken += 1;
     this.#stopProgress();
     this.#disposeRenderer();
@@ -264,6 +284,7 @@ export class MultiplayerFreeplayPlayer {
     element.setAttribute('playsinline', '');
     element.volume = 1;
     const objectUrl = URL.createObjectURL(track.file!);
+    logDebug('freeplay', 'Media renderer created', { id: track.id, kind: track.kind, objectUrl });
     const source = context.createMediaElementSource(element);
     const destination = this.#ensureDestination();
 
@@ -319,6 +340,7 @@ export class MultiplayerFreeplayPlayer {
       disposeModulePlayer(player);
       return;
     }
+    logDebug('freeplay', 'Module renderer created', { id: track.id });
     const destination = this.#ensureDestination();
     this.#connectRenderer(player.gain, destination, postRaf, false);
     this.#modulePlayer = player;
@@ -342,6 +364,7 @@ export class MultiplayerFreeplayPlayer {
       if (player !== this.#modulePlayer) return;
       this.#snapshot = { ...this.#snapshot, state: 'error', error: 'Freeplay module rendering failed.' };
       this.#stopProgress();
+      logError('freeplay', 'Freeplay module rendering failed', { id: this.#track?.id ?? null });
       this.#publish();
     });
     player.play(await track.file!.arrayBuffer());
@@ -375,6 +398,7 @@ export class MultiplayerFreeplayPlayer {
     postRaf: boolean,
     bypassAutoAmp: boolean
   ): void {
+    logDebug('freeplay', 'Renderer connected', { postRaf, bypassAutoAmp });
     if (!postRaf) {
       source.connect(destination);
       return;
@@ -389,6 +413,7 @@ export class MultiplayerFreeplayPlayer {
   #handleEnded = (): void => {
     const trackId = this.#track?.id;
     if (!trackId || this.#snapshot.state === 'ended') return;
+    logInfo('freeplay', 'Freeplay track ended', { trackId });
     this.#snapshot = {
       ...this.#snapshot,
       state: 'ended',
@@ -505,8 +530,16 @@ export function createFreeplayStepResolver(
   const navigation = createPlaylistNavigation(getItems);
   return {
     reset: () => navigation.reset(),
-    resolveStep: (options) => navigation.resolveStepTrack(options),
-    resolveEnd: (options) => navigation.resolveTrackEnd(options)
+    resolveStep: (options) => {
+      const next = navigation.resolveStepTrack(options);
+      logDebug('freeplay', 'Freeplay step resolved', { direction: options.direction, currentId: options.currentId ?? null, nextId: next?.id ?? null, shuffle: options.shuffle });
+      return next;
+    },
+    resolveEnd: (options) => {
+      const next = navigation.resolveTrackEnd(options);
+      logDebug('freeplay', 'Freeplay auto-advance resolved', { currentId: options.currentId ?? null, nextId: next?.id ?? null, repeatMode: options.repeatMode });
+      return next;
+    }
   };
 }
 

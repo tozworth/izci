@@ -1,5 +1,6 @@
 import { loadEmbeddedStreamArtwork } from '$lib/services/stream-artwork';
 import type { PlaylistItem } from '$lib/types';
+import { logDebug, logInfo, logWarning } from '$lib/services/logging';
 
 export const ALBUM_ARTWORK_THUMBNAIL_SIZE = 96;
 
@@ -131,17 +132,26 @@ async function writeSourceAndRendition(
 
     if (rendition) {
       transaction.objectStore(RENDITION_STORE_NAME).put(rendition);
+      logDebug('library', 'artwork cache put', { key: rendition.key, bytes: rendition.byteSize });
     }
 
     transaction.oncomplete = () => {
       database.close();
       resolve();
     };
-    transaction.onerror = () => {
+    transaction.onerror = (event) => {
+      const targetError = (event.target as { error?: unknown } | null)?.error;
+      logWarning('library', 'artwork cache write failed', {
+        error: targetError instanceof Error ? targetError.message : String(targetError)
+      });
       database.close();
       resolve();
     };
-    transaction.onabort = () => {
+    transaction.onabort = (event) => {
+      const targetError = (event.target as { error?: unknown } | null)?.error;
+      logWarning('library', 'artwork cache write aborted', {
+        error: targetError instanceof Error ? targetError.message : String(targetError)
+      });
       database.close();
       resolve();
     };
@@ -252,6 +262,7 @@ async function pruneArtworkCache(): Promise<void> {
   const transaction = database.transaction(RENDITION_STORE_NAME, 'readwrite');
   const store = transaction.objectStore(RENDITION_STORE_NAME);
   let retainedBytes = totalBytes;
+  let evictedCount = 0;
 
   for (const record of [...records].sort((left, right) => left.lastAccessed - right.lastAccessed)) {
     if (retainedBytes <= MAX_RENDITION_BYTES) {
@@ -260,8 +271,13 @@ async function pruneArtworkCache(): Promise<void> {
 
     store.delete(record.key);
     retainedBytes -= record.byteSize;
+    evictedCount += 1;
   }
 
+  logInfo('library', 'artwork cache eviction', {
+    evicted: evictedCount,
+    freedBytes: totalBytes - retainedBytes
+  });
   transaction.oncomplete = () => database.close();
   transaction.onerror = () => database.close();
   transaction.onabort = () => database.close();
@@ -289,6 +305,7 @@ async function loadArtworkThumbnail(
 
   if (storedSource?.fingerprint === fingerprint) {
     if (!storedSource.assetId) {
+      logDebug('library', 'artwork cache hit (no artwork known)', { id: track.id });
       return null;
     }
 
@@ -298,11 +315,13 @@ async function loadArtworkThumbnail(
     );
 
     if (rendition) {
+      logDebug('library', 'artwork cache hit', { id: track.id, maxEdge });
       void touchRendition(rendition);
       return rendition;
     }
   }
 
+  logDebug('library', 'artwork cache miss', { id: track.id, maxEdge });
   const embeddedArtwork = await loadEmbeddedStreamArtwork(track);
 
   if (!embeddedArtwork) {

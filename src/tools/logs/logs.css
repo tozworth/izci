@@ -1,0 +1,218 @@
+@import '../../lib/styles/themes.css';
+@import '../../lib/styles/scrollbars.css';
+@import '../../lib/styles/app/base.css';
+@import '../../lib/styles/app/menus.css';
+@import '../tool-shell.css';
+
+html,
+body,
+#app {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+
+button,
+input {
+  font: inherit;
+}
+
+.logs-shell {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+  user-select: none;
+}
+
+.logs-level-filter {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+}
+
+.logs-toolbar-check {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 0.28rem;
+  min-height: var(--tool-control-height);
+  padding: 0 0.45rem;
+  border: 1px solid var(--border-soft);
+  border-radius: 0.28rem;
+  background: var(--bg-base);
+  color: var(--muted);
+  font-size: 0.7rem;
+  cursor: default;
+}
+
+.logs-toolbar-check input {
+  margin: 0;
+  accent-color: var(--accent-strong);
+}
+
+.logs-toolbar .material-symbols-outlined {
+  font-size: 0.95rem;
+}
+
+.logs-list {
+  min-height: 0;
+  overflow-y: auto;
+  font-family: var(--app-font-family);
+}
+
+.logs-empty {
+  padding: 2rem 1rem;
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.logs-columns-header {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+  display: grid;
+  grid-template-columns: var(--logs-template-columns);
+  column-gap: var(--logs-column-gap);
+  align-items: stretch;
+  min-height: 1.4rem;
+  padding: 0 0.5rem;
+  background: var(--bg-soft);
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.logs-column-header {
+  position: relative;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  padding: 0.08rem 0.3rem 0.07rem;
+}
+
+.logs-column-label {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--muted);
+  font-size: 0.66rem;
+  font-weight: 600;
+  letter-spacing: 0.025em;
+  text-transform: uppercase;
+}
+
+.logs-column-header.is-resizing .logs-column-label {
+  color: var(--text);
+}
+
+.logs-column-resizer {
+  position: absolute;
+  top: -1px;
+  right: calc(var(--logs-column-gap) / -2 - 6px);
+  width: 12px;
+  height: 100%;
+  min-height: calc(100% + 2px);
+  padding: 0;
+  background: transparent;
+  cursor: col-resize;
+  border: 0;
+  z-index: 5;
+}
+
+.logs-column-resizer::after {
+  content: "";
+  position: absolute;
+  top: 0.22rem;
+  bottom: 0.22rem;
+  left: 50%;
+  width: 1px;
+  transform: translateX(-50%);
+  background: var(--border-soft);
+  opacity: 1;
+  transition: opacity 120ms ease, background-color 120ms ease, box-shadow 120ms ease;
+}
+
+.logs-column-header:last-child .logs-column-resizer::after {
+  opacity: 0;
+}
+
+.logs-column-resizer:hover::after,
+.logs-column-header.is-resizing .logs-column-resizer::after {
+  opacity: 1;
+  background: var(--accent-strong);
+  box-shadow: 0 0 0 2px var(--accent-strong-faint);
+}
+
+.logs-row {
+  display: grid;
+  grid-template-columns: var(--logs-template-columns);
+  column-gap: var(--logs-column-gap);
+  align-items: baseline;
+  padding: 0.1rem 0.5rem;
+  font-size: 0.72rem;
+  line-height: 1.45;
+  user-select: text;
+}
+
+.logs-row:hover {
+  background: var(--hover-subtle);
+}
+
+.logs-cell {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.logs-time {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.logs-level {
+  font-weight: 700;
+  font-size: 0.64rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.logs-row.level-error .logs-level {
+  color: var(--danger);
+}
+
+.logs-row.level-warning .logs-level {
+  color: #e5a92f;
+}
+
+.logs-row.level-info .logs-level {
+  color: var(--text-strong);
+}
+
+.logs-row.level-debug .logs-level {
+  color: var(--muted);
+}
+
+.logs-source {
+  color: var(--muted-strong);
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.logs-window {
+  color: var(--muted);
+  font-size: 0.66rem;
+}
+
+.logs-message {
+  color: var(--text);
+  user-select: text;
+}
+
+.logs-details {
+  color: var(--muted);
+  font-size: 0.66rem;
+  user-select: text;
+}

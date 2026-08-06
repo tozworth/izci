@@ -8,6 +8,7 @@ import {
   remuxMetadataToWritable,
   type MetadataExtension
 } from '$lib/services/media-metadata';
+import { logError, logInfo } from '$lib/services/logging';
 import { inferExtension } from '$lib/utils/files';
 
 export interface ReplayGainValues {
@@ -85,11 +86,27 @@ export async function writeReplayGainInPlace(
   const file = await handle.getFile();
   const extension = inferExtension(file.name);
   if (!isMetadataExtension(extension)) throw new Error('ReplayGain writing is not supported for this file type.');
+  logInfo('tools', 'ReplayGain write started', {
+    name: file.name,
+    trackGainDb: values.trackGainDb
+  });
   const writable = await handle.createWritable({ keepExistingData: false });
-  await remuxMetadataToWritable(
-    file,
-    extension,
-    (metadata) => mergeReplayGainMetadata(metadata, values, extension),
-    writable
-  );
+  try {
+    await remuxMetadataToWritable(
+      file,
+      extension,
+      (metadata) => mergeReplayGainMetadata(metadata, values, extension),
+      writable
+    );
+    logInfo('tools', 'ReplayGain written', {
+      name: file.name,
+      trackGainDb: values.trackGainDb
+    });
+  } catch (error) {
+    logError('tools', 'ReplayGain write failed', {
+      name: file.name,
+      error: error instanceof Error ? error.message : String(error)
+    });
+    throw error;
+  }
 }

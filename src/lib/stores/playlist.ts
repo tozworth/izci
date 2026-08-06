@@ -1,4 +1,5 @@
 import { derived, writable } from 'svelte/store';
+import { logDebug, logError, logInfo } from '$lib/services/logging';
 import type {
   PlaylistItem,
   PlaylistPlaybackOptions,
@@ -135,14 +136,22 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
       persistDirty = false;
       pendingPersistDelayMs = Number.POSITIVE_INFINITY;
       persistInFlight = true;
+      logDebug('library', `[${config.dbName}] persist started`, { items: itemList.length });
       void persistStoredState(config.dbName, {
         items: itemList.map(serializeItem).filter((item): item is StoredPlaylistItem => item !== null),
         selection: selectionState,
         playbackOptions: playbackOptionsState
-      }).finally(() => {
-        persistInFlight = false;
-        if (persistDirty) queuePersist(pendingPersistDelayMs);
-      });
+      })
+        .catch((error) => {
+          logError('library', `[${config.dbName}] persist failed`, {
+            error: error instanceof Error ? error.message : String(error)
+          });
+        })
+        .finally(() => {
+          persistInFlight = false;
+          logDebug('library', `[${config.dbName}] persist completed`);
+          if (persistDirty) queuePersist(pendingPersistDelayMs);
+        });
     }, Math.max(0, requestedDueAt - Date.now()));
   }
 
@@ -207,6 +216,7 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
       })
       .finally(() => {
         hydrated = true;
+        logInfo('library', `[${config.dbName}] hydration completed`, { items: itemList.length });
         flushPendingOperations();
 
         if (shouldCompactStoredState) {
@@ -239,7 +249,17 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
         return null;
       }
 
-      const materializedItem = await materializePlaylistItem(item, options.prompt === true);
+      let materializedItem: PlaylistItem | null;
+
+      try {
+        materializedItem = await materializePlaylistItem(item, options.prompt === true);
+      } catch (error) {
+        logError('library', `[${config.dbName}] materialization failed`, {
+          id: item.id,
+          error: error instanceof Error ? error.message : String(error)
+        });
+        throw error;
+      }
 
       if (!materializedItem) {
         return null;
@@ -302,6 +322,10 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
         }
 
         addedItems = uniqueItems;
+        logInfo('library', `[${config.dbName}] addItems`, {
+          added: uniqueItems.length,
+          duplicatesDropped: duplicateItems.length
+        });
 
         if (uniqueItems.length === 0) {
           return;
@@ -340,6 +364,10 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
         }
 
         addedItems = uniqueItems;
+        logInfo('library', `[${config.dbName}] replaceAll (reset)`, {
+          removed: removedItems.length,
+          added: uniqueItems.length
+        });
         items.set(uniqueItems);
         selection.set(emptySelection);
         navigation.reset();
@@ -390,6 +418,7 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
       const previousItems = itemList;
       const idsToRemove = new Set(ids);
       const removedItems = itemList.filter((item) => idsToRemove.has(item.id));
+      logInfo('library', `[${config.dbName}] removeItems`, { removed: removedItems.length });
 
       items.update((existing) => existing.filter((item) => !idsToRemove.has(item.id)));
       selection.update((value) => removeIdsFromSelection(itemList, value, idsToRemove, previousItems));
@@ -456,6 +485,11 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
         items.update((existing) =>
           existing.map((item) => item.id === id ? { ...item, rating } : item)
         );
+        if (rating === undefined) {
+          logInfo('library', `[${config.dbName}] rating cleared`, { id });
+        } else {
+          logInfo('library', `[${config.dbName}] rating set`, { id, rating });
+        }
         queuePersist();
       });
     },
@@ -509,10 +543,12 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
     },
     toggleShuffle() {
       runOrQueue(() => {
+        const shuffle = !playbackOptionsState.shuffle;
         playbackOptions.update((value) => ({
           ...value,
-          shuffle: !value.shuffle
+          shuffle
         }));
+        logDebug('library', `[${config.dbName}] playback option changed`, { shuffle });
         navigation.reset();
         queuePersist();
       });
@@ -524,21 +560,24 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
           ...value,
           shuffle: enabled
         }));
+        logDebug('library', `[${config.dbName}] playback option changed`, { shuffle: enabled });
         navigation.reset();
         queuePersist();
       });
     },
     cycleRepeatMode() {
       runOrQueue(() => {
+        const repeatMode =
+          playbackOptionsState.repeatMode === 'off'
+            ? 'all'
+            : playbackOptionsState.repeatMode === 'all'
+              ? 'one'
+              : 'off';
         playbackOptions.update((value) => ({
           ...value,
-          repeatMode:
-            value.repeatMode === 'off'
-              ? 'all'
-              : value.repeatMode === 'all'
-                ? 'one'
-                : 'off'
+          repeatMode
         }));
+        logDebug('library', `[${config.dbName}] playback option changed`, { repeatMode });
         queuePersist();
       });
     },
@@ -609,6 +648,12 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
         .concat(addedItems);
 
       items.set(nextItems);
+      logInfo('library', `[${config.dbName}] reconcileFolder`, {
+        folderId,
+        added: addedItems.length,
+        updated: updatedItems.length,
+        removed: removedItems.length
+      });
       selection.set(removeIdsFromSelection(nextItems, selectionState, removedIds, previousItems));
       navigation.reset();
       scheduleMetadataParsing({

@@ -1,4 +1,5 @@
 import { audioBusService } from '$lib/services/audio-bus';
+import { logDebug, logError, logInfo, logWarning } from '$lib/services/logging';
 import type { PlaybackSnapshot, PlaylistItem, TrackMetadata } from '$lib/types';
 
 type SnapshotHandler = (snapshot: Partial<PlaybackSnapshot>) => void;
@@ -95,6 +96,12 @@ export class VideoPlayerService {
       duration: track.metadata?.duration ?? 0,
       error: undefined
     });
+    logInfo('playback', 'Video load started', {
+      id: track.id,
+      name: track.name,
+      extension: track.extension,
+      autoPlay: this.#autoPlay
+    });
 
     element.src = track.objectUrl;
     element.load();
@@ -125,6 +132,7 @@ export class VideoPlayerService {
     this.#initialPosition = Math.max(seconds, 0);
     const duration = Number.isFinite(element.duration) ? element.duration : Number.POSITIVE_INFINITY;
     element.currentTime = Math.min(this.#initialPosition, duration);
+    logDebug('playback', 'Video seek', { seconds: this.#initialPosition });
     this.#publishProgress();
   }
 
@@ -136,6 +144,7 @@ export class VideoPlayerService {
   setPlaybackRate(playbackRate: number, trueSpeed: boolean): void {
     this.#playbackRate = playbackRate;
     this.#trueSpeed = trueSpeed;
+    logDebug('playback', 'Video playback rate set', { playbackRate, trueSpeed });
     this.#applyPlaybackRate();
   }
 
@@ -167,6 +176,7 @@ export class VideoPlayerService {
     this.#cancelFallbackRamp();
     audioBusService.disconnect(this.#audioSource);
     this.#audioSource = null;
+    logDebug('playback', 'Video unloaded');
 
     if (!element) {
       return;
@@ -181,6 +191,7 @@ export class VideoPlayerService {
   }
 
   destroy(): void {
+    logDebug('playback', 'Video backend destroyed');
     this.unload();
     this.#element?.remove();
     this.#element = null;
@@ -209,11 +220,13 @@ export class VideoPlayerService {
       audioBusService.resume();
       this.#publishProgress();
       this.onSnapshot({ state: 'playing', error: undefined });
+      logInfo('playback', 'Video playing');
     });
     element.addEventListener('pause', () => {
       if (!this.#active || element.ended) return;
       this.#publishProgress();
       this.onSnapshot({ state: 'paused', error: undefined });
+      logDebug('playback', 'Video paused');
     });
     element.addEventListener('waiting', () => {
       if (this.#active && this.#autoPlay) {
@@ -224,11 +237,13 @@ export class VideoPlayerService {
       if (!this.#active) return;
       this.#publishProgress();
       this.onSnapshot({ state: 'ended', error: undefined });
+      logInfo('playback', 'Video ended');
       this.onEnded();
     });
     element.addEventListener('error', () => {
       if (!this.#active) return;
       const error = new Error(this.#resolveErrorMessage(element.error));
+      logError('playback', 'Video playback error', { error: error.message });
       this.onSnapshot({ state: 'error', error: error.message });
       this.#settlePendingLoad(error);
     });
@@ -264,6 +279,10 @@ export class VideoPlayerService {
     const bitrate = duration > 0 ? Math.round((this.#trackSize * 8) / duration / 1000) : undefined;
     this.onMetadata({ duration, bitrate });
     this.#settlePendingLoad();
+    logInfo('playback', 'Video loaded', {
+      duration,
+      ...(bitrate !== undefined ? { bitrate } : {})
+    });
     this.#publishProgress();
 
     if (this.#autoPlay) {
@@ -285,6 +304,9 @@ export class VideoPlayerService {
         return;
       }
 
+      logWarning('playback', 'Video play blocked by the browser', {
+        error: error instanceof Error ? error.message : String(error)
+      });
       this.onSnapshot({ state: 'error', error: error instanceof Error ? error.message : String(error) });
     });
   }

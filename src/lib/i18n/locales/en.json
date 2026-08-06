@@ -103,6 +103,7 @@
       "audioCompare": "Audio Compare...",
       "editor": "Editor...",
       "converter": "Converter...",
+      "logs": "Logs...",
       "about": "About",
       "exit": "Exit",
       "openFiles": "Open files...",
@@ -2079,5 +2080,36 @@
     "toolbar": "Spectrogram tools",
     "analyzing": "Analyzing spectrum...",
     "title": "Spectrogram"
+  },
+  "logs": {
+    "heading": "Logs",
+    "toolbar": "Log tools",
+    "levelsLabel": "Level filter",
+    "levels": {
+      "error": "Error",
+      "warning": "Warning",
+      "info": "Info",
+      "debug": "Debug"
+    },
+    "autoScroll": "Auto-scroll",
+    "copy": "Copy",
+    "copied": "Copied",
+    "clear": "Clear",
+    "exportLogs": "Export logs...",
+    "entryCount": "{count} entries",
+    "menu": {
+      "close": "Close Logs"
+    },
+    "empty": "No log entries yet.",
+    "levelFilter": "Log level",
+    "columns": {
+      "time": "Time",
+      "level": "Level",
+      "source": "Source",
+      "window": "Window",
+      "message": "Message",
+      "details": "Details",
+      "resize": "Resize {column} column"
+    }
   }
 }

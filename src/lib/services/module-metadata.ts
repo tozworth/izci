@@ -1,4 +1,5 @@
 import { createChiptunePlayer } from '$lib/services/chiptune-loader';
+import { logDebug, logInfo, logWarning } from '$lib/services/logging';
 import { HIVELY_MODULE_EXTENSIONS, type PlaylistItem, type TrackMetadata } from '$lib/types';
 import type { Chiptune3Metadata, ChiptuneJsPlayer } from 'chiptune3';
 
@@ -124,10 +125,15 @@ export async function loadModuleMetadata(track: PlaylistItem | null): Promise<Tr
     return null;
   }
 
+  logDebug('decode', 'Probing module metadata', { extension: track.extension, name: track.name });
+
   try {
     const file = await resolveTrackFile(track);
 
     if (!file) {
+      logWarning('decode', 'Module metadata probe failed — no readable file', {
+        extension: track.extension
+      });
       return null;
     }
 
@@ -138,7 +144,19 @@ export async function loadModuleMetadata(track: PlaylistItem | null): Promise<Tr
         track.extension.toLowerCase() as (typeof HIVELY_MODULE_EXTENSIONS)[number]
       )
     ) {
-      return parseHivelyMetadata(buffer);
+      const hivelyMetadata = parseHivelyMetadata(buffer);
+      if (hivelyMetadata) {
+        logInfo('decode', 'Module metadata probe completed', {
+          extension: track.extension,
+          subsongs: hivelyMetadata.subsongs,
+          channels: hivelyMetadata.channels
+        });
+      } else {
+        logWarning('decode', 'Module metadata probe failed — unreadable Hively module', {
+          extension: track.extension
+        });
+      }
+      return hivelyMetadata;
     }
 
     const player = await createChiptunePlayer({});
@@ -146,7 +164,7 @@ export async function loadModuleMetadata(track: PlaylistItem | null): Promise<Tr
     return await new Promise<TrackMetadata | null>((resolve) => {
       let settled = false;
 
-      const finish = (metadata: TrackMetadata | null) => {
+      const finish = (metadata: TrackMetadata | null, error?: unknown) => {
         if (settled) {
           return;
         }
@@ -154,29 +172,53 @@ export async function loadModuleMetadata(track: PlaylistItem | null): Promise<Tr
         settled = true;
         window.clearTimeout(timeoutId);
         disposePlayer(player);
+        if (metadata) {
+          logInfo('decode', 'Module metadata probe completed', {
+            extension: track.extension,
+            ...(metadata.subsongs !== undefined ? { subsongs: metadata.subsongs } : {}),
+            ...(metadata.channels !== undefined ? { channels: metadata.channels } : {}),
+            ...(metadata.duration !== undefined ? { duration: metadata.duration } : {})
+          });
+        } else {
+          logWarning('decode', 'Module metadata probe failed — metadata is best-effort', {
+            extension: track.extension,
+            ...(error !== undefined
+              ? {
+                  error:
+                    error instanceof Error
+                      ? error.message
+                      : String((error as { type?: unknown })?.type ?? error)
+                }
+              : {})
+          });
+        }
         resolve(metadata);
       };
 
       const timeoutId = window.setTimeout(() => {
-        finish(null);
+        finish(null, 'Module metadata probe timed out');
       }, MODULE_METADATA_TIMEOUT_MS);
 
       player.setVol(0);
       player.onMetadata((metadata) => {
         finish(toTrackMetadata(metadata));
       });
-      player.onError(() => {
-        finish(null);
+      player.onError((error) => {
+        finish(null, error);
       });
 
       try {
         player.play(buffer);
         player.pause();
-      } catch {
-        finish(null);
+      } catch (error) {
+        finish(null, error);
       }
     });
-  } catch {
+  } catch (error) {
+    logWarning('decode', 'Module metadata probe failed — metadata is best-effort', {
+      extension: track.extension,
+      error: error instanceof Error ? error.message : String(error)
+    });
     return null;
   }
 }
