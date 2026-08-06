@@ -7,7 +7,11 @@ import {
 import { prepareImportedFiles } from '$lib/services/file-verification';
 import { filesystemFolders } from '$lib/services/filesystem-folders';
 import { trackSettings } from '$lib/stores/track-settings';
-import { readDirectoryFiles, readFileHandleFiles } from '$lib/utils/files';
+import {
+  ensureFileHandleReadPermission,
+  readDirectoryFiles,
+  readFileHandleFiles
+} from '$lib/utils/files';
 
 type PickerWindow = Window &
   typeof globalThis & {
@@ -102,7 +106,19 @@ export function createImportController(options: ImportControllerOptions) {
         const handles = await pickerWindow.showOpenFilePicker?.(
           createOpenFilePickerOptions(getOpenFilePickerDescription())
         );
-        const pickedFiles = handles ? await readFileHandleFiles(handles) : [];
+        // Ask for persistent read access while a user gesture is available:
+        // the picker's implicit grant can lapse across reloads, and later
+        // handle-only materialization (e.g. host-side Freeplay playback) has
+        // no gesture to prompt with. Handles the user declines are skipped.
+        const grantedHandles: FileSystemFileHandle[] = [];
+        for (const handle of handles ?? []) {
+          if ((await ensureFileHandleReadPermission(handle)) === 'granted') {
+            grantedHandles.push(handle);
+          }
+        }
+        const pickedFiles = grantedHandles.length > 0
+          ? await readFileHandleFiles(grantedHandles)
+          : [];
         const files = await prepareImportedFiles(pickedFiles);
 
         if (files.length > 0) {
@@ -126,6 +142,10 @@ export function createImportController(options: ImportControllerOptions) {
       try {
         const directoryHandle = await pickerWindow.showDirectoryPicker?.();
         if (directoryHandle) {
+          // Persistent read access to the directory covers its whole subtree;
+          // without the explicit grant the imported file handles can lapse to
+          // 'prompt' and later handle-only materialization silently fails.
+          await ensureFileHandleReadPermission(directoryHandle);
           await filesystemFolders.remember(directoryHandle);
         }
         const discoveredFiles = directoryHandle

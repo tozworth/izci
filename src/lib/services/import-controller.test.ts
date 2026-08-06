@@ -112,4 +112,56 @@ describe('import controller', () => {
 
     expect(addFiles).not.toHaveBeenCalled();
   });
+
+  it('requests persistent read access for picked handles', async () => {
+    const pickedFile = new File(['audio'], 'Picked.opus');
+    const queryPermission = vi.fn(async () => 'prompt' as const);
+    const requestPermission = vi.fn(async () => 'granted' as const);
+    const handle = {
+      kind: 'file',
+      name: pickedFile.name,
+      getFile: async () => pickedFile,
+      queryPermission,
+      requestPermission
+    };
+    const addFiles = vi.fn();
+    const controller = createImportController({
+      addFiles,
+      clickFileInput: vi.fn(),
+      getWindow: () =>
+        pickerWindow({
+          showOpenFilePicker: async () => [handle]
+        })
+    });
+
+    await controller.openFiles('playlist');
+
+    expect(queryPermission).toHaveBeenCalledWith({ mode: 'read' });
+    expect(requestPermission).toHaveBeenCalledWith({ mode: 'read' });
+    expect(addFiles).toHaveBeenCalledWith([pickedFile], 'playlist');
+  });
+
+  it('skips picked handles whose read permission is refused', async () => {
+    const pickedFile = new File(['audio'], 'Refused.flac');
+    const handle = {
+      kind: 'file',
+      name: pickedFile.name,
+      getFile: async () => pickedFile,
+      queryPermission: async () => 'prompt' as const,
+      requestPermission: async () => 'denied' as const
+    };
+    const addFiles = vi.fn();
+    const controller = createImportController({
+      addFiles,
+      clickFileInput: vi.fn(),
+      getWindow: () =>
+        pickerWindow({
+          showOpenFilePicker: async () => [handle]
+        })
+    });
+
+    await controller.openFiles('playlist');
+
+    expect(addFiles).not.toHaveBeenCalled();
+  });
 });

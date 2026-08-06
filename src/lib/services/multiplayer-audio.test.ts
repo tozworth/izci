@@ -104,4 +104,29 @@ describe('MultiplayerAudioService', () => {
     expect(element.remove).toHaveBeenCalledTimes(1);
     expect(audioBus.connectMediaStream).toHaveBeenCalledTimes(2);
   });
+
+  it('drains the receiver without tearing the element down, then reconnects on re-attach', async () => {
+    await service.attachRemoteTrack(track, stream, () => undefined);
+    audioBus.disconnect.mockClear();
+
+    // Source-file interlude: keep the element attached and playing (muted, out
+    // of the graph) so the jitter buffer keeps advancing.
+    service.drainRemoteTrack();
+
+    expect(audioBus.disconnect).toHaveBeenCalledTimes(1);
+    expect(element.remove).toHaveBeenCalledTimes(0);
+    expect(element.pause).toHaveBeenCalledTimes(0);
+    expect(element.play).toHaveBeenCalled();
+
+    // Re-attaching the same live track reconnects the route on the SAME element:
+    // no teardown/creation churn, so the next streamed track starts clean.
+    await service.attachRemoteTrack(track, stream, () => undefined);
+    expect(element.remove).toHaveBeenCalledTimes(0);
+    expect(audioBus.connectMediaStream).toHaveBeenCalledTimes(2);
+  });
+
+  it('is a no-op when nothing is attached', () => {
+    service.drainRemoteTrack();
+    expect(audioBus.disconnect).not.toHaveBeenCalled();
+  });
 });

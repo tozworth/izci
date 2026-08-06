@@ -387,6 +387,11 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
         core.pendingClientPlaybackPreparation = message.preparation;
         sendClientPlaybackReadyIfPossible(peer);
       }
+      if (message.kind === 'ack' && !message.accepted) {
+        // Rejected commands (e.g. Freeplay activation when the host cannot read
+        // the track's file) used to be silent; surface the host's reason.
+        publish({ message: message.message ?? 'The host could not apply that command.' });
+      }
       if (message.kind === 'artwork') {
         publish({
           remoteArtwork: message.artwork,
@@ -418,7 +423,10 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
           multiplayerSourcePlaybackService.setEnabled(false);
           publish({ audioStatus: 'refused', averageAudioBitrateKbps: null });
         } else if (message.audio.sourceFile) {
-          multiplayerAudioService.clearRemoteTrack();
+          // Keep the receiver's jitter buffer draining (muted, out of the graph)
+          // instead of tearing the element down: a frozen buffer would replay the
+          // previous streamed track's tail when the next streamed track attaches.
+          multiplayerAudioService.drainRemoteTrack();
           multiplayerSourcePlaybackService.setEnabled(true);
           publish({ audioStatus: multiplayerSourcePlaybackService.active ? 'playing' : 'connecting' });
         } else if (!message.audio.enabled) {
@@ -558,7 +566,10 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
         if (!frame) return;
         if (frame.kind === 'file.begin') {
           pending = { frame, chunks: [], received: 0 };
-          multiplayerAudioService.clearRemoteTrack();
+          // Drain the WebRTC stream silently instead of clearing it: the jitter
+          // buffer must keep advancing during the source-file phase or the next
+          // streamed track replays the previous track's tail.
+          multiplayerAudioService.drainRemoteTrack();
           // Keep the current file audible until its replacement is completely received
           // and prepared. Stopping the only active media element here lets mobile
           // Chromium suspend a locked client before the remaining chunks can arrive.

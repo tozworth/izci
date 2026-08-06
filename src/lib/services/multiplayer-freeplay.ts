@@ -56,6 +56,14 @@ export class MultiplayerFreeplayPlayer {
   #element: HTMLMediaElement | null = null;
   #elementSource: MediaElementAudioSourceNode | null = null;
   #modulePlayer: ChiptuneJsPlayer | null = null;
+  /**
+   * One destination per player, not per track. Its stream track is attached to
+   * the peer's audio sender after the first streamed track and never replaced:
+   * during source-file interludes the destination emits silence, so the peer's
+   * receiver keeps a steady RTP clock instead of freezing its jitter buffer
+   * with the previous track's tail (which would replay at the next streamed
+   * track). Only `destroy()` stops the tracks.
+   */
   #destination: MediaStreamAudioDestinationNode | null = null;
   #raf: RafEngine | null = null;
   #objectUrl: string | null = null;
@@ -113,29 +121,43 @@ export class MultiplayerFreeplayPlayer {
     };
 
     const settings = this.#getAudioSettings(track);
-    this.#sourceFile = settings.enabled && settings.sourceFile ? track.file : null;
-    this.#audio = {
-      enabled: settings.enabled && !settings.sourceFile,
-      sourceFile: settings.enabled && settings.sourceFile,
-      postRaf: settings.enabled && !settings.sourceFile && settings.postRaf,
-      reason: settings.enabled ? null : 'host-disabled'
-    };
+    const enabled = settings.enabled && !settings.sourceFile;
+    const sourceFile = settings.enabled && settings.sourceFile;
+    this.#sourceFile = sourceFile ? track.file : null;
+    // Streamed-audio availability is deferred until the renderer is connected:
+    // the client switches away from source-file playback (and reconnects the
+    // WebRTC route) on this message, so publishing it before the renderer is
+    // ready would leave the client in a silence gap equal to the renderer
+    // build time (~100 ms — the "tiny glitch" before the next streamed track).
+    // Source-file and host-disabled tracks need the availability immediately.
+    if (!enabled) {
+      this.#audio = {
+        enabled: false,
+        sourceFile,
+        postRaf: false,
+        reason: settings.enabled ? null : 'host-disabled'
+      };
+    }
     this.#publish();
 
     try {
-      if (this.#audio.enabled) {
-        if (track.kind === 'module') await this.#loadModuleRenderer(track, token);
-        else await this.#loadMediaRenderer(track, token);
+      if (enabled) {
+        if (track.kind === 'module') await this.#loadModuleRenderer(track, token, settings.postRaf);
+        else await this.#loadMediaRenderer(track, token, settings.postRaf);
       }
     } catch {
       if (token !== this.#loadToken) return false;
+      if (enabled) this.#audio = { enabled: true, sourceFile: false, postRaf: settings.postRaf, reason: null };
       this.#snapshot = { ...this.#snapshot, state: 'error', error: 'Freeplay could not render this track.' };
       this.#publish();
       return false;
     }
 
     if (token !== this.#loadToken) return false;
-    const passive = !this.#audio.enabled;
+    if (enabled) {
+      this.#audio = { enabled: true, sourceFile: false, postRaf: settings.postRaf, reason: null };
+    }
+    const passive = !enabled;
     this.#snapshot = {
       ...this.#snapshot,
       state: passive ? 'idle' : 'paused',
@@ -212,13 +234,15 @@ export class MultiplayerFreeplayPlayer {
     this.#loadToken += 1;
     this.#stopProgress();
     this.#disposeRenderer();
+    for (const track of this.#destination?.stream.getTracks() ?? []) track.stop();
+    this.#destination = null;
     this.#track = null;
     this.#sourceFile = null;
     this.#audio = disabledAudioAvailability();
     this.#snapshot = { ...EMPTY_SNAPSHOT };
   }
 
-  async #loadMediaRenderer(track: PlaylistItem, token: number): Promise<void> {
+  async #loadMediaRenderer(track: PlaylistItem, token: number, postRaf: boolean): Promise<void> {
     const context = audioBusService.context;
     await audioBusService.resume();
     if (token !== this.#loadToken) return;
@@ -228,8 +252,7 @@ export class MultiplayerFreeplayPlayer {
     element.volume = 1;
     const objectUrl = URL.createObjectURL(track.file!);
     const source = context.createMediaElementSource(element);
-    const destination = context.createMediaStreamDestination();
-    destination.channelCount = 2;
+    const destination = this.#ensureDestination();
 
     await new Promise<void>((resolve, reject) => {
       const cleanup = () => {
@@ -239,14 +262,14 @@ export class MultiplayerFreeplayPlayer {
       const loaded = () => {
         cleanup();
         if (token !== this.#loadToken) {
-          disposeMediaRenderer(element, objectUrl, source, destination);
+          disposeMediaRenderer(element, objectUrl, source);
           return resolve();
         }
         // The token gate owns every instance-field assignment (mirroring the module
         // path): an older load's continuation must never republish a renderer that a
         // newer load already disposed, or the orphaned element keeps playing and its
         // object URL leaks.
-        this.#connectRenderer(source, destination, this.#audio.postRaf, track.kind === 'video');
+        this.#connectRenderer(source, destination, postRaf, track.kind === 'video');
         this.#element = element;
         this.#elementSource = source;
         this.#destination = destination;
@@ -269,7 +292,7 @@ export class MultiplayerFreeplayPlayer {
     });
   }
 
-  async #loadModuleRenderer(track: PlaylistItem, token: number): Promise<void> {
+  async #loadModuleRenderer(track: PlaylistItem, token: number, postRaf: boolean): Promise<void> {
     const context = audioBusService.context;
     await audioBusService.resume();
     const settings = modulePlaybackSettings.getSnapshot();
@@ -283,9 +306,8 @@ export class MultiplayerFreeplayPlayer {
       disposeModulePlayer(player);
       return;
     }
-    const destination = context.createMediaStreamDestination();
-    destination.channelCount = 2;
-    this.#connectRenderer(player.gain, destination, this.#audio.postRaf, false);
+    const destination = this.#ensureDestination();
+    this.#connectRenderer(player.gain, destination, postRaf, false);
     this.#modulePlayer = player;
     this.#destination = destination;
     player.setVol(1);
@@ -311,6 +333,16 @@ export class MultiplayerFreeplayPlayer {
     });
     player.play(await track.file!.arrayBuffer());
     player.pause();
+  }
+
+  #ensureDestination(): MediaStreamAudioDestinationNode {
+    const context = audioBusService.context;
+    if (!this.#destination || this.#destination.context !== context) {
+      const destination = context.createMediaStreamDestination();
+      destination.channelCount = 2;
+      this.#destination = destination;
+    }
+    return this.#destination;
   }
 
   #connectRenderer(
@@ -389,18 +421,17 @@ export class MultiplayerFreeplayPlayer {
     try {
       this.#elementSource?.disconnect();
       this.#modulePlayer?.gain.disconnect();
-      this.#destination?.disconnect();
     } catch {
       // A renderer may already have disconnected during a failed load.
     }
     if (this.#modulePlayer) disposeModulePlayer(this.#modulePlayer);
     this.#raf?.destroy();
-    for (const track of this.#destination?.stream.getTracks() ?? []) track.stop();
     if (this.#objectUrl) URL.revokeObjectURL(this.#objectUrl);
+    // The shared #destination stays live (its track keeps feeding the peer's
+    // sender with silence between streamed tracks); only destroy() stops it.
     this.#element = null;
     this.#elementSource = null;
     this.#modulePlayer = null;
-    this.#destination = null;
     this.#raf = null;
     this.#objectUrl = null;
   }
@@ -481,18 +512,18 @@ function disposeModulePlayer(player: ChiptuneJsPlayer): void {
 function disposeMediaRenderer(
   element: HTMLMediaElement,
   objectUrl: string,
-  source: MediaElementAudioSourceNode,
-  destination: MediaStreamAudioDestinationNode
+  source: MediaElementAudioSourceNode
 ): void {
   element.pause();
   element.removeAttribute('src');
   element.load();
   try {
     source.disconnect();
-    destination.disconnect();
   } catch {
     // A superseded renderer may already be partially detached.
   }
-  for (const track of destination.stream.getTracks()) track.stop();
+  // The shared player destination is deliberately left alive: stopping its
+  // tracks would end the peer's sender stream and reintroduce the frozen
+  // jitter-buffer leftover at the next streamed track.
   URL.revokeObjectURL(objectUrl);
 }

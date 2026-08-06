@@ -455,7 +455,12 @@ export function createMultiplayerHostSide(
           .then((accepted) => sendToPeer(peer, {
             kind: 'ack',
             commandId: message.command.commandId,
-            accepted
+            accepted,
+            ...(accepted ? {} : {
+              message: message.command.type === 'collection.activate'
+                ? 'The host could not play that track (file access unavailable). Re-import the track to grant the host persistent file access.'
+                : 'The host could not apply that command.'
+            })
           }))
           .catch(() => sendToPeer(peer, {
             kind: 'ack',
