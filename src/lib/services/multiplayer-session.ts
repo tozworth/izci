@@ -1,7 +1,8 @@
 import { writable } from 'svelte/store';
-import { logDebug, logInfo } from '$lib/services/logging';
+import { logDebug, logInfo, logWarning } from '$lib/services/logging';
 import type { ExperimentalSettings } from '$lib/types';
 import { experimentalSettings } from '$lib/stores/experimental-settings';
+import { multiplayerLastSession } from '$lib/stores/multiplayer-last-session';
 import { multiplayerAudioService } from './multiplayer-audio';
 import { multiplayerSourcePlaybackService } from './multiplayer-source-playback';
 import { clearPeerConnectionTimer, sendToPeer } from './multiplayer-peer';
@@ -12,6 +13,7 @@ import {
   EMPTY_CATALOG,
   EMPTY_REMOTE_PLAYBACK,
   type CreateMultiplayerSessionOptions,
+  type MultiplayerMode,
   type MultiplayerSessionController,
   type MultiplayerSessionCore,
   type MultiplayerSessionState
@@ -32,6 +34,8 @@ export function createMultiplayerSession({
     firebaseRuntime: null,
     roomRef: null,
     hostDirectoryRef: null,
+    roomCode: null,
+    clientHostId: null,
     ownPeerRef: null,
     roomDisconnect: null,
     hostDirectoryDisconnect: null,
@@ -147,6 +151,11 @@ export function createMultiplayerSession({
     core.roomRef = null;
     core.hostDirectoryRef = null;
     core.ownPeerRef = null;
+    core.roomCode = null;
+    // `clientHostId` deliberately SURVIVES the reset: reconnect attempts call
+    // resetSession, and the client needs the paired host's identity to re-resolve
+    // the host directory after the host restarts (fresh room each launch).
+    // Clearing it here strands the reconnect loop on the dead room code forever.
     core.firebaseRuntime = null;
     core.lastCatalogSources = null;
     core.lastPlaybackSource = null;
@@ -166,6 +175,40 @@ export function createMultiplayerSession({
     };
   }
   core.resetSession = resetSession;
+
+  /**
+   * Restores the persisted last multiplayer session (the "Restore last
+   * session" option). Hosting is resumed silently (same path as auto-host);
+   * a client session re-joins the remembered host silently and hands retries
+   * to the reconnect loop. Returns the restored mode, or null when there is
+   * nothing to restore or the attempt could not start.
+   */
+  async function restoreLastSession(): Promise<MultiplayerMode | null> {
+    if (core.state.mode !== 'idle') return core.state.mode;
+    const last = multiplayerLastSession.getSnapshot();
+    if (!last) return null;
+    if (last.mode === 'hosting') {
+      logInfo('multiplayer', 'Restoring last session (hosting)');
+      try {
+        await host.startHosting({ silent: true });
+        return 'hosting';
+      } catch (error) {
+        logWarning('multiplayer', 'Could not restore hosting session', {
+          error: error instanceof Error ? error.message : String(error)
+        });
+        return null;
+      }
+    }
+    try {
+      await client.restoreClientJoin(last);
+      return 'client';
+    } catch (error) {
+      logWarning('multiplayer', 'Could not restore client session', {
+        error: error instanceof Error ? error.message : String(error)
+      });
+      return null;
+    }
+  }
 
   const unsubscribeSettings = experimentalSettings.subscribe((settings: ExperimentalSettings) => {
     const audioBufferChanged = settings.multiplayerAudioBufferMs
@@ -229,8 +272,9 @@ export function createMultiplayerSession({
   return {
     subscribe: store.subscribe,
     getSnapshot: () => core.state,
-    startHosting: () => host.startHosting(),
+    startHosting: (options) => host.startHosting(options),
     stopHosting: () => host.stopHosting(),
+    restoreLastSession,
     join: (inviteCode) => client.join(inviteCode),
     joinPaired: (hostId) => client.joinPaired(hostId),
     leave: () => client.leave(),

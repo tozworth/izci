@@ -334,6 +334,8 @@ export interface ExperimentalSettings {
   multiplayer: boolean;
   izciName: string;
   multiplayerWaitForClients: boolean;
+  multiplayerAutoHost: boolean;
+  multiplayerRestoreLastSession: boolean;
   multiplayerTurnUrl: string;
   multiplayerTurnSecret: string;
   multiplayerTurnCredentialHours: number;

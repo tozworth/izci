@@ -40,6 +40,7 @@
     | 'openAbout'
     | 'install'
     | 'multiplayerHost'
+    | 'multiplayerHostWithCode'
     | 'multiplayerStopHosting'
     | 'multiplayerJoin'
     | 'multiplayerLeave'
@@ -57,6 +58,7 @@
     openAbout: void;
     install: void;
     multiplayerHost: void;
+    multiplayerHostWithCode: void;
     multiplayerStopHosting: void;
     multiplayerJoin: void;
     multiplayerJoinRecent: string;
@@ -212,13 +214,20 @@
             <span class="material-symbols-outlined" aria-hidden="true">cast_connected</span>
             <span>
               <strong>{$t('main.multiplayer.hosting', { default: 'Hosting' })}</strong>
-              {#if multiplayerInviteCode}<small>{multiplayerInviteCode}</small>{/if}
+              {#if multiplayerInviteCode}<small>{multiplayerInviteCode}</small>{:else}<small>{$t('main.multiplayer.hostingForPaired', { default: 'For paired devices' })}</small>{/if}
             </span>
           </div>
-          <button type="button" on:click={() => run('multiplayerCopyInvite')}>
-            <span class="material-symbols-outlined" aria-hidden="true">content_copy</span>
-            <span>{$t('main.multiplayer.copyInvite', { default: 'Copy invite code' })}</span>
-          </button>
+          {#if multiplayerInviteCode}
+            <button type="button" on:click={() => run('multiplayerCopyInvite')}>
+              <span class="material-symbols-outlined" aria-hidden="true">content_copy</span>
+              <span>{$t('main.multiplayer.copyInvite', { default: 'Copy invite code' })}</span>
+            </button>
+          {:else}
+            <button type="button" on:click={() => run('multiplayerHostWithCode')}>
+              <span class="material-symbols-outlined" aria-hidden="true">add_link</span>
+              <span>{$t('main.multiplayer.hostWithCode', { default: 'Host with invite code' })}</span>
+            </button>
+          {/if}
           <button type="button" on:click={() => run('multiplayerStopHosting')}>
             <span class="material-symbols-outlined" aria-hidden="true">cast_off</span>
             <span>{$t('main.multiplayer.stopHosting', { default: 'Stop hosting' })}</span>

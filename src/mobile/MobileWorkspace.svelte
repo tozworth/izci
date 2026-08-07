@@ -97,6 +97,7 @@
     openAbout: void;
     install: void;
     multiplayerHost: void;
+    multiplayerHostWithCode: void;
     multiplayerStopHosting: void;
     multiplayerJoin: void;
     multiplayerJoinRecent: string;
@@ -403,6 +404,7 @@
   on:openAbout={() => dispatch('openAbout')}
   on:install={() => dispatch('install')}
   on:multiplayerHost={() => dispatch('multiplayerHost')}
+  on:multiplayerHostWithCode={() => dispatch('multiplayerHostWithCode')}
   on:multiplayerStopHosting={() => dispatch('multiplayerStopHosting')}
   on:multiplayerJoin={() => dispatch('multiplayerJoin')}
   on:multiplayerJoinRecent={(event) => dispatch('multiplayerJoinRecent', event.detail)}

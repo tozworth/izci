@@ -2,6 +2,7 @@ import { version as appVersion } from '../../../package.json';
 import { logError, logWarning, logInfo, logDebug } from '$lib/services/logging';
 import type { PlaylistItem } from '$lib/types';
 import { materializePlaylistItem } from '$lib/stores/playlist-materialization';
+import { clearMultiplayerLastSession, rememberMultiplayerLastSession } from '$lib/stores/multiplayer-last-session';
 import { multiplayerAudioService } from './multiplayer-audio';
 import { enableOpusStereo } from './multiplayer-opus';
 import {
@@ -89,7 +90,19 @@ export function createMultiplayerHostSide(
     core.updateClient(id, patch);
   }
 
-  async function startHosting(): Promise<string> {
+  /**
+   * Starts a hosting session.
+   *
+   * `silent` is the auto-host / restore-host path: the room and host directory
+   * are published exactly as for a manual host (paired clients can join
+   * without a code), but no invite code is surfaced in the session state — the
+   * Session menu shows hosting as "for paired devices" and the "Host with
+   * invite code" action instead of a code to copy. Silent hosting also does
+   * not record a last session: the record belongs to deliberate sessions the
+   * user can stop.
+   */
+  async function startHosting(options: { silent?: boolean } = {}): Promise<string> {
+    const silent = options.silent === true;
     core.allowClientReconnect = false;
     await core.resetSession(true);
     publish({
@@ -111,6 +124,7 @@ export function createMultiplayerHostSide(
       const nextRoomRef = firebase.ref(firebase.database, `multiplayer/rooms/${inviteCode}`);
       core.firebaseRuntime = firebase;
       core.roomRef = nextRoomRef;
+      core.roomCode = inviteCode;
       const nextHostDirectoryRef = firebase.ref(
         firebase.database,
         `multiplayer/hosts/${firebase.uid}/directory`
@@ -189,11 +203,16 @@ export function createMultiplayerHostSide(
       publish({
         mode: 'hosting',
         connectionStatus: 'connected',
-        inviteCode,
+        inviteCode: silent ? null : inviteCode,
         connectionDetail: null
       });
       primeHostState();
-      logInfo('multiplayer', 'Multiplayer hosting started', { inviteCode });
+      if (silent) {
+        logInfo('multiplayer', 'Silent multiplayer hosting started (paired devices)', { inviteCode });
+      } else {
+        rememberMultiplayerLastSession('hosting', { hostName: getLocalName() });
+        logInfo('multiplayer', 'Multiplayer hosting started', { inviteCode });
+      }
       return inviteCode;
     } catch (error) {
       await core.resetSession(true);
@@ -1251,10 +1270,11 @@ export function createMultiplayerHostSide(
       removePeerFromHostPlaybackPreparation(clientId);
     }
     publish({ clients: core.state.clients.filter((client) => client.id !== clientId) });
-    if (core.firebaseRuntime && core.state.inviteCode) {
+    const roomCode = core.roomCode ?? core.state.inviteCode;
+    if (core.firebaseRuntime && roomCode) {
       await core.firebaseRuntime.remove(core.firebaseRuntime.ref(
         core.firebaseRuntime.database,
-        `multiplayer/rooms/${core.state.inviteCode}/peers/${clientId}`
+        `multiplayer/rooms/${roomCode}/peers/${clientId}`
       ));
     }
   }
@@ -1262,6 +1282,7 @@ export function createMultiplayerHostSide(
   async function stopHosting(): Promise<void> {
     if (core.state.mode !== 'hosting') return;
     core.allowClientReconnect = false;
+    clearMultiplayerLastSession();
     await core.resetSession(true);
     publish({
       mode: 'idle',

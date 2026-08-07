@@ -42,7 +42,10 @@
       "forgetPairing": "{name} ile eşleştirmeyi unut",
       "recents": "Son kullanılanlar",
       "hosting": "Sunucu",
+      "hostingForPaired": "For paired devices",
       "copyInvite": "Davet kodunu kopyala",
+      "hostWithCode": "Host with invite code",
+      "hostWithCodeHint": "Restart hosting and show a code to share",
       "stopHosting": "Sunucuyu durdur",
       "pairedClient": "{platform} · Eşleştirildi",
       "pairClient": "{platform} · Eşleştirmek için seçin",
@@ -103,12 +106,12 @@
       "audioCompare": "Audio Compare...",
       "editor": "Düzenleyici...",
       "converter": "Converter...",
-      "logs": "Günlük...",
       "about": "Hakkında",
       "exit": "Çık",
       "openFiles": "Dosya aç...",
       "openFolder": "Klasör aç...",
       "manageFolders": "Klasörleri yönet...",
+      "logs": "Günlük...",
       "forceUpdate": "Zorla güncelle",
       "playlist": "Liste",
       "library": "Kütüphane",
@@ -126,21 +129,26 @@
       "updateFailed": "güncelleme başarısız",
       "tools": "Araçlar"
     },
-    "miniPlayer": {
-      "heading": "Mini oynatıcı",
-      "nothingPlaying": "Yürütülen parça yok",
-      "ready": "Hazır",
-      "seek": "Konum"
+    "patterns": {
+      "modulePatterns": "Modül örüntüleri",
+      "channelCount": "{count, plural, one {# kanal} other {# kanal}}",
+      "playbackPosition": "Örüntü oynatım yeri",
+      "orderAbbreviation": "SIR",
+      "patternAbbreviation": "ÖRN",
+      "rowAbbreviation": "SAT",
+      "patternLabel": "Örüntü {position}",
+      "channelLabel": "Kanal {number}",
+      "channelAbbreviation": "KNL",
+      "cellDescription": "Kanal {number}: {value}",
+      "noModule": "Örüntülerini görüntülemek için bir tracker modülü oynatın.",
+      "unsupported": "Bu tracker modülü için örüntü verileri kullanılamıyor."
+    },
+    "playbackProgress": {
+      "resumedAt": "{position} konumundan devam edildi",
+      "startOver": "Baştan başlat",
+      "dismiss": "Devam iletisini kapat"
     },
     "player": {
-      "enterNowPlaying": "Şimdi Yürütülüyor'a geç",
-      "previousTrack": "Önceki parça",
-      "pausePlayback": "Oynatmayı duraklat",
-      "playPlayback": "Oynatmayı devam ettir",
-      "nextTrack": "Sonraki parça",
-      "unmute": "Sesi aç",
-      "mute": "Sesi kapat",
-      "volume": "Ses düzeyi",
       "quips": {
         "scout": "İzci aslında \"tracker\"dan daha çok \"scout\" a yakın. Ama neyse.",
         "xmplayRam": "Düşünsene: XMPlay, ama 9 GB RAM yiyor.",
@@ -174,40 +182,29 @@
       "nowPlayingControls": "Şimdi Yürütülüyor kontrolleri",
       "videoTheaterControls": "Video sineması kontrolleri",
       "showCurrentTrackDetails": "Mevcut parçanın detaylarını göster",
+      "enterNowPlaying": "Şimdi Yürütülüyor'a geç",
       "welcome": "izci'ye hoş geldin!",
       "ready": "Hazır",
       "dropFilesToBegin": "Başlamak için dosya sürükle",
+      "previousTrack": "Önceki parça",
+      "pausePlayback": "Oynatmayı duraklat",
+      "playPlayback": "Oynatmayı devam ettir",
+      "nextTrack": "Sonraki parça",
       "removeFromFavorites": "Favorilerden kaldır",
       "addToFavorites": "Favorilere ekle",
       "bypassRaf": "Raf'ı geç",
       "powerOnRaf": "Raf'ı aç",
       "bypassRafWithPresetHint": "Raf'ı geç · Önayarlar için sağ tıkla",
       "powerOnRafWithPresetHint": "Raf'ı aç · Önayarlar için sağ tıkla",
+      "unmute": "Sesi aç",
+      "mute": "Sesi kapat",
+      "volume": "Ses düzeyi",
       "playerMenu": "Player",
       "rafPresets": "Raf önayarları",
       "noRafPresets": "Raf önayarları yok",
       "openRaf": "Raf'ı aç",
       "rateTrack": "Parçayı puanla",
       "setRating": "Puanı {rating} yıldız olarak ayarla"
-    },
-    "patterns": {
-      "modulePatterns": "Modül örüntüleri",
-      "channelCount": "{count, plural, one {# kanal} other {# kanal}}",
-      "playbackPosition": "Örüntü oynatım yeri",
-      "orderAbbreviation": "SIR",
-      "patternAbbreviation": "ÖRN",
-      "rowAbbreviation": "SAT",
-      "patternLabel": "Örüntü {position}",
-      "channelLabel": "Kanal {number}",
-      "channelAbbreviation": "KNL",
-      "cellDescription": "Kanal {number}: {value}",
-      "noModule": "Örüntülerini görüntülemek için bir tracker modülü oynatın.",
-      "unsupported": "Bu tracker modülü için örüntü verileri kullanılamıyor."
-    },
-    "playbackProgress": {
-      "resumedAt": "{position} konumundan devam edildi",
-      "startOver": "Baştan başlat",
-      "dismiss": "Devam iletisini kapat"
     },
     "trackDetails": {
       "album": "Albüm",
@@ -249,13 +246,28 @@
       "seekForward": "{seconds} sn ileri",
       "seekBackward": "{seconds} sn geri",
       "playback": "Video oynatma"
+    },
+    "miniPlayer": {
+      "heading": "Mini oynatıcı",
+      "nothingPlaying": "Yürütülen parça yok",
+      "ready": "Hazır",
+      "seek": "Konum"
     }
   },
   "playlist": {
+    "title": "Liste",
     "library": {
+      "title": "Kütüphane",
+      "unknownArtist": "Bilinmeyen sanatçı",
+      "unknownAlbum": "Bilinmeyen albüm",
+      "unknownGenre": "Bilinmeyen tarz",
+      "unknownYear": "Bilinmeyen yıl",
+      "unknownFormat": "Bilinmeyen tür",
+      "unknownFolder": "Bilinmeyen klasör",
+      "trackerModule": "İzci modülü",
+      "stream": "Akış",
+      "video": "Video",
       "columns": {
-        "sortBy": "{column} sütununa göre sırala",
-        "resize": "{column} sütununu boyutlandır",
         "title": "Başlık",
         "artist": "Sanatçı",
         "album": "Albüm",
@@ -264,13 +276,35 @@
         "format": "Tür",
         "duration": "Süre",
         "rating": "Puan",
-        "plays": "Yürütme sayısı"
+        "plays": "Yürütme sayısı",
+        "sortBy": "{column} sütununa göre sırala",
+        "resize": "{column} sütununu boyutlandır"
       },
+      "summary": {
+        "filteredArtists": "{visible} sanatçıdan {total} {total, plural, one {} other {}}",
+        "filteredAlbums": "{visible} albümden {total} {total, plural, one {} other {}}",
+        "filteredGenres": "{visible} tarzdan {total} {total, plural, one {} other {}}",
+        "filteredYears": "{visible} yıldan {total} {total, plural, one {} other {}}",
+        "filteredFormats": "{visible} türden {total} {total, plural, one {} other {}}",
+        "filteredFolders": "{visible} klasörden {total} {total, plural, one {} other {}}",
+        "artists": "{count, plural, one {# sanatçı} other {# sanatçı}}",
+        "albums": "{count, plural, one {# albüm} other {# albüm}}",
+        "genres": "{count, plural, one {# tarz} other {# tarz}}",
+        "years": "{count, plural, one {# yıl} other {# yıl}}",
+        "formats": "{count, plural, one {# tür} other {# tür}}",
+        "folders": "{count, plural, one {# klasör} other {# klasör}}",
+        "groupsAndSongs": "{groups} · {songs, plural, one {# parça} other {# parça}}"
+      },
+      "unpin": "Sabitlemeyi kaldır",
+      "pinToTop": "Üste sabitle",
+      "noResults": "\"{query}\" ile eşleşen kütüphane ögesi yok.",
+      "favoritesEmpty": "Favorilenen parça ve altparçalar burada görünür.",
+      "ratingsEmpty": "Puanlanan parçalar burada görünür.",
+      "empty": "Kütüphaneniz boş. Dosya veya klasör sürükleyin.",
       "openGroup": "{group} grubunu aç",
       "collapseFolder": "{folder} klasörünü daralt",
       "expandFolder": "{folder} klasörünü genişlet",
       "unpinNamed": "{group} sabitlemesini kaldır",
-      "unpin": "Sabitlemeyi kaldır",
       "groupSongCount": "{count, plural, one {# parça} other {# parça}}",
       "views": {
         "favorites": "Favoriler",
@@ -288,47 +322,8 @@
       "closeSearch": "Kütüphane aramayı kapat",
       "backToGroups": "Gruplara geri dön",
       "back": "Geri",
-      "filter": "Kütüphaneyi filtrele",
-      "title": "Kütüphane",
-      "unknownArtist": "Bilinmeyen sanatçı",
-      "unknownAlbum": "Bilinmeyen albüm",
-      "unknownGenre": "Bilinmeyen tarz",
-      "unknownYear": "Bilinmeyen yıl",
-      "unknownFormat": "Bilinmeyen tür",
-      "unknownFolder": "Bilinmeyen klasör",
-      "trackerModule": "İzci modülü",
-      "stream": "Akış",
-      "video": "Video",
-      "summary": {
-        "filteredArtists": "{visible} sanatçıdan {total} {total, plural, one {} other {}}",
-        "filteredAlbums": "{visible} albümden {total} {total, plural, one {} other {}}",
-        "filteredGenres": "{visible} tarzdan {total} {total, plural, one {} other {}}",
-        "filteredYears": "{visible} yıldan {total} {total, plural, one {} other {}}",
-        "filteredFormats": "{visible} türden {total} {total, plural, one {} other {}}",
-        "filteredFolders": "{visible} klasörden {total} {total, plural, one {} other {}}",
-        "artists": "{count, plural, one {# sanatçı} other {# sanatçı}}",
-        "albums": "{count, plural, one {# albüm} other {# albüm}}",
-        "genres": "{count, plural, one {# tarz} other {# tarz}}",
-        "years": "{count, plural, one {# yıl} other {# yıl}}",
-        "formats": "{count, plural, one {# tür} other {# tür}}",
-        "folders": "{count, plural, one {# klasör} other {# klasör}}",
-        "groupsAndSongs": "{groups} · {songs, plural, one {# parça} other {# parça}}"
-      },
-      "pinToTop": "Üste sabitle",
-      "noResults": "\"{query}\" ile eşleşen kütüphane ögesi yok.",
-      "favoritesEmpty": "Favorilenen parça ve altparçalar burada görünür.",
-      "ratingsEmpty": "Puanlanan parçalar burada görünür.",
-      "empty": "Kütüphaneniz boş. Dosya veya klasör sürükleyin."
+      "filter": "Kütüphaneyi filtrele"
     },
-    "addFiles": "Dosya ekle",
-    "searchPlaceholder": "Ara",
-    "shuffle": {
-      "disable": "Karıştırmayı kapat",
-      "enable": "Karıştırmayı aç",
-      "on": "Karıştır açık",
-      "off": "Karıştır kapalı"
-    },
-    "title": "Liste",
     "summary": {
       "filteredTracks": "{total} parçadan {visible} {total, plural, one {görünür} other {görünür}} · {duration}",
       "tracks": "{count, plural, one {# parça} other {# parça}} · {duration}"
@@ -362,7 +357,15 @@
       "libraryGroupActions": "Kütüphane grubu eylemleri",
       "itemActions": "{panel} ögesi eylemleri"
     },
-    "listRegion": "{name} listesi"
+    "listRegion": "{name} listesi",
+    "addFiles": "Dosya ekle",
+    "searchPlaceholder": "Ara",
+    "shuffle": {
+      "disable": "Karıştırmayı kapat",
+      "enable": "Karıştırmayı aç",
+      "on": "Karıştır açık",
+      "off": "Karıştır kapalı"
+    }
   },
   "workspace": {
     "nowPlaying": {
@@ -433,6 +436,28 @@
       "hideAdvancedTweaks": "Gelişmiş ince ayarları gizle",
       "resetPage": "Geçerli sayfayı varsayılanlara sıfırla"
     },
+    "views": {
+      "appearance": "Görünüm",
+      "backdrops": "Artalanlar",
+      "nowPlaying": "Şimdi Yürütülüyor",
+      "lyrics": "Sözler",
+      "playback": "Oynatım",
+      "video": "Video",
+      "raf": "Raf",
+      "visualizer": "Görselleştirme",
+      "patterns": "Örüntüler",
+      "modules": "Modüller",
+      "loadouts": "Dizilimler",
+      "tracks": "Parçalar",
+      "folders": "Klasörler",
+      "metadata": "Metaveri",
+      "backups": "Yedekler",
+      "experimental": "Experimental",
+      "about": "Hakkında",
+      "licenses": "Lisanslar"
+    },
+    "windowTitle": "izci Ayarları",
+    "categories": "Ayar kategorileri",
     "raf": {
       "autoAmp": {
         "mode": "Otomatik",
@@ -779,6 +804,14 @@
         "waitForClients": {
           "title": "İstemcileri bekle",
           "hint": "Bir parçayı başlatmadan önce bağlı tüm dinleyicilerin aktarılan dosyayı yüklemesini veya ses akışına bağlanmasını bekler."
+        },
+        "autoHost": {
+          "title": "Always host for peers",
+          "hint": "On every izci launch, silently starts hosting so paired devices can join without a code. No invite code is shown; use Host with invite code to share one."
+        },
+        "restoreSession": {
+          "title": "Restore last session",
+          "hint": "When izci closed in the middle of a multiplayer session, reconnects to the host or resumes hosting on the next launch."
         },
         "turnUrl": {
           "title": "TURN server",
@@ -1180,14 +1213,6 @@
         "title": "İlerlemeyi hatırla",
         "hint": "En az bu uzunluktaki yarım kalmış dosyaları geri döndüğünüzde otomatik olarak kaldığı yerden sürdürür."
       },
-      "showTimeRemaining": {
-        "title": "Kalan süreyi göster",
-        "hint": "Toplam uzunluk yerine geçerli parçanın ne kadarının kaldığını gösterir."
-      },
-      "seekWheelStep": {
-        "title": "Tekerlek arama adımı",
-        "hint": "Arama çubuğu üzerinde her tekerlek çentiğinin kaç saniye aradığı."
-      },
       "startup": {
         "heading": "Başlangıç"
       },
@@ -1211,6 +1236,14 @@
       },
       "progress": {
         "heading": "İlerleme"
+      },
+      "showTimeRemaining": {
+        "title": "Kalan süreyi göster",
+        "hint": "Toplam uzunluk yerine geçerli parçanın ne kadarının kaldığını gösterir."
+      },
+      "seekWheelStep": {
+        "title": "Tekerlek arama adımı",
+        "hint": "Arama çubuğu üzerinde her tekerlek çentiğinin kaç saniye aradığı."
       },
       "volume": {
         "heading": "Ses düzeyi"
@@ -1336,29 +1369,7 @@
         "artwork": "Albüm resmini izle"
       },
       "heading": "Oynatıcı Artalanı"
-    },
-    "views": {
-      "appearance": "Görünüm",
-      "backdrops": "Artalanlar",
-      "nowPlaying": "Şimdi Yürütülüyor",
-      "lyrics": "Sözler",
-      "playback": "Oynatım",
-      "video": "Video",
-      "raf": "Raf",
-      "visualizer": "Görselleştirme",
-      "patterns": "Örüntüler",
-      "modules": "Modüller",
-      "loadouts": "Dizilimler",
-      "tracks": "Parçalar",
-      "folders": "Klasörler",
-      "metadata": "Metaveri",
-      "backups": "Yedekler",
-      "experimental": "Experimental",
-      "about": "Hakkında",
-      "licenses": "Lisanslar"
-    },
-    "windowTitle": "izci Ayarları",
-    "categories": "Ayar kategorileri"
+    }
   },
   "audioCompare": {
     "ready": "Ready to compare. Playback is limited to the overlapping duration.",
@@ -1699,6 +1710,34 @@
     "chooseOutputPrompt": "Choose an output folder before converting.",
     "selected": "selected",
     "drop": "Drop media files or folders"
+  },
+  "logs": {
+    "columns": {
+      "time": "Saat",
+      "level": "Düzey",
+      "source": "Kaynak",
+      "window": "Pencere",
+      "message": "Mesaj",
+      "details": "Ayrıntılar",
+      "resize": "{column} sütununu yeniden boyutlandır"
+    },
+    "heading": "Günlük",
+    "empty": "Henüz kayıt yok.",
+    "emptyFiltered": "Seçilen düzeylerde kayıt yok.",
+    "menu": {
+      "close": "Günlüğü kapat"
+    },
+    "exportLogs": "Günlüğü dışa aktar...",
+    "copy": "Kopyala",
+    "clear": "Temizle",
+    "autoScroll": "Otomatik kaydır",
+    "levels": {
+      "error": "Hata",
+      "warning": "Uyarı",
+      "info": "Bilgi",
+      "debug": "Hata ayıklama"
+    },
+    "entryCount": "{count} kayıt"
   },
   "loudness": {
     "cancelled": "Analysis cancelled.",
@@ -2080,33 +2119,5 @@
     "toolbar": "Spektrogram araçları",
     "analyzing": "Spektrum inceleniyor...",
     "title": "Spektrogram"
-  },
-  "logs": {
-    "heading": "Günlük",
-    "levels": {
-      "error": "Hata",
-      "warning": "Uyarı",
-      "info": "Bilgi",
-      "debug": "Hata ayıklama"
-    },
-    "autoScroll": "Otomatik kaydır",
-    "copy": "Kopyala",
-    "clear": "Temizle",
-    "exportLogs": "Günlüğü dışa aktar...",
-    "entryCount": "{count} kayıt",
-    "menu": {
-      "close": "Günlüğü kapat"
-    },
-    "empty": "Henüz kayıt yok.",
-    "emptyFiltered": "Seçilen düzeylerde kayıt yok.",
-    "columns": {
-      "time": "Saat",
-      "level": "Düzey",
-      "source": "Kaynak",
-      "window": "Pencere",
-      "message": "Mesaj",
-      "details": "Ayrıntılar",
-      "resize": "{column} sütununu yeniden boyutlandır"
-    }
   }
 }

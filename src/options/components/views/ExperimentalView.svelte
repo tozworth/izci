@@ -37,6 +37,14 @@
     experimentalSettings.update({ multiplayerWaitForClients: checked(event) });
   }
 
+  function handleAutoHostToggle(event: Event) {
+    experimentalSettings.update({ multiplayerAutoHost: checked(event) });
+  }
+
+  function handleRestoreSessionToggle(event: Event) {
+    experimentalSettings.update({ multiplayerRestoreLastSession: checked(event) });
+  }
+
   function handleStreamAudioToggle(event: Event) {
     experimentalSettings.update({ multiplayerStreamAudio: checked(event) });
   }
@@ -146,6 +154,30 @@
           type="checkbox"
           checked={$experimentalSettings.multiplayerWaitForClients}
           on:change={handleWaitForClientsToggle}
+        />
+      </SettingsField>
+      <SettingsField
+        title={$t('options.experimental.multiplayer.autoHost.title', { default: 'Always host for peers' })}
+        hint={$t('options.experimental.multiplayer.autoHost.hint', { default: 'On every izci launch, silently starts hosting so paired devices can join without a code. No invite code is shown; use Host with invite code to share one.' })}
+        checkbox
+      >
+        <input
+          type="checkbox"
+          checked={$experimentalSettings.multiplayerAutoHost}
+          disabled={!$experimentalSettings.multiplayer}
+          on:change={handleAutoHostToggle}
+        />
+      </SettingsField>
+      <SettingsField
+        title={$t('options.experimental.multiplayer.restoreSession.title', { default: 'Restore last session' })}
+        hint={$t('options.experimental.multiplayer.restoreSession.hint', { default: 'When izci closed in the middle of a multiplayer session, reconnects to the host or resumes hosting on the next launch.' })}
+        checkbox
+      >
+        <input
+          type="checkbox"
+          checked={$experimentalSettings.multiplayerRestoreLastSession}
+          disabled={!$experimentalSettings.multiplayer}
+          on:change={handleRestoreSessionToggle}
         />
       </SettingsField>
       <SettingsField

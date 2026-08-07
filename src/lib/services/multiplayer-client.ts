@@ -1,4 +1,9 @@
 import { rememberMultiplayerHost } from '$lib/stores/multiplayer-recents';
+import {
+  clearMultiplayerLastSession,
+  rememberMultiplayerLastSession,
+  type MultiplayerLastSession
+} from '$lib/stores/multiplayer-last-session';
 import { logDebug, logError, logInfo, logWarning } from '$lib/services/logging';
 import {
   forgetMultiplayerPairing,
@@ -8,7 +13,11 @@ import {
 import { multiplayerAudioService, type MultiplayerReceiverAudioStatus } from './multiplayer-audio';
 import { enableOpusStereo } from './multiplayer-opus';
 import { resolveMultiplayerConnectionRoute } from './multiplayer-ice';
-import { setMultiplayerReceiverBuffer } from './multiplayer-receiver';
+import {
+  estimateReceiverPlayoutLevelMs,
+  setMultiplayerReceiverBuffer,
+  type ReceiverPlayoutSample
+} from './multiplayer-receiver';
 import { multiplayerSourcePlaybackService } from './multiplayer-source-playback';
 import { getMultiplayerArtworkTrackKey } from './multiplayer-artwork';
 import {
@@ -81,6 +90,19 @@ const STREAMED_RETAINED_TAIL_MARGIN_MS = 250;
  */
 const STREAMED_PREROLL_BUILD_CAP_MS = 2500;
 
+/**
+ * The preroll cushion build never quite reaches `multiplayerAudioBufferMs`:
+ * NetEq's delay manager converges toward ~80-85 % of the target (measured
+ * ~620 ms at a 750 ms target) and the climb is asymptotic — the last stretch
+ * costs many seconds. So the build waits for 75 % of the target, which is
+ * reached in roughly a second, and hands off to the audible phase at ~90 % of
+ * the achievable cushion. Waiting for more trades audible seconds for a few
+ * percent of extra headroom that the delay manager would keep stretching for
+ * anyway. The plateau exit (no growth for a while at a decent level) covers
+ * pathological targets the threshold can never reach.
+ */
+const STREAMED_PREROLL_LEVEL_RATIO = 0.75;
+
 export function createMultiplayerClientSide(core: MultiplayerSessionCore): MultiplayerClientSide {
   const receiverMonitor = createReceiverBitrateMonitor({
     getState: () => core.state,
@@ -120,8 +142,16 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
     sendToPeer(peer, { kind: 'freeplay.queue', itemIds: core.state.freeplayQueue });
   }
 
-  async function join(rawInviteCode: string): Promise<void> {
-    logInfo('multiplayer', 'Client joining', { inviteCode: rawInviteCode });
+  /**
+   * Joins a host by invite code.
+   *
+   * `silent` is the restore path: failures never surface an error dialog or
+   * tear the client session down — the state publishes as "reconnecting" and
+   * the reconnect loop owns the retries (the host may simply not be up yet).
+   */
+  async function join(rawInviteCode: string, options: { silent?: boolean } = {}): Promise<void> {
+    const silent = options.silent === true;
+    logInfo('multiplayer', 'Client joining', { inviteCode: rawInviteCode, silent });
     core.allowClientReconnect = true;
     core.reconnectAttempts = 0;
     multiplayerSourcePlaybackService.beginClientSession((trackId) => {
@@ -137,12 +167,19 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
     });
     multiplayerSourcePlaybackService.setEnabled(core.state.receiveAudio);
     try {
-      await connectClient(rawInviteCode, false);
+      await connectClient(rawInviteCode, false, silent);
       if (core.state.connectionStatus !== 'connected') scheduleClientReconnect(15_000);
     } catch (error) {
       logError('multiplayer', 'Client join failed', {
         error: error instanceof Error ? error.message : String(error)
       });
+      if (silent) {
+        // Keep the retry loop alive; the source-playback session stays up so a
+        // later successful connect can resume source-file playback.
+        core.allowClientReconnect = true;
+        scheduleClientReconnect(2_000);
+        return;
+      }
       await multiplayerSourcePlaybackService.endClientSession();
       throw error;
     }
@@ -153,6 +190,7 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
       logWarning('multiplayer', 'Invalid paired host id', { hostId });
       throw new Error('That paired multiplayer host is invalid.');
     }
+    core.clientHostId = hostId;
     const firebase = await loadFirebase();
     const directory = (await firebase.get(firebase.ref(
       firebase.database,
@@ -177,7 +215,55 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
     await join(directory.currentRoom!);
   }
 
-  async function connectClient(rawInviteCode: string, reconnecting: boolean): Promise<void> {
+  /**
+   * Resolves a paired host's current room from its Firebase directory. Returns
+   * null when the host is not hosting, the protocol differs, or the reader is
+   * no longer paired (the directory is only readable by the host and its
+   * paired clients). The caller falls back to the remembered invite code.
+   */
+  async function resolveDirectoryRoomCode(hostId: string): Promise<string | null> {
+    try {
+      const firebase = core.firebaseRuntime ?? await loadFirebase();
+      const directory = (await firebase.get(firebase.ref(
+        firebase.database,
+        `multiplayer/hosts/${hostId}/directory`
+      ))).val() as {
+        currentRoom?: string;
+        protocolVersion?: number;
+      } | null;
+      if (!directory || directory.protocolVersion !== MULTIPLAYER_PROTOCOL_VERSION) return null;
+      return normalizeInviteCode(directory.currentRoom ?? '');
+    } catch (error) {
+      logDebug('multiplayer', 'Paired host directory lookup failed', {
+        error: errorMessage(error, 'directory lookup failed')
+      });
+      return null;
+    }
+  }
+
+  /**
+   * Restores a remembered client session: prefers the paired-host directory
+   * (survives a host that restarted with a fresh room), falls back to the
+   * remembered invite code, then joins silently with the reconnect loop owning
+   * retries.
+   */
+  async function restoreClientJoin(last: MultiplayerLastSession): Promise<void> {
+    const directoryRoom = last.hostId ? await resolveDirectoryRoomCode(last.hostId) : null;
+    const inviteCode = directoryRoom ?? last.inviteCode;
+    if (!inviteCode) {
+      logWarning('multiplayer', 'No restorable client session', { hasHostId: Boolean(last.hostId) });
+      throw new Error('No multiplayer session to restore.');
+    }
+    core.clientHostId = last.hostId ?? null;
+    if (directoryRoom) {
+      logInfo('multiplayer', 'Restoring client session via paired host', { hostId: last.hostId, inviteCode: directoryRoom });
+    } else {
+      logInfo('multiplayer', 'Restoring client session via invite code', { inviteCode });
+    }
+    await join(inviteCode, { silent: true });
+  }
+
+  async function connectClient(rawInviteCode: string, reconnecting: boolean, silent = false): Promise<void> {
     clearReconnectTimer();
     await core.resetSession(true);
     const inviteCode = normalizeInviteCode(rawInviteCode);
@@ -351,7 +437,7 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
         reconnecting,
         error: errorMessage(error, 'signaling failure')
       });
-      if (reconnecting && core.allowClientReconnect) {
+      if ((reconnecting || silent) && core.allowClientReconnect) {
         publish({
           mode: 'client',
           connectionStatus: 'disconnected',
@@ -392,6 +478,11 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
       if (core.state.inviteCode && core.state.hostName) {
         rememberMultiplayerHost(core.state.hostName, core.state.inviteCode);
       }
+      rememberMultiplayerLastSession('client', {
+        inviteCode: core.state.inviteCode,
+        hostId: core.clientHostId,
+        hostName: core.state.hostName
+      });
       sendToPeer(peer, {
         kind: 'hello',
         version: MULTIPLAYER_PROTOCOL_VERSION,
@@ -501,6 +592,12 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
         });
         if (message.paired) {
           rememberMultiplayerPairing(message.hostId, message.name, message.freeplayPaired);
+          core.clientHostId = message.hostId;
+          rememberMultiplayerLastSession('client', {
+            inviteCode: core.state.inviteCode,
+            hostId: message.hostId,
+            hostName: message.name
+          });
         }
         else forgetMultiplayerPairing(message.hostId);
         publish({
@@ -555,6 +652,7 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
       }
       if (message.kind === 'kicked') {
         core.allowClientReconnect = false;
+        clearMultiplayerLastSession();
         logWarning('multiplayer', 'Client kicked by host');
         multiplayerSourcePlaybackService.clearLoadedFile();
         publish({
@@ -576,6 +674,11 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
         logInfo('multiplayer', 'Host identified', { name: hostName, appVersion: message.appVersion });
         publish({ hostName, hostVersion: message.appVersion });
         if (core.state.inviteCode) rememberMultiplayerHost(hostName, core.state.inviteCode);
+        rememberMultiplayerLastSession('client', {
+          inviteCode: core.state.inviteCode,
+          hostId: core.clientHostId,
+          hostName
+        });
       }
     };
     channel.onclose = () => {
@@ -695,9 +798,13 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
     // the host stays paused until we report readiness) while NetEq holds back
     // toward the target. The host's own audio only starts flowing AFTER the
     // cushion exists, so its beginning is buffered, not stretched. Ends when
-    // the receiver's measured playout delay reaches the target (or a cap).
-    // After the tail wait the level is already at the target, so this phase
-    // ends immediately on the switch path.
+    // the receiver's measured playout level reaches ~75 % of the target (the
+    // build is asymptotic; see STREAMED_PREROLL_LEVEL_RATIO), the level stops
+    // growing, or a cap. The measured level is the DELTA between consecutive
+    // stats polls — the lifetime average (jitterBufferDelay / emittedCount)
+    // lags the build so badly it never terminates early and the wait burns
+    // its whole cap. After the tail wait the level is already at the target,
+    // so this phase ends almost immediately on the switch path.
     applyClientAudioBuffer(peer);
     multiplayerAudioService.clearRemoteTrack();
     logDebug('multiplayer', 'Remote audio preroll start (cushion build)');
@@ -707,8 +814,9 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
       statusHandler
     );
     if (!prerolled || bailIfSuperseded()) return;
+    let builtLevelMs = 0;
     if (bufferMs > 0) {
-      await waitForReceiverCushion(peer, bufferMs);
+      builtLevelMs = await waitForReceiverCushion(peer, bufferMs);
       if (bailIfSuperseded()) return;
     }
     // The cushion is in place: release the host's playback-preparation gate so
@@ -717,13 +825,22 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
     // behind it — nothing is audible yet.
     core.clientRemoteAudioReady = true;
     sendClientPlaybackReadyIfPossible(peer);
-    // Phase B — play out the cushion. The silence cushion (≈ bufferMs) plus
-    // the element's own pipeline latency must be consumed before the front of
-    // the receiver reaches the new track's beginning, so the audible start
-    // (Phase C) begins at the track's start with the full cushion in place.
+    // Phase B — play out the cushion. The silence cushion (≈ the level built
+    // in Phase A) plus the element's own pipeline latency must be consumed
+    // before the front of the receiver reaches the new track's beginning, so
+    // the audible start (Phase C) begins at the track's start with the full
+    // cushion in place. Scaling the wait to the MEASURED level (rather than
+    // always `bufferMs + margin`) is what makes switches fast — they arrive
+    // with the level already built and only the margin wait remains.
     if (bufferMs > 0) {
-      logDebug('multiplayer', 'Remote audio playing out cushion', { ms: bufferMs });
-      await new Promise((resolve) => window.setTimeout(resolve, bufferMs + STREAMED_RETAINED_TAIL_MARGIN_MS));
+      // Floor the playout wait so a level reading of 0 (first poll, or a
+      // receiver without stats) cannot collapse Phase B to nothing.
+      const playoutMs = Math.max(builtLevelMs, Math.min(bufferMs, 250));
+      logDebug('multiplayer', 'Remote audio playing out cushion', {
+        ms: Math.round(playoutMs),
+        levelMs: Math.round(builtLevelMs)
+      });
+      await new Promise((resolve) => window.setTimeout(resolve, playoutMs + STREAMED_RETAINED_TAIL_MARGIN_MS));
       if (bailIfSuperseded()) return;
     }
     // Phase C — audible. The element has been warm and the receiver is at
@@ -734,43 +851,63 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
   }
 
   /**
-   * Waits for the audio receiver's jitter-buffer level to reach the configured
-   * cushion. The level is the average per-emitted-frame delay from the
-   * receiver stats (jitterBufferDelay / jitterBufferEmittedCount), which is
-   * meaningful only while a consumer (the preroll element) is attached — that
-   * is exactly the state this runs in. Falls through on a cap so a receiver
-   * that never builds (or a paused host) cannot stall the track indefinitely.
+   * Waits for the audio receiver's jitter-buffer level to reach ~75 % of the
+   * configured cushion. The level is estimated from the DELTA between
+   * consecutive receiver stats polls (`estimateReceiverPlayoutLevelMs`), which
+   * tracks the current playout lag — the lifetime average
+   * (jitterBufferDelay / jitterBufferEmittedCount) lags the build so badly
+   * that it never reaches the threshold and the wait burns its entire cap.
+   * Meaningful only while a consumer (the preroll element) is attached — that
+   * is exactly the state this runs in. Exits early when the level stops
+   * growing at a decent size (the build is asymptotic; the last stretch costs
+   * seconds for a few percent), and falls through on a cap so a receiver that
+   * never builds (or a paused host) cannot stall the track indefinitely.
+   * Returns the level (ms) measured at the end of the wait.
    */
-  async function waitForReceiverCushion(peer: PeerConnection, bufferMs: number): Promise<void> {
+  async function waitForReceiverCushion(peer: PeerConnection, bufferMs: number): Promise<number> {
     const receiver = peer.pc.getReceivers().find(({ track }) => track.kind === 'audio');
-    if (!receiver) return;
+    if (!receiver) return 0;
     const targetMs = Math.max(0, Math.round(bufferMs));
-    const thresholdMs = Math.max(200, targetMs - 100);
+    const thresholdMs = Math.max(120, Math.round(targetMs * STREAMED_PREROLL_LEVEL_RATIO));
     const capMs = Math.min(STREAMED_PREROLL_BUILD_CAP_MS, Math.max(1000, targetMs + 500));
     const startedAt = Date.now();
+    let previous: ReceiverPlayoutSample | null = null;
+    let levelMs = 0;
+    let lastRiseAt = Date.now();
+    let levelAtRise = 0;
     while (Date.now() - startedAt < capMs) {
-      let levelMs = 0;
       try {
         const stats = await receiver.getStats();
         for (const stat of stats.values()) {
           if (stat.type !== 'inbound-rtp' || stat.kind !== 'audio') continue;
-          const { jitterBufferDelay, jitterBufferEmittedCount } = stat as unknown as {
+          const { jitterBufferDelay = 0, jitterBufferEmittedCount = 0 } = stat as unknown as {
             jitterBufferDelay?: number;
             jitterBufferEmittedCount?: number;
           };
-          if (typeof jitterBufferDelay === 'number'
-            && typeof jitterBufferEmittedCount === 'number'
-            && jitterBufferEmittedCount > 0) {
-            levelMs = (jitterBufferDelay / jitterBufferEmittedCount) * 1000;
-          }
+          const current: ReceiverPlayoutSample = {
+            delay: jitterBufferDelay,
+            emitted: jitterBufferEmittedCount
+          };
+          const deltaLevel = estimateReceiverPlayoutLevelMs(current, previous);
+          if (deltaLevel > 0) levelMs = deltaLevel;
+          previous = current;
           break;
         }
       } catch {
         // Stats are optional; keep polling.
       }
-      if (levelMs >= thresholdMs) return;
-      await new Promise((resolve) => window.setTimeout(resolve, 100));
+      if (levelMs >= thresholdMs) return levelMs;
+      // Plateau: at a decent level, a long stretch without meaningful growth
+      // means the build has converged — more waiting only burns seconds for a
+      // few percent of extra headroom.
+      if (levelMs >= 300 && Date.now() - lastRiseAt > 1200) return levelMs;
+      if (levelMs > levelAtRise + 40) {
+        levelAtRise = levelMs;
+        lastRiseAt = Date.now();
+      }
+      await new Promise((resolve) => window.setTimeout(resolve, 150));
     }
+    return levelMs;
   }
 
   function attachClientMediaChannel(peer: PeerConnection): void {
@@ -965,29 +1102,41 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
     const wait = delay ?? backoff[Math.min(core.reconnectAttempts, backoff.length - 1)];
     core.reconnectTimer = window.setTimeout(() => {
       core.reconnectTimer = null;
-      if (!core.allowClientReconnect || core.state.mode !== 'client') return;
-      core.reconnectInFlight = true;
-      core.reconnectAttempts += 1;
-      logWarning('multiplayer', 'Reconnecting to host', {
-        attempt: core.reconnectAttempts,
-        delayMs: wait
-      });
-      publish({
-        connectionStatus: 'connecting',
-        reconnecting: true,
-        audioStatus: 'connecting',
-        connectionDetail: 'Reconnecting and gathering fresh ICE candidates...',
-        message: 'Reconnecting to the host...'
-      });
-      void connectClient(inviteCode, true)
-        .then(() => {
-          core.reconnectInFlight = false;
-          if (core.state.connectionStatus !== 'connected') scheduleClientReconnect(15_000);
-        })
-        .catch(() => {
-          core.reconnectInFlight = false;
-          scheduleClientReconnect();
+      void (async () => {
+        // A paired host that restarted publishes a fresh room; re-resolve the
+        // directory so the reconnect follows the host instead of hammering a
+        // dead room. Falls back to the last known code when the directory is
+        // unavailable (host down, pairing revoked, protocol mismatch).
+        let targetCode = inviteCode;
+        if (core.clientHostId) {
+          const directoryRoom = await resolveDirectoryRoomCode(core.clientHostId);
+          if (directoryRoom) targetCode = directoryRoom;
+        }
+        if (!core.allowClientReconnect || core.state.mode !== 'client') return;
+        core.reconnectInFlight = true;
+        core.reconnectAttempts += 1;
+        logWarning('multiplayer', 'Reconnecting to host', {
+          attempt: core.reconnectAttempts,
+          delayMs: wait,
+          inviteCode: targetCode
         });
+        publish({
+          connectionStatus: 'connecting',
+          reconnecting: true,
+          audioStatus: 'connecting',
+          connectionDetail: 'Reconnecting and gathering fresh ICE candidates...',
+          message: 'Reconnecting to the host...'
+        });
+        void connectClient(targetCode, true)
+          .then(() => {
+            core.reconnectInFlight = false;
+            if (core.state.connectionStatus !== 'connected') scheduleClientReconnect(15_000);
+          })
+          .catch(() => {
+            core.reconnectInFlight = false;
+            scheduleClientReconnect();
+          });
+      })();
     }, wait);
   }
 
@@ -1053,6 +1202,7 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
     logInfo('multiplayer', 'Client leaving session');
     core.allowClientReconnect = false;
     clearReconnectTimer();
+    clearMultiplayerLastSession();
     await core.resetSession(true);
     await multiplayerSourcePlaybackService.endClientSession();
     publish({
@@ -1089,6 +1239,7 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
   return {
     join,
     joinPaired,
+    restoreClientJoin,
     leave,
     sendCommand,
     setFreeplayQueue,

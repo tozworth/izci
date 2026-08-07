@@ -47,6 +47,7 @@
     | 'toggleMiniPlayer'
     | 'toggleNowPlayingView'
     | 'multiplayerHost'
+    | 'multiplayerHostWithCode'
     | 'multiplayerStopHosting'
     | 'multiplayerJoin'
     | 'multiplayerLeave'
@@ -138,15 +139,25 @@
           {
             id: 'multiplayerStatus',
             label: $t('main.multiplayer.hosting', { default: 'Hosting' }),
-            description: multiplayerInviteCode ?? undefined,
+            description: multiplayerInviteCode
+              ?? $t('main.multiplayer.hostingForPaired', { default: 'For paired devices' }),
             icon: 'cast_connected',
             disabled: true
           },
-          {
-            id: 'multiplayerCopyInvite',
-            label: $t('main.multiplayer.copyInvite', { default: 'Copy invite code' }),
-            icon: 'content_copy'
-          },
+          ...(multiplayerInviteCode
+            ? [{
+                id: 'multiplayerCopyInvite',
+                label: $t('main.multiplayer.copyInvite', { default: 'Copy invite code' }),
+                icon: 'content_copy'
+              } satisfies MenuActionItem]
+            : [{
+                id: 'multiplayerHostWithCode',
+                label: $t('main.multiplayer.hostWithCode', { default: 'Host with invite code' }),
+                description: $t('main.multiplayer.hostWithCodeHint', {
+                  default: 'Restart hosting and show a code to share'
+                }),
+                icon: 'add_link'
+              } satisfies MenuActionItem]),
           {
             id: 'multiplayerStopHosting',
             label: $t('main.multiplayer.stopHosting', { default: 'Stop hosting' }),
@@ -469,6 +480,7 @@
     toggleMiniPlayer: void;
     toggleNowPlayingView: void;
     multiplayerHost: void;
+    multiplayerHostWithCode: void;
     multiplayerStopHosting: void;
     multiplayerJoin: void;
     multiplayerJoinRecent: string;

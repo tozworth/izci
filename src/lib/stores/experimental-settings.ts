@@ -50,6 +50,8 @@ export const DEFAULT_EXPERIMENTAL_SETTINGS: ExperimentalSettings = {
   multiplayer: false,
   izciName: defaultIzciName,
   multiplayerWaitForClients: false,
+  multiplayerAutoHost: false,
+  multiplayerRestoreLastSession: true,
   multiplayerTurnUrl: '',
   multiplayerTurnSecret: '',
   multiplayerTurnCredentialHours: 12,
@@ -91,6 +93,12 @@ export function normalizeExperimentalSettings(value: unknown): ExperimentalSetti
     multiplayerWaitForClients: typeof source.multiplayerWaitForClients === 'boolean'
       ? source.multiplayerWaitForClients
       : DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerWaitForClients,
+    multiplayerAutoHost: typeof source.multiplayerAutoHost === 'boolean'
+      ? source.multiplayerAutoHost
+      : DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerAutoHost,
+    multiplayerRestoreLastSession: typeof source.multiplayerRestoreLastSession === 'boolean'
+      ? source.multiplayerRestoreLastSession
+      : DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerRestoreLastSession,
     multiplayerTurnUrl: normalizeMultiplayerTurnUrl(source.multiplayerTurnUrl),
     multiplayerTurnSecret: normalizeSingleLine(
       source.multiplayerTurnSecret,

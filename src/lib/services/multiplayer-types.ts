@@ -26,10 +26,8 @@ import {
 import type { MultiplayerReceiverAudioStatus } from './multiplayer-audio';
 import type { MultiplayerConnectionRoute } from './multiplayer-ice';
 import type { MultiplayerFreeplayPlayer, FreeplayStepResolver } from './multiplayer-freeplay';
-import type {
-  MultiplayerTurnCredentialRequest,
-  MultiplayerTurnCredentialResponse
-} from './multiplayer-turn-credentials';
+import type { MultiplayerTurnCredentialRequest, MultiplayerTurnCredentialResponse } from './multiplayer-turn-credentials';
+import type { MultiplayerLastSession } from '$lib/stores/multiplayer-last-session';
 
 export type MultiplayerMode = 'idle' | 'hosting' | 'client';
 export type MultiplayerConnectionStatus = 'idle' | 'connecting' | 'connected' | 'disconnected' | 'error';
@@ -246,10 +244,18 @@ export interface CreateMultiplayerSessionOptions {
 
 export interface MultiplayerSessionController extends Readable<MultiplayerSessionState> {
   getSnapshot(): MultiplayerSessionState;
-  startHosting(): Promise<string>;
+  startHosting(options?: { silent?: boolean }): Promise<string>;
   stopHosting(): Promise<void>;
   join(inviteCode: string): Promise<void>;
   joinPaired(hostId: string): Promise<void>;
+  /**
+   * Restores the persisted last multiplayer session (see the "Restore last
+   * session" option): hosting is resumed silently, a client session re-joins
+   * the remembered host without a dialog and hands off to the reconnect loop.
+   * Returns the mode that was restored, or 'idle' when there was nothing to
+   * restore (or the restore attempt could not start).
+   */
+  restoreLastSession(): Promise<MultiplayerMode | null>;
   leave(): Promise<void>;
   kick(clientId: string): Promise<void>;
   togglePairing(clientId: string): Promise<void>;
@@ -275,6 +281,18 @@ export interface MultiplayerSessionCore {
   roomRef: DatabaseReference | null;
   hostDirectoryRef: DatabaseReference | null;
   ownPeerRef: DatabaseReference | null;
+  /**
+   * The hosting room's invite code. `state.inviteCode` may be null for a
+   * silent (auto-host) session, but the room itself always has a code — this
+   * is what paired clients resolve from the host directory.
+   */
+  roomCode: string | null;
+  /**
+   * The host uid this client joined (learned from pairing). When set, client
+   * reconnects re-resolve the host directory for the current room, so a host
+   * that restarted with a new room can still be rejoined without a code.
+   */
+  clientHostId: string | null;
   roomDisconnect: OnDisconnect | null;
   hostDirectoryDisconnect: OnDisconnect | null;
   peerDisconnect: OnDisconnect | null;
@@ -320,7 +338,7 @@ export interface MultiplayerSessionCore {
 }
 
 export interface MultiplayerHostSide {
-  startHosting(): Promise<string>;
+  startHosting(options?: { silent?: boolean }): Promise<string>;
   stopHosting(): Promise<void>;
   kick(clientId: string): Promise<void>;
   togglePairing(clientId: string): Promise<void>;
@@ -335,8 +353,14 @@ export interface MultiplayerHostSide {
 }
 
 export interface MultiplayerClientSide {
-  join(inviteCode: string): Promise<void>;
+  join(inviteCode: string, options?: { silent?: boolean }): Promise<void>;
   joinPaired(hostId: string): Promise<void>;
+  /**
+   * Restores a remembered client session: resolves the host's current room
+   * (directory lookup when the host id is known, otherwise the remembered
+   * invite code) and joins silently, letting the reconnect loop own retries.
+   */
+  restoreClientJoin(last: MultiplayerLastSession): Promise<void>;
   leave(): Promise<void>;
   sendCommand(command: MultiplayerCommandInput): boolean;
   setFreeplayQueue(itemIds: string[]): void;

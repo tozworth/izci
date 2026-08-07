@@ -62,6 +62,7 @@
   } from '$lib/services/playback-progress';
   import { createPlaybackRestorationController } from '$lib/services/playback-restoration';
   import { forceServiceWorkerUpdateCheck } from '$lib/services/pwa-updates';
+  import { logError } from '$lib/services/logging';
   import { createWorkspaceShellController } from '$lib/services/workspace-shell';
   import { mediaSessionService } from '$lib/services/media-session';
   import { createPlayCountTracker } from '$lib/services/play-count';
@@ -838,6 +839,7 @@
     localCollectionsReady = true;
     void scanLaunchLibraryFolders();
     await playbackRestoration.restore();
+    void startLaunchMultiplayer();
   });
   const unsubscribePlaylistSelectedIds = playlistSelectedIdsStore.subscribe(
     (value) => (localPlaylistSelectionIds = value)
@@ -1796,6 +1798,36 @@
     }
   }
 
+  /**
+   * Launch-time multiplayer: restores the last session ("Restore last
+   * session", checked by default) and, when nothing client-side was restored,
+   * silently starts hosting for paired devices ("Always host for peers").
+   * Everything here is deliberately quiet: no connection dialog, and client
+   * failures hand off to the reconnect loop instead of surfacing an error.
+   */
+  async function startLaunchMultiplayer(): Promise<void> {
+    const settings = experimentalSettings.getSnapshot();
+    if (!settings.multiplayer) return;
+    if (settings.multiplayerRestoreLastSession) {
+      const restored = await multiplayerSession.restoreLastSession().catch(() => null);
+      if (restored === 'client') {
+        // A client session takes over the player; local playback must not
+        // keep running underneath the remote session.
+        playerController.pause();
+        return;
+      }
+      if (restored === 'hosting') return;
+    }
+    if (!settings.multiplayerAutoHost) return;
+    try {
+      await multiplayerSession.startHosting({ silent: true });
+    } catch (error) {
+      logError('multiplayer', 'Could not auto-start hosting', {
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  }
+
   async function handleMultiplayerJoin(): Promise<void> {
     const inviteCode = window.prompt(
       $t('main.multiplayer.enterInvite', { default: 'Enter the host invite code' })
@@ -2082,6 +2114,7 @@
     on:toggleMiniPlayer={() => miniPlayer.toggle()}
     on:toggleNowPlayingView={toggleNowPlayingView}
     on:multiplayerHost={() => void handleMultiplayerHost()}
+    on:multiplayerHostWithCode={() => void handleMultiplayerHost()}
     on:multiplayerStopHosting={() => void multiplayerSession.stopHosting()}
     on:multiplayerJoin={() => void handleMultiplayerJoin()}
     on:multiplayerJoinRecent={(event) => void joinMultiplayer(event.detail)}
@@ -2157,6 +2190,7 @@
     on:openAbout={handleOpenAbout}
     on:install={() => void appInstallService.prompt()}
     on:multiplayerHost={() => void handleMultiplayerHost()}
+    on:multiplayerHostWithCode={() => void handleMultiplayerHost()}
     on:multiplayerStopHosting={() => void multiplayerSession.stopHosting()}
     on:multiplayerJoin={() => void handleMultiplayerJoin()}
     on:multiplayerJoinRecent={(event) => void joinMultiplayer(event.detail)}
