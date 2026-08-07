@@ -215,15 +215,75 @@ Phase B (~1 s) — the "more waiting" the user explicitly accepted, in exchange
 for a stutter/slowdown-free start from the first sample. `multiplayerAudioBufferMs`
 scales the cushion and Phase B.
 
+**REVISED 2026-08-07 — real-network regression: "nothing for the first 3 s,
+then it slowly stutters to life" (persisted after the delta-estimator commit).**
+
+User report over mobile data / tailscale (does NOT reproduce on the two-window
+localhost rig): every streamed track load looked instant in the UI but the
+audio started after ~3 s of silence, warped/stuttered for a bit, then played
+fine. Root cause: the preroll's Phase A exits were all single-sample and
+optimistic, and the fast-poll cap was tight — all tuned on the localhost rig
+where the level build is fast and clean:
+
+- `waitForReceiverCushion` trusted ONE delta reading: a network burst
+  inflating a single poll crossed the threshold and ended the build early;
+  the plateau exit fired at an absolute 300 ms level — 40 % of the default
+  750 ms target, and far less on jitter where the reading wobbles.
+- The cap was `min(2500, target + 500)` = **1.25 s at the default 750 ms
+  target** — on a jittery link the build spends that window climbing through
+  the 200-300 ms range and the cap then FORCED the route at that level.
+- The route therefore connected with the level far below the target, and
+  NetEq's delay manager kept stretching the now-AUDIBLE stream toward the
+  target: deeply stretched audio is nearly silent (the "first 3 seconds of
+  nothing"), then the warp decays into audibility ("slowly stutters to
+  life", "plays fine afterwards"). The localhost rig routed at ~400 ms and
+  the residual was small enough to miss; real networks expose the early
+  exits and the cap.
+
+Fix (client `multiplayer-client.ts` + new `ReceiverCushionTracker` in
+`multiplayer-receiver.ts`, 14 receiver tests + 86 total green, check + build):
+
+- **Median smoothing**: the tracker keeps the last 5 delta readings and all
+  decisions use the median — a single spike or dip can no longer end the
+  build (before, one inflated reading could route with a fraction of what it
+  suggested).
+- **Stability-gated exits**: the STABLE exit requires 3 CONSECUTIVE samples
+  at/above `max(floor, 0.75 × target)`; the PLATEAU exit requires the level
+  to stay at/above a target-scaled floor for 1.2 s without meaningful growth
+  (dropping below the floor or climbing restarts the window). The floor is
+  `max(400, 0.55 × target)` capped at the achievable asymptote (~0.85 ×
+  target) so small targets stay reachable — at the default 750 ms target the
+  floor is ~412 ms (vs the old absolute 300 ms, which at a 2000 ms target
+  was 15 % of the configured cushion).
+- **The cap can no longer force a sub-floor route**: the fast-poll window
+  scales with the target (≥ 2.5 s) and a slow-poll extension (+ 3 s) keeps
+  polling for a genuinely slow build. The total budget (~5.5 s at default)
+  is the last resort for a link that cannot sustain real-time audio at all;
+  a slow-but-working link gets the extra time to finish building.
+- **Phase B floor raised 250 → 350 ms** when the build returned no level data
+  at all (no receiver/stats) — routing with zero evidence of a cushion was a
+  guaranteed deep stretch.
+- New one-shot log `Remote audio cushion built {levelMs, reason}` (stable /
+  plateau / budget) so the user's Help > Logs reports show WHICH exit fired
+  on their real network.
+
+Expected cost change: the first streamed track's silence grows from ~2.2 s to
+~3.5-4.5 s on real links (the median lag + plateau window + the floor), and
+switches likewise, in exchange for an audible start that no longer warps. This
+is the trade the user asked for ("comprehensive fix"); if the residual
+post-route stretch is still audible at the floor, raise
+`STREAMED_PREROLL_FLOOR_RATIO` toward the 0.85 asymptote cap.
+
 ## Shared multiplayer
 
 - Keep `syncPeerSourceFile` key-guarded (`sourceTrackKey`) — it's correctly a no-op across 250 ms progress publishes, including in Freeplay. Don't "optimize" it into per-tick re-uploads.
 
 ## Verification
 
-- `npx vitest run src/lib/services/multiplayer-*` — 75 passed, 7 skipped (Freeplay navigation: history-Prev, no-repeat-until-exhausted, repeat-all wrap, session reset, end-of-collection stop; protocol: `state` message validation).
+- `npx vitest run src/lib/services/multiplayer-*` — 86 passed, 7 skipped (Freeplay navigation: history-Prev, no-repeat-until-exhausted, repeat-all wrap, session reset, end-of-collection stop; protocol: `state` message validation). Receiver suite includes 14 tests for `ReceiverCushionTracker` (median smoothing, stability-gated stable/plateau exits, window restarts).
 - `npm run check` — 0 errors, 0 warnings.
 - `npm run build` — clean (protocol 15 synced into database.rules.json by the prebuild script).
-- Painpoint #13 (start stutter/slowdown): unit/check/build green; live two-instance verification pending — expected: every streamed track starts after a silence pre-roll (first track ~1.5–2.25 s, switches ~1.5–2 s) and is clean from the first audible sample; no slowdown, no skipped intro, no old-track replay; host stays paused until the client's readiness.
-- Live CDP verification (2026-08-06, client on Protocol v15): A→B→C streamed-transferred-streamed verified clean; #12 (direct streamed→streamed A→C→A glitch) — attempt 1 (drain+flush at loading) did NOT fix it: `jitterBufferTarget = 0` does not discard retained audio. Attempt 2 (drain at loading + attach waits `bufferMs − elapsed`) inverted the symptom to a short residual C blip — the retained tail is `bufferMs` PLUS the element's pipeline latency (~150 ms), so the wait under-estimated. Final fix: wait adds `STREAMED_RETAINED_TAIL_MARGIN_MS = 250`. Rig re-run needed — expected: C stops instantly on tap A, ~buffer+margin ms of silence, then A from its start (no C at all).
+- Live real-network verification (mobile data / tailscale) is the user's; the `Remote audio cushion built {levelMs, reason}` debug log in Help > Logs reports which Phase A exit fired per track.
+- Painpoint #13 (start stutter/slowdown): two-instance localhost rig verified the preroll (first streamed track routes at ~2.2 s, clean onset, no skipped intro) after the delta-estimator commit; the 2026-08-07 real-network regression (route below the cushion → audible NetEq stretch) is fixed by the `ReceiverCushionTracker` hardening above and awaits the user's mobile-data/tailscale test.
+- Live CDP verification (2026-08-06, client on Protocol v15): A→B→C streamed-transferred-streamed verified clean; #12 (direct streamed→streamed A→C→A glitch) — attempt 1 (drain+flush at loading) did NOT fix it: `jitterBufferTarget = 0` does not discard retained audio. Attempt 2 (drain at loading + attach waits `bufferMs − elapsed`) inverted the symptom to a short residual C blip — the retained tail is `bufferMs` PLUS the element's pipeline latency (~150 ms), so the wait under-estimated. Final fix: wait adds `STREAMED_RETAINED_TAIL_MARGIN_MS = 250`; verified clean on the rig.
 

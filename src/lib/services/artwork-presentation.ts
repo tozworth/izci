@@ -348,12 +348,17 @@ export function createArtworkPresentationController({
       }
 
       if (selectedItem && state.detailsDisplayTrack?.id === selectedItem.id) {
-        // Refresh the displayed track only when the selection carries a newer
-        // object (e.g. metadata edited). The same reference means nothing
-        // changed; republishing would churn the reactive graph (resize storms
-        // re-sync the workspace shell, which re-runs this with an identical
-        // item) and cascade into expensive recomputations downstream.
-        if (state.detailsDisplayTrack !== selectedItem) {
+        // Refresh the displayed track only when the selection carries newer
+        // content (e.g. metadata edited). A different object with identical
+        // metadata — remote catalog replaces hand the client a fresh item
+        // with the same id and unchanged fields — is not a change; the
+        // reference check alone would republish on every such replace and
+        // cascade reactive recomputes downstream (library navigation target
+        // resolution spam on multiplayer clients).
+        if (
+          state.detailsDisplayTrack !== selectedItem
+          && !hasSameTrackMetadata(state.detailsDisplayTrack, selectedItem)
+        ) {
           state = { ...state, detailsDisplayTrack: selectedItem };
           publishState();
         }

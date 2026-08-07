@@ -14,6 +14,7 @@ import { multiplayerAudioService, type MultiplayerReceiverAudioStatus } from './
 import { enableOpusStereo } from './multiplayer-opus';
 import { resolveMultiplayerConnectionRoute } from './multiplayer-ice';
 import {
+  ReceiverCushionTracker,
   estimateReceiverPlayoutLevelMs,
   setMultiplayerReceiverBuffer,
   type ReceiverPlayoutSample
@@ -82,26 +83,66 @@ const STREAMED_RETAINED_TAIL_MARGIN_MS = 250;
 
 /**
  * Cap for the preroll cushion build (Phase A in `attachClientRemoteAudio`):
- * the time we wait for the receiver's jitter-buffer level to reach the
- * configured target while the muted preroll element consumes. The build is
- * polled against receiver stats and normally ends at ~`multiplayerAudioBufferMs`
- * of wall time; the cap keeps a slow-to-build receiver from stalling the
- * track for many seconds.
+ * the fast-poll window while the receiver's jitter-buffer level climbs toward
+ * the configured target. The window scales with the target (a 750 ms cushion
+ * reaches its floor in ~1.5-2.5 s on a healthy link; larger targets need
+ * longer). After the window, polling continues at a slower cadence for
+ * `STREAMED_PREROLL_BUILD_CAP_EXTRA_MS` — a wall-clock cap short enough to
+ * keep the first track snappy would force the route before the cushion
+ * exists on a jittery real-world link, and the deep NetEq stretch at the
+ * audible start is the "nothing for the first 3 seconds, then slowly
+ * stutters to life" regression.
  */
 const STREAMED_PREROLL_BUILD_CAP_MS = 2500;
+
+/**
+ * How long the preroll keeps polling at the slow cadence after the fast-poll
+ * window before giving up. The total budget (fast window + this) is the last
+ * resort: a link that cannot sustain real-time audio at all should not stall
+ * the track forever, but a slow-but-working link gets the extra time to
+ * finish building the cushion.
+ */
+const STREAMED_PREROLL_BUILD_CAP_EXTRA_MS = 3000;
 
 /**
  * The preroll cushion build never quite reaches `multiplayerAudioBufferMs`:
  * NetEq's delay manager converges toward ~80-85 % of the target (measured
  * ~620 ms at a 750 ms target) and the climb is asymptotic — the last stretch
- * costs many seconds. So the build waits for 75 % of the target, which is
- * reached in roughly a second, and hands off to the audible phase at ~90 % of
- * the achievable cushion. Waiting for more trades audible seconds for a few
- * percent of extra headroom that the delay manager would keep stretching for
- * anyway. The plateau exit (no growth for a while at a decent level) covers
- * pathological targets the threshold can never reach.
+ * costs many seconds. So the build exits on one of two conditions:
+ *
+ * - STABLE: the measured level HOLDS at `STREAMED_PREROLL_LEVEL_RATIO` of the
+ *   target for several consecutive polls (fast builders). Single-sample
+ *   readings are never trusted: a network burst can inflate one poll past the
+ *   threshold and make the old code route with far less than the reading
+ *   suggested.
+ * - PLATEAU: the level is at/above a target-scaled FLOOR
+ *   (`STREAMED_PREROLL_FLOOR_RATIO` of the target, never below
+ *   `STREAMED_PREROLL_MIN_LEVEL_MS`, and capped at the achievable asymptote so
+ *   small targets stay reachable) and has stopped growing for
+ *   `STREAMED_PREROLL_PLATEAU_MS`. This is the usual exit. Routing at the
+ *   floor keeps the post-route stretch small — the audible "slowly stutters
+ *   to life" IS NetEq time-stretching the audible stream toward the target
+ *   after an early route.
+ *
+ * The old plateau floor was an absolute 300 ms: at a 2000 ms target that is
+ * 15 % of the configured cushion, and the fast-poll cap (1.25 s at the
+ * default 750 ms target) could force a route with the level stuck at ~200-300
+ * ms on a jittery link — precisely the worst-case start this preroll exists
+ * to prevent.
  */
 const STREAMED_PREROLL_LEVEL_RATIO = 0.75;
+const STREAMED_PREROLL_MIN_LEVEL_MS = 400;
+const STREAMED_PREROLL_FLOOR_RATIO = 0.55;
+const STREAMED_PREROLL_PLATEAU_MS = 1200;
+const STREAMED_PREROLL_FAST_POLL_MS = 150;
+const STREAMED_PREROLL_SLOW_POLL_MS = 400;
+
+export interface ReceiverCushionResult {
+  /** Smoothed playout level (ms) measured at the end of the build. */
+  levelMs: number;
+  /** Which exit ended the build; logged for diagnosing real-network behavior. */
+  reason: 'stable' | 'plateau' | 'budget' | 'no-receiver';
+}
 
 export function createMultiplayerClientSide(core: MultiplayerSessionCore): MultiplayerClientSide {
   const receiverMonitor = createReceiverBitrateMonitor({
@@ -814,11 +855,17 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
       statusHandler
     );
     if (!prerolled || bailIfSuperseded()) return;
-    let builtLevelMs = 0;
+    let cushion: ReceiverCushionResult = { levelMs: 0, reason: 'no-receiver' };
     if (bufferMs > 0) {
-      builtLevelMs = await waitForReceiverCushion(peer, bufferMs);
+      cushion = await waitForReceiverCushion(peer, bufferMs);
       if (bailIfSuperseded()) return;
     }
+    const builtLevelMs = cushion.levelMs;
+    logDebug('multiplayer', 'Remote audio cushion built', {
+      levelMs: Math.round(builtLevelMs),
+      reason: cushion.reason,
+      targetMs: bufferMs
+    });
     // The cushion is in place: release the host's playback-preparation gate so
     // the track starts playing into the receiver. The preroll element consumes
     // the silence cushion at real time while the track's beginning accumulates
@@ -833,9 +880,10 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
     // always `bufferMs + margin`) is what makes switches fast — they arrive
     // with the level already built and only the margin wait remains.
     if (bufferMs > 0) {
-      // Floor the playout wait so a level reading of 0 (first poll, or a
-      // receiver without stats) cannot collapse Phase B to nothing.
-      const playoutMs = Math.max(builtLevelMs, Math.min(bufferMs, 250));
+      // Floor the playout wait so a level reading of 0 (no receiver/stats —
+      // we have no evidence a cushion exists) cannot collapse Phase B to
+      // nothing: consume a modest cushion's worth before routing.
+      const playoutMs = Math.max(builtLevelMs, Math.min(bufferMs, 350));
       logDebug('multiplayer', 'Remote audio playing out cushion', {
         ms: Math.round(playoutMs),
         levelMs: Math.round(builtLevelMs)
@@ -851,31 +899,50 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
   }
 
   /**
-   * Waits for the audio receiver's jitter-buffer level to reach ~75 % of the
-   * configured cushion. The level is estimated from the DELTA between
-   * consecutive receiver stats polls (`estimateReceiverPlayoutLevelMs`), which
-   * tracks the current playout lag — the lifetime average
-   * (jitterBufferDelay / jitterBufferEmittedCount) lags the build so badly
-   * that it never reaches the threshold and the wait burns its entire cap.
-   * Meaningful only while a consumer (the preroll element) is attached — that
-   * is exactly the state this runs in. Exits early when the level stops
-   * growing at a decent size (the build is asymptotic; the last stretch costs
-   * seconds for a few percent), and falls through on a cap so a receiver that
-   * never builds (or a paused host) cannot stall the track indefinitely.
-   * Returns the level (ms) measured at the end of the wait.
+   * Builds the audio receiver's jitter-buffer cushion for the audible start.
+   * The level is estimated from the DELTA between consecutive receiver stats
+   * polls (`estimateReceiverPlayoutLevelMs`), which tracks the current playout
+   * lag — the lifetime average (jitterBufferDelay / jitterBufferEmittedCount)
+   * lags the build so badly that it never reaches the threshold and the wait
+   * burns its entire cap. Meaningful only while a consumer (the preroll
+   * element) is attached — that is exactly the state this runs in.
+   *
+   * Exits only when the cushion is REAL (see `ReceiverCushionTracker`): the
+   * smoothed level must hold at the stable target, or plateau at a
+   * target-scaled floor. Single-sample readings are never trusted — on a
+   * jittery real-world link they routinely spike and dip, and the old
+   * single-sample exits routed the audible stream with far less than the
+   * configured cushion, leaving NetEq to time-stretch the AUDIBLE start
+   * ("nothing for the first seconds, then slowly stutters to life"). The
+   * total budget is the last resort: a link that cannot sustain real-time
+   * audio should not stall the track forever, but the route then carries
+   * whatever level was reached.
+   *
+   * Returns the smoothed level (ms) at the end of the build and which exit
+   * fired, so the caller can log what actually happened.
    */
-  async function waitForReceiverCushion(peer: PeerConnection, bufferMs: number): Promise<number> {
+  async function waitForReceiverCushion(peer: PeerConnection, bufferMs: number): Promise<ReceiverCushionResult> {
     const receiver = peer.pc.getReceivers().find(({ track }) => track.kind === 'audio');
-    if (!receiver) return 0;
+    if (!receiver) return { levelMs: 0, reason: 'no-receiver' };
     const targetMs = Math.max(0, Math.round(bufferMs));
-    const thresholdMs = Math.max(120, Math.round(targetMs * STREAMED_PREROLL_LEVEL_RATIO));
-    const capMs = Math.min(STREAMED_PREROLL_BUILD_CAP_MS, Math.max(1000, targetMs + 500));
+    // NetEq converges toward ~80-85 % of the target; the plateau floor is a
+    // target-scaled share of that, never below an absolute minimum, and
+    // capped at the achievable asymptote so small targets stay reachable.
+    const floorMs = Math.min(
+      Math.max(STREAMED_PREROLL_MIN_LEVEL_MS, Math.round(targetMs * STREAMED_PREROLL_FLOOR_RATIO)),
+      Math.round(targetMs * 0.85)
+    );
+    const stableTargetMs = Math.max(floorMs, Math.round(targetMs * STREAMED_PREROLL_LEVEL_RATIO));
+    // The fast-poll window scales with the target; the slow-poll extension
+    // keeps polling for a genuinely slow build; the total budget is the last
+    // resort for a link that cannot sustain real-time audio at all.
+    const fastPollCapMs = Math.min(4_000, Math.max(STREAMED_PREROLL_BUILD_CAP_MS, Math.round(targetMs + 1500)));
+    const totalBudgetMs = fastPollCapMs + STREAMED_PREROLL_BUILD_CAP_EXTRA_MS;
     const startedAt = Date.now();
     let previous: ReceiverPlayoutSample | null = null;
-    let levelMs = 0;
-    let lastRiseAt = Date.now();
-    let levelAtRise = 0;
-    while (Date.now() - startedAt < capMs) {
+    const tracker = new ReceiverCushionTracker();
+    while (Date.now() - startedAt < totalBudgetMs) {
+      const nowMs = Date.now();
       try {
         const stats = await receiver.getStats();
         for (const stat of stats.values()) {
@@ -889,25 +956,26 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
             emitted: jitterBufferEmittedCount
           };
           const deltaLevel = estimateReceiverPlayoutLevelMs(current, previous);
-          if (deltaLevel > 0) levelMs = deltaLevel;
           previous = current;
+          if (deltaLevel > 0) tracker.push(deltaLevel, nowMs);
           break;
         }
       } catch {
         // Stats are optional; keep polling.
       }
-      if (levelMs >= thresholdMs) return levelMs;
-      // Plateau: at a decent level, a long stretch without meaningful growth
-      // means the build has converged — more waiting only burns seconds for a
-      // few percent of extra headroom.
-      if (levelMs >= 300 && Date.now() - lastRiseAt > 1200) return levelMs;
-      if (levelMs > levelAtRise + 40) {
-        levelAtRise = levelMs;
-        lastRiseAt = Date.now();
+      if (tracker.isHoldingAtOrAbove(stableTargetMs)) {
+        return { levelMs: tracker.levelMs, reason: 'stable' };
       }
-      await new Promise((resolve) => window.setTimeout(resolve, 150));
+      if (tracker.isPlateaued(floorMs, STREAMED_PREROLL_PLATEAU_MS, Date.now())) {
+        return { levelMs: tracker.levelMs, reason: 'plateau' };
+      }
+      const elapsed = Date.now() - startedAt;
+      const pollMs = elapsed < fastPollCapMs
+        ? STREAMED_PREROLL_FAST_POLL_MS
+        : STREAMED_PREROLL_SLOW_POLL_MS;
+      await new Promise((resolve) => window.setTimeout(resolve, pollMs));
     }
-    return levelMs;
+    return { levelMs: tracker.levelMs, reason: 'budget' };
   }
 
   function attachClientMediaChannel(peer: PeerConnection): void {

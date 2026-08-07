@@ -149,6 +149,13 @@ describe('artwork presentation helpers', () => {
     expect(publishCount).toBe(2);
     expect(controller.getSnapshot().detailsDisplayTrack).toBe(updated);
 
+    // A same-id object with IDENTICAL metadata (remote catalog replace) is
+    // not a change — it must not republish either.
+    const replaced = item('track', { metadata: { title: 'Two' } });
+    controller.syncSelection(replaced, true);
+    expect(publishCount).toBe(2);
+    expect(controller.getSnapshot().detailsDisplayTrack).toBe(updated);
+
     unsubscribe();
     controller.destroy();
   });

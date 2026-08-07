@@ -207,8 +207,12 @@
   let livePlayingTrack: PlaylistItem | null = null;
   let playerDisplayTrack: PlaylistItem | null = null;
   let favoriteTargetTrack: PlaylistItem | null = null;
+  let favoriteTargetSource: PlaylistItem | null = null;
+  let favoriteTargetSubsong: number | undefined;
   let lyricsTrack: PlaylistItem | null = null;
   let detailsLibraryTargets: TrackLibraryNavigationTargets = {};
+  let detailsLibraryTargetsTrack: PlaylistItem | null = null;
+  let detailsLibraryTargetsItems: PlaylistItem[] = [];
   let localPlayingTrack: PlaylistItem | null = null;
   let playingTrack: PlaylistItem | null = null;
   let videoParkingHost: HTMLDivElement | null = null;
@@ -1144,9 +1148,31 @@
       )
     : topMenuBarHeight;
   $: videoTheaterTopInset = isFullscreenVideoTheater ? 0 : videoTheaterChromeInset;
-  $: favoriteTargetTrack = playerDisplayTrack?.kind === 'module' && playbackSnapshot.subsong !== undefined
-    ? { ...playerDisplayTrack, subsong: playbackSnapshot.subsong }
-    : playerDisplayTrack;
+  $: {
+    // Memoize the subsong merge: while a module plays, the playback snapshot
+    // churns at the progress rate, and a naive spread would mint a fresh
+    // favoriteTargetTrack object on every publish. That identity churn
+    // re-runs workspaceShell.sync (favoritePlayingId) which unconditionally
+    // republishes shell state — a reactive storm (library navigation log
+    // spam on multiplayer clients). Rebuild only when the source track or
+    // the subsong value actually changed.
+    const needsSubsongMerge = playerDisplayTrack?.kind === 'module'
+      && playbackSnapshot.subsong !== undefined;
+    if (needsSubsongMerge) {
+      if (
+        favoriteTargetSource !== playerDisplayTrack
+        || favoriteTargetSubsong !== playbackSnapshot.subsong
+      ) {
+        favoriteTargetSource = playerDisplayTrack;
+        favoriteTargetSubsong = playbackSnapshot.subsong;
+        favoriteTargetTrack = { ...playerDisplayTrack!, subsong: playbackSnapshot.subsong };
+      }
+    } else {
+      favoriteTargetSource = playerDisplayTrack;
+      favoriteTargetSubsong = playbackSnapshot.subsong;
+      favoriteTargetTrack = playerDisplayTrack;
+    }
+  }
   $: lyricsTrack = livePlayingTrack;
   $: modulePatternSnapshot = $modulePatternStore;
   $: patternAvailability = resolvePatternTabAvailability(
@@ -1262,10 +1288,22 @@
     void artworkPresentation.syncDetailsDisplay();
   }
   $: void artworkPresentation.syncDisplayedArtwork(playerDisplayTrack);
-  $: detailsLibraryTargets = resolveTrackLibraryNavigationTargets(
-    artworkPresentationState.detailsDisplayTrack,
-    libraryItems
-  );
+  $: if (
+    detailsLibraryTargetsTrack !== artworkPresentationState.detailsDisplayTrack
+    || detailsLibraryTargetsItems !== libraryItems
+  ) {
+    // Identity-memoized: on a multiplayer client the session store republishes
+    // on every host message, re-assigning libraryItems with the SAME reference
+    // and re-running this block (Svelte legacy invalidates on assignment, not
+    // on value change). Without the guard, every host playback tick re-scans
+    // the whole library for group identities and logs the navigation pair.
+    detailsLibraryTargetsTrack = artworkPresentationState.detailsDisplayTrack;
+    detailsLibraryTargetsItems = libraryItems;
+    detailsLibraryTargets = resolveTrackLibraryNavigationTargets(
+      artworkPresentationState.detailsDisplayTrack,
+      libraryItems
+    );
+  }
   $: void artworkPresentation.syncArtworkBrightness(
     artworkPresentationState.visibleArtworkBackground,
     backdropPresentation.isArtworkBackdropRequested
