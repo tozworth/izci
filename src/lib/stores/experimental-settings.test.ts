@@ -6,6 +6,8 @@ import {
   MULTIPLAYER_MAX_LISTENERS_MAX,
   MULTIPLAYER_OPUS_BITRATE_MAX_KBPS,
   MULTIPLAYER_OPUS_BITRATE_MIN_KBPS,
+  deriveMultiplayerMode,
+  multiplayerModePatch,
   normalizeExperimentalSettings
 } from './experimental-settings';
 
@@ -75,5 +77,62 @@ describe('experimental settings', () => {
       .toBe(-1);
     expect(normalizeExperimentalSettings({ multiplayerFileTransferLimitMiB: 3 }).multiplayerFileTransferLimitMiB)
       .toBe(0);
+  });
+
+  describe('multiplayer mode tiers', () => {
+    it('derives singleplayer whenever multiplayer is off', () => {
+      expect(deriveMultiplayerMode({
+        multiplayer: false,
+        multiplayerFreeplay: true,
+        multiplayerStreamAudio: true
+      })).toBe('singleplayer');
+    });
+
+    it('treats freeplay as the top tier, implying audio', () => {
+      expect(deriveMultiplayerMode({
+        multiplayer: true,
+        multiplayerFreeplay: true,
+        multiplayerStreamAudio: false
+      })).toBe('freeplay');
+    });
+
+    it('derives co-op + audio when audio streaming is on', () => {
+      expect(deriveMultiplayerMode({
+        multiplayer: true,
+        multiplayerFreeplay: false,
+        multiplayerStreamAudio: true
+      })).toBe('coopAudio');
+    });
+
+    it('derives plain co-op when audio is off', () => {
+      expect(deriveMultiplayerMode({
+        multiplayer: true,
+        multiplayerFreeplay: false,
+        multiplayerStreamAudio: false
+      })).toBe('coop');
+    });
+
+    it('builds tier patches that imply the tiers below them', () => {
+      expect(multiplayerModePatch('singleplayer')).toEqual({
+        multiplayer: false,
+        multiplayerFreeplay: false,
+        multiplayerStreamAudio: false
+      });
+      expect(multiplayerModePatch('coop')).toEqual({
+        multiplayer: true,
+        multiplayerFreeplay: false,
+        multiplayerStreamAudio: false
+      });
+      expect(multiplayerModePatch('coopAudio')).toEqual({
+        multiplayer: true,
+        multiplayerFreeplay: false,
+        multiplayerStreamAudio: true
+      });
+      expect(multiplayerModePatch('freeplay')).toEqual({
+        multiplayer: true,
+        multiplayerFreeplay: true,
+        multiplayerStreamAudio: true
+      });
+    });
   });
 });

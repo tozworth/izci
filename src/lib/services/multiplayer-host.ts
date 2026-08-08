@@ -51,6 +51,7 @@ import {
   errorMessage,
   getLocalName,
   isMultiplayerFreeplayActive,
+  parseFreeplayRestoredFlags,
   resolveMultiplayerFreeplayAgreement,
   resolvePlaybackPreparationAudio,
   sanitizeClientName,
@@ -454,8 +455,15 @@ export function createMultiplayerHostSide(
         name: getLocalName(),
         appVersion
       });
-      sendPairingState(peer);
-      sendCurrentState(peer);
+      // Pairing + current state are NOT pushed here: the client hello (which
+      // carries `freeplayEnabled`) may not be processed yet, and sending the
+      // shared-mode state before it leaks the host playlist/playback to a
+      // Freeplay-bound peer (the "phone receives Chunk" bug). syncPeerFreeplayMode
+      // (hello handler) sends both with the correct freeplay status.
+      sendToPeer(peer, {
+        kind: 'buffer',
+        bufferMs: core.multiplayerSettings.multiplayerAudioBufferMs
+      });
     };
     channel.onmessage = (event) => {
       if (typeof event.data !== 'string') return;
@@ -465,6 +473,7 @@ export function createMultiplayerHostSide(
         if (message.version !== MULTIPLAYER_PROTOCOL_VERSION) {
           logError('multiplayer', 'Protocol version mismatch with client', { client: sanitizeClientName(message.name), clientVersion: message.version, hostVersion: MULTIPLAYER_PROTOCOL_VERSION });
         }
+        peer.helloReceived = true;
         peer.name = sanitizeClientName(message.name);
         peer.clientFreeplayEnabled = message.freeplayEnabled;
         updateClient(peer.id, { name: peer.name, platform: sanitizePlatform(message.platform) });
@@ -481,6 +490,27 @@ export function createMultiplayerHostSide(
         // The queue is the playlist stepping context; a replacement starts a
         // fresh navigation session over the new items.
         peer.freeplayNavigation?.reset();
+        // Freeplay activation always routes through the queue, so a restored
+        // or re-sent non-empty queue re-enters that stepping context after a
+        // reconnect (the fresh peer defaults to 'library').
+        if (peer.freeplayQueue.length > 0) peer.freeplayCollection = 'playlist';
+        const restoredFlags = parseFreeplayRestoredFlags(message);
+        if (restoredFlags
+          && (restoredFlags.shuffleEnabled !== peer.freeplayShuffle
+            || restoredFlags.repeatMode !== peer.freeplayRepeatMode)) {
+          peer.freeplayShuffle = restoredFlags.shuffleEnabled;
+          peer.freeplayRepeatMode = restoredFlags.repeatMode;
+          logInfo('multiplayer', 'Freeplay flags restored', {
+            client: peer.name,
+            shuffleEnabled: restoredFlags.shuffleEnabled,
+            repeatMode: restoredFlags.repeatMode
+          });
+          // Confirm only on an actual restore: `replaceFreeplayQueueAndPlay`
+          // sends queue → toggle → activate, and a confirm echoing the
+          // pre-toggle flags would clobber the client's optimistic flip (the
+          // same trap the v15 `state` message was designed to avoid).
+          sendFreeplayState(peer);
+        }
         sendFreeplayCatalog(peer);
         return;
       }
@@ -538,10 +568,17 @@ export function createMultiplayerHostSide(
     peer.mediaChannel = channel;
     channel.binaryType = 'arraybuffer';
     channel.bufferedAmountLowThreshold = 256 * 1024;
-    channel.onopen = () => syncPeerSourceFile(
-      peer,
-      peer.freeplay ? peer.freeplayPlayer?.sourceFile ? peer.freeplayPlayer.track : null : core.latestHostState?.track ?? null
-    );
+    channel.onopen = () => {
+      // The source-file sync must wait for the client's freeplay mode to be
+      // settled: `peer.freeplay` decides whether the peer receives the SHARED
+      // host track (a source-file Freeplay peer gets the freeplay player's
+      // track instead, via syncFreeplayPlayerUpdate). At media-channel open the
+      // hello may not be processed yet — defer to syncPeerFreeplayMode (hello
+      // handler) in that case, otherwise the freeplay client receives the
+      // host's own track (the "phone receives Chunk" bug).
+      if (peer.freeplaySettled) syncPeerMediaSource(peer);
+      else peer.mediaSyncPending = true;
+    };
     channel.onbufferedamountlow = () => flushPeerMedia(peer);
     channel.onclose = () => {
       peer.mediaTransferToken += 1;
@@ -549,6 +586,15 @@ export function createMultiplayerHostSide(
       peer.mediaQueuedBytes = 0;
       peer.mediaFlushing = false;
     };
+  }
+
+  function syncPeerMediaSource(peer: PeerConnection): void {
+    syncPeerSourceFile(
+      peer,
+      peer.freeplay
+        ? peer.freeplayPlayer?.sourceFile ? peer.freeplayPlayer.track ?? null : null
+        : core.latestHostState?.track ?? null
+    );
   }
 
   async function syncPeerFreeplayMode(peer: PeerConnection): Promise<void> {
@@ -573,6 +619,10 @@ export function createMultiplayerHostSide(
     });
     const changed = peer.freeplay !== active;
     peer.freeplay = active;
+    // The mode is decided from this point on: shared-mode pushes (broadcastShared,
+    // media source sync) may gate on `freeplaySettled` without leaking the host
+    // track/playlist to a Freeplay-bound peer mid-connect.
+    peer.freeplaySettled = true;
 
     if (changed && active) {
       logInfo('multiplayer', 'Freeplay mode enabled for client', { client: peer.name });
@@ -606,7 +656,16 @@ export function createMultiplayerHostSide(
       peer.freeplayNavigation = createFreeplayStepResolver(
         () => freeplayCollectionItems(peer, peer.freeplayCollection)
       );
-      await peer.audioSender?.replaceTrack(null).catch(() => undefined);
+      // Attach the Freeplay player's destination track (silence anchor) to the
+      // sender instead of nulling it: silence RTP flows for the whole session
+      // (created eagerly at player construction), so the client's persistent
+      // silent sink can pre-build the jitter-buffer cushion — the first
+      // streamed track then starts with the cushion already in place (no
+      // multi-second silence + audible stretch on real links). Falls back to
+      // null if the wire cannot be established.
+      const wire = await player.ensureWire().catch(() => null);
+      logDebug('freeplay', 'Freeplay wire attach', { client: peer.name, hasTrack: wire !== null });
+      await peer.audioSender?.replaceTrack(wire).catch(() => undefined);
       const previousSelection = core.freeplaySelections.get(peer.id);
       if (previousSelection) {
         // Resume/reconnect: re-serve the held selection so the client can pick up
@@ -642,6 +701,13 @@ export function createMultiplayerHostSide(
     });
     sendPairingState(peer);
     if (changed || peer.channel?.readyState === 'open') sendCurrentState(peer);
+    // The media channel can open before the client hello is processed. Flush
+    // the deferred source-file sync now that `peer.freeplay` is settled, so a
+    // Freeplay-bound peer never receives the host's shared track.
+    if (peer.mediaSyncPending) {
+      peer.mediaSyncPending = false;
+      syncPeerMediaSource(peer);
+    }
   }
 
   function sendPairingState(peer: PeerConnection): void {
@@ -1154,7 +1220,7 @@ export function createMultiplayerHostSide(
     if (enabled) {
       const hostTrack = multiplayerAudioService.getHostTrack(core.multiplayerSettings.multiplayerSendPostRaf);
       for (const peer of core.hostPeers.values()) {
-        if (peer.freeplay) continue;
+        if (!peer.freeplaySettled || peer.freeplay) continue;
         if (peer.audioSender?.track !== hostTrack) {
           void peer.audioSender?.replaceTrack(hostTrack).catch(() => undefined);
         }
@@ -1162,7 +1228,7 @@ export function createMultiplayerHostSide(
       }
     } else {
       for (const peer of core.hostPeers.values()) {
-        if (peer.freeplay) continue;
+        if (!peer.freeplaySettled || peer.freeplay) continue;
         if (peer.audioSender?.track) void peer.audioSender.replaceTrack(null).catch(() => undefined);
       }
     }
@@ -1178,7 +1244,7 @@ export function createMultiplayerHostSide(
 
   function syncHostSourceFiles(track: PlaylistItem | null): void {
     for (const peer of core.hostPeers.values()) {
-      if (!peer.freeplay) syncPeerSourceFile(peer, track);
+      if (peer.freeplaySettled && !peer.freeplay) syncPeerSourceFile(peer, track);
     }
   }
 
@@ -1252,7 +1318,10 @@ export function createMultiplayerHostSide(
 
   function broadcastShared(message: HostMessage): void {
     for (const peer of core.hostPeers.values()) {
-      if (!peer.freeplay) sendToPeer(peer, message);
+      // Skip peers whose freeplay mode is not settled yet (their state arrives
+      // via sendCurrentState from syncPeerFreeplayMode's tail) and Freeplay
+      // peers outright — shared broadcasts must never reach them.
+      if (peer.freeplaySettled && !peer.freeplay) sendToPeer(peer, message);
     }
   }
 

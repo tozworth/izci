@@ -100,16 +100,44 @@ export class AudioBusService {
   }
 
   connectMediaStream(stream: MediaStream | null): MediaStreamAudioSourceNode | null {
-    return this.#connectMediaStream(stream, 'input');
+    return this.#connectMediaStream(stream, 'input', 1);
+  }
+
+  /**
+   * Connects the stream into the bus with the source gain at 0 — the route
+   * exists and consumes the track (so the source node syncs to the live
+   * WebRTC track and the AudioContext is warm) but nothing is audible yet.
+   * `setMediaStreamSourceGain` unmutes it later. Without this, the first
+   * audible route cold-starts the graph AND the source node at the same
+   * moment — a fresh MediaStreamAudioSourceNode tapping a mid-stream track
+   * emits garbled/stretched first frames for ~1-3 s before locking on (the
+   * "stuttering into life" that survived every cushion fix; the receiver
+   * level was always fine).
+   */
+  connectMediaStreamSilent(stream: MediaStream | null): MediaStreamAudioSourceNode | null {
+    return this.#connectMediaStream(stream, 'input', 0);
+  }
+
+  /**
+   * Ramps the source's bus gain (0 = muted route, 1 = audible). The source
+   * node itself stays connected and consuming the track either way, so
+   * mute/unmute never tears the pipeline down.
+   */
+  setMediaStreamSourceGain(source: MediaStreamAudioSourceNode | null, gain: number): void {
+    if (!source || !this.#context) return;
+    const sourceGain = this.#sourceGains.get(source);
+    if (!sourceGain) return;
+    sourceGain.gain.setTargetAtTime(gain, this.#context.currentTime, 0.02);
   }
 
   connectMediaStreamAfterRaf(stream: MediaStream | null): MediaStreamAudioSourceNode | null {
-    return this.#connectMediaStream(stream, 'analyser');
+    return this.#connectMediaStream(stream, 'analyser', 1);
   }
 
   #connectMediaStream(
     stream: MediaStream | null,
-    target: 'input' | 'analyser'
+    target: 'input' | 'analyser',
+    initialGain: number
   ): MediaStreamAudioSourceNode | null {
     if (!stream || stream.getAudioTracks().length === 0) return null;
 
@@ -117,7 +145,7 @@ export class AudioBusService {
 
     try {
       const source = this.context.createMediaStreamSource(stream);
-      this.#connectSource(source, target === 'analyser' ? this.#analyser : this.#input);
+      this.#connectSource(source, target === 'analyser' ? this.#analyser : this.#input, initialGain);
       return source;
     } catch (error) {
       logWarning('playback', 'Media stream Web Audio routing failed', {
@@ -303,13 +331,13 @@ export class AudioBusService {
     }
   }
 
-  #connectSource(source: AudioBusSource, target: AudioNode | null = this.#input): void {
+  #connectSource(source: AudioBusSource, target: AudioNode | null = this.#input, initialGain = 1): void {
     if (this.#sourceGains.has(source) || !target || !this.#context) {
       return;
     }
 
     const sourceGain = this.#context.createGain();
-    sourceGain.gain.value = 1;
+    sourceGain.gain.value = initialGain;
     source.connect(sourceGain);
     sourceGain.connect(target);
     this.#sourceGains.set(source, sourceGain);

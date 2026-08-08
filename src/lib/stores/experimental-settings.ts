@@ -146,6 +146,32 @@ export function normalizeExperimentalSettings(value: unknown): ExperimentalSetti
   };
 }
 
+export type MultiplayerMode = 'singleplayer' | 'coop' | 'coopAudio' | 'freeplay';
+
+export function deriveMultiplayerMode(
+  settings: Pick<ExperimentalSettings, 'multiplayer' | 'multiplayerFreeplay' | 'multiplayerStreamAudio'>
+): MultiplayerMode {
+  if (!settings.multiplayer) return 'singleplayer';
+  if (settings.multiplayerFreeplay) return 'freeplay';
+  if (settings.multiplayerStreamAudio) return 'coopAudio';
+  return 'coop';
+}
+
+export function multiplayerModePatch(
+  mode: MultiplayerMode
+): Pick<ExperimentalSettings, 'multiplayer' | 'multiplayerFreeplay' | 'multiplayerStreamAudio'> {
+  switch (mode) {
+    case 'singleplayer':
+      return { multiplayer: false, multiplayerFreeplay: false, multiplayerStreamAudio: false };
+    case 'coop':
+      return { multiplayer: true, multiplayerFreeplay: false, multiplayerStreamAudio: false };
+    case 'coopAudio':
+      return { multiplayer: true, multiplayerFreeplay: false, multiplayerStreamAudio: true };
+    case 'freeplay':
+      return { multiplayer: true, multiplayerFreeplay: true, multiplayerStreamAudio: true };
+  }
+}
+
 export const experimentalSettings = createSettingsStore({
   storageKey: EXPERIMENTAL_SETTINGS_STORAGE_KEY,
   channelName: EXPERIMENTAL_SETTINGS_CHANNEL,

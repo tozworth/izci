@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const audioBus = vi.hoisted(() => ({
   connectMediaStream: vi.fn(),
+  connectMediaStreamSilent: vi.fn(),
+  setMediaStreamSourceGain: vi.fn(),
   connectMediaStreamAfterRaf: vi.fn(),
   disconnect: vi.fn(),
   resume: vi.fn(async () => true),
@@ -50,6 +52,7 @@ describe('MultiplayerAudioService', () => {
     });
     vi.stubGlobal('document', { body: { appendChild: vi.fn() } });
     audioBus.connectMediaStream.mockReturnValue({});
+    audioBus.connectMediaStreamSilent.mockReturnValue({});
     audioBus.connectMediaStreamAfterRaf.mockReturnValue({});
     service = new MultiplayerAudioService();
   });
@@ -157,14 +160,17 @@ describe('MultiplayerAudioService', () => {
     expect(element.muted).toBe(true);
     expect(element.srcObject).toBe(stream);
     expect(element.play).toHaveBeenCalled();
-    // The element consumes the receiver (the sink) but is NOT in the audible
-    // graph yet, and must not claim playback until the route is connected.
-    expect(audioBus.connectMediaStream).not.toHaveBeenCalled();
+    // The element consumes the receiver (the sink) and the route is connected
+    // MUTED (gain 0) during the preroll, so the AudioContext and the source
+    // node warm up and sync to the live track while nothing is heard. It must
+    // not claim playback until the route is made audible.
+    expect(audioBus.connectMediaStreamSilent).toHaveBeenCalledWith(stream);
+    expect(audioBus.setMediaStreamSourceGain).not.toHaveBeenCalled();
     expect(statuses).toEqual(['connecting']);
 
     await service.connectRemoteRoute();
 
-    expect(audioBus.connectMediaStream).toHaveBeenCalledWith(stream);
+    expect(audioBus.setMediaStreamSourceGain).toHaveBeenCalledWith({}, 1);
     expect(statuses.at(-1)).toBe('playing');
   });
 
@@ -185,7 +191,7 @@ describe('MultiplayerAudioService', () => {
     await service.attachRemoteTrackPrerolled(track, stream, (status) => statuses.push(status));
 
     expect(element.remove).not.toHaveBeenCalled();
-    expect(audioBus.connectMediaStream).not.toHaveBeenCalled();
+    expect(audioBus.connectMediaStreamSilent).toHaveBeenCalledTimes(1);
   });
 
   it('connectRemoteRoute is a no-op without a prerolled element', async () => {
@@ -194,12 +200,31 @@ describe('MultiplayerAudioService', () => {
     expect(audioBus.connectMediaStream).not.toHaveBeenCalled();
   });
 
-  it('clears the prerolled element without touching the (never connected) route', async () => {
+  it('clears the prerolled element and its muted route', async () => {
     await service.attachRemoteTrackPrerolled(track, stream, () => undefined);
     audioBus.disconnect.mockClear();
     service.clearRemoteTrack();
 
     expect(element.remove).toHaveBeenCalledTimes(1);
-    expect(audioBus.disconnect).not.toHaveBeenCalled();
+    // The route was connected muted during the preroll (to warm the graph), so
+    // clearing must disconnect it too.
+    expect(audioBus.disconnect).toHaveBeenCalledTimes(1);
+  });
+
+  it('reconnects a drained route SILENT (never an audible cold connect)', async () => {
+    await service.attachRemoteTrackPrerolled(track, stream, () => undefined);
+    // A source-file interlude drains the route (element stays as silent sink).
+    service.drainRemoteTrack();
+    expect(audioBus.connectMediaStreamSilent).toHaveBeenCalledTimes(1);
+    audioBus.connectMediaStreamSilent.mockClear();
+
+    const ok = await service.connectRemoteRoute();
+
+    expect(ok).toBe(true);
+    // The fallback must rebuild the muted route and ramp it, not snap a fresh
+    // source node to audible mid-stream (the garbled-start regression).
+    expect(audioBus.connectMediaStreamSilent).toHaveBeenCalledTimes(1);
+    expect(audioBus.connectMediaStream).not.toHaveBeenCalled();
+    expect(audioBus.setMediaStreamSourceGain).toHaveBeenCalledWith({}, 1);
   });
 });

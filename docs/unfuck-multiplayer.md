@@ -274,16 +274,179 @@ is the trade the user asked for ("comprehensive fix"); if the residual
 post-route stretch is still audible at the floor, raise
 `STREAMED_PREROLL_FLOOR_RATIO` toward the 0.85 asymptote cap.
 
+## 14. First streamed track: "nothing for the first seconds, then slowly stutters to life" — cushion PRE-SEED (DONE 2026-08-07)
+
+### DRY PASS 2026-08-07 (no live run — user verifies at home): four targeted fixes
+
+Session 4 left the receiver side verified HEALTHY (level holds 770-795 ms post-route,
+element advancing ~1.0× real time) with the residual "starts ~0.5 s in and stuttery"
+attributed to the element/source-node/route path — the WebAudio context and the
+MediaStreamAudioSourceNode had been cold-started exactly at route time on the phone
+(`Audio graph created` fired AT ROUTE TIME). This dry pass (code + tests + check +
+build only, no izci/A2DP) attacks that path with four changes:
+
+1. **Warm the AudioContext from the user gesture** (`multiplayer-client.ts`): the
+   preroll runs from a data-channel message, NOT a gesture, so its own
+   `audioBusService.resume()` can be rejected by the autoplay policy — a suspended
+   context pulls nothing and the "warmed" source node is still cold at route.
+   `warmClientAudioGraph()` now resumes the bus from every gesture-origin entry
+   point (`join`, `joinPaired`, `setReceiveAudio`, `sendCommand`), so the context is
+   genuinely RUNNING (and consuming the receiver track) by the time the preroll's
+   muted route is connected. Idempotent; a no-op once running.
+2. **Awaited + logged preroll resume** (`multiplayer-audio.ts`): the preroll's
+   `resume()` is no longer fire-and-forget — it is awaited and logs
+   `Remote preroll AudioContext not running {state}` on failure, and the route
+   logs `Remote audio route connected (audible) {contextState}`. The user's
+   Help > Logs pull after testing will show whether the graph was warm.
+3. **Drained-route fallback connects SILENT** (`multiplayer-audio.ts`): the
+   `connectRemoteRoute` defensive fallback (route missing after a drain/rebuild)
+   now uses `connectMediaStreamSilent` + the gain ramp instead of an audible
+   `connectMediaStream` — a fresh source node snapping to audible mid-stream is
+   the same garbled-start regression as a cold graph. Unit-tested.
+4. **Pre-route level probe removed from the critical path**
+   (`multiplayer-client.ts`): the AWAITED `sampleReceiverRouteLevel(peer,
+   'pre-route')` polled receiver stats twice ~250 ms apart BEFORE connecting the
+   route — adding ~250 ms+ to EVERY streamed start (a slow-start regression from
+   the diagnostics). The cushion-built log and the post-route trace cover the
+   same diagnosis without blocking the route.
+
+Cost change: streamed starts are ~250 ms faster than the last deployed build (the
+removed probe); the gesture warm-up adds no latency. Everything else (preroll
+phases, tail waits, the +250 margins, pre-seed) is untouched — those were
+live-verified.
+
+Verification status: 87 multiplayer tests + check + build green (was 86 — one new
+test for the silent fallback). Live verification is the user's, at home.
+
+The 2026-08-07 real-network report ("nothing for the first 3 s, then it slowly
+stutters to life") persisted even after the ReceiverCushionTracker hardening —
+because the FIRST streamed track of a session builds its cushion from ZERO
+in-band, and on a real link the build is bounded by (arrival − consumption) ≈
+the link's realtime delivery rate. The budget cap (~5.5 s) then fires at
+whatever level was reached (measured live on the phone: 414 ms / 750 = 55 %),
+and routing below the target leaves NetEq stretching the now-AUDIBLE stream
+(the "stutter to life"). Switches were fast because their drain/tail-wait
+phases had already built the level; the first track had no such pre-phase.
+
+Live real-network measurement (s23u over mobile data + tailscale, 2026-08-07,
+instrumented CDP):
+- First streamed track (pre-fix): `Remote audio cushion built {levelMs: 414,
+  reason: 'budget'}` at ~5.84 s; audible at ~6.5 s; 55 % cushion.
+- Switch, same session: `cushion built {levelMs: 767, reason: 'stable'}` in
+  ~1.5 s — the level was ALREADY built during the drain/idle phases.
+
+Root cause: the receiver's jitter-buffer level only builds while a consuming
+sink is attached AND the wire carries RTP. Before the first streamed track the
+host's per-peer destination didn't exist until the first streamed renderer
+load, and the client attached no sink until the first `audio` message — so
+there was nothing to build from, and the build itself is link-bound.
+
+Fix — PRE-SEED the cushion on both sides (no protocol bump; 86 multiplayer
+tests + check + build green; live-verified on the phone):
+
+- Host (`multiplayer-freeplay.ts` + `multiplayer-host.ts`): the
+  `MultiplayerFreeplayPlayer` creates its destination + running silence anchor
+  EAGERLY at construction (previously lazily at the first streamed load), and
+  at Freeplay activation the peer's audio sender is attached to that
+  destination's track (new `ensureWire()`; previously `replaceTrack(null)`).
+  Silence RTP therefore flows for the WHOLE session — idle, source-file
+  phases, everything.
+- Client (`multiplayer-client.ts` ontrack): attach a persistent MUTED
+  out-of-graph sink at `ontrack` (reusing `attachRemoteTrackPrerolled`)
+  whenever receiveAudio is on — the receiver's sink runs full-time, so NetEq's
+  delay manager holds the level at the configured cushion during idle. The
+  first streamed attach replaces it with the fresh preroll pipeline (the
+  pre-built level lives in the receiver, not the element, so the fresh element
+  starts from it).
+- Client source-file phases: the two source-file drain sites (audio
+  `sourceFile` message + media-channel `file.begin`) now keep the configured
+  cushion APPLIED (`applyClientAudioBuffer`) instead of flushing the target to
+  0 (`flushClientReceiverBuffer` removed — the retained tail is cleared by the
+  sink playing it out, not by a target flush, which Chromium ignores anyway).
+  Without this, the pre-built level would drain to 0 during every source-file
+  phase and the next streamed track would rebuild from zero.
+
+Measured live (s23u, FIRST streamed track of a fresh session, post-fix): idle
+level ~747 ms (pre-seeded), tap → `cushion built {levelMs: 739, reason:
+'stable'}` → audible in ~1 s at ~98 % of target. Previously 6.5 s at 55 %.
+
+FOLLOW-UP 2026-08-07 (session 3): the first LIVE re-verification on the phone
+still showed the old symptom — because the pre-seed was NOT live-working end
+to end. The host wire did not flow: `ensureWire()` gated on
+`audioBusService.context` (the getter calls `#ensureGraph()` and can THROW
+while the graph is coming up — only `resume()` wraps it), so the promise
+rejected, the host's `.catch(() => null)` turned it into `replaceTrack(null)`,
+and the rig's `Freeplay wire attach {hasTrack:false}` confirmed ZERO idle
+inbound packets — the client's persistent sink had nothing to build from. The
+eager constructor chain also accessed the context unwrapped, so the eager
+destination never materialized and nothing published the wire track to
+`syncFreeplayPlayerUpdate`. FIX (the "NEXT STEP" from the open bug): create
+the destination UNCONDITIONALLY inside `ensureWire` (try/catch the context
+access, no getter gate), publish once after wiring in BOTH `ensureWire` and
+the eager chain so the standard `syncFreeplayPlayerUpdate` path (which also
+applies the opus bitrate) attaches the destination track. Live phone
+verification (fresh session, real mobile/tailscale): HOST
+`Freeplay wire ready {hasTrack:true}` + `Freeplay wire attach {hasTrack:true}`;
+first streamed track `cushion built {levelMs: 750, reason: 'stable',
+targetMs: 750}` in ~0.4 s (level already at target from idle consumption),
+audible ~1.7 s after tap; streamed→streamed switch `cushion built {levelMs:
+641, reason: 'stable'}` → audible ~2.8 s. No budget exit anywhere.
+
+CRITICAL VERIFICATION PITFALL (hit live 2026-08-07): the rig profile carried a
+STALE PRODUCTION SERVICE WORKER (workbox precache scoped to localhost:4173,
+from an earlier production-build run on that profile) serving the cached
+production bundle even while the dev server was running — the "host" ran OLD
+code for the entire first verification pass. Symptoms: page loads
+`/assets/main-*.js` (hashed prod chunks) + `workbox-window` instead of
+`/src/*?t=` dev modules; dev-only logs/changes absent; CDP dynamic imports of
+`/src/lib/services/*.ts` return the NEW module (bypassing the SW) while the
+app bundle runs OLD code — contradictory results. Fix: from the page,
+`navigator.serviceWorker.getRegistrations()` → unregister, `caches.keys()` →
+delete each, then reload. ALWAYS confirm the rig is on the dev build
+(`performance.getEntriesByType('resource')` shows `/src/` URLs and no
+`workbox`) before trusting rig behavior.
+
+Also: `Page.addScriptToEvaluateOnNewDocument` is SESSION-scoped — the script
+dies when the CDP connection closes; reinstall it in the same session as any
+reload you want it applied to.
+
+## 15. Bitrate/buffer sliders didn't apply live (DONE — 2026-08-07)
+
+Reported: dragging the host's Opus bitrate slider down to 32 left the client
+still reporting 160 kbps. The bitrate was applied to Freeplay peers ONLY on
+track change (`syncFreeplayPlayerUpdate`'s `sender?.track !==
+update.streamTrack` gate), so a mid-track slider drag never touched the
+sender's `maxBitrate`. The "Listener audio buffer" slider was worse: nothing
+on the host ever read `multiplayerAudioBufferMs` — the client applied its
+OWN setting to its receiver, and no wire message carried the host's value.
+
+Fix:
+- Bitrate: the settings subscription detects `multiplayerOpusBitrateKbps`
+  changes and re-applies `applyAudioBitrate` to every host peer (Freeplay
+  included) immediately — shared peers already got it via `syncHostAudio`.
+- Buffer: host-authoritative via a new `buffer` HostMessage (protocol v16) —
+  the host ships `multiplayerAudioBufferMs` on every peer connect (channel
+  open) and on every slider change; the client stores it as
+  `core.hostAudioBufferMs`, applies it live to its audio receiver(s), and the
+  streamed preroll target reads the same effective value. The client's local
+  slider only applies before a host has stated its buffer; `resetSession`
+  clears the value so a fresh join starts from the local preference.
+
 ## Shared multiplayer
 
 - Keep `syncPeerSourceFile` key-guarded (`sourceTrackKey`) — it's correctly a no-op across 250 ms progress publishes, including in Freeplay. Don't "optimize" it into per-tick re-uploads.
 
 ## Verification
 
-- `npx vitest run src/lib/services/multiplayer-*` — 86 passed, 7 skipped (Freeplay navigation: history-Prev, no-repeat-until-exhausted, repeat-all wrap, session reset, end-of-collection stop; protocol: `state` message validation). Receiver suite includes 14 tests for `ReceiverCushionTracker` (median smoothing, stability-gated stable/plateau exits, window restarts).
+- `npx vitest run src/lib/services/multiplayer-*` — 90 passed, 7 skipped (Freeplay navigation: history-Prev, no-repeat-until-exhausted, repeat-all wrap, session reset, end-of-collection stop; protocol: `state` message validation). Receiver suite includes 14 tests for `ReceiverCushionTracker` (median smoothing, stability-gated stable/plateau exits, window restarts); audio suite includes the drained-route SILENT reconnect fallback; protocol suite covers the `buffer` message (bounds, kind, type).
 - `npm run check` — 0 errors, 0 warnings.
-- `npm run build` — clean (protocol 15 synced into database.rules.json by the prebuild script).
+- `npm run build` — clean (protocol 16 synced into database.rules.json by the prebuild script).
+- DRY PASS 2026-08-07 (see #14): 87 multiplayer tests + check + build green; NO live run (no izci, no A2DP) — the user verifies at home. What to look for in Help > Logs per streamed track: `Remote preroll AudioContext not running` (should NOT appear — the gesture warm-up should prevent it), `Remote audio route connected (audible) {contextState}` (contextState should be `running`), and the cushion-built/trace lines as before. Streamed starts should also be ~250 ms faster (removed pre-route probe).
 - Live real-network verification (mobile data / tailscale) is the user's; the `Remote audio cushion built {levelMs, reason}` debug log in Help > Logs reports which Phase A exit fired per track.
 - Painpoint #13 (start stutter/slowdown): two-instance localhost rig verified the preroll (first streamed track routes at ~2.2 s, clean onset, no skipped intro) after the delta-estimator commit; the 2026-08-07 real-network regression (route below the cushion → audible NetEq stretch) is fixed by the `ReceiverCushionTracker` hardening above and awaits the user's mobile-data/tailscale test.
+- Painpoint #14 (first-track cushion pre-seed): LIVE-VERIFIED 2026-08-07 on the s23u (real network, fresh session). Pre-fix: `cushion built {levelMs: 414, reason: 'budget'}` at 5.84 s, audible ~6.5 s. Post-fix: idle level ~747 ms pre-seeded; tap → `cushion built {levelMs: 739, reason: 'stable'}`; audible in ~1 s at ~98 % of target. The rig must be confirmed on the DEV build before verification (see the stale-SW pitfall in #14) — the first verification pass ran against a cached production bundle.
+FOLLOW-UP (session 3, 2026-08-07): the pre-seed was NOT end-to-end live until the host wire fix — `ensureWire()` gated on the throwing `audioBusService.context` getter → `hasTrack:false` at activation → zero idle RTP. After the unconditional-destination + publish-once fix (see #14 follow-up), re-verified live on the phone: host `Freeplay wire attach {hasTrack:true}`; first streamed track `cushion built {levelMs: 750, reason: 'stable'}` in ~0.4 s, audible ~1.7 s; streamed→streamed switch `{levelMs: 641, reason: 'stable'}` → ~2.8 s; no budget exits.
+- FOLLOW-UP 2 (session 3, 2026-08-07): "no clean start at 00:00" on streamed→streamed switches — the cushion logs said stable but the recorded onset cross-correlated at 1.60 s INTO the track. Root cause: stale `core.clientRemoteAudioReady` (set true by the previous track's preroll, only reset when audio disabled) leaked into the new track's readiness handshake — the audio-message handler calls `sendClientPlaybackReadyIfPossible` synchronously after the un-awaited `attachClientRemoteAudio`, releasing the host's play gate 2.4 s before the client's route. The preroll then "built" its cushion from the already-playing audio. Fix: reset the flag in the loadingNewTrack drain branch + defensively at attach start; only the new cushion-build may re-arm it. Re-recorded with scrcpy system audio: onset now cross-correlates at 0.09 s (clean start); host `playing` arrives only after the cushion is built.
+- OPEN (end of session 3, 2026-08-07): despite both fixes above being live, the user's ear still reports tracks starting ~0.5 s in and stuttery at the start. Diagnostics on the phone (128 kbps): receiver level at route is FINE (pre-route 727-831 ms, target 750; stable exits) — the stutter is NOT a jitter-buffer problem. `Audio graph created` fired AT ROUTE TIME on the phone (cold WebAudio context + MediaStreamAudioSourceNode exactly when the route went audible). Last attempt (deployed, tests green, NO audible change per user): `connectMediaStreamSilent` connects the route muted during the preroll + `connectRemoteRoute` only ramps the gain. 128 kbps correlation: audible onset locks at ~0.379 s (NCC 0.65; sub-windows 0.8+ from 3.4 s) but the first ~1-3 s of the onset matches nothing (warped) — content starts near 00:00 yet the first seconds are time-warped. Full details + next-session directions in the izci-multiplayer-development skill's OPEN BUG section.
 - Live CDP verification (2026-08-06, client on Protocol v15): A→B→C streamed-transferred-streamed verified clean; #12 (direct streamed→streamed A→C→A glitch) — attempt 1 (drain+flush at loading) did NOT fix it: `jitterBufferTarget = 0` does not discard retained audio. Attempt 2 (drain at loading + attach waits `bufferMs − elapsed`) inverted the symptom to a short residual C blip — the retained tail is `bufferMs` PLUS the element's pipeline latency (~150 ms), so the wait under-estimated. Final fix: wait adds `STREAMED_RETAINED_TAIL_MARGIN_MS = 250`; verified clean on the rig.
 

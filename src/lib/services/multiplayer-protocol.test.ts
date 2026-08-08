@@ -138,6 +138,16 @@ describe('multiplayer protocol', () => {
     })).toBe(false);
   });
 
+  it('accepts the host-authoritative listener buffer message', () => {
+    expect(isHostMessage({ kind: 'buffer', bufferMs: 750 })).toBe(true);
+    expect(isHostMessage({ kind: 'buffer', bufferMs: 0 })).toBe(true);
+    expect(isHostMessage({ kind: 'buffer', bufferMs: 4_000 })).toBe(true);
+    expect(isHostMessage({ kind: 'buffer', bufferMs: 4_001 })).toBe(false);
+    expect(isHostMessage({ kind: 'buffer', bufferMs: -1 })).toBe(false);
+    expect(isHostMessage({ kind: 'buffer' })).toBe(false);
+    expect(isHostMessage({ kind: 'buffer', bufferMs: '750' })).toBe(false);
+  });
+
   it('accepts bounded playback preparation messages', () => {
     expect(isHostMessage({
       kind: 'playback.prepare',

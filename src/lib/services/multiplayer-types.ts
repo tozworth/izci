@@ -208,6 +208,26 @@ export interface PeerConnection {
   paired: boolean;
   freeplayPaired: boolean;
   clientFreeplayEnabled: boolean;
+  /**
+   * True once the client's hello has been processed. Connect-time pushes
+   * (pairing, current state, media source sync) must wait for it: the hello
+   * carries `freeplayEnabled`, and pushing shared-mode state before it is
+   * processed leaks the host playlist/playback to a Freeplay-bound peer.
+   */
+  helloReceived: boolean;
+  /**
+   * True once `syncPeerFreeplayMode` has finished assigning `peer.freeplay`
+   * for this connection. `helloReceived` alone is not enough: the mode sync is
+   * async (pairing-record write, wire attach), and shared-mode pushes between
+   * the hello and the settled flag would still leak the host track/playlist to
+   * a Freeplay-bound peer.
+   */
+  freeplaySettled: boolean;
+  /**
+   * Media-channel open raced the hello: the initial source-file sync is
+   * deferred until freeplay status is known.
+   */
+  mediaSyncPending: boolean;
   freeplay: boolean;
   freeplayPlayer: MultiplayerFreeplayPlayer | null;
   freeplayCollection: MultiplayerCollection;
@@ -309,6 +329,14 @@ export interface MultiplayerSessionCore {
   pendingClientSourceFile: { trackId: string; file: File } | null;
   pendingClientPlaybackPreparation: MultiplayerPlaybackPreparation | null;
   clientRemoteAudioReady: boolean;
+  /**
+   * The host's listener-buffer target (ms) as delivered by the `buffer`
+   * message. Non-null while connected to a host that has told us its buffer;
+   * it is authoritative over the local `multiplayerAudioBufferMs` (the host's
+   * slider controls the session live). Cleared on reset so a fresh join
+   * starts from the local preference until the host's value arrives.
+   */
+  hostAudioBufferMs: number | null;
   reconnectTimer: number | null;
   reconnectAttempts: number;
   reconnectInFlight: boolean;

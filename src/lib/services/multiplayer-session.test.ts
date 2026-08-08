@@ -3,6 +3,7 @@ import {
   isMultiplayerClientTransportHealthy,
   isMultiplayerFreeplayActive,
   isMultiplayerPlaybackPreparationReady,
+  parseFreeplayRestoredFlags,
   resolveMultiplayerFreeplayAgreement,
   sanitizeFreeplayQueueIds,
   shouldTransferMultiplayerSourceFile
@@ -158,5 +159,24 @@ describe('Freeplay queue sanitization', () => {
       (_, index) => `id-${index}`
     );
     expect(sanitizeFreeplayQueueIds(ids)).toHaveLength(MULTIPLAYER_QUEUE_MAX_ITEMS);
+  });
+});
+
+describe('Freeplay restored flags parsing', () => {
+  it('accepts complete flag payloads', () => {
+    expect(parseFreeplayRestoredFlags({ shuffleEnabled: true, repeatMode: 'all' }))
+      .toEqual({ shuffleEnabled: true, repeatMode: 'all' });
+    expect(parseFreeplayRestoredFlags({ shuffleEnabled: false, repeatMode: 'off' }))
+      .toEqual({ shuffleEnabled: false, repeatMode: 'off' });
+    expect(parseFreeplayRestoredFlags({ shuffleEnabled: true, repeatMode: 'one' }))
+      .toEqual({ shuffleEnabled: true, repeatMode: 'one' });
+  });
+
+  it('rejects partial or invalid flag payloads', () => {
+    expect(parseFreeplayRestoredFlags({})).toBeNull();
+    expect(parseFreeplayRestoredFlags({ shuffleEnabled: true })).toBeNull();
+    expect(parseFreeplayRestoredFlags({ repeatMode: 'all' })).toBeNull();
+    expect(parseFreeplayRestoredFlags({ shuffleEnabled: 'yes', repeatMode: 'all' })).toBeNull();
+    expect(parseFreeplayRestoredFlags({ shuffleEnabled: true, repeatMode: 'weird' })).toBeNull();
   });
 });

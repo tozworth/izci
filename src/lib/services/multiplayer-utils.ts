@@ -37,6 +37,24 @@ export function cycleMultiplayerRepeatMode(mode: PlaylistRepeatMode): PlaylistRe
   return mode === 'off' ? 'all' : mode === 'all' ? 'one' : 'off';
 }
 
+/**
+ * Extracts the optional Freeplay transport flags a client may attach to its
+ * queue re-send (reconnect restore). Both must be present and valid — a
+ * partial payload is ignored so the host never applies half a restore.
+ */
+export function parseFreeplayRestoredFlags(message: {
+  shuffleEnabled?: unknown;
+  repeatMode?: unknown;
+}): { shuffleEnabled: boolean; repeatMode: PlaylistRepeatMode } | null {
+  if (typeof message.shuffleEnabled !== 'boolean') return null;
+  if (message.repeatMode !== 'off'
+    && message.repeatMode !== 'all'
+    && message.repeatMode !== 'one') {
+    return null;
+  }
+  return { shuffleEnabled: message.shuffleEnabled, repeatMode: message.repeatMode };
+}
+
 export function isMultiplayerFreeplayActive(pairing: {
   paired: boolean;
   freeplayPaired: boolean;
@@ -96,7 +114,12 @@ export function isClientMessage(value: unknown): value is ClientMessage {
       && message.itemIds.length <= MULTIPLAYER_QUEUE_MAX_ITEMS
       && message.itemIds.every((id) => typeof id === 'string'
         && id.length > 0
-        && id.length <= 200);
+        && id.length <= 200)
+      && (message.shuffleEnabled === undefined || typeof message.shuffleEnabled === 'boolean')
+      && (message.repeatMode === undefined
+        || message.repeatMode === 'off'
+        || message.repeatMode === 'all'
+        || message.repeatMode === 'one');
   }
   if (message.kind === 'playback.ready') {
     return typeof message.preparationId === 'string'

@@ -21,6 +21,11 @@ export class MultiplayerAudioService {
     return audioBusService.getBroadcastTrack(postRaf);
   }
 
+  /** Position of the remote element's playout (ms) — the receiver's emitted timeline. */
+  get remoteElementPositionMs(): number {
+    return this.#remoteElement ? this.#remoteElement.currentTime * 1000 : 0;
+  }
+
   setHostAudible(audible: boolean): void {
     audioBusService.setBroadcastGain(audible ? 1 : 0);
   }
@@ -138,6 +143,30 @@ export class MultiplayerAudioService {
     element.style.pointerEvents = 'none';
     document.body?.appendChild(element);
     this.#remoteElement = element;
+    // Connect the audible route NOW, muted (gain 0): the AudioContext and the
+    // MediaStreamAudioSourceNode warm up and sync to the live track DURING the
+    // preroll, while nothing is heard. Making the route audible later is just a
+    // gain ramp (connectRemoteRoute). Without this, the route cold-starts the
+    // graph and the source node at the same moment — a fresh node tapping a
+    // mid-stream track emits garbled/stretched first frames (~1-3 s of
+    // "stuttering into life") even with a perfect cushion.
+    this.#remoteSource = audioBusService.connectMediaStreamSilent(stream);
+    if (!this.#remoteSource) {
+      this.#publish('unavailable');
+      return false;
+    }
+    // AWAITED (not fire-and-forget): the muted route only warms the source node
+    // while the AudioContext is actually RUNNING — a suspended context pulls
+    // nothing, so the "warm" node is cold at route time. The preroll runs from
+    // a data-channel message, not a gesture, so this can fail under the
+    // autoplay policy; the client's command/join handlers also resume the bus
+    // from the user gesture (sendCommand), which is the reliable warm-up.
+    const contextRunning = await audioBusService.resume();
+    if (!contextRunning) {
+      logWarning('multiplayer', 'Remote preroll AudioContext not running', {
+        state: safeContextState()
+      });
+    }
     track.onmute = () => this.#publish('connecting');
     track.onunmute = () => void this.resumeRemoteAudio();
     track.onended = () => this.#publish('unavailable');
@@ -149,23 +178,31 @@ export class MultiplayerAudioService {
   }
 
   /**
-   * Makes the prerolled element audible: connects the WebAudio route from the
-   * stored stream and resumes. The element has been consuming the receiver
-   * (muted) all along, so it is warm and the jitter buffer is at steady state
-   * — the audible start should be clean. No-op when nothing is prerolled.
+   * Makes the prerolled element audible: ramps the route's bus gain from 0
+   * (the route was connected muted during the preroll, so the AudioContext
+   * and the MediaStreamAudioSourceNode are already warm and synced to the
+   * live track) and resumes. No-op when nothing is prerolled.
    */
   async connectRemoteRoute(): Promise<boolean> {
     if (!this.#remoteElement || !this.#remoteTrack || !this.#remoteStream) {
       return false;
     }
     if (!this.#remoteSource) {
-      this.#remoteSource = audioBusService.connectMediaStream(this.#remoteStream);
+      // Defensive fallback: the preroll should have connected the route muted,
+      // but a drained/rebuilt pipeline can reach the route without one. Connect
+      // SILENT (gain 0) and ramp below instead of an audible cold connect —
+      // a fresh source node snapping to audible mid-stream is the same
+      // garbled-start regression as a cold graph.
+      this.#remoteSource = audioBusService.connectMediaStreamSilent(this.#remoteStream);
       if (!this.#remoteSource) {
         this.#publish('unavailable');
         return false;
       }
     }
-    logDebug('multiplayer', 'Remote audio route connected (audible)');
+    audioBusService.setMediaStreamSourceGain(this.#remoteSource, 1);
+    logDebug('multiplayer', 'Remote audio route connected (audible)', {
+      contextState: safeContextState()
+    });
     return this.resumeRemoteAudio();
   }
 
@@ -232,3 +269,16 @@ export class MultiplayerAudioService {
 }
 
 export const multiplayerAudioService = new MultiplayerAudioService();
+
+/**
+ * Reads the shared AudioContext state without letting the bus's graph-ensuring
+ * getter throw (it can while the graph is still coming up). Used for
+ * diagnostics around the preroll/route, never for control flow.
+ */
+function safeContextState(): string | null {
+  try {
+    return audioBusService.context?.state ?? null;
+  } catch {
+    return null;
+  }
+}

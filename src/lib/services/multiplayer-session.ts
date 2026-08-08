@@ -5,7 +5,7 @@ import { experimentalSettings } from '$lib/stores/experimental-settings';
 import { multiplayerLastSession } from '$lib/stores/multiplayer-last-session';
 import { multiplayerAudioService } from './multiplayer-audio';
 import { multiplayerSourcePlaybackService } from './multiplayer-source-playback';
-import { clearPeerConnectionTimer, sendToPeer } from './multiplayer-peer';
+import { applyAudioBitrate, clearPeerConnectionTimer, sendToPeer } from './multiplayer-peer';
 import { resolvePlaybackPreparationAudio, readReceiveAudioPreference } from './multiplayer-utils';
 import { createMultiplayerHostSide } from './multiplayer-host';
 import { createMultiplayerClientSide } from './multiplayer-client';
@@ -48,6 +48,7 @@ export function createMultiplayerSession({
     pendingClientSourceFile: null,
     pendingClientPlaybackPreparation: null,
     clientRemoteAudioReady: false,
+    hostAudioBufferMs: null,
     reconnectTimer: null,
     reconnectAttempts: 0,
     reconnectInFlight: false,
@@ -126,6 +127,9 @@ export function createMultiplayerSession({
     core.pendingClientSourceFile = null;
     core.pendingClientPlaybackPreparation = null;
     core.clientRemoteAudioReady = false;
+    // Drop the previous host's authoritative buffer so a fresh join starts
+    // from the local preference until the new host's `buffer` message lands.
+    core.hostAudioBufferMs = null;
     core.hostPlaybackPreparation = null;
     core.bypassHostPlaybackGateTrackId = null;
     multiplayerAudioService.releaseHostTrack();
@@ -213,6 +217,8 @@ export function createMultiplayerSession({
   const unsubscribeSettings = experimentalSettings.subscribe((settings: ExperimentalSettings) => {
     const audioBufferChanged = settings.multiplayerAudioBufferMs
       !== core.multiplayerSettings.multiplayerAudioBufferMs;
+    const opusBitrateChanged = settings.multiplayerOpusBitrateKbps
+      !== core.multiplayerSettings.multiplayerOpusBitrateKbps;
     const freeplayPreferenceChanged = settings.multiplayerFreeplay
       !== core.multiplayerSettings.multiplayerFreeplay;
     const freeplayAudioChanged = settings.multiplayerStreamAudio
@@ -226,6 +232,20 @@ export function createMultiplayerSession({
     if (core.state.mode === 'hosting') {
       host.syncHostAudio(core.latestHostState?.track ?? null);
       host.syncHostSourceFiles(core.latestHostState?.track ?? null);
+      if (opusBitrateChanged) {
+        // Freeplay peers only re-apply the bitrate on track changes, so a
+        // mid-track slider drag never reached their sender; re-apply live.
+        for (const peer of core.hostPeers.values()) {
+          void applyAudioBitrate(peer, settings.multiplayerOpusBitrateKbps);
+        }
+      }
+      if (audioBufferChanged) {
+        // Host-authoritative listener buffer: ship the new target to every
+        // connected client; each applies it to its receiver immediately.
+        for (const peer of core.hostPeers.values()) {
+          sendToPeer(peer, { kind: 'buffer', bufferMs: settings.multiplayerAudioBufferMs });
+        }
+      }
       if (freeplayPreferenceChanged) {
         for (const peer of core.hostPeers.values()) void host.syncPeerFreeplayMode(peer);
       } else if (freeplayAudioChanged) {
@@ -256,7 +276,9 @@ export function createMultiplayerSession({
         host.beginHostPlaybackPreparation(core.hostPlaybackPreparation.preparation.trackId);
       }
     }
-    if (core.state.mode === 'client' && core.clientPeer && audioBufferChanged) {
+    // The host's `buffer` message is authoritative while connected; the local
+    // slider only applies before a host has stated its buffer.
+    if (core.state.mode === 'client' && core.clientPeer && audioBufferChanged && core.hostAudioBufferMs === null) {
       client.applyClientAudioBuffer(core.clientPeer);
     }
     if (core.state.mode === 'client' && core.clientPeer && freeplayPreferenceChanged) {

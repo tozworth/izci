@@ -1,6 +1,6 @@
 import type { ChiptuneJsPlayer } from 'chiptune3';
 import { audioBusService } from '$lib/services/audio-bus';
-import { logError, logInfo, logDebug } from '$lib/services/logging';
+import { logError, logWarning, logInfo, logDebug } from '$lib/services/logging';
 import { createChiptunePlayer } from '$lib/services/chiptune-loader';
 import { RafEngine } from '$lib/services/raf-engine';
 import { modulePlaybackSettings } from '$lib/stores/module-playback-settings';
@@ -80,6 +80,7 @@ export class MultiplayerFreeplayPlayer {
   #objectUrl: string | null = null;
   #progressTimer: number | null = null;
   #loadToken = 0;
+  #destroyed = false;
   readonly #getAudioSettings: CreateMultiplayerFreeplayPlayerOptions['getAudioSettings'];
   readonly #onUpdate: CreateMultiplayerFreeplayPlayerOptions['onUpdate'];
   readonly #onEnded: CreateMultiplayerFreeplayPlayerOptions['onEnded'];
@@ -88,6 +89,38 @@ export class MultiplayerFreeplayPlayer {
     this.#getAudioSettings = getAudioSettings;
     this.#onUpdate = onUpdate;
     this.#onEnded = onEnded;
+    // Eager destination + running silence anchor. The peer's audio sender is
+    // attached to this destination's track at Freeplay activation
+    // (ensureWire), so silence RTP flows for the WHOLE session — not only
+    // after the first streamed track. The client's persistent silent sink
+    // consumes it, so NetEq pre-builds the receiver's jitter-buffer cushion
+    // during idle/source-file phases; the first streamed track then starts
+    // with the cushion already in place instead of building from zero over
+    // seconds on a real link (the "nothing for the first seconds, then it
+    // slowly stutters to life" report).
+    void Promise.resolve()
+      .then(() => audioBusService.resume())
+      .then(() => {
+        if (this.#destroyed) return;
+        try {
+          // No context gate here: `#ensureDestination()` accesses
+          // `audioBusService.context` itself, and that getter can THROW while
+          // the shared graph is still coming up (only resume() wraps it) — a
+          // gate here would reject this chain and the eager wire would
+          // silently never exist. Best-effort; `ensureWire()` retries at
+          // Freeplay activation.
+          this.#ensureDestination();
+          if (this.streamTrack) {
+            // Publish once after the eager wiring so syncFreeplayPlayerUpdate
+            // sees the destination track and attaches it to the peer's sender
+            // (the standard path, not just the one-shot activation attach).
+            this.#publish();
+          }
+        } catch {
+          // The shared graph is not up yet — ensureWire() retries later.
+        }
+      })
+      .catch(() => undefined);
   }
 
   get track(): PlaylistItem | null {
@@ -116,6 +149,51 @@ export class MultiplayerFreeplayPlayer {
 
   get streamTrack(): MediaStreamTrack | null {
     return this.#destination?.stream.getAudioTracks()[0] ?? null;
+  }
+
+  /**
+   * Resolves once the player's destination (with its running silence anchor)
+   * exists and returns its stream track for the peer's audio sender. Called
+   * at Freeplay activation so the silence wire is live from the start — the
+   * client's persistent sink then pre-builds the jitter-buffer cushion during
+   * idle phases. A destroyed player (or a context that cannot start) returns
+   * null, in which case the sender stays without a track and streamed tracks
+   * degrade to the previous build-from-zero preroll.
+   */
+  async ensureWire(): Promise<MediaStreamTrack | null> {
+    if (this.#destroyed) {
+      logWarning('freeplay', 'Freeplay wire ensure failed (destroyed)');
+      return null;
+    }
+    try {
+      await audioBusService.resume();
+    } catch (error) {
+      logWarning('freeplay', 'Freeplay wire ensure failed (resume)', { error: error instanceof Error ? error.message : String(error) });
+      return null;
+    }
+    try {
+      // Create the destination unconditionally — do NOT gate on
+      // `audioBusService.context`: the getter calls `#ensureGraph()` which can
+      // THROW while the graph is still coming up (only resume() wraps it), so
+      // a `!context` gate rejected this promise, the host's `.catch(() => null)`
+      // turned it into replaceTrack(null), and no silence RTP ever flowed (the
+      // pre-seed silently did nothing). If the graph genuinely cannot start,
+      // `#ensureDestination()` throws and we return null — streamed tracks
+      // then degrade to the build-from-zero preroll.
+      const track = this.#ensureDestination().stream.getAudioTracks()[0] ?? null;
+      if (track) {
+        // Publish once after the wire exists so syncFreeplayPlayerUpdate sees
+        // the destination track and attaches it through the standard path
+        // (which also applies the negotiated opus bitrate), not just the
+        // one-shot activation replaceTrack.
+        this.#publish();
+      }
+      logDebug('freeplay', 'Freeplay wire ready', { hasTrack: track !== null });
+      return track;
+    } catch (error) {
+      logWarning('freeplay', 'Freeplay wire ensure failed (destination)', { error: error instanceof Error ? error.message : String(error) });
+      return null;
+    }
   }
 
   async load(track: PlaylistItem, autoPlay = false, initialPosition = 0): Promise<boolean> {
@@ -260,6 +338,8 @@ export class MultiplayerFreeplayPlayer {
   }
 
   destroy(): void {
+    if (this.#destroyed) return;
+    this.#destroyed = true;
     logDebug('freeplay', 'Freeplay player destroyed', { id: this.#track?.id ?? null });
     this.#loadToken += 1;
     this.#stopProgress();

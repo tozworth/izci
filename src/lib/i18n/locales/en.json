@@ -797,8 +797,26 @@
           "hint": "Sends smaller audio and module files whole, then renders them on each listener. Larger files and all video soundtracks use the host’s Opus stream."
         },
         "category": "Multiplayer",
-        "title": "izci Multiplayer",
-        "hint": "Lets this izci host or join a shared listening session. Firebase handles the handshake; audio travels directly between peers.",
+        "modes": {
+          "label": "Multiplayer mode",
+          "singleplayer": {
+            "title": "Singleplayer",
+            "hint": "izci Multiplayer is turned off."
+          },
+          "coop": {
+            "title": "Co-op",
+            "hint": "Clients can control the host’s playlist and playback. Good for HTPCs, parties."
+          },
+          "coopAudio": {
+            "title": "Co-op + audio",
+            "hint": "Clients can control the host and listen to its audio stream on their own device."
+          },
+          "freeplay": {
+            "title": "Freeplay",
+            "hint": "Paired clients can browse and play music from the host’s library independently, with their own queue, playback, and audio."
+          },
+          "freeplayBadge": "Highly experimental"
+        },
         "name": "Name this izci",
         "nameHint": "Shown to hosts and clients in multiplayer sessions.",
         "waitForClients": {
@@ -833,16 +851,7 @@
           "title": "Maximum guests",
           "hint": "Limits how many guests can connect to the host at once, whether or not audio streaming is enabled."
         },
-        "freeplay": {
-          "category": "Multiplayer Freeplay",
-          "title": "Enable Freeplay",
-          "hint": "When both izci devices enable Freeplay and pair, the listener can browse and play this host’s library on an independent timeline. The agreement is remembered for future connections."
-        },
         "audioCategory": "Multiplayer Audio",
-        "streamAudio": {
-          "title": "Send audio to listeners",
-          "hint": "Sends eligible files for local playback and streams the rest from the host. The host’s volume and mute do not affect listeners."
-        },
         "postRaf": {
           "title": "Send post-Raf audio",
           "hint": "Applies the host’s Raf rack before streaming. When off, listeners receive pre-Raf audio and can apply their own Raf settings."

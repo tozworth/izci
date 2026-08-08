@@ -8,12 +8,19 @@ import type {
 
 export type MultiplayerCollection = 'playlist' | 'library' | 'favorites';
 
-// Version 15: Freeplay shuffle/repeat flags move to a lightweight `state`
-// message (v14 carried them inside every catalog echo, so a toggle re-shipped
-// the whole library and in-flight echoes could clobber optimistic client
-// toggles). The catalog keeps the fields for plain multiplayer peers, which
-// still read the host playlist's flags from it.
-export const MULTIPLAYER_PROTOCOL_VERSION = 15;
+// Version 16: host-authoritative listener buffer — the host's
+// `multiplayerAudioBufferMs` is shipped to clients as a `buffer` message
+// (on connect and on every slider change) so the host controls the
+// listeners' receiver jitter-buffer target live. v15 moved Freeplay
+// shuffle/repeat flags to a lightweight `state` message (v14 carried them
+// inside every catalog echo, so a toggle re-shipped the whole library and
+// in-flight echoes could clobber optimistic client toggles). The catalog
+// keeps the fields for plain multiplayer peers, which still read the host
+// playlist's flags from it.
+export const MULTIPLAYER_PROTOCOL_VERSION = 16;
+// The `freeplay.queue` message optionally carries the client's shuffle/repeat
+// flags (additive, no bump): on reconnect the fresh host peer applies them so
+// restored Freeplay state survives host/peer recreation.
 export const MULTIPLAYER_FRAME_CHUNK_SIZE = 12_000;
 
 /**
@@ -109,6 +116,7 @@ export type HostMessage =
   | { kind: 'playback'; playback: MultiplayerPlayback }
   | { kind: 'playback.prepare'; preparation: MultiplayerPlaybackPreparation }
   | { kind: 'audio'; audio: MultiplayerAudioAvailability }
+  | { kind: 'buffer'; bufferMs: number }
   | { kind: 'artwork'; artwork: MultiplayerArtwork | null }
   | { kind: 'ack'; commandId: string; accepted: boolean; message?: string }
   | { kind: 'kicked' };
@@ -116,7 +124,7 @@ export type HostMessage =
 export type ClientMessage =
   | { kind: 'hello'; version: number; name: string; platform: string; freeplayEnabled: boolean }
   | { kind: 'freeplay.preference'; enabled: boolean }
-  | { kind: 'freeplay.queue'; itemIds: string[] }
+  | { kind: 'freeplay.queue'; itemIds: string[]; shuffleEnabled?: boolean; repeatMode?: PlaylistRepeatMode }
   | { kind: 'command'; command: MultiplayerCommand }
   | { kind: 'playback.ready'; preparationId: string }
   | { kind: 'playback.ended'; trackId: string };
@@ -260,6 +268,12 @@ export function isHostMessage(value: unknown): value is HostMessage {
       && typeof audio.postRaf === 'boolean'
       && (audio.reason === null
         || audio.reason === 'host-disabled');
+  }
+  if (message.kind === 'buffer') {
+    return typeof message.bufferMs === 'number'
+      && Number.isFinite(message.bufferMs)
+      && message.bufferMs >= 0
+      && message.bufferMs <= 4_000;
   }
   if (message.kind === 'artwork') {
     return message.artwork === null || isMultiplayerArtwork(message.artwork);

@@ -10,7 +10,12 @@ import {
   multiplayerPairings,
   rememberMultiplayerPairing
 } from '$lib/stores/multiplayer-pairings';
+import {
+  multiplayerFreeplayState,
+  rememberMultiplayerFreeplayState
+} from '$lib/stores/multiplayer-freeplay-state';
 import { multiplayerAudioService, type MultiplayerReceiverAudioStatus } from './multiplayer-audio';
+import { audioBusService } from '$lib/services/audio-bus';
 import { enableOpusStereo } from './multiplayer-opus';
 import { resolveMultiplayerConnectionRoute } from './multiplayer-ice';
 import {
@@ -159,9 +164,31 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
   // Monotonic guard for concurrent async attaches (rapid track switches): only
   // the most recent attach may touch the pipeline.
   let clientAudioAttachToken = 0;
+  // Set by the pairing handler after a reconnect when the previously-playing
+  // freeplay track should resume; consumed by the first `playback` message that
+  // reports an empty host player (host restart wiped the selection). A host
+  // that already resumed (same-process reconnect) reports a track instead and
+  // this is cleared without re-activating, so the running track is not restarted.
+  let freeplayResumeCandidate: string | null = null;
 
   function publish(patch: Parameters<MultiplayerSessionCore['publish']>[0]): void {
     core.publish(patch);
+  }
+
+  /**
+   * WARM THE AUDIO GRAPH FROM THE USER GESTURE. The streamed preroll runs from
+   * a data-channel message handler — NOT a gesture — so its own
+   * `audioBusService.resume()` can be rejected by the autoplay policy; a
+   * suspended AudioContext pulls nothing, and the "warmed" source node is still
+   * cold at route time (the garbled/stretched first frames). Every call here
+   * originates in the UI (Session menu, play controls, track taps), so the
+   * context starts under real user activation and is genuinely running (and
+   * consuming the receiver track) by the time the preroll's muted route is
+   * connected. Idempotent; a no-op once the context is running.
+   */
+  function warmClientAudioGraph(): void {
+    if (!core.state.receiveAudio) return;
+    void audioBusService.resume();
   }
 
   function updateLocalTimelineMode(): void {
@@ -173,6 +200,7 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
   function setFreeplayQueue(itemIds: string[]): void {
     const sanitized = sanitizeFreeplayQueueIds(itemIds);
     publish({ freeplayQueue: sanitized });
+    persistFreeplayState();
     sendFreeplayQueueToPeer();
   }
 
@@ -180,7 +208,70 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
     const peer = core.clientPeer;
     if (!peer || core.state.mode !== 'client' || !core.state.freeplay) return;
     if (peer.channel?.readyState !== 'open') return;
-    sendToPeer(peer, { kind: 'freeplay.queue', itemIds: core.state.freeplayQueue });
+    sendToPeer(peer, {
+      kind: 'freeplay.queue',
+      itemIds: core.state.freeplayQueue,
+      // A reconnect creates a fresh host peer, so the queue re-send doubles as
+      // the transport-flag restore: the host applies these onto the fresh peer.
+      shuffleEnabled: core.state.remoteCatalog.shuffleEnabled,
+      repeatMode: core.state.remoteCatalog.repeatMode
+    });
+  }
+
+  /**
+   * Restores the persisted Freeplay state (queue + shuffle/repeat) for this
+   * host after a fresh client session — page reload, reconnect, or restore of
+   * the last session. The record is keyed by host id so joining a different
+   * host never inherits another host's queue. Skipped when the in-memory
+   * queue already has content: a same-page reconnect's live state is at least
+   * as fresh as the record.
+   */
+  function restoreFreeplayStateForHost(hostId: string): void {
+    const record = multiplayerFreeplayState.getSnapshot();
+    if (!record || record.hostId !== hostId) return;
+    if (core.state.freeplayQueue.length > 0) return;
+    if (record.queue.length === 0 && !record.shuffleEnabled && record.repeatMode === 'off') return;
+    publish({
+      freeplayQueue: record.queue,
+      remoteCatalog: {
+        ...core.state.remoteCatalog,
+        shuffleEnabled: record.shuffleEnabled,
+        repeatMode: record.repeatMode
+      }
+    });
+    logInfo('multiplayer', 'Freeplay state restored', {
+      hostId,
+      queue: record.queue.length,
+      shuffleEnabled: record.shuffleEnabled,
+      repeatMode: record.repeatMode
+    });
+  }
+
+  /**
+   * Persists the client-owned Freeplay state keyed by the paired host, so a
+   * later session with the same host restores the queue and transport flags.
+   * Best-effort localStorage; only catalog item IDs are stored, never host
+   * content.
+   */
+  function persistFreeplayState(): void {
+    if (core.state.mode !== 'client' || !core.state.freeplay) return;
+    const hostId = core.clientHostId;
+    if (!hostId) return;
+    // Keep the last real track id across transient empty-playback moments
+    // (reconnect/reload resets remotePlayback before the host re-announces a
+    // track): a stop or empty announcement must not wipe the resume target.
+    const liveTrackId = core.state.remotePlayback.track?.id ?? null;
+    const previousRecord = multiplayerFreeplayState.getSnapshot();
+    const previousTrackId = previousRecord && previousRecord.hostId === hostId
+      ? previousRecord.currentTrackId
+      : null;
+    rememberMultiplayerFreeplayState({
+      hostId,
+      queue: core.state.freeplayQueue,
+      shuffleEnabled: core.state.remoteCatalog.shuffleEnabled,
+      repeatMode: core.state.remoteCatalog.repeatMode,
+      currentTrackId: liveTrackId ?? previousTrackId
+    });
   }
 
   /**
@@ -193,6 +284,7 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
   async function join(rawInviteCode: string, options: { silent?: boolean } = {}): Promise<void> {
     const silent = options.silent === true;
     logInfo('multiplayer', 'Client joining', { inviteCode: rawInviteCode, silent });
+    warmClientAudioGraph();
     core.allowClientReconnect = true;
     core.reconnectAttempts = 0;
     multiplayerSourcePlaybackService.beginClientSession((trackId) => {
@@ -231,6 +323,7 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
       logWarning('multiplayer', 'Invalid paired host id', { hostId });
       throw new Error('That paired multiplayer host is invalid.');
     }
+    warmClientAudioGraph();
     core.clientHostId = hostId;
     const firebase = await loadFirebase();
     const directory = (await firebase.get(firebase.ref(
@@ -368,7 +461,7 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
       preferOpus(audioTransceiver);
       setMultiplayerReceiverBuffer(
         audioTransceiver.receiver,
-        core.multiplayerSettings.multiplayerAudioBufferMs
+        effectiveAudioBufferMs()
       );
       const channel = peer.pc.createDataChannel('izci-control', { ordered: true });
       peer.channel = channel;
@@ -567,6 +660,7 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
             repeatMode: message.repeatMode
           }
         });
+        persistFreeplayState();
       }
       if (message.kind === 'playback') {
         const previousTrackId = core.state.remotePlayback.track?.id ?? null;
@@ -587,6 +681,38 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
           });
         }
         publish({ remotePlayback: message.playback });
+        // Keep the persisted record's current-track id fresh on real track
+        // transitions (guarded by the id comparison — the playback message
+        // streams 4x/sec). Only non-null tracks are persisted: an idle/null
+        // announcement (fresh host peer right after reconnect) must not wipe
+        // the id the pairing handler is about to re-activate.
+        if (core.state.freeplay
+          && message.playback.track?.id
+          && message.playback.track.id !== previousTrackId) {
+          persistFreeplayState();
+        }
+        if (freeplayResumeCandidate) {
+          const resumeTrackId = freeplayResumeCandidate;
+          freeplayResumeCandidate = null;
+          if (!message.playback.track && core.state.freeplay) {
+            // The host's player is empty — it did NOT resume the selection
+            // (host restart wiped the memory). Re-activate the previously
+            // playing track so audio hooks again. The queue was re-sent before
+            // this playback message, so the host can resolve it.
+            logInfo('multiplayer', 'Re-activating Freeplay track after reconnect', { trackId: resumeTrackId });
+            sendToPeer(peer, {
+              kind: 'command',
+              command: {
+                type: 'collection.activate',
+                commandId: crypto.randomUUID(),
+                collection: 'playlist',
+                itemId: resumeTrackId
+              }
+            });
+          }
+          // else: the host already resumed (playback carries a track) — the
+          // candidate is dropped so the running track is not restarted.
+        }
         if (loadingNewTrack && core.latestAudioAvailability.enabled) {
           // The host started loading a different streamed track. The streamed
           // element must stop NOW (zero headroom) while staying attached as the
@@ -595,6 +721,17 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
           // flush does NOT discard it) stays audible until the fresh attach.
           multiplayerAudioService.drainRemoteTrack();
           streamedDrainStartedAt = Date.now();
+          // The previous track's preroll left `clientRemoteAudioReady = true`.
+          // It must NOT leak into the new track's readiness handshake: the
+          // audio message handler calls sendClientPlaybackReadyIfPossible
+          // synchronously after the (un-awaited) attach, and with the stale
+          // flag it releases the host's play gate while this track's tail-wait
+          // and preroll are still running — the host then plays the new track
+          // ~2 s early, the preroll "builds" its cushion from the already-
+          // playing audio, and the audible start lands seconds into the track
+          // (intro skipped, warped by NetEq — the "no clean start at 00:00"
+          // report). The new attach re-arms it after the cushion is built.
+          core.clientRemoteAudioReady = false;
           // Keep the configured jitter cushion applied through the drain (a
           // source-file interlude flushed it to 0): while the drained sink
           // consumes the old tail from the front, incoming silence/new-track
@@ -648,8 +785,30 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
         updateLocalTimelineMode();
         if (message.paired && message.freeplayActive) {
           // Reconnect creates a fresh host peer; re-sync the owned queue so the
-          // host can resolve it into the catalog and step within it.
+          // host can resolve it into the catalog and step within it. A fresh
+          // client session (reload / restore) restores the persisted queue and
+          // transport flags first — the queue message then carries both.
+          restoreFreeplayStateForHost(message.hostId);
           sendFreeplayQueueToPeer();
+          // A host restart wipes the host-side selection memory, so the fresh
+          // peer's Freeplay player has NO track — the queue re-send alone
+          // leaves audio unavailable. Remember the previously-playing track and
+          // let the first post-reconnect `playback` message decide whether to
+          // re-activate it: if the host already resumed (same-process
+          // reconnect, playback carries a track), doing nothing keeps the
+          // running track; if the host reports an empty player (restart), the
+          // re-activation hooks audio again. Prefer the in-memory remote track
+          // (a same-page reconnect preserves it); fall back to the persisted
+          // record (page reload / restore-last-session).
+          const record = multiplayerFreeplayState.getSnapshot();
+          const liveTrackId = core.state.remotePlayback.track?.id ?? null;
+          const restoredTrackId = record && record.hostId === message.hostId
+            ? record.currentTrackId
+            : null;
+          const resumeTrackId = liveTrackId ?? restoredTrackId;
+          if (resumeTrackId && core.state.freeplayQueue.includes(resumeTrackId)) {
+            freeplayResumeCandidate = resumeTrackId;
+          }
         }
       }
       if (message.kind === 'audio') {
@@ -668,12 +827,17 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
           // Source-file phase: the transferred track plays through the local
           // player. Keep the remote element as a silent sink so the receiver's
           // jitter buffer keeps advancing (the host's silence anchor feeds it
-          // through the interlude) instead of freezing with the previous
-          // streamed track's tail — and flush the buffer target so NetEq drops
-          // retained audio. The next streamed track then builds a FRESH
-          // pipeline (see attachClientRemoteAudio) that starts from silence.
+          // through the interlude) — and keep the configured cushion APPLIED
+          // (rather than flushing the target to zero) so NetEq rebuilds the
+          // level toward the target during the phase: the next streamed
+          // track's preroll then starts from the built cushion instead of
+          // zero, which on a real link is the difference between a clean
+          // ~1 s start and the "nothing for seconds, then stutters to life"
+          // budget exit. The previous track's retained tail is cleared by the
+          // sink playing it out, not by a target flush (which Chromium
+          // ignores for retained audio anyway).
           multiplayerAudioService.drainRemoteTrack();
-          flushClientReceiverBuffer(peer);
+          applyClientAudioBuffer(peer);
           multiplayerSourcePlaybackService.setEnabled(true);
           publish({ audioStatus: multiplayerSourcePlaybackService.active ? 'playing' : 'connecting' });
         } else if (!message.audio.enabled) {
@@ -690,6 +854,15 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
           attachClientRemoteAudio(peer);
         }
         sendClientPlaybackReadyIfPossible(peer);
+      }
+      if (message.kind === 'buffer') {
+        // Host-authoritative listener buffer: the host's slider wins over the
+        // local preference while connected; apply the new target live to the
+        // receiver. The preroll (attachClientRemoteAudio) reads the same
+        // effective value, so the next streamed attach also targets it.
+        logDebug('multiplayer', 'Host audio buffer target', { bufferMs: message.bufferMs });
+        core.hostAudioBufferMs = message.bufferMs;
+        applyClientAudioBuffer(peer);
       }
       if (message.kind === 'kicked') {
         core.allowClientReconnect = false;
@@ -771,31 +944,54 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
     peer.pc.ontrack = (event) => {
       if (event.track.kind !== 'audio') return;
       logDebug('multiplayer', 'Remote audio track received');
-      setMultiplayerReceiverBuffer(event.receiver, core.multiplayerSettings.multiplayerAudioBufferMs);
+      setMultiplayerReceiverBuffer(event.receiver, effectiveAudioBufferMs());
       receiverMonitor.start(peer);
-      // No attach here: every streamed attach happens via the `audio` message
-      // (attachClientRemoteAudio), which runs the preroll (cushion build →
-      // playout → route) so the audible start is clean. An attach at ontrack
-      // would be a live zero-cushion sink playing the first seconds with the
-      // start-of-track slowdown.
-      if (!core.state.receiveAudio || core.latestAudioAvailability.sourceFile || !core.latestAudioAvailability.enabled) {
+      if (!core.state.receiveAudio) {
         event.track.enabled = false;
         publish({
-          audioStatus: core.state.receiveAudio ? 'connecting' : 'refused',
+          audioStatus: 'refused',
           averageAudioBitrateKbps: null
         });
+        return;
       }
+      // Persistent silent sink from session start: attach the receiver track
+      // to a muted, out-of-graph element that is PLAYING. It is the receiver's
+      // only sink, which is what lets NetEq's delay management run — and the
+      // host's silence anchor (attached to the sender at Freeplay activation)
+      // keeps silence flowing through idle/source-file phases, so the
+      // jitter-buffer cushion pre-builds toward the configured target while
+      // nothing is heard. The first streamed track's preroll then exits on the
+      // first polls instead of building from zero over seconds on a real link
+      // (the "nothing for the first seconds, then slowly stutters to life"
+      // bug). The sink is never audible; the first streamed attach replaces
+      // it with the fresh preroll pipeline.
+      event.track.enabled = true;
+      void multiplayerAudioService.attachRemoteTrackPrerolled(
+        event.track,
+        new MediaStream([event.track]),
+        (status) => {
+          if (core.state.mode === 'client' && core.state.receiveAudio) {
+            publish({ audioStatus: status, averageAudioBitrateKbps: null });
+          }
+        }
+      );
     };
   }
 
   async function attachClientRemoteAudio(peer: PeerConnection): Promise<void> {
     if (core.clientPeer !== peer || !core.state.receiveAudio || !core.latestAudioAvailability.enabled) return;
+    // Defensive re-arm: the readiness gate must not see the PREVIOUS track's
+    // completed preroll. The playback(loading) drain usually resets this, but
+    // the audio message can also arrive without a preceding loading message
+    // (first streamed track after source-file phases, reconnects). Only this
+    // attach's own cushion-build completion (below) may re-arm it.
+    core.clientRemoteAudioReady = false;
     const receiver = peer.pc.getReceivers().find(({ track }) => track.kind === 'audio');
     const track = receiver?.track;
     if (!track || track.readyState === 'ended') return;
     track.enabled = true;
     const attachToken = ++clientAudioAttachToken;
-    const bufferMs = core.multiplayerSettings.multiplayerAudioBufferMs;
+    const bufferMs = effectiveAudioBufferMs();
     const statusHandler = (audioStatus: MultiplayerReceiverAudioStatus): void => {
       if (core.state.mode === 'client' && core.state.receiveAudio && core.latestAudioAvailability.enabled) {
         publish({ audioStatus });
@@ -893,9 +1089,104 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
     }
     // Phase C — audible. The element has been warm and the receiver is at
     // steady state the whole time, so the first sample the user hears is
-    // clean.
+    // clean. (The pre-route level probe was REMOVED: it awaited two stats
+    // polls ~250 ms apart and added that delay to every streamed start —
+    // a slow-start regression. The cushion-built log and the post-route
+    // trace below cover the same diagnosis without blocking the route.)
     logDebug('multiplayer', 'Remote audio route connected (audible)');
     await multiplayerAudioService.connectRemoteRoute();
+    void sampleReceiverRouteLevel(peer, 'route');
+    void traceReceiverRouteLevel(peer);
+  }
+
+  /**
+   * Bounded post-route level trace (diagnostic): polls the receiver level at
+   * ~200 ms for 2 s after the route and logs the trajectory. A collapse right
+   * after routing means NetEq is time-stretching the AUDIBLE start to rebuild
+   * the cushion ("stuttering into life"); a steady level with garbled audio
+   * points at the MediaStreamAudioSourceNode's startup window instead. One
+   * shot per attach — never on a per-tick path.
+   */
+  async function traceReceiverRouteLevel(peer: PeerConnection): Promise<void> {
+    try {
+      const receiver = peer.pc.getReceivers().find(({ track }) => track.kind === 'audio');
+      if (!receiver) return;
+      let previous: ReceiverPlayoutSample | null = null;
+      const startedAt = Date.now();
+      let tick = 0;
+      while (Date.now() - startedAt < 2_000) {
+        let level = 0;
+        try {
+          const stats = await receiver.getStats();
+          for (const stat of stats.values()) {
+            if (stat.type !== 'inbound-rtp' || stat.kind !== 'audio') continue;
+            const { jitterBufferDelay = 0, jitterBufferEmittedCount = 0 } = stat as unknown as {
+              jitterBufferDelay?: number;
+              jitterBufferEmittedCount?: number;
+            };
+            const current: ReceiverPlayoutSample = { delay: jitterBufferDelay, emitted: jitterBufferEmittedCount };
+            const delta = estimateReceiverPlayoutLevelMs(current, previous);
+            if (delta > 0) level = delta;
+            previous = current;
+            break;
+          }
+        } catch {
+          // Stats are optional.
+        }
+        if (tick % 2 === 0) {
+          logDebug('multiplayer', 'Remote audio route trace', {
+            tMs: Date.now() - startedAt,
+            levelMs: Math.round(level),
+            elementMs: Math.round(multiplayerAudioService.remoteElementPositionMs)
+          });
+        }
+        tick += 1;
+        await new Promise((resolve) => window.setTimeout(resolve, 200));
+      }
+    } catch {
+      // Diagnostics are best-effort.
+    }
+  }
+
+  /**
+   * One-shot receiver level probe around the audible route (diagnostic). The
+   * preroll asserts the cushion BEFORE routing, but the audible start can
+   * still stutter if the level collapses between the cushion build and the
+   * route (the host's element startup + real-link delivery can drain the
+   * receiver). Two stats polls ~250 ms apart give a delta level; log it right
+   * after the route and again ~1 s later so the trajectory is visible in the
+   * Help > Logs buffer. Not on any per-tick path.
+   */
+  async function sampleReceiverRouteLevel(peer: PeerConnection, when: string): Promise<void> {
+    try {
+      const receiver = peer.pc.getReceivers().find(({ track }) => track.kind === 'audio');
+      if (!receiver) return;
+      let previous: ReceiverPlayoutSample | null = null;
+      let level = 0;
+      for (let i = 0; i < 2; i++) {
+        const stats = await receiver.getStats();
+        for (const stat of stats.values()) {
+          if (stat.type !== 'inbound-rtp' || stat.kind !== 'audio') continue;
+          const { jitterBufferDelay = 0, jitterBufferEmittedCount = 0 } = stat as unknown as {
+            jitterBufferDelay?: number;
+            jitterBufferEmittedCount?: number;
+          };
+          const current: ReceiverPlayoutSample = { delay: jitterBufferDelay, emitted: jitterBufferEmittedCount };
+          const delta = estimateReceiverPlayoutLevelMs(current, previous);
+          if (delta > 0) level = delta;
+          previous = current;
+          break;
+        }
+        if (i === 0) await new Promise((resolve) => window.setTimeout(resolve, 250));
+      }
+      logDebug('multiplayer', 'Remote audio receiver level', {
+        when,
+        levelMs: Math.round(level),
+        elementMs: Math.round(multiplayerAudioService.remoteElementPositionMs)
+      });
+    } catch {
+      // Diagnostics are best-effort.
+    }
   }
 
   /**
@@ -999,12 +1290,13 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
             bytes: frame.size
           });
           // Source-file phase: keep the remote element as a silent sink (see
-          // the audio message handler) and flush the receiver buffer, so the
-          // previous streamed track's retained audio cannot survive into the
-          // next streamed track. The transfer frame can arrive before the
-          // audio message — drain and flush in both.
+          // the audio message handler) and keep the cushion applied, so the
+          // receiver's level survives the interlude and the next streamed
+          // track's preroll starts from the built cushion instead of zero. The
+          // transfer frame can arrive before the audio message — drain and
+          // re-apply in both.
           multiplayerAudioService.drainRemoteTrack();
-          flushClientReceiverBuffer(peer);
+          applyClientAudioBuffer(peer);
           // Keep the current file audible until its replacement is completely received
           // and prepared. Stopping the only active media element here lets mobile
           // Chromium suspend a locked client before the remaining chunks can arrive.
@@ -1102,24 +1394,15 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
     }
   }
 
+  function effectiveAudioBufferMs(): number {
+    // The host's `buffer` message is authoritative while connected.
+    return core.hostAudioBufferMs ?? core.multiplayerSettings.multiplayerAudioBufferMs;
+  }
+
   function applyClientAudioBuffer(peer: PeerConnection): void {
     for (const receiver of peer.pc.getReceivers()) {
       if (receiver.track.kind !== 'audio') continue;
-      setMultiplayerReceiverBuffer(receiver, core.multiplayerSettings.multiplayerAudioBufferMs);
-    }
-  }
-
-  /**
-   * Drops the receiver's retained audio at a streamed→source-file transition.
-   * The remote element is gone (no sink), so NetEq would otherwise freeze the
-   * jitter buffer holding the previous streamed track's tail and replay it when
-   * the next streamed track attaches. Flushing the target to zero discards it;
-   * the next streamed track starts from an empty buffer (a clean gap).
-   */
-  function flushClientReceiverBuffer(peer: PeerConnection): void {
-    for (const receiver of peer.pc.getReceivers()) {
-      if (receiver.track.kind !== 'audio') continue;
-      setMultiplayerReceiverBuffer(receiver, 0);
+      setMultiplayerReceiverBuffer(receiver, effectiveAudioBufferMs());
     }
   }
 
@@ -1129,6 +1412,7 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
     writeReceiveAudioPreference(enabled);
     publish({ receiveAudio: enabled });
     if (core.state.mode !== 'client' || !core.clientPeer) return;
+    warmClientAudioGraph();
 
     multiplayerSourcePlaybackService.setEnabled(enabled);
     if (!enabled) sendClientPlaybackReadyIfPossible(core.clientPeer);
@@ -1235,6 +1519,10 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
 
   function sendCommand(command: MultiplayerCommandInput): boolean {
     if (core.state.mode !== 'client' || core.state.connectionStatus !== 'connected' || !core.clientPeer) return false;
+    // Every command originates in a UI tap; the gesture is the reliable moment
+    // to start the AudioContext (see warmClientAudioGraph), so the preroll's
+    // muted route is genuinely warm by the time the streamed track arrives.
+    warmClientAudioGraph();
     const completeCommand = {
       ...command,
       commandId: crypto.randomUUID()
@@ -1253,6 +1541,7 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
             shuffleEnabled: !core.state.remoteCatalog.shuffleEnabled
           }
         });
+        persistFreeplayState();
       } else if (command.type === 'playlist.repeat') {
         publish({
           remoteCatalog: {
@@ -1260,6 +1549,7 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
             repeatMode: cycleMultiplayerRepeatMode(core.state.remoteCatalog.repeatMode)
           }
         });
+        persistFreeplayState();
       }
     }
     return true;
@@ -1323,6 +1613,7 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
     resetStreamedAudioState: () => {
       streamedDrainStartedAt = null;
       clientAudioAttachToken += 1;
+      freeplayResumeCandidate = null;
     },
     clearReconnectTimer
   };
