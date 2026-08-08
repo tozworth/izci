@@ -250,7 +250,7 @@
     {
       id: 'multiplayerToggleAudio',
       label: $t('main.multiplayer.receiveAudio', { default: 'Receive audio' }),
-      icon: multiplayerReceiveAudio ? 'check' : 'volume_off',
+      icon: multiplayerReceiveAudio ? 'volume_up' : 'volume_off',
       checked: multiplayerReceiveAudio,
       separatorBefore: true
     },

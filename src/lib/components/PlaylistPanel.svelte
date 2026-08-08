@@ -37,6 +37,7 @@
   import {
     compareItems,
     fitWidthsToAvailableWidth,
+    getLibraryColumnIcon,
     getOrderedColumns,
     rebalanceResizedColumns,
     type ColumnDropIndicator,
@@ -1006,7 +1007,7 @@
     ? orderedColumns.map((column) => ({
         id: `toggle-column:${column.id}`,
         label: column.label,
-        icon: column.visible ? 'check_box' : 'check_box_outline_blank',
+        icon: getLibraryColumnIcon(column.id),
         checked: column.visible,
         disabled: column.visible && visibleColumnCount === 1
       } satisfies MenuActionItem))

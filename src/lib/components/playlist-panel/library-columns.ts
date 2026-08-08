@@ -124,6 +124,22 @@ export function isRightAlignedColumn(columnId: LibraryColumnId): boolean {
     || columnId === 'plays';
 }
 
+const LIBRARY_COLUMN_ICONS: Record<LibraryColumnId, string> = {
+  title: 'music_note',
+  artist: 'person',
+  album: 'album',
+  discAndTrack: 'format_list_numbered',
+  folder: 'folder',
+  format: 'extension',
+  duration: 'timer',
+  rating: 'star',
+  plays: 'play_circle'
+};
+
+export function getLibraryColumnIcon(columnId: LibraryColumnId): string {
+  return LIBRARY_COLUMN_ICONS[columnId];
+}
+
 export function fitWidthsToAvailableWidth(
   columns: Array<{ id: LibraryColumnId; width: number }>,
   availableWidth: number

@@ -315,7 +315,7 @@
           default: 'Select {name}',
           values: { name: row?.file.name ?? '' }
         }),
-        icon: 'check_box',
+        icon: 'description',
         checked: Boolean(row?.selected),
         disabled: busy
       },

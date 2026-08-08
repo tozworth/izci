@@ -4,6 +4,7 @@ import {
   compareItems,
   fitWidthsToAvailableWidth,
   getColumnTextValue,
+  getLibraryColumnIcon,
   getTrackDuration,
   getTrackPlayCount,
   rebalanceResizedColumns
@@ -47,6 +48,18 @@ describe('library column helpers', () => {
     expect(getTrackPlayCount(item('plays', { metadata: { playCount: 3 } }))).toBe('3');
     expect(getColumnTextValue(item('rated', { rating: 3.5 }), 'rating')).toBe('3.5');
     expect(getColumnTextValue(item('missing-plays'), 'plays')).toBe('');
+  });
+
+  it('maps every library column to a standard icon', () => {
+    expect(getLibraryColumnIcon('title')).toBe('music_note');
+    expect(getLibraryColumnIcon('artist')).toBe('person');
+    expect(getLibraryColumnIcon('album')).toBe('album');
+    expect(getLibraryColumnIcon('discAndTrack')).toBe('format_list_numbered');
+    expect(getLibraryColumnIcon('folder')).toBe('folder');
+    expect(getLibraryColumnIcon('format')).toBe('extension');
+    expect(getLibraryColumnIcon('duration')).toBe('timer');
+    expect(getLibraryColumnIcon('rating')).toBe('star');
+    expect(getLibraryColumnIcon('plays')).toBe('play_circle');
   });
 
   it('shrinks and expands visible widths while preserving the available total', () => {
