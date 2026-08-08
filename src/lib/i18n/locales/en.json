@@ -26,8 +26,6 @@
       "join": "Join...",
       "freeplay": {
         "label": "Freeplay",
-        "preferenceEnabled": "Enabled for compatible pairings",
-        "preferenceDisabled": "Disabled in Options",
         "pairedHost": "Freeplay · Join without a code",
         "pairedClientActive": "{platform} · Paired · Freeplay",
         "pairedClientReady": "{platform} · Paired · Freeplay ready",
@@ -45,7 +43,6 @@
       "hostingForPaired": "For paired devices",
       "copyInvite": "Copy invite code",
       "hostWithCode": "Host with invite code",
-      "hostWithCodeHint": "Restart hosting and show a code to share",
       "stopHosting": "Stop hosting",
       "pairedClient": "{platform} · Paired",
       "pairClient": "{platform} · Select to pair",

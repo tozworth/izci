@@ -82,16 +82,6 @@
           label: $t('main.multiplayer.join', { default: 'Join...' }),
           icon: 'login'
         },
-        {
-          id: 'multiplayerFreeplayPreference',
-          label: $t('main.multiplayer.freeplay.label', { default: 'Freeplay' }),
-          description: multiplayerFreeplayEnabled
-            ? $t('main.multiplayer.freeplay.preferenceEnabled', { default: 'Enabled for compatible pairings' })
-            : $t('main.multiplayer.freeplay.preferenceDisabled', { default: 'Disabled in Options' }),
-          icon: multiplayerFreeplayEnabled ? 'queue_music' : 'music_off',
-          disabled: true,
-          separatorBefore: true
-        },
         ...(multiplayerPairings.length > 0
           ? [
               {
@@ -127,8 +117,7 @@
               } satisfies MenuActionItem,
               ...multiplayerRecents.map((recent) => ({
                 id: `multiplayerJoinRecent:${recent.inviteCode}`,
-                label: recent.name,
-                description: recent.inviteCode,
+                label: `${recent.name} · ${recent.inviteCode}`,
                 icon: 'cast'
               } satisfies MenuActionItem))
             ]
@@ -153,25 +142,12 @@
             : [{
                 id: 'multiplayerHostWithCode',
                 label: $t('main.multiplayer.hostWithCode', { default: 'Host with invite code' }),
-                description: $t('main.multiplayer.hostWithCodeHint', {
-                  default: 'Restart hosting and show a code to share'
-                }),
                 icon: 'add_link'
               } satisfies MenuActionItem]),
           {
             id: 'multiplayerStopHosting',
             label: $t('main.multiplayer.stopHosting', { default: 'Stop hosting' }),
             icon: 'stop_circle'
-          },
-          {
-            id: 'multiplayerFreeplayPreference',
-            label: $t('main.multiplayer.freeplay.label', { default: 'Freeplay' }),
-            description: multiplayerFreeplayEnabled
-              ? $t('main.multiplayer.freeplay.preferenceEnabled', { default: 'Enabled for compatible pairings' })
-              : $t('main.multiplayer.freeplay.preferenceDisabled', { default: 'Disabled in Options' }),
-            icon: multiplayerFreeplayEnabled ? 'queue_music' : 'music_off',
-            disabled: true,
-            separatorBefore: true
           },
           ...multiplayerClients.map((client, index): MenuActionItem => ({
             id: `multiplayerTogglePair:${client.id}`,
@@ -450,7 +426,6 @@
   export let multiplayerInviteCode: string | null = null;
   export let multiplayerHostName: string | null = null;
   export let multiplayerHostVersion: string | null = null;
-  export let multiplayerFreeplayEnabled = false;
   export let multiplayerFreeplayPaired = false;
   export let multiplayerFreeplay = false;
   export let multiplayerReceiveAudio = true;

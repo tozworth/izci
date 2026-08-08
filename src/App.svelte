@@ -1793,7 +1793,6 @@
     multiplayerConnectionRoute={multiplayerState.connectionRoute}
     multiplayerAudioBitrateKbps={multiplayerState.averageAudioBitrateKbps}
     multiplayerHostVersion={multiplayerState.hostVersion}
-    multiplayerFreeplayEnabled={$experimentalSettings.multiplayerFreeplay}
     multiplayerFreeplayPaired={multiplayerState.freeplayPaired}
     multiplayerFreeplay={multiplayerState.freeplay}
     multiplayerReceiveAudio={multiplayerState.receiveAudio}

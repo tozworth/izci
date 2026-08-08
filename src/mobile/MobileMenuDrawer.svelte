@@ -205,7 +205,7 @@
             {#each multiplayerRecents as recent (recent.inviteCode)}
               <button type="button" on:click={() => runWithDetail('multiplayerJoinRecent', recent.inviteCode)}>
                 <span class="material-symbols-outlined" aria-hidden="true">history</span>
-                <span>{recent.name}</span>
+                <span>{recent.name} · {recent.inviteCode}</span>
               </button>
             {/each}
           {/if}

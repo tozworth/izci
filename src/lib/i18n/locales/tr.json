@@ -26,8 +26,6 @@
       "join": "Katıl...",
       "freeplay": {
         "label": "Freeplay",
-        "preferenceEnabled": "Uyumlu eşleştirmeler için etkin",
-        "preferenceDisabled": "Seçenekler'de devre dışı",
         "pairedHost": "Freeplay · Kod kullanmadan katıl",
         "pairedClientActive": "{platform} · Eşleştirildi · Freeplay",
         "pairedClientReady": "{platform} · Eşleştirildi · Freeplay hazır",
@@ -45,7 +43,6 @@
       "hostingForPaired": "Eşleştirilmiş cihazlar için",
       "copyInvite": "Davet kodunu kopyala",
       "hostWithCode": "Davet koduyla sunucu ol",
-      "hostWithCodeHint": "Sunuculuğu yeniden başlatır ve paylaşılacak bir kod gösterir",
       "stopHosting": "Sunucuyu durdur",
       "pairedClient": "{platform} · Eşleştirildi",
       "pairClient": "{platform} · Eşleştirmek için seçin",
