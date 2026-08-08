@@ -455,7 +455,8 @@ html[data-izci-mobile='true'] select {
   padding: 0 0.15rem;
 }
 
-.app-shell.mobile-mode .player-bar:not(.now-playing-player) .player-range > span {
+.app-shell.mobile-mode .player-bar:not(.now-playing-player) .player-range > span,
+.app-shell.mobile-mode .player-bar:not(.now-playing-player) .player-range > .player-range-end {
   display: none;
 }
 

@@ -527,7 +527,8 @@ body:has(.favorite-rating-control:focus-within) .player-rating-picker,
   gap: 0.45rem;
 }
 
-.player-range > span {
+.player-range > span,
+.player-range > .player-range-end {
   display: inline-flex;
   align-items: center;
   height: var(--player-range-thumb-size);
@@ -535,6 +536,14 @@ body:has(.favorite-rating-control:focus-within) .player-rating-picker,
   font-variant-numeric: tabular-nums;
   line-height: 1;
   transform: translateY(-0.04rem);
+}
+
+.player-range > .player-range-end {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
 }
 
 .volume {

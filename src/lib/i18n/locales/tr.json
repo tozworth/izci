@@ -1246,10 +1246,6 @@
       "progress": {
         "heading": "İlerleme"
       },
-      "showTimeRemaining": {
-        "title": "Kalan süreyi göster",
-        "hint": "Toplam uzunluk yerine geçerli parçanın ne kadarının kaldığını gösterir."
-      },
       "seekWheelStep": {
         "title": "Tekerlek arama adımı",
         "hint": "Arama çubuğu üzerinde her tekerlek çentiğinin kaç saniye aradığı."

@@ -50,7 +50,8 @@
   font-size: 2rem;
 }
 
-.player-bar:not(.compact-player-bar):not(.now-playing-player) .player-range > span {
+.player-bar:not(.compact-player-bar):not(.now-playing-player) .player-range > span,
+.player-bar:not(.compact-player-bar):not(.now-playing-player) .player-range > .player-range-end {
   font-size: 0.75rem;
 }
 

@@ -57,7 +57,6 @@
   function handleFadeDurationChange(event: Event) { playbackSettings.update({ fadeDurationSeconds: normalizeFadeDurationSeconds((event.currentTarget as HTMLInputElement).valueAsNumber) }); }
   function handleManualTrackChangeFadePercentChange(event: Event) { playbackSettings.update({ manualTrackChangeFadePercent: normalizeManualTrackChangeFadePercent((event.currentTarget as HTMLInputElement).valueAsNumber) }); }
   function handleLogarithmicVolumeToggle(event: Event) { playbackSettings.update({ logarithmicVolume: checked(event) }); }
-  function handleShowTimeRemainingToggle(event: Event) { playbackSettings.update({ showTimeRemaining: checked(event) }); }
   function handleSeekWheelStepChange(event: Event) { playbackSettings.update({ seekWheelStepSeconds: normalizeSeekWheelStepSeconds((event.currentTarget as HTMLInputElement).valueAsNumber) }); }
   function handleReplayGainModeChange(event: Event) { playbackSettings.update({ replayGainMode: (event.currentTarget as HTMLSelectElement).value as ReplayGainMode }); }
   function handleEnableRafToggle(event: Event) { playbackSettings.update({ enableRaf: checked(event) }); }
@@ -256,18 +255,6 @@
           <span class="field-output">
             {rememberProgressDurationLabel($playbackSettings.rememberProgressDurationIndex)}
           </span>
-      </SettingsField>
-
-      <SettingsField
-        title={$t('options.playback.showTimeRemaining.title', { default: 'Show time remaining' })}
-        hint={$t('options.playback.showTimeRemaining.hint', { default: "Shows how much of the current track is left instead of its total length." })}
-        checkbox
-      >
-          <input
-            type="checkbox"
-            checked={$playbackSettings.showTimeRemaining}
-            on:change={handleShowTimeRemainingToggle}
-          />
       </SettingsField>
 
       <SettingsField

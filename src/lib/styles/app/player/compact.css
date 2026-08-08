@@ -99,7 +99,8 @@
   justify-self: end;
 }
 
-.compact-player-bar .player-range > span {
+.compact-player-bar .player-range > span,
+.compact-player-bar .player-range > .player-range-end {
   height: var(--player-range-thumb-size);
   font-size: 0.66rem;
 }
@@ -248,7 +249,8 @@
     grid-template-columns: minmax(5rem, 1fr) minmax(4rem, 7rem) auto;
   }
 
-  .compact-player-bar .player-range > span {
+  .compact-player-bar .player-range > span,
+  .compact-player-bar .player-range > .player-range-end {
     display: none;
   }
 

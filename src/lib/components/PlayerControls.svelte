@@ -546,6 +546,10 @@
     dispatch('showTrack', displayTrack.id);
   }
 
+  function toggleTimeDisplay() {
+    playbackSettings.update({ showTimeRemaining: !$playbackSettings.showTimeRemaining });
+  }
+
   function handleSubsongStep(event: MouseEvent, direction: -1 | 1): void {
     if (!displayTrack || displayTrack.kind !== 'module' || displaySubsongCount <= 1) {
       return;
@@ -667,7 +671,14 @@
         on:wheel|preventDefault={handleSeekWheel}
       />
     </div>
-    <span>{displayEndLabel}</span>
+    <button
+      type="button"
+      class="player-range-end"
+      disabled={!track}
+      on:click={toggleTimeDisplay}
+    >
+      {displayEndLabel}
+    </button>
   </div>
 
   <div class="player-control-strip">
