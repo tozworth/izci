@@ -664,7 +664,17 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
           // else: the host already resumed (playback carries a track) — the
           // candidate is dropped so the running track is not restarted.
         }
-        if (loadingNewTrack && core.latestAudioAvailability.enabled) {
+        // FREEPLAY ONLY: a streamed→streamed switch must drain the element NOW
+        // (zero headroom) and keep it as the silent sink — the Freeplay player
+        // publishes a per-track `audio` message whose attach runs the preroll
+        // and re-routes a fresh element from the live position. SHARED
+        // (co-op+audio) mode is one continuous live wire: the host's sender
+        // stays attached to the shared bus track, the availability is
+        // track-invariant (the host change-guards the `audio` message, so no
+        // follow-up message exists for the new track), and draining would
+        // leave the element a silent sink forever — the new track simply flows
+        // through the already-routed element.
+        if (loadingNewTrack && core.state.freeplay && core.latestAudioAvailability.enabled) {
           // Different streamed track loading: drain the element NOW (zero headroom)
           // while keeping it as the silent sink — the retained tail (~buffer ms) is
           // still queued; a target flush does NOT discard it.
@@ -680,6 +690,10 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
           // flushed it to 0): silence/new-track audio accumulates behind the old tail,
           // so the following preroll starts from a built level.
           applyClientAudioBuffer(peer);
+        } else if (loadingNewTrack && core.latestAudioAvailability.enabled) {
+          logDebug('multiplayer', 'Shared streamed switch keeps live route', {
+            trackId: message.playback.track?.id ?? null
+          });
         }
         multiplayerSourcePlaybackService.syncPlayback(message.playback);
         loadPendingClientSourceFile(peer);
