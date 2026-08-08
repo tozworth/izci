@@ -108,12 +108,15 @@ body:has(.menu-list[data-menu-interactive='true']) .menu-bar.window-controls-ove
 
 .menu-groups {
   display: flex;
-  align-items: center;
+  align-items: stretch;
+  align-self: stretch;
   gap: 0.15rem;
 }
 
 .menu-root {
   position: relative;
+  display: flex;
+  align-items: stretch;
   -webkit-app-region: no-drag;
 }
 
@@ -121,14 +124,15 @@ body:has(.menu-list[data-menu-interactive='true']) .menu-bar.window-controls-ove
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 1.65rem;
-  border-radius: 0.4rem;
+  align-self: stretch;
+  border-radius: 0;
   border: 0;
   background: transparent;
   color: var(--text);
   user-select: none;
   font-size: 0.8rem;
   line-height: 1.1;
+  transition: none;
   -webkit-app-region: no-drag;
 }
 

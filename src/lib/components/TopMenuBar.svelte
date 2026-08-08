@@ -385,16 +385,11 @@
       icon: 'sync_alt'
     },
     {
-      id: 'openAbout',
-      label: $t('main.menu.about', { default: 'About' }),
-      icon: 'info',
-      separatorBefore: true
-    },
-    {
       id: 'exit',
       label: $t('main.menu.exit', { default: 'Exit' }),
       icon: 'logout',
-      shortcut: 'Ctrl+Q'
+      shortcut: 'Ctrl+Q',
+      separatorBefore: true
     }
   ] satisfies MenuActionItem[];
   $: fileMenuItems = [
@@ -426,6 +421,12 @@
       id: 'forceUpdate',
       label: $t('main.menu.forceUpdate', { default: 'Force update' }),
       icon: 'sync'
+    },
+    {
+      id: 'openAbout',
+      label: $t('main.menu.about', { default: 'About' }),
+      icon: 'info',
+      separatorBefore: true
     }
   ] satisfies MenuActionItem[];
 
