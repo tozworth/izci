@@ -1,12 +1,29 @@
 import { describe, expect, it } from 'vitest';
 
+import type { LogEntry } from '$lib/services/logging';
 import {
+  compareLogEntries,
   fitLogWidthsToAvailableWidth,
   LOG_COLUMN_DEFAULT_WIDTHS,
   LOG_COLUMN_MIN_WIDTHS,
+  LOG_SORT_DEFAULT,
+  logsSort,
   normalizeLogColumnWidths,
+  normalizeLogSort,
   rebalanceLogColumnWidths
 } from './logs-columns';
+
+function makeEntry(overrides: Partial<LogEntry> & { timestamp: number }): LogEntry {
+  return {
+    id: `test:${overrides.timestamp}`,
+    level: 'info',
+    source: 'system',
+    window: 'main',
+    message: `message ${overrides.timestamp}`,
+    details: undefined,
+    ...overrides
+  };
+}
 
 describe('logs column helpers', () => {
   it('normalizes stored widths, clamping to minimums and filling gaps with defaults', () => {
@@ -89,5 +106,78 @@ describe('logs column helpers', () => {
     expect(resized.source).toBeCloseTo(
       LOG_COLUMN_DEFAULT_WIDTHS.source + LOG_COLUMN_DEFAULT_WIDTHS.level - LOG_COLUMN_MIN_WIDTHS.level
     );
+  });
+
+  it('fits only the passed columns so hidden columns do not eat extra space', () => {
+    const fitted = fitLogWidthsToAvailableWidth(
+      LOG_COLUMN_DEFAULT_WIDTHS,
+      900,
+      ['time', 'level', 'message'] as const
+    );
+
+    const visibleTotal = fitted.time + fitted.level + fitted.message;
+    const untouched = fitted.source + fitted.window + fitted.details;
+
+    expect(visibleTotal).toBeCloseTo(900);
+    expect(untouched).toBeCloseTo(
+      LOG_COLUMN_DEFAULT_WIDTHS.source + LOG_COLUMN_DEFAULT_WIDTHS.window + LOG_COLUMN_DEFAULT_WIDTHS.details
+    );
+  });
+
+  it('rebalances against the nearest visible neighbor only', () => {
+    const hiddenWindow = ['time', 'level', 'source', 'message', 'details'] as const;
+    const resized = rebalanceLogColumnWidths(LOG_COLUMN_DEFAULT_WIDTHS, 'source', 60, hiddenWindow);
+
+    expect(resized.source).toBeCloseTo(LOG_COLUMN_DEFAULT_WIDTHS.source + 60);
+    expect(resized.message).toBeCloseTo(LOG_COLUMN_DEFAULT_WIDTHS.message - 60);
+    expect(resized.window).toBeCloseTo(LOG_COLUMN_DEFAULT_WIDTHS.window);
+  });
+});
+
+describe('logs column sort', () => {
+  it('normalizes sort state with a safe default', () => {
+    expect(normalizeLogSort(undefined)).toEqual(LOG_SORT_DEFAULT);
+    expect(normalizeLogSort({ columnId: 'level', direction: 'desc' })).toEqual({
+      columnId: 'level',
+      direction: 'desc'
+    });
+    expect(normalizeLogSort({ columnId: 'nope', direction: 'sideways' })).toEqual(LOG_SORT_DEFAULT);
+  });
+
+  it('sorts by time ascending by default and ties fall back to time', () => {
+    const older = makeEntry({ timestamp: 100 });
+    const newer = makeEntry({ timestamp: 200 });
+
+    expect(compareLogEntries(older, newer, LOG_SORT_DEFAULT)).toBeLessThan(0);
+    expect(compareLogEntries(newer, older, LOG_SORT_DEFAULT)).toBeGreaterThan(0);
+  });
+
+  it('sorts by level rank (error < warning < info < debug)', () => {
+    const sort = { columnId: 'level' as const, direction: 'asc' as const };
+    const error = makeEntry({ timestamp: 1, level: 'error' });
+    const debug = makeEntry({ timestamp: 2, level: 'debug' });
+
+    expect(compareLogEntries(error, debug, sort)).toBeLessThan(0);
+    expect(compareLogEntries(debug, error, { ...sort, direction: 'desc' })).toBeLessThan(0);
+  });
+
+  it('sorts by message and keeps equal messages in chronological order', () => {
+    const sort = { columnId: 'message' as const, direction: 'asc' as const };
+    const first = makeEntry({ timestamp: 100, message: 'beta' });
+    const second = makeEntry({ timestamp: 200, message: 'alpha' });
+    const third = makeEntry({ timestamp: 300, message: 'beta' });
+
+    expect(compareLogEntries(first, second, sort)).toBeGreaterThan(0);
+    expect(compareLogEntries(first, third, sort)).toBeLessThan(0);
+  });
+
+  it('toggles direction when re-sorting the active column', () => {
+    logsSort.setSort('time');
+    expect(logsSort.getSnapshot().direction).toBe('desc');
+    logsSort.setSort('time');
+    expect(logsSort.getSnapshot().direction).toBe('asc');
+    logsSort.setSort('source');
+    expect(logsSort.getSnapshot()).toEqual({ columnId: 'source', direction: 'asc' });
+    logsSort.reset();
   });
 });

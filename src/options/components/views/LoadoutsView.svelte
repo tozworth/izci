@@ -828,9 +828,9 @@
     width: max-content;
     min-width: 10.5rem;
     max-width: calc(100vw - 1rem);
-    padding: 0.18rem;
+    padding: 0.12rem;
     border: 1px solid var(--menu-popover-border);
-    border-radius: 0.5rem;
+    border-radius: 0;
     background: var(--menu-popover-bg);
     box-shadow: var(--menu-popover-shadow);
     font-size: 0.8rem;
@@ -838,11 +838,11 @@
 
   .loadout-context-menu button {
     width: 100%;
-    padding: 0.32rem 0.42rem;
+    padding: 0.22rem 0.3rem;
     display: flex;
     align-items: center;
-    gap: 0.42rem;
-    border-radius: 0.5rem;
+    gap: 0.32rem;
+    border-radius: 0;
     background: transparent;
     color: var(--menu-popover-text);
     text-align: left;
@@ -857,7 +857,7 @@
 
   .loadout-context-menu button > .material-symbols-outlined {
     color: var(--menu-popover-muted);
-    font-size: 0.9rem;
+    font-size: 0.78rem;
   }
 
   .color-menu-item {
@@ -879,7 +879,7 @@
     gap: 0.3rem;
     visibility: hidden;
     border: 1px solid var(--menu-popover-border);
-    border-radius: 0.5rem;
+    border-radius: 0;
     background: var(--menu-popover-bg);
     box-shadow: var(--menu-popover-shadow);
     opacity: 0;

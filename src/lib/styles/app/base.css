@@ -118,8 +118,8 @@ input[type='range'] {
 .format-detail,
 .pattern-value,
 .notes-block pre,
-.track-column-header,
-.track-column-sort-button {
+.clv-column-header,
+.clv-column-sort-button {
   transition:
     color var(--artwork-ui-transition-duration) linear,
     background-color var(--artwork-ui-transition-duration) linear,

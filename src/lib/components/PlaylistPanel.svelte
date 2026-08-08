@@ -3,6 +3,7 @@
   import { locale, t } from 'svelte-i18n';
   import { appearanceSettings } from '$lib/stores/appearance-settings';
   import {
+    LIBRARY_COLUMN_MIN_WIDTHS,
     libraryViewSettings
   } from '$lib/stores/library-view-settings';
   import type {
@@ -24,9 +25,10 @@
   import LibraryPanelHeader from '$lib/components/playlist-panel/LibraryPanelHeader.svelte';
   import LibraryAlbumBackdrop from '$lib/components/playlist-panel/LibraryAlbumBackdrop.svelte';
   import LibraryGroupList from '$lib/components/playlist-panel/LibraryGroupList.svelte';
-  import LibraryColumnsHeader from '$lib/components/playlist-panel/LibraryColumnsHeader.svelte';
   import { findRequestedLibraryGroup } from '$lib/components/playlist-panel/library-group-navigation';
   import TrackList from '$lib/components/playlist-panel/TrackList.svelte';
+  import ColumnListView from '$lib/components/ColumnListView.svelte';
+  import type { ColumnListViewColumn } from '$lib/components/column-list-view';
   import {
     DEFAULT_TRACK_ROW_HEIGHT,
     TRACK_LIST_VIRTUALIZATION_THRESHOLD
@@ -39,6 +41,7 @@
     fitWidthsToAvailableWidth,
     getLibraryColumnIcon,
     getOrderedColumns,
+    isRightAlignedColumn,
     rebalanceResizedColumns,
     type ColumnDropIndicator,
     type LibraryColumnWidths
@@ -327,11 +330,11 @@
     }
 
     const columnElements = Array.from(
-      columnsHeaderElement.querySelectorAll<HTMLElement>('[data-library-column-id]')
+      columnsHeaderElement.querySelectorAll<HTMLElement>('[data-column-id]')
     );
     const columnBounds = visibleColumns
       .map((column) => {
-        const element = columnElements.find((node) => node.dataset.libraryColumnId === column.id);
+        const element = columnElements.find((node) => node.dataset.columnId === column.id);
 
         if (!element) {
           return null;
@@ -567,18 +570,13 @@
 
   }
 
-  function handleColumnContextMenu(event: MouseEvent) {
-    if (layout !== 'columns' || isCompactColumnLayout) {
+  function handleColumnSort(columnId: LibraryColumnId) {
+    if (suppressNextColumnSort) {
+      suppressNextColumnSort = false;
       return;
     }
 
-    event.preventDefault();
-    contextMenu = {
-      kind: 'columns',
-      x: event.clientX,
-      y: event.clientY
-    };
-
+    libraryViewSettings.setSort(columnId);
   }
 
   function handleContextAction(actionId: string) {
@@ -593,28 +591,21 @@
     closeContextMenu();
   }
 
-  function handleColumnSort(columnId: LibraryColumnId) {
-    if (suppressNextColumnSort) {
-      suppressNextColumnSort = false;
-      return;
-    }
-
-    libraryViewSettings.setSort(columnId);
-  }
-
-  function handleColumnVisibilityChange(columnId: LibraryColumnId, visible: boolean) {
-    libraryViewSettings.setColumnVisibility(columnId, visible);
-  }
-
-  function handleColumnContextAction(actionId: string) {
-    const column = orderedColumns.find((candidate) => `toggle-column:${candidate.id}` === actionId);
+  function handleColumnVisibilityToggle(columnId: LibraryColumnId): void {
+    const column = orderedColumns.find((candidate) => candidate.id === columnId);
 
     if (!column || (column.visible && visibleColumnCount === 1)) {
       return;
     }
 
-    handleColumnVisibilityChange(column.id, !column.visible);
-    closeContextMenu();
+    libraryViewSettings.setColumnVisibility(columnId, !column.visible);
+  }
+
+  function columnResizeLabel(column: ColumnListViewColumn): string {
+    return $t('playlist.library.columns.resize', {
+      default: 'Resize {column} column',
+      values: { column: column.label }
+    });
   }
 
   function getContextMenuActionLabel(action: MenuActionItem): string {
@@ -652,11 +643,6 @@
   }
 
   function handleMenuAction(actionId: string) {
-    if (contextMenu?.kind === 'columns') {
-      handleColumnContextAction(actionId);
-      return;
-    }
-
     if (contextMenu?.kind === 'library-group' && actionId === 'pin-library-group') {
       libraryViewSettings.pinGroup(contextMenu.view, contextMenu.key);
       closeContextMenu();
@@ -760,7 +746,7 @@
       return;
     }
 
-    if (target.closest('.track-column-resizer')) {
+    if (target.closest('.clv-column-resizer')) {
       return;
     }
 
@@ -1003,39 +989,47 @@
   $: contextMenuActions = buildContextMenuActions(contextMenu);
   $: storedVisibleColumns = orderedColumns.filter((column) => column.visible);
   $: visibleColumnCount = storedVisibleColumns.length;
-  $: contextMenuItems = contextMenu?.kind === 'columns'
-    ? orderedColumns.map((column) => ({
-        id: `toggle-column:${column.id}`,
-        label: column.label,
-        icon: getLibraryColumnIcon(column.id),
-        checked: column.visible,
-        disabled: column.visible && visibleColumnCount === 1
-      } satisfies MenuActionItem))
-    : [
-        ...(contextMenu?.kind === 'library-group' && contextMenu.view !== 'folders'
-          ? [{
-              id: contextMenu.pinned ? 'unpin-library-group' : 'pin-library-group',
-              label: contextMenu.pinned
-                ? $t('playlist.library.unpin', { default: 'Unpin' })
-                : $t('playlist.library.pinToTop', { default: 'Pin to top' }),
-              icon: contextMenu.pinned ? 'keep_off' : 'keep'
-            } satisfies MenuActionItem]
-          : []),
-        ...contextMenuActions.map((action, index) => {
-          const localizedAction = localizeContextMenuAction(action);
-          return {
-            ...localizedAction,
-            separatorBefore: contextMenu?.kind === 'library-group' && contextMenu.view !== 'folders' && index === 0
-              ? true
-              : localizedAction.separatorBefore
-          };
-        })
-      ];
-  $: contextMenuAriaLabel = contextMenu?.kind === 'columns'
-    ? $t('playlist.contextMenu.columns', { default: '{panel} columns', values: { panel: localizedPanelTitle } })
-    : contextMenu?.kind === 'library-group'
-      ? $t('playlist.contextMenu.libraryGroupActions', { default: 'Library group actions' })
-      : $t('playlist.contextMenu.itemActions', { default: '{panel} item actions', values: { panel: localizedPanelTitle } });
+  $: contextMenuItems = [
+    ...(contextMenu?.kind === 'library-group' && contextMenu.view !== 'folders'
+      ? [{
+          id: contextMenu.pinned ? 'unpin-library-group' : 'pin-library-group',
+          label: contextMenu.pinned
+            ? $t('playlist.library.unpin', { default: 'Unpin' })
+            : $t('playlist.library.pinToTop', { default: 'Pin to top' }),
+          icon: contextMenu.pinned ? 'keep_off' : 'keep'
+        } satisfies MenuActionItem]
+      : []),
+    ...contextMenuActions.map((action, index) => {
+      const localizedAction = localizeContextMenuAction(action);
+      return {
+        ...localizedAction,
+        separatorBefore: contextMenu?.kind === 'library-group' && contextMenu.view !== 'folders' && index === 0
+          ? true
+          : localizedAction.separatorBefore
+      };
+    })
+  ];
+  $: contextMenuAriaLabel = contextMenu?.kind === 'library-group'
+    ? $t('playlist.contextMenu.libraryGroupActions', { default: 'Library group actions' })
+    : $t('playlist.contextMenu.itemActions', { default: '{panel} item actions', values: { panel: localizedPanelTitle } });
+  $: listViewColumns = visibleColumns.map((column): ColumnListViewColumn => ({
+    id: column.id,
+    label: column.label,
+    width: column.width,
+    minWidth: LIBRARY_COLUMN_MIN_WIDTHS[column.id],
+    icon: getLibraryColumnIcon(column.id),
+    rightAligned: isRightAlignedColumn(column.id),
+    visible: column.visible
+  }));
+  $: allListColumns = orderedColumns.map((column): ColumnListViewColumn => ({
+    id: column.id,
+    label: column.label,
+    width: column.width,
+    minWidth: LIBRARY_COLUMN_MIN_WIDTHS[column.id],
+    icon: getLibraryColumnIcon(column.id),
+    rightAligned: isRightAlignedColumn(column.id),
+    visible: column.visible
+  }));
   $: isCompactColumnLayout =
     !mobilePresentation &&
     layout === 'columns' &&
@@ -1069,11 +1063,6 @@
           compareItems(left, right, activeSort, $locale ?? undefined)
         )
       : filteredItems;
-  $: tableTemplateColumns = visibleColumns.map((column) => `minmax(${column.width}px, ${column.width}px)`).join(' ');
-  $: tableColumnGap = `${COLUMN_GAP}px`;
-  $: if (contextMenu?.kind === 'columns' && (presentationLayout !== 'columns' || isCompactColumnLayout || !showTrackRows)) {
-    closeContextMenu();
-  }
   $: if (!showSearchControl) {
     searchInputExpanded = false;
   }
@@ -1172,32 +1161,51 @@
           on:openFiles={() => dispatch('openFiles')}
         />
       {/if}
-
-      {#if showTrackRows && filteredItems.length > 0 && presentationLayout === 'columns' && !isCompactColumnLayout}
-        <LibraryColumnsHeader
-          bind:headerElement={columnsHeaderElement}
-          {visibleColumns}
-          {activeSort}
-          {tableTemplateColumns}
-          {tableColumnGap}
-          {dropIndicator}
-          {draggedColumnId}
-          {resizingColumnId}
-          on:sort={(event) => handleColumnSort(event.detail)}
-          on:contextMenu={(event) => void handleColumnContextMenu(event.detail)}
-          on:columnPointerDown={(event) => handleColumnPointerDown(event.detail.event, event.detail.columnId)}
-          on:resizeStart={(event) => handleColumnResizeStart(event.detail.event, event.detail.columnId)}
-        />
-      {/if}
     </div>
 
-    <div
-      bind:this={dropzoneElement}
+    <ColumnListView
+      columns={listViewColumns}
+      allColumns={allListColumns}
+      bind:scrollElement={dropzoneElement}
+      bind:headerElement={columnsHeaderElement}
       bind:clientWidth={dropzoneWidth}
       bind:clientHeight={dropzoneHeight}
-      class="playlist-scroll-region"
+      showHeader={showTrackRows && filteredItems.length > 0 && presentationLayout === 'columns' && !isCompactColumnLayout}
+      columnGap={`${COLUMN_GAP}px`}
+      contextMenuLabel={$t('playlist.contextMenu.columns', { default: '{panel} columns', values: { panel: localizedPanelTitle } })}
+      resizingColumnId={resizingColumnId}
+      draggedColumnId={draggedColumnId}
+      dropIndicator={dropIndicator}
+      activeSort={activeSort}
+      resizeLabel={columnResizeLabel}
+      style="--clv-header-bleed: -0.55rem; --clv-header-padding: 0 0.45rem; --clv-header-background: color-mix(in srgb, var(--playlist-header-background) 72%, var(--bg-elevated)); --clv-header-border: var(--border-soft); --clv-column-cursor: grab;"
+      on:columnPointerDown={(event) =>
+        handleColumnPointerDown(event.detail.event, event.detail.columnId as LibraryColumnId)}
+      on:resizeStart={(event) =>
+        handleColumnResizeStart(event.detail.event, event.detail.columnId as LibraryColumnId)}
+      on:visibilityToggle={(event) => handleColumnVisibilityToggle(event.detail as LibraryColumnId)}
       on:scroll={updatePlaylistHeaderState}
     >
+      <svelte:fragment slot="headerCell" let:column let:sorted>
+        <button
+          type="button"
+          class="clv-column-sort-button"
+          class:is-sorted={sorted}
+          class:is-right-aligned={column.rightAligned}
+          title={$t('playlist.library.columns.sortBy', { default: 'Sort by {column}', values: { column: column.label } })}
+          on:click={() => handleColumnSort(column.id as LibraryColumnId)}
+        >
+          <span class="clv-column-sort-content" class:is-right-aligned={column.rightAligned}>
+            <span class="clv-column-label">{column.label}</span>
+            {#if sorted}
+              <span class="material-symbols-outlined clv-column-sort-icon" aria-hidden="true">
+                {activeSort.direction === 'asc' ? 'expand_less' : 'expand_more'}
+              </span>
+            {/if}
+          </span>
+        </button>
+      </svelte:fragment>
+
       {#if !showTrackRows && visibleLibraryGroups.length > 0 && groupView}
         <LibraryGroupList
           groups={visibleLibraryGroups}
@@ -1218,8 +1226,6 @@
           layout={presentationLayout}
           {isCompactColumnLayout}
           {visibleColumns}
-          {tableTemplateColumns}
-          {tableColumnGap}
           {hideTrackFormat}
           {mobilePresentation}
           scrollTop={dropzoneScrollTop}
@@ -1247,7 +1253,8 @@
           <p>{$t('playlist.library.empty', { default: 'Your library is empty. Add files or drop a folder here.' })}</p>
         </div>
       {/if}
-    </div>
+    </ColumnListView>
+  </div>
 
     {#if contextMenu}
       <MenuSurface
@@ -1259,7 +1266,6 @@
         on:action={(event) => handleMenuAction(event.detail)}
       />
     {/if}
-  </div>
 </section>
 
 <style>
@@ -1331,14 +1337,6 @@
   .playlist-panel-header.library-mode.has-column-header {
     gap: 0;
     padding-top: 0.05rem;
-  }
-
-  .playlist-scroll-region {
-    position: relative;
-    min-height: 0;
-    flex: 1;
-    overflow-x: hidden;
-    overflow-y: auto;
   }
 
   .playlist-filter-empty {

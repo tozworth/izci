@@ -530,6 +530,8 @@ export interface MenuActionItem {
   disabled?: boolean;
   separatorBefore?: boolean;
   attention?: boolean;
+  /** Destructive item: turns danger-red on hover. */
+  danger?: boolean;
   /** Optional secondary action shown at the trailing edge while the item is hovered. */
   removeActionId?: string;
   removeLabel?: string;

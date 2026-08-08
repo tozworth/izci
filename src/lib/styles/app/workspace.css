@@ -595,7 +595,7 @@
 .now-playing-tab-panel .track-table,
 .now-playing-tab-panel .track-table-body,
 .now-playing-tab-panel .track-table-row-button,
-.now-playing-tab-panel .track-columns-header {
+.now-playing-tab-panel .clv-columns-header {
   max-width: 100%;
   min-width: 0;
 }

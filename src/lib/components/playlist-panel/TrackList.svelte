@@ -11,8 +11,6 @@
   export let layout: 'list' | 'columns' = 'list';
   export let isCompactColumnLayout = false;
   export let visibleColumns: LibraryPanelColumn[] = [];
-  export let tableTemplateColumns = '';
-  export let tableColumnGap = '4px';
   export let hideTrackFormat = false;
   export let mobilePresentation = false;
   export let scrollTop = 0;
@@ -43,10 +41,7 @@
 </script>
 
 {#if layout === 'columns' && !isCompactColumnLayout}
-  <div
-    class="track-table"
-    style={`--track-table-columns: ${tableTemplateColumns}; --track-table-gap: ${tableColumnGap};`}
-  >
+  <div class="track-table">
     <ul bind:this={listElement} class="track-list track-table-body">
       {#if virtualWindow.topSpacerHeight > 0}
         <li class="virtual-track-spacer" aria-hidden="true" style={`height: ${virtualWindow.topSpacerHeight}px;`}></li>

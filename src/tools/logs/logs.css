@@ -22,12 +22,10 @@ input {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   user-select: none;
-}
-
-.logs-list {
-  min-height: 0;
-  overflow-y: auto;
-  font-family: var(--app-font-family);
+  /* ColumnListView header chrome: match the menubar strip. */
+  --clv-header-background: var(--menu-bar-bg);
+  --clv-header-border: var(--window-topbar-hairline);
+  --clv-header-padding: 0 0.5rem;
 }
 
 .logs-empty {
@@ -37,87 +35,10 @@ input {
   font-size: 0.78rem;
 }
 
-.logs-columns-header {
-  position: sticky;
-  top: 0;
-  z-index: 3;
-  display: grid;
-  grid-template-columns: var(--logs-template-columns);
-  column-gap: var(--logs-column-gap);
-  align-items: stretch;
-  min-height: 1.4rem;
-  padding: 0 0.5rem;
-  background: var(--menu-bar-bg);
-  border-bottom: 1px solid var(--window-topbar-hairline);
-}
-
-.logs-column-header {
-  position: relative;
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  padding: 0.08rem 0.3rem 0.07rem;
-}
-
-.logs-column-label {
-  display: block;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  color: var(--muted);
-  font-size: 0.66rem;
-  font-weight: 600;
-  letter-spacing: 0.025em;
-  text-transform: uppercase;
-}
-
-.logs-column-header.is-resizing .logs-column-label {
-  color: var(--text);
-}
-
-.logs-column-resizer {
-  position: absolute;
-  top: -1px;
-  right: calc(var(--logs-column-gap) / -2 - 6px);
-  width: 12px;
-  height: 100%;
-  min-height: calc(100% + 2px);
-  padding: 0;
-  background: transparent;
-  cursor: col-resize;
-  border: 0;
-  z-index: 5;
-}
-
-.logs-column-resizer::after {
-  content: "";
-  position: absolute;
-  top: 0.22rem;
-  bottom: 0.22rem;
-  left: 50%;
-  width: 1px;
-  transform: translateX(-50%);
-  background: var(--border-soft);
-  opacity: 1;
-  transition: opacity 120ms ease, background-color 120ms ease, box-shadow 120ms ease;
-}
-
-.logs-column-header:last-child .logs-column-resizer::after {
-  opacity: 0;
-}
-
-.logs-column-resizer:hover::after,
-.logs-column-header.is-resizing .logs-column-resizer::after {
-  opacity: 1;
-  background: var(--accent-strong);
-  box-shadow: 0 0 0 2px var(--accent-strong-faint);
-}
-
 .logs-row {
   display: grid;
-  grid-template-columns: var(--logs-template-columns);
-  column-gap: var(--logs-column-gap);
+  grid-template-columns: var(--clv-template-columns);
+  column-gap: var(--clv-column-gap);
   align-items: baseline;
   padding: 0.1rem 0.5rem;
   font-size: 0.72rem;
@@ -134,6 +55,8 @@ input {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  /* Matches .track-table-cell so header labels and row text align. */
+  padding: 0.18rem 0.3rem 0.16rem;
 }
 
 .logs-time {

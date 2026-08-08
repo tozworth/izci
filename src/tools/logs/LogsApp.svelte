@@ -11,14 +11,21 @@
     type LogLevel
   } from '$lib/services/logging';
   import {
+    compareLogEntries,
     fitLogWidthsToAvailableWidth,
+    getLogColumnIcon,
     LOG_COLUMN_IDS,
+    LOG_COLUMN_MIN_WIDTHS,
+    logsColumnVisibility,
     logsColumnWidths,
+    logsSort,
     rebalanceLogColumnWidths,
     type LogColumnId,
     type LogColumnWidths
   } from './logs-columns';
   import { logsLevelVisibility } from './logs-levels';
+  import ColumnListView from '$lib/components/ColumnListView.svelte';
+  import type { ColumnListViewColumn } from '$lib/components/column-list-view';
   import LogsMenuBar from './LogsMenuBar.svelte';
 
   const COLUMN_GAP = 4;
@@ -29,21 +36,35 @@
   // Persisted via logsLevelVisibility (localStorage + BroadcastChannel).
   $: enabledLevels = $logsLevelVisibility;
   let autoScroll = true;
-  let listElement: HTMLElement | undefined;
+  let listElement: HTMLElement | null = null;
   let listWidth = 0;
   let resizingColumnId: LogColumnId | null = null;
   let resizeStartX = 0;
   let resizeStartWidths: LogColumnWidths = logsColumnWidths.getSnapshot();
 
   $: visibleEntries = entries.filter((entry) => enabledLevels[entry.level]);
+  $: visibleColumnIds = LOG_COLUMN_IDS.filter((columnId) => $logsColumnVisibility[columnId]);
+  $: visibleColumnCount = visibleColumnIds.length;
+  $: sortState = $logsSort;
+  $: sortedEntries = visibleEntries.sort((left, right) => compareLogEntries(left, right, sortState));
+  $: newestEntry = visibleEntries.reduce<LogEntry | null>(
+    (newest, entry) => (newest === null || entry.timestamp > newest.timestamp ? entry : newest),
+    null
+  );
   $: tableInnerWidth = Math.max(
     0,
-    listWidth - 2 * TABLE_SIDE_PADDING - Math.max(0, LOG_COLUMN_IDS.length - 1) * COLUMN_GAP
+    listWidth - 2 * TABLE_SIDE_PADDING - Math.max(0, visibleColumnCount - 1) * COLUMN_GAP
   );
-  $: resolvedWidths = fitLogWidthsToAvailableWidth($logsColumnWidths, tableInnerWidth);
-  $: tableTemplateColumns = LOG_COLUMN_IDS.map(
-    (columnId) => `minmax(${resolvedWidths[columnId]}px, ${resolvedWidths[columnId]}px)`
-  ).join(' ');
+  $: resolvedWidths = fitLogWidthsToAvailableWidth($logsColumnWidths, tableInnerWidth, visibleColumnIds);
+  $: columnDefs = LOG_COLUMN_IDS.map((columnId): ColumnListViewColumn => ({
+    id: columnId,
+    label: columnLabel(columnId),
+    width: resolvedWidths[columnId],
+    minWidth: LOG_COLUMN_MIN_WIDTHS[columnId],
+    icon: getLogColumnIcon(columnId),
+    visible: $logsColumnVisibility[columnId]
+  }));
+  $: visibleColumnDefs = columnDefs.filter((column) => column.visible);
 
   function formatTime(timestamp: number): string {
     const date = new Date(timestamp);
@@ -147,12 +168,17 @@
   function scrollToBottomIfPinned(): void {
     if (!autoScroll || !listElement) return;
     void tick().then(() => {
-      listElement!.scrollTop = listElement!.scrollHeight;
+      const entry = newestEntry;
+      if (!entry) return;
+
+      // Follow the newest line wherever the active sort puts it.
+      const row = listElement!.querySelector<HTMLElement>(`[data-log-id="${CSS.escape(entry.id)}"]`);
+      row?.scrollIntoView({ block: 'nearest' });
     });
   }
 
   async function copyVisible(): Promise<void> {
-    const text = visibleEntries.map(formatEntry).join('\n');
+    const text = sortedEntries.map(formatEntry).join('\n');
     if (text.length === 0) return;
     try {
       await navigator.clipboard.writeText(text);
@@ -161,11 +187,56 @@
     }
   }
 
+  function handleColumnSort(columnId: LogColumnId): void {
+    logsSort.setSort(columnId);
+  }
+
+  function sortColumnLabel(column: ColumnListViewColumn): string {
+    return $t('logs.columns.sortBy', {
+      default: 'Sort by {column}',
+      values: { column: columnLabel(column.id as LogColumnId) }
+    });
+  }
+
   function toggleLevel(level: LogLevel): void {
     logsLevelVisibility.setVisibility({
       ...logsLevelVisibility.getSnapshot(),
       [level]: !logsLevelVisibility.getSnapshot()[level]
     });
+  }
+
+  function handleColumnVisibilityToggle(columnId: LogColumnId): void {
+    const current = logsColumnVisibility.getSnapshot();
+
+    if (current[columnId] && LOG_COLUMN_IDS.filter((id) => current[id]).length === 1) {
+      return;
+    }
+
+    logsColumnVisibility.setVisibility({ ...current, [columnId]: !current[columnId] });
+  }
+
+  function columnResizeLabel(column: ColumnListViewColumn): string {
+    return $t('logs.columns.resize', {
+      default: 'Resize {column} column',
+      values: { column: columnLabel(column.id as LogColumnId) }
+    });
+  }
+
+  function logCellValue(entry: LogEntry, columnId: LogColumnId): string {
+    switch (columnId) {
+      case 'time':
+        return formatTime(entry.timestamp);
+      case 'level':
+        return levelColumnLabel(entry.level);
+      case 'source':
+        return entry.source;
+      case 'window':
+        return entry.window;
+      case 'message':
+        return entry.message;
+      case 'details':
+        return entry.details ?? '';
+    }
   }
 
   function handleColumnResizeStart(event: PointerEvent, columnId: LogColumnId): void {
@@ -179,7 +250,12 @@
   function handleWindowPointerMove(event: PointerEvent): void {
     if (!resizingColumnId) return;
     logsColumnWidths.setWidths(
-      rebalanceLogColumnWidths(resizeStartWidths, resizingColumnId, event.clientX - resizeStartX)
+      rebalanceLogColumnWidths(
+        resizeStartWidths,
+        resizingColumnId,
+        event.clientX - resizeStartX,
+        visibleColumnIds
+      )
     );
   }
 
@@ -192,22 +268,6 @@
       entries = list;
       scrollToBottomIfPinned();
     });
-
-    if (listElement) {
-      listWidth = Math.round(listElement.clientWidth);
-
-      if (typeof ResizeObserver !== 'undefined') {
-        const observer = new ResizeObserver((resizeEntries) => {
-          const entry = resizeEntries[0];
-          if (entry) listWidth = Math.round(entry.contentRect.width);
-        });
-        observer.observe(listElement);
-        return () => {
-          unsubscribe();
-          observer.disconnect();
-        };
-      }
-    }
 
     return unsubscribe;
   });
@@ -232,33 +292,41 @@
     on:close={() => window.close()}
   />
 
-  <div
-    class="logs-list"
-    bind:this={listElement}
+  <ColumnListView
+    columns={visibleColumnDefs}
+    allColumns={columnDefs}
+    bind:scrollElement={listElement}
+    bind:clientWidth={listWidth}
+    columnGap={`${COLUMN_GAP}px`}
+    contextMenuLabel={$t('logs.contextMenu.columns', { default: 'Log columns' })}
+    resizingColumnId={resizingColumnId}
+    activeSort={sortState}
+    resizeLabel={columnResizeLabel}
     role="log"
     aria-live="polite"
-    style={`--logs-template-columns: ${tableTemplateColumns}; --logs-column-gap: ${COLUMN_GAP}px;`}
+    on:resizeStart={(event) =>
+      handleColumnResizeStart(event.detail.event, event.detail.columnId as LogColumnId)}
+    on:visibilityToggle={(event) => handleColumnVisibilityToggle(event.detail as LogColumnId)}
   >
-    <div class="logs-columns-header" role="row">
-      {#each LOG_COLUMN_IDS as columnId (columnId)}
-        <div class="logs-column-header" class:is-resizing={resizingColumnId === columnId} role="columnheader">
-          <span class="logs-column-label">{columnLabel(columnId)}</span>
-          <button
-            type="button"
-            class="logs-column-resizer"
-            aria-label={$t('logs.columns.resize', {
-              default: 'Resize {column} column',
-              values: { column: columnLabel(columnId) }
-            })}
-            title={$t('logs.columns.resize', {
-              default: 'Resize {column} column',
-              values: { column: columnLabel(columnId) }
-            })}
-            onpointerdown={(event) => handleColumnResizeStart(event, columnId)}
-          ></button>
-        </div>
-      {/each}
-    </div>
+    <svelte:fragment slot="headerCell" let:column let:sorted>
+      <button
+        type="button"
+        class="clv-column-sort-button"
+        class:is-sorted={sorted}
+        class:is-right-aligned={column.rightAligned}
+        title={sortColumnLabel(column)}
+        on:click={() => handleColumnSort(column.id as LogColumnId)}
+      >
+        <span class="clv-column-sort-content" class:is-right-aligned={column.rightAligned}>
+          <span class="clv-column-label">{column.label}</span>
+          {#if sorted}
+            <span class="material-symbols-outlined clv-column-sort-icon" aria-hidden="true">
+              {sortState.direction === 'asc' ? 'expand_less' : 'expand_more'}
+            </span>
+          {/if}
+        </span>
+      </button>
+    </svelte:fragment>
 
     {#if visibleEntries.length === 0}
       <div class="logs-empty">
@@ -267,18 +335,20 @@
           : $t('logs.emptyFiltered', { default: 'No entries at the selected levels.' })}
       </div>
     {:else}
-      {#each visibleEntries as entry (entry.id)}
-        <div class="logs-row level-{entry.level}">
-          <span class="logs-cell logs-time">{formatTime(entry.timestamp)}</span>
-          <span class="logs-cell logs-level">{levelColumnLabel(entry.level)}</span>
-          <span class="logs-cell logs-source">{entry.source}</span>
-          <span class="logs-cell logs-window" title={entry.window}>{entry.window}</span>
-          <span class="logs-cell logs-message" title={entry.message}>{entry.message}</span>
-          <span class="logs-cell logs-details" title={entry.details}>{entry.details}</span>
+      {#each sortedEntries as entry (entry.id)}
+        <div class="logs-row level-{entry.level}" data-log-id={entry.id}>
+          {#each visibleColumnDefs as column}
+            <span
+              class="logs-cell logs-{column.id}"
+              title={logCellValue(entry, column.id as LogColumnId)}
+            >
+              {logCellValue(entry, column.id as LogColumnId)}
+            </span>
+          {/each}
         </div>
       {/each}
     {/if}
-  </div>
+  </ColumnListView>
 </div>
 
 <svelte:window onpointermove={handleWindowPointerMove} onpointerup={handleWindowPointerUp} />

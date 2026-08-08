@@ -1,4 +1,5 @@
 import { createPersistentStore } from '$lib/stores/persistent-store';
+import type { LogEntry, LogLevel } from '$lib/services/logging';
 
 export type LogColumnId = 'time' | 'level' | 'source' | 'window' | 'message' | 'details';
 
@@ -32,6 +33,30 @@ export const LOG_COLUMN_MIN_WIDTHS: LogColumnWidths = {
   details: 100
 };
 
+export type LogColumnVisibility = Record<LogColumnId, boolean>;
+
+export const LOG_COLUMN_DEFAULT_VISIBILITY: LogColumnVisibility = {
+  time: true,
+  level: true,
+  source: true,
+  window: true,
+  message: true,
+  details: true
+};
+
+const LOG_COLUMN_ICONS: Record<LogColumnId, string> = {
+  time: 'schedule',
+  level: 'signal_cellular_alt',
+  source: 'data_object',
+  window: 'window',
+  message: 'chat_bubble',
+  details: 'info'
+};
+
+export function getLogColumnIcon(columnId: LogColumnId): string {
+  return LOG_COLUMN_ICONS[columnId];
+}
+
 const STORAGE_KEY = 'izci.logs-column-widths.v1';
 const CHANNEL_NAME = 'izci-logs-column-widths-v1';
 
@@ -60,43 +85,51 @@ const widthsStore = createPersistentStore<LogColumnWidths>({
 /**
  * Fits stored widths to the available width so the columns always fill the
  * popup: extra space is distributed proportionally, and overflow shrinks
- * columns down to their minimums before collapsing below them.
+ * columns down to their minimums before collapsing below them. Only the
+ * passed column ids participate (pass the visible ones when some are hidden).
  */
 export function fitLogWidthsToAvailableWidth(
   widths: LogColumnWidths,
-  availableWidth: number
+  availableWidth: number,
+  columnIds: readonly LogColumnId[] = LOG_COLUMN_IDS
 ): LogColumnWidths {
   const safeAvailableWidth = Math.max(0, availableWidth);
-  const minTotal = LOG_COLUMN_IDS.reduce((sum, columnId) => sum + LOG_COLUMN_MIN_WIDTHS[columnId], 0);
+  const minTotal = columnIds.reduce((sum, columnId) => sum + LOG_COLUMN_MIN_WIDTHS[columnId], 0);
 
   if (safeAvailableWidth <= minTotal) {
     const scale = minTotal > 0 ? safeAvailableWidth / minTotal : 1;
 
-    return Object.fromEntries(
-      LOG_COLUMN_IDS.map((columnId) => [
-        columnId,
-        Math.max(1, LOG_COLUMN_MIN_WIDTHS[columnId] * scale)
-      ])
-    ) as LogColumnWidths;
+    return {
+      ...widths,
+      ...Object.fromEntries(
+        columnIds.map((columnId) => [
+          columnId,
+          Math.max(1, LOG_COLUMN_MIN_WIDTHS[columnId] * scale)
+        ])
+      )
+    } as LogColumnWidths;
   }
 
-  const totalWidth = LOG_COLUMN_IDS.reduce((sum, columnId) => sum + widths[columnId], 0);
+  const totalWidth = columnIds.reduce((sum, columnId) => sum + widths[columnId], 0);
 
   if (totalWidth <= safeAvailableWidth) {
     const extra = safeAvailableWidth - totalWidth;
-    const totalBasis = totalWidth || LOG_COLUMN_IDS.length;
+    const totalBasis = totalWidth || columnIds.length;
 
-    return Object.fromEntries(
-      LOG_COLUMN_IDS.map((columnId) => {
-        const share = totalBasis > 0 ? widths[columnId] / totalBasis : 1 / LOG_COLUMN_IDS.length;
-        return [columnId, widths[columnId] + extra * share];
-      })
-    ) as LogColumnWidths;
+    return {
+      ...widths,
+      ...Object.fromEntries(
+        columnIds.map((columnId) => {
+          const share = totalBasis > 0 ? widths[columnId] / totalBasis : 1 / columnIds.length;
+          return [columnId, widths[columnId] + extra * share];
+        })
+      )
+    } as LogColumnWidths;
   }
 
   const nextWidths = { ...widths } as LogColumnWidths;
   let remainingOverflow = totalWidth - safeAvailableWidth;
-  let adjustableColumns = [...LOG_COLUMN_IDS];
+  let adjustableColumns = [...columnIds];
 
   while (remainingOverflow > 0.5 && adjustableColumns.length > 0) {
     const shrinkCapacity = adjustableColumns.reduce(
@@ -124,7 +157,7 @@ export function fitLogWidthsToAvailableWidth(
       }
     }
 
-    const resolvedTotal = LOG_COLUMN_IDS.reduce((sum, columnId) => sum + nextWidths[columnId], 0);
+    const resolvedTotal = columnIds.reduce((sum, columnId) => sum + nextWidths[columnId], 0);
     remainingOverflow = resolvedTotal - safeAvailableWidth;
     adjustableColumns = adjustableColumns.filter((columnId) => !clampedColumns.includes(columnId));
   }
@@ -135,22 +168,25 @@ export function fitLogWidthsToAvailableWidth(
 /**
  * Rebalances widths when one column is resized, keeping the total constant by
  * stealing from (or giving to) the nearest neighbor, cascading once a neighbor
- * reaches its minimum. Mirrors the library view's resize behavior.
+ * reaches its minimum. Only the passed column ids participate (pass the
+ * visible ones when some are hidden). Mirrors the library view's resize
+ * behavior.
  */
 export function rebalanceLogColumnWidths(
   baseWidths: LogColumnWidths,
   columnId: LogColumnId,
-  delta: number
+  delta: number,
+  columnIds: readonly LogColumnId[] = LOG_COLUMN_IDS
 ): LogColumnWidths {
   const widths = { ...baseWidths };
-  const columnIndex = LOG_COLUMN_IDS.indexOf(columnId);
+  const columnIndex = columnIds.indexOf(columnId);
 
   if (columnIndex === -1) {
     return widths;
   }
 
-  const columnsToRight = LOG_COLUMN_IDS.slice(columnIndex + 1);
-  const columnsToLeft = LOG_COLUMN_IDS.slice(0, columnIndex).slice().reverse();
+  const columnsToRight = columnIds.slice(columnIndex + 1);
+  const columnsToLeft = columnIds.slice(0, columnIndex).slice().reverse();
   const neighboringColumns = [...columnsToRight, ...columnsToLeft];
   const currentWidth = widths[columnId];
   const targetWidth = Math.max(LOG_COLUMN_MIN_WIDTHS[columnId], currentWidth + delta);
@@ -197,4 +233,126 @@ export const logsColumnWidths = {
     return widthsStore.set(widths);
   },
   reset: widthsStore.reset
+};
+
+export function normalizeLogColumnVisibility(value: unknown): LogColumnVisibility {
+  const source = value && typeof value === 'object' ? (value as Partial<LogColumnVisibility>) : {};
+  const visibility = { ...LOG_COLUMN_DEFAULT_VISIBILITY };
+
+  for (const columnId of LOG_COLUMN_IDS) {
+    const visible = source[columnId];
+    if (typeof visible === 'boolean') {
+      visibility[columnId] = visible;
+    }
+  }
+
+  // Keep at least one column visible so the view never collapses.
+  if (!LOG_COLUMN_IDS.some((columnId) => visibility[columnId])) {
+    visibility.time = true;
+  }
+
+  return visibility;
+}
+
+const visibilityStore = createPersistentStore<LogColumnVisibility>({
+  storageKey: 'izci.logs-column-visibility.v1',
+  channelName: 'izci-logs-column-visibility-v1',
+  defaultValue: LOG_COLUMN_DEFAULT_VISIBILITY,
+  normalize: normalizeLogColumnVisibility
+});
+
+export const logsColumnVisibility = {
+  subscribe: visibilityStore.subscribe,
+  getSnapshot: visibilityStore.getSnapshot,
+  setVisibility(visibility: LogColumnVisibility): LogColumnVisibility {
+    return visibilityStore.set(visibility);
+  },
+  reset: visibilityStore.reset
+};
+
+export type LogSortDirection = 'asc' | 'desc';
+
+export type LogSortState = {
+  columnId: LogColumnId;
+  direction: LogSortDirection;
+};
+
+export const LOG_SORT_DEFAULT: LogSortState = {
+  columnId: 'time',
+  direction: 'asc'
+};
+
+export function normalizeLogSort(value: unknown): LogSortState {
+  const source = value && typeof value === 'object' ? (value as Partial<LogSortState>) : {};
+  const columnId = LOG_COLUMN_IDS.includes(source.columnId as LogColumnId)
+    ? (source.columnId as LogColumnId)
+    : LOG_SORT_DEFAULT.columnId;
+
+  return {
+    columnId,
+    direction: source.direction === 'desc' ? 'desc' : 'asc'
+  };
+}
+
+const LOG_LEVEL_RANK: Record<LogLevel, number> = {
+  error: 0,
+  warning: 1,
+  info: 2,
+  debug: 3
+};
+
+const logStringCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
+
+/**
+ * Compares two entries by the active sort column; ties fall back to
+ * chronological order (ascending), mirroring the library view's tiebreak.
+ */
+export function compareLogEntries(left: LogEntry, right: LogEntry, sort: LogSortState): number {
+  let comparison = 0;
+
+  switch (sort.columnId) {
+    case 'time':
+      comparison = left.timestamp - right.timestamp;
+      break;
+    case 'level':
+      comparison = LOG_LEVEL_RANK[left.level] - LOG_LEVEL_RANK[right.level];
+      break;
+    case 'source':
+      comparison = logStringCollator.compare(left.source, right.source);
+      break;
+    case 'window':
+      comparison = logStringCollator.compare(left.window, right.window);
+      break;
+    case 'message':
+      comparison = logStringCollator.compare(left.message, right.message);
+      break;
+    case 'details':
+      comparison = logStringCollator.compare(left.details ?? '', right.details ?? '');
+      break;
+  }
+
+  if (comparison !== 0) {
+    return sort.direction === 'desc' ? -comparison : comparison;
+  }
+
+  return left.timestamp - right.timestamp;
+}
+
+const sortStore = createPersistentStore<LogSortState>({
+  storageKey: 'izci.logs-sort.v1',
+  channelName: 'izci-logs-sort-v1',
+  defaultValue: LOG_SORT_DEFAULT,
+  normalize: normalizeLogSort
+});
+
+export const logsSort = {
+  subscribe: sortStore.subscribe,
+  getSnapshot: sortStore.getSnapshot,
+  setSort(columnId: LogColumnId): LogSortState {
+    return sortStore.update((sort) => ({
+      columnId,
+      direction: sort.columnId === columnId && sort.direction === 'asc' ? 'desc' : 'asc'
+    }));
+  },
+  reset: sortStore.reset
 };

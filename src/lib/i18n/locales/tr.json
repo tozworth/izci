@@ -1724,7 +1724,11 @@
       "window": "Pencere",
       "message": "Mesaj",
       "details": "Ayrıntılar",
-      "resize": "{column} sütununu yeniden boyutlandır"
+      "resize": "{column} sütununu yeniden boyutlandır",
+      "sortBy": "{column} sütununa göre sırala"
+    },
+    "contextMenu": {
+      "columns": "Günlük sütunları"
     },
     "heading": "Günlük",
     "empty": "Henüz kayıt yok.",
