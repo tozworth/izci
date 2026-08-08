@@ -274,11 +274,10 @@ async function readFileHandle(handle: FileSystemFileHandle, path = handle.name):
 /**
  * Requests persistent read access to a File System Access handle. The picker
  * grants implicit read access, but that grant does not reliably survive a
- * reload (the handle can come back with permission state 'prompt'), which then
- * silently breaks handle-only materialization — e.g. host-side Freeplay
- * playback, where no user gesture is available to prompt for access. Import
- * flows run inside a user gesture, so an explicit request here makes the
- * grant stick.
+ * reload (state can come back 'prompt'), silently breaking handle-only
+ * materialization — e.g. host-side Freeplay playback, where no user gesture
+ * exists to prompt. Import flows run inside a user gesture, so an explicit
+ * request here makes the grant stick.
  */
 export async function ensureFileHandleReadPermission(
   handle: FileSystemHandle

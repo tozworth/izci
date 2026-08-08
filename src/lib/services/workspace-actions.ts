@@ -280,12 +280,12 @@ export function buildFavoritesContextActions(
 }
 
 /**
- * Freeplay menu variants: a Freeplay client browses the HOST's catalog and owns
- * only its queue. It must see the same actions as local mode minus everything
- * that would mutate host-owned state — favorites, ratings, play counts, library
- * membership — and minus subsong separation, which rewrites queue items into
- * IDs the host catalog cannot resolve. 'remove' stays on the playlist (queue)
- * menu but not the library (host) menu.
+ * Freeplay menu variants: a Freeplay client browses the HOST's catalog and
+ * owns only its queue. Same actions as local mode minus anything that mutates
+ * host-owned state (favorites, ratings, play counts, library membership) and
+ * minus subsong separation (rewrites queue items into IDs the host catalog
+ * cannot resolve). 'remove' stays on the playlist (queue) menu, not the
+ * library (host) menu.
  */
 export function buildFreeplayPlaylistContextActions(
   playlistItems: PlaylistItem[],

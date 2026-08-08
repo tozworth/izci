@@ -107,12 +107,8 @@ export class AudioBusService {
    * Connects the stream into the bus with the source gain at 0 — the route
    * exists and consumes the track (so the source node syncs to the live
    * WebRTC track and the AudioContext is warm) but nothing is audible yet.
-   * `setMediaStreamSourceGain` unmutes it later. Without this, the first
-   * audible route cold-starts the graph AND the source node at the same
-   * moment — a fresh MediaStreamAudioSourceNode tapping a mid-stream track
-   * emits garbled/stretched first frames for ~1-3 s before locking on (the
-   * "stuttering into life" that survived every cushion fix; the receiver
-   * level was always fine).
+   * `setMediaStreamSourceGain` unmutes it later. A cold audible route garbles
+   * the first ~1-3 s of a mid-stream track ("stuttering into life").
    */
   connectMediaStreamSilent(stream: MediaStream | null): MediaStreamAudioSourceNode | null {
     return this.#connectMediaStream(stream, 'input', 0);
@@ -120,8 +116,8 @@ export class AudioBusService {
 
   /**
    * Ramps the source's bus gain (0 = muted route, 1 = audible). The source
-   * node itself stays connected and consuming the track either way, so
-   * mute/unmute never tears the pipeline down.
+   * node stays connected and consuming the track either way, so mute/unmute
+   * never tears the pipeline down.
    */
   setMediaStreamSourceGain(source: MediaStreamAudioSourceNode | null, gain: number): void {
     if (!source || !this.#context) return;

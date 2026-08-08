@@ -45,9 +45,8 @@ const EMPTY_SNAPSHOT: PlaybackSnapshot = {
  * A host-side player whose output exists only on a single peer's WebRTC sender.
  * It deliberately never enters the shared player controller or speaker graph.
  *
- * When the track is delivered as a source file (or audio is disabled), the host
- * is timeline-passive: it only holds the current selection so the client can
- * render it locally. No renderer, no clock, no auto-advance, no live progress.
+ * Source-file delivery or disabled audio: the host is timeline-passive — it
+ * only holds the selection for the client to render; no clock, no advance.
  */
 export class MultiplayerFreeplayPlayer {
   #track: PlaylistItem | null = null;
@@ -58,22 +57,18 @@ export class MultiplayerFreeplayPlayer {
   #elementSource: MediaElementAudioSourceNode | null = null;
   #modulePlayer: ChiptuneJsPlayer | null = null;
   /**
-   * One destination per player, not per track. Its stream track is attached to
-   * the peer's audio sender after the first streamed track and never replaced:
-   * during source-file interludes the destination emits silence, so the peer's
-   * receiver keeps a steady RTP clock instead of freezing its jitter buffer
-   * with the previous track's tail (which would replay at the next streamed
-   * track). Only `destroy()` stops the tracks.
+   * One destination per player, not per track: its stream track stays attached
+   * to the peer's audio sender across streamed tracks (emitting silence during
+   * source-file interludes) so the receiver keeps a steady RTP clock instead
+   * of freezing with the previous track's tail. Only `destroy()` stops it.
    */
   #destination: MediaStreamAudioDestinationNode | null = null;
   /**
-   * A permanently-running silent source feeding the shared destination. An
+   * Permanently-running silent source feeding the shared destination. An
    * input-less MediaStreamAudioDestinationNode emits ZERO RTP packets in
-   * Chromium (verified live), so during source-file interludes the peer's
-   * receiver would freeze holding the previous streamed track's tail and
-   * replay it at the next streamed track. Keeping a running constant source
-   * (offset 0) connected means silence keeps flowing, so the receiver buffer
-   * always holds silence — never stale audio. Only `destroy()` stops it.
+   * Chromium (verified live), so without this the receiver freezes holding the
+   * previous track's tail. Silence keeps flowing → the buffer always holds
+   * silence, never stale audio. Only `destroy()` stops it.
    */
   #silenceAnchor: ConstantSourceNode | null = null;
   #raf: RafEngine | null = null;
@@ -89,31 +84,24 @@ export class MultiplayerFreeplayPlayer {
     this.#getAudioSettings = getAudioSettings;
     this.#onUpdate = onUpdate;
     this.#onEnded = onEnded;
-    // Eager destination + running silence anchor. The peer's audio sender is
-    // attached to this destination's track at Freeplay activation
-    // (ensureWire), so silence RTP flows for the WHOLE session — not only
-    // after the first streamed track. The client's persistent silent sink
-    // consumes it, so NetEq pre-builds the receiver's jitter-buffer cushion
-    // during idle/source-file phases; the first streamed track then starts
-    // with the cushion already in place instead of building from zero over
-    // seconds on a real link (the "nothing for the first seconds, then it
-    // slowly stutters to life" report).
+    // Eager destination + running silence anchor: the peer's audio sender is
+    // attached to this destination's track at Freeplay activation (ensureWire),
+    // so silence RTP flows for the WHOLE session. The client's persistent silent
+    // sink pre-builds the cushion during idle/source-file phases, so the first
+    // streamed track starts with the cushion already in place.
     void Promise.resolve()
       .then(() => audioBusService.resume())
       .then(() => {
         if (this.#destroyed) return;
         try {
-          // No context gate here: `#ensureDestination()` accesses
-          // `audioBusService.context` itself, and that getter can THROW while
-          // the shared graph is still coming up (only resume() wraps it) — a
-          // gate here would reject this chain and the eager wire would
-          // silently never exist. Best-effort; `ensureWire()` retries at
-          // Freeplay activation.
+          // No context gate here: `#ensureDestination()` accesses `audioBusService.context`
+          // itself, and that getter can THROW while the shared graph is still coming up
+          // (only resume() wraps it) — a gate here would reject the eager wire silently.
+          // Best-effort; `ensureWire()` retries at Freeplay activation.
           this.#ensureDestination();
           if (this.streamTrack) {
-            // Publish once after the eager wiring so syncFreeplayPlayerUpdate
-            // sees the destination track and attaches it to the peer's sender
-            // (the standard path, not just the one-shot activation attach).
+            // Publish once after the eager wiring so syncFreeplayPlayerUpdate sees the
+            // destination track and attaches it via the standard path.
             this.#publish();
           }
         } catch {
@@ -152,13 +140,11 @@ export class MultiplayerFreeplayPlayer {
   }
 
   /**
-   * Resolves once the player's destination (with its running silence anchor)
-   * exists and returns its stream track for the peer's audio sender. Called
-   * at Freeplay activation so the silence wire is live from the start — the
-   * client's persistent sink then pre-builds the jitter-buffer cushion during
-   * idle phases. A destroyed player (or a context that cannot start) returns
-   * null, in which case the sender stays without a track and streamed tracks
-   * degrade to the previous build-from-zero preroll.
+   * Resolves once the destination (with its running silence anchor) exists and
+   * returns its stream track for the peer's audio sender, so the silence wire
+   * is live from Freeplay activation and the client's sink pre-builds the
+   * cushion during idle phases. Returns null when destroyed or the context
+   * cannot start — streamed tracks then degrade to build-from-zero.
    */
   async ensureWire(): Promise<MediaStreamTrack | null> {
     if (this.#destroyed) {
@@ -174,18 +160,15 @@ export class MultiplayerFreeplayPlayer {
     try {
       // Create the destination unconditionally — do NOT gate on
       // `audioBusService.context`: the getter calls `#ensureGraph()` which can
-      // THROW while the graph is still coming up (only resume() wraps it), so
-      // a `!context` gate rejected this promise, the host's `.catch(() => null)`
-      // turned it into replaceTrack(null), and no silence RTP ever flowed (the
-      // pre-seed silently did nothing). If the graph genuinely cannot start,
-      // `#ensureDestination()` throws and we return null — streamed tracks
-      // then degrade to the build-from-zero preroll.
+      // THROW while the graph is coming up, so a `!context` gate made this return
+      // null, the host's `.catch(() => null)` produced replaceTrack(null), and no
+      // silence RTP ever flowed. If the graph cannot start, `#ensureDestination()`
+      // throws and we return null — streamed tracks degrade to build-from-zero.
       const track = this.#ensureDestination().stream.getAudioTracks()[0] ?? null;
       if (track) {
-        // Publish once after the wire exists so syncFreeplayPlayerUpdate sees
-        // the destination track and attaches it through the standard path
-        // (which also applies the negotiated opus bitrate), not just the
-        // one-shot activation replaceTrack.
+        // Publish once after the wire exists so syncFreeplayPlayerUpdate sees the
+        // destination track and attaches it through the standard path (which also
+        // applies the negotiated opus bitrate).
         this.#publish();
       }
       logDebug('freeplay', 'Freeplay wire ready', { hasTrack: track !== null });
@@ -222,10 +205,8 @@ export class MultiplayerFreeplayPlayer {
     });
     // Streamed-audio availability is deferred until the renderer is connected:
     // the client switches away from source-file playback (and reconnects the
-    // WebRTC route) on this message, so publishing it before the renderer is
-    // ready would leave the client in a silence gap equal to the renderer
-    // build time (~100 ms — the "tiny glitch" before the next streamed track).
-    // Source-file and host-disabled tracks need the availability immediately.
+    // WebRTC route) on this message, so an early publish would leave a silence
+    // gap equal to the renderer build time. Source-file/host-disabled: immediate.
     if (!enabled) {
       this.#audio = {
         enabled: false,
@@ -380,9 +361,8 @@ export class MultiplayerFreeplayPlayer {
           return resolve();
         }
         // The token gate owns every instance-field assignment (mirroring the module
-        // path): an older load's continuation must never republish a renderer that a
-        // newer load already disposed, or the orphaned element keeps playing and its
-        // object URL leaks.
+        // path): a stale load's continuation must never republish a renderer a newer
+        // load already disposed (orphaned element keeps playing, object URL leaks).
         this.#connectRenderer(source, destination, postRaf, track.kind === 'video');
         this.#element = element;
         this.#elementSource = source;
@@ -457,11 +437,9 @@ export class MultiplayerFreeplayPlayer {
       const destination = context.createMediaStreamDestination();
       destination.channelCount = 2;
       // A destination with no connected source emits NOTHING on the wire in
-      // Chromium (verified: 0 RTP packets). During source-file interludes the
-      // peer's receiver would then freeze holding the previous streamed track's
-      // tail. A running constant source at offset 0 keeps a silence RTP flow
-      // alive through the interlude, so the receiver buffer always advances
-      // through silence — the next streamed track starts clean.
+      // Chromium (verified: 0 RTP packets). A running constant source at offset 0
+      // keeps silence flowing through source-file interludes, so the receiver
+      // buffer always advances through silence — the next streamed track starts clean.
       const silenceAnchor = context.createConstantSource();
       silenceAnchor.offset.value = 0;
       silenceAnchor.connect(destination);
@@ -569,15 +547,14 @@ export class MultiplayerFreeplayPlayer {
 export interface FreeplayStepResolver {
   /**
    * Drops the shuffle session (history + upcoming cycle). Mirrors the local
-   * playlist store, which resets its navigation whenever shuffle toggles or the
-   * collection/queue is replaced.
+   * playlist store's reset on shuffle toggle or collection/queue replacement.
    */
   reset(): void;
   /**
-   * Steps from an explicit user action (Next/Prev). Shuffle mode keeps a played
-   * history so Prev walks back through what was actually played, and an upcoming
-   * cycle so a track is never re-picked before the collection is exhausted
-   * (wrapping to a fresh cycle only when `wrap` is set, i.e. repeat-all).
+   * Steps from an explicit user action (Next/Prev). Shuffle keeps a played
+   * history so Prev walks back through what was actually played, and an
+   * upcoming cycle so a track is never re-picked before the collection is
+   * exhausted (wraps only with `wrap`, i.e. repeat-all).
    */
   resolveStep(options: {
     currentId?: string | null;
@@ -598,11 +575,9 @@ export interface FreeplayStepResolver {
 
 /**
  * Per-peer Freeplay stepping context. The host owns one instance per Freeplay
- * peer, seeded with that peer's current collection (library/favorites/queue).
- * This reuses the local playlist-navigation semantics so Freeplay shuffle is
- * the same pseudorandom cycle the user gets locally: previous tracks are
- * remembered (Prev walks the history), and Next never re-picks a track until
- * the collection is exhausted.
+ * peer, seeded with that peer's current collection. Reuses the local
+ * playlist-navigation semantics: Prev walks the played history, Next never
+ * re-picks until the collection is exhausted.
  */
 export function createFreeplayStepResolver(
   getItems: () => PlaylistItem[]

@@ -9,14 +9,12 @@ import type {
 export type MultiplayerCollection = 'playlist' | 'library' | 'favorites';
 
 // Version 16: host-authoritative listener buffer — the host's
-// `multiplayerAudioBufferMs` is shipped to clients as a `buffer` message
-// (on connect and on every slider change) so the host controls the
-// listeners' receiver jitter-buffer target live. v15 moved Freeplay
-// shuffle/repeat flags to a lightweight `state` message (v14 carried them
-// inside every catalog echo, so a toggle re-shipped the whole library and
-// in-flight echoes could clobber optimistic client toggles). The catalog
-// keeps the fields for plain multiplayer peers, which still read the host
-// playlist's flags from it.
+// `multiplayerAudioBufferMs` ships to clients as a `buffer` message (on
+// connect and every slider change) so the host controls the listeners'
+// receiver jitter-buffer target live. v15 moved Freeplay shuffle/repeat flags
+// to a lightweight `state` message (v14 carried them in every catalog echo, so
+// a toggle re-shipped the whole library and echoes could clobber optimistic
+// client toggles). The catalog keeps the fields for plain multiplayer peers.
 export const MULTIPLAYER_PROTOCOL_VERSION = 16;
 // The `freeplay.queue` message optionally carries the client's shuffle/repeat
 // flags (additive, no bump): on reconnect the fresh host peer applies them so
@@ -24,12 +22,11 @@ export const MULTIPLAYER_PROTOCOL_VERSION = 16;
 export const MULTIPLAYER_FRAME_CHUNK_SIZE = 12_000;
 
 /**
- * Wire-sanity bound for the Freeplay queue. Not a transport limit — the host
- * already ships the whole library (potentially thousands of items) in the
- * catalog, and the chunked-message reassembler handles payloads an order of
- * magnitude larger. This only stops absurd input; it must comfortably exceed
- * any realistic local library (a 7k-track "shuffle play all" queue is ~280 KB
- * over the wire).
+ * Wire-sanity bound for the Freeplay queue, not a transport limit — the host
+ * already ships the whole library in the catalog, and the chunked reassembler
+ * handles far larger payloads. Only stops absurd input; must comfortably
+ * exceed any realistic local library (a 7k-track "shuffle play all" queue is
+ * ~280 KB over the wire).
  */
 export const MULTIPLAYER_QUEUE_MAX_ITEMS = 50_000;
 

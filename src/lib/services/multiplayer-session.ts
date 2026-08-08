@@ -127,8 +127,8 @@ export function createMultiplayerSession({
     core.pendingClientSourceFile = null;
     core.pendingClientPlaybackPreparation = null;
     core.clientRemoteAudioReady = false;
-    // Drop the previous host's authoritative buffer so a fresh join starts
-    // from the local preference until the new host's `buffer` message lands.
+    // Drop the previous host's authoritative buffer so a fresh join starts from
+    // the local preference until the new host's `buffer` message lands.
     core.hostAudioBufferMs = null;
     core.hostPlaybackPreparation = null;
     core.bypassHostPlaybackGateTrackId = null;
@@ -182,10 +182,10 @@ export function createMultiplayerSession({
 
   /**
    * Restores the persisted last multiplayer session (the "Restore last
-   * session" option). Hosting is resumed silently (same path as auto-host);
-   * a client session re-joins the remembered host silently and hands retries
-   * to the reconnect loop. Returns the restored mode, or null when there is
-   * nothing to restore or the attempt could not start.
+   * session" option). Hosting resumes silently (same path as auto-host); a
+   * client session re-joins the remembered host silently and hands retries to
+   * the reconnect loop. Returns the restored mode, or null when nothing to
+   * restore or the attempt could not start.
    */
   async function restoreLastSession(): Promise<MultiplayerMode | null> {
     if (core.state.mode !== 'idle') return core.state.mode;
@@ -233,15 +233,15 @@ export function createMultiplayerSession({
       host.syncHostAudio(core.latestHostState?.track ?? null);
       host.syncHostSourceFiles(core.latestHostState?.track ?? null);
       if (opusBitrateChanged) {
-        // Freeplay peers only re-apply the bitrate on track changes, so a
-        // mid-track slider drag never reached their sender; re-apply live.
+        // Freeplay peers only re-apply the bitrate on track changes, so a mid-track
+        // slider drag never reached their sender; re-apply live.
         for (const peer of core.hostPeers.values()) {
           void applyAudioBitrate(peer, settings.multiplayerOpusBitrateKbps);
         }
       }
       if (audioBufferChanged) {
-        // Host-authoritative listener buffer: ship the new target to every
-        // connected client; each applies it to its receiver immediately.
+        // Host-authoritative listener buffer: ship the new target to every connected
+        // client; each applies it to its receiver immediately.
         for (const peer of core.hostPeers.values()) {
           sendToPeer(peer, { kind: 'buffer', bufferMs: settings.multiplayerAudioBufferMs });
         }

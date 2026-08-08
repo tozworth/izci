@@ -10,19 +10,12 @@ export interface ReceiverPlayoutSample {
 }
 
 /**
- * Estimates the receiver's CURRENT playout level (how far the audible playout
- * lags the incoming stream, in milliseconds) from two cumulative stats samples.
- *
- * The naive `jitterBufferDelay / jitterBufferEmittedCount` is a LIFETIME
- * average: while the level is still building (the preroll cushion build), old
- * low-delay samples drag it far below the current level, so a poll against it
- * never terminates and the wait burns its whole cap. The DELTA over the last
- * window tracks the current level closely: samples emitted during that window
- * were each held for roughly the current level, so
- * `Δdelay / Δemitted × 1000` ≈ current playout lag in milliseconds.
- *
- * Returns 0 when the previous sample is missing (first poll) or the receiver
- * has not emitted anything since (no consumption → level unknown).
+ * Estimates the receiver's CURRENT playout level (ms) from two cumulative
+ * stats samples. The naive `jitterBufferDelay / jitterBufferEmittedCount` is
+ * a LIFETIME average that lags a building level so badly a poll against it
+ * never terminates; the DELTA over the last window tracks the current level
+ * (`Δdelay / Δemitted × 1000` ≈ playout lag). Returns 0 when the previous
+ * sample is missing or nothing was emitted.
  */
 export function estimateReceiverPlayoutLevelMs(
   current: ReceiverPlayoutSample,
@@ -43,26 +36,19 @@ export interface ReceiverCushionSample {
 }
 
 /**
- * Decides when the preroll cushion build has genuinely converged. All
- * decisions use the MEDIAN of the recent delta estimates, so a single spiky
- * reading (a network burst) or a dip can never end the build early, and
- * exits require the level to HOLD at/above its threshold — never just touch
- * it. This matters most on real-world links: jitter makes consecutive
- * `estimateReceiverPlayoutLevelMs` readings noisy, and the old single-sample
- * exits would route the audible stream with far less than the configured
- * cushion, leaving NetEq to time-stretch the AUDIBLE start of the track
- * toward the target ("nothing for the first seconds, then slowly stutters to
- * life").
- *
- * `atMs`/`nowMs` are injected per call so tests can drive time deterministically.
+ * Decides when the preroll cushion build has genuinely converged. Decisions
+ * use the MEDIAN of recent delta estimates (a burst or dip can't end the build
+ * early) and exits require the level to HOLD at/above its threshold — the old
+ * single-sample exits routed with far less than the configured cushion, leaving
+ * NetEq to time-stretch the AUDIBLE start ("nothing for seconds, then slowly
+ * stutters to life"). `atMs`/`nowMs` are injected for deterministic tests.
  */
 export class ReceiverCushionTracker {
   #samples: ReceiverCushionSample[] = [];
   readonly #size: number;
-  // Plateau bookkeeping: the build is "plateaued" once the level has stayed
-  // at/above the floor for `plateauMs` while growing by less than `growthMs`.
-  // Dropping below the floor (still climbing) or a meaningful rise (still
-  // growing) both restart the window.
+  // Plateau bookkeeping: "plateaued" once the level stays at/above the floor
+  // for `plateauMs` while growing less than `growthMs`. Dropping below the
+  // floor (still climbing) or a meaningful rise (still growing) restart it.
   #plateauBaseMs: number | null = null;
   #plateauSinceMs = 0;
 
@@ -85,8 +71,7 @@ export class ReceiverCushionTracker {
 
   /**
    * True once the last `stabilitySamples` consecutive samples ALL measured at
-   * or above `targetMs`. A burst that inflates a single poll is not a build —
-   * the level must hold there.
+   * or above `targetMs`. A burst that inflates a single poll is not a build.
    */
   isHoldingAtOrAbove(targetMs: number, stabilitySamples = 3): boolean {
     if (this.#samples.length < stabilitySamples) return false;
@@ -94,10 +79,8 @@ export class ReceiverCushionTracker {
   }
 
   /**
-   * True once the level has been at or above `floorMs` for `plateauMs`
-   * without growing by `growthMs` or more — the build has converged near its
-   * asymptote, and the last stretch would cost seconds for a few percent of
-   * extra headroom.
+   * True once the level has been at or above `floorMs` for `plateauMs` without
+   * growing by `growthMs` or more — the build converged near its asymptote.
    */
   isPlateaued(floorMs: number, plateauMs: number, nowMs: number, growthMs = 40): boolean {
     const level = this.levelMs;

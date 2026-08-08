@@ -110,10 +110,10 @@ export function createImportController(options: ImportControllerOptions) {
         if (!handles || handles.length === 0) {
           logInfo('files', 'File picker cancelled', { target });
         }
-        // Ask for persistent read access while a user gesture is available:
-        // the picker's implicit grant can lapse across reloads, and later
-        // handle-only materialization (e.g. host-side Freeplay playback) has
-        // no gesture to prompt with. Handles the user declines are skipped.
+        // Ask for persistent read access while a user gesture is available: the
+        // picker's implicit grant can lapse across reloads, and later handle-only
+        // materialization (e.g. host-side Freeplay playback) has no gesture to
+        // prompt with. Handles the user declines are skipped.
         const grantedHandles: FileSystemFileHandle[] = [];
         for (const handle of handles ?? []) {
           const permission = await ensureFileHandleReadPermission(handle);
@@ -165,9 +165,9 @@ export function createImportController(options: ImportControllerOptions) {
         if (!directoryHandle) {
           logInfo('files', 'Folder picker cancelled', { target });
         } else {
-          // Persistent read access to the directory covers its whole subtree;
-          // without the explicit grant the imported file handles can lapse to
-          // 'prompt' and later handle-only materialization silently fails.
+          // Directory read access covers its whole subtree; without the explicit grant
+          // the imported file handles can lapse to 'prompt' and handle-only
+          // materialization silently fails.
           const permission = await ensureFileHandleReadPermission(directoryHandle);
           if (permission === 'granted') {
             logDebug('files', 'Folder read permission granted', { name: directoryHandle.name });

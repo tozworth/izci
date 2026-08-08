@@ -30,8 +30,7 @@ export function shouldTransferMultiplayerSourceFile(
 
 /**
  * The shared repeat-mode cycle: off → all → one → off. Both the host toggle and
- * the client's optimistic button flip apply the same cycle, so it lives in one
- * place to keep the two sides in lockstep.
+ * the client's optimistic flip apply the same cycle, so it lives in one place.
  */
 export function cycleMultiplayerRepeatMode(mode: PlaylistRepeatMode): PlaylistRepeatMode {
   return mode === 'off' ? 'all' : mode === 'all' ? 'one' : 'off';
@@ -68,8 +67,8 @@ export function isMultiplayerFreeplayActive(pairing: {
 }
 
 /**
- * The combined Freeplay agreement for a pair: both sides currently opt in. This is
- * what gets persisted to the pairing record (and what `freeplayPaired` restores from)
+ * The combined Freeplay agreement for a pair: both sides currently opt in.
+ * Persisted to the pairing record (and what `freeplayPaired` restores from),
  * so enabling Freeplay after pairing works without re-pairing.
  */
 export function resolveMultiplayerFreeplayAgreement(pairing: {

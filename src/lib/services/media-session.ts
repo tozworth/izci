@@ -445,14 +445,12 @@ function createMediaSessionService() {
       void audio.play().catch(() => {
         ignoredTransportPlayEvents = Math.max(ignoredTransportPlayEvents - 1, 0);
         logWarning('playback', 'Transport anchor play failed (autoplay policy)');
-        // Keep ownedTransportAnchorState as-is: the anchor is CLAIMED for
-        // playback, so syncOwnedTransportAnchor (which runs on every snapshot
-        // publish — module progress ticks ~8/s) must NOT re-attempt play on
-        // each tick. Autoplay-policy failures can only be resolved by a user
-        // gesture, and the play paths (module/video player start, transport
-        // commands) already call playTransportAnchor directly — those retry
-        // naturally once a gesture exists. Resetting to 'inactive' here made
-        // every progress publish re-fire the failing play() and flood the log.
+        // Keep ownedTransportAnchorState as-is: the anchor is CLAIMED for playback,
+        // so syncOwnedTransportAnchor (every snapshot publish — module progress
+        // ticks ~8/s) must NOT re-attempt play per tick. Autoplay-policy failures
+        // need a user gesture; the play paths already call playTransportAnchor and
+        // retry once a gesture exists. Resetting to 'inactive' re-fired the failing
+        // play() on every publish and flooded the log.
       });
     },
     pauseTransportAnchor(): void {

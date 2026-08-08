@@ -49,10 +49,10 @@ export interface RememberLastSessionOptions {
 }
 
 /**
- * Records the most recent multiplayer session so a later launch can restore
- * it (see the "Restore last session" option). Writing is idempotent: callers
- * re-record as the client learns the host id/name, and the stored record
- * converges on the fullest known identity.
+ * Records the most recent multiplayer session so a later launch can restore it
+ * (see the "Restore last session" option). Idempotent: callers re-record as
+ * the client learns the host id/name; the record converges on the fullest
+ * known identity.
  */
 export function rememberMultiplayerLastSession(
   mode: 'client' | 'hosting',

@@ -348,13 +348,11 @@ export function createArtworkPresentationController({
       }
 
       if (selectedItem && state.detailsDisplayTrack?.id === selectedItem.id) {
-        // Refresh the displayed track only when the selection carries newer
-        // content (e.g. metadata edited). A different object with identical
-        // metadata — remote catalog replaces hand the client a fresh item
-        // with the same id and unchanged fields — is not a change; the
-        // reference check alone would republish on every such replace and
-        // cascade reactive recomputes downstream (library navigation target
-        // resolution spam on multiplayer clients).
+        // Refresh only when the selection carries newer content (e.g. metadata
+        // edited). A different object with identical metadata — remote catalog
+        // replaces hand the client a fresh item with the same id and unchanged
+        // fields — is not a change; a reference check alone would republish on every
+        // replace and cascade reactive recomputes downstream.
         if (
           state.detailsDisplayTrack !== selectedItem
           && !hasSameTrackMetadata(state.detailsDisplayTrack, selectedItem)

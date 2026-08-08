@@ -60,10 +60,10 @@ export class MultiplayerSourcePlaybackService {
   }
 
   /**
-   * Marks the client as the timeline owner (source-file Freeplay). While set, the
-   * host clock is ignored: no drift correction, no play/pause mirroring, and new
-   * files start on the client's own terms. Shared (host-authoritative) source-file
-   * playback keeps following the host.
+   * Marks the client as the timeline owner (source-file Freeplay). While set,
+   * the host clock is ignored: no drift correction, no play/pause mirroring,
+   * and new files start on the client's own terms. Shared (host-authoritative)
+   * source-file playback keeps following the host.
    */
   setLocalTimeline(active: boolean): void {
     if (this.#localTimeline === active) return;
@@ -159,7 +159,8 @@ export class MultiplayerSourcePlaybackService {
   }
 
   /**
-   * Restarts the current file from the beginning (source-file Freeplay repeat-one).
+   * Restarts the current file from the beginning (source-file Freeplay
+   * repeat-one).
    */
   replay(): boolean {
     if (!this.#enabled || !this.#activeTrackId) return false;

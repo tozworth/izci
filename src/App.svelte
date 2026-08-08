@@ -32,7 +32,6 @@
     hasSameTrackMetadata,
     resolveTrackSnapshot
   } from '$lib/services/artwork-presentation';
-  import { invalidateCachedArtwork } from '$lib/services/artwork-cache';
   import {
     getTrackArtworkLoadKey,
     loadTrackArtwork,
@@ -44,6 +43,9 @@
     resolvePatternTabAvailability,
     type ContextualTabAvailability
   } from '$lib/services/contextual-tab-presentation';
+  import { createFreeplayController } from '$lib/services/freeplay-controller';
+  import { createMultiplayerConnectionController } from '$lib/services/multiplayer-connection-controller';
+  import { createTroubadourAppAdapter } from '$lib/services/troubadour-app-adapter';
   import { filesystemFolders } from '$lib/services/filesystem-folders';
   import { startLibraryFolderCommandListener } from '$lib/services/library-folder-coordination';
   import { scanLaunchLibraryFolders } from '$lib/services/library-folder-scanner';
@@ -62,7 +64,6 @@
   } from '$lib/services/playback-progress';
   import { createPlaybackRestorationController } from '$lib/services/playback-restoration';
   import { forceServiceWorkerUpdateCheck } from '$lib/services/pwa-updates';
-  import { logError } from '$lib/services/logging';
   import { createWorkspaceShellController } from '$lib/services/workspace-shell';
   import { mediaSessionService } from '$lib/services/media-session';
   import { createPlayCountTracker } from '$lib/services/play-count';
@@ -93,19 +94,6 @@
   import { trackSettings } from '$lib/stores/track-settings';
   import { videoSettings } from '$lib/stores/video-settings';
   import { respondToToolTrackRequest } from '$lib/services/tool-track-context';
-  import {
-    buildTroubadourBatchContext,
-    detachTrackForMetadataWrite,
-    readTroubadourBatchResult,
-    readTroubadourWritePreparationRequest,
-    REQUEST_TROUBADOUR_BATCH_CONTEXT_MESSAGE,
-    respondToTroubadourBatchContextRequest,
-    respondToTroubadourWritePreparation,
-    type TroubadourBatchContext,
-    type TroubadourBatchItemResult,
-    type TroubadourTrackReference,
-    type TroubadourWriteTarget
-  } from '$lib/services/troubadour-sync';
   import type {
     LyricsDisplayStyle,
     ModulePatternSnapshot,
@@ -122,9 +110,7 @@
   import {
     buildFreeplayLibraryContextActions,
     buildFreeplayPlaylistContextActions,
-    buildSelectedWorkspaceTracks,
-    favoritesHaveAllTracks,
-    resolveTrackLibraryNavigationAction
+    favoritesHaveAllTracks
   } from '$lib/services/workspace-actions';
   import { experimentalSettings } from '$lib/stores/experimental-settings';
   import { multiplayerRecents } from '$lib/stores/multiplayer-recents';
@@ -196,7 +182,6 @@
   let remoteLibrarySelection: PlaylistSelection = emptySelection;
   let remoteFavoriteSelection: PlaylistSelection = emptySelection;
   let observedRemotePlayingTrackId: string | null = null;
-  let lastTroubadourContext: TroubadourBatchContext | null = null;
   let localSelectedPlaylistItem: PlaylistItem | null = null;
   let localSelectedLibraryItem: PlaylistItem | null = null;
   let localSelectedFavoriteItem: PlaylistItem | null = null;
@@ -275,13 +260,6 @@
     connectionDetail: null,
     message: null
   };
-  let multiplayerToastMessage: string | null = null;
-  let multiplayerToastTimer: number | null = null;
-  let lastMultiplayerToastMessage: string | null = null;
-  let multiplayerConnectionDialogOpen = false;
-  let multiplayerConnectionDialogError: string | null = null;
-  let multiplayerConnectionOperation: 'hosting' | 'joining' = 'joining';
-  let multiplayerConnectionTargetName: string | null = null;
   let isMultiplayerClient = false;
   let multiplayerShutdownRequested = false;
   let modulePatternSnapshot: ModulePatternSnapshot = {
@@ -539,27 +517,14 @@
     resumeHostPlayback: () => { void playbackCommands.play(); }
   });
   multiplayerState = multiplayerSession.getSnapshot();
+  const multiplayerConnection = createMultiplayerConnectionController({
+    session: multiplayerSession,
+    pausePlayback: () => playerController.pause()
+  });
   const unsubscribeMultiplayer = multiplayerSession.subscribe((value) => {
     const enteredFreeplay = value.freeplay && !multiplayerState.freeplay;
     multiplayerState = value;
     if (enteredFreeplay) workspaceShell.setActiveWorkspaceTab('library');
-    if (multiplayerConnectionDialogOpen
-      && (value.connectionStatus === 'error' || value.connectionStatus === 'disconnected')
-      && value.message
-      && value.message !== 'Reconnecting to the host...') {
-      multiplayerConnectionDialogError = value.message;
-    }
-    if (value.connectionStatus === 'connected' && value.message === null) {
-      lastMultiplayerToastMessage = null;
-      multiplayerConnectionDialogOpen = false;
-      multiplayerConnectionDialogError = null;
-    }
-    if (value.message
-      && value.message !== lastMultiplayerToastMessage
-      && value.message !== 'Reconnecting to the host...'
-      && !multiplayerConnectionDialogOpen) {
-      showMultiplayerToast(value.message);
-    }
     if (value.mode !== 'client') return;
 
     const playlistIds = new Set(value.remoteCatalog.playlist.map((item) => item.id));
@@ -569,43 +534,6 @@
     remoteLibrarySelection = pruneSelection(remoteLibrarySelection, libraryIds);
     remoteFavoriteSelection = pruneSelection(remoteFavoriteSelection, favoriteIds);
   });
-
-  function showMultiplayerToast(message: string): void {
-    lastMultiplayerToastMessage = message;
-    multiplayerToastMessage = message;
-    if (multiplayerToastTimer !== null) window.clearTimeout(multiplayerToastTimer);
-    multiplayerToastTimer = window.setTimeout(dismissMultiplayerToast, 9_000);
-  }
-
-  function dismissMultiplayerToast(): void {
-    if (multiplayerToastTimer !== null) window.clearTimeout(multiplayerToastTimer);
-    multiplayerToastTimer = null;
-    multiplayerToastMessage = null;
-  }
-
-  function beginMultiplayerConnection(
-    operation: 'hosting' | 'joining',
-    targetName: string | null = null
-  ): void {
-    multiplayerConnectionOperation = operation;
-    multiplayerConnectionTargetName = targetName;
-    multiplayerConnectionDialogError = null;
-    multiplayerConnectionDialogOpen = true;
-  }
-
-  function failMultiplayerConnection(error: unknown, fallback: string): void {
-    multiplayerConnectionDialogError = error instanceof Error ? error.message : fallback;
-    multiplayerConnectionDialogOpen = true;
-  }
-
-  function dismissMultiplayerConnectionDialog(): void {
-    multiplayerConnectionDialogOpen = false;
-    multiplayerConnectionDialogError = null;
-    if (multiplayerState.mode === 'client') void multiplayerSession.leave();
-    else if (multiplayerState.mode === 'hosting' && multiplayerState.connectionStatus !== 'connected') {
-      void multiplayerSession.stopHosting();
-    }
-  }
 
   function pruneSelection(selection: PlaylistSelection, ids: Set<string>): PlaylistSelection {
     const retained = selection.ids.filter((id) => ids.has(id));
@@ -711,80 +639,23 @@
     playlistStore.cycleRepeatMode();
   }
 
-  function activateMultiplayerTrack(collection: WorkspaceCollection | 'favorites', id: string): boolean {
-    if (!isMultiplayerClient) return false;
-    multiplayerSession.sendCommand({ type: 'collection.activate', collection, itemId: id });
-    return true;
-  }
-
-  function addToFreeplayQueue(ids: string[]): void {
-    if (!isFreeplayClient || ids.length === 0) return;
-    const queue = multiplayerState.freeplayQueue;
-    const next = [...queue, ...ids.filter((id) => !queue.includes(id))];
-    multiplayerSession.setFreeplayQueue(next);
-  }
-
-  function removeFromFreeplayQueue(ids: string[]): void {
-    if (!isFreeplayClient || ids.length === 0) return;
-    const removed = new Set(ids);
-    multiplayerSession.setFreeplayQueue(
-      multiplayerState.freeplayQueue.filter((id) => !removed.has(id))
-    );
-  }
-
-  function handleFreeplayPlaylistContextAction(actionId: string, ids: string[]): void {
-    // 'remove' mutates the client-owned queue; the queue is the client's
-    // playlist, so it stays. Favorites/ratings/library actions never appear in
-    // the Freeplay menu (buildFreeplayPlaylistContextActions), so the remaining
-    // actions are purely presentational or navigate the client's own library.
-    if (actionId === 'remove') {
-      removeFromFreeplayQueue(ids);
-      return;
+  const freeplay = createFreeplayController({
+    getState: () => ({
+      isMultiplayerClient,
+      isFreeplayClient,
+      freeplayQueue: multiplayerState.freeplayQueue,
+      remoteShuffleEnabled: multiplayerState.remoteCatalog.shuffleEnabled,
+      playlistItems,
+      libraryItems,
+      favoriteItems,
+      activeViewIsFavorites: $libraryViewSettings.activeView === 'favorites'
+    }),
+    session: multiplayerSession,
+    handlers: {
+      showTrackDetails: () => workspaceShell.showTrackDetails(),
+      showLibraryGroup: (target) => workspaceShell.showLibraryGroup(target)
     }
-    const tracks = buildSelectedWorkspaceTracks(playlistItems, ids);
-    if (tracks.length === 0) return;
-    if (handleFreeplayLibraryNavigationAction(actionId, tracks)) return;
-    if (actionId === 'track-details') workspaceShell.showTrackDetails();
-  }
-
-  function handleFreeplayLibraryContextAction(actionId: string, ids: string[]): void {
-    if (actionId === 'add-to-playlist') {
-      addToFreeplayQueue(ids);
-      return;
-    }
-    if (actionId === 'replace-playlist' || actionId === 'shuffle-play') {
-      replaceFreeplayQueueAndPlay(ids, actionId === 'shuffle-play');
-      return;
-    }
-    const sourceItems =
-      $libraryViewSettings.activeView === 'favorites' ? favoriteItems : libraryItems;
-    const tracks = buildSelectedWorkspaceTracks(sourceItems, ids);
-    if (tracks.length === 0) return;
-    if (handleFreeplayLibraryNavigationAction(actionId, tracks)) return;
-    if (actionId === 'track-details') workspaceShell.showTrackDetails();
-  }
-
-  function handleFreeplayLibraryNavigationAction(
-    actionId: string,
-    tracks: PlaylistItem[]
-  ): boolean {
-    if (tracks.length !== 1) return false;
-    const target = resolveTrackLibraryNavigationAction(actionId, tracks[0], libraryItems);
-    if (!target) return false;
-    workspaceShell.showLibraryGroup(target);
-    return true;
-  }
-
-  function replaceFreeplayQueueAndPlay(ids: string[], shuffle: boolean): void {
-    if (!isFreeplayClient || ids.length === 0) return;
-    // Ordered data channel: the queue replacement lands before the shuffle
-    // toggle and the activate, so the host resolves the new queue first.
-    multiplayerSession.setFreeplayQueue(ids);
-    if (shuffle && !multiplayerState.remoteCatalog.shuffleEnabled) {
-      multiplayerSession.sendCommand({ type: 'playlist.shuffle' });
-    }
-    activateMultiplayerTrack('playlist', ids[0]);
-  }
+  });
   const miniPlayer = createMiniPlayerController({
     snapshot: playerController.snapshot,
     track: miniPlayerTrack,
@@ -843,7 +714,7 @@
     localCollectionsReady = true;
     void scanLaunchLibraryFolders();
     await playbackRestoration.restore();
-    void startLaunchMultiplayer();
+    void multiplayerConnection.startLaunch();
   });
   const unsubscribePlaylistSelectedIds = playlistSelectedIdsStore.subscribe(
     (value) => (localPlaylistSelectionIds = value)
@@ -969,7 +840,7 @@
       closeActiveRightPanel,
       removePlaylistItems: (ids) => {
         if (isFreeplayClient) {
-          removeFromFreeplayQueue(ids);
+          freeplay.removeFromQueue(ids);
           return;
         }
         if (!isMultiplayerClient) workspaceCollections.removePlaylistItems(ids);
@@ -985,7 +856,7 @@
       stepTrack,
       setVolume: setPlayerVolume,
       activatePlaylistTrack: (id) => {
-        if (activateMultiplayerTrack('playlist', id)) return;
+        if (freeplay.activateTrack('playlist', id)) return;
         return playbackCommands.activatePlaylistTrack(id);
       },
       activateLibraryTrack: (id) => activateLibraryPanelTrack(id),
@@ -1027,14 +898,14 @@
   $: isSourceFileFreeplayClient = isMultiplayerClient
     && multiplayerState.freeplay
     && multiplayerState.remoteSourceFile;
-  $: multiplayerConnectionFailed = multiplayerConnectionDialogError !== null
+  $: multiplayerConnectionFailed = $multiplayerConnection.dialogError !== null
     || multiplayerState.connectionStatus === 'error'
     || multiplayerState.connectionStatus === 'disconnected';
   $: multiplayerConnectionResolvedTarget = multiplayerState.hostName
-    ?? multiplayerConnectionTargetName;
+    ?? $multiplayerConnection.targetName;
   $: multiplayerConnectionNotice = multiplayerConnectionFailed
     ? $t('main.multiplayer.connectionNoticeFailed', { default: 'Connection failed' })
-    : multiplayerConnectionOperation === 'hosting'
+    : $multiplayerConnection.operation === 'hosting'
       ? $t('main.multiplayer.startingHost', { default: 'Starting multiplayer host' })
       : multiplayerConnectionResolvedTarget
         ? $t('main.multiplayer.connectingTo', {
@@ -1042,10 +913,10 @@
             values: { name: multiplayerConnectionResolvedTarget }
           })
         : $t('main.multiplayer.connectingToHost', { default: 'Connecting to host' });
-  $: multiplayerConnectionStatusLine = multiplayerConnectionDialogError
+  $: multiplayerConnectionStatusLine = $multiplayerConnection.dialogError
     ?? multiplayerState.connectionDetail
     ?? multiplayerState.message
-    ?? (multiplayerConnectionOperation === 'hosting'
+    ?? ($multiplayerConnection.operation === 'hosting'
       ? $t('main.multiplayer.preparingRoom', { default: 'Preparing the signaling room...' })
       : $t('main.multiplayer.preparingConnection', { default: 'Preparing the connection...' }));
   $: playlistItems = isMultiplayerClient ? multiplayerState.remoteCatalog.playlist : localPlaylistItems;
@@ -1150,12 +1021,10 @@
   $: videoTheaterTopInset = isFullscreenVideoTheater ? 0 : videoTheaterChromeInset;
   $: {
     // Memoize the subsong merge: while a module plays, the playback snapshot
-    // churns at the progress rate, and a naive spread would mint a fresh
-    // favoriteTargetTrack object on every publish. That identity churn
-    // re-runs workspaceShell.sync (favoritePlayingId) which unconditionally
-    // republishes shell state — a reactive storm (library navigation log
-    // spam on multiplayer clients). Rebuild only when the source track or
-    // the subsong value actually changed.
+    // churns at the progress rate, and a naive spread mints a fresh
+    // favoriteTargetTrack object per publish. That identity churn re-runs
+    // workspaceShell.sync (favoritePlayingId), which unconditionally republishes
+    // shell state — a reactive storm (library navigation log spam on clients).
     const needsSubsongMerge = playerDisplayTrack?.kind === 'module'
       && playbackSnapshot.subsong !== undefined;
     if (needsSubsongMerge) {
@@ -1292,11 +1161,11 @@
     detailsLibraryTargetsTrack !== artworkPresentationState.detailsDisplayTrack
     || detailsLibraryTargetsItems !== libraryItems
   ) {
-    // Identity-memoized: on a multiplayer client the session store republishes
-    // on every host message, re-assigning libraryItems with the SAME reference
-    // and re-running this block (Svelte legacy invalidates on assignment, not
-    // on value change). Without the guard, every host playback tick re-scans
-    // the whole library for group identities and logs the navigation pair.
+    // Identity-memoized: the session store republishes on every host message,
+    // re-assigning libraryItems with the SAME reference and re-running this
+    // block (Svelte legacy invalidates on assignment, not on value change).
+    // Without the guard, every host playback tick re-scans the whole library
+    // for group identities and logs the navigation pair.
     detailsLibraryTargetsTrack = artworkPresentationState.detailsDisplayTrack;
     detailsLibraryTargetsItems = libraryItems;
     detailsLibraryTargets = resolveTrackLibraryNavigationTargets(
@@ -1321,13 +1190,13 @@
     select: (event) => handleSelect('playlist', event),
     setSelection: (event) => handleSetSelection('playlist', event),
     activate: (event) => {
-      if (!activateMultiplayerTrack('playlist', event.detail)) {
+      if (!freeplay.activateTrack('playlist', event.detail)) {
         void playbackCommands.activatePlaylistTrack(event.detail);
       }
     },
     contextAction: (event) => {
       if (isFreeplayClient) {
-        handleFreeplayPlaylistContextAction(event.detail.actionId, event.detail.ids);
+        freeplay.handlePlaylistContextAction(event.detail.actionId, event.detail.ids);
         return;
       }
       if (!isMultiplayerClient) {
@@ -1347,7 +1216,7 @@
     libraryGroupRequestHandled: (event) => workspaceShell.clearLibraryGroupRequest(event.detail),
     contextAction: (event) => {
       if (isFreeplayClient) {
-        handleFreeplayLibraryContextAction(event.detail.actionId, event.detail.ids);
+        freeplay.handleLibraryContextAction(event.detail.actionId, event.detail.ids);
         return;
       }
       if (isMultiplayerClient) return;
@@ -1427,11 +1296,11 @@
       // Sovereign Freeplay: picking a library track queues it for the client's
       // own playlist and plays from the queue, so next/prev/shuffle/repeat
       // drive the queue rather than the whole host collection.
-      addToFreeplayQueue([id]);
-      activateMultiplayerTrack('playlist', id);
+      freeplay.addToQueue([id]);
+      freeplay.activateTrack('playlist', id);
       return;
     }
-    if (activateMultiplayerTrack(
+    if (freeplay.activateTrack(
       $libraryViewSettings.activeView === 'favorites' ? 'favorites' : 'library',
       id
     )) return;
@@ -1623,167 +1492,32 @@
     handleOpenOptions('about');
   }
 
-  function createTroubadourContext(): TroubadourBatchContext {
-    const playlistIdSet = new Set(playlistSelectionIds);
-    const libraryIdSet = new Set(librarySelectionIds);
-    const favoriteIdSet = new Set(favoriteSelectionIds);
-
-    return buildTroubadourBatchContext(
-      [
-        { collection: 'current', items: playingTrack ? [playingTrack] : [] },
-        { collection: 'playlist', items: playlistItems.filter((item) => playlistIdSet.has(item.id)) },
-        { collection: 'library', items: libraryItems.filter((item) => libraryIdSet.has(item.id)) },
-        { collection: 'favorites', items: favoriteItems.filter((item) => favoriteIdSet.has(item.id)) }
-      ],
-      filesystemFolders.getSnapshot()
-    );
-  }
-
-  type TroubadourMatchTarget = TroubadourBatchItemResult | TroubadourWriteTarget;
-
-  function getTroubadourResultReferences(result: TroubadourMatchTarget): TroubadourTrackReference[] {
-    const contextReferences = result.contextId
-      ? lastTroubadourContext?.tracks.find((track) => track.contextId === result.contextId)?.references ?? []
-      : [];
-    const unique = new Map<string, TroubadourTrackReference>();
-
-    for (const reference of [...(result.references ?? []), ...contextReferences]) {
-      unique.set(`${reference.collection}:${reference.id}`, reference);
-    }
-
-    return [...unique.values()];
-  }
-
-  function getTroubadourContextTrack(result: TroubadourMatchTarget) {
-    if (result.contextId) {
-      const direct = lastTroubadourContext?.tracks.find((track) => track.contextId === result.contextId);
-      if (direct) return direct;
-    }
-
-    const references = getTroubadourResultReferences(result);
-    return lastTroubadourContext?.tracks.find((track) => track.references.some((candidate) =>
-      references.some((reference) => (
-        reference.collection === candidate.collection && reference.id === candidate.id
-      ))
-    ));
-  }
-
-  async function isTroubadourResultMatch(
-    item: PlaylistItem,
-    collection: TroubadourTrackReference['collection'],
-    result: TroubadourMatchTarget
-  ): Promise<boolean> {
-    const references = getTroubadourResultReferences(result);
-
-    if (references.some((reference) => reference.collection === collection && reference.id === item.id)) {
-      return true;
-    }
-
-    const contextTrack = getTroubadourContextTrack(result);
-    const originalPath = result.originalPath ?? contextTrack?.path;
-    let pathMismatch = false;
-
-    if (originalPath && item.path) {
-      const normalize = (path: string) => path.replace(/\\/g, '/').replace(/^\/+/, '').toLowerCase();
-      if (normalize(originalPath) === normalize(item.path)) return true;
-      pathMismatch = true;
-    }
-
-    const originalHandle = result.originalFileHandle ?? contextTrack?.fileHandle;
-
-    if (originalHandle && item.fileHandle) {
-      if (originalHandle === item.fileHandle) return true;
-
-      try {
-        if (typeof originalHandle.isSameEntry === 'function' && await originalHandle.isSameEntry(item.fileHandle)) {
-          return true;
-        }
-      } catch {
-        // Stale handles can still be matched by the immutable source fingerprint below.
-      }
-    }
-
-    if (pathMismatch) return false;
-
-    const originalName = result.originalName ?? contextTrack?.name;
-    const originalSize = result.originalSize ?? contextTrack?.size;
-    const originalLastModified = result.originalLastModified ?? contextTrack?.lastModified;
-    return Boolean(
-      originalName
-      && originalSize !== undefined
-      && originalLastModified !== undefined
-      && item.name.toLowerCase() === originalName.toLowerCase()
-      && item.size === originalSize
-      && item.lastModified === originalLastModified
-    );
-  }
-
   function navigateTrackDetailsToLibrary(target: TrackLibraryNavigationTarget) {
     workspaceShell.showLibraryGroup(target);
   }
 
-  async function preparePlaybackForTroubadourWrite(targets: TroubadourWriteTarget[]): Promise<void> {
-    const track = playingTrack;
-    if (!track) return;
-
-    for (const target of targets) {
-      if (!await isTroubadourResultMatch(track, 'current', target)) continue;
-      await detachTrackForMetadataWrite(
-        track,
-        {
-          autoPlay: playbackStatus.state === 'playing',
-          initialPosition: playbackSnapshot.currentTime
-        },
-        (detachedTrack, options) => playerController.load(detachedTrack, options)
-      );
-      return;
+  const troubadourApp = createTroubadourAppAdapter({
+    getState: () => ({
+      playingTrack,
+      playlistItems,
+      libraryItems,
+      favoriteItems,
+      playlistSelectionIds,
+      librarySelectionIds,
+      favoriteSelectionIds,
+      playbackState: playbackStatus.state,
+      playbackCurrentTime: playbackSnapshot.currentTime
+    }),
+    player: {
+      load: (track, options) => playerController.load(track, options),
+      refreshCurrentTrack: (id, patch) => playerController.refreshCurrentTrack(id, patch)
+    },
+    stores: {
+      playlist: playlistStore,
+      library: libraryStore,
+      favorites: favoritesStore
     }
-  }
-
-  function getTroubadourExternalPatch(result: TroubadourBatchItemResult) {
-    return {
-      ...(result.file ? { file: result.file } : {}),
-      ...(result.fileHandle ? { fileHandle: result.fileHandle } : {}),
-      ...(result.path !== undefined ? { path: result.path } : {}),
-      ...(result.sourceFolderId !== undefined ? { sourceFolderId: result.sourceFolderId } : {}),
-      ...(result.name !== undefined ? { name: result.name } : {}),
-      ...(result.extension !== undefined ? { extension: result.extension } : {}),
-      ...(result.kind !== undefined ? { kind: result.kind } : {}),
-      ...(result.size !== undefined ? { size: result.size } : {}),
-      ...(result.lastModified !== undefined ? { lastModified: result.lastModified } : {}),
-      ...(result.metadata !== undefined ? { metadata: result.metadata } : {})
-    };
-  }
-
-  async function applyTroubadourResult(results: TroubadourBatchItemResult[]): Promise<void> {
-    const successfulResults = results.filter((result) => result.success);
-    const invalidatedTrackIds = new Set<string>();
-
-    for (const result of successfulResults) {
-      const patch = getTroubadourExternalPatch(result);
-      const collections = [
-        { name: 'playlist' as const, items: playlistItems, store: playlistStore },
-        { name: 'library' as const, items: libraryItems, store: libraryStore },
-        { name: 'favorites' as const, items: favoriteItems, store: favoritesStore }
-      ];
-
-      for (const collection of collections) {
-        for (const item of collection.items) {
-          if (await isTroubadourResultMatch(item, collection.name, result)) {
-            collection.store.applyExternalUpdate(item.id, patch);
-            invalidatedTrackIds.add(item.id);
-          }
-        }
-      }
-
-      if (playingTrack && await isTroubadourResultMatch(playingTrack, 'current', result)) {
-        playerController.refreshCurrentTrack(playingTrack.id, patch);
-        invalidatedTrackIds.add(playingTrack.id);
-      }
-    }
-
-    await invalidateCachedArtwork(invalidatedTrackIds);
-  }
+  });
 
   function handlePopupWindowMessage(event: MessageEvent): void {
     if (respondToToolTrackRequest(event, playingTrack)) {
@@ -1792,26 +1526,15 @@
 
     const troubadourWindow = windowManager.getPopup('troubadour');
 
-    const writePreparation = readTroubadourWritePreparationRequest(event, troubadourWindow);
-    if (writePreparation && troubadourWindow) {
-      void preparePlaybackForTroubadourWrite(writePreparation.targets)
-        .finally(() => respondToTroubadourWritePreparation(troubadourWindow, writePreparation.requestId));
+    if (troubadourApp.handleWritePreparationRequest(event, troubadourWindow)) {
       return;
     }
 
-    if (event.data?.type === REQUEST_TROUBADOUR_BATCH_CONTEXT_MESSAGE) {
-      const context = createTroubadourContext();
-
-      if (respondToTroubadourBatchContextRequest(event, troubadourWindow, context)) {
-        lastTroubadourContext = context;
-        return;
-      }
+    if (troubadourApp.handleBatchContextRequest(event, troubadourWindow)) {
+      return;
     }
 
-    const troubadourResult = readTroubadourBatchResult(event, troubadourWindow);
-
-    if (troubadourResult) {
-      void applyTroubadourResult(troubadourResult.results);
+    if (troubadourApp.handleBatchResult(event, troubadourWindow)) {
       return;
     }
 
@@ -1828,42 +1551,7 @@
   }
 
   async function handleMultiplayerHost(): Promise<void> {
-    beginMultiplayerConnection('hosting');
-    try {
-      await multiplayerSession.startHosting();
-    } catch (error) {
-      failMultiplayerConnection(error, 'Could not start multiplayer hosting.');
-    }
-  }
-
-  /**
-   * Launch-time multiplayer: restores the last session ("Restore last
-   * session", checked by default) and, when nothing client-side was restored,
-   * silently starts hosting for paired devices ("Always host for peers").
-   * Everything here is deliberately quiet: no connection dialog, and client
-   * failures hand off to the reconnect loop instead of surfacing an error.
-   */
-  async function startLaunchMultiplayer(): Promise<void> {
-    const settings = experimentalSettings.getSnapshot();
-    if (!settings.multiplayer) return;
-    if (settings.multiplayerRestoreLastSession) {
-      const restored = await multiplayerSession.restoreLastSession().catch(() => null);
-      if (restored === 'client') {
-        // A client session takes over the player; local playback must not
-        // keep running underneath the remote session.
-        playerController.pause();
-        return;
-      }
-      if (restored === 'hosting') return;
-    }
-    if (!settings.multiplayerAutoHost) return;
-    try {
-      await multiplayerSession.startHosting({ silent: true });
-    } catch (error) {
-      logError('multiplayer', 'Could not auto-start hosting', {
-        error: error instanceof Error ? error.message : String(error)
-      });
-    }
+    await multiplayerConnection.host();
   }
 
   async function handleMultiplayerJoin(): Promise<void> {
@@ -1871,28 +1559,11 @@
       $t('main.multiplayer.enterInvite', { default: 'Enter the host invite code' })
     );
     if (!inviteCode) return;
-    await joinMultiplayer(inviteCode);
-  }
-
-  async function joinMultiplayer(inviteCode: string): Promise<void> {
-    beginMultiplayerConnection('joining');
-    playerController.pause();
-    try {
-      await multiplayerSession.join(inviteCode);
-    } catch (error) {
-      failMultiplayerConnection(error, 'Could not join that multiplayer session.');
-    }
+    await multiplayerConnection.join(inviteCode);
   }
 
   async function joinPairedMultiplayer(hostId: string): Promise<void> {
-    const pairing = $multiplayerPairings.find((candidate) => candidate.hostId === hostId);
-    beginMultiplayerConnection('joining', pairing?.name ?? null);
-    playerController.pause();
-    try {
-      await multiplayerSession.joinPaired(hostId);
-    } catch (error) {
-      failMultiplayerConnection(error, 'Could not join that paired host.');
-    }
+    await multiplayerConnection.joinPaired(hostId);
   }
 
   async function copyMultiplayerInvite(): Promise<void> {
@@ -2008,7 +1679,7 @@
   }
 
   onDestroy(() => {
-    dismissMultiplayerToast();
+    multiplayerConnection.destroy();
     playbackRestoration.destroy();
     playbackProgress.destroy();
     artworkPresentation.destroy();
@@ -2155,8 +1826,8 @@
     on:multiplayerHostWithCode={() => void handleMultiplayerHost()}
     on:multiplayerStopHosting={() => void multiplayerSession.stopHosting()}
     on:multiplayerJoin={() => void handleMultiplayerJoin()}
-    on:multiplayerJoinRecent={(event) => void joinMultiplayer(event.detail)}
-    on:multiplayerJoinPaired={(event) => void joinPairedMultiplayer(event.detail)}
+    on:multiplayerJoinRecent={(event) => void multiplayerConnection.join(event.detail)}
+    on:multiplayerJoinPaired={(event) => void multiplayerConnection.joinPaired(event.detail)}
     on:multiplayerForgetPairing={(event) => forgetMultiplayerPairing(event.detail)}
     on:multiplayerLeave={() => void multiplayerSession.leave()}
     on:multiplayerCopyInvite={() => void copyMultiplayerInvite()}
@@ -2231,8 +1902,8 @@
     on:multiplayerHostWithCode={() => void handleMultiplayerHost()}
     on:multiplayerStopHosting={() => void multiplayerSession.stopHosting()}
     on:multiplayerJoin={() => void handleMultiplayerJoin()}
-    on:multiplayerJoinRecent={(event) => void joinMultiplayer(event.detail)}
-    on:multiplayerJoinPaired={(event) => void joinPairedMultiplayer(event.detail)}
+    on:multiplayerJoinRecent={(event) => void multiplayerConnection.join(event.detail)}
+    on:multiplayerJoinPaired={(event) => void multiplayerConnection.joinPaired(event.detail)}
     on:multiplayerForgetPairing={(event) => forgetMultiplayerPairing(event.detail)}
     on:multiplayerLeave={() => void multiplayerSession.leave()}
     on:multiplayerCopyInvite={() => void copyMultiplayerInvite()}
@@ -2333,16 +2004,16 @@
     <aside class="error-banner">{localizePlaybackError(playbackStatus.error)}</aside>
   {/if}
 
-  {#if multiplayerToastMessage}
+  {#if $multiplayerConnection.toastMessage}
     <StatusToast
       title={$t('main.multiplayer.connectionFailed', { default: 'Multiplayer connection failed' })}
-      message={multiplayerToastMessage}
+      message={$multiplayerConnection.toastMessage}
       dismissLabel={$t('main.common.close', { default: 'Close' })}
-      on:dismiss={dismissMultiplayerToast}
+      on:dismiss={() => multiplayerConnection.dismissToast()}
     />
   {/if}
 
-  {#if multiplayerConnectionDialogOpen}
+  {#if $multiplayerConnection.dialogOpen}
     <MultiplayerConnectionDialog
       title={$t('main.multiplayer.label', { default: 'Multiplayer' })}
       notice={multiplayerConnectionNotice}
@@ -2350,7 +2021,7 @@
       failed={multiplayerConnectionFailed}
       closeLabel={$t('main.common.close', { default: 'Close' })}
       markLabel={$t('main.multiplayer.markLabel', { default: 'izci multiplayer' })}
-      on:dismiss={dismissMultiplayerConnectionDialog}
+      on:dismiss={() => multiplayerConnection.dismissDialog()}
     />
   {/if}
 

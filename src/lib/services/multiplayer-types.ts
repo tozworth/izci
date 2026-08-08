@@ -211,16 +211,14 @@ export interface PeerConnection {
   /**
    * True once the client's hello has been processed. Connect-time pushes
    * (pairing, current state, media source sync) must wait for it: the hello
-   * carries `freeplayEnabled`, and pushing shared-mode state before it is
-   * processed leaks the host playlist/playback to a Freeplay-bound peer.
+   * carries `freeplayEnabled`, and pushing shared-mode state first leaks the
+   * host playlist/playback to a Freeplay-bound peer.
    */
   helloReceived: boolean;
   /**
-   * True once `syncPeerFreeplayMode` has finished assigning `peer.freeplay`
-   * for this connection. `helloReceived` alone is not enough: the mode sync is
-   * async (pairing-record write, wire attach), and shared-mode pushes between
-   * the hello and the settled flag would still leak the host track/playlist to
-   * a Freeplay-bound peer.
+   * True once `syncPeerFreeplayMode` has finished assigning `peer.freeplay`.
+   * `helloReceived` alone is not enough: the mode sync is async (pairing-record
+   * write, wire attach), and pushes in between still leak to a Freeplay peer.
    */
   freeplaySettled: boolean;
   /**
@@ -235,7 +233,7 @@ export interface PeerConnection {
   freeplayRepeatMode: PlaylistRepeatMode;
   /**
    * Per-peer Freeplay stepping context (shuffle history + upcoming cycle).
-   * Created when Freeplay activates, reset on shuffle toggles, queue/collection
+   * Created on Freeplay activation; reset on shuffle toggles, queue/collection
    * replacement, and Freeplay exit. Host-side only.
    */
   freeplayNavigation: FreeplayStepResolver | null;
@@ -270,10 +268,9 @@ export interface MultiplayerSessionController extends Readable<MultiplayerSessio
   joinPaired(hostId: string): Promise<void>;
   /**
    * Restores the persisted last multiplayer session (see the "Restore last
-   * session" option): hosting is resumed silently, a client session re-joins
-   * the remembered host without a dialog and hands off to the reconnect loop.
-   * Returns the mode that was restored, or 'idle' when there was nothing to
-   * restore (or the restore attempt could not start).
+   * session" option): hosting resumes silently, a client session re-joins the
+   * remembered host without a dialog and hands off to the reconnect loop.
+   * Returns the restored mode, or 'idle' when nothing to restore (or it failed).
    */
   restoreLastSession(): Promise<MultiplayerMode | null>;
   leave(): Promise<void>;
@@ -303,8 +300,8 @@ export interface MultiplayerSessionCore {
   ownPeerRef: DatabaseReference | null;
   /**
    * The hosting room's invite code. `state.inviteCode` may be null for a
-   * silent (auto-host) session, but the room itself always has a code — this
-   * is what paired clients resolve from the host directory.
+   * silent (auto-host) session, but the room always has a code — this is what
+   * paired clients resolve from the host directory.
    */
   roomCode: string | null;
   /**
@@ -320,9 +317,9 @@ export interface MultiplayerSessionCore {
   stopAnswerListener: Unsubscribe | null;
   hostPeers: Map<string, PeerConnection>;
   /**
-   * Materialized Freeplay selection per client id, kept across peer reconnects so
-   * the host can re-serve the current file after a transport drop. Cleared on
-   * explicit Freeplay deactivation and on full session reset.
+   * Materialized Freeplay selection per client id, kept across peer reconnects
+   * so the host can re-serve the current file after a transport drop. Cleared
+   * on explicit Freeplay deactivation and on full session reset.
    */
   freeplaySelections: Map<string, PlaylistItem>;
   clientPeer: PeerConnection | null;
@@ -332,9 +329,8 @@ export interface MultiplayerSessionCore {
   /**
    * The host's listener-buffer target (ms) as delivered by the `buffer`
    * message. Non-null while connected to a host that has told us its buffer;
-   * it is authoritative over the local `multiplayerAudioBufferMs` (the host's
-   * slider controls the session live). Cleared on reset so a fresh join
-   * starts from the local preference until the host's value arrives.
+   * authoritative over the local `multiplayerAudioBufferMs`. Cleared on reset
+   * so a fresh join starts from the local preference.
    */
   hostAudioBufferMs: number | null;
   reconnectTimer: number | null;
