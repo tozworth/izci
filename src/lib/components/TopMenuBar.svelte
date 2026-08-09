@@ -374,21 +374,11 @@
       icon: 'sync_alt'
     },
     {
-      id: 'openLogs',
-      label: $t('main.menu.logs', { default: 'Logs...' }),
-      icon: 'article'
-    },
-    {
-      id: 'openAbout',
-      label: $t('main.menu.about', { default: 'About' }),
-      icon: 'info',
-      separatorBefore: true
-    },
-    {
       id: 'exit',
       label: $t('main.menu.exit', { default: 'Exit' }),
       icon: 'logout',
-      shortcut: 'Ctrl+Q'
+      shortcut: 'Ctrl+Q',
+      separatorBefore: true
     }
   ] satisfies MenuActionItem[];
   $: fileMenuItems = [
@@ -412,9 +402,20 @@
   ] satisfies MenuActionItem[];
   $: helpMenuItems = [
     {
+      id: 'openLogs',
+      label: $t('main.menu.logs', { default: 'Logs...' }),
+      icon: 'article'
+    },
+    {
       id: 'forceUpdate',
       label: $t('main.menu.forceUpdate', { default: 'Force update' }),
       icon: 'sync'
+    },
+    {
+      id: 'openAbout',
+      label: $t('main.menu.about', { default: 'About' }),
+      icon: 'info',
+      separatorBefore: true
     }
   ] satisfies MenuActionItem[];
 
