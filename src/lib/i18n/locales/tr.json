@@ -103,13 +103,13 @@
       "audioCompare": "Audio Compare...",
       "editor": "Düzenleyici...",
       "converter": "Converter...",
-      "logs": "Kayıtlar...",
-      "about": "Hakkında",
       "exit": "Çık",
       "openFiles": "Dosya aç...",
       "openFolder": "Klasör aç...",
       "manageFolders": "Klasörleri yönet...",
+      "logs": "Kayıtlar...",
       "forceUpdate": "Zorla güncelle",
+      "about": "Hakkında",
       "playlist": "Liste",
       "library": "Kütüphane",
       "trackDetails": "Parça Detayları",
@@ -253,19 +253,6 @@
   },
   "playlist": {
     "library": {
-      "columns": {
-        "sortBy": "{column} sütununa göre sırala",
-        "resize": "{column} sütununu boyutlandır",
-        "title": "Başlık",
-        "artist": "Sanatçı",
-        "album": "Albüm",
-        "discAndTrack": "Parça",
-        "folder": "Klasör",
-        "format": "Tür",
-        "duration": "Süre",
-        "rating": "Puan",
-        "plays": "Yürütme sayısı"
-      },
       "openGroup": "{group} grubunu aç",
       "collapseFolder": "{folder} klasörünü daralt",
       "expandFolder": "{folder} klasörünü genişlet",
@@ -299,6 +286,19 @@
       "trackerModule": "İzci modülü",
       "stream": "Akış",
       "video": "Video",
+      "columns": {
+        "title": "Başlık",
+        "artist": "Sanatçı",
+        "album": "Albüm",
+        "discAndTrack": "Parça",
+        "folder": "Klasör",
+        "format": "Tür",
+        "duration": "Süre",
+        "rating": "Puan",
+        "plays": "Yürütme sayısı",
+        "resize": "{column} sütununu boyutlandır",
+        "sortBy": "{column} sütununa göre sırala"
+      },
       "summary": {
         "filteredArtists": "{visible} sanatçıdan {total} {total, plural, one {} other {}}",
         "filteredAlbums": "{visible} albümden {total} {total, plural, one {} other {}}",
@@ -772,8 +772,26 @@
           "hint": "Daha küçük ses ve modül dosyalarını bütün olarak gönderir, ardından her dinleyicide işler. Daha büyük dosyalar ve tüm video sesleri sunucunun Opus akışını kullanır."
         },
         "category": "Çok oyunculu",
-        "title": "izci Çok Oyunculu",
-        "hint": "Bu izci'nin sunucu olmasını veya paylaşımlı bir dinleme oturumuna katılmasını sağlar. İlk bağlantıyı Firebase kurar; ses doğrudan eşler arasında iletilir.",
+        "modes": {
+          "label": "Çok oyunculu mod",
+          "singleplayer": {
+            "title": "Tek oyunculu",
+            "hint": "izci Çok Oyunculu kapalı."
+          },
+          "coop": {
+            "title": "Ko-op",
+            "hint": "İstemciler sunucunun çalma listesini ve oynatmayı kontrol edebilir. HTPC'ler ve partiler için uygundur."
+          },
+          "coopAudio": {
+            "title": "Ko-op + ses",
+            "hint": "İstemciler sunucuyu kontrol edebilir ve ses akışını kendi aygıtlarında dinleyebilir."
+          },
+          "freeplay": {
+            "title": "Freeplay",
+            "hint": "Eşleşen istemciler, sunucunun kitaplığındaki müziğe kendi kuyrukları, oynatmaları ve sesleriyle bağımsız olarak göz atıp çalabilir."
+          },
+          "freeplayBadge": "Oldukça deneysel"
+        },
         "name": "Bu izci'yi adlandır",
         "nameHint": "Çok oyunculu oturumlarda sunucu ve istemcilere gösterilir.",
         "waitForClients": {
@@ -800,16 +818,7 @@
           "title": "Azami konuk",
           "hint": "Ses aktarımı etkin olsun veya olmasın, sunucuya aynı anda kaç konuğun bağlanabileceğini sınırlar."
         },
-        "freeplay": {
-          "category": "Çok Oyunculu Freeplay",
-          "title": "Freeplay'i etkinleştir",
-          "hint": "Her iki izci aygıtı da Freeplay'i etkinleştirip eşleştiğinde dinleyici, bu sunucunun kitaplığına göz atabilir ve parçaları bağımsız bir zaman çizelgesinde çalabilir. Anlaşma gelecek bağlantılar için hatırlanır."
-        },
         "audioCategory": "Çok Oyunculu Ses",
-        "streamAudio": {
-          "title": "Dinleyicilere ses gönder",
-          "hint": "Uygun dosyaları yerel çalma için gönderir, geri kalanını sunucudan yayınlar. Sunucunun ses düzeyi ve sessiz ayarı dinleyicileri etkilemez."
-        },
         "postRaf": {
           "title": "Raf sonrası sesi gönder",
           "hint": "Aktarımdan önce sunucunun Raf rafını uygular. Kapalıyken dinleyiciler Raf öncesi sesi alır ve kendi Raf ayarlarını uygulayabilir."

@@ -14,17 +14,18 @@
     MULTIPLAYER_OPUS_BITRATE_STEP_KBPS,
     MULTIPLAYER_TURN_CREDENTIAL_HOURS_MAX,
     MULTIPLAYER_TURN_CREDENTIAL_HOURS_MIN,
-    experimentalSettings
+    deriveMultiplayerMode,
+    experimentalSettings,
+    multiplayerModePatch,
+    type MultiplayerMode
   } from '$lib/stores/experimental-settings';
 
   function checked(event: Event): boolean {
     return (event.currentTarget as HTMLInputElement).checked;
   }
 
-  function handleMultiplayerToggle(event: Event) {
-    experimentalSettings.update({
-      multiplayer: (event.currentTarget as HTMLInputElement).checked
-    });
+  function selectMode(mode: MultiplayerMode) {
+    experimentalSettings.update(multiplayerModePatch(mode));
   }
 
   function handleIzciNameChange(event: Event) {
@@ -35,14 +36,6 @@
 
   function handleWaitForClientsToggle(event: Event) {
     experimentalSettings.update({ multiplayerWaitForClients: checked(event) });
-  }
-
-  function handleStreamAudioToggle(event: Event) {
-    experimentalSettings.update({ multiplayerStreamAudio: checked(event) });
-  }
-
-  function handleFreeplayToggle(event: Event) {
-    experimentalSettings.update({ multiplayerFreeplay: checked(event) });
   }
 
   function handleFileTransferLimitChange(event: Event) {
@@ -108,23 +101,92 @@
       multiplayerMaxListeners: (event.currentTarget as HTMLInputElement).valueAsNumber
     });
   }
+
+  $: multiplayerMode = deriveMultiplayerMode($experimentalSettings);
+  $: multiplayerAudioEnabled = multiplayerMode === 'coopAudio' || multiplayerMode === 'freeplay';
 </script>
 
 <article class="view">
   <div class="section">
     <h2>{$t('options.experimental.multiplayer.category', { default: 'Multiplayer' })}</h2>
-    <div class="field-grid">
-      <SettingsField
-        title={$t('options.experimental.multiplayer.title', { default: 'izci Multiplayer' })}
-        hint={$t('options.experimental.multiplayer.hint', { default: 'Lets this izci host or join a shared listening session. Firebase handles the handshake; audio travels directly between peers.' })}
-        checkbox
+    <div
+      class="multiplayer-mode-cards"
+      role="group"
+      aria-label={$t('options.experimental.multiplayer.modes.label', { default: 'Multiplayer mode' })}
+    >
+      <button
+        type="button"
+        class="multiplayer-mode-card"
+        class:selected={multiplayerMode === 'singleplayer'}
+        aria-pressed={multiplayerMode === 'singleplayer'}
+        on:click={() => selectMode('singleplayer')}
       >
-        <input
-          type="checkbox"
-          checked={$experimentalSettings.multiplayer}
-          on:change={handleMultiplayerToggle}
-        />
-      </SettingsField>
+        <span class="multiplayer-mode-card-head">
+          <span class="material-symbols-outlined multiplayer-mode-icon" aria-hidden="true">person</span>
+          <span class="multiplayer-mode-title">
+            {$t('options.experimental.multiplayer.modes.singleplayer.title', { default: 'Singleplayer' })}
+          </span>
+        </span>
+        <span class="multiplayer-mode-description">
+          {$t('options.experimental.multiplayer.modes.singleplayer.hint', { default: 'izci Multiplayer is turned off.' })}
+        </span>
+      </button>
+      <button
+        type="button"
+        class="multiplayer-mode-card"
+        class:selected={multiplayerMode === 'coop'}
+        aria-pressed={multiplayerMode === 'coop'}
+        on:click={() => selectMode('coop')}
+      >
+        <span class="multiplayer-mode-card-head">
+          <span class="material-symbols-outlined multiplayer-mode-icon" aria-hidden="true">group</span>
+          <span class="multiplayer-mode-title">
+            {$t('options.experimental.multiplayer.modes.coop.title', { default: 'Co-op' })}
+          </span>
+        </span>
+        <span class="multiplayer-mode-description">
+          {$t('options.experimental.multiplayer.modes.coop.hint', { default: 'Clients can control the host’s playlist and playback. Good for HTPCs, parties.' })}
+        </span>
+      </button>
+      <button
+        type="button"
+        class="multiplayer-mode-card"
+        class:selected={multiplayerMode === 'coopAudio'}
+        aria-pressed={multiplayerMode === 'coopAudio'}
+        on:click={() => selectMode('coopAudio')}
+      >
+        <span class="multiplayer-mode-card-head">
+          <span class="material-symbols-outlined multiplayer-mode-icon" aria-hidden="true">headphones</span>
+          <span class="multiplayer-mode-title">
+            {$t('options.experimental.multiplayer.modes.coopAudio.title', { default: 'Co-op + audio' })}
+          </span>
+        </span>
+        <span class="multiplayer-mode-description">
+          {$t('options.experimental.multiplayer.modes.coopAudio.hint', { default: 'Clients can control the host and listen to its audio stream on their own device.' })}
+        </span>
+      </button>
+      <button
+        type="button"
+        class="multiplayer-mode-card"
+        class:selected={multiplayerMode === 'freeplay'}
+        aria-pressed={multiplayerMode === 'freeplay'}
+        on:click={() => selectMode('freeplay')}
+      >
+        <span class="multiplayer-mode-card-head">
+          <span class="material-symbols-outlined multiplayer-mode-icon" aria-hidden="true">explore</span>
+          <span class="multiplayer-mode-title">
+            {$t('options.experimental.multiplayer.modes.freeplay.title', { default: 'Freeplay' })}
+          </span>
+          <span class="multiplayer-mode-badge">
+            {$t('options.experimental.multiplayer.modes.freeplayBadge', { default: 'Highly experimental' })}
+          </span>
+        </span>
+        <span class="multiplayer-mode-description">
+          {$t('options.experimental.multiplayer.modes.freeplay.hint', { default: 'Paired clients can browse and play music from the host’s library independently, with their own queue, playback, and audio.' })}
+        </span>
+      </button>
+    </div>
+    <div class="field-grid">
       <SettingsField
         title={$t('options.experimental.multiplayer.name', { default: 'Name this izci' })}
         hint={$t('options.experimental.multiplayer.nameHint', { default: 'Shown to hosts and clients in multiplayer sessions.' })}
@@ -218,36 +280,8 @@
     </div>
   </div>
   <div class="section">
-    <h2>{$t('options.experimental.multiplayer.freeplay.category', { default: 'Multiplayer Freeplay' })}</h2>
-    <div class="field-grid">
-      <SettingsField
-        title={$t('options.experimental.multiplayer.freeplay.title', { default: 'Enable Freeplay' })}
-        hint={$t('options.experimental.multiplayer.freeplay.hint', { default: 'When both izci devices enable Freeplay and pair, the listener can browse and play this host’s library on an independent timeline. The agreement is remembered for future connections.' })}
-        checkbox
-      >
-        <input
-          type="checkbox"
-          checked={$experimentalSettings.multiplayerFreeplay}
-          disabled={!$experimentalSettings.multiplayer}
-          on:change={handleFreeplayToggle}
-        />
-      </SettingsField>
-    </div>
-  </div>
-  <div class="section">
     <h2>{$t('options.experimental.multiplayer.audioCategory', { default: 'Multiplayer Audio' })}</h2>
     <div class="field-grid">
-      <SettingsField
-        title={$t('options.experimental.multiplayer.streamAudio.title', { default: 'Send audio to listeners' })}
-        hint={$t('options.experimental.multiplayer.streamAudio.hint', { default: 'Sends eligible files for local playback and streams the rest from the host. The host’s volume and mute do not affect listeners.' })}
-        checkbox
-      >
-        <input
-          type="checkbox"
-          checked={$experimentalSettings.multiplayerStreamAudio}
-          on:change={handleStreamAudioToggle}
-        />
-      </SettingsField>
       <SettingsField
         title={$t('options.experimental.multiplayer.fileTransfer.title', { default: 'Send files under' })}
         hint={$t('options.experimental.multiplayer.fileTransfer.hint', { default: 'Sends smaller audio and module files whole, then renders them on each listener. Larger files and all video soundtracks use the host’s Opus stream.' })}
@@ -258,7 +292,7 @@
           max={MULTIPLAYER_FILE_TRANSFER_LIMITS_MIB.length - 1}
           step="1"
           value={fileTransferLimitIndex($experimentalSettings.multiplayerFileTransferLimitMiB)}
-          disabled={!$experimentalSettings.multiplayerStreamAudio}
+          disabled={!multiplayerAudioEnabled}
           on:input={handleFileTransferLimitChange}
         />
         <span class="field-output">{fileTransferLimitLabel($experimentalSettings.multiplayerFileTransferLimitMiB)}</span>
@@ -271,7 +305,7 @@
         <input
           type="checkbox"
           checked={$experimentalSettings.multiplayerSendPostRaf}
-          disabled={!$experimentalSettings.multiplayerStreamAudio || $experimentalSettings.multiplayerFileTransferLimitMiB < 0}
+          disabled={!multiplayerAudioEnabled || $experimentalSettings.multiplayerFileTransferLimitMiB < 0}
           on:change={handleSendPostRafToggle}
         />
       </SettingsField>
@@ -285,7 +319,7 @@
           max={MULTIPLAYER_OPUS_BITRATE_MAX_KBPS}
           step={MULTIPLAYER_OPUS_BITRATE_STEP_KBPS}
           value={$experimentalSettings.multiplayerOpusBitrateKbps}
-          disabled={!$experimentalSettings.multiplayerStreamAudio || $experimentalSettings.multiplayerFileTransferLimitMiB < 0}
+          disabled={!multiplayerAudioEnabled || $experimentalSettings.multiplayerFileTransferLimitMiB < 0}
           on:input={handleOpusBitrateChange}
         />
         <span class="field-output">{$experimentalSettings.multiplayerOpusBitrateKbps} kbps</span>
@@ -300,7 +334,7 @@
           max={MULTIPLAYER_AUDIO_BUFFER_MAX_MS}
           step={MULTIPLAYER_AUDIO_BUFFER_STEP_MS}
           value={$experimentalSettings.multiplayerAudioBufferMs}
-          disabled={!$experimentalSettings.multiplayerStreamAudio || $experimentalSettings.multiplayerFileTransferLimitMiB < 0}
+          disabled={!multiplayerAudioEnabled || $experimentalSettings.multiplayerFileTransferLimitMiB < 0}
           on:input={handleAudioBufferChange}
         />
         <span class="field-output">{$experimentalSettings.multiplayerAudioBufferMs} ms</span>
@@ -343,6 +377,92 @@
   input.multiplayer-endpoint-input {
     font-family: "IBM Plex Mono", "SFMono-Regular", monospace;
     font-size: 0.74rem;
+  }
+
+  .multiplayer-mode-cards {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .multiplayer-mode-card {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.35rem;
+    padding: 0.65rem 0.75rem;
+    border: 1px solid var(--border-soft);
+    background: color-mix(in srgb, var(--bg-input) 62%, transparent);
+    color: inherit;
+    text-align: left;
+  }
+
+  .multiplayer-mode-card:hover {
+    border-color: var(--border);
+    background: var(--hover-subtle);
+  }
+
+  .multiplayer-mode-card.selected {
+    border-color: var(--accent-strong-border-hover);
+    background: var(--accent-strong-faint);
+    box-shadow: inset 0 0 0 1px var(--accent-strong-border-hover);
+  }
+
+  .multiplayer-mode-card:focus-visible {
+    outline: 2px solid var(--accent-focus-border);
+    outline-offset: 1px;
+  }
+
+  .multiplayer-mode-card-head {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    min-width: 0;
+  }
+
+  .multiplayer-mode-icon {
+    flex: 0 0 auto;
+    font-size: 1.05rem;
+    color: var(--muted);
+  }
+
+  .multiplayer-mode-card.selected .multiplayer-mode-icon {
+    color: var(--accent-strong);
+  }
+
+  .multiplayer-mode-title {
+    min-width: 0;
+    color: var(--text-strong);
+    font-size: 0.78rem;
+    font-weight: 650;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .multiplayer-mode-card.selected .multiplayer-mode-title {
+    color: var(--accent-strong);
+  }
+
+  .multiplayer-mode-badge {
+    flex: 0 0 auto;
+    margin-left: auto;
+    padding: 0.1rem 0.42rem;
+    border: 1px solid color-mix(in srgb, var(--danger) 42%, transparent);
+    background: color-mix(in srgb, var(--danger) 9%, transparent);
+    color: var(--danger);
+    font-size: 0.55rem;
+    font-weight: 700;
+    letter-spacing: 0.09em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
+  .multiplayer-mode-description {
+    color: var(--muted);
+    font-size: 0.68rem;
+    line-height: 1.42;
   }
 
   .multiplayer-footnotes {
