@@ -28,18 +28,18 @@
 
 <style>
   .rating-menu-surface {
-    padding: 0.24rem;
+    padding: 0.12rem;
   }
 
   .rating-menu-surface-nested {
     position: absolute;
-    top: -0.3rem;
+    top: -0.22rem;
     left: calc(100% + 0.2rem);
     z-index: 1;
     color: var(--menu-popover-text);
     background: var(--menu-popover-bg);
     border: 1px solid var(--menu-popover-border);
-    border-radius: 6px;
+    border-radius: 0;
     box-shadow: var(--menu-popover-shadow);
   }
 </style>

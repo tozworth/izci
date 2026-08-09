@@ -201,8 +201,8 @@
     }
 
     const rect = triggerElement.getBoundingClientRect();
-    menuPopupX = rect.left;
-    menuPopupY = rect.bottom + 6;
+    menuPopupX = groupId === applicationGroup?.id ? 0 : rect.left;
+    menuPopupY = rect.bottom;
   }
 
   function toggleCompactMenu() {
@@ -223,8 +223,8 @@
       announceMenuOpen(applicationGroup.id);
     }
     const rect = compactMenuTriggerElement.getBoundingClientRect();
-    compactMenuX = rect.left;
-    compactMenuY = rect.bottom + 6;
+    compactMenuX = 0;
+    compactMenuY = rect.bottom;
   }
 
   function runMenuAction(action: string) {
@@ -289,6 +289,7 @@
         items={compactMenuItems}
         x={compactMenuX}
         y={compactMenuY}
+        viewportPadding={0}
         ariaLabel={ariaLabel}
         enableOverflowSubmenuFallback={true}
         on:action={(event) => runMenuAction(event.detail)}
@@ -327,6 +328,7 @@
               items={group.items}
               x={menuPopupX}
               y={menuPopupY}
+              viewportPadding={group.application ? 0 : 8}
               ariaLabel={group.label}
               activateOnPointerUpPointerId={menubarPressPointerId}
               on:action={(event) => runMenuAction(event.detail)}

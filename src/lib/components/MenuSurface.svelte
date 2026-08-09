@@ -15,6 +15,7 @@
   export let nested = false;
   export let enableOverflowSubmenuFallback = false;
   export let activateOnPointerUpPointerId: number | null = null;
+  export let viewportPadding = 8;
 
   type MenuLevel = {
     sourceItemId: string;
@@ -131,7 +132,7 @@
       return;
     }
 
-    const padding = 8;
+    const padding = Math.max(0, viewportPadding);
     const maxX = Math.max(padding, window.innerWidth - menuElement.offsetWidth - padding);
     const maxY = Math.max(padding, window.innerHeight - menuElement.offsetHeight - padding);
 
@@ -400,7 +401,7 @@
 
   .menu-surface-nested {
     position: absolute;
-    top: -0.3rem;
+    top: -0.22rem;
     left: calc(100% + 0.2rem);
     z-index: 1;
   }
@@ -420,17 +421,17 @@
   }
 
   .menu-entry-group:has(.menu-item-remove) > button:first-of-type {
-    padding-right: 2rem;
+    padding-right: 1.8rem;
   }
 
   button.menu-item-remove {
     position: absolute;
     top: 50%;
-    right: 0.28rem;
+    right: 0.22rem;
     display: grid;
-    width: 1.45rem;
+    width: 1.3rem;
     min-width: 0;
-    height: 1.45rem;
+    height: 1.3rem;
     padding: 0;
     place-items: center;
     opacity: 0;
@@ -438,7 +439,7 @@
   }
 
   button.menu-item-remove .material-symbols-outlined {
-    font-size: 1rem;
+    font-size: 0.9rem;
   }
 
   .menu-entry-group:hover > .menu-item-remove,
@@ -447,9 +448,9 @@
   }
 
   .menu-item-chevron {
-    min-width: 1rem;
+    min-width: 0.9rem;
     color: var(--menu-popover-muted);
-    font-size: 1rem;
+    font-size: 0.85rem;
     text-align: right;
   }
 
@@ -463,7 +464,7 @@
 
   .menu-item-description {
     color: var(--menu-popover-muted);
-    font-size: 0.72rem;
+    font-size: 0.68rem;
     line-height: 1.25;
     white-space: normal;
   }
