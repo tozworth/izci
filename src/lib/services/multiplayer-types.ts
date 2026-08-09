@@ -128,7 +128,6 @@ export const EMPTY_DELIVERY: MultiplayerDeliveryState = {
   generationId: 'idle',
   trackId: null,
   mode: 'none',
-  postRaf: false,
   reason: 'host-disabled'
 };
 

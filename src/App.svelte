@@ -132,7 +132,6 @@
   import { experimentalSettings } from '$lib/stores/experimental-settings';
   import { multiplayerRecents } from '$lib/stores/multiplayer-recents';
   import { multiplayerLastSession } from '$lib/stores/multiplayer-last-session';
-  import { multiplayerFreeplayState } from '$lib/stores/multiplayer-freeplay-state';
   import {
     forgetMultiplayerPairing,
     multiplayerPairings
@@ -274,7 +273,6 @@
       generationId: 'idle',
       trackId: null,
       mode: 'none',
-      postRaf: false,
       reason: 'host-disabled'
     },
     connectionRoute: null,
@@ -291,8 +289,6 @@
   let multiplayerConnectionDialogError: string | null = null;
   let multiplayerConnectionOperation: 'hosting' | 'joining' = 'joining';
   let multiplayerConnectionTargetName: string | null = null;
-  let multiplayerLaunchRestorePending = false;
-  let multiplayerLaunchRestoreTrackId: string | null = null;
   let isMultiplayerClient = false;
   let isFreeplayClient = false;
   let isSourceFileFreeplayClient = false;
@@ -571,8 +567,6 @@
       lastMultiplayerToastMessage = null;
       multiplayerConnectionDialogOpen = false;
       multiplayerConnectionDialogError = null;
-      multiplayerLaunchRestorePending = false;
-      multiplayerLaunchRestoreTrackId = null;
     }
     if (value.message
       && value.message !== lastMultiplayerToastMessage
@@ -625,14 +619,7 @@
       ? multiplayerLastSession.getSnapshot()
       : null;
     if (!last && !settings.multiplayerAutoHost) return;
-    multiplayerLaunchRestorePending = true;
     if (last?.mode === 'client') {
-      const savedFreeplay = multiplayerFreeplayState.getSnapshot();
-      multiplayerLaunchRestoreTrackId = settings.multiplayerFreeplay
-        && last.hostId
-        && savedFreeplay?.hostId === last.hostId
-        ? savedFreeplay.currentTrackId
-        : null;
       beginMultiplayerConnection('joining', last.hostName);
       return;
     }
@@ -645,10 +632,6 @@
     if (value.mode !== 'client'
       || value.remoteCatalog.revision <= 0
       || value.remoteDelivery.generationId === 'idle') return false;
-    if (multiplayerLaunchRestorePending
-      && multiplayerLaunchRestoreTrackId
-      && value.freeplay
-      && value.remotePlayback.track?.id !== multiplayerLaunchRestoreTrackId) return false;
     if (!value.receiveAudio || value.remoteDelivery.mode === 'none') return true;
     return value.audioStatus === 'playing'
       || value.audioStatus === 'ready'

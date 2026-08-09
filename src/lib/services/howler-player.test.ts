@@ -20,7 +20,8 @@ const howlerHarness = vi.hoisted(() => ({
 const audioBus = vi.hoisted(() => ({
   disconnect: vi.fn(),
   resume: vi.fn(async () => true),
-  setSourceGain: vi.fn()
+  setSourceGain: vi.fn(),
+  setSourceReplayGain: vi.fn()
 }));
 
 vi.mock('howler', () => ({

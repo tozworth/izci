@@ -58,7 +58,7 @@ describe('Freeplay delivery ownership', () => {
 
   it('keeps one silent sender track alive for the lifetime of a peer player', async () => {
     const player = new MultiplayerFreeplayPlayer({
-      getAudioSettings: () => ({ enabled: true, sourceFile: false, postRaf: false }),
+      getAudioSettings: () => ({ enabled: true, sourceFile: false }),
       onUpdate: () => undefined,
       onEnded: () => undefined
     });
@@ -77,7 +77,7 @@ describe('Freeplay delivery ownership', () => {
   it('keeps the host timeline passive for source-file delivery', async () => {
     const updates: Array<{ state: string; time: number; delivery: string }> = [];
     const player = new MultiplayerFreeplayPlayer({
-      getAudioSettings: () => ({ enabled: true, sourceFile: true, postRaf: false }),
+      getAudioSettings: () => ({ enabled: true, sourceFile: true }),
       onUpdate: (update) => updates.push({
         state: update.playback.snapshot.state,
         time: update.playback.snapshot.currentTime,
@@ -96,7 +96,7 @@ describe('Freeplay delivery ownership', () => {
   it('preserves play intent while audio delivery is reconfigured through none', async () => {
     let enabled = true;
     const player = new MultiplayerFreeplayPlayer({
-      getAudioSettings: () => ({ enabled, sourceFile: true, postRaf: false }),
+      getAudioSettings: () => ({ enabled, sourceFile: true }),
       onUpdate: () => undefined,
       onEnded: () => undefined
     });

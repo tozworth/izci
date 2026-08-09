@@ -839,10 +839,6 @@
           "title": "Başlangıç hazırlık süresi",
           "hint": "Tüm dinleyiciler hazır olduktan sonra sunucunun eşzamanlı başlangıcı ne kadar ileriye ayarlayacağını belirler. Aygıtlar ilk vuruşu kaçırıyorsa artırın."
         },
-        "postRaf": {
-          "title": "Raf sonrası sesi gönder",
-          "hint": "Aktarımdan önce sunucunun Raf rafını uygular. Kapalıyken dinleyiciler Raf öncesi sesi alır ve kendi Raf ayarlarını uygulayabilir."
-        },
         "opusBitrate": {
           "title": "Opus VBR bit hızı",
           "hint": "Her dinleyici için yaklaşık bit hızı üst sınırını belirler. Yüksek değerler sunucuda daha fazla bant genişliği ve kodlama gücü kullanır."

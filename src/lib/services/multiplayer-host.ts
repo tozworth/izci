@@ -565,8 +565,7 @@ export function createMultiplayerHostSide(
             track,
             core.multiplayerSettings.multiplayerFileTransferLimitMiB,
             core.multiplayerSettings.multiplayerStreamAudio
-          ),
-          postRaf: core.multiplayerSettings.multiplayerSendPostRaf
+          )
         }),
         onUpdate: (update) => {
           if (peer.freeplayPlayer === player) syncFreeplayPlayerUpdate(peer, update);
@@ -685,7 +684,7 @@ export function createMultiplayerHostSide(
 
   async function syncSharedPeerAudio(peer: PeerConnection): Promise<void> {
     const track = core.latestDelivery.mode === 'stream'
-      ? multiplayerAudioService.getHostTrack(core.multiplayerSettings.multiplayerSendPostRaf)
+      ? multiplayerAudioService.getHostTrack()
       : null;
     if (peer.audioSender?.track !== track) {
       await peer.audioSender?.replaceTrack(track).catch(() => undefined);
@@ -698,7 +697,7 @@ export function createMultiplayerHostSide(
     update: MultiplayerFreeplayPlayerUpdate
   ): void {
     if (!peer.freeplay || peer.channel?.readyState !== 'open') return;
-    const delivery = ensureFreeplayDelivery(peer, update.delivery, update.postRaf);
+    const delivery = ensureFreeplayDelivery(peer, update.delivery);
     sendToPeer(peer, { kind: 'delivery', delivery });
     const playback: MultiplayerPlayback = {
       ...update.playback,
@@ -716,20 +715,17 @@ export function createMultiplayerHostSide(
 
   function ensureFreeplayDelivery(
     peer: PeerConnection,
-    mode: MultiplayerDeliveryMode,
-    postRaf: boolean
+    mode: MultiplayerDeliveryMode
   ): MultiplayerDeliveryState {
     const trackId = peer.freeplayPlayer?.track?.id ?? null;
     const previous = peer.freeplayDelivery;
     if (previous
       && previous.trackId === trackId
-      && previous.mode === mode
-      && previous.postRaf === postRaf) return previous;
+      && previous.mode === mode) return previous;
     const delivery: MultiplayerDeliveryState = {
       generationId: crypto.randomUUID(),
       trackId,
       mode,
-      postRaf: mode === 'stream' && postRaf,
       reason: mode === 'none'
         ? trackId ? 'host-disabled' : 'no-track'
         : null
@@ -1243,8 +1239,7 @@ export function createMultiplayerHostSide(
       const player = peer.freeplayPlayer;
       const delivery = peer.freeplayDelivery ?? ensureFreeplayDelivery(
         peer,
-        player?.delivery ?? 'none',
-        player?.postRaf ?? false
+        player?.delivery ?? 'none'
       );
       sendToPeer(peer, { kind: 'delivery', delivery });
       sendToPeer(peer, {
@@ -1300,16 +1295,13 @@ export function createMultiplayerHostSide(
       : sourceFile ? 'source-file' : 'stream';
     const enabled = mode === 'stream';
     const trackId = track?.id ?? null;
-    const postRaf = enabled && core.multiplayerSettings.multiplayerSendPostRaf;
     const changed = core.latestDelivery.trackId !== trackId
-      || core.latestDelivery.mode !== mode
-      || core.latestDelivery.postRaf !== postRaf;
+      || core.latestDelivery.mode !== mode;
     const nextDelivery: MultiplayerDeliveryState = changed
       ? {
           generationId: crypto.randomUUID(),
           trackId,
           mode,
-          postRaf,
           reason: mode === 'none'
             ? track ? 'host-disabled' : 'no-track'
             : null
@@ -1318,7 +1310,7 @@ export function createMultiplayerHostSide(
     multiplayerAudioService.setHostAudible(enabled);
 
     if (enabled) {
-      const hostTrack = multiplayerAudioService.getHostTrack(core.multiplayerSettings.multiplayerSendPostRaf);
+      const hostTrack = multiplayerAudioService.getHostTrack();
       for (const peer of core.hostPeers.values()) {
         if (!peer.freeplaySettled || peer.freeplay) continue;
         if (peer.audioSender?.track !== hostTrack) {

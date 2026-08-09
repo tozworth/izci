@@ -64,7 +64,6 @@ export const DEFAULT_EXPERIMENTAL_SETTINGS: ExperimentalSettings = {
   multiplayerFreeplay: false,
   multiplayerStreamAudio: true,
   multiplayerFileTransferLimitMiB: 0,
-  multiplayerSendPostRaf: false,
   multiplayerOpusBitrateKbps: 128,
   multiplayerAudioBufferMs: 750,
   multiplayerMaxListeners: 4
@@ -136,9 +135,6 @@ export function normalizeExperimentalSettings(value: unknown): ExperimentalSetti
     multiplayerFileTransferLimitMiB: normalizeFileTransferLimit(
       source.multiplayerFileTransferLimitMiB
     ),
-    multiplayerSendPostRaf: typeof source.multiplayerSendPostRaf === 'boolean'
-      ? source.multiplayerSendPostRaf
-      : DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerSendPostRaf,
     multiplayerOpusBitrateKbps: normalizeBoundedInteger(
       source.multiplayerOpusBitrateKbps,
       DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerOpusBitrateKbps,

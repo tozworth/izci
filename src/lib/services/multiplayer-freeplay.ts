@@ -1,7 +1,6 @@
 import type { ChiptuneJsPlayer } from 'chiptune3';
 import { audioBusService } from '$lib/services/audio-bus';
 import { createChiptunePlayer } from '$lib/services/chiptune-loader';
-import { RafEngine } from '$lib/services/raf-engine';
 import { logWarning } from '$lib/services/logging';
 import { modulePlaybackSettings } from '$lib/stores/module-playback-settings';
 import { createPlaylistNavigation } from '$lib/stores/playlist-navigation';
@@ -16,13 +15,11 @@ const FREEPLAY_PROGRESS_INTERVAL_MS = 500;
 export interface MultiplayerFreeplayAudioSettings {
   enabled: boolean;
   sourceFile: boolean;
-  postRaf: boolean;
 }
 
 export interface MultiplayerFreeplayPlayerUpdate {
   playback: MultiplayerPlayback;
   delivery: MultiplayerDeliveryMode;
-  postRaf: boolean;
   sourceFile: File | null;
 }
 
@@ -49,7 +46,6 @@ export class MultiplayerFreeplayPlayer {
   #track: PlaylistItem | null = null;
   #snapshot: PlaybackSnapshot = { ...EMPTY_SNAPSHOT };
   #delivery: MultiplayerDeliveryMode = 'none';
-  #postRaf = false;
   #sourceFile: File | null = null;
   #element: HTMLMediaElement | null = null;
   #elementSource: MediaElementAudioSourceNode | null = null;
@@ -58,7 +54,6 @@ export class MultiplayerFreeplayPlayer {
   #silenceSource: ConstantSourceNode | null = null;
   #silenceGain: GainNode | null = null;
   #wirePromise: Promise<MediaStreamTrack | null> | null = null;
-  #raf: RafEngine | null = null;
   #objectUrl: string | null = null;
   #progressTimer: number | null = null;
   #loadToken = 0;
@@ -92,10 +87,6 @@ export class MultiplayerFreeplayPlayer {
 
   get delivery(): MultiplayerDeliveryMode {
     return this.#delivery;
-  }
-
-  get postRaf(): boolean {
-    return this.#postRaf;
   }
 
   get sourceFile(): File | null {
@@ -163,7 +154,6 @@ export class MultiplayerFreeplayPlayer {
     this.#delivery = !settings.enabled
       ? 'none'
       : settings.sourceFile ? 'source-file' : 'stream';
-    this.#postRaf = this.#delivery === 'stream' && settings.postRaf;
     this.#sourceFile = this.#delivery === 'source-file' ? track.file : null;
     this.#publish();
 
@@ -276,7 +266,6 @@ export class MultiplayerFreeplayPlayer {
     this.#track = null;
     this.#sourceFile = null;
     this.#delivery = 'none';
-    this.#postRaf = false;
     this.#playIntent = false;
     this.#snapshot = { ...EMPTY_SNAPSHOT };
   }
@@ -290,7 +279,7 @@ export class MultiplayerFreeplayPlayer {
     element.volume = 1;
     const objectUrl = URL.createObjectURL(track.file!);
     const source = context.createMediaElementSource(element);
-    const raf = this.#connectRenderer(source, this.#postRaf, track.kind === 'video');
+    this.#connectRenderer(source);
 
     await new Promise<void>((resolve, reject) => {
       const cleanup = () => {
@@ -308,7 +297,7 @@ export class MultiplayerFreeplayPlayer {
       };
       const failed = () => {
         cleanup();
-        disposeMediaRenderer(element, source, raf, objectUrl);
+        disposeMediaRenderer(element, source, objectUrl);
         reject(new Error('Media element rejected the Freeplay source.'));
       };
       element.addEventListener('loadedmetadata', loaded);
@@ -317,12 +306,11 @@ export class MultiplayerFreeplayPlayer {
       element.load();
     });
     if (token !== this.#loadToken) {
-      disposeMediaRenderer(element, source, raf, objectUrl);
+      disposeMediaRenderer(element, source, objectUrl);
       return;
     }
     this.#element = element;
     this.#elementSource = source;
-    this.#raf = raf;
     this.#objectUrl = objectUrl;
     element.addEventListener('ended', this.#handleEnded);
   }
@@ -346,9 +334,8 @@ export class MultiplayerFreeplayPlayer {
       disposeModulePlayer(player);
       return;
     }
-    const raf = this.#connectRenderer(player.gain, this.#postRaf, false);
+    this.#connectRenderer(player.gain);
     this.#modulePlayer = player;
-    this.#raf = raf;
     player.setVol(1);
     player.setRepeatCount(0);
     player.onMetadata((metadata) => {
@@ -374,22 +361,10 @@ export class MultiplayerFreeplayPlayer {
     player.pause();
   }
 
-  #connectRenderer(
-    source: AudioNode,
-    postRaf: boolean,
-    bypassAutoAmp: boolean
-  ): RafEngine | null {
+  #connectRenderer(source: AudioNode): void {
     const destination = this.#wireDestination;
     if (!destination) throw new Error('Freeplay wire is unavailable.');
-    if (!postRaf) {
-      source.connect(destination);
-      return null;
-    }
-    const raf = new RafEngine(source.context, { publishMeters: false });
-    raf.setBypassedEffectTypes(bypassAutoAmp ? ['auto-amp'] : []);
-    source.connect(raf.input);
-    raf.output.connect(destination);
-    return raf;
+    source.connect(destination);
   }
 
   #handleEnded = (): void => {
@@ -425,7 +400,6 @@ export class MultiplayerFreeplayPlayer {
     this.#onUpdate({
       playback,
       delivery: this.#delivery,
-      postRaf: this.#postRaf,
       sourceFile: this.#sourceFile
     });
   }
@@ -455,12 +429,10 @@ export class MultiplayerFreeplayPlayer {
       // A renderer may already have disconnected during a failed load.
     }
     if (this.#modulePlayer) disposeModulePlayer(this.#modulePlayer);
-    this.#raf?.destroy();
     if (this.#objectUrl) URL.revokeObjectURL(this.#objectUrl);
     this.#element = null;
     this.#elementSource = null;
     this.#modulePlayer = null;
-    this.#raf = null;
     this.#objectUrl = null;
   }
 
@@ -525,7 +497,6 @@ function disposeModulePlayer(player: ChiptuneJsPlayer): void {
 function disposeMediaRenderer(
   element: HTMLMediaElement,
   source: MediaElementAudioSourceNode,
-  raf: RafEngine | null,
   objectUrl: string
 ): void {
   element.pause();
@@ -536,6 +507,5 @@ function disposeMediaRenderer(
   } catch {
     // A failed media load may already have detached the source.
   }
-  raf?.destroy();
   URL.revokeObjectURL(objectUrl);
 }

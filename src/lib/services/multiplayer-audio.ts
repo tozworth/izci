@@ -18,8 +18,8 @@ export class MultiplayerAudioService {
   #remoteAudible = false;
   #onStatus: StatusHandler = () => undefined;
 
-  getHostTrack(postRaf: boolean): MediaStreamTrack | null {
-    return audioBusService.getBroadcastTrack(postRaf);
+  getHostTrack(): MediaStreamTrack | null {
+    return audioBusService.getBroadcastTrack();
   }
 
   setHostAudible(audible: boolean): void {
@@ -57,9 +57,8 @@ export class MultiplayerAudioService {
     element.style.pointerEvents = 'none';
     document.body?.appendChild(element);
     this.#remoteElement = element;
-    // The sender's post-Raf flag describes the transmitted signal; it must not
-    // take control of the listener's rack. Always enter through the local Raf
-    // input so each listener can independently enable or bypass their effects.
+    // Multiplayer transports unprocessed renderer output. Always enter through
+    // the listener's local Raf input so its rack remains independently owned.
     this.#remoteSource = audioBusService.connectMediaStream(stream);
 
     if (!this.#remoteSource) {

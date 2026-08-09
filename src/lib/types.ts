@@ -345,7 +345,6 @@ export interface ExperimentalSettings {
   multiplayerFreeplay: boolean;
   multiplayerStreamAudio: boolean;
   multiplayerFileTransferLimitMiB: number;
-  multiplayerSendPostRaf: boolean;
   multiplayerOpusBitrateKbps: number;
   multiplayerAudioBufferMs: number;
   multiplayerMaxListeners: number;

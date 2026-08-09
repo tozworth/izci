@@ -839,10 +839,6 @@
           "title": "Start lead time",
           "hint": "How far ahead the host schedules a synchronized start after every listener is ready. Increase it when devices miss the opening beat."
         },
-        "postRaf": {
-          "title": "Send post-Raf audio",
-          "hint": "Applies the host’s Raf rack before streaming. When off, listeners receive pre-Raf audio and can apply their own Raf settings."
-        },
         "opusBitrate": {
           "title": "Opus VBR bitrate",
           "hint": "Sets the best-effort bitrate ceiling for each listener. Higher rates use more host bandwidth and encoding work."

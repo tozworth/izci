@@ -8,9 +8,9 @@ import type {
 
 export type MultiplayerCollection = 'playlist' | 'library' | 'favorites';
 
-// Version 15 adds clock calibration and scheduled shared starts. Compatibility is
+// Version 16 makes streamed audio an unprocessed renderer-output contract. Compatibility is
 // intentionally scorched-earth while Multiplayer remains experimental.
-export const MULTIPLAYER_PROTOCOL_VERSION = 15;
+export const MULTIPLAYER_PROTOCOL_VERSION = 16;
 export const MULTIPLAYER_FRAME_CHUNK_SIZE = 12_000;
 export const MULTIPLAYER_QUEUE_MAX_ITEMS = 50_000;
 
@@ -70,7 +70,6 @@ export interface MultiplayerDeliveryState {
   generationId: string;
   trackId: string | null;
   mode: MultiplayerDeliveryMode;
-  postRaf: boolean;
   reason: 'host-disabled' | 'no-track' | null;
 }
 
@@ -305,11 +304,9 @@ export function isHostMessage(value: unknown): value is HostMessage {
       && (delivery.mode === 'none'
         || delivery.mode === 'stream'
         || delivery.mode === 'source-file')
-      && typeof delivery.postRaf === 'boolean'
       && (delivery.reason === null
         || delivery.reason === 'host-disabled'
         || delivery.reason === 'no-track')
-      && (delivery.mode === 'stream' || delivery.postRaf === false)
       && (delivery.mode === 'none'
         ? delivery.reason === 'host-disabled' || delivery.reason === 'no-track'
         : delivery.reason === null);

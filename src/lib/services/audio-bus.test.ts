@@ -150,7 +150,11 @@ describe('AudioBusService', () => {
   beforeEach(() => {
     FakeAudioContext.instances = [];
     FakeAudioContext.constructorOptions = [];
-    vi.stubGlobal('window', { AudioContext: FakeAudioContext });
+    vi.stubGlobal('window', {
+      AudioContext: FakeAudioContext,
+      setTimeout: globalThis.setTimeout,
+      clearTimeout: globalThis.clearTimeout
+    });
     bus = new AudioBusService();
   });
 
@@ -161,13 +165,14 @@ describe('AudioBusService', () => {
 
   it('creates one pass-through graph ending at the browser destination', () => {
     const context = bus.context as unknown as FakeAudioContext;
-    const [input, output] = context.gains;
+    const [input, output, program] = context.gains;
     const [analyser] = context.analysers;
 
     expect(input.connections).toHaveLength(1);
     expect(context.gains.some((gain) => gain.connections.includes(analyser))).toBe(true);
     expect(analyser.connections).toEqual([output]);
     expect(output.connections).toEqual([context.destination]);
+    expect(program.connections).toEqual([]);
     expect(FakeAudioContext.constructorOptions).toEqual([{ latencyHint: 'playback' }]);
   });
 
@@ -205,11 +210,15 @@ describe('AudioBusService', () => {
     expect(first.connections).toHaveLength(1);
     expect(second.connections).toHaveLength(1);
     expect(first.connections[0]).not.toBe(second.connections[0]);
-    expect(first.connections[0].connections).toEqual([context.gains[0]]);
-    expect(second.connections[0].connections).toEqual([context.gains[0]]);
+    const firstTransition = first.connections[0] as FakeGainNode;
+    const secondTransition = second.connections[0] as FakeGainNode;
+    expect(firstTransition.connections[0].connections).toEqual([context.gains[0]]);
+    expect(secondTransition.connections[0].connections).toEqual([context.gains[0]]);
+    expect(firstTransition.connections).toContain(context.gains[2]);
+    expect(secondTransition.connections).toContain(context.gains[2]);
 
     bus.setSourceGain(first as unknown as AudioNode, 0, 2);
-    const curve = (first.connections[0] as FakeGainNode).gain.curveCalls.at(-1);
+    const curve = firstTransition.gain.curveCalls.at(-1);
     expect(curve?.duration).toBe(2);
     expect(curve?.values[0]).toBe(1);
     expect(curve?.values.at(-1)).toBe(0);
@@ -246,64 +255,57 @@ describe('AudioBusService', () => {
     expect(FakeAudioContext.instances[0].state).toBe('running');
   });
 
-  it('branches pre-Raf audio by default and can move a reusable broadcast track post-Raf', () => {
-    const first = bus.getBroadcastTrack();
+  it('broadcasts the reusable raw program track before local ReplayGain and Raf', () => {
     const context = bus.context as unknown as FakeAudioContext;
-    const [input] = context.gains;
-    const [analyser] = context.analysers;
+    const source = new FakeAudioNode(context);
+    bus.connectAudioNode(source as unknown as AudioNode);
+    bus.setSourceReplayGain(source as unknown as AudioNode, 0.5);
+
+    const first = bus.getBroadcastTrack();
+    const [input, , program] = context.gains;
+    const transition = source.connections[0] as FakeGainNode;
+    const localGain = transition.connections[0] as FakeGainNode;
     const destination = context.streamDestinations[0];
     const broadcastGain = context.gains.at(-1)!;
 
     expect((first as unknown as FakeMediaStreamTrack).contentHint).toBe('music');
-    expect(input.connections).toContain(broadcastGain);
+    expect(localGain.gain.value).toBe(0.5);
+    expect(localGain.connections).toEqual([input]);
+    expect(transition.connections).toContain(program);
+    expect(program.connections).toContain(broadcastGain);
     expect(broadcastGain.connections).toEqual([destination]);
 
-    const second = bus.getBroadcastTrack(true);
+    const second = bus.getBroadcastTrack();
     expect(second).toBe(first);
-    expect(input.disconnections).toContain(broadcastGain);
-    expect(analyser.connections).toContain(broadcastGain);
 
     bus.releaseBroadcastTrack();
     expect((first as unknown as FakeMediaStreamTrack).stopCalls).toBe(1);
   });
 
-  it('connects received multiplayer audio after Raf but before the shared analyser and output', () => {
-    const stream = new FakeMediaStream() as unknown as MediaStream;
-    const source = bus.connectMediaStreamAfterRaf(stream) as unknown as FakeMediaStreamSourceNode;
-    const context = bus.context as unknown as FakeAudioContext;
-    const [analyser] = context.analysers;
-
-    expect(source.mediaStream).toBe(stream);
-    expect(source.connections[0].connections).toEqual([analyser]);
-  });
-
-  it('connects a received multiplayer stream through the local Raf input', () => {
+  it('connects a received multiplayer stream only through the local Raf input', () => {
     const stream = new FakeMediaStream() as unknown as MediaStream;
     const source = bus.connectMediaStream(stream) as unknown as FakeMediaStreamSourceNode;
     const context = bus.context as unknown as FakeAudioContext;
-    const [input] = context.gains;
+    const [input, , program] = context.gains;
+    const transition = source.connections[0] as FakeGainNode;
+    const localGain = transition.connections[0] as FakeGainNode;
 
     expect(source.mediaStream).toBe(stream);
-    expect(source.connections[0].connections).toEqual([input]);
+    expect(transition.connections).toEqual([localGain]);
+    expect(transition.connections).not.toContain(program);
+    expect(localGain.connections).toEqual([input]);
   });
 
-  it('routes a multiplayer media element after Raf without applying the host effects again', () => {
-    const element = {} as HTMLMediaElement;
-    const source = bus.connectHtmlMediaElementAfterRaf(element) as unknown as FakeMediaElementSourceNode;
-    const context = bus.context as unknown as FakeAudioContext;
-    const [analyser] = context.analysers;
-
-    expect(source.mediaElement).toBe(element);
-    expect(source.connections[0].connections).toEqual([analyser]);
-  });
-
-  it('routes a pre-Raf multiplayer media element through the local Raf input', () => {
+  it('routes a rendered media element to both the raw program and local processing branches', () => {
     const element = {} as HTMLMediaElement;
     const source = bus.connectHtmlMediaElement(element) as unknown as FakeMediaElementSourceNode;
     const context = bus.context as unknown as FakeAudioContext;
-    const [input] = context.gains;
+    const [input, , program] = context.gains;
+    const transition = source.connections[0] as FakeGainNode;
+    const localGain = transition.connections[0] as FakeGainNode;
 
-    expect(source.connections[0].connections).toEqual([input]);
+    expect(transition.connections).toEqual([localGain, program]);
+    expect(localGain.connections).toEqual([input]);
     expect(input.connections).toHaveLength(1);
     expect(input.connections[0]).not.toBe(context.analysers[0]);
   });

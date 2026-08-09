@@ -93,10 +93,6 @@
     experimentalSettings.update({ multiplayerForceTurn: checked(event) });
   }
 
-  function handleSendPostRafToggle(event: Event) {
-    experimentalSettings.update({ multiplayerSendPostRaf: checked(event) });
-  }
-
   function handleOpusBitrateChange(event: Event) {
     experimentalSettings.update({
       multiplayerOpusBitrateKbps: (event.currentTarget as HTMLInputElement).valueAsNumber
@@ -370,18 +366,6 @@
           on:input={handleFileTransferLimitChange}
         />
         <span class="field-output">{fileTransferLimitLabel($experimentalSettings.multiplayerFileTransferLimitMiB)}</span>
-      </SettingsField>
-      <SettingsField
-        title={$t('options.experimental.multiplayer.postRaf.title', { default: 'Send post-Raf audio' })}
-        hint={$t('options.experimental.multiplayer.postRaf.hint', { default: 'Applies the host’s Raf rack before streaming. When off, listeners receive pre-Raf audio and can apply their own Raf settings.' })}
-        checkbox
-      >
-        <input
-          type="checkbox"
-          checked={$experimentalSettings.multiplayerSendPostRaf}
-          disabled={!multiplayerAudioEnabled || $experimentalSettings.multiplayerFileTransferLimitMiB < 0}
-          on:change={handleSendPostRafToggle}
-        />
       </SettingsField>
       <SettingsField
         title={$t('options.experimental.multiplayer.opusBitrate.title', { default: 'Opus VBR bitrate' })}

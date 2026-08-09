@@ -178,8 +178,7 @@ export function createMultiplayerSession({
     const freeplayAudioChanged = settings.multiplayerStreamAudio
       !== core.multiplayerSettings.multiplayerStreamAudio
       || settings.multiplayerFileTransferLimitMiB
-        !== core.multiplayerSettings.multiplayerFileTransferLimitMiB
-      || settings.multiplayerSendPostRaf !== core.multiplayerSettings.multiplayerSendPostRaf;
+        !== core.multiplayerSettings.multiplayerFileTransferLimitMiB;
     const waitForClientsDisabled = core.multiplayerSettings.multiplayerWaitForClients
       && !settings.multiplayerWaitForClients;
     const synchronizedPlaybackDisabled = core.multiplayerSettings.multiplayerSynchronizedPlayback

@@ -7,7 +7,6 @@ function delivery(generationId: string, mode: MultiplayerDeliveryState['mode'] =
     generationId,
     trackId: `track-${generationId}`,
     mode,
-    postRaf: false,
     reason: null
   } satisfies MultiplayerDeliveryState;
 }

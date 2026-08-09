@@ -26,7 +26,6 @@ export class MultiplayerClientTransition {
     if (this.#delivery?.generationId === delivery.generationId) {
       return this.#delivery.trackId === delivery.trackId
         && this.#delivery.mode === delivery.mode
-        && this.#delivery.postRaf === delivery.postRaf
         && this.#delivery.reason === delivery.reason
         ? false
         : null;

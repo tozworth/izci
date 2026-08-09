@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const audioBus = vi.hoisted(() => ({
   connectMediaStream: vi.fn(),
-  connectMediaStreamAfterRaf: vi.fn(),
   disconnect: vi.fn(),
   setSourceGain: vi.fn(),
   resume: vi.fn(async () => true),
@@ -51,7 +50,6 @@ describe('MultiplayerAudioService', () => {
     });
     vi.stubGlobal('document', { body: { appendChild: vi.fn() } });
     audioBus.connectMediaStream.mockReturnValue({});
-    audioBus.connectMediaStreamAfterRaf.mockReturnValue({});
     service = new MultiplayerAudioService();
   });
 
@@ -61,7 +59,6 @@ describe('MultiplayerAudioService', () => {
     await service.attachRemoteTrack(track, stream, (status) => statuses.push(status));
 
     expect(audioBus.connectMediaStream).toHaveBeenCalledWith(stream);
-    expect(audioBus.connectMediaStreamAfterRaf).not.toHaveBeenCalled();
     expect(element.muted).toBe(true);
     expect(element.srcObject).toBe(stream);
     expect(audioBus.setSourceGain).toHaveBeenCalledWith({}, 0);
@@ -82,7 +79,6 @@ describe('MultiplayerAudioService', () => {
     await service.attachRemoteTrack(track, stream, () => undefined);
 
     expect(audioBus.connectMediaStream).toHaveBeenCalledWith(stream);
-    expect(audioBus.connectMediaStreamAfterRaf).not.toHaveBeenCalled();
   });
 
   it('does not declare a suspended receiver pipeline ready', async () => {

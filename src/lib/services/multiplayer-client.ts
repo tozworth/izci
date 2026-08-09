@@ -343,7 +343,7 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
       remoteArtwork: reconnecting ? core.state.remoteArtwork : null,
       remoteArtworkResolvedTrackKey: reconnecting ? core.state.remoteArtworkResolvedTrackKey : '',
       remoteDelivery: reconnecting ? core.state.remoteDelivery : {
-        generationId: 'idle', trackId: null, mode: 'none', postRaf: false, reason: 'host-disabled'
+        generationId: 'idle', trackId: null, mode: 'none', reason: 'host-disabled'
       },
       audioStatus: core.state.receiveAudio ? 'connecting' : 'refused',
       connectionRoute: null,
@@ -1203,7 +1203,7 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
       remoteArtworkResolvedTrackKey: '',
       audioStatus: 'idle',
       remoteDelivery: {
-        generationId: 'idle', trackId: null, mode: 'none', postRaf: false, reason: 'host-disabled'
+        generationId: 'idle', trackId: null, mode: 'none', reason: 'host-disabled'
       },
       connectionRoute: null,
       averageAudioBitrateKbps: null,

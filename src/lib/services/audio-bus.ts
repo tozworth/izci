@@ -6,9 +6,15 @@ import type { RafEffectType } from '$lib/types';
 
 type AudioBusSource = AudioNode | MediaElementAudioSourceNode;
 
+interface AudioBusSourceRoute {
+  transitionGain: GainNode;
+  localGain: GainNode;
+}
+
 export class AudioBusService {
   #context: AudioContext | null = null;
   #input: GainNode | null = null;
+  #program: GainNode | null = null;
   #output: GainNode | null = null;
   #rafEngine: RafEngine | null = null;
   #analyser: AnalyserNode | null = null;
@@ -16,7 +22,7 @@ export class AudioBusService {
   #broadcastDestination: MediaStreamAudioDestinationNode | null = null;
   #broadcastSource: AudioNode | null = null;
   #broadcastGainValue = 1;
-  #sourceGains = new Map<AudioBusSource, GainNode>();
+  #sourceRoutes = new Map<AudioBusSource, AudioBusSourceRoute>();
   #mediaSources = new WeakMap<HTMLMediaElement, MediaElementAudioSourceNode>();
   #inputGain = 1;
   #outputGain = 1;
@@ -28,17 +34,10 @@ export class AudioBusService {
   }
 
   connectHtmlMediaElement(element: HTMLMediaElement | null): MediaElementAudioSourceNode | null {
-    return this.#connectHtmlMediaElement(element, 'input');
+    return this.#connectHtmlMediaElement(element);
   }
 
-  connectHtmlMediaElementAfterRaf(element: HTMLMediaElement | null): MediaElementAudioSourceNode | null {
-    return this.#connectHtmlMediaElement(element, 'analyser');
-  }
-
-  #connectHtmlMediaElement(
-    element: HTMLMediaElement | null,
-    target: 'input' | 'analyser'
-  ): MediaElementAudioSourceNode | null {
+  #connectHtmlMediaElement(element: HTMLMediaElement | null): MediaElementAudioSourceNode | null {
     if (!element) {
       return null;
     }
@@ -53,7 +52,7 @@ export class AudioBusService {
         this.#mediaSources.set(element, source);
       }
 
-      this.#connectSource(source, target === 'analyser' ? this.#analyser : this.#input);
+      this.#connectSource(source, true);
       return source;
     } catch (error) {
       // If Web Audio cannot adopt the element, leave Howler's native output untouched.
@@ -73,7 +72,7 @@ export class AudioBusService {
       throw new Error('Audio bus sources must use the shared AudioContext.');
     }
 
-    this.#connectSource(node);
+    this.#connectSource(node, true);
     return node;
   }
 
@@ -82,68 +81,54 @@ export class AudioBusService {
       return;
     }
 
-    const sourceGain = this.#sourceGains.get(source);
-    if (!sourceGain) return;
+    const route = this.#sourceRoutes.get(source);
+    if (!route) return;
 
     try {
-      source.disconnect(sourceGain);
-      sourceGain.disconnect();
+      source.disconnect(route.transitionGain);
+      route.transitionGain.disconnect();
+      route.localGain.disconnect();
     } catch {
       // The source owner may already have disconnected it during teardown.
     }
 
-    this.#sourceGains.delete(source);
+    this.#sourceRoutes.delete(source);
   }
 
   connectMediaStream(stream: MediaStream | null): MediaStreamAudioSourceNode | null {
-    return this.#connectMediaStream(stream, 'input');
+    return this.#connectMediaStream(stream);
   }
 
-  connectMediaStreamAfterRaf(stream: MediaStream | null): MediaStreamAudioSourceNode | null {
-    return this.#connectMediaStream(stream, 'analyser');
-  }
-
-  #connectMediaStream(
-    stream: MediaStream | null,
-    target: 'input' | 'analyser'
-  ): MediaStreamAudioSourceNode | null {
+  #connectMediaStream(stream: MediaStream | null): MediaStreamAudioSourceNode | null {
     if (!stream || stream.getAudioTracks().length === 0) return null;
 
     this.#ensureGraph();
 
     try {
       const source = this.context.createMediaStreamSource(stream);
-      this.#connectSource(source, target === 'analyser' ? this.#analyser : this.#input);
+      // Received WebRTC audio is a listener-only source and must never feed a
+      // host broadcast tap, even if session teardown and startup overlap.
+      this.#connectSource(source, false);
       return source;
     } catch {
       return null;
     }
   }
 
-  getBroadcastTrack(postRaf = false): MediaStreamTrack | null {
+  getBroadcastTrack(): MediaStreamTrack | null {
     this.#ensureGraph();
-    if (!this.#context || !this.#input || !this.#analyser) return null;
-
-    const source = postRaf ? this.#analyser : this.#input;
+    if (!this.#context || !this.#program) return null;
 
     if (!this.#broadcastDestination) {
       const gain = this.#context.createGain();
       const destination = this.#context.createMediaStreamDestination();
       destination.channelCount = 2;
       gain.gain.value = this.#broadcastGainValue;
-      source.connect(gain);
+      this.#program.connect(gain);
       gain.connect(destination);
       this.#broadcastGain = gain;
       this.#broadcastDestination = destination;
-      this.#broadcastSource = source;
-    } else if (this.#broadcastSource !== source && this.#broadcastGain) {
-      try {
-        this.#broadcastSource?.disconnect(this.#broadcastGain);
-      } catch {
-        // The previous branch may already have been disconnected during graph teardown.
-      }
-      source.connect(this.#broadcastGain);
-      this.#broadcastSource = source;
+      this.#broadcastSource = this.#program;
     }
 
     const track = this.#broadcastDestination.stream.getAudioTracks()[0] ?? null;
@@ -176,20 +161,20 @@ export class AudioBusService {
 
   setSourceGain(source: AudioBusSource | null, gain: number, durationSeconds = 0): void {
     if (!source || !this.#context) return;
-    const sourceGain = this.#sourceGains.get(source);
-    if (!sourceGain) return;
+    const transitionGain = this.#sourceRoutes.get(source)?.transitionGain;
+    if (!transitionGain) return;
 
     const now = this.#context.currentTime;
     const target = Math.max(gain, 0);
-    const start = sourceGain.gain.value;
-    if (typeof sourceGain.gain.cancelAndHoldAtTime === 'function') {
-      sourceGain.gain.cancelAndHoldAtTime(now);
+    const start = transitionGain.gain.value;
+    if (typeof transitionGain.gain.cancelAndHoldAtTime === 'function') {
+      transitionGain.gain.cancelAndHoldAtTime(now);
     } else {
-      sourceGain.gain.cancelScheduledValues(now);
-      sourceGain.gain.setValueAtTime(sourceGain.gain.value, now);
+      transitionGain.gain.cancelScheduledValues(now);
+      transitionGain.gain.setValueAtTime(transitionGain.gain.value, now);
     }
 
-    if (durationSeconds > 0 && typeof sourceGain.gain.setValueCurveAtTime === 'function') {
+    if (durationSeconds > 0 && typeof transitionGain.gain.setValueCurveAtTime === 'function') {
       const curve = new Float32Array(64);
       for (let index = 0; index < curve.length; index += 1) {
         const progress = index / (curve.length - 1);
@@ -197,12 +182,19 @@ export class AudioBusService {
         const shapedProgress = 1 - (1 - progress) ** 2;
         curve[index] = start + (target - start) * shapedProgress;
       }
-      sourceGain.gain.setValueCurveAtTime(curve, now, durationSeconds);
+      transitionGain.gain.setValueCurveAtTime(curve, now, durationSeconds);
     } else if (durationSeconds > 0) {
-      sourceGain.gain.linearRampToValueAtTime(target, now + durationSeconds);
+      transitionGain.gain.linearRampToValueAtTime(target, now + durationSeconds);
     } else {
-      sourceGain.gain.setValueAtTime(target, now);
+      transitionGain.gain.setValueAtTime(target, now);
     }
+  }
+
+  setSourceReplayGain(source: AudioBusSource | null, gain: number): void {
+    if (!source || !this.#context) return;
+    const localGain = this.#sourceRoutes.get(source)?.localGain;
+    if (!localGain) return;
+    setAudioParam(localGain.gain, Math.max(gain, 0), this.#context);
   }
 
   async resume(): Promise<boolean> {
@@ -260,12 +252,13 @@ export class AudioBusService {
 
   destroy(): void {
     logInfo('playback', 'Audio graph destroyed');
-    for (const source of this.#sourceGains.keys()) this.disconnect(source);
+    for (const source of this.#sourceRoutes.keys()) this.disconnect(source);
     this.releaseBroadcastTrack();
     visualizerService.clear();
 
     try {
       this.#input?.disconnect();
+      this.#program?.disconnect();
       this.#rafEngine?.destroy();
       this.#analyser?.disconnect();
       this.#output?.disconnect();
@@ -277,6 +270,7 @@ export class AudioBusService {
 
     this.#context = null;
     this.#input = null;
+    this.#program = null;
     this.#output = null;
     this.#rafEngine = null;
     this.#analyser = null;
@@ -284,23 +278,27 @@ export class AudioBusService {
     this.#broadcastDestination = null;
     this.#broadcastSource = null;
     this.#mediaSources = new WeakMap();
-    this.#sourceGains.clear();
+    this.#sourceRoutes.clear();
 
     if (context) {
       void context.close().catch(() => undefined);
     }
   }
 
-  #connectSource(source: AudioBusSource, target: AudioNode | null = this.#input): void {
-    if (this.#sourceGains.has(source) || !target || !this.#context) {
+  #connectSource(source: AudioBusSource, broadcastEligible: boolean): void {
+    if (this.#sourceRoutes.has(source) || !this.#input || !this.#program || !this.#context) {
       return;
     }
 
-    const sourceGain = this.#context.createGain();
-    sourceGain.gain.value = 1;
-    source.connect(sourceGain);
-    sourceGain.connect(target);
-    this.#sourceGains.set(source, sourceGain);
+    const transitionGain = this.#context.createGain();
+    const localGain = this.#context.createGain();
+    transitionGain.gain.value = 1;
+    localGain.gain.value = 1;
+    source.connect(transitionGain);
+    transitionGain.connect(localGain);
+    localGain.connect(this.#input);
+    if (broadcastEligible) transitionGain.connect(this.#program);
+    this.#sourceRoutes.set(source, { transitionGain, localGain });
   }
 
   #ensureGraph(): void {
@@ -326,11 +324,13 @@ export class AudioBusService {
     const context = new AudioContextConstructor({ latencyHint: 'playback' });
     const input = context.createGain();
     const output = context.createGain();
+    const program = context.createGain();
     const analyser = context.createAnalyser();
     const rafEngine = new RafEngine(context);
     rafEngine.setBypassedEffectTypes(this.#bypassedRafEffectTypes);
 
     input.gain.value = this.#inputGain;
+    program.gain.value = 1;
     output.gain.value = this.#outputGain;
     input.connect(rafEngine.input);
     rafEngine.output.connect(analyser);
@@ -339,6 +339,7 @@ export class AudioBusService {
 
     this.#context = context;
     this.#input = input;
+    this.#program = program;
     this.#output = output;
     this.#rafEngine = rafEngine;
     this.#analyser = analyser;

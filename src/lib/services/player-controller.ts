@@ -11,7 +11,7 @@ import { metadataSettings } from '$lib/stores/metadata-settings';
 import { modulePlaybackSettings } from '$lib/stores/module-playback-settings';
 import { playbackSettings } from '$lib/stores/playback-settings';
 import { DEFAULT_PLAYER_VOLUME, playerVolume } from '$lib/stores/player-volume';
-import { applyReplayGain, sliderVolumeToGain } from '$lib/services/volume';
+import { sliderVolumeToGain } from '$lib/services/volume';
 import {
   HIVELY_MODULE_EXTENSIONS,
   type ModulePatternSnapshot,
@@ -242,11 +242,7 @@ function createPlayerController() {
   }
 
   function applyBundleTransitionGain(bundle: PlaybackBundle, durationSeconds = 0): void {
-    const replayGain = bundle.track?.kind === 'stream' ? bundle.track.metadata?.replayGain : undefined;
-    bundle.stream.setTransitionGain(
-      applyReplayGain(bundle.transitionGain, replayGain, playbackConfig.replayGainMode),
-      durationSeconds
-    );
+    bundle.stream.setTransitionGain(bundle.transitionGain, durationSeconds);
     bundle.module.setTransitionGain(bundle.transitionGain, durationSeconds);
     bundle.hively.setTransitionGain(bundle.transitionGain, durationSeconds);
     bundle.video.setTransitionGain(bundle.transitionGain, durationSeconds);

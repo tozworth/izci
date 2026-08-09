@@ -31,7 +31,6 @@ describe('experimental settings', () => {
       multiplayerFreeplay: false,
       multiplayerStreamAudio: true,
       multiplayerFileTransferLimitMiB: 0,
-      multiplayerSendPostRaf: false,
       multiplayerOpusBitrateKbps: DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerOpusBitrateKbps,
       multiplayerAudioBufferMs: DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerAudioBufferMs,
       multiplayerMaxListeners: DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerMaxListeners

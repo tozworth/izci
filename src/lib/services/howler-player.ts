@@ -325,7 +325,12 @@ export class HowlerPlayerService {
   }
 
   #applyOutputVolume(): void {
-    // Routed streams receive ReplayGain and master volume in the shared graph.
+    // Routed streams receive ReplayGain locally and master volume in the shared graph.
+    // The multiplayer program branch splits before this gain.
+    audioBusService.setSourceReplayGain(
+      this.#audioSource,
+      applyReplayGain(1, this.#replayGain, this.#replayGainMode)
+    );
     // Keep native Howler gain handling only for the progressive fallback path.
     this.#howl?.volume(this.#audioSource ? 1 : this.#fallbackVolume * this.#transitionGain);
   }

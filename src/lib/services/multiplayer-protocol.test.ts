@@ -110,19 +110,19 @@ describe('multiplayer protocol', () => {
   it('accepts explicit generation-keyed delivery states', () => {
     expect(isHostMessage({
       kind: 'delivery',
-      delivery: { generationId: 'one', trackId: 'track', mode: 'stream', postRaf: false, reason: null }
+      delivery: { generationId: 'one', trackId: 'track', mode: 'stream', reason: null }
     })).toBe(true);
     expect(isHostMessage({
       kind: 'delivery',
-      delivery: { generationId: 'two', trackId: 'track', mode: 'source-file', postRaf: false, reason: null }
+      delivery: { generationId: 'two', trackId: 'track', mode: 'source-file', reason: null }
     })).toBe(true);
     expect(isHostMessage({
       kind: 'delivery',
-      delivery: { generationId: 'three', trackId: null, mode: 'none', postRaf: false, reason: 'network' }
+      delivery: { generationId: 'three', trackId: null, mode: 'none', reason: 'network' }
     })).toBe(false);
     expect(isHostMessage({
       kind: 'delivery',
-      delivery: { generationId: 'four', trackId: 'track', mode: 'source-file', postRaf: true, reason: null }
+      delivery: { generationId: 'four', trackId: 'track', mode: 'source-file', reason: 'host-disabled' }
     })).toBe(false);
   });
 
