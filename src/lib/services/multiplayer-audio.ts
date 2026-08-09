@@ -4,6 +4,7 @@ import { logDebug, logInfo } from '$lib/services/logging';
 export type MultiplayerReceiverAudioStatus =
   | 'idle'
   | 'connecting'
+  | 'ready'
   | 'playing'
   | 'blocked'
   | 'unavailable';
@@ -79,6 +80,7 @@ export class MultiplayerAudioService {
     this.#remoteAudible = audible;
     audioBusService.setSourceGain(this.#remoteSource, audible ? 1 : 0, rampSeconds);
     if (audible) void this.resumeRemoteAudio();
+    else if (this.#remoteElement && !this.#remoteElement.paused) this.#publish('ready');
   }
 
   warmRemoteAudio(): Promise<boolean> {
@@ -103,7 +105,15 @@ export class MultiplayerAudioService {
     }
     const audible = running && playing && !track.muted && this.#remoteAudible;
     logDebug('multiplayer', 'Remote audio resume attempted', { running, playing, muted: track.muted, audible });
-    this.#publish(audible ? 'playing' : running && playing ? 'connecting' : 'blocked');
+    this.#publish(
+      audible
+        ? 'playing'
+        : running && playing && !this.#remoteAudible
+          ? 'ready'
+          : running && playing
+            ? 'connecting'
+            : 'blocked'
+    );
     return running && playing;
   }
 

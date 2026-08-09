@@ -213,7 +213,7 @@ export class AudioBusService {
     }
     const context = this.#context;
     if (context && context.state !== 'running' && context.state !== 'closed') {
-      await context.resume().catch(() => undefined);
+      await waitForAudioContextResume(context);
     }
     const running = this.#context?.state === 'running';
     if (running) logDebug('playback', 'Audio context running');
@@ -345,6 +345,20 @@ export class AudioBusService {
     visualizerService.setAnalyser(analyser);
     logInfo('playback', 'Audio graph created', { state: context.state, sampleRate: context.sampleRate });
   }
+}
+
+function waitForAudioContextResume(context: AudioContext, timeoutMs = 1_200): Promise<void> {
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      window.clearTimeout(timer);
+      resolve();
+    };
+    const timer = window.setTimeout(finish, timeoutMs);
+    void context.resume().then(finish, finish);
+  });
 }
 
 export const audioBusService = new AudioBusService();

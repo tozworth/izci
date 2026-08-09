@@ -44,6 +44,12 @@ export interface MultiplayerConnectionStats {
   recentPacketsLost: number;
   recentPacketLossPercent: number | null;
   jitterMs: number | null;
+  jitterBufferDelayMs: number | null;
+  jitterBufferTargetDelayMs: number | null;
+  concealedSamples: number | null;
+  concealmentEvents: number | null;
+  insertedSamplesForDeceleration: number | null;
+  removedSamplesForAcceleration: number | null;
   roundTripTimeMs: number | null;
   codec: string | null;
 }
@@ -147,7 +153,7 @@ export interface SignalOffer {
 export interface SignalAnswer {
   description?: RTCSessionDescriptionInit;
   error?: 'host-full';
-  createdAt?: number;
+  createdAt: number;
 }
 
 export interface SignalPeerRecord {
@@ -213,6 +219,7 @@ export interface PeerConnection {
   appliedRemoteCandidateIds: Set<string>;
   candidateErrors: string[];
   connectionTimer: number | null;
+  signalingCreatedAt: number;
   paired: boolean;
   freeplayPaired: boolean;
   clientFreeplayEnabled: boolean;

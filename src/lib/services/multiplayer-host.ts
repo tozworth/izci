@@ -47,7 +47,12 @@ import {
   startPeerConnectionTimer
 } from './multiplayer-peer';
 import { flushPeerMedia, transferSourceFile } from './multiplayer-source-transfer';
-import { createInviteCode, isSignalOffer, loadFirebase } from './multiplayer-signaling';
+import {
+  createInviteCode,
+  isNewSignalOfferForPeer,
+  isSignalOffer,
+  loadFirebase
+} from './multiplayer-signaling';
 import {
   errorMessage,
   cycleMultiplayerRepeatMode,
@@ -160,12 +165,6 @@ export function createMultiplayerHostSide(
               core.freeplaySelections.delete(id);
               removePeerFromHostPlaybackPreparation(id);
               publish({ clients: core.state.clients.filter((client) => client.id !== id) });
-              if (core.firebaseRuntime && core.state.mode === 'hosting') {
-                void core.firebaseRuntime.remove(core.firebaseRuntime.ref(
-                  core.firebaseRuntime.database,
-                  `multiplayer/rooms/${inviteCode}/peers/${id}`
-                ));
-              }
             }
           }
           for (const [id, peerSignal] of Object.entries(peers ?? {})) {
@@ -173,9 +172,10 @@ export function createMultiplayerHostSide(
               && !core.answeredTurnCredentialRequestIds.has(peerSignal.credentialRequest.requestId)) {
               void answerTurnCredentialRequest(inviteCode, id, peerSignal.credentialRequest);
             }
-            if (!core.hostPeers.has(id)
+            const peer = core.hostPeers.get(id);
+            if (isNewSignalOfferForPeer(peerSignal.client, peer?.signalingCreatedAt ?? null)
               && !core.acceptingPeerIds.has(id)
-              && isSignalOffer(peerSignal.client)) {
+            ) {
               core.acceptingPeerIds.add(id);
               void acceptClientOffer(
                 inviteCode,
@@ -184,7 +184,6 @@ export function createMultiplayerHostSide(
                 peerSignal.clientCandidates ?? {}
               ).finally(() => core.acceptingPeerIds.delete(id));
             } else {
-              const peer = core.hostPeers.get(id);
               if (peer) stageRemoteCandidates(peer, peerSignal.clientCandidates ?? {});
             }
           }
@@ -264,7 +263,7 @@ export function createMultiplayerHostSide(
             core.firebaseRuntime.database,
             `multiplayer/rooms/${inviteCode}/peers/${id}/host`
           ),
-          { error: 'host-full', createdAt: Date.now() } satisfies SignalAnswer
+          { error: 'host-full', createdAt: offer.createdAt } satisfies SignalAnswer
         );
         window.setTimeout(() => {
           core.rejectedPeerIds.delete(id);
@@ -282,11 +281,24 @@ export function createMultiplayerHostSide(
       removePeerFromHostPlaybackPreparation(id);
       core.hostPeers.delete(id);
     }
+    await Promise.all([
+      core.firebaseRuntime.remove(core.firebaseRuntime.ref(
+        core.firebaseRuntime.database,
+        `multiplayer/rooms/${inviteCode}/peers/${id}/host`
+      )),
+      core.firebaseRuntime.remove(core.firebaseRuntime.ref(
+        core.firebaseRuntime.database,
+        `multiplayer/rooms/${inviteCode}/peers/${id}/hostCandidates`
+      ))
+    ]).catch((error) => {
+      logWarning('multiplayer', 'Stale host signaling cleanup failed', { peerId: id, error });
+    });
     const peer = createPeer(
       id,
       sanitizeClientName(offer.name),
       await createMultiplayerTurnIceSettings(core.multiplayerSettings, `host-${id}`)
     );
+    peer.signalingCreatedAt = offer.createdAt;
     core.hostPeers.set(id, peer);
     void core.firebaseRuntime.remove(core.firebaseRuntime.ref(
       core.firebaseRuntime.database,
@@ -356,7 +368,7 @@ export function createMultiplayerHostSide(
       if (!core.firebaseRuntime || core.state.mode !== 'hosting') return;
       await core.firebaseRuntime.set(
         core.firebaseRuntime.ref(core.firebaseRuntime.database, answerPath),
-        { description: peer.pc.localDescription?.toJSON(), createdAt: Date.now() }
+        { description: peer.pc.localDescription?.toJSON(), createdAt: offer.createdAt }
       );
       startCandidatePublishing();
       startPeerConnectionTimer(peer, () => {
@@ -605,11 +617,6 @@ export function createMultiplayerHostSide(
       peer.freeplayArtworkLoadToken += 1;
       peer.sourceTrackKey = '';
       core.freeplaySelections.delete(peer.id);
-      syncPeerSourceFile(
-        peer,
-        core.latestHostState?.track ?? null,
-        core.latestDelivery.generationId
-      );
       await syncSharedPeerAudio(peer);
     }
 
@@ -1064,7 +1071,13 @@ export function createMultiplayerHostSide(
       && freeplayPreparation?.generationId === generationId
       && peer.freeplayDelivery?.generationId === generationId) {
       peer.freeplayPendingPreparation = null;
-      void peer.freeplayPlayer?.play();
+      void peer.freeplayPlayer?.play().then((playing) => {
+        logInfo('freeplay', 'Freeplay playback readiness applied', {
+          peerId: peer.id,
+          generationId,
+          playing
+        });
+      });
       return;
     }
     const pending = core.hostPlaybackPreparation;

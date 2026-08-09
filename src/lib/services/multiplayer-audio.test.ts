@@ -65,7 +65,7 @@ describe('MultiplayerAudioService', () => {
     expect(element.muted).toBe(true);
     expect(element.srcObject).toBe(stream);
     expect(audioBus.setSourceGain).toHaveBeenCalledWith({}, 0);
-    expect(statuses.at(-1)).toBe('connecting');
+    expect(statuses.at(-1)).toBe('ready');
   });
 
   it('keeps one element and Web Audio source across delivery generations', async () => {

@@ -15,6 +15,16 @@
       "startingHost": "Starting multiplayer host",
       "connectingTo": "Connecting to {name}",
       "connectingToHost": "Connecting to host",
+      "audio": {
+        "blocked": "Audio needs permission",
+        "start": "Start audio",
+        "listening": "Listening",
+        "ready": "Audio ready",
+        "refused": "Audio refused",
+        "disabled": "Host audio is off",
+        "unavailable": "Audio unavailable",
+        "connecting": "Audio connecting..."
+      },
       "preparingRoom": "Preparing the signaling room...",
       "preparingConnection": "Preparing the connection...",
       "enterInvite": "Enter the host invite code",
@@ -62,14 +72,6 @@
         "loss30s": "Loss · 30 s",
         "lossTotal": "Loss · total",
         "timing": "Jitter · RTT"
-      },
-      "audio": {
-        "listening": "Listening",
-        "blocked": "Audio needs permission",
-        "refused": "Audio refused",
-        "disabled": "Host audio is off",
-        "unavailable": "Audio unavailable",
-        "connecting": "Audio connecting..."
       },
       "route": {
         "direct": "Direct",

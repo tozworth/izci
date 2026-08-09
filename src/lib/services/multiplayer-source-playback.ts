@@ -153,8 +153,10 @@ export class MultiplayerSourcePlaybackService {
     return true;
   }
 
-  resume(): boolean {
+  async resume(): Promise<boolean> {
     if (!this.#enabled || !this.#activeTrackId) return false;
+    const running = await playerController.resumeAudio();
+    if (!running) return false;
     if (!this.#localTimeline) this.#applyLatestPlayback();
     return true;
   }

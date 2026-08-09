@@ -54,7 +54,10 @@
     type LyricsPresentationState
   } from '$lib/services/lyrics-presentation';
   import { startLoadoutRuntime } from '$lib/services/loadouts';
-  import { createPlaybackCommandsController } from '$lib/services/playback-commands';
+  import {
+    createPlaybackCommandsController,
+    shouldRestartForPrevious
+  } from '$lib/services/playback-commands';
   import { createMiniPlayerController, type MiniPlayerState } from '$lib/services/mini-player';
   import {
     createPlaybackProgressController,
@@ -128,6 +131,8 @@
   } from '$lib/services/workspace-actions';
   import { experimentalSettings } from '$lib/stores/experimental-settings';
   import { multiplayerRecents } from '$lib/stores/multiplayer-recents';
+  import { multiplayerLastSession } from '$lib/stores/multiplayer-last-session';
+  import { multiplayerFreeplayState } from '$lib/stores/multiplayer-freeplay-state';
   import {
     forgetMultiplayerPairing,
     multiplayerPairings
@@ -195,6 +200,7 @@
   let remotePlaylistSelection: PlaylistSelection = emptySelection;
   let remoteLibrarySelection: PlaylistSelection = emptySelection;
   let remoteFavoriteSelection: PlaylistSelection = emptySelection;
+  let lastPrunedRemoteCatalog: MultiplayerSessionState['remoteCatalog'] | null = null;
   let observedRemotePlayingTrackId: string | null = null;
   let lastTroubadourContext: TroubadourBatchContext | null = null;
   let localSelectedPlaylistItem: PlaylistItem | null = null;
@@ -285,6 +291,8 @@
   let multiplayerConnectionDialogError: string | null = null;
   let multiplayerConnectionOperation: 'hosting' | 'joining' = 'joining';
   let multiplayerConnectionTargetName: string | null = null;
+  let multiplayerLaunchRestorePending = false;
+  let multiplayerLaunchRestoreTrackId: string | null = null;
   let isMultiplayerClient = false;
   let isFreeplayClient = false;
   let isSourceFileFreeplayClient = false;
@@ -539,21 +547,32 @@
     pauseHostPlayback: () => playbackCommands.pause(),
     resumeHostPlayback: () => { void playbackCommands.play(); }
   });
+  prepareLaunchMultiplayerDialog();
   multiplayerState = multiplayerSession.getSnapshot();
   const unsubscribeMultiplayer = multiplayerSession.subscribe((value) => {
     const enteredFreeplay = value.freeplay && !multiplayerState.freeplay;
     multiplayerState = value;
     if (enteredFreeplay) workspaceShell.setActiveWorkspaceTab('library');
+    if (value.mode === 'client' && value.reconnecting) {
+      multiplayerConnectionDialogOpen = true;
+      multiplayerConnectionDialogError = null;
+    }
     if (multiplayerConnectionDialogOpen
       && (value.connectionStatus === 'error' || value.connectionStatus === 'disconnected')
+      && !value.reconnecting
       && value.message
       && value.message !== 'Reconnecting to the host...') {
       multiplayerConnectionDialogError = value.message;
     }
-    if (value.connectionStatus === 'connected' && value.message === null) {
+    if (multiplayerConnectionDialogOpen && value.reconnecting) {
+      multiplayerConnectionDialogError = null;
+    }
+    if (isMultiplayerConnectionReady(value)) {
       lastMultiplayerToastMessage = null;
       multiplayerConnectionDialogOpen = false;
       multiplayerConnectionDialogError = null;
+      multiplayerLaunchRestorePending = false;
+      multiplayerLaunchRestoreTrackId = null;
     }
     if (value.message
       && value.message !== lastMultiplayerToastMessage
@@ -561,7 +580,12 @@
       && !multiplayerConnectionDialogOpen) {
       showMultiplayerToast(value.message);
     }
-    if (value.mode !== 'client') return;
+    if (value.mode !== 'client') {
+      lastPrunedRemoteCatalog = null;
+      return;
+    }
+    if (value.remoteCatalog === lastPrunedRemoteCatalog) return;
+    lastPrunedRemoteCatalog = value.remoteCatalog;
 
     const playlistIds = new Set(value.remoteCatalog.playlist.map((item) => item.id));
     const libraryIds = new Set(value.remoteCatalog.library.map((item) => item.id));
@@ -594,6 +618,44 @@
     multiplayerConnectionDialogOpen = true;
   }
 
+  function prepareLaunchMultiplayerDialog(): void {
+    const settings = experimentalSettings.getSnapshot();
+    if (!settings.multiplayer) return;
+    const last = settings.multiplayerRestoreLastSession
+      ? multiplayerLastSession.getSnapshot()
+      : null;
+    if (!last && !settings.multiplayerAutoHost) return;
+    multiplayerLaunchRestorePending = true;
+    if (last?.mode === 'client') {
+      const savedFreeplay = multiplayerFreeplayState.getSnapshot();
+      multiplayerLaunchRestoreTrackId = settings.multiplayerFreeplay
+        && last.hostId
+        && savedFreeplay?.hostId === last.hostId
+        ? savedFreeplay.currentTrackId
+        : null;
+      beginMultiplayerConnection('joining', last.hostName);
+      return;
+    }
+    beginMultiplayerConnection('hosting');
+  }
+
+  function isMultiplayerConnectionReady(value: MultiplayerSessionState): boolean {
+    if (value.connectionStatus !== 'connected' || value.message !== null) return false;
+    if (value.mode === 'hosting') return true;
+    if (value.mode !== 'client'
+      || value.remoteCatalog.revision <= 0
+      || value.remoteDelivery.generationId === 'idle') return false;
+    if (multiplayerLaunchRestorePending
+      && multiplayerLaunchRestoreTrackId
+      && value.freeplay
+      && value.remotePlayback.track?.id !== multiplayerLaunchRestoreTrackId) return false;
+    if (!value.receiveAudio || value.remoteDelivery.mode === 'none') return true;
+    return value.audioStatus === 'playing'
+      || value.audioStatus === 'ready'
+      || value.audioStatus === 'refused'
+      || value.audioStatus === 'disabled';
+  }
+
   function failMultiplayerConnection(error: unknown, fallback: string): void {
     multiplayerConnectionDialogError = error instanceof Error ? error.message : fallback;
     multiplayerConnectionDialogOpen = true;
@@ -621,7 +683,10 @@
     if (isMultiplayerClient) {
       if (isSourceFileFreeplayClient) {
         if (playbackSnapshot.state === 'playing') playerController.pause();
-        else playerController.play();
+        else {
+          void playerController.resumeAudio();
+          playerController.play();
+        }
         return;
       }
       multiplayerSession.sendCommand({ type: 'transport.toggle' });
@@ -634,6 +699,7 @@
   function playPlayback(): void {
     if (isMultiplayerClient) {
       if (isSourceFileFreeplayClient) {
+        void playerController.resumeAudio();
         playerController.play();
         return;
       }
@@ -672,6 +738,16 @@
 
   function stepTrack(direction: -1 | 1): void {
     if (isMultiplayerClient) {
+      if (shouldRestartForPrevious(
+        direction,
+        $playbackSettings.restartCurrentTrackOnPrevious,
+        playingTrack !== null,
+        playbackSnapshot.currentTime
+      )) {
+        if (isSourceFileFreeplayClient) playerController.seek(0);
+        else multiplayerSession.sendCommand({ type: 'transport.seek', seconds: 0 });
+        return;
+      }
       multiplayerSession.sendCommand({
         type: direction < 0 ? 'transport.previous' : 'transport.next'
       });
@@ -1031,6 +1107,9 @@
   $: multiplayerConnectionStatusLine = multiplayerConnectionDialogError
     ?? multiplayerState.connectionDetail
     ?? multiplayerState.message
+    ?? (multiplayerState.audioStatus === 'blocked'
+      ? $t('main.multiplayer.audio.blocked', { default: 'Audio needs permission' })
+      : null)
     ?? (multiplayerConnectionOperation === 'hosting'
       ? $t('main.multiplayer.preparingRoom', { default: 'Preparing the signaling room...' })
       : $t('main.multiplayer.preparingConnection', { default: 'Preparing the connection...' }));
@@ -2290,8 +2369,12 @@
       statusLine={multiplayerConnectionStatusLine}
       failed={multiplayerConnectionFailed}
       closeLabel={$t('main.common.close', { default: 'Close' })}
+      actionLabel={multiplayerState.audioStatus === 'blocked'
+        ? $t('main.multiplayer.audio.start', { default: 'Start audio' })
+        : null}
       markLabel={$t('main.multiplayer.markLabel', { default: 'izci multiplayer' })}
       on:dismiss={dismissMultiplayerConnectionDialog}
+      on:action={() => void multiplayerSession.resumeAudio()}
     />
   {/if}
 

@@ -2,6 +2,7 @@ import type { ChiptuneJsPlayer } from 'chiptune3';
 import { audioBusService } from '$lib/services/audio-bus';
 import { createChiptunePlayer } from '$lib/services/chiptune-loader';
 import { RafEngine } from '$lib/services/raf-engine';
+import { logWarning } from '$lib/services/logging';
 import { modulePlaybackSettings } from '$lib/stores/module-playback-settings';
 import { createPlaylistNavigation } from '$lib/stores/playlist-navigation';
 import type { PlaybackSnapshot, PlaylistItem, PlaylistRepeatMode } from '$lib/types';
@@ -10,7 +11,7 @@ import type {
   MultiplayerPlayback
 } from './multiplayer-protocol';
 
-const FREEPLAY_PROGRESS_INTERVAL_MS = 250;
+const FREEPLAY_PROGRESS_INTERVAL_MS = 500;
 
 export interface MultiplayerFreeplayAudioSettings {
   enabled: boolean;
@@ -204,17 +205,28 @@ export class MultiplayerFreeplayPlayer {
   }
 
   async play(): Promise<boolean> {
-    if (!this.#track || this.#snapshot.state === 'loading' || this.#snapshot.state === 'error') return false;
+    if (!this.#track || this.#snapshot.state === 'loading') return false;
     this.#playIntent = true;
     if (this.#delivery !== 'stream') return true;
+    if (this.#snapshot.state === 'error') {
+      this.#snapshot = { ...this.#snapshot, state: 'paused', error: undefined };
+    }
+    const audioReady = await audioBusService.resume();
+    if (!audioReady) {
+      this.#snapshot = { ...this.#snapshot, state: 'error', error: 'Freeplay audio could not start.' };
+      logWarning('freeplay', 'Freeplay audio context is blocked', { trackId: this.#track.id });
+      this.#publish();
+      return false;
+    }
     try {
       if (this.#element) await this.#element.play();
       else if (this.#modulePlayer) {
         if (this.#snapshot.currentTime > 0) this.#modulePlayer.seek(this.#snapshot.currentTime);
         this.#modulePlayer.unpause();
       }
-    } catch {
+    } catch (error) {
       this.#snapshot = { ...this.#snapshot, state: 'error', error: 'Freeplay audio could not start.' };
+      logWarning('freeplay', 'Freeplay renderer could not start', { trackId: this.#track.id, error });
       this.#publish();
       return false;
     }

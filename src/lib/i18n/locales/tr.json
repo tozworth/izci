@@ -15,6 +15,16 @@
       "startingHost": "Çok oyunculu sunucu başlatılıyor",
       "connectingTo": "{name} aygıtına bağlanılıyor",
       "connectingToHost": "Sunucuya bağlanılıyor",
+      "audio": {
+        "blocked": "Ses için izin gerekiyor",
+        "start": "Sesi başlat",
+        "listening": "Dinleniyor",
+        "ready": "Ses hazır",
+        "refused": "Ses reddedildi",
+        "disabled": "Sunucu sesi kapalı",
+        "unavailable": "Ses kullanılamıyor",
+        "connecting": "Ses bağlanıyor..."
+      },
       "preparingRoom": "Sinyalleşme odası hazırlanıyor...",
       "preparingConnection": "Bağlantı hazırlanıyor...",
       "enterInvite": "Sunucunun davet kodunu girin",
@@ -62,14 +72,6 @@
         "loss30s": "Kayıp · 30 sn",
         "lossTotal": "Kayıp · toplam",
         "timing": "Titreşim · RTT"
-      },
-      "audio": {
-        "listening": "Dinleniyor",
-        "blocked": "Ses için izin gerekiyor",
-        "refused": "Ses reddedildi",
-        "disabled": "Sunucu sesi kapalı",
-        "unavailable": "Ses kullanılamıyor",
-        "connecting": "Ses bağlanıyor..."
       },
       "route": {
         "direct": "Doğrudan",

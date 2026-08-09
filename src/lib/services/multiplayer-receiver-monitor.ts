@@ -1,4 +1,5 @@
 import type { PeerConnection, MultiplayerSessionState } from './multiplayer-types';
+import { logDebug } from './logging';
 import {
   updateReceivedBitrateWindow,
   type ReceivedByteSample
@@ -28,6 +29,7 @@ export function createReceiverBitrateMonitor({
   let sampling = false;
   let samples: ReceivedByteSample[] = [];
   let counterSamples: MultiplayerReceiverCounterSample[] = [];
+  let lastDebugSampleAt = 0;
 
   function clear(): void {
     if (timer !== null) window.clearInterval(timer);
@@ -49,6 +51,12 @@ export function createReceiverBitrateMonitor({
         let packetsReceived = 0;
         let packetsLost = 0;
         let jitterMs: number | null = null;
+        let jitterBufferDelayMs: number | null = null;
+        let jitterBufferTargetDelayMs: number | null = null;
+        let concealedSamples: number | null = null;
+        let concealmentEvents: number | null = null;
+        let insertedSamplesForDeceleration: number | null = null;
+        let removedSamplesForAcceleration: number | null = null;
         let codec: string | null = null;
         let codecId: string | null = null;
         let roundTripTimeMs: number | null = null;
@@ -60,6 +68,30 @@ export function createReceiverBitrateMonitor({
             if (typeof inbound.packetsReceived === 'number') packetsReceived += inbound.packetsReceived;
             if (typeof inbound.packetsLost === 'number') packetsLost += Math.max(0, inbound.packetsLost);
             if (typeof inbound.jitter === 'number') jitterMs = inbound.jitter * 1_000;
+            const detailed = inbound as RTCInboundRtpStreamStats & {
+              jitterBufferDelay?: number;
+              jitterBufferTargetDelay?: number;
+              jitterBufferEmittedCount?: number;
+              concealedSamples?: number;
+              concealmentEvents?: number;
+              insertedSamplesForDeceleration?: number;
+              removedSamplesForAcceleration?: number;
+            };
+            if (typeof detailed.jitterBufferEmittedCount === 'number'
+              && detailed.jitterBufferEmittedCount > 0) {
+              if (typeof detailed.jitterBufferDelay === 'number') {
+                jitterBufferDelayMs = detailed.jitterBufferDelay
+                  / detailed.jitterBufferEmittedCount * 1_000;
+              }
+              if (typeof detailed.jitterBufferTargetDelay === 'number') {
+                jitterBufferTargetDelayMs = detailed.jitterBufferTargetDelay
+                  / detailed.jitterBufferEmittedCount * 1_000;
+              }
+            }
+            concealedSamples = finiteCounter(detailed.concealedSamples);
+            concealmentEvents = finiteCounter(detailed.concealmentEvents);
+            insertedSamplesForDeceleration = finiteCounter(detailed.insertedSamplesForDeceleration);
+            removedSamplesForAcceleration = finiteCounter(detailed.removedSamplesForAcceleration);
             if (typeof inbound.codecId === 'string') codecId = inbound.codecId;
             foundAudio = true;
             return;
@@ -103,10 +135,43 @@ export function createReceiverBitrateMonitor({
             recentPacketsLost: loss.recentLost,
             recentPacketLossPercent: loss.recentPercent,
             jitterMs: jitterMs === null ? null : Math.round(jitterMs * 10) / 10,
+            jitterBufferDelayMs: roundedTenth(jitterBufferDelayMs),
+            jitterBufferTargetDelayMs: roundedTenth(jitterBufferTargetDelayMs),
+            concealedSamples,
+            concealmentEvents,
+            insertedSamplesForDeceleration,
+            removedSamplesForAcceleration,
             roundTripTimeMs: roundTripTimeMs === null ? null : Math.round(roundTripTimeMs),
             codec
           }
         });
+        const now = performance.now();
+        if (now - lastDebugSampleAt >= 5_000) {
+          lastDebugSampleAt = now;
+          const receiver = peer.pc.getReceivers().find(({ track }) => track.kind === 'audio');
+          logDebug('multiplayer', 'Receiver playout sample', {
+            generationId: getState().remoteDelivery.generationId,
+            delivery: getState().remoteDelivery.mode,
+            trackId: receiver?.track.id ?? null,
+            trackMuted: receiver?.track.muted ?? null,
+            trackState: receiver?.track.readyState ?? null,
+            jitterBufferTarget: receiver && 'jitterBufferTarget' in receiver
+              ? receiver.jitterBufferTarget
+              : null,
+            bitrateKbps: next.averageKbps,
+            packetsReceived: loss.totalReceived,
+            packetsLost: loss.totalLost,
+            recentPacketLossPercent: loss.recentPercent,
+            jitterMs: roundedTenth(jitterMs),
+            jitterBufferDelayMs: roundedTenth(jitterBufferDelayMs),
+            jitterBufferTargetDelayMs: roundedTenth(jitterBufferTargetDelayMs),
+            concealedSamples,
+            concealmentEvents,
+            insertedSamplesForDeceleration,
+            removedSamplesForAcceleration,
+            roundTripTimeMs
+          });
+        }
         const state = getState();
         if (state.audioStatus === 'playing'
           && next.averageKbps !== state.averageAudioBitrateKbps) {
@@ -127,4 +192,12 @@ export function createReceiverBitrateMonitor({
   }
 
   return { start, clear };
+}
+
+function finiteCounter(value: number | undefined): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+function roundedTenth(value: number | null): number | null {
+  return value === null ? null : Math.round(value * 10) / 10;
 }

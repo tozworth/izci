@@ -7,9 +7,10 @@
   export let statusLine: string;
   export let failed = false;
   export let closeLabel = 'Close';
+  export let actionLabel: string | null = null;
   export let markLabel = 'izci multiplayer';
 
-  const dispatch = createEventDispatcher<{ dismiss: void }>();
+  const dispatch = createEventDispatcher<{ dismiss: void; action: void }>();
   let dialog: HTMLDialogElement;
 
   function dismiss(): void {
@@ -50,9 +51,10 @@
       </p>
     </div>
   </div>
-  {#if failed}
+  {#if failed || actionLabel}
     <div class="connection-actions">
-      <button type="button" on:click={dismiss}>{closeLabel}</button>
+      {#if failed}<button type="button" on:click={dismiss}>{closeLabel}</button>{/if}
+      {#if actionLabel}<button class="primary" type="button" on:click={() => dispatch('action')}>{actionLabel}</button>{/if}
     </div>
   {/if}
 </dialog>
@@ -143,6 +145,10 @@
 
   button:hover {
     background: var(--hover-surface);
+  }
+
+  button.primary {
+    border-color: var(--accent);
   }
 
   @media (max-width: 420px) {

@@ -501,6 +501,8 @@
   function multiplayerAudioStatusLabel(status: MultiplayerAudioStatus, route: MultiplayerConnectionRoute | null, bitrateKbps: number | null): string {
     const stateLabel = status === 'playing'
       ? $t('main.multiplayer.audio.listening', { default: 'Listening' })
+      : status === 'ready'
+        ? $t('main.multiplayer.audio.ready', { default: 'Audio ready' })
       : status === 'blocked'
         ? $t('main.multiplayer.audio.blocked', { default: 'Audio needs permission' })
         : status === 'refused'

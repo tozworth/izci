@@ -40,6 +40,7 @@ export function createPeer(
     appliedRemoteCandidateIds: new Set(),
     candidateErrors: [],
     connectionTimer: null,
+    signalingCreatedAt: 0,
     paired: false,
     freeplayPaired: false,
     clientFreeplayEnabled: false,

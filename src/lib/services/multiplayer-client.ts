@@ -8,7 +8,7 @@ import {
   multiplayerFreeplayState,
   rememberMultiplayerFreeplayState
 } from '$lib/stores/multiplayer-freeplay-state';
-import { logDebug, logError, logInfo } from '$lib/services/logging';
+import { logDebug, logError, logInfo, logWarning } from '$lib/services/logging';
 import {
   forgetMultiplayerPairing,
   multiplayerPairings,
@@ -42,6 +42,7 @@ import { parseSourceFileFrame } from './multiplayer-source-transfer';
 import { MultiplayerClientTransition } from './multiplayer-client-transition';
 import {
   createDirectIceSettings,
+  isSignalAnswerForOffer,
   loadFirebase,
   normalizeInviteCode,
   requestTemporaryTurnCredentials
@@ -54,7 +55,6 @@ import {
   getClientPlatform,
   getLocalName,
   isMultiplayerClientTransportHealthy,
-  cycleMultiplayerRepeatMode,
   sanitizeFreeplayQueueIds,
   sanitizeClientName,
   writeReceiveAudioPreference
@@ -71,10 +71,12 @@ import {
 } from './multiplayer-types';
 
 export function createMultiplayerClientSide(core: MultiplayerSessionCore): MultiplayerClientSide {
+  const SIGNALING_TIMEOUT_MS = 8_000;
   const transition = new MultiplayerClientTransition();
   transition.setReceiveAudio(core.state.receiveAudio);
   let sourceRetryGenerationId: string | null = null;
   let sourceRetryCount = 0;
+  let pendingFreeplayResumeTrackId: string | null = null;
   const receiverMonitor = createReceiverBitrateMonitor({
     getState: () => core.state,
     publish: (patch) => core.publish(patch),
@@ -96,14 +98,22 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
   function persistFreeplayState(): void {
     if (core.state.mode !== 'client' || !core.state.freeplay || !core.clientHostId) return;
     const previous = multiplayerFreeplayState.getSnapshot();
-    rememberMultiplayerFreeplayState({
+    const next = {
       hostId: core.clientHostId,
       queue: core.state.freeplayQueue,
       shuffleEnabled: core.state.remoteCatalog.shuffleEnabled,
       repeatMode: core.state.remoteCatalog.repeatMode,
       currentTrackId: core.state.remotePlayback.track?.id
         ?? (previous?.hostId === core.clientHostId ? previous.currentTrackId : null)
-    });
+    };
+    if (previous
+      && previous.hostId === next.hostId
+      && previous.shuffleEnabled === next.shuffleEnabled
+      && previous.repeatMode === next.repeatMode
+      && previous.currentTrackId === next.currentTrackId
+      && previous.queue.length === next.queue.length
+      && previous.queue.every((id, index) => id === next.queue[index])) return;
+    rememberMultiplayerFreeplayState(next);
   }
 
   function sendFreeplayQueueToPeer(): void {
@@ -133,6 +143,18 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
         repeatMode: saved.repeatMode
       }
     });
+  }
+
+  function tryResumeFreeplaySelection(): void {
+    const trackId = pendingFreeplayResumeTrackId;
+    if (!trackId || !core.state.freeplay || core.state.remotePlayback.track) return;
+    if (!core.state.freeplayQueue.includes(trackId)) {
+      pendingFreeplayResumeTrackId = null;
+      return;
+    }
+    pendingFreeplayResumeTrackId = null;
+    logInfo('freeplay', 'Requesting persisted Freeplay selection', { trackId });
+    sendCommand({ type: 'collection.activate', collection: 'playlist', itemId: trackId });
   }
 
   async function join(
@@ -175,11 +197,16 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
     if (!/^[A-Za-z0-9_-]{1,128}$/.test(hostId)) {
       throw new Error('That paired multiplayer host is invalid.');
     }
-    const firebase = await loadFirebase();
-    const directory = (await firebase.get(firebase.ref(
-      firebase.database,
-      `multiplayer/hosts/${hostId}/directory`
-    ))).val() as {
+    const firebase = await withTimeout(
+      loadFirebase(),
+      SIGNALING_TIMEOUT_MS,
+      'Firebase sign-in timed out while finding the paired host.'
+    );
+    const directory = (await withTimeout(
+      firebase.get(firebase.ref(firebase.database, `multiplayer/hosts/${hostId}/directory`)),
+      SIGNALING_TIMEOUT_MS,
+      'The paired-host directory lookup timed out.'
+    )).val() as {
       currentRoom?: string;
       hostName?: string;
       protocolVersion?: number;
@@ -201,21 +228,37 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
 
   async function resolveDirectoryRoomCode(hostId: string): Promise<string | null> {
     try {
-      const firebase = core.firebaseRuntime ?? await loadFirebase();
-      const directory = (await firebase.get(firebase.ref(
-        firebase.database,
-        `multiplayer/hosts/${hostId}/directory`
-      ))).val() as { currentRoom?: string; protocolVersion?: number } | null;
+      const firebase = core.firebaseRuntime ?? await withTimeout(
+        loadFirebase(),
+        SIGNALING_TIMEOUT_MS,
+        'Firebase sign-in timed out while restoring the paired host.'
+      );
+      const directory = (await withTimeout(
+        firebase.get(firebase.ref(firebase.database, `multiplayer/hosts/${hostId}/directory`)),
+        SIGNALING_TIMEOUT_MS,
+        'The paired-host directory lookup timed out.'
+      )).val() as { currentRoom?: string; protocolVersion?: number } | null;
       return directory?.protocolVersion === MULTIPLAYER_PROTOCOL_VERSION
         ? normalizeInviteCode(directory.currentRoom ?? '')
         : null;
-    } catch {
+    } catch (error) {
+      logWarning('multiplayer', 'Paired-host directory lookup failed', { hostId, error });
       return null;
     }
   }
 
   async function restoreClientJoin(last: MultiplayerLastSession): Promise<void> {
     core.clientHostId = last.hostId;
+    publish({
+      mode: 'client',
+      connectionStatus: 'connecting',
+      reconnecting: true,
+      inviteCode: last.inviteCode,
+      hostName: last.hostName,
+      audioStatus: core.state.receiveAudio ? 'connecting' : 'refused',
+      connectionDetail: 'Finding the paired host session...',
+      message: 'Reconnecting to the host...'
+    });
     const inviteCode = last.hostId ? await resolveDirectoryRoomCode(last.hostId) : null;
     const target = inviteCode ?? last.inviteCode;
     if (!target) throw new Error('No multiplayer session to restore.');
@@ -280,11 +323,19 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
     );
 
     try {
-      const firebase = await loadFirebase();
+      const firebase = await withTimeout(
+        loadFirebase(),
+        SIGNALING_TIMEOUT_MS,
+        'Firebase sign-in timed out.'
+      );
       core.firebaseRuntime = firebase;
       publish({ connectionDetail: 'Looking up the multiplayer session...' });
       const metaRef = firebase.ref(firebase.database, `multiplayer/rooms/${inviteCode}/meta`);
-      const meta = (await firebase.get(metaRef)).val() as {
+      const meta = (await withTimeout(
+        firebase.get(metaRef),
+        SIGNALING_TIMEOUT_MS,
+        'The multiplayer room lookup timed out.'
+      )).val() as {
         protocolVersion?: number;
         hostName?: string;
         turnRelay?: boolean;
@@ -294,7 +345,11 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
       }
       publish({ hostName: sanitizeClientName(meta.hostName ?? 'Host') });
       const turnSettings = meta.turnRelay
-        ? await requestTemporaryTurnCredentials(firebase, inviteCode)
+        ? await withTimeout(
+            requestTemporaryTurnCredentials(firebase, inviteCode),
+            SIGNALING_TIMEOUT_MS,
+            'TURN credential exchange timed out.'
+          )
         : createDirectIceSettings();
       publish({ connectionDetail: meta.turnRelay
         ? 'Preparing a peer connection with TURN fallback...'
@@ -326,12 +381,25 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
         firebase.database,
         `multiplayer/rooms/${inviteCode}/peers/${firebase.uid}/client`
       );
+      const clientCandidatesRef = firebase.ref(
+        firebase.database,
+        `multiplayer/rooms/${inviteCode}/peers/${firebase.uid}/clientCandidates`
+      );
       const disconnect = firebase.onDisconnect(clientSignalRef);
-      await disconnect.remove();
+      await withTimeout(
+        disconnect.remove(),
+        SIGNALING_TIMEOUT_MS,
+        'Registering signaling cleanup timed out.'
+      );
       core.ownPeerRef = clientSignalRef;
       core.peerDisconnect = disconnect;
 
+      await firebase.remove(clientCandidatesRef).catch((error) => {
+        logWarning('multiplayer', 'Stale client candidate cleanup failed', { error });
+      });
+
       const offer = enableOpusStereo(await peer.pc.createOffer());
+      const offerCreatedAt = Date.now();
       publish({ connectionDetail: 'Creating an ICE connection offer...' });
       const startCandidatePublishing = prepareCandidatePublisher(
         peer,
@@ -349,12 +417,16 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
       );
       await peer.pc.setLocalDescription(offer);
       publish({ connectionDetail: 'Gathering and sending ICE candidates...' });
-      await firebase.set(clientSignalRef, {
-        name: peer.name,
-        platform: getClientPlatform(),
-        description: peer.pc.localDescription?.toJSON(),
-        createdAt: Date.now()
-      });
+      await withTimeout(
+        firebase.set(clientSignalRef, {
+          name: peer.name,
+          platform: getClientPlatform(),
+          description: peer.pc.localDescription?.toJSON(),
+          createdAt: offerCreatedAt
+        }),
+        SIGNALING_TIMEOUT_MS,
+        'Publishing the peer connection offer timed out.'
+      );
       startCandidatePublishing();
       publish({ connectionDetail: `Waiting for ${core.state.hostName ?? 'the host'} to answer...` });
       startPeerConnectionTimer(peer, () => {
@@ -368,6 +440,7 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
         scheduleClientReconnect(2_000);
       });
 
+      let answerApplicationStarted = false;
       core.stopAnswerListener = firebase.onValue(
         nextPeerRef,
         (snapshot) => {
@@ -376,6 +449,13 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
             hostCandidates?: SignalCandidates;
           } | null;
           const answer = signal?.host;
+          if (answer && !isSignalAnswerForOffer(answer, offerCreatedAt)) {
+            logDebug('multiplayer', 'Ignoring stale host signaling answer', {
+              expectedCreatedAt: offerCreatedAt,
+              receivedCreatedAt: answer.createdAt ?? null
+            });
+            return;
+          }
           if (answer?.error === 'host-full') {
             core.allowClientReconnect = false;
             clearPeerConnectionTimer(peer);
@@ -390,7 +470,12 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
             return;
           }
           stageRemoteCandidates(peer, signal?.hostCandidates ?? {});
-          if (!answer?.description || peer.pc.remoteDescription) return;
+          if (!answer?.description || answerApplicationStarted || peer.pc.remoteDescription) return;
+          answerApplicationStarted = true;
+          logDebug('multiplayer', 'Applying host signaling answer', {
+            peerId: peer.id,
+            signalingState: peer.pc.signalingState
+          });
           publish({ connectionDetail: 'Checking direct ICE routes...' });
           void peer.pc.setRemoteDescription(answer.description)
             .then(() => flushRemoteCandidates(peer))
@@ -456,6 +541,10 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
       core.reconnectAttempts = 0;
       core.reconnectInFlight = false;
       clearReconnectTimer();
+      logInfo('multiplayer', 'Client control channel opened', {
+        peerId: peer.id,
+        reconnecting: core.state.reconnecting
+      });
       publish({ connectionStatus: 'connected', reconnecting: false, connectionDetail: null, message: null });
       if (core.state.inviteCode && core.state.hostName) {
         rememberMultiplayerHost(core.state.hostName, core.state.inviteCode);
@@ -505,10 +594,15 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
         }
         persistFreeplayState();
         loadPendingClientSourceFile(peer);
+        tryResumeFreeplaySelection();
         sendClientPlaybackReadyIfPossible(peer);
       }
       if (message.kind === 'playback.prepare') {
-        if (!transition.acceptPreparation(message.preparation)) return;
+        if (!transition.acceptPreparation(message.preparation)) {
+          logDebug('freeplay', 'Ignored mismatched playback preparation', message.preparation);
+          return;
+        }
+        logDebug('freeplay', 'Playback preparation accepted', message.preparation);
         sendClientPlaybackReadyIfPossible(peer);
       }
       if (message.kind === 'artwork') {
@@ -538,11 +632,10 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
           sendFreeplayQueueToPeer();
           const saved = multiplayerFreeplayState.getSnapshot();
           const resumeTrackId = saved?.hostId === message.hostId ? saved.currentTrackId : null;
-          if (!core.state.remotePlayback.track
-            && resumeTrackId
-            && core.state.freeplayQueue.includes(resumeTrackId)) {
-            sendCommand({ type: 'collection.activate', collection: 'playlist', itemId: resumeTrackId });
-          }
+          pendingFreeplayResumeTrackId = resumeTrackId;
+          tryResumeFreeplaySelection();
+        } else {
+          pendingFreeplayResumeTrackId = null;
         }
       }
       if (message.kind === 'delivery') {
@@ -619,6 +712,11 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
     };
     channel.onclose = () => {
       if (core.clientPeer !== peer) return;
+      logWarning('multiplayer', 'Client control channel closed', {
+        peerId: peer.id,
+        connectionState: peer.pc.connectionState,
+        reconnectAllowed: core.allowClientReconnect
+      });
       multiplayerSourcePlaybackService.clearLoadedFile();
       if (core.state.mode === 'client' && core.state.connectionStatus !== 'error') {
         publish({
@@ -637,6 +735,10 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
     };
     peer.pc.onconnectionstatechange = () => {
       if (core.clientPeer !== peer) return;
+      logDebug('multiplayer', 'Client peer connection state changed', {
+        peerId: peer.id,
+        state: peer.pc.connectionState
+      });
       if (peer.pc.connectionState === 'connected') {
         clearPeerConnectionTimer(peer);
         core.reconnectAttempts = 0;
@@ -669,7 +771,7 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
           if (core.state.mode !== 'client') return;
           if (audioStatus === 'unavailable') transition.setReceiverPipelineReady(false);
           if (core.latestDelivery.mode !== 'stream'
-            && (audioStatus === 'connecting' || audioStatus === 'playing')) return;
+            && (audioStatus === 'connecting' || audioStatus === 'ready' || audioStatus === 'playing')) return;
           publish({
             audioStatus,
             averageAudioBitrateKbps: audioStatus === 'playing'
@@ -724,12 +826,14 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
         const frame = parseSourceFileFrame(event.data);
         if (!frame) return;
         if (frame.kind === 'file.begin') {
-          if (!transition.isCurrent(frame.generationId, frame.trackId, 'source-file')) {
-            pending = null;
-            return;
-          }
           pending = { frame, chunks: [], received: 0 };
           multiplayerAudioService.setRemoteAudible(false);
+          logDebug('multiplayer', 'Source-file transfer started', {
+            generationId: frame.generationId,
+            trackId: frame.trackId,
+            bytes: frame.size,
+            generationCurrent: transition.isCurrent(frame.generationId, frame.trackId, 'source-file')
+          });
           // Keep the current file audible until its replacement is completely received
           // and prepared. Stopping the only active media element here lets mobile
           // Chromium suspend a locked client before the remaining chunks can arrive.
@@ -753,18 +857,21 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
           generationId: complete.frame.generationId,
           file
         };
-        loadPendingClientSourceFile(peer);
+        const generationCurrent = transition.isCurrent(
+          complete.frame.generationId,
+          complete.frame.trackId,
+          'source-file'
+        );
+        logDebug('multiplayer', 'Source-file transfer completed', {
+          generationId: complete.frame.generationId,
+          trackId: complete.frame.trackId,
+          bytes: complete.received,
+          generationCurrent
+        });
+        if (generationCurrent) loadPendingClientSourceFile(peer);
         return;
       }
       if (!pending || !(event.data instanceof ArrayBuffer)) return;
-      if (!transition.isCurrent(
-        pending.frame.generationId,
-        pending.frame.trackId,
-        'source-file'
-      )) {
-        pending = null;
-        return;
-      }
       if (pending.received + event.data.byteLength > pending.frame.size) {
         const generationId = pending.frame.generationId;
         pending = null;
@@ -801,19 +908,29 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
       || core.state.remoteDelivery.mode !== 'source-file'
       || core.state.remoteDelivery.generationId !== pending.generationId) return;
     core.pendingClientSourceFile = null;
-    void multiplayerSourcePlaybackService.loadFile(remoteTrack, pending.file).then((loaded) => {
+    void multiplayerSourcePlaybackService.loadFile(remoteTrack, pending.file).then(async (loaded) => {
       if (core.clientPeer !== peer) return;
       const generationStillCurrent = core.state.remoteDelivery.mode === 'source-file'
         && core.state.remoteDelivery.generationId === pending.generationId;
       if (!generationStillCurrent) return;
+      const audioReady = loaded && core.state.receiveAudio
+        ? await multiplayerSourcePlaybackService.resume()
+        : false;
+      if (core.clientPeer !== peer || core.state.remoteDelivery.generationId !== pending.generationId) return;
       transition.setSourceReady(pending.generationId, pending.trackId, loaded);
       publish({
         audioStatus: !core.state.receiveAudio
           ? 'refused'
           : loaded
-          ? generationStillCurrent ? 'playing' : 'connecting'
+          ? audioReady ? 'playing' : 'blocked'
           : 'unavailable',
         averageAudioBitrateKbps: null
+      });
+      logInfo('freeplay', 'Source-file playback prepared', {
+        generationId: pending.generationId,
+        trackId: pending.trackId,
+        loaded,
+        audioReady
       });
       sendClientPlaybackReadyIfPossible(peer);
       if (!loaded && generationStillCurrent) requestSourceRetry(peer, pending.generationId);
@@ -824,6 +941,7 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
     if (core.clientPeer !== peer) return;
     const generationId = transition.takeReadyGeneration();
     if (!generationId) return;
+    logInfo('freeplay', 'Client playback pipeline ready', { generationId });
     sendToPeer(peer, {
       kind: 'playback.ready',
       generationId
@@ -917,11 +1035,20 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
     if (!inviteCode) return;
     const backoff = [2_000, 5_000, 10_000, 20_000, 30_000];
     const wait = delay ?? backoff[Math.min(core.reconnectAttempts, backoff.length - 1)];
+    logInfo('multiplayer', 'Client reconnect scheduled', {
+      attempt: core.reconnectAttempts + 1,
+      waitMs: wait,
+      hostId: core.clientHostId
+    });
     core.reconnectTimer = window.setTimeout(() => {
       core.reconnectTimer = null;
       if (!core.allowClientReconnect || core.state.mode !== 'client') return;
       core.reconnectInFlight = true;
       core.reconnectAttempts += 1;
+      logInfo('multiplayer', 'Client reconnect timer fired', {
+        attempt: core.reconnectAttempts,
+        hostId: core.clientHostId
+      });
       publish({
         connectionStatus: 'connecting',
         reconnecting: true,
@@ -939,8 +1066,12 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
           core.reconnectInFlight = false;
           if (core.state.connectionStatus !== 'connected') scheduleClientReconnect(15_000);
         })
-        .catch(() => {
+        .catch((error) => {
           core.reconnectInFlight = false;
+          logWarning('multiplayer', 'Client reconnect attempt will retry', {
+            attempt: core.reconnectAttempts,
+            error
+          });
           scheduleClientReconnect();
         });
     }, wait);
@@ -959,11 +1090,16 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
       core.clientPeer.pc.connectionState,
       core.clientPeer.channel?.readyState
     )) {
+      logDebug('multiplayer', 'Client resume kept healthy peer', {
+        connectionState: core.clientPeer.pc.connectionState,
+        channelState: core.clientPeer.channel?.readyState,
+        delivery: core.latestDelivery.mode
+      });
       // A long-lived background connection can remain healthy while Media Session keeps
       // mobile playback alive. Elapsed hidden time alone is not a reason to replace it.
       clearReconnectTimer();
       applyClientAudioBuffer(core.clientPeer);
-      if (core.latestDelivery.mode === 'source-file') multiplayerSourcePlaybackService.resume();
+      if (core.latestDelivery.mode === 'source-file') void multiplayerSourcePlaybackService.resume();
       else if (core.latestDelivery.mode === 'stream') void resumeAudio();
       return;
     }
@@ -979,24 +1115,6 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
     } as MultiplayerCommand;
     if (core.state.receiveAudio) void resumeAudio();
     sendToPeer(core.clientPeer, { kind: 'command', command: completeCommand });
-    if (core.state.freeplay && command.type === 'playlist.shuffle') {
-      publish({
-        remoteCatalog: {
-          ...core.state.remoteCatalog,
-          shuffleEnabled: !core.state.remoteCatalog.shuffleEnabled
-        }
-      });
-      persistFreeplayState();
-    }
-    if (core.state.freeplay && command.type === 'playlist.repeat') {
-      publish({
-        remoteCatalog: {
-          ...core.state.remoteCatalog,
-          repeatMode: cycleMultiplayerRepeatMode(core.state.remoteCatalog.repeatMode)
-        }
-      });
-      persistFreeplayState();
-    }
     return true;
   }
 
@@ -1037,7 +1155,18 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
   }
 
   async function resumeAudio(): Promise<boolean> {
-    if (multiplayerSourcePlaybackService.resume()) return true;
+    if (multiplayerSourcePlaybackService.active) {
+      const ready = await multiplayerSourcePlaybackService.resume();
+      if (core.state.mode === 'client' && core.state.receiveAudio) {
+        publish({ audioStatus: ready ? 'playing' : 'blocked' });
+      }
+      if (core.clientPeer) sendClientPlaybackReadyIfPossible(core.clientPeer);
+      return ready;
+    }
+    logInfo('multiplayer', 'Remote stream audio resume requested', {
+      connectionState: core.clientPeer?.pc.connectionState ?? null,
+      channelState: core.clientPeer?.channel?.readyState ?? null
+    });
     const ready = await multiplayerAudioService.resumeRemoteAudio();
     transition.setReceiverPipelineReady(ready);
     if (ready && core.state.remoteDelivery.mode === 'stream') {
@@ -1065,6 +1194,21 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
       transition.setReceiveAudio(core.state.receiveAudio);
       sourceRetryGenerationId = null;
       sourceRetryCount = 0;
+      pendingFreeplayResumeTrackId = null;
     }
   };
+}
+
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
+  let timer: number | null = null;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((_resolve, reject) => {
+        timer = window.setTimeout(() => reject(new Error(message)), timeoutMs);
+      })
+    ]);
+  } finally {
+    if (timer !== null) window.clearTimeout(timer);
+  }
 }

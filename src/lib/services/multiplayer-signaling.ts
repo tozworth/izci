@@ -1,6 +1,6 @@
 import type { Unsubscribe } from 'firebase/database';
 import type { MultiplayerIceSettings } from './multiplayer-ice';
-import type { FirebaseRuntime, SignalOffer } from './multiplayer-types';
+import type { FirebaseRuntime, SignalAnswer, SignalOffer } from './multiplayer-types';
 import {
   createMultiplayerTurnCredentialRequest,
   isMultiplayerTurnCredentialResponse
@@ -35,6 +35,20 @@ export function isSignalOffer(value: unknown): value is SignalOffer {
     && typeof offer.createdAt === 'number'
     && Boolean(offer.description)
     && (offer.description?.type === 'offer');
+}
+
+export function isNewSignalOfferForPeer(
+  value: unknown,
+  acceptedCreatedAt: number | null
+): value is SignalOffer {
+  return isSignalOffer(value) && value.createdAt !== acceptedCreatedAt;
+}
+
+export function isSignalAnswerForOffer(
+  answer: SignalAnswer | undefined,
+  offerCreatedAt: number
+): boolean {
+  return Boolean(answer) && answer?.createdAt === offerCreatedAt;
 }
 
 export function createInviteCode(): string {

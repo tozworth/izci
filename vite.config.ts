@@ -7,6 +7,10 @@ import enMessages from './src/lib/i18n/locales/en.json';
 import trMessages from './src/lib/i18n/locales/tr.json';
 
 export default defineConfig({
+  server: {
+    host: '0.0.0.0',
+    allowedHosts: ['localhost', 'badomen.dala-pierce.ts.net'],
+  },
   preview: {
     allowedHosts: true
   },
