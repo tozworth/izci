@@ -37,6 +37,7 @@
     | 'openAudioCompare'
     | 'openEditor'
     | 'openConverter'
+    | 'openLogs'
     | 'openTroubadour'
     | 'showPlaylist'
     | 'showLibrary'
@@ -373,6 +374,11 @@
       icon: 'sync_alt'
     },
     {
+      id: 'openLogs',
+      label: $t('main.menu.logs', { default: 'Logs...' }),
+      icon: 'article'
+    },
+    {
       id: 'openAbout',
       label: $t('main.menu.about', { default: 'About' }),
       icon: 'info',
@@ -453,6 +459,7 @@
     openAudioCompare: void;
     openEditor: void;
     openConverter: void;
+    openLogs: void;
     openTroubadour: void;
     showPlaylist: void;
     showLibrary: void;

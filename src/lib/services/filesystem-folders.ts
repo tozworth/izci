@@ -1,4 +1,5 @@
 import { writable, type Readable } from 'svelte/store';
+import { logError, logInfo, logWarning } from '$lib/services/logging';
 
 export type FilesystemFolderPermission = 'granted' | 'prompt' | 'denied' | 'unavailable';
 export type LibraryFolderMode = 'manual' | 'launch';
@@ -363,6 +364,7 @@ function createFilesystemFoldersStore(): Readable<FilesystemFolder[]> & {
         };
         return [...current, remembered];
       });
+      logInfo('files', 'Managed folder remembered', { id: remembered!.id, name: remembered!.name, mode: remembered!.libraryMode });
       return remembered!;
     },
     async rememberMany(handles) {
@@ -383,7 +385,9 @@ function createFilesystemFoldersStore(): Readable<FilesystemFolder[]> & {
       return permission;
     },
     async forget(id) {
+      const target = snapshot.find((folder) => folder.id === id);
       await mutate((current) => current.filter((folder) => folder.id !== id));
+      logInfo('files', 'Managed folder forgotten', { id, name: target?.name });
     },
     async setLibraryMode(id, mode) {
       await mutate((current) =>
@@ -394,6 +398,11 @@ function createFilesystemFoldersStore(): Readable<FilesystemFolder[]> & {
       await mutate((current) =>
         current.map((folder) => (folder.id === id ? { ...folder, ...patch } : folder))
       );
+      const folder = snapshot.find((candidate) => candidate.id === id);
+      if (patch.lastScanStatus === 'scanning') logInfo('library', 'Managed-folder scan started', { id, name: folder?.name });
+      else if (patch.lastScanStatus === 'success') logInfo('library', 'Managed-folder scan completed', { id, name: folder?.name, tracks: patch.lastScanTrackCount });
+      else if (patch.lastScanStatus === 'permission-required') logWarning('library', 'Managed-folder scan requires permission', { id, name: folder?.name });
+      else if (patch.lastScanStatus === 'error') logError('library', 'Managed-folder scan failed', { id, name: folder?.name, failure: patch.lastScanFailure });
     }
   };
 }

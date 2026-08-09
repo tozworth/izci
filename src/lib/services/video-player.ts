@@ -1,4 +1,5 @@
 import { audioBusService } from '$lib/services/audio-bus';
+import { logDebug, logError, logInfo, logWarning } from '$lib/services/logging';
 import type { PlaybackSnapshot, PlaylistItem, TrackMetadata } from '$lib/types';
 
 type SnapshotHandler = (snapshot: Partial<PlaybackSnapshot>) => void;
@@ -73,6 +74,7 @@ export class VideoPlayerService {
     }
 
     const element = this.#ensureElement();
+    logInfo('playback', 'Video load started', { id: track.id, name: track.name, extension: track.extension, autoPlay: options.autoPlay === true });
 
     if (!element) {
       throw new Error('Video playback is unavailable outside a browser window.');
@@ -125,6 +127,7 @@ export class VideoPlayerService {
     this.#initialPosition = Math.max(seconds, 0);
     const duration = Number.isFinite(element.duration) ? element.duration : Number.POSITIVE_INFINITY;
     element.currentTime = Math.min(this.#initialPosition, duration);
+    logDebug('playback', 'Video seek', { seconds: this.#initialPosition });
     this.#publishProgress();
   }
 
@@ -209,6 +212,7 @@ export class VideoPlayerService {
       audioBusService.resume();
       this.#publishProgress();
       this.onSnapshot({ state: 'playing', error: undefined });
+      logInfo('playback', 'Video playing');
     });
     element.addEventListener('pause', () => {
       if (!this.#active || element.ended) return;
@@ -224,11 +228,13 @@ export class VideoPlayerService {
       if (!this.#active) return;
       this.#publishProgress();
       this.onSnapshot({ state: 'ended', error: undefined });
+      logInfo('playback', 'Video ended');
       this.onEnded();
     });
     element.addEventListener('error', () => {
       if (!this.#active) return;
       const error = new Error(this.#resolveErrorMessage(element.error));
+      logError('playback', 'Video playback error', error);
       this.onSnapshot({ state: 'error', error: error.message });
       this.#settlePendingLoad(error);
     });
@@ -264,6 +270,7 @@ export class VideoPlayerService {
     const bitrate = duration > 0 ? Math.round((this.#trackSize * 8) / duration / 1000) : undefined;
     this.onMetadata({ duration, bitrate });
     this.#settlePendingLoad();
+    logInfo('playback', 'Video loaded', { duration, bitrate });
     this.#publishProgress();
 
     if (this.#autoPlay) {
@@ -285,6 +292,7 @@ export class VideoPlayerService {
         return;
       }
 
+      logWarning('playback', 'Video play blocked', error);
       this.onSnapshot({ state: 'error', error: error instanceof Error ? error.message : String(error) });
     });
   }

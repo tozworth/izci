@@ -5,6 +5,7 @@ import { initializePopupWindowSizePersistence } from '$lib/services/popup-window
 import { initializeScrollbarVisibility } from '$lib/services/scrollbar-visibility';
 import { initializeTheme } from '$lib/services/theme';
 import { registerAppServiceWorker } from '$lib/services/pwa-updates';
+import { initLogging } from '$lib/services/logging';
 import ConverterApp from './ConverterApp.svelte';
 import './converter.css';
 
@@ -15,6 +16,7 @@ if (import.meta.env.PROD) {
 initializeTheme();
 initializeScrollbarVisibility();
 initializeLocalization();
+initLogging();
 initializePopupWindowSizePersistence('converter');
 
 mount(ConverterApp, {

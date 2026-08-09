@@ -1,4 +1,5 @@
 import { derived, writable } from 'svelte/store';
+import { logDebug, logError, logInfo } from '$lib/services/logging';
 import type {
   PlaylistItem,
   PlaylistPlaybackOptions,
@@ -135,12 +136,16 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
       persistDirty = false;
       pendingPersistDelayMs = Number.POSITIVE_INFINITY;
       persistInFlight = true;
+      logDebug('library', 'Collection persistence started', { database: config.dbName, items: itemList.length });
       void persistStoredState(config.dbName, {
         items: itemList.map(serializeItem).filter((item): item is StoredPlaylistItem => item !== null),
         selection: selectionState,
         playbackOptions: playbackOptionsState
+      }).catch((error) => {
+        logError('library', 'Collection persistence failed', { database: config.dbName, error });
       }).finally(() => {
         persistInFlight = false;
+        logDebug('library', 'Collection persistence completed', { database: config.dbName });
         if (persistDirty) queuePersist(pendingPersistDelayMs);
       });
     }, Math.max(0, requestedDueAt - Date.now()));
@@ -207,6 +212,7 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
       })
       .finally(() => {
         hydrated = true;
+        logInfo('library', 'Collection hydration completed', { database: config.dbName, items: itemList.length });
         flushPendingOperations();
 
         if (shouldCompactStoredState) {
@@ -239,7 +245,13 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
         return null;
       }
 
-      const materializedItem = await materializePlaylistItem(item, options.prompt === true);
+      let materializedItem: PlaylistItem | null;
+      try {
+        materializedItem = await materializePlaylistItem(item, options.prompt === true);
+      } catch (error) {
+        logError('files', 'Collection item materialization failed', { database: config.dbName, id: item.id, error });
+        throw error;
+      }
 
       if (!materializedItem) {
         return null;
@@ -302,6 +314,7 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
         }
 
         addedItems = uniqueItems;
+        logInfo('library', 'Items added to collection', { database: config.dbName, added: uniqueItems.length, duplicatesDropped: duplicateItems.length });
 
         if (uniqueItems.length === 0) {
           return;
@@ -340,6 +353,7 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
         }
 
         addedItems = uniqueItems;
+        logInfo('library', 'Collection replaced', { database: config.dbName, removed: removedItems.length, added: uniqueItems.length });
         items.set(uniqueItems);
         selection.set(emptySelection);
         navigation.reset();
@@ -390,6 +404,7 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
       const previousItems = itemList;
       const idsToRemove = new Set(ids);
       const removedItems = itemList.filter((item) => idsToRemove.has(item.id));
+      logInfo('library', 'Items removed from collection', { database: config.dbName, removed: removedItems.length });
 
       items.update((existing) => existing.filter((item) => !idsToRemove.has(item.id)));
       selection.update((value) => removeIdsFromSelection(itemList, value, idsToRemove, previousItems));

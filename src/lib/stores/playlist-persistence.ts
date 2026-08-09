@@ -1,5 +1,6 @@
 import type { PlaylistItem, PlaylistPlaybackOptions, PlaylistRepeatMode, PlaylistSelection } from '$lib/types';
 import { normalizeTrackRating } from '$lib/services/track-ratings';
+import { logError, logInfo } from '$lib/services/logging';
 
 export interface StoredPlaylistItem {
   id: string;
@@ -176,7 +177,9 @@ export async function readStoredState(dbName: string): Promise<StoredPlaylistSta
         return;
       }
 
-      resolve(value as StoredPlaylistState);
+      const storedState = value as StoredPlaylistState;
+      logInfo('library', 'Collection restored from IndexedDB', { database: dbName, items: storedState.items?.length ?? 0 });
+      resolve(storedState);
     };
     request.onerror = () => resolve(null);
     transaction.oncomplete = () => database.close();
@@ -202,11 +205,13 @@ export async function persistStoredState(dbName: string, state: StoredPlaylistSt
       database.close();
       resolve();
     };
-    transaction.onerror = () => {
+    transaction.onerror = (event) => {
+      logError('library', 'Collection persistence failed', { database: dbName, error: (event.target as IDBTransaction | null)?.error });
       database.close();
       resolve();
     };
-    transaction.onabort = () => {
+    transaction.onabort = (event) => {
+      logError('library', 'Collection persistence aborted', { database: dbName, error: (event.target as IDBTransaction | null)?.error });
       database.close();
       resolve();
     };

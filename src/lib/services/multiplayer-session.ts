@@ -8,6 +8,7 @@ import type {
 } from '$lib/types';
 import { experimentalSettings } from '$lib/stores/experimental-settings';
 import { materializePlaylistItem } from '$lib/stores/playlist-materialization';
+import { logDebug, logError, logInfo, logWarning } from '$lib/services/logging';
 import { rememberMultiplayerHost } from '$lib/stores/multiplayer-recents';
 import {
   forgetMultiplayerPairing,
@@ -501,6 +502,7 @@ export function createMultiplayerSession({
   }
 
   async function startHosting(): Promise<string> {
+    logInfo('multiplayer', 'Hosting requested', { maxListeners: multiplayerSettings.multiplayerMaxListeners });
     allowClientReconnect = false;
     await resetSession(true);
     publish({
@@ -602,9 +604,11 @@ export function createMultiplayerSession({
         inviteCode,
         connectionDetail: null
       });
+      logInfo('multiplayer', 'Hosting started', { protocol: MULTIPLAYER_PROTOCOL_VERSION, turnRelay: hasMultiplayerTurnIssuer(multiplayerSettings) });
       primeHostState();
       return inviteCode;
     } catch (error) {
+      logError('multiplayer', 'Hosting failed', error);
       await resetSession(true);
       const message = errorMessage(error, 'Could not start multiplayer hosting.');
       publish({
@@ -867,6 +871,7 @@ export function createMultiplayerSession({
   }
 
   async function join(rawInviteCode: string): Promise<void> {
+    logInfo('multiplayer', 'Join requested', { paired: false });
     allowClientReconnect = true;
     reconnectAttempts = 0;
     multiplayerSourcePlaybackService.beginClientSession((trackId) => {
@@ -879,6 +884,7 @@ export function createMultiplayerSession({
       await connectClient(rawInviteCode, false);
       if (state.connectionStatus !== 'connected') scheduleClientReconnect(15_000);
     } catch (error) {
+      logError('multiplayer', 'Join failed', error);
       await multiplayerSourcePlaybackService.endClientSession();
       throw error;
     }
@@ -902,6 +908,7 @@ export function createMultiplayerSession({
   }
 
   async function joinPaired(hostId: string): Promise<void> {
+    logInfo('multiplayer', 'Paired-host join requested', { hostId });
     if (!/^[A-Za-z0-9_-]{1,128}$/.test(hostId)) {
       throw new Error('That paired multiplayer host is invalid.');
     }
@@ -957,6 +964,10 @@ export function createMultiplayerSession({
       connectionStats: null,
       connectionDetail: 'Signing in to multiplayer signaling...',
       message: null
+    });
+    logInfo('multiplayer', reconnecting ? 'Reconnect attempt started' : 'Client connection started', {
+      protocol: MULTIPLAYER_PROTOCOL_VERSION,
+      receiveAudio: state.receiveAudio
     });
 
     try {
@@ -1086,6 +1097,7 @@ export function createMultiplayerSession({
         }
       );
     } catch (error) {
+      logError('multiplayer', reconnecting ? 'Reconnect attempt failed' : 'Client connection failed', error);
       await resetSession(true);
       if (reconnecting && allowClientReconnect) {
         publish({
@@ -1601,6 +1613,7 @@ export function createMultiplayerSession({
     });
     const changed = peer.freeplay !== active;
     peer.freeplay = active;
+    if (changed) logInfo('freeplay', active ? 'Freeplay activated for peer' : 'Freeplay deactivated for peer', { peerId: peer.id });
 
     if (changed && active) {
       removePeerFromHostPlaybackPreparation(peer.id);
@@ -1697,6 +1710,7 @@ export function createMultiplayerSession({
   ): Promise<boolean> {
     const player = peer.freeplayPlayer;
     if (!player || !latestHostState) return false;
+    logDebug('freeplay', 'Freeplay command received', { peerId: peer.id, type: command.type });
     switch (command.type) {
       case 'transport.toggle':
         return player.snapshot.state === 'playing' ? player.pause() : player.play();
@@ -1742,12 +1756,17 @@ export function createMultiplayerSession({
     const items = freeplayCollectionItems(collection);
     const source = items.find((item) => item.id === itemId);
     if (!source) return false;
+    logInfo('freeplay', 'Freeplay track activation requested', { peerId: peer.id, collection, itemId });
     const track = await materializePlaylistItem(source, false);
     if (!track || !peer.freeplay || !peer.freeplayPlayer) return false;
     peer.freeplayCollection = collection;
     peer.freeplayPendingPreparation = null;
     const loaded = await peer.freeplayPlayer.load(track, false);
-    if (!loaded || !peer.freeplay) return false;
+    if (!loaded || !peer.freeplay) {
+      logWarning('freeplay', 'Freeplay track activation failed', { peerId: peer.id, itemId, active: peer.freeplay });
+      return false;
+    }
+    logInfo('freeplay', 'Freeplay track loaded', { peerId: peer.id, itemId, sourceFile: peer.freeplayPlayer.sourceFile });
 
     if (!multiplayerSettings.multiplayerWaitForClients) {
       return peer.freeplayPlayer.play();
@@ -1765,6 +1784,7 @@ export function createMultiplayerSession({
       audio: resolvePlaybackPreparationAudio(peer.freeplayPlayer.audio)
     };
     peer.freeplayPendingPreparation = preparation;
+    logInfo('freeplay', 'Freeplay preparation started', { peerId: peer.id, preparationId: preparation.preparationId, trackId: track.id, audio: preparation.audio });
     sendToPeer(peer, { kind: 'playback.prepare', preparation });
   }
 
@@ -2287,6 +2307,7 @@ export function createMultiplayerSession({
 
   async function kick(clientId: string): Promise<void> {
     if (state.mode !== 'hosting') return;
+    logInfo('multiplayer', 'Client kick requested', { clientId });
     const peer = hostPeers.get(clientId);
     if (peer) {
       clearPeerConnectionTimer(peer);
@@ -2307,6 +2328,7 @@ export function createMultiplayerSession({
 
   async function stopHosting(): Promise<void> {
     if (state.mode !== 'hosting') return;
+    logInfo('multiplayer', 'Hosting stopped');
     allowClientReconnect = false;
     await resetSession(true);
     publish({
@@ -2330,6 +2352,7 @@ export function createMultiplayerSession({
 
   async function leave(): Promise<void> {
     if (state.mode !== 'client') return;
+    logInfo('multiplayer', 'Client left session', { freeplay: state.freeplay });
     allowClientReconnect = false;
     clearReconnectTimer();
     await resetSession(true);
@@ -2358,6 +2381,7 @@ export function createMultiplayerSession({
   }
 
   async function resetSession(removeRemote: boolean): Promise<void> {
+    logDebug('multiplayer', 'Session reset started', { mode: state.mode, removeRemote, peers: hostPeers.size });
     clearReceiverBitrateMonitor();
     stopPeersListener?.();
     stopAnswerListener?.();
@@ -2391,8 +2415,9 @@ export function createMultiplayerSession({
       if (removeRemote && firebaseRuntime && state.mode === 'hosting' && hostDirectoryRef) {
         await firebaseRuntime.remove(hostDirectoryRef);
       }
-    } catch {
+    } catch (error) {
       // The disconnect registration remains a best-effort cleanup fallback.
+      logWarning('multiplayer', 'Remote session cleanup failed; disconnect fallback remains registered', error);
     }
     await roomDisconnect?.cancel().catch(() => undefined);
     await hostDirectoryDisconnect?.cancel().catch(() => undefined);

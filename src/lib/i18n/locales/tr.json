@@ -103,6 +103,7 @@
       "audioCompare": "Audio Compare...",
       "editor": "Düzenleyici...",
       "converter": "Converter...",
+      "logs": "Kayıtlar...",
       "about": "Hakkında",
       "exit": "Çık",
       "openFiles": "Dosya aç...",
@@ -357,9 +358,9 @@
       "off": "Tekrar kapalı"
     },
     "contextMenu": {
-      "columns": "{panel} sütunları",
       "libraryGroupActions": "Kütüphane grubu eylemleri",
-      "itemActions": "{panel} ögesi eylemleri"
+      "itemActions": "{panel} ögesi eylemleri",
+      "columns": "{panel} sütunları"
     },
     "listRegion": "{name} listesi"
   },
@@ -1690,6 +1691,39 @@
     "chooseOutputPrompt": "Choose an output folder before converting.",
     "selected": "selected",
     "drop": "Drop media files or folders"
+  },
+  "logs": {
+    "columns": {
+      "time": "Saat",
+      "level": "Düzey",
+      "source": "Kaynak",
+      "context": "Bağlam",
+      "message": "İleti",
+      "details": "Ayrıntılar"
+    },
+    "heading": "Kayıtlar",
+    "contextMenu": {
+      "columns": "Kayıt sütunları"
+    },
+    "empty": "Henüz kayıt yok.",
+    "emptyFiltered": "Seçili düzeylerde kayıt yok.",
+    "exportLogs": "Kayıtları dışa aktar...",
+    "copy": "Görünen kayıtları kopyala",
+    "clear": "Tüm etkin kayıtları temizle",
+    "autoScroll": "Otomatik kaydır",
+    "levels": {
+      "error": "Hata",
+      "warning": "Uyarı",
+      "info": "Bilgi",
+      "debug": "Hata ayıklama"
+    },
+    "captureDebug": "Hata ayıklama kayıtlarını yakala",
+    "mirrorConsole": "Kayıtları konsola yansıt",
+    "menu": {
+      "close": "Kayıtları kapat",
+      "logging": "Kayıt"
+    },
+    "entryCount": "{count} kayıt"
   },
   "loudness": {
     "cancelled": "Analysis cancelled.",

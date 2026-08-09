@@ -1,6 +1,7 @@
 import { get } from 'svelte/store';
 import type { Unsubscriber } from 'svelte/store';
 import { playerController } from '$lib/services/player-controller';
+import { logError, logInfo } from '$lib/services/logging';
 import type { MultiplayerPlayback } from '$lib/services/multiplayer-protocol';
 import type { PlaybackSnapshot, PlaylistItem } from '$lib/types';
 
@@ -31,7 +32,10 @@ export class MultiplayerSourcePlaybackService {
     this.#unsubscribeEnded = playerController.snapshot.subscribe((snapshot) => {
       const ended = snapshot.state === 'ended' && this.#previousPlaybackState !== 'ended';
       this.#previousPlaybackState = snapshot.state;
-      if (ended && this.#activeTrackId) this.#onEnded?.(this.#activeTrackId);
+      if (ended && this.#activeTrackId) {
+        logInfo('freeplay', 'Source-file playback ended', { trackId: this.#activeTrackId });
+        this.#onEnded?.(this.#activeTrackId);
+      }
     });
   }
 
@@ -48,7 +52,7 @@ export class MultiplayerSourcePlaybackService {
     await playerController.load(saved.track, {
       autoPlay: false,
       initialPosition: saved.snapshot.currentTime
-    }).catch(() => undefined);
+    }).catch((error) => logError('freeplay', 'Local playback restoration failed', error));
   }
 
   setEnabled(enabled: boolean): void {
@@ -100,7 +104,8 @@ export class MultiplayerSourcePlaybackService {
           initialPosition
         });
       }
-    } catch {
+    } catch (error) {
+      logError('freeplay', 'Source-file load failed', { trackId: track.id, error });
       if (objectUrl) URL.revokeObjectURL(objectUrl);
       if (token === this.#loadToken) this.#clearRemotePlayback();
       return false;
@@ -113,6 +118,7 @@ export class MultiplayerSourcePlaybackService {
     this.#activeTrackId = track.id;
     if (previousObjectUrl && previousObjectUrl !== objectUrl) URL.revokeObjectURL(previousObjectUrl);
     this.#applyLatestPlayback();
+    logInfo('freeplay', 'Source file received and loaded', { trackId: track.id, bytes: file.size });
     return true;
   }
 

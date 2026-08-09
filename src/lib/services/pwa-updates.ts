@@ -1,5 +1,6 @@
 import { registerSW } from 'virtual:pwa-register';
 import { writable } from 'svelte/store';
+import { logDebug, logError, logInfo, logWarning } from '$lib/services/logging';
 
 const LOCALHOST_UPDATE_INTERVAL_MS = 30_000;
 const DEFAULT_UPDATE_INTERVAL_MS = 5 * 60_000;
@@ -66,6 +67,7 @@ function showCompletedUpdateNotice(): void {
 }
 
 export async function forceServiceWorkerUpdateCheck(): Promise<void> {
+  logInfo('system', 'Manual service-worker update check started');
   setUpdateCheckStatus('checking');
 
   try {
@@ -94,9 +96,11 @@ export async function forceServiceWorkerUpdateCheck(): Promise<void> {
     const checkedAt = Date.now();
     const updateAvailable = alreadyWaiting || updateFound || Boolean(registration?.waiting);
     setUpdateCheckStatus(updateAvailable ? 'available' : 'up-to-date', checkedAt);
+    logInfo('system', 'Service-worker update check completed', { updateAvailable });
     showUpdateNotice('up-to-date');
   } catch (error) {
     console.warn('Failed to force a service worker update check.', error);
+    logError('system', 'Manual service-worker update check failed', error);
     setUpdateCheckStatus('failed');
     showUpdateNotice('failed');
   }
@@ -117,8 +121,10 @@ function waitForWorkerStateChange(worker: ServiceWorker): Promise<void> {
 }
 
 export async function applyAvailableServiceWorkerUpdate(): Promise<void> {
+  logInfo('system', 'Applying available service-worker update');
   const registration = await navigator.serviceWorker?.getRegistration();
   if (!registration) {
+    logWarning('system', 'Service-worker update could not be applied because registration is absent');
     setUpdateCheckStatus('failed');
     return;
   }
@@ -144,6 +150,7 @@ export async function applyAvailableServiceWorkerUpdate(): Promise<void> {
 }
 
 export function registerAppServiceWorker(): void {
+  logDebug('system', 'Service-worker registration started');
   let registration: ServiceWorkerRegistration | undefined;
   let updateInFlight = false;
 
@@ -175,6 +182,7 @@ export function registerAppServiceWorker(): void {
       }
 
       console.warn('Failed to check for a service worker update.', error);
+      logWarning('system', 'Background service-worker update check failed', error);
     } finally {
       updateInFlight = false;
     }
@@ -188,6 +196,7 @@ export function registerAppServiceWorker(): void {
       }
 
       registration = serviceWorkerRegistration;
+      logInfo('system', 'Service worker registered', { scope: registration.scope });
 
       const updateIntervalMs =
         window.location.hostname === 'localhost'

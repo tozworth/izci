@@ -49,6 +49,17 @@ export const popupWindows = {
       scrollbars: false
     }
   },
+  logs: {
+    name: 'izci-logs',
+    path: '/logs.html',
+    features: {
+      popup: true,
+      width: 1120,
+      height: 680,
+      resizable: true,
+      scrollbars: false
+    }
+  },
   troubadour: {
     name: 'izci-troubadour',
     path: '/troubadour.html',

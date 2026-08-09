@@ -1,5 +1,6 @@
 import type { PlaylistItem } from '$lib/types';
 import { inferExtension, inferKind } from '$lib/utils/files';
+import { logDebug, logWarning } from '$lib/services/logging';
 
 type FileSystemPermissionState = 'granted' | 'denied' | 'prompt';
 
@@ -9,6 +10,7 @@ function createObjectUrl(item: Pick<PlaylistItem, 'kind'>, file: File): string |
 
 export function revokeObjectUrl(item: Pick<PlaylistItem, 'objectUrl'>): void {
   if (item.objectUrl) {
+    logDebug('files', 'Object URL revoked');
     URL.revokeObjectURL(item.objectUrl);
   }
 }
@@ -39,16 +41,19 @@ async function requestHandlePermission(handle: FileSystemFileHandle): Promise<Fi
 
 export async function materializePlaylistItem(item: PlaylistItem, prompt = false): Promise<PlaylistItem | null> {
   if (item.file && (item.kind === 'module' || item.objectUrl)) {
+    logDebug('files', 'Track already materialized', { id: item.id, kind: item.kind });
     return item;
   }
 
   if (!item.fileHandle) {
+    logWarning('files', 'Track cannot be materialized because it has no file handle', { id: item.id });
     return null;
   }
 
   const permission = await queryHandlePermission(item.fileHandle);
 
   if (permission !== 'granted' && (!prompt || (await requestHandlePermission(item.fileHandle)) !== 'granted')) {
+    logWarning('files', 'Track materialization permission unavailable', { id: item.id, permission, prompt });
     return null;
   }
 
@@ -57,9 +62,12 @@ export async function materializePlaylistItem(item: PlaylistItem, prompt = false
   const kind = inferKind(extension);
 
   if (!kind) {
+    logWarning('files', 'Materialized file has unsupported extension', { id: item.id, extension });
     return null;
   }
 
+  const objectUrl = createObjectUrl({ kind }, file);
+  logDebug('files', 'Track materialized', { id: item.id, kind, bytes: file.size, objectUrl: Boolean(objectUrl) });
   return {
     ...item,
     file,
@@ -68,6 +76,6 @@ export async function materializePlaylistItem(item: PlaylistItem, prompt = false
     kind,
     size: file.size,
     lastModified: file.lastModified,
-    objectUrl: createObjectUrl({ kind }, file)
+    objectUrl
   };
 }

@@ -1,4 +1,5 @@
 import { createChiptunePlayer } from '$lib/services/chiptune-loader';
+import { logDebug, logInfo, logWarning } from '$lib/services/logging';
 import { HIVELY_MODULE_EXTENSIONS, type PlaylistItem, type TrackMetadata } from '$lib/types';
 import type { Chiptune3Metadata, ChiptuneJsPlayer } from 'chiptune3';
 
@@ -124,10 +125,12 @@ export async function loadModuleMetadata(track: PlaylistItem | null): Promise<Tr
     return null;
   }
 
+  logDebug('decode', 'Probing module metadata', { id: track.id, name: track.name, extension: track.extension });
   try {
     const file = await resolveTrackFile(track);
 
     if (!file) {
+      logWarning('decode', 'Module metadata probe has no readable file', { id: track.id });
       return null;
     }
 
@@ -138,7 +141,10 @@ export async function loadModuleMetadata(track: PlaylistItem | null): Promise<Tr
         track.extension.toLowerCase() as (typeof HIVELY_MODULE_EXTENSIONS)[number]
       )
     ) {
-      return parseHivelyMetadata(buffer);
+      const metadata = parseHivelyMetadata(buffer);
+      if (metadata) logInfo('decode', 'Hively metadata probe completed', { id: track.id, subsongs: metadata.subsongs, channels: metadata.channels });
+      else logWarning('decode', 'Hively metadata probe failed', { id: track.id });
+      return metadata;
     }
 
     const player = await createChiptunePlayer({});
@@ -176,7 +182,8 @@ export async function loadModuleMetadata(track: PlaylistItem | null): Promise<Tr
         finish(null);
       }
     });
-  } catch {
+  } catch (error) {
+    logWarning('decode', 'Module metadata probe failed', { id: track.id, extension: track.extension, error });
     return null;
   }
 }

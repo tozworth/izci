@@ -1,4 +1,5 @@
 import { MODULE_EXTENSIONS } from '$lib/types';
+import { logDebug, logError, logInfo } from '$lib/services/logging';
 import { inferExtension } from '$lib/utils/files';
 
 export interface ClipRange {
@@ -253,6 +254,7 @@ async function renderModuleOffline(
     }
     renderer.onerror = () => {
       finish();
+      logError('tools', 'Offline module renderer failed to start', { name: file.name });
       reject(new Error('The offline module renderer failed to start.'));
     };
     renderer.onmessage = (event: MessageEvent<ModuleRenderWorkerMessage>) => {
@@ -271,6 +273,7 @@ async function renderModuleOffline(
       }
       if (message.type === 'error') {
         finish();
+        logError('tools', 'Offline module rendering failed', { name: file.name, message: message.message });
         reject(new Error(message.message ?? 'Module rendering failed.'));
         return;
       }
@@ -311,13 +314,18 @@ export async function loadAudioFile(
 ): Promise<{ buffer: AudioBuffer; renderedModule: boolean; fromCache: boolean }> {
   const extension = inferExtension(file.name);
   const isModule = MODULE_EXTENSIONS.includes(extension as (typeof MODULE_EXTENSIONS)[number]);
+  logDebug('tools', 'Editor audio load started', { name: file.name, size: file.size, isModule });
 
   if (!isModule) {
     onProgress({ phase: 'decoding', progress: null, detail: 'Decoding audio' });
     const context = new AudioContext();
     try {
       const buffer = await context.decodeAudioData(await file.arrayBuffer());
+      logInfo('tools', 'Editor audio decoded', { name: file.name, duration: buffer.duration, channels: buffer.numberOfChannels, sampleRate: buffer.sampleRate });
       return { buffer, renderedModule: false, fromCache: false };
+    } catch (error) {
+      logError('tools', 'Editor audio decode failed', { name: file.name, error });
+      throw error;
     } finally {
       void context.close();
     }
@@ -325,11 +333,15 @@ export async function loadAudioFile(
 
   const key = fileCacheKey(file);
   const cached = moduleRenderCache.get(key);
-  if (cached) return { buffer: cached, renderedModule: true, fromCache: true };
+  if (cached) {
+    logDebug('tools', 'Editor module render cache hit', { name: file.name });
+    return { buffer: cached, renderedModule: true, fromCache: true };
+  }
 
   onProgress({ phase: 'rendering', progress: 0, detail: 'Preparing module renderer' });
   const buffer = await renderModuleOffline(file, extension, onProgress, signal);
   moduleRenderCache.set(key, buffer);
+  logInfo('tools', 'Module rendered for editing', { name: file.name, duration: buffer.duration });
   return { buffer, renderedModule: true, fromCache: false };
 }
 

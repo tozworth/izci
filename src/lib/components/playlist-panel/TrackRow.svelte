@@ -104,8 +104,8 @@
     position: relative;
     width: 100%;
     display: grid;
-    grid-template-columns: var(--track-table-columns);
-    column-gap: var(--track-table-gap);
+    grid-template-columns: var(--clv-template-columns);
+    column-gap: var(--clv-column-gap);
     align-items: center;
     padding: 0.01rem 0;
     color: var(--text);

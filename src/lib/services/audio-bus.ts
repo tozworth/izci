@@ -1,6 +1,7 @@
 import { visualizerService } from '$lib/services/visualizer';
 import { RafEngine } from '$lib/services/raf-engine';
 import { setAudioParam } from '$lib/services/raf-effects/shared';
+import { logDebug, logInfo, logWarning } from '$lib/services/logging';
 import type { RafEffectType } from '$lib/types';
 
 type AudioBusSource = AudioNode | MediaElementAudioSourceNode;
@@ -54,8 +55,9 @@ export class AudioBusService {
 
       this.#connectSource(source, target === 'analyser' ? this.#analyser : this.#input);
       return source;
-    } catch {
+    } catch (error) {
       // If Web Audio cannot adopt the element, leave Howler's native output untouched.
+      logWarning('playback', 'Media element Web Audio routing unavailable', error);
       return null;
     }
   }
@@ -213,7 +215,10 @@ export class AudioBusService {
     if (context && context.state !== 'running' && context.state !== 'closed') {
       await context.resume().catch(() => undefined);
     }
-    return this.#context?.state === 'running';
+    const running = this.#context?.state === 'running';
+    if (running) logDebug('playback', 'Audio context running');
+    else if (this.#context) logWarning('playback', 'Audio context did not resume', { state: this.#context.state });
+    return running;
   }
 
   setInputGain(gain: number, immediate = false): void {
@@ -254,6 +259,7 @@ export class AudioBusService {
   }
 
   destroy(): void {
+    logInfo('playback', 'Audio graph destroyed');
     for (const source of this.#sourceGains.keys()) this.disconnect(source);
     this.releaseBroadcastTrack();
     visualizerService.clear();
@@ -337,6 +343,7 @@ export class AudioBusService {
     this.#rafEngine = rafEngine;
     this.#analyser = analyser;
     visualizerService.setAnalyser(analyser);
+    logInfo('playback', 'Audio graph created', { state: context.state, sampleRate: context.sampleRate });
   }
 }
 

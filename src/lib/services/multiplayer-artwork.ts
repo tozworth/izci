@@ -1,4 +1,5 @@
 import { getCachedArtworkThumbnail } from '$lib/services/artwork-cache';
+import { logDebug, logWarning } from '$lib/services/logging';
 import type { LoadedStreamArtwork } from '$lib/services/stream-artwork';
 import type { PlaylistItem } from '$lib/types';
 import type { MultiplayerArtwork } from './multiplayer-protocol';
@@ -14,8 +15,12 @@ export async function loadMultiplayerArtwork(
   track: PlaylistItem | null
 ): Promise<MultiplayerArtwork | null> {
   if (!track) return null;
+  logDebug('multiplayer', 'Multiplayer artwork requested', { trackId: track.id });
 
-  const rendition = await getCachedArtworkThumbnail(track, MULTIPLAYER_ARTWORK_MAX_EDGE);
+  const rendition = await getCachedArtworkThumbnail(track, MULTIPLAYER_ARTWORK_MAX_EDGE).catch((error) => {
+    logWarning('multiplayer', 'Multiplayer artwork lookup failed', { trackId: track.id, error });
+    return null;
+  });
   if (!rendition) return null;
 
   return {

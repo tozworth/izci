@@ -1,5 +1,6 @@
 import { Howl } from 'howler';
 import { audioBusService } from '$lib/services/audio-bus';
+import { logDebug, logError, logInfo, logWarning } from '$lib/services/logging';
 import type { PlaybackSnapshot, PlaylistItem, ReplayGainMetadata, ReplayGainMode, TrackMetadata } from '$lib/types';
 import { applyReplayGain, sliderVolumeToGain } from '$lib/services/volume';
 
@@ -58,6 +59,7 @@ export class HowlerPlayerService {
     }
 
     this.destroy();
+    logInfo('playback', 'Stream load started', { id: track.id, name: track.name, extension: track.extension });
     const loadToken = ++this.#loadToken;
     this.#resetPublishedProgress();
     this.#replayGain = track.metadata?.replayGain;
@@ -95,6 +97,7 @@ export class HowlerPlayerService {
           bitrate
         });
         this.#settlePendingLoad();
+        logInfo('playback', 'Stream loaded', { id: track.id, duration, bitrate });
 
         if (initialPosition > 0) {
           this.#howl?.seek(initialPosition);
@@ -119,6 +122,7 @@ export class HowlerPlayerService {
         this.#publishProgress(true);
         this.#startTicking();
         this.#onSnapshot({ state: 'playing' });
+        logInfo('playback', 'Stream playing', { id: track.id });
       },
       onpause: () => {
         if (!this.#isActiveLoad(loadToken)) {
@@ -152,6 +156,7 @@ export class HowlerPlayerService {
         this.#stopTicking();
         this.#publishProgress(true, this.#howl?.duration() ?? 0, this.#howl?.duration() ?? 0);
         this.#onSnapshot({ state: 'ended' });
+        logInfo('playback', 'Stream ended', { id: track.id });
         this.#onEnded();
       },
       onseek: () => {
@@ -170,6 +175,7 @@ export class HowlerPlayerService {
         this.#loaded = false;
         this.#playPending = false;
         const error = new Error(String(message));
+        logError('playback', 'Stream load failed', { id: track.id, error: error.message });
         this.#onSnapshot({ state: 'error', error: error.message });
         this.#settlePendingLoad(error);
       },
@@ -179,6 +185,7 @@ export class HowlerPlayerService {
         }
 
         this.#playPending = false;
+        logWarning('playback', 'Stream play blocked', { id: track.id, error: String(message) });
         this.#onSnapshot({ state: 'error', error: String(message) });
       }
     });
@@ -208,6 +215,7 @@ export class HowlerPlayerService {
     const nextPosition = Math.max(seconds, 0);
     const wasPlaying = this.#howl?.playing() ?? false;
     this.#initialPosition = nextPosition;
+    logDebug('playback', 'Stream seek', { seconds: nextPosition });
 
     if (wasPlaying) {
       this.#shouldTrackProgress = true;

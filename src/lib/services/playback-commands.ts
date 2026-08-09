@@ -1,6 +1,7 @@
 import { writable } from 'svelte/store';
 import { playerController } from '$lib/services/player-controller';
 import { playlistStore } from '$lib/stores/playlist';
+import { logDebug, logInfo, logWarning } from '$lib/services/logging';
 import type {
   PlaybackSnapshot,
   PlaybackTransitionMode,
@@ -149,6 +150,7 @@ export function createPlaybackCommandsController({
     void playerController.resumeAudio();
     const requestId = ++playRequestSequence;
     setPendingPlaybackTrackId(track.id);
+    logInfo('playback', 'Play request', { id: track.id, name: track.name, kind: track.kind });
     const playableTrack = await playlistStore.ensureLoaded(track.id, { prompt: true });
 
     if (requestId !== playRequestSequence) {
@@ -158,6 +160,7 @@ export function createPlaybackCommandsController({
 
     if (!playableTrack) {
       clearPendingPlaybackTrackId(track.id);
+      logWarning('playback', 'Playback refused because file access is unavailable', { id: track.id });
       playerController.reportError('Could not access this file. Re-add it or grant file access.');
       return;
     }
@@ -222,6 +225,7 @@ export function createPlaybackCommandsController({
       return;
     }
 
+    logDebug('playback', 'Playlist track activation', { id });
     selectTrack('playlist', id);
     await playTrack(track, { manualTransition: true });
   }
@@ -233,6 +237,7 @@ export function createPlaybackCommandsController({
       return;
     }
 
+    logDebug('playback', 'Library track activation', { id });
     const [addedTrack] = playlistStore.add(clonePlaylistItems([track]));
     const playlistTrack = addedTrack ?? playlistStore.findEquivalent(track);
 
@@ -257,9 +262,11 @@ export function createPlaybackCommandsController({
   }
 
   async function importLaunchedFiles(files: File[], action: 'add' | 'replace'): Promise<void> {
+    logInfo('files', 'Launch import started', { files: files.length, action });
     const nextItems = buildPlaylistItems(await prepareImportedFiles(files));
 
     if (nextItems.length === 0) {
+      logWarning('files', 'Launch import contained no playable files', { files: files.length });
       return;
     }
 
@@ -304,6 +311,7 @@ export function createPlaybackCommandsController({
     });
 
     if (!startTrack) {
+      logInfo('playback', 'Play requested with an empty playlist');
       return;
     }
 
@@ -316,6 +324,7 @@ export function createPlaybackCommandsController({
       return;
     }
 
+    logDebug('playback', 'Pause command');
     playerController.pause();
   }
 
@@ -324,6 +333,7 @@ export function createPlaybackCommandsController({
       return;
     }
 
+    logInfo('playback', 'Stop command');
     playerController.pause();
     playerController.seek(0);
   }
@@ -333,6 +343,7 @@ export function createPlaybackCommandsController({
       return;
     }
 
+    logDebug('playback', 'Seek command', { seconds });
     playerController.seek(seconds);
   }
 
@@ -352,10 +363,12 @@ export function createPlaybackCommandsController({
       getPlayingTrack() !== null,
       getPlaybackCurrentTime()
     )) {
+      logDebug('playback', 'Previous command restarted current track');
       playerController.seek(0);
       return;
     }
 
+    logDebug('playback', 'Track step command', { direction });
     const nextTrack = playlistStore.resolveStepTrack({
       currentId: getPlayingTrack()?.id,
       selectedId: getSelectedPlaylistTrack()?.id,
@@ -384,6 +397,7 @@ export function createPlaybackCommandsController({
     if (!nextTrack) return;
 
     const requestId = ++preparationSequence;
+    logDebug('playback', 'Preparing upcoming track', { id: nextTrack.id });
     const playableTrack = await playlistStore.ensureLoaded(nextTrack.id, { prompt: false });
     if (
       requestId !== preparationSequence ||
@@ -420,6 +434,7 @@ export function createPlaybackCommandsController({
       if (!playerController.hasPreparedTrack(nextTrack.id)) await prepareUpcomingTrack();
       if (getPlayingTrack()?.id !== currentTrack.id) return;
       if (playerController.commitPrepared(nextTrack.id, fadeSeconds)) {
+        logInfo('playback', 'Automatic crossfade committed', { id: nextTrack.id, fadeSeconds });
         selectTrack('playlist', nextTrack.id);
       }
     }
@@ -434,9 +449,11 @@ export function createPlaybackCommandsController({
     });
 
     if (!nextTrack) {
+      logInfo('playback', 'Playback ended with no next track');
       return;
     }
 
+    logInfo('playback', 'Track ended; advancing', { nextId: nextTrack.id });
     selectTrack('playlist', nextTrack.id);
     if (playerController.commitPrepared(nextTrack.id)) return;
     await playTrack(nextTrack);

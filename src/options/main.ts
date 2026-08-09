@@ -9,6 +9,7 @@ import { initializeScrollbarVisibility } from '$lib/services/scrollbar-visibilit
 import { initializeLocalization } from '$lib/i18n';
 import { registerAppServiceWorker } from '$lib/services/pwa-updates';
 import { initializeMobileDocument } from '../mobile/mobile-device';
+import { initLogging } from '$lib/services/logging';
 
 if (import.meta.env.PROD) {
   registerAppServiceWorker();
@@ -18,6 +19,7 @@ initializeTheme();
 initializeMobileDocument();
 initializeScrollbarVisibility();
 initializeLocalization();
+initLogging();
 initializePopupWindowSizePersistence('options');
 
 mount(OptionsApp, {

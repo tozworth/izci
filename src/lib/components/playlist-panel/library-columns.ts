@@ -30,6 +30,22 @@ export type ColumnDropIndicator = {
   position: 'before' | 'after';
 };
 
+const LIBRARY_COLUMN_ICONS: Record<LibraryColumnId, string> = {
+  title: 'title',
+  artist: 'artist',
+  album: 'album',
+  discAndTrack: 'tag',
+  folder: 'folder',
+  format: 'audio_file',
+  duration: 'schedule',
+  rating: 'star',
+  plays: 'play_arrow'
+};
+
+export function getLibraryColumnIcon(columnId: LibraryColumnId): string {
+  return LIBRARY_COLUMN_ICONS[columnId];
+}
+
 const stringCollators = new Map<string, Intl.Collator>();
 
 type TrackPosition = {

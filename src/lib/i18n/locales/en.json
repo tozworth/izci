@@ -103,6 +103,7 @@
       "audioCompare": "Audio Compare...",
       "editor": "Editor...",
       "converter": "Converter...",
+      "logs": "Logs...",
       "about": "About",
       "exit": "Exit",
       "openFiles": "Open files...",
@@ -357,9 +358,9 @@
       "off": "Repeat off"
     },
     "contextMenu": {
-      "columns": "{panel} columns",
       "libraryGroupActions": "Library group actions",
-      "itemActions": "{panel} item actions"
+      "itemActions": "{panel} item actions",
+      "columns": "{panel} columns"
     },
     "listRegion": "{name} list"
   },
@@ -1690,6 +1691,39 @@
     "chooseOutputPrompt": "Choose an output folder before converting.",
     "selected": "selected",
     "drop": "Drop media files or folders"
+  },
+  "logs": {
+    "columns": {
+      "time": "Time",
+      "level": "Level",
+      "source": "Source",
+      "context": "Context",
+      "message": "Message",
+      "details": "Details"
+    },
+    "heading": "Logs",
+    "contextMenu": {
+      "columns": "Log columns"
+    },
+    "empty": "No log entries yet.",
+    "emptyFiltered": "No entries at the selected levels.",
+    "exportLogs": "Export logs...",
+    "copy": "Copy visible entries",
+    "clear": "Clear all live logs",
+    "autoScroll": "Auto-scroll",
+    "levels": {
+      "error": "Error",
+      "warning": "Warning",
+      "info": "Info",
+      "debug": "Debug"
+    },
+    "captureDebug": "Capture debug entries",
+    "mirrorConsole": "Mirror entries to console",
+    "menu": {
+      "close": "Close Logs",
+      "logging": "Logging"
+    },
+    "entryCount": "{count} entries"
   },
   "loudness": {
     "cancelled": "Analysis cancelled.",

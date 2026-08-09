@@ -4,6 +4,7 @@ import { getPopupWindowSize } from '$lib/services/popup-window-state';
 import { OPEN_CURRENT_TOOL_TRACK_MESSAGE } from '$lib/services/tool-track-context';
 import { OPEN_TROUBADOUR_BATCH_CONTEXT_MESSAGE } from '$lib/services/troubadour-sync';
 import { buildOptionsWindowPath, type OptionsViewName } from '../../options/views';
+import { logDebug, logInfo, logWarning } from '$lib/services/logging';
 
 function isOpenWindow(windowRef: Window | null | undefined): windowRef is Window {
   return windowRef !== null && windowRef !== undefined && !windowRef.closed;
@@ -97,6 +98,7 @@ function getPopupTitle(id: PopupWindowId): string {
     options: 'izci Options',
     editor: 'izci Editor',
     converter: 'izci Converter',
+    logs: 'izci Logs',
     troubadour: 'izci Troubadour',
     troubadourOptions: 'izci Troubadour Options'
   };
@@ -151,6 +153,7 @@ function openPopupWindow(id: PopupWindowId, pathOverride?: string): Window | nul
   const popupUrl = new URL(popupPath, window.location.href);
 
   if (isOpenWindow(existingWindow)) {
+    logDebug('tools', 'Reusing tool window', { id, path: popupUrl.pathname });
     if (
       existingWindow.location.pathname !== popupUrl.pathname
       || existingWindow.location.search !== popupUrl.search
@@ -184,6 +187,7 @@ function openPopupWindow(id: PopupWindowId, pathOverride?: string): Window | nul
   );
 
   if (!nextWindow) {
+    logWarning('tools', 'Tool window was blocked', { id, path: popupUrl.pathname });
     return null;
   }
 
@@ -192,6 +196,7 @@ function openPopupWindow(id: PopupWindowId, pathOverride?: string): Window | nul
   attachMainWindowLifecycleListeners();
   navigatePrimedPopup(nextWindow, popupUrl.href);
   nextWindow.focus();
+  logInfo('tools', 'Tool window opened', { id, path: popupUrl.pathname });
 
   return nextWindow;
 }

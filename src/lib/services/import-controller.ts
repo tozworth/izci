@@ -6,6 +6,7 @@ import {
 } from '$lib/types';
 import { prepareImportedFiles } from '$lib/services/file-verification';
 import { filesystemFolders } from '$lib/services/filesystem-folders';
+import { logError, logInfo } from '$lib/services/logging';
 import { trackSettings } from '$lib/stores/track-settings';
 import { readDirectoryFiles, readFileHandleFiles } from '$lib/utils/files';
 
@@ -104,15 +105,18 @@ export function createImportController(options: ImportControllerOptions) {
         );
         const pickedFiles = handles ? await readFileHandleFiles(handles) : [];
         const files = await prepareImportedFiles(pickedFiles);
+        logInfo('files', 'File import completed', { target, selected: pickedFiles.length, accepted: files.length });
 
         if (files.length > 0) {
           options.addFiles(files, target);
         }
       } catch (error) {
         if (isAbortError(error)) {
+          logInfo('files', 'File picker cancelled', { target });
           return;
         }
 
+        logError('files', 'File import failed', { target, error });
         throw error;
       }
     },
@@ -134,15 +138,18 @@ export function createImportController(options: ImportControllerOptions) {
             })
           : [];
         const files = await prepareImportedFiles(discoveredFiles);
+        logInfo('files', 'Folder import completed', { target, folder: directoryHandle?.name, discovered: discoveredFiles.length, accepted: files.length });
 
         if (files.length > 0) {
           options.addFiles(files, target);
         }
       } catch (error) {
         if (isAbortError(error)) {
+          logInfo('files', 'Folder picker cancelled', { target });
           return;
         }
 
+        logError('files', 'Folder import failed', { target, error });
         throw error;
       }
     },
@@ -156,6 +163,7 @@ export function createImportController(options: ImportControllerOptions) {
       const selectedFiles = Array.from(input.files);
       input.value = '';
       const files = await prepareImportedFiles(selectedFiles);
+      logInfo('files', 'Fallback file-input import completed', { target: pendingFileInputTarget, selected: selectedFiles.length, accepted: files.length });
 
       if (files.length > 0) {
         options.addFiles(files, pendingFileInputTarget);

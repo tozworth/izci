@@ -240,6 +240,8 @@
           </span>
           {#if hasSubmenu(item)}
             <span class="material-symbols-outlined menu-item-chevron" aria-hidden="true">chevron_right</span>
+          {:else if item.checked === true}
+            <span class="material-symbols-outlined menu-item-check" aria-hidden="true">check</span>
           {:else if item.shortcut}
             <span class="menu-item-shortcut" aria-hidden="true">{item.shortcut}</span>
           {/if}
@@ -339,6 +341,8 @@
             <span class="material-symbols-outlined menu-item-chevron" aria-hidden="true">
               {shouldUseSubmenuDrilldown ? 'chevron_right' : 'chevron_right'}
             </span>
+          {:else if item.checked === true}
+            <span class="material-symbols-outlined menu-item-check" aria-hidden="true">check</span>
           {:else if item.shortcut}
             <span class="menu-item-shortcut" aria-hidden="true">{item.shortcut}</span>
           {/if}

@@ -1,4 +1,5 @@
 import { audioBusService } from '$lib/services/audio-bus';
+import { logDebug, logError, logInfo } from '$lib/services/logging';
 import {
   createHivelyPatternSong,
   type HivelyPatternData
@@ -93,6 +94,7 @@ export class HivelyPlayerService {
     if (!track.file) throw new Error('Expected a file for Hively playback.');
 
     this.#disposeNode();
+    logInfo('playback', 'Hively load started', { id: track.id, name: track.name, extension: track.extension, subsong: track.subsong });
     const loadToken = ++this.#loadToken;
     this.#playing = false;
     this.#started = false;
@@ -177,11 +179,13 @@ export class HivelyPlayerService {
         );
       });
     } catch (error) {
+      logError('decode', 'Hively load failed', { extension: track.extension, error });
       if (loadToken === this.#loadToken) this.#disposeNode();
       throw error;
     }
 
     if (loadToken !== this.#loadToken) return;
+    logInfo('decode', 'Hively worklet initialized', { extension: track.extension });
     mediaSessionService.activateTransportAnchor();
     mediaSessionService.pauseTransportAnchor();
   }
@@ -225,6 +229,7 @@ export class HivelyPlayerService {
 
   seek(seconds: number): void {
     if (!this.#node || !this.#started) return;
+    logDebug('playback', 'Hively seek', { seconds });
     this.#node.port.postMessage({ type: 'seek', seconds });
   }
 

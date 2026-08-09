@@ -1,4 +1,5 @@
 import { ALL_FORMATS, BlobSource, Input } from 'mediabunny';
+import { logDebug, logError, logInfo, logWarning } from '$lib/services/logging';
 import { readArtwork } from './artwork';
 import { cloneMetadataTags, cloneRawMetadata } from './clone';
 import { fingerprintFile } from './fingerprint';
@@ -11,8 +12,10 @@ export async function readMetadataDocument(
   file: File,
   extension: string
 ): Promise<MetadataDocument> {
+  logDebug('decode', 'Reading media metadata', { name: file.name, size: file.size, extension });
   const capabilities = getMetadataCapabilities(extension);
   if (!capabilities) {
+    logWarning('decode', 'Metadata format unsupported', { name: file.name, extension });
     throw new MetadataWriteError('unsupported-format', `.${extension} metadata is not supported.`);
   }
   const normalizedExtension = capabilities.extension as MetadataExtension;
@@ -23,7 +26,7 @@ export async function readMetadataDocument(
       fingerprintFile(file)
     ]);
     const sourceTags = cloneMetadataTags(tags);
-    return {
+    const document: MetadataDocument = {
       extension: normalizedExtension,
       fields: metadataFieldsFromTags(sourceTags, normalizedExtension),
       sourceTags,
@@ -31,6 +34,11 @@ export async function readMetadataDocument(
       artwork: readArtwork(sourceTags.images),
       fingerprint
     };
+    logInfo('decode', 'Media metadata read completed', { name: file.name, extension: normalizedExtension, artwork: document.artwork.length, hasLyrics: Boolean(document.fields.lyrics) });
+    return document;
+  } catch (error) {
+    logError('decode', 'Media metadata read failed', { name: file.name, extension, error });
+    throw error;
   } finally {
     input.dispose();
   }

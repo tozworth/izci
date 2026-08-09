@@ -1,5 +1,6 @@
 import { createChiptunePlayer } from '$lib/services/chiptune-loader';
 import { audioBusService } from '$lib/services/audio-bus';
+import { logDebug, logError, logInfo } from '$lib/services/logging';
 import { mediaSessionService } from '$lib/services/media-session';
 import { modulePlaybackSettings } from '$lib/stores/module-playback-settings';
 import type {
@@ -61,6 +62,7 @@ export class ModulePlayerService {
     }
 
     this.#disposePlayer();
+    logInfo('playback', 'Module load started', { id: track.id, name: track.name, extension: track.extension, subsong: track.subsong });
     const loadToken = ++this.#loadToken;
     this.#buffer = null;
     this.#trackExtension = track.extension.toLowerCase();
@@ -82,7 +84,13 @@ export class ModulePlayerService {
       error: undefined
     });
 
-    const player = await this.#createPlayer(loadToken);
+    let player: ChiptuneJsPlayer;
+    try {
+      player = await this.#createPlayer(loadToken);
+    } catch (error) {
+      logError('decode', 'Module player creation failed', { extension: track.extension, error });
+      throw error;
+    }
 
     if (!this.#isActiveLoad(loadToken)) {
       this.#disposeDetachedPlayer(player);
@@ -101,6 +109,7 @@ export class ModulePlayerService {
     }
 
     this.#buffer = buffer;
+    logDebug('decode', 'Module buffer read', { bytes: buffer.byteLength, extension: track.extension });
 
     this.#onMetadata({
       trackerType: track.extension.toUpperCase()
@@ -132,6 +141,7 @@ export class ModulePlayerService {
     this.#onSnapshot({ state: 'playing', error: undefined });
     this.#publishProgress(true);
     mediaSessionService.playTransportAnchor();
+    logInfo('playback', 'Module playing', { subsong: this.#subsong });
   }
 
   pause(): void {
@@ -175,6 +185,7 @@ export class ModulePlayerService {
 
     this.#player.seek(seconds);
     this.#currentTime = seconds;
+    logDebug('playback', 'Module seek', { seconds });
     this.#publishProgress(true, seconds);
   }
 

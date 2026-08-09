@@ -1,4 +1,5 @@
 import { audioBusService } from '$lib/services/audio-bus';
+import { logDebug, logInfo } from '$lib/services/logging';
 
 export type MultiplayerReceiverAudioStatus =
   | 'idle'
@@ -33,6 +34,7 @@ export class MultiplayerAudioService {
     onStatus: StatusHandler
   ): Promise<void> {
     this.clearRemoteTrack();
+    logInfo('multiplayer', 'Remote audio track attached', { trackId: track.id, muted: track.muted });
     this.#onStatus = onStatus;
     this.#remoteTrack = track;
     const element = new Audio();
@@ -78,11 +80,13 @@ export class MultiplayerAudioService {
       this.#remoteElement.play().then(() => true).catch(() => false)
     ]);
     const audible = running && playing && !this.#remoteTrack.muted;
+    logDebug('multiplayer', 'Remote audio resume attempted', { running, playing, muted: this.#remoteTrack.muted, audible });
     this.#publish(audible ? 'playing' : running && playing ? 'connecting' : 'blocked');
     return audible;
   }
 
   clearRemoteTrack(): void {
+    if (this.#remoteTrack) logDebug('multiplayer', 'Remote audio track cleared', { trackId: this.#remoteTrack.id });
     if (this.#remoteTrack) {
       this.#remoteTrack.onmute = null;
       this.#remoteTrack.onunmute = null;

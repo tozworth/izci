@@ -1938,6 +1938,7 @@
     on:openAudioCompare={() => windowManager.openPopup('audioCompare')}
     on:openEditor={() => windowManager.openPopup('editor')}
     on:openConverter={() => windowManager.openPopup('converter')}
+    on:openLogs={() => windowManager.openPopup('logs')}
     on:openTroubadour={() => windowManager.openPopup('troubadour')}
     on:showPlaylist={showPlaylist}
     on:showLibrary={showLibrary}
