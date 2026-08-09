@@ -4,7 +4,7 @@ import {
   isMultiplayerFreeplayActive,
   isMultiplayerPlaybackPreparationReady,
   shouldTransferMultiplayerSourceFile
-} from './multiplayer-session';
+} from './multiplayer-utils';
 import type { PlaylistItem } from '$lib/types';
 
 describe('multiplayer client lifecycle', () => {

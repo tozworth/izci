@@ -26,7 +26,7 @@
     MultiplayerAudioStatus,
     MultiplayerConnectionStatus,
     MultiplayerMode
-  } from '$lib/services/multiplayer-session';
+  } from '$lib/services/multiplayer-types';
   import type { MultiplayerConnectionRoute } from '$lib/services/multiplayer-ice';
   import type { MultiplayerRecent } from '$lib/stores/multiplayer-recents';
   import type { MultiplayerPairing } from '$lib/stores/multiplayer-pairings';

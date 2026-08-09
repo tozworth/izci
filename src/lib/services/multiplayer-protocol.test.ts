@@ -8,7 +8,7 @@ import {
   sanitizePlaylistItem,
   type HostMessage
 } from './multiplayer-protocol';
-import { normalizeInviteCode } from './multiplayer-session';
+import { normalizeInviteCode } from './multiplayer-signaling';
 
 describe('multiplayer protocol', () => {
   it('requires the host app version in the protocol hello', () => {

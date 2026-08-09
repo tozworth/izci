@@ -121,7 +121,7 @@
 - The first active experiment adds an Options -> Experimental page and synchronized `experimental-settings.ts`; experiments default off.
 - Runtime behavior still belongs in its normal service/store/component owner behind a clean feature gate.
 - Multiplayer is the current experiment: one izci hosts its catalog and playback state, while joined izci clients provide a remote view, transport/track controls and streamed audio. The host remains authoritative.
-- Multiplayer uses Firebase Realtime Database for short-lived room signaling and WebRTC data channels for peer traffic. Keep session lifecycle in `multiplayer-session.ts`, wire contracts/versioning in `multiplayer-protocol.ts`, and persisted recent hosts separate from playlist/library data.
+- Multiplayer uses Firebase Realtime Database for short-lived room signaling and WebRTC data channels for peer traffic. Keep session lifecycle wiring in `multiplayer-session.ts`, wire contracts/versioning in `multiplayer-protocol.ts`, and persisted recent hosts separate from playlist/library data. Host-side and client-side session behavior live in `multiplayer-host.ts` and `multiplayer-client.ts`; shared session/peer types in `multiplayer-types.ts`; Firebase signaling in `multiplayer-signaling.ts`; peer/ICE plumbing in `multiplayer-peer.ts`; chunked source-file transfer in `multiplayer-source-transfer.ts`; receiver bitrate sampling in `multiplayer-receiver-monitor.ts`; pure helpers in `multiplayer-utils.ts`.
 - Freeplay is a persisted per-pair Multiplayer mode. Each active Freeplay client browses the host library but owns an independent host-side renderer and timeline; never route Freeplay through the host playlist or shared player controller.
 
 ## Change checklist
