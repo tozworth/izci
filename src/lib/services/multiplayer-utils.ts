@@ -99,6 +99,17 @@ export function isClientMessage(value: unknown): value is ClientMessage {
       && message.generationId.length > 0
       && message.generationId.length <= 80;
   }
+  if (message.kind === 'clock.pong') {
+    return typeof message.generationId === 'string'
+      && message.generationId.length > 0
+      && message.generationId.length <= 80
+      && typeof message.hostSentAt === 'number'
+      && Number.isFinite(message.hostSentAt)
+      && typeof message.clientReceivedAt === 'number'
+      && Number.isFinite(message.clientReceivedAt)
+      && typeof message.clientSentAt === 'number'
+      && Number.isFinite(message.clientSentAt);
+  }
   if (message.kind === 'playback.ended') {
     return typeof message.generationId === 'string'
       && message.generationId.length > 0

@@ -47,6 +47,7 @@ import {
   startPeerConnectionTimer
 } from './multiplayer-peer';
 import { flushPeerMedia, transferSourceFile } from './multiplayer-source-transfer';
+import { clientStartTime, estimateMultiplayerClock } from './multiplayer-sync';
 import {
   createInviteCode,
   isNewSignalOfferForPeer,
@@ -475,6 +476,9 @@ export function createMultiplayerHostSide(
       }
       if (message.kind === 'playback.ready') {
         acceptClientPlaybackReady(peer, message.generationId);
+      }
+      if (message.kind === 'clock.pong') {
+        acceptClientClockSample(peer, message);
       }
       if (message.kind === 'playback.ended' && peer.freeplay) {
         const activeTrackId = peer.freeplayPlayer?.track?.id;
@@ -983,7 +987,11 @@ export function createMultiplayerHostSide(
     }
 
     const nextTrackId = next.track?.id ?? null;
-    const shouldGatePlayback = core.multiplayerSettings.multiplayerWaitForClients
+    const synchronizedPlayback = core.multiplayerSettings.multiplayerSynchronizedPlayback
+      && core.multiplayerSettings.multiplayerStreamAudio
+      && !core.multiplayerSettings.multiplayerFreeplay;
+    const shouldGatePlayback = (core.multiplayerSettings.multiplayerWaitForClients
+      || synchronizedPlayback)
       && next.playback.state === 'playing'
       && nextTrackId !== null
       && (core.lastPlaybackSource?.state !== 'playing' || core.lastTrackSource?.id !== nextTrackId)
@@ -1045,6 +1053,7 @@ export function createMultiplayerHostSide(
   }
 
   function beginHostPlaybackPreparation(trackId: string): void {
+    clearHostPlaybackPreparation(true);
     const peers = connectedHostPeers();
     if (peers.length === 0) {
       core.bypassHostPlaybackGateTrackId = trackId;
@@ -1058,11 +1067,43 @@ export function createMultiplayerHostSide(
     };
     core.hostPlaybackPreparation = {
       preparation,
-      pendingPeerIds: new Set(peers.map((peer) => peer.id))
+      pendingPeerIds: new Set(peers.map((peer) => peer.id)),
+      peerIds: new Set(peers.map((peer) => peer.id)),
+      clockOffsets: new Map(),
+      releaseTimer: null
     };
     for (const peer of peers) {
       sendToPeer(peer, { kind: 'playback.prepare', preparation });
+      sendClockPing(peer, preparation.generationId);
     }
+  }
+
+  function sendClockPing(peer: PeerConnection, generationId: string): void {
+    sendToPeer(peer, { kind: 'clock.ping', generationId, hostSentAt: Date.now() });
+  }
+
+  function acceptClientClockSample(
+    peer: PeerConnection,
+    message: Extract<import('./multiplayer-protocol').ClientMessage, { kind: 'clock.pong' }>
+  ): void {
+    const pending = core.hostPlaybackPreparation;
+    if (!pending
+      || pending.preparation.generationId !== message.generationId
+      || !pending.peerIds.has(peer.id)) return;
+    const estimate = estimateMultiplayerClock({
+      hostSentAt: message.hostSentAt,
+      clientReceivedAt: message.clientReceivedAt,
+      clientSentAt: message.clientSentAt,
+      hostReceivedAt: Date.now()
+    });
+    pending.clockOffsets.set(peer.id, estimate.clientOffsetMs);
+    logDebug('multiplayer', 'Listener clock calibrated', {
+      peerId: peer.id,
+      generationId: message.generationId,
+      offsetMs: Math.round(estimate.clientOffsetMs),
+      roundTripMs: Math.round(estimate.roundTripMs)
+    });
+    releasePreparedHostPlayback();
   }
 
   function acceptClientPlaybackReady(peer: PeerConnection, generationId: string): void {
@@ -1083,29 +1124,96 @@ export function createMultiplayerHostSide(
     const pending = core.hostPlaybackPreparation;
     if (!pending || pending.preparation.generationId !== generationId) return;
     pending.pendingPeerIds.delete(peer.id);
-    if (pending.pendingPeerIds.size === 0) releasePreparedHostPlayback();
+    releasePreparedHostPlayback();
   }
 
   function removePeerFromHostPlaybackPreparation(peerId: string): void {
     const pending = core.hostPlaybackPreparation;
-    if (!pending || !pending.pendingPeerIds.delete(peerId)) return;
-    if (pending.pendingPeerIds.size === 0) releasePreparedHostPlayback();
+    if (!pending || !pending.peerIds.delete(peerId)) return;
+    pending.pendingPeerIds.delete(peerId);
+    pending.clockOffsets.delete(peerId);
+    releasePreparedHostPlayback();
   }
 
-  function releasePreparedHostPlayback(): void {
+  function releasePreparedHostPlayback(force = false): void {
     const pending = core.hostPlaybackPreparation;
-    if (!pending) return;
-    core.hostPlaybackPreparation = null;
+    if (!pending || (!force && (pending.pendingPeerIds.size > 0 || pending.releaseTimer !== null))) return;
+    if (force && pending.releaseTimer !== null) {
+      cancelScheduledClientStarts(pending);
+      window.clearTimeout(pending.releaseTimer);
+      pending.releaseTimer = null;
+    }
     if (core.state.mode !== 'hosting'
       || core.latestHostState?.track?.id !== pending.preparation.trackId
       || core.latestHostState.playback.state === 'playing') return;
-    core.bypassHostPlaybackGateTrackId = pending.preparation.trackId;
-    resumeHostPlayback();
+    const synchronized = core.multiplayerSettings.multiplayerSynchronizedPlayback
+      && core.multiplayerSettings.multiplayerStreamAudio
+      && !core.multiplayerSettings.multiplayerFreeplay;
+    if (synchronized
+      && Array.from(pending.peerIds).some((peerId) => !pending.clockOffsets.has(peerId))) return;
+    if (!synchronized) {
+      core.hostPlaybackPreparation = null;
+      core.bypassHostPlaybackGateTrackId = pending.preparation.trackId;
+      resumeHostPlayback();
+      return;
+    }
+
+    const hostStartAt = Date.now() + core.multiplayerSettings.multiplayerSyncLeadTimeMs;
+    const positionSeconds = core.latestHostState.playback.currentTime;
+    for (const peerId of pending.peerIds) {
+      const peer = core.hostPeers.get(peerId);
+      const offset = pending.clockOffsets.get(peerId);
+      if (!peer || offset === undefined || peer.channel?.readyState !== 'open') continue;
+      sendToPeer(peer, {
+        kind: 'playback.start',
+        start: {
+          generationId: pending.preparation.generationId,
+          trackId: pending.preparation.trackId,
+          positionSeconds,
+          startAt: clientStartTime(hostStartAt, offset)
+        }
+      });
+    }
+    pending.releaseTimer = window.setTimeout(() => {
+      if (core.hostPlaybackPreparation !== pending) return;
+      core.hostPlaybackPreparation = null;
+      core.bypassHostPlaybackGateTrackId = pending.preparation.trackId;
+      resumeHostPlayback();
+    }, Math.max(0, hostStartAt - Date.now()));
+    logInfo('multiplayer', 'Synchronized playback armed', {
+      generationId: pending.preparation.generationId,
+      listeners: pending.peerIds.size,
+      leadTimeMs: core.multiplayerSettings.multiplayerSyncLeadTimeMs,
+      delivery: pending.preparation.delivery
+    });
+  }
+
+  function cancelScheduledClientStarts(
+    pending: NonNullable<MultiplayerSessionCore['hostPlaybackPreparation']>
+  ): void {
+    for (const peerId of pending.peerIds) {
+      const peer = core.hostPeers.get(peerId);
+      if (peer?.channel?.readyState === 'open') {
+        sendToPeer(peer, {
+          kind: 'playback.cancel',
+          generationId: pending.preparation.generationId
+        });
+      }
+    }
+  }
+
+  function clearHostPlaybackPreparation(notifyClients = false): void {
+    const pending = core.hostPlaybackPreparation;
+    if (pending && notifyClients && pending.releaseTimer !== null) {
+      cancelScheduledClientStarts(pending);
+    }
+    if (pending && pending.releaseTimer !== null) window.clearTimeout(pending.releaseTimer);
+    core.hostPlaybackPreparation = null;
   }
 
   function cancelPendingPlayback(): boolean {
     if (!core.hostPlaybackPreparation) return false;
-    core.hostPlaybackPreparation = null;
+    clearHostPlaybackPreparation(true);
     core.bypassHostPlaybackGateTrackId = null;
     return true;
   }
@@ -1168,12 +1276,14 @@ export function createMultiplayerHostSide(
       sendToPeer(peer, { kind: 'artwork', artwork: core.latestHostArtwork });
     }
     sendToPeer(peer, { kind: 'buffer', bufferMs: core.multiplayerSettings.multiplayerAudioBufferMs });
-    if (core.hostPlaybackPreparation) {
+    if (core.hostPlaybackPreparation?.releaseTimer === null) {
       core.hostPlaybackPreparation.pendingPeerIds.add(peer.id);
+      core.hostPlaybackPreparation.peerIds.add(peer.id);
       sendToPeer(peer, {
         kind: 'playback.prepare',
         preparation: core.hostPlaybackPreparation.preparation
       });
+      sendClockPing(peer, core.hostPlaybackPreparation.preparation.generationId);
     }
   }
 

@@ -831,6 +831,14 @@
           "hint": "Ses aktarımı etkin olsun veya olmasın, sunucuya aynı anda kaç konuğun bağlanabileceğini sınırlar."
         },
         "audioCategory": "Çok Oyunculu Ses",
+        "synchronizedPlayback": {
+          "title": "Eşzamanlı oynatma",
+          "hint": "Sunucu ve dinleyiciler için ortak bir başlangıç zamanı ayarlar. En iyi gönderilen dosyalarla çalışır; tarayıcı tamponları değişebildiği için aktarılan ses yaklaşık olarak eşzamanlanır."
+        },
+        "syncLeadTime": {
+          "title": "Başlangıç hazırlık süresi",
+          "hint": "Tüm dinleyiciler hazır olduktan sonra sunucunun eşzamanlı başlangıcı ne kadar ileriye ayarlayacağını belirler. Aygıtlar ilk vuruşu kaçırıyorsa artırın."
+        },
         "postRaf": {
           "title": "Raf sonrası sesi gönder",
           "hint": "Aktarımdan önce sunucunun Raf rafını uygular. Kapalıyken dinleyiciler Raf öncesi sesi alır ve kendi Raf ayarlarını uygulayabilir."

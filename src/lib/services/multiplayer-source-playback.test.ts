@@ -182,4 +182,19 @@ describe('MultiplayerSourcePlaybackService', () => {
     expect(controllerHarness.seek).toHaveBeenCalledWith(0);
     expect(controllerHarness.play).toHaveBeenCalled();
   });
+
+  it('arms a transferred file and compensates when the shared start arrives late', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(10_000);
+    const service = new MultiplayerSourcePlaybackService();
+    service.syncPlayback(playback('paused'));
+    await service.loadFile(track, {} as File);
+
+    expect(service.scheduleSynchronizedStart('generation', 'track-1', 30, 9_950)).toBe(true);
+    await vi.runOnlyPendingTimersAsync();
+
+    expect(controllerHarness.seek).toHaveBeenLastCalledWith(30.05);
+    expect(controllerHarness.play).toHaveBeenCalledTimes(1);
+    vi.useRealTimers();
+  });
 });

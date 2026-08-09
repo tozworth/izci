@@ -12,6 +12,9 @@
     MULTIPLAYER_OPUS_BITRATE_MAX_KBPS,
     MULTIPLAYER_OPUS_BITRATE_MIN_KBPS,
     MULTIPLAYER_OPUS_BITRATE_STEP_KBPS,
+    MULTIPLAYER_SYNC_LEAD_TIME_MAX_MS,
+    MULTIPLAYER_SYNC_LEAD_TIME_MIN_MS,
+    MULTIPLAYER_SYNC_LEAD_TIME_STEP_MS,
     MULTIPLAYER_TURN_CREDENTIAL_HOURS_MAX,
     MULTIPLAYER_TURN_CREDENTIAL_HOURS_MIN,
     deriveMultiplayerMode,
@@ -36,6 +39,16 @@
 
   function handleWaitForClientsToggle(event: Event) {
     experimentalSettings.update({ multiplayerWaitForClients: checked(event) });
+  }
+
+  function handleSynchronizedPlaybackToggle(event: Event) {
+    experimentalSettings.update({ multiplayerSynchronizedPlayback: checked(event) });
+  }
+
+  function handleSyncLeadTimeChange(event: Event) {
+    experimentalSettings.update({
+      multiplayerSyncLeadTimeMs: (event.currentTarget as HTMLInputElement).valueAsNumber
+    });
   }
 
   function handleFileTransferLimitChange(event: Event) {
@@ -113,6 +126,7 @@
   $: multiplayerMode = deriveMultiplayerMode($experimentalSettings);
   $: multiplayerEnabled = multiplayerMode !== 'singleplayer';
   $: multiplayerAudioEnabled = multiplayerMode === 'coopAudio' || multiplayerMode === 'freeplay';
+  $: coopAudioEnabled = multiplayerMode === 'coopAudio';
 </script>
 
 <article class="view">
@@ -315,6 +329,33 @@
   <div class="section">
     <h2>{$t('options.experimental.multiplayer.audioCategory', { default: 'Multiplayer Audio' })}</h2>
     <div class="field-grid">
+      <SettingsField
+        title={$t('options.experimental.multiplayer.synchronizedPlayback.title', { default: 'Synchronized playback' })}
+        hint={$t('options.experimental.multiplayer.synchronizedPlayback.hint', { default: 'Coordinates a shared start time across the host and listeners. Works best with sent files; streamed audio remains best effort because browser buffers vary.' })}
+        checkbox
+      >
+        <input
+          type="checkbox"
+          checked={$experimentalSettings.multiplayerSynchronizedPlayback}
+          disabled={!coopAudioEnabled}
+          on:change={handleSynchronizedPlaybackToggle}
+        />
+      </SettingsField>
+      <SettingsField
+        title={$t('options.experimental.multiplayer.syncLeadTime.title', { default: 'Start lead time' })}
+        hint={$t('options.experimental.multiplayer.syncLeadTime.hint', { default: 'How far ahead the host schedules a synchronized start after every listener is ready. Increase it when devices miss the opening beat.' })}
+      >
+        <input
+          type="range"
+          min={MULTIPLAYER_SYNC_LEAD_TIME_MIN_MS}
+          max={MULTIPLAYER_SYNC_LEAD_TIME_MAX_MS}
+          step={MULTIPLAYER_SYNC_LEAD_TIME_STEP_MS}
+          value={$experimentalSettings.multiplayerSyncLeadTimeMs}
+          disabled={!coopAudioEnabled || !$experimentalSettings.multiplayerSynchronizedPlayback}
+          on:input={handleSyncLeadTimeChange}
+        />
+        <span class="field-output">{$experimentalSettings.multiplayerSyncLeadTimeMs} ms</span>
+      </SettingsField>
       <SettingsField
         title={$t('options.experimental.multiplayer.fileTransfer.title', { default: 'Send files under' })}
         hint={$t('options.experimental.multiplayer.fileTransfer.hint', { default: 'Sends smaller audio and module files whole, then renders them on each listener. Larger files and all video soundtracks use the host’s Opus stream.' })}

@@ -172,6 +172,38 @@ describe('multiplayer protocol', () => {
     })).toBe(false);
   });
 
+  it('accepts clock calibration and scheduled-start messages', () => {
+    expect(isHostMessage({
+      kind: 'clock.ping', generationId: 'generation', hostSentAt: 1_000
+    })).toBe(true);
+    expect(isClientMessage({
+      kind: 'clock.pong',
+      generationId: 'generation',
+      hostSentAt: 1_000,
+      clientReceivedAt: 1_030,
+      clientSentAt: 1_031
+    })).toBe(true);
+    expect(isHostMessage({
+      kind: 'playback.start',
+      start: {
+        generationId: 'generation',
+        trackId: 'track',
+        positionSeconds: 12.5,
+        startAt: 2_000
+      }
+    })).toBe(true);
+    expect(isHostMessage({ kind: 'playback.cancel', generationId: 'generation' })).toBe(true);
+    expect(isHostMessage({
+      kind: 'playback.start',
+      start: {
+        generationId: 'generation',
+        trackId: 'track',
+        positionSeconds: -1,
+        startAt: 2_000
+      }
+    })).toBe(false);
+  });
+
   it('requires generations on playback, readiness, ended events, and retries', () => {
     const playback = {
       kind: 'playback',

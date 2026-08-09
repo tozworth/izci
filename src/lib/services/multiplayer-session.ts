@@ -120,6 +120,10 @@ export function createMultiplayerSession({
     multiplayerSourcePlaybackService.clearLoadedFile();
     core.pendingClientSourceFile = null;
     core.hostAudioBufferMs = null;
+    if (core.hostPlaybackPreparation?.releaseTimer !== null
+      && core.hostPlaybackPreparation?.releaseTimer !== undefined) {
+      window.clearTimeout(core.hostPlaybackPreparation.releaseTimer);
+    }
     core.hostPlaybackPreparation = null;
     core.bypassHostPlaybackGateTrackId = null;
     multiplayerAudioService.releaseHostTrack();
@@ -178,6 +182,10 @@ export function createMultiplayerSession({
       || settings.multiplayerSendPostRaf !== core.multiplayerSettings.multiplayerSendPostRaf;
     const waitForClientsDisabled = core.multiplayerSettings.multiplayerWaitForClients
       && !settings.multiplayerWaitForClients;
+    const synchronizedPlaybackDisabled = core.multiplayerSettings.multiplayerSynchronizedPlayback
+      && !settings.multiplayerSynchronizedPlayback;
+    const synchronizedPlaybackEnabled = !core.multiplayerSettings.multiplayerSynchronizedPlayback
+      && settings.multiplayerSynchronizedPlayback;
     core.multiplayerSettings = settings;
     if (core.state.mode === 'hosting') {
       host.syncHostAudio(core.latestHostState?.track ?? null);
@@ -198,8 +206,11 @@ export function createMultiplayerSession({
           sendToPeer(peer, { kind: 'buffer', bufferMs: settings.multiplayerAudioBufferMs });
         }
       }
-      if (waitForClientsDisabled) {
-        host.releasePreparedHostPlayback();
+      if (synchronizedPlaybackDisabled
+        || (waitForClientsDisabled && !settings.multiplayerSynchronizedPlayback)) {
+        host.releasePreparedHostPlayback(true);
+      } else if (synchronizedPlaybackEnabled && core.hostPlaybackPreparation) {
+        host.beginHostPlaybackPreparation(core.hostPlaybackPreparation.preparation.trackId);
       } else if (core.hostPlaybackPreparation
         && core.hostPlaybackPreparation.preparation.delivery !== core.latestDelivery.mode) {
         host.beginHostPlaybackPreparation(core.hostPlaybackPreparation.preparation.trackId);

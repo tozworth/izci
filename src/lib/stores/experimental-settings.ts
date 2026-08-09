@@ -12,6 +12,9 @@ export const MULTIPLAYER_OPUS_BITRATE_STEP_KBPS = 8;
 export const MULTIPLAYER_AUDIO_BUFFER_MIN_MS = 100;
 export const MULTIPLAYER_AUDIO_BUFFER_MAX_MS = 4_000;
 export const MULTIPLAYER_AUDIO_BUFFER_STEP_MS = 50;
+export const MULTIPLAYER_SYNC_LEAD_TIME_MIN_MS = 250;
+export const MULTIPLAYER_SYNC_LEAD_TIME_MAX_MS = 3_000;
+export const MULTIPLAYER_SYNC_LEAD_TIME_STEP_MS = 50;
 export const MULTIPLAYER_FILE_TRANSFER_LIMITS_MIB = [0, 1, 2, 4, 8, 16, 32, 64, -1] as const;
 export const MULTIPLAYER_MAX_LISTENERS_MIN = 1;
 export const MULTIPLAYER_MAX_LISTENERS_MAX = 8;
@@ -50,6 +53,8 @@ export const DEFAULT_EXPERIMENTAL_SETTINGS: ExperimentalSettings = {
   multiplayer: false,
   izciName: defaultIzciName,
   multiplayerWaitForClients: false,
+  multiplayerSynchronizedPlayback: false,
+  multiplayerSyncLeadTimeMs: 1_000,
   multiplayerAutoHost: false,
   multiplayerRestoreLastSession: true,
   multiplayerTurnUrl: '',
@@ -93,6 +98,15 @@ export function normalizeExperimentalSettings(value: unknown): ExperimentalSetti
     multiplayerWaitForClients: typeof source.multiplayerWaitForClients === 'boolean'
       ? source.multiplayerWaitForClients
       : DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerWaitForClients,
+    multiplayerSynchronizedPlayback: typeof source.multiplayerSynchronizedPlayback === 'boolean'
+      ? source.multiplayerSynchronizedPlayback
+      : DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerSynchronizedPlayback,
+    multiplayerSyncLeadTimeMs: normalizeBoundedInteger(
+      source.multiplayerSyncLeadTimeMs,
+      DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerSyncLeadTimeMs,
+      MULTIPLAYER_SYNC_LEAD_TIME_MIN_MS,
+      MULTIPLAYER_SYNC_LEAD_TIME_MAX_MS
+    ),
     multiplayerAutoHost: typeof source.multiplayerAutoHost === 'boolean'
       ? source.multiplayerAutoHost
       : DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerAutoHost,

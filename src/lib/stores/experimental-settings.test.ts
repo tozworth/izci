@@ -20,6 +20,8 @@ describe('experimental settings', () => {
 
     expect(normalized).toMatchObject({
       multiplayerWaitForClients: false,
+      multiplayerSynchronizedPlayback: false,
+      multiplayerSyncLeadTimeMs: 1_000,
       multiplayerAutoHost: false,
       multiplayerRestoreLastSession: true,
       multiplayerTurnUrl: '',
@@ -79,6 +81,16 @@ describe('experimental settings', () => {
       .toBe(-1);
     expect(normalizeExperimentalSettings({ multiplayerFileTransferLimitMiB: 3 }).multiplayerFileTransferLimitMiB)
       .toBe(0);
+  });
+
+  it('normalizes synchronized playback and bounds its lead time', () => {
+    expect(normalizeExperimentalSettings({
+      multiplayerSynchronizedPlayback: true,
+      multiplayerSyncLeadTimeMs: 99_999
+    })).toMatchObject({
+      multiplayerSynchronizedPlayback: true,
+      multiplayerSyncLeadTimeMs: 3_000
+    });
   });
 
   describe('multiplayer mode tiers', () => {

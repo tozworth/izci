@@ -831,6 +831,14 @@
           "hint": "Limits how many guests can connect to the host at once, whether or not audio streaming is enabled."
         },
         "audioCategory": "Multiplayer Audio",
+        "synchronizedPlayback": {
+          "title": "Synchronized playback",
+          "hint": "Coordinates a shared start time across the host and listeners. Works best with sent files; streamed audio remains best effort because browser buffers vary."
+        },
+        "syncLeadTime": {
+          "title": "Start lead time",
+          "hint": "How far ahead the host schedules a synchronized start after every listener is ready. Increase it when devices miss the opening beat."
+        },
         "postRaf": {
           "title": "Send post-Raf audio",
           "hint": "Applies the host’s Raf rack before streaming. When off, listeners receive pre-Raf audio and can apply their own Raf settings."

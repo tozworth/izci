@@ -25,7 +25,8 @@ import {
   createMultiplayerMessageDecoder,
   isHostMessage,
   type MultiplayerCommand,
-  type MultiplayerCommandInput
+  type MultiplayerCommandInput,
+  type MultiplayerSynchronizedStart
 } from './multiplayer-protocol';
 import {
   clearPeerConnectionTimer,
@@ -77,6 +78,9 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
   let sourceRetryGenerationId: string | null = null;
   let sourceRetryCount = 0;
   let pendingFreeplayResumeTrackId: string | null = null;
+  let synchronizedStartTimer: number | null = null;
+  let synchronizedStartGenerationId: string | null = null;
+  let synchronizedStartAt = 0;
   const receiverMonitor = createReceiverBitrateMonitor({
     getState: () => core.state,
     publish: (patch) => core.publish(patch),
@@ -85,6 +89,42 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
 
   function publish(patch: Parameters<MultiplayerSessionCore['publish']>[0]): void {
     core.publish(patch);
+  }
+
+  function cancelSynchronizedStart(): void {
+    if (synchronizedStartTimer !== null) window.clearTimeout(synchronizedStartTimer);
+    synchronizedStartTimer = null;
+    synchronizedStartGenerationId = null;
+    synchronizedStartAt = 0;
+    multiplayerSourcePlaybackService.cancelSynchronizedStart();
+  }
+
+  function applySynchronizedStart(peer: PeerConnection, start: MultiplayerSynchronizedStart): void {
+    if (core.clientPeer !== peer
+      || core.state.freeplay
+      || !transition.isCurrent(start.generationId, start.trackId)) return;
+    cancelSynchronizedStart();
+    synchronizedStartGenerationId = start.generationId;
+    synchronizedStartAt = start.startAt;
+    if (core.state.remoteDelivery.mode === 'source-file') {
+      multiplayerSourcePlaybackService.scheduleSynchronizedStart(
+        start.generationId,
+        start.trackId,
+        start.positionSeconds,
+        start.startAt
+      );
+      return;
+    }
+    if (core.state.remoteDelivery.mode !== 'stream') return;
+    const release = () => {
+      synchronizedStartTimer = null;
+      if (core.clientPeer !== peer
+        || synchronizedStartGenerationId !== start.generationId
+        || !transition.isCurrent(start.generationId, start.trackId, 'stream')) return;
+      synchronizedStartAt = 0;
+      multiplayerAudioService.setRemoteAudible(core.state.receiveAudio);
+    };
+    synchronizedStartTimer = window.setTimeout(release, Math.max(0, start.startAt - Date.now()));
   }
 
   function updateLocalTimelineMode(): void {
@@ -589,7 +629,10 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
         multiplayerSourcePlaybackService.syncPlayback(message.playback);
         if (core.state.remoteDelivery.mode === 'stream') {
           multiplayerAudioService.setRemoteAudible(
-            core.state.receiveAudio && message.playback.snapshot.state === 'playing'
+            core.state.receiveAudio
+              && message.playback.snapshot.state === 'playing'
+              && !(synchronizedStartGenerationId === message.playback.generationId
+                && Date.now() < synchronizedStartAt)
           );
         }
         persistFreeplayState();
@@ -647,6 +690,7 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
           return;
         }
         if (changed) {
+          cancelSynchronizedStart();
           sourceRetryGenerationId = message.delivery.generationId;
           sourceRetryCount = 0;
           multiplayerAudioService.setRemoteAudible(false);
@@ -680,6 +724,21 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
         }
         loadPendingClientSourceFile(peer);
         sendClientPlaybackReadyIfPossible(peer);
+      }
+      if (message.kind === 'clock.ping') {
+        const clientReceivedAt = Date.now();
+        sendToPeer(peer, {
+          kind: 'clock.pong',
+          generationId: message.generationId,
+          hostSentAt: message.hostSentAt,
+          clientReceivedAt,
+          clientSentAt: Date.now()
+        });
+      }
+      if (message.kind === 'playback.start') applySynchronizedStart(peer, message.start);
+      if (message.kind === 'playback.cancel'
+        && synchronizedStartGenerationId === message.generationId) {
+        cancelSynchronizedStart();
       }
       if (message.kind === 'buffer') {
         core.hostAudioBufferMs = message.bufferMs;
@@ -1190,6 +1249,7 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
     clearReceiverMonitor: () => receiverMonitor.clear(),
     clearReconnectTimer,
     resetTransitions: () => {
+      cancelSynchronizedStart();
       transition.reset();
       transition.setReceiveAudio(core.state.receiveAudio);
       sourceRetryGenerationId = null;

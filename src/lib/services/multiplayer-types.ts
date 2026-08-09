@@ -316,6 +316,9 @@ export interface MultiplayerSessionCore {
   hostPlaybackPreparation: {
     preparation: MultiplayerPlaybackPreparation;
     pendingPeerIds: Set<string>;
+    peerIds: Set<string>;
+    clockOffsets: Map<string, number>;
+    releaseTimer: number | null;
   } | null;
   bypassHostPlaybackGateTrackId: string | null;
   rejectedPeerIds: Set<string>;
@@ -335,7 +338,7 @@ export interface MultiplayerHostSide {
   syncHostSourceFiles(track: PlaylistItem | null): void;
   syncPeerFreeplayMode(peer: PeerConnection): Promise<void>;
   beginFreeplayPlaybackPreparation(peer: PeerConnection): void;
-  releasePreparedHostPlayback(): void;
+  releasePreparedHostPlayback(force?: boolean): void;
   beginHostPlaybackPreparation(trackId: string): void;
 }
 

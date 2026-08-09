@@ -22,6 +22,9 @@ export class MultiplayerSourcePlaybackService {
   #onEnded: ((trackId: string, generationId: string) => void) | null = null;
   #unsubscribeEnded: Unsubscriber | null = null;
   #previousPlaybackState: PlaybackSnapshot['state'] = 'idle';
+  #synchronizedStartTimer: ReturnType<typeof setTimeout> | null = null;
+  #synchronizedGenerationId: string | null = null;
+  #synchronizedStartAt = 0;
 
   beginClientSession(onEnded?: (trackId: string, generationId: string) => void): void {
     if (this.#savedPlayback) return;
@@ -47,6 +50,7 @@ export class MultiplayerSourcePlaybackService {
     this.#latestPlayback = null;
     this.#enabled = true;
     this.#localTimeline = false;
+    this.cancelSynchronizedStart();
     this.#unsubscribeEnded?.();
     this.#unsubscribeEnded = null;
     this.#onEnded = null;
@@ -62,6 +66,43 @@ export class MultiplayerSourcePlaybackService {
     if (this.#localTimeline === active) return;
     this.#localTimeline = active;
     if (!active) this.#applyLatestPlayback();
+  }
+
+  scheduleSynchronizedStart(
+    generationId: string,
+    trackId: string,
+    positionSeconds: number,
+    startAt: number
+  ): boolean {
+    if (this.#localTimeline
+      || !this.#enabled
+      || this.#activeGenerationId !== generationId
+      || this.#activeTrackId !== trackId) return false;
+    this.cancelSynchronizedStart();
+    this.#synchronizedGenerationId = generationId;
+    this.#synchronizedStartAt = startAt;
+    const release = () => {
+      this.#synchronizedStartTimer = null;
+      if (this.#synchronizedGenerationId !== generationId
+        || this.#activeGenerationId !== generationId
+        || this.#activeTrackId !== trackId
+        || !this.#enabled) return;
+      const lateSeconds = Math.max(0, (Date.now() - startAt) / 1_000);
+      playerController.seek(Math.max(0, positionSeconds + lateSeconds));
+      playerController.play();
+      this.#synchronizedGenerationId = null;
+      this.#synchronizedStartAt = 0;
+    };
+    const delayMs = Math.max(0, startAt - Date.now());
+    this.#synchronizedStartTimer = globalThis.setTimeout(release, delayMs);
+    return true;
+  }
+
+  cancelSynchronizedStart(): void {
+    if (this.#synchronizedStartTimer !== null) globalThis.clearTimeout(this.#synchronizedStartTimer);
+    this.#synchronizedStartTimer = null;
+    this.#synchronizedGenerationId = null;
+    this.#synchronizedStartAt = 0;
   }
 
   setEnabled(enabled: boolean): void {
@@ -138,11 +179,13 @@ export class MultiplayerSourcePlaybackService {
   }
 
   clearSourceTrack(): void {
+    this.cancelSynchronizedStart();
     this.#latestPlayback = null;
     this.#clearRemotePlayback();
   }
 
   clearLoadedFile(): void {
+    this.cancelSynchronizedStart();
     this.#clearRemotePlayback();
   }
 
@@ -179,6 +222,8 @@ export class MultiplayerSourcePlaybackService {
     const canCorrectDrift = forceSeek || !isDocumentHidden();
 
     if (playback.snapshot.state === 'playing') {
+      if (this.#synchronizedGenerationId === playback.generationId
+        && Date.now() < this.#synchronizedStartAt) return;
       if (drift > 1 && canCorrectDrift) playerController.seek(target);
       if (local.state !== 'playing') playerController.play();
       return;

@@ -8,10 +8,9 @@ import type {
 
 export type MultiplayerCollection = 'playlist' | 'library' | 'favorites';
 
-// Version 14 makes the delivery generation the identity of preparation,
-// playback, file transfer, readiness, and ended events. Compatibility is
+// Version 15 adds clock calibration and scheduled shared starts. Compatibility is
 // intentionally scorched-earth while Multiplayer remains experimental.
-export const MULTIPLAYER_PROTOCOL_VERSION = 14;
+export const MULTIPLAYER_PROTOCOL_VERSION = 15;
 export const MULTIPLAYER_FRAME_CHUNK_SIZE = 12_000;
 export const MULTIPLAYER_QUEUE_MAX_ITEMS = 50_000;
 
@@ -81,6 +80,13 @@ export interface MultiplayerPlaybackPreparation {
   delivery: MultiplayerDeliveryMode;
 }
 
+export interface MultiplayerSynchronizedStart {
+  generationId: string;
+  trackId: string;
+  positionSeconds: number;
+  startAt: number;
+}
+
 export type HostMessage =
   | { kind: 'hello'; version: number; name: string; appVersion: string }
   | {
@@ -95,6 +101,9 @@ export type HostMessage =
   | { kind: 'state'; shuffleEnabled: boolean; repeatMode: PlaylistRepeatMode }
   | { kind: 'playback'; playback: MultiplayerPlayback }
   | { kind: 'playback.prepare'; preparation: MultiplayerPlaybackPreparation }
+  | { kind: 'clock.ping'; generationId: string; hostSentAt: number }
+  | { kind: 'playback.start'; start: MultiplayerSynchronizedStart }
+  | { kind: 'playback.cancel'; generationId: string }
   | { kind: 'delivery'; delivery: MultiplayerDeliveryState }
   | { kind: 'buffer'; bufferMs: number }
   | { kind: 'artwork'; artwork: MultiplayerArtwork | null }
@@ -112,6 +121,13 @@ export type ClientMessage =
     }
   | { kind: 'command'; command: MultiplayerCommand }
   | { kind: 'playback.ready'; generationId: string }
+  | {
+      kind: 'clock.pong';
+      generationId: string;
+      hostSentAt: number;
+      clientReceivedAt: number;
+      clientSentAt: number;
+    }
   | { kind: 'playback.ended'; generationId: string; trackId: string }
   | { kind: 'source.retry'; generationId: string };
 
@@ -248,6 +264,33 @@ export function isHostMessage(value: unknown): value is HostMessage {
       && (preparation.delivery === 'source-file'
         || preparation.delivery === 'stream'
         || preparation.delivery === 'none');
+  }
+  if (message.kind === 'clock.ping') {
+    return typeof message.generationId === 'string'
+      && message.generationId.length > 0
+      && message.generationId.length <= 80
+      && typeof message.hostSentAt === 'number'
+      && Number.isFinite(message.hostSentAt);
+  }
+  if (message.kind === 'playback.start') {
+    const start = message.start as Partial<MultiplayerSynchronizedStart> | undefined;
+    return Boolean(start)
+      && typeof start?.generationId === 'string'
+      && start.generationId.length > 0
+      && start.generationId.length <= 80
+      && typeof start.trackId === 'string'
+      && start.trackId.length > 0
+      && start.trackId.length <= 200
+      && typeof start.positionSeconds === 'number'
+      && Number.isFinite(start.positionSeconds)
+      && start.positionSeconds >= 0
+      && typeof start.startAt === 'number'
+      && Number.isFinite(start.startAt);
+  }
+  if (message.kind === 'playback.cancel') {
+    return typeof message.generationId === 'string'
+      && message.generationId.length > 0
+      && message.generationId.length <= 80;
   }
   if (message.kind === 'delivery') {
     const delivery = message.delivery as Partial<MultiplayerDeliveryState> | undefined;
