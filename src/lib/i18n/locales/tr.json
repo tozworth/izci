@@ -42,7 +42,9 @@
       "forgetPairing": "{name} ile eşleştirmeyi unut",
       "recents": "Son kullanılanlar",
       "hosting": "Sunucu",
+      "hostingForPaired": "Eşleştirilmiş cihazlar için",
       "copyInvite": "Davet kodunu kopyala",
+      "hostWithCode": "Davet koduyla sunucu ol",
       "stopHosting": "Sunucuyu durdur",
       "pairedClient": "{platform} · Eşleştirildi",
       "pairClient": "{platform} · Eşleştirmek için seçin",
@@ -797,6 +799,14 @@
         "waitForClients": {
           "title": "İstemcileri bekle",
           "hint": "Bir parçayı başlatmadan önce bağlı tüm dinleyicilerin aktarılan dosyayı yüklemesini veya ses akışına bağlanmasını bekler."
+        },
+        "autoHost": {
+          "title": "Eşler için her zaman sunucu ol",
+          "hint": "Başlangıçta sessizce sunucu olur; böylece eşleştirilmiş cihazlar davet kodu olmadan katılabilir."
+        },
+        "restoreSession": {
+          "title": "Son oturumu geri yükle",
+          "hint": "Yeniden başlatıldıktan sonra önceki sunucuya bağlanır veya sunuculuğu sürdürür."
         },
         "turnUrl": {
           "title": "TURN server",

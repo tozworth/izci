@@ -102,7 +102,16 @@
     });
   }
 
+  function handleAutoHostToggle(event: Event) {
+    experimentalSettings.update({ multiplayerAutoHost: checked(event) });
+  }
+
+  function handleRestoreSessionToggle(event: Event) {
+    experimentalSettings.update({ multiplayerRestoreLastSession: checked(event) });
+  }
+
   $: multiplayerMode = deriveMultiplayerMode($experimentalSettings);
+  $: multiplayerEnabled = multiplayerMode !== 'singleplayer';
   $: multiplayerAudioEnabled = multiplayerMode === 'coopAudio' || multiplayerMode === 'freeplay';
 </script>
 
@@ -208,6 +217,30 @@
           type="checkbox"
           checked={$experimentalSettings.multiplayerWaitForClients}
           on:change={handleWaitForClientsToggle}
+        />
+      </SettingsField>
+      <SettingsField
+        title={$t('options.experimental.multiplayer.autoHost.title', { default: 'Always host for peers' })}
+        hint={$t('options.experimental.multiplayer.autoHost.hint', { default: 'Silently hosts on launch so paired devices can join without an invite code.' })}
+        checkbox
+      >
+        <input
+          type="checkbox"
+          checked={$experimentalSettings.multiplayerAutoHost}
+          disabled={!multiplayerEnabled}
+          on:change={handleAutoHostToggle}
+        />
+      </SettingsField>
+      <SettingsField
+        title={$t('options.experimental.multiplayer.restoreSession.title', { default: 'Restore last session' })}
+        hint={$t('options.experimental.multiplayer.restoreSession.hint', { default: 'Reconnects to the previous host or resumes hosting after relaunch.' })}
+        checkbox
+      >
+        <input
+          type="checkbox"
+          checked={$experimentalSettings.multiplayerRestoreLastSession}
+          disabled={!multiplayerEnabled}
+          on:change={handleRestoreSessionToggle}
         />
       </SettingsField>
       <SettingsField

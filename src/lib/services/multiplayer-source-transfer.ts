@@ -48,13 +48,15 @@ export async function transferSourceFile(
   peer: PeerConnection,
   track: PlaylistItem,
   file: File,
-  token: number
+  token: number,
+  generationId: string
 ): Promise<void> {
   const transferId = crypto.randomUUID();
   queuePeerMedia(peer, JSON.stringify({
     kind: 'file.begin',
     transferId,
     trackId: track.id,
+    generationId,
     name: file.name,
     type: file.type,
     size: file.size,
@@ -90,6 +92,9 @@ export function parseSourceFileFrame(value: string): SourceFileBeginFrame | Sour
   if (frame.kind !== 'file.begin'
     || typeof frame.transferId !== 'string'
     || typeof frame.trackId !== 'string'
+    || typeof frame.generationId !== 'string'
+    || frame.generationId.length < 1
+    || frame.generationId.length > 80
     || typeof frame.name !== 'string'
     || typeof frame.type !== 'string'
     || typeof frame.size !== 'number'
@@ -101,6 +106,7 @@ export function parseSourceFileFrame(value: string): SourceFileBeginFrame | Sour
     kind: 'file.begin',
     transferId: frame.transferId,
     trackId: frame.trackId,
+    generationId: frame.generationId,
     name: frame.name,
     type: frame.type,
     size: frame.size,

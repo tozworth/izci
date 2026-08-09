@@ -42,7 +42,9 @@
       "forgetPairing": "Forget pairing with {name}",
       "recents": "Recents",
       "hosting": "Hosting",
+      "hostingForPaired": "For paired devices",
       "copyInvite": "Copy invite code",
+      "hostWithCode": "Host with invite code",
       "stopHosting": "Stop hosting",
       "pairedClient": "{platform} · Paired",
       "pairClient": "{platform} · Select to pair",
@@ -797,6 +799,14 @@
         "waitForClients": {
           "title": "Wait for clients",
           "hint": "Before starting a track, waits until every connected listener has loaded its transferred file or tuned to the audio stream."
+        },
+        "autoHost": {
+          "title": "Always host for peers",
+          "hint": "Silently hosts on launch so paired devices can join without an invite code."
+        },
+        "restoreSession": {
+          "title": "Restore last session",
+          "hint": "Reconnects to the previous host or resumes hosting after relaunch."
         },
         "turnUrl": {
           "title": "TURN server",

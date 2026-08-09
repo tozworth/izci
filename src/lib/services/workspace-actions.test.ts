@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest';
 
 import {
   buildFavoritesContextActions,
+  buildFreeplayLibraryContextActions,
+  buildFreeplayPlaylistContextActions,
   buildLibraryContextActions,
   buildLibraryGroupContextActions,
   buildPlaylistContextActions,
@@ -34,6 +36,14 @@ describe('workspace actions', () => {
     expect(getOtherWorkspaceCollection('playlist')).toBe('library');
     expect(getOtherWorkspaceCollection('library')).toBe('playlist');
     expect(buildSelectedWorkspaceTracks(tracks, ['c', 'a']).map((track) => track.id)).toEqual(['a', 'c']);
+  });
+
+  it('keeps Freeplay queue actions local and excludes host mutations', () => {
+    const track = item('track', { path: '/Music/Track.flac', metadata: { artist: 'Artist' } });
+    expect(buildFreeplayPlaylistContextActions([track], [track], ['track']).map(({ id }) => id))
+      .toEqual(['go-to-library', 'track-details', 'remove']);
+    expect(buildFreeplayLibraryContextActions([track], [track], ['track']).map(({ id }) => id))
+      .toEqual(['add-to-playlist', 'replace-playlist', 'go-to-library', 'track-details']);
   });
 
   it('matches playlist tracks to library rows by stable track identity', () => {

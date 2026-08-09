@@ -62,6 +62,7 @@
   } from '$lib/services/playback-progress';
   import { createPlaybackRestorationController } from '$lib/services/playback-restoration';
   import { forceServiceWorkerUpdateCheck } from '$lib/services/pwa-updates';
+  import { logError } from '$lib/services/logging';
   import { createWorkspaceShellController } from '$lib/services/workspace-shell';
   import { mediaSessionService } from '$lib/services/media-session';
   import { createPlayCountTracker } from '$lib/services/play-count';
@@ -118,7 +119,13 @@
   } from '$lib/types';
   import { buildOptionsWindowPath, isOptionsViewName, type OptionsViewName } from './options/views';
   import { getFavoriteIdentity, getTrackDisplayTitle, getTrackIdentity } from '$lib/utils/files';
-  import { favoritesHaveAllTracks } from '$lib/services/workspace-actions';
+  import {
+    buildFreeplayLibraryContextActions,
+    buildFreeplayPlaylistContextActions,
+    buildSelectedWorkspaceTracks,
+    favoritesHaveAllTracks,
+    resolveTrackLibraryNavigationAction
+  } from '$lib/services/workspace-actions';
   import { experimentalSettings } from '$lib/stores/experimental-settings';
   import { multiplayerRecents } from '$lib/stores/multiplayer-recents';
   import {
@@ -238,6 +245,7 @@
     hostVersion: null,
     freeplayPaired: false,
     freeplay: false,
+    freeplayQueue: [],
     clients: [],
     remoteCatalog: {
       revision: 0,
@@ -255,6 +263,13 @@
     remoteArtwork: null,
     remoteArtworkResolvedTrackKey: '',
     audioStatus: 'idle',
+    remoteDelivery: {
+      generationId: 'idle',
+      trackId: null,
+      mode: 'none',
+      postRaf: false,
+      reason: 'host-disabled'
+    },
     connectionRoute: null,
     averageAudioBitrateKbps: null,
     receiveAudio: true,
@@ -270,6 +285,8 @@
   let multiplayerConnectionOperation: 'hosting' | 'joining' = 'joining';
   let multiplayerConnectionTargetName: string | null = null;
   let isMultiplayerClient = false;
+  let isFreeplayClient = false;
+  let isSourceFileFreeplayClient = false;
   let multiplayerShutdownRequested = false;
   let modulePatternSnapshot: ModulePatternSnapshot = {
     trackId: null,
@@ -385,9 +402,16 @@
     resumeAutoScrollToken: 0
   };
   const workspaceShell = createWorkspaceShellController({
-    getPlaylistContextActions: (ids) => workspaceCollections.getPlaylistContextActions(ids),
-    getLibraryContextActions: (ids) =>
-      libraryViewSettings.getSnapshot().activeView === 'favorites'
+    getPlaylistContextActions: (ids) => isFreeplayClient
+      ? buildFreeplayPlaylistContextActions(playlistItems, libraryItems, ids)
+      : workspaceCollections.getPlaylistContextActions(ids),
+    getLibraryContextActions: (ids) => isFreeplayClient
+      ? buildFreeplayLibraryContextActions(
+          libraryViewSettings.getSnapshot().activeView === 'favorites' ? favoriteItems : libraryItems,
+          libraryItems,
+          ids
+        )
+      : libraryViewSettings.getSnapshot().activeView === 'favorites'
         ? workspaceCollections.getFavoriteContextActions(ids)
         : workspaceCollections.getLibraryContextActions(ids),
     collectionSelection: {
@@ -594,6 +618,11 @@
 
   function togglePlayback(): void {
     if (isMultiplayerClient) {
+      if (isSourceFileFreeplayClient) {
+        if (playbackSnapshot.state === 'playing') playerController.pause();
+        else playerController.play();
+        return;
+      }
       multiplayerSession.sendCommand({ type: 'transport.toggle' });
       return;
     }
@@ -603,6 +632,10 @@
 
   function playPlayback(): void {
     if (isMultiplayerClient) {
+      if (isSourceFileFreeplayClient) {
+        playerController.play();
+        return;
+      }
       multiplayerSession.sendCommand({ type: 'transport.play' });
       return;
     }
@@ -611,6 +644,10 @@
 
   function pausePlayback(): void {
     if (isMultiplayerClient) {
+      if (isSourceFileFreeplayClient) {
+        playerController.pause();
+        return;
+      }
       multiplayerSession.sendCommand({ type: 'transport.pause' });
       return;
     }
@@ -620,6 +657,11 @@
 
   function stopPlayback(): void {
     if (isMultiplayerClient) {
+      if (isSourceFileFreeplayClient) {
+        playerController.seek(0);
+        playerController.pause();
+        return;
+      }
       multiplayerSession.sendCommand({ type: 'transport.stop' });
       return;
     }
@@ -673,6 +715,61 @@
     if (!isMultiplayerClient) return false;
     multiplayerSession.sendCommand({ type: 'collection.activate', collection, itemId: id });
     return true;
+  }
+
+  function addToFreeplayQueue(ids: string[]): void {
+    if (!isFreeplayClient || ids.length === 0) return;
+    const current = multiplayerState.freeplayQueue;
+    multiplayerSession.setFreeplayQueue([
+      ...current,
+      ...ids.filter((id) => !current.includes(id))
+    ]);
+  }
+
+  function removeFromFreeplayQueue(ids: string[]): void {
+    if (!isFreeplayClient || ids.length === 0) return;
+    const removed = new Set(ids);
+    multiplayerSession.setFreeplayQueue(
+      multiplayerState.freeplayQueue.filter((id) => !removed.has(id))
+    );
+  }
+
+  function handleFreeplayNavigationAction(actionId: string, tracks: PlaylistItem[]): boolean {
+    if (tracks.length !== 1) return false;
+    const target = resolveTrackLibraryNavigationAction(actionId, tracks[0], libraryItems);
+    if (!target) return false;
+    workspaceShell.showLibraryGroup(target);
+    return true;
+  }
+
+  function handleFreeplayPlaylistContextAction(actionId: string, ids: string[]): void {
+    if (actionId === 'remove') {
+      removeFromFreeplayQueue(ids);
+      return;
+    }
+    const tracks = buildSelectedWorkspaceTracks(playlistItems, ids);
+    if (handleFreeplayNavigationAction(actionId, tracks)) return;
+    if (actionId === 'track-details') workspaceShell.showTrackDetails();
+  }
+
+  function handleFreeplayLibraryContextAction(actionId: string, ids: string[]): void {
+    if (actionId === 'add-to-playlist') {
+      addToFreeplayQueue(ids);
+      return;
+    }
+    if (actionId === 'replace-playlist' || actionId === 'shuffle-play') {
+      if (ids.length === 0) return;
+      multiplayerSession.setFreeplayQueue(ids);
+      if (actionId === 'shuffle-play' && !multiplayerState.remoteCatalog.shuffleEnabled) {
+        multiplayerSession.sendCommand({ type: 'playlist.shuffle' });
+      }
+      activateMultiplayerTrack('playlist', ids[0]);
+      return;
+    }
+    const source = $libraryViewSettings.activeView === 'favorites' ? favoriteItems : libraryItems;
+    const tracks = buildSelectedWorkspaceTracks(source, ids);
+    if (handleFreeplayNavigationAction(actionId, tracks)) return;
+    if (actionId === 'track-details') workspaceShell.showTrackDetails();
   }
   const miniPlayer = createMiniPlayerController({
     snapshot: playerController.snapshot,
@@ -732,6 +829,7 @@
     localCollectionsReady = true;
     void scanLaunchLibraryFolders();
     await playbackRestoration.restore();
+    void startLaunchMultiplayer();
   });
   const unsubscribePlaylistSelectedIds = playlistSelectedIdsStore.subscribe(
     (value) => (localPlaylistSelectionIds = value)
@@ -856,6 +954,10 @@
       closeNowPlayingView,
       closeActiveRightPanel,
       removePlaylistItems: (ids) => {
+        if (isFreeplayClient) {
+          removeFromFreeplayQueue(ids);
+          return;
+        }
         if (!isMultiplayerClient) workspaceCollections.removePlaylistItems(ids);
       },
       removeLibraryItems: (ids) =>
@@ -907,6 +1009,9 @@
   });
 
   $: isMultiplayerClient = multiplayerState.mode === 'client';
+  $: isFreeplayClient = isMultiplayerClient && multiplayerState.freeplay;
+  $: isSourceFileFreeplayClient = isFreeplayClient
+    && multiplayerState.remoteDelivery.mode === 'source-file';
   $: multiplayerConnectionFailed = multiplayerConnectionDialogError !== null
     || multiplayerState.connectionStatus === 'error'
     || multiplayerState.connectionStatus === 'disconnected';
@@ -970,14 +1075,14 @@
       workspaceShell.setCollectionSelection('playlist', selectionSync.selection);
     }
   }
-  $: playbackSnapshot = isMultiplayerClient
+  $: playbackSnapshot = isMultiplayerClient && !isSourceFileFreeplayClient
     ? {
         ...multiplayerState.remotePlayback.snapshot,
         volume: localPlaybackSnapshot.volume,
         muted: localPlaybackSnapshot.muted
       }
     : localPlaybackSnapshot;
-  $: playbackStatus = isMultiplayerClient
+  $: playbackStatus = isMultiplayerClient && !isSourceFileFreeplayClient
     ? {
         state: playbackSnapshot.state,
         volume: playbackSnapshot.volume,
@@ -1119,7 +1224,7 @@
     shuffleEnabled,
     repeatMode,
     keepEmptyWorkspacePanelsOpen: $appearanceSettings.keepEmptyWorkspacePanelsOpen,
-    readOnly: isMultiplayerClient
+    readOnly: isMultiplayerClient && !isFreeplayClient
   });
   $: multiplayerSession.updateHostState({
     playlist: localPlaylistItems,
@@ -1172,6 +1277,10 @@
       }
     },
     contextAction: (event) => {
+      if (isFreeplayClient) {
+        handleFreeplayPlaylistContextAction(event.detail.actionId, event.detail.ids);
+        return;
+      }
       if (!isMultiplayerClient) {
         workspaceCollections.handlePlaylistContextAction(event.detail.actionId, event.detail.ids);
       }
@@ -1188,6 +1297,10 @@
     activate: (event) => void activateLibraryPanelTrack(event.detail),
     libraryGroupRequestHandled: (event) => workspaceShell.clearLibraryGroupRequest(event.detail),
     contextAction: (event) => {
+      if (isFreeplayClient) {
+        handleFreeplayLibraryContextAction(event.detail.actionId, event.detail.ids);
+        return;
+      }
       if (isMultiplayerClient) return;
       $libraryViewSettings.activeView === 'favorites'
         ? workspaceCollections.handleFavoriteContextAction(event.detail.actionId, event.detail.ids)
@@ -1261,6 +1374,11 @@
   }
 
   async function activateLibraryPanelTrack(id: string) {
+    if (isFreeplayClient) {
+      addToFreeplayQueue([id]);
+      activateMultiplayerTrack('playlist', id);
+      return;
+    }
     if (activateMultiplayerTrack(
       $libraryViewSettings.activeView === 'favorites' ? 'favorites' : 'library',
       id
@@ -1310,6 +1428,10 @@
 
   function seekPlayback(seconds: number): void {
     if (isMultiplayerClient) {
+      if (isSourceFileFreeplayClient) {
+        playerController.seek(seconds);
+        return;
+      }
       multiplayerSession.sendCommand({ type: 'transport.seek', seconds });
       return;
     }
@@ -1662,6 +1784,28 @@
     }
   }
 
+  async function startLaunchMultiplayer(): Promise<void> {
+    const settings = experimentalSettings.getSnapshot();
+    if (!settings.multiplayer) return;
+    if (settings.multiplayerRestoreLastSession) {
+      const restored = await multiplayerSession.restoreLastSession().catch((error) => {
+        logError('multiplayer', 'Last session restore could not start', error);
+        return null;
+      });
+      if (restored === 'client') {
+        playerController.pause();
+        return;
+      }
+      if (restored === 'hosting') return;
+    }
+    if (!settings.multiplayerAutoHost) return;
+    try {
+      await multiplayerSession.startHosting({ silent: true });
+    } catch (error) {
+      logError('multiplayer', 'Persistent peer hosting could not start', error);
+    }
+  }
+
   async function handleMultiplayerJoin(): Promise<void> {
     const inviteCode = window.prompt(
       $t('main.multiplayer.enterInvite', { default: 'Enter the host invite code' })
@@ -1948,6 +2092,7 @@
     on:toggleMiniPlayer={() => miniPlayer.toggle()}
     on:toggleNowPlayingView={toggleNowPlayingView}
     on:multiplayerHost={() => void handleMultiplayerHost()}
+    on:multiplayerHostWithCode={() => void handleMultiplayerHost()}
     on:multiplayerStopHosting={() => void multiplayerSession.stopHosting()}
     on:multiplayerJoin={() => void handleMultiplayerJoin()}
     on:multiplayerJoinRecent={(event) => void joinMultiplayer(event.detail)}
@@ -2023,6 +2168,7 @@
     on:openAbout={handleOpenAbout}
     on:install={() => void appInstallService.prompt()}
     on:multiplayerHost={() => void handleMultiplayerHost()}
+    on:multiplayerHostWithCode={() => void handleMultiplayerHost()}
     on:multiplayerStopHosting={() => void multiplayerSession.stopHosting()}
     on:multiplayerJoin={() => void handleMultiplayerJoin()}
     on:multiplayerJoinRecent={(event) => void joinMultiplayer(event.detail)}

@@ -20,6 +20,8 @@ describe('experimental settings', () => {
 
     expect(normalized).toMatchObject({
       multiplayerWaitForClients: false,
+      multiplayerAutoHost: false,
+      multiplayerRestoreLastSession: true,
       multiplayerTurnUrl: '',
       multiplayerTurnSecret: '',
       multiplayerTurnCredentialHours: 12,

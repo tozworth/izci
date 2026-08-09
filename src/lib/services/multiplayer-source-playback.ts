@@ -17,6 +17,7 @@ export class MultiplayerSourcePlaybackService {
   #activeObjectUrl: string | null = null;
   #loadToken = 0;
   #enabled = true;
+  #localTimeline = false;
   #onEnded: ((trackId: string) => void) | null = null;
   #unsubscribeEnded: Unsubscriber | null = null;
   #previousPlaybackState: PlaybackSnapshot['state'] = 'idle';
@@ -44,6 +45,7 @@ export class MultiplayerSourcePlaybackService {
     this.#savedPlayback = null;
     this.#latestPlayback = null;
     this.#enabled = true;
+    this.#localTimeline = false;
     this.#unsubscribeEnded?.();
     this.#unsubscribeEnded = null;
     this.#onEnded = null;
@@ -53,6 +55,12 @@ export class MultiplayerSourcePlaybackService {
       autoPlay: false,
       initialPosition: saved.snapshot.currentTime
     }).catch((error) => logError('freeplay', 'Local playback restoration failed', error));
+  }
+
+  setLocalTimeline(active: boolean): void {
+    if (this.#localTimeline === active) return;
+    this.#localTimeline = active;
+    if (!active) this.#applyLatestPlayback();
   }
 
   setEnabled(enabled: boolean): void {
@@ -79,11 +87,16 @@ export class MultiplayerSourcePlaybackService {
     const objectUrl = track.kind === 'stream' ? URL.createObjectURL(file) : undefined;
     const playableTrack: PlaylistItem = { ...track, file, objectUrl };
     const snapshot = playback.snapshot;
-    const initialPosition = expectedPosition(playback);
+    const initialPosition = this.#localTimeline ? 0 : expectedPosition(playback);
     const previousObjectUrl = this.#activeObjectUrl;
 
     try {
-      if (this.#activeTrackId
+      if (this.#localTimeline) {
+        await playerController.load(playableTrack, {
+          autoPlay: this.#enabled,
+          initialPosition: 0
+        });
+      } else if (this.#activeTrackId
         && this.#enabled
         && (snapshot.state === 'playing' || snapshot.state === 'loading')) {
         const ready = await playerController.prepareNext(playableTrack);
@@ -131,9 +144,16 @@ export class MultiplayerSourcePlaybackService {
     this.#clearRemotePlayback();
   }
 
+  replay(): boolean {
+    if (!this.#enabled || !this.#activeTrackId) return false;
+    playerController.seek(0);
+    if (get(playerController.snapshot).state !== 'playing') playerController.play();
+    return true;
+  }
+
   resume(): boolean {
     if (!this.#enabled || !this.#activeTrackId) return false;
-    this.#applyLatestPlayback();
+    if (!this.#localTimeline) this.#applyLatestPlayback();
     return true;
   }
 
@@ -146,6 +166,7 @@ export class MultiplayerSourcePlaybackService {
   }
 
   #applyLatestPlayback(forceSeek = false): void {
+    if (this.#localTimeline) return;
     const playback = this.#latestPlayback;
     if (!this.#enabled || !playback?.track || playback.track.id !== this.#activeTrackId) return;
     const local = get(playerController.snapshot);

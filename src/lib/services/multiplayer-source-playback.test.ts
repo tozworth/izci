@@ -152,4 +152,33 @@ describe('MultiplayerSourcePlaybackService', () => {
     expect(controllerHarness.seek).not.toHaveBeenCalled();
     vi.unstubAllGlobals();
   });
+
+  it('does not mirror host transport or progress on a Freeplay local timeline', async () => {
+    const service = new MultiplayerSourcePlaybackService();
+    service.setLocalTimeline(true);
+    service.syncPlayback(playback('playing'));
+    await service.loadFile(track, {} as File);
+    controllerHarness.snapshot = { ...controllerHarness.snapshot, state: 'playing', currentTime: 1 };
+
+    service.syncPlayback(playback('paused'));
+
+    expect(controllerHarness.load).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'track-1' }),
+      { autoPlay: true, initialPosition: 0 }
+    );
+    expect(controllerHarness.pause).not.toHaveBeenCalled();
+    expect(controllerHarness.seek).not.toHaveBeenCalled();
+  });
+
+  it('replays repeat-one locally without asking the host to rebuild the timeline', async () => {
+    const service = new MultiplayerSourcePlaybackService();
+    service.setLocalTimeline(true);
+    service.syncPlayback(playback('playing'));
+    await service.loadFile(track, {} as File);
+    controllerHarness.snapshot = { ...controllerHarness.snapshot, state: 'ended', currentTime: 180 };
+
+    expect(service.replay()).toBe(true);
+    expect(controllerHarness.seek).toHaveBeenCalledWith(0);
+    expect(controllerHarness.play).toHaveBeenCalled();
+  });
 });

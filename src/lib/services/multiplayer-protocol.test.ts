@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  MULTIPLAYER_QUEUE_MAX_ITEMS,
   MULTIPLAYER_PROTOCOL_VERSION,
   createMultiplayerMessageDecoder,
   encodeMultiplayerMessage,
@@ -8,6 +9,7 @@ import {
   sanitizePlaylistItem,
   type HostMessage
 } from './multiplayer-protocol';
+import { isClientMessage } from './multiplayer-utils';
 import { normalizeInviteCode } from './multiplayer-signaling';
 
 describe('multiplayer protocol', () => {
@@ -105,22 +107,22 @@ describe('multiplayer protocol', () => {
     })).toBe(false);
   });
 
-  it('accepts explicit host audio availability states', () => {
+  it('accepts explicit generation-keyed delivery states', () => {
     expect(isHostMessage({
-      kind: 'audio',
-      audio: { enabled: true, sourceFile: false, postRaf: false, reason: null }
+      kind: 'delivery',
+      delivery: { generationId: 'one', trackId: 'track', mode: 'stream', postRaf: false, reason: null }
     })).toBe(true);
     expect(isHostMessage({
-      kind: 'audio',
-      audio: { enabled: false, sourceFile: true, postRaf: false, reason: null }
+      kind: 'delivery',
+      delivery: { generationId: 'two', trackId: 'track', mode: 'source-file', postRaf: false, reason: null }
     })).toBe(true);
     expect(isHostMessage({
-      kind: 'audio',
-      audio: { enabled: false, sourceFile: false, postRaf: false, reason: 'network' }
+      kind: 'delivery',
+      delivery: { generationId: 'three', trackId: null, mode: 'none', postRaf: false, reason: 'network' }
     })).toBe(false);
     expect(isHostMessage({
-      kind: 'audio',
-      audio: { enabled: true, reason: null }
+      kind: 'delivery',
+      delivery: { generationId: 'four', trackId: 'track', mode: 'source-file', postRaf: true, reason: null }
     })).toBe(false);
   });
 
@@ -130,7 +132,7 @@ describe('multiplayer protocol', () => {
       preparation: {
         preparationId: 'prepare-1',
         trackId: 'track-1',
-        audio: 'file'
+        delivery: 'source-file'
       }
     })).toBe(true);
     expect(isHostMessage({
@@ -138,7 +140,7 @@ describe('multiplayer protocol', () => {
       preparation: {
         preparationId: '',
         trackId: 'track-1',
-        audio: 'file'
+        delivery: 'source-file'
       }
     })).toBe(false);
     expect(isHostMessage({
@@ -146,7 +148,7 @@ describe('multiplayer protocol', () => {
       preparation: {
         preparationId: 'prepare-1',
         trackId: 'track-1',
-        audio: 'buffering'
+        delivery: 'buffering'
       }
     })).toBe(false);
   });
@@ -168,6 +170,25 @@ describe('multiplayer protocol', () => {
       hostId: '../host',
       name: 'Living room'
     })).toBe(false);
+  });
+
+  it('accepts only bounded host-authoritative listener buffers', () => {
+    expect(isHostMessage({ kind: 'buffer', bufferMs: 750 })).toBe(true);
+    expect(isHostMessage({ kind: 'buffer', bufferMs: 4_001 })).toBe(false);
+  });
+
+  it('bounds client-owned Freeplay queues at the protocol edge', () => {
+    expect(isClientMessage({
+      kind: 'freeplay.queue',
+      itemIds: ['a', 'b'],
+      shuffleEnabled: true,
+      repeatMode: 'all'
+    })).toBe(true);
+    expect(isClientMessage({
+      kind: 'freeplay.queue',
+      itemIds: Array.from({ length: MULTIPLAYER_QUEUE_MAX_ITEMS + 1 }, () => 'a')
+    })).toBe(false);
+    expect(isClientMessage({ kind: 'freeplay.queue', itemIds: [''] })).toBe(false);
   });
 
   it('accepts invite codes directly or from an izci room link', () => {

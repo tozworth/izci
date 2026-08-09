@@ -15,17 +15,18 @@ import {
   createMultiplayerMessageDecoder,
   type ClientMessage,
   type MultiplayerArtwork,
-  type MultiplayerAudioAvailability,
   type MultiplayerCatalog,
   type MultiplayerCollection,
   type MultiplayerCommand,
   type MultiplayerCommandInput,
+  type MultiplayerDeliveryState,
   type MultiplayerPlayback,
   type MultiplayerPlaybackPreparation
 } from './multiplayer-protocol';
 import type { MultiplayerReceiverAudioStatus } from './multiplayer-audio';
 import type { MultiplayerConnectionRoute } from './multiplayer-ice';
-import type { MultiplayerFreeplayPlayer } from './multiplayer-freeplay';
+import type { FreeplayStepResolver, MultiplayerFreeplayPlayer } from './multiplayer-freeplay';
+import type { MultiplayerLastSession } from '$lib/stores/multiplayer-last-session';
 import type {
   MultiplayerTurnCredentialRequest,
   MultiplayerTurnCredentialResponse
@@ -66,12 +67,14 @@ export interface MultiplayerSessionState {
   hostVersion: string | null;
   freeplayPaired: boolean;
   freeplay: boolean;
+  freeplayQueue: string[];
   clients: MultiplayerClient[];
   remoteCatalog: MultiplayerCatalog;
   remotePlayback: MultiplayerPlayback;
   remoteArtwork: MultiplayerArtwork | null;
   remoteArtworkResolvedTrackKey: string;
   audioStatus: MultiplayerAudioStatus;
+  remoteDelivery: MultiplayerDeliveryState;
   connectionRoute: MultiplayerConnectionRoute | null;
   averageAudioBitrateKbps: number | null;
   receiveAudio: boolean;
@@ -112,6 +115,14 @@ export const EMPTY_REMOTE_PLAYBACK: MultiplayerPlayback = {
   snapshot: EMPTY_PLAYBACK,
   track: null,
   sentAt: 0
+};
+
+export const EMPTY_DELIVERY: MultiplayerDeliveryState = {
+  generationId: 'idle',
+  trackId: null,
+  mode: 'none',
+  postRaf: false,
+  reason: 'host-disabled'
 };
 
 export interface FirebaseRuntime {
@@ -166,6 +177,7 @@ export interface SourceFileBeginFrame {
   kind: 'file.begin';
   transferId: string;
   trackId: string;
+  generationId: string;
   name: string;
   type: string;
   size: number;
@@ -203,16 +215,24 @@ export interface PeerConnection {
   paired: boolean;
   freeplayPaired: boolean;
   clientFreeplayEnabled: boolean;
+  helloReceived: boolean;
+  freeplaySettled: boolean;
+  mediaSyncPending: boolean;
   freeplay: boolean;
   freeplayPlayer: MultiplayerFreeplayPlayer | null;
   freeplayCollection: MultiplayerCollection;
   freeplayShuffle: boolean;
   freeplayRepeatMode: PlaylistRepeatMode;
+  freeplayNavigation: FreeplayStepResolver | null;
+  freeplayQueue: string[];
+  freeplayActivationToken: number;
+  freeplayModeToken: number;
   freeplayPendingPreparation: MultiplayerPlaybackPreparation | null;
   freeplayArtwork: MultiplayerArtwork | null;
   freeplayArtworkTrackKey: string;
   freeplayArtworkResolvedTrackKey: string;
   freeplayArtworkLoadToken: number;
+  freeplayDelivery: MultiplayerDeliveryState | null;
 }
 
 export interface CreateMultiplayerSessionOptions {
@@ -226,14 +246,16 @@ export interface CreateMultiplayerSessionOptions {
 
 export interface MultiplayerSessionController extends Readable<MultiplayerSessionState> {
   getSnapshot(): MultiplayerSessionState;
-  startHosting(): Promise<string>;
+  startHosting(options?: { silent?: boolean }): Promise<string>;
   stopHosting(): Promise<void>;
   join(inviteCode: string): Promise<void>;
   joinPaired(hostId: string): Promise<void>;
+  restoreLastSession(): Promise<MultiplayerMode | null>;
   leave(): Promise<void>;
   kick(clientId: string): Promise<void>;
   togglePairing(clientId: string): Promise<void>;
   sendCommand(command: MultiplayerCommandInput): boolean;
+  setFreeplayQueue(itemIds: string[]): void;
   cancelPendingPlayback(): boolean;
   resumeAudio(): Promise<boolean>;
   setReceiveAudio(enabled: boolean): void;
@@ -254,16 +276,21 @@ export interface MultiplayerSessionCore {
   roomRef: DatabaseReference | null;
   hostDirectoryRef: DatabaseReference | null;
   ownPeerRef: DatabaseReference | null;
+  roomCode: string | null;
+  clientHostId: string | null;
   roomDisconnect: OnDisconnect | null;
   hostDirectoryDisconnect: OnDisconnect | null;
   peerDisconnect: OnDisconnect | null;
   stopPeersListener: Unsubscribe | null;
   stopAnswerListener: Unsubscribe | null;
   hostPeers: Map<string, PeerConnection>;
+  freeplaySelections: Map<string, PlaylistItem>;
   clientPeer: PeerConnection | null;
-  pendingClientSourceFile: { trackId: string; file: File } | null;
+  pendingClientSourceFile: { trackId: string; generationId: string; file: File } | null;
   pendingClientPlaybackPreparation: MultiplayerPlaybackPreparation | null;
+  clientLoadedSourceGenerationId: string | null;
   clientRemoteAudioReady: boolean;
+  hostAudioBufferMs: number | null;
   reconnectTimer: number | null;
   reconnectAttempts: number;
   reconnectInFlight: boolean;
@@ -280,7 +307,7 @@ export interface MultiplayerSessionCore {
   hostArtworkTrackKey: string;
   hostArtworkResolvedTrackKey: string;
   hostArtworkLoadToken: number;
-  latestAudioAvailability: MultiplayerAudioAvailability;
+  latestDelivery: MultiplayerDeliveryState;
   hostPlaybackPreparation: {
     preparation: MultiplayerPlaybackPreparation;
     pendingPeerIds: Set<string>;
@@ -293,7 +320,7 @@ export interface MultiplayerSessionCore {
 }
 
 export interface MultiplayerHostSide {
-  startHosting(): Promise<string>;
+  startHosting(options?: { silent?: boolean }): Promise<string>;
   stopHosting(): Promise<void>;
   kick(clientId: string): Promise<void>;
   togglePairing(clientId: string): Promise<void>;
@@ -308,10 +335,12 @@ export interface MultiplayerHostSide {
 }
 
 export interface MultiplayerClientSide {
-  join(inviteCode: string): Promise<void>;
+  join(inviteCode: string, options?: { silent?: boolean }): Promise<void>;
   joinPaired(hostId: string): Promise<void>;
+  restoreClientJoin(last: MultiplayerLastSession): Promise<void>;
   leave(): Promise<void>;
   sendCommand(command: MultiplayerCommandInput): boolean;
+  setFreeplayQueue(itemIds: string[]): void;
   setReceiveAudio(enabled: boolean): void;
   resumeAudio(): Promise<boolean>;
   applyClientAudioBuffer(peer: PeerConnection): void;

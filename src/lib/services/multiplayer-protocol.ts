@@ -8,8 +8,12 @@ import type {
 
 export type MultiplayerCollection = 'playlist' | 'library' | 'favorites';
 
-export const MULTIPLAYER_PROTOCOL_VERSION = 12;
+// Version 13 reconstructs Freeplay around an explicit delivery generation,
+// client-owned queues, and lightweight per-peer navigation state. Compatibility
+// is intentionally scorched-earth while Multiplayer remains experimental.
+export const MULTIPLAYER_PROTOCOL_VERSION = 13;
 export const MULTIPLAYER_FRAME_CHUNK_SIZE = 12_000;
+export const MULTIPLAYER_QUEUE_MAX_ITEMS = 50_000;
 
 const MULTIPLAYER_ARTWORK_DATA_URL_MAX_LENGTH = 8 * 1024 * 1024;
 
@@ -60,19 +64,20 @@ export interface MultiplayerArtwork {
   height: number;
 }
 
-export interface MultiplayerAudioAvailability {
-  enabled: boolean;
-  sourceFile: boolean;
-  postRaf: boolean;
-  reason: 'host-disabled' | null;
-}
+export type MultiplayerDeliveryMode = 'none' | 'stream' | 'source-file';
 
-export type MultiplayerPlaybackPreparationAudio = 'file' | 'stream' | 'none';
+export interface MultiplayerDeliveryState {
+  generationId: string;
+  trackId: string | null;
+  mode: MultiplayerDeliveryMode;
+  postRaf: boolean;
+  reason: 'host-disabled' | 'no-track' | null;
+}
 
 export interface MultiplayerPlaybackPreparation {
   preparationId: string;
   trackId: string;
-  audio: MultiplayerPlaybackPreparationAudio;
+  delivery: MultiplayerDeliveryMode;
 }
 
 export type HostMessage =
@@ -86,9 +91,11 @@ export type HostMessage =
       name: string;
     }
   | { kind: 'catalog'; catalog: MultiplayerCatalog }
+  | { kind: 'state'; shuffleEnabled: boolean; repeatMode: PlaylistRepeatMode }
   | { kind: 'playback'; playback: MultiplayerPlayback }
   | { kind: 'playback.prepare'; preparation: MultiplayerPlaybackPreparation }
-  | { kind: 'audio'; audio: MultiplayerAudioAvailability }
+  | { kind: 'delivery'; delivery: MultiplayerDeliveryState }
+  | { kind: 'buffer'; bufferMs: number }
   | { kind: 'artwork'; artwork: MultiplayerArtwork | null }
   | { kind: 'ack'; commandId: string; accepted: boolean; message?: string }
   | { kind: 'kicked' };
@@ -96,6 +103,12 @@ export type HostMessage =
 export type ClientMessage =
   | { kind: 'hello'; version: number; name: string; platform: string; freeplayEnabled: boolean }
   | { kind: 'freeplay.preference'; enabled: boolean }
+  | {
+      kind: 'freeplay.queue';
+      itemIds: string[];
+      shuffleEnabled?: boolean;
+      repeatMode?: PlaylistRepeatMode;
+    }
   | { kind: 'command'; command: MultiplayerCommand }
   | { kind: 'playback.ready'; preparationId: string }
   | { kind: 'playback.ended'; trackId: string };
@@ -207,6 +220,10 @@ export function isHostMessage(value: unknown): value is HostMessage {
       && typeof catalog.shuffleEnabled === 'boolean'
       && (catalog.repeatMode === 'off' || catalog.repeatMode === 'one' || catalog.repeatMode === 'all');
   }
+  if (message.kind === 'state') {
+    return typeof message.shuffleEnabled === 'boolean'
+      && (message.repeatMode === 'off' || message.repeatMode === 'one' || message.repeatMode === 'all');
+  }
   if (message.kind === 'playback') {
     const playback = message.playback as Partial<MultiplayerPlayback> | undefined;
     return Boolean(playback)
@@ -223,18 +240,37 @@ export function isHostMessage(value: unknown): value is HostMessage {
       && typeof preparation.trackId === 'string'
       && preparation.trackId.length > 0
       && preparation.trackId.length <= 200
-      && (preparation.audio === 'file'
-        || preparation.audio === 'stream'
-        || preparation.audio === 'none');
+      && (preparation.delivery === 'source-file'
+        || preparation.delivery === 'stream'
+        || preparation.delivery === 'none');
   }
-  if (message.kind === 'audio') {
-    const audio = message.audio as Partial<MultiplayerAudioAvailability> | undefined;
-    return Boolean(audio)
-      && typeof audio?.enabled === 'boolean'
-      && typeof audio.sourceFile === 'boolean'
-      && typeof audio.postRaf === 'boolean'
-      && (audio.reason === null
-        || audio.reason === 'host-disabled');
+  if (message.kind === 'delivery') {
+    const delivery = message.delivery as Partial<MultiplayerDeliveryState> | undefined;
+    return Boolean(delivery)
+      && typeof delivery?.generationId === 'string'
+      && delivery.generationId.length > 0
+      && delivery.generationId.length <= 80
+      && (delivery.trackId === null
+        || (typeof delivery.trackId === 'string'
+          && delivery.trackId.length > 0
+          && delivery.trackId.length <= 200))
+      && (delivery.mode === 'none'
+        || delivery.mode === 'stream'
+        || delivery.mode === 'source-file')
+      && typeof delivery.postRaf === 'boolean'
+      && (delivery.reason === null
+        || delivery.reason === 'host-disabled'
+        || delivery.reason === 'no-track')
+      && (delivery.mode === 'stream' || delivery.postRaf === false)
+      && (delivery.mode === 'none'
+        ? delivery.reason === 'host-disabled' || delivery.reason === 'no-track'
+        : delivery.reason === null);
+  }
+  if (message.kind === 'buffer') {
+    return typeof message.bufferMs === 'number'
+      && Number.isFinite(message.bufferMs)
+      && message.bufferMs >= 0
+      && message.bufferMs <= 4_000;
   }
   if (message.kind === 'artwork') {
     return message.artwork === null || isMultiplayerArtwork(message.artwork);

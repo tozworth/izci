@@ -1,4 +1,13 @@
 import { rememberMultiplayerHost } from '$lib/stores/multiplayer-recents';
+import {
+  clearMultiplayerLastSession,
+  rememberMultiplayerLastSession,
+  type MultiplayerLastSession
+} from '$lib/stores/multiplayer-last-session';
+import {
+  multiplayerFreeplayState,
+  rememberMultiplayerFreeplayState
+} from '$lib/stores/multiplayer-freeplay-state';
 import { logError, logInfo } from '$lib/services/logging';
 import {
   forgetMultiplayerPairing,
@@ -45,6 +54,8 @@ import {
   getLocalName,
   isMultiplayerClientTransportHealthy,
   isMultiplayerPlaybackPreparationReady,
+  cycleMultiplayerRepeatMode,
+  sanitizeFreeplayQueueIds,
   sanitizeClientName,
   writeReceiveAudioPreference
 } from './multiplayer-utils';
@@ -70,22 +81,81 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
     core.publish(patch);
   }
 
-  async function join(rawInviteCode: string): Promise<void> {
+  function updateLocalTimelineMode(): void {
+    multiplayerSourcePlaybackService.setLocalTimeline(
+      core.state.mode === 'client'
+        && core.state.freeplay
+        && core.state.remoteDelivery.mode === 'source-file'
+    );
+  }
+
+  function persistFreeplayState(): void {
+    if (core.state.mode !== 'client' || !core.state.freeplay || !core.clientHostId) return;
+    const previous = multiplayerFreeplayState.getSnapshot();
+    rememberMultiplayerFreeplayState({
+      hostId: core.clientHostId,
+      queue: core.state.freeplayQueue,
+      shuffleEnabled: core.state.remoteCatalog.shuffleEnabled,
+      repeatMode: core.state.remoteCatalog.repeatMode,
+      currentTrackId: core.state.remotePlayback.track?.id
+        ?? (previous?.hostId === core.clientHostId ? previous.currentTrackId : null)
+    });
+  }
+
+  function sendFreeplayQueueToPeer(): void {
+    if (!core.clientPeer || !core.state.freeplay) return;
+    sendToPeer(core.clientPeer, {
+      kind: 'freeplay.queue',
+      itemIds: core.state.freeplayQueue,
+      shuffleEnabled: core.state.remoteCatalog.shuffleEnabled,
+      repeatMode: core.state.remoteCatalog.repeatMode
+    });
+  }
+
+  function setFreeplayQueue(itemIds: string[]): void {
+    publish({ freeplayQueue: sanitizeFreeplayQueueIds(itemIds) });
+    persistFreeplayState();
+    sendFreeplayQueueToPeer();
+  }
+
+  function restoreFreeplayStateForHost(hostId: string): void {
+    const saved = multiplayerFreeplayState.getSnapshot();
+    if (!saved || saved.hostId !== hostId) return;
+    publish({
+      freeplayQueue: saved.queue,
+      remoteCatalog: {
+        ...core.state.remoteCatalog,
+        shuffleEnabled: saved.shuffleEnabled,
+        repeatMode: saved.repeatMode
+      }
+    });
+  }
+
+  async function join(
+    rawInviteCode: string,
+    options: { silent?: boolean; preserveHostId?: boolean } = {}
+  ): Promise<void> {
     logInfo('multiplayer', 'Join requested', { paired: false });
     core.allowClientReconnect = true;
     core.reconnectAttempts = 0;
+    if (!options.preserveHostId) core.clientHostId = null;
     multiplayerSourcePlaybackService.beginClientSession((trackId) => {
       if (core.clientPeer && core.state.mode === 'client' && core.state.freeplay) {
-        sendToPeer(core.clientPeer, { kind: 'playback.ended', trackId });
+        if (core.state.remoteDelivery.mode === 'source-file'
+          && core.state.remoteCatalog.repeatMode === 'one') {
+          multiplayerSourcePlaybackService.replay();
+        } else {
+          sendToPeer(core.clientPeer, { kind: 'playback.ended', trackId });
+        }
       }
     });
     multiplayerSourcePlaybackService.setEnabled(core.state.receiveAudio);
     try {
-      await connectClient(rawInviteCode, false);
+      await connectClient(rawInviteCode, false, options.silent === true);
       if (core.state.connectionStatus !== 'connected') scheduleClientReconnect(15_000);
     } catch (error) {
       logError('multiplayer', 'Join failed', error);
-      await multiplayerSourcePlaybackService.endClientSession();
+      if (!options.silent) await multiplayerSourcePlaybackService.endClientSession();
       throw error;
     }
   }
@@ -115,10 +185,47 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
       sanitizeClientName(directory.hostName ?? 'Host'),
       pairing?.freeplay === true
     );
-    await join(directory.currentRoom!);
+    core.clientHostId = hostId;
+    await join(directory.currentRoom!, { preserveHostId: true });
   }
 
-  async function connectClient(rawInviteCode: string, reconnecting: boolean): Promise<void> {
+  async function resolveDirectoryRoomCode(hostId: string): Promise<string | null> {
+    try {
+      const firebase = core.firebaseRuntime ?? await loadFirebase();
+      const directory = (await firebase.get(firebase.ref(
+        firebase.database,
+        `multiplayer/hosts/${hostId}/directory`
+      ))).val() as { currentRoom?: string; protocolVersion?: number } | null;
+      return directory?.protocolVersion === MULTIPLAYER_PROTOCOL_VERSION
+        ? normalizeInviteCode(directory.currentRoom ?? '')
+        : null;
+    } catch {
+      return null;
+    }
+  }
+
+  async function restoreClientJoin(last: MultiplayerLastSession): Promise<void> {
+    core.clientHostId = last.hostId;
+    const inviteCode = last.hostId ? await resolveDirectoryRoomCode(last.hostId) : null;
+    const target = inviteCode ?? last.inviteCode;
+    if (!target) throw new Error('No multiplayer session to restore.');
+    try {
+      await join(target, { silent: true, preserveHostId: true });
+    } catch {
+      core.allowClientReconnect = true;
+      publish({
+        mode: 'client',
+        inviteCode: target,
+        hostName: last.hostName,
+        connectionStatus: 'disconnected',
+        reconnecting: true,
+        message: 'Reconnecting to the host...'
+      });
+      scheduleClientReconnect();
+    }
+  }
+
+  async function connectClient(rawInviteCode: string, reconnecting: boolean, silent = false): Promise<void> {
     clearReconnectTimer();
     await core.resetSession(true);
     const inviteCode = normalizeInviteCode(rawInviteCode);
@@ -137,10 +244,14 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
       hostVersion: null,
       freeplayPaired: reconnecting ? core.state.freeplayPaired : false,
       freeplay: reconnecting ? core.state.freeplay : false,
+      freeplayQueue: reconnecting ? core.state.freeplayQueue : [],
       remoteCatalog: reconnecting ? core.state.remoteCatalog : EMPTY_CATALOG,
       remotePlayback: reconnecting ? core.state.remotePlayback : EMPTY_REMOTE_PLAYBACK,
       remoteArtwork: reconnecting ? core.state.remoteArtwork : null,
       remoteArtworkResolvedTrackKey: reconnecting ? core.state.remoteArtworkResolvedTrackKey : '',
+      remoteDelivery: reconnecting ? core.state.remoteDelivery : {
+        generationId: 'idle', trackId: null, mode: 'none', postRaf: false, reason: 'host-disabled'
+      },
       audioStatus: core.state.receiveAudio ? 'connecting' : 'refused',
       connectionRoute: null,
       averageAudioBitrateKbps: null,
@@ -148,6 +259,7 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
       connectionDetail: 'Signing in to multiplayer signaling...',
       message: null
     });
+    updateLocalTimelineMode();
     logInfo(
       'multiplayer',
       reconnecting ? 'Reconnect attempt started' : 'Client connection started',
@@ -298,7 +410,7 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
           connectionDetail: 'The signaling attempt failed; preparing another attempt...',
           message: 'Reconnecting to the host...'
         });
-      } else {
+      } else if (!silent) {
         core.allowClientReconnect = false;
         publish({
           mode: 'idle',
@@ -310,6 +422,14 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
           audioStatus: 'unavailable',
           connectionDetail: errorMessage(error, 'Could not join that multiplayer session.'),
           message: errorMessage(error, 'Could not join that multiplayer session.')
+        });
+      } else {
+        publish({
+          mode: 'client',
+          connectionStatus: 'disconnected',
+          reconnecting: true,
+          audioStatus: 'unavailable',
+          message: 'Reconnecting to the host...'
         });
       }
       throw error;
@@ -330,6 +450,11 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
       if (core.state.inviteCode && core.state.hostName) {
         rememberMultiplayerHost(core.state.hostName, core.state.inviteCode);
       }
+      rememberMultiplayerLastSession('client', {
+        inviteCode: core.state.inviteCode,
+        hostId: core.clientHostId,
+        hostName: core.state.hostName
+      });
       sendToPeer(peer, {
         kind: 'hello',
         version: MULTIPLAYER_PROTOCOL_VERSION,
@@ -343,9 +468,20 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
       const message = decode(event.data);
       if (!message) return;
       if (message.kind === 'catalog') publish({ remoteCatalog: message.catalog });
+      if (message.kind === 'state') {
+        publish({
+          remoteCatalog: {
+            ...core.state.remoteCatalog,
+            shuffleEnabled: message.shuffleEnabled,
+            repeatMode: message.repeatMode
+          }
+        });
+        persistFreeplayState();
+      }
       if (message.kind === 'playback') {
         publish({ remotePlayback: message.playback });
         multiplayerSourcePlaybackService.syncPlayback(message.playback);
+        persistFreeplayState();
         loadPendingClientSourceFile(peer);
         sendClientPlaybackReadyIfPossible(peer);
       }
@@ -364,22 +500,43 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
           rememberMultiplayerPairing(message.hostId, message.name, message.freeplayPaired);
         }
         else forgetMultiplayerPairing(message.hostId);
+        core.clientHostId = message.paired ? message.hostId : null;
         publish({
           freeplayPaired: message.paired && message.freeplayPaired,
           freeplay: message.paired && message.freeplayActive
         });
+        updateLocalTimelineMode();
+        rememberMultiplayerLastSession('client', {
+          inviteCode: core.state.inviteCode,
+          hostId: core.clientHostId,
+          hostName: message.name
+        });
+        if (message.paired && message.freeplayActive) {
+          restoreFreeplayStateForHost(message.hostId);
+          sendFreeplayQueueToPeer();
+          const saved = multiplayerFreeplayState.getSnapshot();
+          const resumeTrackId = saved?.hostId === message.hostId ? saved.currentTrackId : null;
+          if (!core.state.remotePlayback.track
+            && resumeTrackId
+            && core.state.freeplayQueue.includes(resumeTrackId)) {
+            sendCommand({ type: 'collection.activate', collection: 'playlist', itemId: resumeTrackId });
+          }
+        }
       }
-      if (message.kind === 'audio') {
-        core.latestAudioAvailability = message.audio;
-        if (!message.audio.enabled) core.clientRemoteAudioReady = false;
+      if (message.kind === 'delivery') {
+        core.latestDelivery = message.delivery;
+        publish({ remoteDelivery: message.delivery });
+        updateLocalTimelineMode();
+        if (message.delivery.mode !== 'stream') core.clientRemoteAudioReady = false;
+        if (message.delivery.mode !== 'source-file') core.clientLoadedSourceGenerationId = null;
         if (!core.state.receiveAudio) {
           multiplayerSourcePlaybackService.setEnabled(false);
           publish({ audioStatus: 'refused', averageAudioBitrateKbps: null });
-        } else if (message.audio.sourceFile) {
+        } else if (message.delivery.mode === 'source-file') {
           multiplayerAudioService.clearRemoteTrack();
           multiplayerSourcePlaybackService.setEnabled(true);
           publish({ audioStatus: multiplayerSourcePlaybackService.active ? 'playing' : 'connecting' });
-        } else if (!message.audio.enabled) {
+        } else if (message.delivery.mode === 'none') {
           publish({
             audioStatus: 'disabled',
             averageAudioBitrateKbps: null
@@ -388,14 +545,20 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
         } else if (core.state.audioStatus === 'disabled') {
           publish({ audioStatus: 'connecting' });
         }
-        if (message.audio.enabled && core.state.receiveAudio) {
+        if (message.delivery.mode === 'stream' && core.state.receiveAudio) {
           multiplayerSourcePlaybackService.clearSourceTrack();
           attachClientRemoteAudio(peer);
         }
+        loadPendingClientSourceFile(peer);
         sendClientPlaybackReadyIfPossible(peer);
+      }
+      if (message.kind === 'buffer') {
+        core.hostAudioBufferMs = message.bufferMs;
+        applyClientAudioBuffer(peer);
       }
       if (message.kind === 'kicked') {
         core.allowClientReconnect = false;
+        clearMultiplayerLastSession();
         multiplayerSourcePlaybackService.clearLoadedFile();
         publish({
           connectionStatus: 'disconnected',
@@ -411,6 +574,11 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
         const hostName = sanitizeClientName(message.name);
         publish({ hostName, hostVersion: message.appVersion });
         if (core.state.inviteCode) rememberMultiplayerHost(hostName, core.state.inviteCode);
+        rememberMultiplayerLastSession('client', {
+          inviteCode: core.state.inviteCode,
+          hostId: core.clientHostId,
+          hostName
+        });
       }
     };
     channel.onclose = () => {
@@ -454,10 +622,13 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
     };
     peer.pc.ontrack = (event) => {
       if (event.track.kind !== 'audio') return;
-      setMultiplayerReceiverBuffer(event.receiver, core.multiplayerSettings.multiplayerAudioBufferMs);
+      setMultiplayerReceiverBuffer(
+        event.receiver,
+        core.hostAudioBufferMs ?? core.multiplayerSettings.multiplayerAudioBufferMs
+      );
       receiverMonitor.start(peer);
       const stream = event.streams[0] ?? new MediaStream([event.track]);
-      if (!core.state.receiveAudio || core.latestAudioAvailability.sourceFile) {
+      if (!core.state.receiveAudio || core.latestDelivery.mode !== 'stream') {
         event.track.enabled = false;
         publish({
           audioStatus: core.state.receiveAudio ? 'connecting' : 'refused',
@@ -470,7 +641,7 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
         stream,
         (audioStatus) => {
           if (core.state.mode !== 'client') return;
-          if (!core.latestAudioAvailability.enabled
+          if (core.latestDelivery.mode !== 'stream'
             && (audioStatus === 'connecting' || audioStatus === 'playing')) return;
           publish({
             audioStatus,
@@ -486,13 +657,13 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
   }
 
   function attachClientRemoteAudio(peer: PeerConnection): void {
-    if (core.clientPeer !== peer || !core.state.receiveAudio || !core.latestAudioAvailability.enabled) return;
+    if (core.clientPeer !== peer || !core.state.receiveAudio || core.latestDelivery.mode !== 'stream') return;
     const receiver = peer.pc.getReceivers().find(({ track }) => track.kind === 'audio');
     const track = receiver?.track;
     if (!track || track.readyState === 'ended') return;
     track.enabled = true;
     void multiplayerAudioService.attachRemoteTrack(track, new MediaStream([track]), (audioStatus) => {
-      if (core.state.mode === 'client' && core.state.receiveAudio && core.latestAudioAvailability.enabled) {
+      if (core.state.mode === 'client' && core.state.receiveAudio && core.latestDelivery.mode === 'stream') {
         publish({ audioStatus });
         core.clientRemoteAudioReady = audioStatus === 'playing';
         sendClientPlaybackReadyIfPossible(peer);
@@ -534,7 +705,11 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
           type: complete.frame.type,
           lastModified: complete.frame.lastModified
         });
-        core.pendingClientSourceFile = { trackId: complete.frame.trackId, file };
+        core.pendingClientSourceFile = {
+          trackId: complete.frame.trackId,
+          generationId: complete.frame.generationId,
+          file
+        };
         loadPendingClientSourceFile(peer);
         return;
       }
@@ -549,7 +724,8 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
     };
     channel.onclose = () => {
       pending = null;
-      if (core.clientPeer === peer && core.latestAudioAvailability.sourceFile) {
+      if (core.clientPeer === peer && core.latestDelivery.mode === 'source-file') {
+        core.clientLoadedSourceGenerationId = null;
         multiplayerSourcePlaybackService.clearLoadedFile();
         publish({ audioStatus: 'unavailable' });
       }
@@ -559,11 +735,25 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
   function loadPendingClientSourceFile(peer: PeerConnection): void {
     const pending = core.pendingClientSourceFile;
     const remoteTrack = core.state.remotePlayback.track;
-    if (!pending || !remoteTrack || remoteTrack.id !== pending.trackId) return;
+    if (!pending
+      || !remoteTrack
+      || remoteTrack.id !== pending.trackId
+      || core.state.remoteDelivery.mode !== 'source-file'
+      || core.state.remoteDelivery.generationId !== pending.generationId) return;
     core.pendingClientSourceFile = null;
     void multiplayerSourcePlaybackService.loadFile(remoteTrack, pending.file).then((loaded) => {
       if (core.clientPeer !== peer || !core.state.receiveAudio) return;
-      publish({ audioStatus: loaded ? 'playing' : 'unavailable', averageAudioBitrateKbps: null });
+      const generationStillCurrent = core.state.remoteDelivery.mode === 'source-file'
+        && core.state.remoteDelivery.generationId === pending.generationId;
+      core.clientLoadedSourceGenerationId = loaded && generationStillCurrent
+        ? pending.generationId
+        : null;
+      publish({
+        audioStatus: loaded
+          ? generationStillCurrent ? 'playing' : 'connecting'
+          : 'unavailable',
+        averageAudioBitrateKbps: null
+      });
       sendClientPlaybackReadyIfPossible(peer);
     });
   }
@@ -578,6 +768,7 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
       loadedSourceTrackId: multiplayerSourcePlaybackService.isTrackReady(preparation.trackId)
         ? preparation.trackId
         : null,
+      loadedSourceGenerationId: core.clientLoadedSourceGenerationId,
       streamReady: core.clientRemoteAudioReady
     })) return;
     core.pendingClientPlaybackPreparation = null;
@@ -599,7 +790,10 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
   function applyClientAudioBuffer(peer: PeerConnection): void {
     for (const receiver of peer.pc.getReceivers()) {
       if (receiver.track.kind !== 'audio') continue;
-      setMultiplayerReceiverBuffer(receiver, core.multiplayerSettings.multiplayerAudioBufferMs);
+      setMultiplayerReceiverBuffer(
+        receiver,
+        core.hostAudioBufferMs ?? core.multiplayerSettings.multiplayerAudioBufferMs
+      );
     }
   }
 
@@ -611,7 +805,7 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
 
     multiplayerSourcePlaybackService.setEnabled(enabled);
     if (!enabled) sendClientPlaybackReadyIfPossible(core.clientPeer);
-    if (core.latestAudioAvailability.sourceFile) {
+    if (core.latestDelivery.mode === 'source-file') {
       multiplayerAudioService.clearRemoteTrack();
       publish({
         audioStatus: enabled
@@ -634,7 +828,7 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
       publish({ audioStatus: 'refused', averageAudioBitrateKbps: null });
       return;
     }
-    if (!core.latestAudioAvailability.enabled) {
+    if (core.latestDelivery.mode !== 'stream') {
       publish({ audioStatus: 'disabled' });
       return;
     }
@@ -659,7 +853,12 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
         connectionDetail: 'Reconnecting and gathering fresh ICE candidates...',
         message: 'Reconnecting to the host...'
       });
-      void connectClient(inviteCode, true)
+      void (async () => {
+        const directoryRoom = core.clientHostId
+          ? await resolveDirectoryRoomCode(core.clientHostId)
+          : null;
+        return connectClient(directoryRoom ?? inviteCode, true, true);
+      })()
         .then(() => {
           core.reconnectInFlight = false;
           if (core.state.connectionStatus !== 'connected') scheduleClientReconnect(15_000);
@@ -688,8 +887,8 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
       // mobile playback alive. Elapsed hidden time alone is not a reason to replace it.
       clearReconnectTimer();
       applyClientAudioBuffer(core.clientPeer);
-      if (core.latestAudioAvailability.sourceFile) multiplayerSourcePlaybackService.resume();
-      else if (core.latestAudioAvailability.enabled) void multiplayerAudioService.resumeRemoteAudio();
+      if (core.latestDelivery.mode === 'source-file') multiplayerSourcePlaybackService.resume();
+      else if (core.latestDelivery.mode === 'stream') void multiplayerAudioService.resumeRemoteAudio();
       return;
     }
     clearReconnectTimer();
@@ -703,16 +902,36 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
       commandId: crypto.randomUUID()
     } as MultiplayerCommand;
     sendToPeer(core.clientPeer, { kind: 'command', command: completeCommand });
+    if (core.state.freeplay && command.type === 'playlist.shuffle') {
+      publish({
+        remoteCatalog: {
+          ...core.state.remoteCatalog,
+          shuffleEnabled: !core.state.remoteCatalog.shuffleEnabled
+        }
+      });
+      persistFreeplayState();
+    }
+    if (core.state.freeplay && command.type === 'playlist.repeat') {
+      publish({
+        remoteCatalog: {
+          ...core.state.remoteCatalog,
+          repeatMode: cycleMultiplayerRepeatMode(core.state.remoteCatalog.repeatMode)
+        }
+      });
+      persistFreeplayState();
+    }
     return true;
   }
 
   async function leave(): Promise<void> {
     if (core.state.mode !== 'client') return;
     logInfo('multiplayer', 'Client left session', { freeplay: core.state.freeplay });
+    clearMultiplayerLastSession();
     core.allowClientReconnect = false;
     clearReconnectTimer();
     await core.resetSession(true);
     await multiplayerSourcePlaybackService.endClientSession();
+    core.clientHostId = null;
     publish({
       mode: 'idle',
       connectionStatus: 'idle',
@@ -722,12 +941,16 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
       hostVersion: null,
       freeplayPaired: false,
       freeplay: false,
+      freeplayQueue: [],
       clients: [],
       remoteCatalog: EMPTY_CATALOG,
       remotePlayback: EMPTY_REMOTE_PLAYBACK,
       remoteArtwork: null,
       remoteArtworkResolvedTrackKey: '',
       audioStatus: 'idle',
+      remoteDelivery: {
+        generationId: 'idle', trackId: null, mode: 'none', postRaf: false, reason: 'host-disabled'
+      },
       connectionRoute: null,
       averageAudioBitrateKbps: null,
       connectionStats: null,
@@ -745,8 +968,10 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
   return {
     join,
     joinPaired,
+    restoreClientJoin,
     leave,
     sendCommand,
+    setFreeplayQueue,
     setReceiveAudio,
     resumeAudio,
     applyClientAudioBuffer,

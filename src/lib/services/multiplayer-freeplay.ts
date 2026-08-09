@@ -3,9 +3,10 @@ import { audioBusService } from '$lib/services/audio-bus';
 import { createChiptunePlayer } from '$lib/services/chiptune-loader';
 import { RafEngine } from '$lib/services/raf-engine';
 import { modulePlaybackSettings } from '$lib/stores/module-playback-settings';
-import type { PlaybackSnapshot, PlaylistItem } from '$lib/types';
+import { createPlaylistNavigation } from '$lib/stores/playlist-navigation';
+import type { PlaybackSnapshot, PlaylistItem, PlaylistRepeatMode } from '$lib/types';
 import type {
-  MultiplayerAudioAvailability,
+  MultiplayerDeliveryMode,
   MultiplayerPlayback
 } from './multiplayer-protocol';
 
@@ -19,7 +20,8 @@ export interface MultiplayerFreeplayAudioSettings {
 
 export interface MultiplayerFreeplayPlayerUpdate {
   playback: MultiplayerPlayback;
-  audio: MultiplayerAudioAvailability;
+  delivery: MultiplayerDeliveryMode;
+  postRaf: boolean;
   sourceFile: File | null;
   streamTrack: MediaStreamTrack | null;
 }
@@ -46,7 +48,8 @@ const EMPTY_SNAPSHOT: PlaybackSnapshot = {
 export class MultiplayerFreeplayPlayer {
   #track: PlaylistItem | null = null;
   #snapshot: PlaybackSnapshot = { ...EMPTY_SNAPSHOT };
-  #audio: MultiplayerAudioAvailability = disabledAudioAvailability();
+  #delivery: MultiplayerDeliveryMode = 'none';
+  #postRaf = false;
   #sourceFile: File | null = null;
   #element: HTMLMediaElement | null = null;
   #elementSource: MediaElementAudioSourceNode | null = null;
@@ -54,8 +57,6 @@ export class MultiplayerFreeplayPlayer {
   #destination: MediaStreamAudioDestinationNode | null = null;
   #raf: RafEngine | null = null;
   #objectUrl: string | null = null;
-  #syntheticStartedAt = 0;
-  #syntheticStartPosition = 0;
   #progressTimer: number | null = null;
   #loadToken = 0;
   readonly #getAudioSettings: CreateMultiplayerFreeplayPlayerOptions['getAudioSettings'];
@@ -84,8 +85,12 @@ export class MultiplayerFreeplayPlayer {
     };
   }
 
-  get audio(): MultiplayerAudioAvailability {
-    return this.#audio;
+  get delivery(): MultiplayerDeliveryMode {
+    return this.#delivery;
+  }
+
+  get postRaf(): boolean {
+    return this.#postRaf;
   }
 
   get sourceFile(): File | null {
@@ -101,32 +106,26 @@ export class MultiplayerFreeplayPlayer {
     const token = ++this.#loadToken;
     this.#disposeRenderer();
     this.#track = track;
-    this.#syntheticStartPosition = Math.max(initialPosition, 0);
-    this.#syntheticStartedAt = 0;
     this.#snapshot = {
       ...EMPTY_SNAPSHOT,
       state: 'loading',
-      currentTime: this.#syntheticStartPosition,
+      currentTime: Math.max(initialPosition, 0),
       duration: positiveNumber(track.metadata?.duration),
       backend: track.kind
     };
 
     const settings = this.#getAudioSettings(track);
-    this.#sourceFile = settings.enabled && settings.sourceFile ? track.file : null;
-    this.#audio = {
-      enabled: settings.enabled && !settings.sourceFile,
-      sourceFile: settings.enabled && settings.sourceFile,
-      postRaf: settings.enabled && !settings.sourceFile && settings.postRaf,
-      reason: settings.enabled ? null : 'host-disabled'
-    };
+    this.#delivery = !settings.enabled
+      ? 'none'
+      : settings.sourceFile ? 'source-file' : 'stream';
+    this.#postRaf = this.#delivery === 'stream' && settings.postRaf;
+    this.#sourceFile = this.#delivery === 'source-file' ? track.file : null;
     this.#publish();
 
     try {
-      if (this.#audio.enabled) {
+      if (this.#delivery === 'stream') {
         if (track.kind === 'module') await this.#loadModuleRenderer(track, token);
         else await this.#loadMediaRenderer(track, token);
-      } else if (track.kind !== 'module' && this.#snapshot.duration <= 0) {
-        this.#snapshot.duration = await probeMediaDuration(track.file, track.kind === 'video');
       }
     } catch {
       if (token !== this.#loadToken) return false;
@@ -136,10 +135,11 @@ export class MultiplayerFreeplayPlayer {
     }
 
     if (token !== this.#loadToken) return false;
+    const passive = this.#delivery !== 'stream';
     this.#snapshot = {
       ...this.#snapshot,
-      state: 'paused',
-      currentTime: Math.min(this.#syntheticStartPosition, finiteDuration(this.#snapshot.duration)),
+      state: passive ? 'idle' : 'paused',
+      currentTime: passive ? 0 : Math.min(this.#snapshot.currentTime, finiteDuration(this.#snapshot.duration)),
       error: undefined
     };
     this.seek(this.#snapshot.currentTime);
@@ -157,6 +157,7 @@ export class MultiplayerFreeplayPlayer {
 
   async play(): Promise<boolean> {
     if (!this.#track || this.#snapshot.state === 'loading' || this.#snapshot.state === 'error') return false;
+    if (this.#delivery !== 'stream') return true;
     try {
       if (this.#element) await this.#element.play();
       else if (this.#modulePlayer) {
@@ -168,10 +169,6 @@ export class MultiplayerFreeplayPlayer {
       this.#publish();
       return false;
     }
-    if (!this.#element && !this.#modulePlayer) {
-      this.#syntheticStartPosition = this.#snapshot.currentTime;
-      this.#syntheticStartedAt = performance.now();
-    }
     this.#snapshot = { ...this.#snapshot, state: 'playing', error: undefined };
     this.#startProgress();
     this.#publish();
@@ -180,11 +177,10 @@ export class MultiplayerFreeplayPlayer {
 
   pause(): boolean {
     if (!this.#track) return false;
+    if (this.#delivery !== 'stream') return true;
     const current = this.#currentSnapshot().currentTime;
     this.#element?.pause();
     this.#modulePlayer?.pause();
-    this.#syntheticStartPosition = current;
-    this.#syntheticStartedAt = 0;
     this.#snapshot = { ...this.#snapshot, state: 'paused', currentTime: current };
     this.#stopProgress();
     this.#publish();
@@ -200,14 +196,11 @@ export class MultiplayerFreeplayPlayer {
 
   seek(seconds: number): boolean {
     if (!this.#track || !Number.isFinite(seconds)) return false;
+    if (this.#delivery !== 'stream') return true;
     const duration = finiteDuration(this.#snapshot.duration);
     const target = Math.min(Math.max(seconds, 0), duration);
     if (this.#element) this.#element.currentTime = target;
     if (this.#modulePlayer) this.#modulePlayer.seek(target);
-    this.#syntheticStartPosition = target;
-    if (this.#snapshot.state === 'playing' && !this.#element && !this.#modulePlayer) {
-      this.#syntheticStartedAt = performance.now();
-    }
     this.#snapshot = { ...this.#snapshot, currentTime: target };
     this.#publish();
     return true;
@@ -219,7 +212,8 @@ export class MultiplayerFreeplayPlayer {
     this.#disposeRenderer();
     this.#track = null;
     this.#sourceFile = null;
-    this.#audio = disabledAudioAvailability();
+    this.#delivery = 'none';
+    this.#postRaf = false;
     this.#snapshot = { ...EMPTY_SNAPSHOT };
   }
 
@@ -234,7 +228,7 @@ export class MultiplayerFreeplayPlayer {
     const source = context.createMediaElementSource(element);
     const destination = context.createMediaStreamDestination();
     destination.channelCount = 2;
-    this.#connectRenderer(source, destination, this.#audio.postRaf, track.kind === 'video');
+    this.#connectRenderer(source, destination, this.#postRaf, track.kind === 'video');
     this.#element = element;
     this.#elementSource = source;
     this.#destination = destination;
@@ -282,7 +276,7 @@ export class MultiplayerFreeplayPlayer {
     }
     const destination = context.createMediaStreamDestination();
     destination.channelCount = 2;
-    this.#connectRenderer(player.gain, destination, this.#audio.postRaf, false);
+    this.#connectRenderer(player.gain, destination, this.#postRaf, false);
     this.#modulePlayer = player;
     this.#destination = destination;
     player.setVol(1);
@@ -346,10 +340,6 @@ export class MultiplayerFreeplayPlayer {
     let currentTime = this.#snapshot.currentTime;
     if (this.#element) currentTime = positiveNumber(this.#element.currentTime);
     else if (this.#modulePlayer) currentTime = positiveNumber(this.#modulePlayer.currentTime);
-    else if (this.#snapshot.state === 'playing' && this.#syntheticStartedAt > 0) {
-      currentTime = this.#syntheticStartPosition
-        + Math.max(0, (performance.now() - this.#syntheticStartedAt) / 1_000);
-    }
     const duration = this.#snapshot.duration;
     if (duration > 0 && currentTime >= duration) {
       currentTime = duration;
@@ -363,7 +353,8 @@ export class MultiplayerFreeplayPlayer {
     this.#snapshot = playback.snapshot;
     this.#onUpdate({
       playback,
-      audio: this.#audio,
+      delivery: this.#delivery,
+      postRaf: this.#postRaf,
       sourceFile: this.#sourceFile,
       streamTrack: this.streamTrack
     });
@@ -407,25 +398,27 @@ export class MultiplayerFreeplayPlayer {
   }
 }
 
-export function resolveFreeplayStep(
-  items: PlaylistItem[],
-  currentTrackId: string | null,
-  direction: -1 | 1,
-  shuffle: boolean,
-  random = Math.random
-): PlaylistItem | null {
-  if (items.length === 0) return null;
-  const currentIndex = items.findIndex((item) => item.id === currentTrackId);
-  if (shuffle && items.length > 1) {
-    const offset = 1 + Math.floor(random() * (items.length - 1));
-    return items[(Math.max(currentIndex, 0) + offset) % items.length] ?? null;
-  }
-  const start = currentIndex < 0 ? (direction > 0 ? -1 : 0) : currentIndex;
-  return items[(start + direction + items.length) % items.length] ?? null;
+export interface FreeplayStepResolver {
+  reset(): void;
+  resolveStep(options: {
+    currentId?: string | null;
+    direction: -1 | 1;
+    shuffle: boolean;
+    wrap: boolean;
+  }): PlaylistItem | null;
+  resolveEnd(options: {
+    currentId?: string | null;
+    shuffle: boolean;
+    repeatMode: PlaylistRepeatMode;
+  }): PlaylistItem | null;
 }
-
-function disabledAudioAvailability(): MultiplayerAudioAvailability {
-  return { enabled: false, sourceFile: false, postRaf: false, reason: 'host-disabled' };
+export function createFreeplayStepResolver(getItems: () => PlaylistItem[]): FreeplayStepResolver {
+  const navigation = createPlaylistNavigation(getItems);
+  return {
+    reset: navigation.reset,
+    resolveStep: (options) => navigation.resolveStepTrack(options),
+    resolveEnd: (options) => navigation.resolveTrackEnd(options)
+  };
 }
 
 function positiveNumber(value: unknown): number {
@@ -445,23 +438,4 @@ function disposeModulePlayer(player: ChiptuneJsPlayer): void {
   } catch {
     // Detached worklets are already inaudible; teardown is best-effort.
   }
-}
-
-function probeMediaDuration(file: File, video: boolean): Promise<number> {
-  return new Promise((resolve) => {
-    const element = document.createElement(video ? 'video' : 'audio');
-    const url = URL.createObjectURL(file);
-    const finish = () => {
-      const duration = positiveNumber(element.duration);
-      element.removeAttribute('src');
-      element.load();
-      URL.revokeObjectURL(url);
-      resolve(duration);
-    };
-    element.addEventListener('loadedmetadata', finish, { once: true });
-    element.addEventListener('error', finish, { once: true });
-    element.preload = 'metadata';
-    element.src = url;
-    element.load();
-  });
 }

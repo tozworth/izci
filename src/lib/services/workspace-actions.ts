@@ -100,7 +100,7 @@ function buildFavoriteToggleAction(
   };
 }
 
-function buildGoToLibraryAction(
+export function buildGoToLibraryAction(
   track: PlaylistItem | undefined,
   libraryItems: PlaylistItem[]
 ): MenuActionItem | null {
@@ -276,5 +276,44 @@ export function buildFavoritesContextActions(
       icon: 'heart_minus',
       separatorBefore: true
     }
+  ];
+}
+
+export function buildFreeplayPlaylistContextActions(
+  playlistItems: PlaylistItem[],
+  libraryItems: PlaylistItem[],
+  ids: string[]
+): MenuActionItem[] {
+  const tracks = buildSelectedWorkspaceTracks(playlistItems, ids);
+  const goToLibrary = tracks.length === 1
+    ? buildGoToLibraryAction(tracks[0], libraryItems)
+    : null;
+  return [
+    ...(goToLibrary ? [goToLibrary] : []),
+    { id: 'track-details', label: 'Track details', icon: 'info' },
+    {
+      id: 'remove',
+      label: 'Remove',
+      icon: 'delete',
+      shortcut: 'Delete',
+      separatorBefore: true
+    }
+  ];
+}
+
+export function buildFreeplayLibraryContextActions(
+  items: PlaylistItem[],
+  libraryItems: PlaylistItem[],
+  ids: string[]
+): MenuActionItem[] {
+  const tracks = buildSelectedWorkspaceTracks(items, ids);
+  const goToLibrary = tracks.length === 1
+    ? buildGoToLibraryAction(tracks[0], libraryItems)
+    : null;
+  return [
+    { id: 'add-to-playlist', label: 'Add to playlist', icon: 'playlist_add' },
+    { id: 'replace-playlist', label: 'Replace playlist', icon: 'playlist_play' },
+    ...(goToLibrary ? [goToLibrary] : []),
+    { id: 'track-details', label: 'Track details', icon: 'info' }
   ];
 }

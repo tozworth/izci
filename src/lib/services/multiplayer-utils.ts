@@ -1,12 +1,12 @@
-import type { PlaylistItem } from '$lib/types';
+import type { PlaylistItem, PlaylistRepeatMode } from '$lib/types';
 import { experimentalSettings } from '$lib/stores/experimental-settings';
 import {
   MULTIPLAYER_PROTOCOL_VERSION,
+  MULTIPLAYER_QUEUE_MAX_ITEMS,
   isMultiplayerCommand,
   type ClientMessage,
-  type MultiplayerAudioAvailability,
+  type MultiplayerDeliveryMode,
   type MultiplayerPlaybackPreparation,
-  type MultiplayerPlaybackPreparationAudio
 } from './multiplayer-protocol';
 
 export const RECEIVE_AUDIO_STORAGE_KEY = 'izci.multiplayer.receive-audio';
@@ -39,19 +39,54 @@ export function isMultiplayerFreeplayActive(pairing: {
     && pairing.clientEnabled;
 }
 
+export function resolveMultiplayerFreeplayAgreement(pairing: {
+  paired: boolean;
+  hostEnabled: boolean;
+  clientEnabled: boolean;
+}): boolean {
+  return pairing.paired && pairing.hostEnabled && pairing.clientEnabled;
+}
+
+export function cycleMultiplayerRepeatMode(mode: PlaylistRepeatMode): PlaylistRepeatMode {
+  return mode === 'off' ? 'all' : mode === 'all' ? 'one' : 'off';
+}
+
+export function sanitizeFreeplayQueueIds(itemIds: string[]): string[] {
+  const seen = new Set<string>();
+  const sanitized: string[] = [];
+  for (const id of itemIds) {
+    if (typeof id !== 'string' || id.length === 0 || id.length > 200 || seen.has(id)) continue;
+    seen.add(id);
+    sanitized.push(id);
+    if (sanitized.length >= MULTIPLAYER_QUEUE_MAX_ITEMS) break;
+  }
+  return sanitized;
+}
+
+export function parseFreeplayRestoredFlags(message: {
+  shuffleEnabled?: unknown;
+  repeatMode?: unknown;
+}): { shuffleEnabled: boolean; repeatMode: PlaylistRepeatMode } | null {
+  if (typeof message.shuffleEnabled !== 'boolean') return null;
+  if (message.repeatMode !== 'off' && message.repeatMode !== 'one' && message.repeatMode !== 'all') return null;
+  return { shuffleEnabled: message.shuffleEnabled, repeatMode: message.repeatMode };
+}
+
 export function isMultiplayerPlaybackPreparationReady(
   preparation: MultiplayerPlaybackPreparation,
   state: {
     remoteTrackId: string | null;
     receiveAudio: boolean;
     loadedSourceTrackId: string | null;
+    loadedSourceGenerationId: string | null;
     streamReady: boolean;
   }
 ): boolean {
   if (state.remoteTrackId !== preparation.trackId) return false;
-  if (!state.receiveAudio || preparation.audio === 'none') return true;
-  if (preparation.audio === 'file') {
-    return state.loadedSourceTrackId === preparation.trackId;
+  if (!state.receiveAudio || preparation.delivery === 'none') return true;
+  if (preparation.delivery === 'source-file') {
+    return state.loadedSourceTrackId === preparation.trackId
+      && state.loadedSourceGenerationId === preparation.preparationId;
   }
   return state.streamReady;
 }
@@ -68,6 +103,16 @@ export function isClientMessage(value: unknown): value is ClientMessage {
   if (message.kind === 'freeplay.preference') {
     return typeof message.enabled === 'boolean';
   }
+  if (message.kind === 'freeplay.queue') {
+    return Array.isArray(message.itemIds)
+      && message.itemIds.length <= MULTIPLAYER_QUEUE_MAX_ITEMS
+      && message.itemIds.every((id) => typeof id === 'string' && id.length > 0 && id.length <= 200)
+      && (message.shuffleEnabled === undefined || typeof message.shuffleEnabled === 'boolean')
+      && (message.repeatMode === undefined
+        || message.repeatMode === 'off'
+        || message.repeatMode === 'one'
+        || message.repeatMode === 'all');
+  }
   if (message.kind === 'playback.ready') {
     return typeof message.preparationId === 'string'
       && message.preparationId.length > 0
@@ -81,11 +126,8 @@ export function isClientMessage(value: unknown): value is ClientMessage {
   return message.kind === 'command' && isMultiplayerCommand(message.command);
 }
 
-export function resolvePlaybackPreparationAudio(
-  availability: MultiplayerAudioAvailability
-): MultiplayerPlaybackPreparationAudio {
-  if (availability.sourceFile) return 'file';
-  return availability.enabled ? 'stream' : 'none';
+export function resolvePlaybackPreparationDelivery(mode: MultiplayerDeliveryMode): MultiplayerDeliveryMode {
+  return mode;
 }
 
 export function getLocalName(): string {

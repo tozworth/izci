@@ -42,16 +42,24 @@ export function createPeer(
     paired: false,
     freeplayPaired: false,
     clientFreeplayEnabled: false,
+    helloReceived: false,
+    freeplaySettled: false,
+    mediaSyncPending: false,
     freeplay: false,
     freeplayPlayer: null,
     freeplayCollection: 'library',
     freeplayShuffle: false,
     freeplayRepeatMode: 'off',
+    freeplayNavigation: null,
+    freeplayQueue: [],
+    freeplayActivationToken: 0,
+    freeplayModeToken: 0,
     freeplayPendingPreparation: null,
     freeplayArtwork: null,
     freeplayArtworkTrackKey: '',
     freeplayArtworkResolvedTrackKey: '',
-    freeplayArtworkLoadToken: 0
+    freeplayArtworkLoadToken: 0,
+    freeplayDelivery: null
   };
 }
 
@@ -208,6 +216,22 @@ export function clearPeerConnectionTimer(peer: PeerConnection): void {
   if (peer.connectionTimer === null) return;
   window.clearTimeout(peer.connectionTimer);
   peer.connectionTimer = null;
+}
+
+export function disposePeerConnection(peer: PeerConnection): void {
+  clearPeerConnectionTimer(peer);
+  peer.freeplayActivationToken += 1;
+  peer.freeplayModeToken += 1;
+  peer.freeplayPendingPreparation = null;
+  peer.freeplayPlayer?.destroy();
+  peer.freeplayPlayer = null;
+  peer.freeplayNavigation = null;
+  peer.freeplayQueue = [];
+  peer.mediaTransferToken += 1;
+  peer.mediaOutgoing = [];
+  peer.mediaQueuedBytes = 0;
+  peer.outgoing = [];
+  peer.pc.close();
 }
 
 export function describeIceFailure(peer: PeerConnection, peerName?: string): string {
