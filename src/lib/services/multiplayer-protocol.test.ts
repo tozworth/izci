@@ -130,7 +130,7 @@ describe('multiplayer protocol', () => {
     expect(isHostMessage({
       kind: 'playback.prepare',
       preparation: {
-        preparationId: 'prepare-1',
+        generationId: 'prepare-1',
         trackId: 'track-1',
         delivery: 'source-file'
       }
@@ -138,7 +138,7 @@ describe('multiplayer protocol', () => {
     expect(isHostMessage({
       kind: 'playback.prepare',
       preparation: {
-        preparationId: '',
+        generationId: '',
         trackId: 'track-1',
         delivery: 'source-file'
       }
@@ -146,7 +146,7 @@ describe('multiplayer protocol', () => {
     expect(isHostMessage({
       kind: 'playback.prepare',
       preparation: {
-        preparationId: 'prepare-1',
+        generationId: 'prepare-1',
         trackId: 'track-1',
         delivery: 'buffering'
       }
@@ -170,6 +170,26 @@ describe('multiplayer protocol', () => {
       hostId: '../host',
       name: 'Living room'
     })).toBe(false);
+  });
+
+  it('requires generations on playback, readiness, ended events, and retries', () => {
+    const playback = {
+      kind: 'playback',
+      playback: {
+        generationId: 'generation',
+        snapshot: {
+          state: 'paused', currentTime: 0, duration: 1, volume: 1, muted: false, backend: 'stream'
+        },
+        track: null,
+        sentAt: 1
+      }
+    };
+    expect(isHostMessage(playback)).toBe(true);
+    expect(isHostMessage({ ...playback, playback: { ...playback.playback, generationId: '' } })).toBe(false);
+    expect(isClientMessage({ kind: 'playback.ready', generationId: 'generation' })).toBe(true);
+    expect(isClientMessage({ kind: 'playback.ended', generationId: 'generation', trackId: 'track' })).toBe(true);
+    expect(isClientMessage({ kind: 'source.retry', generationId: 'generation' })).toBe(true);
+    expect(isClientMessage({ kind: 'playback.ended', trackId: 'track' })).toBe(false);
   });
 
   it('accepts only bounded host-authoritative listener buffers', () => {

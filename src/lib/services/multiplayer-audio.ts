@@ -14,6 +14,7 @@ export class MultiplayerAudioService {
   #remoteElement: HTMLAudioElement | null = null;
   #remoteSource: MediaStreamAudioSourceNode | null = null;
   #remoteTrack: MediaStreamTrack | null = null;
+  #remoteAudible = false;
   #onStatus: StatusHandler = () => undefined;
 
   getHostTrack(postRaf: boolean): MediaStreamTrack | null {
@@ -32,7 +33,11 @@ export class MultiplayerAudioService {
     track: MediaStreamTrack,
     stream: MediaStream,
     onStatus: StatusHandler
-  ): Promise<void> {
+  ): Promise<boolean> {
+    if (this.#remoteTrack === track && track.readyState !== 'ended') {
+      this.#onStatus = onStatus;
+      return this.resumeRemoteAudio();
+    }
     this.clearRemoteTrack();
     logInfo('multiplayer', 'Remote audio track attached', { trackId: track.id, muted: track.muted });
     this.#onStatus = onStatus;
@@ -58,31 +63,48 @@ export class MultiplayerAudioService {
 
     if (!this.#remoteSource) {
       this.#publish('unavailable');
-      return;
+      return false;
     }
+    audioBusService.setSourceGain(this.#remoteSource, 0);
 
     track.onmute = () => this.#publish('connecting');
     track.onunmute = () => void this.resumeRemoteAudio();
     track.onended = () => this.#publish('unavailable');
     this.#publish('connecting');
-    await this.resumeRemoteAudio();
+    return this.resumeRemoteAudio();
+  }
+
+  setRemoteAudible(audible: boolean, rampSeconds = 0.04): void {
+    if (this.#remoteAudible === audible) return;
+    this.#remoteAudible = audible;
+    audioBusService.setSourceGain(this.#remoteSource, audible ? 1 : 0, rampSeconds);
+    if (audible) void this.resumeRemoteAudio();
+  }
+
+  warmRemoteAudio(): Promise<boolean> {
+    return audioBusService.resume();
   }
 
   async resumeRemoteAudio(): Promise<boolean> {
-    if (!this.#remoteElement || !this.#remoteSource || !this.#remoteTrack
-      || this.#remoteTrack.readyState === 'ended') {
+    const element = this.#remoteElement;
+    const source = this.#remoteSource;
+    const track = this.#remoteTrack;
+    if (!element || !source || !track || track.readyState === 'ended') {
       this.#publish('unavailable');
       return false;
     }
 
     const [running, playing] = await Promise.all([
       audioBusService.resume(),
-      this.#remoteElement.play().then(() => true).catch(() => false)
+      element.play().then(() => true).catch(() => false)
     ]);
-    const audible = running && playing && !this.#remoteTrack.muted;
-    logDebug('multiplayer', 'Remote audio resume attempted', { running, playing, muted: this.#remoteTrack.muted, audible });
+    if (this.#remoteElement !== element || this.#remoteSource !== source || this.#remoteTrack !== track) {
+      return false;
+    }
+    const audible = running && playing && !track.muted && this.#remoteAudible;
+    logDebug('multiplayer', 'Remote audio resume attempted', { running, playing, muted: track.muted, audible });
     this.#publish(audible ? 'playing' : running && playing ? 'connecting' : 'blocked');
-    return audible;
+    return running && playing;
   }
 
   clearRemoteTrack(): void {
@@ -103,6 +125,7 @@ export class MultiplayerAudioService {
     this.#remoteElement = null;
     this.#remoteSource = null;
     this.#remoteTrack = null;
+    this.#remoteAudible = false;
     this.#publish('idle');
     this.#onStatus = () => undefined;
   }

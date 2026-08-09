@@ -112,6 +112,7 @@ export const EMPTY_CATALOG: MultiplayerCatalog = {
 };
 
 export const EMPTY_REMOTE_PLAYBACK: MultiplayerPlayback = {
+  generationId: 'idle',
   snapshot: EMPTY_PLAYBACK,
   track: null,
   sentAt: 0
@@ -225,7 +226,7 @@ export interface PeerConnection {
   freeplayRepeatMode: PlaylistRepeatMode;
   freeplayNavigation: FreeplayStepResolver | null;
   freeplayQueue: string[];
-  freeplayActivationToken: number;
+  freeplayActivation: { autoPlay: boolean } | null;
   freeplayModeToken: number;
   freeplayPendingPreparation: MultiplayerPlaybackPreparation | null;
   freeplayArtwork: MultiplayerArtwork | null;
@@ -287,9 +288,6 @@ export interface MultiplayerSessionCore {
   freeplaySelections: Map<string, PlaylistItem>;
   clientPeer: PeerConnection | null;
   pendingClientSourceFile: { trackId: string; generationId: string; file: File } | null;
-  pendingClientPlaybackPreparation: MultiplayerPlaybackPreparation | null;
-  clientLoadedSourceGenerationId: string | null;
-  clientRemoteAudioReady: boolean;
   hostAudioBufferMs: number | null;
   reconnectTimer: number | null;
   reconnectAttempts: number;
@@ -347,4 +345,5 @@ export interface MultiplayerClientSide {
   handleClientResume(): void;
   clearReceiverMonitor(): void;
   clearReconnectTimer(): void;
+  resetTransitions(): void;
 }

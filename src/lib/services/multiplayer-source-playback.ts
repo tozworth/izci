@@ -14,15 +14,16 @@ export class MultiplayerSourcePlaybackService {
   #savedPlayback: SavedPlayback | null = null;
   #latestPlayback: MultiplayerPlayback | null = null;
   #activeTrackId: string | null = null;
+  #activeGenerationId: string | null = null;
   #activeObjectUrl: string | null = null;
   #loadToken = 0;
   #enabled = true;
   #localTimeline = false;
-  #onEnded: ((trackId: string) => void) | null = null;
+  #onEnded: ((trackId: string, generationId: string) => void) | null = null;
   #unsubscribeEnded: Unsubscriber | null = null;
   #previousPlaybackState: PlaybackSnapshot['state'] = 'idle';
 
-  beginClientSession(onEnded?: (trackId: string) => void): void {
+  beginClientSession(onEnded?: (trackId: string, generationId: string) => void): void {
     if (this.#savedPlayback) return;
     this.#savedPlayback = {
       track: get(playerController.currentTrack),
@@ -33,9 +34,9 @@ export class MultiplayerSourcePlaybackService {
     this.#unsubscribeEnded = playerController.snapshot.subscribe((snapshot) => {
       const ended = snapshot.state === 'ended' && this.#previousPlaybackState !== 'ended';
       this.#previousPlaybackState = snapshot.state;
-      if (ended && this.#activeTrackId) {
+      if (ended && this.#activeTrackId && this.#activeGenerationId) {
         logInfo('freeplay', 'Source-file playback ended', { trackId: this.#activeTrackId });
-        this.#onEnded?.(this.#activeTrackId);
+        this.#onEnded?.(this.#activeTrackId, this.#activeGenerationId);
       }
     });
   }
@@ -129,6 +130,7 @@ export class MultiplayerSourcePlaybackService {
     }
     this.#activeObjectUrl = objectUrl ?? null;
     this.#activeTrackId = track.id;
+    this.#activeGenerationId = playback.generationId;
     if (previousObjectUrl && previousObjectUrl !== objectUrl) URL.revokeObjectURL(previousObjectUrl);
     this.#applyLatestPlayback();
     logInfo('freeplay', 'Source file received and loaded', { trackId: track.id, bytes: file.size });
@@ -187,6 +189,7 @@ export class MultiplayerSourcePlaybackService {
     this.#loadToken += 1;
     if (this.#activeTrackId) playerController.unload();
     this.#activeTrackId = null;
+    this.#activeGenerationId = null;
     this.#revokeObjectUrl();
   }
 

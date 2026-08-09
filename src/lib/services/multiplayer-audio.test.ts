@@ -4,6 +4,7 @@ const audioBus = vi.hoisted(() => ({
   connectMediaStream: vi.fn(),
   connectMediaStreamAfterRaf: vi.fn(),
   disconnect: vi.fn(),
+  setSourceGain: vi.fn(),
   resume: vi.fn(async () => true),
   getBroadcastTrack: vi.fn(),
   setBroadcastGain: vi.fn(),
@@ -63,7 +64,18 @@ describe('MultiplayerAudioService', () => {
     expect(audioBus.connectMediaStreamAfterRaf).not.toHaveBeenCalled();
     expect(element.muted).toBe(true);
     expect(element.srcObject).toBe(stream);
-    expect(statuses.at(-1)).toBe('playing');
+    expect(audioBus.setSourceGain).toHaveBeenCalledWith({}, 0);
+    expect(statuses.at(-1)).toBe('connecting');
+  });
+
+  it('keeps one element and Web Audio source across delivery generations', async () => {
+    await service.attachRemoteTrack(track, stream, () => undefined);
+    await service.attachRemoteTrack(track, stream, () => undefined);
+    service.setRemoteAudible(true);
+
+    expect(audioBus.connectMediaStream).toHaveBeenCalledTimes(1);
+    expect(element.pause).not.toHaveBeenCalled();
+    expect(audioBus.setSourceGain).toHaveBeenLastCalledWith({}, 1, 0.04);
   });
 
   it('keeps the listener in control of local Raf routing', async () => {
@@ -71,5 +83,27 @@ describe('MultiplayerAudioService', () => {
 
     expect(audioBus.connectMediaStream).toHaveBeenCalledWith(stream);
     expect(audioBus.connectMediaStreamAfterRaf).not.toHaveBeenCalled();
+  });
+
+  it('does not declare a suspended receiver pipeline ready', async () => {
+    const statuses: string[] = [];
+    audioBus.resume.mockResolvedValueOnce(false);
+
+    await expect(service.attachRemoteTrack(track, stream, (status) => statuses.push(status)))
+      .resolves.toBe(false);
+    expect(statuses.at(-1)).toBe('blocked');
+  });
+
+  it('ignores a resume completion after the receiver route was cleared', async () => {
+    const deferred: { finish?: (running: boolean) => void } = {};
+    audioBus.resume.mockImplementationOnce(() => new Promise<boolean>((resolve) => {
+      deferred.finish = resolve;
+    }));
+
+    const attaching = service.attachRemoteTrack(track, stream, () => undefined);
+    service.clearRemoteTrack();
+    deferred.finish?.(true);
+
+    await expect(attaching).resolves.toBe(false);
   });
 });

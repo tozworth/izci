@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import {
   isMultiplayerClientTransportHealthy,
   isMultiplayerFreeplayActive,
-  isMultiplayerPlaybackPreparationReady,
   resolveMultiplayerFreeplayAgreement,
   sanitizeFreeplayQueueIds,
   shouldTransferMultiplayerSourceFile
@@ -78,51 +77,5 @@ describe('Freeplay pairing negotiation', () => {
 
   it('deduplicates and bounds the client queue before sending it', () => {
     expect(sanitizeFreeplayQueueIds(['b', 'a', 'b', '', 'c'])).toEqual(['b', 'a', 'c']);
-  });
-});
-
-describe('multiplayer playback preparation', () => {
-  const baseState = {
-    remoteTrackId: 'track',
-    receiveAudio: true,
-    loadedSourceTrackId: null,
-    loadedSourceGenerationId: null,
-    streamReady: false
-  };
-
-  it('waits for a transferred file to be loaded for the requested track', () => {
-    const preparation = { preparationId: 'one', trackId: 'track', delivery: 'source-file' as const };
-    expect(isMultiplayerPlaybackPreparationReady(preparation, baseState)).toBe(false);
-    expect(isMultiplayerPlaybackPreparationReady(preparation, {
-      ...baseState,
-      loadedSourceTrackId: 'track',
-      loadedSourceGenerationId: 'one'
-    })).toBe(true);
-    expect(isMultiplayerPlaybackPreparationReady(preparation, {
-      ...baseState,
-      remoteTrackId: 'other',
-      loadedSourceTrackId: 'track',
-      loadedSourceGenerationId: 'one'
-    })).toBe(false);
-  });
-
-  it('waits for a stream to be listening', () => {
-    const preparation = { preparationId: 'one', trackId: 'track', delivery: 'stream' as const };
-    expect(isMultiplayerPlaybackPreparationReady(preparation, baseState)).toBe(false);
-    expect(isMultiplayerPlaybackPreparationReady(preparation, {
-      ...baseState,
-      streamReady: true
-    })).toBe(true);
-  });
-
-  it('does not block clients that opted out of audio or sessions with no audio', () => {
-    expect(isMultiplayerPlaybackPreparationReady(
-      { preparationId: 'one', trackId: 'track', delivery: 'source-file' },
-      { ...baseState, receiveAudio: false }
-    )).toBe(true);
-    expect(isMultiplayerPlaybackPreparationReady(
-      { preparationId: 'one', trackId: 'track', delivery: 'none' },
-      baseState
-    )).toBe(true);
   });
 });

@@ -256,6 +256,7 @@
       repeatMode: 'off'
     },
     remotePlayback: {
+      generationId: 'idle',
       snapshot: localPlaybackSnapshot,
       track: null,
       sentAt: 0

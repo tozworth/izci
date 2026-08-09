@@ -58,6 +58,7 @@ const track: PlaylistItem = {
 
 function playback(state: PlaybackSnapshot['state']): MultiplayerPlayback {
   return {
+    generationId: 'generation',
     track,
     sentAt: Date.now(),
     snapshot: {

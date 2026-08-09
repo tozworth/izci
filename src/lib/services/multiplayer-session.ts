@@ -46,9 +46,6 @@ export function createMultiplayerSession({
     freeplaySelections: new Map(),
     clientPeer: null,
     pendingClientSourceFile: null,
-    pendingClientPlaybackPreparation: null,
-    clientLoadedSourceGenerationId: null,
-    clientRemoteAudioReady: false,
     hostAudioBufferMs: null,
     reconnectTimer: null,
     reconnectAttempts: 0,
@@ -106,6 +103,7 @@ export function createMultiplayerSession({
       peers: core.hostPeers.size
     });
     client.clearReceiverMonitor();
+    client.resetTransitions();
     core.stopPeersListener?.();
     core.stopAnswerListener?.();
     core.stopPeersListener = null;
@@ -121,9 +119,6 @@ export function createMultiplayerSession({
     multiplayerAudioService.clearRemoteTrack();
     multiplayerSourcePlaybackService.clearLoadedFile();
     core.pendingClientSourceFile = null;
-    core.pendingClientPlaybackPreparation = null;
-    core.clientLoadedSourceGenerationId = null;
-    core.clientRemoteAudioReady = false;
     core.hostAudioBufferMs = null;
     core.hostPlaybackPreparation = null;
     core.bypassHostPlaybackGateTrackId = null;
@@ -192,15 +187,9 @@ export function createMultiplayerSession({
       } else if (freeplayAudioChanged) {
         for (const peer of core.hostPeers.values()) {
           if (!peer.freeplay || !peer.freeplayPlayer) continue;
-          void peer.freeplayPlayer.reconfigure().then(() => {
+          void peer.freeplayPlayer.reconfigure().then((shouldResume) => {
             if (!peer.freeplay || !peer.freeplayPlayer?.track) return;
-            if (peer.freeplayPlayer?.delivery === 'source-file'
-              || core.multiplayerSettings.multiplayerWaitForClients) {
-              host.beginFreeplayPlaybackPreparation(peer);
-            } else {
-              peer.freeplayPendingPreparation = null;
-              void peer.freeplayPlayer?.play();
-            }
+            if (shouldResume) host.beginFreeplayPlaybackPreparation(peer);
           });
         }
       }
@@ -211,11 +200,6 @@ export function createMultiplayerSession({
       }
       if (waitForClientsDisabled) {
         host.releasePreparedHostPlayback();
-        for (const peer of core.hostPeers.values()) {
-          if (!peer.freeplayPendingPreparation) continue;
-          peer.freeplayPendingPreparation = null;
-          void peer.freeplayPlayer?.play();
-        }
       } else if (core.hostPlaybackPreparation
         && core.hostPlaybackPreparation.preparation.delivery !== core.latestDelivery.mode) {
         host.beginHostPlaybackPreparation(core.hostPlaybackPreparation.preparation.trackId);

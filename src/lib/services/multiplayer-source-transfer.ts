@@ -1,4 +1,5 @@
 import type { PlaylistItem } from '$lib/types';
+import { logWarning } from '$lib/services/logging';
 import type { PeerConnection, SourceFileBeginFrame, SourceFileEndFrame } from './multiplayer-types';
 
 export const SOURCE_FILE_CHUNK_SIZE = 16 * 1024;
@@ -21,13 +22,25 @@ export function flushPeerMedia(peer: PeerConnection): void {
       return;
     }
     while (peer.mediaOutgoing.length > 0 && activeChannel.bufferedAmount < 512_000) {
-      const frame = peer.mediaOutgoing.shift()!;
+      const frame = peer.mediaOutgoing[0];
+      try {
+        if (typeof frame === 'string') activeChannel.send(frame);
+        else activeChannel.send(frame);
+      } catch (error) {
+        peer.mediaFlushing = false;
+        logWarning('multiplayer', 'Media-channel send failed; transfer will resume after reconnect', {
+          peerId: peer.id,
+          error
+        });
+        activeChannel.close();
+        peer.pc.close();
+        return;
+      }
+      peer.mediaOutgoing.shift();
       peer.mediaQueuedBytes = Math.max(
         0,
         peer.mediaQueuedBytes - (typeof frame === 'string' ? frame.length : frame.byteLength)
       );
-      if (typeof frame === 'string') activeChannel.send(frame);
-      else activeChannel.send(frame);
     }
     peer.mediaFlushing = false;
     if (peer.mediaOutgoing.length > 0 && activeChannel.bufferedAmount < 512_000) {
@@ -63,18 +76,24 @@ export async function transferSourceFile(
     lastModified: file.lastModified
   } satisfies SourceFileBeginFrame));
 
-  for (let offset = 0; offset < file.size; offset += SOURCE_FILE_CHUNK_SIZE) {
-    if (peer.mediaTransferToken !== token || peer.mediaChannel?.readyState !== 'open') return;
-    while (peer.mediaQueuedBytes >= SOURCE_FILE_QUEUE_LIMIT) {
-      await waitForMediaQueue(peer, token);
+  let failure: unknown = null;
+  try {
+    for (let offset = 0; offset < file.size; offset += SOURCE_FILE_CHUNK_SIZE) {
       if (peer.mediaTransferToken !== token || peer.mediaChannel?.readyState !== 'open') return;
+      while (peer.mediaQueuedBytes >= SOURCE_FILE_QUEUE_LIMIT) {
+        await waitForMediaQueue(peer, token);
+        if (peer.mediaTransferToken !== token || peer.mediaChannel?.readyState !== 'open') return;
+      }
+      const chunk = await file.slice(offset, offset + SOURCE_FILE_CHUNK_SIZE).arrayBuffer();
+      if (peer.mediaTransferToken !== token) return;
+      queuePeerMedia(peer, chunk);
     }
-    const chunk = await file.slice(offset, offset + SOURCE_FILE_CHUNK_SIZE).arrayBuffer();
-    if (peer.mediaTransferToken !== token) return;
-    queuePeerMedia(peer, chunk);
+  } catch (error) {
+    failure = error;
   }
   if (peer.mediaTransferToken !== token) return;
   queuePeerMedia(peer, JSON.stringify({ kind: 'file.end', transferId } satisfies SourceFileEndFrame));
+  if (failure) throw failure;
 }
 
 export function parseSourceFileFrame(value: string): SourceFileBeginFrame | SourceFileEndFrame | null {

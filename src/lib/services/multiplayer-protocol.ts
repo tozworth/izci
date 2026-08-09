@@ -8,10 +8,10 @@ import type {
 
 export type MultiplayerCollection = 'playlist' | 'library' | 'favorites';
 
-// Version 13 reconstructs Freeplay around an explicit delivery generation,
-// client-owned queues, and lightweight per-peer navigation state. Compatibility
-// is intentionally scorched-earth while Multiplayer remains experimental.
-export const MULTIPLAYER_PROTOCOL_VERSION = 13;
+// Version 14 makes the delivery generation the identity of preparation,
+// playback, file transfer, readiness, and ended events. Compatibility is
+// intentionally scorched-earth while Multiplayer remains experimental.
+export const MULTIPLAYER_PROTOCOL_VERSION = 14;
 export const MULTIPLAYER_FRAME_CHUNK_SIZE = 12_000;
 export const MULTIPLAYER_QUEUE_MAX_ITEMS = 50_000;
 
@@ -50,6 +50,7 @@ export interface MultiplayerCatalog {
 }
 
 export interface MultiplayerPlayback {
+  generationId: string;
   snapshot: PlaybackSnapshot;
   track: PlaylistItem | null;
   sentAt: number;
@@ -75,7 +76,7 @@ export interface MultiplayerDeliveryState {
 }
 
 export interface MultiplayerPlaybackPreparation {
-  preparationId: string;
+  generationId: string;
   trackId: string;
   delivery: MultiplayerDeliveryMode;
 }
@@ -110,8 +111,9 @@ export type ClientMessage =
       repeatMode?: PlaylistRepeatMode;
     }
   | { kind: 'command'; command: MultiplayerCommand }
-  | { kind: 'playback.ready'; preparationId: string }
-  | { kind: 'playback.ended'; trackId: string };
+  | { kind: 'playback.ready'; generationId: string }
+  | { kind: 'playback.ended'; generationId: string; trackId: string }
+  | { kind: 'source.retry'; generationId: string };
 
 interface ChunkFrame {
   kind: 'chunk';
@@ -227,6 +229,9 @@ export function isHostMessage(value: unknown): value is HostMessage {
   if (message.kind === 'playback') {
     const playback = message.playback as Partial<MultiplayerPlayback> | undefined;
     return Boolean(playback)
+      && typeof playback?.generationId === 'string'
+      && playback.generationId.length > 0
+      && playback.generationId.length <= 80
       && typeof playback?.sentAt === 'number'
       && isPlaybackSnapshot(playback.snapshot)
       && (playback.track === null || isRemotePlaylistItem(playback.track));
@@ -234,9 +239,9 @@ export function isHostMessage(value: unknown): value is HostMessage {
   if (message.kind === 'playback.prepare') {
     const preparation = message.preparation as Partial<MultiplayerPlaybackPreparation> | undefined;
     return Boolean(preparation)
-      && typeof preparation?.preparationId === 'string'
-      && preparation.preparationId.length > 0
-      && preparation.preparationId.length <= 80
+      && typeof preparation?.generationId === 'string'
+      && preparation.generationId.length > 0
+      && preparation.generationId.length <= 80
       && typeof preparation.trackId === 'string'
       && preparation.trackId.length > 0
       && preparation.trackId.length <= 200

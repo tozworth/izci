@@ -72,25 +72,6 @@ export function parseFreeplayRestoredFlags(message: {
   return { shuffleEnabled: message.shuffleEnabled, repeatMode: message.repeatMode };
 }
 
-export function isMultiplayerPlaybackPreparationReady(
-  preparation: MultiplayerPlaybackPreparation,
-  state: {
-    remoteTrackId: string | null;
-    receiveAudio: boolean;
-    loadedSourceTrackId: string | null;
-    loadedSourceGenerationId: string | null;
-    streamReady: boolean;
-  }
-): boolean {
-  if (state.remoteTrackId !== preparation.trackId) return false;
-  if (!state.receiveAudio || preparation.delivery === 'none') return true;
-  if (preparation.delivery === 'source-file') {
-    return state.loadedSourceTrackId === preparation.trackId
-      && state.loadedSourceGenerationId === preparation.preparationId;
-  }
-  return state.streamReady;
-}
-
 export function isClientMessage(value: unknown): value is ClientMessage {
   if (!value || typeof value !== 'object') return false;
   const message = value as Partial<ClientMessage> & Record<string, unknown>;
@@ -114,14 +95,22 @@ export function isClientMessage(value: unknown): value is ClientMessage {
         || message.repeatMode === 'all');
   }
   if (message.kind === 'playback.ready') {
-    return typeof message.preparationId === 'string'
-      && message.preparationId.length > 0
-      && message.preparationId.length <= 80;
+    return typeof message.generationId === 'string'
+      && message.generationId.length > 0
+      && message.generationId.length <= 80;
   }
   if (message.kind === 'playback.ended') {
-    return typeof message.trackId === 'string'
+    return typeof message.generationId === 'string'
+      && message.generationId.length > 0
+      && message.generationId.length <= 80
+      && typeof message.trackId === 'string'
       && message.trackId.length > 0
       && message.trackId.length <= 200;
+  }
+  if (message.kind === 'source.retry') {
+    return typeof message.generationId === 'string'
+      && message.generationId.length > 0
+      && message.generationId.length <= 80;
   }
   return message.kind === 'command' && isMultiplayerCommand(message.command);
 }

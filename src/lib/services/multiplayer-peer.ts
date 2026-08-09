@@ -1,4 +1,5 @@
 import type { MultiplayerIceSettings } from './multiplayer-ice';
+import { logWarning } from '$lib/services/logging';
 import { createMultiplayerRtcConfiguration } from './multiplayer-ice';
 import {
   createMultiplayerMessageDecoder,
@@ -52,7 +53,7 @@ export function createPeer(
     freeplayRepeatMode: 'off',
     freeplayNavigation: null,
     freeplayQueue: [],
-    freeplayActivationToken: 0,
+    freeplayActivation: null,
     freeplayModeToken: 0,
     freeplayPendingPreparation: null,
     freeplayArtwork: null,
@@ -78,7 +79,18 @@ export function flushPeer(peer: PeerConnection): void {
       return;
     }
     while (peer.outgoing.length > 0 && peer.channel.bufferedAmount < 512_000) {
-      peer.channel.send(peer.outgoing.shift()!);
+      try {
+        peer.channel.send(peer.outgoing[0]);
+        peer.outgoing.shift();
+      } catch (error) {
+        peer.flushing = false;
+        logWarning('multiplayer', 'Control-channel send failed; reconnect required', {
+          peerId: peer.id,
+          error
+        });
+        peer.channel.close();
+        return;
+      }
     }
     if (peer.outgoing.length === 0) {
       peer.flushing = false;
@@ -220,7 +232,7 @@ export function clearPeerConnectionTimer(peer: PeerConnection): void {
 
 export function disposePeerConnection(peer: PeerConnection): void {
   clearPeerConnectionTimer(peer);
-  peer.freeplayActivationToken += 1;
+  peer.freeplayActivation = null;
   peer.freeplayModeToken += 1;
   peer.freeplayPendingPreparation = null;
   peer.freeplayPlayer?.destroy();
