@@ -10,7 +10,7 @@ export const FIREBASE_CONFIG = {
   projectId: 'izci-pwa',
   appId: '1:397825145921:web:92d428cf3c65fa2fab5ac0',
   storageBucket: 'izci-pwa.firebasestorage.app',
-  apiKey: '«reda…»',
+  apiKey: 'AIzaSyBZ1hxyPdzo3xQyb9Urk7XQG708-R5S-3w',
   authDomain: 'izci-pwa.firebaseapp.com',
   messagingSenderId: '397825145921',
   databaseURL: 'https://izci-pwa-default-rtdb.europe-west1.firebasedatabase.app'
