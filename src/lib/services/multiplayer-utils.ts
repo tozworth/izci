@@ -20,15 +20,23 @@ export function isMultiplayerClientTransportHealthy(
 }
 
 /**
- * The buffered Opus delivery decision: audio and modules are pre-rendered and
- * streamed as time-indexed clusters; only video keeps the live RTP audio path.
+ * Delivery decision between the two streaming pathways: files at or under the
+ * "Send files under" limit transfer whole and play on the listener; larger
+ * files are pre-rendered to buffered Opus. Live RTP remains only for video.
+ * limitMiB: 0 = off (everything renders), < 0 = every file transfers.
  */
 export function resolveMultiplayerDeliveryMode(
   track: PlaylistItem | null,
-  audioEnabled: boolean
+  audioEnabled: boolean,
+  fileTransferLimitMiB = 0
 ): MultiplayerDeliveryMode {
   if (!track || !audioEnabled) return 'none';
   if (track.kind === 'video') return 'stream';
+  if (fileTransferLimitMiB !== 0
+    && track.size > 0
+    && (fileTransferLimitMiB < 0 || track.size < fileTransferLimitMiB * 1024 * 1024)) {
+    return 'source-file';
+  }
   return 'render';
 }
 

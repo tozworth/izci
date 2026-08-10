@@ -184,6 +184,8 @@ export function createMultiplayerSession({
       !== core.multiplayerSettings.multiplayerStreamAudio;
     const opusBitrateChanged = settings.multiplayerOpusBitrateKbps
       !== core.multiplayerSettings.multiplayerOpusBitrateKbps;
+    const fileTransferLimitChanged = settings.multiplayerFileTransferLimitMiB
+      !== core.multiplayerSettings.multiplayerFileTransferLimitMiB;
     const renderCacheLimitChanged = settings.multiplayerRenderCacheLimitMiB
       !== core.multiplayerSettings.multiplayerRenderCacheLimitMiB;
     const waitForClientsDisabled = core.multiplayerSettings.multiplayerWaitForClients
@@ -197,9 +199,10 @@ export function createMultiplayerSession({
       multiplayerRenderCoordinator.setCacheLimitMiB(settings.multiplayerRenderCacheLimitMiB);
     }
     if (core.state.mode === 'hosting') {
-      if (opusBitrateChanged) {
-        // Bitrate is part of the render cache key: force a fresh delivery
-        // generation so listeners rebuild their MediaSource at the new rate.
+      if (opusBitrateChanged || fileTransferLimitChanged) {
+        // Bitrate is part of the render cache key and the transfer limit
+        // changes the delivery decision: force a fresh delivery generation so
+        // listeners rebuild their pipeline at the new mode or bitrate.
         for (const peer of core.hostPeers.values()) {
           if (peer.freeplay) {
             peer.freeplayDelivery = null;

@@ -93,6 +93,25 @@ describe('Freeplay delivery ownership', () => {
     expect(updates.at(-1)).toEqual({ state: 'idle', time: 0, delivery: 'none' });
   });
 
+  it('keeps the host timeline passive for direct source-file transfer', async () => {
+    const updates: Array<{ state: string; time: number; delivery: string }> = [];
+    const player = new MultiplayerFreeplayPlayer({
+      getAudioSettings: () => ({ enabled: true, delivery: 'source-file' }),
+      onUpdate: (update) => updates.push({
+        state: update.playback.snapshot.state,
+        time: update.playback.snapshot.currentTime,
+        delivery: update.delivery
+      }),
+      onEnded: () => { throw new Error('The passive host must not synthesize an ended event.'); }
+    });
+    const source = { ...track('source'), file: new File(['audio'], 'source.mp3') };
+
+    expect(await player.load(source, true, 75)).toBe(true);
+    expect(player.delivery).toBe('source-file');
+    expect(player.snapshot).toMatchObject({ state: 'idle', currentTime: 0 });
+    expect(updates.at(-1)).toEqual({ state: 'idle', time: 0, delivery: 'source-file' });
+  });
+
   it('advances a host-owned buffered Opus timeline while playing', async () => {
     vi.useFakeTimers();
     try {

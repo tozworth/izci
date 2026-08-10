@@ -30,6 +30,7 @@ describe('experimental settings', () => {
       multiplayerForceTurn: false,
       multiplayerFreeplay: false,
       multiplayerStreamAudio: true,
+      multiplayerFileTransferLimitMiB: DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerFileTransferLimitMiB,
       multiplayerOpusBitrateKbps: DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerOpusBitrateKbps,
       multiplayerAudioBufferMs: DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerAudioBufferMs,
       multiplayerRenderCacheLimitMiB: DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerRenderCacheLimitMiB,
@@ -41,6 +42,18 @@ describe('experimental settings', () => {
     expect(normalizeExperimentalSettings({ multiplayerFreeplay: true })).toMatchObject({
       multiplayer: false,
       multiplayerFreeplay: true
+    });
+  });
+
+  it('normalizes the "Send files under" limit to the bounded choices', () => {
+    expect(normalizeExperimentalSettings({ multiplayerFileTransferLimitMiB: 16 })).toMatchObject({
+      multiplayerFileTransferLimitMiB: 16
+    });
+    expect(normalizeExperimentalSettings({ multiplayerFileTransferLimitMiB: -1 })).toMatchObject({
+      multiplayerFileTransferLimitMiB: -1
+    });
+    expect(normalizeExperimentalSettings({ multiplayerFileTransferLimitMiB: 7 })).toMatchObject({
+      multiplayerFileTransferLimitMiB: DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerFileTransferLimitMiB
     });
   });
 

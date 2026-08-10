@@ -834,6 +834,12 @@
           "title": "Start lead time",
           "hint": "How far ahead the host schedules a synchronized start after every listener is ready. Increase it when devices miss the opening beat."
         },
+        "fileTransfer": {
+          "title": "Send files under",
+          "hint": "Sends smaller audio and module files whole, then plays them on each listener. Larger files are pre-rendered to buffered Opus by the host. Modules are usually small, so they transfer directly.",
+          "every": "Every file",
+          "never": "Buffered Opus only"
+        },
         "opusBitrate": {
           "title": "Opus VBR bitrate",
           "hint": "Controls the bitrate of the pre-rendered Opus stream each listener downloads. Higher rates use more host bandwidth and encoding work."

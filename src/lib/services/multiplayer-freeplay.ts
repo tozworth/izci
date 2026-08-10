@@ -14,7 +14,10 @@ const FREEPLAY_PROGRESS_INTERVAL_MS = 500;
 
 export interface MultiplayerFreeplayAudioSettings {
   enabled: boolean;
-  /** Pre-resolved delivery for the track: 'render' (buffered Opus) or 'stream' (video). */
+  /**
+   * Pre-resolved delivery for the track: 'render' (buffered Opus), 'source-file'
+   * (direct transfer, timeline-passive) or 'stream' (video live RTP).
+   */
   delivery: MultiplayerDeliveryMode;
 }
 
@@ -149,7 +152,9 @@ export class MultiplayerFreeplayPlayer {
     const settings = this.#getAudioSettings(track);
     this.#delivery = !settings.enabled
       ? 'none'
-      : settings.delivery === 'render' || settings.delivery === 'stream'
+      : settings.delivery === 'render'
+        || settings.delivery === 'stream'
+        || settings.delivery === 'source-file'
       ? settings.delivery
       : 'none';
     this.#publish();

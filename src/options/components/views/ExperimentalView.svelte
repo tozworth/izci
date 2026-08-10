@@ -6,6 +6,7 @@
     MULTIPLAYER_AUDIO_BUFFER_MAX_MS,
     MULTIPLAYER_AUDIO_BUFFER_MIN_MS,
     MULTIPLAYER_AUDIO_BUFFER_STEP_MS,
+    MULTIPLAYER_FILE_TRANSFER_LIMITS_MIB,
     MULTIPLAYER_MAX_LISTENERS_MAX,
     MULTIPLAYER_MAX_LISTENERS_MIN,
     MULTIPLAYER_OPUS_BITRATE_MAX_KBPS,
@@ -55,6 +56,26 @@
     experimentalSettings.update({
       multiplayerRenderCacheLimitMiB: Number((event.currentTarget as HTMLSelectElement).value)
     });
+  }
+
+  function handleFileTransferLimitChange(event: Event) {
+    const index = (event.currentTarget as HTMLInputElement).valueAsNumber;
+    experimentalSettings.update({
+      multiplayerFileTransferLimitMiB: MULTIPLAYER_FILE_TRANSFER_LIMITS_MIB[index] ?? 0
+    });
+  }
+
+  function fileTransferLimitIndex(limit: number): number {
+    const index = MULTIPLAYER_FILE_TRANSFER_LIMITS_MIB.indexOf(
+      limit as (typeof MULTIPLAYER_FILE_TRANSFER_LIMITS_MIB)[number]
+    );
+    return index < 0 ? 0 : index;
+  }
+
+  function fileTransferLimitLabel(limit: number): string {
+    if (limit < 0) return $t('options.experimental.multiplayer.fileTransfer.every', { default: 'Every file' });
+    if (limit === 0) return $t('options.experimental.multiplayer.fileTransfer.never', { default: 'Buffered Opus only' });
+    return `${limit} MiB`;
   }
 
   function handleTurnUrlChange(event: Event) {
@@ -339,6 +360,21 @@
         <span class="field-output">{$experimentalSettings.multiplayerSyncLeadTimeMs} ms</span>
       </SettingsField>
       <SettingsField
+        title={$t('options.experimental.multiplayer.fileTransfer.title', { default: 'Send files under' })}
+        hint={$t('options.experimental.multiplayer.fileTransfer.hint', { default: 'Sends smaller audio and module files whole, then plays them on each listener. Larger files are pre-rendered to buffered Opus by the host. Modules are usually small, so they transfer directly.' })}
+      >
+        <input
+          type="range"
+          min="0"
+          max={MULTIPLAYER_FILE_TRANSFER_LIMITS_MIB.length - 1}
+          step="1"
+          value={fileTransferLimitIndex($experimentalSettings.multiplayerFileTransferLimitMiB)}
+          disabled={!multiplayerAudioEnabled}
+          on:input={handleFileTransferLimitChange}
+        />
+        <span class="field-output">{fileTransferLimitLabel($experimentalSettings.multiplayerFileTransferLimitMiB)}</span>
+      </SettingsField>
+      <SettingsField
         title={$t('options.experimental.multiplayer.opusBitrate.title', { default: 'Opus VBR bitrate' })}
         hint={$t('options.experimental.multiplayer.opusBitrate.hint', { default: 'Controls the bitrate of the pre-rendered Opus stream each listener downloads. Higher rates use more host bandwidth and encoding work.' })}
       >
@@ -348,7 +384,7 @@
           max={MULTIPLAYER_OPUS_BITRATE_MAX_KBPS}
           step={MULTIPLAYER_OPUS_BITRATE_STEP_KBPS}
           value={$experimentalSettings.multiplayerOpusBitrateKbps}
-          disabled={!multiplayerAudioEnabled}
+          disabled={!multiplayerAudioEnabled || $experimentalSettings.multiplayerFileTransferLimitMiB < 0}
           on:input={handleOpusBitrateChange}
         />
         <span class="field-output">{$experimentalSettings.multiplayerOpusBitrateKbps} kbps</span>

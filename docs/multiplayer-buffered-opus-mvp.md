@@ -2,11 +2,12 @@
 
 ## Decision
 
-Replace the choice between live WebRTC audio and whole-source-file transfer for audio and modules with a third delivery path: the host renders each track to time-indexed WebM/Opus in memory, then sends it over WebRTC data channels as fast as congestion control allows. The listener starts after a small contiguous window is present and keeps buffering toward the end of the track.
+Two delivery pathways replace live WebRTC audio ("internet radio mode"), selected per track by the **Send files under** limit:
 
-This is download-ahead streaming, not paced internet radio and not “download the whole file, then play.”
+- **Direct file transfer**: files at or under the limit are sent whole over the ordered `izci-media` channel and play on the listener with its own backend. Tracker modules are usually small, so they transfer directly and keep native module playback.
+- **Buffered Opus**: larger files are pre-rendered to time-indexed WebM/Opus in memory by the host, then sent over the reliable unordered `izci-render` data channel as fast as congestion control allows. The listener starts after a small contiguous window is present and keeps buffering toward the end of the track.
 
-Video remains on the existing live RTP audio path for this MVP. There is no persistent encoded cache.
+This is download-ahead streaming for big files, whole-file transfer for small ones, and no paced internet radio. Video remains on the live RTP path.
 
 ```mermaid
 flowchart LR
@@ -88,11 +89,12 @@ Normal hosted playback shares one render across listeners. Freeplay keeps a sepa
 
 Keep the Goldilocks controls under Options -> Experimental -> Multiplayer Audio:
 
-- **Opus VBR bitrate**: retain it, but it now controls the actual pre-render rather than an RTP ceiling.
+- **Send files under**: the per-track pathway selector (restored 2026-08-10). Files at or under the limit transfer whole and play on the listener; larger files pre-render to buffered Opus. `0` = off (everything renders), `−1` = every file transfers.
+- **Opus VBR bitrate**: retain it, but it now controls the actual pre-render rather than an RTP ceiling. Disabled while "Every file" is selected (nothing renders).
 - **Start/rebuffer after**: replace the RTP jitter-buffer wording and expand the useful range; initial proposal is 3 seconds default, 1–30 seconds.
 - **Pre-render memory limit**: compressed render-cache cap; initial proposal is 256 MiB with a small set of bounded choices.
 
-Remove **Send files under** once buffered Opus covers audio and modules. Keep cluster duration and transport high-water marks internal until evidence shows that users benefit from exposing them.
+Keep cluster duration and transport high-water marks internal until evidence shows that users benefit from exposing them.
 
 ## Implementation order
 
@@ -100,9 +102,16 @@ Remove **Send files under** once buffered Opus covers audio and modules. Keep cl
 2. **Renderer — DONE.** Worker-backed coordinator (`multiplayer-render-coordinator.ts`, `multiplayer-render.worker.ts`): regular audio goes through Mediabunny file → WebM/Opus with video discarded; modules render via the shared libopenmpt/Hively core (`module-render-core.ts`, extracted from the Editor worker) and feed the Opus encoder without a whole-track AudioBuffer. Output is split into ~1 s clusters with a cluster index; the bounded LRU cache (`multiplayer-render-cache.ts`) deduplicates by key (path/size/mtime/subsong/bitrate/renderer version), pins active entries, and evicts unpinned by compressed-byte LRU under the configured cap. The first implementation finishes the whole render before announcing (per the doc); incremental cluster publishing is the follow-up.
 3. **Transport — DONE.** Protocol v17: `render.manifest` / `render.error` / `render.need` / `render.ready`, binary fragment framing (16 KiB, render ID + request epoch + cluster index + offset; init uses a marker index), a reliable unordered `izci-render` data channel, per-peer queues with a 512 KiB `bufferedAmount` high-water mark (backpressure, not pacing), and the priority scheduler (`multiplayer-render-scheduler.ts`: seek window → playhead protection window → forward download-ahead → earlier holes). Seeks bump the client epoch; stale-epoch frames are dropped client-side.
 4. **Playback — DONE.** Client pipeline (`multiplayer-render-playback.ts`): one Multiplayer-owned MediaSource/SourceBuffer, init appended once, clusters appended in ascending timestamp order per window (sparse ranges allowed; a seek clears buffered data and re-appends from the retained compressed clusters). Readiness when the contiguous window reaches the host `buffer` setting (or the remainder is shorter); rebuffering at the buffered edge requests the current host position at urgent priority; drift correction seeks the element; the hidden muted element enters the shared graph through `connectHtmlMediaElement` (transition envelope → ReplayGain → Raf → analyser → master volume), with audibility ramped via `setSourceGain`. Generations tear down MediaSource/element/clusters.
-5. **Session integration — DONE.** Audio and modules default to buffered Opus for both hosted (shared) and Freeplay timelines; live RTP remains only for video and for per-track render-failure fallback (`renderFallbackTrackIds`). Freeplay keeps a separate authoritative timeline per peer (`MultiplayerFreeplayPlayer` render mode is a wall-clock timeline with no renderer element) while sharing render cache entries across peers. Bitrate changes force a fresh delivery generation; the cache limit applies live.
-6. **Controls and diagnostics — DONE.** Options → Experimental → Multiplayer Audio: bitrate now describes the pre-render, "Start/rebuffer after" replaces the RTP buffer wording (1–30 s, default 3 s), and a "Pre-render memory limit" selector (64/128/256/512 MiB, default 256) was added; "Send files under" was removed from en.json/tr.json (Askew untouched, `i18n:validate` passes). One-shot diagnostics log render time, cache hits, cluster counts, readiness, and rebuffers.
-7. **Removal — NOT DONE (deferred per the doc: "after parity tests").** The source-file transfer/playback code is dormant (nothing selects `source-file` anymore) but still present; the old RTP jitter-buffer controls were already replaced by the render controls. Delete the dormant paths after live parity testing.
+5. **Session integration — DONE.** Audio and modules route by the Send files under limit: files at or under it transfer whole (`source-file`; the listener plays with its own backend, keeping tracker modules native), larger files pre-render to buffered Opus — for both hosted (shared) and Freeplay timelines. Live RTP remains only for video. Freeplay keeps a separate authoritative timeline per peer (`MultiplayerFreeplayPlayer` render mode is a wall-clock timeline with no renderer element) while sharing render cache entries across peers. Bitrate and transfer-limit changes force a fresh delivery generation; the cache limit applies live.
+6. **Controls and diagnostics — DONE.** Options → Experimental → Multiplayer Audio: bitrate now describes the pre-render, "Start/rebuffer after" replaces the RTP buffer wording (1–30 s, default 3 s), a "Pre-render memory limit" selector (64/128/256/512 MiB, default 256) was added, and "Send files under" was restored (0 / 1 / 2 / 4 / 8 / 16 / 32 / 64 MiB / Every file; the bitrate slider disables on Every file). One-shot diagnostics log render time, cache hits, cluster counts, readiness, and rebuffers.
+7. **Live RTP audio removal — DONE (2026-08-10).** "Internet radio mode" is fully gone: `resolveMultiplayerDeliveryMode` never returns `stream` for audio or modules, and the render-failure fallback (`renderFallbackTrackIds`) now flips the track to `source-file` transfer instead of opening a live audio stream. The source-file transfer/playback path is the second, first-class pathway (selected by the Send files under limit), not dormant code. Only video uses the live RTP path.
+
+## Verification (2026-08-10 — direct-transfer pathway restored)
+
+- Full suite: `npx vitest run` — 135 files, 596 passed, 7 skipped (RTDB rules). Focused multiplayer + settings suites: 139 passed. New coverage: delivery threshold semantics (`multiplayer-session.test.ts`), Freeplay source-file passive timeline (`multiplayer-freeplay.test.ts`), transfer-limit normalization (`experimental-settings.test.ts`).
+- `npm run check` — 0 errors, 0 warnings. `npm run build` — succeeds; `npm run i18n:validate` passes with the restored en/tr keys (Askew untouched).
+- Live RTP audio is unreachable for audio/modules: the resolver never returns `stream` for them, and the render-failure fallback sends the source file instead of opening a live audio stream. Video keeps live RTP.
+- Two-instance CDP rig (2026-08-10, fresh Helium profiles, limit 16 MiB): `rig-two-pathway-pass.py` 33/33 green — Impulse.s3m transferred whole and played natively (1.1 s), sent→render 6.6 s, render→sent 1.1 s, repeated cross-transitions clean, Broken.s3m fell back to whole-file transfer (no live RTP), 0 rebuffers / 0 transfer failures / 0 errors. `rig-buffered-opus-pass.py` (limit 0 = all render) green through seeks/pause/module render/cache replay; its P8 fallback assertion was updated to the new whole-file behavior. Phone hook still pending for real links.
 
 ## Verification (2026-08-09, evening — two-instance CDP rig + fixes)
 

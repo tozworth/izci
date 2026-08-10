@@ -834,6 +834,12 @@
           "title": "Başlangıç hazırlık süresi",
           "hint": "Tüm dinleyiciler hazır olduktan sonra sunucunun eşzamanlı başlangıcı ne kadar ileriye ayarlayacağını belirler. Aygıtlar ilk vuruşu kaçırıyorsa artırın."
         },
+        "fileTransfer": {
+          "title": "Şundan küçük dosyaları gönder",
+          "hint": "Daha küçük ses ve modül dosyalarını bütün olarak gönderir ve her dinleyicide çalar. Daha büyük dosyalar sunucuda önceden arabelleğe alınmış Opus'a dönüştürülür. Modüller genellikle küçük olduğundan doğrudan aktarılır.",
+          "every": "Her dosya",
+          "never": "Yalnızca arabelleğe alınmış Opus"
+        },
         "opusBitrate": {
           "title": "Opus VBR bit hızı",
           "hint": "Her dinleyicinin indirdiği önceden işlenmiş Opus akışının bit hızını belirler. Yüksek değerler sunucuda daha fazla bant genişliği ve kodlama gücü kullanır."

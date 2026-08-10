@@ -602,8 +602,12 @@ export function createMultiplayerHostSide(
         getAudioSettings: (track) => ({
           enabled: core.multiplayerSettings.multiplayerStreamAudio,
           delivery: core.renderFallbackTrackIds.has(track.id)
-            ? 'stream'
-            : resolveMultiplayerDeliveryMode(track, core.multiplayerSettings.multiplayerStreamAudio)
+            ? 'source-file'
+            : resolveMultiplayerDeliveryMode(
+                track,
+                core.multiplayerSettings.multiplayerStreamAudio,
+                core.multiplayerSettings.multiplayerFileTransferLimitMiB
+              )
         }),
         onUpdate: (update) => {
           if (peer.freeplayPlayer === player) syncFreeplayPlayerUpdate(peer, update);
@@ -712,18 +716,30 @@ export function createMultiplayerHostSide(
 
   function syncPeerMediaSource(peer: PeerConnection): void {
     if (peer.freeplay) {
-      syncPeerRenderSource(
-        peer,
-        peer.freeplayPlayer?.delivery === 'render' ? peer.freeplayPlayer?.track ?? null : null,
-        peer.freeplayDelivery?.generationId ?? null
-      );
+      const track = peer.freeplayPlayer?.track ?? null;
+      const mode = peer.freeplayPlayer?.delivery ?? 'none';
+      const generationId = peer.freeplayDelivery?.generationId ?? null;
+      if (mode === 'render') {
+        syncPeerRenderSource(peer, track, generationId);
+      } else {
+        syncPeerRenderSource(peer, null, null);
+        if (mode === 'source-file' && track && generationId) {
+          syncPeerSourceFile(peer, track, generationId);
+        }
+      }
       return;
     }
-    syncPeerRenderSource(
-      peer,
-      core.latestDelivery.mode === 'render' ? core.latestHostState?.track ?? null : null,
-      core.latestDelivery.generationId
-    );
+    const track = core.latestHostState?.track ?? null;
+    const mode = core.latestDelivery.mode;
+    const generationId = core.latestDelivery.generationId;
+    if (mode === 'render') {
+      syncPeerRenderSource(peer, track, generationId);
+    } else {
+      syncPeerRenderSource(peer, null, null);
+      if (mode === 'source-file' && track && generationId) {
+        syncPeerSourceFile(peer, track, generationId);
+      }
+    }
   }
 
   function syncPeerRenderSource(
@@ -770,7 +786,7 @@ export function createMultiplayerHostSide(
     }).catch((error) => {
       if (core.state.mode !== 'hosting' || !track) return;
       if (!renderStillCurrent(peer, track, generationId)) return;
-      logWarning('multiplayer', 'Buffered Opus render failed; falling back to live audio', {
+      logWarning('multiplayer', 'Buffered Opus render failed; sending the source file instead', {
         peerId: peer.id,
         trackId: track.id,
         error: errorMessage(error, 'render failed')
@@ -783,7 +799,34 @@ export function createMultiplayerHostSide(
         });
       } else {
         syncHostAudio(core.latestHostState?.track ?? null);
+        syncHostSourceFiles(core.latestHostState?.track ?? null);
       }
+    });
+  }
+
+  function syncPeerSourceFile(
+    peer: PeerConnection,
+    track: PlaylistItem | null,
+    generationId: string | null
+  ): void {
+    const channel = peer.mediaChannel;
+    const key = track && generationId
+      ? `${generationId}:${track.id}:${track.size}:${track.lastModified}`
+      : '';
+    if (!channel || channel.readyState !== 'open' || peer.sourceTrackKey === key) return;
+
+    peer.mediaTransferToken += 1;
+    peer.mediaOutgoing = [];
+    peer.mediaQueuedBytes = 0;
+    peer.sourceTrackKey = key;
+    if (!track?.file || !generationId) return;
+    const token = peer.mediaTransferToken;
+    void transferSourceFile(peer, track, track.file, token, generationId).catch((error) => {
+      logWarning('multiplayer', 'Source-file transfer failed', {
+        peerId: peer.id,
+        generationId,
+        error
+      });
     });
   }
 
@@ -874,11 +917,7 @@ export function createMultiplayerHostSide(
       track: update.playback.track ? sanitizePlaylistItem(update.playback.track) : null
     };
     sendToPeer(peer, { kind: 'playback', playback });
-    syncPeerRenderSource(
-      peer,
-      peer.freeplayPlayer?.delivery === 'render' ? peer.freeplayPlayer?.track ?? null : null,
-      delivery.generationId
-    );
+    syncPeerMediaSource(peer);
     syncFreeplayArtwork(peer, peer.freeplayPlayer?.track ?? null);
   }
 
@@ -1459,8 +1498,12 @@ export function createMultiplayerHostSide(
       : !core.multiplayerSettings.multiplayerStreamAudio
       ? 'none'
       : core.renderFallbackTrackIds.has(track.id)
-      ? 'stream'
-      : resolveMultiplayerDeliveryMode(track, true);
+      ? 'source-file'
+      : resolveMultiplayerDeliveryMode(
+          track,
+          true,
+          core.multiplayerSettings.multiplayerFileTransferLimitMiB
+        );
     const enabled = mode === 'stream';
     const trackId = track?.id ?? null;
     const changed = force
@@ -1503,11 +1546,12 @@ export function createMultiplayerHostSide(
   function syncHostSourceFiles(track: PlaylistItem | null): void {
     for (const peer of core.hostPeers.values()) {
       if (peer.freeplaySettled && !peer.freeplay) {
-        syncPeerRenderSource(
-          peer,
-          core.latestDelivery.mode === 'render' ? track : null,
-          core.latestDelivery.generationId
-        );
+        const mode = core.latestDelivery.mode;
+        if (mode === 'render') {
+          syncPeerRenderSource(peer, track, core.latestDelivery.generationId);
+        } else if (mode === 'source-file') {
+          syncPeerSourceFile(peer, track, core.latestDelivery.generationId);
+        }
       }
     }
   }
