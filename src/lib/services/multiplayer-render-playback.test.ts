@@ -5,7 +5,9 @@ import {
   contiguousMsAtPosition,
   expectedPositionMs,
   hasRequiredRenderWindow,
-  hasTimelineDiscontinuity
+  hasTimelineDiscontinuity,
+  renderGapRecoveryTargetMs,
+  renderStallRecoveryNeeded
 } from './multiplayer-render-playback';
 
 type PlaybackPatch = Partial<Omit<MultiplayerPlayback, 'snapshot'>> & {
@@ -95,5 +97,96 @@ describe('hasRequiredRenderWindow', () => {
 
   it('treats the exact end of the track as ready', () => {
     expect(hasRequiredRenderWindow(0, 3_000, 0)).toBe(true);
+  });
+});
+
+describe('renderStallRecoveryNeeded', () => {
+  const base = {
+    ready: false,
+    hasManifest: true,
+    initAppended: true,
+    hasInitBytes: true,
+    nextAppendIndex: 0,
+    clusterCount: 233,
+    lastAppendAgeMs: 60_000,
+    graceMs: 2_500
+  };
+
+  it('does nothing while ready or before the manifest', () => {
+    expect(renderStallRecoveryNeeded({
+      ...base,
+      ready: true,
+      received: new Map([[0, new Uint8Array(1)]])
+    })).toBe(false);
+    expect(renderStallRecoveryNeeded({
+      ...base,
+      hasManifest: false,
+      received: new Map()
+    })).toBe(false);
+  });
+
+  it('recovers when the init never arrived', () => {
+    expect(renderStallRecoveryNeeded({
+      ...base,
+      initAppended: false,
+      hasInitBytes: false,
+      received: new Map()
+    })).toBe(true);
+  });
+
+  it('recovers when early clusters are missing (the drained gap)', () => {
+    // Received 26..232 but the ascending drain is stuck at index 0: the
+    // phone-verified stall behind the perma throbber.
+    const received = new Map<number, Uint8Array>();
+    for (let index = 26; index <= 232; index += 1) received.set(index, new Uint8Array(1));
+    expect(renderStallRecoveryNeeded({
+      ...base,
+      received
+    })).toBe(true);
+  });
+
+  it('recovers when nothing was ever sent by the host', () => {
+    expect(renderStallRecoveryNeeded({
+      ...base,
+      received: new Map()
+    })).toBe(true);
+  });
+
+  it('does not fire while appends keep progressing', () => {
+    // Drain at 26 with clusters 27+ in flight: the transfer is alive.
+    const received = new Map<number, Uint8Array>();
+    for (let index = 0; index <= 25; index += 1) received.set(index, new Uint8Array(1));
+    for (let index = 27; index <= 60; index += 1) received.set(index, new Uint8Array(1));
+    expect(renderStallRecoveryNeeded({
+      ...base,
+      nextAppendIndex: 26,
+      received,
+      lastAppendAgeMs: 200
+    })).toBe(false);
+  });
+
+  it('does not fire after the drain consumed everything present', () => {
+    const received = new Map<number, Uint8Array>();
+    for (let index = 0; index <= 232; index += 1) received.set(index, new Uint8Array(1));
+    expect(renderStallRecoveryNeeded({
+      ...base,
+      nextAppendIndex: 233,
+      received,
+      lastAppendAgeMs: 10_000
+    })).toBe(false);
+  });
+});
+
+describe('renderGapRecoveryTargetMs', () => {
+  const times = [0, 1_000, 2_000, 3_000, 232_000];
+
+  it('targets the first missing cluster', () => {
+    expect(renderGapRecoveryTargetMs(0, times, 1_000)).toBe(0);
+    expect(renderGapRecoveryTargetMs(2, times, 1_000)).toBe(2_000);
+  });
+
+  it('falls back past the end of the track', () => {
+    expect(renderGapRecoveryTargetMs(5, times, 42_000)).toBe(42_000);
+    expect(renderGapRecoveryTargetMs(5, [], 42_000)).toBe(42_000);
   });
 });

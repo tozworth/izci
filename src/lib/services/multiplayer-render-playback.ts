@@ -51,6 +51,8 @@ export interface RenderPlaybackState {
 const REBUFFER_EDGE_MARGIN_MS = 600;
 const DRIFT_CORRECTION_THRESHOLD_MS = 1_000;
 const BUFFER_MONITOR_INTERVAL_MS = 500;
+/** Cadence for re-requesting a stalled startup/gap window. */
+const STALL_CHECK_INTERVAL_MS = 2_500;
 
 export class MultiplayerRenderPlaybackService {
   #callbacks: RenderPlaybackCallbacks | null = null;
@@ -82,6 +84,8 @@ export class MultiplayerRenderPlaybackService {
   #rebuffering = false;
   #playback: MultiplayerPlayback | null = null;
   #monitorTimer: number | null = null;
+  #stallTimer: number | null = null;
+  #lastAppendAt = 0;
   #receivedBytes = 0;
 
   setCallbacks(callbacks: RenderPlaybackCallbacks): void {
@@ -129,6 +133,7 @@ export class MultiplayerRenderPlaybackService {
     this.#receivedBytes = 0;
     if (changed) {
       this.#releaseMedia();
+      this.#stopStallDetector();
       // Received payloads are generation-scoped: stale clusters from the
       // previous render must never be appended into the new MediaSource.
       this.#received.clear();
@@ -170,6 +175,7 @@ export class MultiplayerRenderPlaybackService {
         this.#appendInit();
       }
     }
+    this.#startStallDetector();
     return true;
   }
 
@@ -252,6 +258,7 @@ export class MultiplayerRenderPlaybackService {
     this.#chainToken += 1;
     this.#chain = Promise.resolve();
     this.#stopMonitor();
+    this.#stopStallDetector();
     this.#generationId = null;
     this.#trackId = null;
     this.#manifest = null;
@@ -405,6 +412,7 @@ export class MultiplayerRenderPlaybackService {
   }
 
   #afterAppend(): void {
+    this.#lastAppendAt = Date.now();
     this.#checkReadiness();
     this.#applyHostState();
     // Self-propagating drain: an init append (or any cluster append) makes the
@@ -671,6 +679,57 @@ export class MultiplayerRenderPlaybackService {
     this.#monitorTimer = null;
   }
 
+  /**
+   * Re-requests a missing window when the ascending append drain stalls.
+   *
+   * The drain appends clusters strictly ascending from #nextAppendIndex, so an
+   * unfilled early hole (e.g. the initial batch was skipped because the render
+   * channel was still opening, or early frames died in a transport blip) leaves
+   * later clusters stuck in #received forever: no readiness, permanent throbber.
+   * Bumping the epoch makes the host reset its sent set/queue; the re-request
+   * then targets the first missing cluster so the host schedules exactly the
+   * gap. The same path covers a never-arrived init segment.
+   */
+  #checkStallRecovery(): void {
+    const manifest = this.#manifest;
+    if (!renderStallRecoveryNeeded({
+      ready: this.#ready,
+      hasManifest: Boolean(manifest),
+      initAppended: this.#initAppended,
+      hasInitBytes: Boolean(this.#initBytes),
+      received: this.#received,
+      nextAppendIndex: this.#nextAppendIndex,
+      clusterCount: manifest?.clusters.length ?? 0,
+      lastAppendAgeMs: Date.now() - this.#lastAppendAt,
+      graceMs: STALL_CHECK_INTERVAL_MS
+    })) return;
+    if (!manifest) return;
+    this.#epoch += 1;
+    // Partial fragments belong to the dropped epoch; the manifest stays.
+    this.#fragments.clear();
+    this.#requestWindow(renderGapRecoveryTargetMs(
+      this.#nextAppendIndex,
+      manifest.clusters.map((cluster) => cluster.timeMs),
+      this.#currentTargetMs()
+    ));
+    logInfo('multiplayer', 'Buffered Opus gap recovery', {
+      generationId: this.#generationId,
+      epoch: this.#epoch,
+      nextAppendIndex: this.#nextAppendIndex,
+      receivedClusters: this.#received.size
+    });
+  }
+
+  #startStallDetector(): void {
+    if (this.#stallTimer !== null) return;
+    this.#stallTimer = window.setInterval(() => this.#checkStallRecovery(), STALL_CHECK_INTERVAL_MS);
+  }
+
+  #stopStallDetector(): void {
+    if (this.#stallTimer !== null) window.clearInterval(this.#stallTimer);
+    this.#stallTimer = null;
+  }
+
   #releaseMedia(): void {
     this.#chainToken += 1;
     this.#chain = Promise.resolve();
@@ -736,6 +795,52 @@ export function hasRequiredRenderWindow(
     Math.max(0, desiredMs),
     Math.max(0, remainingMs)
   );
+}
+
+/**
+ * Whether the append pipeline needs a gap re-request.
+ *
+ * The drain appends clusters strictly ascending from #nextAppendIndex, so an
+ * unfilled early hole strands later received clusters forever (no readiness,
+ * permanent throbber). A re-request is warranted only when appends have made
+ * NO progress for the grace window AND the drain cannot advance (the missing
+ * next cluster, or the init itself never arrived). A healthy transfer keeps
+ * appending every few hundred ms, so the progress-age gate prevents firing
+ * during ordinary progressive downloads and frontier waits.
+ */
+export function renderStallRecoveryNeeded(input: {
+  ready: boolean;
+  hasManifest: boolean;
+  initAppended: boolean;
+  hasInitBytes: boolean;
+  received: ReadonlyMap<number, unknown>;
+  nextAppendIndex: number;
+  clusterCount: number;
+  lastAppendAgeMs: number;
+  graceMs: number;
+}): boolean {
+  if (input.ready || !input.hasManifest) return false;
+  // The init itself never arrived: nothing can append.
+  if (!input.initAppended && !input.hasInitBytes) return true;
+  // Appends progressed recently: the transfer is alive, just catching up.
+  if (input.lastAppendAgeMs < input.graceMs) return false;
+  // Nothing left to drain.
+  if (input.nextAppendIndex >= input.clusterCount) return false;
+  return !input.received.has(input.nextAppendIndex);
+}
+
+/**
+ * Re-request target for a stalled append drain: the time of the first missing
+ * cluster (the gap), falling back to the current playhead past the end.
+ */
+export function renderGapRecoveryTargetMs(
+  nextAppendIndex: number,
+  clusterTimeMs: number[],
+  fallbackMs: number
+): number {
+  return nextAppendIndex < clusterTimeMs.length
+    ? clusterTimeMs[nextAppendIndex]
+    : Math.max(0, fallbackMs);
 }
 
 function documentHidden(): boolean {

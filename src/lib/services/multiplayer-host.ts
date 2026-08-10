@@ -547,6 +547,10 @@ export function createMultiplayerHostSide(
     channel.onopen = () => {
       if (peer.freeplaySettled) syncPeerMediaSource(peer);
       else peer.mediaSyncPending = true;
+      // A renderState created before this channel opened never got its batch
+      // (schedulePeerRender skips a non-open channel and syncPeerMediaSource
+      // early-returns for an existing generation). Flush it now.
+      if (peer.renderState) schedulePeerRender(peer, playheadMsForPeer(peer));
     };
     channel.onbufferedamountlow = () => {
       // The render queue is a real backlog: schedulePeerRender gates on
