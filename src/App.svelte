@@ -1141,6 +1141,7 @@
   }
   const RENDER_BUFFERED_POLL_INTERVAL_MS = 500;
   let renderBufferedRanges: Array<[number, number]> | null = null;
+  let renderPipelineBuffering = false;
   let renderBufferedPollTimer: number | null = null;
 
   function sameBufferedRanges(a: Array<[number, number]> | null, b: Array<[number, number]>): boolean {
@@ -1152,12 +1153,14 @@
   function startRenderBufferedPoll(): void {
     if (renderBufferedPollTimer !== null || typeof window === 'undefined') return;
     renderBufferedPollTimer = window.setInterval(() => {
-      const ranges = multiplayerRenderPlaybackService
-        .getState()
-        .bufferedRanges
+      const state = multiplayerRenderPlaybackService.getState();
+      const ranges = state.bufferedRanges
         .map(([start, end]): [number, number] => [start / 1_000, end / 1_000]);
       if (!sameBufferedRanges(renderBufferedRanges, ranges)) {
         renderBufferedRanges = ranges;
+      }
+      if (renderPipelineBuffering !== state.buffering) {
+        renderPipelineBuffering = state.buffering;
       }
     }, RENDER_BUFFERED_POLL_INTERVAL_MS);
   }
@@ -1168,6 +1171,7 @@
       renderBufferedPollTimer = null;
     }
     renderBufferedRanges = null;
+    renderPipelineBuffering = false;
   }
 
   $: isRenderDeliveryClient = isMultiplayerClient
@@ -1181,6 +1185,12 @@
   $: playbackSnapshot = isMultiplayerClient && !isSourceFileFreeplayClient
     ? {
         ...multiplayerState.remotePlayback.snapshot,
+        // The render pipeline's own buffering (initial download + rebuffers)
+        // surfaces as the loading state so the player bar shows the throbber;
+        // the host snapshot alone reads 'idle'/'playing' through both phases.
+        state: isRenderDeliveryClient && renderPipelineBuffering
+          ? 'loading'
+          : multiplayerState.remotePlayback.snapshot.state,
         volume: localPlaybackSnapshot.volume,
         muted: localPlaybackSnapshot.muted,
         buffered: isRenderDeliveryClient ? renderBufferedRanges ?? undefined : undefined

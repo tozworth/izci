@@ -142,6 +142,7 @@
       "pausePlayback": "Pause playback",
       "playPlayback": "Play playback",
       "nextTrack": "Next track",
+      "loadingTrack": "Loading track…",
       "unmute": "Unmute",
       "mute": "Mute",
       "volume": "Volume",

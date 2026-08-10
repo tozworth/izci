@@ -142,6 +142,7 @@
       "pausePlayback": "Oynatmayı duraklat",
       "playPlayback": "Oynatmayı devam ettir",
       "nextTrack": "Sonraki parça",
+      "loadingTrack": "Parça yükleniyor…",
       "unmute": "Sesi aç",
       "mute": "Sesi kapat",
       "volume": "Ses düzeyi",

@@ -28,6 +28,7 @@
   let seekWheelActive = false;
 
   $: snapshot = $snapshotStore;
+  $: isLoading = snapshot.state === 'loading';
   $: track = $trackStore;
   $: selectedTrack = $selectedTrackStore;
   $: artworkUrl = $artworkUrlStore;
@@ -162,6 +163,7 @@
 <main
   bind:this={rootElement}
   class="mini-player"
+  class:mini-player-loading={isLoading}
   aria-label={$t('main.miniPlayer.heading', { default: 'Mini player' })}
 >
   <div class="mini-player-track-row">
@@ -199,7 +201,7 @@
       <button
         type="button"
         aria-label={$t('main.player.previousTrack', { default: 'Previous track' })}
-        disabled={!displayTrack}
+        disabled={!displayTrack || isLoading}
         on:click={onPreviousTrack}
       >
         <span class="material-symbols-outlined" aria-hidden="true">skip_previous</span>
@@ -207,20 +209,22 @@
       <button
         type="button"
         class="mini-player-primary-button"
-        aria-label={snapshot.state === 'playing'
-          ? $t('main.player.pausePlayback', { default: 'Pause playback' })
-          : $t('main.player.playPlayback', { default: 'Play playback' })}
-        disabled={!displayTrack}
+        aria-label={isLoading
+          ? $t('main.player.loadingTrack', { default: 'Loading track…' })
+          : snapshot.state === 'playing'
+            ? $t('main.player.pausePlayback', { default: 'Pause playback' })
+            : $t('main.player.playPlayback', { default: 'Play playback' })}
+        disabled={!displayTrack || isLoading}
         on:click={onTogglePlayback}
       >
         <span class="material-symbols-outlined" aria-hidden="true">
-          {snapshot.state === 'playing' ? 'pause' : 'play_arrow'}
+          {isLoading ? 'progress_activity' : snapshot.state === 'playing' ? 'pause' : 'play_arrow'}
         </span>
       </button>
       <button
         type="button"
         aria-label={$t('main.player.nextTrack', { default: 'Next track' })}
-        disabled={!displayTrack}
+        disabled={!displayTrack || isLoading}
         on:click={onNextTrack}
       >
         <span class="material-symbols-outlined" aria-hidden="true">skip_next</span>
@@ -239,7 +243,7 @@
         max={Math.max(snapshot.duration, 1)}
         step="0.01"
         value={displayedSeekTime}
-        disabled={!track || snapshot.duration <= 0}
+        disabled={!track || snapshot.duration <= 0 || isLoading}
         on:pointerdown={beginSeek}
         on:input={previewSeek}
         on:pointerup={commitSeek}
@@ -415,6 +419,26 @@
     transition:
       color 120ms ease,
       filter 120ms ease-out;
+  }
+
+  .mini-player.mini-player-loading .mini-player-track-copy,
+  .mini-player.mini-player-loading .mini-player-control-row {
+    opacity: 0.66;
+    transition: opacity 120ms ease;
+  }
+
+  .mini-player.mini-player-loading .mini-player-transport button {
+    opacity: 0.62;
+  }
+
+  .mini-player.mini-player-loading .mini-player-primary-button .material-symbols-outlined {
+    animation: mini-player-loading-spin 900ms linear infinite;
+  }
+
+  @keyframes mini-player-loading-spin {
+    to {
+      transform: rotate(360deg);
+    }
   }
 
   .mini-player-transport button:hover:not(:disabled) {

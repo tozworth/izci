@@ -414,6 +414,35 @@ body:has(.favorite-rating-control:focus-within) .player-rating-picker,
   font-size: 2.45rem;
 }
 
+/* Track loading: the whole bar reads as disabled (slightly muted colors)
+   and the play/pause transport becomes the standard progress_activity
+   throbber (same 900 ms spin as the video buffering indicator). */
+.player-bar.loading .player-track-group,
+.player-bar.loading .player-range,
+.player-bar.loading .volume,
+.player-bar.loading .player-actions :is(.favorite-rating-control, .video-theater-toggle) {
+  opacity: 0.66;
+  transition: opacity 120ms ease;
+}
+
+.player-bar.loading .transport-button {
+  opacity: 0.62;
+  transition:
+    color 120ms ease,
+    filter 120ms ease-out,
+    opacity 120ms ease;
+}
+
+.player-bar.loading .transport-button-primary .material-symbols-outlined {
+  animation: player-bar-loading-spin 900ms linear infinite;
+}
+
+@keyframes player-bar-loading-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .player-range,
 .volume {
   display: grid;
