@@ -139,6 +139,7 @@
   import {
     createMultiplayerSession
   } from '$lib/services/multiplayer-session';
+  import { multiplayerRenderPlaybackService } from '$lib/services/multiplayer-render-playback';
   import type { MultiplayerSessionState } from '$lib/services/multiplayer-types';
   import { resolveMultiplayerPlayingTrackSelection } from '$lib/services/multiplayer-selection';
   import {
@@ -1138,11 +1139,51 @@
       workspaceShell.setCollectionSelection('playlist', selectionSync.selection);
     }
   }
+  const RENDER_BUFFERED_POLL_INTERVAL_MS = 500;
+  let renderBufferedRanges: Array<[number, number]> | null = null;
+  let renderBufferedPollTimer: number | null = null;
+
+  function sameBufferedRanges(a: Array<[number, number]> | null, b: Array<[number, number]>): boolean {
+    if (a === null) return b.length === 0;
+    if (a.length !== b.length) return false;
+    return a.every(([start, end], index) => start === b[index][0] && end === b[index][1]);
+  }
+
+  function startRenderBufferedPoll(): void {
+    if (renderBufferedPollTimer !== null || typeof window === 'undefined') return;
+    renderBufferedPollTimer = window.setInterval(() => {
+      const ranges = multiplayerRenderPlaybackService
+        .getState()
+        .bufferedRanges
+        .map(([start, end]): [number, number] => [start / 1_000, end / 1_000]);
+      if (!sameBufferedRanges(renderBufferedRanges, ranges)) {
+        renderBufferedRanges = ranges;
+      }
+    }, RENDER_BUFFERED_POLL_INTERVAL_MS);
+  }
+
+  function stopRenderBufferedPoll(): void {
+    if (renderBufferedPollTimer !== null) {
+      window.clearInterval(renderBufferedPollTimer);
+      renderBufferedPollTimer = null;
+    }
+    renderBufferedRanges = null;
+  }
+
+  $: isRenderDeliveryClient = isMultiplayerClient
+    && !isSourceFileFreeplayClient
+    && multiplayerState.remoteDelivery.mode === 'render';
+  $: if (isRenderDeliveryClient) {
+    startRenderBufferedPoll();
+  } else {
+    stopRenderBufferedPoll();
+  }
   $: playbackSnapshot = isMultiplayerClient && !isSourceFileFreeplayClient
     ? {
         ...multiplayerState.remotePlayback.snapshot,
         volume: localPlaybackSnapshot.volume,
-        muted: localPlaybackSnapshot.muted
+        muted: localPlaybackSnapshot.muted,
+        buffered: isRenderDeliveryClient ? renderBufferedRanges ?? undefined : undefined
       }
     : localPlaybackSnapshot;
   $: playbackStatus = isMultiplayerClient && !isSourceFileFreeplayClient
@@ -2048,6 +2089,7 @@
     unsubscribeLaunchedFiles();
     stopLibraryFolderCommands();
     stopLoadoutRuntime();
+    stopRenderBufferedPoll();
     disconnectMediaSession();
     playerController.destroy();
   });

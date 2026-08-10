@@ -362,6 +362,16 @@
     return `--player-range-progress: ${percent}%; --player-range-fill-end: ${fillEnd};`;
   }
 
+  function toBufferedRangeStyle(start: number, end: number, max: number): string {
+    if (max <= 0 || end <= start) {
+      return 'display: none;';
+    }
+
+    const left = clamp((start / max) * 100, 0, 100);
+    const width = clamp(((end - start) / max) * 100, 0, 100 - left);
+    return `left: ${left}%; width: ${width}%;`;
+  }
+
   function getVolumeIcon(volume: number, muted: boolean): string {
     if (muted || volume <= 0) {
       return 'volume_off';
@@ -646,6 +656,13 @@
       style={toRangeProgressStyle(displayedSeekTime, Math.max(displayDuration, 1))}
       on:contextmenu={openBookmarkMenu}
     >
+      {#each snapshot.buffered ?? [] as [bufferedStart, bufferedEnd] (bufferedStart)}
+        <span
+          class="range-control-buffered"
+          aria-hidden="true"
+          style={toBufferedRangeStyle(bufferedStart, bufferedEnd, Math.max(displayDuration, 1))}
+        ></span>
+      {/each}
       <span class="range-control-fill" aria-hidden="true"></span>
       <input
         type="range"

@@ -58,7 +58,7 @@ describe('Freeplay delivery ownership', () => {
 
   it('keeps one silent sender track alive for the lifetime of a peer player', async () => {
     const player = new MultiplayerFreeplayPlayer({
-      getAudioSettings: () => ({ enabled: true, sourceFile: false }),
+      getAudioSettings: () => ({ enabled: true, delivery: 'stream' }),
       onUpdate: () => undefined,
       onEnded: () => undefined
     });
@@ -74,10 +74,10 @@ describe('Freeplay delivery ownership', () => {
     expect(wireHarness.track.stop).toHaveBeenCalledTimes(1);
   });
 
-  it('keeps the host timeline passive for source-file delivery', async () => {
+  it('keeps the host timeline passive when audio delivery is disabled', async () => {
     const updates: Array<{ state: string; time: number; delivery: string }> = [];
     const player = new MultiplayerFreeplayPlayer({
-      getAudioSettings: () => ({ enabled: true, sourceFile: true }),
+      getAudioSettings: () => ({ enabled: false, delivery: 'none' }),
       onUpdate: (update) => updates.push({
         state: update.playback.snapshot.state,
         time: update.playback.snapshot.currentTime,
@@ -88,15 +88,44 @@ describe('Freeplay delivery ownership', () => {
     const source = { ...track('source'), file: new File(['audio'], 'source.mp3') };
 
     expect(await player.load(source, true, 75)).toBe(true);
-    expect(player.delivery).toBe('source-file');
+    expect(player.delivery).toBe('none');
     expect(player.snapshot).toMatchObject({ state: 'idle', currentTime: 0 });
-    expect(updates.at(-1)).toEqual({ state: 'idle', time: 0, delivery: 'source-file' });
+    expect(updates.at(-1)).toEqual({ state: 'idle', time: 0, delivery: 'none' });
+  });
+
+  it('advances a host-owned buffered Opus timeline while playing', async () => {
+    vi.useFakeTimers();
+    try {
+      const updates: Array<{ state: string; time: number }> = [];
+      const player = new MultiplayerFreeplayPlayer({
+        getAudioSettings: () => ({ enabled: true, delivery: 'render' }),
+        onUpdate: (update) => updates.push({
+          state: update.playback.snapshot.state,
+          time: update.playback.snapshot.currentTime
+        }),
+        onEnded: () => undefined
+      });
+      const source = { ...track('source'), file: new File(['audio'], 'source.mp3') };
+
+      expect(await player.load(source, true)).toBe(true);
+      expect(player.delivery).toBe('render');
+      expect(player.snapshot.state).toBe('playing');
+
+      vi.advanceTimersByTime(2_000);
+      expect(player.snapshot.currentTime).toBeCloseTo(2, 1);
+      player.pause();
+      const pausedAt = player.snapshot.currentTime;
+      vi.advanceTimersByTime(5_000);
+      expect(player.snapshot.currentTime).toBe(pausedAt);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('preserves play intent while audio delivery is reconfigured through none', async () => {
     let enabled = true;
     const player = new MultiplayerFreeplayPlayer({
-      getAudioSettings: () => ({ enabled, sourceFile: true }),
+      getAudioSettings: () => ({ enabled, delivery: enabled ? 'render' : 'none' }),
       onUpdate: () => undefined,
       onEnded: () => undefined
     });

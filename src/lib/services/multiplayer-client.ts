@@ -16,6 +16,8 @@ import {
 } from '$lib/stores/multiplayer-pairings';
 import { multiplayerAudioService } from './multiplayer-audio';
 import { enableOpusStereo } from './multiplayer-opus';
+import { multiplayerRenderPlaybackService } from './multiplayer-render-playback';
+import { decodeRenderFrame } from './multiplayer-render-transfer';
 import { resolveMultiplayerConnectionRoute } from './multiplayer-ice';
 import { setMultiplayerReceiverBuffer } from './multiplayer-receiver';
 import { multiplayerSourcePlaybackService } from './multiplayer-source-playback';
@@ -81,6 +83,32 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
   let synchronizedStartTimer: number | null = null;
   let synchronizedStartGenerationId: string | null = null;
   let synchronizedStartAt = 0;
+  let renderReadySentGeneration: string | null = null;
+  let renderReadySentEpoch = -1;
+  multiplayerRenderPlaybackService.setCallbacks({
+    onReady: (epoch, positionMs) => {
+      if (core.state.mode !== 'client' || !core.clientPeer) return;
+      if (core.latestDelivery.mode !== 'render') return;
+      sendRenderReadyMessages(core.clientPeer, epoch, positionMs);
+    },
+    onNeed: (need) => {
+      if (core.state.mode !== 'client' || !core.clientPeer) return;
+      if (core.latestDelivery.mode !== 'render') return;
+      const state = multiplayerRenderPlaybackService.getState();
+      if (!state.generationId || !state.renderId) return;
+      sendToPeer(core.clientPeer, {
+        kind: 'render.need',
+        need: {
+          generationId: state.generationId,
+          renderId: state.renderId,
+          epoch: need.epoch,
+          targetTimeMs: need.targetTimeMs,
+          aheadMs: need.aheadMs,
+          ranges: need.ranges
+        }
+      });
+    }
+  });
   const receiverMonitor = createReceiverBitrateMonitor({
     getState: () => core.state,
     publish: (patch) => core.publish(patch),
@@ -112,6 +140,21 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
         start.trackId,
         start.positionSeconds,
         start.startAt
+      );
+      return;
+    }
+    if (core.state.remoteDelivery.mode === 'render') {
+      const renderRelease = () => {
+        synchronizedStartTimer = null;
+        if (core.clientPeer !== peer
+          || synchronizedStartGenerationId !== start.generationId
+          || !transition.isCurrent(start.generationId, start.trackId, 'render')) return;
+        synchronizedStartAt = 0;
+        multiplayerRenderPlaybackService.resumeAudible();
+      };
+      synchronizedStartTimer = window.setTimeout(
+        renderRelease,
+        Math.max(0, start.startAt - Date.now())
       );
       return;
     }
@@ -407,11 +450,15 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
       const mediaChannel = peer.pc.createDataChannel('izci-media', { ordered: true });
       mediaChannel.binaryType = 'arraybuffer';
       peer.mediaChannel = mediaChannel;
+      const renderChannel = peer.pc.createDataChannel('izci-render', { ordered: false });
+      renderChannel.binaryType = 'arraybuffer';
+      peer.renderChannel = renderChannel;
       core.clientPeer = peer;
       transition.reset();
       transition.setReceiveAudio(core.state.receiveAudio);
       attachClientChannel(peer);
       attachClientMediaChannel(peer);
+      attachClientRenderChannel(peer);
 
       const nextPeerRef = firebase.ref(
         firebase.database,
@@ -635,6 +682,22 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
                 && Date.now() < synchronizedStartAt)
           );
         }
+        if (core.state.remoteDelivery.mode === 'render') {
+          multiplayerRenderPlaybackService.syncPlayback(message.playback);
+          const audible = core.state.receiveAudio
+            && message.playback.snapshot.state === 'playing'
+            && !(synchronizedStartGenerationId === message.playback.generationId
+              && Date.now() < synchronizedStartAt);
+          multiplayerRenderPlaybackService.setAudible(audible);
+          publish({
+            audioStatus: !core.state.receiveAudio
+              ? 'refused'
+              : message.playback.snapshot.state === 'playing'
+              ? 'playing'
+              : 'ready',
+            averageAudioBitrateKbps: null
+          });
+        }
         persistFreeplayState();
         loadPendingClientSourceFile(peer);
         tryResumeFreeplaySelection();
@@ -645,6 +708,13 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
           logDebug('freeplay', 'Ignored mismatched playback preparation', message.preparation);
           return;
         }
+        // A fresh preparation re-releases the host playback gate: the
+        // ready-dedup from the previous (generation, epoch) must not swallow
+        // the re-ack. Without this, pause-then-play restarts preparation
+        // forever (host logs: repeated 'Freeplay preparation started', no
+        // readiness) and transport controls appear dead.
+        renderReadySentGeneration = null;
+        renderReadySentEpoch = -1;
         logDebug('freeplay', 'Playback preparation accepted', message.preparation);
         sendClientPlaybackReadyIfPossible(peer);
       }
@@ -652,6 +722,29 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
         publish({
           remoteArtwork: message.artwork,
           remoteArtworkResolvedTrackKey: getMultiplayerArtworkTrackKey(core.state.remotePlayback.track)
+        });
+      }
+      if (message.kind === 'render.manifest') {
+        multiplayerRenderPlaybackService.updateWindowMs(
+          core.hostAudioBufferMs ?? core.multiplayerSettings.multiplayerAudioBufferMs
+        );
+        const accepted = multiplayerRenderPlaybackService.setManifest(message.manifest);
+        if (accepted) {
+          logInfo('multiplayer', 'Buffered Opus manifest accepted', {
+            generationId: message.manifest.generationId,
+            renderId: message.manifest.renderId,
+            clusters: message.manifest.clusters.length,
+            durationMs: message.manifest.durationMs
+          });
+          sendClientPlaybackReadyIfPossible(peer);
+        }
+      }
+      if (message.kind === 'render.error') {
+        // The host falls back to live RTP for the generation; the next
+        // delivery message switches this client's pipeline.
+        logWarning('multiplayer', 'Buffered Opus render failed on host', {
+          generationId: message.generationId,
+          code: message.code
         });
       }
       if (message.kind === 'pairing') {
@@ -716,8 +809,20 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
               averageAudioBitrateKbps: null
             });
             multiplayerSourcePlaybackService.clearSourceTrack();
+          } else if (message.delivery.mode === 'render') {
+            multiplayerSourcePlaybackService.clearSourceTrack();
+            multiplayerAudioService.clearRemoteTrack();
+            multiplayerRenderPlaybackService.start(
+              message.delivery.generationId,
+              message.delivery.trackId ?? ''
+            );
+            multiplayerRenderPlaybackService.updateWindowMs(
+              core.hostAudioBufferMs ?? core.multiplayerSettings.multiplayerAudioBufferMs
+            );
+            publish({ audioStatus: 'connecting', averageAudioBitrateKbps: null });
           } else {
             multiplayerSourcePlaybackService.clearSourceTrack();
+            multiplayerRenderPlaybackService.release();
             publish({ audioStatus: 'connecting', averageAudioBitrateKbps: null });
             void attachClientRemoteAudio(peer, message.delivery.generationId);
           }
@@ -958,6 +1063,28 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
     };
   }
 
+  function attachClientRenderChannel(peer: PeerConnection): void {
+    const channel = peer.renderChannel;
+    if (!channel) return;
+    channel.onmessage = (event) => {
+      if (!(event.data instanceof ArrayBuffer)) return;
+      const frame = decodeRenderFrame(event.data);
+      if (!frame) return;
+      multiplayerRenderPlaybackService.ingest(
+        frame.renderId,
+        frame.epoch,
+        frame.clusterIndex,
+        frame.fragmentOffset,
+        frame.payload
+      );
+    };
+    channel.onclose = () => {
+      if (core.clientPeer === peer
+        && core.allowClientReconnect
+        && peer.pc.connectionState !== 'closed') peer.pc.close();
+    };
+  }
+
   function loadPendingClientSourceFile(peer: PeerConnection): void {
     const pending = core.pendingClientSourceFile;
     const remoteTrack = core.state.remotePlayback.track;
@@ -996,8 +1123,35 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
     });
   }
 
+  function sendRenderReadyMessages(peer: PeerConnection, epoch: number, positionMs: number): void {
+    const state = multiplayerRenderPlaybackService.getState();
+    if (!state.generationId || !state.renderId) return;
+    if (renderReadySentGeneration === state.generationId && renderReadySentEpoch === epoch) return;
+    renderReadySentGeneration = state.generationId;
+    renderReadySentEpoch = epoch;
+    logInfo('multiplayer', 'Buffered Opus client ready', {
+      generationId: state.generationId,
+      epoch,
+      positionMs: Math.round(positionMs)
+    });
+    sendToPeer(peer, {
+      kind: 'render.ready',
+      generationId: state.generationId,
+      renderId: state.renderId,
+      epoch,
+      positionMs: Math.round(positionMs)
+    });
+    sendToPeer(peer, { kind: 'playback.ready', generationId: state.generationId });
+  }
+
   function sendClientPlaybackReadyIfPossible(peer: PeerConnection): void {
     if (core.clientPeer !== peer) return;
+    if (core.latestDelivery.mode === 'render') {
+      const state = multiplayerRenderPlaybackService.getState();
+      if (!state.ready || !state.generationId) return;
+      sendRenderReadyMessages(peer, state.epoch, 0);
+      return;
+    }
     const generationId = transition.takeReadyGeneration();
     if (!generationId) return;
     logInfo('freeplay', 'Client playback pipeline ready', { generationId });
@@ -1028,6 +1182,9 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
   }
 
   function applyClientAudioBuffer(peer: PeerConnection): void {
+    multiplayerRenderPlaybackService.updateWindowMs(
+      core.hostAudioBufferMs ?? core.multiplayerSettings.multiplayerAudioBufferMs
+    );
     for (const receiver of peer.pc.getReceivers()) {
       if (receiver.track.kind !== 'audio') continue;
       applyReceiverBuffer(receiver);
@@ -1065,6 +1222,18 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
           : 'refused',
         averageAudioBitrateKbps: null
       });
+      return;
+    }
+    if (core.latestDelivery.mode === 'render') {
+      multiplayerRenderPlaybackService.setEnabled(enabled);
+      if (enabled) multiplayerRenderPlaybackService.updateWindowMs(
+        core.hostAudioBufferMs ?? core.multiplayerSettings.multiplayerAudioBufferMs
+      );
+      publish({
+        audioStatus: enabled ? 'connecting' : 'refused',
+        averageAudioBitrateKbps: null
+      });
+      if (enabled) sendClientPlaybackReadyIfPossible(core.clientPeer);
       return;
     }
 
@@ -1222,6 +1391,11 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
       if (core.clientPeer) sendClientPlaybackReadyIfPossible(core.clientPeer);
       return ready;
     }
+    if (core.latestDelivery.mode === 'render') {
+      multiplayerRenderPlaybackService.resumeAudible();
+      if (core.clientPeer) sendClientPlaybackReadyIfPossible(core.clientPeer);
+      return true;
+    }
     logInfo('multiplayer', 'Remote stream audio resume requested', {
       connectionState: core.clientPeer?.pc.connectionState ?? null,
       channelState: core.clientPeer?.channel?.readyState ?? null
@@ -1255,6 +1429,8 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
       sourceRetryGenerationId = null;
       sourceRetryCount = 0;
       pendingFreeplayResumeTrackId = null;
+      renderReadySentGeneration = null;
+      renderReadySentEpoch = -1;
     }
   };
 }

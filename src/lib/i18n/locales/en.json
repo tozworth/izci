@@ -769,12 +769,6 @@
     },
     "experimental": {
       "multiplayer": {
-        "fileTransfer": {
-          "every": "Every file",
-          "never": "Always stream",
-          "title": "Send files under",
-          "hint": "Sends smaller audio and module files whole, then renders them on each listener. Larger files and all video soundtracks use the host’s Opus stream."
-        },
         "category": "Multiplayer",
         "modes": {
           "label": "Multiplayer mode",
@@ -841,11 +835,15 @@
         },
         "opusBitrate": {
           "title": "Opus VBR bitrate",
-          "hint": "Sets the best-effort bitrate ceiling for each listener. Higher rates use more host bandwidth and encoding work."
+          "hint": "Controls the bitrate of the pre-rendered Opus stream each listener downloads. Higher rates use more host bandwidth and encoding work."
         },
         "audioBuffer": {
-          "title": "Listener audio buffer",
-          "hint": "Adds receiver delay to absorb network and mobile scheduling jitter. Increase it for cleaner playback; decrease it for faster control response."
+          "title": "Start/rebuffer after",
+          "hint": "How much audio each listener buffers before playback starts and after a rebuffer. Download keeps running ahead while paused."
+        },
+        "renderCache": {
+          "title": "Pre-render memory limit",
+          "hint": "How much host memory the compressed render cache may use. Active tracks stay pinned; older renders are evicted by least-recent use."
         },
         "diagnostics": {
           "heading": "Connection diagnostics",

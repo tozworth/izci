@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest';
 import {
   isMultiplayerClientTransportHealthy,
   isMultiplayerFreeplayActive,
+  resolveMultiplayerDeliveryMode,
   resolveMultiplayerFreeplayAgreement,
-  sanitizeFreeplayQueueIds,
-  shouldTransferMultiplayerSourceFile
+  sanitizeFreeplayQueueIds
 } from './multiplayer-utils';
 import type { PlaylistItem } from '$lib/types';
 
@@ -24,32 +24,27 @@ describe('multiplayer client lifecycle', () => {
   });
 });
 
-describe('multiplayer source-file selection', () => {
-  function trackWithSize(size: number): PlaylistItem {
-    const file = new File([new Uint8Array(size)], 'track.flac');
+describe('multiplayer render delivery selection', () => {
+  function track(kind: PlaylistItem['kind']): PlaylistItem {
     return {
       id: 'track',
       name: 'track.flac',
       extension: 'flac',
-      kind: 'stream',
-      size,
-      lastModified: 1,
-      file
+      kind,
+      size: 1,
+      lastModified: 1
     };
   }
 
-  it('uses strict MiB thresholds and the two sentinel values', () => {
-    const track = trackWithSize(2 * 1024 * 1024 - 1);
-    expect(shouldTransferMultiplayerSourceFile(track, 0)).toBe(false);
-    expect(shouldTransferMultiplayerSourceFile(track, 2)).toBe(true);
-    expect(shouldTransferMultiplayerSourceFile(trackWithSize(2 * 1024 * 1024), 2)).toBe(false);
-    expect(shouldTransferMultiplayerSourceFile(track, -1)).toBe(true);
+  it('pre-renders audio and modules, and keeps live RTP only for video', () => {
+    expect(resolveMultiplayerDeliveryMode(track('stream'), true)).toBe('render');
+    expect(resolveMultiplayerDeliveryMode(track('module'), true)).toBe('render');
+    expect(resolveMultiplayerDeliveryMode(track('video'), true)).toBe('stream');
   });
 
-  it('always streams videos and respects the audio master switch', () => {
-    const track = trackWithSize(1);
-    expect(shouldTransferMultiplayerSourceFile({ ...track, kind: 'video' }, -1)).toBe(false);
-    expect(shouldTransferMultiplayerSourceFile(track, -1, false)).toBe(false);
+  it('disables delivery when the audio master switch is off or no track is set', () => {
+    expect(resolveMultiplayerDeliveryMode(track('stream'), false)).toBe('none');
+    expect(resolveMultiplayerDeliveryMode(null, true)).toBe('none');
   });
 });
 

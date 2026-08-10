@@ -344,9 +344,9 @@ export interface ExperimentalSettings {
   multiplayerForceTurn: boolean;
   multiplayerFreeplay: boolean;
   multiplayerStreamAudio: boolean;
-  multiplayerFileTransferLimitMiB: number;
   multiplayerOpusBitrateKbps: number;
   multiplayerAudioBufferMs: number;
+  multiplayerRenderCacheLimitMiB: number;
   multiplayerMaxListeners: number;
 }
 
@@ -615,6 +615,8 @@ export interface PlaybackSnapshot {
   /** Zero-based active module subsong. Present only for module playback. */
   subsong?: number;
   subsongCount?: number;
+  /** Buffered media ranges in seconds ([start, end]); download-ahead backends only. */
+  buffered?: Array<[number, number]>;
   error?: string;
 }
 

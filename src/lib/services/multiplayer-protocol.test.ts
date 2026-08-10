@@ -148,6 +148,14 @@ describe('multiplayer protocol', () => {
       preparation: {
         generationId: 'prepare-1',
         trackId: 'track-1',
+        delivery: 'render'
+      }
+    })).toBe(true);
+    expect(isHostMessage({
+      kind: 'playback.prepare',
+      preparation: {
+        generationId: 'prepare-1',
+        trackId: 'track-1',
         delivery: 'buffering'
       }
     })).toBe(false);
@@ -226,7 +234,69 @@ describe('multiplayer protocol', () => {
 
   it('accepts only bounded host-authoritative listener buffers', () => {
     expect(isHostMessage({ kind: 'buffer', bufferMs: 750 })).toBe(true);
-    expect(isHostMessage({ kind: 'buffer', bufferMs: 4_001 })).toBe(false);
+    expect(isHostMessage({ kind: 'buffer', bufferMs: 3_000 })).toBe(true);
+    expect(isHostMessage({ kind: 'buffer', bufferMs: 30_001 })).toBe(false);
+  });
+
+  it('validates buffered Opus manifests and render errors', () => {
+    const manifest = {
+      generationId: 'generation',
+      renderId: 'render-1',
+      trackId: 'track',
+      codec: 'opus',
+      container: 'webm',
+      durationMs: 12_000,
+      bitrateKbps: 128,
+      clusterDurationMs: 1_000,
+      clusters: [
+        { index: 0, timeMs: 0, sizeBytes: 10 },
+        { index: 1, timeMs: 1000, sizeBytes: 10 }
+      ],
+      initSizeBytes: 5,
+      totalBytes: 25
+    };
+    expect(isHostMessage({ kind: 'render.manifest', manifest })).toBe(true);
+    expect(isHostMessage({ kind: 'render.manifest', manifest: { ...manifest, codec: 'vorbis' } })).toBe(false);
+    expect(isHostMessage({
+      kind: 'render.manifest',
+      manifest: {
+        ...manifest,
+        clusters: [
+          { index: 0, timeMs: 5_000, sizeBytes: 1 },
+          { index: 1, timeMs: 1_000, sizeBytes: 1 }
+        ]
+      }
+    })).toBe(false);
+    expect(isHostMessage({ kind: 'render.error', generationId: 'generation', renderId: 'render-1', code: 'encode' })).toBe(true);
+    expect(isHostMessage({ kind: 'render.error', generationId: 'generation', renderId: 'render-1', code: 'boom' })).toBe(false);
+  });
+
+  it('accepts client render needs and readiness only with valid shapes', () => {
+    const need = {
+      generationId: 'generation',
+      renderId: 'render-1',
+      epoch: 3,
+      targetTimeMs: 5_000,
+      aheadMs: 3_000,
+      ranges: [[0, 2], [5, 9]]
+    };
+    expect(isClientMessage({ kind: 'render.need', need })).toBe(true);
+    expect(isClientMessage({ kind: 'render.need', need: { ...need, epoch: -1 } })).toBe(false);
+    expect(isClientMessage({ kind: 'render.need', need: { ...need, ranges: [[5, 2]] } })).toBe(false);
+    expect(isClientMessage({
+      kind: 'render.ready',
+      generationId: 'generation',
+      renderId: 'render-1',
+      epoch: 3,
+      positionMs: 5_000
+    })).toBe(true);
+    expect(isClientMessage({
+      kind: 'render.ready',
+      generationId: 'generation',
+      renderId: 'render-1',
+      epoch: 3.5,
+      positionMs: 5_000
+    })).toBe(false);
   });
 
   it('bounds client-owned Freeplay queues at the protocol edge', () => {
