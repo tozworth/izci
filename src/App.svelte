@@ -139,6 +139,7 @@
   import {
     createMultiplayerSession
   } from '$lib/services/multiplayer-session';
+  import { multiplayerRenderPlaybackService } from '$lib/services/multiplayer-render-playback';
   import type { MultiplayerSessionState } from '$lib/services/multiplayer-types';
   import { resolveMultiplayerPlayingTrackSelection } from '$lib/services/multiplayer-selection';
   import {
@@ -1138,11 +1139,61 @@
       workspaceShell.setCollectionSelection('playlist', selectionSync.selection);
     }
   }
+  const RENDER_BUFFERED_POLL_INTERVAL_MS = 500;
+  let renderBufferedRanges: Array<[number, number]> | null = null;
+  let renderPipelineBuffering = false;
+  let renderBufferedPollTimer: number | null = null;
+
+  function sameBufferedRanges(a: Array<[number, number]> | null, b: Array<[number, number]>): boolean {
+    if (a === null) return b.length === 0;
+    if (a.length !== b.length) return false;
+    return a.every(([start, end], index) => start === b[index][0] && end === b[index][1]);
+  }
+
+  function startRenderBufferedPoll(): void {
+    if (renderBufferedPollTimer !== null || typeof window === 'undefined') return;
+    renderBufferedPollTimer = window.setInterval(() => {
+      const state = multiplayerRenderPlaybackService.getState();
+      const ranges = state.bufferedRanges
+        .map(([start, end]): [number, number] => [start / 1_000, end / 1_000]);
+      if (!sameBufferedRanges(renderBufferedRanges, ranges)) {
+        renderBufferedRanges = ranges;
+      }
+      if (renderPipelineBuffering !== state.buffering) {
+        renderPipelineBuffering = state.buffering;
+      }
+    }, RENDER_BUFFERED_POLL_INTERVAL_MS);
+  }
+
+  function stopRenderBufferedPoll(): void {
+    if (renderBufferedPollTimer !== null) {
+      window.clearInterval(renderBufferedPollTimer);
+      renderBufferedPollTimer = null;
+    }
+    renderBufferedRanges = null;
+    renderPipelineBuffering = false;
+  }
+
+  $: isRenderDeliveryClient = isMultiplayerClient
+    && !isSourceFileFreeplayClient
+    && multiplayerState.remoteDelivery.mode === 'render';
+  $: if (isRenderDeliveryClient) {
+    startRenderBufferedPoll();
+  } else {
+    stopRenderBufferedPoll();
+  }
   $: playbackSnapshot = isMultiplayerClient && !isSourceFileFreeplayClient
     ? {
         ...multiplayerState.remotePlayback.snapshot,
+        // The render pipeline's own buffering (initial download + rebuffers)
+        // surfaces as the loading state so the player bar shows the throbber;
+        // the host snapshot alone reads 'idle'/'playing' through both phases.
+        state: isRenderDeliveryClient && renderPipelineBuffering
+          ? 'loading'
+          : multiplayerState.remotePlayback.snapshot.state,
         volume: localPlaybackSnapshot.volume,
-        muted: localPlaybackSnapshot.muted
+        muted: localPlaybackSnapshot.muted,
+        buffered: isRenderDeliveryClient ? renderBufferedRanges ?? undefined : undefined
       }
     : localPlaybackSnapshot;
   $: playbackStatus = isMultiplayerClient && !isSourceFileFreeplayClient
@@ -2048,6 +2099,7 @@
     unsubscribeLaunchedFiles();
     stopLibraryFolderCommands();
     stopLoadoutRuntime();
+    stopRenderBufferedPoll();
     disconnectMediaSession();
     playerController.destroy();
   });

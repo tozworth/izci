@@ -142,6 +142,7 @@
       "pausePlayback": "Oynatmayı duraklat",
       "playPlayback": "Oynatmayı devam ettir",
       "nextTrack": "Sonraki parça",
+      "loadingTrack": "Parça yükleniyor…",
       "unmute": "Sesi aç",
       "mute": "Sesi kapat",
       "volume": "Ses düzeyi",
@@ -769,12 +770,6 @@
     },
     "experimental": {
       "multiplayer": {
-        "fileTransfer": {
-          "every": "Her dosya",
-          "never": "Her zaman akış yap",
-          "title": "Şundan küçük dosyaları gönder",
-          "hint": "Daha küçük ses ve modül dosyalarını bütün olarak gönderir, ardından her dinleyicide işler. Daha büyük dosyalar ve tüm video sesleri sunucunun Opus akışını kullanır."
-        },
         "category": "Çok oyunculu",
         "modes": {
           "label": "Çok oyunculu mod",
@@ -839,13 +834,23 @@
           "title": "Başlangıç hazırlık süresi",
           "hint": "Tüm dinleyiciler hazır olduktan sonra sunucunun eşzamanlı başlangıcı ne kadar ileriye ayarlayacağını belirler. Aygıtlar ilk vuruşu kaçırıyorsa artırın."
         },
+        "fileTransfer": {
+          "title": "Şundan küçük dosyaları gönder",
+          "hint": "Daha küçük ses ve modül dosyalarını bütün olarak gönderir ve her dinleyicide çalar. Daha büyük dosyalar sunucuda önceden arabelleğe alınmış Opus'a dönüştürülür. Modüller genellikle küçük olduğundan doğrudan aktarılır.",
+          "every": "Her dosya",
+          "never": "Yalnızca arabelleğe alınmış Opus"
+        },
         "opusBitrate": {
           "title": "Opus VBR bit hızı",
-          "hint": "Her dinleyici için yaklaşık bit hızı üst sınırını belirler. Yüksek değerler sunucuda daha fazla bant genişliği ve kodlama gücü kullanır."
+          "hint": "Her dinleyicinin indirdiği önceden işlenmiş Opus akışının bit hızını belirler. Yüksek değerler sunucuda daha fazla bant genişliği ve kodlama gücü kullanır."
         },
         "audioBuffer": {
-          "title": "Dinleyici ses arabelleği",
-          "hint": "Ağ ve mobil zamanlama dalgalanmalarını karşılamak için alıcı gecikmesi ekler. Daha temiz çalma için artırın; kontrollerin daha hızlı yanıt vermesi için azaltın."
+          "title": "Başlatma/arabelleğe alma sonrası",
+          "hint": "Çalma başlamadan önce ve arabelleğe alma sonrasında her dinleyicinin ne kadar ses biriktireceğini belirler. Duraklatıldığında indirme ilerlemeye devam eder."
+        },
+        "renderCache": {
+          "title": "Ön işleme bellek sınırı",
+          "hint": "Sıkıştırılmış işleme önbelleğinin kullanabileceği sunucu belleği miktarı. Etkin parçalar sabitlenir; eski işlemeler en son kullanıma göre çıkarılır."
         },
         "diagnostics": {
           "heading": "Bağlantı tanılama",

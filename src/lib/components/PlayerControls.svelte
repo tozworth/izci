@@ -362,6 +362,16 @@
     return `--player-range-progress: ${percent}%; --player-range-fill-end: ${fillEnd};`;
   }
 
+  function toBufferedRangeStyle(start: number, end: number, max: number): string {
+    if (max <= 0 || end <= start) {
+      return 'display: none;';
+    }
+
+    const left = clamp((start / max) * 100, 0, 100);
+    const width = clamp(((end - start) / max) * 100, 0, 100 - left);
+    return `left: ${left}%; width: ${width}%;`;
+  }
+
   function getVolumeIcon(volume: number, muted: boolean): string {
     if (muted || volume <= 0) {
       return 'volume_off';
@@ -458,6 +468,7 @@
   });
 
   $: snapshot = $snapshotStore;
+  $: isLoading = snapshot.state === 'loading';
   $: if (!seekPointerActive && !seekWheelActive) seekPreview = snapshot.currentTime;
   $: displayedSeekTime = seekPointerActive || seekWheelActive ? seekPreview : snapshot.currentTime;
   $: compactPlayerBar = presentation !== 'now-playing' && $appearanceSettings.compactPlayerBar;
@@ -562,6 +573,7 @@
   class:now-playing-player={presentation === 'now-playing'}
   class:theater-player-bar={presentation === 'theater'}
   class:compact-player-bar={compactPlayerBar}
+  class:loading={isLoading}
   class:video-track-active={displayTrack?.kind === 'video'}
   class:artwork-background-active={artworkBackgroundActive}
   class:artwork-background-bright={artworkBackgroundActive && artworkBackgroundBright}
@@ -646,6 +658,13 @@
       style={toRangeProgressStyle(displayedSeekTime, Math.max(displayDuration, 1))}
       on:contextmenu={openBookmarkMenu}
     >
+      {#each snapshot.buffered ?? [] as [bufferedStart, bufferedEnd] (bufferedStart)}
+        <span
+          class="range-control-buffered"
+          aria-hidden="true"
+          style={toBufferedRangeStyle(bufferedStart, bufferedEnd, Math.max(displayDuration, 1))}
+        ></span>
+      {/each}
       <span class="range-control-fill" aria-hidden="true"></span>
       <input
         type="range"
@@ -653,7 +672,7 @@
         max={Math.max(displayDuration, 1)}
         step="0.01"
         value={displayedSeekTime}
-        disabled={!track || snapshot.duration <= 0}
+        disabled={!track || snapshot.duration <= 0 || isLoading}
         on:pointerdown={beginSeekPointer}
         on:input={previewSeek}
         on:pointerup={commitSeekPointer}
@@ -672,21 +691,23 @@
         aria-label={$t('main.player.previousTrack', { default: 'Previous track' })}
         on:click={() => dispatch('previous')}
         on:contextmenu={(event) => handleSubsongStep(event, -1)}
-        disabled={!track && !selectedTrack}
+        disabled={(!track && !selectedTrack) || isLoading}
       >
       <span class="material-symbols-outlined" aria-hidden="true">skip_previous</span>
       </button>
       <button
         type="button"
         class="transport-button transport-button-primary"
-        aria-label={snapshot.state === 'playing'
-          ? $t('main.player.pausePlayback', { default: 'Pause playback' })
-          : $t('main.player.playPlayback', { default: 'Play playback' })}
+        aria-label={isLoading
+          ? $t('main.player.loadingTrack', { default: 'Loading track…' })
+          : snapshot.state === 'playing'
+            ? $t('main.player.pausePlayback', { default: 'Pause playback' })
+            : $t('main.player.playPlayback', { default: 'Play playback' })}
         on:click={() => dispatch('toggle')}
-        disabled={!track && !selectedTrack}
+        disabled={(!track && !selectedTrack) || isLoading}
       >
         <span class="material-symbols-outlined" aria-hidden="true">
-          {snapshot.state === 'playing' ? 'pause' : 'play_arrow'}
+          {isLoading ? 'progress_activity' : snapshot.state === 'playing' ? 'pause' : 'play_arrow'}
         </span>
       </button>
       <button
@@ -695,7 +716,7 @@
         aria-label={$t('main.player.nextTrack', { default: 'Next track' })}
         on:click={() => dispatch('next')}
         on:contextmenu={(event) => handleSubsongStep(event, 1)}
-        disabled={!track && !selectedTrack}
+        disabled={(!track && !selectedTrack) || isLoading}
       >
         <span class="material-symbols-outlined" aria-hidden="true">skip_next</span>
       </button>

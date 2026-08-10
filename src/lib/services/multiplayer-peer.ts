@@ -29,6 +29,11 @@ export function createPeer(
     mediaQueuedBytes: 0,
     mediaFlushing: false,
     mediaTransferToken: 0,
+    renderChannel: null,
+    renderOutgoing: [],
+    renderQueuedBytes: 0,
+    renderFlushing: false,
+    renderState: null,
     sourceTrackKey: '',
     decode: createMultiplayerMessageDecoder(isClientMessage),
     audioSender: null,
@@ -243,6 +248,11 @@ export function disposePeerConnection(peer: PeerConnection): void {
   peer.mediaTransferToken += 1;
   peer.mediaOutgoing = [];
   peer.mediaQueuedBytes = 0;
+  // NOTE: do NOT null peer.renderState here. The host's render-channel
+  // onclose handler owns unpinning the cached render; closing the PC below
+  // fires it. Nulling first would skip the unpin and leak a pinned cache entry.
+  peer.renderOutgoing = [];
+  peer.renderQueuedBytes = 0;
   peer.outgoing = [];
   peer.pc.close();
 }

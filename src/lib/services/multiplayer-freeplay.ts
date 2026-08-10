@@ -14,13 +14,16 @@ const FREEPLAY_PROGRESS_INTERVAL_MS = 500;
 
 export interface MultiplayerFreeplayAudioSettings {
   enabled: boolean;
-  sourceFile: boolean;
+  /**
+   * Pre-resolved delivery for the track: 'render' (buffered Opus), 'source-file'
+   * (direct transfer, timeline-passive) or 'stream' (video live RTP).
+   */
+  delivery: MultiplayerDeliveryMode;
 }
 
 export interface MultiplayerFreeplayPlayerUpdate {
   playback: MultiplayerPlayback;
   delivery: MultiplayerDeliveryMode;
-  sourceFile: File | null;
 }
 
 interface CreateMultiplayerFreeplayPlayerOptions {
@@ -46,7 +49,6 @@ export class MultiplayerFreeplayPlayer {
   #track: PlaylistItem | null = null;
   #snapshot: PlaybackSnapshot = { ...EMPTY_SNAPSHOT };
   #delivery: MultiplayerDeliveryMode = 'none';
-  #sourceFile: File | null = null;
   #element: HTMLMediaElement | null = null;
   #elementSource: MediaElementAudioSourceNode | null = null;
   #modulePlayer: ChiptuneJsPlayer | null = null;
@@ -55,9 +57,10 @@ export class MultiplayerFreeplayPlayer {
   #silenceGain: GainNode | null = null;
   #wirePromise: Promise<MediaStreamTrack | null> | null = null;
   #objectUrl: string | null = null;
-  #progressTimer: number | null = null;
+  #progressTimer: ReturnType<typeof globalThis.setInterval> | null = null;
   #loadToken = 0;
   #playIntent = false;
+  #timelineTickAt = 0;
   readonly #getAudioSettings: CreateMultiplayerFreeplayPlayerOptions['getAudioSettings'];
   readonly #onUpdate: CreateMultiplayerFreeplayPlayerOptions['onUpdate'];
   readonly #onEnded: CreateMultiplayerFreeplayPlayerOptions['onEnded'];
@@ -87,10 +90,6 @@ export class MultiplayerFreeplayPlayer {
 
   get delivery(): MultiplayerDeliveryMode {
     return this.#delivery;
-  }
-
-  get sourceFile(): File | null {
-    return this.#sourceFile;
   }
 
   get streamTrack(): MediaStreamTrack | null {
@@ -153,8 +152,11 @@ export class MultiplayerFreeplayPlayer {
     const settings = this.#getAudioSettings(track);
     this.#delivery = !settings.enabled
       ? 'none'
-      : settings.sourceFile ? 'source-file' : 'stream';
-    this.#sourceFile = this.#delivery === 'source-file' ? track.file : null;
+      : settings.delivery === 'render'
+        || settings.delivery === 'stream'
+        || settings.delivery === 'source-file'
+      ? settings.delivery
+      : 'none';
     this.#publish();
 
     try {
@@ -178,6 +180,7 @@ export class MultiplayerFreeplayPlayer {
       currentTime: passive ? 0 : Math.min(this.#snapshot.currentTime, finiteDuration(this.#snapshot.duration)),
       error: undefined
     };
+    this.#timelineTickAt = Date.now();
     this.seek(this.#snapshot.currentTime);
     this.#publish();
     if (autoPlay) await this.play();
@@ -197,6 +200,16 @@ export class MultiplayerFreeplayPlayer {
   async play(): Promise<boolean> {
     if (!this.#track || this.#snapshot.state === 'loading') return false;
     this.#playIntent = true;
+    if (this.#delivery === 'render') {
+      if (this.#snapshot.state === 'error') {
+        this.#snapshot = { ...this.#snapshot, state: 'paused', error: undefined };
+      }
+      this.#timelineTickAt = Date.now();
+      this.#snapshot = { ...this.#snapshot, state: 'playing', error: undefined };
+      this.#startProgress();
+      this.#publish();
+      return true;
+    }
     if (this.#delivery !== 'stream') return true;
     if (this.#snapshot.state === 'error') {
       this.#snapshot = { ...this.#snapshot, state: 'paused', error: undefined };
@@ -229,6 +242,13 @@ export class MultiplayerFreeplayPlayer {
   pause(): boolean {
     if (!this.#track) return false;
     this.#playIntent = false;
+    if (this.#delivery === 'render') {
+      this.#advanceTimeline();
+      this.#snapshot = { ...this.#snapshot, state: 'paused' };
+      this.#stopProgress();
+      this.#publish();
+      return true;
+    }
     if (this.#delivery !== 'stream') return true;
     const current = this.#currentSnapshot().currentTime;
     this.#element?.pause();
@@ -248,6 +268,16 @@ export class MultiplayerFreeplayPlayer {
 
   seek(seconds: number): boolean {
     if (!this.#track || !Number.isFinite(seconds)) return false;
+    if (this.#delivery === 'render') {
+      const duration = finiteDuration(this.#snapshot.duration);
+      this.#snapshot = {
+        ...this.#snapshot,
+        currentTime: Math.min(Math.max(seconds, 0), duration)
+      };
+      this.#timelineTickAt = Date.now();
+      this.#publish();
+      return true;
+    }
     if (this.#delivery !== 'stream') return true;
     const duration = finiteDuration(this.#snapshot.duration);
     const target = Math.min(Math.max(seconds, 0), duration);
@@ -264,7 +294,6 @@ export class MultiplayerFreeplayPlayer {
     this.#disposeRenderer();
     this.#disposeWire();
     this.#track = null;
-    this.#sourceFile = null;
     this.#delivery = 'none';
     this.#playIntent = false;
     this.#snapshot = { ...EMPTY_SNAPSHOT };
@@ -386,6 +415,13 @@ export class MultiplayerFreeplayPlayer {
     let currentTime = this.#snapshot.currentTime;
     if (this.#element) currentTime = positiveNumber(this.#element.currentTime);
     else if (this.#modulePlayer) currentTime = positiveNumber(this.#modulePlayer.currentTime);
+    else if (this.#delivery === 'render' && this.#snapshot.state === 'playing') {
+      const elapsed = this.#timelineTickAt > 0 ? (Date.now() - this.#timelineTickAt) / 1_000 : 0;
+      currentTime = Math.min(
+        currentTime + Math.max(0, elapsed),
+        finiteDuration(this.#snapshot.duration)
+      );
+    }
     const duration = this.#snapshot.duration;
     if (duration > 0 && currentTime >= duration) {
       currentTime = duration;
@@ -394,23 +430,30 @@ export class MultiplayerFreeplayPlayer {
     return { ...this.#snapshot, currentTime };
   }
 
+  #advanceTimeline(): void {
+    if (this.#delivery !== 'render' || this.#snapshot.state !== 'playing') return;
+    this.#snapshot = { ...this.#snapshot, currentTime: this.#currentSnapshot().currentTime };
+    this.#timelineTickAt = Date.now();
+  }
+
   #publish(): void {
+    this.#advanceTimeline();
     const playback = this.playback;
     this.#snapshot = playback.snapshot;
+    this.#timelineTickAt = Date.now();
     this.#onUpdate({
       playback,
-      delivery: this.#delivery,
-      sourceFile: this.#sourceFile
+      delivery: this.#delivery
     });
   }
 
   #startProgress(): void {
     if (this.#progressTimer !== null) return;
-    this.#progressTimer = window.setInterval(() => this.#publish(), FREEPLAY_PROGRESS_INTERVAL_MS);
+    this.#progressTimer = globalThis.setInterval(() => this.#publish(), FREEPLAY_PROGRESS_INTERVAL_MS);
   }
 
   #stopProgress(): void {
-    if (this.#progressTimer !== null) window.clearInterval(this.#progressTimer);
+    if (this.#progressTimer !== null) globalThis.clearInterval(this.#progressTimer);
     this.#progressTimer = null;
   }
 

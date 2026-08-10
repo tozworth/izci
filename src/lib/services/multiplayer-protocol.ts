@@ -8,11 +8,16 @@ import type {
 
 export type MultiplayerCollection = 'playlist' | 'library' | 'favorites';
 
-// Version 16 makes streamed audio an unprocessed renderer-output contract. Compatibility is
+// Version 17 replaces streamed/source-file audio and module delivery with
+// buffered Opus: the host pre-renders tracks to time-indexed WebM/Opus clusters
+// and ships them over a reliable unordered data channel. Compatibility is
 // intentionally scorched-earth while Multiplayer remains experimental.
-export const MULTIPLAYER_PROTOCOL_VERSION = 16;
+export const MULTIPLAYER_PROTOCOL_VERSION = 17;
 export const MULTIPLAYER_FRAME_CHUNK_SIZE = 12_000;
 export const MULTIPLAYER_QUEUE_MAX_ITEMS = 50_000;
+export const MULTIPLAYER_RENDER_MAX_CLUSTERS = 200_000;
+export const MULTIPLAYER_RENDER_MAX_TOTAL_BYTES = 8 * 1024 * 1024 * 1024;
+export const MULTIPLAYER_RENDER_MAX_RANGES = 100_000;
 
 const MULTIPLAYER_ARTWORK_DATA_URL_MAX_LENGTH = 8 * 1024 * 1024;
 
@@ -64,13 +69,44 @@ export interface MultiplayerArtwork {
   height: number;
 }
 
-export type MultiplayerDeliveryMode = 'none' | 'stream' | 'source-file';
+export type MultiplayerDeliveryMode = 'none' | 'stream' | 'source-file' | 'render';
 
 export interface MultiplayerDeliveryState {
   generationId: string;
   trackId: string | null;
   mode: MultiplayerDeliveryMode;
   reason: 'host-disabled' | 'no-track' | null;
+}
+
+export interface MultiplayerRenderClusterInfo {
+  index: number;
+  timeMs: number;
+  sizeBytes: number;
+}
+
+export interface MultiplayerRenderManifest {
+  generationId: string;
+  renderId: string;
+  trackId: string;
+  codec: 'opus';
+  container: 'webm';
+  durationMs: number;
+  bitrateKbps: number;
+  clusterDurationMs: number;
+  clusters: MultiplayerRenderClusterInfo[];
+  initSizeBytes: number;
+  totalBytes: number;
+}
+
+export interface MultiplayerRenderNeed {
+  generationId: string;
+  renderId: string;
+  /** Incremented on seek; mismatched in-flight fragments are dropped. */
+  epoch: number;
+  targetTimeMs: number;
+  aheadMs: number;
+  /** Inclusive cluster-index ranges the client already holds. */
+  ranges: Array<[number, number]>;
 }
 
 export interface MultiplayerPlaybackPreparation {
@@ -105,6 +141,8 @@ export type HostMessage =
   | { kind: 'playback.cancel'; generationId: string }
   | { kind: 'delivery'; delivery: MultiplayerDeliveryState }
   | { kind: 'buffer'; bufferMs: number }
+  | { kind: 'render.manifest'; manifest: MultiplayerRenderManifest }
+  | { kind: 'render.error'; generationId: string; renderId: string; code: 'encode' | 'unsupported' }
   | { kind: 'artwork'; artwork: MultiplayerArtwork | null }
   | { kind: 'ack'; commandId: string; accepted: boolean; message?: string }
   | { kind: 'kicked' };
@@ -128,7 +166,9 @@ export type ClientMessage =
       clientSentAt: number;
     }
   | { kind: 'playback.ended'; generationId: string; trackId: string }
-  | { kind: 'source.retry'; generationId: string };
+  | { kind: 'source.retry'; generationId: string }
+  | { kind: 'render.need'; need: MultiplayerRenderNeed }
+  | { kind: 'render.ready'; generationId: string; renderId: string; epoch: number; positionMs: number };
 
 interface ChunkFrame {
   kind: 'chunk';
@@ -262,6 +302,7 @@ export function isHostMessage(value: unknown): value is HostMessage {
       && preparation.trackId.length <= 200
       && (preparation.delivery === 'source-file'
         || preparation.delivery === 'stream'
+        || preparation.delivery === 'render'
         || preparation.delivery === 'none');
   }
   if (message.kind === 'clock.ping') {
@@ -303,7 +344,8 @@ export function isHostMessage(value: unknown): value is HostMessage {
           && delivery.trackId.length <= 200))
       && (delivery.mode === 'none'
         || delivery.mode === 'stream'
-        || delivery.mode === 'source-file')
+        || delivery.mode === 'source-file'
+        || delivery.mode === 'render')
       && (delivery.reason === null
         || delivery.reason === 'host-disabled'
         || delivery.reason === 'no-track')
@@ -315,12 +357,73 @@ export function isHostMessage(value: unknown): value is HostMessage {
     return typeof message.bufferMs === 'number'
       && Number.isFinite(message.bufferMs)
       && message.bufferMs >= 0
-      && message.bufferMs <= 4_000;
+      && message.bufferMs <= 30_000;
+  }
+  if (message.kind === 'render.manifest') {
+    return isRenderManifest(message.manifest);
+  }
+  if (message.kind === 'render.error') {
+    return typeof message.generationId === 'string'
+      && message.generationId.length > 0
+      && message.generationId.length <= 80
+      && typeof message.renderId === 'string'
+      && message.renderId.length > 0
+      && message.renderId.length <= 80
+      && (message.code === 'encode' || message.code === 'unsupported');
   }
   if (message.kind === 'artwork') {
     return message.artwork === null || isMultiplayerArtwork(message.artwork);
   }
   return false;
+}
+
+export function isRenderManifest(value: unknown): value is MultiplayerRenderManifest {
+  if (!value || typeof value !== 'object') return false;
+  const manifest = value as Partial<MultiplayerRenderManifest>;
+  if (typeof manifest.generationId !== 'string'
+    || manifest.generationId.length < 1
+    || manifest.generationId.length > 80
+    || typeof manifest.renderId !== 'string'
+    || manifest.renderId.length < 1
+    || manifest.renderId.length > 80
+    || typeof manifest.trackId !== 'string'
+    || manifest.trackId.length < 1
+    || manifest.trackId.length > 200
+    || manifest.codec !== 'opus'
+    || manifest.container !== 'webm'
+    || typeof manifest.durationMs !== 'number'
+    || !Number.isFinite(manifest.durationMs)
+    || manifest.durationMs < 0
+    || typeof manifest.bitrateKbps !== 'number'
+    || !Number.isFinite(manifest.bitrateKbps)
+    || manifest.bitrateKbps <= 0
+    || typeof manifest.clusterDurationMs !== 'number'
+    || !Number.isFinite(manifest.clusterDurationMs)
+    || manifest.clusterDurationMs <= 0
+    || !Array.isArray(manifest.clusters)
+    || manifest.clusters.length > MULTIPLAYER_RENDER_MAX_CLUSTERS
+    || typeof manifest.initSizeBytes !== 'number'
+    || !Number.isSafeInteger(manifest.initSizeBytes)
+    || manifest.initSizeBytes < 0
+    || typeof manifest.totalBytes !== 'number'
+    || !Number.isSafeInteger(manifest.totalBytes)
+    || manifest.totalBytes < 0
+    || manifest.totalBytes > MULTIPLAYER_RENDER_MAX_TOTAL_BYTES) return false;
+
+  let previousTimeMs = -1;
+  for (const cluster of manifest.clusters) {
+    if (!cluster || typeof cluster !== 'object') return false;
+    if (!Number.isInteger(cluster.index) || cluster.index < 0) return false;
+    if (typeof cluster.timeMs !== 'number'
+      || !Number.isFinite(cluster.timeMs)
+      || cluster.timeMs < previousTimeMs) return false;
+    if (typeof cluster.sizeBytes !== 'number'
+      || !Number.isSafeInteger(cluster.sizeBytes)
+      || cluster.sizeBytes < 0
+      || cluster.sizeBytes > 16 * 1024 * 1024) return false;
+    previousTimeMs = cluster.timeMs;
+  }
+  return true;
 }
 
 function isMultiplayerArtwork(value: unknown): value is MultiplayerArtwork {

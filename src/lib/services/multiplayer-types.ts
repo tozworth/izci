@@ -64,6 +64,23 @@ export interface MultiplayerClient {
   freeplay: boolean;
 }
 
+/** Per-peer buffered Opus delivery state (host side). */
+export interface MultiplayerPeerRenderState {
+  generationId: string;
+  renderId: string;
+  /** Render cache key; used to pin/unpin the shared entry. */
+  key: string;
+  render: import('./multiplayer-render-cache').CachedRender;
+  epoch: number;
+  targetTimeMs: number;
+  aheadMs: number;
+  protectionMs: number;
+  receivedRanges: Array<[number, number]>;
+  /** Cluster indices already enqueued for this peer in the current epoch. */
+  sent: Set<number>;
+  initSent: boolean;
+}
+
 export interface MultiplayerSessionState {
   mode: MultiplayerMode;
   connectionStatus: MultiplayerConnectionStatus;
@@ -207,6 +224,11 @@ export interface PeerConnection {
   mediaQueuedBytes: number;
   mediaFlushing: boolean;
   mediaTransferToken: number;
+  renderChannel: RTCDataChannel | null;
+  renderOutgoing: ArrayBuffer[];
+  renderQueuedBytes: number;
+  renderFlushing: boolean;
+  renderState: MultiplayerPeerRenderState | null;
   sourceTrackKey: string;
   decode: ReturnType<typeof createMultiplayerMessageDecoder<ClientMessage>>;
   audioSender: RTCRtpSender | null;
@@ -312,6 +334,8 @@ export interface MultiplayerSessionCore {
   hostArtworkResolvedTrackKey: string;
   hostArtworkLoadToken: number;
   latestDelivery: MultiplayerDeliveryState;
+  /** Track ids whose buffered Opus render failed; they keep the live RTP path. */
+  renderFallbackTrackIds: Set<string>;
   hostPlaybackPreparation: {
     preparation: MultiplayerPlaybackPreparation;
     pendingPeerIds: Set<string>;
@@ -333,7 +357,7 @@ export interface MultiplayerHostSide {
   togglePairing(clientId: string): Promise<void>;
   updateHostState(next: MultiplayerHostState): void;
   cancelPendingPlayback(): boolean;
-  syncHostAudio(track: PlaylistItem | null): void;
+  syncHostAudio(track: PlaylistItem | null, force?: boolean): void;
   syncHostSourceFiles(track: PlaylistItem | null): void;
   syncPeerFreeplayMode(peer: PeerConnection): Promise<void>;
   beginFreeplayPlaybackPreparation(peer: PeerConnection): void;

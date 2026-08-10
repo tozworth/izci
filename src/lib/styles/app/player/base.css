@@ -30,6 +30,7 @@
   --player-range-fill: var(--accent-strong);
   --player-control-accent: var(--accent-strong);
   --player-range-track: color-mix(in srgb, var(--bg-soft) 76%, black);
+  --player-range-buffered: color-mix(in srgb, var(--player-range-fill) 32%, var(--player-range-track));
   --player-range-border: var(--border-strong);
   --player-range-thumb: var(--accent-strong);
   --player-range-track-size: 0.52rem;
@@ -413,6 +414,35 @@ body:has(.favorite-rating-control:focus-within) .player-rating-picker,
   font-size: 2.45rem;
 }
 
+/* Track loading: the whole bar reads as disabled (slightly muted colors)
+   and the play/pause transport becomes the standard progress_activity
+   throbber (same 900 ms spin as the video buffering indicator). */
+.player-bar.loading .player-track-group,
+.player-bar.loading .player-range,
+.player-bar.loading .volume,
+.player-bar.loading .player-actions :is(.favorite-rating-control, .video-theater-toggle) {
+  opacity: 0.66;
+  transition: opacity 120ms ease;
+}
+
+.player-bar.loading .transport-button {
+  opacity: 0.62;
+  transition:
+    color 120ms ease,
+    filter 120ms ease-out,
+    opacity 120ms ease;
+}
+
+.player-bar.loading .transport-button-primary .material-symbols-outlined {
+  animation: player-bar-loading-spin 900ms linear infinite;
+}
+
+@keyframes player-bar-loading-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .player-range,
 .volume {
   display: grid;
@@ -453,7 +483,8 @@ body:has(.favorite-rating-control:focus-within) .player-rating-picker,
 }
 
 .range-control::before,
-.range-control-fill {
+.range-control-fill,
+.range-control-buffered {
   content: "";
   position: absolute;
   left: 0;
@@ -463,6 +494,11 @@ body:has(.favorite-rating-control:focus-within) .player-rating-picker,
   border-radius: 999px;
   transform: translateY(-50%);
   pointer-events: none;
+}
+
+.range-control-buffered {
+  right: auto;
+  background: var(--player-range-buffered);
 }
 
 .range-control::before {
@@ -512,7 +548,8 @@ body:has(.favorite-rating-control:focus-within) .player-rating-picker,
 }
 
 .range-control:has(input[type='range']:disabled)::before,
-.range-control:has(input[type='range']:disabled) .range-control-fill {
+.range-control:has(input[type='range']:disabled) .range-control-fill,
+.range-control:has(input[type='range']:disabled) .range-control-buffered {
   opacity: 0.55;
 }
 

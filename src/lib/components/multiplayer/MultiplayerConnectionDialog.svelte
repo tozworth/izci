@@ -19,7 +19,9 @@
 
   function handleCancel(event: Event): void {
     event.preventDefault();
-    if (failed) dismiss();
+    // Always cancelable: Esc must release a dialog that never resolves on its
+    // own (e.g. a client that stays unpaired never reaches the ready state).
+    dismiss();
   }
 
   onMount(() => {
@@ -51,12 +53,10 @@
       </p>
     </div>
   </div>
-  {#if failed || actionLabel}
-    <div class="connection-actions">
-      {#if failed}<button type="button" on:click={dismiss}>{closeLabel}</button>{/if}
-      {#if actionLabel}<button class="primary" type="button" on:click={() => dispatch('action')}>{actionLabel}</button>{/if}
-    </div>
-  {/if}
+  <div class="connection-actions">
+    <button type="button" on:click={dismiss}>{closeLabel}</button>
+    {#if actionLabel}<button class="primary" type="button" on:click={() => dispatch('action')}>{actionLabel}</button>{/if}
+  </div>
 </dialog>
 
 <style>

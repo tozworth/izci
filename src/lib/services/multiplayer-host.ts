@@ -5,6 +5,13 @@ import { clearMultiplayerLastSession, rememberMultiplayerLastSession } from '$li
 import { logDebug, logError, logInfo, logWarning } from '$lib/services/logging';
 import { multiplayerAudioService } from './multiplayer-audio';
 import { enableOpusStereo } from './multiplayer-opus';
+import { multiplayerRenderCoordinator } from './multiplayer-render-coordinator';
+import { buildRenderCacheKey } from './multiplayer-render-cache';
+import {
+  flushPeerRender,
+  resetPeerRenderQueue,
+  schedulePeerRender
+} from './multiplayer-render-transfer';
 import {
   createMultiplayerTurnCredentialResponse,
   createMultiplayerTurnIceSettings,
@@ -59,11 +66,11 @@ import {
   cycleMultiplayerRepeatMode,
   getLocalName,
   parseFreeplayRestoredFlags,
+  resolveMultiplayerDeliveryMode,
   resolveMultiplayerFreeplayAgreement,
   sanitizeFreeplayQueueIds,
   sanitizeClientName,
-  sanitizePlatform,
-  shouldTransferMultiplayerSourceFile
+  sanitizePlatform
 } from './multiplayer-utils';
 import {
   EMPTY_REMOTE_PLAYBACK,
@@ -323,6 +330,7 @@ export function createMultiplayerHostSide(
 
     peer.pc.ondatachannel = (event) => {
       if (event.channel.label === 'izci-media') attachHostMediaChannel(peer, event.channel);
+      else if (event.channel.label === 'izci-render') attachHostRenderChannel(peer, event.channel);
       else attachHostChannel(peer, event.channel);
     };
     peer.pc.onconnectionstatechange = () => {
@@ -494,6 +502,12 @@ export function createMultiplayerHostSide(
           syncPeerMediaSource(peer);
         }
       }
+      if (message.kind === 'render.need') {
+        handlePeerRenderNeed(peer, message.need);
+      }
+      if (message.kind === 'render.ready') {
+        acceptClientPlaybackReady(peer, message.generationId);
+      }
     };
     channel.onclose = () => {
       updateClient(peer.id, { status: 'disconnected' });
@@ -522,6 +536,32 @@ export function createMultiplayerHostSide(
       peer.mediaQueuedBytes = 0;
       peer.mediaFlushing = false;
       peer.sourceTrackKey = '';
+      if (peer.pc.connectionState !== 'closed') peer.pc.close();
+    };
+  }
+
+  function attachHostRenderChannel(peer: PeerConnection, channel: RTCDataChannel): void {
+    peer.renderChannel = channel;
+    channel.binaryType = 'arraybuffer';
+    channel.bufferedAmountLowThreshold = 128 * 1024;
+    channel.onopen = () => {
+      if (peer.freeplaySettled) syncPeerMediaSource(peer);
+      else peer.mediaSyncPending = true;
+    };
+    channel.onbufferedamountlow = () => {
+      // The render queue is a real backlog: schedulePeerRender gates on
+      // renderQueuedBytes >= HIGH_WATER, so it can NOT be the drain trigger.
+      // Flush the pending frames first, then re-plan for more clusters.
+      flushPeerRender(peer);
+      schedulePeerRender(peer, playheadMsForPeer(peer));
+    };
+    channel.onclose = () => {
+      const state = peer.renderState;
+      if (state) {
+        multiplayerRenderCoordinator.unpin(state.key);
+        peer.renderState = null;
+      }
+      resetPeerRenderQueue(peer);
       if (peer.pc.connectionState !== 'closed') peer.pc.close();
     };
   }
@@ -561,11 +601,13 @@ export function createMultiplayerHostSide(
       player = new MultiplayerFreeplayPlayer({
         getAudioSettings: (track) => ({
           enabled: core.multiplayerSettings.multiplayerStreamAudio,
-          sourceFile: shouldTransferMultiplayerSourceFile(
-            track,
-            core.multiplayerSettings.multiplayerFileTransferLimitMiB,
-            core.multiplayerSettings.multiplayerStreamAudio
-          )
+          delivery: core.renderFallbackTrackIds.has(track.id)
+            ? 'source-file'
+            : resolveMultiplayerDeliveryMode(
+                track,
+                core.multiplayerSettings.multiplayerStreamAudio,
+                core.multiplayerSettings.multiplayerFileTransferLimitMiB
+              )
         }),
         onUpdate: (update) => {
           if (peer.freeplayPlayer === player) syncFreeplayPlayerUpdate(peer, update);
@@ -578,16 +620,19 @@ export function createMultiplayerHostSide(
       peer.freeplayNavigation = createFreeplayStepResolver(
         () => freeplayCollectionItems(peer, peer.freeplayCollection)
       );
-      const wireTrack = await player.ensureWire();
+      // The stable wire only matters for streamed (video) Freeplay; buffered
+      // Opus peers do not need it. A missing wire must not kill the session.
+      const wireTrack = await player.ensureWire().catch(() => null);
       if (peer.freeplayPlayer !== player || !peer.freeplay) return;
       try {
-        if (!wireTrack || !peer.audioSender) throw new Error('Freeplay audio sender is unavailable.');
-        await peer.audioSender.replaceTrack(wireTrack);
-        await applyAudioBitrate(peer, core.multiplayerSettings.multiplayerOpusBitrateKbps);
-        logInfo('freeplay', 'Freeplay stable wire attached', {
-          peerId: peer.id,
-          trackId: wireTrack.id
-        });
+        if (wireTrack && peer.audioSender) {
+          await peer.audioSender.replaceTrack(wireTrack);
+          await applyAudioBitrate(peer, core.multiplayerSettings.multiplayerOpusBitrateKbps);
+          logInfo('freeplay', 'Freeplay stable wire attached', {
+            peerId: peer.id,
+            trackId: wireTrack.id
+          });
+        }
       } catch (error) {
         logWarning('freeplay', 'Freeplay stable wire attach failed', {
           peerId: peer.id,
@@ -601,6 +646,17 @@ export function createMultiplayerHostSide(
       const previousSelection = core.freeplaySelections.get(peer.id);
       if (previousSelection) {
         void activateFreeplayTrack(peer, 'playlist', previousSelection.id);
+      } else {
+        // No restored selection (host restart wipes freeplaySelections): the
+        // idle player never publishes, so a reconnecting client holding a
+        // stale remote track would never re-evaluate its persisted selection
+        // (tryResumeFreeplaySelection only fires on playback messages). Publish
+        // the idle state once: the client sees track null and sends
+        // collection.activate for its remembered track.
+        syncFreeplayPlayerUpdate(peer, {
+          playback: player.playback,
+          delivery: player.delivery
+        });
       }
     } else if (changed && !active) {
       peer.freeplayActivation = null;
@@ -619,6 +675,11 @@ export function createMultiplayerHostSide(
       peer.freeplayArtworkResolvedTrackKey = '';
       peer.freeplayArtworkLoadToken += 1;
       peer.sourceTrackKey = '';
+      if (peer.renderState) {
+        multiplayerRenderCoordinator.unpin(peer.renderState.key);
+        peer.renderState = null;
+        resetPeerRenderQueue(peer);
+      }
       core.freeplaySelections.delete(peer.id);
       await syncSharedPeerAudio(peer);
     }
@@ -655,19 +716,170 @@ export function createMultiplayerHostSide(
 
   function syncPeerMediaSource(peer: PeerConnection): void {
     if (peer.freeplay) {
-      const player = peer.freeplayPlayer;
-      syncPeerSourceFile(
-        peer,
-        player?.delivery === 'source-file' ? player.track : null,
-        peer.freeplayDelivery?.generationId ?? null
-      );
+      const track = peer.freeplayPlayer?.track ?? null;
+      const mode = peer.freeplayPlayer?.delivery ?? 'none';
+      const generationId = peer.freeplayDelivery?.generationId ?? null;
+      if (mode === 'render') {
+        syncPeerRenderSource(peer, track, generationId);
+      } else {
+        syncPeerRenderSource(peer, null, null);
+        if (mode === 'source-file' && track && generationId) {
+          syncPeerSourceFile(peer, track, generationId);
+        }
+      }
       return;
     }
-    syncPeerSourceFile(
-      peer,
-      core.latestHostState?.track ?? null,
-      core.latestDelivery.generationId
-    );
+    const track = core.latestHostState?.track ?? null;
+    const mode = core.latestDelivery.mode;
+    const generationId = core.latestDelivery.generationId;
+    if (mode === 'render') {
+      syncPeerRenderSource(peer, track, generationId);
+    } else {
+      syncPeerRenderSource(peer, null, null);
+      if (mode === 'source-file' && track && generationId) {
+        syncPeerSourceFile(peer, track, generationId);
+      }
+    }
+  }
+
+  function syncPeerRenderSource(
+    peer: PeerConnection,
+    track: PlaylistItem | null,
+    generationId: string | null
+  ): void {
+    const previous = peer.renderState;
+    if (!track || !generationId) {
+      if (previous) {
+        multiplayerRenderCoordinator.unpin(previous.key);
+        peer.renderState = null;
+        resetPeerRenderQueue(peer);
+      }
+      return;
+    }
+    if (previous && previous.generationId === generationId) return;
+    if (previous) multiplayerRenderCoordinator.unpin(previous.key);
+    peer.renderState = null;
+    resetPeerRenderQueue(peer);
+
+    const bitrateKbps = core.multiplayerSettings.multiplayerOpusBitrateKbps;
+    const key = buildRenderCacheKey(track, bitrateKbps);
+    void multiplayerRenderCoordinator.getRender(track, bitrateKbps).then((render) => {
+      if (peer.renderState || core.state.mode !== 'hosting' || peer.renderChannel?.readyState !== 'open') return;
+      if (!renderStillCurrent(peer, track, generationId)) return;
+      multiplayerRenderCoordinator.pin(key);
+      const bufferMs = effectiveRenderBufferMs();
+      peer.renderState = {
+        generationId,
+        renderId: render.renderId,
+        key,
+        render,
+        epoch: 0,
+        targetTimeMs: 0,
+        aheadMs: bufferMs,
+        protectionMs: bufferMs,
+        receivedRanges: [],
+        sent: new Set(),
+        initSent: false
+      };
+      sendToPeer(peer, { kind: 'render.manifest', manifest: { ...render.manifest, generationId } });
+      schedulePeerRender(peer, playheadMsForPeer(peer));
+    }).catch((error) => {
+      if (core.state.mode !== 'hosting' || !track) return;
+      if (!renderStillCurrent(peer, track, generationId)) return;
+      logWarning('multiplayer', 'Buffered Opus render failed; sending the source file instead', {
+        peerId: peer.id,
+        trackId: track.id,
+        error: errorMessage(error, 'render failed')
+      });
+      core.renderFallbackTrackIds.add(track.id);
+      if (peer.freeplay) {
+        void peer.freeplayPlayer?.reconfigure().then((shouldResume) => {
+          if (!peer.freeplay || !peer.freeplayPlayer?.track) return;
+          if (shouldResume) beginFreeplayPlaybackPreparation(peer);
+        });
+      } else {
+        syncHostAudio(core.latestHostState?.track ?? null);
+        syncHostSourceFiles(core.latestHostState?.track ?? null);
+      }
+    });
+  }
+
+  function syncPeerSourceFile(
+    peer: PeerConnection,
+    track: PlaylistItem | null,
+    generationId: string | null
+  ): void {
+    const channel = peer.mediaChannel;
+    const key = track && generationId
+      ? `${generationId}:${track.id}:${track.size}:${track.lastModified}`
+      : '';
+    if (!channel || channel.readyState !== 'open' || peer.sourceTrackKey === key) return;
+
+    peer.mediaTransferToken += 1;
+    peer.mediaOutgoing = [];
+    peer.mediaQueuedBytes = 0;
+    peer.sourceTrackKey = key;
+    if (!track?.file || !generationId) return;
+    const token = peer.mediaTransferToken;
+    void transferSourceFile(peer, track, track.file, token, generationId).catch((error) => {
+      logWarning('multiplayer', 'Source-file transfer failed', {
+        peerId: peer.id,
+        generationId,
+        error
+      });
+    });
+  }
+
+  function renderStillCurrent(
+    peer: PeerConnection,
+    track: PlaylistItem,
+    generationId: string
+  ): boolean {
+    if (peer.freeplay) {
+      return peer.freeplayPlayer?.delivery === 'render'
+        && peer.freeplayPlayer.track?.id === track.id
+        && peer.freeplayDelivery?.generationId === generationId;
+    }
+    return core.latestDelivery.mode === 'render'
+      && core.latestHostState?.track?.id === track.id
+      && core.latestDelivery.generationId === generationId;
+  }
+
+  function handlePeerRenderNeed(
+    peer: PeerConnection,
+    need: import('./multiplayer-protocol').MultiplayerRenderNeed
+  ): void {
+    const expectedGeneration = peer.freeplay
+      ? peer.freeplayDelivery?.generationId
+      : core.latestDelivery.generationId;
+    const state = peer.renderState;
+    if (!state || state.generationId !== need.generationId || expectedGeneration !== need.generationId) return;
+    if (state.renderId !== need.renderId) return;
+    if (state.epoch !== need.epoch) {
+      state.sent = new Set();
+      resetPeerRenderQueue(peer);
+    }
+    // The init rides the unordered render channel and can beat the manifest
+    // (ordered control channel); a client that dropped it would otherwise
+    // never see it again. Re-send on every need — the client dedups
+    // post-append init frames.
+    state.initSent = false;
+    state.epoch = need.epoch;
+    state.targetTimeMs = Math.max(0, need.targetTimeMs);
+    state.aheadMs = Math.max(0, need.aheadMs);
+    state.receivedRanges = need.ranges;
+    schedulePeerRender(peer, playheadMsForPeer(peer));
+  }
+
+  function playheadMsForPeer(peer: PeerConnection): number {
+    const seconds = peer.freeplay
+      ? peer.freeplayPlayer?.snapshot.currentTime ?? 0
+      : core.latestHostState?.playback.currentTime ?? 0;
+    return Math.max(0, seconds * 1_000);
+  }
+
+  function effectiveRenderBufferMs(): number {
+    return core.multiplayerSettings.multiplayerAudioBufferMs;
   }
 
   function sendPairingState(peer: PeerConnection): void {
@@ -705,11 +917,7 @@ export function createMultiplayerHostSide(
       track: update.playback.track ? sanitizePlaylistItem(update.playback.track) : null
     };
     sendToPeer(peer, { kind: 'playback', playback });
-    syncPeerSourceFile(
-      peer,
-      update.sourceFile ? peer.freeplayPlayer?.track ?? null : null,
-      delivery.generationId
-    );
+    syncPeerMediaSource(peer);
     syncFreeplayArtwork(peer, peer.freeplayPlayer?.track ?? null);
   }
 
@@ -843,7 +1051,7 @@ export function createMultiplayerHostSide(
     logInfo('freeplay', 'Freeplay track loaded', {
       peerId: peer.id,
       itemId,
-      sourceFile: peer.freeplayPlayer.sourceFile
+      delivery: peer.freeplayPlayer.delivery
     });
 
     const autoPlay = activation.autoPlay;
@@ -1262,6 +1470,7 @@ export function createMultiplayerHostSide(
           preparation: peer.freeplayPendingPreparation
         });
       }
+      syncPeerMediaSource(peer);
       return;
     }
     sendToPeer(peer, { kind: 'catalog', catalog: buildCatalog(core.latestHostState) });
@@ -1280,22 +1489,25 @@ export function createMultiplayerHostSide(
       });
       sendClockPing(peer, core.hostPlaybackPreparation.preparation.generationId);
     }
+    syncPeerMediaSource(peer);
   }
 
-  function syncHostAudio(track: PlaylistItem | null): void {
-    const sourceFile = shouldTransferMultiplayerSourceFile(
-      track,
-      core.multiplayerSettings.multiplayerFileTransferLimitMiB,
-      core.multiplayerSettings.multiplayerStreamAudio
-    );
+  function syncHostAudio(track: PlaylistItem | null, force = false): void {
     const mode: MultiplayerDeliveryMode = !track
       ? 'none'
       : !core.multiplayerSettings.multiplayerStreamAudio
       ? 'none'
-      : sourceFile ? 'source-file' : 'stream';
+      : core.renderFallbackTrackIds.has(track.id)
+      ? 'source-file'
+      : resolveMultiplayerDeliveryMode(
+          track,
+          true,
+          core.multiplayerSettings.multiplayerFileTransferLimitMiB
+        );
     const enabled = mode === 'stream';
     const trackId = track?.id ?? null;
-    const changed = core.latestDelivery.trackId !== trackId
+    const changed = force
+      || core.latestDelivery.trackId !== trackId
       || core.latestDelivery.mode !== mode;
     const nextDelivery: MultiplayerDeliveryState = changed
       ? {
@@ -1334,40 +1546,14 @@ export function createMultiplayerHostSide(
   function syncHostSourceFiles(track: PlaylistItem | null): void {
     for (const peer of core.hostPeers.values()) {
       if (peer.freeplaySettled && !peer.freeplay) {
-        syncPeerSourceFile(peer, track, core.latestDelivery.generationId);
+        const mode = core.latestDelivery.mode;
+        if (mode === 'render') {
+          syncPeerRenderSource(peer, track, core.latestDelivery.generationId);
+        } else if (mode === 'source-file') {
+          syncPeerSourceFile(peer, track, core.latestDelivery.generationId);
+        }
       }
     }
-  }
-
-  function syncPeerSourceFile(
-    peer: PeerConnection,
-    track: PlaylistItem | null,
-    generationId: string | null
-  ): void {
-    const channel = peer.mediaChannel;
-    const shouldTransfer = shouldTransferMultiplayerSourceFile(
-      track,
-      core.multiplayerSettings.multiplayerFileTransferLimitMiB,
-      core.multiplayerSettings.multiplayerStreamAudio
-    );
-    const key = shouldTransfer && track && generationId
-      ? `${generationId}:${track.id}:${track.size}:${track.lastModified}`
-      : '';
-    if (!channel || channel.readyState !== 'open' || peer.sourceTrackKey === key) return;
-
-    peer.mediaTransferToken += 1;
-    peer.mediaOutgoing = [];
-    peer.mediaQueuedBytes = 0;
-    peer.sourceTrackKey = key;
-    if (!shouldTransfer || !track?.file || !generationId) return;
-    const token = peer.mediaTransferToken;
-    void transferSourceFile(peer, track, track.file, token, generationId).catch((error) => {
-      logWarning('multiplayer', 'Source-file transfer failed', {
-        peerId: peer.id,
-        generationId,
-        error
-      });
-    });
   }
 
   function syncHostArtwork(track: PlaylistItem | null): void {

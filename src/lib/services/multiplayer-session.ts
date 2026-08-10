@@ -5,6 +5,8 @@ import { multiplayerLastSession } from '$lib/stores/multiplayer-last-session';
 import { logDebug, logWarning } from '$lib/services/logging';
 import { multiplayerAudioService } from './multiplayer-audio';
 import { multiplayerSourcePlaybackService } from './multiplayer-source-playback';
+import { multiplayerRenderPlaybackService } from './multiplayer-render-playback';
+import { multiplayerRenderCoordinator } from './multiplayer-render-coordinator';
 import { disposePeerConnection, sendToPeer } from './multiplayer-peer';
 import { readReceiveAudioPreference } from './multiplayer-utils';
 import { createMultiplayerHostSide } from './multiplayer-host';
@@ -61,6 +63,7 @@ export function createMultiplayerSession({
     hostArtworkResolvedTrackKey: '',
     hostArtworkLoadToken: 0,
     latestDelivery: { ...EMPTY_DELIVERY },
+    renderFallbackTrackIds: new Set(),
     hostPlaybackPreparation: null,
     bypassHostPlaybackGateTrackId: null,
     rejectedPeerIds: new Set(),
@@ -118,6 +121,7 @@ export function createMultiplayerSession({
     if (previousClientPeer) disposePeerConnection(previousClientPeer);
     multiplayerAudioService.clearRemoteTrack();
     multiplayerSourcePlaybackService.clearLoadedFile();
+    multiplayerRenderPlaybackService.release();
     core.pendingClientSourceFile = null;
     core.hostAudioBufferMs = null;
     if (core.hostPlaybackPreparation?.releaseTimer !== null
@@ -166,6 +170,7 @@ export function createMultiplayerSession({
     core.rejectedPeerIds.clear();
     core.acceptingPeerIds.clear();
     core.answeredTurnCredentialRequestIds.clear();
+    core.renderFallbackTrackIds.clear();
     core.latestDelivery = { ...EMPTY_DELIVERY };
   }
   core.resetSession = resetSession;
@@ -176,9 +181,13 @@ export function createMultiplayerSession({
     const freeplayPreferenceChanged = settings.multiplayerFreeplay
       !== core.multiplayerSettings.multiplayerFreeplay;
     const freeplayAudioChanged = settings.multiplayerStreamAudio
-      !== core.multiplayerSettings.multiplayerStreamAudio
-      || settings.multiplayerFileTransferLimitMiB
-        !== core.multiplayerSettings.multiplayerFileTransferLimitMiB;
+      !== core.multiplayerSettings.multiplayerStreamAudio;
+    const opusBitrateChanged = settings.multiplayerOpusBitrateKbps
+      !== core.multiplayerSettings.multiplayerOpusBitrateKbps;
+    const fileTransferLimitChanged = settings.multiplayerFileTransferLimitMiB
+      !== core.multiplayerSettings.multiplayerFileTransferLimitMiB;
+    const renderCacheLimitChanged = settings.multiplayerRenderCacheLimitMiB
+      !== core.multiplayerSettings.multiplayerRenderCacheLimitMiB;
     const waitForClientsDisabled = core.multiplayerSettings.multiplayerWaitForClients
       && !settings.multiplayerWaitForClients;
     const synchronizedPlaybackDisabled = core.multiplayerSettings.multiplayerSynchronizedPlayback
@@ -186,9 +195,28 @@ export function createMultiplayerSession({
     const synchronizedPlaybackEnabled = !core.multiplayerSettings.multiplayerSynchronizedPlayback
       && settings.multiplayerSynchronizedPlayback;
     core.multiplayerSettings = settings;
+    if (renderCacheLimitChanged) {
+      multiplayerRenderCoordinator.setCacheLimitMiB(settings.multiplayerRenderCacheLimitMiB);
+    }
     if (core.state.mode === 'hosting') {
-      host.syncHostAudio(core.latestHostState?.track ?? null);
-      host.syncHostSourceFiles(core.latestHostState?.track ?? null);
+      if (opusBitrateChanged || fileTransferLimitChanged) {
+        // Bitrate is part of the render cache key and the transfer limit
+        // changes the delivery decision: force a fresh delivery generation so
+        // listeners rebuild their pipeline at the new mode or bitrate.
+        for (const peer of core.hostPeers.values()) {
+          if (peer.freeplay) {
+            peer.freeplayDelivery = null;
+            if (peer.freeplayPlayer) {
+              void peer.freeplayPlayer.reconfigure().then((shouldResume) => {
+                if (!peer.freeplay || !peer.freeplayPlayer?.track) return;
+                if (shouldResume) host.beginFreeplayPlaybackPreparation(peer);
+              });
+            }
+          }
+        }
+        host.syncHostAudio(core.latestHostState?.track ?? null, true);
+        host.syncHostSourceFiles(core.latestHostState?.track ?? null);
+      }
       if (freeplayPreferenceChanged) {
         for (const peer of core.hostPeers.values()) void host.syncPeerFreeplayMode(peer);
       } else if (freeplayAudioChanged) {
@@ -264,6 +292,7 @@ export function createMultiplayerSession({
       window.removeEventListener('online', client.handleClientResume);
       document.removeEventListener('visibilitychange', client.handleClientResume);
       unsubscribeSettings();
+      multiplayerRenderCoordinator.clear();
       void resetSession(true);
     }
   };

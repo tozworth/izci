@@ -3,6 +3,7 @@ import { experimentalSettings } from '$lib/stores/experimental-settings';
 import {
   MULTIPLAYER_PROTOCOL_VERSION,
   MULTIPLAYER_QUEUE_MAX_ITEMS,
+  MULTIPLAYER_RENDER_MAX_RANGES,
   isMultiplayerCommand,
   type ClientMessage,
   type MultiplayerDeliveryMode,
@@ -18,13 +19,25 @@ export function isMultiplayerClientTransportHealthy(
   return connectionState === 'connected' && channelState === 'open';
 }
 
-export function shouldTransferMultiplayerSourceFile(
+/**
+ * Delivery decision between the two streaming pathways: files at or under the
+ * "Send files under" limit transfer whole and play on the listener; larger
+ * files are pre-rendered to buffered Opus. Live RTP remains only for video.
+ * limitMiB: 0 = off (everything renders), < 0 = every file transfers.
+ */
+export function resolveMultiplayerDeliveryMode(
   track: PlaylistItem | null,
-  limitMiB: number,
-  audioEnabled = true
-): boolean {
-  if (!audioEnabled || !track?.file || track.kind === 'video' || limitMiB === 0) return false;
-  return limitMiB < 0 || track.file.size < limitMiB * 1024 * 1024;
+  audioEnabled: boolean,
+  fileTransferLimitMiB = 0
+): MultiplayerDeliveryMode {
+  if (!track || !audioEnabled) return 'none';
+  if (track.kind === 'video') return 'stream';
+  if (fileTransferLimitMiB !== 0
+    && track.size > 0
+    && (fileTransferLimitMiB < 0 || track.size < fileTransferLimitMiB * 1024 * 1024)) {
+    return 'source-file';
+  }
+  return 'render';
 }
 
 export function isMultiplayerFreeplayActive(pairing: {
@@ -123,7 +136,53 @@ export function isClientMessage(value: unknown): value is ClientMessage {
       && message.generationId.length > 0
       && message.generationId.length <= 80;
   }
+  if (message.kind === 'render.need') {
+    return isRenderNeed(message.need);
+  }
+  if (message.kind === 'render.ready') {
+    return typeof message.generationId === 'string'
+      && message.generationId.length > 0
+      && message.generationId.length <= 80
+      && typeof message.renderId === 'string'
+      && message.renderId.length > 0
+      && message.renderId.length <= 80
+      && Number.isInteger(message.epoch)
+      && (message.epoch ?? 0) >= 0
+      && typeof message.positionMs === 'number'
+      && Number.isFinite(message.positionMs)
+      && message.positionMs >= 0;
+  }
   return message.kind === 'command' && isMultiplayerCommand(message.command);
+}
+
+function isRenderNeed(value: unknown): value is import('./multiplayer-protocol').MultiplayerRenderNeed {
+  if (!value || typeof value !== 'object') return false;
+  const need = value as Partial<import('./multiplayer-protocol').MultiplayerRenderNeed>;
+  if (typeof need.generationId !== 'string'
+    || need.generationId.length < 1
+    || need.generationId.length > 80
+    || typeof need.renderId !== 'string'
+    || need.renderId.length < 1
+    || need.renderId.length > 80
+    || !Number.isInteger(need.epoch)
+    || (need.epoch ?? 0) < 0
+    || typeof need.targetTimeMs !== 'number'
+    || !Number.isFinite(need.targetTimeMs)
+    || need.targetTimeMs < 0
+    || typeof need.aheadMs !== 'number'
+    || !Number.isFinite(need.aheadMs)
+    || need.aheadMs < 0
+    || !Array.isArray(need.ranges)
+    || need.ranges.length > MULTIPLAYER_RENDER_MAX_RANGES) return false;
+  for (const range of need.ranges) {
+    if (!Array.isArray(range)
+      || range.length !== 2
+      || !Number.isInteger(range[0])
+      || !Number.isInteger(range[1])
+      || range[0] < 0
+      || range[1] < range[0]) return false;
+  }
+  return true;
 }
 
 export function resolvePlaybackPreparationDelivery(mode: MultiplayerDeliveryMode): MultiplayerDeliveryMode {

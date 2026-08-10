@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest';
 import {
   isMultiplayerClientTransportHealthy,
   isMultiplayerFreeplayActive,
+  resolveMultiplayerDeliveryMode,
   resolveMultiplayerFreeplayAgreement,
-  sanitizeFreeplayQueueIds,
-  shouldTransferMultiplayerSourceFile
+  sanitizeFreeplayQueueIds
 } from './multiplayer-utils';
 import type { PlaylistItem } from '$lib/types';
 
@@ -24,32 +24,41 @@ describe('multiplayer client lifecycle', () => {
   });
 });
 
-describe('multiplayer source-file selection', () => {
-  function trackWithSize(size: number): PlaylistItem {
-    const file = new File([new Uint8Array(size)], 'track.flac');
+describe('multiplayer render delivery selection', () => {
+  function track(kind: PlaylistItem['kind'], size = 1): PlaylistItem {
     return {
       id: 'track',
       name: 'track.flac',
       extension: 'flac',
-      kind: 'stream',
+      kind,
       size,
-      lastModified: 1,
-      file
+      lastModified: 1
     };
   }
 
-  it('uses strict MiB thresholds and the two sentinel values', () => {
-    const track = trackWithSize(2 * 1024 * 1024 - 1);
-    expect(shouldTransferMultiplayerSourceFile(track, 0)).toBe(false);
-    expect(shouldTransferMultiplayerSourceFile(track, 2)).toBe(true);
-    expect(shouldTransferMultiplayerSourceFile(trackWithSize(2 * 1024 * 1024), 2)).toBe(false);
-    expect(shouldTransferMultiplayerSourceFile(track, -1)).toBe(true);
+  it('pre-renders audio and modules over the limit, and keeps live RTP only for video', () => {
+    expect(resolveMultiplayerDeliveryMode(track('stream'), true)).toBe('render');
+    expect(resolveMultiplayerDeliveryMode(track('module'), true)).toBe('render');
+    expect(resolveMultiplayerDeliveryMode(track('video'), true)).toBe('stream');
   });
 
-  it('always streams videos and respects the audio master switch', () => {
-    const track = trackWithSize(1);
-    expect(shouldTransferMultiplayerSourceFile({ ...track, kind: 'video' }, -1)).toBe(false);
-    expect(shouldTransferMultiplayerSourceFile(track, -1, false)).toBe(false);
+  it('transfers files under the "Send files under" limit whole', () => {
+    expect(resolveMultiplayerDeliveryMode(track('stream', 4 * 1024 * 1024), true, 8)).toBe('source-file');
+    expect(resolveMultiplayerDeliveryMode(track('module', 1), true, 8)).toBe('source-file');
+    // The limit is strict: a file exactly at the limit still pre-renders.
+    expect(resolveMultiplayerDeliveryMode(track('stream', 8 * 1024 * 1024), true, 8)).toBe('render');
+    // 0 = off (everything renders), < 0 = every file transfers.
+    expect(resolveMultiplayerDeliveryMode(track('stream', 1), true, 0)).toBe('render');
+    expect(resolveMultiplayerDeliveryMode(track('stream', 1), true, -1)).toBe('source-file');
+    // Video ignores the limit and keeps the live RTP path.
+    expect(resolveMultiplayerDeliveryMode(track('video', 1), true, 8)).toBe('stream');
+    // Unknown size falls back to pre-rendering rather than transferring.
+    expect(resolveMultiplayerDeliveryMode({ ...track('stream'), size: 0 }, true, 8)).toBe('render');
+  });
+
+  it('disables delivery when the audio master switch is off or no track is set', () => {
+    expect(resolveMultiplayerDeliveryMode(track('stream'), false)).toBe('none');
+    expect(resolveMultiplayerDeliveryMode(null, true)).toBe('none');
   });
 });
 

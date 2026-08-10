@@ -30,9 +30,10 @@ describe('experimental settings', () => {
       multiplayerForceTurn: false,
       multiplayerFreeplay: false,
       multiplayerStreamAudio: true,
-      multiplayerFileTransferLimitMiB: 0,
+      multiplayerFileTransferLimitMiB: DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerFileTransferLimitMiB,
       multiplayerOpusBitrateKbps: DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerOpusBitrateKbps,
       multiplayerAudioBufferMs: DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerAudioBufferMs,
+      multiplayerRenderCacheLimitMiB: DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerRenderCacheLimitMiB,
       multiplayerMaxListeners: DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerMaxListeners
     });
   });
@@ -41,6 +42,18 @@ describe('experimental settings', () => {
     expect(normalizeExperimentalSettings({ multiplayerFreeplay: true })).toMatchObject({
       multiplayer: false,
       multiplayerFreeplay: true
+    });
+  });
+
+  it('normalizes the "Send files under" limit to the bounded choices', () => {
+    expect(normalizeExperimentalSettings({ multiplayerFileTransferLimitMiB: 16 })).toMatchObject({
+      multiplayerFileTransferLimitMiB: 16
+    });
+    expect(normalizeExperimentalSettings({ multiplayerFileTransferLimitMiB: -1 })).toMatchObject({
+      multiplayerFileTransferLimitMiB: -1
+    });
+    expect(normalizeExperimentalSettings({ multiplayerFileTransferLimitMiB: 7 })).toMatchObject({
+      multiplayerFileTransferLimitMiB: DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerFileTransferLimitMiB
     });
   });
 
@@ -73,13 +86,11 @@ describe('experimental settings', () => {
       .toBe(MULTIPLAYER_MAX_LISTENERS_MAX);
   });
 
-  it('accepts only the file-transfer slider values', () => {
-    expect(normalizeExperimentalSettings({ multiplayerFileTransferLimitMiB: 16 }).multiplayerFileTransferLimitMiB)
-      .toBe(16);
-    expect(normalizeExperimentalSettings({ multiplayerFileTransferLimitMiB: -1 }).multiplayerFileTransferLimitMiB)
-      .toBe(-1);
-    expect(normalizeExperimentalSettings({ multiplayerFileTransferLimitMiB: 3 }).multiplayerFileTransferLimitMiB)
-      .toBe(0);
+  it('accepts only the render-cache slider values', () => {
+    expect(normalizeExperimentalSettings({ multiplayerRenderCacheLimitMiB: 128 }).multiplayerRenderCacheLimitMiB)
+      .toBe(128);
+    expect(normalizeExperimentalSettings({ multiplayerRenderCacheLimitMiB: 100 }).multiplayerRenderCacheLimitMiB)
+      .toBe(DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerRenderCacheLimitMiB);
   });
 
   it('normalizes synchronized playback and bounds its lead time', () => {
