@@ -58,6 +58,11 @@
     });
   }
 
+  function renderCacheLimitLabel(limit: number): string {
+    if (limit === 0) return $t('options.experimental.multiplayer.renderCache.off', { default: 'Off' });
+    return `${limit} MiB`;
+  }
+
   function handleFileTransferLimitChange(event: Event) {
     const index = (event.currentTarget as HTMLInputElement).valueAsNumber;
     experimentalSettings.update({
@@ -414,7 +419,7 @@
           on:change={handleRenderCacheLimitChange}
         >
           {#each MULTIPLAYER_RENDER_CACHE_LIMITS_MIB as limit}
-            <option value={limit}>{limit} MiB</option>
+            <option value={limit}>{renderCacheLimitLabel(limit)}</option>
           {/each}
         </select>
       </SettingsField>

@@ -850,7 +850,8 @@
         },
         "renderCache": {
           "title": "Pre-render memory limit",
-          "hint": "How much host memory the compressed render cache may use. Active tracks stay pinned; older renders are evicted by least-recent use."
+          "hint": "How much host memory the compressed render cache may use. Active tracks stay pinned; older renders are evicted by least-recent use.",
+          "off": "Off"
         },
         "diagnostics": {
           "heading": "Connection diagnostics",

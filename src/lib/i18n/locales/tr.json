@@ -850,7 +850,8 @@
         },
         "renderCache": {
           "title": "Ön işleme bellek sınırı",
-          "hint": "Sıkıştırılmış işleme önbelleğinin kullanabileceği sunucu belleği miktarı. Etkin parçalar sabitlenir; eski işlemeler en son kullanıma göre çıkarılır."
+          "hint": "Sıkıştırılmış işleme önbelleğinin kullanabileceği sunucu belleği miktarı. Etkin parçalar sabitlenir; eski işlemeler en son kullanıma göre çıkarılır.",
+          "off": "Kapalı"
         },
         "diagnostics": {
           "heading": "Bağlantı tanılama",

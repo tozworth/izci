@@ -89,6 +89,8 @@ describe('experimental settings', () => {
   it('accepts only the render-cache slider values', () => {
     expect(normalizeExperimentalSettings({ multiplayerRenderCacheLimitMiB: 128 }).multiplayerRenderCacheLimitMiB)
       .toBe(128);
+    expect(normalizeExperimentalSettings({ multiplayerRenderCacheLimitMiB: 0 }).multiplayerRenderCacheLimitMiB)
+      .toBe(0);
     expect(normalizeExperimentalSettings({ multiplayerRenderCacheLimitMiB: 100 }).multiplayerRenderCacheLimitMiB)
       .toBe(DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerRenderCacheLimitMiB);
   });
