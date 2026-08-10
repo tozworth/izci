@@ -7,6 +7,7 @@
 
 import type { PlaylistItem } from '$lib/types';
 import { logInfo, logWarning } from '$lib/services/logging';
+import { errorMessage } from './multiplayer-utils';
 import {
   MultiplayerRenderCache,
   buildRenderCacheKey,
@@ -135,7 +136,14 @@ class MultiplayerRenderCoordinator {
       kind: job.track.kind,
       bitrateKbps: job.bitrateKbps
     });
-    void this.#run(job).finally(() => {
+    void this.#run(job).catch((error) => {
+      // The worker failed (decode/render/encode error). Settle the job so the
+      // getRender promise rejects and syncPeerRenderSource can fall back to
+      // live audio — without this, the inflight entry (and any peer waiting on
+      // this track) hangs forever and the rejection leaks as an unhandled
+      // promise rejection.
+      job.reject(error instanceof Error ? error : new Error(String(error)));
+    }).finally(() => {
       this.#active = null;
       this.#pump();
     });
@@ -160,22 +168,32 @@ class MultiplayerRenderCoordinator {
       ).href
     };
 
-    const result = await new Promise<MultiplayerRenderResult>((resolve, reject) => {
-      const onMessage = (event: MessageEvent<WorkerResponse>): void => {
-        const response = event.data;
-        if (response.type === 'progress') return;
-        if (response.type === 'error') {
-          reject(new Error(response.message));
-          return;
-        }
-        resolve(response);
-      };
-      worker.onmessage = onMessage;
-      worker.onerror = () => reject(new Error('The render worker failed to start.'));
-      const transfer: Transferable[] = [];
-      if (request.moduleBytes) transfer.push(request.moduleBytes);
-      worker.postMessage(request, transfer);
-    });
+    let result: MultiplayerRenderResult;
+    try {
+      result = await new Promise<MultiplayerRenderResult>((resolve, reject) => {
+        const onMessage = (event: MessageEvent<WorkerResponse>): void => {
+          const response = event.data;
+          if (response.type === 'progress') return;
+          if (response.type === 'error') {
+            reject(new Error(response.message));
+            return;
+          }
+          resolve(response);
+        };
+        worker.onmessage = onMessage;
+        worker.onerror = () => reject(new Error('The render worker failed to start.'));
+        const transfer: Transferable[] = [];
+        if (request.moduleBytes) transfer.push(request.moduleBytes);
+        worker.postMessage(request, transfer);
+      });
+    } catch (error) {
+      logWarning('multiplayer', 'Render failed', {
+        trackId: job.track.id,
+        name: job.track.name,
+        error: errorMessage(error, 'render failed')
+      });
+      throw error;
+    }
 
     const durationMs = Math.max(1, Math.round(result.durationMs));
     const clusters = result.clusters.map((bytes, index) => ({

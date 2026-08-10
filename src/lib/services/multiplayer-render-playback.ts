@@ -10,6 +10,11 @@
 
 import { audioBusService } from '$lib/services/audio-bus';
 import { logDebug, logInfo } from '$lib/services/logging';
+import {
+  buildClientRenderCacheKey,
+  clientRenderCache,
+  renderMatchesManifest
+} from './multiplayer-render-client-cache';
 import { compactClusterRanges } from './multiplayer-render-scheduler';
 import { RENDER_INIT_CLUSTER_INDEX } from './multiplayer-render-transfer';
 import type {
@@ -110,6 +115,11 @@ export class MultiplayerRenderPlaybackService {
   /** New delivery generation: tear down anything from the previous one. */
   start(generationId: string, trackId: string): void {
     const changed = this.#generationId !== generationId;
+    if (changed) {
+      // Retain the outgoing render's compressed bytes before the teardown:
+      // loop playback reuses them instead of re-downloading the same render.
+      this.#cacheCurrentRender();
+    }
     this.#generationId = generationId;
     this.#trackId = trackId;
     this.#epoch = 0;
@@ -134,10 +144,28 @@ export class MultiplayerRenderPlaybackService {
     if (manifest.generationId !== this.#generationId) return false;
     this.#manifest = manifest;
     this.#releaseMedia();
+    // Client-side cache: a structurally identical render for this
+    // (track, bitrate) skips the re-download entirely (loop playback).
+    const cached = this.#cachedRenderFor(manifest);
+    if (cached) {
+      this.#initBytes = cached.init;
+      this.#received = cached.clusters;
+      this.#receivedBytes = cached.bytes;
+      this.#nextAppendIndex = 0;
+      this.#pendingInitRenderId = null;
+      this.#pendingInitFragments.clear();
+      logInfo('multiplayer', 'Buffered Opus client cache hit', {
+        trackId: manifest.trackId,
+        renderId: manifest.renderId,
+        cachedRenderId: cached.renderId,
+        clusters: cached.clusters.size,
+        bytes: cached.bytes
+      });
+    }
     this.#createMediaSource();
     // An init that raced ahead of the manifest can be appended as soon as
     // sourceopen fires.
-    if (this.#pendingInitRenderId === manifest.renderId && this.#pendingInitFragments.size > 0) {
+    if (!cached && this.#pendingInitRenderId === manifest.renderId && this.#pendingInitFragments.size > 0) {
       const bytes = this.#assemblePendingInit();
       if (bytes) {
         this.#initBytes = bytes;
@@ -222,6 +250,9 @@ export class MultiplayerRenderPlaybackService {
   }
 
   release(): void {
+    // Session teardown still leaves the current render cacheable; a
+    // reconnect to the same host reuses it.
+    this.#cacheCurrentRender();
     this.#chainToken += 1;
     this.#chain = Promise.resolve();
     this.#stopMonitor();
@@ -241,6 +272,33 @@ export class MultiplayerRenderPlaybackService {
     this.#receivedBytes = 0;
     this.#audible = false;
     this.#releaseMedia();
+  }
+
+  /** Stores the current render's compressed bytes under its (track, bitrate) key. */
+  #cacheCurrentRender(): void {
+    const manifest = this.#manifest;
+    if (!manifest || !this.#initBytes || this.#received.size === 0) return;
+    clientRenderCache.put(buildClientRenderCacheKey(manifest.trackId, manifest.bitrateKbps), {
+      manifest,
+      init: this.#initBytes,
+      clusters: new Map(this.#received)
+    });
+  }
+
+  /** Returns a structurally matching cached render, or null to re-download. */
+  #cachedRenderFor(
+    manifest: MultiplayerRenderManifest
+  ): { renderId: string; init: Uint8Array; clusters: Map<number, Uint8Array>; bytes: number } | null {
+    const cached = clientRenderCache.get(buildClientRenderCacheKey(manifest.trackId, manifest.bitrateKbps));
+    if (!cached || !renderMatchesManifest(cached, manifest)) return null;
+    let bytes = cached.init.byteLength;
+    for (const cluster of cached.clusters.values()) bytes += cluster.byteLength;
+    return {
+      renderId: cached.manifest.renderId,
+      init: cached.init,
+      clusters: new Map(cached.clusters),
+      bytes
+    };
   }
 
   #assemble(
