@@ -85,7 +85,7 @@ export class MultiplayerRenderPlaybackService {
   #playback: MultiplayerPlayback | null = null;
   #monitorTimer: number | null = null;
   #stallTimer: number | null = null;
-  #lastAppendAt = 0;
+  #lastProgressAt = 0;
   #receivedBytes = 0;
 
   setCallbacks(callbacks: RenderPlaybackCallbacks): void {
@@ -412,7 +412,7 @@ export class MultiplayerRenderPlaybackService {
   }
 
   #afterAppend(): void {
-    this.#lastAppendAt = Date.now();
+    this.#lastProgressAt = Date.now();
     this.#checkReadiness();
     this.#applyHostState();
     // Self-propagating drain: an init append (or any cluster append) makes the
@@ -495,6 +495,9 @@ export class MultiplayerRenderPlaybackService {
   #requestWindow(targetMs: number): void {
     const manifest = this.#manifest;
     if (!manifest) return;
+    // Give every initial, seek, rebuffer, and recovery request a full grace
+    // window before the stall detector can supersede its epoch.
+    this.#lastProgressAt = Date.now();
     const ranges = compactClusterRanges(this.#received.keys());
     this.#callbacks?.onNeed({
       epoch: this.#epoch,
@@ -700,7 +703,7 @@ export class MultiplayerRenderPlaybackService {
       received: this.#received,
       nextAppendIndex: this.#nextAppendIndex,
       clusterCount: manifest?.clusters.length ?? 0,
-      lastAppendAgeMs: Date.now() - this.#lastAppendAt,
+      lastProgressAgeMs: Date.now() - this.#lastProgressAt,
       graceMs: STALL_CHECK_INTERVAL_MS
     })) return;
     if (!manifest) return;
@@ -805,8 +808,8 @@ export function hasRequiredRenderWindow(
  * permanent throbber). A re-request is warranted only when appends have made
  * NO progress for the grace window AND the drain cannot advance (the missing
  * next cluster, or the init itself never arrived). A healthy transfer keeps
- * appending every few hundred ms, so the progress-age gate prevents firing
- * during ordinary progressive downloads and frontier waits.
+ * appending every few hundred ms, while each request resets the grace window
+ * so a slow response is not repeatedly invalidated by newer epochs.
  */
 export function renderStallRecoveryNeeded(input: {
   ready: boolean;
@@ -816,14 +819,15 @@ export function renderStallRecoveryNeeded(input: {
   received: ReadonlyMap<number, unknown>;
   nextAppendIndex: number;
   clusterCount: number;
-  lastAppendAgeMs: number;
+  lastProgressAgeMs: number;
   graceMs: number;
 }): boolean {
   if (input.ready || !input.hasManifest) return false;
+  // Appends progressed or a window was requested recently: let that work
+  // finish before replacing its epoch and discarding partial fragments.
+  if (input.lastProgressAgeMs < input.graceMs) return false;
   // The init itself never arrived: nothing can append.
   if (!input.initAppended && !input.hasInitBytes) return true;
-  // Appends progressed recently: the transfer is alive, just catching up.
-  if (input.lastAppendAgeMs < input.graceMs) return false;
   // Nothing left to drain.
   if (input.nextAppendIndex >= input.clusterCount) return false;
   return !input.received.has(input.nextAppendIndex);

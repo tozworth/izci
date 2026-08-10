@@ -108,7 +108,7 @@ describe('renderStallRecoveryNeeded', () => {
     hasInitBytes: true,
     nextAppendIndex: 0,
     clusterCount: 233,
-    lastAppendAgeMs: 60_000,
+    lastProgressAgeMs: 60_000,
     graceMs: 2_500
   };
 
@@ -132,6 +132,16 @@ describe('renderStallRecoveryNeeded', () => {
       hasInitBytes: false,
       received: new Map()
     })).toBe(true);
+  });
+
+  it('gives a requested init a full grace window', () => {
+    expect(renderStallRecoveryNeeded({
+      ...base,
+      initAppended: false,
+      hasInitBytes: false,
+      received: new Map(),
+      lastProgressAgeMs: 200
+    })).toBe(false);
   });
 
   it('recovers when early clusters are missing (the drained gap)', () => {
@@ -161,7 +171,7 @@ describe('renderStallRecoveryNeeded', () => {
       ...base,
       nextAppendIndex: 26,
       received,
-      lastAppendAgeMs: 200
+      lastProgressAgeMs: 200
     })).toBe(false);
   });
 
@@ -172,7 +182,7 @@ describe('renderStallRecoveryNeeded', () => {
       ...base,
       nextAppendIndex: 233,
       received,
-      lastAppendAgeMs: 10_000
+      lastProgressAgeMs: 10_000
     })).toBe(false);
   });
 });
