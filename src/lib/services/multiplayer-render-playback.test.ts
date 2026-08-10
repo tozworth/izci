@@ -4,6 +4,7 @@ import type { PlaybackSnapshot } from '$lib/types';
 import {
   contiguousMsAtPosition,
   expectedPositionMs,
+  hasRequiredRenderWindow,
   hasTimelineDiscontinuity
 } from './multiplayer-render-playback';
 
@@ -77,5 +78,22 @@ describe('contiguousMsAtPosition', () => {
     expect(contiguousMsAtPosition([{ start: 1_000, end: 5_000 }], 2_000)).toBe(3_000);
     expect(contiguousMsAtPosition([{ start: 0, end: 0 }], 0)).toBe(0);
     expect(contiguousMsAtPosition([], 0)).toBe(0);
+  });
+});
+
+describe('hasRequiredRenderWindow', () => {
+  it('waits for the configured startup window when enough track remains', () => {
+    expect(hasRequiredRenderWindow(2_999, 3_000, 30_000)).toBe(false);
+    expect(hasRequiredRenderWindow(3_000, 3_000, 30_000)).toBe(true);
+  });
+
+  it('waits for the entire remainder near the end of a track', () => {
+    expect(hasRequiredRenderWindow(0, 3_000, 1_000)).toBe(false);
+    expect(hasRequiredRenderWindow(999, 3_000, 1_000)).toBe(false);
+    expect(hasRequiredRenderWindow(1_000, 3_000, 1_000)).toBe(true);
+  });
+
+  it('treats the exact end of the track as ready', () => {
+    expect(hasRequiredRenderWindow(0, 3_000, 0)).toBe(true);
   });
 });

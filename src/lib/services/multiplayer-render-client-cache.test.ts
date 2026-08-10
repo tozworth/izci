@@ -12,6 +12,7 @@ function manifest(partial: Partial<MultiplayerRenderManifest> = {}): Multiplayer
     generationId: 'gen-1',
     renderId: 'render-1',
     trackId: 'track-1',
+    sourceRevision: '2:100:200:0',
     codec: 'opus',
     container: 'webm',
     durationMs: 120_000,
@@ -38,9 +39,16 @@ function render(partial: Partial<MultiplayerRenderManifest> = {}): ClientCachedR
 }
 
 describe('buildClientRenderCacheKey', () => {
-  it('keys on track id and bitrate', () => {
-    expect(buildClientRenderCacheKey('track-1', 192)).toBe('track-1:192');
-    expect(buildClientRenderCacheKey('track-1', 256)).not.toBe('track-1:192');
+  it('keys on track id, source revision, and bitrate', () => {
+    expect(buildClientRenderCacheKey('track-1', '2:100:200:0', 192)).toBe(
+      'track-1:2:100:200:0:192'
+    );
+    expect(buildClientRenderCacheKey('track-1', '2:100:201:0', 192)).not.toBe(
+      buildClientRenderCacheKey('track-1', '2:100:200:0', 192)
+    );
+    expect(buildClientRenderCacheKey('track-1', '2:100:200:0', 256)).not.toBe(
+      buildClientRenderCacheKey('track-1', '2:100:200:0', 192)
+    );
   });
 });
 
@@ -51,6 +59,7 @@ describe('renderMatchesManifest', () => {
 
   it('mismatches when the track or render changed', () => {
     expect(renderMatchesManifest(render(), manifest({ durationMs: 121_000 }))).toBe(false);
+    expect(renderMatchesManifest(render(), manifest({ sourceRevision: '2:100:201:0' }))).toBe(false);
     expect(renderMatchesManifest(render(), manifest({ bitrateKbps: 256 }))).toBe(false);
     expect(renderMatchesManifest(render(), manifest({ clusterDurationMs: 500 }))).toBe(false);
     expect(renderMatchesManifest(render(), manifest({ initSizeBytes: 250 }))).toBe(false);

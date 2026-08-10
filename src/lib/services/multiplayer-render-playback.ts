@@ -83,7 +83,6 @@ export class MultiplayerRenderPlaybackService {
   #playback: MultiplayerPlayback | null = null;
   #monitorTimer: number | null = null;
   #receivedBytes = 0;
-  #transferStartedAt = 0;
 
   setCallbacks(callbacks: RenderPlaybackCallbacks): void {
     this.#callbacks = callbacks;
@@ -144,8 +143,7 @@ export class MultiplayerRenderPlaybackService {
     if (manifest.generationId !== this.#generationId) return false;
     this.#manifest = manifest;
     this.#releaseMedia();
-    // Client-side cache: a structurally identical render for this
-    // (track, bitrate) skips the re-download entirely (loop playback).
+    // A matching track/source revision/bitrate can skip the re-download.
     const cached = this.#cachedRenderFor(manifest);
     if (cached) {
       this.#initBytes = cached.init;
@@ -193,8 +191,6 @@ export class MultiplayerRenderPlaybackService {
       }
       return;
     }
-    if (this.#transferStartedAt === 0) this.#transferStartedAt = Date.now();
-
     if (clusterIndex === RENDER_INIT_CLUSTER_INDEX) {
       if (this.#initAppended) return;
       const bytes = this.#assemble(this.#initBytes ?? undefined, clusterIndex, offset, payload);
@@ -274,22 +270,30 @@ export class MultiplayerRenderPlaybackService {
     this.#releaseMedia();
   }
 
-  /** Stores the current render's compressed bytes under its (track, bitrate) key. */
+  /** Stores compressed bytes under their track/source revision/bitrate key. */
   #cacheCurrentRender(): void {
     const manifest = this.#manifest;
     if (!manifest || !this.#initBytes || this.#received.size === 0) return;
-    clientRenderCache.put(buildClientRenderCacheKey(manifest.trackId, manifest.bitrateKbps), {
+    clientRenderCache.put(buildClientRenderCacheKey(
+      manifest.trackId,
+      manifest.sourceRevision,
+      manifest.bitrateKbps
+    ), {
       manifest,
       init: this.#initBytes,
       clusters: new Map(this.#received)
     });
   }
 
-  /** Returns a structurally matching cached render, or null to re-download. */
+  /** Returns an identity and structure matching render, or null to re-download. */
   #cachedRenderFor(
     manifest: MultiplayerRenderManifest
   ): { renderId: string; init: Uint8Array; clusters: Map<number, Uint8Array>; bytes: number } | null {
-    const cached = clientRenderCache.get(buildClientRenderCacheKey(manifest.trackId, manifest.bitrateKbps));
+    const cached = clientRenderCache.get(buildClientRenderCacheKey(
+      manifest.trackId,
+      manifest.sourceRevision,
+      manifest.bitrateKbps
+    ));
     if (!cached || !renderMatchesManifest(cached, manifest)) return null;
     let bytes = cached.init.byteLength;
     for (const cluster of cached.clusters.values()) bytes += cluster.byteLength;
@@ -361,10 +365,7 @@ export class MultiplayerRenderPlaybackService {
 
   #scheduleAppends(): void {
     if (!this.#manifest) return;
-    // The init fragment commonly arrives BEFORE MediaSource 'sourceopen'
-    // (manifest and init frames are sent back-to-back). Enqueueing the init
-    // append here — re-checked on every schedule, including the sourceopen
-    // handler — makes the append retry-safe instead of silently dropping it.
+    // Retry the init from sourceopen as it can arrive before the SourceBuffer.
     if (!this.#initAppended) {
       if (this.#initBytes && this.#sourceBuffer) {
         this.#enqueue(() => {
@@ -421,7 +422,7 @@ export class MultiplayerRenderPlaybackService {
     const localMs = this.#element ? this.#element.currentTime * 1_000 : targetMs;
     const windowMs = Math.max(0, bufferedMs - Math.max(0, targetMs - localMs));
     const desiredMs = this.#desiredWindowMs();
-    if (windowMs >= desiredMs || remainingMs <= desiredMs || windowMs >= remainingMs) {
+    if (hasRequiredRenderWindow(windowMs, desiredMs, remainingMs)) {
       this.#ready = true;
       this.#rebuffering = false;
       logInfo('multiplayer', 'Buffered Opus ready', {
@@ -617,11 +618,8 @@ export class MultiplayerRenderPlaybackService {
     }
     const element = document.createElement('audio');
     element.autoplay = true;
-    // NOT muted: in Chromium the `muted` attribute silences the
-    // MediaElementAudioSourceNode tap too, so a muted element plays into a
-    // dead graph (verified live on the phone: meter -60 dB with the element
-    // advancing at realtime). The tap reroutes the element's audio into the
-    // graph exclusively; silence is owned by setSourceGain via setAudible.
+    // Chromium applies element mute to its MediaElementAudioSourceNode tap;
+    // the shared graph therefore owns audibility through the source gain.
     element.preload = 'auto';
     element.setAttribute('playsinline', '');
     element.setAttribute('aria-hidden', 'true');
@@ -727,6 +725,17 @@ export function contiguousMsAtPosition(
     }
   }
   return 0;
+}
+
+export function hasRequiredRenderWindow(
+  windowMs: number,
+  desiredMs: number,
+  remainingMs: number
+): boolean {
+  return Math.max(0, windowMs) >= Math.min(
+    Math.max(0, desiredMs),
+    Math.max(0, remainingMs)
+  );
 }
 
 function documentHidden(): boolean {

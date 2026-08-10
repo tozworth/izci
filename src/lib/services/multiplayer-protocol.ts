@@ -8,11 +8,10 @@ import type {
 
 export type MultiplayerCollection = 'playlist' | 'library' | 'favorites';
 
-// Version 17 replaces streamed/source-file audio and module delivery with
-// buffered Opus: the host pre-renders tracks to time-indexed WebM/Opus clusters
-// and ships them over a reliable unordered data channel. Compatibility is
+// Version 18 adds explicit source revisions to buffered-Opus manifests so a
+// listener never reuses cached bytes from a replaced track. Compatibility is
 // intentionally scorched-earth while Multiplayer remains experimental.
-export const MULTIPLAYER_PROTOCOL_VERSION = 17;
+export const MULTIPLAYER_PROTOCOL_VERSION = 18;
 export const MULTIPLAYER_FRAME_CHUNK_SIZE = 12_000;
 export const MULTIPLAYER_QUEUE_MAX_ITEMS = 50_000;
 export const MULTIPLAYER_RENDER_MAX_CLUSTERS = 200_000;
@@ -88,6 +87,8 @@ export interface MultiplayerRenderManifest {
   generationId: string;
   renderId: string;
   trackId: string;
+  /** Stable for one source revision without exposing its local path. */
+  sourceRevision: string;
   codec: 'opus';
   container: 'webm';
   durationMs: number;
@@ -142,7 +143,6 @@ export type HostMessage =
   | { kind: 'delivery'; delivery: MultiplayerDeliveryState }
   | { kind: 'buffer'; bufferMs: number }
   | { kind: 'render.manifest'; manifest: MultiplayerRenderManifest }
-  | { kind: 'render.error'; generationId: string; renderId: string; code: 'encode' | 'unsupported' }
   | { kind: 'artwork'; artwork: MultiplayerArtwork | null }
   | { kind: 'ack'; commandId: string; accepted: boolean; message?: string }
   | { kind: 'kicked' };
@@ -362,15 +362,6 @@ export function isHostMessage(value: unknown): value is HostMessage {
   if (message.kind === 'render.manifest') {
     return isRenderManifest(message.manifest);
   }
-  if (message.kind === 'render.error') {
-    return typeof message.generationId === 'string'
-      && message.generationId.length > 0
-      && message.generationId.length <= 80
-      && typeof message.renderId === 'string'
-      && message.renderId.length > 0
-      && message.renderId.length <= 80
-      && (message.code === 'encode' || message.code === 'unsupported');
-  }
   if (message.kind === 'artwork') {
     return message.artwork === null || isMultiplayerArtwork(message.artwork);
   }
@@ -389,6 +380,9 @@ export function isRenderManifest(value: unknown): value is MultiplayerRenderMani
     || typeof manifest.trackId !== 'string'
     || manifest.trackId.length < 1
     || manifest.trackId.length > 200
+    || typeof manifest.sourceRevision !== 'string'
+    || manifest.sourceRevision.length < 1
+    || manifest.sourceRevision.length > 120
     || manifest.codec !== 'opus'
     || manifest.container !== 'webm'
     || typeof manifest.durationMs !== 'number'
@@ -411,19 +405,24 @@ export function isRenderManifest(value: unknown): value is MultiplayerRenderMani
     || manifest.totalBytes > MULTIPLAYER_RENDER_MAX_TOTAL_BYTES) return false;
 
   let previousTimeMs = -1;
-  for (const cluster of manifest.clusters) {
+  let expectedTotalBytes = manifest.initSizeBytes;
+  for (let index = 0; index < manifest.clusters.length; index += 1) {
+    const cluster = manifest.clusters[index];
     if (!cluster || typeof cluster !== 'object') return false;
-    if (!Number.isInteger(cluster.index) || cluster.index < 0) return false;
+    if (cluster.index !== index) return false;
     if (typeof cluster.timeMs !== 'number'
       || !Number.isFinite(cluster.timeMs)
       || cluster.timeMs < previousTimeMs) return false;
     if (typeof cluster.sizeBytes !== 'number'
       || !Number.isSafeInteger(cluster.sizeBytes)
-      || cluster.sizeBytes < 0
+      || cluster.sizeBytes <= 0
       || cluster.sizeBytes > 16 * 1024 * 1024) return false;
+    expectedTotalBytes += cluster.sizeBytes;
+    if (!Number.isSafeInteger(expectedTotalBytes)
+      || expectedTotalBytes > MULTIPLAYER_RENDER_MAX_TOTAL_BYTES) return false;
     previousTimeMs = cluster.timeMs;
   }
-  return true;
+  return manifest.initSizeBytes > 0 && manifest.totalBytes === expectedTotalBytes;
 }
 
 function isMultiplayerArtwork(value: unknown): value is MultiplayerArtwork {

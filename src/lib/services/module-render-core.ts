@@ -1,6 +1,7 @@
 /**
  * Offline tracker-module rendering shared by the Editor and Multiplayer render
- * workers. Renders a module to stereo Float32 PCM via libopenmpt or Hively.
+ * workers. The streaming API keeps Multiplayer's peak PCM memory bounded; the
+ * Editor adapter collects the same chunks when it needs complete channel data.
  */
 
 interface OpenMptModule {
@@ -46,6 +47,12 @@ export interface ModuleRenderProgress {
   totalFrames: number;
 }
 
+export interface ModulePcmChunk {
+  startFrame: number;
+  left: Float32Array<ArrayBuffer>;
+  right: Float32Array<ArrayBuffer>;
+}
+
 const OPENMPT_STEREO_SEPARATION = 2;
 const OPENMPT_INTERPOLATION_FILTER_LENGTH = 3;
 const MODULE_CHUNK_FRAMES = 16_384;
@@ -57,10 +64,28 @@ function grow(channel: Float32Array<ArrayBuffer>, requiredLength: number): Float
   return next;
 }
 
-async function renderOpenMpt(
-  request: ModuleRenderRequest,
+function createProgressReporter(
+  sampleRate: number,
+  totalFrames: number,
   onProgress: (progress: ModuleRenderProgress) => void
-): Promise<[Float32Array, Float32Array]> {
+): (renderedFrames: number, complete?: boolean) => void {
+  const intervalFrames = Math.max(sampleRate, Math.ceil(totalFrames / 100));
+  let nextProgressFrame = intervalFrames;
+  return (renderedFrames, complete = false) => {
+    if (!complete && renderedFrames < nextProgressFrame) return;
+    onProgress({
+      renderedFrames,
+      totalFrames: complete ? renderedFrames : totalFrames
+    });
+    nextProgressFrame = renderedFrames + intervalFrames;
+  };
+}
+
+async function streamOpenMpt(
+  request: ModuleRenderRequest,
+  onChunk: (chunk: ModulePcmChunk) => void | Promise<void>,
+  onProgress: (progress: ModuleRenderProgress) => void
+): Promise<number> {
   const imported = await import(/* @vite-ignore */ request.libopenmptUrl) as {
     default: () => Promise<OpenMptModule>;
   };
@@ -78,8 +103,7 @@ async function renderOpenMpt(
   const rightPointer = core._malloc(MODULE_CHUNK_FRAMES * 4);
   const duration = Math.max(0, core._openmpt_module_get_duration_seconds(modulePointer));
   const expectedFrames = Math.max(1, Math.ceil(duration * request.sampleRate));
-  let left = new Float32Array(expectedFrames);
-  let right = new Float32Array(expectedFrames);
+  const reportProgress = createProgressReporter(request.sampleRate, expectedFrames, onProgress);
   let renderedFrames = 0;
 
   try {
@@ -96,12 +120,12 @@ async function renderOpenMpt(
         rightPointer
       );
       if (frames <= 0) break;
-      left = grow(left, renderedFrames + frames);
-      right = grow(right, renderedFrames + frames);
-      left.set(core.HEAPF32.subarray(leftPointer / 4, leftPointer / 4 + frames), renderedFrames);
-      right.set(core.HEAPF32.subarray(rightPointer / 4, rightPointer / 4 + frames), renderedFrames);
+      const startFrame = renderedFrames;
+      const left = core.HEAPF32.slice(leftPointer / 4, leftPointer / 4 + frames);
+      const right = core.HEAPF32.slice(rightPointer / 4, rightPointer / 4 + frames);
+      await onChunk({ startFrame, left, right });
       renderedFrames += frames;
-      onProgress({ renderedFrames, totalFrames: expectedFrames });
+      reportProgress(renderedFrames);
     }
   } finally {
     core._openmpt_module_destroy(modulePointer);
@@ -110,14 +134,15 @@ async function renderOpenMpt(
     core._free(inputPointer);
   }
 
-  onProgress({ renderedFrames, totalFrames: renderedFrames });
-  return [left.slice(0, renderedFrames), right.slice(0, renderedFrames)];
+  reportProgress(renderedFrames, true);
+  return renderedFrames;
 }
 
-async function renderHively(
+async function streamHively(
   request: ModuleRenderRequest,
+  onChunk: (chunk: ModulePcmChunk) => void | Promise<void>,
   onProgress: (progress: ModuleRenderProgress) => void
-): Promise<[Float32Array, Float32Array]> {
+): Promise<number> {
   const wasm = await fetch(request.hivelyWasmUrl).then((response) => {
     if (!response.ok) throw new Error(`Unable to load the Hively replay core (${response.status}).`);
     return response.arrayBuffer();
@@ -140,37 +165,71 @@ async function renderHively(
 
   const durationFrames = core.ahx_duration_frames();
   const expectedFrames = Math.max(1, Math.ceil(durationFrames * request.sampleRate / 50));
-  let left = new Float32Array(expectedFrames);
-  let right = new Float32Array(expectedFrames);
+  const reportProgress = createProgressReporter(request.sampleRate, expectedFrames, onProgress);
+  let leftChunk = new Float32Array(MODULE_CHUNK_FRAMES);
+  let rightChunk = new Float32Array(MODULE_CHUNK_FRAMES);
+  let chunkFrames = 0;
   let renderedFrames = 0;
+  let emittedFrames = 0;
+
+  const flushChunk = async (): Promise<void> => {
+    if (chunkFrames === 0) return;
+    const left = chunkFrames === leftChunk.length ? leftChunk : leftChunk.slice(0, chunkFrames);
+    const right = chunkFrames === rightChunk.length ? rightChunk : rightChunk.slice(0, chunkFrames);
+    await onChunk({ startFrame: emittedFrames, left, right });
+    emittedFrames += chunkFrames;
+    leftChunk = new Float32Array(MODULE_CHUNK_FRAMES);
+    rightChunk = new Float32Array(MODULE_CHUNK_FRAMES);
+    chunkFrames = 0;
+  };
 
   try {
     while (core.ahx_decode_frame()) {
       const frameSamples = core.ahx_frame_samples();
       const interleaved = new Int16Array(core.memory.buffer, core.ahx_mix_buffer(), frameSamples * 2);
-      left = grow(left, renderedFrames + frameSamples);
-      right = grow(right, renderedFrames + frameSamples);
       for (let index = 0; index < frameSamples; index += 1) {
-        left[renderedFrames + index] = interleaved[index * 2] / 32_768;
-        right[renderedFrames + index] = interleaved[index * 2 + 1] / 32_768;
+        leftChunk[chunkFrames] = interleaved[index * 2] / 32_768;
+        rightChunk[chunkFrames] = interleaved[index * 2 + 1] / 32_768;
+        chunkFrames += 1;
+        if (chunkFrames === MODULE_CHUNK_FRAMES) await flushChunk();
       }
       renderedFrames += frameSamples;
-      onProgress({ renderedFrames, totalFrames: expectedFrames });
+      reportProgress(renderedFrames);
       if (core.ahx_ended()) break;
     }
+    await flushChunk();
   } finally {
     core.ahx_unload();
   }
 
-  onProgress({ renderedFrames, totalFrames: renderedFrames });
-  return [left.slice(0, renderedFrames), right.slice(0, renderedFrames)];
+  reportProgress(renderedFrames, true);
+  return renderedFrames;
+}
+
+export async function streamModulePcm(
+  request: ModuleRenderRequest,
+  onChunk: (chunk: ModulePcmChunk) => void | Promise<void>,
+  onProgress: (progress: ModuleRenderProgress) => void = () => undefined
+): Promise<number> {
+  return request.extension === 'ahx' || request.extension === 'hvl'
+    ? streamHively(request, onChunk, onProgress)
+    : streamOpenMpt(request, onChunk, onProgress);
 }
 
 export async function renderModulePcm(
   request: ModuleRenderRequest,
   onProgress: (progress: ModuleRenderProgress) => void = () => undefined
-): Promise<[Float32Array, Float32Array]> {
-  return request.extension === 'ahx' || request.extension === 'hvl'
-    ? renderHively(request, onProgress)
-    : renderOpenMpt(request, onProgress);
+): Promise<[Float32Array<ArrayBuffer>, Float32Array<ArrayBuffer>]> {
+  let left = new Float32Array(0);
+  let right = new Float32Array(0);
+  let renderedFrames = 0;
+  await streamModulePcm(request, ({ startFrame, left: leftChunk, right: rightChunk }) => {
+    const requiredLength = startFrame + Math.min(leftChunk.length, rightChunk.length);
+    left = grow(left, requiredLength);
+    right = grow(right, requiredLength);
+    left.set(leftChunk, startFrame);
+    right.set(rightChunk, startFrame);
+    renderedFrames = Math.max(renderedFrames, requiredLength);
+  }, onProgress);
+  return [left.slice(0, renderedFrames), right.slice(0, renderedFrames)];
 }

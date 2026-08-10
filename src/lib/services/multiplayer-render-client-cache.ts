@@ -19,21 +19,24 @@ interface CacheEntry extends ClientCachedRender {
   lastUsedAt: number;
 }
 
-export function buildClientRenderCacheKey(trackId: string, bitrateKbps: number): string {
-  return `${trackId}:${bitrateKbps}`;
+export function buildClientRenderCacheKey(
+  trackId: string,
+  sourceRevision: string,
+  bitrateKbps: number
+): string {
+  return `${trackId}:${sourceRevision}:${bitrateKbps}`;
 }
 
 /**
- * True when a cached render is structurally identical to a fresh manifest.
- * Renders are deterministic for a given source, bitrate, and renderer version,
- * so matching duration, bitrate, cluster count, per-cluster time/size, and
- * init size means the retained bytes are safe to reuse for the new renderId.
+ * True when a cached render has the same explicit source revision and encoded
+ * structure as a fresh manifest.
  */
 export function renderMatchesManifest(
   cached: ClientCachedRender,
   manifest: MultiplayerRenderManifest
 ): boolean {
   const previous = cached.manifest;
+  if (previous.sourceRevision !== manifest.sourceRevision) return false;
   if (previous.durationMs !== manifest.durationMs) return false;
   if (previous.bitrateKbps !== manifest.bitrateKbps) return false;
   if (previous.clusterDurationMs !== manifest.clusterDurationMs) return false;

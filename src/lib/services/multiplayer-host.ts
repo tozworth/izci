@@ -506,7 +506,7 @@ export function createMultiplayerHostSide(
         handlePeerRenderNeed(peer, message.need);
       }
       if (message.kind === 'render.ready') {
-        acceptClientPlaybackReady(peer, message.generationId);
+        acceptClientRenderReady(peer, message);
       }
     };
     channel.onclose = () => {
@@ -763,10 +763,14 @@ export function createMultiplayerHostSide(
 
     const bitrateKbps = core.multiplayerSettings.multiplayerOpusBitrateKbps;
     const key = buildRenderCacheKey(track, bitrateKbps);
-    void multiplayerRenderCoordinator.getRender(track, bitrateKbps).then((render) => {
-      if (peer.renderState || core.state.mode !== 'hosting' || peer.renderChannel?.readyState !== 'open') return;
-      if (!renderStillCurrent(peer, track, generationId)) return;
-      multiplayerRenderCoordinator.pin(key);
+    void multiplayerRenderCoordinator.acquireRender(track, bitrateKbps).then((render) => {
+      if (peer.renderState
+        || core.state.mode !== 'hosting'
+        || peer.renderChannel?.readyState !== 'open'
+        || !renderStillCurrent(peer, track, generationId)) {
+        multiplayerRenderCoordinator.unpin(key);
+        return;
+      }
       const bufferMs = effectiveRenderBufferMs();
       peer.renderState = {
         generationId,
@@ -1310,7 +1314,13 @@ export function createMultiplayerHostSide(
     releasePreparedHostPlayback();
   }
 
-  function acceptClientPlaybackReady(peer: PeerConnection, generationId: string): void {
+  function acceptClientPlaybackReady(
+    peer: PeerConnection,
+    generationId: string,
+    verifiedRender = false
+  ): void {
+    const delivery = peer.freeplay ? peer.freeplayDelivery : core.latestDelivery;
+    if (delivery?.mode === 'render' && !verifiedRender) return;
     const freeplayPreparation = peer.freeplayPendingPreparation;
     if (peer.freeplay
       && freeplayPreparation?.generationId === generationId
@@ -1329,6 +1339,18 @@ export function createMultiplayerHostSide(
     if (!pending || pending.preparation.generationId !== generationId) return;
     pending.pendingPeerIds.delete(peer.id);
     releasePreparedHostPlayback();
+  }
+
+  function acceptClientRenderReady(
+    peer: PeerConnection,
+    message: Extract<import('./multiplayer-protocol').ClientMessage, { kind: 'render.ready' }>
+  ): void {
+    const render = peer.renderState;
+    if (!render
+      || render.generationId !== message.generationId
+      || render.renderId !== message.renderId
+      || render.epoch !== message.epoch) return;
+    acceptClientPlaybackReady(peer, message.generationId, true);
   }
 
   function removePeerFromHostPlaybackPreparation(peerId: string): void {

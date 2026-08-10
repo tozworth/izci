@@ -238,11 +238,12 @@ describe('multiplayer protocol', () => {
     expect(isHostMessage({ kind: 'buffer', bufferMs: 30_001 })).toBe(false);
   });
 
-  it('validates buffered Opus manifests and render errors', () => {
+  it('validates buffered Opus manifests', () => {
     const manifest = {
       generationId: 'generation',
       renderId: 'render-1',
       trackId: 'track',
+      sourceRevision: '2:100:200:0',
       codec: 'opus',
       container: 'webm',
       durationMs: 12_000,
@@ -257,6 +258,12 @@ describe('multiplayer protocol', () => {
     };
     expect(isHostMessage({ kind: 'render.manifest', manifest })).toBe(true);
     expect(isHostMessage({ kind: 'render.manifest', manifest: { ...manifest, codec: 'vorbis' } })).toBe(false);
+    expect(isHostMessage({ kind: 'render.manifest', manifest: { ...manifest, sourceRevision: '' } })).toBe(false);
+    expect(isHostMessage({
+      kind: 'render.manifest',
+      manifest: { ...manifest, clusters: [{ index: 4, timeMs: 0, sizeBytes: 10 }], totalBytes: 15 }
+    })).toBe(false);
+    expect(isHostMessage({ kind: 'render.manifest', manifest: { ...manifest, totalBytes: 24 } })).toBe(false);
     expect(isHostMessage({
       kind: 'render.manifest',
       manifest: {
@@ -267,8 +274,6 @@ describe('multiplayer protocol', () => {
         ]
       }
     })).toBe(false);
-    expect(isHostMessage({ kind: 'render.error', generationId: 'generation', renderId: 'render-1', code: 'encode' })).toBe(true);
-    expect(isHostMessage({ kind: 'render.error', generationId: 'generation', renderId: 'render-1', code: 'boom' })).toBe(false);
   });
 
   it('accepts client render needs and readiness only with valid shapes', () => {

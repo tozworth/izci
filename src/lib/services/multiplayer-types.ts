@@ -334,7 +334,7 @@ export interface MultiplayerSessionCore {
   hostArtworkResolvedTrackKey: string;
   hostArtworkLoadToken: number;
   latestDelivery: MultiplayerDeliveryState;
-  /** Track ids whose buffered Opus render failed; they keep the live RTP path. */
+  /** Track ids whose buffered Opus render failed; they use source-file delivery. */
   renderFallbackTrackIds: Set<string>;
   hostPlaybackPreparation: {
     preparation: MultiplayerPlaybackPreparation;

@@ -13,7 +13,7 @@ import {
   WebMOutputFormat,
   type AudioCodec
 } from 'mediabunny';
-import { renderModulePcm } from './module-render-core';
+import { streamModulePcm } from './module-render-core';
 import { sliceBytes, splitWebm } from './multiplayer-webm';
 
 export interface MultiplayerRenderRequest {
@@ -124,25 +124,6 @@ async function renderMediaFile(request: MultiplayerRenderRequest): Promise<Multi
 
 async function renderModule(request: MultiplayerRenderRequest): Promise<MultiplayerRenderResult> {
   post({ type: 'progress', stage: 'render', progress: 0 });
-  const [left, right] = await renderModulePcm({
-    type: 'render',
-    extension: request.extension,
-    module: request.moduleBytes!,
-    hivelyWasmUrl: request.hivelyWasmUrl,
-    libopenmptUrl: request.libopenmptUrl,
-    sampleRate: RENDER_SAMPLE_RATE
-  }, (progress) => {
-    post({
-      type: 'progress',
-      stage: 'render',
-      progress: progress.totalFrames > 0
-        ? Math.min(progress.renderedFrames / progress.totalFrames, 1)
-        : null
-    });
-  });
-
-  const frameCount = Math.min(left.length, right.length);
-  if (frameCount === 0) throw new Error('The module produced no audio.');
   const target = new BufferTarget();
   const output = new Output({ format: createWebmFormat(), target });
   const source = new AudioSampleSource({
@@ -157,33 +138,44 @@ async function renderModule(request: MultiplayerRenderRequest): Promise<Multipla
   output.addAudioTrack(source);
 
   await output.start();
+  let frameCount = 0;
   try {
-    const chunkFrames = 16_384;
-    for (let offset = 0; offset < frameCount; offset += chunkFrames) {
-      const length = Math.min(chunkFrames, frameCount - offset);
+    frameCount = await streamModulePcm({
+      type: 'render',
+      extension: request.extension,
+      module: request.moduleBytes!,
+      hivelyWasmUrl: request.hivelyWasmUrl,
+      libopenmptUrl: request.libopenmptUrl,
+      sampleRate: RENDER_SAMPLE_RATE
+    }, async ({ startFrame, left, right }) => {
+      const length = Math.min(left.length, right.length);
       const interleaved = new Float32Array(length * 2);
       for (let frame = 0; frame < length; frame += 1) {
-        interleaved[frame * 2] = left[offset + frame] ?? 0;
-        interleaved[frame * 2 + 1] = right[offset + frame] ?? 0;
+        interleaved[frame * 2] = left[frame] ?? 0;
+        interleaved[frame * 2 + 1] = right[frame] ?? 0;
       }
       const sample = new AudioSample({
         data: interleaved,
         format: 'f32',
         numberOfChannels: 2,
         sampleRate: RENDER_SAMPLE_RATE,
-        timestamp: offset / RENDER_SAMPLE_RATE
+        timestamp: startFrame / RENDER_SAMPLE_RATE
       });
       try {
         await source.add(sample);
       } finally {
         sample.close();
       }
+    }, (progress) => {
       post({
         type: 'progress',
-        stage: 'encode',
-        progress: (offset + length) / frameCount
+        stage: 'render',
+        progress: progress.totalFrames > 0
+          ? Math.min(progress.renderedFrames / progress.totalFrames, 1)
+          : null
       });
-    }
+    });
+    if (frameCount === 0) throw new Error('The module produced no audio.');
     source.close();
     await output.finalize();
   } catch (error) {

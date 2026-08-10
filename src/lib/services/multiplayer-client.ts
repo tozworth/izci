@@ -739,14 +739,6 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
           sendClientPlaybackReadyIfPossible(peer);
         }
       }
-      if (message.kind === 'render.error') {
-        // The host falls back to live RTP for the generation; the next
-        // delivery message switches this client's pipeline.
-        logWarning('multiplayer', 'Buffered Opus render failed on host', {
-          generationId: message.generationId,
-          code: message.code
-        });
-      }
       if (message.kind === 'pairing') {
         if (message.paired) {
           rememberMultiplayerPairing(message.hostId, message.name, message.freeplayPaired);
@@ -1141,7 +1133,6 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
       epoch,
       positionMs: Math.round(positionMs)
     });
-    sendToPeer(peer, { kind: 'playback.ready', generationId: state.generationId });
   }
 
   function sendClientPlaybackReadyIfPossible(peer: PeerConnection): void {

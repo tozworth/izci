@@ -21,24 +21,32 @@ interface CacheEntry extends CachedRender {
   bytes: number;
 }
 
-const RENDER_VERSION = 1;
+const RENDER_VERSION = 2;
+
+interface RenderSourceIdentity {
+  path?: string;
+  name: string;
+  size: number;
+  lastModified: number;
+  subsong?: number;
+}
+
+export function buildRenderSourceRevision(track: RenderSourceIdentity): string {
+  return [
+    RENDER_VERSION,
+    track.size,
+    track.lastModified,
+    track.subsong ?? 0
+  ].join(':');
+}
 
 export function buildRenderCacheKey(
-  track: {
-    path?: string;
-    name: string;
-    size: number;
-    lastModified: number;
-    subsong?: number;
-  },
+  track: RenderSourceIdentity,
   bitrateKbps: number
 ): string {
   return [
-    RENDER_VERSION,
     track.path ?? track.name,
-    track.size,
-    track.lastModified,
-    track.subsong ?? 0,
+    buildRenderSourceRevision(track),
     bitrateKbps,
     48_000,
     2
@@ -65,7 +73,7 @@ export class MultiplayerRenderCache {
     return entry;
   }
 
-  put(key: string, render: CachedRender): void {
+  put(key: string, render: CachedRender, initialPins = 0): void {
     const existing = this.#entries.get(key);
     if (existing) {
       existing.lastUsedAt = now();
@@ -73,7 +81,7 @@ export class MultiplayerRenderCache {
     }
     const entry: CacheEntry = {
       ...render,
-      pinned: 0,
+      pinned: Math.max(0, Math.floor(initialPins)),
       lastUsedAt: now(),
       bytes: render.sizeBytes
     };

@@ -11,6 +11,7 @@ import { errorMessage } from './multiplayer-utils';
 import {
   MultiplayerRenderCache,
   buildRenderCacheKey,
+  buildRenderSourceRevision,
   type CachedRender
 } from './multiplayer-render-cache';
 import type { MultiplayerRenderManifest } from './multiplayer-protocol';
@@ -28,6 +29,8 @@ interface PendingJob {
   token: number;
   resolve: (render: CachedRender) => void;
   reject: (error: Error) => void;
+  cancel?: () => void;
+  startedAt?: number;
 }
 
 type WorkerResponse =
@@ -42,7 +45,6 @@ class MultiplayerRenderCoordinator {
   #queue: PendingJob[] = [];
   #active: PendingJob | null = null;
   #renderToken = 0;
-  #lastRenderDiagnostics = new Map<string, { hits: number; startedAt: number }>();
 
   get cacheSizeBytes(): number {
     return this.#cache.sizeBytes;
@@ -58,6 +60,10 @@ class MultiplayerRenderCoordinator {
 
   clear(): void {
     this.#renderToken += 1;
+    const cancellation = new Error('Render coordinator was cleared.');
+    this.#active?.reject(cancellation);
+    this.#active?.cancel?.();
+    for (const job of this.#queue) job.reject(cancellation);
     this.#queue = [];
     this.#active = null;
     if (this.#worker) {
@@ -68,54 +74,42 @@ class MultiplayerRenderCoordinator {
     this.#cache.clear();
   }
 
-  /** Renders a track (or returns the cached render), sharing one result across peers. */
-  getRender(track: PlaylistItem, bitrateKbps: number): Promise<CachedRender> {
+  /** Acquires a pinned render, sharing one encode across concurrent peers. */
+  acquireRender(track: PlaylistItem, bitrateKbps: number): Promise<CachedRender> {
     if (!track.file) return Promise.reject(new Error('No source file available for rendering.'));
     const key = buildRenderCacheKey(track, bitrateKbps);
     const cached = this.#cache.get(key);
     if (cached) {
-      const startedAt = this.#lastRenderDiagnostics.get(key)?.startedAt;
       logInfo('multiplayer', 'Render cache hit', {
         renderId: cached.renderId,
         trackId: track.id,
-        startedAt: startedAt ?? null,
         sizeBytes: cached.sizeBytes
       });
+      this.#cache.pin(key);
       return Promise.resolve(cached);
     }
-    const inflight = this.#inflight.get(key);
-    if (inflight) return inflight;
-
-    const promise = new Promise<CachedRender>((resolve, reject) => {
-      this.#queue.push({ key, track, bitrateKbps, token: this.#renderToken, resolve, reject });
-      this.#pump();
+    let inflight = this.#inflight.get(key);
+    if (!inflight) {
+      const created = new Promise<CachedRender>((resolve, reject) => {
+        this.#queue.push({ key, track, bitrateKbps, token: this.#renderToken, resolve, reject });
+        this.#pump();
+      });
+      inflight = created;
+      this.#inflight.set(key, created);
+      void created.catch(() => {
+        // The cache keeps successful renders; failed keys may be retried.
+      }).finally(() => {
+        if (this.#inflight.get(key) === created) this.#inflight.delete(key);
+      });
+    }
+    return inflight.then((render) => {
+      this.#cache.pin(key);
+      return render;
     });
-    this.#inflight.set(key, promise);
-    void promise.catch(() => {
-      // The cache keeps successful renders; failed keys may be retried.
-    }).finally(() => {
-      this.#inflight.delete(key);
-    });
-    return promise;
-  }
-
-  pin(key: string): void {
-    this.#cache.pin(key);
   }
 
   unpin(key: string): void {
     this.#cache.unpin(key);
-  }
-
-  /** Drops queued/in-flight work that no longer has consumers. */
-  cancelUnused(): void {
-    this.#renderToken += 1;
-    const abandoned = this.#queue;
-    this.#queue = [];
-    for (const job of abandoned) {
-      job.reject(new Error('Render canceled because it no longer has consumers.'));
-    }
-    // In-flight work finishes and lands in the LRU; it is not interrupted.
   }
 
   #pump(): void {
@@ -128,8 +122,7 @@ class MultiplayerRenderCoordinator {
       return;
     }
     this.#active = job;
-    const startedAt = Date.now();
-    this.#lastRenderDiagnostics.set(job.key, { hits: 0, startedAt });
+    job.startedAt = Date.now();
     logInfo('multiplayer', 'Render started', {
       trackId: job.track.id,
       name: job.track.name,
@@ -137,15 +130,13 @@ class MultiplayerRenderCoordinator {
       bitrateKbps: job.bitrateKbps
     });
     void this.#run(job).catch((error) => {
-      // The worker failed (decode/render/encode error). Settle the job so the
-      // getRender promise rejects and syncPeerRenderSource can fall back to
-      // live audio — without this, the inflight entry (and any peer waiting on
-      // this track) hangs forever and the rejection leaks as an unhandled
-      // promise rejection.
       job.reject(error instanceof Error ? error : new Error(String(error)));
     }).finally(() => {
-      this.#active = null;
-      this.#pump();
+      job.cancel = undefined;
+      if (this.#active === job) {
+        this.#active = null;
+        this.#pump();
+      }
     });
   }
 
@@ -171,6 +162,7 @@ class MultiplayerRenderCoordinator {
     let result: MultiplayerRenderResult;
     try {
       result = await new Promise<MultiplayerRenderResult>((resolve, reject) => {
+        job.cancel = () => reject(new Error('Render coordinator was cleared.'));
         const onMessage = (event: MessageEvent<WorkerResponse>): void => {
           const response = event.data;
           if (response.type === 'progress') return;
@@ -181,7 +173,7 @@ class MultiplayerRenderCoordinator {
           resolve(response);
         };
         worker.onmessage = onMessage;
-        worker.onerror = () => reject(new Error('The render worker failed to start.'));
+        worker.onerror = () => reject(new Error('The render worker failed.'));
         const transfer: Transferable[] = [];
         if (request.moduleBytes) transfer.push(request.moduleBytes);
         worker.postMessage(request, transfer);
@@ -208,6 +200,7 @@ class MultiplayerRenderCoordinator {
       generationId: 'unassigned',
       renderId,
       trackId: job.track.id,
+      sourceRevision: buildRenderSourceRevision(job.track),
       codec: 'opus',
       container: 'webm',
       durationMs,
@@ -224,8 +217,11 @@ class MultiplayerRenderCoordinator {
       clusters: result.clusters,
       sizeBytes: totalBytes
     };
-    this.#cache.put(job.key, render);
-    const elapsedMs = Date.now() - (this.#lastRenderDiagnostics.get(job.key)?.startedAt ?? Date.now());
+    // Hold one coordinator pin until promise reactions acquire their peer pins.
+    // This prevents an oversized render from being evicted between put() and
+    // the first caller attaching it to a peer.
+    this.#cache.put(job.key, render, 1);
+    const elapsedMs = Date.now() - (job.startedAt ?? Date.now());
     logInfo('multiplayer', 'Render completed', {
       renderId,
       trackId: job.track.id,
@@ -235,6 +231,7 @@ class MultiplayerRenderCoordinator {
       elapsedMs
     });
     job.resolve(render);
+    queueMicrotask(() => this.#cache.unpin(job.key));
   }
 
   #ensureWorker(): Worker {
@@ -242,9 +239,13 @@ class MultiplayerRenderCoordinator {
     const worker = new Worker(new URL('./multiplayer-render.worker.ts', import.meta.url), {
       type: 'module'
     });
-    worker.onerror = () => {
+    worker.addEventListener('error', () => {
+      if (this.#worker === worker) {
+        this.#worker = null;
+        worker.terminate();
+      }
       logWarning('multiplayer', 'Render worker crashed; future renders will retry');
-    };
+    });
     this.#worker = worker;
     return worker;
   }
