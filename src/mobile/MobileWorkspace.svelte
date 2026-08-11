@@ -24,6 +24,7 @@
   import type {
     MultiplayerClient,
     MultiplayerAudioStatus,
+    MultiplayerConnectionStats,
     MultiplayerConnectionStatus,
     MultiplayerMode
   } from '$lib/services/multiplayer-types';
@@ -32,6 +33,7 @@
   import type { MultiplayerPairing } from '$lib/stores/multiplayer-pairings';
   import type { VideoSeekFeedback, WorkspacePanelHandlers, WorkspaceTabContentProps } from '$lib/components/workspace/types';
   import MobileMenuDrawer from './MobileMenuDrawer.svelte';
+  import MobileMultiplayerStats from './MobileMultiplayerStats.svelte';
   import { resolveHorizontalSwipe, shouldIgnoreSwipeTarget, type SwipePoint } from './tab-swipe';
   import {
     getMobileDestination,
@@ -80,8 +82,11 @@
   export let multiplayerAudioBitrateKbps: number | null = null;
   export let multiplayerInviteCode: string | null = null;
   export let multiplayerHostName: string | null = null;
+  export let multiplayerHostVersion: string | null = null;
   export let multiplayerFreeplayPaired = false;
   export let multiplayerFreeplay = false;
+  export let multiplayerReceiveAudio = true;
+  export let multiplayerConnectionStats: MultiplayerConnectionStats | null = null;
   export let multiplayerClients: MultiplayerClient[] = [];
   export let multiplayerRecents: MultiplayerRecent[] = [];
   export let multiplayerPairings: MultiplayerPairing[] = [];
@@ -123,6 +128,7 @@
   }>();
 
   let menuOpen = false;
+  let multiplayerStatsOpen = false;
   let swipeStart: SwipePoint | null = null;
   let swipeCurrent: SwipePoint | null = null;
   let swipeLocked = false;
@@ -306,7 +312,8 @@
                 on:showTrack={(event) => dispatch('showTrack', event.detail)}
               />
               {#if multiplayerMode !== 'idle' && multiplayerHostName}
-                <div
+                <button
+                  type="button"
                   class="mobile-multiplayer-pill"
                   class:is-disconnected={multiplayerConnectionStatus === 'disconnected' || multiplayerConnectionStatus === 'error'}
                   class:is-reconnecting={multiplayerReconnecting}
@@ -314,10 +321,12 @@
                   title={multiplayerFreeplay
                     ? $t('main.multiplayer.freeplay.label', { default: 'Freeplay' })
                     : $t('main.multiplayer.label', { default: 'Multiplayer' })}
+                  aria-label={$t('main.multiplayer.stats.hostVersion', { default: 'Host izci' })}
+                  on:click={() => (multiplayerStatsOpen = true)}
                 >
                   <span class="material-symbols-outlined" aria-hidden="true">{multiplayerFreeplay ? 'queue_music' : 'cast_connected'}</span>
                   <span>{multiplayerHostName}</span>
-                </div>
+                </button>
               {/if}
             </div>
           </BackdropZone>
@@ -414,3 +423,17 @@
   on:multiplayerKick={(event) => dispatch('multiplayerKick', event.detail)}
   on:multiplayerTogglePair={(event) => dispatch('multiplayerTogglePair', event.detail)}
 />
+
+{#if multiplayerStatsOpen}
+  <MobileMultiplayerStats
+    hostName={multiplayerHostName}
+    hostVersion={multiplayerHostVersion}
+    connectionStatus={multiplayerConnectionStatus}
+    connectionRoute={multiplayerConnectionRoute}
+    audioBitrateKbps={multiplayerAudioBitrateKbps}
+    receiveAudio={multiplayerReceiveAudio}
+    freeplay={multiplayerFreeplay}
+    connectionStats={multiplayerConnectionStats}
+    on:close={() => (multiplayerStatsOpen = false)}
+  />
+{/if}

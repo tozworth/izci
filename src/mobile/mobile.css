@@ -618,6 +618,150 @@ html[data-izci-mobile='true'] select {
   border-color: color-mix(in srgb, var(--mobile-multiplayer-state-color) 32%, transparent);
 }
 
+.mobile-stats-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 79;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  background: rgba(0, 0, 0, 0.52);
+  backdrop-filter: blur(3px);
+  animation: mobile-scrim-in 160ms ease-out;
+}
+
+.mobile-stats-sheet {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 80;
+  max-width: 34rem;
+  margin: 0 auto;
+  padding: 0.6rem 0.85rem calc(1rem + env(safe-area-inset-bottom, 0px));
+  color: var(--text);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-soft);
+  border-bottom: 0;
+  border-radius: 1.1rem 1.1rem 0 0;
+  box-shadow: 0 -1rem 3rem rgba(0, 0, 0, 0.32);
+  animation: mobile-sheet-in 230ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  transition: transform 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.mobile-stats-sheet.is-dragging {
+  transition: none;
+}
+
+.mobile-stats-drag-surface {
+  touch-action: none;
+  cursor: grab;
+}
+
+.mobile-stats-grabber {
+  width: 2.6rem;
+  height: 0.28rem;
+  margin: 0 auto 0.6rem;
+  border-radius: 999px;
+  background: var(--border-strong);
+}
+
+.mobile-stats-header {
+  display: grid;
+  grid-template-columns: 2.4rem minmax(0, 1fr) 2.4rem;
+  align-items: center;
+  gap: 0.6rem;
+  margin-bottom: 0.4rem;
+}
+
+.mobile-stats-header > .material-symbols-outlined {
+  color: var(--accent-strong);
+  font-size: 1.5rem;
+}
+
+.mobile-stats-header strong,
+.mobile-stats-header small {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mobile-stats-header strong {
+  color: var(--text-strong);
+  font-size: 1rem;
+}
+
+.mobile-stats-header small {
+  margin-top: 0.1rem;
+  color: var(--muted);
+  font-size: 0.72rem;
+}
+
+.mobile-stats-header button {
+  display: grid;
+  place-items: center;
+  width: 2.4rem;
+  height: 2.4rem;
+  padding: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text);
+}
+
+.mobile-stats-rows {
+  display: grid;
+  gap: 0.15rem;
+  max-height: min(52vh, 22rem);
+  margin: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.mobile-stats-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.6rem;
+  min-height: 2.9rem;
+  padding: 0.35rem 0.5rem;
+  border-radius: 0.7rem;
+}
+
+.mobile-stats-row dt {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-width: 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.mobile-stats-row dt .material-symbols-outlined {
+  flex: 0 0 auto;
+  font-size: 1.15rem;
+}
+
+.mobile-stats-row dd {
+  margin: 0;
+  color: var(--text-strong);
+  font-size: 0.78rem;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+@keyframes mobile-sheet-in {
+  from {
+    transform: translateY(100%);
+    opacity: 0.6;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
 /* Mobile collection density and targets are intentionally independent from desktop. */
 .app-shell.mobile-mode .playlist-header {
   min-height: 3.35rem;

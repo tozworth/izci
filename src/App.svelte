@@ -2268,8 +2268,11 @@
     multiplayerAudioBitrateKbps={multiplayerState.averageAudioBitrateKbps}
     multiplayerInviteCode={multiplayerState.inviteCode}
     multiplayerHostName={multiplayerState.hostName}
+    multiplayerHostVersion={multiplayerState.hostVersion}
     multiplayerFreeplayPaired={multiplayerState.freeplayPaired}
     multiplayerFreeplay={multiplayerState.freeplay}
+    multiplayerReceiveAudio={multiplayerState.receiveAudio}
+    multiplayerConnectionStats={multiplayerState.connectionStats}
     multiplayerClients={multiplayerState.clients}
     multiplayerRecents={$multiplayerRecents}
     multiplayerPairings={$multiplayerPairings}
