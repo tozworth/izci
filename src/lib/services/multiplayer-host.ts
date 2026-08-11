@@ -782,7 +782,11 @@ export function createMultiplayerHostSide(
         key,
         render,
         epoch: 0,
-        targetTimeMs: 0,
+        // A fresh peer (reconnect / new listener) joins the generation at the
+        // current playhead, not at the beginning of the track. The initial
+        // batch must cover the host position or the client starts from 0 and
+        // gap-crawls toward it.
+        targetTimeMs: playheadMsForPeer(peer),
         aheadMs: bufferMs,
         protectionMs: bufferMs,
         receivedRanges: [],

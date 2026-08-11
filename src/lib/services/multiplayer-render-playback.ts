@@ -179,6 +179,16 @@ export class MultiplayerRenderPlaybackService {
         this.#appendInit();
       }
     }
+    // A fresh pipeline joining a generation already in flight (client
+    // refresh / auto reconnect) must align with the host's current position
+    // instead of starting from 0. The playback snapshot precedes the
+    // manifest on the ordered channel, so the host position is known here.
+    const joinTargetMs = this.#currentTargetMs();
+    if (joinTargetMs > 0) {
+      this.#performSeek(joinTargetMs);
+    } else {
+      this.#requestWindow(0);
+    }
     this.#startStallDetector();
     return true;
   }
@@ -672,7 +682,6 @@ export class MultiplayerRenderPlaybackService {
     mediaSource.addEventListener('sourceended', () => {
       if (this.#mediaSource === mediaSource) this.#mediaSource = null;
     });
-    this.#requestWindow(0);
   }
 
   #startMonitor(): void {
