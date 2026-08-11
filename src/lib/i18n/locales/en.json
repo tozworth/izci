@@ -69,8 +69,8 @@
         "protocol": "Protocol",
         "connection": "Connection",
         "audio": "Audio",
-        "loss30s": "Loss · 30 s",
         "lossTotal": "Loss · total",
+        "data": "Data",
         "timing": "Jitter · RTT"
       },
       "route": {

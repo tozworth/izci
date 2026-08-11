@@ -40,9 +40,8 @@ export interface MultiplayerConnectionStats {
   packetsReceived: number;
   packetsLost: number;
   packetLossPercent: number | null;
-  recentPacketsReceived: number;
-  recentPacketsLost: number;
-  recentPacketLossPercent: number | null;
+  /** Total bytes received over the transport (audio RTP plus data-channel transfers). */
+  bytesReceived: number;
   jitterMs: number | null;
   jitterBufferDelayMs: number | null;
   jitterBufferTargetDelayMs: number | null;

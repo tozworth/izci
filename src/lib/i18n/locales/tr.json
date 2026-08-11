@@ -69,8 +69,8 @@
         "protocol": "Protokol",
         "connection": "Bağlantı",
         "audio": "Ses",
-        "loss30s": "Kayıp · 30 sn",
         "lossTotal": "Kayıp · toplam",
+        "data": "Veri",
         "timing": "Titreşim · RTT"
       },
       "route": {

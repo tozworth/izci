@@ -4,10 +4,7 @@ import {
   updateReceivedBitrateWindow,
   type ReceivedByteSample
 } from './multiplayer-receiver-bitrate';
-import {
-  updateMultiplayerPacketLossStats,
-  type MultiplayerReceiverCounterSample
-} from './multiplayer-receiver-stats';
+import { updateMultiplayerPacketLossStats } from './multiplayer-receiver-stats';
 
 export const RECEIVER_BITRATE_SAMPLE_INTERVAL_MS = 1_000;
 
@@ -28,14 +25,12 @@ export function createReceiverBitrateMonitor({
   let timer: number | null = null;
   let sampling = false;
   let samples: ReceivedByteSample[] = [];
-  let counterSamples: MultiplayerReceiverCounterSample[] = [];
   let lastDebugSampleAt = 0;
 
   function clear(): void {
     if (timer !== null) window.clearInterval(timer);
     timer = null;
     samples = [];
-    counterSamples = [];
   }
 
   function start(peer: PeerConnection): void {
@@ -47,6 +42,7 @@ export function createReceiverBitrateMonitor({
       try {
         const stats = await peer.pc.getStats();
         let bytesReceived = 0;
+        let transportBytesReceived: number | null = null;
         let foundAudio = false;
         let packetsReceived = 0;
         let packetsLost = 0;
@@ -61,6 +57,13 @@ export function createReceiverBitrateMonitor({
         let codecId: string | null = null;
         let roundTripTimeMs: number | null = null;
         stats.forEach((report) => {
+          if (report.type === 'transport') {
+            const transport = report as RTCTransportStats & { bytesReceived?: number };
+            if (typeof transport.bytesReceived === 'number') {
+              transportBytesReceived = transport.bytesReceived;
+            }
+            return;
+          }
           if (report.type === 'inbound-rtp') {
             const inbound = report as RTCInboundRtpStreamStats & { mediaType?: string };
             if ((inbound.kind ?? inbound.mediaType) !== 'audio') return;
@@ -120,20 +123,14 @@ export function createReceiverBitrateMonitor({
           bytesReceived
         });
         samples = next.samples;
-        const loss = updateMultiplayerPacketLossStats(counterSamples, {
-          timestamp: performance.now(),
-          packetsReceived,
-          packetsLost
-        });
-        counterSamples = loss.samples;
+        const loss = updateMultiplayerPacketLossStats(packetsReceived, packetsLost);
+        const totalBytesReceived = transportBytesReceived ?? bytesReceived;
         publish({
           connectionStats: {
             packetsReceived: loss.totalReceived,
             packetsLost: loss.totalLost,
             packetLossPercent: loss.totalPercent,
-            recentPacketsReceived: loss.recentReceived,
-            recentPacketsLost: loss.recentLost,
-            recentPacketLossPercent: loss.recentPercent,
+            bytesReceived: totalBytesReceived,
             jitterMs: jitterMs === null ? null : Math.round(jitterMs * 10) / 10,
             jitterBufferDelayMs: roundedTenth(jitterBufferDelayMs),
             jitterBufferTargetDelayMs: roundedTenth(jitterBufferTargetDelayMs),
@@ -161,7 +158,7 @@ export function createReceiverBitrateMonitor({
             bitrateKbps: next.averageKbps,
             packetsReceived: loss.totalReceived,
             packetsLost: loss.totalLost,
-            recentPacketLossPercent: loss.recentPercent,
+            bytesReceived: totalBytesReceived,
             jitterMs: roundedTenth(jitterMs),
             jitterBufferDelayMs: roundedTenth(jitterBufferDelayMs),
             jitterBufferTargetDelayMs: roundedTenth(jitterBufferTargetDelayMs),

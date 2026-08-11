@@ -254,17 +254,12 @@
     {
       id: 'multiplayerStatHostVersion',
       label: $t('main.multiplayer.stats.hostVersion', { default: 'Host izci' }),
-      shortcut: multiplayerHostVersion ? `v${multiplayerHostVersion}` : '—',
+      shortcut: multiplayerHostVersion
+        ? `v${multiplayerHostVersion} · ${$t('main.multiplayer.stats.protocol', { default: 'Protocol' })} ${MULTIPLAYER_PROTOCOL_VERSION}`
+        : '—',
       icon: 'info',
       disabled: true,
       separatorBefore: true
-    },
-    {
-      id: 'multiplayerStatProtocol',
-      label: $t('main.multiplayer.stats.protocol', { default: 'Protocol' }),
-      shortcut: `v${MULTIPLAYER_PROTOCOL_VERSION}`,
-      icon: 'lan',
-      disabled: true
     },
     {
       id: 'multiplayerStatConnection',
@@ -281,14 +276,10 @@
       disabled: true
     },
     {
-      id: 'multiplayerStatRecentLoss',
-      label: $t('main.multiplayer.stats.loss30s', { default: 'Loss · 30 s' }),
-      shortcut: formatPacketLoss(
-        multiplayerConnectionStats?.recentPacketsLost,
-        multiplayerConnectionStats?.recentPacketsReceived,
-        multiplayerConnectionStats?.recentPacketLossPercent
-      ),
-      icon: 'network_check',
+      id: 'multiplayerStatData',
+      label: $t('main.multiplayer.stats.data', { default: 'Data' }),
+      shortcut: formatBytes(multiplayerConnectionStats?.bytesReceived),
+      icon: 'data_usage',
       disabled: true
     },
     {
@@ -542,6 +533,18 @@
   function formatPacketLoss(lost?: number, received?: number, percent?: number | null): string {
     if (lost === undefined || received === undefined) return '—';
     return `${lost} / ${received + lost}${percent === null || percent === undefined ? '' : ` · ${percent}%`}`;
+  }
+
+  function formatBytes(value: number | null | undefined): string {
+    if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) return '—';
+    const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+    let scaled = value;
+    let unit = 0;
+    while (scaled >= 1000 && unit < units.length - 1) {
+      scaled /= 1000;
+      unit += 1;
+    }
+    return `${scaled >= 100 || unit === 0 ? Math.round(scaled) : Math.round(scaled * 10) / 10} ${units[unit]}`;
   }
 
   function formatTimingStat(): string {

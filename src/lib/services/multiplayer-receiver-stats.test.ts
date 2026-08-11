@@ -2,30 +2,19 @@ import { describe, expect, it } from 'vitest';
 import { updateMultiplayerPacketLossStats } from './multiplayer-receiver-stats';
 
 describe('updateMultiplayerPacketLossStats', () => {
-  it('reports rolling and total packet loss independently', () => {
-    const previous = [
-      { timestamp: 0, packetsReceived: 80, packetsLost: 20 },
-      { timestamp: 20_000, packetsReceived: 170, packetsLost: 30 }
-    ];
-    const result = updateMultiplayerPacketLossStats(
-      previous,
-      { timestamp: 35_000, packetsReceived: 260, packetsLost: 40 }
-    );
+  it('reports total packet loss from cumulative counters', () => {
+    const result = updateMultiplayerPacketLossStats(260, 40);
 
-    expect(result.recentReceived).toBe(90);
-    expect(result.recentLost).toBe(10);
-    expect(result.recentPercent).toBe(10);
+    expect(result.totalReceived).toBe(260);
+    expect(result.totalLost).toBe(40);
     expect(result.totalPercent).toBe(13.33);
   });
 
-  it('starts a fresh window when counters reset', () => {
-    const result = updateMultiplayerPacketLossStats(
-      [{ timestamp: 1_000, packetsReceived: 500, packetsLost: 5 }],
-      { timestamp: 2_000, packetsReceived: 2, packetsLost: 0 }
-    );
+  it('reports null percent before any packet traffic', () => {
+    const result = updateMultiplayerPacketLossStats(0, 0);
 
-    expect(result.samples).toHaveLength(1);
-    expect(result.recentPercent).toBeNull();
-    expect(result.totalReceived).toBe(2);
+    expect(result.totalReceived).toBe(0);
+    expect(result.totalLost).toBe(0);
+    expect(result.totalPercent).toBeNull();
   });
 });
