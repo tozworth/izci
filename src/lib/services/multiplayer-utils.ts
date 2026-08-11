@@ -7,7 +7,6 @@ import {
   isMultiplayerCommand,
   type ClientMessage,
   type MultiplayerDeliveryMode,
-  type MultiplayerPlaybackPreparation,
 } from './multiplayer-protocol';
 
 export const RECEIVE_AUDIO_STORAGE_KEY = 'izci.multiplayer.receive-audio';

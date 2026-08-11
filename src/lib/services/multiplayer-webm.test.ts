@@ -65,10 +65,10 @@ function buildWebm(clusterTimecodes: number[], durationTimecodeUnits: number): U
       ...element(0x9f, uintBytes(2)) // Channels
     ])
   ]);
-  const clusters = clusterTimecodes.map((timeMs, index) => element(0x1f43b675, [
+  const clusters = clusterTimecodes.map((timeMs) => element(0x1f43b675, [
     ...element(0xe7, uintBytes(timeMs)), // Timecode
     ...element(0xa3, [0x81, 0x00, 0x00, 0x00]) // SimpleBlock placeholder
-  ]).map((byte, position, all) => {
+  ]).map((byte) => {
     // Keep track of cluster byte positions in a parallel array via closure below.
     return byte;
   }));

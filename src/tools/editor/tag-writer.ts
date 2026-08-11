@@ -62,15 +62,6 @@ function encodeSynchsafe(value: number): Uint8Array {
   ]);
 }
 
-function encodeUint32(value: number): Uint8Array {
-  return new Uint8Array([
-    (value >>> 24) & 0xff,
-    (value >>> 16) & 0xff,
-    (value >>> 8) & 0xff,
-    value & 0xff
-  ]);
-}
-
 function decodeText(data: Uint8Array): string {
   if (data.byteLength === 0) return '';
   const encoding = data[0];

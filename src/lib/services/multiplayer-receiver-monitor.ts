@@ -1,5 +1,4 @@
 import type { PeerConnection, MultiplayerSessionState } from './multiplayer-types';
-import { logDebug } from './logging';
 import {
   updateReceivedBitrateWindow,
   type ReceivedByteSample
@@ -25,7 +24,6 @@ export function createReceiverBitrateMonitor({
   let timer: number | null = null;
   let sampling = false;
   let samples: ReceivedByteSample[] = [];
-  let lastDebugSampleAt = 0;
 
   function clear(): void {
     if (timer !== null) window.clearInterval(timer);
@@ -142,33 +140,6 @@ export function createReceiverBitrateMonitor({
             codec
           }
         });
-        const now = performance.now();
-        if (now - lastDebugSampleAt >= 5_000) {
-          lastDebugSampleAt = now;
-          const receiver = peer.pc.getReceivers().find(({ track }) => track.kind === 'audio');
-          logDebug('multiplayer', 'Receiver playout sample', {
-            generationId: getState().remoteDelivery.generationId,
-            delivery: getState().remoteDelivery.mode,
-            trackId: receiver?.track.id ?? null,
-            trackMuted: receiver?.track.muted ?? null,
-            trackState: receiver?.track.readyState ?? null,
-            jitterBufferTarget: receiver && 'jitterBufferTarget' in receiver
-              ? receiver.jitterBufferTarget
-              : null,
-            bitrateKbps: next.averageKbps,
-            packetsReceived: loss.totalReceived,
-            packetsLost: loss.totalLost,
-            bytesReceived: totalBytesReceived,
-            jitterMs: roundedTenth(jitterMs),
-            jitterBufferDelayMs: roundedTenth(jitterBufferDelayMs),
-            jitterBufferTargetDelayMs: roundedTenth(jitterBufferTargetDelayMs),
-            concealedSamples,
-            concealmentEvents,
-            insertedSamplesForDeceleration,
-            removedSamplesForAcceleration,
-            roundTripTimeMs
-          });
-        }
         const state = getState();
         if (state.audioStatus === 'playing'
           && next.averageKbps !== state.averageAudioBitrateKbps) {

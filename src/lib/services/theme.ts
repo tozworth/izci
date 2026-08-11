@@ -4,7 +4,7 @@ import {
   SYSTEM_FONT_FAMILY
 } from '$lib/stores/appearance-settings';
 import type { ColorScheme, ColorTheme } from '$lib/types';
-import { COLOR_THEME_DEFINITIONS, findColorThemeDefinition } from '$lib/theme-definitions';
+import { findColorThemeDefinition } from '$lib/theme-definitions';
 import { readable } from 'svelte/store';
 
 export { COLOR_THEME_DEFINITIONS } from '$lib/theme-definitions';

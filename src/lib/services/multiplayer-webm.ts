@@ -25,7 +25,6 @@ export interface WebmSplit {
 const EBML_ID = 0x1a45dfa3;
 const SEGMENT_ID = 0x18538067;
 const INFO_ID = 0x1549a966;
-const TRACKS_ID = 0x1654ae6b;
 const CLUSTER_ID = 0x1f43b675;
 const TIMECODE_ID = 0xe7;
 const DURATION_ID = 0x4489;

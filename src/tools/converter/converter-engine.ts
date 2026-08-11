@@ -134,26 +134,25 @@ export async function convertMediaFile(
   const extension = inferExtension(file.name);
   const isModule = MODULE_EXTENSIONS.includes(extension as (typeof MODULE_EXTENSIONS)[number]);
   logInfo('tools', 'Conversion started', { name: file.name, size: file.size, isModule });
+  let output: Blob;
   if (!isModule) {
-    const output = await runWorker({ type: 'convert-file', file, settings }, [], signal, onProgress);
-    logInfo('tools', 'Conversion completed', { name: file.name, bytes: output.size });
-    return output;
+    output = await runWorker({ type: 'convert-file', file, settings }, [], signal, onProgress);
+  } else {
+    const loaded = await loadAudioFile(file, (progress) => {
+      onProgress({ phase: 'rendering', progress: progress.progress });
+    }, signal);
+    if (signal.aborted) throw abortError();
+    const channels = Array.from({ length: loaded.buffer.numberOfChannels }, (_, channel) =>
+      loaded.buffer.getChannelData(channel).slice().buffer
+    );
+    output = await runWorker({
+      type: 'convert-pcm',
+      channels,
+      sampleRate: loaded.buffer.sampleRate,
+      sourceName: file.name,
+      settings
+    }, channels, signal, onProgress);
   }
-
-  const loaded = await loadAudioFile(file, (progress) => {
-    onProgress({ phase: 'rendering', progress: progress.progress });
-  }, signal);
-  if (signal.aborted) throw abortError();
-  const channels = Array.from({ length: loaded.buffer.numberOfChannels }, (_, channel) =>
-    loaded.buffer.getChannelData(channel).slice().buffer
-  );
-  const output = await runWorker({
-    type: 'convert-pcm',
-    channels,
-    sampleRate: loaded.buffer.sampleRate,
-    sourceName: file.name,
-    settings
-  }, channels, signal, onProgress);
   logInfo('tools', 'Conversion completed', { name: file.name, bytes: output.size });
   return output;
 }

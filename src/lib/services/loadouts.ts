@@ -21,7 +21,6 @@ import {
   type LoadoutTarget,
   type LoadoutTrackContext,
   type LoadoutType,
-  type ModulePlaybackSettings,
   type PlaylistItem,
   type RafRackSettings
 } from '$lib/types';

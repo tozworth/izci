@@ -1,7 +1,7 @@
 import { visualizerService } from '$lib/services/visualizer';
 import { RafEngine } from '$lib/services/raf-engine';
 import { setAudioParam } from '$lib/services/raf-effects/shared';
-import { logDebug, logInfo, logWarning } from '$lib/services/logging';
+import { logInfo, logWarning } from '$lib/services/logging';
 import type { RafEffectType } from '$lib/types';
 
 type AudioBusSource = AudioNode | MediaElementAudioSourceNode;
@@ -208,8 +208,9 @@ export class AudioBusService {
       await waitForAudioContextResume(context);
     }
     const running = this.#context?.state === 'running';
-    if (running) logDebug('playback', 'Audio context running');
-    else if (this.#context) logWarning('playback', 'Audio context did not resume', { state: this.#context.state });
+    if (!running && this.#context) {
+      logWarning('playback', 'Audio context did not resume', { state: this.#context.state });
+    }
     return running;
   }
 
