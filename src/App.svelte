@@ -1185,11 +1185,9 @@
   $: playbackSnapshot = isMultiplayerClient && !isSourceFileFreeplayClient
     ? {
         ...multiplayerState.remotePlayback.snapshot,
-        // The render pipeline's own loading (generation in flight: host
-        // render + transfer, initial download, rebuffers) surfaces as the
-        // loading state so the player bar shows the throbber; the host
-        // snapshot alone reads 'idle'/'playing' through both phases. A
-        // reported error wins over loading so failures are never masked.
+        // The render pipeline's own loading (generation in flight: render +
+        // transfer, initial download, rebuffers) surfaces as the loading state
+        // for the throbber; a reported error wins so failures are never masked.
         state: isRenderDeliveryClient && renderPipelineBuffering
           && multiplayerState.remotePlayback.snapshot.state !== 'error'
           ? 'loading'

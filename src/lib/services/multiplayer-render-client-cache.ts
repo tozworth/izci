@@ -1,8 +1,6 @@
 /**
- * Client-side cache for buffered Opus renders: retains the compressed init
- * and clusters of recently-seen (track, bitrate) renders so loop playback
- * doesn't re-download the same bytes over the render channel. The bound is
- * deliberately smaller than the host's render cache.
+ * Client-side cache for buffered Opus renders, keyed by (track, bitrate), so
+ * loop playback does not re-download. Deliberately smaller than the host cache.
  */
 
 import type { MultiplayerRenderManifest } from './multiplayer-protocol';

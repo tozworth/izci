@@ -1,15 +1,8 @@
 /**
- * Per-peer render scheduling: picks the next cluster indices to send for one
- * listener, in the priority order defined by the buffered Opus MVP doc:
- *
- * 1. The newest seek target and its startup window.
- * 2. The current authoritative playhead and its protection window.
- * 3. Missing clusters from that point toward the end of the track.
- * 4. Any earlier holes, then speculative work.
- *
- * The function is pure: given the manifest's cluster timeline, the client's
- * received ranges, and what this peer already has in flight, it returns the
- * next indices to enqueue.
+ * Picks the next cluster indices to send for one peer: newest seek target
+ * first, then the authoritative playhead window, then missing clusters toward
+ * the end, then earlier holes. Pure: manifest timeline + received ranges +
+ * inflight -> next indices to enqueue.
  */
 
 export interface RenderSchedulerInput {

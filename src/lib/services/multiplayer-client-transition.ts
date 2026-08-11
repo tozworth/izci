@@ -6,8 +6,7 @@ import type {
 
 /**
  * Owns the client-side readiness contract for one stable receiver pipeline.
- * Delivery generations are disposable; the physical WebRTC pipeline may live
- * for the whole session and can therefore satisfy more than one generation.
+ * Generations are disposable; the physical WebRTC pipeline may outlive them.
  */
 export class MultiplayerClientTransition {
   #delivery: MultiplayerDeliveryState | null = null;

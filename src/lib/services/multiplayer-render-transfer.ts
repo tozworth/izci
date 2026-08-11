@@ -1,7 +1,6 @@
 /**
- * Buffered Opus transport: binary fragment framing for the reliable unordered
- * render channel plus the per-peer send queue with a deliberately small
- * bufferedAmount high-water mark (backpressure, not pacing).
+ * Buffered Opus transport: fragment framing for the reliable unordered render
+ * channel plus a per-peer send queue (small high-water mark = backpressure).
  */
 
 import { logWarning } from '$lib/services/logging';
@@ -136,9 +135,8 @@ export function resetPeerRenderQueue(peer: PeerConnection): void {
 }
 
 /**
- * Enqueues the next priority batch for a peer from its current render state.
- * Re-plans on every drain so a seek's new window jumps the queue; the sent set
- * keeps already-queued clusters out of the next batch.
+ * Enqueues the next priority batch for a peer. Re-plans on every drain so a
+ * seek's new window jumps the queue; the sent set excludes queued clusters.
  */
 export function schedulePeerRender(peer: PeerConnection, playheadTimeMs: number): void {
   const state = peer.renderState;

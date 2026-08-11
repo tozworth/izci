@@ -710,9 +710,7 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
         }
         // A fresh preparation re-releases the host playback gate: the
         // ready-dedup from the previous (generation, epoch) must not swallow
-        // the re-ack. Without this, pause-then-play restarts preparation
-        // forever (host logs: repeated 'Freeplay preparation started', no
-        // readiness) and transport controls appear dead.
+        // the re-ack, or pause-then-play restarts preparation forever.
         renderReadySentGeneration = null;
         renderReadySentEpoch = -1;
         logDebug('freeplay', 'Playback preparation accepted', message.preparation);

@@ -1,11 +1,8 @@
 /**
- * Client-side buffered Opus playback: one Multiplayer-owned MediaSource/SourceBuffer
- * pipeline whose hidden audio element enters the shared listener audio graph
- * (transition envelope -> ReplayGain -> Raf -> analyser -> master volume).
- *
- * Appends are kept in ascending timestamp order within each requested window;
- * sparse buffered ranges are allowed. Readiness, rebuffering at the buffered
- * edge, seek epochs, and generation cleanup all live here.
+ * Client-side buffered Opus playback: one MediaSource/SourceBuffer pipeline
+ * whose hidden element enters the shared listener audio graph (envelope ->
+ * ReplayGain -> Raf -> analyser -> master volume). Appends ascend within each
+ * requested window; readiness, rebuffering, seek epochs, and cleanup live here.
  */
 
 import { audioBusService } from '$lib/services/audio-bus';
@@ -99,9 +96,8 @@ export class MultiplayerRenderPlaybackService {
       renderId: this.#manifest?.renderId ?? '',
       ready: this.#ready,
       // A started generation that is not ready is loading for the whole
-      // interval: the host renders/transfers the Opus while the client
-      // waits, so the pre-manifest gap must read as loading too, not just
-      // the post-manifest download and rebuffers.
+      // interval: the host renders/transfers the Opus while the client waits,
+      // so the pre-manifest gap must read as loading too.
       buffering: this.#rebuffering || (!this.#ready && this.#generationId !== null),
       bufferedMs: this.#bufferedMs(),
       bufferedRanges: this.#bufferedRanges(),
@@ -179,10 +175,9 @@ export class MultiplayerRenderPlaybackService {
         this.#appendInit();
       }
     }
-    // A fresh pipeline joining a generation already in flight (client
-    // refresh / auto reconnect) must align with the host's current position
-    // instead of starting from 0. The playback snapshot precedes the
-    // manifest on the ordered channel, so the host position is known here.
+    // A fresh pipeline joining a generation in flight must align with the
+    // host's current position, not start from 0; the playback snapshot
+    // precedes the manifest on the ordered channel, so it is known here.
     const joinTargetMs = this.#currentTargetMs();
     if (joinTargetMs > 0) {
       this.#performSeek(joinTargetMs);
@@ -463,9 +458,8 @@ export class MultiplayerRenderPlaybackService {
     this.#ready = false;
     this.#rebuffering = false;
     // Move the element to the target immediately: bufferedMs() measures from
-    // the element position, so a stale position would keep readiness from
-    // re-arming after the new window appends (drift correction is ready-gated
-    // too, so the element would freeze at the old position forever).
+    // it, so a stale position keeps readiness from re-arming (drift correction
+    // is ready-gated and would leave the element frozen at the old position).
     const element = this.#element;
     if (element) {
       const duration = this.#manifest?.durationMs;
@@ -478,10 +472,9 @@ export class MultiplayerRenderPlaybackService {
     if (!manifest) return;
     const targetCluster = this.#clusterIndexForTime(targetMs);
     this.#nextAppendIndex = targetCluster;
-    // Drop only what precedes the new position: buffered media from the seek
-    // target onward is still valid (same render), so a backwards seek keeps
-    // its future window and the seek bar never blanks while the gap
-    // re-downloads. The retained compressed clusters re-append from memory.
+    // Drop only what precedes the new position: a backwards seek keeps its
+    // future window valid (same render), so the seek bar never blanks while
+    // the gap re-downloads; retained clusters re-append from memory.
     this.#chainToken += 1;
     this.#chain = Promise.resolve();
     const token = this.#chainToken;
@@ -540,10 +533,9 @@ export class MultiplayerRenderPlaybackService {
       // Caught the buffered edge: enter buffering and request the current host
       // position at urgent priority instead of accumulating permanent lag.
       const bufferedMs = this.#bufferedMs();
-      // bufferedMs() is the contiguous window ahead of the element position;
-      // rebuffer only when that window is genuinely exhausted (subtracting
-      // localMs again made this fire spuriously past the halfway point:
-      // end - 2*position < margin, stranding the pipeline in rebuffering).
+      // Rebuffer only when the contiguous window ahead of the element is
+      // genuinely exhausted: subtracting localMs again fired spuriously past
+      // the halfway point and stranded the pipeline in rebuffering.
       if (bufferedMs < REBUFFER_EDGE_MARGIN_MS
         && this.#manifest.durationMs - localMs > REBUFFER_EDGE_MARGIN_MS) {
         // Drop readiness so checkReadiness can re-arm once the new window
@@ -699,15 +691,10 @@ export class MultiplayerRenderPlaybackService {
   }
 
   /**
-   * Re-requests a missing window when the ascending append drain stalls.
-   *
-   * The drain appends clusters strictly ascending from #nextAppendIndex, so an
-   * unfilled early hole (e.g. the initial batch was skipped because the render
-   * channel was still opening, or early frames died in a transport blip) leaves
-   * later clusters stuck in #received forever: no readiness, permanent throbber.
-   * Bumping the epoch makes the host reset its sent set/queue; the re-request
-   * then targets the first missing cluster so the host schedules exactly the
-   * gap. The same path covers a never-arrived init segment.
+   * Re-requests a missing window when the ascending drain stalls: an unfilled
+   * early hole strands later clusters in #received forever. Bumping the epoch
+   * resets the host's sent set so it schedules exactly the gap; also covers a
+   * never-arrived init segment.
    */
   #checkStallRecovery(): void {
     const manifest = this.#manifest;
@@ -817,15 +804,9 @@ export function hasRequiredRenderWindow(
 }
 
 /**
- * Whether the append pipeline needs a gap re-request.
- *
- * The drain appends clusters strictly ascending from #nextAppendIndex, so an
- * unfilled early hole strands later received clusters forever (no readiness,
- * permanent throbber). A re-request is warranted only when appends have made
- * NO progress for the grace window AND the drain cannot advance (the missing
- * next cluster, or the init itself never arrived). A healthy transfer keeps
- * appending every few hundred ms, while each request resets the grace window
- * so a slow response is not repeatedly invalidated by newer epochs.
+ * True when the drain has made NO progress for the grace window and cannot
+ * advance (missing next cluster, or the init never arrived). Each request
+ * resets the grace window so a slow response is not invalidated by newer epochs.
  */
 export function renderStallRecoveryNeeded(input: {
   ready: boolean;

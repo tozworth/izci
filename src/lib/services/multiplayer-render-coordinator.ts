@@ -1,8 +1,7 @@
 /**
- * Host-side render coordinator: owns the worker pool, deduplicates concurrent
- * renders for the same cache key, and pins active renders in the shared LRU
- * cache. One shared set of cluster ArrayBuffers serves every peer; per-peer
- * queues only hold cluster indexes.
+ * Host-side render coordinator: worker pool, per-cache-key dedupe, and pinned
+ * entries in the shared LRU cache. One shared cluster-ArrayBuffer set serves
+ * every peer; per-peer queues only hold cluster indexes.
  */
 
 import type { PlaylistItem } from '$lib/types';

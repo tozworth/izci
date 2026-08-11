@@ -1,9 +1,7 @@
 /**
- * Minimal Matroska/WebM structural parser: splits a WebM byte stream produced by
- * Mediabunny into a MediaSource init segment plus timestamped clusters.
- *
- * The parser only walks top-level Segment children (Info/Tracks/Cluster...) and
- * reads the Cluster Timecode. It deliberately stays unaware of codec payloads.
+ * Minimal Matroska/WebM structural parser: splits Mediabunny output into a
+ * MediaSource init segment plus timestamped clusters. Walks only top-level
+ * Segment children and stays unaware of codec payloads.
  */
 
 export interface WebmClusterSlice {

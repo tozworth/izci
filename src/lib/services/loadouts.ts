@@ -424,9 +424,8 @@ export function startLoadoutRuntime(trackStore: Readable<PlaylistItem | null>): 
       }
 
       // Keep the original non-loadout baseline while moving directly between
-      // automatic overrides. Restoring and immediately recapturing it at every
-      // track boundary lets rapid changes promote transient settings into the
-      // next baseline before the category ever becomes unmatched.
+      // automatic overrides: restoring and recapturing it at every track
+      // boundary promotes transient settings into the next baseline.
       if (!activeTokens[category]) {
         baselines[category] = captureRuntimeBaseline(category);
       }

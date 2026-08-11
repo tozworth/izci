@@ -651,12 +651,9 @@ export function createMultiplayerHostSide(
       if (previousSelection) {
         void activateFreeplayTrack(peer, 'playlist', previousSelection.id);
       } else {
-        // No restored selection (host restart wipes freeplaySelections): the
-        // idle player never publishes, so a reconnecting client holding a
-        // stale remote track would never re-evaluate its persisted selection
-        // (tryResumeFreeplaySelection only fires on playback messages). Publish
-        // the idle state once: the client sees track null and sends
-        // collection.activate for its remembered track.
+        // Host restart wipes freeplaySelections: publish the idle state once so
+        // a reconnecting client holding a stale remote track re-evaluates its
+        // persisted selection (tryResumeFreeplaySelection fires only on playback).
         syncFreeplayPlayerUpdate(peer, {
           playback: player.playback,
           delivery: player.delivery
@@ -782,10 +779,9 @@ export function createMultiplayerHostSide(
         key,
         render,
         epoch: 0,
-        // A fresh peer (reconnect / new listener) joins the generation at the
-        // current playhead, not at the beginning of the track. The initial
-        // batch must cover the host position or the client starts from 0 and
-        // gap-crawls toward it.
+        // A fresh peer joins the generation at the host's current playhead: the
+        // initial batch must cover it or the client starts from 0 and gap-crawls
+        // toward it.
         targetTimeMs: playheadMsForPeer(peer),
         aheadMs: bufferMs,
         protectionMs: bufferMs,
@@ -871,10 +867,9 @@ export function createMultiplayerHostSide(
       state.sent = new Set();
       resetPeerRenderQueue(peer);
     }
-    // The init rides the unordered render channel and can beat the manifest
-    // (ordered control channel); a client that dropped it would otherwise
-    // never see it again. Re-send on every need — the client dedups
-    // post-append init frames.
+    // The init rides the unordered render channel and can beat the manifest:
+    // re-send on every need, since a dropped init never comes back (the client
+    // dedups post-append init frames).
     state.initSent = false;
     state.epoch = need.epoch;
     state.targetTimeMs = Math.max(0, need.targetTimeMs);

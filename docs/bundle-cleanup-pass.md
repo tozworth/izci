@@ -418,3 +418,28 @@ creeps again:
 The three phase-1 workstreams double as the standing "quarterly cleanup" batch
 and can be re-dispatched as-is; only the file fences and the baseline numbers
 need refreshing.
+
+## Pass log
+
+- Phase 0 (commit 6d3edd5): `scripts/bundle-report.mjs` + `docs/bundle-report.md`
+  reproduce the baseline (main 562.52 kB — 0.04 kB above the plan-time 562.48,
+  matching the 4 commits that landed after the plan). `scripts/tsc-strict.mjs`
+  (+ `tsconfig.strict.json`, `svelte-shim.d.ts`) baselines 9 dead-code issues
+  (8 unused imports/locals, 1 unused type).
+- Phase 1a (commit 26d4a6a): W2 import hygiene (7 files) + W3 logging hygiene
+  (3 files) ran as parallel leaves; both timed out at the 600 s cap mid-
+  verification, so the orchestrator re-ran the master gate itself: `npm run
+  check` 0/0, full suite 612 passed / 7 skipped, i18n + protocol checks green,
+  build green, `git diff --check` clean. Dead-code detector went 9 → 0. Bundle
+  after: main 561.76 kB (-0.76), precache 7,826.88 KiB (-0.81). Note: the
+  phase ran as two sub-batches (W2+W3, then W1) with disjoint file fences —
+  the plan's literal scopes overlap (both W1 and W2 cover "all of src/"),
+  which is unsafe with one shared working tree.
+- Phase 1b (W1 comment sweep): single leaf with a precomputed inventory (61
+  candidate blocks / 37 files; the mass lives in `multiplayer-*`). 24 blocks
+  tightened across 12 files, 0 nuked, rest KEEP; 3 skills patched with
+  migrated knowledge (`izci-multiplayer-development`, `izci-ui-development`).
+  The leaf hit the skill's line-shift pitfall and recovered (git checkout +
+  single-pass per file with count==1 extraction). Orchestrator gate: comment-
+  only grep chain 0, `git diff --check` clean, check 0/0, 612 passed / 7
+  skipped, build green; bundle unchanged (7826.88 KiB).

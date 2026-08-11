@@ -1,6 +1,6 @@
 # Bundle report
 
-Generated 2026-08-11T20:44:15.053Z by `scripts/bundle-report.mjs` (`npm run build`).
+Generated 2026-08-11T20:54:07.193Z by `scripts/bundle-report.mjs` (`npm run build`).
 
 - Precache: 91 entries, 7826.88 KiB total.
 - Chunk size warning (>500 kB after minification): present.

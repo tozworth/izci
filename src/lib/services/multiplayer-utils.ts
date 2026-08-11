@@ -20,9 +20,8 @@ export function isMultiplayerClientTransportHealthy(
 
 /**
  * Delivery decision between the two streaming pathways: files at or under the
- * "Send files under" limit transfer whole and play on the listener; larger
- * files are pre-rendered to buffered Opus. Live RTP remains only for video.
- * limitMiB: 0 = off (everything renders), < 0 = every file transfers.
+ * "Send files under" limit transfer whole; larger files pre-render to buffered
+ * Opus. Live RTP remains only for video. limitMiB: 0 = off, < 0 = all files.
  */
 export function resolveMultiplayerDeliveryMode(
   track: PlaylistItem | null,
