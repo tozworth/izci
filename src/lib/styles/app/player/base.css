@@ -415,8 +415,11 @@ body:has(.favorite-rating-control:focus-within) .player-rating-picker,
 }
 
 /* Track loading: the whole bar reads as disabled (slightly muted colors)
-   and the play/pause transport becomes the standard progress_activity
-   throbber (same 900 ms spin as the video buffering indicator). */
+   and the play/pause transport becomes a symmetric two-arc throbber (same
+   900 ms spin as the video buffering indicator). A rotating progress_activity
+   arc is mass-asymmetric and its visible center swings around the button;
+   two opposite arcs keep the center of mass glued to the button center, so
+   the throbber stays centered while spinning. */
 .player-bar.loading .player-track-group,
 .player-bar.loading .player-range,
 .player-bar.loading .volume,
@@ -434,6 +437,27 @@ body:has(.favorite-rating-control:focus-within) .player-rating-picker,
 }
 
 .player-bar.loading .transport-button-primary .material-symbols-outlined {
+  color: transparent;
+  position: relative;
+}
+
+.player-bar.loading .transport-button-primary .material-symbols-outlined::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 0.78em;
+  height: 0.78em;
+  margin: -0.39em 0 0 -0.39em;
+  border-radius: 50%;
+  background: conic-gradient(
+    from 0deg,
+    var(--text) 0deg 90deg,
+    transparent 90deg 180deg,
+    var(--text) 180deg 270deg,
+    transparent 270deg 360deg);
+  -webkit-mask: radial-gradient(closest-side, transparent calc(100% - 0.09em), #000 calc(100% - 0.06em));
+  mask: radial-gradient(closest-side, transparent calc(100% - 0.09em), #000 calc(100% - 0.06em));
   animation: player-bar-loading-spin 900ms linear infinite;
 }
 

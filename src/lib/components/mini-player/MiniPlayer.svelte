@@ -432,6 +432,27 @@
   }
 
   .mini-player.mini-player-loading .mini-player-primary-button .material-symbols-outlined {
+    color: transparent;
+    position: relative;
+  }
+
+  .mini-player.mini-player-loading .mini-player-primary-button .material-symbols-outlined::before {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 0.78em;
+    height: 0.78em;
+    margin: -0.39em 0 0 -0.39em;
+    border-radius: 50%;
+    background: conic-gradient(
+      from 0deg,
+      var(--text) 0deg 90deg,
+      transparent 90deg 180deg,
+      var(--text) 180deg 270deg,
+      transparent 270deg 360deg);
+    -webkit-mask: radial-gradient(closest-side, transparent calc(100% - 0.09em), #000 calc(100% - 0.06em));
+    mask: radial-gradient(closest-side, transparent calc(100% - 0.09em), #000 calc(100% - 0.06em));
     animation: mini-player-loading-spin 900ms linear infinite;
   }
 

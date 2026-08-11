@@ -98,7 +98,11 @@ export class MultiplayerRenderPlaybackService {
       trackId: this.#trackId,
       renderId: this.#manifest?.renderId ?? '',
       ready: this.#ready,
-      buffering: this.#rebuffering || (!this.#ready && Boolean(this.#manifest)),
+      // A started generation that is not ready is loading for the whole
+      // interval: the host renders/transfers the Opus while the client
+      // waits, so the pre-manifest gap must read as loading too, not just
+      // the post-manifest download and rebuffers.
+      buffering: this.#rebuffering || (!this.#ready && this.#generationId !== null),
       bufferedMs: this.#bufferedMs(),
       bufferedRanges: this.#bufferedRanges(),
       receivedClusters: this.#received.size,
@@ -464,8 +468,10 @@ export class MultiplayerRenderPlaybackService {
     if (!manifest) return;
     const targetCluster = this.#clusterIndexForTime(targetMs);
     this.#nextAppendIndex = targetCluster;
-    // Clear the buffered pipeline so the new window appends cleanly; the
-    // retained compressed clusters re-appear instantly from local memory.
+    // Drop only what precedes the new position: buffered media from the seek
+    // target onward is still valid (same render), so a backwards seek keeps
+    // its future window and the seek bar never blanks while the gap
+    // re-downloads. The retained compressed clusters re-append from memory.
     this.#chainToken += 1;
     this.#chain = Promise.resolve();
     const token = this.#chainToken;
@@ -474,8 +480,9 @@ export class MultiplayerRenderPlaybackService {
       const end = this.#sourceBuffer.buffered.length > 0
         ? this.#sourceBuffer.buffered.end(this.#sourceBuffer.buffered.length - 1)
         : 0;
-      if (end > 0) {
-        this.#sourceBuffer.remove(0, end);
+      const removeTo = Math.min(Math.max(0, targetMs / 1_000), end);
+      if (end > 0 && removeTo > 0) {
+        this.#sourceBuffer.remove(0, removeTo);
         await waitForUpdateEnd(this.#sourceBuffer);
       }
     }).then(() => {
