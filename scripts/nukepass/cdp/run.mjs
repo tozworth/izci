@@ -430,6 +430,9 @@ async function runProfile({
     if (message.method === 'Target.targetCrashed') targetEvents.push(message);
   });
   const disposeBackgroundAttach = connection.on('Target.attachedToTarget', (event) => {
+    if (!['service_worker', 'worker', 'shared_worker', 'worklet'].includes(event.targetInfo.type)) {
+      return;
+    }
     const ownedUrl = event.targetInfo.url.startsWith(baseUrl)
       || event.targetInfo.url.startsWith(`blob:${baseUrl}`);
     if (!ownedUrl) {
