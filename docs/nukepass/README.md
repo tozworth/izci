@@ -11,6 +11,7 @@ accepted.
 - [Commit policy](stage-0/commit-policy.md)
 - [Fixture and test-data policy](stage-0/fixture-policy.md)
 - [Risk register](stage-0/risk-register.md)
+- [Stage 0 acceptance](stage-0/acceptance.md)
 - [Capability and UX ledger](stage-0/capability-ux-ledger.md)
 - [Goldilocks setting ledger](stage-0/goldilocks-setting-ledger.md)
 - [Persistence registry](stage-0/persistence-registry.md)
