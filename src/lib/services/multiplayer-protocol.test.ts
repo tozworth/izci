@@ -6,7 +6,6 @@ import {
   encodeMultiplayerMessage,
   isHostMessage,
   isMultiplayerCommand,
-  sanitizePlaylistItem,
   type HostMessage
 } from './multiplayer-protocol';
 import { isClientMessage } from './multiplayer-utils';
@@ -25,27 +24,6 @@ describe('multiplayer protocol', () => {
       version: MULTIPLAYER_PROTOCOL_VERSION,
       name: 'Living room'
     })).toBe(false);
-  });
-
-  it('removes local file capabilities from shared tracks', () => {
-    const file = new File(['audio'], 'song.mp3', { type: 'audio/mpeg' });
-    const item = sanitizePlaylistItem({
-      id: 'one',
-      file,
-      objectUrl: 'blob:secret',
-      name: 'song.mp3',
-      path: 'Music/song.mp3',
-      extension: 'mp3',
-      kind: 'stream',
-      size: 5,
-      lastModified: 1,
-      metadata: { title: 'Song' }
-    });
-
-    expect(item).toMatchObject({ id: 'one', path: 'Music/song.mp3', metadata: { title: 'Song' } });
-    expect(item.file).toBeUndefined();
-    expect(item.fileHandle).toBeUndefined();
-    expect(item.objectUrl).toBeUndefined();
   });
 
   it('rejects commands outside the finite command surface', () => {
@@ -230,6 +208,126 @@ describe('multiplayer protocol', () => {
     expect(isClientMessage({ kind: 'playback.ended', generationId: 'generation', trackId: 'track' })).toBe(true);
     expect(isClientMessage({ kind: 'source.retry', generationId: 'generation' })).toBe(true);
     expect(isClientMessage({ kind: 'playback.ended', trackId: 'track' })).toBe(false);
+  });
+
+  it('accepts the full bounded track metadata DTO', () => {
+    const track = {
+      id: 'track',
+      name: 'module.it',
+      path: 'Music/module.it',
+      extension: 'it',
+      kind: 'module',
+      size: 2048,
+      lastModified: 1_700_000_000_000,
+      rating: 4.5,
+      subsong: 2,
+      metadata: {
+        title: 'Title',
+        artist: 'Artist',
+        album: 'Album',
+        albumArtist: 'Album artist',
+        genre: 'Genre',
+        year: '1998',
+        trackNumber: '3/9',
+        discNumber: '1/1',
+        composer: 'Composer',
+        embeddedMetadataLoaded: true,
+        trackerType: 'Impulse Tracker',
+        originalType: 'IT',
+        message: 'Tracker message',
+        duration: 123.5,
+        bitrate: 192,
+        channels: 32,
+        tracks: 1,
+        patterns: 12,
+        instruments: 24,
+        orders: 15,
+        subsongs: 3,
+        subsongNames: ['Main', 'Loop', 'Outro'],
+        rows: 768,
+        sampleRate: 48_000,
+        playCount: 7,
+        replayGain: {
+          trackGainDb: -3.5,
+          trackPeak: 0.95,
+          albumGainDb: -2,
+          albumPeak: 1
+        }
+      }
+    };
+    expect(isHostMessage({
+      kind: 'catalog',
+      catalog: {
+        revision: 1,
+        playlist: [track],
+        library: [],
+        favorites: [],
+        shuffleEnabled: false,
+        repeatMode: 'off'
+      }
+    })).toBe(true);
+  });
+
+  it('rejects application-only track fields and non-finite wire numbers', () => {
+    const track = {
+      id: 'track',
+      name: 'song.mp3',
+      extension: 'mp3',
+      kind: 'stream',
+      size: 1,
+      lastModified: 1
+    };
+    const catalog = {
+      revision: 1,
+      playlist: [track],
+      library: [],
+      favorites: [],
+      shuffleEnabled: false,
+      repeatMode: 'off'
+    };
+    expect(isHostMessage({
+      kind: 'catalog',
+      catalog: { ...catalog, playlist: [{ ...track, objectUrl: 'blob:secret' }] }
+    })).toBe(false);
+    expect(isHostMessage({
+      kind: 'catalog',
+      catalog: { ...catalog, revision: Number.POSITIVE_INFINITY }
+    })).toBe(false);
+    expect(isHostMessage({
+      kind: 'catalog',
+      catalog: { ...catalog, playlist: [{ ...track, metadata: { duration: Number.NaN } }] }
+    })).toBe(false);
+  });
+
+  it('rejects non-finite and out-of-range playback snapshot numbers', () => {
+    const playback = {
+      generationId: 'generation',
+      snapshot: {
+        state: 'playing',
+        currentTime: 1,
+        duration: 2,
+        volume: 1,
+        muted: false,
+        backend: 'stream'
+      },
+      track: null,
+      sentAt: 1
+    };
+    expect(isHostMessage({
+      kind: 'playback',
+      playback: { ...playback, sentAt: Number.NaN }
+    })).toBe(false);
+    expect(isHostMessage({
+      kind: 'playback',
+      playback: {
+        ...playback,
+        snapshot: { ...playback.snapshot, currentTime: Number.POSITIVE_INFINITY }
+      }
+    })).toBe(false);
+    expect(isHostMessage({
+      kind: 'playback',
+      playback: { ...playback, snapshot: { ...playback.snapshot, volume: 1.1 } }
+    })).toBe(false);
   });
 
   it('accepts only bounded host-authoritative listener buffers', () => {

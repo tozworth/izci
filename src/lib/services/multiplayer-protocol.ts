@@ -1,9 +1,76 @@
-import type { PlaybackSnapshot } from '$lib/contracts/playback';
-import type { PlaylistItem, PlaylistRepeatMode } from '$lib/contracts/catalog';
-import type { TrackKind } from '$lib/contracts/media-format';
-import type { TrackMetadata } from '$lib/contracts/media-metadata';
-
 export type MultiplayerCollection = 'playlist' | 'library' | 'favorites';
+
+export type MultiplayerTrackKind = 'stream' | 'module' | 'video';
+export type MultiplayerRepeatMode = 'off' | 'one' | 'all';
+export type MultiplayerPlaybackState =
+  | 'idle'
+  | 'loading'
+  | 'playing'
+  | 'paused'
+  | 'ended'
+  | 'error';
+
+export interface MultiplayerReplayGainMetadata {
+  trackGainDb?: number;
+  trackPeak?: number;
+  albumGainDb?: number;
+  albumPeak?: number;
+}
+
+export interface MultiplayerTrackMetadata {
+  title?: string;
+  artist?: string;
+  album?: string;
+  albumArtist?: string;
+  genre?: string;
+  year?: string;
+  trackNumber?: string;
+  discNumber?: string;
+  composer?: string;
+  embeddedMetadataLoaded?: boolean;
+  trackerType?: string;
+  originalType?: string;
+  message?: string;
+  duration?: number;
+  bitrate?: number;
+  channels?: number;
+  tracks?: number;
+  patterns?: number;
+  instruments?: number;
+  orders?: number;
+  subsongs?: number;
+  subsongNames?: string[];
+  rows?: number;
+  sampleRate?: number;
+  playCount?: number;
+  replayGain?: MultiplayerReplayGainMetadata;
+}
+
+export interface MultiplayerTrack {
+  id: string;
+  path?: string;
+  name: string;
+  extension: string;
+  kind: MultiplayerTrackKind;
+  size: number;
+  lastModified: number;
+  metadata?: MultiplayerTrackMetadata;
+  rating?: number;
+  subsong?: number;
+}
+
+export interface MultiplayerPlaybackSnapshot {
+  state: MultiplayerPlaybackState;
+  currentTime: number;
+  duration: number;
+  volume: number;
+  muted: boolean;
+  backend: MultiplayerTrackKind | null;
+  subsong?: number;
+  subsongCount?: number;
+  buffered?: Array<[number, number]>;
+  error?: string;
+}
 
 // Version 18 adds explicit source revisions to buffered-Opus manifests so a
 // listener never reuses cached bytes from a replaced track. Compatibility is
@@ -42,17 +109,17 @@ export type MultiplayerCommandInput = MultiplayerCommand extends infer Command
 
 export interface MultiplayerCatalog {
   revision: number;
-  playlist: PlaylistItem[];
-  library: PlaylistItem[];
-  favorites: PlaylistItem[];
+  playlist: MultiplayerTrack[];
+  library: MultiplayerTrack[];
+  favorites: MultiplayerTrack[];
   shuffleEnabled: boolean;
-  repeatMode: PlaylistRepeatMode;
+  repeatMode: MultiplayerRepeatMode;
 }
 
 export interface MultiplayerPlayback {
   generationId: string;
-  snapshot: PlaybackSnapshot;
-  track: PlaylistItem | null;
+  snapshot: MultiplayerPlaybackSnapshot;
+  track: MultiplayerTrack | null;
   sentAt: number;
 }
 
@@ -131,7 +198,7 @@ export type HostMessage =
       name: string;
     }
   | { kind: 'catalog'; catalog: MultiplayerCatalog }
-  | { kind: 'state'; shuffleEnabled: boolean; repeatMode: PlaylistRepeatMode }
+  | { kind: 'state'; shuffleEnabled: boolean; repeatMode: MultiplayerRepeatMode }
   | { kind: 'playback'; playback: MultiplayerPlayback }
   | { kind: 'playback.prepare'; preparation: MultiplayerPlaybackPreparation }
   | { kind: 'clock.ping'; generationId: string; hostSentAt: number }
@@ -151,7 +218,7 @@ export type ClientMessage =
       kind: 'freeplay.queue';
       itemIds: string[];
       shuffleEnabled?: boolean;
-      repeatMode?: PlaylistRepeatMode;
+      repeatMode?: MultiplayerRepeatMode;
     }
   | { kind: 'command'; command: MultiplayerCommand }
   | { kind: 'playback.ready'; generationId: string }
@@ -173,26 +240,6 @@ interface ChunkFrame {
   index: number;
   total: number;
   payload: string;
-}
-
-export function sanitizePlaylistItem(item: PlaylistItem): PlaylistItem {
-  return {
-    id: item.id,
-    name: item.name,
-    extension: item.extension,
-    kind: item.kind,
-    size: Number.isFinite(item.size) ? item.size : 0,
-    lastModified: Number.isFinite(item.lastModified) ? item.lastModified : 0,
-    ...(item.path ? { path: item.path } : {}),
-    ...(item.metadata ? { metadata: sanitizeTrackMetadata(item.metadata) } : {}),
-    ...(typeof item.rating === 'number' ? { rating: item.rating } : {}),
-    ...(typeof item.subsong === 'number' ? { subsong: item.subsong } : {})
-  };
-}
-
-export function sanitizeTrackMetadata(metadata: TrackMetadata): TrackMetadata {
-  const copy = JSON.parse(JSON.stringify(metadata)) as TrackMetadata;
-  return copy;
 }
 
 export function isMultiplayerCommand(value: unknown): value is MultiplayerCommand {
@@ -228,15 +275,28 @@ export function isMultiplayerCommand(value: unknown): value is MultiplayerComman
   }
 }
 
-export function isRemotePlaylistItem(value: unknown): value is PlaylistItem {
+export function isRemotePlaylistItem(value: unknown): value is MultiplayerTrack {
   if (!value || typeof value !== 'object') return false;
-  const item = value as Partial<PlaylistItem>;
-  return typeof item.id === 'string'
+  const item = value as Partial<MultiplayerTrack>;
+  return hasOnlyKeys(item, MULTIPLAYER_TRACK_KEYS)
+    && typeof item.id === 'string'
     && typeof item.name === 'string'
     && typeof item.extension === 'string'
     && isTrackKind(item.kind)
-    && typeof item.size === 'number'
-    && typeof item.lastModified === 'number';
+    && Number.isSafeInteger(item.size)
+    && (item.size ?? -1) >= 0
+    && typeof item.lastModified === 'number'
+    && Number.isFinite(item.lastModified)
+    && item.lastModified >= 0
+    && (item.path === undefined || typeof item.path === 'string')
+    && (item.metadata === undefined || isTrackMetadata(item.metadata))
+    && (item.rating === undefined
+      || (typeof item.rating === 'number'
+        && Number.isFinite(item.rating)
+        && item.rating >= 0.5
+        && item.rating <= 5))
+    && (item.subsong === undefined
+      || (Number.isSafeInteger(item.subsong) && item.subsong >= 0));
 }
 
 export function isHostMessage(value: unknown): value is HostMessage {
@@ -264,12 +324,17 @@ export function isHostMessage(value: unknown): value is HostMessage {
   if (message.kind === 'catalog') {
     const catalog = message.catalog as Partial<MultiplayerCatalog> | undefined;
     return Boolean(catalog)
-      && typeof catalog?.revision === 'number'
+      && Number.isSafeInteger(catalog?.revision)
+      && (catalog?.revision ?? -1) >= 0
+      && catalogKeysAreBounded(catalog)
       && Array.isArray(catalog.playlist)
+      && catalog.playlist.length <= MULTIPLAYER_QUEUE_MAX_ITEMS
       && catalog.playlist.every(isRemotePlaylistItem)
       && Array.isArray(catalog.library)
+      && catalog.library.length <= MULTIPLAYER_QUEUE_MAX_ITEMS
       && catalog.library.every(isRemotePlaylistItem)
       && Array.isArray(catalog.favorites)
+      && catalog.favorites.length <= MULTIPLAYER_QUEUE_MAX_ITEMS
       && catalog.favorites.every(isRemotePlaylistItem)
       && typeof catalog.shuffleEnabled === 'boolean'
       && (catalog.repeatMode === 'off' || catalog.repeatMode === 'one' || catalog.repeatMode === 'all');
@@ -285,6 +350,8 @@ export function isHostMessage(value: unknown): value is HostMessage {
       && playback.generationId.length > 0
       && playback.generationId.length <= 80
       && typeof playback?.sentAt === 'number'
+      && Number.isFinite(playback.sentAt)
+      && playback.sentAt >= 0
       && isPlaybackSnapshot(playback.snapshot)
       && (playback.track === null || isRemotePlaylistItem(playback.track));
   }
@@ -409,6 +476,7 @@ export function isRenderManifest(value: unknown): value is MultiplayerRenderMani
     if (cluster.index !== index) return false;
     if (typeof cluster.timeMs !== 'number'
       || !Number.isFinite(cluster.timeMs)
+      || cluster.timeMs < 0
       || cluster.timeMs < previousTimeMs) return false;
     if (typeof cluster.sizeBytes !== 'number'
       || !Number.isSafeInteger(cluster.sizeBytes)
@@ -515,24 +583,147 @@ function isChunkFrame(value: unknown): value is ChunkFrame {
     && typeof frame.payload === 'string';
 }
 
-function isPlaybackSnapshot(value: unknown): value is PlaybackSnapshot {
+function isPlaybackSnapshot(value: unknown): value is MultiplayerPlaybackSnapshot {
   if (!value || typeof value !== 'object') return false;
-  const snapshot = value as Partial<PlaybackSnapshot>;
-  return (snapshot.state === 'idle'
+  const snapshot = value as Partial<MultiplayerPlaybackSnapshot>;
+  return hasOnlyKeys(snapshot, MULTIPLAYER_PLAYBACK_SNAPSHOT_KEYS)
+    && (snapshot.state === 'idle'
     || snapshot.state === 'loading'
     || snapshot.state === 'playing'
     || snapshot.state === 'paused'
     || snapshot.state === 'ended'
     || snapshot.state === 'error')
     && typeof snapshot.currentTime === 'number'
+    && Number.isFinite(snapshot.currentTime)
+    && snapshot.currentTime >= 0
+    && snapshot.currentTime <= MULTIPLAYER_MAX_PLAYBACK_SECONDS
     && typeof snapshot.duration === 'number'
+    && Number.isFinite(snapshot.duration)
+    && snapshot.duration >= 0
+    && snapshot.duration <= MULTIPLAYER_MAX_PLAYBACK_SECONDS
     && typeof snapshot.volume === 'number'
+    && Number.isFinite(snapshot.volume)
+    && snapshot.volume >= 0
+    && snapshot.volume <= 1
     && typeof snapshot.muted === 'boolean'
-    && (snapshot.backend === null || isTrackKind(snapshot.backend));
+    && (snapshot.backend === null || isTrackKind(snapshot.backend))
+    && (snapshot.subsong === undefined
+      || (Number.isSafeInteger(snapshot.subsong) && snapshot.subsong >= 0))
+    && (snapshot.subsongCount === undefined
+      || (Number.isSafeInteger(snapshot.subsongCount) && snapshot.subsongCount >= 0))
+    && (snapshot.buffered === undefined || isBufferedRanges(snapshot.buffered))
+    && (snapshot.error === undefined || typeof snapshot.error === 'string');
 }
 
-function isTrackKind(value: unknown): value is TrackKind {
+function isTrackKind(value: unknown): value is MultiplayerTrackKind {
   return value === 'stream' || value === 'module' || value === 'video';
+}
+
+const MULTIPLAYER_MAX_PLAYBACK_SECONDS = 60 * 60 * 24 * 7;
+
+const MULTIPLAYER_TRACK_KEYS = new Set([
+  'id', 'path', 'name', 'extension', 'kind', 'size', 'lastModified', 'metadata', 'rating', 'subsong'
+]);
+const MULTIPLAYER_TRACK_METADATA_KEYS = new Set([
+  'title', 'artist', 'album', 'albumArtist', 'genre', 'year', 'trackNumber', 'discNumber',
+  'composer', 'embeddedMetadataLoaded', 'trackerType', 'originalType', 'message', 'duration',
+  'bitrate', 'channels', 'tracks', 'patterns', 'instruments', 'orders', 'subsongs',
+  'subsongNames', 'rows', 'sampleRate', 'playCount', 'replayGain'
+]);
+const MULTIPLAYER_REPLAY_GAIN_KEYS = new Set([
+  'trackGainDb', 'trackPeak', 'albumGainDb', 'albumPeak'
+]);
+const MULTIPLAYER_PLAYBACK_SNAPSHOT_KEYS = new Set([
+  'state', 'currentTime', 'duration', 'volume', 'muted', 'backend', 'subsong', 'subsongCount',
+  'buffered', 'error'
+]);
+const MULTIPLAYER_CATALOG_KEYS = new Set([
+  'revision', 'playlist', 'library', 'favorites', 'shuffleEnabled', 'repeatMode'
+]);
+
+function hasOnlyKeys(value: object, keys: ReadonlySet<string>): boolean {
+  return Object.keys(value).every((key) => keys.has(key));
+}
+
+function catalogKeysAreBounded(
+  catalog: Partial<MultiplayerCatalog> | undefined
+): catalog is Partial<MultiplayerCatalog> {
+  return Boolean(catalog) && hasOnlyKeys(catalog as object, MULTIPLAYER_CATALOG_KEYS);
+}
+
+function isTrackMetadata(value: unknown): value is MultiplayerTrackMetadata {
+  if (!value || typeof value !== 'object') return false;
+  const metadata = value as Partial<MultiplayerTrackMetadata>;
+  if (!hasOnlyKeys(metadata, MULTIPLAYER_TRACK_METADATA_KEYS)) return false;
+
+  const stringFields = [
+    metadata.title,
+    metadata.artist,
+    metadata.album,
+    metadata.albumArtist,
+    metadata.genre,
+    metadata.year,
+    metadata.trackNumber,
+    metadata.discNumber,
+    metadata.composer,
+    metadata.trackerType,
+    metadata.originalType,
+    metadata.message
+  ];
+  if (stringFields.some((field) => field !== undefined && typeof field !== 'string')) return false;
+  if (metadata.embeddedMetadataLoaded !== undefined
+    && typeof metadata.embeddedMetadataLoaded !== 'boolean') return false;
+  if (!isOptionalFiniteNonNegative(metadata.duration)
+    || !isOptionalFiniteNonNegative(metadata.bitrate)
+    || !isOptionalCount(metadata.channels)
+    || !isOptionalCount(metadata.tracks)
+    || !isOptionalCount(metadata.patterns)
+    || !isOptionalCount(metadata.instruments)
+    || !isOptionalCount(metadata.orders)
+    || !isOptionalCount(metadata.subsongs)
+    || !isOptionalCount(metadata.rows)
+    || !isOptionalCount(metadata.sampleRate)
+    || !isOptionalCount(metadata.playCount)) return false;
+  if (metadata.subsongNames !== undefined
+    && (!Array.isArray(metadata.subsongNames)
+      || metadata.subsongNames.some((name) => typeof name !== 'string'))) return false;
+  return metadata.replayGain === undefined || isReplayGainMetadata(metadata.replayGain);
+}
+
+function isReplayGainMetadata(value: unknown): value is MultiplayerReplayGainMetadata {
+  if (!value || typeof value !== 'object') return false;
+  const replayGain = value as Partial<MultiplayerReplayGainMetadata>;
+  return hasOnlyKeys(replayGain, MULTIPLAYER_REPLAY_GAIN_KEYS)
+    && isOptionalFinite(replayGain.trackGainDb)
+    && isOptionalFiniteNonNegative(replayGain.trackPeak)
+    && isOptionalFinite(replayGain.albumGainDb)
+    && isOptionalFiniteNonNegative(replayGain.albumPeak);
+}
+
+function isOptionalFinite(value: unknown): boolean {
+  return value === undefined || (typeof value === 'number' && Number.isFinite(value));
+}
+
+function isOptionalFiniteNonNegative(value: unknown): boolean {
+  return value === undefined
+    || (typeof value === 'number' && Number.isFinite(value) && value >= 0);
+}
+
+function isOptionalCount(value: unknown): boolean {
+  return value === undefined || (Number.isSafeInteger(value) && (value as number) >= 0);
+}
+
+function isBufferedRanges(value: unknown): value is Array<[number, number]> {
+  return Array.isArray(value) && value.every((range) => Array.isArray(range)
+    && range.length === 2
+    && typeof range[0] === 'number'
+    && Number.isFinite(range[0])
+    && range[0] >= 0
+    && range[0] <= MULTIPLAYER_MAX_PLAYBACK_SECONDS
+    && typeof range[1] === 'number'
+    && Number.isFinite(range[1])
+    && range[1] >= range[0]
+    && range[1] <= MULTIPLAYER_MAX_PLAYBACK_SECONDS);
 }
 
 function createTransferId(): string {

@@ -31,7 +31,6 @@ import {
 import {
   MULTIPLAYER_PROTOCOL_VERSION,
   isMultiplayerCommand,
-  sanitizePlaylistItem,
   type HostMessage,
   type MultiplayerCatalog,
   type MultiplayerCollection,
@@ -41,6 +40,10 @@ import {
   type MultiplayerPlayback,
   type MultiplayerPlaybackPreparation
 } from './multiplayer-protocol';
+import {
+  projectMultiplayerPlaybackSnapshot,
+  sanitizePlaylistItem
+} from './multiplayer-host-projection';
 import {
   applyAudioBitrate,
   clearPeerConnectionTimer,
@@ -926,6 +929,7 @@ export function createMultiplayerHostSide(
     const playback: MultiplayerPlayback = {
       ...update.playback,
       generationId: delivery.generationId,
+      snapshot: projectMultiplayerPlaybackSnapshot(update.playback.snapshot),
       track: update.playback.track ? sanitizePlaylistItem(update.playback.track) : null
     };
     sendToPeer(peer, { kind: 'playback', playback });
@@ -1486,6 +1490,7 @@ export function createMultiplayerHostSide(
           ? {
               ...player.playback,
               generationId: delivery.generationId,
+              snapshot: projectMultiplayerPlaybackSnapshot(player.playback.snapshot),
               track: player.track ? sanitizePlaylistItem(player.track) : null
             }
           : { ...EMPTY_REMOTE_PLAYBACK, generationId: delivery.generationId }
@@ -1628,7 +1633,7 @@ export function createMultiplayerHostSide(
   function buildPlayback(source: MultiplayerHostState): MultiplayerPlayback {
     return {
       generationId: core.latestDelivery.generationId,
-      snapshot: { ...source.playback },
+      snapshot: projectMultiplayerPlaybackSnapshot(source.playback),
       track: source.track ? sanitizePlaylistItem(source.track) : null,
       sentAt: Date.now()
     };
