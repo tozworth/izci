@@ -11,7 +11,8 @@ Use `--output <directory>` for a disposable test/CDP location. The generator
 overwrites only the named files below that location and emits
 `generation-report.json`. It verifies every byte count and SHA-256, then uses
 the paired pinned FFprobe to validate containers, codecs, duration tolerance,
-audio shape, video dimensions/rate, tags, attached artwork, MOD/libopenmpt
+audio shape and revision frequency, video dimensions/rate, tags, front-cover
+artwork, plain/LRC lyric structure, MOD/libopenmpt
 acceptance, and corrupt/unsupported rejection. The command fails closed when
 either binary is missing or differs from the manifest pin.
 

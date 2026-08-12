@@ -111,6 +111,18 @@ describe('Stage 1 fixture generator', () => {
       );
     }
     expect(first.files.find((file) => file.id === 'audio-tagged-artwork').mediaVerification.status).toBe('verified');
+    expect(first.files.find((file) => file.id === 'revision-wav-v1').mediaVerification.status).toBe('verified');
+    expect(first.files.find((file) => file.id === 'revision-wav-v2').mediaVerification.status).toBe('verified');
+    expect(first.files.find((file) => file.id === 'lyrics-plain').mediaVerification).toEqual({
+      status: 'verified',
+      format: 'text',
+      lines: 2
+    });
+    expect(first.files.find((file) => file.id === 'lyrics-timestamped').mediaVerification).toEqual({
+      status: 'verified',
+      format: 'lrc',
+      lines: 2
+    });
     expect(first.files.find((file) => file.id === 'module-mod').mediaVerification).toEqual({
       status: 'verified',
       container: 'libopenmpt'

@@ -261,6 +261,24 @@ function rationalNumber(value) {
 
 async function verifyMediaFacts(file, destination, ffprobe) {
   const expected = file.expected;
+  if (expected.kind === 'plain-lyrics' || expected.kind === 'timestamped-lyrics') {
+    const contents = await readFile(destination, 'utf8');
+    const lines = contents.trimEnd().split(/\r?\n/);
+    if (expected.lines !== undefined && lines.length !== expected.lines) {
+      throw new Error(`${file.id}: expected ${expected.lines} lyric lines; received ${lines.length}`);
+    }
+    if (expected.timestampsSeconds) {
+      const timestamps = lines.map((line) => {
+        const match = line.match(/^\[(\d+):(\d+(?:\.\d+)?)\]/);
+        if (!match) throw new Error(`${file.id}: lyric line is missing an LRC timestamp`);
+        return Number(match[1]) * 60 + Number(match[2]);
+      });
+      if (JSON.stringify(timestamps) !== JSON.stringify(expected.timestampsSeconds)) {
+        throw new Error(`${file.id}: LRC timestamps do not match the manifest`);
+      }
+    }
+    return { status: 'verified', format: expected.format, lines: lines.length };
+  }
   const shouldReject = expected.deliberatelyCorrupt || expected.kind === 'unsupported';
   const shouldProbe = shouldReject || expected.codec || expected.videoCodec || expected.kind === 'tree-file';
   if (!shouldProbe) return { status: 'not-applicable' };
@@ -314,6 +332,26 @@ async function verifyMediaFacts(file, destination, ffprobe) {
   if (expected.channels !== undefined && audio?.channels !== expected.channels) {
     throw new Error(`${file.id}: expected ${expected.channels} audio channels; received ${audio?.channels}`);
   }
+  if (expected.frequencyHz !== undefined) {
+    const bytes = await readFile(destination);
+    const dataMarker = bytes.indexOf(Buffer.from('data'));
+    if (dataMarker < 0) throw new Error(`${file.id}: WAV data chunk is missing`);
+    const sampleBytes = bytes.subarray(dataMarker + 8);
+    let upwardCrossings = 0;
+    let previous = sampleBytes.readInt16LE(0);
+    for (let offset = 2; offset + 1 < sampleBytes.length; offset += 2) {
+      const current = sampleBytes.readInt16LE(offset);
+      if (previous <= 0 && current > 0) upwardCrossings += 1;
+      previous = current;
+    }
+    approximately(
+      upwardCrossings / expected.durationSeconds,
+      expected.frequencyHz,
+      2,
+      'frequencyHz',
+      file.id
+    );
+  }
 
   const attachedArtwork = streams.find((stream) => stream.disposition?.attached_pic === 1);
   if (expected.artwork) {
@@ -323,8 +361,18 @@ async function verifyMediaFacts(file, destination, ffprobe) {
         attachedArtwork.height !== expected.artwork.height) {
       throw new Error(`${file.id}: attached artwork facts do not match the manifest`);
     }
+    if (expected.artwork.type === 'front-cover'
+      && attachedArtwork.tags?.comment !== 'Cover (front)') {
+      throw new Error(`${file.id}: attached artwork is not marked as the front cover`);
+    }
   } else if (attachedArtwork) {
     throw new Error(`${file.id}: manifest says artwork=false but FFprobe found attached artwork`);
+  }
+  if (expected.lyrics === false) {
+    const tags = Object.keys(format.tags || {}).map((key) => key.toLowerCase());
+    if (tags.some((key) => ['lyrics', 'unsyncedlyrics', 'syncedlyrics'].includes(key))) {
+      throw new Error(`${file.id}: manifest says lyrics=false but FFprobe found a lyrics tag`);
+    }
   }
 
   if (expected.videoCodec) {
