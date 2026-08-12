@@ -28,6 +28,6 @@ mount(App, {
 });
 
 void Promise.all([playlistStore.ready(), libraryStore.ready(), favoritesStore.ready()]).then(async () => {
-  await tick();
   document.documentElement.dataset.izciReady = 'main-hydrated';
+  await tick();
 });

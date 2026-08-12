@@ -430,6 +430,12 @@ async function runProfile({
     if (message.method === 'Target.targetCrashed') targetEvents.push(message);
   });
   const disposeBackgroundAttach = connection.on('Target.attachedToTarget', (event) => {
+    const ownedUrl = event.targetInfo.url.startsWith(baseUrl)
+      || event.targetInfo.url.startsWith(`blob:${baseUrl}`);
+    if (!ownedUrl) {
+      void connection.send('Target.detachFromTarget', { sessionId: event.sessionId }).catch(() => {});
+      return;
+    }
     const target = {
       targetId: event.targetInfo.targetId,
       sessionId: event.sessionId,
@@ -470,7 +476,13 @@ async function runProfile({
     autoAttach: true,
     waitForDebuggerOnStart: false,
     flatten: true,
-    filter: [{ type: 'page', exclude: true }, {}]
+    filter: [
+      { type: 'service_worker' },
+      { type: 'worker' },
+      { type: 'shared_worker' },
+      { type: 'worklet' },
+      { exclude: true }
+    ]
   });
   await connection.send('Target.setDiscoverTargets', { discover: true });
   await connection.send('Tracing.start', {
@@ -575,6 +587,9 @@ function renderSummary(report) {
     lines.push(`${profile.profileId}: ${profile.browserVersion.product}`);
     if (profile.traceFailure) lines.push(`  trace: FAILED (${profile.traceFailure})`);
     if (profile.heapSnapshotFailure) lines.push(`  heap: FAILED (${profile.heapSnapshotFailure})`);
+    for (const failure of profile.backgroundFailures) {
+      lines.push(`  FAIL ${failure.type} ${failure.url} — ${failure.failure}`);
+    }
     for (const scenario of profile.scenarios) {
       const detail = scenario.failures?.length ? ` — ${scenario.failures.join('; ')}` : '';
       lines.push(`  ${scenario.status === 'passed' ? 'PASS' : 'FAIL'} ${scenario.id}${detail}`);
