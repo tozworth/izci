@@ -1,6 +1,12 @@
 export const architectureConfig = Object.freeze({
   sourceRoots: ['src'],
-  sourceFiles: ['sites-worker.js', 'svelte.config.js', 'vite.config.ts'],
+  sourceFiles: [
+    'public/raf-upward-compressor.worklet.js',
+    'public/vendor/ahx-worklet.js',
+    'sites-worker.js',
+    'svelte.config.js',
+    'vite.config.ts'
+  ],
   sourceExtensions: ['.js', '.ts', '.svelte'],
   excludedPathPatterns: [
     /(?:^|\/)node_modules(?:\/|$)/,
@@ -14,7 +20,7 @@ export const architectureConfig = Object.freeze({
     {
       runtime: 'vendor',
       description: 'Checked-in third-party runtime code is measured separately from application ownership.',
-      prefixes: ['src/lib/vendor/']
+      prefixes: ['public/vendor/', 'src/lib/vendor/']
     },
     {
       runtime: 'node-build',
@@ -36,6 +42,7 @@ export const architectureConfig = Object.freeze({
     'AudioEncoder',
     'AudioWorklet',
     'AudioWorkletNode',
+    'AudioWorkletProcessor',
     'Blob',
     'BroadcastChannel',
     'DOMParser',
@@ -76,6 +83,7 @@ export const architectureConfig = Object.freeze({
     'VideoEncoder',
     'WebSocket',
     'WebTransport',
+    'WebAssembly',
     'Worker',
     'addEventListener',
     'atob',
@@ -88,6 +96,8 @@ export const architectureConfig = Object.freeze({
     'close',
     'createImageBitmap',
     'crypto',
+    'currentFrame',
+    'currentTime',
     'customElements',
     'document',
     'dispatchEvent',
@@ -108,6 +118,7 @@ export const architectureConfig = Object.freeze({
     'requestAnimationFrame',
     'requestIdleCallback',
     'screen',
+    'sampleRate',
     'self',
     'sessionStorage',
     'setInterval',
@@ -152,6 +163,7 @@ export const architectureConfig = Object.freeze({
     /(?:^|\/)\w[\w.-]*\.worker\.[jt]s$/,
     /(?:^|\/)\w[\w.-]*\.worklet\.[jt]s$/,
     /^src\/lib\/vendor\/chiptune3\/chiptune3\.js$/,
+    /^public\/vendor\/ahx-worklet\.js$/,
     /^sites-worker\.js$/,
     /^(?:svelte|vite)\.config\.[jt]s$/
   ],

@@ -111,29 +111,37 @@ test('includes configured root runtime sources and parses JavaScript imports', a
 
 test('classifies execution realms and isolates vendor and Node-build global observations', async (t) => {
   const root = await fixture({
+    'public/raf-upward-compressor.worklet.js': 'class Processor extends AudioWorkletProcessor { process() { return sampleRate > 0; } }\nregisterProcessor("raf", Processor);\n',
+    'public/vendor/ahx-worklet.js': 'class Processor extends AudioWorkletProcessor {}\nWebAssembly.compile(new Uint8Array());\nregisterProcessor("ahx", Processor);\n',
     'src/main.ts': 'window.name = "app";\n',
     'src/render.worker.ts': 'self.postMessage("ready");\n',
     'src/lib/vendor/chiptune3/runtime.js': 'window.name = "vendor";\n',
     'vite.config.ts': 'const base = new URL(".", import.meta.url);\nexport default { base };\n'
   });
   t.after(() => fs.rm(root, { recursive: true, force: true }));
-  const config = { ...fixtureConfig, sourceFiles: ['vite.config.ts'] };
+  const config = {
+    ...fixtureConfig,
+    sourceFiles: ['public/raf-upward-compressor.worklet.js', 'public/vendor/ahx-worklet.js', 'vite.config.ts']
+  };
   const report = await analyzeProject({ root, config, includeBundle: false });
 
   assert.deepEqual(report.source.runtimes, {
     browser: ['src/main.ts'],
     'node-build': ['vite.config.ts'],
-    vendor: ['src/lib/vendor/chiptune3/runtime.js'],
-    worker: ['src/render.worker.ts']
+    vendor: ['public/vendor/ahx-worklet.js', 'src/lib/vendor/chiptune3/runtime.js'],
+    worker: ['public/raf-upward-compressor.worklet.js', 'src/render.worker.ts']
   });
+  assert.ok(report.source.entrypoints.includes('public/raf-upward-compressor.worklet.js'));
+  assert.ok(report.source.entrypoints.includes('public/vendor/ahx-worklet.js'));
   assert.deepEqual(report.browserGlobalAccess.byRuntime, {
     browser: { applicable: true, files: 1, productionFiles: 1, testFiles: 0, observations: 1, violations: 1 },
     'node-build': { applicable: false, files: 1, productionFiles: 1, testFiles: 0, observations: 1, violations: 0 },
-    vendor: { applicable: false, files: 1, productionFiles: 1, testFiles: 0, observations: 1, violations: 0 },
-    worker: { applicable: true, files: 1, productionFiles: 1, testFiles: 0, observations: 1, violations: 1 }
+    vendor: { applicable: false, files: 2, productionFiles: 2, testFiles: 0, observations: 4, violations: 0 },
+    worker: { applicable: true, files: 2, productionFiles: 2, testFiles: 0, observations: 4, violations: 4 }
   });
-  assert.equal(report.browserGlobalAccess.violations, 2);
+  assert.equal(report.browserGlobalAccess.violations, 5);
   assert.ok(report.browserGlobalAccess.findings.some((finding) => finding.runtime === 'vendor' && finding.global === 'window' && !finding.applicable));
+  assert.ok(report.browserGlobalAccess.findings.some((finding) => finding.file === 'public/vendor/ahx-worklet.js' && finding.global === 'AudioWorkletProcessor'));
 });
 
 test('reports production modules with no production inbound edge and preserves test-only inbound facts', async (t) => {

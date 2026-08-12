@@ -19,8 +19,9 @@ The analysis is deliberately bounded:
 
 - imports cover ESM imports, re-exports, and string-literal dynamic imports;
 - cycles are strongly connected components of resolved source-module edges;
-- runtime sources include TS/Svelte/JS under `src/` plus the root Vite, Svelte,
-  and Sites Worker runtime/build configuration;
+- runtime sources include TS/Svelte/JS under `src/`, the root Vite, Svelte, and
+  Sites Worker runtime/build configuration, and the executable Raf and AHX
+  worklets copied from `public/`;
 - sources are classified as browser, worker, Node-build, or vendor runtime;
   browser-capability violations apply to browser/worker sources, while Node and
   vendored observations remain separately visible rather than polluting that

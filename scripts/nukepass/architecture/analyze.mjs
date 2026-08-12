@@ -161,6 +161,10 @@ function isIdentifierUse(node, bindingIdentifiers) {
   ) return false;
   if (ts.isBindingElement(parent) && (parent.name === node || parent.propertyName === node)) return false;
   if ((ts.isImportSpecifier(parent) || ts.isExportSpecifier(parent)) && (parent.name === node || parent.propertyName === node)) return false;
+  if (
+    ts.isExpressionWithTypeArguments(parent) && parent.expression === node &&
+    ts.isHeritageClause(parent.parent) && parent.parent.token === ts.SyntaxKind.ExtendsKeyword
+  ) return true;
   if (ts.isShorthandPropertyAssignment(parent)) return true;
   if (
     (ts.isVariableDeclaration(parent) || ts.isParameter(parent) || ts.isFunctionDeclaration(parent) ||
