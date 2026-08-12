@@ -10,7 +10,8 @@ import { launchBrowser } from './browser-launcher.mjs';
 import {
   enableBackgroundObservation,
   isBackgroundTargetType,
-  isOwnedBackgroundTarget
+  isOwnedBackgroundTarget,
+  releaseUnownedBackgroundTarget
 } from './background-observer.mjs';
 import {
   assertBuildProvenance,
@@ -443,7 +444,7 @@ async function runProfile({
   const disposeBackgroundAttach = connection.on('Target.attachedToTarget', (event) => {
     if (!isBackgroundTargetType(event.targetInfo.type)) return;
     if (!isOwnedBackgroundTarget(event.targetInfo, baseUrl)) {
-      void connection.send('Target.detachFromTarget', { sessionId: event.sessionId }).catch(() => {});
+      void releaseUnownedBackgroundTarget(connection, event.sessionId);
       return;
     }
     const target = {

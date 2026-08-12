@@ -14,6 +14,14 @@ export function isOwnedBackgroundTarget(targetInfo, baseUrl) {
     && (targetInfo.url.startsWith(baseUrl) || targetInfo.url.startsWith(`blob:${baseUrl}`));
 }
 
+export async function releaseUnownedBackgroundTarget(connection, sessionId) {
+  try {
+    await connection.send('Runtime.runIfWaitingForDebugger', {}, sessionId);
+  } finally {
+    await connection.send('Target.detachFromTarget', { sessionId }).catch(() => {});
+  }
+}
+
 export async function enableBackgroundObservation({
   connection,
   event,

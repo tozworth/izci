@@ -3,7 +3,8 @@ import { describe, it } from 'node:test';
 import {
   enableBackgroundObservation,
   isBackgroundTargetType,
-  isOwnedBackgroundTarget
+  isOwnedBackgroundTarget,
+  releaseUnownedBackgroundTarget
 } from './background-observer.mjs';
 
 function target() {
@@ -65,5 +66,19 @@ describe('CDP background observation', () => {
 
     assert.equal(observedTarget.setupFailure, 'domain unavailable');
     assert.equal(operations.at(-1), 'Runtime.runIfWaitingForDebugger');
+  });
+
+  it('resumes a paused non-owned background before detaching it', async () => {
+    const operations = [];
+    const connection = {
+      async send(method) {
+        operations.push(method);
+      }
+    };
+    await releaseUnownedBackgroundTarget(connection, 'extension-session');
+    assert.deepEqual(operations, [
+      'Runtime.runIfWaitingForDebugger',
+      'Target.detachFromTarget'
+    ]);
   });
 });
