@@ -1,5 +1,5 @@
 import '@material-symbols/font-400/outlined.css';
-import { mount } from 'svelte';
+import { mount, tick } from 'svelte';
 import { initializeLocalization } from '$lib/i18n';
 import { initLogging } from '$lib/services/logging';
 import { initializePopupWindowSizePersistence } from '$lib/services/popup-window-state';
@@ -16,3 +16,7 @@ initializeLocalization();
 initLogging();
 initializePopupWindowSizePersistence('logs');
 mount(LogsApp, { target: document.getElementById('app')! });
+
+void tick().then(() => {
+  document.documentElement.dataset.izciReady = 'logs-mounted';
+});

@@ -1,4 +1,4 @@
-import { mount } from 'svelte';
+import { mount, tick } from 'svelte';
 import '@material-symbols/font-400/outlined.css';
 import App from './App.svelte';
 import '$lib/styles/options-view.css';
@@ -9,6 +9,7 @@ import { registerAppServiceWorker } from '$lib/services/pwa-updates';
 import { initializeLocalization } from '$lib/i18n';
 import { initializeMobileDocument } from './mobile/mobile-device';
 import { initLogging } from '$lib/services/logging';
+import { favoritesStore, libraryStore, playlistStore } from '$lib/stores/playlist';
 import './mobile/mobile.css';
 import './mobile/mobile-options.css';
 
@@ -24,4 +25,9 @@ initLogging();
 
 mount(App, {
   target: document.getElementById('app')!
+});
+
+void Promise.all([playlistStore.ready(), libraryStore.ready(), favoritesStore.ready()]).then(async () => {
+  await tick();
+  document.documentElement.dataset.izciReady = 'main-hydrated';
 });

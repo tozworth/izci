@@ -7,6 +7,7 @@ import { basename, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import { launchBrowser } from './browser-launcher.mjs';
+import { assertScenarioEntrypoints, readScenarioCatalog } from './catalog.mjs';
 import { CdpConnection } from './protocol-client.mjs';
 import { startStaticServer } from './static-server.mjs';
 
@@ -125,21 +126,6 @@ async function readRepositoryIdentity() {
   };
 }
 
-async function readScenarioCatalog() {
-  const source = await readFile(resolve(HARNESS_DIRECTORY, 'scenarios.json'), 'utf8');
-  const catalog = JSON.parse(source);
-  if (catalog.schemaVersion !== 1 || !Array.isArray(catalog.scenarios)
-    || catalog.scenarios.length === 0) throw new Error('Invalid CDP scenario catalog.');
-  const ids = new Set();
-  for (const scenario of catalog.scenarios) {
-    if (!scenario.id || !scenario.path || ids.has(scenario.id)) {
-      throw new Error(`Invalid or duplicate CDP scenario: ${scenario.id ?? '<missing>'}`);
-    }
-    ids.add(scenario.id);
-  }
-  return catalog;
-}
-
 function serializeRemoteArgument(argument) {
   if (Object.hasOwn(argument, 'value')) return argument.value;
   return argument.unserializableValue ?? argument.description ?? argument.type;
@@ -160,14 +146,16 @@ async function evaluate(connection, sessionId, expression) {
   return result.result?.value;
 }
 
-const READINESS_EXPRESSION = `new Promise((resolve, reject) => {
+function readinessExpression(expectedReady) {
+  return `new Promise((resolve, reject) => {
   const deadline = setTimeout(() => {
     observer.disconnect();
     reject(new Error('Timed out waiting for the application root'));
   }, 15000);
   const ready = () => document.readyState === 'complete'
+    && document.documentElement.dataset.izciReady === ${JSON.stringify(expectedReady)}
     && document.querySelector('#app')?.childElementCount > 0;
-  const finish = () => requestAnimationFrame(() => requestAnimationFrame(() => {
+  const finish = () => requestAnimationFrame(() => {
     clearTimeout(deadline);
     observer.disconnect();
     resolve({
@@ -176,11 +164,12 @@ const READINESS_EXPRESSION = `new Promise((resolve, reject) => {
       rootChildren: document.querySelector('#app')?.childElementCount ?? 0,
       bodyTextLength: document.body?.innerText?.length ?? 0
     });
-  }));
+  });
   const observer = new MutationObserver(() => { if (ready()) finish(); });
   observer.observe(document.documentElement, { childList: true, subtree: true });
   if (ready()) finish();
 })`;
+}
 
 function browserStateExpression(expectedServiceWorkerSha256) {
   return `(async () => {
@@ -321,7 +310,11 @@ async function runEntrypoint({
     const navigation = await connection.send('Page.navigate', { url: expectedUrl }, sessionId);
     if (navigation.errorText) throw new Error(`Navigation failed: ${navigation.errorText}`);
     await loaded;
-    scenario.readiness = await evaluate(connection, sessionId, READINESS_EXPRESSION);
+    scenario.readiness = await evaluate(
+      connection,
+      sessionId,
+      readinessExpression(entrypoint.ready)
+    );
     if (scenario.readiness.url !== expectedUrl) {
       throw new Error(`Unexpected final URL ${scenario.readiness.url}; expected ${expectedUrl}`);
     }
@@ -528,8 +521,9 @@ async function main() {
     describeBuild(distDirectory),
     readCommit(),
     readRepositoryIdentity(),
-    readScenarioCatalog()
+    readScenarioCatalog(resolve(HARNESS_DIRECTORY, 'scenarios.json'))
   ]);
+  assertScenarioEntrypoints(scenarioCatalog, build);
   const server = await startStaticServer(distDirectory);
   const serviceWorkerAsset = build.files.find((file) => file.path === 'sw.js');
   if (!serviceWorkerAsset) throw new Error('The production build does not contain sw.js.');

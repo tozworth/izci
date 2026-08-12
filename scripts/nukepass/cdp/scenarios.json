@@ -6,14 +6,14 @@
     "usedByBootScenarios": false
   },
   "scenarios": [
-    { "id": "main", "path": "/", "entrypoint": "main", "mode": "boot" },
-    { "id": "options", "path": "/options.html", "entrypoint": "Options", "mode": "boot" },
-    { "id": "audio-compare", "path": "/audio-compare.html", "entrypoint": "Audio Compare", "mode": "boot" },
-    { "id": "editor", "path": "/editor.html", "entrypoint": "Editor", "mode": "boot" },
-    { "id": "converter", "path": "/converter.html", "entrypoint": "Converter", "mode": "boot" },
-    { "id": "logs", "path": "/logs.html", "entrypoint": "Logs", "mode": "boot" },
-    { "id": "troubadour", "path": "/troubadour.html", "entrypoint": "Troubadour", "mode": "boot" },
-    { "id": "troubadour-options", "path": "/troubadour-options.html", "entrypoint": "Troubadour Options", "mode": "boot" }
+    { "id": "main", "path": "/", "entrypoint": "main", "mode": "boot", "ready": "main-hydrated" },
+    { "id": "options", "path": "/options.html", "entrypoint": "Options", "mode": "boot", "ready": "options-mounted" },
+    { "id": "audio-compare", "path": "/audio-compare.html", "entrypoint": "Audio Compare", "mode": "boot", "ready": "audio-compare-mounted" },
+    { "id": "editor", "path": "/editor.html", "entrypoint": "Editor", "mode": "boot", "ready": "editor-mounted" },
+    { "id": "converter", "path": "/converter.html", "entrypoint": "Converter", "mode": "boot", "ready": "converter-mounted" },
+    { "id": "logs", "path": "/logs.html", "entrypoint": "Logs", "mode": "boot", "ready": "logs-mounted" },
+    { "id": "troubadour", "path": "/troubadour.html", "entrypoint": "Troubadour", "mode": "boot", "ready": "troubadour-mounted" },
+    { "id": "troubadour-options", "path": "/troubadour-options.html", "entrypoint": "Troubadour Options", "mode": "boot", "ready": "troubadour-options-mounted" }
   ],
   "expansion": {
     "singleInstance": "Later stages add the runbook's fixture import, collection, playback, workspace, and Options matrices.",

@@ -1,5 +1,5 @@
 import '@material-symbols/font-400/outlined.css';
-import { mount } from 'svelte';
+import { mount, tick } from 'svelte';
 import OptionsApp from './OptionsApp.svelte';
 import '$lib/styles/options-view.css';
 import '../mobile/mobile-options.css';
@@ -24,4 +24,8 @@ initializePopupWindowSizePersistence('options');
 
 mount(OptionsApp, {
   target: document.getElementById('app')!
+});
+
+void tick().then(() => {
+  document.documentElement.dataset.izciReady = 'options-mounted';
 });

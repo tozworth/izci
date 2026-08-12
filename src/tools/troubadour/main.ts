@@ -1,5 +1,5 @@
 import '@material-symbols/font-400/outlined.css';
-import { mount } from 'svelte';
+import { mount, tick } from 'svelte';
 import { initializeLocalization } from '$lib/i18n';
 import { initializePopupWindowSizePersistence } from '$lib/services/popup-window-state';
 import { initializeScrollbarVisibility } from '$lib/services/scrollbar-visibility';
@@ -20,3 +20,7 @@ initLogging();
 initializePopupWindowSizePersistence('troubadour');
 
 mount(TroubadourApp, { target: document.getElementById('app')! });
+
+void tick().then(() => {
+  document.documentElement.dataset.izciReady = 'troubadour-mounted';
+});
