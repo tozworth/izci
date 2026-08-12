@@ -438,6 +438,7 @@ function createPlayerController() {
     if (requestId !== operationSequence || !loaded || !activeBundle.track) return;
     currentTrack.set(activeBundle.track);
     publishActiveBundle(options.autoPlay ? 'playing' : activeBundle.snapshot.state);
+    audioBusService.setRafEffectBypass('auto-amp', activeBundle.track.kind === 'video');
     logInfo('playback', 'Track load completed', { id: track.id, kind: track.kind });
     syncModuleTransportAnchor();
   }

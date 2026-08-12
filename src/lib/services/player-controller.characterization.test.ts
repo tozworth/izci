@@ -7,17 +7,19 @@ const harness = vi.hoisted(() => {
     instance: MockBackend;
     track: PlaylistItem;
     resolve: () => void;
+    reject: (error: Error) => void;
   }
 
   const instances: MockBackend[] = [];
   const pendingLoads: PendingLoad[] = [];
 
   class MockBackend {
+    role: 'stream' | 'module' | 'hively' | 'video';
     snapshotCallback: ((partial: Partial<PlaybackSnapshot>) => void) | undefined;
     metadataCallback: ((metadata: TrackMetadata) => void) | undefined;
     endedCallback: (() => void) | undefined;
-    load = vi.fn((track: PlaylistItem) => new Promise<void>((resolve) => {
-      pendingLoads.push({ instance: this, track, resolve });
+    load = vi.fn((track: PlaylistItem) => new Promise<void>((resolve, reject) => {
+      pendingLoads.push({ instance: this, track, resolve, reject });
     }));
     destroy = vi.fn();
     stop = vi.fn();
@@ -36,6 +38,7 @@ const harness = vi.hoisted(() => {
     pictureInPictureSupported = false;
 
     constructor(...callbacks: unknown[]) {
+      this.role = (['stream', 'module', 'hively', 'video'] as const)[instances.length % 4];
       this.snapshotCallback = callbacks[0] as ((partial: Partial<PlaybackSnapshot>) => void);
       this.metadataCallback = callbacks[1] as ((metadata: TrackMetadata) => void);
       this.endedCallback = callbacks.at(-1) as (() => void);
@@ -138,6 +141,24 @@ function track(id: string): PlaylistItem {
   };
 }
 
+type BackendRole = 'stream' | 'module' | 'hively' | 'video';
+
+function backendTrack(id: string, backend: BackendRole): PlaylistItem {
+  const facts = {
+    stream: { name: `${id}.mp3`, extension: 'mp3', kind: 'stream' as const },
+    module: { name: `${id}.mod`, extension: 'mod', kind: 'module' as const },
+    hively: { name: `${id}.ahx`, extension: 'ahx', kind: 'module' as const },
+    video: { name: `${id}.mp4`, extension: 'mp4', kind: 'video' as const }
+  }[backend];
+  return {
+    id,
+    ...facts,
+    size: 1,
+    lastModified: 1,
+    metadata: { embeddedMetadataLoaded: true }
+  };
+}
+
 async function flushUntilPending(id: string): Promise<void> {
   for (let pass = 0; pass < 10; pass += 1) {
     if (harness.pendingLoads.some((pending) => pending.track.id === id)) return;
@@ -154,11 +175,15 @@ function resolvePending(id: string) {
   return pending;
 }
 
-async function loadInitial(id = 'origin'): Promise<void> {
-  const loading = playerController.load(track(id), { autoPlay: true });
+async function loadInitial(
+  id = 'origin',
+  backend: BackendRole = 'stream'
+): Promise<ReturnType<typeof resolvePending>> {
+  const loading = playerController.load(backendTrack(id, backend), { autoPlay: true });
   await flushUntilPending(id);
-  resolvePending(id);
+  const pending = resolvePending(id);
   await loading;
+  return pending;
 }
 
 beforeEach(() => {
@@ -170,6 +195,7 @@ beforeEach(() => {
     removeEventListener: vi.fn()
   });
   harness.pendingLoads.length = 0;
+  harness.playbackStore.getSnapshot().replayGainMode = 'off';
   vi.clearAllMocks();
   playerController.unload();
 });
@@ -238,5 +264,92 @@ describe('player controller supersession characterization', () => {
 
     expect(get(playerController.currentTrack)?.id).toBe('c');
     expect(get(playerController.snapshot)).toMatchObject({ state: 'playing', backend: 'stream' });
+  });
+
+  const backendSwitches = (['stream', 'module', 'hively', 'video'] as const).flatMap(
+    (from) => (['stream', 'module', 'hively', 'video'] as const).map((to) => [from, to] as const)
+  );
+
+  it.each(backendSwitches)(
+    'commits a prepared crossfade from %s to %s through the intended backend',
+    async (from, to) => {
+      await loadInitial(`from-${from}`, from);
+      const target = backendTrack(`to-${to}`, to);
+      const transition = playerController.transitionTo(target, 'crossfade', 0.25);
+      await flushUntilPending(target.id);
+      const incoming = resolvePending(target.id);
+      await transition;
+
+      expect(incoming.instance.role).toBe(to);
+      expect(incoming.instance.play).toHaveBeenCalledOnce();
+      expect(get(playerController.currentTrack)?.id).toBe(target.id);
+    }
+  );
+
+  it('keeps the active backend when prepared crossfade loading fails', async () => {
+    await loadInitial('origin');
+    const transition = playerController.transitionTo(track('failed'), 'crossfade', 1);
+    await flushUntilPending('failed');
+    const failed = harness.pendingLoads.splice(
+      harness.pendingLoads.findIndex((pending) => pending.track.id === 'failed'),
+      1
+    )[0];
+    failed.reject(new Error('fixture load failed'));
+    await transition;
+
+    expect(get(playerController.currentTrack)?.id).toBe('origin');
+    expect(failed.instance.play).not.toHaveBeenCalled();
+  });
+
+  it('routes play, pause, and seek to the active backend during load and preparation', async () => {
+    const loading = playerController.load(backendTrack('loading-module', 'module'), { autoPlay: false });
+    await flushUntilPending('loading-module');
+    const loadingBackend = harness.pendingLoads.find(
+      (pending) => pending.track.id === 'loading-module'
+    )!;
+    playerController.play();
+    playerController.pause();
+    playerController.seek(12);
+    expect(loadingBackend.instance.play).toHaveBeenCalled();
+    expect(loadingBackend.instance.pause).toHaveBeenCalled();
+    expect(loadingBackend.instance.seek).toHaveBeenCalledWith(12);
+    resolvePending('loading-module');
+    await loading;
+
+    const transition = playerController.transitionTo(backendTrack('preparing-video', 'video'), 'crossfade', 1);
+    await flushUntilPending('preparing-video');
+    playerController.play();
+    playerController.pause();
+    playerController.seek(24);
+    expect(loadingBackend.instance.play).toHaveBeenCalledTimes(2);
+    expect(loadingBackend.instance.pause).toHaveBeenCalledTimes(2);
+    expect(loadingBackend.instance.seek).toHaveBeenLastCalledWith(24);
+    resolvePending('preparing-video');
+    await transition;
+  });
+
+  it('preserves stream ReplayGain/master volume and video Auto Amp bypass decisions', async () => {
+    harness.playbackStore.getSnapshot().replayGainMode = 'track';
+    const replayGain = { trackGainDb: -6, trackPeak: 0.9 };
+    const streamTrack = {
+      ...backendTrack('gain-stream', 'stream'),
+      metadata: { embeddedMetadataLoaded: true, replayGain }
+    };
+    const loading = playerController.load(streamTrack, { autoPlay: true });
+    await flushUntilPending(streamTrack.id);
+    const stream = resolvePending(streamTrack.id);
+    await loading;
+    playerController.setVolume(0.5);
+    expect(stream.instance.setVolume).toHaveBeenLastCalledWith(0.5, false, replayGain, 'track');
+    expect(harness.audioBus.setOutputGain).toHaveBeenLastCalledWith(0.5);
+    playerController.toggleMute();
+    expect(harness.audioBus.setOutputGain).toHaveBeenLastCalledWith(0);
+
+    const videoTrack = backendTrack('auto-amp-video', 'video');
+    const videoLoad = playerController.load(videoTrack, { autoPlay: true });
+    await flushUntilPending(videoTrack.id);
+    resolvePending(videoTrack.id);
+    await videoLoad;
+    expect(harness.audioBus.setRafEffectBypass).toHaveBeenLastCalledWith('auto-amp', true);
   });
 });

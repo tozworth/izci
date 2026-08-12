@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PlaylistItem } from '$lib/types';
 
 interface MockHowlOptions {
@@ -11,6 +11,8 @@ interface MockHowlInstance {
   playingValue: boolean;
   play: ReturnType<typeof vi.fn>;
   pause: ReturnType<typeof vi.fn>;
+  volume: ReturnType<typeof vi.fn>;
+  _sounds: unknown[];
 }
 
 const howlerHarness = vi.hoisted(() => ({
@@ -18,6 +20,7 @@ const howlerHarness = vi.hoisted(() => ({
 }));
 
 const audioBus = vi.hoisted(() => ({
+  connectHtmlMediaElement: vi.fn(() => null),
   disconnect: vi.fn(),
   resume: vi.fn(async () => true),
   setSourceGain: vi.fn(),
@@ -81,6 +84,11 @@ describe('HowlerPlayerService', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     howlerHarness.instances.length = 0;
+    vi.stubGlobal('HTMLMediaElement', class {});
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it('coalesces repeated play requests while loading and playing', async () => {
@@ -116,5 +124,22 @@ describe('HowlerPlayerService', () => {
 
     expect(howl.pause).toHaveBeenCalledTimes(1);
     expect(howl.play).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps native Howler gain as the fallback when media-element adoption fails', async () => {
+    const service = new HowlerPlayerService(vi.fn(), vi.fn(), vi.fn());
+    const ready = service.load(track, { autoPlay: true });
+    const howl = howlerHarness.instances[0];
+    const mediaElement = new HTMLMediaElement();
+    howl._sounds = [{ _node: mediaElement }];
+
+    howl.stateValue = 'loaded';
+    howl.options.onload();
+    await ready;
+    service.setVolume(0.5, false, undefined, 'off');
+    service.setTransitionGain(0.25);
+
+    expect(audioBus.connectHtmlMediaElement).toHaveBeenCalledWith(mediaElement);
+    expect(howl.volume).toHaveBeenLastCalledWith(0.125);
   });
 });
