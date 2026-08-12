@@ -10,6 +10,26 @@ export const architectureConfig = Object.freeze({
   aliases: {
     '$lib/': 'src/lib/'
   },
+  sourceRuntimeRules: [
+    {
+      runtime: 'vendor',
+      description: 'Checked-in third-party runtime code is measured separately from application ownership.',
+      prefixes: ['src/lib/vendor/']
+    },
+    {
+      runtime: 'node-build',
+      description: 'Root build configuration executes under Node rather than in the application browser runtime.',
+      paths: ['svelte.config.js', 'vite.config.ts']
+    },
+    {
+      runtime: 'worker',
+      description: 'Worker, worklet, and Sites Worker entrypoints execute outside the browser window realm.',
+      paths: ['sites-worker.js'],
+      patterns: [/(?:^|\/)\w[\w.-]*\.(?:worker|worklet)\.[jt]s$/]
+    }
+  ],
+  defaultSourceRuntime: 'browser',
+  browserCapabilityRuntimes: ['browser', 'worker'],
   browserGlobals: [
     'AudioContext',
     'AudioDecoder',
@@ -131,6 +151,7 @@ export const architectureConfig = Object.freeze({
     /^src\/(?:options|tools\/[^/]+)\/main\.ts$/,
     /(?:^|\/)\w[\w.-]*\.worker\.[jt]s$/,
     /(?:^|\/)\w[\w.-]*\.worklet\.[jt]s$/,
+    /^src\/lib\/vendor\/chiptune3\/chiptune3\.js$/,
     /^sites-worker\.js$/,
     /^(?:svelte|vite)\.config\.[jt]s$/
   ],

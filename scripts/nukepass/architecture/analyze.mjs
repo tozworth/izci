@@ -18,6 +18,12 @@ function validateConfig(config) {
   if (!Array.isArray(config.sourceFiles)) {
     throw new Error('Architecture config sourceFiles must be an array.');
   }
+  if (!Array.isArray(config.sourceRuntimeRules) || config.sourceRuntimeRules.some((rule) => !rule.runtime)) {
+    throw new Error('Architecture config sourceRuntimeRules must declare runtime classifications.');
+  }
+  if (typeof config.defaultSourceRuntime !== 'string' || !Array.isArray(config.browserCapabilityRuntimes)) {
+    throw new Error('Architecture config must declare a default runtime and browser capability runtimes.');
+  }
   if (!Array.isArray(config.directionRules) || config.directionRules.some((rule) => !rule.id || !rule.from || !rule.to)) {
     throw new Error('Every architecture direction rule needs id, from, and to fields.');
   }
@@ -301,6 +307,15 @@ function sourceScope(file) {
   return /(?:^|\/)[^/]+\.(?:test|spec)\.[^.]+$/.test(file) ? 'test' : 'production';
 }
 
+function sourceRuntime(file, config) {
+  for (const rule of config.sourceRuntimeRules) {
+    if (rule.paths?.includes(file)) return rule.runtime;
+    if (rule.prefixes?.some((prefix) => file.startsWith(prefix))) return rule.runtime;
+    if (rule.patterns?.some((pattern) => pattern.test(file))) return rule.runtime;
+  }
+  return config.defaultSourceRuntime;
+}
+
 function stronglyConnectedComponents(modules, edges) {
   const adjacency = new Map(modules.map((module) => [module, []]));
   for (const edge of edges) adjacency.get(edge.source)?.push(edge.target);
@@ -423,6 +438,7 @@ export async function analyzeProject({ root = process.cwd(), config = architectu
     }
     parsedModules.push({
       file,
+      runtime: sourceRuntime(file, config),
       imports: collectImports(sourceFile),
       exports: collectExports(sourceFile, file),
       browserGlobals: collectBrowserGlobals(sourceFile, config.browserGlobals)
@@ -470,11 +486,31 @@ export async function analyzeProject({ root = process.cwd(), config = architectu
   }
   unreferencedExports.sort((a, b) => compareText(a.file, b.file) || a.line - b.line || compareText(a.name, b.name));
 
+  const possibleUnreferencedModules = [];
+  for (const module of parsedModules) {
+    if (sourceScope(module.file) === 'test' || entrypoints.has(module.file)) continue;
+    const inbound = incoming.get(module.file);
+    const productionEdges = inbound.filter((edge) => sourceScope(edge.source) === 'production');
+    if (productionEdges.length > 0) continue;
+    const testEdges = inbound.filter((edge) => sourceScope(edge.source) === 'test');
+    possibleUnreferencedModules.push({
+      file: module.file,
+      runtime: module.runtime,
+      productionInboundEdges: 0,
+      productionImporters: [],
+      testInboundEdges: testEdges.length,
+      testImporters: sorted(new Set(testEdges.map((edge) => edge.source)))
+    });
+  }
+  possibleUnreferencedModules.sort((a, b) => compareText(a.file, b.file));
+
   const browserAccess = parsedModules.flatMap((module) => module.browserGlobals.map((finding) => ({
     scope: sourceScope(module.file),
+    runtime: module.runtime,
     file: module.file,
     global: finding.name,
     lines: finding.lines,
+    applicable: config.browserCapabilityRuntimes.includes(module.runtime),
     allowed: config.browserGlobalAllowedPathPatterns.some((pattern) => pattern.test(module.file))
   })))
     .sort((a, b) => compareText(a.file, b.file) || compareText(a.global, b.global));
@@ -490,17 +526,30 @@ export async function analyzeProject({ root = process.cwd(), config = architectu
       cycles: 'Strongly connected components of resolved internal import edges.',
       browserGlobals: 'Lexical identifier candidates, excluding declarations, property names, and type positions; allowed is config-driven and is not a capability ownership proof.',
       unreferencedExports: 'Conservative candidates from explicit non-Svelte exports; modules with namespace/dynamic consumers, no inbound edge, or entrypoint status are suppressed.',
+      unreferencedModules: 'Production modules with no production import edge after excluding declared entrypoints and test modules; test-only inbound edges remain explicit.',
+      sourceRuntimes: 'Path-based execution-realm classification; browser capability violations apply only to configured browser and worker runtimes, while all observations remain reported.',
       bundle: 'Byte facts from an existing dist tree; the reporter never builds or mutates dist.'
     },
     configuration: {
       sourceRoots: config.sourceRoots,
       sourceFiles: config.sourceFiles,
       sourceExtensions: config.sourceExtensions,
+      sourceRuntimeRules: config.sourceRuntimeRules.map(({ runtime, description }) => ({ runtime, description })),
+      defaultSourceRuntime: config.defaultSourceRuntime,
+      browserCapabilityRuntimes: config.browserCapabilityRuntimes,
       directionRules: config.directionRules.map(({ id, description }) => ({ id, description })),
       browserGlobals: sorted(config.browserGlobals),
       bundleDirectory: config.bundleDirectory
     },
-    source: { modules: moduleFiles.length, files: moduleFiles },
+    source: {
+      modules: moduleFiles.length,
+      files: moduleFiles,
+      entrypoints: sorted(entrypoints),
+      runtimes: Object.fromEntries(sorted(new Set(parsedModules.map((module) => module.runtime))).map((runtime) => [
+        runtime,
+        parsedModules.filter((module) => module.runtime === runtime).map((module) => module.file)
+      ]))
+    },
     imports: {
       internalEdges: internalEdges.length,
       externalEdges: externalImports.length,
@@ -517,13 +566,26 @@ export async function analyzeProject({ root = process.cwd(), config = architectu
     },
     cycles: { count: cycles.length, stronglyConnectedComponents: cycles },
     browserGlobalAccess: {
-      files: new Set(browserAccess.map((finding) => finding.file)).size,
-      productionFiles: new Set(browserAccess.filter((finding) => finding.scope === 'production').map((finding) => finding.file)).size,
-      testFiles: new Set(browserAccess.filter((finding) => finding.scope === 'test').map((finding) => finding.file)).size,
-      violations: browserAccess.filter((finding) => !finding.allowed).length,
+      files: new Set(browserAccess.filter((finding) => finding.applicable).map((finding) => finding.file)).size,
+      productionFiles: new Set(browserAccess.filter((finding) => finding.applicable && finding.scope === 'production').map((finding) => finding.file)).size,
+      testFiles: new Set(browserAccess.filter((finding) => finding.applicable && finding.scope === 'test').map((finding) => finding.file)).size,
+      violations: browserAccess.filter((finding) => finding.applicable && !finding.allowed).length,
+      observations: browserAccess.length,
+      byRuntime: Object.fromEntries(sorted(new Set(parsedModules.map((module) => module.runtime))).map((runtime) => {
+        const runtimeFindings = browserAccess.filter((finding) => finding.runtime === runtime);
+        return [runtime, {
+          applicable: config.browserCapabilityRuntimes.includes(runtime),
+          files: new Set(runtimeFindings.map((finding) => finding.file)).size,
+          productionFiles: new Set(runtimeFindings.filter((finding) => finding.scope === 'production').map((finding) => finding.file)).size,
+          testFiles: new Set(runtimeFindings.filter((finding) => finding.scope === 'test').map((finding) => finding.file)).size,
+          observations: runtimeFindings.length,
+          violations: runtimeFindings.filter((finding) => config.browserCapabilityRuntimes.includes(runtime) && !finding.allowed).length
+        }];
+      })),
       findings: browserAccess
     },
     possibleUnreferencedExports: { count: unreferencedExports.length, findings: unreferencedExports },
+    possibleUnreferencedModules: { count: possibleUnreferencedModules.length, findings: possibleUnreferencedModules },
     bundle
   };
 }

@@ -21,8 +21,15 @@ The analysis is deliberately bounded:
 - cycles are strongly connected components of resolved source-module edges;
 - runtime sources include TS/Svelte/JS under `src/` plus the root Vite, Svelte,
   and Sites Worker runtime/build configuration;
+- sources are classified as browser, worker, Node-build, or vendor runtime;
+  browser-capability violations apply to browser/worker sources, while Node and
+  vendored observations remain separately visible rather than polluting that
+  count;
 - browser-global findings use lexical scopes (including destructuring) but are
   still syntax-based candidates, not type-checked ownership;
+- possible unreferenced modules are production modules with no production
+  inbound edge after declared entrypoints and test files are excluded; test-only
+  importers and edge counts are retained on each candidate;
 - possible unreferenced exports omit Svelte exports, entrypoints, modules with no
   inbound edge, and modules consumed through namespace or dynamic imports;
 - bundle facts are exact file sizes plus the recognizable generated Workbox

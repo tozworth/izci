@@ -45,9 +45,11 @@ test('maps imports, direction violations, cycles, globals, and conservative unus
   assert.ok(report.directionViolations.findings.some((finding) => finding.rule === 'store-imports-service'));
   assert.deepEqual(report.browserGlobalAccess.findings, [{
     scope: 'production',
+    runtime: 'browser',
     file: 'src/App.svelte',
     global: 'window',
     lines: [3],
+    applicable: true,
     allowed: false
   }]);
   assert.ok(report.possibleUnreferencedExports.findings.some((finding) => finding.file.endsWith('state.ts') && finding.name === 'unusedValue'));
@@ -82,12 +84,12 @@ test('tracks browser globals through nested scopes and destructuring without fil
   const report = await analyzeProject({ root, config: fixtureConfig, includeBundle: false });
   assert.ok(report.source.files.includes('src/mixed.js'));
   assert.deepEqual(report.browserGlobalAccess.findings, [
-    { scope: 'production', file: 'src/mixed.js', global: 'history', lines: [2, 7], allowed: false },
-    { scope: 'production', file: 'src/mixed.js', global: 'location', lines: [5, 9], allowed: false },
-    { scope: 'production', file: 'src/mixed.js', global: 'setTimeout', lines: [2], allowed: false },
-    { scope: 'production', file: 'src/mixed.js', global: 'window', lines: [1], allowed: false },
-    { scope: 'production', file: 'src/types.ts', global: 'history', lines: [4], allowed: false },
-    { scope: 'production', file: 'src/types.ts', global: 'window', lines: [3], allowed: false }
+    { scope: 'production', runtime: 'browser', file: 'src/mixed.js', global: 'history', lines: [2, 7], applicable: true, allowed: false },
+    { scope: 'production', runtime: 'browser', file: 'src/mixed.js', global: 'location', lines: [5, 9], applicable: true, allowed: false },
+    { scope: 'production', runtime: 'browser', file: 'src/mixed.js', global: 'setTimeout', lines: [2], applicable: true, allowed: false },
+    { scope: 'production', runtime: 'browser', file: 'src/mixed.js', global: 'window', lines: [1], applicable: true, allowed: false },
+    { scope: 'production', runtime: 'browser', file: 'src/types.ts', global: 'history', lines: [4], applicable: true, allowed: false },
+    { scope: 'production', runtime: 'browser', file: 'src/types.ts', global: 'window', lines: [3], applicable: true, allowed: false }
   ]);
 });
 
@@ -103,7 +105,70 @@ test('includes configured root runtime sources and parses JavaScript imports', a
   assert.deepEqual(report.source.files, ['sites-worker.js', 'src/shared.js', 'vite.config.ts']);
   assert.equal(report.imports.internalEdges, 2);
   assert.deepEqual(report.browserGlobalAccess.findings, [
-    { scope: 'production', file: 'sites-worker.js', global: 'self', lines: [2], allowed: false }
+    { scope: 'production', runtime: 'worker', file: 'sites-worker.js', global: 'self', lines: [2], applicable: true, allowed: false }
+  ]);
+});
+
+test('classifies execution realms and isolates vendor and Node-build global observations', async (t) => {
+  const root = await fixture({
+    'src/main.ts': 'window.name = "app";\n',
+    'src/render.worker.ts': 'self.postMessage("ready");\n',
+    'src/lib/vendor/chiptune3/runtime.js': 'window.name = "vendor";\n',
+    'vite.config.ts': 'const base = new URL(".", import.meta.url);\nexport default { base };\n'
+  });
+  t.after(() => fs.rm(root, { recursive: true, force: true }));
+  const config = { ...fixtureConfig, sourceFiles: ['vite.config.ts'] };
+  const report = await analyzeProject({ root, config, includeBundle: false });
+
+  assert.deepEqual(report.source.runtimes, {
+    browser: ['src/main.ts'],
+    'node-build': ['vite.config.ts'],
+    vendor: ['src/lib/vendor/chiptune3/runtime.js'],
+    worker: ['src/render.worker.ts']
+  });
+  assert.deepEqual(report.browserGlobalAccess.byRuntime, {
+    browser: { applicable: true, files: 1, productionFiles: 1, testFiles: 0, observations: 1, violations: 1 },
+    'node-build': { applicable: false, files: 1, productionFiles: 1, testFiles: 0, observations: 1, violations: 0 },
+    vendor: { applicable: false, files: 1, productionFiles: 1, testFiles: 0, observations: 1, violations: 0 },
+    worker: { applicable: true, files: 1, productionFiles: 1, testFiles: 0, observations: 1, violations: 1 }
+  });
+  assert.equal(report.browserGlobalAccess.violations, 2);
+  assert.ok(report.browserGlobalAccess.findings.some((finding) => finding.runtime === 'vendor' && finding.global === 'window' && !finding.applicable));
+});
+
+test('reports production modules with no production inbound edge and preserves test-only inbound facts', async (t) => {
+  const root = await fixture({
+    'src/main.ts': 'import { live } from "./live";\nvoid live;\n',
+    'src/live.ts': 'export const live = true;\n',
+    'src/test-only.ts': 'export const helper = true;\n',
+    'src/test-only.test.ts': 'import { helper } from "./test-only";\nvoid helper;\n',
+    'src/orphan.ts': 'export const orphan = true;\n',
+    'src/render.worker.ts': 'export {};\n'
+  });
+  t.after(() => fs.rm(root, { recursive: true, force: true }));
+  const report = await analyzeProject({ root, config: fixtureConfig, includeBundle: false });
+
+  assert.ok(!report.possibleUnreferencedModules.findings.some((finding) => finding.file === 'src/main.ts'));
+  assert.ok(!report.possibleUnreferencedModules.findings.some((finding) => finding.file === 'src/render.worker.ts'));
+  assert.ok(!report.possibleUnreferencedModules.findings.some((finding) => finding.file === 'src/live.ts'));
+  assert.ok(!report.possibleUnreferencedModules.findings.some((finding) => finding.file === 'src/test-only.test.ts'));
+  assert.deepEqual(report.possibleUnreferencedModules.findings, [
+    {
+      file: 'src/orphan.ts',
+      runtime: 'browser',
+      productionInboundEdges: 0,
+      productionImporters: [],
+      testInboundEdges: 0,
+      testImporters: []
+    },
+    {
+      file: 'src/test-only.ts',
+      runtime: 'browser',
+      productionInboundEdges: 0,
+      productionImporters: [],
+      testInboundEdges: 1,
+      testImporters: ['src/test-only.test.ts']
+    }
   ]);
 });
 
