@@ -20,6 +20,8 @@ accepted.
 - [Dependency and ownership map](stage-0/dependency-ownership.md)
 - [Playback conformance baseline](stage-0/playback-conformance.md)
 - [Multiplayer checkpoint ledger](stage-0/multiplayer-ledger.md)
+- [Stage 1 execution plan and ownership](stage-1/execution-plan.md)
+- [Stage 1 baseline](stage-1/baseline.md)
 
 Inventories and verification evidence are updated in place as later stages
 replace owners. A ledger row describes the current tree at its recorded commit;
