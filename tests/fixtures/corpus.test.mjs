@@ -2,7 +2,10 @@ import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, posix } from 'node:path';
 import { afterAll, describe, expect, it } from 'vitest';
-import { generateCorpus, loadManifest } from '../../fixtures/generate.mjs';
+import { generateCorpus, inspectPinnedToolchain, loadManifest } from '../../fixtures/generate.mjs';
+
+const fixtureManifest = await loadManifest();
+const toolchainStatus = inspectPinnedToolchain(fixtureManifest);
 
 const temporaryDirectories = [];
 
@@ -22,6 +25,10 @@ describe('Stage 1 fixture manifest', () => {
     expect(manifest.schemaVersion).toBe(1);
     expect(manifest.corpusVersion).toMatch(/^stage-1-v\d+$/);
     expect(manifest.files.length).toBeGreaterThan(15);
+    expect(manifest.toolchain.node.minimumMajor).toBeGreaterThanOrEqual(22);
+    expect(manifest.toolchain.ffmpeg.version).toMatch(/^ffmpeg version /);
+    expect(manifest.toolchain.ffprobe.version).toMatch(/^ffprobe version /);
+    expect(manifest.toolchain.ffmpeg.requiredEncoders.length).toBeGreaterThan(0);
 
     const ids = new Set();
     const paths = new Set();
@@ -46,25 +53,51 @@ describe('Stage 1 fixture manifest', () => {
       if (coverage.status === 'gap') expect(coverage.reason).toBeTruthy();
       if (coverage.status === 'format-policy') expect(coverage.evidence).toBeTruthy();
     }
+    expect(manifest.requiredCoverage.filter((entry) => entry.status === 'gap').map((entry) => entry.format)).toEqual([
+      'xm', 's3m', 'it', 'mo3', 'ahx', 'hvl'
+    ]);
   });
 
   it('defines nested duplicates, stable revisions, and all programmable handle states', async () => {
     const manifest = await loadManifest();
-    const ids = new Set(manifest.files.map((file) => file.id));
+    const filesById = new Map(manifest.files.map((file) => [file.id, file]));
+    const ids = new Set(filesById.keys());
     const logical = manifest.logicalFixtures;
 
-    expect(logical.nestedTree.facts.maximumDepth).toBeGreaterThanOrEqual(3);
+    const treeFiles = logical.nestedTree.fileIds.map((id) => filesById.get(id));
+    const relativeTreePaths = treeFiles.map((file) => file.path.slice(`${logical.nestedTree.root}/`.length));
+    expect(Math.max(...relativeTreePaths.map((path) => path.split('/').length))).toBe(logical.nestedTree.facts.maximumDepth);
+    expect(new Set(treeFiles.map((file) => file.sha256)).size).toBe(logical.nestedTree.facts.distinctContentDigests);
+    expect(treeFiles.length).toBe(logical.nestedTree.facts.duplicateFileCount);
     expect(logical.nestedTree.fileIds.every((id) => ids.has(id))).toBe(true);
-    expect(logical.duplicateIdentities.groups[0].fixtureIds.length).toBeGreaterThanOrEqual(3);
+    const duplicateGroup = logical.duplicateIdentities.groups[0].fixtureIds.map((id) => filesById.get(id));
+    expect(new Set(duplicateGroup.map((file) => file.sha256)).size).toBe(1);
+    expect(new Set(duplicateGroup.map((file) => file.path)).size).toBe(duplicateGroup.length);
     expect(logical.stablePathReplacement.revisionSequence.map((revision) => revision.lastModified)).toEqual([1000, 2000]);
     expect(logical.stablePathReplacement.revisionSequence.every((revision) => ids.has(revision.fixtureId))).toBe(true);
+    const revisions = logical.stablePathReplacement.revisionSequence.map((revision) => filesById.get(revision.fixtureId));
+    expect(new Set(revisions.map((revision) => revision.sha256)).size).toBe(2);
+    expect(logical.stablePathReplacement.path).toBe(filesById.get('tree-stable-path').path);
     expect(logical.handleStates.map((state) => state.id)).toEqual(['granted', 'prompt', 'denied', 'unavailable']);
+    expect(logical.handleStates.map(({ queryPermission, requestPermission, available }) => ({
+      queryPermission,
+      requestPermission,
+      available
+    }))).toEqual([
+      { queryPermission: 'granted', requestPermission: 'granted', available: true },
+      { queryPermission: 'prompt', requestPermission: 'granted', available: true },
+      { queryPermission: 'denied', requestPermission: 'denied', available: true },
+      { queryPermission: 'denied', requestPermission: 'denied', available: false }
+    ]);
     expect(logical.handleStates.find((state) => state.id === 'unavailable').available).toBe(false);
   });
 });
 
 describe('Stage 1 fixture generator', () => {
-  it('reproduces the manifest digests in independent output directories', async () => {
+  const deterministicGenerationTest = toolchainStatus.available ? it : it.skip;
+  const unavailableReason = toolchainStatus.available ? '' : ` (intentional skip: ${toolchainStatus.reason})`;
+
+  deterministicGenerationTest(`reproduces digests and verifies media facts with the pinned toolchain${unavailableReason}`, async () => {
     const firstDirectory = await temporaryDirectory();
     const secondDirectory = await temporaryDirectory();
     const first = await generateCorpus({ outputDirectory: firstDirectory });
@@ -77,5 +110,20 @@ describe('Stage 1 fixture generator', () => {
         await readFile(join(secondDirectory, file.path))
       );
     }
+    expect(first.files.find((file) => file.id === 'audio-tagged-artwork').mediaVerification.status).toBe('verified');
+    expect(first.files.find((file) => file.id === 'module-mod').mediaVerification).toEqual({
+      status: 'verified',
+      container: 'libopenmpt'
+    });
+    expect(first.files.find((file) => file.id === 'corrupt-truncated-mp3').mediaVerification.status).toBe('rejected-as-expected');
   }, 30_000);
+
+  it('reports an unavailable pinned toolchain without blocking manifest validation', () => {
+    const status = inspectPinnedToolchain(fixtureManifest, {
+      ffmpeg: 'izci-intentionally-missing-ffmpeg',
+      ffprobe: 'izci-intentionally-missing-ffprobe'
+    });
+    expect(status.available).toBe(false);
+    expect(status.reason).toMatch(/^FFmpeg unavailable:/);
+  });
 });

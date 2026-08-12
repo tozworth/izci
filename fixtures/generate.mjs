@@ -86,6 +86,87 @@ function sha256(bytes) {
   return createHash('sha256').update(bytes).digest('hex');
 }
 
+function runTool(executable, args) {
+  return spawnSync(executable, args, { encoding: 'utf8' });
+}
+
+function toolVersion(executable) {
+  const result = runTool(executable, ['-version']);
+  if (result.error) return { available: false, reason: result.error.message };
+  if (result.status !== 0) {
+    return { available: false, reason: result.stderr.trim() || `exit ${result.status}` };
+  }
+  return { available: true, version: result.stdout.split(/\r?\n/, 1)[0] };
+}
+
+export function inspectPinnedToolchain(
+  manifest,
+  {
+    ffmpeg = process.env.IZCI_FIXTURE_FFMPEG || 'ffmpeg',
+    ffprobe = process.env.IZCI_FIXTURE_FFPROBE || 'ffprobe'
+  } = {}
+) {
+  const nodeMajor = Number(process.versions.node.split('.', 1)[0]);
+  if (nodeMajor < manifest.toolchain.node.minimumMajor) {
+    return {
+      available: false,
+      reason: `Node.js ${manifest.toolchain.node.minimumMajor}+ is required; found ${process.versions.node}`
+    };
+  }
+
+  const ffmpegResult = toolVersion(ffmpeg);
+  if (!ffmpegResult.available) {
+    return { available: false, reason: `FFmpeg unavailable: ${ffmpegResult.reason}` };
+  }
+  if (ffmpegResult.version !== manifest.toolchain.ffmpeg.version) {
+    return {
+      available: false,
+      reason: `FFmpeg mismatch: expected ${manifest.toolchain.ffmpeg.version}; found ${ffmpegResult.version}`
+    };
+  }
+
+  const ffprobeResult = toolVersion(ffprobe);
+  if (!ffprobeResult.available) {
+    return { available: false, reason: `FFprobe unavailable: ${ffprobeResult.reason}` };
+  }
+  if (ffprobeResult.version !== manifest.toolchain.ffprobe.version) {
+    return {
+      available: false,
+      reason: `FFprobe mismatch: expected ${manifest.toolchain.ffprobe.version}; found ${ffprobeResult.version}`
+    };
+  }
+
+  const encoders = runTool(ffmpeg, ['-hide_banner', '-encoders']);
+  if (encoders.error || encoders.status !== 0) {
+    return { available: false, reason: `Could not inspect FFmpeg encoders: ${encoders.error?.message || encoders.stderr.trim()}` };
+  }
+  const missingEncoders = manifest.toolchain.ffmpeg.requiredEncoders.filter(
+    (encoder) => !new RegExp(`\\s${encoder.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s`).test(encoders.stdout)
+  );
+  if (missingEncoders.length > 0) {
+    return { available: false, reason: `FFmpeg is missing encoders: ${missingEncoders.join(', ')}` };
+  }
+
+  const demuxers = runTool(ffprobe, ['-hide_banner', '-demuxers']);
+  if (demuxers.error || demuxers.status !== 0) {
+    return { available: false, reason: `Could not inspect FFprobe demuxers: ${demuxers.error?.message || demuxers.stderr.trim()}` };
+  }
+  const missingDemuxers = manifest.toolchain.ffprobe.requiredDemuxers.filter(
+    (demuxer) => !new RegExp(`\\s${demuxer.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s`).test(demuxers.stdout)
+  );
+  if (missingDemuxers.length > 0) {
+    return { available: false, reason: `FFprobe is missing demuxers: ${missingDemuxers.join(', ')}` };
+  }
+
+  return {
+    available: true,
+    ffmpeg,
+    ffprobe,
+    ffmpegVersion: ffmpegResult.version,
+    ffprobeVersion: ffprobeResult.version
+  };
+}
+
 function ensureRelativeFixturePath(path) {
   if (isAbsolute(path) || path.split('/').includes('..')) {
     throw new Error(`Fixture output path must be repository-relative: ${path}`);
@@ -131,15 +212,129 @@ function makeProTrackerMod() {
   return result;
 }
 
-function getFfmpegVersion(ffmpeg) {
-  const result = spawnSync(ffmpeg, ['-version'], { encoding: 'utf8' });
-  if (result.error) {
-    throw new Error(`FFmpeg is required for this fixture set: ${result.error.message}`);
+function assertPinnedToolchain(manifest, executables) {
+  const status = inspectPinnedToolchain(manifest, executables);
+  if (!status.available) {
+    throw new Error(`Pinned fixture toolchain unavailable. ${status.reason}`);
   }
-  if (result.status !== 0) {
-    throw new Error(`FFmpeg version check failed: ${result.stderr.trim()}`);
+  return status;
+}
+
+function probeFile(ffprobe, destination) {
+  const result = runTool(ffprobe, [
+    '-v', 'error',
+    '-show_entries',
+    'format=format_name,duration:format_tags:stream=index,codec_name,codec_type,sample_rate,channels,width,height,r_frame_rate:stream_tags:stream_disposition',
+    '-of', 'json',
+    destination
+  ]);
+  if (result.error) throw result.error;
+  return result.status === 0
+    ? { accepted: true, value: JSON.parse(result.stdout) }
+    : { accepted: false, error: result.stderr.trim() };
+}
+
+function approximately(actual, expected, tolerance, label, fixtureId) {
+  if (!Number.isFinite(actual) || Math.abs(actual - expected) > tolerance) {
+    throw new Error(`${fixtureId}: expected ${label} ${expected} ± ${tolerance}; received ${actual}`);
   }
-  return result.stdout.split(/\r?\n/, 1)[0];
+}
+
+function expectedProbeContainer(format) {
+  return {
+    wav: 'wav',
+    mp3: 'mp3',
+    flac: 'flac',
+    ogg: 'ogg',
+    opus: 'ogg',
+    mp4: 'mov,mp4,m4a,3gp,3g2,mj2',
+    webm: 'matroska,webm',
+    mkv: 'matroska,webm',
+    mod: 'libopenmpt'
+  }[format];
+}
+
+function rationalNumber(value) {
+  const [numerator, denominator] = value.split('/').map(Number);
+  return denominator ? numerator / denominator : Number.NaN;
+}
+
+async function verifyMediaFacts(file, destination, ffprobe) {
+  const expected = file.expected;
+  const shouldReject = expected.deliberatelyCorrupt || expected.kind === 'unsupported';
+  const shouldProbe = shouldReject || expected.codec || expected.videoCodec || expected.kind === 'tree-file';
+  if (!shouldProbe) return { status: 'not-applicable' };
+
+  const probe = probeFile(ffprobe, destination);
+  if (shouldReject) {
+    if (probe.accepted) throw new Error(`${file.id}: FFprobe unexpectedly accepted rejected fixture`);
+    return { status: 'rejected-as-expected' };
+  }
+  if (!probe.accepted) throw new Error(`${file.id}: FFprobe rejected valid fixture: ${probe.error}`);
+
+  const format = probe.value.format || {};
+  const streams = probe.value.streams || [];
+  const container = expectedProbeContainer(expected.format);
+  if (container && format.format_name !== container) {
+    throw new Error(`${file.id}: expected probe container ${container}; received ${format.format_name}`);
+  }
+  if (expected.durationSeconds !== undefined) {
+    approximately(Number(format.duration), expected.durationSeconds, 0.002, 'durationSeconds', file.id);
+  }
+
+  for (const [key, value] of Object.entries(expected.tags || {})) {
+    if (format.tags?.[key] !== value) {
+      throw new Error(`${file.id}: expected tag ${key}=${value}; received ${format.tags?.[key]}`);
+    }
+  }
+
+  if (expected.kind === 'module' || expected.kind === 'unknown-extension-module') {
+    const bytes = await readFile(destination);
+    if (bytes.subarray(1080, 1084).toString('ascii') !== 'M.K.') {
+      throw new Error(`${file.id}: missing ProTracker M.K. signature`);
+    }
+    const orderCount = bytes[950];
+    const highestPattern = Math.max(...bytes.subarray(952, 952 + orderCount));
+    if (expected.channels !== 4 || expected.patterns !== highestPattern + 1) {
+      throw new Error(`${file.id}: ProTracker header does not match ${expected.channels} channels/${expected.patterns} patterns`);
+    }
+    return { status: 'verified', container: format.format_name };
+  }
+
+  const audio = streams.find((stream) => stream.codec_type === 'audio');
+  if (expected.codec && audio?.codec_name !== expected.codec) {
+    throw new Error(`${file.id}: expected audio codec ${expected.codec}; received ${audio?.codec_name}`);
+  }
+  if (expected.audioCodec && audio?.codec_name !== expected.audioCodec) {
+    throw new Error(`${file.id}: expected audio codec ${expected.audioCodec}; received ${audio?.codec_name}`);
+  }
+  if (expected.sampleRate !== undefined && Number(audio?.sample_rate) !== expected.sampleRate) {
+    throw new Error(`${file.id}: expected sample rate ${expected.sampleRate}; received ${audio?.sample_rate}`);
+  }
+  if (expected.channels !== undefined && audio?.channels !== expected.channels) {
+    throw new Error(`${file.id}: expected ${expected.channels} audio channels; received ${audio?.channels}`);
+  }
+
+  const attachedArtwork = streams.find((stream) => stream.disposition?.attached_pic === 1);
+  if (expected.artwork) {
+    if (!attachedArtwork) throw new Error(`${file.id}: expected attached artwork`);
+    if (attachedArtwork.codec_name !== expected.artwork.format ||
+        attachedArtwork.width !== expected.artwork.width ||
+        attachedArtwork.height !== expected.artwork.height) {
+      throw new Error(`${file.id}: attached artwork facts do not match the manifest`);
+    }
+  } else if (attachedArtwork) {
+    throw new Error(`${file.id}: manifest says artwork=false but FFprobe found attached artwork`);
+  }
+
+  if (expected.videoCodec) {
+    const video = streams.find((stream) => stream.codec_type === 'video' && stream.disposition?.attached_pic !== 1);
+    if (video?.codec_name !== expected.videoCodec || video.width !== expected.width || video.height !== expected.height) {
+      throw new Error(`${file.id}: video codec or dimensions do not match the manifest`);
+    }
+    approximately(rationalNumber(video.r_frame_rate), expected.frameRate, 0.0001, 'frameRate', file.id);
+  }
+  return { status: 'verified', container: format.format_name };
 }
 
 async function materializeFile(file, outputDirectory, ffmpeg) {
@@ -195,18 +390,13 @@ export async function loadManifest() {
 export async function generateCorpus({
   outputDirectory,
   ffmpeg = process.env.IZCI_FIXTURE_FFMPEG || 'ffmpeg',
+  ffprobe = process.env.IZCI_FIXTURE_FFPROBE || 'ffprobe',
   verify = true
 } = {}) {
   const manifest = await loadManifest();
   const target = resolve(outputDirectory || join(REPOSITORY_ROOT, manifest.defaultOutputDirectory));
+  const toolchain = assertPinnedToolchain(manifest, { ffmpeg, ffprobe });
   await mkdir(target, { recursive: true });
-
-  const ffmpegVersion = getFfmpegVersion(ffmpeg);
-  if (ffmpegVersion !== manifest.toolchain.ffmpeg.version) {
-    throw new Error(
-      `Fixture digests are pinned to ${manifest.toolchain.ffmpeg.version}; found ${ffmpegVersion}`
-    );
-  }
 
   const files = [];
   for (const file of manifest.files) {
@@ -217,13 +407,15 @@ export async function generateCorpus({
         `received ${generated.sha256}/${generated.bytes}`
       );
     }
+    if (verify) generated.mediaVerification = await verifyMediaFacts(file, resolve(target, file.path), ffprobe);
     files.push(generated);
   }
 
   const report = {
     schemaVersion: 1,
     corpusVersion: manifest.corpusVersion,
-    ffmpegVersion,
+    ffmpegVersion: toolchain.ffmpegVersion,
+    ffprobeVersion: toolchain.ffprobeVersion,
     files
   };
   await writeFile(join(target, 'generation-report.json'), `${JSON.stringify(report, null, 2)}\n`, 'utf8');

@@ -12,6 +12,11 @@
       "version": "ffmpeg version 6.1.1-3ubuntu5 Copyright (c) 2000-2023 the FFmpeg developers",
       "requiredEncoders": ["aac", "flac", "libmp3lame", "libopus", "libvorbis", "libvpx", "libx264", "pcm_s16le", "png"],
       "reason": "Encoded media digests vary across FFmpeg/codec builds, so the first line and output digests fail closed."
+    },
+    "ffprobe": {
+      "version": "ffprobe version 6.1.1-3ubuntu5 Copyright (c) 2007-2023 the FFmpeg developers",
+      "requiredDemuxers": ["flac", "libopenmpt", "matroska,webm", "mov,mp4,m4a,3gp,3g2,mj2", "mp3", "ogg", "wav"],
+      "reason": "The paired pinned prober validates claimed container, stream, metadata, artwork, and rejection facts."
     }
   },
   "files": [
