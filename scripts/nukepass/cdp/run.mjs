@@ -355,6 +355,12 @@ async function runEntrypoint({
     scenario.heapUsage = heapUsage;
     scenario.domCounters = await connection.send('Memory.getDOMCounters', {}, sessionId);
     scenario.browserState = browserState;
+    await captureHeapSnapshot(
+      connection,
+      sessionId,
+      resolve(outputDirectory, `${entrypoint.id}.heapsnapshot`)
+    );
+    scenario.heapSnapshot = `${entrypoint.id}.heapsnapshot`;
     scenario.failures = scenarioFailures(scenario);
     scenario.status = scenario.failures.length === 0 ? 'passed' : 'failed';
   } catch (error) {
@@ -495,7 +501,6 @@ async function runProfile({
 
   const scenarios = [];
   let traceFailure = null;
-  let heapSnapshotFailure = null;
   let processInfo = null;
   try {
     for (let index = 0; index < entries.length; index += windowsPerProfile) {
@@ -513,15 +518,6 @@ async function runProfile({
       scenarios.push(...batch);
     }
     await Promise.all(backgroundTargetSetups);
-    try {
-      await captureHeapSnapshot(
-        connection,
-        keeperSessionId,
-        resolve(profileDirectory, 'heap.heapsnapshot')
-      );
-    } catch (error) {
-      heapSnapshotFailure = error.message;
-    }
     processInfo = await connection.send('SystemInfo.getProcessInfo').catch(() => null);
   } finally {
     try {
@@ -567,7 +563,6 @@ async function runProfile({
     backgroundTargets,
     backgroundFailures,
     traceFailure,
-    heapSnapshotFailure,
     processInfo,
     processLogs: profile.getProcessLogs(),
     scenarios
@@ -589,7 +584,6 @@ function renderSummary(report) {
   for (const profile of report.profiles) {
     lines.push(`${profile.profileId}: ${profile.browserVersion.product}`);
     if (profile.traceFailure) lines.push(`  trace: FAILED (${profile.traceFailure})`);
-    if (profile.heapSnapshotFailure) lines.push(`  heap: FAILED (${profile.heapSnapshotFailure})`);
     for (const failure of profile.backgroundFailures) {
       lines.push(`  FAIL ${failure.type} ${failure.url} — ${failure.failure}`);
     }
@@ -679,7 +673,6 @@ async function main() {
       expectedServiceWorkerSha256: serviceWorkerAsset.sha256
     })));
     const failed = profileReports.some((profile) => profile.traceFailure
-      || profile.heapSnapshotFailure
       || profile.targetEvents.length > 0
       || profile.backgroundFailures.length > 0
       || profile.scenarios.some((scenario) => scenario.status !== 'passed'));

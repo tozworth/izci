@@ -23,8 +23,9 @@ browser/OS/Node identity, flags, dynamic ports, process logs, target failures,
 and the checked-in `scenarios.json` catalog plus per-page results. Each of the
 eight production entrypoints produces a PNG,
 DOM snapshot, console/runtime/log/network record, service-worker state,
-performance metrics, DOM/resource counters, and heap-usage snapshot. A browser
-trace and full V8 heap snapshot are written for each profile. Unexpected
+performance metrics, DOM/resource counters, heap usage, and a full V8 heap
+snapshot from that application target. A browser trace is written for each
+profile. Unexpected
 navigation, target loss, runtime
 exceptions, console/log errors, non-cancelled network failures, readiness
 timeouts, and trace loss fail closed.
