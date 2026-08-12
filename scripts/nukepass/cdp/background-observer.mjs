@@ -16,7 +16,7 @@ export function isOwnedBackgroundTarget(targetInfo, baseUrl) {
 
 export async function releaseUnownedBackgroundTarget(connection, sessionId) {
   try {
-    await connection.send('Runtime.runIfWaitingForDebugger', {}, sessionId);
+    await connection.send('Runtime.runIfWaitingForDebugger', {}, sessionId).catch(() => {});
   } finally {
     await connection.send('Target.detachFromTarget', { sessionId }).catch(() => {});
   }

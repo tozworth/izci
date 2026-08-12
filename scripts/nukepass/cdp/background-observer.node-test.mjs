@@ -81,4 +81,22 @@ describe('CDP background observation', () => {
       'Target.detachFromTarget'
     ]);
   });
+
+  it('still detaches a non-owned background when resume is unavailable', async () => {
+    const operations = [];
+    const connection = {
+      async send(method) {
+        operations.push(method);
+        if (method === 'Runtime.runIfWaitingForDebugger') {
+          throw new Error('target already exited');
+        }
+      }
+    };
+
+    await releaseUnownedBackgroundTarget(connection, 'extension-session');
+    assert.deepEqual(operations, [
+      'Runtime.runIfWaitingForDebugger',
+      'Target.detachFromTarget'
+    ]);
+  });
 });
