@@ -79,7 +79,7 @@ export function startApplicationPage(config: ApplicationPageEntryConfig): PageBo
     popupOrphan: () => {
       const cleanups: PageCleanup[] = [];
       if (config.popupWindow) cleanups.push(initializePopupWindowSizePersistence(config.popupWindow));
-      cleanups.push(initializeWindowOrphanPolicy(config.orphanPolicy));
+      cleanups.push(initializeWindowOrphanPolicy(config.orphanPolicy, window, document));
       return async () => {
         for (const cleanup of cleanups.reverse()) await cleanup();
       };

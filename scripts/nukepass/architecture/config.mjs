@@ -129,16 +129,23 @@ export const architectureConfig = Object.freeze({
     'window'
   ],
   browserGlobalAllowedPathPatterns: [
-    /^src\/lib\/runtime\/adapters\//
+    /^src\/lib\/runtime\/adapters\//,
+    /^src\/lib\/application\/page-entry\.ts$/,
+    /^src\/(?:main|options\/main|tools\/[^/]+\/main)\.ts$/
   ],
   browserGlobalEnforcedPathPatterns: [
     /^src\/lib\/contracts\//,
+    /^src\/lib\/logging\//,
     /^src\/lib\/runtime\/(?!adapters\/)/,
-    /^src\/lib\/services\/multiplayer-protocol\.ts$/
+    /^src\/lib\/services\/(?:multiplayer-protocol|window-orphan)\.ts$/,
+    /^src\/lib\/application\/page-entry\.ts$/,
+    /^src\/(?:main|options\/main|tools\/[^/]+\/main)\.ts$/
   ],
   enforceCycles: true,
   enforcedDirectionRuleIds: [
     'contract-imports-implementation',
+    'implementation-imports-page-bootstrap',
+    'logging-core-imports-application',
     'runtime-imports-application',
     'wire-imports-internal-module'
   ],
@@ -166,6 +173,25 @@ export const architectureConfig = Object.freeze({
       description: 'Leaf contracts cannot depend on runtime, services, stores, or presentation implementations.',
       from: { prefixes: ['src/lib/contracts/'] },
       to: { prefixes: ['src/lib/runtime/', 'src/lib/services/', 'src/lib/stores/', 'src/lib/components/'] }
+    },
+    {
+      id: 'logging-core-imports-application',
+      description: 'The logging data/runtime/API kernel cannot depend on application domains or presentation.',
+      from: {
+        paths: [
+          'src/lib/logging/api.ts',
+          'src/lib/logging/contracts.ts',
+          'src/lib/logging/details.ts',
+          'src/lib/logging/runtime.ts'
+        ]
+      },
+      to: { prefixes: ['src/lib/application/', 'src/lib/services/', 'src/lib/stores/', 'src/lib/components/'] }
+    },
+    {
+      id: 'implementation-imports-page-bootstrap',
+      description: 'The page composition root is consumed only by page entrypoints, never by domains or views.',
+      from: { prefixes: ['src/lib/services/', 'src/lib/stores/', 'src/lib/components/'] },
+      to: { paths: ['src/lib/application/page-entry.ts'] }
     },
     {
       id: 'runtime-imports-application',

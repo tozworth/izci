@@ -10,8 +10,8 @@ export interface OrphanWindowTarget extends EventTarget {
 
 export function initializeWindowOrphanPolicy(
   policy: WindowOrphanPolicy,
-  target: OrphanWindowTarget = window,
-  visibilityTarget: EventTarget = document
+  target: OrphanWindowTarget,
+  visibilityTarget: EventTarget
 ): () => void {
   if (policy !== 'close-with-opener') return () => undefined;
 

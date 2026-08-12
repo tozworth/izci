@@ -96,20 +96,28 @@ test('tracks browser globals through nested scopes and destructuring without fil
 test('enforces reconstructed contract, runtime capability, wire leaf, and cycle ratchets', async (t) => {
   const root = await fixture({
     'src/lib/contracts/catalog.ts': 'import { value } from "../services/catalog";\nwindow.name = String(value);\nexport const item = value;\n',
-    'src/lib/services/catalog.ts': 'import { item } from "../contracts/catalog";\nexport const value = item ?? 1;\n',
+    'src/lib/application/page-entry.ts': 'export const bootstrap = true;\n',
+    'src/lib/logging/runtime.ts': 'import { value } from "../services/catalog";\nexport const logging = value;\n',
+    'src/lib/services/catalog.ts': 'import { item } from "../contracts/catalog";\nimport { bootstrap } from "../application/page-entry";\nexport const value = item ?? bootstrap;\n',
     'src/lib/services/multiplayer-protocol.ts': 'import { item } from "../contracts/catalog";\nexport const wire = item;\n',
     'src/lib/runtime/scope.ts': 'import { value } from "../services/catalog";\nexport const scope = value;\n'
   });
   t.after(() => fs.rm(root, { recursive: true, force: true }));
 
   const report = await analyzeProject({ root, config: fixtureConfig, includeBundle: false });
-  assert.equal(report.enforcement.direction.count, 3);
+  assert.equal(report.enforcement.direction.count, 5);
   assert.equal(report.enforcement.browserGlobals.count, 1);
   assert.equal(report.enforcement.cycles.count, 1);
-  assert.equal(report.enforcement.violations, 5);
+  assert.equal(report.enforcement.violations, 7);
   assert.deepEqual(
     report.enforcement.direction.findings.map((finding) => finding.rule),
-    ['contract-imports-implementation', 'runtime-imports-application', 'wire-imports-internal-module']
+    [
+      'contract-imports-implementation',
+      'implementation-imports-page-bootstrap',
+      'logging-core-imports-application',
+      'runtime-imports-application',
+      'wire-imports-internal-module'
+    ]
   );
 });
 
@@ -133,7 +141,7 @@ test('classifies execution realms and isolates vendor and Node-build global obse
   const root = await fixture({
     'public/raf-upward-compressor.worklet.js': 'class Processor extends AudioWorkletProcessor { process() { return sampleRate > 0; } }\nregisterProcessor("raf", Processor);\n',
     'public/vendor/ahx-worklet.js': 'class Processor extends AudioWorkletProcessor {}\nWebAssembly.compile(new Uint8Array());\nregisterProcessor("ahx", Processor);\n',
-    'src/main.ts': 'window.name = "app";\n',
+    'src/App.svelte': '<script>window.name = "app";</script>\n',
     'src/render.worker.ts': 'self.postMessage("ready");\n',
     'src/lib/vendor/chiptune3/runtime.js': 'window.name = "vendor";\n',
     'vite.config.ts': 'const base = new URL(".", import.meta.url);\nexport default { base };\n'
@@ -146,7 +154,7 @@ test('classifies execution realms and isolates vendor and Node-build global obse
   const report = await analyzeProject({ root, config, includeBundle: false });
 
   assert.deepEqual(report.source.runtimes, {
-    browser: ['src/main.ts'],
+    browser: ['src/App.svelte'],
     'node-build': ['vite.config.ts'],
     vendor: ['public/vendor/ahx-worklet.js', 'src/lib/vendor/chiptune3/runtime.js'],
     worker: ['public/raf-upward-compressor.worklet.js', 'src/render.worker.ts']
