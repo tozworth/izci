@@ -12,15 +12,11 @@ import { modulePlaybackSettings } from '$lib/stores/module-playback-settings';
 import { playbackSettings } from '$lib/stores/playback-settings';
 import { DEFAULT_PLAYER_VOLUME, playerVolume } from '$lib/stores/player-volume';
 import { sliderVolumeToGain } from '$lib/services/volume';
-import {
-  HIVELY_MODULE_EXTENSIONS,
-  type ModulePatternSnapshot,
-  type PlaybackSnapshot,
-  type PlaybackState,
-  type PlaylistItem,
-  type TrackKind,
-  type TrackMetadata
-} from '$lib/types';
+import { HIVELY_MODULE_EXTENSIONS, type TrackKind } from '$lib/contracts/media-format';
+import { type ModulePatternSnapshot } from '$lib/contracts/module-playback';
+import { type PlaybackSnapshot, type PlaybackState } from '$lib/contracts/playback';
+import { type PlaylistItem } from '$lib/contracts/catalog';
+import { type TrackMetadata } from '$lib/contracts/media-metadata';
 import { mergeInferredArtistTitle } from '$lib/utils/files';
 
 interface PlaybackStatusSnapshot {

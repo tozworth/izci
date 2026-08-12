@@ -21,7 +21,7 @@
     normalizeRememberProgressDurationIndex,
     playbackSettings
   } from '$lib/stores/playback-settings';
-  import type { PlaybackRestoreMode, PlaybackTransitionMode, ReplayGainMode } from '$lib/types';
+  import type { PlaybackRestoreMode, PlaybackTransitionMode, ReplayGainMode } from '$lib/contracts/playback';
 
   function checked(event: Event) { return (event.currentTarget as HTMLInputElement).checked; }
   function handlePlaybackRestoreModeChange(event: Event) { playbackSettings.update({ restoreMode: (event.currentTarget as HTMLSelectElement).value as PlaybackRestoreMode }); }

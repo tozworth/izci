@@ -1,4 +1,4 @@
-import type { ExperimentalSettings } from '$lib/types';
+import type { ExperimentalSettings } from '$lib/contracts/experimental-settings';
 import { createSettingsStore } from './persistent-store';
 
 export const EXPERIMENTAL_SETTINGS_STORAGE_KEY = 'izci.experimental-settings';

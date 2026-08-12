@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MultiplayerPlayback } from '$lib/services/multiplayer-protocol';
-import type { PlaybackSnapshot, PlaylistItem } from '$lib/types';
+import type { PlaybackSnapshot } from '$lib/contracts/playback';
+import type { PlaylistItem } from '$lib/contracts/catalog';
 
 const controllerHarness = vi.hoisted(() => ({
   snapshot: {

@@ -8,12 +8,9 @@
     NOW_PLAYING_PANEL_AUTO_HIDE_NEVER_SECONDS
   } from '$lib/stores/appearance-settings';
   import type { LoadedStreamArtwork } from '$lib/services/stream-artwork';
-  import type {
-    BackdropZoneEffect,
-    BackdropZoneArtworkSettings,
-    PlaylistItem,
-    WorkspaceTab
-  } from '$lib/types';
+  import type { BackdropZoneEffect, BackdropZoneArtworkSettings } from '$lib/contracts/appearance-settings';
+  import type { PlaylistItem } from '$lib/contracts/catalog';
+  import type { WorkspaceTab } from '$lib/contracts/workspace';
   import WorkspaceTabBar from './WorkspaceTabBar.svelte';
   import WorkspaceTabContent from './WorkspaceTabContent.svelte';
   import type {

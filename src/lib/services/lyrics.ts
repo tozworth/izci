@@ -1,5 +1,5 @@
 import { extractStreamVorbisComments } from '$lib/services/stream-artwork';
-import type { PlaylistItem } from '$lib/types';
+import type { PlaylistItem } from '$lib/contracts/catalog';
 
 export interface TimedLyricLine {
   time: number;

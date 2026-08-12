@@ -1,6 +1,8 @@
 import { audioBusService } from '$lib/services/audio-bus';
 import { logDebug, logError, logInfo, logWarning } from '$lib/services/logging';
-import type { PlaybackSnapshot, PlaylistItem, TrackMetadata } from '$lib/types';
+import type { PlaybackSnapshot } from '$lib/contracts/playback';
+import type { PlaylistItem } from '$lib/contracts/catalog';
+import type { TrackMetadata } from '$lib/contracts/media-metadata';
 
 type SnapshotHandler = (snapshot: Partial<PlaybackSnapshot>) => void;
 type MetadataHandler = (metadata: TrackMetadata) => void;

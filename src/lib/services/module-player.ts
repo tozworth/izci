@@ -3,13 +3,10 @@ import { audioBusService } from '$lib/services/audio-bus';
 import { logDebug, logError, logInfo } from '$lib/services/logging';
 import { mediaSessionService } from '$lib/services/media-session';
 import { modulePlaybackSettings } from '$lib/stores/module-playback-settings';
-import type {
-  ModulePatternSnapshot,
-  ModulePlaybackSettings,
-  PlaybackSnapshot,
-  PlaylistItem,
-  TrackMetadata
-} from '$lib/types';
+import type { ModulePatternSnapshot, ModulePlaybackSettings } from '$lib/contracts/module-playback';
+import type { PlaybackSnapshot } from '$lib/contracts/playback';
+import type { PlaylistItem } from '$lib/contracts/catalog';
+import type { TrackMetadata } from '$lib/contracts/media-metadata';
 import type { Chiptune3Metadata, ChiptuneJsPlayer } from 'chiptune3';
 
 type SnapshotHandler = (snapshot: Partial<PlaybackSnapshot>) => void;

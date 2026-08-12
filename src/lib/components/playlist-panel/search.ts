@@ -1,5 +1,6 @@
 import { getColumnTextValue } from '$lib/components/playlist-panel/library-columns';
-import type { LibraryColumnId, PlaylistItem } from '$lib/types';
+import type { LibraryColumnId } from '$lib/contracts/workspace';
+import type { PlaylistItem } from '$lib/contracts/catalog';
 
 const DEFAULT_SEARCH_COLUMN_IDS: LibraryColumnId[] = ['title', 'artist', 'album', 'folder', 'format', 'duration'];
 

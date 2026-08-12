@@ -1,4 +1,6 @@
-import type { MenuActionItem, PlaylistItem, WorkspaceCollection } from '$lib/types';
+import type { MenuActionItem } from '$lib/contracts/window-menu';
+import type { PlaylistItem } from '$lib/contracts/catalog';
+import type { WorkspaceCollection } from '$lib/contracts/workspace';
 import {
   resolveTrackLibraryNavigationTargets,
   TRACK_LIBRARY_NAVIGATION_FIELDS,

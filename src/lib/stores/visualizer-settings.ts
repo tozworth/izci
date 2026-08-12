@@ -1,4 +1,4 @@
-import type { VisualizerColorSource, VisualizerSettings, VisualizerStyle } from '$lib/types';
+import type { VisualizerColorSource, VisualizerSettings, VisualizerStyle } from '$lib/contracts/appearance-settings';
 import { createSettingsStore } from './persistent-store';
 
 export const VISUALIZER_SETTINGS_STORAGE_KEY = 'izci.visualizer-settings';

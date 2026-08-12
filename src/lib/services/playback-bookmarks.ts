@@ -1,4 +1,4 @@
-import type { PlaylistItem } from '$lib/types';
+import type { PlaylistItem } from '$lib/contracts/catalog';
 
 export interface PlaybackBookmark {
   id: string;

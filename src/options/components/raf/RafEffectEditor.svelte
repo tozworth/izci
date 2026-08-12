@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { RafEffectSettings } from '$lib/types';
+  import type { RafEffectSettings } from '$lib/contracts/raf';
   import AutoAmpEditor from './AutoAmpEditor.svelte';
   import CrystalizerEditor from './CrystalizerEditor.svelte';
   import GraphicEqEditor from './GraphicEqEditor.svelte';

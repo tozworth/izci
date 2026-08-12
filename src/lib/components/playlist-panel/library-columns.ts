@@ -2,12 +2,8 @@ import {
   LIBRARY_COLUMN_LABELS,
   LIBRARY_COLUMN_MIN_WIDTHS
 } from '$lib/stores/library-view-settings';
-import type {
-  LibraryColumnId,
-  LibraryViewColumnState,
-  LibraryViewSortState,
-  PlaylistItem
-} from '$lib/types';
+import type { LibraryColumnId, LibraryViewColumnState, LibraryViewSortState } from '$lib/contracts/workspace';
+import type { PlaylistItem } from '$lib/contracts/catalog';
 import {
   formatDuration,
   getFolderFromPath,

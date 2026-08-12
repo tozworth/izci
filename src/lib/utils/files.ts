@@ -1,11 +1,6 @@
-import {
-  MODULE_EXTENSIONS,
-  STREAM_EXTENSIONS,
-  VIDEO_EXTENSIONS,
-  type PlaylistItem,
-  type TrackKind,
-  type TrackMetadata
-} from '$lib/types';
+import { MODULE_EXTENSIONS, STREAM_EXTENSIONS, VIDEO_EXTENSIONS, type TrackKind } from '$lib/contracts/media-format';
+import { type PlaylistItem } from '$lib/contracts/catalog';
+import { type TrackMetadata } from '$lib/contracts/media-metadata';
 
 interface ChromiumFileSystemEntry {
   isFile: boolean;

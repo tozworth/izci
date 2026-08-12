@@ -2,7 +2,7 @@ import { visualizerService } from '$lib/services/visualizer';
 import { RafEngine } from '$lib/services/raf-engine';
 import { setAudioParam } from '$lib/services/raf-effects/shared';
 import { logDebug, logInfo, logWarning } from '$lib/services/logging';
-import type { RafEffectType } from '$lib/types';
+import type { RafEffectType } from '$lib/contracts/raf';
 
 type AudioBusSource = AudioNode | MediaElementAudioSourceNode;
 

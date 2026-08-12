@@ -4,7 +4,7 @@
     MAX_VISUALIZER_FRAME_RATE_LIMIT, MIN_VISUALIZER_FRAME_RATE_LIMIT,
     VISUALIZER_COLOR_SOURCE_OPTIONS, VISUALIZER_STYLE_OPTIONS, visualizerSettings
   } from '$lib/stores/visualizer-settings';
-  import type { VisualizerSettings } from '$lib/types';
+  import type { VisualizerSettings } from '$lib/contracts/appearance-settings';
 
   type SelectSetting = 'style' | 'colorSource';
   type RangeSetting = Exclude<keyof VisualizerSettings, SelectSetting>;

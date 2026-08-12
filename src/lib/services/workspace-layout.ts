@@ -1,9 +1,5 @@
-import type {
-  WorkspacePanelId,
-  WorkspacePanelLayoutSettings,
-  WorkspaceResizeHandle
-} from '$lib/types';
-import { WORKSPACE_PANEL_IDS } from '$lib/types';
+import type { WorkspacePanelId, WorkspacePanelLayoutSettings, WorkspaceResizeHandle } from '$lib/contracts/workspace';
+import { WORKSPACE_PANEL_IDS } from '$lib/contracts/workspace';
 
 const HORIZONTAL_PADDING = 0;
 

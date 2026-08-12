@@ -1,5 +1,7 @@
 import type { FilesystemFolder, FilesystemFolderPermission } from '$lib/services/filesystem-folders';
-import type { PlaylistItem, TrackKind, TrackMetadata } from '$lib/types';
+import type { PlaylistItem } from '$lib/contracts/catalog';
+import type { TrackKind } from '$lib/contracts/media-format';
+import type { TrackMetadata } from '$lib/contracts/media-metadata';
 import { getTrackIdentity } from '$lib/utils/files';
 
 export const REQUEST_TROUBADOUR_BATCH_CONTEXT_MESSAGE = 'izci:troubadour:request-batch-context';

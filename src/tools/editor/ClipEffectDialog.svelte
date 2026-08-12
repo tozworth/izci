@@ -53,16 +53,7 @@
     mapSlopToParameters
   } from '$lib/services/raf-effects/sloptimizer';
   import { createSpeedEffectSettings, SPEED_EFFECT, type ClipEffectSettings, type ClipSpeedMode } from './clip-effects';
-  import type {
-    RafAutoAmpMode,
-    RafAutoAmpSettings,
-    RafCrystalizerSettings,
-    RafEffectType,
-    RafGraphicEqSettings,
-    RafReverbSettings,
-    RafSloptimizerSettings,
-    RafStereoWidthSettings
-  } from '$lib/types';
+  import type { RafAutoAmpMode, RafAutoAmpSettings, RafCrystalizerSettings, RafEffectType, RafGraphicEqSettings, RafReverbSettings, RafSloptimizerSettings, RafStereoWidthSettings } from '$lib/contracts/raf';
 
   export let busy = false;
   export let previewing = false;

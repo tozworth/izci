@@ -7,12 +7,8 @@ import {
   supportsDirectoryPicker,
   supportsOpenFilePicker
 } from './import-controller';
-import {
-  MODULE_EXTENSIONS,
-  STREAM_EXTENSIONS,
-  VIDEO_EXTENSIONS,
-  type WorkspaceCollection
-} from '$lib/types';
+import { MODULE_EXTENSIONS, STREAM_EXTENSIONS, VIDEO_EXTENSIONS } from '$lib/contracts/media-format';
+import { type WorkspaceCollection } from '$lib/contracts/workspace';
 
 type PickerWindow = Window & typeof globalThis;
 

@@ -2,11 +2,7 @@
   import { createEventDispatcher, onDestroy } from 'svelte';
   import MenuSurface from '$lib/components/MenuSurface.svelte';
   import { windowControlsOverlayState } from '$lib/services/window-controls-overlay';
-  import type {
-    MenuActionItem,
-    WindowMenuGroup,
-    WindowMenuSubtitleTone
-  } from '$lib/types';
+  import type { MenuActionItem, WindowMenuGroup, WindowMenuSubtitleTone } from '$lib/contracts/window-menu';
 
   const MENU_TITLE_RESERVE = 88;
   const MENU_EDGE_RESERVE = 28;

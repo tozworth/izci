@@ -6,7 +6,7 @@
     MAX_LYRICS_DOWNTIME_THRESHOLD_SECONDS, MIN_LYRICS_DOWNTIME_THRESHOLD_SECONDS,
     appearanceSettings, normalizeLyricsDowntimeThresholdSeconds, normalizeLyricsFontSize
   } from '$lib/stores/appearance-settings';
-  import type { LyricsDisplayStyle } from '$lib/types';
+  import type { LyricsDisplayStyle } from '$lib/contracts/appearance-settings';
 
   function checked(event: Event) { return (event.currentTarget as HTMLInputElement).checked; }
   function updateLyrics(patch: Partial<typeof $appearanceSettings.lyrics>) {

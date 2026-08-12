@@ -5,7 +5,7 @@
  * queues only hold cluster indexes.
  */
 
-import type { PlaylistItem } from '$lib/types';
+import type { PlaylistItem } from '$lib/contracts/catalog';
 import { logInfo, logWarning } from '$lib/services/logging';
 import { errorMessage } from './multiplayer-utils';
 import {

@@ -8,7 +8,7 @@ import {
   removeIdsFromSelection,
   resolveSelectSelection
 } from './playlist-selection';
-import type { PlaylistItem, PlaylistSelection } from '$lib/types';
+import type { PlaylistItem, PlaylistSelection } from '$lib/contracts/catalog';
 
 function item(id: string): PlaylistItem {
   return {

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { getTrackArtworkLoadKey, loadTrackMetadata } from './stream-artwork';
-import type { PlaylistItem } from '$lib/types';
+import type { PlaylistItem } from '$lib/contracts/catalog';
 
 const textEncoder = new TextEncoder();
 

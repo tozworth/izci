@@ -6,12 +6,8 @@
   import { applyManualLoadoutSettings } from '$lib/services/loadouts';
   import { pwaUpdateStatus } from '$lib/services/pwa-updates';
   import { loadouts } from '$lib/stores/loadouts';
-  import type {
-    MenuActionItem,
-    VideoFitMode,
-    WindowMenuGroup,
-    WindowMenuSubtitleTone
-  } from '$lib/types';
+  import type { MenuActionItem, WindowMenuGroup, WindowMenuSubtitleTone } from '$lib/contracts/window-menu';
+  import type { VideoFitMode } from '$lib/contracts/player-settings';
   import { getLoadoutColorValue, LOADOUT_TYPE_ICONS } from '$lib/utils/loadout-presentation';
   import { formatDisplayVersion } from '$lib/utils/version';
   import type { OptionsViewName } from '../../options/views';

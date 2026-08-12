@@ -3,7 +3,7 @@
   import { t } from 'svelte-i18n';
   import HoverTooltip from '$lib/components/HoverTooltip.svelte';
   import TabStrip from '$lib/components/TabStrip.svelte';
-  import type { LibraryViewId } from '$lib/types';
+  import type { LibraryViewId } from '$lib/contracts/workspace';
   import { LIBRARY_VIEW_DEFINITIONS } from './library-views';
 
   export let activeView: LibraryViewId = 'songs';

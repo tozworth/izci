@@ -2,7 +2,8 @@
   import { onDestroy, onMount } from 'svelte';
   import { t } from 'svelte-i18n';
   import type { Readable } from 'svelte/store';
-  import type { PlaybackSnapshot, PlaylistItem } from '$lib/types';
+  import type { PlaybackSnapshot } from '$lib/contracts/playback';
+  import type { PlaylistItem } from '$lib/contracts/catalog';
   import { formatDuration, getTrackDisplaySubtitle, getTrackDisplayTitle } from '$lib/utils/files';
   import { createWheelSeekController } from '$lib/services/wheel-seek';
 

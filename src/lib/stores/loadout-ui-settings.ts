@@ -1,4 +1,4 @@
-import type { LoadoutCategory } from '$lib/types';
+import type { LoadoutCategory } from '$lib/contracts/loadouts';
 import { createSettingsStore } from './persistent-store';
 
 export const LOADOUT_UI_SETTINGS_STORAGE_KEY = 'izci.loadout-ui-settings';

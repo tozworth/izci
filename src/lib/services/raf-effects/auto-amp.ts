@@ -1,5 +1,5 @@
 import { publishRafAutoAmpGain } from '$lib/services/raf-auto-amp-meter';
-import type { RafAutoAmpMode, RafAutoAmpSettings } from '$lib/types';
+import type { RafAutoAmpMode, RafAutoAmpSettings } from '$lib/contracts/raf';
 import { decibelsToGain, disconnectNode, setAudioParam, type RafEffectNode } from './shared';
 
 export const AUTO_AMP_GAIN_MIN_DB = -24;

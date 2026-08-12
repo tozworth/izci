@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { ExperimentalSettings, PlaylistItem } from '$lib/types';
+import type { ExperimentalSettings } from '$lib/contracts/experimental-settings';
+import type { PlaylistItem } from '$lib/contracts/catalog';
 
 const sessionHarness = vi.hoisted(() => {
   const settings: ExperimentalSettings = {

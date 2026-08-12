@@ -1,11 +1,8 @@
 import { writable } from 'svelte/store';
 import { getTrackLyricsLoadKey, loadTrackLyrics } from '$lib/services/lyrics';
-import type {
-  ContextualTabAutomation,
-  LyricsDisplayStyle,
-  PlaylistItem,
-  WorkspaceTab
-} from '$lib/types';
+import type { ContextualTabAutomation, WorkspaceTab } from '$lib/contracts/workspace';
+import type { LyricsDisplayStyle } from '$lib/contracts/appearance-settings';
+import type { PlaylistItem } from '$lib/contracts/catalog';
 
 export type LyricsAvailability = 'unknown' | 'loading' | 'available' | 'unavailable';
 

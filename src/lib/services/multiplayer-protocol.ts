@@ -1,10 +1,7 @@
-import type {
-  PlaybackSnapshot,
-  PlaylistItem,
-  PlaylistRepeatMode,
-  TrackKind,
-  TrackMetadata,
-} from '$lib/types';
+import type { PlaybackSnapshot } from '$lib/contracts/playback';
+import type { PlaylistItem, PlaylistRepeatMode } from '$lib/contracts/catalog';
+import type { TrackKind } from '$lib/contracts/media-format';
+import type { TrackMetadata } from '$lib/contracts/media-metadata';
 
 export type MultiplayerCollection = 'playlist' | 'library' | 'favorites';
 

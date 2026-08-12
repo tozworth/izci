@@ -1,7 +1,8 @@
 <script lang="ts">
   import { createEventDispatcher, onMount } from 'svelte';
   import { t } from 'svelte-i18n';
-  import type { PlaybackSnapshot, VideoFitMode } from '$lib/types';
+  import type { PlaybackSnapshot } from '$lib/contracts/playback';
+  import type { VideoFitMode } from '$lib/contracts/player-settings';
   import type { VideoSeekFeedback } from './types';
   import VideoStage from './VideoStage.svelte';
 

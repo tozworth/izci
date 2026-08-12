@@ -1,4 +1,4 @@
-import type { RafStereoWidthSettings } from '$lib/types';
+import type { RafStereoWidthSettings } from '$lib/contracts/raf';
 import { decibelsToGain, disconnectNode, setAudioParam, type RafEffectNode } from './shared';
 
 const MATRIX_GAIN = Math.SQRT1_2;

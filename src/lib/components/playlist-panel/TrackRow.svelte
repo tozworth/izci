@@ -1,6 +1,6 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
-  import type { PlaylistItem } from '$lib/types';
+  import type { PlaylistItem } from '$lib/contracts/catalog';
   import type { LibraryPanelColumn } from './library-columns';
   import {
     formatTrackType,

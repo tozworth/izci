@@ -1,4 +1,4 @@
-import type { LibraryGroupViewId } from '$lib/types';
+import type { LibraryGroupViewId } from '$lib/contracts/workspace';
 
 export type PlaylistPanelContextMenu =
   | {

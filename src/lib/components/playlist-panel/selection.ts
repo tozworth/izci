@@ -1,4 +1,4 @@
-import type { PlaylistItem, PlaylistSelection } from '$lib/types';
+import type { PlaylistItem, PlaylistSelection } from '$lib/contracts/catalog';
 
 function getOrderedIds(displayItems: PlaylistItem[], ids: Iterable<string>): string[] {
   const idSet = new Set(ids);

@@ -1,9 +1,10 @@
-import type { LibraryGroupViewId, LibraryViewId, PlaylistItem } from '$lib/types';
+import type { LibraryGroupViewId, LibraryViewId } from '$lib/contracts/workspace';
+import type { PlaylistItem } from '$lib/contracts/catalog';
 import { getFolderFromPath, getTrackDisplayTitle } from '$lib/utils/files';
 import { filterItemsByQuery, formatTotalDuration, getTotalDuration, matchesSearchQuery } from './search';
 import { normalizeTrackRating } from '$lib/services/track-ratings';
 
-export type { LibraryGroupViewId } from '$lib/types';
+export type { LibraryGroupViewId } from '$lib/contracts/workspace';
 
 export interface LibraryViewDefinition {
   id: LibraryViewId;

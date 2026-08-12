@@ -1,4 +1,4 @@
-import { MODULE_EXTENSIONS } from '$lib/types';
+import { MODULE_EXTENSIONS } from '$lib/contracts/media-format';
 import { logDebug, logError, logInfo } from '$lib/services/logging';
 import { inferExtension } from '$lib/utils/files';
 

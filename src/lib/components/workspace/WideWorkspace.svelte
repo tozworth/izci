@@ -4,13 +4,9 @@
   import BackdropZone from '$lib/components/BackdropZone.svelte';
   import type { LoadedStreamArtwork } from '$lib/services/stream-artwork';
   import { hasArtworkBackdrop, hasVisualizerBackdrop } from '$lib/stores/appearance-settings';
-  import type {
-    BackdropZoneEffect,
-    BackdropZoneArtworkSettings,
-    VideoFitMode,
-    WorkspacePanelId,
-    WorkspaceTab
-  } from '$lib/types';
+  import type { BackdropZoneEffect, BackdropZoneArtworkSettings } from '$lib/contracts/appearance-settings';
+  import type { VideoFitMode } from '$lib/contracts/player-settings';
+  import type { WorkspacePanelId, WorkspaceTab } from '$lib/contracts/workspace';
   import WorkspaceResizer from '$lib/components/workspace/WorkspaceResizer.svelte';
   import WorkspaceTabBar from '$lib/components/workspace/WorkspaceTabBar.svelte';
   import WorkspaceTabContent from '$lib/components/workspace/WorkspaceTabContent.svelte';

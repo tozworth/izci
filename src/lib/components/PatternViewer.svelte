@@ -4,12 +4,9 @@
   import { isPatternCellEmpty, splitPatternCell } from '$lib/services/pattern-presentation';
   import { SCROLLBAR_VISIBILITY_IGNORE_SCROLL_ATTRIBUTE } from '$lib/services/scrollbar-visibility';
   import { patternViewerSettings } from '$lib/stores/pattern-viewer-settings';
-  import type {
-    ModulePatternSnapshot,
-    ModulePatternSong,
-    PlaybackSnapshot,
-    PlaylistItem
-  } from '$lib/types';
+  import type { ModulePatternSnapshot, ModulePatternSong } from '$lib/contracts/module-playback';
+  import type { PlaybackSnapshot } from '$lib/contracts/playback';
+  import type { PlaylistItem } from '$lib/contracts/catalog';
 
   export let track: PlaylistItem | null = null;
   export let snapshot: ModulePatternSnapshot;

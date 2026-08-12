@@ -1,4 +1,4 @@
-import type { TrackSettings } from '$lib/types';
+import type { TrackSettings } from '$lib/contracts/player-settings';
 import { createSettingsStore } from './persistent-store';
 
 export const TRACK_SETTINGS_STORAGE_KEY = 'izci.track-settings';

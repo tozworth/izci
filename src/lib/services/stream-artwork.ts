@@ -1,4 +1,5 @@
-import type { PlaylistItem, ReplayGainMetadata, TrackMetadata } from '$lib/types';
+import type { PlaylistItem } from '$lib/contracts/catalog';
+import type { ReplayGainMetadata, TrackMetadata } from '$lib/contracts/media-metadata';
 
 const FLAC_MARKER = 'fLaC';
 const ID3_MARKER = 'ID3';

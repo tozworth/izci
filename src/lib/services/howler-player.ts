@@ -1,7 +1,9 @@
 import { Howl } from 'howler';
 import { audioBusService } from '$lib/services/audio-bus';
 import { logDebug, logError, logInfo, logWarning } from '$lib/services/logging';
-import type { PlaybackSnapshot, PlaylistItem, ReplayGainMetadata, ReplayGainMode, TrackMetadata } from '$lib/types';
+import type { PlaybackSnapshot, ReplayGainMode } from '$lib/contracts/playback';
+import type { PlaylistItem } from '$lib/contracts/catalog';
+import type { ReplayGainMetadata, TrackMetadata } from '$lib/contracts/media-metadata';
 import { applyReplayGain, sliderVolumeToGain } from '$lib/services/volume';
 
 type SnapshotHandler = (snapshot: Partial<PlaybackSnapshot>) => void;

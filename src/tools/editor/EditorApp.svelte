@@ -3,7 +3,7 @@
   import { t } from 'svelte-i18n';
   import HoverTooltip from '$lib/components/HoverTooltip.svelte';
   import MenuSurface from '$lib/components/MenuSurface.svelte';
-  import { MODULE_EXTENSIONS, STREAM_EXTENSIONS } from '$lib/types';
+  import { MODULE_EXTENSIONS, STREAM_EXTENSIONS } from '$lib/contracts/media-format';
   import { loadTrackLyrics } from '$lib/services/lyrics';
   import { listenForCurrentToolTrack } from '$lib/services/tool-track-context';
   import { RAF_EFFECT_DEFINITIONS, RAF_EFFECT_REGISTRY } from '$lib/services/raf-effect-registry';
@@ -38,7 +38,8 @@
   } from './clip-export-options';
   import { blendRenderedEdges, isClipSpeedEffect, renderClipEffect, type ClipEffectSettings } from './clip-effects';
   import { MAX_WAVEFORM_ZOOM, zoomWaveformViewport } from './waveform-viewport';
-  import type { MenuActionItem, RafEffectType } from '$lib/types';
+  import type { MenuActionItem } from '$lib/contracts/window-menu';
+  import type { RafEffectType } from '$lib/contracts/raf';
 
   type TagField = Exclude<keyof EditableTags, 'lyrics'>;
   interface EditSnapshot {

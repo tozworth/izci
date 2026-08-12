@@ -1,6 +1,6 @@
 <script lang="ts">
   import { afterUpdate, createEventDispatcher } from 'svelte';
-  import type { PlaylistItem } from '$lib/types';
+  import type { PlaylistItem } from '$lib/contracts/catalog';
   import type { LibraryPanelColumn } from './library-columns';
   import TrackRow from './TrackRow.svelte';
   import { getVirtualTrackWindow } from './track-list-virtualization';

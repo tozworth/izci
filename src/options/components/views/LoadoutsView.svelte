@@ -25,7 +25,7 @@
   import { LOADOUT_COLORS, loadouts } from '$lib/stores/loadouts';
   import { playbackSettings } from '$lib/stores/playback-settings';
   import { rafPresets } from '$lib/stores/raf-presets';
-  import type { Loadout, LoadoutCategory, LoadoutColor, LoadoutType } from '$lib/types';
+  import type { Loadout, LoadoutCategory, LoadoutColor, LoadoutType } from '$lib/contracts/loadouts';
   import {
     getLoadoutColorValue,
     getLoadoutTargetText,

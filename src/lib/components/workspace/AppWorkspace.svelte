@@ -7,18 +7,12 @@
   } from '$lib/services/library-navigation';
   import { WORKSPACE_RESIZER_WIDTH } from '$lib/services/workspace-layout';
   import type { WorkspaceShellState } from '$lib/services/workspace-shell';
-  import type {
-    AppearanceSettings,
-    BackdropZoneArtworkSettingsMap,
-    BackdropZoneEffect,
-    LyricsDisplayStyle,
-    ModulePatternSnapshot,
-    PlaybackSnapshot,
-    PlaylistItem,
-    VideoFitMode,
-    WorkspacePanelId,
-    WorkspaceTab
-  } from '$lib/types';
+  import type { AppearanceSettings, BackdropZoneArtworkSettingsMap, BackdropZoneEffect, LyricsDisplayStyle } from '$lib/contracts/appearance-settings';
+  import type { ModulePatternSnapshot } from '$lib/contracts/module-playback';
+  import type { PlaybackSnapshot } from '$lib/contracts/playback';
+  import type { PlaylistItem } from '$lib/contracts/catalog';
+  import type { VideoFitMode } from '$lib/contracts/player-settings';
+  import type { WorkspacePanelId, WorkspaceTab } from '$lib/contracts/workspace';
   import NowPlayingWorkspace from './NowPlayingWorkspace.svelte';
   import WideWorkspace from './WideWorkspace.svelte';
   import type {

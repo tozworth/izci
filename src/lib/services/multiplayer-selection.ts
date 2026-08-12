@@ -1,4 +1,4 @@
-import type { PlaylistItem, PlaylistSelection } from '$lib/types';
+import type { PlaylistItem, PlaylistSelection } from '$lib/contracts/catalog';
 
 export interface MultiplayerPlayingTrackSelectionSync {
   observedTrackId: string | null;

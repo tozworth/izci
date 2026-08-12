@@ -1,4 +1,4 @@
-import type { MetadataSettings } from '$lib/types';
+import type { MetadataSettings } from '$lib/contracts/player-settings';
 import { createSettingsStore } from './persistent-store';
 
 export const METADATA_SETTINGS_STORAGE_KEY = 'izci.metadata-settings';

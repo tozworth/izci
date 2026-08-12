@@ -15,7 +15,8 @@ import {
 import { favoritesStore, libraryStore } from '$lib/stores/playlist';
 import { normalizeStoredItem } from '$lib/stores/playlist-persistence';
 import { trackSettings } from '$lib/stores/track-settings';
-import type { PlaylistItem, TrackMetadata } from '$lib/types';
+import type { PlaylistItem } from '$lib/contracts/catalog';
+import type { TrackMetadata } from '$lib/contracts/media-metadata';
 import { normalizeTrackRating } from '$lib/services/track-ratings';
 import {
   buildPlaylistItems,

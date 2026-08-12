@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { rafSettings } from '$lib/stores/raf-settings';
 import { playbackSettings } from '$lib/stores/playback-settings';
-import type { RafGraphicEqSettings } from '$lib/types';
+import type { RafGraphicEqSettings } from '$lib/contracts/raf';
 import { RafEngine, sameEffectSettings, sameTopology } from './raf-engine';
 import { FakeContext } from './raf-effects/test-audio-context';
 

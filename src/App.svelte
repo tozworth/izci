@@ -109,17 +109,12 @@
     type TroubadourTrackReference,
     type TroubadourWriteTarget
   } from '$lib/services/troubadour-sync';
-  import type {
-    LyricsDisplayStyle,
-    ModulePatternSnapshot,
-    PlaybackSnapshot,
-    PlaylistItem,
-    PlaylistRepeatMode,
-    PlaylistSelection,
-    VideoFitMode,
-    WorkspaceCollection,
-    WorkspaceTab
-  } from '$lib/types';
+  import type { LyricsDisplayStyle } from '$lib/contracts/appearance-settings';
+  import type { ModulePatternSnapshot } from '$lib/contracts/module-playback';
+  import type { PlaybackSnapshot } from '$lib/contracts/playback';
+  import type { PlaylistItem, PlaylistRepeatMode, PlaylistSelection } from '$lib/contracts/catalog';
+  import type { VideoFitMode } from '$lib/contracts/player-settings';
+  import type { WorkspaceCollection, WorkspaceTab } from '$lib/contracts/workspace';
   import { buildOptionsWindowPath, isOptionsViewName, type OptionsViewName } from './options/views';
   import { getFavoriteIdentity, getTrackDisplayTitle, getTrackIdentity } from '$lib/utils/files';
   import {

@@ -2,7 +2,7 @@
   import { t } from 'svelte-i18n';
   import { STEREO_WIDTH_MAX_DB, STEREO_WIDTH_MIN_DB } from '$lib/services/raf-effects/mid-side';
   import { rafSettings } from '$lib/stores/raf-settings';
-  import type { RafStereoWidthSettings } from '$lib/types';
+  import type { RafStereoWidthSettings } from '$lib/contracts/raf';
 
   export let settings: RafStereoWidthSettings;
 

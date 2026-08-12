@@ -3,7 +3,7 @@ import { DEFAULT_MODULE_PLAYBACK_SETTINGS } from '$lib/stores/module-playback-se
 import { DEFAULT_PLAYBACK_SETTINGS } from '$lib/stores/playback-settings';
 import { DEFAULT_RAF_SETTINGS } from '$lib/stores/raf-settings';
 import { DEFAULT_VISUALIZER_SETTINGS } from '$lib/stores/visualizer-settings';
-import type { LoadoutCategory, LoadoutSettings } from '$lib/types';
+import type { LoadoutCategory, LoadoutSettings } from '$lib/contracts/loadouts';
 
 export type LoadoutSettingDifferenceKey =
   | 'playbackRate'

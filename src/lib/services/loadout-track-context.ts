@@ -1,5 +1,6 @@
 import { writable, type Readable } from 'svelte/store';
-import type { LoadoutTrackContext, PlaylistItem } from '$lib/types';
+import type { LoadoutTrackContext } from '$lib/contracts/loadouts';
+import type { PlaylistItem } from '$lib/contracts/catalog';
 
 const CHANNEL_NAME = 'izci-loadout-track-context';
 const store = writable<LoadoutTrackContext | null>(null);

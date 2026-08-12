@@ -1,4 +1,4 @@
-import type { ColorScheme, ColorTheme } from '$lib/types';
+import type { ColorScheme, ColorTheme } from '$lib/contracts/appearance-settings';
 
 export interface ColorThemeVariantDefinition {
   themeColor: string;

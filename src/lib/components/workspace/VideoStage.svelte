@@ -3,7 +3,9 @@
   import { t } from 'svelte-i18n';
   import HoverTooltip from '$lib/components/HoverTooltip.svelte';
   import MenuSurface from '$lib/components/MenuSurface.svelte';
-  import type { MenuActionItem, PlaybackSnapshot, VideoFitMode } from '$lib/types';
+  import type { MenuActionItem } from '$lib/contracts/window-menu';
+  import type { PlaybackSnapshot } from '$lib/contracts/playback';
+  import type { VideoFitMode } from '$lib/contracts/player-settings';
   import type { VideoSeekFeedback } from './types';
 
   export let element: HTMLVideoElement | null = null;

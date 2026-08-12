@@ -8,23 +8,11 @@ import { playbackSettings } from '$lib/stores/playback-settings';
 import { rafPresets } from '$lib/stores/raf-presets';
 import { rafSettings } from '$lib/stores/raf-settings';
 import { visualizerSettings } from '$lib/stores/visualizer-settings';
-import {
-  MODULE_EXTENSIONS,
-  STREAM_EXTENSIONS,
-  VIDEO_EXTENSIONS,
-  type Loadout,
-  type LoadoutAppearanceSettings,
-  type LoadoutCategory,
-  type LoadoutPlaybackSettings,
-  type LoadoutSettings,
-  type LoadoutState,
-  type LoadoutTarget,
-  type LoadoutTrackContext,
-  type LoadoutType,
-  type ModulePlaybackSettings,
-  type PlaylistItem,
-  type RafRackSettings
-} from '$lib/types';
+import { MODULE_EXTENSIONS, STREAM_EXTENSIONS, VIDEO_EXTENSIONS } from '$lib/contracts/media-format';
+import { type Loadout, type LoadoutAppearanceSettings, type LoadoutCategory, type LoadoutPlaybackSettings, type LoadoutSettings, type LoadoutState, type LoadoutTarget, type LoadoutTrackContext, type LoadoutType } from '$lib/contracts/loadouts';
+import { type ModulePlaybackSettings } from '$lib/contracts/module-playback';
+import { type PlaylistItem } from '$lib/contracts/catalog';
+import { type RafRackSettings } from '$lib/contracts/raf';
 
 export const LOADOUT_CATEGORIES: LoadoutCategory[] = [
   'playback',

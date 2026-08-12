@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { PlaylistItem, WorkspaceLibraryGroupRequest } from '$lib/types';
+import type { PlaylistItem } from '$lib/contracts/catalog';
+import type { WorkspaceLibraryGroupRequest } from '$lib/contracts/workspace';
 import { findRequestedLibraryGroup } from './library-group-navigation';
 import type { LibraryGroup } from './library-views';
 

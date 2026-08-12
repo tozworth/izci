@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { createPlaylistNavigation } from './playlist-navigation';
-import type { PlaylistItem } from '$lib/types';
+import type { PlaylistItem } from '$lib/contracts/catalog';
 
 function item(id: string): PlaylistItem {
   return {

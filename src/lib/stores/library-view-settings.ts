@@ -1,11 +1,4 @@
-import type {
-  LibraryColumnId,
-  LibraryGroupViewId,
-  LibraryViewId,
-  LibraryViewSettings,
-  LibraryViewTableSettings,
-  SortDirection
-} from '$lib/types';
+import type { LibraryColumnId, LibraryGroupViewId, LibraryViewId, LibraryViewSettings, LibraryViewTableSettings, SortDirection } from '$lib/contracts/workspace';
 import { createPersistentStore } from './persistent-store';
 
 export const LIBRARY_VIEW_SETTINGS_STORAGE_KEY = 'izci.library-view-settings.v6';

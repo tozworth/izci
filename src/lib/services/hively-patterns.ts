@@ -1,4 +1,4 @@
-import type { ModulePatternSong } from '$lib/types';
+import type { ModulePatternSong } from '$lib/contracts/module-playback';
 
 export interface HivelyPatternData {
   channelCount: number;

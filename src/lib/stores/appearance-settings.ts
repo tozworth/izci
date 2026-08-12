@@ -1,18 +1,5 @@
-import type {
-  AppearanceSettings,
-  BackdropZoneArtworkSettings,
-  BackdropZoneArtworkSettingsMap,
-  BackdropZoneEffect,
-  BackdropZoneId,
-  BackdropZoneSettings,
-  ColorTheme,
-  ColorThemeMode,
-  ContextualTabAutomation,
-  ContextualTabSettings,
-  LyricsFontSizeSettings,
-  LyricsDisplayStyle,
-  LyricsSettings
-} from '$lib/types';
+import type { AppearanceSettings, BackdropZoneArtworkSettings, BackdropZoneArtworkSettingsMap, BackdropZoneEffect, BackdropZoneId, BackdropZoneSettings, ColorTheme, ColorThemeMode, LyricsFontSizeSettings, LyricsDisplayStyle, LyricsSettings } from '$lib/contracts/appearance-settings';
+import type { ContextualTabAutomation, ContextualTabSettings } from '$lib/contracts/workspace';
 import { hasColorThemeVariant } from '$lib/theme-definitions';
 import { createSettingsStore } from './persistent-store';
 

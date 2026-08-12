@@ -1,5 +1,5 @@
 import { loadEmbeddedStreamArtwork } from '$lib/services/stream-artwork';
-import type { PlaylistItem } from '$lib/types';
+import type { PlaylistItem } from '$lib/contracts/catalog';
 
 export const ALBUM_ARTWORK_THUMBNAIL_SIZE = 96;
 

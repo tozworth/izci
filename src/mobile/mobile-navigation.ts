@@ -1,4 +1,4 @@
-import type { WorkspaceTab } from '$lib/types';
+import type { WorkspaceTab } from '$lib/contracts/workspace';
 import type { SwipeDirection } from './tab-swipe';
 
 export type MobileDestination = 'playlist' | 'library' | 'now-playing' | 'lyrics' | 'details';

@@ -7,7 +7,7 @@ import {
   restoreStoredItem,
   serializeItem
 } from './playlist-persistence';
-import type { PlaylistItem } from '$lib/types';
+import type { PlaylistItem } from '$lib/contracts/catalog';
 
 const fileHandle = {
   kind: 'file',

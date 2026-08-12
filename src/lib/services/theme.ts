@@ -3,7 +3,7 @@ import {
   MAX_CHAMELEON_SATURATION,
   SYSTEM_FONT_FAMILY
 } from '$lib/stores/appearance-settings';
-import type { ColorScheme, ColorTheme } from '$lib/types';
+import type { ColorScheme, ColorTheme } from '$lib/contracts/appearance-settings';
 import { COLOR_THEME_DEFINITIONS, findColorThemeDefinition } from '$lib/theme-definitions';
 import { readable } from 'svelte/store';
 

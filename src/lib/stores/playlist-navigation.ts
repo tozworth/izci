@@ -1,4 +1,4 @@
-import type { PlaylistItem, PlaylistRepeatMode } from '$lib/types';
+import type { PlaylistItem, PlaylistRepeatMode } from '$lib/contracts/catalog';
 
 interface ShuffleSessionState {
   history: string[];

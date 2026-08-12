@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { PlaylistItem } from '$lib/types';
+import type { PlaylistItem } from '$lib/contracts/catalog';
 import {
   listenForCurrentToolTrack,
   OPEN_CURRENT_TOOL_TRACK_MESSAGE,

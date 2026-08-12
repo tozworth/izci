@@ -37,7 +37,8 @@
     type TroubadourTab,
     type TroubadourWorkspaceState
   } from '$lib/stores/troubadour-workspace';
-  import { STREAM_EXTENSIONS, type MenuActionItem } from '$lib/types';
+  import { STREAM_EXTENSIONS } from '$lib/contracts/media-format';
+  import { type MenuActionItem } from '$lib/contracts/window-menu';
   import LoudnessTab from './LoudnessTab.svelte';
   import LyricsEditor from './LyricsEditor.svelte';
   import SpectrogramTab from './SpectrogramTab.svelte';

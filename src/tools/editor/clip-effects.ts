@@ -1,6 +1,6 @@
 import { RAF_EFFECT_REGISTRY } from '$lib/services/raf-effect-registry';
 import { clampAutoGain } from '$lib/services/raf-effects/auto-amp';
-import type { RafAutoAmpSettings, RafEffectSettings } from '$lib/types';
+import type { RafAutoAmpSettings, RafEffectSettings } from '$lib/contracts/raf';
 
 export type ClipSpeedMode = 'speed' | 'pitch' | 'tempo';
 

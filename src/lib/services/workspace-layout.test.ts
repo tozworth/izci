@@ -6,7 +6,7 @@ import {
   resolveResizedPanelLayout,
   resolveWidePanelWidths
 } from './workspace-layout';
-import type { WorkspacePanelLayoutSettings } from '$lib/types';
+import type { WorkspacePanelLayoutSettings } from '$lib/contracts/workspace';
 
 const balancedLayout: WorkspacePanelLayoutSettings = {
   leftFraction: 0.3,

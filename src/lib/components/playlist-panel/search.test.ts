@@ -6,7 +6,7 @@ import {
   getTrackSummary,
   matchesSearchQuery
 } from './search';
-import type { PlaylistItem } from '$lib/types';
+import type { PlaylistItem } from '$lib/contracts/catalog';
 
 function item(name: string, metadata: PlaylistItem['metadata'] = {}): PlaylistItem {
   return {

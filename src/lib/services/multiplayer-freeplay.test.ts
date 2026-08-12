@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { PlaylistItem } from '$lib/types';
+import type { PlaylistItem } from '$lib/contracts/catalog';
 
 const wireHarness = vi.hoisted(() => {
   const track = { readyState: 'live', stop: vi.fn(), contentHint: '' };

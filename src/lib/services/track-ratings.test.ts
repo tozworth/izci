@@ -6,7 +6,7 @@ import {
   parseTrackRatingAction,
   TRACK_RATING_VALUES
 } from './track-ratings';
-import type { PlaylistItem } from '$lib/types';
+import type { PlaylistItem } from '$lib/contracts/catalog';
 
 function item(rating?: number): PlaylistItem {
   return {

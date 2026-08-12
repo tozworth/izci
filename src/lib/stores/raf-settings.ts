@@ -3,7 +3,7 @@ import {
   normalizeRafEffect,
   normalizeRafEffectDisplayName
 } from '$lib/services/raf-effect-registry';
-import type { RafEffectSettings, RafEffectType, RafRackSettings } from '$lib/types';
+import type { RafEffectSettings, RafEffectType, RafRackSettings } from '$lib/contracts/raf';
 import { createPersistentStore } from './persistent-store';
 
 export const RAF_SETTINGS_STORAGE_KEY = 'izci.raf-settings';

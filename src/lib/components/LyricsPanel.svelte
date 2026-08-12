@@ -12,7 +12,9 @@
     type LoadedLyrics
   } from '$lib/services/lyrics';
   import { SCROLLBAR_VISIBILITY_IGNORE_SCROLL_ATTRIBUTE } from '$lib/services/scrollbar-visibility';
-  import type { LyricsDisplayStyle, PlaybackSnapshot, PlaylistItem } from '$lib/types';
+  import type { LyricsDisplayStyle } from '$lib/contracts/appearance-settings';
+  import type { PlaybackSnapshot } from '$lib/contracts/playback';
+  import type { PlaylistItem } from '$lib/contracts/catalog';
 
   export let track: PlaylistItem | null = null;
   export let snapshotStore: Readable<PlaybackSnapshot>;

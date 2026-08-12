@@ -1,4 +1,4 @@
-import type { PlaylistItem, PlaylistRepeatMode } from '$lib/types';
+import type { PlaylistItem, PlaylistRepeatMode } from '$lib/contracts/catalog';
 import { experimentalSettings } from '$lib/stores/experimental-settings';
 import {
   MULTIPLAYER_PROTOCOL_VERSION,

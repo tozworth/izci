@@ -1,11 +1,6 @@
 import { derived, writable } from 'svelte/store';
 import { logDebug, logError, logInfo } from '$lib/services/logging';
-import type {
-  PlaylistItem,
-  PlaylistPlaybackOptions,
-  PlaylistRepeatMode,
-  PlaylistSelection
-} from '$lib/types';
+import type { PlaylistItem, PlaylistPlaybackOptions, PlaylistRepeatMode, PlaylistSelection } from '$lib/contracts/catalog';
 import { splitUniqueItems } from './playlist-dedupe';
 import { loadTrackMetadata } from '$lib/services/stream-artwork';
 import { materializePlaylistItem, revokeObjectUrl } from './playlist-materialization';

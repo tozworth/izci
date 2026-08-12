@@ -2,7 +2,8 @@ import { mount, unmount } from 'svelte';
 import { writable, type Readable } from 'svelte/store';
 import materialSymbolsFontUrl from '@material-symbols/font-400/material-symbols-outlined.woff2?url';
 import MiniPlayer from '$lib/components/mini-player/MiniPlayer.svelte';
-import type { PlaybackSnapshot, PlaylistItem } from '$lib/types';
+import type { PlaybackSnapshot } from '$lib/contracts/playback';
+import type { PlaylistItem } from '$lib/contracts/catalog';
 
 interface MiniPlayerWindowOptions {
   width?: number;

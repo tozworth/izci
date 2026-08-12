@@ -5,12 +5,9 @@ import type {
   OnDisconnect,
   Unsubscribe
 } from 'firebase/database';
-import type {
-  ExperimentalSettings,
-  PlaybackSnapshot,
-  PlaylistItem,
-  PlaylistRepeatMode
-} from '$lib/types';
+import type { ExperimentalSettings } from '$lib/contracts/experimental-settings';
+import type { PlaybackSnapshot } from '$lib/contracts/playback';
+import type { PlaylistItem, PlaylistRepeatMode } from '$lib/contracts/catalog';
 import {
   createMultiplayerMessageDecoder,
   type ClientMessage,

@@ -1,4 +1,4 @@
-import type { RafGraphicEqSettings } from '$lib/types';
+import type { RafGraphicEqSettings } from '$lib/contracts/raf';
 import { disconnectNode, setAudioParam, type RafEffectNode } from './shared';
 
 export const GRAPHIC_EQ_FREQUENCIES = [31, 62, 125, 250, 500, 1000, 2000, 4000, 8000, 16000] as const;

@@ -7,18 +7,12 @@
   import type { ArtworkPresentationState } from '$lib/services/artwork-presentation';
   import type { WorkspaceShellState } from '$lib/services/workspace-shell';
   import { hasArtworkBackdrop, hasVisualizerBackdrop } from '$lib/stores/appearance-settings';
-  import type {
-    AppearanceSettings,
-    BackdropZoneArtworkSettingsMap,
-    BackdropZoneEffect,
-    LyricsDisplayStyle,
-    ModulePatternSnapshot,
-    PlaybackSnapshot,
-    PlaylistItem,
-    VideoFitMode,
-    WorkspacePanelId,
-    WorkspaceTab
-  } from '$lib/types';
+  import type { AppearanceSettings, BackdropZoneArtworkSettingsMap, BackdropZoneEffect, LyricsDisplayStyle } from '$lib/contracts/appearance-settings';
+  import type { ModulePatternSnapshot } from '$lib/contracts/module-playback';
+  import type { PlaybackSnapshot } from '$lib/contracts/playback';
+  import type { PlaylistItem } from '$lib/contracts/catalog';
+  import type { VideoFitMode } from '$lib/contracts/player-settings';
+  import type { WorkspacePanelId, WorkspaceTab } from '$lib/contracts/workspace';
   import type { Readable } from 'svelte/store';
   import type { TrackLibraryNavigationTargets, TrackLibraryNavigationTarget } from '$lib/services/library-navigation';
   import type {

@@ -1,4 +1,4 @@
-import type { PlaylistItem } from '$lib/types';
+import type { PlaylistItem } from '$lib/contracts/catalog';
 import { inferExtension, inferKind } from '$lib/utils/files';
 import { logDebug, logWarning } from '$lib/services/logging';
 

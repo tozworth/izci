@@ -3,7 +3,8 @@ import {
   createContextualTabPresentationController,
   resolvePatternTabAvailability
 } from './contextual-tab-presentation';
-import type { ModulePatternSnapshot, PlaylistItem } from '$lib/types';
+import type { ModulePatternSnapshot } from '$lib/contracts/module-playback';
+import type { PlaylistItem } from '$lib/contracts/catalog';
 
 const moduleTrack = { id: 'module', kind: 'module' } as PlaylistItem;
 const streamTrack = { id: 'stream', kind: 'stream' } as PlaylistItem;

@@ -1,5 +1,5 @@
 import { version as appVersion } from '../../../package.json';
-import type { PlaylistItem } from '$lib/types';
+import type { PlaylistItem } from '$lib/contracts/catalog';
 import { materializePlaylistItem } from '$lib/stores/playlist-materialization';
 import { clearMultiplayerLastSession, rememberMultiplayerLastSession } from '$lib/stores/multiplayer-last-session';
 import { logDebug, logError, logInfo, logWarning } from '$lib/services/logging';

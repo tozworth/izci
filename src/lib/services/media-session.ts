@@ -1,5 +1,7 @@
 import type { Readable } from 'svelte/store';
-import type { PlaybackSettings, PlaybackSnapshot, PlaylistItem } from '$lib/types';
+import type { PlaybackSettings } from '$lib/contracts/player-settings';
+import type { PlaybackSnapshot } from '$lib/contracts/playback';
+import type { PlaylistItem } from '$lib/contracts/catalog';
 import {
   getTrackArtworkLoadKey,
   loadTrackArtwork,

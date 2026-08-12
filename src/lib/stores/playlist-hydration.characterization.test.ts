@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { get } from 'svelte/store';
-import type { PlaylistItem } from '$lib/types';
+import type { PlaylistItem } from '$lib/contracts/catalog';
 import type { StoredPlaylistState } from './playlist-persistence';
 
 const persistenceHarness = vi.hoisted(() => ({

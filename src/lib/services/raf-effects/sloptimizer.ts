@@ -1,4 +1,4 @@
-import type { RafSloptimizerSettings } from '$lib/types';
+import type { RafSloptimizerSettings } from '$lib/contracts/raf';
 import { decibelsToGain, disconnectNode, setAudioParam, type RafEffectNode } from './shared';
 
 export const SLOPTIMIZER_SLOP_MIN = 0;

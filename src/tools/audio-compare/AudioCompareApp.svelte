@@ -15,7 +15,8 @@
   } from '$lib/services/audio-comparison';
   import { listenForCurrentToolTrack } from '$lib/services/tool-track-context';
   import { windowManager } from '$lib/services/window-manager';
-  import { MODULE_EXTENSIONS, STREAM_EXTENSIONS, type MenuActionItem } from '$lib/types';
+  import { MODULE_EXTENSIONS, STREAM_EXTENSIONS } from '$lib/contracts/media-format';
+  import { type MenuActionItem } from '$lib/contracts/window-menu';
   import { inferExtension } from '$lib/utils/files';
   import { loadAudioFile, type AudioLoadProgress } from '../editor/clip-audio';
   import { MAX_WAVEFORM_ZOOM } from '../editor/waveform-viewport';

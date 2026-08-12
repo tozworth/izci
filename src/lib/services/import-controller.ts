@@ -1,9 +1,5 @@
-import {
-  MODULE_EXTENSIONS,
-  STREAM_EXTENSIONS,
-  VIDEO_EXTENSIONS,
-  type WorkspaceCollection
-} from '$lib/types';
+import { MODULE_EXTENSIONS, STREAM_EXTENSIONS, VIDEO_EXTENSIONS } from '$lib/contracts/media-format';
+import { type WorkspaceCollection } from '$lib/contracts/workspace';
 import { prepareImportedFiles } from '$lib/services/file-verification';
 import { filesystemFolders } from '$lib/services/filesystem-folders';
 import { logError, logInfo } from '$lib/services/logging';

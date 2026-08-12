@@ -7,7 +7,8 @@
   import { SPEED_EFFECT } from './clip-effects';
   import { windowManager } from '$lib/services/window-manager';
   import { loadouts } from '$lib/stores/loadouts';
-  import type { MenuActionItem, RafEffectType, WindowMenuGroup } from '$lib/types';
+  import type { MenuActionItem, WindowMenuGroup } from '$lib/contracts/window-menu';
+  import type { RafEffectType } from '$lib/contracts/raf';
   import { getLoadoutColorValue, LOADOUT_TYPE_ICONS } from '$lib/utils/loadout-presentation';
 
   type ActionId = 'open' | 'saveClip' | 'close' | 'undo' | 'redo' | 'selectAll'

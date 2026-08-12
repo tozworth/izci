@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { MODULE_EXTENSIONS, VIDEO_EXTENSIONS } from '$lib/types';
+import { MODULE_EXTENSIONS, VIDEO_EXTENSIONS } from '$lib/contracts/media-format';
 
 import {
   buildPlaylistItems,

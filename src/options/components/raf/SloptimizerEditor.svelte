@@ -25,7 +25,7 @@
   } from '$lib/services/raf-effects/sloptimizer';
   import { rafMeter } from '$lib/services/raf-meter';
   import { rafSettings } from '$lib/stores/raf-settings';
-  import type { RafSloptimizerSettings } from '$lib/types';
+  import type { RafSloptimizerSettings } from '$lib/contracts/raf';
   import HoverTooltip from '$lib/components/HoverTooltip.svelte';
 
   export let settings: RafSloptimizerSettings;

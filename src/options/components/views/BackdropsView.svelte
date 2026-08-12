@@ -7,7 +7,7 @@
     appearanceSettings, hasArtworkBackdrop,
     normalizeBackdropZoneArtworkBlur, normalizeBackdropZoneArtworkBrightness
   } from '$lib/stores/appearance-settings';
-  import type { BackdropZoneEffect, BackdropZoneId } from '$lib/types';
+  import type { BackdropZoneEffect, BackdropZoneId } from '$lib/contracts/appearance-settings';
 
   function handleBackdropZoneChange(event: Event, zone: BackdropZoneId) {
     appearanceSettings.update({ backdropZones: { ...appearanceSettings.getSnapshot().backdropZones, [zone]: (event.currentTarget as HTMLSelectElement).value as BackdropZoneEffect } });

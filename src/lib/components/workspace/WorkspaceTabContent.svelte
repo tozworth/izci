@@ -4,7 +4,7 @@
   import PlaylistPanel from '$lib/components/PlaylistPanel.svelte';
   import TrackDetailsPanel from '$lib/components/TrackDetailsPanel.svelte';
   import VideoStage from '$lib/components/workspace/VideoStage.svelte';
-  import type { WorkspaceTab } from '$lib/types';
+  import type { WorkspaceTab } from '$lib/contracts/workspace';
   import type { WorkspaceTabContentProps } from './types';
 
   export let tab: WorkspaceTab;

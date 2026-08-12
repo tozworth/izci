@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { PlaylistItem } from '$lib/types';
+import type { PlaylistItem } from '$lib/contracts/catalog';
 import { resolveTrackLibraryNavigationTargets } from './library-navigation';
 
 function track(id: string, overrides: Partial<PlaylistItem> = {}): PlaylistItem {

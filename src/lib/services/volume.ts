@@ -1,4 +1,5 @@
-import type { ReplayGainMetadata, ReplayGainMode } from '$lib/types';
+import type { ReplayGainMetadata } from '$lib/contracts/media-metadata';
+import type { ReplayGainMode } from '$lib/contracts/playback';
 
 const MIN_AUDIBLE_VOLUME_DB = -60;
 

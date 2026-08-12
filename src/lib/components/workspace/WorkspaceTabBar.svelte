@@ -3,7 +3,7 @@
   import { t } from 'svelte-i18n';
   import DockableTabStrip from '$lib/components/DockableTabStrip.svelte';
   import type { DockTabMoveDetail } from '$lib/components/docking/types';
-  import type { WorkspacePanelId, WorkspaceTab } from '$lib/types';
+  import type { WorkspacePanelId, WorkspaceTab } from '$lib/contracts/workspace';
   import type {
     WorkspaceTabDefinition,
     WorkspaceTabDragDetail,

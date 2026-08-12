@@ -15,7 +15,8 @@
     SYSTEM_FONT_FAMILY,
     appearanceSettings
   } from '$lib/stores/appearance-settings';
-  import type { ColorTheme, ColorThemeMode, ContextualTabAutomation, ContextualWorkspaceTab } from '$lib/types';
+  import type { ColorTheme, ColorThemeMode } from '$lib/contracts/appearance-settings';
+  import type { ContextualTabAutomation, ContextualWorkspaceTab } from '$lib/contracts/workspace';
 
   type BooleanAppearanceSetting =
     | 'useArtworkPlayerColors'

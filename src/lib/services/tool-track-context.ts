@@ -1,4 +1,5 @@
-import type { PlaylistItem, TrackKind } from '$lib/types';
+import type { PlaylistItem } from '$lib/contracts/catalog';
+import type { TrackKind } from '$lib/contracts/media-format';
 
 const REQUEST_MESSAGE = 'izci:request-tool-track';
 export const OPEN_CURRENT_TOOL_TRACK_MESSAGE = 'izci:open-current-tool-track';

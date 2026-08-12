@@ -1,5 +1,5 @@
 import { writable } from 'svelte/store';
-import type { ExperimentalSettings } from '$lib/types';
+import type { ExperimentalSettings } from '$lib/contracts/experimental-settings';
 import { experimentalSettings } from '$lib/stores/experimental-settings';
 import { multiplayerLastSession } from '$lib/stores/multiplayer-last-session';
 import { logDebug, logWarning } from '$lib/services/logging';

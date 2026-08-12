@@ -8,7 +8,7 @@ import {
   getTrackPlayCount,
   rebalanceResizedColumns
 } from './library-columns';
-import type { PlaylistItem } from '$lib/types';
+import type { PlaylistItem } from '$lib/contracts/catalog';
 
 function item(id: string, overrides: Partial<PlaylistItem> = {}): PlaylistItem {
   return {

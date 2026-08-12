@@ -17,7 +17,8 @@ import { DEFAULT_MODULE_PLAYBACK_SETTINGS, modulePlaybackSettings } from '$lib/s
 import { playbackSettings } from '$lib/stores/playback-settings';
 import { rafPresets } from '$lib/stores/raf-presets';
 import { rafSettings } from '$lib/stores/raf-settings';
-import type { Loadout, LoadoutPlaybackSettings, LoadoutState, LoadoutTrackContext, PlaylistItem } from '$lib/types';
+import type { Loadout, LoadoutPlaybackSettings, LoadoutState, LoadoutTrackContext } from '$lib/contracts/loadouts';
+import type { PlaylistItem } from '$lib/contracts/catalog';
 
 function playback(
   values: Pick<LoadoutPlaybackSettings, 'playbackRate' | 'trueSpeed' | 'replayGainMode'>,

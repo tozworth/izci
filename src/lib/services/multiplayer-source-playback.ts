@@ -3,7 +3,8 @@ import type { Unsubscriber } from 'svelte/store';
 import { playerController } from '$lib/services/player-controller';
 import { logError, logInfo } from '$lib/services/logging';
 import type { MultiplayerPlayback } from '$lib/services/multiplayer-protocol';
-import type { PlaybackSnapshot, PlaylistItem } from '$lib/types';
+import type { PlaybackSnapshot } from '$lib/contracts/playback';
+import type { PlaylistItem } from '$lib/contracts/catalog';
 
 interface SavedPlayback {
   track: PlaylistItem | null;

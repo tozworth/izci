@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { RafAutoAmpMode, RafAutoAmpSettings } from '$lib/types';
+import type { RafAutoAmpMode, RafAutoAmpSettings } from '$lib/contracts/raf';
 import { FakeContext, FakeParam } from './test-audio-context';
 import {
   AutoAmpController,

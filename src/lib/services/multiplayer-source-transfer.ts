@@ -1,4 +1,4 @@
-import type { PlaylistItem } from '$lib/types';
+import type { PlaylistItem } from '$lib/contracts/catalog';
 import { logWarning } from '$lib/services/logging';
 import type { PeerConnection, SourceFileBeginFrame, SourceFileEndFrame } from './multiplayer-types';
 

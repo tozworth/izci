@@ -1,4 +1,4 @@
-import type { LibraryViewId, WorkspaceLibraryGroupRequest } from '$lib/types';
+import type { LibraryViewId, WorkspaceLibraryGroupRequest } from '$lib/contracts/workspace';
 import type { LibraryGroup } from './library-views';
 
 export function findRequestedLibraryGroup(

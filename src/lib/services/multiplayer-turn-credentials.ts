@@ -1,4 +1,4 @@
-import type { ExperimentalSettings } from '$lib/types';
+import type { ExperimentalSettings } from '$lib/contracts/experimental-settings';
 import type { MultiplayerIceSettings } from './multiplayer-ice';
 
 const ECDH_ALGORITHM = { name: 'ECDH', namedCurve: 'P-256' } as const;

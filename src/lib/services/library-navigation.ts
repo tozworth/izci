@@ -1,5 +1,6 @@
 import { getLibraryGroupIdentities } from '$lib/components/playlist-panel/library-views';
-import type { LibraryGroupViewId, PlaylistItem } from '$lib/types';
+import type { LibraryGroupViewId } from '$lib/contracts/workspace';
+import type { PlaylistItem } from '$lib/contracts/catalog';
 import { getTrackIdentity } from '$lib/utils/files';
 
 export const TRACK_LIBRARY_NAVIGATION_FIELDS = [

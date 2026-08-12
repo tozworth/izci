@@ -1,4 +1,4 @@
-import type { PlaylistRepeatMode } from '$lib/types';
+import type { PlaylistRepeatMode } from '$lib/contracts/catalog';
 import { createPersistentStore } from './persistent-store';
 
 export const MULTIPLAYER_FREEPLAY_STATE_STORAGE_KEY = 'izci.multiplayer-freeplay-state';

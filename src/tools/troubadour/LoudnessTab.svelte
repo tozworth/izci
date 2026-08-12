@@ -3,7 +3,7 @@
   import { t } from 'svelte-i18n';
   import HoverTooltip from '$lib/components/HoverTooltip.svelte';
   import MenuSurface from '$lib/components/MenuSurface.svelte';
-  import type { MenuActionItem } from '$lib/types';
+  import type { MenuActionItem } from '$lib/contracts/window-menu';
   import {
     analyzeLoudness,
     computeIntegratedLoudness,

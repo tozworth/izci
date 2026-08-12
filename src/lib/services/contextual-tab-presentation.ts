@@ -1,9 +1,7 @@
-import type {
-  ContextualTabAutomation,
-  ModulePatternSnapshot,
-  PlaybackState,
-  PlaylistItem
-} from '$lib/types';
+import type { ContextualTabAutomation } from '$lib/contracts/workspace';
+import type { ModulePatternSnapshot } from '$lib/contracts/module-playback';
+import type { PlaybackState } from '$lib/contracts/playback';
+import type { PlaylistItem } from '$lib/contracts/catalog';
 
 export type ContextualTabAvailability = 'loading' | 'available' | 'unavailable';
 

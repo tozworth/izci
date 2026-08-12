@@ -7,7 +7,7 @@
     TrackLibraryNavigationTargets
   } from '$lib/services/library-navigation';
   import type { LoadedStreamArtwork } from '$lib/services/stream-artwork';
-  import type { PlaylistItem } from '$lib/types';
+  import type { PlaylistItem } from '$lib/contracts/catalog';
   import { resolveModuleDisplayFormat, resolveModuleTrackerName } from '$lib/utils/files';
 
   export let track: PlaylistItem | null = null;

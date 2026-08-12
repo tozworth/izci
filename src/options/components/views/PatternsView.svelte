@@ -11,7 +11,7 @@
     MIN_PATTERN_ROW_HEIGHT,
     patternViewerSettings
   } from '$lib/stores/pattern-viewer-settings';
-  import type { PatternViewerSettings } from '$lib/types';
+  import type { PatternViewerSettings } from '$lib/contracts/player-settings';
 
   type NumericSetting = 'fontSize' | 'rowHeight' | 'channelWidth';
   type ToggleSetting = 'followPlayback' | 'alwaysCenterActiveRow' | 'smoothScroll' | 'showChannelNames' | 'highlightBeatRows';

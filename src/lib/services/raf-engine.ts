@@ -3,7 +3,7 @@ import { RAF_PARAMETER_RAMP_SECONDS, disconnectNode, setAudioParam, type RafEffe
 import { rafSettings } from '$lib/stores/raf-settings';
 import { playbackSettings } from '$lib/stores/playback-settings';
 import { publishRafMeter } from '$lib/services/raf-meter';
-import type { RafEffectSettings, RafEffectType, RafRackSettings } from '$lib/types';
+import type { RafEffectSettings, RafEffectType, RafRackSettings } from '$lib/contracts/raf';
 import type { Unsubscriber } from 'svelte/store';
 
 interface LiveEffect {

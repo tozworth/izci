@@ -3,7 +3,7 @@ import {
   getCachedArtworkThumbnail,
   type CachedArtworkThumbnail
 } from '$lib/services/artwork-cache';
-import type { PlaylistItem } from '$lib/types';
+import type { PlaylistItem } from '$lib/contracts/catalog';
 
 export interface AlbumArtworkGroup {
   key: string;

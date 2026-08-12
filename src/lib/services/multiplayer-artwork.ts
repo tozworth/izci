@@ -1,7 +1,7 @@
 import { getCachedArtworkThumbnail } from '$lib/services/artwork-cache';
 import { logDebug, logWarning } from '$lib/services/logging';
 import type { LoadedStreamArtwork } from '$lib/services/stream-artwork';
-import type { PlaylistItem } from '$lib/types';
+import type { PlaylistItem } from '$lib/contracts/catalog';
 import type { MultiplayerArtwork } from './multiplayer-protocol';
 
 export const MULTIPLAYER_ARTWORK_MAX_EDGE = 1024;

@@ -1,4 +1,4 @@
-import type { WorkspacePanelLayoutSettings } from '$lib/types';
+import type { WorkspacePanelLayoutSettings } from '$lib/contracts/workspace';
 import { createSettingsStore } from './persistent-store';
 
 export const WORKSPACE_PANEL_LAYOUT_STORAGE_KEY = 'izci.workspace-panel-layout.v2';

@@ -1,4 +1,4 @@
-import type { ModuleInterpolationFilter, ModulePlaybackSettings } from '$lib/types';
+import type { ModuleInterpolationFilter, ModulePlaybackSettings } from '$lib/contracts/module-playback';
 import { createSettingsStore } from './persistent-store';
 
 export const MODULE_PLAYBACK_SETTINGS_STORAGE_KEY = 'izci.module-playback-settings.v1';

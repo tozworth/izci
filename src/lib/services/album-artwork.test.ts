@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { PlaylistItem } from '$lib/types';
+import type { PlaylistItem } from '$lib/contracts/catalog';
 import { createAlbumArtworkController } from './album-artwork';
 
 function item(id: string): PlaylistItem {

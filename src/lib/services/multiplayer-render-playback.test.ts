@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { MultiplayerPlayback } from './multiplayer-protocol';
-import type { PlaybackSnapshot } from '$lib/types';
+import type { PlaybackSnapshot } from '$lib/contracts/playback';
 import {
   contiguousMsAtPosition,
   expectedPositionMs,

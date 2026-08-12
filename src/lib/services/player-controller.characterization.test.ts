@@ -1,6 +1,8 @@
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { get } from 'svelte/store';
-import type { PlaybackSnapshot, PlaylistItem, TrackMetadata } from '$lib/types';
+import type { PlaybackSnapshot } from '$lib/contracts/playback';
+import type { PlaylistItem } from '$lib/contracts/catalog';
+import type { TrackMetadata } from '$lib/contracts/media-metadata';
 
 const harness = vi.hoisted(() => {
   interface PendingLoad {

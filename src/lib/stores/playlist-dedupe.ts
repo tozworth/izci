@@ -1,4 +1,4 @@
-import type { PlaylistItem } from '$lib/types';
+import type { PlaylistItem } from '$lib/contracts/catalog';
 import { getTrackIdentity } from '$lib/utils/files';
 
 export function splitUniqueItems(

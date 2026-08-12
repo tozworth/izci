@@ -5,13 +5,8 @@ import {
 import type { WindowControlsOverlayState } from '$lib/services/window-controls-overlay';
 import type { WorkspaceShellState } from '$lib/services/workspace-shell';
 import { hasArtworkBackdrop, hasVisualizerBackdrop } from '$lib/stores/appearance-settings';
-import type {
-  BackdropZoneArtworkSettingsMap,
-  BackdropZoneEffect,
-  BackdropZoneId,
-  BackdropZoneSettings,
-  WorkspacePanelId
-} from '$lib/types';
+import type { BackdropZoneArtworkSettingsMap, BackdropZoneEffect, BackdropZoneId, BackdropZoneSettings } from '$lib/contracts/appearance-settings';
+import type { WorkspacePanelId } from '$lib/contracts/workspace';
 
 interface AppBackdropPresentationInput {
   isNowPlayingLayoutActive: boolean;

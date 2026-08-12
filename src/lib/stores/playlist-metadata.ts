@@ -1,7 +1,8 @@
 import { metadataSettings } from '$lib/stores/metadata-settings';
 import { loadModuleMetadata } from '$lib/services/module-metadata';
 import { loadTrackMetadata } from '$lib/services/stream-artwork';
-import type { PlaylistItem, TrackMetadata } from '$lib/types';
+import type { PlaylistItem } from '$lib/contracts/catalog';
+import type { TrackMetadata } from '$lib/contracts/media-metadata';
 import { mergeInferredArtistTitle } from '$lib/utils/files';
 
 interface BackgroundDeadline {

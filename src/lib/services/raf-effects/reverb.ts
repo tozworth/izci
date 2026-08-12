@@ -1,4 +1,4 @@
-import type { RafReverbSettings } from '$lib/types';
+import type { RafReverbSettings } from '$lib/contracts/raf';
 import { disconnectNode, setAudioParam, type RafEffectNode } from './shared';
 
 export const REVERB_MIX_MIN = 0;

@@ -1,4 +1,4 @@
-import type { RafCrystalizerSettings } from '$lib/types';
+import type { RafCrystalizerSettings } from '$lib/contracts/raf';
 import { disconnectNode, setAudioParam, type RafEffectNode } from './shared';
 
 export const CRYSTALIZER_BAND_EDGES = Array.from({ length: 14 }, (_, index) =>

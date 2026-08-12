@@ -6,15 +6,9 @@
     LIBRARY_COLUMN_MIN_WIDTHS,
     libraryViewSettings
   } from '$lib/stores/library-view-settings';
-  import type {
-    LibraryColumnId,
-    LibraryViewId,
-    MenuActionItem,
-    PlaylistItem,
-    PlaylistRepeatMode,
-    PlaylistSelection,
-    WorkspaceLibraryGroupRequest
-  } from '$lib/types';
+  import type { LibraryColumnId, LibraryViewId, WorkspaceLibraryGroupRequest } from '$lib/contracts/workspace';
+  import type { MenuActionItem } from '$lib/contracts/window-menu';
+  import type { PlaylistItem, PlaylistRepeatMode, PlaylistSelection } from '$lib/contracts/catalog';
   import { prepareImportedFiles } from '$lib/services/file-verification';
   import { createAlbumArtworkController } from '$lib/services/album-artwork';
   import { trackSettings } from '$lib/stores/track-settings';

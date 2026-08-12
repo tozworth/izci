@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { splitUniqueItems } from './playlist-dedupe';
 import { createTrackCollectionStore } from './playlist';
-import type { PlaylistItem } from '$lib/types';
+import type { PlaylistItem } from '$lib/contracts/catalog';
 
 function item(id: string, overrides: Partial<PlaylistItem> = {}): PlaylistItem {
   return {

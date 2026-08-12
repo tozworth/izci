@@ -6,14 +6,10 @@ import {
 } from '$lib/services/hively-patterns';
 import { mediaSessionService } from '$lib/services/media-session';
 import { modulePlaybackSettings } from '$lib/stores/module-playback-settings';
-import type {
-  ModulePatternSnapshot,
-  ModulePatternSong,
-  ModulePlaybackSettings,
-  PlaybackSnapshot,
-  PlaylistItem,
-  TrackMetadata
-} from '$lib/types';
+import type { ModulePatternSnapshot, ModulePatternSong, ModulePlaybackSettings } from '$lib/contracts/module-playback';
+import type { PlaybackSnapshot } from '$lib/contracts/playback';
+import type { PlaylistItem } from '$lib/contracts/catalog';
+import type { TrackMetadata } from '$lib/contracts/media-metadata';
 
 type SnapshotHandler = (snapshot: Partial<PlaybackSnapshot>) => void;
 type MetadataHandler = (metadata: TrackMetadata) => void;

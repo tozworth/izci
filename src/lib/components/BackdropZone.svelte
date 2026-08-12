@@ -5,7 +5,7 @@
     toBackdropZoneArtworkStyle
   } from '$lib/stores/appearance-settings';
   import type { LoadedStreamArtwork } from '$lib/services/stream-artwork';
-  import type { BackdropZoneArtworkSettings, BackdropZoneEffect } from '$lib/types';
+  import type { BackdropZoneArtworkSettings, BackdropZoneEffect } from '$lib/contracts/appearance-settings';
 
   export let effect: BackdropZoneEffect = 'none';
   export let artwork: LoadedStreamArtwork | null = null;

@@ -1,4 +1,5 @@
-import type { MenuActionItem, PlaylistItem } from '$lib/types';
+import type { MenuActionItem } from '$lib/contracts/window-menu';
+import type { PlaylistItem } from '$lib/contracts/catalog';
 
 export const TRACK_RATING_VALUES = Array.from({ length: 10 }, (_, index) => (index + 1) / 2);
 export const TRACK_RATING_ACTION_PREFIX = 'rate:';

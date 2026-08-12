@@ -1,5 +1,5 @@
 import { writable } from 'svelte/store';
-import type { PlaylistItem } from '$lib/types';
+import type { PlaylistItem } from '$lib/contracts/catalog';
 import {
   analyzeArtworkBackground,
   DEFAULT_ARTWORK_BACKGROUND_ANALYSIS,

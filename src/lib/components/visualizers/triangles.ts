@@ -1,5 +1,5 @@
 import type { VisualizerPalette } from '$lib/services/artwork-palette';
-import type { VisualizerSettings } from '$lib/types';
+import type { VisualizerSettings } from '$lib/contracts/appearance-settings';
 
 const TRIANGLE_SIDE_X = Math.sqrt(3) / 2;
 const TRIANGLE_EDGE_FADE_SIZE_FACTOR = 1.4;

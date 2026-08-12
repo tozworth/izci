@@ -2,7 +2,7 @@
   import { afterUpdate, createEventDispatcher } from 'svelte';
   import { onMount } from 'svelte';
   import { t } from 'svelte-i18n';
-  import type { MenuActionItem } from '$lib/types';
+  import type { MenuActionItem } from '$lib/contracts/window-menu';
   import { portal } from '$lib/components/playlist-panel/actions/portal';
   import { windowDismiss } from '$lib/components/playlist-panel/actions/window-dismiss';
   import { keepMenuInViewport } from '$lib/components/playlist-panel/actions/menu-viewport';

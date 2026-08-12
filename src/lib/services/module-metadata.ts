@@ -1,6 +1,8 @@
 import { createChiptunePlayer } from '$lib/services/chiptune-loader';
 import { logDebug, logInfo, logWarning } from '$lib/services/logging';
-import { HIVELY_MODULE_EXTENSIONS, type PlaylistItem, type TrackMetadata } from '$lib/types';
+import { HIVELY_MODULE_EXTENSIONS } from '$lib/contracts/media-format';
+import { type PlaylistItem } from '$lib/contracts/catalog';
+import { type TrackMetadata } from '$lib/contracts/media-metadata';
 import type { Chiptune3Metadata, ChiptuneJsPlayer } from 'chiptune3';
 
 const MODULE_METADATA_TIMEOUT_MS = 10_000;

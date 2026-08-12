@@ -29,14 +29,11 @@
   } from '$lib/stores/appearance-settings';
   import type { Readable } from 'svelte/store';
   import { formatDuration, getTrackDisplaySubtitle, getTrackDisplayTitle } from '$lib/utils/files';
-  import type {
-    BackdropZoneArtworkSettings,
-    BackdropZoneEffect,
-    MenuActionItem,
-    PlaybackSnapshot,
-    PlaylistItem,
-    RafPreset
-  } from '$lib/types';
+  import type { BackdropZoneArtworkSettings, BackdropZoneEffect } from '$lib/contracts/appearance-settings';
+  import type { MenuActionItem } from '$lib/contracts/window-menu';
+  import type { PlaybackSnapshot } from '$lib/contracts/playback';
+  import type { PlaylistItem } from '$lib/contracts/catalog';
+  import type { RafPreset } from '$lib/contracts/raf';
 
   function localizeIdlePlayerQuip(quip: IdlePlayerQuipId): string {
     switch (quip) {

@@ -4,7 +4,7 @@
   import { visualizerService } from '$lib/services/visualizer';
   import { DEFAULT_VISUALIZER_SETTINGS, visualizerSettings } from '$lib/stores/visualizer-settings';
   import { TriangleVisualizerRenderer } from '$lib/components/visualizers/triangles';
-  import type { VisualizerSettings } from '$lib/types';
+  import type { VisualizerSettings } from '$lib/contracts/appearance-settings';
 
   const BAND_COUNT = 72;
   const IDLE_FALLBACK = 0;

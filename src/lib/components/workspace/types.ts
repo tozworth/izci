@@ -1,18 +1,10 @@
-import type {
-  LyricsDisplayStyle,
-  MenuActionItem,
-  ModulePatternSnapshot,
-  PlaybackSnapshot,
-  PlaylistItem,
-  PlaylistRepeatMode,
-  PlaylistSelection,
-  VideoFitMode,
-  WorkspaceJumpRequest,
-  WorkspaceLibraryGroupRequest,
-  WorkspacePanelId,
-  WorkspaceResizeHandle,
-  WorkspaceTab
-} from '$lib/types';
+import type { LyricsDisplayStyle } from '$lib/contracts/appearance-settings';
+import type { MenuActionItem } from '$lib/contracts/window-menu';
+import type { ModulePatternSnapshot } from '$lib/contracts/module-playback';
+import type { PlaybackSnapshot } from '$lib/contracts/playback';
+import type { PlaylistItem, PlaylistRepeatMode, PlaylistSelection } from '$lib/contracts/catalog';
+import type { VideoFitMode } from '$lib/contracts/player-settings';
+import type { WorkspaceJumpRequest, WorkspaceLibraryGroupRequest, WorkspacePanelId, WorkspaceResizeHandle, WorkspaceTab } from '$lib/contracts/workspace';
 import type { LoadedStreamArtwork } from '$lib/services/stream-artwork';
 import type {
   TrackLibraryNavigationTarget,

@@ -3,7 +3,7 @@
   import { t } from 'svelte-i18n';
   import WindowMenuBar from '$lib/components/WindowMenuBar.svelte';
   import { windowManager } from '$lib/services/window-manager';
-  import type { MenuActionItem, WindowMenuGroup } from '$lib/types';
+  import type { MenuActionItem, WindowMenuGroup } from '$lib/contracts/window-menu';
 
   type ActionId = 'addFiles' | 'addFolder' | 'chooseOutput' | 'close' | 'selectAll' | 'selectNone'
     | 'removeSelected' | 'clearFinished' | 'start' | 'stop' | 'openOptions' | 'openAbout';

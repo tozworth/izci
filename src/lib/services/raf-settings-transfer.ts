@@ -1,5 +1,5 @@
 import { normalizeRafSettings, rafSettings } from '$lib/stores/raf-settings';
-import type { RafRackSettings } from '$lib/types';
+import type { RafRackSettings } from '$lib/contracts/raf';
 
 export const RAF_SETTINGS_FILE_NAME = 'izci-raf-settings.json';
 

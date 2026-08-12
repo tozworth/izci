@@ -6,7 +6,7 @@
     CRYSTALIZER_INTENSITY_MIN
   } from '$lib/services/raf-effects/crystalizer';
   import { rafSettings } from '$lib/stores/raf-settings';
-  import type { RafCrystalizerSettings } from '$lib/types';
+  import type { RafCrystalizerSettings } from '$lib/contracts/raf';
   import HoverTooltip from '$lib/components/HoverTooltip.svelte';
 
   export let settings: RafCrystalizerSettings;

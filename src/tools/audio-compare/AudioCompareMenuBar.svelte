@@ -5,7 +5,7 @@
   import { applyManualLoadoutSettings } from '$lib/services/loadouts';
   import { windowManager } from '$lib/services/window-manager';
   import { loadouts } from '$lib/stores/loadouts';
-  import type { MenuActionItem, WindowMenuGroup } from '$lib/types';
+  import type { MenuActionItem, WindowMenuGroup } from '$lib/contracts/window-menu';
   import { getLoadoutColorValue, LOADOUT_TYPE_ICONS } from '$lib/utils/loadout-presentation';
 
   type ActionId = 'openA' | 'openB' | 'close' | 'playPause' | 'stop' | 'auditionA' | 'auditionB'

@@ -1,6 +1,7 @@
 import type { Readable } from 'svelte/store';
 import { playbackSettings } from '$lib/stores/playback-settings';
-import type { PlaybackSnapshot, PlaylistItem } from '$lib/types';
+import type { PlaybackSnapshot } from '$lib/contracts/playback';
+import type { PlaylistItem } from '$lib/contracts/catalog';
 
 export const PLAYBACK_RESTORATION_STORAGE_KEY = 'izci.playback-restoration';
 const CHECKPOINT_DELAY_MS = 500;

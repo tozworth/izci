@@ -2,7 +2,7 @@
   import { createEventDispatcher } from 'svelte';
   import { t } from 'svelte-i18n';
   import WindowMenuBar from '$lib/components/WindowMenuBar.svelte';
-  import type { MenuActionItem, WindowMenuGroup } from '$lib/types';
+  import type { MenuActionItem, WindowMenuGroup } from '$lib/contracts/window-menu';
 
   type ActionId =
     | 'addFiles' | 'addFolder' | 'addFromIzci' | 'save' | 'saveAll' | 'close'

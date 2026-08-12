@@ -6,7 +6,7 @@ import {
   resolveTrackSnapshot
 } from './artwork-presentation';
 import type { LoadedStreamArtwork } from './stream-artwork';
-import type { PlaylistItem } from '$lib/types';
+import type { PlaylistItem } from '$lib/contracts/catalog';
 
 function item(id: string, overrides: Partial<PlaylistItem> = {}): PlaylistItem {
   return {

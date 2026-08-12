@@ -4,7 +4,8 @@ import { createChiptunePlayer } from '$lib/services/chiptune-loader';
 import { logWarning } from '$lib/services/logging';
 import { modulePlaybackSettings } from '$lib/stores/module-playback-settings';
 import { createPlaylistNavigation } from '$lib/stores/playlist-navigation';
-import type { PlaybackSnapshot, PlaylistItem, PlaylistRepeatMode } from '$lib/types';
+import type { PlaybackSnapshot } from '$lib/contracts/playback';
+import type { PlaylistItem, PlaylistRepeatMode } from '$lib/contracts/catalog';
 import type {
   MultiplayerDeliveryMode,
   MultiplayerPlayback

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { afterUpdate, createEventDispatcher, tick } from 'svelte';
   import { t } from 'svelte-i18n';
-  import type { PlaylistRepeatMode } from '$lib/types';
+  import type { PlaylistRepeatMode } from '$lib/contracts/catalog';
 
   export let panelTitle = 'Playlist';
   export let hideEyebrow = false;

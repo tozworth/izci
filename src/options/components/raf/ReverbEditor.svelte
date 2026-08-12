@@ -13,7 +13,7 @@
     REVERB_ROOM_SIZE_MIN
   } from '$lib/services/raf-effects/reverb';
   import { rafSettings } from '$lib/stores/raf-settings';
-  import type { RafReverbSettings } from '$lib/types';
+  import type { RafReverbSettings } from '$lib/contracts/raf';
 
   export let settings: RafReverbSettings;
   type ReverbKey = 'mix' | 'roomSize' | 'decaySeconds' | 'preDelayMs' | 'dampingHz';

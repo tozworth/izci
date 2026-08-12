@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { DEFAULT_BACKDROP_ZONES } from '$lib/stores/appearance-settings';
 import { DEFAULT_MODULE_PLAYBACK_SETTINGS } from '$lib/stores/module-playback-settings';
 import { DEFAULT_VISUALIZER_SETTINGS } from '$lib/stores/visualizer-settings';
-import type { LoadoutSettings } from '$lib/types';
+import type { LoadoutSettings } from '$lib/contracts/loadouts';
 import { getLoadoutSettingDifferences } from './loadout-setting-differences';
 
 describe('loadout setting differences', () => {

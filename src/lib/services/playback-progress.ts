@@ -1,6 +1,7 @@
 import { writable, type Readable } from 'svelte/store';
 import { playbackSettings, REMEMBER_PROGRESS_DURATION_MINUTES } from '$lib/stores/playback-settings';
-import type { PlaybackSnapshot, PlaylistItem } from '$lib/types';
+import type { PlaybackSnapshot } from '$lib/contracts/playback';
+import type { PlaylistItem } from '$lib/contracts/catalog';
 import { getTrackIdentity } from '$lib/utils/files';
 
 const DATABASE_NAME = 'izci-playback-progress';

@@ -3,7 +3,8 @@
   import { t } from 'svelte-i18n';
   import HoverTooltip from '$lib/components/HoverTooltip.svelte';
   import MenuSurface from '$lib/components/MenuSurface.svelte';
-  import { MODULE_EXTENSIONS, STREAM_EXTENSIONS, VIDEO_EXTENSIONS, type MenuActionItem } from '$lib/types';
+  import { MODULE_EXTENSIONS, STREAM_EXTENSIONS, VIDEO_EXTENSIONS } from '$lib/contracts/media-format';
+  import { type MenuActionItem } from '$lib/contracts/window-menu';
   import { listenForCurrentToolTrack } from '$lib/services/tool-track-context';
   import { inferExtension } from '$lib/utils/files';
   import ConverterMenuBar from './ConverterMenuBar.svelte';

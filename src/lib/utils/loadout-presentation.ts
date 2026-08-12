@@ -1,4 +1,4 @@
-import type { LoadoutColor, LoadoutTarget, LoadoutType } from '$lib/types';
+import type { LoadoutColor, LoadoutTarget, LoadoutType } from '$lib/contracts/loadouts';
 
 export const LOADOUT_TYPE_ICONS: Record<LoadoutType, string> = {
   file: 'audio_file',

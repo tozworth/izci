@@ -1,13 +1,4 @@
-import type {
-  RafAutoAmpSettings,
-  RafCrystalizerSettings,
-  RafEffectSettings,
-  RafEffectType,
-  RafGraphicEqSettings,
-  RafReverbSettings,
-  RafSloptimizerSettings,
-  RafStereoWidthSettings
-} from '$lib/types';
+import type { RafAutoAmpSettings, RafCrystalizerSettings, RafEffectSettings, RafEffectType, RafGraphicEqSettings, RafReverbSettings, RafSloptimizerSettings, RafStereoWidthSettings } from '$lib/contracts/raf';
 import {
   AUTO_AMP_BOOST_MAX_DB,
   AUTO_AMP_GAIN_MAX_DB,

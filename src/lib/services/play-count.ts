@@ -1,4 +1,5 @@
-import type { PlaybackState, PlaylistItem } from '$lib/types';
+import type { PlaybackState } from '$lib/contracts/playback';
+import type { PlaylistItem } from '$lib/contracts/catalog';
 import { getTrackIdentity } from '$lib/utils/files';
 
 interface PlayCountTrackerSyncInput {

@@ -2,7 +2,7 @@
   import { t } from 'svelte-i18n';
   import { GRAPHIC_EQ_FREQUENCIES, RAF_GAIN_MAX_DB, RAF_GAIN_MIN_DB } from '$lib/services/raf-effects/graphic-eq';
   import { rafSettings } from '$lib/stores/raf-settings';
-  import type { RafGraphicEqSettings } from '$lib/types';
+  import type { RafGraphicEqSettings } from '$lib/contracts/raf';
 
   export let settings: RafGraphicEqSettings;
 

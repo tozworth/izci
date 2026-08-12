@@ -1,8 +1,6 @@
-import type {
-  PlaybackSnapshot,
-  PlaylistItem,
-  WorkspaceCollection
-} from '$lib/types';
+import type { PlaybackSnapshot } from '$lib/contracts/playback';
+import type { PlaylistItem } from '$lib/contracts/catalog';
+import type { WorkspaceCollection } from '$lib/contracts/workspace';
 
 const KEYBOARD_SEEK_STEP_SECONDS = 5;
 const KEYBOARD_VOLUME_STEP = 0.05;

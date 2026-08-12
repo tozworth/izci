@@ -15,7 +15,7 @@
     AUTO_AMP_TARGET_MIN_DB
   } from '$lib/services/raf-effects/auto-amp';
   import { rafSettings } from '$lib/stores/raf-settings';
-  import type { RafAutoAmpMode, RafAutoAmpSettings } from '$lib/types';
+  import type { RafAutoAmpMode, RafAutoAmpSettings } from '$lib/contracts/raf';
 
   export let settings: RafAutoAmpSettings;
 

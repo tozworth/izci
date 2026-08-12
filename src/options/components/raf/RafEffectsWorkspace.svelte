@@ -6,7 +6,7 @@
   import HoverTooltip from '$lib/components/HoverTooltip.svelte';
   import { RAF_EFFECT_DEFINITIONS, RAF_EFFECT_REGISTRY } from '$lib/services/raf-effect-registry';
   import { rafSettings } from '$lib/stores/raf-settings';
-  import type { RafEffectSettings, RafEffectType } from '$lib/types';
+  import type { RafEffectSettings, RafEffectType } from '$lib/contracts/raf';
   import RafEffectEditor from './RafEffectEditor.svelte';
 
   let selectedEffectId: string | null = null;

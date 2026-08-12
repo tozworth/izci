@@ -1,6 +1,6 @@
 import { get } from 'svelte/store';
 import { describe, expect, it } from 'vitest';
-import type { PlaylistItem } from '$lib/types';
+import type { PlaylistItem } from '$lib/contracts/catalog';
 import { createTrackCollectionStore } from './playlist';
 
 function item(id: string, overrides: Partial<PlaylistItem> = {}): PlaylistItem {
