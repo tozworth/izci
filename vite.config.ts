@@ -21,7 +21,7 @@ export default defineConfig({
   test: {
     coverage: {
       provider: 'v8',
-      include: ['src/**/*.{ts,svelte}', 'sites-worker.js'],
+      include: ['src/**/*.{ts,svelte}', 'sites-worker.js', 'public/raf-upward-compressor.worklet.js'],
       exclude: ['src/**/*.test.ts', 'src/lib/vendor/**'],
       reporter: ['text', 'json-summary']
     }
