@@ -31,8 +31,9 @@ exceptions, console/log errors, non-cancelled network failures, readiness
 timeouts, and trace loss fail closed.
 
 The harness auto-attaches to service workers, dedicated/shared workers, and
-worklet targets exposed by CDP and records their console, log, exception, and
-detach state separately from page sessions. It proves that the server's
+worklet targets exposed by CDP. It pauses each owned background target until
+console/exception/log listeners and protocol domains are active, then records
+its output and detach state separately from page sessions. It proves that the server's
 `/sw.js` bytes match the build and that a fresh profile reaches a settled active
 registration. It does not claim to hash the private bytes of an already-active
 worker; seeded old-worker update behavior remains a later PWA scenario.

@@ -8,6 +8,10 @@ import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import { launchBrowser } from './browser-launcher.mjs';
 import {
+  enableBackgroundObservation,
+  isOwnedBackgroundTarget
+} from './background-observer.mjs';
+import {
   assertBuildProvenance,
   assertScenarioEntrypoints,
   readScenarioCatalog
@@ -436,12 +440,7 @@ async function runProfile({
     if (message.method === 'Target.targetCrashed') targetEvents.push(message);
   });
   const disposeBackgroundAttach = connection.on('Target.attachedToTarget', (event) => {
-    if (!['service_worker', 'worker', 'shared_worker', 'worklet'].includes(event.targetInfo.type)) {
-      return;
-    }
-    const ownedUrl = event.targetInfo.url.startsWith(baseUrl)
-      || event.targetInfo.url.startsWith(`blob:${baseUrl}`);
-    if (!ownedUrl) {
+    if (!isOwnedBackgroundTarget(event.targetInfo, baseUrl)) {
       void connection.send('Target.detachFromTarget', { sessionId: event.sessionId }).catch(() => {});
       return;
     }
@@ -458,23 +457,11 @@ async function runProfile({
     };
     backgroundTargets.push(target);
     backgroundBySession.set(event.sessionId, target);
-    connection.on('Runtime.consoleAPICalled', (runtimeEvent) => {
-      target.console.push({
-        type: runtimeEvent.type,
-        timestamp: runtimeEvent.timestamp,
-        args: runtimeEvent.args.map(serializeRemoteArgument),
-        stackTrace: runtimeEvent.stackTrace ?? null
-      });
-    }, event.sessionId);
-    connection.on('Runtime.exceptionThrown', (runtimeEvent) => {
-      target.runtimeExceptions.push(runtimeEvent.exceptionDetails);
-    }, event.sessionId);
-    connection.on('Log.entryAdded', (runtimeEvent) => target.log.push(runtimeEvent.entry), event.sessionId);
-    backgroundTargetSetups.push(Promise.all([
-      connection.send('Runtime.enable', {}, event.sessionId),
-      connection.send('Log.enable', {}, event.sessionId)
-    ]).catch((error) => {
-      target.setupFailure = error.message;
+    backgroundTargetSetups.push(enableBackgroundObservation({
+      connection,
+      event,
+      target,
+      serializeArgument: serializeRemoteArgument
     }));
   });
   const disposeBackgroundDetach = connection.on('Target.detachedFromTarget', (event) => {
@@ -483,7 +470,7 @@ async function runProfile({
   });
   await connection.send('Target.setAutoAttach', {
     autoAttach: true,
-    waitForDebuggerOnStart: false,
+    waitForDebuggerOnStart: true,
     flatten: true,
     filter: [
       { type: 'service_worker' },
