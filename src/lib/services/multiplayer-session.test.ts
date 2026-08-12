@@ -197,7 +197,7 @@ describe('multiplayer session generation replacement', () => {
     session.destroy();
   });
 
-  it('disposes peer and media ownership before clearing the active generation', async () => {
+  it('disposes peer and media ownership and clears the active generation', async () => {
     const session = createMultiplayerSession({
       handleHostCommand: vi.fn(),
       pauseHostPlayback: vi.fn(),
