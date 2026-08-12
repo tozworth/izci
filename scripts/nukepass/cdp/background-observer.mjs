@@ -5,8 +5,12 @@ export const OBSERVED_BACKGROUND_TARGET_TYPES = Object.freeze([
   'worklet'
 ]);
 
+export function isBackgroundTargetType(type) {
+  return OBSERVED_BACKGROUND_TARGET_TYPES.includes(type);
+}
+
 export function isOwnedBackgroundTarget(targetInfo, baseUrl) {
-  return OBSERVED_BACKGROUND_TARGET_TYPES.includes(targetInfo.type)
+  return isBackgroundTargetType(targetInfo.type)
     && (targetInfo.url.startsWith(baseUrl) || targetInfo.url.startsWith(`blob:${baseUrl}`));
 }
 

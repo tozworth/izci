@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
   enableBackgroundObservation,
+  isBackgroundTargetType,
   isOwnedBackgroundTarget
 } from './background-observer.mjs';
 
@@ -16,6 +17,8 @@ describe('CDP background observation', () => {
     assert.equal(isOwnedBackgroundTarget({ type: 'worker', url: `blob:${baseUrl}id` }, baseUrl), true);
     assert.equal(isOwnedBackgroundTarget({ type: 'page', url: baseUrl }, baseUrl), false);
     assert.equal(isOwnedBackgroundTarget({ type: 'worker', url: 'chrome-extension://id/worker.js' }, baseUrl), false);
+    assert.equal(isBackgroundTargetType('page'), false);
+    assert.equal(isBackgroundTargetType('service_worker'), true);
   });
 
   it('installs listeners and enables domains before resuming a paused target', async () => {

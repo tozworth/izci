@@ -9,6 +9,7 @@ import { promisify } from 'node:util';
 import { launchBrowser } from './browser-launcher.mjs';
 import {
   enableBackgroundObservation,
+  isBackgroundTargetType,
   isOwnedBackgroundTarget
 } from './background-observer.mjs';
 import {
@@ -440,6 +441,7 @@ async function runProfile({
     if (message.method === 'Target.targetCrashed') targetEvents.push(message);
   });
   const disposeBackgroundAttach = connection.on('Target.attachedToTarget', (event) => {
+    if (!isBackgroundTargetType(event.targetInfo.type)) return;
     if (!isOwnedBackgroundTarget(event.targetInfo, baseUrl)) {
       void connection.send('Target.detachFromTarget', { sessionId: event.sessionId }).catch(() => {});
       return;
