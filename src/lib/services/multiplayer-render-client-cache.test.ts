@@ -3,6 +3,7 @@ import type { MultiplayerRenderManifest } from './multiplayer-protocol';
 import {
   MultiplayerRenderClientCache,
   buildClientRenderCacheKey,
+  renderLayoutMatches,
   renderMatchesManifest,
   type ClientCachedRender
 } from './multiplayer-render-client-cache';
@@ -78,6 +79,70 @@ describe('renderMatchesManifest', () => {
       render(),
       manifest({ clusters: [{ index: 0, timeMs: 10, sizeBytes: 100 }, ...manifest().clusters.slice(1)] })
     )).toBe(false);
+  });
+});
+
+describe('renderLayoutMatches', () => {
+  it('matches identical layouts even when the bitrate differs', () => {
+    expect(renderLayoutMatches(manifest(), manifest({ bitrateKbps: 256 }))).toBe(true);
+  });
+
+  it('mismatches when duration or cluster timeline differ', () => {
+    expect(renderLayoutMatches(manifest(), manifest({ durationMs: 121_000 }))).toBe(false);
+    expect(renderLayoutMatches(manifest(), manifest({ clusterDurationMs: 500 }))).toBe(false);
+    expect(renderLayoutMatches(
+      manifest(),
+      manifest({ clusters: manifest().clusters.slice(0, 2) })
+    )).toBe(false);
+    expect(renderLayoutMatches(
+      manifest(),
+      manifest({ clusters: [{ index: 0, timeMs: 10, sizeBytes: 100 }, ...manifest().clusters.slice(1)] })
+    )).toBe(false);
+  });
+});
+
+describe('findHigherBitrate', () => {
+  it('finds a complete higher-bitrate render of the same track and revision', () => {
+    const cache = new MultiplayerRenderClientCache(10_000);
+    cache.put('track-1:2:100:200:0:256', render({ bitrateKbps: 256 }));
+    const found = cache.findHigherBitrate('track-1', '2:100:200:0', 192);
+    expect(found).not.toBeNull();
+    expect(found!.manifest.bitrateKbps).toBe(256);
+  });
+
+  it('prefers the closest bitrate above the host choice', () => {
+    const cache = new MultiplayerRenderClientCache(10_000);
+    cache.put('track-1:2:100:200:0:256', render({ bitrateKbps: 256 }));
+    cache.put('track-1:2:100:200:0:320', render({ bitrateKbps: 320 }));
+    const found = cache.findHigherBitrate('track-1', '2:100:200:0', 192);
+    expect(found!.manifest.bitrateKbps).toBe(256);
+  });
+
+  it('ignores equal and lower bitrates', () => {
+    const cache = new MultiplayerRenderClientCache(10_000);
+    cache.put('track-1:2:100:200:0:192', render({ bitrateKbps: 192 }));
+    cache.put('track-1:2:100:200:0:128', render({ bitrateKbps: 128 }));
+    expect(cache.findHigherBitrate('track-1', '2:100:200:0', 192)).toBeNull();
+  });
+
+  it('ignores incomplete renders and other tracks or revisions', () => {
+    const cache = new MultiplayerRenderClientCache(10_000);
+    const partial = render({ bitrateKbps: 256 });
+    partial.clusters = new Map([[0, partial.clusters.get(0)!]]);
+    cache.put('track-1:2:100:200:0:256', partial);
+    cache.put('track-1:2:100:201:0:256', render({ bitrateKbps: 256, sourceRevision: '2:100:201:0' }));
+    cache.put('track-2:2:100:200:0:256', render({ bitrateKbps: 256, trackId: 'track-2' }));
+    expect(cache.findHigherBitrate('track-1', '2:100:200:0', 192)).toBeNull();
+  });
+
+  it('a hit promotes the entry so it survives the next eviction', () => {
+    const cache = new MultiplayerRenderClientCache(1_400);
+    cache.put('track-1:2:100:200:0:256', render({ bitrateKbps: 256 }));
+    cache.put('other:2:1:1:0:192', render({ trackId: 'other', sourceRevision: '2:1:1:0' }));
+    cache.findHigherBitrate('track-1', '2:100:200:0', 192);
+    cache.put('third:2:2:2:0:192', render({ trackId: 'third', sourceRevision: '2:2:2:0' }));
+    expect(cache.get('track-1:2:100:200:0:256')).not.toBeNull();
+    expect(cache.get('other:2:1:1:0:192')).toBeNull();
   });
 });
 

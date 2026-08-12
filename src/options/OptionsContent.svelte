@@ -3,6 +3,7 @@
   import AppearanceView from './components/views/AppearanceView.svelte';
   import BackdropsView from './components/views/BackdropsView.svelte';
   import BackupsView from './components/views/BackupsView.svelte';
+  import CacheView from './components/views/CacheView.svelte';
   import ExperimentalView from './components/views/ExperimentalView.svelte';
   import LyricsView from './components/views/LyricsView.svelte';
   import MetadataView from './components/views/MetadataView.svelte';
@@ -55,6 +56,8 @@
   <BackupsView onOpenFolders={() => onSelectView('folders')} />
 {:else if activeView === 'experimental'}
   <ExperimentalView />
+{:else if activeView === 'cache'}
+  <CacheView />
 {:else if activeView === 'about'}
   <AboutView onOpenLicenses={() => onSelectView('licenses')} />
 {:else if activeView === 'licenses'}

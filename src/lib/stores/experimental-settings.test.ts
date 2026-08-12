@@ -34,6 +34,8 @@ describe('experimental settings', () => {
       multiplayerOpusBitrateKbps: DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerOpusBitrateKbps,
       multiplayerAudioBufferMs: DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerAudioBufferMs,
       multiplayerRenderCacheLimitMiB: DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerRenderCacheLimitMiB,
+      multiplayerRenderDiskCacheEnabled: DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerRenderDiskCacheEnabled,
+      multiplayerRenderDiskCacheLimitMiB: DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerRenderDiskCacheLimitMiB,
       multiplayerMaxListeners: DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerMaxListeners
     });
   });
@@ -93,6 +95,19 @@ describe('experimental settings', () => {
       .toBe(0);
     expect(normalizeExperimentalSettings({ multiplayerRenderCacheLimitMiB: 100 }).multiplayerRenderCacheLimitMiB)
       .toBe(DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerRenderCacheLimitMiB);
+  });
+
+  it('accepts only the disk-cache limit choices and keeps it enabled by default', () => {
+    expect(normalizeExperimentalSettings({ multiplayerRenderDiskCacheLimitMiB: 1024 }).multiplayerRenderDiskCacheLimitMiB)
+      .toBe(1024);
+    expect(normalizeExperimentalSettings({ multiplayerRenderDiskCacheLimitMiB: 0 }).multiplayerRenderDiskCacheLimitMiB)
+      .toBe(DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerRenderDiskCacheLimitMiB);
+    expect(normalizeExperimentalSettings({ multiplayerRenderDiskCacheLimitMiB: 999 }).multiplayerRenderDiskCacheLimitMiB)
+      .toBe(DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerRenderDiskCacheLimitMiB);
+    expect(normalizeExperimentalSettings({ multiplayerRenderDiskCacheEnabled: false }).multiplayerRenderDiskCacheEnabled)
+      .toBe(false);
+    expect(normalizeExperimentalSettings({}).multiplayerRenderDiskCacheEnabled)
+      .toBe(true);
   });
 
   it('normalizes synchronized playback and bounds its lead time', () => {

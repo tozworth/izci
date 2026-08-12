@@ -13,6 +13,8 @@ export const MULTIPLAYER_AUDIO_BUFFER_MIN_MS = 1_000;
 export const MULTIPLAYER_AUDIO_BUFFER_MAX_MS = 30_000;
 export const MULTIPLAYER_AUDIO_BUFFER_STEP_MS = 250;
 export const MULTIPLAYER_RENDER_CACHE_LIMITS_MIB = [0, 64, 128, 256, 512] as const;
+export const MULTIPLAYER_RENDER_DISK_CACHE_LIMITS_MIB = [256, 512, 1024, 2048, 4096] as const;
+export const MULTIPLAYER_RENDER_DISK_CACHE_DEFAULT_LIMIT_MIB = 1024;
 export const MULTIPLAYER_FILE_TRANSFER_LIMITS_MIB = [0, 1, 2, 4, 8, 16, 32, 64, -1] as const;
 export const MULTIPLAYER_SYNC_LEAD_TIME_MIN_MS = 250;
 export const MULTIPLAYER_SYNC_LEAD_TIME_MAX_MS = 3_000;
@@ -68,6 +70,8 @@ export const DEFAULT_EXPERIMENTAL_SETTINGS: ExperimentalSettings = {
   multiplayerOpusBitrateKbps: 128,
   multiplayerAudioBufferMs: 3_000,
   multiplayerRenderCacheLimitMiB: 256,
+  multiplayerRenderDiskCacheEnabled: true,
+  multiplayerRenderDiskCacheLimitMiB: MULTIPLAYER_RENDER_DISK_CACHE_DEFAULT_LIMIT_MIB,
   multiplayerMaxListeners: 4
 };
 
@@ -78,6 +82,15 @@ function normalizeRenderCacheLimit(value: unknown): number {
     )
     ? value
     : DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerRenderCacheLimitMiB;
+}
+
+function normalizeRenderDiskCacheLimit(value: unknown): number {
+  return typeof value === 'number'
+    && MULTIPLAYER_RENDER_DISK_CACHE_LIMITS_MIB.includes(
+      value as (typeof MULTIPLAYER_RENDER_DISK_CACHE_LIMITS_MIB)[number]
+    )
+    ? value
+    : DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerRenderDiskCacheLimitMiB;
 }
 
 function normalizeFileTransferLimit(value: unknown): number {
@@ -160,6 +173,12 @@ export function normalizeExperimentalSettings(value: unknown): ExperimentalSetti
     ),
     multiplayerRenderCacheLimitMiB: normalizeRenderCacheLimit(
       source.multiplayerRenderCacheLimitMiB
+    ),
+    multiplayerRenderDiskCacheEnabled: typeof source.multiplayerRenderDiskCacheEnabled === 'boolean'
+      ? source.multiplayerRenderDiskCacheEnabled
+      : DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerRenderDiskCacheEnabled,
+    multiplayerRenderDiskCacheLimitMiB: normalizeRenderDiskCacheLimit(
+      source.multiplayerRenderDiskCacheLimitMiB
     ),
     multiplayerMaxListeners: normalizeBoundedInteger(
       source.multiplayerMaxListeners,

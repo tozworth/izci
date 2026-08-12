@@ -13,9 +13,11 @@ import { logDebug, logInfo } from '$lib/services/logging';
 import {
   buildClientRenderCacheKey,
   clientRenderCache,
+  renderLayoutMatches,
   renderMatchesManifest
 } from './multiplayer-render-client-cache';
 import { compactClusterRanges } from './multiplayer-render-scheduler';
+import { multiplayerRenderDiskCache } from './multiplayer-render-disk-cache';
 import { RENDER_INIT_CLUSTER_INDEX } from './multiplayer-render-transfer';
 import type {
   MultiplayerPlayback,
@@ -152,27 +154,51 @@ export class MultiplayerRenderPlaybackService {
     if (manifest.generationId !== this.#generationId) return false;
     this.#manifest = manifest;
     this.#releaseMedia();
-    // A matching track/source revision/bitrate can skip the re-download.
+    // A matching track/source revision/bitrate can skip the re-download; a
+    // complete cached render at a higher bitrate can too (see #cachedRenderFor).
     const cached = this.#cachedRenderFor(manifest);
     if (cached) {
+      this.#manifest = cached.manifest;
       this.#initBytes = cached.init;
       this.#received = cached.clusters;
       this.#receivedBytes = cached.bytes;
       this.#nextAppendIndex = 0;
       this.#pendingInitRenderId = null;
       this.#pendingInitFragments.clear();
-      logInfo('multiplayer', 'Buffered Opus client cache hit', {
+      logInfo('multiplayer', cached.manifest.bitrateKbps === manifest.bitrateKbps
+        ? 'Buffered Opus client cache hit'
+        : 'Buffered Opus client cache hit (higher bitrate)', {
         trackId: manifest.trackId,
         renderId: manifest.renderId,
         cachedRenderId: cached.renderId,
+        cachedBitrate: cached.manifest.bitrateKbps,
+        hostBitrate: manifest.bitrateKbps,
         clusters: cached.clusters.size,
         bytes: cached.bytes
       });
+      this.#finishManifestSetup(manifest, true);
+    } else {
+      // The in-memory cache missed: consult the cross-session IndexedDB cache
+      // BEFORE any network bytes are requested, so a complete hit (exact or
+      // higher bitrate) can seed the pipeline and the first window request
+      // reports the held ranges instead of pulling the fresh render's bytes.
+      this.#hydrateRenderFromDisk(manifest);
     }
+    return true;
+  }
+
+  /**
+   * Tail of setManifest: media creation, the join seek (reconnects align with
+   * the host position), and the first window request. `seeded` is true when
+   * init/clusters were adopted from a cache, which also means any init that
+   * raced ahead of the manifest belongs to a superseded render and must not
+   * be assembled.
+   */
+  #finishManifestSetup(manifest: MultiplayerRenderManifest, seeded: boolean): void {
     this.#createMediaSource();
     // An init that raced ahead of the manifest can be appended as soon as
-    // sourceopen fires.
-    if (!cached && this.#pendingInitRenderId === manifest.renderId && this.#pendingInitFragments.size > 0) {
+    // sourceopen fires — unless a cache seeded a different render's init.
+    if (!seeded && this.#pendingInitRenderId === manifest.renderId && this.#pendingInitFragments.size > 0) {
       const bytes = this.#assemblePendingInit();
       if (bytes) {
         this.#initBytes = bytes;
@@ -190,7 +216,6 @@ export class MultiplayerRenderPlaybackService {
       this.#requestWindow(0);
     }
     this.#startStallDetector();
-    return true;
   }
 
   ingest(
@@ -295,11 +320,22 @@ export class MultiplayerRenderPlaybackService {
   #cacheCurrentRender(): void {
     const manifest = this.#manifest;
     if (!manifest || !this.#initBytes || this.#received.size === 0) return;
-    clientRenderCache.put(buildClientRenderCacheKey(
+    const key = buildClientRenderCacheKey(
       manifest.trackId,
       manifest.sourceRevision,
       manifest.bitrateKbps
-    ), {
+    );
+    clientRenderCache.put(key, {
+      manifest,
+      init: this.#initBytes,
+      clusters: new Map(this.#received)
+    });
+    // Mirror the same render into the cross-session IndexedDB cache so a
+    // rejoin or later replay can skip the re-download. Best-effort: quota
+    // failures and IDB errors are swallowed by the store.
+    void multiplayerRenderDiskCache.put({
+      key,
+      name: this.#playback?.track?.name ?? manifest.trackId,
       manifest,
       init: this.#initBytes,
       clusters: new Map(this.#received)
@@ -309,21 +345,141 @@ export class MultiplayerRenderPlaybackService {
   /** Returns an identity and structure matching render, or null to re-download. */
   #cachedRenderFor(
     manifest: MultiplayerRenderManifest
-  ): { renderId: string; init: Uint8Array; clusters: Map<number, Uint8Array>; bytes: number } | null {
-    const cached = clientRenderCache.get(buildClientRenderCacheKey(
+  ): { renderId: string; manifest: MultiplayerRenderManifest; init: Uint8Array; clusters: Map<number, Uint8Array>; bytes: number } | null {
+    const exact = clientRenderCache.get(buildClientRenderCacheKey(
       manifest.trackId,
       manifest.sourceRevision,
       manifest.bitrateKbps
     ));
-    if (!cached || !renderMatchesManifest(cached, manifest)) return null;
-    let bytes = cached.init.byteLength;
-    for (const cluster of cached.clusters.values()) bytes += cluster.byteLength;
+    if (exact && renderMatchesManifest(exact, manifest)) {
+      let bytes = exact.init.byteLength;
+      for (const cluster of exact.clusters.values()) bytes += cluster.byteLength;
+      return {
+        renderId: exact.manifest.renderId,
+        manifest,
+        init: exact.init,
+        clusters: new Map(exact.clusters),
+        bytes
+      };
+    }
+    // The host lowered its bitrate: a complete cached render at a higher
+    // bitrate is exactly what the host previously rendered, so it plays
+    // without a re-download. The pipeline adopts that render's own manifest
+    // (the bytes are self-describing; cluster sizes differ from the fresh
+    // lower-bitrate table). Needs sent with the cached renderId are dropped
+    // by the host, so no lower-bitrate bytes are ever requested.
+    const higher = clientRenderCache.findHigherBitrate(
+      manifest.trackId,
+      manifest.sourceRevision,
+      manifest.bitrateKbps
+    );
+    if (!higher || !renderLayoutMatches(higher.manifest, manifest)) return null;
+    let higherBytes = higher.init.byteLength;
+    for (const cluster of higher.clusters.values()) higherBytes += cluster.byteLength;
     return {
-      renderId: cached.manifest.renderId,
-      init: cached.init,
-      clusters: new Map(cached.clusters),
-      bytes
+      renderId: higher.manifest.renderId,
+      // The cached bytes use the cached render's structure, but the host's
+      // current generation/render IDs remain authoritative for the wire
+      // protocol and readiness acknowledgements.
+      manifest: {
+        ...higher.manifest,
+        generationId: manifest.generationId,
+        renderId: manifest.renderId
+      },
+      init: higher.init,
+      clusters: new Map(higher.clusters),
+      bytes: higherBytes
     };
+  }
+
+  /**
+   * Seeds the pipeline from the cross-session IndexedDB cache when the
+   * in-memory cache missed. The read resolves asynchronously, so it is
+   * guarded against a generation teardown or a superseding render while in
+   * flight. The normal network setup is deferred until the decision lands
+   * (#finishManifestSetup), so a complete cached render (exact or higher
+   * bitrate) is in place BEFORE the first window request — the host then sees
+   * the held ranges and never sends the fresh render's bytes, which is also
+   * what makes a higher-bitrate substitute safe (no two encodings can mix).
+   */
+  #hydrateRenderFromDisk(manifest: MultiplayerRenderManifest): void {
+    const generationId = this.#generationId;
+    const settle = (seeded: boolean): void => {
+      if (this.#generationId !== generationId) return;
+      if (this.#manifest?.renderId !== manifest.renderId) return;
+      this.#finishManifestSetup(manifest, seeded);
+    };
+    void multiplayerRenderDiskCache.getMatching(
+      manifest.trackId,
+      manifest.sourceRevision,
+      manifest.bitrateKbps
+    ).then((found) => {
+      if (this.#generationId !== generationId) return;
+      if (this.#manifest?.renderId !== manifest.renderId) return;
+      if (!found) {
+        // Nothing usable on disk: proceed with the normal network flow.
+        settle(false);
+        return;
+      }
+      const { key, render: cached } = found;
+      const higherBitrate = !renderMatchesManifest(cached, manifest);
+      if (higherBitrate) {
+        // The cached render's cluster sizes differ from the fresh manifest's,
+        // so the pipeline adopts the cached manifest wholesale. Nothing has
+        // been appended yet (media is created by #finishManifestSetup), so
+        // any fresh init/cluster fragments that raced in are simply dropped.
+        if (!renderLayoutMatches(cached.manifest, manifest)) {
+          settle(false);
+          return;
+        }
+        this.#manifest = {
+          ...cached.manifest,
+          generationId: manifest.generationId,
+          renderId: manifest.renderId
+        };
+        this.#pendingInitRenderId = null;
+        this.#pendingInitFragments.clear();
+        this.#fragments.clear();
+        let bytes = cached.init.byteLength;
+        for (const cluster of cached.clusters.values()) bytes += cluster.byteLength;
+        this.#initBytes = cached.init;
+        this.#received = new Map(cached.clusters);
+        this.#receivedBytes = bytes;
+      } else {
+        // Network bytes that raced ahead win; cached bytes fill the rest.
+        const merged = new Map<number, Uint8Array>();
+        for (const [index, bytes] of cached.clusters) merged.set(index, bytes);
+        for (const [index, bytes] of this.#received) merged.set(index, bytes);
+        let receivedBytes = 0;
+        for (const bytes of merged.values()) receivedBytes += bytes.byteLength;
+        const adoptCachedInit = !this.#initBytes && !this.#initAppended;
+        if (adoptCachedInit) {
+          this.#initBytes = cached.init;
+          this.#pendingInitRenderId = null;
+          this.#pendingInitFragments.clear();
+          receivedBytes += cached.init.byteLength;
+        }
+        this.#received = merged;
+        this.#receivedBytes = receivedBytes;
+      }
+      // Warm the in-memory cache under the key the bytes actually belong to,
+      // so the next loop within this session is served synchronously.
+      clientRenderCache.put(key, cached);
+      logInfo('multiplayer', higherBitrate
+        ? 'Buffered Opus disk cache hit (higher bitrate)'
+        : 'Buffered Opus disk cache hit', {
+        trackId: manifest.trackId,
+        renderId: manifest.renderId,
+        cachedBitrate: cached.manifest.bitrateKbps,
+        hostBitrate: manifest.bitrateKbps,
+        clusters: this.#received.size,
+        bytes: this.#receivedBytes
+      });
+      settle(true);
+    }).catch(() => {
+      // The cache is best-effort: fall through to the network flow.
+      settle(false);
+    });
   }
 
   #assemble(

@@ -15,6 +15,7 @@ export type OptionsViewName =
   | 'metadata'
   | 'backups'
   | 'experimental'
+  | 'cache'
   | 'about'
   | 'licenses';
 
@@ -175,6 +176,14 @@ export const OPTIONS_VIEW_GROUPS: OptionsViewDefinition[][] = [
       label: 'Experimental',
       icon: 'science',
       parentLabel: '',
+      hasHints: true,
+      resettable: true
+    },
+    {
+      id: 'cache',
+      label: 'Cache',
+      icon: 'database',
+      parentLabel: 'Experimental',
       hasHints: true,
       resettable: true
     }

@@ -19,7 +19,7 @@
   import { DEFAULT_TRACK_SETTINGS, trackSettings } from '$lib/stores/track-settings';
   import { DEFAULT_VISUALIZER_SETTINGS, visualizerSettings } from '$lib/stores/visualizer-settings';
   import { videoSettings } from '$lib/stores/video-settings';
-  import { experimentalSettings } from '$lib/stores/experimental-settings';
+  import { experimentalSettings, DEFAULT_EXPERIMENTAL_SETTINGS } from '$lib/stores/experimental-settings';
   import {
     OPTIONS_VIEW_GROUPS,
     OPTIONS_VIEWS,
@@ -66,6 +66,7 @@
       case 'metadata': return $t('options.views.metadata', { default: 'Metadata' });
       case 'backups': return $t('options.views.backups', { default: 'Backups' });
       case 'experimental': return $t('options.views.experimental', { default: 'Experimental' });
+      case 'cache': return $t('options.views.cache', { default: 'Cache' });
       case 'about': return $t('options.views.about', { default: 'About' });
       case 'licenses': return $t('options.views.licenses', { default: 'Licenses' });
     }
@@ -75,6 +76,7 @@
     if (view === 'backdrops' || view === 'now-playing' || view === 'visualizer' || view === 'patterns' || view === 'lyrics') return 'appearance';
     if (view === 'video' || view === 'raf' || view === 'modules') return 'playback';
     if (view === 'folders' || view === 'metadata') return 'tracks';
+    if (view === 'cache') return 'experimental';
     if (view === 'licenses') return 'about';
     return null;
   }
@@ -115,6 +117,13 @@
       metadataSettings.reset();
     } else if (activeView === 'experimental') {
       experimentalSettings.reset();
+    } else if (activeView === 'cache') {
+      // The Cache subtree resets only its own settings; other experimental
+      // settings stay untouched.
+      experimentalSettings.update({
+        multiplayerRenderDiskCacheEnabled: DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerRenderDiskCacheEnabled,
+        multiplayerRenderDiskCacheLimitMiB: DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerRenderDiskCacheLimitMiB
+      });
     }
   }
 

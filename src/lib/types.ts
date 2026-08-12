@@ -348,6 +348,8 @@ export interface ExperimentalSettings {
   multiplayerOpusBitrateKbps: number;
   multiplayerAudioBufferMs: number;
   multiplayerRenderCacheLimitMiB: number;
+  multiplayerRenderDiskCacheEnabled: boolean;
+  multiplayerRenderDiskCacheLimitMiB: number;
   multiplayerMaxListeners: number;
 }
 

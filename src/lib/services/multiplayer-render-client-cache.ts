@@ -16,6 +16,8 @@ export interface ClientCachedRender {
 }
 
 interface CacheEntry extends ClientCachedRender {
+  trackId: string;
+  sourceRevision: string;
   lastUsedAt: number;
 }
 
@@ -46,6 +48,26 @@ export function renderMatchesManifest(
   for (let index = 0; index < clusters.length; index += 1) {
     if (previous.clusters[index].timeMs !== clusters[index].timeMs) return false;
     if (previous.clusters[index].sizeBytes !== clusters[index].sizeBytes) return false;
+  }
+  return true;
+}
+
+/**
+ * True when two renders lay out their audio identically (same duration,
+ * cluster grid, and cluster time boundaries) even if the encoded sizes differ.
+ * That is what makes a higher-bitrate cached render a valid substitute for a
+ * fresh lower-bitrate manifest: the bytes are self-describing and the seek
+ * math (cluster index per time) is unchanged.
+ */
+export function renderLayoutMatches(
+  left: MultiplayerRenderManifest,
+  right: MultiplayerRenderManifest
+): boolean {
+  if (left.durationMs !== right.durationMs) return false;
+  if (left.clusterDurationMs !== right.clusterDurationMs) return false;
+  if (left.clusters.length !== right.clusters.length) return false;
+  for (let index = 0; index < left.clusters.length; index += 1) {
+    if (left.clusters[index].timeMs !== right.clusters[index].timeMs) return false;
   }
   return true;
 }
@@ -81,8 +103,40 @@ export class MultiplayerRenderClientCache {
       existing.lastUsedAt = now();
       return;
     }
-    this.#entries.set(key, { ...render, lastUsedAt: now() });
+    this.#entries.set(key, {
+      ...render,
+      trackId: render.manifest.trackId,
+      sourceRevision: render.manifest.sourceRevision,
+      lastUsedAt: now()
+    });
     this.#evict();
+  }
+
+  /**
+   * Returns a complete cached render of the same track and source revision
+   * encoded at a strictly higher bitrate than the host's current choice. The
+   * cached bytes are exactly what the host previously rendered, so they are
+   * valid to play without a re-download; the closest higher bitrate wins so
+   * the pipeline matches the host's quality intent as closely as possible.
+   * Incomplete renders are skipped because a partial substitute could never
+   * finish downloading (the host is rendering a different bitrate now).
+   */
+  findHigherBitrate(
+    trackId: string,
+    sourceRevision: string,
+    bitrateKbps: number
+  ): ClientCachedRender | null {
+    let best: CacheEntry | null = null;
+    for (const entry of this.#entries.values()) {
+      if (entry.trackId !== trackId || entry.sourceRevision !== sourceRevision) continue;
+      const cachedBitrate = entry.manifest.bitrateKbps;
+      if (cachedBitrate <= bitrateKbps) continue;
+      if (entry.clusters.size !== entry.manifest.clusters.length) continue;
+      if (!best || cachedBitrate < best.manifest.bitrateKbps) best = entry;
+    }
+    if (!best) return null;
+    best.lastUsedAt = now();
+    return best;
   }
 
   clear(): void {

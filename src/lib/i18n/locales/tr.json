@@ -863,6 +863,27 @@
         }
       }
     },
+    "cache": {
+      "settingsCategory": "İstemci işleme önbelleği",
+      "enable": {
+        "title": "İşlemeleri oturumlar arasında sakla",
+        "hint": "İşlenmiş Opus parçalarını ayrı bir IndexedDB önbelleğine kaydeder; bir parçaya yeniden katılmak veya parçayı tekrar dinlemek yeniden indirme gerektirmez. Girdiler ana bilgisayar manifestosuna göre doğrulanır, gerektiğinde yeniden oluşturulur ve kütüphanenizin parçası olmaz."
+      },
+      "limit": {
+        "title": "Boyut sınırı",
+        "hint": "İstemci işleme önbelleğinin kullanabileceği disk alanı. En az dinlenen işlemeler önce atılır."
+      },
+      "tracks": {
+        "heading": "Önbelleklenen işlemeler",
+        "loading": "Önbellek okunuyor…",
+        "usage": "{used} / {limit} kullanılıyor · {count} işleme",
+        "empty": "Henüz önbelleklenen işleme yok. Bir çok oyunculu oturum dinleyin, işlemeler burada görünecek.",
+        "remove": "Önbelleklenen işlemeyi kaldır",
+        "removeLabel": "Kaldır",
+        "refresh": "Yenile",
+        "clearAll": "Tümünü temizle"
+      }
+    },
     "folders": {
       "scan": {
         "scanning": "Taranıyor…",
@@ -1377,6 +1398,7 @@
       "metadata": "Metaveri",
       "backups": "Yedekler",
       "experimental": "Experimental",
+      "cache": "Önbellek",
       "about": "Hakkında",
       "licenses": "Lisanslar"
     },

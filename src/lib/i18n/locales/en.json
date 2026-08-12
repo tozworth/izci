@@ -863,6 +863,27 @@
         }
       }
     },
+    "cache": {
+      "settingsCategory": "Client render cache",
+      "enable": {
+        "title": "Keep renders between sessions",
+        "hint": "Saves buffered Opus renders to a separate IndexedDB cache so rejoining or replaying a track skips the re-download. Entries are validated against the host manifest and are rebuilt on demand, never part of your library."
+      },
+      "limit": {
+        "title": "Size limit",
+        "hint": "How much disk space the client render cache may use. The least-recently-heard renders are evicted first."
+      },
+      "tracks": {
+        "heading": "Cached renders",
+        "loading": "Reading cache…",
+        "usage": "{used} of {limit} used · {count} renders",
+        "empty": "No cached renders yet. Listen to a multiplayer session and renders will appear here.",
+        "remove": "Remove cached render",
+        "removeLabel": "Remove",
+        "refresh": "Refresh",
+        "clearAll": "Clear all"
+      }
+    },
     "folders": {
       "scan": {
         "scanning": "Scanning…",
@@ -1377,6 +1398,7 @@
       "metadata": "Metadata",
       "backups": "Backups",
       "experimental": "Experimental",
+      "cache": "Cache",
       "about": "About",
       "licenses": "Licenses"
     },
