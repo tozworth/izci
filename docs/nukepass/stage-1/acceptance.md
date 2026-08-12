@@ -1,7 +1,7 @@
-# Stage 1 acceptance candidate
+# Stage 1 acceptance
 
-The Stage 1 acceptance candidate was first exercised against source commit
-`8d0c6a0e6908324128d3fc27b0440e36fb5674bc` on branch `nukepass`. The
+Stage 1 is accepted against clean assembled-tree commit
+`268f99f47b886ff8a458c27ee8a88f0cdb329275` on branch `nukepass`. The
 pre-nukepass recovery oracle remains `nukepass-oracle-2026-08-12` at `33a7ca8`;
 the Stage 0 handoff remains `57361c0`.
 
@@ -9,16 +9,17 @@ the Stage 0 handoff remains `57361c0`.
 
 | Gate | Result | Final evidence |
 | --- | --- | --- |
-| `npm test` | pass | 143 files; 690 passed, 7 skipped; 697 total |
-| `npm run test:coverage` | pass | whole-production baseline: 27.79% statements, 26.25% branches, 30.64% functions, 29.09% lines |
+| `npm test` | pass | 143 files; 693 passed, 7 skipped; 700 total |
+| `npm run test:coverage` | pass | whole-production baseline: 27.81% statements, 26.29% branches, 30.65% functions, 29.11% lines |
 | `npm run check` | pass | 0 errors and 0 warnings |
 | `npm run i18n:validate` | pass | English/Turkish catalogs current; Askew untouched |
 | `npm run multiplayer:protocol:check` | pass | protocol 18 and Firebase rules synchronized |
 | `npm run test:firebase-rules` | pass | all 8 rules tests under the Database emulator |
 | fixture manifest/generator | pass | 21 deterministic files; 19 facts verified, 2 rejected as intended |
-| `npm run test:nukepass-tools` | pass | 16 reporter/CDP Node tests |
+| `npm run test:nukepass-tools` | pass | 20 architecture/settings/CDP Node tests |
 | `npm run build` | pass | 600 modules; 91 Workbox entries / 7846.38 KiB |
 | architecture reporter | pass | deterministic informational report; facts below |
+| settings reporter | pass | 30 stores / 271 statically expanded fields compared with 374 ledger rows |
 | CDP acceptance | pass | all eight pages, three isolated profiles, two-window capability, application heaps, no background-runtime failure |
 
 The seven ordinary-suite skips are the guarded Firebase rules cases; the
@@ -61,7 +62,7 @@ stage. M4V and MOV are format-policy coverage rather than duplicate binaries.
 ## Architecture, coverage, and bundle baseline
 
 The final deterministic architecture report has SHA-256
-`0a12a78b57d52b36965d5421f8f153eea0c12796acabf2d7ff4e46da633c4281`.
+`3257a3e9d040c2dab208cb5f04a062f028a84e31e19efdd079bb745527764717`.
 It reports 469 modules (458 browser, 5 worker, 4 vendor, 2 Node-build), 1,369
 internal and 390 external edges, 24 unresolved relative asset edges, 232
 direction findings (229 production, 3 test), and zero strongly connected
@@ -76,21 +77,41 @@ three production modules with no production inbound edge:
 Direction, capability, and dead-code findings are informational until their
 owners are reconstructed and ratchets are introduced.
 
-The production bundle contains 91 files / 8,057,315 bytes and 91 precache
+The production bundle contains 91 files / 8,057,348 bytes and 91 precache
 entries. Largest JavaScript is the emitted libopenmpt worklet (1,774,814 B),
-Converter worker (1,222,305 B), main chunk (563,270 B), and Multiplayer render
+Converter worker (1,222,305 B), main chunk (563,303 B), and Multiplayer render
 worker (545,350 B). Whole-source coverage explicitly counts untouched Svelte,
 TypeScript, Sites Worker, and the owned Raf worklet as zero; vendored runtime is
 excluded.
 
+The settings report has SHA-256
+`0b1c62b3a03891e490f2bf003ca604b3b3a6dccd350395155f64db4d503fc85b`.
+Across 464 source files it discovers 30 persistent/direct stores and 271
+statically expandable fields: 224 have both static presentation and runtime
+evidence, 13 presentation only, 6 runtime only, and 28 neither. It records 54
+declared fields without a confident ledger match, 157 ledger rows without a
+statically expanded default, 14 explicit disconnected ledger rows, and 47
+static connection candidates. Those counts reflect documented limits around
+dynamic records, arrays, generated shapes, IDB/unconfigured direct storage,
+identifier over-counting, and heuristic identity matching; they are not
+semantic reachability proof or an architecture ratchet.
+
+The reporter reproduces the Stage 0 Troubadour defect: twelve presented fields
+have no static runtime evidence (`multiValueDisplay`, `dateDisplay`,
+`albumEditPolicy`, `reorderRenumber`, `validationSeverity`,
+`albumArtworkDefault`, `enableFolderTemplates`, `backupPolicy`,
+`postWriteVerification`, `writeConcurrency`, `externalChangeBehavior`, and
+`batchErrorBehavior`), while `largeFileThresholdMb` and
+`diagnosticJobReporting` have neither presentation nor runtime evidence.
+
 ## Browser evidence
 
 The final CDP report has SHA-256
-`c064f9fe1c0bf2cffae01ebeb6192c9eefc5997a5b246cf996ba6673c0c624cd`.
+`b939850cffc8669ac255f0b55514c5f757253916ead0b7e98eb10c3239ddd8fc`.
 It binds build
-`ba67c05e491cf0feb8c8a8015add610c489c96554855d89150d06ece2470e3e9`
-to clean commit `8d0c6a0`, Helium `Chrome/151.0.7922.71`, seed
-`stage-1-final`, and three disposable profiles. Main, Options, Audio Compare,
+`ce7e3469c1e84847b4a4f5f6e83eacad8adcc09f70e7266a2760d500b9404605`
+to clean commit `268f99f`, Helium `Chrome/151.0.7922.71`, seed
+`stage-1-accepted`, and three disposable profiles. Main, Options, Audio Compare,
 Editor, Converter, Logs, Troubadour, and Troubadour Options all passed their
 production lifecycle readiness marker with no page or attached izci
 service-worker/worker/worklet exception, console error, HTTP error, target loss,
@@ -126,11 +147,10 @@ harness in later stages rather than being inferred from page boot.
   central counters. Stage 1 freezes or reports them; it does not pre-empt the
   Stage 2 ownership kernel or later domain reconstruction.
 
-## Candidate decision
+## Decision
 
-The Stage 1 gate is ready for the clean assembled-tree rerun: a clean install is reproducible, required
+The Stage 1 gate is satisfied: a clean install is reproducible, required
 behavioral boundaries have executable contracts, architecture/coverage/bundle
 facts are durable and deterministic, fixtures are provenance-checked, and the
 checked-in CDP harness reliably launches and records every production page with
-fail-closed build and runtime evidence. Stage 2 begins only after the assembled
-tree rerun and settings-ledger result are appended to this record.
+fail-closed build and runtime evidence. Stage 2 may begin from `nukepass`.
