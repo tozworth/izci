@@ -127,7 +127,7 @@ vi.mock('$lib/utils/files', () => ({
   mergeInferredArtistTitle: (metadata: TrackMetadata) => metadata
 }));
 
-import { playerController } from './player-controller';
+import { playerController, shouldResumeAudioAfterInterruption } from './player-controller';
 
 function track(id: string): PlaylistItem {
   return {
@@ -299,6 +299,50 @@ describe('player controller supersession characterization', () => {
 
     expect(get(playerController.currentTrack)?.id).toBe('origin');
     expect(failed.instance.play).not.toHaveBeenCalled();
+  });
+
+  it('switches without a transition and invalidates preparation on unload', async () => {
+    await loadInitial('origin');
+    const immediate = backendTrack('immediate-module', 'module');
+    const switching = playerController.transitionTo(immediate, 'none', 10);
+    await flushUntilPending(immediate.id);
+    resolvePending(immediate.id);
+    await switching;
+    expect(get(playerController.currentTrack)?.id).toBe(immediate.id);
+
+    const stale = backendTrack('stale-video', 'video');
+    const preparing = playerController.transitionTo(stale, 'crossfade', 1);
+    await flushUntilPending(stale.id);
+    const stalePending = harness.pendingLoads.find((pending) => pending.track.id === stale.id)!;
+    playerController.unload();
+    stalePending.resolve();
+    harness.pendingLoads.splice(harness.pendingLoads.indexOf(stalePending), 1);
+    await preparing;
+    expect(get(playerController.currentTrack)).toBeNull();
+    expect(stalePending.instance.play).not.toHaveBeenCalled();
+    expect(stalePending.instance.unload).toHaveBeenCalled();
+  });
+
+  it('routes pause and seek during a live crossfade and tears down the outgoing bundle', async () => {
+    const outgoing = await loadInitial('outgoing-stream');
+    const incomingTrack = backendTrack('incoming-module', 'module');
+    const transition = playerController.transitionTo(incomingTrack, 'crossfade', 1);
+    await flushUntilPending(incomingTrack.id);
+    const incoming = resolvePending(incomingTrack.id);
+    await transition;
+
+    playerController.pause();
+    expect(outgoing.instance.pause).toHaveBeenCalled();
+    expect(incoming.instance.pause).toHaveBeenCalled();
+    playerController.seek(42);
+    expect(incoming.instance.seek).toHaveBeenCalledWith(42);
+    expect(outgoing.instance.destroy).toHaveBeenCalled();
+  });
+
+  it('resumes interrupted audio only for visible desired playback', () => {
+    expect(shouldResumeAudioAfterInterruption('visible', 'playing')).toBe(true);
+    expect(shouldResumeAudioAfterInterruption('hidden', 'playing')).toBe(false);
+    expect(shouldResumeAudioAfterInterruption('visible', 'paused')).toBe(false);
   });
 
   it('routes play, pause, and seek to the active backend during load and preparation', async () => {

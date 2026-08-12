@@ -88,6 +88,13 @@ function wait(milliseconds: number): Promise<void> {
   return new Promise((resolve) => window.setTimeout(resolve, milliseconds));
 }
 
+export function shouldResumeAudioAfterInterruption(
+  visibilityState: DocumentVisibilityState,
+  desiredPlaybackState: 'playing' | 'paused'
+): boolean {
+  return visibilityState !== 'hidden' && desiredPlaybackState === 'playing';
+}
+
 function createPlayerController() {
   let volume = playerVolume.getSnapshot();
   let lastAudibleVolume = volume > 0 ? volume : DEFAULT_PLAYER_VOLUME;
@@ -224,8 +231,8 @@ function createPlayerController() {
   activeBundle = createBundle();
 
   function resumeAudioAfterInterruption(): void {
-    if (typeof document === 'undefined' || document.visibilityState === 'hidden'
-      || desiredPlaybackState !== 'playing') return;
+    if (typeof document === 'undefined'
+      || !shouldResumeAudioAfterInterruption(document.visibilityState, desiredPlaybackState)) return;
     void audioBusService.resume();
   }
 
