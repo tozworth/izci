@@ -2,7 +2,9 @@
 import { createHash, randomUUID } from 'node:crypto';
 import { execFile } from 'node:child_process';
 import { mkdir, readFile, readdir, stat, writeFile } from 'node:fs/promises';
+import { release as osRelease, type as osType } from 'node:os';
 import { basename, relative, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import { launchBrowser } from './browser-launcher.mjs';
 import { CdpConnection } from './protocol-client.mjs';
@@ -10,16 +12,7 @@ import { startStaticServer } from './static-server.mjs';
 
 const execFileAsync = promisify(execFile);
 const DEFAULT_BROWSER_TIMEOUT_MS = 20_000;
-const ENTRYPOINTS = [
-  { id: 'main', path: '/' },
-  { id: 'options', path: '/options.html' },
-  { id: 'audio-compare', path: '/audio-compare.html' },
-  { id: 'editor', path: '/editor.html' },
-  { id: 'converter', path: '/converter.html' },
-  { id: 'logs', path: '/logs.html' },
-  { id: 'troubadour', path: '/troubadour.html' },
-  { id: 'troubadour-options', path: '/troubadour-options.html' }
-];
+const HARNESS_DIRECTORY = resolve(fileURLToPath(new URL('.', import.meta.url)));
 
 function parseArguments(argv) {
   const options = {
@@ -118,16 +111,33 @@ async function readCommit() {
 }
 
 async function readRepositoryIdentity() {
-  const [packageSource, protocolSource] = await Promise.all([
+  const [packageSource, protocolSource, fixtureManifestSource] = await Promise.all([
     readFile(resolve('package.json'), 'utf8'),
-    readFile(resolve('src/lib/services/multiplayer-protocol.ts'), 'utf8')
+    readFile(resolve('src/lib/services/multiplayer-protocol.ts'), 'utf8'),
+    readFile(resolve('fixtures/manifest.json'))
   ]);
   const protocolMatch = protocolSource.match(/export const MULTIPLAYER_PROTOCOL_VERSION\s*=\s*(\d+)\s*;/);
   if (!protocolMatch) throw new Error('Could not read MULTIPLAYER_PROTOCOL_VERSION.');
   return {
     appVersion: JSON.parse(packageSource).version,
-    protocolVersion: Number.parseInt(protocolMatch[1], 10)
+    protocolVersion: Number.parseInt(protocolMatch[1], 10),
+    fixtureManifestSha256: createHash('sha256').update(fixtureManifestSource).digest('hex')
   };
+}
+
+async function readScenarioCatalog() {
+  const source = await readFile(resolve(HARNESS_DIRECTORY, 'scenarios.json'), 'utf8');
+  const catalog = JSON.parse(source);
+  if (catalog.schemaVersion !== 1 || !Array.isArray(catalog.scenarios)
+    || catalog.scenarios.length === 0) throw new Error('Invalid CDP scenario catalog.');
+  const ids = new Set();
+  for (const scenario of catalog.scenarios) {
+    if (!scenario.id || !scenario.path || ids.has(scenario.id)) {
+      throw new Error(`Invalid or duplicate CDP scenario: ${scenario.id ?? '<missing>'}`);
+    }
+    ids.add(scenario.id);
+  }
+  return catalog;
 }
 
 function serializeRemoteArgument(argument) {
@@ -172,21 +182,41 @@ const READINESS_EXPRESSION = `new Promise((resolve, reject) => {
   if (ready()) finish();
 })`;
 
-const BROWSER_STATE_EXPRESSION = `(async () => {
-  const registration = await navigator.serviceWorker?.getRegistration();
+function browserStateExpression(expectedServiceWorkerSha256) {
+  return `(async () => {
+  const registration = navigator.serviceWorker
+    ? await Promise.race([
+        navigator.serviceWorker.ready,
+        new Promise((_, reject) => setTimeout(
+          () => reject(new Error('Timed out waiting for the active service worker')),
+          15000
+        ))
+      ])
+    : null;
+  const serviceWorkerResponse = await fetch('/sw.js', { cache: 'no-store' });
+  if (!serviceWorkerResponse.ok) {
+    throw new Error('Could not fetch the active build service worker: ' + serviceWorkerResponse.status);
+  }
+  const digest = Array.from(new Uint8Array(await crypto.subtle.digest(
+    'SHA-256',
+    await serviceWorkerResponse.arrayBuffer()
+  ))).map((byte) => byte.toString(16).padStart(2, '0')).join('');
   return {
     serviceWorker: registration ? {
       scope: registration.scope,
       active: registration.active?.scriptURL ?? null,
       waiting: registration.waiting?.scriptURL ?? null,
       installing: registration.installing?.scriptURL ?? null,
-      controller: navigator.serviceWorker.controller?.scriptURL ?? null
+      controller: navigator.serviceWorker.controller?.scriptURL ?? null,
+      sha256: digest,
+      expectedSha256: ${JSON.stringify(expectedServiceWorkerSha256)}
     } : null,
     diagnostics: globalThis.__IZCI_DIAGNOSTICS__ ?? null,
     localStorageKeys: Object.keys(localStorage).sort(),
     sessionStorageKeys: Object.keys(sessionStorage).sort()
   };
 })()`;
+}
 
 async function readProtocolStream(connection, handle) {
   const chunks = [];
@@ -207,12 +237,26 @@ function scenarioFailures(scenario) {
   if (scenario.console.some((entry) => entry.type === 'error')) failures.push('console error');
   if (scenario.log.some((entry) => entry.level === 'error')) failures.push('browser log error');
   if (scenario.networkFailures.length > 0) failures.push('network load failure');
+  if (scenario.network.some((entry) => entry.status >= 400)) failures.push('HTTP error response');
   if (scenario.unexpectedNavigations.length > 0) failures.push('unexpected navigation');
   if (scenario.detached) failures.push('CDP target detached');
+  if (!scenario.browserState?.serviceWorker?.active) failures.push('service worker did not activate');
+  if (scenario.browserState?.serviceWorker?.waiting
+    || scenario.browserState?.serviceWorker?.installing) failures.push('service worker did not settle');
+  if (scenario.browserState?.serviceWorker?.sha256
+    !== scenario.browserState?.serviceWorker?.expectedSha256) failures.push('stale service worker bytes');
   return failures;
 }
 
-async function runEntrypoint({ connection, entrypoint, profile, baseUrl, outputDirectory, timeoutMs }) {
+async function runEntrypoint({
+  connection,
+  entrypoint,
+  profile,
+  baseUrl,
+  outputDirectory,
+  timeoutMs,
+  expectedServiceWorkerSha256
+}) {
   const expectedUrl = new URL(entrypoint.path, baseUrl).href;
   const { targetId } = await connection.send('Target.createTarget', { url: 'about:blank' });
   const { sessionId } = await connection.send('Target.attachToTarget', { targetId, flatten: true });
@@ -302,7 +346,7 @@ async function runEntrypoint({ connection, entrypoint, profile, baseUrl, outputD
     const [{ metrics }, heapUsage, browserState] = await Promise.all([
       connection.send('Performance.getMetrics', {}, sessionId),
       connection.send('Runtime.getHeapUsage', {}, sessionId),
-      evaluate(connection, sessionId, BROWSER_STATE_EXPRESSION)
+      evaluate(connection, sessionId, browserStateExpression(expectedServiceWorkerSha256))
     ]);
     scenario.metrics = Object.fromEntries(metrics.map((metric) => [metric.name, metric.value]));
     scenario.heapUsage = heapUsage;
@@ -356,7 +400,8 @@ async function runProfile({
   baseUrl,
   outputDirectory,
   timeoutMs,
-  windowsPerProfile
+  windowsPerProfile,
+  expectedServiceWorkerSha256
 }) {
   const connection = await CdpConnection.connect(profile.webSocketUrl, {
     connectTimeoutMs: timeoutMs,
@@ -397,7 +442,8 @@ async function runProfile({
           profile,
           baseUrl,
           outputDirectory: profileDirectory,
-          timeoutMs
+          timeoutMs,
+          expectedServiceWorkerSha256
         })
       ));
       scenarios.push(...batch);
@@ -478,12 +524,15 @@ async function main() {
   await mkdir(outputDirectory, { recursive: true });
 
   const startedAt = new Date().toISOString();
-  const [build, commit, repository] = await Promise.all([
+  const [build, commit, repository, scenarioCatalog] = await Promise.all([
     describeBuild(distDirectory),
     readCommit(),
-    readRepositoryIdentity()
+    readRepositoryIdentity(),
+    readScenarioCatalog()
   ]);
   const server = await startStaticServer(distDirectory);
+  const serviceWorkerAsset = build.files.find((file) => file.path === 'sw.js');
+  if (!serviceWorkerAsset) throw new Error('The production build does not contain sw.js.');
   const profiles = [];
   let report;
   try {
@@ -496,14 +545,17 @@ async function main() {
     }
 
     const groups = profiles.map(() => []);
-    ENTRYPOINTS.forEach((entrypoint, index) => groups[index % groups.length].push(entrypoint));
+    scenarioCatalog.scenarios.forEach((entrypoint, index) => {
+      groups[index % groups.length].push(entrypoint);
+    });
     const profileReports = await Promise.all(profiles.map((profile, index) => runProfile({
       profile,
       entries: groups[index],
       baseUrl: server.baseUrl,
       outputDirectory,
       timeoutMs: options.timeoutMs,
-      windowsPerProfile: options.windowsPerProfile
+      windowsPerProfile: options.windowsPerProfile,
+      expectedServiceWorkerSha256: serviceWorkerAsset.sha256
     })));
     const failed = profileReports.some((profile) => profile.traceFailure
       || profile.heapSnapshotFailure
@@ -516,9 +568,18 @@ async function main() {
       commit,
       appVersion: repository.appVersion,
       build,
-      fixtureSet: 'stage-1-manifest',
+      fixtureSet: {
+        ...scenarioCatalog.fixtureSet,
+        manifestSha256: repository.fixtureManifestSha256
+      },
+      scenarioCatalog,
       seed: options.seed,
-      os: `${process.platform} ${process.arch}`,
+      os: {
+        platform: process.platform,
+        architecture: process.arch,
+        type: osType(),
+        release: osRelease()
+      },
       node: process.version,
       browserExecutable,
       server: { baseUrl: server.baseUrl, port: server.port },

@@ -19,13 +19,18 @@ Reports are written below ignored `artifacts/cdp/` by default.
 
 Each run records the exact commit, content-addressed build manifest, seed,
 browser/OS/Node identity, flags, dynamic ports, process logs, target failures,
-and per-page results. Each of the eight production entrypoints produces a PNG,
+and the checked-in `scenarios.json` catalog plus per-page results. Each of the
+eight production entrypoints produces a PNG,
 DOM snapshot, console/runtime/log/network record, service-worker state,
 performance metrics, DOM/resource counters, and heap-usage snapshot. A browser
 trace and full V8 heap snapshot are written for each profile. Unexpected
 navigation, target loss, runtime
 exceptions, console/log errors, non-cancelled network failures, readiness
 timeouts, and trace loss fail closed.
+
+Stage 1 boot scenarios record the fixture-manifest digest but explicitly mark
+the fixture corpus unused. This avoids claiming media-path coverage from page
+boot. Later fixture-driven scenarios switch that catalog fact to true.
 
 The current Stage 1 scenario is boot characterization. Later stages add media,
 fixture-handle, persistence, PWA-update, Multiplayer, interaction, full-heap,

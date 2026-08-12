@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "stage": 1,
+  "fixtureSet": {
+    "manifest": "fixtures/manifest.json",
+    "usedByBootScenarios": false
+  },
+  "scenarios": [
+    { "id": "main", "path": "/", "entrypoint": "main", "mode": "boot" },
+    { "id": "options", "path": "/options.html", "entrypoint": "Options", "mode": "boot" },
+    { "id": "audio-compare", "path": "/audio-compare.html", "entrypoint": "Audio Compare", "mode": "boot" },
+    { "id": "editor", "path": "/editor.html", "entrypoint": "Editor", "mode": "boot" },
+    { "id": "converter", "path": "/converter.html", "entrypoint": "Converter", "mode": "boot" },
+    { "id": "logs", "path": "/logs.html", "entrypoint": "Logs", "mode": "boot" },
+    { "id": "troubadour", "path": "/troubadour.html", "entrypoint": "Troubadour", "mode": "boot" },
+    { "id": "troubadour-options", "path": "/troubadour-options.html", "entrypoint": "Troubadour Options", "mode": "boot" }
+  ],
+  "expansion": {
+    "singleInstance": "Later stages add the runbook's fixture import, collection, playback, workspace, and Options matrices.",
+    "tools": "Stage 8 adds representative jobs, cancellation, failure injection, export, and resource-settling scenarios.",
+    "pwa": "Stage 9 adds offline reload and old/new-build update choreography; Stage 1 proves fresh-build activation and byte identity.",
+    "multiplayer": "Stage 5 adds two- and three-profile signaling, authority, delivery, cache, recovery, and teardown scenarios.",
+    "performance": "Stage 10 adds repeated/soak budgets over the Stage 1 trace, heap, DOM, and build measurement spine."
+  }
+}
