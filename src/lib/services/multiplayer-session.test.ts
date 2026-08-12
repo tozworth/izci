@@ -1,4 +1,109 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { ExperimentalSettings, PlaylistItem } from '$lib/types';
+
+const sessionHarness = vi.hoisted(() => {
+  const settings: ExperimentalSettings = {
+    multiplayer: true,
+    izciName: 'Scout test',
+    multiplayerWaitForClients: false,
+    multiplayerSynchronizedPlayback: false,
+    multiplayerSyncLeadTimeMs: 1_000,
+    multiplayerAutoHost: false,
+    multiplayerRestoreLastSession: true,
+    multiplayerTurnUrl: '',
+    multiplayerTurnSecret: '',
+    multiplayerTurnCredentialHours: 12,
+    multiplayerForceTurn: false,
+    multiplayerFreeplay: false,
+    multiplayerStreamAudio: true,
+    multiplayerFileTransferLimitMiB: 0,
+    multiplayerOpusBitrateKbps: 128,
+    multiplayerAudioBufferMs: 3_000,
+    multiplayerRenderCacheLimitMiB: 256,
+    multiplayerRenderDiskCacheEnabled: true,
+    multiplayerRenderDiskCacheLimitMiB: 1_024,
+    multiplayerMaxListeners: 4
+  };
+  const settingsListeners = new Set<(value: ExperimentalSettings) => void>();
+  let core: any = null;
+  const host = {
+    startHosting: vi.fn(() => Promise.resolve()),
+    stopHosting: vi.fn(() => Promise.resolve()),
+    kick: vi.fn(),
+    togglePairing: vi.fn(),
+    cancelPendingPlayback: vi.fn(),
+    updateHostState: vi.fn(),
+    syncHostAudio: vi.fn(),
+    syncHostSourceFiles: vi.fn(),
+    syncPeerFreeplayMode: vi.fn(),
+    releasePreparedHostPlayback: vi.fn(),
+    beginHostPlaybackPreparation: vi.fn(),
+    beginFreeplayPlaybackPreparation: vi.fn()
+  };
+  const client = {
+    join: vi.fn(() => Promise.resolve()),
+    joinPaired: vi.fn(() => Promise.resolve()),
+    restoreClientJoin: vi.fn(() => Promise.resolve()),
+    leave: vi.fn(() => Promise.resolve()),
+    sendCommand: vi.fn(),
+    setFreeplayQueue: vi.fn(),
+    resumeAudio: vi.fn(() => Promise.resolve(true)),
+    setReceiveAudio: vi.fn(),
+    applyClientAudioBuffer: vi.fn(),
+    handleClientResume: vi.fn(),
+    clearReceiverMonitor: vi.fn(),
+    clearReconnectTimer: vi.fn(),
+    resetTransitions: vi.fn()
+  };
+  return {
+    settings,
+    settingsListeners,
+    get core() { return core; },
+    setCore(next: any) { core = next; },
+    host,
+    client,
+    audio: { clearRemoteTrack: vi.fn(), releaseHostTrack: vi.fn() },
+    source: { clearLoadedFile: vi.fn() },
+    render: { release: vi.fn() },
+    coordinator: { clear: vi.fn(), setCacheLimitMiB: vi.fn() },
+    disposePeerConnection: vi.fn(),
+    sendToPeer: vi.fn()
+  };
+});
+
+vi.mock('$lib/stores/experimental-settings', () => ({
+  experimentalSettings: {
+    getSnapshot: () => ({ ...sessionHarness.settings }),
+    subscribe: (listener: (value: ExperimentalSettings) => void) => {
+      sessionHarness.settingsListeners.add(listener);
+      listener({ ...sessionHarness.settings });
+      return () => sessionHarness.settingsListeners.delete(listener);
+    }
+  }
+}));
+vi.mock('$lib/stores/multiplayer-last-session', () => ({
+  multiplayerLastSession: { getSnapshot: () => null }
+}));
+vi.mock('$lib/services/logging', () => ({ logDebug: vi.fn(), logWarning: vi.fn() }));
+vi.mock('./multiplayer-audio', () => ({ multiplayerAudioService: sessionHarness.audio }));
+vi.mock('./multiplayer-source-playback', () => ({ multiplayerSourcePlaybackService: sessionHarness.source }));
+vi.mock('./multiplayer-render-playback', () => ({ multiplayerRenderPlaybackService: sessionHarness.render }));
+vi.mock('./multiplayer-render-coordinator', () => ({ multiplayerRenderCoordinator: sessionHarness.coordinator }));
+vi.mock('./multiplayer-peer', () => ({
+  disposePeerConnection: sessionHarness.disposePeerConnection,
+  sendToPeer: sessionHarness.sendToPeer
+}));
+vi.mock('./multiplayer-host', () => ({
+  createMultiplayerHostSide: (core: unknown) => {
+    sessionHarness.setCore(core);
+    return sessionHarness.host;
+  }
+}));
+vi.mock('./multiplayer-client', () => ({
+  createMultiplayerClientSide: () => sessionHarness.client
+}));
+
+import { createMultiplayerSession } from './multiplayer-session';
 import {
   isMultiplayerClientTransportHealthy,
   isMultiplayerFreeplayActive,
@@ -6,7 +111,40 @@ import {
   resolveMultiplayerFreeplayAgreement,
   sanitizeFreeplayQueueIds
 } from './multiplayer-utils';
-import type { PlaylistItem } from '$lib/types';
+
+function emitSettings(patch: Partial<ExperimentalSettings>): void {
+  Object.assign(sessionHarness.settings, patch);
+  for (const listener of sessionHarness.settingsListeners) listener({ ...sessionHarness.settings });
+}
+
+beforeEach(() => {
+  vi.clearAllMocks();
+  sessionHarness.settingsListeners.clear();
+  Object.assign(sessionHarness.settings, {
+    multiplayerWaitForClients: false,
+    multiplayerSynchronizedPlayback: false,
+    multiplayerFreeplay: false,
+    multiplayerStreamAudio: true,
+    multiplayerFileTransferLimitMiB: 0,
+    multiplayerOpusBitrateKbps: 128,
+    multiplayerAudioBufferMs: 3_000,
+    multiplayerRenderCacheLimitMiB: 256
+  });
+  vi.stubGlobal('window', {
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+    clearTimeout: vi.fn(),
+    localStorage: { getItem: vi.fn(() => null) }
+  });
+  vi.stubGlobal('document', {
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn()
+  });
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 describe('multiplayer client lifecycle', () => {
   it('keeps a connected transport when the app resumes', () => {
@@ -21,6 +159,82 @@ describe('multiplayer client lifecycle', () => {
     ['connected', undefined]
   ] as const)('reconnects an unhealthy %s/%s transport', (connectionState, channelState) => {
     expect(isMultiplayerClientTransportHealthy(connectionState, channelState)).toBe(false);
+  });
+});
+
+describe('multiplayer session generation replacement', () => {
+  const activeTrack: PlaylistItem = {
+    id: 'playing',
+    name: 'playing.flac',
+    extension: 'flac',
+    kind: 'stream',
+    size: 10,
+    lastModified: 1
+  };
+
+  it('forces a fresh host delivery when bitrate or transfer policy changes', () => {
+    const session = createMultiplayerSession({
+      handleHostCommand: vi.fn(),
+      pauseHostPlayback: vi.fn(),
+      resumeHostPlayback: vi.fn()
+    });
+    sessionHarness.core.state = { ...sessionHarness.core.state, mode: 'hosting' };
+    sessionHarness.core.latestHostState = { track: activeTrack };
+
+    emitSettings({ multiplayerOpusBitrateKbps: 96 });
+    expect(sessionHarness.host.syncHostAudio).toHaveBeenLastCalledWith(activeTrack, true);
+    expect(sessionHarness.host.syncHostSourceFiles).toHaveBeenLastCalledWith(activeTrack);
+
+    sessionHarness.host.syncHostAudio.mockClear();
+    sessionHarness.host.syncHostSourceFiles.mockClear();
+    emitSettings({ multiplayerAudioBufferMs: 4_000 });
+    expect(sessionHarness.host.syncHostAudio).not.toHaveBeenCalled();
+    expect(sessionHarness.host.syncHostSourceFiles).not.toHaveBeenCalled();
+
+    emitSettings({ multiplayerFileTransferLimitMiB: 8 });
+    expect(sessionHarness.host.syncHostAudio).toHaveBeenLastCalledWith(activeTrack, true);
+    expect(sessionHarness.host.syncHostSourceFiles).toHaveBeenLastCalledWith(activeTrack);
+    session.destroy();
+  });
+
+  it('disposes peer and media ownership before clearing the active generation', async () => {
+    const session = createMultiplayerSession({
+      handleHostCommand: vi.fn(),
+      pauseHostPlayback: vi.fn(),
+      resumeHostPlayback: vi.fn()
+    });
+    const hostPeer = { id: 'host-peer' };
+    const clientPeer = { id: 'client-peer' };
+    sessionHarness.core.hostPeers.set(hostPeer.id, hostPeer);
+    sessionHarness.core.clientPeer = clientPeer;
+    sessionHarness.core.pendingClientSourceFile = {
+      generationId: 'old-generation',
+      trackId: activeTrack.id,
+      file: {}
+    };
+    sessionHarness.core.latestDelivery = {
+      generationId: 'old-generation',
+      trackId: activeTrack.id,
+      mode: 'source-file',
+      reason: null
+    };
+
+    await sessionHarness.core.resetSession(false);
+
+    expect(sessionHarness.client.resetTransitions).toHaveBeenCalledOnce();
+    expect(sessionHarness.disposePeerConnection).toHaveBeenCalledWith(hostPeer);
+    expect(sessionHarness.disposePeerConnection).toHaveBeenCalledWith(clientPeer);
+    expect(sessionHarness.audio.clearRemoteTrack).toHaveBeenCalledOnce();
+    expect(sessionHarness.source.clearLoadedFile).toHaveBeenCalledOnce();
+    expect(sessionHarness.render.release).toHaveBeenCalledOnce();
+    expect(sessionHarness.core.pendingClientSourceFile).toBeNull();
+    expect(sessionHarness.core.latestDelivery).toEqual({
+      generationId: 'idle',
+      trackId: null,
+      mode: 'none',
+      reason: 'host-disabled'
+    });
+    session.destroy();
   });
 });
 

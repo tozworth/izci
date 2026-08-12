@@ -136,4 +136,40 @@ describe('MultiplayerClientTransition', () => {
     expect(transition.beginDelivery({ ...delivery('same'), mode: 'source-file' })).toBeNull();
     expect(transition.acceptPlayback(playback('same'))).toBe(true);
   });
+
+  it('does not reset readiness when an identical delivery message is replayed', () => {
+    const transition = new MultiplayerClientTransition();
+    transition.setReceiverPipelineReady(true);
+    expect(transition.beginDelivery(delivery('same'))).toBe(true);
+    transition.acceptPlayback(playback('same'));
+    transition.acceptPreparation({
+      generationId: 'same', trackId: 'track-same', delivery: 'stream'
+    });
+
+    expect(transition.beginDelivery(delivery('same'))).toBe(false);
+    expect(transition.takeReadyGeneration()).toBe('same');
+    expect(transition.beginDelivery(delivery('same'))).toBe(false);
+    expect(transition.takeReadyGeneration()).toBeNull();
+  });
+
+  it('cannot turn late A source readiness into readiness for replacement C', () => {
+    const transition = new MultiplayerClientTransition();
+    transition.beginDelivery(delivery('a', 'source-file'));
+    transition.acceptPlayback(playback('a'));
+    transition.acceptPreparation({
+      generationId: 'a', trackId: 'track-a', delivery: 'source-file'
+    });
+
+    transition.beginDelivery(delivery('b', 'source-file'));
+    transition.beginDelivery(delivery('c', 'source-file'));
+    transition.acceptPlayback(playback('c'));
+    transition.acceptPreparation({
+      generationId: 'c', trackId: 'track-c', delivery: 'source-file'
+    });
+
+    expect(transition.setSourceReady('a', 'track-a', true)).toBe(false);
+    expect(transition.takeReadyGeneration()).toBeNull();
+    expect(transition.setSourceReady('c', 'track-c', true)).toBe(true);
+    expect(transition.takeReadyGeneration()).toBe('c');
+  });
 });
