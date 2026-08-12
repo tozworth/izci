@@ -8,7 +8,7 @@ import {
   remuxMetadataToWritable,
   type MetadataExtension
 } from '$lib/services/media-metadata';
-import { inferExtension } from '$lib/utils/files';
+import { inferMediaExtension } from '$lib/media/format-policy';
 
 export interface ReplayGainValues {
   trackGainDb: number;
@@ -66,7 +66,7 @@ export function mergeReplayGainMetadata(
 }
 
 export async function buildReplayGainTaggedFile(file: File, values: ReplayGainValues): Promise<Blob> {
-  const extension = inferExtension(file.name);
+  const extension = inferMediaExtension(file.name);
   if (!isMetadataExtension(extension)) {
     throw new Error('ReplayGain writing is not supported for this file type.');
   }
@@ -83,7 +83,7 @@ export async function writeReplayGainInPlace(
 ): Promise<void> {
   if (!handle.createWritable) throw new Error('This file handle does not allow in-place writing.');
   const file = await handle.getFile();
-  const extension = inferExtension(file.name);
+  const extension = inferMediaExtension(file.name);
   if (!isMetadataExtension(extension)) throw new Error('ReplayGain writing is not supported for this file type.');
   const writable = await handle.createWritable({ keepExistingData: false });
   await remuxMetadataToWritable(

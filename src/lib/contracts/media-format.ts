@@ -73,4 +73,10 @@ export const MODULE_EXTENSIONS = [
   'mmcmp',
 ] as const;
 
+export const SUPPORTED_MEDIA_EXTENSIONS = [
+  ...STREAM_EXTENSIONS,
+  ...MODULE_EXTENSIONS,
+  ...VIDEO_EXTENSIONS
+] as const;
+
 export type TrackKind = 'stream' | 'module' | 'video';

@@ -38,6 +38,7 @@
     type TroubadourWorkspaceState
   } from '$lib/stores/troubadour-workspace';
   import { STREAM_EXTENSIONS } from '$lib/contracts/media-format';
+  import { createMediaOpenFilePickerOptions } from '$lib/media/format-policy';
   import { type MenuActionItem } from '$lib/contracts/window-menu';
   import LoudnessTab from './LoudnessTab.svelte';
   import LyricsEditor from './LyricsEditor.svelte';
@@ -62,16 +63,11 @@
     grouping: 'grouping', copyright: 'copyright', titleSort: 'titleSort', artistSort: 'artistSort',
     albumSort: 'albumSort', albumArtistSort: 'albumArtistSort'
   };
-  const OPEN_FILE_OPTIONS: OpenFilePickerOptions = {
+  const OPEN_FILE_OPTIONS = createMediaOpenFilePickerOptions({
+    description: 'Media files',
     multiple: true,
-    types: [{
-      description: 'Media files',
-      accept: {
-        'audio/mpeg': ['.mp3'], 'audio/wav': ['.wav'], 'audio/flac': ['.flac'],
-        'audio/ogg': ['.ogg', '.opus'], 'audio/opus': ['.opus']
-      }
-    }]
-  };
+    kinds: ['stream']
+  });
   const ITEM_DRAG_MIME = 'application/x-izci-troubadour-items';
 
   const controller = createTroubadourController();

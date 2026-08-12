@@ -1,5 +1,8 @@
-import { MODULE_EXTENSIONS, STREAM_EXTENSIONS, VIDEO_EXTENSIONS } from '$lib/contracts/media-format';
 import { type WorkspaceCollection } from '$lib/contracts/workspace';
+import {
+  createMediaOpenFilePickerOptions,
+  mediaFileInputAccept
+} from '$lib/media/format-policy';
 import { prepareImportedFiles } from '$lib/services/file-verification';
 import { filesystemFolders } from '$lib/services/filesystem-folders';
 import { logError, logInfo } from '$lib/logging/api';
@@ -19,37 +22,10 @@ interface ImportControllerOptions {
   getOpenFilePickerDescription?: () => string;
 }
 
-const STREAM_FILE_EXTENSIONS = STREAM_EXTENSIONS.map((extension) => `.${extension}`);
-const MODULE_FILE_EXTENSIONS = MODULE_EXTENSIONS.map((extension) => `.${extension}`);
-const VIDEO_FILE_EXTENSIONS = VIDEO_EXTENSIONS.map((extension) => `.${extension}`);
-
-export const FILE_INPUT_ACCEPT = [
-  ...STREAM_FILE_EXTENSIONS,
-  ...MODULE_FILE_EXTENSIONS,
-  ...VIDEO_FILE_EXTENSIONS
-].join(',');
+export const FILE_INPUT_ACCEPT = mediaFileInputAccept();
 
 export function createOpenFilePickerOptions(description = 'Supported media files'): OpenFilePickerOptions {
-  return {
-  multiple: true,
-  types: [
-    {
-      description,
-      accept: {
-        'audio/mpeg': ['.mp3'],
-        'audio/wav': ['.wav'],
-        'audio/flac': ['.flac'],
-        'audio/ogg': ['.ogg', '.opus'],
-        'audio/opus': ['.opus'],
-        'audio/x-openmpt': MODULE_FILE_EXTENSIONS,
-        'video/mp4': ['.mp4', '.m4v'],
-        'video/quicktime': ['.mov'],
-        'video/webm': ['.webm'],
-        'video/x-matroska': ['.mkv']
-      }
-    }
-  ]
-  };
+  return createMediaOpenFilePickerOptions({ description, multiple: true });
 }
 
 export const OPEN_FILE_PICKER_OPTIONS = createOpenFilePickerOptions();

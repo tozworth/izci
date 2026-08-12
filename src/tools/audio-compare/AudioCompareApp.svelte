@@ -17,7 +17,8 @@
   import { windowManager } from '$lib/services/window-manager';
   import { MODULE_EXTENSIONS, STREAM_EXTENSIONS } from '$lib/contracts/media-format';
   import { type MenuActionItem } from '$lib/contracts/window-menu';
-  import { inferExtension } from '$lib/utils/files';
+  import { inferMediaExtension } from '$lib/media/format-policy';
+  import { createMediaOpenFilePickerOptions, mediaFileInputAccept } from '$lib/media/format-policy';
   import { loadAudioFile, type AudioLoadProgress } from '../editor/clip-audio';
   import { MAX_WAVEFORM_ZOOM } from '../editor/waveform-viewport';
   import { analyzeAudioBufferLoudness } from '../troubadour/loudness-analyzer';
@@ -47,14 +48,13 @@
   }
 
   const ACCEPTED_EXTENSIONS = [...STREAM_EXTENSIONS, ...MODULE_EXTENSIONS];
-  const FILE_ACCEPT = ACCEPTED_EXTENSIONS.map((extension) => `.${extension}`).join(',');
-  const OPEN_FILE_PICKER_OPTIONS: OpenFilePickerOptions = {
+  const FILE_ACCEPT = mediaFileInputAccept(['stream', 'module']);
+  const OPEN_FILE_PICKER_OPTIONS = createMediaOpenFilePickerOptions({
+    description: 'Audio files',
     multiple: false,
-    types: [{
-      description: 'Audio files',
-      accept: { 'audio/*': ACCEPTED_EXTENSIONS.map((extension) => `.${extension}`) }
-    }]
-  };
+    kinds: ['stream', 'module'],
+    grouping: 'wildcard'
+  });
 
   function emptySource(): CompareSource {
     return {
@@ -453,7 +453,7 @@
   }
 
   async function openSource(id: ComparisonSourceId, file: File): Promise<void> {
-    const extension = inferExtension(file.name);
+    const extension = inferMediaExtension(file.name);
     if (!ACCEPTED_EXTENSIONS.includes(extension as (typeof ACCEPTED_EXTENSIONS)[number])) {
       updateSource(id, { error: $t('audioCompare.unsupported', { default: 'This file type is not supported by Audio Compare.' }) });
       return;

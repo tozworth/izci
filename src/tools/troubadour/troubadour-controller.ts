@@ -23,11 +23,8 @@ import type {
   TroubadourWriteTarget
 } from '$lib/services/troubadour-sync';
 import { requestTroubadourWritePreparation } from '$lib/services/troubadour-sync';
-import {
-  discoverDirectoryFiles,
-  inferExtension,
-  inferKind
-} from '$lib/utils/files';
+import { discoverDirectoryFiles } from '$lib/utils/files';
+import { inferMediaExtension, inferTrackKind } from '$lib/media/format-policy';
 import { autoGroupTracks, renumberAlbumTracks } from './grouping';
 import { createHistory, pushHistory, redoHistory, undoHistory, type HistoryState } from './history';
 import {
@@ -518,7 +515,7 @@ export function createTroubadourController(
     throwIfDestroyed();
     const file = await handle.getFile();
     throwIfDestroyed();
-    const extension = inferExtension(file.name);
+    const extension = inferMediaExtension(file.name);
     return {
       id: base.id ?? crypto.randomUUID(),
       contextId: base.contextId,
@@ -529,7 +526,7 @@ export function createTroubadourController(
       path,
       sourceFolderId: base.sourceFolderId,
       extension,
-      kind: inferKind(extension) ?? 'stream',
+      kind: inferTrackKind(extension) ?? 'stream',
       state: 'loading',
       document: null,
       patch: {},
@@ -546,7 +543,7 @@ export function createTroubadourController(
     report: (activeJob: string, jobProgress?: number | null) => void,
     label: string
   ): Promise<TroubadourWorkbenchItem[]> {
-    const eligible = discovered.filter((entry) => getMetadataCapabilities(inferExtension(entry.fileHandle.name)));
+    const eligible = discovered.filter((entry) => getMetadataCapabilities(inferMediaExtension(entry.fileHandle.name)));
     const items = new Array<TroubadourWorkbenchItem | undefined>(eligible.length);
     let index = 0;
     let completed = 0;
@@ -616,7 +613,7 @@ export function createTroubadourController(
                 parentHandle,
                 path: track.path || sourceFile.name,
                 sourceFolderId: track.sourceFolderId,
-                extension: track.extension || inferExtension(sourceFile.name),
+                extension: track.extension || inferMediaExtension(sourceFile.name),
                 kind: track.kind,
                 state: 'loading',
                 document: null,
@@ -705,7 +702,7 @@ export function createTroubadourController(
           throwIfDestroyed();
           if (handle?.kind === 'file') {
             const fileHandle = handle as FileSystemFileHandle;
-            if (getMetadataCapabilities(inferExtension(fileHandle.name))) {
+            if (getMetadataCapabilities(inferMediaExtension(fileHandle.name))) {
               reportFound();
               items.push(await itemFromHandle(fileHandle, fileHandle.name, null));
             }
@@ -718,12 +715,12 @@ export function createTroubadourController(
         if (!items.length) {
           for (const file of Array.from(dataTransfer.files)) {
             throwIfDestroyed();
-            if (!getMetadataCapabilities(inferExtension(file.name))) continue;
+            if (!getMetadataCapabilities(inferMediaExtension(file.name))) continue;
             reportFound();
-            const extension = inferExtension(file.name);
+            const extension = inferMediaExtension(file.name);
             items.push({
               id: crypto.randomUUID(), references: [], file, fileHandle: null, parentHandle: null,
-              path: file.webkitRelativePath || file.name, extension, kind: inferKind(extension) ?? 'stream', state: 'loading',
+              path: file.webkitRelativePath || file.name, extension, kind: inferTrackKind(extension) ?? 'stream', state: 'loading',
               document: null, patch: {}, artworkEdits: [], albumId: null, error: '', jobProgress: null
             });
           }

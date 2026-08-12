@@ -1,11 +1,8 @@
 import { createChiptunePlayer } from '$lib/services/chiptune-loader';
 import { logDebug, logInfo, logWarning } from '$lib/logging/api';
 import { trackSettings } from '$lib/stores/track-settings';
-import {
-  inferExtension,
-  inferKind,
-  markFileAsModule
-} from '$lib/utils/files';
+import { markFileAsModule } from '$lib/utils/files';
+import { inferMediaExtension, inferTrackKind } from '$lib/media/format-policy';
 import type { ChiptuneJsPlayer } from 'chiptune3';
 
 const MODULE_VERIFICATION_TIMEOUT_MS = 10_000;
@@ -36,7 +33,7 @@ export async function verifyModuleFile(file: File): Promise<boolean> {
     return false;
   }
 
-  logDebug('decode', 'Verifying unknown file as module', { name: file.name, size: file.size, extension: inferExtension(file.name) });
+  logDebug('decode', 'Verifying unknown file as module', { name: file.name, size: file.size, extension: inferMediaExtension(file.name) });
   let player: ChiptuneJsPlayer | null = null;
 
   try {
@@ -94,7 +91,7 @@ export async function prepareImportedFiles(
   const acceptedFiles: File[] = [];
 
   for (const file of Array.from(files)) {
-    if (inferKind(inferExtension(file.name))) {
+    if (inferTrackKind(inferMediaExtension(file.name))) {
       acceptedFiles.push(file);
       continue;
     }

@@ -1,5 +1,5 @@
 import type { PlaylistItem } from '$lib/contracts/catalog';
-import { inferExtension, inferKind } from '$lib/utils/files';
+import { inferMediaExtension, inferTrackKind } from '$lib/media/format-policy';
 import { logDebug, logWarning } from '$lib/logging/api';
 
 type FileSystemPermissionState = 'granted' | 'denied' | 'prompt';
@@ -58,8 +58,8 @@ export async function materializePlaylistItem(item: PlaylistItem, prompt = false
   }
 
   const file = await item.fileHandle.getFile();
-  const extension = inferExtension(file.name);
-  const kind = inferKind(extension);
+  const extension = inferMediaExtension(file.name);
+  const kind = inferTrackKind(extension);
 
   if (!kind) {
     logWarning('files', 'Materialized file has unsupported extension', { id: item.id, extension });

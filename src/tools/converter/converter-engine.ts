@@ -7,7 +7,7 @@ import {
 } from 'mediabunny';
 import { logError, logInfo } from '$lib/logging/api';
 import { MODULE_EXTENSIONS } from '$lib/contracts/media-format';
-import { inferExtension } from '$lib/utils/files';
+import { inferMediaExtension } from '$lib/media/format-policy';
 import { loadAudioFile } from '../editor/clip-audio';
 import type { ConverterSettings } from './converter-options';
 
@@ -131,7 +131,7 @@ export async function convertMediaFile(
   signal: AbortSignal,
   onProgress: (progress: ConverterProgress) => void = () => undefined
 ): Promise<Blob> {
-  const extension = inferExtension(file.name);
+  const extension = inferMediaExtension(file.name);
   const isModule = MODULE_EXTENSIONS.includes(extension as (typeof MODULE_EXTENSIONS)[number]);
   logInfo('tools', 'Conversion started', { name: file.name, size: file.size, isModule });
   if (!isModule) {

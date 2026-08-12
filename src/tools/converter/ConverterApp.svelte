@@ -6,7 +6,8 @@
   import { MODULE_EXTENSIONS, STREAM_EXTENSIONS, VIDEO_EXTENSIONS } from '$lib/contracts/media-format';
   import { type MenuActionItem } from '$lib/contracts/window-menu';
   import { listenForCurrentToolTrack } from '$lib/services/tool-track-context';
-  import { inferExtension } from '$lib/utils/files';
+  import { inferMediaExtension } from '$lib/media/format-policy';
+  import { createMediaOpenFilePickerOptions, mediaFileInputAccept } from '$lib/media/format-policy';
   import ConverterMenuBar from './ConverterMenuBar.svelte';
   import {
     COMPRESSED_AUDIO_CODECS,
@@ -59,17 +60,12 @@
   }
 
   const ACCEPTED_EXTENSIONS = [...STREAM_EXTENSIONS, ...MODULE_EXTENSIONS, ...VIDEO_EXTENSIONS];
-  const FILE_ACCEPT = ACCEPTED_EXTENSIONS.map((extension) => `.${extension}`).join(',');
-  const OPEN_FILE_PICKER_OPTIONS: OpenFilePickerOptions = {
+  const FILE_ACCEPT = mediaFileInputAccept();
+  const OPEN_FILE_PICKER_OPTIONS = createMediaOpenFilePickerOptions({
+    description: 'Media files',
     multiple: true,
-    types: [{
-      description: 'Media files',
-      accept: {
-        'audio/*': [...STREAM_EXTENSIONS, ...MODULE_EXTENSIONS].map((extension) => `.${extension}`),
-        'video/*': VIDEO_EXTENSIONS.map((extension) => `.${extension}`)
-      }
-    }]
-  };
+    grouping: 'wildcard'
+  });
   const AUDIO_CODEC_LABELS: Record<string, string> = {
     aac: 'AAC', opus: 'Opus', mp3: 'MP3', vorbis: 'Vorbis', flac: 'FLAC', ac3: 'AC-3', eac3: 'E-AC-3', none: 'No audio'
   };
@@ -143,7 +139,7 @@
   }
 
   function isAccepted(file: File): boolean {
-    return ACCEPTED_EXTENSIONS.includes(inferExtension(file.name) as (typeof ACCEPTED_EXTENSIONS)[number]);
+    return ACCEPTED_EXTENSIONS.includes(inferMediaExtension(file.name) as (typeof ACCEPTED_EXTENSIONS)[number]);
   }
 
   function addRows(nextRows: ConverterRow[], silent = false): void {
@@ -606,7 +602,7 @@
             >
               <label class="check-cell"><input type="checkbox" bind:checked={row.selected} disabled={busy} aria-label={$t('converter.selectFile', { default: 'Select {name}', values: { name: row.file.name } })} /></label>
               <div class="file-cell" title={row.path}><strong>{row.file.name}</strong><span>{row.path}</span></div>
-              <span>{inferExtension(row.file.name).toUpperCase()} · {formatBytes(row.file.size)}</span>
+              <span>{inferMediaExtension(row.file.name).toUpperCase()} · {formatBytes(row.file.size)}</span>
               <span title={outputFileName(row.file.name, settings)}>{row.outputSize !== null ? formatBytes(row.outputSize) : outputFileName(row.file.name, settings)}</span>
               <div class="status-cell" title={row.detail}>
                 <span>{row.detail || stateLabel(row)}</span>

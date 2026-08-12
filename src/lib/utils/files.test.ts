@@ -9,8 +9,6 @@ import {
   extractDroppedFiles,
   formatDuration,
   inferArtistTitleFromFileName,
-  inferExtension,
-  inferKind,
   mergeInferredArtistTitle,
   getTrackDisplayTitle,
   getTrackPlaylistLabel,
@@ -18,6 +16,7 @@ import {
   readDirectoryFiles,
   stripFileExtension
 } from './files';
+import { inferMediaExtension, inferTrackKind } from '$lib/media/format-policy';
 
 function fileHandle(file: File): FileSystemFileHandle {
   return {
@@ -46,13 +45,13 @@ describe('file helpers', () => {
   });
 
   it('infers supported file extensions and playback kinds', () => {
-    expect(inferExtension('Track.FLAC')).toBe('flac');
-    expect(inferExtension('README')).toBe('');
-    expect(inferKind('flac')).toBe('stream');
-    expect(inferKind('xm')).toBe('module');
-    expect(MODULE_EXTENSIONS.every((extension) => inferKind(extension) === 'module')).toBe(true);
-    expect(VIDEO_EXTENSIONS.every((extension) => inferKind(extension) === 'video')).toBe(true);
-    expect(inferKind('txt')).toBeNull();
+    expect(inferMediaExtension('Track.FLAC')).toBe('flac');
+    expect(inferMediaExtension('README')).toBe('');
+    expect(inferTrackKind('flac')).toBe('stream');
+    expect(inferTrackKind('xm')).toBe('module');
+    expect(MODULE_EXTENSIONS.every((extension) => inferTrackKind(extension) === 'module')).toBe(true);
+    expect(VIDEO_EXTENSIONS.every((extension) => inferTrackKind(extension) === 'video')).toBe(true);
+    expect(inferTrackKind('txt')).toBeNull();
   });
 
   it('strips only the final filename extension', () => {

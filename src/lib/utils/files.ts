@@ -1,6 +1,7 @@
-import { MODULE_EXTENSIONS, STREAM_EXTENSIONS, VIDEO_EXTENSIONS, type TrackKind } from '$lib/contracts/media-format';
+import { MODULE_EXTENSIONS, type TrackKind } from '$lib/contracts/media-format';
 import { type PlaylistItem } from '$lib/contracts/catalog';
 import { type TrackMetadata } from '$lib/contracts/media-metadata';
+import { inferMediaExtension, inferTrackKind } from '$lib/media/format-policy';
 
 interface ChromiumFileSystemEntry {
   isFile: boolean;
@@ -118,13 +119,8 @@ function createTrackObjectUrl(kind: TrackKind, file: File): string | undefined {
   return kind === 'stream' || kind === 'video' ? URL.createObjectURL(file) : undefined;
 }
 
-export function inferExtension(fileName: string): string {
-  const parts = fileName.toLowerCase().split('.');
-  return parts.length > 1 ? parts.at(-1)! : '';
-}
-
 export function stripFileExtension(fileName: string): string {
-  const extension = inferExtension(fileName);
+  const extension = inferMediaExtension(fileName);
 
   if (!extension) {
     return fileName;
@@ -178,25 +174,9 @@ export function mergeInferredArtistTitle(metadata: TrackMetadata = {}, fileName:
   };
 }
 
-export function inferKind(extension: string): TrackKind | null {
-  if (STREAM_EXTENSIONS.includes(extension as (typeof STREAM_EXTENSIONS)[number])) {
-    return 'stream';
-  }
-
-  if (MODULE_EXTENSIONS.includes(extension as (typeof MODULE_EXTENSIONS)[number])) {
-    return 'module';
-  }
-
-  if (VIDEO_EXTENSIONS.includes(extension as (typeof VIDEO_EXTENSIONS)[number])) {
-    return 'video';
-  }
-
-  return null;
-}
-
 function createPlaylistItem(file: File): PlaylistItem | null {
-  const extension = inferExtension(file.name);
-  const kind = inferKind(extension) ?? (moduleOverrideFiles.has(file) ? 'module' : null);
+  const extension = inferMediaExtension(file.name);
+  const kind = inferTrackKind(extension) ?? (moduleOverrideFiles.has(file) ? 'module' : null);
 
   if (!kind) {
     return null;

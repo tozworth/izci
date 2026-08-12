@@ -1,6 +1,6 @@
 import { MODULE_EXTENSIONS } from '$lib/contracts/media-format';
 import { logDebug, logError, logInfo } from '$lib/logging/api';
-import { inferExtension } from '$lib/utils/files';
+import { inferMediaExtension } from '$lib/media/format-policy';
 
 export interface ClipRange {
   start: number;
@@ -312,7 +312,7 @@ export async function loadAudioFile(
   onProgress: (progress: AudioLoadProgress) => void = () => undefined,
   signal?: AbortSignal
 ): Promise<{ buffer: AudioBuffer; renderedModule: boolean; fromCache: boolean }> {
-  const extension = inferExtension(file.name);
+  const extension = inferMediaExtension(file.name);
   const isModule = MODULE_EXTENSIONS.includes(extension as (typeof MODULE_EXTENSIONS)[number]);
   logDebug('tools', 'Editor audio load started', { name: file.name, size: file.size, isModule });
 

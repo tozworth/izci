@@ -6,6 +6,7 @@ import { svelte } from '@sveltejs/vite-plugin-svelte';
 import { VitePWA } from 'vite-plugin-pwa';
 import enMessages from './src/lib/i18n/locales/en.json';
 import trMessages from './src/lib/i18n/locales/tr.json';
+import { PWA_MEDIA_FILE_HANDLER_ACCEPT } from './src/lib/media/format-policy';
 
 export default defineConfig({
   server: {
@@ -127,23 +128,7 @@ export default defineConfig({
                 type: 'image/png'
               }
             ],
-            accept: {
-              'audio/mpeg': ['.mp3'],
-              'audio/wav': ['.wav'],
-              'audio/flac': ['.flac'],
-              'audio/ogg': ['.ogg', '.opus'],
-              'audio/opus': ['.opus'],
-              'audio/x-mod': ['.mod'],
-              'audio/x-xm': ['.xm'],
-              'audio/x-s3m': ['.s3m'],
-              'audio/x-it': ['.it'],
-              'audio/x-mo3': ['.mo3'],
-              'audio/x-hivelytracker': ['.ahx', '.hvl'],
-              'video/mp4': ['.mp4', '.m4v'],
-              'video/quicktime': ['.mov'],
-              'video/webm': ['.webm'],
-              'video/x-matroska': ['.mkv']
-            }
+            accept: PWA_MEDIA_FILE_HANDLER_ACCEPT
           }
         ]
       } as Record<string, unknown>,

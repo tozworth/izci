@@ -8,7 +8,9 @@
   import { listenForCurrentToolTrack } from '$lib/services/tool-track-context';
   import { RAF_EFFECT_DEFINITIONS, RAF_EFFECT_REGISTRY } from '$lib/services/raf-effect-registry';
   import { loadEmbeddedStreamArtwork, loadTrackMetadata } from '$lib/services/stream-artwork';
-  import { inferArtistTitleFromFileName, inferExtension, stripFileExtension } from '$lib/utils/files';
+  import { inferArtistTitleFromFileName, stripFileExtension } from '$lib/utils/files';
+  import { inferMediaExtension } from '$lib/media/format-policy';
+  import { createMediaOpenFilePickerOptions, mediaFileInputAccept } from '$lib/media/format-policy';
   import EditorMenuBar from './EditorMenuBar.svelte';
   import ClipEffectDialog from './ClipEffectDialog.svelte';
   import ClipExportDialog from './ClipExportDialog.svelte';
@@ -52,14 +54,13 @@
   }
   const MAX_EDIT_HISTORY = 12;
   const ACCEPTED_EXTENSIONS = [...STREAM_EXTENSIONS, ...MODULE_EXTENSIONS];
-  const FILE_ACCEPT = ACCEPTED_EXTENSIONS.map((extension) => `.${extension}`).join(',');
-  const OPEN_FILE_PICKER_OPTIONS: OpenFilePickerOptions = {
+  const FILE_ACCEPT = mediaFileInputAccept(['stream', 'module']);
+  const OPEN_FILE_PICKER_OPTIONS = createMediaOpenFilePickerOptions({
+    description: 'Audio files',
     multiple: false,
-    types: [{
-      description: 'Audio files',
-      accept: { 'audio/*': ACCEPTED_EXTENSIONS.map((extension) => `.${extension}`) }
-    }]
-  };
+    kinds: ['stream', 'module'],
+    grouping: 'wildcard'
+  });
   const TAG_FIELDS: Array<{ key: TagField; wide?: boolean }> = [
     { key: 'title', wide: true },
     { key: 'artist' },
@@ -391,7 +392,7 @@
   }
 
   async function openFile(file: File): Promise<void> {
-    const extension = inferExtension(file.name);
+    const extension = inferMediaExtension(file.name);
     if (!ACCEPTED_EXTENSIONS.includes(extension as (typeof ACCEPTED_EXTENSIONS)[number])) {
       errorMessage = $t('editor.unsupported', { default: 'This file type is not supported by Editor.' });
       return;
@@ -724,7 +725,7 @@
     const stopListeningForTrack = listenForCurrentToolTrack((track) => {
       if (
         track.kind !== 'video'
-        && ACCEPTED_EXTENSIONS.includes(inferExtension(track.file.name) as (typeof ACCEPTED_EXTENSIONS)[number])
+        && ACCEPTED_EXTENSIONS.includes(inferMediaExtension(track.file.name) as (typeof ACCEPTED_EXTENSIONS)[number])
       ) {
         void openFile(track.file);
       }
