@@ -8,10 +8,10 @@
 | OpenMPT module | `ModulePlayerService` plus `chiptune-loader.ts` and Chiptune3 worklet | Loads a file buffer, exposes subsongs/patterns/metadata, plays in shared AudioContext | Chiptune player/process node/gain and load token; stop/dispose paths exist | Module metadata/worklet behavior has focused tests; backend conformance and cross-backend transition tests are missing |
 | AHX/HVL | `HivelyPlayerService` in `ahx-player.ts` plus AHX worklet/WASM | Loads WASM and module bytes into `AudioWorkletNode`; subsongs/patterns/metadata; module settings subset | Worklet node, message port, gain, load token, initialization timeout; stop/destroy posts dispose and disconnects | Worklet/pattern tests exist; common backend conformance and transition coverage is missing |
 | Video | `VideoPlayerService` | Native video element; Web Audio adoption where permitted; native volume fallback; rate/true-speed; PiP surface | Long-lived element per service, media source, listeners, fallback RAF; unload clears source and route, destroy removes element | No dedicated video-player test file; fallback, supersession, listener lifetime, and controller transition coverage is missing |
-| Multiplayer WebRTC audio | `MultiplayerAudioService` | Received `MediaStream` enters the local Raf chain and is never broadcast-eligible | One remote source route and stream-owned tracks; clear/destroy disconnects route | Focused listener routing/resume-generation tests exist |
+| Multiplayer WebRTC audio | `MultiplayerAudioService` | Received `MediaStream` enters the local Raf chain and is never broadcast-eligible | One remote source route and stream-owned tracks; `clearRemoteTrack()` and session reset disconnect route/element | Focused listener routing/resume-generation tests exist |
 | Multiplayer source file | `MultiplayerSourcePlaybackService` through shared `playerController` | Client plays through the native matching backend; Freeplay owns local timeline behavior | Transferred file/object URL lifetime coordinated with prepared/active track | Replacement, repeated snapshot, hidden clock, Freeplay, repeat-one, and shared-start tests exist |
-| Multiplayer buffered Opus | `MultiplayerRenderPlayback` | MediaSource-backed element enters shared Web Audio; sparse range/generation logic | Element, object URL, MediaSource/SourceBuffer, source route, queues/ranges/timers | Pure window/recovery tests exist; full MediaSource lifecycle and browser graph behavior remain CDP gaps |
-| Multiplayer video RTP | Host/client RTC owners plus receiver presentation | Only live RTP video path | RTCPeerConnection/transceiver/stream/video ownership is distributed across Multiplayer controllers | Multi-profile browser characterization is missing |
+| Multiplayer buffered Opus | `MultiplayerRenderPlaybackService` | MediaSource-backed element enters shared Web Audio; sparse range/generation logic | Element, object URL, MediaSource/SourceBuffer, source route, queues/ranges/timers | Pure window/recovery tests exist; full MediaSource lifecycle and browser graph behavior remain CDP gaps |
+| Multiplayer live RTP audio for video sources | Host/client RTC owners | Video-kind sources select the stream pathway, but only their audio is negotiated | Audio sender/transceiver and peer stream ownership are distributed across Multiplayer controllers; no remote video-frame transceiver/surface exists | Multi-profile browser characterization and capability decision are missing |
 
 `player-controller.ts` is the sole local backend switcher. It currently owns sets
 of backend bundles representing active, prepared, and outgoing tracks. Numeric
@@ -40,11 +40,17 @@ gain. Video bypasses only Auto Amp. Source-gain changes cancel/anchor existing
 automation before applying finite ramps.
 
 All normal HTML-media and AudioNode connections are currently broadcast-eligible.
-Received WebRTC MediaStreams explicitly are not. Buffered-Opus playback uses the
-general HTML-media connection, so whether a receiving client can ever expose
-that route to a simultaneous host broadcast is an unresolved ownership defect
-to attack in the Multiplayer/browser matrix; the required invariant is that a
-received source never feeds a host broadcast tap.
+Received WebRTC MediaStreams explicitly are not. Buffered Opus uses the general
+HTML-media connection, and received source-file playback uses the shared player
+controller's normal broadcast-eligible backends. `audio-bus.test.ts` explicitly
+characterizes the HTML route as reaching both local processing and the raw tap.
+Thus both received pathways can feed a simultaneous host broadcast today; this
+is a recorded ownership defect. The required target invariant remains that no
+received source ever feeds a host broadcast tap.
+
+`audio-bus.test.ts` otherwise provides focused topology coverage: post-Raf
+master ownership, pre-ReplayGain raw program tap, mixed source envelopes,
+received-stream non-broadcast routing, HTML media reuse, resume, and destroy.
 
 ## Required transition characterization
 

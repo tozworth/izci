@@ -25,8 +25,8 @@ slice. It does not mean layering an adapter onto an unproven replacement.
 All accepted Multiplayer work already belongs to the oracle: the merge base of
 `main` and `nukepass` is the exact accepted `main` commit, and the only initial
 branch-only commit is the nukepass runbook. Protocol 18, its Firebase validation,
-the bounded optional render disk cache, Co-op, hosted audio, source delivery,
-buffered Opus, video RTP, reconnect/restore, and per-pair Freeplay are therefore
+the bounded render disk cache, Co-op, hosted audio, source delivery, buffered
+Opus, live RTP audio for video sources, reconnect/restore, and Freeplay are therefore
 frozen as desired behavior.
 
 There will be no rolling merge of Multiplayer changes from another branch.

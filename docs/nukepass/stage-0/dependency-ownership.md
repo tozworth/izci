@@ -1,6 +1,7 @@
 # Dependency and ownership map
 
-Surveyed at the Stage 0 oracle-derived tree. A literal static-import scan covered
+Surveyed at the Stage 0 oracle-derived tree with a one-off literal static-import
+scan (the reproducible reporter is a Stage 1 artifact). It covered
 464 TypeScript/Svelte files (95,780 TypeScript/Svelte/CSS lines) and found no
 strongly connected component larger than one. That is useful current evidence,
 not an architecture guarantee: dynamic access, browser globals, callbacks, and
@@ -22,6 +23,7 @@ shared singleton state do not appear as import cycles.
 | Browser/PWA/window integration | Import, launch, install/update, Media Session, WCO, popup/window services and Vite config | Main/page roots and menus |
 | Multiplayer | Session, host, client, signaling, peer, delivery/render/cache/Freeplay services and focused stores | Main root and Multiplayer presentation |
 | Tools | Each `src/tools/<tool>/` subtree; shared metadata/logging/window services | Its page root and explicit cross-window handoff channels |
+| Build/deployment | `package.json`, `vite.config.ts`, `prepare-sites-build.mjs`, `sites-worker.js`, Firebase/Hosting config | Vite, Workbox, Firebase emulator/deploy and Sites packaging |
 
 ## Observed import pressure
 
@@ -50,8 +52,8 @@ silently grandfathered:
   service.
 - Window/options services import `src/options/views.ts`.
 - `mini-player.ts` imports the Svelte mini-player component.
-- Dock/workspace/library services import presentation-owned docking, workspace,
-  and library-view types.
+- Dock/workspace/library services import presentation-owned docking/workspace
+  types and a runtime library-view helper/types surface.
 
 These are ownership defects for Stages 2, 3, 6, 7, and 8. Stage 0 does not move
 them because the behavior contract and ports do not yet exist.
@@ -75,6 +77,9 @@ allowed only when it makes ownership explicit.
 
 - `src/lib/types.ts` combines media, playback, DSP, settings, workspace, menu,
   collection, and presentation facts.
+- `multiplayer-protocol.ts` imports application-wide Playlist item, playback
+  snapshot, metadata, and repeat-mode contracts from that bucket, directly
+  coupling the wire layer to application/domain projections.
 - Browser capabilities (clock, IDs, storage, files, workers, windows) are mostly
   accessed as globals/singletons, making deterministic orchestration tests hard.
 - Resource teardown is hand-built per owner rather than registered under one
