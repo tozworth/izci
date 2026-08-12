@@ -7,7 +7,11 @@ import { basename, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import { launchBrowser } from './browser-launcher.mjs';
-import { assertScenarioEntrypoints, readScenarioCatalog } from './catalog.mjs';
+import {
+  assertBuildProvenance,
+  assertScenarioEntrypoints,
+  readScenarioCatalog
+} from './catalog.mjs';
 import { CdpConnection } from './protocol-client.mjs';
 import { startStaticServer } from './static-server.mjs';
 
@@ -100,6 +104,10 @@ async function describeBuild(distDirectory) {
     manifest.push({ path, bytes: contents.length, sha256 });
   }
   return { id: digest.digest('hex'), files: manifest };
+}
+
+async function readBuildProvenance(distDirectory) {
+  return JSON.parse(await readFile(resolve(distDirectory, 'nukepass-build.json'), 'utf8'));
 }
 
 async function readCommit() {
@@ -517,13 +525,15 @@ async function main() {
   await mkdir(outputDirectory, { recursive: true });
 
   const startedAt = new Date().toISOString();
-  const [build, commit, repository, scenarioCatalog] = await Promise.all([
+  const [build, buildProvenance, commit, repository, scenarioCatalog] = await Promise.all([
     describeBuild(distDirectory),
+    readBuildProvenance(distDirectory),
     readCommit(),
     readRepositoryIdentity(),
     readScenarioCatalog(resolve(HARNESS_DIRECTORY, 'scenarios.json'))
   ]);
   assertScenarioEntrypoints(scenarioCatalog, build);
+  assertBuildProvenance(buildProvenance, commit);
   const server = await startStaticServer(distDirectory);
   const serviceWorkerAsset = build.files.find((file) => file.path === 'sw.js');
   if (!serviceWorkerAsset) throw new Error('The production build does not contain sw.js.');
@@ -562,6 +572,7 @@ async function main() {
       commit,
       appVersion: repository.appVersion,
       build,
+      buildProvenance,
       fixtureSet: {
         ...scenarioCatalog.fixtureSet,
         manifestSha256: repository.fixtureManifestSha256

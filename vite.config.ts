@@ -1,3 +1,4 @@
+import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vitest/config';
@@ -50,6 +51,23 @@ export default defineConfig({
     }
   },
   plugins: [
+    {
+      name: 'emit-build-provenance',
+      apply: 'build',
+      generateBundle() {
+        const commit = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+        const dirty = execFileSync(
+          'git',
+          ['status', '--porcelain', '--untracked-files=normal'],
+          { encoding: 'utf8' }
+        ).trim().length > 0;
+        this.emitFile({
+          type: 'asset',
+          fileName: 'nukepass-build.json',
+          source: `${JSON.stringify({ schemaVersion: 1, commit, dirty })}\n`
+        });
+      }
+    },
     {
       name: 'emit-chiptune3-runtime',
       apply: 'build',

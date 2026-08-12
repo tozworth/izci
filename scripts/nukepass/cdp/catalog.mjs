@@ -32,3 +32,18 @@ export function assertScenarioEntrypoints(catalog, build) {
     );
   }
 }
+
+export function assertBuildProvenance(provenance, commit) {
+  if (provenance?.schemaVersion !== 1 || typeof provenance.commit !== 'string'
+    || typeof provenance.dirty !== 'boolean') {
+    throw new Error('Invalid production build provenance marker.');
+  }
+  if (provenance.dirty) {
+    throw new Error('Production build provenance records a dirty worktree.');
+  }
+  if (!commit || provenance.commit !== commit) {
+    throw new Error(
+      `Production build commit mismatch: built=${provenance.commit} current=${commit ?? 'unknown'}`
+    );
+  }
+}

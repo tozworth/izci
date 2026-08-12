@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { assertScenarioEntrypoints } from './catalog.mjs';
+import { assertBuildProvenance, assertScenarioEntrypoints } from './catalog.mjs';
 
 function build(...paths) {
   return { files: paths.map((path) => ({ path })) };
@@ -35,6 +35,24 @@ describe('CDP scenario catalog', () => {
         scenarios: [...catalog.scenarios, { id: 'duplicate', path: '/', ready: 'duplicate' }]
       }, build('index.html', 'options.html')),
       /duplicate entrypoint paths/
+    );
+  });
+});
+
+describe('production build provenance', () => {
+  it('accepts only the exact clean current commit', () => {
+    assert.doesNotThrow(() => assertBuildProvenance({
+      schemaVersion: 1,
+      commit: 'abc123',
+      dirty: false
+    }, 'abc123'));
+    assert.throws(
+      () => assertBuildProvenance({ schemaVersion: 1, commit: 'abc123', dirty: true }, 'abc123'),
+      /dirty worktree/
+    );
+    assert.throws(
+      () => assertBuildProvenance({ schemaVersion: 1, commit: 'old', dirty: false }, 'abc123'),
+      /commit mismatch/
     );
   });
 });
