@@ -103,9 +103,11 @@ only actor that commits, merges, and touches build config.
 ## Delegation model
 
 The pass is executed by the orchestrator dispatching **leaf agents** — no
-nested delegation (this environment is one level deep, max 3 concurrent
-leaves). Parallelism therefore means batches of up to 3 workstreams; batches
-run sequentially, phases run sequentially.
+nested delegation (this environment is one level deep, max 5 concurrent
+leaves per `delegation.max_concurrent_children` in `~/.hermes/config.yaml`).
+Parallelism therefore means batches of up to 5 workstreams; batches run
+sequentially, phases run sequentially. Fewer concurrent leaves is always
+fine — wall-clock parallelism is a nicety, fence safety is not.
 
 ### Flow per batch
 
@@ -113,8 +115,10 @@ run sequentially, phases run sequentially.
 orchestrator
   ├─ dispatch W1 ── leaf agent (own terminal, own file fence)
   ├─ dispatch W2 ── leaf agent
-  └─ dispatch W3 ── leaf agent
-        │  (all three run concurrently, each: skill_view → read scope →
+  ├─ dispatch W3 ── leaf agent
+  ├─ dispatch W4 ── leaf agent
+  └─ dispatch W5 ── leaf agent
+        │  (up to five run concurrently, each: skill_view → read scope →
         │   edit → focused tests → npm run build → structured report)
         ▼
 orchestrator: verify self-reports (git diff --stat, spot-read diffs, grep for
@@ -130,7 +134,10 @@ fence violations) → run the master gate → fix or bounce back → commit phas
   `scripts/`, `docs/`, `public/`, `dist/`, `dev-dist/`.
 - No two leaves in the same batch may share an allowed file. If a workstream
   wants to create a new file (extraction target), it must be inside its own
-  allowed directory and reported in the schema's `created_files`.
+  allowed directory and reported in the schema's `created_files`. For phase 2,
+  the orchestrator PRE-NAMES each leaf's extraction targets in its allowed
+  list before dispatch — leaves never create files outside their allowed
+  list, which keeps D1/D3/D4's shared `src/lib/services/` home disjoint.
 - Leaves never commit, never push, never rebase. They leave working-tree
   changes for the orchestrator to review and commit at the gate.
 
@@ -215,7 +222,12 @@ appended to this doc.
 
 Gate: report script reproduces the baseline numbers above.
 
-## Phase 1 — Hygiene batch (3 parallel leaves)
+## Phase 1 — Hygiene batch (3 workstreams; completed on the first run)
+
+First-run note: W1 and W2 both claim all of `src/`, so the batch ran as two
+sequential sub-batches with disjoint fences — (W2+W3), then W1 — see the
+Pass log. The workstreams below remain the standing quarterly batch and can
+be re-dispatched as-is whenever comment/import/log clutter accumulates.
 
 ### W1 — Comment hygiene sweep
 
@@ -262,11 +274,13 @@ Gate: report script reproduces the baseline numbers above.
 
 Gate: master gate passes; phase-1 diff is comments/imports/logging only.
 
-## Phase 2 — Decomposition batch (3 parallel leaves)
+## Phase 2 — Decomposition batch (5 parallel leaves)
 
 Decomposition is primarily a maintainability win; byte wins arrive in phase 3
 once the graph is cleaner. Each leaf splits one monolith into cohesive
-modules, keeping public facades and test surfaces identical.
+modules, keeping public facades and test surfaces identical. The five fences
+below are disjoint by construction; extraction targets are pre-named by the
+orchestrator (see File fences).
 
 ### D1 — `App.svelte` (2,485 lines)
 
@@ -311,6 +325,44 @@ modules, keeping public facades and test surfaces identical.
 - Verification: artwork-focused tests (`stream-artwork.test.ts`,
   `artwork-cache.test.ts`, `artwork-presentation.test.ts`,
   `album-artwork.test.ts`) + check + build.
+
+### D4 — `PlaylistPanel.svelte` (1,354)
+
+- Scope: `src/lib/components/playlist-panel/PlaylistPanel.svelte` only;
+  extraction targets are pre-named under `src/lib/components/playlist-panel/`
+  (child components, panel-local helpers) and `src/lib/services/` (durable
+  logic that belongs in services).
+- Load `izci-ui-development` first. The panel already has sibling helpers
+  (`TrackList.svelte`, `TrackRow.svelte`, header components, `selection.ts`,
+  `context-menu.ts`, `library-views.ts`) — split the remaining monolith
+  along those boundaries: row/list markup into the existing children,
+  panel-local state and event dispatch stay in `PlaylistPanel.svelte`,
+  durable logic moves to the matching stores/services (`playlist.ts` stays
+  the public facade).
+- Acceptance: playlist/library tests pass unchanged; drag/drop, selection,
+  context menus, and double-click behavior identical; build green.
+- Verification: playlist/library-focused tests (`library-columns.test.ts`,
+  `library-views.test.ts`, `library-group-navigation.test.ts`,
+  `track-list-virtualization.test.ts`, `search.test.ts`,
+  `selection.test.ts` if present) + check + build.
+
+### D5 — Troubadour pair (`TroubadourApp.svelte` 1,271 + `troubadour-controller.ts` 1,107)
+
+- Scope: `src/tools/troubadour/TroubadourApp.svelte` and
+  `src/tools/troubadour/troubadour-controller.ts`; extraction targets
+  pre-named under `src/tools/troubadour/`.
+- Load `izci-ui-development` first. Workbench tabs already exist as separate
+  components (`SpectrogramTab`, `LoudnessTab`, `LyricsEditor`) — extract the
+  remaining cohesive sections; move workbench-state slices and jobs out of
+  `troubadour-controller.ts` into focused modules following the existing
+  files (`rename-job.ts`, `history.ts`, `grouping.ts`, ...). Settings stay
+  separate; the controller must not mutate playlist/library persistence.
+- Acceptance: troubadour tests pass unchanged; no persistence writes;
+  build green.
+- Verification: troubadour tests (`troubadour-controller.test.ts`,
+  `history.test.ts`, `rename-job.test.ts`, `rename-template.test.ts`,
+  `grouping.test.ts`, `replaygain-writer.test.ts`, analyzer tests) + check +
+  build.
 
 Gate: master gate passes; bundle report re-run (expect small entry-chunk
 movement only).
@@ -388,6 +440,18 @@ the orchestrator.
   lists before any merge.
 - **Self-reported success is not success**: every leaf's `pass` is re-verified
   by the orchestrator at the master gate.
+- **Leaf runtime budget**: leaves share the repo working tree and are bound
+  by `delegation.child_timeout_seconds` (config: 6000 s = 100 min; current
+  code default: no wall-clock cap — the old 600 s blanket cap was removed). A
+  leaf that dies mid-task is not a failed workstream — the orchestrator
+  re-runs its verification itself at the gate (phase 1a precedent). Keep leaf
+  scopes small, precompute candidate inventories, and commit between batches
+  so each leaf's git diff baseline is clean.
+- **Five-leaf batches amplify contention**: five concurrent builds and test
+  runs share one machine — safe (dist writes idempotent, prebuild sync
+  content-identical) but slower per leaf. If several leaves blow the runtime
+  budget, split the batch into two sequential sub-batches rather than
+  shrinking scopes mid-flight.
 - **Lazy-loading regressions**: a lazy boundary that runs on a hot path
   (startup, tab switch) hurts UX even if bytes drop. Only lazy what is truly
   rare; test the first-open path.
@@ -412,7 +476,7 @@ creeps again:
    wins), then phase 2 decomposition only for files that grew past ~1,000
    lines, then phase 1 hygiene as a periodic low-risk batch.
 3. If files crossed ~1,000 lines without crossing the chunk budget: run the
-   phase 2 batch alone.
+   phase 2 batch alone (5 leaves).
 4. If only comment/import clutter accumulated: run the phase 1 batch alone.
 
 The three phase-1 workstreams double as the standing "quarterly cleanup" batch
@@ -443,3 +507,9 @@ need refreshing.
   single-pass per file with count==1 extraction). Orchestrator gate: comment-
   only grep chain 0, `git diff --check` clean, check 0/0, 612 passed / 7
   skipped, build green; bundle unchanged (7826.88 KiB).
+- Plan rewrite (phase 1c): delegation cap raised 3 → 5
+  (`delegation.max_concurrent_children` in `~/.hermes/config.yaml`); phase 2
+  re-scoped to five parallel leaves — added D4 `PlaylistPanel.svelte` and D5
+  the Troubadour pair — with phase-2 extraction targets now pre-named per
+  leaf; leaf-runtime-budget and five-leaf contention policies added to
+  Risks.
