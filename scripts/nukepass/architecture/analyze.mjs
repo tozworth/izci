@@ -15,6 +15,9 @@ function validateConfig(config) {
   if (!Array.isArray(config.sourceExtensions) || config.sourceExtensions.some((value) => !value.startsWith('.'))) {
     throw new Error('Architecture config sourceExtensions must be an array of extensions.');
   }
+  if (!Array.isArray(config.sourceFiles)) {
+    throw new Error('Architecture config sourceFiles must be an array.');
+  }
   if (!Array.isArray(config.directionRules) || config.directionRules.some((rule) => !rule.id || !rule.from || !rule.to)) {
     throw new Error('Every architecture direction rule needs id, from, and to fields.');
   }
@@ -140,25 +143,18 @@ function collectExports(sourceFile, file) {
   return exports.sort((a, b) => a.line - b.line || compareText(a.name, b.name));
 }
 
-function declaredNames(sourceFile) {
-  const names = new Set();
-  const visit = (node) => {
-    if (
-      (ts.isVariableDeclaration(node) || ts.isFunctionDeclaration(node) || ts.isClassDeclaration(node) ||
-       ts.isParameter(node) || ts.isImportClause(node) || ts.isImportSpecifier(node) || ts.isNamespaceImport(node)) &&
-      node.name && ts.isIdentifier(node.name)
-    ) names.add(node.name.text);
-    ts.forEachChild(node, visit);
-  };
-  visit(sourceFile);
-  return names;
-}
-
-function isIdentifierUse(node) {
+function isIdentifierUse(node, bindingIdentifiers) {
   const parent = node.parent;
   if (!parent) return false;
+  if (bindingIdentifiers.has(node)) return false;
   if ((ts.isPropertyAccessExpression(parent) || ts.isQualifiedName(parent)) && parent.name === node) return false;
-  if ((ts.isPropertyAssignment(parent) || ts.isMethodDeclaration(parent)) && parent.name === node) return false;
+  if (
+    (ts.isPropertyAssignment(parent) || ts.isPropertyDeclaration(parent) || ts.isPropertySignature(parent) ||
+     ts.isMethodDeclaration(parent) || ts.isMethodSignature(parent) || ts.isGetAccessorDeclaration(parent) ||
+     ts.isSetAccessorDeclaration(parent) || ts.isEnumMember(parent)) && parent.name === node
+  ) return false;
+  if (ts.isBindingElement(parent) && (parent.name === node || parent.propertyName === node)) return false;
+  if ((ts.isImportSpecifier(parent) || ts.isExportSpecifier(parent)) && (parent.name === node || parent.propertyName === node)) return false;
   if (ts.isShorthandPropertyAssignment(parent)) return true;
   if (
     (ts.isVariableDeclaration(parent) || ts.isParameter(parent) || ts.isFunctionDeclaration(parent) ||
@@ -172,20 +168,109 @@ function isIdentifierUse(node) {
   return true;
 }
 
+function createsLexicalScope(node) {
+  return ts.isSourceFile(node) || ts.isFunctionLike(node) || ts.isBlock(node) ||
+    ts.isCatchClause(node) || ts.isForStatement(node) || ts.isForInStatement(node) ||
+    ts.isForOfStatement(node) || ts.isCaseBlock(node) || ts.isClassLike(node);
+}
+
+function createScope(parent, kind) {
+  return { parent, kind, bindings: new Set() };
+}
+
+function collectBindingIdentifiers(name, identifiers) {
+  if (ts.isIdentifier(name)) {
+    identifiers.push(name);
+    return;
+  }
+  for (const element of name.elements) {
+    if (ts.isOmittedExpression(element)) continue;
+    collectBindingIdentifiers(element.name, identifiers);
+  }
+}
+
+function nearestFunctionOrSourceScope(scope) {
+  for (let current = scope; current; current = current.parent) {
+    if (current.kind === 'function' || current.kind === 'source') return current;
+  }
+  return scope;
+}
+
+function buildLexicalScopes(sourceFile) {
+  const scopeAtNode = new Map();
+  const bindingIdentifiers = new Set();
+
+  const bind = (name, scope) => {
+    const identifiers = [];
+    collectBindingIdentifiers(name, identifiers);
+    for (const identifier of identifiers) {
+      scope.bindings.add(identifier.text);
+      bindingIdentifiers.add(identifier);
+    }
+  };
+
+  const visit = (node, inheritedScope) => {
+    let scope = inheritedScope;
+    if (node === sourceFile) {
+      scope = createScope(null, 'source');
+      scopeAtNode.set(node, scope);
+    } else {
+      if ((ts.isFunctionDeclaration(node) || ts.isClassDeclaration(node)) && node.name && inheritedScope) {
+        bind(node.name, inheritedScope);
+      }
+      if (createsLexicalScope(node)) {
+        const kind = ts.isFunctionLike(node) ? 'function' : 'block';
+        scope = createScope(inheritedScope, kind);
+        scopeAtNode.set(node, scope);
+      }
+      if ((ts.isFunctionExpression(node) || ts.isClassExpression(node)) && node.name) bind(node.name, scope);
+    }
+
+    if (ts.isImportClause(node) && !node.isTypeOnly) {
+      if (node.name) bind(node.name, scope);
+      if (node.namedBindings && ts.isNamespaceImport(node.namedBindings)) bind(node.namedBindings.name, scope);
+      if (node.namedBindings && ts.isNamedImports(node.namedBindings)) {
+        for (const element of node.namedBindings.elements) if (!element.isTypeOnly) bind(element.name, scope);
+      }
+    } else if (ts.isVariableDeclaration(node) && !ts.isCatchClause(node.parent)) {
+      const declarationList = node.parent;
+      const blockScoped = ts.isVariableDeclarationList(declarationList) && Boolean(declarationList.flags & ts.NodeFlags.BlockScoped);
+      bind(node.name, blockScoped ? scope : nearestFunctionOrSourceScope(scope));
+    } else if (ts.isParameter(node)) {
+      bind(node.name, nearestFunctionOrSourceScope(scope));
+    } else if (ts.isCatchClause(node) && node.variableDeclaration) {
+      bind(node.variableDeclaration.name, scope);
+    } else if ((ts.isEnumDeclaration(node) || ts.isModuleDeclaration(node)) && node.name && ts.isIdentifier(node.name)) {
+      bind(node.name, scope);
+    }
+
+    ts.forEachChild(node, (child) => visit(child, scope));
+  };
+  visit(sourceFile, null);
+  return { scopeAtNode, bindingIdentifiers };
+}
+
 function collectBrowserGlobals(sourceFile, configuredGlobals) {
   const globals = new Set(configuredGlobals);
-  const declarations = declaredNames(sourceFile);
+  const { scopeAtNode, bindingIdentifiers } = buildLexicalScopes(sourceFile);
   const findings = new Map();
-  const visit = (node) => {
-    if (ts.isIdentifier(node) && globals.has(node.text) && !declarations.has(node.text) && isIdentifierUse(node)) {
+  const isShadowed = (name, scope) => {
+    for (let current = scope; current; current = current.parent) {
+      if (current.bindings.has(name)) return true;
+    }
+    return false;
+  };
+  const visit = (node, inheritedScope) => {
+    const scope = scopeAtNode.get(node) ?? inheritedScope;
+    if (ts.isIdentifier(node) && globals.has(node.text) && !isShadowed(node.text, scope) && isIdentifierUse(node, bindingIdentifiers)) {
       const line = lineOf(sourceFile, node);
       const current = findings.get(node.text) ?? [];
       current.push(line);
       findings.set(node.text, current);
     }
-    ts.forEachChild(node, visit);
+    ts.forEachChild(node, (child) => visit(child, scope));
   };
-  visit(sourceFile);
+  visit(sourceFile, scopeAtNode.get(sourceFile));
   return sorted(findings.keys()).map((name) => ({ name, lines: [...new Set(findings.get(name))].sort((a, b) => a - b) }));
 }
 
@@ -310,13 +395,26 @@ async function bundleFacts(root, relativeDirectory) {
 export async function analyzeProject({ root = process.cwd(), config = architectureConfig, includeBundle = true } = {}) {
   validateConfig(config);
   const normalizedRoot = path.resolve(root);
-  const moduleFiles = sorted((await Promise.all(config.sourceRoots.map((sourceRoot) => walkFiles(normalizedRoot, sourceRoot, config)))).flat());
+  const discoveredFiles = (await Promise.all(config.sourceRoots.map((sourceRoot) => walkFiles(normalizedRoot, sourceRoot, config)))).flat();
+  for (const sourceFile of config.sourceFiles) {
+    const normalizedFile = posix(sourceFile);
+    try {
+      const stat = await fs.stat(path.join(normalizedRoot, normalizedFile));
+      if (!stat.isFile()) throw new Error(`Configured source file is not a file: ${normalizedFile}`);
+    } catch (error) {
+      if (error?.code === 'ENOENT') throw new Error(`Configured source file does not exist: ${normalizedFile}`);
+      throw error;
+    }
+    if (!config.excludedPathPatterns.some((pattern) => pattern.test(normalizedFile))) discoveredFiles.push(normalizedFile);
+  }
+  const moduleFiles = sorted(new Set(discoveredFiles));
   const moduleSet = new Set(moduleFiles);
   const parsedModules = [];
   for (const file of moduleFiles) {
     const raw = await fs.readFile(path.join(normalizedRoot, file), 'utf8');
     const source = moduleSource(file, raw);
-    const sourceFile = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+    const scriptKind = file.endsWith('.js') ? ts.ScriptKind.JS : ts.ScriptKind.TS;
+    const sourceFile = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, scriptKind);
     const diagnostics = sourceFile.parseDiagnostics;
     if (diagnostics.length > 0) {
       const first = diagnostics[0];
@@ -396,6 +494,7 @@ export async function analyzeProject({ root = process.cwd(), config = architectu
     },
     configuration: {
       sourceRoots: config.sourceRoots,
+      sourceFiles: config.sourceFiles,
       sourceExtensions: config.sourceExtensions,
       directionRules: config.directionRules.map(({ id, description }) => ({ id, description })),
       browserGlobals: sorted(config.browserGlobals),

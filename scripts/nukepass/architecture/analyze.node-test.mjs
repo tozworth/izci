@@ -20,6 +20,7 @@ async function fixture(files) {
 const fixtureConfig = {
   ...architectureConfig,
   sourceRoots: ['src'],
+  sourceFiles: [],
   directionRules: architectureConfig.directionRules,
   bundleDirectory: 'dist'
 };
@@ -51,6 +52,59 @@ test('maps imports, direction violations, cycles, globals, and conservative unus
   }]);
   assert.ok(report.possibleUnreferencedExports.findings.some((finding) => finding.file.endsWith('state.ts') && finding.name === 'unusedValue'));
   assert.ok(!report.possibleUnreferencedExports.findings.some((finding) => finding.name === 'publicValue'));
+});
+
+test('tracks browser globals through nested scopes and destructuring without file-wide suppression', async (t) => {
+  const root = await fixture({
+    'src/mixed.js': [
+      'window.name = "global";',
+      'setTimeout(() => history.back(), 1);',
+      'function shadowed({ window, timer: setTimeout }) {',
+      '  window.name = "local";',
+      '  setTimeout(() => location.reload(), 1);',
+      '  { const { history } = window; history.back(); }',
+      '  history.back();',
+      '}',
+      'location.reload();',
+      'void shadowed;',
+      ''
+    ].join('\n'),
+    'src/types.ts': [
+      'interface window { name: string }',
+      'type history = { back(): void };',
+      'window.name = "still global";',
+      'history.back();',
+      ''
+    ].join('\n')
+  });
+  t.after(() => fs.rm(root, { recursive: true, force: true }));
+
+  const report = await analyzeProject({ root, config: fixtureConfig, includeBundle: false });
+  assert.ok(report.source.files.includes('src/mixed.js'));
+  assert.deepEqual(report.browserGlobalAccess.findings, [
+    { scope: 'production', file: 'src/mixed.js', global: 'history', lines: [2, 7], allowed: false },
+    { scope: 'production', file: 'src/mixed.js', global: 'location', lines: [5, 9], allowed: false },
+    { scope: 'production', file: 'src/mixed.js', global: 'setTimeout', lines: [2], allowed: false },
+    { scope: 'production', file: 'src/mixed.js', global: 'window', lines: [1], allowed: false },
+    { scope: 'production', file: 'src/types.ts', global: 'history', lines: [4], allowed: false },
+    { scope: 'production', file: 'src/types.ts', global: 'window', lines: [3], allowed: false }
+  ]);
+});
+
+test('includes configured root runtime sources and parses JavaScript imports', async (t) => {
+  const root = await fixture({
+    'src/shared.js': 'export const value = 1;\n',
+    'vite.config.ts': 'import { value } from "./src/shared.js";\nexport default value;\n',
+    'sites-worker.js': 'import { value } from "./src/shared.js";\nself.value = value;\n'
+  });
+  t.after(() => fs.rm(root, { recursive: true, force: true }));
+  const config = { ...fixtureConfig, sourceFiles: ['sites-worker.js', 'vite.config.ts'] };
+  const report = await analyzeProject({ root, config, includeBundle: false });
+  assert.deepEqual(report.source.files, ['sites-worker.js', 'src/shared.js', 'vite.config.ts']);
+  assert.equal(report.imports.internalEdges, 2);
+  assert.deepEqual(report.browserGlobalAccess.findings, [
+    { scope: 'production', file: 'sites-worker.js', global: 'self', lines: [2], allowed: false }
+  ]);
 });
 
 test('suppresses dead-export guesses for namespace and dynamic consumers', async (t) => {

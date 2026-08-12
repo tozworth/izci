@@ -19,7 +19,10 @@ The analysis is deliberately bounded:
 
 - imports cover ESM imports, re-exports, and string-literal dynamic imports;
 - cycles are strongly connected components of resolved source-module edges;
-- browser-global findings are lexical candidates, not type-checked ownership;
+- runtime sources include TS/Svelte/JS under `src/` plus the root Vite, Svelte,
+  and Sites Worker runtime/build configuration;
+- browser-global findings use lexical scopes (including destructuring) but are
+  still syntax-based candidates, not type-checked ownership;
 - possible unreferenced exports omit Svelte exports, entrypoints, modules with no
   inbound edge, and modules consumed through namespace or dynamic imports;
 - bundle facts are exact file sizes plus the recognizable generated Workbox
