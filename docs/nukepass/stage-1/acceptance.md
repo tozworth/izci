@@ -1,7 +1,7 @@
 # Stage 1 acceptance
 
 Stage 1 is accepted against clean assembled-tree commit
-`268f99f47b886ff8a458c27ee8a88f0cdb329275` on branch `nukepass`. The
+`771b5283d3376d0a9ff9a73a509ac80b986be28d` on branch `nukepass`. The
 pre-nukepass recovery oracle remains `nukepass-oracle-2026-08-12` at `33a7ca8`;
 the Stage 0 handoff remains `57361c0`.
 
@@ -9,6 +9,7 @@ the Stage 0 handoff remains `57361c0`.
 
 | Gate | Result | Final evidence |
 | --- | --- | --- |
+| `npm ci` | pass | final lock `4698244d…`; 1,122 packages audited; 0 vulnerabilities |
 | `npm test` | pass | 143 files; 693 passed, 7 skipped; 700 total |
 | `npm run test:coverage` | pass | whole-production baseline: 27.81% statements, 26.29% branches, 30.65% functions, 29.11% lines |
 | `npm run check` | pass | 0 errors and 0 warnings |
@@ -16,16 +17,17 @@ the Stage 0 handoff remains `57361c0`.
 | `npm run multiplayer:protocol:check` | pass | protocol 18 and Firebase rules synchronized |
 | `npm run test:firebase-rules` | pass | all 8 rules tests under the Database emulator |
 | fixture manifest/generator | pass | 21 deterministic files; 19 facts verified, 2 rejected as intended |
-| `npm run test:nukepass-tools` | pass | 20 architecture/settings/CDP Node tests |
-| `npm run build` | pass | 600 modules; 91 Workbox entries / 7846.38 KiB |
+| `npm run test:nukepass-tools` | pass | 25 architecture/settings/CDP Node tests |
+| `npm run build` | pass | 600 modules; 91 Workbox entries / 7846.42 KiB |
 | architecture reporter | pass | deterministic informational report; facts below |
 | settings reporter | pass | 30 stores / 271 statically expanded fields compared with 374 ledger rows |
-| CDP acceptance | pass | all eight pages, three isolated profiles, two-window capability, application heaps, no background-runtime failure |
+| CDP acceptance | pass | all eight pages, three isolated profiles, two concurrent same-profile targets, application heaps, no background-runtime failure |
 
 The seven ordinary-suite skips are the guarded Firebase rules cases; the
-dedicated emulator command executes all eight. The known Firebase Tools
-transitive `punycode` deprecation and Vite's chunks-over-500-kB warning remain
-the only accepted command warnings.
+dedicated emulator command executes all eight. Recorded command-level noise is
+limited to dependency deprecation notices during `npm ci`, Firebase Tools'
+transitive `punycode` deprecation, and Vite's chunks-over-500-kB warning.
+The fresh install still reports zero audit vulnerabilities.
 
 ## Characterization spine
 
@@ -107,16 +109,22 @@ have no static runtime evidence (`multiValueDisplay`, `dateDisplay`,
 ## Browser evidence
 
 The final CDP report has SHA-256
-`b939850cffc8669ac255f0b55514c5f757253916ead0b7e98eb10c3239ddd8fc`.
+`7bb5eff9273c5ee57af003c0a5cc87165afd2fcba152abd6cdfb8e233ebb7201`.
 It binds build
-`ce7e3469c1e84847b4a4f5f6e83eacad8adcc09f70e7266a2760d500b9404605`
-to clean commit `268f99f`, Helium `Chrome/151.0.7922.71`, seed
-`stage-1-accepted`, and three disposable profiles. Main, Options, Audio Compare,
+`f4d91bd5aa8bb514b20a65db124d93cd8c2870b06f6a1332ab15957f40c0c9b9`
+to clean commit `771b528`, Helium `Chrome/151.0.7922.71`, seed
+`stage-1-final`, and three disposable profiles. Main, Options, Audio Compare,
 Editor, Converter, Logs, Troubadour, and Troubadour Options all passed their
 production lifecycle readiness marker with no page or attached izci
 service-worker/worker/worklet exception, console error, HTTP error, target loss,
 unexpected navigation, served-service-worker mismatch, trace failure, or heap
 capture failure.
+
+Helium's process logs separately record distribution/environment noise: its
+bundled extension cannot find `ublock/managed_storage.json`, background bangs
+fetches return `-1`, and one profile emits an OpenH264 rate-control warning.
+These messages occur outside application targets, are retained verbatim in the
+report, and are not presented as izci runtime success output.
 
 Each page has a screenshot, DOM snapshot, structured page result, and full V8
 heap from that application target; each profile has a trace and process facts.
