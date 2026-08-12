@@ -17,7 +17,8 @@ profile-retention flags as shown by `--help`. The window option opens concurrent
 targets in one profile for BroadcastChannel and multi-window characterization.
 Reports are written below ignored `artifacts/cdp/` by default.
 
-Each run records the exact commit, content-addressed build manifest, seed,
+Each run rejects a dirty or mismatched build-provenance marker, then records the
+exact commit, content-addressed build manifest, seed,
 browser/OS/Node identity, flags, dynamic ports, process logs, target failures,
 and the checked-in `scenarios.json` catalog plus per-page results. Each of the
 eight production entrypoints produces a PNG,
@@ -27,6 +28,17 @@ trace and full V8 heap snapshot are written for each profile. Unexpected
 navigation, target loss, runtime
 exceptions, console/log errors, non-cancelled network failures, readiness
 timeouts, and trace loss fail closed.
+
+The harness auto-attaches to service workers, dedicated/shared workers, and
+worklet targets exposed by CDP and records their console, log, exception, and
+detach state separately from page sessions. It proves that the server's
+`/sw.js` bytes match the build and that a fresh profile reaches a settled active
+registration. It does not claim to hash the private bytes of an already-active
+worker; seeded old-worker update behavior remains a later PWA scenario.
+
+Infrastructure and cleanup failures also produce `report.json` and a failing
+summary. A build made while source edits are uncommitted deliberately records
+`dirty: true`; rebuild once the tree is clean at HEAD before an acceptance run.
 
 Stage 1 boot scenarios record the fixture-manifest digest but explicitly mark
 the fixture corpus unused. This avoids claiming media-path coverage from page

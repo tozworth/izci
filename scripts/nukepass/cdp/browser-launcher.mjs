@@ -1,4 +1,4 @@
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -34,14 +34,21 @@ async function readDevToolsPort(profileDirectory, browserProcess, timeoutMs) {
 
 async function waitForExit(browserProcess, timeoutMs) {
   if (browserProcess.exitCode !== null) return;
-  await Promise.race([
-    new Promise((resolveExit) => browserProcess.once('exit', resolveExit)),
-    new Promise((resolveTimeout) => setTimeout(resolveTimeout, timeoutMs))
-  ]);
+  await new Promise((resolveWait) => {
+    const timeout = setTimeout(resolveWait, timeoutMs);
+    browserProcess.once('exit', () => {
+      clearTimeout(timeout);
+      resolveWait();
+    });
+  });
 }
 
 function terminateProcessGroup(browserProcess, signal) {
   if (!browserProcess.pid) return;
+  if (process.platform === 'win32') {
+    spawnSync('taskkill', ['/pid', String(browserProcess.pid), '/T', '/F'], { stdio: 'ignore' });
+    return;
+  }
   try {
     process.kill(-browserProcess.pid, signal);
   } catch (error) {
@@ -68,20 +75,26 @@ export async function launchBrowser(options) {
     'about:blank'
   ];
   const browserProcess = spawn(options.executable, flags, {
-    detached: true,
+    detached: process.platform !== 'win32',
     stdio: ['ignore', 'pipe', 'pipe']
   });
   let stdout = '';
   let stderr = '';
   browserProcess.stdout.on('data', (chunk) => { stdout = appendBounded(stdout, chunk); });
   browserProcess.stderr.on('data', (chunk) => { stderr = appendBounded(stderr, chunk); });
+  const spawnFailure = new Promise((_, reject) => {
+    browserProcess.once('error', reject);
+  });
 
   try {
-    const { port, browserPath } = await readDevToolsPort(
-      profileDirectory,
-      browserProcess,
-      options.startupTimeoutMs ?? STARTUP_TIMEOUT_MS
-    );
+    const { port, browserPath } = await Promise.race([
+      readDevToolsPort(
+        profileDirectory,
+        browserProcess,
+        options.startupTimeoutMs ?? STARTUP_TIMEOUT_MS
+      ),
+      spawnFailure
+    ]);
     return {
       profileId: options.profileId,
       profileDirectory,
@@ -91,10 +104,8 @@ export async function launchBrowser(options) {
       process: browserProcess,
       getProcessLogs: () => ({ stdout, stderr }),
       async close({ retainProfile = false } = {}) {
-        if (browserProcess.exitCode === null) {
-          terminateProcessGroup(browserProcess, 'SIGTERM');
-          await waitForExit(browserProcess, 3_000);
-        }
+        terminateProcessGroup(browserProcess, 'SIGTERM');
+        await waitForExit(browserProcess, 3_000);
         if (browserProcess.exitCode === null) {
           terminateProcessGroup(browserProcess, 'SIGKILL');
           await waitForExit(browserProcess, 1_000);
@@ -105,7 +116,7 @@ export async function launchBrowser(options) {
       }
     };
   } catch (error) {
-    if (browserProcess.exitCode === null) terminateProcessGroup(browserProcess, 'SIGKILL');
+    terminateProcessGroup(browserProcess, 'SIGKILL');
     await waitForExit(browserProcess, 1_000);
     browserProcess.stdout.destroy();
     browserProcess.stderr.destroy();

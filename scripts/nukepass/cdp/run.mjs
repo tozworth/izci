@@ -205,8 +205,8 @@ function browserStateExpression(expectedServiceWorkerSha256) {
       waiting: registration.waiting?.scriptURL ?? null,
       installing: registration.installing?.scriptURL ?? null,
       controller: navigator.serviceWorker.controller?.scriptURL ?? null,
-      sha256: digest,
-      expectedSha256: ${JSON.stringify(expectedServiceWorkerSha256)}
+      servedScriptSha256: digest,
+      expectedServedScriptSha256: ${JSON.stringify(expectedServiceWorkerSha256)}
     } : null,
     diagnostics: globalThis.__IZCI_DIAGNOSTICS__ ?? null,
     localStorageKeys: Object.keys(localStorage).sort(),
@@ -240,8 +240,10 @@ function scenarioFailures(scenario) {
   if (!scenario.browserState?.serviceWorker?.active) failures.push('service worker did not activate');
   if (scenario.browserState?.serviceWorker?.waiting
     || scenario.browserState?.serviceWorker?.installing) failures.push('service worker did not settle');
-  if (scenario.browserState?.serviceWorker?.sha256
-    !== scenario.browserState?.serviceWorker?.expectedSha256) failures.push('stale service worker bytes');
+  if (scenario.browserState?.serviceWorker?.servedScriptSha256
+    !== scenario.browserState?.serviceWorker?.expectedServedScriptSha256) {
+    failures.push('served service worker bytes differ from the build');
+  }
   return failures;
 }
 
@@ -421,8 +423,54 @@ async function runProfile({
   });
   await connection.send('Runtime.enable', {}, keeperSessionId);
   const targetEvents = [];
+  const backgroundTargets = [];
+  const backgroundTargetSetups = [];
+  const backgroundBySession = new Map();
   const disposeTargetEvents = connection.onAny((message) => {
     if (message.method === 'Target.targetCrashed') targetEvents.push(message);
+  });
+  const disposeBackgroundAttach = connection.on('Target.attachedToTarget', (event) => {
+    const target = {
+      targetId: event.targetInfo.targetId,
+      sessionId: event.sessionId,
+      type: event.targetInfo.type,
+      url: event.targetInfo.url,
+      console: [],
+      runtimeExceptions: [],
+      log: [],
+      detached: false,
+      setupFailure: null
+    };
+    backgroundTargets.push(target);
+    backgroundBySession.set(event.sessionId, target);
+    connection.on('Runtime.consoleAPICalled', (runtimeEvent) => {
+      target.console.push({
+        type: runtimeEvent.type,
+        timestamp: runtimeEvent.timestamp,
+        args: runtimeEvent.args.map(serializeRemoteArgument),
+        stackTrace: runtimeEvent.stackTrace ?? null
+      });
+    }, event.sessionId);
+    connection.on('Runtime.exceptionThrown', (runtimeEvent) => {
+      target.runtimeExceptions.push(runtimeEvent.exceptionDetails);
+    }, event.sessionId);
+    connection.on('Log.entryAdded', (runtimeEvent) => target.log.push(runtimeEvent.entry), event.sessionId);
+    backgroundTargetSetups.push(Promise.all([
+      connection.send('Runtime.enable', {}, event.sessionId),
+      connection.send('Log.enable', {}, event.sessionId)
+    ]).catch((error) => {
+      target.setupFailure = error.message;
+    }));
+  });
+  const disposeBackgroundDetach = connection.on('Target.detachedFromTarget', (event) => {
+    const target = backgroundBySession.get(event.sessionId);
+    if (target) target.detached = true;
+  });
+  await connection.send('Target.setAutoAttach', {
+    autoAttach: true,
+    waitForDebuggerOnStart: false,
+    flatten: true,
+    filter: [{ type: 'page', exclude: true }, {}]
   });
   await connection.send('Target.setDiscoverTargets', { discover: true });
   await connection.send('Tracing.start', {
@@ -449,6 +497,7 @@ async function runProfile({
       ));
       scenarios.push(...batch);
     }
+    await Promise.all(backgroundTargetSetups);
     try {
       await captureHeapSnapshot(
         connection,
@@ -475,8 +524,24 @@ async function runProfile({
       // The profile cleanup below still owns the browser lifetime.
     }
     disposeTargetEvents();
+    disposeBackgroundAttach();
+    disposeBackgroundDetach();
     connection.close();
   }
+
+  const backgroundFailures = backgroundTargets.flatMap((target) => {
+    const failures = [];
+    if (target.setupFailure) failures.push(`setup: ${target.setupFailure}`);
+    if (target.runtimeExceptions.length > 0) failures.push('runtime exception');
+    if (target.console.some((entry) => entry.type === 'error')) failures.push('console error');
+    if (target.log.some((entry) => entry.level === 'error')) failures.push('browser log error');
+    return failures.map((failure) => ({
+      targetId: target.targetId,
+      type: target.type,
+      url: target.url,
+      failure
+    }));
+  });
 
   return {
     profileId: profile.profileId,
@@ -484,6 +549,8 @@ async function runProfile({
     flags: profile.flags,
     browserVersion,
     targetEvents,
+    backgroundTargets,
+    backgroundFailures,
     traceFailure,
     heapSnapshotFailure,
     processInfo,
@@ -496,11 +563,14 @@ function renderSummary(report) {
   const lines = [
     `izci Stage 1 CDP characterization: ${report.status.toUpperCase()}`,
     `commit: ${report.commit ?? 'unknown'}`,
-    `build: ${report.build.id}`,
+    `build: ${report.build?.id ?? 'unavailable'}`,
     `seed: ${report.seed}`,
     `profiles: ${report.profiles.length}`,
     ''
   ];
+  if (report.infrastructureFailure) {
+    lines.push(`infrastructure: FAILED (${report.infrastructureFailure.message})`, '');
+  }
   for (const profile of report.profiles) {
     lines.push(`${profile.profileId}: ${profile.browserVersion.product}`);
     if (profile.traceFailure) lines.push(`  trace: FAILED (${profile.traceFailure})`);
@@ -520,26 +590,55 @@ async function main() {
   const distDirectory = resolve(options.dist);
   const outputDirectory = resolve(options.out);
   const browserExecutable = resolve(options.browser);
-  const browserDetails = await stat(browserExecutable);
-  if (!browserDetails.isFile()) throw new Error(`Browser is not a file: ${browserExecutable}`);
   await mkdir(outputDirectory, { recursive: true });
 
   const startedAt = new Date().toISOString();
-  const [build, buildProvenance, commit, repository, scenarioCatalog] = await Promise.all([
-    describeBuild(distDirectory),
-    readBuildProvenance(distDirectory),
-    readCommit(),
-    readRepositoryIdentity(),
-    readScenarioCatalog(resolve(HARNESS_DIRECTORY, 'scenarios.json'))
-  ]);
-  assertScenarioEntrypoints(scenarioCatalog, build);
-  assertBuildProvenance(buildProvenance, commit);
-  const server = await startStaticServer(distDirectory);
-  const serviceWorkerAsset = build.files.find((file) => file.path === 'sw.js');
-  if (!serviceWorkerAsset) throw new Error('The production build does not contain sw.js.');
   const profiles = [];
-  let report;
+  let server = null;
+  const report = {
+    schemaVersion: 1,
+    status: 'failed',
+    startedAt,
+    seed: options.seed,
+    browserExecutable,
+    profiles: []
+  };
   try {
+    const browserDetails = await stat(browserExecutable);
+    if (!browserDetails.isFile()) throw new Error(`Browser is not a file: ${browserExecutable}`);
+    const [build, buildProvenance, commit, repository, scenarioCatalog] = await Promise.all([
+      describeBuild(distDirectory),
+      readBuildProvenance(distDirectory),
+      readCommit(),
+      readRepositoryIdentity(),
+      readScenarioCatalog(resolve(HARNESS_DIRECTORY, 'scenarios.json'))
+    ]);
+    Object.assign(report, {
+      commit,
+      appVersion: repository.appVersion,
+      build,
+      buildProvenance,
+      fixtureSet: {
+        ...scenarioCatalog.fixtureSet,
+        manifestSha256: repository.fixtureManifestSha256
+      },
+      scenarioCatalog,
+      os: {
+        platform: process.platform,
+        architecture: process.arch,
+        type: osType(),
+        release: osRelease()
+      },
+      node: process.version,
+      protocolVersion: repository.protocolVersion,
+      windowsPerProfile: options.windowsPerProfile
+    });
+    assertScenarioEntrypoints(scenarioCatalog, build);
+    assertBuildProvenance(buildProvenance, commit);
+    const serviceWorkerAsset = build.files.find((file) => file.path === 'sw.js');
+    if (!serviceWorkerAsset) throw new Error('The production build does not contain sw.js.');
+    server = await startStaticServer(distDirectory);
+    report.server = { baseUrl: server.baseUrl, port: server.port };
     for (let index = 0; index < options.profiles; index += 1) {
       profiles.push(await launchBrowser({
         executable: browserExecutable,
@@ -564,40 +663,33 @@ async function main() {
     const failed = profileReports.some((profile) => profile.traceFailure
       || profile.heapSnapshotFailure
       || profile.targetEvents.length > 0
+      || profile.backgroundFailures.length > 0
       || profile.scenarios.some((scenario) => scenario.status !== 'passed'));
-    report = {
-      schemaVersion: 1,
-      status: failed ? 'failed' : 'passed',
-      startedAt,
-      commit,
-      appVersion: repository.appVersion,
-      build,
-      buildProvenance,
-      fixtureSet: {
-        ...scenarioCatalog.fixtureSet,
-        manifestSha256: repository.fixtureManifestSha256
-      },
-      scenarioCatalog,
-      seed: options.seed,
-      os: {
-        platform: process.platform,
-        architecture: process.arch,
-        type: osType(),
-        release: osRelease()
-      },
-      node: process.version,
-      browserExecutable,
-      server: { baseUrl: server.baseUrl, port: server.port },
-      protocolVersion: repository.protocolVersion,
-      windowsPerProfile: options.windowsPerProfile,
-      profiles: profileReports
+    report.status = failed ? 'failed' : 'passed';
+    report.profiles = profileReports;
+  } catch (error) {
+    report.infrastructureFailure = {
+      name: error.name,
+      message: error.message,
+      stack: error.stack ?? null,
+      processLogs: error.processLogs ?? null
     };
   } finally {
-    const failed = report?.status === 'failed';
-    await Promise.all(profiles.map((profile) => profile.close({
-      retainProfile: options.retainProfiles || (failed && options.retainProfilesOnFailure)
+    const cleanupResults = await Promise.allSettled(profiles.map((profile) => profile.close({
+      retainProfile: options.retainProfiles
+        || (report.status === 'failed' && options.retainProfilesOnFailure)
     })));
-    await server.close();
+    if (server) cleanupResults.push(await Promise.resolve(server.close()).then(
+      () => ({ status: 'fulfilled', value: undefined }),
+      (reason) => ({ status: 'rejected', reason })
+    ));
+    const cleanupFailures = cleanupResults
+      .filter((result) => result.status === 'rejected')
+      .map((result) => result.reason?.message ?? String(result.reason));
+    if (cleanupFailures.length > 0) {
+      report.status = 'failed';
+      report.cleanupFailures = cleanupFailures;
+    }
   }
 
   const summary = renderSummary(report);
