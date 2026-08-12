@@ -22,6 +22,7 @@ accepted.
 - [Multiplayer checkpoint ledger](stage-0/multiplayer-ledger.md)
 - [Stage 1 execution plan and ownership](stage-1/execution-plan.md)
 - [Stage 1 baseline](stage-1/baseline.md)
+- [Stages 2 and 3 execution plan and ownership](stage-2-3/execution-plan.md)
 
 Inventories and verification evidence are updated in place as later stages
 replace owners. A ledger row describes the current tree at its recorded commit;
