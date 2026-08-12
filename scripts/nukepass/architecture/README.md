@@ -28,5 +28,5 @@ The analysis is deliberately bounded:
 Run the synthetic-fixture tests with:
 
 ```sh
-node --test scripts/nukepass/architecture/analyze.test.mjs
+node --test scripts/nukepass/architecture/analyze.node-test.mjs
 ```
