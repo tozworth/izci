@@ -71,8 +71,14 @@ export function createPeer(
 }
 
 export function sendToPeer(peer: PeerConnection, message: HostMessage | ClientMessage): void {
-  peer.outgoing.push(...encodeMultiplayerMessage(message));
+  peer.outgoing.push(...encodeMultiplayerMessage(message, createTransferId));
   flushPeer(peer);
+}
+
+function createTransferId(): string {
+  const bytes = new Uint8Array(9);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
 export function flushPeer(peer: PeerConnection): void {

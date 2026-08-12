@@ -128,9 +128,20 @@ export const architectureConfig = Object.freeze({
     'webkitOfflineAudioContext',
     'window'
   ],
-  // Stage 1 deliberately starts with no browser-capability adapter allowlist.
-  // Later stages can add narrowly owned adapter paths as they are reconstructed.
-  browserGlobalAllowedPathPatterns: [],
+  browserGlobalAllowedPathPatterns: [
+    /^src\/lib\/runtime\/adapters\//
+  ],
+  browserGlobalEnforcedPathPatterns: [
+    /^src\/lib\/contracts\//,
+    /^src\/lib\/runtime\/(?!adapters\/)/,
+    /^src\/lib\/services\/multiplayer-protocol\.ts$/
+  ],
+  enforceCycles: true,
+  enforcedDirectionRuleIds: [
+    'contract-imports-implementation',
+    'runtime-imports-application',
+    'wire-imports-internal-module'
+  ],
   directionRules: [
     {
       id: 'presentation-bypasses-application',
@@ -151,10 +162,22 @@ export const architectureConfig = Object.freeze({
       to: { prefixes: ['src/lib/services/'] }
     },
     {
-      id: 'wire-imports-application-types',
-      description: 'The Multiplayer wire contract currently depends on the application-wide type bucket.',
+      id: 'contract-imports-implementation',
+      description: 'Leaf contracts cannot depend on runtime, services, stores, or presentation implementations.',
+      from: { prefixes: ['src/lib/contracts/'] },
+      to: { prefixes: ['src/lib/runtime/', 'src/lib/services/', 'src/lib/stores/', 'src/lib/components/'] }
+    },
+    {
+      id: 'runtime-imports-application',
+      description: 'The runtime kernel cannot depend on application domains or presentation.',
+      from: { prefixes: ['src/lib/runtime/'] },
+      to: { prefixes: ['src/lib/contracts/', 'src/lib/services/', 'src/lib/stores/', 'src/lib/components/'] }
+    },
+    {
+      id: 'wire-imports-internal-module',
+      description: 'The canonical Multiplayer wire contract is a self-contained DTO, validation, and framing leaf.',
       from: { paths: ['src/lib/services/multiplayer-protocol.ts'] },
-      to: { paths: ['src/lib/types.ts'] }
+      to: { prefixes: ['src/'] }
     }
   ],
   entrypointPatterns: [

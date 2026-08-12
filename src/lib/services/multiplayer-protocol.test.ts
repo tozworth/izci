@@ -54,7 +54,7 @@ describe('multiplayer protocol', () => {
         repeatMode: 'off'
       }
     };
-    const frames = encodeMultiplayerMessage(message);
+    const frames = encodeMultiplayerMessage(message, () => 'catalog-transfer');
     const decode = createMultiplayerMessageDecoder(isHostMessage);
     const decoded = frames.map(decode).find(Boolean);
 
@@ -74,7 +74,7 @@ describe('multiplayer protocol', () => {
         height: 1024
       }
     };
-    const frames = encodeMultiplayerMessage(message);
+    const frames = encodeMultiplayerMessage(message, () => 'artwork-transfer');
     const decode = createMultiplayerMessageDecoder(isHostMessage);
 
     expect(frames.length).toBeGreaterThan(1);

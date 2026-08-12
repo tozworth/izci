@@ -37,6 +37,7 @@ try {
       await fs.mkdir(path.dirname(options.output), { recursive: true });
       await fs.writeFile(options.output, json, 'utf8');
     } else process.stdout.write(json);
+    if (report.enforcement.violations > 0) process.exitCode = 1;
   }
 } catch (error) {
   process.stderr.write(`Architecture reporter error: ${error instanceof Error ? error.message : String(error)}\n${usage()}\n`);

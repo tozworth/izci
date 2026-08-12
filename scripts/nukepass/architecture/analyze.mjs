@@ -34,6 +34,20 @@ function validateConfig(config) {
   if (!Array.isArray(config.browserGlobalAllowedPathPatterns)) {
     throw new Error('Architecture config browserGlobalAllowedPathPatterns must be an array.');
   }
+  if (!Array.isArray(config.browserGlobalEnforcedPathPatterns)) {
+    throw new Error('Architecture config browserGlobalEnforcedPathPatterns must be an array.');
+  }
+  if (!Array.isArray(config.enforcedDirectionRuleIds)) {
+    throw new Error('Architecture config enforcedDirectionRuleIds must be an array.');
+  }
+  const directionRuleIds = new Set(config.directionRules.map((rule) => rule.id));
+  const unknownEnforcedRules = config.enforcedDirectionRuleIds.filter((id) => !directionRuleIds.has(id));
+  if (unknownEnforcedRules.length > 0) {
+    throw new Error(`Unknown enforced direction rule ids: ${unknownEnforcedRules.join(', ')}`);
+  }
+  if (typeof config.enforceCycles !== 'boolean') {
+    throw new Error('Architecture config enforceCycles must be boolean.');
+  }
 }
 
 async function walkFiles(root, relativeDirectory, config) {
@@ -519,13 +533,25 @@ export async function analyzeProject({ root = process.cwd(), config = architectu
   })))
     .sort((a, b) => compareText(a.file, b.file) || compareText(a.global, b.global));
   const cycles = stronglyConnectedComponents(moduleFiles, internalEdges);
+  const enforcedDirectionFindings = directionViolations.filter((finding) =>
+    config.enforcedDirectionRuleIds.includes(finding.rule)
+  );
+  const enforcedBrowserFindings = browserAccess.filter((finding) =>
+    finding.applicable
+      && !finding.allowed
+      && config.browserGlobalEnforcedPathPatterns.some((pattern) => pattern.test(finding.file))
+  );
+  const enforcedCycleFindings = config.enforceCycles ? cycles : [];
+  const enforcementViolations = enforcedDirectionFindings.length
+    + enforcedBrowserFindings.length
+    + enforcedCycleFindings.length;
   const bundle = includeBundle ? await bundleFacts(normalizedRoot, config.bundleDirectory) : { status: 'not-requested', directory: config.bundleDirectory };
 
   return {
     schemaVersion: 1,
-    mode: 'informational',
+    mode: 'ratcheted',
     semantics: {
-      exitPolicy: 'Architecture findings do not fail Stage 1; only invalid configuration, unreadable inputs, or reporter errors fail.',
+      exitPolicy: 'Mapped legacy findings remain informational. Enforced reconstructed-surface directions, browser capability access, and cycles fail the reporter.',
       staticImports: 'ES import, re-export, and string-literal dynamic import edges resolved to configured source modules; unresolved relative edges include CSS, JSON, raw, and other non-source assets.',
       cycles: 'Strongly connected components of resolved internal import edges.',
       browserGlobals: 'Lexical identifier candidates, excluding declarations, property names, and type positions; allowed is config-driven and is not a capability ownership proof.',
@@ -542,6 +568,7 @@ export async function analyzeProject({ root = process.cwd(), config = architectu
       defaultSourceRuntime: config.defaultSourceRuntime,
       browserCapabilityRuntimes: config.browserCapabilityRuntimes,
       directionRules: config.directionRules.map(({ id, description }) => ({ id, description })),
+      enforcedDirectionRuleIds: config.enforcedDirectionRuleIds,
       browserGlobals: sorted(config.browserGlobals),
       bundleDirectory: config.bundleDirectory
     },
@@ -567,6 +594,21 @@ export async function analyzeProject({ root = process.cwd(), config = architectu
       production: directionViolations.filter((finding) => finding.scope === 'production').length,
       test: directionViolations.filter((finding) => finding.scope === 'test').length,
       findings: directionViolations
+    },
+    enforcement: {
+      violations: enforcementViolations,
+      direction: {
+        count: enforcedDirectionFindings.length,
+        findings: enforcedDirectionFindings
+      },
+      browserGlobals: {
+        count: enforcedBrowserFindings.length,
+        findings: enforcedBrowserFindings
+      },
+      cycles: {
+        count: enforcedCycleFindings.length,
+        findings: enforcedCycleFindings
+      }
     },
     cycles: { count: cycles.length, stronglyConnectedComponents: cycles },
     browserGlobalAccess: {

@@ -511,7 +511,10 @@ function isMultiplayerArtwork(value: unknown): value is MultiplayerArtwork {
     && (artwork.height ?? 0) <= 4096;
 }
 
-export function encodeMultiplayerMessage(message: HostMessage | ClientMessage): string[] {
+export function encodeMultiplayerMessage(
+  message: HostMessage | ClientMessage,
+  createTransferId: () => string
+): string[] {
   const payload = JSON.stringify(message);
   if (payload.length <= MULTIPLAYER_FRAME_CHUNK_SIZE) return [payload];
 
@@ -724,10 +727,4 @@ function isBufferedRanges(value: unknown): value is Array<[number, number]> {
     && Number.isFinite(range[1])
     && range[1] >= range[0]
     && range[1] <= MULTIPLAYER_MAX_PLAYBACK_SECONDS);
-}
-
-function createTransferId(): string {
-  const bytes = new Uint8Array(9);
-  crypto.getRandomValues(bytes);
-  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
 }

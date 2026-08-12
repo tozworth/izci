@@ -35,7 +35,7 @@ test('maps imports, direction violations, cycles, globals, and conservative unus
   t.after(() => fs.rm(root, { recursive: true, force: true }));
 
   const report = await analyzeProject({ root, config: fixtureConfig, includeBundle: false });
-  assert.equal(report.mode, 'informational');
+  assert.equal(report.mode, 'ratcheted');
   assert.equal(report.imports.internalEdges, 3);
   assert.deepEqual(report.cycles.stronglyConnectedComponents, [[
     'src/lib/services/service.ts',
@@ -91,6 +91,26 @@ test('tracks browser globals through nested scopes and destructuring without fil
     { scope: 'production', runtime: 'browser', file: 'src/types.ts', global: 'history', lines: [4], applicable: true, allowed: false },
     { scope: 'production', runtime: 'browser', file: 'src/types.ts', global: 'window', lines: [3], applicable: true, allowed: false }
   ]);
+});
+
+test('enforces reconstructed contract, runtime capability, wire leaf, and cycle ratchets', async (t) => {
+  const root = await fixture({
+    'src/lib/contracts/catalog.ts': 'import { value } from "../services/catalog";\nwindow.name = String(value);\nexport const item = value;\n',
+    'src/lib/services/catalog.ts': 'import { item } from "../contracts/catalog";\nexport const value = item ?? 1;\n',
+    'src/lib/services/multiplayer-protocol.ts': 'import { item } from "../contracts/catalog";\nexport const wire = item;\n',
+    'src/lib/runtime/scope.ts': 'import { value } from "../services/catalog";\nexport const scope = value;\n'
+  });
+  t.after(() => fs.rm(root, { recursive: true, force: true }));
+
+  const report = await analyzeProject({ root, config: fixtureConfig, includeBundle: false });
+  assert.equal(report.enforcement.direction.count, 3);
+  assert.equal(report.enforcement.browserGlobals.count, 1);
+  assert.equal(report.enforcement.cycles.count, 1);
+  assert.equal(report.enforcement.violations, 5);
+  assert.deepEqual(
+    report.enforcement.direction.findings.map((finding) => finding.rule),
+    ['contract-imports-implementation', 'runtime-imports-application', 'wire-imports-internal-module']
+  );
 });
 
 test('includes configured root runtime sources and parses JavaScript imports', async (t) => {
