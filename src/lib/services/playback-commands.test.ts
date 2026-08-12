@@ -36,7 +36,7 @@ vi.mock('$lib/stores/playlist', () => ({
   playlistStore: playbackMocks.playlist
 }));
 
-vi.mock('$lib/services/logging', () => ({
+vi.mock('$lib/logging/api', () => ({
   logDebug: vi.fn(),
   logInfo: vi.fn(),
   logWarning: vi.fn()

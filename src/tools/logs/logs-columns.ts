@@ -1,5 +1,5 @@
 import { createPersistentStore } from '$lib/stores/persistent-store';
-import type { LogEntry, LogLevel } from '$lib/services/logging';
+import type { LogEntry, LogLevel } from '$lib/logging/api';
 
 export type LogColumnId = 'time' | 'level' | 'source' | 'context' | 'message' | 'details';
 export const LOG_COLUMN_IDS: readonly LogColumnId[] = ['time', 'level', 'source', 'context', 'message', 'details'];

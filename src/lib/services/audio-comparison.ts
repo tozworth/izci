@@ -1,6 +1,6 @@
 export type ComparisonSourceId = 'a' | 'b';
 export type ComparisonAuditionMode = ComparisonSourceId | 'difference';
-import { logDebug, logInfo } from '$lib/services/logging';
+import { logDebug, logInfo } from '$lib/logging/api';
 
 export interface ComparisonRange {
   start: number;

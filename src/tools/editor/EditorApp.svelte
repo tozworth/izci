@@ -716,8 +716,11 @@
     import('$lib/services/window-manager').then(({ windowManager }) => windowManager.openOptions());
   }
 
+  function handleWindowDragOver(event: DragEvent): void {
+    event.preventDefault();
+  }
+
   onMount(() => {
-    const wasOpenedByMain = window.opener !== null;
     const stopListeningForTrack = listenForCurrentToolTrack((track) => {
       if (
         track.kind !== 'video'
@@ -726,20 +729,14 @@
         void openFile(track.file);
       }
     });
-    const closeIfOrphaned = () => {
-      if (wasOpenedByMain && (!window.opener || window.opener.closed)) window.close();
-    };
-    const interval = window.setInterval(closeIfOrphaned, 1000);
     window.addEventListener('keydown', handleKeydown);
-    window.addEventListener('dragover', (event) => event.preventDefault());
+    window.addEventListener('dragover', handleWindowDragOver);
     window.addEventListener('drop', handleWindowDrop);
-    window.addEventListener('focus', closeIfOrphaned);
     return () => {
       stopListeningForTrack();
-      window.clearInterval(interval);
       window.removeEventListener('keydown', handleKeydown);
+      window.removeEventListener('dragover', handleWindowDragOver);
       window.removeEventListener('drop', handleWindowDrop);
-      window.removeEventListener('focus', closeIfOrphaned);
     };
   });
 

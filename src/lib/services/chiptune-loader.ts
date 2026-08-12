@@ -1,5 +1,5 @@
 import { ChiptuneJsPlayer, type Chiptune3Config } from 'chiptune3';
-import { logError, logInfo } from '$lib/services/logging';
+import { logError, logInfo } from '$lib/logging/api';
 
 const PLAYER_INIT_TIMEOUT_MS = 10_000;
 export async function createChiptunePlayer(config: Chiptune3Config): Promise<ChiptuneJsPlayer> {

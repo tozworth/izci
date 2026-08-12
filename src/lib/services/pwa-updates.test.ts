@@ -6,7 +6,7 @@ const { registerSW } = vi.hoisted(() => ({
 }));
 
 vi.mock('virtual:pwa-register', () => ({ registerSW }));
-vi.mock('$lib/services/logging', () => ({
+vi.mock('$lib/logging/api', () => ({
   logDebug: vi.fn(),
   logError: vi.fn(),
   logInfo: vi.fn(),
@@ -92,7 +92,8 @@ function installBrowserGlobals(options: {
     },
     setTimeout,
     clearTimeout,
-    setInterval
+    setInterval,
+    clearInterval
   });
   const browserDocument = Object.assign(new EventTarget(), {
     visibilityState: options.visibility ?? 'visible'
@@ -208,6 +209,34 @@ describe('PWA update decisions', () => {
     browserNavigator.onLine = true;
     browserWindow.dispatchEvent(new Event('online'));
     await vi.waitFor(() => expect(currentRegistration.update).toHaveBeenCalledOnce());
+  });
+
+  it('owns registration triggers and removes them through one idempotent cleanup', async () => {
+    const currentRegistration = registration();
+    const { browserWindow, container } = installBrowserGlobals({
+      registration: currentRegistration
+    });
+    registerSW.mockImplementation((options) => {
+      options.onRegisteredSW?.('/sw.js', currentRegistration as unknown as ServiceWorkerRegistration);
+      return vi.fn();
+    });
+    const updater = await loadUpdater();
+
+    const cleanup = updater.registerAppServiceWorker();
+    expect(updater.registerAppServiceWorker()).toBe(cleanup);
+    await Promise.resolve();
+    currentRegistration.update.mockClear();
+
+    cleanup();
+    cleanup();
+    browserWindow.dispatchEvent(new Event('focus'));
+    browserWindow.dispatchEvent(new Event('online'));
+    container.dispatchEvent(new Event('controllerchange'));
+    await vi.runOnlyPendingTimersAsync();
+
+    expect(currentRegistration.update).not.toHaveBeenCalled();
+    expect(sessionStorage.getItem('izci.pwa-update-completed')).toBeNull();
+    expect(get(updater.pwaUpdateStatus)).toBe('idle');
   });
 
   it('marks apply as failed and does not reload when registration is absent', async () => {

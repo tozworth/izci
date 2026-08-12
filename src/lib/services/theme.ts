@@ -19,6 +19,7 @@ export const systemColorScheme = readable<ColorScheme>('dark', (set) => {
 });
 
 let initialized = false;
+let themeCleanup: (() => void) | null = null;
 
 function applyThemeColor(
   theme: ColorTheme,
@@ -84,9 +85,9 @@ function applyTheme(
   applyThemeColor(theme, scheme, chameleonHue, chameleonSaturation);
 }
 
-export function initializeTheme(): void {
+export function initializeTheme(): () => void {
   if (initialized || typeof document === 'undefined') {
-    return;
+    return themeCleanup ?? (() => undefined);
   }
 
   initialized = true;
@@ -105,12 +106,22 @@ export function initializeTheme(): void {
       settings.fontFamily
     );
   };
-  systemColorScheme.subscribe((nextScheme) => {
+  const unsubscribeSystemScheme = systemColorScheme.subscribe((nextScheme) => {
     systemScheme = nextScheme;
     update();
   });
-  appearanceSettings.subscribe((nextSettings) => {
+  const unsubscribeAppearance = appearanceSettings.subscribe((nextSettings) => {
     settings = nextSettings;
     update();
   });
+  let active = true;
+  themeCleanup = () => {
+    if (!active) return;
+    active = false;
+    unsubscribeAppearance();
+    unsubscribeSystemScheme();
+    initialized = false;
+    themeCleanup = null;
+  };
+  return themeCleanup;
 }

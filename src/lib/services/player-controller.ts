@@ -2,7 +2,7 @@ import { writable } from 'svelte/store';
 import { audioBusService } from '$lib/services/audio-bus';
 import { HivelyPlayerService } from '$lib/services/ahx-player';
 import { HowlerPlayerService } from '$lib/services/howler-player';
-import { logDebug, logError, logInfo, logWarning } from '$lib/services/logging';
+import { logDebug, logError, logInfo, logWarning } from '$lib/logging/api';
 import { mediaSessionService } from '$lib/services/media-session';
 import { ModulePlayerService } from '$lib/services/module-player';
 import { loadTrackMetadata } from '$lib/services/stream-artwork';

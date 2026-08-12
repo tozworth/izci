@@ -85,7 +85,7 @@ vi.mock('$lib/stores/experimental-settings', () => ({
 vi.mock('$lib/stores/multiplayer-last-session', () => ({
   multiplayerLastSession: { getSnapshot: () => null }
 }));
-vi.mock('$lib/services/logging', () => ({ logDebug: vi.fn(), logWarning: vi.fn() }));
+vi.mock('$lib/logging/api', () => ({ logDebug: vi.fn(), logWarning: vi.fn() }));
 vi.mock('./multiplayer-audio', () => ({ multiplayerAudioService: sessionHarness.audio }));
 vi.mock('./multiplayer-source-playback', () => ({ multiplayerSourcePlaybackService: sessionHarness.source }));
 vi.mock('./multiplayer-render-playback', () => ({ multiplayerRenderPlaybackService: sessionHarness.render }));

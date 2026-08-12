@@ -1,6 +1,6 @@
 import type { PlaylistItem } from '$lib/contracts/catalog';
 import { inferExtension, inferKind } from '$lib/utils/files';
-import { logDebug, logWarning } from '$lib/services/logging';
+import { logDebug, logWarning } from '$lib/logging/api';
 
 type FileSystemPermissionState = 'granted' | 'denied' | 'prompt';
 

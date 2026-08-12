@@ -2,7 +2,7 @@
   import { createEventDispatcher } from 'svelte';
   import { t } from 'svelte-i18n';
   import WindowMenuBar from '$lib/components/WindowMenuBar.svelte';
-  import type { LogLevel } from '$lib/services/logging';
+  import type { LogLevel } from '$lib/logging/api';
   import type { MenuActionItem, WindowMenuGroup } from '$lib/contracts/window-menu';
 
   export let entryCount = 0;

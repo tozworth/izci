@@ -4,7 +4,7 @@
  * bufferedAmount high-water mark (backpressure, not pacing).
  */
 
-import { logWarning } from '$lib/services/logging';
+import { logWarning } from '$lib/logging/api';
 import type { PeerConnection } from './multiplayer-types';
 import { planRenderClusters } from './multiplayer-render-scheduler';
 

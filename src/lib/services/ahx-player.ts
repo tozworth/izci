@@ -1,5 +1,5 @@
 import { audioBusService } from '$lib/services/audio-bus';
-import { logDebug, logError, logInfo } from '$lib/services/logging';
+import { logDebug, logError, logInfo } from '$lib/logging/api';
 import {
   createHivelyPatternSong,
   type HivelyPatternData

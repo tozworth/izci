@@ -1,5 +1,5 @@
 import { ALL_FORMATS, BlobSource, Input } from 'mediabunny';
-import { logDebug, logError, logInfo, logWarning } from '$lib/services/logging';
+import { logDebug, logError, logInfo, logWarning } from '$lib/logging/api';
 import { readArtwork } from './artwork';
 import { cloneMetadataTags, cloneRawMetadata } from './clone';
 import { fingerprintFile } from './fingerprint';

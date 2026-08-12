@@ -1,5 +1,5 @@
 import type { PlaylistItem } from '$lib/contracts/catalog';
-import { logWarning } from '$lib/services/logging';
+import { logWarning } from '$lib/logging/api';
 import type { PeerConnection, SourceFileBeginFrame, SourceFileEndFrame } from './multiplayer-types';
 
 export const SOURCE_FILE_CHUNK_SIZE = 16 * 1024;

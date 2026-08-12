@@ -1,5 +1,5 @@
 import type { MultiplayerIceSettings } from './multiplayer-ice';
-import { logWarning } from '$lib/services/logging';
+import { logWarning } from '$lib/logging/api';
 import { createMultiplayerRtcConfiguration } from './multiplayer-ice';
 import {
   createMultiplayerMessageDecoder,

@@ -5,7 +5,7 @@ import {
   type AudioCodec,
   type VideoCodec
 } from 'mediabunny';
-import { logError, logInfo } from '$lib/services/logging';
+import { logError, logInfo } from '$lib/logging/api';
 import { MODULE_EXTENSIONS } from '$lib/contracts/media-format';
 import { inferExtension } from '$lib/utils/files';
 import { loadAudioFile } from '../editor/clip-audio';

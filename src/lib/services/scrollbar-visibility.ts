@@ -15,7 +15,7 @@ export const SCROLLBAR_VISIBILITY_IGNORE_SCROLL_ATTRIBUTE =
 
 type ScrollAxis = 'horizontal' | 'vertical';
 
-interface ScrollbarVisibilityOptions {
+export interface ScrollbarVisibilityOptions {
   overlayVertical?: boolean;
 }
 

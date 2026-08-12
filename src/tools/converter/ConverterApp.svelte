@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onDestroy, onMount } from 'svelte';
   import { t } from 'svelte-i18n';
   import HoverTooltip from '$lib/components/HoverTooltip.svelte';
   import MenuSurface from '$lib/components/MenuSurface.svelte';
@@ -116,6 +116,10 @@
       if (!isAccepted(track.file)) return;
       addRows([makeRow(track.file, track.fileHandle ?? null, track.path || track.file.name, [])], true);
     });
+  });
+
+  onDestroy(() => {
+    abortController?.abort();
   });
 
   function makeRow(

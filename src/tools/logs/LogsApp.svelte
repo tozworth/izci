@@ -6,7 +6,7 @@
   import {
     clearLogs, getLogEntries, logError, logInfo, subscribeLogs,
     type LogEntry, type LogLevel
-  } from '$lib/services/logging';
+  } from '$lib/logging/api';
   import { loggingSettings } from '$lib/stores/logging-settings';
   import {
     compareLogEntries, fitLogWidthsToAvailableWidth, formatLogTimestamp, getLogColumnIcon,

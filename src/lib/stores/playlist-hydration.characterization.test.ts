@@ -20,7 +20,7 @@ vi.mock('./playlist-metadata', () => ({
   scheduleMetadataParsing: vi.fn()
 }));
 
-vi.mock('$lib/services/logging', () => ({
+vi.mock('$lib/logging/api', () => ({
   logDebug: vi.fn(),
   logError: vi.fn(),
   logInfo: vi.fn(),

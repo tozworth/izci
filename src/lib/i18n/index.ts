@@ -31,13 +31,14 @@ export interface TranslationOptions {
 }
 
 let initialized = false;
+let localizationCleanup: (() => void) | null = null;
 
 export function normalizeAppLocale(value: unknown): AppLocale {
   return value === 'en-askew' || value === 'tr' ? value : DEFAULT_APP_LOCALE;
 }
 
-export function initializeLocalization(): void {
-  if (initialized) return;
+export function initializeLocalization(): () => void {
+  if (initialized) return localizationCleanup ?? (() => undefined);
   initialized = true;
 
   addMessages('en', en);
@@ -48,13 +49,22 @@ export function initializeLocalization(): void {
     initialLocale: appLocale.getSnapshot()
   });
 
-  appLocale.subscribe((nextLocale) => {
+  const unsubscribeLocale = appLocale.subscribe((nextLocale) => {
     void svelteI18nLocale.set(nextLocale);
     if (typeof document !== 'undefined') {
       document.documentElement.lang = nextLocale;
       document.documentElement.dir = 'ltr';
     }
   });
+  let active = true;
+  localizationCleanup = () => {
+    if (!active) return;
+    active = false;
+    unsubscribeLocale();
+    initialized = false;
+    localizationCleanup = null;
+  };
+  return localizationCleanup;
 }
 
 export function translate(id: string, options?: TranslationOptions): string {

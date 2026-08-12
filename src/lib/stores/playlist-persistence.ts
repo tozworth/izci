@@ -1,6 +1,6 @@
 import type { PlaylistItem, PlaylistPlaybackOptions, PlaylistRepeatMode, PlaylistSelection } from '$lib/contracts/catalog';
 import { normalizeTrackRating } from '$lib/services/track-ratings';
-import { logError, logInfo } from '$lib/services/logging';
+import { logError, logInfo } from '$lib/logging/api';
 
 export interface StoredPlaylistItem {
   id: string;

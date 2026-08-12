@@ -1,6 +1,6 @@
 import { registerSW } from 'virtual:pwa-register';
 import { writable } from 'svelte/store';
-import { logDebug, logError, logInfo, logWarning } from '$lib/services/logging';
+import { logDebug, logError, logInfo, logWarning } from '$lib/logging/api';
 
 const LOCALHOST_UPDATE_INTERVAL_MS = 30_000;
 const DEFAULT_UPDATE_INTERVAL_MS = 5 * 60_000;
@@ -10,6 +10,7 @@ const LAST_SUCCESSFUL_UPDATE_CHECK_KEY = 'izci.pwa-update-last-successful-check'
 
 let checkForServiceWorkerUpdate: ((force?: boolean) => Promise<void>) | null = null;
 let updateNoticeTimeout: number | null = null;
+let serviceWorkerCleanup: (() => void) | null = null;
 
 export type PwaUpdateStatus = 'idle' | 'updated' | 'up-to-date' | 'failed';
 export type PwaUpdateCheckStatus = 'idle' | 'checking' | 'available' | 'up-to-date' | 'failed';
@@ -78,19 +79,22 @@ export async function forceServiceWorkerUpdateCheck(): Promise<void> {
     const registration = await navigator.serviceWorker?.getRegistration();
     const alreadyWaiting = Boolean(registration?.waiting);
     let updateFound = false;
-
-    registration?.addEventListener('updatefound', () => {
+    const handleUpdateFound = () => {
       updateFound = true;
-    }, { once: true });
+    };
+    registration?.addEventListener('updatefound', handleUpdateFound);
+    try {
+      if (!checkForServiceWorkerUpdate) {
+        if (!registration) {
+          throw new Error('No service worker registration is available.');
+        }
 
-    if (!checkForServiceWorkerUpdate) {
-      if (!registration) {
-        throw new Error('No service worker registration is available.');
+        await registration.update();
+      } else {
+        await checkForServiceWorkerUpdate(true);
       }
-
-      await registration.update();
-    } else {
-      await checkForServiceWorkerUpdate(true);
+    } finally {
+      registration?.removeEventListener('updatefound', handleUpdateFound);
     }
 
     const checkedAt = Date.now();
@@ -112,11 +116,13 @@ function waitForWorkerStateChange(worker: ServiceWorker): Promise<void> {
   }
 
   return new Promise((resolve) => {
-    worker.addEventListener('statechange', () => {
+    const handleStateChange = () => {
       if (worker.state === 'installed' || worker.state === 'activated' || worker.state === 'redundant') {
+        worker.removeEventListener('statechange', handleStateChange);
         resolve();
       }
-    });
+    };
+    worker.addEventListener('statechange', handleStateChange);
   });
 }
 
@@ -135,11 +141,16 @@ export async function applyAvailableServiceWorkerUpdate(): Promise<void> {
 
   if (registration.waiting) {
     const controllerChanged = new Promise<void>((resolve) => {
-      const timeout = window.setTimeout(resolve, 5_000);
-      navigator.serviceWorker.addEventListener('controllerchange', () => {
+      let settled = false;
+      const finish = () => {
+        if (settled) return;
+        settled = true;
         window.clearTimeout(timeout);
+        navigator.serviceWorker.removeEventListener('controllerchange', finish);
         resolve();
-      }, { once: true });
+      };
+      const timeout = window.setTimeout(finish, 5_000);
+      navigator.serviceWorker.addEventListener('controllerchange', finish);
     });
 
     registration.waiting.postMessage({ type: 'SKIP_WAITING' });
@@ -149,22 +160,40 @@ export async function applyAvailableServiceWorkerUpdate(): Promise<void> {
   window.location.reload();
 }
 
-export function registerAppServiceWorker(): void {
+export function registerAppServiceWorker(): () => void {
+  if (serviceWorkerCleanup) return serviceWorkerCleanup;
   logDebug('system', 'Service-worker registration started');
   let registration: ServiceWorkerRegistration | undefined;
   let updateInFlight = false;
+  let updateInterval: number | null = null;
+  let destroyed = false;
+  let handleVisibilityChange: (() => void) | null = null;
+  let handleFocus: (() => void) | null = null;
+  let handleOnline: (() => void) | null = null;
+
+  const clearRegistrationTriggers = () => {
+    if (updateInterval !== null) window.clearInterval(updateInterval);
+    updateInterval = null;
+    if (handleVisibilityChange) document.removeEventListener('visibilitychange', handleVisibilityChange);
+    if (handleFocus) window.removeEventListener('focus', handleFocus);
+    if (handleOnline) window.removeEventListener('online', handleOnline);
+    handleVisibilityChange = null;
+    handleFocus = null;
+    handleOnline = null;
+  };
 
   showCompletedUpdateNotice();
 
   const controlledByExistingServiceWorker = navigator.serviceWorker.controller !== null;
-  navigator.serviceWorker.addEventListener('controllerchange', () => {
+  const handleControllerChange = () => {
     if (controlledByExistingServiceWorker) {
       sessionStorage.setItem(UPDATE_NOTICE_SESSION_KEY, 'true');
     }
-  });
+  };
+  navigator.serviceWorker.addEventListener('controllerchange', handleControllerChange);
 
   checkForServiceWorkerUpdate = async (force = false) => {
-    if (!registration || updateInFlight) {
+    if (destroyed || !registration || updateInFlight) {
       return;
     }
 
@@ -191,37 +220,52 @@ export function registerAppServiceWorker(): void {
   registerSW({
     immediate: true,
     onRegisteredSW(_swUrl, serviceWorkerRegistration) {
-      if (!serviceWorkerRegistration) {
+      if (destroyed || !serviceWorkerRegistration) {
         return;
       }
 
       registration = serviceWorkerRegistration;
       logInfo('system', 'Service worker registered', { scope: registration.scope });
+      clearRegistrationTriggers();
 
       const updateIntervalMs =
         window.location.hostname === 'localhost'
           ? LOCALHOST_UPDATE_INTERVAL_MS
           : DEFAULT_UPDATE_INTERVAL_MS;
 
-      window.setInterval(() => {
-        void checkForServiceWorkerUpdate?.();
-      }, updateIntervalMs);
-
-      document.addEventListener('visibilitychange', () => {
+      handleVisibilityChange = () => {
         if (document.visibilityState === 'visible') {
           void checkForServiceWorkerUpdate?.();
         }
-      });
-
-      window.addEventListener('focus', () => {
+      };
+      handleFocus = () => {
         void checkForServiceWorkerUpdate?.();
-      });
-
-      window.addEventListener('online', () => {
+      };
+      handleOnline = () => {
         void checkForServiceWorkerUpdate?.();
-      });
+      };
+      updateInterval = window.setInterval(handleFocus, updateIntervalMs);
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+      window.addEventListener('focus', handleFocus);
+      window.addEventListener('online', handleOnline);
 
       void checkForServiceWorkerUpdate?.();
     }
   });
+
+  let active = true;
+  const cleanup = () => {
+    if (!active) return;
+    active = false;
+    destroyed = true;
+    navigator.serviceWorker.removeEventListener('controllerchange', handleControllerChange);
+    clearRegistrationTriggers();
+    checkForServiceWorkerUpdate = null;
+    if (updateNoticeTimeout !== null) window.clearTimeout(updateNoticeTimeout);
+    updateNoticeTimeout = null;
+    pwaUpdateStatus.set('idle');
+    serviceWorkerCleanup = null;
+  };
+  serviceWorkerCleanup = cleanup;
+  return cleanup;
 }

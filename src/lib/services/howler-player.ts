@@ -1,6 +1,6 @@
 import { Howl } from 'howler';
 import { audioBusService } from '$lib/services/audio-bus';
-import { logDebug, logError, logInfo, logWarning } from '$lib/services/logging';
+import { logDebug, logError, logInfo, logWarning } from '$lib/logging/api';
 import type { PlaybackSnapshot, ReplayGainMode } from '$lib/contracts/playback';
 import type { PlaylistItem } from '$lib/contracts/catalog';
 import type { ReplayGainMetadata, TrackMetadata } from '$lib/contracts/media-metadata';

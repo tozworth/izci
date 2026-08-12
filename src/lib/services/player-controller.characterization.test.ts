@@ -119,7 +119,7 @@ vi.mock('$lib/stores/player-volume', () => ({
   playerVolume: harness.volumeStore
 }));
 vi.mock('$lib/services/volume', () => ({ sliderVolumeToGain: (value: number) => value }));
-vi.mock('$lib/services/logging', () => ({
+vi.mock('$lib/logging/api', () => ({
   logDebug: vi.fn(),
   logError: vi.fn(),
   logInfo: vi.fn(),

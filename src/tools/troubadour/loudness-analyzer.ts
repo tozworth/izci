@@ -1,5 +1,5 @@
 import { ALL_FORMATS, AudioBufferSink, BlobSource, Input } from 'mediabunny';
-import { logDebug, logError, logInfo } from '$lib/services/logging';
+import { logDebug, logError, logInfo } from '$lib/logging/api';
 
 export const DEFAULT_REPLAYGAIN_TARGET_LUFS = -18;
 

@@ -306,19 +306,30 @@ export function createTroubadourController(
     rows: RenamePreviewRow[],
     options?: { signal?: AbortSignal; verification?: RenameVerification }
   ): Promise<{ jobs: RenameJobResult[]; results: TroubadourBatchItemResult[] }>;
+  destroy(): void;
 } {
   const store = writable<TroubadourWorkbenchState>(EMPTY_STATE);
   let state = EMPTY_STATE;
   let history: HistoryState<StagedWorkbenchState> = createHistory({ items: [], albums: [] });
   let loadGeneration = 0;
-  store.subscribe((value) => (state = value));
+  let destroyed = false;
+  const lifetimeController = new AbortController();
+  const unsubscribeState = store.subscribe((value) => (state = value));
 
-  const setState = (patch: Partial<TroubadourWorkbenchState>) => store.set({ ...state, ...patch });
+  const isCurrentLoad = (generation: number) => !destroyed && generation === loadGeneration;
+  const throwIfDestroyed = () => {
+    if (destroyed) throw new DOMException('Troubadour closed.', 'AbortError');
+  };
+  const setState = (patch: Partial<TroubadourWorkbenchState>) => {
+    if (destroyed) return;
+    store.set({ ...state, ...patch });
+  };
   const setStaged = (
     staged: StagedWorkbenchState,
     record = true,
     statePatch: Partial<TroubadourWorkbenchState> = {}
   ) => {
+    if (destroyed) return;
     const next = cloneStaged(staged);
     history = record ? pushHistory(history, next) : { ...history, present: next };
     store.set({
@@ -333,6 +344,7 @@ export function createTroubadourController(
     staged: StagedWorkbenchState,
     statePatch: Partial<TroubadourWorkbenchState> = {}
   ) => {
+    if (destroyed) return;
     history = { ...history, present: staged };
     store.set({
       ...state,
@@ -344,11 +356,14 @@ export function createTroubadourController(
   };
   const selectionItems = () => state.items.filter((item) => state.selectedIds.includes(item.id));
   const prepareItemForSave = async (id: string): Promise<TroubadourWorkbenchItem | null> => {
+    if (destroyed) return null;
     const source = state.items.find((item) => item.id === id);
     if (!source) return null;
+    const file = await materializeWorkbenchFile(source.file);
+    if (destroyed) return null;
     const item = {
       ...source,
-      file: await materializeWorkbenchFile(source.file),
+      file,
       state: 'saving' as const,
       error: ''
     };
@@ -359,8 +374,17 @@ export function createTroubadourController(
     history = createHistory(cloneStaged({ items: state.items, albums: state.albums }));
     setState({ canUndo: false, canRedo: false });
     // Let component references and object URLs switch to the memory-backed File.
-    await new Promise<void>((resolve) => setTimeout(resolve, 0));
-    return item;
+    const renderTurnCompleted = await new Promise<boolean>((resolve) => {
+      const finish = (completed: boolean) => {
+        clearTimeout(timeout);
+        lifetimeController.signal.removeEventListener('abort', handleAbort);
+        resolve(completed);
+      };
+      const handleAbort = () => finish(false);
+      const timeout = setTimeout(() => finish(true), 0);
+      lifetimeController.signal.addEventListener('abort', handleAbort, { once: true });
+    });
+    return renderTurnCompleted && !destroyed ? item : null;
   };
   const assignItemsToAlbum = (itemIds: string[], id: string) => {
     const target = state.albums.find((album) => album.id === id);
@@ -386,12 +410,17 @@ export function createTroubadourController(
     ) => Promise<TroubadourWorkbenchItem[]>,
     autoGroupFallback?: TroubadourAutoGroupFallback
   ): Promise<void> {
+    if (destroyed) return;
+    const generation = loadGeneration;
     setState({ busy: true, activeJob: initialJob, jobProgress: null, error: '' });
     try {
       const items = await collectItems((activeJob, jobProgress = null) => {
-        setState({ activeJob, jobProgress });
+        if (isCurrentLoad(generation)) setState({ activeJob, jobProgress });
       });
-      await addLoadingItems(items, concurrency, autoGroupFallback);
+      if (!isCurrentLoad(generation)) return;
+      await addLoadingItems(items, concurrency, generation, autoGroupFallback);
+    } catch (error) {
+      if (!destroyed) throw error;
     } finally {
       setState({ busy: false, activeJob: '', jobProgress: null });
     }
@@ -400,8 +429,10 @@ export function createTroubadourController(
   async function addLoadingItems(
     nextItems: TroubadourWorkbenchItem[],
     concurrency: number,
+    generation: number,
     autoGroupFallback?: TroubadourAutoGroupFallback
   ): Promise<void> {
+    if (!isCurrentLoad(generation)) return;
     const known = new Set(state.items.map((item) => `${item.path}\u0000${item.file.size}\u0000${item.file.lastModified}`));
     const unique = nextItems.filter((item) => {
       const key = `${item.path}\u0000${item.file.size}\u0000${item.file.lastModified}`;
@@ -413,7 +444,6 @@ export function createTroubadourController(
       setState({ message: 'No new files were found.' });
       return;
     }
-    const generation = loadGeneration;
     let workingItems = [...state.items, ...unique];
     let workingAlbums = state.albums;
     const applyAutomaticGrouping = () => {
@@ -430,7 +460,7 @@ export function createTroubadourController(
     let pendingUpdates = 0;
     let lastCommitAt = Date.now();
     const commitUpdates = (force = false) => {
-      if (!pendingUpdates) return;
+      if (!pendingUpdates || !isCurrentLoad(generation)) return;
       const now = Date.now();
       if (!force && pendingUpdates < LOAD_COMMIT_BATCH_SIZE && now - lastCommitAt < LOAD_PROGRESS_INTERVAL_MS) {
         return;
@@ -448,7 +478,7 @@ export function createTroubadourController(
       jobProgress: 0
     });
     const workers = Array.from({ length: Math.min(Math.max(1, Math.trunc(concurrency)), unique.length) }, async () => {
-      while (index < unique.length && generation === loadGeneration) {
+      while (index < unique.length && isCurrentLoad(generation)) {
         const current = unique[index++];
         let replacement: TroubadourWorkbenchItem;
         if (!getMetadataCapabilities(current.extension)) {
@@ -465,6 +495,7 @@ export function createTroubadourController(
             };
           }
         }
+        if (!isCurrentLoad(generation)) return;
         const position = positions.get(current.id);
         if (position !== undefined) workingItems[position] = replacement;
         completed += 1;
@@ -473,6 +504,7 @@ export function createTroubadourController(
       }
     });
     await Promise.all(workers);
+    if (!isCurrentLoad(generation)) return;
     commitUpdates(true);
     setState({ message: `${unique.length} file${unique.length === 1 ? '' : 's'} loaded.` });
   }
@@ -483,7 +515,9 @@ export function createTroubadourController(
     parentHandle: FileSystemDirectoryHandle | null,
     base: Partial<TroubadourWorkbenchItem> = {}
   ): Promise<TroubadourWorkbenchItem> {
+    throwIfDestroyed();
     const file = await handle.getFile();
+    throwIfDestroyed();
     const extension = inferExtension(file.name);
     return {
       id: base.id ?? crypto.randomUUID(),
@@ -519,16 +553,18 @@ export function createTroubadourController(
     let lastReported = 0;
     const workerCount = Math.min(Math.max(1, Math.trunc(concurrency)), eligible.length);
     const workers = Array.from({ length: workerCount }, async () => {
-      while (index < eligible.length) {
+      while (index < eligible.length && !destroyed) {
         const currentIndex = index++;
         const current = eligible[currentIndex];
         try {
-          items[currentIndex] = await itemFromHandle(
+          const item = await itemFromHandle(
             current.fileHandle,
             current.path,
             current.parentHandle
           );
+          if (!destroyed) items[currentIndex] = item;
         } finally {
+          if (destroyed) return;
           completed += 1;
           if (completed === eligible.length || completed - lastReported >= LOAD_COMMIT_BATCH_SIZE) {
             lastReported = completed;
@@ -538,6 +574,7 @@ export function createTroubadourController(
       }
     });
     await Promise.all(workers);
+    if (destroyed) return [];
     return items.filter((item): item is TroubadourWorkbenchItem => item !== undefined);
   }
 
@@ -561,13 +598,15 @@ export function createTroubadourController(
         const workers = Array.from({
           length: Math.min(Math.max(1, Math.trunc(concurrency)), eligible.length)
         }, async () => {
-          while (index < eligible.length) {
+          while (index < eligible.length && !destroyed) {
             const currentIndex = index++;
             const track = eligible[currentIndex];
             try {
               const sourceFile = track.fileHandle ? await track.fileHandle.getFile() : track.file;
+              if (destroyed) return;
               if (!sourceFile) continue;
               const parentHandle = await resolveParentHandle(track.path, track.sourceFolderId, state.rememberedFolders);
+              if (destroyed) return;
               items[currentIndex] = {
                 id: track.contextId || crypto.randomUUID(),
                 contextId: track.contextId,
@@ -590,6 +629,7 @@ export function createTroubadourController(
             } catch {
               // Stale handles are represented only when a File snapshot is available.
             } finally {
+              if (destroyed) return;
               completed += 1;
               if (completed === eligible.length || completed - lastReported >= LOAD_COMMIT_BATCH_SIZE) {
                 lastReported = completed;
@@ -599,6 +639,7 @@ export function createTroubadourController(
           }
         });
         await Promise.all(workers);
+        if (destroyed) return [];
         return items.filter((item): item is TroubadourWorkbenchItem => item !== undefined);
       }, autoGroupFallback);
     },
@@ -628,6 +669,7 @@ export function createTroubadourController(
         const discovered = await discoverDirectoryFiles(handle, {
           maxDepth,
           onFileFound: () => {
+            throwIfDestroyed();
             found += 1;
             if (found - lastReported >= LOAD_COMMIT_BATCH_SIZE) {
               lastReported = found;
@@ -650,6 +692,7 @@ export function createTroubadourController(
         let found = 0;
         let lastReported = 0;
         const reportFound = () => {
+          throwIfDestroyed();
           found += 1;
           if (found - lastReported >= LOAD_COMMIT_BATCH_SIZE) {
             lastReported = found;
@@ -657,7 +700,9 @@ export function createTroubadourController(
           }
         };
         for (const transferItem of Array.from(dataTransfer.items)) {
+          throwIfDestroyed();
           const handle = await transferItem.getAsFileSystemHandle?.().catch(() => null);
+          throwIfDestroyed();
           if (handle?.kind === 'file') {
             const fileHandle = handle as FileSystemFileHandle;
             if (getMetadataCapabilities(inferExtension(fileHandle.name))) {
@@ -672,6 +717,7 @@ export function createTroubadourController(
         }
         if (!items.length) {
           for (const file of Array.from(dataTransfer.files)) {
+            throwIfDestroyed();
             if (!getMetadataCapabilities(inferExtension(file.name))) continue;
             reportFound();
             const extension = inferExtension(file.name);
@@ -877,11 +923,14 @@ export function createTroubadourController(
       });
     },
     async reloadSelected() {
+      if (destroyed) return;
       const targets = selectionItems().filter((item) => !itemDirty(item) && item.fileHandle && item.document);
       await Promise.all(targets.map(async (item) => {
         try {
           const file = await materializeWorkbenchFile(await item.fileHandle!.getFile());
+          if (destroyed) return;
           const document = await readMetadataDocument(file, item.extension);
+          if (destroyed) return;
           setStaged({
             items: state.items.map((candidate) => candidate.id === item.id
               ? { ...candidate, file, document, state: 'ready', error: '' }
@@ -889,6 +938,7 @@ export function createTroubadourController(
             albums: state.albums
           }, false);
         } catch (error) {
+          if (destroyed) return;
           setStaged({
             items: state.items.map((candidate) => candidate.id === item.id
               ? { ...candidate, state: 'failed', error: error instanceof Error ? error.message : 'Reload failed.' }
@@ -900,6 +950,7 @@ export function createTroubadourController(
       setState({ message: `${targets.length} unchanged file${targets.length === 1 ? '' : 's'} reloaded.` });
     },
     async saveSelectedOrAll(options: { all?: boolean; requestPermission?: boolean; verify?: boolean } = {}) {
+      if (destroyed) return [];
       const selectedDirtyIds = selectionItems().filter((item) => itemDirty(item)).map((item) => item.id);
       const targetIds = (options.all || !selectedDirtyIds.length ? state.items.map((item) => item.id) : selectedDirtyIds)
         .filter((id) => {
@@ -920,7 +971,9 @@ export function createTroubadourController(
       );
       setState({ busy: true, activeJob: 'Saving metadata', jobProgress: 0, error: '' });
       await Promise.all([...permissionRequests, playbackPreparation]);
+      if (destroyed) return results;
       for (let index = 0; index < targetIds.length; index += 1) {
+        if (destroyed) break;
         // Chromium keeps disk-backed File snapshots open on Windows. Replace the
         // workbench reference (and therefore any preview object URL) with a memory
         // copy before the atomic writable tries to swap the original file.
@@ -930,9 +983,12 @@ export function createTroubadourController(
           const result = await saveItem({
             item,
             requestPermission: options.requestPermission !== false,
+            signal: lifetimeController.signal,
             verify: options.verify !== false
           });
+          if (destroyed) break;
           const file = await materializeWorkbenchFile(await item.fileHandle!.getFile());
+          if (destroyed) break;
           setStaged({
             items: state.items.map((candidate) => candidate.id === item.id ? {
               ...candidate,
@@ -977,6 +1033,7 @@ export function createTroubadourController(
             artworkChanged: item.artworkEdits.length > 0
           });
         } catch (error) {
+          if (destroyed) break;
           const message = error instanceof Error ? error.message : 'Metadata write failed.';
           const conflicted = error && typeof error === 'object' && 'code' in error && error.code === 'external-change';
           const permissionRequired = error && typeof error === 'object' && 'code' in error && error.code === 'permission-required';
@@ -998,6 +1055,7 @@ export function createTroubadourController(
         }
         setState({ jobProgress: (index + 1) / targetIds.length });
       }
+      if (destroyed) return results;
       setState({
         busy: false,
         activeJob: '',
@@ -1010,6 +1068,7 @@ export function createTroubadourController(
       return results;
     },
     async buildRenamePreview(template: string, rules: FilenameRules = {}) {
+      if (destroyed) return [];
       const nodes = parseRenameTemplate(template);
       const scoped = state.selectedIds.length ? selectionItems() : state.items;
       const sources: RenameSource[] = scoped.map((item) => {
@@ -1038,23 +1097,31 @@ export function createTroubadourController(
           expectedFingerprint: item.document?.fingerprint
         };
       });
-      return await buildRenamePreview(sources, rules);
+      const rows = await buildRenamePreview(sources, rules);
+      return destroyed ? [] : rows;
     },
     async applyRenames(
       rows: RenamePreviewRow[],
       options: { signal?: AbortSignal; verification?: RenameVerification } = {}
     ) {
+      if (destroyed) return { jobs: [], results: [] };
       const targets = rows.filter((row) => row.enabled && !row.problems.length);
       const jobs: RenameJobResult[] = [];
       const results: TroubadourBatchItemResult[] = [];
+      const signal = options.signal
+        ? AbortSignal.any([options.signal, lifetimeController.signal])
+        : lifetimeController.signal;
       setState({ busy: true, activeJob: 'Renaming files', jobProgress: 0, error: '' });
       for (let index = 0; index < targets.length; index += 1) {
+        if (signal.aborted) break;
         const row = targets[index];
         const item = state.items.find((candidate) => candidate.id === row.id)!;
-        const job = await applyRename(row, options.signal, options.verification);
+        const job = await applyRename(row, signal, options.verification);
         jobs.push(job);
+        if (destroyed) break;
         if (job.success) {
           const document = await readMetadataDocument(job.file, item.extension);
+          if (destroyed) break;
           setStaged({
             items: state.items.map((candidate) => candidate.id === item.id ? {
               ...candidate,
@@ -1097,10 +1164,18 @@ export function createTroubadourController(
         }
         setState({ jobProgress: (index + 1) / targets.length });
       }
+      if (destroyed) return { jobs, results };
       setState({ busy: false, activeJob: '', jobProgress: null, message: `${jobs.filter((job) => job.success).length} of ${targets.length} files renamed.` });
       history = createHistory(cloneStaged({ items: state.items, albums: state.albums }));
       setState({ canUndo: false, canRedo: false });
       return { jobs, results };
+    },
+    destroy() {
+      if (destroyed) return;
+      destroyed = true;
+      loadGeneration += 1;
+      lifetimeController.abort(new DOMException('Troubadour closed.', 'AbortError'));
+      unsubscribeState();
     }
   };
   return api;

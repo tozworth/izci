@@ -1,5 +1,5 @@
 import { MODULE_EXTENSIONS } from '$lib/contracts/media-format';
-import { logDebug, logError, logInfo } from '$lib/services/logging';
+import { logDebug, logError, logInfo } from '$lib/logging/api';
 import { inferExtension } from '$lib/utils/files';
 
 export interface ClipRange {

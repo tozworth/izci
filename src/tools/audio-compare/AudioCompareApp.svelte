@@ -687,6 +687,10 @@
     if (file) void openSource(id, file);
   }
 
+  function handleWindowDragOver(event: DragEvent): void {
+    event.preventDefault();
+  }
+
   function handleKeydown(event: KeyboardEvent): void {
     const target = event.target;
     const editing = target instanceof HTMLInputElement || target instanceof HTMLSelectElement || target instanceof HTMLTextAreaElement;
@@ -712,7 +716,6 @@
   }
 
   onMount(() => {
-    const wasOpenedByMain = Boolean(window.opener && !window.opener.closed);
     const stopListeningForTrack = listenForCurrentToolTrack((track) => {
       if (track.kind === 'video') return;
       const existing = [sourceA.file, sourceB.file].find((file) => file
@@ -723,20 +726,14 @@
       const destination: ComparisonSourceId = !sourceA.file ? 'a' : !sourceB.file ? 'b' : activeSource;
       void openSource(destination, track.file);
     });
-    const closeIfOrphaned = () => {
-      if (wasOpenedByMain && (!window.opener || window.opener.closed)) window.close();
-    };
-    const interval = window.setInterval(closeIfOrphaned, 1000);
     window.addEventListener('keydown', handleKeydown);
-    window.addEventListener('dragover', (event) => event.preventDefault());
+    window.addEventListener('dragover', handleWindowDragOver);
     window.addEventListener('drop', handleWindowDrop);
-    window.addEventListener('focus', closeIfOrphaned);
     return () => {
       stopListeningForTrack();
-      window.clearInterval(interval);
       window.removeEventListener('keydown', handleKeydown);
+      window.removeEventListener('dragover', handleWindowDragOver);
       window.removeEventListener('drop', handleWindowDrop);
-      window.removeEventListener('focus', closeIfOrphaned);
     };
   });
 

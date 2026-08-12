@@ -123,4 +123,61 @@ describe('Troubadour folder ingestion', () => {
     expect(controller.getSnapshot().items.every((item) => item.state === 'ready')).toBe(true);
     expect(publications).toBeLessThan(400);
   });
+
+  it('stops publishing when destroyed during an in-flight metadata read', async () => {
+    const file = new File([], 'Track.mp3');
+    const track = fileHandle(file);
+    let finishMetadata!: (document: MetadataDocument) => void;
+    readMetadataDocument.mockImplementation(() => new Promise((resolve) => {
+      finishMetadata = resolve;
+    }));
+    const controller = createTroubadourController();
+    let publications = 0;
+    const unsubscribe = controller.subscribe(() => {
+      publications += 1;
+    });
+
+    const loading = controller.ingestHandles([track.handle]);
+    await vi.waitFor(() => {
+      expect(controller.getSnapshot().items).toHaveLength(1);
+      expect(controller.getSnapshot().busy).toBe(true);
+    });
+    const snapshotAtDestroy = controller.getSnapshot();
+    const publicationsAtDestroy = publications;
+
+    controller.destroy();
+    controller.destroy();
+    finishMetadata(metadataDocument(file, 'mp3'));
+    await loading;
+
+    expect(controller.getSnapshot()).toBe(snapshotAtDestroy);
+    expect(publications).toBe(publicationsAtDestroy);
+    unsubscribe();
+  });
+
+  it('aborts an in-flight save and ignores its completion after destroy', async () => {
+    const file = new File(['audio'], 'Track.mp3');
+    const track = fileHandle(file);
+    let saveSignal: AbortSignal | undefined;
+    const saveItem = vi.fn(({ signal }: { signal?: AbortSignal }) => new Promise<never>((_resolve, reject) => {
+      saveSignal = signal;
+      signal?.addEventListener('abort', () => reject(signal.reason), { once: true });
+    }));
+    const controller = createTroubadourController(saveItem);
+    await controller.ingestHandles([track.handle]);
+    const id = controller.getSnapshot().items[0].id;
+    controller.select(id);
+    controller.editField('title', 'Changed');
+
+    const saving = controller.saveSelectedOrAll({ requestPermission: false });
+    await vi.waitFor(() => expect(saveItem).toHaveBeenCalledOnce());
+    const snapshotAtDestroy = controller.getSnapshot();
+
+    controller.destroy();
+    controller.destroy();
+    await saving;
+
+    expect(saveSignal?.aborted).toBe(true);
+    expect(controller.getSnapshot()).toBe(snapshotAtDestroy);
+  });
 });

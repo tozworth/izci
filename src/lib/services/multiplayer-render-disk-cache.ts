@@ -8,7 +8,7 @@
  * persistence.
  */
 
-import { logDebug } from '$lib/services/logging';
+import { logDebug } from '$lib/logging/api';
 import { experimentalSettings } from '$lib/stores/experimental-settings';
 import type { MultiplayerRenderManifest } from './multiplayer-protocol';
 import {

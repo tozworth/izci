@@ -1,7 +1,7 @@
 import { get } from 'svelte/store';
 import type { Unsubscriber } from 'svelte/store';
 import { playerController } from '$lib/services/player-controller';
-import { logError, logInfo } from '$lib/services/logging';
+import { logError, logInfo } from '$lib/logging/api';
 import type { MultiplayerPlayback } from '$lib/services/multiplayer-protocol';
 import type { PlaybackSnapshot } from '$lib/contracts/playback';
 import type { PlaylistItem } from '$lib/contracts/catalog';

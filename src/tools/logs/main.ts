@@ -1,22 +1,19 @@
 import '@material-symbols/font-400/outlined.css';
-import { mount, tick } from 'svelte';
-import { initializeLocalization } from '$lib/i18n';
-import { initLogging } from '$lib/services/logging';
-import { initializePopupWindowSizePersistence } from '$lib/services/popup-window-state';
-import { initializeScrollbarVisibility } from '$lib/services/scrollbar-visibility';
-import { initializeTheme } from '$lib/services/theme';
-import { registerAppServiceWorker } from '$lib/services/pwa-updates';
+import { mount, tick, unmount } from 'svelte';
+import { startApplicationPage } from '$lib/application/page-entry';
 import LogsApp from './LogsApp.svelte';
 import './logs.css';
 
-if (import.meta.env.PROD) registerAppServiceWorker();
-initializeTheme();
-initializeScrollbarVisibility();
-initializeLocalization();
-initLogging();
-initializePopupWindowSizePersistence('logs');
-mount(LogsApp, { target: document.getElementById('app')! });
-
-void tick().then(() => {
-  document.documentElement.dataset.izciReady = 'logs-mounted';
+startApplicationPage({
+  pageId: 'logs',
+  production: import.meta.env.PROD,
+  mobileDocument: false,
+  popupWindow: 'logs',
+  orphanPolicy: 'parent-owned',
+  readyMarker: 'logs-mounted',
+  mount: () => {
+    const app = mount(LogsApp, { target: document.getElementById('app')! });
+    return () => unmount(app);
+  },
+  ready: () => tick()
 });

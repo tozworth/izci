@@ -2,7 +2,7 @@ import { MODULE_EXTENSIONS, STREAM_EXTENSIONS, VIDEO_EXTENSIONS } from '$lib/con
 import { type WorkspaceCollection } from '$lib/contracts/workspace';
 import { prepareImportedFiles } from '$lib/services/file-verification';
 import { filesystemFolders } from '$lib/services/filesystem-folders';
-import { logError, logInfo } from '$lib/services/logging';
+import { logError, logInfo } from '$lib/logging/api';
 import { trackSettings } from '$lib/stores/track-settings';
 import { readDirectoryFiles, readFileHandleFiles } from '$lib/utils/files';
 

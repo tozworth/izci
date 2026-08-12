@@ -2,7 +2,7 @@ export interface ConverterOutputLocation {
   directory: FileSystemDirectoryHandle;
   fileName: string;
 }
-import { logError, logInfo } from '$lib/services/logging';
+import { logError, logInfo } from '$lib/logging/api';
 
 export async function resolveConverterOutputLocation(
   root: FileSystemDirectoryHandle,

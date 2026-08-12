@@ -9,7 +9,7 @@
  */
 
 import { audioBusService } from '$lib/services/audio-bus';
-import { logDebug, logInfo } from '$lib/services/logging';
+import { logDebug, logInfo } from '$lib/logging/api';
 import {
   buildClientRenderCacheKey,
   clientRenderCache,

@@ -1,5 +1,5 @@
 import { createChiptunePlayer } from '$lib/services/chiptune-loader';
-import { logDebug, logInfo, logWarning } from '$lib/services/logging';
+import { logDebug, logInfo, logWarning } from '$lib/logging/api';
 import { trackSettings } from '$lib/stores/track-settings';
 import {
   inferExtension,

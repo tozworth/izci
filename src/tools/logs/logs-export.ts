@@ -1,5 +1,5 @@
 import { version as appVersion } from '../../../package.json';
-import type { LogEntry } from '$lib/services/logging';
+import type { LogEntry } from '$lib/logging/api';
 
 export function formatLogTimestamp(timestamp: number): string {
   return new Date(timestamp).toISOString();

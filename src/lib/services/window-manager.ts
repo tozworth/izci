@@ -4,7 +4,7 @@ import { getPopupWindowSize } from '$lib/services/popup-window-state';
 import { OPEN_CURRENT_TOOL_TRACK_MESSAGE } from '$lib/services/tool-track-context';
 import { OPEN_TROUBADOUR_BATCH_CONTEXT_MESSAGE } from '$lib/services/troubadour-sync';
 import { buildOptionsWindowPath, type OptionsViewName } from '../../options/views';
-import { logDebug, logInfo, logWarning } from '$lib/services/logging';
+import { logDebug, logInfo, logWarning } from '$lib/logging/api';
 
 function isOpenWindow(windowRef: Window | null | undefined): windowRef is Window {
   return windowRef !== null && windowRef !== undefined && !windowRef.closed;

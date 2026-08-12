@@ -12,7 +12,7 @@
 </script>
 
 <script lang="ts">
-  import { createEventDispatcher, onMount } from 'svelte';
+  import { createEventDispatcher } from 'svelte';
   import HoverTooltip from '$lib/components/HoverTooltip.svelte';
   import { windowControlsOverlayState } from '$lib/services/window-controls-overlay';
 
@@ -65,25 +65,6 @@
     event.preventDefault();
     items[nextIndex]?.focus();
   }
-
-  onMount(() => {
-    const wasOpenedByHostWindow = window.opener !== null;
-    const closeIfHostWindowClosed = () => {
-      if (wasOpenedByHostWindow && (!window.opener || window.opener.closed)) {
-        window.close();
-      }
-    };
-
-    window.addEventListener('focus', closeIfHostWindowClosed);
-    document.addEventListener('visibilitychange', closeIfHostWindowClosed);
-    const openerCheckInterval = window.setInterval(closeIfHostWindowClosed, 1000);
-
-    return () => {
-      window.clearInterval(openerCheckInterval);
-      window.removeEventListener('focus', closeIfHostWindowClosed);
-      document.removeEventListener('visibilitychange', closeIfHostWindowClosed);
-    };
-  });
 
   $: allViews = [...groups.flat(), ...auxiliaryViews];
   $: visibleTreeViews = groups.flat().filter((view) => !view.hidden);

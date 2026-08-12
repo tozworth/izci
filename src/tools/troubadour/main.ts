@@ -1,26 +1,19 @@
 import '@material-symbols/font-400/outlined.css';
-import { mount, tick } from 'svelte';
-import { initializeLocalization } from '$lib/i18n';
-import { initializePopupWindowSizePersistence } from '$lib/services/popup-window-state';
-import { initializeScrollbarVisibility } from '$lib/services/scrollbar-visibility';
-import { initializeTheme } from '$lib/services/theme';
-import { registerAppServiceWorker } from '$lib/services/pwa-updates';
-import { initLogging } from '$lib/services/logging';
+import { mount, tick, unmount } from 'svelte';
+import { startApplicationPage } from '$lib/application/page-entry';
 import TroubadourApp from './TroubadourApp.svelte';
 import './troubadour.css';
 
-if (import.meta.env.PROD) {
-  registerAppServiceWorker();
-}
-
-initializeTheme();
-initializeScrollbarVisibility();
-initializeLocalization();
-initLogging();
-initializePopupWindowSizePersistence('troubadour');
-
-mount(TroubadourApp, { target: document.getElementById('app')! });
-
-void tick().then(() => {
-  document.documentElement.dataset.izciReady = 'troubadour-mounted';
+startApplicationPage({
+  pageId: 'troubadour',
+  production: import.meta.env.PROD,
+  mobileDocument: false,
+  popupWindow: 'troubadour',
+  orphanPolicy: 'survive-opener',
+  readyMarker: 'troubadour-mounted',
+  mount: () => {
+    const app = mount(TroubadourApp, { target: document.getElementById('app')! });
+    return () => unmount(app);
+  },
+  ready: () => tick()
 });

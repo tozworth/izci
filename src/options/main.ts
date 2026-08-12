@@ -1,31 +1,20 @@
 import '@material-symbols/font-400/outlined.css';
-import { mount, tick } from 'svelte';
+import { mount, tick, unmount } from 'svelte';
 import OptionsApp from './OptionsApp.svelte';
 import '$lib/styles/options-view.css';
 import '../mobile/mobile-options.css';
-import { initializeTheme } from '$lib/services/theme';
-import { initializePopupWindowSizePersistence } from '$lib/services/popup-window-state';
-import { initializeScrollbarVisibility } from '$lib/services/scrollbar-visibility';
-import { initializeLocalization } from '$lib/i18n';
-import { registerAppServiceWorker } from '$lib/services/pwa-updates';
-import { initializeMobileDocument } from '../mobile/mobile-device';
-import { initLogging } from '$lib/services/logging';
+import { startApplicationPage } from '$lib/application/page-entry';
 
-if (import.meta.env.PROD) {
-  registerAppServiceWorker();
-}
-
-initializeTheme();
-initializeMobileDocument();
-initializeScrollbarVisibility();
-initializeLocalization();
-initLogging();
-initializePopupWindowSizePersistence('options');
-
-mount(OptionsApp, {
-  target: document.getElementById('app')!
-});
-
-void tick().then(() => {
-  document.documentElement.dataset.izciReady = 'options-mounted';
+startApplicationPage({
+  pageId: 'options',
+  production: import.meta.env.PROD,
+  mobileDocument: true,
+  popupWindow: 'options',
+  orphanPolicy: 'close-with-opener',
+  readyMarker: 'options-mounted',
+  mount: () => {
+    const app = mount(OptionsApp, { target: document.getElementById('app')! });
+    return () => unmount(app);
+  },
+  ready: () => tick()
 });

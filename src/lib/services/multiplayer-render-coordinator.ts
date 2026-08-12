@@ -6,7 +6,7 @@
  */
 
 import type { PlaylistItem } from '$lib/contracts/catalog';
-import { logInfo, logWarning } from '$lib/services/logging';
+import { logInfo, logWarning } from '$lib/logging/api';
 import { errorMessage } from './multiplayer-utils';
 import {
   MultiplayerRenderCache,

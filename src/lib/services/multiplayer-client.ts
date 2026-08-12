@@ -8,7 +8,7 @@ import {
   multiplayerFreeplayState,
   rememberMultiplayerFreeplayState
 } from '$lib/stores/multiplayer-freeplay-state';
-import { logDebug, logError, logInfo, logWarning } from '$lib/services/logging';
+import { logDebug, logError, logInfo, logWarning } from '$lib/logging/api';
 import {
   forgetMultiplayerPairing,
   multiplayerPairings,

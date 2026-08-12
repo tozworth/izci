@@ -962,6 +962,7 @@
 
   onDestroy(() => {
     dockResizeCleanup?.();
+    controller.destroy();
     unsubscribeController();
     unsubscribeSettings();
     unsubscribeWorkspace();

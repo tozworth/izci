@@ -1,7 +1,7 @@
 import type { ChiptuneJsPlayer } from 'chiptune3';
 import { audioBusService } from '$lib/services/audio-bus';
 import { createChiptunePlayer } from '$lib/services/chiptune-loader';
-import { logWarning } from '$lib/services/logging';
+import { logWarning } from '$lib/logging/api';
 import { modulePlaybackSettings } from '$lib/stores/module-playback-settings';
 import { createPlaylistNavigation } from '$lib/stores/playlist-navigation';
 import type { PlaybackSnapshot } from '$lib/contracts/playback';

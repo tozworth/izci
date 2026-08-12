@@ -1,6 +1,6 @@
 import { createChiptunePlayer } from '$lib/services/chiptune-loader';
 import { audioBusService } from '$lib/services/audio-bus';
-import { logDebug, logError, logInfo } from '$lib/services/logging';
+import { logDebug, logError, logInfo } from '$lib/logging/api';
 import { mediaSessionService } from '$lib/services/media-session';
 import { modulePlaybackSettings } from '$lib/stores/module-playback-settings';
 import type { ModulePatternSnapshot, ModulePlaybackSettings } from '$lib/contracts/module-playback';

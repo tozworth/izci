@@ -1,5 +1,5 @@
 import type { PeerConnection, MultiplayerSessionState } from './multiplayer-types';
-import { logDebug } from './logging';
+import { logDebug } from '$lib/logging/api';
 import {
   updateReceivedBitrateWindow,
   type ReceivedByteSample

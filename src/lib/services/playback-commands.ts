@@ -1,7 +1,7 @@
 import { writable } from 'svelte/store';
 import { playerController } from '$lib/services/player-controller';
 import { playlistStore } from '$lib/stores/playlist';
-import { logDebug, logInfo, logWarning } from '$lib/services/logging';
+import { logDebug, logInfo, logWarning } from '$lib/logging/api';
 import type { PlaybackSnapshot, PlaybackTransitionMode } from '$lib/contracts/playback';
 import type { PlaylistItem, PlaylistRepeatMode } from '$lib/contracts/catalog';
 import type { WorkspaceCollection, WorkspaceTab } from '$lib/contracts/workspace';

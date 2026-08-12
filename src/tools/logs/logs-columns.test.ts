@@ -1,9 +1,18 @@
 import { describe, expect, it } from 'vitest';
-import type { LogEntry } from '$lib/services/logging';
+import type { LogEntry } from '$lib/logging/api';
 import { compareLogEntries, formatLogTimestamp } from './logs-columns';
 
 function entry(id: string, timestamp: number): LogEntry {
-  return { id, timestamp, level: 'info', source: 'system', context: 'main', message: id };
+  return {
+    id,
+    correlationId: `correlation:${id}`,
+    originId: 'main:test',
+    timestamp,
+    level: 'info',
+    source: 'system',
+    context: 'main',
+    message: id
+  };
 }
 
 describe('log time column', () => {

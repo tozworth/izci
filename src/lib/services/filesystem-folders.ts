@@ -1,5 +1,5 @@
 import { writable, type Readable } from 'svelte/store';
-import { logError, logInfo, logWarning } from '$lib/services/logging';
+import { logError, logInfo, logWarning } from '$lib/logging/api';
 
 export type FilesystemFolderPermission = 'granted' | 'prompt' | 'denied' | 'unavailable';
 export type LibraryFolderMode = 'manual' | 'launch';
