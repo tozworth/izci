@@ -8,6 +8,7 @@ export type ResourceKind =
   | 'child-scope'
   | 'event-listener'
   | 'interval'
+  | 'lifecycle'
   | 'object-url'
   | 'timeout'
   | 'worker';
