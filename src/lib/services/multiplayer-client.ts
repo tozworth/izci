@@ -57,6 +57,7 @@ import {
   errorMessage,
   getClientPlatform,
   getLocalName,
+  isIncompatibleProtocolHello,
   isMultiplayerClientTransportHealthy,
   sanitizeFreeplayQueueIds,
   sanitizeClientName,
@@ -652,7 +653,20 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
     channel.onmessage = (event) => {
       if (typeof event.data !== 'string') return;
       const message = decode(event.data);
-      if (!message) return;
+      if (!message) {
+        // A hello from an incompatible protocol version fails isHostMessage
+        // and would vanish here; surface it instead of failing silently.
+        let parsed: unknown;
+        try {
+          parsed = JSON.parse(event.data);
+        } catch {
+          parsed = null;
+        }
+        if (isIncompatibleProtocolHello(parsed)) {
+          publish({ connectionStatus: 'error', message: 'The host uses an incompatible protocol.' });
+        }
+        return;
+      }
       if (message.kind === 'catalog') publish({ remoteCatalog: message.catalog });
       if (message.kind === 'state') {
         publish({
@@ -851,9 +865,6 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
           message: 'The host removed this client.'
         });
         peer.pc.close();
-      }
-      if (message.kind === 'hello' && message.version !== MULTIPLAYER_PROTOCOL_VERSION) {
-        publish({ connectionStatus: 'error', message: 'The host uses an incompatible protocol.' });
       }
       if (message.kind === 'hello') {
         const hostName = sanitizeClientName(message.name);

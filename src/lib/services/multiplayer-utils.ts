@@ -12,6 +12,19 @@ import {
 
 export const RECEIVE_AUDIO_STORAGE_KEY = 'izci.multiplayer.receive-audio';
 
+/**
+ * True when a decoded frame is a host hello from an incompatible protocol
+ * version. isHostMessage rejects such hellos outright, so this exists for
+ * callers that want to surface a friendly error instead of dropping them.
+ */
+export function isIncompatibleProtocolHello(value: unknown): boolean {
+  if (typeof value !== 'object' || value === null) return false;
+  const message = value as Record<string, unknown>;
+  return message.kind === 'hello'
+    && typeof message.version === 'number'
+    && message.version !== MULTIPLAYER_PROTOCOL_VERSION;
+}
+
 export function isMultiplayerClientTransportHealthy(
   connectionState: RTCPeerConnectionState,
   channelState: RTCDataChannelState | undefined
