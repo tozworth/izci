@@ -26,5 +26,8 @@ those cited controls and store identities mechanically. This citation convention
 does not weaken the rule that disconnected fields default to repair, not removal.
 
 Stage 0 changed documentation only, so the project rule does not require a build
-at this gate. Stage 1 begins with a clean-install baseline before adding the
-verification spine.
+at this gate. Stage 1 is intentionally deferred to a separate run. `npm ci`
+completed successfully after this gate without changing the tracked tree; a
+parallel baseline command attempt was stopped before it completed and is not
+accepted as Stage 1 evidence. The next run must begin the recorded Stage 1
+baseline afresh before adding the verification spine.
