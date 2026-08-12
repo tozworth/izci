@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { defineConfig } from 'vite';
+import { defineConfig } from 'vitest/config';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
 import { VitePWA } from 'vite-plugin-pwa';
 import enMessages from './src/lib/i18n/locales/en.json';
@@ -16,6 +16,14 @@ export default defineConfig({
   },
   worker: {
     format: 'es'
+  },
+  test: {
+    coverage: {
+      provider: 'v8',
+      include: ['src/**/*.{ts,svelte}', 'sites-worker.js'],
+      exclude: ['src/**/*.test.ts', 'src/lib/vendor/**'],
+      reporter: ['text', 'json-summary']
+    }
   },
   build: {
     rollupOptions: {
