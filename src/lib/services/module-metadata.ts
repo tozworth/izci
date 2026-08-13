@@ -111,18 +111,19 @@ function disposePlayer(player: ChiptuneJsPlayer): void {
   void player.context.close().catch(() => undefined);
 }
 
-export async function loadModuleMetadata(track: MediaEntity | null): Promise<TrackMetadata | null> {
-  if (typeof window === 'undefined' || !track || track.kind !== 'module') {
+export async function loadModuleMetadataFromFile(
+  track: MediaEntity,
+  file: File,
+  signal?: AbortSignal
+): Promise<TrackMetadata | null> {
+  if (track.kind !== 'module' || signal?.aborted) {
     return null;
   }
 
   logDebug('decode', 'Probing module metadata', { id: track.id, name: track.name, format: track.format });
   try {
-    const buffer = await withMediaFile(track, (file) => file.arrayBuffer());
-    if (!buffer) {
-      logWarning('decode', 'Module metadata probe has no readable file', { id: track.id });
-      return null;
-    }
+    const buffer = await file.arrayBuffer();
+    if (signal?.aborted) return null;
 
     if (
       HIVELY_MODULE_EXTENSIONS.includes(
@@ -134,6 +135,8 @@ export async function loadModuleMetadata(track: MediaEntity | null): Promise<Tra
       else logWarning('decode', 'Hively metadata probe failed', { id: track.id });
       return metadata;
     }
+
+    if (typeof window === 'undefined') return null;
 
     const player = await createChiptunePlayer({});
 
@@ -147,13 +150,22 @@ export async function loadModuleMetadata(track: MediaEntity | null): Promise<Tra
 
         settled = true;
         window.clearTimeout(timeoutId);
+        signal?.removeEventListener('abort', handleAbort);
         disposePlayer(player);
         resolve(metadata);
       };
 
+      const handleAbort = () => finish(null);
+
       const timeoutId = window.setTimeout(() => {
         finish(null);
       }, MODULE_METADATA_TIMEOUT_MS);
+
+      signal?.addEventListener('abort', handleAbort, { once: true });
+      if (signal?.aborted) {
+        finish(null);
+        return;
+      }
 
       player.setVol(0);
       player.onMetadata((metadata) => {
@@ -174,4 +186,12 @@ export async function loadModuleMetadata(track: MediaEntity | null): Promise<Tra
     logWarning('decode', 'Module metadata probe failed', { id: track.id, format: track.format, error });
     return null;
   }
+}
+
+export async function loadModuleMetadata(track: MediaEntity | null): Promise<TrackMetadata | null> {
+  if (typeof window === 'undefined' || !track || track.kind !== 'module') {
+    return null;
+  }
+
+  return withMediaFile(track, (file) => loadModuleMetadataFromFile(track, file));
 }

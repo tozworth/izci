@@ -1152,15 +1152,26 @@ export function getTrackArtworkLoadKey(track: MediaEntity | null): string {
   return track.id;
 }
 
+export async function loadTrackMetadataFromFile(
+  file: File,
+  format: string
+): Promise<TrackMetadata | null> {
+  if (!canLoadStreamMetadata(format)) {
+    return null;
+  }
+
+  return {
+    ...(await readStreamMetadata(file, format)),
+    embeddedMetadataLoaded: true
+  };
+}
+
 export async function loadTrackMetadata(track: MediaEntity | null): Promise<TrackMetadata | null> {
   if (!track || track.kind !== 'stream' || !canLoadStreamMetadata(track.format)) {
     return null;
   }
 
-  return withMediaFile(track, async (file) => ({
-    ...(await readStreamMetadata(file, track.format)),
-    embeddedMetadataLoaded: true
-  }));
+  return withMediaFile(track, (file) => loadTrackMetadataFromFile(file, track.format));
 }
 
 export async function loadEmbeddedStreamArtwork(track: MediaEntity | null): Promise<EmbeddedStreamArtwork | null> {

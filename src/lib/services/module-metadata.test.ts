@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { parseHivelyMetadata } from '$lib/services/module-metadata';
+import {
+  loadModuleMetadataFromFile,
+  parseHivelyMetadata
+} from '$lib/services/module-metadata';
+import type { MediaEntity } from '$lib/contracts/catalog';
 
 function ahxBuffer(title = 'Karma'): ArrayBuffer {
   const bytes = new Uint8Array(96);
@@ -59,5 +63,23 @@ describe('Hively metadata parsing', () => {
     const unsupported = new Uint8Array(ahxBuffer());
     unsupported[3] = 3;
     expect(parseHivelyMetadata(unsupported.buffer)).toBeNull();
+  });
+
+  it('reads Hively metadata from the pipeline-owned file without browser playback', async () => {
+    const entity: MediaEntity = {
+      id: 'hively',
+      path: 'Modules/Karma.ahx',
+      name: 'Karma.ahx',
+      format: 'ahx',
+      kind: 'module',
+      size: 96,
+      lastModified: 1
+    };
+    const file = new File([ahxBuffer()], entity.name);
+
+    await expect(loadModuleMetadataFromFile(entity, file)).resolves.toMatchObject({
+      title: 'Karma',
+      trackerType: "Abyss' Highest eXperience"
+    });
   });
 });

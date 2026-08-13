@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { getTrackArtworkLoadKey, loadTrackMetadata } from './stream-artwork';
+import {
+  getTrackArtworkLoadKey,
+  loadTrackMetadata,
+  loadTrackMetadataFromFile
+} from './stream-artwork';
 import type { MediaEntity } from '$lib/contracts/catalog';
 import { mediaSources } from '$lib/media/media-source';
 
@@ -175,6 +179,19 @@ describe('stream artwork metadata helpers', () => {
         albumGainDb: -6.25,
         albumPeak: 0.98
       },
+      embeddedMetadataLoaded: true
+    });
+  });
+
+  it('can read bounded catalog metadata from an already leased file', async () => {
+    const metadata = await loadTrackMetadataFromFile(
+      flacFile(['TITLE=Lease Owned', 'ARTIST=Catalog Reader']),
+      'flac'
+    );
+
+    expect(metadata).toMatchObject({
+      title: 'Lease Owned',
+      artist: 'Catalog Reader',
       embeddedMetadataLoaded: true
     });
   });
