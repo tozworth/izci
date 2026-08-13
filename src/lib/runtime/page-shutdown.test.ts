@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { createPageShutdownCoordinator } from './page-shutdown';
+import { closePagePersistence, createPageShutdownCoordinator } from './page-shutdown';
 
 function deferred() {
   let resolve!: () => void;
@@ -41,5 +41,15 @@ describe('page shutdown coordination', () => {
     const cleanup = coordinator.wrapMountCleanup(() => undefined);
     await Promise.all([cleanup(), coordinator.beforePersistence()]);
     expect(shutdown).toHaveBeenCalledOnce();
+  });
+
+  it('releases page memory only after owner flush and database disposal', async () => {
+    const order: string[] = [];
+    await closePagePersistence(
+      async () => { order.push('owners'); },
+      async () => { order.push('databases'); },
+      async () => { order.push('memory'); }
+    );
+    expect(order).toEqual(['owners', 'databases', 'memory']);
   });
 });

@@ -28,3 +28,19 @@ export function createPageShutdownCoordinator(shutdown?: PageCleanup) {
     }
   };
 }
+
+export async function closePagePersistence(
+  disposeOwners: () => unknown | Promise<unknown>,
+  disposeDatabases: () => unknown | Promise<unknown>,
+  afterPersistence?: PageCleanup
+): Promise<void> {
+  try {
+    await disposeOwners();
+  } finally {
+    try {
+      await disposeDatabases();
+    } finally {
+      await afterPersistence?.();
+    }
+  }
+}

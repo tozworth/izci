@@ -1,7 +1,7 @@
 import { initializeLocalization } from '$lib/i18n';
 import { initializeLogging } from '$lib/logging/initialize';
 import { bootstrapPage, type PageBootstrapHandle, type PageCleanup } from '$lib/runtime/page-bootstrap';
-import { createPageShutdownCoordinator } from '$lib/runtime/page-shutdown';
+import { closePagePersistence, createPageShutdownCoordinator } from '$lib/runtime/page-shutdown';
 import { createBrowserRuntime } from '$lib/runtime/adapters/browser-runtime';
 import { disposeSettingsStores, flushSettingsStores } from '$lib/settings/store';
 import {
@@ -34,6 +34,8 @@ export interface ApplicationPageEntryConfig {
   readonly orphanPolicy: WindowOrphanPolicy;
   /** Page-domain work that must settle after unmount and before persistence closes. */
   readonly shutdown?: PageCleanup;
+  /** Page-owned memory that may be released only after persistence has flushed. */
+  readonly afterPersistence?: PageCleanup;
 }
 
 function lifecycleTarget(): Parameters<typeof bootstrapPage>[0]['lifecycle'] {
@@ -84,11 +86,11 @@ export function startApplicationPage(config: ApplicationPageEntryConfig): PageBo
       await shutdown.beforePersistence();
       flushSettingsStores();
       disposeSettingsStores();
-      try {
-        await disposeBrowserPersistenceOwners();
-      } finally {
-        await disposeBrowserDatabases();
-      }
+      await closePagePersistence(
+        disposeBrowserPersistenceOwners,
+        disposeBrowserDatabases,
+        config.afterPersistence
+      );
     },
     serviceWorker: () => registerAppServiceWorker(),
     theme: () => initializeTheme(),
