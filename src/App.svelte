@@ -88,6 +88,7 @@
   import { appearanceSettings } from '$lib/stores/appearance-settings';
   import { metadataSettings } from '$lib/stores/metadata-settings';
   import { favoritesStore, libraryStore, playlistStore } from '$lib/stores/playlist';
+  import { disposePlaylistMetadata } from '$lib/stores/playlist-metadata';
   import { libraryViewSettings } from '$lib/stores/library-view-settings';
   import { DEFAULT_PLAYER_VOLUME } from '$lib/stores/player-volume';
   import { playbackSettings } from '$lib/stores/playback-settings';
@@ -2068,6 +2069,7 @@
   }
 
   onDestroy(() => {
+    void disposePlaylistMetadata();
     dismissMultiplayerToast();
     playbackRestoration.destroy();
     playbackProgress.destroy();
