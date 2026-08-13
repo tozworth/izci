@@ -18,6 +18,7 @@ const playbackMocks = vi.hoisted(() => ({
   },
   playlist: {
     ensureLoaded: vi.fn(),
+    ensureLoadedResult: vi.fn(),
     resolveTrackEnd: vi.fn(),
     resolveStepTrack: vi.fn(),
     resolveStartTrack: vi.fn(),
@@ -116,6 +117,10 @@ beforeEach(() => {
   playbackMocks.player.hasPreparedTrack.mockReturnValue(false);
   playbackMocks.player.commitPrepared.mockReturnValue(false);
   playbackMocks.playlist.ensureLoaded.mockImplementation(async (id: string) => lease(id));
+  playbackMocks.playlist.ensureLoadedResult.mockImplementation(async (id: string) => ({
+    status: 'ready',
+    lease: lease(id)
+  }));
 });
 
 describe('previous-track restart behavior', () => {
@@ -165,7 +170,12 @@ describe('playback command storm characterization', () => {
   it('lets only the newest file-materialization request reach the player', async () => {
     const { controller, tracks, setPlayingTrack } = createCommands();
     const loads = new Map(['a', 'b', 'c'].map((id) => [id, deferred<ReturnType<typeof lease> | null>()]));
-    playbackMocks.playlist.ensureLoaded.mockImplementation((id: string) => loads.get(id)!.promise);
+    playbackMocks.playlist.ensureLoadedResult.mockImplementation(async (id: string) => {
+      const loaded = await loads.get(id)!.promise;
+      return loaded
+        ? { status: 'ready' as const, lease: loaded }
+        : { status: 'failure' as const, reason: 'source-unavailable' as const };
+    });
 
     const requests = ['a', 'b', 'c'].map((id) => controller.playTrack(tracks.get(id)!));
     expect(controller.getSnapshot().pendingPlaybackTrackId).toBe('c');

@@ -146,7 +146,11 @@ export function createPlaybackCommandsController({
     const requestId = ++playRequestSequence;
     setPendingPlaybackTrackId(track.id);
     logInfo('playback', 'Play request', { id: track.id, name: track.name, kind: track.kind });
-    const playableLease = await playlistStore.ensureLoaded(track.id, { prompt: true, purpose: 'media-element' });
+    const materialized = await playlistStore.ensureLoadedResult(track.id, {
+      prompt: true,
+      purpose: 'media-element'
+    });
+    const playableLease = materialized.status === 'ready' ? materialized.lease : null;
 
     if (requestId !== playRequestSequence) {
       playableLease?.release();
@@ -156,8 +160,20 @@ export function createPlaybackCommandsController({
 
     if (!playableLease) {
       clearPendingPlaybackTrackId(track.id);
-      logWarning('playback', 'Playback refused because file access is unavailable', { id: track.id });
-      playerController.reportError('Could not access this file. Re-add it or grant file access.');
+      logWarning('playback', 'Playback refused because media materialization failed', {
+        id: track.id,
+        reason: materialized.status === 'failure' ? materialized.reason : 'source-unavailable'
+      });
+      const reason = materialized.status === 'failure' ? materialized.reason : 'source-unavailable';
+      playerController.reportError(
+        reason === 'permission-required' || reason === 'permission-denied'
+          ? 'File access permission is required. Grant access and try again.'
+          : reason === 'source-mismatch'
+            ? 'The source file no longer matches this track. Re-add the file.'
+            : reason === 'unsupported-format'
+              ? 'This file format is not supported.'
+              : 'Could not access this file. Re-add it or grant file access.'
+      );
       return;
     }
 
