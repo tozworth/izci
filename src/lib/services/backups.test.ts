@@ -200,11 +200,20 @@ describe('izci backup archives', () => {
     const excessRecords = archive({
       library: records as BackupArchiveData['library']
     });
-    expect(() => decodeBackupArchive(encodeBackupArchive(excessRecords))).toThrow('invalid-backup');
+    expect(() => encodeBackupArchive(excessRecords)).toThrow('backup-too-large');
 
     const oversizedString = archive();
     oversizedString.folders[0].name = 'x'.repeat(BACKUP_MAX_JSON_STRING_LENGTH + 1);
-    expect(() => decodeBackupArchive(encodeBackupArchive(oversizedString))).toThrow('invalid-backup');
+    expect(() => encodeBackupArchive(oversizedString)).toThrow('backup-too-large');
+  });
+
+  it('refuses export data that exceeds an entry byte budget', () => {
+    const data = archive({
+      settings: {
+        value: 'x'.repeat(BACKUP_ENTRY_MAX_BYTES['settings.json'])
+      }
+    });
+    expect(() => encodeBackupArchive(data)).toThrow('backup-too-large');
   });
 
   it('strips nested artwork, lyrics, and blob-like objects from restored metadata', () => {

@@ -1,10 +1,17 @@
 import { get, writable, type Readable } from 'svelte/store';
 import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate';
 import { version as appVersion } from '../../../package.json';
+import type {
+  BackupManifest,
+  BackupRestoreResult,
+  LocateRestoreResult,
+  PendingBackupRestore,
+  PortableFolderRecord,
+  PortableTrackRecord
+} from '$lib/contracts/backup';
 import { prepareImportedFiles } from '$lib/services/file-verification';
 import {
-  filesystemFolders,
-  type LibraryFolderMode
+  filesystemFolders
 } from '$lib/services/filesystem-folders';
 import {
   mergePlaybackProgress,
@@ -79,42 +86,6 @@ const BACKUP_CHANNEL_NAME = 'izci-backup-restore';
 
 export { BACKED_UP_SETTINGS_KEYS } from '$lib/services/backup-registry';
 
-export interface BackupManifest {
-  kind: 'izci-backup';
-  formatVersion: number;
-  createdAt: string;
-  appVersion: string;
-  sourceOrigin: string;
-  contents: {
-    settings: number;
-    libraryTracks: number;
-    folders: number;
-    favorites: number;
-    playbackProgress: number;
-  };
-}
-
-export interface PortableTrackRecord {
-  id: string;
-  name: string;
-  format: string;
-  kind: MediaEntity['kind'];
-  size: number;
-  lastModified: number;
-  path: string;
-  sourceFolderId?: string;
-  metadata?: TrackMetadata;
-  rating?: number;
-  subsong?: number;
-}
-
-export interface PortableFolderRecord {
-  id: string;
-  name: string;
-  addedAt: number;
-  libraryMode: LibraryFolderMode | null;
-}
-
 export interface BackupArchiveData {
   manifest: BackupManifest;
   settings: Record<string, unknown>;
@@ -124,14 +95,6 @@ export interface BackupArchiveData {
   progress: PlaybackProgressRecord[];
 }
 
-export interface PendingBackupRestore {
-  createdAt: string;
-  sourceOrigin: string;
-  folders: PortableFolderRecord[];
-  tracks: PortableTrackRecord[];
-  favorites: PortableTrackRecord[];
-}
-
 const backupDatabaseSpec = defineDatabase({
   name: BACKUP_DATABASE_NAME,
   version: BACKUP_DATABASE_VERSION,
@@ -139,22 +102,6 @@ const backupDatabaseSpec = defineDatabase({
     [BACKUP_STORE_NAME]: defineStore<PendingBackupRestore, string>()({})
   }
 });
-
-export interface BackupRestoreResult {
-  manifest: BackupManifest;
-  settingsRestored: number;
-  tracksMatched: number;
-  tracksPending: number;
-  foldersPending: number;
-  favoritesRestored: number;
-  progressRestored: number;
-}
-
-export interface LocateRestoreResult {
-  status: 'success' | 'mismatch';
-  matchedTracks: number;
-  remainingTracks: number;
-}
 
 const EMPTY_PENDING_RESTORE: PendingBackupRestore = {
   createdAt: '',
@@ -293,18 +240,47 @@ function assertRecordLimit(records: readonly unknown[], maximum: number): void {
 }
 
 export function encodeBackupArchive(data: BackupArchiveData): Uint8Array {
-  const json = (value: unknown) => strToU8(JSON.stringify(value, null, 2));
-  return zipSync(
-    {
-      'manifest.json': json(data.manifest),
-      'settings.json': json(data.settings),
-      'library.json': json(data.library),
-      'folders.json': json(data.folders),
-      'favorites.json': json(data.favorites),
-      'progress.json': json(data.progress)
-    },
-    { level: 6 }
-  );
+  if (Object.keys(data.settings).length > BACKUP_MAX_SETTINGS_RECORDS) throw new Error('backup-too-large');
+  if (
+    data.library.length > BACKUP_MAX_LIBRARY_RECORDS
+    || data.folders.length > BACKUP_MAX_FOLDER_RECORDS
+    || data.favorites.length > BACKUP_MAX_FAVORITE_RECORDS
+    || data.progress.length > BACKUP_MAX_PROGRESS_RECORDS
+  ) {
+    throw new Error('backup-too-large');
+  }
+  for (const value of [
+    data.manifest,
+    data.settings,
+    data.library,
+    data.folders,
+    data.favorites,
+    data.progress
+  ]) {
+    try {
+      assertBoundedJson(value);
+    } catch {
+      throw new Error('backup-too-large');
+    }
+  }
+  const json = (name: BackupEntryName, value: unknown): Uint8Array => {
+    const bytes = strToU8(JSON.stringify(value, null, 2));
+    if (bytes.byteLength > BACKUP_ENTRY_MAX_BYTES[name]) throw new Error('backup-too-large');
+    return bytes;
+  };
+  const entries = {
+    'manifest.json': json('manifest.json', data.manifest),
+    'settings.json': json('settings.json', data.settings),
+    'library.json': json('library.json', data.library),
+    'folders.json': json('folders.json', data.folders),
+    'favorites.json': json('favorites.json', data.favorites),
+    'progress.json': json('progress.json', data.progress)
+  };
+  const uncompressedBytes = Object.values(entries).reduce((total, bytes) => total + bytes.byteLength, 0);
+  if (uncompressedBytes > BACKUP_MAX_UNCOMPRESSED_BYTES) throw new Error('backup-too-large');
+  const archive = zipSync(entries, { level: 6 });
+  if (archive.byteLength > BACKUP_MAX_COMPRESSED_BYTES) throw new Error('backup-too-large');
+  return archive;
 }
 
 export function decodeBackupArchive(bytes: Uint8Array): BackupArchiveData {
@@ -687,6 +663,7 @@ export function restoreFavorites(records: PortableTrackRecord[]): {
 }
 
 export async function restoreBackupArchive(file: File): Promise<BackupRestoreResult> {
+  if (file.size > BACKUP_MAX_COMPRESSED_BYTES) throw new Error('invalid-backup');
   const data = decodeBackupArchive(new Uint8Array(await file.arrayBuffer()));
   await Promise.all([
     libraryStore.ready(),

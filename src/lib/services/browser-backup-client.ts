@@ -16,6 +16,11 @@ function createBrowserChannel(): BackupCoordinationChannel | null {
 
 export const backupCoordinator = createBackupCoordinationClient({
   clientId: crypto.randomUUID(),
+  createId: () => crypto.randomUUID(),
+  scheduler: {
+    setTimeout: (callback, delayMs) => window.setTimeout(callback, delayMs),
+    clearTimeout: (handle) => window.clearTimeout(handle as number)
+  },
   createChannel: createBrowserChannel,
   createStandaloneOperations: loadBrowserBackupOperations,
   acquireStandaloneLease: () => tryAcquireBrowserBackupOwnerLease(navigator, {

@@ -228,6 +228,23 @@ describe('playback command storm characterization', () => {
     expect(notifyTrackResumed).toHaveBeenCalledWith(expect.objectContaining({ id: 'c' }), 33);
   });
 
+  it('releases a materialized lease when resume-position persistence fails', async () => {
+    const acquired = lease('a');
+    playbackMocks.playlist.ensureLoadedResult.mockResolvedValue({
+      status: 'ready',
+      lease: acquired
+    });
+    const failure = new Error('progress database failed');
+    const { controller, tracks } = createCommands({
+      resolveResumePosition: async () => { throw failure; }
+    });
+
+    await expect(controller.playTrack(tracks.get('a')!)).rejects.toBe(failure);
+    expect(acquired.release).toHaveBeenCalledOnce();
+    expect(playbackMocks.player.load).not.toHaveBeenCalled();
+    expect(controller.getSnapshot().pendingPlaybackTrackId).toBeNull();
+  });
+
   it('suppresses end navigation while overlapping manual transitions are unsettled', async () => {
     const transitions = new Map(['a', 'b', 'c'].map((id) => [id, deferred<void>()]));
     playbackMocks.player.transitionTo.mockImplementation((...args: unknown[]) => {

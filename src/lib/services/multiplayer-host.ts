@@ -1056,6 +1056,7 @@ export function createMultiplayerHostSide(
       || !track
       || !peer.freeplay
       || !peer.freeplayPlayer) {
+      track?.release();
       if (peer.freeplayActivation === activation) peer.freeplayActivation = null;
       return false;
     }

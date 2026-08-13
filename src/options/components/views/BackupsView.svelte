@@ -1,6 +1,6 @@
 <script lang="ts">
   import { locale, t } from 'svelte-i18n';
-  import type { BackupRestoreResult } from '$lib/services/backups';
+  import type { BackupRestoreResult } from '$lib/contracts/backup';
   import { BACKUP_FILE_EXTENSION } from '$lib/services/backup-coordination';
   import { backupCoordinator } from '$lib/services/browser-backup-client';
   import { createOpenFilePickerOptions } from '$lib/services/import-controller';

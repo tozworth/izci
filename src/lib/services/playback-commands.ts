@@ -179,7 +179,14 @@ export function createPlaybackCommandsController({
 
     const playableTrack = playableLease.entity;
     if (getPlayingTrack()?.id !== playableTrack.id) {
-      const initialPosition = await resolveResumePosition(playableTrack);
+      let initialPosition: number;
+      try {
+        initialPosition = await resolveResumePosition(playableTrack);
+      } catch (error) {
+        playableLease.release();
+        clearPendingPlaybackTrackId(playableTrack.id);
+        throw error;
+      }
 
       if (requestId !== playRequestSequence) {
         playableLease.release();

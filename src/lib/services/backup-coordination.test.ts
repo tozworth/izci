@@ -12,7 +12,7 @@ import type {
   BackupRestoreResult,
   LocateRestoreResult,
   PendingBackupRestore
-} from './backups';
+} from '$lib/contracts/backup';
 
 class ChannelHub {
   readonly channels = new Set<FakeChannel>();
@@ -125,8 +125,14 @@ function operations(
 }
 
 function clientFor(hub: ChannelHub, standalone: BackupOwnerOperations) {
+  let nextId = 0;
   return createBackupCoordinationClient({
     clientId: 'options-realm',
+    createId: () => `options-request-${++nextId}`,
+    scheduler: {
+      setTimeout: (callback, delayMs) => setTimeout(callback, delayMs),
+      clearTimeout: (handle) => clearTimeout(handle as ReturnType<typeof setTimeout>)
+    },
     createChannel: () => hub.create(),
     createStandaloneOperations: async () => standalone,
     acquireStandaloneLease: async () => ({ release: () => undefined }),
@@ -241,8 +247,14 @@ describe('backup owner coordination', () => {
   it('does not initialize standalone collection ownership when the lease is busy', async () => {
     const hub = new ChannelHub();
     const createStandaloneOperations = vi.fn(async () => operations());
+    let nextId = 0;
     const client = createBackupCoordinationClient({
       clientId: 'options-realm',
+      createId: () => `busy-request-${++nextId}`,
+      scheduler: {
+        setTimeout: (callback, delayMs) => setTimeout(callback, delayMs),
+        clearTimeout: (handle) => clearTimeout(handle as ReturnType<typeof setTimeout>)
+      },
       createChannel: () => hub.create(),
       createStandaloneOperations,
       acquireStandaloneLease: async () => null,
@@ -255,11 +267,49 @@ describe('backup owner coordination', () => {
     await client.dispose();
   });
 
+  it('waits for a main owner that is still hydrating after it acquired the lease', async () => {
+    const hub = new ChannelHub();
+    const createStandaloneOperations = vi.fn(async () => operations());
+    let nextId = 0;
+    const client = createBackupCoordinationClient({
+      clientId: 'early-options',
+      createId: () => `early-request-${++nextId}`,
+      scheduler: {
+        setTimeout: (callback, delayMs) => setTimeout(callback, delayMs),
+        clearTimeout: (handle) => clearTimeout(handle as ReturnType<typeof setTimeout>)
+      },
+      createChannel: () => hub.create(),
+      createStandaloneOperations,
+      acquireStandaloneLease: async () => null,
+      discoveryTimeoutMs: 2,
+      requestTimeoutMs: 100
+    });
+
+    const readiness = client.ready();
+    await new Promise((resolve) => setTimeout(resolve, 8));
+    const stopOwner = serveBackupOwner({
+      ownerId: 'hydrated-main',
+      channel: hub.create(),
+      owner: createSerializedBackupOwner(operations())
+    });
+
+    await expect(readiness).resolves.toBeUndefined();
+    expect(createStandaloneOperations).not.toHaveBeenCalled();
+    await client.dispose();
+    await stopOwner();
+  });
+
   it('retains a standalone lease until after domain state has been disposed', async () => {
     const hub = new ChannelHub();
     const events: string[] = [];
+    let nextId = 0;
     const client = createBackupCoordinationClient({
       clientId: 'standalone-options',
+      createId: () => `standalone-request-${++nextId}`,
+      scheduler: {
+        setTimeout: (callback, delayMs) => setTimeout(callback, delayMs),
+        clearTimeout: (handle) => clearTimeout(handle as ReturnType<typeof setTimeout>)
+      },
       createChannel: () => hub.create(),
       createStandaloneOperations: async () => operations({
         async disposeState() {

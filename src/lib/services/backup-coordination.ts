@@ -4,7 +4,7 @@ import type {
   BackupRestoreResult,
   LocateRestoreResult,
   PendingBackupRestore
-} from '$lib/services/backups';
+} from '$lib/contracts/backup';
 
 export const BACKUP_COORDINATION_CHANNEL_NAME = 'izci-backup-owner-v1';
 export const BACKUP_OWNERSHIP_LOCK_NAME = 'izci-backup-owner-v1';
@@ -300,17 +300,20 @@ export function createBackupCoordinationClient(options: {
   readonly createStandaloneOperations: () => Promise<BackupOwnerOperations>;
   readonly acquireStandaloneLease: () => Promise<BackupOwnerLease | null>;
   readonly getRealmOwner?: () => SerializedBackupOwner | null;
+  readonly createId: () => string;
+  readonly scheduler: {
+    setTimeout(callback: () => void, delayMs: number): unknown;
+    clearTimeout(handle: unknown): void;
+  };
   readonly discoveryTimeoutMs?: number;
   readonly requestTimeoutMs?: number;
-  readonly setTimeout?: (callback: () => void, delayMs: number) => unknown;
-  readonly clearTimeout?: (handle: unknown) => void;
 }): BackupCoordinationClient {
   const pendingStore = writable(EMPTY_PENDING_BACKUP_RESTORE);
   const channel = options.createChannel();
   const discoveryTimeoutMs = options.discoveryTimeoutMs ?? DEFAULT_DISCOVERY_TIMEOUT_MS;
   const requestTimeoutMs = options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS;
-  const schedule = options.setTimeout ?? ((callback, delayMs) => setTimeout(callback, delayMs));
-  const cancel = options.clearTimeout ?? ((handle) => clearTimeout(handle as ReturnType<typeof setTimeout>));
+  const schedule = options.scheduler.setTimeout;
+  const cancel = options.scheduler.clearTimeout;
   const pendingDiscoveries = new Map<string, (ownerId: string | null) => void>();
   const pendingRequests = new Map<string, {
     readonly ownerId: string;
@@ -318,6 +321,7 @@ export function createBackupCoordinationClient(options: {
     readonly reject: (error: unknown) => void;
     readonly timeout: unknown;
   }>();
+  const readyWaiters = new Set<() => void>();
   let ownerId: string | null = null;
   let disposed = false;
   let standaloneOwner: SerializedBackupOwner | null = null;
@@ -333,7 +337,26 @@ export function createBackupCoordinationClient(options: {
   let realmOwnerUnsubscribe: (() => void) | null = null;
 
   function createRequestId(): string {
-    return crypto.randomUUID();
+    return options.createId();
+  }
+
+  function wakeReadyWaiters(): void {
+    for (const wake of [...readyWaiters]) wake();
+  }
+
+  function waitForOwnerRetry(): Promise<void> {
+    if (disposed || ownerId) return Promise.resolve();
+    return new Promise<void>((resolve) => {
+      let timeout: unknown;
+      const finish = (): void => {
+        cancel(timeout);
+        readyWaiters.delete(finish);
+        resolve();
+      };
+      readyWaiters.add(finish);
+      timeout = schedule(finish, discoveryTimeoutMs);
+      if (disposed || ownerId) finish();
+    });
   }
 
   const handleMessage = (event: MessageEvent): void => {
@@ -347,6 +370,7 @@ export function createBackupCoordinationClient(options: {
       ownerId = message.ownerId;
       pendingStore.set(message.pending);
       pendingDiscoveries.get(message.requestId)?.(message.ownerId);
+      wakeReadyWaiters();
       return;
     }
 
@@ -506,12 +530,22 @@ export function createBackupCoordinationClient(options: {
     subscribe: pendingStore.subscribe,
     ready() {
       readyPromise ??= (async () => {
-        if (currentRealmOwner()) return;
-        if (ownerId || await discoverOwner()) return;
-        try {
-          await ensureStandaloneOwner();
-        } catch (error) {
-          if (!(error instanceof Error && error.message === 'backup-owner-appeared')) throw error;
+        while (!disposed) {
+          if (currentRealmOwner()) return;
+          if (ownerId || await discoverOwner()) return;
+          try {
+            await ensureStandaloneOwner();
+            return;
+          } catch (error) {
+            if (
+              !(error instanceof Error)
+              || (error.message !== 'backup-owner-appeared' && error.message !== 'backup-owner-busy')
+            ) {
+              throw error;
+            }
+            if (ownerId) return;
+            await waitForOwnerRetry();
+          }
         }
       })();
       return readyPromise;
@@ -531,6 +565,7 @@ export function createBackupCoordinationClient(options: {
         channel?.removeEventListener('message', handleMessage);
         for (const finish of pendingDiscoveries.values()) finish(null);
         pendingDiscoveries.clear();
+        wakeReadyWaiters();
         for (const request of pendingRequests.values()) {
           cancel(request.timeout);
           request.reject(new Error('backup-coordination-disposed'));

@@ -9,7 +9,7 @@
     type FilesystemFolderPermission
   } from '$lib/services/filesystem-folders';
   import { requestLibraryFolderScan } from '$lib/services/library-folder-coordination';
-  import type { PortableFolderRecord } from '$lib/services/backups';
+  import type { PortableFolderRecord } from '$lib/contracts/backup';
   import { backupCoordinator } from '$lib/services/browser-backup-client';
 
   type PickerWindow = Window & typeof globalThis & {
