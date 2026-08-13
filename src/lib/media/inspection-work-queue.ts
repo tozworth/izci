@@ -21,6 +21,15 @@ export class InspectionWorkCancelledError<TKey = unknown> extends Error {
   }
 }
 
+export class InspectionWorkCapacityError<TKey = unknown> extends Error {
+  readonly code = 'inspection-work-capacity';
+
+  constructor(readonly key?: TKey) {
+    super('Inspection work admission is at capacity.');
+    this.name = 'InspectionWorkCapacityError';
+  }
+}
+
 export interface InspectionWorkContext {
   readonly signal: AbortSignal;
   readonly priority: InspectionPriority;
@@ -66,6 +75,8 @@ export interface BoundedInspectionWorkQueueOptions {
   readonly maxBackgroundConcurrency: number;
   /** Maximum work retained after admission but before execution. */
   readonly maxQueued: number;
+  /** Maximum callers retained while waiting for queue admission. */
+  readonly maxAwaitingAdmission: number;
   readonly clock: Pick<ClockPort, 'clearTimeout' | 'setTimeout'>;
   readonly abortControllers: Pick<AbortControllerPort, 'create'>;
 }
@@ -107,6 +118,7 @@ export class BoundedInspectionWorkQueue<TKey = string> {
   readonly #maxConcurrency: number;
   readonly #maxBackgroundConcurrency: number;
   readonly #maxQueued: number;
+  readonly #maxAwaitingAdmission: number;
   readonly #clock: Pick<ClockPort, 'clearTimeout' | 'setTimeout'>;
   readonly #abortControllers: Pick<AbortControllerPort, 'create'>;
   readonly #interactiveQueue: WorkItem<TKey>[] = [];
@@ -133,12 +145,14 @@ export class BoundedInspectionWorkQueue<TKey = string> {
     assertLimit('maxConcurrency', options.maxConcurrency);
     assertLimit('maxBackgroundConcurrency', options.maxBackgroundConcurrency, true);
     assertLimit('maxQueued', options.maxQueued, true);
+    assertLimit('maxAwaitingAdmission', options.maxAwaitingAdmission, true);
     if (options.maxBackgroundConcurrency > options.maxConcurrency) {
       throw new RangeError('maxBackgroundConcurrency cannot exceed maxConcurrency.');
     }
     this.#maxConcurrency = options.maxConcurrency;
     this.#maxBackgroundConcurrency = options.maxBackgroundConcurrency;
     this.#maxQueued = options.maxQueued;
+    this.#maxAwaitingAdmission = options.maxAwaitingAdmission;
     this.#clock = options.clock;
     this.#abortControllers = options.abortControllers;
   }
@@ -225,6 +239,20 @@ export class BoundedInspectionWorkQueue<TKey = string> {
       if (previous !== undefined) {
         this.#cancel(previous, 'superseded', false);
       }
+    }
+
+    const awaitingAdmission = this.#interactiveAdmissionQueue.length
+      + this.#backgroundAdmissionQueue.length;
+    if (awaitingAdmission >= this.#maxAwaitingAdmission) {
+      item.state = 'finished';
+      item.logicalSettled = true;
+      this.#cleanupLogicalResources(item);
+      item.controller.abort();
+      item.rejectAdmission(new InspectionWorkCapacityError(options.key));
+      return admission;
+    }
+
+    if (options.key !== undefined) {
       this.#latestByKey.set(options.key, item);
     }
 

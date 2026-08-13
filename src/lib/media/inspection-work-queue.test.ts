@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   BoundedInspectionWorkQueue,
+  InspectionWorkCapacityError,
   InspectionWorkCancelledError,
   type InspectionCancellationReason
 } from './inspection-work-queue';
@@ -54,6 +55,7 @@ function createQueue<TKey = string>(
     maxConcurrency,
     maxBackgroundConcurrency,
     maxQueued,
+    maxAwaitingAdmission: 32,
     clock: timers,
     abortControllers: { create: () => new AbortController() }
   });
@@ -326,6 +328,52 @@ describe('BoundedInspectionWorkQueue', () => {
       interactive.result
     ])).resolves.toEqual([0, 1, 2, 3, 4]);
     expect(queue.counts).toMatchObject({ active: 0, queued: 0, awaitingAdmission: 0 });
+  });
+
+  it('rejects overflow instead of retaining an unbounded admission backlog', async () => {
+    const gate = deferred<void>();
+    const queue = new BoundedInspectionWorkQueue<string>({
+      maxConcurrency: 1,
+      maxBackgroundConcurrency: 1,
+      maxQueued: 0,
+      maxAwaitingAdmission: 1,
+      clock: new ManualTimers(),
+      abortControllers: { create: () => new AbortController() }
+    });
+    const running = await queue.enqueue(() => gate.promise);
+    const waiting = queue.enqueue(async () => 'waiting');
+
+    await expect(queue.enqueue(async () => 'overflow')).rejects.toBeInstanceOf(
+      InspectionWorkCapacityError
+    );
+    expect(queue.counts).toMatchObject({ awaitingAdmission: 1, peakAwaitingAdmission: 1 });
+
+    gate.resolve();
+    const admitted = await waiting;
+    await expect(admitted.result).resolves.toBe('waiting');
+    await running.result;
+  });
+
+  it('supersedes the same waiting key before enforcing admission capacity', async () => {
+    const gate = deferred<void>();
+    const queue = new BoundedInspectionWorkQueue<string>({
+      maxConcurrency: 1,
+      maxBackgroundConcurrency: 1,
+      maxQueued: 0,
+      maxAwaitingAdmission: 1,
+      clock: new ManualTimers(),
+      abortControllers: { create: () => new AbortController() }
+    });
+    const running = await queue.enqueue(() => gate.promise, { key: 'running' });
+    const stale = queue.enqueue(async () => 'stale', { key: 'replacement' });
+    const current = queue.enqueue(async () => 'current', { key: 'replacement' });
+
+    await expectCancellation(stale, 'superseded');
+    expect(queue.counts.awaitingAdmission).toBe(1);
+    gate.resolve();
+    const admitted = await current;
+    await expect(admitted.result).resolves.toBe('current');
+    await running.result;
   });
 
   it('cancels admission deterministically and does not admit after logical running cancellation', async () => {

@@ -68,6 +68,7 @@ function harness(options: {
     maxConcurrency: 2,
     maxBackgroundConcurrency: 1,
     maxQueued: 8,
+    maxAwaitingAdmission: 8,
     clock: timers,
     abortControllers: { create: () => new AbortController() },
     handlers: handlers(options.catalog),
@@ -100,6 +101,27 @@ describe('media inspection pipeline', () => {
       value: { title: 'Track' }
     });
     expect(owner.release).toHaveBeenCalledOnce();
+  });
+
+  it('reports the materialized file revision when the source changed externally', async () => {
+    const refreshed = { ...entity, size: 99, lastModified: 100 };
+    const owner = harness({
+      materialize: vi.fn(async () => ({
+        entity: refreshed,
+        file: {} as File,
+        release: vi.fn()
+      }))
+    });
+    const ticket = await owner.pipeline.inspect({
+      kind: 'catalog-metadata',
+      entity,
+      generationId: 'external-change',
+      origin: 'hydration'
+    });
+
+    await expect(ticket.result).resolves.toMatchObject({
+      sourceRevision: getMediaSourceRevision(refreshed)
+    });
   });
 
   it('releases the lease after a reader failure', async () => {

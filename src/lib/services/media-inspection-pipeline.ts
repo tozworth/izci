@@ -123,6 +123,7 @@ export class MediaInspectionPipeline {
       maxConcurrency: options.maxConcurrency,
       maxBackgroundConcurrency: options.maxBackgroundConcurrency,
       maxQueued: options.maxQueued,
+      maxAwaitingAdmission: options.maxAwaitingAdmission,
       clock: options.clock,
       abortControllers: options.abortControllers
     });
@@ -139,7 +140,6 @@ export class MediaInspectionPipeline {
   async inspect<TKind extends MediaInspectionKind>(
     request: MediaInspectionRequest<TKind>
   ): Promise<MediaInspectionTicket<TKind>> {
-    const sourceRevision = getMediaSourceRevision(request.entity);
     const ticket: InspectionWorkTicket<MediaInspectionResult<TKind>> = await this.#queue.enqueue(
       async ({ signal }) => {
         const lease = await this.#materialize(request.entity);
@@ -175,7 +175,9 @@ export class MediaInspectionPipeline {
             kind: request.kind,
             entityId: request.entity.id,
             generationId: request.generationId,
-            sourceRevision,
+            // The reader consumed the materialized File, whose current size,
+            // mtime, format, or name may differ from the durable catalog fact.
+            sourceRevision: getMediaSourceRevision(lease.entity),
             value
           };
         } finally {

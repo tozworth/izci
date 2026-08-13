@@ -298,6 +298,7 @@ function getBrowserOwner(): CatalogMetadataInspectionOwner | null {
     maxConcurrency: MAX_INSPECTION_CONCURRENCY,
     maxBackgroundConcurrency: MAX_BACKGROUND_INSPECTION_CONCURRENCY,
     maxQueued: MAX_QUEUED_INSPECTIONS,
+    maxAwaitingAdmission: MAX_CATALOG_BATCH_PRODUCERS + 16,
     clock: new BrowserClock(window, () => window.Date.now(), () => window.performance.now()),
     abortControllers,
     defaultTimeoutMs: CATALOG_METADATA_TIMEOUT_MS,

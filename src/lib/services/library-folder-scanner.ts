@@ -325,6 +325,7 @@ export function createBoundedLibraryFolderDiscovery(): {
     maxConcurrency: 4,
     maxBackgroundConcurrency: 4,
     maxQueued: 16,
+    maxAwaitingAdmission: 4,
     clock: {
       setTimeout: (callback, delayMs) => globalThis.setTimeout(callback, delayMs),
       clearTimeout: (handle) => globalThis.clearTimeout(handle as ReturnType<typeof setTimeout>)
