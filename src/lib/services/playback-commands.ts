@@ -12,6 +12,7 @@ import type {
 } from '$lib/types';
 import { buildPlaylistItems, clonePlaylistItems } from '$lib/utils/files';
 import { prepareImportedFiles } from '$lib/services/file-verification';
+import type { AbLoopRange } from '$lib/services/ab-loop';
 
 interface PlaybackCommandsState {
   pendingPlaybackTrackId: string | null;
@@ -38,6 +39,7 @@ interface CreatePlaybackCommandsControllerOptions {
   notifyTrackResumed?: (track: PlaylistItem, currentTime: number) => void;
   getStopAfterCurrentTrack?: () => boolean;
   clearStopAfterCurrentTrack?: () => void;
+  getActiveLoopRange?: () => AbLoopRange | null;
 }
 
 const initialState: PlaybackCommandsState = {
@@ -108,7 +110,8 @@ export function createPlaybackCommandsController({
   resolveResumePosition = async () => 0,
   notifyTrackResumed = () => undefined,
   getStopAfterCurrentTrack = () => false,
-  clearStopAfterCurrentTrack = () => undefined
+  clearStopAfterCurrentTrack = () => undefined,
+  getActiveLoopRange = () => null
 }: CreatePlaybackCommandsControllerOptions) {
   let state = initialState;
   let playRequestSequence = 0;
@@ -392,7 +395,7 @@ export function createPlaybackCommandsController({
   async function prepareUpcomingTrack(): Promise<void> {
     const currentTrack = getPlayingTrack();
 
-    if (!currentTrack || !getGaplessPlaybackEnabled() || getStopAfterCurrentTrack()) return;
+    if (!currentTrack || !getGaplessPlaybackEnabled() || getStopAfterCurrentTrack() || getActiveLoopRange()) return;
     const nextTrack = playlistStore.resolveTrackEnd({
       currentId: currentTrack.id,
       shuffle: getShuffleEnabled(),
@@ -418,6 +421,8 @@ export function createPlaybackCommandsController({
     const currentTime = getPlaybackCurrentTime();
     const mode = effectiveTransitionMode();
     if (mode === 'none') return;
+    // An active A-B loop owns the timeline: no auto fades or crossfades.
+    if (getActiveLoopRange()) return;
     const fadeSeconds = Math.min(getFadeDurationSeconds(), duration);
     if (!isAutomaticFadeWindow(currentTime, duration, fadeSeconds)) return;
 
@@ -453,6 +458,14 @@ export function createPlaybackCommandsController({
       logInfo('playback', 'Stopped after current track');
       playerController.pause();
       playerController.seek(0);
+      return;
+    }
+
+    const loopRange = getActiveLoopRange();
+    if (loopRange) {
+      logInfo('playback', 'A-B loop wrapped at track end', { start: loopRange.start });
+      playerController.seek(loopRange.start);
+      playerController.play();
       return;
     }
 

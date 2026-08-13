@@ -65,6 +65,7 @@
   } from '$lib/services/playback-progress';
   import { createPlaybackRestorationController } from '$lib/services/playback-restoration';
   import { setSleepTimerFiredHandler } from '$lib/services/sleep-timer';
+  import { abLoop, resolveAbLoopRange } from '$lib/services/ab-loop';
   import { forceServiceWorkerUpdateCheck } from '$lib/services/pwa-updates';
   import { logError } from '$lib/services/logging';
   import { createWorkspaceShellController } from '$lib/services/workspace-shell';
@@ -486,7 +487,8 @@
     notifyTrackResumed: (track, currentTime) =>
       playbackProgress.showResumeNotice(track, currentTime),
     getStopAfterCurrentTrack: () => $playbackSettings.stopAfterTrack,
-    clearStopAfterCurrentTrack: () => playbackSettings.update({ stopAfterTrack: false })
+    clearStopAfterCurrentTrack: () => playbackSettings.update({ stopAfterTrack: false }),
+    getActiveLoopRange: () => resolveAbLoopRange(abLoop.getSnapshot())
   });
   async function handleMultiplayerHostCommand(command: MultiplayerCommand): Promise<boolean> {
     if (multiplayerState.mode !== 'hosting') return false;

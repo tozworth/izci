@@ -135,7 +135,13 @@
       "sleepTimerOff": "Off",
       "sleepTimerMinutes": "{minutes} min",
       "sleepTimerRemaining": "Stops in {time}",
-      "stopAfterTrack": "Stop after current track"
+      "stopAfterTrack": "Stop after current track",
+      "abLoop": "A-B Loop",
+      "abLoopSetStart": "Set loop start (A)",
+      "abLoopSetEnd": "Set loop end (B)",
+      "abLoopToggle": "Loop A–B",
+      "abLoopActive": "Looping {start}–{end}",
+      "abLoopClear": "Clear loop"
     },
     "miniPlayer": {
       "heading": "Mini player",
