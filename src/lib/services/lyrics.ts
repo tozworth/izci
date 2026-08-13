@@ -1,5 +1,6 @@
 import { extractStreamVorbisComments } from '$lib/services/stream-artwork';
-import type { PlaylistItem } from '$lib/contracts/catalog';
+import type { MediaEntity } from '$lib/contracts/catalog';
+import { withMediaFile } from '$lib/stores/playlist-materialization';
 
 export interface TimedLyricLine {
   time: number;
@@ -24,18 +25,6 @@ const VORBIS_LYRICS_KEYS = ['LYRICS', 'SYNCEDLYRICS', 'SYNCED LYRICS'];
 const LRC_TIMESTAMP_PATTERN = /\[(\d{1,3}):(\d{2})(?:[.:](\d{1,3}))?\]/g;
 const DEFAULT_DOWNTIME_THRESHOLD_SECONDS = 10;
 const lyricsLoadCache = new Map<string, Promise<LoadedLyrics | null>>();
-
-async function resolveTrackFile(track: PlaylistItem): Promise<File | null> {
-  if (track.fileHandle) {
-    try {
-      return await track.fileHandle.getFile();
-    } catch {
-      // Fall through to the in-memory File if a persisted handle cannot be read.
-    }
-  }
-
-  return track.file ?? null;
-}
 
 function parseTimestamp(minutes: string, seconds: string, fraction: string | undefined): number | null {
   const minuteValue = Number(minutes);
@@ -195,8 +184,8 @@ export function hasRenderableLyrics(raw: string, lines = parseLrcLyrics(raw)): b
   return untimedLines.length > 1;
 }
 
-export function getTrackLyricsLoadKey(track: PlaylistItem | null): string {
-  return track ? `${track.id}:${track.extension}:${track.lastModified}:${track.size}` : '';
+export function getTrackLyricsLoadKey(track: MediaEntity | null): string {
+  return track ? `${track.id}:${track.format}:${track.lastModified}:${track.size}` : '';
 }
 
 function findVorbisLyricsComment(comments: Array<{ key: string; value: string }>): string {
@@ -212,46 +201,28 @@ function findVorbisLyricsComment(comments: Array<{ key: string; value: string }>
   return '';
 }
 
-async function loadTrackLyricsUncached(track: PlaylistItem): Promise<LoadedLyrics | null> {
-  const file = await resolveTrackFile(track);
-
-  if (!file) {
-    return null;
-  }
-
-  const bytes = new Uint8Array(await file.arrayBuffer());
-  let raw = findVorbisLyricsComment(extractStreamVorbisComments(bytes, track.extension));
-  let source: LoadedLyrics['source'] = 'vorbis-comments';
-
-  if (!raw) {
-    const { ALL_FORMATS, BlobSource, Input } = await import('mediabunny');
-    const input = new Input({ source: new BlobSource(file), formats: ALL_FORMATS });
-    try {
-      raw = (await input.getMetadataTags()).lyrics?.trim() ?? '';
-      source = 'embedded-metadata';
-    } finally {
-      input.dispose();
+async function loadTrackLyricsUncached(track: MediaEntity): Promise<LoadedLyrics | null> {
+  return withMediaFile(track, async (file) => {
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    let raw = findVorbisLyricsComment(extractStreamVorbisComments(bytes, track.format));
+    let source: LoadedLyrics['source'] = 'vorbis-comments';
+    if (!raw) {
+      const { ALL_FORMATS, BlobSource, Input } = await import('mediabunny');
+      const input = new Input({ source: new BlobSource(file), formats: ALL_FORMATS });
+      try {
+        raw = (await input.getMetadataTags()).lyrics?.trim() ?? '';
+        source = 'embedded-metadata';
+      } finally {
+        input.dispose();
+      }
     }
-  }
-
-  if (!raw) {
-    return null;
-  }
-
-  const lines = parseLrcLyrics(raw);
-
-  if (!hasRenderableLyrics(raw, lines)) {
-    return null;
-  }
-
-  return {
-    raw,
-    lines,
-    source
-  };
+    if (!raw) return null;
+    const lines = parseLrcLyrics(raw);
+    return hasRenderableLyrics(raw, lines) ? { raw, lines, source } : null;
+  });
 }
 
-export async function loadTrackLyrics(track: PlaylistItem | null): Promise<LoadedLyrics | null> {
+export async function loadTrackLyrics(track: MediaEntity | null): Promise<LoadedLyrics | null> {
   if (!track || track.kind !== 'stream') {
     return null;
   }

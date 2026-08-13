@@ -3,9 +3,9 @@ import { playerController } from '$lib/services/player-controller';
 import { playlistStore } from '$lib/stores/playlist';
 import { logDebug, logInfo, logWarning } from '$lib/logging/api';
 import type { PlaybackSnapshot, PlaybackTransitionMode } from '$lib/contracts/playback';
-import type { PlaylistItem, PlaylistRepeatMode } from '$lib/contracts/catalog';
+import type { MediaEntity, PlaylistRepeatMode } from '$lib/contracts/catalog';
 import type { WorkspaceCollection, WorkspaceTab } from '$lib/contracts/workspace';
-import { buildPlaylistItems, clonePlaylistItems } from '$lib/utils/files';
+import { buildMediaEntities, cloneMediaEntities } from '$lib/utils/files';
 import { prepareImportedFiles } from '$lib/services/file-verification';
 
 interface PlaybackCommandsState {
@@ -13,8 +13,8 @@ interface PlaybackCommandsState {
 }
 
 interface CreatePlaybackCommandsControllerOptions {
-  getPlayingTrack: () => PlaylistItem | null;
-  getSelectedPlaylistTrack: () => PlaylistItem | null;
+  getPlayingTrack: () => MediaEntity | null;
+  getSelectedPlaylistTrack: () => MediaEntity | null;
   getPlaybackState: () => PlaybackSnapshot['state'];
   getPlaybackCurrentTime: () => number;
   getPlaybackDuration: () => number;
@@ -25,12 +25,12 @@ interface CreatePlaybackCommandsControllerOptions {
   getManualTrackChangeFadePercent: () => number;
   getShuffleEnabled: () => boolean;
   getRepeatMode: () => PlaylistRepeatMode;
-  getTrackById: (collection: WorkspaceCollection, id: string) => PlaylistItem | null;
+  getTrackById: (collection: WorkspaceCollection, id: string) => MediaEntity | null;
   selectTrack: (collection: WorkspaceCollection, id: string) => void;
   setActiveWorkspaceTab: (tab: WorkspaceTab) => void;
-  cleanupRemovedItems: (items: PlaylistItem[]) => void;
-  resolveResumePosition?: (track: PlaylistItem) => Promise<number>;
-  notifyTrackResumed?: (track: PlaylistItem, currentTime: number) => void;
+  cleanupRemovedItems: (items: MediaEntity[]) => void;
+  resolveResumePosition?: (track: MediaEntity) => Promise<number>;
+  notifyTrackResumed?: (track: MediaEntity, currentTime: number) => void;
 }
 
 const initialState: PlaybackCommandsState = {
@@ -137,7 +137,7 @@ export function createPlaybackCommandsController({
   }
 
   async function playTrack(
-    track: PlaylistItem,
+    track: MediaEntity,
     options: { manualTransition?: boolean } = {}
   ): Promise<void> {
     // Start (or resume) the shared context while the initiating tap still carries
@@ -146,24 +146,27 @@ export function createPlaybackCommandsController({
     const requestId = ++playRequestSequence;
     setPendingPlaybackTrackId(track.id);
     logInfo('playback', 'Play request', { id: track.id, name: track.name, kind: track.kind });
-    const playableTrack = await playlistStore.ensureLoaded(track.id, { prompt: true });
+    const playableLease = await playlistStore.ensureLoaded(track.id, { prompt: true, purpose: 'media-element' });
 
     if (requestId !== playRequestSequence) {
+      playableLease?.release();
       clearPendingPlaybackTrackId(track.id);
       return;
     }
 
-    if (!playableTrack) {
+    if (!playableLease) {
       clearPendingPlaybackTrackId(track.id);
       logWarning('playback', 'Playback refused because file access is unavailable', { id: track.id });
       playerController.reportError('Could not access this file. Re-add it or grant file access.');
       return;
     }
 
+    const playableTrack = playableLease.entity;
     if (getPlayingTrack()?.id !== playableTrack.id) {
       const initialPosition = await resolveResumePosition(playableTrack);
 
       if (requestId !== playRequestSequence) {
+        playableLease.release();
         clearPendingPlaybackTrackId(playableTrack.id);
         return;
       }
@@ -182,12 +185,12 @@ export function createPlaybackCommandsController({
       if (shouldTransition) {
         manualTransitionCount += 1;
         try {
-          await playerController.transitionTo(playableTrack, mode, manualTransitionDurationSeconds);
+          await playerController.transitionTo(playableLease, mode, manualTransitionDurationSeconds);
         } finally {
           manualTransitionCount = Math.max(manualTransitionCount - 1, 0);
         }
       } else {
-        await playerController.load(playableTrack, { autoPlay: true, initialPosition });
+        await playerController.load(playableLease, { autoPlay: true, initialPosition });
       }
 
       if (requestId !== playRequestSequence) {
@@ -200,6 +203,7 @@ export function createPlaybackCommandsController({
       return;
     }
 
+    playableLease.release();
     clearPendingPlaybackTrackId(playableTrack.id);
 
     const playbackState = getPlaybackState();
@@ -233,7 +237,7 @@ export function createPlaybackCommandsController({
     }
 
     logDebug('playback', 'Library track activation', { id });
-    const [addedTrack] = playlistStore.add(clonePlaylistItems([track]));
+    const [addedTrack] = playlistStore.add(cloneMediaEntities([track]));
     const playlistTrack = addedTrack ?? playlistStore.findEquivalent(track);
 
     if (!playlistTrack) {
@@ -244,8 +248,8 @@ export function createPlaybackCommandsController({
     await playTrack(playlistTrack, { manualTransition: true });
   }
 
-  async function activateFavoriteTrack(track: PlaylistItem): Promise<void> {
-    const [addedTrack] = playlistStore.add(clonePlaylistItems([track]));
+  async function activateFavoriteTrack(track: MediaEntity): Promise<void> {
+    const [addedTrack] = playlistStore.add(cloneMediaEntities([track]));
     const playlistTrack = addedTrack ?? playlistStore.findEquivalent(track);
 
     if (!playlistTrack) {
@@ -258,7 +262,7 @@ export function createPlaybackCommandsController({
 
   async function importLaunchedFiles(files: File[], action: 'add' | 'replace'): Promise<void> {
     logInfo('files', 'Launch import started', { files: files.length, action });
-    const nextItems = buildPlaylistItems(await prepareImportedFiles(files));
+    const nextItems = buildMediaEntities(await prepareImportedFiles(files));
 
     if (nextItems.length === 0) {
       logWarning('files', 'Launch import contained no playable files', { files: files.length });
@@ -268,7 +272,7 @@ export function createPlaybackCommandsController({
     await playlistStore.ready();
     setActiveWorkspaceTab('playlist');
 
-    let addedItems: PlaylistItem[];
+    let addedItems: MediaEntity[];
 
     if (action === 'add') {
       addedItems = playlistStore.add(nextItems);
@@ -393,13 +397,16 @@ export function createPlaybackCommandsController({
 
     const requestId = ++preparationSequence;
     logDebug('playback', 'Preparing upcoming track', { id: nextTrack.id });
-    const playableTrack = await playlistStore.ensureLoaded(nextTrack.id, { prompt: false });
+    const playableLease = await playlistStore.ensureLoaded(nextTrack.id, { prompt: false, purpose: 'media-element' });
     if (
       requestId !== preparationSequence ||
       getPlayingTrack()?.id !== currentTrack.id ||
-      !playableTrack
-    ) return;
-    await playerController.prepareNext(playableTrack);
+      !playableLease
+    ) {
+      playableLease?.release();
+      return;
+    }
+    await playerController.prepareNext(playableLease);
   }
 
   async function handlePlaybackProgress(): Promise<void> {
@@ -459,7 +466,7 @@ export function createPlaybackCommandsController({
     getSnapshot(): PlaybackCommandsState {
       return state;
     },
-    notifyCurrentTrackChanged(track: PlaylistItem | null): void {
+    notifyCurrentTrackChanged(track: MediaEntity | null): void {
       if (!track?.id) {
         return;
       }

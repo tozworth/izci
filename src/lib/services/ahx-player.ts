@@ -8,7 +8,8 @@ import { mediaSessionService } from '$lib/services/media-session';
 import { modulePlaybackSettings } from '$lib/stores/module-playback-settings';
 import type { ModulePatternSnapshot, ModulePatternSong, ModulePlaybackSettings } from '$lib/contracts/module-playback';
 import type { PlaybackSnapshot } from '$lib/contracts/playback';
-import type { PlaylistItem } from '$lib/contracts/catalog';
+import type { MediaEntity } from '$lib/contracts/catalog';
+import type { MediaMaterializationLease } from '$lib/media/media-source';
 import type { TrackMetadata } from '$lib/contracts/media-metadata';
 
 type SnapshotHandler = (snapshot: Partial<PlaybackSnapshot>) => void;
@@ -86,11 +87,11 @@ export class HivelyPlayerService {
     this.#onEnded = onEnded;
   }
 
-  async load(track: PlaylistItem): Promise<void> {
-    if (!track.file) throw new Error('Expected a file for Hively playback.');
+  async load(lease: MediaMaterializationLease): Promise<void> {
+    const track = lease.entity;
 
     this.#disposeNode();
-    logInfo('playback', 'Hively load started', { id: track.id, name: track.name, extension: track.extension, subsong: track.subsong });
+    logInfo('playback', 'Hively load started', { id: track.id, name: track.name, format: track.format, subsong: track.subsong });
     const loadToken = ++this.#loadToken;
     this.#playing = false;
     this.#started = false;
@@ -113,7 +114,7 @@ export class HivelyPlayerService {
     const context = audioBusService.context;
     const [wasm, moduleBuffer] = await Promise.all([
       loadWasmBytes(),
-      track.file.arrayBuffer(),
+      lease.file.arrayBuffer(),
       ensureWorklet(context)
     ]).then(([core, module]) => [core, module] as const);
     if (loadToken !== this.#loadToken) return;
@@ -163,7 +164,7 @@ export class HivelyPlayerService {
             type: 'load',
             wasm: wasm.slice(0),
             module: moduleBuffer,
-            format: track.extension.toLowerCase(),
+            format: track.format.toLowerCase(),
             // Hively's scale is 0 (mono) to 4 (Paula-style hard stereo).
             // The existing stereo-separation setting is intentionally MOD-only.
             stereo: 2,
@@ -175,13 +176,13 @@ export class HivelyPlayerService {
         );
       });
     } catch (error) {
-      logError('decode', 'Hively load failed', { extension: track.extension, error });
+      logError('decode', 'Hively load failed', { format: track.format, error });
       if (loadToken === this.#loadToken) this.#disposeNode();
       throw error;
     }
 
     if (loadToken !== this.#loadToken) return;
-    logInfo('decode', 'Hively worklet initialized', { extension: track.extension });
+    logInfo('decode', 'Hively worklet initialized', { format: track.format });
     mediaSessionService.activateTransportAnchor();
     mediaSessionService.pauseTransportAnchor();
   }

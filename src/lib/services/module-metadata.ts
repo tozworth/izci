@@ -1,8 +1,9 @@
 import { createChiptunePlayer } from '$lib/services/chiptune-loader';
 import { logDebug, logInfo, logWarning } from '$lib/logging/api';
 import { HIVELY_MODULE_EXTENSIONS } from '$lib/contracts/media-format';
-import { type PlaylistItem } from '$lib/contracts/catalog';
+import { type MediaEntity } from '$lib/contracts/catalog';
 import { type TrackMetadata } from '$lib/contracts/media-metadata';
+import { withMediaFile } from '$lib/stores/playlist-materialization';
 import type { Chiptune3Metadata, ChiptuneJsPlayer } from 'chiptune3';
 
 const MODULE_METADATA_TIMEOUT_MS = 10_000;
@@ -94,18 +95,6 @@ function toTrackMetadata(metadata: Chiptune3Metadata): TrackMetadata {
   };
 }
 
-async function resolveTrackFile(track: PlaylistItem): Promise<File | null> {
-  if (track.fileHandle) {
-    try {
-      return await track.fileHandle.getFile();
-    } catch {
-      // Fall back to the in-memory File when permission is unavailable or stale.
-    }
-  }
-
-  return track.file ?? null;
-}
-
 function disposePlayer(player: ChiptuneJsPlayer): void {
   try {
     player.stop();
@@ -122,25 +111,22 @@ function disposePlayer(player: ChiptuneJsPlayer): void {
   void player.context.close().catch(() => undefined);
 }
 
-export async function loadModuleMetadata(track: PlaylistItem | null): Promise<TrackMetadata | null> {
+export async function loadModuleMetadata(track: MediaEntity | null): Promise<TrackMetadata | null> {
   if (typeof window === 'undefined' || !track || track.kind !== 'module') {
     return null;
   }
 
-  logDebug('decode', 'Probing module metadata', { id: track.id, name: track.name, extension: track.extension });
+  logDebug('decode', 'Probing module metadata', { id: track.id, name: track.name, format: track.format });
   try {
-    const file = await resolveTrackFile(track);
-
-    if (!file) {
+    const buffer = await withMediaFile(track, (file) => file.arrayBuffer());
+    if (!buffer) {
       logWarning('decode', 'Module metadata probe has no readable file', { id: track.id });
       return null;
     }
 
-    const buffer = await file.arrayBuffer();
-
     if (
       HIVELY_MODULE_EXTENSIONS.includes(
-        track.extension.toLowerCase() as (typeof HIVELY_MODULE_EXTENSIONS)[number]
+        track.format.toLowerCase() as (typeof HIVELY_MODULE_EXTENSIONS)[number]
       )
     ) {
       const metadata = parseHivelyMetadata(buffer);
@@ -185,7 +171,7 @@ export async function loadModuleMetadata(track: PlaylistItem | null): Promise<Tr
       }
     });
   } catch (error) {
-    logWarning('decode', 'Module metadata probe failed', { id: track.id, extension: track.extension, error });
+    logWarning('decode', 'Module metadata probe failed', { id: track.id, format: track.format, error });
     return null;
   }
 }

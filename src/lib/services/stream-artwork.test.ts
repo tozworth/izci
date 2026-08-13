@@ -1,7 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { getTrackArtworkLoadKey, loadTrackMetadata } from './stream-artwork';
-import type { PlaylistItem } from '$lib/contracts/catalog';
+import type { MediaEntity } from '$lib/contracts/catalog';
+import { mediaSources } from '$lib/media/media-source';
 
 const textEncoder = new TextEncoder();
 
@@ -115,16 +116,20 @@ function mp3File(frames: Uint8Array[]): File {
   });
 }
 
-function item(overrides: Partial<PlaylistItem>): PlaylistItem {
-  return {
+function item(overrides: Partial<MediaEntity> & { file?: File }): MediaEntity {
+  const { file, ...durable } = overrides;
+  const entity: MediaEntity = {
     id: 'track-id',
+    path: 'test',
     name: 'Tagged.flac',
-    extension: 'flac',
+    format: 'flac',
     kind: 'stream',
     size: 1,
     lastModified: 1,
-    ...overrides
+    ...durable
   };
+  if (file) mediaSources.registerFile(entity.id, file);
+  return entity;
 }
 
 describe('stream artwork metadata helpers', () => {
@@ -178,7 +183,7 @@ describe('stream artwork metadata helpers', () => {
     const metadata = await loadTrackMetadata(
       item({
         name: 'Tagged.opus',
-        extension: 'opus',
+        format: 'opus',
         file: opusFile(['TITLE=Opus Tune', 'ARTIST=Local Artist', 'YEAR=1998', 'R128_TRACK_GAIN=-768'])
       })
     );
@@ -198,7 +203,7 @@ describe('stream artwork metadata helpers', () => {
     const metadata = await loadTrackMetadata(
       item({
         name: 'Tagged.ogg',
-        extension: 'ogg',
+        format: 'ogg',
         file: oggVorbisFile(['REPLAYGAIN_TRACK_GAIN=+1.50 dB', 'REPLAYGAIN_ALBUM_GAIN=-2.25 dB'])
       })
     );
@@ -216,7 +221,7 @@ describe('stream artwork metadata helpers', () => {
     const metadata = await loadTrackMetadata(
       item({
         name: 'Tagged.mp3',
-        extension: 'mp3',
+        format: 'mp3',
         file: mp3File([
           id3UserTextFrame('replaygain_track_gain', '-5.25 dB'),
           id3UserTextFrame('replaygain_track_peak', '0.910000')
@@ -237,7 +242,7 @@ describe('stream artwork metadata helpers', () => {
     const file = mp3File([id3UserTextFrame('replaygain_track_gain', '-4.00 dB')]);
     const fullRead = vi.spyOn(file, 'arrayBuffer');
 
-    await loadTrackMetadata(item({ name: file.name, extension: 'mp3', file }));
+    await loadTrackMetadata(item({ name: file.name, format: 'mp3', file }));
 
     expect(fullRead).not.toHaveBeenCalled();
   });
@@ -265,7 +270,7 @@ describe('stream artwork metadata helpers', () => {
     });
     const sliceRead = vi.spyOn(file, 'slice');
 
-    const metadata = await loadTrackMetadata(item({ name: file.name, extension: 'opus', file }));
+    const metadata = await loadTrackMetadata(item({ name: file.name, format: 'opus', file }));
     const requestedBytes = sliceRead.mock.calls.reduce((total, [start, end]) =>
       total + Math.max(0, Number(end) - Number(start)), 0);
 
@@ -287,7 +292,7 @@ describe('stream artwork metadata helpers', () => {
       toArrayBuffer(oggPage([opusHead, opusTags], 48_000 + preSkip))
     ], 'Duration.opus', { type: 'audio/opus' });
 
-    await expect(loadTrackMetadata(item({ name: file.name, extension: 'opus', file }))).resolves.toMatchObject({
+    await expect(loadTrackMetadata(item({ name: file.name, format: 'opus', file }))).resolves.toMatchObject({
       title: 'One Second',
       duration: 1,
       embeddedMetadataLoaded: true
@@ -295,7 +300,7 @@ describe('stream artwork metadata helpers', () => {
   });
 
   it('returns null for formats without embedded stream metadata support', async () => {
-    await expect(loadTrackMetadata(item({ extension: 'wav', file: new File([], 'Track.wav') }))).resolves.toBeNull();
-    await expect(loadTrackMetadata(item({ extension: 'xm', kind: 'module', file: new File([], 'Track.xm') }))).resolves.toBeNull();
+    await expect(loadTrackMetadata(item({ format: 'wav', file: new File([], 'Track.wav') }))).resolves.toBeNull();
+    await expect(loadTrackMetadata(item({ format: 'xm', kind: 'module', file: new File([], 'Track.xm') }))).resolves.toBeNull();
   });
 });

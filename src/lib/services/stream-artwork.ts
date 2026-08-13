@@ -1,5 +1,6 @@
-import type { PlaylistItem } from '$lib/contracts/catalog';
+import type { MediaEntity } from '$lib/contracts/catalog';
 import type { ReplayGainMetadata, TrackMetadata } from '$lib/contracts/media-metadata';
+import { withMediaFile } from '$lib/stores/playlist-materialization';
 
 const FLAC_MARKER = 'fLaC';
 const ID3_MARKER = 'ID3';
@@ -346,8 +347,8 @@ function parseVorbisCommentsPacket(packet: Uint8Array, offset: number): ParsedVo
   return { metadata, artwork };
 }
 
-export function extractStreamVorbisComments(bytes: Uint8Array, extension: string): VorbisComment[] {
-  if (extension === 'flac') {
+export function extractStreamVorbisComments(bytes: Uint8Array, format: string): VorbisComment[] {
+  if (format === 'flac') {
     if (bytes.byteLength < 4 || new TextDecoder().decode(bytes.subarray(0, 4)) !== FLAC_MARKER) {
       return [];
     }
@@ -382,7 +383,7 @@ export function extractStreamVorbisComments(bytes: Uint8Array, extension: string
     return comments;
   }
 
-  if (extension === 'opus') {
+  if (format === 'opus') {
     const packet = extractOpusTagPacket(bytes);
 
     if (!packet || packet.byteLength < 16) {
@@ -393,7 +394,7 @@ export function extractStreamVorbisComments(bytes: Uint8Array, extension: string
     return marker === OPUS_TAGS_MARKER ? readVorbisCommentsPacket(packet, 8) : [];
   }
 
-  if (extension === 'ogg') {
+  if (format === 'ogg') {
     const packet = extractOggVorbisCommentPacket(bytes);
 
     return packet ? readVorbisCommentsPacket(packet, 7) : [];
@@ -725,18 +726,6 @@ function parseMp3Data(bytes: Uint8Array): ParsedStreamData {
   };
 }
 
-async function resolveTrackFile(track: PlaylistItem): Promise<File | null> {
-  if (track.fileHandle) {
-    try {
-      return await track.fileHandle.getFile();
-    } catch {
-      // Fall back to the in-memory File when permission is unavailable or stale.
-    }
-  }
-
-  return track.file ?? null;
-}
-
 function buildMediaImage(artwork: EmbeddedStreamArtwork, url: string): MediaImage {
   return {
     src: url,
@@ -745,20 +734,20 @@ function buildMediaImage(artwork: EmbeddedStreamArtwork, url: string): MediaImag
   };
 }
 
-function extractStreamData(bytes: Uint8Array, extension: string): ParsedStreamData {
-  if (extension === 'flac') {
+function extractStreamData(bytes: Uint8Array, format: string): ParsedStreamData {
+  if (format === 'flac') {
     return parseFlacData(bytes);
   }
 
-  if (extension === 'opus') {
+  if (format === 'opus') {
     return parseOpusData(bytes);
   }
 
-  if (extension === 'ogg') {
+  if (format === 'ogg') {
     return parseOggVorbisData(bytes);
   }
 
-  if (extension === 'mp3') {
+  if (format === 'mp3') {
     return parseMp3Data(bytes);
   }
 
@@ -1010,27 +999,27 @@ async function readLastOggGranule(file: File, streamSerial: number): Promise<big
   return null;
 }
 
-async function readOggMetadata(file: File, extension: 'opus' | 'ogg'): Promise<TrackMetadata> {
+async function readOggMetadata(file: File, format: 'opus' | 'ogg'): Promise<TrackMetadata> {
   const head = await readFileBytes(file, 0, Math.min(file.size, STREAM_METADATA_EAGER_HEAD_BYTES));
-  const eagerTagsPacket = extension === 'opus'
+  const eagerTagsPacket = format === 'opus'
     ? extractOpusTagPacket(head)
     : extractOggVorbisCommentPacket(head);
   let metadata: TrackMetadata;
 
   if (eagerTagsPacket) {
-    metadata = parseVorbisCommentsPacket(eagerTagsPacket, extension === 'opus' ? 8 : 7).metadata;
+    metadata = parseVorbisCommentsPacket(eagerTagsPacket, format === 'opus' ? 8 : 7).metadata;
   } else {
     const tagsPacket = await findOggPacketRanges(file, 1);
     if (!tagsPacket) return {};
 
-    const prefix = extension === 'opus'
+    const prefix = format === 'opus'
       ? new TextEncoder().encode(OPUS_TAGS_MARKER)
       : concatUint8Arrays(new Uint8Array([0x03]), new TextEncoder().encode(VORBIS_PACKET_MARKER));
     metadata = await readVorbisMetadata(file, tagsPacket.ranges, prefix);
   }
 
   const eagerIdentification = extractOggPacket(head, 0);
-  let identification = eagerIdentification?.subarray(0, extension === 'opus' ? 12 : 16) ?? null;
+  let identification = eagerIdentification?.subarray(0, format === 'opus' ? 12 : 16) ?? null;
   let streamSerial = head.byteLength >= 18
     ? new DataView(head.buffer, head.byteOffset, head.byteLength).getUint32(14, true)
     : null;
@@ -1040,7 +1029,7 @@ async function readOggMetadata(file: File, extension: 'opus' | 'ogg'): Promise<T
     if (!identificationPacket) return metadata;
 
     const identificationReader = new FileRangeReader(file, identificationPacket.ranges);
-    identification = await identificationReader.read(extension === 'opus' ? 12 : 16);
+    identification = await identificationReader.read(format === 'opus' ? 12 : 16);
     streamSerial = identificationPacket.streamSerial;
   }
 
@@ -1049,7 +1038,7 @@ async function readOggMetadata(file: File, extension: 'opus' | 'ogg'): Promise<T
   if (!identification || granule === null) return metadata;
 
   if (
-    extension === 'opus' &&
+    format === 'opus' &&
     identification.byteLength >= 12 &&
     new TextDecoder().decode(identification.subarray(0, 8)) === 'OpusHead'
   ) {
@@ -1059,7 +1048,7 @@ async function readOggMetadata(file: File, extension: 'opus' | 'ogg'): Promise<T
   }
 
   if (
-    extension === 'ogg' &&
+    format === 'ogg' &&
     identification.byteLength >= 16 &&
     identification[0] === 0x01 &&
     new TextDecoder().decode(identification.subarray(1, 7)) === VORBIS_PACKET_MARKER
@@ -1136,26 +1125,26 @@ async function readMp3Metadata(file: File): Promise<TrackMetadata> {
   return mergeTrackMetadata(headMetadata, parseMp3Data(tail).metadata);
 }
 
-async function readStreamMetadata(file: File, extension: string): Promise<TrackMetadata> {
-  if (extension === 'flac') return readFlacMetadata(file);
-  if (extension === 'opus' || extension === 'ogg') return readOggMetadata(file, extension);
-  if (extension === 'mp3') return readMp3Metadata(file);
+async function readStreamMetadata(file: File, format: string): Promise<TrackMetadata> {
+  if (format === 'flac') return readFlacMetadata(file);
+  if (format === 'opus' || format === 'ogg') return readOggMetadata(file, format);
+  if (format === 'mp3') return readMp3Metadata(file);
   return {};
 }
 
-function canLoadStreamMetadata(extension: string): boolean {
-  return extension === 'flac' || extension === 'opus' || extension === 'ogg' || extension === 'mp3';
+function canLoadStreamMetadata(format: string): boolean {
+  return format === 'flac' || format === 'opus' || format === 'ogg' || format === 'mp3';
 }
 
-function extractArtwork(bytes: Uint8Array, extension: string): ParsedArtwork | null {
-  return extractStreamData(bytes, extension).artwork;
+function extractArtwork(bytes: Uint8Array, format: string): ParsedArtwork | null {
+  return extractStreamData(bytes, format).artwork;
 }
 
 function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
   return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
 }
 
-export function getTrackArtworkLoadKey(track: PlaylistItem | null): string {
+export function getTrackArtworkLoadKey(track: MediaEntity | null): string {
   if (!track) {
     return '';
   }
@@ -1163,51 +1152,35 @@ export function getTrackArtworkLoadKey(track: PlaylistItem | null): string {
   return track.id;
 }
 
-export async function loadTrackMetadata(track: PlaylistItem | null): Promise<TrackMetadata | null> {
-  if (!track || track.kind !== 'stream' || !canLoadStreamMetadata(track.extension)) {
+export async function loadTrackMetadata(track: MediaEntity | null): Promise<TrackMetadata | null> {
+  if (!track || track.kind !== 'stream' || !canLoadStreamMetadata(track.format)) {
     return null;
   }
 
-  const file = await resolveTrackFile(track);
-
-  if (!file) {
-    return null;
-  }
-
-  const metadata: TrackMetadata = {
-    ...(await readStreamMetadata(file, track.extension)),
+  return withMediaFile(track, async (file) => ({
+    ...(await readStreamMetadata(file, track.format)),
     embeddedMetadataLoaded: true
-  };
-
-  return metadata;
+  }));
 }
 
-export async function loadEmbeddedStreamArtwork(track: PlaylistItem | null): Promise<EmbeddedStreamArtwork | null> {
-  if (!track || track.kind !== 'stream' || (track.extension !== 'flac' && track.extension !== 'opus')) {
+export async function loadEmbeddedStreamArtwork(track: MediaEntity | null): Promise<EmbeddedStreamArtwork | null> {
+  if (!track || track.kind !== 'stream' || (track.format !== 'flac' && track.format !== 'opus')) {
     return null;
   }
 
-  const file = await resolveTrackFile(track);
-
-  if (!file) {
-    return null;
-  }
-
-  const bytes = new Uint8Array(await file.arrayBuffer());
-  const artwork = extractArtwork(bytes, track.extension);
-
-  if (!artwork || artwork.data.byteLength === 0) {
-    return null;
-  }
-
-  return {
-    blob: new Blob([toArrayBuffer(artwork.data)], { type: artwork.mimeType }),
-    width: artwork.width,
-    height: artwork.height
-  };
+  return withMediaFile(track, async (file) => {
+    const bytes = new Uint8Array(await file.arrayBuffer());
+    const artwork = extractArtwork(bytes, track.format);
+    if (!artwork || artwork.data.byteLength === 0) return null;
+    return {
+      blob: new Blob([toArrayBuffer(artwork.data)], { type: artwork.mimeType }),
+      width: artwork.width,
+      height: artwork.height
+    };
+  });
 }
 
-export async function loadTrackArtwork(track: PlaylistItem | null): Promise<LoadedStreamArtwork | null> {
+export async function loadTrackArtwork(track: MediaEntity | null): Promise<LoadedStreamArtwork | null> {
   const artwork = await loadEmbeddedStreamArtwork(track);
 
   if (!artwork) {

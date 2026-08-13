@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { PlaylistItem } from '$lib/contracts/catalog';
+import type { MediaEntity } from '$lib/contracts/catalog';
 
 const playbackMocks = vi.hoisted(() => ({
   player: {
@@ -51,15 +51,20 @@ import {
   shouldRestartForPrevious
 } from './playback-commands';
 
-function track(id: string): PlaylistItem {
+function track(id: string): MediaEntity {
   return {
     id,
+    path: 'test',
     name: `${id}.mp3`,
-    extension: 'mp3',
+    format: 'mp3',
     kind: 'stream',
     size: 1,
     lastModified: 1
   };
+}
+function lease(id: string) {
+  const entity = track(id);
+  return { entity, file: new File([], entity.name), objectUrl: `blob:${id}`, release: vi.fn() };
 }
 
 function deferred<T>() {
@@ -71,7 +76,7 @@ function deferred<T>() {
 }
 
 function createCommands(overrides: Record<string, unknown> = {}) {
-  let playingTrack: PlaylistItem | null = null;
+  let playingTrack: MediaEntity | null = null;
   const tracks = new Map(['a', 'b', 'c'].map((id) => [id, track(id)]));
   const controller = createPlaybackCommandsController({
     getPlayingTrack: () => playingTrack,
@@ -95,7 +100,7 @@ function createCommands(overrides: Record<string, unknown> = {}) {
   return {
     controller,
     tracks,
-    setPlayingTrack(next: PlaylistItem | null) {
+    setPlayingTrack(next: MediaEntity | null) {
       playingTrack = next;
       controller.notifyCurrentTrackChanged(next);
     }
@@ -110,7 +115,7 @@ beforeEach(() => {
   playbackMocks.player.prepareNext.mockResolvedValue(true);
   playbackMocks.player.hasPreparedTrack.mockReturnValue(false);
   playbackMocks.player.commitPrepared.mockReturnValue(false);
-  playbackMocks.playlist.ensureLoaded.mockImplementation(async (id: string) => track(id));
+  playbackMocks.playlist.ensureLoaded.mockImplementation(async (id: string) => lease(id));
 });
 
 describe('previous-track restart behavior', () => {
@@ -159,24 +164,24 @@ describe('track transition behavior', () => {
 describe('playback command storm characterization', () => {
   it('lets only the newest file-materialization request reach the player', async () => {
     const { controller, tracks, setPlayingTrack } = createCommands();
-    const loads = new Map(['a', 'b', 'c'].map((id) => [id, deferred<PlaylistItem | null>()]));
+    const loads = new Map(['a', 'b', 'c'].map((id) => [id, deferred<ReturnType<typeof lease> | null>()]));
     playbackMocks.playlist.ensureLoaded.mockImplementation((id: string) => loads.get(id)!.promise);
 
     const requests = ['a', 'b', 'c'].map((id) => controller.playTrack(tracks.get(id)!));
     expect(controller.getSnapshot().pendingPlaybackTrackId).toBe('c');
 
-    loads.get('b')!.resolve(tracks.get('b')!);
-    loads.get('a')!.resolve(tracks.get('a')!);
+    loads.get('b')!.resolve(lease('b'));
+    loads.get('a')!.resolve(lease('a'));
     await Promise.all([requests[0], requests[1]]);
 
     expect(playbackMocks.player.load).not.toHaveBeenCalled();
     expect(controller.getSnapshot().pendingPlaybackTrackId).toBe('c');
 
-    loads.get('c')!.resolve(tracks.get('c')!);
+    loads.get('c')!.resolve(lease('c'));
     await requests[2];
     expect(playbackMocks.player.load).toHaveBeenCalledTimes(1);
     expect(playbackMocks.player.load).toHaveBeenCalledWith(
-      expect.objectContaining({ id: 'c' }),
+      expect.objectContaining({ entity: expect.objectContaining({ id: 'c' }) }),
       { autoPlay: true, initialPosition: 0 }
     );
 
@@ -191,7 +196,7 @@ describe('playback command storm characterization', () => {
     const positions = new Map(['a', 'b', 'c'].map((id) => [id, deferred<number>()]));
     const notifyTrackResumed = vi.fn();
     const { controller, tracks } = createCommands({
-      resolveResumePosition: (candidate: PlaylistItem) => positions.get(candidate.id)!.promise,
+      resolveResumePosition: (candidate: MediaEntity) => positions.get(candidate.id)!.promise,
       notifyTrackResumed
     });
 
@@ -207,7 +212,7 @@ describe('playback command storm characterization', () => {
     await requests[2];
     expect(playbackMocks.player.load).toHaveBeenCalledOnce();
     expect(playbackMocks.player.load).toHaveBeenCalledWith(
-      expect.objectContaining({ id: 'c' }),
+      expect.objectContaining({ entity: expect.objectContaining({ id: 'c' }) }),
       { autoPlay: true, initialPosition: 33 }
     );
     expect(notifyTrackResumed).toHaveBeenCalledWith(expect.objectContaining({ id: 'c' }), 33);
@@ -216,8 +221,8 @@ describe('playback command storm characterization', () => {
   it('suppresses end navigation while overlapping manual transitions are unsettled', async () => {
     const transitions = new Map(['a', 'b', 'c'].map((id) => [id, deferred<void>()]));
     playbackMocks.player.transitionTo.mockImplementation((...args: unknown[]) => {
-      const candidate = args[0] as PlaylistItem;
-      return transitions.get(candidate.id)!.promise;
+      const candidate = args[0] as ReturnType<typeof lease>;
+      return transitions.get(candidate.entity.id)!.promise;
     });
     playbackMocks.playlist.resolveTrackEnd.mockReturnValue(track('after-end'));
     const { controller, tracks } = createCommands({ getPlayingTrack: () => track('playing') });

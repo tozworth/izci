@@ -15,9 +15,10 @@ import { sliderVolumeToGain } from '$lib/services/volume';
 import { HIVELY_MODULE_EXTENSIONS, type TrackKind } from '$lib/contracts/media-format';
 import { type ModulePatternSnapshot } from '$lib/contracts/module-playback';
 import { type PlaybackSnapshot, type PlaybackState } from '$lib/contracts/playback';
-import { type PlaylistItem } from '$lib/contracts/catalog';
+import { type MediaEntity } from '$lib/contracts/catalog';
 import { type TrackMetadata } from '$lib/contracts/media-metadata';
 import { mergeInferredArtistTitle } from '$lib/utils/files';
+import type { MediaMaterializationLease } from '$lib/media/media-source';
 
 interface PlaybackStatusSnapshot {
   state: PlaybackState;
@@ -33,7 +34,8 @@ interface PlaybackBundle {
   targetTrackId: string | null;
   ready: boolean;
   readiness: Promise<boolean> | null;
-  track: PlaylistItem | null;
+  track: MediaEntity | null;
+  lease: MediaMaterializationLease | null;
   snapshot: PlaybackSnapshot;
   transitionGain: number;
   stream: HowlerPlayerService;
@@ -44,12 +46,11 @@ interface PlaybackBundle {
 
 export type CurrentTrackExternalUpdate = Partial<
   Pick<
-    PlaylistItem,
-    | 'fileHandle'
+    MediaEntity,
     | 'path'
     | 'sourceFolderId'
     | 'name'
-    | 'extension'
+    | 'format'
     | 'kind'
     | 'size'
     | 'lastModified'
@@ -74,9 +75,9 @@ const initialModulePatternSnapshot: ModulePatternSnapshot = {
   row: 0
 };
 
-function isHivelyModule(track: PlaylistItem): boolean {
+function isHivelyModule(track: MediaEntity): boolean {
   return HIVELY_MODULE_EXTENSIONS.includes(
-    track.extension.toLowerCase() as (typeof HIVELY_MODULE_EXTENSIONS)[number]
+    track.format.toLowerCase() as (typeof HIVELY_MODULE_EXTENSIONS)[number]
   );
 }
 
@@ -112,7 +113,7 @@ function createPlayerController() {
     muted,
     backend: null
   });
-  const currentTrack = writable<PlaylistItem | null>(null);
+  const currentTrack = writable<MediaEntity | null>(null);
   const modulePattern = writable<ModulePatternSnapshot>({ ...initialModulePatternSnapshot });
 
   let activeBundle: PlaybackBundle;
@@ -141,7 +142,7 @@ function createPlayerController() {
     }
   }
 
-  function applyMetadataInference(track: PlaylistItem, metadata: TrackMetadata = {}): PlaylistItem {
+  function applyMetadataInference(track: MediaEntity, metadata: TrackMetadata = {}): MediaEntity {
     return {
       ...track,
       metadata: mergeInferredArtistTitle(
@@ -192,6 +193,7 @@ function createPlayerController() {
       ready: false,
       readiness: null,
       track: null,
+      lease: null,
       snapshot: { ...initialSnapshot, volume, muted },
       transitionGain: 1
     } as PlaybackBundle;
@@ -300,6 +302,8 @@ function createPlayerController() {
     bundle.module.stop({ silent: true });
     bundle.hively.stop({ silent: true });
     bundle.video.unload();
+    bundle.lease?.release();
+    bundle.lease = null;
     bundle.track = null;
     bundle.ready = false;
     bundle.readiness = null;
@@ -338,7 +342,7 @@ function createPlayerController() {
     if (bundle === outgoingBundle) clearOutgoing();
   }
 
-  async function prepareTrackMetadata(track: PlaylistItem): Promise<PlaylistItem> {
+  async function prepareTrackMetadata(track: MediaEntity): Promise<MediaEntity> {
     let preparedTrack = applyMetadataInference(track);
     if (
       preparedTrack.kind === 'stream' &&
@@ -353,9 +357,13 @@ function createPlayerController() {
 
   async function loadIntoBundle(
     bundle: PlaybackBundle,
-    track: PlaylistItem,
+    lease: MediaMaterializationLease,
     options: { autoPlay?: boolean; initialPosition?: number } = {}
   ): Promise<boolean> {
+    const track = lease.entity;
+    const previousLease = bundle.lease;
+    bundle.lease = lease;
+    if (previousLease !== lease) previousLease?.release();
     const autoPlay = options.autoPlay === true;
     const initialPosition = Math.max(options.initialPosition ?? 0, 0);
     const loadId = ++bundle.loadSequence;
@@ -382,11 +390,11 @@ function createPlayerController() {
     applyBundleTransitionGain(bundle);
 
     if (preparedTrack.kind === 'stream') {
-      await bundle.stream.load(preparedTrack, { autoPlay, initialPosition });
+      await bundle.stream.load({ ...lease, entity: preparedTrack }, { autoPlay, initialPosition });
       if (loadId !== bundle.loadSequence) return false;
     } else if (preparedTrack.kind === 'module') {
       const service = isHivelyModule(preparedTrack) ? bundle.hively : bundle.module;
-      await service.load(preparedTrack);
+      await service.load({ ...lease, entity: preparedTrack });
       if (loadId !== bundle.loadSequence) return false;
       applyBundleTransitionGain(bundle);
       if (autoPlay) {
@@ -400,7 +408,7 @@ function createPlayerController() {
         updateBundleSnapshot(bundle, { state: 'paused', error: undefined });
       }
     } else {
-      await bundle.video.load(preparedTrack, { autoPlay, initialPosition });
+      await bundle.video.load({ ...lease, entity: preparedTrack }, { autoPlay, initialPosition });
       if (loadId !== bundle.loadSequence) return false;
     }
     bundle.ready = true;
@@ -420,9 +428,10 @@ function createPlayerController() {
   }
 
   async function loadActive(
-    track: PlaylistItem,
+    lease: MediaMaterializationLease,
     options: { autoPlay?: boolean; initialPosition?: number } = {}
   ): Promise<void> {
+    const track = lease.entity;
     const requestId = ++operationSequence;
     logInfo('playback', 'Track load requested', {
       id: track.id, name: track.name, kind: track.kind, autoPlay: options.autoPlay === true
@@ -433,8 +442,12 @@ function createPlayerController() {
     setBundleTransitionGain(activeBundle, 1);
     let loaded: boolean;
     try {
-      loaded = await loadIntoBundle(activeBundle, track, options);
+      loaded = await loadIntoBundle(activeBundle, lease, options);
     } catch (error) {
+      if (activeBundle.lease === lease) {
+        activeBundle.lease.release();
+        activeBundle.lease = null;
+      }
       logError('playback', 'Track load failed', { id: track.id, kind: track.kind, error });
       throw error;
     }
@@ -446,8 +459,10 @@ function createPlayerController() {
     syncModuleTransportAnchor();
   }
 
-  async function prepareNext(track: PlaylistItem): Promise<boolean> {
+  async function prepareNext(lease: MediaMaterializationLease): Promise<boolean> {
+    const track = lease.entity;
     if (preparedBundle?.targetTrackId === track.id) {
+      lease.release();
       return preparedBundle.ready || await (preparedBundle.readiness ?? Promise.resolve(false));
     }
     const requestId = ++prepareSequence;
@@ -459,7 +474,7 @@ function createPlayerController() {
     logDebug('playback', 'Preparing next backend', { id: track.id, kind: track.kind });
     bundle.readiness = (async () => {
       try {
-        const loaded = await loadIntoBundle(bundle, track, { autoPlay: false });
+        const loaded = await loadIntoBundle(bundle, lease, { autoPlay: false });
         return loaded && requestId === prepareSequence && preparedBundle === bundle;
       } catch {
         return false;
@@ -560,13 +575,14 @@ function createPlayerController() {
       setBundleTransitionGain(activeBundle, 0, durationSeconds);
     },
     async transitionTo(
-      track: PlaylistItem,
+      lease: MediaMaterializationLease,
       mode: 'none' | 'fadeout' | 'crossfade',
       durationSeconds: number
     ): Promise<void> {
+      const track = lease.entity;
       const requestId = ++operationSequence;
       if (mode === 'crossfade') {
-        const ready = await prepareNext(track);
+        const ready = await prepareNext(lease);
         if (requestId !== operationSequence || !ready) return;
         commitPrepared(track.id, durationSeconds);
         return;
@@ -575,10 +591,16 @@ function createPlayerController() {
         clearPrepared();
         setBundleTransitionGain(activeBundle, 0, durationSeconds);
         await wait(durationSeconds * 1000);
-        if (requestId !== operationSequence) return;
+        if (requestId !== operationSequence) {
+          lease.release();
+          return;
+        }
       }
-      if (requestId !== operationSequence) return;
-      await loadActive(track, { autoPlay: true });
+      if (requestId !== operationSequence) {
+        lease.release();
+        return;
+      }
+      await loadActive(lease, { autoPlay: true });
     },
     play() {
       if (!activeBundle.track) return;
@@ -675,8 +697,6 @@ function createPlayerController() {
         ...activeTrack,
         ...patch,
         id: activeTrack.id,
-        file: activeTrack.file,
-        objectUrl: activeTrack.objectUrl,
         subsong: activeTrack.subsong,
         metadata: mergeInferredArtistTitle(
           metadata ?? {},

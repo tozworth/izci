@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { PlaylistItem } from '$lib/contracts/catalog';
+import type { MediaEntity } from '$lib/contracts/catalog';
 
 interface MockHowlOptions {
   onload: () => void;
@@ -70,15 +70,16 @@ vi.mock('$lib/services/audio-bus', () => ({ audioBusService: audioBus }));
 
 import { HowlerPlayerService } from './howler-player';
 
-const track: PlaylistItem = {
+const track: MediaEntity = {
   id: 'track-1',
+  path: 'test',
   name: 'Transferred track',
-  extension: 'opus',
+  format: 'opus',
   kind: 'stream',
   size: 1_024,
-  lastModified: 1,
-  objectUrl: 'blob:test-track'
+  lastModified: 1
 };
+const lease = { entity: track, file: new File([], track.name), objectUrl: 'blob:test-track', release: vi.fn() };
 
 describe('HowlerPlayerService', () => {
   beforeEach(() => {
@@ -93,7 +94,7 @@ describe('HowlerPlayerService', () => {
 
   it('coalesces repeated play requests while loading and playing', async () => {
     const service = new HowlerPlayerService(vi.fn(), vi.fn(), vi.fn());
-    const ready = service.load(track);
+    const ready = service.load(lease);
     const howl = howlerHarness.instances[0];
 
     service.play();
@@ -113,7 +114,7 @@ describe('HowlerPlayerService', () => {
 
   it('allows playback to resume after a pause', async () => {
     const service = new HowlerPlayerService(vi.fn(), vi.fn(), vi.fn());
-    const ready = service.load(track, { autoPlay: true });
+    const ready = service.load(lease, { autoPlay: true });
     const howl = howlerHarness.instances[0];
 
     howl.stateValue = 'loaded';
@@ -128,7 +129,7 @@ describe('HowlerPlayerService', () => {
 
   it('keeps native Howler gain as the fallback when media-element adoption fails', async () => {
     const service = new HowlerPlayerService(vi.fn(), vi.fn(), vi.fn());
-    const ready = service.load(track, { autoPlay: true });
+    const ready = service.load(lease, { autoPlay: true });
     const howl = howlerHarness.instances[0];
     const mediaElement = new HTMLMediaElement();
     howl._sounds = [{ _node: mediaElement }];

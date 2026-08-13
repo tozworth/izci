@@ -1,7 +1,8 @@
 import { audioBusService } from '$lib/services/audio-bus';
 import { logDebug, logError, logInfo, logWarning } from '$lib/logging/api';
 import type { PlaybackSnapshot } from '$lib/contracts/playback';
-import type { PlaylistItem } from '$lib/contracts/catalog';
+import type { MediaEntity } from '$lib/contracts/catalog';
+import type { MediaMaterializationLease } from '$lib/media/media-source';
 import type { TrackMetadata } from '$lib/contracts/media-metadata';
 
 type SnapshotHandler = (snapshot: Partial<PlaybackSnapshot>) => void;
@@ -70,13 +71,14 @@ export class VideoPlayerService {
     }
   }
 
-  load(track: PlaylistItem, options: VideoLoadOptions = {}): Promise<void> {
-    if (!track.objectUrl) {
+  load(lease: MediaMaterializationLease, options: VideoLoadOptions = {}): Promise<void> {
+    const track = lease.entity;
+    if (!lease.objectUrl) {
       throw new Error('Expected an object URL for video playback.');
     }
 
     const element = this.#ensureElement();
-    logInfo('playback', 'Video load started', { id: track.id, name: track.name, extension: track.extension, autoPlay: options.autoPlay === true });
+    logInfo('playback', 'Video load started', { id: track.id, name: track.name, format: track.format, autoPlay: options.autoPlay === true });
 
     if (!element) {
       throw new Error('Video playback is unavailable outside a browser window.');
@@ -100,7 +102,7 @@ export class VideoPlayerService {
       error: undefined
     });
 
-    element.src = track.objectUrl;
+    element.src = lease.objectUrl;
     element.load();
 
     if (this.#autoPlay) {

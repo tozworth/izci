@@ -1,7 +1,8 @@
 import type { Readable } from 'svelte/store';
 import { playbackSettings } from '$lib/stores/playback-settings';
 import type { PlaybackSnapshot } from '$lib/contracts/playback';
-import type { PlaylistItem } from '$lib/contracts/catalog';
+import type { MediaEntity } from '$lib/contracts/catalog';
+import type { MediaMaterializationLease } from '$lib/media/media-source';
 
 export const PLAYBACK_RESTORATION_STORAGE_KEY = 'izci.playback-restoration';
 const CHECKPOINT_DELAY_MS = 500;
@@ -13,13 +14,13 @@ export interface PlaybackRestorationCheckpoint {
 }
 
 interface CreatePlaybackRestorationControllerOptions {
-  track: Readable<PlaylistItem | null>;
+  track: Readable<MediaEntity | null>;
   snapshot: Readable<PlaybackSnapshot>;
-  getPlaylistTrack: (id: string) => PlaylistItem | null;
-  ensureLoaded: (id: string) => Promise<PlaylistItem | null>;
+  getPlaylistTrack: (id: string) => MediaEntity | null;
+  ensureLoaded: (id: string) => Promise<MediaMaterializationLease | null>;
   selectTrack: (id: string) => void;
   loadTrack: (
-    track: PlaylistItem,
+    track: MediaMaterializationLease,
     options: { autoPlay: boolean; initialPosition: number }
   ) => Promise<void>;
 }
@@ -66,7 +67,7 @@ export function createPlaybackRestorationController({
   selectTrack,
   loadTrack
 }: CreatePlaybackRestorationControllerOptions) {
-  let currentTrack: PlaylistItem | null = null;
+  let currentTrack: MediaEntity | null = null;
   let currentSnapshot: PlaybackSnapshot | null = null;
   let checkpoint = readCheckpoint();
   let restoring = checkpoint !== null && playbackSettings.getSnapshot().restoreMode !== 'disabled';
@@ -159,7 +160,7 @@ export function createPlaybackRestorationController({
           return false;
         }
 
-        selectTrack(playableTrack.id);
+        selectTrack(playableTrack.entity.id);
         await loadTrack(playableTrack, {
           autoPlay: restoreMode === 'position-and-state' && savedCheckpoint.wasPlaying,
           initialPosition: savedCheckpoint.currentTime

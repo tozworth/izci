@@ -5,7 +5,8 @@ import { mediaSessionService } from '$lib/services/media-session';
 import { modulePlaybackSettings } from '$lib/stores/module-playback-settings';
 import type { ModulePatternSnapshot, ModulePlaybackSettings } from '$lib/contracts/module-playback';
 import type { PlaybackSnapshot } from '$lib/contracts/playback';
-import type { PlaylistItem } from '$lib/contracts/catalog';
+import type { MediaEntity } from '$lib/contracts/catalog';
+import type { MediaMaterializationLease } from '$lib/media/media-source';
 import type { TrackMetadata } from '$lib/contracts/media-metadata';
 import type { Chiptune3Metadata, ChiptuneJsPlayer } from 'chiptune3';
 
@@ -22,7 +23,7 @@ const PROGRESS_PUBLISH_INTERVAL_SECONDS = 0.125;
 export class ModulePlayerService {
   #player: ChiptuneJsPlayer | null = null;
   #buffer: ArrayBuffer | null = null;
-  #trackExtension: PlaylistItem['extension'] | null = null;
+  #trackExtension: MediaEntity['format'] | null = null;
   #loadToken = 0;
   #playing = false;
   #started = false;
@@ -53,16 +54,14 @@ export class ModulePlayerService {
     this.#onEnded = onEnded;
   }
 
-  async load(track: PlaylistItem): Promise<void> {
-    if (!track.file) {
-      throw new Error('Expected a file for tracker module playback.');
-    }
+  async load(lease: MediaMaterializationLease): Promise<void> {
+    const track = lease.entity;
 
     this.#disposePlayer();
-    logInfo('playback', 'Module load started', { id: track.id, name: track.name, extension: track.extension, subsong: track.subsong });
+    logInfo('playback', 'Module load started', { id: track.id, name: track.name, format: track.format, subsong: track.subsong });
     const loadToken = ++this.#loadToken;
     this.#buffer = null;
-    this.#trackExtension = track.extension.toLowerCase();
+    this.#trackExtension = track.format.toLowerCase();
     this.#playing = false;
     this.#started = false;
     this.#currentTime = 0;
@@ -85,7 +84,7 @@ export class ModulePlayerService {
     try {
       player = await this.#createPlayer(loadToken);
     } catch (error) {
-      logError('decode', 'Module player creation failed', { extension: track.extension, error });
+      logError('decode', 'Module player creation failed', { format: track.format, error });
       throw error;
     }
 
@@ -99,17 +98,17 @@ export class ModulePlayerService {
     audioBusService.setSourceGain(player.gain, this.#transitionGain);
     mediaSessionService.activateTransportAnchor();
     mediaSessionService.pauseTransportAnchor();
-    const buffer = await track.file.arrayBuffer();
+    const buffer = await lease.file.arrayBuffer();
 
     if (!this.#isActiveLoad(loadToken)) {
       return;
     }
 
     this.#buffer = buffer;
-    logDebug('decode', 'Module buffer read', { bytes: buffer.byteLength, extension: track.extension });
+    logDebug('decode', 'Module buffer read', { bytes: buffer.byteLength, format: track.format });
 
     this.#onMetadata({
-      trackerType: track.extension.toUpperCase()
+      trackerType: track.format.toUpperCase()
     });
   }
 

@@ -2,7 +2,8 @@ import { Howl } from 'howler';
 import { audioBusService } from '$lib/services/audio-bus';
 import { logDebug, logError, logInfo, logWarning } from '$lib/logging/api';
 import type { PlaybackSnapshot, ReplayGainMode } from '$lib/contracts/playback';
-import type { PlaylistItem } from '$lib/contracts/catalog';
+import type { MediaEntity } from '$lib/contracts/catalog';
+import type { MediaMaterializationLease } from '$lib/media/media-source';
 import type { ReplayGainMetadata, TrackMetadata } from '$lib/contracts/media-metadata';
 import { applyReplayGain, sliderVolumeToGain } from '$lib/services/volume';
 
@@ -55,13 +56,14 @@ export class HowlerPlayerService {
     this.#onEnded = onEnded;
   }
 
-  load(track: PlaylistItem, options: StreamLoadOptions = {}): Promise<void> {
-    if (!track.objectUrl) {
+  load(lease: MediaMaterializationLease, options: StreamLoadOptions = {}): Promise<void> {
+    const track = lease.entity;
+    if (!lease.objectUrl) {
       throw new Error('Expected an object URL for streamable audio.');
     }
 
     this.destroy();
-    logInfo('playback', 'Stream load started', { id: track.id, name: track.name, extension: track.extension });
+    logInfo('playback', 'Stream load started', { id: track.id, name: track.name, format: track.format });
     const loadToken = ++this.#loadToken;
     this.#resetPublishedProgress();
     this.#replayGain = track.metadata?.replayGain;
@@ -80,10 +82,10 @@ export class HowlerPlayerService {
       this.#pendingLoadReject = reject;
     });
     this.#howl = new Howl({
-      src: [track.objectUrl],
+      src: [lease.objectUrl],
       // Use a real media element so Chromium keeps native media controls alive while paused.
       html5: true,
-      format: [track.extension],
+      format: [track.format],
       onload: () => {
         if (!this.#isActiveLoad(loadToken)) {
           return;

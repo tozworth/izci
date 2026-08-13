@@ -1,13 +1,13 @@
 import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { get } from 'svelte/store';
 import type { PlaybackSnapshot } from '$lib/contracts/playback';
-import type { PlaylistItem } from '$lib/contracts/catalog';
+import type { MediaEntity } from '$lib/contracts/catalog';
 import type { TrackMetadata } from '$lib/contracts/media-metadata';
 
 const harness = vi.hoisted(() => {
   interface PendingLoad {
     instance: MockBackend;
-    track: PlaylistItem;
+    track: MediaEntity;
     resolve: () => void;
     reject: (error: Error) => void;
   }
@@ -20,8 +20,8 @@ const harness = vi.hoisted(() => {
     snapshotCallback: ((partial: Partial<PlaybackSnapshot>) => void) | undefined;
     metadataCallback: ((metadata: TrackMetadata) => void) | undefined;
     endedCallback: (() => void) | undefined;
-    load = vi.fn((track: PlaylistItem) => new Promise<void>((resolve, reject) => {
-      pendingLoads.push({ instance: this, track, resolve, reject });
+    load = vi.fn((lease: { entity: MediaEntity }) => new Promise<void>((resolve, reject) => {
+      pendingLoads.push({ instance: this, track: lease.entity, resolve, reject });
     }));
     destroy = vi.fn();
     stop = vi.fn();
@@ -131,11 +131,12 @@ vi.mock('$lib/utils/files', () => ({
 
 import { playerController, shouldResumeAudioAfterInterruption } from './player-controller';
 
-function track(id: string): PlaylistItem {
+function track(id: string): MediaEntity {
   return {
     id,
+    path: 'test',
     name: `${id}.mp3`,
-    extension: 'mp3',
+    format: 'mp3',
     kind: 'stream',
     size: 1,
     lastModified: 1,
@@ -143,17 +144,27 @@ function track(id: string): PlaylistItem {
   };
 }
 
+function lease(entity: MediaEntity) {
+  return {
+    entity,
+    file: new File([], entity.name),
+    ...(entity.kind === 'module' ? {} : { objectUrl: `blob:${entity.id}` }),
+    release: vi.fn()
+  };
+}
+
 type BackendRole = 'stream' | 'module' | 'hively' | 'video';
 
-function backendTrack(id: string, backend: BackendRole): PlaylistItem {
+function backendTrack(id: string, backend: BackendRole): MediaEntity {
   const facts = {
-    stream: { name: `${id}.mp3`, extension: 'mp3', kind: 'stream' as const },
-    module: { name: `${id}.mod`, extension: 'mod', kind: 'module' as const },
-    hively: { name: `${id}.ahx`, extension: 'ahx', kind: 'module' as const },
-    video: { name: `${id}.mp4`, extension: 'mp4', kind: 'video' as const }
+    stream: { name: `${id}.mp3`, format: 'mp3', kind: 'stream' as const },
+    module: { name: `${id}.mod`, format: 'mod', kind: 'module' as const },
+    hively: { name: `${id}.ahx`, format: 'ahx', kind: 'module' as const },
+    video: { name: `${id}.mp4`, format: 'mp4', kind: 'video' as const }
   }[backend];
   return {
     id,
+    path: 'test',
     ...facts,
     size: 1,
     lastModified: 1,
@@ -181,7 +192,7 @@ async function loadInitial(
   id = 'origin',
   backend: BackendRole = 'stream'
 ): Promise<ReturnType<typeof resolvePending>> {
-  const loading = playerController.load(backendTrack(id, backend), { autoPlay: true });
+  const loading = playerController.load(lease(backendTrack(id, backend)), { autoPlay: true });
   await flushUntilPending(id);
   const pending = resolvePending(id);
   await loading;
@@ -218,7 +229,7 @@ describe('player controller supersession characterization', () => {
     const transitions = [] as Array<Promise<void>>;
 
     for (const id of ['a', 'b', 'c']) {
-      transitions.push(playerController.transitionTo(track(id), 'crossfade', 1));
+      transitions.push(playerController.transitionTo(lease(track(id)), 'crossfade', 1));
       await flushUntilPending(id);
     }
 
@@ -240,7 +251,7 @@ describe('player controller supersession characterization', () => {
   it('lets only the newest fadeout timer start a replacement backend load', async () => {
     await loadInitial();
     const transitions = ['a', 'b', 'c'].map((id) =>
-      playerController.transitionTo(track(id), 'fadeout', 1)
+      playerController.transitionTo(lease(track(id)), 'fadeout', 1)
     );
 
     await vi.advanceTimersByTimeAsync(1_000);
@@ -255,7 +266,7 @@ describe('player controller supersession characterization', () => {
   it('keeps C authoritative when same-backend A, B, and C loads finish C, A, B', async () => {
     const loads: Array<Promise<void>> = [];
     for (const id of ['a', 'b', 'c']) {
-      loads.push(playerController.load(track(id), { autoPlay: true }));
+      loads.push(playerController.load(lease(track(id)), { autoPlay: true }));
       await flushUntilPending(id);
     }
 
@@ -277,7 +288,7 @@ describe('player controller supersession characterization', () => {
     async (from, to) => {
       await loadInitial(`from-${from}`, from);
       const target = backendTrack(`to-${to}`, to);
-      const transition = playerController.transitionTo(target, 'crossfade', 0.25);
+      const transition = playerController.transitionTo(lease(target), 'crossfade', 0.25);
       await flushUntilPending(target.id);
       const incoming = resolvePending(target.id);
       await transition;
@@ -290,7 +301,7 @@ describe('player controller supersession characterization', () => {
 
   it('keeps the active backend when prepared crossfade loading fails', async () => {
     await loadInitial('origin');
-    const transition = playerController.transitionTo(track('failed'), 'crossfade', 1);
+    const transition = playerController.transitionTo(lease(track('failed')), 'crossfade', 1);
     await flushUntilPending('failed');
     const failed = harness.pendingLoads.splice(
       harness.pendingLoads.findIndex((pending) => pending.track.id === 'failed'),
@@ -306,14 +317,14 @@ describe('player controller supersession characterization', () => {
   it('switches without a transition and invalidates preparation on unload', async () => {
     await loadInitial('origin');
     const immediate = backendTrack('immediate-module', 'module');
-    const switching = playerController.transitionTo(immediate, 'none', 10);
+    const switching = playerController.transitionTo(lease(immediate), 'none', 10);
     await flushUntilPending(immediate.id);
     resolvePending(immediate.id);
     await switching;
     expect(get(playerController.currentTrack)?.id).toBe(immediate.id);
 
     const stale = backendTrack('stale-video', 'video');
-    const preparing = playerController.transitionTo(stale, 'crossfade', 1);
+    const preparing = playerController.transitionTo(lease(stale), 'crossfade', 1);
     await flushUntilPending(stale.id);
     const stalePending = harness.pendingLoads.find((pending) => pending.track.id === stale.id)!;
     playerController.unload();
@@ -328,7 +339,7 @@ describe('player controller supersession characterization', () => {
   it('routes pause and seek during a live crossfade and tears down the outgoing bundle', async () => {
     const outgoing = await loadInitial('outgoing-stream');
     const incomingTrack = backendTrack('incoming-module', 'module');
-    const transition = playerController.transitionTo(incomingTrack, 'crossfade', 1);
+    const transition = playerController.transitionTo(lease(incomingTrack), 'crossfade', 1);
     await flushUntilPending(incomingTrack.id);
     const incoming = resolvePending(incomingTrack.id);
     await transition;
@@ -348,7 +359,7 @@ describe('player controller supersession characterization', () => {
   });
 
   it('routes play, pause, and seek to the active backend during load and preparation', async () => {
-    const loading = playerController.load(backendTrack('loading-module', 'module'), { autoPlay: false });
+    const loading = playerController.load(lease(backendTrack('loading-module', 'module')), { autoPlay: false });
     await flushUntilPending('loading-module');
     const loadingBackend = harness.pendingLoads.find(
       (pending) => pending.track.id === 'loading-module'
@@ -362,7 +373,7 @@ describe('player controller supersession characterization', () => {
     resolvePending('loading-module');
     await loading;
 
-    const transition = playerController.transitionTo(backendTrack('preparing-video', 'video'), 'crossfade', 1);
+    const transition = playerController.transitionTo(lease(backendTrack('preparing-video', 'video')), 'crossfade', 1);
     await flushUntilPending('preparing-video');
     playerController.play();
     playerController.pause();
@@ -381,7 +392,7 @@ describe('player controller supersession characterization', () => {
       ...backendTrack('gain-stream', 'stream'),
       metadata: { embeddedMetadataLoaded: true, replayGain }
     };
-    const loading = playerController.load(streamTrack, { autoPlay: true });
+    const loading = playerController.load(lease(streamTrack), { autoPlay: true });
     await flushUntilPending(streamTrack.id);
     const stream = resolvePending(streamTrack.id);
     await loading;
@@ -392,7 +403,7 @@ describe('player controller supersession characterization', () => {
     expect(harness.audioBus.setOutputGain).toHaveBeenLastCalledWith(0);
 
     const videoTrack = backendTrack('auto-amp-video', 'video');
-    const videoLoad = playerController.load(videoTrack, { autoPlay: true });
+    const videoLoad = playerController.load(lease(videoTrack), { autoPlay: true });
     await flushUntilPending(videoTrack.id);
     resolvePending(videoTrack.id);
     await videoLoad;
