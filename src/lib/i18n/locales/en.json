@@ -128,7 +128,9 @@
       "updateUpdated": "updated!",
       "updateCurrent": "up to date",
       "updateFailed": "update check failed",
-      "tools": "Tools"
+      "tools": "Tools",
+      "enableRaf": "Enable Raf",
+      "speedPreset": "{rate}×"
     },
     "miniPlayer": {
       "heading": "Mini player",

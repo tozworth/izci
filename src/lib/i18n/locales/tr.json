@@ -128,7 +128,9 @@
       "updateUpdated": "güncellendi!",
       "updateCurrent": "güncel",
       "updateFailed": "güncelleme başarısız",
-      "tools": "Araçlar"
+      "tools": "Araçlar",
+      "enableRaf": "Raf'ı etkinleştir",
+      "speedPreset": "{rate}×"
     },
     "miniPlayer": {
       "heading": "Mini oynatıcı",

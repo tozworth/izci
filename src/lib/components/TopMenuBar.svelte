@@ -6,6 +6,9 @@
   import { applyManualLoadoutSettings } from '$lib/services/loadouts';
   import { pwaUpdateStatus } from '$lib/services/pwa-updates';
   import { loadouts } from '$lib/stores/loadouts';
+  import { normalizePlaybackRate, playbackSettings } from '$lib/stores/playback-settings';
+  import { isRafPresetDirty, rafPresets } from '$lib/stores/raf-presets';
+  import { rafSettings } from '$lib/stores/raf-settings';
   import type {
     MenuActionItem,
     VideoFitMode,
@@ -58,6 +61,11 @@
     | DispatchedMenuActionId
     | 'manageFolders'
     | 'openLoadouts'
+    | 'openRaf'
+    | 'toggleTrueSpeed'
+    | 'toggleRaf'
+    | `setPlaybackRate:${string}`
+    | `applyRafPreset:${string}`
     | 'videoFitContain'
     | 'videoFitCover'
     | 'toggleVideoPictureInPicture'
@@ -69,6 +77,8 @@
     | `multiplayerForgetPairing:${string}`
     | `multiplayerJoinRecent:${string}`
     | `applyLoadout:${string}`;
+
+  const PLAYBACK_SPEED_OPTIONS = [0.5, 0.75, 1, 1.25, 1.5, 2] as const;
 
   $: multiplayerMenuItems = multiplayerMode === 'idle'
     ? [
@@ -315,6 +325,65 @@
       iconColor: getLoadoutColorValue(loadout.color),
       separatorBefore: index === 0
     }))
+  ] satisfies MenuActionItem[];
+  $: playbackSpeedMenuItems = [
+    {
+      id: 'toggleTrueSpeed',
+      label: $t('options.playback.trueSpeed.title', { default: 'True speed' }),
+      icon: 'speed',
+      checked: $playbackSettings.trueSpeed
+    },
+    ...PLAYBACK_SPEED_OPTIONS.map((rate, index) => ({
+      id: `setPlaybackRate:${rate}`,
+      label: $t('main.menu.speedPreset', { default: '{rate}×', values: { rate: String(rate) } }),
+      icon: 'speed',
+      checked: $playbackSettings.playbackRate === rate,
+      separatorBefore: index === 0
+    }))
+  ] satisfies MenuActionItem[];
+  $: rafMenuItems = [
+    {
+      id: 'toggleRaf',
+      label: $rafSettings.enabled
+        ? $t('main.player.bypassRaf', { default: 'Bypass Raf' })
+        : $t('main.menu.enableRaf', { default: 'Enable Raf' }),
+      icon: 'power_settings_new'
+    },
+    {
+      id: 'openRaf',
+      label: $t('main.player.openRaf', { default: 'Open Raf' }),
+      icon: 'tune',
+      separatorBefore: true
+    },
+    ...($rafPresets.presets.length > 0
+      ? $rafPresets.presets.map((preset, index) => ({
+          id: `applyRafPreset:${preset.id}`,
+          label: `${preset.name}${preset.id === $rafPresets.selectedPresetId && isRafPresetDirty($rafPresets, $rafSettings) ? ' *' : ''}`,
+          icon: 'tune',
+          checked: preset.id === $rafPresets.selectedPresetId,
+          separatorBefore: index === 0
+        }) satisfies MenuActionItem)
+      : [{
+          id: 'rafNoPresets',
+          label: $t('main.player.noRafPresets', { default: 'No Raf presets' }),
+          icon: 'tune',
+          disabled: true,
+          separatorBefore: true
+        } satisfies MenuActionItem])
+  ] satisfies MenuActionItem[];
+  $: playbackMenuItems = [
+    {
+      id: 'playbackSpeed',
+      label: $t('options.playback.playbackRate.title', { default: 'Playback speed' }),
+      icon: 'speed',
+      children: playbackSpeedMenuItems
+    },
+    {
+      id: 'raf',
+      label: $t('options.views.raf', { default: 'Raf' }),
+      icon: 'tune',
+      children: rafMenuItems
+    }
   ] satisfies MenuActionItem[];
   $: appMenuItems = [
     ...(installAvailable
@@ -645,6 +714,12 @@
         } satisfies WindowMenuGroup]
     ),
     {
+      id: 'playback',
+      label: $t('options.views.playback', { default: 'Playback' }),
+      icon: 'play_circle',
+      items: playbackMenuItems
+    },
+    {
       id: 'view',
       label: $t('main.menu.view', { default: 'View' }),
       icon: 'visibility',
@@ -732,6 +807,28 @@
     }
     if (action === 'toggleVideoTheater') {
       dispatch('toggleVideoTheater');
+      return;
+    }
+    if (action === 'toggleTrueSpeed') {
+      playbackSettings.update({ trueSpeed: !playbackSettings.getSnapshot().trueSpeed });
+      return;
+    }
+    if (action.startsWith('setPlaybackRate:')) {
+      playbackSettings.update({
+        playbackRate: normalizePlaybackRate(Number(action.slice('setPlaybackRate:'.length)))
+      });
+      return;
+    }
+    if (action === 'toggleRaf') {
+      rafSettings.setEnabled(!rafSettings.getSnapshot().enabled);
+      return;
+    }
+    if (action === 'openRaf') {
+      dispatch('openOptions', { view: 'raf' });
+      return;
+    }
+    if (action.startsWith('applyRafPreset:')) {
+      rafPresets.apply(action.slice('applyRafPreset:'.length));
       return;
     }
     dispatch(action as DispatchedMenuActionId);
