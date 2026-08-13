@@ -133,6 +133,7 @@ export const architectureConfig = Object.freeze({
     /^src\/lib\/settings\/browser\.ts$/,
     /^src\/lib\/persistence\/browser-indexed-db\.ts$/,
     /^src\/lib\/application\/page-entry\.ts$/,
+    /^src\/lib\/services\/browser-backup-(?:client|owner)\.ts$/,
     /^src\/(?:main|options\/main|tools\/[^/]+\/main)\.ts$/
   ],
   browserGlobalEnforcedPathPatterns: [
@@ -144,6 +145,7 @@ export const architectureConfig = Object.freeze({
     /^src\/lib\/settings\/(?!browser\.ts$)/,
     /^src\/lib\/persistence\/(?!browser-indexed-db\.ts$)/,
     /^(?:src\/lib\/collections\/library-folder-plan|src\/lib\/services\/media-inspection-pipeline)\.ts$/,
+    /^src\/lib\/services\/backup-coordination\.ts$/,
     /^src\/lib\/services\/(?:multiplayer-protocol|window-orphan)\.ts$/,
     /^src\/lib\/application\/page-entry\.ts$/,
     /^src\/(?:main|options\/main|tools\/[^/]+\/main)\.ts$/
@@ -209,11 +211,29 @@ export const architectureConfig = Object.freeze({
     'settings-imports-application',
     'persistence-kernel-imports-application',
     'collection-kernel-imports-application',
+    'backup-coordination-imports-application',
     'media-kernel-imports-application',
     'inspection-planner-imports-application',
     'wire-imports-internal-module'
   ],
   directionRules: [
+    {
+      id: 'backup-coordination-imports-application',
+      description: 'Backup ownership and serialization stay transport-neutral; browser and catalog owners adapt them at the edge.',
+      from: { paths: ['src/lib/services/backup-coordination.ts'] },
+      to: {
+        prefixes: [
+          'src/lib/application/',
+          'src/lib/components/',
+          'src/lib/persistence/',
+          'src/lib/runtime/adapters/',
+          'src/lib/stores/',
+          'src/lib/services/backups.ts',
+          'src/lib/services/browser-backup-client.ts',
+          'src/lib/services/browser-backup-owner.ts'
+        ]
+      }
+    },
     {
       id: 'presentation-bypasses-application',
       description: 'Svelte views currently reach directly into service or store implementations.',

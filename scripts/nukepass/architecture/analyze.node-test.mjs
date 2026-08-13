@@ -199,6 +199,39 @@ test('enforces collection, media, inspection, folder-planning, and media-source 
   ]]);
 });
 
+test('enforces transport-neutral backup ownership coordination', async (t) => {
+  const root = await fixture({
+    'src/lib/services/backups.ts': 'export const backups = true;\n',
+    'src/lib/services/backup-coordination.ts': [
+      'import { backups } from "./backups";',
+      'window.name = String(backups);',
+      'export const coordinator = backups;',
+      ''
+    ].join('\n'),
+    'src/lib/services/browser-backup-client.ts': [
+      'new BroadcastChannel("allowed-adapter");',
+      'window.name = crypto.randomUUID();',
+      ''
+    ].join('\n')
+  });
+  t.after(() => fs.rm(root, { recursive: true, force: true }));
+
+  const report = await analyzeProject({ root, config: fixtureConfig, includeBundle: false });
+  assert.deepEqual(report.enforcement.direction.findings.map((finding) => [
+    finding.rule, finding.source, finding.target
+  ]), [[
+    'backup-coordination-imports-application',
+    'src/lib/services/backup-coordination.ts',
+    'src/lib/services/backups.ts'
+  ]]);
+  assert.deepEqual(report.enforcement.browserGlobals.findings.map((finding) => [
+    finding.file, finding.global
+  ]), [['src/lib/services/backup-coordination.ts', 'window']]);
+  assert.ok(!report.enforcement.browserGlobals.findings.some((finding) =>
+    finding.file === 'src/lib/services/browser-backup-client.ts'
+  ));
+});
+
 test('allows reconstructed kernels to depend on contracts, runtime ports, and the typed persistence kernel', async (t) => {
   const root = await fixture({
     'src/lib/contracts/catalog.ts': 'export interface MediaEntity { id: string; }\n',
