@@ -1,6 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 import type { MediaEntity } from '$lib/contracts/catalog';
-import { MediaSourceRegistry, materializeMediaEntity } from './media-source';
+import {
+  MediaSourceRegistry,
+  materializeMediaEntity,
+  materializeMediaEntityResult,
+  requireMediaMaterialization
+} from './media-source';
 
 function entity(kind: MediaEntity['kind'], format = kind === 'module' ? 'mod' : 'mp3'): MediaEntity {
   return {
@@ -97,5 +102,34 @@ describe('media source ownership and leases', () => {
       { objectUrls }
     )).resolves.toBeNull();
     expect(objectUrls.create).not.toHaveBeenCalled();
+  });
+
+  it('exposes classified materialization failures for Stage 4 consumers', async () => {
+    const objectUrls = { create: vi.fn(() => 'blob:track'), revoke: vi.fn() };
+    const file = new File(['x'], 'Track.mp3');
+    const handle = {
+      kind: 'file',
+      name: file.name,
+      queryPermission: vi.fn(async () => 'prompt' as const),
+      requestPermission: vi.fn(async () => 'denied' as const),
+      getFile: vi.fn(async () => file)
+    } as unknown as FileSystemFileHandle;
+
+    await expect(materializeMediaEntityResult(
+      entity('stream'),
+      { entityId: 'media-1', fileHandle: handle, permission: 'prompt' },
+      { prompt: false, objectUrls }
+    )).resolves.toEqual({ status: 'failure', reason: 'permission-required' });
+    await expect(requireMediaMaterialization(
+      entity('stream'),
+      { entityId: 'media-1', fileHandle: handle, permission: 'prompt' },
+      { prompt: true, objectUrls }
+    )).rejects.toMatchObject({
+      category: 'permission',
+      code: 'media-materialization.permission-denied',
+      reason: 'permission-denied',
+      retryable: true
+    });
+    expect(handle.getFile).not.toHaveBeenCalled();
   });
 });

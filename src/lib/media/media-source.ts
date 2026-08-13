@@ -1,4 +1,5 @@
 import type { MediaEntity } from '$lib/contracts/catalog';
+import { DomainError, type DomainErrorCategory } from '$lib/runtime/errors';
 import type { ObjectUrlPort } from '$lib/runtime/ports';
 import { inferMediaExtension, inferTrackKind } from './format-policy';
 
@@ -23,6 +24,36 @@ export interface MaterializeMediaOptions {
   /** Object URLs are an explicit playback concern; metadata/file readers request bytes only. */
   readonly purpose?: 'file-read' | 'media-element';
   readonly objectUrls: ObjectUrlPort;
+}
+
+export type MediaMaterializationFailureReason =
+  | 'permission-denied'
+  | 'permission-required'
+  | 'permission-unavailable'
+  | 'source-mismatch'
+  | 'source-unavailable'
+  | 'unsupported-format';
+
+export type MediaMaterializationResult =
+  | { readonly status: 'ready'; readonly lease: MediaMaterializationLease }
+  | { readonly status: 'failure'; readonly reason: MediaMaterializationFailureReason };
+
+function failureCategory(reason: MediaMaterializationFailureReason): DomainErrorCategory {
+  if (reason === 'permission-denied' || reason === 'permission-required') return 'permission';
+  return reason === 'source-mismatch' ? 'corruption' : 'unavailable';
+}
+
+export class MediaMaterializationError extends DomainError {
+  constructor(readonly reason: MediaMaterializationFailureReason, entity: MediaEntity) {
+    super({
+      category: failureCategory(reason),
+      code: `media-materialization.${reason}`,
+      operation: 'materialize media source',
+      retryable: reason !== 'source-mismatch' && reason !== 'unsupported-format',
+      message: `Could not materialize ${entity.name}: ${reason}.`
+    });
+    this.name = 'MediaMaterializationError';
+  }
 }
 
 type FileSystemPermissionState = 'granted' | 'denied' | 'prompt';
@@ -66,25 +97,38 @@ function entityForFile(entity: MediaEntity, file: File): MediaEntity | null {
   };
 }
 
-export async function materializeMediaEntity(
+export async function materializeMediaEntityResult(
   entity: MediaEntity,
   locator: MediaSourceLocator | null | undefined,
   options: MaterializeMediaOptions
-): Promise<MediaMaterializationLease | null> {
-  if (!locator || locator.entityId !== entity.id) return null;
+): Promise<MediaMaterializationResult> {
+  if (!locator) return { status: 'failure', reason: 'source-unavailable' };
+  if (locator.entityId !== entity.id) return { status: 'failure', reason: 'source-mismatch' };
 
   let file = locator.file;
   if (!file && locator.fileHandle) {
     const permission = await queryPermission(locator.fileHandle);
     if (permission !== 'granted') {
-      if (!options.prompt || await requestPermission(locator.fileHandle) !== 'granted') return null;
+      if (!options.prompt) {
+        return {
+          status: 'failure',
+          reason: permission === 'prompt'
+            ? 'permission-required'
+            : permission === 'denied'
+              ? 'permission-denied'
+              : 'permission-unavailable'
+        };
+      }
+      if (await requestPermission(locator.fileHandle) !== 'granted') {
+        return { status: 'failure', reason: 'permission-denied' };
+      }
     }
     file = await locator.fileHandle.getFile();
   }
-  if (!file) return null;
+  if (!file) return { status: 'failure', reason: 'source-unavailable' };
 
   const refreshedEntity = entityForFile(entity, file);
-  if (!refreshedEntity) return null;
+  if (!refreshedEntity) return { status: 'failure', reason: 'unsupported-format' };
 
   let objectUrl: string | undefined;
   if (
@@ -95,15 +139,37 @@ export async function materializeMediaEntity(
   }
   let released = false;
   return {
-    entity: refreshedEntity,
-    file,
-    ...(objectUrl === undefined ? {} : { objectUrl }),
-    release() {
-      if (released) return;
-      released = true;
-      if (objectUrl !== undefined) options.objectUrls.revoke(objectUrl);
+    status: 'ready',
+    lease: {
+      entity: refreshedEntity,
+      file,
+      ...(objectUrl === undefined ? {} : { objectUrl }),
+      release() {
+        if (released) return;
+        released = true;
+        if (objectUrl !== undefined) options.objectUrls.revoke(objectUrl);
+      }
     }
   };
+}
+
+export async function materializeMediaEntity(
+  entity: MediaEntity,
+  locator: MediaSourceLocator | null | undefined,
+  options: MaterializeMediaOptions
+): Promise<MediaMaterializationLease | null> {
+  const result = await materializeMediaEntityResult(entity, locator, options);
+  return result.status === 'ready' ? result.lease : null;
+}
+
+export async function requireMediaMaterialization(
+  entity: MediaEntity,
+  locator: MediaSourceLocator | null | undefined,
+  options: MaterializeMediaOptions
+): Promise<MediaMaterializationLease> {
+  const result = await materializeMediaEntityResult(entity, locator, options);
+  if (result.status === 'ready') return result.lease;
+  throw new MediaMaterializationError(result.reason, entity);
 }
 
 export class MediaSourceRegistry {
