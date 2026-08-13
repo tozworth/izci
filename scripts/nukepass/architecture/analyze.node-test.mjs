@@ -169,7 +169,7 @@ test('enforces collection, media, inspection, folder-planning, and media-source 
     'src/lib/media/inspection-work-queue.ts': 'import { state } from "../stores/state";\nexport const queue = state;\n',
     'src/lib/media/media-source.ts': 'import { browserDatabase } from "../persistence/browser-indexed-db";\nexport const source = browserDatabase;\n',
     'src/lib/services/media-inspection-pipeline.ts': 'import { clock } from "../runtime/adapters/browser-clock";\nexport const pipeline = clock;\n',
-    'src/lib/services/library-folder-plan.ts': 'import { sources } from "../media/media-source-persistence";\nexport const plan = sources;\n',
+    'src/lib/collections/library-folder-plan.ts': 'import { sources } from "../media/media-source-persistence";\nexport const plan = sources;\n',
     'src/lib/services/multiplayer-protocol.ts': 'import type { MediaEntity } from "../contracts/catalog";\nexport type Wire = MediaEntity;\n'
   });
   t.after(() => fs.rm(root, { recursive: true, force: true }));
@@ -180,7 +180,7 @@ test('enforces collection, media, inspection, folder-planning, and media-source 
   ]), [
     ['collection-kernel-imports-application', 'src/lib/collections/collection-reducer.ts', 'src/lib/stores/state.ts'],
     ['collection-kernel-imports-application', 'src/lib/collections/collection-repository.ts', 'src/lib/runtime/adapters/browser-clock.ts'],
-    ['inspection-planner-imports-application', 'src/lib/services/library-folder-plan.ts', 'src/lib/media/media-source-persistence.ts'],
+    ['inspection-planner-imports-application', 'src/lib/collections/library-folder-plan.ts', 'src/lib/media/media-source-persistence.ts'],
     ['inspection-planner-imports-application', 'src/lib/services/media-inspection-pipeline.ts', 'src/lib/runtime/adapters/browser-clock.ts'],
     ['media-kernel-imports-application', 'src/lib/media/format-policy.ts', 'src/lib/components/View.svelte'],
     ['media-kernel-imports-application', 'src/lib/media/inspection-work-queue.ts', 'src/lib/stores/state.ts'],
@@ -237,7 +237,7 @@ test('allows reconstructed kernels to depend on contracts, runtime ports, and th
       'export type Pipeline = MediaEntity | TrackMetadata | Source | Clock | DomainError | MetadataDocument;',
       ''
     ].join('\n'),
-    'src/lib/services/library-folder-plan.ts': 'import type { MediaEntity } from "../contracts/catalog";\nimport type { Source } from "../media/media-source";\nexport type Plan = MediaEntity | Source;\n',
+    'src/lib/collections/library-folder-plan.ts': 'import type { MediaEntity } from "../contracts/catalog";\nimport type { Source } from "../media/media-source";\nexport type Plan = MediaEntity | Source;\n',
     'src/lib/services/multiplayer-protocol.ts': 'export interface WireMessage { type: string; }\n'
   });
   t.after(() => fs.rm(root, { recursive: true, force: true }));

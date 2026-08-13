@@ -3,7 +3,7 @@ import { fingerprintFile, fingerprintsMatch } from './fingerprint';
 import { getMetadataCapabilities } from './format';
 import { applyMetadataPatch } from './merge';
 import { queryMetadataWritePermission } from './permissions';
-import { readMetadataDocument } from './reader';
+import { inspectMetadataDocumentFile } from '$lib/services/catalog-metadata-inspection';
 import { remuxMetadataToWritable } from './remux';
 import type {
   ArtworkEdit,
@@ -118,7 +118,7 @@ export async function writeMetadataDocumentInPlace(
   // after Input.dispose(), Chromium may retain state associated with a BlobSource
   // long enough for the next atomic replace to fail at close().
   const writtenFile = await materializeSourceFile(await handle.getFile());
-  const result = await readMetadataDocument(writtenFile, document.extension);
+  const result = await inspectMetadataDocumentFile(writtenFile, document.extension, options.signal);
   const shouldVerify = options.verify !== false;
   if (shouldVerify) verifyPatch(result, expected, patch, artworkPatch);
   return { document: result, verified: shouldVerify };

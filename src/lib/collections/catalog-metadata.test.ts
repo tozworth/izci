@@ -17,7 +17,7 @@ vi.mock('$lib/stores/metadata-settings', () => ({
   metadataSettings: { getSnapshot: () => ({ inferFromFilename: harness.infer }) }
 }));
 
-import { disposePlaylistMetadata, scheduleMetadataParsing } from './playlist-metadata';
+import { disposePlaylistMetadata, scheduleMetadataParsing } from './catalog-metadata';
 
 function entity(overrides: Partial<MediaEntity> = {}): MediaEntity {
   return {

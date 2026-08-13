@@ -143,7 +143,7 @@ export const architectureConfig = Object.freeze({
     /^src\/lib\/runtime\/(?!adapters\/)/,
     /^src\/lib\/settings\/(?!browser\.ts$)/,
     /^src\/lib\/persistence\/(?!browser-indexed-db\.ts$)/,
-    /^src\/lib\/services\/(?:library-folder-plan|media-inspection-pipeline)\.ts$/,
+    /^(?:src\/lib\/collections\/library-folder-plan|src\/lib\/services\/media-inspection-pipeline)\.ts$/,
     /^src\/lib\/services\/(?:multiplayer-protocol|window-orphan)\.ts$/,
     /^src\/lib\/application\/page-entry\.ts$/,
     /^src\/(?:main|options\/main|tools\/[^/]+\/main)\.ts$/
@@ -319,7 +319,7 @@ export const architectureConfig = Object.freeze({
       description: 'Bounded inspection and folder planning kernels cannot reverse-import application stores, presentation, or browser adapters.',
       from: {
         paths: [
-          'src/lib/services/library-folder-plan.ts',
+          'src/lib/collections/library-folder-plan.ts',
           'src/lib/services/media-inspection-pipeline.ts'
         ]
       },

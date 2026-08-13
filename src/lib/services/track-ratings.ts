@@ -1,21 +1,12 @@
 import type { MenuActionItem } from '$lib/contracts/window-menu';
 import type { MediaEntity } from '$lib/contracts/catalog';
-
-export const TRACK_RATING_VALUES = Array.from({ length: 10 }, (_, index) => (index + 1) / 2);
-export const TRACK_RATING_ACTION_PREFIX = 'rate:';
-
-export function normalizeTrackRating(value: unknown): number | undefined {
-  if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) {
-    return undefined;
-  }
-
-  return Math.min(5, Math.max(0.5, Math.round(value * 2) / 2));
-}
-
-export function formatTrackRating(value: unknown): string {
-  const rating = normalizeTrackRating(value);
-  return rating === undefined ? '' : String(rating);
-}
+export {
+  formatTrackRating,
+  normalizeTrackRating,
+  TRACK_RATING_ACTION_PREFIX,
+  TRACK_RATING_VALUES
+} from '$lib/media/track-rating';
+import { normalizeTrackRating, TRACK_RATING_ACTION_PREFIX } from '$lib/media/track-rating';
 
 export function buildTrackRatingAction(tracks: MediaEntity[]): MenuActionItem {
   const ratings = tracks.map((track) => normalizeTrackRating(track.rating));

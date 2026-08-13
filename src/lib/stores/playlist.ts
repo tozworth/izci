@@ -12,7 +12,7 @@ import {
   type CollectionStorage
 } from '$lib/collections/collection-repository';
 import type { CollectionReduction } from '$lib/collections/collection-reducer';
-import type { LibraryFolderReconciliationPlan } from '$lib/services/library-folder-plan';
+import type { LibraryFolderReconciliationPlan } from '$lib/collections/library-folder-plan';
 import {
   materializeMediaEntity,
   materializeMediaEntityResult,
@@ -21,7 +21,7 @@ import {
 import { mediaSources } from '$lib/media/media-source';
 import { deleteMediaSources, persistMediaSources, readMediaSources } from '$lib/media/media-source-persistence';
 import { registerBrowserPersistenceOwner } from '$lib/persistence/browser-indexed-db';
-import { scheduleMetadataParsing } from './playlist-metadata';
+import { scheduleMetadataParsing } from '$lib/collections/catalog-metadata';
 import { trackSettings } from './track-settings';
 import { createPlaylistNavigation } from './playlist-navigation';
 import {

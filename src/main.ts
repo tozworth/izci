@@ -5,7 +5,7 @@ import '$lib/styles/options-view.css';
 import './app.css';
 import { startApplicationPage } from '$lib/application/page-entry';
 import { favoritesStore, libraryStore, playlistStore } from '$lib/stores/playlist';
-import { disposePlaylistMetadata } from '$lib/stores/playlist-metadata';
+import { disposePlaylistMetadata } from '$lib/collections/catalog-metadata';
 import { disposeLibraryFolderScanner } from '$lib/services/library-folder-scanner';
 import { mediaSources } from '$lib/media/media-source';
 import './mobile/mobile.css';

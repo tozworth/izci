@@ -10,7 +10,7 @@ import {
   planLibraryFolderReconciliation,
   type LibraryFolderReconciliationPlan,
   type ScannedLibraryFolderEntry
-} from './library-folder-plan';
+} from '$lib/collections/library-folder-plan';
 import {
   createBoundedLibraryFolderDiscovery,
   createLibraryFolderScanner,

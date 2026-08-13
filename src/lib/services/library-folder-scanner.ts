@@ -20,7 +20,7 @@ import {
   type CurrentMediaSourceHandle,
   type LibraryFolderReconciliationPlan,
   type ScannedLibraryFolderEntry
-} from '$lib/services/library-folder-plan';
+} from '$lib/collections/library-folder-plan';
 import { prepareImportedFiles } from '$lib/services/file-verification';
 import { libraryStore } from '$lib/stores/playlist';
 import { trackSettings } from '$lib/stores/track-settings';

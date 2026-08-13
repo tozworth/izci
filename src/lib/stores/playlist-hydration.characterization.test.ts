@@ -20,7 +20,7 @@ vi.mock('./playlist-persistence', async (importOriginal) => ({
   persistStoredState: persistenceHarness.persistStoredState
 }));
 
-vi.mock('./playlist-metadata', () => ({
+vi.mock('$lib/collections/catalog-metadata', () => ({
   scheduleMetadataParsing: vi.fn()
 }));
 

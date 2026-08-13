@@ -35,6 +35,7 @@ const MAX_INSPECTION_CONCURRENCY = 3;
 const MAX_BACKGROUND_INSPECTION_CONCURRENCY = 2;
 const MAX_QUEUED_INSPECTIONS = 32;
 const MAX_ON_DEMAND_CACHE_ENTRIES = 64;
+const MAX_CATALOG_BATCH_PRODUCERS = 4;
 
 export interface CatalogMetadataReaders {
   readonly readStream: (
@@ -167,21 +168,26 @@ export class CatalogMetadataInspectionOwner {
     options.signal?.addEventListener('abort', forwardAbort, { once: true });
     this.#active.add(controller);
 
-    const operations = entities.map(async (entity) => {
-      try {
-        const ticket = await this.#pipeline.inspect({
-          kind: 'catalog-metadata',
-          entity,
-          generationId,
-          origin: options.origin,
-          signal: controller.signal,
-          timeoutMs: CATALOG_METADATA_TIMEOUT_MS
-        });
-        const result = await ticket.result;
-        if (!controller.signal.aborted) await options.onResult(result);
-      } catch (error) {
-        if (!(error instanceof InspectionWorkCancelledError)) {
-          options.onError?.(error, entity);
+    let nextIndex = 0;
+    const workerCount = Math.min(MAX_CATALOG_BATCH_PRODUCERS, entities.length);
+    const operations = Array.from({ length: workerCount }, async () => {
+      while (!controller.signal.aborted && nextIndex < entities.length) {
+        const entity = entities[nextIndex++]!;
+        try {
+          const ticket = await this.#pipeline.inspect({
+            kind: 'catalog-metadata',
+            entity,
+            generationId,
+            origin: options.origin,
+            signal: controller.signal,
+            timeoutMs: CATALOG_METADATA_TIMEOUT_MS
+          });
+          const result = await ticket.result;
+          if (!controller.signal.aborted) await options.onResult(result);
+        } catch (error) {
+          if (!(error instanceof InspectionWorkCancelledError)) {
+            options.onError?.(error, entity);
+          }
         }
       }
     });

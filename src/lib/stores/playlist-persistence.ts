@@ -1,5 +1,5 @@
 import type { MediaEntity, PlaylistPlaybackOptions, PlaylistRepeatMode, PlaylistSelection } from '$lib/contracts/catalog';
-import { normalizeTrackRating } from '$lib/services/track-ratings';
+import { normalizeTrackRating } from '$lib/media/track-rating';
 import { projectTrackMetadata } from '$lib/media/track-metadata';
 import { logInfo } from '$lib/logging/api';
 import { openBrowserDatabase } from '$lib/persistence/browser-indexed-db';
