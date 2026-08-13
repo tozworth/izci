@@ -107,6 +107,64 @@ function catalogHarness(initial: readonly MediaEntity[] = [], revision = 0): {
 }
 
 describe('library folder scanner orchestration', () => {
+  it('caps concurrent launch-folder scans independently of the file-read queue', async () => {
+    const ids = ['one', 'two', 'three', 'four', 'five'];
+    let state: StoredFilesystemFoldersState = {
+      folderSetRevision: 1,
+      folders: ids.map((id) => ({
+        id,
+        name: id,
+        handle: directoryHandle({ name: id }),
+        addedAt: 1,
+        definitionRevision: 1,
+        scanGeneration: 0,
+        libraryMode: 'launch',
+        lastScanStatus: 'never'
+      }))
+    };
+    const folders = createFilesystemFoldersStore({
+      persistence: {
+        read: async () => state,
+        write: async (next) => { state = next; }
+      },
+      initialize: true,
+      createChannel: () => null
+    });
+    await folders.ready();
+    let active = 0;
+    let peak = 0;
+    const releases: Array<() => void> = [];
+    const scanner = createLibraryFolderScanner({
+      folders,
+      catalog: {
+        getCatalogSnapshot: () => ({ entities: [], catalogRevision: 0 }),
+        applyCatalogIfRevision: async () => ({ status: 'applied' })
+      },
+      queryPermission: async () => 'granted',
+      discover: async () => {
+        active += 1;
+        peak = Math.max(peak, active);
+        await new Promise<void>((resolve) => releases.push(resolve));
+        active -= 1;
+        return [];
+      },
+      maxLaunchConcurrency: 2
+    });
+
+    const result = scanner.scanLaunchFolders();
+    let released = 0;
+    while (released < ids.length) {
+      await vi.waitFor(() => expect(releases.length).toBeGreaterThan(released));
+      releases[released]?.();
+      released += 1;
+    }
+
+    await expect(result).resolves.toHaveLength(5);
+    expect(peak).toBe(2);
+    await scanner.dispose();
+    await folders.dispose();
+  });
+
   it('bounds physical file reads across a folder discovery', async () => {
     let activeReads = 0;
     let peakReads = 0;

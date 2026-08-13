@@ -71,6 +71,7 @@ export interface LibraryFolderScannerOptions {
   readonly createAbortController?: () => AbortController;
   readonly createId?: () => string;
   readonly getFolderNestingLimit?: () => number;
+  readonly maxLaunchConcurrency?: number;
   readonly now?: () => number;
 }
 
@@ -146,6 +147,7 @@ export function createLibraryFolderScanner(
   const createId = options.createId ?? (() => crypto.randomUUID());
   const getFolderNestingLimit = options.getFolderNestingLimit
     ?? (() => trackSettings.getSnapshot().folderNestingLimit);
+  const maxLaunchConcurrency = Math.max(1, Math.trunc(options.maxLaunchConcurrency ?? 2));
   const now = options.now ?? Date.now;
   const activeScans = new Map<string, ActiveScan>();
   let disposed = false;
@@ -290,7 +292,18 @@ export function createLibraryFolderScanner(
       await options.folders.refresh({ probe: false });
       const folders = options.folders.getSnapshot()
         .filter((folder) => folder.libraryMode === 'launch');
-      return await Promise.all(folders.map((folder) => api.scan(folder.id)));
+      const results = new Array<LibraryFolderScanResult>(folders.length);
+      let index = 0;
+      const workers = Array.from({
+        length: Math.min(maxLaunchConcurrency, folders.length)
+      }, async () => {
+        while (index < folders.length) {
+          const currentIndex = index++;
+          results[currentIndex] = await api.scan(folders[currentIndex]!.id);
+        }
+      });
+      await Promise.all(workers);
+      return results;
     },
     dispose() {
       if (disposePromise) return disposePromise;
