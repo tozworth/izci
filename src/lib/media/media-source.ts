@@ -174,6 +174,7 @@ export async function requireMediaMaterialization(
 
 export class MediaSourceRegistry {
   readonly #locators = new Map<string, MediaSourceLocator>();
+  readonly #owners = new Map<string, Map<symbol, number>>();
 
   get(entityId: string): MediaSourceLocator | null {
     return this.#locators.get(entityId) ?? null;
@@ -194,7 +195,13 @@ export class MediaSourceRegistry {
   }
 
   registerHandle(entityId: string, fileHandle: FileSystemFileHandle, permission: MediaSourcePermission): void {
-    this.register({ entityId, fileHandle, permission });
+    const current = this.#locators.get(entityId);
+    this.register({
+      entityId,
+      ...(current?.file === undefined ? {} : { file: current.file }),
+      fileHandle,
+      permission
+    });
   }
 
   clone(sourceEntityId: string, targetEntityId: string): void {
@@ -203,12 +210,54 @@ export class MediaSourceRegistry {
     this.register({ ...current, entityId: targetEntityId });
   }
 
-  remove(entityId: string): void {
+  retain(entityId: string, owner: symbol): boolean {
+    if (!this.#locators.has(entityId)) return false;
+    const owners = this.#owners.get(entityId) ?? new Map<symbol, number>();
+    owners.set(owner, (owners.get(owner) ?? 0) + 1);
+    this.#owners.set(entityId, owners);
+    return true;
+  }
+
+  release(entityId: string, owner: symbol): boolean {
+    const owners = this.#owners.get(entityId);
+    const count = owners?.get(owner) ?? 0;
+    if (!owners || count === 0) return false;
+    if (count === 1) owners.delete(owner);
+    else owners.set(owner, count - 1);
+    if (owners.size > 0) return true;
+    this.#owners.delete(entityId);
     this.#locators.delete(entityId);
+    return true;
+  }
+
+  releaseOwner(owner: symbol): void {
+    for (const [entityId, owners] of this.#owners) {
+      if (!owners.delete(owner)) continue;
+      if (owners.size > 0) continue;
+      this.#owners.delete(entityId);
+      this.#locators.delete(entityId);
+    }
+  }
+
+  referenceCount(entityId: string): number {
+    let total = 0;
+    for (const count of this.#owners.get(entityId)?.values() ?? []) total += count;
+    return total;
+  }
+
+  /** Removes a provisional locator only when no runtime collection owns it. */
+  discard(entityId: string): boolean {
+    if ((this.#owners.get(entityId)?.size ?? 0) > 0) return false;
+    return this.#locators.delete(entityId);
+  }
+
+  remove(entityId: string): boolean {
+    return this.discard(entityId);
   }
 
   clear(): void {
     this.#locators.clear();
+    this.#owners.clear();
   }
 }
 

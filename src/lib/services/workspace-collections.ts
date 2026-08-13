@@ -18,6 +18,7 @@ import { normalizeTrackRating, parseTrackRatingAction } from '$lib/services/trac
 import type { MenuActionItem } from '$lib/contracts/window-menu';
 import type { MediaEntity } from '$lib/contracts/catalog';
 import type { WorkspaceCollection } from '$lib/contracts/workspace';
+import { mediaSources } from '$lib/media/media-source';
 import {
   buildMediaEntities,
   buildSeparatedSubsongItems,
@@ -54,7 +55,7 @@ export function createWorkspaceCollectionsController({
   handlers
 }: CreateWorkspaceCollectionsControllerOptions) {
   function cleanupRemovedItems(items: MediaEntity[]): void {
-    void items;
+    for (const item of items) mediaSources.discard(item.id);
   }
 
   function addFiles(files: FileList | File[], target: WorkspaceCollection): MediaEntity[] {

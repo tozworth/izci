@@ -31,6 +31,56 @@ describe('media source ownership and leases', () => {
     expect(JSON.stringify(entity('stream'))).not.toMatch(/file|handle|objectUrl/i);
   });
 
+  it('retains shared locators until every runtime owner releases them', () => {
+    const sources = new MediaSourceRegistry();
+    const file = new File(['abc'], 'Track.mp3');
+    const playlist = Symbol('playlist');
+    const library = Symbol('library');
+    sources.registerFile('media-1', file);
+
+    expect(sources.retain('media-1', playlist)).toBe(true);
+    expect(sources.retain('media-1', playlist)).toBe(true);
+    expect(sources.retain('media-1', library)).toBe(true);
+    expect(sources.referenceCount('media-1')).toBe(3);
+    expect(sources.discard('media-1')).toBe(false);
+
+    expect(sources.release('media-1', playlist)).toBe(true);
+    expect(sources.referenceCount('media-1')).toBe(2);
+    sources.releaseOwner(playlist);
+    expect(sources.get('media-1')).toMatchObject({ file });
+    expect(sources.referenceCount('media-1')).toBe(1);
+
+    sources.releaseOwner(library);
+    expect(sources.get('media-1')).toBeNull();
+    expect(sources.referenceCount('media-1')).toBe(0);
+  });
+
+  it('discards provisional locators and refuses to retain absent sources', () => {
+    const sources = new MediaSourceRegistry();
+    const owner = Symbol('playlist');
+    sources.registerFile('provisional', new File([], 'Track.mp3'));
+
+    expect(sources.discard('provisional')).toBe(true);
+    expect(sources.retain('provisional', owner)).toBe(false);
+    expect(sources.release('provisional', owner)).toBe(false);
+  });
+
+  it('adds a durable handle without dropping a shared in-memory file', () => {
+    const sources = new MediaSourceRegistry();
+    const file = new File([], 'Track.mp3');
+    const fileHandle = { kind: 'file', name: file.name } as FileSystemFileHandle;
+    sources.registerFile('media-1', file);
+
+    sources.registerHandle('media-1', fileHandle, 'prompt');
+
+    expect(sources.get('media-1')).toEqual({
+      entityId: 'media-1',
+      file,
+      fileHandle,
+      permission: 'prompt'
+    });
+  });
+
   it('creates idempotent object-URL leases only for stream and video entities', async () => {
     const create = vi.fn(() => 'blob:track');
     const revoke = vi.fn();

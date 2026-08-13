@@ -13,7 +13,11 @@ import {
 } from '$lib/collections/collection-repository';
 import type { CollectionReduction } from '$lib/collections/collection-reducer';
 import type { LibraryFolderReconciliationPlan } from '$lib/services/library-folder-plan';
-import { materializeMediaEntity, type MediaMaterializationPurpose } from './playlist-materialization';
+import {
+  materializeMediaEntity,
+  materializeMediaEntityResult,
+  type MediaMaterializationPurpose
+} from './playlist-materialization';
 import { mediaSources } from '$lib/media/media-source';
 import { deleteMediaSources, persistMediaSources, readMediaSources } from '$lib/media/media-source-persistence';
 import { registerBrowserPersistenceOwner } from '$lib/persistence/browser-indexed-db';
@@ -74,6 +78,8 @@ function publicPersistenceStatus(status: CollectionRepositoryStatus): Collection
 
 export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
   const getIdentity = config.getIdentity ?? getTrackIdentity;
+  const sourceOwner = Symbol(config.dbName);
+  const ownedSourceCounts = new Map<string, number>();
   const pendingSourceDeletes = new Set<string>();
   const metadataBatches = new Set<NonNullable<ReturnType<typeof scheduleMetadataParsing>>>();
   const storage: CollectionStorage<MediaEntity> = {
@@ -91,16 +97,20 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
       }
 
       const seen = new Set<string>();
+      const retainedIds = new Set<string>();
       const shouldDedupe = typeof config.dedupe === 'function' ? config.dedupe() : config.dedupe;
       const entities = shouldDedupe
         ? sourcedItems.filter((item) => {
             const identity = getIdentity(item);
             if (seen.has(identity)) {
-              pendingSourceDeletes.add(item.id);
-              mediaSources.remove(item.id);
+              if (!retainedIds.has(item.id)) {
+                pendingSourceDeletes.add(item.id);
+                mediaSources.discard(item.id);
+              }
               return false;
             }
             seen.add(identity);
+            retainedIds.add(item.id);
             return true;
           })
         : sourcedItems;
@@ -161,6 +171,33 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
   const navigation = createPlaylistNavigation(() => itemList);
   let lastCatalogRevision = -1;
   let lastShuffle = false;
+  let shutdownPromise: Promise<void> | null = null;
+
+  function synchronizeSourceOwnership(entities: readonly MediaEntity[]): void {
+    const nextCounts = new Map<string, number>();
+    for (const entity of entities) {
+      nextCounts.set(entity.id, (nextCounts.get(entity.id) ?? 0) + 1);
+    }
+
+    for (const [entityId, ownedCount] of ownedSourceCounts) {
+      const nextCount = nextCounts.get(entityId) ?? 0;
+      for (let index = nextCount; index < ownedCount; index += 1) {
+        mediaSources.release(entityId, sourceOwner);
+      }
+      if (nextCount === 0) ownedSourceCounts.delete(entityId);
+      else if (nextCount < ownedCount) ownedSourceCounts.set(entityId, nextCount);
+    }
+
+    for (const [entityId, nextCount] of nextCounts) {
+      const ownedCount = ownedSourceCounts.get(entityId) ?? 0;
+      let retainedCount = ownedCount;
+      for (let index = ownedCount; index < nextCount; index += 1) {
+        if (!mediaSources.retain(entityId, sourceOwner)) break;
+        retainedCount += 1;
+      }
+      if (retainedCount > 0) ownedSourceCounts.set(entityId, retainedCount);
+    }
+  }
 
   repository.subscribe((state) => {
     itemList = [...state.entities];
@@ -174,6 +211,7 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
     }
     lastCatalogRevision = state.catalogRevision;
     lastShuffle = state.playbackOptions.shuffle;
+    synchronizeSourceOwnership(state.entities);
   });
   repository.subscribeStatus((status) => persistenceStatus.set(publicPersistenceStatus(status)));
 
@@ -195,7 +233,7 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
   function stageReduction(reduction: CollectionReduction<MediaEntity>): void {
     const currentIds = new Set(repository.getSnapshot().entities.map((item) => item.id));
     for (const item of reduction.duplicates) {
-      if (!currentIds.has(item.id)) mediaSources.remove(item.id);
+      if (!currentIds.has(item.id)) mediaSources.discard(item.id);
     }
     for (const item of reduction.removed) {
       if (!currentIds.has(item.id)) pendingSourceDeletes.add(item.id);
@@ -263,7 +301,11 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
     shutdown() {
       for (const batch of metadataBatches) batch.cancel();
       metadataBatches.clear();
-      return repository.shutdown();
+      shutdownPromise ??= repository.shutdown().finally(() => {
+        mediaSources.releaseOwner(sourceOwner);
+        ownedSourceCounts.clear();
+      });
+      return shutdownPromise;
     },
     getCatalogSnapshot() {
       const snapshot = repository.getSnapshot();
@@ -282,11 +324,12 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
       }
       stageReduction(result.reduction);
       for (const locator of plan.sourceRegistrations) mediaSources.register(locator);
+      synchronizeSourceOwnership(repository.getSnapshot().entities);
       const currentIds = new Set(repository.getSnapshot().entities.map((item) => item.id));
       for (const id of plan.sourceDeletions) {
         if (currentIds.has(id)) continue;
         pendingSourceDeletes.add(id);
-        mediaSources.remove(id);
+        mediaSources.discard(id);
       }
       // In browser-backed stores a successful folder commit is not observable until its
       // catalog and source-owner writes have both settled. Non-browser stores are ephemeral.
@@ -314,6 +357,14 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
         });
         throw error;
       }
+    },
+    async ensureLoadedResult(
+      id: string,
+      options: { prompt?: boolean; purpose?: MediaMaterializationPurpose } = {}
+    ) {
+      const item = itemList.find((entry) => entry.id === id);
+      if (!item) return { status: 'failure' as const, reason: 'source-unavailable' as const };
+      return materializeMediaEntityResult(item, options.prompt === true, options.purpose ?? 'file-read');
     },
     add(newItems: MediaEntity[]) {
       const synchronous = canMutateSynchronously();
