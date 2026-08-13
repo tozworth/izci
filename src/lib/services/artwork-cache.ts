@@ -60,7 +60,7 @@ type ArtworkReadWriteTransaction = TypedTransaction<
 >;
 
 export interface ArtworkCachePersistenceStatus {
-  state: 'ready' | 'busy' | 'degraded';
+  state: 'ready' | 'busy' | 'degraded' | 'closed';
   error: unknown | null;
 }
 
@@ -656,6 +656,7 @@ export function disposeArtworkCache(): Promise<void> {
     pendingLoads.clear();
     await Promise.allSettled(pending);
     await mutationChain;
+    status.set({ state: 'closed', error: null });
   })();
   return disposePromise;
 }

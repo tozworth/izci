@@ -163,5 +163,6 @@ describe('artwork cache owner', () => {
     await cacheHarness.owner?.flush?.();
     await cacheHarness.owner?.dispose();
     await expect(disposeArtworkCache()).resolves.toBeUndefined();
+    expect(get(artworkCachePersistenceStatus)).toEqual({ state: 'closed', error: null });
   });
 });
