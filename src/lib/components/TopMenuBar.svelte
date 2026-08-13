@@ -385,8 +385,7 @@
     {
       id: 'openRaf',
       label: $t('main.player.openRaf', { default: 'Open Raf' }),
-      icon: 'tune',
-      separatorBefore: true
+      icon: 'tune'
     },
     ...($rafPresets.presets.length > 0
       ? $rafPresets.presets.map((preset, index) => ({
@@ -860,16 +859,16 @@
         } satisfies WindowMenuGroup]
     ),
     {
-      id: 'playback',
-      label: $t('options.views.playback', { default: 'Playback' }),
-      icon: 'play_circle',
-      items: playbackMenuItems
-    },
-    {
       id: 'view',
       label: $t('main.menu.view', { default: 'View' }),
       icon: 'visibility',
       items: viewMenuItems
+    },
+    {
+      id: 'playback',
+      label: $t('options.views.playback', { default: 'Playback' }),
+      icon: 'play_circle',
+      items: playbackMenuItems
     },
     ...(videoActive
       ? [{
