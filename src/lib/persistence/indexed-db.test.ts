@@ -112,6 +112,7 @@ class FakeIndex {
   getAll(): IDBRequest<unknown[]> { return this.#request(); }
   getAllKeys(): IDBRequest<IDBValidKey[]> { return this.#request(); }
   count(): IDBRequest<number> { return this.#request(); }
+  openKeyCursor(): IDBRequest<IDBCursor | null> { return this.#request(); }
 
   asIndex(): IDBIndex { return this as unknown as IDBIndex; }
 }
@@ -312,6 +313,28 @@ describe('typed IndexedDB persistence kernel', () => {
     transaction.complete();
 
     await expect(result).resolves.toBe('typed');
+  });
+
+  it('deletes every primary record selected through a typed index cursor', async () => {
+    const { connection, factory } = await openFresh();
+    const transaction = new FakeTransaction('readwrite', factory.database.stores);
+    factory.database.nextTransaction = transaction;
+
+    const result = runTransaction(connection, {
+      stores: ['tracks'], mode: 'readwrite', operation: 'delete tracks by year'
+    }, (typed) => typed.store('tracks').index('byYear').deleteAll(2026));
+    const cursorRequest = factory.database.stores.get('tracks')!
+      .indexes.get('byYear')!.requests.at(-1)!;
+    const deletion = new FakeRequest<undefined>();
+    const cursor = {
+      delete: () => deletion.asRequest(),
+      continue: () => cursorRequest.succeed(null)
+    } as unknown as IDBCursor;
+    cursorRequest.succeed(cursor);
+    deletion.succeed(undefined);
+    transaction.complete();
+
+    await expect(result).resolves.toBe(1);
   });
 
   it('rebuilds only the clean current schema and releases a manually closed connection once', async () => {

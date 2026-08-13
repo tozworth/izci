@@ -8,8 +8,20 @@
  * persistence.
  */
 
-import { logDebug } from '$lib/logging/api';
+import { logDebug, logWarning } from '$lib/logging/api';
 import { experimentalSettings } from '$lib/stores/experimental-settings';
+import { readable, writable, type Readable } from 'svelte/store';
+import {
+  openBrowserDatabase,
+  registerBrowserPersistenceOwner
+} from '$lib/persistence/browser-indexed-db';
+import {
+  defineDatabase,
+  defineIndex,
+  defineStore,
+  runTransaction,
+  type DatabaseConnection
+} from '$lib/persistence/indexed-db';
 import type { MultiplayerRenderManifest } from './multiplayer-protocol';
 import {
   buildClientRenderCacheKey,
@@ -41,6 +53,27 @@ interface RenderBlobRecord {
   key: string;
   renderKey: string;
   bytes: Uint8Array;
+}
+
+const renderCacheDatabaseSpec = defineDatabase({
+  name: DATABASE_NAME,
+  version: DATABASE_VERSION,
+  stores: {
+    [RENDERS_STORE_NAME]: defineStore<RenderCacheRecord, string>()({ keyPath: 'key' }),
+    [BLOBS_STORE_NAME]: defineStore<RenderBlobRecord, string>()({
+      keyPath: 'key',
+      indexes: {
+        [BLOBS_BY_RENDER_INDEX_NAME]: defineIndex<string>({ keyPath: 'renderKey' })
+      }
+    })
+  }
+});
+
+type RenderCacheConnection = DatabaseConnection<typeof renderCacheDatabaseSpec>;
+
+export interface RenderCachePersistenceStatus {
+  state: 'ready' | 'busy' | 'degraded' | 'closed';
+  error: unknown | null;
 }
 
 export interface RenderCacheEntryInfo {
@@ -132,38 +165,46 @@ export function parseBlobIndex(renderKey: string, blobKeyValue: string): number 
 }
 
 export class MultiplayerRenderDiskCache {
-  #dbPromise: Promise<IDBDatabase | null> | null = null;
+  #connectionPromise: Promise<RenderCacheConnection> | null = null;
   #chain: Promise<unknown> = Promise.resolve();
+  #closed = false;
+  #status = writable<RenderCachePersistenceStatus>({ state: 'ready', error: null });
+
+  readonly persistenceStatus: Readable<RenderCachePersistenceStatus> = readable<RenderCachePersistenceStatus>(
+    { state: 'ready', error: null },
+    (set) => this.#status.subscribe(set)
+  );
 
   #enqueue<T>(operation: () => Promise<T>): Promise<T> {
-    const run = this.#chain.then(operation);
+    const run = this.#chain.then(async () => {
+      if (this.#closed) throw new Error('The render disk cache is closed.');
+      this.#status.set({ state: 'busy', error: null });
+      try {
+        const result = await operation();
+        this.#status.set({ state: 'ready', error: null });
+        return result;
+      } catch (error) {
+        this.#status.set({ state: 'degraded', error });
+        logWarning('multiplayer', 'Render disk cache persistence failed', { error });
+        throw error;
+      }
+    });
     this.#chain = run.then(() => undefined, () => undefined);
     return run;
   }
 
-  #open(): Promise<IDBDatabase | null> {
-    if (this.#dbPromise) return this.#dbPromise;
-    if (typeof window === 'undefined' || !('indexedDB' in window)) {
-      this.#dbPromise = Promise.resolve(null);
-      return this.#dbPromise;
+  async #open(): Promise<RenderCacheConnection> {
+    if (this.#connectionPromise) {
+      const current = await this.#connectionPromise;
+      if (current.state().status === 'open') return current;
+      this.#connectionPromise = null;
     }
-    this.#dbPromise = new Promise((resolve) => {
-      const request = window.indexedDB.open(DATABASE_NAME, DATABASE_VERSION);
-      request.onupgradeneeded = () => {
-        const database = request.result;
-        if (!database.objectStoreNames.contains(RENDERS_STORE_NAME)) {
-          database.createObjectStore(RENDERS_STORE_NAME, { keyPath: 'key' });
-        }
-        if (!database.objectStoreNames.contains(BLOBS_STORE_NAME)) {
-          const blobs = database.createObjectStore(BLOBS_STORE_NAME, { keyPath: 'key' });
-          blobs.createIndex(BLOBS_BY_RENDER_INDEX_NAME, 'renderKey');
-        }
-      };
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => resolve(null);
-      request.onblocked = () => resolve(null);
-    });
-    return this.#dbPromise;
+    this.#connectionPromise = openBrowserDatabase(renderCacheDatabaseSpec)
+      .catch((error) => {
+        this.#connectionPromise = null;
+        throw error;
+      });
+    return this.#connectionPromise;
   }
 
   #settings(): { enabled: boolean; limitBytes: number } {
@@ -174,83 +215,39 @@ export class MultiplayerRenderDiskCache {
     };
   }
 
-  #readRecords(store: IDBObjectStore): Promise<RenderCacheRecord[]> {
-    return new Promise((resolve) => {
-      const request = store.getAll();
-      request.onsuccess = () => resolve((request.result as RenderCacheRecord[]) ?? []);
-      request.onerror = () => resolve([]);
-    });
-  }
-
-  #readBlobKeys(store: IDBObjectStore, renderKey: string): Promise<string[]> {
-    return new Promise((resolve) => {
-      const index = store.index(BLOBS_BY_RENDER_INDEX_NAME);
-      const request = index.openKeyCursor(IDBKeyRange.only(renderKey));
-      const keys: string[] = [];
-      request.onsuccess = () => {
-        const cursor = request.result;
-        if (!cursor) {
-          resolve(keys);
-          return;
-        }
-        keys.push(String(cursor.primaryKey));
-        cursor.continue();
-      };
-      request.onerror = () => resolve(keys);
-    });
-  }
-
-  #deleteRender(
-    database: IDBDatabase,
-    renderKey: string,
-    blobKeys: string[]
-  ): Promise<void> {
-    return new Promise((resolve) => {
-      const transaction = database.transaction(
-        [RENDERS_STORE_NAME, BLOBS_STORE_NAME],
-        'readwrite'
-      );
-      transaction.objectStore(RENDERS_STORE_NAME).delete(renderKey);
-      const blobs = transaction.objectStore(BLOBS_STORE_NAME);
-      for (const key of blobKeys) blobs.delete(key);
-      transaction.oncomplete = () => resolve();
-      transaction.onerror = () => resolve();
-      transaction.onabort = () => resolve();
-    });
+  #readRecords(connection: RenderCacheConnection): Promise<RenderCacheRecord[]> {
+    return runTransaction(connection, {
+      stores: [RENDERS_STORE_NAME],
+      mode: 'readonly',
+      operation: 'list render cache records'
+    }, (transaction) => transaction.store(RENDERS_STORE_NAME).getAll());
   }
 
   /**
    * Evicts least-recently-used entries until the configured limit holds.
    * Metadata records are tiny, so the decision only reads the small store.
    */
-  async #evict(database: IDBDatabase): Promise<void> {
+  async #evict(connection: RenderCacheConnection): Promise<void> {
     const { enabled, limitBytes } = this.#settings();
     if (!enabled) return;
-    const records = await new Promise<RenderCacheRecord[]>((resolve) => {
-      const transaction = database.transaction(RENDERS_STORE_NAME, 'readonly');
-      const request = transaction.objectStore(RENDERS_STORE_NAME).getAll();
-      request.onsuccess = () => resolve((request.result as RenderCacheRecord[]) ?? []);
-      request.onerror = () => resolve([]);
-      transaction.onerror = () => resolve([]);
+    const { records, doomed } = await runTransaction(connection, {
+      stores: [RENDERS_STORE_NAME, BLOBS_STORE_NAME],
+      mode: 'readwrite',
+      operation: 'evict render disk cache',
+      durability: 'relaxed'
+    }, async (transaction) => {
+      const renders = transaction.store(RENDERS_STORE_NAME);
+      const blobsByRender = transaction.store(BLOBS_STORE_NAME).index(BLOBS_BY_RENDER_INDEX_NAME);
+      const records = await renders.getAll();
+      const doomed = selectRenderEviction(records, limitBytes);
+      for (const renderKey of doomed) {
+        await renders.delete(renderKey);
+        await blobsByRender.deleteAll(IDBKeyRange.only(renderKey));
+      }
+      return { records, doomed };
     });
-    const doomed = selectRenderEviction(
-      records.map((record) => ({
-        key: record.key,
-        sizeBytes: record.sizeBytes,
-        lastUsedAt: record.lastUsedAt
-      })),
-      limitBytes
-    );
     if (doomed.length === 0) return;
     const doomedKeys = new Set(doomed);
-    for (const renderKey of doomed) {
-      // One readonly transaction per key: IDB transactions auto-commit
-      // between awaits, so a shared store could go stale mid-loop.
-      const blobsStore = database.transaction(BLOBS_STORE_NAME, 'readonly')
-        .objectStore(BLOBS_STORE_NAME);
-      const blobKeys = await this.#readBlobKeys(blobsStore, renderKey);
-      await this.#deleteRender(database, renderKey, blobKeys);
-    }
     const remaining = records.filter((record) => !doomedKeys.has(record.key))
       .reduce((sum, record) => sum + record.sizeBytes, 0);
     logDebug('multiplayer', 'Render disk cache evicted', {
@@ -261,32 +258,30 @@ export class MultiplayerRenderDiskCache {
     });
   }
 
-  async #readRecord(database: IDBDatabase, key: string): Promise<RenderCacheRecord | null> {
-    return await new Promise((resolve) => {
-      const transaction = database.transaction(RENDERS_STORE_NAME, 'readonly');
-      const request = transaction.objectStore(RENDERS_STORE_NAME).get(key);
-      request.onsuccess = () => resolve((request.result as RenderCacheRecord | undefined) ?? null);
-      request.onerror = () => resolve(null);
-    });
+  async #readRecord(connection: RenderCacheConnection, key: string): Promise<RenderCacheRecord | null> {
+    return runTransaction(connection, {
+      stores: [RENDERS_STORE_NAME],
+      mode: 'readonly',
+      operation: 'read render cache record'
+    }, async (transaction) => (await transaction.store(RENDERS_STORE_NAME).get(key)) ?? null);
   }
 
   async #readRender(
-    database: IDBDatabase,
+    connection: RenderCacheConnection,
     key: string,
     record: RenderCacheRecord
   ): Promise<ClientCachedRender | null> {
-    const blobs = await new Promise<Map<string, Uint8Array>>((resolve) => {
-      const transaction = database.transaction(BLOBS_STORE_NAME, 'readonly');
-      const index = transaction.objectStore(BLOBS_STORE_NAME).index(BLOBS_BY_RENDER_INDEX_NAME);
-      const request = index.getAll(IDBKeyRange.only(key));
-      request.onsuccess = () => {
-        const found = new Map<string, Uint8Array>();
-        for (const blob of (request.result as RenderBlobRecord[]) ?? []) {
-          found.set(blob.key, blob.bytes);
-        }
-        resolve(found);
-      };
-      request.onerror = () => resolve(new Map());
+    const blobs = await runTransaction(connection, {
+      stores: [BLOBS_STORE_NAME, RENDERS_STORE_NAME],
+      mode: 'readwrite',
+      operation: 'read and touch cached render',
+      durability: 'relaxed'
+    }, async (transaction) => {
+      const records = await transaction.store(BLOBS_STORE_NAME)
+        .index(BLOBS_BY_RENDER_INDEX_NAME)
+        .getAll(IDBKeyRange.only(key));
+      await transaction.store(RENDERS_STORE_NAME).put({ ...record, lastUsedAt: Date.now() });
+      return new Map(records.map((blob) => [blob.key, blob.bytes]));
     });
     if (blobs.size === 0) return null;
 
@@ -298,10 +293,6 @@ export class MultiplayerRenderDiskCache {
       if (index !== null) clusters.set(index, bytes);
     }
 
-    // LRU recency bump, best-effort in its own transaction.
-    record.lastUsedAt = Date.now();
-    const touch = database.transaction(RENDERS_STORE_NAME, 'readwrite');
-    touch.objectStore(RENDERS_STORE_NAME).put(record);
     return { manifest: record.manifest, init, clusters };
   }
 
@@ -321,13 +312,12 @@ export class MultiplayerRenderDiskCache {
     return this.#enqueue(async () => {
       const { enabled } = this.#settings();
       if (!enabled) return null;
-      const database = await this.#open();
-      if (!database) return null;
+      const connection = await this.#open();
 
       const exactKey = buildClientRenderCacheKey(trackId, sourceRevision, bitrateKbps);
-      const exactRecord = await this.#readRecord(database, exactKey);
+      const exactRecord = await this.#readRecord(connection, exactKey);
       if (exactRecord) {
-        const render = await this.#readRender(database, exactKey, exactRecord);
+        const render = await this.#readRender(connection, exactKey, exactRecord);
         if (render) {
           logDebug('multiplayer', 'Render disk cache hit', {
             key: exactKey,
@@ -338,9 +328,7 @@ export class MultiplayerRenderDiskCache {
         }
       }
 
-      const records = await this.#readRecords(
-        database.transaction(RENDERS_STORE_NAME, 'readonly').objectStore(RENDERS_STORE_NAME)
-      );
+      const records = await this.#readRecords(connection);
       const candidate = selectHigherBitrateCandidate(
         records,
         trackId,
@@ -348,7 +336,7 @@ export class MultiplayerRenderDiskCache {
         bitrateKbps
       );
       if (!candidate) return null;
-      const render = await this.#readRender(database, candidate.key, candidate.record);
+      const render = await this.#readRender(connection, candidate.key, candidate.record);
       if (!render) return null;
       logDebug('multiplayer', 'Render disk cache higher-bitrate hit', {
         key: candidate.key,
@@ -371,128 +359,103 @@ export class MultiplayerRenderDiskCache {
     return this.#enqueue(async () => {
       const { enabled } = this.#settings();
       if (!enabled || entry.clusters.size === 0) return;
-      const database = await this.#open();
-      if (!database) return;
+      const connection = await this.#open();
 
       const now = Date.now();
       let sizeBytes = entry.init.byteLength;
       for (const bytes of entry.clusters.values()) sizeBytes += bytes.byteLength;
 
-      // Read phase (readonly): the existing record and its blob keys decide
-      // merge-vs-replace before the write transaction opens.
-      const existing = await new Promise<RenderCacheRecord | null>((resolve) => {
-        const transaction = database.transaction(RENDERS_STORE_NAME, 'readonly');
-        const request = transaction.objectStore(RENDERS_STORE_NAME).get(entry.key);
-        request.onsuccess = () => resolve((request.result as RenderCacheRecord | undefined) ?? null);
-        request.onerror = () => resolve(null);
-      });
-      const existingBlobKeys = existing
-        ? await this.#readBlobKeys(
-          database.transaction(BLOBS_STORE_NAME, 'readonly').objectStore(BLOBS_STORE_NAME),
-          entry.key
-        )
-        : [];
-
-      const existingIndices = new Set<number>();
-      for (const blobKey of existingBlobKeys) {
-        const index = parseBlobIndex(entry.key, blobKey);
-        if (index !== null) existingIndices.add(index);
-      }
-
-      let addedBytes = 0;
-      let addedCount = 0;
-      const matches = existing !== null && renderMatchesManifest(
-        { manifest: existing.manifest, init: entry.init, clusters: entry.clusters },
-        entry.manifest
-      );
-      if (matches) {
-        // Union merge: keep old cluster blobs, add or overwrite fresh ones.
-        for (const [index, bytes] of entry.clusters) {
-          if (!existingIndices.has(index)) {
-            addedBytes += bytes.byteLength;
-            addedCount += 1;
+      await runTransaction(connection, {
+        stores: [RENDERS_STORE_NAME, BLOBS_STORE_NAME],
+        mode: 'readwrite',
+        operation: 'persist rendered media cache',
+        durability: 'relaxed'
+      }, async (transaction) => {
+        const renders = transaction.store(RENDERS_STORE_NAME);
+        const blobs = transaction.store(BLOBS_STORE_NAME);
+        const blobsByRender = blobs.index(BLOBS_BY_RENDER_INDEX_NAME);
+        const existing = (await renders.get(entry.key)) ?? null;
+        const existingBlobs = existing
+          ? await blobsByRender.getAll(IDBKeyRange.only(entry.key))
+          : [];
+        const existingIndices = new Set(existingBlobs.flatMap((blob) => {
+          const index = parseBlobIndex(entry.key, blob.key);
+          return index === null ? [] : [index];
+        }));
+        let addedBytes = 0;
+        let addedCount = 0;
+        const matches = existing !== null && renderMatchesManifest(
+          { manifest: existing.manifest, init: entry.init, clusters: entry.clusters },
+          entry.manifest
+        );
+        if (matches) {
+          for (const [index, bytes] of entry.clusters) {
+            if (!existingIndices.has(index)) {
+              addedBytes += bytes.byteLength;
+              addedCount += 1;
+            }
           }
+          sizeBytes = existing.sizeBytes + addedBytes;
+        } else if (existing) {
+          await blobsByRender.deleteAll(IDBKeyRange.only(entry.key));
         }
-        sizeBytes = existing!.sizeBytes + addedBytes;
-      }
-
-      const record: RenderCacheRecord = {
-        key: entry.key,
-        name: entry.name || entry.key,
-        sizeBytes,
-        lastUsedAt: now,
-        storedAt: existing?.storedAt ?? now,
-        initSizeBytes: entry.init.byteLength,
-        clusterCount: matches
-          ? existing!.clusterCount + addedCount
-          : entry.clusters.size,
-        manifest: { ...entry.manifest }
-      };
-
-      const transaction = database.transaction(
-        [RENDERS_STORE_NAME, BLOBS_STORE_NAME],
-        'readwrite'
-      );
-      const renders = transaction.objectStore(RENDERS_STORE_NAME);
-      const blobs = transaction.objectStore(BLOBS_STORE_NAME);
-      if (!matches) {
-        // New or superseded entry: replace any stale blobs wholesale.
-        for (const blobKey of existingBlobKeys) blobs.delete(blobKey);
-      }
-      blobs.put({ key: initBlobKey(entry.key), renderKey: entry.key, bytes: entry.init });
-      for (const [index, bytes] of entry.clusters) {
-        blobs.put({ key: blobKey(entry.key, index), renderKey: entry.key, bytes });
-      }
-      renders.put(record);
-
-      await new Promise<void>((resolve) => {
-        transaction.oncomplete = () => resolve();
-        transaction.onerror = () => resolve();
-        transaction.onabort = () => resolve();
+        const record: RenderCacheRecord = {
+          key: entry.key,
+          name: entry.name || entry.key,
+          sizeBytes,
+          lastUsedAt: now,
+          storedAt: existing?.storedAt ?? now,
+          initSizeBytes: entry.init.byteLength,
+          clusterCount: matches ? existing!.clusterCount + addedCount : entry.clusters.size,
+          manifest: { ...entry.manifest }
+        };
+        await blobs.put({ key: initBlobKey(entry.key), renderKey: entry.key, bytes: entry.init });
+        for (const [index, bytes] of entry.clusters) {
+          await blobs.put({ key: blobKey(entry.key, index), renderKey: entry.key, bytes });
+        }
+        await renders.put(record);
       });
-      await this.#evict(database);
+      await this.#evict(connection);
     });
   }
 
   remove(key: string): Promise<void> {
     return this.#enqueue(async () => {
-      const database = await this.#open();
-      if (!database) return;
-      const blobsStore = database.transaction(BLOBS_STORE_NAME, 'readonly')
-        .objectStore(BLOBS_STORE_NAME);
-      const blobKeys = await this.#readBlobKeys(blobsStore, key);
-      await this.#deleteRender(database, key, blobKeys);
+      const connection = await this.#open();
+      await runTransaction(connection, {
+        stores: [RENDERS_STORE_NAME, BLOBS_STORE_NAME],
+        mode: 'readwrite',
+        operation: 'remove rendered media cache entry',
+        durability: 'relaxed'
+      }, async (transaction) => {
+        await transaction.store(RENDERS_STORE_NAME).delete(key);
+        await transaction.store(BLOBS_STORE_NAME)
+          .index(BLOBS_BY_RENDER_INDEX_NAME)
+          .deleteAll(IDBKeyRange.only(key));
+      });
     });
   }
 
   clear(): Promise<void> {
     return this.#enqueue(async () => {
-      const database = await this.#open();
-      if (!database) return;
-      const transaction = database.transaction(
-        [RENDERS_STORE_NAME, BLOBS_STORE_NAME],
-        'readwrite'
-      );
-      transaction.objectStore(RENDERS_STORE_NAME).clear();
-      transaction.objectStore(BLOBS_STORE_NAME).clear();
-      await new Promise<void>((resolve) => {
-        transaction.oncomplete = () => resolve();
-        transaction.onerror = () => resolve();
-        transaction.onabort = () => resolve();
+      const connection = await this.#open();
+      await runTransaction(connection, {
+        stores: [RENDERS_STORE_NAME, BLOBS_STORE_NAME],
+        mode: 'readwrite',
+        operation: 'clear rendered media cache',
+        durability: 'relaxed'
+      }, async (transaction) => {
+        await transaction.store(RENDERS_STORE_NAME).clear();
+        await transaction.store(BLOBS_STORE_NAME).clear();
       });
     });
   }
 
   list(): Promise<RenderCacheListResult> {
     return this.#enqueue(async () => {
-      const database = await this.#open();
+      const connection = await this.#open();
       const { enabled, limitBytes } = this.#settings();
-      if (!database) {
-        return { entries: [], totalBytes: 0, limitBytes, enabled };
-      }
-      const records = await this.#readRecords(
-        database.transaction(RENDERS_STORE_NAME, 'readonly').objectStore(RENDERS_STORE_NAME)
-      );
+      const records = await this.#readRecords(connection);
       records.sort((left, right) => right.lastUsedAt - left.lastUsedAt);
       return {
         entries: records.map((record) => ({
@@ -514,18 +477,36 @@ export class MultiplayerRenderDiskCache {
 
   enforceLimit(): Promise<void> {
     return this.#enqueue(async () => {
-      const database = await this.#open();
-      if (!database) return;
-      await this.#evict(database);
+      const connection = await this.#open();
+      await this.#evict(connection);
     });
+  }
+
+  flush(): Promise<void> {
+    return this.#chain.then(() => undefined);
+  }
+
+  async dispose(): Promise<void> {
+    if (this.#closed) return;
+    await this.flush();
+    this.#closed = true;
+    const connection = this.#connectionPromise ? await this.#connectionPromise.catch(() => null) : null;
+    this.#connectionPromise = null;
+    if (connection) await connection.close();
+    this.#status.set({ state: 'closed', error: null });
   }
 }
 
 export const multiplayerRenderDiskCache = new MultiplayerRenderDiskCache();
+registerBrowserPersistenceOwner({
+  label: 'multiplayer render disk cache',
+  flush: () => multiplayerRenderDiskCache.flush(),
+  dispose: () => multiplayerRenderDiskCache.dispose()
+});
 
 if (typeof window !== 'undefined') {
   experimentalSettings.subscribe(() => {
     if (!experimentalSettings.getSnapshot().multiplayerRenderDiskCacheEnabled) return;
-    void multiplayerRenderDiskCache.enforceLimit();
+    void multiplayerRenderDiskCache.enforceLimit().catch(() => undefined);
   });
 }

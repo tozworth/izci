@@ -48,10 +48,13 @@
   }
 
   async function refresh() {
-    const listing = await multiplayerRenderDiskCache.list();
-    entries = listing.entries;
-    totalBytes = listing.totalBytes;
-    loading = false;
+    try {
+      const listing = await multiplayerRenderDiskCache.list();
+      entries = listing.entries;
+      totalBytes = listing.totalBytes;
+    } finally {
+      loading = false;
+    }
   }
 
   async function removeEntry(entry: RenderCacheEntryInfo) {
@@ -59,6 +62,8 @@
     try {
       await multiplayerRenderDiskCache.remove(entry.key);
       await refresh();
+    } catch {
+      // The cache exposes the structured persistence failure on its status store.
     } finally {
       busy = false;
     }
@@ -69,6 +74,8 @@
     try {
       await multiplayerRenderDiskCache.clear();
       await refresh();
+    } catch {
+      // The cache exposes the structured persistence failure on its status store.
     } finally {
       busy = false;
     }
@@ -76,10 +83,10 @@
 
   $: settingsFingerprint =
     `${$experimentalSettings.multiplayerRenderDiskCacheEnabled}:${$experimentalSettings.multiplayerRenderDiskCacheLimitMiB}`;
-  $: if (settingsFingerprint) void refresh();
+  $: if (settingsFingerprint) void refresh().catch(() => undefined);
 
   onMount(() => {
-    void refresh();
+    void refresh().catch(() => undefined);
   });
 </script>
 

@@ -155,6 +155,7 @@ export interface TransactionIndex<TValue, TPrimaryKey extends IDBValidKey, TInde
   getAll(query?: TIndexKey | IDBKeyRange | null, count?: number): Promise<TValue[]>;
   getAllKeys(query?: TIndexKey | IDBKeyRange | null, count?: number): Promise<TPrimaryKey[]>;
   count(query?: TIndexKey | IDBKeyRange | null): Promise<number>;
+  deleteAll(query: TIndexKey | IDBKeyRange): Promise<number>;
 }
 
 export interface TransactionStore<TStore extends DatabaseStoreSpec> {
@@ -546,7 +547,25 @@ function createTransactionIndex<TValue, TPrimaryKey extends IDBValidKey, TIndexK
     getKey: (query) => requestResult(index.getKey(query), `${operation}: get key`) as Promise<TPrimaryKey | undefined>,
     getAll: (query, count) => requestResult(index.getAll(queryArgument(query), count), `${operation}: get all`),
     getAllKeys: (query, count) => requestResult(index.getAllKeys(queryArgument(query), count), `${operation}: get all keys`) as Promise<TPrimaryKey[]>,
-    count: (query) => requestResult(index.count(countQueryArgument(query)), `${operation}: count`)
+    count: (query) => requestResult(index.count(countQueryArgument(query)), `${operation}: count`),
+    deleteAll: (query) => new Promise<number>((resolve, reject) => {
+      let deleted = 0;
+      const request = index.openKeyCursor(query);
+      request.onsuccess = () => {
+        const cursor = request.result;
+        if (!cursor) {
+          resolve(deleted);
+          return;
+        }
+        const deletion = cursor.delete();
+        deletion.onerror = () => reject(classifyPersistenceError(deletion.error, `${operation}: delete all`));
+        deletion.onsuccess = () => {
+          deleted += 1;
+          cursor.continue();
+        };
+      };
+      request.onerror = () => reject(classifyPersistenceError(request.error, `${operation}: delete all`));
+    })
   };
 }
 

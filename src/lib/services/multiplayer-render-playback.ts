@@ -331,15 +331,15 @@ export class MultiplayerRenderPlaybackService {
       clusters: new Map(this.#received)
     });
     // Mirror the same render into the cross-session IndexedDB cache so a
-    // rejoin or later replay can skip the re-download. Best-effort: quota
-    // failures and IDB errors are swallowed by the store.
+    // rejoin or later replay can skip the re-download. The cache records a
+    // degraded persistence status when this rebuildable write fails.
     void multiplayerRenderDiskCache.put({
       key,
       name: this.#playback?.track?.name ?? manifest.trackId,
       manifest,
       init: this.#initBytes,
       clusters: new Map(this.#received)
-    });
+    }).catch(() => undefined);
   }
 
   /** Returns an identity and structure matching render, or null to re-download. */
