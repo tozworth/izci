@@ -57,6 +57,20 @@ describe('collection command reducer', () => {
     expect(reduced.duplicates).toEqual([]);
   });
 
+  it('evaluates a live dedupe policy for every reduction', () => {
+    let dedupe = true;
+    const livePolicy = { ...policy, dedupe: () => dedupe };
+    const existing = { id: 'a', path: 'same.flac' };
+    const duplicate = { id: 'b', path: 'same.flac' };
+
+    expect(reduceCollection(state([existing]), { type: 'add', entities: [duplicate] }, livePolicy).duplicates)
+      .toEqual([duplicate]);
+
+    dedupe = false;
+    expect(reduceCollection(state([existing]), { type: 'add', entities: [duplicate] }, livePolicy).added)
+      .toEqual([duplicate]);
+  });
+
   it('selects the next entity when removing the focused entity', () => {
     const entities = [
       { id: 'a', path: 'a' },

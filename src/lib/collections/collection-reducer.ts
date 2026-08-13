@@ -18,7 +18,7 @@ export interface CollectionState<TEntity extends CollectionEntity> {
 }
 
 export interface CollectionPolicy<TEntity extends CollectionEntity> {
-  readonly dedupe: boolean;
+  readonly dedupe: boolean | (() => boolean);
   identity(entity: TEntity): string;
 }
 
@@ -114,7 +114,8 @@ function unique<TEntity extends CollectionEntity>(
   policy: CollectionPolicy<TEntity>,
   existing: readonly TEntity[] = []
 ): { entities: TEntity[]; duplicates: TEntity[] } {
-  if (!policy.dedupe) return { entities: [...incoming], duplicates: [] };
+  const shouldDedupe = typeof policy.dedupe === 'function' ? policy.dedupe() : policy.dedupe;
+  if (!shouldDedupe) return { entities: [...incoming], duplicates: [] };
   const identities = new Set(existing.map(policy.identity));
   const entities: TEntity[] = [];
   const duplicates: TEntity[] = [];
