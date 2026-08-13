@@ -9,8 +9,17 @@
   import { normalizePlaybackRate, playbackSettings } from '$lib/stores/playback-settings';
   import { isRafPresetDirty, rafPresets } from '$lib/stores/raf-presets';
   import { rafSettings } from '$lib/stores/raf-settings';
+  import {
+    addPlaybackBookmark,
+    deletePlaybackBookmark,
+    getPlaybackBookmarkFileKey,
+    getPlaybackBookmarks,
+    type PlaybackBookmark
+  } from '$lib/services/playback-bookmarks';
+  import { formatDuration } from '$lib/utils/files';
   import type {
     MenuActionItem,
+    PlaylistItem,
     VideoFitMode,
     WindowMenuGroup,
     WindowMenuSubtitleTone
@@ -66,6 +75,9 @@
     | 'toggleRaf'
     | `setPlaybackRate:${string}`
     | `applyRafPreset:${string}`
+    | 'bookmark:add'
+    | `bookmark:delete:${string}`
+    | `bookmark:seek:${string}`
     | 'videoFitContain'
     | 'videoFitCover'
     | 'toggleVideoPictureInPicture'
@@ -371,12 +383,43 @@
           separatorBefore: true
         } satisfies MenuActionItem])
   ] satisfies MenuActionItem[];
+  $: bookmarkTrackKey = playingTrack ? getPlaybackBookmarkFileKey(playingTrack) : null;
+  $: if (bookmarkTrackKey !== loadedBookmarkTrackKey) {
+    loadedBookmarkTrackKey = bookmarkTrackKey;
+    bookmarks = playingTrack ? getPlaybackBookmarks(playingTrack) : [];
+  }
+  $: bookmarksMenuItems = [
+    ...bookmarks.map((bookmark): MenuActionItem => ({
+      id: `bookmark:seek:${bookmark.id}`,
+      label: bookmark.name,
+      shortcut: formatDuration(bookmark.time),
+      icon: 'bookmark',
+      removeActionId: `bookmark:delete:${bookmark.id}`,
+      removeLabel: $t('main.player.deleteBookmark', {
+        default: 'Delete bookmark {name}',
+        values: { name: bookmark.name }
+      })
+    })),
+    {
+      id: 'bookmark:add',
+      label: $t('main.player.addBookmark', { default: 'Add bookmark' }),
+      icon: 'bookmark_add',
+      separatorBefore: bookmarks.length > 0
+    }
+  ] satisfies MenuActionItem[];
   $: playbackMenuItems = [
     {
       id: 'playbackSpeed',
       label: $t('options.playback.playbackRate.title', { default: 'Playback speed' }),
       icon: 'speed',
       children: playbackSpeedMenuItems
+    },
+    {
+      id: 'bookmarks',
+      label: $t('main.player.bookmarks', { default: 'Bookmarks' }),
+      icon: 'bookmarks',
+      disabled: !playingTrack,
+      children: bookmarksMenuItems
     },
     {
       id: 'raf',
@@ -496,6 +539,8 @@
   export let videoTheaterActive = false;
   export let installAvailable = false;
   export let showInstallHint = false;
+  export let playingTrack: PlaylistItem | null = null;
+  export let playbackTime = 0;
   export let height = 0;
   export let multiplayerEnabled = false;
   export let multiplayerMode: MultiplayerMode = 'idle';
@@ -553,10 +598,13 @@
     setVideoFit: VideoFitMode;
     toggleVideoPictureInPicture: void;
     toggleVideoTheater: void;
+    seek: number;
     exit: void;
   }>();
   let installHintPresentedInOpenMenu = false;
   let menuSubtitleTone: WindowMenuSubtitleTone = 'muted';
+  let bookmarks: PlaybackBookmark[] = [];
+  let loadedBookmarkTrackKey: string | null = null;
 
   function multiplayerAudioStatusLabel(status: MultiplayerAudioStatus, route: MultiplayerConnectionRoute | null, bitrateKbps: number | null): string {
     const stateLabel = status === 'playing'
@@ -829,6 +877,24 @@
     }
     if (action.startsWith('applyRafPreset:')) {
       rafPresets.apply(action.slice('applyRafPreset:'.length));
+      return;
+    }
+    if (action === 'bookmark:add') {
+      if (!playingTrack) return;
+      const name = window.prompt($t('main.player.bookmarkNamePrompt', { default: 'Name this bookmark:' }));
+      if (name === null) return;
+      bookmarks = addPlaybackBookmark(playingTrack, playbackTime, name);
+      return;
+    }
+    if (action.startsWith('bookmark:delete:')) {
+      if (!playingTrack) return;
+      bookmarks = deletePlaybackBookmark(playingTrack, action.slice('bookmark:delete:'.length));
+      return;
+    }
+    if (action.startsWith('bookmark:seek:')) {
+      if (!playingTrack) return;
+      const bookmark = bookmarks.find(({ id }) => id === action.slice('bookmark:seek:'.length));
+      if (bookmark) dispatch('seek', bookmark.time);
       return;
     }
     dispatch(action as DispatchedMenuActionId);

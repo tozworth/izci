@@ -2172,6 +2172,8 @@
     {videoTheaterActive}
     installAvailable={appInstallState.available}
     showInstallHint={appInstallState.showHint}
+    playingTrack={playerDisplayTrack}
+    playbackTime={playbackSnapshot.currentTime}
     multiplayerEnabled={$experimentalSettings.multiplayer}
     multiplayerMode={multiplayerState.mode}
     multiplayerConnectionStatus={multiplayerState.connectionStatus}
@@ -2225,6 +2227,7 @@
     on:setVideoFit={(event) => setVideoFit(event.detail)}
     on:toggleVideoPictureInPicture={() => void toggleVideoPictureInPicture()}
     on:toggleVideoTheater={toggleVideoTheater}
+    on:seek={(event) => seekPlayback(event.detail)}
     on:exit={() => windowManager.exit()}
   />
   {/if}
