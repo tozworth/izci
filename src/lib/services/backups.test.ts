@@ -34,7 +34,7 @@ function archive(overrides: Partial<BackupArchiveData> = {}): BackupArchiveData 
       {
         id: 'track-1',
         name: 'Track.flac',
-        extension: 'flac',
+        format: 'flac',
         kind: 'stream',
         size: 123,
         lastModified: 456,

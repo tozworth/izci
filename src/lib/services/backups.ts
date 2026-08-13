@@ -15,11 +15,11 @@ import {
 import { favoritesStore, libraryStore } from '$lib/stores/playlist';
 import { normalizeStoredItem } from '$lib/stores/playlist-persistence';
 import { trackSettings } from '$lib/stores/track-settings';
-import type { PlaylistItem } from '$lib/contracts/catalog';
+import type { MediaEntity } from '$lib/contracts/catalog';
 import type { TrackMetadata } from '$lib/contracts/media-metadata';
 import { normalizeTrackRating } from '$lib/services/track-ratings';
 import {
-  buildPlaylistItems,
+  buildMediaEntities,
   getFavoriteIdentity,
   getTrackIdentity,
   readDirectoryFiles,
@@ -69,11 +69,11 @@ export interface BackupManifest {
 export interface PortableTrackRecord {
   id: string;
   name: string;
-  extension: string;
-  kind: PlaylistItem['kind'];
+  format: string;
+  kind: MediaEntity['kind'];
   size: number;
   lastModified: number;
-  path?: string;
+  path: string;
   sourceFolderId?: string;
   metadata?: TrackMetadata;
   rating?: number;
@@ -136,11 +136,11 @@ const EMPTY_PENDING_RESTORE: PendingBackupRestore = {
   favorites: []
 };
 
-function portableTrack(item: PlaylistItem): PortableTrackRecord {
+function portableTrack(item: MediaEntity): PortableTrackRecord {
   return {
     id: item.id,
     name: item.name,
-    extension: item.extension,
+    format: item.format,
     kind: item.kind,
     size: item.size,
     lastModified: item.lastModified,
@@ -172,8 +172,7 @@ function folderTrackKey(
 function normalizePortableTrack(value: unknown): PortableTrackRecord | null {
   const normalized = normalizeStoredItem(value);
   if (!normalized) return null;
-  const { fileHandle: _fileHandle, ...portable } = normalized;
-  return portable;
+  return normalized;
 }
 
 function normalizePortableFolder(value: unknown): PortableFolderRecord | null {
@@ -588,11 +587,8 @@ export async function restoreBackupArchive(file: File): Promise<BackupRestoreRes
   };
 }
 
-function releaseRuntimeFiles(items: PlaylistItem[]): PlaylistItem[] {
-  return items.map((item) => {
-    if (item.objectUrl) URL.revokeObjectURL(item.objectUrl);
-    return { ...item, file: undefined, objectUrl: undefined };
-  });
+function releaseRuntimeFiles(items: MediaEntity[]): MediaEntity[] {
+  return items;
 }
 
 export async function locatePendingFolder(
@@ -615,7 +611,7 @@ export async function locatePendingFolder(
         maxDepth: trackSettings.getSnapshot().folderNestingLimit
       }))
     : [];
-  const discovered = releaseRuntimeFiles(buildPlaylistItems(files));
+  const discovered = releaseRuntimeFiles(buildMediaEntities(files));
   const matchedTrackIds = new Set(
     discovered
       .map((track) => expectedByKey.get(folderTrackKey(track, handle.name))?.id)
@@ -715,9 +711,9 @@ export async function locatePendingFiles(handles: FileSystemFileHandle[]): Promi
   const expectedByIdentity = new Map(looseTracks.map((track) => [getTrackIdentity(track), track]));
   const expectedByFingerprint = new Map(looseTracks.map((track) => [trackFingerprint(track), track]));
   const files = await prepareImportedFiles(await readFileHandleFiles(handles));
-  const selected = releaseRuntimeFiles(buildPlaylistItems(files));
+  const selected = releaseRuntimeFiles(buildMediaEntities(files));
   const restoredIds = new Set<string>();
-  const added: PlaylistItem[] = [];
+  const added: MediaEntity[] = [];
   for (const item of selected) {
     const restored = expectedByIdentity.get(getTrackIdentity(item)) ?? expectedByFingerprint.get(trackFingerprint(item));
     if (!restored) continue;

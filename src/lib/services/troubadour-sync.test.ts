@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { PlaylistItem } from '$lib/contracts/catalog';
+import type { MediaEntity } from '$lib/contracts/catalog';
+import { mediaSources } from '$lib/media/media-source';
 import {
   buildTroubadourBatchContext,
   detachTrackForMetadataWrite,
@@ -12,12 +13,12 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-function track(id: string, path: string): PlaylistItem {
+function track(id: string, path: string): MediaEntity {
   return {
     id,
     path,
     name: 'Track.flac',
-    extension: 'flac',
+    format: 'flac',
     kind: 'stream',
     size: 100,
     lastModified: 10,
@@ -103,9 +104,10 @@ describe('Troubadour main-window synchronization', () => {
       type: 'audio/flac',
       lastModified: 10
     });
-    const activeTrack = { ...track('playing', 'Music/Track.flac'), file: source, objectUrl: 'blob:disk-file' };
+    const activeTrack = track('playing', 'Music/Track.flac');
+    mediaSources.registerFile(activeTrack.id, source);
     const loadTrack = vi.fn(async (
-      _track: PlaylistItem,
+      _track: import('$lib/media/media-source').MediaMaterializationLease,
       _options: { autoPlay: boolean; initialPosition: number }
     ) => undefined);
 
@@ -115,11 +117,10 @@ describe('Troubadour main-window synchronization', () => {
       loadTrack
     )).resolves.toBe(true);
 
-    const detachedTrack = loadTrack.mock.calls[0][0];
-    expect(detachedTrack.file).not.toBe(source);
-    await expect(detachedTrack.file!.arrayBuffer()).resolves.toEqual(await source.arrayBuffer());
-    expect(detachedTrack.objectUrl).toBe('blob:memory-copy');
-    expect(loadTrack).toHaveBeenCalledWith(detachedTrack, { autoPlay: false, initialPosition: 2.35 });
-    expect(revokeObjectURL).toHaveBeenCalledWith('blob:disk-file');
+    const detachedLease = loadTrack.mock.calls[0][0];
+    expect(detachedLease.file).not.toBe(source);
+    await expect(detachedLease.file.arrayBuffer()).resolves.toEqual(await source.arrayBuffer());
+    expect(detachedLease.objectUrl).toBe('blob:memory-copy');
+    expect(loadTrack).toHaveBeenCalledWith(detachedLease, { autoPlay: false, initialPosition: 2.35 });
   });
 });

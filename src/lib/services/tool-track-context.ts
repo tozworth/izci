@@ -1,5 +1,6 @@
-import type { PlaylistItem } from '$lib/contracts/catalog';
+import type { MediaEntity } from '$lib/contracts/catalog';
 import type { TrackKind } from '$lib/contracts/media-format';
+import { mediaSources } from '$lib/media/media-source';
 
 const REQUEST_MESSAGE = 'izci:request-tool-track';
 export const OPEN_CURRENT_TOOL_TRACK_MESSAGE = 'izci:open-current-tool-track';
@@ -9,7 +10,7 @@ export interface ToolTrackContext {
   file: File;
   fileHandle?: FileSystemFileHandle;
   path?: string;
-  extension: string;
+  format: string;
   kind: TrackKind;
 }
 
@@ -19,7 +20,7 @@ function normalizeToolTrackContext(value: unknown): ToolTrackContext | null {
 
   if (
     !(source.file instanceof File)
-    || typeof source.extension !== 'string'
+    || typeof source.format !== 'string'
     || (source.kind !== 'stream' && source.kind !== 'module' && source.kind !== 'video')
   ) {
     return null;
@@ -29,19 +30,21 @@ function normalizeToolTrackContext(value: unknown): ToolTrackContext | null {
     file: source.file,
     fileHandle: source.fileHandle,
     path: typeof source.path === 'string' ? source.path : undefined,
-    extension: source.extension,
+    format: source.format,
     kind: source.kind
   };
 }
 
-function toToolTrackContext(track: PlaylistItem | null): ToolTrackContext | null {
-  if (!track?.file) return null;
+function toToolTrackContext(track: MediaEntity | null): ToolTrackContext | null {
+  if (!track) return null;
+  const source = mediaSources.get(track.id);
+  if (!source?.file) return null;
 
   return {
-    file: track.file,
-    fileHandle: track.fileHandle,
+    file: source.file,
+    fileHandle: source.fileHandle,
     path: track.path,
-    extension: track.extension,
+    format: track.format,
     kind: track.kind
   };
 }
@@ -61,7 +64,7 @@ function postTrack(target: Window, track: ToolTrackContext | null, targetOrigin:
 
 export function respondToToolTrackRequest(
   event: MessageEvent,
-  track: PlaylistItem | null
+  track: MediaEntity | null
 ): boolean {
   if (
     event.origin !== window.location.origin

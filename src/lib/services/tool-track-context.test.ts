@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { PlaylistItem } from '$lib/contracts/catalog';
+import type { MediaEntity } from '$lib/contracts/catalog';
+import { mediaSources } from '$lib/media/media-source';
 import {
   listenForCurrentToolTrack,
   OPEN_CURRENT_TOOL_TRACK_MESSAGE,
@@ -14,15 +15,16 @@ describe('tool track context', () => {
   it('responds to a same-origin request with the materialized current track', () => {
     const postMessage = vi.fn();
     const file = new File(['audio'], 'song.mp3', { type: 'audio/mpeg' });
-    const track: PlaylistItem = {
+    const track: MediaEntity = {
       id: 'track',
-      file,
+      path: file.name,
       name: file.name,
-      extension: 'mp3',
+      format: 'mp3',
       kind: 'stream',
       size: file.size,
       lastModified: file.lastModified
     };
+    mediaSources.registerFile(track.id, file);
     vi.stubGlobal('window', { location: { origin: 'https://izci.test' } });
 
     const handled = respondToToolTrackRequest({
@@ -37,8 +39,8 @@ describe('tool track context', () => {
       track: {
         file,
         fileHandle: undefined,
-        path: undefined,
-        extension: 'mp3',
+        path: file.name,
+        format: 'mp3',
         kind: 'stream'
       }
     }, 'https://izci.test');

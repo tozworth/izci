@@ -8,6 +8,7 @@
   import { listenForCurrentToolTrack } from '$lib/services/tool-track-context';
   import { RAF_EFFECT_DEFINITIONS, RAF_EFFECT_REGISTRY } from '$lib/services/raf-effect-registry';
   import { loadEmbeddedStreamArtwork, loadTrackMetadata } from '$lib/services/stream-artwork';
+  import { mediaSources } from '$lib/media/media-source';
   import { inferArtistTitleFromFileName, stripFileExtension } from '$lib/utils/files';
   import { inferMediaExtension } from '$lib/media/format-policy';
   import { createMediaOpenFilePickerOptions, mediaFileInputAccept } from '$lib/media/format-policy';
@@ -419,13 +420,14 @@
       if ((STREAM_EXTENSIONS as readonly string[]).includes(extension)) {
         const track = {
           id: `editor:${file.name}:${file.size}:${file.lastModified}`,
-          file,
+          path: file.name,
           name: file.name,
-          extension,
+          format: extension,
           kind: 'stream' as const,
           size: file.size,
           lastModified: file.lastModified
         };
+        mediaSources.registerFile(track.id, file);
         const [metadata, embeddedArtwork, embeddedLyrics] = await Promise.all([
           loadTrackMetadata(track),
           loadEmbeddedStreamArtwork(track),

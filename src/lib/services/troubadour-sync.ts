@@ -1,8 +1,9 @@
 import type { FilesystemFolder, FilesystemFolderPermission } from '$lib/services/filesystem-folders';
-import type { PlaylistItem } from '$lib/contracts/catalog';
+import type { MediaEntity } from '$lib/contracts/catalog';
 import type { TrackKind } from '$lib/contracts/media-format';
 import type { TrackMetadata } from '$lib/contracts/media-metadata';
 import { getTrackIdentity } from '$lib/utils/files';
+import { mediaSources, type MediaMaterializationLease } from '$lib/media/media-source';
 
 export const REQUEST_TROUBADOUR_BATCH_CONTEXT_MESSAGE = 'izci:troubadour:request-batch-context';
 export const OPEN_TROUBADOUR_BATCH_CONTEXT_MESSAGE = 'izci:troubadour:open-batch-context';
@@ -48,7 +49,7 @@ export interface TroubadourBatchContext {
 
 export interface TroubadourBatchContextSource {
   collection: TroubadourCollection;
-  items: PlaylistItem[];
+  items: MediaEntity[];
 }
 
 export interface TroubadourBatchItemResult {
@@ -93,26 +94,32 @@ export interface TroubadourWritePreparationRequest {
 }
 
 export async function detachTrackForMetadataWrite(
-  track: PlaylistItem,
+  track: MediaEntity,
   options: { autoPlay: boolean; initialPosition: number },
-  loadTrack: (track: PlaylistItem, options: { autoPlay: boolean; initialPosition: number }) => Promise<void>
+  loadTrack: (lease: MediaMaterializationLease, options: { autoPlay: boolean; initialPosition: number }) => Promise<void>
 ): Promise<boolean> {
-  if (!track.file || !track.objectUrl || (track.kind !== 'stream' && track.kind !== 'video')) return false;
+  const source = mediaSources.get(track.id);
+  if (!source?.file || (track.kind !== 'stream' && track.kind !== 'video')) return false;
 
-  const file = new File([await track.file.arrayBuffer()], track.file.name, {
-    type: track.file.type,
-    lastModified: track.file.lastModified
+  const file = new File([await source.file.arrayBuffer()], source.file.name, {
+    type: source.file.type,
+    lastModified: source.file.lastModified
   });
   const objectUrl = URL.createObjectURL(file);
+  const lease: MediaMaterializationLease = {
+    entity: track,
+    file,
+    objectUrl,
+    release: () => URL.revokeObjectURL(objectUrl)
+  };
 
   try {
-    await loadTrack({ ...track, file, objectUrl }, options);
+    await loadTrack(lease, options);
   } catch (error) {
     URL.revokeObjectURL(objectUrl);
     throw error;
   }
 
-  URL.revokeObjectURL(track.objectUrl);
   return true;
 }
 
@@ -213,22 +220,24 @@ export function buildTroubadourBatchContext(
         ))) {
           existing.references.push(reference);
         }
-        existing.file ??= item.file;
-        existing.fileHandle ??= item.fileHandle;
+        const sourceLocator = mediaSources.get(item.id);
+        existing.file ??= sourceLocator?.file;
+        existing.fileHandle ??= sourceLocator?.fileHandle;
         existing.path ??= item.path;
         existing.sourceFolderId ??= item.sourceFolderId;
         continue;
       }
 
+      const sourceLocator = mediaSources.get(item.id);
       tracksByIdentity.set(identity, {
         contextId: crypto.randomUUID(),
         references: [reference],
-        file: item.file,
-        fileHandle: item.fileHandle,
+        file: sourceLocator?.file,
+        fileHandle: sourceLocator?.fileHandle,
         path: item.path,
         sourceFolderId: item.sourceFolderId,
         name: item.name,
-        extension: item.extension,
+        extension: item.format,
         kind: item.kind,
         size: item.size,
         lastModified: item.lastModified,
