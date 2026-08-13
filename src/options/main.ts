@@ -4,6 +4,7 @@ import OptionsApp from './OptionsApp.svelte';
 import '$lib/styles/options-view.css';
 import '../mobile/mobile-options.css';
 import { startApplicationPage } from '$lib/application/page-entry';
+import { backupCoordinator } from '$lib/services/browser-backup-client';
 
 startApplicationPage({
   pageId: 'options',
@@ -16,5 +17,10 @@ startApplicationPage({
     const app = mount(OptionsApp, { target: document.getElementById('app')! });
     return () => unmount(app);
   },
-  ready: () => tick()
+  ready: async () => {
+    await backupCoordinator.ready();
+    await tick();
+  },
+  shutdown: () => backupCoordinator.stop(),
+  afterPersistence: () => backupCoordinator.dispose()
 });

@@ -25,7 +25,7 @@ import { initializeMobileDocument } from '../../mobile/mobile-device';
 export interface ApplicationPageEntryConfig {
   readonly pageId: string;
   readonly production: boolean;
-  readonly mount: () => PageCleanup;
+  readonly mount: () => PageCleanup | Promise<PageCleanup>;
   readonly ready: () => void | Promise<void>;
   readonly readyMarker: string;
   readonly mobileDocument: boolean;
@@ -105,8 +105,8 @@ export function startApplicationPage(config: ApplicationPageEntryConfig): PageBo
         for (const cleanup of cleanups.reverse()) await cleanup();
       };
     },
-    mount: () => {
-      const cleanup = config.mount();
+    mount: async () => {
+      const cleanup = await config.mount();
       return shutdown.wrapMountCleanup(cleanup);
     },
     readiness: async () => { await config.ready(); },

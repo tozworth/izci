@@ -1,13 +1,8 @@
 <script lang="ts">
   import { locale, t } from 'svelte-i18n';
-  import {
-    BACKUP_EXTENSION,
-    createBackupArchive,
-    locatePendingFiles,
-    pendingBackupRestore,
-    restoreBackupArchive,
-    type BackupRestoreResult
-  } from '$lib/services/backups';
+  import type { BackupRestoreResult } from '$lib/services/backups';
+  import { BACKUP_FILE_EXTENSION } from '$lib/services/backup-coordination';
+  import { backupCoordinator } from '$lib/services/browser-backup-client';
   import { createOpenFilePickerOptions } from '$lib/services/import-controller';
 
   export let onOpenFolders: () => void;
@@ -22,29 +17,21 @@
   let status: 'idle' | 'created' | 'restored' | 'located' | 'mismatch' | 'invalid' | 'unsupported' | 'failed' = 'idle';
 
   $: looseTrackCount =
-    $pendingBackupRestore.tracks.filter((track) => !track.sourceFolderId).length +
-    $pendingBackupRestore.favorites.filter((track) => !track.sourceFolderId).length;
+    $backupCoordinator.tracks.filter((track) => !track.sourceFolderId).length +
+    $backupCoordinator.favorites.filter((track) => !track.sourceFolderId).length;
   $: pendingFolderTrackCount =
-    $pendingBackupRestore.tracks.filter((track) => Boolean(track.sourceFolderId)).length +
-    $pendingBackupRestore.favorites.filter((track) => Boolean(track.sourceFolderId)).length;
+    $backupCoordinator.tracks.filter((track) => Boolean(track.sourceFolderId)).length +
+    $backupCoordinator.favorites.filter((track) => Boolean(track.sourceFolderId)).length;
   $: hasPendingRestore =
-    $pendingBackupRestore.folders.length > 0 ||
-    $pendingBackupRestore.tracks.length > 0 ||
-    $pendingBackupRestore.favorites.length > 0;
-
-  function refreshMainWindow() {
-    try {
-      window.opener?.location.reload();
-    } catch {
-      // A standalone Options window has no same-origin opener to refresh.
-    }
-  }
+    $backupCoordinator.folders.length > 0 ||
+    $backupCoordinator.tracks.length > 0 ||
+    $backupCoordinator.favorites.length > 0;
 
   async function createBackup() {
     busy = true;
     status = 'idle';
     try {
-      const backup = await createBackupArchive();
+      const backup = await backupCoordinator.createBackup();
       const url = URL.createObjectURL(backup.blob);
       const anchor = document.createElement('a');
       anchor.href = url;
@@ -72,9 +59,8 @@
     restoreResult = null;
     status = 'idle';
     try {
-      restoreResult = await restoreBackupArchive(file);
+      restoreResult = await backupCoordinator.restoreBackup(file);
       status = 'restored';
-      refreshMainWindow();
     } catch (error) {
       status = error instanceof Error && error.message === 'unsupported-version'
         ? 'unsupported'
@@ -98,9 +84,8 @@
       const handles = await pickerWindow.showOpenFilePicker(
         createOpenFilePickerOptions($t('options.backups.locateFilesDescription', { default: 'Original library files' }))
       );
-      const result = await locatePendingFiles(handles);
+      const result = await backupCoordinator.locateFiles(handles);
       status = result.status === 'success' ? 'located' : 'mismatch';
-      if (result.status === 'success') refreshMainWindow();
     } catch (error) {
       if (!(error instanceof DOMException && error.name === 'AbortError')) status = 'failed';
     } finally {
@@ -137,7 +122,7 @@
       class="backup-file-input"
       bind:this={importInput}
       type="file"
-      accept={BACKUP_EXTENSION}
+      accept={BACKUP_FILE_EXTENSION}
       on:change={(event) => void handleBackupSelected(event)}
     />
   </div>
@@ -175,13 +160,13 @@
       <div class="restore-card-heading">
         <div>
           <h3 id="pending-restore-heading">{$t('options.backups.pending.heading', { default: 'Files still needed' })}</h3>
-          {#if $pendingBackupRestore.createdAt}
+          {#if $backupCoordinator.createdAt}
             <p>
               {$t('options.backups.pending.from', {
                 default: 'Backup from {origin}, created {date}',
                 values: {
-                  origin: $pendingBackupRestore.sourceOrigin || '—',
-                  date: formatBackupDate($pendingBackupRestore.createdAt)
+                  origin: $backupCoordinator.sourceOrigin || '—',
+                  date: formatBackupDate($backupCoordinator.createdAt)
                 }
               })}
             </p>
@@ -189,13 +174,13 @@
         </div>
       </div>
 
-      {#if $pendingBackupRestore.folders.length > 0}
+      {#if $backupCoordinator.folders.length > 0}
         <div class="restore-row">
           <span class="material-symbols-outlined" aria-hidden="true">folder_off</span>
           <span class="restore-copy">
             <strong>{$t('options.backups.pending.folders', {
               default: '{folders} folders · {tracks} tracks',
-              values: { folders: $pendingBackupRestore.folders.length, tracks: pendingFolderTrackCount }
+              values: { folders: $backupCoordinator.folders.length, tracks: pendingFolderTrackCount }
             })}</strong>
             <small>{$t('options.backups.pending.foldersHint', { default: 'Open Folders and use Locate… for each missing root.' })}</small>
           </span>

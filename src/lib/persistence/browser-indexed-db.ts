@@ -22,6 +22,20 @@ export function registerBrowserPersistenceOwner(owner: BrowserPersistenceOwner):
   return () => owners.delete(owner);
 }
 
+export async function flushBrowserPersistenceOwners(): Promise<void> {
+  const active = [...owners];
+  const results = await Promise.allSettled(active.map((owner) => owner.flush?.()));
+  const failures = results.flatMap((result, index) => result.status === 'rejected'
+    ? [{ label: active[index]?.label ?? 'unknown', error: result.reason }]
+    : []);
+  if (failures.length > 0) {
+    throw new AggregateError(
+      failures.map((failure) => failure.error),
+      `Browser persistence flush failed: ${failures.map((failure) => failure.label).join(', ')}`
+    );
+  }
+}
+
 export async function disposeBrowserPersistenceOwners(): Promise<void> {
   const active = [...owners];
   owners.clear();

@@ -1,10 +1,24 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   disposeBrowserPersistenceOwners,
+  flushBrowserPersistenceOwners,
   registerBrowserPersistenceOwner
 } from './browser-indexed-db';
 
 describe('browser persistence owner shutdown', () => {
+  it('flushes live owners without disposing or unregistering them', async () => {
+    const flush = vi.fn();
+    const dispose = vi.fn();
+    registerBrowserPersistenceOwner({ label: 'catalog', flush, dispose });
+
+    await flushBrowserPersistenceOwners();
+    await flushBrowserPersistenceOwners();
+
+    expect(flush).toHaveBeenCalledTimes(2);
+    expect(dispose).not.toHaveBeenCalled();
+    await disposeBrowserPersistenceOwners();
+  });
+
   it('flushes every owner before disposing it and unregisters the batch', async () => {
     const events: string[] = [];
     registerBrowserPersistenceOwner({

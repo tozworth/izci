@@ -9,11 +9,8 @@
     type FilesystemFolderPermission
   } from '$lib/services/filesystem-folders';
   import { requestLibraryFolderScan } from '$lib/services/library-folder-coordination';
-  import {
-    locatePendingFolder,
-    pendingBackupRestore,
-    type PortableFolderRecord
-  } from '$lib/services/backups';
+  import type { PortableFolderRecord } from '$lib/services/backups';
+  import { backupCoordinator } from '$lib/services/browser-backup-client';
 
   type PickerWindow = Window & typeof globalThis & {
     showDirectoryPicker?: () => Promise<FileSystemDirectoryHandle>;
@@ -92,8 +89,8 @@
 
   function pendingTrackCount(folderId: string): number {
     return (
-      $pendingBackupRestore.tracks.filter((track) => track.sourceFolderId === folderId).length +
-      $pendingBackupRestore.favorites.filter((track) => track.sourceFolderId === folderId).length
+      $backupCoordinator.tracks.filter((track) => track.sourceFolderId === folderId).length +
+      $backupCoordinator.favorites.filter((track) => track.sourceFolderId === folderId).length
     );
   }
 
@@ -198,15 +195,8 @@
     restoreStatus = 'idle';
     try {
       const handle = await pickerWindow.showDirectoryPicker();
-      const result = await locatePendingFolder(folder.id, handle);
+      const result = await backupCoordinator.locateFolder(folder.id, handle);
       restoreStatus = result.status === 'success' ? 'success' : 'mismatch';
-      if (result.status === 'success') {
-        try {
-          window.opener?.location.reload();
-        } catch {
-          // A standalone Options window has no same-origin opener to refresh.
-        }
-      }
     } catch (error) {
       if (!(error instanceof DOMException && error.name === 'AbortError')) restoreStatus = 'failed';
     } finally {
@@ -257,7 +247,7 @@
     class="folder-table-scroll"
     role="table"
     aria-label={$t('options.folders.table.label', { default: 'Known folders' })}
-    aria-rowcount={$filesystemFolders.length + $pendingBackupRestore.folders.length + 1}
+    aria-rowcount={$filesystemFolders.length + $backupCoordinator.folders.length + 1}
   >
     <div class="folder-table" role="rowgroup">
       <div class="folder-header" role="row">
@@ -269,7 +259,7 @@
         <span class="actions-heading" role="columnheader">{$t('options.folders.table.actions', { default: 'Actions' })}</span>
       </div>
 
-      {#if $filesystemFolders.length === 0 && $pendingBackupRestore.folders.length === 0}
+      {#if $filesystemFolders.length === 0 && $backupCoordinator.folders.length === 0}
         <div class="empty-row" role="row">
           <span class="material-symbols-outlined" aria-hidden="true">folder_off</span>
           <span role="cell">{$t('options.folders.empty', { default: 'No known folders. Add or drop one here.' })}</span>
@@ -372,7 +362,7 @@
             </div>
           </div>
         {/each}
-        {#each $pendingBackupRestore.folders as folder, index (folder.id)}
+        {#each $backupCoordinator.folders as folder, index (folder.id)}
           <div class="folder-row pending-folder-row" role="row" aria-rowindex={$filesystemFolders.length + index + 2}>
             <div class="folder-name" role="cell" title={folder.name}>
               <span class="material-symbols-outlined folder-icon" aria-hidden="true">folder_off</span>
