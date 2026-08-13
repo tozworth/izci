@@ -1,5 +1,5 @@
 import type { MenuActionItem } from '$lib/contracts/window-menu';
-import type { PlaylistItem } from '$lib/contracts/catalog';
+import type { MediaEntity } from '$lib/contracts/catalog';
 
 export const TRACK_RATING_VALUES = Array.from({ length: 10 }, (_, index) => (index + 1) / 2);
 export const TRACK_RATING_ACTION_PREFIX = 'rate:';
@@ -17,7 +17,7 @@ export function formatTrackRating(value: unknown): string {
   return rating === undefined ? '' : String(rating);
 }
 
-export function buildTrackRatingAction(tracks: PlaylistItem[]): MenuActionItem {
+export function buildTrackRatingAction(tracks: MediaEntity[]): MenuActionItem {
   const ratings = tracks.map((track) => normalizeTrackRating(track.rating));
   const commonRating = ratings.length > 0 && ratings.every((rating) => rating === ratings[0])
     ? ratings[0]

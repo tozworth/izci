@@ -9,7 +9,7 @@
   } from '$lib/stores/appearance-settings';
   import type { LoadedStreamArtwork } from '$lib/services/stream-artwork';
   import type { BackdropZoneEffect, BackdropZoneArtworkSettings } from '$lib/contracts/appearance-settings';
-  import type { PlaylistItem } from '$lib/contracts/catalog';
+  import type { MediaEntity } from '$lib/contracts/catalog';
   import type { WorkspaceTab } from '$lib/contracts/workspace';
   import WorkspaceTabBar from './WorkspaceTabBar.svelte';
   import WorkspaceTabContent from './WorkspaceTabContent.svelte';
@@ -20,8 +20,8 @@
   } from './types';
 
   export let content: WorkspaceTabContentProps;
-  export let track: PlaylistItem | null = null;
-  export let selectedTrack: PlaylistItem | null = null;
+  export let track: MediaEntity | null = null;
+  export let selectedTrack: MediaEntity | null = null;
   export let artwork: LoadedStreamArtwork | null = null;
   export let backdropArtwork: LoadedStreamArtwork | null = null;
   export let artworkBackgroundBright = false;

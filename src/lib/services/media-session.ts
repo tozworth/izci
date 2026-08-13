@@ -1,7 +1,7 @@
 import type { Readable } from 'svelte/store';
 import type { PlaybackSettings } from '$lib/contracts/player-settings';
 import type { PlaybackSnapshot } from '$lib/contracts/playback';
-import type { PlaylistItem } from '$lib/contracts/catalog';
+import type { MediaEntity } from '$lib/contracts/catalog';
 import {
   getTrackArtworkLoadKey,
   loadTrackArtwork,
@@ -33,7 +33,7 @@ interface MediaSessionHandlers {
 
 interface MediaSessionConnectOptions {
   snapshot: Readable<PlaybackSnapshot>;
-  track: Readable<PlaylistItem | null>;
+  track: Readable<MediaEntity | null>;
   settings: Readable<PlaybackSettings>;
   artworkOverride?: Readable<LoadedStreamArtwork | null | undefined>;
   transportAnchorActive?: Readable<boolean>;
@@ -84,7 +84,7 @@ function clamp(value: number, min: number, max: number): number {
 
 function createMediaSessionService() {
   let snapshot: PlaybackSnapshot | null = null;
-  let track: PlaylistItem | null = null;
+  let track: MediaEntity | null = null;
   let playbackRate = 1;
   let transportAnchor: HTMLAudioElement | null = null;
   let transportAnchorUrl = '';
@@ -119,7 +119,7 @@ function createMediaSessionService() {
     }
   }
 
-  function buildMetadata(activeTrack: PlaylistItem): MediaMetadataInit {
+  function buildMetadata(activeTrack: MediaEntity): MediaMetadataInit {
     const artist = getTrackDisplaySubtitle(activeTrack) || undefined;
     const album = activeTrack.metadata?.album?.trim();
     const trackerType = activeTrack.metadata?.trackerType?.trim();
@@ -127,7 +127,7 @@ function createMediaSessionService() {
     return {
       title: getTrackDisplayTitle(activeTrack) || activeTrack.name,
       artist,
-      album: album || (activeTrack.kind === 'module' ? trackerType || activeTrack.extension.toUpperCase() : undefined),
+      album: album || (activeTrack.kind === 'module' ? trackerType || activeTrack.format.toUpperCase() : undefined),
       artwork: trackArtwork ? [trackArtwork.mediaImage] : undefined
     };
   }
@@ -303,7 +303,7 @@ function createMediaSessionService() {
     }
   }
 
-  async function syncTrackArtwork(mediaSession: MediaSession, activeTrack: PlaylistItem | null): Promise<void> {
+  async function syncTrackArtwork(mediaSession: MediaSession, activeTrack: MediaEntity | null): Promise<void> {
     const loadToken = ++artworkLoadToken;
 
     clearTrackArtwork();

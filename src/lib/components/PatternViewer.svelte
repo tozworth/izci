@@ -6,9 +6,9 @@
   import { patternViewerSettings } from '$lib/stores/pattern-viewer-settings';
   import type { ModulePatternSnapshot, ModulePatternSong } from '$lib/contracts/module-playback';
   import type { PlaybackSnapshot } from '$lib/contracts/playback';
-  import type { PlaylistItem } from '$lib/contracts/catalog';
+  import type { MediaEntity } from '$lib/contracts/catalog';
 
-  export let track: PlaylistItem | null = null;
+  export let track: MediaEntity | null = null;
   export let snapshot: ModulePatternSnapshot;
   export let playbackSnapshot: PlaybackSnapshot | null = null;
 

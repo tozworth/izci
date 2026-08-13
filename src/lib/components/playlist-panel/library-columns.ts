@@ -3,7 +3,7 @@ import {
   LIBRARY_COLUMN_MIN_WIDTHS
 } from '$lib/stores/library-view-settings';
 import type { LibraryColumnId, LibraryViewColumnState, LibraryViewSortState } from '$lib/contracts/workspace';
-import type { PlaylistItem } from '$lib/contracts/catalog';
+import type { MediaEntity } from '$lib/contracts/catalog';
 import {
   formatDuration,
   getFolderFromPath,
@@ -72,16 +72,16 @@ export function getOrderedColumns(
   }));
 }
 
-export function formatTrackType(item: PlaylistItem): string {
-  return item.extension.toUpperCase();
+export function formatTrackType(item: MediaEntity): string {
+  return item.format.toUpperCase();
 }
 
-export function getTrackDuration(item: PlaylistItem): string {
+export function getTrackDuration(item: MediaEntity): string {
   const duration = item.metadata?.duration ?? 0;
   return Number.isFinite(duration) && duration > 0 ? formatDuration(duration) : '';
 }
 
-export function getTrackPlayCount(item: PlaylistItem): string {
+export function getTrackPlayCount(item: MediaEntity): string {
   const playCount = item.metadata?.playCount ?? 0;
   return Number.isFinite(playCount) && playCount > 0 ? String(Math.floor(playCount)) : '';
 }
@@ -94,7 +94,7 @@ function parsePositionNumber(value: string): number | null {
   return Number.isFinite(number) ? number : null;
 }
 
-function getTrackPosition(item: PlaylistItem): TrackPosition {
+function getTrackPosition(item: MediaEntity): TrackPosition {
   const discText = item.metadata?.discNumber?.trim() ?? '';
   const trackText = item.metadata?.trackNumber?.trim() ?? '';
 
@@ -105,7 +105,7 @@ function getTrackPosition(item: PlaylistItem): TrackPosition {
   };
 }
 
-export function getColumnTextValue(item: PlaylistItem, columnId: LibraryColumnId): string {
+export function getColumnTextValue(item: MediaEntity, columnId: LibraryColumnId): string {
   switch (columnId) {
     case 'title':
       return getSeparatedSubsongPlaylistLabel(item) || getTrackDisplayTitle(item);
@@ -260,8 +260,8 @@ export function rebalanceResizedColumns(
 }
 
 function compareByColumn(
-  left: PlaylistItem,
-  right: PlaylistItem,
+  left: MediaEntity,
+  right: MediaEntity,
   columnId: LibraryColumnId,
   direction: 'asc' | 'desc',
   stringCollator: Intl.Collator
@@ -347,8 +347,8 @@ function compareByColumn(
 }
 
 export function compareItems(
-  left: PlaylistItem,
-  right: PlaylistItem,
+  left: MediaEntity,
+  right: MediaEntity,
   sort: LibraryViewSortState,
   locale?: string
 ): number {

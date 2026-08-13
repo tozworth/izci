@@ -1,10 +1,10 @@
 import { getColumnTextValue } from '$lib/components/playlist-panel/library-columns';
 import type { LibraryColumnId } from '$lib/contracts/workspace';
-import type { PlaylistItem } from '$lib/contracts/catalog';
+import type { MediaEntity } from '$lib/contracts/catalog';
 
 const DEFAULT_SEARCH_COLUMN_IDS: LibraryColumnId[] = ['title', 'artist', 'album', 'folder', 'format', 'duration'];
 
-function getSearchValues(item: PlaylistItem, columnIds?: LibraryColumnId[]): string[] {
+function getSearchValues(item: MediaEntity, columnIds?: LibraryColumnId[]): string[] {
   const columnValues = (columnIds ?? DEFAULT_SEARCH_COLUMN_IDS)
     .map((columnId) => getColumnTextValue(item, columnId).trim())
     .filter((value) => value !== '');
@@ -23,7 +23,7 @@ function getSearchValues(item: PlaylistItem, columnIds?: LibraryColumnId[]): str
 }
 
 export function matchesSearchQuery(
-  item: PlaylistItem,
+  item: MediaEntity,
   normalizedQuery: string,
   columnIds?: LibraryColumnId[]
 ): boolean {
@@ -37,14 +37,14 @@ export function matchesSearchQuery(
 }
 
 export function filterItemsByQuery(
-  items: PlaylistItem[],
+  items: MediaEntity[],
   normalizedQuery: string,
   columnIds?: LibraryColumnId[]
-): PlaylistItem[] {
+): MediaEntity[] {
   return normalizedQuery ? items.filter((item) => matchesSearchQuery(item, normalizedQuery, columnIds)) : items;
 }
 
-export function getTotalDuration(items: PlaylistItem[]): number {
+export function getTotalDuration(items: MediaEntity[]): number {
   return items.reduce((sum, item) => {
     const duration = item.metadata?.duration ?? 0;
     return Number.isFinite(duration) && duration > 0 ? sum + duration : sum;
@@ -69,8 +69,8 @@ export function formatTotalDuration(seconds: number): string {
 }
 
 export function getTrackSummary(
-  items: PlaylistItem[],
-  filteredItems: PlaylistItem[],
+  items: MediaEntity[],
+  filteredItems: MediaEntity[],
   normalizedQuery: string
 ): string {
   const totalDuration = getTotalDuration(filteredItems);

@@ -1,7 +1,8 @@
 import { MODULE_EXTENSIONS, type TrackKind } from '$lib/contracts/media-format';
-import { type PlaylistItem } from '$lib/contracts/catalog';
+import { type MediaEntity } from '$lib/contracts/catalog';
 import { type TrackMetadata } from '$lib/contracts/media-metadata';
 import { inferMediaExtension, inferTrackKind } from '$lib/media/format-policy';
+import { mediaSources } from '$lib/media/media-source';
 
 interface ChromiumFileSystemEntry {
   isFile: boolean;
@@ -115,10 +116,6 @@ export function markFileAsModule(file: File): void {
   moduleOverrideFiles.add(file);
 }
 
-function createTrackObjectUrl(kind: TrackKind, file: File): string | undefined {
-  return kind === 'stream' || kind === 'video' ? URL.createObjectURL(file) : undefined;
-}
-
 export function stripFileExtension(fileName: string): string {
   const extension = inferMediaExtension(fileName);
 
@@ -174,38 +171,44 @@ export function mergeInferredArtistTitle(metadata: TrackMetadata = {}, fileName:
   };
 }
 
-function createPlaylistItem(file: File): PlaylistItem | null {
-  const extension = inferMediaExtension(file.name);
-  const kind = inferTrackKind(extension) ?? (moduleOverrideFiles.has(file) ? 'module' : null);
+function createMediaEntity(file: File, createId: () => string): MediaEntity | null {
+  const format = inferMediaExtension(file.name);
+  const kind = inferTrackKind(format) ?? (moduleOverrideFiles.has(file) ? 'module' : null);
 
   if (!kind) {
     return null;
   }
 
   const source = getImportedFileSource(file);
-  const retainedFile = source?.fileHandle ? undefined : file;
+  const id = createId();
+  mediaSources.register({
+    entityId: id,
+    file,
+    ...(source?.fileHandle ? { fileHandle: source.fileHandle } : {}),
+    permission: 'granted'
+  });
 
   return {
-    id: crypto.randomUUID(),
-    file: retainedFile,
-    fileHandle: source?.fileHandle,
-    path: source?.path,
+    id,
+    path: normalizePath(source?.path) ?? file.name,
     sourceFolderId: source?.sourceFolderId,
     name: file.name,
-    extension,
+    format,
     kind,
     size: file.size,
-    lastModified: file.lastModified,
-    objectUrl: retainedFile ? createTrackObjectUrl(kind, retainedFile) : undefined
+    lastModified: file.lastModified
   };
 }
 
-export function buildPlaylistItems(files: FileList | File[]): PlaylistItem[] {
-  const items: PlaylistItem[] = [];
+export function buildMediaEntities(
+  files: FileList | File[],
+  options: { createId?: () => string } = {}
+): MediaEntity[] {
+  const items: MediaEntity[] = [];
   const sortedFiles = Array.from(files).sort((left, right) => fileNameCollator.compare(left.name, right.name));
 
   for (const file of sortedFiles) {
-    const item = createPlaylistItem(file);
+    const item = createMediaEntity(file, options.createId ?? (() => crypto.randomUUID()));
 
     if (item) {
       items.push(item);
@@ -447,12 +450,12 @@ export async function extractDroppedFiles(
   return (await extractDroppedContent(dataTransfer, options)).files;
 }
 
-export function getTrackDisplayTitle(item: PlaylistItem | null): string {
+export function getTrackDisplayTitle(item: MediaEntity | null): string {
   const title = item?.metadata?.title?.trim();
   return title || (item ? stripFileExtension(item.name) : '');
 }
 
-export function getSeparatedSubsongPlaylistLabel(item: PlaylistItem | null): string {
+export function getSeparatedSubsongPlaylistLabel(item: MediaEntity | null): string {
   if (!item || item.kind !== 'module' || item.subsong === undefined) {
     return '';
   }
@@ -463,22 +466,25 @@ export function getSeparatedSubsongPlaylistLabel(item: PlaylistItem | null): str
 }
 
 export function buildSeparatedSubsongItems(
-  item: PlaylistItem,
+  item: MediaEntity,
   activeSubsong = item.subsong ?? 0
-): PlaylistItem[] {
+): MediaEntity[] {
   const count = Math.max(1, Math.trunc(item.metadata?.subsongs ?? 1));
   const preservedSubsong = Math.min(Math.max(Math.trunc(activeSubsong), 0), count - 1);
 
-  return Array.from({ length: count }, (_, subsong) => ({
-    ...item,
-    id: subsong === preservedSubsong ? item.id : crypto.randomUUID(),
-    objectUrl: undefined,
-    metadata: cloneTrackMetadata(item.metadata),
-    subsong
-  }));
+  return Array.from({ length: count }, (_, subsong) => {
+    const id = subsong === preservedSubsong ? item.id : crypto.randomUUID();
+    if (id !== item.id) mediaSources.clone(item.id, id);
+    return {
+      ...item,
+      id,
+      metadata: cloneTrackMetadata(item.metadata),
+      subsong
+    };
+  });
 }
 
-export function getTrackPlaylistLabel(item: PlaylistItem | null): string {
+export function getTrackPlaylistLabel(item: MediaEntity | null): string {
   const subsongLabel = getSeparatedSubsongPlaylistLabel(item);
 
   if (subsongLabel) {
@@ -495,7 +501,7 @@ export function getTrackPlaylistLabel(item: PlaylistItem | null): string {
   return title ? `${artist} - ${title}` : artist;
 }
 
-export function getTrackIdentity(item: Pick<PlaylistItem, 'path' | 'name' | 'size' | 'lastModified'>): string {
+export function getTrackIdentity(item: Pick<MediaEntity, 'path' | 'name' | 'size' | 'lastModified'>): string {
   const normalizedPath = normalizePath(item.path)?.toLowerCase();
 
   if (normalizedPath) {
@@ -506,25 +512,26 @@ export function getTrackIdentity(item: Pick<PlaylistItem, 'path' | 'name' | 'siz
 }
 
 export function getFavoriteIdentity(
-  item: Pick<PlaylistItem, 'path' | 'name' | 'size' | 'lastModified' | 'subsong'>
+  item: Pick<MediaEntity, 'path' | 'name' | 'size' | 'lastModified' | 'subsong'>
 ): string {
   return `${getTrackIdentity(item)}:subsong:${item.subsong ?? 'all'}`;
 }
 
-export function clonePlaylistItem(item: PlaylistItem): PlaylistItem {
-  return {
+export function cloneMediaEntity(item: MediaEntity): MediaEntity {
+  const clone = {
     ...item,
     id: crypto.randomUUID(),
-    objectUrl: item.file ? createTrackObjectUrl(item.kind, item.file) : undefined,
     metadata: cloneTrackMetadata(item.metadata)
   };
+  mediaSources.clone(item.id, clone.id);
+  return clone;
 }
 
-export function clonePlaylistItems(items: PlaylistItem[]): PlaylistItem[] {
-  return items.map(clonePlaylistItem);
+export function cloneMediaEntities(items: MediaEntity[]): MediaEntity[] {
+  return items.map(cloneMediaEntity);
 }
 
-export function getTrackDisplaySubtitle(item: PlaylistItem | null): string {
+export function getTrackDisplaySubtitle(item: MediaEntity | null): string {
   const artist = item?.metadata?.artist?.trim();
 
   if (artist && artist.toLowerCase() !== 'unknown') {
@@ -552,8 +559,8 @@ export function resolveModuleTrackerName(_extension: string, trackerType?: strin
   return trackerType?.trim() ?? '';
 }
 
-export function resolveModuleDisplayFormat(extension: string, metadata?: TrackMetadata): string {
-  const normalizedExtension = extension.trim().toLowerCase();
+export function resolveModuleDisplayFormat(format: string, metadata?: TrackMetadata): string {
+  const normalizedExtension = format.trim().toLowerCase();
   const normalizedOriginalType = metadata?.originalType?.trim().toLowerCase();
 
   if (

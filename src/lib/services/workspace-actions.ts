@@ -1,5 +1,5 @@
 import type { MenuActionItem } from '$lib/contracts/window-menu';
-import type { PlaylistItem } from '$lib/contracts/catalog';
+import type { MediaEntity } from '$lib/contracts/catalog';
 import type { WorkspaceCollection } from '$lib/contracts/workspace';
 import {
   resolveTrackLibraryNavigationTargets,
@@ -30,9 +30,9 @@ export function getOtherWorkspaceCollection(
 }
 
 export function buildSelectedWorkspaceTracks(
-  items: PlaylistItem[],
+  items: MediaEntity[],
   ids: string[]
-): PlaylistItem[] {
+): MediaEntity[] {
   if (ids.length === 0) {
     return [];
   }
@@ -42,8 +42,8 @@ export function buildSelectedWorkspaceTracks(
 }
 
 export function libraryHasAllTracks(
-  libraryItems: PlaylistItem[],
-  tracks: PlaylistItem[]
+  libraryItems: MediaEntity[],
+  tracks: MediaEntity[]
 ): boolean {
   if (tracks.length === 0) {
     return false;
@@ -54,8 +54,8 @@ export function libraryHasAllTracks(
 }
 
 export function getEquivalentLibraryIds(
-  libraryItems: PlaylistItem[],
-  tracks: PlaylistItem[]
+  libraryItems: MediaEntity[],
+  tracks: MediaEntity[]
 ): string[] {
   if (tracks.length === 0) {
     return [];
@@ -68,8 +68,8 @@ export function getEquivalentLibraryIds(
 }
 
 export function favoritesHaveAllTracks(
-  favoriteItems: PlaylistItem[],
-  tracks: PlaylistItem[]
+  favoriteItems: MediaEntity[],
+  tracks: MediaEntity[]
 ): boolean {
   if (tracks.length === 0) {
     return false;
@@ -80,8 +80,8 @@ export function favoritesHaveAllTracks(
 }
 
 export function getEquivalentFavoriteIds(
-  favoriteItems: PlaylistItem[],
-  tracks: PlaylistItem[]
+  favoriteItems: MediaEntity[],
+  tracks: MediaEntity[]
 ): string[] {
   const trackKeys = new Set(tracks.map((track) => getFavoriteIdentity(track)));
   return favoriteItems
@@ -90,8 +90,8 @@ export function getEquivalentFavoriteIds(
 }
 
 function buildFavoriteToggleAction(
-  favoriteItems: PlaylistItem[],
-  tracks: PlaylistItem[]
+  favoriteItems: MediaEntity[],
+  tracks: MediaEntity[]
 ): MenuActionItem {
   const favorite = favoritesHaveAllTracks(favoriteItems, tracks);
 
@@ -103,8 +103,8 @@ function buildFavoriteToggleAction(
 }
 
 export function buildGoToLibraryAction(
-  track: PlaylistItem | undefined,
-  libraryItems: PlaylistItem[]
+  track: MediaEntity | undefined,
+  libraryItems: MediaEntity[]
 ): MenuActionItem | null {
   if (!track) return null;
 
@@ -124,8 +124,8 @@ export function buildGoToLibraryAction(
 
 export function resolveTrackLibraryNavigationAction(
   actionId: string,
-  track: PlaylistItem | undefined,
-  libraryItems: PlaylistItem[]
+  track: MediaEntity | undefined,
+  libraryItems: MediaEntity[]
 ): TrackLibraryNavigationTarget | null {
   if (!track || !actionId.startsWith(GO_TO_LIBRARY_ACTION_PREFIX)) return null;
 
@@ -135,10 +135,10 @@ export function resolveTrackLibraryNavigationAction(
 }
 
 export function buildPlaylistContextActions(
-  playlistItems: PlaylistItem[],
-  libraryItems: PlaylistItem[],
+  playlistItems: MediaEntity[],
+  libraryItems: MediaEntity[],
   ids: string[],
-  favoriteItems: PlaylistItem[] = [],
+  favoriteItems: MediaEntity[] = [],
   ratingsEnabled = true
 ): MenuActionItem[] {
   const tracks = buildSelectedWorkspaceTracks(playlistItems, ids);
@@ -184,8 +184,8 @@ export function buildPlaylistContextActions(
 }
 
 export function buildLibraryContextActions(
-  libraryItems: PlaylistItem[] = [],
-  favoriteItems: PlaylistItem[] = [],
+  libraryItems: MediaEntity[] = [],
+  favoriteItems: MediaEntity[] = [],
   ids: string[] = [],
   ratingsEnabled = true
 ): MenuActionItem[] {
@@ -244,8 +244,8 @@ export function buildLibraryGroupContextActions(actions: MenuActionItem[]): Menu
 }
 
 export function buildFavoritesContextActions(
-  favoriteItems: PlaylistItem[] = [],
-  libraryItems: PlaylistItem[] = [],
+  favoriteItems: MediaEntity[] = [],
+  libraryItems: MediaEntity[] = [],
   ids: string[] = [],
   ratingsEnabled = true
 ): MenuActionItem[] {
@@ -282,8 +282,8 @@ export function buildFavoritesContextActions(
 }
 
 export function buildFreeplayPlaylistContextActions(
-  playlistItems: PlaylistItem[],
-  libraryItems: PlaylistItem[],
+  playlistItems: MediaEntity[],
+  libraryItems: MediaEntity[],
   ids: string[]
 ): MenuActionItem[] {
   const tracks = buildSelectedWorkspaceTracks(playlistItems, ids);
@@ -304,8 +304,8 @@ export function buildFreeplayPlaylistContextActions(
 }
 
 export function buildFreeplayLibraryContextActions(
-  items: PlaylistItem[],
-  libraryItems: PlaylistItem[],
+  items: MediaEntity[],
+  libraryItems: MediaEntity[],
   ids: string[]
 ): MenuActionItem[] {
   const tracks = buildSelectedWorkspaceTracks(items, ids);

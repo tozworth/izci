@@ -4,10 +4,10 @@ import {
   resolvePatternTabAvailability
 } from './contextual-tab-presentation';
 import type { ModulePatternSnapshot } from '$lib/contracts/module-playback';
-import type { PlaylistItem } from '$lib/contracts/catalog';
+import type { MediaEntity } from '$lib/contracts/catalog';
 
-const moduleTrack = { id: 'module', kind: 'module' } as PlaylistItem;
-const streamTrack = { id: 'stream', kind: 'stream' } as PlaylistItem;
+const moduleTrack = { id: 'module', kind: 'module' } as MediaEntity;
+const streamTrack = { id: 'stream', kind: 'stream' } as MediaEntity;
 const emptyPatternSnapshot: ModulePatternSnapshot = {
   trackId: null,
   song: null,

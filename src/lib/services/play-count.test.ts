@@ -1,12 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createPlayCountTracker } from './play-count';
-import type { PlaylistItem } from '$lib/contracts/catalog';
+import type { MediaEntity } from '$lib/contracts/catalog';
 
-function item(id: string, overrides: Partial<PlaylistItem> = {}): PlaylistItem {
+function item(id: string, overrides: Partial<MediaEntity> = {}): MediaEntity {
   return {
     id,
+    path: 'test',
     name: `${id}.flac`,
-    extension: 'flac',
+    format: 'flac',
     kind: 'stream',
     size: 100,
     lastModified: 1,

@@ -1,7 +1,7 @@
 import { writable, type Readable } from 'svelte/store';
 import { playbackSettings, REMEMBER_PROGRESS_DURATION_MINUTES } from '$lib/stores/playback-settings';
 import type { PlaybackSnapshot } from '$lib/contracts/playback';
-import type { PlaylistItem } from '$lib/contracts/catalog';
+import type { MediaEntity } from '$lib/contracts/catalog';
 import { getTrackIdentity } from '$lib/utils/files';
 import {
   openBrowserDatabase,
@@ -45,7 +45,7 @@ export interface PlaybackProgressState {
 }
 
 interface CreatePlaybackProgressControllerOptions {
-  track: Readable<PlaylistItem | null>;
+  track: Readable<MediaEntity | null>;
   snapshot: Readable<PlaybackSnapshot>;
 }
 
@@ -68,7 +68,7 @@ async function withProgressDatabase<TResult>(
   }
 }
 
-function getProgressIdentity(track: PlaylistItem): string {
+function getProgressIdentity(track: MediaEntity): string {
   return `${getTrackIdentity(track)}:${track.size}:${track.lastModified}:subsong:${track.subsong ?? 'all'}`;
 }
 
@@ -196,7 +196,7 @@ export function createPlaybackProgressController({
     notice: null,
     persistence: { state: 'ready', error: null }
   };
-  let currentTrack: PlaylistItem | null = null;
+  let currentTrack: MediaEntity | null = null;
   let currentSnapshot: PlaybackSnapshot | null = null;
   let checkpointTimer: ReturnType<typeof setTimeout> | null = null;
   let noticeTimer: ReturnType<typeof setTimeout> | null = null;
@@ -231,7 +231,7 @@ export function createPlaybackProgressController({
   }
 
   function persistCheckpoint(
-    checkpointTrack: PlaylistItem | null,
+    checkpointTrack: MediaEntity | null,
     checkpointSnapshot: PlaybackSnapshot | null
   ): Promise<void> {
     if (!checkpointTrack || !checkpointSnapshot) {
@@ -341,7 +341,7 @@ export function createPlaybackProgressController({
     getSnapshot(): PlaybackProgressState {
       return state;
     },
-    async resolveResumePosition(resumeTrack: PlaylistItem): Promise<number> {
+    async resolveResumePosition(resumeTrack: MediaEntity): Promise<number> {
       await flush();
       const durationIndex = playbackSettings.getSnapshot().rememberProgressDurationIndex;
       const minimumDurationMinutes = REMEMBER_PROGRESS_DURATION_MINUTES[durationIndex] ?? null;
@@ -365,14 +365,14 @@ export function createPlaybackProgressController({
       }
       return record.currentTime;
     },
-    showResumeNotice(resumeTrack: PlaylistItem, currentTime: number): void {
+    showResumeNotice(resumeTrack: MediaEntity, currentTime: number): void {
       dismissNotice();
       state = { ...state, notice: { trackId: resumeTrack.id, currentTime } };
       publishState();
       noticeTimer = setTimeout(dismissNotice, RESUME_NOTICE_DURATION_MS);
     },
     dismissNotice,
-    async clearProgress(clearTrack: PlaylistItem): Promise<void> {
+    async clearProgress(clearTrack: MediaEntity): Promise<void> {
       dismissNotice();
       const identity = getProgressIdentity(clearTrack);
       lastDeletedIdentity = identity;

@@ -1,6 +1,6 @@
 import { writable, type Readable } from 'svelte/store';
 import type { LoadoutTrackContext } from '$lib/contracts/loadouts';
-import type { PlaylistItem } from '$lib/contracts/catalog';
+import type { MediaEntity } from '$lib/contracts/catalog';
 
 const CHANNEL_NAME = 'izci-loadout-track-context';
 const store = writable<LoadoutTrackContext | null>(null);
@@ -13,7 +13,7 @@ function normalizeTrackContext(value: unknown): LoadoutTrackContext | null {
   const source = value as Partial<LoadoutTrackContext>;
   if (
     typeof source.name !== 'string' ||
-    typeof source.extension !== 'string' ||
+    typeof source.format !== 'string' ||
     (source.kind !== 'stream' && source.kind !== 'module' && source.kind !== 'video') ||
     typeof source.size !== 'number' ||
     typeof source.lastModified !== 'number'
@@ -23,7 +23,7 @@ function normalizeTrackContext(value: unknown): LoadoutTrackContext | null {
     name: source.name,
     path: typeof source.path === 'string' ? source.path : undefined,
     sourceFolderId: typeof source.sourceFolderId === 'string' ? source.sourceFolderId : undefined,
-    extension: source.extension,
+    format: source.format,
     kind: source.kind,
     size: source.size,
     lastModified: source.lastModified,
@@ -31,7 +31,7 @@ function normalizeTrackContext(value: unknown): LoadoutTrackContext | null {
   };
 }
 
-export function toLoadoutTrackContext(track: PlaylistItem | null): LoadoutTrackContext | null {
+export function toLoadoutTrackContext(track: MediaEntity | null): LoadoutTrackContext | null {
   if (!track) return null;
   return normalizeTrackContext(track);
 }
@@ -59,7 +59,7 @@ export const loadoutTrackContext = {
 };
 
 export function startLoadoutTrackContextPublisher(
-  trackStore: Readable<PlaylistItem | null>
+  trackStore: Readable<MediaEntity | null>
 ): () => void {
   publisherActive = true;
   const unsubscribe = trackStore.subscribe((track) => {

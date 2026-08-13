@@ -15,13 +15,14 @@ import {
   libraryHasAllTracks,
   resolveTrackLibraryNavigationAction
 } from './workspace-actions';
-import type { PlaylistItem } from '$lib/contracts/catalog';
+import type { MediaEntity } from '$lib/contracts/catalog';
 
-function item(id: string, overrides: Partial<PlaylistItem> = {}): PlaylistItem {
+function item(id: string, overrides: Partial<MediaEntity> = {}): MediaEntity {
   return {
     id,
+    path: 'test',
     name: `${id}.flac`,
-    extension: 'flac',
+    format: 'flac',
     kind: 'stream',
     size: 100,
     lastModified: 1,
@@ -83,7 +84,7 @@ describe('workspace actions', () => {
   });
 
   it('matches favorites by file identity and subsong', () => {
-    const base = item('module', { path: '/Music/Module.xm', kind: 'module', extension: 'xm' });
+    const base = item('module', { path: '/Music/Module.xm', kind: 'module', format: 'xm' });
     const first = { ...base, id: 'first', subsong: 0 };
     const second = { ...base, id: 'second', subsong: 1 };
     const favorite = { ...first, id: 'favorite-first' };
@@ -168,7 +169,7 @@ describe('workspace actions', () => {
 
   it('offers subsong separation only for one unsplit multi-subsong module', () => {
     const module = item('module', {
-      extension: 'xm',
+      format: 'xm',
       kind: 'module',
       metadata: { subsongs: 3 }
     });

@@ -1,4 +1,4 @@
-import type { PlaylistItem, PlaylistSelection } from '$lib/contracts/catalog';
+import type { MediaEntity, PlaylistSelection } from '$lib/contracts/catalog';
 
 export interface SelectOptions {
   range?: boolean;
@@ -11,12 +11,12 @@ export const emptySelection: PlaylistSelection = {
   focusId: null
 };
 
-function orderIds(items: PlaylistItem[], ids: Iterable<string>): string[] {
+function orderIds(items: MediaEntity[], ids: Iterable<string>): string[] {
   const selected = new Set(ids);
   return items.filter((item) => selected.has(item.id)).map((item) => item.id);
 }
 
-function rangeIds(items: PlaylistItem[], fromId: string, toId: string): string[] {
+function rangeIds(items: MediaEntity[], fromId: string, toId: string): string[] {
   const fromIndex = items.findIndex((item) => item.id === fromId);
   const toIndex = items.findIndex((item) => item.id === toId);
 
@@ -30,7 +30,7 @@ function rangeIds(items: PlaylistItem[], fromId: string, toId: string): string[]
   return items.slice(start, end + 1).map((item) => item.id);
 }
 
-export function normalizeSelection(items: PlaylistItem[], nextSelection: PlaylistSelection): PlaylistSelection {
+export function normalizeSelection(items: MediaEntity[], nextSelection: PlaylistSelection): PlaylistSelection {
   const ids = orderIds(items, nextSelection.ids);
   const focusId = ids.includes(nextSelection.focusId ?? '') ? nextSelection.focusId : ids.at(-1) ?? null;
   const anchorId =
@@ -68,7 +68,7 @@ export function normalizeStoredSelection(value: unknown, itemIds: Set<string>): 
 }
 
 export function resolveSelectSelection(
-  items: PlaylistItem[],
+  items: MediaEntity[],
   currentSelection: PlaylistSelection,
   id: string,
   options: SelectOptions = {}
@@ -111,7 +111,7 @@ export function resolveSelectSelection(
   });
 }
 
-export function buildSelectAllSelection(items: PlaylistItem[]): PlaylistSelection {
+export function buildSelectAllSelection(items: MediaEntity[]): PlaylistSelection {
   if (items.length === 0) {
     return emptySelection;
   }
@@ -126,10 +126,10 @@ export function buildSelectAllSelection(items: PlaylistItem[]): PlaylistSelectio
 }
 
 export function removeIdsFromSelection(
-  items: PlaylistItem[],
+  items: MediaEntity[],
   selection: PlaylistSelection,
   idsToRemove: Set<string>,
-  previousItems: PlaylistItem[] = items
+  previousItems: MediaEntity[] = items
 ): PlaylistSelection {
   const ids = selection.ids.filter((id) => !idsToRemove.has(id));
 

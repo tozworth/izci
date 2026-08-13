@@ -27,7 +27,7 @@ export interface LoadoutTrackContext {
   name: string;
   path?: string;
   sourceFolderId?: string;
-  extension: string;
+  format: string;
   kind: TrackKind;
   size: number;
   lastModified: number;

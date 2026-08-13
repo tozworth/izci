@@ -1,11 +1,11 @@
-import type { PlaylistItem, PlaylistSelection } from '$lib/contracts/catalog';
+import type { MediaEntity, PlaylistSelection } from '$lib/contracts/catalog';
 
-function getOrderedIds(displayItems: PlaylistItem[], ids: Iterable<string>): string[] {
+function getOrderedIds(displayItems: MediaEntity[], ids: Iterable<string>): string[] {
   const idSet = new Set(ids);
   return displayItems.filter((item) => idSet.has(item.id)).map((item) => item.id);
 }
 
-function getRangeIds(displayItems: PlaylistItem[], fromId: string, toId: string): string[] {
+function getRangeIds(displayItems: MediaEntity[], fromId: string, toId: string): string[] {
   const orderedIds = displayItems.map((item) => item.id);
   const fromIndex = orderedIds.indexOf(fromId);
   const toIndex = orderedIds.indexOf(toId);
@@ -25,7 +25,7 @@ export function isToggleSelection(event: MouseEvent): boolean {
 }
 
 export function buildOrderedSelection(
-  displayItems: PlaylistItem[],
+  displayItems: MediaEntity[],
   selectedIds: string[],
   selectionAnchorId: string | null,
   id: string,

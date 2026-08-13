@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { buildPlaylistItems } from '$lib/utils/files';
+import { buildMediaEntities } from '$lib/utils/files';
 import { prepareImportedFiles } from './file-verification';
 
 describe('added-file verification', () => {
@@ -23,11 +23,11 @@ describe('added-file verification', () => {
       verifyUnknownFiles: true,
       verifyModuleFile
     });
-    const items = buildPlaylistItems(files);
+    const items = buildMediaEntities(files);
 
     expect(files).toEqual([accepted]);
     expect(items).toHaveLength(1);
-    expect(items[0]).toMatchObject({ name: 'Accepted.custom', extension: 'custom', kind: 'module' });
+    expect(items[0]).toMatchObject({ name: 'Accepted.custom', format: 'custom', kind: 'module' });
   });
 
   it('adds unknown extensions as modules without probing when verification is disabled', async () => {
@@ -41,9 +41,9 @@ describe('added-file verification', () => {
 
     expect(files).toEqual([file]);
     expect(verifyModuleFile).not.toHaveBeenCalled();
-    expect(buildPlaylistItems(files)[0]).toMatchObject({
+    expect(buildMediaEntities(files)[0]).toMatchObject({
       name: 'Unknown.dat',
-      extension: 'dat',
+      format: 'dat',
       kind: 'module'
     });
   });

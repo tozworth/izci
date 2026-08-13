@@ -6,13 +6,14 @@ import {
   parseTrackRatingAction,
   TRACK_RATING_VALUES
 } from './track-ratings';
-import type { PlaylistItem } from '$lib/contracts/catalog';
+import type { MediaEntity } from '$lib/contracts/catalog';
 
-function item(rating?: number): PlaylistItem {
+function item(rating?: number): MediaEntity {
   return {
     id: 'track',
+    path: 'test',
     name: 'track.flac',
-    extension: 'flac',
+    format: 'flac',
     kind: 'stream',
     size: 1,
     lastModified: 1,

@@ -14,9 +14,9 @@
   import { SCROLLBAR_VISIBILITY_IGNORE_SCROLL_ATTRIBUTE } from '$lib/services/scrollbar-visibility';
   import type { LyricsDisplayStyle } from '$lib/contracts/appearance-settings';
   import type { PlaybackSnapshot } from '$lib/contracts/playback';
-  import type { PlaylistItem } from '$lib/contracts/catalog';
+  import type { MediaEntity } from '$lib/contracts/catalog';
 
-  export let track: PlaylistItem | null = null;
+  export let track: MediaEntity | null = null;
   export let snapshotStore: Readable<PlaybackSnapshot>;
   export let playbackSnapshot: PlaybackSnapshot | null = null;
   export let displayStyle: LyricsDisplayStyle = 'timestamped';
@@ -381,7 +381,7 @@
     isProgrammaticScroll = false;
   }
 
-  function loadLyricsForTrack(key: string, nextTrack: PlaylistItem | null) {
+  function loadLyricsForTrack(key: string, nextTrack: MediaEntity | null) {
     if (key === loadedTrackKey) {
       return;
     }

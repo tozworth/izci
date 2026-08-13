@@ -1,9 +1,11 @@
 import { derived, writable } from 'svelte/store';
 import { logDebug, logError, logInfo } from '$lib/logging/api';
-import type { PlaylistItem, PlaylistPlaybackOptions, PlaylistRepeatMode, PlaylistSelection } from '$lib/contracts/catalog';
+import type { MediaEntity, PlaylistPlaybackOptions, PlaylistRepeatMode, PlaylistSelection } from '$lib/contracts/catalog';
 import { splitUniqueItems } from './playlist-dedupe';
 import { loadTrackMetadata } from '$lib/services/stream-artwork';
-import { materializePlaylistItem, revokeObjectUrl } from './playlist-materialization';
+import { materializeMediaEntity, type MediaMaterializationPurpose } from './playlist-materialization';
+import { mediaSources } from '$lib/media/media-source';
+import { deleteMediaSources, persistMediaSources, readMediaSources } from '$lib/media/media-source-persistence';
 import { scheduleMetadataParsing } from './playlist-metadata';
 import { playbackSettings } from './playback-settings';
 import { trackSettings } from './track-settings';
@@ -15,7 +17,7 @@ import {
   readStoredState,
   restoreStoredItem,
   serializeItem,
-  type StoredPlaylistItem,
+  type StoredMediaEntity,
   type StoredPlaylistState
 } from './playlist-persistence';
 import {
@@ -32,7 +34,7 @@ import { getFavoriteIdentity, getTrackIdentity } from '$lib/utils/files';
 export interface TrackCollectionStoreConfig {
   dbName: string;
   dedupe: boolean | (() => boolean);
-  getIdentity?: (item: PlaylistItem) => string;
+  getIdentity?: (item: MediaEntity) => string;
 }
 
 export interface CollectionPersistenceStatus {
@@ -43,13 +45,11 @@ export interface CollectionPersistenceStatus {
 
 export type ExternalTrackUpdate = Partial<
   Pick<
-    PlaylistItem,
-    | 'file'
-    | 'fileHandle'
+    MediaEntity,
     | 'path'
     | 'sourceFolderId'
     | 'name'
-    | 'extension'
+    | 'format'
     | 'kind'
     | 'size'
     | 'lastModified'
@@ -61,7 +61,7 @@ const PERSIST_DEBOUNCE_MS = 400;
 const BACKGROUND_PERSIST_DEBOUNCE_MS = 5_000;
 
 export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
-  const items = writable<PlaylistItem[]>([]);
+  const items = writable<MediaEntity[]>([]);
   const selection = writable<PlaylistSelection>(emptySelection);
   const playbackOptions = writable<PlaylistPlaybackOptions>(defaultPlaybackOptions);
   const persistenceStatus = writable<CollectionPersistenceStatus>({
@@ -70,7 +70,7 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
     error: null
   });
 
-  let itemList: PlaylistItem[] = [];
+  let itemList: MediaEntity[] = [];
   let selectionState: PlaylistSelection = emptySelection;
   let playbackOptionsState: PlaylistPlaybackOptions = defaultPlaybackOptions;
   let hydrated = typeof window === 'undefined';
@@ -80,6 +80,7 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
   let persistDueAt = 0;
   let pendingPersistDelayMs = Number.POSITIVE_INFINITY;
   let shouldCompactStoredState = false;
+  const pendingSourceDeletes = new Set<string>();
   const pendingOperations: Array<() => void> = [];
   const navigation = createPlaylistNavigation(() => itemList);
   const shouldDedupe = () => typeof config.dedupe === 'function' ? config.dedupe() : config.dedupe;
@@ -145,11 +146,22 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
       persistInFlight = true;
       persistenceStatus.set({ state: 'persisting', dirty: false, error: null });
       logDebug('library', 'Collection persistence started', { database: config.dbName, items: itemList.length });
-      void persistStoredState(config.dbName, {
-        items: itemList.map(serializeItem).filter((item): item is StoredPlaylistItem => item !== null),
-        selection: selectionState,
-        playbackOptions: playbackOptionsState
-      }).catch((error) => {
+      const durableItems = itemList.filter((item) => Boolean(mediaSources.get(item.id)?.fileHandle));
+      const sources = durableItems.flatMap((item) => {
+        const fileHandle = mediaSources.get(item.id)?.fileHandle;
+        return fileHandle ? [{ entityId: item.id, fileHandle }] : [];
+      });
+      const deletedSourceIds = [...pendingSourceDeletes];
+      void persistMediaSources(sources, config.dbName)
+        .then(() => persistStoredState(config.dbName, {
+          items: durableItems.map(serializeItem),
+          selection: normalizeSelection(durableItems, selectionState),
+          playbackOptions: playbackOptionsState
+        }))
+        .then(async () => {
+          await deleteMediaSources(deletedSourceIds, config.dbName);
+          for (const id of deletedSourceIds) pendingSourceDeletes.delete(id);
+        }).catch((error) => {
         logError('library', 'Collection persistence failed', { database: config.dbName, error });
         persistenceStatus.set({ state: 'degraded', dirty: persistDirty, error });
       }).finally(() => {
@@ -165,13 +177,19 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
     }, Math.max(0, requestedDueAt - Date.now()));
   }
 
-  function applyStoredState(state: StoredPlaylistState | null): void {
+  async function applyStoredState(state: StoredPlaylistState | null): Promise<void> {
     const storedItems = Array.isArray(state?.items) ? state.items : [];
     const normalizedItems = storedItems
       .map(restoreStoredItem)
-      .filter((item): item is PlaylistItem => item !== null);
+      .filter((item): item is MediaEntity => item !== null);
 
-    const { uniqueItems } = splitUniqueItems(normalizedItems, {
+    const storedSources = await readMediaSources(normalizedItems.map((item) => item.id));
+    const sourcesById = new Map(storedSources.map((source) => [source.entityId, source]));
+    const sourcedItems = normalizedItems.filter((item) => sourcesById.has(item.id));
+    for (const item of sourcedItems) {
+      mediaSources.registerHandle(item.id, sourcesById.get(item.id)!.fileHandle, 'prompt');
+    }
+    const { uniqueItems } = splitUniqueItems(sourcedItems, {
       dedupe: shouldDedupe(),
       getIdentity
     });
@@ -179,9 +197,7 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
     const restoredSelection = normalizeStoredSelection(state?.selection, restoredItemIds);
 
     shouldCompactStoredState =
-      storedItems.length > 0 &&
-      (uniqueItems.length !== storedItems.length ||
-        storedItems.some((item) => Boolean(item && typeof item === 'object' && 'file' in (item as object))));
+      storedItems.length > 0 && uniqueItems.length !== storedItems.length;
 
     items.set(uniqueItems);
     selection.set(restoredSelection);
@@ -213,8 +229,8 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
 
   if (typeof window !== 'undefined') {
     void readStoredState(config.dbName)
-      .then((state) => {
-        applyStoredState(state);
+      .then(async (state) => {
+        await applyStoredState(state);
         scheduleMetadataParsing({
           targetItems: itemList,
           getItemList: () => itemList,
@@ -256,73 +272,35 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
     ready() {
       return readyPromise;
     },
-    findEquivalent(item: PlaylistItem) {
+    findEquivalent(item: MediaEntity) {
       const identity = getIdentity(item);
       return itemList.find((entry) => getIdentity(entry) === identity) ?? null;
     },
-    async ensureLoaded(id: string, options: { prompt?: boolean } = {}) {
+    async ensureLoaded(
+      id: string,
+      options: { prompt?: boolean; purpose?: MediaMaterializationPurpose } = {}
+    ) {
       const item = itemList.find((entry) => entry.id === id);
 
       if (!item) {
         return null;
       }
 
-      let materializedItem: PlaylistItem | null;
+      let lease;
       try {
-        materializedItem = await materializePlaylistItem(item, options.prompt === true);
+        lease = await materializeMediaEntity(item, options.prompt === true, options.purpose ?? 'file-read');
       } catch (error) {
         logError('files', 'Collection item materialization failed', { database: config.dbName, id: item.id, error });
         throw error;
       }
 
-      if (!materializedItem) {
+      if (!lease) {
         return null;
       }
-
-      let playableItem = materializedItem;
-
-      if (
-        playableItem.kind === 'stream' &&
-        playbackSettings.getSnapshot().replayGainMode !== 'off' &&
-        playableItem.metadata?.embeddedMetadataLoaded !== true
-      ) {
-        const embeddedMetadata = await loadTrackMetadata(playableItem).catch(() => null);
-
-        if (embeddedMetadata) {
-          const latestItem = itemList.find((entry) => entry.id === id) ?? playableItem;
-          playableItem = {
-            ...playableItem,
-            metadata: {
-              ...latestItem.metadata,
-              ...embeddedMetadata
-            }
-          };
-        }
-      }
-
-      if (playableItem === item) {
-        return item;
-      }
-
-      items.update((existing) =>
-        existing.map((entry) => {
-          if (entry.id !== id) {
-            return entry;
-          }
-
-          if (entry.objectUrl && entry.objectUrl !== playableItem.objectUrl) {
-            revokeObjectUrl(entry);
-          }
-
-          return playableItem;
-        })
-      );
-      queuePersist();
-
-      return playableItem;
+      return lease;
     },
-    add(newItems: PlaylistItem[]) {
-      let addedItems: PlaylistItem[] = [];
+    add(newItems: MediaEntity[]) {
+      let addedItems: MediaEntity[] = [];
 
       const executed = runOrQueue(() => {
         const { uniqueItems, duplicateItems } = splitUniqueItems(newItems, {
@@ -331,9 +309,7 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
           getIdentity
         });
 
-        for (const item of duplicateItems) {
-          revokeObjectUrl(item);
-        }
+        for (const item of duplicateItems) mediaSources.remove(item.id);
 
         addedItems = uniqueItems;
         logInfo('library', 'Items added to collection', { database: config.dbName, added: uniqueItems.length, duplicatesDropped: duplicateItems.length });
@@ -358,9 +334,9 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
 
       return executed ? addedItems : [];
     },
-    replaceAll(newItems: PlaylistItem[]) {
-      let removedItems: PlaylistItem[] = [];
-      let addedItems: PlaylistItem[] = [];
+    replaceAll(newItems: MediaEntity[]) {
+      let removedItems: MediaEntity[] = [];
+      let addedItems: MediaEntity[] = [];
 
       const executed = runOrQueue(() => {
         removedItems = [...itemList];
@@ -370,9 +346,7 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
           getIdentity
         });
 
-        for (const item of duplicateItems) {
-          revokeObjectUrl(item);
-        }
+        for (const item of duplicateItems) mediaSources.remove(item.id);
 
         addedItems = uniqueItems;
         logInfo('library', 'Collection replaced', { database: config.dbName, removed: removedItems.length, added: uniqueItems.length });
@@ -431,11 +405,14 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
       items.update((existing) => existing.filter((item) => !idsToRemove.has(item.id)));
       selection.update((value) => removeIdsFromSelection(itemList, value, idsToRemove, previousItems));
       navigation.reset();
+      for (const id of idsToRemove) {
+        pendingSourceDeletes.add(id);
+      }
       queuePersist();
 
       return removedItems;
     },
-    replaceItem(id: string, replacements: PlaylistItem[]) {
+    replaceItem(id: string, replacements: MediaEntity[]) {
       if (!hydrated || replacements.length === 0) {
         return false;
       }
@@ -451,6 +428,9 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
         ...replacements,
         ...itemList.slice(index + 1)
       ];
+      if (!replacements.some((item) => item.id === id)) {
+        pendingSourceDeletes.add(id);
+      }
       const replacementIds = new Set(replacements.map((item) => item.id));
       const fallbackId = replacements[0].id;
       const nextSelection: PlaylistSelection = {
@@ -473,7 +453,7 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
       queuePersist();
       return true;
     },
-    updateMetadata(id: string, metadata: PlaylistItem['metadata']) {
+    updateMetadata(id: string, metadata: MediaEntity['metadata']) {
       runOrQueue(() => {
         items.update((existing) =>
           existing.map((item) =>
@@ -497,7 +477,7 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
       });
     },
     applyExternalUpdate(id: string, patch: ExternalTrackUpdate) {
-      let updatedItem: PlaylistItem | null = null;
+      let updatedItem: MediaEntity | null = null;
 
       const executed = runOrQueue(() => {
         items.update((existing) =>
@@ -513,24 +493,19 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
                   ...(existingPlayCount === undefined ? {} : { playCount: existingPlayCount })
                 };
             const fileChanged =
-              patch.file !== undefined
-              || patch.fileHandle !== undefined
-              || patch.path !== undefined
+              patch.path !== undefined
               || patch.name !== undefined
-              || patch.extension !== undefined
+              || patch.format !== undefined
               || patch.kind !== undefined
               || patch.size !== undefined
               || patch.lastModified !== undefined;
-
-            if (fileChanged) revokeObjectUrl(item);
 
             updatedItem = {
               ...item,
               ...patch,
               id: item.id,
               metadata,
-              subsong: item.subsong,
-              ...(fileChanged ? { file: patch.file, objectUrl: undefined } : {})
+              subsong: item.subsong
             };
             return updatedItem;
           })
@@ -579,7 +554,7 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
         queuePersist();
       });
     },
-    reconcileFolder(folderId: string, scannedItems: PlaylistItem[], activeFolderIds: string[] = []) {
+    reconcileFolder(folderId: string, scannedItems: MediaEntity[], activeFolderIds: string[] = []) {
       if (!hydrated) {
         return { addedItems: [], updatedItems: [], removedItems: [] };
       }
@@ -592,10 +567,10 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
           .filter((item) => !item.sourceFolderId || !activeFolderIdSet.has(item.sourceFolderId))
           .map((item) => [getTrackIdentity(item), item])
       );
-      const replacements = new Map<string, PlaylistItem>();
+      const replacements = new Map<string, MediaEntity>();
       const retainedManagedIds = new Set<string>();
-      const addedItems: PlaylistItem[] = [];
-      const updatedItems: PlaylistItem[] = [];
+      const addedItems: MediaEntity[] = [];
+      const updatedItems: MediaEntity[] = [];
 
       for (const scannedItem of scannedItems) {
         const candidate = { ...scannedItem, sourceFolderId: folderId };
@@ -612,24 +587,23 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
           existing.size !== candidate.size ||
           existing.lastModified !== candidate.lastModified ||
           existing.kind !== candidate.kind ||
-          existing.extension !== candidate.extension;
+          existing.format !== candidate.format;
         const preservedMetadata = contentChanged
           ? existing.metadata?.playCount === undefined
             ? undefined
             : { playCount: existing.metadata.playCount }
           : existing.metadata;
-        const replacement: PlaylistItem = {
+        const candidateSource = mediaSources.get(scannedItem.id);
+        if (candidateSource) {
+          mediaSources.register({ ...candidateSource, entityId: existing.id });
+          if (scannedItem.id !== existing.id) mediaSources.remove(scannedItem.id);
+        }
+        const replacement: MediaEntity = {
           ...candidate,
           id: existing.id,
           metadata: preservedMetadata,
-          rating: existing.rating,
-          file: contentChanged ? candidate.file : existing.file ?? candidate.file,
-          objectUrl: contentChanged ? candidate.objectUrl : existing.objectUrl ?? candidate.objectUrl
+          rating: existing.rating
         };
-
-        if (contentChanged && existing.objectUrl && existing.objectUrl !== replacement.objectUrl) {
-          revokeObjectUrl(existing);
-        }
 
         replacements.set(existing.id, replacement);
         if (contentChanged) updatedItems.push(replacement);
@@ -637,7 +611,9 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
 
       const removedItems = managedItems.filter((item) => !retainedManagedIds.has(item.id));
       const removedIds = new Set(removedItems.map((item) => item.id));
-      for (const item of removedItems) revokeObjectUrl(item);
+      for (const item of removedItems) {
+        pendingSourceDeletes.add(item.id);
+      }
 
       const previousItems = itemList;
       const nextItems = itemList

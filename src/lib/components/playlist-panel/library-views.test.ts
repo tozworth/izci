@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { PlaylistItem } from '$lib/contracts/catalog';
+import type { MediaEntity } from '$lib/contracts/catalog';
 import {
   buildLibraryGroups,
   countLibraryGroups,
@@ -9,11 +9,11 @@ import {
   orderLibraryGroups
 } from './library-views';
 
-function track(id: string, metadata: PlaylistItem['metadata'], path?: string, rating?: number): PlaylistItem {
+function track(id: string, metadata: MediaEntity['metadata'], path = id, rating?: number): MediaEntity {
   return {
     id,
     name: `${id}.flac`,
-    extension: 'flac',
+    format: 'flac',
     kind: 'stream',
     size: 0,
     lastModified: 0,
@@ -51,7 +51,7 @@ describe('library view projections', () => {
   it('groups formats while distinguishing their playback family', () => {
     const mixedTracks = [
       tracks[0],
-      { ...tracks[1], id: 'module', name: 'module.xm', extension: 'xm', kind: 'module' as const }
+      { ...tracks[1], id: 'module', name: 'module.xm', format: 'xm', kind: 'module' as const }
     ];
     expect(buildLibraryGroups(mixedTracks, 'formats').map((group) => [group.label, group.secondary])).toEqual([
       ['FLAC', 'Stream'],

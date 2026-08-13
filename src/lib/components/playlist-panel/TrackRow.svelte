@@ -1,6 +1,6 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
-  import type { PlaylistItem } from '$lib/contracts/catalog';
+  import type { MediaEntity } from '$lib/contracts/catalog';
   import type { LibraryPanelColumn } from './library-columns';
   import {
     formatTrackType,
@@ -14,7 +14,7 @@
     getTrackPlaylistLabel
   } from '$lib/utils/files';
 
-  export let item: PlaylistItem;
+  export let item: MediaEntity;
   export let selected = false;
   export let playing = false;
   export let layout: 'list' | 'columns' = 'list';

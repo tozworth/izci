@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { get } from 'svelte/store';
-import type { PlaylistItem } from '$lib/contracts/catalog';
+import type { MediaEntity } from '$lib/contracts/catalog';
 import {
   artworkCachePersistenceStatus,
   fitArtworkRenditionSize,
@@ -9,11 +9,12 @@ import {
   getArtworkSourceFingerprint
 } from './artwork-cache';
 
-function item(overrides: Partial<PlaylistItem> = {}): PlaylistItem {
+function item(overrides: Partial<MediaEntity> = {}): MediaEntity {
   return {
     id: 'track',
+    path: 'test',
     name: 'Track.flac',
-    extension: 'flac',
+    format: 'flac',
     kind: 'stream',
     size: 1234,
     lastModified: 5678,
@@ -33,7 +34,7 @@ describe('artwork cache helpers', () => {
 
     expect(getArtworkSourceFingerprint(item({ size: 1235 }))).not.toBe(original);
     expect(getArtworkSourceFingerprint(item({ lastModified: 5679 }))).not.toBe(original);
-    expect(getArtworkSourceFingerprint(item({ extension: 'opus' }))).not.toBe(original);
+    expect(getArtworkSourceFingerprint(item({ format: 'opus' }))).not.toBe(original);
   });
 
   it('keeps rendition size in the cache key', () => {

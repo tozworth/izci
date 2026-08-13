@@ -3,13 +3,13 @@
   import { t } from 'svelte-i18n';
   import type { Readable } from 'svelte/store';
   import type { PlaybackSnapshot } from '$lib/contracts/playback';
-  import type { PlaylistItem } from '$lib/contracts/catalog';
+  import type { MediaEntity } from '$lib/contracts/catalog';
   import { formatDuration, getTrackDisplaySubtitle, getTrackDisplayTitle } from '$lib/utils/files';
   import { createWheelSeekController } from '$lib/services/wheel-seek';
 
   export let snapshotStore: Readable<PlaybackSnapshot>;
-  export let trackStore: Readable<PlaylistItem | null>;
-  export let selectedTrackStore: Readable<PlaylistItem | null>;
+  export let trackStore: Readable<MediaEntity | null>;
+  export let selectedTrackStore: Readable<MediaEntity | null>;
   export let artworkUrlStore: Readable<string | null>;
   export let onTogglePlayback: () => void;
   export let onPreviousTrack: () => void;

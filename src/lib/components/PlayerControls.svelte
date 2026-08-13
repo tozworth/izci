@@ -32,7 +32,7 @@
   import type { BackdropZoneArtworkSettings, BackdropZoneEffect } from '$lib/contracts/appearance-settings';
   import type { MenuActionItem } from '$lib/contracts/window-menu';
   import type { PlaybackSnapshot } from '$lib/contracts/playback';
-  import type { PlaylistItem } from '$lib/contracts/catalog';
+  import type { MediaEntity } from '$lib/contracts/catalog';
   import type { RafPreset } from '$lib/contracts/raf';
 
   function localizeIdlePlayerQuip(quip: IdlePlayerQuipId): string {
@@ -62,8 +62,8 @@
   }
 
   export let snapshotStore: Readable<PlaybackSnapshot>;
-  export let track: PlaylistItem | null = null;
-  export let selectedTrack: PlaylistItem | null = null;
+  export let track: MediaEntity | null = null;
+  export let selectedTrack: MediaEntity | null = null;
   export let artwork: LoadedStreamArtwork | null = null;
   export let artworkBackgroundBright = false;
   export let backdropEffect: BackdropZoneEffect = 'visualizer';

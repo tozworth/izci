@@ -1,5 +1,5 @@
 import { writable } from 'svelte/store';
-import type { PlaylistItem } from '$lib/contracts/catalog';
+import type { MediaEntity } from '$lib/contracts/catalog';
 import {
   analyzeArtworkBackground,
   DEFAULT_ARTWORK_BACKGROUND_ANALYSIS,
@@ -15,7 +15,7 @@ import {
 export type ArtworkBackgroundSlot = 'primary' | 'secondary';
 
 export interface ArtworkPresentationState {
-  detailsDisplayTrack: PlaylistItem | null;
+  detailsDisplayTrack: MediaEntity | null;
   visibleDetailsArtwork: LoadedStreamArtwork | null;
   displayedArtwork: LoadedStreamArtwork | null;
   artworkBackgroundPrimary: LoadedStreamArtwork | null;
@@ -28,7 +28,7 @@ export interface ArtworkPresentationState {
 }
 
 interface CreateArtworkPresentationControllerOptions {
-  resolveTrackSnapshot: (track: PlaylistItem | null) => PlaylistItem | null;
+  resolveTrackSnapshot: (track: MediaEntity | null) => MediaEntity | null;
   isPlaybackDetailsPending: (trackId: string) => boolean;
   loadArtwork?: typeof loadTrackArtwork;
   getArtworkLoadKey?: typeof getTrackArtworkLoadKey;
@@ -57,7 +57,7 @@ function wait(milliseconds: number): Promise<void> {
   });
 }
 
-function hasCommittedPlaybackDetails(track: PlaylistItem | null): boolean {
+function hasCommittedPlaybackDetails(track: MediaEntity | null): boolean {
   if (!track) {
     return true;
   }
@@ -119,11 +119,11 @@ function buildPublishedState(
 }
 
 export function resolveTrackSnapshot(
-  track: PlaylistItem | null,
-  selectedTrackSnapshot: PlaylistItem | null,
-  playlistTrackSnapshot: PlaylistItem[],
-  libraryTrackSnapshot: PlaylistItem[]
-): PlaylistItem | null {
+  track: MediaEntity | null,
+  selectedTrackSnapshot: MediaEntity | null,
+  playlistTrackSnapshot: MediaEntity[],
+  libraryTrackSnapshot: MediaEntity[]
+): MediaEntity | null {
   if (!track) {
     return null;
   }
@@ -139,7 +139,7 @@ export function resolveTrackSnapshot(
   );
 }
 
-export function hasSameTrackMetadata(left: PlaylistItem | null, right: PlaylistItem | null): boolean {
+export function hasSameTrackMetadata(left: MediaEntity | null, right: MediaEntity | null): boolean {
   return JSON.stringify(left?.metadata ?? {}) === JSON.stringify(right?.metadata ?? {});
 }
 
@@ -150,7 +150,7 @@ export function createArtworkPresentationController({
   getArtworkLoadKey = getTrackArtworkLoadKey
 }: CreateArtworkPresentationControllerOptions) {
   let state = createInitialState();
-  let detailsTargetTrack: PlaylistItem | null = null;
+  let detailsTargetTrack: MediaEntity | null = null;
   let detailsArtwork: LoadedStreamArtwork | null = null;
   let detailsArtworkTrackKey = '';
   let exitingArtworkBackgroundSlot: ArtworkBackgroundSlot | null = null;
@@ -252,7 +252,7 @@ export function createArtworkPresentationController({
     scheduleArtworkBackgroundCleanup(previousActiveSlot);
   }
 
-  function setDetailsDisplay(track: PlaylistItem | null, artwork: LoadedStreamArtwork | null): void {
+  function setDetailsDisplay(track: MediaEntity | null, artwork: LoadedStreamArtwork | null): void {
     const previousArtwork = detailsArtwork;
 
     state = { ...state, detailsDisplayTrack: track };
@@ -282,9 +282,9 @@ export function createArtworkPresentationController({
   }
 
   async function waitForDetailsCommitReady(
-    track: PlaylistItem,
+    track: MediaEntity,
     loadToken: number
-  ): Promise<PlaylistItem | null> {
+  ): Promise<MediaEntity | null> {
     const deadline = Date.now() + 1000;
 
     while (
@@ -340,7 +340,7 @@ export function createArtworkPresentationController({
     getSnapshot(): ArtworkPresentationState {
       return state;
     },
-    syncSelection(selectedItem: PlaylistItem | null, hasAnySelection: boolean): void {
+    syncSelection(selectedItem: MediaEntity | null, hasAnySelection: boolean): void {
       if (selectedItem) {
         detailsTargetTrack = selectedItem;
       } else if (!hasAnySelection) {
@@ -357,7 +357,7 @@ export function createArtworkPresentationController({
         setDetailsDisplay(null, null);
       }
     },
-    async syncDisplayedArtwork(track: PlaylistItem | null): Promise<void> {
+    async syncDisplayedArtwork(track: MediaEntity | null): Promise<void> {
       const nextArtworkKey = getArtworkLoadKey(track);
 
       if (nextArtworkKey === displayedArtworkKey) {

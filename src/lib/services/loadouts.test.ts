@@ -18,7 +18,7 @@ import { playbackSettings } from '$lib/stores/playback-settings';
 import { rafPresets } from '$lib/stores/raf-presets';
 import { rafSettings } from '$lib/stores/raf-settings';
 import type { Loadout, LoadoutPlaybackSettings, LoadoutState, LoadoutTrackContext } from '$lib/contracts/loadouts';
-import type { PlaylistItem } from '$lib/contracts/catalog';
+import type { MediaEntity } from '$lib/contracts/catalog';
 
 function playback(
   values: Pick<LoadoutPlaybackSettings, 'playbackRate' | 'trueSpeed' | 'replayGainMode'>,
@@ -44,7 +44,7 @@ function track(overrides: Partial<LoadoutTrackContext> = {}): LoadoutTrackContex
   return {
     name: 'Artist - Song.custom',
     path: 'Modules/Album/Artist - Song.custom',
-    extension: 'custom',
+    format: 'custom',
     kind: 'module',
     size: 123,
     lastModified: 456,
@@ -212,11 +212,11 @@ describe('automatic loadout runtime', () => {
   it('turns Raf off when switching from a Raf-on loadout to a Raf-off loadout', () => {
     rafSettings.reset();
     const preset = rafPresets.create('Track rack')!;
-    const rafOnTrack: PlaylistItem = {
-      id: 'raf-on', name: 'Raf on.flac', extension: 'flac', kind: 'stream', size: 10, lastModified: 1
+    const rafOnTrack: MediaEntity = {
+      id: 'raf-on', path: 'test', name: 'Raf on.flac', format: 'flac', kind: 'stream', size: 10, lastModified: 1
     };
-    const rafOffTrack: PlaylistItem = {
-      id: 'raf-off', name: 'Raf off.flac', extension: 'flac', kind: 'stream', size: 11, lastModified: 2
+    const rafOffTrack: MediaEntity = {
+      id: 'raf-off', path: 'test', name: 'Raf off.flac', format: 'flac', kind: 'stream', size: 11, lastModified: 2
     };
     loadoutStore.create('Raf on', { type: 'file', fileKey: getLoadoutFileKey(rafOnTrack) }, {
       raf: { presetName: preset.name, enabled: true }
@@ -224,7 +224,7 @@ describe('automatic loadout runtime', () => {
     loadoutStore.create('Raf off', { type: 'file', fileKey: getLoadoutFileKey(rafOffTrack) }, {
       raf: { presetName: preset.name, enabled: false }
     });
-    const tracks = writable<PlaylistItem | null>(null);
+    const tracks = writable<MediaEntity | null>(null);
     const stop = startLoadoutRuntime(tracks);
 
     tracks.set(rafOnTrack);
@@ -245,11 +245,11 @@ describe('automatic loadout runtime', () => {
         { panStrength: 140 }
       )
     });
-    const tracks = writable<PlaylistItem | null>(null);
+    const tracks = writable<MediaEntity | null>(null);
     const stop = startLoadoutRuntime(tracks);
 
     tracks.set({
-      id: 'flac', name: 'Song.flac', extension: 'flac', kind: 'stream', size: 1, lastModified: 1
+      id: 'flac', path: 'test', name: 'Song.flac', format: 'flac', kind: 'stream', size: 1, lastModified: 1
     });
     expect(playbackSettings.getSnapshot()).toMatchObject({
       playbackRate: 1.5,
@@ -259,7 +259,7 @@ describe('automatic loadout runtime', () => {
     expect(modulePlaybackSettings.getSnapshot().panStrength).toBe(140);
 
     tracks.set({
-      id: 'mp3', name: 'Next.mp3', extension: 'mp3', kind: 'stream', size: 2, lastModified: 2
+      id: 'mp3', path: 'test', name: 'Next.mp3', format: 'mp3', kind: 'stream', size: 2, lastModified: 2
     });
     expect(playbackSettings.getSnapshot()).toMatchObject({
       playbackRate: 0.8,
@@ -280,11 +280,11 @@ describe('automatic loadout runtime', () => {
     rafSettings.replace({ enabled: false, effects: [] });
     rafPresets.setSelectedPresetId(null);
 
-    const wideTrack: PlaylistItem = {
-      id: 'wide', name: 'Wide.flac', extension: 'flac', kind: 'stream', size: 10, lastModified: 1
+    const wideTrack: MediaEntity = {
+      id: 'wide', path: 'test', name: 'Wide.flac', format: 'flac', kind: 'stream', size: 10, lastModified: 1
     };
-    const brightTrack: PlaylistItem = {
-      id: 'bright', name: 'Bright.flac', extension: 'flac', kind: 'stream', size: 11, lastModified: 2
+    const brightTrack: MediaEntity = {
+      id: 'bright', path: 'test', name: 'Bright.flac', format: 'flac', kind: 'stream', size: 11, lastModified: 2
     };
     loadoutStore.create('Wide', { type: 'file', fileKey: getLoadoutFileKey(wideTrack) }, {
       raf: { presetName: widePreset.name, enabled: true }
@@ -293,7 +293,7 @@ describe('automatic loadout runtime', () => {
       raf: { presetName: brightPreset.name, enabled: true }
     });
 
-    const tracks = writable<PlaylistItem | null>(null);
+    const tracks = writable<MediaEntity | null>(null);
     const stop = startLoadoutRuntime(tracks);
     tracks.set(wideTrack);
 
@@ -309,7 +309,7 @@ describe('automatic loadout runtime', () => {
       tracks.set(index % 2 === 0 ? wideTrack : brightTrack);
     }
     tracks.set({
-      id: 'plain', name: 'Plain.mp3', extension: 'mp3', kind: 'stream', size: 12, lastModified: 3
+      id: 'plain', path: 'test', name: 'Plain.mp3', format: 'mp3', kind: 'stream', size: 12, lastModified: 3
     });
 
     expect(rafSettings.getSnapshot()).toEqual({ enabled: false, effects: [] });
@@ -324,8 +324,8 @@ describe('automatic loadout runtime', () => {
     loadoutStore.create('FLAC', { type: 'type', recognizedType: 'flac' }, {
       playback: playback({ playbackRate: 2, trueSpeed: true, replayGainMode: 'off' })
     });
-    const tracks = writable<PlaylistItem | null>({
-      id: 'flac', name: 'Song.flac', extension: 'flac', kind: 'stream', size: 1, lastModified: 1
+    const tracks = writable<MediaEntity | null>({
+      id: 'flac', path: 'test', name: 'Song.flac', format: 'flac', kind: 'stream', size: 1, lastModified: 1
     });
     const stop = startLoadoutRuntime(tracks);
     expect(playbackSettings.getSnapshot().playbackRate).toBe(2);
@@ -345,8 +345,8 @@ describe('automatic loadout runtime', () => {
     loadoutStore.create('FLAC', { type: 'type', recognizedType: 'flac' }, {
       playback: playback({ playbackRate: 2, trueSpeed: true, replayGainMode: 'off' })
     });
-    const tracks = writable<PlaylistItem | null>({
-      id: 'flac', name: 'Song.flac', extension: 'flac', kind: 'stream', size: 1, lastModified: 1
+    const tracks = writable<MediaEntity | null>({
+      id: 'flac', path: 'test', name: 'Song.flac', format: 'flac', kind: 'stream', size: 1, lastModified: 1
     });
     const stop = startLoadoutRuntime(tracks);
     expect(playbackSettings.getSnapshot().playbackRate).toBe(2);
@@ -362,7 +362,7 @@ describe('automatic loadout runtime', () => {
 
     playbackSettings.update({ playbackRate: 0.8 });
     tracks.set({
-      id: 'mp3', name: 'Next.mp3', extension: 'mp3', kind: 'stream', size: 2, lastModified: 2
+      id: 'mp3', path: 'test', name: 'Next.mp3', format: 'mp3', kind: 'stream', size: 2, lastModified: 2
     });
     expect(playbackSettings.getSnapshot()).toMatchObject({
       playbackRate: 0.8,

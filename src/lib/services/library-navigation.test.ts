@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import type { PlaylistItem } from '$lib/contracts/catalog';
+import type { MediaEntity } from '$lib/contracts/catalog';
 import { resolveTrackLibraryNavigationTargets } from './library-navigation';
 
-function track(id: string, overrides: Partial<PlaylistItem> = {}): PlaylistItem {
+function track(id: string, overrides: Partial<MediaEntity> = {}): MediaEntity {
   return {
     id,
     name: 'song.flac',
-    extension: 'flac',
+    format: 'flac',
     kind: 'stream',
     size: 123,
     lastModified: 456,

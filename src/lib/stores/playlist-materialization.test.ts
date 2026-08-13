@@ -1,16 +1,16 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { PlaylistItem } from '$lib/contracts/catalog';
-import { materializePlaylistItem } from './playlist-materialization';
+import type { MediaEntity } from '$lib/contracts/catalog';
+import { mediaSources } from '$lib/media/media-source';
+import { materializeMediaEntity } from './playlist-materialization';
 
-function moduleItem(handle: FileSystemFileHandle): PlaylistItem {
+function moduleItem(handle: FileSystemFileHandle): MediaEntity {
   return {
     id: 'remembered-module',
     name: 'remembered.xm',
-    extension: 'xm',
+    format: 'xm',
     kind: 'module',
     size: 1,
     lastModified: 1,
-    fileHandle: handle,
     path: 'Music/remembered.xm'
   };
 }
@@ -28,19 +28,19 @@ describe('playlist materialization permission characterization', () => {
       getFile
     } as unknown as FileSystemFileHandle;
     const remembered = moduleItem(handle);
+    mediaSources.registerHandle(remembered.id, handle, 'granted');
 
-    await expect(materializePlaylistItem(remembered)).resolves.toMatchObject({
-      id: 'remembered-module',
+    await expect(materializeMediaEntity(remembered)).resolves.toMatchObject({
+      entity: { id: 'remembered-module' },
       file: expect.any(File),
-      lastModified: 2
     });
 
     permission = 'denied';
-    await expect(materializePlaylistItem(remembered)).resolves.toBeNull();
+    await expect(materializeMediaEntity(remembered)).resolves.toBeNull();
     expect(getFile).toHaveBeenCalledOnce();
     expect(requestPermission).not.toHaveBeenCalled();
 
-    await expect(materializePlaylistItem(remembered, true)).resolves.toBeNull();
+    await expect(materializeMediaEntity(remembered, true)).resolves.toBeNull();
     expect(requestPermission).toHaveBeenCalledOnce();
     expect(getFile).toHaveBeenCalledOnce();
   });

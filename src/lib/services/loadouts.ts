@@ -11,7 +11,7 @@ import { visualizerSettings } from '$lib/stores/visualizer-settings';
 import { MODULE_EXTENSIONS, STREAM_EXTENSIONS, VIDEO_EXTENSIONS } from '$lib/contracts/media-format';
 import { type Loadout, type LoadoutAppearanceSettings, type LoadoutCategory, type LoadoutPlaybackSettings, type LoadoutSettings, type LoadoutState, type LoadoutTarget, type LoadoutTrackContext, type LoadoutType } from '$lib/contracts/loadouts';
 import { type ModulePlaybackSettings } from '$lib/contracts/module-playback';
-import { type PlaylistItem } from '$lib/contracts/catalog';
+import { type MediaEntity } from '$lib/contracts/catalog';
 import { type RafRackSettings } from '$lib/contracts/raf';
 
 export const LOADOUT_CATEGORIES: LoadoutCategory[] = [
@@ -44,7 +44,7 @@ export function resolveRecognizedTrackType(track: LoadoutTrackContext): string |
   const originalType = track.metadata?.originalType?.trim().toLowerCase();
   if (originalType) return originalType;
 
-  const extension = track.extension.trim().toLowerCase();
+  const extension = track.format.trim().toLowerCase();
   if (track.kind === 'stream' && STREAM_EXTENSIONS.includes(extension as (typeof STREAM_EXTENSIONS)[number])) {
     return extension;
   }
@@ -346,7 +346,7 @@ export function applyManualLoadoutSettings(settings: LoadoutSettings): void {
   getManualLoadoutChannel()?.postMessage({ type: 'apply', baselines } satisfies ManualLoadoutCommand);
 }
 
-export function startLoadoutRuntime(trackStore: Readable<PlaylistItem | null>): () => void {
+export function startLoadoutRuntime(trackStore: Readable<MediaEntity | null>): () => void {
   let track: LoadoutTrackContext | null = null;
   let state = loadouts.getSnapshot();
   let folders = filesystemFolders.getSnapshot();

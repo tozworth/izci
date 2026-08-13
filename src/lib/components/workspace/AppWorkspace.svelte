@@ -10,7 +10,7 @@
   import type { AppearanceSettings, BackdropZoneArtworkSettingsMap, BackdropZoneEffect, LyricsDisplayStyle } from '$lib/contracts/appearance-settings';
   import type { ModulePatternSnapshot } from '$lib/contracts/module-playback';
   import type { PlaybackSnapshot } from '$lib/contracts/playback';
-  import type { PlaylistItem } from '$lib/contracts/catalog';
+  import type { MediaEntity } from '$lib/contracts/catalog';
   import type { VideoFitMode } from '$lib/contracts/player-settings';
   import type { WorkspacePanelId, WorkspaceTab } from '$lib/contracts/workspace';
   import NowPlayingWorkspace from './NowPlayingWorkspace.svelte';
@@ -68,9 +68,9 @@
   export let workspaceState: WorkspaceShellState;
   export let playlistPanelHandlers: WorkspacePanelHandlers;
   export let libraryPanelHandlers: WorkspacePanelHandlers;
-  export let selectedPlaylistItem: PlaylistItem | null;
-  export let playerDisplayTrack: PlaylistItem | null;
-  export let lyricsTrack: PlaylistItem | null;
+  export let selectedMediaEntity: MediaEntity | null;
+  export let playerDisplayTrack: MediaEntity | null;
+  export let lyricsTrack: MediaEntity | null;
   export let modulePatternSnapshot: ModulePatternSnapshot;
   export let artworkState: ArtworkPresentationState;
   export let detailsLibraryTargets: TrackLibraryNavigationTargets = {};
@@ -113,7 +113,7 @@
   <NowPlayingWorkspace
     content={workspaceContent}
     track={playerDisplayTrack}
-    selectedTrack={selectedPlaylistItem}
+    selectedTrack={selectedMediaEntity}
     artwork={artworkState.displayedArtwork}
     backdropArtwork={artworkState.visibleArtworkBackground}
     artworkBackgroundBright={artworkBackgroundBrightByZone.nowPlaying}

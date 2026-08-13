@@ -1,13 +1,13 @@
 import { get } from 'svelte/store';
 import { describe, expect, it } from 'vitest';
-import type { PlaylistItem } from '$lib/contracts/catalog';
+import type { MediaEntity } from '$lib/contracts/catalog';
 import { createTrackCollectionStore } from './playlist';
 
-function item(id: string, overrides: Partial<PlaylistItem> = {}): PlaylistItem {
+function item(id: string, overrides: Partial<MediaEntity> = {}): MediaEntity {
   return {
     id,
     name: 'Track.flac',
-    extension: 'flac',
+    format: 'flac',
     kind: 'stream',
     size: 100,
     lastModified: 1,

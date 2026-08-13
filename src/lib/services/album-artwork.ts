@@ -3,17 +3,17 @@ import {
   getCachedArtworkThumbnail,
   type CachedArtworkThumbnail
 } from '$lib/services/artwork-cache';
-import type { PlaylistItem } from '$lib/contracts/catalog';
+import type { MediaEntity } from '$lib/contracts/catalog';
 
 export interface AlbumArtworkGroup {
   key: string;
-  items: PlaylistItem[];
+  items: MediaEntity[];
 }
 
 export type AlbumArtworkUrls = Record<string, string>;
 
 type ThumbnailLoader = (
-  track: PlaylistItem,
+  track: MediaEntity,
   maxEdge: number
 ) => Promise<CachedArtworkThumbnail | null>;
 
@@ -26,7 +26,7 @@ const MAX_CONCURRENT_LOADS = 3;
 
 function getGroupSignature(group: AlbumArtworkGroup): string {
   return group.items
-    .map((item) => `${item.id}:${item.extension}:${item.size}:${item.lastModified}`)
+    .map((item) => `${item.id}:${item.format}:${item.size}:${item.lastModified}`)
     .join('|');
 }
 

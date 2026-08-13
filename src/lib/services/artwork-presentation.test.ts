@@ -6,13 +6,14 @@ import {
   resolveTrackSnapshot
 } from './artwork-presentation';
 import type { LoadedStreamArtwork } from './stream-artwork';
-import type { PlaylistItem } from '$lib/contracts/catalog';
+import type { MediaEntity } from '$lib/contracts/catalog';
 
-function item(id: string, overrides: Partial<PlaylistItem> = {}): PlaylistItem {
+function item(id: string, overrides: Partial<MediaEntity> = {}): MediaEntity {
   return {
     id,
+    path: 'test',
     name: `${id}.flac`,
-    extension: 'flac',
+    format: 'flac',
     kind: 'stream',
     size: 1,
     lastModified: 1,

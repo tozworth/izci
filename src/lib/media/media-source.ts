@@ -20,6 +20,8 @@ export interface MediaMaterializationLease {
 
 export interface MaterializeMediaOptions {
   readonly prompt?: boolean;
+  /** Object URLs are an explicit playback concern; metadata/file readers request bytes only. */
+  readonly purpose?: 'file-read' | 'media-element';
   readonly objectUrls: ObjectUrlPort;
 }
 
@@ -85,7 +87,10 @@ export async function materializeMediaEntity(
   if (!refreshedEntity) return null;
 
   let objectUrl: string | undefined;
-  if (refreshedEntity.kind === 'stream' || refreshedEntity.kind === 'video') {
+  if (
+    options.purpose === 'media-element'
+    && (refreshedEntity.kind === 'stream' || refreshedEntity.kind === 'video')
+  ) {
     objectUrl = options.objectUrls.create(file);
   }
   let released = false;
@@ -142,4 +147,3 @@ export class MediaSourceRegistry {
 }
 
 export const mediaSources = new MediaSourceRegistry();
-

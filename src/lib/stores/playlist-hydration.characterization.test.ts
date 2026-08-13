@@ -1,13 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { get } from 'svelte/store';
-import type { PlaylistItem } from '$lib/contracts/catalog';
+import type { MediaEntity } from '$lib/contracts/catalog';
 import type { StoredPlaylistState } from './playlist-persistence';
+import { mediaSources } from '$lib/media/media-source';
 
 const persistenceHarness = vi.hoisted(() => ({
   readStoredState: vi.fn<(dbName: string) => Promise<StoredPlaylistState | null>>(
     async () => null
   ),
   persistStoredState: vi.fn(async () => {})
+}));
+const sourceHarness = vi.hoisted(() => ({
+  locators: new Map<string, FileSystemFileHandle>()
 }));
 
 vi.mock('./playlist-persistence', async (importOriginal) => ({
@@ -18,6 +22,12 @@ vi.mock('./playlist-persistence', async (importOriginal) => ({
 
 vi.mock('./playlist-metadata', () => ({
   scheduleMetadataParsing: vi.fn()
+}));
+
+vi.mock('$lib/media/media-source-persistence', () => ({
+  readMediaSources: vi.fn(async (ids: string[]) => ids.map((entityId) => ({ entityId, fileHandle: sourceHarness.locators.get(entityId) ?? fileHandle(`${entityId}.flac`) }))),
+  persistMediaSources: vi.fn(async () => undefined),
+  deleteMediaSources: vi.fn(async () => undefined)
 }));
 
 vi.mock('$lib/logging/api', () => ({
@@ -35,19 +45,22 @@ function fileHandle(name: string): FileSystemFileHandle {
   } as FileSystemFileHandle;
 }
 
-function item(id: string): PlaylistItem {
+function item(id: string): MediaEntity {
   const name = `${id}.flac`;
-  return {
+  const entity: MediaEntity = {
     id,
     name,
-    extension: 'flac',
+    format: 'flac',
     kind: 'stream',
     size: 100,
     lastModified: 1,
-    fileHandle: fileHandle(name),
     path: `Music/${name}`,
     metadata: { embeddedMetadataLoaded: true, duration: 1 }
   };
+  const handle = fileHandle(name);
+  sourceHarness.locators.set(id, handle);
+  mediaSources.registerHandle(id, handle, 'granted');
+  return entity;
 }
 
 beforeEach(() => {

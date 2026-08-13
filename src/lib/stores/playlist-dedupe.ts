@@ -1,16 +1,16 @@
-import type { PlaylistItem } from '$lib/contracts/catalog';
+import type { MediaEntity } from '$lib/contracts/catalog';
 import { getTrackIdentity } from '$lib/utils/files';
 
 export function splitUniqueItems(
-  sourceItems: PlaylistItem[],
+  sourceItems: MediaEntity[],
   options: {
     dedupe: boolean;
-    existingItems?: PlaylistItem[];
-    getIdentity?: (item: PlaylistItem) => string;
+    existingItems?: MediaEntity[];
+    getIdentity?: (item: MediaEntity) => string;
   }
 ): {
-  uniqueItems: PlaylistItem[];
-  duplicateItems: PlaylistItem[];
+  uniqueItems: MediaEntity[];
+  duplicateItems: MediaEntity[];
 } {
   const { dedupe, existingItems = [], getIdentity = getTrackIdentity } = options;
 
@@ -22,8 +22,8 @@ export function splitUniqueItems(
   }
 
   const seen = new Set(existingItems.map((item) => getIdentity(item)));
-  const uniqueItems: PlaylistItem[] = [];
-  const duplicateItems: PlaylistItem[] = [];
+  const uniqueItems: MediaEntity[] = [];
+  const duplicateItems: MediaEntity[] = [];
 
   for (const item of sourceItems) {
     const key = getIdentity(item);

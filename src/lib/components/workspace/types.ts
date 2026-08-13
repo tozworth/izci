@@ -2,7 +2,7 @@ import type { LyricsDisplayStyle } from '$lib/contracts/appearance-settings';
 import type { MenuActionItem } from '$lib/contracts/window-menu';
 import type { ModulePatternSnapshot } from '$lib/contracts/module-playback';
 import type { PlaybackSnapshot } from '$lib/contracts/playback';
-import type { PlaylistItem, PlaylistRepeatMode, PlaylistSelection } from '$lib/contracts/catalog';
+import type { MediaEntity, PlaylistRepeatMode, PlaylistSelection } from '$lib/contracts/catalog';
 import type { VideoFitMode } from '$lib/contracts/player-settings';
 import type { WorkspaceJumpRequest, WorkspaceLibraryGroupRequest, WorkspacePanelId, WorkspaceResizeHandle, WorkspaceTab } from '$lib/contracts/workspace';
 import type { LoadedStreamArtwork } from '$lib/services/stream-artwork';
@@ -15,11 +15,11 @@ import type { Readable } from 'svelte/store';
 export const WORKSPACE_DOCK_SCOPE = 'main-workspace';
 
 export interface WorkspacePanelProps {
-  items: PlaylistItem[];
+  items: MediaEntity[];
   selectedIds: string[];
   selectionAnchorId?: string | null;
   playingId: string | null;
-  favoriteItems?: PlaylistItem[];
+  favoriteItems?: MediaEntity[];
   favoriteSelectedIds?: string[];
   favoriteSelectionAnchorId?: string | null;
   favoritePlayingId?: string | null;
@@ -68,9 +68,9 @@ export interface WorkspaceTabContentProps {
   playlistPanelHandlers: WorkspacePanelHandlers;
   libraryPanelProps: WorkspacePanelProps;
   libraryPanelHandlers: WorkspacePanelHandlers;
-  selectedItem: PlaylistItem | null;
-  lyricsTrack: PlaylistItem | null;
-  patternTrack: PlaylistItem | null;
+  selectedItem: MediaEntity | null;
+  lyricsTrack: MediaEntity | null;
+  patternTrack: MediaEntity | null;
   modulePatternSnapshot: ModulePatternSnapshot;
   detailsArtwork: LoadedStreamArtwork | null;
   detailsLibraryTargets: TrackLibraryNavigationTargets;

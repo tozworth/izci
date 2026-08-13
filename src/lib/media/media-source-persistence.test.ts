@@ -45,7 +45,7 @@ describe('media source handle repository', () => {
   it('owns handles in a dedicated clean schema keyed by entity ID', () => {
     expect(mediaSourceDatabase).toEqual({
       name: 'izci-media-sources',
-      version: 1,
+      version: 2,
       stores: { sources: { keyPath: 'entityId' } }
     });
   });
@@ -84,6 +84,29 @@ describe('media source handle repository', () => {
     expect(close).toHaveBeenCalledTimes(2);
   });
 
+  it('keeps a shared entity source until its last collection owner releases it', async () => {
+    const fileHandle = handle('shared.mp3');
+    let stored: StoredMediaSource | undefined;
+    const store = {
+      get: vi.fn(async () => stored),
+      put: vi.fn(async (value: StoredMediaSource) => { stored = value; return value.entityId; }),
+      delete: vi.fn(async () => { stored = undefined; })
+    };
+    persistenceMocks.runTransaction.mockImplementation(async (_connection, _options, work) =>
+      await work({ mode: 'readwrite', store: () => store })
+    );
+
+    await persistMediaSources([{ entityId: 'shared', fileHandle }], 'izci-playlist');
+    await persistMediaSources([{ entityId: 'shared', fileHandle }], 'izci-library');
+    await deleteMediaSources(['shared'], 'izci-playlist');
+    expect(stored).toEqual({ entityId: 'shared', fileHandle, owners: ['izci-library'] });
+    expect(store.delete).not.toHaveBeenCalled();
+
+    await deleteMediaSources(['shared'], 'izci-library');
+    expect(stored).toBeUndefined();
+    expect(store.delete).toHaveBeenCalledWith('shared');
+  });
+
   it('surfaces classified failures and still closes the scoped connection', async () => {
     const failure = new PersistenceError({
       category: 'quota',
@@ -103,4 +126,3 @@ describe('media source handle repository', () => {
     expect(persistenceMocks.openBrowserDatabase).not.toHaveBeenCalled();
   });
 });
-

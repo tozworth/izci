@@ -7,10 +7,10 @@
     TrackLibraryNavigationTargets
   } from '$lib/services/library-navigation';
   import type { LoadedStreamArtwork } from '$lib/services/stream-artwork';
-  import type { PlaylistItem } from '$lib/contracts/catalog';
+  import type { MediaEntity } from '$lib/contracts/catalog';
   import { resolveModuleDisplayFormat, resolveModuleTrackerName } from '$lib/utils/files';
 
-  export let track: PlaylistItem | null = null;
+  export let track: MediaEntity | null = null;
   export let artwork: LoadedStreamArtwork | null = null;
   export let artworkBackgroundActive = false;
   export let artworkBackgroundBright = false;
@@ -56,7 +56,7 @@
     if (target) onNavigateToLibrary(target);
   }
 
-  function buildTrackNumberEntry(metadata: PlaylistItem['metadata'], labels: MetadataLabels): MetadataEntry | null {
+  function buildTrackNumberEntry(metadata: MediaEntity['metadata'], labels: MetadataLabels): MetadataEntry | null {
     const trackNumber = trimMetadataValue(metadata?.trackNumber);
     const discNumber = trimMetadataValue(metadata?.discNumber);
 
@@ -71,7 +71,7 @@
       : { label: labels.trackNumber, icon: 'format_list_numbered', value: trackNumber };
   }
 
-  function buildStreamMetadataEntries(track: PlaylistItem | null, labels: MetadataLabels): MetadataEntry[] {
+  function buildStreamMetadataEntries(track: MediaEntity | null, labels: MetadataLabels): MetadataEntry[] {
     if (!track || track.kind !== 'stream') {
       return [];
     }
@@ -129,7 +129,7 @@
     format: $t('main.trackDetails.goToFormat', { default: 'Go to format' })
   } satisfies Record<TrackLibraryNavigationField, string>;
   $: tracker = track?.kind === 'module'
-    ? resolveModuleTrackerName(track.extension, track.metadata?.trackerType)
+    ? resolveModuleTrackerName(track.format, track.metadata?.trackerType)
     : '';
   $: tracks = track?.metadata?.tracks;
   $: patterns = track?.metadata?.patterns;
@@ -137,8 +137,8 @@
   $: bitrate = track?.kind === 'stream' ? track.metadata?.bitrate : undefined;
   $: formatValue = track
     ? track.kind === 'module'
-      ? resolveModuleDisplayFormat(track.extension, track.metadata)
-      : track.extension.toUpperCase()
+      ? resolveModuleDisplayFormat(track.format, track.metadata)
+      : track.format.toUpperCase()
     : '';
   $: formatDetail = track
     ? track.kind === 'stream'

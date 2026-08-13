@@ -1,6 +1,6 @@
 import { getLibraryGroupIdentities } from '$lib/components/playlist-panel/library-views';
 import type { LibraryGroupViewId } from '$lib/contracts/workspace';
-import type { PlaylistItem } from '$lib/contracts/catalog';
+import type { MediaEntity } from '$lib/contracts/catalog';
 import { getTrackIdentity } from '$lib/utils/files';
 
 export const TRACK_LIBRARY_NAVIGATION_FIELDS = [
@@ -28,9 +28,9 @@ function normalize(value: string | undefined): string {
 }
 
 function findEquivalentLibraryTrack(
-  track: PlaylistItem,
-  libraryItems: PlaylistItem[]
-): PlaylistItem | null {
+  track: MediaEntity,
+  libraryItems: MediaEntity[]
+): MediaEntity | null {
   const directMatch = libraryItems.find((item) => item.id === track.id);
   if (directMatch) return directMatch;
 
@@ -39,7 +39,7 @@ function findEquivalentLibraryTrack(
 }
 
 function findTarget(
-  libraryTrack: PlaylistItem,
+  libraryTrack: MediaEntity,
   view: Exclude<LibraryGroupViewId, 'folders'>,
   acceptedLabels?: string[]
 ): TrackLibraryNavigationTarget | null {
@@ -57,8 +57,8 @@ function findTarget(
 }
 
 export function resolveTrackLibraryNavigationTargets(
-  track: PlaylistItem | null,
-  libraryItems: PlaylistItem[]
+  track: MediaEntity | null,
+  libraryItems: MediaEntity[]
 ): TrackLibraryNavigationTargets {
   if (!track) return {};
 

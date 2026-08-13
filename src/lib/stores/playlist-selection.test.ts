@@ -8,13 +8,14 @@ import {
   removeIdsFromSelection,
   resolveSelectSelection
 } from './playlist-selection';
-import type { PlaylistItem, PlaylistSelection } from '$lib/contracts/catalog';
+import type { MediaEntity, PlaylistSelection } from '$lib/contracts/catalog';
 
-function item(id: string): PlaylistItem {
+function item(id: string): MediaEntity {
   return {
     id,
+    path: 'test',
     name: `${id}.flac`,
-    extension: 'flac',
+    format: 'flac',
     kind: 'stream',
     size: 0,
     lastModified: 0

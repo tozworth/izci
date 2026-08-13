@@ -1,5 +1,5 @@
 import type { PlaybackSnapshot } from '$lib/contracts/playback';
-import type { PlaylistItem } from '$lib/contracts/catalog';
+import type { MediaEntity } from '$lib/contracts/catalog';
 import type { WorkspaceCollection } from '$lib/contracts/workspace';
 
 const KEYBOARD_SEEK_STEP_SECONDS = 5;
@@ -12,9 +12,9 @@ export interface AppShortcutState {
   activeCollection: WorkspaceCollection;
   playlistSelectionIds: string[];
   librarySelectionIds: string[];
-  selectedPlaylistItem: PlaylistItem | null;
-  selectedLibraryItem: PlaylistItem | null;
-  playingTrack: PlaylistItem | null;
+  selectedMediaEntity: MediaEntity | null;
+  selectedLibraryItem: MediaEntity | null;
+  playingTrack: MediaEntity | null;
   playbackSnapshot: PlaybackSnapshot;
 }
 
@@ -22,7 +22,7 @@ interface AppShortcutHandlers {
   toggleFullscreenPresentation: () => void | Promise<void>;
   closeNowPlayingView: () => void;
   closeActiveRightPanel: () => void;
-  removePlaylistItems: (ids: string[]) => void;
+  removeMediaEntities: (ids: string[]) => void;
   removeLibraryItems: (ids: string[]) => void;
   cycleWorkspaceTab: (direction: -1 | 1) => boolean;
   seek: (seconds: number) => void;
@@ -150,7 +150,7 @@ export function createAppShortcuts({ getState, handlers }: CreateAppShortcutsOpt
       event.preventDefault();
       (state.activeCollection === 'library'
         ? handlers.removeLibraryItems
-        : handlers.removePlaylistItems)(ids);
+        : handlers.removeMediaEntities)(ids);
       return;
     }
 
@@ -232,7 +232,7 @@ export function createAppShortcuts({ getState, handlers }: CreateAppShortcutsOpt
       const selectedTrack =
         state.activeCollection === 'library'
           ? state.selectedLibraryItem
-          : state.selectedPlaylistItem;
+          : state.selectedMediaEntity;
 
       if (!selectedTrack) {
         return;

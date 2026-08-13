@@ -1,13 +1,14 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { createPlaylistNavigation } from './playlist-navigation';
-import type { PlaylistItem } from '$lib/contracts/catalog';
+import type { MediaEntity } from '$lib/contracts/catalog';
 
-function item(id: string): PlaylistItem {
+function item(id: string): MediaEntity {
   return {
     id,
+    path: 'test',
     name: `${id}.xm`,
-    extension: 'xm',
+    format: 'xm',
     kind: 'module',
     size: 0,
     lastModified: 0

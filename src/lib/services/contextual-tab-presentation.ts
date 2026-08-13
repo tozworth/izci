@@ -1,12 +1,12 @@
 import type { ContextualTabAutomation } from '$lib/contracts/workspace';
 import type { ModulePatternSnapshot } from '$lib/contracts/module-playback';
 import type { PlaybackState } from '$lib/contracts/playback';
-import type { PlaylistItem } from '$lib/contracts/catalog';
+import type { MediaEntity } from '$lib/contracts/catalog';
 
 export type ContextualTabAvailability = 'loading' | 'available' | 'unavailable';
 
 export function resolvePatternTabAvailability(
-  track: PlaylistItem | null,
+  track: MediaEntity | null,
   patternSnapshot: ModulePatternSnapshot,
   playbackState: PlaybackState
 ): ContextualTabAvailability {

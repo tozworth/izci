@@ -1,5 +1,5 @@
 import { loadEmbeddedStreamArtwork } from '$lib/services/stream-artwork';
-import type { PlaylistItem } from '$lib/contracts/catalog';
+import type { MediaEntity } from '$lib/contracts/catalog';
 import { readable, writable } from 'svelte/store';
 import { openBrowserDatabase } from '$lib/persistence/browser-indexed-db';
 import {
@@ -96,12 +96,12 @@ function reportCacheFailure(operation: string, error: unknown): void {
   logWarning('library', `Artwork cache ${operation} failed`, { error });
 }
 
-function isArtworkCandidate(track: PlaylistItem): boolean {
-  return track.kind === 'stream' && (track.extension === 'flac' || track.extension === 'opus');
+function isArtworkCandidate(track: MediaEntity): boolean {
+  return track.kind === 'stream' && (track.format === 'flac' || track.format === 'opus');
 }
 
-export function getArtworkSourceFingerprint(track: PlaylistItem): string {
-  return [track.extension, track.size, track.lastModified, EXTRACTION_VERSION].join(':');
+export function getArtworkSourceFingerprint(track: MediaEntity): string {
+  return [track.format, track.size, track.lastModified, EXTRACTION_VERSION].join(':');
 }
 
 export function getArtworkRenditionKey(assetId: string, maxEdge: number): string {
@@ -269,7 +269,7 @@ function scheduleCachePrune(): void {
 }
 
 async function loadArtworkThumbnail(
-  track: PlaylistItem,
+  track: MediaEntity,
   maxEdge: number
 ): Promise<CachedArtworkThumbnail | null> {
   const sourceKey = track.id;
@@ -338,7 +338,7 @@ async function loadArtworkThumbnail(
 }
 
 export function getCachedArtworkThumbnail(
-  track: PlaylistItem,
+  track: MediaEntity,
   maxEdge = ALBUM_ARTWORK_THUMBNAIL_SIZE
 ): Promise<CachedArtworkThumbnail | null> {
   disposed = false;

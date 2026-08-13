@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { MODULE_EXTENSIONS, VIDEO_EXTENSIONS } from '$lib/contracts/media-format';
 
 import {
-  buildPlaylistItems,
+  buildMediaEntities,
   buildSeparatedSubsongItems,
   discoverDirectoryFiles,
   extractDroppedContent,
@@ -16,6 +16,7 @@ import {
   readDirectoryFiles,
   stripFileExtension
 } from './files';
+import { mediaSources } from '$lib/media/media-source';
 import { inferMediaExtension, inferTrackKind } from '$lib/media/format-policy';
 
 function fileHandle(file: File): FileSystemFileHandle {
@@ -82,8 +83,9 @@ describe('file helpers', () => {
   it('builds distinct playlist entries for every module subsong', () => {
     const source = {
       id: 'module-id',
+      path: 'Suite.xm',
       name: 'Suite.xm',
-      extension: 'xm',
+      format: 'xm',
       kind: 'module' as const,
       size: 123,
       lastModified: 456,
@@ -116,14 +118,15 @@ describe('file helpers', () => {
     ]);
 
     const files = await readDirectoryFiles(root);
-    const items = buildPlaylistItems(files);
+    const items = buildMediaEntities(files);
 
     expect(items.map((item) => ({ name: item.name, path: item.path }))).toEqual([
       { name: 'Nested.mod', path: 'Music/Artist/Album/Nested.mod' },
       { name: 'Root.xm', path: 'Music/Root.xm' }
     ]);
-    expect(items.find((item) => item.name === 'Nested.mod')?.fileHandle).toBe(nestedTrack);
-    expect(items.every((item) => item.file === undefined && item.objectUrl === undefined)).toBe(true);
+    const nested = items.find((item) => item.name === 'Nested.mod')!;
+    expect(mediaSources.get(nested.id)?.fileHandle).toBe(nestedTrack);
+    expect(JSON.stringify(items)).not.toMatch(/file|handle|objectUrl/i);
   });
 
   it('discovers directory handles and parent context without opening files', async () => {
@@ -147,11 +150,12 @@ describe('file helpers', () => {
       sourceFolderId: 'music-id'
     }));
 
-    expect(buildPlaylistItems(files)[0]).toMatchObject({
-      fileHandle: track,
+    const entity = buildMediaEntities(files)[0];
+    expect(entity).toMatchObject({
       path: 'Music/Artist/Track.flac',
       sourceFolderId: 'music-id'
     });
+    expect(mediaSources.get(entity.id)?.fileHandle).toBe(track);
   });
 
   it('limits directory traversal by subfolder depth', async () => {
@@ -222,7 +226,7 @@ describe('file helpers', () => {
     } as unknown as DataTransfer;
 
     const files = await extractDroppedFiles(dataTransfer);
-    const items = buildPlaylistItems(files);
+    const items = buildMediaEntities(files);
 
     expect(items).toHaveLength(1);
     expect(items[0].path).toBe('Music/Sub/Legacy.it');
@@ -249,6 +253,6 @@ describe('file helpers', () => {
     expect(handleReads).toBe(1);
     expect(dropped.directoryHandles).toEqual([folder]);
     expect(dropped.files).toMatchObject([{ name: 'Track.flac' }]);
-    expect(buildPlaylistItems(dropped.files)[0].path).toBe('Music/Track.flac');
+    expect(buildMediaEntities(dropped.files)[0].path).toBe('Music/Track.flac');
   });
 });

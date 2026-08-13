@@ -3,7 +3,7 @@ import { writable, type Readable } from 'svelte/store';
 import materialSymbolsFontUrl from '@material-symbols/font-400/material-symbols-outlined.woff2?url';
 import MiniPlayer from '$lib/components/mini-player/MiniPlayer.svelte';
 import type { PlaybackSnapshot } from '$lib/contracts/playback';
-import type { PlaylistItem } from '$lib/contracts/catalog';
+import type { MediaEntity } from '$lib/contracts/catalog';
 
 interface MiniPlayerWindowOptions {
   width?: number;
@@ -30,8 +30,8 @@ export interface MiniPlayerState {
 
 interface CreateMiniPlayerControllerOptions {
   snapshot: Readable<PlaybackSnapshot>;
-  track: Readable<PlaylistItem | null>;
-  selectedTrack: Readable<PlaylistItem | null>;
+  track: Readable<MediaEntity | null>;
+  selectedTrack: Readable<MediaEntity | null>;
   artworkUrl: Readable<string | null>;
   handlers: {
     togglePlayback: () => void;

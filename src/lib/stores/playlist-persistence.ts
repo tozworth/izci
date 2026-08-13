@@ -1,4 +1,4 @@
-import type { PlaylistItem, PlaylistPlaybackOptions, PlaylistRepeatMode, PlaylistSelection } from '$lib/contracts/catalog';
+import type { MediaEntity, PlaylistPlaybackOptions, PlaylistRepeatMode, PlaylistSelection } from '$lib/contracts/catalog';
 import { normalizeTrackRating } from '$lib/services/track-ratings';
 import { logInfo } from '$lib/logging/api';
 import { openBrowserDatabase } from '$lib/persistence/browser-indexed-db';
@@ -8,23 +8,22 @@ import {
   runTransaction
 } from '$lib/persistence/indexed-db';
 
-export interface StoredPlaylistItem {
+export interface StoredMediaEntity {
   id: string;
+  path: string;
   name: string;
-  extension: string;
-  kind: PlaylistItem['kind'];
+  format: string;
+  kind: MediaEntity['kind'];
   size: number;
   lastModified: number;
-  fileHandle?: FileSystemFileHandle;
-  path?: string;
   sourceFolderId?: string;
-  metadata?: PlaylistItem['metadata'];
+  metadata?: MediaEntity['metadata'];
   rating?: number;
   subsong?: number;
 }
 
 export interface StoredPlaylistState {
-  items?: StoredPlaylistItem[];
+  items?: StoredMediaEntity[];
   selection: PlaylistSelection;
   playbackOptions?: PlaylistPlaybackOptions;
 }
@@ -34,25 +33,17 @@ export const defaultPlaybackOptions: PlaylistPlaybackOptions = {
   repeatMode: 'off'
 };
 
-const PLAYLIST_DB_VERSION = 1;
+// v2 intentionally discards the pre-cutover handle-bearing collection record shape.
+const PLAYLIST_DB_VERSION = 2;
 const PLAYLIST_STORE_NAME = 'playlist';
 const PLAYLIST_STATE_KEY = 'state';
 
-function isFileSystemFileHandle(value: unknown): value is FileSystemFileHandle {
-  if (!value || typeof value !== 'object') {
-    return false;
-  }
-
-  const source = value as Partial<FileSystemFileHandle>;
-  return source.kind === 'file' && typeof source.getFile === 'function';
-}
-
-export function normalizeStoredItem(value: unknown): StoredPlaylistItem | null {
+export function normalizeStoredItem(value: unknown): StoredMediaEntity | null {
   if (!value || typeof value !== 'object') {
     return null;
   }
 
-  const source = value as Partial<StoredPlaylistItem> & { file?: unknown };
+  const source = value as Partial<StoredMediaEntity>;
   const subsong =
     typeof source.subsong === 'number' && Number.isFinite(source.subsong) && source.subsong >= 0
       ? Math.trunc(source.subsong)
@@ -61,8 +52,9 @@ export function normalizeStoredItem(value: unknown): StoredPlaylistItem | null {
 
   if (
     typeof source.id !== 'string' ||
+    typeof source.path !== 'string' ||
     typeof source.name !== 'string' ||
-    typeof source.extension !== 'string' ||
+    typeof source.format !== 'string' ||
     (source.kind !== 'stream' && source.kind !== 'module' && source.kind !== 'video') ||
     typeof source.size !== 'number'
   ) {
@@ -71,13 +63,12 @@ export function normalizeStoredItem(value: unknown): StoredPlaylistItem | null {
 
   return {
     id: source.id,
+    path: source.path,
     name: source.name,
-    extension: source.extension,
+    format: source.format,
     kind: source.kind,
     size: source.size,
     lastModified: typeof source.lastModified === 'number' ? source.lastModified : 0,
-    fileHandle: isFileSystemFileHandle(source.fileHandle) ? source.fileHandle : undefined,
-    path: typeof source.path === 'string' ? source.path : undefined,
     sourceFolderId: typeof source.sourceFolderId === 'string' ? source.sourceFolderId : undefined,
     metadata: source.metadata,
     ...(rating !== undefined ? { rating } : {}),
@@ -85,20 +76,16 @@ export function normalizeStoredItem(value: unknown): StoredPlaylistItem | null {
   };
 }
 
-export function restoreStoredItem(value: unknown): PlaylistItem | null {
+export function restoreStoredItem(value: unknown): MediaEntity | null {
   const item = normalizeStoredItem(value);
-
-  if (!item?.fileHandle) {
-    return null;
-  }
+  if (!item) return null;
 
   return {
     id: item.id,
-    fileHandle: item.fileHandle,
     path: item.path,
     sourceFolderId: item.sourceFolderId,
     name: item.name,
-    extension: item.extension,
+    format: item.format,
     kind: item.kind,
     size: item.size,
     lastModified: item.lastModified,
@@ -108,22 +95,17 @@ export function restoreStoredItem(value: unknown): PlaylistItem | null {
   };
 }
 
-export function serializeItem(item: PlaylistItem): StoredPlaylistItem | null {
-  if (!item.fileHandle) {
-    return null;
-  }
-
+export function serializeItem(item: MediaEntity): StoredMediaEntity {
   const rating = normalizeTrackRating(item.rating);
 
   return {
     id: item.id,
+    path: item.path,
     name: item.name,
-    extension: item.extension,
+    format: item.format,
     kind: item.kind,
     size: item.size,
     lastModified: item.lastModified,
-    fileHandle: item.fileHandle,
-    path: item.path,
     sourceFolderId: item.sourceFolderId,
     metadata: item.metadata,
     ...(rating !== undefined ? { rating } : {}),

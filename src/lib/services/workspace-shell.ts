@@ -20,7 +20,7 @@ import {
   workspacePanelState
 } from '$lib/stores/workspace-panel-state';
 import type { MenuActionItem } from '$lib/contracts/window-menu';
-import type { PlaylistItem, PlaylistRepeatMode, PlaylistSelection } from '$lib/contracts/catalog';
+import type { MediaEntity, PlaylistRepeatMode, PlaylistSelection } from '$lib/contracts/catalog';
 import type { WorkspaceCollection, WorkspaceJumpRequest, WorkspaceLibraryGroupRequest, WorkspacePanelActiveTabsSettings, WorkspacePanelId, WorkspacePanelLayoutSettings, WorkspacePanelStateSettings, WorkspacePanelTabsSettings, WorkspaceResizeHandle, WorkspaceTab, WorkspaceTabPanelMemorySettings } from '$lib/contracts/workspace';
 import { WORKSPACE_PANEL_IDS } from '$lib/contracts/workspace';
 import { getOtherWorkspaceCollection } from '$lib/services/workspace-actions';
@@ -37,9 +37,9 @@ type PanelResizeState = {
 
 interface WorkspaceShellInputs {
   innerWidth: number;
-  playlistItems: PlaylistItem[];
-  libraryItems: PlaylistItem[];
-  favoriteItems: PlaylistItem[];
+  playlistItems: MediaEntity[];
+  libraryItems: MediaEntity[];
+  favoriteItems: MediaEntity[];
   playlistSelectionIds: string[];
   librarySelectionIds: string[];
   librarySelectionAnchorId: string | null;

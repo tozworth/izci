@@ -1,5 +1,5 @@
 import type { LibraryGroupViewId, LibraryViewId } from '$lib/contracts/workspace';
-import type { PlaylistItem } from '$lib/contracts/catalog';
+import type { MediaEntity } from '$lib/contracts/catalog';
 import { getFolderFromPath, getTrackDisplayTitle } from '$lib/utils/files';
 import { filterItemsByQuery, formatTotalDuration, getTotalDuration, matchesSearchQuery } from './search';
 import { normalizeTrackRating } from '$lib/services/track-ratings';
@@ -21,7 +21,7 @@ export interface LibraryGroup {
   hasChildren?: boolean;
   placeholder?: 'artist' | 'album' | 'genre' | 'year' | 'format' | 'folder';
   secondaryKind?: 'trackerModule' | 'stream' | 'video';
-  items: PlaylistItem[];
+  items: MediaEntity[];
   duration: number;
 }
 
@@ -55,7 +55,7 @@ function normalized(value: string | undefined): string {
   return value?.trim() ?? '';
 }
 
-function getPrimaryArtist(item: PlaylistItem): string {
+function getPrimaryArtist(item: MediaEntity): string {
   return normalized(item.metadata?.albumArtist) || normalized(item.metadata?.artist);
 }
 
@@ -63,7 +63,7 @@ function groupKey(view: LibraryGroupViewId, label: string, secondary = ''): stri
   return `${view}:${label.toLowerCase()}\u0000${secondary.toLowerCase()}`;
 }
 
-function getGenreValues(item: PlaylistItem): LibraryGroupValue[] {
+function getGenreValues(item: MediaEntity): LibraryGroupValue[] {
   const genre = normalized(item.metadata?.genre);
 
   if (!genre) return [{ label: 'Unknown genre', secondary: '', placeholder: 'genre' }];
@@ -79,7 +79,7 @@ function getGenreValues(item: PlaylistItem): LibraryGroupValue[] {
     : [{ label: 'Unknown genre', secondary: '', placeholder: 'genre' }];
 }
 
-function getYearValue(item: PlaylistItem): LibraryGroupValue {
+function getYearValue(item: MediaEntity): LibraryGroupValue {
   const rawYear = normalized(item.metadata?.year);
   const year = rawYear.match(/\b(?:18|19|20|21)\d{2}\b/)?.[0] ?? rawYear;
   return year
@@ -88,7 +88,7 @@ function getYearValue(item: PlaylistItem): LibraryGroupValue {
 }
 
 function getGroupValues(
-  item: PlaylistItem,
+  item: MediaEntity,
   view: LibraryGroupViewId
 ): LibraryGroupValue[] {
   switch (view) {
@@ -109,9 +109,9 @@ function getGroupValues(
     case 'years':
       return [getYearValue(item)];
     case 'formats':
-      return normalized(item.extension)
+      return normalized(item.format)
         ? [{
-            label: normalized(item.extension).toUpperCase(),
+            label: normalized(item.format).toUpperCase(),
             secondary: item.kind === 'module' ? 'Tracker module' : item.kind === 'video' ? 'Video' : 'Stream',
             secondaryKind: item.kind === 'module' ? 'trackerModule' : item.kind
           }]
@@ -127,7 +127,7 @@ function getGroupValues(
 }
 
 export function getLibraryGroupIdentities(
-  item: PlaylistItem,
+  item: MediaEntity,
   view: Exclude<LibraryGroupViewId, 'folders'>
 ): Array<Pick<LibraryGroup, 'key' | 'label'>> {
   return getGroupValues(item, view).map((value) => ({
@@ -140,7 +140,7 @@ export function getLibraryGroupIdentities(
   }));
 }
 
-function buildFolderGroups(items: PlaylistItem[], collator: Intl.Collator): LibraryGroup[] {
+function buildFolderGroups(items: MediaEntity[], collator: Intl.Collator): LibraryGroup[] {
   const groups = new Map<string, LibraryGroup>();
 
   for (const item of items) {
@@ -245,7 +245,7 @@ function compareGroups(
 }
 
 export function buildLibraryGroups(
-  items: PlaylistItem[],
+  items: MediaEntity[],
   view: LibraryGroupViewId,
   locale?: string
 ): LibraryGroup[] {
@@ -290,7 +290,7 @@ export function buildLibraryGroups(
     .sort((left, right) => compareGroups(left, right, view, collator));
 }
 
-export function countLibraryGroups(items: PlaylistItem[], view: LibraryGroupViewId): number {
+export function countLibraryGroups(items: MediaEntity[], view: LibraryGroupViewId): number {
   const keys = new Set<string>();
 
   if (view === 'folders') {
@@ -366,8 +366,8 @@ export function orderLibraryGroups(groups: LibraryGroup[], pinnedKeys: string[])
 }
 
 export function getLibraryViewTooltipDetails(
-  items: PlaylistItem[],
-  favoriteItems: PlaylistItem[],
+  items: MediaEntity[],
+  favoriteItems: MediaEntity[],
   normalizedQuery: string,
   locale?: string
 ): Record<LibraryViewId, string> {
@@ -404,7 +404,7 @@ export function getLibraryViewTooltipDetails(
   return details;
 }
 
-export function filterLibraryGroupItems(group: LibraryGroup, normalizedQuery: string): PlaylistItem[] {
+export function filterLibraryGroupItems(group: LibraryGroup, normalizedQuery: string): MediaEntity[] {
   const groupText = `${group.label}\n${group.secondary}`.toLowerCase();
   const queryTokens = normalizedQuery.toLowerCase().split(/\s+/).filter(Boolean);
 
@@ -429,7 +429,7 @@ export function getGroupSummary(
   return `${groupCount} ${visibleGroupCount === 1 ? label.replace(/s$/, '') : label} · ${songCount} song${songCount === 1 ? '' : 's'}`;
 }
 
-export function getGroupTrackSummary(group: LibraryGroup, visibleItems: PlaylistItem[]): string {
+export function getGroupTrackSummary(group: LibraryGroup, visibleItems: MediaEntity[]): string {
   const duration = getTotalDuration(visibleItems);
   const count = visibleItems.length === group.items.length
     ? String(visibleItems.length)

@@ -1,9 +1,10 @@
 import { metadataSettings } from '$lib/stores/metadata-settings';
 import { loadModuleMetadata } from '$lib/services/module-metadata';
 import { loadTrackMetadata } from '$lib/services/stream-artwork';
-import type { PlaylistItem } from '$lib/contracts/catalog';
+import type { MediaEntity } from '$lib/contracts/catalog';
 import type { TrackMetadata } from '$lib/contracts/media-metadata';
 import { mergeInferredArtistTitle } from '$lib/utils/files';
+import { materializeMediaEntity } from './playlist-materialization';
 
 interface BackgroundDeadline {
   didTimeout: boolean;
@@ -11,9 +12,9 @@ interface BackgroundDeadline {
 }
 
 interface ScheduleMetadataParsingOptions {
-  targetItems: PlaylistItem[];
-  getItemList: () => PlaylistItem[];
-  updateItems: (updater: (items: PlaylistItem[]) => PlaylistItem[]) => void;
+  targetItems: MediaEntity[];
+  getItemList: () => MediaEntity[];
+  updateItems: (updater: (items: MediaEntity[]) => MediaEntity[]) => void;
   queuePersist: (complete: boolean) => void;
 }
 
@@ -51,15 +52,15 @@ function scheduleBackgroundTask(callback: (deadline: BackgroundDeadline) => void
   }, 0);
 }
 
-function buildInitialMetadata(item: PlaylistItem): TrackMetadata | undefined {
+function buildInitialMetadata(item: MediaEntity): TrackMetadata | undefined {
   const metadata = mergeInferredArtistTitle(item.metadata, item.name, metadataSettings.getSnapshot().inferFromFilename);
   return Object.keys(metadata).length > 0 ? metadata : undefined;
 }
 
-function shouldReadEmbeddedStreamMetadata(item: PlaylistItem): boolean {
+function shouldReadEmbeddedStreamMetadata(item: MediaEntity): boolean {
   if (
     item.kind !== 'stream' ||
-    (item.extension !== 'flac' && item.extension !== 'opus' && item.extension !== 'ogg' && item.extension !== 'mp3')
+    (item.format !== 'flac' && item.format !== 'opus' && item.format !== 'ogg' && item.format !== 'mp3')
   ) {
     return false;
   }
@@ -67,28 +68,14 @@ function shouldReadEmbeddedStreamMetadata(item: PlaylistItem): boolean {
   return item.metadata?.embeddedMetadataLoaded !== true;
 }
 
-async function readStreamDuration(item: PlaylistItem): Promise<number | undefined> {
+async function readStreamDuration(item: MediaEntity): Promise<number | undefined> {
   if (typeof window === 'undefined' || item.kind !== 'stream') {
     return undefined;
   }
 
-  let file: File | null = item.file ?? null;
-
-  if (!file && item.fileHandle) {
-    try {
-      file = await item.fileHandle.getFile();
-    } catch {
-      file = null;
-    }
-  }
-
-  const objectUrl = item.objectUrl ?? (file ? URL.createObjectURL(file) : undefined);
-
-  if (!objectUrl) {
-    return undefined;
-  }
-
-  const shouldRevokeObjectUrl = !item.objectUrl;
+  const lease = await materializeMediaEntity(item, false, 'media-element');
+  if (!lease?.objectUrl) return undefined;
+  const objectUrl = lease.objectUrl;
 
   return await new Promise((resolve) => {
     const audio = new Audio();
@@ -99,9 +86,7 @@ async function readStreamDuration(item: PlaylistItem): Promise<number | undefine
       audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
       audio.removeEventListener('error', handleError);
       audio.src = '';
-      if (shouldRevokeObjectUrl) {
-        URL.revokeObjectURL(objectUrl);
-      }
+      lease.release();
     };
 
     const handleLoadedMetadata = () => {
@@ -137,7 +122,7 @@ export function scheduleMetadataParsing({
   let active = false;
   let scheduledPersist = false;
 
-  const resolveMetadata = async (item: PlaylistItem): Promise<TrackMetadata | null> => {
+  const resolveMetadata = async (item: MediaEntity): Promise<TrackMetadata | null> => {
     let metadata = buildInitialMetadata(item) ?? item.metadata ?? {};
 
     if (shouldReadEmbeddedStreamMetadata(item)) {
@@ -170,7 +155,7 @@ export function scheduleMetadataParsing({
     return JSON.stringify(item.metadata ?? {}) === JSON.stringify(metadata) ? null : metadata;
   };
 
-  const resolveBatch = async (batch: PlaylistItem[]): Promise<Array<{ id: string; metadata: TrackMetadata }>> => {
+  const resolveBatch = async (batch: MediaEntity[]): Promise<Array<{ id: string; metadata: TrackMetadata }>> => {
     const results: Array<{ id: string; metadata: TrackMetadata }> = [];
     let nextIndex = 0;
 
@@ -193,7 +178,7 @@ export function scheduleMetadataParsing({
     if (active) return;
 
     const currentById = new Map(getItemList().map((item) => [item.id, item]));
-    const batch: PlaylistItem[] = [];
+    const batch: MediaEntity[] = [];
 
     while (index < targetItems.length && batch.length < METADATA_BATCH_SIZE) {
       const currentItem = currentById.get(targetItems[index].id);

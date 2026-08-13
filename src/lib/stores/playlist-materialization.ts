@@ -1,81 +1,45 @@
-import type { PlaylistItem } from '$lib/contracts/catalog';
-import { inferMediaExtension, inferTrackKind } from '$lib/media/format-policy';
-import { logDebug, logWarning } from '$lib/logging/api';
+import type { MediaEntity } from '$lib/contracts/catalog';
+import {
+  materializeMediaEntity as acquireMediaLease,
+  mediaSources,
+  type MediaMaterializationLease
+} from '$lib/media/media-source';
+import { logWarning } from '$lib/logging/api';
 
-type FileSystemPermissionState = 'granted' | 'denied' | 'prompt';
+export type MediaMaterializationPurpose = 'file-read' | 'media-element';
 
-function createObjectUrl(item: Pick<PlaylistItem, 'kind'>, file: File): string | undefined {
-  return item.kind === 'stream' || item.kind === 'video' ? URL.createObjectURL(file) : undefined;
+const browserObjectUrls = {
+  create: (blob: Blob) => URL.createObjectURL(blob),
+  revoke: (url: string) => URL.revokeObjectURL(url)
+};
+
+/** Page-facing source adapter. The returned lease owns any object URL it created. */
+export async function materializeMediaEntity(
+  entity: MediaEntity,
+  prompt = false,
+  purpose: MediaMaterializationPurpose = 'file-read'
+): Promise<MediaMaterializationLease | null> {
+  const lease = await acquireMediaLease(entity, mediaSources.get(entity.id), {
+    prompt,
+    purpose,
+    objectUrls: browserObjectUrls
+  });
+  if (!lease) {
+    logWarning('files', 'Media source could not be materialized', { id: entity.id, prompt, purpose });
+  }
+  return lease;
 }
 
-export function revokeObjectUrl(item: Pick<PlaylistItem, 'objectUrl'>): void {
-  if (item.objectUrl) {
-    logDebug('files', 'Object URL revoked');
-    URL.revokeObjectURL(item.objectUrl);
-  }
-}
-
-async function queryHandlePermission(handle: FileSystemFileHandle): Promise<FileSystemPermissionState> {
-  if (typeof handle.queryPermission !== 'function') {
-    return 'granted';
-  }
-
+export async function withMediaFile<T>(
+  entity: MediaEntity,
+  operation: (file: File) => T | Promise<T>,
+  prompt = false
+): Promise<T | null> {
+  const lease = await materializeMediaEntity(entity, prompt, 'file-read');
+  if (!lease) return null;
   try {
-    return await handle.queryPermission({ mode: 'read' });
-  } catch {
-    return 'prompt';
+    return await operation(lease.file);
+  } finally {
+    lease.release();
   }
-}
-
-async function requestHandlePermission(handle: FileSystemFileHandle): Promise<FileSystemPermissionState> {
-  if (typeof handle.requestPermission !== 'function') {
-    return 'granted';
-  }
-
-  try {
-    return await handle.requestPermission({ mode: 'read' });
-  } catch {
-    return 'denied';
-  }
-}
-
-export async function materializePlaylistItem(item: PlaylistItem, prompt = false): Promise<PlaylistItem | null> {
-  if (item.file && (item.kind === 'module' || item.objectUrl)) {
-    logDebug('files', 'Track already materialized', { id: item.id, kind: item.kind });
-    return item;
-  }
-
-  if (!item.fileHandle) {
-    logWarning('files', 'Track cannot be materialized because it has no file handle', { id: item.id });
-    return null;
-  }
-
-  const permission = await queryHandlePermission(item.fileHandle);
-
-  if (permission !== 'granted' && (!prompt || (await requestHandlePermission(item.fileHandle)) !== 'granted')) {
-    logWarning('files', 'Track materialization permission unavailable', { id: item.id, permission, prompt });
-    return null;
-  }
-
-  const file = await item.fileHandle.getFile();
-  const extension = inferMediaExtension(file.name);
-  const kind = inferTrackKind(extension);
-
-  if (!kind) {
-    logWarning('files', 'Materialized file has unsupported extension', { id: item.id, extension });
-    return null;
-  }
-
-  const objectUrl = createObjectUrl({ kind }, file);
-  logDebug('files', 'Track materialized', { id: item.id, kind, bytes: file.size, objectUrl: Boolean(objectUrl) });
-  return {
-    ...item,
-    file,
-    name: file.name,
-    extension,
-    kind,
-    size: file.size,
-    lastModified: file.lastModified,
-    objectUrl
-  };
 }

@@ -2,7 +2,7 @@ import { writable } from 'svelte/store';
 import { getTrackLyricsLoadKey, loadTrackLyrics } from '$lib/services/lyrics';
 import type { ContextualTabAutomation, WorkspaceTab } from '$lib/contracts/workspace';
 import type { LyricsDisplayStyle } from '$lib/contracts/appearance-settings';
-import type { PlaylistItem } from '$lib/contracts/catalog';
+import type { MediaEntity } from '$lib/contracts/catalog';
 
 export type LyricsAvailability = 'unknown' | 'loading' | 'available' | 'unavailable';
 
@@ -19,7 +19,7 @@ interface LyricsWorkspaceState {
 }
 
 interface LyricsPresentationSyncInput {
-  track: PlaylistItem | null;
+  track: MediaEntity | null;
   isNowPlayingLayoutActive: boolean;
   autoFocusInNowPlaying: boolean;
   displayStyle: LyricsDisplayStyle;
@@ -61,7 +61,7 @@ export function createLyricsPresentationController({
     state.set(snapshot);
   }
 
-  function syncTrack(track: PlaylistItem | null): void {
+  function syncTrack(track: MediaEntity | null): void {
     const nextTrackKey = getTrackLyricsLoadKey(track);
 
     if (nextTrackKey === snapshot.trackKey) {

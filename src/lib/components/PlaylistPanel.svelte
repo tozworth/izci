@@ -8,7 +8,7 @@
   } from '$lib/stores/library-view-settings';
   import type { LibraryColumnId, LibraryViewId, WorkspaceLibraryGroupRequest } from '$lib/contracts/workspace';
   import type { MenuActionItem } from '$lib/contracts/window-menu';
-  import type { PlaylistItem, PlaylistRepeatMode, PlaylistSelection } from '$lib/contracts/catalog';
+  import type { MediaEntity, PlaylistRepeatMode, PlaylistSelection } from '$lib/contracts/catalog';
   import { prepareImportedFiles } from '$lib/services/file-verification';
   import { createAlbumArtworkController } from '$lib/services/album-artwork';
   import { trackSettings } from '$lib/stores/track-settings';
@@ -56,11 +56,11 @@
     type LibraryGroupViewId
   } from '$lib/components/playlist-panel/library-views';
 
-  export let items: PlaylistItem[] = [];
+  export let items: MediaEntity[] = [];
   export let selectedIds: string[] = [];
   export let selectionAnchorId: string | null = null;
   export let playingId: string | null = null;
-  export let favoriteItems: PlaylistItem[] = [];
+  export let favoriteItems: MediaEntity[] = [];
   export let favoriteSelectedIds: string[] = [];
   export let favoriteSelectionAnchorId: string | null = null;
   export let favoritePlayingId: string | null = null;
@@ -178,8 +178,8 @@
   }
 
   function getTrackSummary(
-    sourceItems: PlaylistItem[],
-    visibleItems: PlaylistItem[],
+    sourceItems: MediaEntity[],
+    visibleItems: MediaEntity[],
     query: string
   ): string {
     const duration = formatTotalDuration(getTotalDuration(visibleItems));
@@ -240,7 +240,7 @@
     });
   }
 
-  function getLibraryGroupTrackSummary(group: LibraryGroup, visibleItems: PlaylistItem[]): string {
+  function getLibraryGroupTrackSummary(group: LibraryGroup, visibleItems: MediaEntity[]): string {
     const duration = formatTotalDuration(getTotalDuration(visibleItems));
 
     if (visibleItems.length !== group.items.length) {

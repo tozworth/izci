@@ -2,13 +2,14 @@ import { describe, expect, it } from 'vitest';
 
 import { splitUniqueItems } from './playlist-dedupe';
 import { createTrackCollectionStore } from './playlist';
-import type { PlaylistItem } from '$lib/contracts/catalog';
+import type { MediaEntity } from '$lib/contracts/catalog';
 
-function item(id: string, overrides: Partial<PlaylistItem> = {}): PlaylistItem {
+function item(id: string, overrides: Partial<MediaEntity> = {}): MediaEntity {
   return {
     id,
+    path: 'test',
     name: `${id}.flac`,
-    extension: 'flac',
+    format: 'flac',
     kind: 'stream',
     size: 100,
     lastModified: 1,
@@ -44,8 +45,8 @@ describe('playlist dedupe', () => {
   });
 
   it('accepts a collection-specific identity resolver', () => {
-    const first = item('first', { name: 'module.xm', kind: 'module', extension: 'xm', subsong: 0 });
-    const second = item('second', { name: 'module.xm', kind: 'module', extension: 'xm', subsong: 1 });
+    const first = item('first', { name: 'module.xm', kind: 'module', format: 'xm', subsong: 0 });
+    const second = item('second', { name: 'module.xm', kind: 'module', format: 'xm', subsong: 1 });
 
     expect(splitUniqueItems([first, second], {
       dedupe: true,
@@ -59,8 +60,8 @@ describe('playlist dedupe', () => {
       dbName: 'test-playlist-live-dedupe',
       dedupe: () => dedupe
     });
-    const first = item('first', { path: '/Music/Alpha.wav', name: 'Alpha.wav', extension: 'wav' });
-    const duplicate = item('duplicate', { path: '/music/alpha.wav', name: 'Alpha.wav', extension: 'wav' });
+    const first = item('first', { path: '/Music/Alpha.wav', name: 'Alpha.wav', format: 'wav' });
+    const duplicate = item('duplicate', { path: '/music/alpha.wav', name: 'Alpha.wav', format: 'wav' });
 
     expect(store.add([first])).toEqual([first]);
     expect(store.add([duplicate])).toEqual([]);

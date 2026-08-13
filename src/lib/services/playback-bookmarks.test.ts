@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { PlaylistItem } from '$lib/contracts/catalog';
+import type { MediaEntity } from '$lib/contracts/catalog';
 import {
   addPlaybackBookmark,
   deletePlaybackBookmark,
@@ -8,11 +8,11 @@ import {
   normalizePlaybackBookmarks
 } from './playback-bookmarks';
 
-const track = (overrides: Partial<PlaylistItem> = {}): PlaylistItem => ({
+const track = (overrides: Partial<MediaEntity> = {}): MediaEntity => ({
   id: 'playlist-entry',
   name: 'Track.flac',
   path: 'Music/Track.flac',
-  extension: 'flac',
+  format: 'flac',
   kind: 'stream',
   size: 12,
   lastModified: 34,

@@ -1,13 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import type { PlaylistItem } from '$lib/contracts/catalog';
+import type { MediaEntity } from '$lib/contracts/catalog';
 import type { WorkspaceLibraryGroupRequest } from '$lib/contracts/workspace';
 import { findRequestedLibraryGroup } from './library-group-navigation';
 import type { LibraryGroup } from './library-views';
 
-const track: PlaylistItem = {
+const track: MediaEntity = {
   id: 'library-track',
+  path: 'test',
   name: 'Track.flac',
-  extension: 'flac',
+  format: 'flac',
   kind: 'stream',
   size: 1,
   lastModified: 1

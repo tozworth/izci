@@ -33,7 +33,7 @@ describe('media source ownership and leases', () => {
     const streamLease = await materializeMediaEntity(
       entity('stream'),
       { entityId: 'media-1', file, permission: 'granted' },
-      { objectUrls: { create, revoke } }
+      { purpose: 'media-element', objectUrls: { create, revoke } }
     );
     expect(streamLease).toMatchObject({ file, objectUrl: 'blob:track' });
     expect(streamLease?.entity).toMatchObject({ size: 3, lastModified: 7, format: 'mp3' });
@@ -45,7 +45,7 @@ describe('media source ownership and leases', () => {
     const moduleLease = await materializeMediaEntity(
       entity('module'),
       { entityId: 'media-1', file: moduleFile, permission: 'granted' },
-      { objectUrls: { create, revoke } }
+      { purpose: 'media-element', objectUrls: { create, revoke } }
     );
     expect(moduleLease?.objectUrl).toBeUndefined();
     expect(create).toHaveBeenCalledOnce();
@@ -99,4 +99,3 @@ describe('media source ownership and leases', () => {
     expect(objectUrls.create).not.toHaveBeenCalled();
   });
 });
-

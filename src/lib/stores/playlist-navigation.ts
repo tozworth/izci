@@ -1,4 +1,4 @@
-import type { PlaylistItem, PlaylistRepeatMode } from '$lib/contracts/catalog';
+import type { MediaEntity, PlaylistRepeatMode } from '$lib/contracts/catalog';
 
 interface ShuffleSessionState {
   history: string[];
@@ -6,7 +6,7 @@ interface ShuffleSessionState {
   upcoming: string[];
 }
 
-export function createPlaylistNavigation(getItems: () => PlaylistItem[]) {
+export function createPlaylistNavigation(getItems: () => MediaEntity[]) {
   let shuffleSession: ShuffleSessionState = {
     history: [],
     cursor: -1,
@@ -32,7 +32,7 @@ export function createPlaylistNavigation(getItems: () => PlaylistItem[]) {
     return shuffled;
   }
 
-  function getTrackById(id: string | null): PlaylistItem | null {
+  function getTrackById(id: string | null): MediaEntity | null {
     if (!id) {
       return null;
     }
@@ -40,7 +40,7 @@ export function createPlaylistNavigation(getItems: () => PlaylistItem[]) {
     return getItems().find((item) => item.id === id) ?? null;
   }
 
-  function resolveExhaustedStepTrack(baseId: string | null): PlaylistItem | null {
+  function resolveExhaustedStepTrack(baseId: string | null): MediaEntity | null {
     const currentTrack = getTrackById(baseId);
 
     if (!currentTrack) {
@@ -111,7 +111,7 @@ export function createPlaylistNavigation(getItems: () => PlaylistItem[]) {
     initializeShuffleSession(currentId);
   }
 
-  function resolveLinearTrack(baseId: string | null, direction: -1 | 1, wrap: boolean): PlaylistItem | null {
+  function resolveLinearTrack(baseId: string | null, direction: -1 | 1, wrap: boolean): MediaEntity | null {
     const itemList = getItems();
 
     if (itemList.length === 0) {
@@ -137,7 +137,7 @@ export function createPlaylistNavigation(getItems: () => PlaylistItem[]) {
     return direction > 0 ? itemList[0] : itemList[itemList.length - 1];
   }
 
-  function resolveShuffledTrack(baseId: string | null, direction: -1 | 1, wrap: boolean): PlaylistItem | null {
+  function resolveShuffledTrack(baseId: string | null, direction: -1 | 1, wrap: boolean): MediaEntity | null {
     if (getItems().length === 0) {
       return null;
     }
@@ -214,7 +214,7 @@ export function createPlaylistNavigation(getItems: () => PlaylistItem[]) {
     resolveStartTrack(options: {
       selectedId?: string | null;
       shuffle?: boolean;
-    } = {}): PlaylistItem | null {
+    } = {}): MediaEntity | null {
       const { selectedId = null, shuffle = false } = options;
 
       if (!shuffle) {
@@ -243,7 +243,7 @@ export function createPlaylistNavigation(getItems: () => PlaylistItem[]) {
       direction: -1 | 1;
       shuffle?: boolean;
       wrap?: boolean;
-    }): PlaylistItem | null {
+    }): MediaEntity | null {
       const { currentId = null, selectedId = null, direction, shuffle = false, wrap = false } = options;
       const baseId = currentId ?? selectedId;
 
@@ -269,7 +269,7 @@ export function createPlaylistNavigation(getItems: () => PlaylistItem[]) {
       currentId?: string | null;
       shuffle?: boolean;
       repeatMode?: PlaylistRepeatMode;
-    }): PlaylistItem | null {
+    }): MediaEntity | null {
       const { currentId = null, shuffle = false, repeatMode = 'off' } = options;
 
       if (!currentId) {

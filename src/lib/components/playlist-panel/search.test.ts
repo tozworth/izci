@@ -6,13 +6,14 @@ import {
   getTrackSummary,
   matchesSearchQuery
 } from './search';
-import type { PlaylistItem } from '$lib/contracts/catalog';
+import type { MediaEntity } from '$lib/contracts/catalog';
 
-function item(name: string, metadata: PlaylistItem['metadata'] = {}): PlaylistItem {
+function item(name: string, metadata: MediaEntity['metadata'] = {}): MediaEntity {
   return {
     id: name,
+    path: name,
     name,
-    extension: name.split('.').at(-1) ?? '',
+    format: name.split('.').at(-1) ?? '',
     kind: 'stream',
     size: 0,
     lastModified: 0,
