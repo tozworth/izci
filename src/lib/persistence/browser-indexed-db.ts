@@ -9,6 +9,36 @@ import {
 } from './indexed-db';
 
 let scope: ResourceScope | null = null;
+const owners = new Set<BrowserPersistenceOwner>();
+
+export interface BrowserPersistenceOwner {
+  readonly label: string;
+  flush?(): void | Promise<void>;
+  dispose(): void | Promise<void>;
+}
+
+export function registerBrowserPersistenceOwner(owner: BrowserPersistenceOwner): () => void {
+  owners.add(owner);
+  return () => owners.delete(owner);
+}
+
+export async function disposeBrowserPersistenceOwners(): Promise<void> {
+  const active = [...owners];
+  owners.clear();
+  const results = await Promise.allSettled(active.map(async (owner) => {
+    await owner.flush?.();
+    await owner.dispose();
+  }));
+  const failures = results.flatMap((result, index) => result.status === 'rejected'
+    ? [{ label: active[index]?.label ?? 'unknown', error: result.reason }]
+    : []);
+  if (failures.length > 0) {
+    throw new AggregateError(
+      failures.map((failure) => failure.error),
+      `Browser persistence shutdown failed: ${failures.map((failure) => failure.label).join(', ')}`
+    );
+  }
+}
 
 function browserTarget(): (Window & typeof globalThis) | null {
   return typeof window === 'undefined' ? null : window;

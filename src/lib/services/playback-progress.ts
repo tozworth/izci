@@ -3,6 +3,17 @@ import { playbackSettings, REMEMBER_PROGRESS_DURATION_MINUTES } from '$lib/store
 import type { PlaybackSnapshot } from '$lib/contracts/playback';
 import type { PlaylistItem } from '$lib/contracts/catalog';
 import { getTrackIdentity } from '$lib/utils/files';
+import {
+  openBrowserDatabase,
+  registerBrowserPersistenceOwner
+} from '$lib/persistence/browser-indexed-db';
+import {
+  defineDatabase,
+  defineStore,
+  runTransaction,
+  type DatabaseConnection
+} from '$lib/persistence/indexed-db';
+import { logWarning } from '$lib/logging/api';
 
 const DATABASE_NAME = 'izci-playback-progress';
 const DATABASE_VERSION = 1;
@@ -27,11 +38,34 @@ export interface PlaybackProgressNotice {
 
 export interface PlaybackProgressState {
   notice: PlaybackProgressNotice | null;
+  persistence: {
+    state: 'ready' | 'busy' | 'degraded';
+    error: unknown | null;
+  };
 }
 
 interface CreatePlaybackProgressControllerOptions {
   track: Readable<PlaylistItem | null>;
   snapshot: Readable<PlaybackSnapshot>;
+}
+
+const progressDatabaseSpec = defineDatabase({
+  name: DATABASE_NAME,
+  version: DATABASE_VERSION,
+  stores: {
+    [STORE_NAME]: defineStore<PlaybackProgressRecord, string>()({ keyPath: 'identity' })
+  }
+});
+
+async function withProgressDatabase<TResult>(
+  work: (connection: DatabaseConnection<typeof progressDatabaseSpec>) => Promise<TResult>
+): Promise<TResult> {
+  const connection = await openBrowserDatabase(progressDatabaseSpec);
+  try {
+    return await work(connection);
+  } finally {
+    await connection.close();
+  }
 }
 
 function getProgressIdentity(track: PlaylistItem): string {
@@ -87,82 +121,24 @@ export function shouldRememberPlaybackProgress(
   return currentTime < duration - completionMargin;
 }
 
-async function openDatabase(): Promise<IDBDatabase | null> {
-  if (typeof window === 'undefined' || !('indexedDB' in window)) {
-    return null;
-  }
-
-  return await new Promise((resolve) => {
-    const request = window.indexedDB.open(DATABASE_NAME, DATABASE_VERSION);
-
-    request.onupgradeneeded = () => {
-      const database = request.result;
-      if (!database.objectStoreNames.contains(STORE_NAME)) {
-        database.createObjectStore(STORE_NAME, { keyPath: 'identity' });
-      }
-    };
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => resolve(null);
-  });
-}
-
 async function readProgress(identity: string): Promise<PlaybackProgressRecord | null> {
-  const database = await openDatabase();
-  if (!database) return null;
-
-  return await new Promise((resolve) => {
-    const transaction = database.transaction(STORE_NAME, 'readonly');
-    const request = transaction.objectStore(STORE_NAME).get(identity);
-    let result: PlaybackProgressRecord | null = null;
-
-    request.onsuccess = () => {
-      result = normalizePlaybackProgressRecord(request.result);
-    };
-    request.onerror = () => {
-      result = null;
-    };
-    transaction.oncomplete = () => {
-      database.close();
-      resolve(result);
-    };
-    transaction.onerror = () => {
-      database.close();
-      resolve(null);
-    };
-    transaction.onabort = () => {
-      database.close();
-      resolve(null);
-    };
-  });
+  return withProgressDatabase((connection) => runTransaction(connection, {
+    stores: [STORE_NAME],
+    mode: 'readonly',
+    operation: 'read playback progress'
+  }, async (transaction) => normalizePlaybackProgressRecord(
+    await transaction.store(STORE_NAME).get(identity)
+  )));
 }
 
 export async function readAllPlaybackProgress(): Promise<PlaybackProgressRecord[]> {
-  const database = await openDatabase();
-  if (!database) return [];
-
-  return await new Promise((resolve) => {
-    const transaction = database.transaction(STORE_NAME, 'readonly');
-    const request = transaction.objectStore(STORE_NAME).getAll();
-    let result: PlaybackProgressRecord[] = [];
-    request.onsuccess = () => {
-      result = Array.isArray(request.result)
-        ? request.result
-            .map(normalizePlaybackProgressRecord)
-            .filter((record): record is PlaybackProgressRecord => record !== null)
-        : [];
-    };
-    request.onerror = () => {
-      result = [];
-    };
-    transaction.oncomplete = () => {
-      database.close();
-      resolve(result);
-    };
-    transaction.onerror = transaction.onabort = () => {
-      database.close();
-      resolve([]);
-    };
-  });
+  return withProgressDatabase((connection) => runTransaction(connection, {
+    stores: [STORE_NAME],
+    mode: 'readonly',
+    operation: 'read all playback progress'
+  }, async (transaction) => (await transaction.store(STORE_NAME).getAll())
+    .map(normalizePlaybackProgressRecord)
+    .filter((record): record is PlaybackProgressRecord => record !== null)));
 }
 
 export async function mergePlaybackProgress(records: PlaybackProgressRecord[]): Promise<number> {
@@ -171,75 +147,55 @@ export async function mergePlaybackProgress(records: PlaybackProgressRecord[]): 
     .filter((record): record is PlaybackProgressRecord => record !== null);
   if (normalized.length === 0) return 0;
 
-  const database = await openDatabase();
-  if (!database) return 0;
-
-  return await new Promise((resolve) => {
-    const transaction = database.transaction(STORE_NAME, 'readwrite');
-    const store = transaction.objectStore(STORE_NAME);
+  return withProgressDatabase((connection) => runTransaction(connection, {
+    stores: [STORE_NAME],
+    mode: 'readwrite',
+    operation: 'merge playback progress',
+    durability: 'strict'
+  }, async (transaction) => {
+    const store = transaction.store(STORE_NAME);
     let restored = 0;
     for (const record of normalized) {
-      const request = store.get(record.identity);
-      request.onsuccess = () => {
-        const current = normalizePlaybackProgressRecord(request.result);
-        if (!current || record.updatedAt >= current.updatedAt) {
-          store.put(record);
-          restored += 1;
-        }
-      };
+      const current = normalizePlaybackProgressRecord(await store.get(record.identity));
+      if (!current || record.updatedAt >= current.updatedAt) {
+        await store.put(record);
+        restored += 1;
+      }
     }
-    transaction.oncomplete = () => {
-      database.close();
-      resolve(restored);
-    };
-    transaction.onerror = transaction.onabort = () => {
-      database.close();
-      resolve(0);
-    };
-  });
+    return restored;
+  }));
 }
 
 async function writeProgress(record: PlaybackProgressRecord): Promise<void> {
-  const database = await openDatabase();
-  if (!database) return;
-
-  await new Promise<void>((resolve) => {
-    const transaction = database.transaction(STORE_NAME, 'readwrite');
-    transaction.objectStore(STORE_NAME).put(record);
-    transaction.oncomplete = () => {
-      database.close();
-      resolve();
-    };
-    transaction.onerror = transaction.onabort = () => {
-      database.close();
-      resolve();
-    };
-  });
+  await withProgressDatabase((connection) => runTransaction(connection, {
+    stores: [STORE_NAME],
+    mode: 'readwrite',
+    operation: 'persist playback progress',
+    durability: 'strict'
+  }, async (transaction) => {
+    await transaction.store(STORE_NAME).put(record);
+  }));
 }
 
 async function deleteProgress(identity: string): Promise<void> {
-  const database = await openDatabase();
-  if (!database) return;
-
-  await new Promise<void>((resolve) => {
-    const transaction = database.transaction(STORE_NAME, 'readwrite');
-    transaction.objectStore(STORE_NAME).delete(identity);
-    transaction.oncomplete = () => {
-      database.close();
-      resolve();
-    };
-    transaction.onerror = transaction.onabort = () => {
-      database.close();
-      resolve();
-    };
-  });
+  await withProgressDatabase((connection) => runTransaction(connection, {
+    stores: [STORE_NAME],
+    mode: 'readwrite',
+    operation: 'delete playback progress',
+    durability: 'strict'
+  }, async (transaction) => {
+    await transaction.store(STORE_NAME).delete(identity);
+  }));
 }
 
 export function createPlaybackProgressController({
   track,
   snapshot
 }: CreatePlaybackProgressControllerOptions) {
-  let state: PlaybackProgressState = { notice: null };
+  let state: PlaybackProgressState = {
+    notice: null,
+    persistence: { state: 'ready', error: null }
+  };
   let currentTrack: PlaylistItem | null = null;
   let currentSnapshot: PlaybackSnapshot | null = null;
   let checkpointTimer: ReturnType<typeof setTimeout> | null = null;
@@ -252,8 +208,25 @@ export function createPlaybackProgressController({
     store.set(state);
   }
 
+  function setPersistence(
+    persistence: PlaybackProgressState['persistence']
+  ): void {
+    state = { ...state, persistence };
+    publishState();
+  }
+
   function enqueue(operation: () => Promise<void>): Promise<void> {
-    persistenceQueue = persistenceQueue.then(operation, operation);
+    const execute = async (): Promise<void> => {
+      setPersistence({ state: 'busy', error: null });
+      try {
+        await operation();
+        setPersistence({ state: 'ready', error: null });
+      } catch (error) {
+        logWarning('playback', 'Playback progress persistence failed', { error });
+        setPersistence({ state: 'degraded', error });
+      }
+    };
+    persistenceQueue = persistenceQueue.then(execute, execute);
     return persistenceQueue;
   }
 
@@ -323,7 +296,7 @@ export function createPlaybackProgressController({
       noticeTimer = null;
     }
     if (state.notice) {
-      state = { notice: null };
+      state = { ...state, notice: null };
       publishState();
     }
   }
@@ -363,7 +336,7 @@ export function createPlaybackProgressController({
   }
   window.addEventListener('pagehide', handlePageHide);
 
-  return {
+  const controller = {
     subscribe: store.subscribe,
     getSnapshot(): PlaybackProgressState {
       return state;
@@ -394,7 +367,7 @@ export function createPlaybackProgressController({
     },
     showResumeNotice(resumeTrack: PlaylistItem, currentTime: number): void {
       dismissNotice();
-      state = { notice: { trackId: resumeTrack.id, currentTime } };
+      state = { ...state, notice: { trackId: resumeTrack.id, currentTime } };
       publishState();
       noticeTimer = setTimeout(dismissNotice, RESUME_NOTICE_DURATION_MS);
     },
@@ -405,13 +378,28 @@ export function createPlaybackProgressController({
       lastDeletedIdentity = identity;
       await enqueue(() => deleteProgress(identity));
     },
-    destroy(): void {
-      void flush();
+    async destroy(): Promise<void> {
+      await flush();
+      dismissNotice();
+      unsubscribeTrack();
+      unsubscribeSnapshot();
+      unsubscribeSettings();
+      window.removeEventListener('pagehide', handlePageHide);
+      unregisterPersistenceOwner();
+    }
+  };
+
+  const unregisterPersistenceOwner = registerBrowserPersistenceOwner({
+    label: 'playback progress',
+    flush,
+    dispose: async () => {
       dismissNotice();
       unsubscribeTrack();
       unsubscribeSnapshot();
       unsubscribeSettings();
       window.removeEventListener('pagehide', handlePageHide);
     }
-  };
+  });
+
+  return controller;
 }

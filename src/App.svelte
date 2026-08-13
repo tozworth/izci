@@ -297,7 +297,10 @@
     row: 0
   };
   let patternAvailability: ContextualTabAvailability = 'unavailable';
-  let playbackProgressState: PlaybackProgressState = { notice: null };
+  let playbackProgressState: PlaybackProgressState = {
+    notice: null,
+    persistence: { state: 'ready', error: null }
+  };
   let miniPlayerState: MiniPlayerState = {
     supported: false,
     active: false,
