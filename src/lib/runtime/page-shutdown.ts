@@ -44,3 +44,38 @@ export async function closePagePersistence(
     }
   }
 }
+
+export interface PageShutdownSequence {
+  readonly shutdownDomain: () => unknown | Promise<unknown>;
+  readonly flushSettings: () => unknown | Promise<unknown>;
+  readonly disposeSettings: () => unknown | Promise<unknown>;
+  readonly disposeOwners: () => unknown | Promise<unknown>;
+  readonly disposeDatabases: () => unknown | Promise<unknown>;
+  readonly afterPersistence?: PageCleanup;
+}
+
+/**
+ * Runs every teardown boundary in order even when an earlier owner fails. A
+ * failed domain shutdown must never strand settings, databases, or a Web Lock.
+ */
+export async function runPageShutdownSequence(sequence: PageShutdownSequence): Promise<void> {
+  const failures: unknown[] = [];
+  for (const operation of [
+    sequence.shutdownDomain,
+    sequence.flushSettings,
+    sequence.disposeSettings,
+    sequence.disposeOwners,
+    sequence.disposeDatabases,
+    sequence.afterPersistence
+  ]) {
+    if (!operation) continue;
+    try {
+      await operation();
+    } catch (error) {
+      failures.push(error);
+    }
+  }
+  if (failures.length > 0) {
+    throw new AggregateError(failures, 'Page shutdown completed with failures.');
+  }
+}

@@ -40,8 +40,20 @@ export async function disposeBrowserPersistenceOwners(): Promise<void> {
   const active = [...owners];
   owners.clear();
   const results = await Promise.allSettled(active.map(async (owner) => {
-    await owner.flush?.();
-    await owner.dispose();
+    const failures: unknown[] = [];
+    try {
+      await owner.flush?.();
+    } catch (error) {
+      failures.push(error);
+    }
+    try {
+      await owner.dispose();
+    } catch (error) {
+      failures.push(error);
+    }
+    if (failures.length > 0) {
+      throw new AggregateError(failures, `${owner.label} persistence shutdown failed.`);
+    }
   }));
   const failures = results.flatMap((result, index) => result.status === 'rejected'
     ? [{ label: active[index]?.label ?? 'unknown', error: result.reason }]

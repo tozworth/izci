@@ -46,11 +46,12 @@ describe('browser persistence owner shutdown', () => {
   });
 
   it('settles all owners before reporting aggregate shutdown failures', async () => {
+    const disposeBroken = vi.fn();
     const disposeSecond = vi.fn();
     registerBrowserPersistenceOwner({
       label: 'broken',
       flush: () => { throw new Error('quota'); },
-      dispose: vi.fn()
+      dispose: disposeBroken
     });
     registerBrowserPersistenceOwner({
       label: 'healthy',
@@ -58,6 +59,7 @@ describe('browser persistence owner shutdown', () => {
     });
 
     await expect(disposeBrowserPersistenceOwners()).rejects.toBeInstanceOf(AggregateError);
+    expect(disposeBroken).toHaveBeenCalledOnce();
     expect(disposeSecond).toHaveBeenCalledOnce();
   });
 });

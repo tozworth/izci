@@ -1,7 +1,7 @@
 import { initializeLocalization } from '$lib/i18n';
 import { initializeLogging } from '$lib/logging/initialize';
 import { bootstrapPage, type PageBootstrapHandle, type PageCleanup } from '$lib/runtime/page-bootstrap';
-import { closePagePersistence, createPageShutdownCoordinator } from '$lib/runtime/page-shutdown';
+import { createPageShutdownCoordinator, runPageShutdownSequence } from '$lib/runtime/page-shutdown';
 import { createBrowserRuntime } from '$lib/runtime/adapters/browser-runtime';
 import { disposeSettingsStores, flushSettingsStores } from '$lib/settings/store';
 import {
@@ -83,14 +83,14 @@ export function startApplicationPage(config: ApplicationPageEntryConfig): PageBo
       return async () => { await logging.destroy(); };
     },
     settings: () => async () => {
-      await shutdown.beforePersistence();
-      flushSettingsStores();
-      disposeSettingsStores();
-      await closePagePersistence(
-        disposeBrowserPersistenceOwners,
-        disposeBrowserDatabases,
-        config.afterPersistence
-      );
+      await runPageShutdownSequence({
+        shutdownDomain: () => shutdown.beforePersistence(),
+        flushSettings: flushSettingsStores,
+        disposeSettings: disposeSettingsStores,
+        disposeOwners: disposeBrowserPersistenceOwners,
+        disposeDatabases: disposeBrowserDatabases,
+        afterPersistence: config.afterPersistence
+      });
     },
     serviceWorker: () => registerAppServiceWorker(),
     theme: () => initializeTheme(),

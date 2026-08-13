@@ -1,5 +1,9 @@
 import { describe, expect, it, vi } from 'vitest';
-import { closePagePersistence, createPageShutdownCoordinator } from './page-shutdown';
+import {
+  closePagePersistence,
+  createPageShutdownCoordinator,
+  runPageShutdownSequence
+} from './page-shutdown';
 
 function deferred() {
   let resolve!: () => void;
@@ -51,5 +55,29 @@ describe('page shutdown coordination', () => {
       async () => { order.push('memory'); }
     );
     expect(order).toEqual(['owners', 'databases', 'memory']);
+  });
+
+  it('still closes persistence and releases page ownership after domain shutdown fails', async () => {
+    const order: string[] = [];
+    const failure = new Error('domain shutdown failed');
+
+    const result = runPageShutdownSequence({
+      shutdownDomain: async () => { order.push('domain'); throw failure; },
+      flushSettings: () => { order.push('settings:flush'); },
+      disposeSettings: () => { order.push('settings:dispose'); },
+      disposeOwners: async () => { order.push('owners'); },
+      disposeDatabases: async () => { order.push('databases'); },
+      afterPersistence: async () => { order.push('ownership:release'); }
+    });
+
+    await expect(result).rejects.toMatchObject({ errors: [failure] });
+    expect(order).toEqual([
+      'domain',
+      'settings:flush',
+      'settings:dispose',
+      'owners',
+      'databases',
+      'ownership:release'
+    ]);
   });
 });
