@@ -39,6 +39,7 @@ import {
 import { defineDatabase, defineStore, runTransaction } from '$lib/persistence/indexed-db';
 import { logWarning } from '$lib/logging/api';
 import { mediaSources } from '$lib/media/media-source';
+import { projectTrackMetadata } from '$lib/media/track-metadata';
 import {
   planLibraryFolderReconciliation,
   type CurrentMediaSourceHandle,
@@ -48,6 +49,27 @@ import {
 export const BACKUP_EXTENSION = '.izci';
 export const BACKUP_MIME_TYPE = 'application/vnd.izci.backup+zip';
 export const BACKUP_FORMAT_VERSION = 2;
+export const BACKUP_MAX_COMPRESSED_BYTES = 32 * 1_024 * 1_024;
+export const BACKUP_MAX_UNCOMPRESSED_BYTES = 128 * 1_024 * 1_024;
+export const BACKUP_MAX_JSON_STRING_LENGTH = 64 * 1_024;
+export const BACKUP_MAX_LIBRARY_RECORDS = 100_000;
+export const BACKUP_MAX_FAVORITE_RECORDS = 100_000;
+export const BACKUP_MAX_FOLDER_RECORDS = 10_000;
+export const BACKUP_MAX_PROGRESS_RECORDS = 100_000;
+
+const BACKUP_MAX_SETTINGS_RECORDS = 256;
+const BACKUP_MAX_JSON_DEPTH = 64;
+const BACKUP_MAX_JSON_NODES = 1_000_000;
+export const BACKUP_ENTRY_MAX_BYTES = {
+  'manifest.json': 64 * 1_024,
+  'settings.json': 16 * 1_024 * 1_024,
+  'library.json': 64 * 1_024 * 1_024,
+  'folders.json': 8 * 1_024 * 1_024,
+  'favorites.json': 32 * 1_024 * 1_024,
+  'progress.json': 32 * 1_024 * 1_024
+} as const;
+
+type BackupEntryName = keyof typeof BACKUP_ENTRY_MAX_BYTES;
 
 const BACKUP_DATABASE_NAME = 'izci-backup-restore';
 const BACKUP_DATABASE_VERSION = 1;
@@ -152,7 +174,7 @@ function portableTrack(item: MediaEntity): PortableTrackRecord {
     lastModified: item.lastModified,
     path: item.path,
     sourceFolderId: item.sourceFolderId,
-    metadata: item.metadata,
+    metadata: projectTrackMetadata(item.metadata),
     rating: normalizeTrackRating(item.rating),
     ...(item.subsong !== undefined ? { subsong: item.subsong } : {})
   };
@@ -230,6 +252,39 @@ function parseJsonFile(files: Record<string, Uint8Array>, name: string): unknown
   }
 }
 
+function backupEntryLimit(name: string): number | undefined {
+  return Object.prototype.hasOwnProperty.call(BACKUP_ENTRY_MAX_BYTES, name)
+    ? BACKUP_ENTRY_MAX_BYTES[name as BackupEntryName]
+    : undefined;
+}
+
+function assertBoundedJson(value: unknown): void {
+  const pending: Array<{ value: unknown; depth: number }> = [{ value, depth: 0 }];
+  let nodes = 0;
+  while (pending.length > 0) {
+    const current = pending.pop()!;
+    nodes += 1;
+    if (nodes > BACKUP_MAX_JSON_NODES || current.depth > BACKUP_MAX_JSON_DEPTH) {
+      throw new Error('invalid-backup');
+    }
+    if (typeof current.value === 'string') {
+      if (current.value.length > BACKUP_MAX_JSON_STRING_LENGTH) {
+        throw new Error('invalid-backup');
+      }
+      continue;
+    }
+    if (!current.value || typeof current.value !== 'object') continue;
+    for (const [key, nested] of Object.entries(current.value)) {
+      if (key.length > BACKUP_MAX_JSON_STRING_LENGTH) throw new Error('invalid-backup');
+      pending.push({ value: nested, depth: current.depth + 1 });
+    }
+  }
+}
+
+function assertRecordLimit(records: readonly unknown[], maximum: number): void {
+  if (records.length > maximum) throw new Error('invalid-backup');
+}
+
 export function encodeBackupArchive(data: BackupArchiveData): Uint8Array {
   const json = (value: unknown) => strToU8(JSON.stringify(value, null, 2));
   return zipSync(
@@ -246,10 +301,38 @@ export function encodeBackupArchive(data: BackupArchiveData): Uint8Array {
 }
 
 export function decodeBackupArchive(bytes: Uint8Array): BackupArchiveData {
+  if (bytes.byteLength > BACKUP_MAX_COMPRESSED_BYTES) throw new Error('invalid-backup');
+
   let files: Record<string, Uint8Array>;
+  const seenEntries = new Set<string>();
+  let uncompressedBytes = 0;
   try {
-    files = unzipSync(bytes);
+    files = unzipSync(bytes, {
+      filter: (entry) => {
+        const entryLimit = backupEntryLimit(entry.name);
+        if (
+          entryLimit === undefined
+          || seenEntries.has(entry.name)
+          || !Number.isSafeInteger(entry.originalSize)
+          || entry.originalSize < 0
+          || entry.originalSize > entryLimit
+          || (entry.compression !== 0 && entry.compression !== 8)
+        ) {
+          throw new Error('invalid-backup');
+        }
+        seenEntries.add(entry.name);
+        uncompressedBytes += entry.originalSize;
+        if (uncompressedBytes > BACKUP_MAX_UNCOMPRESSED_BYTES) {
+          throw new Error('invalid-backup');
+        }
+        return true;
+      }
+    });
   } catch {
+    throw new Error('invalid-backup');
+  }
+
+  if (seenEntries.size !== Object.keys(BACKUP_ENTRY_MAX_BYTES).length) {
     throw new Error('invalid-backup');
   }
 
@@ -270,6 +353,17 @@ export function decodeBackupArchive(bytes: Uint8Array): BackupArchiveData {
     !Array.isArray(rawProgress)
   ) {
     throw new Error('invalid-backup');
+  }
+
+  if (Object.keys(rawSettings).length > BACKUP_MAX_SETTINGS_RECORDS) {
+    throw new Error('invalid-backup');
+  }
+  assertRecordLimit(rawLibrary, BACKUP_MAX_LIBRARY_RECORDS);
+  assertRecordLimit(rawFolders, BACKUP_MAX_FOLDER_RECORDS);
+  assertRecordLimit(rawFavorites, BACKUP_MAX_FAVORITE_RECORDS);
+  assertRecordLimit(rawProgress, BACKUP_MAX_PROGRESS_RECORDS);
+  for (const value of [manifest, rawSettings, rawLibrary, rawFolders, rawFavorites, rawProgress]) {
+    assertBoundedJson(value);
   }
 
   const settings = Object.fromEntries(

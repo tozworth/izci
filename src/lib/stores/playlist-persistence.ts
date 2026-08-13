@@ -1,5 +1,6 @@
 import type { MediaEntity, PlaylistPlaybackOptions, PlaylistRepeatMode, PlaylistSelection } from '$lib/contracts/catalog';
 import { normalizeTrackRating } from '$lib/services/track-ratings';
+import { projectTrackMetadata } from '$lib/media/track-metadata';
 import { logInfo } from '$lib/logging/api';
 import { openBrowserDatabase } from '$lib/persistence/browser-indexed-db';
 import {
@@ -70,7 +71,7 @@ export function normalizeStoredItem(value: unknown): StoredMediaEntity | null {
     size: source.size,
     lastModified: typeof source.lastModified === 'number' ? source.lastModified : 0,
     sourceFolderId: typeof source.sourceFolderId === 'string' ? source.sourceFolderId : undefined,
-    metadata: source.metadata,
+    metadata: projectTrackMetadata(source.metadata),
     ...(rating !== undefined ? { rating } : {}),
     ...(subsong !== undefined ? { subsong } : {})
   };
@@ -107,7 +108,7 @@ export function serializeItem(item: MediaEntity): StoredMediaEntity {
     size: item.size,
     lastModified: item.lastModified,
     sourceFolderId: item.sourceFolderId,
-    metadata: item.metadata,
+    metadata: projectTrackMetadata(item.metadata),
     ...(rating !== undefined ? { rating } : {}),
     ...(item.subsong !== undefined ? { subsong: item.subsong } : {})
   };

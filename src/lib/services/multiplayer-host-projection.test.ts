@@ -4,6 +4,7 @@ import {
   sanitizeMediaEntity,
   sanitizeTrackMetadata
 } from './multiplayer-host-projection';
+import { TRACK_METADATA_MAX_TEXT_LENGTH } from '$lib/media/track-metadata';
 
 describe('multiplayer host projection', () => {
   it('removes local file capabilities and unknown application fields from shared tracks', () => {
@@ -57,6 +58,17 @@ describe('multiplayer host projection', () => {
       sampleRate: 48_000,
       replayGain: { trackGainDb: -1.5, trackPeak: 0.9 }
     });
+  });
+
+  it('uses the bounded metadata projection for wire tracks', () => {
+    const projected = sanitizeTrackMetadata({
+      title: 'x'.repeat(TRACK_METADATA_MAX_TEXT_LENGTH + 1),
+      artist: 'Artist',
+      artwork: { data: 'image-payload' },
+      lyrics: { text: 'transient' }
+    } as unknown as Parameters<typeof sanitizeTrackMetadata>[0]);
+
+    expect(projected).toEqual({ artist: 'Artist' });
   });
 
   it('projects playback explicitly and copies buffered ranges', () => {

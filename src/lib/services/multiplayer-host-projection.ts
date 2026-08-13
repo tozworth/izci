@@ -1,6 +1,7 @@
 import type { MediaEntity, PlaylistRepeatMode } from '$lib/contracts/catalog';
 import type { TrackMetadata } from '$lib/contracts/media-metadata';
 import type { PlaybackSnapshot } from '$lib/contracts/playback';
+import { projectTrackMetadata } from '$lib/media/track-metadata';
 import type {
   MultiplayerPlaybackSnapshot,
   MultiplayerRepeatMode,
@@ -41,56 +42,7 @@ export function mediaEntityFromMultiplayerTrack(track: MultiplayerTrack): MediaE
 
 /** Copies every current metadata field explicitly so future application fields do not leak. */
 export function sanitizeTrackMetadata(metadata: TrackMetadata): MultiplayerTrackMetadata {
-  return {
-    ...(typeof metadata.title === 'string' ? { title: metadata.title } : {}),
-    ...(typeof metadata.artist === 'string' ? { artist: metadata.artist } : {}),
-    ...(typeof metadata.album === 'string' ? { album: metadata.album } : {}),
-    ...(typeof metadata.albumArtist === 'string' ? { albumArtist: metadata.albumArtist } : {}),
-    ...(typeof metadata.genre === 'string' ? { genre: metadata.genre } : {}),
-    ...(typeof metadata.year === 'string' ? { year: metadata.year } : {}),
-    ...(typeof metadata.trackNumber === 'string' ? { trackNumber: metadata.trackNumber } : {}),
-    ...(typeof metadata.discNumber === 'string' ? { discNumber: metadata.discNumber } : {}),
-    ...(typeof metadata.composer === 'string' ? { composer: metadata.composer } : {}),
-    ...(typeof metadata.embeddedMetadataLoaded === 'boolean'
-      ? { embeddedMetadataLoaded: metadata.embeddedMetadataLoaded }
-      : {}),
-    ...(typeof metadata.trackerType === 'string' ? { trackerType: metadata.trackerType } : {}),
-    ...(typeof metadata.originalType === 'string' ? { originalType: metadata.originalType } : {}),
-    ...(typeof metadata.message === 'string' ? { message: metadata.message } : {}),
-    ...(isFiniteNonNegative(metadata.duration) ? { duration: metadata.duration } : {}),
-    ...(isFiniteNonNegative(metadata.bitrate) ? { bitrate: metadata.bitrate } : {}),
-    ...(isNonNegativeSafeInteger(metadata.channels) ? { channels: metadata.channels } : {}),
-    ...(isNonNegativeSafeInteger(metadata.tracks) ? { tracks: metadata.tracks } : {}),
-    ...(isNonNegativeSafeInteger(metadata.patterns) ? { patterns: metadata.patterns } : {}),
-    ...(isNonNegativeSafeInteger(metadata.instruments) ? { instruments: metadata.instruments } : {}),
-    ...(isNonNegativeSafeInteger(metadata.orders) ? { orders: metadata.orders } : {}),
-    ...(isNonNegativeSafeInteger(metadata.subsongs) ? { subsongs: metadata.subsongs } : {}),
-    ...(Array.isArray(metadata.subsongNames)
-      && metadata.subsongNames.every((name) => typeof name === 'string')
-      ? { subsongNames: [...metadata.subsongNames] }
-      : {}),
-    ...(isNonNegativeSafeInteger(metadata.rows) ? { rows: metadata.rows } : {}),
-    ...(isNonNegativeSafeInteger(metadata.sampleRate) ? { sampleRate: metadata.sampleRate } : {}),
-    ...(isNonNegativeSafeInteger(metadata.playCount) ? { playCount: metadata.playCount } : {}),
-    ...(metadata.replayGain
-      ? {
-          replayGain: {
-            ...(isFiniteNumber(metadata.replayGain.trackGainDb)
-              ? { trackGainDb: metadata.replayGain.trackGainDb }
-              : {}),
-            ...(isFiniteNonNegative(metadata.replayGain.trackPeak)
-              ? { trackPeak: metadata.replayGain.trackPeak }
-              : {}),
-            ...(isFiniteNumber(metadata.replayGain.albumGainDb)
-              ? { albumGainDb: metadata.replayGain.albumGainDb }
-              : {}),
-            ...(isFiniteNonNegative(metadata.replayGain.albumPeak)
-              ? { albumPeak: metadata.replayGain.albumPeak }
-              : {})
-          }
-        }
-      : {})
-  };
+  return projectTrackMetadata(metadata) ?? {};
 }
 
 /** Projects player state without structurally admitting future application-only fields. */

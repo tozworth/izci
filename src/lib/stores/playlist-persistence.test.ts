@@ -36,6 +36,22 @@ describe('playlist persistence helpers', () => {
     expect(JSON.stringify(serializeItem(source))).not.toMatch(/file|handle|objectUrl/i);
   });
 
+  it('projects bounded metadata during serialization and hydration', () => {
+    const hostileMetadata = {
+      title: 'Track',
+      duration: Number.POSITIVE_INFINITY,
+      artwork: { data: 'embedded-image-payload' },
+      lyrics: { text: 'transient lyrics' },
+      replayGain: { trackGainDb: -2, blob: { type: 'application/octet-stream' } }
+    } as unknown as NonNullable<MediaEntity['metadata']>;
+    const serialized = serializeItem(item({ metadata: hostileMetadata }));
+    const hydrated = normalizeStoredItem({ ...serialized, metadata: hostileMetadata });
+
+    expect(serialized.metadata).toEqual({ title: 'Track', replayGain: { trackGainDb: -2 } });
+    expect(hydrated?.metadata).toEqual({ title: 'Track', replayGain: { trackGainDb: -2 } });
+    expect(JSON.stringify([serialized, hydrated])).not.toMatch(/artwork|lyrics|blob|payload/);
+  });
+
   it('round-trips subsongs and normalized ratings', () => {
     const stored = serializeItem(item({ kind: 'module', format: 'xm', subsong: 2, rating: 4.5 }));
     expect(restoreStoredItem(stored)).toMatchObject({ format: 'xm', subsong: 2, rating: 4.5 });
