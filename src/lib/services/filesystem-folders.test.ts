@@ -249,7 +249,11 @@ describe('filesystem folder persistence lifecycle', () => {
     await expect(folders.finishScan(second, { lastScanStatus: 'success' })).resolves.toBe(false);
     expect(folders.getRevisionSnapshot()).toMatchObject({
       folderSetRevision: 2,
-      folders: [{ definitionRevision: 2, lastScanStatus: 'scanning' }]
+      folders: [{
+        definitionRevision: 2,
+        lastScanStatus: 'error',
+        lastScanFailure: 'cancelled'
+      }]
     });
     await folders.dispose();
   });

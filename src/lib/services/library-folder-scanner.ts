@@ -1,13 +1,30 @@
-import { prepareImportedFiles } from '$lib/services/file-verification';
+import type { MediaEntity } from '$lib/contracts/catalog';
+import {
+  BoundedInspectionWorkQueue,
+  InspectionWorkCancelledError,
+  type InspectionWorkTicket
+} from '$lib/media/inspection-work-queue';
+import { inferMediaExtension, inferTrackKind } from '$lib/media/format-policy';
+import { mediaSources } from '$lib/media/media-source';
+import { logError, logWarning } from '$lib/logging/api';
 import {
   filesystemFolders,
   queryFilesystemFolderPermission,
-  type FilesystemFolder,
-  type LibraryFolderScanFailure
+  type FilesystemFolderPermission,
+  type FilesystemFoldersStore,
+  type LibraryFolderScanFailure,
+  type LibraryFolderScanToken
 } from '$lib/services/filesystem-folders';
+import {
+  planLibraryFolderReconciliation,
+  type CurrentMediaSourceHandle,
+  type LibraryFolderReconciliationPlan,
+  type ScannedLibraryFolderEntry
+} from '$lib/services/library-folder-plan';
+import { prepareImportedFiles } from '$lib/services/file-verification';
 import { libraryStore } from '$lib/stores/playlist';
 import { trackSettings } from '$lib/stores/track-settings';
-import { buildMediaEntities, readDirectoryFiles } from '$lib/utils/files';
+import { discoverDirectoryFiles } from '$lib/utils/files';
 
 export interface LibraryFolderScanResult {
   folderId: string;
@@ -19,125 +36,348 @@ export interface LibraryFolderScanResult {
   failure?: LibraryFolderScanFailure;
 }
 
-const activeScans = new Map<string, Promise<LibraryFolderScanResult>>();
-
-async function findFolder(folderId: string): Promise<FilesystemFolder | null> {
-  await filesystemFolders.ready();
-  await filesystemFolders.refresh();
-  return filesystemFolders.getSnapshot().find((folder) => folder.id === folderId) ?? null;
+export interface LibraryFolderCatalogSnapshot {
+  readonly entities: readonly MediaEntity[];
+  readonly catalogRevision: number;
 }
 
-async function performScan(folderId: string): Promise<LibraryFolderScanResult> {
-  const folder = await findFolder(folderId);
+export interface LibraryFolderCatalog {
+  getCatalogSnapshot(): LibraryFolderCatalogSnapshot;
+  applyCatalogIfRevision(
+    expectedCatalogRevision: number,
+    plan: LibraryFolderReconciliationPlan
+  ): Promise<{
+    readonly status: 'applied' | 'conflict';
+    readonly actualCatalogRevision?: number;
+  }>;
+}
 
-  if (!folder || !folder.libraryMode) {
-    return {
-      folderId,
-      status: 'error',
-      trackCount: 0,
-      addedCount: 0,
-      updatedCount: 0,
-      removedCount: 0,
-      failure: 'not-library-folder'
-    };
+export interface LibraryFolderScannerOptions {
+  readonly folders: FilesystemFoldersStore;
+  readonly catalog: LibraryFolderCatalog;
+  readonly queryPermission: (
+    handle: FileSystemDirectoryHandle,
+    probe: boolean
+  ) => Promise<FilesystemFolderPermission>;
+  readonly discover: (
+    token: LibraryFolderScanToken,
+    maxDepth: number,
+    signal: AbortSignal
+  ) => Promise<readonly ScannedLibraryFolderEntry[]>;
+  readonly plan?: typeof planLibraryFolderReconciliation;
+  readonly currentSourceHandles?: (
+    catalog: readonly MediaEntity[]
+  ) => readonly CurrentMediaSourceHandle[];
+  readonly createAbortController?: () => AbortController;
+  readonly createId?: () => string;
+  readonly getFolderNestingLimit?: () => number;
+  readonly now?: () => number;
+}
+
+export interface LibraryFolderScanner {
+  scan(folderId: string): Promise<LibraryFolderScanResult>;
+  scanLaunchFolders(): Promise<LibraryFolderScanResult[]>;
+  dispose(): Promise<void>;
+}
+
+interface ActiveScan {
+  readonly controller: AbortController;
+  readonly result: Promise<LibraryFolderScanResult>;
+}
+
+const EMPTY_COUNTS = {
+  trackCount: 0,
+  addedCount: 0,
+  updatedCount: 0,
+  removedCount: 0
+} as const;
+
+function failedResult(
+  folderId: string,
+  failure: LibraryFolderScanFailure,
+  status: LibraryFolderScanResult['status'] = 'error'
+): LibraryFolderScanResult {
+  return { folderId, status, ...EMPTY_COUNTS, failure };
+}
+
+function isCancellation(error: unknown): boolean {
+  return error instanceof InspectionWorkCancelledError
+    || (error instanceof DOMException && error.name === 'AbortError');
+}
+
+function activeFolderIds(folders: FilesystemFoldersStore): string[] {
+  return folders.getSnapshot()
+    .filter((folder) => folder.libraryMode !== null)
+    .map((folder) => folder.id);
+}
+
+function defaultCurrentSourceHandles(
+  catalog: readonly MediaEntity[]
+): CurrentMediaSourceHandle[] {
+  const handles: CurrentMediaSourceHandle[] = [];
+  for (const entity of catalog) {
+    const fileHandle = mediaSources.get(entity.id)?.fileHandle;
+    if (fileHandle) handles.push({ entityId: entity.id, fileHandle });
+  }
+  return handles;
+}
+
+async function finishFailure(
+  folders: FilesystemFoldersStore,
+  token: LibraryFolderScanToken,
+  failure: LibraryFolderScanFailure,
+  now: () => number,
+  status: LibraryFolderScanResult['status'] = 'error'
+): Promise<LibraryFolderScanResult> {
+  await folders.finishScan(token, {
+    lastScanAt: now(),
+    lastScanStatus: status === 'permission-required' ? 'permission-required' : 'error',
+    lastScanFailure: failure
+  });
+  return failedResult(token.folderId, failure, status);
+}
+
+export function createLibraryFolderScanner(
+  options: LibraryFolderScannerOptions
+): LibraryFolderScanner {
+  const plan = options.plan ?? planLibraryFolderReconciliation;
+  const getCurrentSourceHandles = options.currentSourceHandles ?? defaultCurrentSourceHandles;
+  const createAbortController = options.createAbortController ?? (() => new AbortController());
+  const createId = options.createId ?? (() => crypto.randomUUID());
+  const getFolderNestingLimit = options.getFolderNestingLimit
+    ?? (() => trackSettings.getSnapshot().folderNestingLimit);
+  const now = options.now ?? Date.now;
+  const activeScans = new Map<string, ActiveScan>();
+  let disposed = false;
+  let disposePromise: Promise<void> | null = null;
+
+  async function revalidate(token: LibraryFolderScanToken): Promise<'current' | 'permission-required' | 'cancelled'> {
+    await options.folders.refresh({ probe: false });
+    if (!options.folders.isScanCurrent(token)) return 'cancelled';
+    const permission = await options.queryPermission(token.handle, false);
+    if (!options.folders.isScanCurrent(token)) return 'cancelled';
+    if (permission !== 'granted') return 'permission-required';
+    return 'current';
   }
 
-  const permission = await queryFilesystemFolderPermission(folder.handle, false);
-  if (permission !== 'granted') {
-    await filesystemFolders.updateScan(folderId, {
-      lastScanStatus: 'permission-required',
-      lastScanFailure: 'permission-required'
-    });
-    return {
-      folderId,
-      status: 'permission-required',
-      trackCount: 0,
-      addedCount: 0,
-      updatedCount: 0,
-      removedCount: 0,
-      failure: 'permission-required'
-    };
+  async function performScan(folderId: string, signal: AbortSignal): Promise<LibraryFolderScanResult> {
+    await options.folders.ready();
+    await options.folders.refresh({ probe: false });
+    if (signal.aborted || disposed) return failedResult(folderId, 'cancelled');
+
+    const token = await options.folders.beginScan(folderId);
+    if (!token) return failedResult(folderId, 'not-library-folder');
+
+    const initialPermission = await options.queryPermission(token.handle, false);
+    if (initialPermission !== 'granted') {
+      return await finishFailure(
+        options.folders,
+        token,
+        'permission-required',
+        now,
+        'permission-required'
+      );
+    }
+
+    try {
+      const scanned = await options.discover(token, getFolderNestingLimit(), signal);
+      if (signal.aborted || disposed) {
+        return await finishFailure(options.folders, token, 'cancelled', now);
+      }
+
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        const validity = await revalidate(token);
+        if (validity === 'permission-required') {
+          return await finishFailure(
+            options.folders,
+            token,
+            'permission-required',
+            now,
+            'permission-required'
+          );
+        }
+        if (validity === 'cancelled' || signal.aborted || disposed) {
+          return await finishFailure(options.folders, token, 'cancelled', now);
+        }
+
+        const snapshot = options.catalog.getCatalogSnapshot();
+        const reconciliation = await plan({
+          catalog: snapshot.entities,
+          folderId,
+          activeFolderIds: activeFolderIds(options.folders),
+          scanned,
+          currentSourceHandles: getCurrentSourceHandles(snapshot.entities),
+          createId
+        });
+
+        const beforeApply = await revalidate(token);
+        if (beforeApply === 'permission-required') {
+          return await finishFailure(
+            options.folders,
+            token,
+            'permission-required',
+            now,
+            'permission-required'
+          );
+        }
+        if (beforeApply === 'cancelled' || signal.aborted || disposed) {
+          return await finishFailure(options.folders, token, 'cancelled', now);
+        }
+
+        const applied = await options.catalog.applyCatalogIfRevision(
+          snapshot.catalogRevision,
+          reconciliation
+        );
+        if (applied.status === 'conflict') {
+          if (attempt === 0) continue;
+          logWarning('library', 'Managed-folder scan could not commit after a catalog conflict', {
+            folderId,
+            expectedCatalogRevision: snapshot.catalogRevision,
+            actualCatalogRevision: applied.actualCatalogRevision
+          });
+          return await finishFailure(options.folders, token, 'cancelled', now);
+        }
+
+        const finished = await options.folders.finishScan(token, {
+          lastScanAt: now(),
+          lastScanStatus: 'success',
+          lastScanTrackCount: scanned.length,
+          lastScanFailure: undefined
+        });
+        if (!finished) return failedResult(folderId, 'cancelled');
+        if (reconciliation.duplicates.length > 0) {
+          logWarning('library', 'Managed-folder scan discarded duplicate paths', {
+            folderId,
+            duplicates: reconciliation.duplicates
+          });
+        }
+        return {
+          folderId,
+          status: 'success',
+          trackCount: scanned.length,
+          addedCount: reconciliation.addedItems.length,
+          updatedCount: reconciliation.updatedItems.length,
+          removedCount: reconciliation.removedItems.length
+        };
+      }
+    } catch (error) {
+      if (signal.aborted || disposed || isCancellation(error)) {
+        return await finishFailure(options.folders, token, 'cancelled', now);
+      }
+      logError('library', 'Managed-folder scan failed', { folderId, error });
+      return await finishFailure(options.folders, token, 'scan-failed', now);
+    }
+
+    return await finishFailure(options.folders, token, 'cancelled', now);
   }
 
-  await filesystemFolders.updateScan(folderId, {
-    lastScanStatus: 'scanning',
-    lastScanFailure: undefined
+  const api: LibraryFolderScanner = {
+    scan(folderId) {
+      if (disposed) return Promise.resolve(failedResult(folderId, 'cancelled'));
+      const active = activeScans.get(folderId);
+      if (active) return active.result;
+      const controller = createAbortController();
+      const result = performScan(folderId, controller.signal).finally(() => {
+        const current = activeScans.get(folderId);
+        if (current?.result === result) activeScans.delete(folderId);
+      });
+      activeScans.set(folderId, { controller, result });
+      return result;
+    },
+    async scanLaunchFolders() {
+      if (disposed) return [];
+      await options.folders.ready();
+      await options.folders.refresh({ probe: false });
+      const folders = options.folders.getSnapshot()
+        .filter((folder) => folder.libraryMode === 'launch');
+      return await Promise.all(folders.map((folder) => api.scan(folder.id)));
+    },
+    dispose() {
+      if (disposePromise) return disposePromise;
+      disposed = true;
+      const scans = [...activeScans.values()];
+      for (const scan of scans) scan.controller.abort();
+      disposePromise = Promise.allSettled(scans.map((scan) => scan.result)).then(() => undefined);
+      return disposePromise;
+    }
+  };
+  return api;
+}
+
+export function createBoundedLibraryFolderDiscovery(): {
+  readonly discover: LibraryFolderScannerOptions['discover'];
+  dispose(): Promise<void>;
+} {
+  const queue = new BoundedInspectionWorkQueue<string>({
+    maxConcurrency: 4,
+    maxBackgroundConcurrency: 4,
+    clock: {
+      setTimeout: (callback, delayMs) => globalThis.setTimeout(callback, delayMs),
+      clearTimeout: (handle) => globalThis.clearTimeout(handle as ReturnType<typeof setTimeout>)
+    },
+    abortControllers: { create: () => new AbortController() }
   });
 
-  try {
-    const discoveredFiles = await readDirectoryFiles(folder.handle, {
-      maxDepth: trackSettings.getSnapshot().folderNestingLimit
-    });
-    const verifiedFiles = await prepareImportedFiles(discoveredFiles);
-    const scannedItems = buildMediaEntities(verifiedFiles).map((item) => ({
-      ...item,
-      sourceFolderId: folderId
-    }));
-    const currentFolder = await findFolder(folderId);
-    if (!currentFolder?.libraryMode) {
-      return {
-        folderId,
-        status: 'error',
-        trackCount: 0,
-        addedCount: 0,
-        updatedCount: 0,
-        removedCount: 0,
-        failure: 'cancelled'
-      };
-    }
-    const reconciliation = libraryStore.reconcileFolder(
-      folderId,
-      scannedItems,
-      filesystemFolders.getSnapshot().map((candidate) => candidate.id)
-    );
-    const now = Date.now();
-
-    await filesystemFolders.updateScan(folderId, {
-      lastScanAt: now,
-      lastScanStatus: 'success',
-      lastScanTrackCount: scannedItems.length,
-      lastScanFailure: undefined
-    });
-
-    return {
-      folderId,
-      status: 'success',
-      trackCount: scannedItems.length,
-      addedCount: reconciliation.addedItems.length,
-      updatedCount: reconciliation.updatedItems.length,
-      removedCount: reconciliation.removedItems.length
-    };
-  } catch (error) {
-    console.warn('Library folder scan failed.', error);
-    await filesystemFolders.updateScan(folderId, {
-      lastScanAt: Date.now(),
-      lastScanStatus: 'error',
-      lastScanFailure: 'scan-failed'
-    });
-    return {
-      folderId,
-      status: 'error',
-      trackCount: 0,
-      addedCount: 0,
-      updatedCount: 0,
-      removedCount: 0,
-      failure: 'scan-failed'
-    };
-  }
+  return {
+    async discover(token, maxDepth, signal) {
+      const discovered = await discoverDirectoryFiles(token.handle, { maxDepth });
+      if (signal.aborted) throw new DOMException('Folder scan cancelled.', 'AbortError');
+      const tickets: InspectionWorkTicket<ScannedLibraryFolderEntry | null>[] = [];
+      for (const source of discovered) {
+        tickets.push(queue.enqueue(async ({ signal: workSignal }) => {
+          if (workSignal.aborted) throw new DOMException('Folder scan cancelled.', 'AbortError');
+          const file = await source.fileHandle.getFile();
+          if (workSignal.aborted) throw new DOMException('Folder scan cancelled.', 'AbortError');
+          const accepted = await prepareImportedFiles([file]);
+          if (accepted.length === 0) return null;
+          const format = inferMediaExtension(file.name);
+          const entity: MediaEntity = {
+            id: crypto.randomUUID(),
+            path: source.path,
+            name: file.name,
+            format,
+            kind: inferTrackKind(format) ?? 'module',
+            size: file.size,
+            lastModified: file.lastModified,
+            sourceFolderId: token.folderId
+          };
+          return { entity, fileHandle: source.fileHandle };
+        }, {
+          key: `${token.folderId}:${token.generation}:${source.path}`,
+          priority: 'background',
+          signal,
+          timeoutMs: 20_000
+        }));
+      }
+      try {
+        const results = await Promise.all(tickets.map((ticket) => ticket.result));
+        return results.filter((entry): entry is ScannedLibraryFolderEntry => entry !== null);
+      } catch (error) {
+        for (const ticket of tickets) ticket.cancel();
+        throw error;
+      }
+    },
+    dispose: () => queue.dispose()
+  };
 }
+
+const boundedFolderDiscovery = createBoundedLibraryFolderDiscovery();
+const browserLibraryFolderScanner = createLibraryFolderScanner({
+  folders: filesystemFolders,
+  catalog: libraryStore,
+  queryPermission: (handle, probe) => queryFilesystemFolderPermission(handle, probe),
+  discover: boundedFolderDiscovery.discover
+});
 
 export function scanLibraryFolder(folderId: string): Promise<LibraryFolderScanResult> {
-  const active = activeScans.get(folderId);
-  if (active) return active;
-
-  const scan = performScan(folderId).finally(() => activeScans.delete(folderId));
-  activeScans.set(folderId, scan);
-  return scan;
+  return browserLibraryFolderScanner.scan(folderId);
 }
 
-export async function scanLaunchLibraryFolders(): Promise<LibraryFolderScanResult[]> {
-  await filesystemFolders.ready();
-  await filesystemFolders.refresh();
-  const folders = filesystemFolders.getSnapshot().filter((folder) => folder.libraryMode === 'launch');
-  return await Promise.all(folders.map((folder) => scanLibraryFolder(folder.id)));
+export function scanLaunchLibraryFolders(): Promise<LibraryFolderScanResult[]> {
+  return browserLibraryFolderScanner.scanLaunchFolders();
+}
+
+export async function disposeLibraryFolderScanner(): Promise<void> {
+  await browserLibraryFolderScanner.dispose();
+  await boundedFolderDiscovery.dispose();
 }

@@ -336,6 +336,12 @@ function stripRuntimeState(folder: FilesystemFolder): StoredFilesystemFolder {
   return stored;
 }
 
+function cancelScanningFolders(folders: readonly FilesystemFolder[]): FilesystemFolder[] {
+  return folders.map((folder) => folder.lastScanStatus === 'scanning'
+    ? { ...folder, lastScanStatus: 'error', lastScanFailure: 'cancelled' }
+    : folder);
+}
+
 function filesystemFoldersPersistenceError(cause: unknown, operation: string): PersistenceError {
   return cause instanceof PersistenceError
     ? cause
@@ -544,9 +550,13 @@ export function createFilesystemFoldersStore(
             };
             return {
               folderSetRevision: current.folderSetRevision + (definitionChanged ? 1 : 0),
-              folders: current.folders.map((candidate) => (
-                candidate.id === folder.id ? remembered! : candidate
-              ))
+              folders: definitionChanged
+                ? cancelScanningFolders(current.folders.map((candidate) => (
+                    candidate.id === folder.id ? remembered! : candidate
+                  )))
+                : current.folders.map((candidate) => (
+                    candidate.id === folder.id ? remembered! : candidate
+                  ))
             };
           }
         }
@@ -567,7 +577,7 @@ export function createFilesystemFoldersStore(
         };
         return {
           folderSetRevision: current.folderSetRevision + 1,
-          folders: [...current.folders, remembered]
+          folders: [...cancelScanningFolders(current.folders), remembered]
         };
       });
       logInfo('files', 'Managed folder remembered', { id: remembered!.id, name: remembered!.name, mode: remembered!.libraryMode });
@@ -601,7 +611,10 @@ export function createFilesystemFoldersStore(
         const folders = current.folders.filter((folder) => folder.id !== id);
         return folders.length === current.folders.length
           ? current
-          : { folderSetRevision: current.folderSetRevision + 1, folders };
+          : {
+              folderSetRevision: current.folderSetRevision + 1,
+              folders: cancelScanningFolders(folders)
+            };
       });
       logInfo('files', 'Managed folder forgotten', { id, name: target?.name });
     },
@@ -609,15 +622,16 @@ export function createFilesystemFoldersStore(
       await mutate((current) => {
         const target = current.folders.find((folder) => folder.id === id);
         if (!target || target.libraryMode === mode) return current;
+        const updated = current.folders.map((folder) => folder.id === id
+          ? {
+              ...folder,
+              libraryMode: mode,
+              definitionRevision: folder.definitionRevision + 1
+            }
+          : folder);
         return {
           folderSetRevision: current.folderSetRevision + 1,
-          folders: current.folders.map((folder) => folder.id === id
-            ? {
-                ...folder,
-                libraryMode: mode,
-                definitionRevision: folder.definitionRevision + 1
-              }
-            : folder)
+          folders: cancelScanningFolders(updated)
         };
       });
     },
@@ -676,7 +690,6 @@ export function createFilesystemFoldersStore(
       const folder = snapshot.find((candidate) => candidate.id === token.folderId);
       return Boolean(
         folder?.libraryMode
-        && folder.handle === token.handle
         && folder.definitionRevision === token.definitionRevision
         && folder.scanGeneration === token.generation
       );
