@@ -67,6 +67,7 @@ function harness(options: {
   const pipeline = new MediaInspectionPipeline({
     maxConcurrency: 2,
     maxBackgroundConcurrency: 1,
+    maxQueued: 8,
     clock: timers,
     abortControllers: { create: () => new AbortController() },
     handlers: handlers(options.catalog),
@@ -83,12 +84,13 @@ async function turn(): Promise<void> {
 describe('media inspection pipeline', () => {
   it('captures the durable source revision and releases the file lease after success', async () => {
     const owner = harness();
-    const result = await owner.pipeline.inspect({
+    const ticket = await owner.pipeline.inspect({
       kind: 'catalog-metadata',
       entity,
       generationId: 'generation-1',
       origin: 'hydration'
-    }).result;
+    });
+    const result = await ticket.result;
 
     expect(result).toEqual({
       kind: 'catalog-metadata',
@@ -103,9 +105,10 @@ describe('media inspection pipeline', () => {
   it('releases the lease after a reader failure', async () => {
     const failure = new Error('decode failed');
     const owner = harness({ catalog: async () => { throw failure; } });
-    await expect(owner.pipeline.inspect({
+    const ticket = await owner.pipeline.inspect({
       kind: 'catalog-metadata', entity, generationId: 'g', origin: 'import'
-    }).result).rejects.toBe(failure);
+    });
+    await expect(ticket.result).rejects.toBe(failure);
     expect(owner.release).toHaveBeenCalledOnce();
   });
 
@@ -119,11 +122,11 @@ describe('media inspection pipeline', () => {
         return { title: 'New' };
       }
     });
-    const old = owner.pipeline.inspect({
+    const old = await owner.pipeline.inspect({
       kind: 'catalog-metadata', entity, generationId: 'old', origin: 'hydration'
     });
     await turn();
-    const current = owner.pipeline.inspect({
+    const current = await owner.pipeline.inspect({
       kind: 'catalog-metadata', entity, generationId: 'new', origin: 'playback'
     });
     await expect(old.result).rejects.toMatchObject({
@@ -143,7 +146,7 @@ describe('media inspection pipeline', () => {
     const gate = deferred<null>();
     const timers = new ManualTimers();
     const owner = harness({ catalog: () => gate.promise, timers });
-    const ticket = owner.pipeline.inspect({
+    const ticket = await owner.pipeline.inspect({
       kind: 'catalog-metadata', entity, generationId: 'g', origin: 'hydration'
     });
     await turn();
@@ -159,9 +162,10 @@ describe('media inspection pipeline', () => {
 
   it('reports unavailable sources and disposes idempotently', async () => {
     const owner = harness({ materialize: vi.fn(async () => null) });
-    await expect(owner.pipeline.inspect({
+    const ticket = await owner.pipeline.inspect({
       kind: 'catalog-metadata', entity, generationId: 'g', origin: 'tool'
-    }).result).rejects.toMatchObject({
+    });
+    await expect(ticket.result).rejects.toMatchObject({
       category: 'unavailable',
       code: 'media-inspection.source-unavailable'
     });

@@ -47,11 +47,13 @@ class ManualTimers {
 function createQueue<TKey = string>(
   maxConcurrency = 2,
   maxBackgroundConcurrency = 1,
-  timers = new ManualTimers()
+  timers = new ManualTimers(),
+  maxQueued = 32
 ): BoundedInspectionWorkQueue<TKey> {
   return new BoundedInspectionWorkQueue<TKey>({
     maxConcurrency,
     maxBackgroundConcurrency,
+    maxQueued,
     clock: timers,
     abortControllers: { create: () => new AbortController() }
   });
@@ -85,8 +87,15 @@ describe('BoundedInspectionWorkQueue', () => {
       { priority }
     );
 
-    const background = [ticket(0, 'background'), ticket(1, 'background'), ticket(2, 'background')];
-    const interactive = [ticket(3, 'interactive'), ticket(4, 'interactive')];
+    const background = await Promise.all([
+      ticket(0, 'background'),
+      ticket(1, 'background'),
+      ticket(2, 'background')
+    ]);
+    const interactive = await Promise.all([
+      ticket(3, 'interactive'),
+      ticket(4, 'interactive')
+    ]);
     await turn();
 
     expect(started).toEqual([0, 3, 4]);
@@ -134,9 +143,9 @@ describe('BoundedInspectionWorkQueue', () => {
         return name;
       }, { priority });
 
-    const first = enqueue('background-1', gates[0], 'background');
-    const second = enqueue('background-2', gates[1], 'background');
-    const interactive = enqueue('interactive', gates[2], 'interactive');
+    const first = await enqueue('background-1', gates[0], 'background');
+    const second = await enqueue('background-2', gates[1], 'background');
+    const interactive = await enqueue('interactive', gates[2], 'interactive');
     await turn();
     expect(started).toEqual(['background-1']);
 
@@ -159,11 +168,14 @@ describe('BoundedInspectionWorkQueue', () => {
     const runningGate = deferred<string>();
     const queuedWork = vi.fn(async () => 'stale-queued');
     const newestWork = vi.fn(async () => 'newest');
-    const running = queue.enqueue(() => runningGate.promise, { key: 'track', priority: 'background' });
+    const running = await queue.enqueue(
+      () => runningGate.promise,
+      { key: 'track', priority: 'background' }
+    );
     await turn();
 
-    const queued = queue.enqueue(queuedWork, { key: 'track', priority: 'interactive' });
-    const newest = queue.enqueue(newestWork, { key: 'track', priority: 'interactive' });
+    const queued = await queue.enqueue(queuedWork, { key: 'track', priority: 'interactive' });
+    const newest = await queue.enqueue(newestWork, { key: 'track', priority: 'interactive' });
     await expectCancellation(running.result, 'superseded');
     await expectCancellation(queued.result, 'superseded');
     expect(queue.counts).toMatchObject({ active: 1, queuedInteractive: 1 });
@@ -181,11 +193,11 @@ describe('BoundedInspectionWorkQueue', () => {
     const runningGate = deferred<string>();
     const queuedWork = vi.fn(async () => 'queued');
     let runningSignal: AbortSignal | undefined;
-    const running = queue.enqueue(({ signal }) => {
+    const running = await queue.enqueue(({ signal }) => {
       runningSignal = signal;
       return runningGate.promise;
     }, { priority: 'background' });
-    const queued = queue.enqueue(queuedWork, { priority: 'interactive' });
+    const queued = await queue.enqueue(queuedWork, { priority: 'interactive' });
     await turn();
 
     expect(queued.cancel()).toBe(true);
@@ -209,8 +221,8 @@ describe('BoundedInspectionWorkQueue', () => {
     const runningGate = deferred<void>();
     const runningAbort = new AbortController();
     const queuedAbort = new AbortController();
-    const running = queue.enqueue(() => runningGate.promise, { signal: runningAbort.signal });
-    const queued = queue.enqueue(async () => 'never', {
+    const running = await queue.enqueue(() => runningGate.promise, { signal: runningAbort.signal });
+    const queued = await queue.enqueue(async () => 'never', {
       priority: 'interactive',
       signal: queuedAbort.signal
     });
@@ -229,31 +241,133 @@ describe('BoundedInspectionWorkQueue', () => {
 
   it('times out logically while retaining the physical slot and suppressing late failure', async () => {
     const timers = new ManualTimers();
-    const queue = createQueue(1, 1, timers);
+    const queue = createQueue(1, 1, timers, 0);
     const runningGate = deferred<string>();
     const nextWork = vi.fn(async () => 'next');
-    const running = queue.enqueue(() => runningGate.promise, { timeoutMs: 25 });
-    const next = queue.enqueue(nextWork, { priority: 'interactive' });
+    const running = await queue.enqueue(() => runningGate.promise, { timeoutMs: 25 });
+    const nextAdmission = queue.enqueue(nextWork, { priority: 'interactive' });
     await turn();
 
     timers.fireAll();
     await expectCancellation(running.result, 'timeout');
-    expect(queue.counts).toMatchObject({ active: 1, queuedInteractive: 1 });
+    expect(queue.counts).toMatchObject({
+      active: 1,
+      awaitingAdmissionInteractive: 1,
+      queuedInteractive: 0
+    });
     expect(nextWork).not.toHaveBeenCalled();
 
     runningGate.reject(new Error('ignored late failure'));
+    const next = await nextAdmission;
     await expect(next.result).resolves.toBe('next');
     expect(nextWork).toHaveBeenCalledOnce();
     expect(queue.counts.active).toBe(0);
   });
 
+  it('bounds the admitted queue and admits interactive waiters before background waiters', async () => {
+    const queue = createQueue(1, 1, new ManualTimers(), 2);
+    const gates = Array.from({ length: 5 }, () => deferred<void>());
+    const started: number[] = [];
+    const enqueue = (index: number, priority: 'interactive' | 'background') => queue.enqueue(
+      async () => {
+        started.push(index);
+        await gates[index].promise;
+        return index;
+      },
+      { priority }
+    );
+
+    const running = await enqueue(0, 'background');
+    const firstQueued = await enqueue(1, 'background');
+    const secondQueued = await enqueue(2, 'background');
+    const backgroundAdmission = enqueue(3, 'background');
+    const interactiveAdmission = enqueue(4, 'interactive');
+    let backgroundAdmitted = false;
+    let interactiveAdmitted = false;
+    void backgroundAdmission.then(() => { backgroundAdmitted = true; });
+    void interactiveAdmission.then(() => { interactiveAdmitted = true; });
+    await turn();
+
+    expect(started).toEqual([0]);
+    expect(queue.counts).toMatchObject({
+      active: 1,
+      queued: 2,
+      awaitingAdmission: 2,
+      awaitingAdmissionBackground: 1,
+      awaitingAdmissionInteractive: 1,
+      peakQueued: 2,
+      peakAwaitingAdmission: 2
+    });
+
+    gates[0].resolve();
+    await turn();
+    expect(started).toEqual([0, 1]);
+    expect(interactiveAdmitted).toBe(true);
+    expect(backgroundAdmitted).toBe(false);
+    expect(queue.counts.queued).toBe(2);
+
+    const interactive = await interactiveAdmission;
+    gates[1].resolve();
+    await turn();
+    const lastBackground = await backgroundAdmission;
+    expect(started).toEqual([0, 1, 4]);
+    expect(queue.counts.queued).toBe(2);
+
+    gates[4].resolve();
+    await turn();
+    gates[2].resolve();
+    await turn();
+    gates[3].resolve();
+    await expect(Promise.all([
+      running.result,
+      firstQueued.result,
+      secondQueued.result,
+      lastBackground.result,
+      interactive.result
+    ])).resolves.toEqual([0, 1, 2, 3, 4]);
+    expect(queue.counts).toMatchObject({ active: 0, queued: 0, awaitingAdmission: 0 });
+  });
+
+  it('cancels admission deterministically and does not admit after logical running cancellation', async () => {
+    const queue = createQueue(1, 1, new ManualTimers(), 0);
+    const runningGate = deferred<void>();
+    const nextWork = vi.fn(async () => 'next');
+    const running = await queue.enqueue(() => runningGate.promise);
+    const aborted = new AbortController();
+    const abortedAdmission = queue.enqueue(async () => 'aborted', { signal: aborted.signal });
+    const nextAdmission = queue.enqueue(nextWork, { priority: 'interactive' });
+    await turn();
+    expect(queue.counts).toMatchObject({ active: 1, queued: 0, awaitingAdmission: 2 });
+
+    aborted.abort();
+    await expectCancellation(abortedAdmission, 'aborted');
+    expect(queue.counts.awaitingAdmission).toBe(1);
+
+    expect(running.cancel()).toBe(true);
+    await expectCancellation(running.result, 'cancelled');
+    await turn();
+    expect(nextWork).not.toHaveBeenCalled();
+    expect(queue.counts).toMatchObject({ active: 1, queued: 0, awaitingAdmission: 1 });
+
+    runningGate.resolve();
+    const next = await nextAdmission;
+    await expect(next.result).resolves.toBe('next');
+    expect(nextWork).toHaveBeenCalledOnce();
+  });
+
   it('disposes idempotently, cancels all logical results, and awaits physical settlement', async () => {
-    const queue = createQueue(2, 1);
+    const queue = createQueue(2, 1, new ManualTimers(), 0);
     const backgroundGate = deferred<void>();
     const interactiveGate = deferred<void>();
-    const background = queue.enqueue(() => backgroundGate.promise, { priority: 'background' });
-    const interactive = queue.enqueue(() => interactiveGate.promise, { priority: 'interactive' });
-    const queued = queue.enqueue(async () => 'never', { priority: 'background' });
+    const background = await queue.enqueue(
+      () => backgroundGate.promise,
+      { priority: 'background' }
+    );
+    const interactive = await queue.enqueue(
+      () => interactiveGate.promise,
+      { priority: 'interactive' }
+    );
+    const awaitingAdmission = queue.enqueue(async () => 'never', { priority: 'background' });
     await turn();
 
     const firstDispose = queue.dispose();
@@ -262,9 +376,9 @@ describe('BoundedInspectionWorkQueue', () => {
     await Promise.all([
       expectCancellation(background.result, 'disposed'),
       expectCancellation(interactive.result, 'disposed'),
-      expectCancellation(queued.result, 'disposed')
+      expectCancellation(awaitingAdmission, 'disposed')
     ]);
-    expect(queue.counts).toMatchObject({ active: 2, queued: 0 });
+    expect(queue.counts).toMatchObject({ active: 2, queued: 0, awaitingAdmission: 0 });
 
     let disposed = false;
     void firstDispose.then(() => { disposed = true; });
@@ -278,15 +392,15 @@ describe('BoundedInspectionWorkQueue', () => {
     expect(disposed).toBe(true);
     expect(queue.counts.active).toBe(0);
 
-    const afterDispose = queue.enqueue(async () => 'never');
-    await expectCancellation(afterDispose.result, 'disposed');
+    await expectCancellation(queue.enqueue(async () => 'never'), 'disposed');
     await expect(queue.dispose()).resolves.toBeUndefined();
   });
 
-  it('validates physical limits and execution timeouts', () => {
+  it('validates physical and pending limits and execution timeouts', () => {
     const timers = new ManualTimers();
     expect(() => createQueue(0, 0, timers)).toThrow(RangeError);
     expect(() => createQueue(1, 2, timers)).toThrow(RangeError);
+    expect(() => createQueue(1, 1, timers, -1)).toThrow(RangeError);
     const queue = createQueue(1, 0, timers);
     expect(() => queue.enqueue(async () => undefined, { timeoutMs: -1 })).toThrow(RangeError);
   });

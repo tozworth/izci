@@ -34,6 +34,7 @@ export interface InspectedArtwork {
 export interface InspectedLyrics {
   readonly raw: string;
   readonly source: string;
+  readonly lines: readonly { readonly time: number; readonly text: string }[];
 }
 
 export interface MediaInspectionResultMap {
@@ -121,6 +122,7 @@ export class MediaInspectionPipeline {
     this.#queue = new BoundedInspectionWorkQueue({
       maxConcurrency: options.maxConcurrency,
       maxBackgroundConcurrency: options.maxBackgroundConcurrency,
+      maxQueued: options.maxQueued,
       clock: options.clock,
       abortControllers: options.abortControllers
     });
@@ -134,11 +136,11 @@ export class MediaInspectionPipeline {
     return this.#queue.disposed;
   }
 
-  inspect<TKind extends MediaInspectionKind>(
+  async inspect<TKind extends MediaInspectionKind>(
     request: MediaInspectionRequest<TKind>
-  ): MediaInspectionTicket<TKind> {
+  ): Promise<MediaInspectionTicket<TKind>> {
     const sourceRevision = getMediaSourceRevision(request.entity);
-    const ticket: InspectionWorkTicket<MediaInspectionResult<TKind>> = this.#queue.enqueue(
+    const ticket: InspectionWorkTicket<MediaInspectionResult<TKind>> = await this.#queue.enqueue(
       async ({ signal }) => {
         const lease = await this.#materialize(request.entity);
         if (!lease) {

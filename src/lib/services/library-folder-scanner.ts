@@ -324,6 +324,7 @@ export function createBoundedLibraryFolderDiscovery(): {
   const queue = new BoundedInspectionWorkQueue<string>({
     maxConcurrency: 4,
     maxBackgroundConcurrency: 4,
+    maxQueued: 16,
     clock: {
       setTimeout: (callback, delayMs) => globalThis.setTimeout(callback, delayMs),
       clearTimeout: (handle) => globalThis.clearTimeout(handle as ReturnType<typeof setTimeout>)
@@ -333,38 +334,55 @@ export function createBoundedLibraryFolderDiscovery(): {
 
   return {
     async discover(token, maxDepth, signal) {
-      const discovered = await discoverDirectoryFiles(token.handle, { maxDepth });
+      const discovered = await discoverDirectoryFiles(token.handle, { maxDepth, signal });
       if (signal.aborted) throw new DOMException('Folder scan cancelled.', 'AbortError');
       const tickets: InspectionWorkTicket<ScannedLibraryFolderEntry | null>[] = [];
-      for (const source of discovered) {
-        tickets.push(queue.enqueue(async ({ signal: workSignal }) => {
-          if (workSignal.aborted) throw new DOMException('Folder scan cancelled.', 'AbortError');
-          const file = await source.fileHandle.getFile();
-          if (workSignal.aborted) throw new DOMException('Folder scan cancelled.', 'AbortError');
-          const accepted = await prepareImportedFiles([file]);
-          if (accepted.length === 0) return null;
-          const format = inferMediaExtension(file.name);
-          const entity: MediaEntity = {
-            id: crypto.randomUUID(),
-            path: source.path,
-            name: file.name,
-            format,
-            kind: inferTrackKind(format) ?? 'module',
-            size: file.size,
-            lastModified: file.lastModified,
-            sourceFolderId: token.folderId
-          };
-          return { entity, fileHandle: source.fileHandle };
-        }, {
-          key: `${token.folderId}:${token.generation}:${source.path}`,
-          priority: 'background',
-          signal,
-          timeoutMs: 20_000
-        }));
-      }
+      const outcomes: Array<Promise<
+        | { readonly status: 'fulfilled'; readonly value: ScannedLibraryFolderEntry | null }
+        | { readonly status: 'rejected'; readonly reason: unknown }
+      >> = [];
       try {
-        const results = await Promise.all(tickets.map((ticket) => ticket.result));
-        return results.filter((entry): entry is ScannedLibraryFolderEntry => entry !== null);
+        for (const source of discovered) {
+          const ticket = await queue.enqueue(async ({ signal: workSignal }) => {
+            if (workSignal.aborted) {
+              throw new DOMException('Folder scan cancelled.', 'AbortError');
+            }
+            const file = await source.fileHandle.getFile();
+            if (workSignal.aborted) {
+              throw new DOMException('Folder scan cancelled.', 'AbortError');
+            }
+            const accepted = await prepareImportedFiles([file]);
+            if (accepted.length === 0) return null;
+            const format = inferMediaExtension(file.name);
+            const entity: MediaEntity = {
+              id: crypto.randomUUID(),
+              path: source.path,
+              name: file.name,
+              format,
+              kind: inferTrackKind(format) ?? 'module',
+              size: file.size,
+              lastModified: file.lastModified,
+              sourceFolderId: token.folderId
+            };
+            return { entity, fileHandle: source.fileHandle };
+          }, {
+            key: `${token.folderId}:${token.generation}:${source.path}`,
+            priority: 'background',
+            signal,
+            timeoutMs: 20_000
+          });
+          tickets.push(ticket);
+          outcomes.push(ticket.result.then(
+            (value) => ({ status: 'fulfilled' as const, value }),
+            (reason: unknown) => ({ status: 'rejected' as const, reason })
+          ));
+        }
+        const results = await Promise.all(outcomes);
+        const rejection = results.find((result) => result.status === 'rejected');
+        if (rejection?.status === 'rejected') throw rejection.reason;
+        return results.flatMap((result) => (
+          result.status === 'fulfilled' && result.value !== null ? [result.value] : []
+        ));
       } catch (error) {
         for (const ticket of tickets) ticket.cancel();
         throw error;

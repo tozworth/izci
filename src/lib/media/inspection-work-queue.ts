@@ -44,12 +44,18 @@ export interface InspectionWorkQueueCounts {
   readonly active: number;
   readonly activeBackground: number;
   readonly activeInteractive: number;
+  readonly awaitingAdmission: number;
+  readonly awaitingAdmissionBackground: number;
+  readonly awaitingAdmissionInteractive: number;
   readonly queued: number;
   readonly queuedBackground: number;
   readonly queuedInteractive: number;
   readonly peakActive: number;
   readonly peakActiveBackground: number;
   readonly peakActiveInteractive: number;
+  readonly peakAwaitingAdmission: number;
+  readonly peakAwaitingAdmissionBackground: number;
+  readonly peakAwaitingAdmissionInteractive: number;
   readonly peakQueued: number;
   readonly peakQueuedBackground: number;
   readonly peakQueuedInteractive: number;
@@ -58,6 +64,8 @@ export interface InspectionWorkQueueCounts {
 export interface BoundedInspectionWorkQueueOptions {
   readonly maxConcurrency: number;
   readonly maxBackgroundConcurrency: number;
+  /** Maximum work retained after admission but before execution. */
+  readonly maxQueued: number;
   readonly clock: Pick<ClockPort, 'clearTimeout' | 'setTimeout'>;
   readonly abortControllers: Pick<AbortControllerPort, 'create'>;
 }
@@ -70,12 +78,14 @@ interface WorkItem<TKey> {
   readonly timeoutMs: number | undefined;
   readonly controller: AbortController;
   readonly work: InspectionWork<unknown>;
-  readonly resolve: (value: unknown | PromiseLike<unknown>) => void;
-  readonly reject: (error: unknown) => void;
+  readonly admit: (ticket: InspectionWorkTicket<unknown>) => void;
+  readonly rejectAdmission: (error: unknown) => void;
   readonly externalSignal: AbortSignal | undefined;
   readonly externalAbortListener: (() => void) | undefined;
-  state: 'queued' | 'running' | 'finished';
+  state: 'awaiting-admission' | 'queued' | 'running' | 'finished';
   logicalSettled: boolean;
+  resolve: ((value: unknown | PromiseLike<unknown>) => void) | undefined;
+  reject: ((error: unknown) => void) | undefined;
   timeoutHandle: unknown;
   physicalCompletion: Promise<void> | undefined;
 }
@@ -96,10 +106,13 @@ function assertTimeout(timeoutMs: number | undefined): void {
 export class BoundedInspectionWorkQueue<TKey = string> {
   readonly #maxConcurrency: number;
   readonly #maxBackgroundConcurrency: number;
+  readonly #maxQueued: number;
   readonly #clock: Pick<ClockPort, 'clearTimeout' | 'setTimeout'>;
   readonly #abortControllers: Pick<AbortControllerPort, 'create'>;
   readonly #interactiveQueue: WorkItem<TKey>[] = [];
   readonly #backgroundQueue: WorkItem<TKey>[] = [];
+  readonly #interactiveAdmissionQueue: WorkItem<TKey>[] = [];
+  readonly #backgroundAdmissionQueue: WorkItem<TKey>[] = [];
   readonly #running = new Set<WorkItem<TKey>>();
   readonly #latestByKey = new Map<TKey, WorkItem<TKey>>();
   #activeBackground = 0;
@@ -107,6 +120,9 @@ export class BoundedInspectionWorkQueue<TKey = string> {
   #peakActive = 0;
   #peakActiveBackground = 0;
   #peakActiveInteractive = 0;
+  #peakAwaitingAdmission = 0;
+  #peakAwaitingAdmissionBackground = 0;
+  #peakAwaitingAdmissionInteractive = 0;
   #peakQueued = 0;
   #peakQueuedBackground = 0;
   #peakQueuedInteractive = 0;
@@ -116,11 +132,13 @@ export class BoundedInspectionWorkQueue<TKey = string> {
   constructor(options: BoundedInspectionWorkQueueOptions) {
     assertLimit('maxConcurrency', options.maxConcurrency);
     assertLimit('maxBackgroundConcurrency', options.maxBackgroundConcurrency, true);
+    assertLimit('maxQueued', options.maxQueued, true);
     if (options.maxBackgroundConcurrency > options.maxConcurrency) {
       throw new RangeError('maxBackgroundConcurrency cannot exceed maxConcurrency.');
     }
     this.#maxConcurrency = options.maxConcurrency;
     this.#maxBackgroundConcurrency = options.maxBackgroundConcurrency;
+    this.#maxQueued = options.maxQueued;
     this.#clock = options.clock;
     this.#abortControllers = options.abortControllers;
   }
@@ -130,18 +148,26 @@ export class BoundedInspectionWorkQueue<TKey = string> {
   }
 
   get counts(): InspectionWorkQueueCounts {
+    const awaitingAdmissionInteractive = this.#interactiveAdmissionQueue.length;
+    const awaitingAdmissionBackground = this.#backgroundAdmissionQueue.length;
     const queuedInteractive = this.#interactiveQueue.length;
     const queuedBackground = this.#backgroundQueue.length;
     return {
       active: this.#running.size,
       activeBackground: this.#activeBackground,
       activeInteractive: this.#activeInteractive,
+      awaitingAdmission: awaitingAdmissionInteractive + awaitingAdmissionBackground,
+      awaitingAdmissionBackground,
+      awaitingAdmissionInteractive,
       queued: queuedInteractive + queuedBackground,
       queuedBackground,
       queuedInteractive,
       peakActive: this.#peakActive,
       peakActiveBackground: this.#peakActiveBackground,
       peakActiveInteractive: this.#peakActiveInteractive,
+      peakAwaitingAdmission: this.#peakAwaitingAdmission,
+      peakAwaitingAdmissionBackground: this.#peakAwaitingAdmissionBackground,
+      peakAwaitingAdmissionInteractive: this.#peakAwaitingAdmissionInteractive,
       peakQueued: this.#peakQueued,
       peakQueuedBackground: this.#peakQueuedBackground,
       peakQueuedInteractive: this.#peakQueuedInteractive
@@ -151,54 +177,47 @@ export class BoundedInspectionWorkQueue<TKey = string> {
   enqueue<TResult>(
     work: InspectionWork<TResult>,
     options: InspectionWorkOptions<TKey> = {}
-  ): InspectionWorkTicket<TResult> {
+  ): Promise<InspectionWorkTicket<TResult>> {
     assertTimeout(options.timeoutMs);
     const controller = this.#abortControllers.create();
-    let resolve!: (value: TResult | PromiseLike<TResult>) => void;
-    let reject!: (error: unknown) => void;
-    const result = new Promise<TResult>((resolveResult, rejectResult) => {
-      resolve = resolveResult;
-      reject = rejectResult;
-    });
     const priority = options.priority ?? 'background';
     let item!: WorkItem<TKey>;
     const externalAbortListener = options.signal === undefined
       ? undefined
       : () => { this.#cancel(item, 'aborted'); };
-    item = {
-      key: options.key,
-      priority,
-      timeoutMs: options.timeoutMs,
-      controller,
-      work,
-      resolve: (value) => { resolve(value as TResult | PromiseLike<TResult>); },
-      reject,
-      externalSignal: options.signal,
-      externalAbortListener,
-      state: 'queued',
-      logicalSettled: false,
-      timeoutHandle: undefined,
-      physicalCompletion: undefined
-    };
-
-    const ticket: InspectionWorkTicket<TResult> = {
-      result,
-      cancel: () => this.#cancel(item, 'cancelled')
-    };
+    const admission = new Promise<InspectionWorkTicket<TResult>>((admit, rejectAdmission) => {
+      item = {
+        key: options.key,
+        priority,
+        timeoutMs: options.timeoutMs,
+        controller,
+        work,
+        admit: (ticket) => { admit(ticket as InspectionWorkTicket<TResult>); },
+        rejectAdmission,
+        externalSignal: options.signal,
+        externalAbortListener,
+        state: 'awaiting-admission',
+        logicalSettled: false,
+        resolve: undefined,
+        reject: undefined,
+        timeoutHandle: undefined,
+        physicalCompletion: undefined
+      };
+    });
 
     if (this.#disposed) {
       this.#cancel(item, 'disposed', false);
-      return ticket;
+      return admission;
     }
     if (options.signal?.aborted) {
       this.#cancel(item, 'aborted', false);
-      return ticket;
+      return admission;
     }
 
     options.signal?.addEventListener('abort', externalAbortListener!, { once: true });
     if (options.signal?.aborted) {
       this.#cancel(item, 'aborted', false);
-      return ticket;
+      return admission;
     }
 
     if (options.key !== undefined) {
@@ -209,10 +228,10 @@ export class BoundedInspectionWorkQueue<TKey = string> {
       this.#latestByKey.set(options.key, item);
     }
 
-    this.#queueFor(priority).push(item);
-    this.#drain();
-    this.#updateQueuedPeaks();
-    return ticket;
+    this.#admissionQueueFor(priority).push(item);
+    this.#pump();
+    this.#updateAdmissionPeaks();
+    return admission;
   }
 
   dispose(): Promise<void> {
@@ -220,6 +239,12 @@ export class BoundedInspectionWorkQueue<TKey = string> {
       return this.#disposePromise;
     }
     this.#disposed = true;
+    for (const item of [
+      ...this.#interactiveAdmissionQueue,
+      ...this.#backgroundAdmissionQueue
+    ]) {
+      this.#cancel(item, 'disposed', false);
+    }
     for (const item of [...this.#interactiveQueue, ...this.#backgroundQueue]) {
       this.#cancel(item, 'disposed', false);
     }
@@ -235,6 +260,12 @@ export class BoundedInspectionWorkQueue<TKey = string> {
     return priority === 'interactive' ? this.#interactiveQueue : this.#backgroundQueue;
   }
 
+  #admissionQueueFor(priority: InspectionPriority): WorkItem<TKey>[] {
+    return priority === 'interactive'
+      ? this.#interactiveAdmissionQueue
+      : this.#backgroundAdmissionQueue;
+  }
+
   #cancel(
     item: WorkItem<TKey>,
     reason: InspectionCancellationReason,
@@ -244,7 +275,19 @@ export class BoundedInspectionWorkQueue<TKey = string> {
       return false;
     }
     item.logicalSettled = true;
-    if (item.state === 'queued') {
+    const cancellation = new InspectionWorkCancelledError(reason, item.key);
+    if (item.state === 'awaiting-admission') {
+      const admissionQueue = this.#admissionQueueFor(item.priority);
+      const index = admissionQueue.indexOf(item);
+      if (index >= 0) {
+        admissionQueue.splice(index, 1);
+      }
+      item.state = 'finished';
+      this.#releaseKey(item);
+      this.#cleanupLogicalResources(item);
+      item.controller.abort();
+      item.rejectAdmission(cancellation);
+    } else if (item.state === 'queued') {
       const queue = this.#queueFor(item.priority);
       const index = queue.indexOf(item);
       if (index >= 0) {
@@ -253,14 +296,16 @@ export class BoundedInspectionWorkQueue<TKey = string> {
       item.state = 'finished';
       this.#releaseKey(item);
       this.#cleanupLogicalResources(item);
+      item.controller.abort();
+      item.reject!(cancellation);
     } else {
       this.#clearExecutionTimeout(item);
       this.#removeExternalAbortListener(item);
+      item.controller.abort();
+      item.reject!(cancellation);
     }
-    item.controller.abort();
-    item.reject(new InspectionWorkCancelledError(reason, item.key));
     if (shouldDrain && !this.#disposed) {
-      this.#drain();
+      this.#pump();
     }
     return true;
   }
@@ -276,6 +321,63 @@ export class BoundedInspectionWorkQueue<TKey = string> {
       }
       this.#start(item);
     }
+  }
+
+  #pump(): void {
+    if (this.#disposed) return;
+    this.#drain();
+    while (true) {
+      let item: WorkItem<TKey> | undefined;
+      if (
+        this.#interactiveAdmissionQueue.length > 0
+        && this.#canAdmit('interactive')
+      ) {
+        item = this.#interactiveAdmissionQueue.shift();
+      } else if (
+        this.#backgroundAdmissionQueue.length > 0
+        && this.#canAdmit('background')
+      ) {
+        item = this.#backgroundAdmissionQueue.shift();
+      }
+      if (item === undefined) return;
+      this.#admit(item);
+      if (
+        this.#interactiveQueue.length + this.#backgroundQueue.length
+        <= this.#maxQueued
+      ) {
+        this.#updateQueuedPeaks();
+      }
+      this.#drain();
+    }
+  }
+
+  #canAdmit(priority: InspectionPriority): boolean {
+    const queued = this.#interactiveQueue.length + this.#backgroundQueue.length;
+    if (queued < this.#maxQueued) return true;
+    if (this.#running.size >= this.#maxConcurrency) return false;
+    if (priority === 'interactive') {
+      return this.#interactiveQueue.length === 0;
+    }
+    return this.#interactiveQueue.length === 0
+      && this.#backgroundQueue.length === 0
+      && this.#activeBackground < this.#maxBackgroundConcurrency;
+  }
+
+  #admit(item: WorkItem<TKey>): void {
+    let resolve!: (value: unknown | PromiseLike<unknown>) => void;
+    let reject!: (error: unknown) => void;
+    const result = new Promise<unknown>((resolveResult, rejectResult) => {
+      resolve = resolveResult;
+      reject = rejectResult;
+    });
+    item.resolve = resolve;
+    item.reject = reject;
+    item.state = 'queued';
+    this.#queueFor(item.priority).push(item);
+    item.admit({
+      result,
+      cancel: () => this.#cancel(item, 'cancelled')
+    });
   }
 
   #start(item: WorkItem<TKey>): void {
@@ -307,7 +409,7 @@ export class BoundedInspectionWorkQueue<TKey = string> {
         }
         this.#finishPhysical(item);
         if (shouldResolve) {
-          item.resolve(value);
+          item.resolve!(value);
         }
       },
       (error: unknown) => {
@@ -318,7 +420,7 @@ export class BoundedInspectionWorkQueue<TKey = string> {
         }
         this.#finishPhysical(item);
         if (shouldReject) {
-          item.reject(error);
+          item.reject!(error);
         }
       }
     );
@@ -336,7 +438,7 @@ export class BoundedInspectionWorkQueue<TKey = string> {
     this.#cleanupLogicalResources(item);
     this.#releaseKey(item);
     if (!this.#disposed) {
-      this.#drain();
+      this.#pump();
     }
   }
 
@@ -382,6 +484,21 @@ export class BoundedInspectionWorkQueue<TKey = string> {
     this.#peakQueued = Math.max(
       this.#peakQueued,
       this.#interactiveQueue.length + this.#backgroundQueue.length
+    );
+  }
+
+  #updateAdmissionPeaks(): void {
+    this.#peakAwaitingAdmissionInteractive = Math.max(
+      this.#peakAwaitingAdmissionInteractive,
+      this.#interactiveAdmissionQueue.length
+    );
+    this.#peakAwaitingAdmissionBackground = Math.max(
+      this.#peakAwaitingAdmissionBackground,
+      this.#backgroundAdmissionQueue.length
+    );
+    this.#peakAwaitingAdmission = Math.max(
+      this.#peakAwaitingAdmission,
+      this.#interactiveAdmissionQueue.length + this.#backgroundAdmissionQueue.length
     );
   }
 }
