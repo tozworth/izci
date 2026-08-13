@@ -108,6 +108,7 @@ test('enforces reconstructed contract, runtime capability, wire leaf, and cycle 
   const report = await analyzeProject({ root, config: fixtureConfig, includeBundle: false });
   assert.equal(report.enforcement.direction.count, 6);
   assert.equal(report.enforcement.browserGlobals.count, 1);
+  assert.equal(report.enforcement.capabilities.count, 0);
   assert.equal(report.enforcement.cycles.count, 1);
   assert.equal(report.enforcement.violations, 8);
   assert.deepEqual(
@@ -121,6 +122,31 @@ test('enforces reconstructed contract, runtime capability, wire leaf, and cycle 
       'wire-imports-internal-module'
     ]
   );
+});
+
+test('enforces typed persistence and convergent settings capability ownership', async (t) => {
+  const root = await fixture({
+    'src/lib/persistence/browser-indexed-db.ts': 'window.indexedDB.open("allowed");\n',
+    'src/lib/persistence/indexed-db.ts': 'export const kernel = true;\n',
+    'src/lib/services/artwork-cache.ts': 'indexedDB.open("bypass");\n',
+    'src/lib/services/backups.ts': 'localStorage.setItem("raw", "value");\n',
+    'src/lib/stores/appearance-settings.ts': 'new BroadcastChannel("raw");\nlocalStorage.getItem("raw");\n',
+    'src/lib/services/catalog.ts': 'export const value = 1;\n'
+  });
+  t.after(() => fs.rm(root, { recursive: true, force: true }));
+
+  const report = await analyzeProject({ root, config: fixtureConfig, includeBundle: false });
+  assert.deepEqual(report.enforcement.capabilities.findings.map((finding) => [
+    finding.rule, finding.file, finding.global
+  ]), [
+    ['backup-bypasses-settings-owner', 'src/lib/services/backups.ts', 'localStorage'],
+    ['idb-owner-bypasses-persistence-kernel', 'src/lib/services/artwork-cache.ts', 'indexedDB'],
+    ['settings-owner-bypasses-settings-engine', 'src/lib/stores/appearance-settings.ts', 'BroadcastChannel'],
+    ['settings-owner-bypasses-settings-engine', 'src/lib/stores/appearance-settings.ts', 'localStorage']
+  ]);
+  assert.ok(!report.enforcement.browserGlobals.findings.some((finding) =>
+    finding.file === 'src/lib/persistence/browser-indexed-db.ts'
+  ));
 });
 
 test('includes configured root runtime sources and parses JavaScript imports', async (t) => {

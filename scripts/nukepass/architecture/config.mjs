@@ -131,6 +131,7 @@ export const architectureConfig = Object.freeze({
   browserGlobalAllowedPathPatterns: [
     /^src\/lib\/runtime\/adapters\//,
     /^src\/lib\/settings\/browser\.ts$/,
+    /^src\/lib\/persistence\/browser-indexed-db\.ts$/,
     /^src\/lib\/application\/page-entry\.ts$/,
     /^src\/(?:main|options\/main|tools\/[^/]+\/main)\.ts$/
   ],
@@ -139,17 +140,54 @@ export const architectureConfig = Object.freeze({
     /^src\/lib\/logging\//,
     /^src\/lib\/runtime\/(?!adapters\/)/,
     /^src\/lib\/settings\/(?!browser\.ts$)/,
+    /^src\/lib\/persistence\/(?!browser-indexed-db\.ts$)/,
     /^src\/lib\/services\/(?:multiplayer-protocol|window-orphan)\.ts$/,
     /^src\/lib\/application\/page-entry\.ts$/,
     /^src\/(?:main|options\/main|tools\/[^/]+\/main)\.ts$/
   ],
   enforceCycles: true,
+  forbiddenBrowserGlobalRules: [
+    {
+      id: 'idb-owner-bypasses-persistence-kernel',
+      description: 'IndexedDB owners must transact through the typed persistence kernel.',
+      from: {
+        paths: [
+          'src/lib/services/artwork-cache.ts',
+          'src/lib/services/backups.ts',
+          'src/lib/services/filesystem-folders.ts',
+          'src/lib/services/multiplayer-render-disk-cache.ts',
+          'src/lib/services/playback-progress.ts',
+          'src/lib/stores/playlist-persistence.ts'
+        ]
+      },
+      globals: ['indexedDB']
+    },
+    {
+      id: 'settings-owner-bypasses-settings-engine',
+      description: 'Normalized settings owners must use the convergent settings engine for storage and synchronization.',
+      from: { prefixes: ['src/lib/stores/'] },
+      globals: ['localStorage', 'sessionStorage', 'BroadcastChannel']
+    },
+    {
+      id: 'nonstore-settings-owner-bypasses-settings-engine',
+      description: 'Locale and tool settings owners must use the convergent settings engine for storage and synchronization.',
+      from: { paths: ['src/lib/i18n/index.ts', 'src/tools/converter/converter-settings.ts'] },
+      globals: ['localStorage', 'sessionStorage', 'BroadcastChannel']
+    },
+    {
+      id: 'backup-bypasses-settings-owner',
+      description: 'Backup export and restore must call classified live owners rather than writing browser storage.',
+      from: { paths: ['src/lib/services/backups.ts', 'src/lib/services/backup-registry.ts'] },
+      globals: ['localStorage', 'sessionStorage']
+    }
+  ],
   enforcedDirectionRuleIds: [
     'contract-imports-implementation',
     'implementation-imports-page-bootstrap',
     'logging-core-imports-application',
     'runtime-imports-application',
     'settings-imports-application',
+    'persistence-kernel-imports-application',
     'wire-imports-internal-module'
   ],
   directionRules: [
@@ -206,6 +244,12 @@ export const architectureConfig = Object.freeze({
       id: 'settings-imports-application',
       description: 'The settings engine and adapter cannot depend on domain owners or presentation.',
       from: { prefixes: ['src/lib/settings/'] },
+      to: { prefixes: ['src/lib/application/', 'src/lib/services/', 'src/lib/stores/', 'src/lib/components/'] }
+    },
+    {
+      id: 'persistence-kernel-imports-application',
+      description: 'The typed persistence kernel and browser adapter cannot depend on application domains or presentation.',
+      from: { prefixes: ['src/lib/persistence/'] },
       to: { prefixes: ['src/lib/application/', 'src/lib/services/', 'src/lib/stores/', 'src/lib/components/'] }
     },
     {

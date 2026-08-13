@@ -40,6 +40,14 @@ function validateConfig(config) {
   if (!Array.isArray(config.enforcedDirectionRuleIds)) {
     throw new Error('Architecture config enforcedDirectionRuleIds must be an array.');
   }
+  if (!Array.isArray(config.forbiddenBrowserGlobalRules)
+    || config.forbiddenBrowserGlobalRules.some((rule) => !rule.id || !rule.from || !Array.isArray(rule.globals))) {
+    throw new Error('Architecture config forbiddenBrowserGlobalRules must declare id, from, and globals.');
+  }
+  const browserRuleIds = config.forbiddenBrowserGlobalRules.map((rule) => rule.id);
+  if (new Set(browserRuleIds).size !== browserRuleIds.length) {
+    throw new Error('Architecture forbidden browser-global rule ids must be unique.');
+  }
   const directionRuleIds = new Set(config.directionRules.map((rule) => rule.id));
   const unknownEnforcedRules = config.enforcedDirectionRuleIds.filter((id) => !directionRuleIds.has(id));
   if (unknownEnforcedRules.length > 0) {
@@ -541,9 +549,22 @@ export async function analyzeProject({ root = process.cwd(), config = architectu
       && !finding.allowed
       && config.browserGlobalEnforcedPathPatterns.some((pattern) => pattern.test(finding.file))
   );
+  const forbiddenCapabilityFindings = browserAccess.flatMap((finding) =>
+    config.forbiddenBrowserGlobalRules
+      .filter((rule) => matchSelector(finding.file, rule.from) && rule.globals.includes(finding.global))
+      .map((rule) => ({
+        rule: rule.id,
+        scope: finding.scope,
+        runtime: finding.runtime,
+        file: finding.file,
+        global: finding.global,
+        lines: finding.lines
+      }))
+  ).sort((a, b) => compareText(a.rule, b.rule) || compareText(a.file, b.file) || compareText(a.global, b.global));
   const enforcedCycleFindings = config.enforceCycles ? cycles : [];
   const enforcementViolations = enforcedDirectionFindings.length
     + enforcedBrowserFindings.length
+    + forbiddenCapabilityFindings.length
     + enforcedCycleFindings.length;
   const bundle = includeBundle ? await bundleFacts(normalizedRoot, config.bundleDirectory) : { status: 'not-requested', directory: config.bundleDirectory };
 
@@ -568,6 +589,7 @@ export async function analyzeProject({ root = process.cwd(), config = architectu
       defaultSourceRuntime: config.defaultSourceRuntime,
       browserCapabilityRuntimes: config.browserCapabilityRuntimes,
       directionRules: config.directionRules.map(({ id, description }) => ({ id, description })),
+      forbiddenBrowserGlobalRules: config.forbiddenBrowserGlobalRules.map(({ id, description, globals }) => ({ id, description, globals })),
       enforcedDirectionRuleIds: config.enforcedDirectionRuleIds,
       browserGlobals: sorted(config.browserGlobals),
       bundleDirectory: config.bundleDirectory
@@ -604,6 +626,10 @@ export async function analyzeProject({ root = process.cwd(), config = architectu
       browserGlobals: {
         count: enforcedBrowserFindings.length,
         findings: enforcedBrowserFindings
+      },
+      capabilities: {
+        count: forbiddenCapabilityFindings.length,
+        findings: forbiddenCapabilityFindings
       },
       cycles: {
         count: enforcedCycleFindings.length,
