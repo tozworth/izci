@@ -14,7 +14,7 @@ vi.mock('./playlist-persistence', async (importOriginal) => ({
   })
 }));
 
-vi.mock('./playlist-metadata', () => ({
+vi.mock('$lib/collections/catalog-metadata', () => ({
   scheduleMetadataParsing: vi.fn()
 }));
 
@@ -128,5 +128,37 @@ describe('track collection media-source ownership', () => {
 
     await reloaded.shutdown();
     expect(mediaSources.get(persisted.id)).toBeNull();
+  });
+
+  it('persists and reloads a locator cloned onto a backup-created favorite ID', async () => {
+    vi.stubGlobal('window', {
+      localStorage: { getItem: vi.fn(() => null), setItem: vi.fn() },
+      addEventListener: vi.fn()
+    });
+    const library = createTrackCollectionStore({ dbName: 'backup-source-library', dedupe: true });
+    const favorites = createTrackCollectionStore({ dbName: 'backup-source-favorites', dedupe: true });
+    await Promise.all([library.ready(), favorites.ready()]);
+    const source = item('backup-library-id');
+    const favorite = { ...source, id: 'backup-favorite-id' };
+    const handle = fileHandle(source.name);
+    mediaSources.registerHandle(source.id, handle, 'granted');
+    library.add([source]);
+    expect(mediaSources.clone(source.id, favorite.id)).toBe(true);
+    favorites.add([favorite]);
+
+    await favorites.shutdown();
+    expect(persistence.sources.get(favorite.id)).toBe(handle);
+    expect(mediaSources.get(favorite.id)).toBeNull();
+
+    const reloadedFavorites = createTrackCollectionStore({
+      dbName: 'backup-source-favorites',
+      dedupe: true
+    });
+    await reloadedFavorites.ready();
+    expect(reloadedFavorites.getCatalogSnapshot().entities).toEqual([favorite]);
+    expect(mediaSources.get(favorite.id)).toMatchObject({ fileHandle: handle });
+    expect(mediaSources.referenceCount(favorite.id)).toBe(1);
+
+    await Promise.all([library.shutdown(), reloadedFavorites.shutdown()]);
   });
 });

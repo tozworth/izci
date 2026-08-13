@@ -204,10 +204,11 @@ export class MediaSourceRegistry {
     });
   }
 
-  clone(sourceEntityId: string, targetEntityId: string): void {
+  clone(sourceEntityId: string, targetEntityId: string): boolean {
     const current = this.#locators.get(sourceEntityId);
-    if (!current) return;
+    if (!current) return false;
     this.register({ ...current, entityId: targetEntityId });
+    return true;
   }
 
   retain(entityId: string, owner: symbol): boolean {

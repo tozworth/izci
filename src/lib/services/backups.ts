@@ -44,7 +44,7 @@ import {
   planLibraryFolderReconciliation,
   type CurrentMediaSourceHandle,
   type ScannedLibraryFolderEntry
-} from '$lib/services/library-folder-plan';
+} from '$lib/collections/library-folder-plan';
 
 export const BACKUP_EXTENSION = '.izci';
 export const BACKUP_MIME_TYPE = 'application/vnd.izci.backup+zip';
@@ -195,6 +195,13 @@ function folderTrackKey(
   if (segments[0]?.toLocaleLowerCase() === rootName.toLocaleLowerCase()) segments.shift();
   const relativePath = segments.join('/') || track.name;
   return `${relativePath.toLocaleLowerCase()}:${track.size}:subsong:${track.subsong ?? 'all'}`;
+}
+
+function folderSourceKey(
+  track: Pick<PortableTrackRecord, 'path' | 'name' | 'size'>,
+  rootName: string
+): string {
+  return folderTrackKey({ ...track }, rootName).replace(/:subsong:all$/, '');
 }
 
 function normalizePortableTrack(value: unknown): PortableTrackRecord | null {
@@ -624,32 +631,55 @@ function matchExistingTracks(records: PortableTrackRecord[]): {
   return { matched, pending };
 }
 
-function restoreFavorites(records: PortableTrackRecord[]): {
+function restoreFavoriteRecord(
+  source: MediaEntity,
+  record: PortableTrackRecord,
+  favoritesByIdentity: Map<string, MediaEntity>
+): boolean {
+  const identity = getFavoriteIdentity(record);
+  const existing = favoritesByIdentity.get(identity);
+  if (existing) {
+    favoritesStore.updateMetadata(existing.id, mergeMetadata(existing.metadata, record.metadata));
+    favoritesStore.updateRating(existing.id, mergeRating(existing.rating, record.rating));
+    return true;
+  }
+
+  if (!mediaSources.clone(source.id, record.id)) return false;
+  const [added] = favoritesStore.add([{
+    ...source,
+    id: record.id,
+    metadata: mergeMetadata(source.metadata, record.metadata),
+    rating: mergeRating(source.rating, record.rating),
+    ...(record.subsong === undefined ? { subsong: undefined } : { subsong: record.subsong })
+  }]);
+  if (!added) {
+    mediaSources.discard(record.id);
+    return false;
+  }
+  favoritesByIdentity.set(identity, added);
+  return true;
+}
+
+export function restoreFavorites(records: PortableTrackRecord[]): {
   restored: number;
   pending: PortableTrackRecord[];
 } {
-  const libraryByIdentity = new Map(get(libraryStore.items).map((item) => [getFavoriteIdentity(item), item]));
+  const libraryItems = get(libraryStore.items);
+  const libraryByIdentity = new Map(libraryItems.map((item) => [getFavoriteIdentity(item), item]));
+  const libraryByTrackIdentity = new Map(libraryItems.map((item) => [getTrackIdentity(item), item]));
   const favoriteByIdentity = new Map(get(favoritesStore.items).map((item) => [getFavoriteIdentity(item), item]));
   const pending: PortableTrackRecord[] = [];
   let restored = 0;
   for (const record of records) {
     const identity = getFavoriteIdentity(record);
-    const libraryItem = libraryByIdentity.get(identity);
+    const libraryItem = libraryByIdentity.get(identity) ?? libraryByTrackIdentity.get(getTrackIdentity(record));
     if (!libraryItem) {
       pending.push(record);
       continue;
     }
-    const existing = favoriteByIdentity.get(identity);
-    if (existing) {
-      favoritesStore.updateMetadata(existing.id, mergeMetadata(existing.metadata, record.metadata));
-      favoritesStore.updateRating(existing.id, mergeRating(existing.rating, record.rating));
-    } else {
-      favoritesStore.add([{
-        ...libraryItem,
-        id: record.id,
-        metadata: mergeMetadata(libraryItem.metadata, record.metadata),
-        rating: mergeRating(libraryItem.rating, record.rating)
-      }]);
+    if (!restoreFavoriteRecord(libraryItem, record, favoriteByIdentity)) {
+      pending.push(record);
+      continue;
     }
     restored += 1;
   }
@@ -675,6 +705,7 @@ export async function restoreBackupArchive(file: File): Promise<BackupRestoreRes
     tracks: tracks.pending,
     favorites: favorites.pending
   };
+  await Promise.all([libraryStore.flush(), favoritesStore.flush()]);
   await pendingBackupRestore.replace(pending);
   return {
     manifest: data.manifest,
@@ -699,121 +730,132 @@ export async function locatePendingFolder(
   const expected = pending.tracks.filter((track) => track.sourceFolderId === folderId);
   const expectedFavorites = pending.favorites.filter((track) => track.sourceFolderId === folderId);
   const expectedByKey = new Map(expected.map((track) => [folderTrackKey(track, descriptor.name), track]));
-  const expectedFavoriteByKey = new Map(
-    expectedFavorites.map((track) => [folderTrackKey(track, descriptor.name), track])
-  );
+  const expectedFavoritesBySourceKey = new Map<string, PortableTrackRecord[]>();
+  for (const favorite of expectedFavorites) {
+    const key = folderSourceKey(favorite, descriptor.name);
+    expectedFavoritesBySourceKey.set(key, [
+      ...(expectedFavoritesBySourceKey.get(key) ?? []),
+      favorite
+    ]);
+  }
   const files = expected.length + expectedFavorites.length > 0
     ? await prepareImportedFiles(await readDirectoryFiles(handle, {
         maxDepth: trackSettings.getSnapshot().folderNestingLimit
       }))
     : [];
   const discovered = buildMediaEntities(files);
-  const matchedTrackIds = new Set(
-    discovered
-      .map((track) => expectedByKey.get(folderTrackKey(track, handle.name))?.id)
-      .filter((id): id is string => typeof id === 'string')
-  );
-  const matchedFavoriteIds = new Set(
-    discovered
-      .map((track) => expectedFavoriteByKey.get(folderTrackKey(track, handle.name))?.id)
-      .filter((id): id is string => typeof id === 'string')
-  );
-  if (expected.length + expectedFavorites.length > 0 && matchedTrackIds.size + matchedFavoriteIds.size === 0) {
-    return { status: 'mismatch', matchedTracks: 0, remainingTracks: expected.length + expectedFavorites.length };
-  }
-
-  const remembered = await filesystemFolders.remember(handle, {
-    libraryMode: descriptor.libraryMode,
-    preferredId: descriptor.id
-  });
-  const restoredEntries = discovered.map((item): ScannedLibraryFolderEntry | null => {
-    const restored = expectedByKey.get(folderTrackKey(item, handle.name));
-    const fileHandle = mediaSources.get(item.id)?.fileHandle;
-    if (!fileHandle) return null;
-    return { entity: {
-      ...item,
-      id: restored?.id ?? item.id,
-      sourceFolderId: remembered.id,
-      metadata: mergeMetadata(item.metadata, restored?.metadata),
-      rating: mergeRating(item.rating, restored?.rating)
-    }, fileHandle };
-  }).filter((entry): entry is ScannedLibraryFolderEntry => entry !== null);
-  const restoredItems = restoredEntries.map((entry) => entry.entity);
-  if (descriptor.libraryMode) {
-    for (let attempt = 0; attempt < 2; attempt += 1) {
-      const snapshot = libraryStore.getCatalogSnapshot();
-      const currentSourceHandles = snapshot.entities.flatMap((entity): CurrentMediaSourceHandle[] => {
-        const fileHandle = mediaSources.get(entity.id)?.fileHandle;
-        return fileHandle ? [{ entityId: entity.id, fileHandle }] : [];
-      });
-      const reconciliation = await planLibraryFolderReconciliation({
-        catalog: snapshot.entities,
-        folderId: remembered.id,
-        activeFolderIds: filesystemFolders.getSnapshot()
-          .filter((folder) => folder.libraryMode !== null)
-          .map((folder) => folder.id),
-        scanned: restoredEntries,
-        currentSourceHandles,
-        createId: () => crypto.randomUUID()
-      });
-      const applied = await libraryStore.applyCatalogIfRevision(
-        snapshot.catalogRevision,
-        reconciliation
-      );
-      if (applied.status === 'applied') break;
-      if (attempt === 1) throw new Error('backup-folder-catalog-conflict');
-    }
-    await filesystemFolders.updateScan(remembered.id, {
-      lastScanAt: Date.now(),
-      lastScanStatus: 'success',
-      lastScanTrackCount: restoredItems.length,
-      lastScanFailure: undefined
-    });
-  } else {
-    libraryStore.add(restoredItems.filter((item) => matchedTrackIds.has(item.id)));
-  }
-
-  const libraryByFolderKey = new Map(
-    get(libraryStore.items)
-      .filter((item) => item.sourceFolderId === remembered.id)
-      .map((item) => [folderTrackKey(item, handle.name), item])
-  );
-  const discoveredByFolderKey = new Map(discovered.map((item) => [folderTrackKey(item, handle.name), item]));
-  for (const favorite of pending.favorites) {
-    if (favorite.sourceFolderId !== folderId) continue;
-    const key = folderTrackKey(favorite, descriptor.name);
-    const materializedItem = libraryByFolderKey.get(key) ?? discoveredByFolderKey.get(key);
-    if (!materializedItem) continue;
-    favoritesStore.add([{
-      ...materializedItem,
-      id: favorite.id,
-      metadata: mergeMetadata(materializedItem.metadata, favorite.metadata),
-      rating: mergeRating(materializedItem.rating, favorite.rating)
-    }]);
-  }
-
-  await pendingBackupRestore.update((state) => {
-    const remainingTracks = state.tracks.filter(
-      (track) => track.sourceFolderId !== folderId || !matchedTrackIds.has(track.id)
+  try {
+    const matchedTrackIds = new Set(
+      discovered
+        .map((track) => expectedByKey.get(folderTrackKey(track, handle.name))?.id)
+        .filter((id): id is string => typeof id === 'string')
     );
-    const remainingFavorites = state.favorites.filter((favorite) => !matchedFavoriteIds.has(favorite.id));
-    const hasRemainingFolderTracks =
-      remainingTracks.some((track) => track.sourceFolderId === folderId) ||
-      remainingFavorites.some((track) => track.sourceFolderId === folderId);
+    const matchedFavoriteIds = new Set(
+      discovered
+        .flatMap((track) => expectedFavoritesBySourceKey.get(folderSourceKey(track, handle.name)) ?? [])
+        .map((track) => track.id)
+    );
+    if (expected.length + expectedFavorites.length > 0 && matchedTrackIds.size + matchedFavoriteIds.size === 0) {
+      return { status: 'mismatch', matchedTracks: 0, remainingTracks: expected.length + expectedFavorites.length };
+    }
+
+    const remembered = await filesystemFolders.remember(handle, {
+      libraryMode: descriptor.libraryMode,
+      preferredId: descriptor.id
+    });
+    const restoredEntries = discovered.map((item): ScannedLibraryFolderEntry | null => {
+      const restored = expectedByKey.get(folderTrackKey(item, handle.name));
+      const fileHandle = mediaSources.get(item.id)?.fileHandle;
+      if (!fileHandle) return null;
+      const restoredId = restored?.id ?? item.id;
+      if (!mediaSources.clone(item.id, restoredId)) return null;
+      return { entity: {
+        ...item,
+        id: restoredId,
+        sourceFolderId: remembered.id,
+        metadata: mergeMetadata(item.metadata, restored?.metadata),
+        rating: mergeRating(item.rating, restored?.rating)
+      }, fileHandle };
+    }).filter((entry): entry is ScannedLibraryFolderEntry => entry !== null);
+    const restoredItems = restoredEntries.map((entry) => entry.entity);
+    if (descriptor.libraryMode) {
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        const snapshot = libraryStore.getCatalogSnapshot();
+        const currentSourceHandles = snapshot.entities.flatMap((entity): CurrentMediaSourceHandle[] => {
+          const fileHandle = mediaSources.get(entity.id)?.fileHandle;
+          return fileHandle ? [{ entityId: entity.id, fileHandle }] : [];
+        });
+        const reconciliation = await planLibraryFolderReconciliation({
+          catalog: snapshot.entities,
+          folderId: remembered.id,
+          activeFolderIds: filesystemFolders.getSnapshot()
+            .filter((folder) => folder.libraryMode !== null)
+            .map((folder) => folder.id),
+          scanned: restoredEntries,
+          currentSourceHandles,
+          createId: () => crypto.randomUUID()
+        });
+        const applied = await libraryStore.applyCatalogIfRevision(
+          snapshot.catalogRevision,
+          reconciliation
+        );
+        if (applied.status === 'applied') break;
+        if (attempt === 1) throw new Error('backup-folder-catalog-conflict');
+      }
+      await filesystemFolders.updateScan(remembered.id, {
+        lastScanAt: Date.now(),
+        lastScanStatus: 'success',
+        lastScanTrackCount: restoredItems.length,
+        lastScanFailure: undefined
+      });
+    } else {
+      libraryStore.add(restoredItems.filter((item) => matchedTrackIds.has(item.id)));
+    }
+
+    const libraryByFolderKey = new Map(
+      get(libraryStore.items)
+        .filter((item) => item.sourceFolderId === remembered.id)
+        .map((item) => [folderSourceKey(item, handle.name), item])
+    );
+    const discoveredByFolderKey = new Map(discovered.map((item) => [folderSourceKey(item, handle.name), item]));
+    const favoriteByIdentity = new Map(get(favoritesStore.items).map((item) => [getFavoriteIdentity(item), item]));
+    const restoredFavoriteIds = new Set<string>();
+    for (const favorite of pending.favorites) {
+      if (favorite.sourceFolderId !== folderId) continue;
+      const key = folderSourceKey(favorite, descriptor.name);
+      const materializedItem = libraryByFolderKey.get(key) ?? discoveredByFolderKey.get(key);
+      if (!materializedItem) continue;
+      if (restoreFavoriteRecord(materializedItem, favorite, favoriteByIdentity)) {
+        restoredFavoriteIds.add(favorite.id);
+      }
+    }
+
+    await Promise.all([libraryStore.flush(), favoritesStore.flush()]);
+    await pendingBackupRestore.update((state) => {
+      const remainingTracks = state.tracks.filter(
+        (track) => track.sourceFolderId !== folderId || !matchedTrackIds.has(track.id)
+      );
+      const remainingFavorites = state.favorites.filter((favorite) => !restoredFavoriteIds.has(favorite.id));
+      const hasRemainingFolderTracks =
+        remainingTracks.some((track) => track.sourceFolderId === folderId) ||
+        remainingFavorites.some((track) => track.sourceFolderId === folderId);
+      return {
+        ...state,
+        folders: hasRemainingFolderTracks ? state.folders : state.folders.filter((folder) => folder.id !== folderId),
+        tracks: remainingTracks,
+        favorites: remainingFavorites
+      };
+    });
     return {
-      ...state,
-      folders: hasRemainingFolderTracks ? state.folders : state.folders.filter((folder) => folder.id !== folderId),
-      tracks: remainingTracks,
-      favorites: remainingFavorites
+      status: 'success',
+      matchedTracks: matchedTrackIds.size + restoredFavoriteIds.size,
+      remainingTracks:
+        pendingBackupRestore.getSnapshot().tracks.filter((track) => track.sourceFolderId === folderId).length +
+        pendingBackupRestore.getSnapshot().favorites.filter((track) => track.sourceFolderId === folderId).length
     };
-  });
-  return {
-    status: 'success',
-    matchedTracks: matchedTrackIds.size + matchedFavoriteIds.size,
-    remainingTracks:
-      pendingBackupRestore.getSnapshot().tracks.filter((track) => track.sourceFolderId === folderId).length +
-      pendingBackupRestore.getSnapshot().favorites.filter((track) => track.sourceFolderId === folderId).length
-  };
+  } finally {
+    for (const item of discovered) mediaSources.discard(item.id);
+  }
 }
 
 function trackFingerprint(track: Pick<PortableTrackRecord, 'name' | 'size' | 'lastModified'>): string {
@@ -828,47 +870,56 @@ export async function locatePendingFiles(handles: FileSystemFileHandle[]): Promi
   const expectedByFingerprint = new Map(looseTracks.map((track) => [trackFingerprint(track), track]));
   const files = await prepareImportedFiles(await readFileHandleFiles(handles));
   const selected = buildMediaEntities(files);
-  const restoredIds = new Set<string>();
-  const added: MediaEntity[] = [];
-  for (const item of selected) {
-    const restored = expectedByIdentity.get(getTrackIdentity(item)) ?? expectedByFingerprint.get(trackFingerprint(item));
-    if (!restored) continue;
-    restoredIds.add(restored.id);
-    added.push({
-      ...item,
-      id: restored.id,
-      metadata: mergeMetadata(item.metadata, restored.metadata),
-      rating: mergeRating(item.rating, restored.rating)
-    });
-  }
-  libraryStore.add(added);
+  try {
+    const restoredIds = new Set<string>();
+    for (const item of selected) {
+      const restored = expectedByIdentity.get(getTrackIdentity(item)) ?? expectedByFingerprint.get(trackFingerprint(item));
+      if (!restored) continue;
+      if (!mediaSources.clone(item.id, restored.id)) continue;
+      const candidate = {
+        ...item,
+        id: restored.id,
+        metadata: mergeMetadata(item.metadata, restored.metadata),
+        rating: mergeRating(item.rating, restored.rating)
+      };
+      const [added] = libraryStore.add([candidate]);
+      const materializedItem = added ?? libraryStore.findEquivalent(candidate);
+      if (!materializedItem) {
+        mediaSources.discard(restored.id);
+        continue;
+      }
+      if (materializedItem.id !== restored.id) mediaSources.discard(restored.id);
+      restoredIds.add(restored.id);
+    }
 
-  const restoredFavoriteIds = new Set<string>();
-  const selectedByIdentity = new Map(selected.map((item) => [getFavoriteIdentity(item), item]));
-  const selectedByFingerprint = new Map(selected.map((item) => [trackFingerprint(item), item]));
-  for (const favorite of pending.favorites.filter((track) => !track.sourceFolderId)) {
-    const materializedItem = selectedByIdentity.get(getFavoriteIdentity(favorite)) ?? selectedByFingerprint.get(trackFingerprint(favorite));
-    if (!materializedItem) continue;
-    favoritesStore.add([{
-      ...materializedItem,
-      id: favorite.id,
-      metadata: mergeMetadata(materializedItem.metadata, favorite.metadata),
-      rating: mergeRating(materializedItem.rating, favorite.rating)
-    }]);
-    restoredFavoriteIds.add(favorite.id);
+    const restoredFavoriteIds = new Set<string>();
+    const selectedByIdentity = new Map(selected.map((item) => [getFavoriteIdentity(item), item]));
+    const selectedByFingerprint = new Map(selected.map((item) => [trackFingerprint(item), item]));
+    const favoriteByIdentity = new Map(get(favoritesStore.items).map((item) => [getFavoriteIdentity(item), item]));
+    for (const favorite of pending.favorites.filter((track) => !track.sourceFolderId)) {
+      const materializedItem = selectedByIdentity.get(getFavoriteIdentity(favorite))
+        ?? selectedByFingerprint.get(trackFingerprint(favorite));
+      if (!materializedItem) continue;
+      if (restoreFavoriteRecord(materializedItem, favorite, favoriteByIdentity)) {
+        restoredFavoriteIds.add(favorite.id);
+      }
+    }
+    await Promise.all([libraryStore.flush(), favoritesStore.flush()]);
+    await pendingBackupRestore.update((state) => ({
+      ...state,
+      tracks: state.tracks.filter((track) => !restoredIds.has(track.id)),
+      favorites: state.favorites.filter((favorite) => !restoredFavoriteIds.has(favorite.id))
+    }));
+    const remainingTracks =
+      pendingBackupRestore.getSnapshot().tracks.filter((track) => !track.sourceFolderId).length +
+      pendingBackupRestore.getSnapshot().favorites.filter((track) => !track.sourceFolderId).length;
+    const matchedTracks = restoredIds.size + restoredFavoriteIds.size;
+    return {
+      status: matchedTracks > 0 ? 'success' : 'mismatch',
+      matchedTracks,
+      remainingTracks
+    };
+  } finally {
+    for (const item of selected) mediaSources.discard(item.id);
   }
-  await pendingBackupRestore.update((state) => ({
-    ...state,
-    tracks: state.tracks.filter((track) => !restoredIds.has(track.id)),
-    favorites: state.favorites.filter((favorite) => !restoredFavoriteIds.has(favorite.id))
-  }));
-  const remainingTracks =
-    pendingBackupRestore.getSnapshot().tracks.filter((track) => !track.sourceFolderId).length +
-    pendingBackupRestore.getSnapshot().favorites.filter((track) => !track.sourceFolderId).length;
-  const matchedTracks = restoredIds.size + restoredFavoriteIds.size;
-  return {
-    status: matchedTracks > 0 ? 'success' : 'mismatch',
-    matchedTracks,
-    remainingTracks
-  };
 }
