@@ -1,6 +1,6 @@
 import { version as appVersion } from '../../../package.json';
-import type { PlaylistItem } from '$lib/contracts/catalog';
-import { materializePlaylistItem } from '$lib/stores/playlist-materialization';
+import type { MediaEntity } from '$lib/contracts/catalog';
+import { materializeMediaEntity } from '$lib/stores/playlist-materialization';
 import { clearMultiplayerLastSession, rememberMultiplayerLastSession } from '$lib/stores/multiplayer-last-session';
 import { logDebug, logError, logInfo, logWarning } from '$lib/logging/api';
 import { multiplayerAudioService } from './multiplayer-audio';
@@ -42,7 +42,7 @@ import {
 } from './multiplayer-protocol';
 import {
   projectMultiplayerPlaybackSnapshot,
-  sanitizePlaylistItem
+  sanitizeMediaEntity
 } from './multiplayer-host-projection';
 import {
   applyAudioBitrate,
@@ -751,7 +751,7 @@ export function createMultiplayerHostSide(
 
   function syncPeerRenderSource(
     peer: PeerConnection,
-    track: PlaylistItem | null,
+    track: MediaEntity | null,
     generationId: string | null
   ): void {
     const previous = peer.renderState;
@@ -770,7 +770,11 @@ export function createMultiplayerHostSide(
 
     const bitrateKbps = core.multiplayerSettings.multiplayerOpusBitrateKbps;
     const key = buildRenderCacheKey(track, bitrateKbps);
-    void multiplayerRenderCoordinator.acquireRender(track, bitrateKbps).then((render) => {
+    void materializeMediaEntity(track, false, 'file-read').then((lease) => {
+      if (!lease) throw new Error('No source file available for rendering.');
+      return multiplayerRenderCoordinator.acquireRender(lease, bitrateKbps)
+        .finally(() => lease.release());
+    }).then((render) => {
       if (peer.renderState
         || core.state.mode !== 'hosting'
         || peer.renderChannel?.readyState !== 'open'
@@ -821,7 +825,7 @@ export function createMultiplayerHostSide(
 
   function syncPeerSourceFile(
     peer: PeerConnection,
-    track: PlaylistItem | null,
+    track: MediaEntity | null,
     generationId: string | null
   ): void {
     const channel = peer.mediaChannel;
@@ -834,9 +838,16 @@ export function createMultiplayerHostSide(
     peer.mediaOutgoing = [];
     peer.mediaQueuedBytes = 0;
     peer.sourceTrackKey = key;
-    if (!track?.file || !generationId) return;
+    if (!track || !generationId) return;
     const token = peer.mediaTransferToken;
-    void transferSourceFile(peer, track, track.file, token, generationId).catch((error) => {
+    void materializeMediaEntity(track, false, 'file-read').then(async (lease) => {
+      if (!lease) return;
+      try {
+        await transferSourceFile(peer, track, lease.file, token, generationId);
+      } finally {
+        lease.release();
+      }
+    }).catch((error) => {
       logWarning('multiplayer', 'Source-file transfer failed', {
         peerId: peer.id,
         generationId,
@@ -847,7 +858,7 @@ export function createMultiplayerHostSide(
 
   function renderStillCurrent(
     peer: PeerConnection,
-    track: PlaylistItem,
+    track: MediaEntity,
     generationId: string
   ): boolean {
     if (peer.freeplay) {
@@ -930,7 +941,7 @@ export function createMultiplayerHostSide(
       ...update.playback,
       generationId: delivery.generationId,
       snapshot: projectMultiplayerPlaybackSnapshot(update.playback.snapshot),
-      track: update.playback.track ? sanitizePlaylistItem(update.playback.track) : null
+      track: update.playback.track
     };
     sendToPeer(peer, { kind: 'playback', playback });
     syncPeerMediaSource(peer);
@@ -1040,7 +1051,7 @@ export function createMultiplayerHostSide(
     // continuously consuming receiver route the entire load interval to drain
     // prior audio while leaving source-file clients on their local timeline.
     peer.freeplayPlayer.pause();
-    const track = await materializePlaylistItem(source, false);
+    const track = await materializeMediaEntity(source, false, source.kind === 'module' ? 'file-read' : 'media-element');
     if (peer.freeplayActivation !== activation
       || !track
       || !peer.freeplay
@@ -1050,7 +1061,7 @@ export function createMultiplayerHostSide(
     }
     if (peer.freeplayCollection !== collection) peer.freeplayNavigation?.reset();
     peer.freeplayCollection = collection;
-    core.freeplaySelections.set(peer.id, track);
+    core.freeplaySelections.set(peer.id, track.entity);
     peer.freeplayPendingPreparation = null;
     peer.freeplayDelivery = null;
     peer.sourceTrackKey = '';
@@ -1128,15 +1139,15 @@ export function createMultiplayerHostSide(
     await stepFreeplayTrack(peer, 1, true);
   }
 
-  function freeplayCollectionItems(peer: PeerConnection, collection: MultiplayerCollection): PlaylistItem[] {
+  function freeplayCollectionItems(peer: PeerConnection, collection: MultiplayerCollection): MediaEntity[] {
     if (!core.latestHostState) return [];
     if (collection === 'playlist') return resolveFreeplayQueueItems(peer);
     return collection === 'favorites' ? core.latestHostState.favorites : core.latestHostState.library;
   }
 
-  function resolveFreeplayQueueItems(peer: PeerConnection): PlaylistItem[] {
+  function resolveFreeplayQueueItems(peer: PeerConnection): MediaEntity[] {
     if (!core.latestHostState) return [];
-    const byId = new Map<string, PlaylistItem>();
+    const byId = new Map<string, MediaEntity>();
     for (const item of [
       ...core.latestHostState.library,
       ...core.latestHostState.favorites,
@@ -1154,9 +1165,9 @@ export function createMultiplayerHostSide(
       kind: 'catalog',
       catalog: {
         revision: core.catalogRevision,
-        playlist: resolveFreeplayQueueItems(peer).map(sanitizePlaylistItem),
-        library: core.latestHostState.library.map(sanitizePlaylistItem),
-        favorites: core.latestHostState.favorites.map(sanitizePlaylistItem),
+        playlist: resolveFreeplayQueueItems(peer).map(sanitizeMediaEntity),
+        library: core.latestHostState.library.map(sanitizeMediaEntity),
+        favorites: core.latestHostState.favorites.map(sanitizeMediaEntity),
         shuffleEnabled: peer.freeplayShuffle,
         repeatMode: peer.freeplayRepeatMode
       }
@@ -1172,7 +1183,7 @@ export function createMultiplayerHostSide(
     });
   }
 
-  function syncFreeplayArtwork(peer: PeerConnection, track: PlaylistItem | null): void {
+  function syncFreeplayArtwork(peer: PeerConnection, track: MediaEntity | null): void {
     const nextTrackKey = getMultiplayerArtworkTrackKey(track);
     if (nextTrackKey === peer.freeplayArtworkTrackKey) return;
     peer.freeplayArtworkTrackKey = nextTrackKey;
@@ -1491,7 +1502,7 @@ export function createMultiplayerHostSide(
               ...player.playback,
               generationId: delivery.generationId,
               snapshot: projectMultiplayerPlaybackSnapshot(player.playback.snapshot),
-              track: player.track ? sanitizePlaylistItem(player.track) : null
+              track: player.track ? sanitizeMediaEntity(player.track) : null
             }
           : { ...EMPTY_REMOTE_PLAYBACK, generationId: delivery.generationId }
       });
@@ -1527,7 +1538,7 @@ export function createMultiplayerHostSide(
     syncPeerMediaSource(peer);
   }
 
-  function syncHostAudio(track: PlaylistItem | null, force = false): void {
+  function syncHostAudio(track: MediaEntity | null, force = false): void {
     const mode: MultiplayerDeliveryMode = !track
       ? 'none'
       : !core.multiplayerSettings.multiplayerStreamAudio
@@ -1578,7 +1589,7 @@ export function createMultiplayerHostSide(
     }
   }
 
-  function syncHostSourceFiles(track: PlaylistItem | null): void {
+  function syncHostSourceFiles(track: MediaEntity | null): void {
     for (const peer of core.hostPeers.values()) {
       if (peer.freeplaySettled && !peer.freeplay) {
         const mode = core.latestDelivery.mode;
@@ -1591,7 +1602,7 @@ export function createMultiplayerHostSide(
     }
   }
 
-  function syncHostArtwork(track: PlaylistItem | null): void {
+  function syncHostArtwork(track: MediaEntity | null): void {
     const nextTrackKey = getMultiplayerArtworkTrackKey(track);
     if (nextTrackKey === core.hostArtworkTrackKey) return;
 
@@ -1622,9 +1633,9 @@ export function createMultiplayerHostSide(
   function buildCatalog(source: MultiplayerHostState): MultiplayerCatalog {
     return {
       revision: core.catalogRevision,
-      playlist: source.playlist.map(sanitizePlaylistItem),
-      library: source.library.map(sanitizePlaylistItem),
-      favorites: source.favorites.map(sanitizePlaylistItem),
+      playlist: source.playlist.map(sanitizeMediaEntity),
+      library: source.library.map(sanitizeMediaEntity),
+      favorites: source.favorites.map(sanitizeMediaEntity),
       shuffleEnabled: source.shuffleEnabled,
       repeatMode: source.repeatMode
     };
@@ -1634,7 +1645,7 @@ export function createMultiplayerHostSide(
     return {
       generationId: core.latestDelivery.generationId,
       snapshot: projectMultiplayerPlaybackSnapshot(source.playback),
-      track: source.track ? sanitizePlaylistItem(source.track) : null,
+      track: source.track ? sanitizeMediaEntity(source.track) : null,
       sentAt: Date.now()
     };
   }

@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import type { PlaylistItem } from '$lib/contracts/catalog';
+import type { MediaEntity } from '$lib/contracts/catalog';
 import { resolveMultiplayerPlayingTrackSelection } from './multiplayer-selection';
 
-function item(id: string): PlaylistItem {
+function item(id: string): MediaEntity {
   return {
     id,
     name: `${id}.mp3`,
     path: `${id}.mp3`,
     kind: 'stream',
-    extension: 'mp3',
+    format: 'mp3',
     size: 1,
     lastModified: 1
   };

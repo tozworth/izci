@@ -2,12 +2,15 @@ import { get } from 'svelte/store';
 import type { Unsubscriber } from 'svelte/store';
 import { playerController } from '$lib/services/player-controller';
 import { logError, logInfo } from '$lib/logging/api';
-import type { MultiplayerPlayback } from '$lib/services/multiplayer-protocol';
+import type { MultiplayerPlayback, MultiplayerTrack } from '$lib/services/multiplayer-protocol';
 import type { PlaybackSnapshot } from '$lib/contracts/playback';
-import type { PlaylistItem } from '$lib/contracts/catalog';
+import type { MediaEntity } from '$lib/contracts/catalog';
+import type { MediaMaterializationLease } from '$lib/media/media-source';
+import { materializeMediaEntity } from '$lib/stores/playlist-materialization';
+import { mediaEntityFromMultiplayerTrack } from './multiplayer-host-projection';
 
 interface SavedPlayback {
-  track: PlaylistItem | null;
+  track: MediaEntity | null;
   snapshot: PlaybackSnapshot;
 }
 
@@ -57,7 +60,9 @@ export class MultiplayerSourcePlaybackService {
     this.#onEnded = null;
     this.#clearRemotePlayback();
     if (!saved?.track) return;
-    await playerController.load(saved.track, {
+    const lease = await materializeMediaEntity(saved.track, false, 'media-element');
+    if (!lease) return;
+    await playerController.load(lease, {
       autoPlay: false,
       initialPosition: saved.snapshot.currentTime
     }).catch((error) => logError('freeplay', 'Local playback restoration failed', error));
@@ -122,27 +127,38 @@ export class MultiplayerSourcePlaybackService {
     this.#applyLatestPlayback(hasTimelineDiscontinuity(previousPlayback, this.#latestPlayback));
   }
 
-  async loadFile(track: PlaylistItem, file: File): Promise<boolean> {
+  async loadFile(remoteTrack: MultiplayerTrack, file: File): Promise<boolean> {
+    const track = mediaEntityFromMultiplayerTrack(remoteTrack);
     const playback = this.#latestPlayback;
     if (!playback?.track || playback.track.id !== track.id || track.kind === 'video') return false;
 
     const token = ++this.#loadToken;
     const objectUrl = track.kind === 'stream' ? URL.createObjectURL(file) : undefined;
-    const playableTrack: PlaylistItem = { ...track, file, objectUrl };
+    let released = false;
+    const playableLease: MediaMaterializationLease = {
+      entity: track,
+      file,
+      ...(objectUrl ? { objectUrl } : {}),
+      release() {
+        if (released) return;
+        released = true;
+        if (objectUrl) URL.revokeObjectURL(objectUrl);
+      }
+    };
     const snapshot = playback.snapshot;
     const initialPosition = this.#localTimeline ? 0 : expectedPosition(playback);
     const previousObjectUrl = this.#activeObjectUrl;
 
     try {
       if (this.#localTimeline) {
-        await playerController.load(playableTrack, {
+        await playerController.load(playableLease, {
           autoPlay: this.#enabled,
           initialPosition: 0
         });
       } else if (this.#activeTrackId
         && this.#enabled
         && (snapshot.state === 'playing' || snapshot.state === 'loading')) {
-        const ready = await playerController.prepareNext(playableTrack);
+        const ready = await playerController.prepareNext(playableLease);
         if (token !== this.#loadToken) {
           if (objectUrl) URL.revokeObjectURL(objectUrl);
           return false;
@@ -155,7 +171,7 @@ export class MultiplayerSourcePlaybackService {
           : initialPosition;
         if (latestPosition > 0) playerController.seek(latestPosition);
       } else {
-        await playerController.load(playableTrack, {
+        await playerController.load(playableLease, {
           autoPlay: this.#enabled && snapshot.state === 'playing',
           initialPosition
         });

@@ -112,7 +112,7 @@
   import type { LyricsDisplayStyle } from '$lib/contracts/appearance-settings';
   import type { ModulePatternSnapshot } from '$lib/contracts/module-playback';
   import type { PlaybackSnapshot } from '$lib/contracts/playback';
-  import type { PlaylistItem, PlaylistRepeatMode, PlaylistSelection } from '$lib/contracts/catalog';
+  import type { MediaEntity, PlaylistRepeatMode, PlaylistSelection } from '$lib/contracts/catalog';
   import type { VideoFitMode } from '$lib/contracts/player-settings';
   import type { WorkspaceCollection, WorkspaceTab } from '$lib/contracts/workspace';
   import { buildOptionsWindowPath, isOptionsViewName, type OptionsViewName } from './options/views';
@@ -142,6 +142,8 @@
     toLoadedMultiplayerArtwork
   } from '$lib/services/multiplayer-artwork';
   import type { MultiplayerCommand } from '$lib/services/multiplayer-protocol';
+  import { mediaEntityFromMultiplayerTrack } from '$lib/services/multiplayer-host-projection';
+  import { mediaSources } from '$lib/media/media-source';
   import {
     buildSelectAllSelection,
     emptySelection,
@@ -174,12 +176,12 @@
   const stopLibraryFolderCommands = startLibraryFolderCommandListener();
   const stopLoadoutRuntime = startLoadoutRuntime(playerController.currentTrack);
 
-  let localPlaylistItems: PlaylistItem[] = [];
-  let localLibraryItems: PlaylistItem[] = [];
-  let localFavoriteItems: PlaylistItem[] = [];
-  let playlistItems: PlaylistItem[] = [];
-  let libraryItems: PlaylistItem[] = [];
-  let favoriteItems: PlaylistItem[] = [];
+  let localMediaEntities: MediaEntity[] = [];
+  let localLibraryItems: MediaEntity[] = [];
+  let localFavoriteItems: MediaEntity[] = [];
+  let playlistItems: MediaEntity[] = [];
+  let libraryItems: MediaEntity[] = [];
+  let favoriteItems: MediaEntity[] = [];
   let localCollectionsReady = false;
   let collectionsReady = false;
   let localPlaylistSelectionIds: string[] = [];
@@ -198,20 +200,20 @@
   let lastPrunedRemoteCatalog: MultiplayerSessionState['remoteCatalog'] | null = null;
   let observedRemotePlayingTrackId: string | null = null;
   let lastTroubadourContext: TroubadourBatchContext | null = null;
-  let localSelectedPlaylistItem: PlaylistItem | null = null;
-  let localSelectedLibraryItem: PlaylistItem | null = null;
-  let localSelectedFavoriteItem: PlaylistItem | null = null;
-  let selectedPlaylistItem: PlaylistItem | null = null;
-  let selectedLibraryItem: PlaylistItem | null = null;
-  let selectedFavoriteItem: PlaylistItem | null = null;
-  let selectedItem: PlaylistItem | null = null;
-  let livePlayingTrack: PlaylistItem | null = null;
-  let playerDisplayTrack: PlaylistItem | null = null;
-  let favoriteTargetTrack: PlaylistItem | null = null;
-  let lyricsTrack: PlaylistItem | null = null;
+  let localSelectedMediaEntity: MediaEntity | null = null;
+  let localSelectedLibraryItem: MediaEntity | null = null;
+  let localSelectedFavoriteItem: MediaEntity | null = null;
+  let selectedMediaEntity: MediaEntity | null = null;
+  let selectedLibraryItem: MediaEntity | null = null;
+  let selectedFavoriteItem: MediaEntity | null = null;
+  let selectedItem: MediaEntity | null = null;
+  let livePlayingTrack: MediaEntity | null = null;
+  let playerDisplayTrack: MediaEntity | null = null;
+  let favoriteTargetTrack: MediaEntity | null = null;
+  let lyricsTrack: MediaEntity | null = null;
   let detailsLibraryTargets: TrackLibraryNavigationTargets = {};
-  let localPlayingTrack: PlaylistItem | null = null;
-  let playingTrack: PlaylistItem | null = null;
+  let localPlayingTrack: MediaEntity | null = null;
+  let playingTrack: MediaEntity | null = null;
   let videoParkingHost: HTMLDivElement | null = null;
   let localShuffleEnabled = false;
   let localRepeatMode: PlaylistRepeatMode = 'off';
@@ -306,8 +308,8 @@
     active: false,
     opening: false
   };
-  const miniPlayerTrack = writable<PlaylistItem | null>(null);
-  const miniPlayerSelectedTrack = writable<PlaylistItem | null>(null);
+  const miniPlayerTrack = writable<MediaEntity | null>(null);
+  const miniPlayerSelectedTrack = writable<MediaEntity | null>(null);
   const miniPlayerArtworkUrl = writable<string | null>(null);
 
   function getRemoteSelection(collection: WorkspaceCollection): PlaylistSelection {
@@ -462,7 +464,7 @@
   });
   const playbackCommands = createPlaybackCommandsController({
     getPlayingTrack: () => playingTrack,
-    getSelectedPlaylistTrack: () => selectedPlaylistItem,
+    getSelectedPlaylistTrack: () => selectedMediaEntity,
     getPlaybackState: () => playbackStatus.state,
     getPlaybackCurrentTime: () => playbackSnapshot.currentTime,
     getPlaybackDuration: () => playbackSnapshot.duration,
@@ -793,7 +795,7 @@
     );
   }
 
-  function handleFreeplayNavigationAction(actionId: string, tracks: PlaylistItem[]): boolean {
+  function handleFreeplayNavigationAction(actionId: string, tracks: MediaEntity[]): boolean {
     if (tracks.length !== 1) return false;
     const target = resolveTrackLibraryNavigationAction(actionId, tracks[0], libraryItems);
     if (!target) return false;
@@ -881,7 +883,7 @@
   let artworkPresentationState = artworkPresentation.getSnapshot();
   let backdropPresentation: AppBackdropPresentation;
   let appInstallState: AppInstallState = { available: false, showHint: false };
-  const unsubscribePlaylistItems = playlistItemsStore.subscribe((value) => (localPlaylistItems = value));
+  const unsubscribeMediaEntities = playlistItemsStore.subscribe((value) => (localMediaEntities = value));
   const unsubscribeLibraryItems = libraryItemsStore.subscribe((value) => (localLibraryItems = value));
   const unsubscribeFavoriteItems = favoriteItemsStore.subscribe((value) => (localFavoriteItems = value));
   void Promise.all([playlistStore.ready(), libraryStore.ready(), favoritesStore.ready()]).then(async () => {
@@ -906,7 +908,7 @@
     (value) => (localFavoriteSelectionAnchorId = value.anchorId)
   );
   const unsubscribePlaylistSelectedTrack = playlistSelectedTrackStore.subscribe(
-    (value) => (localSelectedPlaylistItem = value)
+    (value) => (localSelectedMediaEntity = value)
   );
   const unsubscribeLibrarySelectedTrack = librarySelectedTrackStore.subscribe(
     (value) => (localSelectedLibraryItem = value)
@@ -1003,7 +1005,7 @@
       activeCollection: workspaceShellState.activeCollection,
       playlistSelectionIds,
       librarySelectionIds: $libraryViewSettings.activeView === 'favorites' ? favoriteSelectionIds : librarySelectionIds,
-      selectedPlaylistItem,
+      selectedMediaEntity,
       selectedLibraryItem: $libraryViewSettings.activeView === 'favorites' ? selectedFavoriteItem : selectedLibraryItem,
       playingTrack,
       playbackSnapshot
@@ -1012,12 +1014,12 @@
       toggleFullscreenPresentation,
       closeNowPlayingView,
       closeActiveRightPanel,
-      removePlaylistItems: (ids) => {
+      removeMediaEntities: (ids) => {
         if (isFreeplayClient) {
           removeFromFreeplayQueue(ids);
           return;
         }
-        if (!isMultiplayerClient) workspaceCollections.removePlaylistItems(ids);
+        if (!isMultiplayerClient) workspaceCollections.removeMediaEntities(ids);
       },
       removeLibraryItems: (ids) =>
         isMultiplayerClient
@@ -1095,9 +1097,9 @@
     ?? (multiplayerConnectionOperation === 'hosting'
       ? $t('main.multiplayer.preparingRoom', { default: 'Preparing the signaling room...' })
       : $t('main.multiplayer.preparingConnection', { default: 'Preparing the connection...' }));
-  $: playlistItems = isMultiplayerClient ? multiplayerState.remoteCatalog.playlist : localPlaylistItems;
-  $: libraryItems = isMultiplayerClient ? multiplayerState.remoteCatalog.library : localLibraryItems;
-  $: favoriteItems = isMultiplayerClient ? multiplayerState.remoteCatalog.favorites : localFavoriteItems;
+  $: playlistItems = isMultiplayerClient ? multiplayerState.remoteCatalog.playlist.map(mediaEntityFromMultiplayerTrack) : localMediaEntities;
+  $: libraryItems = isMultiplayerClient ? multiplayerState.remoteCatalog.library.map(mediaEntityFromMultiplayerTrack) : localLibraryItems;
+  $: favoriteItems = isMultiplayerClient ? multiplayerState.remoteCatalog.favorites.map(mediaEntityFromMultiplayerTrack) : localFavoriteItems;
   $: collectionsReady = isMultiplayerClient
     ? multiplayerState.connectionStatus === 'connected' && multiplayerState.remoteCatalog.revision > 0
     : localCollectionsReady;
@@ -1116,16 +1118,18 @@
   $: favoriteSelectionAnchorId = isMultiplayerClient
     ? remoteFavoriteSelection.anchorId
     : localFavoriteSelectionAnchorId;
-  $: selectedPlaylistItem = isMultiplayerClient
+  $: selectedMediaEntity = isMultiplayerClient
     ? playlistItems.find((item) => item.id === (remotePlaylistSelection.focusId ?? remotePlaylistSelection.ids.at(-1))) ?? null
-    : localSelectedPlaylistItem;
+    : localSelectedMediaEntity;
   $: selectedLibraryItem = isMultiplayerClient
     ? libraryItems.find((item) => item.id === (remoteLibrarySelection.focusId ?? remoteLibrarySelection.ids.at(-1))) ?? null
     : localSelectedLibraryItem;
   $: selectedFavoriteItem = isMultiplayerClient
     ? favoriteItems.find((item) => item.id === (remoteFavoriteSelection.focusId ?? remoteFavoriteSelection.ids.at(-1))) ?? null
     : localSelectedFavoriteItem;
-  $: playingTrack = isMultiplayerClient ? multiplayerState.remotePlayback.track : localPlayingTrack;
+  $: playingTrack = isMultiplayerClient
+    ? (multiplayerState.remotePlayback.track ? mediaEntityFromMultiplayerTrack(multiplayerState.remotePlayback.track) : null)
+    : localPlayingTrack;
   $: {
     const selectionSync = resolveMultiplayerPlayingTrackSelection(
       observedRemotePlayingTrackId,
@@ -1217,11 +1221,11 @@
   $: selectedItem =
     workspaceShellState.activeCollection === 'library'
       ? $libraryViewSettings.activeView === 'favorites' ? selectedFavoriteItem : selectedLibraryItem
-      : selectedPlaylistItem;
+      : selectedMediaEntity;
   $: livePlayingTrack = resolveTrackSnapshot(playingTrack, selectedItem, playlistItems, libraryItems);
   $: playerDisplayTrack = livePlayingTrack;
   $: miniPlayerTrack.set(playerDisplayTrack);
-  $: miniPlayerSelectedTrack.set(selectedPlaylistItem);
+  $: miniPlayerSelectedTrack.set(selectedMediaEntity);
   $: miniPlayerArtworkUrl.set(artworkPresentationState.displayedArtwork?.url ?? null);
   $: mediaSessionArtworkOverrideStore.set(isMultiplayerClient
     ? toLoadedMultiplayerArtwork(playerDisplayTrack, multiplayerState.remoteArtwork)
@@ -1342,7 +1346,7 @@
     readOnly: isMultiplayerClient && !isFreeplayClient
   });
   $: multiplayerSession.updateHostState({
-    playlist: localPlaylistItems,
+    playlist: localMediaEntities,
     library: localLibraryItems,
     favorites: localFavoriteItems,
     shuffleEnabled: localShuffleEnabled,
@@ -1590,7 +1594,7 @@
     restoreVideoWindowSize();
   }
 
-  function syncVideoPresentation(track: PlaylistItem | null, autoEnterTheater: boolean): void {
+  function syncVideoPresentation(track: MediaEntity | null, autoEnterTheater: boolean): void {
     const videoActive = track?.kind === 'video';
     const signature = videoActive
       ? `${track.id}:${autoEnterTheater ? 'auto' : 'manual'}`
@@ -1732,7 +1736,7 @@
   }
 
   async function isTroubadourResultMatch(
-    item: PlaylistItem,
+    item: MediaEntity,
     collection: TroubadourTrackReference['collection'],
     result: TroubadourMatchTarget
   ): Promise<boolean> {
@@ -1752,13 +1756,14 @@
       pathMismatch = true;
     }
 
+    const itemHandle = mediaSources.get(item.id)?.fileHandle;
     const originalHandle = result.originalFileHandle ?? contextTrack?.fileHandle;
 
-    if (originalHandle && item.fileHandle) {
-      if (originalHandle === item.fileHandle) return true;
+    if (originalHandle && itemHandle) {
+      if (originalHandle === itemHandle) return true;
 
       try {
-        if (typeof originalHandle.isSameEntry === 'function' && await originalHandle.isSameEntry(item.fileHandle)) {
+        if (typeof originalHandle.isSameEntry === 'function' && await originalHandle.isSameEntry(itemHandle)) {
           return true;
         }
       } catch {
@@ -1810,7 +1815,7 @@
       ...(result.path !== undefined ? { path: result.path } : {}),
       ...(result.sourceFolderId !== undefined ? { sourceFolderId: result.sourceFolderId } : {}),
       ...(result.name !== undefined ? { name: result.name } : {}),
-      ...(result.extension !== undefined ? { extension: result.extension } : {}),
+      ...(result.extension !== undefined ? { format: result.extension } : {}),
       ...(result.kind !== undefined ? { kind: result.kind } : {}),
       ...(result.size !== undefined ? { size: result.size } : {}),
       ...(result.lastModified !== undefined ? { lastModified: result.lastModified } : {}),
@@ -2071,7 +2076,7 @@
     lyricsPresentation.destroy();
     playCountTracker.destroy();
     workspaceShell.destroy();
-    unsubscribePlaylistItems();
+    unsubscribeMediaEntities();
     unsubscribeLibraryItems();
     unsubscribeFavoriteItems();
     unsubscribePlaylistSelectedIds();
@@ -2243,7 +2248,7 @@
     workspaceState={workspaceShellState}
     {playlistPanelHandlers}
     {libraryPanelHandlers}
-    {selectedPlaylistItem}
+    {selectedMediaEntity}
     {playerDisplayTrack}
     {lyricsTrack}
     {modulePatternSnapshot}
@@ -2328,7 +2333,7 @@
     workspaceState={workspaceShellState}
     {playlistPanelHandlers}
     {libraryPanelHandlers}
-    {selectedPlaylistItem}
+    {selectedMediaEntity}
     {playerDisplayTrack}
     {lyricsTrack}
     {modulePatternSnapshot}
@@ -2431,7 +2436,7 @@
       presentation={videoTheaterActive ? 'theater' : 'bar'}
       snapshotStore={displayPlaybackSnapshotStore}
       track={playerDisplayTrack}
-      selectedTrack={selectedPlaylistItem}
+      selectedTrack={selectedMediaEntity}
       artwork={artworkPresentationState.displayedArtwork}
       backdropEffect={$appearanceSettings.backdropZones.player}
       backdropArtworkSettings={$appearanceSettings.backdropZoneArtwork.player}

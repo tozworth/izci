@@ -1,26 +1,26 @@
 import { describe, expect, it } from 'vitest';
 import {
   projectMultiplayerPlaybackSnapshot,
-  sanitizePlaylistItem,
+  sanitizeMediaEntity,
   sanitizeTrackMetadata
 } from './multiplayer-host-projection';
 
 describe('multiplayer host projection', () => {
   it('removes local file capabilities and unknown application fields from shared tracks', () => {
     const file = new File(['audio'], 'song.mp3', { type: 'audio/mpeg' });
-    const item = sanitizePlaylistItem({
+    const item = sanitizeMediaEntity({
       id: 'one',
       file,
       objectUrl: 'blob:secret',
       sourceFolderId: 'private-folder',
       name: 'song.mp3',
       path: 'Music/song.mp3',
-      extension: 'mp3',
+      format: 'mp3',
       kind: 'stream',
       size: 5,
       lastModified: 1,
       metadata: { title: 'Song' }
-    });
+    } as unknown as import('$lib/contracts/catalog').MediaEntity);
 
     expect(item).toEqual({
       id: 'one',

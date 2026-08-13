@@ -1,4 +1,4 @@
-import type { PlaylistItem, PlaylistRepeatMode } from '$lib/contracts/catalog';
+import type { MediaEntity, PlaylistRepeatMode } from '$lib/contracts/catalog';
 import type { TrackMetadata } from '$lib/contracts/media-metadata';
 import type { PlaybackSnapshot } from '$lib/contracts/playback';
 import type {
@@ -11,11 +11,11 @@ import type {
 const MAX_PLAYBACK_SECONDS = 60 * 60 * 24 * 7;
 
 /** Projects an application-owned catalog item onto the protocol's wire DTO. */
-export function sanitizePlaylistItem(item: PlaylistItem): MultiplayerTrack {
+export function sanitizeMediaEntity(item: MediaEntity): MultiplayerTrack {
   return {
     id: item.id,
     name: item.name,
-    extension: item.extension,
+    extension: item.format,
     kind: item.kind,
     size: isNonNegativeSafeInteger(item.size) ? item.size : 0,
     lastModified: isFiniteNonNegative(item.lastModified) ? item.lastModified : 0,
@@ -23,6 +23,19 @@ export function sanitizePlaylistItem(item: PlaylistItem): MultiplayerTrack {
     ...(item.metadata ? { metadata: sanitizeTrackMetadata(item.metadata) } : {}),
     ...(isBoundedRating(item.rating) ? { rating: item.rating } : {}),
     ...(isNonNegativeSafeInteger(item.subsong) ? { subsong: item.subsong } : {})
+  };
+}
+
+export function mediaEntityFromMultiplayerTrack(track: MultiplayerTrack): MediaEntity {
+  return {
+    id: track.id,
+    path: track.name,
+    name: track.name,
+    format: track.extension,
+    kind: track.kind,
+    size: track.size,
+    lastModified: track.lastModified,
+    metadata: track.metadata
   };
 }
 

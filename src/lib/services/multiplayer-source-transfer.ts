@@ -1,4 +1,4 @@
-import type { PlaylistItem } from '$lib/contracts/catalog';
+import type { MediaEntity } from '$lib/contracts/catalog';
 import { logWarning } from '$lib/logging/api';
 import type { PeerConnection, SourceFileBeginFrame, SourceFileEndFrame } from './multiplayer-types';
 
@@ -59,7 +59,7 @@ export function waitForMediaQueue(peer: PeerConnection, token: number): Promise<
 
 export async function transferSourceFile(
   peer: PeerConnection,
-  track: PlaylistItem,
+  track: MediaEntity,
   file: File,
   token: number,
   generationId: string

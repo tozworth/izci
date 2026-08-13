@@ -1,16 +1,17 @@
 import { describe, expect, it } from 'vitest';
-import type { PlaylistItem } from '$lib/contracts/catalog';
+import type { MediaEntity } from '$lib/contracts/catalog';
 import type { MultiplayerArtwork } from './multiplayer-protocol';
 import {
   getMultiplayerArtworkTrackKey,
   getRemoteArtworkLoadKey
 } from './multiplayer-artwork';
 
-function item(id: string): PlaylistItem {
+function item(id: string): MediaEntity {
   return {
     id,
+    path: 'test',
     name: `${id}.flac`,
-    extension: 'flac',
+    format: 'flac',
     kind: 'stream',
     size: 1,
     lastModified: 1

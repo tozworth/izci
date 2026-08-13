@@ -42,7 +42,7 @@ describe('multiplayer source transfer frames', () => {
       slice: () => ({ arrayBuffer: () => Promise.reject(new Error('read failed')) })
     } as unknown as File;
     const track = {
-      id: 'track', name: 'broken.flac', extension: 'flac', kind: 'stream', size: 10, lastModified: 1
+      id: 'track', path: 'broken.flac', name: 'broken.flac', format: 'flac', kind: 'stream', size: 10, lastModified: 1
     } as const;
 
     await expect(transferSourceFile(peer, track, brokenFile, 1, 'generation')).rejects.toThrow('read failed');

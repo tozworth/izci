@@ -1,4 +1,4 @@
-import type { PlaylistItem, PlaylistRepeatMode } from '$lib/contracts/catalog';
+import type { MediaEntity, PlaylistRepeatMode } from '$lib/contracts/catalog';
 import { experimentalSettings } from '$lib/stores/experimental-settings';
 import {
   MULTIPLAYER_PROTOCOL_VERSION,
@@ -39,7 +39,7 @@ export function isMultiplayerClientTransportHealthy(
  * limitMiB: 0 = off (everything renders), < 0 = every file transfers.
  */
 export function resolveMultiplayerDeliveryMode(
-  track: PlaylistItem | null,
+  track: MediaEntity | null,
   audioEnabled: boolean,
   fileTransferLimitMiB = 0
 ): MultiplayerDeliveryMode {

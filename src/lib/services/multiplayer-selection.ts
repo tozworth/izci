@@ -1,4 +1,4 @@
-import type { PlaylistItem, PlaylistSelection } from '$lib/contracts/catalog';
+import type { MediaEntity, PlaylistSelection } from '$lib/contracts/catalog';
 
 export interface MultiplayerPlayingTrackSelectionSync {
   observedTrackId: string | null;
@@ -8,7 +8,7 @@ export interface MultiplayerPlayingTrackSelectionSync {
 export function resolveMultiplayerPlayingTrackSelection(
   observedTrackId: string | null,
   playingTrackId: string | null,
-  playlistItems: PlaylistItem[]
+  playlistItems: MediaEntity[]
 ): MultiplayerPlayingTrackSelectionSync {
   if (!playingTrackId) {
     return { observedTrackId: null, selection: null };

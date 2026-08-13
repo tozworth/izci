@@ -5,11 +5,13 @@ import { logWarning } from '$lib/logging/api';
 import { modulePlaybackSettings } from '$lib/stores/module-playback-settings';
 import { createPlaylistNavigation } from '$lib/stores/playlist-navigation';
 import type { PlaybackSnapshot } from '$lib/contracts/playback';
-import type { PlaylistItem, PlaylistRepeatMode } from '$lib/contracts/catalog';
+import type { MediaEntity, PlaylistRepeatMode } from '$lib/contracts/catalog';
+import type { MediaMaterializationLease } from '$lib/media/media-source';
 import type {
   MultiplayerDeliveryMode,
   MultiplayerPlayback
 } from './multiplayer-protocol';
+import { sanitizeMediaEntity } from './multiplayer-host-projection';
 
 const FREEPLAY_PROGRESS_INTERVAL_MS = 500;
 
@@ -28,7 +30,7 @@ export interface MultiplayerFreeplayPlayerUpdate {
 }
 
 interface CreateMultiplayerFreeplayPlayerOptions {
-  getAudioSettings: (track: PlaylistItem) => MultiplayerFreeplayAudioSettings;
+  getAudioSettings: (track: MediaEntity) => MultiplayerFreeplayAudioSettings;
   onUpdate: (update: MultiplayerFreeplayPlayerUpdate) => void;
   onEnded: (trackId: string) => void;
 }
@@ -47,7 +49,8 @@ const EMPTY_SNAPSHOT: PlaybackSnapshot = {
  * It deliberately never enters the shared player controller or speaker graph.
  */
 export class MultiplayerFreeplayPlayer {
-  #track: PlaylistItem | null = null;
+  #track: MediaEntity | null = null;
+  #lease: MediaMaterializationLease | null = null;
   #snapshot: PlaybackSnapshot = { ...EMPTY_SNAPSHOT };
   #delivery: MultiplayerDeliveryMode = 'none';
   #element: HTMLMediaElement | null = null;
@@ -57,7 +60,6 @@ export class MultiplayerFreeplayPlayer {
   #silenceSource: ConstantSourceNode | null = null;
   #silenceGain: GainNode | null = null;
   #wirePromise: Promise<MediaStreamTrack | null> | null = null;
-  #objectUrl: string | null = null;
   #progressTimer: ReturnType<typeof globalThis.setInterval> | null = null;
   #loadToken = 0;
   #playIntent = false;
@@ -72,7 +74,7 @@ export class MultiplayerFreeplayPlayer {
     this.#onEnded = onEnded;
   }
 
-  get track(): PlaylistItem | null {
+  get track(): MediaEntity | null {
     return this.#track;
   }
 
@@ -84,7 +86,7 @@ export class MultiplayerFreeplayPlayer {
     return {
       generationId: 'unassigned',
       snapshot: this.#currentSnapshot(),
-      track: this.#track,
+      track: this.#track ? sanitizeMediaEntity(this.#track) : null,
       sentAt: Date.now()
     };
   }
@@ -136,11 +138,13 @@ export class MultiplayerFreeplayPlayer {
     return track;
   }
 
-  async load(track: PlaylistItem, autoPlay = false, initialPosition = 0): Promise<boolean> {
-    if (!track.file) return false;
+  async load(lease: MediaMaterializationLease, autoPlay = false, initialPosition = 0): Promise<boolean> {
+    const track = lease.entity;
     const token = ++this.#loadToken;
     this.#playIntent = autoPlay;
     this.#disposeRenderer();
+    if (this.#lease !== lease) this.#lease?.release();
+    this.#lease = lease;
     this.#track = track;
     this.#snapshot = {
       ...EMPTY_SNAPSHOT,
@@ -163,8 +167,8 @@ export class MultiplayerFreeplayPlayer {
     try {
       if (this.#delivery === 'stream') {
         if (!await this.ensureWire()) throw new Error('Freeplay wire is unavailable.');
-        if (track.kind === 'module') await this.#loadModuleRenderer(track, token);
-        else await this.#loadMediaRenderer(track, token);
+        if (track.kind === 'module') await this.#loadModuleRenderer(track, lease, token);
+        else await this.#loadMediaRenderer(track, lease, token);
       }
     } catch {
       if (token !== this.#loadToken) return false;
@@ -193,7 +197,9 @@ export class MultiplayerFreeplayPlayer {
     if (!track) return false;
     const snapshot = this.#currentSnapshot();
     const shouldResume = this.#playIntent;
-    const loaded = await this.load(track, false, snapshot.currentTime);
+    const lease = this.#lease;
+    if (!lease) return false;
+    const loaded = await this.load(lease, false, snapshot.currentTime);
     this.#playIntent = shouldResume;
     return loaded && shouldResume;
   }
@@ -293,6 +299,8 @@ export class MultiplayerFreeplayPlayer {
     this.#loadToken += 1;
     this.#stopProgress();
     this.#disposeRenderer();
+    this.#lease?.release();
+    this.#lease = null;
     this.#disposeWire();
     this.#track = null;
     this.#delivery = 'none';
@@ -300,14 +308,15 @@ export class MultiplayerFreeplayPlayer {
     this.#snapshot = { ...EMPTY_SNAPSHOT };
   }
 
-  async #loadMediaRenderer(track: PlaylistItem, token: number): Promise<void> {
+  async #loadMediaRenderer(track: MediaEntity, lease: MediaMaterializationLease, token: number): Promise<void> {
     const context = audioBusService.context;
     await audioBusService.resume();
     const element = document.createElement(track.kind === 'video' ? 'video' : 'audio');
     element.preload = 'auto';
     element.setAttribute('playsinline', '');
     element.volume = 1;
-    const objectUrl = URL.createObjectURL(track.file!);
+    const objectUrl = lease.objectUrl;
+    if (!objectUrl) throw new Error('Expected a media-element lease for Freeplay.');
     const source = context.createMediaElementSource(element);
     this.#connectRenderer(source);
 
@@ -327,7 +336,7 @@ export class MultiplayerFreeplayPlayer {
       };
       const failed = () => {
         cleanup();
-        disposeMediaRenderer(element, source, objectUrl);
+        disposeMediaRenderer(element, source);
         reject(new Error('Media element rejected the Freeplay source.'));
       };
       element.addEventListener('loadedmetadata', loaded);
@@ -336,16 +345,15 @@ export class MultiplayerFreeplayPlayer {
       element.load();
     });
     if (token !== this.#loadToken) {
-      disposeMediaRenderer(element, source, objectUrl);
+      disposeMediaRenderer(element, source);
       return;
     }
     this.#element = element;
     this.#elementSource = source;
-    this.#objectUrl = objectUrl;
     element.addEventListener('ended', this.#handleEnded);
   }
 
-  async #loadModuleRenderer(track: PlaylistItem, token: number): Promise<void> {
+  async #loadModuleRenderer(track: MediaEntity, lease: MediaMaterializationLease, token: number): Promise<void> {
     const context = audioBusService.context;
     await audioBusService.resume();
     const settings = modulePlaybackSettings.getSnapshot();
@@ -359,7 +367,7 @@ export class MultiplayerFreeplayPlayer {
       disposeModulePlayer(player);
       return;
     }
-    const buffer = await track.file!.arrayBuffer();
+    const buffer = await lease.file.arrayBuffer();
     if (token !== this.#loadToken) {
       disposeModulePlayer(player);
       return;
@@ -473,11 +481,9 @@ export class MultiplayerFreeplayPlayer {
       // A renderer may already have disconnected during a failed load.
     }
     if (this.#modulePlayer) disposeModulePlayer(this.#modulePlayer);
-    if (this.#objectUrl) URL.revokeObjectURL(this.#objectUrl);
     this.#element = null;
     this.#elementSource = null;
     this.#modulePlayer = null;
-    this.#objectUrl = null;
   }
 
   #disposeWire(): void {
@@ -503,14 +509,14 @@ export interface FreeplayStepResolver {
     direction: -1 | 1;
     shuffle: boolean;
     wrap: boolean;
-  }): PlaylistItem | null;
+  }): MediaEntity | null;
   resolveEnd(options: {
     currentId?: string | null;
     shuffle: boolean;
     repeatMode: PlaylistRepeatMode;
-  }): PlaylistItem | null;
+  }): MediaEntity | null;
 }
-export function createFreeplayStepResolver(getItems: () => PlaylistItem[]): FreeplayStepResolver {
+export function createFreeplayStepResolver(getItems: () => MediaEntity[]): FreeplayStepResolver {
   const navigation = createPlaylistNavigation(getItems);
   return {
     reset: navigation.reset,
@@ -540,8 +546,7 @@ function disposeModulePlayer(player: ChiptuneJsPlayer): void {
 
 function disposeMediaRenderer(
   element: HTMLMediaElement,
-  source: MediaElementAudioSourceNode,
-  objectUrl: string
+  source: MediaElementAudioSourceNode
 ): void {
   element.pause();
   element.removeAttribute('src');
@@ -551,5 +556,4 @@ function disposeMediaRenderer(
   } catch {
     // A failed media load may already have detached the source.
   }
-  URL.revokeObjectURL(objectUrl);
 }

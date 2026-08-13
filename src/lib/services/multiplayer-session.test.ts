@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ExperimentalSettings } from '$lib/contracts/experimental-settings';
-import type { PlaylistItem } from '$lib/contracts/catalog';
+import type { MediaEntity } from '$lib/contracts/catalog';
 
 const sessionHarness = vi.hoisted(() => {
   const settings: ExperimentalSettings = {
@@ -164,10 +164,11 @@ describe('multiplayer client lifecycle', () => {
 });
 
 describe('multiplayer session generation replacement', () => {
-  const activeTrack: PlaylistItem = {
+  const activeTrack: MediaEntity = {
     id: 'playing',
+    path: 'test',
     name: 'playing.flac',
-    extension: 'flac',
+    format: 'flac',
     kind: 'stream',
     size: 10,
     lastModified: 1
@@ -240,11 +241,12 @@ describe('multiplayer session generation replacement', () => {
 });
 
 describe('multiplayer render delivery selection', () => {
-  function track(kind: PlaylistItem['kind'], size = 1): PlaylistItem {
+  function track(kind: MediaEntity['kind'], size = 1): MediaEntity {
     return {
       id: 'track',
+      path: 'test',
       name: 'track.flac',
-      extension: 'flac',
+      format: 'flac',
       kind,
       size,
       lastModified: 1

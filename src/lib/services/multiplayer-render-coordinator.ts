@@ -5,7 +5,8 @@
  * queues only hold cluster indexes.
  */
 
-import type { PlaylistItem } from '$lib/contracts/catalog';
+import type { MediaEntity } from '$lib/contracts/catalog';
+import type { MediaMaterializationLease } from '$lib/media/media-source';
 import { logInfo, logWarning } from '$lib/logging/api';
 import { errorMessage } from './multiplayer-utils';
 import {
@@ -24,7 +25,8 @@ export const DEFAULT_RENDER_CACHE_LIMIT_MIB = 256;
 
 interface PendingJob {
   key: string;
-  track: PlaylistItem;
+  track: MediaEntity;
+  lease: MediaMaterializationLease;
   bitrateKbps: number;
   token: number;
   resolve: (render: CachedRender) => void;
@@ -75,8 +77,8 @@ class MultiplayerRenderCoordinator {
   }
 
   /** Acquires a pinned render, sharing one encode across concurrent peers. */
-  acquireRender(track: PlaylistItem, bitrateKbps: number): Promise<CachedRender> {
-    if (!track.file) return Promise.reject(new Error('No source file available for rendering.'));
+  acquireRender(lease: MediaMaterializationLease, bitrateKbps: number): Promise<CachedRender> {
+    const track = lease.entity;
     const key = buildRenderCacheKey(track, bitrateKbps);
     const cached = this.#cache.get(key);
     if (cached) {
@@ -91,7 +93,7 @@ class MultiplayerRenderCoordinator {
     let inflight = this.#inflight.get(key);
     if (!inflight) {
       const created = new Promise<CachedRender>((resolve, reject) => {
-        this.#queue.push({ key, track, bitrateKbps, token: this.#renderToken, resolve, reject });
+        this.#queue.push({ key, track, lease, bitrateKbps, token: this.#renderToken, resolve, reject });
         this.#pump();
       });
       inflight = created;
@@ -145,10 +147,10 @@ class MultiplayerRenderCoordinator {
     const request: MultiplayerRenderRequest = {
       type: 'render',
       name: job.track.name,
-      extension: job.track.extension,
+      extension: job.track.format,
       kind: job.track.kind === 'module' ? 'module' : 'stream',
-      file: job.track.kind === 'module' ? null : job.track.file ?? null,
-      moduleBytes: job.track.kind === 'module' ? await job.track.file!.arrayBuffer() : null,
+      file: job.track.kind === 'module' ? null : job.lease.file,
+      moduleBytes: job.track.kind === 'module' ? await job.lease.file.arrayBuffer() : null,
       bitrateKbps: job.bitrateKbps,
       hivelyWasmUrl: new URL('/vendor/hively-replay.wasm', document.baseURI).href,
       libopenmptUrl: new URL(

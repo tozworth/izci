@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { MultiplayerPlayback } from '$lib/services/multiplayer-protocol';
+import type { MultiplayerPlayback, MultiplayerTrack } from '$lib/services/multiplayer-protocol';
 import type { PlaybackSnapshot } from '$lib/contracts/playback';
-import type { PlaylistItem } from '$lib/contracts/catalog';
+import type { MediaEntity } from '$lib/contracts/catalog';
 
 const controllerHarness = vi.hoisted(() => ({
   snapshot: {
@@ -12,7 +12,7 @@ const controllerHarness = vi.hoisted(() => ({
     muted: false,
     backend: null
   } as PlaybackSnapshot,
-  track: null as PlaylistItem | null,
+  track: null as MediaEntity | null,
   load: vi.fn(),
   play: vi.fn(),
   pause: vi.fn(),
@@ -31,7 +31,7 @@ vi.mock('$lib/services/player-controller', () => ({
       }
     },
     currentTrack: {
-      subscribe(run: (value: PlaylistItem | null) => void) {
+      subscribe(run: (value: MediaEntity | null) => void) {
         run(controllerHarness.track);
         return () => undefined;
       }
@@ -48,7 +48,7 @@ vi.mock('$lib/services/player-controller', () => ({
 
 import { MultiplayerSourcePlaybackService } from './multiplayer-source-playback';
 
-const track: PlaylistItem = {
+const track: MultiplayerTrack = {
   id: 'track-1',
   name: 'Transferred track',
   extension: 'opus',
@@ -86,7 +86,7 @@ describe('MultiplayerSourcePlaybackService', () => {
     };
     controllerHarness.track = null;
     controllerHarness.load.mockImplementation(async (
-      loadedTrack: PlaylistItem,
+      loadedTrack: MediaEntity,
       options: { autoPlay: boolean; initialPosition: number }
     ) => {
       controllerHarness.track = loadedTrack;
@@ -134,7 +134,7 @@ describe('MultiplayerSourcePlaybackService', () => {
     await service.loadFile(replacement, {} as File);
 
     expect(controllerHarness.prepareNext).toHaveBeenCalledWith(expect.objectContaining({
-      id: 'track-2',
+      entity: expect.objectContaining({ id: 'track-2' }),
       objectUrl: 'blob:replacement-track'
     }));
     expect(controllerHarness.commitPrepared).toHaveBeenCalledWith('track-2');
@@ -165,7 +165,7 @@ describe('MultiplayerSourcePlaybackService', () => {
     service.syncPlayback(playback('paused'));
 
     expect(controllerHarness.load).toHaveBeenCalledWith(
-      expect.objectContaining({ id: 'track-1' }),
+      expect.objectContaining({ entity: expect.objectContaining({ id: 'track-1' }) }),
       { autoPlay: true, initialPosition: 0 }
     );
     expect(controllerHarness.pause).not.toHaveBeenCalled();

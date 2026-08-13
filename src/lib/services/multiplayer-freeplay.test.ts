@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { PlaylistItem } from '$lib/contracts/catalog';
+import type { MediaEntity } from '$lib/contracts/catalog';
 
 const wireHarness = vi.hoisted(() => {
   const track = { readyState: 'live', stop: vi.fn(), contentHint: '' };
@@ -24,15 +24,19 @@ vi.mock('$lib/services/audio-bus', () => ({
 
 import { createFreeplayStepResolver, MultiplayerFreeplayPlayer } from './multiplayer-freeplay';
 
-function track(id: string): PlaylistItem {
+function track(id: string): MediaEntity {
   return {
     id,
+    path: 'test',
     name: `${id}.mp3`,
-    extension: 'mp3',
+    format: 'mp3',
     kind: 'stream',
     size: 1,
     lastModified: 1
   };
+}
+function lease(entity: MediaEntity, file = new File(['audio'], entity.name)) {
+  return { entity, file, objectUrl: `blob:${entity.id}`, release: vi.fn() };
 }
 
 describe('Freeplay navigation', () => {
@@ -85,7 +89,7 @@ describe('Freeplay delivery ownership', () => {
       }),
       onEnded: () => { throw new Error('The passive host must not synthesize an ended event.'); }
     });
-    const source = { ...track('source'), file: new File(['audio'], 'source.mp3') };
+    const source = lease(track('source'));
 
     expect(await player.load(source, true, 75)).toBe(true);
     expect(player.delivery).toBe('none');
@@ -104,7 +108,7 @@ describe('Freeplay delivery ownership', () => {
       }),
       onEnded: () => { throw new Error('The passive host must not synthesize an ended event.'); }
     });
-    const source = { ...track('source'), file: new File(['audio'], 'source.mp3') };
+    const source = lease(track('source'));
 
     expect(await player.load(source, true, 75)).toBe(true);
     expect(player.delivery).toBe('source-file');
@@ -124,7 +128,7 @@ describe('Freeplay delivery ownership', () => {
         }),
         onEnded: () => undefined
       });
-      const source = { ...track('source'), file: new File(['audio'], 'source.mp3') };
+      const source = lease(track('source'));
 
       expect(await player.load(source, true)).toBe(true);
       expect(player.delivery).toBe('render');
@@ -148,7 +152,7 @@ describe('Freeplay delivery ownership', () => {
       onUpdate: () => undefined,
       onEnded: () => undefined
     });
-    const source = { ...track('source'), file: new File(['audio'], 'source.mp3') };
+    const source = lease(track('source'));
 
     expect(await player.load(source, true)).toBe(true);
     enabled = false;

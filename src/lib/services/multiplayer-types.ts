@@ -7,7 +7,7 @@ import type {
 } from 'firebase/database';
 import type { ExperimentalSettings } from '$lib/contracts/experimental-settings';
 import type { PlaybackSnapshot } from '$lib/contracts/playback';
-import type { PlaylistItem, PlaylistRepeatMode } from '$lib/contracts/catalog';
+import type { MediaEntity, PlaylistRepeatMode } from '$lib/contracts/catalog';
 import {
   createMultiplayerMessageDecoder,
   type ClientMessage,
@@ -103,13 +103,13 @@ export interface MultiplayerSessionState {
 }
 
 export interface MultiplayerHostState {
-  playlist: PlaylistItem[];
-  library: PlaylistItem[];
-  favorites: PlaylistItem[];
+  playlist: MediaEntity[];
+  library: MediaEntity[];
+  favorites: MediaEntity[];
   shuffleEnabled: boolean;
   repeatMode: PlaylistRepeatMode;
   playback: PlaybackSnapshot;
-  track: PlaylistItem | null;
+  track: MediaEntity | null;
 }
 
 export const EMPTY_PLAYBACK: PlaybackSnapshot = {
@@ -309,7 +309,7 @@ export interface MultiplayerSessionCore {
   stopPeersListener: Unsubscribe | null;
   stopAnswerListener: Unsubscribe | null;
   hostPeers: Map<string, PeerConnection>;
-  freeplaySelections: Map<string, PlaylistItem>;
+  freeplaySelections: Map<string, MediaEntity>;
   clientPeer: PeerConnection | null;
   pendingClientSourceFile: { trackId: string; generationId: string; file: File } | null;
   hostAudioBufferMs: number | null;
@@ -324,7 +324,7 @@ export interface MultiplayerSessionCore {
     'playlist' | 'library' | 'favorites' | 'shuffleEnabled' | 'repeatMode'
   > | null;
   lastPlaybackSource: PlaybackSnapshot | null;
-  lastTrackSource: PlaylistItem | null;
+  lastTrackSource: MediaEntity | null;
   latestHostArtwork: MultiplayerArtwork | null;
   hostArtworkTrackKey: string;
   hostArtworkResolvedTrackKey: string;
@@ -353,8 +353,8 @@ export interface MultiplayerHostSide {
   togglePairing(clientId: string): Promise<void>;
   updateHostState(next: MultiplayerHostState): void;
   cancelPendingPlayback(): boolean;
-  syncHostAudio(track: PlaylistItem | null, force?: boolean): void;
-  syncHostSourceFiles(track: PlaylistItem | null): void;
+  syncHostAudio(track: MediaEntity | null, force?: boolean): void;
+  syncHostSourceFiles(track: MediaEntity | null): void;
   syncPeerFreeplayMode(peer: PeerConnection): Promise<void>;
   beginFreeplayPlaybackPreparation(peer: PeerConnection): void;
   releasePreparedHostPlayback(force?: boolean): void;
