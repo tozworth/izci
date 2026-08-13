@@ -1,5 +1,5 @@
 import type { MetadataSettings } from '$lib/contracts/player-settings';
-import { createSettingsStore } from './persistent-store';
+import { createSettingsStore } from '$lib/settings/store';
 
 export const METADATA_SETTINGS_STORAGE_KEY = 'izci.metadata-settings';
 export const METADATA_SETTINGS_CHANNEL = 'izci.metadata-settings';

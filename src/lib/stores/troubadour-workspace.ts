@@ -1,6 +1,6 @@
 import type { DockTabMoveDetail } from '$lib/components/docking/types';
 import { findDockTabZone, moveDockTab } from '$lib/services/dock-layout';
-import { createPersistentStore } from './persistent-store';
+import { createPersistentStore } from '$lib/settings/store';
 
 export const TROUBADOUR_DOCK_SCOPE = 'troubadour-workspace';
 export const TROUBADOUR_WORKSPACE_STORAGE_KEY = 'izci.troubadour-workspace.v1';

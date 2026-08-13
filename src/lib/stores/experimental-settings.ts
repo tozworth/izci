@@ -1,5 +1,5 @@
 import type { ExperimentalSettings } from '$lib/contracts/experimental-settings';
-import { createSettingsStore } from './persistent-store';
+import { createSettingsStore } from '$lib/settings/store';
 
 export const EXPERIMENTAL_SETTINGS_STORAGE_KEY = 'izci.experimental-settings';
 export const EXPERIMENTAL_SETTINGS_CHANNEL = 'izci-experimental-settings';
@@ -222,18 +222,10 @@ export const experimentalSettings = createSettingsStore({
   normalize: normalizeExperimentalSettings
 });
 
-if (typeof window !== 'undefined') {
-  let hasStoredName = false;
+if (!experimentalSettings.getStatus().hasPersistedValue) {
   try {
-    const stored = JSON.parse(window.localStorage.getItem(EXPERIMENTAL_SETTINGS_STORAGE_KEY) ?? 'null') as unknown;
-    hasStoredName = Boolean(
-      stored
-      && typeof stored === 'object'
-      && typeof (stored as Partial<ExperimentalSettings>).izciName === 'string'
-      && (stored as Partial<ExperimentalSettings>).izciName?.trim()
-    );
+    experimentalSettings.set(experimentalSettings.getSnapshot());
   } catch {
-    // Persist the normalized defaults below.
+    // The settings status retains the storage failure for the owning page to surface.
   }
-  if (!hasStoredName) experimentalSettings.set(experimentalSettings.getSnapshot());
 }

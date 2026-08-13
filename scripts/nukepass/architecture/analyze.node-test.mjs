@@ -98,6 +98,7 @@ test('enforces reconstructed contract, runtime capability, wire leaf, and cycle 
     'src/lib/contracts/catalog.ts': 'import { value } from "../services/catalog";\nwindow.name = String(value);\nexport const item = value;\n',
     'src/lib/application/page-entry.ts': 'export const bootstrap = true;\n',
     'src/lib/logging/runtime.ts': 'import { value } from "../services/catalog";\nexport const logging = value;\n',
+    'src/lib/settings/engine.ts': 'import { value } from "../services/catalog";\nexport const settings = value;\n',
     'src/lib/services/catalog.ts': 'import { item } from "../contracts/catalog";\nimport { bootstrap } from "../application/page-entry";\nexport const value = item ?? bootstrap;\n',
     'src/lib/services/multiplayer-protocol.ts': 'import { item } from "../contracts/catalog";\nexport const wire = item;\n',
     'src/lib/runtime/scope.ts': 'import { value } from "../services/catalog";\nexport const scope = value;\n'
@@ -105,10 +106,10 @@ test('enforces reconstructed contract, runtime capability, wire leaf, and cycle 
   t.after(() => fs.rm(root, { recursive: true, force: true }));
 
   const report = await analyzeProject({ root, config: fixtureConfig, includeBundle: false });
-  assert.equal(report.enforcement.direction.count, 5);
+  assert.equal(report.enforcement.direction.count, 6);
   assert.equal(report.enforcement.browserGlobals.count, 1);
   assert.equal(report.enforcement.cycles.count, 1);
-  assert.equal(report.enforcement.violations, 7);
+  assert.equal(report.enforcement.violations, 8);
   assert.deepEqual(
     report.enforcement.direction.findings.map((finding) => finding.rule),
     [
@@ -116,6 +117,7 @@ test('enforces reconstructed contract, runtime capability, wire leaf, and cycle 
       'implementation-imports-page-bootstrap',
       'logging-core-imports-application',
       'runtime-imports-application',
+      'settings-imports-application',
       'wire-imports-internal-module'
     ]
   );

@@ -130,6 +130,7 @@ export const architectureConfig = Object.freeze({
   ],
   browserGlobalAllowedPathPatterns: [
     /^src\/lib\/runtime\/adapters\//,
+    /^src\/lib\/settings\/browser\.ts$/,
     /^src\/lib\/application\/page-entry\.ts$/,
     /^src\/(?:main|options\/main|tools\/[^/]+\/main)\.ts$/
   ],
@@ -137,6 +138,7 @@ export const architectureConfig = Object.freeze({
     /^src\/lib\/contracts\//,
     /^src\/lib\/logging\//,
     /^src\/lib\/runtime\/(?!adapters\/)/,
+    /^src\/lib\/settings\/(?!browser\.ts$)/,
     /^src\/lib\/services\/(?:multiplayer-protocol|window-orphan)\.ts$/,
     /^src\/lib\/application\/page-entry\.ts$/,
     /^src\/(?:main|options\/main|tools\/[^/]+\/main)\.ts$/
@@ -147,6 +149,7 @@ export const architectureConfig = Object.freeze({
     'implementation-imports-page-bootstrap',
     'logging-core-imports-application',
     'runtime-imports-application',
+    'settings-imports-application',
     'wire-imports-internal-module'
   ],
   directionRules: [
@@ -198,6 +201,12 @@ export const architectureConfig = Object.freeze({
       description: 'The runtime kernel cannot depend on application domains or presentation.',
       from: { prefixes: ['src/lib/runtime/'] },
       to: { prefixes: ['src/lib/contracts/', 'src/lib/services/', 'src/lib/stores/', 'src/lib/components/'] }
+    },
+    {
+      id: 'settings-imports-application',
+      description: 'The settings engine and adapter cannot depend on domain owners or presentation.',
+      from: { prefixes: ['src/lib/settings/'] },
+      to: { prefixes: ['src/lib/application/', 'src/lib/services/', 'src/lib/stores/', 'src/lib/components/'] }
     },
     {
       id: 'wire-imports-internal-module',

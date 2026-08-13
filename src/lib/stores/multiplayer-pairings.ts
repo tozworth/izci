@@ -1,4 +1,4 @@
-import { createPersistentStore } from './persistent-store';
+import { createPersistentStore } from '$lib/settings/store';
 
 export const MULTIPLAYER_PAIRINGS_STORAGE_KEY = 'izci.multiplayer-pairings';
 export const MULTIPLAYER_PAIRINGS_CHANNEL = 'izci-multiplayer-pairings';

@@ -1,6 +1,6 @@
 import { addMessages, init, locale as svelteI18nLocale, t } from 'svelte-i18n';
 import { get } from 'svelte/store';
-import { createPersistentStore } from '$lib/stores/persistent-store';
+import { createPersistentStore } from '$lib/settings/store';
 import en from './locales/en.json';
 import enAskew from './locales/en-askew.json';
 import tr from './locales/tr.json';

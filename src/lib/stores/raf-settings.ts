@@ -4,7 +4,7 @@ import {
   normalizeRafEffectDisplayName
 } from '$lib/services/raf-effect-registry';
 import type { RafEffectSettings, RafEffectType, RafRackSettings } from '$lib/contracts/raf';
-import { createPersistentStore } from './persistent-store';
+import { createPersistentStore } from '$lib/settings/store';
 
 export const RAF_SETTINGS_STORAGE_KEY = 'izci.raf-settings';
 export const RAF_SETTINGS_CHANNEL = 'izci-raf-settings';

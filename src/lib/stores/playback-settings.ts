@@ -1,6 +1,6 @@
 import type { PlaybackRestoreMode, PlaybackTransitionMode, ReplayGainMode } from '$lib/contracts/playback';
 import type { PlaybackSettings } from '$lib/contracts/player-settings';
-import { createSettingsStore } from './persistent-store';
+import { createSettingsStore } from '$lib/settings/store';
 
 export const PLAYBACK_SETTINGS_STORAGE_KEY = 'izci.playback-settings';
 export const PLAYBACK_SETTINGS_CHANNEL = 'izci-playback-settings';

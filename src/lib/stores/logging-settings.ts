@@ -1,4 +1,4 @@
-import { createSettingsStore } from './persistent-store';
+import { createSettingsStore } from '$lib/settings/store';
 
 export interface LoggingSettings {
   captureDebug: boolean;

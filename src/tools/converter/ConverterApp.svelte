@@ -28,7 +28,11 @@
     type ConverterSettings,
     type ConverterVideoSize
   } from './converter-options';
-  import { loadConverterSettings, saveConverterSettings } from './converter-settings';
+  import {
+    converterSettings,
+    loadConverterSettings,
+    saveConverterSettings
+  } from './converter-settings';
   import {
     convertMediaFile,
     detectConverterCapabilities,
@@ -103,15 +107,22 @@
   $: contextMenuItems = contextMenuRowId ? buildRowContextMenu() : [];
 
   onMount(() => {
+    const unsubscribeSettings = converterSettings.subscribe((value) => {
+      settings = value;
+    });
     void detectConverterCapabilities().then((value) => {
       capabilities = value;
     }).catch(() => {
       capabilities = { audio: {}, video: {} };
     });
-    return listenForCurrentToolTrack((track) => {
+    const stopListeningForTrack = listenForCurrentToolTrack((track) => {
       if (!isAccepted(track.file)) return;
       addRows([makeRow(track.file, track.fileHandle ?? null, track.path || track.file.name, [])], true);
     });
+    return () => {
+      unsubscribeSettings();
+      stopListeningForTrack();
+    };
   });
 
   onDestroy(() => {

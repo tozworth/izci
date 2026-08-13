@@ -1,7 +1,7 @@
 import type { AppearanceSettings, BackdropZoneArtworkSettings, BackdropZoneArtworkSettingsMap, BackdropZoneEffect, BackdropZoneId, BackdropZoneSettings, ColorTheme, ColorThemeMode, LyricsFontSizeSettings, LyricsDisplayStyle, LyricsSettings } from '$lib/contracts/appearance-settings';
 import type { ContextualTabAutomation, ContextualTabSettings } from '$lib/contracts/workspace';
 import { hasColorThemeVariant } from '$lib/theme-definitions';
-import { createSettingsStore } from './persistent-store';
+import { createSettingsStore } from '$lib/settings/store';
 
 export const APPEARANCE_SETTINGS_STORAGE_KEY = 'izci.appearance-settings';
 export const APPEARANCE_SETTINGS_CHANNEL = 'izci.appearance-settings';

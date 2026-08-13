@@ -1,4 +1,4 @@
-import { createPersistentStore } from './persistent-store';
+import { createPersistentStore } from '$lib/settings/store';
 
 export const PLAYER_VOLUME_STORAGE_KEY = 'izci.player-volume.v1';
 export const PLAYER_VOLUME_CHANNEL = 'izci-player-volume';

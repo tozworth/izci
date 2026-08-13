@@ -1,4 +1,4 @@
-import { createPersistentStore } from '$lib/stores/persistent-store';
+import { createPersistentStore } from '$lib/settings/store';
 import type { LogLevel } from '$lib/logging/api';
 
 export type LogLevelVisibility = Record<LogLevel, boolean>;

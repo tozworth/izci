@@ -1,5 +1,5 @@
 import type { PatternColorScheme, PatternRowNumberBase, PatternViewerSettings } from '$lib/contracts/player-settings';
-import { createSettingsStore } from './persistent-store';
+import { createSettingsStore } from '$lib/settings/store';
 
 export const PATTERN_VIEWER_SETTINGS_STORAGE_KEY = 'izci.pattern-viewer-settings';
 export const PATTERN_VIEWER_SETTINGS_CHANNEL = 'izci.pattern-viewer-settings';

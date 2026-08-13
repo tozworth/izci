@@ -26,6 +26,7 @@ export type PageInitializer = (
 
 export type PageBootstrapPhase =
   | 'logger'
+  | 'settings'
   | 'service-worker'
   | 'theme'
   | 'mobile-document'
@@ -42,6 +43,8 @@ export interface PageBootstrapConfig {
   readonly lifecycle: PageLifecycleTargetPort;
   readonly production: boolean;
   readonly logger: PageInitializer;
+  /** Registers page teardown for module-owned synchronized settings stores. */
+  readonly settings: PageInitializer;
   /** Invoked only when `production` is true. */
   readonly serviceWorker: PageInitializer;
   readonly theme: PageInitializer;
@@ -94,6 +97,7 @@ interface OrderedInitializer {
 function orderedInitializers(config: PageBootstrapConfig): OrderedInitializer[] {
   return [
     { phase: 'logger', initialize: config.logger },
+    { phase: 'settings', initialize: config.settings },
     ...(config.production
       ? [{ phase: 'service-worker' as const, initialize: config.serviceWorker }]
       : []),

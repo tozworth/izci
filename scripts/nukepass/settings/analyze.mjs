@@ -367,7 +367,7 @@ export async function analyzeSettings({ root = process.cwd(), config = settingsR
     mode: 'informational',
     semantics: {
       exitPolicy: 'Mapped omissions and disconnected candidates never fail; invalid config, unreadable inputs, parse failures, and reporter/output errors fail.',
-      declaredFields: 'Object-shaped defaultValue fields from statically recognizable persistent-store calls plus configured direct-localStorage settings; scalar/array/dynamic defaults remain bounded leaf rows.',
+      declaredFields: 'Object-shaped defaultValue fields from statically recognizable settings-engine calls plus any configured direct-localStorage settings; scalar/array/dynamic defaults remain bounded leaf rows.',
       ledger: 'Markdown table identities from the configured checked-in Stage 0 setting ledgers; matching is exact, suffix, then unique leaf and is reported with confidence.',
       references: 'Identifier-presence evidence separated into Svelte presentation, non-test non-Svelte runtime, and tests; it does not prove reachability, control semantics, or that updates are applied.',
       disconnected: 'Includes ledger rows explicitly documenting no consumer/presentation and declared fields whose conservative static references lack presentation or runtime evidence.'

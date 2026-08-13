@@ -1,4 +1,4 @@
-import { createSettingsStore } from './persistent-store';
+import { createSettingsStore } from '$lib/settings/store';
 
 export const TROUBADOUR_SETTINGS_STORAGE_KEY = 'izci.troubadour-settings';
 export const TROUBADOUR_SETTINGS_CHANNEL = 'izci.troubadour-settings';

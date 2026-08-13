@@ -1,5 +1,5 @@
 import type { TrackSettings } from '$lib/contracts/player-settings';
-import { createSettingsStore } from './persistent-store';
+import { createSettingsStore } from '$lib/settings/store';
 
 export const TRACK_SETTINGS_STORAGE_KEY = 'izci.track-settings';
 export const TRACK_SETTINGS_CHANNEL = 'izci.track-settings';

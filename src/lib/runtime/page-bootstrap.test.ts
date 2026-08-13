@@ -97,6 +97,7 @@ function config(
     lifecycle: new FakeLifecycle(),
     production: true,
     logger: recordedHook('logger', calls),
+    settings: recordedHook('settings', calls),
     serviceWorker: recordedHook('service-worker', calls),
     theme: recordedHook('theme', calls),
     mobileDocument: recordedHook('mobile-document', calls),
@@ -118,6 +119,7 @@ describe('page bootstrap', () => {
     await expect(page.readiness).resolves.toEqual({ status: 'ready', pageId: 'options' });
     expect(calls).toEqual([
       'logger',
+      'settings',
       'service-worker',
       'theme',
       'mobile-document',
@@ -140,7 +142,7 @@ describe('page bootstrap', () => {
 
     await expect(page.readiness).resolves.toMatchObject({ status: 'ready' });
     expect(calls).toEqual([
-      'logger', 'theme', 'scrollbar', 'localization', 'mount', 'readiness', 'marker'
+      'logger', 'settings', 'theme', 'scrollbar', 'localization', 'mount', 'readiness', 'marker'
     ]);
   });
 
@@ -166,7 +168,7 @@ describe('page bootstrap', () => {
       },
       disposal: { failures: [] }
     });
-    expect(calls).toEqual(['logger', 'service-worker', 'theme', 'release-logger']);
+    expect(calls).toEqual(['logger', 'settings', 'service-worker', 'theme', 'release-logger']);
     expect(releaseLogger).toHaveBeenCalledOnce();
     expect(runtime.scope.diagnostic().state).toBe('disposed');
   });

@@ -2,6 +2,7 @@ import { initializeLocalization } from '$lib/i18n';
 import { initializeLogging } from '$lib/logging/initialize';
 import { bootstrapPage, type PageBootstrapHandle, type PageCleanup } from '$lib/runtime/page-bootstrap';
 import { createBrowserRuntime } from '$lib/runtime/adapters/browser-runtime';
+import { disposeSettingsStores, flushSettingsStores } from '$lib/settings/store';
 import { initializePopupWindowSizePersistence } from '$lib/services/popup-window-state';
 import type { PopupWindowId } from '$lib/services/popup-windows';
 import { registerAppServiceWorker } from '$lib/services/pwa-updates';
@@ -70,6 +71,10 @@ export function startApplicationPage(config: ApplicationPageEntryConfig): PageBo
     logger: () => {
       const logging = initializeLogging({ runtime, context: config.pageId, target: window });
       return async () => { await logging.destroy(); };
+    },
+    settings: () => () => {
+      flushSettingsStores();
+      disposeSettingsStores();
     },
     serviceWorker: () => registerAppServiceWorker(),
     theme: () => initializeTheme(),

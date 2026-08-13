@@ -1,6 +1,6 @@
 import type { WorkspaceCollection, WorkspacePanelActiveTabsSettings, WorkspacePanelId, WorkspacePanelStateSettings, WorkspacePanelTabsSettings, WorkspaceTab, WorkspaceTabPanelMemorySettings } from '$lib/contracts/workspace';
 import { WORKSPACE_PANEL_IDS, WORKSPACE_TABS } from '$lib/contracts/workspace';
-import { createPersistentStore } from './persistent-store';
+import { createPersistentStore } from '$lib/settings/store';
 
 export const WORKSPACE_PANEL_STATE_STORAGE_KEY = 'izci.workspace-panel-state.v2';
 export const WORKSPACE_PANEL_STATE_CHANNEL = 'izci-workspace-panel-state';

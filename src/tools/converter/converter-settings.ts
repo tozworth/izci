@@ -3,24 +3,22 @@ import {
   normalizeConverterSettings,
   type ConverterSettings
 } from './converter-options';
+import { createPersistentStore } from '$lib/settings/store';
 
-const STORAGE_KEY = 'izci:converter-settings';
+export const CONVERTER_SETTINGS_STORAGE_KEY = 'izci:converter-settings';
+export const CONVERTER_SETTINGS_CHANNEL = 'izci-converter-settings';
+
+export const converterSettings = createPersistentStore({
+  storageKey: CONVERTER_SETTINGS_STORAGE_KEY,
+  channelName: CONVERTER_SETTINGS_CHANNEL,
+  defaultValue: DEFAULT_CONVERTER_SETTINGS,
+  normalize: normalizeConverterSettings
+});
 
 export function loadConverterSettings(): ConverterSettings {
-  if (typeof localStorage === 'undefined') return { ...DEFAULT_CONVERTER_SETTINGS };
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    return normalizeConverterSettings(stored ? JSON.parse(stored) : null);
-  } catch {
-    return { ...DEFAULT_CONVERTER_SETTINGS };
-  }
+  return converterSettings.getSnapshot();
 }
 
 export function saveConverterSettings(settings: ConverterSettings): void {
-  if (typeof localStorage === 'undefined') return;
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(normalizeConverterSettings(settings)));
-  } catch {
-    // Conversion remains usable when storage is unavailable or full.
-  }
+  converterSettings.set(settings);
 }

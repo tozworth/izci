@@ -1,4 +1,4 @@
-import { createPersistentStore } from './persistent-store';
+import { createPersistentStore } from '$lib/settings/store';
 
 export const MULTIPLAYER_LAST_SESSION_STORAGE_KEY = 'izci.multiplayer-last-session';
 export const MULTIPLAYER_LAST_SESSION_CHANNEL = 'izci-multiplayer-last-session';

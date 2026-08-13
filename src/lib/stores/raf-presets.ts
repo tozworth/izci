@@ -1,6 +1,6 @@
-import { samePersistentValue } from './persistent-store';
+import { samePersistentValue } from '$lib/settings/store';
 import { normalizeRafSettings, rafSettings } from './raf-settings';
-import { createPersistentStore } from './persistent-store';
+import { createPersistentStore } from '$lib/settings/store';
 import type { RafPreset, RafPresetSettings, RafPresetState, RafRackSettings } from '$lib/contracts/raf';
 
 export const RAF_PRESETS_STORAGE_KEY = 'izci.raf-presets';

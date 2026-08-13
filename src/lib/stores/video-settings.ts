@@ -1,5 +1,5 @@
 import type { VideoFitMode, VideoSettings } from '$lib/contracts/player-settings';
-import { createSettingsStore } from './persistent-store';
+import { createSettingsStore } from '$lib/settings/store';
 
 export const VIDEO_SETTINGS_STORAGE_KEY = 'izci.video-settings';
 export const VIDEO_SETTINGS_CHANNEL = 'izci-video-settings';

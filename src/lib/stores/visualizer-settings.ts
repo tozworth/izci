@@ -1,5 +1,5 @@
 import type { VisualizerColorSource, VisualizerSettings, VisualizerStyle } from '$lib/contracts/appearance-settings';
-import { createSettingsStore } from './persistent-store';
+import { createSettingsStore } from '$lib/settings/store';
 
 export const VISUALIZER_SETTINGS_STORAGE_KEY = 'izci.visualizer-settings';
 export const VISUALIZER_SETTINGS_CHANNEL = 'izci.visualizer-settings';

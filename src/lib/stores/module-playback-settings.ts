@@ -1,5 +1,5 @@
 import type { ModuleInterpolationFilter, ModulePlaybackSettings } from '$lib/contracts/module-playback';
-import { createSettingsStore } from './persistent-store';
+import { createSettingsStore } from '$lib/settings/store';
 
 export const MODULE_PLAYBACK_SETTINGS_STORAGE_KEY = 'izci.module-playback-settings.v1';
 export const MODULE_PLAYBACK_SETTINGS_CHANNEL = 'izci-module-playback-settings';

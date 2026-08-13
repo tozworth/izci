@@ -1,7 +1,7 @@
 import type { Loadout, LoadoutAppearanceSettings, LoadoutColor, LoadoutPlaybackSettings, LoadoutSettings, LoadoutState, LoadoutTarget, LoadoutType } from '$lib/contracts/loadouts';
 import { normalizeAppearanceSettings } from './appearance-settings';
 import { normalizeModulePlaybackSettings } from './module-playback-settings';
-import { createPersistentStore } from './persistent-store';
+import { createPersistentStore } from '$lib/settings/store';
 import { normalizePlaybackSettings } from './playback-settings';
 import { normalizeVisualizerSettings } from './visualizer-settings';
 
