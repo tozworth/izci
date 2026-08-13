@@ -36,6 +36,8 @@ interface CreatePlaybackCommandsControllerOptions {
   cleanupRemovedItems: (items: PlaylistItem[]) => void;
   resolveResumePosition?: (track: PlaylistItem) => Promise<number>;
   notifyTrackResumed?: (track: PlaylistItem, currentTime: number) => void;
+  getStopAfterCurrentTrack?: () => boolean;
+  clearStopAfterCurrentTrack?: () => void;
 }
 
 const initialState: PlaybackCommandsState = {
@@ -104,7 +106,9 @@ export function createPlaybackCommandsController({
   setActiveWorkspaceTab,
   cleanupRemovedItems,
   resolveResumePosition = async () => 0,
-  notifyTrackResumed = () => undefined
+  notifyTrackResumed = () => undefined,
+  getStopAfterCurrentTrack = () => false,
+  clearStopAfterCurrentTrack = () => undefined
 }: CreatePlaybackCommandsControllerOptions) {
   let state = initialState;
   let playRequestSequence = 0;
@@ -388,7 +392,7 @@ export function createPlaybackCommandsController({
   async function prepareUpcomingTrack(): Promise<void> {
     const currentTrack = getPlayingTrack();
 
-    if (!currentTrack || !getGaplessPlaybackEnabled()) return;
+    if (!currentTrack || !getGaplessPlaybackEnabled() || getStopAfterCurrentTrack()) return;
     const nextTrack = playlistStore.resolveTrackEnd({
       currentId: currentTrack.id,
       shuffle: getShuffleEnabled(),
@@ -424,6 +428,7 @@ export function createPlaybackCommandsController({
     }
 
     if (mode === 'crossfade' && automaticCrossfadeTrackId !== currentTrack.id) {
+      if (getStopAfterCurrentTrack()) return;
       automaticCrossfadeTrackId = currentTrack.id;
       const nextTrack = playlistStore.resolveTrackEnd({
         currentId: currentTrack.id,
@@ -442,6 +447,15 @@ export function createPlaybackCommandsController({
 
   async function handleTrackEnded(): Promise<void> {
     if (manualTransitionCount > 0) return;
+
+    if (getStopAfterCurrentTrack()) {
+      clearStopAfterCurrentTrack();
+      logInfo('playback', 'Stopped after current track');
+      playerController.pause();
+      playerController.seek(0);
+      return;
+    }
+
     const nextTrack = playlistStore.resolveTrackEnd({
       currentId: getPlayingTrack()?.id,
       shuffle: getShuffleEnabled(),

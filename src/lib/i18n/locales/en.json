@@ -130,7 +130,12 @@
       "updateFailed": "update check failed",
       "tools": "Tools",
       "enableRaf": "Enable Raf",
-      "speedPreset": "{rate}×"
+      "speedPreset": "{rate}×",
+      "sleepTimer": "Sleep timer",
+      "sleepTimerOff": "Off",
+      "sleepTimerMinutes": "{minutes} min",
+      "sleepTimerRemaining": "Stops in {time}",
+      "stopAfterTrack": "Stop after current track"
     },
     "miniPlayer": {
       "heading": "Mini player",

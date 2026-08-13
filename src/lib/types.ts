@@ -402,6 +402,7 @@ export interface PlaybackSettings {
   rememberProgressDurationIndex: number;
   enableRaf: boolean;
   showRafToggleInPlayerBar: boolean;
+  stopAfterTrack: boolean;
 }
 
 export interface VisualizerSettings {

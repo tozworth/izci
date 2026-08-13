@@ -17,6 +17,12 @@
     type PlaybackBookmark
   } from '$lib/services/playback-bookmarks';
   import { formatDuration } from '$lib/utils/files';
+  import {
+    cancelSleepTimer,
+    setSleepTimer,
+    sleepTimer,
+    SLEEP_TIMER_PRESET_MINUTES
+  } from '$lib/services/sleep-timer';
   import type {
     MenuActionItem,
     PlaylistItem,
@@ -73,6 +79,9 @@
     | 'openRaf'
     | 'toggleTrueSpeed'
     | 'toggleRaf'
+    | 'toggleStopAfterTrack'
+    | 'sleepTimerOff'
+    | `sleepTimerSet:${string}`
     | `setPlaybackRate:${string}`
     | `applyRafPreset:${string}`
     | 'bookmark:add'
@@ -407,11 +416,45 @@
       separatorBefore: bookmarks.length > 0
     }
   ] satisfies MenuActionItem[];
+  $: sleepTimerMenuItems = [
+    {
+      id: 'sleepTimerOff',
+      label: $t('main.menu.sleepTimerOff', { default: 'Off' }),
+      icon: 'timer_off',
+      checked: !$sleepTimer.active
+    },
+    ...SLEEP_TIMER_PRESET_MINUTES.map((minutes, index) => ({
+      id: `sleepTimerSet:${minutes}`,
+      label: $t('main.menu.sleepTimerMinutes', { default: '{minutes} min', values: { minutes: String(minutes) } }),
+      icon: 'timer',
+      checked: $sleepTimer.active && $sleepTimer.durationMinutes === minutes,
+      separatorBefore: index === 0
+    }))
+  ] satisfies MenuActionItem[];
   $: playbackMenuItems = [
+    {
+      id: 'sleepTimer',
+      label: $t('main.menu.sleepTimer', { default: 'Sleep timer' }),
+      description: $sleepTimer.active && $sleepTimer.remainingSeconds !== null
+        ? $t('main.menu.sleepTimerRemaining', {
+            default: 'Stops in {time}',
+            values: { time: formatDuration($sleepTimer.remainingSeconds) }
+          })
+        : undefined,
+      icon: 'bedtime',
+      children: sleepTimerMenuItems
+    },
+    {
+      id: 'toggleStopAfterTrack',
+      label: $t('main.menu.stopAfterTrack', { default: 'Stop after current track' }),
+      icon: 'stop',
+      checked: $playbackSettings.stopAfterTrack
+    },
     {
       id: 'playbackSpeed',
       label: $t('options.playback.playbackRate.title', { default: 'Playback speed' }),
       icon: 'speed',
+      separatorBefore: true,
       children: playbackSpeedMenuItems
     },
     {
@@ -859,6 +902,18 @@
     }
     if (action === 'toggleTrueSpeed') {
       playbackSettings.update({ trueSpeed: !playbackSettings.getSnapshot().trueSpeed });
+      return;
+    }
+    if (action === 'toggleStopAfterTrack') {
+      playbackSettings.update({ stopAfterTrack: !playbackSettings.getSnapshot().stopAfterTrack });
+      return;
+    }
+    if (action === 'sleepTimerOff') {
+      cancelSleepTimer();
+      return;
+    }
+    if (action.startsWith('sleepTimerSet:')) {
+      setSleepTimer(Number(action.slice('sleepTimerSet:'.length)));
       return;
     }
     if (action.startsWith('setPlaybackRate:')) {

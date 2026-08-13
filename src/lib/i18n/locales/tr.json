@@ -130,7 +130,12 @@
       "updateFailed": "güncelleme başarısız",
       "tools": "Araçlar",
       "enableRaf": "Raf'ı etkinleştir",
-      "speedPreset": "{rate}×"
+      "speedPreset": "{rate}×",
+      "sleepTimer": "Uyku sayacı",
+      "sleepTimerOff": "Kapalı",
+      "sleepTimerMinutes": "{minutes} dk",
+      "sleepTimerRemaining": "Kalan {time}",
+      "stopAfterTrack": "Geçerli parçadan sonra dur"
     },
     "miniPlayer": {
       "heading": "Mini oynatıcı",

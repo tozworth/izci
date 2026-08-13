@@ -46,6 +46,11 @@ describe('playback settings helpers', () => {
     expect(normalizePlaybackSettings({ restartCurrentTrackOnPrevious: false }).restartCurrentTrackOnPrevious).toBe(false);
   });
 
+  it('defaults stop-after-track off and preserves an explicit opt-in', () => {
+    expect(normalizePlaybackSettings({}).stopAfterTrack).toBe(false);
+    expect(normalizePlaybackSettings({ stopAfterTrack: true }).stopAfterTrack).toBe(true);
+  });
+
   it('normalizes transition modes and fade duration', () => {
     expect(normalizePlaybackTransitionMode('crossfade')).toBe('crossfade');
     expect(normalizePlaybackTransitionMode('invalid')).toBe('none');

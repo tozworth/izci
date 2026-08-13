@@ -64,6 +64,7 @@
     type PlaybackProgressState
   } from '$lib/services/playback-progress';
   import { createPlaybackRestorationController } from '$lib/services/playback-restoration';
+  import { setSleepTimerFiredHandler } from '$lib/services/sleep-timer';
   import { forceServiceWorkerUpdateCheck } from '$lib/services/pwa-updates';
   import { logError } from '$lib/services/logging';
   import { createWorkspaceShellController } from '$lib/services/workspace-shell';
@@ -178,6 +179,7 @@
   const modulePatternStore = playerController.modulePattern;
   const stopLibraryFolderCommands = startLibraryFolderCommandListener();
   const stopLoadoutRuntime = startLoadoutRuntime(playerController.currentTrack);
+  setSleepTimerFiredHandler(pausePlayback);
 
   let localPlaylistItems: PlaylistItem[] = [];
   let localLibraryItems: PlaylistItem[] = [];
@@ -482,7 +484,9 @@
     cleanupRemovedItems: workspaceCollections.cleanupRemovedItems,
     resolveResumePosition: (track) => playbackProgress.resolveResumePosition(track),
     notifyTrackResumed: (track, currentTime) =>
-      playbackProgress.showResumeNotice(track, currentTime)
+      playbackProgress.showResumeNotice(track, currentTime),
+    getStopAfterCurrentTrack: () => $playbackSettings.stopAfterTrack,
+    clearStopAfterCurrentTrack: () => playbackSettings.update({ stopAfterTrack: false })
   });
   async function handleMultiplayerHostCommand(command: MultiplayerCommand): Promise<boolean> {
     if (multiplayerState.mode !== 'hosting') return false;

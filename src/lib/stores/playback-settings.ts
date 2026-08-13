@@ -58,7 +58,8 @@ export const DEFAULT_PLAYBACK_SETTINGS: PlaybackSettings = {
   restoreMode: 'disabled',
   rememberProgressDurationIndex: DEFAULT_REMEMBER_PROGRESS_DURATION_INDEX,
   enableRaf: false,
-  showRafToggleInPlayerBar: false
+  showRafToggleInPlayerBar: false,
+  stopAfterTrack: false
 };
 
 export function normalizePlaybackTransitionMode(value: unknown): PlaybackTransitionMode {
@@ -164,7 +165,11 @@ export function normalizePlaybackSettings(value: unknown): PlaybackSettings {
     showRafToggleInPlayerBar:
       typeof source.showRafToggleInPlayerBar === 'boolean'
         ? source.showRafToggleInPlayerBar
-        : DEFAULT_PLAYBACK_SETTINGS.showRafToggleInPlayerBar
+        : DEFAULT_PLAYBACK_SETTINGS.showRafToggleInPlayerBar,
+    stopAfterTrack:
+      typeof source.stopAfterTrack === 'boolean'
+        ? source.stopAfterTrack
+        : DEFAULT_PLAYBACK_SETTINGS.stopAfterTrack
   };
 }
 
