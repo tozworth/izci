@@ -46,7 +46,10 @@
   } from '$lib/services/contextual-tab-presentation';
   import { filesystemFolders } from '$lib/services/filesystem-folders';
   import { startLibraryFolderCommandListener } from '$lib/services/library-folder-coordination';
-  import { scanLaunchLibraryFolders } from '$lib/services/library-folder-scanner';
+  import {
+    disposeLibraryFolderScanner,
+    scanLaunchLibraryFolders
+  } from '$lib/services/library-folder-scanner';
   import { appInstallService, type AppInstallState } from '$lib/services/app-install';
   import { subscribeToLaunchedFiles } from '$lib/services/file-launch';
   import {
@@ -2070,6 +2073,7 @@
 
   onDestroy(() => {
     void disposePlaylistMetadata();
+    void disposeLibraryFolderScanner();
     dismissMultiplayerToast();
     playbackRestoration.destroy();
     playbackProgress.destroy();
