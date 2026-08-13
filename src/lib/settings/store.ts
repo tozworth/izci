@@ -5,6 +5,7 @@ export type {
   SettingsStoreController,
   SettingsStoreStatus
 } from './contracts';
+export type { RegisteredSettingsController } from './registry';
 export { samePersistentValue } from './engine';
 export { createPersistentStore, createSettingsStore, settingsRegistry } from './browser';
 
@@ -18,4 +19,3 @@ export const restoreRegisteredSetting = (storageKey: string, value: unknown) =>
 export const resetRegisteredSetting = (storageKey: string) => settingsRegistry.reset(storageKey);
 export const flushSettingsStores = () => settingsRegistry.flushAll();
 export const disposeSettingsStores = () => settingsRegistry.disposeAll();
-

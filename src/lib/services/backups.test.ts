@@ -24,6 +24,10 @@ function archive(overrides: Partial<BackupArchiveData> = {}): BackupArchiveData 
     },
     settings: {
       'izci.playback-settings': { logarithmicVolume: true },
+      'izci.experimental-settings': {
+        multiplayer: true,
+        multiplayerTurnSecret: 'must-not-survive'
+      },
       'izci.file-launch.primary.v1': { owner: 'transient-window' }
     },
     library: [
@@ -67,7 +71,8 @@ describe('izci backup archives', () => {
 
     expect(decoded.manifest.sourceOrigin).toBe('http://localhost:5173');
     expect(decoded.settings).toEqual({
-      'izci.playback-settings': { logarithmicVolume: true }
+      'izci.playback-settings': { logarithmicVolume: true },
+      'izci.experimental-settings': { multiplayer: true }
     });
     expect(decoded.library[0]).toMatchObject({
       id: 'track-1',

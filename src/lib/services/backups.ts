@@ -25,10 +25,23 @@ import {
   readDirectoryFiles,
   readFileHandleFiles
 } from '$lib/utils/files';
+import {
+  BACKED_UP_SETTINGS_KEYS,
+  exportBackupSettings,
+  isBackedUpSetting,
+  restoreBackupSettings,
+  sanitizeBackupSetting
+} from '$lib/services/backup-registry';
+import {
+  openBrowserDatabase,
+  registerBrowserPersistenceOwner
+} from '$lib/persistence/browser-indexed-db';
+import { defineDatabase, defineStore, runTransaction } from '$lib/persistence/indexed-db';
+import { logWarning } from '$lib/logging/api';
 
 export const BACKUP_EXTENSION = '.izci';
 export const BACKUP_MIME_TYPE = 'application/vnd.izci.backup+zip';
-export const BACKUP_FORMAT_VERSION = 1;
+export const BACKUP_FORMAT_VERSION = 2;
 
 const BACKUP_DATABASE_NAME = 'izci-backup-restore';
 const BACKUP_DATABASE_VERSION = 1;
@@ -36,27 +49,7 @@ const BACKUP_STORE_NAME = 'restore';
 const BACKUP_STATE_KEY = 'pending';
 const BACKUP_CHANNEL_NAME = 'izci-backup-restore';
 
-// This is deliberately an allowlist. Coordination, window, update, and transient keys do not belong in backups.
-export const BACKED_UP_SETTINGS_KEYS = [
-  'izci.appearance-settings',
-  'izci.experimental-settings',
-  'izci.library-view-settings.v5',
-  'izci.loadout-ui-settings',
-  'izci.loadouts',
-  'izci.locale',
-  'izci.metadata-settings',
-  'izci.module-playback-settings.v1',
-  'izci.pattern-viewer-settings',
-  'izci.playback-settings',
-  'izci.player-volume.v1',
-  'izci.raf-presets',
-  'izci.raf-settings',
-  'izci.track-settings',
-  'izci.video-settings',
-  'izci.visualizer-settings',
-  'izci.workspace-panel-layout.v2',
-  'izci.workspace-panel-state.v2'
-] as const;
+export { BACKED_UP_SETTINGS_KEYS } from '$lib/services/backup-registry';
 
 export interface BackupManifest {
   kind: 'izci-backup';
@@ -110,6 +103,14 @@ export interface PendingBackupRestore {
   tracks: PortableTrackRecord[];
   favorites: PortableTrackRecord[];
 }
+
+const backupDatabaseSpec = defineDatabase({
+  name: BACKUP_DATABASE_NAME,
+  version: BACKUP_DATABASE_VERSION,
+  stores: {
+    [BACKUP_STORE_NAME]: defineStore<PendingBackupRestore, string>()({})
+  }
+});
 
 export interface BackupRestoreResult {
   manifest: BackupManifest;
@@ -266,9 +267,10 @@ export function decodeBackupArchive(bytes: Uint8Array): BackupArchiveData {
     throw new Error('invalid-backup');
   }
 
-  const allowedSettings = new Set<string>(BACKED_UP_SETTINGS_KEYS);
   const settings = Object.fromEntries(
-    Object.entries(rawSettings).filter(([key]) => allowedSettings.has(key))
+    Object.entries(rawSettings)
+      .filter(([key]) => isBackedUpSetting(key))
+      .map(([key, value]) => [key, sanitizeBackupSetting(key, value)])
   );
   return {
     manifest,
@@ -282,75 +284,35 @@ export function decodeBackupArchive(bytes: Uint8Array): BackupArchiveData {
   };
 }
 
-function readSettings(): Record<string, unknown> {
-  const settings: Record<string, unknown> = {};
-  for (const key of BACKED_UP_SETTINGS_KEYS) {
-    const raw = window.localStorage.getItem(key);
-    if (!raw) continue;
-    try {
-      settings[key] = JSON.parse(raw);
-    } catch {
-      // Corrupt settings are already treated as defaults by their owning stores.
-    }
-  }
-  return settings;
-}
-
-function restoreSettings(settings: Record<string, unknown>): number {
-  let restored = 0;
-  for (const key of BACKED_UP_SETTINGS_KEYS) {
-    if (Object.prototype.hasOwnProperty.call(settings, key)) {
-      window.localStorage.setItem(key, JSON.stringify(settings[key]));
-      restored += 1;
-    } else {
-      window.localStorage.removeItem(key);
-    }
-  }
-  return restored;
-}
-
-function openBackupDatabase(): Promise<IDBDatabase | null> {
-  if (typeof window === 'undefined' || !('indexedDB' in window)) return Promise.resolve(null);
-  return new Promise((resolve) => {
-    const request = window.indexedDB.open(BACKUP_DATABASE_NAME, BACKUP_DATABASE_VERSION);
-    request.onupgradeneeded = () => {
-      if (!request.result.objectStoreNames.contains(BACKUP_STORE_NAME)) {
-        request.result.createObjectStore(BACKUP_STORE_NAME);
-      }
-    };
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => resolve(null);
-  });
-}
-
 async function readPendingRestore(): Promise<PendingBackupRestore> {
-  const database = await openBackupDatabase();
-  if (!database) return EMPTY_PENDING_RESTORE;
-  return await new Promise((resolve) => {
-    const transaction = database.transaction(BACKUP_STORE_NAME, 'readonly');
-    const request = transaction.objectStore(BACKUP_STORE_NAME).get(BACKUP_STATE_KEY);
-    request.onsuccess = () => resolve(normalizePendingRestore(request.result));
-    request.onerror = () => resolve(EMPTY_PENDING_RESTORE);
-    transaction.oncomplete = () => database.close();
-    transaction.onerror = transaction.onabort = () => database.close();
-  });
+  const connection = await openBrowserDatabase(backupDatabaseSpec);
+  try {
+    return await runTransaction(connection, {
+      stores: [BACKUP_STORE_NAME],
+      mode: 'readonly',
+      operation: 'read pending backup restore'
+    }, async (transaction) => normalizePendingRestore(
+      await transaction.store(BACKUP_STORE_NAME).get(BACKUP_STATE_KEY)
+    ));
+  } finally {
+    await connection.close();
+  }
 }
 
 async function writePendingRestore(state: PendingBackupRestore): Promise<void> {
-  const database = await openBackupDatabase();
-  if (!database) return;
-  await new Promise<void>((resolve) => {
-    const transaction = database.transaction(BACKUP_STORE_NAME, 'readwrite');
-    transaction.objectStore(BACKUP_STORE_NAME).put(state, BACKUP_STATE_KEY);
-    transaction.oncomplete = () => {
-      database.close();
-      resolve();
-    };
-    transaction.onerror = transaction.onabort = () => {
-      database.close();
-      resolve();
-    };
-  });
+  const connection = await openBrowserDatabase(backupDatabaseSpec);
+  try {
+    await runTransaction(connection, {
+      stores: [BACKUP_STORE_NAME],
+      mode: 'readwrite',
+      operation: 'persist pending backup restore',
+      durability: 'strict'
+    }, async (transaction) => {
+      await transaction.store(BACKUP_STORE_NAME).put(state, BACKUP_STATE_KEY);
+    });
+  } finally {
+    await connection.close();
+  }
 }
 
 function normalizePendingRestore(value: unknown): PendingBackupRestore {
@@ -374,47 +336,98 @@ function normalizePendingRestore(value: unknown): PendingBackupRestore {
 function createPendingRestoreStore(): Readable<PendingBackupRestore> & {
   ready(): Promise<void>;
   getSnapshot(): PendingBackupRestore;
+  readonly persistenceStatus: Readable<{ state: 'hydrating' | 'ready' | 'busy' | 'degraded' | 'disposed'; error: unknown | null }>;
   replace(state: PendingBackupRestore): Promise<void>;
   update(updater: (state: PendingBackupRestore) => PendingBackupRestore): Promise<void>;
+  flush(): Promise<void>;
+  dispose(): Promise<void>;
 } {
   const store = writable(EMPTY_PENDING_RESTORE);
+  const persistenceStatus = writable<{
+    state: 'hydrating' | 'ready' | 'busy' | 'degraded' | 'disposed';
+    error: unknown | null;
+  }>({ state: typeof window === 'undefined' ? 'ready' : 'hydrating', error: null });
   let snapshot = EMPTY_PENDING_RESTORE;
   let channel: BroadcastChannel | null = null;
-  let resolveReady: (() => void) | null = null;
-  const readyPromise = typeof window === 'undefined'
-    ? Promise.resolve()
-    : new Promise<void>((resolve) => (resolveReady = resolve));
+  let disposed = false;
+  let mutationQueue = Promise.resolve();
   store.subscribe((value) => (snapshot = value));
 
-  const load = async () => store.set(await readPendingRestore());
+  const load = async (): Promise<void> => {
+    if (disposed) return;
+    persistenceStatus.set({ state: 'busy', error: null });
+    try {
+      store.set(await readPendingRestore());
+      persistenceStatus.set({ state: 'ready', error: null });
+    } catch (error) {
+      persistenceStatus.set({ state: 'degraded', error });
+      throw error;
+    }
+  };
+  const enqueue = <T>(operation: () => Promise<T>): Promise<T> => {
+    const run = mutationQueue.then(operation, operation);
+    mutationQueue = run.then(() => undefined, () => undefined);
+    return run;
+  };
+  const handleChannelMessage = (): void => {
+    void enqueue(load).catch((error) => {
+      logWarning('library', 'Pending backup restore refresh failed', { error });
+    });
+  };
+  const readyPromise = typeof window === 'undefined' ? Promise.resolve() : enqueue(load);
   if (typeof window !== 'undefined') {
     if ('BroadcastChannel' in window) {
       channel = new BroadcastChannel(BACKUP_CHANNEL_NAME);
-      channel.addEventListener('message', () => void load());
+      channel.addEventListener('message', handleChannelMessage);
     }
-    void load().finally(() => {
-      resolveReady?.();
-      resolveReady = null;
+    void readyPromise.catch((error) => {
+      logWarning('library', 'Pending backup restore hydration failed', { error });
     });
   }
 
   async function replace(state: PendingBackupRestore): Promise<void> {
     const normalized = normalizePendingRestore(state);
-    store.set(normalized);
-    await writePendingRestore(normalized);
-    channel?.postMessage({ type: 'changed' });
+    await enqueue(async () => {
+      persistenceStatus.set({ state: 'busy', error: null });
+      try {
+        await writePendingRestore(normalized);
+        store.set(normalized);
+        channel?.postMessage({ type: 'changed' });
+        persistenceStatus.set({ state: 'ready', error: null });
+      } catch (error) {
+        persistenceStatus.set({ state: 'degraded', error });
+        throw error;
+      }
+    });
   }
 
-  return {
+  const controller = {
     subscribe: store.subscribe,
     ready: () => readyPromise,
     getSnapshot: () => snapshot,
+    persistenceStatus: { subscribe: persistenceStatus.subscribe },
     replace,
-    async update(updater) {
-      await readyPromise;
+    async update(updater: (state: PendingBackupRestore) => PendingBackupRestore) {
+      await readyPromise.catch(() => undefined);
       await replace(updater(snapshot));
+    },
+    flush: () => mutationQueue,
+    async dispose() {
+      if (disposed) return;
+      disposed = true;
+      await mutationQueue;
+      channel?.removeEventListener('message', handleChannelMessage);
+      channel?.close();
+      channel = null;
+      persistenceStatus.set({ state: 'disposed', error: null });
     }
   };
+  registerBrowserPersistenceOwner({
+    label: 'pending backup restore',
+    flush: controller.flush,
+    dispose: controller.dispose
+  });
+  return controller;
 }
 
 export const pendingBackupRestore = createPendingRestoreStore();
@@ -450,7 +463,7 @@ export async function createBackupArchive(): Promise<{
     knownFolderIds.add(track.sourceFolderId);
   }
   const progress = await readAllPlaybackProgress();
-  const settings = readSettings();
+  const settings = exportBackupSettings();
   const createdAt = new Date().toISOString();
   const manifest: BackupManifest = {
     kind: 'izci-backup',
@@ -552,7 +565,7 @@ export async function restoreBackupArchive(file: File): Promise<BackupRestoreRes
     filesystemFolders.ready(),
     pendingBackupRestore.ready()
   ]);
-  const settingsRestored = restoreSettings(data.settings);
+  const settingsRestored = restoreBackupSettings(data.settings);
   const progressRestored = await mergePlaybackProgress(data.progress);
   const tracks = matchExistingTracks(data.library);
   const favorites = restoreFavorites(data.favorites);
