@@ -31,6 +31,8 @@ function rememberedFolder(
     name,
     handle,
     addedAt: 1,
+    definitionRevision: 1,
+    scanGeneration: 0,
     permission: 'granted',
     libraryMode: null,
     lastScanStatus: 'never'
@@ -46,6 +48,8 @@ function storedFolder(
     name: handle.name,
     handle,
     addedAt: 1,
+    definitionRevision: 1,
+    scanGeneration: 0,
     libraryMode: null,
     lastScanStatus: 'never'
   };
@@ -58,6 +62,24 @@ function persistenceFailure(category: 'quota' | 'io' = 'quota'): PersistenceErro
     operation: 'test folder persistence',
     retryable: true
   });
+}
+
+function memoryPersistence(
+  initial: { folderSetRevision: number; folders: StoredFilesystemFolder[] } = {
+    folderSetRevision: 0,
+    folders: []
+  }
+): FilesystemFoldersPersistence {
+  let state = initial;
+  return {
+    read: async () => state,
+    write: async (next) => {
+      state = {
+        folderSetRevision: next.folderSetRevision,
+        folders: next.folders.map((folder) => ({ ...folder }))
+      };
+    }
+  };
 }
 
 describe('filesystem folder helpers', () => {
@@ -157,11 +179,104 @@ describe('filesystem folder helpers', () => {
 });
 
 describe('filesystem folder persistence lifecycle', () => {
+  it('separates folder-definition revisions from scan status and scan generations', async () => {
+    const handle = directoryHandle();
+    const folders = createFilesystemFoldersStore({
+      persistence: memoryPersistence(),
+      initialize: true,
+      createChannel: () => null,
+      createId: () => 'music'
+    });
+    await folders.ready();
+    await folders.remember(handle, { libraryMode: 'manual' });
+
+    expect(folders.getRevisionSnapshot()).toMatchObject({
+      folderSetRevision: 1,
+      folders: [{ id: 'music', definitionRevision: 1, scanGeneration: 0 }]
+    });
+
+    await folders.updateScan('music', { lastScanStatus: 'error', lastScanFailure: 'scan-failed' });
+    expect(folders.getRevisionSnapshot()).toMatchObject({
+      folderSetRevision: 1,
+      folders: [{ definitionRevision: 1, scanGeneration: 0 }]
+    });
+
+    const token = await folders.beginScan('music');
+    expect(token).toMatchObject({
+      folderId: 'music',
+      definitionRevision: 1,
+      folderSetRevision: 1,
+      generation: 1,
+      libraryMode: 'manual'
+    });
+    expect(token && folders.isScanCurrent(token)).toBe(true);
+    await expect(folders.finishScan(token!, {
+      lastScanAt: 42,
+      lastScanStatus: 'success',
+      lastScanTrackCount: 3,
+      lastScanFailure: undefined
+    })).resolves.toBe(true);
+    expect(folders.getRevisionSnapshot()).toMatchObject({
+      folderSetRevision: 1,
+      folders: [{
+        definitionRevision: 1,
+        scanGeneration: 1,
+        lastScanStatus: 'success',
+        lastScanTrackCount: 3
+      }]
+    });
+    await folders.dispose();
+  });
+
+  it('rejects stale scan completion after a newer generation or definition change', async () => {
+    const folders = createFilesystemFoldersStore({
+      persistence: memoryPersistence(),
+      initialize: true,
+      createChannel: () => null,
+      createId: () => 'music'
+    });
+    await folders.ready();
+    await folders.remember(directoryHandle(), { libraryMode: 'manual' });
+    const first = (await folders.beginScan('music'))!;
+    const second = (await folders.beginScan('music'))!;
+
+    expect(folders.isScanCurrent(first)).toBe(false);
+    await expect(folders.finishScan(first, { lastScanStatus: 'success' })).resolves.toBe(false);
+    expect(folders.isScanCurrent(second)).toBe(true);
+
+    await folders.setLibraryMode('music', 'launch');
+    expect(folders.isScanCurrent(second)).toBe(false);
+    await expect(folders.finishScan(second, { lastScanStatus: 'success' })).resolves.toBe(false);
+    expect(folders.getRevisionSnapshot()).toMatchObject({
+      folderSetRevision: 2,
+      folders: [{ definitionRevision: 2, lastScanStatus: 'scanning' }]
+    });
+    await folders.dispose();
+  });
+
+  it('invalidates a plan token when the active folder set changes', async () => {
+    const ids = ['music', 'other'];
+    const folders = createFilesystemFoldersStore({
+      persistence: memoryPersistence(),
+      initialize: true,
+      createChannel: () => null,
+      createId: () => ids.shift()!
+    });
+    await folders.ready();
+    await folders.remember(directoryHandle(), { libraryMode: 'manual' });
+    const token = (await folders.beginScan('music'))!;
+    await folders.remember(directoryHandle({ name: 'Other' }), { libraryMode: 'launch' });
+
+    expect(folders.isScanCurrent(token)).toBe(false);
+    await expect(folders.finishScan(token, { lastScanStatus: 'success' })).resolves.toBe(false);
+    await folders.dispose();
+  });
+
   it('keeps the last good snapshot and exposes typed read failures instead of replacing them with empty state', async () => {
     const folder = directoryHandle();
     const failure = persistenceFailure('io');
     const read = vi.fn<FilesystemFoldersPersistence['read']>()
-      .mockResolvedValueOnce([storedFolder('music', folder)])
+      .mockResolvedValueOnce({ folderSetRevision: 1, folders: [storedFolder('music', folder)] })
       .mockRejectedValueOnce(failure);
     const persistence: FilesystemFoldersPersistence = { read, write: vi.fn() };
     const folders = createFilesystemFoldersStore({ persistence, initialize: true, createChannel: () => null });
@@ -183,7 +298,7 @@ describe('filesystem folder persistence lifecycle', () => {
     const failure = persistenceFailure();
     const write = vi.fn<FilesystemFoldersPersistence['write']>().mockRejectedValue(failure);
     const folders = createFilesystemFoldersStore({
-      persistence: { read: async () => [], write },
+      persistence: { read: async () => ({ folderSetRevision: 0, folders: [] }), write },
       initialize: true,
       createChannel: () => null,
       createId: () => 'folder-id',
@@ -192,16 +307,19 @@ describe('filesystem folder persistence lifecycle', () => {
     await folders.ready();
 
     await expect(folders.remember(folder)).rejects.toBe(failure);
-    expect(write).toHaveBeenCalledWith([
-      {
+    expect(write).toHaveBeenCalledWith({
+      folderSetRevision: 1,
+      folders: [{
         id: 'folder-id',
         name: 'Music',
         handle: folder,
         addedAt: 42,
+        definitionRevision: 1,
+        scanGeneration: 0,
         libraryMode: null,
         lastScanStatus: 'never'
-      }
-    ]);
+      }]
+    });
     expect(folders.getSnapshot()).toEqual([]);
     expect(get(folders.persistenceState)).toEqual({ status: 'error', error: failure });
   });
@@ -217,7 +335,7 @@ describe('filesystem folder persistence lifecycle', () => {
     const persistence: FilesystemFoldersPersistence = {
       read: async () => {
         calls.push('read-persistence');
-        return [storedFolder('music', folder)];
+        return { folderSetRevision: 1, folders: [storedFolder('music', folder)] };
       },
       write: async () => { calls.push('write-persistence'); }
     };
@@ -243,7 +361,7 @@ describe('filesystem folder persistence lifecycle', () => {
       close
     };
     const folders = createFilesystemFoldersStore({
-      persistence: { read: async () => [], write },
+      persistence: { read: async () => ({ folderSetRevision: 0, folders: [] }), write },
       initialize: true,
       createChannel: () => channel,
       createId: () => 'folder-id'

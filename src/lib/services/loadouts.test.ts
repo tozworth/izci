@@ -35,6 +35,8 @@ const folder = {
   name: 'Modules',
   handle: { kind: 'directory', name: 'Modules' } as FileSystemDirectoryHandle,
   addedAt: 1,
+  definitionRevision: 1,
+  scanGeneration: 0,
   permission: 'granted',
   libraryMode: null,
   lastScanStatus: 'never'

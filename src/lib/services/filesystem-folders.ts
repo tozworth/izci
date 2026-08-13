@@ -30,6 +30,10 @@ export interface FilesystemFolder {
   name: string;
   handle: FileSystemDirectoryHandle;
   addedAt: number;
+  /** Changes only when the reusable folder definition changes. */
+  definitionRevision: number;
+  /** Monotonic ownership token for scans of this folder. */
+  scanGeneration: number;
   permission: FilesystemFolderPermission;
   libraryMode: LibraryFolderMode | null;
   lastScanAt?: number;
@@ -45,13 +49,32 @@ export interface FilesystemFileLocation {
 
 export type StoredFilesystemFolder = Omit<FilesystemFolder, 'permission'>;
 
+export interface StoredFilesystemFoldersState {
+  readonly folderSetRevision: number;
+  readonly folders: StoredFilesystemFolder[];
+}
+
+export interface FilesystemFoldersRevisionSnapshot {
+  readonly folderSetRevision: number;
+  readonly folders: FilesystemFolder[];
+}
+
+export interface LibraryFolderScanToken {
+  readonly folderId: string;
+  readonly definitionRevision: number;
+  readonly folderSetRevision: number;
+  readonly generation: number;
+  readonly handle: FileSystemDirectoryHandle;
+  readonly libraryMode: LibraryFolderMode;
+}
+
 export type FilesystemFoldersPersistenceState =
   | { readonly status: 'loading' | 'ready' | 'disposed'; readonly error?: undefined }
   | { readonly status: 'error'; readonly error: PersistenceError };
 
 export interface FilesystemFoldersPersistence {
-  read(): Promise<StoredFilesystemFolder[]>;
-  write(folders: StoredFilesystemFolder[]): Promise<void>;
+  read(): Promise<StoredFilesystemFoldersState>;
+  write(state: StoredFilesystemFoldersState): Promise<void>;
 }
 
 export interface FilesystemFoldersChannel {
@@ -85,7 +108,14 @@ export interface FilesystemFoldersStore extends Readable<FilesystemFolder[]> {
     id: string,
     patch: Partial<Pick<FilesystemFolder, 'lastScanAt' | 'lastScanStatus' | 'lastScanTrackCount' | 'lastScanFailure'>>
   ): Promise<void>;
+  beginScan(id: string): Promise<LibraryFolderScanToken | null>;
+  isScanCurrent(token: LibraryFolderScanToken): boolean;
+  finishScan(
+    token: LibraryFolderScanToken,
+    patch: Partial<Pick<FilesystemFolder, 'lastScanAt' | 'lastScanStatus' | 'lastScanTrackCount' | 'lastScanFailure'>>
+  ): Promise<boolean>;
   getSnapshot(): FilesystemFolder[];
+  getRevisionSnapshot(): FilesystemFoldersRevisionSnapshot;
   flush(): Promise<void>;
   dispose(): Promise<void>;
 }
@@ -101,7 +131,7 @@ export const filesystemFoldersDatabase = defineDatabase({
   name: DATABASE_NAME,
   version: DATABASE_VERSION,
   stores: {
-    [STORE_NAME]: defineStore<StoredFilesystemFolder[], string>()({})
+    [STORE_NAME]: defineStore<StoredFilesystemFoldersState, string>()({})
   }
 });
 
@@ -151,6 +181,14 @@ function normalizeStoredFolder(value: unknown): StoredFilesystemFolder | null {
     name: source.name,
     handle: source.handle,
     addedAt: typeof source.addedAt === 'number' ? source.addedAt : Date.now(),
+    definitionRevision:
+      Number.isSafeInteger(source.definitionRevision) && source.definitionRevision! >= 1
+        ? source.definitionRevision!
+        : 1,
+    scanGeneration:
+      Number.isSafeInteger(source.scanGeneration) && source.scanGeneration! >= 0
+        ? source.scanGeneration!
+        : 0,
     libraryMode: source.libraryMode === 'manual' || source.libraryMode === 'launch' ? source.libraryMode : null,
     lastScanAt: typeof source.lastScanAt === 'number' ? source.lastScanAt : undefined,
     lastScanStatus,
@@ -166,7 +204,24 @@ function normalizeStoredFolder(value: unknown): StoredFilesystemFolder | null {
   };
 }
 
-export async function readStoredFilesystemFolders(): Promise<StoredFilesystemFolder[]> {
+function normalizeStoredState(value: unknown): StoredFilesystemFoldersState {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return { folderSetRevision: 0, folders: [] };
+  }
+  const source = value as Partial<StoredFilesystemFoldersState>;
+  const folders = Array.isArray(source.folders) ? source.folders : [];
+  return {
+    folderSetRevision:
+      Number.isSafeInteger(source.folderSetRevision) && source.folderSetRevision! >= 0
+        ? source.folderSetRevision!
+        : 0,
+    folders: folders
+      .map(normalizeStoredFolder)
+      .filter((folder): folder is StoredFilesystemFolder => folder !== null)
+  };
+}
+
+export async function readStoredFilesystemFolders(): Promise<StoredFilesystemFoldersState> {
   const connection = await openBrowserDatabase(filesystemFoldersDatabase);
   try {
     const stored = await runTransaction(connection, {
@@ -174,16 +229,13 @@ export async function readStoredFilesystemFolders(): Promise<StoredFilesystemFol
       mode: 'readonly',
       operation: 'read remembered filesystem folders'
     }, (transaction) => transaction.store(STORE_NAME).get(STATE_KEY));
-    const values = Array.isArray(stored) ? stored : [];
-    return values
-      .map(normalizeStoredFolder)
-      .filter((value): value is StoredFilesystemFolder => value !== null);
+    return normalizeStoredState(stored);
   } finally {
     await connection.close();
   }
 }
 
-export async function writeStoredFilesystemFolders(folders: StoredFilesystemFolder[]): Promise<void> {
+export async function writeStoredFilesystemFolders(state: StoredFilesystemFoldersState): Promise<void> {
   const connection = await openBrowserDatabase(filesystemFoldersDatabase);
   try {
     await runTransaction(connection, {
@@ -192,7 +244,7 @@ export async function writeStoredFilesystemFolders(folders: StoredFilesystemFold
       operation: 'persist remembered filesystem folders',
       durability: 'strict'
     }, async (transaction) => {
-      await transaction.store(STORE_NAME).put(folders, STATE_KEY);
+      await transaction.store(STORE_NAME).put(state, STATE_KEY);
     });
   } finally {
     await connection.close();
@@ -322,6 +374,7 @@ export function createFilesystemFoldersStore(
   const now = options.now ?? Date.now;
   const createId = options.createId ?? (() => crypto.randomUUID());
   let snapshot: FilesystemFolder[] = [];
+  let folderSetRevision = 0;
   let channel: FilesystemFoldersChannel | null = null;
   let channelListener: ((event: MessageEvent<unknown>) => void) | null = null;
   let mutationQueue: Promise<void> = Promise.resolve();
@@ -356,7 +409,7 @@ export function createFilesystemFoldersStore(
     return error;
   }
 
-  async function readPersisted(operation: string): Promise<StoredFilesystemFolder[]> {
+  async function readPersisted(operation: string): Promise<StoredFilesystemFoldersState> {
     try {
       return await persistence.read();
     } catch (cause) {
@@ -368,29 +421,34 @@ export function createFilesystemFoldersStore(
     assertActive('load remembered filesystem folders');
     const stored = await readPersisted('load remembered filesystem folders');
     store.set(
-      stored.map((folder) => ({
+      stored.folders.map((folder) => ({
         ...folder,
         permission: snapshot.find((candidate) => candidate.id === folder.id)?.permission ?? 'unavailable'
       }))
     );
     const folders = await Promise.all(
-      stored.map(async (folder) => ({
+      stored.folders.map(async (folder) => ({
         ...folder,
         permission: await queryFilesystemFolderPermission(folder.handle, probe)
       }))
     );
+    folderSetRevision = stored.folderSetRevision;
     store.set(folders);
     persistenceStore.set({ status: 'ready' });
     return folders;
   }
 
-  async function persist(next: FilesystemFolder[]): Promise<void> {
+  async function persist(next: FilesystemFoldersRevisionSnapshot): Promise<void> {
     try {
-      await persistence.write(next.map(stripRuntimeState));
+      await persistence.write({
+        folderSetRevision: next.folderSetRevision,
+        folders: next.folders.map(stripRuntimeState)
+      });
     } catch (cause) {
       throw reportPersistenceFailure(cause, 'persist remembered filesystem folders');
     }
-    store.set(next);
+    folderSetRevision = next.folderSetRevision;
+    store.set(next.folders);
     persistenceStore.set({ status: 'ready' });
     try {
       channel?.postMessage({ type: 'changed' });
@@ -400,15 +458,17 @@ export function createFilesystemFoldersStore(
   }
 
   async function mutate(
-    updater: (current: FilesystemFolder[]) => Promise<FilesystemFolder[]> | FilesystemFolder[]
-  ): Promise<FilesystemFolder[]> {
+    updater: (
+      current: FilesystemFoldersRevisionSnapshot
+    ) => Promise<FilesystemFoldersRevisionSnapshot> | FilesystemFoldersRevisionSnapshot
+  ): Promise<FilesystemFoldersRevisionSnapshot> {
     assertActive('mutate remembered filesystem folders');
     await readyPromise;
-    let result: FilesystemFolder[] = [];
+    let result: FilesystemFoldersRevisionSnapshot = { folderSetRevision, folders: [] };
     const operation = mutationQueue.then(async () => {
       const freshStored = await readPersisted('refresh remembered filesystem folders before mutation');
-      const current = await Promise.all(
-        freshStored.map(async (folder) => {
+      const currentFolders = await Promise.all(
+        freshStored.folders.map(async (folder) => {
           const existing = snapshot.find((candidate) => candidate.id === folder.id);
           return {
             ...folder,
@@ -416,7 +476,10 @@ export function createFilesystemFoldersStore(
           };
         })
       );
-      result = await updater(current);
+      result = await updater({
+        folderSetRevision: freshStored.folderSetRevision,
+        folders: currentFolders
+      });
       await persist(result);
     });
     pendingMutation = operation;
@@ -461,35 +524,51 @@ export function createFilesystemFoldersStore(
       return loading;
     },
     getSnapshot: () => snapshot,
+    getRevisionSnapshot: () => ({ folderSetRevision, folders: snapshot }),
     async remember(handle, options = {}) {
       let remembered: FilesystemFolder | null = null;
       await mutate(async (current) => {
-        for (const folder of current) {
+        for (const folder of current.folders) {
           if (await sameDirectory(folder.handle, handle)) {
+            const nextMode = options.libraryMode === undefined ? folder.libraryMode : options.libraryMode;
+            const definitionChanged = folder.handle !== handle
+              || folder.name !== handle.name
+              || folder.libraryMode !== nextMode;
             remembered = {
               ...folder,
               name: handle.name,
               handle,
+              definitionRevision: folder.definitionRevision + (definitionChanged ? 1 : 0),
               permission: await queryFilesystemFolderPermission(handle, false),
-              libraryMode: options.libraryMode === undefined ? folder.libraryMode : options.libraryMode
+              libraryMode: nextMode
             };
-            return current.map((candidate) => (candidate.id === folder.id ? remembered! : candidate));
+            return {
+              folderSetRevision: current.folderSetRevision + (definitionChanged ? 1 : 0),
+              folders: current.folders.map((candidate) => (
+                candidate.id === folder.id ? remembered! : candidate
+              ))
+            };
           }
         }
 
         remembered = {
           id:
-            options.preferredId && !current.some((folder) => folder.id === options.preferredId)
+            options.preferredId && !current.folders.some((folder) => folder.id === options.preferredId)
               ? options.preferredId
               : createId(),
           name: handle.name,
           handle,
           addedAt: now(),
+          definitionRevision: 1,
+          scanGeneration: 0,
           permission: await queryFilesystemFolderPermission(handle, false),
           libraryMode: options.libraryMode ?? null,
           lastScanStatus: 'never'
         };
-        return [...current, remembered];
+        return {
+          folderSetRevision: current.folderSetRevision + 1,
+          folders: [...current.folders, remembered]
+        };
       });
       logInfo('files', 'Managed folder remembered', { id: remembered!.id, name: remembered!.name, mode: remembered!.libraryMode });
       return remembered!;
@@ -507,29 +586,141 @@ export function createFilesystemFoldersStore(
       // IndexedDB work before requestPermission() can consume Chromium's gesture window.
       const permission = await requestFilesystemFolderPermission(target.handle);
       await mutate((current) =>
-        current.map((folder) => (folder.id === id ? { ...folder, permission } : folder))
+        ({
+          ...current,
+          folders: current.folders.map((folder) => (
+            folder.id === id ? { ...folder, permission } : folder
+          ))
+        })
       );
       return permission;
     },
     async forget(id) {
       const target = snapshot.find((folder) => folder.id === id);
-      await mutate((current) => current.filter((folder) => folder.id !== id));
+      await mutate((current) => {
+        const folders = current.folders.filter((folder) => folder.id !== id);
+        return folders.length === current.folders.length
+          ? current
+          : { folderSetRevision: current.folderSetRevision + 1, folders };
+      });
       logInfo('files', 'Managed folder forgotten', { id, name: target?.name });
     },
     async setLibraryMode(id, mode) {
-      await mutate((current) =>
-        current.map((folder) => (folder.id === id ? { ...folder, libraryMode: mode } : folder))
-      );
+      await mutate((current) => {
+        const target = current.folders.find((folder) => folder.id === id);
+        if (!target || target.libraryMode === mode) return current;
+        return {
+          folderSetRevision: current.folderSetRevision + 1,
+          folders: current.folders.map((folder) => folder.id === id
+            ? {
+                ...folder,
+                libraryMode: mode,
+                definitionRevision: folder.definitionRevision + 1
+              }
+            : folder)
+        };
+      });
     },
     async updateScan(id, patch) {
       await mutate((current) =>
-        current.map((folder) => (folder.id === id ? { ...folder, ...patch } : folder))
+        ({
+          ...current,
+          folders: current.folders.map((folder) => (
+            folder.id === id ? { ...folder, ...patch } : folder
+          ))
+        })
       );
       const folder = snapshot.find((candidate) => candidate.id === id);
       if (patch.lastScanStatus === 'scanning') logInfo('library', 'Managed-folder scan started', { id, name: folder?.name });
       else if (patch.lastScanStatus === 'success') logInfo('library', 'Managed-folder scan completed', { id, name: folder?.name, tracks: patch.lastScanTrackCount });
       else if (patch.lastScanStatus === 'permission-required') logWarning('library', 'Managed-folder scan requires permission', { id, name: folder?.name });
       else if (patch.lastScanStatus === 'error') logError('library', 'Managed-folder scan failed', { id, name: folder?.name, failure: patch.lastScanFailure });
+    },
+    async beginScan(id) {
+      let token: LibraryFolderScanToken | null = null;
+      await mutate((current) => {
+        const target = current.folders.find((folder) => folder.id === id);
+        if (!target?.libraryMode) return current;
+        const generation = target.scanGeneration + 1;
+        token = {
+          folderId: target.id,
+          definitionRevision: target.definitionRevision,
+          folderSetRevision: current.folderSetRevision,
+          generation,
+          handle: target.handle,
+          libraryMode: target.libraryMode
+        };
+        return {
+          ...current,
+          folders: current.folders.map((folder) => folder.id === id
+            ? {
+                ...folder,
+                scanGeneration: generation,
+                lastScanStatus: 'scanning',
+                lastScanFailure: undefined
+              }
+            : folder)
+        };
+      });
+      const started = token as LibraryFolderScanToken | null;
+      if (started) {
+        logInfo('library', 'Managed-folder scan started', {
+          id: started.folderId,
+          generation: started.generation
+        });
+      }
+      return started;
+    },
+    isScanCurrent(token) {
+      if (folderSetRevision !== token.folderSetRevision) return false;
+      const folder = snapshot.find((candidate) => candidate.id === token.folderId);
+      return Boolean(
+        folder?.libraryMode
+        && folder.handle === token.handle
+        && folder.definitionRevision === token.definitionRevision
+        && folder.scanGeneration === token.generation
+      );
+    },
+    async finishScan(token, patch) {
+      let applied = false;
+      await mutate((current) => {
+        if (current.folderSetRevision !== token.folderSetRevision) return current;
+        const target = current.folders.find((folder) => folder.id === token.folderId);
+        if (
+          !target?.libraryMode
+          || target.definitionRevision !== token.definitionRevision
+          || target.scanGeneration !== token.generation
+        ) {
+          return current;
+        }
+        applied = true;
+        return {
+          ...current,
+          folders: current.folders.map((folder) => (
+            folder.id === token.folderId ? { ...folder, ...patch } : folder
+          ))
+        };
+      });
+      if (!applied) return false;
+      const folder = snapshot.find((candidate) => candidate.id === token.folderId);
+      if (patch.lastScanStatus === 'success') logInfo('library', 'Managed-folder scan completed', {
+        id: token.folderId,
+        name: folder?.name,
+        tracks: patch.lastScanTrackCount,
+        generation: token.generation
+      });
+      else if (patch.lastScanStatus === 'permission-required') logWarning('library', 'Managed-folder scan requires permission', {
+        id: token.folderId,
+        name: folder?.name,
+        generation: token.generation
+      });
+      else if (patch.lastScanStatus === 'error') logError('library', 'Managed-folder scan failed', {
+        id: token.folderId,
+        name: folder?.name,
+        failure: patch.lastScanFailure,
+        generation: token.generation
+      });
+      return true;
     },
     async flush() {
       await readyPromise;

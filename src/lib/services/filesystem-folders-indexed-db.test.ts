@@ -38,6 +38,8 @@ function storedFolder(): StoredFilesystemFolder {
     name: 'Music',
     handle: directoryHandle(),
     addedAt: 1,
+    definitionRevision: 3,
+    scanGeneration: 4,
     libraryMode: 'launch',
     lastScanStatus: 'success',
     lastScanTrackCount: 12
@@ -61,12 +63,18 @@ describe('filesystem folder typed IndexedDB repository', () => {
 
   it('reads the existing out-of-line state key and filters invalid records after the transaction commits', async () => {
     const folder = storedFolder();
-    const get = vi.fn(async () => [folder, { id: 'invalid' }]);
+    const get = vi.fn(async () => ({
+      folderSetRevision: 7,
+      folders: [folder, { id: 'invalid' }]
+    }));
     indexedDbMocks.runTransaction.mockImplementation(async (_connection, _options, work) =>
       await work({ mode: 'readonly', store: () => ({ get }) })
     );
 
-    await expect(readStoredFilesystemFolders()).resolves.toEqual([folder]);
+    await expect(readStoredFilesystemFolders()).resolves.toEqual({
+      folderSetRevision: 7,
+      folders: [folder]
+    });
 
     expect(indexedDbMocks.openBrowserDatabase).toHaveBeenCalledWith(filesystemFoldersDatabase);
     expect(indexedDbMocks.runTransaction).toHaveBeenCalledWith(
@@ -83,13 +91,13 @@ describe('filesystem folder typed IndexedDB repository', () => {
   });
 
   it('writes the same state key with strict durability and closes the scoped connection', async () => {
-    const folders = [storedFolder()];
+    const state = { folderSetRevision: 7, folders: [storedFolder()] };
     const put = vi.fn(async () => 'state');
     indexedDbMocks.runTransaction.mockImplementation(async (_connection, _options, work) =>
       await work({ mode: 'readwrite', store: () => ({ put }) })
     );
 
-    await writeStoredFilesystemFolders(folders);
+    await writeStoredFilesystemFolders(state);
 
     expect(indexedDbMocks.runTransaction).toHaveBeenCalledWith(
       connection,
@@ -101,7 +109,7 @@ describe('filesystem folder typed IndexedDB repository', () => {
       },
       expect.any(Function)
     );
-    expect(put).toHaveBeenCalledWith(folders, 'state');
+    expect(put).toHaveBeenCalledWith(state, 'state');
     expect(close).toHaveBeenCalledOnce();
   });
 
