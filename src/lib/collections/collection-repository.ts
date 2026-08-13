@@ -57,6 +57,8 @@ export interface CollectionRepositoryOptions<TEntity extends CollectionEntity> {
   readonly policy: CollectionPolicy<TEntity>;
   readonly defaultPlaybackOptions: PlaylistPlaybackOptions;
   readonly persistDelayMs?: number;
+  /** Starts an explicitly ephemeral repository ready without consulting storage. */
+  readonly initiallyHydrated?: boolean;
 }
 
 type StateListener<TEntity extends CollectionEntity> = (state: CollectionState<TEntity>) => void;
@@ -87,6 +89,7 @@ export class CollectionRepository<TEntity extends CollectionEntity> {
   #operationChain = Promise.resolve();
   #pendingOperationCount = 0;
   #persistTimer: unknown | null = null;
+  #scheduledPersistDelayMs = Number.POSITIVE_INFINITY;
   #flushPromise: Promise<void> | null = null;
   #shutdownPromise: Promise<void> | null = null;
 
@@ -103,12 +106,16 @@ export class CollectionRepository<TEntity extends CollectionEntity> {
       revision: 0
     };
     this.#status = {
-      phase: 'idle',
+      phase: options.initiallyHydrated ? 'ready' : 'idle',
       dirty: false,
       revision: 0,
       persistedRevision: 0,
       error: null
     };
+    if (options.initiallyHydrated) {
+      this.#hydratedSuccessfully = true;
+      this.#hydratePromise = Promise.resolve();
+    }
   }
 
   getSnapshot(): CollectionState<TEntity> {
@@ -179,8 +186,16 @@ export class CollectionRepository<TEntity extends CollectionEntity> {
     return this.hydrate();
   }
 
-  dispatch(command: CollectionCommand<TEntity>): Promise<CollectionReduction<TEntity>> {
-    return this.#dispatch(command, null).then((result) => {
+  async ready(): Promise<void> {
+    await this.hydrate();
+    await this.#operationChain;
+  }
+
+  dispatch(
+    command: CollectionCommand<TEntity>,
+    persistDelayMs = this.#persistDelayMs
+  ): Promise<CollectionReduction<TEntity>> {
+    return this.#dispatch(command, null, persistDelayMs).then((result) => {
       if (result.status === 'conflict') throw new Error('Unexpected collection revision conflict.');
       return result.reduction;
     });
@@ -188,14 +203,20 @@ export class CollectionRepository<TEntity extends CollectionEntity> {
 
   dispatchIfCatalogRevision(
     expectedCatalogRevision: number,
-    command: CollectionCommand<TEntity>
+    command: CollectionCommand<TEntity>,
+    persistDelayMs = this.#persistDelayMs
   ): Promise<ConditionalCollectionResult<TEntity>> {
-    return this.#dispatch(command, expectedCatalogRevision);
+    return this.#dispatch(command, expectedCatalogRevision, persistDelayMs);
+  }
+
+  requestPersist(delayMs = this.#persistDelayMs): void {
+    if (this.#status.dirty) this.#schedulePersist(delayMs);
   }
 
   #dispatch(
     command: CollectionCommand<TEntity>,
-    expectedCatalogRevision: number | null
+    expectedCatalogRevision: number | null,
+    persistDelayMs: number
   ): Promise<ConditionalCollectionResult<TEntity>> {
     if (this.#status.phase === 'disposed' || this.#status.phase === 'shutting-down') {
       return Promise.reject(new Error('The collection repository is shutting down.'));
@@ -210,7 +231,7 @@ export class CollectionRepository<TEntity extends CollectionEntity> {
           actualCatalogRevision: this.#state.catalogRevision
         });
       }
-      return Promise.resolve({ status: 'applied', reduction: this.#apply(command, true) });
+      return Promise.resolve({ status: 'applied', reduction: this.#apply(command, true, persistDelayMs) });
     }
     if (!this.#hydratePromise || this.#status.phase === 'hydrating') {
       this.#queuedCommands.push(command);
@@ -236,7 +257,7 @@ export class CollectionRepository<TEntity extends CollectionEntity> {
           actualCatalogRevision: this.#state.catalogRevision
         };
       }
-      return { status: 'applied' as const, reduction: this.#apply(command, true) };
+      return { status: 'applied' as const, reduction: this.#apply(command, true, persistDelayMs) };
     }).finally(() => {
       this.#pendingOperationCount -= 1;
     });
@@ -249,6 +270,7 @@ export class CollectionRepository<TEntity extends CollectionEntity> {
     if (this.#persistTimer !== null) {
       this.#scheduler.clearTimeout(this.#persistTimer);
       this.#persistTimer = null;
+      this.#scheduledPersistDelayMs = Number.POSITIVE_INFINITY;
     }
     if (this.#flushPromise) return this.#flushPromise;
     this.#flushPromise = (async () => {
@@ -290,6 +312,7 @@ export class CollectionRepository<TEntity extends CollectionEntity> {
         if (this.#persistTimer !== null) {
           this.#scheduler.clearTimeout(this.#persistTimer);
           this.#persistTimer = null;
+          this.#scheduledPersistDelayMs = Number.POSITIVE_INFINITY;
         }
         this.#status = {
           ...this.#status,
@@ -306,7 +329,8 @@ export class CollectionRepository<TEntity extends CollectionEntity> {
 
   #apply(
     command: CollectionCommand<TEntity>,
-    persist: boolean
+    persist: boolean,
+    persistDelayMs = this.#persistDelayMs
   ): CollectionReduction<TEntity> {
     const reduction = reduceCollection(this.#state, command, this.#policy);
     if (!reduction.changed) return reduction;
@@ -318,20 +342,24 @@ export class CollectionRepository<TEntity extends CollectionEntity> {
         revision: this.#state.revision,
         ...(this.#status.phase === 'degraded' ? {} : { phase: 'ready', error: null })
       });
-      this.#schedulePersist();
+      this.#schedulePersist(persistDelayMs);
     } else {
       this.#setStatus({ revision: this.#state.revision });
     }
     return reduction;
   }
 
-  #schedulePersist(): void {
+  #schedulePersist(delayMs = this.#persistDelayMs): void {
     if (this.#status.phase === 'disposed' || this.#status.phase === 'shutting-down') return;
+    const normalizedDelay = Math.max(0, delayMs);
+    if (this.#persistTimer !== null && this.#scheduledPersistDelayMs <= normalizedDelay) return;
     if (this.#persistTimer !== null) this.#scheduler.clearTimeout(this.#persistTimer);
+    this.#scheduledPersistDelayMs = normalizedDelay;
     this.#persistTimer = this.#scheduler.setTimeout(() => {
       this.#persistTimer = null;
+      this.#scheduledPersistDelayMs = Number.POSITIVE_INFINITY;
       void this.flush().catch(() => undefined);
-    }, this.#persistDelayMs);
+    }, normalizedDelay);
   }
 
   #setStatus(patch: Partial<CollectionRepositoryStatus>): void {

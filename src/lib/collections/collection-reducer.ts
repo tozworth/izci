@@ -42,9 +42,36 @@ export type CollectionCommand<TEntity extends CollectionEntity> =
       readonly id: string;
       readonly replacements: readonly TEntity[];
     }
-  | { readonly type: 'patch'; readonly id: string; readonly patch: Partial<TEntity> }
+  | {
+      readonly type: 'patch';
+      readonly id: string;
+      readonly patch: Partial<TEntity>;
+      /** Replaces one nested object while retaining selected keys from its current value. */
+      readonly replaceObject?: {
+        readonly field: keyof TEntity;
+        readonly value: object | undefined;
+        readonly preserveKeys: readonly string[];
+      };
+    }
+  | {
+      /** Shallow-merges a nested object against the value present when the command executes. */
+      readonly type: 'merge-object';
+      readonly id: string;
+      readonly field: keyof TEntity;
+      readonly value: object;
+    }
+  | {
+      readonly type: 'select';
+      readonly id: string;
+      readonly range?: boolean;
+      readonly toggle?: boolean;
+    }
+  | { readonly type: 'select-all' }
   | { readonly type: 'set-selection'; readonly selection: PlaylistSelection }
-  | { readonly type: 'set-playback-options'; readonly options: PlaylistPlaybackOptions };
+  | { readonly type: 'set-playback-options'; readonly options: PlaylistPlaybackOptions }
+  | { readonly type: 'toggle-shuffle' }
+  | { readonly type: 'set-shuffle'; readonly enabled: boolean }
+  | { readonly type: 'cycle-repeat' };
 
 export interface CollectionReduction<TEntity extends CollectionEntity> {
   readonly state: CollectionState<TEntity>;
@@ -85,6 +112,48 @@ function normalizeSelection<TEntity extends CollectionEntity>(
     ? selection.anchorId
     : focusId;
   return { ids, anchorId, focusId };
+}
+
+function select<TEntity extends CollectionEntity>(
+  entities: readonly TEntity[],
+  current: PlaylistSelection,
+  command: Extract<CollectionCommand<TEntity>, { type: 'select' }>
+): PlaylistSelection {
+  if (!entities.some((entity) => entity.id === command.id)) {
+    return normalizeSelection(entities, current);
+  }
+  if (command.range) {
+    const anchorId = current.anchorId ?? current.focusId ?? command.id;
+    const anchorIndex = entities.findIndex((entity) => entity.id === anchorId);
+    const focusIndex = entities.findIndex((entity) => entity.id === command.id);
+    const rangeIds = anchorIndex < 0 || focusIndex < 0
+      ? [command.id]
+      : entities
+        .slice(Math.min(anchorIndex, focusIndex), Math.max(anchorIndex, focusIndex) + 1)
+        .map((entity) => entity.id);
+    return normalizeSelection(entities, {
+      ids: command.toggle ? [...new Set([...current.ids, ...rangeIds])] : rangeIds,
+      anchorId,
+      focusId: command.id
+    });
+  }
+  if (command.toggle) {
+    const ids = current.ids.includes(command.id)
+      ? current.ids.filter((id) => id !== command.id)
+      : [...current.ids, command.id];
+    return normalizeSelection(entities, {
+      ids,
+      anchorId: ids.length > 0 ? command.id : null,
+      focusId: ids.includes(command.id) ? command.id : ids.at(-1) ?? null
+    });
+  }
+  return { ids: [command.id], anchorId: command.id, focusId: command.id };
+}
+
+function objectValue(value: unknown): Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+    ? value as Record<string, unknown>
+    : {};
 }
 
 function removeSelection<TEntity extends CollectionEntity>(
@@ -252,7 +321,20 @@ export function reduceCollection<TEntity extends CollectionEntity>(
       const index = state.entities.findIndex((entity) => entity.id === command.id);
       if (index < 0) return { state, changed: false, ...empty };
       const current = state.entities[index]!;
-      const patched = { ...current, ...command.patch, id: current.id };
+      let patched = { ...current, ...command.patch, id: current.id };
+      if (command.replaceObject) {
+        const currentObject = objectValue(current[command.replaceObject.field]);
+        const replacement = { ...objectValue(command.replaceObject.value) };
+        for (const key of command.replaceObject.preserveKeys) {
+          if (currentObject[key] !== undefined) replacement[key] = currentObject[key];
+          else delete replacement[key];
+        }
+        patched = {
+          ...patched,
+          [command.replaceObject.field]: Object.keys(replacement).length > 0 ? replacement : undefined,
+          id: current.id
+        };
+      }
       const entities = [...state.entities];
       entities[index] = patched;
       return result(state, {
@@ -260,6 +342,44 @@ export function reduceCollection<TEntity extends CollectionEntity>(
         selection: state.selection,
         playbackOptions: state.playbackOptions
       }, { ...empty, added: [patched], removed: [current] }, true);
+    }
+    case 'merge-object': {
+      const index = state.entities.findIndex((entity) => entity.id === command.id);
+      if (index < 0) return { state, changed: false, ...empty };
+      const current = state.entities[index]!;
+      const patched = {
+        ...current,
+        [command.field]: { ...objectValue(current[command.field]), ...command.value },
+        id: current.id
+      };
+      const entities = [...state.entities];
+      entities[index] = patched;
+      return result(state, {
+        entities,
+        selection: state.selection,
+        playbackOptions: state.playbackOptions
+      }, { ...empty, added: [patched], removed: [current] }, true);
+    }
+    case 'select': {
+      const selection = select(state.entities, state.selection, command);
+      const changed = !sameSelection(selection, state.selection);
+      return result(state, {
+        entities: state.entities,
+        selection,
+        playbackOptions: state.playbackOptions
+      }, empty, changed, false);
+    }
+    case 'select-all': {
+      const ids = state.entities.map((entity) => entity.id);
+      const selection = ids.length > 0
+        ? { ids, anchorId: ids[0] ?? null, focusId: ids.at(-1) ?? null }
+        : EMPTY_COLLECTION_SELECTION;
+      const changed = !sameSelection(selection, state.selection);
+      return result(state, {
+        entities: state.entities,
+        selection,
+        playbackOptions: state.playbackOptions
+      }, empty, changed, false);
     }
     case 'set-selection': {
       const selection = normalizeSelection(state.entities, command.selection);
@@ -279,5 +399,25 @@ export function reduceCollection<TEntity extends CollectionEntity>(
         playbackOptions: changed ? { ...command.options } : state.playbackOptions
       }, empty, changed, false);
     }
+    case 'toggle-shuffle':
+      return reduceCollection(state, {
+        type: 'set-playback-options',
+        options: { ...state.playbackOptions, shuffle: !state.playbackOptions.shuffle }
+      }, policy);
+    case 'set-shuffle':
+      return reduceCollection(state, {
+        type: 'set-playback-options',
+        options: { ...state.playbackOptions, shuffle: command.enabled }
+      }, policy);
+    case 'cycle-repeat':
+      return reduceCollection(state, {
+        type: 'set-playback-options',
+        options: {
+          ...state.playbackOptions,
+          repeatMode: state.playbackOptions.repeatMode === 'off'
+            ? 'all'
+            : state.playbackOptions.repeatMode === 'all' ? 'one' : 'off'
+        }
+      }, policy);
   }
 }

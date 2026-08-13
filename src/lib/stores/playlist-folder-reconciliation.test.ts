@@ -103,4 +103,31 @@ describe('library folder reconciliation', () => {
     expect(get(store.items)).toHaveLength(1);
     expect(get(store.items)[0]).toMatchObject({ id: 'orphan', sourceFolderId: 'new-root' });
   });
+
+  it('applies folder plans only against the catalog revision they were built from', async () => {
+    const store = createTrackCollectionStore({ dbName: 'test-library-plan-revision', dedupe: true });
+    store.add([item('existing')]);
+    const snapshot = store.getCatalogSnapshot();
+    const planned = item('planned', { path: 'Music/Artist/Planned.flac' });
+    const plan = {
+      nextCatalog: [...snapshot.entities, planned],
+      addedItems: [planned],
+      updatedItems: [],
+      removedItems: [],
+      sourceRegistrations: [],
+      sourceDeletions: [],
+      duplicates: []
+    };
+
+    store.setSelection({ ids: ['existing'], anchorId: 'existing', focusId: 'existing' });
+    await expect(store.applyCatalogIfRevision(snapshot.catalogRevision, plan)).resolves.toEqual({
+      status: 'applied'
+    });
+    expect(get(store.items).map((entry) => entry.id)).toEqual(['existing', 'planned']);
+
+    await expect(store.applyCatalogIfRevision(snapshot.catalogRevision, plan)).resolves.toEqual({
+      status: 'conflict',
+      actualCatalogRevision: snapshot.catalogRevision + 1
+    });
+  });
 });

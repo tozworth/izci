@@ -98,10 +98,16 @@ describe('track collection hydration characterization', () => {
 
     expect(store.add([queuedItem])).toEqual([]);
     store.updateRating(queuedItem.id, 4.5);
+    store.updateMetadata('stored', { title: 'Queued title' });
     store.select(queuedItem.id);
+    store.toggleShuffle();
+    store.cycleRepeatMode();
     expect(get(store.items)).toEqual([]);
 
-    const storedItem = item('stored');
+    const storedItem = {
+      ...item('stored'),
+      metadata: { artist: 'Stored artist', playCount: 8 }
+    };
     resolveHydration({
       items: [storedItem],
       selection: { ids: ['stored'], anchorId: 'stored', focusId: 'stored' },
@@ -113,11 +119,18 @@ describe('track collection hydration characterization', () => {
       { id: 'stored', rating: undefined },
       { id: 'queued', rating: 4.5 }
     ]);
+    expect(get(store.items)[0]?.metadata).toEqual({
+      artist: 'Stored artist',
+      playCount: 8,
+      title: 'Queued title'
+    });
     expect(get(store.selection)).toEqual({
       ids: ['queued'],
       anchorId: 'queued',
       focusId: 'queued'
     });
+    expect(get(store.shuffleEnabled)).toBe(true);
+    expect(get(store.repeatMode)).toBe('all');
 
     await vi.advanceTimersByTimeAsync(400);
     expect(persistenceHarness.persistStoredState).toHaveBeenCalledOnce();
@@ -128,7 +141,8 @@ describe('track collection hydration characterization', () => {
           expect.objectContaining({ id: 'stored' }),
           expect.objectContaining({ id: 'queued', rating: 4.5 })
         ],
-        selection: { ids: ['queued'], anchorId: 'queued', focusId: 'queued' }
+        selection: { ids: ['queued'], anchorId: 'queued', focusId: 'queued' },
+        playbackOptions: { shuffle: true, repeatMode: 'all' }
       })
     );
   });

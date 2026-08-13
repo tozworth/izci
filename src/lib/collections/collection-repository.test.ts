@@ -203,4 +203,36 @@ describe('collection repository lifecycle', () => {
     expect(owner.repository.getStatus().phase).toBe('disposed');
     await expect(owner.repository.dispatch({ type: 'remove', ids: ['a'] })).rejects.toThrow('shutting down');
   });
+
+  it('can start an explicitly ephemeral repository ready for synchronous facades', async () => {
+    const storage: CollectionStorage<Entity> = { load: vi.fn(), save: vi.fn() };
+    const owner = new CollectionRepository({
+      storage,
+      scheduler: new FakeScheduler(),
+      defaultPlaybackOptions: playbackOptions,
+      policy: { dedupe: false, identity: (entity: Entity) => entity.path },
+      initiallyHydrated: true
+    });
+
+    const dispatched = owner.dispatch({ type: 'add', entities: [{ id: 'a', path: 'a' }] });
+    expect(owner.getSnapshot().entities).toEqual([{ id: 'a', path: 'a' }]);
+    await dispatched;
+    expect(storage.load).not.toHaveBeenCalled();
+  });
+
+  it('keeps an earlier persistence deadline when later background work requests a longer delay', async () => {
+    const scheduler = new FakeScheduler();
+    const storage: CollectionStorage<Entity> = { load: () => Promise.resolve(null), save: vi.fn() };
+    const owner = repository(storage, scheduler);
+    await owner.repository.hydrate();
+    await owner.repository.dispatch({ type: 'add', entities: [{ id: 'a', path: 'a' }] }, 400);
+    const firstCallback = scheduler.callback;
+
+    owner.repository.requestPersist(5_000);
+    expect(scheduler.callback).toBe(firstCallback);
+
+    scheduler.fire();
+    await owner.repository.flush();
+    expect(storage.save).toHaveBeenCalledOnce();
+  });
 });

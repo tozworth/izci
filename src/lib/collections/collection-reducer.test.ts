@@ -14,7 +14,7 @@ interface Entity {
 const policy = { dedupe: true, identity: (entity: Entity) => entity.path.toLowerCase() };
 const options = { shuffle: false, repeatMode: 'off' as const };
 
-function state(entities: Entity[] = []): CollectionState<Entity> {
+function state<TEntity extends { id: string } = Entity>(entities: TEntity[] = []): CollectionState<TEntity> {
   return {
     entities,
     selection: EMPTY_COLLECTION_SELECTION,
@@ -146,5 +146,55 @@ describe('collection command reducer', () => {
     }, policy);
     expect(reduced.state.revision).toBe(1);
     expect(reduced.state.catalogRevision).toBe(0);
+  });
+
+  it('evaluates semantic selection commands against the state present at execution', () => {
+    const entities = [
+      { id: 'a', path: 'a' },
+      { id: 'b', path: 'b' },
+      { id: 'c', path: 'c' }
+    ];
+    const selected = reduceCollection(state(entities), { type: 'select', id: 'b' }, policy).state;
+    const ranged = reduceCollection(selected, { type: 'select', id: 'c', range: true }, policy);
+
+    expect(ranged.state.selection).toEqual({ ids: ['b', 'c'], anchorId: 'b', focusId: 'c' });
+    expect(reduceCollection(ranged.state, { type: 'select-all' }, policy).state.selection).toEqual({
+      ids: ['a', 'b', 'c'], anchorId: 'a', focusId: 'c'
+    });
+  });
+
+  it('merges nested object fields against current durable state', () => {
+    interface MetadataEntity extends Entity { metadata?: { title?: string; playCount?: number } }
+    const metadataPolicy = {
+      dedupe: true,
+      identity: (entity: MetadataEntity) => entity.path.toLowerCase()
+    };
+    const current = state<MetadataEntity>([{
+      id: 'a', path: 'a', metadata: { title: 'Old', playCount: 7 }
+    }]);
+    const merged = reduceCollection(current, {
+      type: 'merge-object', id: 'a', field: 'metadata', value: { title: 'New' }
+    }, metadataPolicy);
+    expect(merged.state.entities[0]?.metadata).toEqual({ title: 'New', playCount: 7 });
+
+    const replaced = reduceCollection(merged.state, {
+      type: 'patch',
+      id: 'a',
+      patch: {},
+      replaceObject: {
+        field: 'metadata',
+        value: { title: 'External', playCount: 0 },
+        preserveKeys: ['playCount']
+      }
+    }, metadataPolicy);
+    expect(replaced.state.entities[0]?.metadata).toEqual({ title: 'External', playCount: 7 });
+  });
+
+  it('evaluates shuffle and repeat commands against current playback options', () => {
+    const shuffled = reduceCollection(state(), { type: 'toggle-shuffle' }, policy).state;
+    const repeated = reduceCollection(shuffled, { type: 'cycle-repeat' }, policy).state;
+    expect(repeated.playbackOptions).toEqual({ shuffle: true, repeatMode: 'all' });
+    expect(repeated.catalogRevision).toBe(0);
+    expect(repeated.revision).toBe(2);
   });
 });
