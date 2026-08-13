@@ -32,7 +32,7 @@
     hasSameTrackMetadata,
     resolveTrackSnapshot
   } from '$lib/services/artwork-presentation';
-  import { disposeArtworkCache, invalidateCachedArtwork } from '$lib/services/artwork-cache';
+  import { invalidateCachedArtwork } from '$lib/services/artwork-cache';
   import {
     getTrackArtworkLoadKey,
     loadTrackArtwork,
@@ -2068,7 +2068,6 @@
   }
 
   onDestroy(() => {
-    void disposeArtworkCache();
     dismissMultiplayerToast();
     playbackRestoration.destroy();
     playbackProgress.destroy();

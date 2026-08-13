@@ -1,12 +1,16 @@
 import { loadEmbeddedStreamArtwork } from '$lib/services/stream-artwork';
 import type { MediaEntity } from '$lib/contracts/catalog';
 import { readable, writable } from 'svelte/store';
-import { openBrowserDatabase } from '$lib/persistence/browser-indexed-db';
+import {
+  openBrowserDatabase,
+  registerBrowserPersistenceOwner
+} from '$lib/persistence/browser-indexed-db';
 import {
   defineDatabase,
   defineStore,
   runTransaction,
-  type DatabaseConnection
+  type DatabaseConnection,
+  type TypedTransaction
 } from '$lib/persistence/indexed-db';
 import { logWarning } from '$lib/logging/api';
 
@@ -18,7 +22,9 @@ const SOURCE_STORE_NAME = 'sources';
 const RENDITION_STORE_NAME = 'renditions';
 const EXTRACTION_VERSION = 1;
 const RENDITION_VERSION = 1;
-const MAX_RENDITION_BYTES = 48 * 1024 * 1024;
+export const MAX_ARTWORK_RENDITION_BYTES = 48 * 1024 * 1024;
+export const MAX_ARTWORK_SOURCE_RECORDS = 8_192;
+export const MAX_ARTWORK_NEGATIVE_SOURCE_RECORDS = 2_048;
 
 interface ArtworkSourceRecord {
   sourceKey: string;
@@ -48,6 +54,10 @@ const artworkDatabaseSpec = defineDatabase({
 });
 
 type ArtworkDatabaseConnection = DatabaseConnection<typeof artworkDatabaseSpec>;
+type ArtworkReadWriteTransaction = TypedTransaction<
+  typeof artworkDatabaseSpec,
+  typeof SOURCE_STORE_NAME | typeof RENDITION_STORE_NAME
+>;
 
 export interface ArtworkCachePersistenceStatus {
   state: 'ready' | 'busy' | 'degraded';
@@ -67,9 +77,162 @@ export interface CachedArtworkThumbnail {
   height: number;
 }
 
+export interface ArtworkCacheSourceInfo {
+  sourceKey: string;
+  fingerprint: string;
+  assetId: string | null;
+  checkedAt: number;
+}
+
+export interface ArtworkCacheRenditionInfo {
+  key: string;
+  assetId: string;
+  maxEdge: number;
+  width: number;
+  height: number;
+  sizeBytes: number;
+  lastAccessed: number;
+  sourceReferences: number;
+}
+
+export interface ArtworkCacheInventory {
+  sources: ArtworkCacheSourceInfo[];
+  renditions: ArtworkCacheRenditionInfo[];
+  sourceCount: number;
+  negativeSourceCount: number;
+  renditionCount: number;
+  totalBytes: number;
+  limitBytes: number;
+}
+
+interface ArtworkSourceEvictionCandidate {
+  sourceKey: string;
+  assetId: string | null;
+  checkedAt: number;
+}
+
+interface ArtworkRenditionEvictionCandidate {
+  key: string;
+  byteSize: number;
+  lastAccessed: number;
+}
+
+function oldestSourceFirst(
+  left: ArtworkSourceEvictionCandidate,
+  right: ArtworkSourceEvictionCandidate
+): number {
+  return left.checkedAt - right.checkedAt || left.sourceKey.localeCompare(right.sourceKey);
+}
+
+export function selectArtworkSourceEvictions(
+  records: readonly ArtworkSourceEvictionCandidate[],
+  maximumSources = MAX_ARTWORK_SOURCE_RECORDS,
+  maximumNegativeSources = MAX_ARTWORK_NEGATIVE_SOURCE_RECORDS
+): string[] {
+  const sourceLimit = Math.max(0, Math.floor(maximumSources));
+  const negativeLimit = Math.max(0, Math.min(sourceLimit, Math.floor(maximumNegativeSources)));
+  const evicted = new Set<string>();
+  const negatives = records
+    .filter((record) => record.assetId === null)
+    .sort(oldestSourceFirst);
+
+  for (let index = 0; index < negatives.length - negativeLimit; index += 1) {
+    const record = negatives[index];
+    if (record) evicted.add(record.sourceKey);
+  }
+
+  const retained = records
+    .filter((record) => !evicted.has(record.sourceKey))
+    .sort(oldestSourceFirst);
+  for (let index = 0; index < retained.length - sourceLimit; index += 1) {
+    const record = retained[index];
+    if (record) evicted.add(record.sourceKey);
+  }
+
+  return [...evicted];
+}
+
+export function selectArtworkRenditionEvictions(
+  records: readonly ArtworkRenditionEvictionCandidate[],
+  maximumBytes = MAX_ARTWORK_RENDITION_BYTES
+): string[] {
+  const byteLimit = Math.max(0, Math.floor(maximumBytes));
+  const oldestFirst = [...records].sort((left, right) =>
+    left.lastAccessed - right.lastAccessed || left.key.localeCompare(right.key)
+  );
+  let retainedBytes = records.reduce((sum, record) => sum + record.byteSize, 0);
+  const evicted: string[] = [];
+
+  for (const record of oldestFirst) {
+    if (retainedBytes <= byteLimit) break;
+    evicted.push(record.key);
+    retainedBytes -= record.byteSize;
+  }
+
+  return evicted;
+}
+
+export function createArtworkCacheInventory(
+  sourceRecords: readonly ArtworkSourceRecord[],
+  renditionRecords: readonly ArtworkRenditionRecord[]
+): ArtworkCacheInventory {
+  const references = new Map<string, number>();
+  for (const source of sourceRecords) {
+    if (source.assetId) {
+      references.set(source.assetId, (references.get(source.assetId) ?? 0) + 1);
+    }
+  }
+
+  const sources = [...sourceRecords]
+    .sort((left, right) => right.checkedAt - left.checkedAt || left.sourceKey.localeCompare(right.sourceKey))
+    .map((record) => ({ ...record }));
+  const renditions = [...renditionRecords]
+    .sort((left, right) => right.lastAccessed - left.lastAccessed || left.key.localeCompare(right.key))
+    .map((record) => ({
+      key: record.key,
+      assetId: record.assetId,
+      maxEdge: record.maxEdge,
+      width: record.width,
+      height: record.height,
+      sizeBytes: record.byteSize,
+      lastAccessed: record.lastAccessed,
+      sourceReferences: references.get(record.assetId) ?? 0
+    }));
+
+  return {
+    sources,
+    renditions,
+    sourceCount: sources.length,
+    negativeSourceCount: sources.filter((source) => source.assetId === null).length,
+    renditionCount: renditions.length,
+    totalBytes: renditions.reduce((sum, rendition) => sum + rendition.sizeBytes, 0),
+    limitBytes: MAX_ARTWORK_RENDITION_BYTES
+  };
+}
+
+const EMPTY_ARTWORK_CACHE_INVENTORY: ArtworkCacheInventory = {
+  sources: [],
+  renditions: [],
+  sourceCount: 0,
+  negativeSourceCount: 0,
+  renditionCount: 0,
+  totalBytes: 0,
+  limitBytes: MAX_ARTWORK_RENDITION_BYTES
+};
+
+const inventory = writable<ArtworkCacheInventory>(EMPTY_ARTWORK_CACHE_INVENTORY);
+export const artworkCacheInventory = readable<ArtworkCacheInventory>(
+  EMPTY_ARTWORK_CACHE_INVENTORY,
+  (set) => inventory.subscribe(set)
+);
+
 const pendingLoads = new Map<string, Promise<CachedArtworkThumbnail | null>>();
-let pruneTimer: number | null = null;
+let mutationChain: Promise<void> = Promise.resolve();
+let cacheGeneration = 0;
+let boundsPromise: Promise<void> | null = null;
+let inventoryRefreshQueued = false;
 let disposed = false;
+let disposePromise: Promise<void> | null = null;
 
 async function withDatabase<TResult>(
   work: (connection: ArtworkDatabaseConnection) => Promise<TResult>
@@ -139,39 +302,103 @@ async function readRenditionRecord(key: string): Promise<ArtworkRenditionRecord 
   }, async (transaction) => (await transaction.store(RENDITION_STORE_NAME).get(key)) ?? null));
 }
 
-async function writeSourceAndRendition(
-  source: ArtworkSourceRecord,
-  rendition?: ArtworkRenditionRecord
-): Promise<void> {
-  const storeNames = rendition
-    ? [SOURCE_STORE_NAME, RENDITION_STORE_NAME] as const
-    : [SOURCE_STORE_NAME] as const;
+async function pruneArtworkRecords(transaction: ArtworkReadWriteTransaction): Promise<void> {
+  const sources = transaction.store(SOURCE_STORE_NAME);
+  const renditions = transaction.store(RENDITION_STORE_NAME);
+  const [sourceRecords, renditionRecords] = await Promise.all([
+    sources.getAll(),
+    renditions.getAll()
+  ]);
 
-  await withDatabase((connection) => runTransaction(connection, {
-    stores: storeNames,
-    mode: 'readwrite',
-    operation: 'persist artwork source and rendition',
-    durability: 'relaxed'
-  }, async (transaction) => {
-    await transaction.store(SOURCE_STORE_NAME).put(source);
-    if (rendition) {
-      await transaction.store(RENDITION_STORE_NAME).put(rendition);
-    }
-  }));
+  for (const sourceKey of selectArtworkSourceEvictions(sourceRecords)) {
+    await sources.delete(sourceKey);
+  }
+  for (const renditionKey of selectArtworkRenditionEvictions(renditionRecords)) {
+    await renditions.delete(renditionKey);
+  }
 }
 
-async function touchRendition(record: ArtworkRenditionRecord): Promise<void> {
-  await withDatabase((connection) => runTransaction(connection, {
-    stores: [RENDITION_STORE_NAME],
-    mode: 'readwrite',
-    operation: 'touch artwork rendition',
-    durability: 'relaxed'
-  }, async (transaction) => {
-    await transaction.store(RENDITION_STORE_NAME).put({
-      ...record,
-      lastAccessed: Date.now()
-    });
-  }));
+async function enqueueCacheMutation(
+  generation: number,
+  work: () => Promise<void>
+): Promise<boolean> {
+  let applied = false;
+  const operation = mutationChain.then(async () => {
+    if (disposed || generation !== cacheGeneration) return;
+    await work();
+    applied = true;
+  });
+  mutationChain = operation.then(() => undefined, () => undefined);
+  await operation;
+  return applied;
+}
+
+function scheduleInventoryRefresh(): void {
+  if (disposed || inventoryRefreshQueued) return;
+  inventoryRefreshQueued = true;
+  queueMicrotask(() => {
+    inventoryRefreshQueued = false;
+    if (disposed) return;
+    void refreshArtworkCacheInventory().catch((error) => reportCacheFailure('inventory refresh', error));
+  });
+}
+
+function ensureArtworkCacheBounds(): Promise<void> {
+  if (boundsPromise) return boundsPromise;
+  const generation = cacheGeneration;
+  const operation = enqueueCacheMutation(generation, async () => {
+    await withDatabase((connection) => runTransaction(connection, {
+      stores: [SOURCE_STORE_NAME, RENDITION_STORE_NAME],
+      mode: 'readwrite',
+      operation: 'enforce artwork cache bounds',
+      durability: 'relaxed'
+    }, pruneArtworkRecords));
+  }).then(() => undefined).catch((error) => {
+    if (boundsPromise === operation) boundsPromise = null;
+    throw error;
+  });
+  boundsPromise = operation;
+  return operation;
+}
+
+async function writeSourceAndRendition(
+  source: ArtworkSourceRecord,
+  rendition: ArtworkRenditionRecord | undefined,
+  generation: number
+): Promise<boolean> {
+  const applied = await enqueueCacheMutation(generation, async () => {
+    await withDatabase((connection) => runTransaction(connection, {
+      stores: [SOURCE_STORE_NAME, RENDITION_STORE_NAME],
+      mode: 'readwrite',
+      operation: 'persist and bound artwork cache',
+      durability: 'relaxed'
+    }, async (transaction) => {
+      await transaction.store(SOURCE_STORE_NAME).put(source);
+      if (rendition) {
+        await transaction.store(RENDITION_STORE_NAME).put(rendition);
+      }
+      await pruneArtworkRecords(transaction);
+    }));
+  });
+  if (applied) scheduleInventoryRefresh();
+  return applied;
+}
+
+async function touchRendition(record: ArtworkRenditionRecord, generation: number): Promise<void> {
+  const applied = await enqueueCacheMutation(generation, async () => {
+    await withDatabase((connection) => runTransaction(connection, {
+      stores: [RENDITION_STORE_NAME],
+      mode: 'readwrite',
+      operation: 'touch artwork rendition',
+      durability: 'relaxed'
+    }, async (transaction) => {
+      await transaction.store(RENDITION_STORE_NAME).put({
+        ...record,
+        lastAccessed: Date.now()
+      });
+    }));
+  });
+  if (applied) scheduleInventoryRefresh();
 }
 
 async function hashBlob(blob: Blob): Promise<string> {
@@ -238,40 +465,12 @@ async function createRendition(blob: Blob, maxEdge: number): Promise<{
   }
 }
 
-async function pruneArtworkCache(): Promise<void> {
-  await withDatabase((connection) => runTransaction(connection, {
-    stores: [RENDITION_STORE_NAME],
-    mode: 'readwrite',
-    operation: 'prune artwork renditions',
-    durability: 'relaxed'
-  }, async (transaction) => {
-    const store = transaction.store(RENDITION_STORE_NAME);
-    const records = await store.getAll();
-    const totalBytes = records.reduce((sum, record) => sum + record.byteSize, 0);
-    let retainedBytes = totalBytes;
-    for (const record of [...records].sort((left, right) => left.lastAccessed - right.lastAccessed)) {
-      if (retainedBytes <= MAX_RENDITION_BYTES) break;
-      await store.delete(record.key);
-      retainedBytes -= record.byteSize;
-    }
-  }));
-}
-
-function scheduleCachePrune(): void {
-  if (disposed || pruneTimer !== null || typeof window === 'undefined') {
-    return;
-  }
-
-  pruneTimer = window.setTimeout(() => {
-    pruneTimer = null;
-    void pruneArtworkCache().catch((error) => reportCacheFailure('prune', error));
-  }, 0);
-}
-
 async function loadArtworkThumbnail(
   track: MediaEntity,
-  maxEdge: number
+  maxEdge: number,
+  generation: number
 ): Promise<CachedArtworkThumbnail | null> {
+  await ensureArtworkCacheBounds();
   const sourceKey = track.id;
   const fingerprint = getArtworkSourceFingerprint(track);
   const storedSource = await readSourceRecord(sourceKey);
@@ -284,7 +483,7 @@ async function loadArtworkThumbnail(
     const rendition = await readRenditionRecord(getArtworkRenditionKey(storedSource.assetId, maxEdge));
 
     if (rendition) {
-      void touchRendition(rendition).catch((error) => reportCacheFailure('touch', error));
+      void touchRendition(rendition, generation).catch((error) => reportCacheFailure('touch', error));
       return rendition;
     }
   }
@@ -297,7 +496,7 @@ async function loadArtworkThumbnail(
       fingerprint,
       assetId: null,
       checkedAt: Date.now()
-    });
+    }, undefined, generation);
     return null;
   }
 
@@ -306,15 +505,23 @@ async function loadArtworkThumbnail(
   const existingRendition = await readRenditionRecord(renditionKey);
 
   if (existingRendition) {
-    await writeSourceAndRendition({ sourceKey, fingerprint, assetId, checkedAt: Date.now() });
-    void touchRendition(existingRendition).catch((error) => reportCacheFailure('touch', error));
+    await writeSourceAndRendition(
+      { sourceKey, fingerprint, assetId, checkedAt: Date.now() },
+      undefined,
+      generation
+    );
+    void touchRendition(existingRendition, generation).catch((error) => reportCacheFailure('touch', error));
     return existingRendition;
   }
 
   const rendered = await createRendition(embeddedArtwork.blob, maxEdge);
 
   if (!rendered) {
-    await writeSourceAndRendition({ sourceKey, fingerprint, assetId: null, checkedAt: Date.now() });
+    await writeSourceAndRendition(
+      { sourceKey, fingerprint, assetId: null, checkedAt: Date.now() },
+      undefined,
+      generation
+    );
     return null;
   }
 
@@ -331,9 +538,9 @@ async function loadArtworkThumbnail(
 
   await writeSourceAndRendition(
     { sourceKey, fingerprint, assetId, checkedAt: Date.now() },
-    rendition
+    rendition,
+    generation
   );
-  scheduleCachePrune();
   return rendition;
 }
 
@@ -341,11 +548,11 @@ export function getCachedArtworkThumbnail(
   track: MediaEntity,
   maxEdge = ALBUM_ARTWORK_THUMBNAIL_SIZE
 ): Promise<CachedArtworkThumbnail | null> {
-  disposed = false;
-  if (!isArtworkCandidate(track)) {
+  if (disposed || !isArtworkCandidate(track)) {
     return Promise.resolve(null);
   }
 
+  const generation = cacheGeneration;
   const loadKey = `${track.id}:${getArtworkSourceFingerprint(track)}:${maxEdge}`;
   const pending = pendingLoads.get(loadKey);
 
@@ -353,14 +560,57 @@ export function getCachedArtworkThumbnail(
     return pending;
   }
 
-  const request = loadArtworkThumbnail(track, maxEdge)
+  let request: Promise<CachedArtworkThumbnail | null>;
+  request = loadArtworkThumbnail(track, maxEdge, generation)
     .catch((error) => {
       reportCacheFailure('lookup', error);
       return null;
     })
-    .finally(() => pendingLoads.delete(loadKey));
+    .finally(() => {
+      if (pendingLoads.get(loadKey) === request) pendingLoads.delete(loadKey);
+    });
   pendingLoads.set(loadKey, request);
   return request;
+}
+
+export async function listArtworkCache(): Promise<ArtworkCacheInventory> {
+  await mutationChain;
+  const snapshot = await withDatabase((connection) => runTransaction(connection, {
+    stores: [SOURCE_STORE_NAME, RENDITION_STORE_NAME],
+    mode: 'readonly',
+    operation: 'list artwork cache'
+  }, async (transaction) => createArtworkCacheInventory(
+    await transaction.store(SOURCE_STORE_NAME).getAll(),
+    await transaction.store(RENDITION_STORE_NAME).getAll()
+  )));
+  inventory.set(snapshot);
+  return snapshot;
+}
+
+export async function refreshArtworkCacheInventory(): Promise<ArtworkCacheInventory> {
+  await ensureArtworkCacheBounds();
+  return listArtworkCache();
+}
+
+export async function clearArtworkCache(): Promise<void> {
+  if (disposed) return;
+  cacheGeneration += 1;
+  boundsPromise = null;
+  pendingLoads.clear();
+  const generation = cacheGeneration;
+  await enqueueCacheMutation(generation, async () => {
+    await withDatabase((connection) => runTransaction(connection, {
+      stores: [SOURCE_STORE_NAME, RENDITION_STORE_NAME],
+      mode: 'readwrite',
+      operation: 'clear artwork cache',
+      durability: 'relaxed'
+    }, async (transaction) => {
+      await transaction.store(SOURCE_STORE_NAME).clear();
+      await transaction.store(RENDITION_STORE_NAME).clear();
+    }));
+  });
+  boundsPromise = Promise.resolve();
+  inventory.set(EMPTY_ARTWORK_CACHE_INVENTORY);
 }
 
 export async function invalidateCachedArtwork(trackIds: Iterable<string>): Promise<void> {
@@ -374,24 +624,44 @@ export async function invalidateCachedArtwork(trackIds: Iterable<string>): Promi
     }
   }
 
-  await withDatabase((connection) => runTransaction(connection, {
-    stores: [SOURCE_STORE_NAME],
-    mode: 'readwrite',
-    operation: 'invalidate artwork sources',
-    durability: 'relaxed'
-  }, async (transaction) => {
-    const store = transaction.store(SOURCE_STORE_NAME);
-    for (const id of ids) await store.delete(id);
-  })).catch((error) => reportCacheFailure('invalidation', error));
+  cacheGeneration += 1;
+  boundsPromise = null;
+  const generation = cacheGeneration;
+  await enqueueCacheMutation(generation, async () => {
+    await withDatabase((connection) => runTransaction(connection, {
+      stores: [SOURCE_STORE_NAME],
+      mode: 'readwrite',
+      operation: 'invalidate artwork sources',
+      durability: 'relaxed'
+    }, async (transaction) => {
+      const store = transaction.store(SOURCE_STORE_NAME);
+      for (const id of ids) await store.delete(id);
+    }));
+  }).then(() => scheduleInventoryRefresh())
+    .catch((error) => reportCacheFailure('invalidation', error));
 }
 
-export async function disposeArtworkCache(): Promise<void> {
-  disposed = true;
-  if (pruneTimer !== null) {
-    window.clearTimeout(pruneTimer);
-    pruneTimer = null;
-  }
-  const pending = [...pendingLoads.values()];
-  pendingLoads.clear();
-  await Promise.allSettled(pending);
+export async function flushArtworkCache(): Promise<void> {
+  await Promise.allSettled([...pendingLoads.values()]);
+  await mutationChain;
 }
+
+export function disposeArtworkCache(): Promise<void> {
+  if (disposePromise) return disposePromise;
+  disposed = true;
+  cacheGeneration += 1;
+  boundsPromise = null;
+  disposePromise = (async () => {
+    const pending = [...pendingLoads.values()];
+    pendingLoads.clear();
+    await Promise.allSettled(pending);
+    await mutationChain;
+  })();
+  return disposePromise;
+}
+
+registerBrowserPersistenceOwner({
+  label: 'artwork cache',
+  flush: flushArtworkCache,
+  dispose: disposeArtworkCache
+});
