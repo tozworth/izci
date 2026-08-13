@@ -275,7 +275,7 @@ export function isMultiplayerCommand(value: unknown): value is MultiplayerComman
   }
 }
 
-export function isRemotePlaylistItem(value: unknown): value is MultiplayerTrack {
+export function isMultiplayerTrack(value: unknown): value is MultiplayerTrack {
   if (!value || typeof value !== 'object') return false;
   const item = value as Partial<MultiplayerTrack>;
   return hasOnlyKeys(item, MULTIPLAYER_TRACK_KEYS)
@@ -329,13 +329,13 @@ export function isHostMessage(value: unknown): value is HostMessage {
       && catalogKeysAreBounded(catalog)
       && Array.isArray(catalog.playlist)
       && catalog.playlist.length <= MULTIPLAYER_QUEUE_MAX_ITEMS
-      && catalog.playlist.every(isRemotePlaylistItem)
+      && catalog.playlist.every(isMultiplayerTrack)
       && Array.isArray(catalog.library)
       && catalog.library.length <= MULTIPLAYER_QUEUE_MAX_ITEMS
-      && catalog.library.every(isRemotePlaylistItem)
+      && catalog.library.every(isMultiplayerTrack)
       && Array.isArray(catalog.favorites)
       && catalog.favorites.length <= MULTIPLAYER_QUEUE_MAX_ITEMS
-      && catalog.favorites.every(isRemotePlaylistItem)
+      && catalog.favorites.every(isMultiplayerTrack)
       && typeof catalog.shuffleEnabled === 'boolean'
       && (catalog.repeatMode === 'off' || catalog.repeatMode === 'one' || catalog.repeatMode === 'all');
   }
@@ -353,7 +353,7 @@ export function isHostMessage(value: unknown): value is HostMessage {
       && Number.isFinite(playback.sentAt)
       && playback.sentAt >= 0
       && isPlaybackSnapshot(playback.snapshot)
-      && (playback.track === null || isRemotePlaylistItem(playback.track));
+      && (playback.track === null || isMultiplayerTrack(playback.track));
   }
   if (message.kind === 'playback.prepare') {
     const preparation = message.preparation as Partial<MultiplayerPlaybackPreparation> | undefined;
