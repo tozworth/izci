@@ -77,6 +77,7 @@ function publicPersistenceStatus(status: CollectionRepositoryStatus): Collection
 export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
   const getIdentity = config.getIdentity ?? getTrackIdentity;
   const pendingSourceDeletes = new Set<string>();
+  const metadataBatches = new Set<NonNullable<ReturnType<typeof scheduleMetadataParsing>>>();
   const storage: CollectionStorage<MediaEntity> = {
     async load() {
       const state: StoredPlaylistState | null = await readStoredState(config.dbName);
@@ -216,7 +217,7 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
   }
 
   function scheduleMetadata(targetItems: readonly MediaEntity[]): void {
-    scheduleMetadataParsing({
+    const batch = scheduleMetadataParsing({
       targetItems: [...targetItems],
       getItemList: () => itemList,
       updateItems: (updater) => {
@@ -229,6 +230,10 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
         complete ? PERSIST_DEBOUNCE_MS : BACKGROUND_PERSIST_DEBOUNCE_MS
       )
     });
+    if (batch) {
+      metadataBatches.add(batch);
+      void batch.settled.finally(() => metadataBatches.delete(batch));
+    }
   }
 
   const hydration = repository.hydrate().then(() => {
@@ -258,6 +263,8 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
       return repository.flush();
     },
     shutdown() {
+      for (const batch of metadataBatches) batch.cancel();
+      metadataBatches.clear();
       return repository.shutdown();
     },
     getCatalogSnapshot() {
