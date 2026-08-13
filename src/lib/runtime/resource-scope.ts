@@ -6,6 +6,7 @@ export type ResourceKind =
   | 'animation-frame'
   | 'broadcast-channel'
   | 'child-scope'
+  | 'database-connection'
   | 'event-listener'
   | 'interval'
   | 'lifecycle'
