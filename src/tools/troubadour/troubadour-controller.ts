@@ -2,7 +2,7 @@ import { writable, type Readable } from 'svelte/store';
 import { isSameArtworkFile } from '$lib/services/media-metadata/artwork';
 import { applyMetadataPatch } from '$lib/services/media-metadata/merge';
 import { getMetadataCapabilities } from '$lib/services/media-metadata/format';
-import { readMetadataDocument } from '$lib/services/media-metadata/reader';
+import { inspectMetadataDocumentFile } from '$lib/services/catalog-metadata-inspection';
 import {
   queryMetadataWritePermission,
   requestMetadataWritePermission
@@ -482,7 +482,11 @@ export function createTroubadourController(
           replacement = { ...current, state: 'unsupported' };
         } else {
           try {
-            const document = await readMetadataDocument(current.file, current.extension);
+            const document = await inspectMetadataDocumentFile(
+              current.file,
+              current.extension,
+              lifetimeController.signal
+            );
             replacement = { ...current, document, state: 'ready', error: '' };
           } catch (error) {
             replacement = {
@@ -926,7 +930,7 @@ export function createTroubadourController(
         try {
           const file = await materializeWorkbenchFile(await item.fileHandle!.getFile());
           if (destroyed) return;
-          const document = await readMetadataDocument(file, item.extension);
+          const document = await inspectMetadataDocumentFile(file, item.extension, lifetimeController.signal);
           if (destroyed) return;
           setStaged({
             items: state.items.map((candidate) => candidate.id === item.id
@@ -1117,7 +1121,7 @@ export function createTroubadourController(
         jobs.push(job);
         if (destroyed) break;
         if (job.success) {
-          const document = await readMetadataDocument(job.file, item.extension);
+          const document = await inspectMetadataDocumentFile(job.file, item.extension, signal);
           if (destroyed) break;
           setStaged({
             items: state.items.map((candidate) => candidate.id === item.id ? {

@@ -3,7 +3,8 @@ import type { MediaEntity } from '$lib/contracts/catalog';
 import type { MediaInspectionResult } from './media-inspection-pipeline';
 import {
   CatalogMetadataInspectionOwner,
-  createCatalogMetadataHandler
+  createCatalogMetadataHandler,
+  createMediaInspectionHandlers
 } from './catalog-metadata-inspection';
 
 function entity(overrides: Partial<MediaEntity> = {}): MediaEntity {
@@ -20,6 +21,30 @@ function entity(overrides: Partial<MediaEntity> = {}): MediaEntity {
 }
 
 describe('catalog metadata inspection', () => {
+  it('installs real leased-file handlers for every accepted inspection kind', async () => {
+    const file = new File(['media'], 'Track.flac');
+    const signal = new AbortController().signal;
+    const readArtwork = vi.fn().mockResolvedValue({ blob: file });
+    const readLyrics = vi.fn().mockResolvedValue({ raw: 'lyrics', lines: [], source: 'vorbis-comments' });
+    const readDocument = vi.fn().mockResolvedValue({ extension: 'flac' });
+    const handlers = createMediaInspectionHandlers({
+      readStream: vi.fn().mockResolvedValue(null),
+      readModule: vi.fn().mockResolvedValue(null),
+      readDuration: vi.fn().mockResolvedValue(undefined),
+      readArtwork,
+      readLyrics,
+      readDocument
+    });
+    const context = { entity: entity(), file, signal, generationId: 'g', origin: 'tool' as const };
+
+    await expect(handlers['embedded-artwork'](context)).resolves.toEqual({ blob: file });
+    await expect(handlers['embedded-lyrics'](context)).resolves.toMatchObject({ raw: 'lyrics' });
+    await expect(handlers['metadata-document'](context)).resolves.toMatchObject({ extension: 'flac' });
+    expect(readArtwork).toHaveBeenCalledWith(file, 'flac', signal);
+    expect(readLyrics).toHaveBeenCalledWith(file, 'flac', signal);
+    expect(readDocument).toHaveBeenCalledWith(file, 'flac', signal);
+  });
+
   it('uses the supplied leased file and fills only a missing stream duration', async () => {
     const file = new File(['audio'], 'Track.flac');
     const readStream = vi.fn().mockResolvedValue({ title: 'Track' });

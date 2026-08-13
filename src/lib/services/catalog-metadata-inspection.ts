@@ -8,7 +8,10 @@ import {
   BrowserObjectUrls
 } from '$lib/runtime/adapters/browser-resources';
 import type { AbortControllerPort, IdPort, ObjectUrlPort } from '$lib/runtime/ports';
+import { mediaSources } from '$lib/media/media-source';
 import { loadModuleMetadataFromFile } from '$lib/services/module-metadata';
+import { loadTrackLyricsFromFile, type LoadedLyrics } from '$lib/services/lyrics';
+import { readMetadataDocument } from '$lib/services/media-metadata/reader';
 import {
   MediaInspectionPipeline,
   type MediaInspectionContext,
@@ -16,13 +19,22 @@ import {
   type MediaInspectionResult,
   type MediaInspectionTicket
 } from '$lib/services/media-inspection-pipeline';
-import { loadTrackMetadataFromFile } from '$lib/services/stream-artwork';
+import {
+  createLoadedStreamArtwork,
+  loadEmbeddedStreamArtworkFromFile,
+  loadTrackMetadataFromFile,
+  type EmbeddedStreamArtwork,
+  type LoadedStreamArtwork
+} from '$lib/services/stream-artwork';
+import type { MetadataDocument } from '$lib/services/media-metadata/types';
 import { materializeMediaEntity } from '$lib/stores/playlist-materialization';
 
 const CATALOG_METADATA_TIMEOUT_MS = 15_000;
 const MEDIA_DURATION_TIMEOUT_MS = 10_000;
 const MAX_INSPECTION_CONCURRENCY = 3;
 const MAX_BACKGROUND_INSPECTION_CONCURRENCY = 2;
+const MAX_QUEUED_INSPECTIONS = 32;
+const MAX_ON_DEMAND_CACHE_ENTRIES = 64;
 
 export interface CatalogMetadataReaders {
   readonly readStream: (
@@ -39,6 +51,24 @@ export interface CatalogMetadataReaders {
     file: File,
     signal: AbortSignal
   ) => number | undefined | Promise<number | undefined>;
+}
+
+export interface MediaInspectionReaders extends CatalogMetadataReaders {
+  readonly readArtwork: (
+    file: File,
+    format: string,
+    signal: AbortSignal
+  ) => EmbeddedStreamArtwork | null | Promise<EmbeddedStreamArtwork | null>;
+  readonly readLyrics: (
+    file: File,
+    format: string,
+    signal: AbortSignal
+  ) => LoadedLyrics | null | Promise<LoadedLyrics | null>;
+  readonly readDocument: (
+    file: File,
+    format: string,
+    signal: AbortSignal
+  ) => MetadataDocument | null | Promise<MetadataDocument | null>;
 }
 
 export type CatalogMetadataInspectionResult = MediaInspectionResult<'catalog-metadata'>;
@@ -66,7 +96,7 @@ interface CatalogMetadataPipelinePort {
     readonly origin: MediaInspectionOrigin;
     readonly signal?: AbortSignal;
     readonly timeoutMs?: number;
-  }): MediaInspectionTicket<'catalog-metadata'>;
+  }): MediaInspectionTicket<'catalog-metadata'> | Promise<MediaInspectionTicket<'catalog-metadata'>>;
   dispose(): Promise<void>;
 }
 
@@ -91,6 +121,18 @@ export function createCatalogMetadataHandler(
     const metadata = await readers.readStream(file, entity.format, signal);
     if (signal.aborted || (metadata?.duration ?? 0) > 0) return metadata;
     return mergeDuration(metadata, await readers.readDuration(file, signal));
+  };
+}
+
+export function createMediaInspectionHandlers(readers: MediaInspectionReaders) {
+  return {
+    'catalog-metadata': createCatalogMetadataHandler(readers),
+    'embedded-artwork': ({ entity, file, signal }: MediaInspectionContext) =>
+      readers.readArtwork(file, entity.format, signal),
+    'embedded-lyrics': ({ entity, file, signal }: MediaInspectionContext) =>
+      readers.readLyrics(file, entity.format, signal),
+    'metadata-document': ({ entity, file, signal }: MediaInspectionContext) =>
+      readers.readDocument(file, entity.format, signal)
   };
 }
 
@@ -127,14 +169,15 @@ export class CatalogMetadataInspectionOwner {
 
     const operations = entities.map(async (entity) => {
       try {
-        const result = await this.#pipeline.inspect({
+        const ticket = await this.#pipeline.inspect({
           kind: 'catalog-metadata',
           entity,
           generationId,
           origin: options.origin,
           signal: controller.signal,
           timeoutMs: CATALOG_METADATA_TIMEOUT_MS
-        }).result;
+        });
+        const result = await ticket.result;
         if (!controller.signal.aborted) await options.onResult(result);
       } catch (error) {
         if (!(error instanceof InspectionWorkCancelledError)) {
@@ -208,6 +251,28 @@ function readNativeAudioDuration(
 }
 
 let browserOwner: CatalogMetadataInspectionOwner | undefined;
+let browserPipeline: MediaInspectionPipeline | undefined;
+const onDemandResults = new Map<string, Promise<unknown>>();
+
+function cacheOnDemand<T>(key: string, load: () => Promise<T>): Promise<T> {
+  const cached = onDemandResults.get(key) as Promise<T> | undefined;
+  if (cached) {
+    onDemandResults.delete(key);
+    onDemandResults.set(key, cached);
+    return cached;
+  }
+  const pending = load().catch((error: unknown) => {
+    onDemandResults.delete(key);
+    throw error;
+  });
+  onDemandResults.set(key, pending);
+  while (onDemandResults.size > MAX_ON_DEMAND_CACHE_ENTRIES) {
+    const oldest = onDemandResults.keys().next().value as string | undefined;
+    if (oldest === undefined) break;
+    onDemandResults.delete(oldest);
+  }
+  return pending;
+}
 
 function getBrowserOwner(): CatalogMetadataInspectionOwner | null {
   if (typeof window === 'undefined') return null;
@@ -215,31 +280,126 @@ function getBrowserOwner(): CatalogMetadataInspectionOwner | null {
 
   const abortControllers = new BrowserAbortControllers(window);
   const objectUrls = new BrowserObjectUrls(window);
-  const handler = createCatalogMetadataHandler({
+  const readers: MediaInspectionReaders = {
     readStream: (file, format) => loadTrackMetadataFromFile(file, format),
     readModule: (entity, file, signal) => loadModuleMetadataFromFile(entity, file, signal),
-    readDuration: (file, signal) => readNativeAudioDuration(file, signal, objectUrls)
-  });
+    readDuration: (file, signal) => readNativeAudioDuration(file, signal, objectUrls),
+    readArtwork: (file, format, signal) => loadEmbeddedStreamArtworkFromFile(file, format, signal),
+    readLyrics: (file, format, signal) => loadTrackLyricsFromFile(file, format, signal),
+    readDocument: (file, format, signal) => readMetadataDocument(file, format, signal)
+  };
   const pipeline = new MediaInspectionPipeline({
     maxConcurrency: MAX_INSPECTION_CONCURRENCY,
     maxBackgroundConcurrency: MAX_BACKGROUND_INSPECTION_CONCURRENCY,
+    maxQueued: MAX_QUEUED_INSPECTIONS,
     clock: new BrowserClock(window, () => window.Date.now(), () => window.performance.now()),
     abortControllers,
     defaultTimeoutMs: CATALOG_METADATA_TIMEOUT_MS,
     materialize: (entity) => materializeMediaEntity(entity, false, 'file-read'),
-    handlers: {
-      'catalog-metadata': handler,
-      'embedded-artwork': async () => null,
-      'embedded-lyrics': async () => null,
-      'metadata-document': async () => null
-    }
+    handlers: createMediaInspectionHandlers(readers)
   });
+  browserPipeline = pipeline;
   browserOwner = new CatalogMetadataInspectionOwner(
     pipeline,
     new BrowserId(window.crypto),
     abortControllers
   );
   return browserOwner;
+}
+
+async function inspectOnDemand<TKind extends 'catalog-metadata' | 'embedded-artwork' | 'embedded-lyrics' | 'metadata-document'>(
+  kind: TKind,
+  entity: MediaEntity,
+  origin: MediaInspectionOrigin,
+  signal?: AbortSignal
+): Promise<MediaInspectionResult<TKind>['value']> {
+  getBrowserOwner();
+  if (!browserPipeline) return null as MediaInspectionResult<TKind>['value'];
+  const ticket = await browserPipeline.inspect({
+    kind,
+    entity,
+    generationId: `${kind}:${entity.id}:${entity.lastModified}:${entity.size}`,
+    origin,
+    priority: 'interactive',
+    signal
+  });
+  return (await ticket.result).value;
+}
+
+export function loadInspectedTrackMetadata(
+  entity: MediaEntity | null,
+  origin: MediaInspectionOrigin = 'playback',
+  signal?: AbortSignal
+): Promise<TrackMetadata | null> {
+  if (!entity) return Promise.resolve(null);
+  return inspectOnDemand('catalog-metadata', entity, origin, signal);
+}
+
+export function loadInspectedEmbeddedArtwork(
+  entity: MediaEntity | null,
+  origin: MediaInspectionOrigin = 'artwork',
+  signal?: AbortSignal
+): Promise<EmbeddedStreamArtwork | null> {
+  if (!entity || entity.kind !== 'stream') return Promise.resolve(null);
+  const key = `artwork:${entity.id}:${entity.format}:${entity.lastModified}:${entity.size}`;
+  return cacheOnDemand(key, () => inspectOnDemand('embedded-artwork', entity, origin, signal));
+}
+
+export async function loadInspectedTrackArtwork(
+  entity: MediaEntity | null,
+  origin: MediaInspectionOrigin = 'artwork',
+  signal?: AbortSignal
+): Promise<LoadedStreamArtwork | null> {
+  const artwork = await loadInspectedEmbeddedArtwork(entity, origin, signal);
+  return artwork ? createLoadedStreamArtwork(artwork) : null;
+}
+
+export function loadInspectedTrackLyrics(
+  entity: MediaEntity | null,
+  origin: MediaInspectionOrigin = 'artwork',
+  signal?: AbortSignal
+): Promise<LoadedLyrics | null> {
+  if (!entity || entity.kind !== 'stream') return Promise.resolve(null);
+  const key = `lyrics:${entity.id}:${entity.format}:${entity.lastModified}:${entity.size}`;
+  return cacheOnDemand(key, async () => {
+    const inspected = await inspectOnDemand('embedded-lyrics', entity, origin, signal);
+    return inspected
+      ? { raw: inspected.raw, source: inspected.source as LoadedLyrics['source'], lines: [...inspected.lines] }
+      : null;
+  });
+}
+
+export function loadInspectedMetadataDocument(
+  entity: MediaEntity,
+  signal?: AbortSignal
+): Promise<MetadataDocument | null> {
+  return inspectOnDemand('metadata-document', entity, 'tool', signal);
+}
+
+export async function inspectMetadataDocumentFile(
+  file: File,
+  format: string,
+  signal?: AbortSignal
+): Promise<MetadataDocument> {
+  if (typeof window === 'undefined') return readMetadataDocument(file, format, signal);
+  const id = `inspection:${new BrowserId(window.crypto).create()}`;
+  const entity: MediaEntity = {
+    id,
+    path: file.name,
+    name: file.name,
+    format,
+    kind: 'stream',
+    size: file.size,
+    lastModified: file.lastModified
+  };
+  mediaSources.registerFile(id, file);
+  try {
+    const document = await loadInspectedMetadataDocument(entity, signal);
+    if (!document) throw new Error(`Metadata inspection did not produce a document for ${file.name}.`);
+    return document;
+  } finally {
+    mediaSources.remove(id);
+  }
 }
 
 export function inspectCatalogMetadata(
@@ -258,5 +418,7 @@ export function inspectCatalogMetadata(
 export async function disposeCatalogMetadataInspection(): Promise<void> {
   const owner = browserOwner;
   browserOwner = undefined;
+  browserPipeline = undefined;
+  onDemandResults.clear();
   await owner?.dispose();
 }

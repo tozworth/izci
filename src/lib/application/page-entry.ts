@@ -1,6 +1,7 @@
 import { initializeLocalization } from '$lib/i18n';
 import { initializeLogging } from '$lib/logging/initialize';
 import { bootstrapPage, type PageBootstrapHandle, type PageCleanup } from '$lib/runtime/page-bootstrap';
+import { createPageShutdownCoordinator } from '$lib/runtime/page-shutdown';
 import { createBrowserRuntime } from '$lib/runtime/adapters/browser-runtime';
 import { disposeSettingsStores, flushSettingsStores } from '$lib/settings/store';
 import {
@@ -31,6 +32,8 @@ export interface ApplicationPageEntryConfig {
   readonly scrollbar?: ScrollbarVisibilityOptions;
   readonly popupWindow?: PopupWindowId;
   readonly orphanPolicy: WindowOrphanPolicy;
+  /** Page-domain work that must settle after unmount and before persistence closes. */
+  readonly shutdown?: PageCleanup;
 }
 
 function lifecycleTarget(): Parameters<typeof bootstrapPage>[0]['lifecycle'] {
@@ -67,6 +70,7 @@ function installReadyMarker(marker: string): PageCleanup {
 
 export function startApplicationPage(config: ApplicationPageEntryConfig): PageBootstrapHandle {
   const runtime = createBrowserRuntime(config.pageId);
+  const shutdown = createPageShutdownCoordinator(config.shutdown);
   return bootstrapPage({
     pageId: config.pageId,
     runtime,
@@ -77,6 +81,7 @@ export function startApplicationPage(config: ApplicationPageEntryConfig): PageBo
       return async () => { await logging.destroy(); };
     },
     settings: () => async () => {
+      await shutdown.beforePersistence();
       flushSettingsStores();
       disposeSettingsStores();
       try {
@@ -98,7 +103,10 @@ export function startApplicationPage(config: ApplicationPageEntryConfig): PageBo
         for (const cleanup of cleanups.reverse()) await cleanup();
       };
     },
-    mount: () => config.mount(),
+    mount: () => {
+      const cleanup = config.mount();
+      return shutdown.wrapMountCleanup(cleanup);
+    },
     readiness: async () => { await config.ready(); },
     marker: () => installReadyMarker(config.readyMarker)
   });

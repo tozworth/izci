@@ -143,6 +143,25 @@ describe('file helpers', () => {
     expect(getFile).not.toHaveBeenCalled();
   });
 
+  it('cancels while a directory iterator is blocked', async () => {
+    const controller = new AbortController();
+    const close = vi.fn().mockResolvedValue({ done: true, value: undefined });
+    const root = {
+      kind: 'directory',
+      name: 'Blocked',
+      values: () => ({
+        next: () => new Promise<IteratorResult<FileSystemHandle>>(() => undefined),
+        return: close,
+        [Symbol.asyncIterator]() { return this; }
+      })
+    } as unknown as FileSystemDirectoryHandle;
+
+    const discovery = discoverDirectoryFiles(root, { signal: controller.signal });
+    controller.abort(new DOMException('stop', 'AbortError'));
+    await expect(discovery).rejects.toMatchObject({ name: 'AbortError' });
+    expect(close).toHaveBeenCalledOnce();
+  });
+
   it('attaches resolved folder context when reading launched file handles', async () => {
     const track = fileHandle(new File(['track'], 'Track.flac'));
     const files = await readFileHandleFiles([track], () => ({

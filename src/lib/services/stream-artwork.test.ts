@@ -2,13 +2,17 @@ import { describe, expect, it, vi } from 'vitest';
 
 import {
   getTrackArtworkLoadKey,
-  loadTrackMetadata,
   loadTrackMetadataFromFile
 } from './stream-artwork';
 import type { MediaEntity } from '$lib/contracts/catalog';
 import { mediaSources } from '$lib/media/media-source';
 
 const textEncoder = new TextEncoder();
+
+async function loadTrackMetadata(track: MediaEntity) {
+  const file = mediaSources.get(track.id)?.file;
+  return file ? loadTrackMetadataFromFile(file, track.format) : null;
+}
 
 function concatBytes(...chunks: Uint8Array[]): Uint8Array {
   const totalLength = chunks.reduce((total, chunk) => total + chunk.byteLength, 0);

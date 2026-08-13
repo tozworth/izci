@@ -5,6 +5,9 @@ import '$lib/styles/options-view.css';
 import './app.css';
 import { startApplicationPage } from '$lib/application/page-entry';
 import { favoritesStore, libraryStore, playlistStore } from '$lib/stores/playlist';
+import { disposePlaylistMetadata } from '$lib/stores/playlist-metadata';
+import { disposeLibraryFolderScanner } from '$lib/services/library-folder-scanner';
+import { mediaSources } from '$lib/media/media-source';
 import './mobile/mobile.css';
 import './mobile/mobile-options.css';
 
@@ -22,5 +25,12 @@ startApplicationPage({
   ready: async () => {
     await Promise.all([playlistStore.ready(), libraryStore.ready(), favoritesStore.ready()]);
     await tick();
+  },
+  shutdown: async () => {
+    await Promise.all([
+      disposePlaylistMetadata(),
+      disposeLibraryFolderScanner()
+    ]);
+    mediaSources.clear();
   }
 });

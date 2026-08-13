@@ -4,10 +4,13 @@
   import HoverTooltip from '$lib/components/HoverTooltip.svelte';
   import MenuSurface from '$lib/components/MenuSurface.svelte';
   import { MODULE_EXTENSIONS, STREAM_EXTENSIONS } from '$lib/contracts/media-format';
-  import { loadTrackLyrics } from '$lib/services/lyrics';
+  import {
+    loadInspectedEmbeddedArtwork,
+    loadInspectedTrackLyrics,
+    loadInspectedTrackMetadata
+  } from '$lib/services/catalog-metadata-inspection';
   import { listenForCurrentToolTrack } from '$lib/services/tool-track-context';
   import { RAF_EFFECT_DEFINITIONS, RAF_EFFECT_REGISTRY } from '$lib/services/raf-effect-registry';
-  import { loadEmbeddedStreamArtwork, loadTrackMetadata } from '$lib/services/stream-artwork';
   import { mediaSources } from '$lib/media/media-source';
   import { inferArtistTitleFromFileName, stripFileExtension } from '$lib/utils/files';
   import { inferMediaExtension } from '$lib/media/format-policy';
@@ -428,11 +431,18 @@
           lastModified: file.lastModified
         };
         mediaSources.registerFile(track.id, file);
-        const [metadata, embeddedArtwork, embeddedLyrics] = await Promise.all([
-          loadTrackMetadata(track),
-          loadEmbeddedStreamArtwork(track),
-          loadTrackLyrics(track).catch(() => null)
-        ]);
+        let metadata;
+        let embeddedArtwork;
+        let embeddedLyrics;
+        try {
+          [metadata, embeddedArtwork, embeddedLyrics] = await Promise.all([
+            loadInspectedTrackMetadata(track, 'tool'),
+            loadInspectedEmbeddedArtwork(track, 'tool'),
+            loadInspectedTrackLyrics(track, 'tool').catch(() => null)
+          ]);
+        } finally {
+          mediaSources.remove(track.id);
+        }
         if (metadata) {
           for (const { key } of TAG_FIELDS) {
             parsed.tags[key] = metadata[key] ?? parsed.tags[key];

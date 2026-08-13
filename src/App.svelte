@@ -35,9 +35,9 @@
   import { invalidateCachedArtwork } from '$lib/services/artwork-cache';
   import {
     getTrackArtworkLoadKey,
-    loadTrackArtwork,
     type LoadedStreamArtwork
   } from '$lib/services/stream-artwork';
+  import { loadInspectedTrackArtwork } from '$lib/services/catalog-metadata-inspection';
   import { createImportController, FILE_INPUT_ACCEPT } from '$lib/services/import-controller';
   import {
     createContextualTabPresentationController,
@@ -46,10 +46,7 @@
   } from '$lib/services/contextual-tab-presentation';
   import { filesystemFolders } from '$lib/services/filesystem-folders';
   import { startLibraryFolderCommandListener } from '$lib/services/library-folder-coordination';
-  import {
-    disposeLibraryFolderScanner,
-    scanLaunchLibraryFolders
-  } from '$lib/services/library-folder-scanner';
+  import { scanLaunchLibraryFolders } from '$lib/services/library-folder-scanner';
   import { appInstallService, type AppInstallState } from '$lib/services/app-install';
   import { subscribeToLaunchedFiles } from '$lib/services/file-launch';
   import {
@@ -91,7 +88,6 @@
   import { appearanceSettings } from '$lib/stores/appearance-settings';
   import { metadataSettings } from '$lib/stores/metadata-settings';
   import { favoritesStore, libraryStore, playlistStore } from '$lib/stores/playlist';
-  import { disposePlaylistMetadata } from '$lib/stores/playlist-metadata';
   import { libraryViewSettings } from '$lib/stores/library-view-settings';
   import { DEFAULT_PLAYER_VOLUME } from '$lib/stores/player-volume';
   import { playbackSettings } from '$lib/stores/playback-settings';
@@ -875,7 +871,7 @@
       playbackCommandsState.pendingPlaybackTrackId === trackId || playingTrack?.id === trackId,
     loadArtwork: (track) => multiplayerState.mode === 'client'
       ? Promise.resolve(toLoadedMultiplayerArtwork(track, multiplayerState.remoteArtwork))
-      : loadTrackArtwork(track),
+      : loadInspectedTrackArtwork(track),
     getArtworkLoadKey: (track) => multiplayerState.mode === 'client'
       ? getRemoteArtworkLoadKey(
           track,
@@ -2072,8 +2068,6 @@
   }
 
   onDestroy(() => {
-    void disposePlaylistMetadata();
-    void disposeLibraryFolderScanner();
     dismissMultiplayerToast();
     playbackRestoration.destroy();
     playbackProgress.destroy();

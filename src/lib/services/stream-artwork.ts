@@ -1,6 +1,5 @@
 import type { MediaEntity } from '$lib/contracts/catalog';
 import type { ReplayGainMetadata, TrackMetadata } from '$lib/contracts/media-metadata';
-import { withMediaFile } from '$lib/stores/playlist-materialization';
 
 const FLAC_MARKER = 'fLaC';
 const ID3_MARKER = 'ID3';
@@ -16,6 +15,7 @@ const OGG_METADATA_SCAN_LIMIT_BYTES = 64 * 1024 * 1024;
 const OGG_DURATION_TAIL_BYTES = 80 * 1024;
 const VORBIS_COMMENT_KEY_PROBE_BYTES = 512;
 const VORBIS_TEXT_COMMENT_LIMIT_BYTES = 256 * 1024;
+const EMBEDDED_ARTWORK_SCAN_LIMIT_BYTES = 64 * 1024 * 1024;
 
 interface ParsedArtwork {
   mimeType: string;
@@ -1166,38 +1166,26 @@ export async function loadTrackMetadataFromFile(
   };
 }
 
-export async function loadTrackMetadata(track: MediaEntity | null): Promise<TrackMetadata | null> {
-  if (!track || track.kind !== 'stream' || !canLoadStreamMetadata(track.format)) {
-    return null;
-  }
-
-  return withMediaFile(track, (file) => loadTrackMetadataFromFile(file, track.format));
+export async function loadEmbeddedStreamArtworkFromFile(
+  file: File,
+  format: string,
+  signal?: AbortSignal
+): Promise<EmbeddedStreamArtwork | null> {
+  if (format !== 'flac' && format !== 'opus') return null;
+  if (signal?.aborted) throw signal.reason;
+  const scan = file.slice(0, Math.min(file.size, EMBEDDED_ARTWORK_SCAN_LIMIT_BYTES));
+  const bytes = new Uint8Array(await scan.arrayBuffer());
+  if (signal?.aborted) throw signal.reason;
+  const artwork = extractArtwork(bytes, format);
+  if (!artwork || artwork.data.byteLength === 0) return null;
+  return {
+    blob: new Blob([toArrayBuffer(artwork.data)], { type: artwork.mimeType }),
+    width: artwork.width,
+    height: artwork.height
+  };
 }
 
-export async function loadEmbeddedStreamArtwork(track: MediaEntity | null): Promise<EmbeddedStreamArtwork | null> {
-  if (!track || track.kind !== 'stream' || (track.format !== 'flac' && track.format !== 'opus')) {
-    return null;
-  }
-
-  return withMediaFile(track, async (file) => {
-    const bytes = new Uint8Array(await file.arrayBuffer());
-    const artwork = extractArtwork(bytes, track.format);
-    if (!artwork || artwork.data.byteLength === 0) return null;
-    return {
-      blob: new Blob([toArrayBuffer(artwork.data)], { type: artwork.mimeType }),
-      width: artwork.width,
-      height: artwork.height
-    };
-  });
-}
-
-export async function loadTrackArtwork(track: MediaEntity | null): Promise<LoadedStreamArtwork | null> {
-  const artwork = await loadEmbeddedStreamArtwork(track);
-
-  if (!artwork) {
-    return null;
-  }
-
+export function createLoadedStreamArtwork(artwork: EmbeddedStreamArtwork): LoadedStreamArtwork {
   const url = URL.createObjectURL(artwork.blob);
 
   return {

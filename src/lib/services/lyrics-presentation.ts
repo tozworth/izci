@@ -1,5 +1,6 @@
 import { writable } from 'svelte/store';
-import { getTrackLyricsLoadKey, loadTrackLyrics } from '$lib/services/lyrics';
+import { getTrackLyricsLoadKey } from '$lib/services/lyrics';
+import { loadInspectedTrackLyrics } from '$lib/services/catalog-metadata-inspection';
 import type { ContextualTabAutomation, WorkspaceTab } from '$lib/contracts/workspace';
 import type { LyricsDisplayStyle } from '$lib/contracts/appearance-settings';
 import type { MediaEntity } from '$lib/contracts/catalog';
@@ -78,7 +79,7 @@ export function createLyricsPresentationController({
       return;
     }
 
-    void loadTrackLyrics(track)
+    void loadInspectedTrackLyrics(track)
       .then((loadedLyrics) => {
         if (currentToken === loadToken) {
           publish({ availability: loadedLyrics ? 'available' : 'unavailable' });

@@ -7,10 +7,10 @@ import {
 } from '$lib/services/artwork-background';
 import {
   getTrackArtworkLoadKey,
-  loadTrackArtwork,
   revokeTrackArtwork,
   type LoadedStreamArtwork
 } from '$lib/services/stream-artwork';
+import { loadInspectedTrackArtwork } from '$lib/services/catalog-metadata-inspection';
 
 export type ArtworkBackgroundSlot = 'primary' | 'secondary';
 
@@ -30,7 +30,7 @@ export interface ArtworkPresentationState {
 interface CreateArtworkPresentationControllerOptions {
   resolveTrackSnapshot: (track: MediaEntity | null) => MediaEntity | null;
   isPlaybackDetailsPending: (trackId: string) => boolean;
-  loadArtwork?: typeof loadTrackArtwork;
+  loadArtwork?: typeof loadInspectedTrackArtwork;
   getArtworkLoadKey?: typeof getTrackArtworkLoadKey;
 }
 
@@ -146,7 +146,7 @@ export function hasSameTrackMetadata(left: MediaEntity | null, right: MediaEntit
 export function createArtworkPresentationController({
   resolveTrackSnapshot,
   isPlaybackDetailsPending,
-  loadArtwork = loadTrackArtwork,
+  loadArtwork = loadInspectedTrackArtwork,
   getArtworkLoadKey = getTrackArtworkLoadKey
 }: CreateArtworkPresentationControllerOptions) {
   let state = createInitialState();

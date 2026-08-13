@@ -4,10 +4,10 @@ import type { PlaybackSnapshot } from '$lib/contracts/playback';
 import type { MediaEntity } from '$lib/contracts/catalog';
 import {
   getTrackArtworkLoadKey,
-  loadTrackArtwork,
   revokeTrackArtwork,
   type LoadedStreamArtwork
 } from '$lib/services/stream-artwork';
+import { loadInspectedTrackArtwork } from '$lib/services/catalog-metadata-inspection';
 import { getTrackDisplaySubtitle, getTrackDisplayTitle } from '$lib/utils/files';
 
 const DEFAULT_SEEK_OFFSET_SECONDS = 10;
@@ -313,7 +313,7 @@ function createMediaSessionService() {
       return;
     }
 
-    const artwork = await loadTrackArtwork(activeTrack);
+    const artwork = await loadInspectedTrackArtwork(activeTrack);
 
     if (loadToken !== artworkLoadToken) {
       revokeTrackArtwork(artwork);

@@ -10,8 +10,10 @@ import { MetadataWriteError } from './types';
 
 export async function readMetadataDocument(
   file: File,
-  extension: string
+  extension: string,
+  signal?: AbortSignal
 ): Promise<MetadataDocument> {
+  if (signal?.aborted) throw signal.reason;
   logDebug('decode', 'Reading media metadata', { name: file.name, size: file.size, extension });
   const capabilities = getMetadataCapabilities(extension);
   if (!capabilities) {
@@ -25,6 +27,7 @@ export async function readMetadataDocument(
       input.getMetadataTags(),
       fingerprintFile(file)
     ]);
+    if (signal?.aborted) throw signal.reason;
     const sourceTags = cloneMetadataTags(tags);
     const document: MetadataDocument = {
       extension: normalizedExtension,

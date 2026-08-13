@@ -1,4 +1,4 @@
-import { loadEmbeddedStreamArtwork } from '$lib/services/stream-artwork';
+import { loadInspectedEmbeddedArtwork } from '$lib/services/catalog-metadata-inspection';
 import type { MediaEntity } from '$lib/contracts/catalog';
 import { readable, writable } from 'svelte/store';
 import {
@@ -488,7 +488,7 @@ async function loadArtworkThumbnail(
     }
   }
 
-  const embeddedArtwork = await loadEmbeddedStreamArtwork(track);
+  const embeddedArtwork = await loadInspectedEmbeddedArtwork(track);
 
   if (!embeddedArtwork) {
     await writeSourceAndRendition({

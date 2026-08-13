@@ -51,6 +51,7 @@ export interface DirectoryReadOptions {
 export interface DirectoryDiscoveryOptions {
   maxDepth?: number;
   onFileFound?: (file: DiscoveredDirectoryFile) => void;
+  signal?: AbortSignal;
 }
 
 export interface DiscoveredDirectoryFile {
@@ -312,8 +313,24 @@ async function discoverDirectoryFilesAtPath(
 ): Promise<DiscoveredDirectoryFile[]> {
   const files: DiscoveredDirectoryFile[] = [];
   const maxDepth = options.maxDepth ?? Number.POSITIVE_INFINITY;
+  const iterator = handle.values()[Symbol.asyncIterator]();
+  const abortReason = () => options.signal?.reason ?? new DOMException('Directory discovery cancelled.', 'AbortError');
+  const nextEntry = async (): Promise<IteratorResult<FileSystemHandle>> => {
+    if (options.signal?.aborted) throw abortReason();
+    if (!options.signal) return iterator.next();
+    return await new Promise((resolve, reject) => {
+      const handleAbort = () => reject(abortReason());
+      options.signal!.addEventListener('abort', handleAbort, { once: true });
+      void iterator.next().then(resolve, reject).finally(() => {
+        options.signal!.removeEventListener('abort', handleAbort);
+      });
+    });
+  };
 
-  for await (const entry of handle.values()) {
+  try {
+    for (let next = await nextEntry(); !next.done; next = await nextEntry()) {
+      const entry = next.value;
+      if (options.signal?.aborted) throw abortReason();
     if (entry.kind === 'file') {
       const fileHandle = entry as FileSystemFileHandle;
       const file = {
@@ -334,6 +351,9 @@ async function discoverDirectoryFilesAtPath(
         ))
       );
     }
+    }
+  } finally {
+    void iterator.return?.().catch(() => undefined);
   }
 
   return files;

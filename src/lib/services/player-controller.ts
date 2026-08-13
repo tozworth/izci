@@ -5,7 +5,7 @@ import { HowlerPlayerService } from '$lib/services/howler-player';
 import { logDebug, logError, logInfo, logWarning } from '$lib/logging/api';
 import { mediaSessionService } from '$lib/services/media-session';
 import { ModulePlayerService } from '$lib/services/module-player';
-import { loadTrackMetadata } from '$lib/services/stream-artwork';
+import { loadInspectedTrackMetadata } from '$lib/services/catalog-metadata-inspection';
 import { VideoPlayerService } from '$lib/services/video-player';
 import { metadataSettings } from '$lib/stores/metadata-settings';
 import { modulePlaybackSettings } from '$lib/stores/module-playback-settings';
@@ -349,7 +349,7 @@ function createPlayerController() {
       playbackConfig.replayGainMode !== 'off' &&
       preparedTrack.metadata?.embeddedMetadataLoaded !== true
     ) {
-      const embeddedMetadata = await loadTrackMetadata(preparedTrack).catch(() => null);
+      const embeddedMetadata = await loadInspectedTrackMetadata(preparedTrack).catch(() => null);
       if (embeddedMetadata) preparedTrack = applyMetadataInference(preparedTrack, embeddedMetadata);
     }
     return preparedTrack;

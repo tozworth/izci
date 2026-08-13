@@ -7,10 +7,10 @@
     buildTheaterLyricRows,
     findActiveLyricIndex,
     findActiveTimelineIndex,
-    loadTrackLyrics,
     stripLrcTimestamps,
     type LoadedLyrics
   } from '$lib/services/lyrics';
+  import { loadInspectedTrackLyrics } from '$lib/services/catalog-metadata-inspection';
   import { SCROLLBAR_VISIBILITY_IGNORE_SCROLL_ATTRIBUTE } from '$lib/services/scrollbar-visibility';
   import type { LyricsDisplayStyle } from '$lib/contracts/appearance-settings';
   import type { PlaybackSnapshot } from '$lib/contracts/playback';
@@ -403,7 +403,7 @@
     lyrics = null;
     resetScrollState();
 
-    void loadTrackLyrics(nextTrack)
+    void loadInspectedTrackLyrics(nextTrack)
       .then((nextLyrics) => {
         if (currentToken === loadToken) {
           lyrics = nextLyrics;

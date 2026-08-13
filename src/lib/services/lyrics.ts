@@ -1,6 +1,5 @@
 import { extractStreamVorbisComments } from '$lib/services/stream-artwork';
 import type { MediaEntity } from '$lib/contracts/catalog';
-import { withMediaFile } from '$lib/stores/playlist-materialization';
 
 export interface TimedLyricLine {
   time: number;
@@ -24,7 +23,6 @@ export interface LoadedLyrics {
 const VORBIS_LYRICS_KEYS = ['LYRICS', 'SYNCEDLYRICS', 'SYNCED LYRICS'];
 const LRC_TIMESTAMP_PATTERN = /\[(\d{1,3}):(\d{2})(?:[.:](\d{1,3}))?\]/g;
 const DEFAULT_DOWNTIME_THRESHOLD_SECONDS = 10;
-const lyricsLoadCache = new Map<string, Promise<LoadedLyrics | null>>();
 
 function parseTimestamp(minutes: string, seconds: string, fraction: string | undefined): number | null {
   const minuteValue = Number(minutes);
@@ -201,49 +199,28 @@ function findVorbisLyricsComment(comments: Array<{ key: string; value: string }>
   return '';
 }
 
-async function loadTrackLyricsUncached(track: MediaEntity): Promise<LoadedLyrics | null> {
-  return withMediaFile(track, async (file) => {
-    const bytes = new Uint8Array(await file.arrayBuffer());
-    let raw = findVorbisLyricsComment(extractStreamVorbisComments(bytes, track.format));
-    let source: LoadedLyrics['source'] = 'vorbis-comments';
-    if (!raw) {
-      const { ALL_FORMATS, BlobSource, Input } = await import('mediabunny');
-      const input = new Input({ source: new BlobSource(file), formats: ALL_FORMATS });
-      try {
-        raw = (await input.getMetadataTags()).lyrics?.trim() ?? '';
-        source = 'embedded-metadata';
-      } finally {
-        input.dispose();
-      }
+export async function loadTrackLyricsFromFile(
+  file: File,
+  format: string,
+  signal?: AbortSignal
+): Promise<LoadedLyrics | null> {
+  if (signal?.aborted) throw signal.reason;
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  if (signal?.aborted) throw signal.reason;
+  let raw = findVorbisLyricsComment(extractStreamVorbisComments(bytes, format));
+  let source: LoadedLyrics['source'] = 'vorbis-comments';
+  if (!raw) {
+    const { ALL_FORMATS, BlobSource, Input } = await import('mediabunny');
+    const input = new Input({ source: new BlobSource(file), formats: ALL_FORMATS });
+    try {
+      raw = (await input.getMetadataTags()).lyrics?.trim() ?? '';
+      source = 'embedded-metadata';
+    } finally {
+      input.dispose();
     }
-    if (!raw) return null;
-    const lines = parseLrcLyrics(raw);
-    return hasRenderableLyrics(raw, lines) ? { raw, lines, source } : null;
-  });
-}
-
-export async function loadTrackLyrics(track: MediaEntity | null): Promise<LoadedLyrics | null> {
-  if (!track || track.kind !== 'stream') {
-    return null;
   }
-
-  const cacheKey = getTrackLyricsLoadKey(track);
-
-  if (!cacheKey) {
-    return null;
-  }
-
-  const cachedLyrics = lyricsLoadCache.get(cacheKey);
-
-  if (cachedLyrics) {
-    return cachedLyrics;
-  }
-
-  const lyricsPromise = loadTrackLyricsUncached(track).catch((error: unknown) => {
-    lyricsLoadCache.delete(cacheKey);
-    throw error;
-  });
-
-  lyricsLoadCache.set(cacheKey, lyricsPromise);
-  return lyricsPromise;
+  if (signal?.aborted) throw signal.reason;
+  if (!raw) return null;
+  const lines = parseLrcLyrics(raw);
+  return hasRenderableLyrics(raw, lines) ? { raw, lines, source } : null;
 }
