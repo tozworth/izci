@@ -4,6 +4,7 @@ dev-dist
 .codex
 .vite
 coverage
+artifacts
 .DS_Store
 .local/
 .firebase/
