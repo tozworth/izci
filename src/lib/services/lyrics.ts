@@ -23,6 +23,7 @@ export interface LoadedLyrics {
 const VORBIS_LYRICS_KEYS = ['LYRICS', 'SYNCEDLYRICS', 'SYNCED LYRICS'];
 const LRC_TIMESTAMP_PATTERN = /\[(\d{1,3}):(\d{2})(?:[.:](\d{1,3}))?\]/g;
 const DEFAULT_DOWNTIME_THRESHOLD_SECONDS = 10;
+const EMBEDDED_LYRICS_SCAN_LIMIT_BYTES = 64 * 1024 * 1024;
 
 function parseTimestamp(minutes: string, seconds: string, fraction: string | undefined): number | null {
   const minuteValue = Number(minutes);
@@ -205,13 +206,14 @@ export async function loadTrackLyricsFromFile(
   signal?: AbortSignal
 ): Promise<LoadedLyrics | null> {
   if (signal?.aborted) throw signal.reason;
-  const bytes = new Uint8Array(await file.arrayBuffer());
+  const inspectedBlob = file.slice(0, Math.min(file.size, EMBEDDED_LYRICS_SCAN_LIMIT_BYTES));
+  const bytes = new Uint8Array(await inspectedBlob.arrayBuffer());
   if (signal?.aborted) throw signal.reason;
   let raw = findVorbisLyricsComment(extractStreamVorbisComments(bytes, format));
   let source: LoadedLyrics['source'] = 'vorbis-comments';
   if (!raw) {
     const { ALL_FORMATS, BlobSource, Input } = await import('mediabunny');
-    const input = new Input({ source: new BlobSource(file), formats: ALL_FORMATS });
+    const input = new Input({ source: new BlobSource(inspectedBlob), formats: ALL_FORMATS });
     try {
       raw = (await input.getMetadataTags()).lyrics?.trim() ?? '';
       source = 'embedded-metadata';

@@ -1,14 +1,22 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   buildTheaterLyricRows,
   findActiveLyricIndex,
   findActiveTimelineIndex,
   hasRenderableLyrics,
+  loadTrackLyricsFromFile,
   parseLrcLyrics,
   stripLrcTimestamps
 } from './lyrics';
 
 describe('lyrics helpers', () => {
+  it('bounds the bytes offered to embedded-lyrics parsers', async () => {
+    const slice = vi.fn(() => new Blob([]));
+    const file = { size: 128 * 1024 * 1024, slice } as unknown as File;
+    await loadTrackLyricsFromFile(file, 'flac').catch(() => null);
+    expect(slice).toHaveBeenCalledWith(0, 64 * 1024 * 1024);
+  });
+
   it('parses LRC timestamps and sorts repeated timestamp lines', () => {
     const lines = parseLrcLyrics('[00:05.25] Five\n[00:01.5][00:03.050] Shared\n[00:07] Seven');
 
