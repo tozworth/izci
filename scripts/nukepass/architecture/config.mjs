@@ -137,10 +137,13 @@ export const architectureConfig = Object.freeze({
   ],
   browserGlobalEnforcedPathPatterns: [
     /^src\/lib\/contracts\//,
+    /^src\/lib\/collections\/(?:collection-reducer|collection-repository)\.ts$/,
     /^src\/lib\/logging\//,
+    /^src\/lib\/media\/(?:format-policy|inspection-work-queue|media-source)\.ts$/,
     /^src\/lib\/runtime\/(?!adapters\/)/,
     /^src\/lib\/settings\/(?!browser\.ts$)/,
     /^src\/lib\/persistence\/(?!browser-indexed-db\.ts$)/,
+    /^src\/lib\/services\/(?:library-folder-plan|media-inspection-pipeline)\.ts$/,
     /^src\/lib\/services\/(?:multiplayer-protocol|window-orphan)\.ts$/,
     /^src\/lib\/application\/page-entry\.ts$/,
     /^src\/(?:main|options\/main|tools\/[^/]+\/main)\.ts$/
@@ -155,6 +158,7 @@ export const architectureConfig = Object.freeze({
           'src/lib/services/artwork-cache.ts',
           'src/lib/services/backups.ts',
           'src/lib/services/filesystem-folders.ts',
+          'src/lib/media/media-source-persistence.ts',
           'src/lib/services/multiplayer-render-disk-cache.ts',
           'src/lib/services/playback-progress.ts',
           'src/lib/stores/playlist-persistence.ts'
@@ -181,6 +185,22 @@ export const architectureConfig = Object.freeze({
       globals: ['localStorage', 'sessionStorage']
     }
   ],
+  forbiddenImportRules: [
+    {
+      id: 'source-imports-deleted-types-barrel',
+      description: 'Application code cannot import the deleted $lib/types barrel, including unresolved aliases and relative paths.',
+      from: { prefixes: ['src/'] },
+      specifiers: ['$lib/types', '$lib/types.ts'],
+      targetPaths: ['src/lib/types.ts']
+    }
+  ],
+  forbiddenSourcePathRules: [
+    {
+      id: 'deleted-types-barrel-restored',
+      description: 'The deleted src/lib/types.ts barrel cannot be restored.',
+      paths: ['src/lib/types.ts']
+    }
+  ],
   enforcedDirectionRuleIds: [
     'contract-imports-implementation',
     'implementation-imports-page-bootstrap',
@@ -188,6 +208,9 @@ export const architectureConfig = Object.freeze({
     'runtime-imports-application',
     'settings-imports-application',
     'persistence-kernel-imports-application',
+    'collection-kernel-imports-application',
+    'media-kernel-imports-application',
+    'inspection-planner-imports-application',
     'wire-imports-internal-module'
   ],
   directionRules: [
@@ -251,6 +274,64 @@ export const architectureConfig = Object.freeze({
       description: 'The typed persistence kernel and browser adapter cannot depend on application domains or presentation.',
       from: { prefixes: ['src/lib/persistence/'] },
       to: { prefixes: ['src/lib/application/', 'src/lib/services/', 'src/lib/stores/', 'src/lib/components/'] }
+    },
+    {
+      id: 'collection-kernel-imports-application',
+      description: 'Collection reduction and repository kernels cannot reverse-import application stores, presentation, or browser adapters.',
+      from: {
+        paths: [
+          'src/lib/collections/collection-reducer.ts',
+          'src/lib/collections/collection-repository.ts'
+        ]
+      },
+      to: {
+        prefixes: [
+          'src/lib/stores/',
+          'src/lib/components/',
+          'src/lib/runtime/adapters/',
+          'src/lib/persistence/browser-indexed-db.ts',
+          'src/lib/media/media-source-persistence.ts'
+        ]
+      }
+    },
+    {
+      id: 'media-kernel-imports-application',
+      description: 'Format, inspection scheduling, and media-source kernels cannot reverse-import application stores, presentation, or browser adapters.',
+      from: {
+        paths: [
+          'src/lib/media/format-policy.ts',
+          'src/lib/media/inspection-work-queue.ts',
+          'src/lib/media/media-source.ts'
+        ]
+      },
+      to: {
+        prefixes: [
+          'src/lib/stores/',
+          'src/lib/components/',
+          'src/lib/runtime/adapters/',
+          'src/lib/persistence/browser-indexed-db.ts',
+          'src/lib/media/media-source-persistence.ts'
+        ]
+      }
+    },
+    {
+      id: 'inspection-planner-imports-application',
+      description: 'Bounded inspection and folder planning kernels cannot reverse-import application stores, presentation, or browser adapters.',
+      from: {
+        paths: [
+          'src/lib/services/library-folder-plan.ts',
+          'src/lib/services/media-inspection-pipeline.ts'
+        ]
+      },
+      to: {
+        prefixes: [
+          'src/lib/stores/',
+          'src/lib/components/',
+          'src/lib/runtime/adapters/',
+          'src/lib/persistence/browser-indexed-db.ts',
+          'src/lib/media/media-source-persistence.ts'
+        ]
+      }
     },
     {
       id: 'wire-imports-internal-module',

@@ -48,6 +48,27 @@ function validateConfig(config) {
   if (new Set(browserRuleIds).size !== browserRuleIds.length) {
     throw new Error('Architecture forbidden browser-global rule ids must be unique.');
   }
+  if (!Array.isArray(config.forbiddenImportRules)
+    || config.forbiddenImportRules.some((rule) =>
+      !rule.id
+      || !rule.from
+      || (!Array.isArray(rule.specifiers) && !Array.isArray(rule.targetPaths))
+      || (rule.specifiers && !Array.isArray(rule.specifiers))
+      || (rule.targetPaths && !Array.isArray(rule.targetPaths)))) {
+    throw new Error('Architecture config forbiddenImportRules must declare id, from, and specifiers or targetPaths.');
+  }
+  const importRuleIds = config.forbiddenImportRules.map((rule) => rule.id);
+  if (new Set(importRuleIds).size !== importRuleIds.length) {
+    throw new Error('Architecture forbidden import rule ids must be unique.');
+  }
+  if (!Array.isArray(config.forbiddenSourcePathRules)
+    || config.forbiddenSourcePathRules.some((rule) => !rule.id || !Array.isArray(rule.paths))) {
+    throw new Error('Architecture config forbiddenSourcePathRules must declare id and paths.');
+  }
+  const sourcePathRuleIds = config.forbiddenSourcePathRules.map((rule) => rule.id);
+  if (new Set(sourcePathRuleIds).size !== sourcePathRuleIds.length) {
+    throw new Error('Architecture forbidden source-path rule ids must be unique.');
+  }
   const directionRuleIds = new Set(config.directionRules.map((rule) => rule.id));
   const unknownEnforcedRules = config.enforcedDirectionRuleIds.filter((id) => !directionRuleIds.has(id));
   if (unknownEnforcedRules.length > 0) {
@@ -306,20 +327,25 @@ function collectBrowserGlobals(sourceFile, configuredGlobals) {
   return sorted(findings.keys()).map((name) => ({ name, lines: [...new Set(findings.get(name))].sort((a, b) => a - b) }));
 }
 
-function resolveInternal(source, specifier, moduleSet, config) {
+function internalImportCandidates(source, specifier, config) {
   let base;
   if (specifier.startsWith('.')) {
     base = posix(path.normalize(path.join(path.dirname(source), specifier)));
   } else {
     const alias = Object.entries(config.aliases).find(([prefix]) => specifier.startsWith(prefix));
-    if (!alias) return null;
+    if (!alias) return [];
     base = `${alias[1]}${specifier.slice(alias[0].length)}`;
   }
   const withoutQuery = base.split(/[?#]/, 1)[0];
   const candidates = [withoutQuery];
   for (const extension of config.sourceExtensions) candidates.push(`${withoutQuery}${extension}`);
   for (const extension of config.sourceExtensions) candidates.push(`${withoutQuery}/index${extension}`);
-  return candidates.find((candidate) => moduleSet.has(candidate)) ?? null;
+  return candidates;
+}
+
+function resolveInternal(source, specifier, moduleSet, config) {
+  return internalImportCandidates(source, specifier, config)
+    .find((candidate) => moduleSet.has(candidate)) ?? null;
 }
 
 function matchSelector(file, selector) {
@@ -488,6 +514,34 @@ export async function analyzeProject({ root = process.cwd(), config = architectu
   externalImports.sort(edgeSort);
   unresolvedRelativeImports.sort(edgeSort);
 
+  const forbiddenImportFindings = parsedModules.flatMap((module) =>
+    module.imports.flatMap((item) => {
+      const candidates = internalImportCandidates(module.file, item.specifier, config);
+      return config.forbiddenImportRules
+        .filter((rule) =>
+          matchSelector(module.file, rule.from)
+          && (rule.specifiers?.includes(item.specifier)
+            || rule.targetPaths?.some((target) => candidates.includes(target))))
+        .map((rule) => ({
+          rule: rule.id,
+          scope: sourceScope(module.file),
+          source: module.file,
+          specifier: item.specifier,
+          target: rule.targetPaths?.find((target) => candidates.includes(target)) ?? null,
+          line: item.line
+        }));
+    })
+  ).sort((a, b) => compareText(a.rule, b.rule)
+    || compareText(a.source, b.source)
+    || a.line - b.line
+    || compareText(a.specifier, b.specifier));
+
+  const forbiddenSourcePathFindings = config.forbiddenSourcePathRules.flatMap((rule) =>
+    moduleFiles
+      .filter((file) => rule.paths.includes(file))
+      .map((file) => ({ rule: rule.id, scope: sourceScope(file), file }))
+  ).sort((a, b) => compareText(a.rule, b.rule) || compareText(a.file, b.file));
+
   const directionViolations = [];
   for (const edge of internalEdges) {
     for (const rule of config.directionRules) {
@@ -565,6 +619,8 @@ export async function analyzeProject({ root = process.cwd(), config = architectu
   const enforcementViolations = enforcedDirectionFindings.length
     + enforcedBrowserFindings.length
     + forbiddenCapabilityFindings.length
+    + forbiddenImportFindings.length
+    + forbiddenSourcePathFindings.length
     + enforcedCycleFindings.length;
   const bundle = includeBundle ? await bundleFacts(normalizedRoot, config.bundleDirectory) : { status: 'not-requested', directory: config.bundleDirectory };
 
@@ -574,6 +630,7 @@ export async function analyzeProject({ root = process.cwd(), config = architectu
     semantics: {
       exitPolicy: 'Mapped legacy findings remain informational. Enforced reconstructed-surface directions, browser capability access, and cycles fail the reporter.',
       staticImports: 'ES import, re-export, and string-literal dynamic import edges resolved to configured source modules; unresolved relative edges include CSS, JSON, raw, and other non-source assets.',
+      forbiddenImports: 'Configured import specifiers and canonical internal target candidates are enforced even when the target module is absent.',
       cycles: 'Strongly connected components of resolved internal import edges.',
       browserGlobals: 'Lexical identifier candidates, excluding declarations, property names, and type positions; allowed is config-driven and is not a capability ownership proof.',
       unreferencedExports: 'Conservative candidates from explicit non-Svelte exports; modules with namespace/dynamic consumers, no inbound edge, or entrypoint status are suppressed.',
@@ -590,6 +647,8 @@ export async function analyzeProject({ root = process.cwd(), config = architectu
       browserCapabilityRuntimes: config.browserCapabilityRuntimes,
       directionRules: config.directionRules.map(({ id, description }) => ({ id, description })),
       forbiddenBrowserGlobalRules: config.forbiddenBrowserGlobalRules.map(({ id, description, globals }) => ({ id, description, globals })),
+      forbiddenImportRules: config.forbiddenImportRules.map(({ id, description, specifiers, targetPaths }) => ({ id, description, specifiers, targetPaths })),
+      forbiddenSourcePathRules: config.forbiddenSourcePathRules.map(({ id, description, paths }) => ({ id, description, paths })),
       enforcedDirectionRuleIds: config.enforcedDirectionRuleIds,
       browserGlobals: sorted(config.browserGlobals),
       bundleDirectory: config.bundleDirectory
@@ -630,6 +689,14 @@ export async function analyzeProject({ root = process.cwd(), config = architectu
       capabilities: {
         count: forbiddenCapabilityFindings.length,
         findings: forbiddenCapabilityFindings
+      },
+      imports: {
+        count: forbiddenImportFindings.length,
+        findings: forbiddenImportFindings
+      },
+      sourcePaths: {
+        count: forbiddenSourcePathFindings.length,
+        findings: forbiddenSourcePathFindings
       },
       cycles: {
         count: enforcedCycleFindings.length,

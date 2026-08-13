@@ -1,4 +1,4 @@
-# Stage 1 architecture reporter
+# Nukepass architecture reporter
 
 Run the reporter from the repository root:
 
@@ -10,14 +10,26 @@ Omit `--out` to write JSON to stdout. Use `--no-bundle` when no build artifact
 facts are wanted. The reporter reads `dist/` when it exists but never creates or
 changes it.
 
-Stage 1 findings are informational. Import-direction findings, direct browser-
-global candidates, cycles, and possible unreferenced exports do not change the
-exit status. Invalid configuration, an unreadable/missing configured source
-root, parse failures, and output errors exit nonzero.
+Mapped legacy findings remain informational, while reconstructed-surface
+ratchets change the exit status. Enforced findings include import cycles,
+browser capability access in kernel modules, direct storage/IndexedDB bypasses,
+and configured import/source-path bans. Invalid configuration, an
+unreadable/missing configured source root, parse failures, and output errors
+also exit nonzero.
+
+The Stage 2/3 ratchets keep contracts, logging, runtime, settings, persistence,
+collection, media, inspection, and folder-planning kernels pointed toward leaf
+contracts and ports. They also keep the Multiplayer protocol self-contained,
+require media-source persistence to use the typed IndexedDB kernel, and reject
+both unresolved imports of the deleted `$lib/types` barrel and restoration of
+its old source path.
 
 The analysis is deliberately bounded:
 
 - imports cover ESM imports, re-exports, and string-literal dynamic imports;
+- forbidden imports compare both literal specifiers and normalized internal
+  target candidates, so a deleted target cannot evade enforcement by remaining
+  unresolved;
 - cycles are strongly connected components of resolved source-module edges;
 - runtime sources include TS/Svelte/JS under `src/`, the root Vite, Svelte, and
   Sites Worker runtime/build configuration, and the executable Raf and AHX

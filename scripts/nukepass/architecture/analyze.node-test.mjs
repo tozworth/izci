@@ -149,6 +149,152 @@ test('enforces typed persistence and convergent settings capability ownership', 
   ));
 });
 
+test('enforces collection, media, inspection, folder-planning, and media-source persistence boundaries', async (t) => {
+  const root = await fixture({
+    'src/lib/contracts/catalog.ts': 'export interface MediaEntity { id: string; }\n',
+    'src/lib/components/View.svelte': '<script>export const view = true;</script>\n',
+    'src/lib/stores/state.ts': 'export const state = true;\n',
+    'src/lib/runtime/adapters/browser-clock.ts': 'export const clock = true;\n',
+    'src/lib/persistence/indexed-db.ts': 'export const kernel = true;\n',
+    'src/lib/persistence/browser-indexed-db.ts': 'export const browserDatabase = true;\n',
+    'src/lib/media/media-source-persistence.ts': [
+      'import { kernel } from "../persistence/indexed-db";',
+      'indexedDB.open(String(kernel));',
+      'export const sources = true;',
+      ''
+    ].join('\n'),
+    'src/lib/collections/collection-reducer.ts': 'import { state } from "../stores/state";\nexport const reducer = state;\n',
+    'src/lib/collections/collection-repository.ts': 'import { clock } from "../runtime/adapters/browser-clock";\nexport const repository = clock;\n',
+    'src/lib/media/format-policy.ts': 'import { view } from "../components/View.svelte";\nwindow.name = String(view);\n',
+    'src/lib/media/inspection-work-queue.ts': 'import { state } from "../stores/state";\nexport const queue = state;\n',
+    'src/lib/media/media-source.ts': 'import { browserDatabase } from "../persistence/browser-indexed-db";\nexport const source = browserDatabase;\n',
+    'src/lib/services/media-inspection-pipeline.ts': 'import { clock } from "../runtime/adapters/browser-clock";\nexport const pipeline = clock;\n',
+    'src/lib/services/library-folder-plan.ts': 'import { sources } from "../media/media-source-persistence";\nexport const plan = sources;\n',
+    'src/lib/services/multiplayer-protocol.ts': 'import type { MediaEntity } from "../contracts/catalog";\nexport type Wire = MediaEntity;\n'
+  });
+  t.after(() => fs.rm(root, { recursive: true, force: true }));
+
+  const report = await analyzeProject({ root, config: fixtureConfig, includeBundle: false });
+  assert.deepEqual(report.enforcement.direction.findings.map((finding) => [
+    finding.rule, finding.source, finding.target
+  ]), [
+    ['collection-kernel-imports-application', 'src/lib/collections/collection-reducer.ts', 'src/lib/stores/state.ts'],
+    ['collection-kernel-imports-application', 'src/lib/collections/collection-repository.ts', 'src/lib/runtime/adapters/browser-clock.ts'],
+    ['inspection-planner-imports-application', 'src/lib/services/library-folder-plan.ts', 'src/lib/media/media-source-persistence.ts'],
+    ['inspection-planner-imports-application', 'src/lib/services/media-inspection-pipeline.ts', 'src/lib/runtime/adapters/browser-clock.ts'],
+    ['media-kernel-imports-application', 'src/lib/media/format-policy.ts', 'src/lib/components/View.svelte'],
+    ['media-kernel-imports-application', 'src/lib/media/inspection-work-queue.ts', 'src/lib/stores/state.ts'],
+    ['media-kernel-imports-application', 'src/lib/media/media-source.ts', 'src/lib/persistence/browser-indexed-db.ts'],
+    ['wire-imports-internal-module', 'src/lib/services/multiplayer-protocol.ts', 'src/lib/contracts/catalog.ts']
+  ]);
+  assert.deepEqual(report.enforcement.browserGlobals.findings.map((finding) => [
+    finding.file, finding.global
+  ]), [['src/lib/media/format-policy.ts', 'window']]);
+  assert.deepEqual(report.enforcement.capabilities.findings.map((finding) => [
+    finding.rule, finding.file, finding.global
+  ]), [[
+    'idb-owner-bypasses-persistence-kernel',
+    'src/lib/media/media-source-persistence.ts',
+    'indexedDB'
+  ]]);
+});
+
+test('allows reconstructed kernels to depend on contracts, runtime ports, and the typed persistence kernel', async (t) => {
+  const root = await fixture({
+    'src/lib/contracts/catalog.ts': 'export interface MediaEntity { id: string; }\n',
+    'src/lib/contracts/media-format.ts': 'export type TrackKind = "stream";\n',
+    'src/lib/contracts/media-metadata.ts': 'export interface TrackMetadata { title?: string; }\n',
+    'src/lib/runtime/errors.ts': 'export class DomainError extends Error {}\n',
+    'src/lib/runtime/ports.ts': 'export interface ClockPort { now(): number; }\n',
+    'src/lib/persistence/indexed-db.ts': 'export const kernel = true;\n',
+    'src/lib/persistence/browser-indexed-db.ts': 'import { kernel } from "./indexed-db";\nexport const browserDatabase = kernel;\n',
+    'src/lib/collections/collection-reducer.ts': 'import type { MediaEntity } from "../contracts/catalog";\nexport type Entity = MediaEntity;\n',
+    'src/lib/collections/collection-repository.ts': 'import type { Entity } from "./collection-reducer";\nexport type Record = Entity;\n',
+    'src/lib/media/format-policy.ts': 'import type { TrackKind } from "../contracts/media-format";\nexport type Kind = TrackKind;\n',
+    'src/lib/media/inspection-work-queue.ts': 'import type { ClockPort } from "../runtime/ports";\nexport type Clock = ClockPort;\n',
+    'src/lib/media/media-source.ts': [
+      'import type { MediaEntity } from "../contracts/catalog";',
+      'import type { DomainError } from "../runtime/errors";',
+      'import type { ClockPort } from "../runtime/ports";',
+      'import type { Kind } from "./format-policy";',
+      'export type Source = MediaEntity | DomainError | ClockPort | Kind;',
+      ''
+    ].join('\n'),
+    'src/lib/media/media-source-persistence.ts': [
+      'import { browserDatabase } from "../persistence/browser-indexed-db";',
+      'import { kernel } from "../persistence/indexed-db";',
+      'export const sourcePersistence = [browserDatabase, kernel];',
+      ''
+    ].join('\n'),
+    'src/lib/services/media-metadata/types.ts': 'export interface MetadataDocument { title?: string; }\n',
+    'src/lib/services/media-inspection-pipeline.ts': [
+      'import type { MediaEntity } from "../contracts/catalog";',
+      'import type { TrackMetadata } from "../contracts/media-metadata";',
+      'import type { Source } from "../media/media-source";',
+      'import type { Clock } from "../media/inspection-work-queue";',
+      'import type { DomainError } from "../runtime/errors";',
+      'import type { MetadataDocument } from "./media-metadata/types";',
+      'export type Pipeline = MediaEntity | TrackMetadata | Source | Clock | DomainError | MetadataDocument;',
+      ''
+    ].join('\n'),
+    'src/lib/services/library-folder-plan.ts': 'import type { MediaEntity } from "../contracts/catalog";\nimport type { Source } from "../media/media-source";\nexport type Plan = MediaEntity | Source;\n',
+    'src/lib/services/multiplayer-protocol.ts': 'export interface WireMessage { type: string; }\n'
+  });
+  t.after(() => fs.rm(root, { recursive: true, force: true }));
+
+  const report = await analyzeProject({ root, config: fixtureConfig, includeBundle: false });
+  assert.equal(report.enforcement.violations, 0);
+  assert.deepEqual(report.enforcement.direction.findings, []);
+  assert.deepEqual(report.enforcement.capabilities.findings, []);
+});
+
+test('rejects deleted types-barrel imports even while their target is absent', async (t) => {
+  const root = await fixture({
+    'src/alias-consumer.ts': 'import type { Track } from "$lib/types";\nexport type Item = Track;\n',
+    'src/lib/services/relative-consumer.ts': 'import type { Track } from "../types";\nexport type Item = Track;\n'
+  });
+  t.after(() => fs.rm(root, { recursive: true, force: true }));
+
+  const report = await analyzeProject({ root, config: fixtureConfig, includeBundle: false });
+  assert.equal(report.imports.unresolvedRelativeEdges, 2);
+  assert.deepEqual(report.enforcement.imports.findings, [
+    {
+      rule: 'source-imports-deleted-types-barrel',
+      scope: 'production',
+      source: 'src/alias-consumer.ts',
+      specifier: '$lib/types',
+      target: 'src/lib/types.ts',
+      line: 1
+    },
+    {
+      rule: 'source-imports-deleted-types-barrel',
+      scope: 'production',
+      source: 'src/lib/services/relative-consumer.ts',
+      specifier: '../types',
+      target: 'src/lib/types.ts',
+      line: 1
+    }
+  ]);
+  assert.deepEqual(report.enforcement.sourcePaths.findings, []);
+});
+
+test('rejects restoration of the deleted types barrel and resolved imports to it', async (t) => {
+  const root = await fixture({
+    'src/lib/types.ts': 'export interface Track { id: string; }\n',
+    'src/lib/consumer.ts': 'import type { Track } from "./types";\nexport type Item = Track;\n'
+  });
+  t.after(() => fs.rm(root, { recursive: true, force: true }));
+
+  const report = await analyzeProject({ root, config: fixtureConfig, includeBundle: false });
+  assert.equal(report.imports.internalEdges, 1);
+  assert.equal(report.enforcement.imports.count, 1);
+  assert.deepEqual(report.enforcement.sourcePaths.findings, [{
+    rule: 'deleted-types-barrel-restored',
+    scope: 'production',
+    file: 'src/lib/types.ts'
+  }]);
+});
+
 test('includes configured root runtime sources and parses JavaScript imports', async (t) => {
   const root = await fixture({
     'src/shared.js': 'export const value = 1;\n',
