@@ -50,7 +50,9 @@
 - `src/lib/utils/`: stateless shared helpers.
 - `src/options/`: separate Options Vite/Svelte entrypoint and settings UI. Options edits stores; it does not own audio nodes or main-window library mutation.
 - `src/tools/`: standalone Audio Compare, Editor, Converter, and Troubadour window code; `tool-shell.css` supplies their shared desktop-window styling.
-- `src/lib/types.ts`: shared domain types and canonical internally supported extensions.
+- `src/lib/contracts/`: bounded domain/settings/presentation contracts; modules import their actual owner rather than a common barrel.
+- `src/lib/runtime/`: injectable browser ports, structured errors, resource scopes, and page bootstrap.
+- `src/lib/collections/` and `src/lib/media/`: immutable collection/repository primitives and canonical durable media/source-lease ownership.
 - `vite.config.ts`: build/PWA configuration, manifest/file handlers, and Chiptune3 worklet emission.
 - `public/`: icons and other static assets.
 
@@ -71,12 +73,12 @@
 
 ## Files, metadata, and library
 
-- Extension/kind inference and supported-format behavior stay centralized in `src/lib/types.ts` and `src/lib/utils/files.ts`.
+- Extension/kind inference and supported-format projections stay centralized in `src/lib/media/format-policy.ts`; file enumeration/entity construction stays in `src/lib/utils/files.ts`.
 - Unknown-extension verification applies only to unknown files: when enabled, a separate muted OpenMPT probe must accept them; when disabled, normal module playback may succeed or fail.
 - Only media-element formats (streams and videos) receive object URLs. Preserve `ensureLoaded()` and File System Access permission behavior during materialization.
 - `playlist.ts` remains the public playlist/library store facade; focused sibling modules own persistence, materialization, selection, metadata, navigation, and deduplication.
 - Playlist and library persist separately. The library deduplicates; the playlist does not.
-- `PlaylistItem.path` is the canonical persisted/display path. Do not add a parallel folder-path cache.
+- `MediaEntity.path` is the canonical persisted/display path. `MediaEntity` never owns files, handles, object URLs, permission, or decode state; those belong to source locators and materialization leases.
 - Managed folder scans preserve stable IDs and play counts, reconcile only tracks owned by that folder, and must not request permission during launch scans.
 - Stream metadata may be persisted, but embedded artwork and lyrics stay on-demand and transient. Tracker metadata hydration should use the background module probe rather than requiring playback.
 - Library play counts accrue only through the play-count service after the configured continuous-play threshold.
