@@ -10,7 +10,7 @@ import {
   getSeparatedSubsongPlaylistLabel,
   getTrackDisplayTitle
 } from '$lib/utils/files';
-import { formatTrackRating, normalizeTrackRating } from '$lib/services/track-ratings';
+import { formatTrackRating, normalizeTrackRating } from '$lib/media/track-rating';
 
 export type LibraryColumnWidths = Partial<Record<LibraryColumnId, number>>;
 

@@ -1,8 +1,6 @@
 import type { MenuActionItem } from '$lib/contracts/window-menu';
 import type { MediaEntity } from '$lib/contracts/catalog';
 export {
-  formatTrackRating,
-  normalizeTrackRating,
   TRACK_RATING_ACTION_PREFIX,
   TRACK_RATING_VALUES
 } from '$lib/media/track-rating';

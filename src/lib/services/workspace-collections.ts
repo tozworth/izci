@@ -14,7 +14,8 @@ import {
 import type { TrackLibraryNavigationTarget } from '$lib/services/library-navigation';
 import { favoritesStore, libraryStore, playlistStore } from '$lib/stores/playlist';
 import { trackSettings } from '$lib/stores/track-settings';
-import { normalizeTrackRating, parseTrackRatingAction } from '$lib/services/track-ratings';
+import { normalizeTrackRating } from '$lib/media/track-rating';
+import { parseTrackRatingAction } from '$lib/services/track-ratings';
 import type { MenuActionItem } from '$lib/contracts/window-menu';
 import type { MediaEntity } from '$lib/contracts/catalog';
 import type { WorkspaceCollection } from '$lib/contracts/workspace';

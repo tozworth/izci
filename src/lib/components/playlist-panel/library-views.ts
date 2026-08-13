@@ -2,7 +2,7 @@ import type { LibraryGroupViewId, LibraryViewId } from '$lib/contracts/workspace
 import type { MediaEntity } from '$lib/contracts/catalog';
 import { getFolderFromPath, getTrackDisplayTitle } from '$lib/utils/files';
 import { filterItemsByQuery, formatTotalDuration, getTotalDuration, matchesSearchQuery } from './search';
-import { normalizeTrackRating } from '$lib/services/track-ratings';
+import { normalizeTrackRating } from '$lib/media/track-rating';
 
 export type { LibraryGroupViewId } from '$lib/contracts/workspace';
 

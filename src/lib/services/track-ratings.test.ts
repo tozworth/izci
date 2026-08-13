@@ -1,11 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
   buildTrackRatingAction,
-  formatTrackRating,
-  normalizeTrackRating,
   parseTrackRatingAction,
   TRACK_RATING_VALUES
 } from './track-ratings';
+import { formatTrackRating, normalizeTrackRating } from '$lib/media/track-rating';
 import type { MediaEntity } from '$lib/contracts/catalog';
 
 function item(rating?: number): MediaEntity {

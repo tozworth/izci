@@ -1,7 +1,7 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import { t } from 'svelte-i18n';
-  import { normalizeTrackRating } from '$lib/services/track-ratings';
+  import { normalizeTrackRating } from '$lib/media/track-rating';
 
   export let rating = 0;
   export let compact = false;

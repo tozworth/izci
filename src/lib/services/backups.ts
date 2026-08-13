@@ -17,7 +17,7 @@ import { normalizeStoredItem } from '$lib/stores/playlist-persistence';
 import { trackSettings } from '$lib/stores/track-settings';
 import type { MediaEntity } from '$lib/contracts/catalog';
 import type { TrackMetadata } from '$lib/contracts/media-metadata';
-import { normalizeTrackRating } from '$lib/services/track-ratings';
+import { normalizeTrackRating } from '$lib/media/track-rating';
 import {
   buildMediaEntities,
   getFavoriteIdentity,

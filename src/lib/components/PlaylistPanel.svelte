@@ -12,7 +12,7 @@
   import { prepareImportedFiles } from '$lib/services/file-verification';
   import { createAlbumArtworkController } from '$lib/services/album-artwork';
   import { trackSettings } from '$lib/stores/track-settings';
-  import { normalizeTrackRating } from '$lib/services/track-ratings';
+  import { normalizeTrackRating } from '$lib/media/track-rating';
   import { buildLibraryGroupContextActions } from '$lib/services/workspace-actions';
   import { extractDroppedContent } from '$lib/utils/files';
   import PlaylistPanelHeader from '$lib/components/playlist-panel/PlaylistPanelHeader.svelte';
