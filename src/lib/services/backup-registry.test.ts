@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { experimentalSettings } from '$lib/stores/experimental-settings';
+import { listRegisteredSettings } from '$lib/settings/store';
 import {
   BACKED_UP_SETTINGS_KEYS,
   BACKUP_REGISTRY,
@@ -26,6 +27,9 @@ describe('backup owner registry', () => {
     expect(BACKED_UP_SETTINGS_KEYS).toContain('izci.library-view-settings.v6');
     expect(BACKED_UP_SETTINGS_KEYS).toContain('izci-playback-bookmarks');
     expect(BACKED_UP_SETTINGS_KEYS).not.toContain('izci.library-view-settings.v5');
+    const classified = new Set(BACKUP_REGISTRY.map((entry) => entry.storageKey));
+    expect(listRegisteredSettings().map((entry) => entry.storageKey).filter((key) => !classified.has(key)))
+      .toEqual([]);
   });
 
   it('never exports or accepts the Multiplayer TURN secret', () => {
