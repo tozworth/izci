@@ -11,6 +11,9 @@ export interface CollectionState<TEntity extends CollectionEntity> {
   readonly entities: readonly TEntity[];
   readonly selection: PlaylistSelection;
   readonly playbackOptions: PlaylistPlaybackOptions;
+  /** Changes only when the durable entity catalog changes. */
+  readonly catalogRevision: number;
+  /** Changes for every entity, selection, or playback-options mutation. */
   readonly revision: number;
 }
 
@@ -28,6 +31,11 @@ export type CollectionCommand<TEntity extends CollectionEntity> =
     }
   | { readonly type: 'add'; readonly entities: readonly TEntity[] }
   | { readonly type: 'replace-all'; readonly entities: readonly TEntity[] }
+  | {
+      /** Replaces the catalog while retaining every still-valid selection. */
+      readonly type: 'apply-catalog';
+      readonly entities: readonly TEntity[];
+    }
   | { readonly type: 'remove'; readonly ids: readonly string[] }
   | {
       readonly type: 'replace-one';
@@ -123,12 +131,17 @@ function unique<TEntity extends CollectionEntity>(
 
 function result<TEntity extends CollectionEntity>(
   previous: CollectionState<TEntity>,
-  next: Omit<CollectionState<TEntity>, 'revision'>,
+  next: Omit<CollectionState<TEntity>, 'revision' | 'catalogRevision'>,
   details: Pick<CollectionReduction<TEntity>, 'added' | 'removed' | 'duplicates'>,
-  changed: boolean
+  changed: boolean,
+  catalogChanged = changed
 ): CollectionReduction<TEntity> {
   return {
-    state: changed ? { ...next, revision: previous.revision + 1 } : previous,
+    state: changed ? {
+      ...next,
+      catalogRevision: previous.catalogRevision + (catalogChanged ? 1 : 0),
+      revision: previous.revision + 1
+    } : previous,
     changed,
     ...details
   };
@@ -171,6 +184,20 @@ export function reduceCollection<TEntity extends CollectionEntity>(
         selection: EMPTY_COLLECTION_SELECTION,
         playbackOptions: state.playbackOptions
       }, { added: projected.entities, removed: state.entities, duplicates: projected.duplicates }, true);
+    }
+    case 'apply-catalog': {
+      const projected = unique(command.entities, policy);
+      const entities = projected.entities;
+      const previousById = new Map(state.entities.map((entity) => [entity.id, entity]));
+      const nextById = new Map(entities.map((entity) => [entity.id, entity]));
+      const added = entities.filter((entity) => previousById.get(entity.id) !== entity);
+      const removed = state.entities.filter((entity) => nextById.get(entity.id) !== entity);
+      const changed = !sameArray(entities, state.entities);
+      return result(state, {
+        entities,
+        selection: normalizeSelection(entities, state.selection),
+        playbackOptions: state.playbackOptions
+      }, { added, removed, duplicates: projected.duplicates }, changed);
     }
     case 'remove': {
       const ids = new Set(command.ids);
@@ -240,7 +267,7 @@ export function reduceCollection<TEntity extends CollectionEntity>(
         entities: state.entities,
         selection,
         playbackOptions: state.playbackOptions
-      }, empty, changed);
+      }, empty, changed, false);
     }
     case 'set-playback-options': {
       const changed = command.options.shuffle !== state.playbackOptions.shuffle
@@ -249,7 +276,7 @@ export function reduceCollection<TEntity extends CollectionEntity>(
         entities: state.entities,
         selection: state.selection,
         playbackOptions: changed ? { ...command.options } : state.playbackOptions
-      }, empty, changed);
+      }, empty, changed, false);
     }
   }
 }

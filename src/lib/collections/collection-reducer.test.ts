@@ -15,7 +15,13 @@ const policy = { dedupe: true, identity: (entity: Entity) => entity.path.toLower
 const options = { shuffle: false, repeatMode: 'off' as const };
 
 function state(entities: Entity[] = []): CollectionState<Entity> {
-  return { entities, selection: EMPTY_COLLECTION_SELECTION, playbackOptions: options, revision: 0 };
+  return {
+    entities,
+    selection: EMPTY_COLLECTION_SELECTION,
+    playbackOptions: options,
+    catalogRevision: 0,
+    revision: 0
+  };
 }
 
 describe('collection command reducer', () => {
@@ -33,6 +39,7 @@ describe('collection command reducer', () => {
       entities: [first],
       selection: { ids: ['a'], anchorId: 'a', focusId: 'a' },
       playbackOptions: options,
+      catalogRevision: 1,
       revision: 1
     });
     expect(reduced.duplicates).toEqual([duplicate]);
@@ -98,5 +105,32 @@ describe('collection command reducer', () => {
       type: 'patch', id: 'a', patch: { id: 'wrong', path: 'new', rating: 4 }
     }, policy);
     expect(reduced.state.entities).toEqual([{ id: 'a', path: 'new', rating: 4 }]);
+  });
+
+  it('retains valid selection when applying a planned catalog replacement', () => {
+    const first = { id: 'a', path: 'a' };
+    const selected = { id: 'b', path: 'b' };
+    const current: CollectionState<Entity> = {
+      ...state([first, selected]),
+      selection: { ids: ['b'], anchorId: 'b', focusId: 'b' }
+    };
+    const replacement = { ...selected, rating: 4 };
+    const added = { id: 'c', path: 'c' };
+    const reduced = reduceCollection(current, {
+      type: 'apply-catalog', entities: [first, replacement, added]
+    }, policy);
+
+    expect(reduced.state.entities).toEqual([first, replacement, added]);
+    expect(reduced.state.selection).toEqual({ ids: ['b'], anchorId: 'b', focusId: 'b' });
+    expect(reduced.state.catalogRevision).toBe(1);
+  });
+
+  it('does not advance the catalog revision for selection-only changes', () => {
+    const entity = { id: 'a', path: 'a' };
+    const reduced = reduceCollection(state([entity]), {
+      type: 'set-selection', selection: { ids: ['a'], anchorId: 'a', focusId: 'a' }
+    }, policy);
+    expect(reduced.state.revision).toBe(1);
+    expect(reduced.state.catalogRevision).toBe(0);
   });
 });
