@@ -1,11 +1,13 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import type { MediaEntity } from '$lib/contracts/catalog';
 import {
   addPlaybackBookmark,
   deletePlaybackBookmark,
   getPlaybackBookmarkFileKey,
   getPlaybackBookmarks,
-  normalizePlaybackBookmarks
+  normalizePlaybackBookmarkState,
+  normalizePlaybackBookmarks,
+  playbackBookmarksStore
 } from './playback-bookmarks';
 
 const track = (overrides: Partial<MediaEntity> = {}): MediaEntity => ({
@@ -19,14 +21,8 @@ const track = (overrides: Partial<MediaEntity> = {}): MediaEntity => ({
   ...overrides
 });
 
-const values = new Map<string, string>();
-
 beforeEach(() => {
-  values.clear();
-  vi.stubGlobal('localStorage', {
-    getItem: (key: string) => values.get(key) ?? null,
-    setItem: (key: string, value: string) => values.set(key, value)
-  });
+  playbackBookmarksStore.reset();
 });
 
 describe('playback bookmarks', () => {
@@ -36,8 +32,8 @@ describe('playback bookmarks', () => {
   });
 
   it('auto-names, sorts, persists, and deletes bookmarks', () => {
-    addPlaybackBookmark(track(), 20, '');
-    const bookmarks = addPlaybackBookmark(track(), 10, '');
+    addPlaybackBookmark(track(), 20, '', { createId: () => 'first', now: () => 1 });
+    const bookmarks = addPlaybackBookmark(track(), 10, '', { createId: () => 'second', now: () => 2 });
     expect(bookmarks.map(({ name, time }) => [name, time])).toEqual([
       ['Bookmark 2', 10],
       ['Bookmark 1', 20]
@@ -53,5 +49,13 @@ describe('playback bookmarks', () => {
       { id: '', name: 'Bad', time: 1 },
       { id: 'negative', name: 'Bad', time: -1 }
     ])).toEqual([{ id: 'valid', name: 'Point', time: 2 }]);
+  });
+
+  it('normalizes duplicate buckets and orders them by recent use', () => {
+    expect(normalizePlaybackBookmarkState({ buckets: [
+      { key: 'older', updatedAt: 1, bookmarks: [{ id: 'one', name: 'One', time: 1 }] },
+      { key: 'newer', updatedAt: 2, bookmarks: [{ id: 'two', name: 'Two', time: 2 }] },
+      { key: 'older', updatedAt: 3, bookmarks: [{ id: 'duplicate', name: 'Duplicate', time: 3 }] }
+    ] }).buckets.map((bucket) => bucket.key)).toEqual(['newer', 'older']);
   });
 });

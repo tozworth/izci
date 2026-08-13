@@ -16,6 +16,7 @@ import '$lib/stores/video-settings';
 import '$lib/stores/visualizer-settings';
 import '$lib/stores/workspace-panel-layout';
 import '$lib/stores/workspace-panel-state';
+import '$lib/services/playback-bookmarks';
 import {
   getRegisteredSettingsController,
   type RegisteredSettingsController
@@ -114,6 +115,7 @@ export const BACKUP_REGISTRY: readonly BackupRegistryEntry[] = [
   ordinary('module-playback-settings', 'izci.module-playback-settings.v1'),
   ordinary('pattern-viewer-settings', 'izci.pattern-viewer-settings'),
   ordinary('playback-settings', 'izci.playback-settings'),
+  ordinary('playback-bookmarks', 'izci-playback-bookmarks'),
   ordinary('player-volume', 'izci.player-volume.v1'),
   ordinary('raf-presets', 'izci.raf-presets'),
   ordinary('raf-settings', 'izci.raf-settings'),

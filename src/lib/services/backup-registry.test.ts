@@ -24,6 +24,7 @@ describe('backup owner registry', () => {
       }
     }
     expect(BACKED_UP_SETTINGS_KEYS).toContain('izci.library-view-settings.v6');
+    expect(BACKED_UP_SETTINGS_KEYS).toContain('izci-playback-bookmarks');
     expect(BACKED_UP_SETTINGS_KEYS).not.toContain('izci.library-view-settings.v5');
   });
 
