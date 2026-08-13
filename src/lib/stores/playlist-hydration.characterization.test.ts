@@ -146,4 +146,39 @@ describe('track collection hydration characterization', () => {
       })
     );
   });
+
+  it('does not acknowledge a folder CAS until catalog and source persistence settles', async () => {
+    const { createTrackCollectionStore } = await import('./playlist');
+    const store = createTrackCollectionStore({ dbName: 'test-folder-cas-flush', dedupe: true });
+    await store.ready();
+    const planned = item('planned');
+    let releasePersist!: () => void;
+    const persistSettled = new Promise<void>((resolve) => { releasePersist = resolve; });
+    persistenceHarness.persistStoredState.mockImplementationOnce(async () => persistSettled);
+    const snapshot = store.getCatalogSnapshot();
+    let acknowledged = false;
+
+    const applying = store.applyCatalogIfRevision(snapshot.catalogRevision, {
+      nextCatalog: [planned],
+      addedItems: [planned],
+      updatedItems: [],
+      removedItems: [],
+      sourceRegistrations: [{
+        entityId: planned.id,
+        fileHandle: sourceHarness.locators.get(planned.id)!,
+        permission: 'granted'
+      }],
+      sourceDeletions: [],
+      duplicates: []
+    }).then((result) => {
+      acknowledged = true;
+      return result;
+    });
+    await vi.waitFor(() => expect(persistenceHarness.persistStoredState).toHaveBeenCalledOnce());
+    expect(acknowledged).toBe(false);
+
+    releasePersist();
+    await expect(applying).resolves.toEqual({ status: 'applied' });
+    expect(acknowledged).toBe(true);
+  });
 });

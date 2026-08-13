@@ -290,6 +290,9 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
         pendingSourceDeletes.add(id);
         mediaSources.remove(id);
       }
+      // In browser-backed stores a successful folder commit is not observable until its
+      // catalog and source-owner writes have both settled. Non-browser stores are ephemeral.
+      if (typeof window !== 'undefined') await repository.flush();
       scheduleMetadata([...plan.addedItems, ...plan.updatedItems]);
       return { status: 'applied' };
     },
