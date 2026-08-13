@@ -3,6 +3,7 @@ import { initializeLogging } from '$lib/logging/initialize';
 import { bootstrapPage, type PageBootstrapHandle, type PageCleanup } from '$lib/runtime/page-bootstrap';
 import { createBrowserRuntime } from '$lib/runtime/adapters/browser-runtime';
 import { disposeSettingsStores, flushSettingsStores } from '$lib/settings/store';
+import { disposeBrowserDatabases } from '$lib/persistence/browser-indexed-db';
 import { initializePopupWindowSizePersistence } from '$lib/services/popup-window-state';
 import type { PopupWindowId } from '$lib/services/popup-windows';
 import { registerAppServiceWorker } from '$lib/services/pwa-updates';
@@ -72,9 +73,10 @@ export function startApplicationPage(config: ApplicationPageEntryConfig): PageBo
       const logging = initializeLogging({ runtime, context: config.pageId, target: window });
       return async () => { await logging.destroy(); };
     },
-    settings: () => () => {
+    settings: () => async () => {
       flushSettingsStores();
       disposeSettingsStores();
+      await disposeBrowserDatabases();
     },
     serviceWorker: () => registerAppServiceWorker(),
     theme: () => initializeTheme(),

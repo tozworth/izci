@@ -1,6 +1,12 @@
 import type { PlaylistItem, PlaylistPlaybackOptions, PlaylistRepeatMode, PlaylistSelection } from '$lib/contracts/catalog';
 import { normalizeTrackRating } from '$lib/services/track-ratings';
-import { logError, logInfo } from '$lib/logging/api';
+import { logInfo } from '$lib/logging/api';
+import { openBrowserDatabase } from '$lib/persistence/browser-indexed-db';
+import {
+  defineDatabase,
+  defineStore,
+  runTransaction
+} from '$lib/persistence/indexed-db';
 
 export interface StoredPlaylistItem {
   id: string;
@@ -136,84 +142,49 @@ export function normalizePlaybackOptions(value: unknown): PlaylistPlaybackOption
   };
 }
 
-async function openPlaylistDatabase(dbName: string): Promise<IDBDatabase | null> {
-  if (typeof window === 'undefined' || !('indexedDB' in window)) {
-    return null;
-  }
-
-  return await new Promise((resolve) => {
-    const request = window.indexedDB.open(dbName, PLAYLIST_DB_VERSION);
-
-    request.onupgradeneeded = () => {
-      const database = request.result;
-
-      if (!database.objectStoreNames.contains(PLAYLIST_STORE_NAME)) {
-        database.createObjectStore(PLAYLIST_STORE_NAME);
-      }
-    };
-
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => resolve(null);
+function playlistDatabaseSpec(dbName: string) {
+  return defineDatabase({
+    name: dbName,
+    version: PLAYLIST_DB_VERSION,
+    stores: {
+      [PLAYLIST_STORE_NAME]: defineStore<StoredPlaylistState, string>()({})
+    }
   });
 }
 
 export async function readStoredState(dbName: string): Promise<StoredPlaylistState | null> {
-  const database = await openPlaylistDatabase(dbName);
-
-  if (!database) {
-    return null;
+  const spec = playlistDatabaseSpec(dbName);
+  const connection = await openBrowserDatabase(spec);
+  try {
+    const storedState = await runTransaction(connection, {
+      stores: [PLAYLIST_STORE_NAME],
+      mode: 'readonly',
+      operation: `read collection ${dbName}`
+    }, (transaction) => transaction.store(PLAYLIST_STORE_NAME).get(PLAYLIST_STATE_KEY));
+    if (!storedState || typeof storedState !== 'object') return null;
+    logInfo('library', 'Collection restored from IndexedDB', {
+      database: dbName,
+      items: storedState.items?.length ?? 0
+    });
+    return storedState;
+  } finally {
+    await connection.close();
   }
-
-  return await new Promise((resolve) => {
-    const transaction = database.transaction(PLAYLIST_STORE_NAME, 'readonly');
-    const store = transaction.objectStore(PLAYLIST_STORE_NAME);
-    const request = store.get(PLAYLIST_STATE_KEY);
-
-    request.onsuccess = () => {
-      const value = request.result;
-
-      if (!value || typeof value !== 'object') {
-        resolve(null);
-        return;
-      }
-
-      const storedState = value as StoredPlaylistState;
-      logInfo('library', 'Collection restored from IndexedDB', { database: dbName, items: storedState.items?.length ?? 0 });
-      resolve(storedState);
-    };
-    request.onerror = () => resolve(null);
-    transaction.oncomplete = () => database.close();
-    transaction.onerror = () => database.close();
-    transaction.onabort = () => database.close();
-  });
 }
 
 export async function persistStoredState(dbName: string, state: StoredPlaylistState): Promise<void> {
-  const database = await openPlaylistDatabase(dbName);
-
-  if (!database) {
-    return;
+  const spec = playlistDatabaseSpec(dbName);
+  const connection = await openBrowserDatabase(spec);
+  try {
+    await runTransaction(connection, {
+      stores: [PLAYLIST_STORE_NAME],
+      mode: 'readwrite',
+      operation: `persist collection ${dbName}`,
+      durability: 'strict'
+    }, async (transaction) => {
+      await transaction.store(PLAYLIST_STORE_NAME).put(state, PLAYLIST_STATE_KEY);
+    });
+  } finally {
+    await connection.close();
   }
-
-  await new Promise<void>((resolve) => {
-    const transaction = database.transaction(PLAYLIST_STORE_NAME, 'readwrite');
-    const store = transaction.objectStore(PLAYLIST_STORE_NAME);
-
-    store.put(state, PLAYLIST_STATE_KEY);
-
-    transaction.oncomplete = () => {
-      database.close();
-      resolve();
-    };
-    transaction.onerror = (event) => {
-      logError('library', 'Collection persistence failed', { database: dbName, error: (event.target as IDBTransaction | null)?.error });
-      database.close();
-      resolve();
-    };
-    transaction.onabort = (event) => {
-      logError('library', 'Collection persistence aborted', { database: dbName, error: (event.target as IDBTransaction | null)?.error });
-      database.close();
-      resolve();
-    };
-  });
 }

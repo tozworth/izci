@@ -35,6 +35,12 @@ export interface TrackCollectionStoreConfig {
   getIdentity?: (item: PlaylistItem) => string;
 }
 
+export interface CollectionPersistenceStatus {
+  state: 'hydrating' | 'ready' | 'persisting' | 'degraded';
+  dirty: boolean;
+  error: unknown | null;
+}
+
 export type ExternalTrackUpdate = Partial<
   Pick<
     PlaylistItem,
@@ -58,6 +64,11 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
   const items = writable<PlaylistItem[]>([]);
   const selection = writable<PlaylistSelection>(emptySelection);
   const playbackOptions = writable<PlaylistPlaybackOptions>(defaultPlaybackOptions);
+  const persistenceStatus = writable<CollectionPersistenceStatus>({
+    state: typeof window === 'undefined' ? 'ready' : 'hydrating',
+    dirty: false,
+    error: null
+  });
 
   let itemList: PlaylistItem[] = [];
   let selectionState: PlaylistSelection = emptySelection;
@@ -112,6 +123,7 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
     }
 
     persistDirty = true;
+    persistenceStatus.set({ state: 'ready', dirty: true, error: null });
     pendingPersistDelayMs = Math.min(pendingPersistDelayMs, Math.max(0, delayMs));
     if (persistInFlight) return;
 
@@ -131,6 +143,7 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
       persistDirty = false;
       pendingPersistDelayMs = Number.POSITIVE_INFINITY;
       persistInFlight = true;
+      persistenceStatus.set({ state: 'persisting', dirty: false, error: null });
       logDebug('library', 'Collection persistence started', { database: config.dbName, items: itemList.length });
       void persistStoredState(config.dbName, {
         items: itemList.map(serializeItem).filter((item): item is StoredPlaylistItem => item !== null),
@@ -138,8 +151,14 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
         playbackOptions: playbackOptionsState
       }).catch((error) => {
         logError('library', 'Collection persistence failed', { database: config.dbName, error });
+        persistenceStatus.set({ state: 'degraded', dirty: persistDirty, error });
       }).finally(() => {
         persistInFlight = false;
+        if (!persistDirty) {
+          persistenceStatus.update((status) => status.state === 'degraded'
+            ? status
+            : { state: 'ready', dirty: false, error: null });
+        }
         logDebug('library', 'Collection persistence completed', { database: config.dbName });
         if (persistDirty) queuePersist(pendingPersistDelayMs);
       });
@@ -205,9 +224,16 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
           )
         });
       })
+      .catch((error) => {
+        logError('library', 'Collection hydration failed', { database: config.dbName, error });
+        persistenceStatus.set({ state: 'degraded', dirty: false, error });
+      })
       .finally(() => {
         hydrated = true;
         logInfo('library', 'Collection hydration completed', { database: config.dbName, items: itemList.length });
+        persistenceStatus.update((status) => status.state === 'degraded'
+          ? status
+          : { state: 'ready', dirty: false, error: null });
         flushPendingOperations();
 
         if (shouldCompactStoredState) {
@@ -226,6 +252,7 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
     selectedTrack,
     shuffleEnabled,
     repeatMode,
+    persistenceStatus,
     ready() {
       return readyPromise;
     },

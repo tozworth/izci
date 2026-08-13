@@ -435,7 +435,7 @@ function createConnection<TSpec extends DatabaseSpec>(
 
 export function openDatabase<TSpec extends DatabaseSpec>(
   spec: TSpec,
-  scope: ResourceScope,
+  scope: ResourceScope | null | undefined,
   factory: IndexedDbFactoryPort | null | undefined
 ): Promise<DatabaseConnection<TSpec>> {
   const operation = `open database ${spec.name}`;
@@ -444,7 +444,7 @@ export function openDatabase<TSpec extends DatabaseSpec>(
   } catch (cause) {
     return Promise.reject(classifyPersistenceError(cause, operation));
   }
-  if (!factory) {
+  if (!factory || !scope) {
     return Promise.reject(persistenceError(
       'unavailable',
       'persistence.indexed-db-unavailable',
