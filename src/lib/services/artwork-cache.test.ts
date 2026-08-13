@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
+import { get } from 'svelte/store';
 import type { PlaylistItem } from '$lib/contracts/catalog';
 import {
+  artworkCachePersistenceStatus,
   fitArtworkRenditionSize,
+  getCachedArtworkThumbnail,
   getArtworkRenditionKey,
   getArtworkSourceFingerprint
 } from './artwork-cache';
@@ -35,5 +38,10 @@ describe('artwork cache helpers', () => {
 
   it('keeps rendition size in the cache key', () => {
     expect(getArtworkRenditionKey('asset', 96)).not.toBe(getArtworkRenditionKey('asset', 512));
+  });
+
+  it('exposes unavailable persistence while degrading a rebuildable lookup to no artwork', async () => {
+    await expect(getCachedArtworkThumbnail(item())).resolves.toBeNull();
+    expect(get(artworkCachePersistenceStatus).state).toBe('degraded');
   });
 });

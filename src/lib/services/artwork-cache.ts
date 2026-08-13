@@ -1,5 +1,14 @@
 import { loadEmbeddedStreamArtwork } from '$lib/services/stream-artwork';
 import type { PlaylistItem } from '$lib/contracts/catalog';
+import { readable, writable } from 'svelte/store';
+import { openBrowserDatabase } from '$lib/persistence/browser-indexed-db';
+import {
+  defineDatabase,
+  defineStore,
+  runTransaction,
+  type DatabaseConnection
+} from '$lib/persistence/indexed-db';
+import { logWarning } from '$lib/logging/api';
 
 export const ALBUM_ARTWORK_THUMBNAIL_SIZE = 96;
 
@@ -29,6 +38,28 @@ interface ArtworkRenditionRecord {
   lastAccessed: number;
 }
 
+const artworkDatabaseSpec = defineDatabase({
+  name: DATABASE_NAME,
+  version: DATABASE_VERSION,
+  stores: {
+    [SOURCE_STORE_NAME]: defineStore<ArtworkSourceRecord, string>()({ keyPath: 'sourceKey' }),
+    [RENDITION_STORE_NAME]: defineStore<ArtworkRenditionRecord, string>()({ keyPath: 'key' })
+  }
+});
+
+type ArtworkDatabaseConnection = DatabaseConnection<typeof artworkDatabaseSpec>;
+
+export interface ArtworkCachePersistenceStatus {
+  state: 'ready' | 'busy' | 'degraded';
+  error: unknown | null;
+}
+
+const status = writable<ArtworkCachePersistenceStatus>({ state: 'ready', error: null });
+export const artworkCachePersistenceStatus = readable<ArtworkCachePersistenceStatus>(
+  { state: 'ready', error: null },
+  (set) => status.subscribe(set)
+);
+
 export interface CachedArtworkThumbnail {
   assetId: string;
   blob: Blob;
@@ -37,7 +68,33 @@ export interface CachedArtworkThumbnail {
 }
 
 const pendingLoads = new Map<string, Promise<CachedArtworkThumbnail | null>>();
-let pruneScheduled = false;
+let pruneTimer: number | null = null;
+let disposed = false;
+
+async function withDatabase<TResult>(
+  work: (connection: ArtworkDatabaseConnection) => Promise<TResult>
+): Promise<TResult> {
+  status.set({ state: 'busy', error: null });
+  const connection = await openBrowserDatabase(artworkDatabaseSpec);
+  try {
+    const result = await work(connection);
+    status.set({ state: 'ready', error: null });
+    return result;
+  } catch (error) {
+    status.set({ state: 'degraded', error });
+    throw error;
+  } finally {
+    await connection.close().catch((error) => {
+      status.set({ state: 'degraded', error });
+      throw error;
+    });
+  }
+}
+
+function reportCacheFailure(operation: string, error: unknown): void {
+  status.set({ state: 'degraded', error });
+  logWarning('library', `Artwork cache ${operation} failed`, { error });
+}
 
 function isArtworkCandidate(track: PlaylistItem): boolean {
   return track.kind === 'stream' && (track.extension === 'flac' || track.extension === 'opus');
@@ -66,103 +123,55 @@ export function fitArtworkRenditionSize(width: number, height: number, maxEdge: 
   };
 }
 
-async function openArtworkDatabase(): Promise<IDBDatabase | null> {
-  if (typeof window === 'undefined' || !('indexedDB' in window)) {
-    return null;
-  }
-
-  return await new Promise((resolve) => {
-    const request = window.indexedDB.open(DATABASE_NAME, DATABASE_VERSION);
-
-    request.onupgradeneeded = () => {
-      const database = request.result;
-
-      if (!database.objectStoreNames.contains(SOURCE_STORE_NAME)) {
-        database.createObjectStore(SOURCE_STORE_NAME, { keyPath: 'sourceKey' });
-      }
-
-      if (!database.objectStoreNames.contains(RENDITION_STORE_NAME)) {
-        database.createObjectStore(RENDITION_STORE_NAME, { keyPath: 'key' });
-      }
-    };
-
-    request.onsuccess = () => resolve(request.result);
-    request.onerror = () => resolve(null);
-    request.onblocked = () => resolve(null);
-  });
+async function readSourceRecord(key: string): Promise<ArtworkSourceRecord | null> {
+  return withDatabase((connection) => runTransaction(connection, {
+    stores: [SOURCE_STORE_NAME],
+    mode: 'readonly',
+    operation: 'read artwork source'
+  }, async (transaction) => (await transaction.store(SOURCE_STORE_NAME).get(key)) ?? null));
 }
 
-async function readRecord<T>(storeName: string, key: IDBValidKey): Promise<T | null> {
-  const database = await openArtworkDatabase();
-
-  if (!database) {
-    return null;
-  }
-
-  return await new Promise((resolve) => {
-    const transaction = database.transaction(storeName, 'readonly');
-    const request = transaction.objectStore(storeName).get(key);
-
-    request.onsuccess = () => resolve((request.result as T | undefined) ?? null);
-    request.onerror = () => resolve(null);
-    transaction.oncomplete = () => database.close();
-    transaction.onerror = () => database.close();
-    transaction.onabort = () => database.close();
-  });
+async function readRenditionRecord(key: string): Promise<ArtworkRenditionRecord | null> {
+  return withDatabase((connection) => runTransaction(connection, {
+    stores: [RENDITION_STORE_NAME],
+    mode: 'readonly',
+    operation: 'read artwork rendition'
+  }, async (transaction) => (await transaction.store(RENDITION_STORE_NAME).get(key)) ?? null));
 }
 
 async function writeSourceAndRendition(
   source: ArtworkSourceRecord,
   rendition?: ArtworkRenditionRecord
 ): Promise<void> {
-  const database = await openArtworkDatabase();
-
-  if (!database) {
-    return;
-  }
-
   const storeNames = rendition
-    ? [SOURCE_STORE_NAME, RENDITION_STORE_NAME]
-    : [SOURCE_STORE_NAME];
+    ? [SOURCE_STORE_NAME, RENDITION_STORE_NAME] as const
+    : [SOURCE_STORE_NAME] as const;
 
-  await new Promise<void>((resolve) => {
-    const transaction = database.transaction(storeNames, 'readwrite');
-    transaction.objectStore(SOURCE_STORE_NAME).put(source);
-
+  await withDatabase((connection) => runTransaction(connection, {
+    stores: storeNames,
+    mode: 'readwrite',
+    operation: 'persist artwork source and rendition',
+    durability: 'relaxed'
+  }, async (transaction) => {
+    await transaction.store(SOURCE_STORE_NAME).put(source);
     if (rendition) {
-      transaction.objectStore(RENDITION_STORE_NAME).put(rendition);
+      await transaction.store(RENDITION_STORE_NAME).put(rendition);
     }
-
-    transaction.oncomplete = () => {
-      database.close();
-      resolve();
-    };
-    transaction.onerror = () => {
-      database.close();
-      resolve();
-    };
-    transaction.onabort = () => {
-      database.close();
-      resolve();
-    };
-  });
+  }));
 }
 
 async function touchRendition(record: ArtworkRenditionRecord): Promise<void> {
-  const database = await openArtworkDatabase();
-
-  if (!database) {
-    return;
-  }
-
-  const transaction = database.transaction(RENDITION_STORE_NAME, 'readwrite');
-  transaction.objectStore(RENDITION_STORE_NAME).put({
-    ...record,
-    lastAccessed: Date.now()
-  });
-  transaction.oncomplete = () => database.close();
-  transaction.onerror = () => database.close();
-  transaction.onabort = () => database.close();
+  await withDatabase((connection) => runTransaction(connection, {
+    stores: [RENDITION_STORE_NAME],
+    mode: 'readwrite',
+    operation: 'touch artwork rendition',
+    durability: 'relaxed'
+  }, async (transaction) => {
+    await transaction.store(RENDITION_STORE_NAME).put({
+      ...record,
+      lastAccessed: Date.now()
+    });
+  }));
 }
 
 async function hashBlob(blob: Blob): Promise<string> {
@@ -230,52 +239,32 @@ async function createRendition(blob: Blob, maxEdge: number): Promise<{
 }
 
 async function pruneArtworkCache(): Promise<void> {
-  const database = await openArtworkDatabase();
-
-  if (!database) {
-    return;
-  }
-
-  const records = await new Promise<ArtworkRenditionRecord[]>((resolve) => {
-    const transaction = database.transaction(RENDITION_STORE_NAME, 'readonly');
-    const request = transaction.objectStore(RENDITION_STORE_NAME).getAll();
-    request.onsuccess = () => resolve((request.result as ArtworkRenditionRecord[]) ?? []);
-    request.onerror = () => resolve([]);
-  });
-  const totalBytes = records.reduce((sum, record) => sum + record.byteSize, 0);
-
-  if (totalBytes <= MAX_RENDITION_BYTES) {
-    database.close();
-    return;
-  }
-
-  const transaction = database.transaction(RENDITION_STORE_NAME, 'readwrite');
-  const store = transaction.objectStore(RENDITION_STORE_NAME);
-  let retainedBytes = totalBytes;
-
-  for (const record of [...records].sort((left, right) => left.lastAccessed - right.lastAccessed)) {
-    if (retainedBytes <= MAX_RENDITION_BYTES) {
-      break;
+  await withDatabase((connection) => runTransaction(connection, {
+    stores: [RENDITION_STORE_NAME],
+    mode: 'readwrite',
+    operation: 'prune artwork renditions',
+    durability: 'relaxed'
+  }, async (transaction) => {
+    const store = transaction.store(RENDITION_STORE_NAME);
+    const records = await store.getAll();
+    const totalBytes = records.reduce((sum, record) => sum + record.byteSize, 0);
+    let retainedBytes = totalBytes;
+    for (const record of [...records].sort((left, right) => left.lastAccessed - right.lastAccessed)) {
+      if (retainedBytes <= MAX_RENDITION_BYTES) break;
+      await store.delete(record.key);
+      retainedBytes -= record.byteSize;
     }
-
-    store.delete(record.key);
-    retainedBytes -= record.byteSize;
-  }
-
-  transaction.oncomplete = () => database.close();
-  transaction.onerror = () => database.close();
-  transaction.onabort = () => database.close();
+  }));
 }
 
 function scheduleCachePrune(): void {
-  if (pruneScheduled || typeof window === 'undefined') {
+  if (disposed || pruneTimer !== null || typeof window === 'undefined') {
     return;
   }
 
-  pruneScheduled = true;
-  window.setTimeout(() => {
-    pruneScheduled = false;
-    void pruneArtworkCache();
+  pruneTimer = window.setTimeout(() => {
+    pruneTimer = null;
+    void pruneArtworkCache().catch((error) => reportCacheFailure('prune', error));
   }, 0);
 }
 
@@ -285,20 +274,17 @@ async function loadArtworkThumbnail(
 ): Promise<CachedArtworkThumbnail | null> {
   const sourceKey = track.id;
   const fingerprint = getArtworkSourceFingerprint(track);
-  const storedSource = await readRecord<ArtworkSourceRecord>(SOURCE_STORE_NAME, sourceKey);
+  const storedSource = await readSourceRecord(sourceKey);
 
   if (storedSource?.fingerprint === fingerprint) {
     if (!storedSource.assetId) {
       return null;
     }
 
-    const rendition = await readRecord<ArtworkRenditionRecord>(
-      RENDITION_STORE_NAME,
-      getArtworkRenditionKey(storedSource.assetId, maxEdge)
-    );
+    const rendition = await readRenditionRecord(getArtworkRenditionKey(storedSource.assetId, maxEdge));
 
     if (rendition) {
-      void touchRendition(rendition);
+      void touchRendition(rendition).catch((error) => reportCacheFailure('touch', error));
       return rendition;
     }
   }
@@ -317,11 +303,11 @@ async function loadArtworkThumbnail(
 
   const assetId = await hashBlob(embeddedArtwork.blob);
   const renditionKey = getArtworkRenditionKey(assetId, maxEdge);
-  const existingRendition = await readRecord<ArtworkRenditionRecord>(RENDITION_STORE_NAME, renditionKey);
+  const existingRendition = await readRenditionRecord(renditionKey);
 
   if (existingRendition) {
     await writeSourceAndRendition({ sourceKey, fingerprint, assetId, checkedAt: Date.now() });
-    void touchRendition(existingRendition);
+    void touchRendition(existingRendition).catch((error) => reportCacheFailure('touch', error));
     return existingRendition;
   }
 
@@ -355,6 +341,7 @@ export function getCachedArtworkThumbnail(
   track: PlaylistItem,
   maxEdge = ALBUM_ARTWORK_THUMBNAIL_SIZE
 ): Promise<CachedArtworkThumbnail | null> {
+  disposed = false;
   if (!isArtworkCandidate(track)) {
     return Promise.resolve(null);
   }
@@ -367,7 +354,10 @@ export function getCachedArtworkThumbnail(
   }
 
   const request = loadArtworkThumbnail(track, maxEdge)
-    .catch(() => null)
+    .catch((error) => {
+      reportCacheFailure('lookup', error);
+      return null;
+    })
     .finally(() => pendingLoads.delete(loadKey));
   pendingLoads.set(loadKey, request);
   return request;
@@ -384,23 +374,24 @@ export async function invalidateCachedArtwork(trackIds: Iterable<string>): Promi
     }
   }
 
-  const database = await openArtworkDatabase();
+  await withDatabase((connection) => runTransaction(connection, {
+    stores: [SOURCE_STORE_NAME],
+    mode: 'readwrite',
+    operation: 'invalidate artwork sources',
+    durability: 'relaxed'
+  }, async (transaction) => {
+    const store = transaction.store(SOURCE_STORE_NAME);
+    for (const id of ids) await store.delete(id);
+  })).catch((error) => reportCacheFailure('invalidation', error));
+}
 
-  if (!database) return;
-
-  await new Promise<void>((resolve) => {
-    const transaction = database.transaction(SOURCE_STORE_NAME, 'readwrite');
-    const store = transaction.objectStore(SOURCE_STORE_NAME);
-
-    for (const id of ids) store.delete(id);
-
-    transaction.oncomplete = () => {
-      database.close();
-      resolve();
-    };
-    transaction.onerror = transaction.onabort = () => {
-      database.close();
-      resolve();
-    };
-  });
+export async function disposeArtworkCache(): Promise<void> {
+  disposed = true;
+  if (pruneTimer !== null) {
+    window.clearTimeout(pruneTimer);
+    pruneTimer = null;
+  }
+  const pending = [...pendingLoads.values()];
+  pendingLoads.clear();
+  await Promise.allSettled(pending);
 }
