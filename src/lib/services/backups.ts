@@ -38,6 +38,12 @@ import {
 } from '$lib/persistence/browser-indexed-db';
 import { defineDatabase, defineStore, runTransaction } from '$lib/persistence/indexed-db';
 import { logWarning } from '$lib/logging/api';
+import { mediaSources } from '$lib/media/media-source';
+import {
+  planLibraryFolderReconciliation,
+  type CurrentMediaSourceHandle,
+  type ScannedLibraryFolderEntry
+} from '$lib/services/library-folder-plan';
 
 export const BACKUP_EXTENSION = '.izci';
 export const BACKUP_MIME_TYPE = 'application/vnd.izci.backup+zip';
@@ -587,10 +593,6 @@ export async function restoreBackupArchive(file: File): Promise<BackupRestoreRes
   };
 }
 
-function releaseRuntimeFiles(items: MediaEntity[]): MediaEntity[] {
-  return items;
-}
-
 export async function locatePendingFolder(
   folderId: string,
   handle: FileSystemDirectoryHandle
@@ -611,7 +613,7 @@ export async function locatePendingFolder(
         maxDepth: trackSettings.getSnapshot().folderNestingLimit
       }))
     : [];
-  const discovered = releaseRuntimeFiles(buildMediaEntities(files));
+  const discovered = buildMediaEntities(files);
   const matchedTrackIds = new Set(
     discovered
       .map((track) => expectedByKey.get(folderTrackKey(track, handle.name))?.id)
@@ -630,29 +632,49 @@ export async function locatePendingFolder(
     libraryMode: descriptor.libraryMode,
     preferredId: descriptor.id
   });
-  const restoredItems = discovered.map((item) => {
+  const restoredEntries = discovered.map((item): ScannedLibraryFolderEntry | null => {
     const restored = expectedByKey.get(folderTrackKey(item, handle.name));
-    return {
+    const fileHandle = mediaSources.get(item.id)?.fileHandle;
+    if (!fileHandle) return null;
+    return { entity: {
       ...item,
       id: restored?.id ?? item.id,
       sourceFolderId: remembered.id,
       metadata: mergeMetadata(item.metadata, restored?.metadata),
       rating: mergeRating(item.rating, restored?.rating)
-    };
-  });
+    }, fileHandle };
+  }).filter((entry): entry is ScannedLibraryFolderEntry => entry !== null);
+  const restoredItems = restoredEntries.map((entry) => entry.entity);
   if (descriptor.libraryMode) {
-    const reconciliation = libraryStore.reconcileFolder(
-      remembered.id,
-      restoredItems,
-      filesystemFolders.getSnapshot().map((folder) => folder.id)
-    );
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      const snapshot = libraryStore.getCatalogSnapshot();
+      const currentSourceHandles = snapshot.entities.flatMap((entity): CurrentMediaSourceHandle[] => {
+        const fileHandle = mediaSources.get(entity.id)?.fileHandle;
+        return fileHandle ? [{ entityId: entity.id, fileHandle }] : [];
+      });
+      const reconciliation = await planLibraryFolderReconciliation({
+        catalog: snapshot.entities,
+        folderId: remembered.id,
+        activeFolderIds: filesystemFolders.getSnapshot()
+          .filter((folder) => folder.libraryMode !== null)
+          .map((folder) => folder.id),
+        scanned: restoredEntries,
+        currentSourceHandles,
+        createId: () => crypto.randomUUID()
+      });
+      const applied = await libraryStore.applyCatalogIfRevision(
+        snapshot.catalogRevision,
+        reconciliation
+      );
+      if (applied.status === 'applied') break;
+      if (attempt === 1) throw new Error('backup-folder-catalog-conflict');
+    }
     await filesystemFolders.updateScan(remembered.id, {
       lastScanAt: Date.now(),
       lastScanStatus: 'success',
       lastScanTrackCount: restoredItems.length,
       lastScanFailure: undefined
     });
-    void reconciliation;
   } else {
     libraryStore.add(restoredItems.filter((item) => matchedTrackIds.has(item.id)));
   }
@@ -711,7 +733,7 @@ export async function locatePendingFiles(handles: FileSystemFileHandle[]): Promi
   const expectedByIdentity = new Map(looseTracks.map((track) => [getTrackIdentity(track), track]));
   const expectedByFingerprint = new Map(looseTracks.map((track) => [trackFingerprint(track), track]));
   const files = await prepareImportedFiles(await readFileHandleFiles(handles));
-  const selected = releaseRuntimeFiles(buildMediaEntities(files));
+  const selected = buildMediaEntities(files);
   const restoredIds = new Set<string>();
   const added: MediaEntity[] = [];
   for (const item of selected) {

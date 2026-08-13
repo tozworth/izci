@@ -12,14 +12,12 @@ import {
   type CollectionStorage
 } from '$lib/collections/collection-repository';
 import type { CollectionReduction } from '$lib/collections/collection-reducer';
-import { loadTrackMetadata } from '$lib/services/stream-artwork';
 import type { LibraryFolderReconciliationPlan } from '$lib/services/library-folder-plan';
 import { materializeMediaEntity, type MediaMaterializationPurpose } from './playlist-materialization';
 import { mediaSources } from '$lib/media/media-source';
 import { deleteMediaSources, persistMediaSources, readMediaSources } from '$lib/media/media-source-persistence';
 import { registerBrowserPersistenceOwner } from '$lib/persistence/browser-indexed-db';
 import { scheduleMetadataParsing } from './playlist-metadata';
-import { playbackSettings } from './playback-settings';
 import { trackSettings } from './track-settings';
 import { createPlaylistNavigation } from './playlist-navigation';
 import {
@@ -409,62 +407,6 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
     cycleRepeatMode() {
       observe(repository.dispatch({ type: 'cycle-repeat' }));
     },
-    reconcileFolder(folderId: string, scannedItems: MediaEntity[], activeFolderIds: string[] = []) {
-      if (!canMutateSynchronously()) return { addedItems: [], updatedItems: [], removedItems: [] };
-      const managedItems = itemList.filter((item) => item.sourceFolderId === folderId);
-      const managedByIdentity = new Map(managedItems.map((item) => [getTrackIdentity(item), item]));
-      const activeFolderIdSet = new Set(activeFolderIds);
-      const adoptableByIdentity = new Map(
-        itemList
-          .filter((item) => !item.sourceFolderId || !activeFolderIdSet.has(item.sourceFolderId))
-          .map((item) => [getTrackIdentity(item), item])
-      );
-      const replacements = new Map<string, MediaEntity>();
-      const registrations: Array<{ scannedId: string; entityId: string }> = [];
-      const retainedManagedIds = new Set<string>();
-      const addedItems: MediaEntity[] = [];
-      const updatedItems: MediaEntity[] = [];
-      for (const scannedItem of scannedItems) {
-        const candidate = { ...scannedItem, sourceFolderId: folderId };
-        const existing = managedByIdentity.get(getTrackIdentity(candidate))
-          ?? adoptableByIdentity.get(getTrackIdentity(candidate));
-        if (!existing) {
-          addedItems.push(candidate);
-          continue;
-        }
-        retainedManagedIds.add(existing.id);
-        const contentChanged = existing.size !== candidate.size
-          || existing.lastModified !== candidate.lastModified
-          || existing.kind !== candidate.kind
-          || existing.format !== candidate.format;
-        const metadata = contentChanged
-          ? existing.metadata?.playCount === undefined ? undefined : { playCount: existing.metadata.playCount }
-          : existing.metadata;
-        const replacement: MediaEntity = {
-          ...candidate,
-          id: existing.id,
-          metadata,
-          rating: existing.rating
-        };
-        replacements.set(existing.id, replacement);
-        registrations.push({ scannedId: scannedItem.id, entityId: existing.id });
-        if (contentChanged) updatedItems.push(replacement);
-      }
-      const removedItems = managedItems.filter((item) => !retainedManagedIds.has(item.id));
-      const removedIds = new Set(removedItems.map((item) => item.id));
-      const nextItems = itemList
-        .filter((item) => !removedIds.has(item.id))
-        .map((item) => replacements.get(item.id) ?? item)
-        .concat(addedItems);
-      observe(repository.dispatch({ type: 'apply-catalog', entities: nextItems }));
-      for (const registration of registrations) {
-        const source = mediaSources.get(registration.scannedId);
-        if (source) mediaSources.register({ ...source, entityId: registration.entityId });
-        if (registration.scannedId !== registration.entityId) mediaSources.remove(registration.scannedId);
-      }
-      scheduleMetadata([...addedItems, ...updatedItems]);
-      return { addedItems, updatedItems, removedItems };
-    },
     resolveStartTrack(options: { selectedId?: string | null; shuffle?: boolean } = {}) {
       return navigation.resolveStartTrack(options);
     },
@@ -517,7 +459,3 @@ for (const [label, store] of [
     dispose: () => store.shutdown()
   });
 }
-
-// Keep these eager subscriptions at the store boundary so playback-derived metadata remains warm.
-void playbackSettings;
-void loadTrackMetadata;
