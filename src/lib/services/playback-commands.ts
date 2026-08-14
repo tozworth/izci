@@ -1,6 +1,7 @@
 import { writable } from 'svelte/store';
 import { playerController } from '$lib/services/player-controller';
 import { playlistStore } from '$lib/stores/playlist';
+import { playbackQueue } from '$lib/stores/playback-queue';
 import { logDebug, logInfo, logWarning } from '$lib/services/logging';
 import type {
   PlaybackSnapshot,
@@ -10,7 +11,7 @@ import type {
   WorkspaceCollection,
   WorkspaceTab
 } from '$lib/types';
-import { buildPlaylistItems, clonePlaylistItems } from '$lib/utils/files';
+import { buildPlaylistItems, clonePlaylistItems, getFavoriteIdentity } from '$lib/utils/files';
 import { prepareImportedFiles } from '$lib/services/file-verification';
 import type { AbLoopRange } from '$lib/services/ab-loop';
 
@@ -146,6 +147,41 @@ export function createPlaybackCommandsController({
 
   function effectiveTransitionMode(): PlaybackTransitionMode {
     return resolveEffectiveTransitionMode(getTransitionMode(), getGaplessPlaybackEnabled());
+  }
+
+  function resolveQueuedTrack(): PlaylistItem | null {
+    const queueEntry = playbackQueue.peek();
+
+    if (!queueEntry) {
+      return null;
+    }
+
+    const queuedTrack = getTrackById('playlist', queueEntry.id);
+
+    if (!queuedTrack) {
+      playbackQueue.removeFirstById(queueEntry.id);
+      return null;
+    }
+
+    return queuedTrack;
+  }
+
+  function resolveNextTrack(): PlaylistItem | null {
+    const queuedTrack = resolveQueuedTrack();
+
+    if (queuedTrack) {
+      return queuedTrack;
+    }
+
+    return playlistStore.resolveTrackEnd({
+      currentId: getPlayingTrack()?.id,
+      shuffle: getShuffleEnabled(),
+      repeatMode: getRepeatMode()
+    });
+  }
+
+  function consumeQueuedTrack(track: PlaylistItem): void {
+    playbackQueue.removeFirstById(track.id);
   }
 
   async function playTrack(
@@ -311,6 +347,15 @@ export function createPlaybackCommandsController({
       return;
     }
 
+    const queuedTrack = resolveQueuedTrack();
+
+    if (queuedTrack) {
+      consumeQueuedTrack(queuedTrack);
+      selectTrack('playlist', queuedTrack.id);
+      await playTrack(queuedTrack);
+      return;
+    }
+
     const selectedPlaylistTrack = getSelectedPlaylistTrack();
     const startTrack = playlistStore.resolveStartTrack({
       selectedId: selectedPlaylistTrack?.id,
@@ -376,7 +421,8 @@ export function createPlaybackCommandsController({
     }
 
     logDebug('playback', 'Track step command', { direction });
-    const nextTrack = playlistStore.resolveStepTrack({
+    const queuedTrack = direction > 0 ? resolveQueuedTrack() : null;
+    const nextTrack = queuedTrack ?? playlistStore.resolveStepTrack({
       currentId: getPlayingTrack()?.id,
       selectedId: getSelectedPlaylistTrack()?.id,
       direction,
@@ -388,6 +434,10 @@ export function createPlaybackCommandsController({
       return;
     }
 
+    if (queuedTrack) {
+      consumeQueuedTrack(queuedTrack);
+    }
+
     selectTrack('playlist', nextTrack.id);
     await playTrack(nextTrack, { manualTransition: true });
   }
@@ -396,11 +446,7 @@ export function createPlaybackCommandsController({
     const currentTrack = getPlayingTrack();
 
     if (!currentTrack || !getGaplessPlaybackEnabled() || getStopAfterCurrentTrack() || getActiveLoopRange()) return;
-    const nextTrack = playlistStore.resolveTrackEnd({
-      currentId: currentTrack.id,
-      shuffle: getShuffleEnabled(),
-      repeatMode: getRepeatMode()
-    });
+    const nextTrack = resolveNextTrack();
     if (!nextTrack) return;
 
     const requestId = ++preparationSequence;
@@ -435,16 +481,13 @@ export function createPlaybackCommandsController({
     if (mode === 'crossfade' && automaticCrossfadeTrackId !== currentTrack.id) {
       if (getStopAfterCurrentTrack()) return;
       automaticCrossfadeTrackId = currentTrack.id;
-      const nextTrack = playlistStore.resolveTrackEnd({
-        currentId: currentTrack.id,
-        shuffle: getShuffleEnabled(),
-        repeatMode: getRepeatMode()
-      });
+      const nextTrack = resolveNextTrack();
       if (!nextTrack) return;
       if (!playerController.hasPreparedTrack(nextTrack.id)) await prepareUpcomingTrack();
       if (getPlayingTrack()?.id !== currentTrack.id) return;
       if (playerController.commitPrepared(nextTrack.id, fadeSeconds)) {
         logInfo('playback', 'Automatic crossfade committed', { id: nextTrack.id, fadeSeconds });
+        consumeQueuedTrack(nextTrack);
         selectTrack('playlist', nextTrack.id);
       }
     }
@@ -469,11 +512,7 @@ export function createPlaybackCommandsController({
       return;
     }
 
-    const nextTrack = playlistStore.resolveTrackEnd({
-      currentId: getPlayingTrack()?.id,
-      shuffle: getShuffleEnabled(),
-      repeatMode: getRepeatMode()
-    });
+    const nextTrack = resolveNextTrack();
 
     if (!nextTrack) {
       logInfo('playback', 'Playback ended with no next track');
@@ -481,6 +520,7 @@ export function createPlaybackCommandsController({
     }
 
     logInfo('playback', 'Track ended; advancing', { nextId: nextTrack.id });
+    consumeQueuedTrack(nextTrack);
     selectTrack('playlist', nextTrack.id);
     if (playerController.commitPrepared(nextTrack.id)) return;
     await playTrack(nextTrack);
@@ -496,6 +536,7 @@ export function createPlaybackCommandsController({
         return;
       }
 
+      playbackQueue.removeByIdentity(getFavoriteIdentity(track));
       clearPendingPlaybackTrackId(track.id);
       preparationSequence += 1;
       automaticFadeTrackId = null;

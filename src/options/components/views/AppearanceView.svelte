@@ -22,6 +22,7 @@
     | 'compactPlayerBar'
     | 'keepLibraryColumnsVisibleInNarrowLayout'
     | 'keepEmptyWorkspacePanelsOpen'
+    | 'alwaysShowQueue'
     | 'showLibraryAlbumArtworkBackdrop'
     | 'showIdlePlayerQuips'
     | 'showTrackTitleInWindowTitle';
@@ -31,6 +32,7 @@
     { key: 'showLibraryAlbumArtworkBackdrop', title: 'Show album artwork backdrop in Library', hint: 'Shows a blurred album cover behind its songs after you open an album.' },
     { key: 'compactPlayerBar', title: 'Compact player bar', hint: 'Fits track information, compact transport controls, seek, and popup volume into one small row.' },
     { key: 'keepEmptyWorkspacePanelsOpen', title: 'Keep empty workspace panels open', hint: 'Leaves a dock panel in place after its last tab closes instead of letting neighboring panels fill the space.' },
+    { key: 'alwaysShowQueue', title: 'Always show queue', hint: 'Keeps the queue panel under the Playlist expanded and visible, even when the queue is empty.' },
     { key: 'showIdlePlayerQuips', title: 'Show idle player quips', hint: 'Shows a randomly chosen quip in the idle player bar when the playlist or library has music.' },
     { key: 'showTrackTitleInWindowTitle', title: 'Show track title in window title', hint: 'Shows the current track title in the main app window title. Turn it off to always show only "izci".' }
   ];
@@ -113,6 +115,7 @@
       case 'showLibraryAlbumArtworkBackdrop': return $t('options.appearance.interface.libraryArtwork.title', { default: 'Show album artwork backdrop in Library' });
       case 'compactPlayerBar': return $t('options.appearance.interface.compactPlayerBar.title', { default: 'Compact player bar' });
       case 'keepEmptyWorkspacePanelsOpen': return $t('options.appearance.interface.keepPanels.title', { default: 'Keep empty workspace panels open' });
+      case 'alwaysShowQueue': return $t('options.appearance.interface.alwaysQueue.title', { default: 'Always show queue' });
       case 'showIdlePlayerQuips': return $t('options.appearance.interface.idleQuips.title', { default: 'Show idle player quips' });
       default: return $t('options.appearance.interface.windowTitle.title', { default: 'Show track title in window title' });
     }
@@ -124,6 +127,7 @@
       case 'showLibraryAlbumArtworkBackdrop': return $t('options.appearance.interface.libraryArtwork.hint', { default: 'Shows a blurred album cover behind its songs after you open an album.' });
       case 'compactPlayerBar': return $t('options.appearance.interface.compactPlayerBar.hint', { default: 'Fits track information, compact transport controls, seek, and popup volume into one small row.' });
       case 'keepEmptyWorkspacePanelsOpen': return $t('options.appearance.interface.keepPanels.hint', { default: 'Leaves a dock panel in place after its last tab closes instead of letting neighboring panels fill the space.' });
+      case 'alwaysShowQueue': return $t('options.appearance.interface.alwaysQueue.hint', { default: 'Keeps the queue panel under the Playlist expanded and visible, even when the queue is empty.' });
       case 'showIdlePlayerQuips': return $t('options.appearance.interface.idleQuips.hint', { default: 'Shows a randomly chosen quip in the idle player bar when the playlist or library has music.' });
       default: return $t('options.appearance.interface.windowTitle.hint', { default: 'Shows the current track title in the main app window title. Turn it off to always show only "izci".' });
     }
@@ -275,7 +279,7 @@
         <SettingsField
           title={toggleTitle(toggle)}
           hint={toggleHint(toggle)}
-          advanced={toggle.key === 'keepLibraryColumnsVisibleInNarrowLayout' || toggle.key === 'keepEmptyWorkspacePanelsOpen'}
+          advanced={toggle.key === 'keepLibraryColumnsVisibleInNarrowLayout' || toggle.key === 'keepEmptyWorkspacePanelsOpen' || toggle.key === 'alwaysShowQueue'}
           checkbox
         >
           <input

@@ -35,6 +35,9 @@ export const PLAYBACK_TRANSITION_MODE_OPTIONS: Array<{
 
 export const REMEMBER_PROGRESS_DURATION_MINUTES = [null, 0, 5, 15, 30, 60, 120, 300, 600] as const;
 export const DEFAULT_REMEMBER_PROGRESS_DURATION_INDEX = 4;
+export const REPLAY_GAIN_PREAMP_MIN_DB = -12;
+export const REPLAY_GAIN_PREAMP_MAX_DB = 12;
+export const REPLAY_GAIN_PREAMP_STEP_DB = 0.5;
 export const PLAYBACK_RATE_MIN = 0.5;
 export const PLAYBACK_RATE_MAX = 2;
 export const PLAYBACK_RATE_STEP = 0.05;
@@ -55,6 +58,7 @@ export const DEFAULT_PLAYBACK_SETTINGS: PlaybackSettings = {
   manualTrackChangeFadePercent: 0,
   logarithmicVolume: true,
   replayGainMode: 'track',
+  replayGainPreampDb: 0,
   restoreMode: 'disabled',
   rememberProgressDurationIndex: DEFAULT_REMEMBER_PROGRESS_DURATION_INDEX,
   enableRaf: false,
@@ -95,6 +99,18 @@ function normalizeReplayGainMode(value: unknown): ReplayGainMode {
   return value === 'off' || value === 'track' || value === 'album'
     ? value
     : DEFAULT_PLAYBACK_SETTINGS.replayGainMode;
+}
+
+export function normalizeReplayGainPreampDb(value: unknown): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) {
+    return DEFAULT_PLAYBACK_SETTINGS.replayGainPreampDb;
+  }
+
+  const clamped = Math.min(
+    Math.max(value, REPLAY_GAIN_PREAMP_MIN_DB),
+    REPLAY_GAIN_PREAMP_MAX_DB
+  );
+  return Number((Math.round(clamped / REPLAY_GAIN_PREAMP_STEP_DB) * REPLAY_GAIN_PREAMP_STEP_DB).toFixed(1));
 }
 
 export function normalizePlaybackRestoreMode(value: unknown): PlaybackRestoreMode {
@@ -156,6 +172,7 @@ export function normalizePlaybackSettings(value: unknown): PlaybackSettings {
         ? source.logarithmicVolume
         : DEFAULT_PLAYBACK_SETTINGS.logarithmicVolume,
     replayGainMode: normalizeReplayGainMode(source.replayGainMode),
+    replayGainPreampDb: normalizeReplayGainPreampDb(source.replayGainPreampDb),
     restoreMode: normalizePlaybackRestoreMode(source.restoreMode),
     rememberProgressDurationIndex: normalizeRememberProgressDurationIndex(
       source.rememberProgressDurationIndex

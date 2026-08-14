@@ -396,6 +396,18 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
         queuePersist();
       });
     },
+    randomize() {
+      runOrQueue(() => {
+        const nextItems = [...itemList];
+        for (let index = nextItems.length - 1; index > 0; index -= 1) {
+          const swapIndex = Math.floor(Math.random() * (index + 1));
+          [nextItems[index], nextItems[swapIndex]] = [nextItems[swapIndex], nextItems[index]];
+        }
+        items.set(nextItems);
+        navigation.reset();
+        queuePersist();
+      });
+    },
     remove(ids: string[]) {
       if (ids.length === 0 || !hydrated) {
         return [];

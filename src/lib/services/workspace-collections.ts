@@ -1,9 +1,11 @@
 import { appInstallService } from '$lib/services/app-install';
+import { logWarning } from '$lib/services/logging';
 import { playerController } from '$lib/services/player-controller';
 import {
   buildLibraryContextActions,
   buildFavoritesContextActions,
   buildPlaylistContextActions,
+  buildQueueContextActions,
   buildSelectedWorkspaceTracks,
   getEquivalentFavoriteIds,
   getEquivalentLibraryIds,
@@ -13,6 +15,7 @@ import {
 } from '$lib/services/workspace-actions';
 import type { TrackLibraryNavigationTarget } from '$lib/services/library-navigation';
 import { favoritesStore, libraryStore, playlistStore } from '$lib/stores/playlist';
+import { playbackQueue } from '$lib/stores/playback-queue';
 import { trackSettings } from '$lib/stores/track-settings';
 import { normalizeTrackRating, parseTrackRatingAction } from '$lib/services/track-ratings';
 import type {
@@ -60,6 +63,19 @@ export function createWorkspaceCollectionsController({
       if (item.objectUrl) {
         URL.revokeObjectURL(item.objectUrl);
       }
+    }
+  }
+
+  async function copyTrackFilenames(tracks: PlaylistItem[]): Promise<void> {
+    const filenames = tracks.map((track) => track.name).filter(Boolean);
+    if (filenames.length === 0) {
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(filenames.join('\n'));
+    } catch (error) {
+      logWarning('files', 'Failed to copy filenames to clipboard', { error });
     }
   }
 
@@ -141,6 +157,33 @@ export function createWorkspaceCollectionsController({
     );
   }
 
+  function getQueueContextActions(ids: string[]): MenuActionItem[] {
+    const { playlistItems, libraryItems, favoriteItems } = getState();
+    return buildQueueContextActions(
+      playlistItems,
+      libraryItems,
+      ids,
+      favoriteItems,
+      trackSettings.getSnapshot().enableRatings
+    );
+  }
+
+  function queueTracksFromPlaylist(tracks: PlaylistItem[], position: 'front' | 'end'): void {
+    if (tracks.length === 0) return;
+    playbackQueue.add(tracks, position);
+  }
+
+  function queueTracksFromCollection(tracks: PlaylistItem[], position: 'front' | 'end'): void {
+    if (tracks.length === 0) return;
+
+    const addedItems = playlistStore.add(clonePlaylistItems(tracks));
+    const queuedItems = tracks
+      .map((track, index) => addedItems[index] ?? playlistStore.findEquivalent(track))
+      .filter((item): item is PlaylistItem => item !== null);
+
+    playbackQueue.add(queuedItems, position);
+  }
+
   function rateTracks(tracks: PlaylistItem[], value: number | undefined): void {
     const rating = normalizeTrackRating(value);
     const identities = new Set(tracks.map((track) => getTrackIdentity(track)));
@@ -214,6 +257,11 @@ export function createWorkspaceCollectionsController({
   }
 
   function handlePlaylistContextAction(actionId: string, ids: string[]): void {
+    if (actionId === 'randomize-playlist') {
+      playlistStore.randomize();
+      return;
+    }
+
     const { playlistItems, libraryItems, librarySelectionIds } = getState();
     const tracks = buildSelectedWorkspaceTracks(playlistItems, ids);
 
@@ -229,6 +277,12 @@ export function createWorkspaceCollectionsController({
       handlers.showTrackDetails();
     } else if (actionId === 'track-lyrics') {
       handlers.showTrackLyrics();
+    } else if (actionId === 'play-next') {
+      queueTracksFromPlaylist(tracks, 'front');
+    } else if (actionId === 'add-to-queue') {
+      queueTracksFromPlaylist(tracks, 'end');
+    } else if (actionId === 'copy-filename') {
+      void copyTrackFilenames(tracks);
     } else if (actionId === 'toggle-library') {
       if (libraryHasAllTracks(libraryItems, tracks)) {
         removeLibraryItems(getEquivalentLibraryIds(libraryItems, tracks));
@@ -266,6 +320,12 @@ export function createWorkspaceCollectionsController({
       handlers.showTrackDetails();
     } else if (actionId === 'track-lyrics') {
       handlers.showTrackLyrics();
+    } else if (actionId === 'play-next') {
+      queueTracksFromCollection(tracks, 'front');
+    } else if (actionId === 'add-to-queue') {
+      queueTracksFromCollection(tracks, 'end');
+    } else if (actionId === 'copy-filename') {
+      void copyTrackFilenames(tracks);
     } else if (actionId === 'toggle-favorite') {
       toggleFavoriteTracks(tracks);
     } else if (actionId === 'add-to-playlist') {
@@ -310,6 +370,10 @@ export function createWorkspaceCollectionsController({
       handlers.showTrackDetails();
     } else if (actionId === 'track-lyrics') {
       handlers.showTrackLyrics();
+    } else if (actionId === 'play-next') {
+      queueTracksFromCollection(tracks, 'front');
+    } else if (actionId === 'add-to-queue') {
+      queueTracksFromCollection(tracks, 'end');
     } else if (actionId === 'add-to-playlist') {
       const addedItems = playlistStore.add(clonePlaylistItems(tracks));
       if (addedItems.length > 0) handlers.selectTrack('playlist', addedItems[0].id);
@@ -323,6 +387,26 @@ export function createWorkspaceCollectionsController({
     }
   }
 
+  function handleQueueContextAction(actionId: string, ids: string[]): void {
+    if (actionId === 'remove-from-queue') {
+      playbackQueue.remove(ids);
+      return;
+    }
+
+    if (actionId === 'play-next' || actionId === 'add-to-queue') {
+      const tracks = buildSelectedWorkspaceTracks(getState().playlistItems, ids);
+
+      if (tracks.length === 0) {
+        return;
+      }
+
+      playbackQueue.add(tracks, actionId === 'play-next' ? 'front' : 'end');
+      return;
+    }
+
+    handlePlaylistContextAction(actionId, ids);
+  }
+
   return {
     cleanupRemovedItems,
     handleAddFiles,
@@ -331,10 +415,12 @@ export function createWorkspaceCollectionsController({
     getPlaylistContextActions,
     getLibraryContextActions,
     getFavoriteContextActions,
+    getQueueContextActions,
     incrementLibraryPlayCount,
     handlePlaylistContextAction,
     handleLibraryContextAction,
     handleFavoriteContextAction,
+    handleQueueContextAction,
     toggleFavoriteTracks,
     rateTracks
   };

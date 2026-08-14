@@ -570,14 +570,47 @@
 
   }
 
+  function openPanelContextMenu(event: MouseEvent): void {
+    if (readOnly || libraryMode) return;
+
+    const target = event.target as HTMLElement | null;
+    if (target?.closest('[data-track-id], .clv-columns-header, .clv-column-header, .panel-header')) {
+      return;
+    }
+
+    event.preventDefault();
+    contextMenu = {
+      kind: 'panel',
+      x: event.clientX,
+      y: event.clientY
+    };
+  }
+
+  function openPanelHeaderContextMenu(event: MouseEvent): void {
+    if (readOnly || libraryMode) return;
+    event.preventDefault();
+    contextMenu = {
+      kind: 'panel',
+      x: event.clientX,
+      y: event.clientY
+    };
+  }
+
   function handleContextAction(actionId: string) {
-    if (!contextMenu || (contextMenu.kind !== 'items' && contextMenu.kind !== 'library-group')) {
+    if (
+      !contextMenu
+      || (contextMenu.kind !== 'items'
+        && contextMenu.kind !== 'library-group'
+        && contextMenu.kind !== 'panel')
+    ) {
       return;
     }
 
     dispatch('contextAction', {
       actionId,
-      ids: contextMenu.ids
+      ids: contextMenu.kind === 'items' || contextMenu.kind === 'library-group'
+        ? contextMenu.ids
+        : []
     });
     closeContextMenu();
   }
@@ -617,6 +650,8 @@
       case 'go-to-library-year': return $t('main.trackDetails.year', { default: 'Year' });
       case 'go-to-library-format': return $t('main.trackDetails.format', { default: 'Format' });
       case 'track-details': return $t('playlist.actions.trackDetails', { default: 'Track details' });
+      case 'play-next': return $t('playlist.actions.playNext', { default: 'Play next' });
+      case 'add-to-queue': return $t('playlist.actions.addToQueue', { default: 'Add to queue' });
       case 'toggle-library': return action.icon === 'remove_circle'
         ? $t('playlist.actions.removeFromLibrary', { default: 'Remove from library' })
         : $t('playlist.actions.addToLibrary', { default: 'Add to library' });
@@ -630,6 +665,8 @@
       case 'replace-playlist': return $t('playlist.actions.replacePlaylist', { default: 'Replace playlist' });
       case 'shuffle-play': return $t('playlist.actions.shufflePlay', { default: 'Shuffle play' });
       case 'reset-play-count': return $t('playlist.actions.resetPlayCount', { default: 'Reset play count' });
+      case 'copy-filename': return $t('playlist.actions.copyFilename', { default: 'Copy filename' });
+      case 'randomize-playlist': return $t('playlist.actions.randomize', { default: 'Randomize' });
       case 'remove-favorite': return $t('playlist.actions.removeFromFavorites', { default: 'Remove from favorites' });
       case 'remove': return $t('playlist.actions.remove', { default: 'Remove' });
       default: return action.label;
@@ -852,6 +889,10 @@
   function buildContextMenuActions(menu: PlaylistPanelContextMenu | null): MenuActionItem[] {
     if (!menu) return [];
 
+    if (menu.kind === 'panel') {
+      return panelContextMenuItems;
+    }
+
     const actions = getContextMenuActions(menu.ids);
     return menu.kind === 'library-group'
       ? buildLibraryGroupContextActions(actions)
@@ -987,6 +1028,13 @@
   $: localizedPanelTitle = localizePanelLabel(panelTitle);
   $: localizedRegionLabel = localizePanelLabel(regionLabel);
   $: contextMenuActions = buildContextMenuActions(contextMenu);
+  $: panelContextMenuItems = [
+    {
+      id: 'randomize-playlist',
+      label: $t('playlist.actions.randomize', { default: 'Randomize' }),
+      icon: 'shuffle'
+    } satisfies MenuActionItem
+  ];
   $: storedVisibleColumns = orderedColumns.filter((column) => column.visible);
   $: visibleColumnCount = storedVisibleColumns.length;
   $: contextMenuItems = [
@@ -1011,7 +1059,9 @@
   ];
   $: contextMenuAriaLabel = contextMenu?.kind === 'library-group'
       ? $t('playlist.contextMenu.libraryGroupActions', { default: 'Library group actions' })
-      : $t('playlist.contextMenu.itemActions', { default: '{panel} item actions', values: { panel: localizedPanelTitle } });
+      : contextMenu?.kind === 'panel'
+        ? $t('playlist.contextMenu.panelActions', { default: 'Playlist actions' })
+        : $t('playlist.contextMenu.itemActions', { default: '{panel} item actions', values: { panel: localizedPanelTitle } });
   $: isCompactColumnLayout =
     !mobilePresentation &&
     layout === 'columns' &&
@@ -1109,14 +1159,17 @@
     aria-label={$t('playlist.listRegion', { default: '{name} list', values: { name: localizedRegionLabel } })}
     on:dragover={(event) => { if (!readOnly) event.preventDefault(); }}
     on:drop={handleDrop}
+    on:contextmenu={openPanelContextMenu}
   >
     <div
       class="panel-header playlist-panel-header"
+      role="group"
       class:library-mode={libraryMode}
       class:compact-heading={hideEyebrow}
       class:has-secondary-library-row={libraryMode && (showSearchInput || Boolean(selectedLibraryGroup))}
       class:is-covered={playlistHeaderCovered}
       class:has-column-header={showTrackRows && filteredItems.length > 0 && presentationLayout === 'columns' && !isCompactColumnLayout}
+      on:contextmenu={openPanelHeaderContextMenu}
     >
       {#if libraryMode}
         <LibraryPanelHeader

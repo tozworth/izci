@@ -32,6 +32,7 @@ export class HowlerPlayerService {
   #useLogarithmicVolume = true;
   #replayGainMode: ReplayGainMode = 'track';
   #replayGain: ReplayGainMetadata | undefined;
+  #replayGainPreampDb = 0;
   #fallbackVolume = 1;
   #transitionGain = 1;
   #fallbackRampFrame: number | null = null;
@@ -233,15 +234,18 @@ export class HowlerPlayerService {
     volume: number,
     logarithmicVolume: boolean = this.#useLogarithmicVolume,
     replayGain: ReplayGainMetadata | undefined = this.#replayGain,
-    replayGainMode: ReplayGainMode = this.#replayGainMode
+    replayGainMode: ReplayGainMode = this.#replayGainMode,
+    replayGainPreampDb: number = this.#replayGainPreampDb
   ): void {
     this.#useLogarithmicVolume = logarithmicVolume;
     this.#replayGain = replayGain;
     this.#replayGainMode = replayGainMode;
+    this.#replayGainPreampDb = replayGainPreampDb;
     this.#fallbackVolume = applyReplayGain(
       sliderVolumeToGain(volume, this.#useLogarithmicVolume),
       replayGain,
-      replayGainMode
+      replayGainMode,
+      replayGainPreampDb
     );
     this.#applyOutputVolume();
   }
@@ -279,6 +283,7 @@ export class HowlerPlayerService {
     this.#initialPosition = 0;
     this.#shouldTrackProgress = false;
     this.#replayGain = undefined;
+    this.#replayGainPreampDb = 0;
     this.#resetPublishedProgress();
     this.#stopTicking();
     this.#cancelFallbackRamp();
@@ -329,7 +334,7 @@ export class HowlerPlayerService {
     // The multiplayer program branch splits before this gain.
     audioBusService.setSourceReplayGain(
       this.#audioSource,
-      applyReplayGain(1, this.#replayGain, this.#replayGainMode)
+      applyReplayGain(1, this.#replayGain, this.#replayGainMode, this.#replayGainPreampDb)
     );
     // Keep native Howler gain handling only for the progressive fallback path.
     this.#howl?.volume(this.#audioSource ? 1 : this.#fallbackVolume * this.#transitionGain);

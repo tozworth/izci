@@ -375,6 +375,7 @@ export interface AppearanceSettings {
   compactPlayerBar: boolean;
   keepLibraryColumnsVisibleInNarrowLayout: boolean;
   keepEmptyWorkspacePanelsOpen: boolean;
+  alwaysShowQueue: boolean;
   showLibraryAlbumArtworkBackdrop: boolean;
   showIdlePlayerQuips: boolean;
   fontFamily: string;
@@ -398,6 +399,7 @@ export interface PlaybackSettings {
   manualTrackChangeFadePercent: number;
   logarithmicVolume: boolean;
   replayGainMode: ReplayGainMode;
+  replayGainPreampDb: number;
   restoreMode: PlaybackRestoreMode;
   rememberProgressDurationIndex: number;
   enableRaf: boolean;

@@ -354,6 +354,7 @@
     "actions": {
       "goTo": "Go to...",
       "trackDetails": "Track details",
+      "copyFilename": "Copy filename",
       "removeFromLibrary": "Remove from library",
       "addToLibrary": "Add to library",
       "removeFromFavorites": "Remove from favorites",
@@ -365,6 +366,10 @@
       "replacePlaylist": "Replace playlist",
       "shufflePlay": "Shuffle play",
       "resetPlayCount": "Reset play count",
+      "randomize": "Randomize",
+      "playNext": "Play next",
+      "addToQueue": "Add to queue",
+      "removeFromQueue": "Remove from queue",
       "remove": "Remove"
     },
     "shortcuts": {
@@ -378,9 +383,18 @@
     "contextMenu": {
       "libraryGroupActions": "Library group actions",
       "itemActions": "{panel} item actions",
+      "panelActions": "Playlist actions",
       "columns": "{panel} columns"
     },
-    "listRegion": "{name} list"
+    "listRegion": "{name} list",
+    "queue": {
+      "title": "Queue",
+      "count": "{count, plural, one {# song queued} other {# songs queued}}",
+      "empty": "Queue is empty",
+      "clear": "Clear queue",
+      "resize": "Resize queue",
+      "contextMenu": "Queue item actions"
+    }
   },
   "workspace": {
     "nowPlaying": {
@@ -676,6 +690,10 @@
         "windowTitle": {
           "title": "Show track title in window title",
           "hint": "Shows the current track title in the main app window title. Turn it off to always show only \"izci\"."
+        },
+        "alwaysQueue": {
+          "title": "Always show queue",
+          "hint": "Keeps the queue panel under the Playlist expanded and visible, even when the queue is empty."
         },
         "heading": "Interface"
       },
@@ -1210,6 +1228,10 @@
         },
         "title": "ReplayGain",
         "hint": "Applies streamed-file ReplayGain tags, preferring track or album gain when both are available."
+      },
+      "replayGainPreamp": {
+        "title": "Preamp",
+        "hint": "Shifts the applied ReplayGain in dB before peak limiting."
       },
       "transitions": {
         "options": {

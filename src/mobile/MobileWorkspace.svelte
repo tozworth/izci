@@ -31,7 +31,7 @@
   import type { MultiplayerConnectionRoute } from '$lib/services/multiplayer-ice';
   import type { MultiplayerRecent } from '$lib/stores/multiplayer-recents';
   import type { MultiplayerPairing } from '$lib/stores/multiplayer-pairings';
-  import type { VideoSeekFeedback, WorkspacePanelHandlers, WorkspaceTabContentProps } from '$lib/components/workspace/types';
+  import type { VideoSeekFeedback, QueuePanelHandlers, QueuePanelProps, WorkspacePanelHandlers, WorkspaceTabContentProps } from '$lib/components/workspace/types';
   import MobileMenuDrawer from './MobileMenuDrawer.svelte';
   import MobileMultiplayerStats from './MobileMultiplayerStats.svelte';
   import { resolveHorizontalSwipe, shouldIgnoreSwipeTarget, type SwipePoint } from './tab-swipe';
@@ -55,6 +55,8 @@
   export let workspaceState: WorkspaceShellState;
   export let playlistPanelHandlers: WorkspacePanelHandlers;
   export let libraryPanelHandlers: WorkspacePanelHandlers;
+  export let queuePanelProps: QueuePanelProps;
+  export let queuePanelHandlers: QueuePanelHandlers;
   export let selectedPlaylistItem: PlaylistItem | null;
   export let playerDisplayTrack: PlaylistItem | null;
   export let lyricsTrack: PlaylistItem | null;
@@ -153,6 +155,8 @@
       mobilePresentation: true
     },
     libraryPanelHandlers,
+    queuePanelProps,
+    queuePanelHandlers,
     selectedItem: artworkState.detailsDisplayTrack,
     lyricsTrack,
     patternTrack: playerDisplayTrack,

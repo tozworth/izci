@@ -2,6 +2,7 @@
   import LyricsPanel from '$lib/components/LyricsPanel.svelte';
   import PatternViewer from '$lib/components/PatternViewer.svelte';
   import PlaylistPanel from '$lib/components/PlaylistPanel.svelte';
+  import QueuePanel from '$lib/components/QueuePanel.svelte';
   import TrackDetailsPanel from '$lib/components/TrackDetailsPanel.svelte';
   import VideoStage from '$lib/components/workspace/VideoStage.svelte';
   import type { WorkspaceTab } from '$lib/types';
@@ -16,20 +17,30 @@
 </script>
 
 {#if tab === 'playlist'}
-  <PlaylistPanel
-    {...content.playlistPanelProps}
-    fillParent={true}
-    hideEyebrow={true}
-    on:addFiles={(event) => content.playlistPanelHandlers.addFiles(event.detail)}
-    on:addFolders={(event) => content.playlistPanelHandlers.addFolders?.(event.detail)}
-    on:openFiles={content.playlistPanelHandlers.openFiles}
-    on:select={content.playlistPanelHandlers.select}
-    on:setSelection={(event) => content.playlistPanelHandlers.setSelection?.(event)}
-    on:activate={content.playlistPanelHandlers.activate}
-    on:contextAction={content.playlistPanelHandlers.contextAction}
-    on:toggleShuffle={() => content.playlistPanelHandlers.toggleShuffle?.()}
-    on:cycleRepeat={() => content.playlistPanelHandlers.cycleRepeat?.()}
-  />
+  <div class="playlist-tab-stack">
+    <PlaylistPanel
+      {...content.playlistPanelProps}
+      fillParent={true}
+      hideEyebrow={true}
+      on:addFiles={(event) => content.playlistPanelHandlers.addFiles(event.detail)}
+      on:addFolders={(event) => content.playlistPanelHandlers.addFolders?.(event.detail)}
+      on:openFiles={content.playlistPanelHandlers.openFiles}
+      on:select={content.playlistPanelHandlers.select}
+      on:setSelection={(event) => content.playlistPanelHandlers.setSelection?.(event)}
+      on:activate={content.playlistPanelHandlers.activate}
+      on:contextAction={content.playlistPanelHandlers.contextAction}
+      on:toggleShuffle={() => content.playlistPanelHandlers.toggleShuffle?.()}
+      on:cycleRepeat={() => content.playlistPanelHandlers.cycleRepeat?.()}
+    />
+    <QueuePanel
+      items={content.queuePanelProps.items}
+      playingId={content.queuePanelProps.playingId}
+      mobilePresentation={content.playlistPanelProps.mobilePresentation ?? false}
+      getContextMenuActions={content.queuePanelProps.getContextMenuActions}
+      on:activate={content.queuePanelHandlers.activate}
+      on:contextAction={content.queuePanelHandlers.contextAction}
+    />
+  </div>
 {:else if tab === 'library'}
   <PlaylistPanel
     {...content.libraryPanelProps}
@@ -100,6 +111,20 @@
 {/if}
 
 <style>
+  .playlist-tab-stack {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 0;
+    min-height: 0;
+  }
+
+  .playlist-tab-stack :global(.playlist-panel.fill-parent) {
+    height: auto;
+    flex: 1 1 0;
+    min-height: 0;
+  }
+
   .video-tab-stage {
     position: relative;
     flex: 1;

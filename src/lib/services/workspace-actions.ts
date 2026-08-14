@@ -158,6 +158,21 @@ export function buildPlaylistContextActions(
       icon: 'info'
     },
     {
+      id: 'play-next',
+      label: 'Play next',
+      icon: 'skip_next'
+    },
+    {
+      id: 'add-to-queue',
+      label: 'Add to queue',
+      icon: 'add_to_queue'
+    },
+    {
+      id: 'copy-filename',
+      label: 'Copy filename',
+      icon: 'content_copy'
+    },
+    {
       id: 'toggle-library',
       label: inLibrary ? 'Remove from library' : 'Add to library',
       icon: inLibrary ? 'remove_circle' : 'library_add'
@@ -176,6 +191,12 @@ export function buildPlaylistContextActions(
       label: 'Remove',
       icon: 'delete',
       shortcut: 'Delete',
+      separatorBefore: true
+    },
+    {
+      id: 'randomize-playlist',
+      label: 'Randomize',
+      icon: 'shuffle',
       separatorBefore: true
     }
   ];
@@ -203,11 +224,26 @@ export function buildLibraryContextActions(
       label: 'Replace playlist',
       icon: 'playlist_play'
     },
+    {
+      id: 'play-next',
+      label: 'Play next',
+      icon: 'skip_next'
+    },
+    {
+      id: 'add-to-queue',
+      label: 'Add to queue',
+      icon: 'add_to_queue'
+    },
     ...(goToLibrary ? [goToLibrary] : []),
     {
       id: 'track-details',
       label: 'Track details',
       icon: 'info'
+    },
+    {
+      id: 'copy-filename',
+      label: 'Copy filename',
+      icon: 'content_copy'
     },
     buildFavoriteToggleAction(favoriteItems, tracks),
     ...(ratingsEnabled && tracks.length > 0 ? [buildTrackRatingAction(tracks)] : []),
@@ -263,6 +299,16 @@ export function buildFavoritesContextActions(
       label: 'Replace playlist',
       icon: 'playlist_play'
     },
+    {
+      id: 'play-next',
+      label: 'Play next',
+      icon: 'skip_next'
+    },
+    {
+      id: 'add-to-queue',
+      label: 'Add to queue',
+      icon: 'add_to_queue'
+    },
     ...(goToLibrary ? [goToLibrary] : []),
     {
       id: 'track-details',
@@ -277,6 +323,34 @@ export function buildFavoritesContextActions(
       separatorBefore: true
     }
   ];
+}
+
+export function buildQueueContextActions(
+  playlistItems: PlaylistItem[],
+  libraryItems: PlaylistItem[],
+  ids: string[],
+  favoriteItems: PlaylistItem[] = [],
+  ratingsEnabled = true
+): MenuActionItem[] {
+  return buildPlaylistContextActions(
+    playlistItems,
+    libraryItems,
+    ids,
+    favoriteItems,
+    ratingsEnabled
+  )
+    .filter((action) => action.id !== 'randomize-playlist')
+    .map((action) =>
+      action.id === 'remove'
+        ? {
+            ...action,
+            id: 'remove-from-queue',
+            label: 'Remove from queue',
+            icon: 'playlist_remove',
+            shortcut: undefined
+          }
+        : action
+    );
 }
 
 export function buildFreeplayPlaylistContextActions(

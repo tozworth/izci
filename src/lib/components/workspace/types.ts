@@ -49,6 +49,17 @@ export interface WorkspacePanelProps {
   getContextMenuActions?: (ids: string[]) => MenuActionItem[];
 }
 
+export interface QueuePanelProps {
+  items: PlaylistItem[];
+  playingId: string | null;
+  getContextMenuActions?: (ids: string[]) => MenuActionItem[];
+}
+
+export interface QueuePanelHandlers {
+  activate: (event: CustomEvent<string>) => void;
+  contextAction: (event: CustomEvent<{ actionId: string; ids: string[] }>) => void;
+}
+
 export interface WorkspacePanelHandlers {
   addFiles: (event: FileList | File[]) => void;
   addFolders?: (handles: FileSystemDirectoryHandle[]) => void;
@@ -76,6 +87,8 @@ export interface WorkspaceTabContentProps {
   playlistPanelHandlers: WorkspacePanelHandlers;
   libraryPanelProps: WorkspacePanelProps;
   libraryPanelHandlers: WorkspacePanelHandlers;
+  queuePanelProps: QueuePanelProps;
+  queuePanelHandlers: QueuePanelHandlers;
   selectedItem: PlaylistItem | null;
   lyricsTrack: PlaylistItem | null;
   patternTrack: PlaylistItem | null;

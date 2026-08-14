@@ -44,7 +44,8 @@ function resolveReplayGain(
 export function applyReplayGain(
   gain: number,
   replayGain: ReplayGainMetadata | undefined,
-  mode: ReplayGainMode
+  mode: ReplayGainMode,
+  preampDb = 0
 ): number {
   const normalizedGain = clamp(gain, 0, 1);
   const replayGainValue = resolveReplayGain(replayGain, mode);
@@ -53,7 +54,7 @@ export function applyReplayGain(
     return normalizedGain;
   }
 
-  let replayGainMultiplier = decibelsToGain(replayGainValue.gainDb);
+  let replayGainMultiplier = decibelsToGain(replayGainValue.gainDb + preampDb);
   const peak = replayGainValue.peak;
 
   if (typeof peak === 'number' && peak > 0 && peak * replayGainMultiplier > 1) {

@@ -266,7 +266,8 @@ function createPlayerController() {
       effectiveVolume,
       playbackConfig.logarithmicVolume,
       replayGain,
-      playbackConfig.replayGainMode
+      playbackConfig.replayGainMode,
+      playbackConfig.replayGainPreampDb
     );
     bundle.video.setFallbackVolume(outputGain);
   }

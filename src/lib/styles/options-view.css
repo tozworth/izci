@@ -725,6 +725,12 @@ code {
   justify-content: flex-end;
 }
 
+.rg-preamp-control {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.45rem;
+}
+
 .font-field {
   align-items: start;
 }

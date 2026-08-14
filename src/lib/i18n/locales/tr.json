@@ -354,6 +354,7 @@
     "actions": {
       "goTo": "Git...",
       "trackDetails": "Parça detayları",
+      "copyFilename": "Dosya adını kopyala",
       "removeFromLibrary": "Kütüphaneden kaldır",
       "addToLibrary": "Kütüphaneye ekle",
       "removeFromFavorites": "Favorilerden kaldır",
@@ -365,6 +366,10 @@
       "replacePlaylist": "Listeyi değiştir",
       "shufflePlay": "Karışık çal",
       "resetPlayCount": "Çalma sayısını sıfırla",
+      "randomize": "Rastgele sırala",
+      "playNext": "Sonra çal",
+      "addToQueue": "Sıraya ekle",
+      "removeFromQueue": "Sıradan kaldır",
       "remove": "Listeden kaldır"
     },
     "shortcuts": {
@@ -378,9 +383,18 @@
     "contextMenu": {
       "libraryGroupActions": "Kütüphane grubu eylemleri",
       "itemActions": "{panel} ögesi eylemleri",
+      "panelActions": "Çalma listesi eylemleri",
       "columns": "{panel} sütunları"
     },
-    "listRegion": "{name} listesi"
+    "listRegion": "{name} listesi",
+    "queue": {
+      "title": "Sıra",
+      "count": "{count, plural, one {# parça sırada} other {# parça sırada}}",
+      "empty": "Sıra boş",
+      "clear": "Sırayı temizle",
+      "resize": "Sıra boyutunu değiştir",
+      "contextMenu": "Sıra öğesi eylemleri"
+    }
   },
   "workspace": {
     "nowPlaying": {
@@ -676,6 +690,10 @@
         "windowTitle": {
           "title": "Pencere başlığında parça adını göster",
           "hint": "Geçerli parça başlığını izci başlığında gösterir. Her zaman \"izci\" göstermek için kapatın."
+        },
+        "alwaysQueue": {
+          "title": "Sırayı her zaman göster",
+          "hint": "Sıra panelini Playlist altında açık ve görünür tutar, sıra boş olsa bile."
         },
         "heading": "Arayüz"
       },
@@ -1210,6 +1228,10 @@
         },
         "title": "ReplayGain",
         "hint": "Akış dosyalarındaki ReplayGain etiketlerini uygular; hem parça hem albüm kazancı varsa seçili olanı yeğler."
+      },
+      "replayGainPreamp": {
+        "title": "Ön kazanç",
+        "hint": "Uygulanan ReplayGain'i tepe sınırlamasından önce dB cinsinden kaydırır."
       },
       "transitions": {
         "options": {

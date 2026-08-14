@@ -9,6 +9,9 @@
     PLAYBACK_TRANSITION_MODE_OPTIONS,
     REMEMBER_PROGRESS_DURATION_MINUTES,
     REPLAY_GAIN_MODE_OPTIONS,
+    REPLAY_GAIN_PREAMP_MAX_DB,
+    REPLAY_GAIN_PREAMP_MIN_DB,
+    REPLAY_GAIN_PREAMP_STEP_DB,
     FADE_DURATION_MAX_SECONDS,
     FADE_DURATION_MIN_SECONDS,
     FADE_DURATION_STEP_SECONDS,
@@ -18,6 +21,7 @@
     normalizeFadeDurationSeconds,
     normalizeManualTrackChangeFadePercent,
     normalizePlaybackRate,
+    normalizeReplayGainPreampDb,
     normalizeRememberProgressDurationIndex,
     playbackSettings
   } from '$lib/stores/playback-settings';
@@ -55,6 +59,13 @@
   function handleManualTrackChangeFadePercentChange(event: Event) { playbackSettings.update({ manualTrackChangeFadePercent: normalizeManualTrackChangeFadePercent((event.currentTarget as HTMLInputElement).valueAsNumber) }); }
   function handleLogarithmicVolumeToggle(event: Event) { playbackSettings.update({ logarithmicVolume: checked(event) }); }
   function handleReplayGainModeChange(event: Event) { playbackSettings.update({ replayGainMode: (event.currentTarget as HTMLSelectElement).value as ReplayGainMode }); }
+  function handleReplayGainPreampChange(event: Event) {
+    playbackSettings.update({
+      replayGainPreampDb: normalizeReplayGainPreampDb(
+        (event.currentTarget as HTMLInputElement).valueAsNumber
+      )
+    });
+  }
   function handleEnableRafToggle(event: Event) { playbackSettings.update({ enableRaf: checked(event) }); }
   function handleShowRafToggleInPlayerBar(event: Event) { playbackSettings.update({ showRafToggleInPlayerBar: checked(event) }); }
   function restoreModeLabel(value: PlaybackRestoreMode): string {
@@ -66,6 +77,9 @@
     if (value === 'track') return $t('options.playback.replayGain.options.track', { default: 'Track' });
     if (value === 'album') return $t('options.playback.replayGain.options.album', { default: 'Album' });
     return $t('options.playback.replayGain.options.off', { default: 'Off' });
+  }
+  function replayGainPreampLabel(value: number): string {
+    return `${value > 0 ? '+' : ''}${value} dB`;
   }
   function transitionModeLabel(value: PlaybackTransitionMode): string {
     if (value === 'none') return $t('options.playback.transitions.options.none', { default: 'None' });
@@ -269,12 +283,30 @@
       <SettingsField
         title={$t('options.playback.replayGain.title', { default: 'ReplayGain' })}
         hint={$t('options.playback.replayGain.hint', { default: 'Applies streamed-file ReplayGain tags, preferring track or album gain when both are available.' })}
+        controlClass="rg-preamp-control"
       >
           <select value={$playbackSettings.replayGainMode} on:change={handleReplayGainModeChange}>
             {#each REPLAY_GAIN_MODE_OPTIONS as option}
               <option value={option.value}>{replayGainModeLabel(option.value)}</option>
             {/each}
           </select>
+          <span
+            class="rg-preamp"
+            title={$t('options.playback.replayGainPreamp.hint', { default: 'Shifts the applied ReplayGain in dB before peak limiting.' })}
+          >
+            <span class="rg-preamp-label">
+              {$t('options.playback.replayGainPreamp.title', { default: 'Preamp' })}
+            </span>
+            <input
+              type="range"
+              min={REPLAY_GAIN_PREAMP_MIN_DB}
+              max={REPLAY_GAIN_PREAMP_MAX_DB}
+              step={REPLAY_GAIN_PREAMP_STEP_DB}
+              value={$playbackSettings.replayGainPreampDb}
+              on:input={handleReplayGainPreampChange}
+            />
+            <span class="field-output">{replayGainPreampLabel($playbackSettings.replayGainPreampDb)}</span>
+          </span>
       </SettingsField>
     </div>
   </div>
@@ -304,3 +336,24 @@
     </div>
   </div>
 </article>
+
+<style>
+  .rg-preamp {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .rg-preamp-label {
+    font-size: 0.72rem;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+
+  .rg-preamp input[type="range"] {
+    flex: 1;
+    width: auto;
+    min-width: 0;
+  }
+</style>

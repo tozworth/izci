@@ -8,6 +8,11 @@ export type PlaylistPanelContextMenu =
       ids: string[];
     }
   | {
+      kind: 'panel';
+      x: number;
+      y: number;
+    }
+  | {
       kind: 'library-group';
       x: number;
       y: number;

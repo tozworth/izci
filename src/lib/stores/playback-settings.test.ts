@@ -51,6 +51,14 @@ describe('playback settings helpers', () => {
     expect(normalizePlaybackSettings({ stopAfterTrack: true }).stopAfterTrack).toBe(true);
   });
 
+  it('normalizes the ReplayGain preamp to the knob range and step', () => {
+    expect(normalizePlaybackSettings({}).replayGainPreampDb).toBe(0);
+    expect(normalizePlaybackSettings({ replayGainPreampDb: 3.4 }).replayGainPreampDb).toBe(3.5);
+    expect(normalizePlaybackSettings({ replayGainPreampDb: 99 }).replayGainPreampDb).toBe(12);
+    expect(normalizePlaybackSettings({ replayGainPreampDb: -99 }).replayGainPreampDb).toBe(-12);
+    expect(normalizePlaybackSettings({ replayGainPreampDb: '6' }).replayGainPreampDb).toBe(0);
+  });
+
   it('normalizes transition modes and fade duration', () => {
     expect(normalizePlaybackTransitionMode('crossfade')).toBe('crossfade');
     expect(normalizePlaybackTransitionMode('invalid')).toBe('none');

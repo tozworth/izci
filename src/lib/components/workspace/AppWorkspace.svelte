@@ -24,6 +24,8 @@
   import type {
     WideWorkspaceResizeStartDetail,
     VideoSeekFeedback,
+    QueuePanelHandlers,
+    QueuePanelProps,
     WorkspacePanelHandlers,
     WorkspaceTabMoveDetail
   } from './types';
@@ -35,6 +37,8 @@
     playlistPanelHandlers,
     libraryPanelProps: workspaceState.libraryPanelProps,
     libraryPanelHandlers,
+    queuePanelProps,
+    queuePanelHandlers,
     selectedItem: artworkState.detailsDisplayTrack,
     lyricsTrack,
     patternTrack: playerDisplayTrack,
@@ -74,6 +78,8 @@
   export let workspaceState: WorkspaceShellState;
   export let playlistPanelHandlers: WorkspacePanelHandlers;
   export let libraryPanelHandlers: WorkspacePanelHandlers;
+  export let queuePanelProps: QueuePanelProps;
+  export let queuePanelHandlers: QueuePanelHandlers;
   export let selectedPlaylistItem: PlaylistItem | null;
   export let playerDisplayTrack: PlaylistItem | null;
   export let lyricsTrack: PlaylistItem | null;

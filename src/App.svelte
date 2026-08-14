@@ -122,6 +122,11 @@
     WorkspaceCollection,
     WorkspaceTab
   } from '$lib/types';
+  import type {
+    QueuePanelHandlers,
+    QueuePanelProps
+  } from '$lib/components/workspace/types';
+  import { playbackQueue, type QueueEntry } from '$lib/stores/playback-queue';
   import { buildOptionsWindowPath, isOptionsViewName, type OptionsViewName } from './options/views';
   import { getFavoriteIdentity, getTrackDisplayTitle, getTrackIdentity } from '$lib/utils/files';
   import {
@@ -185,6 +190,7 @@
   let localPlaylistItems: PlaylistItem[] = [];
   let localLibraryItems: PlaylistItem[] = [];
   let localFavoriteItems: PlaylistItem[] = [];
+  let localQueueEntries: QueueEntry[] = [];
   let playlistItems: PlaylistItem[] = [];
   let libraryItems: PlaylistItem[] = [];
   let favoriteItems: PlaylistItem[] = [];
@@ -949,6 +955,9 @@
       }
     }
   });
+  const unsubscribeQueue = playbackQueue.subscribe((value) => {
+    localQueueEntries = value;
+  });
   const unsubscribePlaybackSnapshot = playerController.snapshot.subscribe((value) => {
     localPlaybackSnapshot = value;
     if (value.state === 'playing') appInstallService.markEngaged();
@@ -1134,6 +1143,22 @@
     ? favoriteItems.find((item) => item.id === (remoteFavoriteSelection.focusId ?? remoteFavoriteSelection.ids.at(-1))) ?? null
     : localSelectedFavoriteItem;
   $: playingTrack = isMultiplayerClient ? multiplayerState.remotePlayback.track : localPlayingTrack;
+  $: if (!isMultiplayerClient && playlistItems.length > 0) {
+    playbackQueue.prune(playlistItems.map((item) => item.id));
+  }
+  $: queueDisplayItems = localQueueEntries
+    .flatMap((entry) => {
+      const item = playlistItems.find((candidate) => candidate.id === entry.id);
+      return item ? [item] : [];
+    });
+  $: queuePanelProps = {
+    items: queueDisplayItems,
+    playingId: playingTrack?.id ?? null,
+    getContextMenuActions: (ids: string[]) =>
+      isFreeplayClient || isMultiplayerClient
+        ? [{ id: 'remove-from-queue', label: 'Remove from queue', icon: 'playlist_remove' }]
+        : workspaceCollections.getQueueContextActions(ids)
+  } satisfies QueuePanelProps;
   $: {
     const selectionSync = resolveMultiplayerPlayingTrackSelection(
       observedRemotePlayingTrackId,
@@ -1428,6 +1453,17 @@
       $libraryViewSettings.activeView === 'favorites'
         ? workspaceCollections.handleFavoriteContextAction(event.detail.actionId, event.detail.ids)
         : workspaceCollections.handleLibraryContextAction(event.detail.actionId, event.detail.ids);
+    }
+  };
+  const queuePanelHandlers: QueuePanelHandlers = {
+    activate: (event) => {
+      if (isFreeplayClient || isMultiplayerClient) return;
+      playbackQueue.remove([event.detail]);
+      void playbackCommands.activatePlaylistTrack(event.detail);
+    },
+    contextAction: (event) => {
+      if (isFreeplayClient || isMultiplayerClient) return;
+      workspaceCollections.handleQueueContextAction(event.detail.actionId, event.detail.ids);
     }
   };
 
@@ -2081,6 +2117,7 @@
     unsubscribePlaylistItems();
     unsubscribeLibraryItems();
     unsubscribeFavoriteItems();
+    unsubscribeQueue();
     unsubscribePlaylistSelectedIds();
     unsubscribeLibrarySelectedIds();
     unsubscribeLibrarySelection();
@@ -2253,6 +2290,8 @@
     workspaceState={workspaceShellState}
     {playlistPanelHandlers}
     {libraryPanelHandlers}
+    {queuePanelProps}
+    {queuePanelHandlers}
     {selectedPlaylistItem}
     {playerDisplayTrack}
     {lyricsTrack}
@@ -2338,6 +2377,8 @@
     workspaceState={workspaceShellState}
     {playlistPanelHandlers}
     {libraryPanelHandlers}
+    {queuePanelProps}
+    {queuePanelHandlers}
     {selectedPlaylistItem}
     {playerDisplayTrack}
     {lyricsTrack}

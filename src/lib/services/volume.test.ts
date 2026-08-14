@@ -34,4 +34,21 @@ describe('applyReplayGain', () => {
     expect(applyReplayGain(0.5, { trackGainDb: 6, trackPeak: 0.75 }, 'track')).toBeCloseTo(0.5 / 0.75);
     expect(applyReplayGain(0.5, { trackGainDb: 6, trackPeak: 2 }, 'track')).toBe(0.25);
   });
+
+  it('shifts applied ReplayGain by the preamp and still peak-limits', () => {
+    expect(applyReplayGain(0.5, { trackGainDb: -6 }, 'track', 6)).toBeCloseTo(
+      0.5 * decibelsToGain(0)
+    );
+    expect(applyReplayGain(0.5, { trackGainDb: -6 }, 'track', -6)).toBeCloseTo(
+      0.5 * decibelsToGain(-12)
+    );
+    expect(applyReplayGain(0.5, { trackGainDb: 6, trackPeak: 0.75 }, 'track', 6)).toBeCloseTo(
+      0.5 / 0.75
+    );
+  });
+
+  it('ignores the preamp when ReplayGain is off or absent', () => {
+    expect(applyReplayGain(0.5, { trackGainDb: -6 }, 'off', 6)).toBe(0.5);
+    expect(applyReplayGain(0.5, undefined, 'track', 6)).toBe(0.5);
+  });
 });
