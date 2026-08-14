@@ -89,7 +89,8 @@ export type LibraryColumnId =
   | 'format'
   | 'duration'
   | 'rating'
-  | 'plays';
+  | 'plays'
+  | 'lastPlayed';
 export type LibraryViewId = 'favorites' | 'ratings' | 'songs' | 'artists' | 'albums' | 'genres' | 'years' | 'formats' | 'folders';
 export type LibraryGroupViewId = Exclude<LibraryViewId, 'favorites' | 'ratings' | 'songs'>;
 export type ColorTheme =
@@ -304,6 +305,8 @@ export interface TrackMetadata {
   rows?: number;
   sampleRate?: number;
   playCount?: number;
+  /** Epoch ms of the last time this track accrued a play. */
+  lastPlayed?: number;
   replayGain?: ReplayGainMetadata;
 }
 

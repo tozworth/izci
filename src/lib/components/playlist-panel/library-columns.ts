@@ -39,7 +39,8 @@ const LIBRARY_COLUMN_ICONS: Record<LibraryColumnId, string> = {
   format: 'audio_file',
   duration: 'schedule',
   rating: 'star',
-  plays: 'play_arrow'
+  plays: 'play_arrow',
+  lastPlayed: 'history'
 };
 
 export function getLibraryColumnIcon(columnId: LibraryColumnId): string {
@@ -90,6 +91,19 @@ export function getTrackPlayCount(item: PlaylistItem): string {
   return Number.isFinite(playCount) && playCount > 0 ? String(Math.floor(playCount)) : '';
 }
 
+const lastPlayedDateFormatter = new Intl.DateTimeFormat(undefined, {
+  year: 'numeric',
+  month: 'short',
+  day: 'numeric'
+});
+
+export function getTrackLastPlayed(item: PlaylistItem): string {
+  const lastPlayed = item.metadata?.lastPlayed;
+  return typeof lastPlayed === 'number' && Number.isFinite(lastPlayed) && lastPlayed > 0
+    ? lastPlayedDateFormatter.format(lastPlayed)
+    : '';
+}
+
 function parsePositionNumber(value: string): number | null {
   const match = value.match(/^\d+/);
   if (!match) return null;
@@ -129,6 +143,8 @@ export function getColumnTextValue(item: PlaylistItem, columnId: LibraryColumnId
       return formatTrackRating(item.rating);
     case 'plays':
       return getTrackPlayCount(item);
+    case 'lastPlayed':
+      return getTrackLastPlayed(item);
   }
 }
 
@@ -318,6 +334,25 @@ function compareByColumn(
     }
 
     return direction === 'desc' ? rightPlayCount - leftPlayCount : leftPlayCount - rightPlayCount;
+  }
+
+  if (columnId === 'lastPlayed') {
+    const leftLastPlayed = left.metadata?.lastPlayed;
+    const rightLastPlayed = right.metadata?.lastPlayed;
+    const leftMissing = !Number.isFinite(leftLastPlayed);
+    const rightMissing = !Number.isFinite(rightLastPlayed);
+
+    if (leftMissing || rightMissing) {
+      if (leftMissing && rightMissing) {
+        return 0;
+      }
+
+      return leftMissing ? 1 : -1;
+    }
+
+    return direction === 'desc'
+      ? (rightLastPlayed as number) - (leftLastPlayed as number)
+      : (leftLastPlayed as number) - (rightLastPlayed as number);
   }
 
   if (columnId === 'rating') {

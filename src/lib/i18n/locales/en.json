@@ -314,6 +314,7 @@
         "duration": "Duration",
         "rating": "Rating",
         "plays": "Plays",
+        "lastPlayed": "Last played",
         "resize": "Resize {column} column",
         "sortBy": "Sort by {column}"
       },

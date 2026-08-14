@@ -664,10 +664,11 @@ function createPlayerController() {
       const activeTrack = activeBundle.track;
       if (!activeTrack || activeTrack.id !== id) return false;
       const existingPlayCount = activeTrack.metadata?.playCount;
-      const { playCount: _externalPlayCount, ...externalMetadata } = patch.metadata ?? {};
+      const existingLastPlayed = activeTrack.metadata?.lastPlayed;
+      const { playCount: _externalPlayCount, lastPlayed: _externalLastPlayed, ...externalMetadata } = patch.metadata ?? {};
       const metadata = patch.metadata === undefined
         ? activeTrack.metadata
-        : { ...externalMetadata, ...(existingPlayCount === undefined ? {} : { playCount: existingPlayCount }) };
+        : { ...externalMetadata, ...(existingPlayCount === undefined ? {} : { playCount: existingPlayCount }), ...(existingLastPlayed === undefined ? {} : { lastPlayed: existingLastPlayed }) };
       activeBundle.track = {
         ...activeTrack,
         ...patch,

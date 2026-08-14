@@ -314,6 +314,7 @@
         "duration": "Süre",
         "rating": "Puan",
         "plays": "Yürütme sayısı",
+        "lastPlayed": "Son çalınma",
         "resize": "{column} sütununu boyutlandır",
         "sortBy": "{column} sütununa göre sırala"
       },

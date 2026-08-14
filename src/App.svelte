@@ -865,7 +865,8 @@
     }
   });
   const playCountTracker = createPlayCountTracker({
-    incrementLibraryPlayCount: workspaceCollections.incrementLibraryPlayCount
+    incrementLibraryPlayCount: workspaceCollections.incrementLibraryPlayCount,
+    recordLibraryLastPlayed: workspaceCollections.recordLibraryLastPlayed
   });
   const playbackRestoration = createPlaybackRestorationController({
     track: playerController.currentTrack,

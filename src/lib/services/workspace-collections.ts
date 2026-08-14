@@ -232,9 +232,13 @@ export function createWorkspaceCollectionsController({
     libraryStore.updateMetadata(libraryItemId, { playCount: nextPlayCount });
   }
 
+  function recordLibraryLastPlayed(libraryItemId: string): void {
+    libraryStore.updateMetadata(libraryItemId, { lastPlayed: Date.now() });
+  }
+
   function resetLibraryPlayCounts(ids: string[]): void {
     for (const id of ids) {
-      libraryStore.updateMetadata(id, { playCount: 0 });
+      libraryStore.updateMetadata(id, { playCount: 0, lastPlayed: undefined });
     }
   }
 
@@ -417,6 +421,7 @@ export function createWorkspaceCollectionsController({
     getFavoriteContextActions,
     getQueueContextActions,
     incrementLibraryPlayCount,
+    recordLibraryLastPlayed,
     handlePlaylistContextAction,
     handleLibraryContextAction,
     handleFavoriteContextAction,

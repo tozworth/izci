@@ -479,10 +479,12 @@ export async function createBackupArchive(): Promise<{
 function mergeMetadata(current: TrackMetadata | undefined, restored: TrackMetadata | undefined): TrackMetadata | undefined {
   if (!current && !restored) return undefined;
   const playCount = Math.max(current?.playCount ?? 0, restored?.playCount ?? 0);
+  const lastPlayed = Math.max(current?.lastPlayed ?? 0, restored?.lastPlayed ?? 0);
   return {
     ...current,
     ...restored,
-    ...(playCount > 0 ? { playCount } : {})
+    ...(playCount > 0 ? { playCount } : {}),
+    ...(lastPlayed > 0 ? { lastPlayed } : {})
   };
 }
 

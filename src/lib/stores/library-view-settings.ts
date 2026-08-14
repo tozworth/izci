@@ -38,7 +38,8 @@ export const LIBRARY_COLUMN_IDS: LibraryColumnId[] = [
   'format',
   'duration',
   'rating',
-  'plays'
+  'plays',
+  'lastPlayed'
 ];
 export const LIBRARY_COLUMN_LABELS: Record<LibraryColumnId, string> = {
   title: 'Title',
@@ -49,7 +50,8 @@ export const LIBRARY_COLUMN_LABELS: Record<LibraryColumnId, string> = {
   format: 'Format',
   duration: 'Duration',
   rating: 'Rating',
-  plays: 'Plays'
+  plays: 'Plays',
+  lastPlayed: 'Last played'
 };
 export const LIBRARY_COLUMN_DEFAULT_WIDTHS: Record<LibraryColumnId, number> = {
   title: 300,
@@ -60,7 +62,8 @@ export const LIBRARY_COLUMN_DEFAULT_WIDTHS: Record<LibraryColumnId, number> = {
   format: 96,
   duration: 104,
   rating: 104,
-  plays: 88
+  plays: 88,
+  lastPlayed: 128
 };
 export const LIBRARY_COLUMN_MIN_WIDTHS: Record<LibraryColumnId, number> = {
   title: 72,
@@ -71,7 +74,8 @@ export const LIBRARY_COLUMN_MIN_WIDTHS: Record<LibraryColumnId, number> = {
   format: 48,
   duration: 48,
   rating: 44,
-  plays: 48
+  plays: 48,
+  lastPlayed: 72
 };
 
 function createDefaultColumns(view: LibraryViewId): LibraryViewTableSettings['columns'] {
@@ -111,6 +115,10 @@ function createDefaultColumns(view: LibraryViewId): LibraryViewTableSettings['co
     plays: {
       width: LIBRARY_COLUMN_DEFAULT_WIDTHS.plays,
       visible: false
+    },
+    lastPlayed: {
+      width: LIBRARY_COLUMN_DEFAULT_WIDTHS.lastPlayed,
+      visible: false
     }
   };
 
@@ -139,7 +147,7 @@ function createDefaultColumns(view: LibraryViewId): LibraryViewTableSettings['co
 
 function createDefaultViewSettings(view: LibraryViewId): LibraryViewTableSettings {
   const order = view === 'ratings'
-    ? ['rating', 'title', 'artist', 'format', 'duration', 'album', 'discAndTrack', 'folder', 'plays'] satisfies LibraryColumnId[]
+    ? ['rating', 'title', 'artist', 'format', 'duration', 'album', 'discAndTrack', 'folder', 'plays', 'lastPlayed'] satisfies LibraryColumnId[]
     : [...LIBRARY_COLUMN_IDS];
 
   return {

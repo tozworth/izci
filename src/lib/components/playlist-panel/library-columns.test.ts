@@ -5,6 +5,7 @@ import {
   fitWidthsToAvailableWidth,
   getColumnTextValue,
   getTrackDuration,
+  getTrackLastPlayed,
   getTrackPlayCount,
   rebalanceResizedColumns
 } from './library-columns';
@@ -47,6 +48,8 @@ describe('library column helpers', () => {
     expect(getTrackPlayCount(item('plays', { metadata: { playCount: 3 } }))).toBe('3');
     expect(getColumnTextValue(item('rated', { rating: 3.5 }), 'rating')).toBe('3.5');
     expect(getColumnTextValue(item('missing-plays'), 'plays')).toBe('');
+    expect(getTrackLastPlayed(item('last-played', { metadata: { lastPlayed: 1_786_665_600_000 } }))).toBe('Aug 14, 2026');
+    expect(getColumnTextValue(item('missing-last-played'), 'lastPlayed')).toBe('');
   });
 
   it('shrinks and expands visible widths while preserving the available total', () => {
@@ -136,6 +139,23 @@ describe('library column helpers', () => {
       'five',
       'two',
       'none'
+    ]);
+
+    const lastPlayedTracks = [
+      item('old', { metadata: { title: 'Old', lastPlayed: 100 } }),
+      item('newer', { metadata: { title: 'Newer', lastPlayed: 300 } }),
+      item('never', { metadata: { title: 'Never' } })
+    ];
+
+    expect([...lastPlayedTracks].sort((left, right) => compareItems(left, right, { columnId: 'lastPlayed', direction: 'desc' })).map((track) => track.id)).toEqual([
+      'newer',
+      'old',
+      'never'
+    ]);
+    expect([...lastPlayedTracks].sort((left, right) => compareItems(left, right, { columnId: 'lastPlayed', direction: 'asc' })).map((track) => track.id)).toEqual([
+      'old',
+      'newer',
+      'never'
     ]);
 
     const ratedTracks = [

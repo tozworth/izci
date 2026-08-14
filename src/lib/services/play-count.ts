@@ -10,6 +10,7 @@ interface PlayCountTrackerSyncInput {
 
 interface PlayCountTrackerOptions {
   incrementLibraryPlayCount: (libraryItemId: string) => void;
+  recordLibraryLastPlayed: (libraryItemId: string) => void;
   setTimeoutFn?: typeof setTimeout;
   clearTimeoutFn?: typeof clearTimeout;
 }
@@ -41,6 +42,7 @@ function normalizeThresholdMilliseconds(thresholdSeconds: number): number {
 
 export function createPlayCountTracker({
   incrementLibraryPlayCount,
+  recordLibraryLastPlayed,
   setTimeoutFn = setTimeout,
   clearTimeoutFn = clearTimeout
 }: PlayCountTrackerOptions) {
@@ -98,6 +100,7 @@ export function createPlayCountTracker({
       countedSessionKey = sessionKey;
       activeSession = null;
       incrementLibraryPlayCount(libraryItem.id);
+      recordLibraryLastPlayed(libraryItem.id);
     }, normalizeThresholdMilliseconds(thresholdSeconds));
 
     activeSession = {

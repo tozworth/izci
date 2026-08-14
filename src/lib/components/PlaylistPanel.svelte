@@ -179,6 +179,7 @@
       case 'duration': return $t('playlist.library.columns.duration', { default: 'Duration' });
       case 'rating': return $t('playlist.library.columns.rating', { default: 'Rating' });
       case 'plays': return $t('playlist.library.columns.plays', { default: 'Plays' });
+      case 'lastPlayed': return $t('playlist.library.columns.lastPlayed', { default: 'Last played' });
       default: return fallback;
     }
   }

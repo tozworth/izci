@@ -36,7 +36,7 @@ function archive(overrides: Partial<BackupArchiveData> = {}): BackupArchiveData 
         lastModified: 456,
         path: 'Music/Album/Track.flac',
         sourceFolderId: 'folder-1',
-        metadata: { title: 'Track', playCount: 7 },
+        metadata: { title: 'Track', playCount: 7, lastPlayed: 456 },
         rating: 3.5
       }
     ],
@@ -72,7 +72,7 @@ describe('izci backup archives', () => {
     expect(decoded.library[0]).toMatchObject({
       id: 'track-1',
       path: 'Music/Album/Track.flac',
-      metadata: { title: 'Track', playCount: 7 },
+      metadata: { title: 'Track', playCount: 7, lastPlayed: 456 },
       rating: 3.5
     });
     expect(decoded.folders[0]).toMatchObject({ id: 'folder-1', libraryMode: 'launch' });

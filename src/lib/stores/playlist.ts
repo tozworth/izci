@@ -495,12 +495,14 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
             if (item.id !== id) return item;
 
             const existingPlayCount = item.metadata?.playCount;
-            const { playCount: _externalPlayCount, ...externalMetadata } = patch.metadata ?? {};
+            const existingLastPlayed = item.metadata?.lastPlayed;
+            const { playCount: _externalPlayCount, lastPlayed: _externalLastPlayed, ...externalMetadata } = patch.metadata ?? {};
             const metadata = patch.metadata === undefined
               ? item.metadata
               : {
                   ...externalMetadata,
-                  ...(existingPlayCount === undefined ? {} : { playCount: existingPlayCount })
+                  ...(existingPlayCount === undefined ? {} : { playCount: existingPlayCount }),
+                  ...(existingLastPlayed === undefined ? {} : { lastPlayed: existingLastPlayed })
                 };
             const fileChanged =
               patch.file !== undefined

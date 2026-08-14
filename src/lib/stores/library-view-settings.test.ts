@@ -14,6 +14,8 @@ describe('library view settings', () => {
       expect(view.columns.format.visible).toBe(viewId === 'ratings');
       expect(view.columns.discAndTrack.visible).toBe(false);
       expect(view.columns.rating.visible).toBe(viewId === 'ratings');
+      expect(view.columns.lastPlayed.visible).toBe(false);
+      expect(view.columns.plays.visible).toBe(false);
     }
 
     expect(views.songs.columns.artist.visible).toBe(true);
