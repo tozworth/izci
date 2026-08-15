@@ -16,6 +16,7 @@
   on:dragover
   on:drop
   on:dragleave
+  on:contextmenu
 >
   <slot />
 </div>

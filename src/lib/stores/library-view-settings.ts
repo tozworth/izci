@@ -173,10 +173,15 @@ function createDefaultPinnedGroupKeys(): LibraryViewSettings['pinnedGroupKeys'] 
   }, {} as LibraryViewSettings['pinnedGroupKeys']);
 }
 
+function createDefaultVisibleViews(): LibraryViewId[] {
+  return [...LIBRARY_VIEW_IDS];
+}
+
 const DEFAULT_LIBRARY_VIEW_SETTINGS: LibraryViewSettings = {
   activeView: 'songs',
   views: createDefaultViews(),
   pinnedGroupKeys: createDefaultPinnedGroupKeys(),
+  visibleViews: createDefaultVisibleViews(),
   searchQuery: ''
 };
 
@@ -227,6 +232,20 @@ function normalizePinnedGroupKeys(value: unknown): string[] {
   if (!Array.isArray(value)) return [];
 
   return Array.from(new Set(value.filter((key): key is string => typeof key === 'string' && key !== '')));
+}
+
+function normalizeVisibleViews(value: unknown): LibraryViewId[] {
+  if (!Array.isArray(value)) return createDefaultVisibleViews();
+
+  const normalized = Array.from(new Set(
+    value.filter((view): view is LibraryViewId => LIBRARY_VIEW_IDS.includes(view as LibraryViewId))
+  ));
+
+  if (normalized.length === 0) return createDefaultVisibleViews();
+
+  return [...normalized].sort(
+    (left, right) => LIBRARY_VIEW_IDS.indexOf(left) - LIBRARY_VIEW_IDS.indexOf(right)
+  );
 }
 
 function normalizeViewSettings(value: unknown, view: LibraryViewId): LibraryViewTableSettings {
@@ -287,17 +306,21 @@ function normalizeSettings(value: unknown): LibraryViewSettings {
     source.pinnedGroupKeys && typeof source.pinnedGroupKeys === 'object'
       ? (source.pinnedGroupKeys as Partial<Record<LibraryGroupViewId, unknown>>)
       : {};
+  const visibleViews = normalizeVisibleViews(source.visibleViews);
+  const activeView = LIBRARY_VIEW_IDS.includes(source.activeView as LibraryViewId)
+    && visibleViews.includes(source.activeView as LibraryViewId)
+    ? (source.activeView as LibraryViewId)
+    : visibleViews[0];
 
   return {
-    activeView: LIBRARY_VIEW_IDS.includes(source.activeView as LibraryViewId)
-      ? (source.activeView as LibraryViewId)
-      : DEFAULT_LIBRARY_VIEW_SETTINGS.activeView,
+    activeView,
     views: Object.fromEntries(
       LIBRARY_VIEW_IDS.map((view) => [view, normalizeViewSettings(viewsSource[view], view)])
     ) as LibraryViewSettings['views'],
     pinnedGroupKeys: Object.fromEntries(
       LIBRARY_GROUP_VIEW_IDS.map((view) => [view, normalizePinnedGroupKeys(pinnedGroupKeysSource[view])])
     ) as LibraryViewSettings['pinnedGroupKeys'],
+    visibleViews,
     searchQuery: normalizeSearchQuery(source.searchQuery)
   };
 }
@@ -321,6 +344,29 @@ export const libraryViewSettings = {
       ...settings,
       activeView: LIBRARY_VIEW_IDS.includes(activeView) ? activeView : 'songs'
     }));
+  },
+  toggleViewVisibility(view: LibraryViewId): LibraryViewSettings {
+    return updateSettings((settings) => {
+      const isVisible = settings.visibleViews.includes(view);
+
+      if (isVisible && settings.visibleViews.length === 1) {
+        return settings;
+      }
+
+      const visibleViews = isVisible
+        ? settings.visibleViews.filter((id) => id !== view)
+        : Array.from(new Set([...settings.visibleViews, view]))
+            .sort((left, right) => LIBRARY_VIEW_IDS.indexOf(left) - LIBRARY_VIEW_IDS.indexOf(right));
+      const activeView = isVisible && settings.activeView === view
+        ? visibleViews[0]
+        : settings.activeView;
+
+      return {
+        ...settings,
+        visibleViews,
+        activeView
+      };
+    });
   },
   setSort(columnId: LibraryColumnId): LibraryViewSettings {
     return updateSettings((settings) => {

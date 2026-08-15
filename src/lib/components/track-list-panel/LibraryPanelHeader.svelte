@@ -2,9 +2,11 @@
   import { afterUpdate, createEventDispatcher, tick } from 'svelte';
   import { t } from 'svelte-i18n';
   import HoverTooltip from '$lib/components/HoverTooltip.svelte';
+  import MenuSurface from '$lib/components/MenuSurface.svelte';
   import TabStrip from '$lib/components/TabStrip.svelte';
-  import type { LibraryViewId } from '$lib/types';
+  import type { LibraryViewId, MenuActionItem } from '$lib/types';
   import { LIBRARY_VIEW_DEFINITIONS } from './library-views';
+  import { LIBRARY_VIEW_IDS } from '$lib/stores/library-view-settings';
 
   export let activeView: LibraryViewId = 'songs';
   export let ratingsEnabled = true;
@@ -16,9 +18,11 @@
   export let searchQuery = '';
   export let searchInputElement: HTMLInputElement | null = null;
   export let readOnly = false;
+  export let visibleViews: LibraryViewId[] = LIBRARY_VIEW_IDS;
 
   const dispatch = createEventDispatcher<{
     viewChange: LibraryViewId;
+    viewVisibilityToggle: LibraryViewId;
     back: void;
     searchToggle: void;
     searchInput: string;
@@ -27,6 +31,21 @@
   }>();
 
   let previousShowSearchInput = false;
+  let viewMenuOpen = false;
+  let viewMenuX = 0;
+  let viewMenuY = 0;
+
+  $: eligibleDefinitions = LIBRARY_VIEW_DEFINITIONS.filter(
+    (view) => ratingsEnabled || view.id !== 'ratings'
+  );
+  $: shownDefinitions = eligibleDefinitions.filter((view) => visibleViews.includes(view.id));
+  $: viewMenuItems = eligibleDefinitions.map((view): MenuActionItem => ({
+    id: `toggle:${view.id}`,
+    label: getViewLabel(view.id, view.label),
+    icon: view.icon,
+    checked: visibleViews.includes(view.id),
+    disabled: visibleViews.includes(view.id) && visibleViews.length === 1
+  }));
 
   afterUpdate(async () => {
     if (showSearchInput && !previousShowSearchInput) {
@@ -46,6 +65,24 @@
     if (event.key !== 'Escape') return;
     event.stopPropagation();
     dispatch('searchClose');
+  }
+
+  function openViewMenu(event: MouseEvent) {
+    event.preventDefault();
+    viewMenuX = event.clientX;
+    viewMenuY = event.clientY;
+    viewMenuOpen = true;
+  }
+
+  function handleViewMenuAction(actionId: string) {
+    viewMenuOpen = false;
+
+    if (actionId.startsWith('toggle:')) {
+      const view = actionId.slice('toggle:'.length) as LibraryViewId;
+      if (LIBRARY_VIEW_IDS.includes(view)) {
+        dispatch('viewVisibilityToggle', view);
+      }
+    }
   }
 
   function getViewLabel(view: LibraryViewId, fallback: string): string {
@@ -69,8 +106,9 @@
     <TabStrip
       className="library-view-tabs"
       ariaLabel={$t('library.views.label', { default: 'Library views' })}
+      on:contextmenu={openViewMenu}
     >
-      {#each LIBRARY_VIEW_DEFINITIONS.filter((view) => ratingsEnabled || view.id !== 'ratings') as view}
+      {#each shownDefinitions as view}
         <button
           type="button"
           class="tab-strip-tab library-toolbar-button library-view-tab hover-tooltip-anchor"
@@ -160,6 +198,17 @@
     </div>
   {/if}
 </div>
+
+{#if viewMenuOpen}
+  <MenuSurface
+    items={viewMenuItems}
+    x={viewMenuX}
+    y={viewMenuY}
+    ariaLabel={$t('library.views.label', { default: 'Library views' })}
+    on:dismiss={() => (viewMenuOpen = false)}
+    on:action={(event) => handleViewMenuAction(event.detail)}
+  />
+{/if}
 
 <style>
   .library-header {

@@ -579,6 +579,7 @@ export interface LibraryViewSettings {
   activeView: LibraryViewId;
   views: Record<LibraryViewId, LibraryViewTableSettings>;
   pinnedGroupKeys: Record<LibraryGroupViewId, string[]>;
+  visibleViews: LibraryViewId[];
   searchQuery: string;
 }
 

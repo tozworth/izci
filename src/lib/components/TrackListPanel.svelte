@@ -1181,10 +1181,12 @@
           tooltipDetails={libraryTooltipDetails}
           groupLabel={selectedLibraryGroup?.label ?? ''}
           showBack={Boolean(selectedLibraryGroup)}
+          visibleViews={$libraryViewSettings.visibleViews}
           {showSearchInput}
           {searchQuery}
           {readOnly}
           on:viewChange={(event) => handleLibraryViewChange(event.detail)}
+          on:viewVisibilityToggle={(event) => libraryViewSettings.toggleViewVisibility(event.detail)}
           on:back={handleLibraryGroupBack}
           on:searchToggle={handleSearchToggle}
           on:searchInput={(event) => handleSearchInput(event.detail)}

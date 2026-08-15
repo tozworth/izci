@@ -1,5 +1,9 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { LIBRARY_COLUMN_DEFAULT_WIDTHS, libraryViewSettings } from './library-view-settings';
+import {
+  LIBRARY_COLUMN_DEFAULT_WIDTHS,
+  LIBRARY_VIEW_IDS,
+  libraryViewSettings
+} from './library-view-settings';
 
 describe('library view settings', () => {
   beforeEach(() => {
@@ -78,5 +82,48 @@ describe('library view settings', () => {
 
     libraryViewSettings.unpinGroup('artists', 'artists:second');
     expect(libraryViewSettings.getSnapshot().pinnedGroupKeys.artists).toEqual(['artists:first']);
+  });
+
+  it('shows every library view tab by default', () => {
+    expect(libraryViewSettings.getSnapshot().visibleViews).toEqual(LIBRARY_VIEW_IDS);
+  });
+
+  it('toggles library view tabs while keeping canonical order', () => {
+    libraryViewSettings.toggleViewVisibility('genres');
+    libraryViewSettings.toggleViewVisibility('ratings');
+
+    expect(libraryViewSettings.getSnapshot().visibleViews).toEqual([
+      'favorites',
+      'songs',
+      'artists',
+      'albums',
+      'years',
+      'formats',
+      'folders'
+    ]);
+
+    libraryViewSettings.toggleViewVisibility('genres');
+    libraryViewSettings.toggleViewVisibility('ratings');
+    expect(libraryViewSettings.getSnapshot().visibleViews).toEqual(LIBRARY_VIEW_IDS);
+  });
+
+  it('switches the active view when its tab is hidden', () => {
+    libraryViewSettings.setActiveView('artists');
+    libraryViewSettings.toggleViewVisibility('artists');
+
+    const snapshot = libraryViewSettings.getSnapshot();
+    expect(snapshot.visibleViews).not.toContain('artists');
+    expect(snapshot.activeView).toBe('favorites');
+  });
+
+  it('keeps the last visible view tab from being hidden', () => {
+    for (const view of LIBRARY_VIEW_IDS) {
+      if (view !== 'favorites') libraryViewSettings.toggleViewVisibility(view);
+    }
+
+    expect(libraryViewSettings.getSnapshot().visibleViews).toEqual(['favorites']);
+
+    libraryViewSettings.toggleViewVisibility('favorites');
+    expect(libraryViewSettings.getSnapshot().visibleViews).toEqual(['favorites']);
   });
 });
