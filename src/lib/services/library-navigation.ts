@@ -1,5 +1,5 @@
-import { getLibraryGroupIdentities } from '$lib/components/playlist-panel/library-views';
-import type { LibraryGroupViewId, PlaylistItem } from '$lib/types';
+import { getLibraryGroupIdentities } from '$lib/components/track-list-panel/library-views';
+import type { LibraryGroupViewId, TrackItem } from '$lib/types';
 import { getTrackIdentity } from '$lib/utils/files';
 
 export const TRACK_LIBRARY_NAVIGATION_FIELDS = [
@@ -27,9 +27,9 @@ function normalize(value: string | undefined): string {
 }
 
 function findEquivalentLibraryTrack(
-  track: PlaylistItem,
-  libraryItems: PlaylistItem[]
-): PlaylistItem | null {
+  track: TrackItem,
+  libraryItems: TrackItem[]
+): TrackItem | null {
   const directMatch = libraryItems.find((item) => item.id === track.id);
   if (directMatch) return directMatch;
 
@@ -38,7 +38,7 @@ function findEquivalentLibraryTrack(
 }
 
 function findTarget(
-  libraryTrack: PlaylistItem,
+  libraryTrack: TrackItem,
   view: Exclude<LibraryGroupViewId, 'folders'>,
   acceptedLabels?: string[]
 ): TrackLibraryNavigationTarget | null {
@@ -56,8 +56,8 @@ function findTarget(
 }
 
 export function resolveTrackLibraryNavigationTargets(
-  track: PlaylistItem | null,
-  libraryItems: PlaylistItem[]
+  track: TrackItem | null,
+  libraryItems: TrackItem[]
 ): TrackLibraryNavigationTargets {
   if (!track) return {};
 

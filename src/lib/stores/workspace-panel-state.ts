@@ -14,19 +14,19 @@ export const WORKSPACE_PANEL_STATE_STORAGE_KEY = 'izci.workspace-panel-state.v2'
 export const WORKSPACE_PANEL_STATE_CHANNEL = 'izci-workspace-panel-state';
 
 export const DEFAULT_WORKSPACE_PANEL_TABS: WorkspacePanelTabsSettings = {
-  left: ['playlist'],
+  left: ['queue'],
   center: ['library'],
   right: []
 };
 
 export const DEFAULT_WORKSPACE_ACTIVE_TABS: WorkspacePanelActiveTabsSettings = {
-  left: 'playlist',
+  left: 'queue',
   center: 'library',
   right: null
 };
 
 export const DEFAULT_WORKSPACE_LAST_PANEL_BY_TAB: WorkspaceTabPanelMemorySettings = {
-  playlist: 'left',
+  queue: 'left',
   library: 'center',
   details: 'right',
   lyrics: 'right',
@@ -35,18 +35,18 @@ export const DEFAULT_WORKSPACE_LAST_PANEL_BY_TAB: WorkspaceTabPanelMemorySetting
 };
 
 export const DEFAULT_WORKSPACE_PANEL_STATE: WorkspacePanelStateSettings = {
-  activeWorkspaceTab: 'playlist',
-  activeCollection: 'playlist',
+  activeWorkspaceTab: 'queue',
+  activeCollection: 'queue',
   panels: DEFAULT_WORKSPACE_PANEL_TABS,
   openPanels: ['left', 'center'],
   activeTabsByPanel: DEFAULT_WORKSPACE_ACTIVE_TABS,
   lastPanelByTab: DEFAULT_WORKSPACE_LAST_PANEL_BY_TAB,
-  tabbedTabOrder: ['playlist', 'library']
+  tabbedTabOrder: ['queue', 'library']
 };
 
 function isWorkspaceTab(value: unknown): value is WorkspaceTab {
   return (
-    value === 'playlist' ||
+    value === 'queue' ||
     value === 'library' ||
     value === 'details' ||
     value === 'lyrics' ||
@@ -60,11 +60,11 @@ function isWorkspacePanelId(value: unknown): value is WorkspacePanelId {
 }
 
 function normalizeWorkspaceTab(value: unknown): WorkspaceTab {
-  return isWorkspaceTab(value) ? value : 'playlist';
+  return isWorkspaceTab(value) ? value : 'queue';
 }
 
 function normalizeWorkspaceCollection(value: unknown): WorkspaceCollection {
-  return value === 'library' ? 'library' : 'playlist';
+  return value === 'library' ? 'library' : 'queue';
 }
 
 function createEmptyPanels(): WorkspacePanelTabsSettings {
@@ -265,7 +265,7 @@ function normalizePanelState(value: unknown): WorkspacePanelStateSettings {
     ? requestedActiveTab
     : fallbackOpenTab ?? requestedActiveTab;
   const activeCollection =
-    activeWorkspaceTab === 'playlist' || activeWorkspaceTab === 'library'
+    activeWorkspaceTab === 'queue' || activeWorkspaceTab === 'library'
       ? activeWorkspaceTab
       : normalizeWorkspaceCollection(source.activeCollection);
 

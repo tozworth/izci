@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import type { PlaylistItem } from '$lib/types';
+import type { TrackItem } from '$lib/types';
 import { resolveMultiplayerPlayingTrackSelection } from './multiplayer-selection';
 
-function item(id: string): PlaylistItem {
+function item(id: string): TrackItem {
   return {
     id,
     name: `${id}.mp3`,
@@ -15,17 +15,17 @@ function item(id: string): PlaylistItem {
 }
 
 describe('multiplayer playing-track selection', () => {
-  const playlist = [item('a'), item('b'), item('c')];
+  const queue = [item('a'), item('b'), item('c')];
 
   it('selects a newly playing track like local playback does', () => {
-    expect(resolveMultiplayerPlayingTrackSelection('a', 'b', playlist)).toEqual({
+    expect(resolveMultiplayerPlayingTrackSelection('a', 'b', queue)).toEqual({
       observedTrackId: 'b',
       selection: { ids: ['b'], anchorId: 'b', focusId: 'b' }
     });
   });
 
   it('does not replace a manual selection while the same track keeps playing', () => {
-    expect(resolveMultiplayerPlayingTrackSelection('b', 'b', playlist)).toEqual({
+    expect(resolveMultiplayerPlayingTrackSelection('b', 'b', queue)).toEqual({
       observedTrackId: 'b',
       selection: null
     });
@@ -39,7 +39,7 @@ describe('multiplayer playing-track selection', () => {
   });
 
   it('allows the same track to auto-select after playback was cleared', () => {
-    expect(resolveMultiplayerPlayingTrackSelection('b', null, playlist)).toEqual({
+    expect(resolveMultiplayerPlayingTrackSelection('b', null, queue)).toEqual({
       observedTrackId: null,
       selection: null
     });

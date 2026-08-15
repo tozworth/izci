@@ -3,10 +3,10 @@ import type { Unsubscriber } from 'svelte/store';
 import { playerController } from '$lib/services/player-controller';
 import { logError, logInfo } from '$lib/services/logging';
 import type { MultiplayerPlayback } from '$lib/services/multiplayer-protocol';
-import type { PlaybackSnapshot, PlaylistItem } from '$lib/types';
+import type { PlaybackSnapshot, TrackItem } from '$lib/types';
 
 interface SavedPlayback {
-  track: PlaylistItem | null;
+  track: TrackItem | null;
   snapshot: PlaybackSnapshot;
 }
 
@@ -121,13 +121,13 @@ export class MultiplayerSourcePlaybackService {
     this.#applyLatestPlayback(hasTimelineDiscontinuity(previousPlayback, this.#latestPlayback));
   }
 
-  async loadFile(track: PlaylistItem, file: File): Promise<boolean> {
+  async loadFile(track: TrackItem, file: File): Promise<boolean> {
     const playback = this.#latestPlayback;
     if (!playback?.track || playback.track.id !== track.id || track.kind === 'video') return false;
 
     const token = ++this.#loadToken;
     const objectUrl = track.kind === 'stream' ? URL.createObjectURL(file) : undefined;
-    const playableTrack: PlaylistItem = { ...track, file, objectUrl };
+    const playableTrack: TrackItem = { ...track, file, objectUrl };
     const snapshot = playback.snapshot;
     const initialPosition = this.#localTimeline ? 0 : expectedPosition(playback);
     const previousObjectUrl = this.#activeObjectUrl;

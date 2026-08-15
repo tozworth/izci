@@ -1,7 +1,7 @@
 import { Howl } from 'howler';
 import { audioBusService } from '$lib/services/audio-bus';
 import { logDebug, logError, logInfo, logWarning } from '$lib/services/logging';
-import type { PlaybackSnapshot, PlaylistItem, ReplayGainMetadata, ReplayGainMode, TrackMetadata } from '$lib/types';
+import type { PlaybackSnapshot, TrackItem, ReplayGainMetadata, ReplayGainMode, TrackMetadata } from '$lib/types';
 import { applyReplayGain, sliderVolumeToGain } from '$lib/services/volume';
 
 type SnapshotHandler = (snapshot: Partial<PlaybackSnapshot>) => void;
@@ -54,7 +54,7 @@ export class HowlerPlayerService {
     this.#onEnded = onEnded;
   }
 
-  load(track: PlaylistItem, options: StreamLoadOptions = {}): Promise<void> {
+  load(track: TrackItem, options: StreamLoadOptions = {}): Promise<void> {
     if (!track.objectUrl) {
       throw new Error('Expected an object URL for streamable audio.');
     }

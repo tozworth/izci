@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { PlaylistItem } from '$lib/types';
+import type { TrackItem } from '$lib/types';
 import {
   listenForCurrentToolTrack,
   OPEN_CURRENT_TOOL_TRACK_MESSAGE,
@@ -14,7 +14,7 @@ describe('tool track context', () => {
   it('responds to a same-origin request with the materialized current track', () => {
     const postMessage = vi.fn();
     const file = new File(['audio'], 'song.mp3', { type: 'audio/mpeg' });
-    const track: PlaylistItem = {
+    const track: TrackItem = {
       id: 'track',
       file,
       name: file.name,

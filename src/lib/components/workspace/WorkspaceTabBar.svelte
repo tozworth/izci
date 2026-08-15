@@ -29,7 +29,7 @@
 
   function getTabLabel(tab: WorkspaceTabDefinition): string {
     switch (tab.id) {
-      case 'playlist': return $t('workspace.tabs.playlist', { default: 'Playlist' });
+      case 'queue': return $t('workspace.tabs.queue', { default: 'Queue' });
       case 'library': return $t('workspace.tabs.library', { default: 'Library' });
       case 'details': return $t('workspace.tabs.details', { default: 'Details' });
       case 'lyrics': return $t('workspace.tabs.lyrics', { default: 'Lyrics' });

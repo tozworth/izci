@@ -176,7 +176,7 @@
           </span>
         </span>
         <span class="multiplayer-mode-description">
-          {$t('options.experimental.multiplayer.modes.coop.hint', { default: 'Clients can control the host’s playlist and playback. Good for HTPCs, parties.' })}
+          {$t('options.experimental.multiplayer.modes.coop.hint', { default: 'Clients can control the host’s queue and playback. Good for HTPCs, parties.' })}
         </span>
       </button>
       <button

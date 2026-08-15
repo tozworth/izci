@@ -114,7 +114,6 @@
       "logs": "Kayıtlar...",
       "forceUpdate": "Zorla güncelle",
       "about": "Hakkında",
-      "playlist": "Liste",
       "library": "Kütüphane",
       "trackDetails": "Parça Detayları",
       "lyrics": "Sözler",
@@ -141,7 +140,8 @@
       "abLoopSetEnd": "Döngü sonunu ayarla (B)",
       "abLoopToggle": "A-B döngüsü",
       "abLoopActive": "Döngü: {start}–{end}",
-      "abLoopClear": "Döngüyü temizle"
+      "abLoopClear": "Döngüyü temizle",
+      "queue": "Sıra"
     },
     "miniPlayer": {
       "heading": "Mini oynatıcı",
@@ -269,134 +269,6 @@
       "playback": "Video oynatma"
     }
   },
-  "playlist": {
-    "library": {
-      "openGroup": "{group} grubunu aç",
-      "collapseFolder": "{folder} klasörünü daralt",
-      "expandFolder": "{folder} klasörünü genişlet",
-      "unpinNamed": "{group} sabitlemesini kaldır",
-      "unpin": "Sabitlemeyi kaldır",
-      "groupSongCount": "{count, plural, one {# parça} other {# parça}}",
-      "views": {
-        "favorites": "Favoriler",
-        "ratings": "Puanlar",
-        "songs": "Parçalar",
-        "artists": "Sanatçılar",
-        "albums": "Albümler",
-        "genres": "Tarzlar",
-        "years": "Yıllar",
-        "formats": "Türler",
-        "folders": "Klasörler",
-        "label": "Kütüphane görünümleri"
-      },
-      "search": "Kütüphaneyi ara",
-      "closeSearch": "Kütüphane aramayı kapat",
-      "backToGroups": "Gruplara geri dön",
-      "back": "Geri",
-      "filter": "Kütüphaneyi filtrele",
-      "title": "Kütüphane",
-      "unknownArtist": "Bilinmeyen sanatçı",
-      "unknownAlbum": "Bilinmeyen albüm",
-      "unknownGenre": "Bilinmeyen tarz",
-      "unknownYear": "Bilinmeyen yıl",
-      "unknownFormat": "Bilinmeyen tür",
-      "unknownFolder": "Bilinmeyen klasör",
-      "trackerModule": "İzci modülü",
-      "stream": "Akış",
-      "video": "Video",
-      "columns": {
-        "title": "Başlık",
-        "artist": "Sanatçı",
-        "album": "Albüm",
-        "discAndTrack": "Parça",
-        "folder": "Klasör",
-        "format": "Tür",
-        "duration": "Süre",
-        "rating": "Puan",
-        "plays": "Yürütme sayısı",
-        "lastPlayed": "Son çalınma",
-        "resize": "{column} sütununu boyutlandır",
-        "sortBy": "{column} sütununa göre sırala"
-      },
-      "summary": {
-        "filteredArtists": "{visible} sanatçıdan {total} {total, plural, one {} other {}}",
-        "filteredAlbums": "{visible} albümden {total} {total, plural, one {} other {}}",
-        "filteredGenres": "{visible} tarzdan {total} {total, plural, one {} other {}}",
-        "filteredYears": "{visible} yıldan {total} {total, plural, one {} other {}}",
-        "filteredFormats": "{visible} türden {total} {total, plural, one {} other {}}",
-        "filteredFolders": "{visible} klasörden {total} {total, plural, one {} other {}}",
-        "artists": "{count, plural, one {# sanatçı} other {# sanatçı}}",
-        "albums": "{count, plural, one {# albüm} other {# albüm}}",
-        "genres": "{count, plural, one {# tarz} other {# tarz}}",
-        "years": "{count, plural, one {# yıl} other {# yıl}}",
-        "formats": "{count, plural, one {# tür} other {# tür}}",
-        "folders": "{count, plural, one {# klasör} other {# klasör}}",
-        "groupsAndSongs": "{groups} · {songs, plural, one {# parça} other {# parça}}"
-      },
-      "pinToTop": "Üste sabitle",
-      "noResults": "\"{query}\" ile eşleşen kütüphane ögesi yok.",
-      "favoritesEmpty": "Favorilenen parça ve altparçalar burada görünür.",
-      "ratingsEmpty": "Puanlanan parçalar burada görünür.",
-      "empty": "Kütüphaneniz boş. Dosya veya klasör sürükleyin."
-    },
-    "addFiles": "Dosya ekle",
-    "searchPlaceholder": "Ara",
-    "shuffle": {
-      "disable": "Karıştırmayı kapat",
-      "enable": "Karıştırmayı aç",
-      "on": "Karıştır açık",
-      "off": "Karıştır kapalı"
-    },
-    "title": "Liste",
-    "summary": {
-      "filteredTracks": "{total} parçadan {visible} {total, plural, one {görünür} other {görünür}} · {duration}",
-      "tracks": "{count, plural, one {# parça} other {# parça}} · {duration}"
-    },
-    "actions": {
-      "goTo": "Git...",
-      "trackDetails": "Parça detayları",
-      "copyFilename": "Dosya adını kopyala",
-      "removeFromLibrary": "Kütüphaneden kaldır",
-      "addToLibrary": "Kütüphaneye ekle",
-      "removeFromFavorites": "Favorilerden kaldır",
-      "addToFavorites": "Favorilere ekle",
-      "rate": "Puanla",
-      "clearRating": "Puanı temizle",
-      "separateSubsongs": "Altparçaları böl",
-      "addToPlaylist": "Listeye ekle",
-      "replacePlaylist": "Listeyi değiştir",
-      "shufflePlay": "Karışık çal",
-      "resetPlayCount": "Çalma sayısını sıfırla",
-      "randomize": "Rastgele sırala",
-      "playNext": "Sonra çal",
-      "addToQueue": "Sıraya ekle",
-      "removeFromQueue": "Sıradan kaldır",
-      "remove": "Listeden kaldır"
-    },
-    "shortcuts": {
-      "delete": "Delete"
-    },
-    "repeat": {
-      "currentTrack": "Mevcut parçayı tekrarla",
-      "playlist": "Listeyi tekrarla",
-      "off": "Tekrar kapalı"
-    },
-    "contextMenu": {
-      "libraryGroupActions": "Kütüphane grubu eylemleri",
-      "itemActions": "{panel} ögesi eylemleri",
-      "panelActions": "Çalma listesi eylemleri",
-      "columns": "{panel} sütunları"
-    },
-    "listRegion": "{name} listesi",
-    "queue": {
-      "title": "Sıra",
-      "count": "{count, plural, one {# parça sırada} other {# parça sırada}}",
-      "empty": "Sıra boş",
-      "clear": "Sırayı temizle",
-      "resize": "Sıra boyutunu değiştir",
-      "contextMenu": "Sıra öğesi eylemleri"
-    }
-  },
   "workspace": {
     "nowPlaying": {
       "exit": "Şimdi Yürütülüyor'dan çık",
@@ -418,7 +290,6 @@
     "resizePanels": "{before} ile {after} arasını yeniden boyutlandır",
     "dropOnPanel": "{panel} üzerine bırak",
     "tabs": {
-      "playlist": "Liste",
       "library": "Kütüphane",
       "details": "Detaylar",
       "lyrics": "Sözler",
@@ -426,7 +297,8 @@
       "video": "Video",
       "label": "Çalışma alanı sekmeleri",
       "close": "Kapat",
-      "closeNamed": "{tab} sekmesini kapat"
+      "closeNamed": "{tab} sekmesini kapat",
+      "queue": "Sıra"
     }
   },
   "pwa": {
@@ -686,17 +558,17 @@
         },
         "idleQuips": {
           "title": "Boştayken nükte göster",
-          "hint": "Çalma listesinde veya kütüphanede müzik varken boş oynatıcı çubuğunda rastgele bir nükte gösterir."
+          "hint": "Sırada veya kütüphanede müzik varken boş oynatıcı çubuğunda rastgele bir nükte gösterir."
         },
         "windowTitle": {
           "title": "Pencere başlığında parça adını göster",
           "hint": "Geçerli parça başlığını izci başlığında gösterir. Her zaman \"izci\" göstermek için kapatın."
         },
-        "alwaysQueue": {
-          "title": "Sırayı her zaman göster",
-          "hint": "Sıra panelini Playlist altında açık ve görünür tutar, sıra boş olsa bile."
-        },
-        "heading": "Arayüz"
+        "heading": "Arayüz",
+        "alwaysUpNext": {
+          "title": "Sıradakileri her zaman göster",
+          "hint": "Sıradaki panelini Sıra sekmesinin altında açık ve görünür tutar, boş olsa bile."
+        }
       },
       "font": {
         "system": "Sistem",
@@ -811,7 +683,7 @@
           },
           "coop": {
             "title": "Ko-op",
-            "hint": "İstemciler sunucunun çalma listesini ve oynatmayı kontrol edebilir. HTPC'ler ve partiler için uygundur."
+            "hint": "İstemciler sunucunun sırasını ve oynatmayı kontrol edebilir. HTPC'ler ve partiler için uygundur."
           },
           "coopAudio": {
             "title": "Ko-op + ses",
@@ -1323,15 +1195,11 @@
         "title": "Eklenen dosyaları doğrula",
         "hint": "Bilinmeyen dosya uzantılarını önce ayrı bir OpenMPT'de bi güzel kontrol eder. Kapalıysa izci, bilinmeyen her dosyayı izci modülü olarak ekler ve çalışıp çalışmadığını görmeyi size bırakır. Resmî OpenMPT uzantıları her türlü kabul edilir."
       },
-      "deduplicatePlaylist": {
-        "title": "Çalma listesine eklenenleri tekilleştir",
-        "hint": "Çalma listesinde zaten bulunan parçaları ve aynı eklemede yinelenen parçaları atlar."
-      },
       "associatedFiles": {
         "title": "izci ile açılan dosyalar",
-        "hint": "İşletim sistemi dosya ilişkilendirmeleri üzerinden açılan dosyaların çalma listesini nasıl etkileyeceğini seçer.",
-        "add": "Listeye eklenir",
-        "replace": "Listeyi değiştirir"
+        "hint": "İşletim sistemi dosya ilişkilendirmeleri üzerinden açılan dosyaların sırayı nasıl etkileyeceğini seçer.",
+        "add": "Sıraya eklenir",
+        "replace": "Sırayı değiştirir"
       },
       "playerBar": {
         "heading": "Oynatma Çubuğu"
@@ -1344,6 +1212,10 @@
         "heading": "Puanlar",
         "title": "Parça puanlarını etkinleştir",
         "hint": "Yarım yıldızlı puanlama kontrollerini ve Puan kütüphane sütununu gösterir. Bunu kapatmak puanları silmeden gizler."
+      },
+      "deduplicateQueue": {
+        "title": "Sıraya eklenenleri tekilleştir",
+        "hint": "Sırada zaten bulunan parçaları ve aynı eklemede yinelenen parçaları atlar."
       }
     },
     "video": {
@@ -2194,5 +2066,133 @@
     "toolbar": "Spektrogram araçları",
     "analyzing": "Spektrum inceleniyor...",
     "title": "Spektrogram"
+  },
+  "library": {
+    "openGroup": "{group} grubunu aç",
+    "collapseFolder": "{folder} klasörünü daralt",
+    "expandFolder": "{folder} klasörünü genişlet",
+    "unpinNamed": "{group} sabitlemesini kaldır",
+    "unpin": "Sabitlemeyi kaldır",
+    "groupSongCount": "{count, plural, one {# parça} other {# parça}}",
+    "views": {
+      "favorites": "Favoriler",
+      "ratings": "Puanlar",
+      "songs": "Parçalar",
+      "artists": "Sanatçılar",
+      "albums": "Albümler",
+      "genres": "Tarzlar",
+      "years": "Yıllar",
+      "formats": "Türler",
+      "folders": "Klasörler",
+      "label": "Kütüphane görünümleri"
+    },
+    "search": "Kütüphaneyi ara",
+    "closeSearch": "Kütüphane aramayı kapat",
+    "backToGroups": "Gruplara geri dön",
+    "back": "Geri",
+    "filter": "Kütüphaneyi filtrele",
+    "title": "Kütüphane",
+    "unknownArtist": "Bilinmeyen sanatçı",
+    "unknownAlbum": "Bilinmeyen albüm",
+    "unknownGenre": "Bilinmeyen tarz",
+    "unknownYear": "Bilinmeyen yıl",
+    "unknownFormat": "Bilinmeyen tür",
+    "unknownFolder": "Bilinmeyen klasör",
+    "trackerModule": "İzci modülü",
+    "stream": "Akış",
+    "video": "Video",
+    "columns": {
+      "title": "Başlık",
+      "artist": "Sanatçı",
+      "album": "Albüm",
+      "discAndTrack": "Parça",
+      "folder": "Klasör",
+      "format": "Tür",
+      "duration": "Süre",
+      "rating": "Puan",
+      "plays": "Yürütme sayısı",
+      "lastPlayed": "Son çalınma",
+      "resize": "{column} sütununu boyutlandır",
+      "sortBy": "{column} sütununa göre sırala"
+    },
+    "summary": {
+      "filteredArtists": "{visible} sanatçıdan {total} {total, plural, one {} other {}}",
+      "filteredAlbums": "{visible} albümden {total} {total, plural, one {} other {}}",
+      "filteredGenres": "{visible} tarzdan {total} {total, plural, one {} other {}}",
+      "filteredYears": "{visible} yıldan {total} {total, plural, one {} other {}}",
+      "filteredFormats": "{visible} türden {total} {total, plural, one {} other {}}",
+      "filteredFolders": "{visible} klasörden {total} {total, plural, one {} other {}}",
+      "artists": "{count, plural, one {# sanatçı} other {# sanatçı}}",
+      "albums": "{count, plural, one {# albüm} other {# albüm}}",
+      "genres": "{count, plural, one {# tarz} other {# tarz}}",
+      "years": "{count, plural, one {# yıl} other {# yıl}}",
+      "formats": "{count, plural, one {# tür} other {# tür}}",
+      "folders": "{count, plural, one {# klasör} other {# klasör}}",
+      "groupsAndSongs": "{groups} · {songs, plural, one {# parça} other {# parça}}"
+    },
+    "pinToTop": "Üste sabitle",
+    "noResults": "\"{query}\" ile eşleşen kütüphane ögesi yok.",
+    "favoritesEmpty": "Favorilenen parça ve altparçalar burada görünür.",
+    "ratingsEmpty": "Puanlanan parçalar burada görünür.",
+    "empty": "Kütüphaneniz boş. Dosya veya klasör sürükleyin."
+  },
+  "queue": {
+    "addFiles": "Dosya ekle",
+    "searchPlaceholder": "Ara",
+    "shuffle": {
+      "disable": "Karıştırmayı kapat",
+      "enable": "Karıştırmayı aç",
+      "on": "Karıştır açık",
+      "off": "Karıştır kapalı"
+    },
+    "title": "Sıra",
+    "summary": {
+      "filteredTracks": "{total} parçadan {visible} {total, plural, one {görünür} other {görünür}} · {duration}",
+      "tracks": "{count, plural, one {# parça} other {# parça}} · {duration}"
+    },
+    "actions": {
+      "goTo": "Git...",
+      "trackDetails": "Parça detayları",
+      "copyFilename": "Dosya adını kopyala",
+      "removeFromLibrary": "Kütüphaneden kaldır",
+      "addToLibrary": "Kütüphaneye ekle",
+      "removeFromFavorites": "Favorilerden kaldır",
+      "addToFavorites": "Favorilere ekle",
+      "rate": "Puanla",
+      "clearRating": "Puanı temizle",
+      "separateSubsongs": "Altparçaları böl",
+      "addToQueue": "Listeye ekle",
+      "replaceQueue": "Listeyi değiştir",
+      "shufflePlay": "Karışık çal",
+      "resetPlayCount": "Çalma sayısını sıfırla",
+      "randomize": "Rastgele sırala",
+      "playNext": "Sonra çal",
+      "remove": "Listeden kaldır",
+      "addToUpNext": "Sıradakilere ekle",
+      "removeFromUpNext": "Sıradakilerden kaldır"
+    },
+    "shortcuts": {
+      "delete": "Delete"
+    },
+    "repeat": {
+      "currentTrack": "Mevcut parçayı tekrarla",
+      "off": "Tekrar kapalı",
+      "queue": "Sırayı tekrarla"
+    },
+    "contextMenu": {
+      "libraryGroupActions": "Kütüphane grubu eylemleri",
+      "itemActions": "{panel} ögesi eylemleri",
+      "panelActions": "Sıra eylemleri",
+      "columns": "{panel} sütunları"
+    },
+    "listRegion": "{name} listesi",
+    "upNext": {
+      "title": "Sıradaki",
+      "count": "{count, plural, one {# parça sırada} other {# parça sırada}}",
+      "empty": "Sırada parça yok",
+      "clear": "Sıradakileri temizle",
+      "resize": "Sıradakilerin boyutunu değiştir",
+      "contextMenu": "Sıradaki öğe eylemleri"
+    }
   }
 }

@@ -35,7 +35,7 @@ describe('normalizeTroubadourSettings', () => {
 
   it('rejects invalid enums instead of carrying unreleased settings shapes forward', () => {
     const settings = normalizeTroubadourSettings({
-      initialLoad: 'playlist',
+      initialLoad: 'queue',
       externalChangeBehavior: 'overwrite',
       copyVerification: 'none'
     });

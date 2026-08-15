@@ -33,7 +33,7 @@
   } from '$lib/services/ab-loop';
   import type {
     MenuActionItem,
-    PlaylistItem,
+    TrackItem,
     VideoFitMode,
     WindowMenuGroup,
     WindowMenuSubtitleTone
@@ -65,7 +65,7 @@
     | 'openConverter'
     | 'openLogs'
     | 'openTroubadour'
-    | 'showPlaylist'
+    | 'showQueue'
     | 'showLibrary'
     | 'showTrackDetails'
     | 'showLyrics'
@@ -636,7 +636,7 @@
   export let videoTheaterActive = false;
   export let installAvailable = false;
   export let showInstallHint = false;
-  export let playingTrack: PlaylistItem | null = null;
+  export let playingTrack: TrackItem | null = null;
   export let playbackTime = 0;
   export let height = 0;
   export let multiplayerEnabled = false;
@@ -672,7 +672,7 @@
     openConverter: void;
     openLogs: void;
     openTroubadour: void;
-    showPlaylist: void;
+    showQueue: void;
     showLibrary: void;
     showTrackDetails: void;
     showLyrics: void;
@@ -769,8 +769,8 @@
 
   $: viewMenuItems = [
     {
-      id: 'showPlaylist',
-      label: $t('main.menu.playlist', { default: 'Playlist' }),
+      id: 'showQueue',
+      label: $t('main.menu.queue', { default: 'Queue' }),
       icon: 'queue_music'
     },
     {

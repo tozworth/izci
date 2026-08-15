@@ -11,7 +11,7 @@ import type {
   ModulePatternSong,
   ModulePlaybackSettings,
   PlaybackSnapshot,
-  PlaylistItem,
+  TrackItem,
   TrackMetadata
 } from '$lib/types';
 
@@ -90,7 +90,7 @@ export class HivelyPlayerService {
     this.#onEnded = onEnded;
   }
 
-  async load(track: PlaylistItem): Promise<void> {
+  async load(track: TrackItem): Promise<void> {
     if (!track.file) throw new Error('Expected a file for Hively playback.');
 
     this.#disposeNode();

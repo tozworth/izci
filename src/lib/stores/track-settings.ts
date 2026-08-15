@@ -10,7 +10,7 @@ export const MAX_FOLDER_NESTING_LIMIT = 64;
 export const DEFAULT_TRACK_SETTINGS: TrackSettings = {
   folderNestingLimit: DEFAULT_FOLDER_NESTING_LIMIT,
   verifyAddedFiles: false,
-  deduplicatePlaylist: true,
+  deduplicateQueue: true,
   associatedFileAction: 'replace',
   showFavoriteToggleInPlayerBar: false,
   enableRatings: true
@@ -43,10 +43,10 @@ export function normalizeTrackSettings(value: unknown): TrackSettings {
       typeof source.verifyAddedFiles === 'boolean'
         ? source.verifyAddedFiles
         : DEFAULT_TRACK_SETTINGS.verifyAddedFiles,
-    deduplicatePlaylist:
-      typeof source.deduplicatePlaylist === 'boolean'
-        ? source.deduplicatePlaylist
-        : DEFAULT_TRACK_SETTINGS.deduplicatePlaylist,
+    deduplicateQueue:
+      typeof source.deduplicateQueue === 'boolean'
+        ? source.deduplicateQueue
+        : DEFAULT_TRACK_SETTINGS.deduplicateQueue,
     associatedFileAction:
       source.associatedFileAction === 'add' || source.associatedFileAction === 'replace'
         ? source.associatedFileAction

@@ -76,7 +76,7 @@ export const MODULE_EXTENSIONS = [
 export type TrackKind = 'stream' | 'module' | 'video';
 export type PlaybackState = 'idle' | 'loading' | 'playing' | 'paused' | 'ended' | 'error';
 export type ModuleInterpolationFilter = 1 | 2 | 4 | 8;
-export type PlaylistRepeatMode = 'off' | 'one' | 'all';
+export type RepeatMode = 'off' | 'one' | 'all';
 export type PlaybackRestoreMode = 'disabled' | 'position' | 'position-and-state';
 export type PlaybackTransitionMode = 'none' | 'fadeout' | 'crossfade';
 export type SortDirection = 'asc' | 'desc';
@@ -116,14 +116,14 @@ export type VisualizerStyle = 'wave' | 'bars' | 'mirror' | 'blocks' | 'triangles
 export type VisualizerColorSource = 'theme' | 'artwork';
 export type LyricsDisplayStyle = 'plain' | 'timestamped' | 'theater';
 export type LyricsFontSizeSettings = Record<LyricsDisplayStyle, number>;
-export type WorkspaceCollection = 'playlist' | 'library';
+export type WorkspaceCollection = 'queue' | 'library';
 export type WorkspaceTab = WorkspaceCollection | 'details' | 'lyrics' | 'patterns' | 'video';
 export type ContextualWorkspaceTab = Extract<WorkspaceTab, 'lyrics' | 'patterns'>;
 export type ContextualTabAutomation = 'manual' | 'open' | 'open-close';
 export type ContextualTabSettings = Record<ContextualWorkspaceTab, ContextualTabAutomation>;
 export type WorkspacePanelId = 'left' | 'center' | 'right';
 export const WORKSPACE_TABS: WorkspaceTab[] = [
-  'playlist',
+  'queue',
   'library',
   'details',
   'lyrics',
@@ -327,7 +327,7 @@ export interface MetadataSettings {
 export interface TrackSettings {
   folderNestingLimit: number;
   verifyAddedFiles: boolean;
-  deduplicatePlaylist: boolean;
+  deduplicateQueue: boolean;
   associatedFileAction: 'add' | 'replace';
   showFavoriteToggleInPlayerBar: boolean;
   enableRatings: boolean;
@@ -378,7 +378,7 @@ export interface AppearanceSettings {
   compactPlayerBar: boolean;
   keepLibraryColumnsVisibleInNarrowLayout: boolean;
   keepEmptyWorkspacePanelsOpen: boolean;
-  alwaysShowQueue: boolean;
+  alwaysShowUpNext: boolean;
   showLibraryAlbumArtworkBackdrop: boolean;
   showIdlePlayerQuips: boolean;
   fontFamily: string;
@@ -497,7 +497,7 @@ export interface LoadoutState {
   loadouts: Loadout[];
 }
 
-export interface PlaylistItem {
+export interface TrackItem {
   id: string;
   file?: File;
   fileHandle?: FileSystemFileHandle;
@@ -512,19 +512,19 @@ export interface PlaylistItem {
   metadata?: TrackMetadata;
   /** App-owned half-star rating from 0.5 through 5. */
   rating?: number;
-  /** Zero-based module subsong selected by a separated playlist entry. */
+  /** Zero-based module subsong selected by a separated queue entry. */
   subsong?: number;
 }
 
-export interface PlaylistSelection {
+export interface TrackSelection {
   ids: string[];
   anchorId: string | null;
   focusId: string | null;
 }
 
-export interface PlaylistPlaybackOptions {
+export interface PlaybackOptions {
   shuffle: boolean;
-  repeatMode: PlaylistRepeatMode;
+  repeatMode: RepeatMode;
 }
 
 export interface MenuActionItem {

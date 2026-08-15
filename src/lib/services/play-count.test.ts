@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
 import { createPlayCountTracker } from './play-count';
-import type { PlaylistItem } from '$lib/types';
+import type { TrackItem } from '$lib/types';
 
-function item(id: string, overrides: Partial<PlaylistItem> = {}): PlaylistItem {
+function item(id: string, overrides: Partial<TrackItem> = {}): TrackItem {
   return {
     id,
     name: `${id}.flac`,
@@ -54,7 +54,7 @@ describe('play count tracker', () => {
     vi.useRealTimers();
   });
 
-  it('does not count playlist-only tracks and resets when playback pauses', () => {
+  it('does not count queue-only tracks and resets when playback pauses', () => {
     vi.useFakeTimers();
     const increment = vi.fn();
     const recordLastPlayed = vi.fn();
@@ -62,11 +62,11 @@ describe('play count tracker', () => {
       incrementLibraryPlayCount: increment,
       recordLibraryLastPlayed: recordLastPlayed
     });
-    const playlistTrack = item('playlist-track', { path: '/Music/Track.flac' });
+    const queueTrack = item('queue-track', { path: '/Music/Track.flac' });
     const libraryTrack = item('library-track', { path: '/Music/Track.flac' });
 
     tracker.sync({
-      track: item('random-playlist-track', { path: '/Music/Other.flac' }),
+      track: item('random-queue-track', { path: '/Music/Other.flac' }),
       playbackState: 'playing',
       libraryItems: [libraryTrack],
       thresholdSeconds: 15
@@ -75,14 +75,14 @@ describe('play count tracker', () => {
     expect(increment).not.toHaveBeenCalled();
 
     tracker.sync({
-      track: playlistTrack,
+      track: queueTrack,
       playbackState: 'playing',
       libraryItems: [libraryTrack],
       thresholdSeconds: 15
     });
     vi.advanceTimersByTime(14000);
     tracker.sync({
-      track: playlistTrack,
+      track: queueTrack,
       playbackState: 'paused',
       libraryItems: [libraryTrack],
       thresholdSeconds: 15
@@ -91,7 +91,7 @@ describe('play count tracker', () => {
     expect(increment).not.toHaveBeenCalled();
 
     tracker.sync({
-      track: playlistTrack,
+      track: queueTrack,
       playbackState: 'playing',
       libraryItems: [libraryTrack],
       thresholdSeconds: 15

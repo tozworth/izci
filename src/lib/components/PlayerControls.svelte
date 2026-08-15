@@ -19,8 +19,8 @@
     getPlaybackBookmarks,
     type PlaybackBookmark
   } from '$lib/services/playback-bookmarks';
-  import { portal } from '$lib/components/playlist-panel/actions/portal';
-  import { windowDismiss } from '$lib/components/playlist-panel/actions/window-dismiss';
+  import { portal } from '$lib/components/track-list-panel/actions/portal';
+  import { windowDismiss } from '$lib/components/track-list-panel/actions/window-dismiss';
   import {
     appearanceSettings,
     hasArtworkBackdrop,
@@ -34,7 +34,7 @@
     BackdropZoneEffect,
     MenuActionItem,
     PlaybackSnapshot,
-    PlaylistItem,
+    TrackItem,
     RafPreset
   } from '$lib/types';
 
@@ -65,8 +65,8 @@
   }
 
   export let snapshotStore: Readable<PlaybackSnapshot>;
-  export let track: PlaylistItem | null = null;
-  export let selectedTrack: PlaylistItem | null = null;
+  export let track: TrackItem | null = null;
+  export let selectedTrack: TrackItem | null = null;
   export let artwork: LoadedStreamArtwork | null = null;
   export let artworkBackgroundBright = false;
   export let backdropEffect: BackdropZoneEffect = 'visualizer';

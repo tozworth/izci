@@ -12,7 +12,7 @@ import {
   resolveResizedPanelLayout,
   resolveWidePanelWidths
 } from '$lib/services/workspace-layout';
-import { libraryStore, playlistStore } from '$lib/stores/playlist';
+import { libraryStore, queueStore } from '$lib/stores/queue';
 import { workspacePanelLayout } from '$lib/stores/workspace-panel-layout';
 import { libraryViewSettings } from '$lib/stores/library-view-settings';
 import {
@@ -21,9 +21,9 @@ import {
 } from '$lib/stores/workspace-panel-state';
 import type {
   MenuActionItem,
-  PlaylistItem,
-  PlaylistRepeatMode,
-  PlaylistSelection,
+  TrackItem,
+  RepeatMode,
+  TrackSelection,
   WorkspaceCollection,
   WorkspaceJumpRequest,
   WorkspaceLibraryGroupRequest,
@@ -40,7 +40,7 @@ import { WORKSPACE_PANEL_IDS } from '$lib/types';
 import { getOtherWorkspaceCollection } from '$lib/services/workspace-actions';
 import { moveDockTab } from '$lib/services/dock-layout';
 
-type TrackCollectionStore = typeof playlistStore;
+type TrackCollectionStore = typeof queueStore;
 
 type PanelResizeState = {
   handle: WorkspaceResizeHandle;
@@ -51,10 +51,10 @@ type PanelResizeState = {
 
 interface WorkspaceShellInputs {
   innerWidth: number;
-  playlistItems: PlaylistItem[];
-  libraryItems: PlaylistItem[];
-  favoriteItems: PlaylistItem[];
-  playlistSelectionIds: string[];
+  queueItems: TrackItem[];
+  libraryItems: TrackItem[];
+  favoriteItems: TrackItem[];
+  queueSelectionIds: string[];
   librarySelectionIds: string[];
   librarySelectionAnchorId: string | null;
   favoriteSelectionIds: string[];
@@ -62,13 +62,13 @@ interface WorkspaceShellInputs {
   favoritePlayingId: string | null;
   playingTrackId: string | null;
   shuffleEnabled: boolean;
-  repeatMode: PlaylistRepeatMode;
+  repeatMode: RepeatMode;
   keepEmptyWorkspacePanelsOpen: boolean;
   readOnly?: boolean;
 }
 
 interface CreateWorkspaceShellControllerOptions {
-  getPlaylistContextActions: (ids: string[]) => MenuActionItem[];
+  getQueueContextActions: (ids: string[]) => MenuActionItem[];
   getLibraryContextActions: (ids: string[]) => MenuActionItem[];
   collectionSelection?: {
     clear: (collection: WorkspaceCollection) => void;
@@ -77,7 +77,7 @@ interface CreateWorkspaceShellControllerOptions {
       id: string,
       options?: { range?: boolean; toggle?: boolean }
     ) => void;
-    set: (collection: WorkspaceCollection, selection: PlaylistSelection) => void;
+    set: (collection: WorkspaceCollection, selection: TrackSelection) => void;
     selectAll: (collection: WorkspaceCollection) => void;
   };
 }
@@ -97,14 +97,14 @@ export interface WorkspaceShellState {
   visibleWorkspacePanels: WorkspacePanelId[];
   workspacePanels: WorkspacePanelDefinition[];
   workspaceTabs: WorkspaceTabDefinition[];
-  playlistPanelProps: WorkspacePanelProps;
+  queuePanelProps: WorkspacePanelProps;
   libraryPanelProps: WorkspacePanelProps;
-  playlistJumpRequest: WorkspaceJumpRequest | null;
+  queueJumpRequest: WorkspaceJumpRequest | null;
   libraryGroupRequest: WorkspaceLibraryGroupRequest | null;
 }
 
 const allWorkspaceTabs: Record<WorkspaceTab, WorkspaceTabDefinition> = {
-  playlist: { id: 'playlist', icon: 'queue_music', label: 'Playlist' },
+  queue: { id: 'queue', icon: 'queue_music', label: 'Queue' },
   library: { id: 'library', icon: 'library_music', label: 'Library' },
   details: { id: 'details', icon: 'info', label: 'Details' },
   lyrics: { id: 'lyrics', icon: 'lyrics', label: 'Lyrics' },
@@ -113,7 +113,7 @@ const allWorkspaceTabs: Record<WorkspaceTab, WorkspaceTabDefinition> = {
 };
 
 function isWorkspaceCollection(tab: WorkspaceTab): tab is WorkspaceCollection {
-  return tab === 'playlist' || tab === 'library';
+  return tab === 'queue' || tab === 'library';
 }
 
 function isWorkspaceTabOpen(settings: WorkspacePanelStateSettings, tab: WorkspaceTab): boolean {
@@ -142,7 +142,7 @@ function cloneLastPanelByTab(
   lastPanelByTab: WorkspaceTabPanelMemorySettings
 ): WorkspaceTabPanelMemorySettings {
   return {
-    playlist: lastPanelByTab.playlist,
+    queue: lastPanelByTab.queue,
     library: lastPanelByTab.library,
     details: lastPanelByTab.details,
     lyrics: lastPanelByTab.lyrics,
@@ -332,19 +332,19 @@ function buildWorkspaceTabs(settings: WorkspacePanelStateSettings): WorkspaceTab
     .map((tab) => allWorkspaceTabs[tab]);
 }
 
-function createPlaylistPanelProps(
-  getPlaylistContextActions: (ids: string[]) => MenuActionItem[]
+function createQueuePanelProps(
+  getQueueContextActions: (ids: string[]) => MenuActionItem[]
 ): WorkspacePanelProps {
   return {
     items: [],
     selectedIds: [],
     playingId: null,
     jumpToItemRequest: null,
-    panelTitle: 'Playlist',
-    regionLabel: 'Playlist',
+    panelTitle: 'Queue',
+    regionLabel: 'Queue',
     shuffleEnabled: false,
     repeatMode: 'off',
-    getContextMenuActions: getPlaylistContextActions
+    getContextMenuActions: getQueueContextActions
   };
 }
 
@@ -367,7 +367,7 @@ function createLibraryPanelProps(
 }
 
 function createInitialState(
-  getPlaylistContextActions: (ids: string[]) => MenuActionItem[],
+  getQueueContextActions: (ids: string[]) => MenuActionItem[],
   getLibraryContextActions: (ids: string[]) => MenuActionItem[]
 ): WorkspaceShellState {
   const savedPanelState = workspacePanelState.getSnapshot();
@@ -397,15 +397,15 @@ function createInitialState(
       responsivePanels.collapsedPanels
     ),
     workspaceTabs: buildWorkspaceTabs(savedPanelState),
-    playlistJumpRequest: null,
+    queueJumpRequest: null,
     libraryGroupRequest: null,
-    playlistPanelProps: createPlaylistPanelProps(getPlaylistContextActions),
+    queuePanelProps: createQueuePanelProps(getQueueContextActions),
     libraryPanelProps: createLibraryPanelProps(getLibraryContextActions)
   };
 }
 
 export function createWorkspaceShellController({
-  getPlaylistContextActions,
+  getQueueContextActions,
   getLibraryContextActions,
   collectionSelection
 }: CreateWorkspaceShellControllerOptions) {
@@ -413,7 +413,7 @@ export function createWorkspaceShellController({
   let savedPanelState = workspacePanelState.getSnapshot();
   let resizeState: PanelResizeState | null = null;
   let lastInputs: WorkspaceShellInputs | null = null;
-  let state = createInitialState(getPlaylistContextActions, getLibraryContextActions);
+  let state = createInitialState(getQueueContextActions, getLibraryContextActions);
   let libraryGroupRequestToken = 0;
   const store = writable(state);
 
@@ -445,7 +445,7 @@ export function createWorkspaceShellController({
   }
 
   function getCollectionStore(collection: WorkspaceCollection): TrackCollectionStore {
-    return collection === 'library' ? libraryStore : playlistStore;
+    return collection === 'library' ? libraryStore : queueStore;
   }
 
   function getSelectionIds(collection: WorkspaceCollection): string[] {
@@ -453,7 +453,7 @@ export function createWorkspaceShellController({
       return [];
     }
 
-    return collection === 'library' ? lastInputs.librarySelectionIds : lastInputs.playlistSelectionIds;
+    return collection === 'library' ? lastInputs.librarySelectionIds : lastInputs.queueSelectionIds;
   }
 
   function clearSelection(collection: WorkspaceCollection): void {
@@ -496,7 +496,7 @@ export function createWorkspaceShellController({
       return;
     }
 
-    if (lastInputs.playlistSelectionIds.length > 0 && lastInputs.librarySelectionIds.length > 0) {
+    if (lastInputs.queueSelectionIds.length > 0 && lastInputs.librarySelectionIds.length > 0) {
       clearSelection(getOtherWorkspaceCollection(state.activeCollection));
     }
 
@@ -550,18 +550,18 @@ export function createWorkspaceShellController({
         responsivePanels.collapsedPanels
       ),
       workspaceTabs: buildWorkspaceTabs(savedPanelState),
-      playlistPanelProps: {
-        items: lastInputs.playlistItems,
-        selectedIds: lastInputs.playlistSelectionIds,
-        keyboardActive: savedPanelState.activeCollection === 'playlist',
+      queuePanelProps: {
+        items: lastInputs.queueItems,
+        selectedIds: lastInputs.queueSelectionIds,
+        keyboardActive: savedPanelState.activeCollection === 'queue',
         playingId: lastInputs.playingTrackId,
-        jumpToItemRequest: state.playlistJumpRequest,
-        panelTitle: 'Playlist',
-        regionLabel: 'Playlist',
+        jumpToItemRequest: state.queueJumpRequest,
+        panelTitle: 'Queue',
+        regionLabel: 'Queue',
         shuffleEnabled: lastInputs.shuffleEnabled,
         repeatMode: lastInputs.repeatMode,
         readOnly: lastInputs.readOnly,
-        getContextMenuActions: getPlaylistContextActions
+        getContextMenuActions: getQueueContextActions
       },
       libraryPanelProps: {
         items: lastInputs.libraryItems,
@@ -623,7 +623,7 @@ export function createWorkspaceShellController({
       }
       getCollectionStore(collection).select(id, options);
     },
-    setCollectionSelection(collection: WorkspaceCollection, nextSelection: PlaylistSelection): void {
+    setCollectionSelection(collection: WorkspaceCollection, nextSelection: TrackSelection): void {
       clearOtherSelection(collection);
       updateActiveWorkspaceTab(collection);
       if (collectionSelection) {
@@ -769,14 +769,14 @@ export function createWorkspaceShellController({
       nextPanelState.tabbedTabOrder = order;
       persistPanelState(normalizePanelActivity(nextPanelState, detail.tabId));
     },
-    showPlaylistTrack(id: string): void {
-      this.showWorkspaceTab('playlist');
-      this.selectTrack('playlist', id);
+    showQueueTrack(id: string): void {
+      this.showWorkspaceTab('queue');
+      this.selectTrack('queue', id);
       state = {
         ...state,
-        playlistJumpRequest: {
+        queueJumpRequest: {
           id,
-          token: (state.playlistJumpRequest?.token ?? 0) + 1
+          token: (state.queueJumpRequest?.token ?? 0) + 1
         }
       };
       publishState();

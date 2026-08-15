@@ -17,7 +17,7 @@ import { DEFAULT_MODULE_PLAYBACK_SETTINGS, modulePlaybackSettings } from '$lib/s
 import { playbackSettings } from '$lib/stores/playback-settings';
 import { rafPresets } from '$lib/stores/raf-presets';
 import { rafSettings } from '$lib/stores/raf-settings';
-import type { Loadout, LoadoutPlaybackSettings, LoadoutState, LoadoutTrackContext, PlaylistItem } from '$lib/types';
+import type { Loadout, LoadoutPlaybackSettings, LoadoutState, LoadoutTrackContext, TrackItem } from '$lib/types';
 
 function playback(
   values: Pick<LoadoutPlaybackSettings, 'playbackRate' | 'trueSpeed' | 'replayGainMode'>,
@@ -85,7 +85,7 @@ describe('loadout matching', () => {
     expect(matchesLoadoutTarget({ type: 'tags', pattern: '[' }, track(), [])).toBe(false);
   });
 
-  it('builds stable file identities across playlist copies', () => {
+  it('builds stable file identities across queue copies', () => {
     expect(getLoadoutFileKey(track())).toBe(getLoadoutFileKey(track()));
     expect(getLoadoutFileKey(track({ lastModified: 457 }))).not.toBe(getLoadoutFileKey(track()));
   });
@@ -211,10 +211,10 @@ describe('automatic loadout runtime', () => {
   it('turns Raf off when switching from a Raf-on loadout to a Raf-off loadout', () => {
     rafSettings.reset();
     const preset = rafPresets.create('Track rack')!;
-    const rafOnTrack: PlaylistItem = {
+    const rafOnTrack: TrackItem = {
       id: 'raf-on', name: 'Raf on.flac', extension: 'flac', kind: 'stream', size: 10, lastModified: 1
     };
-    const rafOffTrack: PlaylistItem = {
+    const rafOffTrack: TrackItem = {
       id: 'raf-off', name: 'Raf off.flac', extension: 'flac', kind: 'stream', size: 11, lastModified: 2
     };
     loadoutStore.create('Raf on', { type: 'file', fileKey: getLoadoutFileKey(rafOnTrack) }, {
@@ -223,7 +223,7 @@ describe('automatic loadout runtime', () => {
     loadoutStore.create('Raf off', { type: 'file', fileKey: getLoadoutFileKey(rafOffTrack) }, {
       raf: { presetName: preset.name, enabled: false }
     });
-    const tracks = writable<PlaylistItem | null>(null);
+    const tracks = writable<TrackItem | null>(null);
     const stop = startLoadoutRuntime(tracks);
 
     tracks.set(rafOnTrack);
@@ -244,7 +244,7 @@ describe('automatic loadout runtime', () => {
         { panStrength: 140 }
       )
     });
-    const tracks = writable<PlaylistItem | null>(null);
+    const tracks = writable<TrackItem | null>(null);
     const stop = startLoadoutRuntime(tracks);
 
     tracks.set({
@@ -279,10 +279,10 @@ describe('automatic loadout runtime', () => {
     rafSettings.replace({ enabled: false, effects: [] });
     rafPresets.setSelectedPresetId(null);
 
-    const wideTrack: PlaylistItem = {
+    const wideTrack: TrackItem = {
       id: 'wide', name: 'Wide.flac', extension: 'flac', kind: 'stream', size: 10, lastModified: 1
     };
-    const brightTrack: PlaylistItem = {
+    const brightTrack: TrackItem = {
       id: 'bright', name: 'Bright.flac', extension: 'flac', kind: 'stream', size: 11, lastModified: 2
     };
     loadoutStore.create('Wide', { type: 'file', fileKey: getLoadoutFileKey(wideTrack) }, {
@@ -292,7 +292,7 @@ describe('automatic loadout runtime', () => {
       raf: { presetName: brightPreset.name, enabled: true }
     });
 
-    const tracks = writable<PlaylistItem | null>(null);
+    const tracks = writable<TrackItem | null>(null);
     const stop = startLoadoutRuntime(tracks);
     tracks.set(wideTrack);
 
@@ -323,7 +323,7 @@ describe('automatic loadout runtime', () => {
     loadoutStore.create('FLAC', { type: 'type', recognizedType: 'flac' }, {
       playback: playback({ playbackRate: 2, trueSpeed: true, replayGainMode: 'off' })
     });
-    const tracks = writable<PlaylistItem | null>({
+    const tracks = writable<TrackItem | null>({
       id: 'flac', name: 'Song.flac', extension: 'flac', kind: 'stream', size: 1, lastModified: 1
     });
     const stop = startLoadoutRuntime(tracks);
@@ -344,7 +344,7 @@ describe('automatic loadout runtime', () => {
     loadoutStore.create('FLAC', { type: 'type', recognizedType: 'flac' }, {
       playback: playback({ playbackRate: 2, trueSpeed: true, replayGainMode: 'off' })
     });
-    const tracks = writable<PlaylistItem | null>({
+    const tracks = writable<TrackItem | null>({
       id: 'flac', name: 'Song.flac', extension: 'flac', kind: 'stream', size: 1, lastModified: 1
     });
     const stop = startLoadoutRuntime(tracks);

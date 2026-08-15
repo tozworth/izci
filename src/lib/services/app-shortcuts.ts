@@ -1,6 +1,6 @@
 import type {
   PlaybackSnapshot,
-  PlaylistItem,
+  TrackItem,
   WorkspaceCollection
 } from '$lib/types';
 
@@ -12,11 +12,11 @@ export interface AppShortcutState {
   videoTrackActive: boolean;
   isRightPanelVisible: boolean;
   activeCollection: WorkspaceCollection;
-  playlistSelectionIds: string[];
+  queueSelectionIds: string[];
   librarySelectionIds: string[];
-  selectedPlaylistItem: PlaylistItem | null;
-  selectedLibraryItem: PlaylistItem | null;
-  playingTrack: PlaylistItem | null;
+  selectedTrackItem: TrackItem | null;
+  selectedLibraryItem: TrackItem | null;
+  playingTrack: TrackItem | null;
   playbackSnapshot: PlaybackSnapshot;
 }
 
@@ -24,13 +24,13 @@ interface AppShortcutHandlers {
   toggleFullscreenPresentation: () => void | Promise<void>;
   closeNowPlayingView: () => void;
   closeActiveRightPanel: () => void;
-  removePlaylistItems: (ids: string[]) => void;
+  removeTrackItems: (ids: string[]) => void;
   removeLibraryItems: (ids: string[]) => void;
   cycleWorkspaceTab: (direction: -1 | 1) => boolean;
   seek: (seconds: number) => void;
   stepTrack: (direction: -1 | 1) => void | Promise<void>;
   setVolume: (volume: number) => void;
-  activatePlaylistTrack: (id: string) => void | Promise<void>;
+  activateQueueTrack: (id: string) => void | Promise<void>;
   activateLibraryTrack: (id: string) => void | Promise<void>;
   togglePlayback: () => void | Promise<void>;
   toggleMute: () => void;
@@ -143,7 +143,7 @@ export function createAppShortcuts({ getState, handlers }: CreateAppShortcutsOpt
       const ids =
         state.activeCollection === 'library'
           ? state.librarySelectionIds
-          : state.playlistSelectionIds;
+          : state.queueSelectionIds;
 
       if (ids.length === 0) {
         return;
@@ -152,7 +152,7 @@ export function createAppShortcuts({ getState, handlers }: CreateAppShortcutsOpt
       event.preventDefault();
       (state.activeCollection === 'library'
         ? handlers.removeLibraryItems
-        : handlers.removePlaylistItems)(ids);
+        : handlers.removeTrackItems)(ids);
       return;
     }
 
@@ -234,7 +234,7 @@ export function createAppShortcuts({ getState, handlers }: CreateAppShortcutsOpt
       const selectedTrack =
         state.activeCollection === 'library'
           ? state.selectedLibraryItem
-          : state.selectedPlaylistItem;
+          : state.selectedTrackItem;
 
       if (!selectedTrack) {
         return;
@@ -243,7 +243,7 @@ export function createAppShortcuts({ getState, handlers }: CreateAppShortcutsOpt
       event.preventDefault();
       void (state.activeCollection === 'library'
         ? handlers.activateLibraryTrack
-        : handlers.activatePlaylistTrack)(selectedTrack.id);
+        : handlers.activateQueueTrack)(selectedTrack.id);
       return;
     }
 

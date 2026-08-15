@@ -72,10 +72,10 @@
     radial-gradient(circle at top left, rgba(148, 157, 168, 0.09), transparent 24%),
     radial-gradient(circle at top right, rgba(204, 210, 218, 0.06), transparent 22%),
     linear-gradient(180deg, #202225 0%, #18191b 100%);
-  --playlist-header-background:
+  --track-list-header-background:
     linear-gradient(180deg, rgba(41, 44, 48, 0.76) 0%, rgba(41, 44, 48, 0.68) 100%),
     rgba(24, 25, 27, 0.24);
-  --playlist-header-shadow-gradient: linear-gradient(180deg, rgba(18, 19, 21, 0.3), rgba(18, 19, 21, 0));
+  --track-list-header-shadow-gradient: linear-gradient(180deg, rgba(18, 19, 21, 0.3), rgba(18, 19, 21, 0));
   --player-bar-fade: linear-gradient(180deg, rgba(18, 19, 21, 0), rgba(18, 19, 21, 0.3));
   --dropzone-background: linear-gradient(180deg, rgba(228, 231, 235, 0.022), transparent 18%);
 }
@@ -148,10 +148,10 @@
     radial-gradient(circle at top left, rgba(120, 127, 134, 0.08), transparent 24%),
     radial-gradient(circle at top right, rgba(255, 255, 255, 0.38), transparent 22%),
     linear-gradient(180deg, #eeedea 0%, #e8e7e4 100%);
-  --playlist-header-background:
+  --track-list-header-background:
     linear-gradient(180deg, rgba(245, 244, 241, 0.78) 0%, rgba(238, 237, 234, 0.72) 100%),
     rgba(232, 231, 228, 0.3);
-  --playlist-header-shadow-gradient: linear-gradient(180deg, rgba(74, 79, 84, 0.09), rgba(74, 79, 84, 0));
+  --track-list-header-shadow-gradient: linear-gradient(180deg, rgba(74, 79, 84, 0.09), rgba(74, 79, 84, 0));
   --player-bar-fade: linear-gradient(180deg, rgba(74, 79, 84, 0), rgba(74, 79, 84, 0.09));
   --dropzone-background: linear-gradient(180deg, rgba(255, 255, 255, 0.16), transparent 18%);
 }
@@ -222,10 +222,10 @@
     radial-gradient(circle at top left, rgba(114, 124, 136, 0.07), transparent 24%),
     radial-gradient(circle at top right, rgba(185, 193, 202, 0.045), transparent 22%),
     linear-gradient(180deg, #17191c 0%, #101113 100%);
-  --playlist-header-background:
+  --track-list-header-background:
     linear-gradient(180deg, rgba(32, 34, 38, 0.78) 0%, rgba(32, 34, 38, 0.68) 100%),
     rgba(16, 17, 19, 0.26);
-  --playlist-header-shadow-gradient: linear-gradient(180deg, rgba(11, 12, 13, 0.34), rgba(11, 12, 13, 0));
+  --track-list-header-shadow-gradient: linear-gradient(180deg, rgba(11, 12, 13, 0.34), rgba(11, 12, 13, 0));
   --player-bar-fade: linear-gradient(180deg, rgba(11, 12, 13, 0), rgba(11, 12, 13, 0.34));
   --dropzone-background: linear-gradient(180deg, rgba(221, 225, 229, 0.02), transparent 18%);
 }
@@ -296,8 +296,8 @@
     radial-gradient(circle at top left, rgba(92, 102, 114, 0.045), transparent 24%),
     radial-gradient(circle at top right, rgba(173, 183, 193, 0.03), transparent 22%),
     linear-gradient(180deg, #050506 0%, #000000 100%);
-  --playlist-header-background: #000000;
-  --playlist-header-shadow-gradient: linear-gradient(180deg, rgba(0, 0, 0, 0.38), rgba(0, 0, 0, 0));
+  --track-list-header-background: #000000;
+  --track-list-header-shadow-gradient: linear-gradient(180deg, rgba(0, 0, 0, 0.38), rgba(0, 0, 0, 0));
   --player-bar-fade: linear-gradient(180deg, rgba(0, 0, 0, 0), rgba(0, 0, 0, 0.38));
   --dropzone-background: #000000;
 }
@@ -370,10 +370,10 @@
     radial-gradient(circle at top left, rgba(38, 139, 210, 0.09), transparent 24%),
     radial-gradient(circle at top right, rgba(181, 137, 0, 0.08), transparent 22%),
     linear-gradient(180deg, #fffbea 0%, #fdf6e3 100%);
-  --playlist-header-background:
+  --track-list-header-background:
     linear-gradient(180deg, rgba(255, 251, 235, 0.8) 0%, rgba(238, 232, 213, 0.74) 100%),
     rgba(253, 246, 227, 0.3);
-  --playlist-header-shadow-gradient: linear-gradient(180deg, rgba(0, 43, 54, 0.09), rgba(0, 43, 54, 0));
+  --track-list-header-shadow-gradient: linear-gradient(180deg, rgba(0, 43, 54, 0.09), rgba(0, 43, 54, 0));
   --player-bar-fade: linear-gradient(180deg, rgba(0, 43, 54, 0), rgba(0, 43, 54, 0.09));
   --dropzone-background: linear-gradient(180deg, rgba(255, 255, 255, 0.18), transparent 18%);
 }
@@ -445,10 +445,10 @@
     radial-gradient(circle at top left, rgba(38, 139, 210, 0.17), transparent 24%),
     radial-gradient(circle at top right, rgba(42, 161, 152, 0.11), transparent 22%),
     linear-gradient(180deg, #073642 0%, #002b36 100%);
-  --playlist-header-background:
+  --track-list-header-background:
     linear-gradient(180deg, rgba(7, 54, 66, 0.82) 0%, rgba(7, 54, 66, 0.7) 100%),
     rgba(0, 43, 54, 0.25);
-  --playlist-header-shadow-gradient: linear-gradient(180deg, rgba(0, 20, 25, 0.38), rgba(0, 20, 25, 0));
+  --track-list-header-shadow-gradient: linear-gradient(180deg, rgba(0, 20, 25, 0.38), rgba(0, 20, 25, 0));
   --player-bar-fade: linear-gradient(180deg, rgba(0, 20, 25, 0), rgba(0, 20, 25, 0.38));
   --dropzone-background: linear-gradient(180deg, rgba(147, 161, 161, 0.026), transparent 18%);
 }
@@ -521,10 +521,10 @@
     radial-gradient(circle at top left, rgba(94, 129, 172, 0.1), transparent 24%),
     radial-gradient(circle at top right, rgba(136, 192, 208, 0.09), transparent 22%),
     linear-gradient(180deg, #f2f4f8 0%, #eceff4 100%);
-  --playlist-header-background:
+  --track-list-header-background:
     linear-gradient(180deg, rgba(242, 244, 248, 0.8) 0%, rgba(229, 233, 240, 0.74) 100%),
     rgba(236, 239, 244, 0.3);
-  --playlist-header-shadow-gradient: linear-gradient(180deg, rgba(46, 52, 64, 0.1), rgba(46, 52, 64, 0));
+  --track-list-header-shadow-gradient: linear-gradient(180deg, rgba(46, 52, 64, 0.1), rgba(46, 52, 64, 0));
   --player-bar-fade: linear-gradient(180deg, rgba(46, 52, 64, 0), rgba(46, 52, 64, 0.1));
   --dropzone-background: linear-gradient(180deg, rgba(255, 255, 255, 0.18), transparent 18%);
 }
@@ -595,10 +595,10 @@
     radial-gradient(circle at top left, rgba(94, 129, 172, 0.12), transparent 24%),
     radial-gradient(circle at top right, rgba(136, 192, 208, 0.09), transparent 22%),
     linear-gradient(180deg, #27303c 0%, #1b222d 100%);
-  --playlist-header-background:
+  --track-list-header-background:
     linear-gradient(180deg, rgba(48, 57, 70, 0.78) 0%, rgba(48, 57, 70, 0.68) 100%),
     rgba(27, 34, 45, 0.24);
-  --playlist-header-shadow-gradient: linear-gradient(180deg, rgba(13, 18, 25, 0.32), rgba(13, 18, 25, 0));
+  --track-list-header-shadow-gradient: linear-gradient(180deg, rgba(13, 18, 25, 0.32), rgba(13, 18, 25, 0));
   --player-bar-fade: linear-gradient(180deg, rgba(13, 18, 25, 0), rgba(13, 18, 25, 0.32));
   --dropzone-background: linear-gradient(180deg, rgba(216, 222, 233, 0.022), transparent 18%);
 }
@@ -671,10 +671,10 @@
     radial-gradient(circle at top left, rgba(184, 187, 38, 0.12), transparent 24%),
     radial-gradient(circle at top right, rgba(250, 189, 47, 0.08), transparent 22%),
     linear-gradient(180deg, #282828 0%, #1d2021 100%);
-  --playlist-header-background:
+  --track-list-header-background:
     linear-gradient(180deg, rgba(50, 48, 47, 0.76) 0%, rgba(50, 48, 47, 0.68) 100%),
     rgba(28, 29, 30, 0.22);
-  --playlist-header-shadow-gradient: linear-gradient(180deg, rgba(26, 27, 28, 0.28), rgba(26, 27, 28, 0));
+  --track-list-header-shadow-gradient: linear-gradient(180deg, rgba(26, 27, 28, 0.28), rgba(26, 27, 28, 0));
   --player-bar-fade: linear-gradient(180deg, rgba(26, 27, 28, 0), rgba(26, 27, 28, 0.28));
   --dropzone-background: linear-gradient(180deg, rgba(235, 219, 178, 0.02), transparent 18%);
 }
@@ -745,10 +745,10 @@
     radial-gradient(circle at top left, rgba(139, 233, 253, 0.14), transparent 24%),
     radial-gradient(circle at top right, rgba(255, 121, 198, 0.12), transparent 24%),
     linear-gradient(180deg, #2b2d39 0%, #171922 100%);
-  --playlist-header-background:
+  --track-list-header-background:
     linear-gradient(180deg, rgba(68, 71, 90, 0.78) 0%, rgba(68, 71, 90, 0.68) 100%),
     rgba(31, 32, 41, 0.24);
-  --playlist-header-shadow-gradient: linear-gradient(180deg, rgba(15, 16, 22, 0.3), rgba(15, 16, 22, 0));
+  --track-list-header-shadow-gradient: linear-gradient(180deg, rgba(15, 16, 22, 0.3), rgba(15, 16, 22, 0));
   --player-bar-fade: linear-gradient(180deg, rgba(15, 16, 22, 0), rgba(15, 16, 22, 0.3));
   --dropzone-background: linear-gradient(180deg, rgba(248, 248, 242, 0.025), transparent 18%);
 }
@@ -819,10 +819,10 @@
     radial-gradient(circle at top left, rgba(193, 67, 43, 0.16), transparent 24%),
     radial-gradient(circle at top right, rgba(255, 155, 84, 0.11), transparent 22%),
     linear-gradient(180deg, #2b1715 0%, #1a1010 100%);
-  --playlist-header-background:
+  --track-list-header-background:
     linear-gradient(180deg, rgba(55, 31, 27, 0.78) 0%, rgba(55, 31, 27, 0.68) 100%),
     rgba(28, 17, 16, 0.24);
-  --playlist-header-shadow-gradient: linear-gradient(180deg, rgba(18, 10, 9, 0.34), rgba(18, 10, 9, 0));
+  --track-list-header-shadow-gradient: linear-gradient(180deg, rgba(18, 10, 9, 0.34), rgba(18, 10, 9, 0));
   --player-bar-fade: linear-gradient(180deg, rgba(18, 10, 9, 0), rgba(18, 10, 9, 0.34));
   --dropzone-background: linear-gradient(180deg, rgba(242, 217, 202, 0.024), transparent 18%);
 }
@@ -896,10 +896,10 @@
     radial-gradient(circle at top left, hsl(var(--chameleon-hue) var(--chameleon-accent-saturation) 40% / 0.08), transparent 24%),
     radial-gradient(circle at top right, hsl(var(--chameleon-hue) var(--chameleon-text-saturation) 100% / 0.38), transparent 22%),
     linear-gradient(180deg, hsl(var(--chameleon-hue) var(--chameleon-surface-saturation) 95%) 0%, hsl(var(--chameleon-hue) var(--chameleon-surface-saturation) 92%) 100%);
-  --playlist-header-background:
+  --track-list-header-background:
     linear-gradient(180deg, hsl(var(--chameleon-hue) var(--chameleon-surface-saturation) 97% / 0.78) 0%, hsl(var(--chameleon-hue) var(--chameleon-surface-saturation) 95% / 0.72) 100%),
     hsl(var(--chameleon-hue) var(--chameleon-surface-saturation) 92% / 0.3);
-  --playlist-header-shadow-gradient: linear-gradient(180deg, hsl(var(--chameleon-hue) var(--chameleon-border-saturation) 30% / 0.09), transparent);
+  --track-list-header-shadow-gradient: linear-gradient(180deg, hsl(var(--chameleon-hue) var(--chameleon-border-saturation) 30% / 0.09), transparent);
   --player-bar-fade: linear-gradient(180deg, transparent, hsl(var(--chameleon-hue) var(--chameleon-border-saturation) 30% / 0.09));
   --dropzone-background: linear-gradient(180deg, hsl(var(--chameleon-hue) var(--chameleon-text-saturation) 100% / 0.16), transparent 18%);
 }
@@ -973,10 +973,10 @@
     radial-gradient(circle at top left, hsl(var(--chameleon-hue) var(--chameleon-accent-saturation) 48% / 0.17), transparent 24%),
     radial-gradient(circle at top right, hsl(var(--chameleon-hue) var(--chameleon-vivid-saturation) 70% / 0.11), transparent 22%),
     linear-gradient(180deg, hsl(var(--chameleon-hue) var(--chameleon-surface-saturation) 15%) 0%, hsl(var(--chameleon-hue) var(--chameleon-surface-saturation) 9%) 100%);
-  --playlist-header-background:
+  --track-list-header-background:
     linear-gradient(180deg, hsl(var(--chameleon-hue) var(--chameleon-surface-saturation) 19% / 0.8) 0%, hsl(var(--chameleon-hue) var(--chameleon-surface-saturation) 17% / 0.7) 100%),
     hsl(var(--chameleon-hue) var(--chameleon-surface-saturation) 9% / 0.25);
-  --playlist-header-shadow-gradient: linear-gradient(180deg, hsl(var(--chameleon-hue) var(--chameleon-surface-saturation) 4% / 0.35), transparent);
+  --track-list-header-shadow-gradient: linear-gradient(180deg, hsl(var(--chameleon-hue) var(--chameleon-surface-saturation) 4% / 0.35), transparent);
   --player-bar-fade: linear-gradient(180deg, transparent, hsl(var(--chameleon-hue) var(--chameleon-surface-saturation) 4% / 0.35));
   --dropzone-background: linear-gradient(180deg, hsl(var(--chameleon-hue) var(--chameleon-accent-saturation) 88% / 0.024), transparent 18%);
 }

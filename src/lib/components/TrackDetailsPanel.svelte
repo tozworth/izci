@@ -7,10 +7,10 @@
     TrackLibraryNavigationTargets
   } from '$lib/services/library-navigation';
   import type { LoadedStreamArtwork } from '$lib/services/stream-artwork';
-  import type { PlaylistItem } from '$lib/types';
+  import type { TrackItem } from '$lib/types';
   import { resolveModuleDisplayFormat, resolveModuleTrackerName } from '$lib/utils/files';
 
-  export let track: PlaylistItem | null = null;
+  export let track: TrackItem | null = null;
   export let artwork: LoadedStreamArtwork | null = null;
   export let artworkBackgroundActive = false;
   export let artworkBackgroundBright = false;
@@ -56,7 +56,7 @@
     if (target) onNavigateToLibrary(target);
   }
 
-  function buildTrackNumberEntry(metadata: PlaylistItem['metadata'], labels: MetadataLabels): MetadataEntry | null {
+  function buildTrackNumberEntry(metadata: TrackItem['metadata'], labels: MetadataLabels): MetadataEntry | null {
     const trackNumber = trimMetadataValue(metadata?.trackNumber);
     const discNumber = trimMetadataValue(metadata?.discNumber);
 
@@ -71,7 +71,7 @@
       : { label: labels.trackNumber, icon: 'format_list_numbered', value: trackNumber };
   }
 
-  function buildStreamMetadataEntries(track: PlaylistItem | null, labels: MetadataLabels): MetadataEntry[] {
+  function buildStreamMetadataEntries(track: TrackItem | null, labels: MetadataLabels): MetadataEntry[] {
     if (!track || track.kind !== 'stream') {
       return [];
     }

@@ -13,7 +13,7 @@ describe('resolveMobileSwipeDestination', () => {
   });
 
   it('stops at the ends', () => {
-    expect(resolveMobileSwipeDestination('playlist', -1)).toBeNull();
+    expect(resolveMobileSwipeDestination('queue', -1)).toBeNull();
     expect(resolveMobileSwipeDestination('details', 1)).toBeNull();
   });
 });

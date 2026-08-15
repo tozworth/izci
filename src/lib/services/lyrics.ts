@@ -1,5 +1,5 @@
 import { extractStreamVorbisComments } from '$lib/services/stream-artwork';
-import type { PlaylistItem } from '$lib/types';
+import type { TrackItem } from '$lib/types';
 
 export interface TimedLyricLine {
   time: number;
@@ -25,7 +25,7 @@ const LRC_TIMESTAMP_PATTERN = /\[(\d{1,3}):(\d{2})(?:[.:](\d{1,3}))?\]/g;
 const DEFAULT_DOWNTIME_THRESHOLD_SECONDS = 10;
 const lyricsLoadCache = new Map<string, Promise<LoadedLyrics | null>>();
 
-async function resolveTrackFile(track: PlaylistItem): Promise<File | null> {
+async function resolveTrackFile(track: TrackItem): Promise<File | null> {
   if (track.fileHandle) {
     try {
       return await track.fileHandle.getFile();
@@ -195,7 +195,7 @@ export function hasRenderableLyrics(raw: string, lines = parseLrcLyrics(raw)): b
   return untimedLines.length > 1;
 }
 
-export function getTrackLyricsLoadKey(track: PlaylistItem | null): string {
+export function getTrackLyricsLoadKey(track: TrackItem | null): string {
   return track ? `${track.id}:${track.extension}:${track.lastModified}:${track.size}` : '';
 }
 
@@ -212,7 +212,7 @@ function findVorbisLyricsComment(comments: Array<{ key: string; value: string }>
   return '';
 }
 
-async function loadTrackLyricsUncached(track: PlaylistItem): Promise<LoadedLyrics | null> {
+async function loadTrackLyricsUncached(track: TrackItem): Promise<LoadedLyrics | null> {
   const file = await resolveTrackFile(track);
 
   if (!file) {
@@ -251,7 +251,7 @@ async function loadTrackLyricsUncached(track: PlaylistItem): Promise<LoadedLyric
   };
 }
 
-export async function loadTrackLyrics(track: PlaylistItem | null): Promise<LoadedLyrics | null> {
+export async function loadTrackLyrics(track: TrackItem | null): Promise<LoadedLyrics | null> {
   if (!track || track.kind !== 'stream') {
     return null;
   }

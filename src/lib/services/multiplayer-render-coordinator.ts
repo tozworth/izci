@@ -5,7 +5,7 @@
  * queues only hold cluster indexes.
  */
 
-import type { PlaylistItem } from '$lib/types';
+import type { TrackItem } from '$lib/types';
 import { logInfo, logWarning } from '$lib/services/logging';
 import { errorMessage } from './multiplayer-utils';
 import {
@@ -24,7 +24,7 @@ export const DEFAULT_RENDER_CACHE_LIMIT_MIB = 256;
 
 interface PendingJob {
   key: string;
-  track: PlaylistItem;
+  track: TrackItem;
   bitrateKbps: number;
   token: number;
   resolve: (render: CachedRender) => void;
@@ -75,7 +75,7 @@ class MultiplayerRenderCoordinator {
   }
 
   /** Acquires a pinned render, sharing one encode across concurrent peers. */
-  acquireRender(track: PlaylistItem, bitrateKbps: number): Promise<CachedRender> {
+  acquireRender(track: TrackItem, bitrateKbps: number): Promise<CachedRender> {
     if (!track.file) return Promise.reject(new Error('No source file available for rendering.'));
     const key = buildRenderCacheKey(track, bitrateKbps);
     const cached = this.#cache.get(key);

@@ -1,7 +1,7 @@
 import { writable } from 'svelte/store';
 import { playerController } from '$lib/services/player-controller';
 import { logDebug, logInfo } from '$lib/services/logging';
-import type { PlaybackSnapshot, PlaylistItem } from '$lib/types';
+import type { PlaybackSnapshot, TrackItem } from '$lib/types';
 
 export interface AbLoopRange {
   start: number;
@@ -52,7 +52,7 @@ function enforceLoop(snapshot: PlaybackSnapshot): void {
   playerController.seek(range.start);
 }
 
-function clearLoopOnTrackChange(track: PlaylistItem | null): void {
+function clearLoopOnTrackChange(track: TrackItem | null): void {
   const trackId = track?.id ?? null;
   if (trackId === lastLoopTrackId) return;
   lastLoopTrackId = trackId;

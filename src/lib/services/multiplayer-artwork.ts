@@ -1,18 +1,18 @@
 import { getCachedArtworkThumbnail } from '$lib/services/artwork-cache';
 import { logDebug, logWarning } from '$lib/services/logging';
 import type { LoadedStreamArtwork } from '$lib/services/stream-artwork';
-import type { PlaylistItem } from '$lib/types';
+import type { TrackItem } from '$lib/types';
 import type { MultiplayerArtwork } from './multiplayer-protocol';
 
 export const MULTIPLAYER_ARTWORK_MAX_EDGE = 1024;
 
-export function getMultiplayerArtworkTrackKey(track: PlaylistItem | null): string {
+export function getMultiplayerArtworkTrackKey(track: TrackItem | null): string {
   if (!track) return '';
   return [track.id, track.extension, track.size, track.lastModified].join(':');
 }
 
 export async function loadMultiplayerArtwork(
-  track: PlaylistItem | null
+  track: TrackItem | null
 ): Promise<MultiplayerArtwork | null> {
   if (!track) return null;
   logDebug('multiplayer', 'Multiplayer artwork requested', { trackId: track.id });
@@ -34,7 +34,7 @@ export async function loadMultiplayerArtwork(
 }
 
 export function getRemoteArtworkLoadKey(
-  track: PlaylistItem | null,
+  track: TrackItem | null,
   artwork: MultiplayerArtwork | null,
   resolvedTrackKey: string
 ): string {
@@ -55,7 +55,7 @@ export function getRemoteArtworkLoadKey(
 }
 
 export function toLoadedMultiplayerArtwork(
-  track: PlaylistItem | null,
+  track: TrackItem | null,
   artwork: MultiplayerArtwork | null
 ): LoadedStreamArtwork | null {
   if (!track || !artwork || artwork.trackId !== track.id) return null;

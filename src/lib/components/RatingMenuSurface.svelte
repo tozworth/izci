@@ -1,7 +1,7 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import RatingPicker from '$lib/components/RatingPicker.svelte';
-  import { keepMenuInViewport } from '$lib/components/playlist-panel/actions/menu-viewport';
+  import { keepMenuInViewport } from '$lib/components/track-list-panel/actions/menu-viewport';
 
   export let value = 0;
   export let actionPrefix = 'rate:';

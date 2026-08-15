@@ -8,8 +8,8 @@ import type {
 import type {
   ExperimentalSettings,
   PlaybackSnapshot,
-  PlaylistItem,
-  PlaylistRepeatMode
+  TrackItem,
+  RepeatMode
 } from '$lib/types';
 import {
   createMultiplayerMessageDecoder,
@@ -106,13 +106,13 @@ export interface MultiplayerSessionState {
 }
 
 export interface MultiplayerHostState {
-  playlist: PlaylistItem[];
-  library: PlaylistItem[];
-  favorites: PlaylistItem[];
+  queue: TrackItem[];
+  library: TrackItem[];
+  favorites: TrackItem[];
   shuffleEnabled: boolean;
-  repeatMode: PlaylistRepeatMode;
+  repeatMode: RepeatMode;
   playback: PlaybackSnapshot;
-  track: PlaylistItem | null;
+  track: TrackItem | null;
 }
 
 export const EMPTY_PLAYBACK: PlaybackSnapshot = {
@@ -126,7 +126,7 @@ export const EMPTY_PLAYBACK: PlaybackSnapshot = {
 
 export const EMPTY_CATALOG: MultiplayerCatalog = {
   revision: 0,
-  playlist: [],
+  queue: [],
   library: [],
   favorites: [],
   shuffleEnabled: false,
@@ -250,7 +250,7 @@ export interface PeerConnection {
   freeplayPlayer: MultiplayerFreeplayPlayer | null;
   freeplayCollection: MultiplayerCollection;
   freeplayShuffle: boolean;
-  freeplayRepeatMode: PlaylistRepeatMode;
+  freeplayRepeatMode: RepeatMode;
   freeplayNavigation: FreeplayStepResolver | null;
   freeplayQueue: string[];
   freeplayActivation: { autoPlay: boolean } | null;
@@ -312,7 +312,7 @@ export interface MultiplayerSessionCore {
   stopPeersListener: Unsubscribe | null;
   stopAnswerListener: Unsubscribe | null;
   hostPeers: Map<string, PeerConnection>;
-  freeplaySelections: Map<string, PlaylistItem>;
+  freeplaySelections: Map<string, TrackItem>;
   clientPeer: PeerConnection | null;
   pendingClientSourceFile: { trackId: string; generationId: string; file: File } | null;
   hostAudioBufferMs: number | null;
@@ -324,10 +324,10 @@ export interface MultiplayerSessionCore {
   catalogRevision: number;
   lastCatalogSources: Pick<
     MultiplayerHostState,
-    'playlist' | 'library' | 'favorites' | 'shuffleEnabled' | 'repeatMode'
+    'queue' | 'library' | 'favorites' | 'shuffleEnabled' | 'repeatMode'
   > | null;
   lastPlaybackSource: PlaybackSnapshot | null;
-  lastTrackSource: PlaylistItem | null;
+  lastTrackSource: TrackItem | null;
   latestHostArtwork: MultiplayerArtwork | null;
   hostArtworkTrackKey: string;
   hostArtworkResolvedTrackKey: string;
@@ -356,8 +356,8 @@ export interface MultiplayerHostSide {
   togglePairing(clientId: string): Promise<void>;
   updateHostState(next: MultiplayerHostState): void;
   cancelPendingPlayback(): boolean;
-  syncHostAudio(track: PlaylistItem | null, force?: boolean): void;
-  syncHostSourceFiles(track: PlaylistItem | null): void;
+  syncHostAudio(track: TrackItem | null, force?: boolean): void;
+  syncHostSourceFiles(track: TrackItem | null): void;
   syncPeerFreeplayMode(peer: PeerConnection): Promise<void>;
   beginFreeplayPlaybackPreparation(peer: PeerConnection): void;
   releasePreparedHostPlayback(force?: boolean): void;

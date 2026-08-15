@@ -7,7 +7,7 @@ import type {
   ModulePatternSnapshot,
   ModulePlaybackSettings,
   PlaybackSnapshot,
-  PlaylistItem,
+  TrackItem,
   TrackMetadata
 } from '$lib/types';
 import type { Chiptune3Metadata, ChiptuneJsPlayer } from 'chiptune3';
@@ -25,7 +25,7 @@ const PROGRESS_PUBLISH_INTERVAL_SECONDS = 0.125;
 export class ModulePlayerService {
   #player: ChiptuneJsPlayer | null = null;
   #buffer: ArrayBuffer | null = null;
-  #trackExtension: PlaylistItem['extension'] | null = null;
+  #trackExtension: TrackItem['extension'] | null = null;
   #loadToken = 0;
   #playing = false;
   #started = false;
@@ -56,7 +56,7 @@ export class ModulePlayerService {
     this.#onEnded = onEnded;
   }
 
-  async load(track: PlaylistItem): Promise<void> {
+  async load(track: TrackItem): Promise<void> {
     if (!track.file) {
       throw new Error('Expected a file for tracker module playback.');
     }

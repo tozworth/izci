@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MultiplayerPlayback } from '$lib/services/multiplayer-protocol';
-import type { PlaybackSnapshot, PlaylistItem } from '$lib/types';
+import type { PlaybackSnapshot, TrackItem } from '$lib/types';
 
 const controllerHarness = vi.hoisted(() => ({
   snapshot: {
@@ -11,7 +11,7 @@ const controllerHarness = vi.hoisted(() => ({
     muted: false,
     backend: null
   } as PlaybackSnapshot,
-  track: null as PlaylistItem | null,
+  track: null as TrackItem | null,
   load: vi.fn(),
   play: vi.fn(),
   pause: vi.fn(),
@@ -30,7 +30,7 @@ vi.mock('$lib/services/player-controller', () => ({
       }
     },
     currentTrack: {
-      subscribe(run: (value: PlaylistItem | null) => void) {
+      subscribe(run: (value: TrackItem | null) => void) {
         run(controllerHarness.track);
         return () => undefined;
       }
@@ -47,7 +47,7 @@ vi.mock('$lib/services/player-controller', () => ({
 
 import { MultiplayerSourcePlaybackService } from './multiplayer-source-playback';
 
-const track: PlaylistItem = {
+const track: TrackItem = {
   id: 'track-1',
   name: 'Transferred track',
   extension: 'opus',
@@ -85,7 +85,7 @@ describe('MultiplayerSourcePlaybackService', () => {
     };
     controllerHarness.track = null;
     controllerHarness.load.mockImplementation(async (
-      loadedTrack: PlaylistItem,
+      loadedTrack: TrackItem,
       options: { autoPlay: boolean; initialPosition: number }
     ) => {
       controllerHarness.track = loadedTrack;

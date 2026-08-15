@@ -14,7 +14,7 @@
     LyricsDisplayStyle,
     ModulePatternSnapshot,
     PlaybackSnapshot,
-    PlaylistItem,
+    TrackItem,
     VideoFitMode,
     WorkspacePanelId,
     WorkspaceTab
@@ -31,7 +31,7 @@
   import type { MultiplayerConnectionRoute } from '$lib/services/multiplayer-ice';
   import type { MultiplayerRecent } from '$lib/stores/multiplayer-recents';
   import type { MultiplayerPairing } from '$lib/stores/multiplayer-pairings';
-  import type { VideoSeekFeedback, QueuePanelHandlers, QueuePanelProps, WorkspacePanelHandlers, WorkspaceTabContentProps } from '$lib/components/workspace/types';
+  import type { VideoSeekFeedback, UpNextPanelHandlers, UpNextPanelProps, WorkspacePanelHandlers, WorkspaceTabContentProps } from '$lib/components/workspace/types';
   import MobileMenuDrawer from './MobileMenuDrawer.svelte';
   import MobileMultiplayerStats from './MobileMultiplayerStats.svelte';
   import { resolveHorizontalSwipe, shouldIgnoreSwipeTarget, type SwipePoint } from './tab-swipe';
@@ -53,13 +53,13 @@
   export let videoSeekFeedback: VideoSeekFeedback | null = null;
   export let inactive = false;
   export let workspaceState: WorkspaceShellState;
-  export let playlistPanelHandlers: WorkspacePanelHandlers;
+  export let queuePanelHandlers: WorkspacePanelHandlers;
   export let libraryPanelHandlers: WorkspacePanelHandlers;
-  export let queuePanelProps: QueuePanelProps;
-  export let queuePanelHandlers: QueuePanelHandlers;
-  export let selectedPlaylistItem: PlaylistItem | null;
-  export let playerDisplayTrack: PlaylistItem | null;
-  export let lyricsTrack: PlaylistItem | null;
+  export let upNextPanelProps: UpNextPanelProps;
+  export let upNextPanelHandlers: UpNextPanelHandlers;
+  export let selectedTrackItem: TrackItem | null;
+  export let playerDisplayTrack: TrackItem | null;
+  export let lyricsTrack: TrackItem | null;
   export let modulePatternSnapshot: ModulePatternSnapshot;
   export let artworkState: ArtworkPresentationState;
   export let detailsLibraryTargets: TrackLibraryNavigationTargets = {};
@@ -145,18 +145,18 @@
   $: content = {
     snapshotStore,
     playbackSnapshot,
-    playlistPanelProps: {
-      ...workspaceState.playlistPanelProps,
+    queuePanelProps: {
+      ...workspaceState.queuePanelProps,
       mobilePresentation: true
     },
-    playlistPanelHandlers,
+    queuePanelHandlers,
     libraryPanelProps: {
       ...workspaceState.libraryPanelProps,
       mobilePresentation: true
     },
     libraryPanelHandlers,
-    queuePanelProps,
-    queuePanelHandlers,
+    upNextPanelProps,
+    upNextPanelHandlers,
     selectedItem: artworkState.detailsDisplayTrack,
     lyricsTrack,
     patternTrack: playerDisplayTrack,
@@ -252,12 +252,12 @@
     </button>
     <div class="mobile-header-title">
       <span>{nowPlayingActive ? $t('main.menu.nowPlaying', { default: 'Now Playing' }) : activeDefinition?.label ?? 'izci'}</span>
-      {#if !nowPlayingActive && activeTab !== 'playlist' && activeTab !== 'library'}
+      {#if !nowPlayingActive && activeTab !== 'queue' && activeTab !== 'library'}
         <small>izci</small>
       {/if}
     </div>
-    {#if !nowPlayingActive && (activeTab === 'playlist' || activeTab === 'library')}
-      <button class="mobile-header-button" type="button" aria-label={$t('playlist.addFiles', { default: 'Add files' })} on:click={() => dispatch('openFiles')}>
+    {#if !nowPlayingActive && (activeTab === 'queue' || activeTab === 'library')}
+      <button class="mobile-header-button" type="button" aria-label={$t('queue.addFiles', { default: 'Add files' })} on:click={() => dispatch('openFiles')}>
         <span class="material-symbols-outlined" aria-hidden="true">add</span>
       </button>
     {:else}
@@ -302,7 +302,7 @@
                 presentation="now-playing"
                 {snapshotStore}
                 track={playerDisplayTrack}
-                selectedTrack={selectedPlaylistItem}
+                selectedTrack={selectedTrackItem}
                 artwork={artworkState.displayedArtwork}
                 useArtworkColorsOverride={appearance.useNowPlayingArtworkPlayerColors}
                 on:toggle={() => dispatch('toggle')}
@@ -364,9 +364,9 @@
   </div>
 
   <nav class="mobile-bottom-nav" aria-label={$t('mobile.navigation.label', { default: 'Primary navigation' })}>
-    <button class:active={!nowPlayingActive && activeTab === 'playlist'} type="button" on:click={() => navigateToDestination('playlist')}>
+    <button class:active={!nowPlayingActive && activeTab === 'queue'} type="button" on:click={() => navigateToDestination('queue')}>
       <span class="mobile-nav-icon"><span class="material-symbols-outlined" aria-hidden="true">queue_music</span></span>
-      <span>{$t('main.menu.playlist', { default: 'Playlist' })}</span>
+      <span>{$t('main.menu.queue', { default: 'Queue' })}</span>
     </button>
     <button class:active={!nowPlayingActive && activeTab === 'library'} type="button" on:click={() => navigateToDestination('library')}>
       <span class="mobile-nav-icon"><span class="material-symbols-outlined" aria-hidden="true">library_music</span></span>

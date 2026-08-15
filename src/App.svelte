@@ -89,7 +89,7 @@
   } from '$lib/services/window-video';
   import { appearanceSettings } from '$lib/stores/appearance-settings';
   import { metadataSettings } from '$lib/stores/metadata-settings';
-  import { favoritesStore, libraryStore, playlistStore } from '$lib/stores/playlist';
+  import { favoritesStore, libraryStore, queueStore } from '$lib/stores/queue';
   import { libraryViewSettings } from '$lib/stores/library-view-settings';
   import { DEFAULT_PLAYER_VOLUME } from '$lib/stores/player-volume';
   import { playbackSettings } from '$lib/stores/playback-settings';
@@ -115,23 +115,23 @@
     LyricsDisplayStyle,
     ModulePatternSnapshot,
     PlaybackSnapshot,
-    PlaylistItem,
-    PlaylistRepeatMode,
-    PlaylistSelection,
+    TrackItem,
+    RepeatMode,
+    TrackSelection,
     VideoFitMode,
     WorkspaceCollection,
     WorkspaceTab
   } from '$lib/types';
   import type {
-    QueuePanelHandlers,
-    QueuePanelProps
+    UpNextPanelHandlers,
+    UpNextPanelProps
   } from '$lib/components/workspace/types';
-  import { playbackQueue, type QueueEntry } from '$lib/stores/playback-queue';
+  import { upNext, type UpNextEntry } from '$lib/stores/up-next';
   import { buildOptionsWindowPath, isOptionsViewName, type OptionsViewName } from './options/views';
   import { getFavoriteIdentity, getTrackDisplayTitle, getTrackIdentity } from '$lib/utils/files';
   import {
     buildFreeplayLibraryContextActions,
-    buildFreeplayPlaylistContextActions,
+    buildFreeplayQueueContextActions,
     buildSelectedWorkspaceTracks,
     favoritesHaveAllTracks,
     resolveTrackLibraryNavigationAction
@@ -158,15 +158,15 @@
     buildSelectAllSelection,
     emptySelection,
     resolveSelectSelection
-  } from '$lib/stores/playlist-selection';
+  } from '$lib/stores/queue-selection';
 
   const {
-    items: playlistItemsStore,
-    selectedIds: playlistSelectedIdsStore,
-    selectedTrack: playlistSelectedTrackStore,
+    items: queueItemsStore,
+    selectedIds: queueSelectedIdsStore,
+    selectedTrack: queueSelectedTrackStore,
     shuffleEnabled: shuffleStore,
     repeatMode: repeatStore
-  } = playlistStore;
+  } = queueStore;
   const mobileMode = isMobileNavigator(typeof navigator === 'undefined' ? null : navigator);
   let mobileOptionsOpen = false;
   let mobileOptionsView: OptionsViewName | undefined = undefined;
@@ -187,50 +187,50 @@
   const stopLoadoutRuntime = startLoadoutRuntime(playerController.currentTrack);
   setSleepTimerFiredHandler(pausePlayback);
 
-  let localPlaylistItems: PlaylistItem[] = [];
-  let localLibraryItems: PlaylistItem[] = [];
-  let localFavoriteItems: PlaylistItem[] = [];
-  let localQueueEntries: QueueEntry[] = [];
-  let playlistItems: PlaylistItem[] = [];
-  let libraryItems: PlaylistItem[] = [];
-  let favoriteItems: PlaylistItem[] = [];
+  let localTrackItems: TrackItem[] = [];
+  let localLibraryItems: TrackItem[] = [];
+  let localFavoriteItems: TrackItem[] = [];
+  let localUpNextEntries: UpNextEntry[] = [];
+  let queueItems: TrackItem[] = [];
+  let libraryItems: TrackItem[] = [];
+  let favoriteItems: TrackItem[] = [];
   let localCollectionsReady = false;
   let collectionsReady = false;
-  let localPlaylistSelectionIds: string[] = [];
+  let localTrackSelectionIds: string[] = [];
   let localLibrarySelectionIds: string[] = [];
   let localLibrarySelectionAnchorId: string | null = null;
   let localFavoriteSelectionIds: string[] = [];
   let localFavoriteSelectionAnchorId: string | null = null;
-  let playlistSelectionIds: string[] = [];
+  let queueSelectionIds: string[] = [];
   let librarySelectionIds: string[] = [];
   let librarySelectionAnchorId: string | null = null;
   let favoriteSelectionIds: string[] = [];
   let favoriteSelectionAnchorId: string | null = null;
-  let remotePlaylistSelection: PlaylistSelection = emptySelection;
-  let remoteLibrarySelection: PlaylistSelection = emptySelection;
-  let remoteFavoriteSelection: PlaylistSelection = emptySelection;
+  let remoteTrackSelection: TrackSelection = emptySelection;
+  let remoteLibrarySelection: TrackSelection = emptySelection;
+  let remoteFavoriteSelection: TrackSelection = emptySelection;
   let lastPrunedRemoteCatalog: MultiplayerSessionState['remoteCatalog'] | null = null;
   let observedRemotePlayingTrackId: string | null = null;
   let lastTroubadourContext: TroubadourBatchContext | null = null;
-  let localSelectedPlaylistItem: PlaylistItem | null = null;
-  let localSelectedLibraryItem: PlaylistItem | null = null;
-  let localSelectedFavoriteItem: PlaylistItem | null = null;
-  let selectedPlaylistItem: PlaylistItem | null = null;
-  let selectedLibraryItem: PlaylistItem | null = null;
-  let selectedFavoriteItem: PlaylistItem | null = null;
-  let selectedItem: PlaylistItem | null = null;
-  let livePlayingTrack: PlaylistItem | null = null;
-  let playerDisplayTrack: PlaylistItem | null = null;
-  let favoriteTargetTrack: PlaylistItem | null = null;
-  let lyricsTrack: PlaylistItem | null = null;
+  let localSelectedTrackItem: TrackItem | null = null;
+  let localSelectedLibraryItem: TrackItem | null = null;
+  let localSelectedFavoriteItem: TrackItem | null = null;
+  let selectedTrackItem: TrackItem | null = null;
+  let selectedLibraryItem: TrackItem | null = null;
+  let selectedFavoriteItem: TrackItem | null = null;
+  let selectedItem: TrackItem | null = null;
+  let livePlayingTrack: TrackItem | null = null;
+  let playerDisplayTrack: TrackItem | null = null;
+  let favoriteTargetTrack: TrackItem | null = null;
+  let lyricsTrack: TrackItem | null = null;
   let detailsLibraryTargets: TrackLibraryNavigationTargets = {};
-  let localPlayingTrack: PlaylistItem | null = null;
-  let playingTrack: PlaylistItem | null = null;
+  let localPlayingTrack: TrackItem | null = null;
+  let playingTrack: TrackItem | null = null;
   let videoParkingHost: HTMLDivElement | null = null;
   let localShuffleEnabled = false;
-  let localRepeatMode: PlaylistRepeatMode = 'off';
+  let localRepeatMode: RepeatMode = 'off';
   let shuffleEnabled = false;
-  let repeatMode: PlaylistRepeatMode = 'off';
+  let repeatMode: RepeatMode = 'off';
   let localPlaybackStatus: Pick<PlaybackSnapshot, 'state' | 'volume' | 'backend' | 'error'> = {
     state: 'idle',
     volume: DEFAULT_PLAYER_VOLUME,
@@ -264,7 +264,7 @@
     clients: [],
     remoteCatalog: {
       revision: 0,
-      playlist: [],
+      queue: [],
       library: [],
       favorites: [],
       shuffleEnabled: false,
@@ -317,17 +317,17 @@
     active: false,
     opening: false
   };
-  const miniPlayerTrack = writable<PlaylistItem | null>(null);
-  const miniPlayerSelectedTrack = writable<PlaylistItem | null>(null);
+  const miniPlayerTrack = writable<TrackItem | null>(null);
+  const miniPlayerSelectedTrack = writable<TrackItem | null>(null);
   const miniPlayerArtworkUrl = writable<string | null>(null);
 
-  function getRemoteSelection(collection: WorkspaceCollection): PlaylistSelection {
-    return collection === 'playlist' ? remotePlaylistSelection : remoteLibrarySelection;
+  function getRemoteSelection(collection: WorkspaceCollection): TrackSelection {
+    return collection === 'queue' ? remoteTrackSelection : remoteLibrarySelection;
   }
 
-  function setRemoteSelection(collection: WorkspaceCollection, selection: PlaylistSelection): void {
-    if (collection === 'playlist') {
-      remotePlaylistSelection = selection;
+  function setRemoteSelection(collection: WorkspaceCollection, selection: TrackSelection): void {
+    if (collection === 'queue') {
+      remoteTrackSelection = selection;
     } else {
       remoteLibrarySelection = selection;
     }
@@ -338,7 +338,7 @@
       setRemoteSelection(collection, emptySelection);
       return;
     }
-    (collection === 'playlist' ? playlistStore : libraryStore).setSelection(emptySelection);
+    (collection === 'queue' ? queueStore : libraryStore).setSelection(emptySelection);
   }
 
   function selectCollectionTrack(
@@ -347,19 +347,19 @@
     options?: { range?: boolean; toggle?: boolean }
   ): void {
     if (!isMultiplayerClient) {
-      (collection === 'playlist' ? playlistStore : libraryStore).select(id, options);
+      (collection === 'queue' ? queueStore : libraryStore).select(id, options);
       return;
     }
-    const items = collection === 'playlist' ? playlistItems : libraryItems;
+    const items = collection === 'queue' ? queueItems : libraryItems;
     setRemoteSelection(
       collection,
       resolveSelectSelection(items, getRemoteSelection(collection), id, options)
     );
   }
 
-  function setCollectionSelection(collection: WorkspaceCollection, selection: PlaylistSelection): void {
+  function setCollectionSelection(collection: WorkspaceCollection, selection: TrackSelection): void {
     if (isMultiplayerClient) {
-      const items = collection === 'playlist' ? playlistItems : libraryItems;
+      const items = collection === 'queue' ? queueItems : libraryItems;
       const itemIds = new Set(items.map((item) => item.id));
       const ids = selection.ids.filter((id) => itemIds.has(id));
       setRemoteSelection(collection, {
@@ -369,18 +369,18 @@
       });
       return;
     }
-    (collection === 'playlist' ? playlistStore : libraryStore).setSelection(selection);
+    (collection === 'queue' ? queueStore : libraryStore).setSelection(selection);
   }
 
   function selectAllCollectionTracks(collection: WorkspaceCollection): void {
     if (isMultiplayerClient) {
       setRemoteSelection(
         collection,
-        buildSelectAllSelection(collection === 'playlist' ? playlistItems : libraryItems)
+        buildSelectAllSelection(collection === 'queue' ? queueItems : libraryItems)
       );
       return;
     }
-    (collection === 'playlist' ? playlistStore : libraryStore).selectAll();
+    (collection === 'queue' ? queueStore : libraryStore).selectAll();
   }
 
   let fileInput: HTMLInputElement | null = null;
@@ -417,9 +417,9 @@
     resumeAutoScrollToken: 0
   };
   const workspaceShell = createWorkspaceShellController({
-    getPlaylistContextActions: (ids) => isFreeplayClient
-      ? buildFreeplayPlaylistContextActions(playlistItems, libraryItems, ids)
-      : workspaceCollections.getPlaylistContextActions(ids),
+    getQueueContextActions: (ids) => isFreeplayClient
+      ? buildFreeplayQueueContextActions(queueItems, libraryItems, ids)
+      : workspaceCollections.getQueueContextActions(ids),
     getLibraryContextActions: (ids) => isFreeplayClient
       ? buildFreeplayLibraryContextActions(
           libraryViewSettings.getSnapshot().activeView === 'favorites' ? favoriteItems : libraryItems,
@@ -439,10 +439,10 @@
   let workspaceShellState = workspaceShell.getSnapshot();
   const workspaceCollections = createWorkspaceCollectionsController({
     getState: () => ({
-      playlistItems,
+      queueItems,
       libraryItems,
       favoriteItems,
-      playlistSelectionIds,
+      queueSelectionIds,
       librarySelectionIds,
       favoriteSelectionIds,
       playingTrack
@@ -453,7 +453,7 @@
       showTrackDetails: () => workspaceShell.showTrackDetails(),
       showTrackLyrics: () => workspaceShell.showTrackLyrics(),
       showLibraryGroup: (target) => workspaceShell.showLibraryGroup(target),
-      playPlaylist: playPlaylistFromCollectionAction
+      playQueue: playQueueFromCollectionAction
     }
   });
   const lyricsPresentation = createLyricsPresentationController({
@@ -473,7 +473,7 @@
   });
   const playbackCommands = createPlaybackCommandsController({
     getPlayingTrack: () => playingTrack,
-    getSelectedPlaylistTrack: () => selectedPlaylistItem,
+    getSelectedQueueTrack: () => selectedTrackItem,
     getPlaybackState: () => playbackStatus.state,
     getPlaybackCurrentTime: () => playbackSnapshot.currentTime,
     getPlaybackDuration: () => playbackSnapshot.duration,
@@ -485,7 +485,7 @@
     getShuffleEnabled: () => shuffleEnabled,
     getRepeatMode: () => repeatMode,
     getTrackById: (collection, id) =>
-      (collection === 'library' ? libraryItems : playlistItems).find((item) => item.id === id) ?? null,
+      (collection === 'library' ? libraryItems : queueItems).find((item) => item.id === id) ?? null,
     selectTrack: workspaceShell.selectTrack,
     setActiveWorkspaceTab: workspaceShell.setActiveWorkspaceTab,
     cleanupRemovedItems: workspaceCollections.cleanupRemovedItems,
@@ -525,21 +525,21 @@
         if (!playingTrack || command.seconds > playbackSnapshot.duration + 1) return false;
         seekPlayback(command.seconds);
         return true;
-      case 'playlist.shuffle':
-        playlistStore.toggleShuffle();
+      case 'queue.shuffle':
+        queueStore.toggleShuffle();
         return true;
-      case 'playlist.repeat':
-        playlistStore.cycleRepeatMode();
+      case 'queue.repeat':
+        queueStore.cycleRepeatMode();
         return true;
       case 'collection.activate': {
-        const items = command.collection === 'playlist'
-          ? playlistItems
+        const items = command.collection === 'queue'
+          ? queueItems
           : command.collection === 'favorites'
             ? favoriteItems
             : libraryItems;
         if (!items.some((item) => item.id === command.itemId)) return false;
-        if (command.collection === 'playlist') {
-          await playbackCommands.activatePlaylistTrack(command.itemId);
+        if (command.collection === 'queue') {
+          await playbackCommands.activateQueueTrack(command.itemId);
         } else if (command.collection === 'favorites') {
           const track = favoriteItems.find((item) => item.id === command.itemId);
           if (!track) return false;
@@ -594,10 +594,10 @@
     if (value.remoteCatalog === lastPrunedRemoteCatalog) return;
     lastPrunedRemoteCatalog = value.remoteCatalog;
 
-    const playlistIds = new Set(value.remoteCatalog.playlist.map((item) => item.id));
+    const queueIds = new Set(value.remoteCatalog.queue.map((item) => item.id));
     const libraryIds = new Set(value.remoteCatalog.library.map((item) => item.id));
     const favoriteIds = new Set(value.remoteCatalog.favorites.map((item) => item.id));
-    remotePlaylistSelection = pruneSelection(remotePlaylistSelection, playlistIds);
+    remoteTrackSelection = pruneSelection(remoteTrackSelection, queueIds);
     remoteLibrarySelection = pruneSelection(remoteLibrarySelection, libraryIds);
     remoteFavoriteSelection = pruneSelection(remoteFavoriteSelection, favoriteIds);
   });
@@ -666,7 +666,7 @@
     }
   }
 
-  function pruneSelection(selection: PlaylistSelection, ids: Set<string>): PlaylistSelection {
+  function pruneSelection(selection: TrackSelection, ids: Set<string>): TrackSelection {
     const retained = selection.ids.filter((id) => ids.has(id));
     return {
       ids: retained,
@@ -768,20 +768,20 @@
     playerController.toggleMute();
   }
 
-  function togglePlaylistShuffle(): void {
+  function toggleQueueShuffle(): void {
     if (isMultiplayerClient) {
-      multiplayerSession.sendCommand({ type: 'playlist.shuffle' });
+      multiplayerSession.sendCommand({ type: 'queue.shuffle' });
       return;
     }
-    playlistStore.toggleShuffle();
+    queueStore.toggleShuffle();
   }
 
-  function cyclePlaylistRepeat(): void {
+  function cycleQueueRepeat(): void {
     if (isMultiplayerClient) {
-      multiplayerSession.sendCommand({ type: 'playlist.repeat' });
+      multiplayerSession.sendCommand({ type: 'queue.repeat' });
       return;
     }
-    playlistStore.cycleRepeatMode();
+    queueStore.cycleRepeatMode();
   }
 
   function activateMultiplayerTrack(collection: WorkspaceCollection | 'favorites', id: string): boolean {
@@ -807,7 +807,7 @@
     );
   }
 
-  function handleFreeplayNavigationAction(actionId: string, tracks: PlaylistItem[]): boolean {
+  function handleFreeplayNavigationAction(actionId: string, tracks: TrackItem[]): boolean {
     if (tracks.length !== 1) return false;
     const target = resolveTrackLibraryNavigationAction(actionId, tracks[0], libraryItems);
     if (!target) return false;
@@ -815,28 +815,28 @@
     return true;
   }
 
-  function handleFreeplayPlaylistContextAction(actionId: string, ids: string[]): void {
+  function handleFreeplayQueueContextAction(actionId: string, ids: string[]): void {
     if (actionId === 'remove') {
       removeFromFreeplayQueue(ids);
       return;
     }
-    const tracks = buildSelectedWorkspaceTracks(playlistItems, ids);
+    const tracks = buildSelectedWorkspaceTracks(queueItems, ids);
     if (handleFreeplayNavigationAction(actionId, tracks)) return;
     if (actionId === 'track-details') workspaceShell.showTrackDetails();
   }
 
   function handleFreeplayLibraryContextAction(actionId: string, ids: string[]): void {
-    if (actionId === 'add-to-playlist') {
+    if (actionId === 'add-to-queue') {
       addToFreeplayQueue(ids);
       return;
     }
-    if (actionId === 'replace-playlist' || actionId === 'shuffle-play') {
+    if (actionId === 'replace-queue' || actionId === 'shuffle-play') {
       if (ids.length === 0) return;
       multiplayerSession.setFreeplayQueue(ids);
       if (actionId === 'shuffle-play' && !multiplayerState.remoteCatalog.shuffleEnabled) {
-        multiplayerSession.sendCommand({ type: 'playlist.shuffle' });
+        multiplayerSession.sendCommand({ type: 'queue.shuffle' });
       }
-      activateMultiplayerTrack('playlist', ids[0]);
+      activateMultiplayerTrack('queue', ids[0]);
       return;
     }
     const source = $libraryViewSettings.activeView === 'favorites' ? favoriteItems : libraryItems;
@@ -871,15 +871,15 @@
   const playbackRestoration = createPlaybackRestorationController({
     track: playerController.currentTrack,
     snapshot: playerController.snapshot,
-    getPlaylistTrack: (id) => playlistItems.find((item) => item.id === id) ?? null,
-    ensureLoaded: (id) => playlistStore.ensureLoaded(id),
-    selectTrack: (id) => workspaceShell.selectTrack('playlist', id),
+    getQueueTrack: (id) => queueItems.find((item) => item.id === id) ?? null,
+    ensureLoaded: (id) => queueStore.ensureLoaded(id),
+    selectTrack: (id) => workspaceShell.selectTrack('queue', id),
     loadTrack: (track, options) => playerController.load(track, options)
   });
   let playbackCommandsState = playbackCommands.getSnapshot();
   const artworkPresentation = createArtworkPresentationController({
     resolveTrackSnapshot: (track) =>
-      resolveTrackSnapshot(track, selectedItem, playlistItems, libraryItems),
+      resolveTrackSnapshot(track, selectedItem, queueItems, libraryItems),
     isPlaybackDetailsPending: (trackId) =>
       playbackCommandsState.pendingPlaybackTrackId === trackId || playingTrack?.id === trackId,
     loadArtwork: (track) => multiplayerState.mode === 'client'
@@ -896,17 +896,17 @@
   let artworkPresentationState = artworkPresentation.getSnapshot();
   let backdropPresentation: AppBackdropPresentation;
   let appInstallState: AppInstallState = { available: false, showHint: false };
-  const unsubscribePlaylistItems = playlistItemsStore.subscribe((value) => (localPlaylistItems = value));
+  const unsubscribeTrackItems = queueItemsStore.subscribe((value) => (localTrackItems = value));
   const unsubscribeLibraryItems = libraryItemsStore.subscribe((value) => (localLibraryItems = value));
   const unsubscribeFavoriteItems = favoriteItemsStore.subscribe((value) => (localFavoriteItems = value));
-  void Promise.all([playlistStore.ready(), libraryStore.ready(), favoritesStore.ready()]).then(async () => {
+  void Promise.all([queueStore.ready(), libraryStore.ready(), favoritesStore.ready()]).then(async () => {
     localCollectionsReady = true;
     void scanLaunchLibraryFolders();
     await playbackRestoration.restore();
     void startLaunchMultiplayer();
   });
-  const unsubscribePlaylistSelectedIds = playlistSelectedIdsStore.subscribe(
-    (value) => (localPlaylistSelectionIds = value)
+  const unsubscribeQueueSelectedIds = queueSelectedIdsStore.subscribe(
+    (value) => (localTrackSelectionIds = value)
   );
   const unsubscribeLibrarySelectedIds = librarySelectedIdsStore.subscribe(
     (value) => (localLibrarySelectionIds = value)
@@ -920,8 +920,8 @@
   const unsubscribeFavoriteSelection = favoriteSelectionStore.subscribe(
     (value) => (localFavoriteSelectionAnchorId = value.anchorId)
   );
-  const unsubscribePlaylistSelectedTrack = playlistSelectedTrackStore.subscribe(
-    (value) => (localSelectedPlaylistItem = value)
+  const unsubscribeQueueSelectedTrack = queueSelectedTrackStore.subscribe(
+    (value) => (localSelectedTrackItem = value)
   );
   const unsubscribeLibrarySelectedTrack = librarySelectedTrackStore.subscribe(
     (value) => (localSelectedLibraryItem = value)
@@ -940,7 +940,7 @@
       return;
     }
 
-    playlistStore.updateMetadata(value.id, value.metadata);
+    queueStore.updateMetadata(value.id, value.metadata);
 
     const playingIdentity = getTrackIdentity(value);
 
@@ -956,8 +956,8 @@
       }
     }
   });
-  const unsubscribeQueue = playbackQueue.subscribe((value) => {
-    localQueueEntries = value;
+  const unsubscribeUpNext = upNext.subscribe((value) => {
+    localUpNextEntries = value;
   });
   const unsubscribePlaybackSnapshot = playerController.snapshot.subscribe((value) => {
     localPlaybackSnapshot = value;
@@ -967,7 +967,7 @@
     }
   });
 
-  function playPlaylistFromCollectionAction(): void {
+  function playQueueFromCollectionAction(): void {
     playPlayback();
   }
   const unsubscribePlaybackStatus = playerController.status.subscribe((value) => (localPlaybackStatus = value));
@@ -1019,9 +1019,9 @@
       videoTrackActive,
       isRightPanelVisible: workspaceShellState.isRightPanelVisible,
       activeCollection: workspaceShellState.activeCollection,
-      playlistSelectionIds,
+      queueSelectionIds,
       librarySelectionIds: $libraryViewSettings.activeView === 'favorites' ? favoriteSelectionIds : librarySelectionIds,
-      selectedPlaylistItem,
+      selectedTrackItem,
       selectedLibraryItem: $libraryViewSettings.activeView === 'favorites' ? selectedFavoriteItem : selectedLibraryItem,
       playingTrack,
       playbackSnapshot
@@ -1030,12 +1030,12 @@
       toggleFullscreenPresentation,
       closeNowPlayingView,
       closeActiveRightPanel,
-      removePlaylistItems: (ids) => {
+      removeTrackItems: (ids) => {
         if (isFreeplayClient) {
           removeFromFreeplayQueue(ids);
           return;
         }
-        if (!isMultiplayerClient) workspaceCollections.removePlaylistItems(ids);
+        if (!isMultiplayerClient) workspaceCollections.removeTrackItems(ids);
       },
       removeLibraryItems: (ids) =>
         isMultiplayerClient
@@ -1047,9 +1047,9 @@
       seek: seekPlayback,
       stepTrack,
       setVolume: setPlayerVolume,
-      activatePlaylistTrack: (id) => {
-        if (activateMultiplayerTrack('playlist', id)) return;
-        return playbackCommands.activatePlaylistTrack(id);
+      activateQueueTrack: (id) => {
+        if (activateMultiplayerTrack('queue', id)) return;
+        return playbackCommands.activateQueueTrack(id);
       },
       activateLibraryTrack: (id) => activateLibraryPanelTrack(id),
       togglePlayback,
@@ -1113,15 +1113,15 @@
     ?? (multiplayerConnectionOperation === 'hosting'
       ? $t('main.multiplayer.preparingRoom', { default: 'Preparing the signaling room...' })
       : $t('main.multiplayer.preparingConnection', { default: 'Preparing the connection...' }));
-  $: playlistItems = isMultiplayerClient ? multiplayerState.remoteCatalog.playlist : localPlaylistItems;
+  $: queueItems = isMultiplayerClient ? multiplayerState.remoteCatalog.queue : localTrackItems;
   $: libraryItems = isMultiplayerClient ? multiplayerState.remoteCatalog.library : localLibraryItems;
   $: favoriteItems = isMultiplayerClient ? multiplayerState.remoteCatalog.favorites : localFavoriteItems;
   $: collectionsReady = isMultiplayerClient
     ? multiplayerState.connectionStatus === 'connected' && multiplayerState.remoteCatalog.revision > 0
     : localCollectionsReady;
-  $: playlistSelectionIds = isMultiplayerClient
-    ? remotePlaylistSelection.ids
-    : localPlaylistSelectionIds;
+  $: queueSelectionIds = isMultiplayerClient
+    ? remoteTrackSelection.ids
+    : localTrackSelectionIds;
   $: librarySelectionIds = isMultiplayerClient
     ? remoteLibrarySelection.ids
     : localLibrarySelectionIds;
@@ -1134,9 +1134,9 @@
   $: favoriteSelectionAnchorId = isMultiplayerClient
     ? remoteFavoriteSelection.anchorId
     : localFavoriteSelectionAnchorId;
-  $: selectedPlaylistItem = isMultiplayerClient
-    ? playlistItems.find((item) => item.id === (remotePlaylistSelection.focusId ?? remotePlaylistSelection.ids.at(-1))) ?? null
-    : localSelectedPlaylistItem;
+  $: selectedTrackItem = isMultiplayerClient
+    ? queueItems.find((item) => item.id === (remoteTrackSelection.focusId ?? remoteTrackSelection.ids.at(-1))) ?? null
+    : localSelectedTrackItem;
   $: selectedLibraryItem = isMultiplayerClient
     ? libraryItems.find((item) => item.id === (remoteLibrarySelection.focusId ?? remoteLibrarySelection.ids.at(-1))) ?? null
     : localSelectedLibraryItem;
@@ -1144,31 +1144,31 @@
     ? favoriteItems.find((item) => item.id === (remoteFavoriteSelection.focusId ?? remoteFavoriteSelection.ids.at(-1))) ?? null
     : localSelectedFavoriteItem;
   $: playingTrack = isMultiplayerClient ? multiplayerState.remotePlayback.track : localPlayingTrack;
-  $: if (!isMultiplayerClient && playlistItems.length > 0) {
-    playbackQueue.prune(playlistItems.map((item) => item.id));
+  $: if (!isMultiplayerClient && queueItems.length > 0) {
+    upNext.prune(queueItems.map((item) => item.id));
   }
-  $: queueDisplayItems = localQueueEntries
+  $: upNextDisplayItems = localUpNextEntries
     .flatMap((entry) => {
-      const item = playlistItems.find((candidate) => candidate.id === entry.id);
+      const item = queueItems.find((candidate) => candidate.id === entry.id);
       return item ? [item] : [];
     });
-  $: queuePanelProps = {
-    items: queueDisplayItems,
+  $: upNextPanelProps = {
+    items: upNextDisplayItems,
     playingId: playingTrack?.id ?? null,
     getContextMenuActions: (ids: string[]) =>
       isFreeplayClient || isMultiplayerClient
-        ? [{ id: 'remove-from-queue', label: 'Remove from queue', icon: 'playlist_remove' }]
-        : workspaceCollections.getQueueContextActions(ids)
-  } satisfies QueuePanelProps;
+        ? [{ id: 'remove-from-up-next', label: 'Remove from up next', icon: 'queue_remove' }]
+        : workspaceCollections.getUpNextContextActions(ids)
+  } satisfies UpNextPanelProps;
   $: {
     const selectionSync = resolveMultiplayerPlayingTrackSelection(
       observedRemotePlayingTrackId,
       isMultiplayerClient ? playingTrack?.id ?? null : null,
-      playlistItems
+      queueItems
     );
     observedRemotePlayingTrackId = selectionSync.observedTrackId;
     if (isMultiplayerClient && selectionSync.selection) {
-      workspaceShell.setCollectionSelection('playlist', selectionSync.selection);
+      workspaceShell.setCollectionSelection('queue', selectionSync.selection);
     }
   }
   const RENDER_BUFFERED_POLL_INTERVAL_MS = 500;
@@ -1251,11 +1251,11 @@
   $: selectedItem =
     workspaceShellState.activeCollection === 'library'
       ? $libraryViewSettings.activeView === 'favorites' ? selectedFavoriteItem : selectedLibraryItem
-      : selectedPlaylistItem;
-  $: livePlayingTrack = resolveTrackSnapshot(playingTrack, selectedItem, playlistItems, libraryItems);
+      : selectedTrackItem;
+  $: livePlayingTrack = resolveTrackSnapshot(playingTrack, selectedItem, queueItems, libraryItems);
   $: playerDisplayTrack = livePlayingTrack;
   $: miniPlayerTrack.set(playerDisplayTrack);
-  $: miniPlayerSelectedTrack.set(selectedPlaylistItem);
+  $: miniPlayerSelectedTrack.set(selectedTrackItem);
   $: miniPlayerArtworkUrl.set(artworkPresentationState.displayedArtwork?.url ?? null);
   $: mediaSessionArtworkOverrideStore.set(isMultiplayerClient
     ? toLoadedMultiplayerArtwork(playerDisplayTrack, multiplayerState.remoteArtwork)
@@ -1358,10 +1358,10 @@
   });
   $: workspaceShell.sync({
     innerWidth,
-    playlistItems,
+    queueItems,
     libraryItems,
     favoriteItems,
-    playlistSelectionIds,
+    queueSelectionIds,
     librarySelectionIds,
     librarySelectionAnchorId,
     favoriteSelectionIds,
@@ -1376,7 +1376,7 @@
     readOnly: isMultiplayerClient && !isFreeplayClient
   });
   $: multiplayerSession.updateHostState({
-    playlist: localPlaylistItems,
+    queue: localTrackItems,
     library: localLibraryItems,
     favorites: localFavoriteItems,
     shuffleEnabled: localShuffleEnabled,
@@ -1395,7 +1395,7 @@
   $: {
     artworkPresentation.syncSelection(
       selectedItem,
-      playlistSelectionIds.length > 0 || librarySelectionIds.length > 0 || favoriteSelectionIds.length > 0
+      queueSelectionIds.length > 0 || librarySelectionIds.length > 0 || favoriteSelectionIds.length > 0
     );
     void artworkPresentation.syncDetailsDisplay();
   }
@@ -1414,28 +1414,28 @@
   );
   $: artworkPresentation.setWindowControlsOverlayVisible($windowControlsOverlayState.visible);
 
-  const playlistPanelHandlers: WorkspacePanelHandlers = {
-    addFiles: (files) => { if (!isMultiplayerClient) workspaceCollections.handleAddFiles(files, 'playlist'); },
+  const queuePanelHandlers: WorkspacePanelHandlers = {
+    addFiles: (files) => { if (!isMultiplayerClient) workspaceCollections.handleAddFiles(files, 'queue'); },
     addFolders: (handles) => { if (!isMultiplayerClient) void filesystemFolders.rememberMany(handles); },
-    openFiles: () => { if (!isMultiplayerClient) void handleMenuOpenFiles('playlist'); },
-    select: (event) => handleSelect('playlist', event),
-    setSelection: (event) => handleSetSelection('playlist', event),
+    openFiles: () => { if (!isMultiplayerClient) void handleMenuOpenFiles('queue'); },
+    select: (event) => handleSelect('queue', event),
+    setSelection: (event) => handleSetSelection('queue', event),
     activate: (event) => {
-      if (!activateMultiplayerTrack('playlist', event.detail)) {
-        void playbackCommands.activatePlaylistTrack(event.detail);
+      if (!activateMultiplayerTrack('queue', event.detail)) {
+        void playbackCommands.activateQueueTrack(event.detail);
       }
     },
     contextAction: (event) => {
       if (isFreeplayClient) {
-        handleFreeplayPlaylistContextAction(event.detail.actionId, event.detail.ids);
+        handleFreeplayQueueContextAction(event.detail.actionId, event.detail.ids);
         return;
       }
       if (!isMultiplayerClient) {
-        workspaceCollections.handlePlaylistContextAction(event.detail.actionId, event.detail.ids);
+        workspaceCollections.handleQueueContextAction(event.detail.actionId, event.detail.ids);
       }
     },
-    toggleShuffle: togglePlaylistShuffle,
-    cycleRepeat: cyclePlaylistRepeat
+    toggleShuffle: toggleQueueShuffle,
+    cycleRepeat: cycleQueueRepeat
   };
   const libraryPanelHandlers: WorkspacePanelHandlers = {
     addFiles: (files) => { if (!isMultiplayerClient) workspaceCollections.handleAddFiles(files, 'library'); },
@@ -1456,15 +1456,15 @@
         : workspaceCollections.handleLibraryContextAction(event.detail.actionId, event.detail.ids);
     }
   };
-  const queuePanelHandlers: QueuePanelHandlers = {
+  const upNextPanelHandlers: UpNextPanelHandlers = {
     activate: (event) => {
       if (isFreeplayClient || isMultiplayerClient) return;
-      playbackQueue.remove([event.detail]);
-      void playbackCommands.activatePlaylistTrack(event.detail);
+      upNext.remove([event.detail]);
+      void playbackCommands.activateQueueTrack(event.detail);
     },
     contextAction: (event) => {
       if (isFreeplayClient || isMultiplayerClient) return;
-      workspaceCollections.handleQueueContextAction(event.detail.actionId, event.detail.ids);
+      workspaceCollections.handleUpNextContextAction(event.detail.actionId, event.detail.ids);
     }
   };
 
@@ -1491,7 +1491,7 @@
     });
   }
 
-  function handleSetSelection(collection: WorkspaceCollection, event: CustomEvent<PlaylistSelection>) {
+  function handleSetSelection(collection: WorkspaceCollection, event: CustomEvent<TrackSelection>) {
     workspaceShell.setCollectionSelection(collection, event.detail);
   }
 
@@ -1519,7 +1519,7 @@
     }
   }
 
-  function handleLibraryPanelSetSelection(event: CustomEvent<PlaylistSelection>) {
+  function handleLibraryPanelSetSelection(event: CustomEvent<TrackSelection>) {
     if ($libraryViewSettings.activeView === 'favorites') {
       workspaceShell.focusCollection('library');
       if (isMultiplayerClient) {
@@ -1536,7 +1536,7 @@
   async function activateLibraryPanelTrack(id: string) {
     if (isFreeplayClient) {
       addToFreeplayQueue([id]);
-      activateMultiplayerTrack('playlist', id);
+      activateMultiplayerTrack('queue', id);
       return;
     }
     if (activateMultiplayerTrack(
@@ -1552,17 +1552,17 @@
     if (track) await playbackCommands.activateFavoriteTrack(track);
   }
 
-  function handleShowPlaylistTrack(id: string) {
-    workspaceShell.showPlaylistTrack(id);
+  function handleShowQueueTrack(id: string) {
+    workspaceShell.showQueueTrack(id);
   }
 
   function handleShowPlayerTrackDetails(id: string) {
-    handleShowPlaylistTrack(id);
+    handleShowQueueTrack(id);
     workspaceShell.showTrackDetails();
   }
 
-  function showPlaylist() {
-    workspaceShell.showWorkspaceTab('playlist');
+  function showQueue() {
+    workspaceShell.showWorkspaceTab('queue');
   }
 
   function showLibrary() {
@@ -1635,7 +1635,7 @@
     restoreVideoWindowSize();
   }
 
-  function syncVideoPresentation(track: PlaylistItem | null, autoEnterTheater: boolean): void {
+  function syncVideoPresentation(track: TrackItem | null, autoEnterTheater: boolean): void {
     const videoActive = track?.kind === 'video';
     const signature = videoActive
       ? `${track.id}:${autoEnterTheater ? 'auto' : 'manual'}`
@@ -1732,14 +1732,14 @@
   }
 
   function createTroubadourContext(): TroubadourBatchContext {
-    const playlistIdSet = new Set(playlistSelectionIds);
+    const queueIdSet = new Set(queueSelectionIds);
     const libraryIdSet = new Set(librarySelectionIds);
     const favoriteIdSet = new Set(favoriteSelectionIds);
 
     return buildTroubadourBatchContext(
       [
         { collection: 'current', items: playingTrack ? [playingTrack] : [] },
-        { collection: 'playlist', items: playlistItems.filter((item) => playlistIdSet.has(item.id)) },
+        { collection: 'queue', items: queueItems.filter((item) => queueIdSet.has(item.id)) },
         { collection: 'library', items: libraryItems.filter((item) => libraryIdSet.has(item.id)) },
         { collection: 'favorites', items: favoriteItems.filter((item) => favoriteIdSet.has(item.id)) }
       ],
@@ -1777,7 +1777,7 @@
   }
 
   async function isTroubadourResultMatch(
-    item: PlaylistItem,
+    item: TrackItem,
     collection: TroubadourTrackReference['collection'],
     result: TroubadourMatchTarget
   ): Promise<boolean> {
@@ -1870,7 +1870,7 @@
     for (const result of successfulResults) {
       const patch = getTroubadourExternalPatch(result);
       const collections = [
-        { name: 'playlist' as const, items: playlistItems, store: playlistStore },
+        { name: 'queue' as const, items: queueItems, store: queueStore },
         { name: 'library' as const, items: libraryItems, store: libraryStore },
         { name: 'favorites' as const, items: favoriteItems, store: favoritesStore }
       ];
@@ -2115,16 +2115,16 @@
     lyricsPresentation.destroy();
     playCountTracker.destroy();
     workspaceShell.destroy();
-    unsubscribePlaylistItems();
+    unsubscribeTrackItems();
     unsubscribeLibraryItems();
     unsubscribeFavoriteItems();
-    unsubscribeQueue();
-    unsubscribePlaylistSelectedIds();
+    unsubscribeUpNext();
+    unsubscribeQueueSelectedIds();
     unsubscribeLibrarySelectedIds();
     unsubscribeLibrarySelection();
     unsubscribeFavoriteSelectedIds();
     unsubscribeFavoriteSelection();
-    unsubscribePlaylistSelectedTrack();
+    unsubscribeQueueSelectedTrack();
     unsubscribeLibrarySelectedTrack();
     unsubscribeFavoriteSelectedTrack();
     unsubscribeShuffle();
@@ -2248,7 +2248,7 @@
     on:openConverter={() => windowManager.openPopup('converter')}
     on:openLogs={() => windowManager.openPopup('logs')}
     on:openTroubadour={() => windowManager.openPopup('troubadour')}
-    on:showPlaylist={showPlaylist}
+    on:showQueue={showQueue}
     on:showLibrary={showLibrary}
     on:showTrackDetails={showTrackDetails}
     on:showLyrics={showTrackLyrics}
@@ -2289,11 +2289,11 @@
     {videoSeekFeedback}
     inactive={videoTheaterActive}
     workspaceState={workspaceShellState}
-    {playlistPanelHandlers}
-    {libraryPanelHandlers}
-    {queuePanelProps}
     {queuePanelHandlers}
-    {selectedPlaylistItem}
+    {libraryPanelHandlers}
+    {upNextPanelProps}
+    {upNextPanelHandlers}
+    {selectedTrackItem}
     {playerDisplayTrack}
     {lyricsTrack}
     {modulePatternSnapshot}
@@ -2376,11 +2376,11 @@
     {videoSeekFeedback}
     inactive={videoTheaterActive}
     workspaceState={workspaceShellState}
-    {playlistPanelHandlers}
-    {libraryPanelHandlers}
-    {queuePanelProps}
     {queuePanelHandlers}
-    {selectedPlaylistItem}
+    {libraryPanelHandlers}
+    {upNextPanelProps}
+    {upNextPanelHandlers}
+    {selectedTrackItem}
     {playerDisplayTrack}
     {lyricsTrack}
     {modulePatternSnapshot}
@@ -2483,12 +2483,12 @@
       presentation={videoTheaterActive ? 'theater' : 'bar'}
       snapshotStore={displayPlaybackSnapshotStore}
       track={playerDisplayTrack}
-      selectedTrack={selectedPlaylistItem}
+      selectedTrack={selectedTrackItem}
       artwork={artworkPresentationState.displayedArtwork}
       backdropEffect={$appearanceSettings.backdropZones.player}
       backdropArtworkSettings={$appearanceSettings.backdropZoneArtwork.player}
       artworkBackgroundBright={backdropPresentation.artworkBackgroundBrightByZone.player}
-      hasCollectionItems={playlistItems.length > 0 || libraryItems.length > 0 || favoriteItems.length > 0}
+      hasCollectionItems={queueItems.length > 0 || libraryItems.length > 0 || favoriteItems.length > 0}
       {collectionsReady}
       showFavoriteToggle={!isMultiplayerClient && $trackSettings.showFavoriteToggleInPlayerBar}
       favorite={favoriteTargetTrack ? favoritesHaveAllTracks(favoriteItems, [favoriteTargetTrack]) : false}

@@ -1,5 +1,5 @@
 import { loadEmbeddedStreamArtwork } from '$lib/services/stream-artwork';
-import type { PlaylistItem } from '$lib/types';
+import type { TrackItem } from '$lib/types';
 
 export const ALBUM_ARTWORK_THUMBNAIL_SIZE = 96;
 
@@ -39,11 +39,11 @@ export interface CachedArtworkThumbnail {
 const pendingLoads = new Map<string, Promise<CachedArtworkThumbnail | null>>();
 let pruneScheduled = false;
 
-function isArtworkCandidate(track: PlaylistItem): boolean {
+function isArtworkCandidate(track: TrackItem): boolean {
   return track.kind === 'stream' && (track.extension === 'flac' || track.extension === 'opus');
 }
 
-export function getArtworkSourceFingerprint(track: PlaylistItem): string {
+export function getArtworkSourceFingerprint(track: TrackItem): string {
   return [track.extension, track.size, track.lastModified, EXTRACTION_VERSION].join(':');
 }
 
@@ -280,7 +280,7 @@ function scheduleCachePrune(): void {
 }
 
 async function loadArtworkThumbnail(
-  track: PlaylistItem,
+  track: TrackItem,
   maxEdge: number
 ): Promise<CachedArtworkThumbnail | null> {
   const sourceKey = track.id;
@@ -352,7 +352,7 @@ async function loadArtworkThumbnail(
 }
 
 export function getCachedArtworkThumbnail(
-  track: PlaylistItem,
+  track: TrackItem,
   maxEdge = ALBUM_ARTWORK_THUMBNAIL_SIZE
 ): Promise<CachedArtworkThumbnail | null> {
   if (!isArtworkCandidate(track)) {

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { PlaylistItem } from '$lib/types';
+import type { TrackItem } from '$lib/types';
 
 const wireHarness = vi.hoisted(() => {
   const track = { readyState: 'live', stop: vi.fn(), contentHint: '' };
@@ -24,7 +24,7 @@ vi.mock('$lib/services/audio-bus', () => ({
 
 import { createFreeplayStepResolver, MultiplayerFreeplayPlayer } from './multiplayer-freeplay';
 
-function track(id: string): PlaylistItem {
+function track(id: string): TrackItem {
   return {
     id,
     name: `${id}.mp3`,

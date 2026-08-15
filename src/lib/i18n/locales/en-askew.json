@@ -36,7 +36,6 @@
       "openFiles": "Receive a single file...",
       "openFolder": "Receive a file container...",
       "forceUpdate": "The product must refresh",
-      "playlist": "Operation queue",
       "library": "Operation catalogue",
       "trackDetails": "About the operation",
       "lyrics": "Words",
@@ -49,7 +48,8 @@
       "applicationMenu": "Main product choices",
       "updateUpdated": "Refreshed.",
       "updateCurrent": "No refreshments",
-      "updateFailed": "Could not retrieve"
+      "updateFailed": "Could not retrieve",
+      "queue": "Operation queue"
     },
     "miniPlayer": {
       "heading": "Smalled operator",
@@ -160,104 +160,6 @@
       "emptyDescription": "Selections from queue and warehouse both surrender their metadata in this location."
     }
   },
-  "playlist": {
-    "library": {
-      "columns": {
-        "sortBy": "Arrange citizens according to {column}",
-        "resize": "Alter width of {column} chimney",
-        "title": "Name inscription",
-        "artist": "Sound person",
-        "album": "Record container",
-        "folder": "File purse",
-        "format": "File species",
-        "duration": "Time consumed",
-        "plays": "Operation history"
-      },
-      "groupSongCount": "{count, plural, one {# musical citizen} other {# musical citizens}}",
-      "views": {
-        "favorites": "Beloved objects",
-        "songs": "Operations",
-        "artists": "Operation owners",
-        "albums": "Record containers",
-        "genres": "Musical species",
-        "years": "Historical years",
-        "formats": "File species",
-        "folders": "File purses",
-        "label": "Ways to stare into warehouse"
-      },
-      "search": "Search the permanent sound warehouse",
-      "closeSearch": "Cease searching through warehouse",
-      "backToGroups": "Return to collective formations",
-      "back": "Return backward",
-      "filter": "Install warehouse sieve",
-      "title": "Operation catalogue",
-      "unknownArtist": "Unidentified person",
-      "unknownAlbum": "Unidentified record container",
-      "unknownGenre": "Unclassified musical species",
-      "unknownYear": "Time period lost to government",
-      "unknownFormat": "Suspicious file species",
-      "unknownFolder": "File purse of unknown address",
-      "trackerModule": "Number-music module",
-      "stream": "Ordinary continuous sound",
-      "video": "Moving picture with obligations",
-      "summary": {
-        "filteredArtists": "Displaying {visible} from {total} {total, plural, one {sound person} other {sound persons}}",
-        "filteredAlbums": "Displaying {visible} from {total} {total, plural, one {record container} other {record containers}}",
-        "filteredGenres": "Displaying {visible} from {total} {total, plural, one {musical species} other {musical species}}",
-        "filteredYears": "Displaying {visible} from {total} {total, plural, one {historical year} other {historical years}}",
-        "filteredFormats": "Displaying {visible} from {total} {total, plural, one {file species} other {file species}}",
-        "filteredFolders": "Displaying {visible} from {total} {total, plural, one {file purse} other {file purses}}",
-        "artists": "{count, plural, one {# sound person} other {# sound persons}}",
-        "albums": "{count, plural, one {# record container} other {# record containers}}",
-        "genres": "{count, plural, one {# musical species} other {# musical species}}",
-        "years": "{count, plural, one {# historical year} other {# historical years}}",
-        "formats": "{count, plural, one {# file species} other {# file species}}",
-        "folders": "{count, plural, one {# file purse} other {# file purses}}",
-        "groupsAndSongs": "{groups} collectives · {songs, plural, one {# musical citizen} other {# musical citizens}}"
-      },
-      "noResults": "The warehouse has nothing corresponding to \"{query}\". Terrible query perhaps.",
-      "favoritesEmpty": "Beloved sound units and their smaller internal children will accumulate here.",
-      "empty": "Your permanent sound warehouse contains nothing lmao. Add files or drop a file purse here."
-    },
-    "addFiles": "Introduce more file objects",
-    "searchPlaceholder": "Search for evidence",
-    "actions": {
-      "trackDetails": "Investigate sound unit",
-      "removeFromLibrary": "Deport from permanent warehouse",
-      "addToLibrary": "Naturalize into permanent warehouse",
-      "removeFromFavorites": "Revoke beloved-object status",
-      "addToFavorites": "Award beloved-object status",
-      "separateSubsongs": "Extract the songs living inside song",
-      "addToPlaylist": "Append to operation waiting queue",
-      "replacePlaylist": "Evict queue and install this instead",
-      "resetPlayCount": "Erase evidence of listening",
-      "remove": "Make it go away"
-    },
-    "shortcuts": {
-      "delete": "Keyboard destruction"
-    },
-    "contextMenu": {
-      "itemActions": "Available consequences for {panel} object",
-      "columns": "Vertical information chimneys of {panel}"
-    },
-    "shuffle": {
-      "disable": "Restore operation chronology",
-      "enable": "Permit random sequence",
-      "on": "Sequence randomization enabled",
-      "off": "Sequence obeys the law"
-    },
-    "title": "Operation waiting queue",
-    "summary": {
-      "filteredTracks": "{visible} exposed from {total} {total, plural, one {musical citizen} other {musical citizens}} · consumes {duration}",
-      "tracks": "{count, plural, one {# musical citizen} other {# musical citizens}} · consumes {duration}"
-    },
-    "repeat": {
-      "currentTrack": "Trap current song in a time prison",
-      "playlist": "Trap entire queue in a time prison",
-      "off": "Time prison abolished"
-    },
-    "listRegion": "Enumerated citizens of {name}"
-  },
   "workspace": {
     "nowPlaying": {
       "exit": "Leave enormous current situation",
@@ -279,7 +181,6 @@
     "resizePanels": "Renegotiate border between {before} and {after}",
     "dropOnPanel": "Drop the object upon {panel}",
     "tabs": {
-      "playlist": "Waiting queue",
       "library": "Sound warehouse",
       "details": "Investigation",
       "lyrics": "Singing text",
@@ -287,7 +188,8 @@
       "video": "Moving picture",
       "label": "Page tongues of operation zone",
       "closeNamed": "Fold away {tab}",
-      "close": "Fold away"
+      "close": "Fold away",
+      "queue": "Waiting queue"
     }
   },
   "pwa": {
@@ -513,7 +415,7 @@
         },
         "idleQuips": {
           "title": "The application makes jokes if not being used",
-          "hint": "Shows a randomly chosen quip in the idle player bar when the playlist or library has music."
+          "hint": "Shows a randomly chosen quip in the idle player bar when the queue or library has music."
         },
         "windowTitle": {
           "title": "Window name displays the name of track",
@@ -946,9 +848,9 @@
       },
       "associatedFiles": {
         "title": "Files opened with izci",
-        "hint": "Choose how files opened through operating-system file associations affect the current playlist.",
-        "add": "Add to playlist",
-        "replace": "Replace playlist"
+        "hint": "Choose how files opened through operating-system file associations affect the current queue.",
+        "add": "Add to queue",
+        "replace": "Replace queue"
       },
       "playerBar": {
         "heading": "Player Bar"
@@ -1055,5 +957,103 @@
     },
     "windowTitle": "Management of player operation",
     "categories": "Options categories"
+  },
+  "library": {
+    "columns": {
+      "sortBy": "Arrange citizens according to {column}",
+      "resize": "Alter width of {column} chimney",
+      "title": "Name inscription",
+      "artist": "Sound person",
+      "album": "Record container",
+      "folder": "File purse",
+      "format": "File species",
+      "duration": "Time consumed",
+      "plays": "Operation history"
+    },
+    "groupSongCount": "{count, plural, one {# musical citizen} other {# musical citizens}}",
+    "views": {
+      "favorites": "Beloved objects",
+      "songs": "Operations",
+      "artists": "Operation owners",
+      "albums": "Record containers",
+      "genres": "Musical species",
+      "years": "Historical years",
+      "formats": "File species",
+      "folders": "File purses",
+      "label": "Ways to stare into warehouse"
+    },
+    "search": "Search the permanent sound warehouse",
+    "closeSearch": "Cease searching through warehouse",
+    "backToGroups": "Return to collective formations",
+    "back": "Return backward",
+    "filter": "Install warehouse sieve",
+    "title": "Operation catalogue",
+    "unknownArtist": "Unidentified person",
+    "unknownAlbum": "Unidentified record container",
+    "unknownGenre": "Unclassified musical species",
+    "unknownYear": "Time period lost to government",
+    "unknownFormat": "Suspicious file species",
+    "unknownFolder": "File purse of unknown address",
+    "trackerModule": "Number-music module",
+    "stream": "Ordinary continuous sound",
+    "video": "Moving picture with obligations",
+    "summary": {
+      "filteredArtists": "Displaying {visible} from {total} {total, plural, one {sound person} other {sound persons}}",
+      "filteredAlbums": "Displaying {visible} from {total} {total, plural, one {record container} other {record containers}}",
+      "filteredGenres": "Displaying {visible} from {total} {total, plural, one {musical species} other {musical species}}",
+      "filteredYears": "Displaying {visible} from {total} {total, plural, one {historical year} other {historical years}}",
+      "filteredFormats": "Displaying {visible} from {total} {total, plural, one {file species} other {file species}}",
+      "filteredFolders": "Displaying {visible} from {total} {total, plural, one {file purse} other {file purses}}",
+      "artists": "{count, plural, one {# sound person} other {# sound persons}}",
+      "albums": "{count, plural, one {# record container} other {# record containers}}",
+      "genres": "{count, plural, one {# musical species} other {# musical species}}",
+      "years": "{count, plural, one {# historical year} other {# historical years}}",
+      "formats": "{count, plural, one {# file species} other {# file species}}",
+      "folders": "{count, plural, one {# file purse} other {# file purses}}",
+      "groupsAndSongs": "{groups} collectives · {songs, plural, one {# musical citizen} other {# musical citizens}}"
+    },
+    "noResults": "The warehouse has nothing corresponding to \"{query}\". Terrible query perhaps.",
+    "favoritesEmpty": "Beloved sound units and their smaller internal children will accumulate here.",
+    "empty": "Your permanent sound warehouse contains nothing lmao. Add files or drop a file purse here."
+  },
+  "queue": {
+    "addFiles": "Introduce more file objects",
+    "searchPlaceholder": "Search for evidence",
+    "actions": {
+      "trackDetails": "Investigate sound unit",
+      "removeFromLibrary": "Deport from permanent warehouse",
+      "addToLibrary": "Naturalize into permanent warehouse",
+      "removeFromFavorites": "Revoke beloved-object status",
+      "addToFavorites": "Award beloved-object status",
+      "separateSubsongs": "Extract the songs living inside song",
+      "addToQueue": "Append to operation waiting queue",
+      "replaceQueue": "Evict queue and install this instead",
+      "resetPlayCount": "Erase evidence of listening",
+      "remove": "Make it go away"
+    },
+    "shortcuts": {
+      "delete": "Keyboard destruction"
+    },
+    "contextMenu": {
+      "itemActions": "Available consequences for {panel} object",
+      "columns": "Vertical information chimneys of {panel}"
+    },
+    "shuffle": {
+      "disable": "Restore operation chronology",
+      "enable": "Permit random sequence",
+      "on": "Sequence randomization enabled",
+      "off": "Sequence obeys the law"
+    },
+    "title": "Operation waiting queue",
+    "summary": {
+      "filteredTracks": "{visible} exposed from {total} {total, plural, one {musical citizen} other {musical citizens}} · consumes {duration}",
+      "tracks": "{count, plural, one {# musical citizen} other {# musical citizens}} · consumes {duration}"
+    },
+    "repeat": {
+      "currentTrack": "Trap current song in a time prison",
+      "off": "Time prison abolished",
+      "queue": "Trap entire queue in a time prison"
+    },
+    "listRegion": "Enumerated citizens of {name}"
   }
 }

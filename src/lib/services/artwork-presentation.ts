@@ -1,5 +1,5 @@
 import { writable } from 'svelte/store';
-import type { PlaylistItem } from '$lib/types';
+import type { TrackItem } from '$lib/types';
 import {
   analyzeArtworkBackground,
   DEFAULT_ARTWORK_BACKGROUND_ANALYSIS,
@@ -15,7 +15,7 @@ import {
 export type ArtworkBackgroundSlot = 'primary' | 'secondary';
 
 export interface ArtworkPresentationState {
-  detailsDisplayTrack: PlaylistItem | null;
+  detailsDisplayTrack: TrackItem | null;
   visibleDetailsArtwork: LoadedStreamArtwork | null;
   displayedArtwork: LoadedStreamArtwork | null;
   artworkBackgroundPrimary: LoadedStreamArtwork | null;
@@ -28,7 +28,7 @@ export interface ArtworkPresentationState {
 }
 
 interface CreateArtworkPresentationControllerOptions {
-  resolveTrackSnapshot: (track: PlaylistItem | null) => PlaylistItem | null;
+  resolveTrackSnapshot: (track: TrackItem | null) => TrackItem | null;
   isPlaybackDetailsPending: (trackId: string) => boolean;
   loadArtwork?: typeof loadTrackArtwork;
   getArtworkLoadKey?: typeof getTrackArtworkLoadKey;
@@ -57,7 +57,7 @@ function wait(milliseconds: number): Promise<void> {
   });
 }
 
-function hasCommittedPlaybackDetails(track: PlaylistItem | null): boolean {
+function hasCommittedPlaybackDetails(track: TrackItem | null): boolean {
   if (!track) {
     return true;
   }
@@ -119,11 +119,11 @@ function buildPublishedState(
 }
 
 export function resolveTrackSnapshot(
-  track: PlaylistItem | null,
-  selectedTrackSnapshot: PlaylistItem | null,
-  playlistTrackSnapshot: PlaylistItem[],
-  libraryTrackSnapshot: PlaylistItem[]
-): PlaylistItem | null {
+  track: TrackItem | null,
+  selectedTrackSnapshot: TrackItem | null,
+  queueTrackSnapshot: TrackItem[],
+  libraryTrackSnapshot: TrackItem[]
+): TrackItem | null {
   if (!track) {
     return null;
   }
@@ -133,13 +133,13 @@ export function resolveTrackSnapshot(
   }
 
   return (
-    playlistTrackSnapshot.find((item) => item.id === track.id) ??
+    queueTrackSnapshot.find((item) => item.id === track.id) ??
     libraryTrackSnapshot.find((item) => item.id === track.id) ??
     track
   );
 }
 
-export function hasSameTrackMetadata(left: PlaylistItem | null, right: PlaylistItem | null): boolean {
+export function hasSameTrackMetadata(left: TrackItem | null, right: TrackItem | null): boolean {
   return JSON.stringify(left?.metadata ?? {}) === JSON.stringify(right?.metadata ?? {});
 }
 
@@ -150,7 +150,7 @@ export function createArtworkPresentationController({
   getArtworkLoadKey = getTrackArtworkLoadKey
 }: CreateArtworkPresentationControllerOptions) {
   let state = createInitialState();
-  let detailsTargetTrack: PlaylistItem | null = null;
+  let detailsTargetTrack: TrackItem | null = null;
   let detailsArtwork: LoadedStreamArtwork | null = null;
   let detailsArtworkTrackKey = '';
   let exitingArtworkBackgroundSlot: ArtworkBackgroundSlot | null = null;
@@ -252,7 +252,7 @@ export function createArtworkPresentationController({
     scheduleArtworkBackgroundCleanup(previousActiveSlot);
   }
 
-  function setDetailsDisplay(track: PlaylistItem | null, artwork: LoadedStreamArtwork | null): void {
+  function setDetailsDisplay(track: TrackItem | null, artwork: LoadedStreamArtwork | null): void {
     const previousArtwork = detailsArtwork;
 
     state = { ...state, detailsDisplayTrack: track };
@@ -282,9 +282,9 @@ export function createArtworkPresentationController({
   }
 
   async function waitForDetailsCommitReady(
-    track: PlaylistItem,
+    track: TrackItem,
     loadToken: number
-  ): Promise<PlaylistItem | null> {
+  ): Promise<TrackItem | null> {
     const deadline = Date.now() + 1000;
 
     while (
@@ -340,7 +340,7 @@ export function createArtworkPresentationController({
     getSnapshot(): ArtworkPresentationState {
       return state;
     },
-    syncSelection(selectedItem: PlaylistItem | null, hasAnySelection: boolean): void {
+    syncSelection(selectedItem: TrackItem | null, hasAnySelection: boolean): void {
       if (selectedItem) {
         detailsTargetTrack = selectedItem;
       } else if (!hasAnySelection) {
@@ -357,7 +357,7 @@ export function createArtworkPresentationController({
         setDetailsDisplay(null, null);
       }
     },
-    async syncDisplayedArtwork(track: PlaylistItem | null): Promise<void> {
+    async syncDisplayedArtwork(track: TrackItem | null): Promise<void> {
       const nextArtworkKey = getArtworkLoadKey(track);
 
       if (nextArtworkKey === displayedArtworkKey) {

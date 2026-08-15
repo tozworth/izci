@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import type { PlaylistItem } from '$lib/types';
+import type { TrackItem } from '$lib/types';
 import type { MultiplayerArtwork } from './multiplayer-protocol';
 import {
   getMultiplayerArtworkTrackKey,
   getRemoteArtworkLoadKey
 } from './multiplayer-artwork';
 
-function item(id: string): PlaylistItem {
+function item(id: string): TrackItem {
   return {
     id,
     name: `${id}.flac`,

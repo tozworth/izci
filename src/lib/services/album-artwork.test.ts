@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from 'vitest';
-import type { PlaylistItem } from '$lib/types';
+import type { TrackItem } from '$lib/types';
 import { createAlbumArtworkController } from './album-artwork';
 
-function item(id: string): PlaylistItem {
+function item(id: string): TrackItem {
   return {
     id,
     name: `${id}.flac`,
@@ -16,7 +16,7 @@ function item(id: string): PlaylistItem {
 describe('album artwork controller', () => {
   it('tries album tracks in order and shares object URLs for deduplicated assets', async () => {
     const blob = new Blob(['thumbnail'], { type: 'image/webp' });
-    const loadThumbnail = vi.fn(async (track: PlaylistItem) =>
+    const loadThumbnail = vi.fn(async (track: TrackItem) =>
       track.id === 'missing'
         ? null
         : { assetId: 'shared-cover', blob, width: 96, height: 96 }
@@ -69,7 +69,7 @@ describe('album artwork controller', () => {
   it('retains the selected album URL while releasing artwork for albums no longer in scope', async () => {
     const firstBlob = new Blob(['cover-one'], { type: 'image/webp' });
     const secondBlob = new Blob(['cover-two'], { type: 'image/webp' });
-    const loadThumbnail = vi.fn(async (track: PlaylistItem) => ({
+    const loadThumbnail = vi.fn(async (track: TrackItem) => ({
       assetId: track.id,
       blob: track.id === 'cover-one' ? firstBlob : secondBlob,
       width: 96,

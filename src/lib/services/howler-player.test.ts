@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { PlaylistItem } from '$lib/types';
+import type { TrackItem } from '$lib/types';
 
 interface MockHowlOptions {
   onload: () => void;
@@ -67,7 +67,7 @@ vi.mock('$lib/services/audio-bus', () => ({ audioBusService: audioBus }));
 
 import { HowlerPlayerService } from './howler-player';
 
-const track: PlaylistItem = {
+const track: TrackItem = {
   id: 'track-1',
   name: 'Transferred track',
   extension: 'opus',

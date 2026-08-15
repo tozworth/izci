@@ -1,4 +1,4 @@
-import type { PlaylistItem, PlaylistRepeatMode } from '$lib/types';
+import type { TrackItem, RepeatMode } from '$lib/types';
 import { experimentalSettings } from '$lib/stores/experimental-settings';
 import {
   MULTIPLAYER_PROTOCOL_VERSION,
@@ -39,7 +39,7 @@ export function isMultiplayerClientTransportHealthy(
  * limitMiB: 0 = off (everything renders), < 0 = every file transfers.
  */
 export function resolveMultiplayerDeliveryMode(
-  track: PlaylistItem | null,
+  track: TrackItem | null,
   audioEnabled: boolean,
   fileTransferLimitMiB = 0
 ): MultiplayerDeliveryMode {
@@ -73,7 +73,7 @@ export function resolveMultiplayerFreeplayAgreement(pairing: {
   return pairing.paired && pairing.hostEnabled && pairing.clientEnabled;
 }
 
-export function cycleMultiplayerRepeatMode(mode: PlaylistRepeatMode): PlaylistRepeatMode {
+export function cycleMultiplayerRepeatMode(mode: RepeatMode): RepeatMode {
   return mode === 'off' ? 'all' : mode === 'all' ? 'one' : 'off';
 }
 
@@ -92,7 +92,7 @@ export function sanitizeFreeplayQueueIds(itemIds: string[]): string[] {
 export function parseFreeplayRestoredFlags(message: {
   shuffleEnabled?: unknown;
   repeatMode?: unknown;
-}): { shuffleEnabled: boolean; repeatMode: PlaylistRepeatMode } | null {
+}): { shuffleEnabled: boolean; repeatMode: RepeatMode } | null {
   if (typeof message.shuffleEnabled !== 'boolean') return null;
   if (message.repeatMode !== 'off' && message.repeatMode !== 'one' && message.repeatMode !== 'all') return null;
   return { shuffleEnabled: message.shuffleEnabled, repeatMode: message.repeatMode };

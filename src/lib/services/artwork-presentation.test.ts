@@ -6,9 +6,9 @@ import {
   resolveTrackSnapshot
 } from './artwork-presentation';
 import type { LoadedStreamArtwork } from './stream-artwork';
-import type { PlaylistItem } from '$lib/types';
+import type { TrackItem } from '$lib/types';
 
-function item(id: string, overrides: Partial<PlaylistItem> = {}): PlaylistItem {
+function item(id: string, overrides: Partial<TrackItem> = {}): TrackItem {
   return {
     id,
     name: `${id}.flac`,
@@ -21,15 +21,15 @@ function item(id: string, overrides: Partial<PlaylistItem> = {}): PlaylistItem {
 }
 
 describe('artwork presentation helpers', () => {
-  it('resolves the freshest selected, playlist, or library track snapshot', () => {
+  it('resolves the freshest selected, queue, or library track snapshot', () => {
     const stale = item('track', { metadata: { title: 'Old' } });
     const selected = item('track', { metadata: { title: 'Selected' } });
-    const playlist = item('track', { metadata: { title: 'Playlist' } });
+    const queue = item('track', { metadata: { title: 'Queue' } });
     const library = item('track', { metadata: { title: 'Library' } });
 
-    expect(resolveTrackSnapshot(null, selected, [playlist], [library])).toBeNull();
-    expect(resolveTrackSnapshot(stale, selected, [playlist], [library])).toBe(selected);
-    expect(resolveTrackSnapshot(stale, item('other'), [playlist], [library])).toBe(playlist);
+    expect(resolveTrackSnapshot(null, selected, [queue], [library])).toBeNull();
+    expect(resolveTrackSnapshot(stale, selected, [queue], [library])).toBe(selected);
+    expect(resolveTrackSnapshot(stale, item('other'), [queue], [library])).toBe(queue);
     expect(resolveTrackSnapshot(stale, item('other'), [], [library])).toBe(library);
     expect(resolveTrackSnapshot(stale, item('other'), [], [])).toBe(stale);
   });

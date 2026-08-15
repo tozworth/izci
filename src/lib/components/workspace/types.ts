@@ -3,9 +3,9 @@ import type {
   MenuActionItem,
   ModulePatternSnapshot,
   PlaybackSnapshot,
-  PlaylistItem,
-  PlaylistRepeatMode,
-  PlaylistSelection,
+  TrackItem,
+  RepeatMode,
+  TrackSelection,
   VideoFitMode,
   WorkspaceJumpRequest,
   WorkspaceLibraryGroupRequest,
@@ -23,11 +23,11 @@ import type { Readable } from 'svelte/store';
 export const WORKSPACE_DOCK_SCOPE = 'main-workspace';
 
 export interface WorkspacePanelProps {
-  items: PlaylistItem[];
+  items: TrackItem[];
   selectedIds: string[];
   selectionAnchorId?: string | null;
   playingId: string | null;
-  favoriteItems?: PlaylistItem[];
+  favoriteItems?: TrackItem[];
   favoriteSelectedIds?: string[];
   favoriteSelectionAnchorId?: string | null;
   favoritePlayingId?: string | null;
@@ -40,7 +40,7 @@ export interface WorkspacePanelProps {
   showRepeatControl?: boolean;
   showSearchControl?: boolean;
   shuffleEnabled?: boolean;
-  repeatMode?: PlaylistRepeatMode;
+  repeatMode?: RepeatMode;
   jumpToItemRequest?: WorkspaceJumpRequest | null;
   libraryGroupRequest?: WorkspaceLibraryGroupRequest | null;
   keyboardActive?: boolean;
@@ -49,13 +49,13 @@ export interface WorkspacePanelProps {
   getContextMenuActions?: (ids: string[]) => MenuActionItem[];
 }
 
-export interface QueuePanelProps {
-  items: PlaylistItem[];
+export interface UpNextPanelProps {
+  items: TrackItem[];
   playingId: string | null;
   getContextMenuActions?: (ids: string[]) => MenuActionItem[];
 }
 
-export interface QueuePanelHandlers {
+export interface UpNextPanelHandlers {
   activate: (event: CustomEvent<string>) => void;
   contextAction: (event: CustomEvent<{ actionId: string; ids: string[] }>) => void;
 }
@@ -65,7 +65,7 @@ export interface WorkspacePanelHandlers {
   addFolders?: (handles: FileSystemDirectoryHandle[]) => void;
   openFiles: () => void;
   select: (event: CustomEvent<{ id: string; range: boolean; toggle: boolean }>) => void;
-  setSelection?: (event: CustomEvent<PlaylistSelection>) => void;
+  setSelection?: (event: CustomEvent<TrackSelection>) => void;
   activate: (event: CustomEvent<string>) => void;
   contextAction: (event: CustomEvent<{ actionId: string; ids: string[] }>) => void;
   libraryGroupRequestHandled?: (event: CustomEvent<number>) => void;
@@ -83,15 +83,15 @@ export interface WorkspaceTabDefinition {
 export interface WorkspaceTabContentProps {
   snapshotStore: Readable<PlaybackSnapshot>;
   playbackSnapshot: PlaybackSnapshot | null;
-  playlistPanelProps: WorkspacePanelProps;
-  playlistPanelHandlers: WorkspacePanelHandlers;
+  queuePanelProps: WorkspacePanelProps;
+  queuePanelHandlers: WorkspacePanelHandlers;
   libraryPanelProps: WorkspacePanelProps;
   libraryPanelHandlers: WorkspacePanelHandlers;
-  queuePanelProps: QueuePanelProps;
-  queuePanelHandlers: QueuePanelHandlers;
-  selectedItem: PlaylistItem | null;
-  lyricsTrack: PlaylistItem | null;
-  patternTrack: PlaylistItem | null;
+  upNextPanelProps: UpNextPanelProps;
+  upNextPanelHandlers: UpNextPanelHandlers;
+  selectedItem: TrackItem | null;
+  lyricsTrack: TrackItem | null;
+  patternTrack: TrackItem | null;
   modulePatternSnapshot: ModulePatternSnapshot;
   detailsArtwork: LoadedStreamArtwork | null;
   detailsLibraryTargets: TrackLibraryNavigationTargets;

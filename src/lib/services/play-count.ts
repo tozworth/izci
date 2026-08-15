@@ -1,10 +1,10 @@
-import type { PlaybackState, PlaylistItem } from '$lib/types';
+import type { PlaybackState, TrackItem } from '$lib/types';
 import { getTrackIdentity } from '$lib/utils/files';
 
 interface PlayCountTrackerSyncInput {
-  track: PlaylistItem | null;
+  track: TrackItem | null;
   playbackState: PlaybackState;
-  libraryItems: PlaylistItem[];
+  libraryItems: TrackItem[];
   thresholdSeconds: number;
 }
 
@@ -21,7 +21,7 @@ interface ActivePlayCountSession {
   timerId: ReturnType<typeof setTimeout>;
 }
 
-function resolveLibraryItem(track: PlaylistItem | null, libraryItems: PlaylistItem[]): PlaylistItem | null {
+function resolveLibraryItem(track: TrackItem | null, libraryItems: TrackItem[]): TrackItem | null {
   if (!track) {
     return null;
   }

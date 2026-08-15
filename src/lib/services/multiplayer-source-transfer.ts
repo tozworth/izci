@@ -1,4 +1,4 @@
-import type { PlaylistItem } from '$lib/types';
+import type { TrackItem } from '$lib/types';
 import { logWarning } from '$lib/services/logging';
 import type { PeerConnection, SourceFileBeginFrame, SourceFileEndFrame } from './multiplayer-types';
 
@@ -59,7 +59,7 @@ export function waitForMediaQueue(peer: PeerConnection, token: number): Promise<
 
 export async function transferSourceFile(
   peer: PeerConnection,
-  track: PlaylistItem,
+  track: TrackItem,
   file: File,
   token: number,
   generationId: string

@@ -2,8 +2,8 @@
   import { onMount, tick } from 'svelte';
   import { t } from 'svelte-i18n';
   import HoverTooltip from '$lib/components/HoverTooltip.svelte';
-  import { portal } from '$lib/components/playlist-panel/actions/portal';
-  import { windowDismiss } from '$lib/components/playlist-panel/actions/window-dismiss';
+  import { portal } from '$lib/components/track-list-panel/actions/portal';
+  import { windowDismiss } from '$lib/components/track-list-panel/actions/window-dismiss';
   import { translate } from '$lib/i18n';
   import { filesystemFolders } from '$lib/services/filesystem-folders';
   import { loadoutTrackContext } from '$lib/services/loadout-track-context';

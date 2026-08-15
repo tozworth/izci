@@ -11,7 +11,7 @@
   import type {
     BackdropZoneEffect,
     BackdropZoneArtworkSettings,
-    PlaylistItem,
+    TrackItem,
     WorkspaceTab
   } from '$lib/types';
   import WorkspaceTabBar from './WorkspaceTabBar.svelte';
@@ -23,14 +23,14 @@
   } from './types';
 
   export let content: WorkspaceTabContentProps;
-  export let track: PlaylistItem | null = null;
-  export let selectedTrack: PlaylistItem | null = null;
+  export let track: TrackItem | null = null;
+  export let selectedTrack: TrackItem | null = null;
   export let artwork: LoadedStreamArtwork | null = null;
   export let backdropArtwork: LoadedStreamArtwork | null = null;
   export let artworkBackgroundBright = false;
   export let backdropEffect: BackdropZoneEffect = 'none';
   export let backdropArtworkSettings: BackdropZoneArtworkSettings | null = null;
-  export let activeWorkspaceTab: WorkspaceTab = 'playlist';
+  export let activeWorkspaceTab: WorkspaceTab = 'queue';
   export let workspaceTabs: WorkspaceTabDefinition[] = [];
   export let panelAutoHideDelaySeconds = 5;
   export let alwaysUseArtworkPlayerColors = false;

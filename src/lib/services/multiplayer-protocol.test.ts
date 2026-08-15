@@ -6,7 +6,7 @@ import {
   encodeMultiplayerMessage,
   isHostMessage,
   isMultiplayerCommand,
-  sanitizePlaylistItem,
+  sanitizeTrackItem,
   type HostMessage
 } from './multiplayer-protocol';
 import { isClientMessage } from './multiplayer-utils';
@@ -29,7 +29,7 @@ describe('multiplayer protocol', () => {
 
   it('removes local file capabilities from shared tracks', () => {
     const file = new File(['audio'], 'song.mp3', { type: 'audio/mpeg' });
-    const item = sanitizePlaylistItem({
+    const item = sanitizeTrackItem({
       id: 'one',
       file,
       objectUrl: 'blob:secret',
@@ -54,7 +54,7 @@ describe('multiplayer protocol', () => {
     expect(isMultiplayerCommand({ type: 'transport.stop', commandId: '1' })).toBe(true);
     expect(isMultiplayerCommand({ type: 'transport.volume', commandId: '1', volume: 0.5 })).toBe(false);
     expect(isMultiplayerCommand({ type: 'transport.mute', commandId: '1' })).toBe(false);
-    expect(isMultiplayerCommand({ type: 'playlist.replace', commandId: '1', items: [] })).toBe(false);
+    expect(isMultiplayerCommand({ type: 'queue.replace', commandId: '1', items: [] })).toBe(false);
   });
 
   it('reassembles chunked catalog messages', () => {
@@ -62,7 +62,7 @@ describe('multiplayer protocol', () => {
       kind: 'catalog',
       catalog: {
         revision: 3,
-        playlist: Array.from({ length: 500 }, (_, index) => ({
+        queue: Array.from({ length: 500 }, (_, index) => ({
           id: String(index),
           name: `song-${index}-${'x'.repeat(40)}.mp3`,
           extension: 'mp3',

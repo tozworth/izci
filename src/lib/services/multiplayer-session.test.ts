@@ -6,7 +6,7 @@ import {
   resolveMultiplayerFreeplayAgreement,
   sanitizeFreeplayQueueIds
 } from './multiplayer-utils';
-import type { PlaylistItem } from '$lib/types';
+import type { TrackItem } from '$lib/types';
 
 describe('multiplayer client lifecycle', () => {
   it('keeps a connected transport when the app resumes', () => {
@@ -25,7 +25,7 @@ describe('multiplayer client lifecycle', () => {
 });
 
 describe('multiplayer render delivery selection', () => {
-  function track(kind: PlaylistItem['kind'], size = 1): PlaylistItem {
+  function track(kind: TrackItem['kind'], size = 1): TrackItem {
     return {
       id: 'track',
       name: 'track.flac',

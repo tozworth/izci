@@ -2,7 +2,7 @@ import {
   MODULE_EXTENSIONS,
   STREAM_EXTENSIONS,
   VIDEO_EXTENSIONS,
-  type PlaylistItem,
+  type TrackItem,
   type TrackKind,
   type TrackMetadata
 } from '$lib/types';
@@ -199,7 +199,7 @@ export function inferKind(extension: string): TrackKind | null {
   return null;
 }
 
-function createPlaylistItem(file: File): PlaylistItem | null {
+function createTrackItem(file: File): TrackItem | null {
   const extension = inferExtension(file.name);
   const kind = inferKind(extension) ?? (moduleOverrideFiles.has(file) ? 'module' : null);
 
@@ -225,12 +225,12 @@ function createPlaylistItem(file: File): PlaylistItem | null {
   };
 }
 
-export function buildPlaylistItems(files: FileList | File[]): PlaylistItem[] {
-  const items: PlaylistItem[] = [];
+export function buildTrackItems(files: FileList | File[]): TrackItem[] {
+  const items: TrackItem[] = [];
   const sortedFiles = Array.from(files).sort((left, right) => fileNameCollator.compare(left.name, right.name));
 
   for (const file of sortedFiles) {
-    const item = createPlaylistItem(file);
+    const item = createTrackItem(file);
 
     if (item) {
       items.push(item);
@@ -472,12 +472,12 @@ export async function extractDroppedFiles(
   return (await extractDroppedContent(dataTransfer, options)).files;
 }
 
-export function getTrackDisplayTitle(item: PlaylistItem | null): string {
+export function getTrackDisplayTitle(item: TrackItem | null): string {
   const title = item?.metadata?.title?.trim();
   return title || (item ? stripFileExtension(item.name) : '');
 }
 
-export function getSeparatedSubsongPlaylistLabel(item: PlaylistItem | null): string {
+export function getSeparatedSubsongQueueLabel(item: TrackItem | null): string {
   if (!item || item.kind !== 'module' || item.subsong === undefined) {
     return '';
   }
@@ -488,9 +488,9 @@ export function getSeparatedSubsongPlaylistLabel(item: PlaylistItem | null): str
 }
 
 export function buildSeparatedSubsongItems(
-  item: PlaylistItem,
+  item: TrackItem,
   activeSubsong = item.subsong ?? 0
-): PlaylistItem[] {
+): TrackItem[] {
   const count = Math.max(1, Math.trunc(item.metadata?.subsongs ?? 1));
   const preservedSubsong = Math.min(Math.max(Math.trunc(activeSubsong), 0), count - 1);
 
@@ -503,8 +503,8 @@ export function buildSeparatedSubsongItems(
   }));
 }
 
-export function getTrackPlaylistLabel(item: PlaylistItem | null): string {
-  const subsongLabel = getSeparatedSubsongPlaylistLabel(item);
+export function getTrackQueueLabel(item: TrackItem | null): string {
+  const subsongLabel = getSeparatedSubsongQueueLabel(item);
 
   if (subsongLabel) {
     return subsongLabel;
@@ -520,7 +520,7 @@ export function getTrackPlaylistLabel(item: PlaylistItem | null): string {
   return title ? `${artist} - ${title}` : artist;
 }
 
-export function getTrackIdentity(item: Pick<PlaylistItem, 'path' | 'name' | 'size' | 'lastModified'>): string {
+export function getTrackIdentity(item: Pick<TrackItem, 'path' | 'name' | 'size' | 'lastModified'>): string {
   const normalizedPath = normalizePath(item.path)?.toLowerCase();
 
   if (normalizedPath) {
@@ -531,12 +531,12 @@ export function getTrackIdentity(item: Pick<PlaylistItem, 'path' | 'name' | 'siz
 }
 
 export function getFavoriteIdentity(
-  item: Pick<PlaylistItem, 'path' | 'name' | 'size' | 'lastModified' | 'subsong'>
+  item: Pick<TrackItem, 'path' | 'name' | 'size' | 'lastModified' | 'subsong'>
 ): string {
   return `${getTrackIdentity(item)}:subsong:${item.subsong ?? 'all'}`;
 }
 
-export function clonePlaylistItem(item: PlaylistItem): PlaylistItem {
+export function cloneTrackItem(item: TrackItem): TrackItem {
   return {
     ...item,
     id: crypto.randomUUID(),
@@ -545,11 +545,11 @@ export function clonePlaylistItem(item: PlaylistItem): PlaylistItem {
   };
 }
 
-export function clonePlaylistItems(items: PlaylistItem[]): PlaylistItem[] {
-  return items.map(clonePlaylistItem);
+export function cloneTrackItems(items: TrackItem[]): TrackItem[] {
+  return items.map(cloneTrackItem);
 }
 
-export function getTrackDisplaySubtitle(item: PlaylistItem | null): string {
+export function getTrackDisplaySubtitle(item: TrackItem | null): string {
   const artist = item?.metadata?.artist?.trim();
 
   if (artist && artist.toLowerCase() !== 'unknown') {

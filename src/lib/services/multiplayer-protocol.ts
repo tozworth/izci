@@ -1,17 +1,17 @@
 import type {
   PlaybackSnapshot,
-  PlaylistItem,
-  PlaylistRepeatMode,
+  TrackItem,
+  RepeatMode,
   TrackKind,
   TrackMetadata,
 } from '$lib/types';
 
-export type MultiplayerCollection = 'playlist' | 'library' | 'favorites';
+export type MultiplayerCollection = 'queue' | 'library' | 'favorites';
 
 // Version 18 adds explicit source revisions to buffered-Opus manifests so a
 // listener never reuses cached bytes from a replaced track. Compatibility is
 // intentionally scorched-earth while Multiplayer remains experimental.
-export const MULTIPLAYER_PROTOCOL_VERSION = 18;
+export const MULTIPLAYER_PROTOCOL_VERSION = 19;
 export const MULTIPLAYER_FRAME_CHUNK_SIZE = 12_000;
 export const MULTIPLAYER_QUEUE_MAX_ITEMS = 50_000;
 export const MULTIPLAYER_RENDER_MAX_CLUSTERS = 200_000;
@@ -28,8 +28,8 @@ export type MultiplayerCommand =
   | { type: 'transport.previous'; commandId: string }
   | { type: 'transport.next'; commandId: string }
   | { type: 'transport.seek'; commandId: string; seconds: number }
-  | { type: 'playlist.shuffle'; commandId: string }
-  | { type: 'playlist.repeat'; commandId: string }
+  | { type: 'queue.shuffle'; commandId: string }
+  | { type: 'queue.repeat'; commandId: string }
   | {
       type: 'collection.activate';
       commandId: string;
@@ -45,17 +45,17 @@ export type MultiplayerCommandInput = MultiplayerCommand extends infer Command
 
 export interface MultiplayerCatalog {
   revision: number;
-  playlist: PlaylistItem[];
-  library: PlaylistItem[];
-  favorites: PlaylistItem[];
+  queue: TrackItem[];
+  library: TrackItem[];
+  favorites: TrackItem[];
   shuffleEnabled: boolean;
-  repeatMode: PlaylistRepeatMode;
+  repeatMode: RepeatMode;
 }
 
 export interface MultiplayerPlayback {
   generationId: string;
   snapshot: PlaybackSnapshot;
-  track: PlaylistItem | null;
+  track: TrackItem | null;
   sentAt: number;
 }
 
@@ -134,7 +134,7 @@ export type HostMessage =
       name: string;
     }
   | { kind: 'catalog'; catalog: MultiplayerCatalog }
-  | { kind: 'state'; shuffleEnabled: boolean; repeatMode: PlaylistRepeatMode }
+  | { kind: 'state'; shuffleEnabled: boolean; repeatMode: RepeatMode }
   | { kind: 'playback'; playback: MultiplayerPlayback }
   | { kind: 'playback.prepare'; preparation: MultiplayerPlaybackPreparation }
   | { kind: 'clock.ping'; generationId: string; hostSentAt: number }
@@ -154,7 +154,7 @@ export type ClientMessage =
       kind: 'freeplay.queue';
       itemIds: string[];
       shuffleEnabled?: boolean;
-      repeatMode?: PlaylistRepeatMode;
+      repeatMode?: RepeatMode;
     }
   | { kind: 'command'; command: MultiplayerCommand }
   | { kind: 'playback.ready'; generationId: string }
@@ -178,7 +178,7 @@ interface ChunkFrame {
   payload: string;
 }
 
-export function sanitizePlaylistItem(item: PlaylistItem): PlaylistItem {
+export function sanitizeTrackItem(item: TrackItem): TrackItem {
   return {
     id: item.id,
     name: item.name,
@@ -211,8 +211,8 @@ export function isMultiplayerCommand(value: unknown): value is MultiplayerComman
     case 'transport.stop':
     case 'transport.previous':
     case 'transport.next':
-    case 'playlist.shuffle':
-    case 'playlist.repeat':
+    case 'queue.shuffle':
+    case 'queue.repeat':
       return true;
     case 'transport.seek':
       return typeof command.seconds === 'number'
@@ -220,7 +220,7 @@ export function isMultiplayerCommand(value: unknown): value is MultiplayerComman
         && command.seconds >= 0
         && command.seconds <= 60 * 60 * 24 * 7;
     case 'collection.activate':
-      return (command.collection === 'playlist'
+      return (command.collection === 'queue'
         || command.collection === 'library'
         || command.collection === 'favorites')
         && typeof command.itemId === 'string'
@@ -231,9 +231,9 @@ export function isMultiplayerCommand(value: unknown): value is MultiplayerComman
   }
 }
 
-export function isRemotePlaylistItem(value: unknown): value is PlaylistItem {
+export function isRemoteTrackItem(value: unknown): value is TrackItem {
   if (!value || typeof value !== 'object') return false;
-  const item = value as Partial<PlaylistItem>;
+  const item = value as Partial<TrackItem>;
   return typeof item.id === 'string'
     && typeof item.name === 'string'
     && typeof item.extension === 'string'
@@ -268,12 +268,12 @@ export function isHostMessage(value: unknown): value is HostMessage {
     const catalog = message.catalog as Partial<MultiplayerCatalog> | undefined;
     return Boolean(catalog)
       && typeof catalog?.revision === 'number'
-      && Array.isArray(catalog.playlist)
-      && catalog.playlist.every(isRemotePlaylistItem)
+      && Array.isArray(catalog.queue)
+      && catalog.queue.every(isRemoteTrackItem)
       && Array.isArray(catalog.library)
-      && catalog.library.every(isRemotePlaylistItem)
+      && catalog.library.every(isRemoteTrackItem)
       && Array.isArray(catalog.favorites)
-      && catalog.favorites.every(isRemotePlaylistItem)
+      && catalog.favorites.every(isRemoteTrackItem)
       && typeof catalog.shuffleEnabled === 'boolean'
       && (catalog.repeatMode === 'off' || catalog.repeatMode === 'one' || catalog.repeatMode === 'all');
   }
@@ -289,7 +289,7 @@ export function isHostMessage(value: unknown): value is HostMessage {
       && playback.generationId.length <= 80
       && typeof playback?.sentAt === 'number'
       && isPlaybackSnapshot(playback.snapshot)
-      && (playback.track === null || isRemotePlaylistItem(playback.track));
+      && (playback.track === null || isRemoteTrackItem(playback.track));
   }
   if (message.kind === 'playback.prepare') {
     const preparation = message.preparation as Partial<MultiplayerPlaybackPreparation> | undefined;

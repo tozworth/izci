@@ -1,4 +1,4 @@
-import type { PlaylistItem, TrackKind } from '$lib/types';
+import type { TrackItem, TrackKind } from '$lib/types';
 
 const REQUEST_MESSAGE = 'izci:request-tool-track';
 export const OPEN_CURRENT_TOOL_TRACK_MESSAGE = 'izci:open-current-tool-track';
@@ -33,7 +33,7 @@ function normalizeToolTrackContext(value: unknown): ToolTrackContext | null {
   };
 }
 
-function toToolTrackContext(track: PlaylistItem | null): ToolTrackContext | null {
+function toToolTrackContext(track: TrackItem | null): ToolTrackContext | null {
   if (!track?.file) return null;
 
   return {
@@ -60,7 +60,7 @@ function postTrack(target: Window, track: ToolTrackContext | null, targetOrigin:
 
 export function respondToToolTrackRequest(
   event: MessageEvent,
-  track: PlaylistItem | null
+  track: TrackItem | null
 ): boolean {
   if (
     event.origin !== window.location.origin

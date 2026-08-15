@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import type { PlaylistItem } from '$lib/types';
+import type { TrackItem } from '$lib/types';
 import { resolveTrackLibraryNavigationTargets } from './library-navigation';
 
-function track(id: string, overrides: Partial<PlaylistItem> = {}): PlaylistItem {
+function track(id: string, overrides: Partial<TrackItem> = {}): TrackItem {
   return {
     id,
     name: 'song.flac',
@@ -26,7 +26,7 @@ function track(id: string, overrides: Partial<PlaylistItem> = {}): PlaylistItem 
 describe('track library navigation', () => {
   it('resolves an equivalent library track into its exact grouped views', () => {
     const libraryTrack = track('library');
-    const sourceTrack = track('playlist');
+    const sourceTrack = track('queue');
     const targets = resolveTrackLibraryNavigationTargets(sourceTrack, [libraryTrack]);
 
     expect(targets.artist).toBeUndefined();
@@ -47,6 +47,6 @@ describe('track library navigation', () => {
   });
 
   it('does not expose links when the track is absent from the library', () => {
-    expect(resolveTrackLibraryNavigationTargets(track('playlist'), [])).toEqual({});
+    expect(resolveTrackLibraryNavigationTargets(track('queue'), [])).toEqual({});
   });
 });

@@ -78,7 +78,7 @@ export function createImportController(options: ImportControllerOptions) {
   const getWindow = options.getWindow ?? getDefaultWindow;
   const getOpenFilePickerDescription =
     options.getOpenFilePickerDescription ?? (() => OPEN_FILE_PICKER_OPTIONS.types?.[0].description ?? '');
-  let pendingFileInputTarget: WorkspaceCollection = 'playlist';
+  let pendingFileInputTarget: WorkspaceCollection = 'queue';
 
   return {
     getPendingFileInputTarget(): WorkspaceCollection {

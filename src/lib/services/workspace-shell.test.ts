@@ -16,15 +16,15 @@ describe('workspace shell library navigation', () => {
 
   it('keeps request tokens increasing after handled requests are cleared', () => {
     const controller = createWorkspaceShellController({
-      getPlaylistContextActions: () => [],
+      getQueueContextActions: () => [],
       getLibraryContextActions: () => []
     });
     controller.sync({
       innerWidth: 1200,
-      playlistItems: [],
+      queueItems: [],
       libraryItems: [],
       favoriteItems: [],
-      playlistSelectionIds: [],
+      queueSelectionIds: [],
       librarySelectionIds: [],
       librarySelectionAnchorId: null,
       favoriteSelectionIds: [],

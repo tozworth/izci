@@ -1,12 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import type { PlaylistItem } from '$lib/types';
+import type { TrackItem } from '$lib/types';
 import {
   fitArtworkRenditionSize,
   getArtworkRenditionKey,
   getArtworkSourceFingerprint
 } from './artwork-cache';
 
-function item(overrides: Partial<PlaylistItem> = {}): PlaylistItem {
+function item(overrides: Partial<TrackItem> = {}): TrackItem {
   return {
     id: 'track',
     name: 'Track.flac',

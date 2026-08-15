@@ -17,7 +17,7 @@ import {
   type ModulePatternSnapshot,
   type PlaybackSnapshot,
   type PlaybackState,
-  type PlaylistItem,
+  type TrackItem,
   type TrackKind,
   type TrackMetadata
 } from '$lib/types';
@@ -37,7 +37,7 @@ interface PlaybackBundle {
   targetTrackId: string | null;
   ready: boolean;
   readiness: Promise<boolean> | null;
-  track: PlaylistItem | null;
+  track: TrackItem | null;
   snapshot: PlaybackSnapshot;
   transitionGain: number;
   stream: HowlerPlayerService;
@@ -48,7 +48,7 @@ interface PlaybackBundle {
 
 export type CurrentTrackExternalUpdate = Partial<
   Pick<
-    PlaylistItem,
+    TrackItem,
     | 'fileHandle'
     | 'path'
     | 'sourceFolderId'
@@ -78,7 +78,7 @@ const initialModulePatternSnapshot: ModulePatternSnapshot = {
   row: 0
 };
 
-function isHivelyModule(track: PlaylistItem): boolean {
+function isHivelyModule(track: TrackItem): boolean {
   return HIVELY_MODULE_EXTENSIONS.includes(
     track.extension.toLowerCase() as (typeof HIVELY_MODULE_EXTENSIONS)[number]
   );
@@ -109,7 +109,7 @@ function createPlayerController() {
     muted,
     backend: null
   });
-  const currentTrack = writable<PlaylistItem | null>(null);
+  const currentTrack = writable<TrackItem | null>(null);
   const modulePattern = writable<ModulePatternSnapshot>({ ...initialModulePatternSnapshot });
 
   let activeBundle: PlaybackBundle;
@@ -138,7 +138,7 @@ function createPlayerController() {
     }
   }
 
-  function applyMetadataInference(track: PlaylistItem, metadata: TrackMetadata = {}): PlaylistItem {
+  function applyMetadataInference(track: TrackItem, metadata: TrackMetadata = {}): TrackItem {
     return {
       ...track,
       metadata: mergeInferredArtistTitle(
@@ -336,7 +336,7 @@ function createPlayerController() {
     if (bundle === outgoingBundle) clearOutgoing();
   }
 
-  async function prepareTrackMetadata(track: PlaylistItem): Promise<PlaylistItem> {
+  async function prepareTrackMetadata(track: TrackItem): Promise<TrackItem> {
     let preparedTrack = applyMetadataInference(track);
     if (
       preparedTrack.kind === 'stream' &&
@@ -351,7 +351,7 @@ function createPlayerController() {
 
   async function loadIntoBundle(
     bundle: PlaybackBundle,
-    track: PlaylistItem,
+    track: TrackItem,
     options: { autoPlay?: boolean; initialPosition?: number } = {}
   ): Promise<boolean> {
     const autoPlay = options.autoPlay === true;
@@ -418,7 +418,7 @@ function createPlayerController() {
   }
 
   async function loadActive(
-    track: PlaylistItem,
+    track: TrackItem,
     options: { autoPlay?: boolean; initialPosition?: number } = {}
   ): Promise<void> {
     const requestId = ++operationSequence;
@@ -443,7 +443,7 @@ function createPlayerController() {
     syncModuleTransportAnchor();
   }
 
-  async function prepareNext(track: PlaylistItem): Promise<boolean> {
+  async function prepareNext(track: TrackItem): Promise<boolean> {
     if (preparedBundle?.targetTrackId === track.id) {
       return preparedBundle.ready || await (preparedBundle.readiness ?? Promise.resolve(false));
     }
@@ -553,11 +553,14 @@ function createPlayerController() {
     hasPreparedTrack(trackId: string): boolean {
       return preparedBundle?.ready === true && preparedBundle.track?.id === trackId;
     },
+    preparedTrackDurationSeconds(): number | undefined {
+      return preparedBundle?.track?.metadata?.duration;
+    },
     fadeOut(durationSeconds: number): void {
       setBundleTransitionGain(activeBundle, 0, durationSeconds);
     },
     async transitionTo(
-      track: PlaylistItem,
+      track: TrackItem,
       mode: 'none' | 'fadeout' | 'crossfade',
       durationSeconds: number
     ): Promise<void> {

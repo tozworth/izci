@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import type { PlaylistItem } from '$lib/types';
+import type { TrackItem } from '$lib/types';
 import {
   buildTroubadourBatchContext,
   detachTrackForMetadataWrite,
@@ -12,7 +12,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-function track(id: string, path: string): PlaylistItem {
+function track(id: string, path: string): TrackItem {
   return {
     id,
     path,
@@ -31,7 +31,7 @@ describe('Troubadour main-window synchronization', () => {
 
     const context = buildTroubadourBatchContext([
       { collection: 'current', items: [track('playing', 'Music/Track.flac')] },
-      { collection: 'playlist', items: [track('playlist-copy', 'Music\\Track.flac')] },
+      { collection: 'queue', items: [track('queue-copy', 'Music\\Track.flac')] },
       { collection: 'library', items: [track('library-copy', 'Music/Track.flac')] }
     ], []);
 
@@ -39,7 +39,7 @@ describe('Troubadour main-window synchronization', () => {
     expect(context.tracks[0]).toMatchObject({ contextId: 'context-id', path: 'Music/Track.flac' });
     expect(context.tracks[0].references).toEqual([
       { collection: 'current', id: 'playing' },
-      { collection: 'playlist', id: 'playlist-copy' },
+      { collection: 'queue', id: 'queue-copy' },
       { collection: 'library', id: 'library-copy' }
     ]);
   });
@@ -105,7 +105,7 @@ describe('Troubadour main-window synchronization', () => {
     });
     const activeTrack = { ...track('playing', 'Music/Track.flac'), file: source, objectUrl: 'blob:disk-file' };
     const loadTrack = vi.fn(async (
-      _track: PlaylistItem,
+      _track: TrackItem,
       _options: { autoPlay: boolean; initialPosition: number }
     ) => undefined);
 

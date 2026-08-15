@@ -1,4 +1,4 @@
-import type { PlaylistRepeatMode } from '$lib/types';
+import type { RepeatMode } from '$lib/types';
 import { createPersistentStore } from './persistent-store';
 
 export const MULTIPLAYER_FREEPLAY_STATE_STORAGE_KEY = 'izci.multiplayer-freeplay-state';
@@ -9,7 +9,7 @@ export interface MultiplayerFreeplayState {
   hostId: string;
   queue: string[];
   shuffleEnabled: boolean;
-  repeatMode: PlaylistRepeatMode;
+  repeatMode: RepeatMode;
   currentTrackId: string | null;
   savedAt: number;
 }

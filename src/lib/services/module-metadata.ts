@@ -1,6 +1,6 @@
 import { createChiptunePlayer } from '$lib/services/chiptune-loader';
 import { logDebug, logInfo, logWarning } from '$lib/services/logging';
-import { HIVELY_MODULE_EXTENSIONS, type PlaylistItem, type TrackMetadata } from '$lib/types';
+import { HIVELY_MODULE_EXTENSIONS, type TrackItem, type TrackMetadata } from '$lib/types';
 import type { Chiptune3Metadata, ChiptuneJsPlayer } from 'chiptune3';
 
 const MODULE_METADATA_TIMEOUT_MS = 10_000;
@@ -92,7 +92,7 @@ function toTrackMetadata(metadata: Chiptune3Metadata): TrackMetadata {
   };
 }
 
-async function resolveTrackFile(track: PlaylistItem): Promise<File | null> {
+async function resolveTrackFile(track: TrackItem): Promise<File | null> {
   if (track.fileHandle) {
     try {
       return await track.fileHandle.getFile();
@@ -120,7 +120,7 @@ function disposePlayer(player: ChiptuneJsPlayer): void {
   void player.context.close().catch(() => undefined);
 }
 
-export async function loadModuleMetadata(track: PlaylistItem | null): Promise<TrackMetadata | null> {
+export async function loadModuleMetadata(track: TrackItem | null): Promise<TrackMetadata | null> {
   if (typeof window === 'undefined' || !track || track.kind !== 'module') {
     return null;
   }

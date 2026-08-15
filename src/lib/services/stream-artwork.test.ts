@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import { getTrackArtworkLoadKey, loadTrackMetadata } from './stream-artwork';
-import type { PlaylistItem } from '$lib/types';
+import type { TrackItem } from '$lib/types';
 
 const textEncoder = new TextEncoder();
 
@@ -115,7 +115,7 @@ function mp3File(frames: Uint8Array[]): File {
   });
 }
 
-function item(overrides: Partial<PlaylistItem>): PlaylistItem {
+function item(overrides: Partial<TrackItem>): TrackItem {
   return {
     id: 'track-id',
     name: 'Tagged.flac',

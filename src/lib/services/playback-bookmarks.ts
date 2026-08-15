@@ -1,4 +1,4 @@
-import type { PlaylistItem } from '$lib/types';
+import type { TrackItem } from '$lib/types';
 
 export interface PlaybackBookmark {
   id: string;
@@ -10,7 +10,7 @@ const STORAGE_KEY = 'izci-playback-bookmarks';
 
 type BookmarkStorage = Record<string, PlaybackBookmark[]>;
 
-export function getPlaybackBookmarkFileKey(track: PlaylistItem): string {
+export function getPlaybackBookmarkFileKey(track: TrackItem): string {
   if (track.path) return `path:${track.path}`;
   return `file:${track.name}\u0000${track.size}\u0000${track.lastModified}`;
 }
@@ -46,12 +46,12 @@ function writeStorage(value: BookmarkStorage): void {
   }
 }
 
-export function getPlaybackBookmarks(track: PlaylistItem): PlaybackBookmark[] {
+export function getPlaybackBookmarks(track: TrackItem): PlaybackBookmark[] {
   return normalizePlaybackBookmarks(readStorage()[getPlaybackBookmarkFileKey(track)]);
 }
 
 export function addPlaybackBookmark(
-  track: PlaylistItem,
+  track: TrackItem,
   time: number,
   requestedName: string
 ): PlaybackBookmark[] {
@@ -76,7 +76,7 @@ export function addPlaybackBookmark(
   return bookmarks;
 }
 
-export function deletePlaybackBookmark(track: PlaylistItem, bookmarkId: string): PlaybackBookmark[] {
+export function deletePlaybackBookmark(track: TrackItem, bookmarkId: string): PlaybackBookmark[] {
   const storage = readStorage();
   const key = getPlaybackBookmarkFileKey(track);
   const bookmarks = normalizePlaybackBookmarks(storage[key]).filter(({ id }) => id !== bookmarkId);

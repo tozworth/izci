@@ -1,5 +1,5 @@
 import type { FilesystemFolder, FilesystemFolderPermission } from '$lib/services/filesystem-folders';
-import type { PlaylistItem, TrackKind, TrackMetadata } from '$lib/types';
+import type { TrackItem, TrackKind, TrackMetadata } from '$lib/types';
 import { getTrackIdentity } from '$lib/utils/files';
 
 export const REQUEST_TROUBADOUR_BATCH_CONTEXT_MESSAGE = 'izci:troubadour:request-batch-context';
@@ -9,7 +9,7 @@ export const TROUBADOUR_BATCH_RESULT_MESSAGE = 'izci:troubadour:batch-result';
 export const PREPARE_TROUBADOUR_WRITE_MESSAGE = 'izci:troubadour:prepare-write';
 export const TROUBADOUR_WRITE_READY_MESSAGE = 'izci:troubadour:write-ready';
 
-export type TroubadourCollection = 'current' | 'playlist' | 'library' | 'favorites';
+export type TroubadourCollection = 'current' | 'queue' | 'library' | 'favorites';
 
 export interface TroubadourTrackReference {
   collection: TroubadourCollection;
@@ -46,7 +46,7 @@ export interface TroubadourBatchContext {
 
 export interface TroubadourBatchContextSource {
   collection: TroubadourCollection;
-  items: PlaylistItem[];
+  items: TrackItem[];
 }
 
 export interface TroubadourBatchItemResult {
@@ -91,9 +91,9 @@ export interface TroubadourWritePreparationRequest {
 }
 
 export async function detachTrackForMetadataWrite(
-  track: PlaylistItem,
+  track: TrackItem,
   options: { autoPlay: boolean; initialPosition: number },
-  loadTrack: (track: PlaylistItem, options: { autoPlay: boolean; initialPosition: number }) => Promise<void>
+  loadTrack: (track: TrackItem, options: { autoPlay: boolean; initialPosition: number }) => Promise<void>
 ): Promise<boolean> {
   if (!track.file || !track.objectUrl || (track.kind !== 'stream' && track.kind !== 'video')) return false;
 
@@ -129,7 +129,7 @@ function isReference(value: unknown): value is TroubadourTrackReference {
   const source = value as Partial<TroubadourTrackReference>;
   return (
     (source.collection === 'current'
-      || source.collection === 'playlist'
+      || source.collection === 'queue'
       || source.collection === 'library'
       || source.collection === 'favorites')
     && typeof source.id === 'string'

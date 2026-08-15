@@ -1,6 +1,6 @@
 import { version as appVersion } from '../../../package.json';
-import type { PlaylistItem } from '$lib/types';
-import { materializePlaylistItem } from '$lib/stores/playlist-materialization';
+import type { TrackItem } from '$lib/types';
+import { materializeTrackItem } from '$lib/stores/queue-materialization';
 import { clearMultiplayerLastSession, rememberMultiplayerLastSession } from '$lib/stores/multiplayer-last-session';
 import { logDebug, logError, logInfo, logWarning } from '$lib/services/logging';
 import { multiplayerAudioService } from './multiplayer-audio';
@@ -31,7 +31,7 @@ import {
 import {
   MULTIPLAYER_PROTOCOL_VERSION,
   isMultiplayerCommand,
-  sanitizePlaylistItem,
+  sanitizeTrackItem,
   type HostMessage,
   type MultiplayerCatalog,
   type MultiplayerCollection,
@@ -455,7 +455,7 @@ export function createMultiplayerHostSide(
       }
       if (message.kind === 'freeplay.queue' && peer.freeplay) {
         peer.freeplayQueue = sanitizeFreeplayQueueIds(message.itemIds);
-        peer.freeplayCollection = 'playlist';
+        peer.freeplayCollection = 'queue';
         peer.freeplayNavigation?.reset();
         const restored = parseFreeplayRestoredFlags(message);
         if (restored) {
@@ -649,7 +649,7 @@ export function createMultiplayerHostSide(
       }
       const previousSelection = core.freeplaySelections.get(peer.id);
       if (previousSelection) {
-        void activateFreeplayTrack(peer, 'playlist', previousSelection.id);
+        void activateFreeplayTrack(peer, 'queue', previousSelection.id);
       } else {
         // No restored selection (host restart wipes freeplaySelections): the
         // idle player never publishes, so a reconnecting client holding a
@@ -748,7 +748,7 @@ export function createMultiplayerHostSide(
 
   function syncPeerRenderSource(
     peer: PeerConnection,
-    track: PlaylistItem | null,
+    track: TrackItem | null,
     generationId: string | null
   ): void {
     const previous = peer.renderState;
@@ -818,7 +818,7 @@ export function createMultiplayerHostSide(
 
   function syncPeerSourceFile(
     peer: PeerConnection,
-    track: PlaylistItem | null,
+    track: TrackItem | null,
     generationId: string | null
   ): void {
     const channel = peer.mediaChannel;
@@ -844,7 +844,7 @@ export function createMultiplayerHostSide(
 
   function renderStillCurrent(
     peer: PeerConnection,
-    track: PlaylistItem,
+    track: TrackItem,
     generationId: string
   ): boolean {
     if (peer.freeplay) {
@@ -926,7 +926,7 @@ export function createMultiplayerHostSide(
     const playback: MultiplayerPlayback = {
       ...update.playback,
       generationId: delivery.generationId,
-      track: update.playback.track ? sanitizePlaylistItem(update.playback.track) : null
+      track: update.playback.track ? sanitizeTrackItem(update.playback.track) : null
     };
     sendToPeer(peer, { kind: 'playback', playback });
     syncPeerMediaSource(peer);
@@ -999,12 +999,12 @@ export function createMultiplayerHostSide(
           ? player.seek(command.seconds)
           : false;
       }
-      case 'playlist.shuffle':
+      case 'queue.shuffle':
         peer.freeplayShuffle = !peer.freeplayShuffle;
         peer.freeplayNavigation?.reset();
         sendFreeplayState(peer);
         return true;
-      case 'playlist.repeat':
+      case 'queue.repeat':
         peer.freeplayRepeatMode = cycleMultiplayerRepeatMode(peer.freeplayRepeatMode);
         sendFreeplayState(peer);
         return true;
@@ -1036,7 +1036,7 @@ export function createMultiplayerHostSide(
     // continuously consuming receiver route the entire load interval to drain
     // prior audio while leaving source-file clients on their local timeline.
     peer.freeplayPlayer.pause();
-    const track = await materializePlaylistItem(source, false);
+    const track = await materializeTrackItem(source, false);
     if (peer.freeplayActivation !== activation
       || !track
       || !peer.freeplay
@@ -1124,19 +1124,19 @@ export function createMultiplayerHostSide(
     await stepFreeplayTrack(peer, 1, true);
   }
 
-  function freeplayCollectionItems(peer: PeerConnection, collection: MultiplayerCollection): PlaylistItem[] {
+  function freeplayCollectionItems(peer: PeerConnection, collection: MultiplayerCollection): TrackItem[] {
     if (!core.latestHostState) return [];
-    if (collection === 'playlist') return resolveFreeplayQueueItems(peer);
+    if (collection === 'queue') return resolveFreeplayQueueItems(peer);
     return collection === 'favorites' ? core.latestHostState.favorites : core.latestHostState.library;
   }
 
-  function resolveFreeplayQueueItems(peer: PeerConnection): PlaylistItem[] {
+  function resolveFreeplayQueueItems(peer: PeerConnection): TrackItem[] {
     if (!core.latestHostState) return [];
-    const byId = new Map<string, PlaylistItem>();
+    const byId = new Map<string, TrackItem>();
     for (const item of [
       ...core.latestHostState.library,
       ...core.latestHostState.favorites,
-      ...core.latestHostState.playlist
+      ...core.latestHostState.queue
     ]) if (!byId.has(item.id)) byId.set(item.id, item);
     return peer.freeplayQueue.flatMap((id) => {
       const item = byId.get(id);
@@ -1150,9 +1150,9 @@ export function createMultiplayerHostSide(
       kind: 'catalog',
       catalog: {
         revision: core.catalogRevision,
-        playlist: resolveFreeplayQueueItems(peer).map(sanitizePlaylistItem),
-        library: core.latestHostState.library.map(sanitizePlaylistItem),
-        favorites: core.latestHostState.favorites.map(sanitizePlaylistItem),
+        queue: resolveFreeplayQueueItems(peer).map(sanitizeTrackItem),
+        library: core.latestHostState.library.map(sanitizeTrackItem),
+        favorites: core.latestHostState.favorites.map(sanitizeTrackItem),
         shuffleEnabled: peer.freeplayShuffle,
         repeatMode: peer.freeplayRepeatMode
       }
@@ -1168,7 +1168,7 @@ export function createMultiplayerHostSide(
     });
   }
 
-  function syncFreeplayArtwork(peer: PeerConnection, track: PlaylistItem | null): void {
+  function syncFreeplayArtwork(peer: PeerConnection, track: TrackItem | null): void {
     const nextTrackKey = getMultiplayerArtworkTrackKey(track);
     if (nextTrackKey === peer.freeplayArtworkTrackKey) return;
     peer.freeplayArtworkTrackKey = nextTrackKey;
@@ -1227,7 +1227,7 @@ export function createMultiplayerHostSide(
     core.latestHostState = effectiveNext;
 
     const catalogChanged = !core.lastCatalogSources
-      || core.lastCatalogSources.playlist !== effectiveNext.playlist
+      || core.lastCatalogSources.queue !== effectiveNext.queue
       || core.lastCatalogSources.library !== effectiveNext.library
       || core.lastCatalogSources.favorites !== effectiveNext.favorites
       || core.lastCatalogSources.shuffleEnabled !== effectiveNext.shuffleEnabled
@@ -1235,7 +1235,7 @@ export function createMultiplayerHostSide(
     if (catalogChanged) {
       core.catalogRevision += 1;
       core.lastCatalogSources = {
-        playlist: effectiveNext.playlist,
+        queue: effectiveNext.queue,
         library: effectiveNext.library,
         favorites: effectiveNext.favorites,
         shuffleEnabled: effectiveNext.shuffleEnabled,
@@ -1456,7 +1456,7 @@ export function createMultiplayerHostSide(
     if (!core.latestHostState) return;
     core.catalogRevision += 1;
     core.lastCatalogSources = {
-      playlist: core.latestHostState.playlist,
+      queue: core.latestHostState.queue,
       library: core.latestHostState.library,
       favorites: core.latestHostState.favorites,
       shuffleEnabled: core.latestHostState.shuffleEnabled,
@@ -1486,7 +1486,7 @@ export function createMultiplayerHostSide(
           ? {
               ...player.playback,
               generationId: delivery.generationId,
-              track: player.track ? sanitizePlaylistItem(player.track) : null
+              track: player.track ? sanitizeTrackItem(player.track) : null
             }
           : { ...EMPTY_REMOTE_PLAYBACK, generationId: delivery.generationId }
       });
@@ -1522,7 +1522,7 @@ export function createMultiplayerHostSide(
     syncPeerMediaSource(peer);
   }
 
-  function syncHostAudio(track: PlaylistItem | null, force = false): void {
+  function syncHostAudio(track: TrackItem | null, force = false): void {
     const mode: MultiplayerDeliveryMode = !track
       ? 'none'
       : !core.multiplayerSettings.multiplayerStreamAudio
@@ -1573,7 +1573,7 @@ export function createMultiplayerHostSide(
     }
   }
 
-  function syncHostSourceFiles(track: PlaylistItem | null): void {
+  function syncHostSourceFiles(track: TrackItem | null): void {
     for (const peer of core.hostPeers.values()) {
       if (peer.freeplaySettled && !peer.freeplay) {
         const mode = core.latestDelivery.mode;
@@ -1586,7 +1586,7 @@ export function createMultiplayerHostSide(
     }
   }
 
-  function syncHostArtwork(track: PlaylistItem | null): void {
+  function syncHostArtwork(track: TrackItem | null): void {
     const nextTrackKey = getMultiplayerArtworkTrackKey(track);
     if (nextTrackKey === core.hostArtworkTrackKey) return;
 
@@ -1617,9 +1617,9 @@ export function createMultiplayerHostSide(
   function buildCatalog(source: MultiplayerHostState): MultiplayerCatalog {
     return {
       revision: core.catalogRevision,
-      playlist: source.playlist.map(sanitizePlaylistItem),
-      library: source.library.map(sanitizePlaylistItem),
-      favorites: source.favorites.map(sanitizePlaylistItem),
+      queue: source.queue.map(sanitizeTrackItem),
+      library: source.library.map(sanitizeTrackItem),
+      favorites: source.favorites.map(sanitizeTrackItem),
       shuffleEnabled: source.shuffleEnabled,
       repeatMode: source.repeatMode
     };
@@ -1629,7 +1629,7 @@ export function createMultiplayerHostSide(
     return {
       generationId: core.latestDelivery.generationId,
       snapshot: { ...source.playback },
-      track: source.track ? sanitizePlaylistItem(source.track) : null,
+      track: source.track ? sanitizeTrackItem(source.track) : null,
       sentAt: Date.now()
     };
   }

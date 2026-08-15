@@ -3,10 +3,10 @@ import { describe, expect, it } from 'vitest';
 import {
   buildFavoritesContextActions,
   buildFreeplayLibraryContextActions,
-  buildFreeplayPlaylistContextActions,
+  buildFreeplayQueueContextActions,
   buildLibraryContextActions,
   buildLibraryGroupContextActions,
-  buildPlaylistContextActions,
+  buildQueueContextActions,
   buildSelectedWorkspaceTracks,
   getEquivalentLibraryIds,
   getEquivalentFavoriteIds,
@@ -15,9 +15,9 @@ import {
   libraryHasAllTracks,
   resolveTrackLibraryNavigationAction
 } from './workspace-actions';
-import type { PlaylistItem } from '$lib/types';
+import type { TrackItem } from '$lib/types';
 
-function item(id: string, overrides: Partial<PlaylistItem> = {}): PlaylistItem {
+function item(id: string, overrides: Partial<TrackItem> = {}): TrackItem {
   return {
     id,
     name: `${id}.flac`,
@@ -33,48 +33,48 @@ describe('workspace actions', () => {
   it('builds selected tracks in collection order and flips collection ids', () => {
     const tracks = [item('a'), item('b'), item('c')];
 
-    expect(getOtherWorkspaceCollection('playlist')).toBe('library');
-    expect(getOtherWorkspaceCollection('library')).toBe('playlist');
+    expect(getOtherWorkspaceCollection('queue')).toBe('library');
+    expect(getOtherWorkspaceCollection('library')).toBe('queue');
     expect(buildSelectedWorkspaceTracks(tracks, ['c', 'a']).map((track) => track.id)).toEqual(['a', 'c']);
   });
 
   it('keeps Freeplay queue actions local and excludes host mutations', () => {
     const track = item('track', { path: '/Music/Track.flac', metadata: { artist: 'Artist' } });
-    expect(buildFreeplayPlaylistContextActions([track], [track], ['track']).map(({ id }) => id))
+    expect(buildFreeplayQueueContextActions([track], [track], ['track']).map(({ id }) => id))
       .toEqual(['go-to-library', 'track-details', 'remove']);
     expect(buildFreeplayLibraryContextActions([track], [track], ['track']).map(({ id }) => id))
-      .toEqual(['add-to-playlist', 'replace-playlist', 'go-to-library', 'track-details']);
+      .toEqual(['add-to-queue', 'replace-queue', 'go-to-library', 'track-details']);
   });
 
-  it('matches playlist tracks to library rows by stable track identity', () => {
-    const playlistTracks = [
-      item('playlist-alpha', { path: '/Music/Alpha.flac' }),
-      item('playlist-beta', { path: '/Music/Beta.flac' })
+  it('matches queue tracks to library rows by stable track identity', () => {
+    const queueTracks = [
+      item('queue-alpha', { path: '/Music/Alpha.flac' }),
+      item('queue-beta', { path: '/Music/Beta.flac' })
     ];
     const libraryTracks = [
       item('library-alpha', { path: '/music/alpha.flac' }),
       item('library-gamma', { path: '/Music/Gamma.flac' })
     ];
 
-    expect(libraryHasAllTracks(libraryTracks, [playlistTracks[0]])).toBe(true);
-    expect(libraryHasAllTracks(libraryTracks, playlistTracks)).toBe(false);
-    expect(getEquivalentLibraryIds(libraryTracks, playlistTracks)).toEqual(['library-alpha']);
+    expect(libraryHasAllTracks(libraryTracks, [queueTracks[0]])).toBe(true);
+    expect(libraryHasAllTracks(libraryTracks, queueTracks)).toBe(false);
+    expect(getEquivalentLibraryIds(libraryTracks, queueTracks)).toEqual(['library-alpha']);
   });
 
-  it('changes playlist library action labels based on membership', () => {
-    const playlistTracks = [item('playlist-alpha', { path: '/Music/Alpha.flac' })];
+  it('changes queue library action labels based on membership', () => {
+    const queueTracks = [item('queue-alpha', { path: '/Music/Alpha.flac' })];
     const libraryTracks = [item('library-alpha', { path: '/music/alpha.flac' })];
 
     expect(
-      buildPlaylistContextActions(playlistTracks, libraryTracks, ['playlist-alpha']).map((action) => action.id)
+      buildQueueContextActions(queueTracks, libraryTracks, ['queue-alpha']).map((action) => action.id)
     ).not.toContain('track-lyrics');
-    expect(buildPlaylistContextActions(playlistTracks, libraryTracks, ['playlist-alpha'])
+    expect(buildQueueContextActions(queueTracks, libraryTracks, ['queue-alpha'])
       .find((action) => action.id === 'toggle-library')).toMatchObject({
       id: 'toggle-library',
       label: 'Remove from library',
       icon: 'remove_circle'
     });
-    expect(buildPlaylistContextActions(playlistTracks, [], ['playlist-alpha'])
+    expect(buildQueueContextActions(queueTracks, [], ['queue-alpha'])
       .find((action) => action.id === 'toggle-library')).toMatchObject({
       id: 'toggle-library',
       label: 'Add to library',
@@ -98,7 +98,7 @@ describe('workspace actions', () => {
     const track = item('track', { path: '/Music/Track.flac' });
     const favorite = { ...track, id: 'favorite' };
 
-    expect(buildPlaylistContextActions([track], [], ['track'], [favorite]))
+    expect(buildQueueContextActions([track], [], ['track'], [favorite]))
       .toContainEqual(expect.objectContaining({ id: 'toggle-favorite', label: 'Remove from favorites' }));
     expect(buildLibraryContextActions([track], [], ['track']))
       .toContainEqual(expect.objectContaining({ id: 'toggle-favorite', label: 'Add to favorites' }));
@@ -106,8 +106,8 @@ describe('workspace actions', () => {
 
   it('offers ten half-star ratings only when ratings are enabled', () => {
     const track = item('track', { rating: 4 });
-    const enabled = buildPlaylistContextActions([track], [], ['track'], [], true);
-    const disabled = buildPlaylistContextActions([track], [], ['track'], [], false);
+    const enabled = buildQueueContextActions([track], [], ['track'], [], true);
+    const disabled = buildQueueContextActions([track], [], ['track'], [], false);
     const ratingAction = enabled.find((action) => action.id === 'rate');
 
     expect(ratingAction?.ratingPicker).toEqual({ value: 4, actionPrefix: 'rate:' });
@@ -124,17 +124,17 @@ describe('workspace actions', () => {
         year: '2024'
       }
     });
-    const playlistTrack = { ...libraryTrack, id: 'playlist' };
-    const playlistActions = buildPlaylistContextActions(
-      [playlistTrack],
+    const queueTrack = { ...libraryTrack, id: 'queue' };
+    const queueActions = buildQueueContextActions(
+      [queueTrack],
       [libraryTrack],
-      ['playlist']
+      ['queue']
     );
-    const goToIndex = playlistActions.findIndex((action) => action.id === 'go-to-library');
+    const goToIndex = queueActions.findIndex((action) => action.id === 'go-to-library');
 
     expect(goToIndex).toBeGreaterThanOrEqual(0);
-    expect(playlistActions[goToIndex + 1]?.id).toBe('track-details');
-    expect(playlistActions[goToIndex].children?.map((action) => action.id)).toEqual([
+    expect(queueActions[goToIndex + 1]?.id).toBe('track-details');
+    expect(queueActions[goToIndex].children?.map((action) => action.id)).toEqual([
       'go-to-library-artist',
       'go-to-library-album',
       'go-to-library-genre',
@@ -143,12 +143,12 @@ describe('workspace actions', () => {
     ]);
     expect(resolveTrackLibraryNavigationAction(
       'go-to-library-album',
-      playlistTrack,
+      queueTrack,
       [libraryTrack]
     )).toMatchObject({ view: 'albums', trackId: 'library' });
 
     const favoriteActions = buildFavoritesContextActions(
-      [{ ...playlistTrack, id: 'favorite' }],
+      [{ ...queueTrack, id: 'favorite' }],
       [libraryTrack],
       ['favorite']
     );
@@ -160,7 +160,7 @@ describe('workspace actions', () => {
     const first = item('first', { path: '/Music/First.flac' });
     const second = item('second', { path: '/Music/Second.flac' });
 
-    expect(buildPlaylistContextActions([first], [], ['first']).map((action) => action.id))
+    expect(buildQueueContextActions([first], [], ['first']).map((action) => action.id))
       .not.toContain('go-to-library');
     expect(buildLibraryContextActions([first, second], [], ['first', 'second']).map((action) => action.id))
       .not.toContain('go-to-library');
@@ -173,11 +173,11 @@ describe('workspace actions', () => {
       metadata: { subsongs: 3 }
     });
 
-    expect(buildPlaylistContextActions([module], [], ['module']).map((action) => action.id))
+    expect(buildQueueContextActions([module], [], ['module']).map((action) => action.id))
       .toContain('separate-subsongs');
-    expect(buildPlaylistContextActions([{ ...module, subsong: 0 }], [], ['module']).map((action) => action.id))
+    expect(buildQueueContextActions([{ ...module, subsong: 0 }], [], ['module']).map((action) => action.id))
       .not.toContain('separate-subsongs');
-    expect(buildPlaylistContextActions([module, item('other')], [], ['module', 'other']).map((action) => action.id))
+    expect(buildQueueContextActions([module, item('other')], [], ['module', 'other']).map((action) => action.id))
       .not.toContain('separate-subsongs');
   });
 
@@ -199,11 +199,11 @@ describe('workspace actions', () => {
 
     expect(flatActions.map((action) => action.id)).not.toContain('shuffle-play');
     expect(groupedActions.map((action) => action.id)).toEqual([
-      'add-to-playlist',
-      'replace-playlist',
+      'add-to-queue',
+      'replace-queue',
       'shuffle-play',
       'play-next',
-      'add-to-queue',
+      'add-to-up-next',
       'track-details',
       'copy-filename',
       'toggle-favorite',

@@ -170,7 +170,7 @@
     </button>
     <span class="toolbar-separator" aria-hidden="true"></span>
     <button class="icon-button hover-tooltip-anchor" type="button" disabled={disabled} aria-label={$t('troubadour.lyrics.addLine', { default: 'Add line' })} on:click={() => insertLine()}>
-      <span class="material-symbols-outlined" aria-hidden="true">playlist_add</span><HoverTooltip>{$t('troubadour.lyrics.addLine', { default: 'Add line' })}</HoverTooltip>
+      <span class="material-symbols-outlined" aria-hidden="true">queue_add</span><HoverTooltip>{$t('troubadour.lyrics.addLine', { default: 'Add line' })}</HoverTooltip>
     </button>
     <button class="icon-button hover-tooltip-anchor" type="button" disabled={disabled} aria-label={$t('troubadour.lyrics.deleteLine', { default: 'Delete line' })} on:click={deleteLine}>
       <span class="material-symbols-outlined" aria-hidden="true">delete</span><HoverTooltip>{$t('troubadour.lyrics.deleteLine', { default: 'Delete line' })}</HoverTooltip>

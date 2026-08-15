@@ -3,10 +3,10 @@ import {
   createContextualTabPresentationController,
   resolvePatternTabAvailability
 } from './contextual-tab-presentation';
-import type { ModulePatternSnapshot, PlaylistItem } from '$lib/types';
+import type { ModulePatternSnapshot, TrackItem } from '$lib/types';
 
-const moduleTrack = { id: 'module', kind: 'module' } as PlaylistItem;
-const streamTrack = { id: 'stream', kind: 'stream' } as PlaylistItem;
+const moduleTrack = { id: 'module', kind: 'module' } as TrackItem;
+const streamTrack = { id: 'stream', kind: 'stream' } as TrackItem;
 const emptyPatternSnapshot: ModulePatternSnapshot = {
   trackId: null,
   song: null,

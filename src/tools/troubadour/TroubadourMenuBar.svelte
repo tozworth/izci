@@ -29,7 +29,7 @@
   $: fileItems = [
     { id: 'addFiles', label: $t('troubadour.menu.addFiles', { default: 'Add files...' }), icon: 'audio_file', shortcut: 'Ctrl+O', disabled: busy },
     { id: 'addFolder', label: $t('troubadour.menu.addFolder', { default: 'Add folder...' }), icon: 'folder_open', shortcut: 'Ctrl+Shift+O', disabled: busy },
-    { id: 'addFromIzci', label: $t('troubadour.menu.addFromIzci', { default: 'Add current izci selection' }), icon: 'playlist_add', disabled: busy },
+    { id: 'addFromIzci', label: $t('troubadour.menu.addFromIzci', { default: 'Add current izci selection' }), icon: 'queue_add', disabled: busy },
     { id: 'save', label: $t('troubadour.menu.save', { default: 'Save selected dirty files' }), icon: 'save', shortcut: 'Ctrl+S', separatorBefore: true, disabled: !canSave || busy },
     { id: 'saveAll', label: $t('troubadour.menu.saveAll', { default: 'Save all dirty files' }), icon: 'save_as', shortcut: 'Ctrl+Shift+S', disabled: !canSave || busy },
     { id: 'close', label: $t('troubadour.menu.close', { default: 'Close Troubadour' }), icon: 'close', shortcut: 'Ctrl+W', separatorBefore: true }

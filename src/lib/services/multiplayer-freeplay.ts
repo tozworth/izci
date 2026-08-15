@@ -3,8 +3,8 @@ import { audioBusService } from '$lib/services/audio-bus';
 import { createChiptunePlayer } from '$lib/services/chiptune-loader';
 import { logWarning } from '$lib/services/logging';
 import { modulePlaybackSettings } from '$lib/stores/module-playback-settings';
-import { createPlaylistNavigation } from '$lib/stores/playlist-navigation';
-import type { PlaybackSnapshot, PlaylistItem, PlaylistRepeatMode } from '$lib/types';
+import { createQueueNavigation } from '$lib/stores/queue-navigation';
+import type { PlaybackSnapshot, TrackItem, RepeatMode } from '$lib/types';
 import type {
   MultiplayerDeliveryMode,
   MultiplayerPlayback
@@ -27,7 +27,7 @@ export interface MultiplayerFreeplayPlayerUpdate {
 }
 
 interface CreateMultiplayerFreeplayPlayerOptions {
-  getAudioSettings: (track: PlaylistItem) => MultiplayerFreeplayAudioSettings;
+  getAudioSettings: (track: TrackItem) => MultiplayerFreeplayAudioSettings;
   onUpdate: (update: MultiplayerFreeplayPlayerUpdate) => void;
   onEnded: (trackId: string) => void;
 }
@@ -46,7 +46,7 @@ const EMPTY_SNAPSHOT: PlaybackSnapshot = {
  * It deliberately never enters the shared player controller or speaker graph.
  */
 export class MultiplayerFreeplayPlayer {
-  #track: PlaylistItem | null = null;
+  #track: TrackItem | null = null;
   #snapshot: PlaybackSnapshot = { ...EMPTY_SNAPSHOT };
   #delivery: MultiplayerDeliveryMode = 'none';
   #element: HTMLMediaElement | null = null;
@@ -71,7 +71,7 @@ export class MultiplayerFreeplayPlayer {
     this.#onEnded = onEnded;
   }
 
-  get track(): PlaylistItem | null {
+  get track(): TrackItem | null {
     return this.#track;
   }
 
@@ -135,7 +135,7 @@ export class MultiplayerFreeplayPlayer {
     return track;
   }
 
-  async load(track: PlaylistItem, autoPlay = false, initialPosition = 0): Promise<boolean> {
+  async load(track: TrackItem, autoPlay = false, initialPosition = 0): Promise<boolean> {
     if (!track.file) return false;
     const token = ++this.#loadToken;
     this.#playIntent = autoPlay;
@@ -299,7 +299,7 @@ export class MultiplayerFreeplayPlayer {
     this.#snapshot = { ...EMPTY_SNAPSHOT };
   }
 
-  async #loadMediaRenderer(track: PlaylistItem, token: number): Promise<void> {
+  async #loadMediaRenderer(track: TrackItem, token: number): Promise<void> {
     const context = audioBusService.context;
     await audioBusService.resume();
     const element = document.createElement(track.kind === 'video' ? 'video' : 'audio');
@@ -344,7 +344,7 @@ export class MultiplayerFreeplayPlayer {
     element.addEventListener('ended', this.#handleEnded);
   }
 
-  async #loadModuleRenderer(track: PlaylistItem, token: number): Promise<void> {
+  async #loadModuleRenderer(track: TrackItem, token: number): Promise<void> {
     const context = audioBusService.context;
     await audioBusService.resume();
     const settings = modulePlaybackSettings.getSnapshot();
@@ -502,15 +502,15 @@ export interface FreeplayStepResolver {
     direction: -1 | 1;
     shuffle: boolean;
     wrap: boolean;
-  }): PlaylistItem | null;
+  }): TrackItem | null;
   resolveEnd(options: {
     currentId?: string | null;
     shuffle: boolean;
-    repeatMode: PlaylistRepeatMode;
-  }): PlaylistItem | null;
+    repeatMode: RepeatMode;
+  }): TrackItem | null;
 }
-export function createFreeplayStepResolver(getItems: () => PlaylistItem[]): FreeplayStepResolver {
-  const navigation = createPlaylistNavigation(getItems);
+export function createFreeplayStepResolver(getItems: () => TrackItem[]): FreeplayStepResolver {
+  const navigation = createQueueNavigation(getItems);
   return {
     reset: navigation.reset,
     resolveStep: (options) => navigation.resolveStepTrack(options),

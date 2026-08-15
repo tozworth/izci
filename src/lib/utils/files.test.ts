@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { MODULE_EXTENSIONS, VIDEO_EXTENSIONS } from '$lib/types';
 
 import {
-  buildPlaylistItems,
+  buildTrackItems,
   buildSeparatedSubsongItems,
   discoverDirectoryFiles,
   extractDroppedContent,
@@ -13,7 +13,7 @@ import {
   inferKind,
   mergeInferredArtistTitle,
   getTrackDisplayTitle,
-  getTrackPlaylistLabel,
+  getTrackQueueLabel,
   readFileHandleFiles,
   readDirectoryFiles,
   stripFileExtension
@@ -80,7 +80,7 @@ describe('file helpers', () => {
     expect(mergeInferredArtistTitle({}, 'Artist - Title.opus', false)).toEqual({});
   });
 
-  it('builds distinct playlist entries for every module subsong', () => {
+  it('builds distinct queue entries for every module subsong', () => {
     const source = {
       id: 'module-id',
       name: 'Suite.xm',
@@ -100,7 +100,7 @@ describe('file helpers', () => {
     expect(separated.map((item) => item.subsong)).toEqual([0, 1, 2]);
     expect(separated[1].id).toBe('module-id');
     expect(new Set(separated.map((item) => item.id))).toHaveLength(3);
-    expect(separated.map(getTrackPlaylistLabel)).toEqual([
+    expect(separated.map(getTrackQueueLabel)).toEqual([
       'Suite.xm - 1/3',
       'Suite.xm - 2/3',
       'Suite.xm - 3/3'
@@ -117,7 +117,7 @@ describe('file helpers', () => {
     ]);
 
     const files = await readDirectoryFiles(root);
-    const items = buildPlaylistItems(files);
+    const items = buildTrackItems(files);
 
     expect(items.map((item) => ({ name: item.name, path: item.path }))).toEqual([
       { name: 'Nested.mod', path: 'Music/Artist/Album/Nested.mod' },
@@ -148,7 +148,7 @@ describe('file helpers', () => {
       sourceFolderId: 'music-id'
     }));
 
-    expect(buildPlaylistItems(files)[0]).toMatchObject({
+    expect(buildTrackItems(files)[0]).toMatchObject({
       fileHandle: track,
       path: 'Music/Artist/Track.flac',
       sourceFolderId: 'music-id'
@@ -223,7 +223,7 @@ describe('file helpers', () => {
     } as unknown as DataTransfer;
 
     const files = await extractDroppedFiles(dataTransfer);
-    const items = buildPlaylistItems(files);
+    const items = buildTrackItems(files);
 
     expect(items).toHaveLength(1);
     expect(items[0].path).toBe('Music/Sub/Legacy.it');
@@ -250,6 +250,6 @@ describe('file helpers', () => {
     expect(handleReads).toBe(1);
     expect(dropped.directoryHandles).toEqual([folder]);
     expect(dropped.files).toMatchObject([{ name: 'Track.flac' }]);
-    expect(buildPlaylistItems(dropped.files)[0].path).toBe('Music/Track.flac');
+    expect(buildTrackItems(dropped.files)[0].path).toBe('Music/Track.flac');
   });
 });

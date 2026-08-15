@@ -2,13 +2,13 @@ import type {
   ContextualTabAutomation,
   ModulePatternSnapshot,
   PlaybackState,
-  PlaylistItem
+  TrackItem
 } from '$lib/types';
 
 export type ContextualTabAvailability = 'loading' | 'available' | 'unavailable';
 
 export function resolvePatternTabAvailability(
-  track: PlaylistItem | null,
+  track: TrackItem | null,
   patternSnapshot: ModulePatternSnapshot,
   playbackState: PlaybackState
 ): ContextualTabAvailability {

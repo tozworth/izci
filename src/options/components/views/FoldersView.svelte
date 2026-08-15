@@ -346,7 +346,7 @@
                   on:click={() => queueScan(folder)}
                 />
                 <OptionGlyphButton
-                  icon="playlist_remove"
+                  icon="queue_remove"
                   label={$t('options.folders.actions.removeFromLibrary', { default: 'Remove from library' })}
                   placement="above"
                   danger

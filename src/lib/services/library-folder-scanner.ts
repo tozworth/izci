@@ -5,9 +5,9 @@ import {
   type FilesystemFolder,
   type LibraryFolderScanFailure
 } from '$lib/services/filesystem-folders';
-import { libraryStore } from '$lib/stores/playlist';
+import { libraryStore } from '$lib/stores/queue';
 import { trackSettings } from '$lib/stores/track-settings';
-import { buildPlaylistItems, readDirectoryFiles } from '$lib/utils/files';
+import { buildTrackItems, readDirectoryFiles } from '$lib/utils/files';
 
 export interface LibraryFolderScanResult {
   folderId: string;
@@ -27,7 +27,7 @@ async function findFolder(folderId: string): Promise<FilesystemFolder | null> {
   return filesystemFolders.getSnapshot().find((folder) => folder.id === folderId) ?? null;
 }
 
-function releaseScanObjectUrls(items: ReturnType<typeof buildPlaylistItems>): void {
+function releaseScanObjectUrls(items: ReturnType<typeof buildTrackItems>): void {
   for (const item of items) {
     if (item.objectUrl) URL.revokeObjectURL(item.objectUrl);
     item.file = undefined;
@@ -77,7 +77,7 @@ async function performScan(folderId: string): Promise<LibraryFolderScanResult> {
       maxDepth: trackSettings.getSnapshot().folderNestingLimit
     });
     const verifiedFiles = await prepareImportedFiles(discoveredFiles);
-    const scannedItems = buildPlaylistItems(verifiedFiles).map((item) => ({
+    const scannedItems = buildTrackItems(verifiedFiles).map((item) => ({
       ...item,
       sourceFolderId: folderId
     }));

@@ -1,8 +1,8 @@
 <script lang="ts">
   import { tick } from 'svelte';
   import { t } from 'svelte-i18n';
-  import { portal } from '$lib/components/playlist-panel/actions/portal';
-  import { windowDismiss } from '$lib/components/playlist-panel/actions/window-dismiss';
+  import { portal } from '$lib/components/track-list-panel/actions/portal';
+  import { windowDismiss } from '$lib/components/track-list-panel/actions/window-dismiss';
   import HoverTooltip from '$lib/components/HoverTooltip.svelte';
   import { RAF_EFFECT_DEFINITIONS, RAF_EFFECT_REGISTRY } from '$lib/services/raf-effect-registry';
   import { rafSettings } from '$lib/stores/raf-settings';

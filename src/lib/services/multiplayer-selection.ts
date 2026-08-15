@@ -1,14 +1,14 @@
-import type { PlaylistItem, PlaylistSelection } from '$lib/types';
+import type { TrackItem, TrackSelection } from '$lib/types';
 
 export interface MultiplayerPlayingTrackSelectionSync {
   observedTrackId: string | null;
-  selection: PlaylistSelection | null;
+  selection: TrackSelection | null;
 }
 
 export function resolveMultiplayerPlayingTrackSelection(
   observedTrackId: string | null,
   playingTrackId: string | null,
-  playlistItems: PlaylistItem[]
+  queueItems: TrackItem[]
 ): MultiplayerPlayingTrackSelectionSync {
   if (!playingTrackId) {
     return { observedTrackId: null, selection: null };
@@ -18,7 +18,7 @@ export function resolveMultiplayerPlayingTrackSelection(
     return { observedTrackId, selection: null };
   }
 
-  if (!playlistItems.some((item) => item.id === playingTrackId)) {
+  if (!queueItems.some((item) => item.id === playingTrackId)) {
     return { observedTrackId, selection: null };
   }
 

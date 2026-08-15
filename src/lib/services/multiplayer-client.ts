@@ -238,7 +238,7 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore): Multi
     }
     pendingFreeplayResumeTrackId = null;
     logInfo('freeplay', 'Requesting persisted Freeplay selection', { trackId });
-    sendCommand({ type: 'collection.activate', collection: 'playlist', itemId: trackId });
+    sendCommand({ type: 'collection.activate', collection: 'queue', itemId: trackId });
   }
 
   async function join(

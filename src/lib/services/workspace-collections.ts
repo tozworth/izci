@@ -4,8 +4,8 @@ import { playerController } from '$lib/services/player-controller';
 import {
   buildLibraryContextActions,
   buildFavoritesContextActions,
-  buildPlaylistContextActions,
   buildQueueContextActions,
+  buildUpNextContextActions,
   buildSelectedWorkspaceTracks,
   getEquivalentFavoriteIds,
   getEquivalentLibraryIds,
@@ -14,30 +14,30 @@ import {
   resolveTrackLibraryNavigationAction
 } from '$lib/services/workspace-actions';
 import type { TrackLibraryNavigationTarget } from '$lib/services/library-navigation';
-import { favoritesStore, libraryStore, playlistStore } from '$lib/stores/playlist';
-import { playbackQueue } from '$lib/stores/playback-queue';
+import { favoritesStore, libraryStore, queueStore } from '$lib/stores/queue';
+import { upNext } from '$lib/stores/up-next';
 import { trackSettings } from '$lib/stores/track-settings';
 import { normalizeTrackRating, parseTrackRatingAction } from '$lib/services/track-ratings';
 import type {
   MenuActionItem,
-  PlaylistItem,
+  TrackItem,
   WorkspaceCollection
 } from '$lib/types';
 import {
-  buildPlaylistItems,
+  buildTrackItems,
   buildSeparatedSubsongItems,
-  clonePlaylistItems,
+  cloneTrackItems,
   getTrackIdentity
 } from '$lib/utils/files';
 
 export interface WorkspaceCollectionState {
-  playlistItems: PlaylistItem[];
-  libraryItems: PlaylistItem[];
-  favoriteItems: PlaylistItem[];
-  playlistSelectionIds: string[];
+  queueItems: TrackItem[];
+  libraryItems: TrackItem[];
+  favoriteItems: TrackItem[];
+  queueSelectionIds: string[];
   librarySelectionIds: string[];
   favoriteSelectionIds: string[];
-  playingTrack: PlaylistItem | null;
+  playingTrack: TrackItem | null;
 }
 
 interface WorkspaceCollectionHandlers {
@@ -46,7 +46,7 @@ interface WorkspaceCollectionHandlers {
   showTrackDetails: () => void;
   showTrackLyrics: () => void;
   showLibraryGroup: (target: TrackLibraryNavigationTarget) => void;
-  playPlaylist: () => void;
+  playQueue: () => void;
 }
 
 interface CreateWorkspaceCollectionsControllerOptions {
@@ -58,7 +58,7 @@ export function createWorkspaceCollectionsController({
   getState,
   handlers
 }: CreateWorkspaceCollectionsControllerOptions) {
-  function cleanupRemovedItems(items: PlaylistItem[]): void {
+  function cleanupRemovedItems(items: TrackItem[]): void {
     for (const item of items) {
       if (item.objectUrl) {
         URL.revokeObjectURL(item.objectUrl);
@@ -66,7 +66,7 @@ export function createWorkspaceCollectionsController({
     }
   }
 
-  async function copyTrackFilenames(tracks: PlaylistItem[]): Promise<void> {
+  async function copyTrackFilenames(tracks: TrackItem[]): Promise<void> {
     const filenames = tracks.map((track) => track.name).filter(Boolean);
     if (filenames.length === 0) {
       return;
@@ -79,15 +79,15 @@ export function createWorkspaceCollectionsController({
     }
   }
 
-  function addFiles(files: FileList | File[], target: WorkspaceCollection): PlaylistItem[] {
-    const nextItems = buildPlaylistItems(files);
+  function addFiles(files: FileList | File[], target: WorkspaceCollection): TrackItem[] {
+    const nextItems = buildTrackItems(files);
 
     if (nextItems.length === 0) {
       return [];
     }
 
     appInstallService.markEngaged();
-    return (target === 'library' ? libraryStore : playlistStore).add(nextItems);
+    return (target === 'library' ? libraryStore : queueStore).add(nextItems);
   }
 
   function handleAddFiles(files: FileList | File[], target: WorkspaceCollection): void {
@@ -96,7 +96,7 @@ export function createWorkspaceCollectionsController({
     const selectedIds =
       target === 'library'
         ? state.librarySelectionIds
-        : state.playlistSelectionIds;
+        : state.queueSelectionIds;
 
     if (nextItems.length > 0 && selectedIds.length === 0) {
       handlers.selectTrack(target, nextItems[0].id);
@@ -105,13 +105,13 @@ export function createWorkspaceCollectionsController({
     }
   }
 
-  function removePlaylistItems(ids: string[]): void {
+  function removeTrackItems(ids: string[]): void {
     if (ids.length === 0) {
       return;
     }
 
     const removedSet = new Set(ids);
-    const removedItems = playlistStore.remove(ids);
+    const removedItems = queueStore.remove(ids);
 
     if (getState().playingTrack && removedSet.has(getState().playingTrack!.id)) {
       playerController.unload();
@@ -126,10 +126,10 @@ export function createWorkspaceCollectionsController({
     }
   }
 
-  function getPlaylistContextActions(ids: string[]): MenuActionItem[] {
-    const { playlistItems, libraryItems } = getState();
-    return buildPlaylistContextActions(
-      playlistItems,
+  function getQueueContextActions(ids: string[]): MenuActionItem[] {
+    const { queueItems, libraryItems } = getState();
+    return buildQueueContextActions(
+      queueItems,
       libraryItems,
       ids,
       getState().favoriteItems,
@@ -157,10 +157,10 @@ export function createWorkspaceCollectionsController({
     );
   }
 
-  function getQueueContextActions(ids: string[]): MenuActionItem[] {
-    const { playlistItems, libraryItems, favoriteItems } = getState();
-    return buildQueueContextActions(
-      playlistItems,
+  function getUpNextContextActions(ids: string[]): MenuActionItem[] {
+    const { queueItems, libraryItems, favoriteItems } = getState();
+    return buildUpNextContextActions(
+      queueItems,
       libraryItems,
       ids,
       favoriteItems,
@@ -168,28 +168,28 @@ export function createWorkspaceCollectionsController({
     );
   }
 
-  function queueTracksFromPlaylist(tracks: PlaylistItem[], position: 'front' | 'end'): void {
+  function queueTracksFromQueue(tracks: TrackItem[], position: 'front' | 'end'): void {
     if (tracks.length === 0) return;
-    playbackQueue.add(tracks, position);
+    upNext.add(tracks, position);
   }
 
-  function queueTracksFromCollection(tracks: PlaylistItem[], position: 'front' | 'end'): void {
+  function queueTracksFromCollection(tracks: TrackItem[], position: 'front' | 'end'): void {
     if (tracks.length === 0) return;
 
-    const addedItems = playlistStore.add(clonePlaylistItems(tracks));
+    const addedItems = queueStore.add(cloneTrackItems(tracks));
     const queuedItems = tracks
-      .map((track, index) => addedItems[index] ?? playlistStore.findEquivalent(track))
-      .filter((item): item is PlaylistItem => item !== null);
+      .map((track, index) => addedItems[index] ?? queueStore.findEquivalent(track))
+      .filter((item): item is TrackItem => item !== null);
 
-    playbackQueue.add(queuedItems, position);
+    upNext.add(queuedItems, position);
   }
 
-  function rateTracks(tracks: PlaylistItem[], value: number | undefined): void {
+  function rateTracks(tracks: TrackItem[], value: number | undefined): void {
     const rating = normalizeTrackRating(value);
     const identities = new Set(tracks.map((track) => getTrackIdentity(track)));
 
     for (const { items, store } of [
-      { items: getState().playlistItems, store: playlistStore },
+      { items: getState().queueItems, store: queueStore },
       { items: getState().libraryItems, store: libraryStore },
       { items: getState().favoriteItems, store: favoritesStore }
     ]) {
@@ -201,14 +201,14 @@ export function createWorkspaceCollectionsController({
     }
   }
 
-  function handleRatingAction(actionId: string, tracks: PlaylistItem[]): boolean {
+  function handleRatingAction(actionId: string, tracks: TrackItem[]): boolean {
     const action = parseTrackRatingAction(actionId);
     if (!action.matched || !trackSettings.getSnapshot().enableRatings) return false;
     rateTracks(tracks, action.rating);
     return true;
   }
 
-  function handleLibraryNavigationAction(actionId: string, tracks: PlaylistItem[]): boolean {
+  function handleLibraryNavigationAction(actionId: string, tracks: TrackItem[]): boolean {
     if (tracks.length !== 1) return false;
 
     const target = resolveTrackLibraryNavigationAction(
@@ -242,16 +242,16 @@ export function createWorkspaceCollectionsController({
     }
   }
 
-  function addFavoriteTracks(tracks: PlaylistItem[]): PlaylistItem[] {
-    return favoritesStore.add(clonePlaylistItems(tracks));
+  function addFavoriteTracks(tracks: TrackItem[]): TrackItem[] {
+    return favoritesStore.add(cloneTrackItems(tracks));
   }
 
-  function removeFavoriteTracks(tracks: PlaylistItem[]): void {
+  function removeFavoriteTracks(tracks: TrackItem[]): void {
     const ids = getEquivalentFavoriteIds(getState().favoriteItems, tracks);
     cleanupRemovedItems(favoritesStore.remove(ids));
   }
 
-  function toggleFavoriteTracks(tracks: PlaylistItem[]): void {
+  function toggleFavoriteTracks(tracks: TrackItem[]): void {
     if (favoritesHaveAllTracks(getState().favoriteItems, tracks)) {
       removeFavoriteTracks(tracks);
       return;
@@ -260,14 +260,14 @@ export function createWorkspaceCollectionsController({
     addFavoriteTracks(tracks);
   }
 
-  function handlePlaylistContextAction(actionId: string, ids: string[]): void {
-    if (actionId === 'randomize-playlist') {
-      playlistStore.randomize();
+  function handleQueueContextAction(actionId: string, ids: string[]): void {
+    if (actionId === 'randomize-queue') {
+      queueStore.randomize();
       return;
     }
 
-    const { playlistItems, libraryItems, librarySelectionIds } = getState();
-    const tracks = buildSelectedWorkspaceTracks(playlistItems, ids);
+    const { queueItems, libraryItems, librarySelectionIds } = getState();
+    const tracks = buildSelectedWorkspaceTracks(queueItems, ids);
 
     if (tracks.length === 0) {
       return;
@@ -282,9 +282,9 @@ export function createWorkspaceCollectionsController({
     } else if (actionId === 'track-lyrics') {
       handlers.showTrackLyrics();
     } else if (actionId === 'play-next') {
-      queueTracksFromPlaylist(tracks, 'front');
-    } else if (actionId === 'add-to-queue') {
-      queueTracksFromPlaylist(tracks, 'end');
+      queueTracksFromQueue(tracks, 'front');
+    } else if (actionId === 'add-to-up-next') {
+      queueTracksFromQueue(tracks, 'end');
     } else if (actionId === 'copy-filename') {
       void copyTrackFilenames(tracks);
     } else if (actionId === 'toggle-library') {
@@ -293,7 +293,7 @@ export function createWorkspaceCollectionsController({
         return;
       }
 
-      const addedItems = libraryStore.add(clonePlaylistItems(tracks));
+      const addedItems = libraryStore.add(cloneTrackItems(tracks));
       if (addedItems.length > 0 && librarySelectionIds.length === 0) {
         handlers.selectTrack('library', addedItems[0].id);
       }
@@ -303,9 +303,9 @@ export function createWorkspaceCollectionsController({
       const track = tracks[0];
       const playingTrack = getState().playingTrack;
       const activeSubsong = playingTrack?.id === track.id ? playingTrack.subsong ?? 0 : 0;
-      playlistStore.replaceItem(track.id, buildSeparatedSubsongItems(track, activeSubsong));
+      queueStore.replaceItem(track.id, buildSeparatedSubsongItems(track, activeSubsong));
     } else if (actionId === 'remove') {
-      removePlaylistItems(ids);
+      removeTrackItems(ids);
     }
   }
 
@@ -326,31 +326,31 @@ export function createWorkspaceCollectionsController({
       handlers.showTrackLyrics();
     } else if (actionId === 'play-next') {
       queueTracksFromCollection(tracks, 'front');
-    } else if (actionId === 'add-to-queue') {
+    } else if (actionId === 'add-to-up-next') {
       queueTracksFromCollection(tracks, 'end');
     } else if (actionId === 'copy-filename') {
       void copyTrackFilenames(tracks);
     } else if (actionId === 'toggle-favorite') {
       toggleFavoriteTracks(tracks);
-    } else if (actionId === 'add-to-playlist') {
-      const addedItems = playlistStore.add(clonePlaylistItems(tracks));
+    } else if (actionId === 'add-to-queue') {
+      const addedItems = queueStore.add(cloneTrackItems(tracks));
       if (addedItems.length > 0) {
-        handlers.selectTrack('playlist', addedItems[0].id);
+        handlers.selectTrack('queue', addedItems[0].id);
       }
-    } else if (actionId === 'replace-playlist') {
-      const { removedItems, addedItems } = playlistStore.replaceAll(clonePlaylistItems(tracks));
+    } else if (actionId === 'replace-queue') {
+      const { removedItems, addedItems } = queueStore.replaceAll(cloneTrackItems(tracks));
       cleanupRemovedItems(removedItems);
       playerController.unload();
       if (addedItems.length > 0) {
-        handlers.selectTrack('playlist', addedItems[0].id);
+        handlers.selectTrack('queue', addedItems[0].id);
       }
     } else if (actionId === 'shuffle-play') {
-      const { removedItems, addedItems } = playlistStore.replaceAll(clonePlaylistItems(tracks));
+      const { removedItems, addedItems } = queueStore.replaceAll(cloneTrackItems(tracks));
       cleanupRemovedItems(removedItems);
       playerController.unload();
-      playlistStore.setShuffleEnabled(true);
+      queueStore.setShuffleEnabled(true);
       if (addedItems.length > 0) {
-        handlers.playPlaylist();
+        handlers.playQueue();
       }
     } else if (actionId === 'reset-play-count') {
       resetLibraryPlayCounts(ids);
@@ -376,56 +376,56 @@ export function createWorkspaceCollectionsController({
       handlers.showTrackLyrics();
     } else if (actionId === 'play-next') {
       queueTracksFromCollection(tracks, 'front');
-    } else if (actionId === 'add-to-queue') {
+    } else if (actionId === 'add-to-up-next') {
       queueTracksFromCollection(tracks, 'end');
-    } else if (actionId === 'add-to-playlist') {
-      const addedItems = playlistStore.add(clonePlaylistItems(tracks));
-      if (addedItems.length > 0) handlers.selectTrack('playlist', addedItems[0].id);
-    } else if (actionId === 'replace-playlist') {
-      const { removedItems, addedItems } = playlistStore.replaceAll(clonePlaylistItems(tracks));
+    } else if (actionId === 'add-to-queue') {
+      const addedItems = queueStore.add(cloneTrackItems(tracks));
+      if (addedItems.length > 0) handlers.selectTrack('queue', addedItems[0].id);
+    } else if (actionId === 'replace-queue') {
+      const { removedItems, addedItems } = queueStore.replaceAll(cloneTrackItems(tracks));
       cleanupRemovedItems(removedItems);
       playerController.unload();
-      if (addedItems.length > 0) handlers.selectTrack('playlist', addedItems[0].id);
+      if (addedItems.length > 0) handlers.selectTrack('queue', addedItems[0].id);
     } else if (actionId === 'remove-favorite') {
       cleanupRemovedItems(favoritesStore.remove(ids));
     }
   }
 
-  function handleQueueContextAction(actionId: string, ids: string[]): void {
-    if (actionId === 'remove-from-queue') {
-      playbackQueue.remove(ids);
+  function handleUpNextContextAction(actionId: string, ids: string[]): void {
+    if (actionId === 'remove-from-up-next') {
+      upNext.remove(ids);
       return;
     }
 
-    if (actionId === 'play-next' || actionId === 'add-to-queue') {
-      const tracks = buildSelectedWorkspaceTracks(getState().playlistItems, ids);
+    if (actionId === 'play-next' || actionId === 'add-to-up-next') {
+      const tracks = buildSelectedWorkspaceTracks(getState().queueItems, ids);
 
       if (tracks.length === 0) {
         return;
       }
 
-      playbackQueue.add(tracks, actionId === 'play-next' ? 'front' : 'end');
+      upNext.add(tracks, actionId === 'play-next' ? 'front' : 'end');
       return;
     }
 
-    handlePlaylistContextAction(actionId, ids);
+    handleQueueContextAction(actionId, ids);
   }
 
   return {
     cleanupRemovedItems,
     handleAddFiles,
-    removePlaylistItems,
+    removeTrackItems,
     removeLibraryItems,
-    getPlaylistContextActions,
+    getQueueContextActions,
     getLibraryContextActions,
     getFavoriteContextActions,
-    getQueueContextActions,
+    getUpNextContextActions,
     incrementLibraryPlayCount,
     recordLibraryLastPlayed,
-    handlePlaylistContextAction,
+    handleQueueContextAction,
     handleLibraryContextAction,
     handleFavoriteContextAction,
-    handleQueueContextAction,
+    handleUpNextContextAction,
     toggleFavoriteTracks,
     rateTracks
   };

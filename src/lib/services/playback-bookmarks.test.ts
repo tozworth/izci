@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { PlaylistItem } from '$lib/types';
+import type { TrackItem } from '$lib/types';
 import {
   addPlaybackBookmark,
   deletePlaybackBookmark,
@@ -8,8 +8,8 @@ import {
   normalizePlaybackBookmarks
 } from './playback-bookmarks';
 
-const track = (overrides: Partial<PlaylistItem> = {}): PlaylistItem => ({
-  id: 'playlist-entry',
+const track = (overrides: Partial<TrackItem> = {}): TrackItem => ({
+  id: 'queue-entry',
   name: 'Track.flac',
   path: 'Music/Track.flac',
   extension: 'flac',
@@ -30,7 +30,7 @@ beforeEach(() => {
 });
 
 describe('playback bookmarks', () => {
-  it('uses the canonical path rather than a playlist entry id', () => {
+  it('uses the canonical path rather than a queue entry id', () => {
     expect(getPlaybackBookmarkFileKey(track({ id: 'one' })))
       .toBe(getPlaybackBookmarkFileKey(track({ id: 'two' })));
   });

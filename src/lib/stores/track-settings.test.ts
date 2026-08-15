@@ -27,10 +27,10 @@ describe('track settings helpers', () => {
     expect(DEFAULT_TRACK_SETTINGS.associatedFileAction).toBe('replace');
   });
 
-  it('deduplicates playlist additions by default and preserves the opt-out', () => {
-    expect(DEFAULT_TRACK_SETTINGS.deduplicatePlaylist).toBe(true);
-    expect(normalizeTrackSettings({}).deduplicatePlaylist).toBe(true);
-    expect(normalizeTrackSettings({ deduplicatePlaylist: false }).deduplicatePlaylist).toBe(false);
+  it('deduplicates queue additions by default and preserves the opt-out', () => {
+    expect(DEFAULT_TRACK_SETTINGS.deduplicateQueue).toBe(true);
+    expect(normalizeTrackSettings({}).deduplicateQueue).toBe(true);
+    expect(normalizeTrackSettings({ deduplicateQueue: false }).deduplicateQueue).toBe(false);
   });
 
   it('hides the player-bar favorite toggle by default', () => {

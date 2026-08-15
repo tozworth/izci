@@ -4,7 +4,7 @@
  * in-memory client cache; a fresh manifest that fails the deep manifest
  * comparison simply re-downloads, so the cache is invisible to the wire
  * contract. Bounded by the Experimental > Cache limit, LRU-evicted, and fully
- * rebuildable by re-streaming — it never becomes part of playlist/library
+ * rebuildable by re-streaming — it never becomes part of queue/library
  * persistence.
  */
 

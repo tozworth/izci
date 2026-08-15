@@ -1,5 +1,5 @@
 import { writable, type Readable } from 'svelte/store';
-import type { LoadoutTrackContext, PlaylistItem } from '$lib/types';
+import type { LoadoutTrackContext, TrackItem } from '$lib/types';
 
 const CHANNEL_NAME = 'izci-loadout-track-context';
 const store = writable<LoadoutTrackContext | null>(null);
@@ -30,7 +30,7 @@ function normalizeTrackContext(value: unknown): LoadoutTrackContext | null {
   };
 }
 
-export function toLoadoutTrackContext(track: PlaylistItem | null): LoadoutTrackContext | null {
+export function toLoadoutTrackContext(track: TrackItem | null): LoadoutTrackContext | null {
   if (!track) return null;
   return normalizeTrackContext(track);
 }
@@ -58,7 +58,7 @@ export const loadoutTrackContext = {
 };
 
 export function startLoadoutTrackContextPublisher(
-  trackStore: Readable<PlaylistItem | null>
+  trackStore: Readable<TrackItem | null>
 ): () => void {
   publisherActive = true;
   const unsubscribe = trackStore.subscribe((track) => {

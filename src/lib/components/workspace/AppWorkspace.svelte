@@ -14,7 +14,7 @@
     LyricsDisplayStyle,
     ModulePatternSnapshot,
     PlaybackSnapshot,
-    PlaylistItem,
+    TrackItem,
     VideoFitMode,
     WorkspacePanelId,
     WorkspaceTab
@@ -24,8 +24,8 @@
   import type {
     WideWorkspaceResizeStartDetail,
     VideoSeekFeedback,
-    QueuePanelHandlers,
-    QueuePanelProps,
+    UpNextPanelHandlers,
+    UpNextPanelProps,
     WorkspacePanelHandlers,
     WorkspaceTabMoveDetail
   } from './types';
@@ -33,12 +33,12 @@
   $: workspaceContent = {
     snapshotStore,
     playbackSnapshot,
-    playlistPanelProps: workspaceState.playlistPanelProps,
-    playlistPanelHandlers,
+    queuePanelProps: workspaceState.queuePanelProps,
+    queuePanelHandlers,
     libraryPanelProps: workspaceState.libraryPanelProps,
     libraryPanelHandlers,
-    queuePanelProps,
-    queuePanelHandlers,
+    upNextPanelProps,
+    upNextPanelHandlers,
     selectedItem: artworkState.detailsDisplayTrack,
     lyricsTrack,
     patternTrack: playerDisplayTrack,
@@ -76,13 +76,13 @@
   export let videoSeekFeedback: VideoSeekFeedback | null = null;
   export let inactive = false;
   export let workspaceState: WorkspaceShellState;
-  export let playlistPanelHandlers: WorkspacePanelHandlers;
+  export let queuePanelHandlers: WorkspacePanelHandlers;
   export let libraryPanelHandlers: WorkspacePanelHandlers;
-  export let queuePanelProps: QueuePanelProps;
-  export let queuePanelHandlers: QueuePanelHandlers;
-  export let selectedPlaylistItem: PlaylistItem | null;
-  export let playerDisplayTrack: PlaylistItem | null;
-  export let lyricsTrack: PlaylistItem | null;
+  export let upNextPanelProps: UpNextPanelProps;
+  export let upNextPanelHandlers: UpNextPanelHandlers;
+  export let selectedTrackItem: TrackItem | null;
+  export let playerDisplayTrack: TrackItem | null;
+  export let lyricsTrack: TrackItem | null;
   export let modulePatternSnapshot: ModulePatternSnapshot;
   export let artworkState: ArtworkPresentationState;
   export let detailsLibraryTargets: TrackLibraryNavigationTargets = {};
@@ -125,7 +125,7 @@
   <NowPlayingWorkspace
     content={workspaceContent}
     track={playerDisplayTrack}
-    selectedTrack={selectedPlaylistItem}
+    selectedTrack={selectedTrackItem}
     artwork={artworkState.displayedArtwork}
     backdropArtwork={artworkState.visibleArtworkBackground}
     artworkBackgroundBright={artworkBackgroundBrightByZone.nowPlaying}

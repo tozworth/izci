@@ -1,6 +1,6 @@
 import { audioBusService } from '$lib/services/audio-bus';
 import { logDebug, logError, logInfo, logWarning } from '$lib/services/logging';
-import type { PlaybackSnapshot, PlaylistItem, TrackMetadata } from '$lib/types';
+import type { PlaybackSnapshot, TrackItem, TrackMetadata } from '$lib/types';
 
 type SnapshotHandler = (snapshot: Partial<PlaybackSnapshot>) => void;
 type MetadataHandler = (metadata: TrackMetadata) => void;
@@ -68,7 +68,7 @@ export class VideoPlayerService {
     }
   }
 
-  load(track: PlaylistItem, options: VideoLoadOptions = {}): Promise<void> {
+  load(track: TrackItem, options: VideoLoadOptions = {}): Promise<void> {
     if (!track.objectUrl) {
       throw new Error('Expected an object URL for video playback.');
     }

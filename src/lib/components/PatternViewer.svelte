@@ -8,10 +8,10 @@
     ModulePatternSnapshot,
     ModulePatternSong,
     PlaybackSnapshot,
-    PlaylistItem
+    TrackItem
   } from '$lib/types';
 
-  export let track: PlaylistItem | null = null;
+  export let track: TrackItem | null = null;
   export let snapshot: ModulePatternSnapshot;
   export let playbackSnapshot: PlaybackSnapshot | null = null;
 

@@ -6,9 +6,9 @@ import {
   parseTrackRatingAction,
   TRACK_RATING_VALUES
 } from './track-ratings';
-import type { PlaylistItem } from '$lib/types';
+import type { TrackItem } from '$lib/types';
 
-function item(rating?: number): PlaylistItem {
+function item(rating?: number): TrackItem {
   return {
     id: 'track',
     name: 'track.flac',

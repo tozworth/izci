@@ -2,13 +2,13 @@
   import { onDestroy, onMount } from 'svelte';
   import { t } from 'svelte-i18n';
   import type { Readable } from 'svelte/store';
-  import type { PlaybackSnapshot, PlaylistItem } from '$lib/types';
+  import type { PlaybackSnapshot, TrackItem } from '$lib/types';
   import { formatDuration, getTrackDisplaySubtitle, getTrackDisplayTitle } from '$lib/utils/files';
   import { createWheelSeekController } from '$lib/services/wheel-seek';
 
   export let snapshotStore: Readable<PlaybackSnapshot>;
-  export let trackStore: Readable<PlaylistItem | null>;
-  export let selectedTrackStore: Readable<PlaylistItem | null>;
+  export let trackStore: Readable<TrackItem | null>;
+  export let selectedTrackStore: Readable<TrackItem | null>;
   export let artworkUrlStore: Readable<string | null>;
   export let onTogglePlayback: () => void;
   export let onPreviousTrack: () => void;

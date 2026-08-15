@@ -3,7 +3,7 @@ import { getTrackLyricsLoadKey, loadTrackLyrics } from '$lib/services/lyrics';
 import type {
   ContextualTabAutomation,
   LyricsDisplayStyle,
-  PlaylistItem,
+  TrackItem,
   WorkspaceTab
 } from '$lib/types';
 
@@ -22,7 +22,7 @@ interface LyricsWorkspaceState {
 }
 
 interface LyricsPresentationSyncInput {
-  track: PlaylistItem | null;
+  track: TrackItem | null;
   isNowPlayingLayoutActive: boolean;
   autoFocusInNowPlaying: boolean;
   displayStyle: LyricsDisplayStyle;
@@ -64,7 +64,7 @@ export function createLyricsPresentationController({
     state.set(snapshot);
   }
 
-  function syncTrack(track: PlaylistItem | null): void {
+  function syncTrack(track: TrackItem | null): void {
     const nextTrackKey = getTrackLyricsLoadKey(track);
 
     if (nextTrackKey === snapshot.trackKey) {

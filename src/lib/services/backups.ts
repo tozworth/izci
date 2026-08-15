@@ -12,13 +12,13 @@ import {
   readAllPlaybackProgress,
   type PlaybackProgressRecord
 } from '$lib/services/playback-progress';
-import { favoritesStore, libraryStore } from '$lib/stores/playlist';
-import { normalizeStoredItem } from '$lib/stores/playlist-persistence';
+import { favoritesStore, libraryStore } from '$lib/stores/queue';
+import { normalizeStoredItem } from '$lib/stores/queue-persistence';
 import { trackSettings } from '$lib/stores/track-settings';
-import type { PlaylistItem, TrackMetadata } from '$lib/types';
+import type { TrackItem, TrackMetadata } from '$lib/types';
 import { normalizeTrackRating } from '$lib/services/track-ratings';
 import {
-  buildPlaylistItems,
+  buildTrackItems,
   getFavoriteIdentity,
   getTrackIdentity,
   readDirectoryFiles,
@@ -76,7 +76,7 @@ export interface PortableTrackRecord {
   id: string;
   name: string;
   extension: string;
-  kind: PlaylistItem['kind'];
+  kind: TrackItem['kind'];
   size: number;
   lastModified: number;
   path?: string;
@@ -134,7 +134,7 @@ const EMPTY_PENDING_RESTORE: PendingBackupRestore = {
   favorites: []
 };
 
-function portableTrack(item: PlaylistItem): PortableTrackRecord {
+function portableTrack(item: TrackItem): PortableTrackRecord {
   return {
     id: item.id,
     name: item.name,
@@ -576,7 +576,7 @@ export async function restoreBackupArchive(file: File): Promise<BackupRestoreRes
   };
 }
 
-function releaseRuntimeFiles(items: PlaylistItem[]): PlaylistItem[] {
+function releaseRuntimeFiles(items: TrackItem[]): TrackItem[] {
   return items.map((item) => {
     if (item.objectUrl) URL.revokeObjectURL(item.objectUrl);
     return { ...item, file: undefined, objectUrl: undefined };
@@ -603,7 +603,7 @@ export async function locatePendingFolder(
         maxDepth: trackSettings.getSnapshot().folderNestingLimit
       }))
     : [];
-  const discovered = releaseRuntimeFiles(buildPlaylistItems(files));
+  const discovered = releaseRuntimeFiles(buildTrackItems(files));
   const matchedTrackIds = new Set(
     discovered
       .map((track) => expectedByKey.get(folderTrackKey(track, handle.name))?.id)
@@ -703,9 +703,9 @@ export async function locatePendingFiles(handles: FileSystemFileHandle[]): Promi
   const expectedByIdentity = new Map(looseTracks.map((track) => [getTrackIdentity(track), track]));
   const expectedByFingerprint = new Map(looseTracks.map((track) => [trackFingerprint(track), track]));
   const files = await prepareImportedFiles(await readFileHandleFiles(handles));
-  const selected = releaseRuntimeFiles(buildPlaylistItems(files));
+  const selected = releaseRuntimeFiles(buildTrackItems(files));
   const restoredIds = new Set<string>();
-  const added: PlaylistItem[] = [];
+  const added: TrackItem[] = [];
   for (const item of selected) {
     const restored = expectedByIdentity.get(getTrackIdentity(item)) ?? expectedByFingerprint.get(trackFingerprint(item));
     if (!restored) continue;

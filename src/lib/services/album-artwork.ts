@@ -3,17 +3,17 @@ import {
   getCachedArtworkThumbnail,
   type CachedArtworkThumbnail
 } from '$lib/services/artwork-cache';
-import type { PlaylistItem } from '$lib/types';
+import type { TrackItem } from '$lib/types';
 
 export interface AlbumArtworkGroup {
   key: string;
-  items: PlaylistItem[];
+  items: TrackItem[];
 }
 
 export type AlbumArtworkUrls = Record<string, string>;
 
 type ThumbnailLoader = (
-  track: PlaylistItem,
+  track: TrackItem,
   maxEdge: number
 ) => Promise<CachedArtworkThumbnail | null>;
 

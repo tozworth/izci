@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 
-import { buildPlaylistItems } from '$lib/utils/files';
+import { buildTrackItems } from '$lib/utils/files';
 import { prepareImportedFiles } from './file-verification';
 
 describe('added-file verification', () => {
@@ -23,7 +23,7 @@ describe('added-file verification', () => {
       verifyUnknownFiles: true,
       verifyModuleFile
     });
-    const items = buildPlaylistItems(files);
+    const items = buildTrackItems(files);
 
     expect(files).toEqual([accepted]);
     expect(items).toHaveLength(1);
@@ -41,7 +41,7 @@ describe('added-file verification', () => {
 
     expect(files).toEqual([file]);
     expect(verifyModuleFile).not.toHaveBeenCalled();
-    expect(buildPlaylistItems(files)[0]).toMatchObject({
+    expect(buildTrackItems(files)[0]).toMatchObject({
       name: 'Unknown.dat',
       extension: 'dat',
       kind: 'module'

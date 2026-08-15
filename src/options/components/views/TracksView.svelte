@@ -9,8 +9,8 @@
   function handleVerifyAddedFilesToggle(event: Event) {
     trackSettings.update({ verifyAddedFiles: (event.currentTarget as HTMLInputElement).checked });
   }
-  function handlePlaylistDeduplicationToggle(event: Event) {
-    trackSettings.update({ deduplicatePlaylist: (event.currentTarget as HTMLInputElement).checked });
+  function handleQueueDeduplicationToggle(event: Event) {
+    trackSettings.update({ deduplicateQueue: (event.currentTarget as HTMLInputElement).checked });
   }
   function handleAssociatedFileActionChange(event: Event) {
     const associatedFileAction = (event.currentTarget as HTMLSelectElement).value;
@@ -64,25 +64,25 @@
       </SettingsField>
 
       <SettingsField
-        title={$t('options.tracks.deduplicatePlaylist.title', { default: 'Deduplicate playlist additions' })}
-        hint={$t('options.tracks.deduplicatePlaylist.hint', { default: 'Skip tracks already in the playlist and repeated tracks within the same addition.' })}
+        title={$t('options.tracks.deduplicateQueue.title', { default: 'Deduplicate queue additions' })}
+        hint={$t('options.tracks.deduplicateQueue.hint', { default: 'Skip tracks already in the queue and repeated tracks within the same addition.' })}
         advanced
         checkbox
       >
           <input
             type="checkbox"
-            checked={$trackSettings.deduplicatePlaylist}
-            on:change={handlePlaylistDeduplicationToggle}
+            checked={$trackSettings.deduplicateQueue}
+            on:change={handleQueueDeduplicationToggle}
           />
       </SettingsField>
 
       <SettingsField
         title={$t('options.tracks.associatedFiles.title', { default: 'Files opened with izci' })}
-        hint={$t('options.tracks.associatedFiles.hint', { default: 'Choose how files opened through operating-system file associations affect the current playlist.' })}
+        hint={$t('options.tracks.associatedFiles.hint', { default: 'Choose how files opened through operating-system file associations affect the current queue.' })}
       >
           <select value={$trackSettings.associatedFileAction} on:change={handleAssociatedFileActionChange}>
-            <option value="add">{$t('options.tracks.associatedFiles.add', { default: 'Add to playlist' })}</option>
-            <option value="replace">{$t('options.tracks.associatedFiles.replace', { default: 'Replace playlist' })}</option>
+            <option value="add">{$t('options.tracks.associatedFiles.add', { default: 'Add to queue' })}</option>
+            <option value="replace">{$t('options.tracks.associatedFiles.replace', { default: 'Replace queue' })}</option>
           </select>
       </SettingsField>
     </div>

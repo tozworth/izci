@@ -114,7 +114,6 @@
       "logs": "Logs...",
       "forceUpdate": "Force update",
       "about": "About",
-      "playlist": "Playlist",
       "library": "Library",
       "trackDetails": "Track Details",
       "lyrics": "Lyrics",
@@ -141,7 +140,8 @@
       "abLoopSetEnd": "Set loop end (B)",
       "abLoopToggle": "Loop A–B",
       "abLoopActive": "Looping {start}–{end}",
-      "abLoopClear": "Clear loop"
+      "abLoopClear": "Clear loop",
+      "queue": "Queue"
     },
     "miniPlayer": {
       "heading": "Mini player",
@@ -269,134 +269,6 @@
       "playback": "Video playback"
     }
   },
-  "playlist": {
-    "library": {
-      "openGroup": "Open {group}",
-      "collapseFolder": "Collapse {folder}",
-      "expandFolder": "Expand {folder}",
-      "unpinNamed": "Unpin {group}",
-      "unpin": "Unpin",
-      "groupSongCount": "{count, plural, one {# song} other {# songs}}",
-      "views": {
-        "favorites": "Favorites",
-        "ratings": "Ratings",
-        "songs": "Songs",
-        "artists": "Artists",
-        "albums": "Albums",
-        "genres": "Genres",
-        "years": "Years",
-        "formats": "Formats",
-        "folders": "Folders",
-        "label": "Library views"
-      },
-      "search": "Search library",
-      "closeSearch": "Close library search",
-      "backToGroups": "Back to groups",
-      "back": "Back",
-      "filter": "Filter library",
-      "title": "Library",
-      "unknownArtist": "Unknown artist",
-      "unknownAlbum": "Unknown album",
-      "unknownGenre": "Unknown genre",
-      "unknownYear": "Unknown year",
-      "unknownFormat": "Unknown format",
-      "unknownFolder": "Unknown folder",
-      "trackerModule": "Tracker module",
-      "stream": "Stream",
-      "video": "Video",
-      "columns": {
-        "title": "Title",
-        "artist": "Artist",
-        "album": "Album",
-        "discAndTrack": "Track",
-        "folder": "Folder",
-        "format": "Format",
-        "duration": "Duration",
-        "rating": "Rating",
-        "plays": "Plays",
-        "lastPlayed": "Last played",
-        "resize": "Resize {column} column",
-        "sortBy": "Sort by {column}"
-      },
-      "summary": {
-        "filteredArtists": "{visible} of {total} {total, plural, one {artist} other {artists}}",
-        "filteredAlbums": "{visible} of {total} {total, plural, one {album} other {albums}}",
-        "filteredGenres": "{visible} of {total} {total, plural, one {genre} other {genres}}",
-        "filteredYears": "{visible} of {total} {total, plural, one {year} other {years}}",
-        "filteredFormats": "{visible} of {total} {total, plural, one {format} other {formats}}",
-        "filteredFolders": "{visible} of {total} {total, plural, one {folder} other {folders}}",
-        "artists": "{count, plural, one {# artist} other {# artists}}",
-        "albums": "{count, plural, one {# album} other {# albums}}",
-        "genres": "{count, plural, one {# genre} other {# genres}}",
-        "years": "{count, plural, one {# year} other {# years}}",
-        "formats": "{count, plural, one {# format} other {# formats}}",
-        "folders": "{count, plural, one {# folder} other {# folders}}",
-        "groupsAndSongs": "{groups} · {songs, plural, one {# song} other {# songs}}"
-      },
-      "pinToTop": "Pin to top",
-      "noResults": "No library results match \"{query}\".",
-      "favoritesEmpty": "Favorite tracks and subsongs will appear here.",
-      "ratingsEmpty": "Rated tracks will appear here.",
-      "empty": "Your library is empty. Add files or drop a folder here."
-    },
-    "addFiles": "Add files",
-    "searchPlaceholder": "Search",
-    "shuffle": {
-      "disable": "Disable shuffle",
-      "enable": "Enable shuffle",
-      "on": "Shuffle on",
-      "off": "Shuffle off"
-    },
-    "title": "Playlist",
-    "summary": {
-      "filteredTracks": "{visible} of {total} {total, plural, one {song} other {songs}} · {duration}",
-      "tracks": "{count, plural, one {# song} other {# songs}} · {duration}"
-    },
-    "actions": {
-      "goTo": "Go to...",
-      "trackDetails": "Track details",
-      "copyFilename": "Copy filename",
-      "removeFromLibrary": "Remove from library",
-      "addToLibrary": "Add to library",
-      "removeFromFavorites": "Remove from favorites",
-      "addToFavorites": "Add to favorites",
-      "rate": "Rate",
-      "clearRating": "Clear rating",
-      "separateSubsongs": "Separate subsongs",
-      "addToPlaylist": "Add to playlist",
-      "replacePlaylist": "Replace playlist",
-      "shufflePlay": "Shuffle play",
-      "resetPlayCount": "Reset play count",
-      "randomize": "Randomize",
-      "playNext": "Play next",
-      "addToQueue": "Add to queue",
-      "removeFromQueue": "Remove from queue",
-      "remove": "Remove"
-    },
-    "shortcuts": {
-      "delete": "Delete"
-    },
-    "repeat": {
-      "currentTrack": "Repeat current track",
-      "playlist": "Repeat playlist",
-      "off": "Repeat off"
-    },
-    "contextMenu": {
-      "libraryGroupActions": "Library group actions",
-      "itemActions": "{panel} item actions",
-      "panelActions": "Playlist actions",
-      "columns": "{panel} columns"
-    },
-    "listRegion": "{name} list",
-    "queue": {
-      "title": "Queue",
-      "count": "{count, plural, one {# song queued} other {# songs queued}}",
-      "empty": "Queue is empty",
-      "clear": "Clear queue",
-      "resize": "Resize queue",
-      "contextMenu": "Queue item actions"
-    }
-  },
   "workspace": {
     "nowPlaying": {
       "exit": "Exit Now Playing",
@@ -418,7 +290,6 @@
     "resizePanels": "Resize {before} and {after}",
     "dropOnPanel": "Drop on {panel}",
     "tabs": {
-      "playlist": "Playlist",
       "library": "Library",
       "details": "Details",
       "lyrics": "Lyrics",
@@ -426,7 +297,8 @@
       "video": "Video",
       "label": "Workspace tabs",
       "close": "Close",
-      "closeNamed": "Close {tab}"
+      "closeNamed": "Close {tab}",
+      "queue": "Queue"
     }
   },
   "pwa": {
@@ -686,17 +558,17 @@
         },
         "idleQuips": {
           "title": "Show idle player quips",
-          "hint": "Shows a randomly chosen quip in the idle player bar when the playlist or library has music."
+          "hint": "Shows a randomly chosen quip in the idle player bar when the queue or library has music."
         },
         "windowTitle": {
           "title": "Show track title in window title",
           "hint": "Shows the current track title in the main app window title. Turn it off to always show only \"izci\"."
         },
-        "alwaysQueue": {
-          "title": "Always show queue",
-          "hint": "Keeps the queue panel under the Playlist expanded and visible, even when the queue is empty."
-        },
-        "heading": "Interface"
+        "heading": "Interface",
+        "alwaysUpNext": {
+          "title": "Always show up next",
+          "hint": "Keeps the Up Next panel under the Queue expanded and visible, even when it is empty."
+        }
       },
       "font": {
         "system": "System",
@@ -811,7 +683,7 @@
           },
           "coop": {
             "title": "Co-op",
-            "hint": "Clients can control the host’s playlist and playback. Good for HTPCs, parties."
+            "hint": "Clients can control the host’s queue and playback. Good for HTPCs, parties."
           },
           "coopAudio": {
             "title": "Co-op + audio",
@@ -1323,15 +1195,11 @@
         "title": "Verify added files",
         "hint": "Check unknown file extensions in a separate muted OpenMPT player before adding them. When disabled, izci adds any unknown file as a tracker module and lets normal playback report whether it works. Official OpenMPT extensions are accepted directly either way."
       },
-      "deduplicatePlaylist": {
-        "title": "Deduplicate playlist additions",
-        "hint": "Skip tracks already in the playlist and repeated tracks within the same addition."
-      },
       "associatedFiles": {
         "title": "Files opened with izci",
-        "hint": "Choose how files opened through operating-system file associations affect the current playlist.",
-        "add": "Add to playlist",
-        "replace": "Replace playlist"
+        "hint": "Choose how files opened through operating-system file associations affect the current queue.",
+        "add": "Add to queue",
+        "replace": "Replace queue"
       },
       "playerBar": {
         "heading": "Player Bar"
@@ -1344,6 +1212,10 @@
         "heading": "Ratings",
         "title": "Enable track ratings",
         "hint": "Show half-star rating controls and the Rating library column. Turning this off hides ratings without deleting them."
+      },
+      "deduplicateQueue": {
+        "title": "Deduplicate queue additions",
+        "hint": "Skip tracks already in the queue and repeated tracks within the same addition."
       }
     },
     "video": {
@@ -2194,5 +2066,133 @@
     "toolbar": "Spectrogram tools",
     "analyzing": "Analyzing spectrum...",
     "title": "Spectrogram"
+  },
+  "library": {
+    "openGroup": "Open {group}",
+    "collapseFolder": "Collapse {folder}",
+    "expandFolder": "Expand {folder}",
+    "unpinNamed": "Unpin {group}",
+    "unpin": "Unpin",
+    "groupSongCount": "{count, plural, one {# song} other {# songs}}",
+    "views": {
+      "favorites": "Favorites",
+      "ratings": "Ratings",
+      "songs": "Songs",
+      "artists": "Artists",
+      "albums": "Albums",
+      "genres": "Genres",
+      "years": "Years",
+      "formats": "Formats",
+      "folders": "Folders",
+      "label": "Library views"
+    },
+    "search": "Search library",
+    "closeSearch": "Close library search",
+    "backToGroups": "Back to groups",
+    "back": "Back",
+    "filter": "Filter library",
+    "title": "Library",
+    "unknownArtist": "Unknown artist",
+    "unknownAlbum": "Unknown album",
+    "unknownGenre": "Unknown genre",
+    "unknownYear": "Unknown year",
+    "unknownFormat": "Unknown format",
+    "unknownFolder": "Unknown folder",
+    "trackerModule": "Tracker module",
+    "stream": "Stream",
+    "video": "Video",
+    "columns": {
+      "title": "Title",
+      "artist": "Artist",
+      "album": "Album",
+      "discAndTrack": "Track",
+      "folder": "Folder",
+      "format": "Format",
+      "duration": "Duration",
+      "rating": "Rating",
+      "plays": "Plays",
+      "lastPlayed": "Last played",
+      "resize": "Resize {column} column",
+      "sortBy": "Sort by {column}"
+    },
+    "summary": {
+      "filteredArtists": "{visible} of {total} {total, plural, one {artist} other {artists}}",
+      "filteredAlbums": "{visible} of {total} {total, plural, one {album} other {albums}}",
+      "filteredGenres": "{visible} of {total} {total, plural, one {genre} other {genres}}",
+      "filteredYears": "{visible} of {total} {total, plural, one {year} other {years}}",
+      "filteredFormats": "{visible} of {total} {total, plural, one {format} other {formats}}",
+      "filteredFolders": "{visible} of {total} {total, plural, one {folder} other {folders}}",
+      "artists": "{count, plural, one {# artist} other {# artists}}",
+      "albums": "{count, plural, one {# album} other {# albums}}",
+      "genres": "{count, plural, one {# genre} other {# genres}}",
+      "years": "{count, plural, one {# year} other {# years}}",
+      "formats": "{count, plural, one {# format} other {# formats}}",
+      "folders": "{count, plural, one {# folder} other {# folders}}",
+      "groupsAndSongs": "{groups} · {songs, plural, one {# song} other {# songs}}"
+    },
+    "pinToTop": "Pin to top",
+    "noResults": "No library results match \"{query}\".",
+    "favoritesEmpty": "Favorite tracks and subsongs will appear here.",
+    "ratingsEmpty": "Rated tracks will appear here.",
+    "empty": "Your library is empty. Add files or drop a folder here."
+  },
+  "queue": {
+    "addFiles": "Add files",
+    "searchPlaceholder": "Search",
+    "shuffle": {
+      "disable": "Disable shuffle",
+      "enable": "Enable shuffle",
+      "on": "Shuffle on",
+      "off": "Shuffle off"
+    },
+    "title": "Queue",
+    "summary": {
+      "filteredTracks": "{visible} of {total} {total, plural, one {song} other {songs}} · {duration}",
+      "tracks": "{count, plural, one {# song} other {# songs}} · {duration}"
+    },
+    "actions": {
+      "goTo": "Go to...",
+      "trackDetails": "Track details",
+      "copyFilename": "Copy filename",
+      "removeFromLibrary": "Remove from library",
+      "addToLibrary": "Add to library",
+      "removeFromFavorites": "Remove from favorites",
+      "addToFavorites": "Add to favorites",
+      "rate": "Rate",
+      "clearRating": "Clear rating",
+      "separateSubsongs": "Separate subsongs",
+      "addToQueue": "Add to queue",
+      "replaceQueue": "Replace queue",
+      "shufflePlay": "Shuffle play",
+      "resetPlayCount": "Reset play count",
+      "randomize": "Randomize",
+      "playNext": "Play next",
+      "remove": "Remove",
+      "addToUpNext": "Add to up next",
+      "removeFromUpNext": "Remove from up next"
+    },
+    "shortcuts": {
+      "delete": "Delete"
+    },
+    "repeat": {
+      "currentTrack": "Repeat current track",
+      "off": "Repeat off",
+      "queue": "Repeat queue"
+    },
+    "contextMenu": {
+      "libraryGroupActions": "Library group actions",
+      "itemActions": "{panel} item actions",
+      "panelActions": "Queue actions",
+      "columns": "{panel} columns"
+    },
+    "listRegion": "{name} list",
+    "upNext": {
+      "title": "Up Next",
+      "count": "{count, plural, one {# song up next} other {# songs up next}}",
+      "empty": "Up Next is empty",
+      "clear": "Clear up next",
+      "resize": "Resize up next",
+      "contextMenu": "Up Next item actions"
+    }
   }
 }

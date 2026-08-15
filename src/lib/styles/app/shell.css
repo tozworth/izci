@@ -237,12 +237,12 @@
     color-mix(in srgb, var(--accent-strong) 14%, transparent)
   );
   --selection-strong: color-mix(in srgb, var(--accent-strong) 22%, transparent);
-  --playlist-header-background: color-mix(
+  --track-list-header-background: color-mix(
     in srgb,
     rgba(255, 250, 244, 0.88) var(--artwork-zone-light-mix),
     rgba(18, 19, 24, 0.52)
   );
-  --playlist-header-artwork-background: var(--playlist-header-background);
+  --track-list-header-artwork-background: var(--track-list-header-background);
   --dropzone-background: linear-gradient(
     180deg,
     color-mix(
@@ -326,10 +326,10 @@
   --border-covered: rgba(255, 255, 255, 0.075);
   --hover-subtle: rgba(255, 255, 255, 0.045);
   --selection-bg: color-mix(in srgb, var(--accent-strong) 24%, rgba(18, 19, 28, 0.28));
-  --playlist-header-background:
+  --track-list-header-background:
     linear-gradient(180deg, rgba(18, 19, 28, 0.42) 0%, rgba(18, 19, 28, 0.32) 100%),
     rgba(255, 255, 255, 0.025);
-  --playlist-header-artwork-background:
+  --track-list-header-artwork-background:
     linear-gradient(180deg, rgba(18, 19, 28, 0.34) 0%, rgba(18, 19, 28, 0.24) 100%),
     rgba(255, 255, 255, 0.02);
   --dropzone-background: linear-gradient(180deg, rgba(255, 255, 255, 0.018), transparent 18%);
@@ -378,12 +378,12 @@
       var(--artwork-zone-light-mix),
     color-mix(in srgb, var(--accent-strong) 24%, rgba(18, 19, 28, 0.28))
   );
-  --playlist-header-background: color-mix(
+  --track-list-header-background: color-mix(
     in srgb,
     rgba(255, 250, 242, 0.39) var(--artwork-zone-light-mix),
     rgba(18, 19, 28, 0.37)
   );
-  --playlist-header-artwork-background: color-mix(
+  --track-list-header-artwork-background: color-mix(
     in srgb,
     rgba(255, 250, 242, 0.33) var(--artwork-zone-light-mix),
     rgba(18, 19, 28, 0.29)

@@ -89,10 +89,10 @@ describe('import controller', () => {
         })
     });
 
-    await controller.openFiles('playlist');
+    await controller.openFiles('queue');
 
     expect(showOpenFilePicker).toHaveBeenCalledWith(OPEN_FILE_PICKER_OPTIONS);
-    expect(addFiles).toHaveBeenCalledWith([pickedFile], 'playlist');
+    expect(addFiles).toHaveBeenCalledWith([pickedFile], 'queue');
   });
 
   it('ignores picker cancellation without triggering imports', async () => {
@@ -108,7 +108,7 @@ describe('import controller', () => {
         })
     });
 
-    await controller.openFiles('playlist');
+    await controller.openFiles('queue');
 
     expect(addFiles).not.toHaveBeenCalled();
   });

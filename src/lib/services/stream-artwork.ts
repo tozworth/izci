@@ -1,4 +1,4 @@
-import type { PlaylistItem, ReplayGainMetadata, TrackMetadata } from '$lib/types';
+import type { TrackItem, ReplayGainMetadata, TrackMetadata } from '$lib/types';
 
 const FLAC_MARKER = 'fLaC';
 const ID3_MARKER = 'ID3';
@@ -724,7 +724,7 @@ function parseMp3Data(bytes: Uint8Array): ParsedStreamData {
   };
 }
 
-async function resolveTrackFile(track: PlaylistItem): Promise<File | null> {
+async function resolveTrackFile(track: TrackItem): Promise<File | null> {
   if (track.fileHandle) {
     try {
       return await track.fileHandle.getFile();
@@ -1154,7 +1154,7 @@ function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
   return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength) as ArrayBuffer;
 }
 
-export function getTrackArtworkLoadKey(track: PlaylistItem | null): string {
+export function getTrackArtworkLoadKey(track: TrackItem | null): string {
   if (!track) {
     return '';
   }
@@ -1162,7 +1162,7 @@ export function getTrackArtworkLoadKey(track: PlaylistItem | null): string {
   return track.id;
 }
 
-export async function loadTrackMetadata(track: PlaylistItem | null): Promise<TrackMetadata | null> {
+export async function loadTrackMetadata(track: TrackItem | null): Promise<TrackMetadata | null> {
   if (!track || track.kind !== 'stream' || !canLoadStreamMetadata(track.extension)) {
     return null;
   }
@@ -1181,7 +1181,7 @@ export async function loadTrackMetadata(track: PlaylistItem | null): Promise<Tra
   return metadata;
 }
 
-export async function loadEmbeddedStreamArtwork(track: PlaylistItem | null): Promise<EmbeddedStreamArtwork | null> {
+export async function loadEmbeddedStreamArtwork(track: TrackItem | null): Promise<EmbeddedStreamArtwork | null> {
   if (!track || track.kind !== 'stream' || (track.extension !== 'flac' && track.extension !== 'opus')) {
     return null;
   }
@@ -1206,7 +1206,7 @@ export async function loadEmbeddedStreamArtwork(track: PlaylistItem | null): Pro
   };
 }
 
-export async function loadTrackArtwork(track: PlaylistItem | null): Promise<LoadedStreamArtwork | null> {
+export async function loadTrackArtwork(track: TrackItem | null): Promise<LoadedStreamArtwork | null> {
   const artwork = await loadEmbeddedStreamArtwork(track);
 
   if (!artwork) {

@@ -763,12 +763,12 @@ html[data-izci-mobile='true'] select {
 }
 
 /* Mobile collection density and targets are intentionally independent from desktop. */
-.app-shell.mobile-mode .playlist-header {
+.app-shell.mobile-mode .track-list-header {
   min-height: 3.35rem;
   padding: 0.65rem 0.85rem;
 }
 
-.app-shell.mobile-mode .playlist-actions button {
+.app-shell.mobile-mode .track-list-actions button {
   min-width: 2.55rem;
   min-height: 2.55rem;
 }
@@ -815,7 +815,7 @@ html[data-izci-mobile='true'] select {
   font-size: 0.76rem;
 }
 
-.app-shell.mobile-mode .playlist-panel-header.library-mode {
+.app-shell.mobile-mode .track-list-panel-header.library-mode {
   height: auto !important;
   min-height: 4.15rem;
   padding: 0.5rem 0.45rem 0.42rem;
@@ -824,12 +824,12 @@ html[data-izci-mobile='true'] select {
   box-shadow: none;
 }
 
-.app-shell.mobile-mode .playlist-panel-header.library-mode::after {
+.app-shell.mobile-mode .track-list-panel-header.library-mode::after {
   display: none;
 }
 
-.app-shell.mobile-mode .playlist-panel-header.library-mode .library-header,
-.app-shell.mobile-mode .playlist-panel-header.library-mode .library-toolbar {
+.app-shell.mobile-mode .track-list-panel-header.library-mode .library-header,
+.app-shell.mobile-mode .track-list-panel-header.library-mode .library-toolbar {
   width: 100%;
   min-width: 0;
 }

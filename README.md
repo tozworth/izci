@@ -22,7 +22,7 @@ izci is mostly a personal hobby project. It has already reached "daily driver" s
 - Persistent, auto-updating library with playcounts and favorites
 - OS-level file associations
 - Reads embedded metadata, artwork, time-synced lyrics, ReplayGain for audio tracks; plus instrument names and patterns for modules
-- Dockable Playlist, Library, Track Details, Lyrics, and Patterns views
+- Dockable Queue, Library, Track Details, Lyrics, and Patterns views
   - Includes big moody blurry "Now Playing" mode (Apple Music theater mode larp)
 - Optional Web Audio effects rack with presets and import/export
   - EQ, stereo width, crystalizer, loudness processing, dynamic auto-amp, and convolution reverb

@@ -2,7 +2,7 @@
   import { createEventDispatcher, onDestroy, tick } from 'svelte';
   import { t } from 'svelte-i18n';
   import type { Readable } from 'svelte/store';
-  import { WINDOW_DISMISS_IGNORE_SCROLL_ATTRIBUTE } from '$lib/components/playlist-panel/actions/window-dismiss';
+  import { WINDOW_DISMISS_IGNORE_SCROLL_ATTRIBUTE } from '$lib/components/track-list-panel/actions/window-dismiss';
   import {
     buildTheaterLyricRows,
     findActiveLyricIndex,
@@ -12,9 +12,9 @@
     type LoadedLyrics
   } from '$lib/services/lyrics';
   import { SCROLLBAR_VISIBILITY_IGNORE_SCROLL_ATTRIBUTE } from '$lib/services/scrollbar-visibility';
-  import type { LyricsDisplayStyle, PlaybackSnapshot, PlaylistItem } from '$lib/types';
+  import type { LyricsDisplayStyle, PlaybackSnapshot, TrackItem } from '$lib/types';
 
-  export let track: PlaylistItem | null = null;
+  export let track: TrackItem | null = null;
   export let snapshotStore: Readable<PlaybackSnapshot>;
   export let playbackSnapshot: PlaybackSnapshot | null = null;
   export let displayStyle: LyricsDisplayStyle = 'timestamped';
@@ -379,7 +379,7 @@
     isProgrammaticScroll = false;
   }
 
-  function loadLyricsForTrack(key: string, nextTrack: PlaylistItem | null) {
+  function loadLyricsForTrack(key: string, nextTrack: TrackItem | null) {
     if (key === loadedTrackKey) {
       return;
     }

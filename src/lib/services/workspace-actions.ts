@@ -1,4 +1,4 @@
-import type { MenuActionItem, PlaylistItem, WorkspaceCollection } from '$lib/types';
+import type { MenuActionItem, TrackItem, WorkspaceCollection } from '$lib/types';
 import {
   resolveTrackLibraryNavigationTargets,
   TRACK_LIBRARY_NAVIGATION_FIELDS,
@@ -24,13 +24,13 @@ const libraryNavigationActionPresentation: Record<
 export function getOtherWorkspaceCollection(
   collection: WorkspaceCollection
 ): WorkspaceCollection {
-  return collection === 'library' ? 'playlist' : 'library';
+  return collection === 'library' ? 'queue' : 'library';
 }
 
 export function buildSelectedWorkspaceTracks(
-  items: PlaylistItem[],
+  items: TrackItem[],
   ids: string[]
-): PlaylistItem[] {
+): TrackItem[] {
   if (ids.length === 0) {
     return [];
   }
@@ -40,8 +40,8 @@ export function buildSelectedWorkspaceTracks(
 }
 
 export function libraryHasAllTracks(
-  libraryItems: PlaylistItem[],
-  tracks: PlaylistItem[]
+  libraryItems: TrackItem[],
+  tracks: TrackItem[]
 ): boolean {
   if (tracks.length === 0) {
     return false;
@@ -52,8 +52,8 @@ export function libraryHasAllTracks(
 }
 
 export function getEquivalentLibraryIds(
-  libraryItems: PlaylistItem[],
-  tracks: PlaylistItem[]
+  libraryItems: TrackItem[],
+  tracks: TrackItem[]
 ): string[] {
   if (tracks.length === 0) {
     return [];
@@ -66,8 +66,8 @@ export function getEquivalentLibraryIds(
 }
 
 export function favoritesHaveAllTracks(
-  favoriteItems: PlaylistItem[],
-  tracks: PlaylistItem[]
+  favoriteItems: TrackItem[],
+  tracks: TrackItem[]
 ): boolean {
   if (tracks.length === 0) {
     return false;
@@ -78,8 +78,8 @@ export function favoritesHaveAllTracks(
 }
 
 export function getEquivalentFavoriteIds(
-  favoriteItems: PlaylistItem[],
-  tracks: PlaylistItem[]
+  favoriteItems: TrackItem[],
+  tracks: TrackItem[]
 ): string[] {
   const trackKeys = new Set(tracks.map((track) => getFavoriteIdentity(track)));
   return favoriteItems
@@ -88,8 +88,8 @@ export function getEquivalentFavoriteIds(
 }
 
 function buildFavoriteToggleAction(
-  favoriteItems: PlaylistItem[],
-  tracks: PlaylistItem[]
+  favoriteItems: TrackItem[],
+  tracks: TrackItem[]
 ): MenuActionItem {
   const favorite = favoritesHaveAllTracks(favoriteItems, tracks);
 
@@ -101,8 +101,8 @@ function buildFavoriteToggleAction(
 }
 
 export function buildGoToLibraryAction(
-  track: PlaylistItem | undefined,
-  libraryItems: PlaylistItem[]
+  track: TrackItem | undefined,
+  libraryItems: TrackItem[]
 ): MenuActionItem | null {
   if (!track) return null;
 
@@ -122,8 +122,8 @@ export function buildGoToLibraryAction(
 
 export function resolveTrackLibraryNavigationAction(
   actionId: string,
-  track: PlaylistItem | undefined,
-  libraryItems: PlaylistItem[]
+  track: TrackItem | undefined,
+  libraryItems: TrackItem[]
 ): TrackLibraryNavigationTarget | null {
   if (!track || !actionId.startsWith(GO_TO_LIBRARY_ACTION_PREFIX)) return null;
 
@@ -132,14 +132,14 @@ export function resolveTrackLibraryNavigationAction(
   return resolveTrackLibraryNavigationTargets(track, libraryItems)[field] ?? null;
 }
 
-export function buildPlaylistContextActions(
-  playlistItems: PlaylistItem[],
-  libraryItems: PlaylistItem[],
+export function buildQueueContextActions(
+  queueItems: TrackItem[],
+  libraryItems: TrackItem[],
   ids: string[],
-  favoriteItems: PlaylistItem[] = [],
+  favoriteItems: TrackItem[] = [],
   ratingsEnabled = true
 ): MenuActionItem[] {
-  const tracks = buildSelectedWorkspaceTracks(playlistItems, ids);
+  const tracks = buildSelectedWorkspaceTracks(queueItems, ids);
   const inLibrary = libraryHasAllTracks(libraryItems, tracks);
   const canSeparateSubsongs =
     tracks.length === 1 &&
@@ -163,8 +163,8 @@ export function buildPlaylistContextActions(
       icon: 'skip_next'
     },
     {
-      id: 'add-to-queue',
-      label: 'Add to queue',
+      id: 'add-to-up-next',
+      label: 'Add to up next',
       icon: 'add_to_queue'
     },
     {
@@ -194,7 +194,7 @@ export function buildPlaylistContextActions(
       separatorBefore: true
     },
     {
-      id: 'randomize-playlist',
+      id: 'randomize-queue',
       label: 'Randomize',
       icon: 'shuffle',
       separatorBefore: true
@@ -203,8 +203,8 @@ export function buildPlaylistContextActions(
 }
 
 export function buildLibraryContextActions(
-  libraryItems: PlaylistItem[] = [],
-  favoriteItems: PlaylistItem[] = [],
+  libraryItems: TrackItem[] = [],
+  favoriteItems: TrackItem[] = [],
   ids: string[] = [],
   ratingsEnabled = true
 ): MenuActionItem[] {
@@ -215,14 +215,14 @@ export function buildLibraryContextActions(
 
   return [
     {
-      id: 'add-to-playlist',
-      label: 'Add to playlist',
-      icon: 'playlist_add'
+      id: 'add-to-queue',
+      label: 'Add to queue',
+      icon: 'queue_add'
     },
     {
-      id: 'replace-playlist',
-      label: 'Replace playlist',
-      icon: 'playlist_play'
+      id: 'replace-queue',
+      label: 'Replace queue',
+      icon: 'queue_play'
     },
     {
       id: 'play-next',
@@ -230,8 +230,8 @@ export function buildLibraryContextActions(
       icon: 'skip_next'
     },
     {
-      id: 'add-to-queue',
-      label: 'Add to queue',
+      id: 'add-to-up-next',
+      label: 'Add to up next',
       icon: 'add_to_queue'
     },
     ...(goToLibrary ? [goToLibrary] : []),
@@ -265,7 +265,7 @@ export function buildLibraryContextActions(
 export function buildLibraryGroupContextActions(actions: MenuActionItem[]): MenuActionItem[] {
   return actions
     .filter((action) => action.id !== 'go-to-library')
-    .flatMap((action) => action.id === 'replace-playlist'
+    .flatMap((action) => action.id === 'replace-queue'
       ? [
           action,
           {
@@ -278,8 +278,8 @@ export function buildLibraryGroupContextActions(actions: MenuActionItem[]): Menu
 }
 
 export function buildFavoritesContextActions(
-  favoriteItems: PlaylistItem[] = [],
-  libraryItems: PlaylistItem[] = [],
+  favoriteItems: TrackItem[] = [],
+  libraryItems: TrackItem[] = [],
   ids: string[] = [],
   ratingsEnabled = true
 ): MenuActionItem[] {
@@ -290,14 +290,14 @@ export function buildFavoritesContextActions(
 
   return [
     {
-      id: 'add-to-playlist',
-      label: 'Add to playlist',
-      icon: 'playlist_add'
+      id: 'add-to-queue',
+      label: 'Add to queue',
+      icon: 'queue_add'
     },
     {
-      id: 'replace-playlist',
-      label: 'Replace playlist',
-      icon: 'playlist_play'
+      id: 'replace-queue',
+      label: 'Replace queue',
+      icon: 'queue_play'
     },
     {
       id: 'play-next',
@@ -305,8 +305,8 @@ export function buildFavoritesContextActions(
       icon: 'skip_next'
     },
     {
-      id: 'add-to-queue',
-      label: 'Add to queue',
+      id: 'add-to-up-next',
+      label: 'Add to up next',
       icon: 'add_to_queue'
     },
     ...(goToLibrary ? [goToLibrary] : []),
@@ -325,40 +325,40 @@ export function buildFavoritesContextActions(
   ];
 }
 
-export function buildQueueContextActions(
-  playlistItems: PlaylistItem[],
-  libraryItems: PlaylistItem[],
+export function buildUpNextContextActions(
+  queueItems: TrackItem[],
+  libraryItems: TrackItem[],
   ids: string[],
-  favoriteItems: PlaylistItem[] = [],
+  favoriteItems: TrackItem[] = [],
   ratingsEnabled = true
 ): MenuActionItem[] {
-  return buildPlaylistContextActions(
-    playlistItems,
+  return buildQueueContextActions(
+    queueItems,
     libraryItems,
     ids,
     favoriteItems,
     ratingsEnabled
   )
-    .filter((action) => action.id !== 'randomize-playlist')
+    .filter((action) => action.id !== 'randomize-queue')
     .map((action) =>
       action.id === 'remove'
         ? {
             ...action,
-            id: 'remove-from-queue',
-            label: 'Remove from queue',
-            icon: 'playlist_remove',
+            id: 'remove-from-up-next',
+            label: 'Remove from up next',
+            icon: 'queue_remove',
             shortcut: undefined
           }
         : action
     );
 }
 
-export function buildFreeplayPlaylistContextActions(
-  playlistItems: PlaylistItem[],
-  libraryItems: PlaylistItem[],
+export function buildFreeplayQueueContextActions(
+  queueItems: TrackItem[],
+  libraryItems: TrackItem[],
   ids: string[]
 ): MenuActionItem[] {
-  const tracks = buildSelectedWorkspaceTracks(playlistItems, ids);
+  const tracks = buildSelectedWorkspaceTracks(queueItems, ids);
   const goToLibrary = tracks.length === 1
     ? buildGoToLibraryAction(tracks[0], libraryItems)
     : null;
@@ -376,8 +376,8 @@ export function buildFreeplayPlaylistContextActions(
 }
 
 export function buildFreeplayLibraryContextActions(
-  items: PlaylistItem[],
-  libraryItems: PlaylistItem[],
+  items: TrackItem[],
+  libraryItems: TrackItem[],
   ids: string[]
 ): MenuActionItem[] {
   const tracks = buildSelectedWorkspaceTracks(items, ids);
@@ -385,8 +385,8 @@ export function buildFreeplayLibraryContextActions(
     ? buildGoToLibraryAction(tracks[0], libraryItems)
     : null;
   return [
-    { id: 'add-to-playlist', label: 'Add to playlist', icon: 'playlist_add' },
-    { id: 'replace-playlist', label: 'Replace playlist', icon: 'playlist_play' },
+    { id: 'add-to-queue', label: 'Add to queue', icon: 'queue_add' },
+    { id: 'replace-queue', label: 'Replace queue', icon: 'queue_play' },
     ...(goToLibrary ? [goToLibrary] : []),
     { id: 'track-details', label: 'Track details', icon: 'info' }
   ];

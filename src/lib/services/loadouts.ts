@@ -22,7 +22,7 @@ import {
   type LoadoutTrackContext,
   type LoadoutType,
   type ModulePlaybackSettings,
-  type PlaylistItem,
+  type TrackItem,
   type RafRackSettings
 } from '$lib/types';
 
@@ -358,7 +358,7 @@ export function applyManualLoadoutSettings(settings: LoadoutSettings): void {
   getManualLoadoutChannel()?.postMessage({ type: 'apply', baselines } satisfies ManualLoadoutCommand);
 }
 
-export function startLoadoutRuntime(trackStore: Readable<PlaylistItem | null>): () => void {
+export function startLoadoutRuntime(trackStore: Readable<TrackItem | null>): () => void {
   let track: LoadoutTrackContext | null = null;
   let state = loadouts.getSnapshot();
   let folders = filesystemFolders.getSnapshot();

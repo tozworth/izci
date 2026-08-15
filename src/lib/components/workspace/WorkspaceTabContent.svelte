@@ -1,8 +1,8 @@
 <script lang="ts">
   import LyricsPanel from '$lib/components/LyricsPanel.svelte';
   import PatternViewer from '$lib/components/PatternViewer.svelte';
-  import PlaylistPanel from '$lib/components/PlaylistPanel.svelte';
-  import QueuePanel from '$lib/components/QueuePanel.svelte';
+  import TrackListPanel from '$lib/components/TrackListPanel.svelte';
+  import UpNextPanel from '$lib/components/UpNextPanel.svelte';
   import TrackDetailsPanel from '$lib/components/TrackDetailsPanel.svelte';
   import VideoStage from '$lib/components/workspace/VideoStage.svelte';
   import type { WorkspaceTab } from '$lib/types';
@@ -16,33 +16,33 @@
   export let isCompactWorkspace = false;
 </script>
 
-{#if tab === 'playlist'}
-  <div class="playlist-tab-stack">
-    <PlaylistPanel
-      {...content.playlistPanelProps}
+{#if tab === 'queue'}
+  <div class="queue-tab-stack">
+    <TrackListPanel
+      {...content.queuePanelProps}
       fillParent={true}
       hideEyebrow={true}
-      on:addFiles={(event) => content.playlistPanelHandlers.addFiles(event.detail)}
-      on:addFolders={(event) => content.playlistPanelHandlers.addFolders?.(event.detail)}
-      on:openFiles={content.playlistPanelHandlers.openFiles}
-      on:select={content.playlistPanelHandlers.select}
-      on:setSelection={(event) => content.playlistPanelHandlers.setSelection?.(event)}
-      on:activate={content.playlistPanelHandlers.activate}
-      on:contextAction={content.playlistPanelHandlers.contextAction}
-      on:toggleShuffle={() => content.playlistPanelHandlers.toggleShuffle?.()}
-      on:cycleRepeat={() => content.playlistPanelHandlers.cycleRepeat?.()}
-    />
-    <QueuePanel
-      items={content.queuePanelProps.items}
-      playingId={content.queuePanelProps.playingId}
-      mobilePresentation={content.playlistPanelProps.mobilePresentation ?? false}
-      getContextMenuActions={content.queuePanelProps.getContextMenuActions}
+      on:addFiles={(event) => content.queuePanelHandlers.addFiles(event.detail)}
+      on:addFolders={(event) => content.queuePanelHandlers.addFolders?.(event.detail)}
+      on:openFiles={content.queuePanelHandlers.openFiles}
+      on:select={content.queuePanelHandlers.select}
+      on:setSelection={(event) => content.queuePanelHandlers.setSelection?.(event)}
       on:activate={content.queuePanelHandlers.activate}
       on:contextAction={content.queuePanelHandlers.contextAction}
+      on:toggleShuffle={() => content.queuePanelHandlers.toggleShuffle?.()}
+      on:cycleRepeat={() => content.queuePanelHandlers.cycleRepeat?.()}
+    />
+    <UpNextPanel
+      items={content.upNextPanelProps.items}
+      playingId={content.upNextPanelProps.playingId}
+      mobilePresentation={content.queuePanelProps.mobilePresentation ?? false}
+      getContextMenuActions={content.upNextPanelProps.getContextMenuActions}
+      on:activate={content.upNextPanelHandlers.activate}
+      on:contextAction={content.upNextPanelHandlers.contextAction}
     />
   </div>
 {:else if tab === 'library'}
-  <PlaylistPanel
+  <TrackListPanel
     {...content.libraryPanelProps}
     libraryMode={true}
     fillParent={true}
@@ -111,7 +111,7 @@
 {/if}
 
 <style>
-  .playlist-tab-stack {
+  .queue-tab-stack {
     display: flex;
     flex-direction: column;
     flex: 1;
@@ -119,7 +119,7 @@
     min-height: 0;
   }
 
-  .playlist-tab-stack :global(.playlist-panel.fill-parent) {
+  .queue-tab-stack :global(.track-list-panel.fill-parent) {
     height: auto;
     flex: 1 1 0;
     min-height: 0;
