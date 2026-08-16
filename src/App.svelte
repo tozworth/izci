@@ -2,6 +2,7 @@
   import { onDestroy } from 'svelte';
   import { writable } from 'svelte/store';
   import { t } from 'svelte-i18n';
+  import { translate } from '$lib/i18n';
   import PlayerControls from '$lib/components/PlayerControls.svelte';
   import PlaybackResumeBanner from '$lib/components/PlaybackResumeBanner.svelte';
   import SharedBackdropArtwork from '$lib/components/SharedBackdropArtwork.svelte';
@@ -455,7 +456,7 @@
     setActiveWorkspaceTab: (tab) => workspaceShell.setActiveWorkspaceTab(tab),
     getRemoteSelections,
     setRemoteSelections,
-    translate: (id, options) => $t(id, options)
+    translate,
   });
   multiplayerSession = createMultiplayerSession({
     handleHostCommand: (command) => multiplayerController.handleHostCommand(command),
@@ -1227,7 +1228,7 @@
   }
 
   function localizePlaybackError(message: string): string {
-    return localizePlaybackErrorMessage(message, (id, options) => $t(id, options));
+    return localizePlaybackErrorMessage(message, translate);
   }
 
   async function handleMenuOpenFiles(target: WorkspaceCollection = workspaceShellState.activeCollection) {

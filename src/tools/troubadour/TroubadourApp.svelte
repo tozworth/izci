@@ -1,6 +1,7 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
   import { t } from 'svelte-i18n';
+  import { translate } from '$lib/i18n';
   import DockableTabStrip from '$lib/components/DockableTabStrip.svelte';
   import HoverTooltip from '$lib/components/HoverTooltip.svelte';
   import MenuSurface from '$lib/components/MenuSurface.svelte';
@@ -167,7 +168,7 @@
   const importTarget: TroubadourImportTarget = {
     controller,
     get settings() { return settings; },
-    translate: (id, options) => $t(id, options),
+    translate,
     setLoadingSource: (source) => loadingSource = source,
     onError: handleError,
     setDragActive: (active) => dragActive = active
@@ -178,7 +179,7 @@
     get settings() { return settings; },
     get selectedArtwork() { return selectedArtwork; },
     get hasSelectionArtwork() { return selectedAppliedDocuments.some((document) => document.artwork.length); },
-    translate: (id, options) => $t(id, options),
+    translate,
     setDragActive: (active) => dragActive = active,
     setError: (message) => renameError = message
   };
