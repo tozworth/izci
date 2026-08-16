@@ -308,17 +308,21 @@
                   aria-label={libraryTooltipLabels.format}
                   on:click={() => navigateToLibrary('format')}
                 >
+                  <span class="format-value-column">
+                    <span>{formatValue}</span>
+                    {#if formatDetail}
+                      <span class="technical-detail">{formatDetail}</span>
+                    {/if}
+                  </span>
+                  <HoverTooltip align="left" nowrap>{libraryTooltipLabels.format}</HoverTooltip>
+                </button>
+              {:else}
+                <span class="format-value-column">
                   <span>{formatValue}</span>
                   {#if formatDetail}
                     <span class="technical-detail">{formatDetail}</span>
                   {/if}
-                  <HoverTooltip align="left" nowrap>{libraryTooltipLabels.format}</HoverTooltip>
-                </button>
-              {:else}
-                <span>{formatValue}</span>
-                {#if formatDetail}
-                  <span class="technical-detail">{formatDetail}</span>
-                {/if}
+                </span>
               {/if}
             </dd>
           </div>
@@ -632,8 +636,11 @@
     color: var(--muted);
   }
 
-  .metadata-row dd .technical-detail {
-    margin-left: 0.42rem;
+  .format-value-column {
+    display: flex;
+    flex-direction: column;
+    gap: 0.15rem;
+    min-width: 0;
   }
 
   .notes-block {
