@@ -244,9 +244,19 @@ export interface RafReverbSettings extends RafEffectBase {
   dampingHz: number;
 }
 
+export type RafPitchEngine = 'phase-vocoder' | 'granular';
+
 export interface RafPitchSettings extends RafEffectBase {
   type: 'pitch';
   semitones: number;
+  engine: RafPitchEngine;
+  // Phase-vocoder engine knobs (FFT size, oscillator cap, peak floor).
+  windowSize: number;
+  maxPeaks: number;
+  peakFloorDb: number;
+  // Granular engine knobs (grain size, WSOLA alignment search range).
+  grainSize: number;
+  alignmentWindow: number;
 }
 
 export type RafEffectSettings =

@@ -55,7 +55,13 @@ describe('Raf effect registry', () => {
       id: 'pitch',
       type: 'pitch',
       enabled: true,
-      semitones: 0
+      semitones: 0,
+      engine: 'phase-vocoder',
+      windowSize: 2048,
+      maxPeaks: 64,
+      peakFloorDb: -60,
+      grainSize: 2048,
+      alignmentWindow: 256
     });
   });
 });

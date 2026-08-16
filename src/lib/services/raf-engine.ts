@@ -371,8 +371,16 @@ export function sameEffectSettings(first: RafEffectSettings, second: RafEffectSe
         && first.preDelayMs === candidate.preDelayMs
         && first.dampingHz === candidate.dampingHz;
     }
-    case 'pitch':
-      return first.semitones === (second as typeof first).semitones;
+    case 'pitch': {
+      const candidate = second as typeof first;
+      return first.semitones === candidate.semitones
+        && first.engine === candidate.engine
+        && first.windowSize === candidate.windowSize
+        && first.maxPeaks === candidate.maxPeaks
+        && first.peakFloorDb === candidate.peakFloorDb
+        && first.grainSize === candidate.grainSize
+        && first.alignmentWindow === candidate.alignmentWindow;
+    }
   }
 }
 

@@ -4,6 +4,7 @@ import type {
   RafEffectSettings,
   RafEffectType,
   RafGraphicEqSettings,
+  RafPitchEngine,
   RafPitchSettings,
   RafReverbSettings,
   RafSloptimizerSettings,
@@ -87,10 +88,21 @@ import {
 } from './raf-effects/sloptimizer';
 import type { RafEffectNode } from './raf-effects/shared';
 import {
+  PITCH_ALIGNMENT_OPTIONS,
+  PITCH_DEFAULT_ALIGNMENT_WINDOW,
+  PITCH_DEFAULT_GRAIN_SIZE,
+  PITCH_DEFAULT_MAX_PEAKS,
+  PITCH_DEFAULT_PEAK_FLOOR_DB,
+  PITCH_DEFAULT_WINDOW_SIZE,
+  PITCH_GRAIN_SIZES,
+  PITCH_MAX_PEAKS_OPTIONS,
+  PITCH_PEAK_FLOOR_OPTIONS,
   PITCH_SEMITONES_MAX,
   PITCH_SEMITONES_MIN,
+  PITCH_WINDOW_SIZES,
   createPitchNode,
   disposePitchNode,
+  isRafPitchEngine,
   updatePitchNode
 } from './raf-effects/pitch';
 
@@ -287,15 +299,40 @@ function normalizeReverb(value: unknown): RafReverbSettings | null {
   };
 }
 
+function normalizePitchOption<T extends number>(value: unknown, options: readonly T[], fallback: T): T {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return fallback;
+  let best = fallback;
+  let bestDistance = Number.POSITIVE_INFINITY;
+  for (const option of options) {
+    const distance = Math.abs(option - value);
+    if (distance < bestDistance) {
+      bestDistance = distance;
+      best = option;
+    }
+  }
+  return best;
+}
+
 function normalizePitch(value: unknown): RafPitchSettings | null {
   const base = normalizeBase(value, 'pitch');
   if (!base) return null;
   const source = value as Record<string, unknown>;
   if (typeof source.semitones !== 'number' || !Number.isFinite(source.semitones)) return null;
+  const engine: RafPitchEngine = isRafPitchEngine(source.engine) ? source.engine : 'phase-vocoder';
   return {
     ...base,
     type: 'pitch',
-    semitones: clamp(source.semitones as number, PITCH_SEMITONES_MIN, PITCH_SEMITONES_MAX)
+    semitones: clamp(source.semitones as number, PITCH_SEMITONES_MIN, PITCH_SEMITONES_MAX),
+    engine,
+    windowSize: normalizePitchOption(source.windowSize, PITCH_WINDOW_SIZES, PITCH_DEFAULT_WINDOW_SIZE),
+    maxPeaks: normalizePitchOption(source.maxPeaks, PITCH_MAX_PEAKS_OPTIONS, PITCH_DEFAULT_MAX_PEAKS),
+    peakFloorDb: normalizePitchOption(source.peakFloorDb, PITCH_PEAK_FLOOR_OPTIONS, PITCH_DEFAULT_PEAK_FLOOR_DB),
+    grainSize: normalizePitchOption(source.grainSize, PITCH_GRAIN_SIZES, PITCH_DEFAULT_GRAIN_SIZE),
+    alignmentWindow: normalizePitchOption(
+      source.alignmentWindow,
+      PITCH_ALIGNMENT_OPTIONS,
+      PITCH_DEFAULT_ALIGNMENT_WINDOW
+    )
   };
 }
 
@@ -449,7 +486,18 @@ const pitchDefinition: RafEffectDefinition = {
   type: 'pitch',
   name: 'Pitch',
   icon: 'music_note',
-  createDefault: (id) => ({ id, type: 'pitch', enabled: true, semitones: 0 }),
+  createDefault: (id) => ({
+    id,
+    type: 'pitch',
+    enabled: true,
+    semitones: 0,
+    engine: 'phase-vocoder',
+    windowSize: PITCH_DEFAULT_WINDOW_SIZE,
+    maxPeaks: PITCH_DEFAULT_MAX_PEAKS,
+    peakFloorDb: PITCH_DEFAULT_PEAK_FLOOR_DB,
+    grainSize: PITCH_DEFAULT_GRAIN_SIZE,
+    alignmentWindow: PITCH_DEFAULT_ALIGNMENT_WINDOW
+  }),
   normalize: normalizePitch,
   createNode: (context, settings) => createPitchNode(context, settings as RafPitchSettings),
   updateNode: (node, settings, context, previousSettings) =>

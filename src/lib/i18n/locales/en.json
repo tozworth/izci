@@ -442,7 +442,18 @@
         "semitones": "Pitch shift",
         "lower": "Lower",
         "higher": "Higher",
-        "note": "Realtime granular pitch shift; adds about 85 ms of latency."
+        "note": "Realtime phase-vocoder pitch shift; adds about 45 ms of latency.",
+        "engine": "Engine",
+        "engines": {
+          "phaseVocoder": "Phase vocoder",
+          "granular": "Granular"
+        },
+        "windowSize": "Window size",
+        "maxPeaks": "Max oscillators",
+        "peakFloor": "Peak floor",
+        "grainSize": "Grain size",
+        "alignmentWindow": "Alignment window",
+        "granularNote": "Realtime granular pitch shift; adds about 85 ms of latency."
       },
       "reverb": {
         "mix": "Mix",
@@ -1492,7 +1503,18 @@
       },
       "pitch": {
         "semitones": "Pitch shift",
-        "note": "Realtime granular pitch shift; adds about 85 ms of latency."
+        "note": "Realtime phase-vocoder pitch shift; adds about 45 ms of latency.",
+        "engine": "Engine",
+        "engines": {
+          "phaseVocoder": "Phase vocoder",
+          "granular": "Granular"
+        },
+        "windowSize": "Window size",
+        "maxPeaks": "Max oscillators",
+        "peakFloor": "Peak floor",
+        "grainSize": "Grain size",
+        "alignmentWindow": "Alignment window",
+        "granularNote": "Realtime granular pitch shift; adds about 85 ms of latency."
       },
       "edgeBlend": "Edge blend",
       "edgeBlendHint": "Crossfades the processed region at edit boundaries to prevent clicks.",

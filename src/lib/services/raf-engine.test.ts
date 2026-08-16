@@ -91,11 +91,27 @@ describe('RafEngine', () => {
     expect(sameEffectSettings(first, { ...first, bandGainsDb: [0, 2] })).toBe(false);
   });
 
-  it('compares pitch semitones structurally', () => {
-    const first: RafPitchSettings = { id: 'pitch', type: 'pitch', enabled: true, semitones: 3 };
+  it('compares pitch settings structurally', () => {
+    const first: RafPitchSettings = {
+      id: 'pitch',
+      type: 'pitch',
+      enabled: true,
+      semitones: 3,
+      engine: 'phase-vocoder',
+      windowSize: 2048,
+      maxPeaks: 64,
+      peakFloorDb: -60,
+      grainSize: 2048,
+      alignmentWindow: 256
+    };
 
     expect(sameEffectSettings(first, { ...first, semitones: 3 })).toBe(true);
     expect(sameEffectSettings(first, { ...first, semitones: -2 })).toBe(false);
+    expect(sameEffectSettings(first, { ...first, engine: 'granular' })).toBe(false);
+    expect(sameEffectSettings(first, { ...first, windowSize: 1024 })).toBe(false);
+    expect(sameEffectSettings(first, { ...first, maxPeaks: 32 })).toBe(false);
+    expect(sameEffectSettings(first, { ...first, grainSize: 4096 })).toBe(false);
+    expect(sameEffectSettings(first, { ...first, alignmentWindow: 512 })).toBe(false);
   });
 
   it('keeps the Playback feature gate separate from rack power', () => {

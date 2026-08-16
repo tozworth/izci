@@ -17,7 +17,15 @@
   } from '$lib/services/raf-effects/crystalizer';
   import { GRAPHIC_EQ_FREQUENCIES, RAF_GAIN_MAX_DB, RAF_GAIN_MIN_DB } from '$lib/services/raf-effects/graphic-eq';
   import { STEREO_WIDTH_MAX_DB, STEREO_WIDTH_MIN_DB } from '$lib/services/raf-effects/mid-side';
-  import { PITCH_SEMITONES_MAX, PITCH_SEMITONES_MIN } from '$lib/services/raf-effects/pitch';
+  import {
+    PITCH_ALIGNMENT_OPTIONS,
+    PITCH_GRAIN_SIZES,
+    PITCH_MAX_PEAKS_OPTIONS,
+    PITCH_PEAK_FLOOR_OPTIONS,
+    PITCH_SEMITONES_MAX,
+    PITCH_SEMITONES_MIN,
+    PITCH_WINDOW_SIZES
+  } from '$lib/services/raf-effects/pitch';
   import {
     REVERB_DAMPING_MAX_HZ,
     REVERB_DAMPING_MIN_HZ,
@@ -60,6 +68,7 @@
     RafCrystalizerSettings,
     RafEffectType,
     RafGraphicEqSettings,
+    RafPitchEngine,
     RafPitchSettings,
     RafReverbSettings,
     RafSloptimizerSettings,
@@ -256,9 +265,19 @@
           </div>
         {:else if settings.type === 'pitch'}
           {@const pitch = settings as RafPitchSettings}
-          <div class="setting-grid single">
+          <div class="setting-grid">
+            <label class="wide"><span>{$t('editor.effects.pitch.engine', { default: 'Engine' })}</span><select value={pitch.engine} on:change={(event) => update({ engine: event.currentTarget.value as RafPitchEngine })}><option value="phase-vocoder">{$t('editor.effects.pitch.engines.phaseVocoder', { default: 'Phase vocoder' })}</option><option value="granular">{$t('editor.effects.pitch.engines.granular', { default: 'Granular' })}</option></select></label>
             <label><span>{$t('editor.effects.pitch.semitones', { default: 'Pitch shift' })}</span><input type="range" min={PITCH_SEMITONES_MIN} max={PITCH_SEMITONES_MAX} step="1" value={pitch.semitones} on:input={(event) => updateNumber(event, 'semitones')} /><output>{pitch.semitones > 0 ? '+' : ''}{pitch.semitones.toFixed(0)} st</output></label>
-            <p class="effect-note">{$t('editor.effects.pitch.note', { default: 'Realtime granular pitch shift; adds about 85 ms of latency.' })}</p>
+            {#if pitch.engine === 'phase-vocoder'}
+              <label><span>{$t('editor.effects.pitch.windowSize', { default: 'Window size' })}</span><select value={pitch.windowSize} on:change={(event) => updateNumber(event, 'windowSize')}>{#each PITCH_WINDOW_SIZES as size}<option value={size}>{size} (~{Math.round(size / 48_000 * 1_000)} ms)</option>{/each}</select></label>
+              <label><span>{$t('editor.effects.pitch.maxPeaks', { default: 'Max oscillators' })}</span><select value={pitch.maxPeaks} on:change={(event) => updateNumber(event, 'maxPeaks')}>{#each PITCH_MAX_PEAKS_OPTIONS as count}<option value={count}>{count}</option>{/each}</select></label>
+              <label><span>{$t('editor.effects.pitch.peakFloor', { default: 'Peak floor' })}</span><select value={pitch.peakFloorDb} on:change={(event) => updateNumber(event, 'peakFloorDb')}>{#each PITCH_PEAK_FLOOR_OPTIONS as floor}<option value={floor}>{floor} dB</option>{/each}</select></label>
+              <p class="effect-note wide">{$t('editor.effects.pitch.note', { default: 'Realtime phase-vocoder pitch shift; adds about 45 ms of latency.' })}</p>
+            {:else}
+              <label><span>{$t('editor.effects.pitch.grainSize', { default: 'Grain size' })}</span><select value={pitch.grainSize} on:change={(event) => updateNumber(event, 'grainSize')}>{#each PITCH_GRAIN_SIZES as size}<option value={size}>{size}</option>{/each}</select></label>
+              <label><span>{$t('editor.effects.pitch.alignmentWindow', { default: 'Alignment window' })}</span><select value={pitch.alignmentWindow} on:change={(event) => updateNumber(event, 'alignmentWindow')}>{#each PITCH_ALIGNMENT_OPTIONS as window}<option value={window}>{window}</option>{/each}</select></label>
+              <p class="effect-note wide">{$t('editor.effects.pitch.granularNote', { default: 'Realtime granular pitch shift; adds about 85 ms of latency.' })}</p>
+            {/if}
           </div>
         {:else}
           {@const reverb = settings as RafReverbSettings}
