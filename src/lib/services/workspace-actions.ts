@@ -163,11 +163,6 @@ export function buildQueueContextActions(
       icon: 'queue_play_next'
     },
     {
-      id: 'add-to-up-next',
-      label: 'Add to up next',
-      icon: 'add_to_queue'
-    },
-    {
       id: 'copy-filename',
       label: 'Copy filename',
       icon: 'content_copy'
@@ -219,20 +214,17 @@ export function buildLibraryContextActions(
       label: 'Add to queue',
       icon: 'playlist_add'
     },
-    {
-      id: 'replace-queue',
-      label: 'Replace queue',
-      icon: 'playlist_play'
-    },
+    ...(tracks.length > 1
+      ? [{
+          id: 'replace-queue',
+          label: 'Replace queue',
+          icon: 'playlist_play'
+        }]
+      : []),
     {
       id: 'play-next',
       label: 'Play next',
       icon: 'queue_play_next'
-    },
-    {
-      id: 'add-to-up-next',
-      label: 'Add to up next',
-      icon: 'add_to_queue'
     },
     ...(goToLibrary ? [goToLibrary] : []),
     {
@@ -294,20 +286,17 @@ export function buildFavoritesContextActions(
       label: 'Add to queue',
       icon: 'playlist_add'
     },
-    {
-      id: 'replace-queue',
-      label: 'Replace queue',
-      icon: 'playlist_play'
-    },
+    ...(tracks.length > 1
+      ? [{
+          id: 'replace-queue',
+          label: 'Replace queue',
+          icon: 'playlist_play'
+        }]
+      : []),
     {
       id: 'play-next',
       label: 'Play next',
       icon: 'queue_play_next'
-    },
-    {
-      id: 'add-to-up-next',
-      label: 'Add to up next',
-      icon: 'add_to_queue'
     },
     ...(goToLibrary ? [goToLibrary] : []),
     {
@@ -339,7 +328,7 @@ export function buildUpNextContextActions(
     favoriteItems,
     ratingsEnabled
   )
-    .filter((action) => action.id !== 'randomize-queue')
+    .filter((action) => action.id !== 'randomize-queue' && action.id !== 'play-next')
     .map((action) =>
       action.id === 'remove'
         ? {

@@ -159,8 +159,6 @@
       case 'go-to-library-year': return $t('main.trackDetails.year', { default: 'Year' });
       case 'go-to-library-format': return $t('main.trackDetails.format', { default: 'Format' });
       case 'track-details': return $t('queue.actions.trackDetails', { default: 'Track details' });
-      case 'play-next': return $t('queue.actions.playNext', { default: 'Play next' });
-      case 'add-to-up-next': return $t('queue.actions.addToUpNext', { default: 'Add to up next' });
       case 'toggle-library': return action.icon === 'remove_circle'
         ? $t('queue.actions.removeFromLibrary', { default: 'Remove from library' })
         : $t('queue.actions.addToLibrary', { default: 'Add to library' });

@@ -283,8 +283,6 @@ export function createWorkspaceCollectionsController({
       handlers.showTrackLyrics();
     } else if (actionId === 'play-next') {
       queueTracksFromQueue(tracks, 'front');
-    } else if (actionId === 'add-to-up-next') {
-      queueTracksFromQueue(tracks, 'end');
     } else if (actionId === 'copy-filename') {
       void copyTrackFilenames(tracks);
     } else if (actionId === 'toggle-library') {
@@ -326,8 +324,6 @@ export function createWorkspaceCollectionsController({
       handlers.showTrackLyrics();
     } else if (actionId === 'play-next') {
       queueTracksFromCollection(tracks, 'front');
-    } else if (actionId === 'add-to-up-next') {
-      queueTracksFromCollection(tracks, 'end');
     } else if (actionId === 'copy-filename') {
       void copyTrackFilenames(tracks);
     } else if (actionId === 'toggle-favorite') {
@@ -376,8 +372,6 @@ export function createWorkspaceCollectionsController({
       handlers.showTrackLyrics();
     } else if (actionId === 'play-next') {
       queueTracksFromCollection(tracks, 'front');
-    } else if (actionId === 'add-to-up-next') {
-      queueTracksFromCollection(tracks, 'end');
     } else if (actionId === 'add-to-queue') {
       const addedItems = queueStore.add(cloneTrackItems(tracks));
       if (addedItems.length > 0) handlers.selectTrack('queue', addedItems[0].id);
@@ -394,17 +388,6 @@ export function createWorkspaceCollectionsController({
   function handleUpNextContextAction(actionId: string, ids: string[]): void {
     if (actionId === 'remove-from-up-next') {
       upNext.remove(ids);
-      return;
-    }
-
-    if (actionId === 'play-next' || actionId === 'add-to-up-next') {
-      const tracks = buildSelectedWorkspaceTracks(getState().queueItems, ids);
-
-      if (tracks.length === 0) {
-        return;
-      }
-
-      upNext.add(tracks, actionId === 'play-next' ? 'front' : 'end');
       return;
     }
 

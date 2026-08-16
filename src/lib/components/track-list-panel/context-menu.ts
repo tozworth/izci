@@ -38,7 +38,6 @@ export function getContextMenuActionLabel(action: MenuActionItem, translate: Tra
     case 'go-to-library-format': return translate('main.trackDetails.format', { default: 'Format' });
     case 'track-details': return translate('queue.actions.trackDetails', { default: 'Track details' });
     case 'play-next': return translate('queue.actions.playNext', { default: 'Play next' });
-    case 'add-to-up-next': return translate('queue.actions.addToUpNext', { default: 'Add to up next' });
     case 'toggle-library': return action.icon === 'remove_circle'
       ? translate('queue.actions.removeFromLibrary', { default: 'Remove from library' })
       : translate('queue.actions.addToLibrary', { default: 'Add to library' });

@@ -194,7 +194,7 @@ describe('workspace actions', () => {
   });
 
   it('adds shuffle play only when library actions are adapted for a grouped category', () => {
-    const flatActions = buildLibraryContextActions([item('track')], [], ['track']);
+    const flatActions = buildLibraryContextActions([item('one'), item('two')], [], ['one', 'two']);
     const groupedActions = buildLibraryGroupContextActions(flatActions);
 
     expect(flatActions.map((action) => action.id)).not.toContain('shuffle-play');
@@ -203,7 +203,6 @@ describe('workspace actions', () => {
       'replace-queue',
       'shuffle-play',
       'play-next',
-      'add-to-up-next',
       'track-details',
       'copy-filename',
       'toggle-favorite',
