@@ -17,6 +17,7 @@ function settings(mode: RafAutoAmpMode, changes: Partial<RafAutoAmpSettings> = {
     id: 'amp',
     type: 'auto-amp',
     enabled: true,
+    dryWet: 100,
     gainDb: 0,
     mode,
     targetDb: -1,

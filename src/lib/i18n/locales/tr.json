@@ -427,6 +427,7 @@
         "save": "Önayar değişikliklerini kaydet"
       },
       "controls": "Raf kontrolleri",
+      "dryWet": "Kuru/ıslak",
       "bypass": "Raf'ı geç",
       "powerOn": "Raf'ı aç",
       "meter": {

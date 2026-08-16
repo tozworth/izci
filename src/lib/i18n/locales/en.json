@@ -427,6 +427,7 @@
         "save": "Save changes to preset"
       },
       "controls": "Raf controls",
+      "dryWet": "Dry/wet",
       "bypass": "Bypass Raf",
       "powerOn": "Power on Raf",
       "meter": {

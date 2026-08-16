@@ -185,6 +185,8 @@ export interface RafEffectBase {
   id: string;
   enabled: boolean;
   displayName?: string;
+  /** Rack-level dry/wet balance for this effect, 0 (dry) to 100 (fully wet). Distinct from the Reverb effect's internal `mix`. */
+  dryWet: number;
 }
 
 export interface RafAutoAmpSettings extends RafEffectBase {

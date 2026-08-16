@@ -168,13 +168,18 @@ export function normalizeRafEffectDisplayName(value: unknown): string | undefine
   return displayName || undefined;
 }
 
-function normalizeBase(value: unknown, type: RafEffectType): { id: string; enabled: boolean; displayName?: string } | null {
+function normalizeBase(value: unknown, type: RafEffectType): { id: string; enabled: boolean; dryWet: number; displayName?: string } | null {
   if (!value || typeof value !== 'object') return null;
   const source = value as Record<string, unknown>;
   if (source.type !== type || typeof source.enabled !== 'boolean') return null;
   if (typeof source.id !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/.test(source.id)) return null;
+  // Legacy racks predate the per-effect dry/wet control; missing dryWet means
+  // the effect was always fully wet, so default it to 100.
+  const dryWet = typeof source.dryWet === 'number' && Number.isFinite(source.dryWet)
+    ? clamp(source.dryWet, 0, 100)
+    : 100;
   const displayName = normalizeRafEffectDisplayName(source.displayName);
-  return { id: source.id, enabled: source.enabled, ...(displayName ? { displayName } : {}) };
+  return { id: source.id, enabled: source.enabled, dryWet, ...(displayName ? { displayName } : {}) };
 }
 
 function normalizeGraphicEq(value: unknown): RafGraphicEqSettings | null {
@@ -344,6 +349,7 @@ const autoAmpDefinition: RafEffectDefinition = {
     id,
     type: 'auto-amp',
     enabled: true,
+    dryWet: 100,
     gainDb: 0,
     mode: 'off',
     targetDb: -1,
@@ -373,6 +379,7 @@ const graphicEqDefinition: RafEffectDefinition = {
     id,
     type: 'graphic-eq',
     enabled: true,
+    dryWet: 100,
     preampDb: 0,
     bandGainsDb: GRAPHIC_EQ_FREQUENCIES.map(() => 0)
   }),
@@ -392,7 +399,7 @@ const stereoWidthDefinition: RafEffectDefinition = {
   type: 'stereo-width',
   name: 'Stereo Width',
   icon: 'swap_horiz',
-  createDefault: (id) => ({ id, type: 'stereo-width', enabled: true, widthDb: 0 }),
+  createDefault: (id) => ({ id, type: 'stereo-width', enabled: true, dryWet: 100, widthDb: 0 }),
   normalize: normalizeStereoWidth,
   createNode: (context, settings) => createStereoWidthNode(context, settings as RafStereoWidthSettings),
   updateNode: (node, settings, context, previousSettings) =>
@@ -413,6 +420,7 @@ const crystalizerDefinition: RafEffectDefinition = {
     id,
     type: 'crystalizer',
     enabled: true,
+    dryWet: 100,
     bandIntensities: CRYSTALIZER_FREQUENCIES.map(() => 0),
     bandMuted: CRYSTALIZER_FREQUENCIES.map(() => false),
     bandBypassed: CRYSTALIZER_FREQUENCIES.map(() => false)
@@ -437,6 +445,7 @@ const sloptimizerDefinition: RafEffectDefinition = {
     id,
     type: 'sloptimizer',
     enabled: true,
+    dryWet: 100,
     advanced: false,
     slop: 0,
     customized: false,
@@ -464,6 +473,7 @@ const reverbDefinition: RafEffectDefinition = {
     id,
     type: 'reverb',
     enabled: true,
+    dryWet: 100,
     mix: 18,
     roomSize: 55,
     decaySeconds: 2.2,
@@ -490,6 +500,7 @@ const pitchDefinition: RafEffectDefinition = {
     id,
     type: 'pitch',
     enabled: true,
+    dryWet: 100,
     semitones: 0,
     engine: 'phase-vocoder',
     windowSize: PITCH_DEFAULT_WINDOW_SIZE,

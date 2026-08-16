@@ -187,8 +187,7 @@ export class RafEngine {
     }
 
     const enabled = this.#isEffectEnabled(settings, processor);
-    dryGain.gain.value = enabled ? 0 : 1;
-    wetGain.gain.value = enabled ? 1 : 0;
+    this.#setDryWetGains({ dryGain, wetGain, settings }, enabled, false);
     let wetConnected = false;
     if (enabled && processor) {
       entry.connect(processor.input);
@@ -214,10 +213,16 @@ export class RafEngine {
     if (liveEffect.processor) {
       liveEffect.definition.updateNode(liveEffect.processor, settings, this.context, previousSettings);
     }
+    liveEffect.settings = settings;
     const enabled = this.#isEffectEnabled(settings, liveEffect.processor);
     const previouslyEnabled = this.#isEffectEnabled(previousSettings, liveEffect.processor);
-    if (enabled !== previouslyEnabled) this.#setEffectEnabled(liveEffect, enabled);
-    liveEffect.settings = settings;
+    if (enabled !== previouslyEnabled) {
+      this.#setEffectEnabled(liveEffect, enabled);
+    } else if (previousSettings.dryWet !== settings.dryWet) {
+      // Keep the wet path live and only rebalance the dry/wet gains; the
+      // bypass crossfade itself is owned by the enabled flag.
+      this.#setDryWetGains(liveEffect, enabled, true);
+    }
   }
 
   #isEffectEnabled(settings: RafEffectSettings, processor: RafEffectNode | null): boolean {
@@ -286,8 +291,7 @@ export class RafEngine {
       effect.wetConnected = true;
     }
 
-    setAudioParam(effect.dryGain.gain, enabled ? 0 : 1, this.context);
-    setAudioParam(effect.wetGain.gain, enabled ? 1 : 0, this.context);
+    this.#setDryWetGains(effect, enabled, true);
 
     if (!enabled && effect.processor && effect.wetConnected) {
       effect.disconnectTimer = setTimeout(() => {
@@ -298,6 +302,20 @@ export class RafEngine {
         effect.wetConnected = false;
       }, RAF_PARAMETER_RAMP_SECONDS * 1000 + 5);
     }
+  }
+
+  #setDryWetGains(
+    effect: Pick<LiveEffect, 'dryGain' | 'wetGain' | 'settings'>,
+    enabled: boolean,
+    ramp: boolean
+  ): void {
+    const wetRatio = dryWetToRatio(effect.settings.dryWet);
+    const apply = (parameter: AudioParam, value: number) => {
+      if (ramp) setAudioParam(parameter, value, this.context);
+      else parameter.value = value;
+    };
+    apply(effect.dryGain.gain, enabled ? 1 - wetRatio : 1);
+    apply(effect.wetGain.gain, enabled ? wetRatio : 0);
   }
 
   #publishMeters(): void {
@@ -313,13 +331,18 @@ function peakDb(samples: Float32Array): number {
   return peak > 0 ? 20 * Math.log10(peak) : -60;
 }
 
+function dryWetToRatio(dryWet: number): number {
+  if (!Number.isFinite(dryWet)) return 1;
+  return Math.min(100, Math.max(0, dryWet)) / 100;
+}
+
 export function sameTopology(first: RafEffectSettings[], second: RafEffectSettings[]): boolean {
   return first.length === second.length
     && first.every((effect, index) => effect.id === second[index].id && effect.type === second[index].type);
 }
 
 export function sameEffectSettings(first: RafEffectSettings, second: RafEffectSettings): boolean {
-  if (first.id !== second.id || first.type !== second.type || first.enabled !== second.enabled) return false;
+  if (first.id !== second.id || first.type !== second.type || first.enabled !== second.enabled || first.dryWet !== second.dryWet) return false;
 
   switch (first.type) {
     case 'auto-amp': {

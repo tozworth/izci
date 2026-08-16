@@ -92,7 +92,20 @@ describe('normalizeRafSettings', () => {
       ]
     });
 
-    expect(result.effects).toEqual([{ id: 'width', type: 'stereo-width', enabled: true, widthDb: 24 }]);
+    expect(result.effects).toEqual([{ id: 'width', type: 'stereo-width', enabled: true, dryWet: 100, widthDb: 24 }]);
+  });
+
+  it('defaults missing dryWet to fully wet and clamps out-of-range values', () => {
+    const result = normalizeRafSettings({
+      enabled: true,
+      effects: [
+        { id: 'width', type: 'stereo-width', enabled: true, dryWet: 150, widthDb: 0 },
+        { id: 'eq', type: 'graphic-eq', enabled: true, preampDb: 0, bandGainsDb: GRAPHIC_EQ_FREQUENCIES.map(() => 0) }
+      ]
+    });
+
+    expect(result.effects[0]).toMatchObject({ dryWet: 100 });
+    expect(result.effects[1]).toMatchObject({ dryWet: 100 });
   });
 
   it('clamps Auto Amp controls and rejects unknown movement modes', () => {
@@ -119,6 +132,7 @@ describe('normalizeRafSettings', () => {
       id: 'amp',
       type: 'auto-amp',
       enabled: true,
+      dryWet: 100,
       gainDb: 24,
       mode: 'dynamic',
       targetDb: -6,

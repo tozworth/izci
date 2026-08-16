@@ -307,6 +307,7 @@ describe('Pitch node', () => {
       id: 'pitch',
       type: 'pitch',
       enabled: true,
+      dryWet: 100,
       semitones: 0,
       engine: 'phase-vocoder',
       windowSize: 2048,

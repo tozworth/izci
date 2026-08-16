@@ -73,7 +73,7 @@ describe('RafEngine', () => {
   });
 
   it('treats only stable ID/type order as the same topology', () => {
-    const first = [{ id: 'a', type: 'stereo-width' as const, enabled: true, widthDb: 0 }];
+    const first = [{ id: 'a', type: 'stereo-width' as const, enabled: true, dryWet: 100, widthDb: 0 }];
     expect(sameTopology(first, [{ ...first[0], enabled: false }])).toBe(true);
     expect(sameTopology(first, [{ ...first[0], id: 'b' }])).toBe(false);
   });
@@ -83,6 +83,7 @@ describe('RafEngine', () => {
       id: 'eq',
       type: 'graphic-eq',
       enabled: true,
+      dryWet: 100,
       preampDb: 0,
       bandGainsDb: [0, 1]
     };
@@ -96,6 +97,7 @@ describe('RafEngine', () => {
       id: 'pitch',
       type: 'pitch',
       enabled: true,
+      dryWet: 100,
       semitones: 3,
       engine: 'phase-vocoder',
       windowSize: 2048,
@@ -185,6 +187,24 @@ describe('RafEngine', () => {
 
     engine.setBypassedEffectTypes([]);
     expect(rafSettings.getSnapshot()).toEqual(settingsBeforeBypass);
+    engine.destroy();
+  });
+
+  it('crossfades an enabled effect between dry and wet with its dryWet control', () => {
+    playbackSettings.update({ enableRaf: true });
+    const context = new FakeContext();
+    const engine = new RafEngine(context as unknown as BaseAudioContext);
+    rafSettings.addEffect('graphic-eq');
+    const effect = rafSettings.getSnapshot().effects[0] as RafGraphicEqSettings;
+
+    rafSettings.updateEffect(effect.id, (current) => ({ ...current, dryWet: 40 }));
+    expect(context.gains.filter((gain) => gain.gain.ramps.some((value) => value === 0.4))).toHaveLength(1);
+    expect(context.gains.filter((gain) => gain.gain.ramps.some((value) => value === 0.6))).toHaveLength(1);
+
+    // Bypassing still routes the effect fully dry regardless of the mix.
+    rafSettings.updateEffect(effect.id, (current) => ({ ...current, enabled: false }));
+    expect(context.gains.filter((gain) => gain.gain.ramps.at(-1) === 1 && gain.gain.ramps.includes(0.6))).toHaveLength(1);
+    expect(context.gains.filter((gain) => gain.gain.ramps.at(-1) === 0 && gain.gain.ramps.includes(0.4))).toHaveLength(1);
     engine.destroy();
   });
 });

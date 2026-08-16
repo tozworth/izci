@@ -22,7 +22,7 @@ import { FakeAudioBuffer, FakeContext, FakeParam } from './test-audio-context';
 describe('Graphic EQ DSP', () => {
   it('builds a preamp followed by ten octave-spaced peaking filters and ramps updates', () => {
     const context = new FakeContext();
-    const settings = { id: 'eq', type: 'graphic-eq' as const, enabled: true, preampDb: 0, bandGainsDb: GRAPHIC_EQ_FREQUENCIES.map(() => 0) };
+    const settings = { id: 'eq', type: 'graphic-eq' as const, enabled: true, dryWet: 100, preampDb: 0, bandGainsDb: GRAPHIC_EQ_FREQUENCIES.map(() => 0) };
     const node = createGraphicEqNode(context as unknown as BaseAudioContext, settings);
     expect(context.filters.slice(0, 10).map((filter) => filter.frequency.value)).toEqual([...GRAPHIC_EQ_FREQUENCIES]);
     expect(context.filters.every((filter) => filter.type === 'peaking' && filter.Q.value === GRAPHIC_EQ_Q)).toBe(true);
@@ -34,7 +34,7 @@ describe('Graphic EQ DSP', () => {
 
   it('ramps only the EQ parameters that changed', () => {
     const context = new FakeContext();
-    const settings = { id: 'eq', type: 'graphic-eq' as const, enabled: true, preampDb: 0, bandGainsDb: GRAPHIC_EQ_FREQUENCIES.map(() => 0) };
+    const settings = { id: 'eq', type: 'graphic-eq' as const, enabled: true, dryWet: 100, preampDb: 0, bandGainsDb: GRAPHIC_EQ_FREQUENCIES.map(() => 0) };
     const node = createGraphicEqNode(context as unknown as BaseAudioContext, settings);
     const bandGainsDb = [...settings.bandGainsDb];
     bandGainsDb[4] = -2.5;
@@ -51,7 +51,7 @@ describe('Graphic EQ DSP', () => {
 describe('Stereo Width DSP', () => {
   it('uses a normalized matrix and attenuation-only width gains', () => {
     const context = new FakeContext();
-    const settings = { id: 'width', type: 'stereo-width' as const, enabled: true, widthDb: 0 };
+    const settings = { id: 'width', type: 'stereo-width' as const, enabled: true, dryWet: 100, widthDb: 0 };
     const node = createStereoWidthNode(context as unknown as BaseAudioContext, settings);
     const coefficients = context.gains.map((gain) => gain.gain.value);
     expect(coefficients.filter((gain) => gain === Math.SQRT1_2)).toHaveLength(6);
@@ -72,6 +72,7 @@ describe('Crystalizer DSP', () => {
       id: 'crystalizer',
       type: 'crystalizer' as const,
       enabled: true,
+      dryWet: 100,
       bandIntensities: CRYSTALIZER_FREQUENCIES.map(() => 0),
       bandMuted: CRYSTALIZER_FREQUENCIES.map(() => false),
       bandBypassed: CRYSTALIZER_FREQUENCIES.map(() => false)
@@ -96,6 +97,7 @@ describe('Crystalizer DSP', () => {
       id: 'crystalizer',
       type: 'crystalizer' as const,
       enabled: true,
+      dryWet: 100,
       bandIntensities: CRYSTALIZER_FREQUENCIES.map(() => 0),
       bandMuted: CRYSTALIZER_FREQUENCIES.map(() => false),
       bandBypassed: CRYSTALIZER_FREQUENCIES.map(() => false)
@@ -158,6 +160,7 @@ describe('Sloptimizer DSP', () => {
       id: 'sloptimizer',
       type: 'sloptimizer' as const,
       enabled: true,
+      dryWet: 100,
       advanced: false,
       slop: 0,
       customized: false,
@@ -223,6 +226,7 @@ describe('Reverb DSP', () => {
       id: 'reverb',
       type: 'reverb' as const,
       enabled: true,
+      dryWet: 100,
       mix: 18,
       roomSize: 55,
       decaySeconds: 2.2,

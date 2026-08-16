@@ -10,6 +10,7 @@ describe('Raf settings transfer', () => {
         id: 'eq-1',
         type: 'graphic-eq' as const,
         enabled: true,
+        dryWet: 100,
         preampDb: 3,
         bandGainsDb: GRAPHIC_EQ_FREQUENCIES.map(() => 2)
       }]
