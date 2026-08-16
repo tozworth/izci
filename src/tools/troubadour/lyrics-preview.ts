@@ -8,6 +8,21 @@ export interface LyricsPreviewState {
   error: string;
 }
 
+export interface LyricsPreviewController {
+  setFile(file: File | null): void;
+}
+
+/** Swaps the previewed file only when the selected item changed. */
+export function syncLyricsFile(
+  preview: LyricsPreviewController,
+  file: File | null,
+  previousFile: File | null
+): File | null {
+  if (file === previousFile) return previousFile;
+  preview.setFile(file);
+  return file;
+}
+
 const EMPTY_STATE: LyricsPreviewState = {
   currentTime: 0,
   duration: 0,

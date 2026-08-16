@@ -26,13 +26,16 @@
     resolveAppBackdropPresentation,
     type AppBackdropPresentation
   } from '$lib/services/app-backdrops';
-  import { createAppShortcuts } from '$lib/services/app-shortcuts';
+  import {
+    createAppShortcuts,
+    cycleWorkspaceTab as cycleWorkspaceTabs,
+    closeActiveRightPanel as closeActiveRightPanelFor
+  } from '$lib/services/app-shortcuts';
   import {
     createArtworkPresentationController,
     hasSameTrackMetadata,
     resolveTrackSnapshot
   } from '$lib/services/artwork-presentation';
-  import { invalidateCachedArtwork } from '$lib/services/artwork-cache';
   import {
     getTrackArtworkLoadKey,
     loadTrackArtwork,
@@ -54,10 +57,7 @@
     type LyricsPresentationState
   } from '$lib/services/lyrics-presentation';
   import { startLoadoutRuntime } from '$lib/services/loadouts';
-  import {
-    createPlaybackCommandsController,
-    shouldRestartForPrevious
-  } from '$lib/services/playback-commands';
+  import { createPlaybackCommandsController } from '$lib/services/playback-commands';
   import { createMiniPlayerController, type MiniPlayerState } from '$lib/services/mini-player';
   import {
     createPlaybackProgressController,
@@ -67,26 +67,21 @@
   import { setSleepTimerFiredHandler } from '$lib/services/sleep-timer';
   import { abLoop, resolveAbLoopRange } from '$lib/services/ab-loop';
   import { forceServiceWorkerUpdateCheck } from '$lib/services/pwa-updates';
-  import { logError } from '$lib/services/logging';
   import { createWorkspaceShellController } from '$lib/services/workspace-shell';
   import { mediaSessionService } from '$lib/services/media-session';
   import { createPlayCountTracker } from '$lib/services/play-count';
   import { playerController } from '$lib/services/player-controller';
-  import { createWorkspaceCollectionsController } from '$lib/services/workspace-collections';
-  import { windowManager } from '$lib/services/window-manager';
   import {
-    ensureComfortableNowPlayingWindowSize,
-    NOW_PLAYING_MIN_VIEWPORT_HEIGHT,
-    NOW_PLAYING_MIN_VIEWPORT_WIDTH,
-    restoreNowPlayingWindowSize
-  } from '$lib/services/window-now-playing';
+    createWorkspaceCollectionsController,
+    syncPlayingTrackMetadata
+  } from '$lib/services/workspace-collections';
+  import { windowManager } from '$lib/services/window-manager';
   import { windowControlsOverlayState } from '$lib/services/window-controls-overlay';
   import { windowDisplayState } from '$lib/services/window-display-state';
-  import { windowFullscreen } from '$lib/services/window-fullscreen';
   import {
-    ensureComfortableVideoWindowSize,
-    restoreVideoWindowSize
-  } from '$lib/services/window-video';
+    NOW_PLAYING_MIN_VIEWPORT_HEIGHT,
+    NOW_PLAYING_MIN_VIEWPORT_WIDTH
+  } from '$lib/services/window-now-playing';
   import { appearanceSettings } from '$lib/stores/appearance-settings';
   import { metadataSettings } from '$lib/stores/metadata-settings';
   import { favoritesStore, libraryStore, queueStore } from '$lib/stores/queue';
@@ -97,20 +92,6 @@
   import { isRafPresetDirty, rafPresets } from '$lib/stores/raf-presets';
   import { trackSettings } from '$lib/stores/track-settings';
   import { videoSettings } from '$lib/stores/video-settings';
-  import { respondToToolTrackRequest } from '$lib/services/tool-track-context';
-  import {
-    buildTroubadourBatchContext,
-    detachTrackForMetadataWrite,
-    readTroubadourBatchResult,
-    readTroubadourWritePreparationRequest,
-    REQUEST_TROUBADOUR_BATCH_CONTEXT_MESSAGE,
-    respondToTroubadourBatchContextRequest,
-    respondToTroubadourWritePreparation,
-    type TroubadourBatchContext,
-    type TroubadourBatchItemResult,
-    type TroubadourTrackReference,
-    type TroubadourWriteTarget
-  } from '$lib/services/troubadour-sync';
   import type {
     LyricsDisplayStyle,
     ModulePatternSnapshot,
@@ -127,38 +108,38 @@
     UpNextPanelProps
   } from '$lib/components/workspace/types';
   import { upNext, type UpNextEntry } from '$lib/stores/up-next';
-  import { buildOptionsWindowPath, isOptionsViewName, type OptionsViewName } from './options/views';
-  import { getFavoriteIdentity, getTrackDisplayTitle, getTrackIdentity } from '$lib/utils/files';
+  import { type OptionsViewName } from './options/views';
+  import { getFavoriteIdentity, getTrackDisplayTitle } from '$lib/utils/files';
   import {
     buildFreeplayLibraryContextActions,
     buildFreeplayQueueContextActions,
-    buildSelectedWorkspaceTracks,
-    favoritesHaveAllTracks,
-    resolveTrackLibraryNavigationAction
+    favoritesHaveAllTracks
   } from '$lib/services/workspace-actions';
   import { experimentalSettings } from '$lib/stores/experimental-settings';
   import { multiplayerRecents } from '$lib/stores/multiplayer-recents';
   import { multiplayerLastSession } from '$lib/stores/multiplayer-last-session';
-  import {
-    forgetMultiplayerPairing,
-    multiplayerPairings
-  } from '$lib/stores/multiplayer-pairings';
-  import {
-    createMultiplayerSession
-  } from '$lib/services/multiplayer-session';
-  import { multiplayerRenderPlaybackService } from '$lib/services/multiplayer-render-playback';
-  import type { MultiplayerSessionState } from '$lib/services/multiplayer-types';
+  import { forgetMultiplayerPairing, multiplayerPairings } from '$lib/stores/multiplayer-pairings';
+  import { createMultiplayerSession } from '$lib/services/multiplayer-session';
+  import type {
+    MultiplayerSessionController,
+    MultiplayerSessionState
+  } from '$lib/services/multiplayer-types';
   import { resolveMultiplayerPlayingTrackSelection } from '$lib/services/multiplayer-selection';
+  import { getRemoteArtworkLoadKey, toLoadedMultiplayerArtwork } from '$lib/services/multiplayer-artwork';
+  import { emptySelection } from '$lib/stores/queue-selection';
+  import { createMultiplayerWindowController } from '$lib/services/multiplayer-window-controller';
+  import { createFreeplayUiActions } from '$lib/services/freeplay-ui-actions';
   import {
-    getRemoteArtworkLoadKey,
-    toLoadedMultiplayerArtwork
-  } from '$lib/services/multiplayer-artwork';
-  import type { MultiplayerCommand } from '$lib/services/multiplayer-protocol';
+    createWindowSelectionController,
+    type RemoteSelectionSnapshot
+  } from '$lib/services/main-window-selection';
+  import { createVideoWindowActions } from '$lib/services/video-window-actions';
+  import { createTroubadourMainWindowBridge } from '$lib/services/troubadour-main-window';
   import {
-    buildSelectAllSelection,
-    emptySelection,
-    resolveSelectSelection
-  } from '$lib/stores/queue-selection';
+    createTransportActions,
+    localizePlaybackError as localizePlaybackErrorMessage
+  } from '$lib/services/transport-actions';
+  import { createRenderBufferedPollController } from '$lib/services/multiplayer-render-buffered-poll';
 
   const {
     items: queueItemsStore,
@@ -209,9 +190,7 @@
   let remoteTrackSelection: TrackSelection = emptySelection;
   let remoteLibrarySelection: TrackSelection = emptySelection;
   let remoteFavoriteSelection: TrackSelection = emptySelection;
-  let lastPrunedRemoteCatalog: MultiplayerSessionState['remoteCatalog'] | null = null;
   let observedRemotePlayingTrackId: string | null = null;
-  let lastTroubadourContext: TroubadourBatchContext | null = null;
   let localSelectedTrackItem: TrackItem | null = null;
   let localSelectedLibraryItem: TrackItem | null = null;
   let localSelectedFavoriteItem: TrackItem | null = null;
@@ -293,8 +272,6 @@
     message: null
   };
   let multiplayerToastMessage: string | null = null;
-  let multiplayerToastTimer: number | null = null;
-  let lastMultiplayerToastMessage: string | null = null;
   let multiplayerConnectionDialogOpen = false;
   let multiplayerConnectionDialogError: string | null = null;
   let multiplayerConnectionOperation: 'hosting' | 'joining' = 'joining';
@@ -321,68 +298,6 @@
   const miniPlayerSelectedTrack = writable<TrackItem | null>(null);
   const miniPlayerArtworkUrl = writable<string | null>(null);
 
-  function getRemoteSelection(collection: WorkspaceCollection): TrackSelection {
-    return collection === 'queue' ? remoteTrackSelection : remoteLibrarySelection;
-  }
-
-  function setRemoteSelection(collection: WorkspaceCollection, selection: TrackSelection): void {
-    if (collection === 'queue') {
-      remoteTrackSelection = selection;
-    } else {
-      remoteLibrarySelection = selection;
-    }
-  }
-
-  function clearCollectionSelection(collection: WorkspaceCollection): void {
-    if (isMultiplayerClient) {
-      setRemoteSelection(collection, emptySelection);
-      return;
-    }
-    (collection === 'queue' ? queueStore : libraryStore).setSelection(emptySelection);
-  }
-
-  function selectCollectionTrack(
-    collection: WorkspaceCollection,
-    id: string,
-    options?: { range?: boolean; toggle?: boolean }
-  ): void {
-    if (!isMultiplayerClient) {
-      (collection === 'queue' ? queueStore : libraryStore).select(id, options);
-      return;
-    }
-    const items = collection === 'queue' ? queueItems : libraryItems;
-    setRemoteSelection(
-      collection,
-      resolveSelectSelection(items, getRemoteSelection(collection), id, options)
-    );
-  }
-
-  function setCollectionSelection(collection: WorkspaceCollection, selection: TrackSelection): void {
-    if (isMultiplayerClient) {
-      const items = collection === 'queue' ? queueItems : libraryItems;
-      const itemIds = new Set(items.map((item) => item.id));
-      const ids = selection.ids.filter((id) => itemIds.has(id));
-      setRemoteSelection(collection, {
-        ids,
-        anchorId: selection.anchorId && itemIds.has(selection.anchorId) ? selection.anchorId : ids[0] ?? null,
-        focusId: selection.focusId && itemIds.has(selection.focusId) ? selection.focusId : ids.at(-1) ?? null
-      });
-      return;
-    }
-    (collection === 'queue' ? queueStore : libraryStore).setSelection(selection);
-  }
-
-  function selectAllCollectionTracks(collection: WorkspaceCollection): void {
-    if (isMultiplayerClient) {
-      setRemoteSelection(
-        collection,
-        buildSelectAllSelection(collection === 'queue' ? queueItems : libraryItems)
-      );
-      return;
-    }
-    (collection === 'queue' ? queueStore : libraryStore).selectAll();
-  }
-
   let fileInput: HTMLInputElement | null = null;
   let innerWidth = typeof window !== 'undefined' ? window.innerWidth : 0;
   let innerHeight = typeof window !== 'undefined' ? window.innerHeight : 0;
@@ -401,8 +316,6 @@
   let videoFullscreenExitAction = false;
   let videoPictureInPictureSupported = false;
   let videoSeekFeedback: VideoSeekFeedback | null = null;
-  let videoSeekFeedbackId = 0;
-  let videoPresentationSignature = '';
   let videoTheaterChromeInset = 0;
   let videoTheaterTopInset = 0;
   let topMenuBarHeight = 0;
@@ -416,6 +329,33 @@
     trackKey: '',
     resumeAutoScrollToken: 0
   };
+  let renderBufferedRanges: Array<[number, number]> | null = null;
+  let renderPipelineBuffering = false;
+
+  const getRemoteSelections = (): RemoteSelectionSnapshot => ({
+    track: remoteTrackSelection,
+    library: remoteLibrarySelection,
+    favorites: remoteFavoriteSelection
+  });
+  const setRemoteSelections = (selections: RemoteSelectionSnapshot): void => {
+    remoteTrackSelection = selections.track;
+    remoteLibrarySelection = selections.library;
+    remoteFavoriteSelection = selections.favorites;
+  };
+
+  const windowSelection = createWindowSelectionController({
+    getIsMultiplayerClient: () => isMultiplayerClient,
+    getQueueItems: () => queueItems,
+    getLibraryItems: () => libraryItems,
+    getFavoriteItems: () => favoriteItems,
+    getRemoteSelections,
+    setRemoteSelections,
+    getActiveView: () => $libraryViewSettings.activeView,
+    focusCollection: (collection) => workspaceShell.focusCollection(collection),
+    selectTrack: (collection, id, options) => workspaceShell.selectTrack(collection, id, options),
+    setCollectionSelection: (collection, selection) =>
+      workspaceShell.setCollectionSelection(collection, selection)
+  });
   const workspaceShell = createWorkspaceShellController({
     getQueueContextActions: (ids) => isFreeplayClient
       ? buildFreeplayQueueContextActions(queueItems, libraryItems, ids)
@@ -430,10 +370,10 @@
         ? workspaceCollections.getFavoriteContextActions(ids)
         : workspaceCollections.getLibraryContextActions(ids),
     collectionSelection: {
-      clear: clearCollectionSelection,
-      select: selectCollectionTrack,
-      set: setCollectionSelection,
-      selectAll: selectAllCollectionTracks
+      clear: (collection) => windowSelection.clear(collection),
+      select: (collection, id, options) => windowSelection.select(collection, id, options),
+      set: (collection, selection) => windowSelection.set(collection, selection),
+      selectAll: (collection) => windowSelection.selectAll(collection)
     }
   });
   let workspaceShellState = workspaceShell.getSnapshot();
@@ -453,7 +393,7 @@
       showTrackDetails: () => workspaceShell.showTrackDetails(),
       showTrackLyrics: () => workspaceShell.showTrackLyrics(),
       showLibraryGroup: (target) => workspaceShell.showLibraryGroup(target),
-      playQueue: playQueueFromCollectionAction
+      playQueue: () => playPlayback()
     }
   });
   const lyricsPresentation = createLyricsPresentationController({
@@ -496,354 +436,115 @@
     clearStopAfterCurrentTrack: () => playbackSettings.update({ stopAfterTrack: false }),
     getActiveLoopRange: () => resolveAbLoopRange(abLoop.getSnapshot())
   });
-  async function handleMultiplayerHostCommand(command: MultiplayerCommand): Promise<boolean> {
-    if (multiplayerState.mode !== 'hosting') return false;
-
-    switch (command.type) {
-      case 'transport.toggle':
-        if (multiplayerSession.cancelPendingPlayback()) return true;
-        await playbackCommands.togglePlayback();
-        return true;
-      case 'transport.play':
-        await playbackCommands.play();
-        return true;
-      case 'transport.pause':
-        multiplayerSession.cancelPendingPlayback();
-        playbackCommands.pause();
-        return true;
-      case 'transport.stop':
-        multiplayerSession.cancelPendingPlayback();
-        playbackCommands.stop();
-        return true;
-      case 'transport.previous':
-        await playbackCommands.stepTrack(-1);
-        return true;
-      case 'transport.next':
-        await playbackCommands.stepTrack(1);
-        return true;
-      case 'transport.seek':
-        if (!playingTrack || command.seconds > playbackSnapshot.duration + 1) return false;
-        seekPlayback(command.seconds);
-        return true;
-      case 'queue.shuffle':
-        queueStore.toggleShuffle();
-        return true;
-      case 'queue.repeat':
-        queueStore.cycleRepeatMode();
-        return true;
-      case 'collection.activate': {
-        const items = command.collection === 'queue'
-          ? queueItems
-          : command.collection === 'favorites'
-            ? favoriteItems
-            : libraryItems;
-        if (!items.some((item) => item.id === command.itemId)) return false;
-        if (command.collection === 'queue') {
-          await playbackCommands.activateQueueTrack(command.itemId);
-        } else if (command.collection === 'favorites') {
-          const track = favoriteItems.find((item) => item.id === command.itemId);
-          if (!track) return false;
-          await playbackCommands.activateFavoriteTrack(track);
-        } else {
-          await playbackCommands.activateLibraryTrack(command.itemId);
-        }
-        return true;
-      }
-    }
-  }
-  const multiplayerSession = createMultiplayerSession({
-    handleHostCommand: handleMultiplayerHostCommand,
+  let multiplayerSession: MultiplayerSessionController;
+  const multiplayerController = createMultiplayerWindowController({
+    getSession: () => multiplayerSession,
+    getPlaybackCommands: () => playbackCommands,
+    getPlayingTrack: () => playingTrack,
+    getPlaybackSnapshot: () => playbackSnapshot,
+    getQueueItems: () => queueItems,
+    getLibraryItems: () => libraryItems,
+    getFavoriteItems: () => favoriteItems,
+    seek: seekPlayback,
+    toggleQueueShuffle: () => queueStore.toggleShuffle(),
+    cycleQueueRepeat: () => queueStore.cycleRepeatMode(),
+    getExperimentalSettings: () => experimentalSettings.getSnapshot(),
+    getLastSession: () => multiplayerLastSession.getSnapshot(),
+    getPairings: () => multiplayerPairings.getSnapshot(),
+    pausePlayer: () => playerController.pause(),
+    setActiveWorkspaceTab: (tab) => workspaceShell.setActiveWorkspaceTab(tab),
+    getRemoteSelections,
+    setRemoteSelections,
+    translate: (id, options) => $t(id, options)
+  });
+  multiplayerSession = createMultiplayerSession({
+    handleHostCommand: (command) => multiplayerController.handleHostCommand(command),
     pauseHostPlayback: () => playbackCommands.pause(),
     resumeHostPlayback: () => { void playbackCommands.play(); }
   });
-  prepareLaunchMultiplayerDialog();
+  multiplayerController.prepareLaunchDialog();
   multiplayerState = multiplayerSession.getSnapshot();
-  const unsubscribeMultiplayer = multiplayerSession.subscribe((value) => {
-    const enteredFreeplay = value.freeplay && !multiplayerState.freeplay;
-    multiplayerState = value;
-    if (enteredFreeplay) workspaceShell.setActiveWorkspaceTab('library');
-    if (value.mode === 'client' && value.reconnecting) {
-      multiplayerConnectionDialogOpen = true;
-      multiplayerConnectionDialogError = null;
-    }
-    if (multiplayerConnectionDialogOpen
-      && (value.connectionStatus === 'error' || value.connectionStatus === 'disconnected')
-      && !value.reconnecting
-      && value.message
-      && value.message !== 'Reconnecting to the host...') {
-      multiplayerConnectionDialogError = value.message;
-    }
-    if (multiplayerConnectionDialogOpen && value.reconnecting) {
-      multiplayerConnectionDialogError = null;
-    }
-    if (isMultiplayerConnectionReady(value)) {
-      lastMultiplayerToastMessage = null;
-      multiplayerConnectionDialogOpen = false;
-      multiplayerConnectionDialogError = null;
-    }
-    if (value.message
-      && value.message !== lastMultiplayerToastMessage
-      && value.message !== 'Reconnecting to the host...'
-      && !multiplayerConnectionDialogOpen) {
-      showMultiplayerToast(value.message);
-    }
-    if (value.mode !== 'client') {
-      lastPrunedRemoteCatalog = null;
-      return;
-    }
-    if (value.remoteCatalog === lastPrunedRemoteCatalog) return;
-    lastPrunedRemoteCatalog = value.remoteCatalog;
-
-    const queueIds = new Set(value.remoteCatalog.queue.map((item) => item.id));
-    const libraryIds = new Set(value.remoteCatalog.library.map((item) => item.id));
-    const favoriteIds = new Set(value.remoteCatalog.favorites.map((item) => item.id));
-    remoteTrackSelection = pruneSelection(remoteTrackSelection, queueIds);
-    remoteLibrarySelection = pruneSelection(remoteLibrarySelection, libraryIds);
-    remoteFavoriteSelection = pruneSelection(remoteFavoriteSelection, favoriteIds);
+  const unsubscribeMultiplayerUi = multiplayerController.subscribe((ui) => {
+    multiplayerConnectionDialogOpen = ui.dialog.open;
+    multiplayerConnectionDialogError = ui.dialog.error;
+    multiplayerConnectionOperation = ui.dialog.operation;
+    multiplayerConnectionTargetName = ui.dialog.targetName;
+    multiplayerToastMessage = ui.toastMessage;
   });
-
-  function showMultiplayerToast(message: string): void {
-    lastMultiplayerToastMessage = message;
-    multiplayerToastMessage = message;
-    if (multiplayerToastTimer !== null) window.clearTimeout(multiplayerToastTimer);
-    multiplayerToastTimer = window.setTimeout(dismissMultiplayerToast, 9_000);
-  }
-
-  function dismissMultiplayerToast(): void {
-    if (multiplayerToastTimer !== null) window.clearTimeout(multiplayerToastTimer);
-    multiplayerToastTimer = null;
-    multiplayerToastMessage = null;
-  }
-
-  function beginMultiplayerConnection(
-    operation: 'hosting' | 'joining',
-    targetName: string | null = null
-  ): void {
-    multiplayerConnectionOperation = operation;
-    multiplayerConnectionTargetName = targetName;
-    multiplayerConnectionDialogError = null;
-    multiplayerConnectionDialogOpen = true;
-  }
-
-  function prepareLaunchMultiplayerDialog(): void {
-    const settings = experimentalSettings.getSnapshot();
-    if (!settings.multiplayer) return;
-    const last = settings.multiplayerRestoreLastSession
-      ? multiplayerLastSession.getSnapshot()
-      : null;
-    if (!last && !settings.multiplayerAutoHost) return;
-    if (last?.mode === 'client') {
-      beginMultiplayerConnection('joining', last.hostName);
-      return;
+  const unsubscribeMultiplayer = multiplayerSession.subscribe((value) => {
+    multiplayerState = value;
+    const update = multiplayerController.syncFromSession(value);
+    if (update.enteredFreeplay) workspaceShell.setActiveWorkspaceTab('library');
+    if (update.remoteSelections) {
+      remoteTrackSelection = update.remoteSelections.track;
+      remoteLibrarySelection = update.remoteSelections.library;
+      remoteFavoriteSelection = update.remoteSelections.favorites;
     }
-    beginMultiplayerConnection('hosting');
-  }
-
-  function isMultiplayerConnectionReady(value: MultiplayerSessionState): boolean {
-    if (value.connectionStatus !== 'connected' || value.message !== null) return false;
-    if (value.mode === 'hosting') return true;
-    if (value.mode !== 'client'
-      || value.remoteCatalog.revision <= 0
-      || value.remoteDelivery.generationId === 'idle') return false;
-    if (!value.receiveAudio || value.remoteDelivery.mode === 'none') return true;
-    return value.audioStatus === 'playing'
-      || value.audioStatus === 'ready'
-      || value.audioStatus === 'refused'
-      || value.audioStatus === 'disabled';
-  }
-
-  function failMultiplayerConnection(error: unknown, fallback: string): void {
-    multiplayerConnectionDialogError = error instanceof Error ? error.message : fallback;
-    multiplayerConnectionDialogOpen = true;
-  }
-
-  function dismissMultiplayerConnectionDialog(): void {
-    multiplayerConnectionDialogOpen = false;
-    multiplayerConnectionDialogError = null;
-    if (multiplayerState.mode === 'client') void multiplayerSession.leave();
-    else if (multiplayerState.mode === 'hosting' && multiplayerState.connectionStatus !== 'connected') {
-      void multiplayerSession.stopHosting();
-    }
-  }
-
-  function pruneSelection(selection: TrackSelection, ids: Set<string>): TrackSelection {
-    const retained = selection.ids.filter((id) => ids.has(id));
-    return {
-      ids: retained,
-      anchorId: selection.anchorId && ids.has(selection.anchorId) ? selection.anchorId : retained[0] ?? null,
-      focusId: selection.focusId && ids.has(selection.focusId) ? selection.focusId : retained.at(-1) ?? null
-    };
-  }
-
-  function togglePlayback(): void {
-    if (isMultiplayerClient) {
-      if (isSourceFileFreeplayClient) {
-        if (playbackSnapshot.state === 'playing') playerController.pause();
-        else {
-          void playerController.resumeAudio();
-          playerController.play();
-        }
-        return;
-      }
-      multiplayerSession.sendCommand({ type: 'transport.toggle' });
-      return;
-    }
-    if (multiplayerState.mode === 'hosting' && multiplayerSession.cancelPendingPlayback()) return;
-    void playbackCommands.togglePlayback();
-  }
-
-  function playPlayback(): void {
-    if (isMultiplayerClient) {
-      if (isSourceFileFreeplayClient) {
-        void playerController.resumeAudio();
-        playerController.play();
-        return;
-      }
-      multiplayerSession.sendCommand({ type: 'transport.play' });
-      return;
-    }
-    void playbackCommands.play();
-  }
-
-  function pausePlayback(): void {
-    if (isMultiplayerClient) {
-      if (isSourceFileFreeplayClient) {
-        playerController.pause();
-        return;
-      }
-      multiplayerSession.sendCommand({ type: 'transport.pause' });
-      return;
-    }
-    multiplayerSession.cancelPendingPlayback();
-    playbackCommands.pause();
-  }
-
-  function stopPlayback(): void {
-    if (isMultiplayerClient) {
-      if (isSourceFileFreeplayClient) {
-        playerController.seek(0);
-        playerController.pause();
-        return;
-      }
-      multiplayerSession.sendCommand({ type: 'transport.stop' });
-      return;
-    }
-    multiplayerSession.cancelPendingPlayback();
-    playbackCommands.stop();
-  }
-
-  function stepTrack(direction: -1 | 1): void {
-    if (isMultiplayerClient) {
-      if (shouldRestartForPrevious(
-        direction,
-        $playbackSettings.restartCurrentTrackOnPrevious,
-        playingTrack !== null,
-        playbackSnapshot.currentTime
-      )) {
-        if (isSourceFileFreeplayClient) playerController.seek(0);
-        else multiplayerSession.sendCommand({ type: 'transport.seek', seconds: 0 });
-        return;
-      }
-      multiplayerSession.sendCommand({
-        type: direction < 0 ? 'transport.previous' : 'transport.next'
-      });
-      return;
-    }
-    void playbackCommands.stepTrack(direction);
-  }
-
-  function setPlayerVolume(volume: number): void {
-    if (isMultiplayerClient) {
-      playerController.setVolume(volume);
-      return;
-    }
-    playerController.setVolume(volume);
-  }
-
-  function togglePlayerMute(): void {
-    if (isMultiplayerClient) {
-      playerController.toggleMute();
-      return;
-    }
-    playerController.toggleMute();
-  }
-
-  function toggleQueueShuffle(): void {
-    if (isMultiplayerClient) {
-      multiplayerSession.sendCommand({ type: 'queue.shuffle' });
-      return;
-    }
-    queueStore.toggleShuffle();
-  }
-
-  function cycleQueueRepeat(): void {
-    if (isMultiplayerClient) {
-      multiplayerSession.sendCommand({ type: 'queue.repeat' });
-      return;
-    }
-    queueStore.cycleRepeatMode();
-  }
-
-  function activateMultiplayerTrack(collection: WorkspaceCollection | 'favorites', id: string): boolean {
-    if (!isMultiplayerClient) return false;
-    multiplayerSession.sendCommand({ type: 'collection.activate', collection, itemId: id });
-    return true;
-  }
-
-  function addToFreeplayQueue(ids: string[]): void {
-    if (!isFreeplayClient || ids.length === 0) return;
-    const current = multiplayerState.freeplayQueue;
-    multiplayerSession.setFreeplayQueue([
-      ...current,
-      ...ids.filter((id) => !current.includes(id))
-    ]);
-  }
-
-  function removeFromFreeplayQueue(ids: string[]): void {
-    if (!isFreeplayClient || ids.length === 0) return;
-    const removed = new Set(ids);
-    multiplayerSession.setFreeplayQueue(
-      multiplayerState.freeplayQueue.filter((id) => !removed.has(id))
-    );
-  }
-
-  function handleFreeplayNavigationAction(actionId: string, tracks: TrackItem[]): boolean {
-    if (tracks.length !== 1) return false;
-    const target = resolveTrackLibraryNavigationAction(actionId, tracks[0], libraryItems);
-    if (!target) return false;
-    workspaceShell.showLibraryGroup(target);
-    return true;
-  }
-
-  function handleFreeplayQueueContextAction(actionId: string, ids: string[]): void {
-    if (actionId === 'remove') {
-      removeFromFreeplayQueue(ids);
-      return;
-    }
-    const tracks = buildSelectedWorkspaceTracks(queueItems, ids);
-    if (handleFreeplayNavigationAction(actionId, tracks)) return;
-    if (actionId === 'track-details') workspaceShell.showTrackDetails();
-  }
-
-  function handleFreeplayLibraryContextAction(actionId: string, ids: string[]): void {
-    if (actionId === 'add-to-queue') {
-      addToFreeplayQueue(ids);
-      return;
-    }
-    if (actionId === 'replace-queue' || actionId === 'shuffle-play') {
-      if (ids.length === 0) return;
-      multiplayerSession.setFreeplayQueue(ids);
-      if (actionId === 'shuffle-play' && !multiplayerState.remoteCatalog.shuffleEnabled) {
-        multiplayerSession.sendCommand({ type: 'queue.shuffle' });
-      }
-      activateMultiplayerTrack('queue', ids[0]);
-      return;
-    }
-    const source = $libraryViewSettings.activeView === 'favorites' ? favoriteItems : libraryItems;
-    const tracks = buildSelectedWorkspaceTracks(source, ids);
-    if (handleFreeplayNavigationAction(actionId, tracks)) return;
-    if (actionId === 'track-details') workspaceShell.showTrackDetails();
-  }
+  });
+  const freeplayActions = createFreeplayUiActions({
+    getIsFreeplayClient: () => isFreeplayClient,
+    getFreeplayQueue: () => multiplayerState.freeplayQueue,
+    setFreeplayQueue: (ids) => multiplayerSession.setFreeplayQueue(ids),
+    sendCommand: (command) => multiplayerSession.sendCommand(command),
+    getShuffleEnabled: () => multiplayerState.remoteCatalog.shuffleEnabled,
+    getQueueItems: () => queueItems,
+    getLibraryItems: () => libraryItems,
+    getFavoriteItems: () => favoriteItems,
+    getActiveView: () => $libraryViewSettings.activeView,
+    showLibraryGroup: (target) => workspaceShell.showLibraryGroup(target),
+    showTrackDetails: () => workspaceShell.showTrackDetails(),
+    activateTrack: (collection, id) => multiplayerController.activateTrack(collection, id)
+  });
+  const videoActions = createVideoWindowActions({
+    getVideoTrackActive: () => videoTrackActive,
+    getTheaterActive: () => videoTheaterActive,
+    setTheaterActive: (active) => (videoTheaterActive = active),
+    setTheaterControlsHidden: (hidden) => (videoTheaterControlsHidden = hidden),
+    getIsNowPlayingLayoutActive: () => isNowPlayingLayoutActive,
+    getIsAutomaticNowPlayingEligible: () => isAutomaticNowPlayingEligible,
+    getAutoNowPlayingSuppressed: () => autoNowPlayingSuppressed,
+    setAutoNowPlayingSuppressed: (value) => (autoNowPlayingSuppressed = value),
+    getWindowDisplayState: () => ({
+      maximized: $windowDisplayState.maximized,
+      fullscreen: $windowDisplayState.fullscreen
+    }),
+    mobileMode,
+    showVideoTab: () => workspaceShell.showWorkspaceTab('video'),
+    closeVideoTab: () => workspaceShell.closeWorkspaceTab('video')
+  });
+  const transport = createTransportActions({
+    getPlaybackCommands: () => playbackCommands,
+    getMultiplayerSession: () => multiplayerSession,
+    getPlaybackSnapshot: () => playbackSnapshot,
+    getPlayingTrack: () => playingTrack,
+    getIsMultiplayerClient: () => isMultiplayerClient,
+    getIsSourceFileFreeplayClient: () => isSourceFileFreeplayClient,
+    getVideoTrackActive: () => videoTrackActive,
+    setVideoSeekFeedback: (feedback) => (videoSeekFeedback = feedback),
+    resumeLyricsAutoScroll: () => lyricsPresentation.resumeAutoScroll(),
+    getPlaybackProgress: () => playbackProgress,
+    getResumeNotice: () => playbackProgressState.notice
+  });
+  const troubadourBridge = createTroubadourMainWindowBridge({
+    getPlayingTrack: () => playingTrack,
+    getQueueItems: () => queueItems,
+    getLibraryItems: () => libraryItems,
+    getFavoriteItems: () => favoriteItems,
+    getQueueSelectionIds: () => queueSelectionIds,
+    getLibrarySelectionIds: () => librarySelectionIds,
+    getFavoriteSelectionIds: () => favoriteSelectionIds,
+    getPlaybackStatus: () => playbackStatus,
+    getPlaybackSnapshot: () => playbackSnapshot,
+    loadTrack: (track, options) => playerController.load(track, options),
+    refreshCurrentTrack: (id, patch) => playerController.refreshCurrentTrack(id, patch),
+    getTroubadourWindow: () => windowManager.getPopup('troubadour'),
+    showLibraryGroup: (target) => workspaceShell.showLibraryGroup(target),
+    openOptions: (view) => windowManager.openOptions(view)
+  });
+  const renderBufferedPoll = createRenderBufferedPollController((ranges, buffering) => {
+    renderBufferedRanges = ranges;
+    renderPipelineBuffering = buffering;
+  });
   const miniPlayer = createMiniPlayerController({
     snapshot: playerController.snapshot,
     track: miniPlayerTrack,
@@ -903,7 +604,7 @@
     localCollectionsReady = true;
     void scanLaunchLibraryFolders();
     await playbackRestoration.restore();
-    void startLaunchMultiplayer();
+    void multiplayerController.startLaunch();
   });
   const unsubscribeQueueSelectedIds = queueSelectedIdsStore.subscribe(
     (value) => (localTrackSelectionIds = value)
@@ -933,28 +634,12 @@
   const unsubscribeRepeat = repeatStore.subscribe((value) => (localRepeatMode = value));
   const unsubscribeTrack = playerController.currentTrack.subscribe((value) => {
     localPlayingTrack = value;
-    if (multiplayerState.mode === 'client') return;
-    playbackCommands.notifyCurrentTrackChanged(value);
-
-    if (!value?.metadata) {
-      return;
-    }
-
-    queueStore.updateMetadata(value.id, value.metadata);
-
-    const playingIdentity = getTrackIdentity(value);
-
-    for (const item of localLibraryItems) {
-      if (getTrackIdentity(item) === playingIdentity) {
-        libraryStore.updateMetadata(item.id, value.metadata);
-      }
-    }
-
-    for (const item of localFavoriteItems) {
-      if (getTrackIdentity(item) === playingIdentity) {
-        favoritesStore.updateMetadata(item.id, value.metadata);
-      }
-    }
+    syncPlayingTrackMetadata(value, {
+      isMultiplayerClient,
+      libraryItems: localLibraryItems,
+      favoriteItems: localFavoriteItems,
+      notifyCurrentTrackChanged: (track) => playbackCommands.notifyCurrentTrackChanged(track)
+    });
   });
   const unsubscribeUpNext = upNext.subscribe((value) => {
     localUpNextEntries = value;
@@ -966,10 +651,6 @@
       void playbackCommands.handlePlaybackProgress();
     }
   });
-
-  function playQueueFromCollectionAction(): void {
-    playPlayback();
-  }
   const unsubscribePlaybackStatus = playerController.status.subscribe((value) => (localPlaybackStatus = value));
   const unsubscribeWorkspaceShell = workspaceShell.subscribe((value) => (workspaceShellState = value));
   const unsubscribePlaybackCommands = playbackCommands.subscribe(
@@ -986,26 +667,6 @@
   );
   const unsubscribeAppInstall = appInstallService.subscribe((value) => (appInstallState = value));
   const unsubscribeMiniPlayer = miniPlayer.subscribe((value) => (miniPlayerState = value));
-
-  function localizePlaybackError(message: string): string {
-    if (message === 'Could not access this file. Re-add it or grant file access.') {
-      return $t('main.playbackErrors.fileAccess', {
-        default: 'Could not access this file. Re-add it or grant file access.'
-      });
-    }
-    if (message === 'libopenmpt failed to decode this module.') {
-      return $t('main.playbackErrors.moduleDecode', {
-        default: 'libopenmpt failed to decode this module.'
-      });
-    }
-    if (message === 'Module playback failed.') {
-      return $t('main.playbackErrors.modulePlayback', { default: 'Module playback failed.' });
-    }
-    if (message === 'Chromium could not decode this video.') {
-      return $t('main.playbackErrors.videoDecode', { default: 'Chromium could not decode this video.' });
-    }
-    return $t('main.playbackErrors.generic', { default: 'Playback failed.' });
-  }
 
   const importController = createImportController({
     addFiles: (files, target) => workspaceCollections.handleAddFiles(files, target),
@@ -1048,7 +709,7 @@
       stepTrack,
       setVolume: setPlayerVolume,
       activateQueueTrack: (id) => {
-        if (activateMultiplayerTrack('queue', id)) return;
+        if (multiplayerController.activateTrack('queue', id)) return;
         return playbackCommands.activateQueueTrack(id);
       },
       activateLibraryTrack: (id) => activateLibraryPanelTrack(id),
@@ -1056,9 +717,7 @@
       toggleMute: togglePlayerMute,
       selectAllTracks: (collection) =>
         collection === 'library' && $libraryViewSettings.activeView === 'favorites'
-          ? isMultiplayerClient
-            ? (remoteFavoriteSelection = buildSelectAllSelection(favoriteItems))
-            : favoritesStore.selectAll()
+          ? windowSelection.selectAllFavorites()
           : workspaceShell.selectAllTracks(collection),
       openFiles: () => { if (!isMultiplayerClient) void handleMenuOpenFiles(); },
       openOptions: () => handleOpenOptions(),
@@ -1171,48 +830,13 @@
       workspaceShell.setCollectionSelection('queue', selectionSync.selection);
     }
   }
-  const RENDER_BUFFERED_POLL_INTERVAL_MS = 500;
-  let renderBufferedRanges: Array<[number, number]> | null = null;
-  let renderPipelineBuffering = false;
-  let renderBufferedPollTimer: number | null = null;
-
-  function sameBufferedRanges(a: Array<[number, number]> | null, b: Array<[number, number]>): boolean {
-    if (a === null) return b.length === 0;
-    if (a.length !== b.length) return false;
-    return a.every(([start, end], index) => start === b[index][0] && end === b[index][1]);
-  }
-
-  function startRenderBufferedPoll(): void {
-    if (renderBufferedPollTimer !== null || typeof window === 'undefined') return;
-    renderBufferedPollTimer = window.setInterval(() => {
-      const state = multiplayerRenderPlaybackService.getState();
-      const ranges = state.bufferedRanges
-        .map(([start, end]): [number, number] => [start / 1_000, end / 1_000]);
-      if (!sameBufferedRanges(renderBufferedRanges, ranges)) {
-        renderBufferedRanges = ranges;
-      }
-      if (renderPipelineBuffering !== state.buffering) {
-        renderPipelineBuffering = state.buffering;
-      }
-    }, RENDER_BUFFERED_POLL_INTERVAL_MS);
-  }
-
-  function stopRenderBufferedPoll(): void {
-    if (renderBufferedPollTimer !== null) {
-      window.clearInterval(renderBufferedPollTimer);
-      renderBufferedPollTimer = null;
-    }
-    renderBufferedRanges = null;
-    renderPipelineBuffering = false;
-  }
-
   $: isRenderDeliveryClient = isMultiplayerClient
     && !isSourceFileFreeplayClient
     && multiplayerState.remoteDelivery.mode === 'render';
   $: if (isRenderDeliveryClient) {
-    startRenderBufferedPoll();
+    renderBufferedPoll.start();
   } else {
-    stopRenderBufferedPoll();
+    renderBufferedPoll.stop();
   }
   $: playbackSnapshot = isMultiplayerClient && !isSourceFileFreeplayClient
     ? {
@@ -1421,7 +1045,7 @@
     select: (event) => handleSelect('queue', event),
     setSelection: (event) => handleSetSelection('queue', event),
     activate: (event) => {
-      if (!activateMultiplayerTrack('queue', event.detail)) {
+      if (!multiplayerController.activateTrack('queue', event.detail)) {
         void playbackCommands.activateQueueTrack(event.detail);
       }
     },
@@ -1498,48 +1122,20 @@
   function handleLibraryPanelSelect(
     event: CustomEvent<{ id: string; range: boolean; toggle: boolean }>
   ) {
-    if ($libraryViewSettings.activeView !== 'favorites') {
-      handleSelect('library', event);
-      return;
-    }
-
-    workspaceShell.focusCollection('library');
-    if (isMultiplayerClient) {
-      remoteFavoriteSelection = resolveSelectSelection(
-        favoriteItems,
-        remoteFavoriteSelection,
-        event.detail.id,
-        { range: event.detail.range, toggle: event.detail.toggle }
-      );
-    } else {
-      favoritesStore.select(event.detail.id, {
-        range: event.detail.range,
-        toggle: event.detail.toggle
-      });
-    }
+    windowSelection.handleLibraryPanelSelect(event);
   }
 
   function handleLibraryPanelSetSelection(event: CustomEvent<TrackSelection>) {
-    if ($libraryViewSettings.activeView === 'favorites') {
-      workspaceShell.focusCollection('library');
-      if (isMultiplayerClient) {
-        remoteFavoriteSelection = event.detail;
-      } else {
-        favoritesStore.setSelection(event.detail);
-      }
-      return;
-    }
-
-    handleSetSelection('library', event);
+    windowSelection.handleLibraryPanelSetSelection(event);
   }
 
   async function activateLibraryPanelTrack(id: string) {
     if (isFreeplayClient) {
       addToFreeplayQueue([id]);
-      activateMultiplayerTrack('queue', id);
+      multiplayerController.activateTrack('queue', id);
       return;
     }
-    if (activateMultiplayerTrack(
+    if (multiplayerController.activateTrack(
       $libraryViewSettings.activeView === 'favorites' ? 'favorites' : 'library',
       id
     )) return;
@@ -1586,32 +1182,52 @@
     workspaceShell.showWorkspaceTab('patterns');
   }
 
+  function togglePlayback(): void {
+    transport.togglePlayback();
+  }
+
+  function playPlayback(): void {
+    transport.play();
+  }
+
+  function pausePlayback(): void {
+    transport.pause();
+  }
+
+  function stopPlayback(): void {
+    transport.stop();
+  }
+
+  function stepTrack(direction: -1 | 1): void {
+    transport.stepTrack(direction);
+  }
+
   function seekPlayback(seconds: number): void {
-    if (isMultiplayerClient) {
-      if (isSourceFileFreeplayClient) {
-        playerController.seek(seconds);
-        return;
-      }
-      multiplayerSession.sendCommand({ type: 'transport.seek', seconds });
-      return;
-    }
-    const seekDelta = seconds - playbackSnapshot.currentTime;
-    if (videoTrackActive && Math.abs(seekDelta) >= 0.5) {
-      videoSeekFeedback = {
-        id: ++videoSeekFeedbackId,
-        deltaSeconds: seekDelta
-      };
-    }
-    lyricsPresentation.resumeAutoScroll();
-    playbackCommands.seek(seconds);
+    transport.seek(seconds);
+  }
+
+  function setPlayerVolume(volume: number): void {
+    transport.setVolume(volume);
+  }
+
+  function togglePlayerMute(): void {
+    transport.toggleMute();
+  }
+
+  function toggleQueueShuffle(): void {
+    transport.toggleQueueShuffle();
+  }
+
+  function cycleQueueRepeat(): void {
+    transport.cycleQueueRepeat();
   }
 
   function startCurrentTrackOver(): void {
-    const notice = playbackProgressState.notice;
-    if (!playingTrack || !notice || playingTrack.id !== notice.trackId) return;
+    transport.startOver();
+  }
 
-    void playbackProgress.clearProgress(playingTrack);
-    seekPlayback(0);
+  function localizePlaybackError(message: string): string {
+    return localizePlaybackErrorMessage(message, (id, options) => $t(id, options));
   }
 
   async function handleMenuOpenFiles(target: WorkspaceCollection = workspaceShellState.activeCollection) {
@@ -1627,79 +1243,39 @@
   }
 
   function syncVideoWindowSize(active: boolean, autoResizeWindow: boolean): void {
-    if (active && autoResizeWindow) {
-      ensureComfortableVideoWindowSize();
-      return;
-    }
-
-    restoreVideoWindowSize();
+    videoActions.syncWindowSize(active, autoResizeWindow);
   }
 
   function syncVideoPresentation(track: TrackItem | null, autoEnterTheater: boolean): void {
-    const videoActive = track?.kind === 'video';
-    const signature = videoActive
-      ? `${track.id}:${autoEnterTheater ? 'auto' : 'manual'}`
-      : 'inactive';
-
-    if (signature === videoPresentationSignature) {
-      return;
-    }
-
-    videoPresentationSignature = signature;
-
-    if (videoActive) {
-      workspaceShell.showWorkspaceTab('video');
-      if (autoEnterTheater) {
-        videoTheaterActive = true;
-      }
-      return;
-    }
-
-    videoTheaterActive = false;
-    videoTheaterControlsHidden = false;
-    if (windowFullscreen.isControllerFullscreenActive()) {
-      void windowFullscreen.exit();
-    }
-    workspaceShell.closeWorkspaceTab('video');
+    videoActions.syncPresentation(track, autoEnterTheater);
   }
 
   function toggleVideoTheater(): void {
-    if (!videoTrackActive) {
-      return;
-    }
-
-    if (typeof document !== 'undefined' && document.fullscreenElement) {
-      void windowFullscreen.exit();
-      return;
-    }
-
-    videoTheaterActive = !videoTheaterActive;
-    if (!videoTheaterActive) {
-      videoTheaterControlsHidden = false;
-    }
+    videoActions.toggleTheater();
   }
 
   function setVideoFit(fitMode: VideoFitMode): void {
-    videoSettings.update({ fitMode });
+    videoActions.setFit(fitMode);
   }
 
   async function toggleVideoPictureInPicture(): Promise<void> {
-    await playerController.toggleVideoPictureInPicture();
+    await videoActions.togglePictureInPicture();
   }
 
   async function toggleVideoFullscreen(): Promise<void> {
-    if (typeof document !== 'undefined' && document.fullscreenElement) {
-      await windowFullscreen.exit();
-      return;
-    }
-
-    videoTheaterActive = true;
-    videoTheaterControlsHidden = false;
-    await windowFullscreen.enter();
+    await videoActions.toggleFullscreen();
   }
 
   function toggleFullscreenPresentation(): void | Promise<void> {
-    return videoTrackActive ? toggleVideoFullscreen() : toggleFullscreenNowPlaying();
+    return videoActions.toggleFullscreenPresentation();
+  }
+
+  function toggleNowPlayingView(): void {
+    videoActions.toggleNowPlayingView();
+  }
+
+  function closeNowPlayingView(): void {
+    videoActions.closeNowPlayingView();
   }
 
   function handleAppKeydown(event: KeyboardEvent): void {
@@ -1731,204 +1307,12 @@
     handleOpenOptions('about');
   }
 
-  function createTroubadourContext(): TroubadourBatchContext {
-    const queueIdSet = new Set(queueSelectionIds);
-    const libraryIdSet = new Set(librarySelectionIds);
-    const favoriteIdSet = new Set(favoriteSelectionIds);
-
-    return buildTroubadourBatchContext(
-      [
-        { collection: 'current', items: playingTrack ? [playingTrack] : [] },
-        { collection: 'queue', items: queueItems.filter((item) => queueIdSet.has(item.id)) },
-        { collection: 'library', items: libraryItems.filter((item) => libraryIdSet.has(item.id)) },
-        { collection: 'favorites', items: favoriteItems.filter((item) => favoriteIdSet.has(item.id)) }
-      ],
-      filesystemFolders.getSnapshot()
-    );
-  }
-
-  type TroubadourMatchTarget = TroubadourBatchItemResult | TroubadourWriteTarget;
-
-  function getTroubadourResultReferences(result: TroubadourMatchTarget): TroubadourTrackReference[] {
-    const contextReferences = result.contextId
-      ? lastTroubadourContext?.tracks.find((track) => track.contextId === result.contextId)?.references ?? []
-      : [];
-    const unique = new Map<string, TroubadourTrackReference>();
-
-    for (const reference of [...(result.references ?? []), ...contextReferences]) {
-      unique.set(`${reference.collection}:${reference.id}`, reference);
-    }
-
-    return [...unique.values()];
-  }
-
-  function getTroubadourContextTrack(result: TroubadourMatchTarget) {
-    if (result.contextId) {
-      const direct = lastTroubadourContext?.tracks.find((track) => track.contextId === result.contextId);
-      if (direct) return direct;
-    }
-
-    const references = getTroubadourResultReferences(result);
-    return lastTroubadourContext?.tracks.find((track) => track.references.some((candidate) =>
-      references.some((reference) => (
-        reference.collection === candidate.collection && reference.id === candidate.id
-      ))
-    ));
-  }
-
-  async function isTroubadourResultMatch(
-    item: TrackItem,
-    collection: TroubadourTrackReference['collection'],
-    result: TroubadourMatchTarget
-  ): Promise<boolean> {
-    const references = getTroubadourResultReferences(result);
-
-    if (references.some((reference) => reference.collection === collection && reference.id === item.id)) {
-      return true;
-    }
-
-    const contextTrack = getTroubadourContextTrack(result);
-    const originalPath = result.originalPath ?? contextTrack?.path;
-    let pathMismatch = false;
-
-    if (originalPath && item.path) {
-      const normalize = (path: string) => path.replace(/\\/g, '/').replace(/^\/+/, '').toLowerCase();
-      if (normalize(originalPath) === normalize(item.path)) return true;
-      pathMismatch = true;
-    }
-
-    const originalHandle = result.originalFileHandle ?? contextTrack?.fileHandle;
-
-    if (originalHandle && item.fileHandle) {
-      if (originalHandle === item.fileHandle) return true;
-
-      try {
-        if (typeof originalHandle.isSameEntry === 'function' && await originalHandle.isSameEntry(item.fileHandle)) {
-          return true;
-        }
-      } catch {
-        // Stale handles can still be matched by the immutable source fingerprint below.
-      }
-    }
-
-    if (pathMismatch) return false;
-
-    const originalName = result.originalName ?? contextTrack?.name;
-    const originalSize = result.originalSize ?? contextTrack?.size;
-    const originalLastModified = result.originalLastModified ?? contextTrack?.lastModified;
-    return Boolean(
-      originalName
-      && originalSize !== undefined
-      && originalLastModified !== undefined
-      && item.name.toLowerCase() === originalName.toLowerCase()
-      && item.size === originalSize
-      && item.lastModified === originalLastModified
-    );
-  }
-
   function navigateTrackDetailsToLibrary(target: TrackLibraryNavigationTarget) {
     workspaceShell.showLibraryGroup(target);
   }
 
-  async function preparePlaybackForTroubadourWrite(targets: TroubadourWriteTarget[]): Promise<void> {
-    const track = playingTrack;
-    if (!track) return;
-
-    for (const target of targets) {
-      if (!await isTroubadourResultMatch(track, 'current', target)) continue;
-      await detachTrackForMetadataWrite(
-        track,
-        {
-          autoPlay: playbackStatus.state === 'playing',
-          initialPosition: playbackSnapshot.currentTime
-        },
-        (detachedTrack, options) => playerController.load(detachedTrack, options)
-      );
-      return;
-    }
-  }
-
-  function getTroubadourExternalPatch(result: TroubadourBatchItemResult) {
-    return {
-      ...(result.file ? { file: result.file } : {}),
-      ...(result.fileHandle ? { fileHandle: result.fileHandle } : {}),
-      ...(result.path !== undefined ? { path: result.path } : {}),
-      ...(result.sourceFolderId !== undefined ? { sourceFolderId: result.sourceFolderId } : {}),
-      ...(result.name !== undefined ? { name: result.name } : {}),
-      ...(result.extension !== undefined ? { extension: result.extension } : {}),
-      ...(result.kind !== undefined ? { kind: result.kind } : {}),
-      ...(result.size !== undefined ? { size: result.size } : {}),
-      ...(result.lastModified !== undefined ? { lastModified: result.lastModified } : {}),
-      ...(result.metadata !== undefined ? { metadata: result.metadata } : {})
-    };
-  }
-
-  async function applyTroubadourResult(results: TroubadourBatchItemResult[]): Promise<void> {
-    const successfulResults = results.filter((result) => result.success);
-    const invalidatedTrackIds = new Set<string>();
-
-    for (const result of successfulResults) {
-      const patch = getTroubadourExternalPatch(result);
-      const collections = [
-        { name: 'queue' as const, items: queueItems, store: queueStore },
-        { name: 'library' as const, items: libraryItems, store: libraryStore },
-        { name: 'favorites' as const, items: favoriteItems, store: favoritesStore }
-      ];
-
-      for (const collection of collections) {
-        for (const item of collection.items) {
-          if (await isTroubadourResultMatch(item, collection.name, result)) {
-            collection.store.applyExternalUpdate(item.id, patch);
-            invalidatedTrackIds.add(item.id);
-          }
-        }
-      }
-
-      if (playingTrack && await isTroubadourResultMatch(playingTrack, 'current', result)) {
-        playerController.refreshCurrentTrack(playingTrack.id, patch);
-        invalidatedTrackIds.add(playingTrack.id);
-      }
-    }
-
-    await invalidateCachedArtwork(invalidatedTrackIds);
-  }
-
   function handlePopupWindowMessage(event: MessageEvent): void {
-    if (respondToToolTrackRequest(event, playingTrack)) {
-      return;
-    }
-
-    const troubadourWindow = windowManager.getPopup('troubadour');
-
-    const writePreparation = readTroubadourWritePreparationRequest(event, troubadourWindow);
-    if (writePreparation && troubadourWindow) {
-      void preparePlaybackForTroubadourWrite(writePreparation.targets)
-        .finally(() => respondToTroubadourWritePreparation(troubadourWindow, writePreparation.requestId));
-      return;
-    }
-
-    if (event.data?.type === REQUEST_TROUBADOUR_BATCH_CONTEXT_MESSAGE) {
-      const context = createTroubadourContext();
-
-      if (respondToTroubadourBatchContextRequest(event, troubadourWindow, context)) {
-        lastTroubadourContext = context;
-        return;
-      }
-    }
-
-    const troubadourResult = readTroubadourBatchResult(event, troubadourWindow);
-
-    if (troubadourResult) {
-      void applyTroubadourResult(troubadourResult.results);
-      return;
-    }
-
-    if (event.origin !== window.location.origin || event.data?.type !== 'izci:open-options') {
-      return;
-    }
-
-    const view = isOptionsViewName(event.data.view) ? event.data.view : undefined;
-    windowManager.openOptions(view);
+    troubadourBridge.handleMessage(event);
   }
 
   async function handleForceUpdate() {
@@ -1936,112 +1320,51 @@
   }
 
   async function handleMultiplayerHost(): Promise<void> {
-    beginMultiplayerConnection('hosting');
-    try {
-      await multiplayerSession.startHosting();
-    } catch (error) {
-      failMultiplayerConnection(error, 'Could not start multiplayer hosting.');
-    }
+    await multiplayerController.host();
   }
 
   async function startLaunchMultiplayer(): Promise<void> {
-    const settings = experimentalSettings.getSnapshot();
-    if (!settings.multiplayer) return;
-    if (settings.multiplayerRestoreLastSession) {
-      const restored = await multiplayerSession.restoreLastSession().catch((error) => {
-        logError('multiplayer', 'Last session restore could not start', error);
-        return null;
-      });
-      if (restored === 'client') {
-        playerController.pause();
-        return;
-      }
-      if (restored === 'hosting') return;
-    }
-    if (!settings.multiplayerAutoHost) return;
-    try {
-      await multiplayerSession.startHosting({ silent: true });
-    } catch (error) {
-      logError('multiplayer', 'Persistent peer hosting could not start', error);
-    }
+    await multiplayerController.startLaunch();
   }
 
   async function handleMultiplayerJoin(): Promise<void> {
-    const inviteCode = window.prompt(
-      $t('main.multiplayer.enterInvite', { default: 'Enter the host invite code' })
-    );
-    if (!inviteCode) return;
-    await joinMultiplayer(inviteCode);
+    await multiplayerController.joinWithPrompt();
   }
 
   async function joinMultiplayer(inviteCode: string): Promise<void> {
-    beginMultiplayerConnection('joining');
-    playerController.pause();
-    try {
-      await multiplayerSession.join(inviteCode);
-    } catch (error) {
-      failMultiplayerConnection(error, 'Could not join that multiplayer session.');
-    }
+    await multiplayerController.join(inviteCode);
   }
 
   async function joinPairedMultiplayer(hostId: string): Promise<void> {
-    const pairing = $multiplayerPairings.find((candidate) => candidate.hostId === hostId);
-    beginMultiplayerConnection('joining', pairing?.name ?? null);
-    playerController.pause();
-    try {
-      await multiplayerSession.joinPaired(hostId);
-    } catch (error) {
-      failMultiplayerConnection(error, 'Could not join that paired host.');
-    }
+    await multiplayerController.joinPaired(hostId);
   }
 
   async function copyMultiplayerInvite(): Promise<void> {
-    const inviteCode = multiplayerState.inviteCode;
-    if (!inviteCode) return;
-    try {
-      await navigator.clipboard.writeText(inviteCode);
-    } catch {
-      window.prompt(
-        $t('main.multiplayer.copyInviteFallback', { default: 'Copy this invite code' }),
-        inviteCode
-      );
-    }
+    await multiplayerController.copyInvite();
   }
 
-  function toggleNowPlayingView() {
-    if (isNowPlayingLayoutActive) {
-      closeNowPlayingView();
-      return;
-    }
-
-    if (!mobileMode) {
-      ensureComfortableNowPlayingWindowSize();
-    }
-
-    autoNowPlayingSuppressed = false;
-    appearanceSettings.update({
-      nowPlayingViewActive: true
-    });
+  function dismissMultiplayerConnectionDialog(): void {
+    multiplayerController.dismissConnectionDialog();
   }
 
-  function closeNowPlayingView() {
-    if (isAutomaticNowPlayingEligible) {
-      autoNowPlayingSuppressed = true;
-    }
-
-    if (!mobileMode) {
-      restoreNowPlayingWindowSize();
-    }
-    appearanceSettings.update({
-      nowPlayingViewActive: false
-    });
+  function dismissMultiplayerToast(): void {
+    multiplayerController.dismissToast();
   }
 
-  function enableNowPlayingView() {
-    autoNowPlayingSuppressed = false;
-    appearanceSettings.update({
-      nowPlayingViewActive: true
-    });
+  function addToFreeplayQueue(ids: string[]): void {
+    freeplayActions.addToFreeplayQueue(ids);
+  }
+
+  function removeFromFreeplayQueue(ids: string[]): void {
+    freeplayActions.removeFromFreeplayQueue(ids);
+  }
+
+  function handleFreeplayQueueContextAction(actionId: string, ids: string[]): void {
+    freeplayActions.handleQueueContextAction(actionId, ids);
+  }
+
+  function handleFreeplayLibraryContextAction(actionId: string, ids: string[]): void {
+    freeplayActions.handleLibraryContextAction(actionId, ids);
   }
 
   function handleNowPlayingTabChange(tab: WorkspaceTab) {
@@ -2049,50 +1372,18 @@
   }
 
   function closeActiveRightPanel() {
-    const rightPanel = workspaceShellState.workspacePanels.find((panel) => panel.id === 'right');
-    const tabToClose =
-      rightPanel?.activeTab ?? rightPanel?.tabs[0]?.id ?? null;
-
-    if (!tabToClose) {
-      return;
-    }
-
-    workspaceShell.closeWorkspaceTab(tabToClose);
-  }
-
-  function getCyclableWorkspaceTabs(): WorkspaceTab[] {
-    return workspaceShellState.workspaceTabs.map((tab) => tab.id);
+    closeActiveRightPanelFor(workspaceShellState.workspacePanels, (tab) =>
+      workspaceShell.closeWorkspaceTab(tab)
+    );
   }
 
   function cycleWorkspaceTab(direction: -1 | 1): boolean {
-    const tabs = getCyclableWorkspaceTabs();
-
-    if (tabs.length < 2) {
-      return false;
-    }
-
-    const currentIndex = Math.max(tabs.indexOf(workspaceShellState.activeWorkspaceTab), 0);
-    const nextIndex = (currentIndex + direction + tabs.length) % tabs.length;
-    const nextTab = tabs[nextIndex];
-
-    workspaceShell.setActiveWorkspaceTab(nextTab);
-    return true;
-  }
-
-  async function toggleFullscreenNowPlaying(): Promise<void> {
-    if (windowFullscreen.isControllerFullscreenActive()) {
-      closeNowPlayingView();
-      await windowFullscreen.exit();
-      return;
-    }
-
-    if ($windowDisplayState.maximized || $windowDisplayState.fullscreen) {
-      toggleNowPlayingView();
-      return;
-    }
-
-    enableNowPlayingView();
-    await windowFullscreen.enter();
+    return cycleWorkspaceTabs(
+      direction,
+      workspaceShellState.workspaceTabs.map((tab) => tab.id),
+      workspaceShellState.activeWorkspaceTab,
+      (tab) => workspaceShell.setActiveWorkspaceTab(tab)
+    );
   }
 
   $: if (playbackStatus.state !== previousPlaybackState) {
@@ -2108,7 +1399,8 @@
   }
 
   onDestroy(() => {
-    dismissMultiplayerToast();
+    multiplayerController.dismissToast();
+    renderBufferedPoll.stop();
     playbackRestoration.destroy();
     playbackProgress.destroy();
     artworkPresentation.destroy();
@@ -2139,14 +1431,15 @@
     unsubscribeLyricsPresentation();
     unsubscribeAppInstall();
     unsubscribeMiniPlayer();
+    unsubscribeMultiplayerUi();
     unsubscribeMultiplayer();
     multiplayerSession.destroy();
+    multiplayerController.destroy();
     miniPlayer.destroy();
     appInstallService.destroy();
     unsubscribeLaunchedFiles();
     stopLibraryFolderCommands();
     stopLoadoutRuntime();
-    stopRenderBufferedPoll();
     disconnectMediaSession();
     playerController.destroy();
   });

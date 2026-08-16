@@ -430,3 +430,40 @@ export function createWorkspaceCollectionsController({
     rateTracks
   };
 }
+
+export interface SyncPlayingTrackMetadataDeps {
+  isMultiplayerClient: boolean;
+  libraryItems: TrackItem[];
+  favoriteItems: TrackItem[];
+  notifyCurrentTrackChanged(track: TrackItem | null): void;
+}
+
+/**
+ * Applies a newly current track's metadata to the queue and library/favorites
+ * collections (identity-matched), mirroring the playing track in the
+ * collections. Client-mode (remote playback) updates are skipped.
+ */
+export function syncPlayingTrackMetadata(track: TrackItem | null, deps: SyncPlayingTrackMetadataDeps): void {
+  if (deps.isMultiplayerClient) return;
+  deps.notifyCurrentTrackChanged(track);
+
+  if (!track?.metadata) {
+    return;
+  }
+
+  queueStore.updateMetadata(track.id, track.metadata);
+
+  const playingIdentity = getTrackIdentity(track);
+
+  for (const item of deps.libraryItems) {
+    if (getTrackIdentity(item) === playingIdentity) {
+      libraryStore.updateMetadata(item.id, track.metadata);
+    }
+  }
+
+  for (const item of deps.favoriteItems) {
+    if (getTrackIdentity(item) === playingIdentity) {
+      favoritesStore.updateMetadata(item.id, track.metadata);
+    }
+  }
+}

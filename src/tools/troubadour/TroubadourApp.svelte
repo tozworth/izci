@@ -4,19 +4,12 @@
   import DockableTabStrip from '$lib/components/DockableTabStrip.svelte';
   import HoverTooltip from '$lib/components/HoverTooltip.svelte';
   import MenuSurface from '$lib/components/MenuSurface.svelte';
-  import { hasDockTabDragData, readDockTabDragData } from '$lib/components/docking/drag';
-  import type { DockTabDefinition, DockTabMoveDetail } from '$lib/components/docking/types';
-  import {
-    normalizeVisibleDockWeights,
-    resizeDockPairWeights,
-    resolveDockSplit,
-    resolveDockSplitWeights
-  } from '$lib/services/dock-layout';
+  import type { DockTabMoveDetail } from '$lib/components/docking/types';
+  import { normalizeVisibleDockWeights } from '$lib/services/dock-layout';
   import { applyMetadataPatch } from '$lib/services/media-metadata/merge';
   import type { MediaArtwork, MediaMetadataFieldName } from '$lib/services/media-metadata/types';
   import {
     listenForTroubadourBatchContext,
-    publishTroubadourBatchResult,
     REQUEST_TROUBADOUR_BATCH_CONTEXT_MESSAGE,
     type TroubadourBatchContext
   } from '$lib/services/troubadour-sync';
@@ -31,13 +24,11 @@
     TROUBADOUR_DOCK_SCOPE,
     isTroubadourTab,
     troubadourWorkspaceState,
-    type TroubadourDockLayout,
     type TroubadourDockRegionId,
     type TroubadourDockZoneId,
     type TroubadourTab,
     type TroubadourWorkspaceState
   } from '$lib/stores/troubadour-workspace';
-  import { STREAM_EXTENSIONS, type MenuActionItem } from '$lib/types';
   import LoudnessTab from './LoudnessTab.svelte';
   import LyricsEditor from './LyricsEditor.svelte';
   import SpectrogramTab from './SpectrogramTab.svelte';
@@ -46,13 +37,67 @@
   import {
     createTroubadourController,
     effectiveFields,
+    requestRenameAccess,
     selectedFieldValue,
     type TroubadourAlbum,
     type TroubadourWorkbenchItem
   } from './troubadour-controller';
   import type { RenamePreviewRow } from './rename-job';
-  import type { TroubadourDockGuide } from './troubadour-dock';
-  import { createLyricsPreview, type LyricsPreviewState } from './lyrics-preview';
+  import {
+    adjacentPairs,
+    buildDockGuides,
+    dockLayoutStyle as buildDockLayoutStyle,
+    dockRegionLabel as dockRegionLabelForRegion,
+    dockRegionStyle,
+    dockTabDefinitions,
+    handleDockPanelDragLeave as handleDockPanelDragLeaveForTarget,
+    handleDockPanelDragOver as handleDockPanelDragOverForTarget,
+    handleDockPanelDrop as handleDockPanelDropForTarget,
+    handleDockTabDragEnd as handleDockTabDragEndForTarget,
+    handleDockTabDragStart as handleDockTabDragStartForTarget,
+    moveDockTab as moveDockTabForTarget,
+    startDockHalfResize,
+    startMainDockResize,
+    type TroubadourDockTabTarget
+  } from './troubadour-dock';
+  import {
+    addArtworkFile as addArtworkFileToWorkbench,
+    applyArtworkToSelectedAlbum as applyArtworkToAlbumSelection,
+    artworkMixedAcross,
+    clearArtwork as clearWorkbenchArtwork,
+    copyArtwork as copyWorkbenchArtwork,
+    dropArtwork as dropArtworkToWorkbench,
+    extractArtwork as extractWorkbenchArtwork,
+    handleArtworkDragOver as artworkDragOver,
+    handleArtworkDrop as artworkDrop,
+    pasteArtwork as pasteArtworkToWorkbench,
+    setArtworkKind as setWorkbenchArtworkKind,
+    stageArtwork as stageWorkbenchArtwork,
+    type ArtworkStagingTarget
+  } from './artwork-staging';
+  import {
+    addRememberedFolder as addRememberedFolderFromTarget,
+    chooseFiles as chooseFilesFromTarget,
+    chooseFolder as chooseFolderFromTarget,
+    handleDrop as handleDropFromTarget,
+    handleFileFallback as handleFileFallbackFromTarget,
+    handleWindowDragLeave as handleWindowDragLeaveForTarget,
+    handleWindowDragOver as handleWindowDragOverForTarget,
+    ITEM_DRAG_MIME,
+    type TroubadourImportTarget
+  } from './troubadour-imports';
+  import {
+    buildContextMenuItems,
+    dragOverAlbum as dragOverAlbumForTarget,
+    dropOnAlbum as dropOnAlbumForTarget,
+    fieldLabel as fieldLabelForField,
+    isSpectrogramItem,
+    leaveAlbum as leaveAlbumForTarget,
+    stateIcon as itemStateIcon,
+    stateText as itemStateText,
+    type TroubadourAlbumDragTarget
+  } from './troubadour-rows';
+  import { createLyricsPreview, syncLyricsFile, type LyricsPreviewState } from './lyrics-preview';
 
   const SETTINGS_TO_FIELDS: Record<TroubadourMetadataField, MediaMetadataFieldName> = {
     title: 'title', artist: 'artist', albumArtist: 'albumArtist', album: 'album', date: 'date',
@@ -61,17 +106,6 @@
     grouping: 'grouping', copyright: 'copyright', titleSort: 'titleSort', artistSort: 'artistSort',
     albumSort: 'albumSort', albumArtistSort: 'albumArtistSort'
   };
-  const OPEN_FILE_OPTIONS: OpenFilePickerOptions = {
-    multiple: true,
-    types: [{
-      description: 'Media files',
-      accept: {
-        'audio/mpeg': ['.mp3'], 'audio/wav': ['.wav'], 'audio/flac': ['.flac'],
-        'audio/ogg': ['.ogg', '.opus'], 'audio/opus': ['.opus']
-      }
-    }]
-  };
-  const ITEM_DRAG_MIME = 'application/x-izci-troubadour-items';
 
   const controller = createTroubadourController();
   const lyricsPreview = createLyricsPreview();
@@ -130,6 +164,39 @@
     }
   });
 
+  const importTarget: TroubadourImportTarget = {
+    controller,
+    get settings() { return settings; },
+    translate: (id, options) => $t(id, options),
+    setLoadingSource: (source) => loadingSource = source,
+    onError: handleError,
+    setDragActive: (active) => dragActive = active
+  };
+
+  const artworkStagingTarget: ArtworkStagingTarget = {
+    controller,
+    get settings() { return settings; },
+    get selectedArtwork() { return selectedArtwork; },
+    get hasSelectionArtwork() { return selectedAppliedDocuments.some((document) => document.artwork.length); },
+    translate: (id, options) => $t(id, options),
+    setDragActive: (active) => dragActive = active,
+    setError: (message) => renameError = message
+  };
+
+  const dockTabTarget: TroubadourDockTabTarget = {
+    moveTab: (detail) => troubadourWorkspaceState.moveTab(detail),
+    get dropZoneId() { return dockDropZoneId; },
+    setDraggedTabId: (id) => draggedDockTabId = id,
+    setDropZoneId: (zoneId) => dockDropZoneId = zoneId,
+    setDragActive: (active) => dragActive = active
+  };
+
+  const albumDragTarget: TroubadourAlbumDragTarget = {
+    get dragAlbumId() { return dragAlbumId; },
+    setDragAlbumId: (id) => dragAlbumId = id,
+    assignItemsToAlbum: (itemIds, albumId) => controller.assignItemsToAlbum(itemIds, albumId)
+  };
+
   $: selectedItems = state.items.filter((item) => state.selectedIds.includes(item.id));
   $: dirtyItems = state.items.filter((item) => Object.keys(item.patch).length || item.artworkEdits.length);
   $: writableDirtyItems = dirtyItems.filter((item) => item.fileHandle && item.document);
@@ -144,10 +211,7 @@
     .filter((item) => item.document)
     .map((item) => applyMetadataPatch(item.document!, item.patch, item.artworkEdits));
   $: selectedApplied = selectedAppliedDocuments[0] ?? null;
-  $: artworkMixed = selectedAppliedDocuments.length > 1 && selectedAppliedDocuments.some((document) =>
-    document.artwork.map((artwork) => `${artwork.id}:${artwork.kind}:${artwork.mimeType}:${artwork.size}`).join('|')
-      !== selectedAppliedDocuments[0].artwork.map((artwork) => `${artwork.id}:${artwork.kind}:${artwork.mimeType}:${artwork.size}`).join('|')
-  );
+  $: artworkMixed = artworkMixedAcross(selectedAppliedDocuments);
   $: selectedArtwork = selectedApplied?.artwork.find((artwork) => artwork.id === selectedArtworkId)
     ?? selectedApplied?.artwork[0]
     ?? null;
@@ -156,22 +220,10 @@
     ? Object.entries(selectedPrimary.document.raw).sort(([left], [right]) => left.localeCompare(right))
     : [];
   $: summary = state.items.length ? `${state.items.length} files · ${dirtyItems.length} dirty` : '';
-  $: contextMenuItems = contextItemId ? buildContextMenuItems() : [];
-  $: dockTabsById = {
-    files: { id: 'files', icon: 'audio_file', label: $t('troubadour.workbench.files', { default: 'Files' }) },
-    albums: { id: 'albums', icon: 'album', label: $t('troubadour.workbench.albums', { default: 'Albums' }) },
-    metadata: { id: 'metadata', icon: 'library_music', label: $t('troubadour.workbench.metadataTab', { default: 'Metadata' }) },
-    rename: { id: 'rename', icon: 'drive_file_rename_outline', label: $t('troubadour.workbench.renameTab', { default: 'Rename' }) },
-    lyrics: { id: 'lyrics', icon: 'lyrics', label: $t('troubadour.lyrics.tab', { default: 'Lyrics' }) },
-    loudness: { id: 'loudness', icon: 'graphic_eq', label: $t('loudness.title', { default: 'Loudness' }) },
-    spectrogram: {
-      id: 'spectrogram',
-      icon: 'waterfall_chart',
-      label: $t('spectrogram.title', { default: 'Spectrogram' }),
-      disabled: !isSpectrogramItem(spectrogramItem ?? selectedPrimary)
-    }
-  } satisfies Record<TroubadourTab, DockTabDefinition>;
-  $: dockGuides = buildDockGuides();
+  $: contextMenuItem = state.items.find((candidate) => candidate.id === contextItemId) ?? null;
+  $: contextMenuItems = contextMenuItem ? buildContextMenuItems(contextMenuItem, state.albums, $t) : [];
+  $: dockTabsById = dockTabDefinitions($t, !isSpectrogramItem(spectrogramItem ?? selectedPrimary));
+  $: dockGuides = buildDockGuides($t);
   $: metadataWorkbenchVisible = (['files', 'albums', 'metadata', 'rename'] as TroubadourTab[])
     .some((tab) => isDockTabActive(tab));
   $: occupiedDockRegionIds = TROUBADOUR_DOCK_REGIONS
@@ -188,220 +240,63 @@
   $: hasMainDockRegion = visibleDockColumns.length > 0;
   $: dockRowWeights = normalizeVisibleDockWeights(dockState.layout.rows, visibleDockRows);
   $: dockColumnWeights = normalizeVisibleDockWeights(dockState.layout.columns, visibleDockColumns);
-  $: dockLayoutStyle = [
-    `--dock-top-track: ${visibleDockRows.includes('top') ? `minmax(0, ${dockRowWeights.top}fr)` : '0px'}`,
-    `--dock-after-top-track: ${dockRowResizePairs.some((pair) => pair.before === 'top') ? '3px' : '0px'}`,
-    `--dock-main-track: ${hasMainDockRegion ? `minmax(0, ${dockRowWeights.middle}fr)` : '0px'}`,
-    `--dock-after-middle-row-track: ${dockRowResizePairs.some((pair) => pair.before === 'middle') ? '3px' : '0px'}`,
-    `--dock-bottom-track: ${visibleDockRows.includes('bottom') ? `minmax(0, ${dockRowWeights.bottom}fr)` : '0px'}`,
-    `--dock-left-track: ${visibleDockColumns.includes('left') ? `minmax(0, ${dockColumnWeights.left}fr)` : '0px'}`,
-    `--dock-after-left-track: ${dockColumnResizePairs.some((pair) => pair.before === 'left') ? '3px' : '0px'}`,
-    `--dock-middle-track: ${visibleDockColumns.includes('middle') ? `minmax(0, ${dockColumnWeights.middle}fr)` : hasMainDockRegion ? '0px' : 'minmax(0, 1fr)'}`,
-    `--dock-after-middle-column-track: ${dockColumnResizePairs.some((pair) => pair.before === 'middle') ? '3px' : '0px'}`,
-    `--dock-right-track: ${visibleDockColumns.includes('right') ? `minmax(0, ${dockColumnWeights.right}fr)` : '0px'}`
-  ].join('; ');
+  $: dockLayoutStyle = buildDockLayoutStyle({
+    visibleDockRows,
+    visibleDockColumns,
+    dockRowResizePairs,
+    dockColumnResizePairs,
+    hasMainDockRegion,
+    dockRowWeights,
+    dockColumnWeights
+  });
   $: updateArtworkUrl(selectedArtwork);
   $: if (isDockTabActive('spectrogram') && !spectrogramItemId && selectedPrimary && isSpectrogramItem(selectedPrimary)) {
     spectrogramItemId = selectedPrimary.id;
   }
-  $: syncLyricsPreview(lyricsItem);
-
-  function syncLyricsPreview(item: TroubadourWorkbenchItem | null): void {
-    const file = item?.file ?? null;
-    if (file === lyricsPreviewFile) return;
-    lyricsPreviewFile = file;
-    lyricsPreview.setFile(item?.file ?? null);
-  }
-
-  function buildDockGuides(): TroubadourDockGuide[] {
-    const labels: Record<TroubadourDockRegionId, { label: string; icon: string; halves: [string, string] }> = {
-      top: {
-        label: $t('troubadour.dock.top', { default: 'Top zones' }),
-        icon: 'vertical_align_top',
-        halves: [$t('troubadour.dock.topLeft', { default: 'Top left' }), $t('troubadour.dock.topRight', { default: 'Top right' })]
-      },
-      left: {
-        label: $t('troubadour.dock.left', { default: 'Left zones' }),
-        icon: 'align_horizontal_left',
-        halves: [$t('troubadour.dock.leftTop', { default: 'Left top' }), $t('troubadour.dock.leftBottom', { default: 'Left bottom' })]
-      },
-      middle: {
-        label: $t('troubadour.dock.middle', { default: 'Middle zones' }),
-        icon: 'select_window',
-        halves: [$t('troubadour.dock.middleTop', { default: 'Middle top' }), $t('troubadour.dock.middleBottom', { default: 'Middle bottom' })]
-      },
-      right: {
-        label: $t('troubadour.dock.right', { default: 'Right zones' }),
-        icon: 'align_horizontal_right',
-        halves: [$t('troubadour.dock.rightTop', { default: 'Right top' }), $t('troubadour.dock.rightBottom', { default: 'Right bottom' })]
-      },
-      bottom: {
-        label: $t('troubadour.dock.bottom', { default: 'Bottom zones' }),
-        icon: 'vertical_align_bottom',
-        halves: [$t('troubadour.dock.bottomLeft', { default: 'Bottom left' }), $t('troubadour.dock.bottomRight', { default: 'Bottom right' })]
-      }
-    };
-
-    return TROUBADOUR_DOCK_REGIONS.map((region) => ({
-      ...region,
-      icon: labels[region.id].icon,
-      label: labels[region.id].label,
-      zoneLabels: labels[region.id].halves
-    }));
-  }
-
-  function adjacentPairs<T>(items: readonly T[]): Array<{ before: T; after: T }> {
-    return items.slice(0, -1).map((before, index) => ({ before, after: items[index + 1] }));
-  }
-
-  function dockRegionStyle(
-    regionId: TroubadourDockRegionId,
-    workspaceState: TroubadourWorkspaceState
-  ): string {
-    const region = TROUBADOUR_DOCK_REGIONS.find((candidate) => candidate.id === regionId)!;
-    const firstVisible = workspaceState.zones[region.zones[0]].length > 0;
-    const secondVisible = workspaceState.zones[region.zones[1]].length > 0;
-    const split = workspaceState.layout.splits[regionId];
-    const weights = resolveDockSplitWeights(firstVisible, secondVisible, split);
-
-    return [
-      `--dock-first-zone-track: ${firstVisible ? `minmax(0, ${weights.first}fr)` : '0px'}`,
-      `--dock-half-resizer-track: ${firstVisible && secondVisible ? '3px' : '0px'}`,
-      `--dock-second-zone-track: ${secondVisible ? `minmax(0, ${weights.second}fr)` : '0px'}`
-    ].join('; ');
-  }
-
-  function dockRegionLabel(regionId: 'top' | 'middle' | 'bottom' | 'left' | 'right'): string {
-    switch (regionId) {
-      case 'top': return $t('troubadour.dock.top', { default: 'Top zones' });
-      case 'middle': return $t('troubadour.dock.middle', { default: 'Middle zones' });
-      case 'bottom': return $t('troubadour.dock.bottom', { default: 'Bottom zones' });
-      case 'left': return $t('troubadour.dock.left', { default: 'Left zones' });
-      case 'right': return $t('troubadour.dock.right', { default: 'Right zones' });
-    }
-  }
-
-  function getMainResizeElement(regionId: 'top' | 'middle' | 'bottom' | 'left' | 'right'): HTMLElement | null {
-    if (regionId !== 'middle' || visibleDockColumns.includes('middle')) {
-      return dockWorkspaceElement.querySelector<HTMLElement>(`[data-dock-region="${regionId}"]`);
-    }
-
-    const middleBandRegion = visibleDockColumns[0];
-    return middleBandRegion
-      ? dockWorkspaceElement.querySelector<HTMLElement>(`[data-dock-region="${middleBandRegion}"]`)
-      : null;
-  }
-
-  function replaceDockLayoutAxis(
-    layout: TroubadourDockLayout,
-    axis: 'rows' | 'columns',
-    before: string,
-    after: string,
-    beforeWeight: number,
-    afterWeight: number
-  ): TroubadourDockLayout {
-    return {
-      ...layout,
-      [axis]: {
-        ...layout[axis],
-        [before]: beforeWeight,
-        [after]: afterWeight
-      }
-    } as TroubadourDockLayout;
-  }
+  $: lyricsPreviewFile = syncLyricsFile(lyricsPreview, lyricsItem?.file ?? null, lyricsPreviewFile);
 
   function beginMainDockResize(
     axis: 'rows' | 'columns',
-    before: 'top' | 'middle' | 'bottom' | 'left' | 'right',
-    after: 'top' | 'middle' | 'bottom' | 'left' | 'right',
+    before: TroubadourDockRegionId,
+    after: TroubadourDockRegionId,
     event: PointerEvent
   ): void {
-    const beforeElement = getMainResizeElement(before);
-    const afterElement = getMainResizeElement(after);
-
-    if (!beforeElement || !afterElement) return;
-
-    event.preventDefault();
-    dockResizeCleanup?.();
-    const beforeBounds = beforeElement.getBoundingClientRect();
-    const afterBounds = afterElement.getBoundingClientRect();
-    const horizontal = axis === 'columns';
-    const beforeSize = horizontal ? beforeBounds.width : beforeBounds.height;
-    const afterSize = horizontal ? afterBounds.width : afterBounds.height;
-    const startCoordinate = horizontal ? event.clientX : event.clientY;
-    const startLayout = dockState.layout;
-    const axisLayout = startLayout[axis] as Record<string, number>;
-
-    const move = (moveEvent: PointerEvent) => {
-      const coordinate = horizontal ? moveEvent.clientX : moveEvent.clientY;
-      const next = resizeDockPairWeights({
-        beforeSize,
-        afterSize,
-        beforeWeight: axisLayout[before],
-        afterWeight: axisLayout[after],
-        delta: coordinate - startCoordinate,
-        minimumSize: horizontal ? 140 : 84
-      });
-      troubadourWorkspaceState.setLayout(replaceDockLayoutAxis(
-        startLayout,
-        axis,
-        before,
-        after,
-        next.beforeWeight,
-        next.afterWeight
-      ));
-    };
-    const stop = () => {
-      window.removeEventListener('pointermove', move);
-      window.removeEventListener('pointerup', stop);
-      window.removeEventListener('pointercancel', stop);
-      dockResizeCleanup = null;
-      isDockResizing = false;
-    };
-
+    const cleanup = startMainDockResize(
+      dockWorkspaceElement,
+      visibleDockColumns,
+      dockState.layout,
+      axis,
+      before,
+      after,
+      event,
+      (layout) => troubadourWorkspaceState.setLayout(layout),
+      () => dockResizeCleanup?.()
+    );
+    if (!cleanup) return;
     isDockResizing = true;
-    dockResizeCleanup = stop;
-    window.addEventListener('pointermove', move);
-    window.addEventListener('pointerup', stop, { once: true });
-    window.addEventListener('pointercancel', stop, { once: true });
+    dockResizeCleanup = () => {
+      cleanup();
+      isDockResizing = false;
+      dockResizeCleanup = null;
+    };
   }
 
   function beginDockHalfResize(regionId: TroubadourDockRegionId, event: PointerEvent): void {
-    const region = TROUBADOUR_DOCK_REGIONS.find((candidate) => candidate.id === regionId);
-    const regionElement = dockWorkspaceElement.querySelector<HTMLElement>(`[data-dock-region="${regionId}"]`);
-
-    if (!region || !regionElement) return;
-
-    event.preventDefault();
-    dockResizeCleanup?.();
-    const bounds = regionElement.getBoundingClientRect();
-    const horizontal = region.split === 'horizontal';
-    const startLayout = dockState.layout;
-
-    const move = (moveEvent: PointerEvent) => {
-      const dimension = horizontal ? bounds.width : bounds.height;
-      const position = horizontal
-        ? moveEvent.clientX - bounds.left
-        : moveEvent.clientY - bounds.top;
-      const split = resolveDockSplit(position, dimension, horizontal ? 120 : 72);
-      troubadourWorkspaceState.setLayout({
-        ...startLayout,
-        splits: { ...startLayout.splits, [regionId]: split }
-      });
-    };
-    const stop = () => {
-      window.removeEventListener('pointermove', move);
-      window.removeEventListener('pointerup', stop);
-      window.removeEventListener('pointercancel', stop);
-      dockResizeCleanup = null;
-      isDockResizing = false;
-    };
-
+    const cleanup = startDockHalfResize(
+      dockWorkspaceElement,
+      dockState.layout,
+      regionId,
+      event,
+      (layout) => troubadourWorkspaceState.setLayout(layout),
+      () => dockResizeCleanup?.()
+    );
+    if (!cleanup) return;
     isDockResizing = true;
-    dockResizeCleanup = stop;
-    window.addEventListener('pointermove', move);
-    window.addEventListener('pointerup', stop, { once: true });
-    window.addEventListener('pointercancel', stop, { once: true });
+    dockResizeCleanup = () => {
+      cleanup();
+      isDockResizing = false;
+      dockResizeCleanup = null;
+    };
   }
 
   function isDockTabActive(tab: TroubadourTab): boolean {
@@ -456,101 +351,23 @@
   }
 
   async function chooseFiles(): Promise<void> {
-    const picker = window as Window & { showOpenFilePicker?: (options?: OpenFilePickerOptions) => Promise<FileSystemFileHandle[]> };
-    if (!picker.showOpenFilePicker) {
-      fileInput.click();
-      return;
-    }
-    try {
-      loadingSource = 'files';
-      await controller.ingestHandles(
-        await picker.showOpenFilePicker(OPEN_FILE_OPTIONS),
-        settings.metadataReadConcurrency,
-        settings.autoGroupOnLoad ? settings.autoGroupFallback : undefined
-      );
-    } catch (error) {
-      handleError(error);
-    } finally {
-      loadingSource = null;
-    }
+    await chooseFilesFromTarget(importTarget, fileInput);
   }
 
   async function chooseFolder(): Promise<void> {
-    const picker = window as Window & { showDirectoryPicker?: (options?: { mode?: 'read' | 'readwrite' }) => Promise<FileSystemDirectoryHandle> };
-    if (!picker.showDirectoryPicker) {
-      renameError = $t('troubadour.workbench.folderUnavailable', { default: 'Folder access is unavailable. Use Add files instead.' });
-      return;
-    }
-    try {
-      const directory = await picker.showDirectoryPicker({ mode: 'read' });
-      loadingSource = 'folder';
-      await controller.ingestDirectory(
-        directory,
-        settings.folderScanDepth,
-        settings.metadataReadConcurrency,
-        settings.autoGroupOnLoad ? settings.autoGroupFallback : undefined
-      );
-    } catch (error) {
-      handleError(error);
-    } finally {
-      loadingSource = null;
-    }
+    await chooseFolderFromTarget(importTarget);
   }
 
   async function addRememberedFolder(): Promise<void> {
-    const folder = state.rememberedFolders.find((candidate) => candidate.id === rememberedFolderId);
-    if (!folder) return;
-    try {
-      loadingSource = 'library-folder';
-      await controller.ingestDirectory(
-        folder.handle,
-        settings.folderScanDepth,
-        settings.metadataReadConcurrency,
-        settings.autoGroupOnLoad ? settings.autoGroupFallback : undefined
-      );
-    } catch (error) {
-      handleError(error);
-    } finally {
-      loadingSource = null;
-    }
+    await addRememberedFolderFromTarget(importTarget, state.rememberedFolders, rememberedFolderId);
   }
 
   async function handleFileFallback(event: Event): Promise<void> {
-    const input = event.currentTarget as HTMLInputElement;
-    const files = Array.from(input.files ?? []);
-    input.value = '';
-    const transfer = new DataTransfer();
-    files.forEach((file) => transfer.items.add(file));
-    try {
-      loadingSource = 'files';
-      await controller.ingestDropped(
-        transfer,
-        settings.folderScanDepth,
-        settings.metadataReadConcurrency,
-        settings.autoGroupOnLoad ? settings.autoGroupFallback : undefined
-      );
-    } catch (error) {
-      handleError(error);
-    } finally {
-      loadingSource = null;
-    }
+    await handleFileFallbackFromTarget(importTarget, event);
   }
 
   async function handleDrop(event: DragEvent): Promise<void> {
-    event.preventDefault();
-    dragActive = false;
-    if (isItemDrag(event)) return;
-    if (!event.dataTransfer) return;
-    try {
-      await controller.ingestDropped(
-        event.dataTransfer,
-        settings.folderScanDepth,
-        settings.metadataReadConcurrency,
-        settings.autoGroupOnLoad ? settings.autoGroupFallback : undefined
-      );
-    } catch (error) {
-      handleError(error);
-    }
+    await handleDropFromTarget(importTarget, event);
   }
 
   function removeSelected(): void {
@@ -563,28 +380,14 @@
   }
 
   async function save(all = false): Promise<void> {
-    const results = await controller.saveSelectedOrAll({
-      all,
-      requestPermission: true,
-      verify: true
-    });
-    publishTroubadourBatchResult({ results });
+    await controller.saveAndPublish({ all, requestPermission: true, verify: true });
   }
 
   async function previewRenames(): Promise<void> {
     renameError = '';
     setActiveTab('rename');
     try {
-      renameRows = await controller.buildRenamePreview(renameTemplate, {
-        illegalCharacterReplacement: settings.illegalCharacterReplacement,
-        normalizeWhitespace: settings.normalizeWhitespace,
-        unicodeNormalization: settings.unicodeNormalization === 'nfc'
-          ? 'NFC'
-          : settings.unicodeNormalization === 'ascii' ? 'ascii' : 'none',
-        extensionCase: settings.extensionCase,
-        missingTokenPolicy: settings.missingTokenPolicy,
-        collisionPolicy: settings.collisionPolicy
-      });
+      renameRows = await controller.previewRenames(renameTemplate, settings);
     } catch (error) {
       handleError(error);
       renameRows = [];
@@ -592,16 +395,11 @@
   }
 
   async function applyRenames(saveFirst = false): Promise<void> {
-    if (saveFirst) {
-      const saveResults = await controller.saveSelectedOrAll({ verify: true, requestPermission: true });
-      publishTroubadourBatchResult({ results: saveResults });
-      await previewRenames();
-    }
-    const { results } = await controller.applyRenames(renameRows, {
-      verification: settings.copyVerification
+    await controller.applyRenamesAndPublish(renameRows, {
+      saveFirst,
+      verification: settings.copyVerification,
+      refreshPreview: previewRenames
     });
-    publishTroubadourBatchResult({ results });
-    await previewRenames();
   }
 
   function setRenameRowEnabled(id: string, enabled: boolean): void {
@@ -609,15 +407,7 @@
   }
 
   async function grantRenameAccess(): Promise<void> {
-    const handles = new Set<FileSystemHandle>();
-    for (const row of renameRows) {
-      if (!row.problems.includes('permission-required')) continue;
-      if (row.parentHandle) handles.add(row.parentHandle);
-      if (row.fileHandle) handles.add(row.fileHandle);
-    }
-    // Invoke every request before yielding so Chromium retains the button's user activation.
-    const requests = [...handles].map((handle) => handle.requestPermission?.({ mode: 'readwrite' }) ?? Promise.resolve('granted' as const));
-    await Promise.all(requests);
+    await requestRenameAccess(renameRows);
     await previewRenames();
   }
 
@@ -626,58 +416,27 @@
   }
 
   function moveDockTab(detail: DockTabMoveDetail): void {
-    troubadourWorkspaceState.moveTab(detail);
-    draggedDockTabId = null;
-    dockDropZoneId = null;
+    moveDockTabForTarget(dockTabTarget, detail);
   }
 
   function handleDockTabDragStart(tabId: string): void {
-    draggedDockTabId = isTroubadourTab(tabId) ? tabId : null;
-    dragActive = false;
+    handleDockTabDragStartForTarget(dockTabTarget, tabId);
   }
 
   function handleDockTabDragEnd(): void {
-    draggedDockTabId = null;
-    dockDropZoneId = null;
+    handleDockTabDragEndForTarget(dockTabTarget);
   }
 
   function handleDockPanelDragOver(event: DragEvent, zoneId: TroubadourDockZoneId): void {
-    if (!hasDockTabDragData(event.dataTransfer, TROUBADOUR_DOCK_SCOPE)) {
-      return;
-    }
-
-    event.preventDefault();
-    event.stopPropagation();
-    if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
-    dockDropZoneId = zoneId;
+    handleDockPanelDragOverForTarget(dockTabTarget, event, zoneId);
   }
 
   function handleDockPanelDrop(event: DragEvent, zoneId: TroubadourDockZoneId): void {
-    const dragData = readDockTabDragData(event.dataTransfer, TROUBADOUR_DOCK_SCOPE);
-
-    if (!dragData) {
-      return;
-    }
-
-    event.preventDefault();
-    event.stopPropagation();
-    moveDockTab({ ...dragData, targetZoneId: zoneId, position: 'end' });
+    handleDockPanelDropForTarget(dockTabTarget, event, zoneId);
   }
 
   function handleDockPanelDragLeave(event: DragEvent, zoneId: TroubadourDockZoneId): void {
-    if (
-      event.relatedTarget instanceof Node &&
-      event.currentTarget instanceof HTMLElement &&
-      event.currentTarget.contains(event.relatedTarget)
-    ) {
-      return;
-    }
-
-    if (dockDropZoneId === zoneId) dockDropZoneId = null;
-  }
-
-  function isSpectrogramItem(item: TroubadourWorkbenchItem | null | undefined): boolean {
-    return Boolean(item && (STREAM_EXTENSIONS as readonly string[]).includes(item.extension));
+    handleDockPanelDragLeaveForTarget(dockTabTarget, event, zoneId);
   }
 
   function openSpectrogram(item: TroubadourWorkbenchItem | null = selectedPrimary): void {
@@ -694,22 +453,6 @@
     const first = selectedItems.map(effectiveFields).find(Boolean);
     pendingAlbumName = first?.album || $t('troubadour.workbench.newAlbum', { default: 'New album' });
     controller.createAlbum(pendingAlbumName);
-  }
-
-  function buildContextMenuItems(): MenuActionItem[] {
-    const item = state.items.find((candidate) => candidate.id === contextItemId);
-    return [
-      { id: 'copyPath', label: $t('troubadour.workbench.copyPath', { default: 'Copy path' }), icon: 'content_copy', disabled: !item?.path },
-      { id: 'spectrogram', label: $t('troubadour.menu.spectrogram', { default: 'Open selected file in Spectrogram' }), icon: 'waterfall_chart', disabled: !isSpectrogramItem(item), separatorBefore: true },
-      { id: 'createAlbum', label: $t('troubadour.menu.createAlbum', { default: 'Create album from selection' }), icon: 'create_new_folder', separatorBefore: true },
-      ...state.albums.map((album, index) => ({
-        id: `assign:${album.id}`,
-        label: $t('troubadour.workbench.assignToAlbum', { default: 'Assign to {album}', values: { album: album.title } }),
-        icon: 'album',
-        separatorBefore: index === 0
-      })),
-      { id: 'remove', label: $t('troubadour.menu.remove', { default: 'Remove from workbench' }), icon: 'remove', separatorBefore: true }
-    ];
   }
 
   function openContextMenu(event: MouseEvent, item: TroubadourWorkbenchItem): void {
@@ -730,48 +473,6 @@
     else if (action === 'remove') removeSelected();
   }
 
-  function stateIcon(item: TroubadourWorkbenchItem): string {
-    if (item.state === 'loading' || item.state === 'saving') return 'progress_activity';
-    if (item.state === 'dirty') return 'edit';
-    if (item.state === 'saved') return 'check_circle';
-    if (item.state === 'unsupported') return 'visibility';
-    if (item.state === 'failed' || item.state === 'unreadable' || item.state === 'conflicted') return 'error';
-    if (item.state === 'permission-required') return 'lock';
-    return 'audio_file';
-  }
-
-  function stateText(item: TroubadourWorkbenchItem): string {
-    if (item.error) return item.error;
-    return item.state.replace('-', ' ');
-  }
-
-  function fieldLabel(field: MediaMetadataFieldName): string {
-    switch (field) {
-      case 'title': return $t('troubadour.fields.title', { default: 'Title' });
-      case 'artist': return $t('troubadour.fields.artist', { default: 'Artist' });
-      case 'albumArtist': return $t('troubadour.fields.albumArtist', { default: 'Album artist' });
-      case 'album': return $t('troubadour.fields.album', { default: 'Album' });
-      case 'date': return $t('troubadour.fields.date', { default: 'Date' });
-      case 'trackNumber': return $t('troubadour.fields.trackNumber', { default: 'Track number' });
-      case 'tracksTotal': return $t('troubadour.fields.tracksTotal', { default: 'Track total' });
-      case 'discNumber': return $t('troubadour.fields.discNumber', { default: 'Disc number' });
-      case 'discsTotal': return $t('troubadour.fields.discsTotal', { default: 'Disc total' });
-      case 'genre': return $t('troubadour.fields.genre', { default: 'Genre' });
-      case 'composer': return $t('troubadour.fields.composer', { default: 'Composer' });
-      case 'comment': return $t('troubadour.fields.comment', { default: 'Comment' });
-      case 'lyrics': return $t('troubadour.fields.lyrics', { default: 'Lyrics' });
-      case 'isrc': return 'ISRC';
-      case 'bpm': return 'BPM';
-      case 'grouping': return $t('troubadour.fields.grouping', { default: 'Grouping' });
-      case 'copyright': return $t('troubadour.fields.copyright', { default: 'Copyright' });
-      case 'titleSort': return $t('troubadour.fields.titleSort', { default: 'Title sort' });
-      case 'artistSort': return $t('troubadour.fields.artistSort', { default: 'Artist sort' });
-      case 'albumSort': return $t('troubadour.fields.albumSort', { default: 'Album sort' });
-      case 'albumArtistSort': return $t('troubadour.fields.albumArtistSort', { default: 'Album artist sort' });
-      case 'composerSort': return $t('troubadour.fields.composerSort', { default: 'Composer sort' });
-    }
-  }
-
   function selectRow(event: MouseEvent, item: TroubadourWorkbenchItem): void {
     controller.select(item.id, { additive: event.ctrlKey || event.metaKey, range: event.shiftKey });
   }
@@ -785,50 +486,24 @@
     dataTransfer.setData(ITEM_DRAG_MIME, JSON.stringify(controller.getSnapshot().selectedIds));
   }
 
-  function isItemDrag(event: DragEvent): boolean {
-    return Array.from(event.dataTransfer?.types ?? []).includes(ITEM_DRAG_MIME);
-  }
-
   function handleWindowDragOver(event: DragEvent): void {
-    if (isItemDrag(event)) {
-      dragActive = false;
-      return;
-    }
-    if (!Array.from(event.dataTransfer?.types ?? []).includes('Files')) return;
-    event.preventDefault();
-    dragActive = true;
-    if (event.dataTransfer) event.dataTransfer.dropEffect = 'copy';
+    handleWindowDragOverForTarget(importTarget, event);
   }
 
   function handleWindowDragLeave(event: DragEvent): void {
-    if (!isItemDrag(event) && event.relatedTarget === null) dragActive = false;
+    handleWindowDragLeaveForTarget(importTarget, event);
   }
 
   function dragOverAlbum(event: DragEvent, album: TroubadourAlbum): void {
-    if (!isItemDrag(event)) return;
-    event.preventDefault();
-    event.stopPropagation();
-    if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
-    dragAlbumId = album.id;
+    dragOverAlbumForTarget(albumDragTarget, event, album);
   }
 
   function leaveAlbum(event: DragEvent, album: TroubadourAlbum): void {
-    const pane = event.currentTarget as HTMLElement;
-    if (event.relatedTarget instanceof Node && pane.contains(event.relatedTarget)) return;
-    if (dragAlbumId === album.id) dragAlbumId = null;
+    leaveAlbumForTarget(albumDragTarget, event, album);
   }
 
   function dropOnAlbum(event: DragEvent, album: TroubadourAlbum): void {
-    if (!isItemDrag(event)) return;
-    event.preventDefault();
-    event.stopPropagation();
-    dragAlbumId = null;
-    try {
-      const itemIds = JSON.parse(event.dataTransfer?.getData(ITEM_DRAG_MIME) ?? '[]');
-      if (Array.isArray(itemIds)) controller.assignItemsToAlbum(itemIds.filter((id): id is string => typeof id === 'string'), album.id);
-    } catch {
-      // Ignore malformed internal drag data.
-    }
+    dropOnAlbumForTarget(albumDragTarget, event, album);
   }
 
   function editField(field: MediaMetadataFieldName, event: Event): void {
@@ -840,104 +515,48 @@
     artworkInput.click();
   }
 
-  async function artworkFromFile(file: File): Promise<MediaArtwork> {
-    return {
-      id: `pending:${crypto.randomUUID()}`,
-      data: new Uint8Array(await file.arrayBuffer()),
-      mimeType: file.type || 'image/jpeg',
-      kind: settings.defaultArtworkKind === 'back' ? 'coverBack' : settings.defaultArtworkKind === 'front' ? 'coverFront' : 'unknown',
-      name: file.name,
-      size: file.size
-    };
-  }
-
   function stageArtwork(artwork: MediaArtwork, mode: 'add' | 'replace' = 'add'): void {
-    if (mode === 'replace' && selectedArtwork) {
-      controller.replaceArtwork(selectedArtwork.id, artwork);
-      return;
-    }
-    if (settings.multipleImageBehavior === 'reject' && selectedAppliedDocuments.some((document) => document.artwork.length)) {
-      renameError = $t('troubadour.workbench.multipleArtworkRejected', { default: 'The current artwork policy rejects additional images.' });
-      return;
-    }
-    controller.addArtwork(artwork, settings.multipleImageBehavior);
+    stageWorkbenchArtwork(artworkStagingTarget, artwork, mode);
   }
 
   async function addArtworkFile(event: Event): Promise<void> {
-    const input = event.currentTarget as HTMLInputElement;
-    const file = input.files?.[0];
-    input.value = '';
-    if (!file) return;
-    stageArtwork(await artworkFromFile(file), artworkInputMode);
+    await addArtworkFileToWorkbench(artworkStagingTarget, event, artworkInputMode);
   }
 
   async function pasteArtwork(): Promise<void> {
-    if (!navigator.clipboard?.read) return;
-    for (const item of await navigator.clipboard.read()) {
-      const type = item.types.find((candidate) => candidate.startsWith('image/'));
-      if (!type) continue;
-      const blob = await item.getType(type);
-      stageArtwork(await artworkFromFile(new File([blob], 'clipboard-image', { type })), 'add');
-      return;
-    }
+    await pasteArtworkToWorkbench(artworkStagingTarget);
   }
 
   async function dropArtwork(event: DragEvent): Promise<void> {
-    event.preventDefault();
-    event.stopPropagation();
-    dragActive = false;
-    const file = [...(event.dataTransfer?.files ?? [])].find((candidate) => candidate.type.startsWith('image/'));
-    if (file) stageArtwork(await artworkFromFile(file), 'add');
+    await dropArtworkToWorkbench(artworkStagingTarget, event);
   }
 
   function handleArtworkDragOver(event: DragEvent): void {
-    if (!Array.from(event.dataTransfer?.types ?? []).includes('Files')) {
-      return;
-    }
-
-    event.preventDefault();
-    event.stopPropagation();
+    artworkDragOver(event);
   }
 
   function handleArtworkDrop(event: DragEvent): void {
-    if (Array.from(event.dataTransfer?.types ?? []).includes('Files')) {
-      void dropArtwork(event);
-    }
+    artworkDrop(artworkStagingTarget, event);
   }
 
   function clearArtwork(): void {
-    const affected = selectedAppliedDocuments.filter((document) => document.artwork.length).length;
-    if (affected >= settings.destructiveClearConfirmationThreshold && !window.confirm($t('troubadour.workbench.confirmClearArtwork', {
-      default: 'Stage removal of all artwork from {count} selected files?',
-      values: { count: affected }
-    }))) return;
-    controller.clearArtwork();
+    clearWorkbenchArtwork(artworkStagingTarget, selectedAppliedDocuments.filter((document) => document.artwork.length).length);
   }
 
   function setArtworkKind(kind: MediaArtwork['kind']): void {
-    if (selectedArtwork) controller.replaceArtwork(selectedArtwork.id, { ...selectedArtwork, kind });
+    setWorkbenchArtworkKind(artworkStagingTarget, kind);
   }
 
   function applyArtworkToSelectedAlbum(): void {
-    if (selectedArtwork && state.selectedAlbumId) {
-      controller.applyArtworkToAlbum(state.selectedAlbumId, selectedArtwork, settings.multipleImageBehavior);
-    }
+    applyArtworkToAlbumSelection(artworkStagingTarget, state.selectedAlbumId);
   }
 
   async function copyArtwork(): Promise<void> {
-    if (!selectedArtwork || !('ClipboardItem' in window)) return;
-    const blob = new Blob([selectedArtwork.data.slice().buffer], { type: selectedArtwork.mimeType });
-    await navigator.clipboard.write([new ClipboardItem({ [blob.type]: blob })]);
+    await copyWorkbenchArtwork(selectedArtwork);
   }
 
   function extractArtwork(): void {
-    if (!selectedArtwork) return;
-    const blob = new Blob([selectedArtwork.data.slice().buffer], { type: selectedArtwork.mimeType });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = selectedArtwork.name || `cover.${selectedArtwork.mimeType.split('/')[1] || 'bin'}`;
-    link.click();
-    setTimeout(() => URL.revokeObjectURL(link.href), 0);
+    extractWorkbenchArtwork(selectedArtwork);
   }
 
   function handleKeydown(event: KeyboardEvent): void {
@@ -1088,7 +707,7 @@
             <div class="grid-header" role="row"><span>{$t('troubadour.workbench.state', { default: 'State' })}</span><span>{$t('troubadour.workbench.file', { default: 'File' })}</span><span>{$t('troubadour.workbench.path', { default: 'Path' })}</span><span>{$t('troubadour.workbench.format', { default: 'Format' })}</span></div>
             {#each state.items as item (item.id)}
               <button class="grid-row file-row" class:selected={state.selectedIds.includes(item.id)} class:dirty={Object.keys(item.patch).length || item.artworkEdits.length} type="button" role="row" draggable="true" on:dragstart={(event) => beginItemDrag(event, item)} on:click={(event) => selectRow(event, item)} on:contextmenu={(event) => openContextMenu(event, item)}>
-                <span class="state-cell" title={stateText(item)}><span class="material-symbols-outlined" class:spinning={item.state === 'loading' || item.state === 'saving'}>{stateIcon(item)}</span></span>
+                <span class="state-cell" title={itemStateText(item)}><span class="material-symbols-outlined" class:spinning={item.state === 'loading' || item.state === 'saving'}>{itemStateIcon(item)}</span></span>
                 <span title={item.file.name}>{item.file.name}</span><span class="path-cell" title={item.path}>{item.path}</span><span>{item.extension.toUpperCase()}</span>
               </button>
             {/each}
@@ -1120,15 +739,15 @@
               {@const fieldState = selectedFieldValue(state.items, state.selectedIds, field)}
               {@const dirty = selectedItems.some((item) => field in item.patch)}
               <label class="property-row" class:dirty>
-                <span class="property-name">{fieldLabel(field)}{#if dirty}<span class="dirty-dot" title={$t('troubadour.workbench.staged', { default: 'Staged' })}></span>{/if}</span>
+                <span class="property-name">{fieldLabelForField(field, $t)}{#if dirty}<span class="dirty-dot" title={$t('troubadour.workbench.staged', { default: 'Staged' })}></span>{/if}</span>
                 {#if field === 'lyrics' || field === 'comment'}
                   <textarea value={fieldState.varies ? '' : fieldState.value} placeholder={fieldState.varies ? '<varies>' : ''} disabled={!selectedItems.some((item) => item.document)} on:change={(event) => editField(field, event)}></textarea>
                 {:else}
                   <input value={fieldState.varies ? '' : fieldState.value} placeholder={fieldState.varies ? '<varies>' : ''} disabled={!selectedItems.some((item) => item.document)} on:change={(event) => editField(field, event)} />
                 {/if}
                 <span class="original-value" title={fieldState.originalVaries ? $t('troubadour.workbench.originalVaries', { default: 'Original values vary' }) : fieldState.original}>{fieldState.originalVaries ? '<varies>' : fieldState.original || '—'}</span>
-                <button class="row-action hover-tooltip-anchor" type="button" aria-label={$t('troubadour.workbench.clearField', { default: 'Clear {field}', values: { field: fieldLabel(field) } })} disabled={!selectedItems.length} on:click={() => controller.editField(field, null)}><span class="material-symbols-outlined">backspace</span><HoverTooltip>{$t('troubadour.workbench.explicitClear', { default: 'Explicitly clear' })}</HoverTooltip></button>
-                <button class="row-action hover-tooltip-anchor" type="button" aria-label={$t('troubadour.workbench.revertFieldNamed', { default: 'Revert {field}', values: { field: fieldLabel(field) } })} disabled={!dirty} on:click={() => controller.resetField(field)}><span class="material-symbols-outlined">undo</span><HoverTooltip>{$t('troubadour.workbench.revertField', { default: 'Revert field' })}</HoverTooltip></button>
+                <button class="row-action hover-tooltip-anchor" type="button" aria-label={$t('troubadour.workbench.clearField', { default: 'Clear {field}', values: { field: fieldLabelForField(field, $t) } })} disabled={!selectedItems.length} on:click={() => controller.editField(field, null)}><span class="material-symbols-outlined">backspace</span><HoverTooltip>{$t('troubadour.workbench.explicitClear', { default: 'Explicitly clear' })}</HoverTooltip></button>
+                <button class="row-action hover-tooltip-anchor" type="button" aria-label={$t('troubadour.workbench.revertFieldNamed', { default: 'Revert {field}', values: { field: fieldLabelForField(field, $t) } })} disabled={!dirty} on:click={() => controller.resetField(field)}><span class="material-symbols-outlined">undo</span><HoverTooltip>{$t('troubadour.workbench.revertField', { default: 'Revert field' })}</HoverTooltip></button>
               </label>
             {/each}
           </div>
@@ -1225,7 +844,7 @@
               class:is-horizontal={region.split === 'horizontal'}
               class:is-vertical={region.split === 'vertical'}
               role="separator"
-              aria-label={$t('troubadour.dock.resizeHalves', { default: 'Resize {region}', values: { region: dockRegionLabel(region.id) } })}
+              aria-label={$t('troubadour.dock.resizeHalves', { default: 'Resize {region}', values: { region: dockRegionLabelForRegion(region.id, $t) } })}
               on:pointerdown={(event) => beginDockHalfResize(region.id, event)}
             ></div>
           {/if}
@@ -1237,7 +856,7 @@
       <div
         class={`dock-main-resizer dock-main-column-resizer separator-after-${pair.before}`}
         role="separator"
-        aria-label={$t('troubadour.dock.resizeMain', { default: 'Resize {before} and {after}', values: { before: dockRegionLabel(pair.before), after: dockRegionLabel(pair.after) } })}
+        aria-label={$t('troubadour.dock.resizeMain', { default: 'Resize {before} and {after}', values: { before: dockRegionLabelForRegion(pair.before, $t), after: dockRegionLabelForRegion(pair.after, $t) } })}
         on:pointerdown={(event) => beginMainDockResize('columns', pair.before, pair.after, event)}
       ></div>
     {/each}
@@ -1246,7 +865,7 @@
       <div
         class={`dock-main-resizer dock-main-row-resizer separator-after-${pair.before}`}
         role="separator"
-        aria-label={$t('troubadour.dock.resizeMain', { default: 'Resize {before} and {after}', values: { before: dockRegionLabel(pair.before), after: dockRegionLabel(pair.after) } })}
+        aria-label={$t('troubadour.dock.resizeMain', { default: 'Resize {before} and {after}', values: { before: dockRegionLabelForRegion(pair.before, $t), after: dockRegionLabelForRegion(pair.after, $t) } })}
         on:pointerdown={(event) => beginMainDockResize('rows', pair.before, pair.after, event)}
       ></div>
     {/each}

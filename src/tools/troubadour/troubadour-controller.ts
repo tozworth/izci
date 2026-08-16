@@ -22,7 +22,11 @@ import type {
   TroubadourTrackReference,
   TroubadourWriteTarget
 } from '$lib/services/troubadour-sync';
-import { requestTroubadourWritePreparation } from '$lib/services/troubadour-sync';
+import {
+  publishTroubadourBatchResult,
+  requestTroubadourWritePreparation
+} from '$lib/services/troubadour-sync';
+import type { TroubadourSettings } from '$lib/stores/troubadour-settings';
 import {
   discoverDirectoryFiles,
   inferExtension,
@@ -175,6 +179,31 @@ export function selectedFieldValue(
   };
 }
 
+export function renameRulesFromSettings(settings: TroubadourSettings): FilenameRules {
+  return {
+    illegalCharacterReplacement: settings.illegalCharacterReplacement,
+    normalizeWhitespace: settings.normalizeWhitespace,
+    unicodeNormalization: settings.unicodeNormalization === 'nfc'
+      ? 'NFC'
+      : settings.unicodeNormalization === 'ascii' ? 'ascii' : 'none',
+    extensionCase: settings.extensionCase,
+    missingTokenPolicy: settings.missingTokenPolicy,
+    collisionPolicy: settings.collisionPolicy
+  };
+}
+
+export async function requestRenameAccess(rows: RenamePreviewRow[]): Promise<void> {
+  const handles = new Set<FileSystemHandle>();
+  for (const row of rows) {
+    if (!row.problems.includes('permission-required')) continue;
+    if (row.parentHandle) handles.add(row.parentHandle);
+    if (row.fileHandle) handles.add(row.fileHandle);
+  }
+  // Invoke every request before yielding so Chromium retains the button's user activation.
+  const requests = [...handles].map((handle) => handle.requestPermission?.({ mode: 'readwrite' }) ?? Promise.resolve('granted' as const));
+  await Promise.all(requests);
+}
+
 function cloneStaged(state: StagedWorkbenchState): StagedWorkbenchState {
   return {
     items: state.items.map((item) => ({
@@ -306,6 +335,12 @@ export function createTroubadourController(
     rows: RenamePreviewRow[],
     options?: { signal?: AbortSignal; verification?: RenameVerification }
   ): Promise<{ jobs: RenameJobResult[]; results: TroubadourBatchItemResult[] }>;
+  saveAndPublish(options?: { all?: boolean; requestPermission?: boolean; verify?: boolean }): Promise<TroubadourBatchItemResult[]>;
+  previewRenames(template: string, settings: TroubadourSettings): Promise<RenamePreviewRow[]>;
+  applyRenamesAndPublish(
+    rows: RenamePreviewRow[],
+    options?: { saveFirst?: boolean; verification?: RenameVerification; refreshPreview?: () => Promise<void> }
+  ): Promise<void>;
 } {
   const store = writable<TroubadourWorkbenchState>(EMPTY_STATE);
   let state = EMPTY_STATE;
@@ -1101,6 +1136,27 @@ export function createTroubadourController(
       history = createHistory(cloneStaged({ items: state.items, albums: state.albums }));
       setState({ canUndo: false, canRedo: false });
       return { jobs, results };
+    },
+    async saveAndPublish(options: { all?: boolean; requestPermission?: boolean; verify?: boolean } = {}) {
+      const results = await this.saveSelectedOrAll(options);
+      publishTroubadourBatchResult({ results });
+      return results;
+    },
+    async previewRenames(template: string, settings: TroubadourSettings) {
+      return await this.buildRenamePreview(template, renameRulesFromSettings(settings));
+    },
+    async applyRenamesAndPublish(
+      rows: RenamePreviewRow[],
+      options: { saveFirst?: boolean; verification?: RenameVerification; refreshPreview?: () => Promise<void> } = {}
+    ) {
+      if (options.saveFirst) {
+        const saveResults = await this.saveSelectedOrAll({ verify: true, requestPermission: true });
+        publishTroubadourBatchResult({ results: saveResults });
+        await options.refreshPreview?.();
+      }
+      const { results } = await this.applyRenames(rows, { verification: options.verification });
+      publishTroubadourBatchResult({ results });
+      await options.refreshPreview?.();
     }
   };
   return api;

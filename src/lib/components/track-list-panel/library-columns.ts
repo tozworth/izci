@@ -15,6 +15,9 @@ import {
   getTrackDisplayTitle
 } from '$lib/utils/files';
 import { formatTrackRating, normalizeTrackRating } from '$lib/services/track-ratings';
+import type { TranslationOptions } from '$lib/i18n';
+
+type Translate = (id: string, options?: TranslationOptions) => string;
 
 export type LibraryColumnWidths = Partial<Record<LibraryColumnId, number>>;
 
@@ -75,6 +78,38 @@ export function getOrderedColumns(
     width: columns[columnId].width,
     visible: columns[columnId].visible
   }));
+}
+
+export function getColumnLabel(columnId: LibraryColumnId, fallback: string, translate: Translate): string {
+  switch (columnId) {
+    case 'title': return translate('library.columns.title', { default: 'Title' });
+    case 'artist': return translate('library.columns.artist', { default: 'Artist' });
+    case 'album': return translate('library.columns.album', { default: 'Album' });
+    case 'discAndTrack': return translate('library.columns.discAndTrack', { default: 'Track' });
+    case 'folder': return translate('library.columns.folder', { default: 'Folder' });
+    case 'format': return translate('library.columns.format', { default: 'Format' });
+    case 'duration': return translate('library.columns.duration', { default: 'Duration' });
+    case 'rating': return translate('library.columns.rating', { default: 'Rating' });
+    case 'plays': return translate('library.columns.plays', { default: 'Plays' });
+    case 'lastPlayed': return translate('library.columns.lastPlayed', { default: 'Last played' });
+    default: return fallback;
+  }
+}
+
+export function buildOrderedColumns(
+  order: LibraryColumnId[],
+  columns: Record<LibraryColumnId, LibraryViewColumnState>,
+  ratingsEnabled: boolean,
+  translate: Translate
+): LibraryPanelColumn[] {
+  return getOrderedColumns(order, columns)
+    .filter((column) => ratingsEnabled || column.id !== 'rating')
+    .map((column) => ({ ...column, label: getColumnLabel(column.id, column.label, translate) }))
+    .map((column, _index, columns) =>
+      columns.some((candidate) => candidate.visible)
+        ? column
+        : { ...column, visible: column.id === 'title' }
+    );
 }
 
 export function formatTrackType(item: TrackItem): string {

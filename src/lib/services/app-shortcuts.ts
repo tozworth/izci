@@ -1,8 +1,10 @@
 import type {
   PlaybackSnapshot,
   TrackItem,
-  WorkspaceCollection
+  WorkspaceCollection,
+  WorkspaceTab
 } from '$lib/types';
+import type { WorkspacePanelDefinition } from '$lib/components/workspace/types';
 
 const KEYBOARD_SEEK_STEP_SECONDS = 5;
 const KEYBOARD_VOLUME_STEP = 0.05;
@@ -295,4 +297,45 @@ export function createAppShortcuts({ getState, handlers }: CreateAppShortcutsOpt
     handleContextMenu,
     handleKeydown
   };
+}
+
+/**
+ * Cycles the active workspace tab by direction (-1 previous, 1 next),
+ * wrapping around. Returns false when there are fewer than two tabs.
+ */
+export function cycleWorkspaceTab(
+  direction: -1 | 1,
+  tabs: readonly WorkspaceTab[],
+  activeTab: WorkspaceTab | null,
+  setActiveTab: (tab: WorkspaceTab) => void
+): boolean {
+  if (tabs.length < 2) {
+    return false;
+  }
+
+  const currentIndex = Math.max(tabs.indexOf(activeTab as WorkspaceTab), 0);
+  const nextIndex = (currentIndex + direction + tabs.length) % tabs.length;
+  const nextTab = tabs[nextIndex];
+
+  setActiveTab(nextTab);
+  return true;
+}
+
+/**
+ * Closes the active tab of the right workspace panel, falling back to its
+ * first tab when no tab is active. No-op when the panel has no tabs.
+ */
+export function closeActiveRightPanel(
+  panels: readonly WorkspacePanelDefinition[],
+  closeTab: (tab: WorkspaceTab) => void
+): void {
+  const rightPanel = panels.find((panel) => panel.id === 'right');
+  const tabToClose =
+    rightPanel?.activeTab ?? rightPanel?.tabs[0]?.id ?? null;
+
+  if (!tabToClose) {
+    return;
+  }
+
+  closeTab(tabToClose);
 }

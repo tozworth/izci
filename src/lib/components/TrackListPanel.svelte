@@ -2,10 +2,7 @@
   import { createEventDispatcher, onDestroy, tick } from 'svelte';
   import { locale, t } from 'svelte-i18n';
   import { appearanceSettings } from '$lib/stores/appearance-settings';
-  import {
-    LIBRARY_COLUMN_MIN_WIDTHS,
-    libraryViewSettings
-  } from '$lib/stores/library-view-settings';
+  import { libraryViewSettings } from '$lib/stores/library-view-settings';
   import type {
     LibraryColumnId,
     LibraryViewId,
@@ -15,43 +12,72 @@
     TrackSelection,
     WorkspaceLibraryGroupRequest
   } from '$lib/types';
-  import { prepareImportedFiles } from '$lib/services/file-verification';
   import { createAlbumArtworkController } from '$lib/services/album-artwork';
   import { trackSettings } from '$lib/stores/track-settings';
   import { normalizeTrackRating } from '$lib/services/track-ratings';
-  import { buildLibraryGroupContextActions } from '$lib/services/workspace-actions';
-  import { extractDroppedContent } from '$lib/utils/files';
   import TrackListPanelHeader from '$lib/components/track-list-panel/TrackListPanelHeader.svelte';
   import LibraryPanelHeader from '$lib/components/track-list-panel/LibraryPanelHeader.svelte';
   import LibraryAlbumBackdrop from '$lib/components/track-list-panel/LibraryAlbumBackdrop.svelte';
   import LibraryGroupList from '$lib/components/track-list-panel/LibraryGroupList.svelte';
-  import { findRequestedLibraryGroup } from '$lib/components/track-list-panel/library-group-navigation';
   import TrackList from '$lib/components/track-list-panel/TrackList.svelte';
   import ColumnListView from '$lib/components/ColumnListView.svelte';
-  import type { ColumnListViewColumn } from '$lib/components/column-list-view';
-  import {
-    DEFAULT_TRACK_ROW_HEIGHT,
-    TRACK_LIST_VIRTUALIZATION_THRESHOLD
-  } from '$lib/components/track-list-panel/track-list-virtualization';
+  import { DEFAULT_TRACK_ROW_HEIGHT } from '$lib/components/track-list-panel/track-list-virtualization';
   import MenuSurface from '$lib/components/MenuSurface.svelte';
   import { buildOrderedSelection, isToggleSelection } from '$lib/components/track-list-panel/selection';
-  import { buildSelectAllSelection } from '$lib/stores/queue-selection';
   import {
     compareItems,
     fitWidthsToAvailableWidth,
-    getLibraryColumnIcon,
-    getOrderedColumns,
-    isRightAlignedColumn,
-    rebalanceResizedColumns,
+    buildOrderedColumns,
     type ColumnDropIndicator,
     type LibraryColumnWidths
   } from '$lib/components/track-list-panel/library-columns';
   import type { TrackListPanelContextMenu } from '$lib/components/track-list-panel/context-menu';
   import {
-    filterItemsByQuery,
-    formatTotalDuration,
-    getTotalDuration
-  } from '$lib/components/track-list-panel/search';
+    buildContextMenuActions,
+    buildContextMenuItems,
+    buildItemContextMenu,
+    buildLibraryGroupContextMenu,
+    buildPanelContextMenu,
+    getContextMenuAriaLabel,
+    handleMenuAction as runPanelMenuAction
+  } from '$lib/components/track-list-panel/context-menu';
+  import {
+    columnResizeLabel as getColumnResizeLabel,
+    handleColumnPointerDown as beginColumnPointerDown,
+    handleColumnResizeStart as beginColumnResize,
+    handleColumnSort as requestColumnSort,
+    handleColumnVisibilityToggle as toggleColumnVisibility,
+    handleWindowPointerMove as updateColumnPointerMove,
+    handleWindowPointerUp as endColumnDrag,
+    toColumnListViewColumns
+  } from '$lib/components/track-list-panel/columns';
+  import { handleDrop as handlePanelDrop } from '$lib/components/track-list-panel/dnd';
+  import {
+    focusTrackRow as focusTrackRowHelper,
+    handleWindowKeydown as handlePanelWindowKeydown,
+    handleWindowKeydownCapture as handlePanelWindowKeydownCapture
+  } from '$lib/components/track-list-panel/keyboard';
+  import {
+    clearSelection as clearPanelSelection,
+    findRequestedLibraryGroup,
+    handleLibraryGroupBack as goBackFromLibraryGroup,
+    handleLibraryGroupMove as movePinnedLibraryGroup,
+    handleLibraryGroupOpen as openLibraryGroup,
+    handleLibraryGroupUnpin as unpinLibraryGroup,
+    handleLibraryViewChange as handlePanelLibraryViewChange,
+    openRequestedLibraryGroup as openRequestedLibraryGroupHelper,
+    resolveActiveLibraryView,
+    scrollTrackIntoView as scrollTrackIntoViewHelper
+  } from '$lib/components/track-list-panel/library-group-navigation';
+  import {
+    getLibraryGroupSummary,
+    getLibraryGroupTrackSummary,
+    getLocalizedTrackSummary,
+    getRepeatControlLabel,
+    localizeLibraryGroup,
+    localizePanelLabel
+  } from '$lib/components/track-list-panel/summaries';
+  import { filterItemsByQuery } from '$lib/components/track-list-panel/search';
   import {
     buildLibraryGroups,
     filterLibraryGroupItems,
@@ -138,131 +164,6 @@
     albumArtworkUrls = urls;
   });
 
-  function localizePanelLabel(label: string): string {
-    if (label === 'Queue') return $t('queue.title', { default: 'Queue' });
-    if (label === 'Library') return $t('library.title', { default: 'Library' });
-    return label;
-  }
-
-  function localizeLibraryGroup(group: LibraryGroup): LibraryGroup {
-    let label = group.label;
-    let secondary = group.secondary;
-
-    switch (group.placeholder) {
-      case 'artist': label = $t('library.unknownArtist', { default: 'Unknown artist' }); break;
-      case 'album': label = $t('library.unknownAlbum', { default: 'Unknown album' }); break;
-      case 'genre': label = $t('library.unknownGenre', { default: 'Unknown genre' }); break;
-      case 'year': label = $t('library.unknownYear', { default: 'Unknown year' }); break;
-      case 'format': label = $t('library.unknownFormat', { default: 'Unknown format' }); break;
-      case 'folder': label = $t('library.unknownFolder', { default: 'Unknown folder' }); break;
-    }
-
-    if (group.secondaryKind === 'trackerModule') {
-      secondary = $t('library.trackerModule', { default: 'Tracker module' });
-    } else if (group.secondaryKind === 'stream') {
-      secondary = $t('library.stream', { default: 'Stream' });
-    } else if (group.secondaryKind === 'video') {
-      secondary = $t('library.video', { default: 'Video' });
-    }
-
-    return { ...group, label, secondary };
-  }
-
-  function getColumnLabel(columnId: LibraryColumnId, fallback: string): string {
-    switch (columnId) {
-      case 'title': return $t('library.columns.title', { default: 'Title' });
-      case 'artist': return $t('library.columns.artist', { default: 'Artist' });
-      case 'album': return $t('library.columns.album', { default: 'Album' });
-      case 'discAndTrack': return $t('library.columns.discAndTrack', { default: 'Track' });
-      case 'folder': return $t('library.columns.folder', { default: 'Folder' });
-      case 'format': return $t('library.columns.format', { default: 'Format' });
-      case 'duration': return $t('library.columns.duration', { default: 'Duration' });
-      case 'rating': return $t('library.columns.rating', { default: 'Rating' });
-      case 'plays': return $t('library.columns.plays', { default: 'Plays' });
-      case 'lastPlayed': return $t('library.columns.lastPlayed', { default: 'Last played' });
-      default: return fallback;
-    }
-  }
-
-  function getTrackSummary(
-    sourceItems: TrackItem[],
-    visibleItems: TrackItem[],
-    query: string
-  ): string {
-    const duration = formatTotalDuration(getTotalDuration(visibleItems));
-
-    if (query && visibleItems.length !== sourceItems.length) {
-      return $t('queue.summary.filteredTracks', {
-        default: '{visible} of {total} {total, plural, one {song} other {songs}} · {duration}',
-        values: { visible: visibleItems.length, total: sourceItems.length, duration }
-      });
-    }
-
-    return $t('queue.summary.tracks', {
-      default: '{count, plural, one {# song} other {# songs}} · {duration}',
-      values: { count: visibleItems.length, duration }
-    });
-  }
-
-  function getGroupCountSummary(
-    view: LibraryGroupViewId,
-    visible: number,
-    total: number,
-    filtered: boolean
-  ): string {
-    const values = { visible, total, count: visible };
-
-    if (filtered) {
-      switch (view) {
-        case 'artists': return $t('library.summary.filteredArtists', { default: '{visible} of {total} {total, plural, one {artist} other {artists}}', values });
-        case 'albums': return $t('library.summary.filteredAlbums', { default: '{visible} of {total} {total, plural, one {album} other {albums}}', values });
-        case 'genres': return $t('library.summary.filteredGenres', { default: '{visible} of {total} {total, plural, one {genre} other {genres}}', values });
-        case 'years': return $t('library.summary.filteredYears', { default: '{visible} of {total} {total, plural, one {year} other {years}}', values });
-        case 'formats': return $t('library.summary.filteredFormats', { default: '{visible} of {total} {total, plural, one {format} other {formats}}', values });
-        case 'folders': return $t('library.summary.filteredFolders', { default: '{visible} of {total} {total, plural, one {folder} other {folders}}', values });
-      }
-    }
-
-    switch (view) {
-      case 'artists': return $t('library.summary.artists', { default: '{count, plural, one {# artist} other {# artists}}', values });
-      case 'albums': return $t('library.summary.albums', { default: '{count, plural, one {# album} other {# albums}}', values });
-      case 'genres': return $t('library.summary.genres', { default: '{count, plural, one {# genre} other {# genres}}', values });
-      case 'years': return $t('library.summary.years', { default: '{count, plural, one {# year} other {# years}}', values });
-      case 'formats': return $t('library.summary.formats', { default: '{count, plural, one {# format} other {# formats}}', values });
-      case 'folders': return $t('library.summary.folders', { default: '{count, plural, one {# folder} other {# folders}}', values });
-    }
-  }
-
-  function getLibraryGroupSummary(
-    view: LibraryGroupViewId,
-    visibleGroups: number,
-    totalGroups: number,
-    songs: number,
-    query: string
-  ): string {
-    const groups = getGroupCountSummary(view, visibleGroups, totalGroups, Boolean(query) && visibleGroups !== totalGroups);
-    return $t('library.summary.groupsAndSongs', {
-      default: '{groups} · {songs, plural, one {# song} other {# songs}}',
-      values: { groups, songs }
-    });
-  }
-
-  function getLibraryGroupTrackSummary(group: LibraryGroup, visibleItems: TrackItem[]): string {
-    const duration = formatTotalDuration(getTotalDuration(visibleItems));
-
-    if (visibleItems.length !== group.items.length) {
-      return $t('queue.summary.filteredTracks', {
-        default: '{visible} of {total} {total, plural, one {song} other {songs}} · {duration}',
-        values: { visible: visibleItems.length, total: group.items.length, duration }
-      });
-    }
-
-    return $t('queue.summary.tracks', {
-      default: '{count, plural, one {# song} other {# songs}} · {duration}',
-      values: { count: visibleItems.length, duration }
-    });
-  }
-
   onDestroy(() => {
     if (albumBackdropTransitionFrame !== null) {
       cancelAnimationFrame(albumBackdropTransitionFrame);
@@ -286,32 +187,13 @@
     });
   }
 
-  function clamp(value: number, min: number, max: number): number {
-    return Math.min(Math.max(value, min), max);
-  }
-
   async function handleDrop(event: DragEvent) {
-    event.preventDefault();
-
-    if (readOnly) return;
-
-    if (!event.dataTransfer) {
-      return;
-    }
-
-    const { files: discoveredFiles, directoryHandles } = await extractDroppedContent(event.dataTransfer, {
-      maxDepth: trackSettings.getSnapshot().folderNestingLimit
-    });
-
-    if (directoryHandles.length > 0) {
-      dispatch('addFolders', directoryHandles);
-    }
-
-    const files = await prepareImportedFiles(discoveredFiles);
-
-    if (files.length > 0) {
-      dispatch('addFiles', files);
-    }
+    void handlePanelDrop(
+      event,
+      readOnly,
+      (handles) => dispatch('addFolders', handles),
+      (files) => dispatch('addFiles', files)
+    );
   }
 
   function closeContextMenu() {
@@ -325,151 +207,42 @@
     resizingColumnId = null;
   }
 
-  function getColumnDropIndicator(clientX: number): ColumnDropIndicator | null {
-    if (!columnsHeaderElement || visibleColumns.length === 0) {
-      return null;
-    }
-
-    const columnElements = Array.from(
-      columnsHeaderElement.querySelectorAll<HTMLElement>('[data-column-id]')
-    );
-    const columnBounds = visibleColumns
-      .map((column) => {
-        const element = columnElements.find((node) => node.dataset.columnId === column.id);
-
-        if (!element) {
-          return null;
-        }
-
-        return {
-          columnId: column.id,
-          bounds: element.getBoundingClientRect()
-        };
-      })
-      .filter((entry): entry is { columnId: LibraryColumnId; bounds: DOMRect } => Boolean(entry));
-
-    if (columnBounds.length === 0) {
-      return null;
-    }
-
-    for (const { columnId, bounds } of columnBounds) {
-      if (clientX < bounds.left + bounds.width / 2) {
-        return {
-          columnId,
-          position: 'before'
-        };
-      }
-    }
-
-    return {
-      columnId: columnBounds[columnBounds.length - 1].columnId,
-      position: 'after'
-    };
-  }
-
   function handleWindowDismiss() {
     closeContextMenu();
     clearColumnInteractions();
   }
 
   async function focusTrackRow(id: string) {
-    await scrollTrackIntoView(id);
-    await tick();
-
-    if (!dropzoneElement || typeof CSS === 'undefined' || typeof CSS.escape !== 'function') {
-      return;
-    }
-
-    const rowButton = dropzoneElement.querySelector<HTMLButtonElement>(
-      `[data-track-id="${CSS.escape(id)}"] [data-track-row-button]`
-    );
-    rowButton?.focus();
+    await focusTrackRowHelper(id, {
+      dropzoneElement,
+      onScrollTrackIntoView: scrollTrackIntoView
+    });
   }
 
   function handleWindowKeydown(event: KeyboardEvent) {
-    if (event.key === 'Escape') {
-      handleWindowDismiss();
-      return;
-    }
-
-    if (
-      (event.key === 'ArrowUp' || event.key === 'ArrowDown') &&
-      !event.ctrlKey &&
-      !event.altKey &&
-      !event.metaKey &&
-      event.target instanceof Element &&
-      dropzoneElement?.contains(event.target)
-    ) {
-      const currentRow = event.target.closest<HTMLElement>('[data-track-id]');
-      const currentIndex = currentRow
-        ? displayItems.findIndex((item) => item.id === currentRow.dataset.trackId)
-        : -1;
-
-      if (currentIndex < 0) {
-        return;
-      }
-
-      const nextIndex = clamp(currentIndex + (event.key === 'ArrowUp' ? -1 : 1), 0, displayItems.length - 1);
-      const nextItem = displayItems[nextIndex];
-      event.preventDefault();
-
-      if (!nextItem || nextIndex === currentIndex) {
-        return;
-      }
-
-      dispatch(
-        'setSelection',
-        buildOrderedSelection(displayItems, displaySelectedIds, displaySelectionAnchorId, nextItem.id, event.shiftKey, false)
-      );
-      void focusTrackRow(nextItem.id);
-    }
+    handlePanelWindowKeydown(event, {
+      displayItems,
+      displaySelectedIds,
+      displaySelectionAnchorId,
+      dropzoneElement,
+      onSetSelection: (selection) => dispatch('setSelection', selection),
+      onFocusTrackRow: (id) => void focusTrackRow(id),
+      onDismiss: handleWindowDismiss
+    });
   }
 
   function handleWindowKeydownCapture(event: KeyboardEvent) {
-    const editingTarget = event.target instanceof HTMLElement
-      && (event.target.matches('input, textarea, select') || event.target.isContentEditable);
-
-    if (
-      keyboardActive
-      && event.key.toLowerCase() === 'a'
-      && event.ctrlKey
-      && !event.altKey
-      && !event.shiftKey
-      && !event.metaKey
-      && !editingTarget
-    ) {
-      event.preventDefault();
-      event.stopImmediatePropagation();
-
-      if (showTrackRows) {
-        dispatch('setSelection', buildSelectAllSelection(displayItems));
-      }
-      return;
-    }
-
-    if (
-      event.key !== 'Escape' ||
-      event.ctrlKey ||
-      event.altKey ||
-      event.metaKey ||
-      event.target instanceof HTMLInputElement
-    ) {
-      return;
-    }
-
-    if (contextMenu) {
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      handleWindowDismiss();
-      return;
-    }
-
-    if (libraryMode && selectedGroupKey !== null) {
-      event.preventDefault();
-      event.stopImmediatePropagation();
-      handleWindowDismiss();
-      void handleLibraryGroupBack();
-    }
+    handlePanelWindowKeydownCapture(event, {
+      keyboardActive,
+      showTrackRows,
+      displayItems,
+      contextMenu,
+      libraryMode,
+      selectedGroupKey,
+      onSetSelection: (selection) => dispatch('setSelection', selection),
+      onDismiss: handleWindowDismiss,
+      onLibraryGroupBack: () => void handleLibraryGroupBack()
+    });
   }
 
   function updateQueueHeaderState() {
@@ -509,203 +282,63 @@
   }
 
   function handleItemContextMenu(event: MouseEvent, id: string) {
-    if (readOnly) return;
-    event.preventDefault();
-
-    const itemIsSelected = displaySelectedIds.includes(id);
-
-    if (!itemIsSelected) {
-      if (layout === 'columns') {
-        dispatch('setSelection', {
-          ids: [id],
-          anchorId: id,
-          focusId: id
-        });
-      } else {
-        dispatch('select', {
-          id,
-          range: false,
-          toggle: false
-        });
-      }
-    }
-
-    contextMenu = {
-      kind: 'items',
-      x: event.clientX,
-      y: event.clientY,
-      ids: itemIsSelected ? displaySelectedIds : [id]
-    };
-
+    const menu = buildItemContextMenu(event, id, {
+      readOnly,
+      layout,
+      displaySelectedIds,
+      onSetSelection: (selection) => dispatch('setSelection', selection),
+      onSelect: (detail) => dispatch('select', detail)
+    });
+    if (menu) contextMenu = menu;
   }
 
   function handleLibraryGroupContextMenu(event: MouseEvent, key: string) {
-    event.preventDefault();
-
-    if (!groupView) {
-      return;
-    }
-
-    const group = libraryGroups.find((entry) => entry.key === key);
-
-    if (!group) {
-      return;
-    }
-
-    const ids = group.items.map((item) => item.id);
-    dispatch('setSelection', {
-      ids,
-      anchorId: ids[0] ?? null,
-      focusId: ids[0] ?? null
+    const menu = buildLibraryGroupContextMenu(event, key, {
+      groupView,
+      libraryGroups,
+      pinnedKeys: pinnedLibraryGroupKeys,
+      onSetSelection: (selection) => dispatch('setSelection', selection)
     });
-
-    contextMenu = {
-      kind: 'library-group',
-      x: event.clientX,
-      y: event.clientY,
-      ids,
-      view: groupView,
-      key,
-      pinned: $libraryViewSettings.pinnedGroupKeys[groupView].includes(key)
-    };
-
+    if (menu) contextMenu = menu;
   }
 
   function openPanelContextMenu(event: MouseEvent): void {
-    if (readOnly || libraryMode) return;
-
-    const target = event.target as HTMLElement | null;
-    if (target?.closest('[data-track-id], .clv-columns-header, .clv-column-header, .panel-header')) {
-      return;
-    }
-
-    event.preventDefault();
-    contextMenu = {
-      kind: 'panel',
-      x: event.clientX,
-      y: event.clientY
-    };
+    const menu = buildPanelContextMenu(event, readOnly, libraryMode, true);
+    if (menu) contextMenu = menu;
   }
 
   function openPanelHeaderContextMenu(event: MouseEvent): void {
-    if (readOnly || libraryMode) return;
-    event.preventDefault();
-    contextMenu = {
-      kind: 'panel',
-      x: event.clientX,
-      y: event.clientY
-    };
-  }
-
-  function handleContextAction(actionId: string) {
-    if (
-      !contextMenu
-      || (contextMenu.kind !== 'items'
-        && contextMenu.kind !== 'library-group'
-        && contextMenu.kind !== 'panel')
-    ) {
-      return;
-    }
-
-    dispatch('contextAction', {
-      actionId,
-      ids: contextMenu.kind === 'items' || contextMenu.kind === 'library-group'
-        ? contextMenu.ids
-        : []
-    });
-    closeContextMenu();
+    const menu = buildPanelContextMenu(event, readOnly, libraryMode, false);
+    if (menu) contextMenu = menu;
   }
 
   function handleColumnSort(columnId: LibraryColumnId) {
-    if (suppressNextColumnSort) {
+    if (requestColumnSort(columnId, suppressNextColumnSort)) {
       suppressNextColumnSort = false;
-      return;
     }
-
-    libraryViewSettings.setSort(columnId);
   }
 
   function handleColumnVisibilityToggle(columnId: LibraryColumnId): void {
-    const column = orderedColumns.find((candidate) => candidate.id === columnId);
-
-    if (!column || (column.visible && visibleColumnCount === 1)) {
-      return;
-    }
-
-    libraryViewSettings.setColumnVisibility(column.id, !column.visible);
-  }
-
-  function columnResizeLabel(column: ColumnListViewColumn): string {
-    return $t('library.columns.resize', {
-      default: 'Resize {column} column',
-      values: { column: column.label }
-    });
-  }
-
-  function getContextMenuActionLabel(action: MenuActionItem): string {
-    switch (action.id) {
-      case 'go-to-library': return $t('queue.actions.goTo', { default: 'Go to...' });
-      case 'go-to-library-artist': return $t('library.columns.artist', { default: 'Artist' });
-      case 'go-to-library-album': return $t('main.trackDetails.album', { default: 'Album' });
-      case 'go-to-library-genre': return $t('main.trackDetails.genre', { default: 'Genre' });
-      case 'go-to-library-year': return $t('main.trackDetails.year', { default: 'Year' });
-      case 'go-to-library-format': return $t('main.trackDetails.format', { default: 'Format' });
-      case 'track-details': return $t('queue.actions.trackDetails', { default: 'Track details' });
-      case 'play-next': return $t('queue.actions.playNext', { default: 'Play next' });
-      case 'add-to-up-next': return $t('queue.actions.addToUpNext', { default: 'Add to up next' });
-      case 'toggle-library': return action.icon === 'remove_circle'
-        ? $t('queue.actions.removeFromLibrary', { default: 'Remove from library' })
-        : $t('queue.actions.addToLibrary', { default: 'Add to library' });
-      case 'toggle-favorite': return action.icon === 'heart_minus'
-        ? $t('queue.actions.removeFromFavorites', { default: 'Remove from favorites' })
-        : $t('queue.actions.addToFavorites', { default: 'Add to favorites' });
-      case 'rate': return $t('queue.actions.rate', { default: 'Rate' });
-      case 'rate:clear': return $t('queue.actions.clearRating', { default: 'Clear rating' });
-      case 'separate-subsongs': return $t('queue.actions.separateSubsongs', { default: 'Separate subsongs' });
-      case 'add-to-queue': return $t('queue.actions.addToQueue', { default: 'Add to queue' });
-      case 'replace-queue': return $t('queue.actions.replaceQueue', { default: 'Replace queue' });
-      case 'shuffle-play': return $t('queue.actions.shufflePlay', { default: 'Shuffle play' });
-      case 'reset-play-count': return $t('queue.actions.resetPlayCount', { default: 'Reset play count' });
-      case 'copy-filename': return $t('queue.actions.copyFilename', { default: 'Copy filename' });
-      case 'randomize-queue': return $t('queue.actions.randomize', { default: 'Randomize' });
-      case 'remove-favorite': return $t('queue.actions.removeFromFavorites', { default: 'Remove from favorites' });
-      case 'remove': return $t('queue.actions.remove', { default: 'Remove' });
-      default: return action.label;
-    }
-  }
-
-  function getContextMenuShortcut(shortcut: string | undefined): string | undefined {
-    return shortcut === 'Delete'
-      ? $t('queue.shortcuts.delete', { default: 'Delete' })
-      : shortcut;
+    toggleColumnVisibility(columnId, orderedColumns, visibleColumnCount);
   }
 
   function handleMenuAction(actionId: string) {
-    if (contextMenu?.kind === 'library-group' && actionId === 'pin-library-group') {
-      libraryViewSettings.pinGroup(contextMenu.view, contextMenu.key);
-      closeContextMenu();
-      return;
-    }
-
-    if (contextMenu?.kind === 'library-group' && actionId === 'unpin-library-group') {
-      libraryViewSettings.unpinGroup(contextMenu.view, contextMenu.key);
-      closeContextMenu();
-      return;
-    }
-
-    handleContextAction(actionId);
+    runPanelMenuAction(
+      contextMenu,
+      actionId,
+      (event) => dispatch('contextAction', event),
+      closeContextMenu
+    );
   }
 
   function handleLibraryGroupUnpin(key: string) {
-    if (!groupView) return;
-    libraryViewSettings.unpinGroup(groupView, key);
+    unpinLibraryGroup(groupView, key);
   }
 
   function handleLibraryGroupMove(
     detail: { key: string; targetKey: string; position: 'before' | 'after' }
   ) {
-    if (!groupView) return;
-    libraryViewSettings.movePinnedGroup(groupView, detail.key, detail.targetKey, detail.position);
+    movePinnedLibraryGroup(groupView, detail);
   }
 
   function handleSearchToggle() {
@@ -713,41 +346,40 @@
   }
 
   function clearSelection() {
-    if (displaySelectedIds.length === 0) return;
-
-    dispatch('setSelection', {
-      ids: [],
-      anchorId: null,
-      focusId: null
-    });
+    clearPanelSelection(displaySelectedIds, (selection) => dispatch('setSelection', selection));
   }
 
   function handleLibraryViewChange(view: LibraryViewId) {
-    if (view === activeLibraryView) {
-      if (selectedGroupKey) handleLibraryGroupBack();
-      return;
-    }
-
-    selectedGroupKey = null;
-    clearSelection();
-    libraryViewSettings.setActiveView(view);
-    dropzoneElement?.scrollTo({ top: 0 });
+    handlePanelLibraryViewChange(view, activeLibraryView, Boolean(selectedGroupKey), {
+      onClearSelectedGroup: () => {
+        selectedGroupKey = null;
+      },
+      onBack: () => void handleLibraryGroupBack(),
+      onClearSelection: clearSelection,
+      onScrollToTop: () => dropzoneElement?.scrollTo({ top: 0 })
+    });
   }
 
   function handleLibraryGroupOpen(key: string) {
-    libraryGroupScrollPositions.set(activeLibraryView, dropzoneElement?.scrollTop ?? 0);
-    selectedGroupKey = key;
-    clearSelection();
-    dropzoneElement?.scrollTo({ top: 0 });
+    openLibraryGroup(key, activeLibraryView, libraryGroupScrollPositions, {
+      scrollTop: dropzoneElement?.scrollTop ?? 0,
+      onSelectGroup: (selectedKey) => {
+        selectedGroupKey = selectedKey;
+      },
+      onClearSelection: clearSelection,
+      onScrollToTop: () => dropzoneElement?.scrollTo({ top: 0 })
+    });
   }
 
   async function handleLibraryGroupBack() {
-    const scrollTop = libraryGroupScrollPositions.get(activeLibraryView) ?? 0;
-    selectedGroupKey = null;
-    clearSelection();
-    await tick();
-    dropzoneElement?.scrollTo({ top: scrollTop });
-    updateQueueHeaderState();
+    await goBackFromLibraryGroup(activeLibraryView, libraryGroupScrollPositions, {
+      onSelectGroup: (key) => {
+        selectedGroupKey = key;
+      },
+      onClearSelection: clearSelection,
+      onScrollTo: (top) => dropzoneElement?.scrollTo({ top }),
+      onUpdateQueueHeaderState: updateQueueHeaderState
+    });
   }
 
   function handleSearchInput(value: string) {
@@ -761,72 +393,47 @@
   }
 
   function handleColumnResizeStart(event: PointerEvent, columnId: LibraryColumnId) {
-    if (layout !== 'columns') {
-      return;
-    }
-
-    event.preventDefault();
-    event.stopPropagation();
-    resizingColumnId = columnId;
-    resizeStartX = event.clientX;
-    resizeStartWidths = Object.fromEntries(visibleColumns.map((column) => [column.id, column.width]));
+    const resize = beginColumnResize(event, columnId, layout, visibleColumns);
+    if (!resize) return;
+    resizingColumnId = resize.resizingColumnId;
+    resizeStartX = resize.resizeStartX;
+    resizeStartWidths = resize.resizeStartWidths;
     closeContextMenu();
   }
 
   function handleColumnPointerDown(event: PointerEvent, columnId: LibraryColumnId) {
-    if (event.button !== 0 || layout !== 'columns' || isCompactColumnLayout || resizingColumnId) {
-      return;
-    }
-
-    const target = event.target;
-
-    if (!(target instanceof HTMLElement)) {
-      return;
-    }
-
-    if (target.closest('.clv-column-resizer')) {
-      return;
-    }
-
-    pendingDragColumnId = columnId;
-    pendingDragStartX = event.clientX;
+    const pending = beginColumnPointerDown(event, columnId, layout, isCompactColumnLayout, resizingColumnId);
+    if (!pending) return;
+    pendingDragColumnId = pending.pendingDragColumnId;
+    pendingDragStartX = pending.pendingDragStartX;
   }
 
   function handleWindowPointerMove(event: PointerEvent) {
-    if (resizingColumnId) {
-      libraryViewSettings.setColumnWidths(
-        rebalanceResizedColumns(
-          resizeStartWidths,
-          visibleColumns.map((column) => column.id),
-          resizingColumnId,
-          event.clientX - resizeStartX
-        )
-      );
-      return;
-    }
+    const result = updateColumnPointerMove(
+      event,
+      {
+        resizingColumnId,
+        resizeStartX,
+        resizeStartWidths,
+        visibleColumns,
+        draggedColumnId,
+        pendingDragColumnId,
+        pendingDragStartX
+      },
+      columnsHeaderElement
+    );
 
-    if (!draggedColumnId && pendingDragColumnId) {
-      if (Math.abs(event.clientX - pendingDragStartX) < 6) {
-        return;
-      }
-
-      draggedColumnId = pendingDragColumnId;
-      dropIndicator = getColumnDropIndicator(event.clientX);
+    if (result.type === 'drag-start') {
+      draggedColumnId = result.draggedColumnId;
+      dropIndicator = result.dropIndicator;
       closeContextMenu();
-      return;
-    }
-
-    if (draggedColumnId) {
-      dropIndicator = getColumnDropIndicator(event.clientX);
+    } else if (result.type === 'drag-move') {
+      dropIndicator = result.dropIndicator;
     }
   }
 
   function handleWindowPointerUp() {
-    const completedDrag = Boolean(draggedColumnId);
-
-    if (draggedColumnId && dropIndicator) {
-      libraryViewSettings.moveColumn(draggedColumnId, dropIndicator.columnId, dropIndicator.position);
-    }
+    const completedDrag = endColumnDrag({ draggedColumnId, dropIndicator });
 
     resizingColumnId = null;
     pendingDragColumnId = null;
@@ -845,94 +452,37 @@
   }
 
   async function scrollTrackIntoView(id: string) {
-    await tick();
-
-    if (!dropzoneElement || typeof CSS === 'undefined' || typeof CSS.escape !== 'function') {
-      return;
-    }
-
-    if (displayItems.length > TRACK_LIST_VIRTUALIZATION_THRESHOLD) {
-      const index = displayItems.findIndex((item) => item.id === id);
-      if (index < 0) return;
-
-      const centeredTop = index * trackRowHeight - (dropzoneElement.clientHeight - trackRowHeight) / 2;
-      const maxScrollTop = Math.max(displayItems.length * trackRowHeight - dropzoneElement.clientHeight, 0);
-      dropzoneElement.scrollTo({ top: clamp(centeredTop, 0, maxScrollTop) });
-      dropzoneScrollTop = dropzoneElement.scrollTop;
-      await tick();
-      return;
-    }
-
-    const row = dropzoneElement.querySelector<HTMLElement>(`[data-track-id="${CSS.escape(id)}"]`);
-
-    if (!row) {
-      return;
-    }
-
-    const visibleHeight = Math.max(dropzoneElement.clientHeight, row.offsetHeight);
-    const rowTop = row.offsetTop;
-    const centeredTop = rowTop - (visibleHeight - row.offsetHeight) / 2;
-    const maxScrollTop = Math.max(dropzoneElement.scrollHeight - dropzoneElement.clientHeight, 0);
-    dropzoneElement.scrollTo({
-      top: clamp(centeredTop, 0, maxScrollTop)
+    await scrollTrackIntoViewHelper(id, {
+      dropzoneElement,
+      displayItems,
+      trackRowHeight,
+      onDropzoneScrollTop: (top) => {
+        dropzoneScrollTop = top;
+      }
     });
-  }
-
-  function localizeContextMenuAction(action: MenuActionItem): MenuActionItem {
-    return {
-      ...action,
-      label: getContextMenuActionLabel(action),
-      shortcut: getContextMenuShortcut(action.shortcut),
-      children: action.children?.map(localizeContextMenuAction)
-    };
-  }
-
-  function buildContextMenuActions(menu: TrackListPanelContextMenu | null): MenuActionItem[] {
-    if (!menu) return [];
-
-    if (menu.kind === 'panel') {
-      return panelContextMenuItems;
-    }
-
-    const actions = getContextMenuActions(menu.ids);
-    return menu.kind === 'library-group'
-      ? buildLibraryGroupContextActions(actions)
-      : actions;
   }
 
   async function openRequestedLibraryGroup(
     request: WorkspaceLibraryGroupRequest,
     group: LibraryGroup
   ) {
-    if (!libraryMode) return;
-
-    try {
-      libraryViewSettings.setSearchQuery('');
-      searchInputExpanded = false;
-      selectedGroupKey = group.key;
-      dispatch('setSelection', {
-        ids: [request.trackId],
-        anchorId: request.trackId,
-        focusId: request.trackId
-      });
-      await scrollTrackIntoView(request.trackId);
-    } finally {
-      dispatch('libraryGroupRequestHandled', request.token);
-    }
+    await openRequestedLibraryGroupHelper(request, group, libraryMode, {
+      onCollapseSearch: () => {
+        searchInputExpanded = false;
+      },
+      onSelectGroup: (key) => {
+        selectedGroupKey = key;
+      },
+      onSetSelection: (selection) => dispatch('setSelection', selection),
+      onScrollTrackIntoView: scrollTrackIntoView,
+      onHandled: (token) => dispatch('libraryGroupRequestHandled', token)
+    });
   }
 
-  $: activeLibraryView = libraryMode
-    ? !$trackSettings.enableRatings && $libraryViewSettings.activeView === 'ratings'
-      ? 'songs'
-      : $libraryViewSettings.activeView
-    : 'songs';
+  $: activeLibraryView = resolveActiveLibraryView(libraryMode, $trackSettings.enableRatings, $libraryViewSettings.activeView);
   $: favoritesViewActive = libraryMode && activeLibraryView === 'favorites';
   $: ratingsViewActive = libraryMode && activeLibraryView === 'ratings';
-  $: displaySourceItems = favoritesViewActive
-    ? favoriteItems
-    : ratingsViewActive
-      ? items.filter((item) => normalizeTrackRating(item.rating) !== undefined)
-      : items;
+  $: displaySourceItems = favoritesViewActive ? favoriteItems : ratingsViewActive ? items.filter((item) => normalizeTrackRating(item.rating) !== undefined) : items;
   $: displaySelectedIds = favoritesViewActive ? favoriteSelectedIds : selectedIds;
   $: displaySelectionAnchorId = favoritesViewActive ? favoriteSelectionAnchorId : selectionAnchorId;
   $: displayPlayingId = favoritesViewActive ? favoritePlayingId : playingId;
@@ -945,26 +495,15 @@
   $: showSearchInput = showSearchControl && (searchInputExpanded || searchQuery !== '');
   $: activeLibraryTableSettings = $libraryViewSettings.views[activeLibraryView];
   $: orderedColumns = layout === 'columns'
-    ? getOrderedColumns(activeLibraryTableSettings.order, activeLibraryTableSettings.columns)
-        .filter((column) => $trackSettings.enableRatings || column.id !== 'rating')
-        .map((column) => ({ ...column, label: getColumnLabel(column.id, column.label) }))
-        .map((column, _index, columns) =>
-          columns.some((candidate) => candidate.visible)
-            ? column
-            : { ...column, visible: column.id === 'title' }
-        )
+    ? buildOrderedColumns(activeLibraryTableSettings.order, activeLibraryTableSettings.columns, $trackSettings.enableRatings, $t)
     : [];
   $: groupView = activeLibraryView === 'songs' || activeLibraryView === 'favorites' || activeLibraryView === 'ratings'
     ? null
     : activeLibraryView as LibraryGroupViewId;
   $: libraryGroups = groupView
-    ? buildLibraryGroups(items, groupView, $locale ?? undefined).map(localizeLibraryGroup)
+    ? buildLibraryGroups(items, groupView, $locale ?? undefined).map((group) => localizeLibraryGroup(group, $t))
     : [];
-  $: requestedLibraryGroup = findRequestedLibraryGroup(
-    libraryGroupRequest,
-    activeLibraryView,
-    libraryGroups
-  );
+  $: requestedLibraryGroup = findRequestedLibraryGroup(libraryGroupRequest, activeLibraryView, libraryGroups);
   $: pinnedLibraryGroupKeys = groupView ? $libraryViewSettings.pinnedGroupKeys[groupView] : [];
   $: orderedLibraryGroups = groupView === 'folders'
     ? libraryGroups
@@ -1002,67 +541,21 @@
     ? filterLibraryGroupItems(selectedLibraryGroup, normalizedSearchQuery)
     : filterItemsByQuery(unfilteredDisplayItems, normalizedSearchQuery);
   $: trackSummary = selectedLibraryGroup
-    ? getLibraryGroupTrackSummary(selectedLibraryGroup, filteredItems)
-    : getTrackSummary(displaySourceItems, filteredItems, normalizedSearchQuery);
-  $: libraryTooltipDetails = getLibraryViewTooltipDetails(
-    items,
-    favoriteItems,
-    normalizedSearchQuery,
-    $locale ?? undefined
-  );
+    ? getLibraryGroupTrackSummary(selectedLibraryGroup, filteredItems, $t)
+    : getLocalizedTrackSummary(displaySourceItems, filteredItems, normalizedSearchQuery, $t);
+  $: libraryTooltipDetails = getLibraryViewTooltipDetails(items, favoriteItems, normalizedSearchQuery, $locale ?? undefined);
   $: librarySummary = groupView && !selectedLibraryGroup
-    ? getLibraryGroupSummary(
-        groupView,
-        visibleLibraryGroups.length,
-        libraryGroups.length,
-        normalizedSearchQuery ? visibleGroupSongCount : items.length,
-        normalizedSearchQuery
-      )
+    ? getLibraryGroupSummary(groupView, visibleLibraryGroups.length, libraryGroups.length, normalizedSearchQuery ? visibleGroupSongCount : items.length, normalizedSearchQuery, $t)
     : trackSummary;
   $: repeatIcon = repeatMode === 'one' ? 'repeat_one' : 'repeat';
-  $: repeatLabel =
-    repeatMode === 'one'
-      ? $t('queue.repeat.currentTrack', { default: 'Repeat current track' })
-      : repeatMode === 'all'
-        ? $t('queue.repeat.queue', { default: 'Repeat queue' })
-        : $t('queue.repeat.off', { default: 'Repeat off' });
-  $: localizedPanelTitle = localizePanelLabel(panelTitle);
-  $: localizedRegionLabel = localizePanelLabel(regionLabel);
-  $: contextMenuActions = buildContextMenuActions(contextMenu);
-  $: panelContextMenuItems = [
-    {
-      id: 'randomize-queue',
-      label: $t('queue.actions.randomize', { default: 'Randomize' }),
-      icon: 'shuffle'
-    } satisfies MenuActionItem
-  ];
+  $: repeatLabel = getRepeatControlLabel(repeatMode, $t);
+  $: localizedPanelTitle = localizePanelLabel(panelTitle, $t);
+  $: localizedRegionLabel = localizePanelLabel(regionLabel, $t);
+  $: contextMenuActions = buildContextMenuActions(contextMenu, getContextMenuActions, $t);
+  $: contextMenuItems = buildContextMenuItems(contextMenu, contextMenuActions, $t);
+  $: contextMenuAriaLabel = getContextMenuAriaLabel(contextMenu, localizedPanelTitle, $t);
   $: storedVisibleColumns = orderedColumns.filter((column) => column.visible);
   $: visibleColumnCount = storedVisibleColumns.length;
-  $: contextMenuItems = [
-    ...(contextMenu?.kind === 'library-group' && contextMenu.view !== 'folders'
-      ? [{
-          id: contextMenu.pinned ? 'unpin-library-group' : 'pin-library-group',
-          label: contextMenu.pinned
-            ? $t('library.unpin', { default: 'Unpin' })
-            : $t('library.pinToTop', { default: 'Pin to top' }),
-          icon: contextMenu.pinned ? 'keep_off' : 'keep'
-        } satisfies MenuActionItem]
-      : []),
-    ...contextMenuActions.map((action, index) => {
-      const localizedAction = localizeContextMenuAction(action);
-      return {
-        ...localizedAction,
-        separatorBefore: contextMenu?.kind === 'library-group' && contextMenu.view !== 'folders' && index === 0
-          ? true
-          : localizedAction.separatorBefore
-      };
-    })
-  ];
-  $: contextMenuAriaLabel = contextMenu?.kind === 'library-group'
-      ? $t('queue.contextMenu.libraryGroupActions', { default: 'Library group actions' })
-      : contextMenu?.kind === 'panel'
-        ? $t('queue.contextMenu.panelActions', { default: 'Queue actions' })
-        : $t('queue.contextMenu.itemActions', { default: '{panel} item actions', values: { panel: localizedPanelTitle } });
   $: isCompactColumnLayout =
     !mobilePresentation &&
     layout === 'columns' &&
@@ -1090,24 +583,8 @@
     ...column,
     width: resolvedColumnWidths[column.id] ?? column.width
   }));
-  $: listViewColumns = visibleColumns.map((column): ColumnListViewColumn => ({
-    id: column.id,
-    label: column.label,
-    width: column.width,
-    minWidth: LIBRARY_COLUMN_MIN_WIDTHS[column.id],
-    icon: getLibraryColumnIcon(column.id),
-    rightAligned: isRightAlignedColumn(column.id),
-    visible: column.visible
-  }));
-  $: allListColumns = orderedColumns.map((column): ColumnListViewColumn => ({
-    id: column.id,
-    label: column.label,
-    width: column.width,
-    minWidth: LIBRARY_COLUMN_MIN_WIDTHS[column.id],
-    icon: getLibraryColumnIcon(column.id),
-    rightAligned: isRightAlignedColumn(column.id),
-    visible: column.visible
-  }));
+  $: listViewColumns = toColumnListViewColumns(visibleColumns);
+  $: allListColumns = toColumnListViewColumns(orderedColumns);
   $: displayItems =
     layout === 'columns'
       ? [...filteredItems].sort((left, right) =>
@@ -1234,7 +711,7 @@
       {draggedColumnId}
       {dropIndicator}
       {activeSort}
-      resizeLabel={columnResizeLabel}
+      resizeLabel={(column) => getColumnResizeLabel(column, $t)}
       style="--clv-header-bleed: -0.55rem; --clv-header-padding: 0 0.55rem; --clv-header-background: color-mix(in srgb, var(--track-list-header-background) 72%, var(--bg-elevated)); --clv-header-border: var(--border-soft); --clv-column-cursor: grab;"
       on:columnPointerDown={(event) => handleColumnPointerDown(event.detail.event, event.detail.columnId as LibraryColumnId)}
       on:resizeStart={(event) => handleColumnResizeStart(event.detail.event, event.detail.columnId as LibraryColumnId)}
