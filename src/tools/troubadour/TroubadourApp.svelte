@@ -632,7 +632,7 @@
     {#each [
       { icon: loadingSource === 'files' ? 'progress_activity' : 'audio_file', spinning: loadingSource === 'files', label: $t('troubadour.workbench.addFiles', { default: 'Add files' }), action: () => void chooseFiles() },
       { icon: loadingSource === 'folder' ? 'progress_activity' : 'folder_open', spinning: loadingSource === 'folder', label: $t('troubadour.workbench.addFolder', { default: 'Add folder' }), action: () => void chooseFolder() },
-      { icon: 'queue_add', spinning: false, label: $t('troubadour.menu.addFromIzci', { default: 'Add current izci selection' }), action: requestContext }
+      { icon: 'add_to_queue', spinning: false, label: $t('troubadour.menu.addFromIzci', { default: 'Add current izci selection' }), action: requestContext }
     ] as tool}
       <button class="icon-button hover-tooltip-anchor" type="button" aria-label={tool.label} disabled={state.busy || loudnessBusy} on:click={tool.action}><span class="material-symbols-outlined" class:spinning={tool.spinning} aria-hidden="true">{tool.icon}</span><HoverTooltip>{tool.label}</HoverTooltip></button>
     {/each}

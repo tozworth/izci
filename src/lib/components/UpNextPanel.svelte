@@ -18,7 +18,7 @@
   export let playingId: string | null = null;
   export let mobilePresentation = false;
   export let getContextMenuActions: (ids: string[]) => MenuActionItem[] = () => [
-    { id: 'remove-from-up-next', label: 'Remove from up next', icon: 'queue_remove' }
+    { id: 'remove-from-up-next', label: 'Remove from up next', icon: 'remove' }
   ];
 
   const dispatch = createEventDispatcher<{

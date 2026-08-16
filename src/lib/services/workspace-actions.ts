@@ -160,7 +160,7 @@ export function buildQueueContextActions(
     {
       id: 'play-next',
       label: 'Play next',
-      icon: 'skip_next'
+      icon: 'queue_play_next'
     },
     {
       id: 'add-to-up-next',
@@ -217,17 +217,17 @@ export function buildLibraryContextActions(
     {
       id: 'add-to-queue',
       label: 'Add to queue',
-      icon: 'queue_add'
+      icon: 'playlist_add'
     },
     {
       id: 'replace-queue',
       label: 'Replace queue',
-      icon: 'queue_play'
+      icon: 'playlist_play'
     },
     {
       id: 'play-next',
       label: 'Play next',
-      icon: 'skip_next'
+      icon: 'queue_play_next'
     },
     {
       id: 'add-to-up-next',
@@ -292,17 +292,17 @@ export function buildFavoritesContextActions(
     {
       id: 'add-to-queue',
       label: 'Add to queue',
-      icon: 'queue_add'
+      icon: 'playlist_add'
     },
     {
       id: 'replace-queue',
       label: 'Replace queue',
-      icon: 'queue_play'
+      icon: 'playlist_play'
     },
     {
       id: 'play-next',
       label: 'Play next',
-      icon: 'skip_next'
+      icon: 'queue_play_next'
     },
     {
       id: 'add-to-up-next',
@@ -346,7 +346,7 @@ export function buildUpNextContextActions(
             ...action,
             id: 'remove-from-up-next',
             label: 'Remove from up next',
-            icon: 'queue_remove',
+            icon: 'remove',
             shortcut: undefined
           }
         : action
@@ -385,8 +385,8 @@ export function buildFreeplayLibraryContextActions(
     ? buildGoToLibraryAction(tracks[0], libraryItems)
     : null;
   return [
-    { id: 'add-to-queue', label: 'Add to queue', icon: 'queue_add' },
-    { id: 'replace-queue', label: 'Replace queue', icon: 'queue_play' },
+    { id: 'add-to-queue', label: 'Add to queue', icon: 'playlist_add' },
+    { id: 'replace-queue', label: 'Replace queue', icon: 'playlist_play' },
     ...(goToLibrary ? [goToLibrary] : []),
     { id: 'track-details', label: 'Track details', icon: 'info' }
   ];

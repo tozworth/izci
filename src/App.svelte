@@ -816,7 +816,7 @@
     playingId: playingTrack?.id ?? null,
     getContextMenuActions: (ids: string[]) =>
       isFreeplayClient || isMultiplayerClient
-        ? [{ id: 'remove-from-up-next', label: 'Remove from up next', icon: 'queue_remove' }]
+        ? [{ id: 'remove-from-up-next', label: 'Remove from up next', icon: 'remove' }]
         : workspaceCollections.getUpNextContextActions(ids)
   } satisfies UpNextPanelProps;
   $: {
