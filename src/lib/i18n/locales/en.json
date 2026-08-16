@@ -394,7 +394,8 @@
         "stereoWidth": "Stereo Width",
         "crystalizer": "Crystalizer",
         "sloptimizer": "Sloptimizer",
-        "reverb": "Reverb"
+        "reverb": "Reverb",
+        "pitch": "Pitch"
       },
       "transfer": {
         "failed": "Raf settings transfer failed.",
@@ -436,6 +437,12 @@
         "outputPeak": "Raf output peak",
         "clipping": "Help me, I'm clipping!",
         "noClipping": "No clipping detected"
+      },
+      "pitch": {
+        "semitones": "Pitch shift",
+        "lower": "Lower",
+        "higher": "Higher",
+        "note": "Realtime granular pitch shift; adds about 85 ms of latency."
       },
       "reverb": {
         "mix": "Mix",
@@ -1482,6 +1489,10 @@
         "decay": "Decay",
         "preDelay": "Pre-delay",
         "damping": "Damping"
+      },
+      "pitch": {
+        "semitones": "Pitch shift",
+        "note": "Realtime granular pitch shift; adds about 85 ms of latency."
       },
       "edgeBlend": "Edge blend",
       "edgeBlendHint": "Crossfades the processed region at edit boundaries to prevent clicks.",

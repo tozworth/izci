@@ -394,7 +394,8 @@
         "stereoWidth": "Stereo Genişletme",
         "crystalizer": "Keskinleştirici",
         "sloptimizer": "Yalamaç",
-        "reverb": "Yankı"
+        "reverb": "Yankı",
+        "pitch": "Perde"
       },
       "transfer": {
         "failed": "Raf ayarları aktarılamadı.",
@@ -436,6 +437,12 @@
         "outputPeak": "Raf çıkış tavanı",
         "clipping": "Amanın, cızırdıyorum!",
         "noClipping": "Cızırdama yok"
+      },
+      "pitch": {
+        "semitones": "Perde kaydırma",
+        "lower": "Alçalt",
+        "higher": "Yükselt",
+        "note": "Gerçek zamanlı tanesel perde kaydırma; yaklaşık 85 ms gecikme ekler."
       },
       "reverb": {
         "mix": "Karışım",
@@ -1482,6 +1489,10 @@
         "decay": "Sönüm",
         "preDelay": "Ön gecikme",
         "damping": "Sönümleme"
+      },
+      "pitch": {
+        "semitones": "Perde kaydırma",
+        "note": "Gerçek zamanlı tanesel perde kaydırma; yaklaşık 85 ms gecikme ekler."
       },
       "edgeBlend": "Kenar geçişi",
       "edgeBlendHint": "Tıklama seslerini önlemek için işlenen bölgeyi düzenleme sınırlarında çapraz soldurur.",

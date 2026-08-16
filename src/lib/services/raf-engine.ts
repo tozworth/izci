@@ -371,6 +371,8 @@ export function sameEffectSettings(first: RafEffectSettings, second: RafEffectSe
         && first.preDelayMs === candidate.preDelayMs
         && first.dampingHz === candidate.dampingHz;
     }
+    case 'pitch':
+      return first.semitones === (second as typeof first).semitones;
   }
 }
 

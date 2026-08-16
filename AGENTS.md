@@ -19,7 +19,7 @@
 
 - Preserve all playback paths:
   - streamed / "regular" audio (`mp3`, `wav`, `flac`, `ogg`, `opus`) use Howler in HTML5 audio mode;
-  - tracker modules (`mod`, `xm`, `s3m`, `it`, `mo3`) use Chiptune3/libopenmpt and Web Audio;
+  - tracker modules (`mod`, `xm`, `s3m`, `it`, `mo3`) use Chiptune3/libopenmpt and Web Audio; Hively modules (`ahx`, `hvl`) use their own worklet-backed player and pattern data;
   - videos (`mp4`, `m4v`, `mov`, `webm`, `mkv`) use a native video element with audio routed through the shared Web Audio graph when Chromium permits it.
 - Keep playback, persistence, DSP, and browser-integration logic in services/stores. Svelte components should primarily render and dispatch events.
 - Preserve persistence boundaries:
@@ -49,7 +49,7 @@
 - `src/lib/i18n/`: English source catalog, Turkish translations, and localization runtime. Follow its README workflow when interface copy changes.
 - `src/lib/utils/`: stateless shared helpers.
 - `src/options/`: separate Options Vite/Svelte entrypoint and settings UI. Options edits stores; it does not own audio nodes or main-window library mutation.
-- `src/tools/`: standalone Audio Compare, Editor, Converter, and Troubadour window code; `tool-shell.css` supplies their shared desktop-window styling.
+- `src/tools/`: standalone Audio Compare, Editor, Converter, Logs, and Troubadour window code; `tool-shell.css` supplies their shared desktop-window styling.
 - `src/lib/types.ts`: shared domain types and canonical internally supported extensions.
 - `vite.config.ts`: build/PWA configuration, manifest/file handlers, and Chiptune3 worklet emission.
 - `public/`: icons and other static assets.
@@ -58,8 +58,8 @@
 
 - `player-controller.ts` owns backend switching and the shared playback snapshot.
 - `playback-commands.ts` owns app-level play/load/seek/navigation sequencing.
-- `howler-player.ts`, `module-player.ts`, and `video-player.ts` own their respective backends; `player-controller.ts` remains the only backend switcher.
-- `module-player.ts`, `chiptune-loader.ts`, the libopenmpt worklet, and its Vite asset emission form one coupled module pipeline.
+- `howler-player.ts`, `module-player.ts`, `ahx-player.ts`, and `video-player.ts` own their respective backends; `player-controller.ts` remains the only backend switcher.
+- `module-player.ts`, `chiptune-loader.ts`, the libopenmpt worklet, and its Vite asset emission form one coupled module pipeline; `ahx-player.ts`, its worklet, and `hively-patterns.ts` form the coupled Hively pipeline.
 - `media-session.ts` owns Chromium media metadata/actions and the silent module transport anchor.
 - `audio-bus.ts` owns the shared Web Audio routing. The intended graph is:
   `Howler/Chiptune3/video source -> transition envelope -> raw program tap` and
@@ -77,6 +77,7 @@
 - `queue.ts` remains the public queue/library store facade; focused sibling modules own persistence, materialization, selection, metadata, navigation, and deduplication.
 - Queue and library persist separately. The library deduplicates; the queue does not.
 - `TrackItem.path` is the canonical persisted/display path. Do not add a parallel folder-path cache.
+- Loadouts are persisted settings bundles (appearance, playback, Raf, visualizer) with per-track/folder context matching; keep loadout state and matching in the loadout stores/services rather than reimplementing them in components.
 - Managed folder scans preserve stable IDs and play counts, reconcile only tracks owned by that folder, and must not request permission during launch scans.
 - Stream metadata may be persisted, but embedded artwork and lyrics stay on-demand and transient. Tracker metadata hydration should use the background module probe rather than requiring playback.
 - Library play counts accrue only through the play-count service after the configured continuous-play threshold.
@@ -102,7 +103,7 @@
 
 ## Tools windows
 
-- Tools are separate Vite pages entered through `audio-compare.html`, `editor.html`, `converter.html`, and `troubadour.html`; each page mounts its matching app under `src/tools/<tool>/main.ts`. Lyrics, Loudness, and Spectrogram are Troubadour workbench tabs rather than separate pages.
+- Tools are separate Vite pages entered through `audio-compare.html`, `editor.html`, `converter.html`, `logs.html`, and `troubadour.html`; each page mounts its matching app under `src/tools/<tool>/main.ts`. Lyrics, Loudness, and Spectrogram are Troubadour workbench tabs rather than separate pages.
 - `TopMenuBar.svelte` owns main-window Tools menu presentation. Window paths and default dimensions belong in `src/lib/services/popup-windows.ts`; opening/reuse behavior stays in `window-manager.ts`.
 - Keep each tool's analysis, workers, exports, and tests in its `src/tools/<tool>/` directory. Adding or removing a tool page also requires updating the multi-page inputs and PWA navigation fallback denylist in `vite.config.ts`.
 - Troubadour is a transient metadata, artwork, timestamped-lyrics, album-grouping, and rename workbench; its controller owns workbench state and jobs, its settings live separately from main-player settings, and it must not directly mutate queue or library persistence.
@@ -122,7 +123,7 @@
 - The first active experiment adds an Options -> Experimental page and synchronized `experimental-settings.ts`; experiments default off.
 - Runtime behavior still belongs in its normal service/store/component owner behind a clean feature gate.
 - Multiplayer is the current experiment: one izci hosts its catalog and playback state, while joined izci clients provide a remote view, transport/track controls and streamed audio. The host remains authoritative.
-- Multiplayer uses Firebase Realtime Database for short-lived room signaling and WebRTC data channels for peer traffic. Keep session lifecycle wiring in `multiplayer-session.ts`, wire contracts/versioning in `multiplayer-protocol.ts`, and persisted recent hosts separate from queue/library data. Host-side and client-side session behavior live in `multiplayer-host.ts` and `multiplayer-client.ts`; shared session/peer types in `multiplayer-types.ts`; Firebase signaling in `multiplayer-signaling.ts`; peer/ICE plumbing in `multiplayer-peer.ts`; chunked source-file transfer in `multiplayer-source-transfer.ts`; receiver bitrate sampling in `multiplayer-receiver-monitor.ts`; pure helpers in `multiplayer-utils.ts`.
+- Multiplayer uses Firebase Realtime Database for short-lived room signaling and WebRTC data channels for peer traffic. Keep session lifecycle, protocol/versioning, and persisted recent hosts in dedicated `multiplayer-*` modules, separate from queue/library data.
 - Streamed Multiplayer audio is host renderer output after transport envelopes but before ReplayGain, Raf, analysis, or master volume; listeners own any later processing.
 - Freeplay is a persisted per-pair Multiplayer mode. Each active Freeplay client browses the host library but owns an independent host-side renderer and timeline; never route Freeplay through the host queue or shared player controller.
 

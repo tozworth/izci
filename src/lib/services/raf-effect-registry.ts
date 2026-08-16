@@ -4,6 +4,7 @@ import type {
   RafEffectSettings,
   RafEffectType,
   RafGraphicEqSettings,
+  RafPitchSettings,
   RafReverbSettings,
   RafSloptimizerSettings,
   RafStereoWidthSettings
@@ -85,6 +86,13 @@ import {
   updateSloptimizerNode
 } from './raf-effects/sloptimizer';
 import type { RafEffectNode } from './raf-effects/shared';
+import {
+  PITCH_SEMITONES_MAX,
+  PITCH_SEMITONES_MIN,
+  createPitchNode,
+  disposePitchNode,
+  updatePitchNode
+} from './raf-effects/pitch';
 
 export interface RafEffectDefinition {
   type: RafEffectType;
@@ -279,6 +287,18 @@ function normalizeReverb(value: unknown): RafReverbSettings | null {
   };
 }
 
+function normalizePitch(value: unknown): RafPitchSettings | null {
+  const base = normalizeBase(value, 'pitch');
+  if (!base) return null;
+  const source = value as Record<string, unknown>;
+  if (typeof source.semitones !== 'number' || !Number.isFinite(source.semitones)) return null;
+  return {
+    ...base,
+    type: 'pitch',
+    semitones: clamp(source.semitones as number, PITCH_SEMITONES_MIN, PITCH_SEMITONES_MAX)
+  };
+}
+
 const autoAmpDefinition: RafEffectDefinition = {
   type: 'auto-amp',
   name: 'Auto Amp',
@@ -425,7 +445,24 @@ const reverbDefinition: RafEffectDefinition = {
   disposeNode: (node) => disposeReverbNode(node as ReturnType<typeof createReverbNode>)
 };
 
-export const RAF_EFFECT_DEFINITIONS = [autoAmpDefinition, graphicEqDefinition, stereoWidthDefinition, crystalizerDefinition, sloptimizerDefinition, reverbDefinition] as const;
+const pitchDefinition: RafEffectDefinition = {
+  type: 'pitch',
+  name: 'Pitch',
+  icon: 'music_note',
+  createDefault: (id) => ({ id, type: 'pitch', enabled: true, semitones: 0 }),
+  normalize: normalizePitch,
+  createNode: (context, settings) => createPitchNode(context, settings as RafPitchSettings),
+  updateNode: (node, settings, context, previousSettings) =>
+    updatePitchNode(
+      node as ReturnType<typeof createPitchNode>,
+      settings as RafPitchSettings,
+      context,
+      previousSettings as RafPitchSettings | undefined
+    ),
+  disposeNode: (node) => disposePitchNode(node as ReturnType<typeof createPitchNode>)
+};
+
+export const RAF_EFFECT_DEFINITIONS = [autoAmpDefinition, graphicEqDefinition, stereoWidthDefinition, crystalizerDefinition, sloptimizerDefinition, reverbDefinition, pitchDefinition] as const;
 export const RAF_EFFECT_REGISTRY = Object.fromEntries(
   RAF_EFFECT_DEFINITIONS.map((definition) => [definition.type, definition])
 ) as Record<RafEffectType, RafEffectDefinition>;

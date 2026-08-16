@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { rafSettings } from '$lib/stores/raf-settings';
 import { playbackSettings } from '$lib/stores/playback-settings';
-import type { RafGraphicEqSettings } from '$lib/types';
+import type { RafGraphicEqSettings, RafPitchSettings } from '$lib/types';
 import { RafEngine, sameEffectSettings, sameTopology } from './raf-engine';
 import { FakeContext } from './raf-effects/test-audio-context';
 
@@ -89,6 +89,13 @@ describe('RafEngine', () => {
 
     expect(sameEffectSettings(first, { ...first, bandGainsDb: [...first.bandGainsDb] })).toBe(true);
     expect(sameEffectSettings(first, { ...first, bandGainsDb: [0, 2] })).toBe(false);
+  });
+
+  it('compares pitch semitones structurally', () => {
+    const first: RafPitchSettings = { id: 'pitch', type: 'pitch', enabled: true, semitones: 3 };
+
+    expect(sameEffectSettings(first, { ...first, semitones: 3 })).toBe(true);
+    expect(sameEffectSettings(first, { ...first, semitones: -2 })).toBe(false);
   });
 
   it('keeps the Playback feature gate separate from rack power', () => {

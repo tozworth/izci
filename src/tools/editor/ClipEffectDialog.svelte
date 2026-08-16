@@ -17,6 +17,7 @@
   } from '$lib/services/raf-effects/crystalizer';
   import { GRAPHIC_EQ_FREQUENCIES, RAF_GAIN_MAX_DB, RAF_GAIN_MIN_DB } from '$lib/services/raf-effects/graphic-eq';
   import { STEREO_WIDTH_MAX_DB, STEREO_WIDTH_MIN_DB } from '$lib/services/raf-effects/mid-side';
+  import { PITCH_SEMITONES_MAX, PITCH_SEMITONES_MIN } from '$lib/services/raf-effects/pitch';
   import {
     REVERB_DAMPING_MAX_HZ,
     REVERB_DAMPING_MIN_HZ,
@@ -59,6 +60,7 @@
     RafCrystalizerSettings,
     RafEffectType,
     RafGraphicEqSettings,
+    RafPitchSettings,
     RafReverbSettings,
     RafSloptimizerSettings,
     RafStereoWidthSettings
@@ -251,6 +253,12 @@
               <label><span>{$t('editor.effects.sloptimizer.lowCrossover', { default: 'Low crossover' })}</span><input type="range" min={SLOPTIMIZER_LOW_CROSSOVER_MIN_HZ} max={SLOPTIMIZER_LOW_CROSSOVER_MAX_HZ} step="5" value={sloptimizer.lowCrossoverHz} on:input={(event) => updateNumber(event, 'lowCrossoverHz')} /><output>{formatFrequency(sloptimizer.lowCrossoverHz)} Hz</output></label>
               <label><span>{$t('editor.effects.sloptimizer.highCrossover', { default: 'High crossover' })}</span><input type="range" min={SLOPTIMIZER_HIGH_CROSSOVER_MIN_HZ} max={SLOPTIMIZER_HIGH_CROSSOVER_MAX_HZ} step="100" value={sloptimizer.highCrossoverHz} on:input={(event) => updateNumber(event, 'highCrossoverHz')} /><output>{formatFrequency(sloptimizer.highCrossoverHz)} Hz</output></label>
             {/if}
+          </div>
+        {:else if settings.type === 'pitch'}
+          {@const pitch = settings as RafPitchSettings}
+          <div class="setting-grid single">
+            <label><span>{$t('editor.effects.pitch.semitones', { default: 'Pitch shift' })}</span><input type="range" min={PITCH_SEMITONES_MIN} max={PITCH_SEMITONES_MAX} step="1" value={pitch.semitones} on:input={(event) => updateNumber(event, 'semitones')} /><output>{pitch.semitones > 0 ? '+' : ''}{pitch.semitones.toFixed(0)} st</output></label>
+            <p class="effect-note">{$t('editor.effects.pitch.note', { default: 'Realtime granular pitch shift; adds about 85 ms of latency.' })}</p>
           </div>
         {:else}
           {@const reverb = settings as RafReverbSettings}

@@ -12,7 +12,8 @@ describe('Raf effect registry', () => {
       'stereo-width',
       'crystalizer',
       'sloptimizer',
-      'reverb'
+      'reverb',
+      'pitch'
     ]);
     expect(RAF_EFFECT_REGISTRY['auto-amp'].createDefault('amp')).toMatchObject({
       id: 'amp',
@@ -49,6 +50,12 @@ describe('Raf effect registry', () => {
       decaySeconds: 2.2,
       preDelayMs: 18,
       dampingHz: 9_000
+    });
+    expect(RAF_EFFECT_REGISTRY.pitch.createDefault('pitch')).toMatchObject({
+      id: 'pitch',
+      type: 'pitch',
+      enabled: true,
+      semitones: 0
     });
   });
 });

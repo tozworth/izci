@@ -3,6 +3,7 @@
   import AutoAmpEditor from './AutoAmpEditor.svelte';
   import CrystalizerEditor from './CrystalizerEditor.svelte';
   import GraphicEqEditor from './GraphicEqEditor.svelte';
+  import PitchEditor from './PitchEditor.svelte';
   import ReverbEditor from './ReverbEditor.svelte';
   import SloptimizerEditor from './SloptimizerEditor.svelte';
   import StereoWidthEditor from './StereoWidthEditor.svelte';
@@ -20,6 +21,8 @@
   <CrystalizerEditor settings={effect} />
 {:else if effect.type === 'sloptimizer'}
   <SloptimizerEditor settings={effect} />
+{:else if effect.type === 'pitch'}
+  <PitchEditor settings={effect} />
 {:else}
   <ReverbEditor settings={effect} />
 {/if}

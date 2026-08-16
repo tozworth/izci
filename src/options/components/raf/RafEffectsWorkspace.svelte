@@ -172,6 +172,7 @@
       case 'crystalizer': return $t('options.raf.effectTypes.crystalizer', { default: 'Crystalizer' });
       case 'sloptimizer': return $t('options.raf.effectTypes.sloptimizer', { default: 'Sloptimizer' });
       case 'reverb': return $t('options.raf.effectTypes.reverb', { default: 'Reverb' });
+      case 'pitch': return $t('options.raf.effectTypes.pitch', { default: 'Pitch' });
     }
   }
 
