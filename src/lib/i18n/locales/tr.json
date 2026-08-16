@@ -135,12 +135,10 @@
       "sleepTimerMinutes": "{minutes} dk",
       "sleepTimerRemaining": "Kalan {time}",
       "stopAfterTrack": "Geçerli parçadan sonra dur",
-      "abLoop": "A-B Döngüsü",
-      "abLoopSetStart": "Döngü başlangıcını ayarla (A)",
-      "abLoopSetEnd": "Döngü sonunu ayarla (B)",
-      "abLoopToggle": "A-B döngüsü",
+      "abLoopSetStart": "A-B başlangıcını ayarla",
+      "abLoopSetEnd": "A-B sonunu ayarla",
       "abLoopActive": "Döngü: {start}–{end}",
-      "abLoopClear": "Döngüyü temizle",
+      "abLoopStop": "A-B döngüsünü durdur",
       "queue": "Sıra"
     },
     "miniPlayer": {

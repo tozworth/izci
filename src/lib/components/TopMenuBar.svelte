@@ -25,11 +25,9 @@
   } from '$lib/services/sleep-timer';
   import {
     abLoop,
-    canEnableAbLoop,
     clearAbLoop,
     setAbLoopEnd,
-    setAbLoopStart,
-    toggleAbLoop
+    setAbLoopStart
   } from '$lib/services/ab-loop';
   import type {
     MenuActionItem,
@@ -97,7 +95,6 @@
     | `bookmark:seek:${string}`
     | 'abLoopSetStart'
     | 'abLoopSetEnd'
-    | 'abLoopToggle'
     | 'abLoopClear'
     | 'videoFitContain'
     | 'videoFitCover'
@@ -442,36 +439,6 @@
       separatorBefore: index === 0
     }))
   ] satisfies MenuActionItem[];
-  $: abLoopMenuItems = [
-    {
-      id: 'abLoopSetStart',
-      label: $t('main.menu.abLoopSetStart', { default: 'Set loop start (A)' }),
-      icon: 'flag',
-      shortcut: $abLoop.start !== null ? formatDuration($abLoop.start) : '—',
-      disabled: !playingTrack
-    },
-    {
-      id: 'abLoopSetEnd',
-      label: $t('main.menu.abLoopSetEnd', { default: 'Set loop end (B)' }),
-      icon: 'flag',
-      shortcut: $abLoop.end !== null ? formatDuration($abLoop.end) : '—',
-      disabled: !playingTrack
-    },
-    {
-      id: 'abLoopToggle',
-      label: $t('main.menu.abLoopToggle', { default: 'Loop A–B' }),
-      icon: 'repeat',
-      checked: $abLoop.active,
-      disabled: !playingTrack || !canEnableAbLoop($abLoop),
-      separatorBefore: true
-    },
-    {
-      id: 'abLoopClear',
-      label: $t('main.menu.abLoopClear', { default: 'Clear loop' }),
-      icon: 'backspace',
-      disabled: !playingTrack || ($abLoop.start === null && $abLoop.end === null)
-    }
-  ] satisfies MenuActionItem[];
   $: playbackMenuItems = [
     {
       id: 'sleepTimer',
@@ -506,17 +473,25 @@
       children: bookmarksMenuItems
     },
     {
-      id: 'abLoop',
-      label: $t('main.menu.abLoop', { default: 'A-B Loop' }),
+      id: $abLoop.start === null
+        ? 'abLoopSetStart'
+        : $abLoop.end === null
+          ? 'abLoopSetEnd'
+          : 'abLoopClear',
+      label: $abLoop.start === null
+        ? $t('main.menu.abLoopSetStart', { default: 'Set A-B start' })
+        : $abLoop.end === null
+          ? $t('main.menu.abLoopSetEnd', { default: 'Set A-B end' })
+          : $t('main.menu.abLoopStop', { default: 'Stop A-B loop' }),
       description: $abLoop.active && $abLoop.start !== null && $abLoop.end !== null
         ? $t('main.menu.abLoopActive', {
             default: 'Looping {start}–{end}',
             values: { start: formatDuration($abLoop.start), end: formatDuration($abLoop.end) }
           })
         : undefined,
-      icon: 'repeat',
-      disabled: !playingTrack,
-      children: abLoopMenuItems
+      icon: $abLoop.end === null ? 'flag' : 'repeat',
+      checked: $abLoop.active,
+      disabled: !playingTrack
     },
     {
       id: 'raf',
@@ -1014,10 +989,6 @@
     if (action === 'abLoopSetEnd') {
       if (!playingTrack) return;
       setAbLoopEnd(playbackTime);
-      return;
-    }
-    if (action === 'abLoopToggle') {
-      toggleAbLoop();
       return;
     }
     if (action === 'abLoopClear') {

@@ -71,14 +71,7 @@ export function setAbLoopStart(seconds: number): void {
 export function setAbLoopEnd(seconds: number): void {
   const end = Math.max(seconds, 0);
   logInfo('playback', 'A-B loop end set', { end });
-  publish({ active: false, start: state.start, end });
-}
-
-export function toggleAbLoop(): void {
-  const active = !state.active;
-  if (active && !canEnableAbLoop(state)) return;
-  logInfo('playback', active ? 'A-B loop enabled' : 'A-B loop disabled');
-  publish({ ...state, active });
+  publish({ active: canEnableAbLoop({ start: state.start, end }), start: state.start, end });
 }
 
 export function clearAbLoop(): void {
