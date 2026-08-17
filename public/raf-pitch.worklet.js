@@ -14,6 +14,19 @@
 // bins into a single oscillator keeps the per-frame cost proportional to the
 // number of spectral peaks instead of the number of bins.
 //
+// Improvements over the initial vocoder:
+// - Parabolic peak refinement (Puckette-style) for sub-bin frequency/phase.
+// - Laroche-Dolson identity phase locking: surrounding bins are not given
+//   independent oscillators; each region's energy is summed into its peak's
+//   oscillator so vertical phase coherence is preserved.
+// - Lightweight spectral-flux transient detector that re-anchors
+//   unwrapped/phase0 on attacks to preserve transients instead of smearing
+//   them over the window.
+// - Stereo-shared propagation: one reference channel elects the peak set and
+//   trueFreq/phase per frame, then all channels reuse that phase evolution
+//   while keeping per-channel magnitude, so the image does not wander.
+// - Per-channel phaseInitialized (fixing a global-bool race).
+//
 // - Window: Hann, default N = 2048 (~43 ms @ 48 kHz), hop R = N / 4 (75%
 //   overlap). The synthesis frames are constant-amplitude oscillators, so the
 //   OLA sum of the Hann synthesis window is 2 and the output scale is 1 / N.
@@ -27,6 +40,7 @@ const MIN_FACTOR = 0.5;
 const MAX_FACTOR = 2;
 const MIN_WINDOW_SIZE = 1024;
 const MAX_WINDOW_SIZE = 4096;
+const TRANSIENT_FLUX_THRESHOLD = 0.35;
 
 class RafPitchProcessor extends AudioWorkletProcessor {
   static get parameterDescriptors() {
@@ -46,7 +60,6 @@ class RafPitchProcessor extends AudioWorkletProcessor {
     this.channels = [];
     this.frameIndex = 0; // absolute position of the next input sample
     this.nextFrame = 0; // next analysis frame whose window is being filled
-    this.phaseInitialized = false;
   }
 
   createConfig(size) {
@@ -67,7 +80,6 @@ class RafPitchProcessor extends AudioWorkletProcessor {
   applyConfig(size) {
     if (size === this.config.size) return;
     this.config = this.createConfig(size);
-    this.phaseInitialized = false;
     for (const channel of this.channels) {
       const { size: fftSize, half, ringLength } = this.config;
       channel.input = new Float32Array(ringLength);
@@ -79,6 +91,8 @@ class RafPitchProcessor extends AudioWorkletProcessor {
       channel.mags = new Float32Array(half + 1);
       channel.trueFreq = new Float64Array(half + 1);
       channel.regionMag = new Float64Array(half + 1);
+      channel.prevMags = new Float32Array(half + 1);
+      channel.phaseInitialized = false;
       channel.accum = new Float32Array(ringLength);
       channel.oscillators.length = 0;
     }
@@ -99,7 +113,7 @@ class RafPitchProcessor extends AudioWorkletProcessor {
     this.peakFloor = 10 ** (clamp(parameters.peakFloorDb?.[0] ?? -60, -80, -40) / 20);
 
     const config = this.config;
-    const { size: fftSize, half, ringMask } = config;
+    const { size: fftSize, half, ringLength } = config;
 
     const channelCount = Math.max(input.length, output.length);
     while (this.channels.length < channelCount) {
@@ -113,6 +127,8 @@ class RafPitchProcessor extends AudioWorkletProcessor {
         mags: new Float32Array(half + 1),
         trueFreq: new Float64Array(half + 1),
         regionMag: new Float64Array(half + 1),
+        prevMags: new Float32Array(half + 1),
+        phaseInitialized: false,
         oscillators: [],
         accum: new Float32Array(config.ringLength)
       });
@@ -122,7 +138,7 @@ class RafPitchProcessor extends AudioWorkletProcessor {
 
     // Stage 1: buffer the incoming block in the per-channel input rings.
     for (let frame = 0; frame < frameCount; frame += 1) {
-      const position = this.frameIndex & ringMask;
+      const position = this.frameIndex & config.ringMask;
       for (let channel = 0; channel < channelCount; channel += 1) {
         this.channels[channel].input[position] = input[channel]?.[frame] ?? 0;
       }
@@ -143,7 +159,7 @@ class RafPitchProcessor extends AudioWorkletProcessor {
     for (let frame = 0; frame < frameCount; frame += 1) {
       const position = outputStart + frame;
       if (position < 0) continue; // silence before the stream begins
-      const slot = position & ringMask;
+      const slot = position & config.ringMask;
       for (let channel = 0; channel < channelCount; channel += 1) {
         if (channel < output.length) {
           output[channel][frame] = this.channels[channel].accum[slot];
@@ -159,6 +175,8 @@ class RafPitchProcessor extends AudioWorkletProcessor {
     const config = this.config;
     const { size: fftSize, hop, half, ringMask, window, expected } = config;
     const windowStart = frame * hop;
+
+    // Phase 1: windowed FFT + per-bin unwrapping for every channel.
     for (const state of this.channels) {
       for (let index = 0; index < fftSize; index += 1) {
         state.re[index] = window[index] * state.input[(windowStart + index) & ringMask];
@@ -167,9 +185,8 @@ class RafPitchProcessor extends AudioWorkletProcessor {
 
       fft(state.re, state.im, false);
 
-      // Analysis: magnitude, unwrapped phase and true frequency per bin.
       let peak = 0;
-      const initializePhase = !this.phaseInitialized;
+      const initializePhase = !state.phaseInitialized;
       for (let bin = 0; bin <= half; bin += 1) {
         const real = state.re[bin];
         const imag = state.im[bin];
@@ -188,47 +205,131 @@ class RafPitchProcessor extends AudioWorkletProcessor {
         state.mags[bin] = magnitude;
         if (magnitude > peak) peak = magnitude;
       }
-      this.phaseInitialized = true;
+      state.phaseInitialized = true;
+      state._peak = peak;
+    }
 
-      // Find spectral peaks (local maxima above the floor), strongest first.
-      const floor = peak * this.peakFloor;
-      if (floor > 0) {
-        const peaks = [];
-        for (let bin = 2; bin < half - 1; bin += 1) {
-          if (state.mags[bin] >= floor && state.mags[bin] >= state.mags[bin - 1] && state.mags[bin] >= state.mags[bin + 1]) {
-            peaks.push(bin);
-          }
+    // Elect reference channel (loudest) for shared peak/phase propagation.
+    let refIndex = 0;
+    let bestPeak = -1;
+    for (let index = 0; index < this.channels.length; index += 1) {
+      const peak = this.channels[index]._peak ?? 0;
+      if (peak > bestPeak) {
+        bestPeak = peak;
+        refIndex = index;
+      }
+    }
+    const refState = this.channels[refIndex];
+
+    // Transient detection on the reference channel via spectral flux.
+    let isTransient = false;
+    {
+      const mags = refState.mags;
+      const prev = refState.prevMags;
+      let sumPrev = 0;
+      for (let bin = 0; bin <= half; bin += 1) sumPrev += prev[bin];
+      if (sumPrev > 1e-9) {
+        let positiveFlux = 0;
+        let sum = 0;
+        for (let bin = 0; bin <= half; bin += 1) sum += mags[bin];
+        for (let bin = 0; bin <= half; bin += 1) {
+          const diff = mags[bin] - prev[bin];
+          if (diff > 0) positiveFlux += diff;
         }
-        peaks.sort((a, b) => state.mags[b] - state.mags[a]);
-        if (peaks.length > this.maxPeaks) peaks.length = this.maxPeaks;
+        const flux = positiveFlux / (sum + 1e-9);
+        if (flux > TRANSIENT_FLUX_THRESHOLD) isTransient = true;
+      }
+    }
 
-        // Assign every significant bin to its nearest peak and sum magnitudes.
+    if (isTransient) {
+      for (const state of this.channels) {
+        for (let bin = 0; bin <= half; bin += 1) {
+          const phase = state.lastPhase[bin];
+          state.unwrapped[bin] = phase;
+          state.phase0[bin] = phase;
+        }
+      }
+    }
+
+    // Find spectral peaks on the reference channel with parabolic refinement.
+    const floor = refState._peak * this.peakFloor;
+    let peaks = [];
+    const peakOffsets = new Map();
+    if (floor > 0) {
+      const candidates = [];
+      for (let bin = 2; bin < half - 1; bin += 1) {
+        if (refState.mags[bin] >= floor && refState.mags[bin] >= refState.mags[bin - 1] && refState.mags[bin] >= refState.mags[bin + 1]) {
+          candidates.push(bin);
+        }
+      }
+      const infos = [];
+      for (const bin of candidates) {
+        const m1 = refState.mags[bin - 1];
+        const m2 = refState.mags[bin];
+        const m3 = refState.mags[bin + 1];
+        let offset = 0;
+        const denom = m1 - 2 * m2 + m3;
+        if (Math.abs(denom) > 1e-9) {
+          offset = 0.5 * (m1 - m3) / denom;
+          if (offset > 0.5) offset = 0.5;
+          if (offset < -0.5) offset = -0.5;
+        }
+        const magRefined = m2 - 0.25 * (m1 - m3) * offset;
+        infos.push({ bin, offset, mag: magRefined });
+      }
+      infos.sort((a, b) => b.mag - a.mag);
+      if (infos.length > this.maxPeaks) infos.length = this.maxPeaks;
+      for (const info of infos) {
+        peaks.push(info.bin);
+        peakOffsets.set(info.bin, info.offset);
+      }
+
+      // Per-channel region magnitude mapped to shared peaks.
+      for (const state of this.channels) {
         const regionMag = state.regionMag;
         regionMag.fill(0);
+        const perChannelFloor = state._peak * this.peakFloor;
+        if (perChannelFloor <= 0) continue;
         for (let bin = 1; bin < half; bin += 1) {
-          if (state.mags[bin] < floor) continue;
+          const magnitude = state.mags[bin];
+          if (magnitude < perChannelFloor) continue;
           let nearest = -1;
           let bestDistance = 1e9;
           for (const candidate of peaks) {
-            const distance = Math.abs(bin - candidate);
+            const offset = peakOffsets.get(candidate) ?? 0;
+            const refinedPos = candidate + offset;
+            const distance = Math.abs(bin - refinedPos);
             if (distance < bestDistance) {
               bestDistance = distance;
               nearest = candidate;
             }
           }
-          if (nearest >= 0) regionMag[nearest] += state.mags[bin];
+          if (nearest >= 0) regionMag[nearest] += magnitude;
         }
+      }
 
-        // Synthesis: one oscillator per peak at the pitch-scaled true frequency,
-        // with the phase propagated from the first frame. The oscillators use a
-        // rotation recurrence instead of a per-sample Math.cos.
+      // Synthesis: one oscillator per peak at the pitch-scaled true frequency,
+      // with the phase propagated from the reference channel.
+      for (const state of this.channels) {
         const oscillators = state.oscillators;
         oscillators.length = 0;
+        const perChannelFloor = state._peak * this.peakFloor;
         for (const bin of peaks) {
-          const magnitude = regionMag[bin];
-          if (magnitude < floor * 0.5) continue;
-          const phase = factor * (state.unwrapped[bin] - state.phase0[bin]) + state.phase0[bin];
-          const step = factor * state.trueFreq[bin];
+          const magnitude = state.regionMag[bin];
+          if (magnitude < perChannelFloor * 0.5) continue;
+          const offset = peakOffsets.get(bin) ?? 0;
+          let trueFreqPeak = refState.trueFreq[bin];
+          if (offset !== 0) {
+            const neighbor = offset > 0 ? bin + 1 : bin - 1;
+            if (neighbor >= 0 && neighbor <= half) {
+              const absOffset = Math.abs(offset);
+              trueFreqPeak = (1 - absOffset) * refState.trueFreq[bin] + absOffset * refState.trueFreq[neighbor];
+            } else {
+              trueFreqPeak += offset * (2 * Math.PI / fftSize);
+            }
+          }
+          const phase = factor * (refState.unwrapped[bin] - refState.phase0[bin]) + refState.phase0[bin];
+          const step = factor * trueFreqPeak;
           oscillators.push({ magnitude, c: Math.cos(phase), s: Math.sin(phase), stepC: Math.cos(step), stepS: Math.sin(step) });
         }
         for (let index = 0; index < fftSize; index += 1) {
@@ -242,6 +343,11 @@ class RafPitchProcessor extends AudioWorkletProcessor {
           state.accum[(windowStart + index) & ringMask] += accumulator * window[index] / fftSize;
         }
       }
+    }
+
+    // Update prevMags for next frame's flux detection.
+    for (const state of this.channels) {
+      state.prevMags.set(state.mags);
     }
   }
 }
