@@ -94,12 +94,6 @@ worklet-backed node, and the worklet URL/processor name stay the same.
   hop-rate beating); music at ±7 st shows phasiness only on transients, no
   steady chorus; enabling Pitch while music plays has no click.
 
-## Possible follow-ups (out of scope for this step)
-
-- Phase locking (Puckette / Laroche–Dolson) to reduce transient smearing.
-- Adaptive window size for a low-latency mode.
-- Shared phase propagation across channels for better stereo coherence.
-
 ## Done as a follow-up
 
 - Engine pill in the Pitch editor: the granular WSOLA worklet was restored as
@@ -116,3 +110,20 @@ worklet-backed node, and the worklet URL/processor name stay the same.
   sizes; the bound is now `READ_LAG - grainSize` (the maximum read stays
   behind the write at the grain's end), which also sharpens the classic 2048
   behavior.
+- Vocoder quality pass (in-place, no third engine): `public/raf-pitch.worklet.js`
+  now uses Laroche–Dolson identity phase locking (one oscillator per peak, region
+  energy summed into it), parabolic peak refinement for sub-bin frequency/phase,
+  lightweight spectral-flux transient anchoring (re-anchors unwrapped/phase0 on
+  attacks so transients are not smeared over the window), stereo-shared peak
+  set/trueFreq/phase propagation (reference channel elects peaks, all channels
+  reuse the same phase evolution with per-channel magnitude), and per-channel
+  `phaseInitialized` (fixing the previous global-bool first-frame race). All
+  existing latency, unity-passthrough, octave, and cleanliness gates in
+  `pitch.test.ts` continue to pass; no `RafPitchSettings` shape or engine pill
+  change was needed.
+
+## Possible follow-ups
+
+- Adaptive window size for a low-latency transient mode (window-switch vs flux).
+- Discrete quality/overlap knob (hop N/4 vs N/8) — 2x CPU for cleaner tails.
+- Tunable transient sensitivity if the flux threshold needs Goldilocks control.
