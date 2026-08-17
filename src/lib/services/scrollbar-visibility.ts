@@ -91,7 +91,22 @@ export function initializeScrollbarVisibility(
     overlay.setAttribute('aria-hidden', 'true');
     overlayThumb.className = OVERLAY_THUMB_CLASS;
     overlay.append(overlayThumb);
-    document.body.append(overlay);
+  }
+
+  // The overlay is `position: fixed`, but its stacking order can only
+  // interleave with panes and menus when it shares the app shell's stacking
+  // context (`.app-shell` is `isolation: isolate`). Mount it there so pane
+  // chrome stays below it while menus/popovers, which portal to <body>,
+  // still paint on top. The shell mounts right after bootstrap, so a single
+  // frame delay is enough; fall back to <body> in any other window.
+  let overlayMountFrame: number | null = null;
+  if (overlay) {
+    const mountOverlay = () => {
+      overlayMountFrame = null;
+      (document.querySelector('.app-shell') ?? document.body).append(overlay);
+    };
+    if (document.querySelector('.app-shell')) mountOverlay();
+    else overlayMountFrame = requestAnimationFrame(mountOverlay);
   }
 
   function syncOverlayMode(): void {
@@ -284,6 +299,7 @@ export function initializeScrollbarVisibility(
     overlayThumb?.removeEventListener('pointermove', handleOverlayPointerMove);
     clearNearbyScroller();
     document.documentElement.classList.remove(OVERLAY_ROOT_CLASS);
+    if (overlayMountFrame !== null) cancelAnimationFrame(overlayMountFrame);
     overlay?.remove();
     if (overlayFrame !== null) cancelAnimationFrame(overlayFrame);
 

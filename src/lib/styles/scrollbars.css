@@ -72,7 +72,10 @@ html.izci-overlay-vertical-scrollbars *::-webkit-scrollbar {
 
 .izci-vertical-scrollbar-overlay {
   position: fixed;
-  z-index: 2147483646;
+  /* Inside the app shell's stacking context: above pane chrome and the
+     window-frame safe strip (≤ 45), below floating chrome like the theater
+     player bar (50) and every menu/popover (60+). */
+  z-index: 46;
   width: 10px;
   pointer-events: none;
   opacity: 0;

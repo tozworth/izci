@@ -181,8 +181,8 @@ export function registerAppServiceWorker(): void {
         throw error;
       }
 
-      console.warn('Failed to check for a service worker update.', error);
-      logWarning('system', 'Background service-worker update check failed', error);
+      console.debug('Failed to check for a service worker update.', error);
+      logDebug('system', 'Background service-worker update check failed', error);
     } finally {
       updateInFlight = false;
     }

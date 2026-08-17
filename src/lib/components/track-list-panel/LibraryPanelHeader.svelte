@@ -171,12 +171,12 @@
       />
       <button
         type="button"
-        class="library-search-close"
+        class="library-search-close hover-tooltip-anchor"
         aria-label={$t('library.closeSearch', { default: 'Close library search' })}
-        title={$t('library.closeSearch', { default: 'Close library search' })}
         on:click={() => dispatch('searchClose')}
       >
         <span class="material-symbols-outlined" aria-hidden="true">close</span>
+        <HoverTooltip align="center" nowrap>{$t('library.closeSearch', { default: 'Close library search' })}</HoverTooltip>
       </button>
     </div>
   {/if}
@@ -185,12 +185,12 @@
     <div class="library-location">
       <button
         type="button"
-        class="library-back-button"
+        class="library-back-button hover-tooltip-anchor"
         aria-label={$t('library.backToGroups', { default: 'Back to groups' })}
-        title={$t('library.back', { default: 'Back' })}
         on:click={() => dispatch('back')}
       >
         <span class="material-symbols-outlined" aria-hidden="true">arrow_back</span>
+        <HoverTooltip align="center" nowrap>{$t('library.back', { default: 'Back' })}</HoverTooltip>
       </button>
       <span class="library-group-label" title={groupLabel}>{groupLabel}</span>
       <span class="library-location-divider" aria-hidden="true">·</span>

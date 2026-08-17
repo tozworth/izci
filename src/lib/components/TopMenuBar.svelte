@@ -772,7 +772,8 @@
       ? [{
           id: 'toggleMiniPlayer',
           label: $t('main.menu.miniPlayer', { default: 'Mini player' }),
-          icon: miniPlayerActive ? 'check' : 'picture_in_picture_alt',
+          icon: 'picture_in_picture_alt',
+          checked: miniPlayerActive,
           shortcut: 'Ctrl+M',
           separatorBefore: true
         } satisfies MenuActionItem]
@@ -780,19 +781,22 @@
     {
       id: 'toggleNowPlayingView',
       label: $t('main.menu.nowPlaying', { default: 'Now Playing' }),
-      icon: nowPlayingViewActive ? 'check' : 'album'
+      icon: 'album',
+      checked: nowPlayingViewActive
     }
   ] satisfies MenuActionItem[];
   $: videoMenuItems = [
     {
       id: 'videoFitContain',
       label: $t('main.video.fit', { default: 'Fit to window' }),
-      icon: videoFitMode === 'contain' ? 'check' : 'fit_screen'
+      icon: 'fit_screen',
+      checked: videoFitMode === 'contain'
     },
     {
       id: 'videoFitCover',
       label: $t('main.video.fill', { default: 'Fill window' }),
-      icon: videoFitMode === 'cover' ? 'check' : 'crop_free'
+      icon: 'crop_free',
+      checked: videoFitMode === 'cover'
     },
     ...(videoPictureInPictureSupported
       ? [{
@@ -807,7 +811,8 @@
       label: videoTheaterActive
         ? $t('main.player.exitVideoTheater', { default: 'Exit video theater' })
         : $t('main.player.enterVideoTheater', { default: 'Enter video theater' }),
-      icon: videoTheaterActive ? 'check' : 'fit_screen',
+      icon: 'fit_screen',
+      checked: videoTheaterActive,
       separatorBefore: !videoPictureInPictureSupported
     }
   ] satisfies MenuActionItem[];

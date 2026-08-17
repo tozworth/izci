@@ -672,13 +672,9 @@
         />
       {:else}
         <TrackListPanelHeader
-          bind:searchInputElement={searchInputElement}
           panelTitle={localizedPanelTitle}
           {hideEyebrow}
           {trackSummary}
-          {showSearchControl}
-          {showSearchInput}
-          {searchQuery}
           {showShuffleControl}
           {showRepeatControl}
           {shuffleEnabled}
@@ -686,9 +682,6 @@
           {repeatIcon}
           {repeatLabel}
           {readOnly}
-          on:searchToggle={handleSearchToggle}
-          on:searchInput={(event) => handleSearchInput(event.detail)}
-          on:searchClose={handleSearchClose}
           on:toggleShuffle={() => dispatch('toggleShuffle')}
           on:cycleRepeat={() => dispatch('cycleRepeat')}
           on:openFiles={() => dispatch('openFiles')}

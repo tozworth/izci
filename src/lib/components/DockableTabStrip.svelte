@@ -1,5 +1,6 @@
 <script lang="ts">
   import { createEventDispatcher, onMount, tick } from 'svelte';
+  import HoverTooltip from './HoverTooltip.svelte';
   import TabStrip from './TabStrip.svelte';
   import { hasDockTabDragData, readDockTabDragData, writeDockTabDragData } from './docking/drag';
   import type { DockTabDefinition, DockTabDragDetail, DockTabMoveDetail } from './docking/types';
@@ -258,7 +259,6 @@
         aria-controls={`${idPrefix}-panel-${zoneId ?? 'tabs'}-${tab.id}`}
         id={`${idPrefix}-${zoneId ?? 'tabs'}-${tab.id}`}
         draggable="false"
-        title={tab.label}
         disabled={tab.disabled}
         on:click={() => !tab.disabled && dispatch('tabChange', tab.id)}
         on:auxclick={(event) => handleTabAuxClick(event, tab)}
@@ -266,6 +266,9 @@
       >
         <span class="material-symbols-outlined" aria-hidden="true">{tab.icon}</span>
         <span class="dock-tab-label">{tab.label}</span>
+        {#if isIconOnly}
+          <HoverTooltip align="center" nowrap>{tab.label}</HoverTooltip>
+        {/if}
       </button>
 
       {#if isTabCloseable(tab)}

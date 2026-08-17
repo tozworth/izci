@@ -60,11 +60,18 @@
       return;
     }
 
+    if (item.disabled) {
+      // Disabled items are inert: don't open their own submenu and don't
+      // leave a previously hovered sibling's submenu hanging open.
+      activeSubmenuId = null;
+      return;
+    }
+
     activeSubmenuId = hasSubmenu(item) ? item.id : null;
   }
 
   function enterSubmenu(item: MenuActionItem) {
-    if (!hasSubmenu(item)) {
+    if (item.disabled || !hasSubmenu(item)) {
       return;
     }
 
