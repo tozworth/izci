@@ -404,6 +404,13 @@ export function sameEffectSettings(first: RafEffectSettings, second: RafEffectSe
         && first.grainSize === candidate.grainSize
         && first.alignmentWindow === candidate.alignmentWindow;
     }
+    case 'heat': {
+      const candidate = second as typeof first;
+      return first.driveDb === candidate.driveDb
+        && first.outputDb === candidate.outputDb
+        && first.colorDb === candidate.colorDb
+        && first.asymmetry === candidate.asymmetry;
+    }
   }
 }
 

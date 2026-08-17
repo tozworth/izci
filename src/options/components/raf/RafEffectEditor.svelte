@@ -7,6 +7,7 @@
   import GraphicEqEditor from './GraphicEqEditor.svelte';
   import PitchEditor from './PitchEditor.svelte';
   import ReverbEditor from './ReverbEditor.svelte';
+  import HeatEditor from './HeatEditor.svelte';
   import SloptimizerEditor from './SloptimizerEditor.svelte';
   import StereoWidthEditor from './StereoWidthEditor.svelte';
 
@@ -32,6 +33,8 @@
       <SloptimizerEditor settings={effect} />
     {:else if effect.type === 'pitch'}
       <PitchEditor settings={effect} />
+    {:else if effect.type === 'heat'}
+      <HeatEditor settings={effect} />
     {:else}
       <ReverbEditor settings={effect} />
     {/if}

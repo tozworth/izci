@@ -13,7 +13,8 @@ describe('Raf effect registry', () => {
       'crystalizer',
       'sloptimizer',
       'reverb',
-      'pitch'
+      'pitch',
+      'heat'
     ]);
     expect(RAF_EFFECT_REGISTRY['auto-amp'].createDefault('amp')).toMatchObject({
       id: 'amp',
@@ -62,6 +63,15 @@ describe('Raf effect registry', () => {
       peakFloorDb: -60,
       grainSize: 2048,
       alignmentWindow: 256
+    });
+    expect(RAF_EFFECT_REGISTRY.heat.createDefault('heat')).toMatchObject({
+      id: 'heat',
+      type: 'heat',
+      enabled: true,
+      driveDb: 0,
+      outputDb: 0,
+      colorDb: 0,
+      asymmetry: 0
     });
   });
 });

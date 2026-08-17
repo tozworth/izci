@@ -4,6 +4,7 @@ import type {
   RafEffectSettings,
   RafEffectType,
   RafGraphicEqSettings,
+  RafHeatSettings,
   RafPitchEngine,
   RafPitchSettings,
   RafReverbSettings,
@@ -105,6 +106,19 @@ import {
   isRafPitchEngine,
   updatePitchNode
 } from './raf-effects/pitch';
+import {
+  HEAT_ASYMMETRY_MAX,
+  HEAT_ASYMMETRY_MIN,
+  HEAT_COLOR_MAX_DB,
+  HEAT_COLOR_MIN_DB,
+  HEAT_DRIVE_MAX_DB,
+  HEAT_DRIVE_MIN_DB,
+  HEAT_OUTPUT_MAX_DB,
+  HEAT_OUTPUT_MIN_DB,
+  createHeatNode,
+  disposeHeatNode,
+  updateHeatNode
+} from './raf-effects/heat';
 
 export interface RafEffectDefinition {
   type: RafEffectType;
@@ -341,6 +355,22 @@ function normalizePitch(value: unknown): RafPitchSettings | null {
   };
 }
 
+function normalizeHeat(value: unknown): RafHeatSettings | null {
+  const base = normalizeBase(value, 'heat');
+  if (!base) return null;
+  const source = value as Record<string, unknown>;
+  const numericKeys = ['driveDb', 'outputDb', 'colorDb', 'asymmetry'] as const;
+  if (!numericKeys.every((key) => typeof source[key] === 'number' && Number.isFinite(source[key]))) return null;
+  return {
+    ...base,
+    type: 'heat',
+    driveDb: clamp(source.driveDb as number, HEAT_DRIVE_MIN_DB, HEAT_DRIVE_MAX_DB),
+    outputDb: clamp(source.outputDb as number, HEAT_OUTPUT_MIN_DB, HEAT_OUTPUT_MAX_DB),
+    colorDb: clamp(source.colorDb as number, HEAT_COLOR_MIN_DB, HEAT_COLOR_MAX_DB),
+    asymmetry: clamp(source.asymmetry as number, HEAT_ASYMMETRY_MIN, HEAT_ASYMMETRY_MAX)
+  };
+}
+
 const autoAmpDefinition: RafEffectDefinition = {
   type: 'auto-amp',
   name: 'Auto Amp',
@@ -521,7 +551,33 @@ const pitchDefinition: RafEffectDefinition = {
   disposeNode: (node) => disposePitchNode(node as ReturnType<typeof createPitchNode>)
 };
 
-export const RAF_EFFECT_DEFINITIONS = [autoAmpDefinition, graphicEqDefinition, stereoWidthDefinition, crystalizerDefinition, sloptimizerDefinition, reverbDefinition, pitchDefinition] as const;
+const heatDefinition: RafEffectDefinition = {
+  type: 'heat',
+  name: 'Heat',
+  icon: 'local_fire_department',
+  createDefault: (id) => ({
+    id,
+    type: 'heat',
+    enabled: true,
+    dryWet: 100,
+    driveDb: 0,
+    outputDb: 0,
+    colorDb: 0,
+    asymmetry: 0
+  }),
+  normalize: normalizeHeat,
+  createNode: (context, settings) => createHeatNode(context, settings as RafHeatSettings),
+  updateNode: (node, settings, context, previousSettings) =>
+    updateHeatNode(
+      node as ReturnType<typeof createHeatNode>,
+      settings as RafHeatSettings,
+      context,
+      previousSettings as RafHeatSettings | undefined
+    ),
+  disposeNode: (node) => disposeHeatNode(node as ReturnType<typeof createHeatNode>)
+};
+
+export const RAF_EFFECT_DEFINITIONS = [autoAmpDefinition, graphicEqDefinition, stereoWidthDefinition, crystalizerDefinition, sloptimizerDefinition, reverbDefinition, pitchDefinition, heatDefinition] as const;
 export const RAF_EFFECT_REGISTRY = Object.fromEntries(
   RAF_EFFECT_DEFINITIONS.map((definition) => [definition.type, definition])
 ) as Record<RafEffectType, RafEffectDefinition>;

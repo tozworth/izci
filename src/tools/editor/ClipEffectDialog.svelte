@@ -39,6 +39,16 @@
     REVERB_ROOM_SIZE_MIN
   } from '$lib/services/raf-effects/reverb';
   import {
+    HEAT_ASYMMETRY_MAX,
+    HEAT_ASYMMETRY_MIN,
+    HEAT_COLOR_MAX_DB,
+    HEAT_COLOR_MIN_DB,
+    HEAT_DRIVE_MAX_DB,
+    HEAT_DRIVE_MIN_DB,
+    HEAT_OUTPUT_MAX_DB,
+    HEAT_OUTPUT_MIN_DB
+  } from '$lib/services/raf-effects/heat';
+  import {
     SLOPTIMIZER_CEILING_MAX_DB,
     SLOPTIMIZER_CEILING_MIN_DB,
     SLOPTIMIZER_DENSITY_MAX,
@@ -68,6 +78,7 @@
     RafCrystalizerSettings,
     RafEffectType,
     RafGraphicEqSettings,
+    RafHeatSettings,
     RafPitchEngine,
     RafPitchSettings,
     RafReverbSettings,
@@ -278,6 +289,14 @@
               <label><span>{$t('editor.effects.pitch.alignmentWindow', { default: 'Alignment window' })}</span><select value={pitch.alignmentWindow} on:change={(event) => updateNumber(event, 'alignmentWindow')}>{#each PITCH_ALIGNMENT_OPTIONS as window}<option value={window}>{window}</option>{/each}</select></label>
               <p class="effect-note wide">{$t('editor.effects.pitch.granularNote', { default: 'Realtime granular pitch shift; adds about 85 ms of latency.' })}</p>
             {/if}
+          </div>
+        {:else if settings.type === 'heat'}
+          {@const heat = settings as RafHeatSettings}
+          <div class="setting-grid">
+            <label><span>{$t('editor.effects.heat.drive', { default: 'Drive' })}</span><input type="range" min={HEAT_DRIVE_MIN_DB} max={HEAT_DRIVE_MAX_DB} step="0.5" value={heat.driveDb} on:input={(event) => updateNumber(event, 'driveDb')} /><output>{heat.driveDb.toFixed(1)} dB</output></label>
+            <label><span>{$t('editor.effects.heat.output', { default: 'Output' })}</span><input type="range" min={HEAT_OUTPUT_MIN_DB} max={HEAT_OUTPUT_MAX_DB} step="0.5" value={heat.outputDb} on:input={(event) => updateNumber(event, 'outputDb')} /><output>{heat.outputDb > 0 ? '+' : ''}{heat.outputDb.toFixed(1)} dB</output></label>
+            <label><span>{$t('editor.effects.heat.color', { default: 'Color' })}</span><input type="range" min={HEAT_COLOR_MIN_DB} max={HEAT_COLOR_MAX_DB} step="0.5" value={heat.colorDb} on:input={(event) => updateNumber(event, 'colorDb')} /><output>{heat.colorDb > 0 ? '+' : ''}{heat.colorDb.toFixed(1)} dB</output></label>
+            <label><span>{$t('editor.effects.heat.asymmetry', { default: 'Asymmetry' })}</span><input type="range" min={HEAT_ASYMMETRY_MIN} max={HEAT_ASYMMETRY_MAX} step="1" value={heat.asymmetry} on:input={(event) => updateNumber(event, 'asymmetry')} /><output>{heat.asymmetry.toFixed(0)}%</output></label>
           </div>
         {:else}
           {@const reverb = settings as RafReverbSettings}
