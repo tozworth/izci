@@ -395,7 +395,8 @@
         "crystalizer": "Crystalizer",
         "sloptimizer": "Sloptimizer",
         "reverb": "Reverb",
-        "pitch": "Pitch"
+        "pitch": "Pitch",
+        "heat": "Heat"
       },
       "transfer": {
         "failed": "Raf settings transfer failed.",
@@ -462,6 +463,12 @@
         "decay": "Decay",
         "preDelay": "Pre-delay",
         "damping": "Damping"
+      },
+      "heat": {
+        "drive": "Drive",
+        "output": "Output",
+        "color": "Color",
+        "asymmetry": "Asymmetry"
       },
       "sloptimizer": {
         "flavors": {
@@ -1516,6 +1523,12 @@
         "grainSize": "Grain size",
         "alignmentWindow": "Alignment window",
         "granularNote": "Realtime granular pitch shift; adds about 85 ms of latency."
+      },
+      "heat": {
+        "drive": "Drive",
+        "output": "Output",
+        "color": "Color",
+        "asymmetry": "Asymmetry"
       },
       "edgeBlend": "Edge blend",
       "edgeBlendHint": "Crossfades the processed region at edit boundaries to prevent clicks.",

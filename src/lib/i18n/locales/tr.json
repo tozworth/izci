@@ -395,7 +395,8 @@
         "crystalizer": "Keskinleştirici",
         "sloptimizer": "Yalamaç",
         "reverb": "Yankı",
-        "pitch": "Perde"
+        "pitch": "Perde",
+        "heat": "Isı"
       },
       "transfer": {
         "failed": "Raf ayarları aktarılamadı.",
@@ -462,6 +463,12 @@
         "decay": "Azalış",
         "preDelay": "Ön gecikme",
         "damping": "Sönümleme"
+      },
+      "heat": {
+        "drive": "Sürüş",
+        "output": "Çıkış",
+        "color": "Renk",
+        "asymmetry": "Asimetri"
       },
       "sloptimizer": {
         "flavors": {
@@ -1516,6 +1523,12 @@
         "grainSize": "Tane boyutu",
         "alignmentWindow": "Hizalama penceresi",
         "granularNote": "Gerçek zamanlı tanesel perde kaydırma; yaklaşık 85 ms gecikme ekler."
+      },
+      "heat": {
+        "drive": "Sürüş",
+        "output": "Çıkış",
+        "color": "Renk",
+        "asymmetry": "Asimetri"
       },
       "edgeBlend": "Kenar geçişi",
       "edgeBlendHint": "Tıklama seslerini önlemek için işlenen bölgeyi düzenleme sınırlarında çapraz soldurur.",

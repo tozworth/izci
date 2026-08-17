@@ -137,7 +137,7 @@ export interface WorkspaceResizeHandle {
 }
 export type ReplayGainMode = 'off' | 'track' | 'album';
 export type RafAutoAmpMode = 'off' | 'reduce' | 'increase' | 'dynamic';
-export type RafEffectType = 'auto-amp' | 'graphic-eq' | 'stereo-width' | 'crystalizer' | 'sloptimizer' | 'reverb' | 'pitch';
+export type RafEffectType = 'auto-amp' | 'graphic-eq' | 'stereo-width' | 'crystalizer' | 'sloptimizer' | 'reverb' | 'pitch' | 'heat';
 export type PatternRowNumberBase = 'hex' | 'decimal';
 export type PatternColorScheme = 'conventional' | 'theme' | 'monochrome';
 
@@ -261,6 +261,14 @@ export interface RafPitchSettings extends RafEffectBase {
   alignmentWindow: number;
 }
 
+export interface RafHeatSettings extends RafEffectBase {
+  type: 'heat';
+  driveDb: number;
+  outputDb: number;
+  colorDb: number;
+  asymmetry: number;
+}
+
 export type RafEffectSettings =
   | RafAutoAmpSettings
   | RafGraphicEqSettings
@@ -268,7 +276,8 @@ export type RafEffectSettings =
   | RafCrystalizerSettings
   | RafSloptimizerSettings
   | RafReverbSettings
-  | RafPitchSettings;
+  | RafPitchSettings
+  | RafHeatSettings;
 
 export interface RafRackSettings {
   enabled: boolean;
