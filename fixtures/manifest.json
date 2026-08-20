@@ -1,0 +1,258 @@
+{
+  "schemaVersion": 1,
+  "corpusVersion": "stage-1-v1",
+  "defaultOutputDirectory": ".local/verification-fixtures/v1",
+  "licensePolicy": "Synthetic fixtures are dedicated to the public domain under CC0-1.0. No third-party media is included.",
+  "toolchain": {
+    "node": {
+      "minimumMajor": 22,
+      "uses": ["ProTracker MOD construction", "corrupt/unknown bytes", "copies and logical trees"]
+    },
+    "ffmpeg": {
+      "version": "ffmpeg version 6.1.1-3ubuntu5 Copyright (c) 2000-2023 the FFmpeg developers",
+      "requiredEncoders": ["aac", "flac", "libmp3lame", "libopus", "libvorbis", "libvpx", "libx264", "pcm_s16le", "png"],
+      "reason": "Encoded media digests vary across FFmpeg/codec builds, so the first line and output digests fail closed."
+    },
+    "ffprobe": {
+      "version": "ffprobe version 6.1.1-3ubuntu5 Copyright (c) 2007-2023 the FFmpeg developers",
+      "requiredDemuxers": ["flac", "libopenmpt", "matroska,webm", "mov,mp4,m4a,3gp,3g2,mj2", "mp3", "ogg", "wav"],
+      "reason": "The paired pinned prober validates claimed container, stream, metadata, artwork, and rejection facts."
+    }
+  },
+  "files": [
+    {
+      "id": "audio-wav",
+      "path": "media/audio/tone.wav",
+      "provenance": "Project-generated 440 Hz sine wave; no source recording.",
+      "license": "CC0-1.0",
+      "generation": { "kind": "ffmpeg", "recipe": "audio-wav-440", "command": "generate.mjs FFMPEG_RECIPES[audio-wav-440]" },
+      "sha256": "ea6bac4673d504ddc500a885bb4164b414348e4f896c58be28b9678ef1f0b40d",
+      "expected": { "kind": "audio", "format": "wav", "codec": "pcm_s16le", "durationSeconds": 0.25, "sampleRate": 48000, "channels": 1, "bytes": 24044, "tags": {}, "artwork": false, "lyrics": false, "deliberatelyCorrupt": false }
+    },
+    {
+      "id": "audio-mp3",
+      "path": "media/audio/tone.mp3",
+      "provenance": "Project-generated 440 Hz sine wave; no source recording.",
+      "license": "CC0-1.0",
+      "generation": { "kind": "ffmpeg", "recipe": "audio-mp3-440", "command": "generate.mjs FFMPEG_RECIPES[audio-mp3-440]" },
+      "sha256": "fbe9e36873c6361e2904386c3ef44bbbf302a4b88df7dd1e2bc646aef28ca485",
+      "expected": { "kind": "audio", "format": "mp3", "codec": "mp3", "durationSeconds": 0.288, "sampleRate": 48000, "channels": 1, "bytes": 1728, "tags": {}, "artwork": false, "lyrics": false, "deliberatelyCorrupt": false }
+    },
+    {
+      "id": "audio-flac",
+      "path": "media/audio/tone.flac",
+      "provenance": "Project-generated 440 Hz sine wave; no source recording.",
+      "license": "CC0-1.0",
+      "generation": { "kind": "ffmpeg", "recipe": "audio-flac-440", "command": "generate.mjs FFMPEG_RECIPES[audio-flac-440]" },
+      "sha256": "63c05a2a0f91a7bbc3f0723d6ffd095558a4a7c8e0f6d49a9b3971e9a5eca43b",
+      "expected": { "kind": "audio", "format": "flac", "codec": "flac", "durationSeconds": 0.25, "sampleRate": 48000, "channels": 1, "bytes": 11611, "tags": {}, "artwork": false, "lyrics": false, "deliberatelyCorrupt": false }
+    },
+    {
+      "id": "audio-ogg-vorbis",
+      "path": "media/audio/tone.ogg",
+      "provenance": "Project-generated 440 Hz sine wave; no source recording.",
+      "license": "CC0-1.0",
+      "generation": { "kind": "ffmpeg", "recipe": "audio-ogg-440", "command": "generate.mjs FFMPEG_RECIPES[audio-ogg-440]" },
+      "sha256": "c5a158837ca8e85524c8d3536ff3bff0a9b271f8fd14d97b95fab72e76fd4d6d",
+      "expected": { "kind": "audio", "format": "ogg", "codec": "vorbis", "durationSeconds": 0.25, "sampleRate": 48000, "channels": 1, "bytes": 3968, "tags": {}, "artwork": false, "lyrics": false, "deliberatelyCorrupt": false }
+    },
+    {
+      "id": "audio-opus",
+      "path": "media/audio/tone.opus",
+      "provenance": "Project-generated 440 Hz sine wave; no source recording.",
+      "license": "CC0-1.0",
+      "generation": { "kind": "ffmpeg", "recipe": "audio-opus-440", "command": "generate.mjs FFMPEG_RECIPES[audio-opus-440]" },
+      "sha256": "b468897fbcfc1611eefb3187a3f439651e95a955addd4b376c8753b4d3a77f7a",
+      "expected": { "kind": "audio", "format": "opus", "codec": "opus", "durationSeconds": 0.2565, "sampleRate": 48000, "channels": 1, "bytes": 1201, "tags": {}, "artwork": false, "lyrics": false, "deliberatelyCorrupt": false }
+    },
+    {
+      "id": "audio-tagged-artwork",
+      "path": "media/metadata/tagged-artwork.mp3",
+      "provenance": "Project-generated 523.25 Hz sine wave and 16x16 solid-color PNG cover; no source recording or image.",
+      "license": "CC0-1.0",
+      "generation": { "kind": "ffmpeg", "recipe": "audio-tagged-mp3", "command": "generate.mjs FFMPEG_RECIPES[audio-tagged-mp3]" },
+      "sha256": "f8286582786b3958a4f660e574283de13b2bad1e2f7062906447e89b2ac03781",
+      "expected": { "kind": "audio", "format": "mp3", "codec": "mp3", "durationSeconds": 0.288, "sampleRate": 48000, "channels": 1, "bytes": 2023, "tags": { "title": "Fixture title", "artist": "izci fixtures", "album": "Stage 1", "date": "2026", "track": "1", "comment": "CC0 synthetic fixture" }, "artwork": { "format": "png", "width": 16, "height": 16, "type": "front-cover" }, "lyrics": false, "deliberatelyCorrupt": false }
+    },
+    {
+      "id": "module-mod",
+      "path": "media/modules/tone.mod",
+      "provenance": "Project-generated one-pattern ProTracker module with a synthesized 8-bit sample.",
+      "license": "CC0-1.0",
+      "generation": { "kind": "protracker-mod", "command": "generate.mjs makeProTrackerMod()" },
+      "sha256": "bbfc0a2234b047f6eff2797f1721de0aef959161660aecd1b5568dda6fedc433",
+      "expected": { "kind": "module", "format": "mod", "codec": "ProTracker M.K.", "durationSeconds": 7.68, "channels": 4, "patterns": 1, "bytes": 3132, "tags": { "title": "izci Stage 1 MOD" }, "artwork": false, "lyrics": false, "deliberatelyCorrupt": false }
+    },
+    {
+      "id": "unknown-valid-module",
+      "path": "media/unknown/valid-module.fixture",
+      "provenance": "Byte-identical copy of the project-generated MOD with an unknown extension.",
+      "license": "CC0-1.0",
+      "generation": { "kind": "copy", "source": "media/modules/tone.mod", "command": "copy module-mod bytes under unknown extension" },
+      "sha256": "bbfc0a2234b047f6eff2797f1721de0aef959161660aecd1b5568dda6fedc433",
+      "expected": { "kind": "unknown-extension-module", "format": "mod", "codec": "ProTracker M.K.", "durationSeconds": 7.68, "channels": 4, "patterns": 1, "bytes": 3132, "tags": { "title": "izci Stage 1 MOD" }, "artwork": false, "lyrics": false, "deliberatelyCorrupt": false }
+    },
+    {
+      "id": "unknown-unsupported",
+      "path": "media/unknown/unsupported.fixture",
+      "provenance": "Project-authored fixed byte sequence that is not a media container.",
+      "license": "CC0-1.0",
+      "generation": { "kind": "bytes", "hex": "697a63692d6e6f742d6d65646961000d0a", "command": "decode the manifest hex field" },
+      "sha256": "82e5de89b3f539d1f7f316353045eed6f1f1f057d2ff3255587b46f0a70e2fa3",
+      "expected": { "kind": "unsupported", "format": null, "bytes": 17, "tags": {}, "artwork": false, "lyrics": false, "deliberatelyCorrupt": false }
+    },
+    {
+      "id": "corrupt-truncated-mp3",
+      "path": "media/corrupt/truncated.mp3",
+      "provenance": "First 37 bytes of the project-generated MP3, deliberately truncated mid-frame.",
+      "license": "CC0-1.0",
+      "generation": { "kind": "copy", "source": "media/audio/tone.mp3", "length": 37, "command": "copy the first 37 bytes of audio-mp3" },
+      "sha256": "e7e9c9e6c797e9d3bab9bb301176214a9e4e758e3cd3ff2200cd85510f869961",
+      "expected": { "kind": "corrupt", "format": "mp3", "bytes": 37, "tags": {}, "artwork": false, "lyrics": false, "deliberatelyCorrupt": true }
+    },
+    {
+      "id": "revision-wav-v1",
+      "path": "revisions/stable-track-v1.wav",
+      "provenance": "Byte-identical revision snapshot of audio-wav (440 Hz).",
+      "license": "CC0-1.0",
+      "generation": { "kind": "copy", "source": "media/audio/tone.wav", "command": "copy audio-wav bytes" },
+      "sha256": "ea6bac4673d504ddc500a885bb4164b414348e4f896c58be28b9678ef1f0b40d",
+      "expected": { "kind": "audio-revision", "format": "wav", "codec": "pcm_s16le", "frequencyHz": 440, "durationSeconds": 0.25, "sampleRate": 48000, "channels": 1, "bytes": 24044, "tags": {}, "artwork": false, "lyrics": false, "deliberatelyCorrupt": false }
+    },
+    {
+      "id": "revision-wav-v2",
+      "path": "revisions/stable-track-v2.wav",
+      "provenance": "Project-generated changed-file revision using 660 Hz at the same logical path.",
+      "license": "CC0-1.0",
+      "generation": { "kind": "ffmpeg", "recipe": "audio-wav-660", "command": "generate.mjs FFMPEG_RECIPES[audio-wav-660]" },
+      "sha256": "13a03b3d060f4114f817504cabc3adf4500754aa4f56ce8d58b30f2efe635c05",
+      "expected": { "kind": "audio-revision", "format": "wav", "codec": "pcm_s16le", "frequencyHz": 660, "durationSeconds": 0.25, "sampleRate": 48000, "channels": 1, "bytes": 24044, "tags": {}, "artwork": false, "lyrics": false, "deliberatelyCorrupt": false }
+    },
+    {
+      "id": "lyrics-plain",
+      "path": "media/lyrics/plain.txt",
+      "provenance": "Project-authored non-lyrical test tokens for plain-lyrics parsing.",
+      "license": "CC0-1.0",
+      "generation": { "kind": "utf8", "content": "fixture alpha\nfixture beta\n", "command": "write the manifest UTF-8 content exactly" },
+      "sha256": "7df3561446aa2850b2852a8babc57272c331acfa42bb5718b657e89e60ad671d",
+      "expected": { "kind": "plain-lyrics", "format": "text", "lines": 2, "bytes": 27, "deliberatelyCorrupt": false }
+    },
+    {
+      "id": "lyrics-timestamped",
+      "path": "media/lyrics/timestamped.lrc",
+      "provenance": "Project-authored non-lyrical test tokens for LRC parsing.",
+      "license": "CC0-1.0",
+      "generation": { "kind": "utf8", "content": "[00:00.00]fixture alpha\n[00:00.20]fixture beta\n", "command": "write the manifest UTF-8 content exactly" },
+      "sha256": "f752f58276a6a7eaab4f000cb57d437eec4c98caf9e6316ced05172038e0c6eb",
+      "expected": { "kind": "timestamped-lyrics", "format": "lrc", "timestampsSeconds": [0, 0.2], "bytes": 47, "deliberatelyCorrupt": false }
+    },
+    {
+      "id": "video-mp4",
+      "path": "media/video/tiny.mp4",
+      "provenance": "Project-generated 32x24 solid-color frames with a 660 Hz sine track.",
+      "license": "CC0-1.0",
+      "generation": { "kind": "ffmpeg", "recipe": "video-mp4", "command": "generate.mjs FFMPEG_RECIPES[video-mp4]" },
+      "sha256": "11386ec7e20b826f78e57586d23a5035ad7e3b6b8a0014ac9c0e127e4f6b566e",
+      "expected": { "kind": "video", "format": "mp4", "videoCodec": "h264", "audioCodec": "aac", "durationSeconds": 0.3, "width": 32, "height": 24, "frameRate": 10, "sampleRate": 48000, "channels": 1, "bytes": 3550, "tags": {}, "artwork": false, "lyrics": false, "deliberatelyCorrupt": false }
+    },
+    {
+      "id": "video-webm",
+      "path": "media/video/tiny.webm",
+      "provenance": "Project-generated 32x24 solid-color frames with a 660 Hz sine track.",
+      "license": "CC0-1.0",
+      "generation": { "kind": "ffmpeg", "recipe": "video-webm", "command": "generate.mjs FFMPEG_RECIPES[video-webm]" },
+      "sha256": "c73aa5928b48ae22a832139c74c112c1fc9761c515b07d9c946b196a504bb700",
+      "expected": { "kind": "video", "format": "webm", "videoCodec": "vp8", "audioCodec": "opus", "durationSeconds": 0.308, "width": 32, "height": 24, "frameRate": 10, "sampleRate": 48000, "channels": 1, "bytes": 2107, "tags": {}, "artwork": false, "lyrics": false, "deliberatelyCorrupt": false }
+    },
+    {
+      "id": "video-mkv",
+      "path": "media/video/tiny.mkv",
+      "provenance": "Project-generated 32x24 solid-color frames with a 660 Hz sine track.",
+      "license": "CC0-1.0",
+      "generation": { "kind": "ffmpeg", "recipe": "video-mkv", "command": "generate.mjs FFMPEG_RECIPES[video-mkv]" },
+      "sha256": "375090b6a61f99102c3dfcefb195fc81627587a9511daa06da80ef89f6f1c7e5",
+      "expected": { "kind": "video", "format": "mkv", "videoCodec": "vp8", "audioCodec": "vorbis", "durationSeconds": 0.303, "width": 32, "height": 24, "frameRate": 10, "sampleRate": 48000, "channels": 1, "bytes": 4760, "tags": {}, "artwork": false, "lyrics": false, "deliberatelyCorrupt": false }
+    },
+    {
+      "id": "tree-original",
+      "path": "trees/library/Artist/Album/tone.wav",
+      "provenance": "Logical-tree copy of audio-wav.",
+      "license": "CC0-1.0",
+      "generation": { "kind": "copy", "source": "media/audio/tone.wav", "command": "copy audio-wav bytes" },
+      "sha256": "ea6bac4673d504ddc500a885bb4164b414348e4f896c58be28b9678ef1f0b40d",
+      "expected": { "kind": "tree-file", "format": "wav", "bytes": 24044, "deliberatelyCorrupt": false }
+    },
+    {
+      "id": "tree-duplicate-sibling",
+      "path": "trees/library/Artist/Album/duplicate.wav",
+      "provenance": "Byte-identical same-folder duplicate of audio-wav.",
+      "license": "CC0-1.0",
+      "generation": { "kind": "copy", "source": "media/audio/tone.wav", "command": "copy audio-wav bytes" },
+      "sha256": "ea6bac4673d504ddc500a885bb4164b414348e4f896c58be28b9678ef1f0b40d",
+      "expected": { "kind": "tree-file", "format": "wav", "bytes": 24044, "deliberatelyCorrupt": false }
+    },
+    {
+      "id": "tree-duplicate-nested",
+      "path": "trees/library/Artist/Other/tone-copy.wav",
+      "provenance": "Byte-identical differently nested duplicate of audio-wav.",
+      "license": "CC0-1.0",
+      "generation": { "kind": "copy", "source": "media/audio/tone.wav", "command": "copy audio-wav bytes" },
+      "sha256": "ea6bac4673d504ddc500a885bb4164b414348e4f896c58be28b9678ef1f0b40d",
+      "expected": { "kind": "tree-file", "format": "wav", "bytes": 24044, "deliberatelyCorrupt": false }
+    },
+    {
+      "id": "tree-stable-path",
+      "path": "trees/library/Artist/Album/stable.wav",
+      "provenance": "Initial materialized bytes for the stable-path revision scenario.",
+      "license": "CC0-1.0",
+      "generation": { "kind": "copy", "source": "revisions/stable-track-v1.wav", "command": "copy revision-wav-v1 bytes" },
+      "sha256": "ea6bac4673d504ddc500a885bb4164b414348e4f896c58be28b9678ef1f0b40d",
+      "expected": { "kind": "tree-file", "format": "wav", "revision": 1, "bytes": 24044, "deliberatelyCorrupt": false }
+    }
+  ],
+  "logicalFixtures": {
+    "nestedTree": {
+      "root": "trees/library",
+      "fileIds": ["tree-original", "tree-duplicate-sibling", "tree-duplicate-nested", "tree-stable-path"],
+      "facts": { "maximumDepth": 3, "distinctContentDigests": 1, "duplicateFileCount": 4 }
+    },
+    "stablePathReplacement": {
+      "path": "trees/library/Artist/Album/stable.wav",
+      "revisionSequence": [
+        { "fixtureId": "revision-wav-v1", "lastModified": 1000, "size": 24044 },
+        { "fixtureId": "revision-wav-v2", "lastModified": 2000, "size": 24044 }
+      ],
+      "expected": { "pathStable": true, "digestChanges": true, "permissionPrompt": false }
+    },
+    "duplicateIdentities": {
+      "groups": [
+        { "fixtureIds": ["tree-original", "tree-duplicate-sibling", "tree-duplicate-nested"], "sameBytes": true, "samePath": false }
+      ]
+    },
+    "handleStates": [
+      { "id": "granted", "queryPermission": "granted", "requestPermission": "granted", "available": true },
+      { "id": "prompt", "queryPermission": "prompt", "requestPermission": "granted", "available": true },
+      { "id": "denied", "queryPermission": "denied", "requestPermission": "denied", "available": true },
+      { "id": "unavailable", "queryPermission": "denied", "requestPermission": "denied", "available": false }
+    ]
+  },
+  "requiredCoverage": [
+    { "format": "mp3", "status": "generated", "fixtureId": "audio-mp3" },
+    { "format": "wav", "status": "generated", "fixtureId": "audio-wav" },
+    { "format": "flac", "status": "generated", "fixtureId": "audio-flac" },
+    { "format": "ogg-vorbis", "status": "generated", "fixtureId": "audio-ogg-vorbis" },
+    { "format": "opus", "status": "generated", "fixtureId": "audio-opus" },
+    { "format": "mod", "status": "generated", "fixtureId": "module-mod" },
+    { "format": "xm", "status": "gap", "reason": "No pinned repository generator or verified permissive tiny source is available." },
+    { "format": "s3m", "status": "gap", "reason": "No pinned repository generator or verified permissive tiny source is available." },
+    { "format": "it", "status": "gap", "reason": "No pinned repository generator or verified permissive tiny source is available." },
+    { "format": "mo3", "status": "gap", "reason": "MO3 encoding is proprietary and no verified permissive tiny source is available." },
+    { "format": "ahx", "status": "gap", "reason": "No pinned repository generator or verified permissive tiny source is available." },
+    { "format": "hvl", "status": "gap", "reason": "No pinned repository generator or verified permissive tiny source is available." },
+    { "format": "mp4", "status": "generated", "fixtureId": "video-mp4" },
+    { "format": "webm", "status": "generated", "fixtureId": "video-webm" },
+    { "format": "mkv", "status": "generated", "fixtureId": "video-mkv" },
+    { "format": "m4v", "status": "format-policy", "evidence": "src/lib/services/media-metadata/format-fixtures.test.ts and src/lib/utils/files.test.ts" },
+    { "format": "mov", "status": "format-policy", "evidence": "src/lib/services/media-metadata/format-fixtures.test.ts and src/lib/utils/files.test.ts" }
+  ]
+}
