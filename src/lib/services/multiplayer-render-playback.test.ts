@@ -2,13 +2,26 @@ import { describe, expect, it } from 'vitest';
 import type { MultiplayerPlayback } from './multiplayer-protocol';
 import type { PlaybackSnapshot } from '$lib/types';
 import {
+  BUFFER_MONITOR_INTERVAL_MS,
+  DRIFT_CORRECTION_THRESHOLD_MS,
+  REBUFFER_EDGE_MARGIN_MS,
+  STALL_CHECK_INTERVAL_MS,
   contiguousMsAtPosition,
   expectedPositionMs,
   hasRequiredRenderWindow,
   hasTimelineDiscontinuity,
   renderGapRecoveryTargetMs,
   renderStallRecoveryNeeded
-} from './multiplayer-render-playback';
+} from './multiplayer-render-playback-math';
+
+describe('buffering/cluster constants', () => {
+  it('keeps the tuned cadences stable', () => {
+    expect(REBUFFER_EDGE_MARGIN_MS).toBe(600);
+    expect(DRIFT_CORRECTION_THRESHOLD_MS).toBe(1_000);
+    expect(BUFFER_MONITOR_INTERVAL_MS).toBe(500);
+    expect(STALL_CHECK_INTERVAL_MS).toBe(2_500);
+  });
+});
 
 type PlaybackPatch = Partial<Omit<MultiplayerPlayback, 'snapshot'>> & {
   snapshot?: Partial<PlaybackSnapshot>;

@@ -8,6 +8,12 @@
  * receives back every controller handle, a `subscribe` callback surface
  * mirroring pushed controller/ui state into its reactive lets, and `dispose()`
  * that tears down everything.
+ *
+ * The state shape + publish/subscribe bookkeeping live in
+ * `main-window-runtime-state.ts`; the multiplayer/freeplay, video/theater, and
+ * transport controller clusters live in `main-window-runtime-*.ts` bundle
+ * factories. This module remains the composition root that wires them in
+ * dependency order and collects the teardowns.
  */
 
 import { writable, get } from 'svelte/store';
@@ -52,18 +58,13 @@ import {
   syncPlayingTrackMetadata
 } from '$lib/services/workspace-collections';
 import { windowManager } from '$lib/services/window-manager';
-import { windowDisplayState } from '$lib/services/window-display-state';
 import { favoritesStore, libraryStore, queueStore } from '$lib/stores/queue';
 import { libraryViewSettings } from '$lib/stores/library-view-settings';
-import { DEFAULT_PLAYER_VOLUME } from '$lib/stores/player-volume';
 import { playbackSettings } from '$lib/stores/playback-settings';
 import { trackSettings } from '$lib/stores/track-settings';
 import type {
-  LyricsDisplayStyle,
-  ModulePatternSnapshot,
   PlaybackSnapshot,
   TrackItem,
-  RepeatMode,
   TrackSelection,
   VideoFitMode,
   WorkspaceCollection,
@@ -72,21 +73,14 @@ import type {
 import type {
   VideoSeekFeedback
 } from '$lib/components/workspace/types';
-import { upNext, type UpNextEntry } from '$lib/stores/up-next';
+import { upNext } from '$lib/stores/up-next';
 import { type OptionsViewName } from '../../options/views';
-import { getFavoriteIdentity } from '$lib/utils/files';
 import {
   buildFreeplayLibraryContextActions,
   buildFreeplayQueueContextActions
 } from '$lib/services/workspace-actions';
-import { experimentalSettings } from '$lib/stores/experimental-settings';
-import { multiplayerLastSession } from '$lib/stores/multiplayer-last-session';
-import { multiplayerPairings } from '$lib/stores/multiplayer-pairings';
 import { createMultiplayerSession } from '$lib/services/multiplayer-session';
-import type {
-  MultiplayerSessionController,
-  MultiplayerSessionState
-} from '$lib/services/multiplayer-types';
+import type { MultiplayerSessionController } from '$lib/services/multiplayer-types';
 import {
   getRemoteArtworkLoadKey,
   toLoadedMultiplayerArtwork
@@ -107,62 +101,45 @@ import {
 import { createRenderBufferedPollController } from '$lib/services/multiplayer-render-buffered-poll';
 import { createMainWindowView } from '$lib/services/main-window-view';
 import { resolveTrackSnapshot } from '$lib/services/artwork-presentation';
-import type {
-  LyricsPresentationState
-} from '$lib/services/lyrics-presentation';
+import {
+  createMainWindowRuntimeState,
+  type MainWindowRuntimeState,
+  type MainWindowRuntimeStores,
+  type MainWindowRuntimeSubscription
+} from '$lib/services/main-window-runtime-state';
+import {
+  createMainWindowRuntimeMultiplayerBundle,
+  type MainWindowRuntimeMultiplayerBundle,
+  type MainWindowRuntimeMultiplayerDeps
+} from '$lib/services/main-window-runtime-multiplayer';
+import {
+  createMainWindowRuntimeVideoBundle,
+  type MainWindowRuntimeVideoBundle,
+  type MainWindowRuntimeVideoDeps
+} from '$lib/services/main-window-runtime-video';
+import {
+  createMainWindowRuntimeTransportBundle,
+  type MainWindowRuntimeTransportBundle,
+  type MainWindowRuntimeTransportDeps
+} from '$lib/services/main-window-runtime-transport';
 
-/** Component-owned reactive state read by the runtime through getters. */
-export interface MainWindowRuntimeState {
-  isMultiplayerClient: boolean;
-  isFreeplayClient: boolean;
-  isSourceFileFreeplayClient: boolean;
-  queueItems: TrackItem[];
-  libraryItems: TrackItem[];
-  favoriteItems: TrackItem[];
-  queueSelectionIds: string[];
-  librarySelectionIds: string[];
-  librarySelectionAnchorId: string | null;
-  favoriteSelectionIds: string[];
-  favoriteSelectionAnchorId: string | null;
-  selectedTrackItem: TrackItem | null;
-  selectedLibraryItem: TrackItem | null;
-  selectedFavoriteItem: TrackItem | null;
-  playingTrack: TrackItem | null;
-  playbackSnapshot: PlaybackSnapshot;
-  playbackStatus: Pick<PlaybackSnapshot, 'state' | 'volume' | 'backend' | 'error'>;
-  shuffleEnabled: boolean;
-  repeatMode: RepeatMode;
-  videoTrackActive: boolean;
-  videoTheaterActive: boolean;
-  videoTheaterControlsHidden: boolean;
-  videoSeekFeedback: VideoSeekFeedback | null;
-  isNowPlayingLayoutActive: boolean;
-  isAutomaticNowPlayingEligible: boolean;
-  autoNowPlayingSuppressed: boolean;
-  lyricsPresentationState: LyricsPresentationState;
-  artworkPresentationState: import('$lib/services/artwork-presentation').ArtworkPresentationState;
-  workspaceShellState: import('$lib/services/workspace-shell').WorkspaceShellState;
-  playbackProgressState: PlaybackProgressState;
-  miniPlayerState: MiniPlayerState;
-  appInstallState: AppInstallState;
-  multiplayerState: MultiplayerSessionState;
-  modulePatternSnapshot: ModulePatternSnapshot;
-  renderBufferedRanges: Array<[number, number]> | null;
-  renderPipelineBuffering: boolean;
-  // Local store mirrors fed into the client-resolution resolvers.
-  localPlayingTrack: TrackItem | null;
-  localShuffleEnabled: boolean;
-  localRepeatMode: RepeatMode;
-  localPlaybackSnapshot: PlaybackSnapshot;
-  localPlaybackStatus: Pick<PlaybackSnapshot, 'state' | 'volume' | 'backend' | 'error'>;
-  // Pushed controller/ui state.
-  playbackCommandsState: { pendingPlaybackTrackId: string | null };
-  multiplayerConnectionDialogOpen: boolean;
-  multiplayerConnectionDialogError: string | null;
-  multiplayerConnectionOperation: 'hosting' | 'joining';
-  multiplayerConnectionTargetName: string | null;
-  multiplayerToastMessage: string | null;
-}
+export type {
+  MainWindowRuntimeState,
+  MainWindowRuntimeStores,
+  MainWindowRuntimeSubscription
+} from '$lib/services/main-window-runtime-state';
+export type {
+  MainWindowRuntimeMultiplayerBundle,
+  MainWindowRuntimeMultiplayerDeps
+} from '$lib/services/main-window-runtime-multiplayer';
+export type {
+  MainWindowRuntimeVideoBundle,
+  MainWindowRuntimeVideoDeps
+} from '$lib/services/main-window-runtime-video';
+export type {
+  MainWindowRuntimeTransportBundle,
+  MainWindowRuntimeTransportDeps
+} from '$lib/services/main-window-runtime-transport';
 
 /** Handles owned by the composition root and surfaced to the component. */
 export interface MainWindowRuntimeHandles {
@@ -203,17 +180,6 @@ export interface MainWindowRuntimeHandles {
   appInstallService: typeof appInstallService;
   windowManager: typeof windowManager;
   panelHandlers: ReturnType<typeof createMainWindowPanelHandlers>;
-}
-
-/** Store objects the runtime creates and owns, exposing `set`. */
-export interface MainWindowRuntimeStores {
-  displayPlaybackSnapshotStore: ReturnType<typeof writable<PlaybackSnapshot>>;
-  mediaSessionArtworkOverrideStore: ReturnType<typeof writable<LoadedStreamArtwork | null | undefined>>;
-  multiplayerClientMediaSessionStore: ReturnType<typeof writable<boolean>>;
-  miniPlayerTrack: ReturnType<typeof writable<TrackItem | null>>;
-  miniPlayerSelectedTrack: ReturnType<typeof writable<TrackItem | null>>;
-  miniPlayerArtworkUrl: ReturnType<typeof writable<string | null>>;
-  view: ReturnType<typeof createMainWindowView>;
 }
 
 export interface MainWindowRuntime {
@@ -327,201 +293,17 @@ export function createMainWindowRuntime(deps: MainWindowRuntimeDeps): MainWindow
     selectedIds: favoriteSelectedIdsStore,
     selectedTrack: favoriteSelectedTrackStore
   } = favoritesStore;
-  const modulePatternStore = playerController.modulePattern;
   const stopLibraryFolderCommands = startLibraryFolderCommandListener();
   const stopLoadoutRuntime = startLoadoutRuntime(playerController.currentTrack);
 
   const actions: MainWindowRuntimeActions = {} as MainWindowRuntimeActions;
   setSleepTimerFiredHandler(() => actions.pause());
 
-  const state: MainWindowRuntimeState = {
-    isMultiplayerClient: false,
-    isFreeplayClient: false,
-    isSourceFileFreeplayClient: false,
-    queueItems: [],
-    libraryItems: [],
-    favoriteItems: [],
-    queueSelectionIds: [],
-    librarySelectionIds: [],
-    librarySelectionAnchorId: null,
-    favoriteSelectionIds: [],
-    favoriteSelectionAnchorId: null,
-    selectedTrackItem: null,
-    selectedLibraryItem: null,
-    selectedFavoriteItem: null,
-    playingTrack: null,
-    playbackSnapshot: {
-      state: 'idle',
-      currentTime: 0,
-      duration: 0,
-      volume: DEFAULT_PLAYER_VOLUME,
-      muted: false,
-      backend: null,
-      error: undefined
-    },
-    playbackStatus: {
-      state: 'idle',
-      volume: DEFAULT_PLAYER_VOLUME,
-      backend: null,
-      error: undefined
-    },
-    shuffleEnabled: false,
-    repeatMode: 'off',
-    videoTrackActive: false,
-    videoTheaterActive: false,
-    videoTheaterControlsHidden: false,
-    videoSeekFeedback: null,
-    isNowPlayingLayoutActive: false,
-    isAutomaticNowPlayingEligible: false,
-    autoNowPlayingSuppressed: false,
-    lyricsPresentationState: {
-      availability: 'unknown',
-      trackKey: '',
-      resumeAutoScrollToken: 0
-    },
-    artworkPresentationState: {
-      detailsDisplayTrack: null,
-      visibleDetailsArtwork: null,
-      displayedArtwork: null,
-      artworkBackgroundPrimary: null,
-      artworkBackgroundSecondary: null,
-      activeArtworkBackgroundSlot: 'primary',
-      visibleArtworkBackground: null,
-      artworkBackgroundAnalysis: {
-        averageLuminance: 0,
-        brightPixelRatio: 0,
-        isBright: false
-      },
-      isArtworkBackgroundBright: false,
-      isWindowChromeTransitionBypassed: false
-    },
-    workspaceShellState: {
-      activeCollection: 'queue',
-      activeWorkspaceTab: 'queue',
-      isDetailsPanelVisible: false,
-      isLyricsPanelVisible: false,
-      isPatternsPanelVisible: false,
-      isVideoPanelVisible: false,
-      isRightPanelVisible: false,
-      isCompactWorkspace: false,
-      isResizing: false,
-      collapsedWorkspacePanels: [],
-      widePanelWidths: { left: 0, center: 0, right: 0 },
-      visibleWorkspacePanels: [],
-      workspacePanels: [],
-      workspaceTabs: [],
-      queuePanelProps: null as never,
-      libraryPanelProps: null as never,
-      queueJumpRequest: null,
-      libraryGroupRequest: null
-    },
-    playbackProgressState: { notice: null },
-    miniPlayerState: { supported: false, active: false, opening: false },
-    appInstallState: { available: false, showHint: false },
-    multiplayerState: {
-      mode: 'idle',
-      connectionStatus: 'idle',
-      reconnecting: false,
-      inviteCode: null,
-      hostName: null,
-      hostVersion: null,
-      freeplayPaired: false,
-      freeplay: false,
-      freeplayQueue: [],
-      clients: [],
-      remoteCatalog: {
-        revision: 0,
-        queue: [],
-        library: [],
-        favorites: [],
-        shuffleEnabled: false,
-        repeatMode: 'off'
-      },
-      remotePlayback: {
-        generationId: 'idle',
-        snapshot: {
-          state: 'idle',
-          currentTime: 0,
-          duration: 0,
-          volume: DEFAULT_PLAYER_VOLUME,
-          muted: false,
-          backend: null,
-          error: undefined
-        },
-        track: null,
-        sentAt: 0
-      },
-      remoteArtwork: null,
-      remoteArtworkResolvedTrackKey: '',
-      audioStatus: 'idle',
-      remoteDelivery: {
-        generationId: 'idle',
-        trackId: null,
-        mode: 'none',
-        reason: 'host-disabled'
-      },
-      connectionRoute: null,
-      averageAudioBitrateKbps: null,
-      receiveAudio: true,
-      connectionStats: null,
-      connectionDetail: null,
-      message: null
-    },
-    modulePatternSnapshot: {
-      trackId: null,
-      song: null,
-      order: 0,
-      pattern: 0,
-      row: 0
-    },
-    renderBufferedRanges: null,
-    renderPipelineBuffering: false,
-    localPlayingTrack: null,
-    localShuffleEnabled: false,
-    localRepeatMode: 'off',
-    localPlaybackSnapshot: {
-      state: 'idle',
-      currentTime: 0,
-      duration: 0,
-      volume: DEFAULT_PLAYER_VOLUME,
-      muted: false,
-      backend: null,
-      error: undefined
-    },
-    localPlaybackStatus: {
-      state: 'idle',
-      volume: DEFAULT_PLAYER_VOLUME,
-      backend: null,
-      error: undefined
-    },
-    playbackCommandsState: { pendingPlaybackTrackId: null },
-    multiplayerConnectionDialogOpen: false,
-    multiplayerConnectionDialogError: null,
-    multiplayerConnectionOperation: 'joining',
-    multiplayerConnectionTargetName: null,
-    multiplayerToastMessage: null
-  };
-  const listeners = new Set<(updates: Partial<MainWindowRuntimeState>) => void>();
+  const { state, publish, subscription } = createMainWindowRuntimeState();
+  const { subscribe, getSnapshot } = subscription;
 
   const view = createMainWindowView();
   const viewSet = view.set;
-
-  function publish(updates: Partial<MainWindowRuntimeState>): void {
-    Object.assign(state, updates);
-    for (const listener of listeners) listener(updates);
-  }
-
-  function subscribe(listener: (updates: Partial<MainWindowRuntimeState>) => void): () => void {
-    listeners.add(listener);
-    listener(state);
-    return () => {
-      listeners.delete(listener);
-    };
-  }
-
-  function getSnapshot(): MainWindowRuntimeState {
-    return state;
-  }
 
   // ── Controller fabrication (dependency order) ──────────────────────────
 
@@ -622,96 +404,49 @@ export function createMainWindowRuntime(deps: MainWindowRuntimeDeps): MainWindow
     clearStopAfterCurrentTrack: () => playbackSettings.update({ stopAfterTrack: false }),
     getActiveLoopRange: () => resolveAbLoopRange(abLoop.getSnapshot())
   });
-  let multiplayerSession: MultiplayerSessionController;
-  const multiplayerController = createMultiplayerWindowController({
-    getSession: () => multiplayerSession,
-    getPlaybackCommands: () => playbackCommands,
-    getPlayingTrack: () => state.playingTrack,
-    getPlaybackSnapshot: () => state.playbackSnapshot,
-    getQueueItems: () => state.queueItems,
-    getLibraryItems: () => state.libraryItems,
-    getFavoriteItems: () => state.favoriteItems,
-    seek: (seconds) => actions.seek(seconds),
-    toggleQueueShuffle: () => actions.toggleQueueShuffle(),
-    cycleQueueRepeat: () => actions.cycleQueueRepeat(),
-    getExperimentalSettings: () => experimentalSettings.getSnapshot(),
-    getLastSession: () => multiplayerLastSession.getSnapshot(),
-    getPairings: () => multiplayerPairings.getSnapshot(),
-    pausePlayer: () => playerController.pause(),
-    setActiveWorkspaceTab: (tab) => workspaceShell.setActiveWorkspaceTab(tab),
-    getRemoteSelections: deps.getRemoteSelections,
-    setRemoteSelections: deps.setRemoteSelections,
-    translate,
-  });
-  multiplayerSession = createMultiplayerSession({
-    handleHostCommand: (command) => multiplayerController.handleHostCommand(command),
-    pauseHostPlayback: () => playbackCommands.pause(),
-    resumeHostPlayback: () => { void playbackCommands.play(); }
-  });
-  multiplayerController.prepareLaunchDialog();
-  publish({ multiplayerState: multiplayerSession.getSnapshot() });
-  const unsubscribeMultiplayerUi = multiplayerController.subscribe((ui) => {
-    publish({
-      multiplayerConnectionDialogOpen: ui.dialog.open,
-      multiplayerConnectionDialogError: ui.dialog.error,
-      multiplayerConnectionOperation: ui.dialog.operation,
-      multiplayerConnectionTargetName: ui.dialog.targetName,
-      multiplayerToastMessage: ui.toastMessage
+
+  const multiplayerBundle: MainWindowRuntimeMultiplayerBundle =
+    createMainWindowRuntimeMultiplayerBundle({
+      getState: () => state,
+      publish,
+      getPlaybackCommands: () => playbackCommands,
+      getSeek: () => (seconds) => actions.seek(seconds),
+      getToggleQueueShuffle: () => () => actions.toggleQueueShuffle(),
+      getCycleQueueRepeat: () => () => actions.cycleQueueRepeat(),
+      getSetActiveWorkspaceTab: () => (tab) => workspaceShell.setActiveWorkspaceTab(tab),
+      getSetFreeplayQueue: (ids) => multiplayerSession.setFreeplayQueue(ids),
+      getSendCommand: (command) => multiplayerSession.sendCommand(command),
+      getActivateTrack: () => (collection, id) =>
+        multiplayerController.activateTrack(collection, id),
+      getRemoteSelections: deps.getRemoteSelections,
+      setRemoteSelections: deps.setRemoteSelections,
+      getShowLibraryGroup: () => (target) => workspaceShell.showLibraryGroup(target),
+      getShowTrackDetails: () => () => workspaceShell.showTrackDetails(),
+      getActiveView: () => libraryViewSettings.getSnapshot().activeView
     });
-  });
-  const unsubscribeMultiplayer = multiplayerSession.subscribe((value) => {
-    publish({ multiplayerState: value });
-    const update = multiplayerController.syncFromSession(value);
-    if (update.enteredFreeplay) workspaceShell.setActiveWorkspaceTab('library');
-    if (update.remoteSelections) deps.setRemoteSelections(update.remoteSelections);
-  });
-  const freeplayActions = createFreeplayUiActions({
-    getIsFreeplayClient: () => state.isFreeplayClient,
-    getFreeplayQueue: () => state.multiplayerState.freeplayQueue,
-    setFreeplayQueue: (ids) => multiplayerSession.setFreeplayQueue(ids),
-    sendCommand: (command) => multiplayerSession.sendCommand(command),
-    getShuffleEnabled: () => state.multiplayerState.remoteCatalog.shuffleEnabled,
-    getQueueItems: () => state.queueItems,
-    getLibraryItems: () => state.libraryItems,
-    getFavoriteItems: () => state.favoriteItems,
-    getActiveView: () => libraryViewSettings.getSnapshot().activeView,
-    showLibraryGroup: (target) => workspaceShell.showLibraryGroup(target),
-    showTrackDetails: () => workspaceShell.showTrackDetails(),
-    activateTrack: (collection, id) => multiplayerController.activateTrack(collection, id)
-  });
-  const videoActions = createVideoWindowActions({
-    getVideoTrackActive: () => state.videoTrackActive,
-    getTheaterActive: () => state.videoTheaterActive,
-    setTheaterActive: (active) => publish({ videoTheaterActive: active }),
-    setTheaterControlsHidden: (hidden) => publish({ videoTheaterControlsHidden: hidden }),
-    getIsNowPlayingLayoutActive: () => state.isNowPlayingLayoutActive,
-    getIsAutomaticNowPlayingEligible: () => state.isAutomaticNowPlayingEligible,
-    getAutoNowPlayingSuppressed: () => state.autoNowPlayingSuppressed,
-    setAutoNowPlayingSuppressed: (value) => publish({ autoNowPlayingSuppressed: value }),
-    getWindowDisplayState: () => {
-      const display = get(windowDisplayState);
-      return {
-        maximized: display.maximized,
-        fullscreen: display.fullscreen
-      };
-    },
+  const { multiplayerController, multiplayerSession, freeplayActions } = multiplayerBundle;
+
+  const videoBundle: MainWindowRuntimeVideoBundle = createMainWindowRuntimeVideoBundle({
+    getState: () => state,
+    publish,
     mobileMode: deps.mobileMode,
     showVideoTab: () => workspaceShell.showWorkspaceTab('video'),
     closeVideoTab: () => workspaceShell.closeWorkspaceTab('video')
   });
-  const transport = createTransportActions({
-    getPlaybackCommands: () => playbackCommands,
-    getMultiplayerSession: () => multiplayerSession,
-    getPlaybackSnapshot: () => state.playbackSnapshot,
-    getPlayingTrack: () => state.playingTrack,
-    getIsMultiplayerClient: () => state.isMultiplayerClient,
-    getIsSourceFileFreeplayClient: () => state.isSourceFileFreeplayClient,
-    getVideoTrackActive: () => state.videoTrackActive,
-    setVideoSeekFeedback: deps.setVideoSeekFeedback,
-    resumeLyricsAutoScroll: () => lyricsPresentation.resumeAutoScroll(),
-    getPlaybackProgress: () => playbackProgress,
-    getResumeNotice: () => state.playbackProgressState.notice
-  });
+  const { videoActions } = videoBundle;
+
+  const transportBundle: MainWindowRuntimeTransportBundle =
+    createMainWindowRuntimeTransportBundle({
+      getState: () => state,
+      getPlaybackCommands: () => playbackCommands,
+      getMultiplayerSession: () => multiplayerSession,
+      setVideoSeekFeedback: deps.setVideoSeekFeedback,
+      resumeLyricsAutoScroll: () => lyricsPresentation.resumeAutoScroll(),
+      getPlaybackProgress: () => playbackProgress,
+      getResumeNotice: () => state.playbackProgressState.notice
+    });
+  const { transport } = transportBundle;
+
   const troubadourBridge = createTroubadourMainWindowBridge({
     getPlayingTrack: () => state.playingTrack,
     getQueueItems: () => state.queueItems,
@@ -1111,8 +846,7 @@ export function createMainWindowRuntime(deps: MainWindowRuntimeDeps): MainWindow
     unsubscribeLyricsPresentation();
     unsubscribeAppInstall();
     unsubscribeMiniPlayer();
-    unsubscribeMultiplayerUi();
-    unsubscribeMultiplayer();
+    multiplayerBundle.unsubscribe();
     multiplayerSession.destroy();
     multiplayerController.destroy();
     miniPlayer.destroy();
@@ -1122,7 +856,6 @@ export function createMainWindowRuntime(deps: MainWindowRuntimeDeps): MainWindow
     stopLoadoutRuntime();
     disconnectMediaSession();
     playerController.destroy();
-    listeners.clear();
   }
 
   return {
