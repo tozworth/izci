@@ -593,9 +593,18 @@ export function createMainWindowRuntime(deps: MainWindowRuntimeDeps): MainWindow
 
   // ── Subscription wiring ────────────────────────────────────────────────
 
-  const unsubscribeTrackItems = queueItemsStore.subscribe((value) => viewSet({ trackItems: value }));
-  const unsubscribeLibraryItems = libraryItemsStore.subscribe((value) => viewSet({ libraryItems: value }));
-  const unsubscribeFavoriteItems = favoriteItemsStore.subscribe((value) => viewSet({ favoriteItems: value }));
+  const unsubscribeTrackItems = queueItemsStore.subscribe((value) => {
+    viewSet({ trackItems: value });
+    publish({ queueItems: value });
+  });
+  const unsubscribeLibraryItems = libraryItemsStore.subscribe((value) => {
+    viewSet({ libraryItems: value });
+    publish({ libraryItems: value });
+  });
+  const unsubscribeFavoriteItems = favoriteItemsStore.subscribe((value) => {
+    viewSet({ favoriteItems: value });
+    publish({ favoriteItems: value });
+  });
   void Promise.all([queueStore.ready(), libraryStore.ready(), favoritesStore.ready()]).then(async () => {
     viewSet({ collectionsReady: true });
     void scanLaunchLibraryFolders();
@@ -603,33 +612,61 @@ export function createMainWindowRuntime(deps: MainWindowRuntimeDeps): MainWindow
     void multiplayerController.startLaunch();
   });
   const unsubscribeQueueSelectedIds = queueSelectedIdsStore.subscribe(
-    (value) => viewSet({ trackSelectionIds: value })
+    (value) => {
+      viewSet({ trackSelectionIds: value });
+      publish({ queueSelectionIds: value });
+    }
   );
   const unsubscribeLibrarySelectedIds = librarySelectedIdsStore.subscribe(
-    (value) => viewSet({ librarySelectionIds: value })
+    (value) => {
+      viewSet({ librarySelectionIds: value });
+      publish({ librarySelectionIds: value });
+    }
   );
   const unsubscribeLibrarySelection = librarySelectionStore.subscribe(
-    (value) => viewSet({ librarySelectionAnchorId: value.anchorId })
+    (value) => {
+      viewSet({ librarySelectionAnchorId: value.anchorId });
+      publish({ librarySelectionAnchorId: value.anchorId });
+    }
   );
   const unsubscribeFavoriteSelectedIds = favoriteSelectedIdsStore.subscribe(
-    (value) => viewSet({ favoriteSelectionIds: value })
+    (value) => {
+      viewSet({ favoriteSelectionIds: value });
+      publish({ favoriteSelectionIds: value });
+    }
   );
   const unsubscribeFavoriteSelection = favoriteSelectionStore.subscribe(
-    (value) => viewSet({ favoriteSelectionAnchorId: value.anchorId })
+    (value) => {
+      viewSet({ favoriteSelectionAnchorId: value.anchorId });
+      publish({ favoriteSelectionAnchorId: value.anchorId });
+    }
   );
   const unsubscribeQueueSelectedTrack = queueSelectedTrackStore.subscribe(
-    (value) => viewSet({ selectedTrackItem: value })
+    (value) => {
+      viewSet({ selectedTrackItem: value });
+      publish({ selectedTrackItem: value });
+    }
   );
   const unsubscribeLibrarySelectedTrack = librarySelectedTrackStore.subscribe(
-    (value) => viewSet({ selectedLibraryItem: value })
+    (value) => {
+      viewSet({ selectedLibraryItem: value });
+      publish({ selectedLibraryItem: value });
+    }
   );
   const unsubscribeFavoriteSelectedTrack = favoriteSelectedTrackStore.subscribe(
-    (value) => viewSet({ selectedFavoriteItem: value })
+    (value) => {
+      viewSet({ selectedFavoriteItem: value });
+      publish({ selectedFavoriteItem: value });
+    }
   );
-  const unsubscribeShuffle = shuffleStore.subscribe((value) => publish({ localShuffleEnabled: value }));
-  const unsubscribeRepeat = repeatStore.subscribe((value) => publish({ localRepeatMode: value }));
+  const unsubscribeShuffle = shuffleStore.subscribe((value) =>
+    publish({ localShuffleEnabled: value, shuffleEnabled: value })
+  );
+  const unsubscribeRepeat = repeatStore.subscribe((value) =>
+    publish({ localRepeatMode: value, repeatMode: value })
+  );
   const unsubscribeTrack = playerController.currentTrack.subscribe((value) => {
-    publish({ localPlayingTrack: value });
+    publish({ localPlayingTrack: value, playingTrack: value });
     syncPlayingTrackMetadata(value, {
       isMultiplayerClient: state.isMultiplayerClient,
       libraryItems: view.getSnapshot().libraryItems,
@@ -641,14 +678,14 @@ export function createMainWindowRuntime(deps: MainWindowRuntimeDeps): MainWindow
     viewSet({ upNextEntries: value });
   });
   const unsubscribePlaybackSnapshot = playerController.snapshot.subscribe((value) => {
-    publish({ localPlaybackSnapshot: value });
+    publish({ localPlaybackSnapshot: value, playbackSnapshot: value });
     if (value.state === 'playing') appInstallService.markEngaged();
     if (state.multiplayerState.mode !== 'client') {
       void playbackCommands.handlePlaybackProgress();
     }
   });
   const unsubscribePlaybackStatus = playerController.status.subscribe(
-    (value) => publish({ localPlaybackStatus: value })
+    (value) => publish({ localPlaybackStatus: value, playbackStatus: value })
   );
   const unsubscribeWorkspaceShell = workspaceShell.subscribe((value) => publish({ workspaceShellState: value }));
   const unsubscribePlaybackCommands = playbackCommands.subscribe(
