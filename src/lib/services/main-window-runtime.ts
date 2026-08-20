@@ -187,6 +187,7 @@ export interface MainWindowRuntime {
   stores: MainWindowRuntimeStores;
   subscribe(listener: (updates: Partial<MainWindowRuntimeState>) => void): () => void;
   getSnapshot(): MainWindowRuntimeState;
+  publish(updates: Partial<MainWindowRuntimeState>): void;
   dispose(): void;
 }
 
@@ -414,10 +415,6 @@ export function createMainWindowRuntime(deps: MainWindowRuntimeDeps): MainWindow
       getToggleQueueShuffle: () => () => actions.toggleQueueShuffle(),
       getCycleQueueRepeat: () => () => actions.cycleQueueRepeat(),
       getSetActiveWorkspaceTab: () => (tab) => workspaceShell.setActiveWorkspaceTab(tab),
-      getSetFreeplayQueue: (ids) => multiplayerSession.setFreeplayQueue(ids),
-      getSendCommand: (command) => multiplayerSession.sendCommand(command),
-      getActivateTrack: () => (collection, id) =>
-        multiplayerController.activateTrack(collection, id),
       getRemoteSelections: deps.getRemoteSelections,
       setRemoteSelections: deps.setRemoteSelections,
       getShowLibraryGroup: () => (target) => workspaceShell.showLibraryGroup(target),
@@ -666,7 +663,11 @@ export function createMainWindowRuntime(deps: MainWindowRuntimeDeps): MainWindow
     publish({ localRepeatMode: value, repeatMode: value })
   );
   const unsubscribeTrack = playerController.currentTrack.subscribe((value) => {
-    publish({ localPlayingTrack: value, playingTrack: value });
+    publish({
+      localPlayingTrack: value,
+      playingTrack: value,
+      videoTrackActive: !state.isMultiplayerClient && value?.kind === 'video'
+    });
     syncPlayingTrackMetadata(value, {
       isMultiplayerClient: state.isMultiplayerClient,
       libraryItems: view.getSnapshot().libraryItems,
@@ -943,6 +944,7 @@ export function createMainWindowRuntime(deps: MainWindowRuntimeDeps): MainWindow
     },
     subscribe,
     getSnapshot,
+    publish,
     dispose
   };
 }

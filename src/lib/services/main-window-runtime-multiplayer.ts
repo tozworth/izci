@@ -10,17 +10,13 @@ import { experimentalSettings } from '$lib/stores/experimental-settings';
 import { multiplayerLastSession } from '$lib/stores/multiplayer-last-session';
 import { multiplayerPairings } from '$lib/stores/multiplayer-pairings';
 import { createMultiplayerSession } from '$lib/services/multiplayer-session';
-import type {
-  MultiplayerSessionController,
-  MultiplayerSessionState
-} from '$lib/services/multiplayer-types';
-import type { MultiplayerCommandInput } from '$lib/services/multiplayer-protocol';
+import type { MultiplayerSessionController } from '$lib/services/multiplayer-types';
 import { createMultiplayerWindowController } from '$lib/services/multiplayer-window-controller';
 import { createFreeplayUiActions } from '$lib/services/freeplay-ui-actions';
 import { playerController } from '$lib/services/player-controller';
 import type { MainWindowRuntimeState } from '$lib/services/main-window-runtime-state';
 import type { TrackLibraryNavigationTarget } from '$lib/services/library-navigation';
-import type { LibraryViewId, TrackItem, WorkspaceCollection, WorkspaceTab } from '$lib/types';
+import type { LibraryViewId, TrackItem, WorkspaceTab } from '$lib/types';
 import type { RemoteSelectionSnapshot } from './main-window-selection';
 
 export interface MainWindowRuntimeMultiplayerDeps {
@@ -40,12 +36,6 @@ export interface MainWindowRuntimeMultiplayerDeps {
   getToggleQueueShuffle(): () => void;
   getCycleQueueRepeat(): () => void;
   getSetActiveWorkspaceTab(): (tab: WorkspaceTab) => void;
-  getSetFreeplayQueue(ids: string[]): void;
-  getSendCommand(command: MultiplayerCommandInput): void;
-  getActivateTrack(): (
-    collection: WorkspaceCollection | 'favorites',
-    id: string
-  ) => boolean;
   getRemoteSelections(): RemoteSelectionSnapshot;
   setRemoteSelections(selections: RemoteSelectionSnapshot): void;
   getShowLibraryGroup(): (target: TrackLibraryNavigationTarget) => void;
@@ -103,7 +93,14 @@ export function createMainWindowRuntimeMultiplayerBundle(
     });
   });
   const unsubscribeMultiplayer = multiplayerSession.subscribe((value) => {
-    deps.publish({ multiplayerState: value });
+    const isClient = value.mode === 'client';
+    deps.publish({
+      multiplayerState: value,
+      isMultiplayerClient: isClient,
+      isFreeplayClient: isClient && value.freeplay,
+      isSourceFileFreeplayClient: isClient && value.freeplay && value.remoteDelivery.mode === 'source-file',
+      videoTrackActive: !isClient && state.playingTrack?.kind === 'video'
+    });
     const update = multiplayerController.syncFromSession(value);
     if (update.enteredFreeplay) deps.getSetActiveWorkspaceTab()('library');
     if (update.remoteSelections) deps.setRemoteSelections(update.remoteSelections);
@@ -111,8 +108,8 @@ export function createMainWindowRuntimeMultiplayerBundle(
   const freeplayActions = createFreeplayUiActions({
     getIsFreeplayClient: () => state.isFreeplayClient,
     getFreeplayQueue: () => state.multiplayerState.freeplayQueue,
-    setFreeplayQueue: (ids) => deps.getSetFreeplayQueue(ids),
-    sendCommand: (command) => deps.getSendCommand(command),
+    setFreeplayQueue: (ids) => multiplayerSession.setFreeplayQueue(ids),
+    sendCommand: (command) => multiplayerSession.sendCommand(command),
     getShuffleEnabled: () => state.multiplayerState.remoteCatalog.shuffleEnabled,
     getQueueItems: () => state.queueItems,
     getLibraryItems: () => state.libraryItems,
@@ -120,7 +117,7 @@ export function createMainWindowRuntimeMultiplayerBundle(
     getActiveView: () => deps.getActiveView(),
     showLibraryGroup: (target) => deps.getShowLibraryGroup()(target),
     showTrackDetails: () => deps.getShowTrackDetails()(),
-    activateTrack: (collection, id) => deps.getActivateTrack()(collection, id)
+    activateTrack: (collection, id) => multiplayerController.activateTrack(collection, id)
   });
 
   return {
