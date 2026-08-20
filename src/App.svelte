@@ -329,20 +329,7 @@
     multiplayerRecents: $multiplayerRecents,
     multiplayerPairings: $multiplayerPairings
   };
-  $: multiplayerBarHandlers = {
-    multiplayerHost: () => void actions.handleMultiplayerHost(),
-    multiplayerHostWithCode: () => void actions.handleMultiplayerHost(),
-    multiplayerStopHosting: () => void multiplayerSession.stopHosting(),
-    multiplayerJoin: () => void actions.handleMultiplayerJoin(),
-    multiplayerJoinRecent: (inviteCode: string) => void actions.joinMultiplayer(inviteCode),
-    multiplayerJoinPaired: (hostId: string) => void actions.joinPairedMultiplayer(hostId),
-    multiplayerForgetPairing: (hostId: string) => forgetMultiplayerPairing(hostId),
-    multiplayerLeave: () => void multiplayerSession.leave(),
-    multiplayerCopyInvite: () => void actions.copyMultiplayerInvite(),
-    multiplayerResumeAudio: () => void multiplayerSession.resumeAudio(),
-    multiplayerKick: (clientId: string) => void multiplayerSession.kick(clientId),
-    multiplayerTogglePair: (hostId: string) => void multiplayerSession.togglePairing(hostId)
-  };
+
 
   const unsubscribeRuntime = runtime.subscribe((updates) => {
     if ('localPlayingTrack' in updates) localPlayingTrack = updates.localPlayingTrack!;
@@ -509,6 +496,7 @@
     ? toLoadedMultiplayerArtwork(playerDisplayTrack, multiplayerState.remoteArtwork)
     : undefined);
   $: videoTrackActive = !isMultiplayerClient && playerDisplayTrack?.kind === 'video';
+  $: runtime.publish({ videoTrackActive });
   $: videoPictureInPictureSupported =
     videoTrackActive && playerController.videoPictureInPictureSupported;
   $: actions.syncVideoWindowSize(videoTrackActive, $videoSettings.autoResizeWindow);
@@ -560,6 +548,11 @@
     isNowPlayingViewportEligible,
     playerDisplayTrack?.kind
   );
+  $: runtime.publish({
+    isNowPlayingLayoutActive,
+    isAutomaticNowPlayingEligible,
+    autoNowPlayingSuppressed
+  });
   $: isFullscreenNowPlayingChromeHidden =
     isNowPlayingLayoutActive && $windowDisplayState.fullscreen && isNowPlayingChromeHidden;
   $: if (!isNowPlayingLayoutActive || !$windowDisplayState.fullscreen) {
@@ -656,6 +649,7 @@
     artworkPresentationState.detailsDisplayTrack,
     libraryItems
   );
+  $: runtime.publish({ videoTheaterActive, videoTheaterControlsHidden });
   $: void artworkPresentation.syncArtworkBrightness(
     artworkPresentationState.visibleArtworkBackground,
     backdropPresentation.isArtworkBackdropRequested
@@ -811,7 +805,19 @@
     on:togglePatterns={actions.togglePatterns}
     on:toggleMiniPlayer={() => miniPlayer.toggle()}
     on:toggleNowPlayingView={actions.toggleNowPlayingView}
-    {...multiplayerBarHandlers}
+    on:multiplayerHost={() => void actions.handleMultiplayerHost()}
+    on:multiplayerHostWithCode={() => void actions.handleMultiplayerHost()}
+    on:multiplayerStopHosting={() => void multiplayerSession.stopHosting()}
+    on:multiplayerJoin={() => void actions.handleMultiplayerJoin()}
+    on:multiplayerJoinRecent={(event) => void actions.joinMultiplayer(event.detail)}
+    on:multiplayerJoinPaired={(event) => void actions.joinPairedMultiplayer(event.detail)}
+    on:multiplayerForgetPairing={(event) => forgetMultiplayerPairing(event.detail)}
+    on:multiplayerLeave={() => void multiplayerSession.leave()}
+    on:multiplayerCopyInvite={() => void actions.copyMultiplayerInvite()}
+    on:multiplayerResumeAudio={() => void multiplayerSession.resumeAudio()}
+    on:multiplayerToggleAudio={(event) => multiplayerSession.setReceiveAudio(event.detail)}
+    on:multiplayerKick={(event) => void multiplayerSession.kick(event.detail)}
+    on:multiplayerTogglePair={(event) => void multiplayerSession.togglePairing(event.detail)}
     on:setVideoFit={(event) => actions.setVideoFit(event.detail)}
     on:toggleVideoPictureInPicture={() => void actions.toggleVideoPictureInPicture()}
     on:toggleVideoTheater={actions.toggleVideoTheater}
@@ -840,7 +846,18 @@
     on:openOptions={() => actions.handleOpenOptions()}
     on:openAbout={actions.handleOpenAbout}
     on:install={() => void appInstallService.prompt()}
-    {...multiplayerBarHandlers}
+    on:multiplayerHost={() => void actions.handleMultiplayerHost()}
+    on:multiplayerHostWithCode={() => void actions.handleMultiplayerHost()}
+    on:multiplayerStopHosting={() => void multiplayerSession.stopHosting()}
+    on:multiplayerJoin={() => void actions.handleMultiplayerJoin()}
+    on:multiplayerJoinRecent={(event) => void actions.joinMultiplayer(event.detail)}
+    on:multiplayerJoinPaired={(event) => void actions.joinPairedMultiplayer(event.detail)}
+    on:multiplayerForgetPairing={(event) => forgetMultiplayerPairing(event.detail)}
+    on:multiplayerLeave={() => void multiplayerSession.leave()}
+    on:multiplayerCopyInvite={() => void actions.copyMultiplayerInvite()}
+    on:multiplayerResumeAudio={() => void multiplayerSession.resumeAudio()}
+    on:multiplayerKick={(event) => void multiplayerSession.kick(event.detail)}
+    on:multiplayerTogglePair={(event) => void multiplayerSession.togglePairing(event.detail)}
     on:togglePatterns={actions.togglePatterns}
     on:toggle={actions.togglePlayback}
     on:previous={() => actions.stepTrack(-1)}
