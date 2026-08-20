@@ -31,6 +31,113 @@ function source(id: string, proposedBaseName: string, overrides: Partial<RenameS
 }
 
 describe('Troubadour rename jobs', () => {
+  it('rejects before touching the file system when cancellation is already requested', async () => {
+    const controller = new AbortController();
+    controller.abort();
+    const original = file();
+    const originalHandle = fileHandle(original);
+    const row: RenamePreviewRow = {
+      ...source('one', 'new', { file: original, fileHandle: originalHandle }),
+      proposedName: 'new.mp3',
+      proposedPath: 'Music/new.mp3',
+      enabled: true,
+      problems: [],
+      warnings: []
+    };
+
+    await expect(applyRename(row, controller.signal)).rejects.toMatchObject({ name: 'AbortError' });
+    expect(originalHandle.getFile).not.toHaveBeenCalled();
+  });
+
+  it('removes only the partial destination when cancellation interrupts streaming copy', async () => {
+    const controller = new AbortController();
+    const original = file('old.mp3', 'audio'.repeat(2_000));
+    const originalHandle = fileHandle(original);
+    const destination = {
+      kind: 'file' as const,
+      name: 'new.mp3',
+      createWritable: vi.fn(async () => new WritableStream<Uint8Array>({
+        write() {
+          controller.abort();
+        }
+      })),
+      getFile: vi.fn(async () => file('new.mp3', 'audio'.repeat(2_000)))
+    } as unknown as FileSystemFileHandle;
+    const removeEntry = vi.fn(async () => undefined);
+    let lookupCount = 0;
+    const parent = {
+      kind: 'directory' as const,
+      name: 'Music',
+      getFileHandle: vi.fn(async (_name: string, options?: { create?: boolean }) => {
+        if (!options?.create && lookupCount++ === 0) throw new DOMException('Missing', 'NotFoundError');
+        return destination;
+      }),
+      removeEntry
+    } as unknown as FileSystemDirectoryHandle;
+    const row: RenamePreviewRow = {
+      ...source('one', 'new', {
+        file: original,
+        fileHandle: originalHandle,
+        parentHandle: parent,
+        expectedSize: original.size,
+        expectedLastModified: original.lastModified
+      }),
+      proposedName: 'new.mp3', proposedPath: 'Music/new.mp3', enabled: true, problems: [], warnings: []
+    };
+
+    const result = await applyRename(row, controller.signal, 'size');
+
+    expect(result).toMatchObject({ success: false, originalPath: 'Music/old.mp3' });
+    expect(removeEntry).toHaveBeenCalledWith('new.mp3');
+    expect(removeEntry).not.toHaveBeenCalledWith('old.mp3');
+    expect(destination.getFile).not.toHaveBeenCalled();
+  });
+
+  it('commits a rename when cancellation arrives after copying but before original removal', async () => {
+    const controller = new AbortController();
+    const original = file('old.mp3', 'audio');
+    const copied = file('new.mp3', 'audio');
+    const destination = {
+      kind: 'file' as const,
+      name: 'new.mp3',
+      createWritable: vi.fn(async () => ({
+        write: vi.fn(async () => undefined),
+        close: vi.fn(async () => undefined)
+      })),
+      getFile: vi.fn(async () => {
+        controller.abort();
+        return copied;
+      })
+    } as unknown as FileSystemFileHandle;
+    const removeEntry = vi.fn(async () => undefined);
+    let lookupCount = 0;
+    const parent = {
+      kind: 'directory' as const,
+      name: 'Music',
+      getFileHandle: vi.fn(async (_name: string, options?: { create?: boolean }) => {
+        if (!options?.create && lookupCount++ === 0) throw new DOMException('Missing', 'NotFoundError');
+        return destination;
+      }),
+      removeEntry
+    } as unknown as FileSystemDirectoryHandle;
+    const row: RenamePreviewRow = {
+      ...source('one', 'new', {
+        file: original,
+        fileHandle: fileHandle(original),
+        parentHandle: parent,
+        expectedSize: original.size,
+        expectedLastModified: original.lastModified
+      }),
+      proposedName: 'new.mp3', proposedPath: 'Music/new.mp3', enabled: true, problems: [], warnings: []
+    };
+
+    const result = await applyRename(row, controller.signal, 'size');
+
+    expect(controller.signal.aborted).toBe(true);
+    expect(result).toMatchObject({ success: true, path: 'Music/new.mp3' });
+    expect(removeEntry).toHaveBeenCalledWith('old.mp3');
+  });
+
   it('blocks duplicate case-insensitive destinations and unavailable parents', async () => {
     const rows = await buildRenamePreview([
       source('one', 'Song'),
