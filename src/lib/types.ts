@@ -90,7 +90,10 @@ export type LibraryColumnId =
   | 'duration'
   | 'rating'
   | 'plays'
-  | 'lastPlayed';
+  | 'lastPlayed'
+  | 'year'
+  | 'bitrate'
+  | 'fileSize';
 export type LibraryViewId = 'favorites' | 'ratings' | 'songs' | 'artists' | 'albums' | 'genres' | 'years' | 'formats' | 'folders';
 export type LibraryGroupViewId = Exclude<LibraryViewId, 'favorites' | 'ratings' | 'songs'>;
 export type ColorTheme =

@@ -136,6 +136,7 @@
     x={menuX}
     y={menuY}
     ariaLabel={contextMenuLabel}
+    maxVisibleItems={8}
     on:dismiss={() => (menuOpen = false)}
     on:action={(event) => handleMenuAction(event.detail)}
   />

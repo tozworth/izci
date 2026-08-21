@@ -225,10 +225,17 @@ export function initializeScrollbarVisibility(
 
   function handleWheel(event: WheelEvent): void {
     const scroller = findWheelScroller(event);
-    if (scroller) showTemporarily(scroller);
+    if (!scroller) return;
+    if (scroller.hasAttribute(SCROLLBAR_VISIBILITY_IGNORE_SCROLL_ATTRIBUTE) || scroller.closest(`[${SCROLLBAR_VISIBILITY_IGNORE_SCROLL_ATTRIBUTE}]`)) return;
+    if (event.composedPath().some((node) => node instanceof HTMLElement && node.hasAttribute(SCROLLBAR_VISIBILITY_IGNORE_SCROLL_ATTRIBUTE))) return;
+    showTemporarily(scroller);
   }
 
   function handlePointerMove(event: PointerEvent): void {
+    if (event.composedPath().some((node) => node instanceof HTMLElement && node.hasAttribute(SCROLLBAR_VISIBILITY_IGNORE_SCROLL_ATTRIBUTE))) {
+      setNearbyScroller(null);
+      return;
+    }
     if (coarsePointer.matches || event.pointerType === 'touch') {
       setNearbyScroller(null);
       return;

@@ -43,7 +43,10 @@ const LIBRARY_COLUMN_ICONS: Record<LibraryColumnId, string> = {
   duration: 'schedule',
   rating: 'star',
   plays: 'play_arrow',
-  lastPlayed: 'history'
+  lastPlayed: 'history',
+  year: 'calendar_month',
+  bitrate: 'speed',
+  fileSize: 'hard_drive_2'
 };
 
 export function getLibraryColumnIcon(columnId: LibraryColumnId): string {
@@ -92,6 +95,9 @@ export function getColumnLabel(columnId: LibraryColumnId, fallback: string, tran
     case 'rating': return translate('library.columns.rating', { default: 'Rating' });
     case 'plays': return translate('library.columns.plays', { default: 'Plays' });
     case 'lastPlayed': return translate('library.columns.lastPlayed', { default: 'Last played' });
+    case 'year': return translate('library.columns.year', { default: 'Year' });
+    case 'bitrate': return translate('library.columns.bitrate', { default: 'Bitrate' });
+    case 'fileSize': return translate('library.columns.fileSize', { default: 'File size' });
     default: return fallback;
   }
 }
@@ -139,6 +145,26 @@ export function getTrackLastPlayed(item: TrackItem): string {
     : '';
 }
 
+export function getTrackYear(item: TrackItem): string {
+  return item.metadata?.year?.trim() ?? '';
+}
+
+export function getTrackBitrate(item: TrackItem): string {
+  const bitrate = item.metadata?.bitrate;
+  return typeof bitrate === 'number' && Number.isFinite(bitrate) && bitrate > 0
+    ? String(Math.round(bitrate))
+    : '';
+}
+
+export function getTrackFileSize(item: TrackItem): string {
+  const size = item.size;
+  if (typeof size !== 'number' || !Number.isFinite(size) || size <= 0) return '';
+  if (size < 1024) return `${size} B`;
+  if (size < 1024 * 1024) return `${(size / 1024).toFixed(size < 10 * 1024 ? 1 : 0)} KB`;
+  if (size < 1024 * 1024 * 1024) return `${(size / (1024 * 1024)).toFixed(size < 10 * 1024 * 1024 ? 1 : 0)} MB`;
+  return `${(size / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+}
+
 function parsePositionNumber(value: string): number | null {
   const match = value.match(/^\d+/);
   if (!match) return null;
@@ -180,6 +206,12 @@ export function getColumnTextValue(item: TrackItem, columnId: LibraryColumnId): 
       return getTrackPlayCount(item);
     case 'lastPlayed':
       return getTrackLastPlayed(item);
+    case 'year':
+      return getTrackYear(item);
+    case 'bitrate':
+      return getTrackBitrate(item);
+    case 'fileSize':
+      return getTrackFileSize(item);
   }
 }
 
@@ -188,7 +220,10 @@ export function isRightAlignedColumn(columnId: LibraryColumnId): boolean {
     || columnId === 'format'
     || columnId === 'duration'
     || columnId === 'rating'
-    || columnId === 'plays';
+    || columnId === 'plays'
+    || columnId === 'year'
+    || columnId === 'bitrate'
+    || columnId === 'fileSize';
 }
 
 export function fitWidthsToAvailableWidth(
@@ -400,6 +435,42 @@ function compareByColumn(
     }
 
     return direction === 'desc' ? rightRating - leftRating : leftRating - rightRating;
+  }
+
+  if (columnId === 'year') {
+    const leftYear = parsePositionNumber(left.metadata?.year?.trim() ?? '');
+    const rightYear = parsePositionNumber(right.metadata?.year?.trim() ?? '');
+    const leftMissing = leftYear === null;
+    const rightMissing = rightYear === null;
+    if (leftMissing || rightMissing) {
+      if (leftMissing && rightMissing) return 0;
+      return leftMissing ? 1 : -1;
+    }
+    return direction === 'desc' ? (rightYear as number) - (leftYear as number) : (leftYear as number) - (rightYear as number);
+  }
+
+  if (columnId === 'bitrate') {
+    const leftBitrate = left.metadata?.bitrate;
+    const rightBitrate = right.metadata?.bitrate;
+    const leftMissing = typeof leftBitrate !== 'number' || !Number.isFinite(leftBitrate) || leftBitrate <= 0;
+    const rightMissing = typeof rightBitrate !== 'number' || !Number.isFinite(rightBitrate) || rightBitrate <= 0;
+    if (leftMissing || rightMissing) {
+      if (leftMissing && rightMissing) return 0;
+      return leftMissing ? 1 : -1;
+    }
+    return direction === 'desc' ? (rightBitrate as number) - (leftBitrate as number) : (leftBitrate as number) - (rightBitrate as number);
+  }
+
+  if (columnId === 'fileSize') {
+    const leftSize = left.size;
+    const rightSize = right.size;
+    const leftMissing = typeof leftSize !== 'number' || !Number.isFinite(leftSize) || leftSize <= 0;
+    const rightMissing = typeof rightSize !== 'number' || !Number.isFinite(rightSize) || rightSize <= 0;
+    if (leftMissing || rightMissing) {
+      if (leftMissing && rightMissing) return 0;
+      return leftMissing ? 1 : -1;
+    }
+    return direction === 'desc' ? (rightSize as number) - (leftSize as number) : (leftSize as number) - (rightSize as number);
   }
 
   const leftValue = getColumnTextValue(left, columnId).trim();

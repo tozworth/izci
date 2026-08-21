@@ -5,6 +5,8 @@
   import type { MenuActionItem } from '$lib/types';
   import { portal } from '$lib/components/track-list-panel/actions/portal';
   import { windowDismiss } from '$lib/components/track-list-panel/actions/window-dismiss';
+  import { WINDOW_DISMISS_IGNORE_SCROLL_ATTRIBUTE } from '$lib/components/track-list-panel/actions/window-dismiss';
+  import { SCROLLBAR_VISIBILITY_IGNORE_SCROLL_ATTRIBUTE } from '$lib/services/scrollbar-visibility';
   import { keepMenuInViewport } from '$lib/components/track-list-panel/actions/menu-viewport';
   import RatingMenuSurface from '$lib/components/RatingMenuSurface.svelte';
 
@@ -16,6 +18,7 @@
   export let enableOverflowSubmenuFallback = false;
   export let activateOnPointerUpPointerId: number | null = null;
   export let viewportPadding = 8;
+  export let maxVisibleItems: number | null = null;
 
   type MenuLevel = {
     sourceItemId: string;
@@ -213,6 +216,10 @@
     bind:this={menuElement}
     class="menu-list menu-surface menu-surface-nested"
     class:menu-surface-session-stats={showsSessionStats}
+    class:menu-surface-clamped={Boolean(maxVisibleItems)}
+    style={maxVisibleItems ? `--menu-visible-count: ${maxVisibleItems};` : undefined}
+    data-window-dismiss-ignore-scroll
+    data-scrollbar-visibility-ignore-scroll
     use:keepMenuInViewport
     role="menu"
     aria-label={resolvedAriaLabel}
@@ -289,12 +296,15 @@
     bind:this={menuElement}
     class="menu-list menu-surface"
     class:menu-surface-session-stats={showsSessionStats}
+    class:menu-surface-clamped={Boolean(maxVisibleItems)}
     data-menu-interactive="true"
+    data-window-dismiss-ignore-scroll
+    data-scrollbar-visibility-ignore-scroll
     use:portal
     use:windowDismiss={{ enabled: true, onDismiss: () => dispatch('dismiss') }}
     role="menu"
     aria-label={resolvedAriaLabel}
-    style={`left: ${resolvedX}px; top: ${resolvedY}px;`}
+    style={`left: ${resolvedX}px; top: ${resolvedY}px;${maxVisibleItems ? ` --menu-visible-count: ${maxVisibleItems};` : ''}`}
   >
     {#if shouldUseSubmenuDrilldown && navigationStack.length > 0}
       <button type="button" role="menuitem" class="menu-back-button" on:click={goBack}>
@@ -497,5 +507,48 @@
   .submenu-open,
   .menu-back-button:hover {
     background: var(--menu-popover-hover);
+  }
+
+  .menu-surface-clamped {
+    --izci-scrollbar-visibility: 1;
+    max-height: calc(0.24rem + var(--menu-visible-count, 8) * 1.72rem);
+    overflow-y: auto;
+    overflow-x: hidden;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+    scrollbar-gutter: stable;
+    scrollbar-color: color-mix(in srgb, var(--accent) 58%, var(--bg-soft)) transparent;
+  }
+
+  .menu-surface-clamped::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  .menu-surface-clamped::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .menu-surface-clamped::-webkit-scrollbar-thumb {
+    min-width: 28px;
+    min-height: 28px;
+    border: solid transparent;
+    border-width: 2px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--accent) 58%, var(--bg-soft));
+    background-clip: padding-box;
+  }
+
+  .menu-surface-clamped::-webkit-scrollbar-thumb:hover {
+    background: color-mix(in srgb, var(--accent-strong) 72%, var(--bg-soft));
+  }
+
+  .menu-surface-clamped::-webkit-scrollbar-thumb:active {
+    background: var(--accent-strong);
+  }
+
+  :global(html.izci-overlay-vertical-scrollbars) .menu-surface-clamped::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
   }
 </style>

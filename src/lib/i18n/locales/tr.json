@@ -2158,7 +2158,10 @@
       "plays": "Yürütme sayısı",
       "lastPlayed": "Son çalınma",
       "resize": "{column} sütununu boyutlandır",
-      "sortBy": "{column} sütununa göre sırala"
+      "sortBy": "{column} sütununa göre sırala",
+      "year": "Yıl",
+      "bitrate": "Bit hızı",
+      "fileSize": "Dosya boyutu"
     },
     "summary": {
       "filteredArtists": "{visible} sanatçıdan {total} {total, plural, one {} other {}}",
