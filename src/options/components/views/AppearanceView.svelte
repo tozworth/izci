@@ -12,8 +12,8 @@
     MAX_CHAMELEON_SATURATION,
     MIN_CHAMELEON_HUE,
     MIN_CHAMELEON_SATURATION,
-    MAX_VAPORWAVE_BACKGROUND_BRIGHTNESS,
-    MIN_VAPORWAVE_BACKGROUND_BRIGHTNESS,
+    MAX_SYNTHWAVE_BACKGROUND_BRIGHTNESS,
+    MIN_SYNTHWAVE_BACKGROUND_BRIGHTNESS,
     SYSTEM_FONT_FAMILY,
     appearanceSettings
   } from '$lib/stores/appearance-settings';
@@ -65,7 +65,7 @@
   function handleLanguageChange(event: Event) { appLocale.set((event.currentTarget as HTMLSelectElement).value); }
   function handleChameleonHueInput(event: Event) { appearanceSettings.update({ chameleonHue: Number((event.currentTarget as HTMLInputElement).value) }); }
   function handleChameleonSaturationInput(event: Event) { appearanceSettings.update({ chameleonSaturation: Number((event.currentTarget as HTMLInputElement).value) }); }
-  function handleVaporwaveBackgroundBrightnessInput(event: Event) { appearanceSettings.update({ vaporwaveBackgroundBrightness: Number((event.currentTarget as HTMLInputElement).value) }); }
+  function handleSynthwaveBackgroundBrightnessInput(event: Event) { appearanceSettings.update({ synthwaveBackgroundBrightness: Number((event.currentTarget as HTMLInputElement).value) }); }
   function handleAppearanceToggle(event: Event, key: BooleanAppearanceSetting) { appearanceSettings.update({ [key]: checked(event) }); }
   function handleFontFamilyChange(event: CustomEvent<string>) { appearanceSettings.update({ fontFamily: event.detail }); }
   function handleContextualTabChange(event: Event, tab: ContextualWorkspaceTab) {
@@ -102,7 +102,7 @@
       case 'gruvbox': return $t('options.appearance.themes.gruvbox', { default: 'Gruvbox' });
       case 'dracula': return $t('options.appearance.themes.dracula', { default: 'Dracula' });
       case 'ember': return $t('options.appearance.themes.ember', { default: 'Ember' });
-      case 'vaporwave': return $t('options.appearance.themes.vaporwave', { default: 'Vaporwave' });
+      case 'synthwave': return $t('options.appearance.themes.synthwave', { default: 'Synthwave' });
       case 'chameleon': return $t('options.appearance.themes.chameleon', { default: 'Chameleon' });
     }
   }
@@ -235,26 +235,26 @@
         </SettingsField>
       {/if}
 
-      {#if activeColorTheme === 'vaporwave'}
+      {#if activeColorTheme === 'synthwave'}
         <SettingsField
-          title={$t('options.appearance.vaporwaveBackgroundBrightness.title', { default: 'Background brightness' })}
-          hint={$t('options.appearance.vaporwaveBackgroundBrightness.hint', { default: "Scales the sunset, grid, and background glows. 0% hides the scenery entirely; 100% is as loud as it gets." })}
-          fieldClass="vaporwave-brightness-field"
+          title={$t('options.appearance.synthwaveBackgroundBrightness.title', { default: 'Background brightness' })}
+          hint={$t('options.appearance.synthwaveBackgroundBrightness.hint', { default: "Scales the sunset, grid, and background glows. 0% hides the scenery entirely; 100% is as loud as it gets." })}
+          fieldClass="synthwave-brightness-field"
           controlClass="chameleon-slider-control"
         >
             <input
-              class="vaporwave-brightness-slider"
+              class="synthwave-brightness-slider"
               type="range"
-              min={MIN_VAPORWAVE_BACKGROUND_BRIGHTNESS}
-              max={MAX_VAPORWAVE_BACKGROUND_BRIGHTNESS}
+              min={MIN_SYNTHWAVE_BACKGROUND_BRIGHTNESS}
+              max={MAX_SYNTHWAVE_BACKGROUND_BRIGHTNESS}
               step="1"
-              value={$appearanceSettings.vaporwaveBackgroundBrightness}
-              style={`--slider-hue: 315; --slider-saturation: ${$appearanceSettings.vaporwaveBackgroundBrightness}%`}
-              aria-label={$t('options.appearance.vaporwaveBackgroundBrightness.label', { default: 'Vaporwave background brightness' })}
-              on:input={handleVaporwaveBackgroundBrightnessInput}
+              value={$appearanceSettings.synthwaveBackgroundBrightness}
+              style={`--slider-hue: 315; --slider-saturation: ${$appearanceSettings.synthwaveBackgroundBrightness}%`}
+              aria-label={$t('options.appearance.synthwaveBackgroundBrightness.label', { default: 'Synthwave background brightness' })}
+              on:input={handleSynthwaveBackgroundBrightnessInput}
             />
-            <output class="chameleon-slider-output" style="--swatch-hue: 315" aria-label={$t('options.appearance.percent', { default: '{value} percent', values: { value: $appearanceSettings.vaporwaveBackgroundBrightness } })}>
-              {$appearanceSettings.vaporwaveBackgroundBrightness}%
+            <output class="chameleon-slider-output" style="--swatch-hue: 315" aria-label={$t('options.appearance.percent', { default: '{value} percent', values: { value: $appearanceSettings.synthwaveBackgroundBrightness } })}>
+              {$appearanceSettings.synthwaveBackgroundBrightness}%
             </output>
         </SettingsField>
       {/if}

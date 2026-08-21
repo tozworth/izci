@@ -545,7 +545,7 @@
         "gruvbox": "Gruvbox",
         "dracula": "Dracula",
         "ember": "Köz",
-        "vaporwave": "Vaporwave",
+        "synthwave": "Synthwave",
         "chameleon": "Bukalemun"
       },
       "contextualTabs": {
@@ -634,10 +634,10 @@
         "hint": "Temanın karşıtlığını veya parlaklığını değiştirmeden renk yoğunluğunu ayarlar.",
         "label": "Bukalemun renk doygunluğu"
       },
-      "vaporwaveBackgroundBrightness": {
+      "synthwaveBackgroundBrightness": {
         "title": "Arka plan parlaklığı",
         "hint": "Gün batımını, ızgarayı ve arka plan parıltılarını ölçekler. %0 manzarayı tamamen gizler; %100 en gürültülü hâlidir.",
-        "label": "Vaporwave arka plan parlaklığı"
+        "label": "Synthwave arka plan parlaklığı"
       },
       "percent": "yüzde {value}",
       "artworkPlayerColors": {

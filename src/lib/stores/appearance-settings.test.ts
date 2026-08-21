@@ -4,18 +4,18 @@ import {
   DEFAULT_CHAMELEON_SATURATION,
   DEFAULT_DARK_COLOR_THEME,
   DEFAULT_LIGHT_COLOR_THEME,
-  DEFAULT_VAPORWAVE_BACKGROUND_BRIGHTNESS,
+  DEFAULT_SYNTHWAVE_BACKGROUND_BRIGHTNESS,
   MAX_CHAMELEON_HUE,
   MIN_CHAMELEON_HUE,
   MAX_CHAMELEON_SATURATION,
   MIN_CHAMELEON_SATURATION,
-  MAX_VAPORWAVE_BACKGROUND_BRIGHTNESS,
-  MIN_VAPORWAVE_BACKGROUND_BRIGHTNESS,
+  MAX_SYNTHWAVE_BACKGROUND_BRIGHTNESS,
+  MIN_SYNTHWAVE_BACKGROUND_BRIGHTNESS,
   normalizeChameleonHue,
   normalizeChameleonSaturation,
   normalizeAppearanceSettings,
   normalizeContextualTabAutomation,
-  normalizeVaporwaveBackgroundBrightness
+  normalizeSynthwaveBackgroundBrightness
 } from './appearance-settings';
 
 describe('normalizeAppearanceSettings theme selection', () => {
@@ -87,19 +87,19 @@ describe('normalizeChameleonSaturation', () => {
   });
 });
 
-describe('normalizeVaporwaveBackgroundBrightness', () => {
+describe('normalizeSynthwaveBackgroundBrightness', () => {
   it('rounds and clamps persisted brightness values', () => {
-    expect(normalizeVaporwaveBackgroundBrightness(37.4)).toBe(37);
-    expect(normalizeVaporwaveBackgroundBrightness(-5)).toBe(MIN_VAPORWAVE_BACKGROUND_BRIGHTNESS);
-    expect(normalizeVaporwaveBackgroundBrightness(140)).toBe(MAX_VAPORWAVE_BACKGROUND_BRIGHTNESS);
+    expect(normalizeSynthwaveBackgroundBrightness(37.4)).toBe(37);
+    expect(normalizeSynthwaveBackgroundBrightness(-5)).toBe(MIN_SYNTHWAVE_BACKGROUND_BRIGHTNESS);
+    expect(normalizeSynthwaveBackgroundBrightness(140)).toBe(MAX_SYNTHWAVE_BACKGROUND_BRIGHTNESS);
   });
 
   it('falls back to the default for a missing or invalid brightness', () => {
-    expect(normalizeVaporwaveBackgroundBrightness(undefined)).toBe(
-      DEFAULT_VAPORWAVE_BACKGROUND_BRIGHTNESS
+    expect(normalizeSynthwaveBackgroundBrightness(undefined)).toBe(
+      DEFAULT_SYNTHWAVE_BACKGROUND_BRIGHTNESS
     );
-    expect(normalizeVaporwaveBackgroundBrightness('neon')).toBe(
-      DEFAULT_VAPORWAVE_BACKGROUND_BRIGHTNESS
+    expect(normalizeSynthwaveBackgroundBrightness('neon')).toBe(
+      DEFAULT_SYNTHWAVE_BACKGROUND_BRIGHTNESS
     );
   });
 });

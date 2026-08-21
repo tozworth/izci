@@ -42,7 +42,7 @@ export const COLOR_THEME_DEFINITIONS: ColorThemeDefinition[] = [
   { value: 'gruvbox', variants: { dark: { themeColor: '#1c1d1e' } } },
   { value: 'dracula', variants: { dark: { themeColor: '#1f2029' } } },
   { value: 'ember', variants: { dark: { themeColor: '#1c1110' } } },
-  { value: 'vaporwave', variants: { dark: { themeColor: '#150d2e' } } }
+  { value: 'synthwave', variants: { dark: { themeColor: '#150d2e' } } }
 ];
 
 export function findColorThemeDefinition(theme: unknown): ColorThemeDefinition | undefined {

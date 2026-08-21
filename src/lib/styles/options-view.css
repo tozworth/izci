@@ -801,7 +801,7 @@ code {
 }
 
 .field input.chameleon-saturation-slider,
-.field input.vaporwave-brightness-slider {
+.field input.synthwave-brightness-slider {
   width: min(240px, 32vw);
   height: 18px;
   margin: 0;
@@ -810,7 +810,7 @@ code {
 }
 
 .chameleon-saturation-slider::-webkit-slider-runnable-track,
-.vaporwave-brightness-slider::-webkit-slider-runnable-track {
+.synthwave-brightness-slider::-webkit-slider-runnable-track {
   height: 4px;
   border-radius: 999px;
   background: linear-gradient(
@@ -822,7 +822,7 @@ code {
 }
 
 .chameleon-saturation-slider::-webkit-slider-thumb,
-.vaporwave-brightness-slider::-webkit-slider-thumb {
+.synthwave-brightness-slider::-webkit-slider-thumb {
   width: 16px;
   height: 16px;
   margin-top: -6px;
