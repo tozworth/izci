@@ -111,6 +111,8 @@ export function createTroubadourRenamePipeline(deps: {
     verify?: boolean;
     settings?: TroubadourSettings;
   }) => Promise<TroubadourBatchItemResult[]>;
+  /** Returns the signal that cancels this batch when cancelActiveJob() fires. */
+  beginBatch: () => AbortSignal;
 }): RenamePipeline {
   const {
     state: getState,
@@ -120,7 +122,8 @@ export function createTroubadourRenamePipeline(deps: {
     setStaged,
     setState,
     setBusyComplete,
-    saveSelectedOrAll
+    saveSelectedOrAll,
+    beginBatch
   } = deps;
 
   return {
@@ -139,11 +142,15 @@ export function createTroubadourRenamePipeline(deps: {
       const targets = rows.filter((row) => row.enabled && !row.problems.length);
       const jobs: RenameJobResult[] = [];
       const results: TroubadourBatchItemResult[] = [];
+      // An external signal (tests, callers) wins; otherwise the batch signal
+      // from the controller lets cancelActiveJob() stop a running rename.
+      const signal = options.signal ?? beginBatch();
       setState({ busy: true, activeJob: 'Renaming files', jobProgress: 0, error: '' });
       for (let index = 0; index < targets.length; index += 1) {
+        if (signal.aborted) break;
         const row = targets[index];
         const item = getState().items.find((candidate) => candidate.id === row.id)!;
-        const job = await applyRename(row, options.signal, options.verification);
+        const job = await applyRename(row, signal, options.verification);
         jobs.push(job);
         if (job.success) {
           const document = await readMetadataDocument(job.file, item.extension);
@@ -189,7 +196,9 @@ export function createTroubadourRenamePipeline(deps: {
         }
         setJob('Renaming files', (index + 1) / targets.length);
       }
-      setBusyComplete(`${jobs.filter((job) => job.success).length} of ${targets.length} files renamed.`);
+      setBusyComplete(signal.aborted
+        ? 'Rename cancelled.'
+        : `${jobs.filter((job) => job.success).length} of ${targets.length} files renamed.`);
       setHistory(createHistory(cloneStaged({ items: getState().items, albums: getState().albums })));
       setState({ canUndo: false, canRedo: false });
       return { jobs, results };
