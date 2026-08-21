@@ -12,6 +12,8 @@
     MAX_CHAMELEON_SATURATION,
     MIN_CHAMELEON_HUE,
     MIN_CHAMELEON_SATURATION,
+    MAX_VAPORWAVE_BACKGROUND_BRIGHTNESS,
+    MIN_VAPORWAVE_BACKGROUND_BRIGHTNESS,
     SYSTEM_FONT_FAMILY,
     appearanceSettings
   } from '$lib/stores/appearance-settings';
@@ -63,6 +65,7 @@
   function handleLanguageChange(event: Event) { appLocale.set((event.currentTarget as HTMLSelectElement).value); }
   function handleChameleonHueInput(event: Event) { appearanceSettings.update({ chameleonHue: Number((event.currentTarget as HTMLInputElement).value) }); }
   function handleChameleonSaturationInput(event: Event) { appearanceSettings.update({ chameleonSaturation: Number((event.currentTarget as HTMLInputElement).value) }); }
+  function handleVaporwaveBackgroundBrightnessInput(event: Event) { appearanceSettings.update({ vaporwaveBackgroundBrightness: Number((event.currentTarget as HTMLInputElement).value) }); }
   function handleAppearanceToggle(event: Event, key: BooleanAppearanceSetting) { appearanceSettings.update({ [key]: checked(event) }); }
   function handleFontFamilyChange(event: CustomEvent<string>) { appearanceSettings.update({ fontFamily: event.detail }); }
   function handleContextualTabChange(event: Event, tab: ContextualWorkspaceTab) {
@@ -228,6 +231,30 @@
             />
             <output class="chameleon-slider-output" aria-label={$t('options.appearance.percent', { default: '{value} percent', values: { value: $appearanceSettings.chameleonSaturation } })}>
               {$appearanceSettings.chameleonSaturation}%
+            </output>
+        </SettingsField>
+      {/if}
+
+      {#if activeColorTheme === 'vaporwave'}
+        <SettingsField
+          title={$t('options.appearance.vaporwaveBackgroundBrightness.title', { default: 'Background brightness' })}
+          hint={$t('options.appearance.vaporwaveBackgroundBrightness.hint', { default: "Scales the sunset, grid, and background glows. 0% hides the scenery entirely; 100% is as loud as it gets." })}
+          fieldClass="vaporwave-brightness-field"
+          controlClass="chameleon-slider-control"
+        >
+            <input
+              class="vaporwave-brightness-slider"
+              type="range"
+              min={MIN_VAPORWAVE_BACKGROUND_BRIGHTNESS}
+              max={MAX_VAPORWAVE_BACKGROUND_BRIGHTNESS}
+              step="1"
+              value={$appearanceSettings.vaporwaveBackgroundBrightness}
+              style={`--slider-hue: 315; --slider-saturation: ${$appearanceSettings.vaporwaveBackgroundBrightness}%`}
+              aria-label={$t('options.appearance.vaporwaveBackgroundBrightness.label', { default: 'Vaporwave background brightness' })}
+              on:input={handleVaporwaveBackgroundBrightnessInput}
+            />
+            <output class="chameleon-slider-output" style="--swatch-hue: 315" aria-label={$t('options.appearance.percent', { default: '{value} percent', values: { value: $appearanceSettings.vaporwaveBackgroundBrightness } })}>
+              {$appearanceSettings.vaporwaveBackgroundBrightness}%
             </output>
         </SettingsField>
       {/if}

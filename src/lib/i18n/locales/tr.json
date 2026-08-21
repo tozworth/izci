@@ -634,6 +634,11 @@
         "hint": "Temanın karşıtlığını veya parlaklığını değiştirmeden renk yoğunluğunu ayarlar.",
         "label": "Bukalemun renk doygunluğu"
       },
+      "vaporwaveBackgroundBrightness": {
+        "title": "Arka plan parlaklığı",
+        "hint": "Gün batımını, ızgarayı ve arka plan parıltılarını ölçekler. %0 manzarayı tamamen gizler; %100 en gürültülü hâlidir.",
+        "label": "Vaporwave arka plan parlaklığı"
+      },
       "percent": "yüzde {value}",
       "artworkPlayerColors": {
         "title": "Oynatıcıda albüm renklerini kullan",
