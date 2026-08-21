@@ -28,7 +28,7 @@
       "preparingRoom": "Preparing the signaling room...",
       "preparingConnection": "Preparing the connection...",
       "enterInvite": "Enter the host invite code",
-      "copyInviteFallback": "Copy this invite code",
+      "copyInviteFallback": "Copy this invite link",
       "connectionFailed": "Multiplayer connection failed",
       "label": "Multiplayer",
       "markLabel": "izci multiplayer",

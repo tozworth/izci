@@ -5,6 +5,7 @@ import type {
 import type { MultiplayerCommand } from '$lib/services/multiplayer-protocol';
 import { logError } from '$lib/services/logging';
 import type { MultiplayerLastSession } from '$lib/stores/multiplayer-last-session';
+import { consumeInviteLinkHash, buildInviteLink } from '$lib/services/multiplayer-invite-link';
 import type { MultiplayerPairing } from '$lib/stores/multiplayer-pairings';
 import type {
   ExperimentalSettings,
@@ -89,6 +90,7 @@ export function createMultiplayerWindowController(deps: MultiplayerWindowControl
   let toastTimer: number | null = null;
   let lastToastMessage: string | null = null;
   let lastPrunedRemoteCatalog: MultiplayerSessionState['remoteCatalog'] | null = null;
+  let inviteLinkListenerAttached = false;
   const listeners = new Set<(ui: MultiplayerWindowUiState) => void>();
 
   function publish(): void {
@@ -336,18 +338,33 @@ export function createMultiplayerWindowController(deps: MultiplayerWindowControl
     const inviteCode = state?.inviteCode ?? null;
     if (!inviteCode) return;
     try {
-      await navigator.clipboard.writeText(inviteCode);
+      await navigator.clipboard.writeText(buildInviteLink(inviteCode));
     } catch {
       window.prompt(
         deps.translate('main.multiplayer.copyInviteFallback', { default: 'Copy this invite code' }),
-        inviteCode
+        buildInviteLink(inviteCode)
       );
     }
+  }
+
+  function ensureInviteLinkListener(): void {
+    if (inviteLinkListenerAttached || typeof window === 'undefined') return;
+    inviteLinkListenerAttached = true;
+    window.addEventListener('hashchange', () => {
+      const code = consumeInviteLinkHash();
+      if (code) void join(code);
+    });
   }
 
   async function startLaunch(): Promise<void> {
     const settings = deps.getExperimentalSettings();
     if (!settings.multiplayer) return;
+    const inviteCode = consumeInviteLinkHash();
+    if (inviteCode) {
+      await join(inviteCode);
+    }
+    ensureInviteLinkListener();
+    if (inviteCode) return;
     if (settings.multiplayerRestoreLastSession) {
       const restored = await deps.getSession().restoreLastSession().catch((error) => {
         logError('multiplayer', 'Last session restore could not start', error);
