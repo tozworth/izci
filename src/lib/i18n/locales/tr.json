@@ -28,7 +28,7 @@
       "preparingRoom": "Sinyalleşme odası hazırlanıyor...",
       "preparingConnection": "Bağlantı hazırlanıyor...",
       "enterInvite": "Sunucunun davet kodunu girin",
-      "copyInviteFallback": "Bu davet kodunu kopyalayın",
+      "copyInviteFallback": "Bu davet bağlantısını kopyalayın",
       "connectionFailed": "Çok oyunculu bağlantı kurulamadı",
       "label": "Çok Oyunculu",
       "markLabel": "izci çok oyunculu",
