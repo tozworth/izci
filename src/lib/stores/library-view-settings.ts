@@ -39,7 +39,10 @@ export const LIBRARY_COLUMN_IDS: LibraryColumnId[] = [
   'duration',
   'rating',
   'plays',
-  'lastPlayed'
+  'lastPlayed',
+  'year',
+  'bitrate',
+  'fileSize'
 ];
 export const LIBRARY_COLUMN_LABELS: Record<LibraryColumnId, string> = {
   title: 'Title',
@@ -51,7 +54,10 @@ export const LIBRARY_COLUMN_LABELS: Record<LibraryColumnId, string> = {
   duration: 'Duration',
   rating: 'Rating',
   plays: 'Plays',
-  lastPlayed: 'Last played'
+  lastPlayed: 'Last played',
+  year: 'Year',
+  bitrate: 'Bitrate',
+  fileSize: 'File size'
 };
 export const LIBRARY_COLUMN_DEFAULT_WIDTHS: Record<LibraryColumnId, number> = {
   title: 300,
@@ -63,7 +69,10 @@ export const LIBRARY_COLUMN_DEFAULT_WIDTHS: Record<LibraryColumnId, number> = {
   duration: 104,
   rating: 104,
   plays: 88,
-  lastPlayed: 128
+  lastPlayed: 128,
+  year: 72,
+  bitrate: 88,
+  fileSize: 96
 };
 export const LIBRARY_COLUMN_MIN_WIDTHS: Record<LibraryColumnId, number> = {
   title: 72,
@@ -75,7 +84,10 @@ export const LIBRARY_COLUMN_MIN_WIDTHS: Record<LibraryColumnId, number> = {
   duration: 48,
   rating: 44,
   plays: 48,
-  lastPlayed: 72
+  lastPlayed: 72,
+  year: 48,
+  bitrate: 56,
+  fileSize: 64
 };
 
 function createDefaultColumns(view: LibraryViewId): LibraryViewTableSettings['columns'] {
@@ -119,6 +131,18 @@ function createDefaultColumns(view: LibraryViewId): LibraryViewTableSettings['co
     lastPlayed: {
       width: LIBRARY_COLUMN_DEFAULT_WIDTHS.lastPlayed,
       visible: false
+    },
+    year: {
+      width: LIBRARY_COLUMN_DEFAULT_WIDTHS.year,
+      visible: false
+    },
+    bitrate: {
+      width: LIBRARY_COLUMN_DEFAULT_WIDTHS.bitrate,
+      visible: false
+    },
+    fileSize: {
+      width: LIBRARY_COLUMN_DEFAULT_WIDTHS.fileSize,
+      visible: false
     }
   };
 
@@ -147,7 +171,7 @@ function createDefaultColumns(view: LibraryViewId): LibraryViewTableSettings['co
 
 function createDefaultViewSettings(view: LibraryViewId): LibraryViewTableSettings {
   const order = view === 'ratings'
-    ? ['rating', 'title', 'artist', 'format', 'duration', 'album', 'discAndTrack', 'folder', 'plays', 'lastPlayed'] satisfies LibraryColumnId[]
+    ? ['rating', 'title', 'artist', 'format', 'duration', 'album', 'discAndTrack', 'folder', 'plays', 'lastPlayed', 'year', 'bitrate', 'fileSize'] satisfies LibraryColumnId[]
     : [...LIBRARY_COLUMN_IDS];
 
   return {

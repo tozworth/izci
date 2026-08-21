@@ -2158,7 +2158,10 @@
       "plays": "Plays",
       "lastPlayed": "Last played",
       "resize": "Resize {column} column",
-      "sortBy": "Sort by {column}"
+      "sortBy": "Sort by {column}",
+      "year": "Year",
+      "bitrate": "Bitrate",
+      "fileSize": "File size"
     },
     "summary": {
       "filteredArtists": "{visible} of {total} {total, plural, one {artist} other {artists}}",
