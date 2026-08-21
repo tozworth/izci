@@ -340,6 +340,9 @@ code {
     radial-gradient(circle at 22% 28%, rgba(255, 122, 61, 0.18), transparent 25%),
     linear-gradient(135deg, #fffaf0 0%, #f6f0e3 58%, #eee4d0 100%);
   color: #122437;
+  /* The hero stays light in every theme; dark themes' inherited text
+     shadows are tuned for dark surfaces and look wrong here. */
+  text-shadow: none;
 }
 
 .about-extension {
@@ -499,7 +502,6 @@ code {
   display: flex;
   flex-direction: column;
   gap: 0.34rem;
-  text-shadow: -1px 1px 0 rgba(10, 5, 24, 0.78);
 }
 
 .about-kicker {
