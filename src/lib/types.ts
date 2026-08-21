@@ -104,6 +104,7 @@ export type ColorTheme =
   | 'gruvbox'
   | 'dracula'
   | 'ember'
+  | 'vaporwave'
   | 'chameleon';
 export type ColorScheme = 'light' | 'dark';
 export type ColorThemeMode = 'system' | ColorScheme;

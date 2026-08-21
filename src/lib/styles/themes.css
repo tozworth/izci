@@ -827,6 +827,141 @@
   --dropzone-background: linear-gradient(180deg, rgba(242, 217, 202, 0.024), transparent 18%);
 }
 
+:root[data-theme='vaporwave'] {
+  color-scheme: dark;
+  font-family: var(--app-font-family);
+  text-shadow: -1px 1px 0 rgba(0, 0, 0, 0.85);
+  /* Chromium's UA sheet sets button { text-shadow: none }, which would
+     exempt every button-based row/tab from the theme shadow. */
+  button, input, select, textarea {
+    text-shadow: inherit;
+  }
+  --bg-base: #150d2e;
+  --menu-bar-bg: #150d2e;
+  --window-topbar-bg: #150d2e;
+  --window-topbar-text: #f3d9ff;
+  --window-topbar-text-strong: #fdf2ff;
+  --window-topbar-muted: #a08cc8;
+  --window-topbar-hover-surface: rgba(243, 217, 255, 0.08);
+  --window-topbar-hairline: rgba(255, 255, 255, 0.04);
+  --bg-elevated: rgba(43, 28, 78, 0.94);
+  --bg-soft: #2b1c4e;
+  --menu-popover-bg: rgba(30, 19, 58, 0.985);
+  --menu-popover-text: #f3d9ff;
+  --menu-popover-muted: #a08cc8;
+  --menu-popover-border: rgba(255, 71, 183, 0.26);
+  --menu-popover-hover: rgba(64, 220, 255, 0.14);
+  --menu-popover-shadow: 0 18px 44px rgba(5, 2, 16, 0.5);
+  --bg-tree: rgba(30, 19, 58, 0.96);
+  --bg-card: rgba(60, 38, 108, 0.52);
+  --bg-input: rgba(20, 12, 44, 0.92);
+  --bg-search: rgba(30, 19, 58, 0.96);
+  --bg-volume-popup: rgba(21, 13, 46, 0.86);
+  --text: #f3d9ff;
+  --text-strong: #fdf2ff;
+  --muted: #a08cc8;
+  --muted-strong: #c6b3ea;
+  --accent: #ff47b7;
+  --accent-strong: #40dcff;
+  --accent-strong-soft: rgba(64, 220, 255, 0.09);
+  --accent-strong-faint: rgba(64, 220, 255, 0.14);
+  --accent-strong-border-hover: rgba(64, 220, 255, 0.46);
+  --accent-focus-border: rgba(64, 220, 255, 0.36);
+  --accent-dashed-border: rgba(255, 71, 183, 0.28);
+  --visualizer-high: rgba(253, 242, 255, 0.94);
+  --visualizer-mid: rgba(64, 220, 255, 0.72);
+  --visualizer-low: rgba(255, 71, 183, 0.26);
+  --visualizer-glow: rgba(255, 71, 183, 0.44);
+  --visualizer-bars: rgba(64, 220, 255, 0.84);
+  --visualizer-blocks: rgba(253, 242, 255, 0.7);
+  --danger: #ff5d8f;
+  --border: rgba(255, 71, 183, 0.3);
+  --border-strong: rgba(255, 71, 183, 0.26);
+  --border-soft: rgba(255, 71, 183, 0.18);
+  --border-faint: rgba(255, 71, 183, 0.15);
+  --border-subtle: rgba(255, 71, 183, 0.12);
+  --border-covered: rgba(255, 71, 183, 0.1);
+  --player-bar-separator: #45297c;
+  --menu-bar-border: rgba(255, 71, 183, 0.24);
+  --hover-surface: rgba(243, 217, 255, 0.08);
+  --hover-subtle: rgba(243, 217, 255, 0.04);
+  --hover-control: rgba(243, 217, 255, 0.06);
+  --tree-hover: rgba(64, 220, 255, 0.16);
+  --selection-bg: rgba(255, 71, 183, 0.15);
+  --selection-strong: rgba(255, 71, 183, 0.23);
+  --resizer-track: rgba(160, 140, 200, 0.22);
+  --resizer-handle: rgba(64, 220, 255, 0.3);
+  --shadow: 0 18px 44px rgba(5, 2, 16, 0.5);
+  --hairline: rgba(255, 255, 255, 0.04);
+  --body-background:
+    radial-gradient(circle at top left, rgba(255, 71, 183, 0.1), transparent 24%),
+    radial-gradient(circle at top right, rgba(64, 220, 255, 0.08), transparent 22%),
+    linear-gradient(180deg, #241554 0%, #150d2e 100%);
+  --options-body-background: linear-gradient(180deg, #241554 0%, #150d2e 100%);
+  --track-list-header-background:
+    linear-gradient(180deg, rgba(43, 28, 78, 0.78) 0%, rgba(43, 28, 78, 0.68) 100%),
+    rgba(21, 13, 46, 0.24);
+  --track-list-header-shadow-gradient: linear-gradient(180deg, rgba(10, 6, 24, 0.34), rgba(10, 6, 24, 0));
+  --player-bar-fade: linear-gradient(180deg, rgba(10, 6, 24, 0), rgba(10, 6, 24, 0.34));
+  --dropzone-background: linear-gradient(180deg, rgba(243, 217, 255, 0.024), transparent 18%);
+}
+
+/* Vaporwave scenery: soft setting-sun half-disc plus perspective neon grid
+   road. Both sit between the shell background and all app UI (isolation on
+   .app-shell); Options windows use their own flat background instead. */
+:root[data-theme='vaporwave'] .app-shell::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: calc(46% - 7.5rem);
+  width: 15rem;
+  height: 7.5rem;
+  transform: translateX(-50%);
+  z-index: -1;
+  pointer-events: none;
+  border-radius: 15rem 15rem 0 0;
+  background: linear-gradient(180deg, #cb5f6d 0%, #e08657 45%, #f2ba80 100%);
+}
+
+:root[data-theme='vaporwave'] .app-shell::after {
+  content: '';
+  position: absolute;
+  left: -25%;
+  right: -25%;
+  top: 46%;
+  bottom: -12%;
+  z-index: -1;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(255, 205, 150, 0.5) 0 0),
+    linear-gradient(rgba(255, 195, 140, 0.38) 0 0),
+    linear-gradient(rgba(255, 185, 130, 0.28) 0 0),
+    linear-gradient(rgba(255, 175, 120, 0.2) 0 0),
+    linear-gradient(rgba(255, 165, 115, 0.13) 0 0),
+    radial-gradient(7rem 30rem at 50% 1rem, rgba(255, 205, 150, 0.26) 0%, rgba(255, 170, 120, 0.12) 45%, transparent 72%),
+    radial-gradient(34rem 16rem at 50% 0%, rgba(255, 120, 190, 0.12), transparent 70%),
+    linear-gradient(rgba(255, 71, 183, 0.4) 1.5px, transparent 1.5px),
+    linear-gradient(90deg, rgba(64, 220, 255, 0.32) 1.5px, transparent 1.5px);
+  background-size:
+    15rem 1.1rem, 12.5rem 0.95rem, 10rem 0.8rem, 7.5rem 0.68rem, 5rem 0.55rem,
+    100% 100%, 100% 100%, 48px 48px, 48px 48px;
+  background-position:
+    50% 0.9rem, 50% 2.3rem, 50% 3.6rem, 50% 4.8rem, 50% 5.9rem,
+    0 0, 0 0, 0 0, 0 0;
+  background-repeat: no-repeat, no-repeat, no-repeat, no-repeat, no-repeat, no-repeat, no-repeat, repeat, repeat;
+  transform: perspective(26rem) rotateX(63deg);
+  transform-origin: top center;
+  mask-image: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.55) 6%, #000 18%);
+}
+
+/* Vaporwave: the separator line itself becomes a warm gradient under the
+   sun, brightest mid-window. border-image paints straight onto the 1px
+   border, so there is exactly one line; the visualizer/artwork hide rule
+   (border-top-width: 0 in player/now-playing.css) removes it for free. */
+:root[data-theme='vaporwave'] .player-bar {
+  border-image: radial-gradient(42% 260% at 50% 0%, rgba(255, 210, 155, 0.75), rgba(255, 160, 120, 0.18) 60%, transparent 85%) 1;
+}
+
 :root[data-theme='chameleon'][data-color-scheme='light'] {
   color-scheme: light;
   --chameleon-output-lightness: 32%;
