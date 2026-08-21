@@ -634,6 +634,11 @@
         "hint": "Controls color intensity without changing the theme's contrast or brightness.",
         "label": "Chameleon color saturation"
       },
+      "vaporwaveBackgroundBrightness": {
+        "title": "Background brightness",
+        "hint": "Scales the sunset, grid, and background glows. 0% hides the scenery entirely; 100% is as loud as it gets.",
+        "label": "Vaporwave background brightness"
+      },
       "percent": "{value} percent",
       "artworkPlayerColors": {
         "title": "Use artwork colors for player",

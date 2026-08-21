@@ -404,6 +404,7 @@ export interface AppearanceSettings {
   darkColorTheme: ColorTheme;
   chameleonHue: number;
   chameleonSaturation: number;
+  vaporwaveBackgroundBrightness: number;
   useArtworkPlayerColors: boolean;
   useNowPlayingArtworkPlayerColors: boolean;
   compactPlayerBar: boolean;

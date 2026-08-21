@@ -4,14 +4,18 @@ import {
   DEFAULT_CHAMELEON_SATURATION,
   DEFAULT_DARK_COLOR_THEME,
   DEFAULT_LIGHT_COLOR_THEME,
+  DEFAULT_VAPORWAVE_BACKGROUND_BRIGHTNESS,
   MAX_CHAMELEON_HUE,
   MIN_CHAMELEON_HUE,
   MAX_CHAMELEON_SATURATION,
   MIN_CHAMELEON_SATURATION,
+  MAX_VAPORWAVE_BACKGROUND_BRIGHTNESS,
+  MIN_VAPORWAVE_BACKGROUND_BRIGHTNESS,
   normalizeChameleonHue,
   normalizeChameleonSaturation,
   normalizeAppearanceSettings,
-  normalizeContextualTabAutomation
+  normalizeContextualTabAutomation,
+  normalizeVaporwaveBackgroundBrightness
 } from './appearance-settings';
 
 describe('normalizeAppearanceSettings theme selection', () => {
@@ -80,5 +84,22 @@ describe('normalizeChameleonSaturation', () => {
   it('falls back to the default for a missing or invalid saturation', () => {
     expect(normalizeChameleonSaturation(undefined)).toBe(DEFAULT_CHAMELEON_SATURATION);
     expect(normalizeChameleonSaturation('bright')).toBe(DEFAULT_CHAMELEON_SATURATION);
+  });
+});
+
+describe('normalizeVaporwaveBackgroundBrightness', () => {
+  it('rounds and clamps persisted brightness values', () => {
+    expect(normalizeVaporwaveBackgroundBrightness(37.4)).toBe(37);
+    expect(normalizeVaporwaveBackgroundBrightness(-5)).toBe(MIN_VAPORWAVE_BACKGROUND_BRIGHTNESS);
+    expect(normalizeVaporwaveBackgroundBrightness(140)).toBe(MAX_VAPORWAVE_BACKGROUND_BRIGHTNESS);
+  });
+
+  it('falls back to the default for a missing or invalid brightness', () => {
+    expect(normalizeVaporwaveBackgroundBrightness(undefined)).toBe(
+      DEFAULT_VAPORWAVE_BACKGROUND_BRIGHTNESS
+    );
+    expect(normalizeVaporwaveBackgroundBrightness('neon')).toBe(
+      DEFAULT_VAPORWAVE_BACKGROUND_BRIGHTNESS
+    );
   });
 });
