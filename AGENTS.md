@@ -1,12 +1,12 @@
 # izci agent docs
 
-`izci` is a PWA media player. It has no backend, operates on local files and File System Access handles.
+`izci` is a PWA music player.
 
 ## Core principles
 
-- Offline PWA, mainly targeting Chromium/Blink for maximum API flexibility.
+- Offline PWA, no backend, mainly targeting Chromium/Blink for maximum API flexibility.
 - Desktop-style design: tight margins, no overstyling, no extraneous hyperlinks or pointer cursors. Basically, before working on UI, check whether the output is "too website-y" and redesign as needed.
-- Goldilocks factor: izci intentionally exposes many obscure settings ("Count track as played after (s)", "Logarithmic volume", "Keep columns visible in narrow library panels"...) - when adding a substantial feature, consider its accompanying Goldilocks controls under a valid Options category
+- Goldilocks factor: izci intentionally exposes many obscure settings ("Count track as played after (s)", "Logarithmic volume", "Keep columns visible in narrow library panels"...), mostly under the per-page "Advanced tweaks" toggle. This means we have a goldilocks quota to fill. When adding a substantial feature, briefly consider its accompanying tweaks.
 - The project is pre-alpha and has one (1) user. Compatibility is intentionally scorched-earth: prefer clean current-version state over legacy/adapter/migration slop.
 
 ## Keep this file small
@@ -27,26 +27,26 @@
   - reusable File System Access directory handles: separate IndexedDB storage;
   - lightweight UI/settings state: `localStorage`;
   - same-origin settings sync: `BroadcastChannel` where available, with duplicate delivery suppressed.
-- Artwork persistence is limited to bounded, rebuildable renditions in the separate artwork-cache IndexedDB; never place artwork blobs in queue/library records. Never persist lyrics, live meters, pattern-grid snapshots, or other transient presentation/playback data.
+- Artwork persistence is limited to bounded, rebuildable renditions in the separate artwork-cache IndexedDB; never place artwork blobs in queue/library records. Never persist live meters, pattern-grid snapshots, or other transient presentation/playback data.
 
 ## Working rules
 
 - Ignore `node_modules/`, `dist/`, and `dev-dist/` unless the task explicitly concerns generated output or dependencies.
 - After every source change, run `npm run build` so the user's hot-reload output remains current. Run focused tests and/or `npm run check` when relevant.
 - Documentation-only changes do not require a build.
-- Localization automation may update `en.json` and `tr.json`, but never `en-askew.json`; Askew is a manually curated inside joke, and automatically maintaining it would be wasted effort.
+- Update `en.json` and `tr.json`, but **never** `en-askew.json`; Askew is a manually curated inside joke.
 - Do not start dev/preview servers or inspect the app in a browser unless explicitly asked.
-- Do not treat Codex's built-in browser as proof of installed-PWA-only behavior such as Window Controls Overlay, file handlers, or desktop window integration.
+- Do NOT bloat App.svelte (or any other similarly load-bearing file). Prefer aggressive modularization over 2000-line closures.
 
 ## Architecture map
 
-- `src/App.svelte`: lean main-window composition root. Durable state and local algorithms belong elsewhere.
+- `src/App.svelte`: main-window composition root.
 - `src/lib/components/`: presentation and event dispatch.
 - `src/lib/components/workspace/`: tabbed, wide, and Now Playing workspace composition.
 - `src/lib/components/track-list-panel/`: queue/library UI and UI-local helpers.
 - `src/lib/services/`: playback, audio graph, metadata, imports, browser/PWA integration, workspace controllers, and other side effects.
 - `src/lib/stores/`: persisted state, collection state, normalization, and cross-window sync.
-- `src/lib/i18n/`: English source catalog, Turkish translations, and localization runtime. Follow its README workflow when interface copy changes.
+- `src/lib/i18n/`: English source catalog, Turkish translations, and localization runtime.
 - `src/lib/utils/`: stateless shared helpers.
 - `src/options/`: separate Options Vite/Svelte entrypoint and settings UI. Options edits stores; it does not own audio nodes or main-window library mutation.
 - `src/tools/`: standalone Audio Compare, Editor, Converter, Logs, and Troubadour window code; `tool-shell.css` supplies their shared desktop-window styling.
@@ -115,7 +115,7 @@
 - PWA file-handler associations are intentionally more conservative than the internal supported-extension list.
 - `vite.config.ts` and `pwa-updates.ts` jointly protect offline/install/update behavior. Changes can affect installed-app launch, file opening, module initialization, and long-lived-window updates.
 - Service-worker registration remains production-only unless there is a strong reason to change it.
-- File System Access, install prompts, Launch Queue, popup windows, titlebar overlay, and desktop-window features must degrade safely when unavailable.
+- Exotic platform features (WCO, launchQueue, Document PiP, Local Font Access...) must degrade safely when unavailable. Chromium-focused does not mean Chromium-only.
 
 ## Experiments
 
