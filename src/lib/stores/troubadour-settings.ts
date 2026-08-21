@@ -30,10 +30,7 @@ export const TROUBADOUR_METADATA_FIELDS = [
 export type TroubadourMetadataField = typeof TROUBADOUR_METADATA_FIELDS[number];
 export type TroubadourInitialLoad = 'current-track' | 'current-selection' | 'nothing';
 export type TroubadourAutoGroupFallback = 'folder' | 'none';
-export type TroubadourMultiValueDisplay = 'joined' | 'first' | 'count';
 export type TroubadourDateDisplay = 'verbatim' | 'year' | 'localized';
-export type TroubadourAlbumEditPolicy = 'all-writable' | 'supported-only' | 'ask';
-export type TroubadourReorderRenumber = 'never' | 'offer' | 'always';
 export type TroubadourRawTagVisibility = 'hidden' | 'advanced' | 'always';
 export type TroubadourValidationSeverity = 'errors' | 'warnings' | 'all';
 export type TroubadourArtworkKind = 'front' | 'back' | 'other';
@@ -59,10 +56,7 @@ export interface TroubadourSettings {
   confirmDirtyRemoval: boolean;
 
   visibleMetadataFields: TroubadourMetadataField[];
-  multiValueDisplay: TroubadourMultiValueDisplay;
   dateDisplay: TroubadourDateDisplay;
-  albumEditPolicy: TroubadourAlbumEditPolicy;
-  reorderRenumber: TroubadourReorderRenumber;
   rawTagVisibility: TroubadourRawTagVisibility;
   validationSeverity: TroubadourValidationSeverity;
 
@@ -80,17 +74,14 @@ export interface TroubadourSettings {
   extensionCase: TroubadourExtensionCase;
   missingTokenPolicy: TroubadourMissingTokenPolicy;
   collisionPolicy: TroubadourCollisionPolicy;
-  enableFolderTemplates: boolean;
   copyVerification: TroubadourCopyVerification;
 
   backupPolicy: TroubadourBackupPolicy;
   postWriteVerification: TroubadourPostWriteVerification;
-  writeConcurrency: number;
   externalChangeBehavior: TroubadourExternalChangeBehavior;
   batchErrorBehavior: TroubadourBatchErrorBehavior;
   destructiveClearConfirmationThreshold: number;
 
-  largeFileThresholdMb: number;
   diagnosticJobReporting: boolean;
 }
 
@@ -103,10 +94,7 @@ export const DEFAULT_TROUBADOUR_SETTINGS: TroubadourSettings = {
   confirmDirtyRemoval: true,
 
   visibleMetadataFields: [...TROUBADOUR_METADATA_FIELDS],
-  multiValueDisplay: 'joined',
   dateDisplay: 'verbatim',
-  albumEditPolicy: 'ask',
-  reorderRenumber: 'offer',
   rawTagVisibility: 'advanced',
   validationSeverity: 'warnings',
 
@@ -124,17 +112,14 @@ export const DEFAULT_TROUBADOUR_SETTINGS: TroubadourSettings = {
   extensionCase: 'preserve',
   missingTokenPolicy: 'stop',
   collisionPolicy: 'stop',
-  enableFolderTemplates: false,
   copyVerification: 'metadata',
 
   backupPolicy: 'none',
   postWriteVerification: 'managed-fields',
-  writeConcurrency: 1,
   externalChangeBehavior: 'stop',
   batchErrorBehavior: 'continue',
   destructiveClearConfirmationThreshold: 5,
 
-  largeFileThresholdMb: 512,
   diagnosticJobReporting: false
 };
 
@@ -195,10 +180,7 @@ export function normalizeTroubadourSettings(value: unknown): TroubadourSettings 
     confirmDirtyRemoval: booleanValue(source.confirmDirtyRemoval, DEFAULT_TROUBADOUR_SETTINGS.confirmDirtyRemoval),
 
     visibleMetadataFields: normalizeTroubadourMetadataFields(source.visibleMetadataFields),
-    multiValueDisplay: enumValue(source.multiValueDisplay, ['joined', 'first', 'count'], DEFAULT_TROUBADOUR_SETTINGS.multiValueDisplay),
     dateDisplay: enumValue(source.dateDisplay, ['verbatim', 'year', 'localized'], DEFAULT_TROUBADOUR_SETTINGS.dateDisplay),
-    albumEditPolicy: enumValue(source.albumEditPolicy, ['all-writable', 'supported-only', 'ask'], DEFAULT_TROUBADOUR_SETTINGS.albumEditPolicy),
-    reorderRenumber: enumValue(source.reorderRenumber, ['never', 'offer', 'always'], DEFAULT_TROUBADOUR_SETTINGS.reorderRenumber),
     rawTagVisibility: enumValue(source.rawTagVisibility, ['hidden', 'advanced', 'always'], DEFAULT_TROUBADOUR_SETTINGS.rawTagVisibility),
     validationSeverity: enumValue(source.validationSeverity, ['errors', 'warnings', 'all'], DEFAULT_TROUBADOUR_SETTINGS.validationSeverity),
 
@@ -216,17 +198,14 @@ export function normalizeTroubadourSettings(value: unknown): TroubadourSettings 
     extensionCase: enumValue(source.extensionCase, ['preserve', 'lower', 'upper'], DEFAULT_TROUBADOUR_SETTINGS.extensionCase),
     missingTokenPolicy: enumValue(source.missingTokenPolicy, ['stop', 'empty', 'skip'], DEFAULT_TROUBADOUR_SETTINGS.missingTokenPolicy),
     collisionPolicy: enumValue(source.collisionPolicy, ['stop', 'skip', 'counter'], DEFAULT_TROUBADOUR_SETTINGS.collisionPolicy),
-    enableFolderTemplates: booleanValue(source.enableFolderTemplates, DEFAULT_TROUBADOUR_SETTINGS.enableFolderTemplates),
     copyVerification: enumValue(source.copyVerification, ['size', 'metadata', 'hash'], DEFAULT_TROUBADOUR_SETTINGS.copyVerification),
 
     backupPolicy: enumValue(source.backupPolicy, ['none', 'sibling', 'backup-folder'], DEFAULT_TROUBADOUR_SETTINGS.backupPolicy),
     postWriteVerification: enumValue(source.postWriteVerification, ['managed-fields', 'full-metadata'], DEFAULT_TROUBADOUR_SETTINGS.postWriteVerification),
-    writeConcurrency: normalizeTroubadourInteger(source.writeConcurrency, DEFAULT_TROUBADOUR_SETTINGS.writeConcurrency, 1, 4),
     externalChangeBehavior: enumValue(source.externalChangeBehavior, ['stop', 'reload-unchanged'], DEFAULT_TROUBADOUR_SETTINGS.externalChangeBehavior),
     batchErrorBehavior: enumValue(source.batchErrorBehavior, ['continue', 'stop'], DEFAULT_TROUBADOUR_SETTINGS.batchErrorBehavior),
     destructiveClearConfirmationThreshold: normalizeTroubadourInteger(source.destructiveClearConfirmationThreshold, DEFAULT_TROUBADOUR_SETTINGS.destructiveClearConfirmationThreshold, 1, 1000),
 
-    largeFileThresholdMb: normalizeTroubadourInteger(source.largeFileThresholdMb, DEFAULT_TROUBADOUR_SETTINGS.largeFileThresholdMb, 64, 16384),
     diagnosticJobReporting: booleanValue(source.diagnosticJobReporting, DEFAULT_TROUBADOUR_SETTINGS.diagnosticJobReporting)
   };
 }

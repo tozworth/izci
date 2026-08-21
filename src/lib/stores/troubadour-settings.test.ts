@@ -19,7 +19,6 @@ describe('normalizeTroubadourSettings', () => {
     const settings = normalizeTroubadourSettings({
       initialLoad: 'nothing',
       metadataReadConcurrency: 99,
-      writeConcurrency: 0,
       folderScanDepth: '7',
       collisionPolicy: 'counter',
       backupPolicy: 'sibling'
@@ -27,7 +26,6 @@ describe('normalizeTroubadourSettings', () => {
 
     expect(settings.initialLoad).toBe('nothing');
     expect(settings.metadataReadConcurrency).toBe(12);
-    expect(settings.writeConcurrency).toBe(1);
     expect(settings.folderScanDepth).toBe(7);
     expect(settings.collisionPolicy).toBe('counter');
     expect(settings.backupPolicy).toBe('sibling');
@@ -43,6 +41,24 @@ describe('normalizeTroubadourSettings', () => {
     expect(settings.initialLoad).toBe(DEFAULT_TROUBADOUR_SETTINGS.initialLoad);
     expect(settings.externalChangeBehavior).toBe('stop');
     expect(settings.copyVerification).toBe(DEFAULT_TROUBADOUR_SETTINGS.copyVerification);
+  });
+
+  it('drops retired settings instead of carrying them forward', () => {
+    const settings = normalizeTroubadourSettings({
+      multiValueDisplay: 'first',
+      albumEditPolicy: 'all-writable',
+      reorderRenumber: 'always',
+      enableFolderTemplates: true,
+      writeConcurrency: 3,
+      largeFileThresholdMb: 1024
+    });
+
+    expect('multiValueDisplay' in settings).toBe(false);
+    expect('albumEditPolicy' in settings).toBe(false);
+    expect('reorderRenumber' in settings).toBe(false);
+    expect('enableFolderTemplates' in settings).toBe(false);
+    expect('writeConcurrency' in settings).toBe(false);
+    expect('largeFileThresholdMb' in settings).toBe(false);
   });
 });
 
