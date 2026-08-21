@@ -964,6 +964,26 @@
   border-image: radial-gradient(42% 260% at 50% 0%, rgba(255, 210, 155, 0.75), rgba(255, 160, 120, 0.18) 60%, transparent 85%) 1;
 }
 
+/* Vaporwave: transport reads as glowing hot pink; favorites/Raf only when
+   active (--player-control-accent drives the .active state). Volume keeps
+   its regular treatment. The :is(section, footer) bump keeps these ahead of
+   the equal-specificity hover filters in player/standard.css/compact.css. */
+:root[data-theme='vaporwave'] .player-bar {
+  --player-control-accent: #ff63c1;
+}
+
+:root[data-theme='vaporwave'] :is(section, footer).player-bar .transport-button {
+  color: #ff63c1;
+}
+
+:root[data-theme='vaporwave'] :is(section, footer).player-bar .transport-button:hover:not(:disabled) {
+  background: transparent;
+  transition-duration: 0ms;
+  filter:
+    drop-shadow(0 0 0.38rem color-mix(in srgb, #ff63c1 68%, transparent))
+    drop-shadow(0 0 0.95rem color-mix(in srgb, #ff63c1 46%, transparent));
+}
+
 :root[data-theme='chameleon'][data-color-scheme='light'] {
   color-scheme: light;
   --chameleon-output-lightness: 32%;
