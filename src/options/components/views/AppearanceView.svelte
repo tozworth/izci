@@ -99,6 +99,7 @@
       case 'gruvbox': return $t('options.appearance.themes.gruvbox', { default: 'Gruvbox' });
       case 'dracula': return $t('options.appearance.themes.dracula', { default: 'Dracula' });
       case 'ember': return $t('options.appearance.themes.ember', { default: 'Ember' });
+      case 'vaporwave': return $t('options.appearance.themes.vaporwave', { default: 'Vaporwave' });
       case 'chameleon': return $t('options.appearance.themes.chameleon', { default: 'Chameleon' });
     }
   }

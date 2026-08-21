@@ -499,7 +499,7 @@ code {
   display: flex;
   flex-direction: column;
   gap: 0.34rem;
-  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.55);
+  text-shadow: -1px 1px 0 rgba(10, 5, 24, 0.78);
 }
 
 .about-kicker {
