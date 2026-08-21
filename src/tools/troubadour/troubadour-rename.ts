@@ -1,6 +1,7 @@
 import { readMetadataDocument } from '$lib/services/media-metadata/reader';
 import type { TroubadourBatchItemResult } from '$lib/services/troubadour-sync';
 import { publishTroubadourBatchResult } from '$lib/services/troubadour-sync';
+import { logInfo } from '$lib/services/logging';
 import type { TroubadourSettings } from '$lib/stores/troubadour-settings';
 import { createHistory, type HistoryState } from './history';
 import {
@@ -87,7 +88,12 @@ export interface RenamePipeline {
   previewRenames(template: string, settings: TroubadourSettings): Promise<RenamePreviewRow[]>;
   applyRenamesAndPublish(
     rows: RenamePreviewRow[],
-    options?: { saveFirst?: boolean; verification?: RenameVerification; refreshPreview?: () => Promise<void> }
+    options?: {
+      saveFirst?: boolean;
+      verification?: RenameVerification;
+      refreshPreview?: () => Promise<void>;
+      settings?: TroubadourSettings;
+    }
   ): Promise<void>;
 }
 
@@ -99,7 +105,12 @@ export function createTroubadourRenamePipeline(deps: {
   setStaged: (staged: StagedWorkbenchState, record?: boolean, statePatch?: Partial<TroubadourWorkbenchState>) => void;
   setState: (patch: Partial<TroubadourWorkbenchState>) => void;
   setBusyComplete: (message: string) => void;
-  saveSelectedOrAll: (options?: { all?: boolean; requestPermission?: boolean; verify?: boolean }) => Promise<TroubadourBatchItemResult[]>;
+  saveSelectedOrAll: (options?: {
+    all?: boolean;
+    requestPermission?: boolean;
+    verify?: boolean;
+    settings?: TroubadourSettings;
+  }) => Promise<TroubadourBatchItemResult[]>;
 }): RenamePipeline {
   const {
     state: getState,
@@ -188,16 +199,28 @@ export function createTroubadourRenamePipeline(deps: {
     },
     async applyRenamesAndPublish(
       rows: RenamePreviewRow[],
-      options: { saveFirst?: boolean; verification?: RenameVerification; refreshPreview?: () => Promise<void> } = {}
+      options: {
+        saveFirst?: boolean;
+        verification?: RenameVerification;
+        refreshPreview?: () => Promise<void>;
+        settings?: TroubadourSettings;
+      } = {}
     ) {
       if (options.saveFirst) {
-        const saveResults = await saveSelectedOrAll({ verify: true, requestPermission: true });
+        const saveResults = await saveSelectedOrAll({ verify: true, requestPermission: true, settings: options.settings });
         publishTroubadourBatchResult({ results: saveResults });
         await options.refreshPreview?.();
       }
       const { results } = await this.applyRenames(rows, { verification: options.verification });
       publishTroubadourBatchResult({ results });
       await options.refreshPreview?.();
+      if (options.settings?.diagnosticJobReporting && rows.length) {
+        logInfo('tools', 'Troubadour rename batch completed', {
+          total: rows.length,
+          renamed: results.filter((result) => result.success).length,
+          verification: options.verification ?? 'metadata'
+        });
+      }
     }
   };
 }

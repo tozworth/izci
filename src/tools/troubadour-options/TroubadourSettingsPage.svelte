@@ -90,32 +90,11 @@
         <SettingsField title={$t('troubadour.options.metadata.visibleFields', { default: 'Visible fields and order' })} hint={$t('troubadour.options.metadata.visibleFieldsHint', { default: 'Comma-separated field IDs. Unknown and duplicate IDs are ignored.' })}>
           <input class="wide-text-input" type="text" value={$troubadourSettings.visibleMetadataFields.join(', ')} on:change={updateMetadataFields} />
         </SettingsField>
-        <SettingsField title={$t('troubadour.options.metadata.multiValues', { default: 'Multi-value display' })}>
-          <select value={$troubadourSettings.multiValueDisplay} on:change={(event) => updateSelect('multiValueDisplay', event)}>
-            <option value="joined">{$t('troubadour.options.metadata.joined', { default: 'Join values' })}</option>
-            <option value="first">{$t('troubadour.options.metadata.first', { default: 'First value' })}</option>
-            <option value="count">{$t('troubadour.options.metadata.count', { default: 'Value count' })}</option>
-          </select>
-        </SettingsField>
-        <SettingsField title={$t('troubadour.options.metadata.dateDisplay', { default: 'Date display' })}>
+        <SettingsField title={$t('troubadour.options.metadata.dateDisplay', { default: 'Date display' })} hint={$t('troubadour.options.metadata.dateDisplayHint', { default: 'Presentation only; edits and saves always use the stored value.' })}>
           <select value={$troubadourSettings.dateDisplay} on:change={(event) => updateSelect('dateDisplay', event)}>
             <option value="verbatim">{$t('troubadour.options.metadata.verbatim', { default: 'Stored value' })}</option>
             <option value="year">{$t('troubadour.options.metadata.yearOnly', { default: 'Year only' })}</option>
             <option value="localized">{$t('troubadour.options.metadata.localized', { default: 'Localized date' })}</option>
-          </select>
-        </SettingsField>
-        <SettingsField title={$t('troubadour.options.metadata.albumPolicy', { default: 'Album edit application' })}>
-          <select value={$troubadourSettings.albumEditPolicy} on:change={(event) => updateSelect('albumEditPolicy', event)}>
-            <option value="ask">{$t('troubadour.options.common.ask', { default: 'Ask' })}</option>
-            <option value="all-writable">{$t('troubadour.options.metadata.allWritable', { default: 'All writable tracks' })}</option>
-            <option value="supported-only">{$t('troubadour.options.metadata.supportedOnly', { default: 'Supported selected tracks only' })}</option>
-          </select>
-        </SettingsField>
-        <SettingsField title={$t('troubadour.options.metadata.renumber', { default: 'After manual reorder' })} hint={$t('troubadour.options.metadata.renumberHint', { default: 'Manual ordering and track-number edits remain separate operations.' })}>
-          <select value={$troubadourSettings.reorderRenumber} on:change={(event) => updateSelect('reorderRenumber', event)}>
-            <option value="offer">{$t('troubadour.options.metadata.offerRenumber', { default: 'Offer to renumber' })}</option>
-            <option value="never">{$t('troubadour.options.metadata.neverRenumber', { default: 'Never renumber' })}</option>
-            <option value="always">{$t('troubadour.options.metadata.alwaysRenumber', { default: 'Renumber automatically' })}</option>
           </select>
         </SettingsField>
         <SettingsField title={$t('troubadour.options.metadata.rawTags', { default: 'Raw-tag visibility' })} advanced>
@@ -125,7 +104,7 @@
             <option value="hidden">{$t('troubadour.options.common.hidden', { default: 'Hidden' })}</option>
           </select>
         </SettingsField>
-        <SettingsField title={$t('troubadour.options.metadata.validation', { default: 'Validation indicators' })} advanced>
+        <SettingsField title={$t('troubadour.options.metadata.validation', { default: 'Validation indicators' })} hint={$t('troubadour.options.metadata.validationHint', { default: 'Controls which advisory notes appear in the rename preview.' })} advanced>
           <select value={$troubadourSettings.validationSeverity} on:change={(event) => updateSelect('validationSeverity', event)}>
             <option value="warnings">{$t('troubadour.options.metadata.warnings', { default: 'Warnings and errors' })}</option>
             <option value="errors">{$t('troubadour.options.metadata.errors', { default: 'Errors only' })}</option>
@@ -159,7 +138,7 @@
             <option value="reject">{$t('troubadour.options.artwork.rejectMultiple', { default: 'Reject another image' })}</option>
           </select>
         </SettingsField>
-        <SettingsField title={$t('troubadour.options.artwork.albumApply', { default: 'Album artwork application' })}>
+        <SettingsField title={$t('troubadour.options.artwork.albumApply', { default: 'Apply-to-album behavior' })} hint={$t('troubadour.options.artwork.albumApplyHint', { default: 'What the Apply artwork to album button does with the selected image.' })}>
           <select value={$troubadourSettings.albumArtworkDefault} on:change={(event) => updateSelect('albumArtworkDefault', event)}>
             <option value="ask">{$t('troubadour.options.common.ask', { default: 'Ask' })}</option>
             <option value="selected">{$t('troubadour.options.artwork.selectedTracks', { default: 'Selected tracks' })}</option>
@@ -216,9 +195,6 @@
             <option value="counter">{$t('troubadour.options.rename.counter', { default: 'Add a counter' })}</option>
           </select>
         </SettingsField>
-        <SettingsField title={$t('troubadour.options.rename.folderTemplates', { default: 'Enable folder templates when supported' })} hint={$t('troubadour.options.rename.folderTemplatesHint', { default: 'Only available when Troubadour has writable handles for every required parent directory.' })} advanced checkbox>
-          <input type="checkbox" checked={$troubadourSettings.enableFolderTemplates} on:change={(event) => updateCheckbox('enableFolderTemplates', event)} />
-        </SettingsField>
         <SettingsField title={$t('troubadour.options.rename.copyVerification', { default: 'Copy fallback verification' })} advanced>
           <select value={$troubadourSettings.copyVerification} on:change={(event) => updateSelect('copyVerification', event)}>
             <option value="metadata">{$t('troubadour.options.rename.verifyMetadata', { default: 'Size and metadata' })}</option>
@@ -233,23 +209,20 @@
     <div class="section">
       <h2>{$t('troubadour.options.files.writes', { default: 'Writes and recovery' })}</h2>
       <div class="field-grid">
-        <SettingsField title={$t('troubadour.options.files.backup', { default: 'Backup policy' })} hint={$t('troubadour.options.files.backupHint', { default: 'The normal workflow writes verified changes in place. Backups are optional.' })}>
+        <SettingsField title={$t('troubadour.options.files.backup', { default: 'Backup policy' })} hint={$t('troubadour.options.files.backupHint', { default: 'Writes a .izci-bak copy before each save, next to the file or in a backup folder.' })}>
           <select value={$troubadourSettings.backupPolicy} on:change={(event) => updateSelect('backupPolicy', event)}>
             <option value="none">{$t('troubadour.options.files.noBackup', { default: 'No backup' })}</option>
             <option value="sibling">{$t('troubadour.options.files.siblingBackup', { default: 'Sibling backup' })}</option>
             <option value="backup-folder">{$t('troubadour.options.files.backupFolder', { default: 'Backup folder' })}</option>
           </select>
         </SettingsField>
-        <SettingsField title={$t('troubadour.options.files.verification', { default: 'Post-write verification' })}>
+        <SettingsField title={$t('troubadour.options.files.verification', { default: 'Post-write verification' })} hint={$t('troubadour.options.files.verificationHint', { default: 'Managed-fields verification always runs; the full snapshot additionally re-reads every tag.' })} advanced>
           <select value={$troubadourSettings.postWriteVerification} on:change={(event) => updateSelect('postWriteVerification', event)}>
             <option value="managed-fields">{$t('troubadour.options.files.managedFields', { default: 'Managed fields and artwork' })}</option>
             <option value="full-metadata">{$t('troubadour.options.files.fullMetadata', { default: 'Full metadata snapshot' })}</option>
           </select>
         </SettingsField>
-        <SettingsField title={$t('troubadour.options.files.concurrency', { default: 'Write concurrency' })} hint={$t('troubadour.options.files.concurrencyHint', { default: 'Writes remain sequential by default. Files in one directory are never raced.' })} advanced>
-          <input type="number" min="1" max="4" value={$troubadourSettings.writeConcurrency} on:change={(event) => updateNumber('writeConcurrency', event)} />
-        </SettingsField>
-        <SettingsField title={$t('troubadour.options.files.externalChanges', { default: 'External-change behavior' })} advanced>
+        <SettingsField title={$t('troubadour.options.files.externalChanges', { default: 'External-change behavior' })} hint={$t('troubadour.options.files.externalChangesHint', { default: 'What happens when a file changed on disk after its metadata was loaded.' })} advanced>
           <select value={$troubadourSettings.externalChangeBehavior} on:change={(event) => updateSelect('externalChangeBehavior', event)}>
             <option value="stop">{$t('troubadour.options.files.stopConflict', { default: 'Stop with a conflict' })}</option>
             <option value="reload-unchanged">{$t('troubadour.options.files.reloadClean', { default: 'Reload unchanged items' })}</option>
@@ -263,6 +236,9 @@
         </SettingsField>
         <SettingsField title={$t('troubadour.options.files.clearThreshold', { default: 'Confirm destructive clears at (files)' })} hint={$t('troubadour.options.files.clearThresholdHint', { default: 'Applies to bulk metadata and artwork clears, not ordinary field edits.' })} advanced>
           <input type="number" min="1" max="1000" value={$troubadourSettings.destructiveClearConfirmationThreshold} on:change={(event) => updateNumber('destructiveClearConfirmationThreshold', event)} />
+        </SettingsField>
+        <SettingsField title={$t('troubadour.options.files.diagnosticReporting', { default: 'Diagnostic job reporting' })} hint={$t('troubadour.options.files.diagnosticReportingHint', { default: 'Writes save and rename batch summaries to the Logs window.' })} advanced checkbox>
+          <input type="checkbox" checked={$troubadourSettings.diagnosticJobReporting} on:change={(event) => updateCheckbox('diagnosticJobReporting', event)} />
         </SettingsField>
       </div>
     </div>

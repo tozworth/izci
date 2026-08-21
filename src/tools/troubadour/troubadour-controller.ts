@@ -116,6 +116,7 @@ export interface SaveWorkbenchItem {
   requestPermission: boolean;
   signal?: AbortSignal;
   verify?: boolean;
+  fullVerification?: boolean;
 }
 
 export interface SaveWorkbenchResult {
@@ -217,17 +218,32 @@ export function createTroubadourController(
   reorderAlbum(id: string, itemIds: string[]): void;
   renumberAlbum(id: string, start?: number, padTo?: number): void;
   reloadSelected(): Promise<void>;
-  saveSelectedOrAll(options?: { all?: boolean; requestPermission?: boolean; verify?: boolean }): Promise<TroubadourBatchItemResult[]>;
+  saveSelectedOrAll(options?: {
+    all?: boolean;
+    requestPermission?: boolean;
+    verify?: boolean;
+    settings?: TroubadourSettings;
+  }): Promise<TroubadourBatchItemResult[]>;
   buildRenamePreview(template: string, rules?: FilenameRules): Promise<RenamePreviewRow[]>;
   applyRenames(
     rows: RenamePreviewRow[],
     options?: { signal?: AbortSignal; verification?: RenameVerification }
   ): Promise<{ jobs: RenameJobResult[]; results: TroubadourBatchItemResult[] }>;
-  saveAndPublish(options?: { all?: boolean; requestPermission?: boolean; verify?: boolean }): Promise<TroubadourBatchItemResult[]>;
+  saveAndPublish(options?: {
+    all?: boolean;
+    requestPermission?: boolean;
+    verify?: boolean;
+    settings?: TroubadourSettings;
+  }): Promise<TroubadourBatchItemResult[]>;
   previewRenames(template: string, settings: TroubadourSettings): Promise<RenamePreviewRow[]>;
   applyRenamesAndPublish(
     rows: RenamePreviewRow[],
-    options?: { saveFirst?: boolean; verification?: RenameVerification; refreshPreview?: () => Promise<void> }
+    options?: {
+      saveFirst?: boolean;
+      verification?: RenameVerification;
+      refreshPreview?: () => Promise<void>;
+      settings?: TroubadourSettings;
+    }
   ): Promise<void>;
 } {
   const store = writable<TroubadourWorkbenchState>(EMPTY_STATE);

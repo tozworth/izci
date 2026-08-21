@@ -27,8 +27,7 @@
       'autoGroupFallback', 'confirmDirtyRemoval'
     ],
     metadata: [
-      'visibleMetadataFields', 'multiValueDisplay', 'dateDisplay', 'albumEditPolicy',
-      'reorderRenumber', 'rawTagVisibility', 'validationSeverity'
+      'visibleMetadataFields', 'dateDisplay', 'rawTagVisibility', 'validationSeverity'
     ],
     artwork: [
       'defaultArtworkKind', 'artworkSizeWarningMb', 'artworkDimensionWarningPx',
@@ -37,11 +36,11 @@
     rename: [
       'renameTemplate', 'illegalCharacterReplacement', 'normalizeWhitespace',
       'unicodeNormalization', 'extensionCase', 'missingTokenPolicy', 'collisionPolicy',
-      'enableFolderTemplates', 'copyVerification'
+      'copyVerification'
     ],
     files: [
-      'backupPolicy', 'postWriteVerification', 'writeConcurrency', 'externalChangeBehavior',
-      'batchErrorBehavior', 'destructiveClearConfirmationThreshold'
+      'backupPolicy', 'postWriteVerification', 'externalChangeBehavior',
+      'batchErrorBehavior', 'destructiveClearConfirmationThreshold', 'diagnosticJobReporting'
     ]
   };
 
@@ -82,8 +81,8 @@
   function pageHasModifiedAdvancedSettings(view: TroubadourOptionsViewName, settings: TroubadourSettings): boolean {
     const keys: Partial<Record<TroubadourOptionsViewName, (keyof TroubadourSettings)[]>> = {
       metadata: ['rawTagVisibility', 'validationSeverity'],
-      rename: ['missingTokenPolicy', 'collisionPolicy', 'enableFolderTemplates', 'copyVerification'],
-      files: ['writeConcurrency', 'externalChangeBehavior', 'destructiveClearConfirmationThreshold']
+      rename: ['missingTokenPolicy', 'collisionPolicy', 'copyVerification'],
+      files: ['postWriteVerification', 'externalChangeBehavior', 'destructiveClearConfirmationThreshold', 'diagnosticJobReporting']
     };
     return (keys[view] ?? []).some((key) => JSON.stringify(settings[key]) !== JSON.stringify(DEFAULT_TROUBADOUR_SETTINGS[key]));
   }

@@ -59,6 +59,23 @@ function verifyPatch(
   }
 }
 
+/** Re-reads every managed tag plus the raw tag map, not just the fields in the patch. */
+function verifyFullMetadata(
+  result: MetadataDocument,
+  expected: ReturnType<typeof applyMetadataPatch>
+): void {
+  verifyPatch(result, expected, Object.fromEntries(MEDIA_METADATA_FIELD_NAMES.map((field) => [field, null])));
+  if (!artworkEqual(result.artwork, expected.artwork)) {
+    throw new MetadataWriteError('verification-failed', 'Embedded artwork did not match the staged artwork after writing.');
+  }
+  const expectedRaw = Object.entries(expected.tags.raw ?? {}).filter(([, value]) => value !== null);
+  for (const [key, value] of expectedRaw) {
+    if (JSON.stringify(result.raw[key]) !== JSON.stringify(value)) {
+      throw new MetadataWriteError('verification-failed', `Raw tag ${key} did not survive the write.`);
+    }
+  }
+}
+
 export async function writeMetadataDocumentInPlace(
   handle: FileSystemFileHandle,
   document: MetadataDocument,
@@ -120,7 +137,10 @@ export async function writeMetadataDocumentInPlace(
   const writtenFile = await materializeSourceFile(await handle.getFile());
   const result = await readMetadataDocument(writtenFile, document.extension);
   const shouldVerify = options.verify !== false;
-  if (shouldVerify) verifyPatch(result, expected, patch, artworkPatch);
+  if (shouldVerify) {
+    if (options.fullVerification) verifyFullMetadata(result, expected);
+    else verifyPatch(result, expected, patch, artworkPatch);
+  }
   return { document: result, verified: shouldVerify };
 }
 

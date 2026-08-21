@@ -381,25 +381,46 @@
   }
 
   async function save(all = false): Promise<void> {
-    await controller.saveAndPublish({ all, requestPermission: true, verify: true });
+    await controller.saveAndPublish({ all, requestPermission: true, verify: true, settings });
+  }
+
+  function displayedFieldValue(field: MediaMetadataFieldName, value: string): string {
+    if (field !== 'date' || settings.dateDisplay === 'verbatim' || !value) return value;
+    if (settings.dateDisplay === 'year') return value.slice(0, 4);
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleDateString();
   }
 
   async function previewRenames(): Promise<void> {
     renameError = '';
     setActiveTab('rename');
     try {
-      renameRows = await controller.previewRenames(renameTemplate, settings);
+      const rows = await controller.previewRenames(renameTemplate, settings);
+      renameRows = settings.validationSeverity === 'all'
+        ? rows
+        : rows.map((row) => ({
+          ...row,
+          problems: row.problems,
+          warnings: row.warnings.filter((warning) => validationWarningVisible(warning, settings.validationSeverity))
+        }));
     } catch (error) {
       handleError(error);
       renameRows = [];
     }
   }
 
+  function validationWarningVisible(warning: string, severity: TroubadourSettings['validationSeverity']): boolean {
+    if (severity === 'all') return true;
+    // 'unchanged' and 'case-only' are informational; 'missing:' entries are real problems.
+    return !severity || warning.startsWith('missing:');
+  }
+
   async function applyRenames(saveFirst = false): Promise<void> {
     await controller.applyRenamesAndPublish(renameRows, {
       saveFirst,
       verification: settings.copyVerification,
-      refreshPreview: previewRenames
+      refreshPreview: previewRenames,
+      settings
     });
   }
 
@@ -549,6 +570,16 @@
   }
 
   function applyArtworkToSelectedAlbum(): void {
+    if (!selectedArtwork || !state.selectedAlbumId) return;
+    const behavior = settings.albumArtworkDefault;
+    if (behavior === 'selected') {
+      stageArtwork(selectedArtwork, 'add');
+      return;
+    }
+    if (behavior === 'ask'
+      && !window.confirm($t('troubadour.workbench.confirmApplyToAllAlbumTracks', {
+        default: 'Apply this artwork to every track in the album?'
+      }))) return;
     applyArtworkToAlbumSelection(artworkStagingTarget, state.selectedAlbumId);
   }
 
@@ -744,9 +775,9 @@
                 {#if field === 'lyrics' || field === 'comment'}
                   <textarea value={fieldState.varies ? '' : fieldState.value} placeholder={fieldState.varies ? '<varies>' : ''} disabled={!selectedItems.some((item) => item.document)} on:change={(event) => editField(field, event)}></textarea>
                 {:else}
-                  <input value={fieldState.varies ? '' : fieldState.value} placeholder={fieldState.varies ? '<varies>' : ''} disabled={!selectedItems.some((item) => item.document)} on:change={(event) => editField(field, event)} />
+                  <input value={fieldState.varies ? '' : (field === 'date' ? displayedFieldValue(field, fieldState.value) : fieldState.value)} placeholder={fieldState.varies ? '<varies>' : ''} disabled={!selectedItems.some((item) => item.document)} on:change={(event) => editField(field, event)} />
                 {/if}
-                <span class="original-value" title={fieldState.originalVaries ? $t('troubadour.workbench.originalVaries', { default: 'Original values vary' }) : fieldState.original}>{fieldState.originalVaries ? '<varies>' : fieldState.original || '—'}</span>
+                <span class="original-value" title={fieldState.originalVaries ? $t('troubadour.workbench.originalVaries', { default: 'Original values vary' }) : fieldState.original}>{fieldState.originalVaries ? '<varies>' : displayedFieldValue(field, fieldState.original) || '—'}</span>
                 <button class="row-action hover-tooltip-anchor" type="button" aria-label={$t('troubadour.workbench.clearField', { default: 'Clear {field}', values: { field: fieldLabelForField(field, $t) } })} disabled={!selectedItems.length} on:click={() => controller.editField(field, null)}><span class="material-symbols-outlined">backspace</span><HoverTooltip>{$t('troubadour.workbench.explicitClear', { default: 'Explicitly clear' })}</HoverTooltip></button>
                 <button class="row-action hover-tooltip-anchor" type="button" aria-label={$t('troubadour.workbench.revertFieldNamed', { default: 'Revert {field}', values: { field: fieldLabelForField(field, $t) } })} disabled={!dirty} on:click={() => controller.resetField(field)}><span class="material-symbols-outlined">undo</span><HoverTooltip>{$t('troubadour.workbench.revertField', { default: 'Revert field' })}</HoverTooltip></button>
               </label>

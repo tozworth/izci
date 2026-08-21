@@ -1,3 +1,5 @@
+import { logInfo } from '$lib/services/logging';
+import { readMetadataDocument } from '$lib/services/media-metadata/reader';
 import {
   queryMetadataWritePermission,
   requestMetadataWritePermission
@@ -10,6 +12,7 @@ import {
   publishTroubadourBatchResult,
   requestTroubadourWritePreparation
 } from '$lib/services/troubadour-sync';
+import type { TroubadourSettings } from '$lib/stores/troubadour-settings';
 import { createHistory, type HistoryState } from './history';
 import { materializeWorkbenchFile } from './troubadour-loading';
 import { cloneStaged, itemDirty } from './troubadour-staged';
@@ -43,7 +46,7 @@ export function writeTargetForItem(item: TroubadourWorkbenchItem): TroubadourWri
 }
 
 export function defaultSaveHandler(): SaveWorkbenchItemHandler {
-  return async ({ item, requestPermission, signal, verify }) => {
+  return async ({ item, requestPermission, signal, verify, fullVerification }) => {
     const { writeMetadataDocumentInPlace } = await import('$lib/services/media-metadata/writer');
     if (!item.fileHandle || !item.document) throw new Error('This file cannot be written in place.');
     if (requestPermission && await queryMetadataWritePermission(item.fileHandle) === 'prompt') {
@@ -54,19 +57,46 @@ export function defaultSaveHandler(): SaveWorkbenchItemHandler {
       item.document,
       item.patch,
       item.artworkEdits,
-      { signal, verify }
+      { signal, verify, fullVerification }
     );
   };
 }
 
 export interface SavePipeline {
-  saveSelectedOrAll(options?: { all?: boolean; requestPermission?: boolean; verify?: boolean }): Promise<TroubadourBatchItemResult[]>;
-  saveAndPublish(options?: { all?: boolean; requestPermission?: boolean; verify?: boolean }): Promise<TroubadourBatchItemResult[]>;
+  saveSelectedOrAll(options?: {
+    all?: boolean;
+    requestPermission?: boolean;
+    verify?: boolean;
+    settings?: TroubadourSettings;
+  }): Promise<TroubadourBatchItemResult[]>;
+  saveAndPublish(options?: {
+    all?: boolean;
+    requestPermission?: boolean;
+    verify?: boolean;
+    settings?: TroubadourSettings;
+  }): Promise<TroubadourBatchItemResult[]>;
 }
 
 export function itemState(item: TroubadourWorkbenchItem): WorkbenchItemState {
   if (item.state === 'loading' || item.state === 'unsupported' || item.state === 'unreadable') return item.state;
   return itemDirty(item) ? 'dirty' : item.state === 'failed' || item.state === 'conflicted' ? item.state : 'ready';
+}
+
+/** Copies the original file next to itself (sibling) or into a "izci-backup" folder before writing. */
+async function createBackup(item: TroubadourWorkbenchItem, policy: TroubadourSettings['backupPolicy']): Promise<void> {
+  const parent = item.parentHandle;
+  if (!parent) throw new Error('A backup was requested but the parent directory handle is unavailable.');
+  const directory = policy === 'backup-folder'
+    ? await parent.getDirectoryHandle('izci-backup', { create: true })
+    : parent;
+  const backup = await directory.getFileHandle(`${item.file.name}.izci-bak`, { create: true });
+  const writable = await backup.createWritable!();
+  try {
+    await item.file.stream().pipeTo(writable);
+  } catch {
+    await directory.removeEntry(backup.name).catch(() => undefined);
+    throw new Error('The backup could not be written; the original file was left untouched.');
+  }
 }
 
 export function createTroubadourSavePipeline(deps: {
@@ -111,7 +141,13 @@ export function createTroubadourSavePipeline(deps: {
   };
 
   return {
-    async saveSelectedOrAll(options: { all?: boolean; requestPermission?: boolean; verify?: boolean } = {}) {
+    async saveSelectedOrAll(options: {
+      all?: boolean;
+      requestPermission?: boolean;
+      verify?: boolean;
+      settings?: TroubadourSettings;
+    } = {}) {
+      const settings = options.settings;
       const state = getState();
       const selectedDirtyIds = state.items
         .filter((item) => state.selectedIds.includes(item.id) && itemDirty(item))
@@ -142,10 +178,14 @@ export function createTroubadourSavePipeline(deps: {
         const item = await prepareItemForSave(targetIds[index]);
         if (!item) continue;
         try {
+          if (settings && settings.backupPolicy !== 'none' && item.parentHandle) {
+            await createBackup(item, settings.backupPolicy);
+          }
           const result = await saveItem({
             item,
             requestPermission: options.requestPermission !== false,
-            verify: options.verify !== false
+            verify: options.verify !== false,
+            fullVerification: settings?.postWriteVerification === 'full-metadata'
           });
           const file = await materializeWorkbenchFile(await item.fileHandle!.getFile());
           setStaged({
@@ -195,12 +235,32 @@ export function createTroubadourSavePipeline(deps: {
           const message = error instanceof Error ? error.message : 'Metadata write failed.';
           const conflicted = error && typeof error === 'object' && 'code' in error && error.code === 'external-change';
           const permissionRequired = error && typeof error === 'object' && 'code' in error && error.code === 'permission-required';
-          setStaged({
-            items: getState().items.map((candidate) => candidate.id === item.id
-              ? { ...candidate, state: conflicted ? 'conflicted' : permissionRequired ? 'permission-required' : 'failed', error: message }
-              : candidate),
-            albums: getState().albums
-          }, false);
+          let itemStateAfterError: WorkbenchItemState = conflicted
+            ? 'conflicted'
+            : permissionRequired ? 'permission-required' : 'failed';
+          if (conflicted && settings?.externalChangeBehavior === 'reload-unchanged') {
+            try {
+              const file = await materializeWorkbenchFile(await item.fileHandle!.getFile());
+              const document = await readMetadataDocument(file, item.extension);
+              setStaged({
+                items: getState().items.map((candidate) => candidate.id === item.id
+                  ? { ...candidate, file, document, state: 'ready', error: '', patch: {}, artworkEdits: [] }
+                  : candidate),
+                albums: getState().albums
+              }, false);
+              itemStateAfterError = 'ready';
+            } catch {
+              // Keep the conflicted state when the reload itself fails.
+            }
+          }
+          if (itemStateAfterError !== 'ready') {
+            setStaged({
+              items: getState().items.map((candidate) => candidate.id === item.id
+                ? { ...candidate, state: itemStateAfterError, error: message }
+                : candidate),
+              albums: getState().albums
+            }, false);
+          }
           results.push({
             success: false,
             contextId: item.contextId,
@@ -210,14 +270,36 @@ export function createTroubadourSavePipeline(deps: {
             originalSize: item.file.size,
             originalLastModified: item.file.lastModified
           });
+          if (!conflicted && !permissionRequired && settings?.batchErrorBehavior === 'stop') {
+            setJob('Saving metadata', (index + 1) / targetIds.length);
+            setBusyComplete(`Batch stopped after a failed write: ${message}`);
+            setHistory(createHistory(cloneStaged({ items: getState().items, albums: getState().albums })));
+            if (settings?.diagnosticJobReporting) {
+              logInfo('tools', 'Troubadour save batch stopped', { stoppedAfter: item.file.name, saved: results.filter((result) => result.success).length, error: message });
+            }
+            return results;
+          }
         }
         setJob('Saving metadata', (index + 1) / targetIds.length);
       }
       setBusyComplete(targetIds.length ? `${results.filter((result) => result.success).length} of ${targetIds.length} files saved.` : 'No writable dirty files.');
       setHistory(createHistory(cloneStaged({ items: getState().items, albums: getState().albums })));
+      if (settings?.diagnosticJobReporting && targetIds.length) {
+        logInfo('tools', 'Troubadour save batch completed', {
+          total: targetIds.length,
+          saved: results.filter((result) => result.success).length,
+          backupPolicy: settings.backupPolicy,
+          verified: options.verify !== false
+        });
+      }
       return results;
     },
-    async saveAndPublish(options: { all?: boolean; requestPermission?: boolean; verify?: boolean } = {}) {
+    async saveAndPublish(options: {
+      all?: boolean;
+      requestPermission?: boolean;
+      verify?: boolean;
+      settings?: TroubadourSettings;
+    } = {}) {
       const results = await this.saveSelectedOrAll(options);
       publishTroubadourBatchResult({ results });
       return results;

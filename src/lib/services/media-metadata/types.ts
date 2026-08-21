@@ -108,6 +108,11 @@ export interface WriteMetadataOptions {
   readonly signal?: AbortSignal;
   /** Defaults to true. */
   readonly verify?: boolean;
+  /**
+   * Verify the full metadata snapshot instead of only the patched fields.
+   * Requires verify (default true).
+   */
+  readonly fullVerification?: boolean;
 }
 
 export interface MetadataWriteResult {
