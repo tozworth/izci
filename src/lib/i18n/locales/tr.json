@@ -1810,7 +1810,9 @@
       "backFive": "5 saniye geri",
       "pause": "Duraklat",
       "play": "Oynat",
-      "forwardFive": "5 saniye ileri"
+      "forwardFive": "5 saniye ileri",
+      "previewUnsupported": "Bu biçimin pencere içinde önizleme oynatıcısı yok.",
+      "previewDecode": "Bu parça önizlenemiyor."
     },
     "workbench": {
       "files": "Dosyalar",
@@ -1820,6 +1822,7 @@
       "operationFailed": "İşlem başarısız oldu.",
       "folderUnavailable": "Klasör erişimi kullanılamıyor. Bunun yerine Dosya ekle'yi kullanın.",
       "confirmDirtyRemoval": "Aşamalı değişiklikleri olan dosyalar çalışma alanından kaldırılsın mı? Kaynak dosyalar silinmez.",
+      "stopJob": "Çalışan işi durdur",
       "newAlbum": "Yeni albüm",
       "copyPath": "Yolu kopyala",
       "assignToAlbum": "{album} albümüne ata",

@@ -19,8 +19,14 @@
   export let playbackDisabled = true;
   export let playing = false;
   export let trackTitle = '';
-  export let previewError = '';
+  export let previewError: '' | 'unsupported' | 'decode' = '';
   export let getCurrentTime: () => number = () => currentTime;
+
+  $: previewErrorText = previewError === 'unsupported'
+    ? $t('troubadour.lyrics.previewUnsupported', { default: 'This format has no in-window preview player.' })
+    : previewError === 'decode'
+      ? $t('troubadour.lyrics.previewDecode', { default: 'This track cannot be previewed.' })
+      : '';
 
   const dispatch = createEventDispatcher<{
     change: string;
@@ -208,7 +214,7 @@
     <div class="player-track-group">
       <div class="player-track">
         <strong>{trackTitle || $t('troubadour.lyrics.noTrack', { default: 'Select one track' })}</strong>
-        <span>{previewError || $t('troubadour.lyrics.stampedCount', { default: '{stamped}/{total} stamped', values: { stamped: timedCount, total: lines.length } })}</span>
+        <span>{previewErrorText || $t('troubadour.lyrics.stampedCount', { default: '{stamped}/{total} stamped', values: { stamped: timedCount, total: lines.length } })}</span>
       </div>
     </div>
     <div class="player-range">

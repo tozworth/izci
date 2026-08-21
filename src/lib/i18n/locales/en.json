@@ -1810,7 +1810,9 @@
       "backFive": "Back 5 seconds",
       "pause": "Pause",
       "play": "Play",
-      "forwardFive": "Forward 5 seconds"
+      "forwardFive": "Forward 5 seconds",
+      "previewUnsupported": "This format has no in-window preview player.",
+      "previewDecode": "This track cannot be previewed."
     },
     "workbench": {
       "files": "Files",
@@ -1820,6 +1822,7 @@
       "operationFailed": "The operation failed.",
       "folderUnavailable": "Folder access is unavailable. Use Add files instead.",
       "confirmDirtyRemoval": "Remove staged dirty files from the workbench? Source files will not be deleted.",
+      "stopJob": "Stop the running job",
       "newAlbum": "New album",
       "copyPath": "Copy path",
       "assignToAlbum": "Assign to {album}",

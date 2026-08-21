@@ -98,7 +98,7 @@
     stateText as itemStateText,
     type TroubadourAlbumDragTarget
   } from './troubadour-rows';
-  import { createLyricsPreview, syncLyricsFile, type LyricsPreviewState } from './lyrics-preview';
+  import { createLyricsPreview, isPreviewableKind, syncLyricsFile, type LyricsPreviewState } from './lyrics-preview';
 
   const SETTINGS_TO_FIELDS: Record<TroubadourMetadataField, MediaMetadataFieldName> = {
     title: 'title', artist: 'artist', albumArtist: 'albumArtist', album: 'album', date: 'date',
@@ -203,10 +203,11 @@
   $: writableDirtyItems = dirtyItems.filter((item) => item.fileHandle && item.document);
   $: visibleFields = settings.visibleMetadataFields.map((field) => SETTINGS_TO_FIELDS[field]);
   $: selectedPrimary = selectedItems[0] ?? null;
-  $: lyricsItem = selectedItems.length === 1 && selectedPrimary?.document && isSpectrogramItem(selectedPrimary)
+  $: lyricsItem = selectedItems.length === 1 && selectedPrimary?.document && isPreviewableKind(selectedPrimary.kind)
     ? selectedPrimary
     : null;
   $: lyricsValue = lyricsItem ? effectiveFields(lyricsItem)?.lyrics ?? '' : '';
+  $: lyricsPreviewKind = lyricsItem?.kind ?? null;
   $: spectrogramItem = state.items.find((item) => item.id === spectrogramItemId) ?? null;
   $: selectedAppliedDocuments = selectedItems
     .filter((item) => item.document)
@@ -254,7 +255,7 @@
   $: if (isDockTabActive('spectrogram') && !spectrogramItemId && selectedPrimary && isSpectrogramItem(selectedPrimary)) {
     spectrogramItemId = selectedPrimary.id;
   }
-  $: lyricsPreviewFile = syncLyricsFile(lyricsPreview, lyricsItem?.file ?? null, lyricsPreviewFile);
+  $: lyricsPreviewFile = syncLyricsFile(lyricsPreview, lyricsItem?.file ?? null, lyricsPreviewKind, lyricsPreviewFile, lyricsPreviewKind);
 
   function beginMainDockResize(
     axis: 'rows' | 'columns',
@@ -676,6 +677,7 @@
       <button class="icon-button hover-tooltip-anchor" type="button" aria-label={$t('troubadour.workbench.saveTags', { default: 'Save staged tags' })} disabled={!writableDirtyItems.length || state.busy} on:click={() => void save(false)}><span class="material-symbols-outlined">save</span><HoverTooltip>{$t('troubadour.workbench.saveTags', { default: 'Save staged tags' })}</HoverTooltip></button>
       <button class="icon-button hover-tooltip-anchor" type="button" aria-label={$t('troubadour.menu.undo', { default: 'Undo staged change' })} disabled={!state.canUndo || state.busy} on:click={() => controller.undo()}><span class="material-symbols-outlined">undo</span><HoverTooltip>{$t('troubadour.menu.undo', { default: 'Undo staged change' })}</HoverTooltip></button>
       <button class="icon-button hover-tooltip-anchor" type="button" aria-label={$t('troubadour.menu.redo', { default: 'Redo staged change' })} disabled={!state.canRedo || state.busy} on:click={() => controller.redo()}><span class="material-symbols-outlined">redo</span><HoverTooltip>{$t('troubadour.menu.redo', { default: 'Redo staged change' })}</HoverTooltip></button>
+      {#if state.busy}<button class="icon-button danger hover-tooltip-anchor" type="button" aria-label={$t('troubadour.workbench.stopJob', { default: 'Stop the running job' })} on:click={() => controller.cancelActiveJob()}><span class="material-symbols-outlined">stop_circle</span><HoverTooltip>{$t('troubadour.workbench.stopJob', { default: 'Stop the running job' })}</HoverTooltip></button>{/if}
       <span class="toolbar-separator"></span>
       <label class="remembered-folder-control hover-tooltip-anchor"><span class="material-symbols-outlined" aria-hidden="true">folder_shared</span><select bind:value={rememberedFolderId} aria-label={$t('troubadour.workbench.chooseLibraryFolder', { default: 'Choose a folder from your izci library' })} disabled={!state.rememberedFolders.length || state.busy}><option value="">{$t('troubadour.workbench.none', { default: 'None' })}</option>{#each state.rememberedFolders as folder}<option value={folder.id}>{folder.name}</option>{/each}</select><HoverTooltip>{$t('troubadour.workbench.chooseLibraryFolder', { default: 'Choose a folder from your izci library' })}</HoverTooltip></label>
       {#if selectedRememberedFolder}<span class="root-permission hover-tooltip-anchor" class:granted={selectedRememberedFolder.permission === 'granted'} aria-label={selectedRememberedFolder.permission === 'granted' ? $t('troubadour.workbench.folderReady', { default: 'Folder is ready to use' }) : $t('troubadour.workbench.folderNeedsAccess', { default: 'Folder may ask for access' })}><span class="material-symbols-outlined" aria-hidden="true">{selectedRememberedFolder.permission === 'granted' ? 'verified' : 'lock'}</span><HoverTooltip>{selectedRememberedFolder.permission === 'granted' ? $t('troubadour.workbench.folderReady', { default: 'Folder is ready to use' }) : $t('troubadour.workbench.folderNeedsAccess', { default: 'Folder may ask for access' })}</HoverTooltip></span>{/if}

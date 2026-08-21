@@ -108,6 +108,8 @@ export function createTroubadourSavePipeline(deps: {
   setState: (patch: Partial<TroubadourWorkbenchState>) => void;
   setBusyComplete: (message: string) => void;
   saveItem: SaveWorkbenchItemHandler;
+  /** Returns the signal that cancels this batch when cancelActiveJob() fires. */
+  beginBatch: () => AbortSignal;
 }): SavePipeline {
   const {
     state: getState,
@@ -117,7 +119,8 @@ export function createTroubadourSavePipeline(deps: {
     setStaged,
     setState,
     setBusyComplete,
-    saveItem
+    saveItem,
+    beginBatch
   } = deps;
 
   const prepareItemForSave = async (id: string): Promise<TroubadourWorkbenchItem | null> => {
@@ -169,9 +172,11 @@ export function createTroubadourSavePipeline(deps: {
           .filter((item): item is TroubadourWorkbenchItem => Boolean(item))
           .map(writeTargetForItem)
       );
+      const signal = beginBatch();
       setState({ busy: true, activeJob: 'Saving metadata', jobProgress: 0, error: '' });
       await Promise.all([...permissionRequests, playbackPreparation]);
       for (let index = 0; index < targetIds.length; index += 1) {
+        if (signal.aborted) break;
         // Chromium keeps disk-backed File snapshots open on Windows. Replace the
         // workbench reference (and therefore any preview object URL) with a memory
         // copy before the atomic writable tries to swap the original file.
@@ -185,7 +190,8 @@ export function createTroubadourSavePipeline(deps: {
             item,
             requestPermission: options.requestPermission !== false,
             verify: options.verify !== false,
-            fullVerification: settings?.postWriteVerification === 'full-metadata'
+            fullVerification: settings?.postWriteVerification === 'full-metadata',
+            signal
           });
           const file = await materializeWorkbenchFile(await item.fileHandle!.getFile());
           setStaged({
@@ -232,6 +238,18 @@ export function createTroubadourSavePipeline(deps: {
             artworkChanged: item.artworkEdits.length > 0
           });
         } catch (error) {
+          if (signal.aborted && (error instanceof DOMException ? error.name === 'AbortError' : signal.aborted)) {
+            // Cancellation: restore the item to dirty and leave the file untouched.
+            setStaged({
+              items: getState().items.map((candidate) => candidate.id === item.id
+                ? { ...candidate, state: itemDirty(candidate) ? 'dirty' : 'ready', error: '' }
+                : candidate),
+              albums: getState().albums
+            }, false);
+            setBusyComplete('Save cancelled.');
+            setHistory(createHistory(cloneStaged({ items: getState().items, albums: getState().albums })));
+            return results;
+          }
           const message = error instanceof Error ? error.message : 'Metadata write failed.';
           const conflicted = error && typeof error === 'object' && 'code' in error && error.code === 'external-change';
           const permissionRequired = error && typeof error === 'object' && 'code' in error && error.code === 'permission-required';
@@ -282,7 +300,10 @@ export function createTroubadourSavePipeline(deps: {
         }
         setJob('Saving metadata', (index + 1) / targetIds.length);
       }
-      setBusyComplete(targetIds.length ? `${results.filter((result) => result.success).length} of ${targetIds.length} files saved.` : 'No writable dirty files.');
+      const cancelled = signal.aborted;
+      setBusyComplete(cancelled
+        ? 'Save cancelled.'
+        : targetIds.length ? `${results.filter((result) => result.success).length} of ${targetIds.length} files saved.` : 'No writable dirty files.');
       setHistory(createHistory(cloneStaged({ items: getState().items, albums: getState().albums })));
       if (settings?.diagnosticJobReporting && targetIds.length) {
         logInfo('tools', 'Troubadour save batch completed', {

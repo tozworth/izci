@@ -218,6 +218,7 @@ export function createTroubadourController(
   reorderAlbum(id: string, itemIds: string[]): void;
   renumberAlbum(id: string, start?: number, padTo?: number): void;
   reloadSelected(): Promise<void>;
+  cancelActiveJob(): boolean;
   saveSelectedOrAll(options?: {
     all?: boolean;
     requestPermission?: boolean;
@@ -250,6 +251,7 @@ export function createTroubadourController(
   let state = EMPTY_STATE;
   let history: HistoryState<StagedWorkbenchState> = createHistory({ items: [], albums: [] });
   let loadGeneration = 0;
+  let batchAbort: AbortController | null = null;
   store.subscribe((value) => (state = value));
 
   const setState = (patch: Partial<TroubadourWorkbenchState>) => store.set({ ...state, ...patch });
@@ -289,6 +291,28 @@ export function createTroubadourController(
   };
   const setMessage = (message: string) => setState({ message });
 
+  /** Begins a cancellable batch: one shared signal for the whole save/rename run. */
+  const beginBatch = (): AbortSignal => {
+    batchAbort?.abort();
+    const controller = new AbortController();
+    batchAbort = controller;
+    return controller.signal;
+  };
+
+  /** Aborts the running batch or metadata-read load; safe to call when idle. */
+  const cancelActiveJob = (): boolean => {
+    let cancelled = false;
+    if (batchAbort && !batchAbort.signal.aborted) {
+      batchAbort.abort();
+      cancelled = true;
+    }
+    if (state.busy && !batchAbort) {
+      loadGeneration += 1;
+      cancelled = true;
+    }
+    return cancelled;
+  };
+
   const savePipeline = createTroubadourSavePipeline({
     state: () => state,
     history: () => history,
@@ -297,7 +321,8 @@ export function createTroubadourController(
     setStaged,
     setState,
     setBusyComplete,
-    saveItem
+    saveItem,
+    beginBatch
   });
 
   const renamePipeline = createTroubadourRenamePipeline({
@@ -308,7 +333,8 @@ export function createTroubadourController(
     setStaged,
     setState,
     setBusyComplete,
-    saveSelectedOrAll: (options) => savePipeline.saveSelectedOrAll(options)
+    saveSelectedOrAll: (options) => savePipeline.saveSelectedOrAll(options),
+    beginBatch
   });
 
   const assignItemsToAlbum = (itemIds: string[], id: string) => {
@@ -696,6 +722,7 @@ export function createTroubadourController(
       }));
       setState({ message: `${targets.length} unchanged file${targets.length === 1 ? '' : 's'} reloaded.` });
     },
+    cancelActiveJob: cancelActiveJob,
     saveSelectedOrAll: (options) => savePipeline.saveSelectedOrAll(options),
     buildRenamePreview: (template, rules) => renamePipeline.buildRenamePreview(template, rules),
     applyRenames: (rows, options) => renamePipeline.applyRenames(rows, options),
