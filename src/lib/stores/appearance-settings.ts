@@ -27,9 +27,9 @@ export const DEFAULT_CHAMELEON_HUE = 210;
 export const MIN_CHAMELEON_SATURATION = 0;
 export const MAX_CHAMELEON_SATURATION = 100;
 export const DEFAULT_CHAMELEON_SATURATION = 76;
-export const MIN_VAPORWAVE_BACKGROUND_BRIGHTNESS = 0;
-export const MAX_VAPORWAVE_BACKGROUND_BRIGHTNESS = 100;
-export const DEFAULT_VAPORWAVE_BACKGROUND_BRIGHTNESS = 50;
+export const MIN_SYNTHWAVE_BACKGROUND_BRIGHTNESS = 0;
+export const MAX_SYNTHWAVE_BACKGROUND_BRIGHTNESS = 100;
+export const DEFAULT_SYNTHWAVE_BACKGROUND_BRIGHTNESS = 50;
 export const SYSTEM_FONT_FAMILY = 'system';
 export const BACKDROP_ZONE_IDS: BackdropZoneId[] = ['left', 'center', 'right', 'player', 'nowPlaying'];
 export const BACKDROP_ZONE_LABELS: Record<BackdropZoneId, string> = {
@@ -136,7 +136,7 @@ export const DEFAULT_APPEARANCE_SETTINGS: AppearanceSettings = {
   darkColorTheme: DEFAULT_DARK_COLOR_THEME,
   chameleonHue: DEFAULT_CHAMELEON_HUE,
   chameleonSaturation: DEFAULT_CHAMELEON_SATURATION,
-  vaporwaveBackgroundBrightness: DEFAULT_VAPORWAVE_BACKGROUND_BRIGHTNESS,
+  synthwaveBackgroundBrightness: DEFAULT_SYNTHWAVE_BACKGROUND_BRIGHTNESS,
   useArtworkPlayerColors: false,
   useNowPlayingArtworkPlayerColors: true,
   compactPlayerBar: false,
@@ -193,13 +193,13 @@ export function normalizeChameleonSaturation(value: unknown): number {
   );
 }
 
-export function normalizeVaporwaveBackgroundBrightness(value: unknown): number {
+export function normalizeSynthwaveBackgroundBrightness(value: unknown): number {
   return Math.round(
     normalizeNumber(
       value,
-      MIN_VAPORWAVE_BACKGROUND_BRIGHTNESS,
-      MAX_VAPORWAVE_BACKGROUND_BRIGHTNESS,
-      DEFAULT_VAPORWAVE_BACKGROUND_BRIGHTNESS
+      MIN_SYNTHWAVE_BACKGROUND_BRIGHTNESS,
+      MAX_SYNTHWAVE_BACKGROUND_BRIGHTNESS,
+      DEFAULT_SYNTHWAVE_BACKGROUND_BRIGHTNESS
     )
   );
 }
@@ -422,8 +422,8 @@ export function normalizeAppearanceSettings(value: unknown): AppearanceSettings 
     darkColorTheme: normalizeDarkColorTheme(source.darkColorTheme),
     chameleonHue: normalizeChameleonHue(source.chameleonHue),
     chameleonSaturation: normalizeChameleonSaturation(source.chameleonSaturation),
-    vaporwaveBackgroundBrightness: normalizeVaporwaveBackgroundBrightness(
-      source.vaporwaveBackgroundBrightness
+    synthwaveBackgroundBrightness: normalizeSynthwaveBackgroundBrightness(
+      source.synthwaveBackgroundBrightness
     ),
     useArtworkPlayerColors: source.useArtworkPlayerColors === true,
     useNowPlayingArtworkPlayerColors: source.useNowPlayingArtworkPlayerColors !== false,

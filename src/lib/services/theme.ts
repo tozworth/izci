@@ -46,7 +46,7 @@ function applyTheme(
   scheme: ColorScheme,
   chameleonHue: number,
   chameleonSaturation: number,
-  vaporwaveBackgroundBrightness: number,
+  synthwaveBackgroundBrightness: number,
   fontFamily: string
 ): void {
   if (typeof document === 'undefined') {
@@ -77,8 +77,8 @@ function applyTheme(
     `${Math.min(chameleonSaturation + 8, MAX_CHAMELEON_SATURATION)}%`
   );
   document.documentElement.style.setProperty(
-    '--vaporwave-background-brightness',
-    String(vaporwaveBackgroundBrightness / 100)
+    '--synthwave-background-brightness',
+    String(synthwaveBackgroundBrightness / 100)
   );
   document.documentElement.style.setProperty(
     '--app-font-family',
@@ -107,7 +107,7 @@ export function initializeTheme(): void {
       scheme,
       settings.chameleonHue,
       settings.chameleonSaturation,
-      settings.vaporwaveBackgroundBrightness,
+      settings.synthwaveBackgroundBrightness,
       settings.fontFamily
     );
   };

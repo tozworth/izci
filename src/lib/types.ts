@@ -104,7 +104,7 @@ export type ColorTheme =
   | 'gruvbox'
   | 'dracula'
   | 'ember'
-  | 'vaporwave'
+  | 'synthwave'
   | 'chameleon';
 export type ColorScheme = 'light' | 'dark';
 export type ColorThemeMode = 'system' | ColorScheme;
@@ -404,7 +404,7 @@ export interface AppearanceSettings {
   darkColorTheme: ColorTheme;
   chameleonHue: number;
   chameleonSaturation: number;
-  vaporwaveBackgroundBrightness: number;
+  synthwaveBackgroundBrightness: number;
   useArtworkPlayerColors: boolean;
   useNowPlayingArtworkPlayerColors: boolean;
   compactPlayerBar: boolean;
