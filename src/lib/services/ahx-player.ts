@@ -47,7 +47,10 @@ function runtimeUrl(path: string): string {
 function ensureWorklet(context: AudioContext): Promise<void> {
   const existing = workletLoads.get(context);
   if (existing) return existing;
-  const pending = context.audioWorklet.addModule(runtimeUrl('vendor/ahx-worklet.js'));
+  const pending = context.audioWorklet.addModule(runtimeUrl('vendor/ahx-worklet.js')).catch((error) => {
+    workletLoads.delete(context);
+    throw error;
+  });
   workletLoads.set(context, pending);
   return pending;
 }
@@ -56,6 +59,9 @@ function loadWasmBytes(): Promise<ArrayBuffer> {
   wasmBytesPromise ??= fetch(runtimeUrl('vendor/hively-replay.wasm')).then((response) => {
     if (!response.ok) throw new Error(`Unable to load the Hively replay core (${response.status}).`);
     return response.arrayBuffer();
+  }).catch((error) => {
+    wasmBytesPromise = null;
+    throw error;
   });
   return wasmBytesPromise;
 }

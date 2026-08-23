@@ -113,11 +113,17 @@ instead of building a new miniature environment for every guard.
 - Phase 1, low-risk debris and false signals: `a7f6f5a`.
 - Phase 2, application shell and presentation: `a925038`.
 - Phase 3, collections, files, metadata, and persistence: `636d5ad`.
+- Phase 4, settings, Options, loadouts, and synchronization: `a8dc472`.
+- Phase 5, playback and audio: `cacfea2`.
+- Phase 6, Multiplayer: `d606dbe`.
+- Phase 7, tool windows and build/PWA integration: `1ceb2c7`.
+- Phase 8, convergence and stop decision: see
+  [the final report](gardening-final-report.md).
 
 Their implementation details and verification belong in the final phase report,
 not in this operating guide.
 
-## Phase 4: settings, Options, loadouts, and synchronization — next
+## Phase 4: settings, Options, loadouts, and synchronization
 
 Review representative high-risk settings and Options consumers without turning
 the settings surface into a generated system or inventorying every control.
