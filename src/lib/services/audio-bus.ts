@@ -42,9 +42,8 @@ export class AudioBusService {
       return null;
     }
 
-    this.#ensureGraph();
-
     try {
+      this.#ensureGraph();
       let source = this.#mediaSources.get(element);
 
       if (!source) {

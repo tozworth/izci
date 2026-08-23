@@ -237,6 +237,16 @@ describe('AudioBusService', () => {
     expect(context.mediaSources).toHaveLength(1);
   });
 
+  it('leaves media elements on native output when Web Audio is unavailable', () => {
+    vi.stubGlobal('window', {
+      setTimeout: globalThis.setTimeout,
+      clearTimeout: globalThis.clearTimeout
+    });
+
+    expect(bus.connectHtmlMediaElement({} as HTMLMediaElement)).toBeNull();
+    expect(FakeAudioContext.instances).toHaveLength(0);
+  });
+
   it('resumes the shared context for either playback backend', async () => {
     const context = bus.context as unknown as FakeAudioContext;
 
