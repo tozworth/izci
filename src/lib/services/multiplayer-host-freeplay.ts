@@ -199,26 +199,32 @@ export function syncPeerMediaSource(ctx: MultiplayerHostContext, peer: PeerConne
     const track = peer.freeplayPlayer?.track ?? null;
     const mode = peer.freeplayPlayer?.delivery ?? 'none';
     const generationId = peer.freeplayDelivery?.generationId ?? null;
+    syncPeerSourceFile(
+      ctx,
+      peer,
+      mode === 'source-file' ? track : null,
+      mode === 'source-file' ? generationId : null
+    );
     if (mode === 'render') {
       syncPeerRenderSource(ctx, peer, track, generationId);
     } else {
       syncPeerRenderSource(ctx, peer, null, null);
-      if (mode === 'source-file' && track && generationId) {
-        syncPeerSourceFile(ctx, peer, track, generationId);
-      }
     }
     return;
   }
   const track = core.latestHostState?.track ?? null;
   const mode = core.latestDelivery.mode;
   const generationId = core.latestDelivery.generationId;
+  syncPeerSourceFile(
+    ctx,
+    peer,
+    mode === 'source-file' ? track : null,
+    mode === 'source-file' ? generationId : null
+  );
   if (mode === 'render') {
     syncPeerRenderSource(ctx, peer, track, generationId);
   } else {
     syncPeerRenderSource(ctx, peer, null, null);
-    if (mode === 'source-file' && track && generationId) {
-      syncPeerSourceFile(ctx, peer, track, generationId);
-    }
   }
 }
 
@@ -304,13 +310,13 @@ export function syncPeerSourceFile(
   const key = track && generationId
     ? `${generationId}:${track.id}:${track.size}:${track.lastModified}`
     : '';
-  if (!channel || channel.readyState !== 'open' || peer.sourceTrackKey === key) return;
+  if (peer.sourceTrackKey === key) return;
 
   peer.mediaTransferToken += 1;
   peer.mediaOutgoing = [];
   peer.mediaQueuedBytes = 0;
   peer.sourceTrackKey = key;
-  if (!track?.file || !generationId) return;
+  if (!channel || channel.readyState !== 'open' || !track?.file || !generationId) return;
   const token = peer.mediaTransferToken;
   void transferSourceFile(peer, track, track.file, token, generationId).catch((error) => {
     logWarning('multiplayer', 'Source-file transfer failed', {

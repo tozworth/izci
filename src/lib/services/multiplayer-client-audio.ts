@@ -80,7 +80,11 @@ export async function attachClientRemoteAudio(
   if (!track || track.readyState === 'ended') return;
   track.enabled = true;
   const ready = await multiplayerAudioService.attachRemoteTrack(track, new MediaStream([track]), (audioStatus) => {
-    if (core.state.mode === 'client' && core.state.receiveAudio && core.latestDelivery.mode === 'stream') {
+    if (core.clientPeer === peer
+      && core.latestDelivery.generationId === generationId
+      && core.state.mode === 'client'
+      && core.state.receiveAudio
+      && core.latestDelivery.mode === 'stream') {
       if (audioStatus === 'unavailable') transition.setReceiverPipelineReady(false);
       publish({ audioStatus });
     }
@@ -105,10 +109,15 @@ export function attachClientMediaChannel(ctx: MultiplayerClientContext, peer: Pe
   } | null = null;
 
   channel.onmessage = (event) => {
+    if (core.clientPeer !== peer || peer.mediaChannel !== channel) return;
     if (typeof event.data === 'string') {
       const frame = parseSourceFileFrame(event.data);
       if (!frame) return;
       if (frame.kind === 'file.begin') {
+        if (!transition.isCurrent(frame.generationId, frame.trackId, 'source-file')) {
+          pending = null;
+          return;
+        }
         pending = { frame, chunks: [], received: 0 };
         multiplayerAudioService.setRemoteAudible(false);
         logDebug('multiplayer', 'Source-file transfer started', {
@@ -124,6 +133,14 @@ export function attachClientMediaChannel(ctx: MultiplayerClientContext, peer: Pe
         return;
       }
       if (!pending || pending.frame.transferId !== frame.transferId) return;
+      if (!transition.isCurrent(
+        pending.frame.generationId,
+        pending.frame.trackId,
+        'source-file'
+      )) {
+        pending = null;
+        return;
+      }
       const complete = pending;
       pending = null;
       if (complete.received !== complete.frame.size) {
@@ -155,6 +172,14 @@ export function attachClientMediaChannel(ctx: MultiplayerClientContext, peer: Pe
       return;
     }
     if (!pending || !(event.data instanceof ArrayBuffer)) return;
+    if (!transition.isCurrent(
+      pending.frame.generationId,
+      pending.frame.trackId,
+      'source-file'
+    )) {
+      pending = null;
+      return;
+    }
     if (pending.received + event.data.byteLength > pending.frame.size) {
       const generationId = pending.frame.generationId;
       pending = null;
@@ -187,6 +212,7 @@ export function attachClientRenderChannel(ctx: MultiplayerClientContext, peer: P
   const channel = peer.renderChannel;
   if (!channel) return;
   channel.onmessage = (event) => {
+    if (core.clientPeer !== peer || peer.renderChannel !== channel) return;
     if (!(event.data instanceof ArrayBuffer)) return;
     const frame = decodeRenderFrame(event.data);
     if (!frame) return;
@@ -353,13 +379,13 @@ export function setReceiveAudio(ctx: MultiplayerClientContext, enabled: boolean)
   transition.setReceiveAudio(enabled);
   if (core.state.mode !== 'client' || !core.clientPeer) return;
 
-  multiplayerSourcePlaybackService.setEnabled(enabled);
+  const sourcePlaying = multiplayerSourcePlaybackService.setEnabled(enabled);
   if (!enabled) sendClientPlaybackReadyIfPossible(ctx, core.clientPeer);
   if (core.latestDelivery.mode === 'source-file') {
     multiplayerAudioService.setRemoteAudible(false);
     publish({
       audioStatus: enabled
-        ? multiplayerSourcePlaybackService.active ? 'playing' : 'connecting'
+        ? sourcePlaying ? 'playing' : multiplayerSourcePlaybackService.active ? 'ready' : 'connecting'
         : 'refused',
       averageAudioBitrateKbps: null
     });

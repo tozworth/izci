@@ -19,6 +19,7 @@ export class MultiplayerSourcePlaybackService {
   #loadToken = 0;
   #enabled = true;
   #localTimeline = false;
+  #resumeLocalTimelineOnEnable = false;
   #onEnded: ((trackId: string, generationId: string) => void) | null = null;
   #unsubscribeEnded: Unsubscriber | null = null;
   #previousPlaybackState: PlaybackSnapshot['state'] = 'idle';
@@ -50,6 +51,7 @@ export class MultiplayerSourcePlaybackService {
     this.#latestPlayback = null;
     this.#enabled = true;
     this.#localTimeline = false;
+    this.#resumeLocalTimelineOnEnable = false;
     this.cancelSynchronizedStart();
     this.#unsubscribeEnded?.();
     this.#unsubscribeEnded = null;
@@ -105,13 +107,26 @@ export class MultiplayerSourcePlaybackService {
     this.#synchronizedStartAt = 0;
   }
 
-  setEnabled(enabled: boolean): void {
+  setEnabled(enabled: boolean): boolean {
+    if (this.#enabled === enabled) {
+      return this.#activeTrackId !== null && get(playerController.snapshot).state === 'playing';
+    }
     this.#enabled = enabled;
     if (!enabled) {
+      const localState = get(playerController.snapshot).state;
+      this.#resumeLocalTimelineOnEnable = this.#localTimeline
+        && (localState === 'playing' || localState === 'loading');
       playerController.pause();
-      return;
+      return false;
+    }
+    if (this.#localTimeline) {
+      const shouldResume = this.#resumeLocalTimelineOnEnable;
+      this.#resumeLocalTimelineOnEnable = false;
+      if (shouldResume) playerController.play();
+      return this.#activeTrackId !== null && get(playerController.snapshot).state === 'playing';
     }
     this.#applyLatestPlayback();
+    return this.#activeTrackId !== null && get(playerController.snapshot).state === 'playing';
   }
 
   syncPlayback(playback: MultiplayerPlayback): void {
@@ -131,6 +146,9 @@ export class MultiplayerSourcePlaybackService {
     const snapshot = playback.snapshot;
     const initialPosition = this.#localTimeline ? 0 : expectedPosition(playback);
     const previousObjectUrl = this.#activeObjectUrl;
+    if (this.#localTimeline && !this.#enabled && snapshot.state === 'playing') {
+      this.#resumeLocalTimelineOnEnable = true;
+    }
 
     try {
       if (this.#localTimeline) {

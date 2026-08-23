@@ -22,6 +22,7 @@ export function attachHostChannel(
   const { core, updateClient } = ctx;
   peer.channel = channel;
   channel.onopen = () => {
+    if (core.hostPeers.get(peer.id) !== peer || peer.channel !== channel) return;
     clearPeerConnectionTimer(peer);
     updateClient(peer.id, { status: 'connected' });
     sendToPeer(peer, {
@@ -32,6 +33,7 @@ export function attachHostChannel(
     });
   };
   channel.onmessage = (event) => {
+    if (core.hostPeers.get(peer.id) !== peer || peer.channel !== channel) return;
     if (typeof event.data !== 'string') return;
     const message = peer.decode(event.data);
     if (!message) return;
@@ -65,17 +67,23 @@ export function attachHostChannel(
       void Promise.resolve(peer.freeplay
         ? ctx.handleFreeplayCommand(peer, message.command)
         : ctx.handleHostCommand(message.command, peer))
-        .then((accepted) => sendToPeer(peer, {
-          kind: 'ack',
-          commandId: message.command.commandId,
-          accepted
-        }))
-        .catch(() => sendToPeer(peer, {
-          kind: 'ack',
-          commandId: message.command.commandId,
-          accepted: false,
-          message: 'The host could not apply that command.'
-        }));
+        .then((accepted) => {
+          if (core.hostPeers.get(peer.id) !== peer || peer.channel !== channel) return;
+          sendToPeer(peer, {
+            kind: 'ack',
+            commandId: message.command.commandId,
+            accepted
+          });
+        })
+        .catch(() => {
+          if (core.hostPeers.get(peer.id) !== peer || peer.channel !== channel) return;
+          sendToPeer(peer, {
+            kind: 'ack',
+            commandId: message.command.commandId,
+            accepted: false,
+            message: 'The host could not apply that command.'
+          });
+        });
     }
     if (message.kind === 'playback.ready') {
       ctx.acceptClientPlaybackReady(peer, message.generationId);
@@ -105,6 +113,7 @@ export function attachHostChannel(
     }
   };
   channel.onclose = () => {
+    if (core.hostPeers.get(peer.id) !== peer || peer.channel !== channel) return;
     updateClient(peer.id, { status: 'disconnected' });
     ctx.removePeerFromHostPlaybackPreparation(peer.id);
   };
@@ -125,10 +134,14 @@ export function attachHostMediaChannel(
   channel.binaryType = 'arraybuffer';
   channel.bufferedAmountLowThreshold = 256 * 1024;
   channel.onopen = () => {
+    if (ctx.core.hostPeers.get(peer.id) !== peer || peer.mediaChannel !== channel) return;
     if (peer.freeplaySettled) ctx.syncPeerMediaSource(peer);
     else peer.mediaSyncPending = true;
   };
-  channel.onbufferedamountlow = () => flushPeerMedia(peer);
+  channel.onbufferedamountlow = () => {
+    if (ctx.core.hostPeers.get(peer.id) !== peer || peer.mediaChannel !== channel) return;
+    flushPeerMedia(peer);
+  };
   channel.onclose = () => {
     peer.mediaTransferToken += 1;
     peer.mediaOutgoing = [];
@@ -148,6 +161,7 @@ export function attachHostRenderChannel(
   channel.binaryType = 'arraybuffer';
   channel.bufferedAmountLowThreshold = 128 * 1024;
   channel.onopen = () => {
+    if (ctx.core.hostPeers.get(peer.id) !== peer || peer.renderChannel !== channel) return;
     if (peer.freeplaySettled) ctx.syncPeerMediaSource(peer);
     else peer.mediaSyncPending = true;
     // A renderState created before this channel opened never got its batch
@@ -156,6 +170,7 @@ export function attachHostRenderChannel(
     if (peer.renderState) schedulePeerRender(peer, ctx.playheadMsForPeer(peer));
   };
   channel.onbufferedamountlow = () => {
+    if (ctx.core.hostPeers.get(peer.id) !== peer || peer.renderChannel !== channel) return;
     // The render queue is a real backlog: schedulePeerRender gates on
     // renderQueuedBytes >= HIGH_WATER, so it can NOT be the drain trigger.
     // Flush the pending frames first, then re-plan for more clusters.
