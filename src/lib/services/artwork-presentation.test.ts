@@ -92,6 +92,29 @@ describe('artwork presentation helpers', () => {
     controller.destroy();
   });
 
+  it('shows the selected details track without stale artwork when its artwork load fails', async () => {
+    const firstArtwork: LoadedStreamArtwork = {
+      url: 'blob:first',
+      mediaImage: { src: 'blob:first' }
+    };
+    const controller = createArtworkPresentationController({
+      resolveTrackSnapshot: (track) => track,
+      isPlaybackDetailsPending: () => false,
+      loadArtwork: (track) => track?.id === 'first'
+        ? Promise.resolve(firstArtwork)
+        : Promise.reject(new Error('unreadable file'))
+    });
+
+    controller.syncSelection(item('first'), true);
+    await controller.syncDetailsDisplay();
+    controller.syncSelection(item('second'), true);
+    await controller.syncDetailsDisplay();
+
+    expect(controller.getSnapshot().detailsDisplayTrack?.id).toBe('second');
+    expect(controller.getSnapshot().visibleDetailsArtwork).toBeNull();
+    controller.destroy();
+  });
+
   it('reloads artwork for the same track when its external artwork key changes', async () => {
     let artworkVersion = 'missing';
     const controller = createArtworkPresentationController({

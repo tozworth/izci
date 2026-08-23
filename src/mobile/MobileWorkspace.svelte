@@ -209,7 +209,10 @@
 
   function navigateToDestination(destination: MobileDestination): void {
     const currentDestination = getActiveDestination();
-    if (destination === currentDestination) return;
+    if (
+      (nowPlayingActive && destination === 'now-playing') ||
+      (!nowPlayingActive && activeTab === destination)
+    ) return;
 
     transitionDirection = MOBILE_DESTINATIONS.indexOf(destination) > MOBILE_DESTINATIONS.indexOf(currentDestination)
       ? 1
@@ -243,6 +246,11 @@
   function selectTab(tab: WorkspaceTab): void {
     if (nowPlayingActive) dispatch('closeNowPlaying');
     dispatch('tabChange', tab);
+  }
+
+  function showTrackDetails(id: string): void {
+    if (nowPlayingActive) dispatch('closeNowPlaying');
+    dispatch('showTrack', id);
   }
 </script>
 
@@ -314,7 +322,7 @@
                 on:seek={(event) => dispatch('seek', event.detail)}
                 on:volume={(event) => dispatch('volume', event.detail)}
                 on:mute={() => dispatch('mute')}
-                on:showTrack={(event) => dispatch('showTrack', event.detail)}
+                on:showTrack={(event) => showTrackDetails(event.detail)}
               />
               {#if multiplayerMode !== 'idle' && multiplayerHostName}
                 <button

@@ -407,7 +407,13 @@ export function createArtworkPresentationController({
         return;
       }
 
-      const artwork = await loadArtwork(track);
+      let artwork: LoadedStreamArtwork | null = null;
+
+      try {
+        artwork = await loadArtwork(track);
+      } catch {
+        artwork = null;
+      }
 
       if (loadToken !== detailsArtworkLoadToken) {
         revokeTrackArtwork(artwork);
