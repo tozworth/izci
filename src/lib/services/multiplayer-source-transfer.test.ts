@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
+import { syncPeerSourceFile } from './multiplayer-host-freeplay';
 import { flushPeerMedia, parseSourceFileFrame, transferSourceFile } from './multiplayer-source-transfer';
+import type { MultiplayerHostContext } from './multiplayer-host';
 import type { PeerConnection } from './multiplayer-types';
 
 describe('multiplayer source transfer frames', () => {
@@ -75,5 +77,23 @@ describe('multiplayer source transfer frames', () => {
     expect(peer.mediaFlushing).toBe(false);
     expect(close).toHaveBeenCalledTimes(1);
     expect(closePeer).toHaveBeenCalledTimes(1);
+  });
+
+  it('invalidates an obsolete source transfer even after its channel closes', () => {
+    const peer = {
+      id: 'peer',
+      mediaChannel: { readyState: 'closed' },
+      mediaTransferToken: 4,
+      mediaOutgoing: [new ArrayBuffer(8)],
+      mediaQueuedBytes: 8,
+      sourceTrackKey: 'old-generation:track:10:1'
+    } as unknown as PeerConnection;
+
+    syncPeerSourceFile({ core: {} } as MultiplayerHostContext, peer, null, null);
+
+    expect(peer.mediaTransferToken).toBe(5);
+    expect(peer.mediaOutgoing).toEqual([]);
+    expect(peer.mediaQueuedBytes).toBe(0);
+    expect(peer.sourceTrackKey).toBe('');
   });
 });

@@ -285,6 +285,7 @@ export async function acceptClientOffer(
     else ctx.attachHostChannel(peer, event.channel);
   };
   peer.pc.onconnectionstatechange = () => {
+    if (core.hostPeers.get(id) !== peer) return;
     const status = peer.pc.connectionState;
     if (status === 'connected') {
       clearPeerConnectionTimer(peer);

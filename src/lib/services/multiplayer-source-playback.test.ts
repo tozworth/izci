@@ -111,6 +111,13 @@ describe('MultiplayerSourcePlaybackService', () => {
     });
   });
 
+  it('does not report unrelated local playback as an active source transfer', () => {
+    const service = new MultiplayerSourcePlaybackService();
+    controllerHarness.snapshot = { ...controllerHarness.snapshot, state: 'playing' };
+
+    expect(service.setEnabled(true)).toBe(false);
+  });
+
   it('plays once when repeated host snapshots remain in the playing state', async () => {
     const service = new MultiplayerSourcePlaybackService();
     service.syncPlayback(playback('paused'));
@@ -169,6 +176,33 @@ describe('MultiplayerSourcePlaybackService', () => {
     );
     expect(controllerHarness.pause).not.toHaveBeenCalled();
     expect(controllerHarness.seek).not.toHaveBeenCalled();
+  });
+
+  it('resumes a playing Freeplay local timeline after receive audio is re-enabled', async () => {
+    const service = new MultiplayerSourcePlaybackService();
+    service.setLocalTimeline(true);
+    service.syncPlayback(playback('playing'));
+    await service.loadFile(track, {} as File);
+    vi.clearAllMocks();
+
+    expect(service.setEnabled(false)).toBe(false);
+    expect(controllerHarness.pause).toHaveBeenCalledTimes(1);
+    expect(service.setEnabled(true)).toBe(true);
+    expect(controllerHarness.play).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not resume a manually paused Freeplay local timeline on an audio toggle', async () => {
+    const service = new MultiplayerSourcePlaybackService();
+    service.setLocalTimeline(true);
+    service.syncPlayback(playback('playing'));
+    await service.loadFile(track, {} as File);
+    controllerHarness.pause();
+    vi.clearAllMocks();
+
+    service.setEnabled(false);
+    expect(service.setEnabled(true)).toBe(false);
+
+    expect(controllerHarness.play).not.toHaveBeenCalled();
   });
 
   it('replays repeat-one locally without asking the host to rebuild the timeline', async () => {

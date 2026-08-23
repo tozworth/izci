@@ -147,10 +147,15 @@ export function syncHostSourceFiles(ctx: MultiplayerHostContext, track: TrackIte
   for (const peer of core.hostPeers.values()) {
     if (peer.freeplaySettled && !peer.freeplay) {
       const mode = core.latestDelivery.mode;
+      ctx.syncPeerSourceFile(
+        peer,
+        mode === 'source-file' ? track : null,
+        mode === 'source-file' ? core.latestDelivery.generationId : null
+      );
       if (mode === 'render') {
         ctx.syncPeerRenderSource(peer, track, core.latestDelivery.generationId);
-      } else if (mode === 'source-file') {
-        ctx.syncPeerSourceFile(peer, track, core.latestDelivery.generationId);
+      } else {
+        ctx.syncPeerRenderSource(peer, null, null);
       }
     }
   }

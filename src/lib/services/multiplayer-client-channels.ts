@@ -64,6 +64,7 @@ export function attachClientChannel(ctx: MultiplayerClientContext, peer: PeerCon
     });
   };
   channel.onmessage = (event) => {
+    if (core.clientPeer !== peer || peer.channel !== channel) return;
     if (typeof event.data !== 'string') return;
     const message = decode(event.data);
     if (!message) {
@@ -205,6 +206,7 @@ export function attachClientChannel(ctx: MultiplayerClientContext, peer: PeerCon
         ctx.cancelSynchronizedStart();
         ctx.sourceRetryGenerationId = message.delivery.generationId;
         ctx.sourceRetryCount = 0;
+        core.pendingClientSourceFile = null;
         multiplayerAudioService.setRemoteAudible(false);
         logInfo('freeplay', 'Multiplayer delivery generation changed', {
           generationId: message.delivery.generationId,
@@ -339,6 +341,7 @@ export function attachClientChannel(ctx: MultiplayerClientContext, peer: PeerCon
     if (peer.pc.connectionState === 'disconnected') ctx.scheduleClientReconnect(4_000);
   };
   peer.pc.ontrack = (event) => {
+    if (core.clientPeer !== peer) return;
     if (event.track.kind !== 'audio') return;
     ctx.applyReceiverBuffer(event.receiver);
     ctx.receiverMonitor.start(peer);
@@ -348,7 +351,7 @@ export function attachClientChannel(ctx: MultiplayerClientContext, peer: PeerCon
       event.track,
       stream,
       (audioStatus) => {
-        if (core.state.mode !== 'client') return;
+        if (core.clientPeer !== peer || core.state.mode !== 'client') return;
         if (audioStatus === 'unavailable') transition.setReceiverPipelineReady(false);
         if (core.latestDelivery.mode !== 'stream'
           && (audioStatus === 'connecting' || audioStatus === 'ready' || audioStatus === 'playing')) return;
