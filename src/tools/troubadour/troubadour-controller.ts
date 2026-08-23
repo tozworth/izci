@@ -242,7 +242,7 @@ export function createTroubadourController(
     options?: {
       saveFirst?: boolean;
       verification?: RenameVerification;
-      refreshPreview?: () => Promise<void>;
+      refreshPreview?: () => Promise<RenamePreviewRow[]>;
       settings?: TroubadourSettings;
     }
   ): Promise<void>;
@@ -284,6 +284,7 @@ export function createTroubadourController(
     });
   };
   const setBusyComplete = (message: string) => {
+    batchAbort = null;
     setState({ busy: false, activeJob: '', jobProgress: null, canUndo: false, canRedo: false, message });
   };
   const setJob = (activeJob: string, jobProgress?: number | null) => {
@@ -364,12 +365,12 @@ export function createTroubadourController(
       concurrency = LOAD_DEFAULT_CONCURRENCY,
       autoGroupFallback?: TroubadourAutoGroupFallback
     ) {
-      const generation = ++loadGeneration;
+      loadGeneration += 1;
       setState({ busy: true, activeJob: 'Opening izci files', jobProgress: null, error: '' });
       try {
         const run = createTroubadourLoadingPipeline({
           getState: () => state,
-          getLoadGeneration: () => generation,
+          getLoadGeneration: () => loadGeneration,
           autoGroupFallback,
           setJob,
           setTransientStaged,
@@ -387,12 +388,12 @@ export function createTroubadourController(
       concurrency = LOAD_DEFAULT_CONCURRENCY,
       autoGroupFallback?: TroubadourAutoGroupFallback
     ) {
-      const generation = ++loadGeneration;
+      loadGeneration += 1;
       setState({ busy: true, activeJob: 'Opening files', jobProgress: null, error: '' });
       try {
         const run = createTroubadourLoadingPipeline({
           getState: () => state,
-          getLoadGeneration: () => generation,
+          getLoadGeneration: () => loadGeneration,
           autoGroupFallback,
           setJob,
           setTransientStaged,
@@ -416,12 +417,12 @@ export function createTroubadourController(
       concurrency = LOAD_DEFAULT_CONCURRENCY,
       autoGroupFallback?: TroubadourAutoGroupFallback
     ) {
-      const generation = ++loadGeneration;
+      loadGeneration += 1;
       setState({ busy: true, activeJob: `Scanning ${handle.name} · 0 files found`, jobProgress: null, error: '' });
       try {
         const run = createTroubadourLoadingPipeline({
           getState: () => state,
-          getLoadGeneration: () => generation,
+          getLoadGeneration: () => loadGeneration,
           autoGroupFallback,
           setJob,
           setTransientStaged,
@@ -453,12 +454,12 @@ export function createTroubadourController(
       concurrency = LOAD_DEFAULT_CONCURRENCY,
       autoGroupFallback?: TroubadourAutoGroupFallback
     ) {
-      const generation = ++loadGeneration;
+      loadGeneration += 1;
       setState({ busy: true, activeJob: 'Scanning dropped items · 0 files found', jobProgress: null, error: '' });
       try {
         const run = createTroubadourLoadingPipeline({
           getState: () => state,
-          getLoadGeneration: () => generation,
+          getLoadGeneration: () => loadGeneration,
           autoGroupFallback,
           setJob,
           setTransientStaged,

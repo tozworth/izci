@@ -161,8 +161,10 @@ async function addLoadingItems(
       } else {
         try {
           const document = await readMetadataDocument(current.file, current.extension);
+          if (generation !== getLoadGeneration()) return;
           replacement = { ...current, document, state: 'ready', error: '' };
         } catch (error) {
+          if (generation !== getLoadGeneration()) return;
           replacement = {
             ...current,
             state: 'unreadable',
@@ -178,6 +180,7 @@ async function addLoadingItems(
     }
   });
   await Promise.all(workers);
+  if (generation !== getLoadGeneration()) return;
   commitUpdates(true);
   setMessage(`${unique.length} file${unique.length === 1 ? '' : 's'} loaded.`);
 }

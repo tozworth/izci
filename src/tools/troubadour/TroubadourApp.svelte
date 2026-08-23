@@ -392,7 +392,7 @@
     return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleDateString();
   }
 
-  async function previewRenames(): Promise<void> {
+  async function previewRenames(): Promise<RenamePreviewRow[]> {
     renameError = '';
     setActiveTab('rename');
     try {
@@ -404,9 +404,11 @@
           problems: row.problems,
           warnings: row.warnings.filter((warning) => validationWarningVisible(warning, settings.validationSeverity))
         }));
+      return renameRows;
     } catch (error) {
       handleError(error);
       renameRows = [];
+      return renameRows;
     }
   }
 
