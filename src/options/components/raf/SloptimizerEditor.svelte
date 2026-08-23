@@ -155,7 +155,7 @@
   .advanced-footer button { display: inline-flex; align-items: center; gap: 3px; white-space: nowrap; }
   .advanced-footer button:disabled { opacity: 0.4; }
   .advanced-footer .material-symbols-outlined { font-size: 14px; }
-  @container (max-width: 600px) {
+  @container (max-width: 460px) {
     .advanced-grid,
     .crossover-grid { grid-template-columns: 1fr; }
     .advanced-footer { align-items: flex-start; flex-direction: column; }

@@ -4,6 +4,7 @@
   import { portal } from '$lib/components/track-list-panel/actions/portal';
   import { windowDismiss } from '$lib/components/track-list-panel/actions/window-dismiss';
   import HoverTooltip from '$lib/components/HoverTooltip.svelte';
+  import MenuSurface from '$lib/components/MenuSurface.svelte';
   import { RAF_EFFECT_DEFINITIONS, RAF_EFFECT_REGISTRY } from '$lib/services/raf-effect-registry';
   import { rafSettings } from '$lib/stores/raf-settings';
   import type { RafEffectSettings, RafEffectType } from '$lib/types';
@@ -13,7 +14,10 @@
   let draggedId: string | null = null;
   let dropBoundary: number | null = null;
   let dragEngaged = false;
-  let addMenu: HTMLDetailsElement;
+  let addMenuOpen = false;
+  let addMenuX = 0;
+  let addMenuY = 0;
+  let addMenuDismissedAt = 0;
   let contextMenu: { effectId: string; x: number; y: number } | null = null;
   let contextMenuElement: HTMLDivElement | null = null;
 
@@ -52,10 +56,24 @@
     };
   }
 
+  function openAddMenu(event: MouseEvent) {
+    // Pointerdown on the trigger dismisses the open menu first (windowDismiss);
+    // swallow the follow-up click so the trigger toggles without reopening.
+    if (addMenuOpen || performance.now() - addMenuDismissedAt < 150) {
+      addMenuOpen = false;
+      return;
+    }
+    const anchor = (event.currentTarget as HTMLButtonElement).getBoundingClientRect();
+    addMenuX = anchor.left;
+    addMenuY = anchor.bottom + 4;
+    addMenuOpen = true;
+  }
+
   function addEffect(type: RafEffectType) {
     const nextSettings = rafSettings.addEffect(type);
     selectedEffectId = nextSettings.effects.at(-1)?.id ?? null;
-    addMenu?.removeAttribute('open');
+    addMenuOpen = false;
+    addMenuDismissedAt = performance.now();
   }
 
   function removeEffect(id: string) {
@@ -177,6 +195,12 @@
     }
   }
 
+  $: addMenuItems = RAF_EFFECT_DEFINITIONS.map((definition) => ({
+    id: definition.type,
+    label: effectTypeName(definition.type),
+    icon: definition.icon
+  }));
+
   $: if (!$rafSettings.effects.some((effect) => effect.id === selectedEffectId)) {
     selectedEffectId = $rafSettings.effects[0]?.id ?? null;
   }
@@ -188,20 +212,13 @@
     <header class="effects-sidebar-header">
       <strong>{$t('options.raf.effects.heading', { default: 'Effects' })}</strong>
       <div class="effects-sidebar-actions" aria-label={$t('options.raf.effects.listActions', { default: 'Effect list actions' })}>
-        <details class="sidebar-add-menu" bind:this={addMenu}>
-          <summary class="hover-tooltip-anchor" aria-label={$t('options.raf.effects.add', { default: 'Add effect' })}>
-            <span class="material-symbols-outlined" aria-hidden="true">add</span>
-            <HoverTooltip>{$t('options.raf.effects.add', { default: 'Add effect' })}</HoverTooltip>
-          </summary>
-          <div class="sidebar-add-menu-items">
-            {#each RAF_EFFECT_DEFINITIONS as definition}
-              <button on:click={() => addEffect(definition.type)}>
-                <span class="material-symbols-outlined" aria-hidden="true">{definition.icon}</span>
-                {effectTypeName(definition.type)}
-              </button>
-            {/each}
-          </div>
-        </details>
+        <button
+          class="hover-tooltip-anchor"
+          on:click={openAddMenu}
+          aria-label={$t('options.raf.effects.add', { default: 'Add effect' })}
+          aria-haspopup="menu"
+          aria-expanded={addMenuOpen}
+        ><span class="material-symbols-outlined" aria-hidden="true">add</span><HoverTooltip>{$t('options.raf.effects.add', { default: 'Add effect' })}</HoverTooltip></button>
         <button
           class="remove hover-tooltip-anchor"
           on:click={() => selectedEffect && removeEffect(selectedEffect.id)}
@@ -313,6 +330,20 @@
   </section>
 </div>
 
+{#if addMenuOpen}
+  <MenuSurface
+    items={addMenuItems}
+    x={addMenuX}
+    y={addMenuY}
+    ariaLabel={$t('options.raf.effects.add', { default: 'Add effect' })}
+    on:action={(event: { detail: string }) => addEffect(event.detail as RafEffectType)}
+    on:dismiss={() => {
+      addMenuOpen = false;
+      addMenuDismissedAt = performance.now();
+    }}
+  />
+{/if}
+
 {#if contextMenu}
   <div
     bind:this={contextMenuElement}
@@ -346,13 +377,6 @@
   .effects-sidebar-header { min-height: 34px; padding: 4px 7px 4px 10px; display: flex; align-items: center; gap: 4px; border-bottom: 1px solid var(--border-faint); }
   .effects-sidebar-header strong { color: var(--text-strong); }
   .effects-sidebar-actions { min-width: 0; margin-left: auto; display: flex; align-items: center; gap: 1px; }
-  .sidebar-add-menu { position: relative; }
-  .sidebar-add-menu summary { width: 25px; height: 25px; padding: 0; display: grid; place-items: center; border-radius: 3px; color: var(--muted-strong); list-style: none; }
-  .sidebar-add-menu summary::-webkit-details-marker { display: none; }
-  .sidebar-add-menu summary:hover { background: var(--hover-surface); color: var(--text-strong); }
-  .sidebar-add-menu-items { position: absolute; z-index: 8; top: calc(100% + 3px); left: 0; width: 150px; padding: 3px; display: grid; border: 1px solid var(--menu-bar-border); border-radius: 4px; background: var(--menu-popover-bg); box-shadow: var(--shadow); }
-  .sidebar-add-menu-items button { min-width: 0; padding: 6px 7px; display: flex; align-items: center; gap: 6px; border-radius: 3px; background: transparent; color: var(--text); text-align: left; }
-  .sidebar-add-menu-items button:hover { background: var(--hover-surface); color: var(--text-strong); }
   .effects-sidebar-actions > button,
   .effect-config-actions button { width: 25px; height: 25px; padding: 0; display: grid; place-items: center; border-radius: 3px; background: transparent; color: var(--muted-strong); }
   .effects-sidebar-actions > button:hover:not(:disabled),

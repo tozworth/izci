@@ -422,8 +422,8 @@
         "choose": "Choose a Raf preset",
         "label": "Presets",
         "new": "New preset",
-        "apply": "Apply {preset}",
         "rename": "Rename {preset}",
+        "renameSelected": "Rename selected preset",
         "delete": "Delete {preset}",
         "save": "Save changes to preset"
       },

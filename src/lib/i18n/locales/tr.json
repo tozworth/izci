@@ -418,12 +418,12 @@
       },
       "presets": {
         "namePrompt": "Bu Raf önayarına ad ver:",
-        "renamePrompt": "Raf önayarını yeniden adlandır:",
+        "renamePrompt": "Raf önayarını adlandır:",
         "choose": "Raf önayarı seç",
         "label": "Önayarlar",
         "new": "Yeni önayar",
-        "apply": "{preset} önayarını uygula",
         "rename": "{preset} önayar adı değiştir",
+        "renameSelected": "Seçili önayarı adlandır",
         "delete": "{preset} önayarını sil",
         "save": "Önayar değişikliklerini kaydet"
       },
