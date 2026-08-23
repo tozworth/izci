@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
   import { t } from 'svelte-i18n';
   import SettingsField from '$lib/components/options/SettingsField.svelte';
   import {
@@ -77,10 +76,6 @@
   $: settingsFingerprint =
     `${$experimentalSettings.multiplayerRenderDiskCacheEnabled}:${$experimentalSettings.multiplayerRenderDiskCacheLimitMiB}`;
   $: if (settingsFingerprint) void refresh();
-
-  onMount(() => {
-    void refresh();
-  });
 </script>
 
 <article class="view">

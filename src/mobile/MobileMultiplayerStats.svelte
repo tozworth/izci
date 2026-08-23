@@ -2,6 +2,13 @@
   import { createEventDispatcher } from 'svelte';
   import { t } from 'svelte-i18n';
   import { MULTIPLAYER_PROTOCOL_VERSION } from '$lib/services/multiplayer-protocol';
+  import {
+    formatAudioStat,
+    formatBytes,
+    formatConnectionStat,
+    formatPacketLoss,
+    formatTimingStat
+  } from '$lib/services/menu-format';
   import type {
     MultiplayerConnectionStats,
     MultiplayerConnectionStatus
@@ -66,45 +73,6 @@
     dragY = 0;
   }
 
-  function formatConnectionStat(): string {
-    const route = connectionRoute === 'direct'
-      ? $t('main.multiplayer.route.direct', { default: 'Direct' })
-      : connectionRoute === 'relayed'
-        ? $t('main.multiplayer.route.relayed', { default: 'Relayed' })
-        : null;
-    return [connectionStatus, route].filter(Boolean).join(' · ') || '—';
-  }
-
-  function formatAudioStat(): string {
-    if (!receiveAudio) return $t('main.multiplayer.audio.refused', { default: 'Refused' });
-    return [
-      connectionStats?.codec,
-      audioBitrateKbps === null ? null : `${audioBitrateKbps} kbps`
-    ].filter(Boolean).join(' · ') || '—';
-  }
-
-  function formatPacketLoss(lost?: number, received?: number, percent?: number | null): string {
-    if (lost === undefined || received === undefined) return '—';
-    return `${lost} / ${received + lost}${percent === null || percent === undefined ? '' : ` · ${percent}%`}`;
-  }
-
-  function formatBytes(value: number | null | undefined): string {
-    if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) return '—';
-    const units = ['B', 'KB', 'MB', 'GB', 'TB'];
-    let scaled = value;
-    let unit = 0;
-    while (scaled >= 1000 && unit < units.length - 1) {
-      scaled /= 1000;
-      unit += 1;
-    }
-    return `${scaled >= 100 || unit === 0 ? Math.round(scaled) : Math.round(scaled * 10) / 10} ${units[unit]}`;
-  }
-
-  function formatTimingStat(): string {
-    const jitter = connectionStats?.jitterMs;
-    const rtt = connectionStats?.roundTripTimeMs;
-    return `${jitter === null || jitter === undefined ? '—' : `${jitter} ms`} · ${rtt === null || rtt === undefined ? '—' : `${rtt} ms`}`;
-  }
 </script>
 
 <svelte:window on:keydown={handleKeydown} />
@@ -154,11 +122,11 @@
     </div>
     <div class="mobile-stats-row">
       <dt><span class="material-symbols-outlined" aria-hidden="true">route</span><span>{$t('main.multiplayer.stats.connection', { default: 'Connection' })}</span></dt>
-      <dd>{formatConnectionStat()}</dd>
+      <dd>{formatConnectionStat(connectionStatus, connectionRoute, $t)}</dd>
     </div>
     <div class="mobile-stats-row">
       <dt><span class="material-symbols-outlined" aria-hidden="true">graphic_eq</span><span>{$t('main.multiplayer.stats.audio', { default: 'Audio' })}</span></dt>
-      <dd>{formatAudioStat()}</dd>
+      <dd>{formatAudioStat(receiveAudio, connectionStats, audioBitrateKbps, $t)}</dd>
     </div>
     <div class="mobile-stats-row">
       <dt><span class="material-symbols-outlined" aria-hidden="true">data_usage</span><span>{$t('main.multiplayer.stats.data', { default: 'Data' })}</span></dt>
@@ -170,7 +138,7 @@
     </div>
     <div class="mobile-stats-row">
       <dt><span class="material-symbols-outlined" aria-hidden="true">speed</span><span>{$t('main.multiplayer.stats.timing', { default: 'Jitter · RTT' })}</span></dt>
-      <dd>{formatTimingStat()}</dd>
+      <dd>{formatTimingStat(connectionStats)}</dd>
     </div>
   </dl>
 </div>
