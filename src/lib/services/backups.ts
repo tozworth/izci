@@ -337,8 +337,11 @@ async function readPendingRestore(): Promise<PendingBackupRestore> {
 
 async function writePendingRestore(state: PendingBackupRestore): Promise<void> {
   const database = await openBackupDatabase();
-  if (!database) return;
-  await new Promise<void>((resolve) => {
+  if (!database) {
+    if (typeof window !== 'undefined') throw new Error('backup-restore-persistence-failed');
+    return;
+  }
+  await new Promise<void>((resolve, reject) => {
     const transaction = database.transaction(BACKUP_STORE_NAME, 'readwrite');
     transaction.objectStore(BACKUP_STORE_NAME).put(state, BACKUP_STATE_KEY);
     transaction.oncomplete = () => {
@@ -346,8 +349,9 @@ async function writePendingRestore(state: PendingBackupRestore): Promise<void> {
       resolve();
     };
     transaction.onerror = transaction.onabort = () => {
+      const error = transaction.error ?? new Error('backup-restore-persistence-failed');
       database.close();
-      resolve();
+      reject(error);
     };
   });
 }
@@ -399,8 +403,8 @@ function createPendingRestoreStore(): Readable<PendingBackupRestore> & {
 
   async function replace(state: PendingBackupRestore): Promise<void> {
     const normalized = normalizePendingRestore(state);
-    store.set(normalized);
     await writePendingRestore(normalized);
+    store.set(normalized);
     channel?.postMessage({ type: 'changed' });
   }
 
@@ -632,7 +636,7 @@ export async function locatePendingFolder(
       rating: mergeRating(item.rating, restored?.rating)
     };
   });
-  if (descriptor.libraryMode) {
+  if (descriptor.libraryMode && restoredItems.length > 0) {
     const reconciliation = libraryStore.reconcileFolder(
       remembered.id,
       restoredItems,

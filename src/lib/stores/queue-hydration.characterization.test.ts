@@ -119,4 +119,26 @@ describe('track collection hydration characterization', () => {
       })
     );
   });
+
+  it('retries a failed persistence write without requiring another mutation', async () => {
+    persistenceHarness.persistStoredState
+      .mockRejectedValueOnce(new Error('quota'))
+      .mockResolvedValue(undefined);
+    const { createTrackCollectionStore } = await import('./queue');
+    const store = createTrackCollectionStore({ dbName: 'test-persistence-retry', dedupe: true });
+    await store.ready();
+
+    store.add([item('retry')]);
+    await vi.advanceTimersByTimeAsync(400);
+    expect(persistenceHarness.persistStoredState).toHaveBeenCalledOnce();
+
+    await vi.advanceTimersByTimeAsync(4_999);
+    expect(persistenceHarness.persistStoredState).toHaveBeenCalledOnce();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(persistenceHarness.persistStoredState).toHaveBeenCalledTimes(2);
+    expect(persistenceHarness.persistStoredState).toHaveBeenLastCalledWith(
+      'test-persistence-retry',
+      expect.objectContaining({ items: [expect.objectContaining({ id: 'retry' })] })
+    );
+  });
 });

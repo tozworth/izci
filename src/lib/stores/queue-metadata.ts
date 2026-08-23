@@ -16,6 +16,12 @@ interface ScheduleMetadataParsingOptions {
   queuePersist: (complete: boolean) => void;
 }
 
+interface ResolvedMetadata {
+  id: string;
+  source: TrackItem;
+  metadata: TrackMetadata;
+}
+
 const METADATA_IO_TIMEOUT_MS = 15_000;
 const MEDIA_DURATION_TIMEOUT_MS = 10_000;
 const METADATA_BATCH_SIZE = 64;
@@ -64,6 +70,38 @@ function shouldReadEmbeddedStreamMetadata(item: TrackItem): boolean {
   }
 
   return item.metadata?.embeddedMetadataLoaded !== true;
+}
+
+function sameMetadataValue(left: unknown, right: unknown): boolean {
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+
+function mergeWithNewerMetadata(
+  source: TrackMetadata | undefined,
+  parsed: TrackMetadata,
+  current: TrackMetadata | undefined
+): TrackMetadata {
+  const merged = { ...parsed } as Record<string, unknown>;
+  const sourceRecord = (source ?? {}) as Record<string, unknown>;
+  const currentRecord = (current ?? {}) as Record<string, unknown>;
+
+  for (const key of new Set([...Object.keys(sourceRecord), ...Object.keys(currentRecord)])) {
+    if (sameMetadataValue(sourceRecord[key], currentRecord[key])) continue;
+
+    if (currentRecord[key] === undefined) delete merged[key];
+    else merged[key] = currentRecord[key];
+  }
+
+  return merged as TrackMetadata;
+}
+
+function hasSameContent(left: TrackItem, right: TrackItem): boolean {
+  return (
+    left.extension === right.extension &&
+    left.kind === right.kind &&
+    left.size === right.size &&
+    left.lastModified === right.lastModified
+  );
 }
 
 async function readStreamDuration(item: TrackItem): Promise<number | undefined> {
@@ -169,8 +207,8 @@ export function scheduleMetadataParsing({
     return JSON.stringify(item.metadata ?? {}) === JSON.stringify(metadata) ? null : metadata;
   };
 
-  const resolveBatch = async (batch: TrackItem[]): Promise<Array<{ id: string; metadata: TrackMetadata }>> => {
-    const results: Array<{ id: string; metadata: TrackMetadata }> = [];
+  const resolveBatch = async (batch: TrackItem[]): Promise<ResolvedMetadata[]> => {
+    const results: ResolvedMetadata[] = [];
     let nextIndex = 0;
 
     const worker = async () => {
@@ -178,7 +216,7 @@ export function scheduleMetadataParsing({
         const item = batch[nextIndex];
         nextIndex += 1;
         const metadata = await resolveMetadata(item);
-        if (metadata) results.push({ id: item.id, metadata });
+        if (metadata) results.push({ id: item.id, source: item, metadata });
       }
     };
 
@@ -210,11 +248,19 @@ export function scheduleMetadataParsing({
       .then((updates) => {
         if (updates.length === 0) return;
 
-        const updatesById = new Map(updates.map((update) => [update.id, update.metadata]));
+        const updatesById = new Map(updates.map((update) => [update.id, update]));
         updateItems((existing) =>
           existing.map((item) => {
-            const metadata = updatesById.get(item.id);
-            return metadata ? { ...item, metadata } : item;
+            const update = updatesById.get(item.id);
+            if (!update || !hasSameContent(item, update.source)) return item;
+            return {
+              ...item,
+              metadata: mergeWithNewerMetadata(
+                update.source.metadata,
+                update.metadata,
+                item.metadata
+              )
+            };
           })
         );
         scheduledPersist = true;

@@ -142,6 +142,8 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
         selection: selectionState,
         playbackOptions: playbackOptionsState
       }).catch((error) => {
+        persistDirty = true;
+        pendingPersistDelayMs = Math.min(pendingPersistDelayMs, BACKGROUND_PERSIST_DEBOUNCE_MS);
         logError('library', 'Collection persistence failed', { database: config.dbName, error });
       }).finally(() => {
         persistInFlight = false;
@@ -209,6 +211,9 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
             complete ? PERSIST_DEBOUNCE_MS : BACKGROUND_PERSIST_DEBOUNCE_MS
           )
         });
+      })
+      .catch((error) => {
+        logError('library', 'Collection hydration failed', { database: config.dbName, error });
       })
       .finally(() => {
         hydrated = true;
