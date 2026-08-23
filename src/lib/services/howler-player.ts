@@ -20,9 +20,27 @@ interface StreamLoadOptions {
 
 const PROGRESS_PUBLISH_INTERVAL_SECONDS = 0.125;
 const PROGRESS_POLL_INTERVAL_MILLISECONDS = 125;
+// Concurrent blob loads on mobile Chromium contend badly; keep the previous media
+// element alive until the incoming load reaches its media event, then unload it.
+const DEFERRED_UNLOAD_MS = 4_000;
+
+function describeMediaElement(element: HTMLMediaElement | null | undefined): Record<string, unknown> {
+  if (!element) return { element: 'none' };
+  const bufferedEnd = element.buffered?.length > 0
+    ? Math.round(element.buffered.end(element.buffered.length - 1) * 10) / 10
+    : 0;
+  return {
+    readyState: element.readyState,
+    networkState: element.networkState,
+    bufferedEnd,
+    errorCode: element.error?.code ?? null
+  };
+}
 
 export class HowlerPlayerService {
   #howl: Howl | null = null;
+  #pendingUnloadTimer: number | null = null;
+  #pendingUnloadHowl: { unload(): unknown } | null = null;
   #audioSource: MediaElementAudioSourceNode | null = null;
   #loadToken = 0;
   #autoPlayOnLoad = false;
@@ -59,8 +77,9 @@ export class HowlerPlayerService {
       throw new Error('Expected an object URL for streamable audio.');
     }
 
-    this.destroy();
+    this.#deferPreviousUnload();
     logInfo('playback', 'Stream load started', { id: track.id, name: track.name, extension: track.extension });
+    const loadStartedAt = performance.now();
     const loadToken = ++this.#loadToken;
     this.#resetPublishedProgress();
     this.#replayGain = track.metadata?.replayGain;
@@ -98,7 +117,13 @@ export class HowlerPlayerService {
           bitrate
         });
         this.#settlePendingLoad();
-        logInfo('playback', 'Stream loaded', { id: track.id, duration, bitrate });
+        logInfo('playback', 'Stream loaded', {
+          id: track.id,
+          duration,
+          bitrate,
+          loadMs: Math.round(performance.now() - loadStartedAt),
+          media: describeMediaElement(this.#activeMediaElement())
+        });
 
         if (initialPosition > 0) {
           this.#howl?.seek(initialPosition);
@@ -116,6 +141,7 @@ export class HowlerPlayerService {
           return;
         }
 
+        this.#flushDeferredUnload();
         this.#playPending = false;
         this.#connectAudioBus();
         audioBusService.resume();
@@ -130,6 +156,7 @@ export class HowlerPlayerService {
           return;
         }
 
+        this.#flushDeferredUnload();
         this.#playPending = false;
         this.#shouldTrackProgress = false;
         this.#stopTicking();
@@ -141,6 +168,7 @@ export class HowlerPlayerService {
           return;
         }
 
+        this.#flushDeferredUnload();
         this.#playPending = false;
         this.#shouldTrackProgress = false;
         this.#stopTicking();
@@ -176,7 +204,12 @@ export class HowlerPlayerService {
         this.#loaded = false;
         this.#playPending = false;
         const error = new Error(String(message));
-        logError('playback', 'Stream load failed', { id: track.id, error: error.message });
+        logError('playback', 'Stream load failed', {
+          id: track.id,
+          error: error.message,
+          loadMs: Math.round(performance.now() - loadStartedAt),
+          media: describeMediaElement(this.#activeMediaElement())
+        });
         this.#onSnapshot({ state: 'error', error: error.message });
         this.#settlePendingLoad(error);
       },
@@ -287,16 +320,51 @@ export class HowlerPlayerService {
     this.#resetPublishedProgress();
     this.#stopTicking();
     this.#cancelFallbackRamp();
+    this.#flushDeferredUnload();
     audioBusService.disconnect(this.#audioSource);
     this.#audioSource = null;
     this.#howl?.unload();
     this.#howl = null;
   }
 
-  #connectAudioBus(): void {
-    const mediaElement = (this.#howl as HowlWithSounds | null)?._sounds?.find(
+  // The previous Howl keeps its media element and decoded data alive briefly so the
+  // incoming load never competes with a synchronous unload on mobile Chromium.
+  #deferPreviousUnload(): void {
+    const previous = this.#howl;
+    if (!previous) return;
+
+    this.#howl = null;
+    this.#flushDeferredUnload();
+    this.#pendingUnloadHowl = previous;
+    this.#pendingUnloadTimer = window.setTimeout(() => {
+      this.#pendingUnloadTimer = null;
+      const howl = this.#pendingUnloadHowl;
+      this.#pendingUnloadHowl = null;
+      howl?.unload();
+      logDebug('playback', 'Deferred stream unload completed');
+    }, DEFERRED_UNLOAD_MS);
+  }
+
+  #flushDeferredUnload(): void {
+    if (this.#pendingUnloadTimer !== null) {
+      window.clearTimeout(this.#pendingUnloadTimer);
+      this.#pendingUnloadTimer = null;
+    }
+    const howl = this.#pendingUnloadHowl;
+    if (!howl) return;
+    this.#pendingUnloadHowl = null;
+    howl.unload();
+    logDebug('playback', 'Deferred stream unloaded');
+  }
+
+  #activeMediaElement(): HTMLMediaElement | null {
+    return (this.#howl as HowlWithSounds | null)?._sounds?.find(
       (sound) => sound._node instanceof HTMLMediaElement
-    )?._node;
+    )?._node ?? null;
+  }
+
+  #connectAudioBus(): void {
+    const mediaElement = this.#activeMediaElement();
 
     if (!mediaElement || this.#audioSource?.mediaElement === mediaElement) {
       return;
@@ -320,9 +388,7 @@ export class HowlerPlayerService {
   }
 
   #applyPitchPreservation(): void {
-    const mediaElement = (this.#howl as HowlWithSounds | null)?._sounds?.find(
-      (sound) => sound._node instanceof HTMLMediaElement
-    )?._node;
+    const mediaElement = this.#activeMediaElement();
 
     if (mediaElement) {
       mediaElement.preservesPitch = !this.#trueSpeed;
