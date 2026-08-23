@@ -1,11 +1,28 @@
-import type { TrackItem } from '$lib/types';
 import { inferExtension, inferKind } from '$lib/utils/files';
 import { logDebug, logWarning } from '$lib/services/logging';
+import type { TrackItem } from '$lib/types';
 
-type FileSystemPermissionState = 'granted' | 'denied' | 'prompt';
+/**
+ * Chromium on Android pays a large fixed cost per blob slice over FSA-backed
+ * Files (~150-200 ms measured on S23U), while a single whole-file read is fast.
+ * Streams small enough to hold in memory are therefore snapshotted once and
+ * played from the snapshot; videos stay on direct FSA-backed URLs.
+ */
+const STREAM_INLINE_MAX_BYTES = 128 * 1024 * 1024;
 
-function createObjectUrl(item: Pick<TrackItem, 'kind'>, file: File): string | undefined {
-  return item.kind === 'stream' || item.kind === 'video' ? URL.createObjectURL(file) : undefined;
+function createObjectUrl(item: Pick<TrackItem, 'kind'>, file: File): Promise<string | undefined> {
+  if (item.kind !== 'stream' && item.kind !== 'video') {
+    return Promise.resolve(undefined);
+  }
+
+  if (item.kind === 'stream' && file.size <= STREAM_INLINE_MAX_BYTES) {
+    return file
+      .arrayBuffer()
+      .then((buffer) => URL.createObjectURL(new Blob([buffer])))
+      .catch(() => URL.createObjectURL(file));
+  }
+
+  return Promise.resolve(URL.createObjectURL(file));
 }
 
 export function revokeObjectUrl(item: Pick<TrackItem, 'objectUrl'>): void {
@@ -66,7 +83,7 @@ export async function materializeTrackItem(item: TrackItem, prompt = false): Pro
     return null;
   }
 
-  const objectUrl = createObjectUrl({ kind }, file);
+  const objectUrl = await createObjectUrl({ kind }, file);
   logDebug('files', 'Track materialized', { id: item.id, kind, bytes: file.size, objectUrl: Boolean(objectUrl) });
   return {
     ...item,
