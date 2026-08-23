@@ -936,10 +936,5 @@
     .category-toggles {
       grid-column: 1 / 3;
     }
-
-    .list-heading {
-      flex-direction: column;
-      gap: 4px;
-    }
   }
 </style>
