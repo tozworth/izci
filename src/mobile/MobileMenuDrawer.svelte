@@ -1,6 +1,7 @@
 <script lang="ts">
   import { createEventDispatcher } from 'svelte';
   import { t } from 'svelte-i18n';
+  import { formatMultiplayerAudioStatusLabel } from '$lib/services/menu-format';
   import type {
     MultiplayerClient,
     MultiplayerAudioStatus,
@@ -95,29 +96,6 @@
     }
   }
 
-  function multiplayerAudioStatusLabel(status: MultiplayerAudioStatus, route: MultiplayerConnectionRoute | null, bitrateKbps: number | null): string {
-    const stateLabel = status === 'playing'
-      ? $t('main.multiplayer.audio.listening', { default: 'Listening' })
-      : status === 'ready'
-        ? $t('main.multiplayer.audio.ready', { default: 'Audio ready' })
-      : status === 'blocked'
-        ? $t('main.multiplayer.audio.blocked', { default: 'Audio needs permission' })
-        : status === 'refused'
-          ? $t('main.multiplayer.audio.refused', { default: 'Audio refused' })
-        : status === 'disabled'
-          ? $t('main.multiplayer.audio.disabled', { default: 'Host audio is off' })
-          : status === 'unavailable'
-              ? $t('main.multiplayer.audio.unavailable', { default: 'Audio unavailable' })
-              : $t('main.multiplayer.audio.connecting', { default: 'Audio connecting...' });
-    const routeLabel = route === 'direct'
-      ? $t('main.multiplayer.route.direct', { default: 'Direct' })
-      : route === 'relayed'
-        ? $t('main.multiplayer.route.relayed', { default: 'Relayed' })
-        : null;
-    return [stateLabel, routeLabel, status === 'playing' && bitrateKbps !== null ? `${bitrateKbps} kbps` : null]
-      .filter(Boolean)
-      .join(' · ');
-  }
 </script>
 
 <svelte:window on:keydown={handleKeydown} />
@@ -280,7 +258,12 @@
                       : multiplayerFreeplayPaired
                         ? $t('main.multiplayer.freeplay.ready', { default: 'Freeplay ready' })
                         : null,
-                    multiplayerAudioStatusLabel(multiplayerAudioStatus, multiplayerConnectionRoute, multiplayerAudioBitrateKbps)
+                    formatMultiplayerAudioStatusLabel(
+                      multiplayerAudioStatus,
+                      multiplayerConnectionRoute,
+                      multiplayerAudioBitrateKbps,
+                      $t
+                    )
                   ].filter(Boolean).join(' · ')
                 : multiplayerConnectionStatus === 'connecting'
                   ? $t('main.multiplayer.connecting', { default: 'Connecting...' })

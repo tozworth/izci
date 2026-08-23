@@ -535,8 +535,7 @@
     $appearanceSettings,
     $windowDisplayState,
     { width: innerWidth, height: innerHeight },
-    mobileMode,
-    playerDisplayTrack?.kind
+    mobileMode
   ));
   $: if (!isAutomaticNowPlayingEligible) {
     autoNowPlayingSuppressed = false;

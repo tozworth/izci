@@ -233,3 +233,11 @@ export const windowManager = {
   },
   closePopups: closeAllPopupWindows
 };
+
+export function requestOptionsFromTool(view?: OptionsViewName): void {
+  if (window.opener && !window.opener.closed) {
+    window.opener.postMessage({ type: 'izci:open-options', view }, window.location.origin);
+    return;
+  }
+  windowManager.openOptions(view);
+}

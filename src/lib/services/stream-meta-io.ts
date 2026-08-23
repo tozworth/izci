@@ -26,7 +26,6 @@ function mergeContiguousRanges(ranges: Array<{ offset: number; length: number }>
 }
 
 export class FileRangeReader {
-  readonly #file: File;
   readonly #ranges: Array<{ offset: number; length: number }>;
   readonly #readBytes: (offset: number, length: number) => Promise<Uint8Array>;
   #rangeIndex = 0;
@@ -37,8 +36,7 @@ export class FileRangeReader {
   /** File offset corresponding to #window[0]. */
   #windowOffset = 0;
 
-  constructor(file: File, ranges: Array<{ offset: number; length: number }>, readBytes: (offset: number, length: number) => Promise<Uint8Array>) {
-    this.#file = file;
+  constructor(ranges: Array<{ offset: number; length: number }>, readBytes: (offset: number, length: number) => Promise<Uint8Array>) {
     this.#ranges = mergeContiguousRanges(ranges.filter((range) => range.length > 0));
     this.#remaining = this.#ranges.reduce((total, range) => total + range.length, 0);
     this.#readBytes = readBytes;

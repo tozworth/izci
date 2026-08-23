@@ -1,5 +1,5 @@
 import type { TrackSettings } from '$lib/types';
-import { createSettingsStore } from './persistent-store';
+import { createSettingsStore, normalizeBoolean } from './persistent-store';
 
 export const TRACK_SETTINGS_STORAGE_KEY = 'izci.track-settings';
 export const TRACK_SETTINGS_CHANNEL = 'izci.track-settings';
@@ -39,26 +39,17 @@ export function normalizeTrackSettings(value: unknown): TrackSettings {
 
   return {
     folderNestingLimit: normalizeFolderNestingLimit(source.folderNestingLimit),
-    verifyAddedFiles:
-      typeof source.verifyAddedFiles === 'boolean'
-        ? source.verifyAddedFiles
-        : DEFAULT_TRACK_SETTINGS.verifyAddedFiles,
-    deduplicateQueue:
-      typeof source.deduplicateQueue === 'boolean'
-        ? source.deduplicateQueue
-        : DEFAULT_TRACK_SETTINGS.deduplicateQueue,
+    verifyAddedFiles: normalizeBoolean(source.verifyAddedFiles, DEFAULT_TRACK_SETTINGS.verifyAddedFiles),
+    deduplicateQueue: normalizeBoolean(source.deduplicateQueue, DEFAULT_TRACK_SETTINGS.deduplicateQueue),
     associatedFileAction:
       source.associatedFileAction === 'add' || source.associatedFileAction === 'replace'
         ? source.associatedFileAction
         : DEFAULT_TRACK_SETTINGS.associatedFileAction,
-    showFavoriteToggleInPlayerBar:
-      typeof source.showFavoriteToggleInPlayerBar === 'boolean'
-        ? source.showFavoriteToggleInPlayerBar
-        : DEFAULT_TRACK_SETTINGS.showFavoriteToggleInPlayerBar,
-    enableRatings:
-      typeof source.enableRatings === 'boolean'
-        ? source.enableRatings
-        : DEFAULT_TRACK_SETTINGS.enableRatings
+    showFavoriteToggleInPlayerBar: normalizeBoolean(
+      source.showFavoriteToggleInPlayerBar,
+      DEFAULT_TRACK_SETTINGS.showFavoriteToggleInPlayerBar
+    ),
+    enableRatings: normalizeBoolean(source.enableRatings, DEFAULT_TRACK_SETTINGS.enableRatings)
   };
 }
 

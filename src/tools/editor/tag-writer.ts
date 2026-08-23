@@ -11,7 +11,7 @@ export interface EditableTags {
   lyrics: string;
 }
 
-export interface ParsedTags {
+interface ParsedTags {
   tags: EditableTags;
   artwork: Blob | null;
 }
@@ -59,15 +59,6 @@ function encodeSynchsafe(value: number): Uint8Array {
     (value >>> 14) & 0x7f,
     (value >>> 7) & 0x7f,
     value & 0x7f
-  ]);
-}
-
-function encodeUint32(value: number): Uint8Array {
-  return new Uint8Array([
-    (value >>> 24) & 0xff,
-    (value >>> 16) & 0xff,
-    (value >>> 8) & 0xff,
-    value & 0xff
   ]);
 }
 

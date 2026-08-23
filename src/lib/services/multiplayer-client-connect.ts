@@ -48,7 +48,7 @@ export async function join(
   rawInviteCode: string,
   options: { silent?: boolean; preserveHostId?: boolean } = {}
 ): Promise<void> {
-  const { core, publish } = ctx;
+  const { core } = ctx;
   logInfo('multiplayer', 'Join requested', { paired: false });
   if (core.state.receiveAudio) void multiplayerAudioService.warmRemoteAudio();
   core.allowClientReconnect = true;

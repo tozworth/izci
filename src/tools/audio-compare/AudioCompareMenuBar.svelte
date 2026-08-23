@@ -3,7 +3,7 @@
   import { t } from 'svelte-i18n';
   import WindowMenuBar from '$lib/components/WindowMenuBar.svelte';
   import { applyManualLoadoutSettings } from '$lib/services/loadouts';
-  import { windowManager } from '$lib/services/window-manager';
+  import { requestOptionsFromTool, windowManager } from '$lib/services/window-manager';
   import { loadouts } from '$lib/stores/loadouts';
   import type { MenuActionItem, WindowMenuGroup } from '$lib/types';
   import { getLoadoutColorValue, LOADOUT_TYPE_ICONS } from '$lib/utils/loadout-presentation';
@@ -86,18 +86,10 @@
     }
   ] satisfies WindowMenuGroup[];
 
-  function requestOptions(view?: 'loadouts' | 'about'): void {
-    if (window.opener && !window.opener.closed) {
-      window.opener.postMessage({ type: 'izci:open-options', view }, window.location.origin);
-      return;
-    }
-    windowManager.openOptions(view);
-  }
-
   function run(action: ActionId): void {
-    if (action === 'openOptions') return requestOptions();
-    if (action === 'openLoadouts') return requestOptions('loadouts');
-    if (action === 'openAbout') return requestOptions('about');
+    if (action === 'openOptions') return requestOptionsFromTool();
+    if (action === 'openLoadouts') return requestOptionsFromTool('loadouts');
+    if (action === 'openAbout') return requestOptionsFromTool('about');
     if (action.startsWith('applyLoadout:')) {
       const loadout = loadouts.getSnapshot().loadouts.find((candidate) => candidate.id === action.slice(13));
       if (loadout) applyManualLoadoutSettings(loadout.settings);

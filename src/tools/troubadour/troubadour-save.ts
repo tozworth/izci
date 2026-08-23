@@ -24,15 +24,6 @@ import type {
   WorkbenchItemState
 } from './troubadour-controller';
 
-export {
-  buildRenameSources,
-  createTroubadourRenamePipeline,
-  renameRulesFromSettings,
-  requestRenameAccess,
-  type RenamePipeline
-} from './troubadour-rename';
-export { itemDirty };
-
 export function writeTargetForItem(item: TroubadourWorkbenchItem): TroubadourWriteTarget {
   return {
     contextId: item.contextId,
@@ -101,7 +92,6 @@ async function createBackup(item: TroubadourWorkbenchItem, policy: TroubadourSet
 
 export function createTroubadourSavePipeline(deps: {
   state: () => TroubadourWorkbenchState;
-  history: () => HistoryState<StagedWorkbenchState>;
   setHistory: (history: HistoryState<StagedWorkbenchState>) => void;
   setJob: (activeJob: string, jobProgress: number | null) => void;
   setStaged: (staged: StagedWorkbenchState, record?: boolean, statePatch?: Partial<TroubadourWorkbenchState>) => void;
@@ -113,7 +103,6 @@ export function createTroubadourSavePipeline(deps: {
 }): SavePipeline {
   const {
     state: getState,
-    history: getHistory,
     setHistory,
     setJob,
     setStaged,

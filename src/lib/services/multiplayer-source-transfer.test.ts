@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { syncPeerSourceFile } from './multiplayer-host-freeplay';
 import { flushPeerMedia, parseSourceFileFrame, transferSourceFile } from './multiplayer-source-transfer';
-import type { MultiplayerHostContext } from './multiplayer-host';
 import type { PeerConnection } from './multiplayer-types';
 
 describe('multiplayer source transfer frames', () => {
@@ -89,7 +88,7 @@ describe('multiplayer source transfer frames', () => {
       sourceTrackKey: 'old-generation:track:10:1'
     } as unknown as PeerConnection;
 
-    syncPeerSourceFile({ core: {} } as MultiplayerHostContext, peer, null, null);
+    syncPeerSourceFile(peer, null, null);
 
     expect(peer.mediaTransferToken).toBe(5);
     expect(peer.mediaOutgoing).toEqual([]);
@@ -128,12 +127,12 @@ describe('multiplayer source transfer frames', () => {
       file
     } as const;
 
-    syncPeerSourceFile({ core: {} } as MultiplayerHostContext, peer, track, 'generation');
+    syncPeerSourceFile(peer, track, 'generation');
     expect(peer.sourceTrackKey).toBe('');
     expect(sent).toEqual([]);
 
     readyState = 'open';
-    syncPeerSourceFile({ core: {} } as MultiplayerHostContext, peer, track, 'generation');
+    syncPeerSourceFile(peer, track, 'generation');
     await vi.waitFor(() => {
       expect(sent.filter((frame) => typeof frame === 'string').map((frame) => (
         parseSourceFileFrame(frame as string)?.kind
@@ -143,7 +142,7 @@ describe('multiplayer source transfer frames', () => {
     expect(peer.sourceTrackKey).toBe(`generation:track:${file.size}:${file.lastModified}`);
     expect(peer.mediaTransferToken).toBe(1);
 
-    syncPeerSourceFile({ core: {} } as MultiplayerHostContext, peer, track, 'generation');
+    syncPeerSourceFile(peer, track, 'generation');
     expect(sent.filter((frame) => typeof frame === 'string')).toHaveLength(2);
   });
 });

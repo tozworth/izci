@@ -4,7 +4,7 @@ import type {
   PlaybackTransitionMode,
   ReplayGainMode
 } from '$lib/types';
-import { createSettingsStore } from './persistent-store';
+import { createSettingsStore, normalizeBoolean } from './persistent-store';
 
 export const PLAYBACK_SETTINGS_STORAGE_KEY = 'izci.playback-settings';
 export const PLAYBACK_SETTINGS_CHANNEL = 'izci-playback-settings';
@@ -142,22 +142,16 @@ export function normalizePlaybackRate(value: unknown): number {
 
 export function normalizePlaybackSettings(value: unknown): PlaybackSettings {
   const source = value && typeof value === 'object' ? (value as Partial<PlaybackSettings>) : {};
-  const gaplessPlayback =
-    typeof source.gaplessPlayback === 'boolean'
-      ? source.gaplessPlayback
-      : DEFAULT_PLAYBACK_SETTINGS.gaplessPlayback;
+  const gaplessPlayback = normalizeBoolean(source.gaplessPlayback, DEFAULT_PLAYBACK_SETTINGS.gaplessPlayback);
   const requestedTransitionMode = normalizePlaybackTransitionMode(source.transitionMode);
 
   return {
     playbackRate: normalizePlaybackRate(source.playbackRate),
-    trueSpeed:
-      typeof source.trueSpeed === 'boolean'
-        ? source.trueSpeed
-        : DEFAULT_PLAYBACK_SETTINGS.trueSpeed,
-    restartCurrentTrackOnPrevious:
-      typeof source.restartCurrentTrackOnPrevious === 'boolean'
-        ? source.restartCurrentTrackOnPrevious
-        : DEFAULT_PLAYBACK_SETTINGS.restartCurrentTrackOnPrevious,
+    trueSpeed: normalizeBoolean(source.trueSpeed, DEFAULT_PLAYBACK_SETTINGS.trueSpeed),
+    restartCurrentTrackOnPrevious: normalizeBoolean(
+      source.restartCurrentTrackOnPrevious,
+      DEFAULT_PLAYBACK_SETTINGS.restartCurrentTrackOnPrevious
+    ),
     transitionMode:
       !gaplessPlayback && requestedTransitionMode === 'crossfade'
         ? 'fadeout'
@@ -167,26 +161,19 @@ export function normalizePlaybackSettings(value: unknown): PlaybackSettings {
     manualTrackChangeFadePercent: normalizeManualTrackChangeFadePercent(
       source.manualTrackChangeFadePercent
     ),
-    logarithmicVolume:
-      typeof source.logarithmicVolume === 'boolean'
-        ? source.logarithmicVolume
-        : DEFAULT_PLAYBACK_SETTINGS.logarithmicVolume,
+    logarithmicVolume: normalizeBoolean(source.logarithmicVolume, DEFAULT_PLAYBACK_SETTINGS.logarithmicVolume),
     replayGainMode: normalizeReplayGainMode(source.replayGainMode),
     replayGainPreampDb: normalizeReplayGainPreampDb(source.replayGainPreampDb),
     restoreMode: normalizePlaybackRestoreMode(source.restoreMode),
     rememberProgressDurationIndex: normalizeRememberProgressDurationIndex(
       source.rememberProgressDurationIndex
     ),
-    enableRaf:
-      typeof source.enableRaf === 'boolean' ? source.enableRaf : DEFAULT_PLAYBACK_SETTINGS.enableRaf,
-    showRafToggleInPlayerBar:
-      typeof source.showRafToggleInPlayerBar === 'boolean'
-        ? source.showRafToggleInPlayerBar
-        : DEFAULT_PLAYBACK_SETTINGS.showRafToggleInPlayerBar,
-    stopAfterTrack:
-      typeof source.stopAfterTrack === 'boolean'
-        ? source.stopAfterTrack
-        : DEFAULT_PLAYBACK_SETTINGS.stopAfterTrack
+    enableRaf: normalizeBoolean(source.enableRaf, DEFAULT_PLAYBACK_SETTINGS.enableRaf),
+    showRafToggleInPlayerBar: normalizeBoolean(
+      source.showRafToggleInPlayerBar,
+      DEFAULT_PLAYBACK_SETTINGS.showRafToggleInPlayerBar
+    ),
+    stopAfterTrack: normalizeBoolean(source.stopAfterTrack, DEFAULT_PLAYBACK_SETTINGS.stopAfterTrack)
   };
 }
 

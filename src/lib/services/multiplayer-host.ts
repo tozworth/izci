@@ -149,7 +149,7 @@ export function createMultiplayerHostSide(
     syncPeerFreeplayMode: (peer): Promise<void> => syncPeerFreeplayMode(ctx, peer),
     removePeerFromHostPlaybackPreparation: (peerId): void => removePeerFromHostPlaybackPreparation(ctx, peerId),
     primeHostState: (): void => primeHostState(ctx),
-    sendFreeplayState: (peer): void => sendFreeplayState(ctx, peer),
+    sendFreeplayState,
     sendFreeplayCatalog: (peer): void => sendFreeplayCatalog(ctx, peer),
     handleFreeplayCommand: (peer, command): Promise<boolean> => handleFreeplayCommand(ctx, peer, command),
     handleFreeplayTrackEnded: (peer, trackId): Promise<void> => handleFreeplayTrackEnded(ctx, peer, trackId),
@@ -167,12 +167,12 @@ export function createMultiplayerHostSide(
     buildCatalog: (source): MultiplayerCatalog => buildCatalog(ctx, source),
     buildPlayback: (source): MultiplayerPlayback => buildPlayback(ctx, source),
     broadcastShared: (message): void => broadcastShared(ctx, message),
-    ensureFreeplayDelivery: (peer, mode): MultiplayerDeliveryState => ensureFreeplayDelivery(ctx, peer, mode),
+    ensureFreeplayDelivery,
     syncPeerRenderSource: (peer, track, generationId): void =>
       syncPeerRenderSource(ctx, peer, track, generationId),
     syncPeerSourceFile: (peer, track, generationId): void =>
-      syncPeerSourceFile(ctx, peer, track, generationId),
-    sendClockPing: (peer, generationId): void => sendClockPing(ctx, peer, generationId)
+      syncPeerSourceFile(peer, track, generationId),
+    sendClockPing
   };
 
   return {
@@ -185,7 +185,7 @@ export function createMultiplayerHostSide(
     syncHostAudio: (track, force) => syncHostAudio(ctx, track, force),
     syncHostSourceFiles: (track) => syncHostSourceFiles(ctx, track),
     syncPeerFreeplayMode: (peer) => syncPeerFreeplayMode(ctx, peer),
-    beginFreeplayPlaybackPreparation: (peer) => beginFreeplayPlaybackPreparation(ctx, peer),
+    beginFreeplayPlaybackPreparation,
     releasePreparedHostPlayback: (force) => releasePreparedHostPlayback(ctx, force),
     beginHostPlaybackPreparation: (trackId) => beginHostPlaybackPreparation(ctx, trackId)
   };

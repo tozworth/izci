@@ -1,5 +1,5 @@
 import type { PatternColorScheme, PatternRowNumberBase, PatternViewerSettings } from '$lib/types';
-import { createSettingsStore } from './persistent-store';
+import { createSettingsStore, normalizeBoolean } from './persistent-store';
 
 export const PATTERN_VIEWER_SETTINGS_STORAGE_KEY = 'izci.pattern-viewer-settings';
 export const PATTERN_VIEWER_SETTINGS_CHANNEL = 'izci.pattern-viewer-settings';
@@ -67,26 +67,14 @@ export function normalizePatternViewerSettings(value: unknown): PatternViewerSet
     ),
     rowNumberBase: normalizeRowNumberBase(source.rowNumberBase),
     colorScheme: normalizeColorScheme(source.colorScheme),
-    followPlayback:
-      typeof source.followPlayback === 'boolean'
-        ? source.followPlayback
-        : DEFAULT_PATTERN_VIEWER_SETTINGS.followPlayback,
-    alwaysCenterActiveRow:
-      typeof source.alwaysCenterActiveRow === 'boolean'
-        ? source.alwaysCenterActiveRow
-        : DEFAULT_PATTERN_VIEWER_SETTINGS.alwaysCenterActiveRow,
-    smoothScroll:
-      typeof source.smoothScroll === 'boolean'
-        ? source.smoothScroll
-        : DEFAULT_PATTERN_VIEWER_SETTINGS.smoothScroll,
-    showChannelNames:
-      typeof source.showChannelNames === 'boolean'
-        ? source.showChannelNames
-        : DEFAULT_PATTERN_VIEWER_SETTINGS.showChannelNames,
-    highlightBeatRows:
-      typeof source.highlightBeatRows === 'boolean'
-        ? source.highlightBeatRows
-        : DEFAULT_PATTERN_VIEWER_SETTINGS.highlightBeatRows
+    followPlayback: normalizeBoolean(source.followPlayback, DEFAULT_PATTERN_VIEWER_SETTINGS.followPlayback),
+    alwaysCenterActiveRow: normalizeBoolean(
+      source.alwaysCenterActiveRow,
+      DEFAULT_PATTERN_VIEWER_SETTINGS.alwaysCenterActiveRow
+    ),
+    smoothScroll: normalizeBoolean(source.smoothScroll, DEFAULT_PATTERN_VIEWER_SETTINGS.smoothScroll),
+    showChannelNames: normalizeBoolean(source.showChannelNames, DEFAULT_PATTERN_VIEWER_SETTINGS.showChannelNames),
+    highlightBeatRows: normalizeBoolean(source.highlightBeatRows, DEFAULT_PATTERN_VIEWER_SETTINGS.highlightBeatRows)
   };
 }
 

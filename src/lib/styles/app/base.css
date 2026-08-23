@@ -114,12 +114,7 @@ input[type='range'] {
 .track-artist,
 .metadata-row dt,
 .metadata-row dd,
-.format-value,
-.format-detail,
-.pattern-value,
-.notes-block pre,
-.track-column-header,
-.track-column-sort-button {
+.notes-block pre {
   transition:
     color var(--artwork-ui-transition-duration) linear,
     background-color var(--artwork-ui-transition-duration) linear,

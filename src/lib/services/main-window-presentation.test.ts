@@ -445,7 +445,7 @@ describe('resolveNowPlayingEligibility', () => {
   const desktop = { width: 1200, height: 800 };
 
   it('mirrors the manual now-playing switch and computes automatic + viewport eligibility', () => {
-    const result = resolveNowPlayingEligibility(appearance, windowDisplay, desktop, false, undefined);
+    const result = resolveNowPlayingEligibility(appearance, windowDisplay, desktop, false);
     expect(result.nowPlayingViewActive).toBe(true);
     expect(result.isAutomaticNowPlayingEligible).toBe(true);
     expect(result.isNowPlayingViewportEligible).toBe(true);
@@ -454,8 +454,7 @@ describe('resolveNowPlayingEligibility', () => {
         { ...appearance, autoNowPlayingOnMaximized: false },
         windowDisplay,
         desktop,
-        false,
-        undefined
+        false
       ).isAutomaticNowPlayingEligible
     ).toBe(false);
     expect(
@@ -463,19 +462,18 @@ describe('resolveNowPlayingEligibility', () => {
         appearance,
         { prefersNowPlaying: false },
         desktop,
-        false,
-        undefined
+        false
       ).isAutomaticNowPlayingEligible
     ).toBe(false);
   });
 
   it('treats mobile mode as always viewport-eligible but still requires the minimum size otherwise', () => {
     expect(
-      resolveNowPlayingEligibility(appearance, windowDisplay, { width: 400, height: 300 }, false, undefined)
+      resolveNowPlayingEligibility(appearance, windowDisplay, { width: 400, height: 300 }, false)
         .isNowPlayingViewportEligible
     ).toBe(false);
     expect(
-      resolveNowPlayingEligibility(appearance, windowDisplay, { width: 1, height: 1 }, true, undefined)
+      resolveNowPlayingEligibility(appearance, windowDisplay, { width: 1, height: 1 }, true)
         .isNowPlayingViewportEligible
     ).toBe(true);
   });

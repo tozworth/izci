@@ -1,7 +1,6 @@
 import { writable } from 'svelte/store';
 import type {
   WorkspacePanelDefinition,
-  WorkspacePanelHandlers,
   WorkspacePanelProps,
   WorkspaceTabDefinition,
   WorkspaceTabMoveDetail

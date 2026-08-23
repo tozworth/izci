@@ -32,13 +32,6 @@ export const MAX_SYNTHWAVE_BACKGROUND_BRIGHTNESS = 100;
 export const DEFAULT_SYNTHWAVE_BACKGROUND_BRIGHTNESS = 25;
 export const SYSTEM_FONT_FAMILY = 'system';
 export const BACKDROP_ZONE_IDS: BackdropZoneId[] = ['left', 'center', 'right', 'player', 'nowPlaying'];
-export const BACKDROP_ZONE_LABELS: Record<BackdropZoneId, string> = {
-  left: 'Left',
-  center: 'Center',
-  right: 'Right',
-  player: 'Player Bar',
-  nowPlaying: 'Now Playing'
-};
 export const BACKDROP_EFFECT_OPTIONS: Array<{ value: BackdropZoneEffect; label: string }> = [
   { value: 'none', label: 'None' },
   { value: 'artwork', label: 'Artwork' },
@@ -177,30 +170,24 @@ function normalizeDarkColorTheme(value: unknown): ColorTheme {
 }
 
 export function normalizeChameleonHue(value: unknown): number {
-  return Math.round(
-    normalizeNumber(value, MIN_CHAMELEON_HUE, MAX_CHAMELEON_HUE, DEFAULT_CHAMELEON_HUE)
-  );
+  return normalizeRoundedNumber(value, MIN_CHAMELEON_HUE, MAX_CHAMELEON_HUE, DEFAULT_CHAMELEON_HUE);
 }
 
 export function normalizeChameleonSaturation(value: unknown): number {
-  return Math.round(
-    normalizeNumber(
-      value,
-      MIN_CHAMELEON_SATURATION,
-      MAX_CHAMELEON_SATURATION,
-      DEFAULT_CHAMELEON_SATURATION
-    )
+  return normalizeRoundedNumber(
+    value,
+    MIN_CHAMELEON_SATURATION,
+    MAX_CHAMELEON_SATURATION,
+    DEFAULT_CHAMELEON_SATURATION
   );
 }
 
 export function normalizeSynthwaveBackgroundBrightness(value: unknown): number {
-  return Math.round(
-    normalizeNumber(
-      value,
-      MIN_SYNTHWAVE_BACKGROUND_BRIGHTNESS,
-      MAX_SYNTHWAVE_BACKGROUND_BRIGHTNESS,
-      DEFAULT_SYNTHWAVE_BACKGROUND_BRIGHTNESS
-    )
+  return normalizeRoundedNumber(
+    value,
+    MIN_SYNTHWAVE_BACKGROUND_BRIGHTNESS,
+    MAX_SYNTHWAVE_BACKGROUND_BRIGHTNESS,
+    DEFAULT_SYNTHWAVE_BACKGROUND_BRIGHTNESS
   );
 }
 
@@ -222,25 +209,25 @@ function normalizeNumber(value: unknown, min: number, max: number, fallback: num
   return Math.min(Math.max(numericValue, min), max);
 }
 
+function normalizeRoundedNumber(value: unknown, min: number, max: number, fallback: number): number {
+  return Math.round(normalizeNumber(value, min, max, fallback));
+}
+
 export function normalizeBackdropZoneArtworkBlur(value: unknown): number {
-  return Math.round(
-    normalizeNumber(
-      value,
-      MIN_BACKDROP_ARTWORK_BLUR,
-      MAX_BACKDROP_ARTWORK_BLUR,
-      DEFAULT_BACKDROP_ARTWORK_BLUR
-    )
+  return normalizeRoundedNumber(
+    value,
+    MIN_BACKDROP_ARTWORK_BLUR,
+    MAX_BACKDROP_ARTWORK_BLUR,
+    DEFAULT_BACKDROP_ARTWORK_BLUR
   );
 }
 
 export function normalizeBackdropZoneArtworkBrightness(value: unknown): number {
-  return Math.round(
-    normalizeNumber(
-      value,
-      MIN_BACKDROP_ARTWORK_BRIGHTNESS,
-      MAX_BACKDROP_ARTWORK_BRIGHTNESS,
-      DEFAULT_BACKDROP_ARTWORK_BRIGHTNESS
-    )
+  return normalizeRoundedNumber(
+    value,
+    MIN_BACKDROP_ARTWORK_BRIGHTNESS,
+    MAX_BACKDROP_ARTWORK_BRIGHTNESS,
+    DEFAULT_BACKDROP_ARTWORK_BRIGHTNESS
   );
 }
 
@@ -270,14 +257,8 @@ function normalizeLyricsDisplayStyle(value: unknown): LyricsDisplayStyle {
 }
 
 export function normalizeLyricsFontSize(style: LyricsDisplayStyle, value: unknown): number {
-  const numericValue = Number(value);
   const limits = LYRICS_FONT_SIZE_LIMITS[style];
-
-  if (!Number.isFinite(numericValue)) {
-    return DEFAULT_LYRICS_FONT_SIZES[style];
-  }
-
-  return Math.min(Math.max(numericValue, limits.min), limits.max);
+  return normalizeNumber(value, limits.min, limits.max, DEFAULT_LYRICS_FONT_SIZES[style]);
 }
 
 function normalizeLyricsFontSizes(value: unknown): LyricsFontSizeSettings {
@@ -291,15 +272,11 @@ function normalizeLyricsFontSizes(value: unknown): LyricsFontSizeSettings {
 }
 
 export function normalizeLyricsDowntimeThresholdSeconds(value: unknown): number {
-  const numericValue = Number(value);
-
-  if (!Number.isFinite(numericValue)) {
-    return DEFAULT_LYRICS_DOWNTIME_THRESHOLD_SECONDS;
-  }
-
-  return Math.min(
-    Math.max(numericValue, MIN_LYRICS_DOWNTIME_THRESHOLD_SECONDS),
-    MAX_LYRICS_DOWNTIME_THRESHOLD_SECONDS
+  return normalizeNumber(
+    value,
+    MIN_LYRICS_DOWNTIME_THRESHOLD_SECONDS,
+    MAX_LYRICS_DOWNTIME_THRESHOLD_SECONDS,
+    DEFAULT_LYRICS_DOWNTIME_THRESHOLD_SECONDS
   );
 }
 

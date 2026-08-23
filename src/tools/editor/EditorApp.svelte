@@ -719,11 +719,7 @@
   }
 
   function windowManagerOpenOptions(): void {
-    if (window.opener && !window.opener.closed) {
-      window.opener.postMessage({ type: 'izci:open-options' }, window.location.origin);
-      return;
-    }
-    import('$lib/services/window-manager').then(({ windowManager }) => windowManager.openOptions());
+    import('$lib/services/window-manager').then(({ requestOptionsFromTool }) => requestOptionsFromTool());
   }
 
   onMount(() => {

@@ -45,7 +45,7 @@
   let showAdvancedTweaks = initialOptionsWindowState.showAdvancedTweaks;
   let advancedTweaksModified = false;
 
-  function viewLabel(view: OptionsViewName, _translate: typeof $t): string {
+  function viewLabel(view: OptionsViewName): string {
     switch (view) {
       case 'appearance': return $t('options.views.appearance', { default: 'Appearance' });
       case 'backdrops': return $t('options.views.backdrops', { default: 'Backdrops' });
@@ -128,13 +128,13 @@
   }
   $: sharedViewGroups = OPTIONS_VIEW_GROUPS.map((group) => group.map((view): SharedOptionsViewDefinition => ({
     ...view,
-    label: viewLabel(view.id, $t),
+    label: viewLabel(view.id),
     parentId: parentViewId(view.id),
     hidden: view.id === 'raf' && !$playbackSettings.enableRaf
   })));
   $: auxiliaryViews = [{
     ...OPTIONS_VIEWS.licenses,
-    label: viewLabel('licenses', $t),
+    label: viewLabel('licenses'),
     parentId: 'about'
   } satisfies SharedOptionsViewDefinition];
   $: {

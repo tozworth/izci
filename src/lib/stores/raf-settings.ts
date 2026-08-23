@@ -4,7 +4,7 @@ import {
   normalizeRafEffectDisplayName
 } from '$lib/services/raf-effect-registry';
 import type { RafEffectSettings, RafEffectType, RafRackSettings } from '$lib/types';
-import { createPersistentStore } from './persistent-store';
+import { createPersistentStore, normalizeBoolean } from './persistent-store';
 
 export const RAF_SETTINGS_STORAGE_KEY = 'izci.raf-settings';
 export const RAF_SETTINGS_CHANNEL = 'izci-raf-settings';
@@ -26,7 +26,7 @@ export function normalizeRafSettings(value: unknown): RafRackSettings {
   }
 
   return {
-    enabled: typeof source.enabled === 'boolean' ? source.enabled : DEFAULT_RAF_SETTINGS.enabled,
+    enabled: normalizeBoolean(source.enabled, DEFAULT_RAF_SETTINGS.enabled),
     effects
   };
 }

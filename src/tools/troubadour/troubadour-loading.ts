@@ -5,7 +5,6 @@ import type { MediaMetadataFields } from '$lib/services/media-metadata/types';
 import type { TroubadourRememberedFolder } from '$lib/services/troubadour-sync';
 import { inferExtension, inferKind } from '$lib/utils/files';
 import { autoGroupTracks } from './grouping';
-import { cloneStaged } from './troubadour-staged';
 import type { StagedWorkbenchState, TroubadourAutoGroupFallback, TroubadourWorkbenchItem } from './troubadour-controller';
 
 export const LOAD_COMMIT_BATCH_SIZE = 64;

@@ -1,4 +1,4 @@
-export interface MobileNavigatorLike {
+interface MobileNavigatorLike {
   userAgent?: string;
   platform?: string;
   maxTouchPoints?: number;

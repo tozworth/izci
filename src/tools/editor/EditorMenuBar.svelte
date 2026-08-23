@@ -5,7 +5,7 @@
   import { applyManualLoadoutSettings } from '$lib/services/loadouts';
   import { RAF_EFFECT_DEFINITIONS } from '$lib/services/raf-effect-registry';
   import { SPEED_EFFECT } from './clip-effects';
-  import { windowManager } from '$lib/services/window-manager';
+  import { requestOptionsFromTool, windowManager } from '$lib/services/window-manager';
   import { loadouts } from '$lib/stores/loadouts';
   import type { MenuActionItem, RafEffectType, WindowMenuGroup } from '$lib/types';
   import { getLoadoutColorValue, LOADOUT_TYPE_ICONS } from '$lib/utils/loadout-presentation';
@@ -122,9 +122,9 @@
   ] satisfies WindowMenuGroup[];
 
   function run(action: ActionId): void {
-    if (action === 'openOptions') return requestOptions();
-    if (action === 'openLoadouts') return requestOptions('loadouts');
-    if (action === 'openAbout') return requestOptions('about');
+    if (action === 'openOptions') return requestOptionsFromTool();
+    if (action === 'openLoadouts') return requestOptionsFromTool('loadouts');
+    if (action === 'openAbout') return requestOptionsFromTool('about');
     if (action.startsWith('applyLoadout:')) {
       const loadout = loadouts.getSnapshot().loadouts.find((candidate) => candidate.id === action.slice(13));
       if (loadout) applyManualLoadoutSettings(loadout.settings);
@@ -143,14 +143,6 @@
       || action === 'paste' || action === 'delete' || action === 'trim') {
       dispatch(action);
     }
-  }
-
-  function requestOptions(view?: 'loadouts' | 'about'): void {
-    if (window.opener && !window.opener.closed) {
-      window.opener.postMessage({ type: 'izci:open-options', view }, window.location.origin);
-      return;
-    }
-    windowManager.openOptions(view);
   }
 
 </script>

@@ -7,7 +7,6 @@ import type {
   ArtworkEdit,
   MediaArtworkInput,
   MediaMetadataFieldName,
-  MediaMetadataFields,
   MetadataDocument,
   MetadataPatch
 } from '$lib/services/media-metadata/types';
@@ -17,12 +16,11 @@ import type {
   TroubadourRememberedFolder,
   TroubadourTrackReference
 } from '$lib/services/troubadour-sync';
-import { publishTroubadourBatchResult } from '$lib/services/troubadour-sync';
 import type { TroubadourSettings } from '$lib/stores/troubadour-settings';
 import { discoverDirectoryFiles, inferExtension, inferKind } from '$lib/utils/files';
 import { autoGroupTracks, renumberAlbumTracks } from './grouping';
 import { createHistory, pushHistory, undoHistory, redoHistory, type HistoryState } from './history';
-import { cloneStaged } from './troubadour-staged';
+import { cloneStaged, itemDirty } from './troubadour-staged';
 import type {
   RenameJobResult,
   RenamePreviewRow,
@@ -37,21 +35,15 @@ import {
   itemsFromBatchTracks,
   itemsFromDiscoveredFiles,
   materializeWorkbenchFile,
-  metadataTrackForGrouping
+  metadataTrackForGrouping,
+  effectiveFields
 } from './troubadour-loading';
+import { createTroubadourRenamePipeline } from './troubadour-rename';
 import {
-  createTroubadourRenamePipeline,
   createTroubadourSavePipeline,
   defaultSaveHandler,
-  itemDirty,
-  itemState,
-  renameRulesFromSettings,
-  requestRenameAccess,
-  type RenamePipeline,
-  type SavePipeline
+  itemState
 } from './troubadour-save';
-
-export { requestRenameAccess };
 
 export type WorkbenchItemState =
   | 'loading'
@@ -143,10 +135,6 @@ const EMPTY_STATE: TroubadourWorkbenchState = {
 };
 
 export type TroubadourAutoGroupFallback = 'folder' | 'none';
-
-export function effectiveFields(item: TroubadourWorkbenchItem): MediaMetadataFields | null {
-  return item.document ? applyMetadataPatch(item.document, item.patch, item.artworkEdits).fields : null;
-}
 
 export function selectedFieldValue(
   items: TroubadourWorkbenchItem[],
@@ -316,7 +304,6 @@ export function createTroubadourController(
 
   const savePipeline = createTroubadourSavePipeline({
     state: () => state,
-    history: () => history,
     setHistory: (next) => { history = next; },
     setJob,
     setStaged,
@@ -328,7 +315,6 @@ export function createTroubadourController(
 
   const renamePipeline = createTroubadourRenamePipeline({
     state: () => state,
-    history: () => history,
     setHistory: (next) => { history = next; },
     setJob,
     setStaged,

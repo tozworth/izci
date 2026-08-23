@@ -1,4 +1,3 @@
-import { applyArtworkEdits } from './artwork';
 import { fingerprintFile, fingerprintsMatch } from './fingerprint';
 import { getMetadataCapabilities } from './format';
 import { applyMetadataPatch } from './merge';
@@ -142,12 +141,4 @@ export async function writeMetadataDocumentInPlace(
     else verifyPatch(result, expected, patch, artworkPatch);
   }
   return { document: result, verified: shouldVerify };
-}
-
-/** Useful for preflight artwork previews without constructing output tags. */
-export function previewArtworkEdits(
-  document: MetadataDocument,
-  artworkPatch?: ArtworkEdit | readonly ArtworkEdit[]
-): readonly MediaArtwork[] {
-  return applyArtworkEdits(document.artwork, artworkPatch);
 }

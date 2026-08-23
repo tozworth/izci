@@ -1,5 +1,5 @@
 import type { ExperimentalSettings } from '$lib/types';
-import { createSettingsStore } from './persistent-store';
+import { createSettingsStore, normalizeBoolean } from './persistent-store';
 
 export const EXPERIMENTAL_SETTINGS_STORAGE_KEY = 'izci.experimental-settings';
 export const EXPERIMENTAL_SETTINGS_CHANNEL = 'izci-experimental-settings';
@@ -114,28 +114,27 @@ export function normalizeExperimentalSettings(value: unknown): ExperimentalSetti
     : {};
 
   return {
-    multiplayer: typeof source.multiplayer === 'boolean'
-      ? source.multiplayer
-      : DEFAULT_EXPERIMENTAL_SETTINGS.multiplayer,
+    multiplayer: normalizeBoolean(source.multiplayer, DEFAULT_EXPERIMENTAL_SETTINGS.multiplayer),
     izciName: normalizeIzciName(source.izciName, defaultIzciName),
-    multiplayerWaitForClients: typeof source.multiplayerWaitForClients === 'boolean'
-      ? source.multiplayerWaitForClients
-      : DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerWaitForClients,
-    multiplayerSynchronizedPlayback: typeof source.multiplayerSynchronizedPlayback === 'boolean'
-      ? source.multiplayerSynchronizedPlayback
-      : DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerSynchronizedPlayback,
+    multiplayerWaitForClients: normalizeBoolean(
+      source.multiplayerWaitForClients,
+      DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerWaitForClients
+    ),
+    multiplayerSynchronizedPlayback: normalizeBoolean(
+      source.multiplayerSynchronizedPlayback,
+      DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerSynchronizedPlayback
+    ),
     multiplayerSyncLeadTimeMs: normalizeBoundedInteger(
       source.multiplayerSyncLeadTimeMs,
       DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerSyncLeadTimeMs,
       MULTIPLAYER_SYNC_LEAD_TIME_MIN_MS,
       MULTIPLAYER_SYNC_LEAD_TIME_MAX_MS
     ),
-    multiplayerAutoHost: typeof source.multiplayerAutoHost === 'boolean'
-      ? source.multiplayerAutoHost
-      : DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerAutoHost,
-    multiplayerRestoreLastSession: typeof source.multiplayerRestoreLastSession === 'boolean'
-      ? source.multiplayerRestoreLastSession
-      : DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerRestoreLastSession,
+    multiplayerAutoHost: normalizeBoolean(source.multiplayerAutoHost, DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerAutoHost),
+    multiplayerRestoreLastSession: normalizeBoolean(
+      source.multiplayerRestoreLastSession,
+      DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerRestoreLastSession
+    ),
     multiplayerTurnUrl: normalizeMultiplayerTurnUrl(source.multiplayerTurnUrl),
     multiplayerTurnSecret: normalizeSingleLine(
       source.multiplayerTurnSecret,
@@ -147,15 +146,12 @@ export function normalizeExperimentalSettings(value: unknown): ExperimentalSetti
       MULTIPLAYER_TURN_CREDENTIAL_HOURS_MIN,
       MULTIPLAYER_TURN_CREDENTIAL_HOURS_MAX
     ),
-    multiplayerForceTurn: typeof source.multiplayerForceTurn === 'boolean'
-      ? source.multiplayerForceTurn
-      : DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerForceTurn,
-    multiplayerFreeplay: typeof source.multiplayerFreeplay === 'boolean'
-      ? source.multiplayerFreeplay
-      : DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerFreeplay,
-    multiplayerStreamAudio: typeof source.multiplayerStreamAudio === 'boolean'
-      ? source.multiplayerStreamAudio
-      : DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerStreamAudio,
+    multiplayerForceTurn: normalizeBoolean(source.multiplayerForceTurn, DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerForceTurn),
+    multiplayerFreeplay: normalizeBoolean(source.multiplayerFreeplay, DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerFreeplay),
+    multiplayerStreamAudio: normalizeBoolean(
+      source.multiplayerStreamAudio,
+      DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerStreamAudio
+    ),
     multiplayerFileTransferLimitMiB: normalizeFileTransferLimit(
       source.multiplayerFileTransferLimitMiB
     ),
@@ -174,9 +170,10 @@ export function normalizeExperimentalSettings(value: unknown): ExperimentalSetti
     multiplayerRenderCacheLimitMiB: normalizeRenderCacheLimit(
       source.multiplayerRenderCacheLimitMiB
     ),
-    multiplayerRenderDiskCacheEnabled: typeof source.multiplayerRenderDiskCacheEnabled === 'boolean'
-      ? source.multiplayerRenderDiskCacheEnabled
-      : DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerRenderDiskCacheEnabled,
+    multiplayerRenderDiskCacheEnabled: normalizeBoolean(
+      source.multiplayerRenderDiskCacheEnabled,
+      DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerRenderDiskCacheEnabled
+    ),
     multiplayerRenderDiskCacheLimitMiB: normalizeRenderDiskCacheLimit(
       source.multiplayerRenderDiskCacheLimitMiB
     ),

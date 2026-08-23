@@ -4,7 +4,7 @@ import type { RafAutoAmpSettings, RafEffectSettings } from '$lib/types';
 
 export type ClipSpeedMode = 'speed' | 'pitch' | 'tempo';
 
-export interface ClipSpeedEffectSettings {
+interface ClipSpeedEffectSettings {
   type: 'speed';
   displayName: 'Speed';
   mode: ClipSpeedMode;
@@ -35,7 +35,7 @@ function createBufferLike(source: AudioBuffer): AudioBuffer {
   });
 }
 
-export function peakDecibelsForBuffer(buffer: AudioBuffer): number {
+function peakDecibelsForBuffer(buffer: AudioBuffer): number {
   let peak = 0;
   for (let channel = 0; channel < buffer.numberOfChannels; channel += 1) {
     const samples = buffer.getChannelData(channel);
@@ -46,7 +46,7 @@ export function peakDecibelsForBuffer(buffer: AudioBuffer): number {
   return peak > 0 ? 20 * Math.log10(peak) : -Infinity;
 }
 
-export function resolveOfflineAutoAmpGainDb(
+function resolveOfflineAutoAmpGainDb(
   buffer: AudioBuffer,
   settings: RafAutoAmpSettings
 ): number {
@@ -93,7 +93,7 @@ function restoreChannelLayout(source: AudioBuffer, rendered: AudioBuffer): Audio
   return output;
 }
 
-export async function renderRafEffect(
+async function renderRafEffect(
   source: AudioBuffer,
   settings: RafEffectSettings
 ): Promise<AudioBuffer> {

@@ -38,7 +38,6 @@ import {
 } from './multiplayer-utils';
 import type {
   PairedClientRecord,
-  PeerConnection,
   SignalAnswer,
   SignalCandidates,
   SignalOffer,

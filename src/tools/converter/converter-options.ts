@@ -1,4 +1,5 @@
 import type { AudioCodec, VideoCodec } from 'mediabunny';
+import { normalizeBoolean } from '$lib/stores/persistent-store';
 import { stripFileExtension } from '$lib/utils/files';
 
 export type ConverterFormatId =
@@ -141,7 +142,7 @@ export function getEffectiveVideoCodec(settings: ConverterSettings): VideoCodec 
   return format.videoCodecs.includes(settings.videoCodec) ? settings.videoCodec : format.videoCodecs[0] ?? null;
 }
 
-export function pcmCodec(format: ConverterPcmFormat): AudioCodec {
+function pcmCodec(format: ConverterPcmFormat): AudioCodec {
   switch (format) {
     case 'u8': return 'pcm-u8';
     case 's16': return 'pcm-s16';
@@ -216,20 +217,20 @@ export function normalizeConverterSettings(value: unknown): ConverterSettings {
     frameRate: frameRates.includes(source.frameRate as ConverterFrameRate) ? source.frameRate as ConverterFrameRate : 'source',
     videoFit: source.videoFit === 'cover' || source.videoFit === 'fill' ? source.videoFit : 'contain',
     rotate: source.rotate === 90 || source.rotate === 180 || source.rotate === 270 ? source.rotate : 0,
-    allowRotationMetadata: booleanValue(source.allowRotationMetadata, DEFAULT_CONVERTER_SETTINGS.allowRotationMetadata),
+    allowRotationMetadata: normalizeBoolean(source.allowRotationMetadata, DEFAULT_CONVERTER_SETTINGS.allowRotationMetadata),
     alpha: source.alpha === 'keep' ? 'keep' : 'discard',
     hardwareAcceleration: source.hardwareAcceleration === 'prefer-hardware' || source.hardwareAcceleration === 'prefer-software'
       ? source.hardwareAcceleration
       : 'no-preference',
     fastStart: source.fastStart === 'off' || source.fastStart === 'fragmented' ? source.fastStart : 'in-memory',
-    wavLargeFile: booleanValue(source.wavLargeFile, DEFAULT_CONVERTER_SETTINGS.wavLargeFile),
+    wavLargeFile: normalizeBoolean(source.wavLargeFile, DEFAULT_CONVERTER_SETTINGS.wavLargeFile),
     wavMetadata: source.wavMetadata === 'info' ? 'info' : 'id3',
-    mp3XingHeader: booleanValue(source.mp3XingHeader, DEFAULT_CONVERTER_SETTINGS.mp3XingHeader),
+    mp3XingHeader: normalizeBoolean(source.mp3XingHeader, DEFAULT_CONVERTER_SETTINGS.mp3XingHeader),
     trackSelection: source.trackSelection === 'all' ? 'all' : 'primary',
-    preserveMetadata: booleanValue(source.preserveMetadata, DEFAULT_CONVERTER_SETTINGS.preserveMetadata),
+    preserveMetadata: normalizeBoolean(source.preserveMetadata, DEFAULT_CONVERTER_SETTINGS.preserveMetadata),
     fileSuffix: typeof source.fileSuffix === 'string' ? source.fileSuffix.slice(0, 80) : '',
-    preserveFolders: booleanValue(source.preserveFolders, DEFAULT_CONVERTER_SETTINGS.preserveFolders),
-    skipExisting: booleanValue(source.skipExisting, DEFAULT_CONVERTER_SETTINGS.skipExisting)
+    preserveFolders: normalizeBoolean(source.preserveFolders, DEFAULT_CONVERTER_SETTINGS.preserveFolders),
+    skipExisting: normalizeBoolean(source.skipExisting, DEFAULT_CONVERTER_SETTINGS.skipExisting)
   };
   return changeConverterFormat(settings, settings.format);
 }
@@ -238,8 +239,4 @@ function clampNumber(value: unknown, minimum: number, maximum: number, fallback:
   return typeof value === 'number' && Number.isFinite(value)
     ? Math.min(maximum, Math.max(minimum, value))
     : fallback;
-}
-
-function booleanValue(value: unknown, fallback: boolean): boolean {
-  return typeof value === 'boolean' ? value : fallback;
 }

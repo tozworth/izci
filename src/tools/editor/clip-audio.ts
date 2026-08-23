@@ -174,50 +174,6 @@ export function materializeClip(source: AudioBuffer, state: ClipEditState): Audi
   return output;
 }
 
-export function encodeWav(buffer: AudioBuffer, id3Chunk?: Uint8Array): Blob {
-  const channelCount = Math.min(buffer.numberOfChannels, 2);
-  const bytesPerSample = 2;
-  const dataSize = buffer.length * channelCount * bytesPerSample;
-  const paddedId3Size = id3Chunk ? id3Chunk.byteLength + (id3Chunk.byteLength % 2) : 0;
-  const totalSize = 44 + dataSize + (id3Chunk ? 8 + paddedId3Size : 0);
-  const bytes = new Uint8Array(totalSize);
-  const view = new DataView(bytes.buffer);
-  const writeText = (offset: number, value: string) => {
-    for (let index = 0; index < value.length; index += 1) bytes[offset + index] = value.charCodeAt(index);
-  };
-
-  writeText(0, 'RIFF');
-  view.setUint32(4, totalSize - 8, true);
-  writeText(8, 'WAVE');
-  writeText(12, 'fmt ');
-  view.setUint32(16, 16, true);
-  view.setUint16(20, 1, true);
-  view.setUint16(22, channelCount, true);
-  view.setUint32(24, buffer.sampleRate, true);
-  view.setUint32(28, buffer.sampleRate * channelCount * bytesPerSample, true);
-  view.setUint16(32, channelCount * bytesPerSample, true);
-  view.setUint16(34, 16, true);
-  writeText(36, 'data');
-  view.setUint32(40, dataSize, true);
-
-  let offset = 44;
-  for (let frame = 0; frame < buffer.length; frame += 1) {
-    for (let channel = 0; channel < channelCount; channel += 1) {
-      const sample = Math.min(1, Math.max(-1, buffer.getChannelData(channel)[frame] ?? 0));
-      view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7fff, true);
-      offset += bytesPerSample;
-    }
-  }
-
-  if (id3Chunk) {
-    writeText(offset, 'id3 ');
-    view.setUint32(offset + 4, id3Chunk.byteLength, true);
-    bytes.set(id3Chunk, offset + 8);
-  }
-
-  return new Blob([bytes], { type: 'audio/wav' });
-}
-
 interface ModuleRenderWorkerMessage {
   type: 'progress' | 'complete' | 'error';
   progress?: number | null;

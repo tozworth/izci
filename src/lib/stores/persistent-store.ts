@@ -18,6 +18,10 @@ export type SettingsStoreController<T extends object> = Omit<PersistentStoreCont
   update(patch: Partial<T>): T;
 };
 
+export function normalizeBoolean<T>(value: unknown, fallback: T): boolean | T {
+  return typeof value === 'boolean' ? value : fallback;
+}
+
 export function createSettingsStore<T extends object>(options: PersistentStoreOptions<T>): SettingsStoreController<T> {
   const store = createPersistentStore(options);
   return { ...store, update: (patch) => store.update((value) => ({ ...value, ...patch })) };

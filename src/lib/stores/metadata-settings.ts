@@ -1,5 +1,5 @@
 import type { MetadataSettings } from '$lib/types';
-import { createSettingsStore } from './persistent-store';
+import { createSettingsStore, normalizeBoolean } from './persistent-store';
 
 export const METADATA_SETTINGS_STORAGE_KEY = 'izci.metadata-settings';
 export const METADATA_SETTINGS_CHANNEL = 'izci.metadata-settings';
@@ -34,10 +34,7 @@ function normalizeSettings(value: unknown): MetadataSettings {
   const source = value && typeof value === 'object' ? (value as Partial<MetadataSettings>) : {};
 
   return {
-    inferFromFilename:
-      typeof source.inferFromFilename === 'boolean'
-        ? source.inferFromFilename
-        : DEFAULT_METADATA_SETTINGS.inferFromFilename,
+    inferFromFilename: normalizeBoolean(source.inferFromFilename, DEFAULT_METADATA_SETTINGS.inferFromFilename),
     playCountThresholdSeconds: normalizePlayCountThresholdSeconds(source.playCountThresholdSeconds)
   };
 }

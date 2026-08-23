@@ -6,7 +6,7 @@ import type {
   LibraryViewTableSettings,
   SortDirection
 } from '$lib/types';
-import { createPersistentStore } from './persistent-store';
+import { createPersistentStore, normalizeBoolean } from './persistent-store';
 
 export const LIBRARY_VIEW_SETTINGS_STORAGE_KEY = 'izci.library-view-settings.v6';
 export const LIBRARY_VIEW_SETTINGS_CHANNEL = 'izci-library-view-settings-v6';
@@ -286,10 +286,7 @@ function normalizeViewSettings(value: unknown, view: LibraryViewId): LibraryView
 
       result[columnId] = {
         width: clampWidth(columnId, column?.width),
-        visible:
-          typeof column?.visible === 'boolean'
-            ? column.visible
-            : defaults.columns[columnId].visible
+        visible: normalizeBoolean(column?.visible, defaults.columns[columnId].visible)
       };
 
       return result;

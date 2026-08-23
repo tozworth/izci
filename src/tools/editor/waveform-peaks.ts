@@ -10,7 +10,7 @@ export interface WaveformPeakPyramid {
   channels: WaveformChannelPeaks[];
 }
 
-export interface WaveformPeak {
+interface WaveformPeak {
   minimum: number;
   maximum: number;
 }

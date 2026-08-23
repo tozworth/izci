@@ -109,11 +109,11 @@ export function beginHostPlaybackPreparation(ctx: MultiplayerHostContext, trackI
   };
   for (const peer of peers) {
     sendToPeer(peer, { kind: 'playback.prepare', preparation });
-    sendClockPing(ctx, peer, preparation.generationId);
+    sendClockPing(peer, preparation.generationId);
   }
 }
 
-export function sendClockPing(ctx: MultiplayerHostContext, peer: PeerConnection, generationId: string): void {
+export function sendClockPing(peer: PeerConnection, generationId: string): void {
   sendToPeer(peer, { kind: 'clock.ping', generationId, hostSentAt: Date.now() });
 }
 

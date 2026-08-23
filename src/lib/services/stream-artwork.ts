@@ -1,19 +1,9 @@
 import type { TrackItem, TrackMetadata } from '$lib/types';
 
-import { readUint24BE, readUint32BE, readSynchsafeUint32, decodeBase64, concatUint8Arrays, toArrayBuffer } from './stream-meta-binary';
-import {
-  normalizeReplayGainDb,
-  normalizeReplayGainPeak,
-  normalizeR128GainDb,
-  ensureReplayGain,
-  assignReplayGainValue,
-  applyReplayGainComment,
-  parseDecimalTagValue
-} from './stream-meta-replaygain';
-import { readFlacMetadata, parseFlacData, parsePictureBlock, parseVorbisCommentsPacket, trimTagValue, normalizeYearTagValue, applyVorbisComment } from './stream-meta-flac';
-import { readOggMetadata, extractOggPacket, extractOpusTagPacket, extractOggVorbisCommentPacket, parseOpusData, parseOggVorbisData, findOggPacketRanges, readLastOggGranule } from './stream-meta-ogg';
-import { readMp3Metadata, parseMp3Data, parseId3UserTextFrame, parseId3v2ReplayGain, findApeFooterOffset, parseApeReplayGain } from './stream-meta-mp3';
-import { extractStreamVorbisComments, readVorbisCommentsPacket } from './stream-meta-ogg';
+import { toArrayBuffer } from './stream-meta-binary';
+import { readFlacMetadata } from './stream-meta-flac';
+import { readOggMetadata } from './stream-meta-ogg';
+import { readMp3Metadata } from './stream-meta-mp3';
 import { extractArtwork, buildMediaImage } from './stream-artwork-extract';
 
 export interface VorbisComment {
@@ -65,11 +55,6 @@ export {
   applyReplayGainComment,
   parseDecimalTagValue
 } from './stream-meta-replaygain';
-
-export interface FileByteRange {
-  offset: number;
-  length: number;
-}
 
 export interface ReadStreamMetadataOptions {
   maxHeadBytes: number;
