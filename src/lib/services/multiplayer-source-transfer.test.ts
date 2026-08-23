@@ -96,4 +96,54 @@ describe('multiplayer source transfer frames', () => {
     expect(peer.mediaQueuedBytes).toBe(0);
     expect(peer.sourceTrackKey).toBe('');
   });
+
+  it('starts the initial source transfer when its media channel becomes ready', async () => {
+    let readyState: RTCDataChannelState = 'connecting';
+    const sent: Array<string | ArrayBuffer> = [];
+    const channel = {
+      get readyState() { return readyState; },
+      bufferedAmount: 0,
+      send: (frame: string | ArrayBuffer) => sent.push(frame)
+    } as unknown as RTCDataChannel;
+    const file = new File([new Uint8Array([1, 2, 3])], 'track.flac', {
+      type: 'audio/flac',
+      lastModified: 1
+    });
+    const peer = {
+      id: 'peer',
+      mediaChannel: channel,
+      mediaTransferToken: 0,
+      mediaOutgoing: [],
+      mediaQueuedBytes: 0,
+      mediaFlushing: false,
+      sourceTrackKey: ''
+    } as unknown as PeerConnection;
+    const track = {
+      id: 'track',
+      name: file.name,
+      extension: 'flac',
+      kind: 'stream',
+      size: file.size,
+      lastModified: file.lastModified,
+      file
+    } as const;
+
+    syncPeerSourceFile({ core: {} } as MultiplayerHostContext, peer, track, 'generation');
+    expect(peer.sourceTrackKey).toBe('');
+    expect(sent).toEqual([]);
+
+    readyState = 'open';
+    syncPeerSourceFile({ core: {} } as MultiplayerHostContext, peer, track, 'generation');
+    await vi.waitFor(() => {
+      expect(sent.filter((frame) => typeof frame === 'string').map((frame) => (
+        parseSourceFileFrame(frame as string)?.kind
+      ))).toEqual(['file.begin', 'file.end']);
+    });
+
+    expect(peer.sourceTrackKey).toBe(`generation:track:${file.size}:${file.lastModified}`);
+    expect(peer.mediaTransferToken).toBe(1);
+
+    syncPeerSourceFile({ core: {} } as MultiplayerHostContext, peer, track, 'generation');
+    expect(sent.filter((frame) => typeof frame === 'string')).toHaveLength(2);
+  });
 });

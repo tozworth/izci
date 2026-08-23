@@ -310,13 +310,22 @@ export function syncPeerSourceFile(
   const key = track && generationId
     ? `${generationId}:${track.id}:${track.size}:${track.lastModified}`
     : '';
+  if (key && (!channel || channel.readyState !== 'open' || !track?.file)) {
+    if (peer.sourceTrackKey) {
+      peer.mediaTransferToken += 1;
+      peer.mediaOutgoing = [];
+      peer.mediaQueuedBytes = 0;
+      peer.sourceTrackKey = '';
+    }
+    return;
+  }
   if (peer.sourceTrackKey === key) return;
 
   peer.mediaTransferToken += 1;
   peer.mediaOutgoing = [];
   peer.mediaQueuedBytes = 0;
   peer.sourceTrackKey = key;
-  if (!channel || channel.readyState !== 'open' || !track?.file || !generationId) return;
+  if (!track?.file || !generationId) return;
   const token = peer.mediaTransferToken;
   void transferSourceFile(peer, track, track.file, token, generationId).catch((error) => {
     logWarning('multiplayer', 'Source-file transfer failed', {
