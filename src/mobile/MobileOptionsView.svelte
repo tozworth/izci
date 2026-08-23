@@ -71,9 +71,17 @@
     showAdvancedTweaks = !showAdvancedTweaks;
     dispatch('advancedvisibilitychange', { visible: showAdvancedTweaks });
   }
+
+  function handleKeydown(event: KeyboardEvent): void {
+    if (!categoriesOpen || event.key !== 'Escape') return;
+    event.preventDefault();
+    event.stopPropagation();
+    categoriesOpen = false;
+  }
 </script>
 
 <svelte:head><title>{windowTitle}</title></svelte:head>
+<svelte:window on:keydown={handleKeydown} />
 
 <div
   class="mobile-options-shell"

@@ -246,6 +246,7 @@
   }
 
   onDestroy(() => {
+    artworkDecodeToken += 1;
     clearLayerRevealFrame();
     clearLayerCleanupTimer();
   });
