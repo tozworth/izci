@@ -106,6 +106,22 @@ describe('samePersistentValue', () => {
 });
 
 describe('persistent store cross-window characterization', () => {
+  it('hydrates the initial store and snapshot from one storage read', () => {
+    const windowHarness = installWindowHarness();
+    windowHarness.localStorage.getItem.mockReturnValue(JSON.stringify({
+      enabled: true,
+      label: 'stored'
+    }));
+
+    const store = createTestStore();
+    const snapshots: TestSettings[] = [];
+    store.subscribe((value) => snapshots.push(value));
+
+    expect(windowHarness.localStorage.getItem).toHaveBeenCalledOnce();
+    expect(snapshots).toEqual([{ enabled: true, label: 'stored' }]);
+    expect(store.getSnapshot()).toEqual({ enabled: true, label: 'stored' });
+  });
+
   it('delivers a local update once when BroadcastChannel and storage carry the same value', () => {
     const windowHarness = installWindowHarness();
     const first = createTestStore();

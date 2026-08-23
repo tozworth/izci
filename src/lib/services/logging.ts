@@ -393,7 +393,6 @@ export function createLoggingRuntime(options: LoggingRuntimeOptions = {}): Loggi
 const runtime = createLoggingRuntime();
 
 export const initLogging = () => runtime.init();
-export const destroyLogging = () => runtime.destroy();
 export const log = (level: LogLevel, source: LogSource, message: string, details?: unknown) =>
   runtime.log(level, source, message, details);
 export const logError = (source: LogSource, message: string, details?: unknown) =>
@@ -405,7 +404,5 @@ export const logInfo = (source: LogSource, message: string, details?: unknown) =
 export const logDebug = (source: LogSource, message: string, details?: unknown) =>
   runtime.log('debug', source, message, details);
 export const getLogEntries = () => runtime.getEntries();
-export const getOwnLogEntries = () => runtime.getOwnEntries();
 export const subscribeLogs = (listener: (entries: LogEntry[]) => void) => runtime.subscribe(listener);
-export const requestLogHistory = () => runtime.requestHistory();
 export const clearLogs = () => runtime.clear();

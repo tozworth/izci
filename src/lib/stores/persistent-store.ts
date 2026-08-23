@@ -44,8 +44,9 @@ export function createPersistentStore<T>({
     }
   }
 
-  const store = writable<T>(readStoredValue());
-  let currentValue = readStoredValue();
+  const initialValue = readStoredValue();
+  const store = writable<T>(initialValue);
+  let currentValue = initialValue;
 
   store.subscribe((value) => {
     currentValue = value;
