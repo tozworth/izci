@@ -1,6 +1,6 @@
 import type { TrackItem, PlaybackOptions, RepeatMode, TrackSelection } from '$lib/types';
 import { normalizeTrackRating } from '$lib/services/track-ratings';
-import { logError, logInfo } from '$lib/services/logging';
+import { logInfo } from '$lib/services/logging';
 
 export interface StoredTrackItem {
   id: string;
@@ -141,7 +141,7 @@ async function openQueueDatabase(dbName: string): Promise<IDBDatabase | null> {
     return null;
   }
 
-  return await new Promise((resolve) => {
+  return await new Promise((resolve, reject) => {
     const request = window.indexedDB.open(dbName, QUEUE_DB_VERSION);
 
     request.onupgradeneeded = () => {
@@ -157,7 +157,7 @@ async function openQueueDatabase(dbName: string): Promise<IDBDatabase | null> {
     };
 
     request.onsuccess = () => resolve(request.result);
-    request.onerror = () => resolve(null);
+    request.onerror = () => reject(request.error ?? new Error('collection-database-open-failed'));
   });
 }
 
@@ -199,7 +199,7 @@ export async function persistStoredState(dbName: string, state: StoredQueueState
     return;
   }
 
-  await new Promise<void>((resolve) => {
+  await new Promise<void>((resolve, reject) => {
     const transaction = database.transaction(QUEUE_STORE_NAME, 'readwrite');
     const store = transaction.objectStore(QUEUE_STORE_NAME);
 
@@ -210,14 +210,14 @@ export async function persistStoredState(dbName: string, state: StoredQueueState
       resolve();
     };
     transaction.onerror = (event) => {
-      logError('library', 'Collection persistence failed', { database: dbName, error: (event.target as IDBTransaction | null)?.error });
+      const error = (event.target as IDBTransaction | null)?.error ?? new Error('collection-persistence-failed');
       database.close();
-      resolve();
+      reject(error);
     };
     transaction.onabort = (event) => {
-      logError('library', 'Collection persistence aborted', { database: dbName, error: (event.target as IDBTransaction | null)?.error });
+      const error = (event.target as IDBTransaction | null)?.error ?? new Error('collection-persistence-aborted');
       database.close();
-      resolve();
+      reject(error);
     };
   });
 }
