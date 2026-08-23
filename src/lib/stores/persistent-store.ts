@@ -68,30 +68,21 @@ export function createPersistentStore<T>({
     return normalized;
   }
 
-  function setExternalValue(nextValue: unknown): void {
-    const normalized = normalize(nextValue);
-    if (samePersistentValue(currentValue, normalized)) return;
-    store.set(normalized);
+  function refreshStoredValue(): void {
+    const storedValue = readStoredValue();
+    if (samePersistentValue(currentValue, storedValue)) return;
+    store.set(storedValue);
   }
 
   if (typeof window !== 'undefined') {
     window.addEventListener('storage', (event) => {
-      if (event.key !== storageKey || !event.newValue) {
-        return;
-      }
-
-      try {
-        setExternalValue(JSON.parse(event.newValue));
-      } catch {
-        setExternalValue(defaultValue);
-      }
+      if (event.key !== storageKey) return;
+      refreshStoredValue();
     });
 
     if ('BroadcastChannel' in window) {
       broadcastChannel = new BroadcastChannel(channelName);
-      broadcastChannel.addEventListener('message', (event) => {
-        setExternalValue(event.data);
-      });
+      broadcastChannel.addEventListener('message', refreshStoredValue);
     }
   }
 

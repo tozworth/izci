@@ -304,6 +304,10 @@ function restoreSettings(settings: Record<string, unknown>): number {
     } else {
       window.localStorage.removeItem(key);
     }
+    // Native storage events only reach other windows. Notify stores in the
+    // window performing the restore as well so they cannot overwrite the
+    // restored snapshot with stale in-memory state.
+    window.dispatchEvent(new StorageEvent('storage', { key }));
   }
   return restored;
 }

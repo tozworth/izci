@@ -12,14 +12,11 @@
   } from '$lib/services/options-window-state';
   import { appearanceSettings, DEFAULT_APPEARANCE_SETTINGS } from '$lib/stores/appearance-settings';
   import { DEFAULT_METADATA_SETTINGS, metadataSettings } from '$lib/stores/metadata-settings';
-  import { modulePlaybackSettings } from '$lib/stores/module-playback-settings';
   import { DEFAULT_PLAYBACK_SETTINGS, playbackSettings } from '$lib/stores/playback-settings';
   import { DEFAULT_PATTERN_VIEWER_SETTINGS, patternViewerSettings } from '$lib/stores/pattern-viewer-settings';
-  import { rafSettings } from '$lib/stores/raf-settings';
   import { DEFAULT_TRACK_SETTINGS, trackSettings } from '$lib/stores/track-settings';
   import { DEFAULT_VISUALIZER_SETTINGS, visualizerSettings } from '$lib/stores/visualizer-settings';
-  import { videoSettings } from '$lib/stores/video-settings';
-  import { experimentalSettings, DEFAULT_EXPERIMENTAL_SETTINGS } from '$lib/stores/experimental-settings';
+  import { resetOptionsView } from './options-reset';
   import {
     OPTIONS_VIEW_GROUPS,
     OPTIONS_VIEWS,
@@ -97,34 +94,7 @@
   }
 
   function resetCurrentView() {
-    if (activeView === 'appearance' || activeView === 'backdrops' || activeView === 'now-playing' || activeView === 'lyrics') {
-      appearanceSettings.reset();
-    } else if (activeView === 'playback') {
-      playbackSettings.reset();
-    } else if (activeView === 'video') {
-      videoSettings.reset();
-    } else if (activeView === 'visualizer') {
-      visualizerSettings.reset();
-    } else if (activeView === 'patterns') {
-      patternViewerSettings.reset();
-    } else if (activeView === 'raf') {
-      rafSettings.reset();
-    } else if (activeView === 'modules') {
-      modulePlaybackSettings.reset();
-    } else if (activeView === 'tracks') {
-      trackSettings.reset();
-    } else if (activeView === 'metadata') {
-      metadataSettings.reset();
-    } else if (activeView === 'experimental') {
-      experimentalSettings.reset();
-    } else if (activeView === 'cache') {
-      // The Cache subtree resets only its own settings; other experimental
-      // settings stay untouched.
-      experimentalSettings.update({
-        multiplayerRenderDiskCacheEnabled: DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerRenderDiskCacheEnabled,
-        multiplayerRenderDiskCacheLimitMiB: DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerRenderDiskCacheLimitMiB
-      });
-    }
+    resetOptionsView(activeView);
   }
 
   onMount(() => {

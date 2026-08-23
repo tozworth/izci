@@ -1,10 +1,12 @@
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   BACKUP_FORMAT_VERSION,
   decodeBackupArchive,
   encodeBackupArchive,
+  restoreBackupArchive,
   type BackupArchiveData
 } from './backups';
+import { createPersistentStore } from '$lib/stores/persistent-store';
 
 function archive(overrides: Partial<BackupArchiveData> = {}): BackupArchiveData {
   return {
@@ -61,6 +63,8 @@ function archive(overrides: Partial<BackupArchiveData> = {}): BackupArchiveData 
   };
 }
 
+afterEach(() => vi.unstubAllGlobals());
+
 describe('izci backup archives', () => {
   it('round-trips portable settings and library data through a zip', () => {
     const decoded = decodeBackupArchive(encodeBackupArchive(archive()));
@@ -88,5 +92,99 @@ describe('izci backup archives', () => {
 
   it('rejects bytes that are not an izci backup zip', () => {
     expect(() => decodeBackupArchive(new Uint8Array([1, 2, 3]))).toThrow('invalid-backup');
+  });
+
+  it('updates stores in the window performing a settings restore', async () => {
+    const values = new Map<string, string>();
+    const storageListeners: Array<(event: Pick<StorageEvent, 'key'>) => void> = [];
+    const indexedDB = {
+      open: () => {
+        const request: {
+          result: IDBDatabase;
+          onupgradeneeded: ((event: IDBVersionChangeEvent) => unknown) | null;
+          onsuccess: ((event: Event) => unknown) | null;
+          onerror: ((event: Event) => unknown) | null;
+        } = {
+          result: null as unknown as IDBDatabase,
+          onupgradeneeded: null,
+          onsuccess: null,
+          onerror: null
+        };
+        const database = {
+          objectStoreNames: { contains: () => false },
+          createObjectStore: () => ({}),
+          transaction: () => {
+            const transaction: {
+              objectStore: () => IDBObjectStore;
+              error: DOMException | null;
+              oncomplete: ((event: Event) => unknown) | null;
+              onerror: ((event: Event) => unknown) | null;
+              onabort: ((event: Event) => unknown) | null;
+            } = {
+              objectStore: () => ({ put: () => ({}) }) as unknown as IDBObjectStore,
+              error: null,
+              oncomplete: null,
+              onerror: null,
+              onabort: null
+            };
+            queueMicrotask(() => transaction.oncomplete?.(new Event('complete')));
+            return transaction as unknown as IDBTransaction;
+          },
+          close: () => {}
+        } as unknown as IDBDatabase;
+        queueMicrotask(() => {
+          request.result = database;
+          request.onupgradeneeded?.(new Event('upgradeneeded') as IDBVersionChangeEvent);
+          request.onsuccess?.(new Event('success'));
+        });
+        return request as unknown as IDBOpenDBRequest;
+      }
+    };
+    class TestStorageEvent extends Event {
+      readonly key: string | null;
+      constructor(type: string, init: { key?: string | null } = {}) {
+        super(type);
+        this.key = init.key ?? null;
+      }
+    }
+    vi.stubGlobal('StorageEvent', TestStorageEvent);
+    vi.stubGlobal('window', {
+      indexedDB,
+      localStorage: {
+        getItem: (key: string) => values.get(key) ?? null,
+        setItem: (key: string, value: string) => values.set(key, value),
+        removeItem: (key: string) => values.delete(key)
+      },
+      addEventListener: (type: string, listener: (event: Pick<StorageEvent, 'key'>) => void) => {
+        if (type === 'storage') storageListeners.push(listener);
+      },
+      dispatchEvent: (event: StorageEvent) => {
+        for (const listener of storageListeners) listener(event);
+        return true;
+      }
+    });
+
+    const store = createPersistentStore({
+      storageKey: 'izci.playback-settings',
+      channelName: 'test-backup-settings',
+      defaultValue: { logarithmicVolume: false },
+      normalize: (value: unknown) => ({
+        logarithmicVolume: Boolean((value as { logarithmicVolume?: unknown } | null)?.logarithmicVolume)
+      })
+    });
+    expect(store.getSnapshot()).toEqual({ logarithmicVolume: false });
+
+    const bytes = encodeBackupArchive(archive({
+      settings: { 'izci.playback-settings': { logarithmicVolume: true } },
+      library: [],
+      folders: [],
+      favorites: [],
+      progress: []
+    }));
+    const file = { arrayBuffer: async () => bytes.buffer } as File;
+
+    await restoreBackupArchive(file);
+
+    expect(store.getSnapshot()).toEqual({ logarithmicVolume: true });
   });
 });
