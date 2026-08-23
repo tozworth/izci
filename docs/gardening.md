@@ -1,8 +1,9 @@
 # Gardening pass
 
-The gardening pass is a cautious, evidence-led review of izci. Its purpose is
-to remove defects, dead weight, accidental duplication, and locally confusing
-code without reconstructing the application or imposing a new architecture.
+The gardening pass is a bounded, evidence-led review of izci. Its purpose is
+to remove defects and dead weight, consolidate accidental duplication, and
+reshape awkward local structures without reconstructing the application or
+imposing a new architecture.
 
 The current application is the implementation to improve, not a disposable
 prototype. Complexity that follows from izci's product surface is not itself a
@@ -36,12 +37,19 @@ understand behavior, but it must not opportunistically edit another phase's
 area. Unrelated existing worktree changes belong to the user and must be
 preserved.
 
+Review may be broad, but implementation is deliberately capped. Each phase may
+land one bounded refactor and up to two local fixes. A bounded refactor stays
+inside one existing ownership area, is independently verifiable and revertible,
+and does not introduce a new public contract, persistence shape, or platform.
+Once that budget is spent, remaining findings are deferred; a phase need not
+fill its budget.
+
 ## Rules for Luna auditors
 
 Every Luna prompt must include these constraints:
 
 - Work read-only. Do not modify the repository.
-- Report no more than five findings, ordered by practical impact.
+- Report no more than three findings, ordered by practical impact.
 - Cite exact files and line numbers and trace relevant callers or consumers.
 - Read nearby tests before claiming behavior is untested or incorrect.
 - Distinguish confirmed defects from suspicions.
@@ -54,8 +62,8 @@ Every Luna prompt must include these constraints:
   file reshuffle.
 - Do not recommend compatibility layers or migrations unless explicitly
   required by current behavior.
-- Prefer local deletion, consolidation, naming repair, race/leak fixes, and
-  simpler control flow over abstraction.
+- Prefer direct simplification, focused extraction or consolidation, naming
+  repair, race/leak fixes, and clearer control flow over infrastructure.
 - Explicitly say when reviewed complexity is justified and should be left
   alone.
 
@@ -83,7 +91,8 @@ an accepted finding:
    to change?
 2. What source and test evidence establishes that?
 3. Can the issue be corrected locally?
-4. Does the correction remove or simplify more concepts than it introduces?
+4. Does the correction materially simplify control flow, ownership, or future
+   changes without adding disproportionate machinery?
 5. What focused verification would fail before the correction or otherwise
    establish the intended invariant?
 
@@ -92,76 +101,26 @@ future flexibility, reduced line count, or movement behind another interface.
 Two auditors noticing the same pattern increases review priority but does not
 replace the Sol owner's verification.
 
-Production code should be net-negative in size by default. Net growth is
-reasonable for a demonstrated bug fix, missing guard, or focused test, but the
-phase report must explain it. A shared abstraction is permitted only when at
-least three current call sites need materially identical behavior and the
-result is demonstrably simpler than the local implementations.
+Line count is a diagnostic, not an acceptance target. A refactor may grow the
+tree when the result has fewer responsibilities, branches, duplicated workflows,
+or ownership ambiguities. The phase report must explain material growth. Shared
+helpers should serve current behavior rather than hypothetical reuse, and test
+scaffolding should stay proportional: extend a nearby harness when practical
+instead of building a new miniature environment for every guard.
 
-## Phase 1: low-risk debris and false signals
+## Completed phases
 
-Establish a clean factual baseline and take only low-risk wins.
+- Phase 1, low-risk debris and false signals: `a7f6f5a`.
+- Phase 2, application shell and presentation: `a925038`.
+- Phase 3, collections, files, metadata, and persistence: `636d5ad`.
 
-- Luna A reviews possible dead modules, exports, dependencies, stale comments,
-  and unreachable branches. Static-analysis output is treated as a lead and
-  every candidate is traced manually.
-- Luna B reviews repeated leaf helpers, needless conversions, redundant state,
-  and local control-flow complexity that can be simplified without changing an
-  ownership boundary.
-- Luna C reviews test helpers, obsolete fixtures, misleading test names, and
-  cheap missing characterization around suspicious low-risk code.
+Their implementation details and verification belong in the final phase report,
+not in this operating guide.
 
-Do not tune architecture metrics in this phase. In particular, the existing
-architecture reporter's direction findings, browser-global observations,
-cycles, and possible unused exports are not cleanup queues.
+## Phase 4: settings, Options, loadouts, and synchronization — next
 
-Acceptance: only deletions, local simplifications, clear naming corrections,
-and tightly scoped characterization may land. No public contract or persisted
-state shape changes.
-
-## Phase 2: application shell and presentation
-
-Review the main composition root, workspace, desktop components, mobile shell,
-menus, window integration, and presentation-only helpers.
-
-- Luna A follows application state and event flow through `App.svelte`, the
-  main-window runtime/services, and workspace composition, looking for stale or
-  duplicated projections and incorrect teardown.
-- Luna B reviews desktop and mobile presentation for duplicated behavior,
-  unreachable branches, event/listener leaks, and logic that accidentally
-  diverges between the two shells.
-- Luna C reviews window, popup, WCO, backdrop, artwork-presentation, and
-  contextual-tab interactions for race conditions and locally confusing
-  ownership.
-
-Acceptance: components remain primarily presentation and dispatch surfaces.
-Do not create a universal application view model or move every component import
-behind a new facade merely to satisfy an import-direction rule.
-
-## Phase 3: collections, files, metadata, and persistence
-
-Review queue/library behavior, imports, managed folders, materialization,
-metadata hydration, artwork caching, backups, IndexedDB, and file handles.
-
-- Luna A traces queue and library mutation, selection, navigation,
-  deduplication, hydration, and persistence scheduling for lost updates or
-  duplicated ownership.
-- Luna B traces file discovery, permissions, object URL lifetime, managed-folder
-  reconciliation, and metadata work for stale jobs, leaks, and repeated reads.
-- Luna C reviews persistence boundaries, backup/restore, artwork caching, error
-  handling, and tests for data loss, accidental blob persistence, or silent
-  fallback behavior.
-
-Acceptance: preserve the documented storage boundaries, stable IDs, play
-counts, queue/library distinction, and permission behavior. Do not introduce a
-generic repository or IndexedDB framework. Current-version scorched-earth
-compatibility remains the rule; do not add migrations without a separate
-request.
-
-## Phase 4: settings, Options, loadouts, and synchronization
-
-Review lightweight persisted state and every Options consumer without turning
-the settings surface into a generated system.
+Review representative high-risk settings and Options consumers without turning
+the settings surface into a generated system or inventorying every control.
 
 - Luna A traces representative settings from UI through normalization,
   persistence, BroadcastChannel delivery, duplicate suppression, and runtime
@@ -175,7 +134,8 @@ the settings surface into a generated system.
 Acceptance: preserve Goldilocks controls unless a separate product decision
 removes one. Update `en.json` and `tr.json` for copy changes and never update
 `en-askew.json`. Do not replace the focused stores with a universal settings
-engine or schema registry.
+engine or schema registry. A bounded refactor may consolidate repeated
+normalization, synchronization, or editor plumbing inside its current owner.
 
 ## Phase 5: playback and audio
 
@@ -195,8 +155,10 @@ established the review discipline.
 Acceptance: preserve every playback path and the documented audio graph.
 Backend-specific behavior may remain backend-specific. Do not impose a generic
 player interface unless a concrete defect requires a small shared contract.
-Playback edits require focused coverage for every affected backend, not only
-the path where the issue was found.
+Keep refactors inside one backend or existing shared service. Changes crossing
+the shared graph and multiple backends are deferred unless they correct a
+confirmed playback defect. Playback edits require focused coverage for every
+affected backend, not only the path where the issue was found.
 
 ## Phase 6: Multiplayer
 
@@ -213,7 +175,9 @@ system, with the host authoritative and Freeplay isolated from the host queue.
 Acceptance: preserve protocol/version coupling, signaling boundaries, the
 pre-ReplayGain/pre-Raf stream tap, and per-pair Freeplay ownership. Avoid generic
 actor frameworks, transport abstraction stacks, or compatibility adapters.
-Cross-boundary findings require especially strong evidence and tests.
+Refactors stay within one protocol role or lifecycle owner. Cross-role and
+protocol redesigns are deferred; confirmed cross-boundary defects require
+especially strong evidence and tests.
 
 ## Phase 7: tool windows and build/PWA integration
 
@@ -232,7 +196,9 @@ offline and launch correctly.
 Acceptance: tools retain their separate pages and domain ownership. Shared
 metadata readers/writers may be consolidated only where existing behavior is
 already identical. Build/PWA changes must consider offline caching, installed
-launch, file handling, and libopenmpt asset emission together.
+launch, file handling, and libopenmpt asset emission together. Tool refactors
+stay inside one tool; infrastructure work is limited to confirmed declaration
+drift or launch/offline defects.
 
 ## Phase 8: convergence and stop decision
 
@@ -244,12 +210,13 @@ refactor.
 - Luna B reviews test/build evidence and searches for behavior claims that were
   not actually verified.
 - Luna C reviews the current tree for remaining high-confidence bugs or dead
-  code that earlier phases missed, with the same five-finding cap.
+  code that earlier phases missed, with the same three-finding cap.
 
 The Sol owner reverts or narrows gardening changes that are not clearly paying
 for themselves, runs the full relevant verification set, and produces the final
 summary. Newly discovered cross-cutting redesign opportunities are recorded as
-separate future proposals, not implemented here.
+separate future proposals, not implemented here. Convergence does not start a
+fresh implementation round.
 
 The pass stops when confirmed, proportionate findings are exhausted. It does
 not continue until metrics are green, large files are split, cycles disappear,
