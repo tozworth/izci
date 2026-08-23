@@ -48,9 +48,32 @@
 </div>
 
 <style>
-  .effect-editor { min-width: 0; display: flex; flex-direction: column; gap: 12px; }
-  .effect-editor-fields { min-width: 0; }
-  .dry-wet-control { min-width: 0; padding-top: 10px; display: grid; grid-template-columns: 47px minmax(80px, 1fr) 55px; align-items: center; gap: 7px; border-top: 1px solid var(--border-faint); color: var(--muted); font-size: 10px; }
+  .effect-editor {
+    min-width: 0;
+    min-height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+  .effect-editor-fields {
+    min-width: 0;
+    flex: 0 0 auto;
+    padding-bottom: 12px;
+  }
+  .dry-wet-control {
+    position: sticky;
+    bottom: -12px;
+    z-index: 2;
+    margin: auto -10px -12px;
+    padding: 10px 12px 12px;
+    display: grid;
+    grid-template-columns: 47px minmax(80px, 1fr) 55px;
+    align-items: center;
+    gap: 7px;
+    border-top: 1px solid var(--border-faint);
+    background: var(--bg-soft, var(--window-topbar-bg));
+    color: var(--muted);
+    font-size: 10px;
+  }
   .dry-wet-control input[type='range'] { width: 100%; accent-color: var(--accent-strong); }
   .dry-wet-control output { color: var(--text-strong); text-align: right; font-variant-numeric: tabular-nums; }
 </style>

@@ -12,10 +12,15 @@
   import { isRafPresetDirty, rafPresets } from '$lib/stores/raf-presets';
   import { rafMeter } from '$lib/services/raf-meter';
   import HoverTooltip from '$lib/components/HoverTooltip.svelte';
+  import MenuSurface from '$lib/components/MenuSurface.svelte';
   import RafEffectsWorkspace from './RafEffectsWorkspace.svelte';
 
   let transferMenu: HTMLDetailsElement;
-  let presetMenu: HTMLDetailsElement;
+  let presetMenuOpen = false;
+  let presetMenuX = 0;
+  let presetMenuY = 0;
+  let presetMenuDismissedAt = 0;
+  let presetTriggerElement: HTMLButtonElement | null = null;
   let fileInput: HTMLInputElement;
   let transferStatus = '';
   let transferFailed = false;
@@ -86,7 +91,21 @@
   }
 
   function closePresetMenu() {
-    presetMenu?.removeAttribute('open');
+    presetMenuOpen = false;
+    presetMenuDismissedAt = performance.now();
+  }
+
+  function openPresetMenu(event: MouseEvent) {
+    // Pointerdown on the trigger dismisses the open menu first (windowDismiss);
+    // swallow the follow-up click so the trigger toggles without reopening.
+    if (presetMenuOpen || performance.now() - presetMenuDismissedAt < 150) {
+      closePresetMenu();
+      return;
+    }
+    const anchor = (event.currentTarget as HTMLButtonElement).getBoundingClientRect();
+    presetMenuX = anchor.left + 60;
+    presetMenuY = anchor.bottom + 4;
+    presetMenuOpen = true;
   }
 
   function createPreset() {
@@ -100,13 +119,52 @@
     if (name !== null) rafPresets.rename(id, name);
   }
 
-  function selectPreset(id: string) {
-    rafPresets.apply(id);
-    closePresetMenu();
-  }
-
   $: selectedPreset = $rafPresets.presets.find((preset) => preset.id === $rafPresets.selectedPresetId) ?? null;
   $: presetDirty = isRafPresetDirty($rafPresets, $rafSettings);
+  $: presetMenuItems = [
+    {
+      id: 'new',
+      label: $t('options.raf.presets.new', { default: 'New preset' }),
+      icon: 'add'
+    },
+    {
+      id: 'renameSelected',
+      label: $t('options.raf.presets.renameSelected', { default: 'Rename selected preset' }),
+      icon: 'edit',
+      disabled: !selectedPreset,
+      separatorBefore: true
+    },
+    ...$rafPresets.presets.map((preset, index) => ({
+      id: `apply:${preset.id}`,
+      label: `${preset.name}${preset.id === $rafPresets.selectedPresetId && presetDirty ? ' *' : ''}`,
+      checked: preset.id === $rafPresets.selectedPresetId,
+      separatorBefore: index === 0,
+      removeActionId: `delete:${preset.id}`,
+      removeLabel: $t('options.raf.presets.delete', { default: 'Delete {preset}', values: { preset: preset.name } })
+    }))
+  ];
+
+  function handlePresetMenuAction(actionId: string) {
+    if (actionId === 'new') {
+      createPreset();
+      return;
+    }
+    if (actionId === 'renameSelected') {
+      closePresetMenu();
+      const preset = $rafPresets.presets.find((candidate) => candidate.id === $rafPresets.selectedPresetId);
+      if (preset) renamePreset(preset.id, preset.name);
+      return;
+    }
+    if (actionId.startsWith('apply:')) {
+      rafPresets.apply(actionId.slice('apply:'.length));
+      closePresetMenu();
+      return;
+    }
+    if (actionId.startsWith('delete:')) {
+      // Same direct-delete behavior the old inline trash button had.
+      rafPresets.delete(actionId.slice('delete:'.length));
+    }
+  }
 </script>
 
 <article class="raf-view">
@@ -115,40 +173,19 @@
       <span class="material-symbols-outlined" aria-hidden="true">power_settings_new</span>
       <HoverTooltip>{$rafSettings.enabled ? $t('options.raf.bypass', { default: 'Bypass Raf' }) : $t('options.raf.powerOn', { default: 'Power on Raf' })}</HoverTooltip>
     </button>
-    <details class="preset-menu" bind:this={presetMenu}>
-      <summary class="hover-tooltip-anchor" aria-label={$t('options.raf.presets.choose', { default: 'Choose a Raf preset' })}>
-        <span class="preset-summary-name">{selectedPreset?.name ?? $t('options.raf.presets.label', { default: 'Presets' })}{presetDirty ? ' *' : ''}</span>
-        <span class="material-symbols-outlined" aria-hidden="true">arrow_drop_down</span>
-        <HoverTooltip>{$t('options.raf.presets.choose', { default: 'Choose a Raf preset' })}</HoverTooltip>
-      </summary>
-      <div class="preset-menu-items">
-        <button class="new-preset" on:click={createPreset}>
-          <span class="material-symbols-outlined" aria-hidden="true">add</span>{$t('options.raf.presets.new', { default: 'New preset' })}
-        </button>
-        {#if $rafPresets.presets.length > 0}
-          <div class="preset-separator" aria-hidden="true"></div>
-          {#each $rafPresets.presets as preset (preset.id)}
-            <div class="preset-entry" class:selected={preset.id === $rafPresets.selectedPresetId}>
-              <button class="preset-select hover-tooltip-anchor" on:click={() => selectPreset(preset.id)}>
-                <span class="material-symbols-outlined preset-check" aria-hidden="true">check</span>
-                <span>{preset.name}</span>
-                <HoverTooltip>{$t('options.raf.presets.apply', { default: 'Apply {preset}', values: { preset: preset.name } })}</HoverTooltip>
-              </button>
-              <div class="preset-entry-actions">
-                <button class="hover-tooltip-anchor" on:click={() => renamePreset(preset.id, preset.name)} aria-label={$t('options.raf.presets.rename', { default: 'Rename {preset}', values: { preset: preset.name } })}>
-                  <span class="material-symbols-outlined" aria-hidden="true">edit</span>
-                  <HoverTooltip>{$t('options.raf.presets.rename', { default: 'Rename {preset}', values: { preset: preset.name } })}</HoverTooltip>
-                </button>
-                <button class="hover-tooltip-anchor" on:click={() => rafPresets.delete(preset.id)} aria-label={$t('options.raf.presets.delete', { default: 'Delete {preset}', values: { preset: preset.name } })}>
-                  <span class="material-symbols-outlined" aria-hidden="true">delete</span>
-                  <HoverTooltip>{$t('options.raf.presets.delete', { default: 'Delete {preset}', values: { preset: preset.name } })}</HoverTooltip>
-                </button>
-              </div>
-            </div>
-          {/each}
-        {/if}
-      </div>
-    </details>
+    <button
+      bind:this={presetTriggerElement}
+      type="button"
+      class="preset-trigger hover-tooltip-anchor"
+      on:click={openPresetMenu}
+      aria-label={$t('options.raf.presets.choose', { default: 'Choose a Raf preset' })}
+      aria-haspopup="menu"
+      aria-expanded={presetMenuOpen}
+    >
+      <span class="preset-summary-name">{selectedPreset?.name ?? $t('options.raf.presets.label', { default: 'Presets' })}{presetDirty ? ' *' : ''}</span>
+      <span class="material-symbols-outlined" aria-hidden="true">arrow_drop_down</span>
+      <HoverTooltip>{$t('options.raf.presets.choose', { default: 'Choose a Raf preset' })}</HoverTooltip>
+    </button>
     <button class="save-preset hover-tooltip-anchor" on:click={() => rafPresets.save()} disabled={!presetDirty} aria-label={$t('options.raf.presets.save', { default: 'Save changes to preset' })}>
       <span class="material-symbols-outlined" aria-hidden="true">save</span>
       <HoverTooltip>{$t('options.raf.presets.save', { default: 'Save changes to preset' })}</HoverTooltip>
@@ -181,6 +218,17 @@
     </div>
     <span class:clipping={$rafMeter.clipping} class="clip-warning hover-tooltip-anchor" aria-label={$rafMeter.clipping ? $t('options.raf.meter.clipping', { default: "Help me, I'm clipping!" }) : $t('options.raf.meter.noClipping', { default: 'No clipping detected' })}>!<HoverTooltip>{$rafMeter.clipping ? $t('options.raf.meter.clipping', { default: "Help me, I'm clipping!" }) : $t('options.raf.meter.noClipping', { default: 'No clipping detected' })}</HoverTooltip></span>
   </div>
+
+  {#if presetMenuOpen}
+    <MenuSurface
+      items={presetMenuItems}
+      x={presetMenuX}
+      y={presetMenuY}
+      ariaLabel={$t('options.raf.presets.choose', { default: 'Choose a Raf preset' })}
+      on:action={(event) => handlePresetMenuAction(event.detail)}
+      on:dismiss={closePresetMenu}
+    />
+  {/if}
 
   <RafEffectsWorkspace />
 </article>
@@ -215,29 +263,12 @@
   .clip-warning { width: 17px; height: 17px; display: grid; place-items: center; border: 1px solid var(--border-faint); border-radius: 50%; color: var(--muted); font-size: 11px; font-weight: 800; opacity: 0.35; }
   .clip-warning.clipping { border-color: #ff604f; background: #ff604f; color: #fff; opacity: 1; box-shadow: 0 0 7px rgb(255 72 52 / 55%); }
   .transfer-menu,
-  .preset-menu { position: static; }
+  .preset-trigger { position: static; }
   .transfer-menu summary { list-style: none; }
   .transfer-menu summary::-webkit-details-marker { display: none; }
-  .preset-menu summary { width: min(150px, 32vw); height: 27px; min-width: 72px; padding: 0 4px 0 7px; display: flex; align-items: center; gap: 2px; border-radius: 4px; background: var(--bg-input); color: var(--text); list-style: none; }
-  .preset-menu summary:hover { background: var(--hover-surface); color: var(--text-strong); }
-  .preset-menu summary::-webkit-details-marker { display: none; }
+  .preset-trigger { width: min(150px, 32vw); height: 27px; min-width: 72px; padding: 0 4px 0 7px; display: flex; align-items: center; gap: 2px; border-radius: 4px; background: var(--bg-input); color: var(--text); font-size: inherit; }
+  .preset-trigger:hover { background: var(--hover-surface); color: var(--text-strong); }
   .preset-summary-name { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .preset-menu-items { position: absolute; z-index: 6; left: 60px; top: calc(100% + 3px); width: min(250px, calc(100% - 64px)); min-width: 160px; padding: 3px; display: grid; border: 1px solid var(--menu-bar-border); border-radius: 5px; background: var(--menu-popover-bg); box-shadow: 0 6px 16px rgb(0 0 0 / 35%); }
-  .preset-menu-items > .new-preset { display: flex; align-items: center; gap: 6px; padding: 6px 7px; border-radius: 3px; background: transparent; color: var(--text); text-align: left; }
-  .preset-menu-items > .new-preset:hover { background: var(--hover-surface); color: var(--text-strong); }
-  .preset-separator { height: 1px; margin: 3px 4px; background: var(--border-soft); }
-  .preset-entry { min-width: 0; display: flex; align-items: center; border-radius: 3px; }
-  .preset-entry:hover,
-  .preset-entry:focus-within { background: var(--hover-surface); }
-  .preset-select { min-width: 0; flex: 1; display: flex; align-items: center; gap: 5px; padding: 6px 5px; overflow: hidden; background: transparent; color: var(--text); text-align: left; }
-  .preset-select > span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .preset-check { visibility: hidden; flex: 0 0 auto; color: var(--accent-strong); }
-  .preset-entry.selected .preset-check { visibility: visible; }
-  .preset-entry-actions { flex: 0 0 auto; display: flex; align-items: center; gap: 1px; padding-right: 3px; opacity: 0; pointer-events: none; }
-  .preset-entry:hover .preset-entry-actions,
-  .preset-entry:focus-within .preset-entry-actions { opacity: 1; pointer-events: auto; }
-  .preset-entry-actions button { width: 24px; height: 24px; padding: 0; display: grid; place-items: center; border-radius: 3px; background: transparent; color: var(--muted); }
-  .preset-entry-actions button:hover { background: var(--active-surface); color: var(--text-strong); }
   .transfer-menu-items { position: absolute; z-index: 5; left: 2px; right: auto; top: calc(100% + 3px); width: min(190px, calc(100% - 4px)); min-width: 0; padding: 3px; display: grid; border: 1px solid var(--menu-bar-border); border-radius: 5px; background: var(--menu-popover-bg); box-shadow: 0 6px 16px rgb(0 0 0 / 35%); }
   .transfer-menu-items button { display: flex; align-items: center; gap: 6px; padding: 6px 7px; border-radius: 3px; background: transparent; color: var(--text); text-align: left; }
   .transfer-menu-items button:hover { background: var(--hover-surface); color: var(--text-strong); }
