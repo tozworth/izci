@@ -138,9 +138,39 @@ function mp3Options(file: File, options: ReadStreamMetadataOptions): {
   };
 }
 
+/**
+ * Chromium on Android pays a large fixed cost per blob slice over FSA-backed
+ * Files (~150-200 ms per read on S23U), while one whole-file arrayBuffer() is
+ * fast. Metadata parsers issue dozens of small ranged reads, so the first
+ * caller snapshots the file once and every reader is served from memory.
+ */
+const SNAPSHOT_CACHE_LIMIT = 4;
+const snapshotCache = new Map<File, Promise<Uint8Array>>();
+
+function snapshotFileBytes(file: File): Promise<Uint8Array> {
+  let snapshot = snapshotCache.get(file);
+
+  if (!snapshot) {
+    snapshot = file.arrayBuffer().then((buffer) => new Uint8Array(buffer));
+    snapshot.catch(() => snapshotCache.delete(file));
+    snapshotCache.set(file, snapshot);
+
+    if (snapshotCache.size > SNAPSHOT_CACHE_LIMIT) {
+      const oldest = snapshotCache.keys().next().value;
+
+      if (oldest !== undefined) {
+        snapshotCache.delete(oldest);
+      }
+    }
+  }
+
+  return snapshot;
+}
+
 async function readFileBytes(file: File, offset: number, length: number): Promise<Uint8Array> {
   if (length <= 0 || offset >= file.size) return new Uint8Array();
-  return new Uint8Array(await file.slice(offset, Math.min(file.size, offset + length)).arrayBuffer());
+  const bytes = await snapshotFileBytes(file);
+  return bytes.subarray(offset, Math.min(bytes.byteLength, offset + length));
 }
 
 export function canLoadStreamMetadata(extension: string): boolean {
