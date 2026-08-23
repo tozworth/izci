@@ -3,6 +3,14 @@ import type { MultiplayerConnectionRoute } from '$lib/services/multiplayer-ice';
 
 export type MenuTranslation = (id: string | { id: string; locale?: string; format?: string; default?: string; values?: Record<string, string | number | boolean | Date | null | undefined> }, options?: { locale?: string; format?: string; default?: string; values?: Record<string, string | number | boolean | Date | null | undefined> }) => string;
 
+function formatRouteLabel(route: MultiplayerConnectionRoute | null, t: MenuTranslation): string | null {
+  return route === 'direct'
+    ? t('main.multiplayer.route.direct', { default: 'Direct' })
+    : route === 'relayed'
+      ? t('main.multiplayer.route.relayed', { default: 'Relayed' })
+      : null;
+}
+
 export function formatMultiplayerAudioStatusLabel(
   status: MultiplayerAudioStatus,
   route: MultiplayerConnectionRoute | null,
@@ -22,22 +30,14 @@ export function formatMultiplayerAudioStatusLabel(
         : status === 'unavailable'
             ? t('main.multiplayer.audio.unavailable', { default: 'Audio unavailable' })
             : t('main.multiplayer.audio.connecting', { default: 'Audio connecting...' });
-  const routeLabel = route === 'direct'
-    ? t('main.multiplayer.route.direct', { default: 'Direct' })
-    : route === 'relayed'
-      ? t('main.multiplayer.route.relayed', { default: 'Relayed' })
-      : null;
+  const routeLabel = formatRouteLabel(route, t);
   return [stateLabel, routeLabel, status === 'playing' && bitrateKbps !== null ? `${bitrateKbps} kbps` : null]
     .filter(Boolean)
     .join(' · ');
 }
 
 export function formatConnectionStat(connectionStatus: MultiplayerConnectionStatus, route: MultiplayerConnectionRoute | null, t: MenuTranslation): string {
-  const routeLabel = route === 'direct'
-    ? t('main.multiplayer.route.direct', { default: 'Direct' })
-    : route === 'relayed'
-      ? t('main.multiplayer.route.relayed', { default: 'Relayed' })
-      : null;
+  const routeLabel = formatRouteLabel(route, t);
   return [connectionStatus, routeLabel].filter(Boolean).join(' · ') || '—';
 }
 

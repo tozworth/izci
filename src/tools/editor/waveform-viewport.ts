@@ -1,4 +1,4 @@
-export const MIN_WAVEFORM_ZOOM = 1;
+const MIN_WAVEFORM_ZOOM = 1;
 export const MAX_WAVEFORM_ZOOM = 64;
 
 function clamp(value: number, minimum: number, maximum: number): number {

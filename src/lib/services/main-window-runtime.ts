@@ -35,16 +35,13 @@ import { createContextualTabPresentationController } from '$lib/services/context
 import { filesystemFolders } from '$lib/services/filesystem-folders';
 import { startLibraryFolderCommandListener } from '$lib/services/library-folder-coordination';
 import { scanLaunchLibraryFolders } from '$lib/services/library-folder-scanner';
-import { appInstallService, type AppInstallState } from '$lib/services/app-install';
+import { appInstallService } from '$lib/services/app-install';
 import { subscribeToLaunchedFiles } from '$lib/services/file-launch';
 import { createLyricsPresentationController } from '$lib/services/lyrics-presentation';
 import { startLoadoutRuntime } from '$lib/services/loadouts';
 import { createPlaybackCommandsController } from '$lib/services/playback-commands';
-import { createMiniPlayerController, type MiniPlayerState } from '$lib/services/mini-player';
-import {
-  createPlaybackProgressController,
-  type PlaybackProgressState
-} from '$lib/services/playback-progress';
+import { createMiniPlayerController } from '$lib/services/mini-player';
+import { createPlaybackProgressController } from '$lib/services/playback-progress';
 import { createPlaybackRestorationController } from '$lib/services/playback-restoration';
 import { setSleepTimerFiredHandler } from '$lib/services/sleep-timer';
 import { abLoop, resolveAbLoopRange } from '$lib/services/ab-loop';
@@ -79,7 +76,6 @@ import {
   buildFreeplayLibraryContextActions,
   buildFreeplayQueueContextActions
 } from '$lib/services/workspace-actions';
-import { createMultiplayerSession } from '$lib/services/multiplayer-session';
 import type { MultiplayerSessionController } from '$lib/services/multiplayer-types';
 import {
   getRemoteArtworkLoadKey,
@@ -104,23 +100,19 @@ import { resolveTrackSnapshot } from '$lib/services/artwork-presentation';
 import {
   createMainWindowRuntimeState,
   type MainWindowRuntimeState,
-  type MainWindowRuntimeStores,
-  type MainWindowRuntimeSubscription
+  type MainWindowRuntimeStores
 } from '$lib/services/main-window-runtime-state';
 import {
   createMainWindowRuntimeMultiplayerBundle,
-  type MainWindowRuntimeMultiplayerBundle,
-  type MainWindowRuntimeMultiplayerDeps
+  type MainWindowRuntimeMultiplayerBundle
 } from '$lib/services/main-window-runtime-multiplayer';
 import {
   createMainWindowRuntimeVideoBundle,
-  type MainWindowRuntimeVideoBundle,
-  type MainWindowRuntimeVideoDeps
+  type MainWindowRuntimeVideoBundle
 } from '$lib/services/main-window-runtime-video';
 import {
   createMainWindowRuntimeTransportBundle,
-  type MainWindowRuntimeTransportBundle,
-  type MainWindowRuntimeTransportDeps
+  type MainWindowRuntimeTransportBundle
 } from '$lib/services/main-window-runtime-transport';
 
 export type {

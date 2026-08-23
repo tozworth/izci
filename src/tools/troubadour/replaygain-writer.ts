@@ -2,7 +2,6 @@ import {
   type MetadataTags
 } from 'mediabunny';
 import {
-  SUPPORTED_METADATA_EXTENSIONS,
   isMetadataExtension,
   remuxMetadataToBlob,
   remuxMetadataToWritable,
@@ -17,7 +16,6 @@ export interface ReplayGainValues {
   albumPeak?: number;
 }
 
-export const REPLAYGAIN_WRITABLE_EXTENSIONS = SUPPORTED_METADATA_EXTENSIONS;
 type ReplayGainWritableExtension = MetadataExtension;
 
 function formatGain(value: number): string {

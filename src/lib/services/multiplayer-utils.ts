@@ -6,8 +6,7 @@ import {
   MULTIPLAYER_RENDER_MAX_RANGES,
   isMultiplayerCommand,
   type ClientMessage,
-  type MultiplayerDeliveryMode,
-  type MultiplayerPlaybackPreparation,
+  type MultiplayerDeliveryMode
 } from './multiplayer-protocol';
 
 export const RECEIVE_AUDIO_STORAGE_KEY = 'izci.multiplayer.receive-audio';
@@ -196,10 +195,6 @@ function isRenderNeed(value: unknown): value is import('./multiplayer-protocol')
       || range[1] < range[0]) return false;
   }
   return true;
-}
-
-export function resolvePlaybackPreparationDelivery(mode: MultiplayerDeliveryMode): MultiplayerDeliveryMode {
-  return mode;
 }
 
 export function getLocalName(): string {

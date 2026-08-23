@@ -1,4 +1,4 @@
-import type { TrackItem, VideoFitMode } from '$lib/types';
+import type { TrackItem } from '$lib/types';
 import { applyManualLoadoutSettings } from '$lib/services/loadouts';
 import { loadouts } from '$lib/stores/loadouts';
 import { normalizePlaybackRate, playbackSettings } from '$lib/stores/playback-settings';

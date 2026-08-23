@@ -329,8 +329,7 @@ export function resolveNowPlayingEligibility(
   appearance: Pick<AppearanceSettings, 'nowPlayingViewActive' | 'autoNowPlayingOnMaximized'>,
   windowDisplay: Pick<WindowDisplayState, 'prefersNowPlaying'>,
   innerSize: { width: number; height: number },
-  mobileMode: boolean,
-  trackKind: TrackItem['kind'] | undefined
+  mobileMode: boolean
 ): NowPlayingEligibility {
   const nowPlayingViewActive = appearance.nowPlayingViewActive;
   const isAutomaticNowPlayingEligible =

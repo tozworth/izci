@@ -1,5 +1,5 @@
 import type { VideoFitMode, VideoSettings } from '$lib/types';
-import { createSettingsStore } from './persistent-store';
+import { createSettingsStore, normalizeBoolean } from './persistent-store';
 
 export const VIDEO_SETTINGS_STORAGE_KEY = 'izci.video-settings';
 export const VIDEO_SETTINGS_CHANNEL = 'izci-video-settings';
@@ -18,14 +18,8 @@ export function normalizeVideoSettings(value: unknown): VideoSettings {
   const source = value && typeof value === 'object' ? (value as Partial<VideoSettings>) : {};
 
   return {
-    autoResizeWindow:
-      typeof source.autoResizeWindow === 'boolean'
-        ? source.autoResizeWindow
-        : DEFAULT_VIDEO_SETTINGS.autoResizeWindow,
-    autoEnterTheater:
-      typeof source.autoEnterTheater === 'boolean'
-        ? source.autoEnterTheater
-        : DEFAULT_VIDEO_SETTINGS.autoEnterTheater,
+    autoResizeWindow: normalizeBoolean(source.autoResizeWindow, DEFAULT_VIDEO_SETTINGS.autoResizeWindow),
+    autoEnterTheater: normalizeBoolean(source.autoEnterTheater, DEFAULT_VIDEO_SETTINGS.autoEnterTheater),
     fitMode: normalizeFitMode(source.fitMode)
   };
 }

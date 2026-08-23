@@ -4,15 +4,15 @@ import type { LogEntry, LogLevel } from '$lib/services/logging';
 export type LogColumnId = 'time' | 'level' | 'source' | 'context' | 'message' | 'details';
 export const LOG_COLUMN_IDS: readonly LogColumnId[] = ['time', 'level', 'source', 'context', 'message', 'details'];
 export type LogColumnWidths = Record<LogColumnId, number>;
-export type LogColumnVisibility = Record<LogColumnId, boolean>;
+type LogColumnVisibility = Record<LogColumnId, boolean>;
 
-export const LOG_COLUMN_DEFAULT_WIDTHS: LogColumnWidths = {
+const LOG_COLUMN_DEFAULT_WIDTHS: LogColumnWidths = {
   time: 104, level: 64, source: 92, context: 108, message: 240, details: 240
 };
 export const LOG_COLUMN_MIN_WIDTHS: LogColumnWidths = {
   time: 64, level: 44, source: 48, context: 52, message: 100, details: 100
 };
-export const LOG_COLUMN_DEFAULT_VISIBILITY: LogColumnVisibility = {
+const LOG_COLUMN_DEFAULT_VISIBILITY: LogColumnVisibility = {
   time: true, level: true, source: true, context: true, message: true, details: true
 };
 
@@ -32,7 +32,7 @@ export function formatLogTimestamp(timestamp: number, locales?: Intl.LocalesArgu
   });
 }
 
-export function normalizeLogColumnWidths(value: unknown): LogColumnWidths {
+function normalizeLogColumnWidths(value: unknown): LogColumnWidths {
   const source = value && typeof value === 'object' ? value as Partial<LogColumnWidths> : {};
   const widths = { ...LOG_COLUMN_DEFAULT_WIDTHS };
   for (const columnId of LOG_COLUMN_IDS) {
@@ -125,7 +125,7 @@ export const logsColumnWidths = {
   reset: widthsStore.reset
 };
 
-export function normalizeLogColumnVisibility(value: unknown): LogColumnVisibility {
+function normalizeLogColumnVisibility(value: unknown): LogColumnVisibility {
   const source = value && typeof value === 'object' ? value as Partial<LogColumnVisibility> : {};
   const visibility = { ...LOG_COLUMN_DEFAULT_VISIBILITY };
   for (const id of LOG_COLUMN_IDS) if (typeof source[id] === 'boolean') visibility[id] = source[id];
@@ -144,9 +144,9 @@ export const logsColumnVisibility = {
   reset: visibilityStore.reset
 };
 
-export type LogSortState = { columnId: LogColumnId; direction: 'asc' | 'desc' };
-export const LOG_SORT_DEFAULT: LogSortState = { columnId: 'time', direction: 'asc' };
-export function normalizeLogSort(value: unknown): LogSortState {
+type LogSortState = { columnId: LogColumnId; direction: 'asc' | 'desc' };
+const LOG_SORT_DEFAULT: LogSortState = { columnId: 'time', direction: 'asc' };
+function normalizeLogSort(value: unknown): LogSortState {
   const source = value && typeof value === 'object' ? value as Partial<LogSortState> : {};
   return {
     columnId: LOG_COLUMN_IDS.includes(source.columnId as LogColumnId) ? source.columnId as LogColumnId : 'time',

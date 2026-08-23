@@ -1,4 +1,4 @@
-export interface ConverterOutputLocation {
+interface ConverterOutputLocation {
   directory: FileSystemDirectoryHandle;
   fileName: string;
 }

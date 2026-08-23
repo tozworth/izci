@@ -17,7 +17,7 @@ import {
   type MenuItemsResult
 } from './menu-items';
 import type { MenuTranslation } from './menu-format';
-import type { MultiplayerClient, MultiplayerConnectionStats, MultiplayerConnectionStatus, MultiplayerMode } from '$lib/services/multiplayer-types';
+import type { MultiplayerConnectionStats, MultiplayerConnectionStatus, MultiplayerMode } from '$lib/services/multiplayer-types';
 
 const translate: MenuTranslation = (_id, options) => options?.default ?? String(_id);
 

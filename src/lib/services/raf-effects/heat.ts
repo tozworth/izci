@@ -48,10 +48,6 @@ export function createHeatCurve(asymmetry: number): Float32Array<ArrayBuffer> {
   return curve;
 }
 
-export function heatIsTransparent(settings: RafHeatSettings): boolean {
-  return settings.driveDb === 0 && settings.outputDb === 0 && settings.colorDb === 0 && settings.asymmetry === 0;
-}
-
 export function createHeatNode(context: BaseAudioContext, settings: RafHeatSettings): HeatNode {
   const input = context.createGain();
   const drive = context.createGain();

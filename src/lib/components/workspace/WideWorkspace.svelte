@@ -11,7 +11,6 @@
     WorkspacePanelId,
     WorkspaceTab
   } from '$lib/types';
-  import WorkspaceResizer from '$lib/components/workspace/WorkspaceResizer.svelte';
   import WorkspaceTabBar from '$lib/components/workspace/WorkspaceTabBar.svelte';
   import WorkspaceTabContent from '$lib/components/workspace/WorkspaceTabContent.svelte';
   import { hasDockTabDragData, readDockTabDragData } from '$lib/components/docking/drag';
@@ -206,13 +205,16 @@
       </div>
 
       {#if index < visiblePanels.length - 1}
-        <WorkspaceResizer
-          label={$t('workspace.resizePanels', {
+        <div
+          class="workspace-resizer"
+          role="separator"
+          aria-orientation="vertical"
+          aria-label={$t('workspace.resizePanels', {
             default: 'Resize {before} and {after}',
             values: { before: getPanelLabel(panel.id), after: getPanelLabel(visiblePanels[index + 1].id) }
           })}
-          width={resizerWidth}
-          onPointerDown={(event) =>
+          style={`width: ${resizerWidth}px;`}
+          on:pointerdown={(event) =>
             dispatch('resizeStart', {
               event,
               handle: {
@@ -220,7 +222,9 @@
                 after: visiblePanels[index + 1].id
               }
             })}
-        />
+        >
+          <span class="workspace-resizer-handle" aria-hidden="true"></span>
+        </div>
       {/if}
     {/each}
   {:else}

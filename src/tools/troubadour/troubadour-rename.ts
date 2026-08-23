@@ -99,7 +99,6 @@ export interface RenamePipeline {
 
 export function createTroubadourRenamePipeline(deps: {
   state: () => TroubadourWorkbenchState;
-  history: () => HistoryState<StagedWorkbenchState>;
   setHistory: (history: HistoryState<StagedWorkbenchState>) => void;
   setJob: (activeJob: string, jobProgress: number | null) => void;
   setStaged: (staged: StagedWorkbenchState, record?: boolean, statePatch?: Partial<TroubadourWorkbenchState>) => void;
@@ -116,7 +115,6 @@ export function createTroubadourRenamePipeline(deps: {
 }): RenamePipeline {
   const {
     state: getState,
-    history: getHistory,
     setHistory,
     setJob,
     setStaged,

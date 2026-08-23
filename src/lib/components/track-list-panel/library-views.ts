@@ -413,25 +413,3 @@ export function filterLibraryGroupItems(group: LibraryGroup, normalizedQuery: st
 
   return filterItemsByQuery(group.items, normalizedQuery);
 }
-
-export function getGroupSummary(
-  view: LibraryGroupViewId,
-  visibleGroupCount: number,
-  totalGroupCount: number,
-  songCount: number,
-  normalizedQuery: string
-): string {
-  const label = LIBRARY_VIEW_DEFINITIONS.find((definition) => definition.id === view)?.label.toLocaleLowerCase() ?? 'groups';
-  const groupCount = normalizedQuery && visibleGroupCount !== totalGroupCount
-    ? `${visibleGroupCount} of ${totalGroupCount}`
-    : String(visibleGroupCount);
-  return `${groupCount} ${visibleGroupCount === 1 ? label.replace(/s$/, '') : label} · ${songCount} song${songCount === 1 ? '' : 's'}`;
-}
-
-export function getGroupTrackSummary(group: LibraryGroup, visibleItems: TrackItem[]): string {
-  const duration = getTotalDuration(visibleItems);
-  const count = visibleItems.length === group.items.length
-    ? String(visibleItems.length)
-    : `${visibleItems.length} of ${group.items.length}`;
-  return `${count} song${group.items.length === 1 ? '' : 's'} · ${formatTotalDuration(duration)}`;
-}

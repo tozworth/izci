@@ -200,7 +200,6 @@ export function syncPeerMediaSource(ctx: MultiplayerHostContext, peer: PeerConne
     const mode = peer.freeplayPlayer?.delivery ?? 'none';
     const generationId = peer.freeplayDelivery?.generationId ?? null;
     syncPeerSourceFile(
-      ctx,
       peer,
       mode === 'source-file' ? track : null,
       mode === 'source-file' ? generationId : null
@@ -216,7 +215,6 @@ export function syncPeerMediaSource(ctx: MultiplayerHostContext, peer: PeerConne
   const mode = core.latestDelivery.mode;
   const generationId = core.latestDelivery.generationId;
   syncPeerSourceFile(
-    ctx,
     peer,
     mode === 'source-file' ? track : null,
     mode === 'source-file' ? generationId : null
@@ -291,7 +289,7 @@ export function syncPeerRenderSource(
     if (peer.freeplay) {
       void peer.freeplayPlayer?.reconfigure().then((shouldResume) => {
         if (!peer.freeplay || !peer.freeplayPlayer?.track) return;
-        if (shouldResume) beginFreeplayPlaybackPreparation(ctx, peer);
+        if (shouldResume) beginFreeplayPlaybackPreparation(peer);
       });
     } else {
       ctx.syncHostAudio(core.latestHostState?.track ?? null);
@@ -301,7 +299,6 @@ export function syncPeerRenderSource(
 }
 
 export function syncPeerSourceFile(
-  ctx: MultiplayerHostContext,
   peer: PeerConnection,
   track: TrackItem | null,
   generationId: string | null
@@ -423,7 +420,7 @@ export function syncFreeplayPlayerUpdate(
   update: MultiplayerFreeplayPlayerUpdate
 ): void {
   if (!peer.freeplay || peer.channel?.readyState !== 'open') return;
-  const delivery = ensureFreeplayDelivery(ctx, peer, update.delivery);
+  const delivery = ensureFreeplayDelivery(peer, update.delivery);
   sendToPeer(peer, { kind: 'delivery', delivery });
   const playback: MultiplayerPlayback = {
     ...update.playback,
@@ -432,11 +429,10 @@ export function syncFreeplayPlayerUpdate(
   };
   sendToPeer(peer, { kind: 'playback', playback });
   syncPeerMediaSource(ctx, peer);
-  syncFreeplayArtwork(ctx, peer, peer.freeplayPlayer?.track ?? null);
+  syncFreeplayArtwork(peer, peer.freeplayPlayer?.track ?? null);
 }
 
 export function ensureFreeplayDelivery(
-  ctx: MultiplayerHostContext,
   peer: PeerConnection,
   mode: MultiplayerDeliveryMode
 ): MultiplayerDeliveryState {
@@ -477,14 +473,14 @@ export async function handleFreeplayCommand(
         return true;
       }
       if (player.snapshot.state === 'playing') return player.pause();
-      beginFreeplayPlaybackPreparation(ctx, peer);
+      beginFreeplayPlaybackPreparation(peer);
       return true;
     case 'transport.play':
       if (peer.freeplayActivation) {
         peer.freeplayActivation.autoPlay = true;
         return true;
       }
-      beginFreeplayPlaybackPreparation(ctx, peer);
+      beginFreeplayPlaybackPreparation(peer);
       return true;
     case 'transport.pause':
       if (peer.freeplayActivation) peer.freeplayActivation.autoPlay = false;
@@ -507,11 +503,11 @@ export async function handleFreeplayCommand(
     case 'queue.shuffle':
       peer.freeplayShuffle = !peer.freeplayShuffle;
       peer.freeplayNavigation?.reset();
-      sendFreeplayState(ctx, peer);
+      sendFreeplayState(peer);
       return true;
     case 'queue.repeat':
       peer.freeplayRepeatMode = cycleMultiplayerRepeatMode(peer.freeplayRepeatMode);
-      sendFreeplayState(ctx, peer);
+      sendFreeplayState(peer);
       return true;
     case 'collection.activate':
       return activateFreeplayTrack(ctx, peer, command.collection, command.itemId);
@@ -579,11 +575,11 @@ export async function activateFreeplayTrack(
   // The stable receiver route must be ready before a streamed renderer starts;
   // source-file delivery uses the same generation ack only to confirm that the
   // complete file is locally loadable. Its host timeline remains passive.
-  beginFreeplayPlaybackPreparation(ctx, peer);
+  beginFreeplayPlaybackPreparation(peer);
   return true;
 }
 
-export function beginFreeplayPlaybackPreparation(ctx: MultiplayerHostContext, peer: PeerConnection): void {
+export function beginFreeplayPlaybackPreparation(peer: PeerConnection): void {
   const track = peer.freeplayPlayer?.track;
   if (!track || !peer.freeplayPlayer) return;
   const preparation: MultiplayerPlaybackPreparation = {
@@ -670,7 +666,7 @@ export function sendFreeplayCatalog(ctx: MultiplayerHostContext, peer: PeerConne
   });
 }
 
-export function sendFreeplayState(ctx: MultiplayerHostContext, peer: PeerConnection): void {
+export function sendFreeplayState(peer: PeerConnection): void {
   if (!peer.freeplay) return;
   sendToPeer(peer, {
     kind: 'state',
@@ -679,7 +675,7 @@ export function sendFreeplayState(ctx: MultiplayerHostContext, peer: PeerConnect
   });
 }
 
-export function syncFreeplayArtwork(ctx: MultiplayerHostContext, peer: PeerConnection, track: TrackItem | null): void {
+export function syncFreeplayArtwork(peer: PeerConnection, track: TrackItem | null): void {
   const nextTrackKey = getMultiplayerArtworkTrackKey(track);
   if (nextTrackKey === peer.freeplayArtworkTrackKey) return;
   peer.freeplayArtworkTrackKey = nextTrackKey;

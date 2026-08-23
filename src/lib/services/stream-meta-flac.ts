@@ -328,7 +328,7 @@ async function readFlacMetadataImpl(
       } else {
         Object.assign(
           metadata,
-          await readVorbisMetadata(file, [{ offset: blockOffset, length: blockLength }], {
+          await readVorbisMetadata([{ offset: blockOffset, length: blockLength }], {
             readBytes: options.readBytes,
             commentKeyProbeBytes: options.commentKeyProbeBytes ?? 512,
             textCommentLimitBytes: options.textCommentLimitBytes ?? 256 * 1024
@@ -345,11 +345,10 @@ async function readFlacMetadataImpl(
 }
 
 async function readVorbisMetadata(
-  file: File,
   ranges: Array<{ offset: number; length: number }>,
   options: { readBytes(offset: number, length: number): Promise<Uint8Array>; commentKeyProbeBytes: number; textCommentLimitBytes: number }
 ): Promise<TrackMetadata> {
-  const reader = new FileRangeReader(file, ranges, options.readBytes);
+  const reader = new FileRangeReader(ranges, options.readBytes);
 
   const vendorLength = await reader.readUint32LE();
   if (vendorLength === null || !reader.skip(vendorLength)) return {};

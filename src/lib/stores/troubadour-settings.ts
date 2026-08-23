@@ -1,4 +1,4 @@
-import { createSettingsStore } from './persistent-store';
+import { createSettingsStore, normalizeBoolean } from './persistent-store';
 
 export const TROUBADOUR_SETTINGS_STORAGE_KEY = 'izci.troubadour-settings';
 export const TROUBADOUR_SETTINGS_CHANNEL = 'izci.troubadour-settings';
@@ -131,10 +131,6 @@ function enumValue<T extends string>(value: unknown, values: readonly T[], fallb
   return typeof value === 'string' && values.includes(value as T) ? value as T : fallback;
 }
 
-function booleanValue(value: unknown, fallback: boolean): boolean {
-  return typeof value === 'boolean' ? value : fallback;
-}
-
 export function normalizeTroubadourInteger(
   value: unknown,
   fallback: number,
@@ -175,9 +171,9 @@ export function normalizeTroubadourSettings(value: unknown): TroubadourSettings 
     initialLoad: enumValue(source.initialLoad, ['current-track', 'current-selection', 'nothing'], DEFAULT_TROUBADOUR_SETTINGS.initialLoad),
     folderScanDepth: normalizeTroubadourInteger(source.folderScanDepth, DEFAULT_TROUBADOUR_SETTINGS.folderScanDepth, 0, 64),
     metadataReadConcurrency: normalizeTroubadourInteger(source.metadataReadConcurrency, DEFAULT_TROUBADOUR_SETTINGS.metadataReadConcurrency, 1, 12),
-    autoGroupOnLoad: booleanValue(source.autoGroupOnLoad, DEFAULT_TROUBADOUR_SETTINGS.autoGroupOnLoad),
+    autoGroupOnLoad: normalizeBoolean(source.autoGroupOnLoad, DEFAULT_TROUBADOUR_SETTINGS.autoGroupOnLoad),
     autoGroupFallback: enumValue(source.autoGroupFallback, ['folder', 'none'], DEFAULT_TROUBADOUR_SETTINGS.autoGroupFallback),
-    confirmDirtyRemoval: booleanValue(source.confirmDirtyRemoval, DEFAULT_TROUBADOUR_SETTINGS.confirmDirtyRemoval),
+    confirmDirtyRemoval: normalizeBoolean(source.confirmDirtyRemoval, DEFAULT_TROUBADOUR_SETTINGS.confirmDirtyRemoval),
 
     visibleMetadataFields: normalizeTroubadourMetadataFields(source.visibleMetadataFields),
     dateDisplay: enumValue(source.dateDisplay, ['verbatim', 'year', 'localized'], DEFAULT_TROUBADOUR_SETTINGS.dateDisplay),
@@ -193,7 +189,7 @@ export function normalizeTroubadourSettings(value: unknown): TroubadourSettings 
 
     renameTemplate: typeof source.renameTemplate === 'string' && source.renameTemplate.trim() !== '' ? source.renameTemplate : DEFAULT_TROUBADOUR_SETTINGS.renameTemplate,
     illegalCharacterReplacement: normalizeReplacement(source.illegalCharacterReplacement),
-    normalizeWhitespace: booleanValue(source.normalizeWhitespace, DEFAULT_TROUBADOUR_SETTINGS.normalizeWhitespace),
+    normalizeWhitespace: normalizeBoolean(source.normalizeWhitespace, DEFAULT_TROUBADOUR_SETTINGS.normalizeWhitespace),
     unicodeNormalization: enumValue(source.unicodeNormalization, ['preserve', 'nfc', 'ascii'], DEFAULT_TROUBADOUR_SETTINGS.unicodeNormalization),
     extensionCase: enumValue(source.extensionCase, ['preserve', 'lower', 'upper'], DEFAULT_TROUBADOUR_SETTINGS.extensionCase),
     missingTokenPolicy: enumValue(source.missingTokenPolicy, ['stop', 'empty', 'skip'], DEFAULT_TROUBADOUR_SETTINGS.missingTokenPolicy),
@@ -206,7 +202,7 @@ export function normalizeTroubadourSettings(value: unknown): TroubadourSettings 
     batchErrorBehavior: enumValue(source.batchErrorBehavior, ['continue', 'stop'], DEFAULT_TROUBADOUR_SETTINGS.batchErrorBehavior),
     destructiveClearConfirmationThreshold: normalizeTroubadourInteger(source.destructiveClearConfirmationThreshold, DEFAULT_TROUBADOUR_SETTINGS.destructiveClearConfirmationThreshold, 1, 1000),
 
-    diagnosticJobReporting: booleanValue(source.diagnosticJobReporting, DEFAULT_TROUBADOUR_SETTINGS.diagnosticJobReporting)
+    diagnosticJobReporting: normalizeBoolean(source.diagnosticJobReporting, DEFAULT_TROUBADOUR_SETTINGS.diagnosticJobReporting)
   };
 }
 

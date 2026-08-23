@@ -16,15 +16,10 @@ import type { MultiplayerSessionState } from '$lib/services/multiplayer-types';
 import type { createMainWindowView } from '$lib/services/main-window-view';
 import { DEFAULT_PLAYER_VOLUME } from '$lib/stores/player-volume';
 import type {
-  LyricsDisplayStyle,
   ModulePatternSnapshot,
   PlaybackSnapshot,
   TrackItem,
-  RepeatMode,
-  TrackSelection,
-  VideoFitMode,
-  WorkspaceCollection,
-  WorkspaceTab
+  RepeatMode
 } from '$lib/types';
 import type {
   VideoSeekFeedback

@@ -15,7 +15,6 @@ vi.mock('$lib/services/troubadour-sync', () => ({ publishTroubadourBatchResult }
 vi.mock('$lib/services/logging', () => ({ logInfo: vi.fn() }));
 
 import { createTroubadourRenamePipeline } from './troubadour-rename';
-import { createHistory } from './history';
 
 function row(name: string): RenamePreviewRow {
   const file = new File(['audio'], name.replace('.flac', '.mp3'));
@@ -68,7 +67,6 @@ describe('Troubadour rename pipeline', () => {
       albums: [],
       selectedIds: ['item-1']
     } as unknown as TroubadourWorkbenchState;
-    const history = createHistory({ items: state.items, albums: state.albums });
     const saveSelectedOrAll = vi.fn(async () => []);
     const refreshPreview = vi.fn(async () => [refreshed]);
     applyRename.mockResolvedValue({
@@ -83,7 +81,6 @@ describe('Troubadour rename pipeline', () => {
     });
     const pipeline = createTroubadourRenamePipeline({
       state: () => state,
-      history: () => history,
       setHistory: vi.fn(),
       setJob: vi.fn(),
       setStaged: vi.fn(),

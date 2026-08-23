@@ -10,7 +10,7 @@ import type {
 } from '$lib/types';
 import { normalizeAppearanceSettings } from './appearance-settings';
 import { normalizeModulePlaybackSettings } from './module-playback-settings';
-import { createPersistentStore } from './persistent-store';
+import { createPersistentStore, normalizeBoolean } from './persistent-store';
 import { normalizePlaybackSettings } from './playback-settings';
 import { normalizeVisualizerSettings } from './visualizer-settings';
 
@@ -93,7 +93,7 @@ function normalizeSettings(value: unknown): LoadoutSettings | null {
   const playback = normalizePlayback(source.playback);
   const appearance = normalizeAppearance(source.appearance);
   const rafPresetName = normalizeText(source.raf?.presetName, 80);
-  const rafEnabled = typeof source.raf?.enabled === 'boolean' ? source.raf.enabled : null;
+  const rafEnabled = normalizeBoolean(source.raf?.enabled, null);
 
   if (playback) settings.playback = playback;
   if (rafPresetName && rafEnabled !== null) {

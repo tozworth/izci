@@ -4,8 +4,6 @@
 @import '../../lib/styles/app/menus.css';
 @import '../tool-shell.css';
 
-html, body, #app { width: 100%; height: 100%; margin: 0; overflow: hidden; }
-button, input { font: inherit; }
 .logs-shell { display: grid; grid-template-rows: auto minmax(0, 1fr); user-select: none; --clv-header-background: var(--menu-bar-bg); --clv-header-border: var(--window-topbar-hairline); --clv-header-padding: 0 0.5rem; }
 .logs-empty { padding: 2rem 1rem; color: var(--muted); font-size: 0.78rem; text-align: center; }
 .logs-row { display: grid; grid-template-columns: var(--clv-template-columns); column-gap: var(--clv-column-gap); align-items: center; padding: 0.01rem 0.5rem; font-size: 0.72rem; user-select: text; }

@@ -2,7 +2,7 @@
   import { createEventDispatcher, onDestroy } from 'svelte';
   import { t } from 'svelte-i18n';
   import WindowMenuBar from '$lib/components/WindowMenuBar.svelte';
-  import { windowManager } from '$lib/services/window-manager';
+  import { requestOptionsFromTool, windowManager } from '$lib/services/window-manager';
   import type { MenuActionItem, WindowMenuGroup } from '$lib/types';
 
   type ActionId = 'addFiles' | 'addFolder' | 'chooseOutput' | 'close' | 'selectAll' | 'selectNone'
@@ -77,17 +77,9 @@
     }
   ] satisfies WindowMenuGroup[];
 
-  function requestOptions(view?: 'about'): void {
-    if (window.opener && !window.opener.closed) {
-      window.opener.postMessage({ type: 'izci:open-options', view }, window.location.origin);
-      return;
-    }
-    windowManager.openOptions(view);
-  }
-
   function run(action: ActionId): void {
-    if (action === 'openOptions') return requestOptions();
-    if (action === 'openAbout') return requestOptions('about');
+    if (action === 'openOptions') return requestOptionsFromTool();
+    if (action === 'openAbout') return requestOptionsFromTool('about');
     dispatch(action);
   }
 

@@ -37,12 +37,12 @@
   import TroubadourMenuBar from './TroubadourMenuBar.svelte';
   import {
     createTroubadourController,
-    effectiveFields,
-    requestRenameAccess,
     selectedFieldValue,
     type TroubadourAlbum,
     type TroubadourWorkbenchItem
   } from './troubadour-controller';
+  import { effectiveFields } from './troubadour-loading';
+  import { requestRenameAccess } from './troubadour-rename';
   import type { RenamePreviewRow } from './rename-job';
   import {
     adjacentPairs,

@@ -240,7 +240,7 @@ async function readOggMetadataImpl(
     const prefix = extension === 'opus'
       ? new TextEncoder().encode(OPUS_TAGS_MARKER)
       : concatUint8Arrays(new Uint8Array([0x03]), new TextEncoder().encode(VORBIS_PACKET_MARKER));
-    metadata = await readVorbisMetadata(file, tagsPacket.ranges, prefix, options);
+    metadata = await readVorbisMetadata(tagsPacket.ranges, prefix, options);
   }
 
   const eagerIdentification = extractOggPacket(head, 0);
@@ -253,7 +253,7 @@ async function readOggMetadataImpl(
     const identificationPacket = await findOggPacketRanges(file, 0, options);
     if (!identificationPacket) return metadata;
 
-    const identificationReader = new FileRangeReader(file, identificationPacket.ranges, options.readBytes);
+    const identificationReader = new FileRangeReader(identificationPacket.ranges, options.readBytes);
     identification = await identificationReader.read(extension === 'opus' ? 12 : 16);
     streamSerial = identificationPacket.streamSerial;
   }
@@ -385,7 +385,6 @@ export async function readLastOggGranule(
 }
 
 async function readVorbisMetadata(
-  file: File,
   ranges: Array<{ offset: number; length: number }>,
   expectedPrefix: Uint8Array,
   options: {
@@ -394,7 +393,7 @@ async function readVorbisMetadata(
     textCommentLimitBytes: number;
   }
 ): Promise<TrackMetadata> {
-  const reader = new FileRangeReader(file, ranges, options.readBytes);
+  const reader = new FileRangeReader(ranges, options.readBytes);
 
   if (expectedPrefix) {
     const prefix = await reader.read(expectedPrefix.byteLength);
