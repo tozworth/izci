@@ -114,4 +114,34 @@ describe('Troubadour batch cancellation', () => {
     const controller = createTroubadourController();
     expect(controller.cancelActiveJob()).toBe(false);
   });
+
+  it('cancels a later file load after a save batch has completed', async () => {
+    const saved = fileHandle(new File(['audio'], 'Saved.mp3'));
+    const controller = createTroubadourController(hangingSaveHandler({ release: Promise.resolve() }));
+    await controller.ingestHandles([saved.handle]);
+    const savedItem = controller.getSnapshot().items[0];
+    controller.editItemField(savedItem.id, 'title', 'Saved title');
+    await controller.saveSelectedOrAll();
+
+    let releaseLoad!: () => void;
+    const loadGate = new Promise<void>((resolve) => (releaseLoad = resolve));
+    const laterFile = new File(['later'], 'Later.mp3');
+    const laterHandle = {
+      kind: 'file',
+      name: laterFile.name,
+      getFile: vi.fn(async () => {
+        await loadGate;
+        return laterFile;
+      })
+    } as unknown as FileSystemFileHandle;
+
+    const loading = controller.ingestHandles([laterHandle]);
+    await vi.waitFor(() => expect(laterHandle.getFile).toHaveBeenCalledOnce());
+    expect(controller.cancelActiveJob()).toBe(true);
+    releaseLoad();
+    await loading;
+
+    expect(controller.getSnapshot().items.map((item) => item.file.name)).toEqual(['Saved.mp3']);
+    expect(controller.getSnapshot().busy).toBe(false);
+  });
 });

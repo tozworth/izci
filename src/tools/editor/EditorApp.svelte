@@ -30,6 +30,7 @@
     type ClipEditState
   } from './clip-audio';
   import { EMPTY_TAGS, parseId3, type EditableTags } from './tag-writer';
+  import { createEditorFileLoadCoordinator } from './editor-file-load';
   import { remapLyricsToClip } from './lyrics-editor';
   import {
     ClipExportUnavailableError,
@@ -105,6 +106,7 @@
   let contextMenuOpen = false;
   let contextMenuX = 0;
   let contextMenuY = 0;
+  const fileLoads = createEditorFileLoadCoordinator();
 
   $: duration = clipDuration(editState);
   $: selectionDuration = Math.max(0, editState.selectionEnd - editState.selectionStart);
@@ -396,6 +398,8 @@
       return;
     }
 
+    const load = fileLoads.begin();
+
     stopPreview();
     resetWaveformViewport();
     loading = true;
@@ -413,6 +417,7 @@
 
     try {
       const bytes = new Uint8Array(await file.arrayBuffer());
+      if (!load.isCurrent()) return;
       const parsed = extension === 'mp3' ? parseId3(bytes) : { tags: { ...EMPTY_TAGS }, artwork: null };
       if ((STREAM_EXTENSIONS as readonly string[]).includes(extension)) {
         const track = {
@@ -429,6 +434,7 @@
           loadEmbeddedStreamArtwork(track),
           loadTrackLyrics(track).catch(() => null)
         ]);
+        if (!load.isCurrent()) return;
         if (metadata) {
           for (const { key } of TAG_FIELDS) {
             parsed.tags[key] = metadata[key] ?? parsed.tags[key];
@@ -445,8 +451,9 @@
       };
       replaceArtwork(parsed.artwork);
       const loaded = await loadAudioFile(file, (progress) => {
-        loadProgress = progress;
-      });
+        if (load.isCurrent()) loadProgress = progress;
+      }, load.signal);
+      if (!load.isCurrent()) return;
       sourceBuffer = loaded.buffer;
       playhead = 0;
       editState = createInitialClipState(loaded.buffer.duration);
@@ -457,11 +464,15 @@
           : $t('editor.moduleRendered', { default: 'Module render cached for this session.' })
         : '';
     } catch (error) {
+      if (!load.isCurrent()) return;
       sourceFile = null;
       errorMessage = error instanceof Error ? error.message : $t('editor.loadFailed', { default: 'The audio file could not be opened.' });
     } finally {
-      loading = false;
-      loadProgress = null;
+      if (load.isCurrent()) {
+        loading = false;
+        loadProgress = null;
+        load.finish();
+      }
     }
   }
 
@@ -743,6 +754,7 @@
   });
 
   onDestroy(() => {
+    fileLoads.cancel();
     stopPreview();
     void previewContext?.close();
   });

@@ -91,7 +91,7 @@ export interface RenamePipeline {
     options?: {
       saveFirst?: boolean;
       verification?: RenameVerification;
-      refreshPreview?: () => Promise<void>;
+      refreshPreview?: () => Promise<RenamePreviewRow[]>;
       settings?: TroubadourSettings;
     }
   ): Promise<void>;
@@ -211,16 +211,21 @@ export function createTroubadourRenamePipeline(deps: {
       options: {
         saveFirst?: boolean;
         verification?: RenameVerification;
-        refreshPreview?: () => Promise<void>;
+        refreshPreview?: () => Promise<RenamePreviewRow[]>;
         settings?: TroubadourSettings;
       } = {}
     ) {
+      let currentRows = rows;
       if (options.saveFirst) {
         const saveResults = await saveSelectedOrAll({ verify: true, requestPermission: true, settings: options.settings });
         publishTroubadourBatchResult({ results: saveResults });
-        await options.refreshPreview?.();
+        currentRows = options.refreshPreview
+          ? await options.refreshPreview()
+          : options.settings
+            ? await this.previewRenames(options.settings.renameTemplate, options.settings)
+            : rows;
       }
-      const { results } = await this.applyRenames(rows, { verification: options.verification });
+      const { results } = await this.applyRenames(currentRows, { verification: options.verification });
       publishTroubadourBatchResult({ results });
       await options.refreshPreview?.();
       if (options.settings?.diagnosticJobReporting && rows.length) {
