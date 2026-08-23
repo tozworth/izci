@@ -51,7 +51,8 @@ function installWindowHarness() {
   const storageListeners: StorageListener[] = [];
   const localStorage = {
     getItem: vi.fn((key: string) => values.get(key) ?? null),
-    setItem: vi.fn((key: string, value: string) => values.set(key, value))
+    setItem: vi.fn((key: string, value: string) => values.set(key, value)),
+    removeItem: vi.fn((key: string) => values.delete(key))
   };
 
   vi.stubGlobal('window', {
@@ -149,7 +150,7 @@ describe('persistent store cross-window characterization', () => {
     expect(windowHarness.localStorage.setItem).toHaveBeenCalledOnce();
   });
 
-  it('exposes divergent whole-object state when simultaneous writers receive crossed broadcasts', () => {
+  it('converges simultaneous writers on the latest persisted value despite crossed broadcasts', () => {
     installWindowHarness();
     const first = createTestStore();
     const second = createTestStore();
@@ -164,6 +165,17 @@ describe('persistent store cross-window characterization', () => {
     DeferredBroadcastChannel.deliverNext();
 
     expect(first.getSnapshot()).toEqual({ enabled: false, label: 'second' });
-    expect(second.getSnapshot()).toEqual({ enabled: true, label: 'first' });
+    expect(second.getSnapshot()).toEqual({ enabled: false, label: 'second' });
+  });
+
+  it('returns to defaults when another window removes the persisted value', () => {
+    const windowHarness = installWindowHarness();
+    const store = createTestStore();
+
+    store.set({ enabled: true, label: 'stored' });
+    windowHarness.localStorage.removeItem('test.settings');
+    windowHarness.dispatchStorage('test.settings', null);
+
+    expect(store.getSnapshot()).toEqual(defaults);
   });
 });
