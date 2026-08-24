@@ -3,12 +3,16 @@ import { clearMultiplayerLastSession } from '$lib/stores/multiplayer-last-sessio
 import { multiplayerAudioService } from './multiplayer-audio';
 import { multiplayerRenderPlaybackService } from './multiplayer-render-playback';
 import { multiplayerSourcePlaybackService } from './multiplayer-source-playback';
-import { EMPTY_CATALOG, EMPTY_REMOTE_PLAYBACK } from './multiplayer-types';
+import { EMPTY_CATALOG, EMPTY_DELIVERY, EMPTY_REMOTE_PLAYBACK } from './multiplayer-types';
 import { isMultiplayerClientTransportHealthy } from './multiplayer-utils';
 import type { MultiplayerClientContext } from './multiplayer-client';
+import {
+  applyClientAudioBuffer,
+  sendClientPlaybackReadyIfPossible
+} from './multiplayer-client-audio';
 
 export function scheduleClientReconnect(ctx: MultiplayerClientContext, delay?: number): void {
-  const { core, publish } = ctx;
+  const { core } = ctx;
   if (!core.allowClientReconnect || core.state.mode !== 'client' || core.reconnectInFlight || core.reconnectTimer !== null) return;
   const inviteCode = core.state.inviteCode;
   if (!inviteCode) return;
@@ -28,7 +32,7 @@ export function scheduleClientReconnect(ctx: MultiplayerClientContext, delay?: n
       attempt: core.reconnectAttempts,
       hostId: core.clientHostId
     });
-    publish({
+    core.publish({
       connectionStatus: 'connecting',
       reconnecting: true,
       audioStatus: 'connecting',
@@ -79,7 +83,7 @@ export function handleClientResume(ctx: MultiplayerClientContext): void {
     // A long-lived background connection can remain healthy while Media Session keeps
     // mobile playback alive. Elapsed hidden time alone is not a reason to replace it.
     clearReconnectTimer(ctx);
-    ctx.applyClientAudioBuffer(core.clientPeer);
+    applyClientAudioBuffer(ctx, core.clientPeer);
     if (core.latestDelivery.mode === 'source-file') void multiplayerSourcePlaybackService.resume();
     else if (core.latestDelivery.mode === 'stream') void resumeAudio(ctx);
     return;
@@ -89,7 +93,7 @@ export function handleClientResume(ctx: MultiplayerClientContext): void {
 }
 
 export async function leave(ctx: MultiplayerClientContext): Promise<void> {
-  const { core, publish } = ctx;
+  const { core } = ctx;
   if (core.state.mode !== 'client') return;
   logInfo('multiplayer', 'Client left session', { freeplay: core.state.freeplay });
   clearMultiplayerLastSession();
@@ -98,7 +102,7 @@ export async function leave(ctx: MultiplayerClientContext): Promise<void> {
   await core.resetSession(true);
   await multiplayerSourcePlaybackService.endClientSession();
   core.clientHostId = null;
-  publish({
+  core.publish({
     mode: 'idle',
     connectionStatus: 'idle',
     reconnecting: false,
@@ -114,9 +118,7 @@ export async function leave(ctx: MultiplayerClientContext): Promise<void> {
     remoteArtwork: null,
     remoteArtworkResolvedTrackKey: '',
     audioStatus: 'idle',
-    remoteDelivery: {
-      generationId: 'idle', trackId: null, mode: 'none', reason: 'host-disabled'
-    },
+    remoteDelivery: { ...EMPTY_DELIVERY },
     connectionRoute: null,
     averageAudioBitrateKbps: null,
     connectionStats: null,
@@ -126,18 +128,18 @@ export async function leave(ctx: MultiplayerClientContext): Promise<void> {
 }
 
 export async function resumeAudio(ctx: MultiplayerClientContext): Promise<boolean> {
-  const { core, publish, transition } = ctx;
+  const { core, transition } = ctx;
   if (multiplayerSourcePlaybackService.active) {
     const ready = await multiplayerSourcePlaybackService.resume();
     if (core.state.mode === 'client' && core.state.receiveAudio) {
-      publish({ audioStatus: ready ? 'playing' : 'blocked' });
+      core.publish({ audioStatus: ready ? 'playing' : 'blocked' });
     }
-    if (core.clientPeer) ctx.sendClientPlaybackReadyIfPossible(core.clientPeer);
+    if (core.clientPeer) sendClientPlaybackReadyIfPossible(ctx, core.clientPeer);
     return ready;
   }
   if (core.latestDelivery.mode === 'render') {
     multiplayerRenderPlaybackService.resumeAudible();
-    if (core.clientPeer) ctx.sendClientPlaybackReadyIfPossible(core.clientPeer);
+    if (core.clientPeer) sendClientPlaybackReadyIfPossible(ctx, core.clientPeer);
     return true;
   }
   logInfo('multiplayer', 'Remote stream audio resume requested', {
@@ -149,6 +151,6 @@ export async function resumeAudio(ctx: MultiplayerClientContext): Promise<boolea
   if (ready && core.state.remoteDelivery.mode === 'stream') {
     multiplayerAudioService.setRemoteAudible(core.state.remotePlayback.snapshot.state === 'playing');
   }
-  if (core.clientPeer) ctx.sendClientPlaybackReadyIfPossible(core.clientPeer);
+  if (core.clientPeer) sendClientPlaybackReadyIfPossible(ctx, core.clientPeer);
   return ready;
 }

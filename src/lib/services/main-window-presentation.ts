@@ -38,17 +38,17 @@ export type Translate = (
   }
 ) => string;
 
-export type MultiplayerDialogOperation = 'hosting' | 'joining';
+type MultiplayerDialogOperation = 'hosting' | 'joining';
 
 /** The subset of `PlaybackSnapshot` the player bar / status consumers read. */
-export type PlaybackStatusPresentation = Pick<
+type PlaybackStatusPresentation = Pick<
   PlaybackSnapshot,
   'state' | 'volume' | 'backend' | 'error'
 >;
 
 // ── Multiplayer connection dialog ────────────────────────────────────────
 
-export interface MultiplayerDialogPresentation {
+interface MultiplayerDialogPresentation {
   failed: boolean;
   resolvedTarget: string | null;
   notice: string;
@@ -99,14 +99,14 @@ export function resolveMultiplayerDialogPresentation(
 
 // ── Client collections ───────────────────────────────────────────────────
 
-export interface ClientCollectionsLocal {
+interface ClientCollectionsLocal {
   trackItems: TrackItem[];
   libraryItems: TrackItem[];
   favoriteItems: TrackItem[];
   collectionsReady: boolean;
 }
 
-export interface ClientCollectionsRemote {
+interface ClientCollectionsRemote {
   queue: TrackItem[];
   library: TrackItem[];
   favorites: TrackItem[];
@@ -114,7 +114,7 @@ export interface ClientCollectionsRemote {
   connectionStatus: MultiplayerSessionState['connectionStatus'];
 }
 
-export interface ClientCollectionsPresentation {
+interface ClientCollectionsPresentation {
   queueItems: TrackItem[];
   libraryItems: TrackItem[];
   favoriteItems: TrackItem[];
@@ -149,7 +149,7 @@ export function resolveClientCollections(
 
 // ── Client selections ────────────────────────────────────────────────────
 
-export interface ClientSelectionsLocal {
+interface ClientSelectionsLocal {
   queueIds: string[];
   libraryIds: string[];
   libraryAnchorId: string | null;
@@ -157,13 +157,13 @@ export interface ClientSelectionsLocal {
   favoriteAnchorId: string | null;
 }
 
-export interface ClientSelectionsRemote {
+interface ClientSelectionsRemote {
   track: TrackSelection;
   library: TrackSelection;
   favorites: TrackSelection;
 }
 
-export interface ClientSelectionsPresentation extends ClientSelectionsLocal {}
+interface ClientSelectionsPresentation extends ClientSelectionsLocal {}
 
 /**
  * Resolve the per-collection selection ids/anchors: remote selections for
@@ -204,20 +204,20 @@ export function resolveClientSelectedItems(
 
 // ── Client playback ──────────────────────────────────────────────────────
 
-export interface ClientPlaybackLocal {
+interface ClientPlaybackLocal {
   snapshot: PlaybackSnapshot;
   status: PlaybackStatusPresentation;
   shuffleEnabled: boolean;
   repeatMode: RepeatMode;
 }
 
-export interface ClientPlaybackRemote {
+interface ClientPlaybackRemote {
   snapshot: PlaybackSnapshot;
   shuffleEnabled: boolean;
   repeatMode: RepeatMode;
 }
 
-export interface ClientPlaybackPresentation {
+interface ClientPlaybackPresentation {
   playbackSnapshot: PlaybackSnapshot;
   playbackStatus: PlaybackStatusPresentation;
   shuffleEnabled: boolean;
@@ -274,7 +274,7 @@ export function resolveClientPlayback(
 
 // ── Video theater ────────────────────────────────────────────────────────
 
-export interface VideoTheaterPresentation {
+interface VideoTheaterPresentation {
   isFullscreenVideoTheater: boolean;
   fullscreenExitAction: boolean;
   chromeInset: number;
@@ -311,7 +311,7 @@ export function resolveVideoTheaterPresentation(
 
 // ── Now Playing eligibility and lyrics presentation ──────────────────────
 
-export interface NowPlayingEligibility {
+interface NowPlayingEligibility {
   nowPlayingViewActive: boolean;
   isAutomaticNowPlayingEligible: boolean;
   isNowPlayingViewportEligible: boolean;
@@ -364,7 +364,7 @@ export function resolveNowPlayingLayoutActive(
   );
 }
 
-export interface LyricsPresentation {
+interface LyricsPresentation {
   effectiveLyricsDisplayStyle: LyricsDisplayStyle;
   lyricsAutoScroll: boolean;
   lyricsFontSize: number;

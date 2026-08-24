@@ -33,11 +33,11 @@ describe('multiplayer channel lifecycle', () => {
     const updateClient = vi.fn();
     const handleHostCommand = vi.fn();
     const core = {
-      hostPeers: new Map([['client', previous]])
+      hostPeers: new Map([['client', previous]]),
+      updateClient
     };
     const ctx = {
       core,
-      updateClient,
       handleHostCommand
     } as unknown as MultiplayerHostContext;
     const channel = previous.channel!;
@@ -59,15 +59,13 @@ describe('multiplayer channel lifecycle', () => {
   it('ignores client messages from a replaced host peer', () => {
     const previous = peer('host');
     const replacement = peer('host');
-    const applyClientAudioBuffer = vi.fn();
+    const getReceivers = vi.fn(() => []);
+    previous.pc.getReceivers = getReceivers;
     const core = {
       clientPeer: previous,
       hostAudioBufferMs: null
     };
-    const ctx = {
-      core,
-      applyClientAudioBuffer
-    } as unknown as MultiplayerClientContext;
+    const ctx = { core } as unknown as MultiplayerClientContext;
     const channel = previous.channel!;
     attachClientChannel(ctx, previous);
     core.clientPeer = replacement;
@@ -77,6 +75,6 @@ describe('multiplayer channel lifecycle', () => {
     } as MessageEvent);
 
     expect(core.hostAudioBufferMs).toBeNull();
-    expect(applyClientAudioBuffer).not.toHaveBeenCalled();
+    expect(getReceivers).not.toHaveBeenCalled();
   });
 });

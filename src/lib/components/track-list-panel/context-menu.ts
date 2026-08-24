@@ -74,7 +74,7 @@ export function localizeContextMenuAction(action: MenuActionItem, translate: Tra
   };
 }
 
-export function buildPanelContextMenuItems(translate: Translate): MenuActionItem[] {
+function buildPanelContextMenuItems(translate: Translate): MenuActionItem[] {
   return [
     {
       id: 'randomize-queue',

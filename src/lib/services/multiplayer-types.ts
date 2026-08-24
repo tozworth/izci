@@ -26,7 +26,6 @@ import {
 import type { MultiplayerReceiverAudioStatus } from './multiplayer-audio';
 import type { MultiplayerConnectionRoute } from './multiplayer-ice';
 import type { FreeplayStepResolver, MultiplayerFreeplayPlayer } from './multiplayer-freeplay';
-import type { MultiplayerLastSession } from '$lib/stores/multiplayer-last-session';
 import type {
   MultiplayerTurnCredentialRequest,
   MultiplayerTurnCredentialResponse
@@ -347,35 +346,4 @@ export interface MultiplayerSessionCore {
   acceptingPeerIds: Set<string>;
   answeredTurnCredentialRequestIds: Set<string>;
   resetSession(removeRemote: boolean): Promise<void>;
-}
-
-export interface MultiplayerHostSide {
-  startHosting(options?: { silent?: boolean }): Promise<string>;
-  stopHosting(): Promise<void>;
-  kick(clientId: string): Promise<void>;
-  togglePairing(clientId: string): Promise<void>;
-  updateHostState(next: MultiplayerHostState): void;
-  cancelPendingPlayback(): boolean;
-  syncHostAudio(track: TrackItem | null, force?: boolean): void;
-  syncHostSourceFiles(track: TrackItem | null): void;
-  syncPeerFreeplayMode(peer: PeerConnection): Promise<void>;
-  beginFreeplayPlaybackPreparation(peer: PeerConnection): void;
-  releasePreparedHostPlayback(force?: boolean): void;
-  beginHostPlaybackPreparation(trackId: string): void;
-}
-
-export interface MultiplayerClientSide {
-  join(inviteCode: string, options?: { silent?: boolean }): Promise<void>;
-  joinPaired(hostId: string): Promise<void>;
-  restoreClientJoin(last: MultiplayerLastSession): Promise<void>;
-  leave(): Promise<void>;
-  sendCommand(command: MultiplayerCommandInput): boolean;
-  setFreeplayQueue(itemIds: string[]): void;
-  setReceiveAudio(enabled: boolean): void;
-  resumeAudio(): Promise<boolean>;
-  applyClientAudioBuffer(peer: PeerConnection): void;
-  handleClientResume(): void;
-  clearReceiverMonitor(): void;
-  clearReconnectTimer(): void;
-  resetTransitions(): void;
 }

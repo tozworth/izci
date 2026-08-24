@@ -4,10 +4,10 @@ import { getTrackIdentity } from '$lib/utils/files';
 
 export const REQUEST_TROUBADOUR_BATCH_CONTEXT_MESSAGE = 'izci:troubadour:request-batch-context';
 export const OPEN_TROUBADOUR_BATCH_CONTEXT_MESSAGE = 'izci:troubadour:open-batch-context';
-export const TROUBADOUR_BATCH_CONTEXT_MESSAGE = 'izci:troubadour:batch-context';
-export const TROUBADOUR_BATCH_RESULT_MESSAGE = 'izci:troubadour:batch-result';
-export const PREPARE_TROUBADOUR_WRITE_MESSAGE = 'izci:troubadour:prepare-write';
-export const TROUBADOUR_WRITE_READY_MESSAGE = 'izci:troubadour:write-ready';
+const TROUBADOUR_BATCH_CONTEXT_MESSAGE = 'izci:troubadour:batch-context';
+const TROUBADOUR_BATCH_RESULT_MESSAGE = 'izci:troubadour:batch-result';
+const PREPARE_TROUBADOUR_WRITE_MESSAGE = 'izci:troubadour:prepare-write';
+const TROUBADOUR_WRITE_READY_MESSAGE = 'izci:troubadour:write-ready';
 
 export type TroubadourCollection = 'current' | 'queue' | 'library' | 'favorites';
 
@@ -44,7 +44,7 @@ export interface TroubadourBatchContext {
   rememberedFolders: TroubadourRememberedFolder[];
 }
 
-export interface TroubadourBatchContextSource {
+interface TroubadourBatchContextSource {
   collection: TroubadourCollection;
   items: TrackItem[];
 }
@@ -71,7 +71,7 @@ export interface TroubadourBatchItemResult {
   artworkChanged?: boolean;
 }
 
-export interface TroubadourBatchResult {
+interface TroubadourBatchResult {
   results: TroubadourBatchItemResult[];
 }
 
@@ -85,7 +85,7 @@ export interface TroubadourWriteTarget {
   originalFileHandle?: FileSystemFileHandle;
 }
 
-export interface TroubadourWritePreparationRequest {
+interface TroubadourWritePreparationRequest {
   requestId: string;
   targets: TroubadourWriteTarget[];
 }
@@ -398,13 +398,12 @@ export function listenForTroubadourBatchContext(
   return () => window.removeEventListener('message', handleMessage);
 }
 
-export function requestTroubadourBatchContext(): boolean {
-  if (!window.opener || window.opener.closed) return false;
+function requestTroubadourBatchContext(): void {
+  if (!window.opener || window.opener.closed) return;
   window.opener.postMessage(
     { type: REQUEST_TROUBADOUR_BATCH_CONTEXT_MESSAGE },
     window.location.origin
   );
-  return true;
 }
 
 export function publishTroubadourBatchResult(result: TroubadourBatchResult): boolean {

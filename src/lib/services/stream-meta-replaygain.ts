@@ -1,28 +1,28 @@
 import type { ReplayGainMetadata, TrackMetadata } from '$lib/types';
 
-export function normalizeReplayGainDb(value: string): number | undefined {
+function normalizeReplayGainDb(value: string): number | undefined {
   const parsed = parseDecimalTagValue(value);
   return parsed !== undefined && parsed >= -60 && parsed <= 60 ? parsed : undefined;
 }
 
-export function normalizeReplayGainPeak(value: string): number | undefined {
+function normalizeReplayGainPeak(value: string): number | undefined {
   const parsed = parseDecimalTagValue(value);
   return parsed !== undefined && parsed > 0 && parsed <= 100 ? parsed : undefined;
 }
 
-export function normalizeR128GainDb(value: string): number | undefined {
+function normalizeR128GainDb(value: string): number | undefined {
   const parsed = Number.parseInt(value.trim(), 10);
   const gainDb = Number.isFinite(parsed) ? parsed / 256 : undefined;
 
   return gainDb !== undefined && gainDb >= -60 && gainDb <= 60 ? gainDb : undefined;
 }
 
-export function ensureReplayGain(metadata: TrackMetadata): ReplayGainMetadata {
+function ensureReplayGain(metadata: TrackMetadata): ReplayGainMetadata {
   metadata.replayGain ??= {};
   return metadata.replayGain;
 }
 
-export function assignReplayGainValue(
+function assignReplayGainValue(
   replayGain: ReplayGainMetadata,
   key: keyof ReplayGainMetadata,
   value: number | undefined
@@ -69,7 +69,7 @@ export function applyReplayGainComment(metadata: TrackMetadata, key: string, val
   return true;
 }
 
-export function parseDecimalTagValue(value: string): number | undefined {
+function parseDecimalTagValue(value: string): number | undefined {
   const match = value.trim().match(/[+-]?(?:\d+(?:\.\d*)?|\.\d+)/);
 
   if (!match) {

@@ -215,7 +215,7 @@ export function createMultiplayerSession({
           }
         }
         host.syncHostAudio(core.latestHostState?.track ?? null, true);
-        host.syncHostSourceFiles(core.latestHostState?.track ?? null);
+        host.syncHostSourceFiles();
       }
       if (freeplayPreferenceChanged) {
         for (const peer of core.hostPeers.values()) void host.syncPeerFreeplayMode(peer);

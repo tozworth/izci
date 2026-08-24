@@ -38,12 +38,9 @@ import {
   type MenuTranslation
 } from '$lib/services/menu-format';
 
-export type { DispatchedMenuActionId, MenuActionId } from './menu-actions';
-export type { MenuTranslation } from '$lib/services/menu-format';
+const PLAYBACK_SPEED_OPTIONS = [0.5, 0.75, 1, 1.25, 1.5, 2] as const;
 
-export const PLAYBACK_SPEED_OPTIONS = [0.5, 0.75, 1, 1.25, 1.5, 2] as const;
-
-export interface MenuItemsDeps {
+interface MenuItemsDeps {
   translate: MenuTranslation;
   multiplayerMode: MultiplayerMode;
   multiplayerFreeplayEnabled: boolean;
@@ -82,13 +79,7 @@ export interface MenuItemsDeps {
   rafPresets: RafPresetState;
 }
 
-export interface MenuItemsResult {
-  appMenuItems: MenuActionItem[];
-  fileMenuItems: MenuActionItem[];
-  viewMenuItems: MenuActionItem[];
-  videoMenuItems: MenuActionItem[];
-  playbackMenuItems: MenuActionItem[];
-  helpMenuItems: MenuActionItem[];
+interface MenuItemsResult {
   menuGroups: WindowMenuGroup[];
   menuSubtitle: string;
 }
@@ -111,12 +102,6 @@ export function buildMenuItems(deps: MenuItemsDeps): MenuItemsResult {
   const menuSubtitle = buildMenuSubtitle(deps);
 
   return {
-    appMenuItems,
-    fileMenuItems,
-    viewMenuItems,
-    videoMenuItems,
-    playbackMenuItems,
-    helpMenuItems,
     menuGroups,
     menuSubtitle
   };
@@ -439,7 +424,7 @@ function buildRafMenuItems(deps: MenuItemsDeps): MenuActionItem[] {
   ] satisfies MenuActionItem[];
 }
 
-export function buildBookmarksMenuItems(playingTrack: TrackItem | null, translate: MenuTranslation): MenuActionItem[] {
+function buildBookmarksMenuItems(playingTrack: TrackItem | null, translate: MenuTranslation): MenuActionItem[] {
   const bookmarks: PlaybackBookmark[] = playingTrack ? getPlaybackBookmarks(playingTrack) : [];
 
   return [
@@ -801,13 +786,3 @@ function buildMenuGroups(
     }
   ] satisfies WindowMenuGroup[];
 }
-
-export type {
-  MultiplayerAudioStatus,
-  MultiplayerConnectionStats,
-  MultiplayerConnectionStatus,
-  MultiplayerMode,
-  MultiplayerConnectionRoute,
-  MultiplayerRecent,
-  MultiplayerPairing
-};

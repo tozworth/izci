@@ -9,12 +9,11 @@ import {
   type ParsedStreamData,
   type VorbisComment
 } from './stream-meta-flac';
-export { readVorbisCommentsPacket } from './stream-meta-flac';
 
-export const FLAC_MARKER = 'fLaC';
-export const OPUS_TAGS_MARKER = 'OpusTags';
-export const VORBIS_PACKET_MARKER = 'vorbis';
-export const METADATA_BLOCK_PICTURE_KEY = 'METADATA_BLOCK_PICTURE';
+const FLAC_MARKER = 'fLaC';
+const OPUS_TAGS_MARKER = 'OpusTags';
+const VORBIS_PACKET_MARKER = 'vorbis';
+const METADATA_BLOCK_PICTURE_KEY = 'METADATA_BLOCK_PICTURE';
 
 export function extractStreamVorbisComments(bytes: Uint8Array, extension: string): VorbisComment[] {
   if (extension === 'flac') {
@@ -93,20 +92,7 @@ export function parseOpusData(bytes: Uint8Array): ParsedStreamData {
   return parseVorbisCommentsPacket(packet, 8);
 }
 
-export function parseOggVorbisData(bytes: Uint8Array): ParsedStreamData {
-  const packet = extractOggVorbisCommentPacket(bytes);
-
-  if (!packet) {
-    return {
-      metadata: {},
-      artwork: null
-    };
-  }
-
-  return parseVorbisCommentsPacket(packet, 7);
-}
-
-export function extractOggPacket(bytes: Uint8Array, targetPacketIndex: number): Uint8Array | null {
+function extractOggPacket(bytes: Uint8Array, targetPacketIndex: number): Uint8Array | null {
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
   let offset = 0;
   let activeStreamSerial: number | null = null;
@@ -181,11 +167,11 @@ export function extractOggPacket(bytes: Uint8Array, targetPacketIndex: number): 
   return null;
 }
 
-export function extractOpusTagPacket(bytes: Uint8Array): Uint8Array | null {
+function extractOpusTagPacket(bytes: Uint8Array): Uint8Array | null {
   return extractOggPacket(bytes, 1);
 }
 
-export function extractOggVorbisCommentPacket(bytes: Uint8Array): Uint8Array | null {
+function extractOggVorbisCommentPacket(bytes: Uint8Array): Uint8Array | null {
   const packet = extractOggPacket(bytes, 1);
 
   if (!packet || packet.byteLength < 7) {
@@ -285,7 +271,7 @@ async function readOggMetadataImpl(
   return metadata;
 }
 
-export async function findOggPacketRanges(
+async function findOggPacketRanges(
   file: File,
   targetPacketIndex: number,
   options: { readBytes(offset: number, length: number): Promise<Uint8Array>; scanLimitBytes: number }
@@ -344,7 +330,7 @@ export async function findOggPacketRanges(
   return null;
 }
 
-export async function readLastOggGranule(
+async function readLastOggGranule(
   file: File,
   streamSerial: number,
   options: { readBytes(offset: number, length: number): Promise<Uint8Array>; durationTailBytes: number }

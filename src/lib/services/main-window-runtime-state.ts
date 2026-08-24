@@ -16,14 +16,10 @@ import type { MultiplayerSessionState } from '$lib/services/multiplayer-types';
 import type { createMainWindowView } from '$lib/services/main-window-view';
 import { DEFAULT_PLAYER_VOLUME } from '$lib/stores/player-volume';
 import type {
-  ModulePatternSnapshot,
   PlaybackSnapshot,
   TrackItem,
   RepeatMode
 } from '$lib/types';
-import type {
-  VideoSeekFeedback
-} from '$lib/components/workspace/types';
 
 /** Component-owned reactive state read by the runtime through getters. */
 export interface MainWindowRuntimeState {
@@ -49,7 +45,6 @@ export interface MainWindowRuntimeState {
   videoTrackActive: boolean;
   videoTheaterActive: boolean;
   videoTheaterControlsHidden: boolean;
-  videoSeekFeedback: VideoSeekFeedback | null;
   isNowPlayingLayoutActive: boolean;
   isAutomaticNowPlayingEligible: boolean;
   autoNowPlayingSuppressed: boolean;
@@ -60,7 +55,6 @@ export interface MainWindowRuntimeState {
   miniPlayerState: MiniPlayerState;
   appInstallState: AppInstallState;
   multiplayerState: MultiplayerSessionState;
-  modulePatternSnapshot: ModulePatternSnapshot;
   renderBufferedRanges: Array<[number, number]> | null;
   renderPipelineBuffering: boolean;
   // Local store mirrors fed into the client-resolution resolvers.
@@ -90,7 +84,7 @@ export interface MainWindowRuntimeStores {
 }
 
 /** Push-subscription surface created around a mutable state object. */
-export interface MainWindowRuntimeSubscription<T> {
+interface MainWindowRuntimeSubscription<T> {
   subscribe(listener: (updates: Partial<T>) => void): () => void;
   getSnapshot(): T;
 }
@@ -136,7 +130,6 @@ export function createMainWindowRuntimeState(): {
     videoTrackActive: false,
     videoTheaterActive: false,
     videoTheaterControlsHidden: false,
-    videoSeekFeedback: null,
     isNowPlayingLayoutActive: false,
     isAutomaticNowPlayingEligible: false,
     autoNowPlayingSuppressed: false,
@@ -167,7 +160,6 @@ export function createMainWindowRuntimeState(): {
       isDetailsPanelVisible: false,
       isLyricsPanelVisible: false,
       isPatternsPanelVisible: false,
-      isVideoPanelVisible: false,
       isRightPanelVisible: false,
       isCompactWorkspace: false,
       isResizing: false,
@@ -232,13 +224,6 @@ export function createMainWindowRuntimeState(): {
       connectionStats: null,
       connectionDetail: null,
       message: null
-    },
-    modulePatternSnapshot: {
-      trackId: null,
-      song: null,
-      order: 0,
-      pattern: 0,
-      row: 0
     },
     renderBufferedRanges: null,
     renderPipelineBuffering: false,

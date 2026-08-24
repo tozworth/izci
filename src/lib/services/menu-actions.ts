@@ -21,7 +21,7 @@ import {
 import { get } from 'svelte/store';
 import { t } from 'svelte-i18n';
 
-export type DispatchedMenuActionId =
+type DispatchedMenuActionId =
   | 'openFiles'
   | 'openFolder'
   | 'installApp'
@@ -78,7 +78,7 @@ export type MenuActionId =
   | `multiplayerJoinRecent:${string}`
   | `applyLoadout:${string}`;
 
-export interface MenuActionsDeps {
+interface MenuActionsDeps {
   getPlayingTrack(): TrackItem | null;
   getPlaybackTime(): number;
   getMultiplayerReceiveAudio(): boolean;

@@ -11,6 +11,15 @@ import type {
   PeerConnection
 } from './multiplayer-types';
 import type { MultiplayerHostContext } from './multiplayer-host';
+import { sendFreeplayCatalog } from './multiplayer-host-freeplay';
+import {
+  broadcastShared,
+  buildCatalog,
+  buildPlayback,
+  syncHostArtwork,
+  syncHostAudio,
+  syncHostSourceFiles
+} from './multiplayer-host-sync';
 
 export function updateHostState(ctx: MultiplayerHostContext, next: MultiplayerHostState): void {
   const { core, pauseHostPlayback } = ctx;
@@ -61,26 +70,26 @@ export function updateHostState(ctx: MultiplayerHostContext, next: MultiplayerHo
     };
     for (const peer of core.hostPeers.values()) {
       if (!peer.freeplaySettled) continue;
-      if (peer.freeplay) ctx.sendFreeplayCatalog(peer);
-      else sendToPeer(peer, { kind: 'catalog', catalog: ctx.buildCatalog(effectiveNext) });
+      if (peer.freeplay) sendFreeplayCatalog(ctx, peer);
+      else sendToPeer(peer, { kind: 'catalog', catalog: buildCatalog(ctx, effectiveNext) });
     }
   }
 
   // Delivery is published first so ordered data channels never expose a
   // playback snapshot without its generation contract.
-  ctx.syncHostAudio(effectiveNext.track);
+  syncHostAudio(ctx, effectiveNext.track);
   if (core.lastPlaybackSource !== effectiveNext.playback || core.lastTrackSource !== effectiveNext.track) {
     core.lastPlaybackSource = effectiveNext.playback;
     core.lastTrackSource = effectiveNext.track;
-    ctx.broadcastShared({ kind: 'playback', playback: ctx.buildPlayback(effectiveNext) });
+    broadcastShared(ctx, { kind: 'playback', playback: buildPlayback(ctx, effectiveNext) });
   }
 
-  ctx.syncHostArtwork(effectiveNext.track);
-  ctx.syncHostSourceFiles(effectiveNext.track);
+  syncHostArtwork(ctx, effectiveNext.track);
+  syncHostSourceFiles(ctx);
   if (shouldGatePlayback) beginHostPlaybackPreparation(ctx, nextTrackId);
 }
 
-export function connectedHostPeers(ctx: MultiplayerHostContext): PeerConnection[] {
+function connectedHostPeers(ctx: MultiplayerHostContext): PeerConnection[] {
   return Array.from(ctx.core.hostPeers.values()).filter(
     (peer) => !peer.freeplay && peer.channel?.readyState === 'open'
   );
@@ -247,7 +256,7 @@ export function releasePreparedHostPlayback(ctx: MultiplayerHostContext, force =
   });
 }
 
-export function cancelScheduledClientStarts(
+function cancelScheduledClientStarts(
   ctx: MultiplayerHostContext,
   pending: NonNullable<MultiplayerSessionCore['hostPlaybackPreparation']>
 ): void {
@@ -262,7 +271,7 @@ export function cancelScheduledClientStarts(
   }
 }
 
-export function clearHostPlaybackPreparation(ctx: MultiplayerHostContext, notifyClients = false): void {
+function clearHostPlaybackPreparation(ctx: MultiplayerHostContext, notifyClients = false): void {
   const pending = ctx.core.hostPlaybackPreparation;
   if (pending && notifyClients && pending.releaseTimer !== null) {
     cancelScheduledClientStarts(ctx, pending);

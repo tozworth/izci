@@ -17,7 +17,7 @@ import { get, writable } from 'svelte/store';
 import type { TrackItem } from '$lib/types';
 import type { UpNextEntry } from '$lib/stores/up-next';
 
-export interface MainWindowViewState {
+interface MainWindowViewState {
   trackItems: TrackItem[];
   libraryItems: TrackItem[];
   favoriteItems: TrackItem[];
@@ -33,7 +33,7 @@ export interface MainWindowViewState {
   selectedFavoriteItem: TrackItem | null;
 }
 
-export interface MainWindowView {
+interface MainWindowView {
   set(partial: Partial<MainWindowViewState>): void;
   getSnapshot(): MainWindowViewState;
 }

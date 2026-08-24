@@ -103,7 +103,7 @@ describe('Troubadour batch cancellation', () => {
       controller.editItemField(item.id, 'title', 'Staged');
     }
 
-    const results = await controller.saveSelectedOrAll({ all: true });
+    const results = await controller.saveAndPublish({ all: true });
 
     expect(controller.getSnapshot().busy).toBe(false);
     expect(results.length).toBeLessThan(4);
@@ -121,7 +121,7 @@ describe('Troubadour batch cancellation', () => {
     await controller.ingestHandles([saved.handle]);
     const savedItem = controller.getSnapshot().items[0];
     controller.editItemField(savedItem.id, 'title', 'Saved title');
-    await controller.saveSelectedOrAll();
+    await controller.saveAndPublish();
 
     let releaseLoad!: () => void;
     const loadGate = new Promise<void>((resolve) => (releaseLoad = resolve));

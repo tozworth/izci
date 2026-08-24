@@ -29,6 +29,7 @@ import {
 import { multiplayerSourcePlaybackService } from './multiplayer-source-playback';
 import {
   EMPTY_CATALOG,
+  EMPTY_DELIVERY,
   EMPTY_REMOTE_PLAYBACK,
   type SignalAnswer,
   type SignalCandidates
@@ -40,8 +41,32 @@ import {
   sanitizeClientName
 } from './multiplayer-utils';
 import type { MultiplayerClientContext } from './multiplayer-client';
+import { attachClientChannel } from './multiplayer-client-channels';
+import {
+  attachClientMediaChannel,
+  attachClientRenderChannel
+} from './multiplayer-client-audio';
+import { updateLocalTimelineMode } from './multiplayer-client-freeplay';
+import {
+  clearReconnectTimer,
+  scheduleClientReconnect
+} from './multiplayer-client-lifecycle';
 
 const SIGNALING_TIMEOUT_MS = 8_000;
+
+async function withTimeout<T>(promise: Promise<T>, timeoutMs: number, message: string): Promise<T> {
+  let timer: number | null = null;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<T>((_resolve, reject) => {
+        timer = window.setTimeout(() => reject(new Error(message)), timeoutMs);
+      })
+    ]);
+  } finally {
+    if (timer !== null) window.clearTimeout(timer);
+  }
+}
 
 export async function join(
   ctx: MultiplayerClientContext,
@@ -72,7 +97,7 @@ export async function join(
   multiplayerSourcePlaybackService.setEnabled(core.state.receiveAudio);
   try {
     await ctx.connectClient(rawInviteCode, false, options.silent === true);
-    if (core.state.connectionStatus !== 'connected') ctx.scheduleClientReconnect(15_000);
+    if (core.state.connectionStatus !== 'connected') scheduleClientReconnect(ctx, 15_000);
   } catch (error) {
     logError('multiplayer', 'Join failed', error);
     if (!options.silent) await multiplayerSourcePlaybackService.endClientSession();
@@ -86,12 +111,12 @@ export async function joinPaired(ctx: MultiplayerClientContext, hostId: string):
   if (!/^[A-Za-z0-9_-]{1,128}$/.test(hostId)) {
     throw new Error('That paired multiplayer host is invalid.');
   }
-  const firebase = await ctx.withTimeout(
+  const firebase = await withTimeout(
     loadFirebase(),
     SIGNALING_TIMEOUT_MS,
     'Firebase sign-in timed out while finding the paired host.'
   );
-  const directory = (await ctx.withTimeout(
+  const directory = (await withTimeout(
     firebase.get(firebase.ref(firebase.database, `multiplayer/hosts/${hostId}/directory`)),
     SIGNALING_TIMEOUT_MS,
     'The paired-host directory lookup timed out.'
@@ -121,12 +146,12 @@ export async function resolveDirectoryRoomCode(
 ): Promise<string | null> {
   const { core } = ctx;
   try {
-    const firebase = core.firebaseRuntime ?? await ctx.withTimeout(
+    const firebase = core.firebaseRuntime ?? await withTimeout(
       loadFirebase(),
       SIGNALING_TIMEOUT_MS,
       'Firebase sign-in timed out while restoring the paired host.'
     );
-    const directory = (await ctx.withTimeout(
+    const directory = (await withTimeout(
       firebase.get(firebase.ref(firebase.database, `multiplayer/hosts/${hostId}/directory`)),
       SIGNALING_TIMEOUT_MS,
       'The paired-host directory lookup timed out.'
@@ -144,9 +169,9 @@ export async function restoreClientJoin(
   ctx: MultiplayerClientContext,
   last: MultiplayerLastSession
 ): Promise<void> {
-  const { core, publish } = ctx;
+  const { core } = ctx;
   core.clientHostId = last.hostId;
-  publish({
+  core.publish({
     mode: 'client',
     connectionStatus: 'connecting',
     reconnecting: true,
@@ -163,7 +188,7 @@ export async function restoreClientJoin(
     await join(ctx, target, { silent: true, preserveHostId: true });
   } catch {
     core.allowClientReconnect = true;
-    publish({
+    core.publish({
       mode: 'client',
       inviteCode: target,
       hostName: last.hostName,
@@ -171,7 +196,7 @@ export async function restoreClientJoin(
       reconnecting: true,
       message: 'Reconnecting to the host...'
     });
-    ctx.scheduleClientReconnect();
+    scheduleClientReconnect(ctx);
   }
 }
 
@@ -181,17 +206,17 @@ export async function connectClient(
   reconnecting: boolean,
   silent = false
 ): Promise<void> {
-  const { core, publish, transition } = ctx;
-  ctx.clearReconnectTimer();
+  const { core, transition } = ctx;
+  clearReconnectTimer(ctx);
   await core.resetSession(true);
   const inviteCode = normalizeInviteCode(rawInviteCode);
   if (!inviteCode) {
     const error = new Error('Enter a valid multiplayer invite code.');
-    publish({ connectionStatus: 'error', message: error.message });
+    core.publish({ connectionStatus: 'error', message: error.message });
     throw error;
   }
 
-  publish({
+  core.publish({
     mode: 'client',
     connectionStatus: 'connecting',
     reconnecting,
@@ -205,9 +230,7 @@ export async function connectClient(
     remotePlayback: reconnecting ? core.state.remotePlayback : EMPTY_REMOTE_PLAYBACK,
     remoteArtwork: reconnecting ? core.state.remoteArtwork : null,
     remoteArtworkResolvedTrackKey: reconnecting ? core.state.remoteArtworkResolvedTrackKey : '',
-    remoteDelivery: reconnecting ? core.state.remoteDelivery : {
-      generationId: 'idle', trackId: null, mode: 'none', reason: 'host-disabled'
-    },
+    remoteDelivery: reconnecting ? core.state.remoteDelivery : { ...EMPTY_DELIVERY },
     audioStatus: core.state.receiveAudio ? 'connecting' : 'refused',
     connectionRoute: null,
     averageAudioBitrateKbps: null,
@@ -215,7 +238,7 @@ export async function connectClient(
     connectionDetail: 'Signing in to multiplayer signaling...',
     message: null
   });
-  ctx.updateLocalTimelineMode();
+  updateLocalTimelineMode(ctx);
   logInfo(
     'multiplayer',
     reconnecting ? 'Reconnect attempt started' : 'Client connection started',
@@ -226,15 +249,15 @@ export async function connectClient(
   );
 
   try {
-    const firebase = await ctx.withTimeout(
+    const firebase = await withTimeout(
       loadFirebase(),
       SIGNALING_TIMEOUT_MS,
       'Firebase sign-in timed out.'
     );
     core.firebaseRuntime = firebase;
-    publish({ connectionDetail: 'Looking up the multiplayer session...' });
+    core.publish({ connectionDetail: 'Looking up the multiplayer session...' });
     const metaRef = firebase.ref(firebase.database, `multiplayer/rooms/${inviteCode}/meta`);
-    const meta = (await ctx.withTimeout(
+    const meta = (await withTimeout(
       firebase.get(metaRef),
       SIGNALING_TIMEOUT_MS,
       'The multiplayer room lookup timed out.'
@@ -246,15 +269,15 @@ export async function connectClient(
     if (!meta || meta.protocolVersion !== MULTIPLAYER_PROTOCOL_VERSION) {
       throw new Error('That multiplayer session is unavailable or incompatible.');
     }
-    publish({ hostName: sanitizeClientName(meta.hostName ?? 'Host') });
+    core.publish({ hostName: sanitizeClientName(meta.hostName ?? 'Host') });
     const turnSettings = meta.turnRelay
-      ? await ctx.withTimeout(
+      ? await withTimeout(
           requestTemporaryTurnCredentials(firebase, inviteCode),
           SIGNALING_TIMEOUT_MS,
           'TURN credential exchange timed out.'
         )
       : createDirectIceSettings();
-    publish({ connectionDetail: meta.turnRelay
+    core.publish({ connectionDetail: meta.turnRelay
       ? 'Preparing a peer connection with TURN fallback...'
       : 'Preparing a direct peer connection...' });
 
@@ -276,9 +299,9 @@ export async function connectClient(
     core.clientPeer = peer;
     transition.reset();
     transition.setReceiveAudio(core.state.receiveAudio);
-    ctx.attachClientChannel(peer);
-    ctx.attachClientMediaChannel(peer);
-    ctx.attachClientRenderChannel(peer);
+    attachClientChannel(ctx, peer);
+    attachClientMediaChannel(ctx, peer);
+    attachClientRenderChannel(ctx, peer);
 
     const nextPeerRef = firebase.ref(
       firebase.database,
@@ -293,7 +316,7 @@ export async function connectClient(
       `multiplayer/rooms/${inviteCode}/peers/${firebase.uid}/clientCandidates`
     );
     const disconnect = firebase.onDisconnect(clientSignalRef);
-    await ctx.withTimeout(
+    await withTimeout(
       disconnect.remove(),
       SIGNALING_TIMEOUT_MS,
       'Registering signaling cleanup timed out.'
@@ -307,7 +330,7 @@ export async function connectClient(
 
     const offer = enableOpusStereo(await peer.pc.createOffer());
     const offerCreatedAt = Date.now();
-    publish({ connectionDetail: 'Creating an ICE connection offer...' });
+    core.publish({ connectionDetail: 'Creating an ICE connection offer...' });
     const startCandidatePublishing = prepareCandidatePublisher(
       peer,
       `multiplayer/rooms/${inviteCode}/peers/${firebase.uid}/clientCandidates`,
@@ -315,7 +338,7 @@ export async function connectClient(
       () => {
         core.allowClientReconnect = false;
         clearPeerConnectionTimer(peer);
-        publish({
+        core.publish({
           connectionStatus: 'error',
           audioStatus: 'unavailable',
           message: 'Could not send ICE candidates. The deployed Firebase multiplayer rules may be out of date.'
@@ -323,8 +346,8 @@ export async function connectClient(
       }
     );
     await peer.pc.setLocalDescription(offer);
-    publish({ connectionDetail: 'Gathering and sending ICE candidates...' });
-    await ctx.withTimeout(
+    core.publish({ connectionDetail: 'Gathering and sending ICE candidates...' });
+    await withTimeout(
       firebase.set(clientSignalRef, {
         name: peer.name,
         platform: getClientPlatform(),
@@ -335,16 +358,16 @@ export async function connectClient(
       'Publishing the peer connection offer timed out.'
     );
     startCandidatePublishing();
-    publish({ connectionDetail: `Waiting for ${core.state.hostName ?? 'the host'} to answer...` });
+    core.publish({ connectionDetail: `Waiting for ${core.state.hostName ?? 'the host'} to answer...` });
     startPeerConnectionTimer(peer, () => {
       if (core.clientPeer !== peer || peer.pc.connectionState === 'connected') return;
-      publish({
+      core.publish({
         connectionStatus: 'disconnected',
         audioStatus: 'unavailable',
         connectionDetail: describeIceFailure(peer),
         message: describeIceFailure(peer)
       });
-      ctx.scheduleClientReconnect(2_000);
+      scheduleClientReconnect(ctx, 2_000);
     });
 
     let answerApplicationStarted = false;
@@ -366,7 +389,7 @@ export async function connectClient(
         if (answer?.error === 'host-full') {
           core.allowClientReconnect = false;
           clearPeerConnectionTimer(peer);
-          publish({
+          core.publish({
             connectionStatus: 'error',
             audioStatus: 'unavailable',
             connectionDetail: 'The host has reached its listener limit.',
@@ -383,12 +406,12 @@ export async function connectClient(
           peerId: peer.id,
           signalingState: peer.pc.signalingState
         });
-        publish({ connectionDetail: 'Checking direct ICE routes...' });
+        core.publish({ connectionDetail: 'Checking direct ICE routes...' });
         void peer.pc.setRemoteDescription(answer.description)
           .then(() => flushRemoteCandidates(peer))
           .catch((error) => {
             clearPeerConnectionTimer(peer);
-            publish({
+            core.publish({
               connectionStatus: 'error',
               audioStatus: 'unavailable',
               connectionDetail: 'The host answer was rejected by the browser.',
@@ -405,7 +428,7 @@ export async function connectClient(
     );
     await core.resetSession(true);
     if (reconnecting && core.allowClientReconnect) {
-      publish({
+      core.publish({
         mode: 'client',
         connectionStatus: 'disconnected',
         audioStatus: 'unavailable',
@@ -414,7 +437,7 @@ export async function connectClient(
       });
     } else if (!silent) {
       core.allowClientReconnect = false;
-      publish({
+      core.publish({
         mode: 'idle',
         connectionStatus: 'error',
         hostName: null,
@@ -426,7 +449,7 @@ export async function connectClient(
         message: errorMessage(error, 'Could not join that multiplayer session.')
       });
     } else {
-      publish({
+      core.publish({
         mode: 'client',
         connectionStatus: 'disconnected',
         reconnecting: true,

@@ -15,6 +15,8 @@
   import { createAlbumArtworkController } from '$lib/services/album-artwork';
   import { trackSettings } from '$lib/stores/track-settings';
   import { normalizeTrackRating } from '$lib/services/track-ratings';
+  import { prepareImportedFiles } from '$lib/services/file-verification';
+  import { extractDroppedContent } from '$lib/utils/files';
   import TrackListPanelHeader from '$lib/components/track-list-panel/TrackListPanelHeader.svelte';
   import LibraryPanelHeader from '$lib/components/track-list-panel/LibraryPanelHeader.svelte';
   import LibraryAlbumBackdrop from '$lib/components/track-list-panel/LibraryAlbumBackdrop.svelte';
@@ -51,7 +53,6 @@
     handleWindowPointerUp as endColumnDrag,
     toColumnListViewColumns
   } from '$lib/components/track-list-panel/columns';
-  import { handleDrop as handlePanelDrop } from '$lib/components/track-list-panel/dnd';
   import {
     focusTrackRow as focusTrackRowHelper,
     handleWindowKeydown as handlePanelWindowKeydown,
@@ -188,12 +189,17 @@
   }
 
   async function handleDrop(event: DragEvent) {
-    void handlePanelDrop(
-      event,
-      readOnly,
-      (handles) => dispatch('addFolders', handles),
-      (files) => dispatch('addFiles', files)
+    event.preventDefault();
+    if (readOnly || !event.dataTransfer) return;
+
+    const { files: discoveredFiles, directoryHandles } = await extractDroppedContent(
+      event.dataTransfer,
+      { maxDepth: trackSettings.getSnapshot().folderNestingLimit }
     );
+    if (directoryHandles.length > 0) dispatch('addFolders', directoryHandles);
+
+    const files = await prepareImportedFiles(discoveredFiles);
+    if (files.length > 0) dispatch('addFiles', files);
   }
 
   function closeContextMenu() {

@@ -16,12 +16,11 @@ import type {
 import type { FilesystemFolder } from '$lib/services/filesystem-folders';
 import type {
   LibraryViewId,
-  TrackItem,
   TrackSelection,
   WorkspaceCollection
 } from '$lib/types';
 
-export interface MainWindowPanelHandlerDeps {
+interface MainWindowPanelHandlerDeps {
   getIsMultiplayerClient(): boolean;
   getIsFreeplayClient(): boolean;
   workspaceCollections: {
@@ -65,18 +64,8 @@ export interface MainWindowPanelHandlerDeps {
   };
   playbackCommands: {
     activateQueueTrack(id: string): Promise<void>;
-    activateLibraryTrack(id: string): Promise<void>;
-    activateFavoriteTrack(track: TrackItem): Promise<void>;
   };
-  handleMenuOpenFiles(target: WorkspaceCollection): Promise<void>;
-  handleFreeplayQueueContextAction(actionId: string, ids: string[]): void;
-  handleFreeplayLibraryContextAction(actionId: string, ids: string[]): void;
   activateLibraryPanelTrack(id: string): Promise<void>;
-  handleSelect(
-    collection: WorkspaceCollection,
-    event: CustomEvent<{ id: string; range: boolean; toggle: boolean }>
-  ): void;
-  handleSetSelection(collection: WorkspaceCollection, event: CustomEvent<TrackSelection>): void;
   transport: {
     toggleQueueShuffle(): void;
     cycleQueueRepeat(): void;
@@ -101,10 +90,13 @@ export function createMainWindowPanelHandlers(deps: MainWindowPanelHandlerDeps):
       if (!deps.getIsMultiplayerClient()) void deps.filesystemFolders.rememberMany(handles);
     },
     openFiles: () => {
-      if (!deps.getIsMultiplayerClient()) void deps.handleMenuOpenFiles('queue');
+      if (!deps.getIsMultiplayerClient()) void deps.importController.openFiles('queue');
     },
-    select: (event) => deps.handleSelect('queue', event),
-    setSelection: (event) => deps.handleSetSelection('queue', event),
+    select: (event) => deps.workspaceShell.selectTrack('queue', event.detail.id, {
+      range: event.detail.range,
+      toggle: event.detail.toggle
+    }),
+    setSelection: (event) => deps.workspaceShell.setCollectionSelection('queue', event.detail),
     activate: (event) => {
       if (!deps.multiplayerController.activateTrack('queue', event.detail)) {
         void deps.playbackCommands.activateQueueTrack(event.detail);
@@ -112,7 +104,7 @@ export function createMainWindowPanelHandlers(deps: MainWindowPanelHandlerDeps):
     },
     contextAction: (event) => {
       if (deps.getIsFreeplayClient()) {
-        deps.handleFreeplayQueueContextAction(event.detail.actionId, event.detail.ids);
+        deps.freeplayActions.handleQueueContextAction(event.detail.actionId, event.detail.ids);
         return;
       }
       if (!deps.getIsMultiplayerClient()) {
@@ -131,7 +123,7 @@ export function createMainWindowPanelHandlers(deps: MainWindowPanelHandlerDeps):
       if (!deps.getIsMultiplayerClient()) void deps.filesystemFolders.rememberMany(handles);
     },
     openFiles: () => {
-      if (!deps.getIsMultiplayerClient()) void deps.handleMenuOpenFiles('library');
+      if (!deps.getIsMultiplayerClient()) void deps.importController.openFiles('library');
     },
     select: (event) => deps.windowSelection.handleLibraryPanelSelect(event),
     setSelection: (event) => deps.windowSelection.handleLibraryPanelSetSelection(event),
@@ -139,7 +131,7 @@ export function createMainWindowPanelHandlers(deps: MainWindowPanelHandlerDeps):
     libraryGroupRequestHandled: (event) => deps.workspaceShell.clearLibraryGroupRequest(event.detail),
     contextAction: (event) => {
       if (deps.getIsFreeplayClient()) {
-        deps.handleFreeplayLibraryContextAction(event.detail.actionId, event.detail.ids);
+        deps.freeplayActions.handleLibraryContextAction(event.detail.actionId, event.detail.ids);
         return;
       }
       if (deps.getIsMultiplayerClient()) return;

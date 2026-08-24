@@ -51,17 +51,16 @@ export function sendFreeplayQueueToPeer(ctx: MultiplayerClientContext): void {
 }
 
 export function setFreeplayQueue(ctx: MultiplayerClientContext, itemIds: string[]): void {
-  const { publish } = ctx;
-  publish({ freeplayQueue: sanitizeFreeplayQueueIds(itemIds) });
+  ctx.core.publish({ freeplayQueue: sanitizeFreeplayQueueIds(itemIds) });
   persistFreeplayState(ctx);
   sendFreeplayQueueToPeer(ctx);
 }
 
 export function restoreFreeplayStateForHost(ctx: MultiplayerClientContext, hostId: string): void {
-  const { core, publish } = ctx;
+  const { core } = ctx;
   const saved = multiplayerFreeplayState.getSnapshot();
   if (!saved || saved.hostId !== hostId) return;
-  publish({
+  core.publish({
     freeplayQueue: saved.queue,
     remoteCatalog: {
       ...core.state.remoteCatalog,

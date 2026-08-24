@@ -142,8 +142,6 @@
   let artworkInputMode: 'add' | 'replace' = 'add';
   let artworkUrl = '';
   let artworkUrlKey = '';
-  let lastContext: TroubadourBatchContext | null = null;
-  let pendingAlbumName = '';
   let forceNextContext = false;
   let collapsedAlbumIds = new Set<string>();
   let loudnessBusy = false;
@@ -331,7 +329,6 @@
   async function acceptContext(context: TroubadourBatchContext, force = false) {
     force ||= forceNextContext;
     forceNextContext = false;
-    lastContext = context;
     controller.setRememberedFolders(context.rememberedFolders);
     if (!rememberedFolderId) rememberedFolderId = context.rememberedFolders[0]?.id ?? '';
     if (!force && settings.initialLoad === 'nothing') return;
@@ -476,8 +473,7 @@
 
   function createAlbum(): void {
     const first = selectedItems.map(effectiveFields).find(Boolean);
-    pendingAlbumName = first?.album || $t('troubadour.workbench.newAlbum', { default: 'New album' });
-    controller.createAlbum(pendingAlbumName);
+    controller.createAlbum(first?.album || $t('troubadour.workbench.newAlbum', { default: 'New album' }));
   }
 
   function openContextMenu(event: MouseEvent, item: TroubadourWorkbenchItem): void {

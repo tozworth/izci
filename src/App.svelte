@@ -37,6 +37,8 @@
   import { windowManager } from '$lib/services/window-manager';
   import { windowControlsOverlayState } from '$lib/services/window-controls-overlay';
   import { windowDisplayState } from '$lib/services/window-display-state';
+  import { forceServiceWorkerUpdateCheck } from '$lib/services/pwa-updates';
+  import { localizePlaybackError } from '$lib/services/transport-actions';
   import { appearanceSettings } from '$lib/stores/appearance-settings';
   import { metadataSettings } from '$lib/stores/metadata-settings';
   import { libraryViewSettings } from '$lib/stores/library-view-settings';
@@ -47,14 +49,14 @@
   import { videoSettings } from '$lib/stores/video-settings';
   import type {
     LyricsDisplayStyle,
-    ModulePatternSnapshot,
     PlaybackSnapshot,
     TrackItem,
     TrackSelection,
     WorkspaceTab
   } from '$lib/types';
   import type {
-    UpNextPanelProps
+    UpNextPanelProps,
+    WorkspaceTabContentProps
   } from '$lib/components/workspace/types';
   import { upNext } from '$lib/stores/up-next';
   import { type OptionsViewName } from './options/views';
@@ -108,9 +110,7 @@
   let selectedFavoriteItem: TrackItem | null = null;
   let selectedItem: TrackItem | null = null;
   let livePlayingTrack: TrackItem | null = null;
-  let playerDisplayTrack: TrackItem | null = null;
   let favoriteTargetTrack: TrackItem | null = null;
-  let lyricsTrack: TrackItem | null = null;
   let detailsLibraryTargets: TrackLibraryNavigationTargets = {};
   let playingTrack: TrackItem | null = null;
 
@@ -148,13 +148,6 @@
   let isFreeplayClient = false;
   let isSourceFileFreeplayClient = false;
   let multiplayerShutdownRequested = false;
-  let modulePatternSnapshot: ModulePatternSnapshot = {
-    trackId: null,
-    song: null,
-    order: 0,
-    pattern: 0,
-    row: 0
-  };
   let patternAvailability: import('$lib/services/contextual-tab-presentation').ContextualTabAvailability = 'unavailable';
   let playbackProgressState: import('$lib/services/playback-progress').PlaybackProgressState = { notice: null };
   let miniPlayerState: import('$lib/services/mini-player').MiniPlayerState = {
@@ -190,7 +183,6 @@
   let effectiveLyricsDisplayStyle: LyricsDisplayStyle = 'timestamped';
   let lyricsAutoScroll = true;
   let lyricsFontSize = appearanceSettings.getSnapshot().lyrics.fontSizes.timestamped;
-  let lyricsResumeAutoScrollToken = 0;
   let lyricsPresentationState: import('$lib/services/lyrics-presentation').LyricsPresentationState = {
     availability: 'unknown',
     trackKey: '',
@@ -210,40 +202,34 @@
     remoteFavoriteSelection = selections.favorites;
   };
 
+  function openOptions(view?: OptionsViewName): void {
+    if (mobileMode) {
+      mobileOptionsView = view;
+      mobileOptionsOpen = true;
+      return;
+    }
+    windowManager.openOptions(view);
+  }
+
   const runtime = createMainWindowRuntime({
     mobileMode,
     getRemoteSelections,
     setRemoteSelections,
     setVideoSeekFeedback: (feedback) => (videoSeekFeedback = feedback),
-    setTheaterActive: (active) => (videoTheaterActive = active),
-    setTheaterControlsHidden: (hidden) => (videoTheaterControlsHidden = hidden),
-    setAutoNowPlayingSuppressed: (value) => (autoNowPlayingSuppressed = value),
     getSelectedItem: () => selectedItem,
-    openOptionsMobile: (view) => {
-      mobileOptionsView = view;
-      mobileOptionsOpen = true;
-    },
-    openOptionsWindow: (view) => windowManager.openOptions(view),
-    handleMenuOpenFiles: (target) => runtime.handles.importController.openFiles(target ?? workspaceShellState.activeCollection),
-    handleMenuOpenFolder: (target) => runtime.handles.importController.openFolder(target ?? workspaceShellState.activeCollection),
-    handleMenuInput: (event) => void runtime.handles.importController.handleFileInputChange(event),
-    activateLibraryPanelTrack: (id) => activateLibraryPanelTrack(id),
-    handleFreeplayQueueContextAction: (actionId, ids) => freeplayActions.handleQueueContextAction(actionId, ids),
-    handleFreeplayLibraryContextAction: (actionId, ids) => freeplayActions.handleLibraryContextAction(actionId, ids),
-    handleSelect: (collection, event) => workspaceShell.selectTrack(collection, event.detail.id, {
-      range: event.detail.range,
-      toggle: event.detail.toggle
-    }),
-    handleSetSelection: (collection, event) => workspaceShell.setCollectionSelection(collection, event.detail)
+    openOptions,
+    activateLibraryPanelTrack: (id) => activateLibraryPanelTrack(id)
   });
 
   const {
     handles: {
-      actions,
+      handleAppKeydown,
+      handlePopupWindowMessage,
+      togglePatterns,
+      showPlayerTrackDetails,
       appShortcuts,
       workspaceShell,
       workspaceCollections,
-      windowSelection,
       multiplayerController,
       multiplayerSession,
       freeplayActions,
@@ -251,13 +237,11 @@
       miniPlayer,
       playbackProgress,
       playbackCommands,
-      playbackRestoration,
       artworkPresentation,
       lyricsPresentation,
       patternTabPresentation,
       videoActions,
       importController,
-      troubadourBridge,
       playCountTracker,
       renderBufferedPoll,
       panelHandlers: runtimePanelHandlers
@@ -280,7 +264,7 @@
   let appInstallState: import('$lib/services/app-install').AppInstallState = runtimeSnapshot.appInstallState;
   let multiplayerState: MultiplayerSessionState = runtimeSnapshot.multiplayerState;
 
-  $: workspacePanelPresentationProps = {
+  $: workspaceContent = {
     snapshotStore: displayPlaybackSnapshotStore,
     playbackSnapshot,
     videoElement: playerController.videoElement,
@@ -289,25 +273,27 @@
     videoFitMode: $videoSettings.fitMode,
     videoPictureInPictureSupported,
     videoSeekFeedback,
-    inactive: videoTheaterActive,
-    workspaceState: workspaceShellState,
+    queuePanelProps: workspaceShellState.queuePanelProps,
     queuePanelHandlers: runtimePanelHandlers.queuePanelHandlers,
+    libraryPanelProps: workspaceShellState.libraryPanelProps,
     libraryPanelHandlers: runtimePanelHandlers.libraryPanelHandlers,
     upNextPanelProps,
     upNextPanelHandlers: runtimePanelHandlers.upNextPanelHandlers,
-    selectedTrackItem,
-    playerDisplayTrack,
-    lyricsTrack,
-    modulePatternSnapshot,
-    artworkState: artworkPresentationState,
+    selectedItem: artworkPresentationState.detailsDisplayTrack,
+    patternTrack: livePlayingTrack,
+    lyricsTrack: livePlayingTrack,
+    modulePatternSnapshot: $modulePatternStore,
+    detailsArtwork: artworkPresentationState.visibleDetailsArtwork,
     detailsLibraryTargets,
-    onNavigateTrackDetailsToLibrary: actions.navigateTrackDetailsToLibrary,
-    appearance: $appearanceSettings,
-    effectiveLyricsDisplayStyle,
+    navigateTrackDetailsToLibrary: (target) => workspaceShell.showLibraryGroup(target),
+    lyricsDisplayStyle: effectiveLyricsDisplayStyle,
     lyricsAutoScroll,
     lyricsFontSize,
-    lyricsResumeAutoScrollToken
-  };
+    lyricsResumeAutoScrollToken: lyricsPresentationState.resumeAutoScrollToken,
+    lyricsTheaterDowntimeDots: $appearanceSettings.lyrics.theaterDowntimeDots,
+    lyricsTheaterDowntimeThresholdSeconds: $appearanceSettings.lyrics.theaterDowntimeThresholdSeconds,
+    lyricsTheaterSmoothScroll: $appearanceSettings.lyrics.theaterSmoothScroll
+  } satisfies WorkspaceTabContentProps;
 
   $: multiplayerBarProps = {
     multiplayerEnabled: $experimentalSettings.multiplayer,
@@ -350,7 +336,6 @@
     if ('appInstallState' in updates) appInstallState = updates.appInstallState!;
     if ('artworkPresentationState' in updates) artworkPresentationState = updates.artworkPresentationState!;
     if ('lyricsPresentationState' in updates) lyricsPresentationState = updates.lyricsPresentationState!;
-    if ('modulePatternSnapshot' in updates) modulePatternSnapshot = updates.modulePatternSnapshot!;
     if ('renderBufferedRanges' in updates) renderBufferedRanges = updates.renderBufferedRanges!;
     if ('renderPipelineBuffering' in updates) renderPipelineBuffering = updates.renderPipelineBuffering!;
   });
@@ -488,19 +473,18 @@
       ? $libraryViewSettings.activeView === 'favorites' ? selectedFavoriteItem : selectedLibraryItem
       : selectedTrackItem;
   $: livePlayingTrack = resolveTrackSnapshot(playingTrack, selectedItem, queueItems, libraryItems);
-  $: playerDisplayTrack = livePlayingTrack;
-  $: miniPlayerTrack.set(playerDisplayTrack);
+  $: miniPlayerTrack.set(livePlayingTrack);
   $: miniPlayerSelectedTrack.set(selectedTrackItem);
   $: miniPlayerArtworkUrl.set(artworkPresentationState.displayedArtwork?.url ?? null);
   $: mediaSessionArtworkOverrideStore.set(isMultiplayerClient
-    ? toLoadedMultiplayerArtwork(playerDisplayTrack, multiplayerState.remoteArtwork)
+    ? toLoadedMultiplayerArtwork(livePlayingTrack, multiplayerState.remoteArtwork)
     : undefined);
-  $: videoTrackActive = !isMultiplayerClient && playerDisplayTrack?.kind === 'video';
+  $: videoTrackActive = !isMultiplayerClient && livePlayingTrack?.kind === 'video';
   $: runtime.publish({ videoTrackActive });
   $: videoPictureInPictureSupported =
     videoTrackActive && playerController.videoPictureInPictureSupported;
-  $: actions.syncVideoWindowSize(videoTrackActive, $videoSettings.autoResizeWindow);
-  $: actions.syncVideoPresentation(isMultiplayerClient ? null : playerDisplayTrack, $videoSettings.autoEnterTheater);
+  $: videoActions.syncWindowSize(videoTrackActive, $videoSettings.autoResizeWindow);
+  $: videoActions.syncPresentation(isMultiplayerClient ? null : livePlayingTrack, $videoSettings.autoEnterTheater);
   $: if (videoTrackActive && $windowDisplayState.fullscreen && !videoTheaterActive) {
     videoTheaterActive = true;
   }
@@ -517,14 +501,12 @@
     topMenuBarHeight,
     typeof document !== 'undefined' && Boolean(document.fullscreenElement)
   ));
-  $: favoriteTargetTrack = playerDisplayTrack?.kind === 'module' && playbackSnapshot.subsong !== undefined
-    ? { ...playerDisplayTrack, subsong: playbackSnapshot.subsong }
-    : playerDisplayTrack;
-  $: lyricsTrack = livePlayingTrack;
-  $: modulePatternSnapshot = $modulePatternStore;
+  $: favoriteTargetTrack = livePlayingTrack?.kind === 'module' && playbackSnapshot.subsong !== undefined
+    ? { ...livePlayingTrack, subsong: playbackSnapshot.subsong }
+    : livePlayingTrack;
   $: patternAvailability = resolvePatternTabAvailability(
     isMultiplayerClient ? null : playingTrack,
-    modulePatternSnapshot,
+    $modulePatternStore,
     playbackStatus.state
   );
   $: ({
@@ -545,7 +527,7 @@
     isAutomaticNowPlayingEligible,
     autoNowPlayingSuppressed,
     isNowPlayingViewportEligible,
-    playerDisplayTrack?.kind
+    livePlayingTrack?.kind
   );
   $: runtime.publish({
     isNowPlayingLayoutActive,
@@ -566,7 +548,7 @@
     lyricsPresentationState;
     workspaceShellState;
     lyricsPresentation.sync({
-      track: lyricsTrack,
+      track: livePlayingTrack,
       isNowPlayingLayoutActive,
       autoFocusInNowPlaying: $appearanceSettings.lyrics.autoFocusInNowPlaying,
       displayStyle: effectiveLyricsDisplayStyle,
@@ -578,7 +560,6 @@
     availability: patternAvailability,
     automation: $appearanceSettings.contextualTabs.patterns
   });
-  $: lyricsResumeAutoScrollToken = lyricsPresentationState.resumeAutoScrollToken;
   $: backdropPresentation = resolveAppBackdropPresentation({
     isNowPlayingLayoutActive,
     workspaceState: workspaceShellState,
@@ -643,7 +624,7 @@
     );
     void artworkPresentation.syncDetailsDisplay();
   }
-  $: void artworkPresentation.syncDisplayedArtwork(playerDisplayTrack);
+  $: void artworkPresentation.syncDisplayedArtwork(livePlayingTrack);
   $: detailsLibraryTargets = resolveTrackLibraryNavigationTargets(
     artworkPresentationState.detailsDisplayTrack,
     libraryItems
@@ -674,7 +655,7 @@
 
   async function activateLibraryPanelTrack(id: string) {
     if (isFreeplayClient) {
-      addToFreeplayQueue([id]);
+      freeplayActions.addToFreeplayQueue([id]);
       multiplayerController.activateTrack('queue', id);
       return;
     }
@@ -689,10 +670,6 @@
 
     const track = favoriteItems.find((item) => item.id === id);
     if (track) await playbackCommands.activateFavoriteTrack(track);
-  }
-
-  function addToFreeplayQueue(ids: string[]): void {
-    freeplayActions.addToFreeplayQueue(ids);
   }
 
   $: if (playbackStatus.state !== previousPlaybackState) {
@@ -713,10 +690,6 @@
   });
 
   $: runtime.handles.bindFileInput(fileInput);
-  $: runtime.handles.bindVideoParkingHost(videoParkingHost);
-  $: runtime.handles.bindTopMenuBarHeight(topMenuBarHeight);
-  $: runtime.handles.bindInnerWidth(innerWidth);
-  $: runtime.handles.bindInnerHeight(innerHeight);
 </script>
 
 <svelte:head>
@@ -727,11 +700,11 @@
   bind:innerWidth
   bind:innerHeight
   on:contextmenu={appShortcuts.handleContextMenu}
-  on:keydown={actions.handleAppKeydown}
+  on:keydown={handleAppKeydown}
   on:pointermove={(event) => workspaceShell.handlePanelResizeMove(event)}
   on:pointerup={() => workspaceShell.endPanelResize()}
   on:pointercancel={() => workspaceShell.endPanelResize()}
-  on:message={actions.handlePopupWindowMessage}
+  on:message={handlePopupWindowMessage}
 />
 
 <div
@@ -767,7 +740,7 @@
     type="file"
     multiple
     accept={FILE_INPUT_ACCEPT}
-    on:change={actions.handleMenuInput}
+    on:change={(event) => void importController.handleFileInputChange(event)}
   />
   <div bind:this={videoParkingHost} hidden aria-hidden="true"></div>
   {#if !mobileMode}
@@ -782,52 +755,56 @@
     {videoTheaterActive}
     installAvailable={appInstallState.available}
     showInstallHint={appInstallState.showHint}
-    playingTrack={playerDisplayTrack}
+    playingTrack={livePlayingTrack}
     playbackTime={playbackSnapshot.currentTime}
     {...multiplayerBarProps}
-    on:openFiles={() => void actions.handleMenuOpenFiles()}
-    on:openFolder={() => void actions.handleMenuOpenFolder()}
+    on:openFiles={() => void importController.openFiles(workspaceShellState.activeCollection)}
+    on:openFolder={() => void importController.openFolder(workspaceShellState.activeCollection)}
     on:installApp={() => void appInstallService.prompt()}
     on:acknowledgeInstallHint={() => appInstallService.acknowledgeHint()}
-    on:openOptions={(event) => actions.handleOpenOptions(event.detail?.view)}
-    on:forceUpdate={() => void actions.handleForceUpdate()}
-    on:openAbout={actions.handleOpenAbout}
+    on:openOptions={(event) => openOptions(event.detail?.view)}
+    on:forceUpdate={() => void forceServiceWorkerUpdateCheck()}
+    on:openAbout={() => openOptions('about')}
     on:openAudioCompare={() => windowManager.openPopup('audioCompare')}
     on:openEditor={() => windowManager.openPopup('editor')}
     on:openConverter={() => windowManager.openPopup('converter')}
     on:openLogs={() => windowManager.openPopup('logs')}
     on:openTroubadour={() => windowManager.openPopup('troubadour')}
-    on:showQueue={actions.showQueue}
-    on:showLibrary={actions.showLibrary}
-    on:showTrackDetails={actions.showTrackDetails}
-    on:showLyrics={actions.showTrackLyrics}
-    on:togglePatterns={actions.togglePatterns}
+    on:showQueue={() => workspaceShell.showWorkspaceTab('queue')}
+    on:showLibrary={() => workspaceShell.showWorkspaceTab('library')}
+    on:showTrackDetails={() => workspaceShell.showTrackDetails()}
+    on:showLyrics={() => workspaceShell.showTrackLyrics()}
+    on:togglePatterns={togglePatterns}
     on:toggleMiniPlayer={() => miniPlayer.toggle()}
-    on:toggleNowPlayingView={actions.toggleNowPlayingView}
-    on:multiplayerHost={() => void actions.handleMultiplayerHost()}
-    on:multiplayerHostWithCode={() => void actions.handleMultiplayerHost()}
+    on:toggleNowPlayingView={videoActions.toggleNowPlayingView}
+    on:multiplayerHost={() => void multiplayerController.host()}
+    on:multiplayerHostWithCode={() => void multiplayerController.host()}
     on:multiplayerStopHosting={() => void multiplayerSession.stopHosting()}
-    on:multiplayerJoin={() => void actions.handleMultiplayerJoin()}
-    on:multiplayerJoinRecent={(event) => void actions.joinMultiplayer(event.detail)}
-    on:multiplayerJoinPaired={(event) => void actions.joinPairedMultiplayer(event.detail)}
+    on:multiplayerJoin={() => void multiplayerController.joinWithPrompt()}
+    on:multiplayerJoinRecent={(event) => void multiplayerController.join(event.detail)}
+    on:multiplayerJoinPaired={(event) => void multiplayerController.joinPaired(event.detail)}
     on:multiplayerForgetPairing={(event) => forgetMultiplayerPairing(event.detail)}
     on:multiplayerLeave={() => void multiplayerSession.leave()}
-    on:multiplayerCopyInvite={() => void actions.copyMultiplayerInvite()}
+    on:multiplayerCopyInvite={() => void multiplayerController.copyInvite()}
     on:multiplayerResumeAudio={() => void multiplayerSession.resumeAudio()}
     on:multiplayerToggleAudio={(event) => multiplayerSession.setReceiveAudio(event.detail)}
     on:multiplayerKick={(event) => void multiplayerSession.kick(event.detail)}
     on:multiplayerTogglePair={(event) => void multiplayerSession.togglePairing(event.detail)}
-    on:setVideoFit={(event) => actions.setVideoFit(event.detail)}
-    on:toggleVideoPictureInPicture={() => void actions.toggleVideoPictureInPicture()}
-    on:toggleVideoTheater={actions.toggleVideoTheater}
-    on:seek={(event) => actions.seek(event.detail)}
+    on:setVideoFit={(event) => videoActions.setFit(event.detail)}
+    on:toggleVideoPictureInPicture={() => void videoActions.togglePictureInPicture()}
+    on:toggleVideoTheater={videoActions.toggleTheater}
+    on:seek={(event) => transport.seek(event.detail)}
     on:exit={() => windowManager.exit()}
   />
   {/if}
 
   {#if mobileMode}
   <MobileWorkspace
-    {...workspacePanelPresentationProps}
+    content={workspaceContent}
+    workspaceState={workspaceShellState}
+    {selectedTrackItem}
+    artworkState={artworkPresentationState}
+    appearance={$appearanceSettings}
     nowPlayingActive={isNowPlayingLayoutActive}
     zoneEffects={backdropPresentation.workspaceZoneEffects}
     zoneArtworkSettings={backdropPresentation.workspaceZoneArtworkSettings}
@@ -837,67 +814,71 @@
     videoAvailable={videoTrackActive}
     {...multiplayerBarProps}
     on:tabChange={(event) => workspaceShell.showWorkspaceTab(event.detail)}
-    on:toggleNowPlaying={actions.toggleNowPlayingView}
-    on:closeNowPlaying={actions.closeNowPlayingView}
-    on:openFiles={() => void actions.handleMenuOpenFiles()}
-    on:openFolder={() => void actions.handleMenuOpenFolder()}
-    on:manageFolders={() => actions.handleOpenOptions('folders')}
-    on:openOptions={() => actions.handleOpenOptions()}
-    on:openAbout={actions.handleOpenAbout}
+    on:toggleNowPlaying={videoActions.toggleNowPlayingView}
+    on:closeNowPlaying={videoActions.closeNowPlayingView}
+    on:openFiles={() => void importController.openFiles(workspaceShellState.activeCollection)}
+    on:openFolder={() => void importController.openFolder(workspaceShellState.activeCollection)}
+    on:manageFolders={() => openOptions('folders')}
+    on:openOptions={() => openOptions()}
+    on:openAbout={() => openOptions('about')}
     on:install={() => void appInstallService.prompt()}
-    on:multiplayerHost={() => void actions.handleMultiplayerHost()}
-    on:multiplayerHostWithCode={() => void actions.handleMultiplayerHost()}
+    on:multiplayerHost={() => void multiplayerController.host()}
+    on:multiplayerHostWithCode={() => void multiplayerController.host()}
     on:multiplayerStopHosting={() => void multiplayerSession.stopHosting()}
-    on:multiplayerJoin={() => void actions.handleMultiplayerJoin()}
-    on:multiplayerJoinRecent={(event) => void actions.joinMultiplayer(event.detail)}
-    on:multiplayerJoinPaired={(event) => void actions.joinPairedMultiplayer(event.detail)}
+    on:multiplayerJoin={() => void multiplayerController.joinWithPrompt()}
+    on:multiplayerJoinRecent={(event) => void multiplayerController.join(event.detail)}
+    on:multiplayerJoinPaired={(event) => void multiplayerController.joinPaired(event.detail)}
     on:multiplayerForgetPairing={(event) => forgetMultiplayerPairing(event.detail)}
     on:multiplayerLeave={() => void multiplayerSession.leave()}
-    on:multiplayerCopyInvite={() => void actions.copyMultiplayerInvite()}
+    on:multiplayerCopyInvite={() => void multiplayerController.copyInvite()}
     on:multiplayerResumeAudio={() => void multiplayerSession.resumeAudio()}
     on:multiplayerKick={(event) => void multiplayerSession.kick(event.detail)}
     on:multiplayerTogglePair={(event) => void multiplayerSession.togglePairing(event.detail)}
-    on:togglePatterns={actions.togglePatterns}
-    on:toggle={actions.togglePlayback}
-    on:previous={() => actions.stepTrack(-1)}
-    on:next={() => actions.stepTrack(1)}
+    on:togglePatterns={togglePatterns}
+    on:toggle={transport.togglePlayback}
+    on:previous={() => transport.stepTrack(-1)}
+    on:next={() => transport.stepTrack(1)}
     on:previousSubsong={() => playerController.stepSubsong(-1)}
     on:nextSubsong={() => playerController.stepSubsong(1)}
-    on:seek={(event) => actions.seek(event.detail)}
-    on:volume={(event) => actions.setVolume(event.detail)}
-    on:mute={actions.toggleMute}
-    on:showTrack={(event) => actions.handleShowPlayerTrackDetails(event.detail)}
-    on:toggleVideoTheater={actions.toggleVideoTheater}
-    on:togglePictureInPicture={() => void actions.toggleVideoPictureInPicture()}
-    on:setVideoFit={(event) => actions.setVideoFit(event.detail)}
+    on:seek={(event) => transport.seek(event.detail)}
+    on:volume={(event) => transport.setVolume(event.detail)}
+    on:mute={transport.toggleMute}
+    on:showTrack={(event) => showPlayerTrackDetails(event.detail)}
+    on:toggleVideoTheater={videoActions.toggleTheater}
+    on:togglePictureInPicture={() => void videoActions.togglePictureInPicture()}
+    on:setVideoFit={(event) => videoActions.setFit(event.detail)}
   />
   {:else}
   <AppWorkspace
-    {...workspacePanelPresentationProps}
+    content={workspaceContent}
+    workspaceState={workspaceShellState}
+    {selectedTrackItem}
+    artworkState={artworkPresentationState}
+    appearance={$appearanceSettings}
     {isNowPlayingLayoutActive}
     artworkBackgroundBrightByZone={backdropPresentation.artworkBackgroundBrightByZone}
     workspaceZoneArtworkBright={backdropPresentation.workspaceZoneArtworkBright}
     workspaceZoneEffects={backdropPresentation.workspaceZoneEffects}
     workspaceZoneArtworkSettings={backdropPresentation.workspaceZoneArtworkSettings}
-    onCloseNowPlaying={actions.closeNowPlayingView}
+    onCloseNowPlaying={videoActions.closeNowPlayingView}
     onChromeHiddenChange={(hidden) => (isNowPlayingChromeHidden = hidden)}
-    onTabChange={actions.handleNowPlayingTabChange}
+    onTabChange={workspaceShell.setActiveWorkspaceTab}
     onTabClose={(tab) => workspaceShell.closeWorkspaceTab(tab)}
     onTabbedTabMove={(detail) => workspaceShell.moveTabbedWorkspaceTab(detail)}
     onWideTabMove={(detail) => workspaceShell.moveWorkspaceTab(detail)}
     onResizeStart={(detail) => workspaceShell.handleWideWorkspaceResizeStart(detail)}
-    onTogglePlayback={actions.togglePlayback}
-    onPreviousTrack={() => actions.stepTrack(-1)}
-    onNextTrack={() => actions.stepTrack(1)}
+    onTogglePlayback={transport.togglePlayback}
+    onPreviousTrack={() => transport.stepTrack(-1)}
+    onNextTrack={() => transport.stepTrack(1)}
     onPreviousSubsong={() => playerController.stepSubsong(-1)}
     onNextSubsong={() => playerController.stepSubsong(1)}
-    onSeek={actions.seek}
-    onVolume={actions.setVolume}
-    onMute={actions.toggleMute}
-    onShowTrack={actions.handleShowPlayerTrackDetails}
-    onToggleVideoTheater={actions.toggleVideoTheater}
-    onToggleVideoPictureInPicture={() => void actions.toggleVideoPictureInPicture()}
-    onSetVideoFit={actions.setVideoFit}
+    onSeek={transport.seek}
+    onVolume={transport.setVolume}
+    onMute={transport.toggleMute}
+    onShowTrack={showPlayerTrackDetails}
+    onToggleVideoTheater={videoActions.toggleTheater}
+    onToggleVideoPictureInPicture={() => void videoActions.togglePictureInPicture()}
+    onSetVideoFit={videoActions.setFit}
   />
   {/if}
 
@@ -912,9 +893,9 @@
       pictureInPictureSupported={videoPictureInPictureSupported}
       seekFeedback={videoSeekFeedback}
       on:controlsHiddenChange={(event) => (videoTheaterControlsHidden = event.detail)}
-      on:toggleVideoTheater={actions.toggleVideoTheater}
-      on:togglePictureInPicture={() => void actions.toggleVideoPictureInPicture()}
-      on:setVideoFit={(event) => actions.setVideoFit(event.detail)}
+      on:toggleVideoTheater={videoActions.toggleTheater}
+      on:togglePictureInPicture={() => void videoActions.togglePictureInPicture()}
+      on:setVideoFit={(event) => videoActions.setFit(event.detail)}
       on:volumeStep={(event) => {
         if (!playbackSnapshot.muted) {
           playerController.setVolume(
@@ -925,7 +906,7 @@
     />
   {/if}
   {#if playbackStatus.error}
-    <aside class="error-banner">{actions.localizePlaybackError(playbackStatus.error)}</aside>
+    <aside class="error-banner">{localizePlaybackError(playbackStatus.error, translate)}</aside>
   {/if}
 
   {#if multiplayerToastMessage}
@@ -933,7 +914,7 @@
       title={$t('main.multiplayer.connectionFailed', { default: 'Multiplayer connection failed' })}
       message={multiplayerToastMessage}
       dismissLabel={$t('main.common.close', { default: 'Close' })}
-      on:dismiss={actions.dismissMultiplayerToast}
+      on:dismiss={multiplayerController.dismissToast}
     />
   {/if}
 
@@ -948,7 +929,7 @@
         ? $t('main.multiplayer.audio.start', { default: 'Start audio' })
         : null}
       markLabel={$t('main.multiplayer.markLabel', { default: 'izci multiplayer' })}
-      on:dismiss={actions.dismissMultiplayerConnectionDialog}
+      on:dismiss={multiplayerController.dismissConnectionDialog}
       on:action={() => void multiplayerSession.resumeAudio()}
     />
   {/if}
@@ -956,7 +937,7 @@
   {#if playbackProgressState.notice}
     <PlaybackResumeBanner
       currentTime={playbackProgressState.notice.currentTime}
-      on:startOver={actions.startOver}
+      on:startOver={transport.startOver}
       on:dismiss={playbackProgress.dismissNotice}
     />
   {/if}
@@ -965,7 +946,7 @@
     <PlayerControls
       presentation={videoTheaterActive ? 'theater' : 'bar'}
       snapshotStore={displayPlaybackSnapshotStore}
-      track={playerDisplayTrack}
+      track={livePlayingTrack}
       selectedTrack={selectedTrackItem}
       artwork={artworkPresentationState.displayedArtwork}
       backdropEffect={$appearanceSettings.backdropZones.player}
@@ -985,22 +966,22 @@
       showVideoTheaterToggle={videoTrackActive}
       {videoTheaterActive}
       videoFullscreenActive={videoFullscreenExitAction}
-      on:toggle={actions.togglePlayback}
-      on:previous={() => actions.stepTrack(-1)}
-      on:next={() => actions.stepTrack(1)}
+      on:toggle={transport.togglePlayback}
+      on:previous={() => transport.stepTrack(-1)}
+      on:next={() => transport.stepTrack(1)}
       on:previousSubsong={() => playerController.stepSubsong(-1)}
       on:nextSubsong={() => playerController.stepSubsong(1)}
-      on:seek={(event) => actions.seek(event.detail)}
-      on:volume={(event) => actions.setVolume(event.detail)}
-      on:mute={actions.toggleMute}
+      on:seek={(event) => transport.seek(event.detail)}
+      on:volume={(event) => transport.setVolume(event.detail)}
+      on:mute={transport.toggleMute}
       on:toggleFavorite={() => favoriteTargetTrack && workspaceCollections.toggleFavoriteTracks([favoriteTargetTrack])}
       on:rate={(event) => favoriteTargetTrack && workspaceCollections.rateTracks([favoriteTargetTrack], event.detail)}
       on:toggleRaf={() => rafSettings.setEnabled(!$rafSettings.enabled)}
       on:applyRafPreset={(event) => rafPresets.apply(event.detail)}
-      on:openRafOptions={() => actions.handleOpenOptions('raf')}
-      on:showTrack={(event) => actions.handleShowPlayerTrackDetails(event.detail)}
-      on:enterNowPlaying={actions.toggleNowPlayingView}
-      on:toggleVideoTheater={actions.toggleVideoTheater}
+      on:openRafOptions={() => openOptions('raf')}
+      on:showTrack={(event) => showPlayerTrackDetails(event.detail)}
+      on:enterNowPlaying={videoActions.toggleNowPlayingView}
+      on:toggleVideoTheater={videoActions.toggleTheater}
     />
   {/if}
 </div>

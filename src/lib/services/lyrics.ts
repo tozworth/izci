@@ -1,4 +1,4 @@
-import { extractStreamVorbisComments } from '$lib/services/stream-artwork';
+import { extractStreamVorbisComments } from '$lib/services/stream-meta-ogg';
 import type { TrackItem } from '$lib/types';
 
 export interface TimedLyricLine {
