@@ -5,6 +5,22 @@ import { flushPeerMedia } from './multiplayer-source-transfer';
 import { flushPeerRender, resetPeerRenderQueue, schedulePeerRender } from './multiplayer-render-transfer';
 import { multiplayerRenderCoordinator } from './multiplayer-render-coordinator';
 import {
+  handleFreeplayCommand,
+  handleFreeplayTrackEnded,
+  handlePeerRenderNeed,
+  playheadMsForPeer,
+  sendFreeplayCatalog,
+  sendFreeplayState,
+  syncPeerFreeplayMode,
+  syncPeerMediaSource
+} from './multiplayer-host-freeplay';
+import {
+  acceptClientClockSample,
+  acceptClientPlaybackReady,
+  acceptClientRenderReady,
+  removePeerFromHostPlaybackPreparation
+} from './multiplayer-host-playback-prep';
+import {
   getLocalName,
   parseFreeplayRestoredFlags,
   sanitizeClientName,
@@ -19,12 +35,12 @@ export function attachHostChannel(
   peer: PeerConnection,
   channel: RTCDataChannel
 ): void {
-  const { core, updateClient } = ctx;
+  const { core } = ctx;
   peer.channel = channel;
   channel.onopen = () => {
     if (core.hostPeers.get(peer.id) !== peer || peer.channel !== channel) return;
     clearPeerConnectionTimer(peer);
-    updateClient(peer.id, { status: 'connected' });
+    core.updateClient(peer.id, { status: 'connected' });
     sendToPeer(peer, {
       kind: 'hello',
       version: MULTIPLAYER_PROTOCOL_VERSION,
@@ -41,13 +57,13 @@ export function attachHostChannel(
       peer.name = sanitizeClientName(message.name);
       peer.clientFreeplayEnabled = message.freeplayEnabled;
       peer.helloReceived = true;
-      updateClient(peer.id, { name: peer.name, platform: sanitizePlatform(message.platform) });
-      void ctx.syncPeerFreeplayMode(peer);
+      core.updateClient(peer.id, { name: peer.name, platform: sanitizePlatform(message.platform) });
+      void syncPeerFreeplayMode(ctx, peer);
       return;
     }
     if (message.kind === 'freeplay.preference') {
       peer.clientFreeplayEnabled = message.enabled;
-      void ctx.syncPeerFreeplayMode(peer);
+      void syncPeerFreeplayMode(ctx, peer);
       return;
     }
     if (message.kind === 'freeplay.queue' && peer.freeplay) {
@@ -58,14 +74,14 @@ export function attachHostChannel(
       if (restored) {
         peer.freeplayShuffle = restored.shuffleEnabled;
         peer.freeplayRepeatMode = restored.repeatMode;
-        ctx.sendFreeplayState(peer);
+        sendFreeplayState(peer);
       }
-      ctx.sendFreeplayCatalog(peer);
+      sendFreeplayCatalog(ctx, peer);
       return;
     }
     if (message.kind === 'command' && isMultiplayerCommand(message.command)) {
       void Promise.resolve(peer.freeplay
-        ? ctx.handleFreeplayCommand(peer, message.command)
+        ? handleFreeplayCommand(ctx, peer, message.command)
         : ctx.handleHostCommand(message.command, peer))
         .then((accepted) => {
           if (core.hostPeers.get(peer.id) !== peer || peer.channel !== channel) return;
@@ -86,36 +102,36 @@ export function attachHostChannel(
         });
     }
     if (message.kind === 'playback.ready') {
-      ctx.acceptClientPlaybackReady(peer, message.generationId);
+      acceptClientPlaybackReady(ctx, peer, message.generationId);
     }
     if (message.kind === 'clock.pong') {
-      ctx.acceptClientClockSample(peer, message);
+      acceptClientClockSample(ctx, peer, message);
     }
     if (message.kind === 'playback.ended' && peer.freeplay) {
       const activeTrackId = peer.freeplayPlayer?.track?.id;
       if (activeTrackId === message.trackId
         && peer.freeplayDelivery?.generationId === message.generationId) {
-        void ctx.handleFreeplayTrackEnded(peer, message.trackId);
+        void handleFreeplayTrackEnded(ctx, peer, message.trackId);
       }
     }
     if (message.kind === 'source.retry') {
       const delivery = peer.freeplay ? peer.freeplayDelivery : core.latestDelivery;
       if (delivery?.mode === 'source-file' && delivery.generationId === message.generationId) {
         peer.sourceTrackKey = '';
-        ctx.syncPeerMediaSource(peer);
+        syncPeerMediaSource(ctx, peer);
       }
     }
     if (message.kind === 'render.need') {
-      ctx.handlePeerRenderNeed(peer, message.need);
+      handlePeerRenderNeed(ctx, peer, message.need);
     }
     if (message.kind === 'render.ready') {
-      ctx.acceptClientRenderReady(peer, message);
+      acceptClientRenderReady(ctx, peer, message);
     }
   };
   channel.onclose = () => {
     if (core.hostPeers.get(peer.id) !== peer || peer.channel !== channel) return;
-    updateClient(peer.id, { status: 'disconnected' });
-    ctx.removePeerFromHostPlaybackPreparation(peer.id);
+    core.updateClient(peer.id, { status: 'disconnected' });
+    removePeerFromHostPlaybackPreparation(ctx, peer.id);
   };
   sendToPeer(peer, {
     kind: 'hello',
@@ -135,7 +151,7 @@ export function attachHostMediaChannel(
   channel.bufferedAmountLowThreshold = 256 * 1024;
   channel.onopen = () => {
     if (ctx.core.hostPeers.get(peer.id) !== peer || peer.mediaChannel !== channel) return;
-    if (peer.freeplaySettled) ctx.syncPeerMediaSource(peer);
+    if (peer.freeplaySettled) syncPeerMediaSource(ctx, peer);
     else peer.mediaSyncPending = true;
   };
   channel.onbufferedamountlow = () => {
@@ -162,12 +178,12 @@ export function attachHostRenderChannel(
   channel.bufferedAmountLowThreshold = 128 * 1024;
   channel.onopen = () => {
     if (ctx.core.hostPeers.get(peer.id) !== peer || peer.renderChannel !== channel) return;
-    if (peer.freeplaySettled) ctx.syncPeerMediaSource(peer);
+    if (peer.freeplaySettled) syncPeerMediaSource(ctx, peer);
     else peer.mediaSyncPending = true;
     // A renderState created before this channel opened never got its batch
     // (schedulePeerRender skips a non-open channel and syncPeerMediaSource
     // early-returns for an existing generation). Flush it now.
-    if (peer.renderState) schedulePeerRender(peer, ctx.playheadMsForPeer(peer));
+    if (peer.renderState) schedulePeerRender(peer, playheadMsForPeer(ctx, peer));
   };
   channel.onbufferedamountlow = () => {
     if (ctx.core.hostPeers.get(peer.id) !== peer || peer.renderChannel !== channel) return;
@@ -175,7 +191,7 @@ export function attachHostRenderChannel(
     // renderQueuedBytes >= HIGH_WATER, so it can NOT be the drain trigger.
     // Flush the pending frames first, then re-plan for more clusters.
     flushPeerRender(peer);
-    schedulePeerRender(peer, ctx.playheadMsForPeer(peer));
+    schedulePeerRender(peer, playheadMsForPeer(ctx, peer));
   };
   channel.onclose = () => {
     const state = peer.renderState;

@@ -17,10 +17,9 @@ import {
   type TroubadourWriteTarget
 } from '$lib/services/troubadour-sync';
 import { isOptionsViewName, type OptionsViewName } from '../../options/views';
-import type { TrackLibraryNavigationTarget } from '$lib/services/library-navigation';
 import type { PlaybackSnapshot, TrackItem } from '$lib/types';
 
-export interface TroubadourMainWindowDeps {
+interface TroubadourMainWindowDeps {
   getPlayingTrack(): TrackItem | null;
   getQueueItems(): TrackItem[];
   getLibraryItems(): TrackItem[];
@@ -28,7 +27,6 @@ export interface TroubadourMainWindowDeps {
   getQueueSelectionIds(): string[];
   getLibrarySelectionIds(): string[];
   getFavoriteSelectionIds(): string[];
-  getPlaybackStatus(): Pick<PlaybackSnapshot, 'state'>;
   getPlaybackSnapshot(): PlaybackSnapshot;
   loadTrack(
     track: TrackItem,
@@ -36,7 +34,6 @@ export interface TroubadourMainWindowDeps {
   ): Promise<void>;
   refreshCurrentTrack(id: string, patch: ExternalTrackUpdate): void;
   getTroubadourWindow(): Window | null;
-  showLibraryGroup(target: TrackLibraryNavigationTarget): void;
   openOptions(view?: OptionsViewName): void;
 }
 
@@ -154,7 +151,7 @@ export function createTroubadourMainWindowBridge(deps: TroubadourMainWindowDeps)
       await detachTrackForMetadataWrite(
         track,
         {
-          autoPlay: deps.getPlaybackStatus().state === 'playing',
+          autoPlay: deps.getPlaybackSnapshot().state === 'playing',
           initialPosition: deps.getPlaybackSnapshot().currentTime
         },
         (detachedTrack, options) => deps.loadTrack(detachedTrack, options)

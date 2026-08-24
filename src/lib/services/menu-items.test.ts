@@ -10,16 +10,13 @@ const storage = vi.hoisted(() => {
 });
 
 import type { MenuActionItem } from '$lib/types';
-import {
-  buildMenuItems,
-  buildBookmarksMenuItems,
-  type MenuItemsDeps,
-  type MenuItemsResult
-} from './menu-items';
+import { buildMenuItems } from './menu-items';
 import type { MenuTranslation } from './menu-format';
 import type { MultiplayerConnectionStats, MultiplayerConnectionStatus, MultiplayerMode } from '$lib/services/multiplayer-types';
 
 const translate: MenuTranslation = (_id, options) => options?.default ?? String(_id);
+type MenuItemsDeps = Parameters<typeof buildMenuItems>[0];
+type MenuItemsResult = ReturnType<typeof buildMenuItems>;
 
 const baseDeps = (): MenuItemsDeps => ({
   translate,
@@ -68,6 +65,10 @@ function groupIds(result: MenuItemsResult): string[] {
   return result.menuGroups.map((group) => group.id);
 }
 
+function groupItems(result: MenuItemsResult, id: string): MenuActionItem[] {
+  return result.menuGroups.find((group) => group.id === id)?.items ?? [];
+}
+
 describe('menu-items builders', () => {
   beforeEach(() => {
     storage.values.clear();
@@ -75,7 +76,7 @@ describe('menu-items builders', () => {
 
   it('builds a file menu with open actions', () => {
     const result = buildMenuItems(baseDeps());
-    expect(ids(result.fileMenuItems)).toEqual(['openFiles', 'openFolder', 'manageFolders']);
+    expect(ids(groupItems(result, 'file'))).toEqual(['openFiles', 'openFolder', 'manageFolders']);
   });
 
   it('includes the video group only when a video is active', () => {
@@ -84,7 +85,7 @@ describe('menu-items builders', () => {
 
     const withVideo = buildMenuItems({ ...baseDeps(), videoActive: true });
     expect(groupIds(withVideo)).toContain('video');
-    expect(ids(withVideo.videoMenuItems)).toEqual(['videoFitContain', 'videoFitCover', 'toggleVideoTheater']);
+    expect(ids(groupItems(withVideo, 'video'))).toEqual(['videoFitContain', 'videoFitCover', 'toggleVideoTheater']);
   });
 
   it('swaps the file group for a session group in client mode', () => {
@@ -125,9 +126,10 @@ describe('menu-items builders', () => {
       playbackSettings: { playbackRate: 1.25, trueSpeed: true, stopAfterTrack: true } as MenuItemsDeps['playbackSettings'],
       abLoop: { active: true, start: 10, end: 20 }
     });
-    const speed = result.playbackMenuItems.find((item) => item.id === 'playbackSpeed')!;
+    const playbackItems = groupItems(result, 'playback');
+    const speed = playbackItems.find((item) => item.id === 'playbackSpeed')!;
     expect(speed.children?.find((item) => item.id === 'setPlaybackRate:1.25')?.checked).toBe(true);
-    const ab = result.playbackMenuItems.find((item) => item.id === 'abLoopClear')!;
+    const ab = playbackItems.find((item) => item.id === 'abLoopClear')!;
     expect(ab.checked).toBe(true);
   });
 
@@ -140,7 +142,9 @@ describe('menu-items builders', () => {
   });
 
   it('builds bookmark menu items with add fallback', () => {
-    const items = buildBookmarksMenuItems(null, translate);
+    const bookmarks = groupItems(buildMenuItems(baseDeps()), 'playback')
+      .find((item) => item.id === 'bookmarks')!;
+    const items = bookmarks.children ?? [];
     expect(ids(items)).toEqual(['bookmark:add']);
     expect(items[0].separatorBefore).toBe(false);
   });

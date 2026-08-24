@@ -1,62 +1,22 @@
 import type { TrackItem, TrackMetadata } from '$lib/types';
 
 import { toArrayBuffer } from './stream-meta-binary';
-import { readFlacMetadata } from './stream-meta-flac';
-import { readOggMetadata } from './stream-meta-ogg';
+import { parseFlacData, readFlacMetadata } from './stream-meta-flac';
+import { parseOpusData, readOggMetadata } from './stream-meta-ogg';
 import { readMp3Metadata } from './stream-meta-mp3';
-import { extractArtwork, buildMediaImage } from './stream-artwork-extract';
-
-export interface VorbisComment {
-  key: string;
-  value: string;
-}
 
 export interface LoadedStreamArtwork {
   url: string;
   mediaImage: MediaImage;
 }
 
-export interface EmbeddedStreamArtwork {
+interface EmbeddedStreamArtwork {
   blob: Blob;
   width?: number;
   height?: number;
 }
 
-export interface ParsedArtwork {
-  mimeType: string;
-  data: Uint8Array;
-  width?: number;
-  height?: number;
-  pictureType?: number;
-}
-
-export interface ParsedVorbisComments {
-  metadata: TrackMetadata;
-  artwork: ParsedArtwork | null;
-}
-
-export interface ParsedStreamData {
-  metadata: TrackMetadata;
-  artwork: ParsedArtwork | null;
-}
-
-export { readVorbisCommentsPacket, extractStreamVorbisComments } from './stream-meta-ogg';
-export { readFlacMetadata, parseFlacData, parsePictureBlock, parseVorbisCommentsPacket, trimTagValue, normalizeYearTagValue, applyVorbisComment } from './stream-meta-flac';
-export { readOggMetadata, extractOggPacket, extractOpusTagPacket, extractOggVorbisCommentPacket, parseOpusData, parseOggVorbisData, findOggPacketRanges, readLastOggGranule } from './stream-meta-ogg';
-export { readMp3Metadata, parseMp3Data, parseId3UserTextFrame, parseId3v2ReplayGain, findApeFooterOffset, parseApeReplayGain } from './stream-meta-mp3';
-export { extractArtwork } from './stream-artwork-extract';
-export { readUint24BE, readUint32BE, readSynchsafeUint32, decodeBase64, concatUint8Arrays, toArrayBuffer } from './stream-meta-binary';
-export {
-  normalizeReplayGainDb,
-  normalizeReplayGainPeak,
-  normalizeR128GainDb,
-  ensureReplayGain,
-  assignReplayGainValue,
-  applyReplayGainComment,
-  parseDecimalTagValue
-} from './stream-meta-replaygain';
-
-export interface ReadStreamMetadataOptions {
+interface ReadStreamMetadataOptions {
   maxHeadBytes: number;
   eagerHeadBytes: number;
   mp3TailBytes: number;
@@ -66,7 +26,7 @@ export interface ReadStreamMetadataOptions {
   vorbisTextCommentLimitBytes: number;
 }
 
-export async function readStreamMetadata(file: File, extension: string, options: ReadStreamMetadataOptions = DEFAULT_STREAM_METADATA_OPTIONS): Promise<TrackMetadata> {
+async function readStreamMetadata(file: File, extension: string, options: ReadStreamMetadataOptions = DEFAULT_STREAM_METADATA_OPTIONS): Promise<TrackMetadata> {
   if (extension === 'flac') return readFlacMetadata(file, flacOptions(file, options));
   if (extension === 'opus' || extension === 'ogg') return readOggMetadata(file, extension as 'opus' | 'ogg', oggOptions(file, options));
   if (extension === 'mp3') return readMp3Metadata(file, mp3Options(file, options));
@@ -158,7 +118,7 @@ async function readFileBytes(file: File, offset: number, length: number): Promis
   return bytes.subarray(offset, Math.min(bytes.byteLength, offset + length));
 }
 
-export function canLoadStreamMetadata(extension: string): boolean {
+function canLoadStreamMetadata(extension: string): boolean {
   return extension === 'flac' || extension === 'opus' || extension === 'ogg' || extension === 'mp3';
 }
 
@@ -213,7 +173,7 @@ export async function loadEmbeddedStreamArtwork(track: TrackItem | null): Promis
   }
 
   const bytes = new Uint8Array(await file.arrayBuffer());
-  const artwork = extractArtwork(bytes, track.extension);
+  const artwork = (track.extension === 'flac' ? parseFlacData(bytes) : parseOpusData(bytes)).artwork;
 
   if (!artwork || artwork.data.byteLength === 0) {
     return null;
@@ -237,7 +197,11 @@ export async function loadTrackArtwork(track: TrackItem | null): Promise<LoadedS
 
   return {
     url,
-    mediaImage: buildMediaImage(artwork, url)
+    mediaImage: {
+      src: url,
+      type: artwork.blob.type || undefined,
+      sizes: artwork.width && artwork.height ? `${artwork.width}x${artwork.height}` : undefined
+    }
   };
 }
 

@@ -87,7 +87,6 @@ export interface WorkspaceShellState {
   isDetailsPanelVisible: boolean;
   isLyricsPanelVisible: boolean;
   isPatternsPanelVisible: boolean;
-  isVideoPanelVisible: boolean;
   isRightPanelVisible: boolean;
   isCompactWorkspace: boolean;
   isResizing: boolean;
@@ -380,7 +379,6 @@ function createInitialState(
     isDetailsPanelVisible: isWorkspaceTabOpen(savedPanelState, 'details'),
     isLyricsPanelVisible: isWorkspaceTabOpen(savedPanelState, 'lyrics'),
     isPatternsPanelVisible: isWorkspaceTabOpen(savedPanelState, 'patterns'),
-    isVideoPanelVisible: isWorkspaceTabOpen(savedPanelState, 'video'),
     isRightPanelVisible: logicalVisiblePanels.includes('right'),
     isCompactWorkspace: responsivePanels.collapsedPanels.length > 0 && visibleWorkspacePanels.length === 1,
     isResizing: false,
@@ -534,7 +532,6 @@ export function createWorkspaceShellController({
       isDetailsPanelVisible: isWorkspaceTabOpen(savedPanelState, 'details'),
       isLyricsPanelVisible: isWorkspaceTabOpen(savedPanelState, 'lyrics'),
       isPatternsPanelVisible: isWorkspaceTabOpen(savedPanelState, 'patterns'),
-      isVideoPanelVisible: isWorkspaceTabOpen(savedPanelState, 'video'),
       isRightPanelVisible: logicalVisiblePanels.includes('right'),
       isCompactWorkspace:
         responsivePanels.collapsedPanels.length > 0 && visibleWorkspacePanels.length === 1,

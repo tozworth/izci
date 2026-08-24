@@ -73,7 +73,7 @@ export async function attachClientRemoteAudio(
   peer: PeerConnection,
   generationId: string
 ): Promise<void> {
-  const { core, publish, transition } = ctx;
+  const { core, transition } = ctx;
   if (core.clientPeer !== peer || !core.state.receiveAudio || core.latestDelivery.mode !== 'stream') return;
   const receiver = peer.pc.getReceivers().find(({ track }) => track.kind === 'audio');
   const track = receiver?.track;
@@ -86,7 +86,7 @@ export async function attachClientRemoteAudio(
       && core.state.receiveAudio
       && core.latestDelivery.mode === 'stream') {
       if (audioStatus === 'unavailable') transition.setReceiverPipelineReady(false);
-      publish({ audioStatus });
+      core.publish({ audioStatus });
     }
   });
   if (core.clientPeer !== peer || core.latestDelivery.generationId !== generationId) return;
@@ -98,7 +98,7 @@ export async function attachClientRemoteAudio(
 }
 
 export function attachClientMediaChannel(ctx: MultiplayerClientContext, peer: PeerConnection): void {
-  const { core, publish, transition } = ctx;
+  const { core, transition } = ctx;
   const channel = peer.mediaChannel;
   if (!channel) return;
   channel.binaryType = 'arraybuffer';
@@ -129,7 +129,7 @@ export function attachClientMediaChannel(ctx: MultiplayerClientContext, peer: Pe
         // Keep the current file audible until its replacement is completely received
         // and prepared. Stopping the only active media element here lets mobile
         // Chromium suspend a locked client before the remaining chunks can arrive.
-        if (core.state.receiveAudio) publish({ audioStatus: 'connecting', averageAudioBitrateKbps: null });
+        if (core.state.receiveAudio) core.publish({ audioStatus: 'connecting', averageAudioBitrateKbps: null });
         return;
       }
       if (!pending || pending.frame.transferId !== frame.transferId) return;
@@ -144,7 +144,7 @@ export function attachClientMediaChannel(ctx: MultiplayerClientContext, peer: Pe
       const complete = pending;
       pending = null;
       if (complete.received !== complete.frame.size) {
-        publish({ audioStatus: 'unavailable' });
+        core.publish({ audioStatus: 'unavailable' });
         requestSourceRetry(ctx, peer, complete.frame.generationId);
         return;
       }
@@ -183,7 +183,7 @@ export function attachClientMediaChannel(ctx: MultiplayerClientContext, peer: Pe
     if (pending.received + event.data.byteLength > pending.frame.size) {
       const generationId = pending.frame.generationId;
       pending = null;
-      publish({ audioStatus: 'unavailable' });
+      core.publish({ audioStatus: 'unavailable' });
       requestSourceRetry(ctx, peer, generationId);
       return;
     }
@@ -199,7 +199,7 @@ export function attachClientMediaChannel(ctx: MultiplayerClientContext, peer: Pe
         false
       );
       multiplayerSourcePlaybackService.clearLoadedFile();
-      publish({ audioStatus: 'unavailable' });
+      core.publish({ audioStatus: 'unavailable' });
     }
     if (core.clientPeer === peer
       && core.allowClientReconnect
@@ -232,7 +232,7 @@ export function attachClientRenderChannel(ctx: MultiplayerClientContext, peer: P
 }
 
 export function loadPendingClientSourceFile(ctx: MultiplayerClientContext, peer: PeerConnection): void {
-  const { core, publish, transition } = ctx;
+  const { core, transition } = ctx;
   const pending = core.pendingClientSourceFile;
   const remoteTrack = core.state.remotePlayback.track;
   if (!pending
@@ -251,7 +251,7 @@ export function loadPendingClientSourceFile(ctx: MultiplayerClientContext, peer:
       : false;
     if (core.clientPeer !== peer || core.state.remoteDelivery.generationId !== pending.generationId) return;
     transition.setSourceReady(pending.generationId, pending.trackId, loaded);
-    publish({
+    core.publish({
       audioStatus: !core.state.receiveAudio
         ? 'refused'
         : loaded
@@ -316,7 +316,7 @@ export function sendClientPlaybackReadyIfPossible(
   });
 }
 
-export function requestSourceRetry(
+function requestSourceRetry(
   ctx: MultiplayerClientContext,
   peer: PeerConnection,
   generationId: string
@@ -336,10 +336,10 @@ export async function updateClientConnectionRoute(
   ctx: MultiplayerClientContext,
   peer: PeerConnection
 ): Promise<void> {
-  const { core, publish } = ctx;
+  const { core } = ctx;
   try {
     const route = resolveMultiplayerConnectionRoute((await peer.pc.getStats()).values());
-    if (core.clientPeer === peer && route) publish({ connectionRoute: route });
+    if (core.clientPeer === peer && route) core.publish({ connectionRoute: route });
   } catch {
     // Connection stats are optional; the client remains usable without a route label.
   }
@@ -372,10 +372,10 @@ export function applyReceiverBuffer(ctx: MultiplayerClientContext, receiver: RTC
 }
 
 export function setReceiveAudio(ctx: MultiplayerClientContext, enabled: boolean): void {
-  const { core, publish, transition } = ctx;
+  const { core, transition } = ctx;
   if (core.state.receiveAudio === enabled) return;
   writeReceiveAudioPreference(enabled);
-  publish({ receiveAudio: enabled });
+  core.publish({ receiveAudio: enabled });
   transition.setReceiveAudio(enabled);
   if (core.state.mode !== 'client' || !core.clientPeer) return;
 
@@ -383,7 +383,7 @@ export function setReceiveAudio(ctx: MultiplayerClientContext, enabled: boolean)
   if (!enabled) sendClientPlaybackReadyIfPossible(ctx, core.clientPeer);
   if (core.latestDelivery.mode === 'source-file') {
     multiplayerAudioService.setRemoteAudible(false);
-    publish({
+    core.publish({
       audioStatus: enabled
         ? sourcePlaying ? 'playing' : multiplayerSourcePlaybackService.active ? 'ready' : 'connecting'
         : 'refused',
@@ -396,7 +396,7 @@ export function setReceiveAudio(ctx: MultiplayerClientContext, enabled: boolean)
     if (enabled) multiplayerRenderPlaybackService.updateWindowMs(
       core.hostAudioBufferMs ?? core.multiplayerSettings.multiplayerAudioBufferMs
     );
-    publish({
+    core.publish({
       audioStatus: enabled ? 'connecting' : 'refused',
       averageAudioBitrateKbps: null
     });
@@ -407,17 +407,17 @@ export function setReceiveAudio(ctx: MultiplayerClientContext, enabled: boolean)
   const receiver = core.clientPeer.pc.getReceivers().find(({ track }) => track.kind === 'audio');
   const track = receiver?.track;
   if (!track || track.readyState === 'ended') {
-    publish({ audioStatus: enabled ? 'unavailable' : 'refused', averageAudioBitrateKbps: null });
+    core.publish({ audioStatus: enabled ? 'unavailable' : 'refused', averageAudioBitrateKbps: null });
     return;
   }
   track.enabled = enabled;
   if (!enabled) {
     multiplayerAudioService.setRemoteAudible(false);
-    publish({ audioStatus: 'refused', averageAudioBitrateKbps: null });
+    core.publish({ audioStatus: 'refused', averageAudioBitrateKbps: null });
     return;
   }
   if (core.latestDelivery.mode !== 'stream') {
-    publish({ audioStatus: 'disabled' });
+    core.publish({ audioStatus: 'disabled' });
     return;
   }
   void multiplayerAudioService.warmRemoteAudio();

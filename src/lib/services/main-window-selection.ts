@@ -12,7 +12,7 @@ export interface RemoteSelectionSnapshot {
   favorites: TrackSelection;
 }
 
-export interface WindowSelectionDeps {
+interface WindowSelectionDeps {
   getIsMultiplayerClient(): boolean;
   getQueueItems(): TrackItem[];
   getLibraryItems(): TrackItem[];

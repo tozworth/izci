@@ -66,17 +66,3 @@ export function formatTotalDuration(seconds: number): string {
 
   return `${String(minutes).padStart(2, '0')}:${String(remainingSeconds).padStart(2, '0')}`;
 }
-
-export function getTrackSummary(
-  items: TrackItem[],
-  filteredItems: TrackItem[],
-  normalizedQuery: string
-): string {
-  const totalDuration = getTotalDuration(filteredItems);
-
-  if (normalizedQuery && filteredItems.length !== items.length) {
-    return `${filteredItems.length} of ${items.length} song${items.length === 1 ? '' : 's'} · ${formatTotalDuration(totalDuration)}`;
-  }
-
-  return `${filteredItems.length} song${filteredItems.length === 1 ? '' : 's'} · ${formatTotalDuration(totalDuration)}`;
-}

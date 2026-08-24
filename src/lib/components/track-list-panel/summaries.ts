@@ -3,9 +3,7 @@ import type { LibraryGroupViewId, RepeatMode, TrackItem } from '$lib/types';
 import type { LibraryGroup } from './library-views';
 import type { TranslationOptions } from '$lib/i18n';
 
-// Localized (i18n) panel summaries. The English-only variants of the track/group
-// summary strings live in search.ts and library-views.ts; these take the
-// translator so the panel stays reactive to locale changes.
+// Localized panel summaries that stay reactive to locale changes.
 
 type Translate = (id: string, options?: TranslationOptions) => string;
 
@@ -68,7 +66,7 @@ export function getLocalizedTrackSummary(
   });
 }
 
-export function getGroupCountSummary(
+function getGroupCountSummary(
   view: LibraryGroupViewId,
   visible: number,
   total: number,

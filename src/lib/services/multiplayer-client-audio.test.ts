@@ -3,8 +3,10 @@ import type { MultiplayerClientContext } from './multiplayer-client';
 import type { PeerConnection } from './multiplayer-types';
 
 const audio = vi.hoisted(() => ({ setRemoteAudible: vi.fn() }));
+const peerIo = vi.hoisted(() => ({ sendToPeer: vi.fn() }));
 
 vi.mock('./multiplayer-audio', () => ({ multiplayerAudioService: audio }));
+vi.mock('./multiplayer-peer', () => peerIo);
 vi.mock('./multiplayer-render-playback', () => ({
   multiplayerRenderPlaybackService: { ingest: vi.fn() }
 }));
@@ -24,13 +26,12 @@ describe('multiplayer source-file channel generations', () => {
     const core = {
       clientPeer: peer,
       pendingClientSourceFile: null,
-      state: { receiveAudio: true }
+      state: { receiveAudio: true },
+      publish: vi.fn()
     };
     const ctx = {
       core,
-      publish: vi.fn(),
-      transition: { isCurrent: vi.fn(() => false) },
-      requestSourceRetry: vi.fn()
+      transition: { isCurrent: vi.fn(() => false) }
     } as unknown as MultiplayerClientContext;
     attachClientMediaChannel(ctx, peer);
 
@@ -53,7 +54,7 @@ describe('multiplayer source-file channel generations', () => {
 
     expect(audio.setRemoteAudible).not.toHaveBeenCalled();
     expect(core.pendingClientSourceFile).toBeNull();
-    expect(ctx.publish).not.toHaveBeenCalled();
-    expect(ctx.requestSourceRetry).not.toHaveBeenCalled();
+    expect(core.publish).not.toHaveBeenCalled();
+    expect(peerIo.sendToPeer).not.toHaveBeenCalled();
   });
 });

@@ -16,7 +16,7 @@ import type { TranslationOptions } from '$lib/i18n';
 
 type Translate = (id: string, options?: TranslationOptions) => string;
 
-export function getColumnDropIndicator(
+function getColumnDropIndicator(
   columnsHeaderElement: HTMLElement | null,
   visibleColumns: LibraryPanelColumn[],
   clientX: number
@@ -139,7 +139,7 @@ export function handleColumnPointerDown(
   };
 }
 
-export type ColumnPointerMoveResult =
+type ColumnPointerMoveResult =
   | { type: 'none' }
   | { type: 'resize' }
   | { type: 'drag-start'; draggedColumnId: LibraryColumnId; dropIndicator: ColumnDropIndicator | null }

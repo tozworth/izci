@@ -2,11 +2,10 @@ import type { TrackMetadata } from '$lib/types';
 
 import { readSynchsafeUint32, readUint32BE } from './stream-meta-binary';
 import { applyReplayGainComment } from './stream-meta-replaygain';
-import type { ParsedStreamData } from './stream-meta-flac';
 
 const ID3_MARKER = 'ID3';
 
-export function parseId3UserTextFrame(frameData: Uint8Array, metadata: TrackMetadata): void {
+function parseId3UserTextFrame(frameData: Uint8Array, metadata: TrackMetadata): void {
   if (frameData.byteLength < 2) {
     return;
   }
@@ -24,7 +23,7 @@ export function parseId3UserTextFrame(frameData: Uint8Array, metadata: TrackMeta
   applyReplayGainComment(metadata, key, value);
 }
 
-export function parseId3v2ReplayGain(bytes: Uint8Array, metadata: TrackMetadata): void {
+function parseId3v2ReplayGain(bytes: Uint8Array, metadata: TrackMetadata): void {
   if (bytes.byteLength < 10 || new TextDecoder().decode(bytes.subarray(0, 3)) !== ID3_MARKER) {
     return;
   }
@@ -64,7 +63,7 @@ export function parseId3v2ReplayGain(bytes: Uint8Array, metadata: TrackMetadata)
   }
 }
 
-export function findApeFooterOffset(bytes: Uint8Array): number {
+function findApeFooterOffset(bytes: Uint8Array): number {
   const decoder = new TextDecoder();
   let footerOffset = bytes.byteLength - 32;
 
@@ -77,7 +76,7 @@ export function findApeFooterOffset(bytes: Uint8Array): number {
     : -1;
 }
 
-export function parseApeReplayGain(bytes: Uint8Array, metadata: TrackMetadata): void {
+function parseApeReplayGain(bytes: Uint8Array, metadata: TrackMetadata): void {
   const footerOffset = findApeFooterOffset(bytes);
 
   if (footerOffset < 0) {
@@ -124,16 +123,13 @@ export function parseApeReplayGain(bytes: Uint8Array, metadata: TrackMetadata): 
   }
 }
 
-export function parseMp3Data(bytes: Uint8Array): ParsedStreamData {
+function parseMp3Data(bytes: Uint8Array): TrackMetadata {
   const metadata: TrackMetadata = {};
 
   parseId3v2ReplayGain(bytes, metadata);
   parseApeReplayGain(bytes, metadata);
 
-  return {
-    metadata,
-    artwork: null
-  };
+  return metadata;
 }
 
 export function readMp3Metadata(
@@ -153,14 +149,14 @@ async function readMp3MetadataImpl(
 
   if (header.byteLength === 10 && new TextDecoder().decode(header.subarray(0, 3)) === ID3_MARKER) {
     headLength = Math.min(file.size, 10 + readSynchsafeUint32(new DataView(header.buffer), 6), options.maxHeadBytes);
-    headMetadata = parseMp3Data(await options.readBytes(0, headLength)).metadata;
+    headMetadata = parseMp3Data(await options.readBytes(0, headLength));
   }
 
   const tailLength = Math.min(file.size, options.tailBytes);
   if (tailLength === 0 || (tailLength === file.size && headLength === file.size)) return headMetadata;
 
   const tail = await options.readBytes(file.size - tailLength, tailLength);
-  return mergeTrackMetadata(headMetadata, parseMp3Data(tail).metadata);
+  return mergeTrackMetadata(headMetadata, parseMp3Data(tail));
 }
 
 function decodeTextBytes(bytes: Uint8Array, encoding: number): string {

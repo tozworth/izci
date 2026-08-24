@@ -1,4 +1,4 @@
-import { writable, type Readable } from 'svelte/store';
+import { writable } from 'svelte/store';
 import { isSameArtworkFile } from '$lib/services/media-metadata/artwork';
 import { applyMetadataPatch } from '$lib/services/media-metadata/merge';
 import { getMetadataCapabilities } from '$lib/services/media-metadata/format';
@@ -11,22 +11,14 @@ import type {
   MetadataPatch
 } from '$lib/services/media-metadata/types';
 import type {
-  TroubadourBatchItemResult,
   TroubadourBatchTrack,
   TroubadourRememberedFolder,
   TroubadourTrackReference
 } from '$lib/services/troubadour-sync';
-import type { TroubadourSettings } from '$lib/stores/troubadour-settings';
 import { discoverDirectoryFiles, inferExtension, inferKind } from '$lib/utils/files';
 import { autoGroupTracks, renumberAlbumTracks } from './grouping';
 import { createHistory, pushHistory, undoHistory, redoHistory, type HistoryState } from './history';
 import { cloneStaged, itemDirty } from './troubadour-staged';
-import type {
-  RenameJobResult,
-  RenamePreviewRow,
-  RenameVerification
-} from './rename-job';
-import type { FilenameRules } from './rename-template';
 import {
   createTroubadourLoadingPipeline,
   LOAD_COMMIT_BATCH_SIZE,
@@ -154,87 +146,7 @@ export function selectedFieldValue(
 
 export function createTroubadourController(
   saveItem: SaveWorkbenchItemHandler = defaultSaveHandler()
-): Readable<TroubadourWorkbenchState> & {
-  getSnapshot(): TroubadourWorkbenchState;
-  setRememberedFolders(folders: TroubadourRememberedFolder[]): void;
-  ingestBatchTracks(
-    tracks: TroubadourBatchTrack[],
-    concurrency?: number,
-    autoGroupFallback?: TroubadourAutoGroupFallback
-  ): Promise<void>;
-  ingestHandles(
-    handles: FileSystemFileHandle[],
-    concurrency?: number,
-    autoGroupFallback?: TroubadourAutoGroupFallback
-  ): Promise<void>;
-  ingestDirectory(
-    handle: FileSystemDirectoryHandle,
-    maxDepth?: number,
-    concurrency?: number,
-    autoGroupFallback?: TroubadourAutoGroupFallback
-  ): Promise<void>;
-  ingestDropped(
-    dataTransfer: DataTransfer,
-    maxDepth?: number,
-    concurrency?: number,
-    autoGroupFallback?: TroubadourAutoGroupFallback
-  ): Promise<void>;
-  select(id: string, options?: { additive?: boolean; range?: boolean }): void;
-  selectAlbum(id: string): void;
-  selectAll(): void;
-  clearSelection(): void;
-  removeSelected(): void;
-  editField(field: MediaMetadataFieldName, value: string | null): void;
-  editItemField(id: string, field: MediaMetadataFieldName, value: string | null): void;
-  resetField(field: MediaMetadataFieldName): void;
-  addArtwork(artwork: MediaArtworkInput, behavior?: 'preserve' | 'replace-kind' | 'reject'): void;
-  replaceArtwork(artworkId: string, artwork: MediaArtworkInput): void;
-  removeArtwork(artworkId: string): void;
-  clearArtwork(): void;
-  applyArtworkToAlbum(
-    albumId: string,
-    artwork: MediaArtworkInput,
-    behavior?: 'preserve' | 'replace-kind' | 'reject'
-  ): void;
-  undo(): void;
-  redo(): void;
-  createAlbum(title?: string): string | null;
-  autoGroup(fallback?: 'folder' | 'none'): void;
-  dissolveAlbum(id: string): void;
-  assignItemsToAlbum(itemIds: string[], id: string): void;
-  assignSelectionToAlbum(id: string): void;
-  reorderAlbum(id: string, itemIds: string[]): void;
-  renumberAlbum(id: string, start?: number, padTo?: number): void;
-  reloadSelected(): Promise<void>;
-  cancelActiveJob(): boolean;
-  saveSelectedOrAll(options?: {
-    all?: boolean;
-    requestPermission?: boolean;
-    verify?: boolean;
-    settings?: TroubadourSettings;
-  }): Promise<TroubadourBatchItemResult[]>;
-  buildRenamePreview(template: string, rules?: FilenameRules): Promise<RenamePreviewRow[]>;
-  applyRenames(
-    rows: RenamePreviewRow[],
-    options?: { signal?: AbortSignal; verification?: RenameVerification }
-  ): Promise<{ jobs: RenameJobResult[]; results: TroubadourBatchItemResult[] }>;
-  saveAndPublish(options?: {
-    all?: boolean;
-    requestPermission?: boolean;
-    verify?: boolean;
-    settings?: TroubadourSettings;
-  }): Promise<TroubadourBatchItemResult[]>;
-  previewRenames(template: string, settings: TroubadourSettings): Promise<RenamePreviewRow[]>;
-  applyRenamesAndPublish(
-    rows: RenamePreviewRow[],
-    options?: {
-      saveFirst?: boolean;
-      verification?: RenameVerification;
-      refreshPreview?: () => Promise<RenamePreviewRow[]>;
-      settings?: TroubadourSettings;
-    }
-  ): Promise<void>;
-} {
+) {
   const store = writable<TroubadourWorkbenchState>(EMPTY_STATE);
   let state = EMPTY_STATE;
   let history: HistoryState<StagedWorkbenchState> = createHistory({ items: [], albums: [] });
@@ -668,12 +580,6 @@ export function createTroubadourController(
     assignSelectionToAlbum(id: string) {
       assignItemsToAlbum(state.selectedIds, id);
     },
-    reorderAlbum(id: string, itemIds: string[]) {
-      const album = state.albums.find((candidate) => candidate.id === id);
-      if (!album || itemIds.length !== album.itemIds.length || new Set(itemIds).size !== itemIds.length
-        || itemIds.some((itemId) => !album.itemIds.includes(itemId))) return;
-      setStaged({ items: state.items, albums: state.albums.map((candidate) => candidate.id === id ? { ...candidate, itemIds } : candidate) });
-    },
     renumberAlbum(id: string, start = 1, padTo = 0) {
       const album = state.albums.find((candidate) => candidate.id === id);
       if (!album) return;
@@ -710,12 +616,16 @@ export function createTroubadourController(
       setState({ message: `${targets.length} unchanged file${targets.length === 1 ? '' : 's'} reloaded.` });
     },
     cancelActiveJob: cancelActiveJob,
-    saveSelectedOrAll: (options) => savePipeline.saveSelectedOrAll(options),
-    buildRenamePreview: (template, rules) => renamePipeline.buildRenamePreview(template, rules),
-    applyRenames: (rows, options) => renamePipeline.applyRenames(rows, options),
-    saveAndPublish: (options) => savePipeline.saveAndPublish(options),
-    previewRenames: (template, settings) => renamePipeline.previewRenames(template, settings),
-    applyRenamesAndPublish: (rows, options) => renamePipeline.applyRenamesAndPublish(rows, options)
-  } satisfies ReturnType<typeof createTroubadourController>;
+    saveAndPublish: (options?: Parameters<typeof savePipeline.saveAndPublish>[0]) =>
+      savePipeline.saveAndPublish(options),
+    previewRenames: (
+      template: Parameters<typeof renamePipeline.previewRenames>[0],
+      settings: Parameters<typeof renamePipeline.previewRenames>[1]
+    ) => renamePipeline.previewRenames(template, settings),
+    applyRenamesAndPublish: (
+      rows: Parameters<typeof renamePipeline.applyRenamesAndPublish>[0],
+      options?: Parameters<typeof renamePipeline.applyRenamesAndPublish>[1]
+    ) => renamePipeline.applyRenamesAndPublish(rows, options)
+  };
   return api;
 }

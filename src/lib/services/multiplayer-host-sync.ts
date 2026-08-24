@@ -17,6 +17,12 @@ import {
   type PeerConnection
 } from './multiplayer-types';
 import type { MultiplayerHostContext } from './multiplayer-host';
+import {
+  ensureFreeplayDelivery,
+  sendFreeplayCatalog,
+  sendFreeplayState,
+  syncPeerMediaSource
+} from './multiplayer-host-freeplay';
 
 export function primeHostState(ctx: MultiplayerHostContext): void {
   const { core } = ctx;
@@ -33,17 +39,17 @@ export function primeHostState(ctx: MultiplayerHostContext): void {
   core.lastTrackSource = core.latestHostState.track;
   syncHostArtwork(ctx, core.latestHostState.track);
   syncHostAudio(ctx, core.latestHostState.track);
-  syncHostSourceFiles(ctx, core.latestHostState.track);
+  syncHostSourceFiles(ctx);
 }
 
 export function sendCurrentState(ctx: MultiplayerHostContext, peer: PeerConnection): void {
   const { core } = ctx;
   if (!core.latestHostState) return;
   if (peer.freeplay) {
-    ctx.sendFreeplayCatalog(peer);
-    ctx.sendFreeplayState(peer);
+    sendFreeplayCatalog(ctx, peer);
+    sendFreeplayState(peer);
     const player = peer.freeplayPlayer;
-    const delivery = peer.freeplayDelivery ?? ctx.ensureFreeplayDelivery(
+    const delivery = peer.freeplayDelivery ?? ensureFreeplayDelivery(
       peer,
       player?.delivery ?? 'none'
     );
@@ -68,7 +74,7 @@ export function sendCurrentState(ctx: MultiplayerHostContext, peer: PeerConnecti
         preparation: peer.freeplayPendingPreparation
       });
     }
-    ctx.syncPeerMediaSource(peer);
+    syncPeerMediaSource(ctx, peer);
     return;
   }
   sendToPeer(peer, { kind: 'catalog', catalog: buildCatalog(ctx, core.latestHostState) });
@@ -87,7 +93,7 @@ export function sendCurrentState(ctx: MultiplayerHostContext, peer: PeerConnecti
     });
     ctx.sendClockPing(peer, core.hostPlaybackPreparation.preparation.generationId);
   }
-  ctx.syncPeerMediaSource(peer);
+  syncPeerMediaSource(ctx, peer);
 }
 
 export function syncHostAudio(ctx: MultiplayerHostContext, track: TrackItem | null, force = false): void {
@@ -120,18 +126,15 @@ export function syncHostAudio(ctx: MultiplayerHostContext, track: TrackItem | nu
     : core.latestDelivery;
   multiplayerAudioService.setHostAudible(enabled);
 
-  if (enabled) {
-    const hostTrack = multiplayerAudioService.getHostTrack();
-    for (const peer of core.hostPeers.values()) {
-      if (!peer.freeplaySettled || peer.freeplay) continue;
+  const hostTrack = enabled ? multiplayerAudioService.getHostTrack() : null;
+  for (const peer of core.hostPeers.values()) {
+    if (!peer.freeplaySettled || peer.freeplay) continue;
+    if (enabled) {
       if (peer.audioSender?.track !== hostTrack) {
         void peer.audioSender?.replaceTrack(hostTrack).catch(() => undefined);
       }
       void applyAudioBitrate(peer, core.multiplayerSettings.multiplayerOpusBitrateKbps);
-    }
-  } else {
-    for (const peer of core.hostPeers.values()) {
-      if (!peer.freeplaySettled || peer.freeplay) continue;
+    } else {
       if (peer.audioSender?.track) void peer.audioSender.replaceTrack(null).catch(() => undefined);
     }
   }
@@ -142,22 +145,9 @@ export function syncHostAudio(ctx: MultiplayerHostContext, track: TrackItem | nu
   }
 }
 
-export function syncHostSourceFiles(ctx: MultiplayerHostContext, track: TrackItem | null): void {
-  const { core } = ctx;
-  for (const peer of core.hostPeers.values()) {
-    if (peer.freeplaySettled && !peer.freeplay) {
-      const mode = core.latestDelivery.mode;
-      ctx.syncPeerSourceFile(
-        peer,
-        mode === 'source-file' ? track : null,
-        mode === 'source-file' ? core.latestDelivery.generationId : null
-      );
-      if (mode === 'render') {
-        ctx.syncPeerRenderSource(peer, track, core.latestDelivery.generationId);
-      } else {
-        ctx.syncPeerRenderSource(peer, null, null);
-      }
-    }
+export function syncHostSourceFiles(ctx: MultiplayerHostContext): void {
+  for (const peer of ctx.core.hostPeers.values()) {
+    if (peer.freeplaySettled && !peer.freeplay) syncPeerMediaSource(ctx, peer);
   }
 }
 

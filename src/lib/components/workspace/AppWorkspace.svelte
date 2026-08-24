@@ -1,19 +1,11 @@
 <script lang="ts">
-  import type { Readable } from 'svelte/store';
   import type { ArtworkPresentationState } from '$lib/services/artwork-presentation';
-  import type {
-    TrackLibraryNavigationTarget,
-    TrackLibraryNavigationTargets
-  } from '$lib/services/library-navigation';
   import { WORKSPACE_RESIZER_WIDTH } from '$lib/services/workspace-layout';
   import type { WorkspaceShellState } from '$lib/services/workspace-shell';
   import type {
     AppearanceSettings,
     BackdropZoneArtworkSettingsMap,
     BackdropZoneEffect,
-    LyricsDisplayStyle,
-    ModulePatternSnapshot,
-    PlaybackSnapshot,
     TrackItem,
     VideoFitMode,
     WorkspacePanelId,
@@ -23,70 +15,19 @@
   import WideWorkspace from './WideWorkspace.svelte';
   import type {
     WideWorkspaceResizeStartDetail,
-    VideoSeekFeedback,
-    UpNextPanelHandlers,
-    UpNextPanelProps,
-    WorkspacePanelHandlers,
+    WorkspaceTabContentProps,
     WorkspaceTabMoveDetail
   } from './types';
-
-  $: workspaceContent = {
-    snapshotStore,
-    playbackSnapshot,
-    queuePanelProps: workspaceState.queuePanelProps,
-    queuePanelHandlers,
-    libraryPanelProps: workspaceState.libraryPanelProps,
-    libraryPanelHandlers,
-    upNextPanelProps,
-    upNextPanelHandlers,
-    selectedItem: artworkState.detailsDisplayTrack,
-    lyricsTrack,
-    patternTrack: playerDisplayTrack,
-    modulePatternSnapshot,
-    detailsArtwork: artworkState.visibleDetailsArtwork,
-    detailsLibraryTargets,
-    navigateTrackDetailsToLibrary: onNavigateTrackDetailsToLibrary,
-    lyricsDisplayStyle: effectiveLyricsDisplayStyle,
-    lyricsAutoScroll,
-    lyricsFontSize,
-    lyricsResumeAutoScrollToken,
-    videoElement,
-    videoParkingHost,
-    videoTheaterActive,
-    videoFitMode,
-    videoPictureInPictureSupported,
-    videoSeekFeedback,
-    lyricsTheaterDowntimeDots: appearance.lyrics.theaterDowntimeDots,
-    lyricsTheaterDowntimeThresholdSeconds: appearance.lyrics.theaterDowntimeThresholdSeconds,
-    lyricsTheaterSmoothScroll: appearance.lyrics.theaterSmoothScroll
-  };
 
   function clampVolume(volume: number): number {
     return Math.min(Math.max(volume, 0), 1);
   }
 
-  export let snapshotStore: Readable<PlaybackSnapshot>;
-  export let playbackSnapshot: PlaybackSnapshot;
+  export let content: WorkspaceTabContentProps;
   export let isNowPlayingLayoutActive: boolean;
-  export let videoElement: HTMLVideoElement | null;
-  export let videoParkingHost: HTMLDivElement | null;
-  export let videoTheaterActive = false;
-  export let videoFitMode: VideoFitMode = 'contain';
-  export let videoPictureInPictureSupported = false;
-  export let videoSeekFeedback: VideoSeekFeedback | null = null;
-  export let inactive = false;
   export let workspaceState: WorkspaceShellState;
-  export let queuePanelHandlers: WorkspacePanelHandlers;
-  export let libraryPanelHandlers: WorkspacePanelHandlers;
-  export let upNextPanelProps: UpNextPanelProps;
-  export let upNextPanelHandlers: UpNextPanelHandlers;
   export let selectedTrackItem: TrackItem | null;
-  export let playerDisplayTrack: TrackItem | null;
-  export let lyricsTrack: TrackItem | null;
-  export let modulePatternSnapshot: ModulePatternSnapshot;
   export let artworkState: ArtworkPresentationState;
-  export let detailsLibraryTargets: TrackLibraryNavigationTargets = {};
-  export let onNavigateTrackDetailsToLibrary: (target: TrackLibraryNavigationTarget) => void = () => {};
   export let appearance: AppearanceSettings;
   export let artworkBackgroundBrightByZone: Record<'nowPlaying', boolean> &
     Partial<Record<WorkspacePanelId, boolean>>;
@@ -96,10 +37,6 @@
     BackdropZoneArtworkSettingsMap,
     WorkspacePanelId
   >;
-  export let effectiveLyricsDisplayStyle: LyricsDisplayStyle;
-  export let lyricsAutoScroll: boolean;
-  export let lyricsFontSize: number;
-  export let lyricsResumeAutoScrollToken: number;
   export let onCloseNowPlaying: () => void;
   export let onChromeHiddenChange: (hidden: boolean) => void;
   export let onTabChange: (tab: WorkspaceTab) => void;
@@ -123,8 +60,8 @@
 
 {#if isNowPlayingLayoutActive}
   <NowPlayingWorkspace
-    content={workspaceContent}
-    track={playerDisplayTrack}
+    {content}
+    track={content.patternTrack}
     selectedTrack={selectedTrackItem}
     artwork={artworkState.displayedArtwork}
     backdropArtwork={artworkState.visibleArtworkBackground}
@@ -152,21 +89,21 @@
   />
 {:else}
   <WideWorkspace
-    content={workspaceContent}
+    {content}
     workspacePanels={workspaceState.workspacePanels}
     panelWidths={workspaceState.widePanelWidths}
     resizerWidth={WORKSPACE_RESIZER_WIDTH}
     isResizing={workspaceState.isResizing}
     isCompactWorkspace={workspaceState.isCompactWorkspace}
-    {inactive}
+    inactive={content.videoTheaterActive}
     backdropArtwork={artworkState.visibleArtworkBackground}
     zoneArtworkBright={workspaceZoneArtworkBright}
     zoneEffects={workspaceZoneEffects}
     zoneArtworkSettings={workspaceZoneArtworkSettings}
     on:seek={(event) => onSeek(event.detail)}
     on:volumeStep={(event) => {
-      if (!playbackSnapshot.muted) {
-        onVolume(clampVolume(playbackSnapshot.volume + event.detail));
+      if (content.playbackSnapshot && !content.playbackSnapshot.muted) {
+        onVolume(clampVolume(content.playbackSnapshot.volume + event.detail));
       }
     }}
     on:toggleVideoTheater={onToggleVideoTheater}

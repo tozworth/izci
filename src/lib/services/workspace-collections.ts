@@ -30,7 +30,7 @@ import {
   getTrackIdentity
 } from '$lib/utils/files';
 
-export interface WorkspaceCollectionState {
+interface WorkspaceCollectionState {
   queueItems: TrackItem[];
   libraryItems: TrackItem[];
   favoriteItems: TrackItem[];
@@ -414,7 +414,7 @@ export function createWorkspaceCollectionsController({
   };
 }
 
-export interface SyncPlayingTrackMetadataDeps {
+interface SyncPlayingTrackMetadataDeps {
   isMultiplayerClient: boolean;
   libraryItems: TrackItem[];
   favoriteItems: TrackItem[];

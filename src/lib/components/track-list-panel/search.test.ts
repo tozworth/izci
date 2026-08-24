@@ -3,9 +3,9 @@ import { describe, expect, it } from 'vitest';
 import {
   filterItemsByQuery,
   formatTotalDuration,
-  getTrackSummary,
   matchesSearchQuery
 } from './search';
+import { getLocalizedTrackSummary } from './summaries';
 import type { TrackItem } from '$lib/types';
 
 function item(name: string, metadata: TrackItem['metadata'] = {}): TrackItem {
@@ -62,6 +62,9 @@ describe('track-list-panel search helpers', () => {
     expect(formatTotalDuration(0)).toBe('--:--');
     expect(formatTotalDuration(125)).toBe('02:05');
     expect(formatTotalDuration(3605)).toBe('1:00:05');
-    expect(getTrackSummary(tracks, [tracks[0]], 'alpha')).toBe('1 of 2 songs · 02:05');
+    expect(getLocalizedTrackSummary(tracks, [tracks[0]], 'alpha', (_id, options) => {
+      const values = options?.values;
+      return `${values?.visible} of ${values?.total} songs · ${values?.duration}`;
+    })).toBe('1 of 2 songs · 02:05');
   });
 });

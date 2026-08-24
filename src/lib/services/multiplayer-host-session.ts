@@ -44,19 +44,27 @@ import type {
   SignalPeerRecord
 } from './multiplayer-types';
 import type { MultiplayerHostContext } from './multiplayer-host';
+import {
+  attachHostChannel,
+  attachHostMediaChannel,
+  attachHostRenderChannel
+} from './multiplayer-host-channels';
+import { syncPeerFreeplayMode } from './multiplayer-host-freeplay';
+import { removePeerFromHostPlaybackPreparation } from './multiplayer-host-playback-prep';
+import { primeHostState } from './multiplayer-host-sync';
 
 export async function startHosting(
   ctx: MultiplayerHostContext,
   options: { silent?: boolean } = {}
 ): Promise<string> {
-  const { core, publish } = ctx;
+  const { core } = ctx;
   const silent = options.silent === true;
   logInfo('multiplayer', 'Hosting requested', {
     maxListeners: core.multiplayerSettings.multiplayerMaxListeners
   });
   core.allowClientReconnect = false;
   await core.resetSession(true);
-  publish({
+  core.publish({
     mode: 'hosting',
     connectionStatus: 'connecting',
     hostName: getLocalName(),
@@ -69,7 +77,7 @@ export async function startHosting(
 
   try {
     const firebase = await loadFirebase();
-    publish({ connectionDetail: 'Publishing the multiplayer room...' });
+    core.publish({ connectionDetail: 'Publishing the multiplayer room...' });
     const inviteCode = createInviteCode();
     const nextRoomRef = firebase.ref(firebase.database, `multiplayer/rooms/${inviteCode}`);
     core.firebaseRuntime = firebase;
@@ -116,8 +124,8 @@ export async function startHosting(
             disposePeerConnection(peer);
             core.hostPeers.delete(id);
             core.freeplaySelections.delete(id);
-            ctx.removePeerFromHostPlaybackPreparation(id);
-            publish({ clients: core.state.clients.filter((client) => client.id !== id) });
+            removePeerFromHostPlaybackPreparation(ctx, id);
+            core.publish({ clients: core.state.clients.filter((client) => client.id !== id) });
           }
         }
         for (const [id, peerSignal] of Object.entries(peers ?? {})) {
@@ -144,7 +152,7 @@ export async function startHosting(
       }
     );
 
-    publish({
+    core.publish({
       mode: 'hosting',
       connectionStatus: 'connected',
       inviteCode: silent ? null : inviteCode,
@@ -155,13 +163,13 @@ export async function startHosting(
       turnRelay: hasMultiplayerTurnIssuer(core.multiplayerSettings)
     });
     rememberMultiplayerLastSession('hosting', { hostName: getLocalName() });
-    ctx.primeHostState();
+    primeHostState(ctx);
     return inviteCode;
   } catch (error) {
     logError('multiplayer', 'Hosting failed', error);
     await core.resetSession(true);
     const message = errorMessage(error, 'Could not start multiplayer hosting.');
-    publish({
+    core.publish({
       mode: 'idle',
       connectionStatus: 'error',
       hostName: null,
@@ -175,13 +183,13 @@ export async function startHosting(
   }
 }
 
-export async function answerTurnCredentialRequest(
+async function answerTurnCredentialRequest(
   ctx: MultiplayerHostContext,
   inviteCode: string,
   clientId: string,
   request: MultiplayerTurnCredentialRequest
 ): Promise<void> {
-  const { core, publish } = ctx;
+  const { core } = ctx;
   if (!core.firebaseRuntime || core.state.mode !== 'hosting') return;
   core.answeredTurnCredentialRequestIds.add(request.requestId);
   try {
@@ -197,20 +205,20 @@ export async function answerTurnCredentialRequest(
     ), response);
   } catch (error) {
     core.answeredTurnCredentialRequestIds.delete(request.requestId);
-    publish({
+    core.publish({
       message: `Could not issue temporary TURN credentials: ${errorMessage(error, 'credential exchange failed')}`
     });
   }
 }
 
-export async function acceptClientOffer(
+async function acceptClientOffer(
   ctx: MultiplayerHostContext,
   inviteCode: string,
   id: string,
   offer: SignalOffer,
   candidates: SignalCandidates
 ): Promise<void> {
-  const { core, publish, updateClient } = ctx;
+  const { core } = ctx;
   if (!core.firebaseRuntime || core.state.mode !== 'hosting') return;
   const previousPeer = core.hostPeers.get(id);
   if (!previousPeer && core.hostPeers.size >= core.multiplayerSettings.multiplayerMaxListeners) {
@@ -236,7 +244,7 @@ export async function acceptClientOffer(
   }
   if (previousPeer) {
     disposePeerConnection(previousPeer);
-    ctx.removePeerFromHostPlaybackPreparation(id);
+    removePeerFromHostPlaybackPreparation(ctx, id);
     core.hostPeers.delete(id);
   }
   await Promise.all([
@@ -269,7 +277,7 @@ export async function acceptClientOffer(
   const pairingRecord = pairingSnapshot.val() as Partial<PairedClientRecord> | null;
   peer.paired = pairingSnapshot.exists();
   peer.freeplayPaired = peer.paired && pairingRecord?.freeplay === true;
-  updateClient(id, {
+  core.updateClient(id, {
     name: peer.name,
     platform: sanitizePlatform(offer.platform),
     status: 'connecting',
@@ -279,23 +287,23 @@ export async function acceptClientOffer(
   });
 
   peer.pc.ondatachannel = (event) => {
-    if (event.channel.label === 'izci-media') ctx.attachHostMediaChannel(peer, event.channel);
-    else if (event.channel.label === 'izci-render') ctx.attachHostRenderChannel(peer, event.channel);
-    else ctx.attachHostChannel(peer, event.channel);
+    if (event.channel.label === 'izci-media') attachHostMediaChannel(ctx, peer, event.channel);
+    else if (event.channel.label === 'izci-render') attachHostRenderChannel(ctx, peer, event.channel);
+    else attachHostChannel(ctx, peer, event.channel);
   };
   peer.pc.onconnectionstatechange = () => {
     if (core.hostPeers.get(id) !== peer) return;
     const status = peer.pc.connectionState;
     if (status === 'connected') {
       clearPeerConnectionTimer(peer);
-      updateClient(id, { status: 'connected' });
-      publish({ message: null });
+      core.updateClient(id, { status: 'connected' });
+      core.publish({ message: null });
     }
     if (status === 'failed' || status === 'disconnected' || status === 'closed') {
-      updateClient(id, { status: 'disconnected' });
-      ctx.removePeerFromHostPlaybackPreparation(id);
+      core.updateClient(id, { status: 'disconnected' });
+      removePeerFromHostPlaybackPreparation(ctx, id);
     }
-    if (status === 'failed') publish({ message: describeIceFailure(peer, peer.name) });
+    if (status === 'failed') core.publish({ message: describeIceFailure(peer, peer.name) });
   };
 
   try {
@@ -318,7 +326,7 @@ export async function acceptClientOffer(
       () => core.firebaseRuntime,
       () => {
         clearPeerConnectionTimer(peer);
-        publish({
+        core.publish({
           message: `Could not send ICE candidates for ${peer.name}. The deployed Firebase rules may be out of date.`
         });
       }
@@ -333,14 +341,14 @@ export async function acceptClientOffer(
     startCandidatePublishing();
     startPeerConnectionTimer(peer, () => {
       if (peer.pc.connectionState === 'connected' || core.state.mode !== 'hosting') return;
-      updateClient(id, { status: 'disconnected' });
-      publish({ message: describeIceFailure(peer, peer.name) });
+      core.updateClient(id, { status: 'disconnected' });
+      core.publish({ message: describeIceFailure(peer, peer.name) });
     });
   } catch (error) {
     disposePeerConnection(peer);
     core.hostPeers.delete(id);
-    updateClient(id, { status: 'disconnected' });
-    publish({
+    core.updateClient(id, { status: 'disconnected' });
+    core.publish({
       message: `Could not finish the connection to ${peer.name}: ${errorMessage(error, 'ICE signaling failed.')}`
     });
   }
@@ -373,11 +381,11 @@ export async function togglePairing(ctx: MultiplayerHostContext, clientId: strin
   }
   peer.paired = paired;
   peer.freeplayPaired = freeplayPaired;
-  await ctx.syncPeerFreeplayMode(peer);
+  await syncPeerFreeplayMode(ctx, peer);
 }
 
 export async function kick(ctx: MultiplayerHostContext, clientId: string): Promise<void> {
-  const { core, publish } = ctx;
+  const { core } = ctx;
   if (core.state.mode !== 'hosting') return;
   logInfo('multiplayer', 'Client kick requested', { clientId });
   const peer = core.hostPeers.get(clientId);
@@ -387,9 +395,9 @@ export async function kick(ctx: MultiplayerHostContext, clientId: string): Promi
     window.setTimeout(() => disposePeerConnection(peer), 80);
     core.freeplaySelections.delete(clientId);
     core.hostPeers.delete(clientId);
-    ctx.removePeerFromHostPlaybackPreparation(clientId);
+    removePeerFromHostPlaybackPreparation(ctx, clientId);
   }
-  publish({ clients: core.state.clients.filter((client) => client.id !== clientId) });
+  core.publish({ clients: core.state.clients.filter((client) => client.id !== clientId) });
   const roomCode = core.roomCode ?? core.state.inviteCode;
   if (core.firebaseRuntime && roomCode) {
     await core.firebaseRuntime.remove(core.firebaseRuntime.ref(
@@ -400,13 +408,13 @@ export async function kick(ctx: MultiplayerHostContext, clientId: string): Promi
 }
 
 export async function stopHosting(ctx: MultiplayerHostContext): Promise<void> {
-  const { core, publish } = ctx;
+  const { core } = ctx;
   if (core.state.mode !== 'hosting') return;
   logInfo('multiplayer', 'Hosting stopped');
   clearMultiplayerLastSession();
   core.allowClientReconnect = false;
   await core.resetSession(true);
-  publish({
+  core.publish({
     mode: 'idle',
     connectionStatus: 'idle',
     reconnecting: false,

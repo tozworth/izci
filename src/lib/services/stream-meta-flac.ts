@@ -4,13 +4,13 @@ import { readUint24BE, decodeBase64, concatUint8Arrays } from './stream-meta-bin
 import { FileRangeReader } from './stream-meta-io';
 import { applyReplayGainComment } from './stream-meta-replaygain';
 
-export const FLAC_VORBIS_COMMENT_BLOCK_TYPE = 4;
-export const FLAC_PICTURE_BLOCK_TYPE = 6;
-export const METADATA_BLOCK_PICTURE_KEY = 'METADATA_BLOCK_PICTURE';
+const FLAC_VORBIS_COMMENT_BLOCK_TYPE = 4;
+const FLAC_PICTURE_BLOCK_TYPE = 6;
+const METADATA_BLOCK_PICTURE_KEY = 'METADATA_BLOCK_PICTURE';
 
 const FLAC_MARKER = 'fLaC';
 
-export interface ParsedArtwork {
+interface ParsedArtwork {
   mimeType: string;
   data: Uint8Array;
   width?: number;
@@ -18,7 +18,7 @@ export interface ParsedArtwork {
   pictureType?: number;
 }
 
-export interface ParsedVorbisComments {
+interface ParsedVorbisComments {
   metadata: TrackMetadata;
   artwork: ParsedArtwork | null;
 }
@@ -33,12 +33,12 @@ export interface VorbisComment {
   value: string;
 }
 
-export function trimTagValue(value: string): string | undefined {
+function trimTagValue(value: string): string | undefined {
   const trimmed = value.trim();
   return trimmed ? trimmed : undefined;
 }
 
-export function normalizeYearTagValue(value: string): string | undefined {
+function normalizeYearTagValue(value: string): string | undefined {
   const normalizedValue = trimTagValue(value);
 
   if (!normalizedValue) {
@@ -47,17 +47,6 @@ export function normalizeYearTagValue(value: string): string | undefined {
 
   const yearMatch = normalizedValue.match(/\b\d{4}\b/);
   return yearMatch ? yearMatch[0] : normalizedValue;
-}
-
-export function parseDecimalTagValue(value: string): number | undefined {
-  const match = value.trim().match(/[+-]?(?:\d+(?:\.\d*)?|\.\d+)/);
-
-  if (!match) {
-    return undefined;
-  }
-
-  const parsed = Number(match[0]);
-  return Number.isFinite(parsed) ? parsed : undefined;
 }
 
 export function applyVorbisComment(metadata: TrackMetadata, key: string, value: string): void {
@@ -107,7 +96,7 @@ export function applyVorbisComment(metadata: TrackMetadata, key: string, value: 
   }
 }
 
-export function parsePictureBlock(block: Uint8Array): ParsedArtwork | null {
+function parsePictureBlock(block: Uint8Array): ParsedArtwork | null {
   if (block.byteLength < 32) {
     return null;
   }

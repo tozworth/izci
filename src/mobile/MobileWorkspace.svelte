@@ -11,16 +11,10 @@
     AppearanceSettings,
     BackdropZoneArtworkSettingsMap,
     BackdropZoneEffect,
-    LyricsDisplayStyle,
-    ModulePatternSnapshot,
-    PlaybackSnapshot,
-    TrackItem,
     VideoFitMode,
     WorkspacePanelId,
     WorkspaceTab
   } from '$lib/types';
-  import type { Readable } from 'svelte/store';
-  import type { TrackLibraryNavigationTargets, TrackLibraryNavigationTarget } from '$lib/services/library-navigation';
   import type {
     MultiplayerClient,
     MultiplayerAudioStatus,
@@ -31,7 +25,7 @@
   import type { MultiplayerConnectionRoute } from '$lib/services/multiplayer-ice';
   import type { MultiplayerRecent } from '$lib/stores/multiplayer-recents';
   import type { MultiplayerPairing } from '$lib/stores/multiplayer-pairings';
-  import type { VideoSeekFeedback, UpNextPanelHandlers, UpNextPanelProps, WorkspacePanelHandlers, WorkspaceTabContentProps } from '$lib/components/workspace/types';
+  import type { WorkspaceTabContentProps } from '$lib/components/workspace/types';
   import MobileMenuDrawer from './MobileMenuDrawer.svelte';
   import MobileMultiplayerStats from './MobileMultiplayerStats.svelte';
   import { resolveHorizontalSwipe, shouldIgnoreSwipeTarget, type SwipePoint } from './tab-swipe';
@@ -42,37 +36,16 @@
     type MobileDestination
   } from './mobile-navigation';
 
-  export let snapshotStore: Readable<PlaybackSnapshot>;
-  export let playbackSnapshot: PlaybackSnapshot;
+  export let content: WorkspaceTabContentProps;
   export let nowPlayingActive = false;
-  export let videoElement: HTMLVideoElement | null;
-  export let videoParkingHost: HTMLDivElement | null;
-  export let videoTheaterActive = false;
-  export let videoFitMode: VideoFitMode = 'contain';
-  export let videoPictureInPictureSupported = false;
-  export let videoSeekFeedback: VideoSeekFeedback | null = null;
-  export let inactive = false;
   export let workspaceState: WorkspaceShellState;
-  export let queuePanelHandlers: WorkspacePanelHandlers;
-  export let libraryPanelHandlers: WorkspacePanelHandlers;
-  export let upNextPanelProps: UpNextPanelProps;
-  export let upNextPanelHandlers: UpNextPanelHandlers;
-  export let selectedTrackItem: TrackItem | null;
-  export let playerDisplayTrack: TrackItem | null;
-  export let lyricsTrack: TrackItem | null;
-  export let modulePatternSnapshot: ModulePatternSnapshot;
+  export let selectedTrackItem: WorkspaceTabContentProps['selectedItem'];
   export let artworkState: ArtworkPresentationState;
-  export let detailsLibraryTargets: TrackLibraryNavigationTargets = {};
-  export let onNavigateTrackDetailsToLibrary: (target: TrackLibraryNavigationTarget) => void = () => {};
   export let appearance: AppearanceSettings;
   export let zoneEffects: Record<WorkspacePanelId, BackdropZoneEffect>;
   export let zoneArtworkSettings: Pick<BackdropZoneArtworkSettingsMap, WorkspacePanelId>;
   export let zoneArtworkBright: Record<WorkspacePanelId, boolean>;
   export let nowPlayingArtworkBright = false;
-  export let effectiveLyricsDisplayStyle: LyricsDisplayStyle;
-  export let lyricsAutoScroll: boolean;
-  export let lyricsFontSize: number;
-  export let lyricsResumeAutoScrollToken: number;
   export let installAvailable = false;
   export let videoAvailable = false;
   export let multiplayerEnabled = false;
@@ -143,41 +116,16 @@
   $: backdropPanelId = activePanel?.backdropPanelId ?? 'center';
   $: effect = zoneEffects[backdropPanelId];
   $: artworkBright = zoneArtworkBright[backdropPanelId];
-  $: content = {
-    snapshotStore,
-    playbackSnapshot,
+  $: mobileContent = {
+    ...content,
     queuePanelProps: {
-      ...workspaceState.queuePanelProps,
+      ...content.queuePanelProps,
       mobilePresentation: true
     },
-    queuePanelHandlers,
     libraryPanelProps: {
-      ...workspaceState.libraryPanelProps,
+      ...content.libraryPanelProps,
       mobilePresentation: true
-    },
-    libraryPanelHandlers,
-    upNextPanelProps,
-    upNextPanelHandlers,
-    selectedItem: artworkState.detailsDisplayTrack,
-    lyricsTrack,
-    patternTrack: playerDisplayTrack,
-    modulePatternSnapshot,
-    detailsArtwork: artworkState.visibleDetailsArtwork,
-    detailsLibraryTargets,
-    navigateTrackDetailsToLibrary: onNavigateTrackDetailsToLibrary,
-    lyricsDisplayStyle: effectiveLyricsDisplayStyle,
-    lyricsAutoScroll,
-    lyricsFontSize,
-    lyricsResumeAutoScrollToken,
-    videoElement,
-    videoParkingHost,
-    videoTheaterActive,
-    videoFitMode,
-    videoPictureInPictureSupported,
-    videoSeekFeedback,
-    lyricsTheaterDowntimeDots: appearance.lyrics.theaterDowntimeDots,
-    lyricsTheaterDowntimeThresholdSeconds: appearance.lyrics.theaterDowntimeThresholdSeconds,
-    lyricsTheaterSmoothScroll: appearance.lyrics.theaterSmoothScroll
+    }
   } satisfies WorkspaceTabContentProps;
 
   function beginSwipe(event: TouchEvent): void {
@@ -254,7 +202,7 @@
   }
 </script>
 
-<main class="mobile-workspace" inert={inactive ? true : undefined}>
+<main class="mobile-workspace" inert={content.videoTheaterActive ? true : undefined}>
   <header class="mobile-app-header">
     <button class="mobile-header-button" type="button" aria-label={$t('mobile.menu.open', { default: 'Open menu' })} on:click={() => (menuOpen = true)}>
       <span class="material-symbols-outlined" aria-hidden="true">menu</span>
@@ -309,8 +257,8 @@
               </div>
               <PlayerControls
                 presentation="now-playing"
-                {snapshotStore}
-                track={playerDisplayTrack}
+                snapshotStore={content.snapshotStore}
+                track={content.patternTrack}
                 selectedTrack={selectedTrackItem}
                 artwork={artworkState.displayedArtwork}
                 useArtworkColorsOverride={appearance.useNowPlayingArtworkPlayerColors}
@@ -355,7 +303,7 @@
             <div class="mobile-tab-page" role="tabpanel">
               <WorkspaceTabContent
                 tab={activeTab}
-                {content}
+                content={mobileContent}
                 artworkBackgroundActive={hasArtworkBackdrop(effect) && Boolean(artworkState.visibleArtworkBackground)}
                 artworkBackgroundBright={artworkBright}
                 visualizerBackdropActive={hasVisualizerBackdrop(effect)}
