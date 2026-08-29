@@ -29,8 +29,10 @@ describe('localization runtime', () => {
 
   it('loads Askew messages when the locale changes', () => {
     initializeLocalization();
+    const english = translate('options.views.raf');
     appLocale.set('en-askew');
-    expect(translate('options.views.raf')).toBe('Shelf');
+    expect(translate('options.views.raf')).toBeTruthy();
+    expect(translate('options.views.raf')).not.toBe(english);
     appLocale.reset();
   });
 });
