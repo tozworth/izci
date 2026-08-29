@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { TrackItem } from '$lib/types';
 
 const audioBus = vi.hoisted(() => ({
-  connectHtmlMediaElement: vi.fn(() => null),
+  connectHtmlMediaElement: vi.fn<() => MediaElementAudioSourceNode | null>(() => null),
   disconnect: vi.fn(),
   resume: vi.fn(async () => false),
   setSourceGain: vi.fn()
@@ -100,5 +100,62 @@ describe('VideoPlayerService', () => {
     expect(audioBus.connectHtmlMediaElement).toHaveBeenCalledWith(element);
     expect(element.volume).toBe(0.4);
     expect(onSnapshot).toHaveBeenLastCalledWith({ state: 'paused', error: undefined });
+  });
+
+  it('reports ended state and invokes the end handler when playback finishes', async () => {
+    const onEnded = vi.fn();
+    const onSnapshot = vi.fn();
+    const service = new VideoPlayerService(onSnapshot, vi.fn(), onEnded);
+
+    const ready = service.load(track);
+    element.emit('loadedmetadata');
+    await ready;
+
+    element.currentTime = element.duration;
+    element.ended = true;
+    element.emit('ended');
+
+    expect(onEnded).toHaveBeenCalledTimes(1);
+    expect(onSnapshot).toHaveBeenCalledWith({
+      error: undefined,
+      currentTime: 120,
+      duration: 120
+    });
+    expect(onSnapshot).toHaveBeenLastCalledWith({ state: 'ended', error: undefined });
+  });
+
+  it('rejects the pending load and reports an error when the element fails', async () => {
+    const onSnapshot = vi.fn();
+    const service = new VideoPlayerService(onSnapshot, vi.fn(), vi.fn());
+
+    const ready = service.load(track);
+    element.error = { code: 4, message: 'MEDIA_ELEMENT_ERROR: Format not supported.' } as MediaError;
+    element.emit('error');
+
+    await expect(ready).rejects.toThrow('Chromium could not decode this video.');
+    expect(onSnapshot).toHaveBeenLastCalledWith({
+      state: 'error',
+      error: 'Chromium could not decode this video.'
+    });
+  });
+
+  it('forces full native volume and routes transition gain through the audio bus when adoption succeeds', async () => {
+    const sourceNode = {} as MediaElementAudioSourceNode;
+    audioBus.connectHtmlMediaElement.mockReturnValue(sourceNode);
+    const onSnapshot = vi.fn();
+    const service = new VideoPlayerService(onSnapshot, vi.fn(), vi.fn());
+    service.setFallbackVolume(0.4);
+
+    const ready = service.load(track);
+    element.emit('loadedmetadata');
+    await ready;
+
+    // Web Audio owns output gain, so the element itself stays at 1.
+    expect(element.volume).toBe(1);
+
+    service.setTransitionGain(0.5, 2);
+
+    expect(audioBus.setSourceGain).toHaveBeenCalledWith(sourceNode, 0.5, 2);
+    expect(element.volume).toBe(1);
   });
 });

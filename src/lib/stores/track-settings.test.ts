@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import {
-  DEFAULT_TRACK_SETTINGS,
   DEFAULT_FOLDER_NESTING_LIMIT,
+  DEFAULT_TRACK_SETTINGS,
   MAX_FOLDER_NESTING_LIMIT,
   MIN_FOLDER_NESTING_LIMIT,
   normalizeFolderNestingLimit,
@@ -23,22 +23,24 @@ describe('track settings helpers', () => {
     expect(normalizeFolderNestingLimit('invalid')).toBe(DEFAULT_FOLDER_NESTING_LIMIT);
   });
 
-  it('keeps replacement as the default associated-file action', () => {
-    expect(DEFAULT_TRACK_SETTINGS.associatedFileAction).toBe('replace');
-  });
-
-  it('deduplicates queue additions by default and preserves the opt-out', () => {
-    expect(DEFAULT_TRACK_SETTINGS.deduplicateQueue).toBe(true);
+  it('preserves opt-outs through normalization while keeping defaults otherwise', () => {
     expect(normalizeTrackSettings({}).deduplicateQueue).toBe(true);
     expect(normalizeTrackSettings({ deduplicateQueue: false }).deduplicateQueue).toBe(false);
-  });
-
-  it('hides the player-bar favorite toggle by default', () => {
-    expect(DEFAULT_TRACK_SETTINGS.showFavoriteToggleInPlayerBar).toBe(false);
-  });
-
-  it('enables ratings by default and preserves the feature opt-out', () => {
-    expect(DEFAULT_TRACK_SETTINGS.enableRatings).toBe(true);
     expect(normalizeTrackSettings({ enableRatings: false }).enableRatings).toBe(false);
+    expect(
+      normalizeTrackSettings({ showFavoriteToggleInPlayerBar: true })
+        .showFavoriteToggleInPlayerBar
+    ).toBe(true);
+  });
+
+  it('falls back to defaults for malformed values', () => {
+    const normalized = normalizeTrackSettings({
+      associatedFileAction: 'merge',
+      folderNestingLimit: 'nope',
+      verifyAddedFiles: 'definitely'
+    });
+    expect(normalized.associatedFileAction).toBe(DEFAULT_TRACK_SETTINGS.associatedFileAction);
+    expect(normalized.folderNestingLimit).toBe(DEFAULT_FOLDER_NESTING_LIMIT);
+    expect(normalized.verifyAddedFiles).toBe(DEFAULT_TRACK_SETTINGS.verifyAddedFiles);
   });
 });

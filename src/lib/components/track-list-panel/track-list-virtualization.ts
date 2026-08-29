@@ -1,6 +1,6 @@
 export const DEFAULT_TRACK_ROW_HEIGHT = 28;
 export const TRACK_LIST_VIRTUALIZATION_THRESHOLD = 240;
-const TRACK_LIST_OVERSCAN_ROWS = 12;
+export const TRACK_LIST_OVERSCAN_ROWS = 12;
 
 export interface VirtualTrackWindow {
   start: number;
