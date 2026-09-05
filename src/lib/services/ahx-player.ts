@@ -229,10 +229,6 @@ export class HivelyPlayerService {
     if (!options.silent) this.#onSnapshot({ state: 'paused', currentTime: 0, error: undefined });
   }
 
-  destroy(): void {
-    this.stop();
-  }
-
   seek(seconds: number): void {
     if (!this.#node || !this.#started) return;
     logDebug('playback', 'Hively seek', { seconds });

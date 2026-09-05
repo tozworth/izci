@@ -1,4 +1,4 @@
-export interface PatternCellParts {
+interface PatternCellParts {
   note: string;
   instrument: string;
   volume: string;

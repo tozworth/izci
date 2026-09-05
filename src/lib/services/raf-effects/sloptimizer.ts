@@ -19,7 +19,7 @@ export const SLOPTIMIZER_UPWARD_THRESHOLD_MIN_DB = -60;
 export const SLOPTIMIZER_UPWARD_THRESHOLD_MAX_DB = -12;
 export const SLOPTIMIZER_UPWARD_BOOST_MIN_DB = 0;
 export const SLOPTIMIZER_UPWARD_BOOST_MAX_DB = 24;
-export const SLOPTIMIZER_UPWARD_DETECTOR_FLOOR_DB = -72;
+const SLOPTIMIZER_UPWARD_DETECTOR_FLOOR_DB = -72;
 export const SLOPTIMIZER_CEILING_MIN_DB = -6;
 export const SLOPTIMIZER_CEILING_MAX_DB = 0;
 export const SLOPTIMIZER_CROSSOVERS = [180, 3000] as const;
@@ -31,7 +31,7 @@ const UPWARD_PROCESSOR_NAME = 'raf-upward-compressor';
 const UPWARD_WORKLET_URL = '/raf-upward-compressor.worklet.js';
 const upwardWorkletLoads = new WeakMap<BaseAudioContext, Promise<boolean>>();
 
-export interface SloptimizerMacroParameters {
+interface SloptimizerMacroParameters {
   lowLiftDb: number;
   midLiftDb: number;
   highLiftDb: number;
@@ -53,7 +53,7 @@ interface SloptimizerBandNode {
   lift: GainNode;
 }
 
-export interface SloptimizerNode extends RafEffectNode {
+interface SloptimizerNode extends RafEffectNode {
   input: GainNode;
   output: GainNode;
   dry: GainNode;

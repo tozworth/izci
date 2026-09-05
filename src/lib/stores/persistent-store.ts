@@ -7,14 +7,14 @@ interface PersistentStoreOptions<T> {
   normalize: (value: unknown) => T;
 }
 
-export interface PersistentStoreController<T> extends Readable<T> {
+interface PersistentStoreController<T> extends Readable<T> {
   getSnapshot(): T;
   set(nextValue: unknown): T;
   update(updater: (currentValue: T) => unknown): T;
   reset(): T;
 }
 
-export type SettingsStoreController<T extends object> = Omit<PersistentStoreController<T>, 'update'> & {
+type SettingsStoreController<T extends object> = Omit<PersistentStoreController<T>, 'update'> & {
   update(patch: Partial<T>): T;
 };
 

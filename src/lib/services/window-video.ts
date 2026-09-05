@@ -4,8 +4,8 @@ import {
   type NowPlayingWindowGeometry
 } from './window-now-playing';
 
-export const VIDEO_MIN_VIEWPORT_WIDTH = 960;
-export const VIDEO_MIN_VIEWPORT_HEIGHT = 540;
+const VIDEO_MIN_VIEWPORT_WIDTH = 960;
+const VIDEO_MIN_VIEWPORT_HEIGHT = 540;
 export const VIDEO_WINDOW_WIDTH = 1280;
 export const VIDEO_WINDOW_HEIGHT = 720;
 

@@ -1,4 +1,4 @@
-export interface GroupableTrack {
+interface GroupableTrack {
   id: string;
   path: string;
   album?: string;
@@ -7,7 +7,7 @@ export interface GroupableTrack {
   trackNumber?: string;
 }
 
-export interface ProposedAlbumGroup {
+interface ProposedAlbumGroup {
   id: string;
   title: string;
   albumArtist: string;

@@ -1,11 +1,11 @@
 import type { RepeatMode } from '$lib/types';
 import { createPersistentStore } from './persistent-store';
 
-export const MULTIPLAYER_FREEPLAY_STATE_STORAGE_KEY = 'izci.multiplayer-freeplay-state';
-export const MULTIPLAYER_FREEPLAY_STATE_CHANNEL = 'izci-multiplayer-freeplay-state';
-export const MULTIPLAYER_FREEPLAY_QUEUE_MAX_IDS = 50_000;
+const MULTIPLAYER_FREEPLAY_STATE_STORAGE_KEY = 'izci.multiplayer-freeplay-state';
+const MULTIPLAYER_FREEPLAY_STATE_CHANNEL = 'izci-multiplayer-freeplay-state';
+const MULTIPLAYER_FREEPLAY_QUEUE_MAX_IDS = 50_000;
 
-export interface MultiplayerFreeplayState {
+interface MultiplayerFreeplayState {
   hostId: string;
   queue: string[];
   shuffleEnabled: boolean;
@@ -14,7 +14,7 @@ export interface MultiplayerFreeplayState {
   savedAt: number;
 }
 
-export function normalizeMultiplayerFreeplayState(value: unknown): MultiplayerFreeplayState | null {
+function normalizeMultiplayerFreeplayState(value: unknown): MultiplayerFreeplayState | null {
   if (!value || typeof value !== 'object') return null;
   const candidate = value as Partial<MultiplayerFreeplayState>;
   if (typeof candidate.hostId !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/.test(candidate.hostId)) return null;

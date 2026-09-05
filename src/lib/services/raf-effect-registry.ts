@@ -582,7 +582,7 @@ export const RAF_EFFECT_REGISTRY = Object.fromEntries(
   RAF_EFFECT_DEFINITIONS.map((definition) => [definition.type, definition])
 ) as Record<RafEffectType, RafEffectDefinition>;
 
-export function isRafEffectType(value: unknown): value is RafEffectType {
+function isRafEffectType(value: unknown): value is RafEffectType {
   return typeof value === 'string' && value in RAF_EFFECT_REGISTRY;
 }
 

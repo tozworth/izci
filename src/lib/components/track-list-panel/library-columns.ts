@@ -71,7 +71,7 @@ function getStringCollator(locale?: string): Intl.Collator {
   return collator;
 }
 
-export function getOrderedColumns(
+function getOrderedColumns(
   order: LibraryColumnId[],
   columns: Record<LibraryColumnId, LibraryViewColumnState>
 ): LibraryPanelColumn[] {
@@ -83,7 +83,7 @@ export function getOrderedColumns(
   }));
 }
 
-export function getColumnLabel(columnId: LibraryColumnId, fallback: string, translate: Translate): string {
+function getColumnLabel(columnId: LibraryColumnId, fallback: string, translate: Translate): string {
   switch (columnId) {
     case 'title': return translate('library.columns.title', { default: 'Title' });
     case 'artist': return translate('library.columns.artist', { default: 'Artist' });
@@ -145,18 +145,18 @@ export function getTrackLastPlayed(item: TrackItem): string {
     : '';
 }
 
-export function getTrackYear(item: TrackItem): string {
+function getTrackYear(item: TrackItem): string {
   return item.metadata?.year?.trim() ?? '';
 }
 
-export function getTrackBitrate(item: TrackItem): string {
+function getTrackBitrate(item: TrackItem): string {
   const bitrate = item.metadata?.bitrate;
   return typeof bitrate === 'number' && Number.isFinite(bitrate) && bitrate > 0
     ? String(Math.round(bitrate))
     : '';
 }
 
-export function getTrackFileSize(item: TrackItem): string {
+function getTrackFileSize(item: TrackItem): string {
   const size = item.size;
   if (typeof size !== 'number' || !Number.isFinite(size) || size <= 0) return '';
   if (size < 1024) return `${size} B`;

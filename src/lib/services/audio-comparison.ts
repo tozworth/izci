@@ -2,12 +2,12 @@ export type ComparisonSourceId = 'a' | 'b';
 export type ComparisonAuditionMode = ComparisonSourceId | 'difference';
 import { logDebug, logInfo } from '$lib/services/logging';
 
-export interface ComparisonRange {
+interface ComparisonRange {
   start: number;
   end: number;
 }
 
-export interface LoudnessMatchGains {
+interface LoudnessMatchGains {
   aDb: number;
   bDb: number;
 }

@@ -4,7 +4,7 @@ const REQUEST_MESSAGE = 'izci:request-tool-track';
 export const OPEN_CURRENT_TOOL_TRACK_MESSAGE = 'izci:open-current-tool-track';
 const TRACK_MESSAGE = 'izci:tool-track';
 
-export interface ToolTrackContext {
+interface ToolTrackContext {
   file: File;
   fileHandle?: FileSystemFileHandle;
   path?: string;

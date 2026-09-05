@@ -17,24 +17,24 @@ import type {
 } from '$lib/types';
 import type { RemoteSelectionSnapshot } from './main-window-selection';
 
-export type Translate = (
+type Translate = (
   id: string,
   options?: { default?: string; values?: Record<string, string | number | boolean | Date | null | undefined> }
 ) => string;
 
-export interface MultiplayerConnectionDialogState {
+interface MultiplayerConnectionDialogState {
   open: boolean;
   error: string | null;
   operation: 'hosting' | 'joining';
   targetName: string | null;
 }
 
-export interface MultiplayerWindowUiState {
+interface MultiplayerWindowUiState {
   dialog: MultiplayerConnectionDialogState;
   toastMessage: string | null;
 }
 
-export interface MultiplayerSessionSync {
+interface MultiplayerSessionSync {
   enteredFreeplay: boolean;
   remoteSelections: RemoteSelectionSnapshot | null;
 }
@@ -50,7 +50,7 @@ interface PlaybackCommandFacade {
   activateFavoriteTrack(track: TrackItem): void | Promise<void>;
 }
 
-export interface MultiplayerWindowControllerDeps {
+interface MultiplayerWindowControllerDeps {
   getSession(): MultiplayerSessionController;
   getPlaybackCommands(): PlaybackCommandFacade;
   getPlayingTrack(): TrackItem | null;

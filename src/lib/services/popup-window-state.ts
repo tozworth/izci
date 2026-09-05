@@ -4,7 +4,7 @@ const STORAGE_KEY = 'izci.popup-window-sizes';
 const MIN_WIDTH = 320;
 const MIN_HEIGHT = 240;
 
-export interface PopupWindowSize {
+interface PopupWindowSize {
   width: number;
   height: number;
 }

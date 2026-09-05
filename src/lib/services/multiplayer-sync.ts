@@ -1,11 +1,11 @@
-export interface MultiplayerClockSample {
+interface MultiplayerClockSample {
   hostSentAt: number;
   clientReceivedAt: number;
   clientSentAt: number;
   hostReceivedAt: number;
 }
 
-export interface MultiplayerClockEstimate {
+interface MultiplayerClockEstimate {
   clientOffsetMs: number;
   roundTripMs: number;
 }

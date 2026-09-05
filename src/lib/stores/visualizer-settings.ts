@@ -1,8 +1,8 @@
 import type { VisualizerColorSource, VisualizerSettings, VisualizerStyle } from '$lib/types';
 import { createSettingsStore } from './persistent-store';
 
-export const VISUALIZER_SETTINGS_STORAGE_KEY = 'izci.visualizer-settings';
-export const VISUALIZER_SETTINGS_CHANNEL = 'izci.visualizer-settings';
+const VISUALIZER_SETTINGS_STORAGE_KEY = 'izci.visualizer-settings';
+const VISUALIZER_SETTINGS_CHANNEL = 'izci.visualizer-settings';
 export const MIN_VISUALIZER_FRAME_RATE_LIMIT = 30;
 export const MAX_VISUALIZER_FRAME_RATE_LIMIT = 240;
 

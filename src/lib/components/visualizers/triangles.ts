@@ -25,7 +25,7 @@ interface TriangleRhythm {
   isBeat: boolean;
 }
 
-export interface TriangleVisualizerMetrics {
+interface TriangleVisualizerMetrics {
   width: number;
   height: number;
   displayScale: number;

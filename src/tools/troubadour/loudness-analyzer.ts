@@ -3,7 +3,7 @@ import { logDebug, logError, logInfo } from '$lib/services/logging';
 
 export const DEFAULT_REPLAYGAIN_TARGET_LUFS = -18;
 
-export interface LoudnessProgress {
+interface LoudnessProgress {
   seconds: number;
   duration: number | null;
 }

@@ -1,7 +1,7 @@
 import type { RafCrystalizerSettings } from '$lib/types';
 import { disconnectNode, setAudioParam, type RafEffectNode } from './shared';
 
-export const CRYSTALIZER_BAND_EDGES = Array.from({ length: 14 }, (_, index) =>
+const CRYSTALIZER_BAND_EDGES = Array.from({ length: 14 }, (_, index) =>
   20 * 1000 ** ((index / 13) ** 0.413)
 );
 export const CRYSTALIZER_FREQUENCIES = CRYSTALIZER_BAND_EDGES.slice(0, -1).map((low, index) =>
@@ -23,7 +23,7 @@ interface CrystalizerBandNode {
   mute: GainNode;
 }
 
-export interface CrystalizerNode extends RafEffectNode {
+interface CrystalizerNode extends RafEffectNode {
   input: GainNode;
   dryDelay: DelayNode;
   sum: GainNode;
@@ -134,7 +134,7 @@ export function disposeCrystalizerNode(node: CrystalizerNode): void {
   node.nodes.forEach(disconnectNode);
 }
 
-export function calculateCrystalizerHeadroomGain(
+function calculateCrystalizerHeadroomGain(
   filters: BiquadFilterNode[],
   settings: RafCrystalizerSettings,
   sampleRate: number

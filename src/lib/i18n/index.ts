@@ -5,10 +5,10 @@ import en from './locales/en.json';
 import enAskew from './locales/en-askew.json';
 import tr from './locales/tr.json';
 
-export type AppLocale = 'en' | 'en-askew' | 'tr';
+type AppLocale = 'en' | 'en-askew' | 'tr';
 
-export const APP_LOCALE_STORAGE_KEY = 'izci.locale';
-export const APP_LOCALE_CHANNEL = 'izci.locale';
+const APP_LOCALE_STORAGE_KEY = 'izci.locale';
+const APP_LOCALE_CHANNEL = 'izci.locale';
 export const DEFAULT_APP_LOCALE: AppLocale = 'en';
 export const APP_LOCALE_OPTIONS: ReadonlyArray<{ value: AppLocale; label: string }> = [
   { value: 'en', label: 'English' },

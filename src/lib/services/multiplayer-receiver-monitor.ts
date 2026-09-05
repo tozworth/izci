@@ -4,11 +4,10 @@ import {
   updateReceivedBitrateWindow,
   type ReceivedByteSample
 } from './multiplayer-receiver-bitrate';
-import { updateMultiplayerPacketLossStats } from './multiplayer-receiver-stats';
 
-export const RECEIVER_BITRATE_SAMPLE_INTERVAL_MS = 1_000;
+const RECEIVER_BITRATE_SAMPLE_INTERVAL_MS = 1_000;
 
-export interface ReceiverBitrateMonitorOptions {
+interface ReceiverBitrateMonitorOptions {
   getState: () => MultiplayerSessionState;
   publish: (patch: Partial<MultiplayerSessionState>) => void;
   isActivePeer: (peer: PeerConnection) => boolean;
@@ -123,13 +122,16 @@ export function createReceiverBitrateMonitor({
           bytesReceived
         });
         samples = next.samples;
-        const loss = updateMultiplayerPacketLossStats(packetsReceived, packetsLost);
+        const totalPackets = packetsReceived + packetsLost;
+        const packetLossPercent = totalPackets > 0
+          ? Math.round((packetsLost / totalPackets) * 10_000) / 100
+          : null;
         const totalBytesReceived = transportBytesReceived ?? bytesReceived;
         publish({
           connectionStats: {
-            packetsReceived: loss.totalReceived,
-            packetsLost: loss.totalLost,
-            packetLossPercent: loss.totalPercent,
+            packetsReceived,
+            packetsLost,
+            packetLossPercent,
             bytesReceived: totalBytesReceived,
             jitterMs: jitterMs === null ? null : Math.round(jitterMs * 10) / 10,
             jitterBufferDelayMs: roundedTenth(jitterBufferDelayMs),
@@ -156,8 +158,8 @@ export function createReceiverBitrateMonitor({
               ? receiver.jitterBufferTarget
               : null,
             bitrateKbps: next.averageKbps,
-            packetsReceived: loss.totalReceived,
-            packetsLost: loss.totalLost,
+            packetsReceived,
+            packetsLost,
             bytesReceived: totalBytesReceived,
             jitterMs: roundedTenth(jitterMs),
             jitterBufferDelayMs: roundedTenth(jitterBufferDelayMs),

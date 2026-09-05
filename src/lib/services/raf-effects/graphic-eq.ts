@@ -11,7 +11,7 @@ const HEADROOM_SAFETY_DB = 1;
 // Q = sqrt(2) gives an approximately one-octave useful width for these octave-spaced peaking bands.
 export const GRAPHIC_EQ_Q = Math.SQRT2;
 
-export interface GraphicEqNode extends RafEffectNode {
+interface GraphicEqNode extends RafEffectNode {
   preamp: GainNode;
   filters: BiquadFilterNode[];
   headroom: GainNode;
@@ -82,7 +82,7 @@ export function disposeGraphicEqNode(node: GraphicEqNode): void {
   disconnectNode(node.responseProbe);
 }
 
-export function calculateHeadroomGain(
+function calculateHeadroomGain(
   probe: BiquadFilterNode,
   settings: RafGraphicEqSettings
 ): number {

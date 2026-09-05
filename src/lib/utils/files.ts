@@ -42,21 +42,21 @@ interface ImportedFileSource {
   sourceFolderId?: string;
 }
 
-export type FileHandleSourceResolver = (
+type FileHandleSourceResolver = (
   handle: FileSystemFileHandle
 ) => ImportedFileSource | undefined | Promise<ImportedFileSource | undefined>;
 
-export interface DirectoryReadOptions {
+interface DirectoryReadOptions {
   maxDepth?: number;
   readConcurrency?: number;
 }
 
-export interface DirectoryDiscoveryOptions {
+interface DirectoryDiscoveryOptions {
   maxDepth?: number;
   onFileFound?: (file: DiscoveredDirectoryFile) => void;
 }
 
-export interface DiscoveredDirectoryFile {
+interface DiscoveredDirectoryFile {
   fileHandle: FileSystemFileHandle;
   parentHandle: FileSystemDirectoryHandle;
   path: string;
@@ -377,7 +377,7 @@ export async function readFileHandleFiles(
   );
 }
 
-export interface DroppedContent {
+interface DroppedContent {
   files: File[];
   directoryHandles: FileSystemDirectoryHandle[];
 }
@@ -536,7 +536,7 @@ export function getFavoriteIdentity(
   return `${getTrackIdentity(item)}:subsong:${item.subsong ?? 'all'}`;
 }
 
-export function cloneTrackItem(item: TrackItem): TrackItem {
+function cloneTrackItem(item: TrackItem): TrackItem {
   return {
     ...item,
     id: crypto.randomUUID(),

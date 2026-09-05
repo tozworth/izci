@@ -7,7 +7,7 @@
 
 import type { MultiplayerRenderManifest } from './multiplayer-protocol';
 
-export const CLIENT_RENDER_CACHE_LIMIT_MIB = 64;
+const CLIENT_RENDER_CACHE_LIMIT_MIB = 64;
 
 export interface ClientCachedRender {
   manifest: MultiplayerRenderManifest;

@@ -95,7 +95,7 @@ export interface TroubadourWorkbenchState extends StagedWorkbenchState {
   jobProgress: number | null;
 }
 
-export interface SaveWorkbenchItem {
+interface SaveWorkbenchItem {
   item: TroubadourWorkbenchItem;
   requestPermission: boolean;
   signal?: AbortSignal;
@@ -103,7 +103,7 @@ export interface SaveWorkbenchItem {
   fullVerification?: boolean;
 }
 
-export interface SaveWorkbenchResult {
+interface SaveWorkbenchResult {
   document: MetadataDocument;
   verified: boolean;
 }

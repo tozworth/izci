@@ -158,12 +158,12 @@ export interface PatternViewerSettings {
   highlightBeatRows: boolean;
 }
 
-export interface ModulePatternOrder {
+interface ModulePatternOrder {
   name: string;
   pat: number;
 }
 
-export interface ModulePattern {
+interface ModulePattern {
   name: string;
   rows: string[][];
 }
@@ -185,7 +185,7 @@ export interface ModulePatternSnapshot {
   row: number;
 }
 
-export interface RafEffectBase {
+interface RafEffectBase {
   id: string;
   enabled: boolean;
   displayName?: string;
@@ -498,7 +498,7 @@ export interface LoadoutPlaybackSettings {
   modules: ModulePlaybackSettings;
 }
 
-export interface LoadoutRafSettings {
+interface LoadoutRafSettings {
   presetName: string;
   enabled: boolean;
 }

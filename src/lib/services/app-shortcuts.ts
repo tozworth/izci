@@ -9,7 +9,7 @@ import type { WorkspacePanelDefinition } from '$lib/components/workspace/types';
 const KEYBOARD_SEEK_STEP_SECONDS = 5;
 const KEYBOARD_VOLUME_STEP = 0.05;
 
-export interface AppShortcutState {
+interface AppShortcutState {
   isNowPlayingLayoutActive: boolean;
   videoTrackActive: boolean;
   isRightPanelVisible: boolean;

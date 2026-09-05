@@ -5,12 +5,12 @@ import {
 } from '$lib/services/artwork-cache';
 import type { TrackItem } from '$lib/types';
 
-export interface AlbumArtworkGroup {
+interface AlbumArtworkGroup {
   key: string;
   items: TrackItem[];
 }
 
-export type AlbumArtworkUrls = Record<string, string>;
+type AlbumArtworkUrls = Record<string, string>;
 
 type ThumbnailLoader = (
   track: TrackItem,

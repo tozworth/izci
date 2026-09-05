@@ -73,14 +73,15 @@ describe('queue persistence helpers', () => {
   });
 
   it('restores persisted fields into a handle-backed runtime item', () => {
-    expect(restoreStoredItem(serializeItem(item({
+    const restored = restoreStoredItem(serializeItem(item({
       fileHandle,
       path: '/Music/Track.flac',
       sourceFolderId: 'music-root',
       metadata: { title: 'Track' },
       rating: 4.5,
       subsong: 2
-    })))).toMatchObject({
+    })));
+    expect(restored).toMatchObject({
       fileHandle,
       path: '/Music/Track.flac',
       sourceFolderId: 'music-root',
@@ -88,7 +89,16 @@ describe('queue persistence helpers', () => {
       rating: 4.5,
       subsong: 2
     });
+    expect(Object.hasOwn(restored!, 'rating')).toBe(true);
+    expect(Object.hasOwn(restored!, 'subsong')).toBe(true);
     expect(restoreStoredItem(serializeItem(item({ rating: 4.5 })))).toBeNull();
+  });
+
+  it('preserves optional runtime fields as own properties when they are absent', () => {
+    const restored = restoreStoredItem(serializeItem(item({ fileHandle })));
+
+    expect(Object.hasOwn(restored!, 'rating')).toBe(true);
+    expect(Object.hasOwn(restored!, 'subsong')).toBe(true);
   });
 
   it('round-trips handle-backed video items', () => {

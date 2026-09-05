@@ -1,12 +1,12 @@
 import { extractStreamVorbisComments } from '$lib/services/stream-meta-ogg';
 import type { TrackItem } from '$lib/types';
 
-export interface TimedLyricLine {
+interface TimedLyricLine {
   time: number;
   text: string;
 }
 
-export interface TheaterLyricRow {
+interface TheaterLyricRow {
   id: string;
   type: 'lyric' | 'downtime';
   time: number;

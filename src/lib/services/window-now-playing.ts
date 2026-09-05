@@ -1,4 +1,4 @@
-export interface NowPlayingScreenGeometry {
+interface NowPlayingScreenGeometry {
   width?: number;
   height?: number;
   availWidth?: number;

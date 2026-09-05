@@ -1,11 +1,11 @@
 import { createPersistentStore } from '$lib/stores/persistent-store';
 import type { LogLevel } from '$lib/services/logging';
 
-export type LogLevelVisibility = Record<LogLevel, boolean>;
-export const LOG_LEVEL_DEFAULT_VISIBILITY: LogLevelVisibility = {
+type LogLevelVisibility = Record<LogLevel, boolean>;
+const LOG_LEVEL_DEFAULT_VISIBILITY: LogLevelVisibility = {
   error: true, warning: true, info: true, debug: false
 };
-export function normalizeLogLevelVisibility(value: unknown): LogLevelVisibility {
+function normalizeLogLevelVisibility(value: unknown): LogLevelVisibility {
   const source = value && typeof value === 'object' ? value as Partial<LogLevelVisibility> : {};
   const result = { ...LOG_LEVEL_DEFAULT_VISIBILITY };
   for (const level of Object.keys(result) as LogLevel[]) {

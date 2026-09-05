@@ -3,8 +3,8 @@ import { findDockTabZone, moveDockTab } from '$lib/services/dock-layout';
 import { createPersistentStore } from './persistent-store';
 
 export const TROUBADOUR_DOCK_SCOPE = 'troubadour-workspace';
-export const TROUBADOUR_WORKSPACE_STORAGE_KEY = 'izci.troubadour-workspace.v1';
-export const TROUBADOUR_WORKSPACE_CHANNEL = 'izci-troubadour-workspace';
+const TROUBADOUR_WORKSPACE_STORAGE_KEY = 'izci.troubadour-workspace.v1';
+const TROUBADOUR_WORKSPACE_CHANNEL = 'izci-troubadour-workspace';
 
 export const TROUBADOUR_TABS = [
   'files',
@@ -18,7 +18,7 @@ export const TROUBADOUR_TABS = [
 
 export type TroubadourTab = typeof TROUBADOUR_TABS[number];
 
-export const TROUBADOUR_DOCK_ZONE_IDS = [
+const TROUBADOUR_DOCK_ZONE_IDS = [
   'top-left',
   'top-right',
   'left-top',
@@ -34,7 +34,7 @@ export const TROUBADOUR_DOCK_ZONE_IDS = [
 export type TroubadourDockZoneId = typeof TROUBADOUR_DOCK_ZONE_IDS[number];
 export type TroubadourDockRegionId = 'top' | 'left' | 'middle' | 'right' | 'bottom';
 
-export interface TroubadourDockRegion {
+interface TroubadourDockRegion {
   id: TroubadourDockRegionId;
   zones: readonly [TroubadourDockZoneId, TroubadourDockZoneId];
   split: 'horizontal' | 'vertical';
@@ -48,8 +48,8 @@ export const TROUBADOUR_DOCK_REGIONS: readonly TroubadourDockRegion[] = [
   { id: 'bottom', zones: ['bottom-left', 'bottom-right'], split: 'horizontal' }
 ];
 
-export type TroubadourDockZones = Record<TroubadourDockZoneId, TroubadourTab[]>;
-export type TroubadourDockActiveTabs = Record<TroubadourDockZoneId, TroubadourTab | null>;
+type TroubadourDockZones = Record<TroubadourDockZoneId, TroubadourTab[]>;
+type TroubadourDockActiveTabs = Record<TroubadourDockZoneId, TroubadourTab | null>;
 
 export interface TroubadourDockLayout {
   rows: Record<'top' | 'middle' | 'bottom', number>;
@@ -63,7 +63,7 @@ export interface TroubadourWorkspaceState {
   layout: TroubadourDockLayout;
 }
 
-export const DEFAULT_TROUBADOUR_DOCK_LAYOUT: TroubadourDockLayout = {
+const DEFAULT_TROUBADOUR_DOCK_LAYOUT: TroubadourDockLayout = {
   rows: { top: 0.2, middle: 0.6, bottom: 0.2 },
   columns: { left: 0.28, middle: 0.46, right: 0.26 },
   splits: { top: 0.5, left: 0.5, middle: 0.58, right: 0.5, bottom: 0.5 }
@@ -105,7 +105,7 @@ export function isTroubadourTab(value: unknown): value is TroubadourTab {
   return typeof value === 'string' && (TROUBADOUR_TABS as readonly string[]).includes(value);
 }
 
-export function isTroubadourDockZoneId(value: unknown): value is TroubadourDockZoneId {
+function isTroubadourDockZoneId(value: unknown): value is TroubadourDockZoneId {
   return typeof value === 'string' && (TROUBADOUR_DOCK_ZONE_IDS as readonly string[]).includes(value);
 }
 

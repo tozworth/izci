@@ -26,7 +26,7 @@ export interface TroubadourDockGuide {
   zoneLabels: readonly [string, string];
 }
 
-export interface DockResizePair {
+interface DockResizePair {
   before: TroubadourDockRegionId;
   after: TroubadourDockRegionId;
 }
@@ -142,7 +142,7 @@ export function dockTabDefinitions(
   } satisfies Record<TroubadourTab, DockTabDefinition>;
 }
 
-export function replaceDockLayoutAxis(
+function replaceDockLayoutAxis(
   layout: TroubadourDockLayout,
   axis: 'rows' | 'columns',
   before: string,
@@ -160,7 +160,7 @@ export function replaceDockLayoutAxis(
   } as TroubadourDockLayout;
 }
 
-export function getMainResizeElement(
+function getMainResizeElement(
   workspaceElement: HTMLElement,
   visibleDockColumns: readonly TroubadourDockRegionId[],
   regionId: TroubadourDockRegionId

@@ -63,7 +63,7 @@ export interface MultiplayerClient {
 }
 
 /** Per-peer buffered Opus delivery state (host side). */
-export interface MultiplayerPeerRenderState {
+interface MultiplayerPeerRenderState {
   generationId: string;
   renderId: string;
   /** Render cache key; used to pin/unpin the shared entry. */

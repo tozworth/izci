@@ -12,7 +12,7 @@ import type {
 
 const FREEPLAY_PROGRESS_INTERVAL_MS = 500;
 
-export interface MultiplayerFreeplayAudioSettings {
+interface MultiplayerFreeplayAudioSettings {
   enabled: boolean;
   /**
    * Pre-resolved delivery for the track: 'render' (buffered Opus), 'source-file'

@@ -6,8 +6,8 @@ import type {
 } from '$lib/types';
 import { createSettingsStore, normalizeBoolean } from './persistent-store';
 
-export const PLAYBACK_SETTINGS_STORAGE_KEY = 'izci.playback-settings';
-export const PLAYBACK_SETTINGS_CHANNEL = 'izci-playback-settings';
+const PLAYBACK_SETTINGS_STORAGE_KEY = 'izci.playback-settings';
+const PLAYBACK_SETTINGS_CHANNEL = 'izci-playback-settings';
 
 export const REPLAY_GAIN_MODE_OPTIONS: Array<{ value: ReplayGainMode; label: string }> = [
   { value: 'track', label: 'Track' },

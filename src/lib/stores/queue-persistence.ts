@@ -86,20 +86,7 @@ export function restoreStoredItem(value: unknown): TrackItem | null {
     return null;
   }
 
-  return {
-    id: item.id,
-    fileHandle: item.fileHandle,
-    path: item.path,
-    sourceFolderId: item.sourceFolderId,
-    name: item.name,
-    extension: item.extension,
-    kind: item.kind,
-    size: item.size,
-    lastModified: item.lastModified,
-    metadata: item.metadata,
-    rating: item.rating,
-    subsong: item.subsong
-  };
+  return { ...item, rating: item.rating, subsong: item.subsong };
 }
 
 export function serializeItem(item: TrackItem): StoredTrackItem | null {

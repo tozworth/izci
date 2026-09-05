@@ -13,13 +13,13 @@ export const AUTO_AMP_RECOVERY_MIN_DB_PER_SECOND = 0.25;
 export const AUTO_AMP_RECOVERY_MAX_DB_PER_SECOND = 12;
 export const AUTO_AMP_LOOKAHEAD_MIN_MS = 50;
 export const AUTO_AMP_LOOKAHEAD_MAX_MS = 300;
-export const AUTO_AMP_ANALYSIS_INTERVAL_MS = 25;
-export const AUTO_AMP_SILENCE_DB = -54;
+const AUTO_AMP_ANALYSIS_INTERVAL_MS = 25;
+const AUTO_AMP_SILENCE_DB = -54;
 const AUTO_AMP_CUT_RAMP_SECONDS = 0.005;
 const AUTO_AMP_PATH_CROSSFADE_SECONDS = 0.02;
 const AUTO_AMP_LOOKAHEAD_SAFETY_MS = 40;
 
-export interface AutoAmpNode extends RafEffectNode {
+interface AutoAmpNode extends RafEffectNode {
   analyser: AnalyserNode;
   delay: DelayNode;
   directGain: GainNode;

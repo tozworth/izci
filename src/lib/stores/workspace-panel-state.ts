@@ -10,22 +10,22 @@ import type {
 import { WORKSPACE_PANEL_IDS, WORKSPACE_TABS } from '$lib/types';
 import { createPersistentStore } from './persistent-store';
 
-export const WORKSPACE_PANEL_STATE_STORAGE_KEY = 'izci.workspace-panel-state.v2';
-export const WORKSPACE_PANEL_STATE_CHANNEL = 'izci-workspace-panel-state';
+const WORKSPACE_PANEL_STATE_STORAGE_KEY = 'izci.workspace-panel-state.v2';
+const WORKSPACE_PANEL_STATE_CHANNEL = 'izci-workspace-panel-state';
 
-export const DEFAULT_WORKSPACE_PANEL_TABS: WorkspacePanelTabsSettings = {
+const DEFAULT_WORKSPACE_PANEL_TABS: WorkspacePanelTabsSettings = {
   left: ['queue'],
   center: ['library'],
   right: []
 };
 
-export const DEFAULT_WORKSPACE_ACTIVE_TABS: WorkspacePanelActiveTabsSettings = {
+const DEFAULT_WORKSPACE_ACTIVE_TABS: WorkspacePanelActiveTabsSettings = {
   left: 'queue',
   center: 'library',
   right: null
 };
 
-export const DEFAULT_WORKSPACE_LAST_PANEL_BY_TAB: WorkspaceTabPanelMemorySettings = {
+const DEFAULT_WORKSPACE_LAST_PANEL_BY_TAB: WorkspaceTabPanelMemorySettings = {
   queue: 'left',
   library: 'center',
   details: 'right',
@@ -34,7 +34,7 @@ export const DEFAULT_WORKSPACE_LAST_PANEL_BY_TAB: WorkspaceTabPanelMemorySetting
   video: 'center'
 };
 
-export const DEFAULT_WORKSPACE_PANEL_STATE: WorkspacePanelStateSettings = {
+const DEFAULT_WORKSPACE_PANEL_STATE: WorkspacePanelStateSettings = {
   activeWorkspaceTab: 'queue',
   activeCollection: 'queue',
   panels: DEFAULT_WORKSPACE_PANEL_TABS,

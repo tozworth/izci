@@ -5,7 +5,7 @@ import { normalizeTrackRating } from '$lib/services/track-ratings';
 
 export type { LibraryGroupViewId } from '$lib/types';
 
-export interface LibraryViewDefinition {
+interface LibraryViewDefinition {
   id: LibraryViewId;
   label: string;
   icon: string;
@@ -323,7 +323,7 @@ export function countLibraryGroups(items: TrackItem[], view: LibraryGroupViewId)
   return keys.size;
 }
 
-export function groupMatchesSearchQuery(group: LibraryGroup, normalizedQuery: string): boolean {
+function groupMatchesSearchQuery(group: LibraryGroup, normalizedQuery: string): boolean {
   if (!normalizedQuery) return true;
 
   const groupText = `${group.label}\n${group.secondary}`.toLowerCase();

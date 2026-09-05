@@ -2,10 +2,10 @@ import type { Readable } from 'svelte/store';
 import { playbackSettings } from '$lib/stores/playback-settings';
 import type { PlaybackSnapshot, TrackItem } from '$lib/types';
 
-export const PLAYBACK_RESTORATION_STORAGE_KEY = 'izci.playback-restoration';
+const PLAYBACK_RESTORATION_STORAGE_KEY = 'izci.playback-restoration';
 const CHECKPOINT_DELAY_MS = 500;
 
-export interface PlaybackRestorationCheckpoint {
+interface PlaybackRestorationCheckpoint {
   trackId: string;
   currentTime: number;
   wasPlaying: boolean;

@@ -3,7 +3,7 @@ import { scanLibraryFolder } from '$lib/services/library-folder-scanner';
 const CHANNEL_NAME = 'izci-library-folder-commands';
 let commandChannel: BroadcastChannel | null = null;
 
-export interface LibraryFolderCommand {
+interface LibraryFolderCommand {
   type: 'scan';
   folderId: string;
 }

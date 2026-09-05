@@ -26,7 +26,7 @@ import {
 } from '$lib/utils/files';
 
 export const BACKUP_EXTENSION = '.izci';
-export const BACKUP_MIME_TYPE = 'application/vnd.izci.backup+zip';
+const BACKUP_MIME_TYPE = 'application/vnd.izci.backup+zip';
 export const BACKUP_FORMAT_VERSION = 1;
 
 const BACKUP_DATABASE_NAME = 'izci-backup-restore';
@@ -36,7 +36,7 @@ const BACKUP_STATE_KEY = 'pending';
 const BACKUP_CHANNEL_NAME = 'izci-backup-restore';
 
 // This is deliberately an allowlist. Coordination, window, update, and transient keys do not belong in backups.
-export const BACKED_UP_SETTINGS_KEYS = [
+const BACKED_UP_SETTINGS_KEYS = [
   'izci.appearance-settings',
   'izci.experimental-settings',
   'izci.library-view-settings.v5',
@@ -57,7 +57,7 @@ export const BACKED_UP_SETTINGS_KEYS = [
   'izci.workspace-panel-state.v2'
 ] as const;
 
-export interface BackupManifest {
+interface BackupManifest {
   kind: 'izci-backup';
   formatVersion: number;
   createdAt: string;
@@ -72,7 +72,7 @@ export interface BackupManifest {
   };
 }
 
-export interface PortableTrackRecord {
+interface PortableTrackRecord {
   id: string;
   name: string;
   extension: string;
@@ -102,7 +102,7 @@ export interface BackupArchiveData {
   progress: PlaybackProgressRecord[];
 }
 
-export interface PendingBackupRestore {
+interface PendingBackupRestore {
   createdAt: string;
   sourceOrigin: string;
   folders: PortableFolderRecord[];
@@ -120,7 +120,7 @@ export interface BackupRestoreResult {
   progressRestored: number;
 }
 
-export interface LocateRestoreResult {
+interface LocateRestoreResult {
   status: 'success' | 'mismatch';
   matchedTracks: number;
   remainingTracks: number;

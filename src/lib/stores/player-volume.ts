@@ -1,7 +1,7 @@
 import { createPersistentStore } from './persistent-store';
 
-export const PLAYER_VOLUME_STORAGE_KEY = 'izci.player-volume.v1';
-export const PLAYER_VOLUME_CHANNEL = 'izci-player-volume';
+const PLAYER_VOLUME_STORAGE_KEY = 'izci.player-volume.v1';
+const PLAYER_VOLUME_CHANNEL = 'izci-player-volume';
 export const DEFAULT_PLAYER_VOLUME = 0.85;
 
 function clamp(value: number, min: number, max: number): number {

@@ -3,7 +3,7 @@ import { ALL_FORMATS, AudioBufferSink, BlobSource, Input } from 'mediabunny';
 export const DEFAULT_FFT_SIZE = 4096;
 export const SPECTROGRAM_FFT_SIZES = [2048, 4096, 8192] as const;
 
-export interface SpectrogramProgress {
+interface SpectrogramProgress {
   completed: number;
   total: number;
 }

@@ -1,7 +1,7 @@
 import { createSettingsStore, normalizeBoolean } from './persistent-store';
 
-export const TROUBADOUR_SETTINGS_STORAGE_KEY = 'izci.troubadour-settings';
-export const TROUBADOUR_SETTINGS_CHANNEL = 'izci.troubadour-settings';
+const TROUBADOUR_SETTINGS_STORAGE_KEY = 'izci.troubadour-settings';
+const TROUBADOUR_SETTINGS_CHANNEL = 'izci.troubadour-settings';
 
 export const TROUBADOUR_METADATA_FIELDS = [
   'title',
@@ -28,24 +28,24 @@ export const TROUBADOUR_METADATA_FIELDS = [
 ] as const;
 
 export type TroubadourMetadataField = typeof TROUBADOUR_METADATA_FIELDS[number];
-export type TroubadourInitialLoad = 'current-track' | 'current-selection' | 'nothing';
+type TroubadourInitialLoad = 'current-track' | 'current-selection' | 'nothing';
 export type TroubadourAutoGroupFallback = 'folder' | 'none';
-export type TroubadourDateDisplay = 'verbatim' | 'year' | 'localized';
-export type TroubadourRawTagVisibility = 'hidden' | 'advanced' | 'always';
-export type TroubadourValidationSeverity = 'errors' | 'warnings' | 'all';
+type TroubadourDateDisplay = 'verbatim' | 'year' | 'localized';
+type TroubadourRawTagVisibility = 'hidden' | 'advanced' | 'always';
+type TroubadourValidationSeverity = 'errors' | 'warnings' | 'all';
 export type TroubadourArtworkKind = 'front' | 'back' | 'other';
 export type TroubadourMultipleImageBehavior = 'preserve' | 'replace-kind' | 'reject';
-export type TroubadourAlbumArtworkDefault = 'selected' | 'album' | 'ask';
-export type TroubadourArtworkPreviewFit = 'contain' | 'cover' | 'actual';
-export type TroubadourUnicodeNormalization = 'preserve' | 'nfc' | 'ascii';
-export type TroubadourExtensionCase = 'preserve' | 'lower' | 'upper';
-export type TroubadourMissingTokenPolicy = 'stop' | 'empty' | 'skip';
-export type TroubadourCollisionPolicy = 'stop' | 'skip' | 'counter';
-export type TroubadourCopyVerification = 'size' | 'metadata' | 'hash';
-export type TroubadourBackupPolicy = 'none' | 'sibling' | 'backup-folder';
-export type TroubadourPostWriteVerification = 'managed-fields' | 'full-metadata';
-export type TroubadourExternalChangeBehavior = 'stop' | 'reload-unchanged';
-export type TroubadourBatchErrorBehavior = 'continue' | 'stop';
+type TroubadourAlbumArtworkDefault = 'selected' | 'album' | 'ask';
+type TroubadourArtworkPreviewFit = 'contain' | 'cover' | 'actual';
+type TroubadourUnicodeNormalization = 'preserve' | 'nfc' | 'ascii';
+type TroubadourExtensionCase = 'preserve' | 'lower' | 'upper';
+type TroubadourMissingTokenPolicy = 'stop' | 'empty' | 'skip';
+type TroubadourCollisionPolicy = 'stop' | 'skip' | 'counter';
+type TroubadourCopyVerification = 'size' | 'metadata' | 'hash';
+type TroubadourBackupPolicy = 'none' | 'sibling' | 'backup-folder';
+type TroubadourPostWriteVerification = 'managed-fields' | 'full-metadata';
+type TroubadourExternalChangeBehavior = 'stop' | 'reload-unchanged';
+type TroubadourBatchErrorBehavior = 'continue' | 'stop';
 
 export interface TroubadourSettings {
   initialLoad: TroubadourInitialLoad;

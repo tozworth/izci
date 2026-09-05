@@ -19,7 +19,7 @@ const initialSleepTimerState: SleepTimerState = {
   remainingSeconds: null
 };
 
-export function resolveSleepRemainingSeconds(endTime: number, now: number): number {
+function resolveSleepRemainingSeconds(endTime: number, now: number): number {
   return Math.max(0, Math.ceil((endTime - now) / 1000));
 }
 

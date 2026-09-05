@@ -343,7 +343,6 @@ export function createMainWindowRuntime(deps: MainWindowRuntimeDeps): MainWindow
     setTheaterControlsHidden: (hidden) => publish({ videoTheaterControlsHidden: hidden }),
     getIsNowPlayingLayoutActive: () => state.isNowPlayingLayoutActive,
     getIsAutomaticNowPlayingEligible: () => state.isAutomaticNowPlayingEligible,
-    getAutoNowPlayingSuppressed: () => state.autoNowPlayingSuppressed,
     setAutoNowPlayingSuppressed: (value) => publish({ autoNowPlayingSuppressed: value }),
     getWindowDisplayState: () => {
       const display = get(windowDisplayState);

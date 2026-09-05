@@ -1,10 +1,10 @@
 import type { WorkspacePanelLayoutSettings } from '$lib/types';
 import { createSettingsStore } from './persistent-store';
 
-export const WORKSPACE_PANEL_LAYOUT_STORAGE_KEY = 'izci.workspace-panel-layout.v2';
-export const WORKSPACE_PANEL_LAYOUT_CHANNEL = 'izci-workspace-panel-layout';
+const WORKSPACE_PANEL_LAYOUT_STORAGE_KEY = 'izci.workspace-panel-layout.v2';
+const WORKSPACE_PANEL_LAYOUT_CHANNEL = 'izci-workspace-panel-layout';
 
-export const DEFAULT_WORKSPACE_PANEL_LAYOUT: WorkspacePanelLayoutSettings = {
+const DEFAULT_WORKSPACE_PANEL_LAYOUT: WorkspacePanelLayoutSettings = {
   leftFraction: 0.28,
   centerFraction: 0.42,
   rightFraction: 0.3

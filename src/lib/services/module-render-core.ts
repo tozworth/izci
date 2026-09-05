@@ -42,12 +42,12 @@ export interface ModuleRenderRequest {
   sampleRate: number;
 }
 
-export interface ModuleRenderProgress {
+interface ModuleRenderProgress {
   renderedFrames: number;
   totalFrames: number;
 }
 
-export interface ModulePcmChunk {
+interface ModulePcmChunk {
   startFrame: number;
   left: Float32Array<ArrayBuffer>;
   right: Float32Array<ArrayBuffer>;

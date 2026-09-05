@@ -1,8 +1,8 @@
 import type { TrackSettings } from '$lib/types';
 import { createSettingsStore, normalizeBoolean } from './persistent-store';
 
-export const TRACK_SETTINGS_STORAGE_KEY = 'izci.track-settings';
-export const TRACK_SETTINGS_CHANNEL = 'izci.track-settings';
+const TRACK_SETTINGS_STORAGE_KEY = 'izci.track-settings';
+const TRACK_SETTINGS_CHANNEL = 'izci.track-settings';
 export const DEFAULT_FOLDER_NESTING_LIMIT = 8;
 export const MIN_FOLDER_NESTING_LIMIT = 0;
 export const MAX_FOLDER_NESTING_LIMIT = 64;

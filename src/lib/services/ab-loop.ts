@@ -14,7 +14,7 @@ export interface AbLoopState {
   end: number | null;
 }
 
-export const initialAbLoopState: AbLoopState = {
+const initialAbLoopState: AbLoopState = {
   active: false,
   start: null,
   end: null

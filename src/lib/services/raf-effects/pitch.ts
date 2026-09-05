@@ -31,7 +31,7 @@ const PITCH_ENGINES: Record<RafPitchEngine, PitchEngineDescriptor> = {
 
 const pitchWorkletLoads = new WeakMap<BaseAudioContext, Map<string, Promise<boolean>>>();
 
-export interface PitchNode extends RafEffectNode {
+interface PitchNode extends RafEffectNode {
   input: GainNode;
   output: GainNode;
   worklet: AudioWorkletNode | null;

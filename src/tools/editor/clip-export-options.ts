@@ -1,5 +1,5 @@
 export type ClipExportFormat = 'wav' | 'mp3' | 'flac' | 'opus';
-export type ClipExportBitrateMode = 'constant' | 'variable';
+type ClipExportBitrateMode = 'constant' | 'variable';
 export type ClipExportSampleRate = 'source' | 44_100 | 48_000;
 export type ClipExportChannels = 'source' | 1 | 2;
 export type ClipExportBitDepth = 16 | 24 | 32;

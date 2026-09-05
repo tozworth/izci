@@ -1,8 +1,8 @@
 import type { MetadataSettings } from '$lib/types';
 import { createSettingsStore, normalizeBoolean } from './persistent-store';
 
-export const METADATA_SETTINGS_STORAGE_KEY = 'izci.metadata-settings';
-export const METADATA_SETTINGS_CHANNEL = 'izci.metadata-settings';
+const METADATA_SETTINGS_STORAGE_KEY = 'izci.metadata-settings';
+const METADATA_SETTINGS_CHANNEL = 'izci.metadata-settings';
 export const DEFAULT_PLAY_COUNT_THRESHOLD_SECONDS = 15;
 export const MIN_PLAY_COUNT_THRESHOLD_SECONDS = 1;
 export const MAX_PLAY_COUNT_THRESHOLD_SECONDS = 3600;

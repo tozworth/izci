@@ -5,7 +5,7 @@ import type { TroubadourTranslate } from './troubadour-dock';
 
 export const ITEM_DRAG_MIME = 'application/x-izci-troubadour-items';
 
-export const OPEN_FILE_OPTIONS: OpenFilePickerOptions = {
+const OPEN_FILE_OPTIONS: OpenFilePickerOptions = {
   multiple: true,
   types: [{
     description: 'Media files',
@@ -16,7 +16,7 @@ export const OPEN_FILE_OPTIONS: OpenFilePickerOptions = {
   }]
 };
 
-export type TroubadourLoadingSource = 'files' | 'folder' | 'library-folder' | null;
+type TroubadourLoadingSource = 'files' | 'folder' | 'library-folder' | null;
 
 export interface TroubadourImportTarget {
   controller: {

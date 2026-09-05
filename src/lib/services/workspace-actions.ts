@@ -100,7 +100,7 @@ function buildFavoriteToggleAction(
   };
 }
 
-export function buildGoToLibraryAction(
+function buildGoToLibraryAction(
   track: TrackItem | undefined,
   libraryItems: TrackItem[]
 ): MenuActionItem | null {

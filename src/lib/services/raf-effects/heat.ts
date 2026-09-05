@@ -9,10 +9,10 @@ export const HEAT_COLOR_MIN_DB = -6;
 export const HEAT_COLOR_MAX_DB = 6;
 export const HEAT_ASYMMETRY_MIN = 0;
 export const HEAT_ASYMMETRY_MAX = 100;
-export const HEAT_CURVE_SIZE = 4097;
-export const HEAT_TILT_FREQUENCY_HZ = 700;
+const HEAT_CURVE_SIZE = 4097;
+const HEAT_TILT_FREQUENCY_HZ = 700;
 
-export interface HeatNode extends RafEffectNode {
+interface HeatNode extends RafEffectNode {
   drive: GainNode;
   colorLow: BiquadFilterNode;
   colorHigh: BiquadFilterNode;
@@ -21,15 +21,15 @@ export interface HeatNode extends RafEffectNode {
   nodes: AudioNode[];
 }
 
-export function driveToGain(driveDb: number): number {
+function driveToGain(driveDb: number): number {
   return decibelsToGain(Math.min(HEAT_DRIVE_MAX_DB, Math.max(HEAT_DRIVE_MIN_DB, driveDb)));
 }
 
-export function outputToGain(outputDb: number): number {
+function outputToGain(outputDb: number): number {
   return decibelsToGain(Math.min(HEAT_OUTPUT_MAX_DB, Math.max(HEAT_OUTPUT_MIN_DB, outputDb)));
 }
 
-export function createHeatCurve(asymmetry: number): Float32Array<ArrayBuffer> {
+function createHeatCurve(asymmetry: number): Float32Array<ArrayBuffer> {
   const amount = Math.min(HEAT_ASYMMETRY_MAX, Math.max(HEAT_ASYMMETRY_MIN, asymmetry)) / 100;
   const posAmount = 1 + amount * 0.8;
   const negAmount = 1 - amount * 0.3;

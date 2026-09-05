@@ -31,7 +31,7 @@ export interface ArtworkStagingTarget {
   setError(message: string): void;
 }
 
-export async function artworkFromFile(file: File, defaultKind: TroubadourArtworkKind): Promise<MediaArtwork> {
+async function artworkFromFile(file: File, defaultKind: TroubadourArtworkKind): Promise<MediaArtwork> {
   return {
     id: `pending:${crypto.randomUUID()}`,
     data: new Uint8Array(await file.arrayBuffer()),

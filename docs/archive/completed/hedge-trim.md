@@ -1,4 +1,4 @@
-# Hedge-trim pass
+# Hedge-trim pass (completed)
 
 The hedge-trim pass is a deletion-led simplification of izci. It exists to
 remove dead code, duplicated machinery, forwarding layers, unnecessary public
@@ -7,8 +7,8 @@ feature pass, bug hunt, architecture migration, or another exercise in making
 large files smaller by making the repository larger.
 
 The completed gardening pass is retained as historical context in
-[`archive/gardening.md`](archive/gardening.md) and
-[`archive/gardening-final-report.md`](archive/gardening-final-report.md).
+[`gardening.md`](gardening.md) and
+[`gardening-final-report.md`](gardening-final-report.md).
 
 ## Why this pass is different
 

@@ -1,7 +1,7 @@
 import { createPersistentStore } from './persistent-store';
 
-export const MULTIPLAYER_PAIRINGS_STORAGE_KEY = 'izci.multiplayer-pairings';
-export const MULTIPLAYER_PAIRINGS_CHANNEL = 'izci-multiplayer-pairings';
+const MULTIPLAYER_PAIRINGS_STORAGE_KEY = 'izci.multiplayer-pairings';
+const MULTIPLAYER_PAIRINGS_CHANNEL = 'izci-multiplayer-pairings';
 
 export interface MultiplayerPairing {
   hostId: string;

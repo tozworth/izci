@@ -12,10 +12,10 @@ export type MultiplayerCollection = 'queue' | 'library' | 'favorites';
 // listener never reuses cached bytes from a replaced track. Compatibility is
 // intentionally scorched-earth while Multiplayer remains experimental.
 export const MULTIPLAYER_PROTOCOL_VERSION = 19;
-export const MULTIPLAYER_FRAME_CHUNK_SIZE = 12_000;
+const MULTIPLAYER_FRAME_CHUNK_SIZE = 12_000;
 export const MULTIPLAYER_QUEUE_MAX_ITEMS = 50_000;
-export const MULTIPLAYER_RENDER_MAX_CLUSTERS = 200_000;
-export const MULTIPLAYER_RENDER_MAX_TOTAL_BYTES = 8 * 1024 * 1024 * 1024;
+const MULTIPLAYER_RENDER_MAX_CLUSTERS = 200_000;
+const MULTIPLAYER_RENDER_MAX_TOTAL_BYTES = 8 * 1024 * 1024 * 1024;
 export const MULTIPLAYER_RENDER_MAX_RANGES = 100_000;
 
 const MULTIPLAYER_ARTWORK_DATA_URL_MAX_LENGTH = 8 * 1024 * 1024;
@@ -77,7 +77,7 @@ export interface MultiplayerDeliveryState {
   reason: 'host-disabled' | 'no-track' | null;
 }
 
-export interface MultiplayerRenderClusterInfo {
+interface MultiplayerRenderClusterInfo {
   index: number;
   timeMs: number;
   sizeBytes: number;
@@ -193,7 +193,7 @@ export function sanitizeTrackItem(item: TrackItem): TrackItem {
   };
 }
 
-export function sanitizeTrackMetadata(metadata: TrackMetadata): TrackMetadata {
+function sanitizeTrackMetadata(metadata: TrackMetadata): TrackMetadata {
   const copy = JSON.parse(JSON.stringify(metadata)) as TrackMetadata;
   return copy;
 }
@@ -231,7 +231,7 @@ export function isMultiplayerCommand(value: unknown): value is MultiplayerComman
   }
 }
 
-export function isRemoteTrackItem(value: unknown): value is TrackItem {
+function isRemoteTrackItem(value: unknown): value is TrackItem {
   if (!value || typeof value !== 'object') return false;
   const item = value as Partial<TrackItem>;
   return typeof item.id === 'string'
@@ -368,7 +368,7 @@ export function isHostMessage(value: unknown): value is HostMessage {
   return false;
 }
 
-export function isRenderManifest(value: unknown): value is MultiplayerRenderManifest {
+function isRenderManifest(value: unknown): value is MultiplayerRenderManifest {
   if (!value || typeof value !== 'object') return false;
   const manifest = value as Partial<MultiplayerRenderManifest>;
   if (typeof manifest.generationId !== 'string'

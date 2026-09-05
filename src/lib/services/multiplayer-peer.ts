@@ -10,7 +10,7 @@ import {
 import type { FirebaseRuntime, PeerConnection, SignalCandidate, SignalCandidates } from './multiplayer-types';
 import { errorMessage, isClientMessage } from './multiplayer-utils';
 
-export const ICE_CONNECTION_TIMEOUT_MS = 15_000;
+const ICE_CONNECTION_TIMEOUT_MS = 15_000;
 
 export function createPeer(
   id: string,
@@ -174,7 +174,7 @@ export function prepareCandidatePublisher(
   };
 }
 
-export function toSignalCandidate(candidate: RTCIceCandidate): SignalCandidate {
+function toSignalCandidate(candidate: RTCIceCandidate): SignalCandidate {
   return {
     candidate: candidate.candidate,
     sdpMid: candidate.sdpMid ?? '',
@@ -208,7 +208,7 @@ export async function flushRemoteCandidates(peer: PeerConnection): Promise<void>
 
 }
 
-export function isSignalCandidate(value: unknown): value is SignalCandidate {
+function isSignalCandidate(value: unknown): value is SignalCandidate {
   if (!value || typeof value !== 'object') return false;
   const candidate = value as Partial<SignalCandidate>;
   return typeof candidate.candidate === 'string'
@@ -217,7 +217,7 @@ export function isSignalCandidate(value: unknown): value is SignalCandidate {
     && typeof candidate.sdpMLineIndex === 'number';
 }
 
-export function noteCandidateType(target: Set<string>, candidate: string): void {
+function noteCandidateType(target: Set<string>, candidate: string): void {
   const type = candidate.match(/(?:^|\s)typ\s+([a-z]+)/i)?.[1]?.toLowerCase();
   if (type) target.add(type);
 }
@@ -280,7 +280,7 @@ export function describeIceFailure(peer: PeerConnection, peerName?: string): str
   return `${subject} failed after exchanging ${formatCandidateTypes(local)} local and ${formatCandidateTypes(remote)} remote candidates${rejected > 0 ? `; ${rejected} candidate error${rejected === 1 ? '' : 's'} occurred` : ''}. A NAT or firewall blocked every direct route, and no relay candidate was available.`;
 }
 
-export function formatCandidateTypes(types: string[]): string {
+function formatCandidateTypes(types: string[]): string {
   const labels: Record<string, string> = {
     host: 'local',
     srflx: 'STUN',

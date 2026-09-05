@@ -1,6 +1,6 @@
 import { readable } from 'svelte/store';
 
-export interface RafMeterSnapshot {
+interface RafMeterSnapshot {
   inputDb: number;
   outputDb: number;
   clipping: boolean;

@@ -64,7 +64,6 @@ const harness = vi.hoisted(() => {
     pendingLoads,
     audioBus: {
       resume: vi.fn(() => Promise.resolve()),
-      setInputGain: vi.fn(),
       setOutputGain: vi.fn(),
       setRafEffectBypass: vi.fn(),
       destroy: vi.fn()

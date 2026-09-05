@@ -8,8 +8,8 @@ import type {
 } from '$lib/types';
 import { createPersistentStore, normalizeBoolean } from './persistent-store';
 
-export const LIBRARY_VIEW_SETTINGS_STORAGE_KEY = 'izci.library-view-settings.v6';
-export const LIBRARY_VIEW_SETTINGS_CHANNEL = 'izci-library-view-settings-v6';
+const LIBRARY_VIEW_SETTINGS_STORAGE_KEY = 'izci.library-view-settings.v6';
+const LIBRARY_VIEW_SETTINGS_CHANNEL = 'izci-library-view-settings-v6';
 export const LIBRARY_VIEW_IDS: LibraryViewId[] = [
   'favorites',
   'ratings',
@@ -21,7 +21,7 @@ export const LIBRARY_VIEW_IDS: LibraryViewId[] = [
   'formats',
   'folders'
 ];
-export const LIBRARY_GROUP_VIEW_IDS: LibraryGroupViewId[] = [
+const LIBRARY_GROUP_VIEW_IDS: LibraryGroupViewId[] = [
   'artists',
   'albums',
   'genres',
@@ -29,7 +29,7 @@ export const LIBRARY_GROUP_VIEW_IDS: LibraryGroupViewId[] = [
   'formats',
   'folders'
 ];
-export const LIBRARY_COLUMN_IDS: LibraryColumnId[] = [
+const LIBRARY_COLUMN_IDS: LibraryColumnId[] = [
   'title',
   'artist',
   'album',

@@ -1,6 +1,6 @@
 import type { DockTabDragDetail } from './types';
 
-export const DOCK_TAB_DRAG_MIME = 'application/x-izci-dock-tab';
+const DOCK_TAB_DRAG_MIME = 'application/x-izci-dock-tab';
 
 interface DockTabDragPayload extends DockTabDragDetail {
   scope: string;
