@@ -35,6 +35,7 @@ body,
 body {
   min-height: 100%;
   background: transparent;
+  font-size: 0.8rem;
   user-select: none;
 }
 

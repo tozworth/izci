@@ -103,7 +103,7 @@
       return;
     }
     const anchor = (event.currentTarget as HTMLButtonElement).getBoundingClientRect();
-    presetMenuX = anchor.left + 60;
+    presetMenuX = anchor.left;
     presetMenuY = anchor.bottom + 4;
     presetMenuOpen = true;
   }
@@ -127,20 +127,16 @@
       label: $t('options.raf.presets.new', { default: 'New preset' }),
       icon: 'add'
     },
-    {
-      id: 'renameSelected',
-      label: $t('options.raf.presets.renameSelected', { default: 'Rename selected preset' }),
-      icon: 'edit',
-      disabled: !selectedPreset,
-      separatorBefore: true
-    },
     ...$rafPresets.presets.map((preset, index) => ({
       id: `apply:${preset.id}`,
       label: `${preset.name}${preset.id === $rafPresets.selectedPresetId && presetDirty ? ' *' : ''}`,
       checked: preset.id === $rafPresets.selectedPresetId,
       separatorBefore: index === 0,
+      editActionId: `rename:${preset.id}`,
+      editLabel: $t('options.raf.presets.rename', { default: 'Rename {preset}', values: { preset: preset.name } }),
       removeActionId: `delete:${preset.id}`,
-      removeLabel: $t('options.raf.presets.delete', { default: 'Delete {preset}', values: { preset: preset.name } })
+      removeLabel: $t('options.raf.presets.delete', { default: 'Delete {preset}', values: { preset: preset.name } }),
+      removeIcon: 'delete'
     }))
   ];
 
@@ -149,9 +145,9 @@
       createPreset();
       return;
     }
-    if (actionId === 'renameSelected') {
+    if (actionId.startsWith('rename:')) {
       closePresetMenu();
-      const preset = $rafPresets.presets.find((candidate) => candidate.id === $rafPresets.selectedPresetId);
+      const preset = $rafPresets.presets.find((candidate) => candidate.id === actionId.slice('rename:'.length));
       if (preset) renamePreset(preset.id, preset.name);
       return;
     }
@@ -161,8 +157,13 @@
       return;
     }
     if (actionId.startsWith('delete:')) {
-      // Same direct-delete behavior the old inline trash button had.
-      rafPresets.delete(actionId.slice('delete:'.length));
+      const preset = $rafPresets.presets.find((candidate) => candidate.id === actionId.slice('delete:'.length));
+      if (!preset) return;
+      const confirmed = window.confirm($t('options.raf.presets.confirmDelete', {
+        default: 'Delete Raf preset “{preset}”? This cannot be undone.',
+        values: { preset: preset.name }
+      }));
+      if (confirmed) rafPresets.delete(preset.id);
     }
   }
 </script>
@@ -253,7 +254,7 @@
     -webkit-backdrop-filter: blur(16px) saturate(1.08);
     box-shadow: 0 1px 0 var(--hairline), 0 8px 16px rgb(0 0 0 / 8%);
   }
-  .raf-toolbar > button,
+  .raf-toolbar > button:not(.preset-trigger),
   .transfer-menu summary { width: 27px; height: 27px; padding: 0; display: grid; place-items: center; border-radius: 4px; background: transparent; color: var(--muted-strong); }
   .raf-toolbar > button:hover:not(:disabled),
   .transfer-menu summary:hover { background: var(--hover-surface); color: var(--text-strong); }
@@ -268,7 +269,7 @@
   .transfer-menu summary::-webkit-details-marker { display: none; }
   .preset-trigger { width: min(150px, 32vw); height: 27px; min-width: 72px; padding: 0 4px 0 7px; display: flex; align-items: center; gap: 2px; border-radius: 4px; background: var(--bg-input); color: var(--text); font-size: inherit; }
   .preset-trigger:hover { background: var(--hover-surface); color: var(--text-strong); }
-  .preset-summary-name { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .preset-summary-name { min-width: 0; flex: 1; overflow: hidden; text-align: left; text-overflow: ellipsis; white-space: nowrap; }
   .transfer-menu-items { position: absolute; z-index: 5; left: 2px; right: auto; top: calc(100% + 3px); width: min(190px, calc(100% - 4px)); min-width: 0; padding: 3px; display: grid; border: 1px solid var(--menu-bar-border); border-radius: 5px; background: var(--menu-popover-bg); box-shadow: 0 6px 16px rgb(0 0 0 / 35%); }
   .transfer-menu-items button { display: flex; align-items: center; gap: 6px; padding: 6px 7px; border-radius: 3px; background: transparent; color: var(--text); text-align: left; }
   .transfer-menu-items button:hover { background: var(--hover-surface); color: var(--text-strong); }
