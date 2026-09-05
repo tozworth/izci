@@ -6,7 +6,7 @@ import type {
   Unsubscribe
 } from 'firebase/database';
 import type {
-  ExperimentalSettings,
+  MultiplayerSettings,
   PlaybackSnapshot,
   TrackItem,
   RepeatMode
@@ -298,7 +298,7 @@ export interface MultiplayerSessionCore {
   state: MultiplayerSessionState;
   publish(patch: Partial<MultiplayerSessionState>): void;
   updateClient(id: string, patch: Partial<MultiplayerClient>): void;
-  multiplayerSettings: ExperimentalSettings;
+  multiplayerSettings: MultiplayerSettings;
   firebaseRuntime: FirebaseRuntime | null;
   roomRef: DatabaseReference | null;
   hostDirectoryRef: DatabaseReference | null;

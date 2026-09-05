@@ -703,100 +703,101 @@
         "privacy": "Yedekler şifrelenmez. Dosya adlarını, yolları, metaverileri, favorileri ve dinleme ilerlemesini içerebilirler."
       }
     },
-    "experimental": {
-      "multiplayer": {
-        "category": "Çok oyunculu",
-        "modes": {
-          "label": "Çok oyunculu mod",
-          "singleplayer": {
-            "title": "Tek oyunculu",
-            "hint": "izci Çok Oyunculu kapalı."
-          },
-          "coop": {
-            "title": "Ko-op",
-            "hint": "İstemciler sunucunun sırasını ve oynatmayı kontrol edebilir. HTPC'ler ve partiler için uygundur."
-          },
-          "coopAudio": {
-            "title": "Ko-op + ses",
-            "hint": "İstemciler sunucuyu kontrol edebilir ve ses akışını kendi aygıtlarında dinleyebilir."
-          },
-          "freeplay": {
-            "title": "Freeplay",
-            "hint": "Eşleşen istemciler, sunucunun kitaplığındaki müziğe kendi kuyrukları, oynatmaları ve sesleriyle bağımsız olarak göz atıp çalabilir."
-          },
-          "freeplayBadge": "Oldukça deneysel"
+    "multiplayer": {
+      "category": "Çok oyunculu",
+      "modes": {
+        "label": "Çok oyunculu mod",
+        "singleplayer": {
+          "title": "Tek oyunculu",
+          "hint": "izci Çok Oyunculu kapalı."
         },
-        "name": "Bu izci'yi adlandır",
-        "nameHint": "Çok oyunculu oturumlarda sunucu ve istemcilere gösterilir.",
-        "waitForClients": {
-          "title": "İstemcileri bekle",
-          "hint": "Bir parçayı başlatmadan önce bağlı tüm dinleyicilerin aktarılan dosyayı yüklemesini veya ses akışına bağlanmasını bekler."
+        "coop": {
+          "title": "Ko-op",
+          "hint": "İstemciler sunucunun sırasını ve oynatmayı kontrol edebilir. HTPC'ler ve partiler için uygundur."
         },
-        "autoHost": {
-          "title": "Eşler için her zaman sunucu ol",
-          "hint": "Başlangıçta sessizce sunucu olur; böylece eşleştirilmiş cihazlar davet kodu olmadan katılabilir."
+        "coopAudio": {
+          "title": "Ko-op + ses",
+          "hint": "İstemciler sunucuyu kontrol edebilir ve ses akışını kendi aygıtlarında dinleyebilir."
         },
-        "restoreSession": {
-          "title": "Son oturumu geri yükle",
-          "hint": "Yeniden başlatıldıktan sonra önceki sunucuya bağlanır veya sunuculuğu sürdürür."
+        "freeplay": {
+          "title": "Freeplay",
+          "hint": "Eşleşen istemciler, sunucunun kitaplığındaki müziğe kendi kuyrukları, oynatmaları ve sesleriyle bağımsız olarak göz atıp çalabilir."
         },
-        "turnUrl": {
-          "title": "TURN server",
-          "hint": "Optional relay endpoint, such as relay.example.net:3478 or turns:relay.example.net:5349. A bare address uses turn: automatically."
-        },
-        "turnSecret": {
-          "title": "TURN authentication secret",
-          "hint": "Host-only shared secret configured on the relay. Listeners receive encrypted temporary credentials and do not need this setting."
-        },
-        "turnLifetime": {
-          "title": "TURN credential lifetime",
-          "hint": "Sets the expiry of credentials minted for each listener. Longer values better tolerate long sessions and reconnects."
-        },
-        "forceTurn": {
-          "title": "Force TURN relay",
-          "hint": "Uses relay candidates only. Enable temporarily to verify the relay or keep enabled when direct routes must never be used."
-        },
-        "maxListeners": {
-          "title": "Azami konuk",
-          "hint": "Ses aktarımı etkin olsun veya olmasın, sunucuya aynı anda kaç konuğun bağlanabileceğini sınırlar."
-        },
-        "audioCategory": "Çok Oyunculu Ses",
-        "synchronizedPlayback": {
-          "title": "Eşzamanlı oynatma",
-          "hint": "Sunucu ve dinleyiciler için ortak bir başlangıç zamanı ayarlar. En iyi gönderilen dosyalarla çalışır; tarayıcı tamponları değişebildiği için aktarılan ses yaklaşık olarak eşzamanlanır."
-        },
-        "syncLeadTime": {
-          "title": "Başlangıç hazırlık süresi",
-          "hint": "Tüm dinleyiciler hazır olduktan sonra sunucunun eşzamanlı başlangıcı ne kadar ileriye ayarlayacağını belirler. Aygıtlar ilk vuruşu kaçırıyorsa artırın."
-        },
-        "fileTransfer": {
-          "title": "Şundan küçük dosyaları gönder",
-          "hint": "Daha küçük ses ve modül dosyalarını bütün olarak gönderir ve her dinleyicide çalar. Daha büyük dosyalar sunucuda önceden arabelleğe alınmış Opus'a dönüştürülür. Modüller genellikle küçük olduğundan doğrudan aktarılır.",
-          "every": "Her dosya",
-          "never": "Yalnızca arabelleğe alınmış Opus"
-        },
-        "opusBitrate": {
-          "title": "Opus VBR bit hızı",
-          "hint": "Her dinleyicinin indirdiği önceden işlenmiş Opus akışının bit hızını belirler. Yüksek değerler sunucuda daha fazla bant genişliği ve kodlama gücü kullanır."
-        },
-        "audioBuffer": {
-          "title": "Başlatma/arabelleğe alma sonrası",
-          "hint": "Çalma başlamadan önce ve arabelleğe alma sonrasında her dinleyicinin ne kadar ses biriktireceğini belirler. Duraklatıldığında indirme ilerlemeye devam eder."
-        },
-        "renderCache": {
-          "title": "Ön işleme bellek sınırı",
-          "hint": "Sıkıştırılmış işleme önbelleğinin kullanabileceği sunucu belleği miktarı. Etkin parçalar sabitlenir; eski işlemeler en son kullanıma göre çıkarılır.",
-          "off": "Kapalı"
-        },
-        "diagnostics": {
-          "heading": "Bağlantı tanılama",
-          "signaling": "Firebase yalnızca daveti, oturum açıklamalarını ve ICE adaylarını iletir. Oynatma kontrolleri, katalog verileri, görseller ve ses, kurulan eş bağlantısını kullanır.",
-          "direct": "izci, genel ICE adayları için Cloudflare ve Google STUN sunucularına başvurur ve ardından doğrudan yolları dener. TURN aktarıcısı yapılandırılmadığından kısıtlayıcı NAT veya güvenlik duvarı birleşimleri bağlantıyı yine de engelleyebilir.",
-          "upnp": "Sabit genel IP veya yönlendiricide UPnP başarıyı garanti etmez: Chromium kendi ICE portlarını seçer ve izci UPnP port eşlemesi istemez.",
-          "messages": "Hiç aday toplanamaması tarayıcı ya da ağ ilkesine; yalnızca yerel aday bulunması STUN arızasına; iki tarafta da aday olup bağlantı kurulamaması NAT ya da güvenlik duvarı filtrelemesine işaret eder.",
-          "tailnet": "Başarılı bir Tailscale bağlantısı tailnet adreslerini, yönlendirici port eşlemesini veya DERP'i kullanabilir. Bu, Tailscale kapalıyken aynı aygıtlar arasında kullanılabilir bir doğrudan yol bulunduğunu kanıtlamaz."
-        }
+        "freeplayBadge": "Oldukça deneysel"
+      },
+      "name": "Bu izci'yi adlandır",
+      "nameHint": "Çok oyunculu oturumlarda sunucu ve istemcilere gösterilir.",
+      "waitForClients": {
+        "title": "İstemcileri bekle",
+        "hint": "Bir parçayı başlatmadan önce bağlı tüm dinleyicilerin aktarılan dosyayı yüklemesini veya ses akışına bağlanmasını bekler."
+      },
+      "autoHost": {
+        "title": "Eşler için her zaman sunucu ol",
+        "hint": "Başlangıçta sessizce sunucu olur; böylece eşleştirilmiş cihazlar davet kodu olmadan katılabilir."
+      },
+      "restoreSession": {
+        "title": "Son oturumu geri yükle",
+        "hint": "Yeniden başlatıldıktan sonra önceki sunucuya bağlanır veya sunuculuğu sürdürür."
+      },
+      "turnUrl": {
+        "title": "TURN server",
+        "hint": "Optional relay endpoint, such as relay.example.net:3478 or turns:relay.example.net:5349. A bare address uses turn: automatically."
+      },
+      "turnSecret": {
+        "title": "TURN authentication secret",
+        "hint": "Host-only shared secret configured on the relay. Listeners receive encrypted temporary credentials and do not need this setting."
+      },
+      "turnLifetime": {
+        "title": "TURN credential lifetime",
+        "hint": "Sets the expiry of credentials minted for each listener. Longer values better tolerate long sessions and reconnects."
+      },
+      "forceTurn": {
+        "title": "Force TURN relay",
+        "hint": "Uses relay candidates only. Enable temporarily to verify the relay or keep enabled when direct routes must never be used."
+      },
+      "maxListeners": {
+        "title": "Azami konuk",
+        "hint": "Ses aktarımı etkin olsun veya olmasın, sunucuya aynı anda kaç konuğun bağlanabileceğini sınırlar."
+      },
+      "audioCategory": "Çok Oyunculu Ses",
+      "synchronizedPlayback": {
+        "title": "Eşzamanlı oynatma",
+        "hint": "Sunucu ve dinleyiciler için ortak bir başlangıç zamanı ayarlar. En iyi gönderilen dosyalarla çalışır; tarayıcı tamponları değişebildiği için aktarılan ses yaklaşık olarak eşzamanlanır."
+      },
+      "syncLeadTime": {
+        "title": "Başlangıç hazırlık süresi",
+        "hint": "Tüm dinleyiciler hazır olduktan sonra sunucunun eşzamanlı başlangıcı ne kadar ileriye ayarlayacağını belirler. Aygıtlar ilk vuruşu kaçırıyorsa artırın."
+      },
+      "fileTransfer": {
+        "title": "Şundan küçük dosyaları gönder",
+        "hint": "Daha küçük ses ve modül dosyalarını bütün olarak gönderir ve her dinleyicide çalar. Daha büyük dosyalar sunucuda önceden arabelleğe alınmış Opus'a dönüştürülür. Modüller genellikle küçük olduğundan doğrudan aktarılır.",
+        "every": "Her dosya",
+        "never": "Yalnızca arabelleğe alınmış Opus"
+      },
+      "opusBitrate": {
+        "title": "Opus VBR bit hızı",
+        "hint": "Her dinleyicinin indirdiği önceden işlenmiş Opus akışının bit hızını belirler. Yüksek değerler sunucuda daha fazla bant genişliği ve kodlama gücü kullanır."
+      },
+      "audioBuffer": {
+        "title": "Başlatma/arabelleğe alma sonrası",
+        "hint": "Çalma başlamadan önce ve arabelleğe alma sonrasında her dinleyicinin ne kadar ses biriktireceğini belirler. Duraklatıldığında indirme ilerlemeye devam eder."
+      },
+      "renderCache": {
+        "title": "Ön işleme bellek sınırı",
+        "hint": "Sıkıştırılmış işleme önbelleğinin kullanabileceği sunucu belleği miktarı. Etkin parçalar sabitlenir; eski işlemeler en son kullanıma göre çıkarılır.",
+        "off": "Kapalı"
+      },
+      "diagnostics": {
+        "heading": "Bağlantı tanılama",
+        "signaling": "Firebase yalnızca daveti, oturum açıklamalarını ve ICE adaylarını iletir. Oynatma kontrolleri, katalog verileri, görseller ve ses, kurulan eş bağlantısını kullanır.",
+        "direct": "izci, genel ICE adayları için Cloudflare ve Google STUN sunucularına başvurur ve ardından doğrudan yolları dener. TURN aktarıcısı yapılandırılmadığından kısıtlayıcı NAT veya güvenlik duvarı birleşimleri bağlantıyı yine de engelleyebilir.",
+        "upnp": "Sabit genel IP veya yönlendiricide UPnP başarıyı garanti etmez: Chromium kendi ICE portlarını seçer ve izci UPnP port eşlemesi istemez.",
+        "messages": "Hiç aday toplanamaması tarayıcı ya da ağ ilkesine; yalnızca yerel aday bulunması STUN arızasına; iki tarafta da aday olup bağlantı kurulamaması NAT ya da güvenlik duvarı filtrelemesine işaret eder.",
+        "tailnet": "Başarılı bir Tailscale bağlantısı tailnet adreslerini, yönlendirici port eşlemesini veya DERP'i kullanabilir. Bu, Tailscale kapalıyken aynı aygıtlar arasında kullanılabilir bir doğrudan yol bulunduğunu kanıtlamaz."
       }
+    },
+    "experimental": {
+      "empty": "Deney yok"
     },
     "cache": {
       "settingsCategory": "İstemci işleme önbelleği",
@@ -1336,6 +1337,7 @@
       "folders": "Klasörler",
       "metadata": "Metaveri",
       "backups": "Yedekler",
+      "multiplayer": "Çok oyunculu",
       "experimental": "Experimental",
       "cache": "Önbellek",
       "about": "Hakkında",

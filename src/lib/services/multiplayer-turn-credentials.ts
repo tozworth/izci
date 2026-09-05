@@ -1,4 +1,4 @@
-import type { ExperimentalSettings } from '$lib/types';
+import type { MultiplayerSettings } from '$lib/types';
 import type { MultiplayerIceSettings } from './multiplayer-ice';
 
 const ECDH_ALGORITHM = { name: 'ECDH', namedCurve: 'P-256' } as const;
@@ -29,7 +29,7 @@ interface PendingMultiplayerTurnRequest {
 }
 
 type TurnIssuerSettings = Pick<
-  ExperimentalSettings,
+  MultiplayerSettings,
   'multiplayerTurnUrl'
   | 'multiplayerTurnSecret'
   | 'multiplayerTurnCredentialHours'

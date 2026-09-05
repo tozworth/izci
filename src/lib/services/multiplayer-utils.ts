@@ -1,5 +1,5 @@
 import type { TrackItem, RepeatMode } from '$lib/types';
-import { experimentalSettings } from '$lib/stores/experimental-settings';
+import { multiplayerSettings } from '$lib/stores/multiplayer-settings';
 import {
   MULTIPLAYER_PROTOCOL_VERSION,
   MULTIPLAYER_QUEUE_MAX_ITEMS,
@@ -198,7 +198,7 @@ function isRenderNeed(value: unknown): value is import('./multiplayer-protocol')
 }
 
 export function getLocalName(): string {
-  return sanitizeClientName(experimentalSettings.getSnapshot().izciName);
+  return sanitizeClientName(multiplayerSettings.getSnapshot().izciName);
 }
 
 export function getClientPlatform(): string {

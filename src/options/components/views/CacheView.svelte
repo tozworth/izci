@@ -3,8 +3,8 @@
   import SettingsField from '$lib/components/options/SettingsField.svelte';
   import {
     MULTIPLAYER_RENDER_DISK_CACHE_LIMITS_MIB,
-    experimentalSettings
-  } from '$lib/stores/experimental-settings';
+    multiplayerSettings
+  } from '$lib/stores/multiplayer-settings';
   import {
     multiplayerRenderDiskCache,
     type RenderCacheEntryInfo
@@ -20,11 +20,11 @@
   }
 
   function handleEnableToggle(event: Event) {
-    experimentalSettings.update({ multiplayerRenderDiskCacheEnabled: checked(event) });
+    multiplayerSettings.update({ multiplayerRenderDiskCacheEnabled: checked(event) });
   }
 
   function handleLimitChange(event: Event) {
-    experimentalSettings.update({
+    multiplayerSettings.update({
       multiplayerRenderDiskCacheLimitMiB: Number((event.currentTarget as HTMLSelectElement).value)
     });
   }
@@ -74,7 +74,7 @@
   }
 
   $: settingsFingerprint =
-    `${$experimentalSettings.multiplayerRenderDiskCacheEnabled}:${$experimentalSettings.multiplayerRenderDiskCacheLimitMiB}`;
+    `${$multiplayerSettings.multiplayerRenderDiskCacheEnabled}:${$multiplayerSettings.multiplayerRenderDiskCacheLimitMiB}`;
   $: if (settingsFingerprint) void refresh();
 </script>
 
@@ -89,7 +89,7 @@
       >
         <input
           type="checkbox"
-          checked={$experimentalSettings.multiplayerRenderDiskCacheEnabled}
+          checked={$multiplayerSettings.multiplayerRenderDiskCacheEnabled}
           on:change={handleEnableToggle}
         />
       </SettingsField>
@@ -98,8 +98,8 @@
         hint={$t('options.cache.limit.hint', { default: 'How much disk space the client render cache may use. The least-recently-heard renders are evicted first.' })}
       >
         <select
-          value={$experimentalSettings.multiplayerRenderDiskCacheLimitMiB}
-          disabled={!$experimentalSettings.multiplayerRenderDiskCacheEnabled}
+          value={$multiplayerSettings.multiplayerRenderDiskCacheLimitMiB}
+          disabled={!$multiplayerSettings.multiplayerRenderDiskCacheEnabled}
           on:change={handleLimitChange}
         >
           {#each MULTIPLAYER_RENDER_DISK_CACHE_LIMITS_MIB as limit}
@@ -119,7 +119,7 @@
           default: '{used} of {limit} used · {count} renders',
           values: {
             used: formatBytes(totalBytes),
-            limit: formatBytes($experimentalSettings.multiplayerRenderDiskCacheLimitMiB * 1024 * 1024),
+            limit: formatBytes($multiplayerSettings.multiplayerRenderDiskCacheLimitMiB * 1024 * 1024),
             count: entries.length
           }
         })}

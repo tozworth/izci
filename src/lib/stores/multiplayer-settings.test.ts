@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
-  DEFAULT_EXPERIMENTAL_SETTINGS,
+  DEFAULT_MULTIPLAYER_SETTINGS,
   MULTIPLAYER_AUDIO_BUFFER_MAX_MS,
   MULTIPLAYER_AUDIO_BUFFER_MIN_MS,
   MULTIPLAYER_MAX_LISTENERS_MAX,
@@ -8,12 +8,12 @@ import {
   MULTIPLAYER_OPUS_BITRATE_MIN_KBPS,
   deriveMultiplayerMode,
   multiplayerModePatch,
-  normalizeExperimentalSettings
-} from './experimental-settings';
+  normalizeMultiplayerSettings
+} from './multiplayer-settings';
 
-describe('experimental settings', () => {
+describe('multiplayer settings', () => {
   it('fills multiplayer audio defaults into older settings', () => {
-    const normalized = normalizeExperimentalSettings({
+    const normalized = normalizeMultiplayerSettings({
       multiplayer: true,
       izciName: 'Living room'
     });
@@ -30,37 +30,37 @@ describe('experimental settings', () => {
       multiplayerForceTurn: false,
       multiplayerFreeplay: false,
       multiplayerStreamAudio: true,
-      multiplayerFileTransferLimitMiB: DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerFileTransferLimitMiB,
-      multiplayerOpusBitrateKbps: DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerOpusBitrateKbps,
-      multiplayerAudioBufferMs: DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerAudioBufferMs,
-      multiplayerRenderCacheLimitMiB: DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerRenderCacheLimitMiB,
-      multiplayerRenderDiskCacheEnabled: DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerRenderDiskCacheEnabled,
-      multiplayerRenderDiskCacheLimitMiB: DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerRenderDiskCacheLimitMiB,
-      multiplayerMaxListeners: DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerMaxListeners
+      multiplayerFileTransferLimitMiB: DEFAULT_MULTIPLAYER_SETTINGS.multiplayerFileTransferLimitMiB,
+      multiplayerOpusBitrateKbps: DEFAULT_MULTIPLAYER_SETTINGS.multiplayerOpusBitrateKbps,
+      multiplayerAudioBufferMs: DEFAULT_MULTIPLAYER_SETTINGS.multiplayerAudioBufferMs,
+      multiplayerRenderCacheLimitMiB: DEFAULT_MULTIPLAYER_SETTINGS.multiplayerRenderCacheLimitMiB,
+      multiplayerRenderDiskCacheEnabled: DEFAULT_MULTIPLAYER_SETTINGS.multiplayerRenderDiskCacheEnabled,
+      multiplayerRenderDiskCacheLimitMiB: DEFAULT_MULTIPLAYER_SETTINGS.multiplayerRenderDiskCacheLimitMiB,
+      multiplayerMaxListeners: DEFAULT_MULTIPLAYER_SETTINGS.multiplayerMaxListeners
     });
   });
 
   it('persists the Freeplay opt-in independently from Multiplayer', () => {
-    expect(normalizeExperimentalSettings({ multiplayerFreeplay: true })).toMatchObject({
+    expect(normalizeMultiplayerSettings({ multiplayerFreeplay: true })).toMatchObject({
       multiplayer: false,
       multiplayerFreeplay: true
     });
   });
 
   it('normalizes the "Send files under" limit to the bounded choices', () => {
-    expect(normalizeExperimentalSettings({ multiplayerFileTransferLimitMiB: 16 })).toMatchObject({
+    expect(normalizeMultiplayerSettings({ multiplayerFileTransferLimitMiB: 16 })).toMatchObject({
       multiplayerFileTransferLimitMiB: 16
     });
-    expect(normalizeExperimentalSettings({ multiplayerFileTransferLimitMiB: -1 })).toMatchObject({
+    expect(normalizeMultiplayerSettings({ multiplayerFileTransferLimitMiB: -1 })).toMatchObject({
       multiplayerFileTransferLimitMiB: -1
     });
-    expect(normalizeExperimentalSettings({ multiplayerFileTransferLimitMiB: 7 })).toMatchObject({
-      multiplayerFileTransferLimitMiB: DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerFileTransferLimitMiB
+    expect(normalizeMultiplayerSettings({ multiplayerFileTransferLimitMiB: 7 })).toMatchObject({
+      multiplayerFileTransferLimitMiB: DEFAULT_MULTIPLAYER_SETTINGS.multiplayerFileTransferLimitMiB
     });
   });
 
   it('normalizes TURN settings while keeping them opt-in', () => {
-    expect(normalizeExperimentalSettings({
+    expect(normalizeMultiplayerSettings({
       multiplayerTurnUrl: ' relay.example.test:3478 ',
       multiplayerTurnSecret: ' secret ',
       multiplayerTurnCredentialHours: 999,
@@ -71,47 +71,47 @@ describe('experimental settings', () => {
       multiplayerTurnCredentialHours: 48,
       multiplayerForceTurn: true
     });
-    expect(normalizeExperimentalSettings({ multiplayerForceTurn: true }).multiplayerTurnUrl)
+    expect(normalizeMultiplayerSettings({ multiplayerForceTurn: true }).multiplayerTurnUrl)
       .toBe('');
   });
 
   it('bounds bitrate and listener controls', () => {
-    expect(normalizeExperimentalSettings({ multiplayerOpusBitrateKbps: 1 }).multiplayerOpusBitrateKbps)
+    expect(normalizeMultiplayerSettings({ multiplayerOpusBitrateKbps: 1 }).multiplayerOpusBitrateKbps)
       .toBe(MULTIPLAYER_OPUS_BITRATE_MIN_KBPS);
-    expect(normalizeExperimentalSettings({ multiplayerOpusBitrateKbps: 999 }).multiplayerOpusBitrateKbps)
+    expect(normalizeMultiplayerSettings({ multiplayerOpusBitrateKbps: 999 }).multiplayerOpusBitrateKbps)
       .toBe(MULTIPLAYER_OPUS_BITRATE_MAX_KBPS);
-    expect(normalizeExperimentalSettings({ multiplayerAudioBufferMs: 1 }).multiplayerAudioBufferMs)
+    expect(normalizeMultiplayerSettings({ multiplayerAudioBufferMs: 1 }).multiplayerAudioBufferMs)
       .toBe(MULTIPLAYER_AUDIO_BUFFER_MIN_MS);
-    expect(normalizeExperimentalSettings({ multiplayerAudioBufferMs: 99_999 }).multiplayerAudioBufferMs)
+    expect(normalizeMultiplayerSettings({ multiplayerAudioBufferMs: 99_999 }).multiplayerAudioBufferMs)
       .toBe(MULTIPLAYER_AUDIO_BUFFER_MAX_MS);
-    expect(normalizeExperimentalSettings({ multiplayerMaxListeners: 99 }).multiplayerMaxListeners)
+    expect(normalizeMultiplayerSettings({ multiplayerMaxListeners: 99 }).multiplayerMaxListeners)
       .toBe(MULTIPLAYER_MAX_LISTENERS_MAX);
   });
 
   it('accepts only the render-cache slider values', () => {
-    expect(normalizeExperimentalSettings({ multiplayerRenderCacheLimitMiB: 128 }).multiplayerRenderCacheLimitMiB)
+    expect(normalizeMultiplayerSettings({ multiplayerRenderCacheLimitMiB: 128 }).multiplayerRenderCacheLimitMiB)
       .toBe(128);
-    expect(normalizeExperimentalSettings({ multiplayerRenderCacheLimitMiB: 0 }).multiplayerRenderCacheLimitMiB)
+    expect(normalizeMultiplayerSettings({ multiplayerRenderCacheLimitMiB: 0 }).multiplayerRenderCacheLimitMiB)
       .toBe(0);
-    expect(normalizeExperimentalSettings({ multiplayerRenderCacheLimitMiB: 100 }).multiplayerRenderCacheLimitMiB)
-      .toBe(DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerRenderCacheLimitMiB);
+    expect(normalizeMultiplayerSettings({ multiplayerRenderCacheLimitMiB: 100 }).multiplayerRenderCacheLimitMiB)
+      .toBe(DEFAULT_MULTIPLAYER_SETTINGS.multiplayerRenderCacheLimitMiB);
   });
 
   it('accepts only the disk-cache limit choices and keeps it enabled by default', () => {
-    expect(normalizeExperimentalSettings({ multiplayerRenderDiskCacheLimitMiB: 1024 }).multiplayerRenderDiskCacheLimitMiB)
+    expect(normalizeMultiplayerSettings({ multiplayerRenderDiskCacheLimitMiB: 1024 }).multiplayerRenderDiskCacheLimitMiB)
       .toBe(1024);
-    expect(normalizeExperimentalSettings({ multiplayerRenderDiskCacheLimitMiB: 0 }).multiplayerRenderDiskCacheLimitMiB)
-      .toBe(DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerRenderDiskCacheLimitMiB);
-    expect(normalizeExperimentalSettings({ multiplayerRenderDiskCacheLimitMiB: 999 }).multiplayerRenderDiskCacheLimitMiB)
-      .toBe(DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerRenderDiskCacheLimitMiB);
-    expect(normalizeExperimentalSettings({ multiplayerRenderDiskCacheEnabled: false }).multiplayerRenderDiskCacheEnabled)
+    expect(normalizeMultiplayerSettings({ multiplayerRenderDiskCacheLimitMiB: 0 }).multiplayerRenderDiskCacheLimitMiB)
+      .toBe(DEFAULT_MULTIPLAYER_SETTINGS.multiplayerRenderDiskCacheLimitMiB);
+    expect(normalizeMultiplayerSettings({ multiplayerRenderDiskCacheLimitMiB: 999 }).multiplayerRenderDiskCacheLimitMiB)
+      .toBe(DEFAULT_MULTIPLAYER_SETTINGS.multiplayerRenderDiskCacheLimitMiB);
+    expect(normalizeMultiplayerSettings({ multiplayerRenderDiskCacheEnabled: false }).multiplayerRenderDiskCacheEnabled)
       .toBe(false);
-    expect(normalizeExperimentalSettings({}).multiplayerRenderDiskCacheEnabled)
+    expect(normalizeMultiplayerSettings({}).multiplayerRenderDiskCacheEnabled)
       .toBe(true);
   });
 
   it('normalizes synchronized playback and bounds its lead time', () => {
-    expect(normalizeExperimentalSettings({
+    expect(normalizeMultiplayerSettings({
       multiplayerSynchronizedPlayback: true,
       multiplayerSyncLeadTimeMs: 99_999
     })).toMatchObject({

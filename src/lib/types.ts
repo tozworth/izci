@@ -364,7 +364,7 @@ export interface TrackSettings {
   enableRatings: boolean;
 }
 
-export interface ExperimentalSettings {
+export interface MultiplayerSettings {
   multiplayer: boolean;
   izciName: string;
   multiplayerWaitForClients: boolean;

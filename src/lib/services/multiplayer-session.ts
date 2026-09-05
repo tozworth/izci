@@ -1,6 +1,6 @@
 import { writable } from 'svelte/store';
-import type { ExperimentalSettings } from '$lib/types';
-import { experimentalSettings } from '$lib/stores/experimental-settings';
+import type { MultiplayerSettings } from '$lib/types';
+import { multiplayerSettings } from '$lib/stores/multiplayer-settings';
 import { multiplayerLastSession } from '$lib/stores/multiplayer-last-session';
 import { logDebug, logWarning } from '$lib/services/logging';
 import { multiplayerAudioService } from './multiplayer-audio';
@@ -32,7 +32,7 @@ export function createMultiplayerSession({
     state: getInitialState(),
     publish: () => undefined,
     updateClient: () => undefined,
-    multiplayerSettings: experimentalSettings.getSnapshot(),
+    multiplayerSettings: multiplayerSettings.getSnapshot(),
     firebaseRuntime: null,
     roomRef: null,
     hostDirectoryRef: null,
@@ -175,7 +175,7 @@ export function createMultiplayerSession({
   }
   core.resetSession = resetSession;
 
-  const unsubscribeSettings = experimentalSettings.subscribe((settings: ExperimentalSettings) => {
+  const unsubscribeSettings = multiplayerSettings.subscribe((settings: MultiplayerSettings) => {
     const audioBufferChanged = settings.multiplayerAudioBufferMs
       !== core.multiplayerSettings.multiplayerAudioBufferMs;
     const freeplayPreferenceChanged = settings.multiplayerFreeplay

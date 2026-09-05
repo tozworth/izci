@@ -7,7 +7,7 @@ import { rafSettings } from '$lib/stores/raf-settings';
 import { trackSettings } from '$lib/stores/track-settings';
 import { videoSettings } from '$lib/stores/video-settings';
 import { visualizerSettings } from '$lib/stores/visualizer-settings';
-import { experimentalSettings, DEFAULT_EXPERIMENTAL_SETTINGS } from '$lib/stores/experimental-settings';
+import { multiplayerSettings, DEFAULT_MULTIPLAYER_SETTINGS } from '$lib/stores/multiplayer-settings';
 import type { OptionsViewName } from './views';
 
 export function resetOptionsView(view: OptionsViewName): void {
@@ -70,13 +70,13 @@ export function resetOptionsView(view: OptionsViewName): void {
     case 'metadata':
       metadataSettings.reset();
       break;
-    case 'experimental':
-      experimentalSettings.reset();
+    case 'multiplayer':
+      multiplayerSettings.reset();
       break;
     case 'cache':
-      experimentalSettings.update({
-        multiplayerRenderDiskCacheEnabled: DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerRenderDiskCacheEnabled,
-        multiplayerRenderDiskCacheLimitMiB: DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerRenderDiskCacheLimitMiB
+      multiplayerSettings.update({
+        multiplayerRenderDiskCacheEnabled: DEFAULT_MULTIPLAYER_SETTINGS.multiplayerRenderDiskCacheEnabled,
+        multiplayerRenderDiskCacheLimitMiB: DEFAULT_MULTIPLAYER_SETTINGS.multiplayerRenderDiskCacheLimitMiB
       });
       break;
   }

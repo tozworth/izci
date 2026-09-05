@@ -9,8 +9,7 @@ import type {
 export type MultiplayerCollection = 'queue' | 'library' | 'favorites';
 
 // Version 18 adds explicit source revisions to buffered-Opus manifests so a
-// listener never reuses cached bytes from a replaced track. Compatibility is
-// intentionally scorched-earth while Multiplayer remains experimental.
+// listener never reuses cached bytes from a replaced track.
 export const MULTIPLAYER_PROTOCOL_VERSION = 19;
 const MULTIPLAYER_FRAME_CHUNK_SIZE = 12_000;
 export const MULTIPLAYER_QUEUE_MAX_ITEMS = 50_000;

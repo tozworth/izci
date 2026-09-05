@@ -14,6 +14,7 @@ export type OptionsViewName =
   | 'folders'
   | 'metadata'
   | 'backups'
+  | 'multiplayer'
   | 'experimental'
   | 'cache'
   | 'about'
@@ -172,9 +173,9 @@ export const OPTIONS_VIEW_GROUPS: OptionsViewDefinition[][] = [
   ],
   [
     {
-      id: 'experimental',
-      label: 'Experimental',
-      icon: 'science',
+      id: 'multiplayer',
+      label: 'Multiplayer',
+      icon: 'group',
       parentLabel: '',
       hasHints: true,
       resettable: true
@@ -183,9 +184,19 @@ export const OPTIONS_VIEW_GROUPS: OptionsViewDefinition[][] = [
       id: 'cache',
       label: 'Cache',
       icon: 'database',
-      parentLabel: 'Experimental',
+      parentLabel: 'Multiplayer',
       hasHints: true,
       resettable: true
+    }
+  ],
+  [
+    {
+      id: 'experimental',
+      label: 'Experimental',
+      icon: 'science',
+      parentLabel: '',
+      hasHints: false,
+      resettable: false
     }
   ],
   [
