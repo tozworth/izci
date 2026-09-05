@@ -8,7 +8,7 @@ import type { MultiplayerLastSession } from '$lib/stores/multiplayer-last-sessio
 import { consumeInviteLinkHash, buildInviteLink } from '$lib/services/multiplayer-invite-link';
 import type { MultiplayerPairing } from '$lib/stores/multiplayer-pairings';
 import type {
-  ExperimentalSettings,
+  MultiplayerSettings,
   PlaybackSnapshot,
   TrackItem,
   TrackSelection,
@@ -61,7 +61,7 @@ interface MultiplayerWindowControllerDeps {
   seek(seconds: number): void;
   toggleQueueShuffle(): void;
   cycleQueueRepeat(): void;
-  getExperimentalSettings(): ExperimentalSettings;
+  getMultiplayerSettings(): MultiplayerSettings;
   getLastSession(): MultiplayerLastSession | null;
   getPairings(): MultiplayerPairing[];
   pausePlayer(): void;
@@ -283,7 +283,7 @@ export function createMultiplayerWindowController(deps: MultiplayerWindowControl
   }
 
   function prepareLaunchDialog(): void {
-    const settings = deps.getExperimentalSettings();
+    const settings = deps.getMultiplayerSettings();
     if (!settings.multiplayer) return;
     const last = settings.multiplayerRestoreLastSession
       ? deps.getLastSession()
@@ -357,7 +357,7 @@ export function createMultiplayerWindowController(deps: MultiplayerWindowControl
   }
 
   async function startLaunch(): Promise<void> {
-    const settings = deps.getExperimentalSettings();
+    const settings = deps.getMultiplayerSettings();
     if (!settings.multiplayer) return;
     const inviteCode = consumeInviteLinkHash();
     if (inviteCode) {

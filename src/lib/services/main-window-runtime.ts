@@ -70,7 +70,7 @@ import {
 import { createMultiplayerWindowController } from '$lib/services/multiplayer-window-controller';
 import { createFreeplayUiActions } from '$lib/services/freeplay-ui-actions';
 import { createMultiplayerSession } from '$lib/services/multiplayer-session';
-import { experimentalSettings } from '$lib/stores/experimental-settings';
+import { multiplayerSettings } from '$lib/stores/multiplayer-settings';
 import { multiplayerLastSession } from '$lib/stores/multiplayer-last-session';
 import { multiplayerPairings } from '$lib/stores/multiplayer-pairings';
 import {
@@ -283,7 +283,7 @@ export function createMainWindowRuntime(deps: MainWindowRuntimeDeps): MainWindow
     seek: (seconds) => transport.seek(seconds),
     toggleQueueShuffle: () => transport.toggleQueueShuffle(),
     cycleQueueRepeat: () => transport.cycleQueueRepeat(),
-    getExperimentalSettings: () => experimentalSettings.getSnapshot(),
+    getMultiplayerSettings: () => multiplayerSettings.getSnapshot(),
     getLastSession: () => multiplayerLastSession.getSnapshot(),
     getPairings: () => multiplayerPairings.getSnapshot(),
     pausePlayer: () => playerController.pause(),

@@ -703,100 +703,101 @@
         "privacy": "Backups are not encrypted. They can contain filenames, paths, metadata, favorites, and listening progress."
       }
     },
-    "experimental": {
-      "multiplayer": {
-        "category": "Multiplayer",
-        "modes": {
-          "label": "Multiplayer mode",
-          "singleplayer": {
-            "title": "Singleplayer",
-            "hint": "izci Multiplayer is turned off."
-          },
-          "coop": {
-            "title": "Co-op",
-            "hint": "Clients can control the host’s queue and playback. Good for HTPCs, parties."
-          },
-          "coopAudio": {
-            "title": "Co-op + audio",
-            "hint": "Clients can control the host and listen to its audio stream on their own device."
-          },
-          "freeplay": {
-            "title": "Freeplay",
-            "hint": "Paired clients can browse and play music from the host’s library independently, with their own queue, playback, and audio."
-          },
-          "freeplayBadge": "Highly experimental"
+    "multiplayer": {
+      "category": "Multiplayer",
+      "modes": {
+        "label": "Multiplayer mode",
+        "singleplayer": {
+          "title": "Singleplayer",
+          "hint": "izci Multiplayer is turned off."
         },
-        "name": "Name this izci",
-        "nameHint": "Shown to hosts and clients in multiplayer sessions.",
-        "waitForClients": {
-          "title": "Wait for clients",
-          "hint": "Before starting a track, waits until every connected listener has loaded its transferred file or tuned to the audio stream."
+        "coop": {
+          "title": "Co-op",
+          "hint": "Clients can control the host’s queue and playback. Good for HTPCs, parties."
         },
-        "autoHost": {
-          "title": "Always host for peers",
-          "hint": "Silently hosts on launch so paired devices can join without an invite code."
+        "coopAudio": {
+          "title": "Co-op + audio",
+          "hint": "Clients can control the host and listen to its audio stream on their own device."
         },
-        "restoreSession": {
-          "title": "Restore last session",
-          "hint": "Reconnects to the previous host or resumes hosting after relaunch."
+        "freeplay": {
+          "title": "Freeplay",
+          "hint": "Paired clients can browse and play music from the host’s library independently, with their own queue, playback, and audio."
         },
-        "turnUrl": {
-          "title": "TURN server",
-          "hint": "Host-only relay endpoint, such as relay.example.net:3478 or turns:relay.example.net:5349. Listeners receive it with temporary credentials."
-        },
-        "turnSecret": {
-          "title": "TURN authentication secret",
-          "hint": "Host-only shared secret configured on the relay. Listeners receive encrypted temporary credentials and do not need this setting."
-        },
-        "turnLifetime": {
-          "title": "TURN credential lifetime",
-          "hint": "Sets the expiry of credentials minted for each listener. Longer values better tolerate long sessions and reconnects."
-        },
-        "forceTurn": {
-          "title": "Force TURN relay",
-          "hint": "Uses relay candidates only on the host and listeners. Enable temporarily to verify the relay or keep enabled when direct routes must never be used."
-        },
-        "maxListeners": {
-          "title": "Maximum guests",
-          "hint": "Limits how many guests can connect to the host at once, whether or not audio streaming is enabled."
-        },
-        "audioCategory": "Multiplayer Audio",
-        "synchronizedPlayback": {
-          "title": "Synchronized playback",
-          "hint": "Coordinates a shared start time across the host and listeners. Works best with sent files; streamed audio remains best effort because browser buffers vary."
-        },
-        "syncLeadTime": {
-          "title": "Start lead time",
-          "hint": "How far ahead the host schedules a synchronized start after every listener is ready. Increase it when devices miss the opening beat."
-        },
-        "fileTransfer": {
-          "title": "Send files under",
-          "hint": "Sends smaller audio and module files whole, then plays them on each listener. Larger files are pre-rendered to buffered Opus by the host. Modules are usually small, so they transfer directly.",
-          "every": "Every file",
-          "never": "Buffered Opus only"
-        },
-        "opusBitrate": {
-          "title": "Opus VBR bitrate",
-          "hint": "Controls the bitrate of the pre-rendered Opus stream each listener downloads. Higher rates use more host bandwidth and encoding work."
-        },
-        "audioBuffer": {
-          "title": "Start/rebuffer after",
-          "hint": "How much audio each listener buffers before playback starts and after a rebuffer. Download keeps running ahead while paused."
-        },
-        "renderCache": {
-          "title": "Pre-render memory limit",
-          "hint": "How much host memory the compressed render cache may use. Active tracks stay pinned; older renders are evicted by least-recent use.",
-          "off": "Off"
-        },
-        "diagnostics": {
-          "heading": "Connection diagnostics",
-          "signaling": "Firebase only exchanges the invite, session descriptions, and ICE candidates. Playback controls, catalog data, artwork, and audio use the resulting peer connection.",
-          "direct": "izci asks Cloudflare and Google STUN servers for public ICE candidates, then tries direct routes. When configured above, TURN adds a relay path for restrictive NAT or firewall combinations.",
-          "upnp": "A static public IP or router UPnP does not guarantee success: Chromium chooses its own ICE ports and izci does not request a UPnP port mapping.",
-          "messages": "Failure to gather candidates points to browser or network policy; local-only candidates point to STUN failure; candidates on both sides with no connection point to NAT or firewall filtering.",
-          "tailnet": "A successful Tailscale connection may use tailnet addresses, router port mapping, or DERP. It does not prove that the same devices have a usable direct route with Tailscale off."
-        }
+        "freeplayBadge": "Highly experimental"
+      },
+      "name": "Name this izci",
+      "nameHint": "Shown to hosts and clients in multiplayer sessions.",
+      "waitForClients": {
+        "title": "Wait for clients",
+        "hint": "Before starting a track, waits until every connected listener has loaded its transferred file or tuned to the audio stream."
+      },
+      "autoHost": {
+        "title": "Always host for peers",
+        "hint": "Silently hosts on launch so paired devices can join without an invite code."
+      },
+      "restoreSession": {
+        "title": "Restore last session",
+        "hint": "Reconnects to the previous host or resumes hosting after relaunch."
+      },
+      "turnUrl": {
+        "title": "TURN server",
+        "hint": "Host-only relay endpoint, such as relay.example.net:3478 or turns:relay.example.net:5349. Listeners receive it with temporary credentials."
+      },
+      "turnSecret": {
+        "title": "TURN authentication secret",
+        "hint": "Host-only shared secret configured on the relay. Listeners receive encrypted temporary credentials and do not need this setting."
+      },
+      "turnLifetime": {
+        "title": "TURN credential lifetime",
+        "hint": "Sets the expiry of credentials minted for each listener. Longer values better tolerate long sessions and reconnects."
+      },
+      "forceTurn": {
+        "title": "Force TURN relay",
+        "hint": "Uses relay candidates only on the host and listeners. Enable temporarily to verify the relay or keep enabled when direct routes must never be used."
+      },
+      "maxListeners": {
+        "title": "Maximum guests",
+        "hint": "Limits how many guests can connect to the host at once, whether or not audio streaming is enabled."
+      },
+      "audioCategory": "Multiplayer Audio",
+      "synchronizedPlayback": {
+        "title": "Synchronized playback",
+        "hint": "Coordinates a shared start time across the host and listeners. Works best with sent files; streamed audio remains best effort because browser buffers vary."
+      },
+      "syncLeadTime": {
+        "title": "Start lead time",
+        "hint": "How far ahead the host schedules a synchronized start after every listener is ready. Increase it when devices miss the opening beat."
+      },
+      "fileTransfer": {
+        "title": "Send files under",
+        "hint": "Sends smaller audio and module files whole, then plays them on each listener. Larger files are pre-rendered to buffered Opus by the host. Modules are usually small, so they transfer directly.",
+        "every": "Every file",
+        "never": "Buffered Opus only"
+      },
+      "opusBitrate": {
+        "title": "Opus VBR bitrate",
+        "hint": "Controls the bitrate of the pre-rendered Opus stream each listener downloads. Higher rates use more host bandwidth and encoding work."
+      },
+      "audioBuffer": {
+        "title": "Start/rebuffer after",
+        "hint": "How much audio each listener buffers before playback starts and after a rebuffer. Download keeps running ahead while paused."
+      },
+      "renderCache": {
+        "title": "Pre-render memory limit",
+        "hint": "How much host memory the compressed render cache may use. Active tracks stay pinned; older renders are evicted by least-recent use.",
+        "off": "Off"
+      },
+      "diagnostics": {
+        "heading": "Connection diagnostics",
+        "signaling": "Firebase only exchanges the invite, session descriptions, and ICE candidates. Playback controls, catalog data, artwork, and audio use the resulting peer connection.",
+        "direct": "izci asks Cloudflare and Google STUN servers for public ICE candidates, then tries direct routes. When configured above, TURN adds a relay path for restrictive NAT or firewall combinations.",
+        "upnp": "A static public IP or router UPnP does not guarantee success: Chromium chooses its own ICE ports and izci does not request a UPnP port mapping.",
+        "messages": "Failure to gather candidates points to browser or network policy; local-only candidates point to STUN failure; candidates on both sides with no connection point to NAT or firewall filtering.",
+        "tailnet": "A successful Tailscale connection may use tailnet addresses, router port mapping, or DERP. It does not prove that the same devices have a usable direct route with Tailscale off."
       }
+    },
+    "experimental": {
+      "empty": "No experiments"
     },
     "cache": {
       "settingsCategory": "Client render cache",
@@ -1336,6 +1337,7 @@
       "folders": "Folders",
       "metadata": "Metadata",
       "backups": "Backups",
+      "multiplayer": "Multiplayer",
       "experimental": "Experimental",
       "cache": "Cache",
       "about": "About",

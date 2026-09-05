@@ -1,8 +1,8 @@
-import type { ExperimentalSettings } from '$lib/types';
+import type { MultiplayerSettings } from '$lib/types';
 import { createSettingsStore, normalizeBoolean } from './persistent-store';
 
-const EXPERIMENTAL_SETTINGS_STORAGE_KEY = 'izci.experimental-settings';
-const EXPERIMENTAL_SETTINGS_CHANNEL = 'izci-experimental-settings';
+const MULTIPLAYER_SETTINGS_STORAGE_KEY = 'izci.multiplayer-settings';
+const MULTIPLAYER_SETTINGS_CHANNEL = 'izci-multiplayer-settings';
 
 const NAME_ALPHABET = 'abcdefghijklmnopqrstuvwxyz0123456789';
 
@@ -52,7 +52,7 @@ function normalizeMultiplayerTurnUrl(value: unknown): string {
 
 const defaultIzciName = createDefaultIzciName();
 
-export const DEFAULT_EXPERIMENTAL_SETTINGS: ExperimentalSettings = {
+export const DEFAULT_MULTIPLAYER_SETTINGS: MultiplayerSettings = {
   multiplayer: false,
   izciName: defaultIzciName,
   multiplayerWaitForClients: false,
@@ -81,7 +81,7 @@ function normalizeRenderCacheLimit(value: unknown): number {
       value as (typeof MULTIPLAYER_RENDER_CACHE_LIMITS_MIB)[number]
     )
     ? value
-    : DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerRenderCacheLimitMiB;
+    : DEFAULT_MULTIPLAYER_SETTINGS.multiplayerRenderCacheLimitMiB;
 }
 
 function normalizeRenderDiskCacheLimit(value: unknown): number {
@@ -90,7 +90,7 @@ function normalizeRenderDiskCacheLimit(value: unknown): number {
       value as (typeof MULTIPLAYER_RENDER_DISK_CACHE_LIMITS_MIB)[number]
     )
     ? value
-    : DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerRenderDiskCacheLimitMiB;
+    : DEFAULT_MULTIPLAYER_SETTINGS.multiplayerRenderDiskCacheLimitMiB;
 }
 
 function normalizeFileTransferLimit(value: unknown): number {
@@ -99,7 +99,7 @@ function normalizeFileTransferLimit(value: unknown): number {
       value as (typeof MULTIPLAYER_FILE_TRANSFER_LIMITS_MIB)[number]
     )
     ? value
-    : DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerFileTransferLimitMiB;
+    : DEFAULT_MULTIPLAYER_SETTINGS.multiplayerFileTransferLimitMiB;
 }
 
 function normalizeBoundedInteger(value: unknown, fallback: number, min: number, max: number): number {
@@ -108,32 +108,32 @@ function normalizeBoundedInteger(value: unknown, fallback: number, min: number, 
     : fallback;
 }
 
-export function normalizeExperimentalSettings(value: unknown): ExperimentalSettings {
+export function normalizeMultiplayerSettings(value: unknown): MultiplayerSettings {
   const source = value && typeof value === 'object'
-    ? value as Partial<ExperimentalSettings>
+    ? value as Partial<MultiplayerSettings>
     : {};
 
   return {
-    multiplayer: normalizeBoolean(source.multiplayer, DEFAULT_EXPERIMENTAL_SETTINGS.multiplayer),
+    multiplayer: normalizeBoolean(source.multiplayer, DEFAULT_MULTIPLAYER_SETTINGS.multiplayer),
     izciName: normalizeIzciName(source.izciName, defaultIzciName),
     multiplayerWaitForClients: normalizeBoolean(
       source.multiplayerWaitForClients,
-      DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerWaitForClients
+      DEFAULT_MULTIPLAYER_SETTINGS.multiplayerWaitForClients
     ),
     multiplayerSynchronizedPlayback: normalizeBoolean(
       source.multiplayerSynchronizedPlayback,
-      DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerSynchronizedPlayback
+      DEFAULT_MULTIPLAYER_SETTINGS.multiplayerSynchronizedPlayback
     ),
     multiplayerSyncLeadTimeMs: normalizeBoundedInteger(
       source.multiplayerSyncLeadTimeMs,
-      DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerSyncLeadTimeMs,
+      DEFAULT_MULTIPLAYER_SETTINGS.multiplayerSyncLeadTimeMs,
       MULTIPLAYER_SYNC_LEAD_TIME_MIN_MS,
       MULTIPLAYER_SYNC_LEAD_TIME_MAX_MS
     ),
-    multiplayerAutoHost: normalizeBoolean(source.multiplayerAutoHost, DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerAutoHost),
+    multiplayerAutoHost: normalizeBoolean(source.multiplayerAutoHost, DEFAULT_MULTIPLAYER_SETTINGS.multiplayerAutoHost),
     multiplayerRestoreLastSession: normalizeBoolean(
       source.multiplayerRestoreLastSession,
-      DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerRestoreLastSession
+      DEFAULT_MULTIPLAYER_SETTINGS.multiplayerRestoreLastSession
     ),
     multiplayerTurnUrl: normalizeMultiplayerTurnUrl(source.multiplayerTurnUrl),
     multiplayerTurnSecret: normalizeSingleLine(
@@ -142,28 +142,28 @@ export function normalizeExperimentalSettings(value: unknown): ExperimentalSetti
     ),
     multiplayerTurnCredentialHours: normalizeBoundedInteger(
       source.multiplayerTurnCredentialHours,
-      DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerTurnCredentialHours,
+      DEFAULT_MULTIPLAYER_SETTINGS.multiplayerTurnCredentialHours,
       MULTIPLAYER_TURN_CREDENTIAL_HOURS_MIN,
       MULTIPLAYER_TURN_CREDENTIAL_HOURS_MAX
     ),
-    multiplayerForceTurn: normalizeBoolean(source.multiplayerForceTurn, DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerForceTurn),
-    multiplayerFreeplay: normalizeBoolean(source.multiplayerFreeplay, DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerFreeplay),
+    multiplayerForceTurn: normalizeBoolean(source.multiplayerForceTurn, DEFAULT_MULTIPLAYER_SETTINGS.multiplayerForceTurn),
+    multiplayerFreeplay: normalizeBoolean(source.multiplayerFreeplay, DEFAULT_MULTIPLAYER_SETTINGS.multiplayerFreeplay),
     multiplayerStreamAudio: normalizeBoolean(
       source.multiplayerStreamAudio,
-      DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerStreamAudio
+      DEFAULT_MULTIPLAYER_SETTINGS.multiplayerStreamAudio
     ),
     multiplayerFileTransferLimitMiB: normalizeFileTransferLimit(
       source.multiplayerFileTransferLimitMiB
     ),
     multiplayerOpusBitrateKbps: normalizeBoundedInteger(
       source.multiplayerOpusBitrateKbps,
-      DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerOpusBitrateKbps,
+      DEFAULT_MULTIPLAYER_SETTINGS.multiplayerOpusBitrateKbps,
       MULTIPLAYER_OPUS_BITRATE_MIN_KBPS,
       MULTIPLAYER_OPUS_BITRATE_MAX_KBPS
     ),
     multiplayerAudioBufferMs: normalizeBoundedInteger(
       source.multiplayerAudioBufferMs,
-      DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerAudioBufferMs,
+      DEFAULT_MULTIPLAYER_SETTINGS.multiplayerAudioBufferMs,
       MULTIPLAYER_AUDIO_BUFFER_MIN_MS,
       MULTIPLAYER_AUDIO_BUFFER_MAX_MS
     ),
@@ -172,14 +172,14 @@ export function normalizeExperimentalSettings(value: unknown): ExperimentalSetti
     ),
     multiplayerRenderDiskCacheEnabled: normalizeBoolean(
       source.multiplayerRenderDiskCacheEnabled,
-      DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerRenderDiskCacheEnabled
+      DEFAULT_MULTIPLAYER_SETTINGS.multiplayerRenderDiskCacheEnabled
     ),
     multiplayerRenderDiskCacheLimitMiB: normalizeRenderDiskCacheLimit(
       source.multiplayerRenderDiskCacheLimitMiB
     ),
     multiplayerMaxListeners: normalizeBoundedInteger(
       source.multiplayerMaxListeners,
-      DEFAULT_EXPERIMENTAL_SETTINGS.multiplayerMaxListeners,
+      DEFAULT_MULTIPLAYER_SETTINGS.multiplayerMaxListeners,
       MULTIPLAYER_MAX_LISTENERS_MIN,
       MULTIPLAYER_MAX_LISTENERS_MAX
     )
@@ -189,7 +189,7 @@ export function normalizeExperimentalSettings(value: unknown): ExperimentalSetti
 export type MultiplayerMode = 'singleplayer' | 'coop' | 'coopAudio' | 'freeplay';
 
 export function deriveMultiplayerMode(
-  settings: Pick<ExperimentalSettings, 'multiplayer' | 'multiplayerFreeplay' | 'multiplayerStreamAudio'>
+  settings: Pick<MultiplayerSettings, 'multiplayer' | 'multiplayerFreeplay' | 'multiplayerStreamAudio'>
 ): MultiplayerMode {
   if (!settings.multiplayer) return 'singleplayer';
   if (settings.multiplayerFreeplay) return 'freeplay';
@@ -199,7 +199,7 @@ export function deriveMultiplayerMode(
 
 export function multiplayerModePatch(
   mode: MultiplayerMode
-): Pick<ExperimentalSettings, 'multiplayer' | 'multiplayerFreeplay' | 'multiplayerStreamAudio'> {
+): Pick<MultiplayerSettings, 'multiplayer' | 'multiplayerFreeplay' | 'multiplayerStreamAudio'> {
   switch (mode) {
     case 'singleplayer':
       return { multiplayer: false, multiplayerFreeplay: false, multiplayerStreamAudio: false };
@@ -212,25 +212,25 @@ export function multiplayerModePatch(
   }
 }
 
-export const experimentalSettings = createSettingsStore({
-  storageKey: EXPERIMENTAL_SETTINGS_STORAGE_KEY,
-  channelName: EXPERIMENTAL_SETTINGS_CHANNEL,
-  defaultValue: DEFAULT_EXPERIMENTAL_SETTINGS,
-  normalize: normalizeExperimentalSettings
+export const multiplayerSettings = createSettingsStore({
+  storageKey: MULTIPLAYER_SETTINGS_STORAGE_KEY,
+  channelName: MULTIPLAYER_SETTINGS_CHANNEL,
+  defaultValue: DEFAULT_MULTIPLAYER_SETTINGS,
+  normalize: normalizeMultiplayerSettings
 });
 
 if (typeof window !== 'undefined') {
   let hasStoredName = false;
   try {
-    const stored = JSON.parse(window.localStorage.getItem(EXPERIMENTAL_SETTINGS_STORAGE_KEY) ?? 'null') as unknown;
+    const stored = JSON.parse(window.localStorage.getItem(MULTIPLAYER_SETTINGS_STORAGE_KEY) ?? 'null') as unknown;
     hasStoredName = Boolean(
       stored
       && typeof stored === 'object'
-      && typeof (stored as Partial<ExperimentalSettings>).izciName === 'string'
-      && (stored as Partial<ExperimentalSettings>).izciName?.trim()
+      && typeof (stored as Partial<MultiplayerSettings>).izciName === 'string'
+      && (stored as Partial<MultiplayerSettings>).izciName?.trim()
     );
   } catch {
     // Persist the normalized defaults below.
   }
-  if (!hasStoredName) experimentalSettings.set(experimentalSettings.getSnapshot());
+  if (!hasStoredName) multiplayerSettings.set(multiplayerSettings.getSnapshot());
 }

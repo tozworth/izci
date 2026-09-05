@@ -64,7 +64,7 @@
   import {
     favoritesHaveAllTracks
   } from '$lib/services/workspace-actions';
-  import { experimentalSettings } from '$lib/stores/experimental-settings';
+  import { multiplayerSettings } from '$lib/stores/multiplayer-settings';
   import { multiplayerRecents } from '$lib/stores/multiplayer-recents';
   import { forgetMultiplayerPairing, multiplayerPairings } from '$lib/stores/multiplayer-pairings';
   import type {
@@ -296,7 +296,7 @@
   } satisfies WorkspaceTabContentProps;
 
   $: multiplayerBarProps = {
-    multiplayerEnabled: $experimentalSettings.multiplayer,
+    multiplayerEnabled: $multiplayerSettings.multiplayer,
     multiplayerMode: multiplayerState.mode,
     multiplayerConnectionStatus: multiplayerState.connectionStatus,
     multiplayerReconnecting: multiplayerState.reconnecting,
@@ -306,7 +306,7 @@
     multiplayerInviteCode: multiplayerState.inviteCode,
     multiplayerHostName: multiplayerState.hostName,
     multiplayerHostVersion: multiplayerState.hostVersion,
-    multiplayerFreeplayEnabled: $experimentalSettings.multiplayerFreeplay,
+    multiplayerFreeplayEnabled: $multiplayerSettings.multiplayerFreeplay,
     multiplayerFreeplayPaired: multiplayerState.freeplayPaired,
     multiplayerFreeplay: multiplayerState.freeplay,
     multiplayerReceiveAudio: multiplayerState.receiveAudio,
@@ -611,7 +611,7 @@
     playback: localPlaybackSnapshot,
     track: localPlayingTrack
   });
-  $: if ($experimentalSettings.multiplayer || multiplayerState.mode === 'idle') {
+  $: if ($multiplayerSettings.multiplayer || multiplayerState.mode === 'idle') {
     multiplayerShutdownRequested = false;
   } else if (!multiplayerShutdownRequested) {
     multiplayerShutdownRequested = true;

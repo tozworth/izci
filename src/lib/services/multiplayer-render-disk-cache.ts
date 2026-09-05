@@ -3,13 +3,13 @@
  * client. Stores compressed init/cluster bytes under the same key as the
  * in-memory client cache; a fresh manifest that fails the deep manifest
  * comparison simply re-downloads, so the cache is invisible to the wire
- * contract. Bounded by the Experimental > Cache limit, LRU-evicted, and fully
+ * contract. Bounded by the Multiplayer > Cache limit, LRU-evicted, and fully
  * rebuildable by re-streaming — it never becomes part of queue/library
  * persistence.
  */
 
 import { logDebug } from '$lib/services/logging';
-import { experimentalSettings } from '$lib/stores/experimental-settings';
+import { multiplayerSettings } from '$lib/stores/multiplayer-settings';
 import type { MultiplayerRenderManifest } from './multiplayer-protocol';
 import {
   buildClientRenderCacheKey,
@@ -167,7 +167,7 @@ class MultiplayerRenderDiskCache {
   }
 
   #settings(): { enabled: boolean; limitBytes: number } {
-    const snapshot = experimentalSettings.getSnapshot();
+    const snapshot = multiplayerSettings.getSnapshot();
     return {
       enabled: snapshot.multiplayerRenderDiskCacheEnabled,
       limitBytes: snapshot.multiplayerRenderDiskCacheLimitMiB * 1024 * 1024
@@ -524,8 +524,8 @@ class MultiplayerRenderDiskCache {
 export const multiplayerRenderDiskCache = new MultiplayerRenderDiskCache();
 
 if (typeof window !== 'undefined') {
-  experimentalSettings.subscribe(() => {
-    if (!experimentalSettings.getSnapshot().multiplayerRenderDiskCacheEnabled) return;
+  multiplayerSettings.subscribe(() => {
+    if (!multiplayerSettings.getSnapshot().multiplayerRenderDiskCacheEnabled) return;
     void multiplayerRenderDiskCache.enforceLimit();
   });
 }
