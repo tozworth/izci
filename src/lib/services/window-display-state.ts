@@ -6,7 +6,7 @@ export interface WindowDisplayState {
   prefersNowPlaying: boolean;
 }
 
-export interface WindowScreenGeometry {
+interface WindowScreenGeometry {
   width: number;
   height: number;
   availWidth: number;

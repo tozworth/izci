@@ -12,7 +12,7 @@
  * next indices to enqueue.
  */
 
-export interface RenderSchedulerInput {
+interface RenderSchedulerInput {
   clusterTimeMs: number[];
   targetTimeMs: number;
   aheadMs: number;

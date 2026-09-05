@@ -1,15 +1,15 @@
-export type RenameTransform = 'trim' | 'lower' | 'upper' | 'title' | 'slug' | 'sanitize';
+type RenameTransform = 'trim' | 'lower' | 'upper' | 'title' | 'slug' | 'sanitize';
 
-export interface RenameTemplateContext {
+interface RenameTemplateContext {
   [key: string]: string | number | undefined;
 }
 
-export type RenameTemplateNode =
+type RenameTemplateNode =
   | { type: 'text'; value: string }
   | { type: 'token'; name: string; padding: number | null; transforms: RenameTransform[] }
   | { type: 'conditional'; name: string; children: RenameTemplateNode[] };
 
-export interface RenameTemplateResult {
+interface RenameTemplateResult {
   value: string;
   missing: string[];
 }

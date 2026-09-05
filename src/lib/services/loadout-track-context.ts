@@ -30,7 +30,7 @@ function normalizeTrackContext(value: unknown): LoadoutTrackContext | null {
   };
 }
 
-export function toLoadoutTrackContext(track: TrackItem | null): LoadoutTrackContext | null {
+function toLoadoutTrackContext(track: TrackItem | null): LoadoutTrackContext | null {
   if (!track) return null;
   return normalizeTrackContext(track);
 }

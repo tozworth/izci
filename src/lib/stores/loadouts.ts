@@ -14,8 +14,8 @@ import { createPersistentStore, normalizeBoolean } from './persistent-store';
 import { normalizePlaybackSettings } from './playback-settings';
 import { normalizeVisualizerSettings } from './visualizer-settings';
 
-export const LOADOUTS_STORAGE_KEY = 'izci.loadouts';
-export const LOADOUTS_CHANNEL = 'izci-loadouts';
+const LOADOUTS_STORAGE_KEY = 'izci.loadouts';
+const LOADOUTS_CHANNEL = 'izci-loadouts';
 export const DEFAULT_LOADOUT_STATE: LoadoutState = {
   automaticEnabled: true,
   loadouts: []
@@ -149,7 +149,7 @@ export function normalizeLoadoutState(value: unknown): LoadoutState {
   };
 }
 
-export function createLoadoutId(): string {
+function createLoadoutId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return `loadout-${crypto.randomUUID()}`;
   }

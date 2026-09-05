@@ -7,7 +7,7 @@ import type {
   WorkspaceTab
 } from '$lib/types';
 
-export type LyricsAvailability = 'unknown' | 'loading' | 'available' | 'unavailable';
+type LyricsAvailability = 'unknown' | 'loading' | 'available' | 'unavailable';
 
 export interface LyricsPresentationState {
   availability: LyricsAvailability;

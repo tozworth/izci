@@ -23,7 +23,7 @@ interface TransientTurnPayload extends MultiplayerIceSettings {
   expiresAt: number;
 }
 
-export interface PendingMultiplayerTurnRequest {
+interface PendingMultiplayerTurnRequest {
   request: MultiplayerTurnCredentialRequest;
   decrypt(response: MultiplayerTurnCredentialResponse): Promise<MultiplayerIceSettings>;
 }

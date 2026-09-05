@@ -6,7 +6,7 @@ import type { TrackLibraryNavigationTarget } from '$lib/services/library-navigat
 import type { MultiplayerCommandInput } from '$lib/services/multiplayer-protocol';
 import type { LibraryViewId, TrackItem, WorkspaceCollection } from '$lib/types';
 
-export interface FreeplayUiActionsDeps {
+interface FreeplayUiActionsDeps {
   getIsFreeplayClient(): boolean;
   getFreeplayQueue(): string[];
   setFreeplayQueue(ids: string[]): void;

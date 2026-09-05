@@ -33,7 +33,7 @@ export async function requestRenameAccess(rows: RenamePreviewRow[]): Promise<voi
   await Promise.all(requests);
 }
 
-export function buildRenameSources(
+function buildRenameSources(
   items: TroubadourWorkbenchItem[],
   template: string
 ): RenameSource[] {
@@ -66,7 +66,7 @@ export function buildRenameSources(
   });
 }
 
-export function renameRulesFromSettings(settings: TroubadourSettings): FilenameRules {
+function renameRulesFromSettings(settings: TroubadourSettings): FilenameRules {
   return {
     illegalCharacterReplacement: settings.illegalCharacterReplacement,
     normalizeWhitespace: settings.normalizeWhitespace,
@@ -79,7 +79,7 @@ export function renameRulesFromSettings(settings: TroubadourSettings): FilenameR
   };
 }
 
-export interface RenamePipeline {
+interface RenamePipeline {
   buildRenamePreview(template: string, rules?: FilenameRules): Promise<RenamePreviewRow[]>;
   applyRenames(
     rows: RenamePreviewRow[],

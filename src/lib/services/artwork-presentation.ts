@@ -12,7 +12,7 @@ import {
   type LoadedStreamArtwork
 } from '$lib/services/stream-artwork';
 
-export type ArtworkBackgroundSlot = 'primary' | 'secondary';
+type ArtworkBackgroundSlot = 'primary' | 'secondary';
 
 export interface ArtworkPresentationState {
   detailsDisplayTrack: TrackItem | null;

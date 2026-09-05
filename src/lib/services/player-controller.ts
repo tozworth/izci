@@ -46,7 +46,7 @@ interface PlaybackBundle {
   video: VideoPlayerService;
 }
 
-export type CurrentTrackExternalUpdate = Partial<
+type CurrentTrackExternalUpdate = Partial<
   Pick<
     TrackItem,
     | 'fileHandle'
@@ -276,7 +276,6 @@ function createPlayerController() {
     const effectiveVolume = muted ? 0 : volume;
     const outputGain = sliderVolumeToGain(effectiveVolume, playbackConfig.logarithmicVolume);
 
-    audioBusService.setInputGain(1);
     audioBusService.setOutputGain(outputGain);
     audioBusService.setRafEffectBypass('auto-amp', activeBundle.track?.kind === 'video');
 

@@ -11,7 +11,7 @@ import { createMetadataOutputFormat, metadataMimeType } from './format';
 import type { MetadataExtension } from './types';
 import { MetadataWriteError } from './types';
 
-export type MetadataTagsSource = MetadataTags | ((source: MetadataTags) => MetadataTags | Promise<MetadataTags>);
+type MetadataTagsSource = MetadataTags | ((source: MetadataTags) => MetadataTags | Promise<MetadataTags>);
 
 async function writeBlobToWritable(
   writable: FileSystemWritableFileStream,

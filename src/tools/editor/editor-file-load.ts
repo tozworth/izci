@@ -1,10 +1,10 @@
-export interface EditorFileLoadSession {
+interface EditorFileLoadSession {
   signal: AbortSignal;
   isCurrent(): boolean;
   finish(): void;
 }
 
-export interface EditorFileLoadCoordinator {
+interface EditorFileLoadCoordinator {
   begin(): EditorFileLoadSession;
   cancel(): void;
 }

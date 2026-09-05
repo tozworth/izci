@@ -8,7 +8,7 @@ export type LibraryFolderScanFailure =
   | 'permission-required'
   | 'cancelled'
   | 'scan-failed';
-export type LibraryFolderScanStatus =
+type LibraryFolderScanStatus =
   | 'never'
   | 'scanning'
   | 'success'
@@ -28,7 +28,7 @@ export interface FilesystemFolder {
   lastScanFailure?: LibraryFolderScanFailure;
 }
 
-export interface FilesystemFileLocation {
+interface FilesystemFileLocation {
   folderId: string;
   path: string;
 }

@@ -3,7 +3,7 @@ import { createChiptunePlayer } from '$lib/services/chiptune-loader';
 import { MODULE_EXTENSIONS, type TrackKind } from '$lib/types';
 import type { ChiptuneJsPlayer } from 'chiptune3';
 
-export type PreviewBackend = 'stream' | 'module';
+type PreviewBackend = 'stream' | 'module';
 
 export interface LyricsPreviewState {
   currentTime: number;
@@ -14,7 +14,7 @@ export interface LyricsPreviewState {
   error: '' | 'unsupported' | 'decode';
 }
 
-export interface LyricsPreviewController {
+interface LyricsPreviewController {
   setFile(file: File | null, kind: TrackKind | null): void;
 }
 

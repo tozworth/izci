@@ -35,7 +35,7 @@ import type {
   MultiplayerRenderManifest
 } from './multiplayer-protocol';
 
-export interface RenderPlaybackCallbacks {
+interface RenderPlaybackCallbacks {
   /** The contiguous startup window exists at the intended start position. */
   onReady: (epoch: number, positionMs: number) => void;
   /** The client needs a new window (rebuffer or seek). */
@@ -47,7 +47,7 @@ export interface RenderPlaybackCallbacks {
   }) => void;
 }
 
-export interface RenderPlaybackState {
+interface RenderPlaybackState {
   generationId: string | null;
   trackId: string | null;
   renderId: string;
@@ -61,7 +61,7 @@ export interface RenderPlaybackState {
   epoch: number;
 }
 
-export class MultiplayerRenderPlaybackService {
+class MultiplayerRenderPlaybackService {
   #callbacks: RenderPlaybackCallbacks | null = null;
   #generationId: string | null = null;
   #trackId: string | null = null;

@@ -5,7 +5,7 @@ const MATRIX_GAIN = Math.SQRT1_2;
 export const STEREO_WIDTH_MIN_DB = -24;
 export const STEREO_WIDTH_MAX_DB = 24;
 
-export interface StereoWidthNode extends RafEffectNode {
+interface StereoWidthNode extends RafEffectNode {
   nodes: AudioNode[];
   midGain: GainNode;
   sideGain: GainNode;

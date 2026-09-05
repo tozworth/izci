@@ -25,7 +25,7 @@ const BLOBS_BY_RENDER_INDEX_NAME = 'byRender';
 
 const INIT_BLOB_SUFFIX = ':init';
 
-export interface RenderCacheRecord {
+interface RenderCacheRecord {
   key: string;
   /** Best-known track name for the Options listing; may be a track id. */
   name: string;
@@ -54,7 +54,7 @@ export interface RenderCacheEntryInfo {
   clusterCount: number;
 }
 
-export interface RenderCacheListResult {
+interface RenderCacheListResult {
   entries: RenderCacheEntryInfo[];
   totalBytes: number;
   limitBytes: number;
@@ -95,7 +95,7 @@ export function selectRenderEviction(
  * partial substitute could never finish downloading because the host is
  * rendering a different bitrate now. Deterministic and unit-testable.
  */
-export function selectHigherBitrateCandidate(
+function selectHigherBitrateCandidate(
   records: RenderCacheRecord[],
   trackId: string,
   sourceRevision: string,
@@ -131,7 +131,7 @@ export function parseBlobIndex(renderKey: string, blobKeyValue: string): number 
   return Number.isInteger(index) && index >= 0 ? index : null;
 }
 
-export class MultiplayerRenderDiskCache {
+class MultiplayerRenderDiskCache {
   #dbPromise: Promise<IDBDatabase | null> | null = null;
   #chain: Promise<unknown> = Promise.resolve();
 

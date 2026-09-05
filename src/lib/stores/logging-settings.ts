@@ -1,16 +1,16 @@
 import { createSettingsStore, normalizeBoolean } from './persistent-store';
 
-export interface LoggingSettings {
+interface LoggingSettings {
   captureDebug: boolean;
   mirrorToConsole: boolean;
 }
 
-export const DEFAULT_LOGGING_SETTINGS: LoggingSettings = {
+const DEFAULT_LOGGING_SETTINGS: LoggingSettings = {
   captureDebug: false,
   mirrorToConsole: false
 };
 
-export function normalizeLoggingSettings(value: unknown): LoggingSettings {
+function normalizeLoggingSettings(value: unknown): LoggingSettings {
   const source = value && typeof value === 'object' ? value as Partial<LoggingSettings> : {};
   return {
     captureDebug: normalizeBoolean(source.captureDebug, DEFAULT_LOGGING_SETTINGS.captureDebug),

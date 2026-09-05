@@ -8,13 +8,13 @@ import { WORKSPACE_PANEL_IDS } from '$lib/types';
 const HORIZONTAL_PADDING = 0;
 
 export const WORKSPACE_RESIZER_WIDTH = 1;
-export const WIDE_PANEL_MIN_WIDTHS: Record<WorkspacePanelId, number> = {
+const WIDE_PANEL_MIN_WIDTHS: Record<WorkspacePanelId, number> = {
   left: 210,
   center: 320,
   right: 200
 };
 
-export interface ResponsiveWorkspacePanels {
+interface ResponsiveWorkspacePanels {
   visiblePanels: WorkspacePanelId[];
   collapsedPanels: WorkspacePanelId[];
 }

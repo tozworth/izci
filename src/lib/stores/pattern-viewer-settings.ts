@@ -1,8 +1,8 @@
 import type { PatternColorScheme, PatternRowNumberBase, PatternViewerSettings } from '$lib/types';
 import { createSettingsStore, normalizeBoolean } from './persistent-store';
 
-export const PATTERN_VIEWER_SETTINGS_STORAGE_KEY = 'izci.pattern-viewer-settings';
-export const PATTERN_VIEWER_SETTINGS_CHANNEL = 'izci.pattern-viewer-settings';
+const PATTERN_VIEWER_SETTINGS_STORAGE_KEY = 'izci.pattern-viewer-settings';
+const PATTERN_VIEWER_SETTINGS_CHANNEL = 'izci.pattern-viewer-settings';
 export const MIN_PATTERN_FONT_SIZE = 8;
 export const MAX_PATTERN_FONT_SIZE = 16;
 export const MIN_PATTERN_ROW_HEIGHT = 14;

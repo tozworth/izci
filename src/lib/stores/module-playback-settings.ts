@@ -1,8 +1,8 @@
 import type { ModuleInterpolationFilter, ModulePlaybackSettings } from '$lib/types';
 import { createSettingsStore } from './persistent-store';
 
-export const MODULE_PLAYBACK_SETTINGS_STORAGE_KEY = 'izci.module-playback-settings.v1';
-export const MODULE_PLAYBACK_SETTINGS_CHANNEL = 'izci-module-playback-settings';
+const MODULE_PLAYBACK_SETTINGS_STORAGE_KEY = 'izci.module-playback-settings.v1';
+const MODULE_PLAYBACK_SETTINGS_CHANNEL = 'izci-module-playback-settings';
 
 export const DEFAULT_MODULE_PLAYBACK_SETTINGS: ModulePlaybackSettings = {
   repeatCount: 0,

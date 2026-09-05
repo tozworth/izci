@@ -16,9 +16,9 @@ import type {
 import { hasColorThemeVariant } from '$lib/theme-definitions';
 import { createSettingsStore } from './persistent-store';
 
-export const APPEARANCE_SETTINGS_STORAGE_KEY = 'izci.appearance-settings';
-export const APPEARANCE_SETTINGS_CHANNEL = 'izci.appearance-settings';
-export const DEFAULT_COLOR_THEME_MODE: ColorThemeMode = 'system';
+const APPEARANCE_SETTINGS_STORAGE_KEY = 'izci.appearance-settings';
+const APPEARANCE_SETTINGS_CHANNEL = 'izci.appearance-settings';
+const DEFAULT_COLOR_THEME_MODE: ColorThemeMode = 'system';
 export const DEFAULT_LIGHT_COLOR_THEME: ColorTheme = 'pale';
 export const DEFAULT_DARK_COLOR_THEME: ColorTheme = 'pale';
 export const MIN_CHAMELEON_HUE = 0;
@@ -47,15 +47,15 @@ export const DEFAULT_BACKDROP_ZONES: BackdropZoneSettings = {
 };
 export const MIN_BACKDROP_ARTWORK_BLUR = 0;
 export const MAX_BACKDROP_ARTWORK_BLUR = 64;
-export const DEFAULT_BACKDROP_ARTWORK_BLUR = 36;
+const DEFAULT_BACKDROP_ARTWORK_BLUR = 36;
 const MAX_BACKDROP_ARTWORK_SURFACE_BLUR = 28;
 const BACKDROP_ARTWORK_HEADER_BLUR_OFFSET = 2;
 const MAX_BACKDROP_VISUALIZER_SURFACE_BLUR = 2;
 const MAX_BACKDROP_VISUALIZER_CHROME_BLUR = 4;
 export const MIN_BACKDROP_ARTWORK_BRIGHTNESS = 0;
 export const MAX_BACKDROP_ARTWORK_BRIGHTNESS = 100;
-export const DEFAULT_BACKDROP_ARTWORK_BRIGHTNESS = 42;
-export const DEFAULT_BACKDROP_ZONE_ARTWORK: BackdropZoneArtworkSettingsMap = {
+const DEFAULT_BACKDROP_ARTWORK_BRIGHTNESS = 42;
+const DEFAULT_BACKDROP_ZONE_ARTWORK: BackdropZoneArtworkSettingsMap = {
   left: {
     blur: DEFAULT_BACKDROP_ARTWORK_BLUR,
     brightness: DEFAULT_BACKDROP_ARTWORK_BRIGHTNESS
@@ -90,7 +90,7 @@ export const CONTEXTUAL_TAB_AUTOMATION_OPTIONS: Array<{
   { value: 'open', label: 'Open when available' },
   { value: 'open-close', label: 'Open and close automatically' }
 ];
-export const DEFAULT_CONTEXTUAL_TAB_SETTINGS: ContextualTabSettings = {
+const DEFAULT_CONTEXTUAL_TAB_SETTINGS: ContextualTabSettings = {
   lyrics: 'manual',
   patterns: 'manual'
 };
@@ -102,18 +102,18 @@ export const LYRICS_FONT_SIZE_LIMITS: Record<
   timestamped: { min: 0.78, max: 1.35, step: 0.01 },
   theater: { min: 0.78, max: 2.6, step: 0.01 }
 };
-export const DEFAULT_LYRICS_FONT_SIZES: LyricsFontSizeSettings = {
+const DEFAULT_LYRICS_FONT_SIZES: LyricsFontSizeSettings = {
   plain: 0.95,
   timestamped: 0.95,
   theater: 1.75
 };
 export const MIN_LYRICS_DOWNTIME_THRESHOLD_SECONDS = 5;
 export const MAX_LYRICS_DOWNTIME_THRESHOLD_SECONDS = 30;
-export const DEFAULT_LYRICS_DOWNTIME_THRESHOLD_SECONDS = 10;
+const DEFAULT_LYRICS_DOWNTIME_THRESHOLD_SECONDS = 10;
 export const MIN_NOW_PLAYING_PANEL_AUTO_HIDE_SECONDS = 2;
 export const NOW_PLAYING_PANEL_AUTO_HIDE_NEVER_SECONDS = 16;
-export const DEFAULT_NOW_PLAYING_PANEL_AUTO_HIDE_SECONDS = 5;
-export const DEFAULT_LYRICS_SETTINGS: LyricsSettings = {
+const DEFAULT_NOW_PLAYING_PANEL_AUTO_HIDE_SECONDS = 5;
+const DEFAULT_LYRICS_SETTINGS: LyricsSettings = {
   displayStyle: 'timestamped',
   autoScroll: true,
   fontSizes: DEFAULT_LYRICS_FONT_SIZES,

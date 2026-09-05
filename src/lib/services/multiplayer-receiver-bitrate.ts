@@ -3,7 +3,7 @@ export interface ReceivedByteSample {
   bytesReceived: number;
 }
 
-export interface ReceivedBitrateWindow {
+interface ReceivedBitrateWindow {
   samples: ReceivedByteSample[];
   averageKbps: number | null;
 }

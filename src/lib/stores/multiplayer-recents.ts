@@ -1,8 +1,8 @@
 import { createPersistentStore } from './persistent-store';
 
-export const MULTIPLAYER_RECENTS_STORAGE_KEY = 'izci.multiplayer-recents';
-export const MULTIPLAYER_RECENTS_CHANNEL = 'izci-multiplayer-recents';
-export const MULTIPLAYER_RECENTS_LIMIT = 5;
+const MULTIPLAYER_RECENTS_STORAGE_KEY = 'izci.multiplayer-recents';
+const MULTIPLAYER_RECENTS_CHANNEL = 'izci-multiplayer-recents';
+const MULTIPLAYER_RECENTS_LIMIT = 5;
 
 export interface MultiplayerRecent {
   name: string;

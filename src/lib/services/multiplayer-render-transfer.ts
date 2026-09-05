@@ -8,14 +8,14 @@ import { logWarning } from '$lib/services/logging';
 import type { PeerConnection } from './multiplayer-types';
 import { planRenderClusters } from './multiplayer-render-scheduler';
 
-export const RENDER_FRAGMENT_SIZE = 16 * 1024;
-export const RENDER_QUEUE_HIGH_WATER = 512 * 1024;
+const RENDER_FRAGMENT_SIZE = 16 * 1024;
+const RENDER_QUEUE_HIGH_WATER = 512 * 1024;
 export const RENDER_INIT_CLUSTER_INDEX = 0xffffffff;
 
 const FRAME_MARKER = 0x52;
 const FRAME_HEADER_BASE = 19;
 
-export interface RenderFrameHeader {
+interface RenderFrameHeader {
   renderId: string;
   epoch: number;
   clusterIndex: number;
@@ -71,7 +71,7 @@ export function decodeRenderFrame(
   };
 }
 
-export function queueRenderFragments(
+function queueRenderFragments(
   peer: PeerConnection,
   renderId: string,
   epoch: number,

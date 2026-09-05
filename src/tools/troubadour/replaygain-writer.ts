@@ -2,14 +2,16 @@ import {
   type MetadataTags
 } from 'mediabunny';
 import {
-  isMetadataExtension,
+  isMetadataExtension
+} from '$lib/services/media-metadata/format';
+import type { MetadataExtension } from '$lib/services/media-metadata/types';
+import {
   remuxMetadataToBlob,
-  remuxMetadataToWritable,
-  type MetadataExtension
-} from '$lib/services/media-metadata';
+  remuxMetadataToWritable
+} from '$lib/services/media-metadata/remux';
 import { inferExtension } from '$lib/utils/files';
 
-export interface ReplayGainValues {
+interface ReplayGainValues {
   trackGainDb: number;
   trackPeak: number;
   albumGainDb?: number;

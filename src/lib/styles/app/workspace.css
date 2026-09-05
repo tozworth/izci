@@ -119,14 +119,6 @@
   height: 100%;
 }
 
-.workspace-tabs-layout {
-  display: flex;
-  flex-direction: column;
-  gap: 0;
-  padding: 0;
-  overflow: hidden;
-}
-
 .workspace-tabs {
   --workspace-tab-text: var(--text);
   --workspace-tab-muted: var(--muted);
@@ -298,18 +290,7 @@
   font-size: 0.95rem;
 }
 
-.workspace-tab-panel {
-  flex: 1;
-  min-height: 0;
-  overflow: hidden;
-}
-
-.workspace-tab-panel .panel {
-  height: 100%;
-}
-
-.dock-panel-tab-panel,
-.right-panel-tabs-layout {
+.dock-panel-tab-panel {
   display: flex;
   flex: 1;
   min-width: 0;
@@ -396,41 +377,6 @@
 
 .workspace-edge-drop-target-right {
   right: 0;
-}
-
-.right-panel-tabs {
-  flex: 0 0 auto;
-}
-
-.right-panel-tab-panel {
-  flex: 1;
-  min-width: 0;
-  min-height: 0;
-  background-color: color-mix(in srgb, var(--bg-elevated) 82%, transparent);
-  backdrop-filter:
-    blur(var(--panel-backdrop-blur, 12px))
-    saturate(var(--panel-backdrop-saturate, 1));
-  -webkit-backdrop-filter:
-    blur(var(--panel-backdrop-blur, 12px))
-    saturate(var(--panel-backdrop-saturate, 1));
-  overflow: hidden;
-}
-
-.right-panel-tab-panel .panel {
-  height: 100%;
-  border: 0;
-  background-color: transparent;
-  box-shadow: none;
-}
-
-.workspace-tabs-layout .panel {
-  border: 0;
-  border-radius: 0;
-  box-shadow: none;
-}
-
-.workspace-tabs-layout .empty-state {
-  padding-bottom: calc(7rem + env(safe-area-inset-bottom, 0px));
 }
 
 .now-playing-workspace {
@@ -594,8 +540,7 @@
 .now-playing-tab-panel .track-list-dropzone,
 .now-playing-tab-panel .track-table,
 .now-playing-tab-panel .track-table-body,
-.now-playing-tab-panel .track-table-row-button,
-.now-playing-tab-panel .track-columns-header {
+.now-playing-tab-panel .track-table-row-button {
   max-width: 100%;
   min-width: 0;
 }

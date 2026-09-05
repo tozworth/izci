@@ -2,7 +2,7 @@ import { version as appVersion } from '../../../package.json';
 import { loggingSettings } from '$lib/stores/logging-settings';
 
 export type LogLevel = 'error' | 'warning' | 'info' | 'debug';
-export type LogSource =
+type LogSource =
   | 'system'
   | 'playback'
   | 'decode'
@@ -22,12 +22,12 @@ export interface LogEntry {
   details?: string;
 }
 
-export const LOG_LEVELS: readonly LogLevel[] = ['error', 'warning', 'info', 'debug'];
-export const LOG_SOURCES: readonly LogSource[] = [
+const LOG_LEVELS: readonly LogLevel[] = ['error', 'warning', 'info', 'debug'];
+const LOG_SOURCES: readonly LogSource[] = [
   'system', 'playback', 'decode', 'files', 'library', 'tools', 'multiplayer', 'freeplay'
 ];
 export const MAX_LOG_ENTRIES = 3000;
-export const LOG_CHANNEL_NAME = 'izci-logs-v2';
+const LOG_CHANNEL_NAME = 'izci-logs-v2';
 
 const MAX_MESSAGE_LENGTH = 4096;
 const MAX_DETAILS_LENGTH = 32768;
@@ -79,7 +79,7 @@ function randomToken(): string {
   }
 }
 
-export function getLoggingContext(path = typeof location === 'undefined' ? '' : location.pathname): string {
+function getLoggingContext(path = typeof location === 'undefined' ? '' : location.pathname): string {
   if (path.endsWith('troubadour-options.html')) return 'troubadour-options';
   if (path.endsWith('audio-compare.html')) return 'audio-compare';
   if (path.endsWith('options.html')) return 'options';

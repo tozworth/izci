@@ -2,10 +2,10 @@ import type { TrackItem } from '$lib/types';
 import { logWarning } from '$lib/services/logging';
 import type { PeerConnection, SourceFileBeginFrame, SourceFileEndFrame } from './multiplayer-types';
 
-export const SOURCE_FILE_CHUNK_SIZE = 16 * 1024;
-export const SOURCE_FILE_QUEUE_LIMIT = 1024 * 1024;
+const SOURCE_FILE_CHUNK_SIZE = 16 * 1024;
+const SOURCE_FILE_QUEUE_LIMIT = 1024 * 1024;
 
-export function queuePeerMedia(peer: PeerConnection, frame: string | ArrayBuffer): void {
+function queuePeerMedia(peer: PeerConnection, frame: string | ArrayBuffer): void {
   peer.mediaOutgoing.push(frame);
   peer.mediaQueuedBytes += typeof frame === 'string' ? frame.length : frame.byteLength;
   flushPeerMedia(peer);
@@ -50,7 +50,7 @@ export function flushPeerMedia(peer: PeerConnection): void {
   flush();
 }
 
-export function waitForMediaQueue(peer: PeerConnection, token: number): Promise<void> {
+function waitForMediaQueue(peer: PeerConnection, token: number): Promise<void> {
   if (peer.mediaQueuedBytes < SOURCE_FILE_QUEUE_LIMIT || peer.mediaTransferToken !== token) {
     return Promise.resolve();
   }

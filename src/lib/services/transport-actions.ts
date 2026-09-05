@@ -6,12 +6,12 @@ import type { MultiplayerSessionController } from '$lib/services/multiplayer-typ
 import type { VideoSeekFeedback } from '$lib/components/workspace/types';
 import type { PlaybackSnapshot, TrackItem } from '$lib/types';
 
-export type Translate = (
+type Translate = (
   id: string,
   options?: { default?: string; values?: Record<string, string | number | boolean | Date | null | undefined> }
 ) => string;
 
-export interface TransportActionsDeps {
+interface TransportActionsDeps {
   getPlaybackCommands(): {
     togglePlayback(): void | Promise<void>;
     play(): void | Promise<void>;

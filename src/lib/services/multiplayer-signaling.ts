@@ -6,7 +6,7 @@ import {
   isMultiplayerTurnCredentialResponse
 } from './multiplayer-turn-credentials';
 
-export const FIREBASE_CONFIG = {
+const FIREBASE_CONFIG = {
   projectId: 'izci-pwa',
   appId: '1:397825145921:web:92d428cf3c65fa2fab5ac0',
   storageBucket: 'izci-pwa.firebasestorage.app',
@@ -16,7 +16,7 @@ export const FIREBASE_CONFIG = {
   databaseURL: 'https://izci-pwa-default-rtdb.europe-west1.firebasedatabase.app'
 } as const;
 
-export const TURN_CREDENTIAL_RESPONSE_TIMEOUT_MS = 15_000;
+const TURN_CREDENTIAL_RESPONSE_TIMEOUT_MS = 15_000;
 
 export function createDirectIceSettings(): MultiplayerIceSettings {
   return {

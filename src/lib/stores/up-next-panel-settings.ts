@@ -1,16 +1,16 @@
 import { createSettingsStore } from './persistent-store';
 
-export interface UpNextPanelSettings {
+interface UpNextPanelSettings {
   expanded: boolean;
   heightPx: number;
 }
 
-export const UP_NEXT_PANEL_SETTINGS_STORAGE_KEY = 'izci.up-next-panel-settings';
-export const UP_NEXT_PANEL_SETTINGS_CHANNEL = 'izci.up-next-panel-settings';
-export const DEFAULT_UP_NEXT_PANEL_HEIGHT_PX = 184;
+const UP_NEXT_PANEL_SETTINGS_STORAGE_KEY = 'izci.up-next-panel-settings';
+const UP_NEXT_PANEL_SETTINGS_CHANNEL = 'izci.up-next-panel-settings';
+const DEFAULT_UP_NEXT_PANEL_HEIGHT_PX = 184;
 export const MIN_UP_NEXT_PANEL_HEIGHT_PX = 88;
 export const MAX_UP_NEXT_PANEL_HEIGHT_PX = 480;
-export const DEFAULT_UP_NEXT_PANEL_SETTINGS: UpNextPanelSettings = {
+const DEFAULT_UP_NEXT_PANEL_SETTINGS: UpNextPanelSettings = {
   expanded: false,
   heightPx: DEFAULT_UP_NEXT_PANEL_HEIGHT_PX
 };

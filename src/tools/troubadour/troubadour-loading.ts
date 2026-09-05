@@ -8,10 +8,10 @@ import { autoGroupTracks } from './grouping';
 import type { StagedWorkbenchState, TroubadourAutoGroupFallback, TroubadourWorkbenchItem } from './troubadour-controller';
 
 export const LOAD_COMMIT_BATCH_SIZE = 64;
-export const LOAD_PROGRESS_INTERVAL_MS = 250;
+const LOAD_PROGRESS_INTERVAL_MS = 250;
 export const LOAD_DEFAULT_CONCURRENCY = 3;
 
-export interface DiscoveredWorkbenchFile {
+interface DiscoveredWorkbenchFile {
   fileHandle: FileSystemFileHandle;
   parentHandle: FileSystemDirectoryHandle | null;
   path: string;
@@ -24,7 +24,7 @@ export async function materializeWorkbenchFile(file: File): Promise<File> {
   });
 }
 
-export async function resolveParentHandle(
+async function resolveParentHandle(
   path: string | undefined,
   sourceFolderId: string | undefined,
   folders: TroubadourRememberedFolder[]
@@ -66,7 +66,7 @@ export function effectiveFields(item: TroubadourWorkbenchItem): MediaMetadataFie
   return item.document ? applyMetadataPatch(item.document, item.patch, item.artworkEdits).fields : null;
 }
 
-export interface TroubadourLoadingRunner {
+interface TroubadourLoadingRunner {
   (job: (report: (activeJob: string, jobProgress?: number | null) => void) => Promise<TroubadourWorkbenchItem[]>): Promise<void>;
 }
 

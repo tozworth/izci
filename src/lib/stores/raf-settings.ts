@@ -6,8 +6,8 @@ import {
 import type { RafEffectSettings, RafEffectType, RafRackSettings } from '$lib/types';
 import { createPersistentStore, normalizeBoolean } from './persistent-store';
 
-export const RAF_SETTINGS_STORAGE_KEY = 'izci.raf-settings';
-export const RAF_SETTINGS_CHANNEL = 'izci-raf-settings';
+const RAF_SETTINGS_STORAGE_KEY = 'izci.raf-settings';
+const RAF_SETTINGS_CHANNEL = 'izci-raf-settings';
 export const DEFAULT_RAF_SETTINGS: RafRackSettings = { enabled: true, effects: [] };
 
 export function normalizeRafSettings(value: unknown): RafRackSettings {
@@ -31,7 +31,7 @@ export function normalizeRafSettings(value: unknown): RafRackSettings {
   };
 }
 
-export function createRafEffectId(): string {
+function createRafEffectId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return `raf-${crypto.randomUUID()}`;
   }

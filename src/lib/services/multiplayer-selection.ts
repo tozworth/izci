@@ -1,6 +1,6 @@
 import type { TrackItem, TrackSelection } from '$lib/types';
 
-export interface MultiplayerPlayingTrackSelectionSync {
+interface MultiplayerPlayingTrackSelectionSync {
   observedTrackId: string | null;
   selection: TrackSelection | null;
 }

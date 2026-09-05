@@ -1,7 +1,7 @@
 import { createPersistentStore } from './persistent-store';
 
-export const MULTIPLAYER_LAST_SESSION_STORAGE_KEY = 'izci.multiplayer-last-session';
-export const MULTIPLAYER_LAST_SESSION_CHANNEL = 'izci-multiplayer-last-session';
+const MULTIPLAYER_LAST_SESSION_STORAGE_KEY = 'izci.multiplayer-last-session';
+const MULTIPLAYER_LAST_SESSION_CHANNEL = 'izci-multiplayer-last-session';
 
 export interface MultiplayerLastSession {
   mode: 'client' | 'hosting';
@@ -11,7 +11,7 @@ export interface MultiplayerLastSession {
   savedAt: number;
 }
 
-export function normalizeMultiplayerLastSession(value: unknown): MultiplayerLastSession | null {
+function normalizeMultiplayerLastSession(value: unknown): MultiplayerLastSession | null {
   if (!value || typeof value !== 'object') return null;
   const candidate = value as Partial<MultiplayerLastSession>;
   if (candidate.mode !== 'client' && candidate.mode !== 'hosting') return null;

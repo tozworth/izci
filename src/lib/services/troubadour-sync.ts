@@ -9,7 +9,7 @@ const TROUBADOUR_BATCH_RESULT_MESSAGE = 'izci:troubadour:batch-result';
 const PREPARE_TROUBADOUR_WRITE_MESSAGE = 'izci:troubadour:prepare-write';
 const TROUBADOUR_WRITE_READY_MESSAGE = 'izci:troubadour:write-ready';
 
-export type TroubadourCollection = 'current' | 'queue' | 'library' | 'favorites';
+type TroubadourCollection = 'current' | 'queue' | 'library' | 'favorites';
 
 export interface TroubadourTrackReference {
   collection: TroubadourCollection;

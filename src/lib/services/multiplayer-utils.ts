@@ -9,7 +9,7 @@ import {
   type MultiplayerDeliveryMode
 } from './multiplayer-protocol';
 
-export const RECEIVE_AUDIO_STORAGE_KEY = 'izci.multiplayer.receive-audio';
+const RECEIVE_AUDIO_STORAGE_KEY = 'izci.multiplayer.receive-audio';
 
 /**
  * True when a decoded frame is a host hello from an incompatible protocol

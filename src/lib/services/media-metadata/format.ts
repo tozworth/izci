@@ -7,7 +7,7 @@ import {
 } from 'mediabunny';
 import { MEDIA_METADATA_FIELD_NAMES, type MetadataCapabilities, type MetadataExtension } from './types';
 
-export const SUPPORTED_METADATA_EXTENSIONS = ['mp3', 'wav', 'flac', 'ogg', 'opus'] as const;
+const SUPPORTED_METADATA_EXTENSIONS = ['mp3', 'wav', 'flac', 'ogg', 'opus'] as const;
 const ARTWORK_KINDS = ['coverFront', 'coverBack', 'unknown'] as const;
 const COMMON_CAPABILITIES = {
   readable: true,

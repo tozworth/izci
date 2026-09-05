@@ -1,9 +1,9 @@
 import { normalizeRafSettings, rafSettings } from '$lib/stores/raf-settings';
 import type { RafRackSettings } from '$lib/types';
 
-export const RAF_SETTINGS_FILE_NAME = 'izci-raf-settings.json';
+const RAF_SETTINGS_FILE_NAME = 'izci-raf-settings.json';
 
-export type RafSettingsTransferErrorCode =
+type RafSettingsTransferErrorCode =
   | 'invalid-json'
   | 'invalid-rack'
   | 'invalid-effect'
@@ -51,7 +51,7 @@ export function serializeRafSettings(settings: RafRackSettings): string {
   return `${JSON.stringify(normalizeRafSettings(settings), null, 2)}\n`;
 }
 
-export function importRafSettingsJson(text: string): RafRackSettings {
+function importRafSettingsJson(text: string): RafRackSettings {
   return rafSettings.replace(parseRafSettingsJson(text));
 }
 

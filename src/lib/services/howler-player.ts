@@ -239,12 +239,6 @@ export class HowlerPlayerService {
     this.#howl?.pause();
   }
 
-  stop(): void {
-    this.#autoPlayOnLoad = false;
-    this.#playPending = false;
-    this.#howl?.stop();
-  }
-
   seek(seconds: number): void {
     const nextPosition = Math.max(seconds, 0);
     const wasPlaying = this.#howl?.playing() ?? false;

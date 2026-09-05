@@ -19,7 +19,7 @@ interface ReverbSlot {
   gain: GainNode;
 }
 
-export interface ReverbNode extends RafEffectNode {
+interface ReverbNode extends RafEffectNode {
   dry: GainNode;
   wet: GainNode;
   preDelay: DelayNode;

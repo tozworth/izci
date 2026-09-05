@@ -1,8 +1,8 @@
 import type { VideoFitMode, VideoSettings } from '$lib/types';
 import { createSettingsStore, normalizeBoolean } from './persistent-store';
 
-export const VIDEO_SETTINGS_STORAGE_KEY = 'izci.video-settings';
-export const VIDEO_SETTINGS_CHANNEL = 'izci-video-settings';
+const VIDEO_SETTINGS_STORAGE_KEY = 'izci.video-settings';
+const VIDEO_SETTINGS_CHANNEL = 'izci-video-settings';
 
 export const DEFAULT_VIDEO_SETTINGS: VideoSettings = {
   autoResizeWindow: false,

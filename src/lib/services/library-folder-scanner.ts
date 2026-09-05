@@ -9,7 +9,7 @@ import { libraryStore } from '$lib/stores/queue';
 import { trackSettings } from '$lib/stores/track-settings';
 import { buildTrackItems, readDirectoryFiles } from '$lib/utils/files';
 
-export interface LibraryFolderScanResult {
+interface LibraryFolderScanResult {
   folderId: string;
   status: 'success' | 'permission-required' | 'error';
   trackCount: number;

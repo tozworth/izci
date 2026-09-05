@@ -3,11 +3,11 @@ import { normalizeRafSettings, rafSettings } from './raf-settings';
 import { createPersistentStore } from './persistent-store';
 import type { RafPreset, RafPresetSettings, RafPresetState, RafRackSettings } from '$lib/types';
 
-export const RAF_PRESETS_STORAGE_KEY = 'izci.raf-presets';
-export const RAF_PRESETS_CHANNEL = 'izci-raf-presets';
+const RAF_PRESETS_STORAGE_KEY = 'izci.raf-presets';
+const RAF_PRESETS_CHANNEL = 'izci-raf-presets';
 export const DEFAULT_RAF_PRESET_STATE: RafPresetState = { presets: [], selectedPresetId: null };
 
-export function compareRafPresetNames(first: RafPreset, second: RafPreset): number {
+function compareRafPresetNames(first: RafPreset, second: RafPreset): number {
   return first.name.localeCompare(second.name, undefined, { numeric: true, sensitivity: 'base' });
 }
 
@@ -51,7 +51,7 @@ export function normalizeRafPresetState(value: unknown): RafPresetState {
   return { presets, selectedPresetId };
 }
 
-export function createRafPresetId(): string {
+function createRafPresetId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return `raf-preset-${crypto.randomUUID()}`;
   }

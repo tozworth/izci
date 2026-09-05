@@ -19,7 +19,7 @@ export interface PlaybackProgressRecord {
   updatedAt: number;
 }
 
-export interface PlaybackProgressNotice {
+interface PlaybackProgressNotice {
   trackId: string;
   currentTime: number;
 }

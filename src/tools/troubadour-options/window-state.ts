@@ -6,7 +6,7 @@ import {
 
 const STORAGE_KEY = 'izci.troubadour-options-window-state';
 
-export interface TroubadourOptionsWindowState {
+interface TroubadourOptionsWindowState {
   activeView: TroubadourOptionsViewName;
   showAdvancedTweaks: boolean;
 }

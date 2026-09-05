@@ -8,7 +8,7 @@ export interface UpNextEntry {
   identity: string;
 }
 
-export type UpNextPosition = 'front' | 'end';
+type UpNextPosition = 'front' | 'end';
 
 function buildEntries(items: TrackItem[]): UpNextEntry[] {
   return items.map((item) => ({

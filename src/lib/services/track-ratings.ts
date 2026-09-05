@@ -1,7 +1,7 @@
 import type { MenuActionItem, TrackItem } from '$lib/types';
 
 export const TRACK_RATING_VALUES = Array.from({ length: 10 }, (_, index) => (index + 1) / 2);
-export const TRACK_RATING_ACTION_PREFIX = 'rate:';
+const TRACK_RATING_ACTION_PREFIX = 'rate:';
 
 export function normalizeTrackRating(value: unknown): number | undefined {
   if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) {

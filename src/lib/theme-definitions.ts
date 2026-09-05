@@ -1,10 +1,10 @@
 import type { ColorScheme, ColorTheme } from '$lib/types';
 
-export interface ColorThemeVariantDefinition {
+interface ColorThemeVariantDefinition {
   themeColor: string;
 }
 
-export interface ColorThemeDefinition {
+interface ColorThemeDefinition {
   value: ColorTheme;
   variants: Partial<Record<ColorScheme, ColorThemeVariantDefinition>>;
 }

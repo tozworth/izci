@@ -12,14 +12,13 @@ import {
 } from '$lib/services/window-video';
 import type { TrackItem, VideoFitMode } from '$lib/types';
 
-export interface VideoWindowActionsDeps {
+interface VideoWindowActionsDeps {
   getVideoTrackActive(): boolean;
   getTheaterActive(): boolean;
   setTheaterActive(active: boolean): void;
   setTheaterControlsHidden(hidden: boolean): void;
   getIsNowPlayingLayoutActive(): boolean;
   getIsAutomaticNowPlayingEligible(): boolean;
-  getAutoNowPlayingSuppressed(): boolean;
   setAutoNowPlayingSuppressed(value: boolean): void;
   getWindowDisplayState(): { maximized: boolean; fullscreen: boolean };
   mobileMode: boolean;

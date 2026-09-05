@@ -174,10 +174,6 @@ export class ModulePlayerService {
     }
   }
 
-  destroy(): void {
-    this.stop();
-  }
-
   seek(seconds: number): void {
     if (!this.#player || !this.#started) {
       return;

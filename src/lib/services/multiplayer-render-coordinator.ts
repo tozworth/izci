@@ -20,7 +20,7 @@ import type {
   MultiplayerRenderResult
 } from './multiplayer-render.worker';
 
-export const DEFAULT_RENDER_CACHE_LIMIT_MIB = 256;
+const DEFAULT_RENDER_CACHE_LIMIT_MIB = 256;
 
 interface PendingJob {
   key: string;

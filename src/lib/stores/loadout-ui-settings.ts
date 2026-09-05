@@ -1,15 +1,15 @@
 import type { LoadoutCategory } from '$lib/types';
 import { createSettingsStore } from './persistent-store';
 
-export const LOADOUT_UI_SETTINGS_STORAGE_KEY = 'izci.loadout-ui-settings';
-export const LOADOUT_UI_SETTINGS_CHANNEL = 'izci-loadout-ui-settings';
+const LOADOUT_UI_SETTINGS_STORAGE_KEY = 'izci.loadout-ui-settings';
+const LOADOUT_UI_SETTINGS_CHANNEL = 'izci-loadout-ui-settings';
 export const DEFAULT_LOADOUT_CAPTURE_CATEGORIES: LoadoutCategory[] = [
   'playback',
   'raf',
   'appearance'
 ];
 
-export interface LoadoutUiSettings {
+interface LoadoutUiSettings {
   captureCategories: LoadoutCategory[];
 }
 

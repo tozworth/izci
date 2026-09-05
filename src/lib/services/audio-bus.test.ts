@@ -176,25 +176,14 @@ describe('AudioBusService', () => {
     expect(FakeAudioContext.constructorOptions).toEqual([{ latencyHint: 'playback' }]);
   });
 
-  it('applies source gain before Raf and player volume after the analyser', () => {
-    bus.setInputGain(0.75);
+  it('keeps the shared input at unity and applies player volume after the analyser', () => {
     bus.setOutputGain(0.25);
 
     const context = bus.context as unknown as FakeAudioContext;
     const [input, output] = context.gains;
 
-    expect(input.gain.value).toBe(0.75);
+    expect(input.gain.value).toBe(1);
     expect(output.gain.value).toBe(0.25);
-  });
-
-  it('can install track-bound input gain without an audible ramp', () => {
-    const context = bus.context as unknown as FakeAudioContext;
-    const [input] = context.gains;
-
-    bus.setInputGain(0.25, true);
-
-    expect(input.gain.setCalls.at(-1)).toEqual({ value: 0.25, time: 0 });
-    expect(input.gain.rampCalls).toHaveLength(0);
   });
 
   it('mixes two sources through independent gains without rebuilding the shared graph', () => {

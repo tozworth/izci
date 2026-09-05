@@ -2,7 +2,7 @@ import { DEFAULT_OPTIONS_VIEW, isOptionsViewName, type OptionsViewName } from '.
 
 const STORAGE_KEY = 'izci.options-window-state';
 
-export interface OptionsWindowState {
+interface OptionsWindowState {
   activeView: OptionsViewName;
   showAdvancedTweaks: boolean;
 }

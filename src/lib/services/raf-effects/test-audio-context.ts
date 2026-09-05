@@ -12,7 +12,7 @@ export class FakeParam {
   }
 }
 
-export class FakeNode {
+class FakeNode {
   connections: Array<{ destination: FakeNode; output?: number; input?: number }> = [];
   disconnectCalls = 0;
   connect(destination: FakeNode, output?: number, input?: number): FakeNode {
@@ -22,8 +22,8 @@ export class FakeNode {
   disconnect(): void { this.disconnectCalls += 1; }
 }
 
-export class FakeGain extends FakeNode { gain = new FakeParam(1); }
-export class FakeFilter extends FakeNode {
+class FakeGain extends FakeNode { gain = new FakeParam(1); }
+class FakeFilter extends FakeNode {
   type: BiquadFilterType = 'lowpass';
   frequency = new FakeParam();
   Q = new FakeParam();
@@ -40,7 +40,7 @@ class FakeCompressor extends FakeNode {
 }
 class FakeWaveShaper extends FakeNode { curve: Float32Array | null = null; oversample: OverSampleType = 'none'; }
 class FakeConvolver extends FakeNode { buffer: AudioBuffer | null = null; normalize = true; }
-export class FakeAnalyser extends FakeNode {
+class FakeAnalyser extends FakeNode {
   fftSize = 2048;
   sampleValue = 0;
   getFloatTimeDomainData(samples: Float32Array): void { samples.fill(this.sampleValue); }

@@ -24,7 +24,7 @@ import type {
   WorkbenchItemState
 } from './troubadour-controller';
 
-export function writeTargetForItem(item: TroubadourWorkbenchItem): TroubadourWriteTarget {
+function writeTargetForItem(item: TroubadourWorkbenchItem): TroubadourWriteTarget {
   return {
     contextId: item.contextId,
     references: item.references,
@@ -53,7 +53,7 @@ export function defaultSaveHandler(): SaveWorkbenchItemHandler {
   };
 }
 
-export interface SavePipeline {
+interface SavePipeline {
   saveSelectedOrAll(options?: {
     all?: boolean;
     requestPermission?: boolean;

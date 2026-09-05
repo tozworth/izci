@@ -1,8 +1,8 @@
 import type { ExperimentalSettings } from '$lib/types';
 import { createSettingsStore, normalizeBoolean } from './persistent-store';
 
-export const EXPERIMENTAL_SETTINGS_STORAGE_KEY = 'izci.experimental-settings';
-export const EXPERIMENTAL_SETTINGS_CHANNEL = 'izci-experimental-settings';
+const EXPERIMENTAL_SETTINGS_STORAGE_KEY = 'izci.experimental-settings';
+const EXPERIMENTAL_SETTINGS_CHANNEL = 'izci-experimental-settings';
 
 const NAME_ALPHABET = 'abcdefghijklmnopqrstuvwxyz0123456789';
 
@@ -14,25 +14,25 @@ export const MULTIPLAYER_AUDIO_BUFFER_MAX_MS = 30_000;
 export const MULTIPLAYER_AUDIO_BUFFER_STEP_MS = 250;
 export const MULTIPLAYER_RENDER_CACHE_LIMITS_MIB = [0, 64, 128, 256, 512] as const;
 export const MULTIPLAYER_RENDER_DISK_CACHE_LIMITS_MIB = [256, 512, 1024, 2048, 4096] as const;
-export const MULTIPLAYER_RENDER_DISK_CACHE_DEFAULT_LIMIT_MIB = 1024;
+const MULTIPLAYER_RENDER_DISK_CACHE_DEFAULT_LIMIT_MIB = 1024;
 export const MULTIPLAYER_FILE_TRANSFER_LIMITS_MIB = [0, 1, 2, 4, 8, 16, 32, 64, -1] as const;
 export const MULTIPLAYER_SYNC_LEAD_TIME_MIN_MS = 250;
 export const MULTIPLAYER_SYNC_LEAD_TIME_MAX_MS = 3_000;
 export const MULTIPLAYER_SYNC_LEAD_TIME_STEP_MS = 50;
 export const MULTIPLAYER_MAX_LISTENERS_MIN = 1;
 export const MULTIPLAYER_MAX_LISTENERS_MAX = 8;
-export const MULTIPLAYER_TURN_URL_MAX_LENGTH = 512;
-export const MULTIPLAYER_TURN_SECRET_MAX_LENGTH = 512;
+const MULTIPLAYER_TURN_URL_MAX_LENGTH = 512;
+const MULTIPLAYER_TURN_SECRET_MAX_LENGTH = 512;
 export const MULTIPLAYER_TURN_CREDENTIAL_HOURS_MIN = 1;
 export const MULTIPLAYER_TURN_CREDENTIAL_HOURS_MAX = 48;
 
-export function createDefaultIzciName(): string {
+function createDefaultIzciName(): string {
   const bytes = new Uint8Array(4);
   crypto.getRandomValues(bytes);
   return `Scout ${Array.from(bytes, (byte) => NAME_ALPHABET[byte % NAME_ALPHABET.length]).join('')}`;
 }
 
-export function normalizeIzciName(value: unknown, fallback: string): string {
+function normalizeIzciName(value: unknown, fallback: string): string {
   if (typeof value !== 'string') return fallback;
   const name = value.trim().replace(/[\u0000-\u001f\u007f]/g, '').slice(0, 48);
   return name || fallback;
@@ -44,7 +44,7 @@ function normalizeSingleLine(value: unknown, maxLength: number): string {
     : '';
 }
 
-export function normalizeMultiplayerTurnUrl(value: unknown): string {
+function normalizeMultiplayerTurnUrl(value: unknown): string {
   const url = normalizeSingleLine(value, MULTIPLAYER_TURN_URL_MAX_LENGTH);
   if (!url) return '';
   return /^(?:turn|turns):/i.test(url) ? url : `turn:${url}`;

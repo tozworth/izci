@@ -24,7 +24,6 @@ export class AudioBusService {
   #broadcastGainValue = 1;
   #sourceRoutes = new Map<AudioBusSource, AudioBusSourceRoute>();
   #mediaSources = new WeakMap<HTMLMediaElement, MediaElementAudioSourceNode>();
-  #inputGain = 1;
   #outputGain = 1;
   #bypassedRafEffectTypes = new Set<RafEffectType>();
 
@@ -34,10 +33,6 @@ export class AudioBusService {
   }
 
   connectHtmlMediaElement(element: HTMLMediaElement | null): MediaElementAudioSourceNode | null {
-    return this.#connectHtmlMediaElement(element);
-  }
-
-  #connectHtmlMediaElement(element: HTMLMediaElement | null): MediaElementAudioSourceNode | null {
     if (!element) {
       return null;
     }
@@ -95,10 +90,6 @@ export class AudioBusService {
   }
 
   connectMediaStream(stream: MediaStream | null): MediaStreamAudioSourceNode | null {
-    return this.#connectMediaStream(stream);
-  }
-
-  #connectMediaStream(stream: MediaStream | null): MediaStreamAudioSourceNode | null {
     if (!stream || stream.getAudioTracks().length === 0) return null;
 
     this.#ensureGraph();
@@ -212,20 +203,6 @@ export class AudioBusService {
     return running;
   }
 
-  setInputGain(gain: number, immediate = false): void {
-    this.#inputGain = Math.max(gain, 0);
-
-    if (this.#input && this.#context) {
-      if (immediate) {
-        const now = this.#context.currentTime;
-        this.#input.gain.cancelScheduledValues(now);
-        this.#input.gain.setValueAtTime(this.#inputGain, now);
-      } else {
-        setAudioParam(this.#input.gain, this.#inputGain, this.#context);
-      }
-    }
-  }
-
   setOutputGain(gain: number): void {
     this.#outputGain = Math.max(gain, 0);
 
@@ -328,7 +305,6 @@ export class AudioBusService {
     const rafEngine = new RafEngine(context);
     rafEngine.setBypassedEffectTypes(this.#bypassedRafEffectTypes);
 
-    input.gain.value = this.#inputGain;
     program.gain.value = 1;
     output.gain.value = this.#outputGain;
     input.connect(rafEngine.input);

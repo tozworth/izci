@@ -1,6 +1,6 @@
 import { readable } from 'svelte/store';
 
-export type RafAutoAmpGainSnapshot = Record<string, number>;
+type RafAutoAmpGainSnapshot = Record<string, number>;
 
 interface AutoAmpGainMessage {
   id: string;

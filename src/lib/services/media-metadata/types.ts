@@ -36,7 +36,7 @@ export type MediaMetadataFields = Readonly<Record<MediaMetadataFieldName, string
 /** Missing keys are untouched; null explicitly removes a field. */
 export type MetadataPatch = Partial<Record<MediaMetadataFieldName, string | null>>;
 
-export type ArtworkKind = 'coverFront' | 'coverBack' | 'unknown';
+type ArtworkKind = 'coverFront' | 'coverBack' | 'unknown';
 
 export interface MediaArtworkInput {
   readonly data: Uint8Array;

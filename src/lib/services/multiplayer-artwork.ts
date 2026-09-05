@@ -4,7 +4,7 @@ import type { LoadedStreamArtwork } from '$lib/services/stream-artwork';
 import type { TrackItem } from '$lib/types';
 import type { MultiplayerArtwork } from './multiplayer-protocol';
 
-export const MULTIPLAYER_ARTWORK_MAX_EDGE = 1024;
+const MULTIPLAYER_ARTWORK_MAX_EDGE = 1024;
 
 export function getMultiplayerArtworkTrackKey(track: TrackItem | null): string {
   if (!track) return '';

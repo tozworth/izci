@@ -32,7 +32,7 @@ export interface PlayerArtworkPalette extends PlayerArtworkColorSet {
   onLightBackground: PlayerArtworkColorSet;
 }
 
-export interface ArtworkPalette {
+interface ArtworkPalette {
   visualizer: VisualizerPalette;
   player: PlayerArtworkPalette;
 }

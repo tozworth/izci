@@ -20,9 +20,9 @@ export type OptionsViewName =
   | 'licenses';
 
 export const DEFAULT_OPTIONS_VIEW: OptionsViewName = 'appearance';
-export const OPTIONS_VIEW_QUERY_PARAM = 'view';
+const OPTIONS_VIEW_QUERY_PARAM = 'view';
 
-export interface OptionsViewDefinition {
+interface OptionsViewDefinition {
   id: OptionsViewName;
   label: string;
   icon: string;
@@ -219,7 +219,7 @@ export function isOptionsViewName(value: string | null | undefined): value is Op
   return typeof value === 'string' && value in OPTIONS_VIEWS;
 }
 
-export function normalizeOptionsView(value: string | null | undefined): OptionsViewName {
+function normalizeOptionsView(value: string | null | undefined): OptionsViewName {
   return isOptionsViewName(value) ? value : DEFAULT_OPTIONS_VIEW;
 }
 

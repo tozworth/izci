@@ -33,7 +33,7 @@ export const LOADOUT_CATEGORIES: LoadoutCategory[] = [
 
 const MANUAL_LOADOUT_CHANNEL = 'izci-manual-loadout';
 
-export interface LoadoutFolderContext {
+interface LoadoutFolderContext {
   id: string;
   name: string;
 }

@@ -6,7 +6,7 @@
  * reads the Cluster Timecode. It deliberately stays unaware of codec payloads.
  */
 
-export interface WebmClusterSlice {
+interface WebmClusterSlice {
   index: number;
   timeMs: number;
   /** Byte range inside the original buffer. */
@@ -14,7 +14,7 @@ export interface WebmClusterSlice {
   end: number;
 }
 
-export interface WebmSplit {
+interface WebmSplit {
   /** EBML header + Segment + SeekHead + Info + Tracks (everything before the first Cluster). */
   initStart: number;
   initEnd: number;
