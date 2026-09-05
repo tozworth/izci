@@ -338,6 +338,8 @@
     if ('lyricsPresentationState' in updates) lyricsPresentationState = updates.lyricsPresentationState!;
     if ('renderBufferedRanges' in updates) renderBufferedRanges = updates.renderBufferedRanges!;
     if ('renderPipelineBuffering' in updates) renderPipelineBuffering = updates.renderPipelineBuffering!;
+    if ('videoTheaterActive' in updates) videoTheaterActive = updates.videoTheaterActive!;
+    if ('videoTheaterControlsHidden' in updates) videoTheaterControlsHidden = updates.videoTheaterControlsHidden!;
   });
 
   $: isMultiplayerClient = multiplayerState.mode === 'client';
