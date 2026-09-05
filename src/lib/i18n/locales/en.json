@@ -425,6 +425,7 @@
         "rename": "Rename {preset}",
         "renameSelected": "Rename selected preset",
         "delete": "Delete {preset}",
+        "confirmDelete": "Delete Raf preset “{preset}”? This cannot be undone.",
         "save": "Save changes to preset"
       },
       "controls": "Raf controls",

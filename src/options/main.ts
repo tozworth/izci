@@ -1,6 +1,7 @@
 import '@material-symbols/font-400/outlined.css';
 import { mount } from 'svelte';
 import OptionsApp from './OptionsApp.svelte';
+import '$lib/styles/app/menus.css';
 import '$lib/styles/options-view.css';
 import '../mobile/mobile-options.css';
 import { initializeTheme } from '$lib/services/theme';

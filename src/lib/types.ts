@@ -570,9 +570,13 @@ export interface MenuActionItem {
   disabled?: boolean;
   separatorBefore?: boolean;
   attention?: boolean;
-  /** Optional secondary action shown at the trailing edge while the item is hovered. */
+  /** Optional edit action shown at the trailing edge while the item is hovered. */
+  editActionId?: string;
+  editLabel?: string;
+  /** Optional removal action shown at the trailing edge while the item is hovered. */
   removeActionId?: string;
   removeLabel?: string;
+  removeIcon?: string;
   children?: MenuActionItem[];
   ratingPicker?: {
     value: number;

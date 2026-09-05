@@ -425,6 +425,7 @@
         "rename": "{preset} önayar adı değiştir",
         "renameSelected": "Seçili önayarı adlandır",
         "delete": "{preset} önayarını sil",
+        "confirmDelete": "“{preset}” Raf önayarı silinsin mi? Bu işlem geri alınamaz.",
         "save": "Önayar değişikliklerini kaydet"
       },
       "controls": "Raf kontrolleri",

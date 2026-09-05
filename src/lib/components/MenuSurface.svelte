@@ -8,6 +8,7 @@
   import { WINDOW_DISMISS_IGNORE_SCROLL_ATTRIBUTE } from '$lib/components/track-list-panel/actions/window-dismiss';
   import { SCROLLBAR_VISIBILITY_IGNORE_SCROLL_ATTRIBUTE } from '$lib/services/scrollbar-visibility';
   import { keepMenuInViewport } from '$lib/components/track-list-panel/actions/menu-viewport';
+  import HoverTooltip from '$lib/components/HoverTooltip.svelte';
   import RatingMenuSurface from '$lib/components/RatingMenuSurface.svelte';
 
   export let items: MenuActionItem[] = [];
@@ -115,6 +116,12 @@
     event.preventDefault();
     event.stopPropagation();
     if (item.removeActionId) dispatch('action', item.removeActionId);
+  }
+
+  function handleEdit(event: MouseEvent, item: MenuActionItem) {
+    event.preventDefault();
+    event.stopPropagation();
+    if (item.editActionId) dispatch('action', item.editActionId);
   }
 
   function handleItemClick(item: MenuActionItem) {
@@ -261,13 +268,21 @@
             <span class="menu-item-shortcut" aria-hidden="true">{item.shortcut}</span>
           {/if}
         </button>
+        {#if item.editActionId}
+          <button
+            type="button"
+            class="menu-item-edit hover-tooltip-anchor"
+            aria-label={item.editLabel ?? $t('main.menu.edit', { default: 'Edit' })}
+            on:click={(event) => handleEdit(event, item)}
+          ><span class="material-symbols-outlined" aria-hidden="true">edit</span><HoverTooltip placement="above" nowrap>{item.editLabel ?? $t('main.menu.edit', { default: 'Edit' })}</HoverTooltip></button>
+        {/if}
         {#if item.removeActionId}
           <button
             type="button"
-            class="menu-item-remove"
+            class="menu-item-remove hover-tooltip-anchor"
             aria-label={item.removeLabel ?? $t('main.menu.delete', { default: 'Delete' })}
             on:click={(event) => handleRemove(event, item)}
-          ><span class="material-symbols-outlined" aria-hidden="true">close</span></button>
+          ><span class="material-symbols-outlined" aria-hidden="true">{item.removeIcon ?? 'close'}</span><HoverTooltip placement="above" nowrap>{item.removeLabel ?? $t('main.menu.delete', { default: 'Delete' })}</HoverTooltip></button>
         {/if}
 
         {#if item.children?.length && activeSubmenuId === item.id}
@@ -365,13 +380,21 @@
             <span class="menu-item-shortcut" aria-hidden="true">{item.shortcut}</span>
           {/if}
         </button>
+        {#if item.editActionId}
+          <button
+            type="button"
+            class="menu-item-edit hover-tooltip-anchor"
+            aria-label={item.editLabel ?? $t('main.menu.edit', { default: 'Edit' })}
+            on:click={(event) => handleEdit(event, item)}
+          ><span class="material-symbols-outlined" aria-hidden="true">edit</span><HoverTooltip placement="above" nowrap>{item.editLabel ?? $t('main.menu.edit', { default: 'Edit' })}</HoverTooltip></button>
+        {/if}
         {#if item.removeActionId}
           <button
             type="button"
-            class="menu-item-remove"
+            class="menu-item-remove hover-tooltip-anchor"
             aria-label={item.removeLabel ?? $t('main.menu.delete', { default: 'Delete' })}
             on:click={(event) => handleRemove(event, item)}
-          ><span class="material-symbols-outlined" aria-hidden="true">close</span></button>
+          ><span class="material-symbols-outlined" aria-hidden="true">{item.removeIcon ?? 'close'}</span><HoverTooltip placement="above" nowrap>{item.removeLabel ?? $t('main.menu.delete', { default: 'Delete' })}</HoverTooltip></button>
         {/if}
 
         {#if canShowHoverSubmenus && item.children?.length && activeSubmenuId === item.id}
@@ -437,14 +460,10 @@
     position: relative;
   }
 
-  .menu-entry-group:has(.menu-item-remove) > button:first-of-type {
-    padding-right: 1.8rem;
-  }
-
+  button.menu-item-edit,
   button.menu-item-remove {
     position: absolute;
     top: 50%;
-    right: 0.22rem;
     display: grid;
     width: 1.3rem;
     min-width: 0;
@@ -455,13 +474,59 @@
     transform: translateY(-50%);
   }
 
+  button.menu-item-edit {
+    right: 1.52rem;
+  }
+
+  .menu-entry-group:not(:has(.menu-item-remove)) > button.menu-item-edit {
+    right: 0.22rem;
+  }
+
+  button.menu-item-remove {
+    right: 0.22rem;
+  }
+
+  button.menu-item-edit .material-symbols-outlined,
   button.menu-item-remove .material-symbols-outlined {
     font-size: 0.9rem;
   }
 
+  .menu-entry-group > button:first-of-type:has(~ .menu-item-edit):has(~ .menu-item-remove) {
+    padding-right: 3rem;
+  }
+
+  .menu-entry-group > button:first-of-type:has(~ .menu-item-edit):not(:has(~ .menu-item-remove)),
+  .menu-entry-group > button:first-of-type:has(~ .menu-item-remove):not(:has(~ .menu-item-edit)) {
+    padding-right: 1.8rem;
+  }
+
+  .menu-entry-group:has(.menu-item-remove) .menu-item-check {
+    position: absolute;
+    top: 50%;
+    right: 0.35rem;
+    transform: translateY(-50%);
+  }
+
+  .menu-entry-group:hover > .menu-item-edit,
+  .menu-entry-group:focus-within > .menu-item-edit,
   .menu-entry-group:hover > .menu-item-remove,
   .menu-entry-group:focus-within > .menu-item-remove {
     opacity: 1;
+  }
+
+  .menu-entry-group:hover > button:first-of-type .menu-item-check,
+  .menu-entry-group:focus-within > button:first-of-type .menu-item-check {
+    visibility: hidden;
+  }
+
+  button.menu-item-edit:hover {
+    background: var(--menu-popover-hover);
+    color: var(--menu-popover-text);
+  }
+
+  button.menu-item-remove:hover {
+    background: color-mix(in srgb, var(--danger) 18%, transparent);
+    color: var(--danger);
   }
 
   .menu-item-chevron {
