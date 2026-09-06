@@ -1,6 +1,5 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
-  import { scale } from 'svelte/transition';
   import { cubicOut } from 'svelte/easing';
   import { getTrackDisplaySubtitle, getTrackDisplayTitle } from '$lib/utils/files';
   import type { MultiplayerClient } from '$lib/services/multiplayer-types';
@@ -54,6 +53,23 @@
   const INERTIA_RELEASE_FACTOR = 0.35;
   const INERTIA_FRICTION = 0.84;
   const INERTIA_STOP_SPEED = 0.02;
+  const FLOATER_TRANSITION_DURATION = 420;
+  const FLOATER_TRANSITION_START_SCALE = 0.72;
+
+  function zoomFade(node: HTMLElement): {
+    duration: number;
+    easing: typeof cubicOut;
+    css: (progress: number) => string;
+  } {
+    return {
+      duration: FLOATER_TRANSITION_DURATION,
+      easing: cubicOut,
+      css: (progress) => [
+        `opacity: ${progress}`,
+        `transform: scale(calc(var(--float-scale) * ${FLOATER_TRANSITION_START_SCALE + (1 - FLOATER_TRANSITION_START_SCALE) * progress}))`
+      ].join('; ')
+    };
+  }
 
   $: activeClients = clients.filter((client) =>
     client.status === 'connected'
@@ -279,11 +295,12 @@
       <div
         class="freeplay-floater-anchor edge-{placement.edge}"
         style={placementStyle(client.id, placement)}
-        transition:scale={{ duration: 420, start: 0.72, easing: cubicOut }}
       >
         <div class="freeplay-floater-drag-layer">
+          <div class="freeplay-floater-backdrop" aria-hidden="true"></div>
           <article
             class="freeplay-floater"
+            transition:zoomFade|global
             on:pointerdown={(event) => handlePointerDown(event, client.id)}
             on:pointermove={handlePointerMove}
             on:pointerup={handlePointerUp}
@@ -319,27 +336,40 @@
   .freeplay-floater-anchor {
     position: absolute; transform-origin: center; pointer-events: auto; touch-action: none;
   }
-  .freeplay-floater-drag-layer { transform: translate3d(var(--float-drag-x), var(--float-drag-y), 0); }
+  .freeplay-floater-drag-layer {
+    position: relative;
+    transform: translate3d(var(--float-drag-x), var(--float-drag-y), 0);
+    animation: freeplay-float var(--float-duration) ease-in-out var(--float-delay) infinite alternate;
+  }
+  .freeplay-floater-drag-layer.is-dragging {
+    animation-play-state: paused;
+  }
   .freeplay-floater-drag-layer.is-dragging,
   .freeplay-floater-drag-layer.is-inertial { will-change: transform; }
   .edge-left { left: .75rem; top: var(--float-offset); }
   .edge-right { right: .75rem; top: var(--float-offset); }
   .edge-top { top: 3rem; left: var(--float-offset); }
   .edge-bottom { bottom: 1rem; left: var(--float-offset); }
-  .freeplay-floater {
-    display: grid; grid-template-columns: 4.1rem minmax(0, 1fr); gap: .65rem;
-    width: 15rem; min-height: 4.1rem; padding: .42rem; box-sizing: border-box;
+  .freeplay-floater-backdrop {
+    position: absolute; inset: 0; z-index: 0; transform: scale(var(--float-scale));
     border: 1px solid color-mix(in srgb, var(--border-strong) 76%, transparent);
-    border-radius: .8rem; color: var(--text);
+    border-radius: .8rem;
     background: color-mix(in srgb, var(--bg-elevated) 87%, transparent);
     box-shadow: 0 .35rem 1.1rem #0003;
     backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    pointer-events: none;
+  }
+  .freeplay-floater {
+    position: relative; z-index: 1;
+    display: grid; grid-template-columns: 4.1rem minmax(0, 1fr); gap: .65rem;
+    width: 15rem; min-height: 4.1rem; padding: .42rem; box-sizing: border-box;
+    border-radius: .8rem; color: var(--text);
+    background: transparent;
     transform: scale(var(--float-scale));
-    animation: freeplay-float var(--float-duration) ease-in-out var(--float-delay) infinite alternate;
     cursor: grab;
     user-select: none;
   }
-  .freeplay-floater.is-dragging { animation-play-state: paused; cursor: grabbing; }
+  .freeplay-floater.is-dragging { cursor: grabbing; }
   .freeplay-floater-artwork { display: grid; place-items: center; width: 4.1rem; height: 4.1rem; overflow: hidden; border-radius: .55rem; background: var(--bg); color: var(--text-muted); }
   .freeplay-floater-artwork img { width: 100%; height: 100%; object-fit: cover; }
   .freeplay-floater-artwork .material-symbols-outlined { font-size: 2rem; }
@@ -358,6 +388,6 @@
     .freeplay-floater-artwork { width: 3.25rem; height: 3.25rem; }
   }
   @media (prefers-reduced-motion: reduce) {
-    .freeplay-floater { animation: none; }
+    .freeplay-floater-drag-layer { animation: none; }
   }
 </style>
