@@ -2,6 +2,7 @@ import { writable, type Readable } from 'svelte/store';
 import {
   MULTIPLAYER_CHAT_MAX_MESSAGE_LENGTH,
   MULTIPLAYER_CHAT_MAX_MESSAGES,
+  type MultiplayerChatAction,
   type MultiplayerChatTrackLink,
   type MultiplayerChatMessage
 } from './multiplayer-protocol';
@@ -25,6 +26,20 @@ export function normalizeMultiplayerChatText(value: string): string {
     .slice(0, MULTIPLAYER_CHAT_MAX_MESSAGE_LENGTH);
 }
 
+export interface MultiplayerChatCommand {
+  text: string;
+  action?: MultiplayerChatAction;
+}
+
+export function parseMultiplayerChatCommand(value: string): MultiplayerChatCommand | null {
+  const normalized = normalizeMultiplayerChatText(value);
+  if (!normalized) return null;
+  const command = normalized.match(/^\/me(?:\s+|$)/i);
+  if (!command) return { text: normalized };
+  const text = normalizeMultiplayerChatText(normalized.slice(command[0].length));
+  return text ? { text, action: 'me' } : null;
+}
+
 function normalizeMultiplayerChatName(value: string): string {
   return value
     .replace(/[\u0000-\u001f\u007f]/g, ' ')
@@ -40,7 +55,8 @@ export function createMultiplayerChatMessage(
   name: string,
   text: string,
   sentAt = Date.now(),
-  track?: MultiplayerChatTrackLink
+  track?: MultiplayerChatTrackLink,
+  action?: MultiplayerChatAction
 ): MultiplayerChatMessage {
   const normalizedTrackTitle = track ? normalizeMultiplayerChatText(track.title) : '';
   return {
@@ -48,6 +64,7 @@ export function createMultiplayerChatMessage(
     name: normalizeMultiplayerChatName(name),
     text: normalizeMultiplayerChatText(text),
     sentAt,
+    ...(action ? { action } : {}),
     ...(track && normalizedTrackTitle
       ? {
           track: {

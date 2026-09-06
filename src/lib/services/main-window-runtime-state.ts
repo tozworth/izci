@@ -182,6 +182,7 @@ export function createMainWindowRuntimeState(): {
       reconnecting: false,
       inviteCode: null,
       hostName: null,
+      hostMotd: '',
       hostVersion: null,
       freeplayPaired: false,
       freeplay: false,

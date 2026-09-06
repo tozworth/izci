@@ -368,6 +368,7 @@ export interface TrackSettings {
 export interface MultiplayerSettings {
   multiplayer: boolean;
   izciName: string;
+  multiplayerMotd: string;
   multiplayerWaitForClients: boolean;
   multiplayerSynchronizedPlayback: boolean;
   multiplayerSyncLeadTimeMs: number;

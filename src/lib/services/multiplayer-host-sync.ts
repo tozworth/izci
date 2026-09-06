@@ -10,7 +10,7 @@ import {
   type MultiplayerDeliveryState,
   type MultiplayerPlayback
 } from './multiplayer-protocol';
-import { resolveMultiplayerDeliveryMode } from './multiplayer-utils';
+import { getLocalName, resolveMultiplayerDeliveryMode } from './multiplayer-utils';
 import {
   EMPTY_REMOTE_PLAYBACK,
   type MultiplayerHostState,
@@ -45,6 +45,11 @@ export function primeHostState(ctx: MultiplayerHostContext): void {
 export function sendCurrentState(ctx: MultiplayerHostContext, peer: PeerConnection): void {
   const { core } = ctx;
   if (!core.latestHostState) return;
+  sendToPeer(peer, {
+    kind: 'chat.motd',
+    motd: core.multiplayerSettings.multiplayerMotd,
+    hostName: getLocalName()
+  });
   if (peer.freeplay) {
     sendFreeplayCatalog(ctx, peer);
     sendFreeplayState(peer);
@@ -94,6 +99,18 @@ export function sendCurrentState(ctx: MultiplayerHostContext, peer: PeerConnecti
     ctx.sendClockPing(peer, core.hostPlaybackPreparation.preparation.generationId);
   }
   syncPeerMediaSource(ctx, peer);
+}
+
+export function syncHostMotd(ctx: MultiplayerHostContext): void {
+  const { core } = ctx;
+  for (const peer of core.hostPeers.values()) {
+    if (peer.channel?.readyState !== 'open') continue;
+    sendToPeer(peer, {
+      kind: 'chat.motd',
+      motd: core.multiplayerSettings.multiplayerMotd,
+      hostName: getLocalName()
+    });
+  }
 }
 
 export function syncHostAudio(ctx: MultiplayerHostContext, track: TrackItem | null, force = false): void {

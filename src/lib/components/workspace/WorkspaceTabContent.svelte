@@ -99,6 +99,8 @@
 {:else if tab === 'chat'}
   <ChatPanel
     messages={content.chatMessages}
+    motd={content.chatMotd}
+    motdHostName={content.chatMotdHostName}
     sendMessage={content.sendChatMessage}
     activateTrack={content.activateChatTrack}
     connected={content.chatConnected}

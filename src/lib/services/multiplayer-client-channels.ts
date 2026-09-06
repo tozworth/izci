@@ -174,6 +174,9 @@ export function attachClientChannel(ctx: MultiplayerClientContext, peer: PeerCon
         remoteArtworkResolvedTrackKey: getMultiplayerArtworkTrackKey(core.state.remotePlayback.track)
       });
     }
+    if (message.kind === 'chat.motd') {
+      core.publish({ hostName: sanitizeClientName(message.hostName), hostMotd: message.motd });
+    }
     if (message.kind === 'chat.message') multiplayerChat.append(message.message);
     if (message.kind === 'chat.history') multiplayerChat.mergeHistory(message.messages);
     if (message.kind === 'render.manifest') {

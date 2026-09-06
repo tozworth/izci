@@ -238,6 +238,35 @@ describe('multiplayer protocol', () => {
     expect(isHostMessage({ kind: 'buffer', bufferMs: 30_001 })).toBe(false);
   });
 
+  it('accepts bounded host MOTD messages', () => {
+    expect(isHostMessage({
+      kind: 'chat.motd',
+      motd: 'Welcome to the living room',
+      hostName: 'Living room'
+    })).toBe(true);
+    expect(isHostMessage({
+      kind: 'chat.motd',
+      motd: 'x'.repeat(501),
+      hostName: 'Living room'
+    })).toBe(false);
+    expect(isHostMessage({
+      kind: 'chat.motd',
+      motd: 'Welcome',
+      hostName: 'Living\nroom'
+    })).toBe(false);
+  });
+
+  it('accepts only the supported chat action', () => {
+    expect(isHostMessage({
+      kind: 'chat.message',
+      message: { id: 'one', name: 'Host', text: 'waves', sentAt: 1, action: 'me' }
+    })).toBe(true);
+    expect(isHostMessage({
+      kind: 'chat.message',
+      message: { id: 'two', name: 'Host', text: 'waves', sentAt: 1, action: 'shrug' }
+    })).toBe(false);
+  });
+
   it('validates chat messages, history, and client submissions', () => {
     const message = {
       id: 'message-1',

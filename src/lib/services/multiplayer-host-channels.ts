@@ -59,6 +59,11 @@ export function attachHostChannel(
       peer.clientFreeplayEnabled = message.freeplayEnabled;
       peer.helloReceived = true;
       core.updateClient(peer.id, { name: peer.name, platform: sanitizePlatform(message.platform) });
+      sendToPeer(peer, {
+        kind: 'chat.motd',
+        motd: core.multiplayerSettings.multiplayerMotd,
+        hostName: getLocalName()
+      });
       sendToPeer(peer, { kind: 'chat.history', messages: multiplayerChat.getSnapshot() });
       void syncPeerFreeplayMode(ctx, peer);
       return;

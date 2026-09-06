@@ -8,6 +8,8 @@
   } from '$lib/services/multiplayer-protocol';
 
   export let messages: Readable<MultiplayerChatMessage[]>;
+  export let motd = '';
+  export let motdHostName: string | null = null;
   export let sendMessage: (text: string) => boolean;
   export let activateTrack: (track: MultiplayerChatTrackLink) => void = () => undefined;
   export let connected = false;
@@ -34,32 +36,49 @@
 
 <section class="chat-panel" aria-label={$t('main.multiplayer.chatLabel', { default: 'Multiplayer chat' })}>
   <div class="chat-messages" bind:this={messageList} role="log" aria-live="polite" aria-relevant="additions">
+    {#if motd && motdHostName}
+      <div class="chat-motd">
+        <div class="chat-motd-header">
+          {$t('main.multiplayer.chatMotd', {
+            default: 'MOTD - {hostName}',
+            values: { hostName: motdHostName }
+          })}
+        </div>
+        <div class="chat-motd-text">{motd}</div>
+      </div>
+    {/if}
     {#if $messages.length === 0}
       <p class="chat-empty">{$t('main.multiplayer.chatEmpty', { default: 'No messages yet.' })}</p>
     {:else}
       {#each $messages as message (message.id)}
-        <div class="chat-line">
-          <span class="chat-name">{message.name}</span>
-          <span class="chat-colon" aria-hidden="true">:</span>
-          {#if message.track}
-            <button
-              class="chat-track-link"
-              type="button"
-              aria-label={$t('main.multiplayer.chatPlayTrack', {
-                default: 'Play {title}',
-                values: { title: message.track.title }
-              })}
-              title={$t('main.multiplayer.chatPlayTrack', {
-                default: 'Play {title}',
-                values: { title: message.track.title }
-              })}
-              on:click={() => activateTrack(message.track!)}
-            >
-              <span class="material-symbols-outlined" aria-hidden="true">music_note</span>
-              <span class="chat-track-title">{message.track.title}</span>
-            </button>
-          {:else}
+        <div class="chat-line" class:chat-action={message.action === 'me'}>
+          {#if message.action === 'me'}
+            <span class="chat-action-prefix" aria-hidden="true">*</span>
+            <span class="chat-name">{message.name}</span>
             <span class="chat-text">{message.text}</span>
+          {:else}
+            <span class="chat-name">{message.name}</span>
+            <span class="chat-colon" aria-hidden="true">:</span>
+            {#if message.track}
+              <button
+                class="chat-track-link"
+                type="button"
+                aria-label={$t('main.multiplayer.chatPlayTrack', {
+                  default: 'Play {title}',
+                  values: { title: message.track.title }
+                })}
+                title={$t('main.multiplayer.chatPlayTrack', {
+                  default: 'Play {title}',
+                  values: { title: message.track.title }
+                })}
+                on:click={() => activateTrack(message.track!)}
+              >
+                <span class="material-symbols-outlined" aria-hidden="true">music_note</span>
+                <span class="chat-track-title">{message.track.title}</span>
+              </button>
+            {:else}
+              <span class="chat-text">{message.text}</span>
+            {/if}
           {/if}
           <time class="chat-time" datetime={new Date(message.sentAt).toISOString()}>{formatTimestamp(message.sentAt)}</time>
         </div>
@@ -113,6 +132,20 @@
     gap: 0.28rem;
     min-width: 0;
     padding: 2px 0;
+  }
+
+  .chat-action {
+    color: color-mix(in srgb, currentColor 62%, transparent);
+    font-style: italic;
+  }
+
+  .chat-action .chat-name {
+    color: inherit;
+    font-weight: 500;
+  }
+
+  .chat-action-prefix {
+    flex: 0 0 auto;
   }
 
   .chat-name {
@@ -172,6 +205,23 @@
   .chat-empty {
     margin: 0;
     color: color-mix(in srgb, currentColor 65%, transparent);
+  }
+
+  .chat-motd {
+    margin: 0 0 0.6rem;
+    padding: 0 0 0.55rem;
+    border-bottom: 1px solid color-mix(in srgb, currentColor 14%, transparent);
+  }
+
+  .chat-motd-header {
+    margin-bottom: 0.16rem;
+    color: color-mix(in srgb, currentColor 62%, transparent);
+    font-size: 0.78rem;
+    font-weight: 600;
+  }
+
+  .chat-motd-text {
+    overflow-wrap: anywhere;
   }
 
   .chat-compose {

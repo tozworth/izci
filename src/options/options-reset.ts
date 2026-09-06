@@ -76,6 +76,11 @@ export function resetOptionsView(view: OptionsViewName): void {
     case 'multiplayer':
       multiplayerSettings.reset();
       break;
+    case 'chat':
+      multiplayerSettings.update({
+        multiplayerMotd: DEFAULT_MULTIPLAYER_SETTINGS.multiplayerMotd
+      });
+      break;
     case 'cache':
       multiplayerSettings.update({
         multiplayerRenderDiskCacheEnabled: DEFAULT_MULTIPLAYER_SETTINGS.multiplayerRenderDiskCacheEnabled,

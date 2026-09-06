@@ -89,6 +89,7 @@ export interface MultiplayerSessionState {
   reconnecting: boolean;
   inviteCode: string | null;
   hostName: string | null;
+  hostMotd: string;
   hostVersion: string | null;
   freeplayPaired: boolean;
   freeplay: boolean;

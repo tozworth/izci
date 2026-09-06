@@ -13,7 +13,8 @@ import { getTrackDisplayTitle } from '$lib/utils/files';
 import {
   createMultiplayerChatMessage,
   multiplayerChat,
-  normalizeMultiplayerChatText
+  normalizeMultiplayerChatText,
+  parseMultiplayerChatCommand
 } from './multiplayer-chat';
 import { createMultiplayerHostSide } from './multiplayer-host';
 import { createMultiplayerClientSide } from './multiplayer-client';
@@ -119,12 +120,15 @@ export function createMultiplayerSession({
     track?: MultiplayerChatTrackLink
   ): void {
     if (core.state.mode !== 'hosting') return;
+    const command = parseMultiplayerChatCommand(text);
+    if (!command) return;
     const resolvedTrack = track ? resolveChatTrackLink(track) : undefined;
     const message = createMultiplayerChatMessage(
       client.name,
-      resolvedTrack?.title ?? text,
+      resolvedTrack?.title ?? command.text,
       Date.now(),
-      resolvedTrack
+      resolvedTrack,
+      resolvedTrack ? undefined : command.action
     );
     if (!message.text) return;
     multiplayerChat.append(message);
@@ -169,7 +173,7 @@ export function createMultiplayerSession({
 
   function sendChatPayload(text: string, track?: MultiplayerChatTrackLink): boolean {
     const normalizedText = normalizeMultiplayerChatText(text);
-    if (!normalizedText
+    if (!parseMultiplayerChatCommand(normalizedText)
       || core.state.connectionStatus !== 'connected') return false;
 
     if (core.state.mode === 'hosting') {
@@ -265,6 +269,7 @@ export function createMultiplayerSession({
   const unsubscribeSettings = multiplayerSettings.subscribe((settings: MultiplayerSettings) => {
     const audioBufferChanged = settings.multiplayerAudioBufferMs
       !== core.multiplayerSettings.multiplayerAudioBufferMs;
+    const motdChanged = settings.multiplayerMotd !== core.multiplayerSettings.multiplayerMotd;
     const freeplayPreferenceChanged = settings.multiplayerFreeplay
       !== core.multiplayerSettings.multiplayerFreeplay;
     const freeplayAudioChanged = settings.multiplayerStreamAudio
@@ -286,6 +291,7 @@ export function createMultiplayerSession({
       multiplayerRenderCoordinator.setCacheLimitMiB(settings.multiplayerRenderCacheLimitMiB);
     }
     if (core.state.mode === 'hosting') {
+      if (motdChanged) host.syncHostMotd();
       if (opusBitrateChanged || fileTransferLimitChanged) {
         // Bitrate is part of the render cache key and the transfer limit
         // changes the delivery decision: force a fresh delivery generation so
@@ -394,6 +400,7 @@ function getInitialState(): MultiplayerSessionState {
     reconnecting: false,
     inviteCode: null,
     hostName: null,
+    hostMotd: '',
     hostVersion: null,
     freeplayPaired: false,
     freeplay: false,

@@ -26,6 +26,7 @@ import {
 } from './multiplayer-host-session';
 import {
   sendCurrentState,
+  syncHostMotd,
   syncHostAudio,
   syncHostSourceFiles
 } from './multiplayer-host-sync';
@@ -43,6 +44,7 @@ export interface MultiplayerHostContext {
   resumeHostPlayback: () => void;
   removePeerFromHostPlaybackPreparation: (peerId: string) => void;
   sendCurrentState: (peer: PeerConnection) => void;
+  syncHostMotd: () => void;
   syncHostAudio: (track: TrackItem | null, force?: boolean) => void;
   syncHostSourceFiles: () => void;
   sendClockPing: (peer: PeerConnection, generationId: string) => void;
@@ -65,6 +67,7 @@ export function createMultiplayerHostSide(
     resumeHostPlayback,
     removePeerFromHostPlaybackPreparation: (peerId): void => removePeerFromHostPlaybackPreparation(ctx, peerId),
     sendCurrentState: (peer): void => sendCurrentState(ctx, peer),
+    syncHostMotd: (): void => syncHostMotd(ctx),
     syncHostAudio: (track, force = false): void => syncHostAudio(ctx, track, force),
     syncHostSourceFiles: (): void => syncHostSourceFiles(ctx),
     sendClockPing
@@ -76,6 +79,7 @@ export function createMultiplayerHostSide(
     kick: (clientId: string) => kick(ctx, clientId),
     togglePairing: (clientId: string) => togglePairing(ctx, clientId),
     updateHostState: (next: MultiplayerHostState) => updateHostState(ctx, next),
+    syncHostMotd: () => syncHostMotd(ctx),
     cancelPendingPlayback: () => cancelPendingPlayback(ctx),
     syncHostAudio: (track: TrackItem | null, force?: boolean) => syncHostAudio(ctx, track, force),
     syncHostSourceFiles: () => syncHostSourceFiles(ctx),
