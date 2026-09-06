@@ -14,7 +14,7 @@ export interface MultiplayerChatTrackLink {
   title: string;
 }
 
-export type MultiplayerChatAction = 'me';
+export type MultiplayerChatAction = 'me' | 'join' | 'leave';
 
 export interface MultiplayerChatMessage {
   id: string;
@@ -25,10 +25,10 @@ export interface MultiplayerChatMessage {
   action?: MultiplayerChatAction;
 }
 
-// Version 22 adds /me chat actions. Version 21 adds the room MOTD protocol. Version 20 adds the room chat message protocol. Version 18 adds explicit
+// Version 23 adds multiplayer join/leave chat notices. Version 22 adds /me chat actions. Version 21 adds the room MOTD protocol. Version 20 adds the room chat message protocol. Version 18 adds explicit
 // source revisions to buffered-Opus manifests so a
 // listener never reuses cached bytes from a replaced track.
-export const MULTIPLAYER_PROTOCOL_VERSION = 22;
+export const MULTIPLAYER_PROTOCOL_VERSION = 23;
 const MULTIPLAYER_FRAME_CHUNK_SIZE = 12_000;
 export const MULTIPLAYER_QUEUE_MAX_ITEMS = 50_000;
 export const MULTIPLAYER_CHAT_MAX_MESSAGES = 200;
@@ -436,7 +436,10 @@ export function isMultiplayerChatMessage(value: unknown): value is MultiplayerCh
     && typeof message.text === 'string'
     && message.text.length > 0
     && message.text.length <= MULTIPLAYER_CHAT_MAX_MESSAGE_LENGTH
-    && (message.action === undefined || message.action === 'me')
+    && (message.action === undefined
+      || message.action === 'me'
+      || message.action === 'join'
+      || message.action === 'leave')
     && (message.track === undefined || isMultiplayerChatTrackLink(message.track))
     && !/[\u0000-\u001f\u007f]/.test(message.name)
     && !/[\u0000-\u001f\u007f]/.test(message.text)

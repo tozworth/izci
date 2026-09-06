@@ -51,11 +51,35 @@
       <p class="chat-empty">{$t('main.multiplayer.chatEmpty', { default: 'No messages yet.' })}</p>
     {:else}
       {#each $messages as message (message.id)}
-        <div class="chat-line" class:chat-action={message.action === 'me'}>
+        <div
+          class="chat-line"
+          class:chat-action={message.action === 'me'}
+          class:chat-notice={message.action === 'join' || message.action === 'leave'}
+        >
           {#if message.action === 'me'}
             <span class="chat-action-prefix" aria-hidden="true">*</span>
             <span class="chat-name">{message.name}</span>
             <span class="chat-text">{message.text}</span>
+          {:else if message.action === 'join'}
+            <span class="material-symbols-outlined chat-notice-icon" aria-hidden="true">
+              login
+            </span>
+            <span class="chat-notice-text">
+              {$t('main.multiplayer.chatJoined', {
+                default: '{name} joined',
+                values: { name: message.name }
+              })}
+            </span>
+          {:else if message.action === 'leave'}
+            <span class="material-symbols-outlined chat-notice-icon" aria-hidden="true">
+              logout
+            </span>
+            <span class="chat-notice-text">
+              {$t('main.multiplayer.chatLeft', {
+                default: '{name} left',
+                values: { name: message.name }
+              })}
+            </span>
           {:else}
             <span class="chat-name">{message.name}</span>
             <span class="chat-colon" aria-hidden="true">:</span>
@@ -139,6 +163,10 @@
     font-style: italic;
   }
 
+  .chat-notice {
+    color: color-mix(in srgb, currentColor 62%, transparent);
+  }
+
   .chat-action .chat-name {
     color: inherit;
     font-weight: 500;
@@ -146,6 +174,16 @@
 
   .chat-action-prefix {
     flex: 0 0 auto;
+  }
+
+  .chat-notice-icon {
+    flex: 0 0 auto;
+    font-size: 1rem;
+  }
+
+  .chat-notice-text {
+    min-width: 0;
+    overflow-wrap: anywhere;
   }
 
   .chat-name {

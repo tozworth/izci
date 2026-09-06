@@ -17,6 +17,7 @@ import {
   type MultiplayerArtwork,
   type MultiplayerCatalog,
   type MultiplayerCollection,
+  type MultiplayerChatAction,
   type MultiplayerChatTrackLink,
   type MultiplayerCommand,
   type MultiplayerCommandInput,
@@ -248,6 +249,7 @@ export interface PeerConnection {
   freeplayPaired: boolean;
   clientFreeplayEnabled: boolean;
   helloReceived: boolean;
+  chatLeaveAnnounced: boolean;
   freeplaySettled: boolean;
   mediaSyncPending: boolean;
   freeplay: boolean;
@@ -280,6 +282,11 @@ export type MultiplayerChatMessageHandler = (
   text: string,
   client: Pick<MultiplayerClient, 'id' | 'name'>,
   track?: MultiplayerChatTrackLink
+) => void;
+
+export type MultiplayerChatPresenceHandler = (
+  name: string,
+  action: Extract<MultiplayerChatAction, 'join' | 'leave'>
 ) => void;
 
 export interface MultiplayerSessionController extends Readable<MultiplayerSessionState> {

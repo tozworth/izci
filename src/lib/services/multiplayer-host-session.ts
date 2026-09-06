@@ -47,7 +47,8 @@ import type { MultiplayerHostContext } from './multiplayer-host';
 import {
   attachHostChannel,
   attachHostMediaChannel,
-  attachHostRenderChannel
+  attachHostRenderChannel,
+  announceHostPeerLeave
 } from './multiplayer-host-channels';
 import { syncPeerFreeplayMode } from './multiplayer-host-freeplay';
 import { removePeerFromHostPlaybackPreparation } from './multiplayer-host-playback-prep';
@@ -121,6 +122,7 @@ export async function startHosting(
         );
         for (const [id, peer] of core.hostPeers) {
           if (!liveIds.has(id)) {
+            announceHostPeerLeave(ctx, peer);
             disposePeerConnection(peer);
             core.hostPeers.delete(id);
             core.freeplaySelections.delete(id);
@@ -244,6 +246,7 @@ async function acceptClientOffer(
     return;
   }
   if (previousPeer) {
+    announceHostPeerLeave(ctx, previousPeer);
     disposePeerConnection(previousPeer);
     removePeerFromHostPlaybackPreparation(ctx, id);
     core.hostPeers.delete(id);
@@ -304,6 +307,7 @@ async function acceptClientOffer(
       core.updateClient(id, { status: 'disconnected' });
       removePeerFromHostPlaybackPreparation(ctx, id);
     }
+    if (status === 'failed' || status === 'closed') announceHostPeerLeave(ctx, peer);
     if (status === 'failed') core.publish({ message: describeIceFailure(peer, peer.name) });
   };
 
@@ -392,6 +396,7 @@ export async function kick(ctx: MultiplayerHostContext, clientId: string): Promi
   const peer = core.hostPeers.get(clientId);
   if (peer) {
     clearPeerConnectionTimer(peer);
+    announceHostPeerLeave(ctx, peer);
     sendToPeer(peer, { kind: 'kicked' });
     window.setTimeout(() => disposePeerConnection(peer), 80);
     core.freeplaySelections.delete(clientId);

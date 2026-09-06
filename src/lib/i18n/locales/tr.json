@@ -38,6 +38,8 @@
       "chatInput": "Sohbet mesajı",
       "chatSend": "Gönder",
       "chatPlayTrack": "{title} parçasını çal",
+      "chatJoined": "{name} katıldı",
+      "chatLeft": "{name} ayrıldı",
       "markLabel": "izci çok oyunculu",
       "host": "Sunucu ol",
       "join": "Katıl...",

@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   createMultiplayerChatMessage,
+  createMultiplayerChatNotice,
   multiplayerChat,
   normalizeMultiplayerChatText,
   parseMultiplayerChatCommand
@@ -48,5 +49,12 @@ describe('multiplayer chat', () => {
     expect(parseMultiplayerChatCommand('/me')).toBeNull();
     expect(createMultiplayerChatMessage('Host', 'waves', 123, undefined, 'me'))
       .toMatchObject({ action: 'me', text: 'waves' });
+  });
+
+  it('creates typed join and leave notices', () => {
+    expect(createMultiplayerChatNotice('client123', 'join', 123))
+      .toMatchObject({ name: 'client123', text: 'joined', action: 'join', sentAt: 123 });
+    expect(createMultiplayerChatNotice('client123', 'leave', 456))
+      .toMatchObject({ name: 'client123', text: 'left', action: 'leave', sentAt: 456 });
   });
 });
