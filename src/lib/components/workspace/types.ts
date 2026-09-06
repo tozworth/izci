@@ -111,6 +111,8 @@ export interface WorkspaceTabContentProps {
   chatMotd: string;
   chatMotdHostName: string | null;
   sendChatMessage: (text: string) => boolean;
+  sendChatNowPlaying: (track: MultiplayerChatTrackLink) => boolean;
+  chatNowPlayingTrack: MultiplayerChatTrackLink | null;
   activateChatTrack: (track: MultiplayerChatTrackLink) => void;
   chatConnected: boolean;
   videoElement: HTMLVideoElement | null;

@@ -66,12 +66,15 @@
     favoritesHaveAllTracks
   } from '$lib/services/workspace-actions';
   import { multiplayerSettings } from '$lib/stores/multiplayer-settings';
-  import { multiplayerChat } from '$lib/services/multiplayer-chat';
+  import { multiplayerChat, resolveMultiplayerChatTrackLink } from '$lib/services/multiplayer-chat';
   import { multiplayerRecents } from '$lib/stores/multiplayer-recents';
   import { forgetMultiplayerPairing, multiplayerPairings } from '$lib/stores/multiplayer-pairings';
   import type {
     MultiplayerSessionState
   } from '$lib/services/multiplayer-types';
+  import type {
+    MultiplayerChatTrackLink
+  } from '$lib/services/multiplayer-protocol';
   import { resolveMultiplayerPlayingTrackSelection } from '$lib/services/multiplayer-selection';
   import { toLoadedMultiplayerArtwork } from '$lib/services/multiplayer-artwork';
   import { emptySelection } from '$lib/stores/queue-selection';
@@ -115,6 +118,7 @@
   let favoriteTargetTrack: TrackItem | null = null;
   let detailsLibraryTargets: TrackLibraryNavigationTargets = {};
   let playingTrack: TrackItem | null = null;
+  let chatNowPlayingTrack: MultiplayerChatTrackLink | null = null;
 
   let localPlayingTrack: TrackItem | null = null;
   let localShuffleEnabled = false;
@@ -163,6 +167,7 @@
   let innerWidth = typeof window !== 'undefined' ? window.innerWidth : 0;
   let innerHeight = typeof window !== 'undefined' ? window.innerHeight : 0;
   const modulePatternStore = playerController.modulePattern;
+
   let previousPlaybackState: PlaybackSnapshot['state'] = 'idle';
   let nowPlayingViewActive = appearanceSettings.getSnapshot().nowPlayingViewActive;
   let isAutomaticNowPlayingEligible = false;
@@ -303,6 +308,8 @@
       ? $multiplayerSettings.izciName
       : multiplayerState.hostName,
     sendChatMessage: (text: string) => multiplayerSession.sendChatMessage(text),
+    sendChatNowPlaying: (track) => multiplayerSession.sendChatNowPlaying(track),
+    chatNowPlayingTrack,
     activateChatTrack: (track) => { void multiplayerController.activateChatTrack(track); },
     chatConnected: multiplayerState.mode !== 'idle'
       && multiplayerState.connectionStatus === 'connected'
@@ -504,6 +511,11 @@
       ? $libraryViewSettings.activeView === 'favorites' ? selectedFavoriteItem : selectedLibraryItem
       : selectedTrackItem;
   $: livePlayingTrack = resolveTrackSnapshot(playingTrack, selectedItem, queueItems, libraryItems);
+  $: chatNowPlayingTrack = resolveMultiplayerChatTrackLink(livePlayingTrack, [
+    { collection: 'queue', items: queueItems },
+    { collection: 'library', items: libraryItems },
+    { collection: 'favorites', items: favoriteItems }
+  ]);
   $: miniPlayerTrack.set(livePlayingTrack);
   $: miniPlayerSelectedTrack.set(selectedTrackItem);
   $: miniPlayerArtworkUrl.set(artworkPresentationState.displayedArtwork?.url ?? null);

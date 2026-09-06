@@ -1,8 +1,11 @@
 import { writable, type Readable } from 'svelte/store';
+import type { TrackItem } from '$lib/types';
+import { getTrackDisplayTitle } from '$lib/utils/files';
 import {
   MULTIPLAYER_CHAT_MAX_MESSAGE_LENGTH,
   MULTIPLAYER_CHAT_MAX_MESSAGES,
   type MultiplayerChatAction,
+  type MultiplayerCollection,
   type MultiplayerChatTrackLink,
   type MultiplayerChatMessage
 } from './multiplayer-protocol';
@@ -26,6 +29,21 @@ export function normalizeMultiplayerChatText(value: string): string {
     .slice(0, MULTIPLAYER_CHAT_MAX_MESSAGE_LENGTH);
 }
 
+export function resolveMultiplayerChatTrackLink(
+  track: TrackItem | null,
+  collections: ReadonlyArray<{ collection: MultiplayerCollection; items: TrackItem[] }>
+): MultiplayerChatTrackLink | null {
+  if (!track) return null;
+  const collection = collections.find(({ items }) => items.some((item) => item.id === track.id));
+  return collection
+    ? {
+        collection: collection.collection,
+        itemId: track.id,
+        title: getTrackDisplayTitle(track) || track.name
+      }
+    : null;
+}
+
 export interface MultiplayerChatCommand {
   text: string;
   action?: MultiplayerChatAction;
@@ -34,6 +52,7 @@ export interface MultiplayerChatCommand {
 export function parseMultiplayerChatCommand(value: string): MultiplayerChatCommand | null {
   const normalized = normalizeMultiplayerChatText(value);
   if (!normalized) return null;
+  if (/^\/np$/i.test(normalized)) return { text: '', action: 'now-playing' };
   const command = normalized.match(/^\/me(?:\s+|$)/i);
   if (!command) return { text: normalized };
   const text = normalizeMultiplayerChatText(normalized.slice(command[0].length));

@@ -38,6 +38,7 @@
       "chatInput": "Chat message",
       "chatSend": "Send",
       "chatPlayTrack": "Play {title}",
+      "chatNowPlaying": "is listening to",
       "chatJoined": "{name} joined",
       "chatLeft": "{name} left",
       "markLabel": "izci multiplayer",

@@ -38,6 +38,7 @@
       "chatInput": "Sohbet mesajı",
       "chatSend": "Gönder",
       "chatPlayTrack": "{title} parçasını çal",
+      "chatNowPlaying": "şunu dinliyor",
       "chatJoined": "{name} katıldı",
       "chatLeft": "{name} ayrıldı",
       "markLabel": "izci çok oyunculu",
