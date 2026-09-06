@@ -100,6 +100,17 @@ function buildFavoriteToggleAction(
   };
 }
 
+function buildSendToChatAction(tracks: TrackItem[], enabled: boolean): MenuActionItem | null {
+  return enabled && tracks.length === 1
+    ? {
+        id: 'send-to-chat',
+        label: 'Send to chat',
+        icon: 'chat',
+        separatorBefore: true
+      }
+    : null;
+}
+
 function buildGoToLibraryAction(
   track: TrackItem | undefined,
   libraryItems: TrackItem[]
@@ -137,10 +148,12 @@ export function buildQueueContextActions(
   libraryItems: TrackItem[],
   ids: string[],
   favoriteItems: TrackItem[] = [],
-  ratingsEnabled = true
+  ratingsEnabled = true,
+  sendToChat = false
 ): MenuActionItem[] {
   const tracks = buildSelectedWorkspaceTracks(queueItems, ids);
   const inLibrary = libraryHasAllTracks(libraryItems, tracks);
+  const sendToChatAction = buildSendToChatAction(tracks, sendToChat);
   const canSeparateSubsongs =
     tracks.length === 1 &&
     tracks[0].kind === 'module' &&
@@ -157,6 +170,7 @@ export function buildQueueContextActions(
       label: 'Track details',
       icon: 'info'
     },
+    ...(sendToChatAction ? [sendToChatAction] : []),
     {
       id: 'play-next',
       label: 'Play next',
@@ -201,12 +215,14 @@ export function buildLibraryContextActions(
   libraryItems: TrackItem[] = [],
   favoriteItems: TrackItem[] = [],
   ids: string[] = [],
-  ratingsEnabled = true
+  ratingsEnabled = true,
+  sendToChat = false
 ): MenuActionItem[] {
   const tracks = buildSelectedWorkspaceTracks(libraryItems, ids);
   const goToLibrary = tracks.length === 1
     ? buildGoToLibraryAction(tracks[0], libraryItems)
     : null;
+  const sendToChatAction = buildSendToChatAction(tracks, sendToChat);
 
   return [
     {
@@ -232,6 +248,7 @@ export function buildLibraryContextActions(
       label: 'Track details',
       icon: 'info'
     },
+    ...(sendToChatAction ? [sendToChatAction] : []),
     {
       id: 'copy-filename',
       label: 'Copy filename',
@@ -273,12 +290,14 @@ export function buildFavoritesContextActions(
   favoriteItems: TrackItem[] = [],
   libraryItems: TrackItem[] = [],
   ids: string[] = [],
-  ratingsEnabled = true
+  ratingsEnabled = true,
+  sendToChat = false
 ): MenuActionItem[] {
   const tracks = buildSelectedWorkspaceTracks(favoriteItems, ids);
   const goToLibrary = tracks.length === 1
     ? buildGoToLibraryAction(tracks[0], libraryItems)
     : null;
+  const sendToChatAction = buildSendToChatAction(tracks, sendToChat);
 
   return [
     {
@@ -304,6 +323,7 @@ export function buildFavoritesContextActions(
       label: 'Track details',
       icon: 'info'
     },
+    ...(sendToChatAction ? [sendToChatAction] : []),
     ...(ratingsEnabled && tracks.length > 0 ? [buildTrackRatingAction(tracks)] : []),
     {
       id: 'remove-favorite',
@@ -319,14 +339,16 @@ export function buildUpNextContextActions(
   libraryItems: TrackItem[],
   ids: string[],
   favoriteItems: TrackItem[] = [],
-  ratingsEnabled = true
+  ratingsEnabled = true,
+  sendToChat = false
 ): MenuActionItem[] {
   return buildQueueContextActions(
     queueItems,
     libraryItems,
     ids,
     favoriteItems,
-    ratingsEnabled
+    ratingsEnabled,
+    sendToChat
   )
     .filter((action) => action.id !== 'randomize-queue' && action.id !== 'play-next')
     .map((action) =>
@@ -345,15 +367,18 @@ export function buildUpNextContextActions(
 export function buildFreeplayQueueContextActions(
   queueItems: TrackItem[],
   libraryItems: TrackItem[],
-  ids: string[]
+  ids: string[],
+  sendToChat = false
 ): MenuActionItem[] {
   const tracks = buildSelectedWorkspaceTracks(queueItems, ids);
   const goToLibrary = tracks.length === 1
     ? buildGoToLibraryAction(tracks[0], libraryItems)
     : null;
+  const sendToChatAction = buildSendToChatAction(tracks, sendToChat);
   return [
     ...(goToLibrary ? [goToLibrary] : []),
     { id: 'track-details', label: 'Track details', icon: 'info' },
+    ...(sendToChatAction ? [sendToChatAction] : []),
     {
       id: 'remove',
       label: 'Remove',
@@ -367,16 +392,19 @@ export function buildFreeplayQueueContextActions(
 export function buildFreeplayLibraryContextActions(
   items: TrackItem[],
   libraryItems: TrackItem[],
-  ids: string[]
+  ids: string[],
+  sendToChat = false
 ): MenuActionItem[] {
   const tracks = buildSelectedWorkspaceTracks(items, ids);
   const goToLibrary = tracks.length === 1
     ? buildGoToLibraryAction(tracks[0], libraryItems)
     : null;
+  const sendToChatAction = buildSendToChatAction(tracks, sendToChat);
   return [
     { id: 'add-to-queue', label: 'Add to queue', icon: 'playlist_add' },
     { id: 'replace-queue', label: 'Replace queue', icon: 'playlist_play' },
     ...(goToLibrary ? [goToLibrary] : []),
-    { id: 'track-details', label: 'Track details', icon: 'info' }
+    { id: 'track-details', label: 'Track details', icon: 'info' },
+    ...(sendToChatAction ? [sendToChatAction] : [])
   ];
 }

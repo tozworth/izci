@@ -37,6 +37,7 @@ export function getContextMenuActionLabel(action: MenuActionItem, translate: Tra
     case 'go-to-library-year': return translate('main.trackDetails.year', { default: 'Year' });
     case 'go-to-library-format': return translate('main.trackDetails.format', { default: 'Format' });
     case 'track-details': return translate('queue.actions.trackDetails', { default: 'Track details' });
+    case 'send-to-chat': return translate('queue.actions.sendToChat', { default: 'Send to chat' });
     case 'play-next': return translate('queue.actions.playNext', { default: 'Play next' });
     case 'toggle-library': return action.icon === 'remove_circle'
       ? translate('queue.actions.removeFromLibrary', { default: 'Remove from library' })

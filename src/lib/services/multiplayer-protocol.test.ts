@@ -245,10 +245,17 @@ describe('multiplayer protocol', () => {
       text: 'Hello from the room',
       sentAt: 1_000
     };
+    const track = {
+      collection: 'library' as const,
+      itemId: 'track-1',
+      title: 'A song'
+    };
 
     expect(isHostMessage({ kind: 'chat.message', message })).toBe(true);
+    expect(isHostMessage({ kind: 'chat.message', message: { ...message, text: track.title, track } })).toBe(true);
     expect(isHostMessage({ kind: 'chat.history', messages: [message] })).toBe(true);
     expect(isClientMessage({ kind: 'chat.send', text: 'Hello' })).toBe(true);
+    expect(isClientMessage({ kind: 'chat.send', text: track.title, track })).toBe(true);
     expect(isClientMessage({ kind: 'chat.send', text: '  ' })).toBe(false);
     expect(isHostMessage({
       kind: 'chat.message',
@@ -257,6 +264,11 @@ describe('multiplayer protocol', () => {
     expect(isHostMessage({
       kind: 'chat.message',
       message: { ...message, text: 'line\nbreak' }
+    })).toBe(false);
+    expect(isClientMessage({
+      kind: 'chat.send',
+      text: track.title,
+      track: { ...track, title: 'line\nbreak' }
     })).toBe(false);
   });
 

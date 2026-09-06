@@ -15,6 +15,14 @@ describe('multiplayer chat', () => {
       text: 'hello',
       sentAt: 123
     });
+    expect(createMultiplayerChatMessage('Host', 'Song', 123, {
+      collection: 'library',
+      itemId: 'track',
+      title: 'Song'
+    })).toMatchObject({
+      text: 'Song',
+      track: { collection: 'library', itemId: 'track', title: 'Song' }
+    });
   });
 
   it('deduplicates live messages and merges room history', () => {

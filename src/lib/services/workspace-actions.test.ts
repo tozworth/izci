@@ -46,6 +46,18 @@ describe('workspace actions', () => {
       .toEqual(['add-to-queue', 'replace-queue', 'go-to-library', 'track-details']);
   });
 
+  it('offers Send to chat only for one track when chat is open', () => {
+    const tracks = [item('track')];
+
+    expect(buildQueueContextActions(tracks, [], ['track'], [], true, true))
+      .toContainEqual(expect.objectContaining({ id: 'send-to-chat', icon: 'chat' }));
+    expect(buildQueueContextActions([...tracks, item('other')], [], ['track', 'other'], [], true, true))
+      .not.toContainEqual(expect.objectContaining({ id: 'send-to-chat' }));
+    expect(buildQueueContextActions(tracks, [], ['track'])).not.toContainEqual(
+      expect.objectContaining({ id: 'send-to-chat' })
+    );
+  });
+
   it('matches queue tracks to library rows by stable track identity', () => {
     const queueTracks = [
       item('queue-alpha', { path: '/Music/Alpha.flac' }),

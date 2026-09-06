@@ -126,45 +126,49 @@ export function createWorkspaceCollectionsController({
     }
   }
 
-  function getQueueContextActions(ids: string[]): MenuActionItem[] {
+  function getQueueContextActions(ids: string[], sendToChat = false): MenuActionItem[] {
     const { queueItems, libraryItems } = getState();
     return buildQueueContextActions(
       queueItems,
       libraryItems,
       ids,
       getState().favoriteItems,
-      trackSettings.getSnapshot().enableRatings
+      trackSettings.getSnapshot().enableRatings,
+      sendToChat
     );
   }
 
-  function getLibraryContextActions(ids: string[]): MenuActionItem[] {
+  function getLibraryContextActions(ids: string[], sendToChat = false): MenuActionItem[] {
     const { libraryItems, favoriteItems } = getState();
     return buildLibraryContextActions(
       libraryItems,
       favoriteItems,
       ids,
-      trackSettings.getSnapshot().enableRatings
+      trackSettings.getSnapshot().enableRatings,
+      sendToChat
     );
   }
 
-  function getFavoriteContextActions(ids: string[]): MenuActionItem[] {
+  function getFavoriteContextActions(ids: string[], sendToChat = false): MenuActionItem[] {
     const { favoriteItems, libraryItems } = getState();
     return buildFavoritesContextActions(
       favoriteItems,
       libraryItems,
       ids,
-      trackSettings.getSnapshot().enableRatings
+      trackSettings.getSnapshot().enableRatings,
+      sendToChat
     );
   }
 
-  function getUpNextContextActions(ids: string[]): MenuActionItem[] {
+  function getUpNextContextActions(ids: string[], sendToChat = false): MenuActionItem[] {
     const { queueItems, libraryItems, favoriteItems } = getState();
     return buildUpNextContextActions(
       queueItems,
       libraryItems,
       ids,
       favoriteItems,
-      trackSettings.getSnapshot().enableRatings
+      trackSettings.getSnapshot().enableRatings,
+      sendToChat
     );
   }
 

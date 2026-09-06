@@ -36,6 +36,7 @@
       "chatPlaceholder": "Mesaj",
       "chatInput": "Sohbet mesajı",
       "chatSend": "Gönder",
+      "chatPlayTrack": "{title} parçasını çal",
       "markLabel": "izci çok oyunculu",
       "host": "Sunucu ol",
       "join": "Katıl...",
@@ -2229,6 +2230,7 @@
     "actions": {
       "goTo": "Git...",
       "trackDetails": "Parça detayları",
+      "sendToChat": "Sohbete gönder",
       "copyFilename": "Dosya adını kopyala",
       "removeFromLibrary": "Kütüphaneden kaldır",
       "addToLibrary": "Kütüphaneye ekle",

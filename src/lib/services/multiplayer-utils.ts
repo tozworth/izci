@@ -6,6 +6,7 @@ import {
   MULTIPLAYER_QUEUE_MAX_ITEMS,
   MULTIPLAYER_RENDER_MAX_RANGES,
   isMultiplayerCommand,
+  isMultiplayerChatTrackLink,
   type ClientMessage,
   type MultiplayerDeliveryMode
 } from './multiplayer-protocol';
@@ -110,7 +111,8 @@ export function isClientMessage(value: unknown): value is ClientMessage {
   if (message.kind === 'chat.send') {
     return typeof message.text === 'string'
       && message.text.trim().length > 0
-      && message.text.length <= MULTIPLAYER_CHAT_MAX_MESSAGE_LENGTH;
+      && message.text.length <= MULTIPLAYER_CHAT_MAX_MESSAGE_LENGTH
+      && (message.track === undefined || isMultiplayerChatTrackLink(message.track));
   }
   if (message.kind === 'freeplay.preference') {
     return typeof message.enabled === 'boolean';

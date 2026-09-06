@@ -2,6 +2,7 @@ import { writable, type Readable } from 'svelte/store';
 import {
   MULTIPLAYER_CHAT_MAX_MESSAGE_LENGTH,
   MULTIPLAYER_CHAT_MAX_MESSAGES,
+  type MultiplayerChatTrackLink,
   type MultiplayerChatMessage
 } from './multiplayer-protocol';
 
@@ -24,6 +25,13 @@ export function normalizeMultiplayerChatText(value: string): string {
     .slice(0, MULTIPLAYER_CHAT_MAX_MESSAGE_LENGTH);
 }
 
+function normalizeMultiplayerChatName(value: string): string {
+  return value
+    .replace(/[\u0000-\u001f\u007f]/g, ' ')
+    .trim()
+    .slice(0, 48) || 'Guest';
+}
+
 function createChatMessageId(): string {
   return crypto.randomUUID();
 }
@@ -31,13 +39,24 @@ function createChatMessageId(): string {
 export function createMultiplayerChatMessage(
   name: string,
   text: string,
-  sentAt = Date.now()
+  sentAt = Date.now(),
+  track?: MultiplayerChatTrackLink
 ): MultiplayerChatMessage {
+  const normalizedTrackTitle = track ? normalizeMultiplayerChatText(track.title) : '';
   return {
     id: createChatMessageId(),
-    name: name.trim().slice(0, 48) || 'Guest',
+    name: normalizeMultiplayerChatName(name),
     text: normalizeMultiplayerChatText(text),
-    sentAt
+    sentAt,
+    ...(track && normalizedTrackTitle
+      ? {
+          track: {
+            collection: track.collection,
+            itemId: track.itemId.slice(0, 200),
+            title: normalizedTrackTitle
+          }
+        }
+      : {})
   };
 }
 

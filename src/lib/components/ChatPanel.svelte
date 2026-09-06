@@ -2,10 +2,14 @@
   import { afterUpdate } from 'svelte';
   import { t } from 'svelte-i18n';
   import type { Readable } from 'svelte/store';
-  import type { MultiplayerChatMessage } from '$lib/services/multiplayer-protocol';
+  import type {
+    MultiplayerChatMessage,
+    MultiplayerChatTrackLink
+  } from '$lib/services/multiplayer-protocol';
 
   export let messages: Readable<MultiplayerChatMessage[]>;
   export let sendMessage: (text: string) => boolean;
+  export let activateTrack: (track: MultiplayerChatTrackLink) => void = () => undefined;
   export let connected = false;
 
   let input = '';
@@ -37,7 +41,26 @@
         <div class="chat-line">
           <span class="chat-name">{message.name}</span>
           <span class="chat-colon" aria-hidden="true">:</span>
-          <span class="chat-text">{message.text}</span>
+          {#if message.track}
+            <button
+              class="chat-track-link"
+              type="button"
+              aria-label={$t('main.multiplayer.chatPlayTrack', {
+                default: 'Play {title}',
+                values: { title: message.track.title }
+              })}
+              title={$t('main.multiplayer.chatPlayTrack', {
+                default: 'Play {title}',
+                values: { title: message.track.title }
+              })}
+              on:click={() => activateTrack(message.track!)}
+            >
+              <span class="material-symbols-outlined" aria-hidden="true">music_note</span>
+              <span class="chat-track-title">{message.track.title}</span>
+            </button>
+          {:else}
+            <span class="chat-text">{message.text}</span>
+          {/if}
           <time class="chat-time" datetime={new Date(message.sentAt).toISOString()}>{formatTimestamp(message.sentAt)}</time>
         </div>
       {/each}
@@ -104,6 +127,34 @@
   }
 
   .chat-text {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .chat-track-link {
+    display: inline-flex;
+    align-items: baseline;
+    min-width: 0;
+    gap: 0.18rem;
+    padding: 0;
+    border: 0;
+    color: var(--accent, currentColor);
+    background: transparent;
+    font: inherit;
+    text-align: left;
+  }
+
+  .chat-track-link:focus-visible {
+    outline: 1px solid var(--accent-focus-border, currentColor);
+    outline-offset: 1px;
+  }
+
+  .chat-track-link .material-symbols-outlined {
+    flex: 0 0 auto;
+    font-size: 1rem;
+  }
+
+  .chat-track-title {
     min-width: 0;
     overflow-wrap: anywhere;
   }

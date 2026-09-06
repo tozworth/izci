@@ -19,6 +19,7 @@ import type {
   TrackSelection,
   WorkspaceCollection
 } from '$lib/types';
+import type { MultiplayerCollection } from '$lib/services/multiplayer-protocol';
 
 interface MainWindowPanelHandlerDeps {
   getIsMultiplayerClient(): boolean;
@@ -55,6 +56,7 @@ interface MainWindowPanelHandlerDeps {
   multiplayerController: {
     activateTrack(collection: WorkspaceCollection | 'favorites', id: string): boolean;
   };
+  sendTrackToChat(collection: MultiplayerCollection, id: string): void;
   freeplayActions: {
     handleQueueContextAction(actionId: string, ids: string[]): void;
     handleLibraryContextAction(actionId: string, ids: string[]): void;
@@ -103,6 +105,10 @@ export function createMainWindowPanelHandlers(deps: MainWindowPanelHandlerDeps):
       }
     },
     contextAction: (event) => {
+      if (event.detail.actionId === 'send-to-chat') {
+        deps.sendTrackToChat('queue', event.detail.ids[0] ?? '');
+        return;
+      }
       if (deps.getIsFreeplayClient()) {
         deps.freeplayActions.handleQueueContextAction(event.detail.actionId, event.detail.ids);
         return;
@@ -130,6 +136,13 @@ export function createMainWindowPanelHandlers(deps: MainWindowPanelHandlerDeps):
     activate: (event) => void deps.activateLibraryPanelTrack(event.detail),
     libraryGroupRequestHandled: (event) => deps.workspaceShell.clearLibraryGroupRequest(event.detail),
     contextAction: (event) => {
+      if (event.detail.actionId === 'send-to-chat') {
+        deps.sendTrackToChat(
+          deps.getActiveView() === 'favorites' ? 'favorites' : 'library',
+          event.detail.ids[0] ?? ''
+        );
+        return;
+      }
       if (deps.getIsFreeplayClient()) {
         deps.freeplayActions.handleLibraryContextAction(event.detail.actionId, event.detail.ids);
         return;
@@ -154,6 +167,10 @@ export function createMainWindowPanelHandlers(deps: MainWindowPanelHandlerDeps):
       void deps.playbackCommands.activateQueueTrack(event.detail);
     },
     contextAction: (event) => {
+      if (event.detail.actionId === 'send-to-chat') {
+        deps.sendTrackToChat('queue', event.detail.ids[0] ?? '');
+        return;
+      }
       if (deps.getIsFreeplayClient() || deps.getIsMultiplayerClient()) return;
       deps.workspaceCollections.handleUpNextContextAction(event.detail.actionId, event.detail.ids);
     }

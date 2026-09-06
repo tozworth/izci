@@ -36,6 +36,7 @@
       "chatPlaceholder": "Message",
       "chatInput": "Chat message",
       "chatSend": "Send",
+      "chatPlayTrack": "Play {title}",
       "markLabel": "izci multiplayer",
       "host": "Host",
       "join": "Join...",
@@ -2229,6 +2230,7 @@
     "actions": {
       "goTo": "Go to...",
       "trackDetails": "Track details",
+      "sendToChat": "Send to chat",
       "copyFilename": "Copy filename",
       "removeFromLibrary": "Remove from library",
       "addToLibrary": "Add to library",

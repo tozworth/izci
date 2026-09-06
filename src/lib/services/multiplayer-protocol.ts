@@ -8,11 +8,18 @@ import type {
 
 export type MultiplayerCollection = 'queue' | 'library' | 'favorites';
 
+export interface MultiplayerChatTrackLink {
+  collection: MultiplayerCollection;
+  itemId: string;
+  title: string;
+}
+
 export interface MultiplayerChatMessage {
   id: string;
   name: string;
   text: string;
   sentAt: number;
+  track?: MultiplayerChatTrackLink;
 }
 
 // Version 20 adds the room chat message protocol. Version 18 adds explicit
@@ -160,7 +167,7 @@ export type HostMessage =
 
 export type ClientMessage =
   | { kind: 'hello'; version: number; name: string; platform: string; freeplayEnabled: boolean }
-  | { kind: 'chat.send'; text: string }
+  | { kind: 'chat.send'; text: string; track?: MultiplayerChatTrackLink }
   | { kind: 'freeplay.preference'; enabled: boolean }
   | {
       kind: 'freeplay.queue';
@@ -388,6 +395,21 @@ export function isHostMessage(value: unknown): value is HostMessage {
   return false;
 }
 
+export function isMultiplayerChatTrackLink(value: unknown): value is MultiplayerChatTrackLink {
+  if (!value || typeof value !== 'object') return false;
+  const link = value as Partial<MultiplayerChatTrackLink>;
+  return (link.collection === 'queue'
+    || link.collection === 'library'
+    || link.collection === 'favorites')
+    && typeof link.itemId === 'string'
+    && link.itemId.length > 0
+    && link.itemId.length <= 200
+    && typeof link.title === 'string'
+    && link.title.length > 0
+    && link.title.length <= MULTIPLAYER_CHAT_MAX_MESSAGE_LENGTH
+    && !/[\u0000-\u001f\u007f]/.test(link.title);
+}
+
 export function isMultiplayerChatMessage(value: unknown): value is MultiplayerChatMessage {
   if (!value || typeof value !== 'object') return false;
   const message = value as Partial<MultiplayerChatMessage>;
@@ -400,6 +422,7 @@ export function isMultiplayerChatMessage(value: unknown): value is MultiplayerCh
     && typeof message.text === 'string'
     && message.text.length > 0
     && message.text.length <= MULTIPLAYER_CHAT_MAX_MESSAGE_LENGTH
+    && (message.track === undefined || isMultiplayerChatTrackLink(message.track))
     && !/[\u0000-\u001f\u007f]/.test(message.name)
     && !/[\u0000-\u001f\u007f]/.test(message.text)
     && typeof message.sentAt === 'number'

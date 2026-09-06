@@ -100,6 +100,7 @@
   <ChatPanel
     messages={content.chatMessages}
     sendMessage={content.sendChatMessage}
+    activateTrack={content.activateChatTrack}
     connected={content.chatConnected}
   />
 {:else}

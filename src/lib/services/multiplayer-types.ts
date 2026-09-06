@@ -17,6 +17,7 @@ import {
   type MultiplayerArtwork,
   type MultiplayerCatalog,
   type MultiplayerCollection,
+  type MultiplayerChatTrackLink,
   type MultiplayerCommand,
   type MultiplayerCommandInput,
   type MultiplayerDeliveryState,
@@ -276,7 +277,8 @@ export interface CreateMultiplayerSessionOptions {
 
 export type MultiplayerChatMessageHandler = (
   text: string,
-  client: Pick<MultiplayerClient, 'id' | 'name'>
+  client: Pick<MultiplayerClient, 'id' | 'name'>,
+  track?: MultiplayerChatTrackLink
 ) => void;
 
 export interface MultiplayerSessionController extends Readable<MultiplayerSessionState> {
@@ -291,6 +293,7 @@ export interface MultiplayerSessionController extends Readable<MultiplayerSessio
   togglePairing(clientId: string): Promise<void>;
   sendCommand(command: MultiplayerCommandInput): boolean;
   sendChatMessage(text: string): boolean;
+  sendChatTrack(track: MultiplayerChatTrackLink): boolean;
   setFreeplayQueue(itemIds: string[]): void;
   cancelPendingPlayback(): boolean;
   resumeAudio(): Promise<boolean>;
