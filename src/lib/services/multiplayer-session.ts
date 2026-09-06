@@ -12,6 +12,7 @@ import { getLocalName, readReceiveAudioPreference } from './multiplayer-utils';
 import { getTrackDisplayTitle } from '$lib/utils/files';
 import {
   createMultiplayerChatMessage,
+  createMultiplayerChatNotice,
   multiplayerChat,
   normalizeMultiplayerChatText,
   parseMultiplayerChatCommand
@@ -109,6 +110,7 @@ export function createMultiplayerSession({
   const host = createMultiplayerHostSide(core, {
     handleHostCommand,
     handleChatMessage: (text, client) => handleChatMessage(text, client),
+    handleChatPresence: (name, action) => handleChatPresence(name, action),
     pauseHostPlayback,
     resumeHostPlayback
   });
@@ -131,6 +133,19 @@ export function createMultiplayerSession({
       resolvedTrack ? undefined : command.action
     );
     if (!message.text) return;
+    multiplayerChat.append(message);
+    for (const peer of core.hostPeers.values()) {
+      if (peer.channel?.readyState !== 'open') continue;
+      sendToPeer(peer, { kind: 'chat.message', message });
+    }
+  }
+
+  function handleChatPresence(
+    name: string,
+    action: 'join' | 'leave'
+  ): void {
+    if (core.state.mode !== 'hosting') return;
+    const message = createMultiplayerChatNotice(name, action);
     multiplayerChat.append(message);
     for (const peer of core.hostPeers.values()) {
       if (peer.channel?.readyState !== 'open') continue;
@@ -197,7 +212,6 @@ export function createMultiplayerSession({
     });
     client.clearReceiverMonitor();
     client.resetTransitions();
-    multiplayerChat.clear();
     core.stopPeersListener?.();
     core.stopAnswerListener?.();
     core.stopPeersListener = null;
@@ -206,6 +220,7 @@ export function createMultiplayerSession({
       disposePeerConnection(peer);
     }
     core.hostPeers.clear();
+    multiplayerChat.clear();
     core.freeplaySelections.clear();
     const previousClientPeer = core.clientPeer;
     core.clientPeer = null;

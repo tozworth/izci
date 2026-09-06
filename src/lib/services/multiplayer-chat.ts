@@ -77,6 +77,20 @@ export function createMultiplayerChatMessage(
   };
 }
 
+export function createMultiplayerChatNotice(
+  name: string,
+  action: 'join' | 'leave',
+  sentAt = Date.now()
+): MultiplayerChatMessage {
+  return createMultiplayerChatMessage(
+    name,
+    action === 'join' ? 'joined' : 'left',
+    sentAt,
+    undefined,
+    action
+  );
+}
+
 function append(message: MultiplayerChatMessage): void {
   if (currentMessages.some((existing) => existing.id === message.id)) return;
   publish([...currentMessages, message].slice(-MULTIPLAYER_CHAT_MAX_MESSAGES));

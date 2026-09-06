@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { attachClientChannel } from './multiplayer-client-channels';
-import { attachHostChannel } from './multiplayer-host-channels';
+import { announceHostPeerLeave, attachHostChannel } from './multiplayer-host-channels';
 import type { MultiplayerClientContext } from './multiplayer-client';
 import type { MultiplayerHostContext } from './multiplayer-host';
 import type { PeerConnection } from './multiplayer-types';
@@ -54,6 +54,19 @@ describe('multiplayer channel lifecycle', () => {
     expect(previous.decode).not.toHaveBeenCalled();
     expect(handleHostCommand).not.toHaveBeenCalled();
     expect(updateClient).not.toHaveBeenCalled();
+  });
+
+  it('announces a peer leave only once after a joined peer disconnects', () => {
+    const joinedPeer = peer('client');
+    joinedPeer.helloReceived = true;
+    const handleChatPresence = vi.fn();
+    const ctx = { handleChatPresence } as unknown as MultiplayerHostContext;
+
+    announceHostPeerLeave(ctx, joinedPeer);
+    announceHostPeerLeave(ctx, joinedPeer);
+
+    expect(handleChatPresence).toHaveBeenCalledOnce();
+    expect(handleChatPresence).toHaveBeenCalledWith('client', 'leave');
   });
 
   it('ignores client messages from a replaced host peer', () => {

@@ -31,6 +31,15 @@ import {
 import type { PeerConnection } from './multiplayer-types';
 import type { MultiplayerHostContext } from './multiplayer-host';
 
+export function announceHostPeerLeave(
+  ctx: MultiplayerHostContext,
+  peer: PeerConnection
+): void {
+  if (!peer.helloReceived || peer.chatLeaveAnnounced) return;
+  peer.chatLeaveAnnounced = true;
+  ctx.handleChatPresence(peer.name, 'leave');
+}
+
 export function attachHostChannel(
   ctx: MultiplayerHostContext,
   peer: PeerConnection,
@@ -55,6 +64,7 @@ export function attachHostChannel(
     const message = peer.decode(event.data);
     if (!message) return;
     if (message.kind === 'hello') {
+      const firstHello = !peer.helloReceived;
       peer.name = sanitizeClientName(message.name);
       peer.clientFreeplayEnabled = message.freeplayEnabled;
       peer.helloReceived = true;
@@ -65,6 +75,7 @@ export function attachHostChannel(
         hostName: getLocalName()
       });
       sendToPeer(peer, { kind: 'chat.history', messages: multiplayerChat.getSnapshot() });
+      if (firstHello) ctx.handleChatPresence(peer.name, 'join');
       void syncPeerFreeplayMode(ctx, peer);
       return;
     }
@@ -141,6 +152,7 @@ export function attachHostChannel(
   };
   channel.onclose = () => {
     if (core.hostPeers.get(peer.id) !== peer || peer.channel !== channel) return;
+    announceHostPeerLeave(ctx, peer);
     core.updateClient(peer.id, { status: 'disconnected' });
     removePeerFromHostPlaybackPreparation(ctx, peer.id);
   };

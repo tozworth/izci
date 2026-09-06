@@ -256,14 +256,22 @@ describe('multiplayer protocol', () => {
     })).toBe(false);
   });
 
-  it('accepts only the supported chat action', () => {
+  it('accepts supported chat actions', () => {
     expect(isHostMessage({
       kind: 'chat.message',
       message: { id: 'one', name: 'Host', text: 'waves', sentAt: 1, action: 'me' }
     })).toBe(true);
     expect(isHostMessage({
       kind: 'chat.message',
-      message: { id: 'two', name: 'Host', text: 'waves', sentAt: 1, action: 'shrug' }
+      message: { id: 'two', name: 'client123', text: 'joined', sentAt: 1, action: 'join' }
+    })).toBe(true);
+    expect(isHostMessage({
+      kind: 'chat.message',
+      message: { id: 'three', name: 'client123', text: 'left', sentAt: 1, action: 'leave' }
+    })).toBe(true);
+    expect(isHostMessage({
+      kind: 'chat.message',
+      message: { id: 'four', name: 'Host', text: 'waves', sentAt: 1, action: 'shrug' }
     })).toBe(false);
   });
 
