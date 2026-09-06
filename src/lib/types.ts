@@ -369,6 +369,7 @@ export interface MultiplayerSettings {
   multiplayer: boolean;
   izciName: string;
   multiplayerMotd: string;
+  multiplayerChatHistoryLines: number;
   multiplayerWaitForClients: boolean;
   multiplayerSynchronizedPlayback: boolean;
   multiplayerSyncLeadTimeMs: number;

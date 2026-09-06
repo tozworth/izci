@@ -229,6 +229,7 @@ export function createMultiplayerSession({
       disposePeerConnection(peer);
     }
     core.hostPeers.clear();
+    multiplayerChat.stopPersisting();
     multiplayerChat.clear();
     core.freeplaySelections.clear();
     const previousClientPeer = core.clientPeer;
@@ -294,6 +295,8 @@ export function createMultiplayerSession({
     const audioBufferChanged = settings.multiplayerAudioBufferMs
       !== core.multiplayerSettings.multiplayerAudioBufferMs;
     const motdChanged = settings.multiplayerMotd !== core.multiplayerSettings.multiplayerMotd;
+    const chatHistoryLimitChanged = settings.multiplayerChatHistoryLines
+      !== core.multiplayerSettings.multiplayerChatHistoryLines;
     const freeplayPreferenceChanged = settings.multiplayerFreeplay
       !== core.multiplayerSettings.multiplayerFreeplay;
     const freeplayAudioChanged = settings.multiplayerStreamAudio
@@ -311,10 +314,16 @@ export function createMultiplayerSession({
     const synchronizedPlaybackEnabled = !core.multiplayerSettings.multiplayerSynchronizedPlayback
       && settings.multiplayerSynchronizedPlayback;
     core.multiplayerSettings = settings;
+    if (chatHistoryLimitChanged && settings.multiplayerChatHistoryLines === 0) {
+      multiplayerChat.restorePersistedHistory(0);
+    }
     if (renderCacheLimitChanged) {
       multiplayerRenderCoordinator.setCacheLimitMiB(settings.multiplayerRenderCacheLimitMiB);
     }
     if (core.state.mode === 'hosting') {
+      if (chatHistoryLimitChanged && settings.multiplayerChatHistoryLines > 0) {
+        multiplayerChat.restorePersistedHistory(settings.multiplayerChatHistoryLines);
+      }
       if (motdChanged) host.syncHostMotd();
       if (opusBitrateChanged || fileTransferLimitChanged) {
         // Bitrate is part of the render cache key and the transfer limit

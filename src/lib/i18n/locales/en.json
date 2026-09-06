@@ -749,6 +749,12 @@
         "motd": {
           "title": "Message of the day",
           "hint": "Shown above the chat to guests in sessions hosted by this izci."
+        },
+        "history": {
+          "title": "Preserve chat history",
+          "hint": "Keeps the latest chat lines on this device and restores them when it hosts again.",
+          "disabled": "Disabled",
+          "lines": "{count} lines"
         }
       },
       "waitForClients": {

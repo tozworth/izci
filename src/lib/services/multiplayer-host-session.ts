@@ -5,6 +5,7 @@ import {
 } from '$lib/stores/multiplayer-last-session';
 import { enableOpusStereo } from './multiplayer-opus';
 import { MULTIPLAYER_PROTOCOL_VERSION } from './multiplayer-protocol';
+import { multiplayerChat } from './multiplayer-chat';
 import {
   applyAudioBitrate,
   clearPeerConnectionTimer,
@@ -65,6 +66,7 @@ export async function startHosting(
   });
   core.allowClientReconnect = false;
   await core.resetSession(true);
+  multiplayerChat.restorePersistedHistory(core.multiplayerSettings.multiplayerChatHistoryLines);
   core.publish({
     mode: 'hosting',
     connectionStatus: 'connecting',

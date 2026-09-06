@@ -21,6 +21,7 @@ export const MULTIPLAYER_SYNC_LEAD_TIME_MAX_MS = 3_000;
 export const MULTIPLAYER_SYNC_LEAD_TIME_STEP_MS = 50;
 export const MULTIPLAYER_MAX_LISTENERS_MIN = 1;
 export const MULTIPLAYER_MAX_LISTENERS_MAX = 8;
+export const MULTIPLAYER_CHAT_HISTORY_LINES = [0, 25, 50, 100, 250, 500, 1000] as const;
 const MULTIPLAYER_TURN_URL_MAX_LENGTH = 512;
 const MULTIPLAYER_TURN_SECRET_MAX_LENGTH = 512;
 const MULTIPLAYER_MOTD_MAX_LENGTH = 500;
@@ -57,6 +58,7 @@ export const DEFAULT_MULTIPLAYER_SETTINGS: MultiplayerSettings = {
   multiplayer: false,
   izciName: defaultIzciName,
   multiplayerMotd: '',
+  multiplayerChatHistoryLines: 0,
   multiplayerWaitForClients: false,
   multiplayerSynchronizedPlayback: false,
   multiplayerSyncLeadTimeMs: 1_000,
@@ -104,6 +106,13 @@ function normalizeFileTransferLimit(value: unknown): number {
     : DEFAULT_MULTIPLAYER_SETTINGS.multiplayerFileTransferLimitMiB;
 }
 
+function normalizeChatHistoryLines(value: unknown): number {
+  return typeof value === 'number'
+    && MULTIPLAYER_CHAT_HISTORY_LINES.includes(value as (typeof MULTIPLAYER_CHAT_HISTORY_LINES)[number])
+    ? value
+    : DEFAULT_MULTIPLAYER_SETTINGS.multiplayerChatHistoryLines;
+}
+
 function normalizeBoundedInteger(value: unknown, fallback: number, min: number, max: number): number {
   return typeof value === 'number' && Number.isFinite(value)
     ? Math.min(Math.max(Math.round(value), min), max)
@@ -119,6 +128,7 @@ export function normalizeMultiplayerSettings(value: unknown): MultiplayerSetting
     multiplayer: normalizeBoolean(source.multiplayer, DEFAULT_MULTIPLAYER_SETTINGS.multiplayer),
     izciName: normalizeIzciName(source.izciName, defaultIzciName),
     multiplayerMotd: normalizeSingleLine(source.multiplayerMotd, MULTIPLAYER_MOTD_MAX_LENGTH),
+    multiplayerChatHistoryLines: normalizeChatHistoryLines(source.multiplayerChatHistoryLines),
     multiplayerWaitForClients: normalizeBoolean(
       source.multiplayerWaitForClients,
       DEFAULT_MULTIPLAYER_SETTINGS.multiplayerWaitForClients
