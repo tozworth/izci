@@ -5,12 +5,8 @@
   import UpNextPanel from '$lib/components/UpNextPanel.svelte';
   import TrackDetailsPanel from '$lib/components/TrackDetailsPanel.svelte';
   import VideoStage from '$lib/components/workspace/VideoStage.svelte';
-  import { queueStore, libraryStore } from '$lib/stores/queue';
   import type { WorkspaceTab } from '$lib/types';
   import type { WorkspaceTabContentProps } from './types';
-
-  const queueItems = queueStore.items;
-  const libraryItems = libraryStore.items;
 
   export let tab: WorkspaceTab;
   export let content: WorkspaceTabContentProps;
@@ -24,7 +20,7 @@
   <div class="queue-tab-stack">
     <TrackListPanel
       {...content.queuePanelProps}
-      items={$queueItems}
+      items={content.queuePanelProps.items}
       fillParent={true}
       hideEyebrow={true}
       on:addFiles={(event) => content.queuePanelHandlers.addFiles(event.detail)}
@@ -49,7 +45,7 @@
 {:else if tab === 'library'}
   <TrackListPanel
     {...content.libraryPanelProps}
-    items={$libraryItems}
+    items={content.libraryPanelProps.items}
     libraryMode={true}
     fillParent={true}
     hideEyebrow={true}
