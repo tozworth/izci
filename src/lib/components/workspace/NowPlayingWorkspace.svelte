@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { createEventDispatcher, onMount } from 'svelte';
+  import { createEventDispatcher, onMount, onDestroy } from 'svelte';
   import { t } from 'svelte-i18n';
   import BackdropZone from '$lib/components/BackdropZone.svelte';
   import PlayerControls from '$lib/components/PlayerControls.svelte';
@@ -14,7 +14,9 @@
     TrackItem,
     WorkspaceTab
   } from '$lib/types';
-  import WorkspaceTabBar from './WorkspaceTabBar.svelte';
+  import { nowPlayingState, moveNowPlayingTab, type FlyoutSide } from '$lib/stores/now-playing-state';
+  import { createNowPlayingLyrics } from '$lib/services/now-playing-lyrics';
+  import NowPlayingFlyout from './NowPlayingFlyout.svelte';
   import WorkspaceTabContent from './WorkspaceTabContent.svelte';
   import type {
     WorkspaceTabContentProps,
@@ -44,6 +46,28 @@
     tabMove: WorkspaceTabMoveDetail;
   }>();
 
+  const lyricsAvailable = createNowPlayingLyrics();
+  onDestroy(() => lyricsAvailable.destroy());
+  let contextualTab: 'lyrics' | 'patterns';
+  let stageTab: 'lyrics' | 'patterns' | null;
+  let openSide: FlyoutSide | null = null;
+  let previousActiveTab = activeWorkspaceTab;
+  $: lyricsAvailable.setTrack(content.lyricsTrack);
+  $: contextualTab = track?.kind === 'module' ? 'patterns' : 'lyrics';
+  $: stageTab = contextualTab === 'patterns'
+    ? ($nowPlayingState.patterns ? 'patterns' : null)
+    : ($nowPlayingState.lyrics && $lyricsAvailable ? 'lyrics' : null);
+  $: flyoutTabs = workspaceTabs.filter(tab => tab.id !== 'lyrics' && tab.id !== 'patterns');
+  $: leftTabs = flyoutTabs.filter(tab => $nowPlayingState.leftTabs.includes(tab.id));
+  $: rightTabs = flyoutTabs.filter(tab => !$nowPlayingState.leftTabs.includes(tab.id));
+  $: if (activeWorkspaceTab !== previousActiveTab) {
+    previousActiveTab = activeWorkspaceTab;
+    if (flyoutTabs.some(tab => tab.id === activeWorkspaceTab)) {
+      openSide = $nowPlayingState.leftTabs.includes(activeWorkspaceTab) ? 'left' : 'right';
+      revealPanelChrome();
+    }
+  }
+  function toggleSide(side: FlyoutSide) { openSide = openSide === side ? null : side; revealPanelChrome(); }
   let panelChromeHidden = false;
   let panelHideTimer: number | null = null;
   let lastPanelAutoHideDelaySeconds = panelAutoHideDelaySeconds;
@@ -79,6 +103,11 @@
     }
 
     panelHideTimer = window.setTimeout(() => {
+      if (document.querySelector('.now-playing-workspace :active')) {
+        schedulePanelHide();
+        return;
+      }
+      openSide = null;
       setPanelChromeHidden(true);
       panelHideTimer = null;
     }, panelAutoHideDelaySeconds * 1000);
@@ -105,11 +134,13 @@
   }
 </script>
 
-<svelte:window on:pointermove={revealPanelChrome} />
+<svelte:window on:pointermove={revealPanelChrome} on:pointerdown={revealPanelChrome} on:keydown={revealPanelChrome} />
 
 <main
   class="workspace now-playing-workspace"
   class:is-cursor-hidden={panelChromeHidden}
+  class:right-flyout-visible={(openSide === 'right') || ($nowPlayingState.rightPinned && rightTabs.length > 0)}
+  style={`--np-left-width: min(${$nowPlayingState.leftWidth}px, 40vw); --np-right-width: min(${$nowPlayingState.rightWidth}px, 40vw);`}
 >
   <BackdropZone
     effect={backdropEffect}
@@ -130,7 +161,8 @@
       <span class="material-symbols-outlined" aria-hidden="true">close</span>
     </button>
 
-    <div class="now-playing-layout">
+    <div class="now-playing-stage-shell" class:left-pinned={$nowPlayingState.leftPinned && leftTabs.length > 0} class:right-pinned={$nowPlayingState.rightPinned && rightTabs.length > 0}>
+    <div class="now-playing-layout" class:has-context={stageTab !== null} class:has-patterns={stageTab === 'patterns'}>
       <section class="now-playing-control-pane" aria-label={$t('workspace.nowPlaying.title', { default: 'Now Playing' })}>
         <PlayerControls
           presentation="now-playing"
@@ -151,46 +183,35 @@
           on:volume
           on:mute
           on:showTrack
-        />
-      </section>
-
-      <section
-        class="now-playing-queue-pane"
-        aria-label={$t('workspace.panels.label', { default: 'Workspace panels' })}
-        on:focusin={revealPanelChrome}
-      >
-        <div
-          class="now-playing-tabs-layout"
-          class:is-chrome-hidden={panelChromeHidden}
         >
-          <WorkspaceTabBar
-            tabs={workspaceTabs}
-            activeTab={activeWorkspaceTab}
-            ariaLabel={$t('workspace.nowPlaying.panels', { default: 'Now Playing panels' })}
-            className="now-playing-tabs"
-            on:tabChange={(event) => dispatch('tabChange', event.detail)}
-            on:tabClose={(event) => dispatch('tabClose', event.detail)}
-            on:tabMove={(event) => dispatch('tabMove', event.detail)}
-          />
-
-          {#if workspaceTabs.length === 0}
-            <div class="now-playing-tab-panel workspace-empty-surface" aria-label={$t('workspace.empty', { default: 'Workspace is empty' })}></div>
-          {:else}
-            <div
-              class="now-playing-tab-panel"
-              role="tabpanel"
-              id={`workspace-tab-panel-tabs-${activeWorkspaceTab}`}
-              aria-labelledby={`workspace-tab-tabs-${activeWorkspaceTab}`}
-            >
-              <WorkspaceTabContent
-                tab={activeWorkspaceTab}
-                content={{ ...content, detailsArtwork: null }}
-                on:seek
-              />
-            </div>
-          {/if}
-        </div>
+          <button slot="context-controls" type="button" class="transport-button now-playing-context-toggle"
+            aria-label={$t(`workspace.tabs.${contextualTab}`)} title={$t(`workspace.tabs.${contextualTab}`)}
+            aria-pressed={$nowPlayingState[contextualTab]}
+            on:click={() => nowPlayingState.update({ [contextualTab]: !$nowPlayingState[contextualTab] })}>
+            <span class="material-symbols-outlined" aria-hidden="true">{contextualTab === 'lyrics' ? 'lyrics' : 'grid_on'}</span>
+          </button>
+        </PlayerControls>
       </section>
+
+      {#if stageTab}
+        <section class="now-playing-context" aria-label={$t(`workspace.tabs.${stageTab}`)}>
+          <WorkspaceTabContent tab={stageTab} {content} on:seek />
+        </section>
+      {/if}
     </div>
+    </div>
+    {#each ['left', 'right'] as side}
+      <NowPlayingFlyout side={side === 'left' ? 'left' : 'right'}
+        tabs={side === 'left' ? leftTabs : rightTabs} {activeWorkspaceTab} {content}
+        pinned={side === 'left' ? $nowPlayingState.leftPinned : $nowPlayingState.rightPinned}
+        open={openSide === side} chromeHidden={panelChromeHidden}
+        on:toggle={() => toggleSide(side === 'left' ? 'left' : 'right')}
+        on:pin={() => nowPlayingState.update(side === 'left' ? { leftPinned: !$nowPlayingState.leftPinned } : { rightPinned: !$nowPlayingState.rightPinned })}
+        on:tabChange={(event) => dispatch('tabChange', event.detail)}
+        on:tabClose={(event) => dispatch('tabClose', event.detail)}
+        on:tabMove={(event) => { moveNowPlayingTab(event.detail.tabId, side === 'left' ? 'left' : 'right'); dispatch('tabMove', event.detail); }}
+        on:move={(event) => { openSide = side === 'left' ? 'right' : 'left'; moveNowPlayingTab(event.detail, openSide); }}
+        on:seek />
+    {/each}
   </BackdropZone>
 </main>

@@ -21,6 +21,8 @@ interface ScrollbarVisibilityOptions {
 
 function isScrollable(element: HTMLElement, axis: ScrollAxis): boolean {
   const styles = getComputedStyle(element);
+  // Respect surfaces that intentionally suppress native and overlay scroll chrome.
+  if (styles.scrollbarWidth === 'none') return false;
   const overflow = axis === 'vertical' ? styles.overflowY : styles.overflowX;
   if (overflow !== 'auto' && overflow !== 'scroll' && overflow !== 'overlay') return false;
 
