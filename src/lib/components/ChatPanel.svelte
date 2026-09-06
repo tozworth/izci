@@ -63,6 +63,7 @@
           class="chat-line"
           class:chat-action={message.action === 'me'}
           class:chat-notice={message.action === 'join' || message.action === 'leave'}
+          class:chatNowPlaying={message.action === 'now-playing' && message.track}
         >
           {#if message.action === 'now-playing' && message.track}
             <span class="chat-name">{message.name}</span>
@@ -173,7 +174,7 @@
     min-height: 0;
     overflow: auto;
     padding: 8px 10px;
-    font-size: 0.88rem;
+    font-size: 0.84rem;
     line-height: 1.35;
   }
 
@@ -191,6 +192,9 @@
   }
 
   .chat-notice {
+    display: grid;
+    grid-template-columns: 1.2rem minmax(0, 1fr) auto;
+    align-items: center;
     color: color-mix(in srgb, currentColor 62%, transparent);
   }
 
@@ -204,8 +208,8 @@
   }
 
   .chat-notice-icon {
-    flex: 0 0 auto;
     font-size: 1rem;
+    line-height: 1;
   }
 
   .chat-notice-text {
@@ -257,6 +261,24 @@
     overflow-wrap: anywhere;
   }
 
+  .chatNowPlaying {
+    display: block;
+    padding-right: 3rem;
+  }
+
+  .chatNowPlaying .chat-track-link {
+    display: inline;
+  }
+
+  .chatNowPlaying .chat-track-link .material-symbols-outlined {
+    vertical-align: text-bottom;
+  }
+
+  .chatNowPlaying .chat-time {
+    float: right;
+    margin-right: -3rem;
+  }
+
   .chat-time {
     flex: 0 0 auto;
     margin-left: auto;
@@ -291,8 +313,8 @@
 
   .chat-compose {
     display: flex;
-    gap: 6px;
-    padding: 7px 8px;
+    gap: 4px;
+    padding: 4px 6px;
     border-top: 1px solid color-mix(in srgb, currentColor 14%, transparent);
   }
 
@@ -316,8 +338,8 @@
     display: grid;
     place-items: center;
     flex: 0 0 auto;
-    width: 1.6rem;
-    height: 1.6rem;
+    width: 1.45rem;
+    height: 1.45rem;
     padding: 0;
     border: 0;
     background: transparent;
@@ -335,6 +357,10 @@
   @media (max-width: 520px) {
     .chat-time {
       display: none;
+    }
+
+    .chatNowPlaying {
+      padding-right: 0;
     }
   }
 </style>

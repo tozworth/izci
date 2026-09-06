@@ -25,10 +25,10 @@ export interface MultiplayerChatMessage {
   action?: MultiplayerChatAction;
 }
 
-// Version 24 adds /np now-playing chat messages. Version 23 adds multiplayer join/leave chat notices. Version 22 adds /me chat actions. Version 21 adds the room MOTD protocol. Version 20 adds the room chat message protocol. Version 18 adds explicit
+// Version 25 adds host-only /clear chat history synchronization. Version 24 adds /np now-playing chat messages. Version 23 adds multiplayer join/leave chat notices. Version 22 adds /me chat actions. Version 21 adds the room MOTD protocol. Version 20 adds the room chat message protocol. Version 18 adds explicit
 // source revisions to buffered-Opus manifests so a
 // listener never reuses cached bytes from a replaced track.
-export const MULTIPLAYER_PROTOCOL_VERSION = 24;
+export const MULTIPLAYER_PROTOCOL_VERSION = 25;
 const MULTIPLAYER_FRAME_CHUNK_SIZE = 12_000;
 export const MULTIPLAYER_QUEUE_MAX_ITEMS = 50_000;
 export const MULTIPLAYER_CHAT_MAX_MESSAGES = 200;
@@ -167,6 +167,7 @@ export type HostMessage =
   | { kind: 'chat.motd'; motd: string; hostName: string }
   | { kind: 'chat.message'; message: MultiplayerChatMessage }
   | { kind: 'chat.history'; messages: MultiplayerChatMessage[] }
+  | { kind: 'chat.clear' }
   | { kind: 'ack'; commandId: string; accepted: boolean; message?: string }
   | { kind: 'kicked' };
 
@@ -406,6 +407,7 @@ export function isHostMessage(value: unknown): value is HostMessage {
       && message.messages.length <= MULTIPLAYER_CHAT_MAX_MESSAGES
       && message.messages.every(isMultiplayerChatMessage);
   }
+  if (message.kind === 'chat.clear') return true;
   return false;
 }
 

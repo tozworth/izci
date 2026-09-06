@@ -82,13 +82,14 @@ export function resolveMultiplayerChatTrackLink(
 
 export interface MultiplayerChatCommand {
   text: string;
-  action?: MultiplayerChatAction;
+  action?: MultiplayerChatAction | 'clear';
 }
 
 export function parseMultiplayerChatCommand(value: string): MultiplayerChatCommand | null {
   const normalized = normalizeMultiplayerChatText(value);
   if (!normalized) return null;
   if (/^\/np$/i.test(normalized)) return { text: '', action: 'now-playing' };
+  if (/^\/clear$/i.test(normalized)) return { text: '', action: 'clear' };
   const command = normalized.match(/^\/me(?:\s+|$)/i);
   if (!command) return { text: normalized };
   const text = normalizeMultiplayerChatText(normalized.slice(command[0].length));
