@@ -87,7 +87,10 @@ export function createMultiplayerSession({
           status: patch.status ?? 'connecting',
           paired: patch.paired ?? false,
           freeplayPaired: patch.freeplayPaired ?? false,
-          freeplay: patch.freeplay ?? false
+          freeplay: patch.freeplay ?? false,
+          freeplayTrack: patch.freeplayTrack ?? null,
+          freeplayPlaybackState: patch.freeplayPlaybackState ?? 'idle',
+          freeplayArtworkUrl: patch.freeplayArtworkUrl ?? null
         }];
     core.publish({ clients });
   };

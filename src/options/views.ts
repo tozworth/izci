@@ -58,6 +58,7 @@ export const OPTIONS_VIEW_GROUPS: OptionsViewDefinition[][] = [
       icon: 'album',
       parentLabel: 'Appearance',
       hasHints: true,
+      hasAdvancedTweaks: true,
       resettable: true
     },
     {

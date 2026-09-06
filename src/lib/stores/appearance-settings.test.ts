@@ -11,10 +11,14 @@ import {
   MIN_CHAMELEON_SATURATION,
   MAX_SYNTHWAVE_BACKGROUND_BRIGHTNESS,
   MIN_SYNTHWAVE_BACKGROUND_BRIGHTNESS,
+  MAX_FREEPLAY_FLOATER_MOTION,
+  MIN_FREEPLAY_FLOATER_SIZE,
   normalizeChameleonHue,
   normalizeChameleonSaturation,
   normalizeAppearanceSettings,
   normalizeContextualTabAutomation,
+  normalizeFreeplayFloaterMotion,
+  normalizeFreeplayFloaterSize,
   normalizeSynthwaveBackgroundBrightness
 } from './appearance-settings';
 
@@ -101,5 +105,14 @@ describe('normalizeSynthwaveBackgroundBrightness', () => {
     expect(normalizeSynthwaveBackgroundBrightness('neon')).toBe(
       DEFAULT_SYNTHWAVE_BACKGROUND_BRIGHTNESS
     );
+  });
+});
+
+describe('normalize Freeplay floaters', () => {
+  it('keeps the feature on by default and clamps its goldilocks', () => {
+    expect(normalizeAppearanceSettings(null).showFreeplayFloaters).toBe(true);
+    expect(normalizeAppearanceSettings({ showFreeplayFloaters: false }).showFreeplayFloaters).toBe(false);
+    expect(normalizeFreeplayFloaterSize(1)).toBe(MIN_FREEPLAY_FLOATER_SIZE);
+    expect(normalizeFreeplayFloaterMotion(500)).toBe(MAX_FREEPLAY_FLOATER_MOTION);
   });
 });

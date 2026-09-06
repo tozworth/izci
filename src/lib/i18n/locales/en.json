@@ -1055,6 +1055,18 @@
         "title": "Always use artwork colors",
         "hint": "Forces the focused player controls to use artwork colors. When off, Now Playing follows the main player setting."
       },
+      "freeplayFloaters": {
+        "title": "Freeplay floaters",
+        "hint": "Shows connected Freeplay listeners and what they are playing around the edges of Now Playing."
+      },
+      "freeplayFloaterSize": {
+        "title": "Freeplay floater size",
+        "hint": "Scales the floating client cards without changing the rest of Now Playing."
+      },
+      "freeplayFloaterMotion": {
+        "title": "Freeplay buoyancy",
+        "hint": "Controls how far cards gently drift and tilt. Set it to zero for still water."
+      },
       "autoTheater": {
         "title": "Auto switch to Theater",
         "hint": "Uses the large focused lyrics layout while Now Playing is active."

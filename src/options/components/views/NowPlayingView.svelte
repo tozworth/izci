@@ -2,9 +2,13 @@
   import { t } from 'svelte-i18n';
   import SettingsField from '$lib/components/options/SettingsField.svelte';
   import {
+    MAX_FREEPLAY_FLOATER_MOTION, MAX_FREEPLAY_FLOATER_SIZE,
+    MIN_FREEPLAY_FLOATER_MOTION, MIN_FREEPLAY_FLOATER_SIZE,
     MIN_NOW_PLAYING_PANEL_AUTO_HIDE_SECONDS, NOW_PLAYING_PANEL_AUTO_HIDE_NEVER_SECONDS,
-    appearanceSettings, normalizeNowPlayingPanelAutoHideDelaySeconds
+    appearanceSettings, normalizeFreeplayFloaterMotion, normalizeFreeplayFloaterSize,
+    normalizeNowPlayingPanelAutoHideDelaySeconds
   } from '$lib/stores/appearance-settings';
+  import { multiplayerSettings } from '$lib/stores/multiplayer-settings';
 
   function checked(event: Event) { return (event.currentTarget as HTMLInputElement).checked; }
   function updateLyrics(key: 'autoTheaterInNowPlaying' | 'autoFocusInNowPlaying', event: Event) {
@@ -12,6 +16,9 @@
   }
   function handleAutoNowPlayingToggle(event: Event) { appearanceSettings.update({ autoNowPlayingOnMaximized: checked(event) }); }
   function handleNowPlayingArtworkPlayerColorsToggle(event: Event) { appearanceSettings.update({ useNowPlayingArtworkPlayerColors: checked(event) }); }
+  function handleFreeplayFloatersToggle(event: Event) { appearanceSettings.update({ showFreeplayFloaters: checked(event) }); }
+  function handleFreeplayFloaterSizeChange(event: Event) { appearanceSettings.update({ freeplayFloaterSize: normalizeFreeplayFloaterSize((event.currentTarget as HTMLInputElement).valueAsNumber) }); }
+  function handleFreeplayFloaterMotionChange(event: Event) { appearanceSettings.update({ freeplayFloaterMotion: normalizeFreeplayFloaterMotion((event.currentTarget as HTMLInputElement).valueAsNumber) }); }
   function handleLyricsAutoTheaterToggle(event: Event) { updateLyrics('autoTheaterInNowPlaying', event); }
   function handleLyricsAutoFocusToggle(event: Event) { updateLyrics('autoFocusInNowPlaying', event); }
   function handleNowPlayingPanelAutoHideChange(event: Event) {
@@ -62,6 +69,43 @@
             checked={$appearanceSettings.useNowPlayingArtworkPlayerColors}
             on:change={handleNowPlayingArtworkPlayerColorsToggle}
           />
+      </SettingsField>
+
+      <SettingsField
+        title={$t('options.nowPlaying.freeplayFloaters.title', { default: 'Freeplay floaters' })}
+        hint={$t('options.nowPlaying.freeplayFloaters.hint', { default: 'Shows connected Freeplay listeners and what they are playing around the edges of Now Playing.' })}
+        checkbox
+      >
+          <input
+            type="checkbox"
+            checked={$appearanceSettings.showFreeplayFloaters}
+            disabled={!$multiplayerSettings.multiplayerFreeplay}
+            on:change={handleFreeplayFloatersToggle}
+          />
+      </SettingsField>
+
+      <SettingsField
+        title={$t('options.nowPlaying.freeplayFloaterSize.title', { default: 'Freeplay floater size' })}
+        hint={$t('options.nowPlaying.freeplayFloaterSize.hint', { default: 'Scales the floating client cards without changing the rest of Now Playing.' })}
+        advanced
+      >
+          <input type="range" min={MIN_FREEPLAY_FLOATER_SIZE} max={MAX_FREEPLAY_FLOATER_SIZE} step="1"
+            value={$appearanceSettings.freeplayFloaterSize}
+            disabled={!$multiplayerSettings.multiplayerFreeplay || !$appearanceSettings.showFreeplayFloaters}
+            on:input={handleFreeplayFloaterSizeChange} />
+          <span class="field-output">{$appearanceSettings.freeplayFloaterSize}%</span>
+      </SettingsField>
+
+      <SettingsField
+        title={$t('options.nowPlaying.freeplayFloaterMotion.title', { default: 'Freeplay buoyancy' })}
+        hint={$t('options.nowPlaying.freeplayFloaterMotion.hint', { default: 'Controls how far cards gently drift and tilt. Set it to zero for still water.' })}
+        advanced
+      >
+          <input type="range" min={MIN_FREEPLAY_FLOATER_MOTION} max={MAX_FREEPLAY_FLOATER_MOTION} step="1"
+            value={$appearanceSettings.freeplayFloaterMotion}
+            disabled={!$multiplayerSettings.multiplayerFreeplay || !$appearanceSettings.showFreeplayFloaters}
+            on:input={handleFreeplayFloaterMotionChange} />
+          <span class="field-output">{$appearanceSettings.freeplayFloaterMotion}%</span>
       </SettingsField>
 
       <SettingsField

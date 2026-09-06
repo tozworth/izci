@@ -2,6 +2,7 @@
   import type { ArtworkPresentationState } from '$lib/services/artwork-presentation';
   import { WORKSPACE_RESIZER_WIDTH } from '$lib/services/workspace-layout';
   import type { WorkspaceShellState } from '$lib/services/workspace-shell';
+  import type { MultiplayerClient } from '$lib/services/multiplayer-types';
   import type {
     AppearanceSettings,
     BackdropZoneArtworkSettingsMap,
@@ -29,6 +30,8 @@
   export let selectedTrackItem: TrackItem | null;
   export let artworkState: ArtworkPresentationState;
   export let appearance: AppearanceSettings;
+  export let multiplayerFreeplayEnabled = false;
+  export let multiplayerClients: MultiplayerClient[] = [];
   export let artworkBackgroundBrightByZone: Record<'nowPlaying', boolean> &
     Partial<Record<WorkspacePanelId, boolean>>;
   export let workspaceZoneArtworkBright: Record<WorkspacePanelId, boolean>;
@@ -72,6 +75,10 @@
     workspaceTabs={workspaceState.workspaceTabs}
     panelAutoHideDelaySeconds={appearance.nowPlayingPanelAutoHideDelaySeconds}
     alwaysUseArtworkPlayerColors={appearance.useNowPlayingArtworkPlayerColors}
+    freeplayClients={multiplayerClients}
+    showFreeplayFloaters={multiplayerFreeplayEnabled && appearance.showFreeplayFloaters}
+    freeplayFloaterSize={appearance.freeplayFloaterSize}
+    freeplayFloaterMotion={appearance.freeplayFloaterMotion}
     on:close={onCloseNowPlaying}
     on:chromeHiddenChange={(event) => onChromeHiddenChange(event.detail)}
     on:tabChange={(event) => onTabChange(event.detail)}

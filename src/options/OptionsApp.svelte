@@ -149,6 +149,11 @@
         advancedTweaksModified =
           $appearanceSettings.lyrics.theaterDowntimeThresholdSeconds !== DEFAULT_APPEARANCE_SETTINGS.lyrics.theaterDowntimeThresholdSeconds;
         break;
+      case 'now-playing':
+        advancedTweaksModified =
+          $appearanceSettings.freeplayFloaterSize !== DEFAULT_APPEARANCE_SETTINGS.freeplayFloaterSize ||
+          $appearanceSettings.freeplayFloaterMotion !== DEFAULT_APPEARANCE_SETTINGS.freeplayFloaterMotion;
+        break;
       case 'playback':
         advancedTweaksModified =
           $playbackSettings.rememberProgressDurationIndex !== DEFAULT_PLAYBACK_SETTINGS.rememberProgressDurationIndex ||
