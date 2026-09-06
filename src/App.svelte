@@ -857,6 +857,8 @@
     {selectedTrackItem}
     artworkState={artworkPresentationState}
     appearance={$appearanceSettings}
+    multiplayerFreeplayEnabled={$multiplayerSettings.multiplayerFreeplay}
+    multiplayerClients={multiplayerState.clients}
     {isNowPlayingLayoutActive}
     artworkBackgroundBrightByZone={backdropPresentation.artworkBackgroundBrightByZone}
     workspaceZoneArtworkBright={backdropPresentation.workspaceZoneArtworkBright}

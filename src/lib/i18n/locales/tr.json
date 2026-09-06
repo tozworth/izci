@@ -1055,6 +1055,18 @@
         "title": "Her zaman albüm renklerini kullan",
         "hint": "Odaklanan oynatıcı kontrollerini albüm resmi renklerini kullanmaya zorlar. Kapalıysa ana oynatıcı ayarını izler."
       },
+      "freeplayFloaters": {
+        "title": "Freeplay yüzgeçleri",
+        "hint": "Bağlı Freeplay dinleyicilerini ve çaldıkları parçaları Şimdi Yürütülüyor'un kenarlarında gösterir."
+      },
+      "freeplayFloaterSize": {
+        "title": "Freeplay yüzgeci boyutu",
+        "hint": "Şimdi Yürütülüyor'un geri kalanını değiştirmeden yüzen istemci kartlarını ölçeklendirir."
+      },
+      "freeplayFloaterMotion": {
+        "title": "Freeplay kaldırma kuvveti",
+        "hint": "Kartların ne kadar nazikçe sürüklenip eğileceğini ayarlar. Durgun su için sıfıra getirin."
+      },
       "autoTheater": {
         "title": "Sözleri otomatik olarak Sinema moduna al",
         "hint": "Şimdi Yürütülüyor açıkken büyük ve odaklı söz düzenini kullanır."

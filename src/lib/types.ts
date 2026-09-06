@@ -421,6 +421,9 @@ export interface AppearanceSettings {
   nowPlayingViewActive: boolean;
   autoNowPlayingOnMaximized: boolean;
   nowPlayingPanelAutoHideDelaySeconds: number;
+  showFreeplayFloaters: boolean;
+  freeplayFloaterSize: number;
+  freeplayFloaterMotion: number;
   showTrackTitleInWindowTitle: boolean;
 }
 

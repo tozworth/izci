@@ -149,6 +149,11 @@ export async function syncPeerFreeplayMode(ctx: MultiplayerHostContext, peer: Pe
     peer.freeplayArtworkResolvedTrackKey = '';
     peer.freeplayArtworkLoadToken += 1;
     peer.sourceTrackKey = '';
+    core.updateClient(peer.id, {
+      freeplayTrack: null,
+      freeplayPlaybackState: 'idle',
+      freeplayArtworkUrl: null
+    });
     if (peer.renderState) {
       multiplayerRenderCoordinator.unpin(peer.renderState.key);
       peer.renderState = null;
@@ -403,6 +408,7 @@ function syncFreeplayPlayerUpdate(
   peer: PeerConnection,
   update: MultiplayerFreeplayPlayerUpdate
 ): void {
+  const { core } = ctx;
   if (!peer.freeplay || peer.channel?.readyState !== 'open') return;
   const delivery = ensureFreeplayDelivery(peer, update.delivery);
   sendToPeer(peer, { kind: 'delivery', delivery });
@@ -411,9 +417,18 @@ function syncFreeplayPlayerUpdate(
     generationId: delivery.generationId,
     track: update.playback.track ? sanitizeTrackItem(update.playback.track) : null
   };
+  const currentArtwork = peer.freeplayArtwork;
+  const currentArtworkUrl = currentArtwork && currentArtwork.trackId === playback.track?.id
+    ? currentArtwork.dataUrl
+    : null;
+  core.updateClient(peer.id, {
+    freeplayTrack: playback.track,
+    freeplayPlaybackState: playback.snapshot.state,
+    freeplayArtworkUrl: currentArtworkUrl
+  });
   sendToPeer(peer, { kind: 'playback', playback });
   syncPeerMediaSource(ctx, peer);
-  syncFreeplayArtwork(peer, peer.freeplayPlayer?.track ?? null);
+  syncFreeplayArtwork(ctx, peer, peer.freeplayPlayer?.track ?? null);
 }
 
 export function ensureFreeplayDelivery(
@@ -659,7 +674,11 @@ export function sendFreeplayState(peer: PeerConnection): void {
   });
 }
 
-function syncFreeplayArtwork(peer: PeerConnection, track: TrackItem | null): void {
+function syncFreeplayArtwork(
+  ctx: MultiplayerHostContext,
+  peer: PeerConnection,
+  track: TrackItem | null
+): void {
   const nextTrackKey = getMultiplayerArtworkTrackKey(track);
   if (nextTrackKey === peer.freeplayArtworkTrackKey) return;
   peer.freeplayArtworkTrackKey = nextTrackKey;
@@ -668,6 +687,7 @@ function syncFreeplayArtwork(peer: PeerConnection, track: TrackItem | null): voi
   const loadToken = ++peer.freeplayArtworkLoadToken;
   if (!track) {
     peer.freeplayArtworkResolvedTrackKey = nextTrackKey;
+    ctx.core.updateClient(peer.id, { freeplayArtworkUrl: null });
     sendToPeer(peer, { kind: 'artwork', artwork: null });
     return;
   }
@@ -677,11 +697,13 @@ function syncFreeplayArtwork(peer: PeerConnection, track: TrackItem | null): voi
       || peer.freeplayArtworkTrackKey !== nextTrackKey) return;
     peer.freeplayArtwork = artwork;
     peer.freeplayArtworkResolvedTrackKey = nextTrackKey;
+    ctx.core.updateClient(peer.id, { freeplayArtworkUrl: artwork?.dataUrl ?? null });
     sendToPeer(peer, { kind: 'artwork', artwork });
   }).catch(() => {
     if (!peer.freeplay || loadToken !== peer.freeplayArtworkLoadToken) return;
     peer.freeplayArtwork = null;
     peer.freeplayArtworkResolvedTrackKey = nextTrackKey;
+    ctx.core.updateClient(peer.id, { freeplayArtworkUrl: null });
     sendToPeer(peer, { kind: 'artwork', artwork: null });
   });
 }

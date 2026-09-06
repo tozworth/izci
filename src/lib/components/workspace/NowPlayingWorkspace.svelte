@@ -8,6 +8,7 @@
     NOW_PLAYING_PANEL_AUTO_HIDE_NEVER_SECONDS
   } from '$lib/stores/appearance-settings';
   import type { LoadedStreamArtwork } from '$lib/services/stream-artwork';
+  import type { MultiplayerClient } from '$lib/services/multiplayer-types';
   import type {
     BackdropZoneEffect,
     BackdropZoneArtworkSettings,
@@ -17,6 +18,7 @@
   import { nowPlayingState, moveNowPlayingTab, type FlyoutSide } from '$lib/stores/now-playing-state';
   import { createNowPlayingLyrics } from '$lib/services/now-playing-lyrics';
   import NowPlayingFlyout from './NowPlayingFlyout.svelte';
+  import FreeplayFloaters from './FreeplayFloaters.svelte';
   import WorkspaceTabContent from './WorkspaceTabContent.svelte';
   import type {
     WorkspaceTabContentProps,
@@ -36,6 +38,10 @@
   export let workspaceTabs: WorkspaceTabDefinition[] = [];
   export let panelAutoHideDelaySeconds = 5;
   export let alwaysUseArtworkPlayerColors = false;
+  export let freeplayClients: MultiplayerClient[] = [];
+  export let showFreeplayFloaters = false;
+  export let freeplayFloaterSize = 100;
+  export let freeplayFloaterMotion = 35;
 
   const dispatch = createEventDispatcher<{
     close: void;
@@ -160,6 +166,14 @@
     >
       <span class="material-symbols-outlined" aria-hidden="true">close</span>
     </button>
+
+    {#if showFreeplayFloaters}
+      <FreeplayFloaters
+        clients={freeplayClients}
+        size={freeplayFloaterSize}
+        motion={freeplayFloaterMotion}
+      />
+    {/if}
 
     <div class="now-playing-stage-shell" class:left-pinned={$nowPlayingState.leftPinned && leftTabs.length > 0} class:right-pinned={$nowPlayingState.rightPinned && rightTabs.length > 0}>
     <div class="now-playing-layout" class:has-context={stageTab !== null} class:has-patterns={stageTab === 'patterns'}>

@@ -60,6 +60,9 @@ export interface MultiplayerClient {
   paired: boolean;
   freeplayPaired: boolean;
   freeplay: boolean;
+  freeplayTrack: TrackItem | null;
+  freeplayPlaybackState: PlaybackSnapshot['state'];
+  freeplayArtworkUrl: string | null;
 }
 
 /** Per-peer buffered Opus delivery state (host side). */
