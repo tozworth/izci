@@ -91,6 +91,13 @@ describe('multiplayer chat', () => {
     });
   });
 
+  it('parses /clear as a host-only command without a message body', () => {
+    expect(parseMultiplayerChatCommand('  /CLEAR  ')).toEqual({
+      text: '',
+      action: 'clear'
+    });
+  });
+
   it('creates typed join and leave notices', () => {
     expect(createMultiplayerChatNotice('client123', 'join', 123))
       .toMatchObject({ name: 'client123', text: 'joined', action: 'join', sentAt: 123 });

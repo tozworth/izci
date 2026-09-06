@@ -179,6 +179,7 @@ export function attachClientChannel(ctx: MultiplayerClientContext, peer: PeerCon
     }
     if (message.kind === 'chat.message') multiplayerChat.append(message.message);
     if (message.kind === 'chat.history') multiplayerChat.mergeHistory(message.messages);
+    if (message.kind === 'chat.clear') multiplayerChat.clear();
     if (message.kind === 'render.manifest') {
       multiplayerRenderPlaybackService.updateWindowMs(
         core.hostAudioBufferMs ?? core.multiplayerSettings.multiplayerAudioBufferMs

@@ -109,7 +109,7 @@ export function createMultiplayerSession({
 
   const host = createMultiplayerHostSide(core, {
     handleHostCommand,
-    handleChatMessage: (text, client) => handleChatMessage(text, client),
+    handleChatMessage: (text, client, track) => handleChatMessage(text, client, track),
     handleChatPresence: (name, action) => handleChatPresence(name, action),
     pauseHostPlayback,
     resumeHostPlayback
@@ -124,6 +124,7 @@ export function createMultiplayerSession({
     if (core.state.mode !== 'hosting') return;
     const command = parseMultiplayerChatCommand(text);
     if (!command) return;
+    if (command.action === 'clear') return;
     const resolvedTrack = track ? resolveChatTrackLink(track) : undefined;
     if (command.action === 'now-playing' && !resolvedTrack) return;
     const message = createMultiplayerChatMessage(
@@ -201,6 +202,13 @@ export function createMultiplayerSession({
       || core.state.connectionStatus !== 'connected') return false;
 
     if (core.state.mode === 'hosting') {
+      if (command.action === 'clear') {
+        multiplayerChat.clear();
+        for (const peer of core.hostPeers.values()) {
+          if (peer.channel?.readyState === 'open') sendToPeer(peer, { kind: 'chat.clear' });
+        }
+        return true;
+      }
       handleChatMessage(normalizedText, { id: 'host', name: getLocalName() }, track);
       return true;
     }
