@@ -102,6 +102,8 @@
     motd={content.chatMotd}
     motdHostName={content.chatMotdHostName}
     sendMessage={content.sendChatMessage}
+    sendNowPlaying={content.sendChatNowPlaying}
+    nowPlayingTrack={content.chatNowPlayingTrack}
     activateTrack={content.activateChatTrack}
     connected={content.chatConnected}
   />

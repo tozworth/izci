@@ -4,7 +4,8 @@ import {
   createMultiplayerChatNotice,
   multiplayerChat,
   normalizeMultiplayerChatText,
-  parseMultiplayerChatCommand
+  parseMultiplayerChatCommand,
+  resolveMultiplayerChatTrackLink
 } from './multiplayer-chat';
 
 afterEach(() => multiplayerChat.clear());
@@ -25,6 +26,26 @@ describe('multiplayer chat', () => {
       text: 'Song',
       track: { collection: 'library', itemId: 'track', title: 'Song' }
     });
+    expect(resolveMultiplayerChatTrackLink({
+      id: 'track',
+      name: 'fallback-name.flac',
+      extension: 'flac',
+      kind: 'stream',
+      size: 1,
+      lastModified: 1,
+      metadata: { title: 'Song' }
+    }, [
+      { collection: 'queue', items: [] },
+      { collection: 'library', items: [{
+        id: 'track',
+        name: 'fallback-name.flac',
+        extension: 'flac',
+        kind: 'stream',
+        size: 1,
+        lastModified: 1,
+        metadata: { title: 'Song' }
+      }] }
+    ])).toEqual({ collection: 'library', itemId: 'track', title: 'Song' });
   });
 
   it('deduplicates live messages and merges room history', () => {
@@ -49,6 +70,25 @@ describe('multiplayer chat', () => {
     expect(parseMultiplayerChatCommand('/me')).toBeNull();
     expect(createMultiplayerChatMessage('Host', 'waves', 123, undefined, 'me'))
       .toMatchObject({ action: 'me', text: 'waves' });
+  });
+
+  it('parses /np as a now-playing command without a message body', () => {
+    expect(parseMultiplayerChatCommand('  /NP  ')).toEqual({
+      text: '',
+      action: 'now-playing'
+    });
+    expect(parseMultiplayerChatCommand('/np After Dark')).toEqual({
+      text: '/np After Dark'
+    });
+    expect(createMultiplayerChatMessage('client123', 'After Dark', 123, {
+      collection: 'queue',
+      itemId: 'track',
+      title: 'After Dark'
+    }, 'now-playing')).toMatchObject({
+      action: 'now-playing',
+      text: 'After Dark',
+      track: { title: 'After Dark' }
+    });
   });
 
   it('creates typed join and leave notices', () => {

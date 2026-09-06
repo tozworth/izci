@@ -6,11 +6,14 @@
     MultiplayerChatMessage,
     MultiplayerChatTrackLink
   } from '$lib/services/multiplayer-protocol';
+  import { parseMultiplayerChatCommand } from '$lib/services/multiplayer-chat';
 
   export let messages: Readable<MultiplayerChatMessage[]>;
   export let motd = '';
   export let motdHostName: string | null = null;
   export let sendMessage: (text: string) => boolean;
+  export let sendNowPlaying: (track: MultiplayerChatTrackLink) => boolean = () => false;
+  export let nowPlayingTrack: MultiplayerChatTrackLink | null = null;
   export let activateTrack: (track: MultiplayerChatTrackLink) => void = () => undefined;
   export let connected = false;
 
@@ -18,7 +21,12 @@
   let messageList: HTMLDivElement;
 
   function submit(): void {
-    if (!connected || !sendMessage(input)) return;
+    if (!connected) return;
+    const command = parseMultiplayerChatCommand(input);
+    const sent = command?.action === 'now-playing'
+      ? Boolean(nowPlayingTrack && sendNowPlaying(nowPlayingTrack))
+      : sendMessage(input);
+    if (!sent) return;
     input = '';
   }
 
@@ -56,7 +64,26 @@
           class:chat-action={message.action === 'me'}
           class:chat-notice={message.action === 'join' || message.action === 'leave'}
         >
-          {#if message.action === 'me'}
+          {#if message.action === 'now-playing' && message.track}
+            <span class="chat-name">{message.name}</span>
+            <span class="chat-text">{$t('main.multiplayer.chatNowPlaying', { default: 'is listening to' })}</span>
+            <button
+              class="chat-track-link"
+              type="button"
+              aria-label={$t('main.multiplayer.chatPlayTrack', {
+                default: 'Play {title}',
+                values: { title: message.track.title }
+              })}
+              title={$t('main.multiplayer.chatPlayTrack', {
+                default: 'Play {title}',
+                values: { title: message.track.title }
+              })}
+              on:click={() => activateTrack(message.track!)}
+            >
+              <span class="material-symbols-outlined" aria-hidden="true">music_note</span>
+              <span class="chat-track-title">{message.track.title}</span>
+            </button>
+          {:else if message.action === 'me'}
             <span class="chat-action-prefix" aria-hidden="true">*</span>
             <span class="chat-name">{message.name}</span>
             <span class="chat-text">{message.text}</span>

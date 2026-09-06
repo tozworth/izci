@@ -125,12 +125,15 @@ export function createMultiplayerSession({
     const command = parseMultiplayerChatCommand(text);
     if (!command) return;
     const resolvedTrack = track ? resolveChatTrackLink(track) : undefined;
+    if (command.action === 'now-playing' && !resolvedTrack) return;
     const message = createMultiplayerChatMessage(
       client.name,
       resolvedTrack?.title ?? command.text,
       Date.now(),
       resolvedTrack,
-      resolvedTrack ? undefined : command.action
+      command.action === 'now-playing'
+        ? 'now-playing'
+        : resolvedTrack ? undefined : command.action
     );
     if (!message.text) return;
     multiplayerChat.append(message);
@@ -182,13 +185,19 @@ export function createMultiplayerSession({
     return sendChatPayload(text);
   }
 
+  function sendChatNowPlaying(track: MultiplayerChatTrackLink): boolean {
+    return sendChatPayload('/np', track);
+  }
+
   function sendChatTrack(track: MultiplayerChatTrackLink): boolean {
     return sendChatPayload(track.title, track);
   }
 
   function sendChatPayload(text: string, track?: MultiplayerChatTrackLink): boolean {
     const normalizedText = normalizeMultiplayerChatText(text);
-    if (!parseMultiplayerChatCommand(normalizedText)
+    const command = parseMultiplayerChatCommand(normalizedText);
+    if (!command
+      || (command.action === 'now-playing' && !track)
       || core.state.connectionStatus !== 'connected') return false;
 
     if (core.state.mode === 'hosting') {
@@ -390,6 +399,7 @@ export function createMultiplayerSession({
     togglePairing: (clientId) => host.togglePairing(clientId),
     sendCommand: (command) => client.sendCommand(command),
     sendChatMessage,
+    sendChatNowPlaying,
     sendChatTrack,
     setFreeplayQueue: (itemIds) => client.setFreeplayQueue(itemIds),
     cancelPendingPlayback: () => host.cancelPendingPlayback(),

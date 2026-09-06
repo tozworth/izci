@@ -271,7 +271,22 @@ describe('multiplayer protocol', () => {
     })).toBe(true);
     expect(isHostMessage({
       kind: 'chat.message',
-      message: { id: 'four', name: 'Host', text: 'waves', sentAt: 1, action: 'shrug' }
+      message: {
+        id: 'four',
+        name: 'client123',
+        text: 'After Dark',
+        sentAt: 1,
+        action: 'now-playing',
+        track: { collection: 'queue', itemId: 'track', title: 'After Dark' }
+      }
+    })).toBe(true);
+    expect(isHostMessage({
+      kind: 'chat.message',
+      message: { id: 'five', name: 'Host', text: 'waves', sentAt: 1, action: 'shrug' }
+    })).toBe(false);
+    expect(isHostMessage({
+      kind: 'chat.message',
+      message: { id: 'six', name: 'client123', text: 'After Dark', sentAt: 1, action: 'now-playing' }
     })).toBe(false);
   });
 

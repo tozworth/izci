@@ -301,6 +301,7 @@ export interface MultiplayerSessionController extends Readable<MultiplayerSessio
   togglePairing(clientId: string): Promise<void>;
   sendCommand(command: MultiplayerCommandInput): boolean;
   sendChatMessage(text: string): boolean;
+  sendChatNowPlaying(track: MultiplayerChatTrackLink): boolean;
   sendChatTrack(track: MultiplayerChatTrackLink): boolean;
   setFreeplayQueue(itemIds: string[]): void;
   cancelPendingPlayback(): boolean;
