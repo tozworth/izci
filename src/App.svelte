@@ -62,6 +62,7 @@
   import { type OptionsViewName } from './options/views';
   import { getFavoriteIdentity } from '$lib/utils/files';
   import {
+    buildFreeplayQueueContextActions,
     favoritesHaveAllTracks
   } from '$lib/services/workspace-actions';
   import { multiplayerSettings } from '$lib/stores/multiplayer-settings';
@@ -296,6 +297,7 @@
     lyricsTheaterSmoothScroll: $appearanceSettings.lyrics.theaterSmoothScroll,
     chatMessages: multiplayerChat,
     sendChatMessage: (text: string) => multiplayerSession.sendChatMessage(text),
+    activateChatTrack: (track) => { void multiplayerController.activateChatTrack(track); },
     chatConnected: multiplayerState.mode !== 'idle'
       && multiplayerState.connectionStatus === 'connected'
   } satisfies WorkspaceTabContentProps;
@@ -425,10 +427,26 @@
   $: upNextPanelProps = {
     items: upNextDisplayItems,
     playingId: playingTrack?.id ?? null,
-    getContextMenuActions: (ids: string[]) =>
-      isFreeplayClient || isMultiplayerClient
-        ? [{ id: 'remove-from-up-next', label: 'Remove from up next', icon: 'remove' }]
-        : workspaceCollections.getUpNextContextActions(ids)
+    getContextMenuActions: (ids: string[]) => {
+      const chatOpen = multiplayerState.mode !== 'idle'
+        && multiplayerState.connectionStatus === 'connected'
+        && workspaceShellState.workspaceTabs.some((tab) => tab.id === 'chat');
+      if (isFreeplayClient) {
+        return buildFreeplayQueueContextActions(queueItems, libraryItems, ids, chatOpen)
+          .map((action) => action.id === 'remove'
+            ? { ...action, id: 'remove-from-up-next', label: 'Remove from up next', icon: 'remove', shortcut: undefined }
+            : action);
+      }
+      if (isMultiplayerClient) {
+        return [
+          ...(chatOpen && ids.length === 1
+            ? [{ id: 'send-to-chat', label: 'Send to chat', icon: 'chat', separatorBefore: true }]
+            : []),
+          { id: 'remove-from-up-next', label: 'Remove from up next', icon: 'remove' }
+        ];
+      }
+      return workspaceCollections.getUpNextContextActions(ids, chatOpen);
+    }
   } satisfies UpNextPanelProps;
   $: {
     const selectionSync = resolveMultiplayerPlayingTrackSelection(

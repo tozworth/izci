@@ -1,5 +1,5 @@
 import { writable } from 'svelte/store';
-import type { MultiplayerSettings } from '$lib/types';
+import type { MultiplayerSettings, TrackItem } from '$lib/types';
 import { multiplayerSettings } from '$lib/stores/multiplayer-settings';
 import { multiplayerLastSession } from '$lib/stores/multiplayer-last-session';
 import { logDebug, logWarning } from '$lib/services/logging';
@@ -9,6 +9,7 @@ import { multiplayerRenderPlaybackService } from './multiplayer-render-playback'
 import { multiplayerRenderCoordinator } from './multiplayer-render-coordinator';
 import { disposePeerConnection, sendToPeer } from './multiplayer-peer';
 import { getLocalName, readReceiveAudioPreference } from './multiplayer-utils';
+import { getTrackDisplayTitle } from '$lib/utils/files';
 import {
   createMultiplayerChatMessage,
   multiplayerChat,
@@ -25,6 +26,10 @@ import {
   type MultiplayerSessionCore,
   type MultiplayerSessionState
 } from './multiplayer-types';
+import type {
+  MultiplayerChatTrackLink,
+  MultiplayerCollection
+} from './multiplayer-protocol';
 
 export function createMultiplayerSession({
   handleHostCommand,
@@ -110,10 +115,17 @@ export function createMultiplayerSession({
 
   function handleChatMessage(
     text: string,
-    client: Pick<MultiplayerSessionState['clients'][number], 'id' | 'name'>
+    client: Pick<MultiplayerSessionState['clients'][number], 'id' | 'name'>,
+    track?: MultiplayerChatTrackLink
   ): void {
     if (core.state.mode !== 'hosting') return;
-    const message = createMultiplayerChatMessage(client.name, text);
+    const resolvedTrack = track ? resolveChatTrackLink(track) : undefined;
+    const message = createMultiplayerChatMessage(
+      client.name,
+      resolvedTrack?.title ?? text,
+      Date.now(),
+      resolvedTrack
+    );
     if (!message.text) return;
     multiplayerChat.append(message);
     for (const peer of core.hostPeers.values()) {
@@ -122,17 +134,54 @@ export function createMultiplayerSession({
     }
   }
 
+  function resolveChatTrackLink(track: MultiplayerChatTrackLink): MultiplayerChatTrackLink | undefined {
+    if (!core.latestHostState) return undefined;
+    const collections = Array.from(new Set<MultiplayerCollection>([
+      track.collection,
+      'queue',
+      'library',
+      'favorites'
+    ]));
+    let source: TrackItem | undefined;
+    let collection: MultiplayerCollection | undefined;
+    for (const candidate of collections) {
+      source = core.latestHostState[candidate].find((item) => item.id === track.itemId);
+      if (source) {
+        collection = candidate;
+        break;
+      }
+    }
+    if (!source || !collection) return undefined;
+    return {
+      collection,
+      itemId: source.id,
+      title: getTrackDisplayTitle(source) || source.name
+    };
+  }
+
   function sendChatMessage(text: string): boolean {
+    return sendChatPayload(text);
+  }
+
+  function sendChatTrack(track: MultiplayerChatTrackLink): boolean {
+    return sendChatPayload(track.title, track);
+  }
+
+  function sendChatPayload(text: string, track?: MultiplayerChatTrackLink): boolean {
     const normalizedText = normalizeMultiplayerChatText(text);
     if (!normalizedText
       || core.state.connectionStatus !== 'connected') return false;
 
     if (core.state.mode === 'hosting') {
-      handleChatMessage(normalizedText, { id: 'host', name: getLocalName() });
+      handleChatMessage(normalizedText, { id: 'host', name: getLocalName() }, track);
       return true;
     }
     if (core.state.mode !== 'client' || !core.clientPeer) return false;
-    sendToPeer(core.clientPeer, { kind: 'chat.send', text: normalizedText });
+    sendToPeer(core.clientPeer, {
+      kind: 'chat.send',
+      text: normalizedText,
+      ...(track ? { track } : {})
+    });
     return true;
   }
 
@@ -320,6 +369,7 @@ export function createMultiplayerSession({
     togglePairing: (clientId) => host.togglePairing(clientId),
     sendCommand: (command) => client.sendCommand(command),
     sendChatMessage,
+    sendChatTrack,
     setFreeplayQueue: (itemIds) => client.setFreeplayQueue(itemIds),
     cancelPendingPlayback: () => host.cancelPendingPlayback(),
     resumeAudio: () => client.resumeAudio(),

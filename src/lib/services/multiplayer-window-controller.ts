@@ -2,7 +2,10 @@ import type {
   MultiplayerSessionController,
   MultiplayerSessionState
 } from '$lib/services/multiplayer-types';
-import type { MultiplayerCommand } from '$lib/services/multiplayer-protocol';
+import type {
+  MultiplayerChatTrackLink,
+  MultiplayerCommand
+} from '$lib/services/multiplayer-protocol';
 import { logError } from '$lib/services/logging';
 import type { MultiplayerLastSession } from '$lib/stores/multiplayer-last-session';
 import { consumeInviteLinkHash, buildInviteLink } from '$lib/services/multiplayer-invite-link';
@@ -228,6 +231,39 @@ export function createMultiplayerWindowController(deps: MultiplayerWindowControl
     return true;
   }
 
+  async function activateChatTrack(track: MultiplayerChatTrackLink): Promise<void> {
+    if (!state || state.connectionStatus !== 'connected') return;
+    if (state.mode === 'client') {
+      if (state.freeplay
+        && track.collection === 'queue'
+        && !state.freeplayQueue.includes(track.itemId)) {
+        deps.getSession().setFreeplayQueue([...state.freeplayQueue, track.itemId]);
+      }
+      deps.getSession().sendCommand({
+        type: 'collection.activate',
+        collection: track.collection,
+        itemId: track.itemId
+      });
+      return;
+    }
+    if (state.mode !== 'hosting') return;
+
+    const items = track.collection === 'queue'
+      ? deps.getQueueItems()
+      : track.collection === 'favorites'
+        ? deps.getFavoriteItems()
+        : deps.getLibraryItems();
+    const source = items.find((item) => item.id === track.itemId);
+    if (!source) return;
+    if (track.collection === 'queue') {
+      await deps.getPlaybackCommands().activateQueueTrack(source.id);
+    } else if (track.collection === 'favorites') {
+      await deps.getPlaybackCommands().activateFavoriteTrack(source);
+    } else {
+      await deps.getPlaybackCommands().activateLibraryTrack(source.id);
+    }
+  }
+
   function syncFromSession(value: MultiplayerSessionState): MultiplayerSessionSync {
     const enteredFreeplay = value.freeplay && !(state?.freeplay ?? false);
     state = value;
@@ -404,6 +440,7 @@ export function createMultiplayerWindowController(deps: MultiplayerWindowControl
   return {
     handleHostCommand,
     activateTrack,
+    activateChatTrack,
     syncFromSession,
     subscribe,
     prepareLaunchDialog,

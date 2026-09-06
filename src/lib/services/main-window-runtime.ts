@@ -63,6 +63,7 @@ import {
   buildFreeplayQueueContextActions
 } from '$lib/services/workspace-actions';
 import type { MultiplayerSessionController } from '$lib/services/multiplayer-types';
+import type { MultiplayerCollection } from '$lib/services/multiplayer-protocol';
 import {
   getRemoteArtworkLoadKey,
   toLoadedMultiplayerArtwork
@@ -85,6 +86,7 @@ import { createRenderBufferedPollController } from '$lib/services/multiplayer-re
 import { createMainWindowView } from '$lib/services/main-window-view';
 import { windowDisplayState } from '$lib/services/window-display-state';
 import { resolveTrackSnapshot } from '$lib/services/artwork-presentation';
+import { getTrackDisplayTitle } from '$lib/utils/files';
 import {
   createMainWindowRuntimeState,
   type MainWindowRuntimeState,
@@ -168,6 +170,12 @@ export function createMainWindowRuntime(deps: MainWindowRuntimeDeps): MainWindow
   const { state, publish, subscription } = createMainWindowRuntimeState();
   const { subscribe, getSnapshot } = subscription;
 
+  function canSendTrackToChat(): boolean {
+    return state.multiplayerState.mode !== 'idle'
+      && state.multiplayerState.connectionStatus === 'connected'
+      && state.workspaceShellState.workspaceTabs.some((tab) => tab.id === 'chat');
+  }
+
   const view = createMainWindowView();
   const viewSet = view.set;
 
@@ -188,19 +196,20 @@ export function createMainWindowRuntime(deps: MainWindowRuntimeDeps): MainWindow
   });
   const workspaceShell = createWorkspaceShellController({
     getQueueContextActions: (ids) => state.isFreeplayClient
-      ? buildFreeplayQueueContextActions(state.queueItems, state.libraryItems, ids)
-      : workspaceCollections.getQueueContextActions(ids),
+      ? buildFreeplayQueueContextActions(state.queueItems, state.libraryItems, ids, canSendTrackToChat())
+      : workspaceCollections.getQueueContextActions(ids, canSendTrackToChat()),
     getLibraryContextActions: (ids) => state.isFreeplayClient
       ? buildFreeplayLibraryContextActions(
           libraryViewSettings.getSnapshot().activeView === 'favorites'
             ? state.favoriteItems
             : state.libraryItems,
           state.libraryItems,
-          ids
+          ids,
+          canSendTrackToChat()
         )
-      : libraryViewSettings.getSnapshot().activeView === 'favorites'
-        ? workspaceCollections.getFavoriteContextActions(ids)
-        : workspaceCollections.getLibraryContextActions(ids),
+        : libraryViewSettings.getSnapshot().activeView === 'favorites'
+        ? workspaceCollections.getFavoriteContextActions(ids, canSendTrackToChat())
+        : workspaceCollections.getLibraryContextActions(ids, canSendTrackToChat()),
     collectionSelection: {
       clear: (collection) => windowSelection.clear(collection),
       select: (collection, id, options) => windowSelection.select(collection, id, options),
@@ -672,6 +681,22 @@ export function createMainWindowRuntime(deps: MainWindowRuntimeDeps): MainWindow
     workspaceShell.showTrackDetails();
   }
 
+  function sendTrackToChat(collection: MultiplayerCollection, id: string): void {
+    if (!id || !canSendTrackToChat()) return;
+    const items = collection === 'queue'
+      ? state.queueItems
+      : collection === 'favorites'
+        ? state.favoriteItems
+        : state.libraryItems;
+    const track = items.find((item) => item.id === id);
+    if (!track) return;
+    multiplayerSession.sendChatTrack({
+      collection,
+      itemId: track.id,
+      title: getTrackDisplayTitle(track) || track.name
+    });
+  }
+
   const panelHandlers = createMainWindowPanelHandlers({
     getIsMultiplayerClient: () => state.isMultiplayerClient,
     getIsFreeplayClient: () => state.isFreeplayClient,
@@ -683,6 +708,7 @@ export function createMainWindowRuntime(deps: MainWindowRuntimeDeps): MainWindow
     getActiveView: () => libraryViewSettings.getSnapshot().activeView,
     multiplayerController,
     freeplayActions,
+    sendTrackToChat,
     upNext,
     playbackCommands,
     activateLibraryPanelTrack: (id) => deps.activateLibraryPanelTrack(id),

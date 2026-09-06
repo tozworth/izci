@@ -19,7 +19,10 @@ import type {
   TrackLibraryNavigationTargets
 } from '$lib/services/library-navigation';
 import type { Readable } from 'svelte/store';
-import type { MultiplayerChatMessage } from '$lib/services/multiplayer-protocol';
+import type {
+  MultiplayerChatMessage,
+  MultiplayerChatTrackLink
+} from '$lib/services/multiplayer-protocol';
 
 export const WORKSPACE_DOCK_SCOPE = 'main-workspace';
 
@@ -106,6 +109,7 @@ export interface WorkspaceTabContentProps {
   lyricsResumeAutoScrollToken: number;
   chatMessages: Readable<MultiplayerChatMessage[]>;
   sendChatMessage: (text: string) => boolean;
+  activateChatTrack: (track: MultiplayerChatTrackLink) => void;
   chatConnected: boolean;
   videoElement: HTMLVideoElement | null;
   videoParkingHost: HTMLDivElement | null;
