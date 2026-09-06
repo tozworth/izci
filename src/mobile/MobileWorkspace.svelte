@@ -89,6 +89,7 @@
     multiplayerKick: string;
     multiplayerTogglePair: string;
     togglePatterns: void;
+    showChat: void;
     toggle: void;
     previous: void;
     next: void;
@@ -368,6 +369,7 @@
   on:openFolder={() => dispatch('openFolder')}
   on:manageFolders={() => dispatch('manageFolders')}
   on:showPatterns={() => dispatch('togglePatterns')}
+  on:showChat={() => selectTab('chat')}
   on:showVideo={() => selectTab('video')}
   on:openOptions={() => dispatch('openOptions')}
   on:openAbout={() => dispatch('openAbout')}

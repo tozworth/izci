@@ -8,11 +8,21 @@ import type {
 
 export type MultiplayerCollection = 'queue' | 'library' | 'favorites';
 
-// Version 18 adds explicit source revisions to buffered-Opus manifests so a
+export interface MultiplayerChatMessage {
+  id: string;
+  name: string;
+  text: string;
+  sentAt: number;
+}
+
+// Version 20 adds the room chat message protocol. Version 18 adds explicit
+// source revisions to buffered-Opus manifests so a
 // listener never reuses cached bytes from a replaced track.
-export const MULTIPLAYER_PROTOCOL_VERSION = 19;
+export const MULTIPLAYER_PROTOCOL_VERSION = 20;
 const MULTIPLAYER_FRAME_CHUNK_SIZE = 12_000;
 export const MULTIPLAYER_QUEUE_MAX_ITEMS = 50_000;
+export const MULTIPLAYER_CHAT_MAX_MESSAGES = 200;
+export const MULTIPLAYER_CHAT_MAX_MESSAGE_LENGTH = 500;
 const MULTIPLAYER_RENDER_MAX_CLUSTERS = 200_000;
 const MULTIPLAYER_RENDER_MAX_TOTAL_BYTES = 8 * 1024 * 1024 * 1024;
 export const MULTIPLAYER_RENDER_MAX_RANGES = 100_000;
@@ -143,11 +153,14 @@ export type HostMessage =
   | { kind: 'buffer'; bufferMs: number }
   | { kind: 'render.manifest'; manifest: MultiplayerRenderManifest }
   | { kind: 'artwork'; artwork: MultiplayerArtwork | null }
+  | { kind: 'chat.message'; message: MultiplayerChatMessage }
+  | { kind: 'chat.history'; messages: MultiplayerChatMessage[] }
   | { kind: 'ack'; commandId: string; accepted: boolean; message?: string }
   | { kind: 'kicked' };
 
 export type ClientMessage =
   | { kind: 'hello'; version: number; name: string; platform: string; freeplayEnabled: boolean }
+  | { kind: 'chat.send'; text: string }
   | { kind: 'freeplay.preference'; enabled: boolean }
   | {
       kind: 'freeplay.queue';
@@ -364,7 +377,33 @@ export function isHostMessage(value: unknown): value is HostMessage {
   if (message.kind === 'artwork') {
     return message.artwork === null || isMultiplayerArtwork(message.artwork);
   }
+  if (message.kind === 'chat.message') {
+    return isMultiplayerChatMessage(message.message);
+  }
+  if (message.kind === 'chat.history') {
+    return Array.isArray(message.messages)
+      && message.messages.length <= MULTIPLAYER_CHAT_MAX_MESSAGES
+      && message.messages.every(isMultiplayerChatMessage);
+  }
   return false;
+}
+
+export function isMultiplayerChatMessage(value: unknown): value is MultiplayerChatMessage {
+  if (!value || typeof value !== 'object') return false;
+  const message = value as Partial<MultiplayerChatMessage>;
+  return typeof message.id === 'string'
+    && message.id.length > 0
+    && message.id.length <= 80
+    && typeof message.name === 'string'
+    && message.name.length > 0
+    && message.name.length <= 48
+    && typeof message.text === 'string'
+    && message.text.length > 0
+    && message.text.length <= MULTIPLAYER_CHAT_MAX_MESSAGE_LENGTH
+    && !/[\u0000-\u001f\u007f]/.test(message.name)
+    && !/[\u0000-\u001f\u007f]/.test(message.text)
+    && typeof message.sentAt === 'number'
+    && Number.isFinite(message.sentAt);
 }
 
 function isRenderManifest(value: unknown): value is MultiplayerRenderManifest {

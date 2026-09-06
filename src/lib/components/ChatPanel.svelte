@@ -1,0 +1,174 @@
+<script lang="ts">
+  import { afterUpdate } from 'svelte';
+  import { t } from 'svelte-i18n';
+  import type { Readable } from 'svelte/store';
+  import type { MultiplayerChatMessage } from '$lib/services/multiplayer-protocol';
+
+  export let messages: Readable<MultiplayerChatMessage[]>;
+  export let sendMessage: (text: string) => boolean;
+  export let connected = false;
+
+  let input = '';
+  let messageList: HTMLDivElement;
+
+  function submit(): void {
+    if (!connected || !sendMessage(input)) return;
+    input = '';
+  }
+
+  function formatTimestamp(sentAt: number): string {
+    return new Intl.DateTimeFormat(undefined, {
+      hour: 'numeric',
+      minute: '2-digit'
+    }).format(sentAt);
+  }
+
+  afterUpdate(() => {
+    if (messageList) messageList.scrollTop = messageList.scrollHeight;
+  });
+</script>
+
+<section class="chat-panel" aria-label={$t('main.multiplayer.chatLabel', { default: 'Multiplayer chat' })}>
+  <div class="chat-messages" bind:this={messageList} role="log" aria-live="polite" aria-relevant="additions">
+    {#if $messages.length === 0}
+      <p class="chat-empty">{$t('main.multiplayer.chatEmpty', { default: 'No messages yet.' })}</p>
+    {:else}
+      {#each $messages as message (message.id)}
+        <div class="chat-line">
+          <span class="chat-name">{message.name}</span>
+          <span class="chat-colon" aria-hidden="true">:</span>
+          <span class="chat-text">{message.text}</span>
+          <time class="chat-time" datetime={new Date(message.sentAt).toISOString()}>{formatTimestamp(message.sentAt)}</time>
+        </div>
+      {/each}
+    {/if}
+  </div>
+
+  <form class="chat-compose" on:submit|preventDefault={submit}>
+    <input
+      bind:value={input}
+      type="text"
+      maxlength="500"
+      autocomplete="off"
+      disabled={!connected}
+      placeholder={$t('main.multiplayer.chatPlaceholder', { default: 'Message' })}
+      aria-label={$t('main.multiplayer.chatInput', { default: 'Chat message' })}
+    />
+    <button
+      type="submit"
+      disabled={!connected || input.trim().length === 0}
+      aria-label={$t('main.multiplayer.chatSend', { default: 'Send' })}
+      title={$t('main.multiplayer.chatSend', { default: 'Send' })}
+    >
+      <span class="material-symbols-outlined" aria-hidden="true">send</span>
+    </button>
+  </form>
+</section>
+
+<style>
+  .chat-panel {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+    background: var(--surface-color, transparent);
+  }
+
+  .chat-messages {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    padding: 8px 10px;
+    font-size: 0.88rem;
+    line-height: 1.35;
+  }
+
+  .chat-line {
+    display: flex;
+    align-items: baseline;
+    gap: 0.28rem;
+    min-width: 0;
+    padding: 2px 0;
+  }
+
+  .chat-name {
+    flex: 0 0 auto;
+    color: var(--accent-strong, currentColor);
+    font-weight: 600;
+  }
+
+  .chat-colon {
+    flex: 0 0 auto;
+    opacity: 0.55;
+  }
+
+  .chat-text {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .chat-time {
+    flex: 0 0 auto;
+    margin-left: auto;
+    padding-left: 0.6rem;
+    color: color-mix(in srgb, currentColor 62%, transparent);
+    font-size: 0.78rem;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+
+  .chat-empty {
+    margin: 0;
+    color: color-mix(in srgb, currentColor 65%, transparent);
+  }
+
+  .chat-compose {
+    display: flex;
+    gap: 6px;
+    padding: 7px 8px;
+    border-top: 1px solid color-mix(in srgb, currentColor 14%, transparent);
+  }
+
+  .chat-compose input {
+    min-width: 0;
+    flex: 1;
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    outline: none;
+    appearance: none;
+  }
+
+  .chat-compose input:focus-visible {
+    outline: 1px solid var(--accent-focus-border, color-mix(in srgb, var(--accent-strong, currentColor) 48%, transparent));
+    outline-offset: -1px;
+  }
+
+  .chat-compose button {
+    display: grid;
+    place-items: center;
+    flex: 0 0 auto;
+    width: 1.6rem;
+    height: 1.6rem;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--accent-strong, currentColor);
+  }
+
+  .chat-compose button .material-symbols-outlined {
+    font-size: 1.15rem;
+  }
+
+  .chat-compose button:disabled {
+    color: color-mix(in srgb, currentColor 38%, transparent);
+  }
+
+  @media (max-width: 520px) {
+    .chat-time {
+      display: none;
+    }
+  }
+</style>

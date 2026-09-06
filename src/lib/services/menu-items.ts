@@ -652,6 +652,14 @@ function buildViewMenuItems(deps: MenuItemsDeps): MenuActionItem[] {
       label: deps.translate('main.menu.patterns', { default: 'Patterns' }),
       icon: 'view_timeline'
     },
+    ...(deps.multiplayerMode !== 'idle' && deps.multiplayerConnectionStatus === 'connected'
+      ? [{
+          id: 'showChat',
+          label: deps.translate('main.menu.chat', { default: 'Chat' }),
+          icon: 'chat',
+          separatorBefore: true
+        } satisfies MenuActionItem]
+      : []),
     ...(deps.miniPlayerSupported
       ? [{
           id: 'toggleMiniPlayer',

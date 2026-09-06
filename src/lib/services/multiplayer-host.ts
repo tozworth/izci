@@ -1,6 +1,7 @@
 import type { TrackItem } from '$lib/types';
 import type {
   CreateMultiplayerSessionOptions,
+  MultiplayerChatMessageHandler,
   MultiplayerHostState,
   MultiplayerSessionCore,
   PeerConnection
@@ -37,6 +38,7 @@ import {
 export interface MultiplayerHostContext {
   core: MultiplayerSessionCore;
   handleHostCommand: CreateMultiplayerSessionOptions['handleHostCommand'];
+  handleChatMessage: MultiplayerChatMessageHandler;
   pauseHostPlayback: () => void;
   resumeHostPlayback: () => void;
   removePeerFromHostPlaybackPreparation: (peerId: string) => void;
@@ -51,13 +53,14 @@ export function createMultiplayerHostSide(
   options: Pick<
     CreateMultiplayerSessionOptions,
     'handleHostCommand' | 'pauseHostPlayback' | 'resumeHostPlayback'
-  >
+  > & { handleChatMessage: MultiplayerChatMessageHandler }
 ) {
   const { handleHostCommand, pauseHostPlayback, resumeHostPlayback } = options;
 
   const ctx: MultiplayerHostContext = {
     core,
     handleHostCommand,
+    handleChatMessage: options.handleChatMessage,
     pauseHostPlayback,
     resumeHostPlayback,
     removePeerFromHostPlaybackPreparation: (peerId): void => removePeerFromHostPlaybackPreparation(ctx, peerId),

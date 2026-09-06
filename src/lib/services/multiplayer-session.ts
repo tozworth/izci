@@ -8,7 +8,12 @@ import { multiplayerSourcePlaybackService } from './multiplayer-source-playback'
 import { multiplayerRenderPlaybackService } from './multiplayer-render-playback';
 import { multiplayerRenderCoordinator } from './multiplayer-render-coordinator';
 import { disposePeerConnection, sendToPeer } from './multiplayer-peer';
-import { readReceiveAudioPreference } from './multiplayer-utils';
+import { getLocalName, readReceiveAudioPreference } from './multiplayer-utils';
+import {
+  createMultiplayerChatMessage,
+  multiplayerChat,
+  normalizeMultiplayerChatText
+} from './multiplayer-chat';
 import { createMultiplayerHostSide } from './multiplayer-host';
 import { createMultiplayerClientSide } from './multiplayer-client';
 import {
@@ -97,10 +102,39 @@ export function createMultiplayerSession({
 
   const host = createMultiplayerHostSide(core, {
     handleHostCommand,
+    handleChatMessage: (text, client) => handleChatMessage(text, client),
     pauseHostPlayback,
     resumeHostPlayback
   });
   const client = createMultiplayerClientSide(core);
+
+  function handleChatMessage(
+    text: string,
+    client: Pick<MultiplayerSessionState['clients'][number], 'id' | 'name'>
+  ): void {
+    if (core.state.mode !== 'hosting') return;
+    const message = createMultiplayerChatMessage(client.name, text);
+    if (!message.text) return;
+    multiplayerChat.append(message);
+    for (const peer of core.hostPeers.values()) {
+      if (peer.channel?.readyState !== 'open') continue;
+      sendToPeer(peer, { kind: 'chat.message', message });
+    }
+  }
+
+  function sendChatMessage(text: string): boolean {
+    const normalizedText = normalizeMultiplayerChatText(text);
+    if (!normalizedText
+      || core.state.connectionStatus !== 'connected') return false;
+
+    if (core.state.mode === 'hosting') {
+      handleChatMessage(normalizedText, { id: 'host', name: getLocalName() });
+      return true;
+    }
+    if (core.state.mode !== 'client' || !core.clientPeer) return false;
+    sendToPeer(core.clientPeer, { kind: 'chat.send', text: normalizedText });
+    return true;
+  }
 
   async function resetSession(removeRemote: boolean): Promise<void> {
     logDebug('multiplayer', 'Session reset started', {
@@ -110,6 +144,7 @@ export function createMultiplayerSession({
     });
     client.clearReceiverMonitor();
     client.resetTransitions();
+    multiplayerChat.clear();
     core.stopPeersListener?.();
     core.stopAnswerListener?.();
     core.stopPeersListener = null;
@@ -284,6 +319,7 @@ export function createMultiplayerSession({
     kick: (clientId) => host.kick(clientId),
     togglePairing: (clientId) => host.togglePairing(clientId),
     sendCommand: (command) => client.sendCommand(command),
+    sendChatMessage,
     setFreeplayQueue: (itemIds) => client.setFreeplayQueue(itemIds),
     cancelPendingPlayback: () => host.cancelPendingPlayback(),
     resumeAudio: () => client.resumeAudio(),

@@ -238,6 +238,28 @@ describe('multiplayer protocol', () => {
     expect(isHostMessage({ kind: 'buffer', bufferMs: 30_001 })).toBe(false);
   });
 
+  it('validates chat messages, history, and client submissions', () => {
+    const message = {
+      id: 'message-1',
+      name: 'Host',
+      text: 'Hello from the room',
+      sentAt: 1_000
+    };
+
+    expect(isHostMessage({ kind: 'chat.message', message })).toBe(true);
+    expect(isHostMessage({ kind: 'chat.history', messages: [message] })).toBe(true);
+    expect(isClientMessage({ kind: 'chat.send', text: 'Hello' })).toBe(true);
+    expect(isClientMessage({ kind: 'chat.send', text: '  ' })).toBe(false);
+    expect(isHostMessage({
+      kind: 'chat.message',
+      message: { ...message, text: 'x'.repeat(501) }
+    })).toBe(false);
+    expect(isHostMessage({
+      kind: 'chat.message',
+      message: { ...message, text: 'line\nbreak' }
+    })).toBe(false);
+  });
+
   it('validates buffered Opus manifests', () => {
     const manifest = {
       generationId: 'generation',

@@ -79,6 +79,7 @@
     showTrackDetails: void;
     showLyrics: void;
     togglePatterns: void;
+    showChat: void;
     toggleMiniPlayer: void;
     toggleNowPlayingView: void;
     multiplayerHost: void;
