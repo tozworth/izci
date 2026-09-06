@@ -100,6 +100,20 @@ describe('menu-items builders', () => {
     expect(groupIds(result)).not.toContain('file');
   });
 
+  it('only exposes Chat in View while connected to a multiplayer room', () => {
+    expect(ids(groupItems(buildMenuItems(baseDeps()), 'view'))).not.toContain('showChat');
+    expect(ids(groupItems(buildMenuItems({
+      ...baseDeps(),
+      multiplayerMode: 'client',
+      multiplayerConnectionStatus: 'connecting'
+    }), 'view'))).not.toContain('showChat');
+    expect(ids(groupItems(buildMenuItems({
+      ...baseDeps(),
+      multiplayerMode: 'hosting',
+      multiplayerConnectionStatus: 'connected'
+    }), 'view'))).toContain('showChat');
+  });
+
   it('lists paired hosts and recents for idle clients', () => {
     const result = buildMenuItems({
       ...baseDeps(),

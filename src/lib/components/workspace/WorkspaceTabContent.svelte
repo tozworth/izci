@@ -4,6 +4,7 @@
   import TrackListPanel from '$lib/components/TrackListPanel.svelte';
   import UpNextPanel from '$lib/components/UpNextPanel.svelte';
   import TrackDetailsPanel from '$lib/components/TrackDetailsPanel.svelte';
+  import ChatPanel from '$lib/components/ChatPanel.svelte';
   import VideoStage from '$lib/components/workspace/VideoStage.svelte';
   import type { WorkspaceTab } from '$lib/types';
   import type { WorkspaceTabContentProps } from './types';
@@ -94,6 +95,12 @@
     track={content.patternTrack}
     snapshot={content.modulePatternSnapshot}
     playbackSnapshot={content.playbackSnapshot}
+  />
+{:else if tab === 'chat'}
+  <ChatPanel
+    messages={content.chatMessages}
+    sendMessage={content.sendChatMessage}
+    connected={content.chatConnected}
   />
 {:else}
   <div class="video-tab-stage">

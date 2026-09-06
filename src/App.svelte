@@ -65,6 +65,7 @@
     favoritesHaveAllTracks
   } from '$lib/services/workspace-actions';
   import { multiplayerSettings } from '$lib/stores/multiplayer-settings';
+  import { multiplayerChat } from '$lib/services/multiplayer-chat';
   import { multiplayerRecents } from '$lib/stores/multiplayer-recents';
   import { forgetMultiplayerPairing, multiplayerPairings } from '$lib/stores/multiplayer-pairings';
   import type {
@@ -292,7 +293,11 @@
     lyricsResumeAutoScrollToken: lyricsPresentationState.resumeAutoScrollToken,
     lyricsTheaterDowntimeDots: $appearanceSettings.lyrics.theaterDowntimeDots,
     lyricsTheaterDowntimeThresholdSeconds: $appearanceSettings.lyrics.theaterDowntimeThresholdSeconds,
-    lyricsTheaterSmoothScroll: $appearanceSettings.lyrics.theaterSmoothScroll
+    lyricsTheaterSmoothScroll: $appearanceSettings.lyrics.theaterSmoothScroll,
+    chatMessages: multiplayerChat,
+    sendChatMessage: (text: string) => multiplayerSession.sendChatMessage(text),
+    chatConnected: multiplayerState.mode !== 'idle'
+      && multiplayerState.connectionStatus === 'connected'
   } satisfies WorkspaceTabContentProps;
 
   $: multiplayerBarProps = {
@@ -615,9 +620,14 @@
     multiplayerShutdownRequested = false;
   } else if (!multiplayerShutdownRequested) {
     multiplayerShutdownRequested = true;
+    workspaceShell.closeWorkspaceTab('chat');
     void (multiplayerState.mode === 'hosting'
       ? multiplayerSession.stopHosting()
       : multiplayerSession.leave());
+  }
+
+  function closeChatTab(): void {
+    workspaceShell.closeWorkspaceTab('chat');
   }
   $: {
     artworkPresentation.syncSelection(
@@ -777,16 +787,17 @@
     on:showTrackDetails={() => workspaceShell.showTrackDetails()}
     on:showLyrics={() => workspaceShell.showTrackLyrics()}
     on:togglePatterns={togglePatterns}
+    on:showChat={() => workspaceShell.showWorkspaceTab('chat')}
     on:toggleMiniPlayer={() => miniPlayer.toggle()}
     on:toggleNowPlayingView={videoActions.toggleNowPlayingView}
     on:multiplayerHost={() => void multiplayerController.host()}
     on:multiplayerHostWithCode={() => void multiplayerController.host()}
-    on:multiplayerStopHosting={() => void multiplayerSession.stopHosting()}
+    on:multiplayerStopHosting={() => { closeChatTab(); void multiplayerSession.stopHosting(); }}
     on:multiplayerJoin={() => void multiplayerController.joinWithPrompt()}
     on:multiplayerJoinRecent={(event) => void multiplayerController.join(event.detail)}
     on:multiplayerJoinPaired={(event) => void multiplayerController.joinPaired(event.detail)}
     on:multiplayerForgetPairing={(event) => forgetMultiplayerPairing(event.detail)}
-    on:multiplayerLeave={() => void multiplayerSession.leave()}
+    on:multiplayerLeave={() => { closeChatTab(); void multiplayerSession.leave(); }}
     on:multiplayerCopyInvite={() => void multiplayerController.copyInvite()}
     on:multiplayerResumeAudio={() => void multiplayerSession.resumeAudio()}
     on:multiplayerToggleAudio={(event) => multiplayerSession.setReceiveAudio(event.detail)}
@@ -826,12 +837,12 @@
     on:install={() => void appInstallService.prompt()}
     on:multiplayerHost={() => void multiplayerController.host()}
     on:multiplayerHostWithCode={() => void multiplayerController.host()}
-    on:multiplayerStopHosting={() => void multiplayerSession.stopHosting()}
+    on:multiplayerStopHosting={() => { closeChatTab(); void multiplayerSession.stopHosting(); }}
     on:multiplayerJoin={() => void multiplayerController.joinWithPrompt()}
     on:multiplayerJoinRecent={(event) => void multiplayerController.join(event.detail)}
     on:multiplayerJoinPaired={(event) => void multiplayerController.joinPaired(event.detail)}
     on:multiplayerForgetPairing={(event) => forgetMultiplayerPairing(event.detail)}
-    on:multiplayerLeave={() => void multiplayerSession.leave()}
+    on:multiplayerLeave={() => { closeChatTab(); void multiplayerSession.leave(); }}
     on:multiplayerCopyInvite={() => void multiplayerController.copyInvite()}
     on:multiplayerResumeAudio={() => void multiplayerSession.resumeAudio()}
     on:multiplayerKick={(event) => void multiplayerSession.kick(event.detail)}

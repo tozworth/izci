@@ -38,6 +38,7 @@ type DispatchedMenuActionId =
   | 'showTrackDetails'
   | 'showLyrics'
   | 'togglePatterns'
+  | 'showChat'
   | 'toggleMiniPlayer'
   | 'toggleNowPlayingView'
   | 'multiplayerHost'

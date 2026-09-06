@@ -4,6 +4,7 @@ import { MULTIPLAYER_PROTOCOL_VERSION, isMultiplayerCommand } from './multiplaye
 import { flushPeerMedia } from './multiplayer-source-transfer';
 import { flushPeerRender, resetPeerRenderQueue, schedulePeerRender } from './multiplayer-render-transfer';
 import { multiplayerRenderCoordinator } from './multiplayer-render-coordinator';
+import { multiplayerChat } from './multiplayer-chat';
 import {
   handleFreeplayCommand,
   handleFreeplayTrackEnded,
@@ -58,7 +59,12 @@ export function attachHostChannel(
       peer.clientFreeplayEnabled = message.freeplayEnabled;
       peer.helloReceived = true;
       core.updateClient(peer.id, { name: peer.name, platform: sanitizePlatform(message.platform) });
+      sendToPeer(peer, { kind: 'chat.history', messages: multiplayerChat.getSnapshot() });
       void syncPeerFreeplayMode(ctx, peer);
+      return;
+    }
+    if (message.kind === 'chat.send') {
+      ctx.handleChatMessage(message.text, peer);
       return;
     }
     if (message.kind === 'freeplay.preference') {

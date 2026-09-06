@@ -35,6 +35,7 @@
       case 'lyrics': return $t('workspace.tabs.lyrics', { default: 'Lyrics' });
       case 'patterns': return $t('workspace.tabs.patterns', { default: 'Patterns' });
       case 'video': return $t('workspace.tabs.video', { default: 'Video' });
+      case 'chat': return $t('workspace.tabs.chat', { default: 'Chat' });
       default: return tab.label;
     }
   }

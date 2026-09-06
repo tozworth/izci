@@ -36,6 +36,7 @@
     | 'openFolder'
     | 'manageFolders'
     | 'showPatterns'
+    | 'showChat'
     | 'showVideo'
     | 'openOptions'
     | 'openAbout'
@@ -58,6 +59,7 @@
     openOptions: void;
     openAbout: void;
     install: void;
+    showChat: void;
     multiplayerHost: void;
     multiplayerHostWithCode: void;
     multiplayerStopHosting: void;
@@ -144,6 +146,12 @@
         <span class="material-symbols-outlined" aria-hidden="true">view_timeline</span>
         <span>{$t('main.menu.patterns', { default: 'Patterns' })}</span>
       </button>
+      {#if multiplayerMode !== 'idle' && multiplayerConnectionStatus === 'connected'}
+        <button type="button" on:click={() => run('showChat')}>
+          <span class="material-symbols-outlined" aria-hidden="true">chat</span>
+          <span>{$t('main.menu.chat', { default: 'Chat' })}</span>
+        </button>
+      {/if}
       {#if videoAvailable}
         <button type="button" on:click={() => run('showVideo')}>
           <span class="material-symbols-outlined" aria-hidden="true">movie</span>

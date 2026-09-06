@@ -274,6 +274,11 @@ export interface CreateMultiplayerSessionOptions {
   resumeHostPlayback: () => void;
 }
 
+export type MultiplayerChatMessageHandler = (
+  text: string,
+  client: Pick<MultiplayerClient, 'id' | 'name'>
+) => void;
+
 export interface MultiplayerSessionController extends Readable<MultiplayerSessionState> {
   getSnapshot(): MultiplayerSessionState;
   startHosting(options?: { silent?: boolean }): Promise<string>;
@@ -285,6 +290,7 @@ export interface MultiplayerSessionController extends Readable<MultiplayerSessio
   kick(clientId: string): Promise<void>;
   togglePairing(clientId: string): Promise<void>;
   sendCommand(command: MultiplayerCommandInput): boolean;
+  sendChatMessage(text: string): boolean;
   setFreeplayQueue(itemIds: string[]): void;
   cancelPendingPlayback(): boolean;
   resumeAudio(): Promise<boolean>;

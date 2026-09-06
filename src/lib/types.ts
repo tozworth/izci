@@ -121,7 +121,7 @@ export type VisualizerColorSource = 'theme' | 'artwork';
 export type LyricsDisplayStyle = 'plain' | 'timestamped' | 'theater';
 export type LyricsFontSizeSettings = Record<LyricsDisplayStyle, number>;
 export type WorkspaceCollection = 'queue' | 'library';
-export type WorkspaceTab = WorkspaceCollection | 'details' | 'lyrics' | 'patterns' | 'video';
+export type WorkspaceTab = WorkspaceCollection | 'details' | 'lyrics' | 'patterns' | 'video' | 'chat';
 export type ContextualWorkspaceTab = Extract<WorkspaceTab, 'lyrics' | 'patterns'>;
 export type ContextualTabAutomation = 'manual' | 'open' | 'open-close';
 export type ContextualTabSettings = Record<ContextualWorkspaceTab, ContextualTabAutomation>;
@@ -132,7 +132,8 @@ export const WORKSPACE_TABS: WorkspaceTab[] = [
   'details',
   'lyrics',
   'patterns',
-  'video'
+  'video',
+  'chat'
 ];
 export const WORKSPACE_PANEL_IDS: WorkspacePanelId[] = ['left', 'center', 'right'];
 export interface WorkspaceResizeHandle {

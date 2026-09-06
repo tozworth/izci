@@ -2,6 +2,7 @@ import type { TrackItem, RepeatMode } from '$lib/types';
 import { multiplayerSettings } from '$lib/stores/multiplayer-settings';
 import {
   MULTIPLAYER_PROTOCOL_VERSION,
+  MULTIPLAYER_CHAT_MAX_MESSAGE_LENGTH,
   MULTIPLAYER_QUEUE_MAX_ITEMS,
   MULTIPLAYER_RENDER_MAX_RANGES,
   isMultiplayerCommand,
@@ -105,6 +106,11 @@ export function isClientMessage(value: unknown): value is ClientMessage {
       && typeof message.name === 'string'
       && typeof message.platform === 'string'
       && typeof message.freeplayEnabled === 'boolean';
+  }
+  if (message.kind === 'chat.send') {
+    return typeof message.text === 'string'
+      && message.text.trim().length > 0
+      && message.text.length <= MULTIPLAYER_CHAT_MAX_MESSAGE_LENGTH;
   }
   if (message.kind === 'freeplay.preference') {
     return typeof message.enabled === 'boolean';
