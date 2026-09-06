@@ -271,7 +271,12 @@
     "nowPlaying": {
       "exit": "Exit Now Playing",
       "title": "Now Playing",
-      "panels": "Now Playing panels"
+      "panels": "Now Playing panels",
+      "leftPanels": "Left panels",
+      "rightPanels": "Right panels",
+      "pin": "Pin panel",
+      "moveSide": "Move tab to other side",
+      "resizePanel": "Resize panel"
     },
     "panels": {
       "label": "Workspace panels",
@@ -1043,8 +1048,8 @@
         "hint": "Switches the main window to Now Playing while it is maximized or fullscreen."
       },
       "hideSideChrome": {
-        "title": "Hide side chrome after",
-        "hint": "Fades the side tabs, pane fill, and close button after mouse inactivity."
+        "title": "Hide controls after inactivity",
+        "hint": "Fades transport, side handles, and unpinned panels. Pinned panels stay visible."
       },
       "artworkColors": {
         "title": "Always use artwork colors",

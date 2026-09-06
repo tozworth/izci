@@ -271,7 +271,12 @@
     "nowPlaying": {
       "exit": "Şimdi Yürütülüyor'dan çık",
       "title": "Şimdi Yürütülüyor",
-      "panels": "Şimdi Yürütülüyor panelleri"
+      "panels": "Şimdi Yürütülüyor panelleri",
+      "leftPanels": "Sol paneller",
+      "rightPanels": "Sağ paneller",
+      "pin": "Paneli sabitle",
+      "moveSide": "Sekmeyi diğer tarafa taşı",
+      "resizePanel": "Paneli yeniden boyutlandır"
     },
     "panels": {
       "label": "Çalışma alanı panelleri",
@@ -1043,8 +1048,8 @@
         "hint": "izci ekranı kapladığında veya tam ekran (F11) olduğunda Şimdi Yürütülüyor'a geçer."
       },
       "hideSideChrome": {
-        "title": "Sol paneli gizleme süresi",
-        "hint": "Fare hareketsizliğinden sonra yan sekmeleri, panel dolgusunu ve kapatma düğmesini soldurur."
+        "title": "Hareketsizlikten sonra kontrolleri gizle",
+        "hint": "Oynatma kontrollerini, yan tutamaçları ve sabitlenmemiş panelleri gizler. Sabitlenmiş paneller görünür kalır."
       },
       "artworkColors": {
         "title": "Her zaman albüm renklerini kullan",

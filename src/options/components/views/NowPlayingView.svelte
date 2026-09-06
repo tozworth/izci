@@ -38,8 +38,8 @@
       </SettingsField>
 
       <SettingsField
-        title={$t('options.nowPlaying.hideSideChrome.title', { default: 'Hide side chrome after' })}
-        hint={$t('options.nowPlaying.hideSideChrome.hint', { default: 'Fades the side tabs, pane fill, and close button after mouse inactivity.' })}
+        title={$t('options.nowPlaying.hideSideChrome.title', { default: 'Hide controls after inactivity' })}
+        hint={$t('options.nowPlaying.hideSideChrome.hint', { default: 'Fades transport, side handles, and unpinned panels. Pinned panels stay visible.' })}
       >
           <input
             type="range"
