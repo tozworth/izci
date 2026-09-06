@@ -78,7 +78,8 @@ export function resetOptionsView(view: OptionsViewName): void {
       break;
     case 'chat':
       multiplayerSettings.update({
-        multiplayerMotd: DEFAULT_MULTIPLAYER_SETTINGS.multiplayerMotd
+        multiplayerMotd: DEFAULT_MULTIPLAYER_SETTINGS.multiplayerMotd,
+        multiplayerChatHistoryLines: DEFAULT_MULTIPLAYER_SETTINGS.multiplayerChatHistoryLines
       });
       break;
     case 'cache':

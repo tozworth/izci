@@ -4,14 +4,17 @@ import { getTrackDisplayTitle } from '$lib/utils/files';
 import {
   MULTIPLAYER_CHAT_MAX_MESSAGE_LENGTH,
   MULTIPLAYER_CHAT_MAX_MESSAGES,
+  isMultiplayerChatMessage,
   type MultiplayerChatAction,
   type MultiplayerCollection,
   type MultiplayerChatTrackLink,
   type MultiplayerChatMessage
 } from './multiplayer-protocol';
 
+const PERSISTED_HISTORY_STORAGE_KEY = 'izci.multiplayer-chat-history';
 const store = writable<MultiplayerChatMessage[]>([]);
 let currentMessages: MultiplayerChatMessage[] = [];
+let persistedHistoryLimit = 0;
 
 store.subscribe((messages) => {
   currentMessages = messages;
@@ -20,6 +23,39 @@ store.subscribe((messages) => {
 function publish(messages: MultiplayerChatMessage[]): void {
   currentMessages = messages;
   store.set(messages);
+  persistHistory();
+}
+
+function persistHistory(): void {
+  if (typeof window === 'undefined' || persistedHistoryLimit === 0) return;
+  try {
+    window.localStorage.setItem(
+      PERSISTED_HISTORY_STORAGE_KEY,
+      JSON.stringify(currentMessages.slice(-persistedHistoryLimit))
+    );
+  } catch {
+    // Chat history is an optional local convenience; storage may be unavailable or full.
+  }
+}
+
+function restorePersistedHistory(limit: number): void {
+  persistedHistoryLimit = limit;
+  if (typeof window === 'undefined') return;
+  if (limit === 0) {
+    try {
+      window.localStorage.removeItem(PERSISTED_HISTORY_STORAGE_KEY);
+    } catch {
+      // Optional history cleanup may be unavailable.
+    }
+    return;
+  }
+  try {
+    const stored = JSON.parse(window.localStorage.getItem(PERSISTED_HISTORY_STORAGE_KEY) ?? '[]') as unknown;
+    if (!Array.isArray(stored)) return;
+    mergeHistory(stored.filter(isMultiplayerChatMessage).slice(-limit));
+  } catch {
+    // Ignore malformed or unavailable optional history.
+  }
 }
 
 export function normalizeMultiplayerChatText(value: string): string {
@@ -127,11 +163,18 @@ export const multiplayerChat: Readable<MultiplayerChatMessage[]> & {
   getSnapshot(): MultiplayerChatMessage[];
   append(message: MultiplayerChatMessage): void;
   mergeHistory(messages: MultiplayerChatMessage[]): void;
+  restorePersistedHistory(limit: number): void;
+  stopPersisting(): void;
   clear(): void;
 } = {
   subscribe: store.subscribe,
   getSnapshot: () => currentMessages,
   append,
   mergeHistory,
-  clear: () => publish([])
+  restorePersistedHistory,
+  stopPersisting: () => { persistedHistoryLimit = 0; },
+  clear: () => {
+    currentMessages = [];
+    store.set([]);
+  }
 };

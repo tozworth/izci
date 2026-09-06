@@ -749,6 +749,12 @@
         "motd": {
           "title": "Günün mesajı",
           "hint": "Bu izci'nin sunucu olduğu oturumlarda konuklara sohbetin üzerinde gösterilir."
+        },
+        "history": {
+          "title": "Sohbet geçmişini koru",
+          "hint": "En son sohbet satırlarını bu aygıtta tutar ve yeniden sunucu olduğunda geri yükler.",
+          "disabled": "Devre dışı",
+          "lines": "{count} satır"
         }
       },
       "waitForClients": {
