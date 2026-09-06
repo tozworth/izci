@@ -23,6 +23,7 @@ export const MULTIPLAYER_MAX_LISTENERS_MIN = 1;
 export const MULTIPLAYER_MAX_LISTENERS_MAX = 8;
 const MULTIPLAYER_TURN_URL_MAX_LENGTH = 512;
 const MULTIPLAYER_TURN_SECRET_MAX_LENGTH = 512;
+const MULTIPLAYER_MOTD_MAX_LENGTH = 500;
 export const MULTIPLAYER_TURN_CREDENTIAL_HOURS_MIN = 1;
 export const MULTIPLAYER_TURN_CREDENTIAL_HOURS_MAX = 48;
 
@@ -55,6 +56,7 @@ const defaultIzciName = createDefaultIzciName();
 export const DEFAULT_MULTIPLAYER_SETTINGS: MultiplayerSettings = {
   multiplayer: false,
   izciName: defaultIzciName,
+  multiplayerMotd: '',
   multiplayerWaitForClients: false,
   multiplayerSynchronizedPlayback: false,
   multiplayerSyncLeadTimeMs: 1_000,
@@ -116,6 +118,7 @@ export function normalizeMultiplayerSettings(value: unknown): MultiplayerSetting
   return {
     multiplayer: normalizeBoolean(source.multiplayer, DEFAULT_MULTIPLAYER_SETTINGS.multiplayer),
     izciName: normalizeIzciName(source.izciName, defaultIzciName),
+    multiplayerMotd: normalizeSingleLine(source.multiplayerMotd, MULTIPLAYER_MOTD_MAX_LENGTH),
     multiplayerWaitForClients: normalizeBoolean(
       source.multiplayerWaitForClients,
       DEFAULT_MULTIPLAYER_SETTINGS.multiplayerWaitForClients

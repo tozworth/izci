@@ -32,6 +32,7 @@
       "connectionFailed": "Multiplayer connection failed",
       "label": "Multiplayer",
       "chatLabel": "Multiplayer chat",
+      "chatMotd": "MOTD - {hostName}",
       "chatEmpty": "No messages yet.",
       "chatPlaceholder": "Message",
       "chatInput": "Chat message",
@@ -740,6 +741,13 @@
       },
       "name": "Name this izci",
       "nameHint": "Shown to hosts and clients in multiplayer sessions.",
+      "chat": {
+        "category": "Chat",
+        "motd": {
+          "title": "Message of the day",
+          "hint": "Shown above the chat to guests in sessions hosted by this izci."
+        }
+      },
       "waitForClients": {
         "title": "Wait for clients",
         "hint": "Before starting a track, waits until every connected listener has loaded its transferred file or tuned to the audio stream."
@@ -1363,6 +1371,7 @@
       "metadata": "Metadata",
       "backups": "Backups",
       "multiplayer": "Multiplayer",
+      "chat": "Chat",
       "experimental": "Experimental",
       "cache": "Cache",
       "about": "About",

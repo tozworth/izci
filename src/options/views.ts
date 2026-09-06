@@ -15,6 +15,7 @@ export type OptionsViewName =
   | 'metadata'
   | 'backups'
   | 'multiplayer'
+  | 'chat'
   | 'experimental'
   | 'cache'
   | 'about'
@@ -178,6 +179,14 @@ export const OPTIONS_VIEW_GROUPS: OptionsViewDefinition[][] = [
       label: 'Multiplayer',
       icon: 'group',
       parentLabel: '',
+      hasHints: true,
+      resettable: true
+    },
+    {
+      id: 'chat',
+      label: 'Chat',
+      icon: 'chat',
+      parentLabel: 'Multiplayer',
       hasHints: true,
       resettable: true
     },

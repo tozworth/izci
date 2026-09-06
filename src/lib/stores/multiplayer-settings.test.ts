@@ -19,6 +19,7 @@ describe('multiplayer settings', () => {
     });
 
     expect(normalized).toMatchObject({
+      multiplayerMotd: '',
       multiplayerWaitForClients: false,
       multiplayerSynchronizedPlayback: false,
       multiplayerSyncLeadTimeMs: 1_000,
@@ -38,6 +39,12 @@ describe('multiplayer settings', () => {
       multiplayerRenderDiskCacheLimitMiB: DEFAULT_MULTIPLAYER_SETTINGS.multiplayerRenderDiskCacheLimitMiB,
       multiplayerMaxListeners: DEFAULT_MULTIPLAYER_SETTINGS.multiplayerMaxListeners
     });
+  });
+
+  it('trims and bounds the host message of the day', () => {
+    expect(normalizeMultiplayerSettings({
+      multiplayerMotd: `  ${'x'.repeat(600)}  `
+    }).multiplayerMotd).toBe('x'.repeat(500));
   });
 
   it('persists the Freeplay opt-in independently from Multiplayer', () => {

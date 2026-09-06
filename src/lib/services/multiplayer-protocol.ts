@@ -14,22 +14,26 @@ export interface MultiplayerChatTrackLink {
   title: string;
 }
 
+export type MultiplayerChatAction = 'me';
+
 export interface MultiplayerChatMessage {
   id: string;
   name: string;
   text: string;
   sentAt: number;
   track?: MultiplayerChatTrackLink;
+  action?: MultiplayerChatAction;
 }
 
-// Version 20 adds the room chat message protocol. Version 18 adds explicit
+// Version 22 adds /me chat actions. Version 21 adds the room MOTD protocol. Version 20 adds the room chat message protocol. Version 18 adds explicit
 // source revisions to buffered-Opus manifests so a
 // listener never reuses cached bytes from a replaced track.
-export const MULTIPLAYER_PROTOCOL_VERSION = 20;
+export const MULTIPLAYER_PROTOCOL_VERSION = 22;
 const MULTIPLAYER_FRAME_CHUNK_SIZE = 12_000;
 export const MULTIPLAYER_QUEUE_MAX_ITEMS = 50_000;
 export const MULTIPLAYER_CHAT_MAX_MESSAGES = 200;
 export const MULTIPLAYER_CHAT_MAX_MESSAGE_LENGTH = 500;
+export const MULTIPLAYER_CHAT_MAX_MOTD_LENGTH = 500;
 const MULTIPLAYER_RENDER_MAX_CLUSTERS = 200_000;
 const MULTIPLAYER_RENDER_MAX_TOTAL_BYTES = 8 * 1024 * 1024 * 1024;
 export const MULTIPLAYER_RENDER_MAX_RANGES = 100_000;
@@ -160,6 +164,7 @@ export type HostMessage =
   | { kind: 'buffer'; bufferMs: number }
   | { kind: 'render.manifest'; manifest: MultiplayerRenderManifest }
   | { kind: 'artwork'; artwork: MultiplayerArtwork | null }
+  | { kind: 'chat.motd'; motd: string; hostName: string }
   | { kind: 'chat.message'; message: MultiplayerChatMessage }
   | { kind: 'chat.history'; messages: MultiplayerChatMessage[] }
   | { kind: 'ack'; commandId: string; accepted: boolean; message?: string }
@@ -387,6 +392,15 @@ export function isHostMessage(value: unknown): value is HostMessage {
   if (message.kind === 'chat.message') {
     return isMultiplayerChatMessage(message.message);
   }
+  if (message.kind === 'chat.motd') {
+    return typeof message.motd === 'string'
+      && message.motd.length <= MULTIPLAYER_CHAT_MAX_MOTD_LENGTH
+      && !/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/.test(message.motd)
+      && typeof message.hostName === 'string'
+      && message.hostName.length > 0
+      && message.hostName.length <= 48
+      && !/[\u0000-\u001f\u007f]/.test(message.hostName);
+  }
   if (message.kind === 'chat.history') {
     return Array.isArray(message.messages)
       && message.messages.length <= MULTIPLAYER_CHAT_MAX_MESSAGES
@@ -422,6 +436,7 @@ export function isMultiplayerChatMessage(value: unknown): value is MultiplayerCh
     && typeof message.text === 'string'
     && message.text.length > 0
     && message.text.length <= MULTIPLAYER_CHAT_MAX_MESSAGE_LENGTH
+    && (message.action === undefined || message.action === 'me')
     && (message.track === undefined || isMultiplayerChatTrackLink(message.track))
     && !/[\u0000-\u001f\u007f]/.test(message.name)
     && !/[\u0000-\u001f\u007f]/.test(message.text)

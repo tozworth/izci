@@ -108,6 +108,8 @@ export interface WorkspaceTabContentProps {
   lyricsTheaterSmoothScroll: boolean;
   lyricsResumeAutoScrollToken: number;
   chatMessages: Readable<MultiplayerChatMessage[]>;
+  chatMotd: string;
+  chatMotdHostName: string | null;
   sendChatMessage: (text: string) => boolean;
   activateChatTrack: (track: MultiplayerChatTrackLink) => void;
   chatConnected: boolean;

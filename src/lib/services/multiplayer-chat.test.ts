@@ -2,7 +2,8 @@ import { afterEach, describe, expect, it } from 'vitest';
 import {
   createMultiplayerChatMessage,
   multiplayerChat,
-  normalizeMultiplayerChatText
+  normalizeMultiplayerChatText,
+  parseMultiplayerChatCommand
 } from './multiplayer-chat';
 
 afterEach(() => multiplayerChat.clear());
@@ -34,5 +35,18 @@ describe('multiplayer chat', () => {
     multiplayerChat.mergeHistory([second, first]);
 
     expect(multiplayerChat.getSnapshot()).toEqual([second, first]);
+  });
+
+  it('parses /me into a bounded action payload', () => {
+    expect(parseMultiplayerChatCommand('  /me   waves\n')).toEqual({
+      text: 'waves',
+      action: 'me'
+    });
+    expect(parseMultiplayerChatCommand('/message stays plain')).toEqual({
+      text: '/message stays plain'
+    });
+    expect(parseMultiplayerChatCommand('/me')).toBeNull();
+    expect(createMultiplayerChatMessage('Host', 'waves', 123, undefined, 'me'))
+      .toMatchObject({ action: 'me', text: 'waves' });
   });
 });

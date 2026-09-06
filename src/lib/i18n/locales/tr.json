@@ -32,6 +32,7 @@
       "connectionFailed": "Çok oyunculu bağlantı kurulamadı",
       "label": "Çok Oyunculu",
       "chatLabel": "Çok oyunculu sohbet",
+      "chatMotd": "MOTD - {hostName}",
       "chatEmpty": "Henüz mesaj yok.",
       "chatPlaceholder": "Mesaj",
       "chatInput": "Sohbet mesajı",
@@ -740,6 +741,13 @@
       },
       "name": "Bu izci'yi adlandır",
       "nameHint": "Çok oyunculu oturumlarda sunucu ve istemcilere gösterilir.",
+      "chat": {
+        "category": "Sohbet",
+        "motd": {
+          "title": "Günün mesajı",
+          "hint": "Bu izci'nin sunucu olduğu oturumlarda konuklara sohbetin üzerinde gösterilir."
+        }
+      },
       "waitForClients": {
         "title": "İstemcileri bekle",
         "hint": "Bir parçayı başlatmadan önce bağlı tüm dinleyicilerin aktarılan dosyayı yüklemesini veya ses akışına bağlanmasını bekler."
@@ -1363,6 +1371,7 @@
       "metadata": "Metaveri",
       "backups": "Yedekler",
       "multiplayer": "Çok oyunculu",
+      "chat": "Sohbet",
       "experimental": "Experimental",
       "cache": "Önbellek",
       "about": "Hakkında",

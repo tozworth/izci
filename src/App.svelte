@@ -296,6 +296,12 @@
     lyricsTheaterDowntimeThresholdSeconds: $appearanceSettings.lyrics.theaterDowntimeThresholdSeconds,
     lyricsTheaterSmoothScroll: $appearanceSettings.lyrics.theaterSmoothScroll,
     chatMessages: multiplayerChat,
+    chatMotd: multiplayerState.mode === 'hosting'
+      ? $multiplayerSettings.multiplayerMotd
+      : multiplayerState.hostMotd,
+    chatMotdHostName: multiplayerState.mode === 'hosting'
+      ? $multiplayerSettings.izciName
+      : multiplayerState.hostName,
     sendChatMessage: (text: string) => multiplayerSession.sendChatMessage(text),
     activateChatTrack: (track) => { void multiplayerController.activateChatTrack(track); },
     chatConnected: multiplayerState.mode !== 'idle'
