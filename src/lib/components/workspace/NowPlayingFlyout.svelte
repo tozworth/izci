@@ -20,17 +20,20 @@
   $: if (tabs.some(tab => tab.id === activeWorkspaceTab)) rememberedTab = activeWorkspaceTab;
   $: activeTab = tabs.find(tab => tab.id === rememberedTab)?.id ?? tabs[0]?.id ?? null;
   $: visible = (tabs.length > 0 && pinned) || open;
+  $: panelsLabel = side === 'left'
+    ? $t('workspace.nowPlaying.leftPanels')
+    : $t('workspace.nowPlaying.rightPanels');
 </script>
 
 <div class="np-flyout-edge" class:right={side === 'right'} class:is-hidden={chromeHidden && !pinned}>
   <button type="button" class="np-flyout-handle" aria-expanded={visible}
-    aria-controls={`np-flyout-${side}`} title={$t(`workspace.nowPlaying.${side}Panels`)}
-    aria-label={$t(`workspace.nowPlaying.${side}Panels`)} on:click={() => dispatch('toggle')}>
+    aria-controls={`np-flyout-${side}`} title={panelsLabel}
+    aria-label={panelsLabel} on:click={() => dispatch('toggle')}>
     <span class="material-symbols-outlined" aria-hidden="true">{side === 'left' ? 'left_panel_open' : 'right_panel_open'}</span>
   </button>
 </div>
 <aside id={`np-flyout-${side}`} class="np-flyout" class:right={side === 'right'} class:visible class:pinned
-  inert={!visible} aria-label={$t(`workspace.nowPlaying.${side}Panels`)}>
+  inert={!visible} aria-label={panelsLabel}>
   <div class="np-flyout-toolbar">
     <WorkspaceTabBar {tabs} {activeTab} panelId={side}
       on:tabChange={(event) => dispatch('tabChange', event.detail)}

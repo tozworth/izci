@@ -1,6 +1,9 @@
 import { registerSW } from 'virtual:pwa-register';
 import { writable } from 'svelte/store';
 import { logDebug, logError, logInfo, logWarning } from '$lib/services/logging';
+import type { PwaUpdateStatus } from '$lib/types';
+
+export type { PwaUpdateStatus } from '$lib/types';
 
 const LOCALHOST_UPDATE_INTERVAL_MS = 30_000;
 const DEFAULT_UPDATE_INTERVAL_MS = 5 * 60_000;
@@ -11,7 +14,6 @@ const LAST_SUCCESSFUL_UPDATE_CHECK_KEY = 'izci.pwa-update-last-successful-check'
 let checkForServiceWorkerUpdate: ((force?: boolean) => Promise<void>) | null = null;
 let updateNoticeTimeout: number | null = null;
 
-export type PwaUpdateStatus = 'idle' | 'updated' | 'up-to-date' | 'failed';
 export type PwaUpdateCheckStatus = 'idle' | 'checking' | 'available' | 'up-to-date' | 'failed';
 
 export interface PwaUpdateCheckState {
