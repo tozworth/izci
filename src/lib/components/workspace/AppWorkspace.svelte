@@ -30,7 +30,6 @@
   export let selectedTrackItem: TrackItem | null;
   export let artworkState: ArtworkPresentationState;
   export let appearance: AppearanceSettings;
-  export let multiplayerFreeplayEnabled = false;
   export let multiplayerClients: MultiplayerClient[] = [];
   export let artworkBackgroundBrightByZone: Record<'nowPlaying', boolean> &
     Partial<Record<WorkspacePanelId, boolean>>;
@@ -75,10 +74,10 @@
     workspaceTabs={workspaceState.workspaceTabs}
     panelAutoHideDelaySeconds={appearance.nowPlayingPanelAutoHideDelaySeconds}
     alwaysUseArtworkPlayerColors={appearance.useNowPlayingArtworkPlayerColors}
-    freeplayClients={multiplayerClients}
-    showFreeplayFloaters={multiplayerFreeplayEnabled && appearance.showFreeplayFloaters}
-    freeplayFloaterSize={appearance.freeplayFloaterSize}
-    freeplayFloaterMotion={appearance.freeplayFloaterMotion}
+    {multiplayerClients}
+    showMultiplayerFloaters={appearance.showMultiplayerFloaters}
+    multiplayerFloaterSize={appearance.multiplayerFloaterSize}
+    multiplayerFloaterMotion={appearance.multiplayerFloaterMotion}
     on:close={onCloseNowPlaying}
     on:chromeHiddenChange={(event) => onChromeHiddenChange(event.detail)}
     on:tabChange={(event) => onTabChange(event.detail)}

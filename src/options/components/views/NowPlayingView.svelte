@@ -2,10 +2,10 @@
   import { t } from 'svelte-i18n';
   import SettingsField from '$lib/components/options/SettingsField.svelte';
   import {
-    MAX_FREEPLAY_FLOATER_MOTION, MAX_FREEPLAY_FLOATER_SIZE,
-    MIN_FREEPLAY_FLOATER_MOTION, MIN_FREEPLAY_FLOATER_SIZE,
+    MAX_MULTIPLAYER_FLOATER_MOTION, MAX_MULTIPLAYER_FLOATER_SIZE,
+    MIN_MULTIPLAYER_FLOATER_MOTION, MIN_MULTIPLAYER_FLOATER_SIZE,
     MIN_NOW_PLAYING_PANEL_AUTO_HIDE_SECONDS, NOW_PLAYING_PANEL_AUTO_HIDE_NEVER_SECONDS,
-    appearanceSettings, normalizeFreeplayFloaterMotion, normalizeFreeplayFloaterSize,
+    appearanceSettings, normalizeMultiplayerFloaterMotion, normalizeMultiplayerFloaterSize,
     normalizeNowPlayingPanelAutoHideDelaySeconds
   } from '$lib/stores/appearance-settings';
   import { multiplayerSettings } from '$lib/stores/multiplayer-settings';
@@ -16,9 +16,9 @@
   }
   function handleAutoNowPlayingToggle(event: Event) { appearanceSettings.update({ autoNowPlayingOnMaximized: checked(event) }); }
   function handleNowPlayingArtworkPlayerColorsToggle(event: Event) { appearanceSettings.update({ useNowPlayingArtworkPlayerColors: checked(event) }); }
-  function handleFreeplayFloatersToggle(event: Event) { appearanceSettings.update({ showFreeplayFloaters: checked(event) }); }
-  function handleFreeplayFloaterSizeChange(event: Event) { appearanceSettings.update({ freeplayFloaterSize: normalizeFreeplayFloaterSize((event.currentTarget as HTMLInputElement).valueAsNumber) }); }
-  function handleFreeplayFloaterMotionChange(event: Event) { appearanceSettings.update({ freeplayFloaterMotion: normalizeFreeplayFloaterMotion((event.currentTarget as HTMLInputElement).valueAsNumber) }); }
+  function handleMultiplayerFloatersToggle(event: Event) { appearanceSettings.update({ showMultiplayerFloaters: checked(event) }); }
+  function handleMultiplayerFloaterSizeChange(event: Event) { appearanceSettings.update({ multiplayerFloaterSize: normalizeMultiplayerFloaterSize((event.currentTarget as HTMLInputElement).valueAsNumber) }); }
+  function handleMultiplayerFloaterMotionChange(event: Event) { appearanceSettings.update({ multiplayerFloaterMotion: normalizeMultiplayerFloaterMotion((event.currentTarget as HTMLInputElement).valueAsNumber) }); }
   function handleLyricsAutoTheaterToggle(event: Event) { updateLyrics('autoTheaterInNowPlaying', event); }
   function handleLyricsAutoFocusToggle(event: Event) { updateLyrics('autoFocusInNowPlaying', event); }
   function handleNowPlayingPanelAutoHideChange(event: Event) {
@@ -72,40 +72,40 @@
       </SettingsField>
 
       <SettingsField
-        title={$t('options.nowPlaying.freeplayFloaters.title', { default: 'Freeplay floaters' })}
-        hint={$t('options.nowPlaying.freeplayFloaters.hint', { default: 'Shows connected Freeplay listeners and what they are playing around the edges of Now Playing.' })}
+        title={$t('options.nowPlaying.multiplayerFloaters.title', { default: 'Multiplayer floaters' })}
+        hint={$t('options.nowPlaying.multiplayerFloaters.hint', { default: 'Shows connected co-op and Freeplay clients around the edges of Now Playing.' })}
         checkbox
       >
           <input
             type="checkbox"
-            checked={$appearanceSettings.showFreeplayFloaters}
-            disabled={!$multiplayerSettings.multiplayerFreeplay}
-            on:change={handleFreeplayFloatersToggle}
+            checked={$appearanceSettings.showMultiplayerFloaters}
+            disabled={!$multiplayerSettings.multiplayer}
+            on:change={handleMultiplayerFloatersToggle}
           />
       </SettingsField>
 
       <SettingsField
-        title={$t('options.nowPlaying.freeplayFloaterSize.title', { default: 'Freeplay floater size' })}
-        hint={$t('options.nowPlaying.freeplayFloaterSize.hint', { default: 'Scales the floating client cards without changing the rest of Now Playing.' })}
+        title={$t('options.nowPlaying.multiplayerFloaterSize.title', { default: 'Multiplayer floater size' })}
+        hint={$t('options.nowPlaying.multiplayerFloaterSize.hint', { default: 'Scales the floating client cards without changing the rest of Now Playing.' })}
         advanced
       >
-          <input type="range" min={MIN_FREEPLAY_FLOATER_SIZE} max={MAX_FREEPLAY_FLOATER_SIZE} step="1"
-            value={$appearanceSettings.freeplayFloaterSize}
-            disabled={!$multiplayerSettings.multiplayerFreeplay || !$appearanceSettings.showFreeplayFloaters}
-            on:input={handleFreeplayFloaterSizeChange} />
-          <span class="field-output">{$appearanceSettings.freeplayFloaterSize}%</span>
+          <input type="range" min={MIN_MULTIPLAYER_FLOATER_SIZE} max={MAX_MULTIPLAYER_FLOATER_SIZE} step="1"
+            value={$appearanceSettings.multiplayerFloaterSize}
+            disabled={!$multiplayerSettings.multiplayer || !$appearanceSettings.showMultiplayerFloaters}
+            on:input={handleMultiplayerFloaterSizeChange} />
+          <span class="field-output">{$appearanceSettings.multiplayerFloaterSize}%</span>
       </SettingsField>
 
       <SettingsField
-        title={$t('options.nowPlaying.freeplayFloaterMotion.title', { default: 'Freeplay buoyancy' })}
-        hint={$t('options.nowPlaying.freeplayFloaterMotion.hint', { default: 'Controls how far cards gently drift and tilt. Set it to zero for still water.' })}
+        title={$t('options.nowPlaying.multiplayerFloaterMotion.title', { default: 'Multiplayer buoyancy' })}
+        hint={$t('options.nowPlaying.multiplayerFloaterMotion.hint', { default: 'Controls how far cards gently drift and tilt. Set it to zero for still water.' })}
         advanced
       >
-          <input type="range" min={MIN_FREEPLAY_FLOATER_MOTION} max={MAX_FREEPLAY_FLOATER_MOTION} step="1"
-            value={$appearanceSettings.freeplayFloaterMotion}
-            disabled={!$multiplayerSettings.multiplayerFreeplay || !$appearanceSettings.showFreeplayFloaters}
-            on:input={handleFreeplayFloaterMotionChange} />
-          <span class="field-output">{$appearanceSettings.freeplayFloaterMotion}%</span>
+          <input type="range" min={MIN_MULTIPLAYER_FLOATER_MOTION} max={MAX_MULTIPLAYER_FLOATER_MOTION} step="1"
+            value={$appearanceSettings.multiplayerFloaterMotion}
+            disabled={!$multiplayerSettings.multiplayer || !$appearanceSettings.showMultiplayerFloaters}
+            on:input={handleMultiplayerFloaterMotionChange} />
+          <span class="field-output">{$appearanceSettings.multiplayerFloaterMotion}%</span>
       </SettingsField>
 
       <SettingsField

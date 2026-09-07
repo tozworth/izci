@@ -1,7 +1,9 @@
-export type FreeplayFloaterEdge = 'left' | 'right' | 'top' | 'bottom';
+import type { MultiplayerClient } from './multiplayer-types';
 
-export interface FreeplayFloaterPlacement {
-  edge: FreeplayFloaterEdge;
+export type MultiplayerFloaterEdge = 'left' | 'right' | 'top' | 'bottom';
+
+export interface MultiplayerFloaterPlacement {
+  edge: MultiplayerFloaterEdge;
   offsetPercent: number;
   driftX: number;
   driftY: number;
@@ -30,13 +32,13 @@ function unit(seed: number, salt: number): number {
 }
 
 /** Places cards only in the outer bands, leaving the centered artwork/lyrics stage clear. */
-export function createFreeplayFloaterPlacement(
+export function createMultiplayerFloaterPlacement(
   clientId: string,
   ordinal: number,
   sessionSeed = 0
-): FreeplayFloaterPlacement {
+): MultiplayerFloaterPlacement {
   const seed = hashText(`${clientId}:${sessionSeed}`);
-  const edges: FreeplayFloaterEdge[] = ['left', 'right', 'top', 'bottom'];
+  const edges: MultiplayerFloaterEdge[] = ['left', 'right', 'top', 'bottom'];
   const edge = edges[(seed + ordinal) % edges.length] ?? 'left';
   const offsetBands = edge === 'left' || edge === 'right'
     ? [11, 29, 54, 76]
@@ -54,9 +56,16 @@ export function createFreeplayFloaterPlacement(
   };
 }
 
-export function getFreeplayClientIcon(platform: string): string {
+export function getMultiplayerClientIcon(platform: string): string {
   const normalized = platform.toLowerCase();
   if (/android|iphone|ios|mobile|phone/.test(normalized)) return 'smartphone';
   if (/ipad|tablet/.test(normalized)) return 'tablet_mac';
   return 'computer';
+}
+
+export function isMultiplayerFloaterVisible(client: MultiplayerClient): boolean {
+  if (client.status !== 'connected') return false;
+  if (!client.freeplay) return true;
+  return Boolean(client.freeplayTrack)
+    && !['idle', 'ended', 'error'].includes(client.freeplayPlaybackState);
 }

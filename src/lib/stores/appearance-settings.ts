@@ -113,12 +113,12 @@ const DEFAULT_LYRICS_DOWNTIME_THRESHOLD_SECONDS = 10;
 export const MIN_NOW_PLAYING_PANEL_AUTO_HIDE_SECONDS = 2;
 export const NOW_PLAYING_PANEL_AUTO_HIDE_NEVER_SECONDS = 16;
 const DEFAULT_NOW_PLAYING_PANEL_AUTO_HIDE_SECONDS = 5;
-export const MIN_FREEPLAY_FLOATER_SIZE = 80;
-export const MAX_FREEPLAY_FLOATER_SIZE = 125;
-export const MIN_FREEPLAY_FLOATER_MOTION = 0;
-export const MAX_FREEPLAY_FLOATER_MOTION = 100;
-const DEFAULT_FREEPLAY_FLOATER_SIZE = 100;
-const DEFAULT_FREEPLAY_FLOATER_MOTION = 35;
+export const MIN_MULTIPLAYER_FLOATER_SIZE = 80;
+export const MAX_MULTIPLAYER_FLOATER_SIZE = 125;
+export const MIN_MULTIPLAYER_FLOATER_MOTION = 0;
+export const MAX_MULTIPLAYER_FLOATER_MOTION = 100;
+const DEFAULT_MULTIPLAYER_FLOATER_SIZE = 100;
+const DEFAULT_MULTIPLAYER_FLOATER_MOTION = 35;
 const DEFAULT_LYRICS_SETTINGS: LyricsSettings = {
   displayStyle: 'timestamped',
   autoScroll: true,
@@ -152,9 +152,9 @@ export const DEFAULT_APPEARANCE_SETTINGS: AppearanceSettings = {
   nowPlayingViewActive: false,
   autoNowPlayingOnMaximized: false,
   nowPlayingPanelAutoHideDelaySeconds: DEFAULT_NOW_PLAYING_PANEL_AUTO_HIDE_SECONDS,
-  showFreeplayFloaters: true,
-  freeplayFloaterSize: DEFAULT_FREEPLAY_FLOATER_SIZE,
-  freeplayFloaterMotion: DEFAULT_FREEPLAY_FLOATER_MOTION,
+  showMultiplayerFloaters: true,
+  multiplayerFloaterSize: DEFAULT_MULTIPLAYER_FLOATER_SIZE,
+  multiplayerFloaterMotion: DEFAULT_MULTIPLAYER_FLOATER_MOTION,
   showTrackTitleInWindowTitle: true
 };
 
@@ -308,21 +308,21 @@ export function normalizeNowPlayingPanelAutoHideDelaySeconds(value: unknown): nu
   );
 }
 
-export function normalizeFreeplayFloaterSize(value: unknown): number {
+export function normalizeMultiplayerFloaterSize(value: unknown): number {
   return normalizeRoundedNumber(
     value,
-    MIN_FREEPLAY_FLOATER_SIZE,
-    MAX_FREEPLAY_FLOATER_SIZE,
-    DEFAULT_FREEPLAY_FLOATER_SIZE
+    MIN_MULTIPLAYER_FLOATER_SIZE,
+    MAX_MULTIPLAYER_FLOATER_SIZE,
+    DEFAULT_MULTIPLAYER_FLOATER_SIZE
   );
 }
 
-export function normalizeFreeplayFloaterMotion(value: unknown): number {
+export function normalizeMultiplayerFloaterMotion(value: unknown): number {
   return normalizeRoundedNumber(
     value,
-    MIN_FREEPLAY_FLOATER_MOTION,
-    MAX_FREEPLAY_FLOATER_MOTION,
-    DEFAULT_FREEPLAY_FLOATER_MOTION
+    MIN_MULTIPLAYER_FLOATER_MOTION,
+    MAX_MULTIPLAYER_FLOATER_MOTION,
+    DEFAULT_MULTIPLAYER_FLOATER_MOTION
   );
 }
 
@@ -447,9 +447,9 @@ export function normalizeAppearanceSettings(value: unknown): AppearanceSettings 
     nowPlayingPanelAutoHideDelaySeconds: normalizeNowPlayingPanelAutoHideDelaySeconds(
       source.nowPlayingPanelAutoHideDelaySeconds
     ),
-    showFreeplayFloaters: source.showFreeplayFloaters !== false,
-    freeplayFloaterSize: normalizeFreeplayFloaterSize(source.freeplayFloaterSize),
-    freeplayFloaterMotion: normalizeFreeplayFloaterMotion(source.freeplayFloaterMotion),
+    showMultiplayerFloaters: source.showMultiplayerFloaters !== false,
+    multiplayerFloaterSize: normalizeMultiplayerFloaterSize(source.multiplayerFloaterSize),
+    multiplayerFloaterMotion: normalizeMultiplayerFloaterMotion(source.multiplayerFloaterMotion),
     showTrackTitleInWindowTitle: source.showTrackTitleInWindowTitle !== false
   };
 }

@@ -11,14 +11,14 @@ import {
   MIN_CHAMELEON_SATURATION,
   MAX_SYNTHWAVE_BACKGROUND_BRIGHTNESS,
   MIN_SYNTHWAVE_BACKGROUND_BRIGHTNESS,
-  MAX_FREEPLAY_FLOATER_MOTION,
-  MIN_FREEPLAY_FLOATER_SIZE,
+  MAX_MULTIPLAYER_FLOATER_MOTION,
+  MIN_MULTIPLAYER_FLOATER_SIZE,
   normalizeChameleonHue,
   normalizeChameleonSaturation,
   normalizeAppearanceSettings,
   normalizeContextualTabAutomation,
-  normalizeFreeplayFloaterMotion,
-  normalizeFreeplayFloaterSize,
+  normalizeMultiplayerFloaterMotion,
+  normalizeMultiplayerFloaterSize,
   normalizeSynthwaveBackgroundBrightness
 } from './appearance-settings';
 
@@ -108,11 +108,11 @@ describe('normalizeSynthwaveBackgroundBrightness', () => {
   });
 });
 
-describe('normalize Freeplay floaters', () => {
+describe('normalize Multiplayer floaters', () => {
   it('keeps the feature on by default and clamps its goldilocks', () => {
-    expect(normalizeAppearanceSettings(null).showFreeplayFloaters).toBe(true);
-    expect(normalizeAppearanceSettings({ showFreeplayFloaters: false }).showFreeplayFloaters).toBe(false);
-    expect(normalizeFreeplayFloaterSize(1)).toBe(MIN_FREEPLAY_FLOATER_SIZE);
-    expect(normalizeFreeplayFloaterMotion(500)).toBe(MAX_FREEPLAY_FLOATER_MOTION);
+    expect(normalizeAppearanceSettings(null).showMultiplayerFloaters).toBe(true);
+    expect(normalizeAppearanceSettings({ showMultiplayerFloaters: false }).showMultiplayerFloaters).toBe(false);
+    expect(normalizeMultiplayerFloaterSize(1)).toBe(MIN_MULTIPLAYER_FLOATER_SIZE);
+    expect(normalizeMultiplayerFloaterMotion(500)).toBe(MAX_MULTIPLAYER_FLOATER_MOTION);
   });
 });
