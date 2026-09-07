@@ -60,6 +60,9 @@
   let previousActiveTab = activeWorkspaceTab;
   $: lyricsAvailable.setTrack(content.lyricsTrack);
   $: contextualTab = track?.kind === 'module' ? 'patterns' : 'lyrics';
+  $: contextualTabLabel = contextualTab === 'lyrics'
+    ? $t('workspace.tabs.lyrics')
+    : $t('workspace.tabs.patterns');
   $: stageTab = contextualTab === 'patterns'
     ? ($nowPlayingState.patterns ? 'patterns' : null)
     : ($nowPlayingState.lyrics && $lyricsAvailable ? 'lyrics' : null);
@@ -199,7 +202,7 @@
           on:showTrack
         >
           <button slot="context-controls" type="button" class="transport-button now-playing-context-toggle"
-            aria-label={$t(`workspace.tabs.${contextualTab}`)} title={$t(`workspace.tabs.${contextualTab}`)}
+            aria-label={contextualTabLabel} title={contextualTabLabel}
             aria-pressed={$nowPlayingState[contextualTab]}
             on:click={() => nowPlayingState.update({ [contextualTab]: !$nowPlayingState[contextualTab] })}>
             <span class="material-symbols-outlined" aria-hidden="true">{contextualTab === 'lyrics' ? 'lyrics' : 'grid_on'}</span>
@@ -208,7 +211,7 @@
       </section>
 
       {#if stageTab}
-        <section class="now-playing-context" aria-label={$t(`workspace.tabs.${stageTab}`)}>
+        <section class="now-playing-context" aria-label={contextualTabLabel}>
           <WorkspaceTabContent tab={stageTab} {content} on:seek />
         </section>
       {/if}

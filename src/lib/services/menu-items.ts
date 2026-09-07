@@ -1,5 +1,4 @@
 import { version as appVersion } from '../../../package.json';
-import { type PwaUpdateStatus } from '$lib/services/pwa-updates';
 import { isRafPresetDirty } from '$lib/stores/raf-presets';
 import {
   getPlaybackBookmarks,
@@ -15,6 +14,7 @@ import type {
   LoadoutState,
   MenuActionItem,
   PlaybackSettings,
+  PwaUpdateStatus,
   RafPresetState,
   RafRackSettings,
   TrackItem,
