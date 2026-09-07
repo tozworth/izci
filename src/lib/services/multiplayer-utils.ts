@@ -112,7 +112,9 @@ export function isClientMessage(value: unknown): value is ClientMessage {
     return typeof message.text === 'string'
       && message.text.trim().length > 0
       && message.text.length <= MULTIPLAYER_CHAT_MAX_MESSAGE_LENGTH
-      && (message.track === undefined || isMultiplayerChatTrackLink(message.track));
+      && (message.track === undefined || isMultiplayerChatTrackLink(message.track))
+      && (message.action === undefined || message.action === 'now-playing')
+      && (message.action !== 'now-playing' || message.track !== undefined);
   }
   if (message.kind === 'freeplay.preference') {
     return typeof message.enabled === 'boolean';

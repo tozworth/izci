@@ -324,6 +324,14 @@ describe('multiplayer protocol', () => {
     expect(isHostMessage({ kind: 'chat.clear' })).toBe(true);
     expect(isClientMessage({ kind: 'chat.send', text: 'Hello' })).toBe(true);
     expect(isClientMessage({ kind: 'chat.send', text: track.title, track })).toBe(true);
+    expect(isClientMessage({
+      kind: 'chat.send',
+      text: '/np',
+      track,
+      action: 'now-playing'
+    })).toBe(true);
+    expect(isClientMessage({ kind: 'chat.send', text: '/np', action: 'now-playing' })).toBe(false);
+    expect(isClientMessage({ kind: 'chat.send', text: track.title, track, action: 'clear' })).toBe(false);
     expect(isClientMessage({ kind: 'chat.send', text: '  ' })).toBe(false);
     expect(isHostMessage({
       kind: 'chat.message',

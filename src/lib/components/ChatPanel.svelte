@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { afterUpdate } from 'svelte';
+  import { tick } from 'svelte';
   import { t } from 'svelte-i18n';
   import type { Readable } from 'svelte/store';
   import type {
@@ -19,6 +19,7 @@
 
   let input = '';
   let messageList: HTMLDivElement;
+  let lastMessageId: string | null = null;
 
   function submit(): void {
     if (!connected) return;
@@ -37,9 +38,24 @@
     }).format(sentAt);
   }
 
-  afterUpdate(() => {
+  function isNearBottom(): boolean {
+    if (!messageList) return true;
+    return messageList.scrollHeight - messageList.scrollTop - messageList.clientHeight < 24;
+  }
+
+  async function scrollToBottom(): Promise<void> {
+    await tick();
     if (messageList) messageList.scrollTop = messageList.scrollHeight;
-  });
+  }
+
+  $: {
+    const nextMessageId = $messages[$messages.length - 1]?.id ?? null;
+    if (nextMessageId !== lastMessageId) {
+      const shouldScroll = lastMessageId === null || isNearBottom();
+      lastMessageId = nextMessageId;
+      if (shouldScroll) void scrollToBottom();
+    }
+  }
 </script>
 
 <section class="chat-panel" aria-label={$t('main.multiplayer.chatLabel', { default: 'Multiplayer chat' })}>

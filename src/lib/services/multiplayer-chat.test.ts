@@ -1,14 +1,19 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   createMultiplayerChatMessage,
   createMultiplayerChatNotice,
   multiplayerChat,
   normalizeMultiplayerChatText,
   parseMultiplayerChatCommand,
+  parseMultiplayerChatSubmission,
   resolveMultiplayerChatTrackLink
 } from './multiplayer-chat';
 
-afterEach(() => multiplayerChat.clear());
+afterEach(() => {
+  multiplayerChat.restorePersistedHistory(0);
+  multiplayerChat.clear();
+  vi.unstubAllGlobals();
+});
 
 describe('multiplayer chat', () => {
   it('normalizes messages for the single-line IRC-style view', () => {
@@ -96,6 +101,34 @@ describe('multiplayer chat', () => {
       text: '',
       action: 'clear'
     });
+  });
+
+  it('does not interpret linked track titles as slash commands', () => {
+    const track = { collection: 'library' as const, itemId: 'track', title: '/clear' };
+
+    expect(parseMultiplayerChatSubmission('/clear', track)).toEqual({ text: '/clear' });
+    expect(parseMultiplayerChatSubmission('/np', { ...track, title: '/np' })).toEqual({ text: '/np' });
+    expect(parseMultiplayerChatSubmission('/np', track, 'now-playing')).toEqual({
+      text: '',
+      action: 'now-playing'
+    });
+  });
+
+  it('updates preserved history when chat is cleared', () => {
+    const values = new Map<string, string>();
+    vi.stubGlobal('window', {
+      localStorage: {
+        getItem: (key: string) => values.get(key) ?? null,
+        setItem: (key: string, value: string) => values.set(key, value),
+        removeItem: (key: string) => values.delete(key)
+      }
+    });
+
+    multiplayerChat.restorePersistedHistory(10);
+    multiplayerChat.append({ id: 'one', name: 'A', text: 'hello', sentAt: 1 });
+    multiplayerChat.clear();
+
+    expect(values.get('izci.multiplayer-chat-history')).toBe('[]');
   });
 
   it('creates typed join and leave notices', () => {
