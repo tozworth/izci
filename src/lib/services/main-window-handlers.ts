@@ -113,9 +113,11 @@ export function createMainWindowPanelHandlers(deps: MainWindowPanelHandlerDeps):
         deps.freeplayActions.handleQueueContextAction(event.detail.actionId, event.detail.ids);
         return;
       }
-      if (!deps.getIsMultiplayerClient()) {
-        deps.workspaceCollections.handleQueueContextAction(event.detail.actionId, event.detail.ids);
+      if (deps.getIsMultiplayerClient()) {
+        deps.freeplayActions.handleQueueContextAction(event.detail.actionId, event.detail.ids);
+        return;
       }
+      deps.workspaceCollections.handleQueueContextAction(event.detail.actionId, event.detail.ids);
     },
     toggleShuffle: () => deps.transport.toggleQueueShuffle(),
     cycleRepeat: () => deps.transport.cycleQueueRepeat()
@@ -147,7 +149,10 @@ export function createMainWindowPanelHandlers(deps: MainWindowPanelHandlerDeps):
         deps.freeplayActions.handleLibraryContextAction(event.detail.actionId, event.detail.ids);
         return;
       }
-      if (deps.getIsMultiplayerClient()) return;
+      if (deps.getIsMultiplayerClient()) {
+        deps.freeplayActions.handleLibraryContextAction(event.detail.actionId, event.detail.ids);
+        return;
+      }
       deps.getActiveView() === 'favorites'
         ? deps.workspaceCollections.handleFavoriteContextAction(
             event.detail.actionId,

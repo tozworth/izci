@@ -4,6 +4,7 @@ import {
   buildContextActionEvent,
   buildContextMenuActions,
   buildContextMenuItems,
+  buildItemContextMenu,
   getContextMenuActionLabel,
   getContextMenuShortcut,
   localizeContextMenuAction
@@ -149,5 +150,25 @@ describe('buildContextActionEvent', () => {
   it('sends empty ids for panel menus', () => {
     expect(buildContextActionEvent({ kind: 'panel', x: 0, y: 0 }, 'randomize-queue'))
       .toEqual({ actionId: 'randomize-queue', ids: [] });
+  });
+});
+
+describe('buildItemContextMenu', () => {
+  it('allows safe item actions on read-only multiplayer collections', () => {
+    let prevented = false;
+    const menu = buildItemContextMenu({
+      clientX: 12,
+      clientY: 34,
+      preventDefault: () => { prevented = true; }
+    } as MouseEvent, 'track', {
+      readOnly: true,
+      layout: 'list',
+      displaySelectedIds: ['track'],
+      onSetSelection: () => undefined,
+      onSelect: () => undefined
+    });
+
+    expect(prevented).toBe(true);
+    expect(menu).toEqual({ kind: 'items', x: 12, y: 34, ids: ['track'] });
   });
 });

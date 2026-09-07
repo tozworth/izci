@@ -16,6 +16,7 @@ interface FreeplayUiActionsDeps {
   getLibraryItems(): TrackItem[];
   getFavoriteItems(): TrackItem[];
   getActiveView(): LibraryViewId;
+  copyTrackFilenames(tracks: TrackItem[]): Promise<void>;
   showLibraryGroup(target: TrackLibraryNavigationTarget): void;
   showTrackDetails(): void;
   activateTrack(collection: WorkspaceCollection | 'favorites', id: string): boolean;
@@ -54,18 +55,42 @@ export function createFreeplayUiActions(deps: FreeplayUiActionsDeps) {
   }
 
   function handleQueueContextAction(actionId: string, ids: string[]): void {
-    if (actionId === 'remove') {
+    if (actionId === 'remove' && deps.getIsFreeplayClient()) {
       removeFromFreeplayQueue(ids);
       return;
     }
     const tracks = buildSelectedWorkspaceTracks(deps.getQueueItems(), ids);
     if (handleNavigationAction(actionId, tracks)) return;
-    if (actionId === 'track-details') deps.showTrackDetails();
+    if (actionId === 'track-details') {
+      deps.showTrackDetails();
+    } else if (actionId === 'copy-filename') {
+      void deps.copyTrackFilenames(tracks);
+    } else if (actionId === 'play-next' && tracks.length > 0) {
+      deps.sendCommand({ type: 'queue.play-next', collection: 'queue', itemIds: tracks.map((track) => track.id) });
+    }
   }
 
   function handleLibraryContextAction(actionId: string, ids: string[]): void {
+    const source = deps.getActiveView() === 'favorites' ? deps.getFavoriteItems() : deps.getLibraryItems();
+    const tracks = buildSelectedWorkspaceTracks(source, ids);
+    if (handleNavigationAction(actionId, tracks)) return;
+    if (actionId === 'track-details') {
+      deps.showTrackDetails();
+      return;
+    }
+    if (actionId === 'copy-filename') {
+      void deps.copyTrackFilenames(tracks);
+      return;
+    }
+    if (!deps.getIsFreeplayClient()) return;
     if (actionId === 'add-to-queue') {
       addToFreeplayQueue(ids);
+      return;
+    }
+    if (actionId === 'play-next') {
+      if (tracks.length === 0) return;
+      addToFreeplayQueue(ids);
+      deps.sendCommand({ type: 'queue.play-next', collection: 'queue', itemIds: tracks.map((track) => track.id) });
       return;
     }
     if (actionId === 'replace-queue' || actionId === 'shuffle-play') {
@@ -77,10 +102,6 @@ export function createFreeplayUiActions(deps: FreeplayUiActionsDeps) {
       deps.activateTrack('queue', ids[0]);
       return;
     }
-    const source = deps.getActiveView() === 'favorites' ? deps.getFavoriteItems() : deps.getLibraryItems();
-    const tracks = buildSelectedWorkspaceTracks(source, ids);
-    if (handleNavigationAction(actionId, tracks)) return;
-    if (actionId === 'track-details') deps.showTrackDetails();
   }
 
   return {

@@ -238,6 +238,21 @@ describe('multiplayer protocol', () => {
     expect(isHostMessage({ kind: 'buffer', bufferMs: 30_001 })).toBe(false);
   });
 
+  it('accepts bounded Play next commands', () => {
+    expect(isMultiplayerCommand({
+      type: 'queue.play-next',
+      commandId: 'next-1',
+      collection: 'queue',
+      itemIds: ['one', 'two']
+    })).toBe(true);
+    expect(isMultiplayerCommand({
+      type: 'queue.play-next',
+      commandId: 'next-1',
+      collection: 'library',
+      itemIds: []
+    })).toBe(false);
+  });
+
   it('accepts bounded host MOTD messages', () => {
     expect(isHostMessage({
       kind: 'chat.motd',

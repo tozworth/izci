@@ -379,6 +379,8 @@ export function buildFreeplayQueueContextActions(
     ...(goToLibrary ? [goToLibrary] : []),
     { id: 'track-details', label: 'Track details', icon: 'info' },
     ...(sendToChatAction ? [sendToChatAction] : []),
+    { id: 'play-next', label: 'Play next', icon: 'queue_play_next' },
+    { id: 'copy-filename', label: 'Copy filename', icon: 'content_copy' },
     {
       id: 'remove',
       label: 'Remove',
@@ -402,9 +404,54 @@ export function buildFreeplayLibraryContextActions(
   const sendToChatAction = buildSendToChatAction(tracks, sendToChat);
   return [
     { id: 'add-to-queue', label: 'Add to queue', icon: 'playlist_add' },
-    { id: 'replace-queue', label: 'Replace queue', icon: 'playlist_play' },
+    ...(tracks.length > 1
+      ? [{ id: 'replace-queue', label: 'Replace queue', icon: 'playlist_play' }]
+      : []),
+    { id: 'play-next', label: 'Play next', icon: 'queue_play_next' },
     ...(goToLibrary ? [goToLibrary] : []),
     { id: 'track-details', label: 'Track details', icon: 'info' },
-    ...(sendToChatAction ? [sendToChatAction] : [])
+    ...(sendToChatAction ? [sendToChatAction] : []),
+    { id: 'copy-filename', label: 'Copy filename', icon: 'content_copy' }
+  ];
+}
+
+export function buildCoopQueueContextActions(
+  queueItems: TrackItem[],
+  libraryItems: TrackItem[],
+  ids: string[],
+  sendToChat = false
+): MenuActionItem[] {
+  const tracks = buildSelectedWorkspaceTracks(queueItems, ids);
+  const goToLibrary = tracks.length === 1
+    ? buildGoToLibraryAction(tracks[0], libraryItems)
+    : null;
+  const sendToChatAction = buildSendToChatAction(tracks, sendToChat);
+
+  return [
+    { id: 'play-next', label: 'Play next', icon: 'queue_play_next' },
+    ...(goToLibrary ? [goToLibrary] : []),
+    { id: 'track-details', label: 'Track details', icon: 'info' },
+    ...(sendToChatAction ? [sendToChatAction] : []),
+    { id: 'copy-filename', label: 'Copy filename', icon: 'content_copy' }
+  ];
+}
+
+export function buildCoopLibraryContextActions(
+  items: TrackItem[],
+  libraryItems: TrackItem[],
+  ids: string[],
+  sendToChat = false
+): MenuActionItem[] {
+  const tracks = buildSelectedWorkspaceTracks(items, ids);
+  const goToLibrary = tracks.length === 1
+    ? buildGoToLibraryAction(tracks[0], libraryItems)
+    : null;
+  const sendToChatAction = buildSendToChatAction(tracks, sendToChat);
+
+  return [
+    ...(goToLibrary ? [goToLibrary] : []),
+    { id: 'track-details', label: 'Track details', icon: 'info' },
+    ...(sendToChatAction ? [sendToChatAction] : []),
+    { id: 'copy-filename', label: 'Copy filename', icon: 'content_copy' }
   ];
 }

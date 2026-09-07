@@ -340,10 +340,10 @@ export function createArtworkPresentationController({
     getSnapshot(): ArtworkPresentationState {
       return state;
     },
-    syncSelection(selectedItem: TrackItem | null, hasAnySelection: boolean): void {
+    syncSelection(selectedItem: TrackItem | null, hasActiveSelection: boolean): void {
       if (selectedItem) {
         detailsTargetTrack = selectedItem;
-      } else if (!hasAnySelection) {
+      } else if (!hasActiveSelection) {
         detailsTargetTrack = null;
       }
 
@@ -353,7 +353,7 @@ export function createArtworkPresentationController({
         return;
       }
 
-      if (!hasAnySelection && state.detailsDisplayTrack) {
+      if (!hasActiveSelection && state.detailsDisplayTrack) {
         setDetailsDisplay(null, null);
       }
     },

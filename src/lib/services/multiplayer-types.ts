@@ -259,6 +259,7 @@ export interface PeerConnection {
   freeplayRepeatMode: RepeatMode;
   freeplayNavigation: FreeplayStepResolver | null;
   freeplayQueue: string[];
+  freeplayUpNext: Array<{ collection: MultiplayerCollection; itemId: string }>;
   freeplayActivation: { autoPlay: boolean } | null;
   freeplayModeToken: number;
   freeplayPendingPreparation: MultiplayerPlaybackPreparation | null;

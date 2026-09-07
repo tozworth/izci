@@ -407,6 +407,7 @@ export function createWorkspaceCollectionsController({
     getLibraryContextActions,
     getFavoriteContextActions,
     getUpNextContextActions,
+    copyTrackFilenames,
     incrementLibraryPlayCount,
     recordLibraryLastPlayed,
     handleQueueContextAction,

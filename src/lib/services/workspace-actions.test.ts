@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  buildCoopLibraryContextActions,
+  buildCoopQueueContextActions,
   buildFavoritesContextActions,
   buildFreeplayLibraryContextActions,
   buildFreeplayQueueContextActions,
@@ -41,9 +43,27 @@ describe('workspace actions', () => {
   it('keeps Freeplay queue actions local and excludes host mutations', () => {
     const track = item('track', { path: '/Music/Track.flac', metadata: { artist: 'Artist' } });
     expect(buildFreeplayQueueContextActions([track], [track], ['track']).map(({ id }) => id))
-      .toEqual(['go-to-library', 'track-details', 'remove']);
+      .toEqual(['go-to-library', 'track-details', 'play-next', 'copy-filename', 'remove']);
     expect(buildFreeplayLibraryContextActions([track], [track], ['track']).map(({ id }) => id))
-      .toEqual(['add-to-queue', 'replace-queue', 'go-to-library', 'track-details']);
+      .toEqual(['add-to-queue', 'play-next', 'go-to-library', 'track-details', 'copy-filename']);
+  });
+
+  it('offers Co-op playback and inspection actions without collection mutations', () => {
+    const track = item('track', { path: '/Music/Track.flac', metadata: { artist: 'Artist' } });
+
+    expect(buildCoopQueueContextActions([track], [track], ['track']).map(({ id }) => id))
+      .toEqual(['play-next', 'go-to-library', 'track-details', 'copy-filename']);
+    expect(buildCoopLibraryContextActions([track], [track], ['track']).map(({ id }) => id))
+      .toEqual(['go-to-library', 'track-details', 'copy-filename']);
+  });
+
+  it('only offers Freeplay Replace queue for multi-track selections', () => {
+    const tracks = [item('one'), item('two')];
+
+    expect(buildFreeplayLibraryContextActions(tracks, tracks, ['one']).map(({ id }) => id))
+      .not.toContain('replace-queue');
+    expect(buildFreeplayLibraryContextActions(tracks, tracks, ['one', 'two']).map(({ id }) => id))
+      .toContain('replace-queue');
   });
 
   it('offers Send to chat only for one track when chat is open', () => {

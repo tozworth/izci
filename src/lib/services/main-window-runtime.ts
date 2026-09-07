@@ -59,6 +59,8 @@ import type {
 import { upNext } from '$lib/stores/up-next';
 import { type OptionsViewName } from '../../options/views';
 import {
+  buildCoopLibraryContextActions,
+  buildCoopQueueContextActions,
   buildFreeplayLibraryContextActions,
   buildFreeplayQueueContextActions
 } from '$lib/services/workspace-actions';
@@ -197,6 +199,8 @@ export function createMainWindowRuntime(deps: MainWindowRuntimeDeps): MainWindow
   const workspaceShell = createWorkspaceShellController({
     getQueueContextActions: (ids) => state.isFreeplayClient
       ? buildFreeplayQueueContextActions(state.queueItems, state.libraryItems, ids, canSendTrackToChat())
+      : state.isMultiplayerClient
+        ? buildCoopQueueContextActions(state.queueItems, state.libraryItems, ids, canSendTrackToChat())
       : workspaceCollections.getQueueContextActions(ids, canSendTrackToChat()),
     getLibraryContextActions: (ids) => state.isFreeplayClient
       ? buildFreeplayLibraryContextActions(
@@ -207,6 +211,15 @@ export function createMainWindowRuntime(deps: MainWindowRuntimeDeps): MainWindow
           ids,
           canSendTrackToChat()
         )
+        : state.isMultiplayerClient
+        ? buildCoopLibraryContextActions(
+            libraryViewSettings.getSnapshot().activeView === 'favorites'
+              ? state.favoriteItems
+              : state.libraryItems,
+            state.libraryItems,
+            ids,
+            canSendTrackToChat()
+          )
         : libraryViewSettings.getSnapshot().activeView === 'favorites'
         ? workspaceCollections.getFavoriteContextActions(ids, canSendTrackToChat())
         : workspaceCollections.getLibraryContextActions(ids, canSendTrackToChat()),
@@ -292,6 +305,10 @@ export function createMainWindowRuntime(deps: MainWindowRuntimeDeps): MainWindow
     seek: (seconds) => transport.seek(seconds),
     toggleQueueShuffle: () => transport.toggleQueueShuffle(),
     cycleQueueRepeat: () => transport.cycleQueueRepeat(),
+    playQueueItemsNext: (ids) => {
+      const selected = state.queueItems.filter((item) => ids.includes(item.id));
+      upNext.add(selected, 'front');
+    },
     getMultiplayerSettings: () => multiplayerSettings.getSnapshot(),
     getLastSession: () => multiplayerLastSession.getSnapshot(),
     getPairings: () => multiplayerPairings.getSnapshot(),
@@ -340,6 +357,7 @@ export function createMainWindowRuntime(deps: MainWindowRuntimeDeps): MainWindow
     getLibraryItems: () => state.libraryItems,
     getFavoriteItems: () => state.favoriteItems,
     getActiveView: () => libraryViewSettings.getSnapshot().activeView,
+    copyTrackFilenames: (tracks) => workspaceCollections.copyTrackFilenames(tracks),
     showLibraryGroup: (target) => workspaceShell.showLibraryGroup(target),
     showTrackDetails: () => workspaceShell.showTrackDetails(),
     activateTrack: (collection, id) => multiplayerController.activateTrack(collection, id)
