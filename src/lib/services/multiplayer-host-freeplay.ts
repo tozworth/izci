@@ -94,6 +94,7 @@ export async function syncPeerFreeplayMode(ctx: MultiplayerHostContext, peer: Pe
     peer.freeplayNavigation = createFreeplayStepResolver(
       () => freeplayCollectionItems(ctx, peer, peer.freeplayCollection)
     );
+    peer.freeplayUpNext = [];
     // The stable wire only matters for streamed (video) Freeplay; buffered
     // Opus peers do not need it. A missing wire must not kill the session.
     const wireTrack = await player.ensureWire().catch(() => null);
@@ -140,6 +141,7 @@ export async function syncPeerFreeplayMode(ctx: MultiplayerHostContext, peer: Pe
     peer.freeplayPlayer = null;
     peer.freeplayNavigation = null;
     peer.freeplayQueue = [];
+    peer.freeplayUpNext = [];
     peer.freeplayCollection = 'library';
     peer.freeplayShuffle = false;
     peer.freeplayRepeatMode = 'off';
@@ -508,6 +510,16 @@ export async function handleFreeplayCommand(
       peer.freeplayRepeatMode = cycleMultiplayerRepeatMode(peer.freeplayRepeatMode);
       sendFreeplayState(peer);
       return true;
+    case 'queue.play-next': {
+      const items = freeplayCollectionItems(ctx, peer, command.collection);
+      const validIds = new Set(items.map((item) => item.id));
+      if (!command.itemIds.every((id) => validIds.has(id))) return false;
+      peer.freeplayUpNext.push(...command.itemIds.map((itemId) => ({
+        collection: command.collection,
+        itemId
+      })));
+      return true;
+    }
     case 'collection.activate':
       return activateFreeplayTrack(ctx, peer, command.collection, command.itemId);
   }
@@ -606,6 +618,10 @@ async function stepFreeplayTrack(
   if (!player) return false;
   const navigation = peer.freeplayNavigation;
   if (!navigation) return false;
+  if (direction === 1 && peer.freeplayUpNext.length > 0) {
+    const queued = peer.freeplayUpNext.shift()!;
+    return activateFreeplayTrack(ctx, peer, queued.collection, queued.itemId);
+  }
   const next = fromEnded
     ? navigation.resolveEnd({
         currentId: player.track?.id ?? null,

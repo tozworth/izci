@@ -25,10 +25,10 @@ export interface MultiplayerChatMessage {
   action?: MultiplayerChatAction;
 }
 
-// Version 25 adds host-only /clear chat history synchronization. Version 24 adds /np now-playing chat messages. Version 23 adds multiplayer join/leave chat notices. Version 22 adds /me chat actions. Version 21 adds the room MOTD protocol. Version 20 adds the room chat message protocol. Version 18 adds explicit
+// Version 26 adds transient Play next commands for multiplayer queue tracks. Version 25 adds host-only /clear chat history synchronization. Version 24 adds /np now-playing chat messages. Version 23 adds multiplayer join/leave chat notices. Version 22 adds /me chat actions. Version 21 adds the room MOTD protocol. Version 20 adds the room chat message protocol. Version 18 adds explicit
 // source revisions to buffered-Opus manifests so a
 // listener never reuses cached bytes from a replaced track.
-export const MULTIPLAYER_PROTOCOL_VERSION = 25;
+export const MULTIPLAYER_PROTOCOL_VERSION = 26;
 const MULTIPLAYER_FRAME_CHUNK_SIZE = 12_000;
 export const MULTIPLAYER_QUEUE_MAX_ITEMS = 50_000;
 export const MULTIPLAYER_CHAT_MAX_MESSAGES = 200;
@@ -50,6 +50,12 @@ export type MultiplayerCommand =
   | { type: 'transport.seek'; commandId: string; seconds: number }
   | { type: 'queue.shuffle'; commandId: string }
   | { type: 'queue.repeat'; commandId: string }
+  | {
+      type: 'queue.play-next';
+      commandId: string;
+      collection: MultiplayerCollection;
+      itemIds: string[];
+    }
   | {
       type: 'collection.activate';
       commandId: string;
@@ -239,6 +245,14 @@ export function isMultiplayerCommand(value: unknown): value is MultiplayerComman
     case 'queue.shuffle':
     case 'queue.repeat':
       return true;
+    case 'queue.play-next':
+      return (command.collection === 'queue'
+        || command.collection === 'library'
+        || command.collection === 'favorites')
+        && Array.isArray(command.itemIds)
+        && command.itemIds.length > 0
+        && command.itemIds.length <= MULTIPLAYER_QUEUE_MAX_ITEMS
+        && command.itemIds.every((id) => typeof id === 'string' && id.length > 0 && id.length <= 200);
     case 'transport.seek':
       return typeof command.seconds === 'number'
         && Number.isFinite(command.seconds)

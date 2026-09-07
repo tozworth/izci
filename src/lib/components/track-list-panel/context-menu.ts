@@ -180,7 +180,6 @@ export function buildItemContextMenu(
     onSelect: (detail: { id: string; range: boolean; toggle: boolean }) => void;
   }
 ): TrackListPanelContextMenu | null {
-  if (deps.readOnly) return null;
   event.preventDefault();
 
   const itemIsSelected = deps.displaySelectedIds.includes(id);

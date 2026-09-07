@@ -115,6 +115,22 @@ describe('artwork presentation helpers', () => {
     controller.destroy();
   });
 
+  it('clears the details track when the active collection selection becomes empty', async () => {
+    const controller = createArtworkPresentationController({
+      resolveTrackSnapshot: (track) => track,
+      isPlaybackDetailsPending: () => false,
+      loadArtwork: () => Promise.resolve(null)
+    });
+
+    controller.syncSelection(item('queue-track'), true);
+    await controller.syncDetailsDisplay();
+    controller.syncSelection(null, false);
+    await controller.syncDetailsDisplay();
+
+    expect(controller.getSnapshot().detailsDisplayTrack).toBeNull();
+    controller.destroy();
+  });
+
   it('reloads artwork for the same track when its external artwork key changes', async () => {
     let artworkVersion = 'missing';
     const controller = createArtworkPresentationController({

@@ -668,7 +668,11 @@
   $: {
     artworkPresentation.syncSelection(
       selectedItem,
-      queueSelectionIds.length > 0 || librarySelectionIds.length > 0 || favoriteSelectionIds.length > 0
+      workspaceShellState.activeCollection === 'library'
+        ? $libraryViewSettings.activeView === 'favorites'
+          ? favoriteSelectionIds.length > 0
+          : librarySelectionIds.length > 0
+        : queueSelectionIds.length > 0
     );
     void artworkPresentation.syncDetailsDisplay();
   }

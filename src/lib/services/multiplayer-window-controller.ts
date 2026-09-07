@@ -64,6 +64,7 @@ interface MultiplayerWindowControllerDeps {
   seek(seconds: number): void;
   toggleQueueShuffle(): void;
   cycleQueueRepeat(): void;
+  playQueueItemsNext(ids: string[]): void;
   getMultiplayerSettings(): MultiplayerSettings;
   getLastSession(): MultiplayerLastSession | null;
   getPairings(): MultiplayerPairing[];
@@ -204,6 +205,15 @@ export function createMultiplayerWindowController(deps: MultiplayerWindowControl
       case 'queue.repeat':
         deps.cycleQueueRepeat();
         return true;
+      case 'queue.play-next': {
+        if (command.collection !== 'queue') return false;
+        const queueIds = new Set(deps.getQueueItems().map((item) => item.id));
+        if (!command.itemIds.every((id) => queueIds.has(id))) {
+          return false;
+        }
+        deps.playQueueItemsNext(command.itemIds);
+        return true;
+      }
       case 'collection.activate': {
         const items = command.collection === 'queue'
           ? deps.getQueueItems()

@@ -60,6 +60,7 @@ export function createPeer(
     freeplayRepeatMode: 'off',
     freeplayNavigation: null,
     freeplayQueue: [],
+    freeplayUpNext: [],
     freeplayActivation: null,
     freeplayModeToken: 0,
     freeplayPendingPreparation: null,
@@ -246,6 +247,7 @@ export function disposePeerConnection(peer: PeerConnection): void {
   peer.freeplayPlayer = null;
   peer.freeplayNavigation = null;
   peer.freeplayQueue = [];
+  peer.freeplayUpNext = [];
   peer.mediaTransferToken += 1;
   peer.mediaOutgoing = [];
   peer.mediaQueuedBytes = 0;
