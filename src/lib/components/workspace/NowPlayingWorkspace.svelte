@@ -37,6 +37,7 @@
   export let activeWorkspaceTab: WorkspaceTab = 'queue';
   export let workspaceTabs: WorkspaceTabDefinition[] = [];
   export let panelAutoHideDelaySeconds = 5;
+  export let flyoutTransparency = 0;
   export let alwaysUseArtworkPlayerColors = false;
   export let multiplayerClients: MultiplayerClient[] = [];
   export let showMultiplayerFloaters = false;
@@ -77,6 +78,15 @@
     }
   }
   function toggleSide(side: FlyoutSide) { openSide = openSide === side ? null : side; revealPanelChrome(); }
+  function closeSide(side: FlyoutSide) {
+    if (side === 'left' && $nowPlayingState.leftPinned) {
+      nowPlayingState.update({ leftPinned: false });
+    } else if (side === 'right' && $nowPlayingState.rightPinned) {
+      nowPlayingState.update({ rightPinned: false });
+    }
+    if (openSide === side) openSide = null;
+    revealPanelChrome();
+  }
   let panelChromeHidden = false;
   let panelHideTimer: number | null = null;
   let lastPanelAutoHideDelaySeconds = panelAutoHideDelaySeconds;
@@ -149,7 +159,7 @@
   class="workspace now-playing-workspace"
   class:is-cursor-hidden={panelChromeHidden}
   class:right-flyout-visible={(openSide === 'right') || ($nowPlayingState.rightPinned && rightTabs.length > 0)}
-  style={`--np-left-width: min(${$nowPlayingState.leftWidth}px, 40vw); --np-right-width: min(${$nowPlayingState.rightWidth}px, 40vw);`}
+  style={`--np-left-width: min(${$nowPlayingState.leftWidth}px, 40vw); --np-right-width: min(${$nowPlayingState.rightWidth}px, 40vw); --np-flyout-surface-opacity: ${100 - flyoutTransparency}%;`}
 >
   <BackdropZone
     effect={backdropEffect}
@@ -201,7 +211,7 @@
           on:mute
           on:showTrack
         >
-          <button slot="context-controls" type="button" class="transport-button now-playing-context-toggle"
+          <button slot="artwork-controls" type="button" class="now-playing-context-toggle"
             aria-label={contextualTabLabel} title={contextualTabLabel}
             aria-pressed={$nowPlayingState[contextualTab]}
             on:click={() => nowPlayingState.update({ [contextualTab]: !$nowPlayingState[contextualTab] })}>
@@ -223,6 +233,7 @@
         pinned={side === 'left' ? $nowPlayingState.leftPinned : $nowPlayingState.rightPinned}
         open={openSide === side} chromeHidden={panelChromeHidden}
         on:toggle={() => toggleSide(side === 'left' ? 'left' : 'right')}
+        on:close={() => closeSide(side === 'left' ? 'left' : 'right')}
         on:pin={() => nowPlayingState.update(side === 'left' ? { leftPinned: !$nowPlayingState.leftPinned } : { rightPinned: !$nowPlayingState.rightPinned })}
         on:tabChange={(event) => dispatch('tabChange', event.detail)}
         on:tabClose={(event) => dispatch('tabClose', event.detail)}

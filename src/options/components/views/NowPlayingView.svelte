@@ -4,9 +4,10 @@
   import {
     MAX_MULTIPLAYER_FLOATER_MOTION, MAX_MULTIPLAYER_FLOATER_SIZE,
     MIN_MULTIPLAYER_FLOATER_MOTION, MIN_MULTIPLAYER_FLOATER_SIZE,
+    MAX_NOW_PLAYING_FLYOUT_TRANSPARENCY, MIN_NOW_PLAYING_FLYOUT_TRANSPARENCY,
     MIN_NOW_PLAYING_PANEL_AUTO_HIDE_SECONDS, NOW_PLAYING_PANEL_AUTO_HIDE_NEVER_SECONDS,
     appearanceSettings, normalizeMultiplayerFloaterMotion, normalizeMultiplayerFloaterSize,
-    normalizeNowPlayingPanelAutoHideDelaySeconds
+    normalizeNowPlayingFlyoutTransparency, normalizeNowPlayingPanelAutoHideDelaySeconds
   } from '$lib/stores/appearance-settings';
   import { multiplayerSettings } from '$lib/stores/multiplayer-settings';
 
@@ -23,6 +24,9 @@
   function handleLyricsAutoFocusToggle(event: Event) { updateLyrics('autoFocusInNowPlaying', event); }
   function handleNowPlayingPanelAutoHideChange(event: Event) {
     appearanceSettings.update({ nowPlayingPanelAutoHideDelaySeconds: normalizeNowPlayingPanelAutoHideDelaySeconds((event.currentTarget as HTMLInputElement).valueAsNumber) });
+  }
+  function handleFlyoutTransparencyChange(event: Event) {
+    appearanceSettings.update({ nowPlayingFlyoutTransparency: normalizeNowPlayingFlyoutTransparency((event.currentTarget as HTMLInputElement).valueAsNumber) });
   }
   $: nowPlayingPanelAutoHideLabel = $appearanceSettings.nowPlayingPanelAutoHideDelaySeconds >= NOW_PLAYING_PANEL_AUTO_HIDE_NEVER_SECONDS
     ? $t('options.nowPlaying.neverHide', { default: 'Never hide' }) : `${$appearanceSettings.nowPlayingPanelAutoHideDelaySeconds}s`;
@@ -82,6 +86,22 @@
             disabled={!$multiplayerSettings.multiplayer}
             on:change={handleMultiplayerFloatersToggle}
           />
+      </SettingsField>
+
+      <SettingsField
+        title={$t('options.nowPlaying.flyoutTransparency.title', { default: 'Flyout transparency' })}
+        hint={$t('options.nowPlaying.flyoutTransparency.hint', { default: 'Lets the Now Playing backdrop show through flyout panel surfaces without fading their contents.' })}
+        advanced
+      >
+          <input
+            type="range"
+            min={MIN_NOW_PLAYING_FLYOUT_TRANSPARENCY}
+            max={MAX_NOW_PLAYING_FLYOUT_TRANSPARENCY}
+            step="1"
+            value={$appearanceSettings.nowPlayingFlyoutTransparency}
+            on:input={handleFlyoutTransparencyChange}
+          />
+          <span class="field-output">{$appearanceSettings.nowPlayingFlyoutTransparency}%</span>
       </SettingsField>
 
       <SettingsField

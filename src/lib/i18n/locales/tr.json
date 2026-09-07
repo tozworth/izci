@@ -286,6 +286,8 @@
       "leftPanels": "Sol paneller",
       "rightPanels": "Sağ paneller",
       "pin": "Paneli sabitle",
+      "unpin": "Panel sabitlemesini kaldır",
+      "close": "Paneli kapat",
       "moveSide": "Sekmeyi diğer tarafa taşı",
       "resizePanel": "Paneli yeniden boyutlandır"
     },
@@ -1079,6 +1081,10 @@
       "artworkColors": {
         "title": "Her zaman albüm renklerini kullan",
         "hint": "Odaklanan oynatıcı kontrollerini albüm resmi renklerini kullanmaya zorlar. Kapalıysa ana oynatıcı ayarını izler."
+      },
+      "flyoutTransparency": {
+        "title": "Açılır panel saydamlığı",
+        "hint": "İçeriğini soldurmadan Şimdi Yürütülüyor arka planını açılır panel yüzeylerinin ardından gösterir."
       },
       "multiplayerFloaters": {
         "title": "Çok oyunculu yüzgeçler",

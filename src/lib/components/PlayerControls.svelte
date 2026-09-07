@@ -614,6 +614,7 @@
         </div>
       </button>
     {/if}
+    <slot name="artwork-controls" />
 
     <div class="player-track">
       {#if displayTrack}
@@ -720,7 +721,6 @@
       >
         <span class="material-symbols-outlined" aria-hidden="true">skip_next</span>
       </button>
-      <slot name="context-controls" />
       {#if showVideoTheaterToggle}
         <button
           type="button"

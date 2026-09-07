@@ -31,6 +31,7 @@ describe('Options page reset scope', () => {
       colorThemeMode: 'dark',
       autoNowPlayingOnMaximized: true,
       nowPlayingPanelAutoHideDelaySeconds: 16,
+      nowPlayingFlyoutTransparency: 55,
       useNowPlayingArtworkPlayerColors: false,
       lyrics: {
         ...DEFAULT_APPEARANCE_SETTINGS.lyrics,
@@ -46,6 +47,7 @@ describe('Options page reset scope', () => {
       colorThemeMode: 'dark',
       autoNowPlayingOnMaximized: DEFAULT_APPEARANCE_SETTINGS.autoNowPlayingOnMaximized,
       nowPlayingPanelAutoHideDelaySeconds: DEFAULT_APPEARANCE_SETTINGS.nowPlayingPanelAutoHideDelaySeconds,
+      nowPlayingFlyoutTransparency: DEFAULT_APPEARANCE_SETTINGS.nowPlayingFlyoutTransparency,
       useNowPlayingArtworkPlayerColors: DEFAULT_APPEARANCE_SETTINGS.useNowPlayingArtworkPlayerColors,
       lyrics: {
         displayStyle: 'theater',
