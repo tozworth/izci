@@ -152,8 +152,8 @@
         break;
       case 'now-playing':
         advancedTweaksModified =
-          $appearanceSettings.freeplayFloaterSize !== DEFAULT_APPEARANCE_SETTINGS.freeplayFloaterSize ||
-          $appearanceSettings.freeplayFloaterMotion !== DEFAULT_APPEARANCE_SETTINGS.freeplayFloaterMotion;
+          $appearanceSettings.multiplayerFloaterSize !== DEFAULT_APPEARANCE_SETTINGS.multiplayerFloaterSize ||
+          $appearanceSettings.multiplayerFloaterMotion !== DEFAULT_APPEARANCE_SETTINGS.multiplayerFloaterMotion;
         break;
       case 'playback':
         advancedTweaksModified =

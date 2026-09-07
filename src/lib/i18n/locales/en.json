@@ -1080,16 +1080,16 @@
         "title": "Always use artwork colors",
         "hint": "Forces the focused player controls to use artwork colors. When off, Now Playing follows the main player setting."
       },
-      "freeplayFloaters": {
-        "title": "Freeplay floaters",
-        "hint": "Shows connected Freeplay listeners and what they are playing around the edges of Now Playing."
+      "multiplayerFloaters": {
+        "title": "Multiplayer floaters",
+        "hint": "Shows connected co-op and Freeplay clients around the edges of Now Playing."
       },
-      "freeplayFloaterSize": {
-        "title": "Freeplay floater size",
+      "multiplayerFloaterSize": {
+        "title": "Multiplayer floater size",
         "hint": "Scales the floating client cards without changing the rest of Now Playing."
       },
-      "freeplayFloaterMotion": {
-        "title": "Freeplay buoyancy",
+      "multiplayerFloaterMotion": {
+        "title": "Multiplayer buoyancy",
         "hint": "Controls how far cards gently drift and tilt. Set it to zero for still water."
       },
       "autoTheater": {

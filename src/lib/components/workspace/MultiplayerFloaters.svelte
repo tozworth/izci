@@ -4,17 +4,18 @@
   import { getTrackDisplaySubtitle, getTrackDisplayTitle } from '$lib/utils/files';
   import type { MultiplayerClient } from '$lib/services/multiplayer-types';
   import {
-    createFreeplayFloaterPlacement,
-    getFreeplayClientIcon,
-    type FreeplayFloaterPlacement
-  } from '$lib/services/now-playing-freeplay';
+    createMultiplayerFloaterPlacement,
+    getMultiplayerClientIcon,
+    isMultiplayerFloaterVisible,
+    type MultiplayerFloaterPlacement
+  } from '$lib/services/now-playing-multiplayer';
 
   export let clients: MultiplayerClient[] = [];
   export let size = 100;
   export let motion = 35;
 
   const sessionSeed = Math.floor(Math.random() * 0x7fffffff);
-  let placements = new Map<string, FreeplayFloaterPlacement>();
+  let placements = new Map<string, MultiplayerFloaterPlacement>();
   let dragOffsets = new Map<string, { x: number; y: number }>();
   let dragState: {
     clientId: string;
@@ -71,12 +72,7 @@
     };
   }
 
-  $: activeClients = clients.filter((client) =>
-    client.status === 'connected'
-    && client.freeplay
-    && Boolean(client.freeplayTrack)
-    && !['idle', 'ended', 'error'].includes(client.freeplayPlaybackState)
-  );
+  $: activeClients = clients.filter(isMultiplayerFloaterVisible);
   $: syncPlacements(activeClients);
 
   function syncPlacements(nextClients: MultiplayerClient[]): void {
@@ -94,13 +90,13 @@
     let changed = next.size !== placements.size;
     nextClients.forEach((client, index) => {
       if (next.has(client.id)) return;
-      next.set(client.id, createFreeplayFloaterPlacement(client.id, index, sessionSeed));
+      next.set(client.id, createMultiplayerFloaterPlacement(client.id, index, sessionSeed));
       changed = true;
     });
     if (changed) placements = next;
   }
 
-  function placementStyle(clientId: string, placement: FreeplayFloaterPlacement): string {
+  function placementStyle(clientId: string, placement: MultiplayerFloaterPlacement): string {
     const motionFactor = motion / 100;
     const dragOffset = dragOffsets.get(clientId) ?? { x: 0, y: 0 };
     return [
@@ -209,7 +205,7 @@
 
     const node = event.currentTarget as HTMLElement;
     const dragLayer = node.parentElement;
-    const container = node.closest('.freeplay-floaters');
+    const container = node.closest('.multiplayer-floaters');
     if (!(container instanceof HTMLElement) || !(dragLayer instanceof HTMLElement)) return;
 
     stopInertia();
@@ -288,18 +284,20 @@
 
 <svelte:window on:pointerup={handlePointerUp} on:pointercancel={handlePointerUp} />
 
-<div class="freeplay-floaters" aria-live="polite">
+<div class="multiplayer-floaters" aria-live="polite">
   {#each activeClients as client (client.id)}
     {@const placement = placements.get(client.id)}
-    {#if placement && client.freeplayTrack}
+    {#if placement}
       <div
-        class="freeplay-floater-anchor edge-{placement.edge}"
+        class="multiplayer-floater-anchor edge-{placement.edge}"
+        class:is-coop={!client.freeplay}
         style={placementStyle(client.id, placement)}
       >
-        <div class="freeplay-floater-drag-layer">
-          <div class="freeplay-floater-backdrop" aria-hidden="true"></div>
+        <div class="multiplayer-floater-drag-layer">
+          <div class="multiplayer-floater-backdrop" aria-hidden="true"></div>
           <article
-            class="freeplay-floater"
+            class="multiplayer-floater"
+            class:is-coop={!client.freeplay}
             transition:zoomFade|global
             on:pointerdown={(event) => handlePointerDown(event, client.id)}
             on:pointermove={handlePointerMove}
@@ -307,23 +305,30 @@
             on:pointercancel={handlePointerUp}
             on:dragstart|preventDefault
           >
-            <div class="freeplay-floater-artwork" aria-hidden="true">
-              {#if client.freeplayArtworkUrl}
-                <img src={client.freeplayArtworkUrl} alt="" />
-              {:else}
-                <span class="material-symbols-outlined">album</span>
-              {/if}
-            </div>
-            <div class="freeplay-floater-copy">
-              <div class="freeplay-floater-client">
-                <span class="material-symbols-outlined" aria-hidden="true">{getFreeplayClientIcon(client.platform)}</span>
+            {#if client.freeplay && client.freeplayTrack}
+              <div class="multiplayer-floater-artwork" aria-hidden="true">
+                {#if client.freeplayArtworkUrl}
+                  <img src={client.freeplayArtworkUrl} alt="" />
+                {:else}
+                  <span class="material-symbols-outlined">album</span>
+                {/if}
+              </div>
+              <div class="multiplayer-floater-copy">
+                <div class="multiplayer-floater-client">
+                  <span class="material-symbols-outlined" aria-hidden="true">{getMultiplayerClientIcon(client.platform)}</span>
+                  <strong>{client.name}</strong>
+                </div>
+                <span class="multiplayer-floater-title">{getTrackDisplayTitle(client.freeplayTrack)}</span>
+                {#if getTrackDisplaySubtitle(client.freeplayTrack)}
+                  <span class="multiplayer-floater-artist">{getTrackDisplaySubtitle(client.freeplayTrack)}</span>
+                {/if}
+              </div>
+            {:else}
+              <div class="multiplayer-floater-client">
+                <span class="material-symbols-outlined" aria-hidden="true">{getMultiplayerClientIcon(client.platform)}</span>
                 <strong>{client.name}</strong>
               </div>
-              <span class="freeplay-floater-title">{getTrackDisplayTitle(client.freeplayTrack)}</span>
-              {#if getTrackDisplaySubtitle(client.freeplayTrack)}
-                <span class="freeplay-floater-artist">{getTrackDisplaySubtitle(client.freeplayTrack)}</span>
-              {/if}
-            </div>
+            {/if}
           </article>
         </div>
       </div>
@@ -332,25 +337,25 @@
 </div>
 
 <style>
-  .freeplay-floaters { position: absolute; inset: 0; z-index: 2; overflow: hidden; pointer-events: none; }
-  .freeplay-floater-anchor {
+  .multiplayer-floaters { position: absolute; inset: 0; z-index: 2; overflow: hidden; pointer-events: none; }
+  .multiplayer-floater-anchor {
     position: absolute; transform-origin: center; pointer-events: auto; touch-action: none;
   }
-  .freeplay-floater-drag-layer {
+  .multiplayer-floater-drag-layer {
     position: relative;
     transform: translate3d(var(--float-drag-x), var(--float-drag-y), 0);
-    animation: freeplay-float var(--float-duration) ease-in-out var(--float-delay) infinite alternate;
+    animation: multiplayer-float var(--float-duration) ease-in-out var(--float-delay) infinite alternate;
   }
-  .freeplay-floater-drag-layer.is-dragging {
+  .multiplayer-floater-drag-layer.is-dragging {
     animation-play-state: paused;
   }
-  .freeplay-floater-drag-layer.is-dragging,
-  .freeplay-floater-drag-layer.is-inertial { will-change: transform; }
+  .multiplayer-floater-drag-layer.is-dragging,
+  .multiplayer-floater-drag-layer.is-inertial { will-change: transform; }
   .edge-left { left: .75rem; top: var(--float-offset); }
   .edge-right { right: .75rem; top: var(--float-offset); }
   .edge-top { top: 3rem; left: var(--float-offset); }
   .edge-bottom { bottom: 1rem; left: var(--float-offset); }
-  .freeplay-floater-backdrop {
+  .multiplayer-floater-backdrop {
     position: absolute; inset: 0; z-index: 0; transform: scale(var(--float-scale));
     border: 1px solid color-mix(in srgb, var(--border-strong) 76%, transparent);
     border-radius: .8rem;
@@ -359,7 +364,8 @@
     backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
     pointer-events: none;
   }
-  .freeplay-floater {
+  .multiplayer-floater-anchor.is-coop .multiplayer-floater-backdrop { border-radius: .65rem; }
+  .multiplayer-floater {
     position: relative; z-index: 1;
     display: grid; grid-template-columns: 4.1rem minmax(0, 1fr); gap: .65rem;
     width: 15rem; min-height: 4.1rem; padding: .42rem; box-sizing: border-box;
@@ -369,25 +375,31 @@
     cursor: grab;
     user-select: none;
   }
-  .freeplay-floater.is-dragging { cursor: grabbing; }
-  .freeplay-floater-artwork { display: grid; place-items: center; width: 4.1rem; height: 4.1rem; overflow: hidden; border-radius: .55rem; background: var(--bg); color: var(--text-muted); }
-  .freeplay-floater-artwork img { width: 100%; height: 100%; object-fit: cover; }
-  .freeplay-floater-artwork .material-symbols-outlined { font-size: 2rem; }
-  .freeplay-floater-copy { min-width: 0; align-self: center; display: flex; flex-direction: column; gap: .12rem; }
-  .freeplay-floater-client { display: flex; align-items: center; gap: .28rem; min-width: 0; color: var(--accent); font-size: .72rem; }
-  .freeplay-floater-client .material-symbols-outlined { flex: 0 0 auto; font-size: .95rem; }
-  .freeplay-floater-client strong, .freeplay-floater-title, .freeplay-floater-artist { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .freeplay-floater-title { font-size: .82rem; font-weight: 650; }
-  .freeplay-floater-artist { color: var(--text-muted); font-size: .72rem; }
-  @keyframes freeplay-float {
+  .multiplayer-floater.is-dragging { cursor: grabbing; }
+  .multiplayer-floater.is-coop {
+    display: flex; align-items: center; width: max-content; max-width: 9rem; min-height: 0;
+    padding: .32rem .48rem; border-radius: .65rem;
+  }
+  .multiplayer-floater.is-coop .multiplayer-floater-client { font-size: .68rem; }
+  .multiplayer-floater.is-coop .multiplayer-floater-client .material-symbols-outlined { font-size: .85rem; }
+  .multiplayer-floater-artwork { display: grid; place-items: center; width: 4.1rem; height: 4.1rem; overflow: hidden; border-radius: .55rem; background: var(--bg); color: var(--text-muted); }
+  .multiplayer-floater-artwork img { width: 100%; height: 100%; object-fit: cover; }
+  .multiplayer-floater-artwork .material-symbols-outlined { font-size: 2rem; }
+  .multiplayer-floater-copy { min-width: 0; align-self: center; display: flex; flex-direction: column; gap: .12rem; }
+  .multiplayer-floater-client { display: flex; align-items: center; gap: .28rem; min-width: 0; color: var(--accent); font-size: .72rem; }
+  .multiplayer-floater-client .material-symbols-outlined { flex: 0 0 auto; font-size: .95rem; }
+  .multiplayer-floater-client strong, .multiplayer-floater-title, .multiplayer-floater-artist { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .multiplayer-floater-title { font-size: .82rem; font-weight: 650; }
+  .multiplayer-floater-artist { color: var(--text-muted); font-size: .72rem; }
+  @keyframes multiplayer-float {
     from { translate: calc(var(--float-drift-x) * -1) calc(var(--float-drift-y) * -1); rotate: calc(var(--float-rotation) * -1); }
     to { translate: var(--float-drift-x) var(--float-drift-y); rotate: var(--float-rotation); }
   }
   @media (max-width: 900px) {
-    .freeplay-floater { width: 12rem; grid-template-columns: 3.25rem minmax(0, 1fr); min-height: 3.25rem; }
-    .freeplay-floater-artwork { width: 3.25rem; height: 3.25rem; }
+    .multiplayer-floater { width: 12rem; grid-template-columns: 3.25rem minmax(0, 1fr); min-height: 3.25rem; }
+    .multiplayer-floater-artwork { width: 3.25rem; height: 3.25rem; }
   }
   @media (prefers-reduced-motion: reduce) {
-    .freeplay-floater-drag-layer { animation: none; }
+    .multiplayer-floater-drag-layer { animation: none; }
   }
 </style>

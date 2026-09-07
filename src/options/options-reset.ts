@@ -27,9 +27,9 @@ export function resetOptionsView(view: OptionsViewName): void {
         autoNowPlayingOnMaximized: DEFAULT_APPEARANCE_SETTINGS.autoNowPlayingOnMaximized,
         nowPlayingPanelAutoHideDelaySeconds: DEFAULT_APPEARANCE_SETTINGS.nowPlayingPanelAutoHideDelaySeconds,
         useNowPlayingArtworkPlayerColors: DEFAULT_APPEARANCE_SETTINGS.useNowPlayingArtworkPlayerColors,
-        showFreeplayFloaters: DEFAULT_APPEARANCE_SETTINGS.showFreeplayFloaters,
-        freeplayFloaterSize: DEFAULT_APPEARANCE_SETTINGS.freeplayFloaterSize,
-        freeplayFloaterMotion: DEFAULT_APPEARANCE_SETTINGS.freeplayFloaterMotion,
+        showMultiplayerFloaters: DEFAULT_APPEARANCE_SETTINGS.showMultiplayerFloaters,
+        multiplayerFloaterSize: DEFAULT_APPEARANCE_SETTINGS.multiplayerFloaterSize,
+        multiplayerFloaterMotion: DEFAULT_APPEARANCE_SETTINGS.multiplayerFloaterMotion,
         lyrics: {
           ...lyrics,
           autoTheaterInNowPlaying: DEFAULT_APPEARANCE_SETTINGS.lyrics.autoTheaterInNowPlaying,

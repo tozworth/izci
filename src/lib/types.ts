@@ -425,9 +425,9 @@ export interface AppearanceSettings {
   nowPlayingViewActive: boolean;
   autoNowPlayingOnMaximized: boolean;
   nowPlayingPanelAutoHideDelaySeconds: number;
-  showFreeplayFloaters: boolean;
-  freeplayFloaterSize: number;
-  freeplayFloaterMotion: number;
+  showMultiplayerFloaters: boolean;
+  multiplayerFloaterSize: number;
+  multiplayerFloaterMotion: number;
   showTrackTitleInWindowTitle: boolean;
 }
 

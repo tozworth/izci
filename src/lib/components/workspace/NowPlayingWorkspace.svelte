@@ -18,7 +18,7 @@
   import { nowPlayingState, moveNowPlayingTab, type FlyoutSide } from '$lib/stores/now-playing-state';
   import { createNowPlayingLyrics } from '$lib/services/now-playing-lyrics';
   import NowPlayingFlyout from './NowPlayingFlyout.svelte';
-  import FreeplayFloaters from './FreeplayFloaters.svelte';
+  import MultiplayerFloaters from './MultiplayerFloaters.svelte';
   import WorkspaceTabContent from './WorkspaceTabContent.svelte';
   import type {
     WorkspaceTabContentProps,
@@ -38,10 +38,10 @@
   export let workspaceTabs: WorkspaceTabDefinition[] = [];
   export let panelAutoHideDelaySeconds = 5;
   export let alwaysUseArtworkPlayerColors = false;
-  export let freeplayClients: MultiplayerClient[] = [];
-  export let showFreeplayFloaters = false;
-  export let freeplayFloaterSize = 100;
-  export let freeplayFloaterMotion = 35;
+  export let multiplayerClients: MultiplayerClient[] = [];
+  export let showMultiplayerFloaters = false;
+  export let multiplayerFloaterSize = 100;
+  export let multiplayerFloaterMotion = 35;
 
   const dispatch = createEventDispatcher<{
     close: void;
@@ -170,11 +170,11 @@
       <span class="material-symbols-outlined" aria-hidden="true">close</span>
     </button>
 
-    {#if showFreeplayFloaters}
-      <FreeplayFloaters
-        clients={freeplayClients}
-        size={freeplayFloaterSize}
-        motion={freeplayFloaterMotion}
+    {#if showMultiplayerFloaters}
+      <MultiplayerFloaters
+        clients={multiplayerClients}
+        size={multiplayerFloaterSize}
+        motion={multiplayerFloaterMotion}
       />
     {/if}
 

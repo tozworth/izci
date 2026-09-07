@@ -1080,16 +1080,16 @@
         "title": "Her zaman albüm renklerini kullan",
         "hint": "Odaklanan oynatıcı kontrollerini albüm resmi renklerini kullanmaya zorlar. Kapalıysa ana oynatıcı ayarını izler."
       },
-      "freeplayFloaters": {
-        "title": "Freeplay yüzgeçleri",
-        "hint": "Bağlı Freeplay dinleyicilerini ve çaldıkları parçaları Şimdi Yürütülüyor'un kenarlarında gösterir."
+      "multiplayerFloaters": {
+        "title": "Çok oyunculu yüzgeçler",
+        "hint": "Bağlı ortak oynama ve Freeplay istemcilerini Şimdi Yürütülüyor'un kenarlarında gösterir."
       },
-      "freeplayFloaterSize": {
-        "title": "Freeplay yüzgeci boyutu",
+      "multiplayerFloaterSize": {
+        "title": "Çok oyunculu yüzgeç boyutu",
         "hint": "Şimdi Yürütülüyor'un geri kalanını değiştirmeden yüzen istemci kartlarını ölçeklendirir."
       },
-      "freeplayFloaterMotion": {
-        "title": "Freeplay kaldırma kuvveti",
+      "multiplayerFloaterMotion": {
+        "title": "Çok oyunculu kaldırma kuvveti",
         "hint": "Kartların ne kadar nazikçe sürüklenip eğileceğini ayarlar. Durgun su için sıfıra getirin."
       },
       "autoTheater": {
