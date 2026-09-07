@@ -425,6 +425,7 @@ export interface AppearanceSettings {
   nowPlayingViewActive: boolean;
   autoNowPlayingOnMaximized: boolean;
   nowPlayingPanelAutoHideDelaySeconds: number;
+  nowPlayingFlyoutTransparency: number;
   showMultiplayerFloaters: boolean;
   multiplayerFloaterSize: number;
   multiplayerFloaterMotion: number;

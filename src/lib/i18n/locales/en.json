@@ -286,6 +286,8 @@
       "leftPanels": "Left panels",
       "rightPanels": "Right panels",
       "pin": "Pin panel",
+      "unpin": "Unpin panel",
+      "close": "Close panel",
       "moveSide": "Move tab to other side",
       "resizePanel": "Resize panel"
     },
@@ -1079,6 +1081,10 @@
       "artworkColors": {
         "title": "Always use artwork colors",
         "hint": "Forces the focused player controls to use artwork colors. When off, Now Playing follows the main player setting."
+      },
+      "flyoutTransparency": {
+        "title": "Flyout transparency",
+        "hint": "Lets the Now Playing backdrop show through flyout panel surfaces without fading their contents."
       },
       "multiplayerFloaters": {
         "title": "Multiplayer floaters",

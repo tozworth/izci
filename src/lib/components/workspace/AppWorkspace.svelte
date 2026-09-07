@@ -73,6 +73,7 @@
     activeWorkspaceTab={workspaceState.activeWorkspaceTab}
     workspaceTabs={workspaceState.workspaceTabs}
     panelAutoHideDelaySeconds={appearance.nowPlayingPanelAutoHideDelaySeconds}
+    flyoutTransparency={appearance.nowPlayingFlyoutTransparency}
     alwaysUseArtworkPlayerColors={appearance.useNowPlayingArtworkPlayerColors}
     {multiplayerClients}
     showMultiplayerFloaters={appearance.showMultiplayerFloaters}

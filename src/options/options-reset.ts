@@ -26,6 +26,7 @@ export function resetOptionsView(view: OptionsViewName): void {
       appearanceSettings.update({
         autoNowPlayingOnMaximized: DEFAULT_APPEARANCE_SETTINGS.autoNowPlayingOnMaximized,
         nowPlayingPanelAutoHideDelaySeconds: DEFAULT_APPEARANCE_SETTINGS.nowPlayingPanelAutoHideDelaySeconds,
+        nowPlayingFlyoutTransparency: DEFAULT_APPEARANCE_SETTINGS.nowPlayingFlyoutTransparency,
         useNowPlayingArtworkPlayerColors: DEFAULT_APPEARANCE_SETTINGS.useNowPlayingArtworkPlayerColors,
         showMultiplayerFloaters: DEFAULT_APPEARANCE_SETTINGS.showMultiplayerFloaters,
         multiplayerFloaterSize: DEFAULT_APPEARANCE_SETTINGS.multiplayerFloaterSize,

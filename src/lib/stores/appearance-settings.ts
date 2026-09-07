@@ -113,6 +113,9 @@ const DEFAULT_LYRICS_DOWNTIME_THRESHOLD_SECONDS = 10;
 export const MIN_NOW_PLAYING_PANEL_AUTO_HIDE_SECONDS = 2;
 export const NOW_PLAYING_PANEL_AUTO_HIDE_NEVER_SECONDS = 16;
 const DEFAULT_NOW_PLAYING_PANEL_AUTO_HIDE_SECONDS = 5;
+export const MIN_NOW_PLAYING_FLYOUT_TRANSPARENCY = 0;
+export const MAX_NOW_PLAYING_FLYOUT_TRANSPARENCY = 85;
+const DEFAULT_NOW_PLAYING_FLYOUT_TRANSPARENCY = 0;
 export const MIN_MULTIPLAYER_FLOATER_SIZE = 80;
 export const MAX_MULTIPLAYER_FLOATER_SIZE = 125;
 export const MIN_MULTIPLAYER_FLOATER_MOTION = 0;
@@ -152,6 +155,7 @@ export const DEFAULT_APPEARANCE_SETTINGS: AppearanceSettings = {
   nowPlayingViewActive: false,
   autoNowPlayingOnMaximized: false,
   nowPlayingPanelAutoHideDelaySeconds: DEFAULT_NOW_PLAYING_PANEL_AUTO_HIDE_SECONDS,
+  nowPlayingFlyoutTransparency: DEFAULT_NOW_PLAYING_FLYOUT_TRANSPARENCY,
   showMultiplayerFloaters: true,
   multiplayerFloaterSize: DEFAULT_MULTIPLAYER_FLOATER_SIZE,
   multiplayerFloaterMotion: DEFAULT_MULTIPLAYER_FLOATER_MOTION,
@@ -308,6 +312,15 @@ export function normalizeNowPlayingPanelAutoHideDelaySeconds(value: unknown): nu
   );
 }
 
+export function normalizeNowPlayingFlyoutTransparency(value: unknown): number {
+  return normalizeRoundedNumber(
+    value,
+    MIN_NOW_PLAYING_FLYOUT_TRANSPARENCY,
+    MAX_NOW_PLAYING_FLYOUT_TRANSPARENCY,
+    DEFAULT_NOW_PLAYING_FLYOUT_TRANSPARENCY
+  );
+}
+
 export function normalizeMultiplayerFloaterSize(value: unknown): number {
   return normalizeRoundedNumber(
     value,
@@ -446,6 +459,9 @@ export function normalizeAppearanceSettings(value: unknown): AppearanceSettings 
     autoNowPlayingOnMaximized: source.autoNowPlayingOnMaximized === true,
     nowPlayingPanelAutoHideDelaySeconds: normalizeNowPlayingPanelAutoHideDelaySeconds(
       source.nowPlayingPanelAutoHideDelaySeconds
+    ),
+    nowPlayingFlyoutTransparency: normalizeNowPlayingFlyoutTransparency(
+      source.nowPlayingFlyoutTransparency
     ),
     showMultiplayerFloaters: source.showMultiplayerFloaters !== false,
     multiplayerFloaterSize: normalizeMultiplayerFloaterSize(source.multiplayerFloaterSize),
