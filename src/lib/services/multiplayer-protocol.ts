@@ -25,10 +25,10 @@ export interface MultiplayerChatMessage {
   action?: MultiplayerChatAction;
 }
 
-// Version 26 adds transient Play next commands for multiplayer queue tracks. Version 25 adds host-only /clear chat history synchronization. Version 24 adds /np now-playing chat messages. Version 23 adds multiplayer join/leave chat notices. Version 22 adds /me chat actions. Version 21 adds the room MOTD protocol. Version 20 adds the room chat message protocol. Version 18 adds explicit
+// Version 27 gives now-playing submissions an explicit intent so track titles are never parsed as slash commands. Version 26 adds transient Play next commands for multiplayer queue tracks. Version 25 adds host-only /clear chat history synchronization. Version 24 adds /np now-playing chat messages. Version 23 adds multiplayer join/leave chat notices. Version 22 adds /me chat actions. Version 21 adds the room MOTD protocol. Version 20 adds the room chat message protocol. Version 18 adds explicit
 // source revisions to buffered-Opus manifests so a
 // listener never reuses cached bytes from a replaced track.
-export const MULTIPLAYER_PROTOCOL_VERSION = 26;
+export const MULTIPLAYER_PROTOCOL_VERSION = 27;
 const MULTIPLAYER_FRAME_CHUNK_SIZE = 12_000;
 export const MULTIPLAYER_QUEUE_MAX_ITEMS = 50_000;
 export const MULTIPLAYER_CHAT_MAX_MESSAGES = 200;
@@ -179,7 +179,12 @@ export type HostMessage =
 
 export type ClientMessage =
   | { kind: 'hello'; version: number; name: string; platform: string; freeplayEnabled: boolean }
-  | { kind: 'chat.send'; text: string; track?: MultiplayerChatTrackLink }
+  | {
+      kind: 'chat.send';
+      text: string;
+      track?: MultiplayerChatTrackLink;
+      action?: Extract<MultiplayerChatAction, 'now-playing'>;
+    }
   | { kind: 'freeplay.preference'; enabled: boolean }
   | {
       kind: 'freeplay.queue';

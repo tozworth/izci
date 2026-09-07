@@ -282,7 +282,8 @@ export interface CreateMultiplayerSessionOptions {
 export type MultiplayerChatMessageHandler = (
   text: string,
   client: Pick<MultiplayerClient, 'id' | 'name'>,
-  track?: MultiplayerChatTrackLink
+  track?: MultiplayerChatTrackLink,
+  action?: Extract<MultiplayerChatAction, 'now-playing'>
 ) => void;
 
 export type MultiplayerChatPresenceHandler = (

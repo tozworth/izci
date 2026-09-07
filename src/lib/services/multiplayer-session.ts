@@ -15,7 +15,7 @@ import {
   createMultiplayerChatNotice,
   multiplayerChat,
   normalizeMultiplayerChatText,
-  parseMultiplayerChatCommand
+  parseMultiplayerChatSubmission
 } from './multiplayer-chat';
 import { createMultiplayerHostSide } from './multiplayer-host';
 import { createMultiplayerClientSide } from './multiplayer-client';
@@ -109,7 +109,7 @@ export function createMultiplayerSession({
 
   const host = createMultiplayerHostSide(core, {
     handleHostCommand,
-    handleChatMessage: (text, client, track) => handleChatMessage(text, client, track),
+    handleChatMessage: (text, client, track, action) => handleChatMessage(text, client, track, action),
     handleChatPresence: (name, action) => handleChatPresence(name, action),
     pauseHostPlayback,
     resumeHostPlayback
@@ -119,10 +119,11 @@ export function createMultiplayerSession({
   function handleChatMessage(
     text: string,
     client: Pick<MultiplayerSessionState['clients'][number], 'id' | 'name'>,
-    track?: MultiplayerChatTrackLink
+    track?: MultiplayerChatTrackLink,
+    action?: 'now-playing'
   ): void {
     if (core.state.mode !== 'hosting') return;
-    const command = parseMultiplayerChatCommand(text);
+    const command = parseMultiplayerChatSubmission(text, track, action);
     if (!command) return;
     if (command.action === 'clear') return;
     const resolvedTrack = track ? resolveChatTrackLink(track) : undefined;
@@ -187,18 +188,23 @@ export function createMultiplayerSession({
   }
 
   function sendChatNowPlaying(track: MultiplayerChatTrackLink): boolean {
-    return sendChatPayload('/np', track);
+    return sendChatPayload('/np', track, 'now-playing');
   }
 
   function sendChatTrack(track: MultiplayerChatTrackLink): boolean {
     return sendChatPayload(track.title, track);
   }
 
-  function sendChatPayload(text: string, track?: MultiplayerChatTrackLink): boolean {
+  function sendChatPayload(
+    text: string,
+    track?: MultiplayerChatTrackLink,
+    action?: 'now-playing'
+  ): boolean {
     const normalizedText = normalizeMultiplayerChatText(text);
-    const command = parseMultiplayerChatCommand(normalizedText);
+    const command = parseMultiplayerChatSubmission(normalizedText, track, action);
     if (!command
       || (command.action === 'now-playing' && !track)
+      || (command.action === 'clear' && core.state.mode !== 'hosting')
       || core.state.connectionStatus !== 'connected') return false;
 
     if (core.state.mode === 'hosting') {
@@ -209,14 +215,15 @@ export function createMultiplayerSession({
         }
         return true;
       }
-      handleChatMessage(normalizedText, { id: 'host', name: getLocalName() }, track);
+      handleChatMessage(normalizedText, { id: 'host', name: getLocalName() }, track, action);
       return true;
     }
     if (core.state.mode !== 'client' || !core.clientPeer) return false;
     sendToPeer(core.clientPeer, {
       kind: 'chat.send',
       text: normalizedText,
-      ...(track ? { track } : {})
+      ...(track ? { track } : {}),
+      ...(action ? { action } : {})
     });
     return true;
   }

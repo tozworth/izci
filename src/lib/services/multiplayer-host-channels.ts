@@ -80,7 +80,7 @@ export function attachHostChannel(
       return;
     }
     if (message.kind === 'chat.send') {
-      ctx.handleChatMessage(message.text, peer, message.track);
+      ctx.handleChatMessage(message.text, peer, message.track, message.action);
       return;
     }
     if (message.kind === 'freeplay.preference') {

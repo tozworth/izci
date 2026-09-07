@@ -96,6 +96,16 @@ export function parseMultiplayerChatCommand(value: string): MultiplayerChatComma
   return text ? { text, action: 'me' } : null;
 }
 
+export function parseMultiplayerChatSubmission(
+  value: string,
+  track?: MultiplayerChatTrackLink,
+  action?: Extract<MultiplayerChatAction, 'now-playing'>
+): MultiplayerChatCommand | null {
+  if (action === 'now-playing') return { text: '', action };
+  if (track) return { text: normalizeMultiplayerChatText(value) };
+  return parseMultiplayerChatCommand(value);
+}
+
 function normalizeMultiplayerChatName(value: string): string {
   return value
     .replace(/[\u0000-\u001f\u007f]/g, ' ')
@@ -174,8 +184,5 @@ export const multiplayerChat: Readable<MultiplayerChatMessage[]> & {
   mergeHistory,
   restorePersistedHistory,
   stopPersisting: () => { persistedHistoryLimit = 0; },
-  clear: () => {
-    currentMessages = [];
-    store.set([]);
-  }
+  clear: () => publish([])
 };
