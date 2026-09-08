@@ -122,6 +122,7 @@ export function createMultiplayerClientSide(core: MultiplayerSessionCore) {
   }
 
   return {
+    ctx,
     join: (inviteCode: string, options?: { silent?: boolean }) => join(ctx, inviteCode, options),
     joinPaired: (hostId: string) => joinPaired(ctx, hostId),
     restoreClientJoin: (last: MultiplayerLastSession) => restoreClientJoin(ctx, last),

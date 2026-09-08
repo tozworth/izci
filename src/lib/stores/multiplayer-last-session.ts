@@ -8,6 +8,11 @@ export interface MultiplayerLastSession {
   inviteCode: string | null;
   hostId: string | null;
   hostName: string | null;
+  /** Explicit signaling transport; defaults to RTDB for legacy records. */
+  transport: 'rtdb' | 'sidekick';
+  /** Sidekick state stored separately from RTDB UIDs/invite codes. */
+  sidekickEndpoint: string | null;
+  sidekickRoomId: string | null;
   savedAt: number;
 }
 
@@ -24,12 +29,27 @@ function normalizeMultiplayerLastSession(value: unknown): MultiplayerLastSession
   const hostName = typeof candidate.hostName === 'string'
     ? candidate.hostName.replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, 48) || null
     : null;
-  if (candidate.mode === 'client' && !inviteCode && !hostId) return null;
+  const transport = candidate.transport === 'sidekick' ? 'sidekick' : 'rtdb';
+  const sidekickEndpoint = typeof candidate.sidekickEndpoint === 'string'
+    && candidate.sidekickEndpoint.trim()
+    ? candidate.sidekickEndpoint.trim().slice(0, 512)
+    : null;
+  const sidekickRoomId = typeof candidate.sidekickRoomId === 'string'
+    && /^[0-9a-f]{32}$/.test(candidate.sidekickRoomId)
+    ? candidate.sidekickRoomId
+    : null;
+  if (candidate.mode === 'client' && transport === 'rtdb' && !inviteCode && !hostId) return null;
+  if (candidate.mode === 'client' && transport === 'sidekick' && (!sidekickEndpoint || !sidekickRoomId)) {
+    return null;
+  }
   return {
     mode: candidate.mode,
     inviteCode,
     hostId,
     hostName,
+    transport,
+    sidekickEndpoint,
+    sidekickRoomId,
     savedAt: typeof candidate.savedAt === 'number' && Number.isFinite(candidate.savedAt)
       ? candidate.savedAt
       : Date.now()
@@ -45,14 +65,33 @@ export const multiplayerLastSession = createPersistentStore({
 
 export function rememberMultiplayerLastSession(
   mode: 'client' | 'hosting',
-  options: { inviteCode?: string | null; hostId?: string | null; hostName?: string | null } = {}
+  options: {
+    inviteCode?: string | null;
+    hostId?: string | null;
+    hostName?: string | null;
+    transport?: 'rtdb' | 'sidekick';
+    sidekickEndpoint?: string | null;
+    sidekickRoomId?: string | null;
+  } = {}
 ): void {
   const previous = multiplayerLastSession.getSnapshot();
+  const transport = options.transport ?? previous?.transport ?? 'rtdb';
   multiplayerLastSession.set({
     mode,
-    inviteCode: mode === 'client' ? (options.inviteCode ?? previous?.inviteCode ?? null) : null,
-    hostId: mode === 'client' ? (options.hostId ?? previous?.hostId ?? null) : null,
+    inviteCode: mode === 'client' && transport === 'rtdb'
+      ? (options.inviteCode ?? previous?.inviteCode ?? null)
+      : null,
+    hostId: mode === 'client' && transport === 'rtdb'
+      ? (options.hostId ?? previous?.hostId ?? null)
+      : null,
     hostName: options.hostName ?? previous?.hostName ?? null,
+    transport,
+    sidekickEndpoint: transport === 'sidekick'
+      ? (options.sidekickEndpoint ?? previous?.sidekickEndpoint ?? null)
+      : null,
+    sidekickRoomId: transport === 'sidekick'
+      ? (options.sidekickRoomId ?? previous?.sidekickRoomId ?? null)
+      : null,
     savedAt: Date.now()
   });
 }

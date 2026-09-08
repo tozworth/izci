@@ -82,6 +82,41 @@ describe('multiplayer settings', () => {
       .toBe('');
   });
 
+  it('defaults sidekick setup state to unconfigured and explicit opt-ins off', () => {
+    expect(normalizeMultiplayerSettings({})).toMatchObject({
+      multiplayerTransport: 'rtdb',
+      multiplayerSidekickEndpoint: '',
+      multiplayerSidekickLabel: '',
+      multiplayerSidekickNoticeVersion: 0,
+      multiplayerSidekickAutoReconnect: false,
+      multiplayerSidekickForceRelay: false,
+      multiplayerSidekickIceAck: ''
+    });
+  });
+
+  it('normalizes sidekick setup fields across windows', () => {
+    expect(normalizeMultiplayerSettings({
+      multiplayerSidekickLabel: `  ${'y'.repeat(200)}  `,
+      multiplayerSidekickNoticeVersion: 2.7,
+      multiplayerSidekickAutoReconnect: true,
+      multiplayerSidekickForceRelay: true,
+      multiplayerSidekickIceAck: 'x'.repeat(3_000)
+    })).toMatchObject({
+      multiplayerSidekickLabel: 'y'.repeat(120),
+      multiplayerSidekickNoticeVersion: 2,
+      multiplayerSidekickAutoReconnect: true,
+      multiplayerSidekickForceRelay: true,
+      multiplayerSidekickIceAck: 'x'.repeat(2_048)
+    });
+    expect(normalizeMultiplayerSettings({
+      multiplayerSidekickNoticeVersion: Number.NaN,
+      multiplayerSidekickAutoReconnect: 'yes'
+    })).toMatchObject({
+      multiplayerSidekickNoticeVersion: 0,
+      multiplayerSidekickAutoReconnect: false
+    });
+  });
+
   it('bounds bitrate and listener controls', () => {
     expect(normalizeMultiplayerSettings({ multiplayerOpusBitrateKbps: 1 }).multiplayerOpusBitrateKbps)
       .toBe(MULTIPLAYER_OPUS_BITRATE_MIN_KBPS);

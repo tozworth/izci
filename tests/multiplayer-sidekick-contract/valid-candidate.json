@@ -1,0 +1,1 @@
+{"version": 1, "type": "candidate", "requestId": "req-guest-6", "attemptId": "0123456789abcdef0123456789abcdef", "payload": {"candidate": "candidate:1 1 udp 2113937151 192.0.2.1 9 typ host", "index": 0, "sdpMid": "0", "sdpMLineIndex": 0}}

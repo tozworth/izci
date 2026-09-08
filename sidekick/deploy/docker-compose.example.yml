@@ -1,0 +1,39 @@
+# Example Compose setup: sidekick behind Caddy, which terminates TLS and may
+# also serve the izci frontend. Copy to docker-compose.yml and adjust paths.
+#
+# Container notes (differ from bare-metal defaults):
+# - set "listen": "0.0.0.0:8787" in the mounted config.json;
+# - point reverse_proxy at the compose service name (sidekick:8787), not
+#   127.0.0.1, in the mounted Caddyfile;
+# - add the Caddy container to trustedProxies if you need client IPs.
+
+services:
+  sidekick:
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+    command: ["serve", "--config", "/etc/izci-sidekick/config.json"]
+    volumes:
+      - ./config.json:/etc/izci-sidekick/config.json:ro
+      - ./host-key:/etc/izci-sidekick/host-key:ro
+    expose:
+      - "8787"
+
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+      # Optional: serve the izci frontend from the same origin.
+      # Build it with `npm run build` and mount dist/ here.
+      # - ../../dist:/srv/izci:ro
+    depends_on:
+      - sidekick
+
+volumes:
+  caddy-data:
+  caddy-config:

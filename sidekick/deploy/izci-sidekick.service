@@ -1,0 +1,30 @@
+# systemd unit for the sidekick. Install the binary to /usr/local/bin and the
+# config plus host key to /etc/izci-sidekick (key file chmod 600, owned by
+# the service user via DynamicUser state or root with read access).
+#
+#   sudo cp izci-sidekick /usr/local/bin/
+#   sudo mkdir -p /etc/izci-sidekick
+#   sudo cp config.json /etc/izci-sidekick/
+#   sudo cp host-key /etc/izci-sidekick/ && sudo chmod 600 /etc/izci-sidekick/host-key
+#   sudo cp izci-sidekick.service /etc/systemd/system/
+#   sudo systemctl enable --now izci-sidekick
+
+[Unit]
+Description=izci multiplayer sidekick (WebRTC signaling)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+DynamicUser=yes
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ReadOnlyPaths=/etc/izci-sidekick
+ExecStart=/usr/local/bin/izci-sidekick serve --config /etc/izci-sidekick/config.json
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

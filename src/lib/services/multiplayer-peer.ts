@@ -7,7 +7,7 @@ import {
   type ClientMessage,
   type HostMessage
 } from './multiplayer-protocol';
-import type { FirebaseRuntime, PeerConnection, SignalCandidate, SignalCandidates } from './multiplayer-types';
+import type { PeerConnection, SignalCandidate, SignalCandidates } from './multiplayer-types';
 import { errorMessage, isClientMessage } from './multiplayer-utils';
 
 const ICE_CONNECTION_TIMEOUT_MS = 15_000;
@@ -134,10 +134,15 @@ export async function applyAudioBitrate(peer: PeerConnection, bitrateKbps: numbe
   return peer.audioBitrateUpdate;
 }
 
+/**
+ * ICE publisher with an injected candidate sender. The sender numbers
+ * candidates per peer (Firebase path suffix or sidekick per-attempt index)
+ * and performs the actual transport write; this module owns gathering,
+ * queuing until the answer/offer is published, and failure reporting.
+ */
 export function prepareCandidatePublisher(
   peer: PeerConnection,
-  path: string,
-  getFirebase: () => FirebaseRuntime | null,
+  publishCandidate: (candidate: SignalCandidate, index: number) => void | Promise<void>,
   reportFailure: () => void
 ): () => void {
   let ready = false;
@@ -145,17 +150,24 @@ export function prepareCandidatePublisher(
   let writeFailed = false;
   const queued: SignalCandidate[] = [];
 
+  function reportWriteError(error: unknown): void {
+    peer.candidateErrors.push(errorMessage(error, 'candidate signaling failed'));
+    if (writeFailed) return;
+    writeFailed = true;
+    reportFailure();
+  }
+
   function write(candidate: SignalCandidate): void {
-    const firebase = getFirebase();
-    if (!firebase) return;
-    const id = `c${String(sequence).padStart(3, '0')}`;
+    const index = sequence;
     sequence += 1;
-    void firebase.set(firebase.ref(firebase.database, `${path}/${id}`), candidate).catch((error) => {
-      peer.candidateErrors.push(errorMessage(error, 'candidate signaling failed'));
-      if (writeFailed) return;
-      writeFailed = true;
-      reportFailure();
-    });
+    try {
+      const result = publishCandidate(candidate, index);
+      if (result && typeof (result as Promise<void>).catch === 'function') {
+        void (result as Promise<void>).catch(reportWriteError);
+      }
+    } catch (error) {
+      reportWriteError(error);
+    }
   }
 
   peer.pc.onicecandidate = (event) => {
@@ -192,6 +204,28 @@ export function stageRemoteCandidates(peer: PeerConnection, candidates: SignalCa
     peer.pendingRemoteCandidates.set(id, candidate);
     noteCandidateType(peer.remoteCandidateTypes, candidate.candidate);
   }
+  void flushRemoteCandidates(peer);
+}
+
+/**
+ * Stage one sidekick remote candidate. The signaling sequence index is used
+ * only for deduplication; the browser-facing SDP media coordinates travel
+ * separately. Candidates arriving before remote SDP wait in the existing
+ * pending map until flushRemoteCandidates can apply them.
+ */
+export function stageSidekickRemoteCandidate(
+  peer: PeerConnection,
+  candidate: string,
+  index: number,
+  sdpMid: string,
+  sdpMLineIndex: number
+): void {
+  const id = `sk-${index}`;
+  if (peer.appliedRemoteCandidateIds.has(id) || peer.pendingRemoteCandidates.has(id)) return;
+  if (!candidate || index < 0) return;
+  const signalCandidate: SignalCandidate = { candidate, sdpMid, sdpMLineIndex };
+  peer.pendingRemoteCandidates.set(id, signalCandidate);
+  noteCandidateType(peer.remoteCandidateTypes, candidate);
   void flushRemoteCandidates(peer);
 }
 

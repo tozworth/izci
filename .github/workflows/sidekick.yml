@@ -1,0 +1,52 @@
+name: sidekick
+
+on:
+  push:
+    paths:
+      - "sidekick/**"
+      - ".github/workflows/sidekick.yml"
+  pull_request:
+    paths:
+      - "sidekick/**"
+      - ".github/workflows/sidekick.yml"
+
+defaults:
+  run:
+    working-directory: sidekick
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.27.1"
+          cache-dependency-path: sidekick/go.sum
+      - name: Formatting
+        run: test -z "$(gofmt -l .)"
+      - name: Vet
+        run: go vet ./...
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.27.1"
+          cache-dependency-path: sidekick/go.sum
+      - name: Race tests
+        run: go test -race ./...
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        arch: [amd64, arm64]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.27.1"
+          cache-dependency-path: sidekick/go.sum
+      - name: Static binary (${{ matrix.arch }})
+        run: CGO_ENABLED=0 GOOS=linux GOARCH=${{ matrix.arch }} go build -trimpath -o izci-sidekick-${{ matrix.arch }} ./cmd/izci-sidekick
