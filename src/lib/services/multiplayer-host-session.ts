@@ -329,8 +329,15 @@ async function acceptClientOffer(
     const answerPath = `multiplayer/rooms/${inviteCode}/peers/${id}/host`;
     const startCandidatePublishing = prepareCandidatePublisher(
       peer,
-      `${answerPath}Candidates`,
-      () => core.firebaseRuntime,
+      (candidate, index) => {
+        const firebase = core.firebaseRuntime;
+        if (!firebase) return;
+        const candidateId = `c${String(index).padStart(3, '0')}`;
+        return firebase.set(
+          firebase.ref(firebase.database, `${answerPath}Candidates/${candidateId}`),
+          candidate
+        );
+      },
       () => {
         clearPeerConnectionTimer(peer);
         core.publish({

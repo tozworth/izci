@@ -1,0 +1,1 @@
+{"version": 1, "type": "peer.rejected", "requestId": "srv-3132333435363738", "attemptId": "0123456789abcdef0123456789abcdef", "payload": {"reason": "rejected"}}

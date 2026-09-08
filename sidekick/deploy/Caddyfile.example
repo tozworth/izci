@@ -1,0 +1,29 @@
+# Example Caddy config: TLS termination in front of the sidekick, optionally
+# serving the izci frontend from the same origin. Copy to Caddyfile and set
+# your hostname.
+#
+# The /party path is forwarded WITH its prefix: it must match pathPrefix in
+# the sidekick config and the path component of publicBaseUrl.
+#
+# Bare-metal proxy target is 127.0.0.1:8787 below; under Compose use the
+# service name (reverse_proxy sidekick:8787).
+
+sidekick.example.com {
+	# Optional: serve the izci PWA (npm run build output) alongside the API.
+	# root * /srv/izci
+	# try_files {path} /index.html
+	# file_server
+
+	handle /party/* {
+		reverse_proxy 127.0.0.1:8787
+	}
+
+	# Liveness probe without the prefix (the versioned API stays under it).
+	handle /healthz {
+		reverse_proxy 127.0.0.1:8787
+	}
+
+	handle {
+		respond "izci sidekick" 404
+	}
+}

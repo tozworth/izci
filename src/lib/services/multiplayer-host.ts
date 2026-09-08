@@ -80,6 +80,7 @@ export function createMultiplayerHostSide(
   };
 
   return {
+    ctx,
     startHosting: (options?: { silent?: boolean }) => startHosting(ctx, options),
     stopHosting: () => stopHosting(ctx),
     kick: (clientId: string) => kick(ctx, clientId),

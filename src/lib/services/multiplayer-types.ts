@@ -1,10 +1,10 @@
 import type { Readable } from 'svelte/store';
 import type {
-  Database,
   DatabaseReference,
   OnDisconnect,
   Unsubscribe
 } from 'firebase/database';
+import type { FirebaseRuntime } from './multiplayer-signaling';
 import type {
   MultiplayerSettings,
   PlaybackSnapshot,
@@ -28,10 +28,8 @@ import {
 import type { MultiplayerReceiverAudioStatus } from './multiplayer-audio';
 import type { MultiplayerConnectionRoute } from './multiplayer-ice';
 import type { FreeplayStepResolver, MultiplayerFreeplayPlayer } from './multiplayer-freeplay';
-import type {
-  MultiplayerTurnCredentialRequest,
-  MultiplayerTurnCredentialResponse
-} from './multiplayer-turn-credentials';
+import type { SidekickHostLink } from './multiplayer-sidekick-host';
+import type { SidekickGuestConnection } from './multiplayer-sidekick-client';
 
 export type MultiplayerMode = 'idle' | 'hosting' | 'client';
 export type MultiplayerConnectionStatus = 'idle' | 'connecting' | 'connected' | 'disconnected' | 'error';
@@ -152,38 +150,15 @@ export const EMPTY_DELIVERY: MultiplayerDeliveryState = {
   reason: 'host-disabled'
 };
 
-export interface FirebaseRuntime {
-  database: Database;
-  uid: string;
-  ref: typeof import('firebase/database')['ref'];
-  set: typeof import('firebase/database')['set'];
-  get: typeof import('firebase/database')['get'];
-  remove: typeof import('firebase/database')['remove'];
-  onValue: typeof import('firebase/database')['onValue'];
-  onDisconnect: typeof import('firebase/database')['onDisconnect'];
-}
+// Firebase (RTDB) signaling record shapes live in multiplayer-signaling.ts;
+// this module keeps only the transport-agnostic candidate shape shared by
+// both signaling paths. The RTDB aliases below remain for overlap imports.
+export type { FirebaseRuntime, SignalOffer, SignalAnswer, SignalPeerRecord } from './multiplayer-signaling';
 
-export interface SignalOffer {
-  name: string;
-  platform: string;
-  description: RTCSessionDescriptionInit;
-  createdAt: number;
-}
-
-export interface SignalAnswer {
-  description?: RTCSessionDescriptionInit;
-  error?: 'host-full';
-  createdAt: number;
-}
-
-export interface SignalPeerRecord {
-  credentialRequest?: MultiplayerTurnCredentialRequest;
-  credentialResponse?: MultiplayerTurnCredentialResponse;
-  client?: SignalOffer;
-  clientCandidates?: SignalCandidates;
-  host?: SignalAnswer;
-  hostCandidates?: SignalCandidates;
-}
+import type {
+  MultiplayerTurnCredentialRequest,
+  MultiplayerTurnCredentialResponse
+} from './multiplayer-turn-credentials';
 
 export interface SignalCandidate {
   candidate: string;
@@ -294,8 +269,21 @@ export type MultiplayerChatPresenceHandler = (
 export interface MultiplayerSessionController extends Readable<MultiplayerSessionState> {
   getSnapshot(): MultiplayerSessionState;
   startHosting(options?: { silent?: boolean }): Promise<string>;
+  startSidekickHosting(
+    endpoint: string,
+    hostKey: string,
+    options?: {
+      silent?: boolean;
+      sessionToken?: string;
+      resume?: { roomId: string; ownerSecret: string };
+      capacity?: number;
+      signal?: AbortSignal;
+    }
+  ): Promise<{ endpoint: string; roomId: string; secret: string; ownerSecret: string | null }>;
+  rotateSidekickInvitation(): Promise<string>;
   stopHosting(): Promise<void>;
   join(inviteCode: string): Promise<void>;
+  joinSidekick(endpoint: string, roomId: string, secret: string, signal?: AbortSignal): Promise<void>;
   joinPaired(hostId: string): Promise<void>;
   restoreLastSession(): Promise<MultiplayerMode | null>;
   leave(): Promise<void>;
@@ -368,5 +356,12 @@ export interface MultiplayerSessionCore {
   rejectedPeerIds: Set<string>;
   acceptingPeerIds: Set<string>;
   answeredTurnCredentialRequestIds: Set<string>;
+  /** Active sidekick transport (host link or guest connection), if any. */
+  sidekickHost: SidekickHostLink | null;
+  sidekickGuest: SidekickGuestConnection | null;
+  /** Generation guard: late sidekick callbacks check ownership before mutating. */
+  transportGeneration: number;
+  /** Small transport cleanup handle for the non-RTDB path. */
+  disposeSidekickTransport: (() => void) | null;
   resetSession(removeRemote: boolean): Promise<void>;
 }

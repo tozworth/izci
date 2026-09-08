@@ -333,8 +333,18 @@ export async function connectClient(
     core.publish({ connectionDetail: 'Creating an ICE connection offer...' });
     const startCandidatePublishing = prepareCandidatePublisher(
       peer,
-      `multiplayer/rooms/${inviteCode}/peers/${firebase.uid}/clientCandidates`,
-      () => core.firebaseRuntime,
+      (candidate, index) => {
+        const runtime = core.firebaseRuntime;
+        if (!runtime) return;
+        const candidateId = `c${String(index).padStart(3, '0')}`;
+        return runtime.set(
+          runtime.ref(
+            runtime.database,
+            `multiplayer/rooms/${inviteCode}/peers/${firebase.uid}/clientCandidates/${candidateId}`
+          ),
+          candidate
+        );
+      },
       () => {
         core.allowClientReconnect = false;
         clearPeerConnectionTimer(peer);

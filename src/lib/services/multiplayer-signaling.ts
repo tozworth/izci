@@ -1,6 +1,45 @@
 import type { Unsubscribe } from 'firebase/database';
 import type { MultiplayerIceSettings } from './multiplayer-ice';
-import type { FirebaseRuntime, SignalAnswer, SignalOffer } from './multiplayer-types';
+import type {
+  MultiplayerTurnCredentialRequest,
+  MultiplayerTurnCredentialResponse
+} from './multiplayer-turn-credentials';
+import type { SignalCandidates } from './multiplayer-types';
+
+/** Firebase (RTDB) transport types. Canonical home after the Phase 3 move
+ * out of shared peer state; multiplayer-types.ts re-exports them for overlap. */
+export interface FirebaseRuntime {
+  database: import('firebase/database').Database;
+  uid: string;
+  ref: typeof import('firebase/database')['ref'];
+  set: typeof import('firebase/database')['set'];
+  get: typeof import('firebase/database')['get'];
+  remove: typeof import('firebase/database')['remove'];
+  onValue: typeof import('firebase/database')['onValue'];
+  onDisconnect: typeof import('firebase/database')['onDisconnect'];
+}
+
+export interface SignalOffer {
+  name: string;
+  platform: string;
+  description: RTCSessionDescriptionInit;
+  createdAt: number;
+}
+
+export interface SignalAnswer {
+  description?: RTCSessionDescriptionInit;
+  error?: 'host-full';
+  createdAt: number;
+}
+
+export interface SignalPeerRecord {
+  credentialRequest?: MultiplayerTurnCredentialRequest;
+  credentialResponse?: MultiplayerTurnCredentialResponse;
+  client?: SignalOffer;
+  clientCandidates?: SignalCandidates;
+  host?: SignalAnswer;
+  hostCandidates?: SignalCandidates;
+}
 import {
   createMultiplayerTurnCredentialRequest,
   isMultiplayerTurnCredentialResponse

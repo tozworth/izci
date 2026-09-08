@@ -8,6 +8,8 @@
   import SharedBackdropVisualizer from '$lib/components/SharedBackdropVisualizer.svelte';
   import StatusToast from '$lib/components/StatusToast.svelte';
   import MultiplayerConnectionDialog from '$lib/components/multiplayer/MultiplayerConnectionDialog.svelte';
+  import SidekickSetupDialog from '$lib/components/multiplayer/SidekickSetupDialog.svelte';
+  import { sidekickSetup } from '$lib/services/multiplayer-sidekick-setup';
   import TopMenuBar from '$lib/components/TopMenuBar.svelte';
   import AppWorkspace from '$lib/components/workspace/AppWorkspace.svelte';
   import MobileWorkspace from './mobile/MobileWorkspace.svelte';
@@ -970,6 +972,10 @@
       dismissLabel={$t('main.common.close', { default: 'Close' })}
       on:dismiss={multiplayerController.dismissToast}
     />
+  {/if}
+
+  {#if $sidekickSetup.dialogOpen}
+    <SidekickSetupDialog />
   {/if}
 
   {#if multiplayerConnectionDialogOpen}

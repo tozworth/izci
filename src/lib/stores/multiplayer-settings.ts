@@ -57,6 +57,13 @@ const defaultIzciName = createDefaultIzciName();
 export const DEFAULT_MULTIPLAYER_SETTINGS: MultiplayerSettings = {
   multiplayer: false,
   izciName: defaultIzciName,
+  multiplayerTransport: 'rtdb',
+  multiplayerSidekickEndpoint: '',
+  multiplayerSidekickLabel: '',
+  multiplayerSidekickNoticeVersion: 0,
+  multiplayerSidekickAutoReconnect: false,
+  multiplayerSidekickForceRelay: false,
+  multiplayerSidekickIceAck: '',
   multiplayerMotd: '',
   multiplayerChatHistoryLines: 0,
   multiplayerWaitForClients: false,
@@ -127,6 +134,26 @@ export function normalizeMultiplayerSettings(value: unknown): MultiplayerSetting
   return {
     multiplayer: normalizeBoolean(source.multiplayer, DEFAULT_MULTIPLAYER_SETTINGS.multiplayer),
     izciName: normalizeIzciName(source.izciName, defaultIzciName),
+    multiplayerTransport: source.multiplayerTransport === 'sidekick' ? 'sidekick' : 'rtdb',
+    multiplayerSidekickEndpoint: typeof source.multiplayerSidekickEndpoint === 'string'
+      ? source.multiplayerSidekickEndpoint.trim().slice(0, 512)
+      : '',
+    multiplayerSidekickLabel: normalizeSingleLine(source.multiplayerSidekickLabel, 120),
+    multiplayerSidekickNoticeVersion: typeof source.multiplayerSidekickNoticeVersion === 'number'
+      && Number.isFinite(source.multiplayerSidekickNoticeVersion)
+      ? Math.max(0, Math.floor(source.multiplayerSidekickNoticeVersion))
+      : DEFAULT_MULTIPLAYER_SETTINGS.multiplayerSidekickNoticeVersion,
+    multiplayerSidekickAutoReconnect: normalizeBoolean(
+      source.multiplayerSidekickAutoReconnect,
+      DEFAULT_MULTIPLAYER_SETTINGS.multiplayerSidekickAutoReconnect
+    ),
+    multiplayerSidekickForceRelay: normalizeBoolean(
+      source.multiplayerSidekickForceRelay,
+      DEFAULT_MULTIPLAYER_SETTINGS.multiplayerSidekickForceRelay
+    ),
+    multiplayerSidekickIceAck: typeof source.multiplayerSidekickIceAck === 'string'
+      ? source.multiplayerSidekickIceAck.slice(0, 2048)
+      : '',
     multiplayerMotd: normalizeSingleLine(source.multiplayerMotd, MULTIPLAYER_MOTD_MAX_LENGTH),
     multiplayerChatHistoryLines: normalizeChatHistoryLines(source.multiplayerChatHistoryLines),
     multiplayerWaitForClients: normalizeBoolean(

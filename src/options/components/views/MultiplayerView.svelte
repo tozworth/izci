@@ -2,6 +2,7 @@
   import { t } from 'svelte-i18n';
   import SettingsField from '$lib/components/options/SettingsField.svelte';
   import MultiplayerMark from '$lib/components/multiplayer/MultiplayerMark.svelte';
+  import SidekickSetupPanel from '$lib/components/multiplayer/SidekickSetupPanel.svelte';
   import {
     MULTIPLAYER_AUDIO_BUFFER_MAX_MS,
     MULTIPLAYER_AUDIO_BUFFER_MIN_MS,
@@ -35,6 +36,19 @@
   function handleIzciNameChange(event: Event) {
     multiplayerSettings.update({
       izciName: (event.currentTarget as HTMLInputElement).value
+    });
+  }
+
+  function handleTransportChange(event: Event) {
+    const value = (event.currentTarget as HTMLSelectElement).value;
+    multiplayerSettings.update({
+      multiplayerTransport: value === 'sidekick' ? 'sidekick' : 'rtdb'
+    });
+  }
+
+  function handleSidekickEndpointChange(event: Event) {
+    multiplayerSettings.update({
+      multiplayerSidekickEndpoint: (event.currentTarget as HTMLInputElement).value
     });
   }
 
@@ -218,6 +232,34 @@
       </button>
     </div>
     <div class="field-grid">
+      <SettingsField
+        title={$t('options.multiplayer.transport.title', { default: 'Signaling transport' })}
+        hint={$t('options.multiplayer.transport.hint', { default: 'Firebase is the legacy invite-code path. Sidekick uses a self-hosted server.' })}
+      >
+        <select value={$multiplayerSettings.multiplayerTransport} on:change={handleTransportChange}>
+          <option value="rtdb">{$t('options.multiplayer.transport.rtdb', { default: 'Firebase (legacy invites)' })}</option>
+          <option value="sidekick">{$t('options.multiplayer.transport.sidekick', { default: 'Sidekick server' })}</option>
+        </select>
+      </SettingsField>
+      <SettingsField
+        title={$t('options.multiplayer.sidekickEndpoint.title', { default: 'Sidekick server' })}
+        hint={$t('options.multiplayer.sidekickEndpoint.hint', { default: 'HTTPS base URL of the self-hosted sidekick.' })}
+      >
+        <input
+          class="multiplayer-text-input multiplayer-endpoint-input"
+          type="text"
+          spellcheck="false"
+          autocomplete="off"
+          placeholder="https://sidekick.example.com"
+          value={$multiplayerSettings.multiplayerSidekickEndpoint}
+          on:change={handleSidekickEndpointChange}
+        />
+      </SettingsField>
+      {#if $multiplayerSettings.multiplayerTransport === 'sidekick'}
+        <div class="sidekick-config">
+          <SidekickSetupPanel mode="config" />
+        </div>
+      {/if}
       <SettingsField
         title={$t('options.multiplayer.name', { default: 'Name this izci' })}
         hint={$t('options.multiplayer.nameHint', { default: 'Shown to hosts and clients in multiplayer sessions.' })}
@@ -435,9 +477,15 @@
         {$t('options.multiplayer.diagnostics.heading', { default: 'Connection diagnostics' })}
       </h3>
     </div>
-    <p>
-      {$t('options.multiplayer.diagnostics.signaling', { default: 'Firebase only exchanges the invite, session descriptions, and ICE candidates. Playback controls, catalog data, artwork, and audio use the resulting peer connection.' })}
-    </p>
+    {#if $multiplayerSettings.multiplayerTransport === 'sidekick'}
+      <p>
+        {$t('options.multiplayer.sidekick.noticeText', { default: 'The sidekick sees connection metadata and relays SDP and ICE while connecting; it is trusted for signaling.' })}
+      </p>
+    {:else}
+      <p>
+        {$t('options.multiplayer.diagnostics.signaling', { default: 'Firebase only exchanges the invite, session descriptions, and ICE candidates. Playback controls, catalog data, artwork, and audio use the resulting peer connection.' })}
+      </p>
+    {/if}
     <p>
       {$t('options.multiplayer.diagnostics.direct', { default: 'izci asks Cloudflare and Google STUN servers for public ICE candidates, then tries direct routes. When configured above, TURN adds a relay path for restrictive NAT or firewall combinations.' })}
     </p>
@@ -461,6 +509,14 @@
   input.multiplayer-endpoint-input {
     font-family: "IBM Plex Mono", "SFMono-Regular", monospace;
     font-size: 0.74rem;
+  }
+
+  .sidekick-config {
+    grid-column: 1 / -1;
+    padding: 0.6rem 0.7rem;
+    border: 1px solid var(--border-faint);
+    border-radius: 0.4rem;
+    background: color-mix(in srgb, var(--bg-input) 55%, transparent);
   }
 
   .multiplayer-mode-cards {

@@ -1,0 +1,4 @@
+/izci-sidekick-*
+*.log
+config.json
+host-key
