@@ -40,6 +40,8 @@ export interface SidekickHostEvents {
   onConnected(attemptId: string): void;
   onReleased(attemptId: string, reason: string): void;
   onError(envelope: SidekickEnvelope): void;
+  /** Signaling socket dropped; healthy RTC playback is untouched. */
+  onSocketClose?(): void;
 }
 
 export interface SidekickHostLink {
@@ -47,6 +49,8 @@ export interface SidekickHostLink {
   readonly socket: SidekickSocketHandle;
   accept(attemptId: string): void;
   reject(attemptId: string): void;
+  /** Release a reservation (kick, unpair cleanup); RTC teardown is separate. */
+  release(attemptId: string): void;
   sendAnswer(attemptId: string, sdp: string): void;
   sendCandidate(attemptId: string, candidate: string, index: number, sdpMid: string, sdpMLineIndex: number): void;
   sendCandidatesEnd(attemptId: string): void;
@@ -141,6 +145,7 @@ export async function connectSidekickHost(
       onClose() {
         // Reconnect is owned by the session layer so healthy RTC playback
         // survives signaling drops; this link just stops dispatching.
+        if (!disposed) events.onSocketClose?.();
       },
       onError() {
         // Transport errors surface per-message; session decides on retry.
@@ -161,6 +166,9 @@ export async function connectSidekickHost(
     },
     reject(attemptId) {
       socket.send('reject', undefined, attemptId);
+    },
+    release(attemptId) {
+      socket.send('release', undefined, attemptId);
     },
     sendAnswer(attemptId, sdp) {
       socket.send('answer', { sdp }, attemptId);

@@ -21,6 +21,7 @@ func (s *Server) registerSignalingRoutes() {
 	s.mux.HandleFunc(p+"/v1/join", s.handleJoin)
 	s.mux.HandleFunc(p+"/v1/socket-tickets", s.handleSocketTickets)
 	s.mux.HandleFunc(p+"/v1/socket", s.handleSocket)
+	s.registerIceRoute()
 }
 
 // decodeStrictBody decodes strict JSON: unknown fields and trailing data fail.
@@ -179,6 +180,12 @@ func (s *Server) handleDeleteSession(w http.ResponseWriter, r *http.Request) {
 
 type createRoomRequest struct {
 	Capacity *int `json:"capacity,omitempty"`
+	// Recreate carries a previous room's IDs so a host can rebuild the
+	// same room (and invitation) atomically after a server restart. All
+	// three must travel together; when absent a fresh room is created.
+	RoomID           string `json:"roomId,omitempty"`
+	OwnerSecret      string `json:"ownerSecret,omitempty"`
+	InvitationSecret string `json:"invitationSecret,omitempty"`
 }
 
 type createRoomResponse struct {
@@ -217,27 +224,72 @@ func (s *Server) handleCreateRoom(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, CodeBadRequest)
 		return
 	}
-	roomID, err := newRoomID()
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, CodeBadRequest)
-		return
+	// A recreate names its room and both secrets; a fresh create names
+	// none of them. Anything in between is a bad request.
+	recreate := req.RoomID != "" || req.OwnerSecret != "" || req.InvitationSecret != ""
+	var roomID, ownerSecret, inviteSecret string
+	var ownerDigest, inviteDigest [32]byte
+	if recreate {
+		if !validHexID(req.RoomID) {
+			writeError(w, http.StatusBadRequest, CodeBadRequest)
+			return
+		}
+		var ok bool
+		if ownerDigest, ok = parseSecretToken(strings.TrimSpace(req.OwnerSecret)); !ok {
+			writeError(w, http.StatusBadRequest, CodeBadRequest)
+			return
+		}
+		if inviteDigest, ok = parseSecretToken(strings.TrimSpace(req.InvitationSecret)); !ok {
+			writeError(w, http.StatusBadRequest, CodeBadRequest)
+			return
+		}
+		roomID, ownerSecret, inviteSecret = req.RoomID, strings.TrimSpace(req.OwnerSecret), strings.TrimSpace(req.InvitationSecret)
+	} else {
+		var err error
+		if roomID, err = newRoomID(); err != nil {
+			writeError(w, http.StatusInternalServerError, CodeBadRequest)
+			return
+		}
+		if ownerSecret, err = newSecret(); err != nil {
+			writeError(w, http.StatusInternalServerError, CodeBadRequest)
+			return
+		}
+		if inviteSecret, err = newSecret(); err != nil {
+			writeError(w, http.StatusInternalServerError, CodeBadRequest)
+			return
+		}
+		ownerDigest, _ = parseSecretToken(ownerSecret)
+		inviteDigest, _ = parseSecretToken(inviteSecret)
 	}
-	ownerSecret, err := newSecret()
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, CodeBadRequest)
-		return
-	}
-	inviteSecret, err := newSecret()
-	if err != nil {
-		writeError(w, http.StatusInternalServerError, CodeBadRequest)
-		return
-	}
-	ownerDigest, _ := parseSecretToken(ownerSecret)
-	inviteDigest, _ := parseSecretToken(inviteSecret)
 	s.mu.Lock()
 	if s.sessionValidLocked(digest, now) == nil {
 		s.mu.Unlock()
 		writeError(w, http.StatusUnauthorized, CodeUnauthorized)
+		return
+	}
+	if existing := s.rooms[roomID]; existing != nil && now.Before(existing.leaseUntil) {
+		// Collision with a live room: only the matching owner secret
+		// adopts it (another tab cannot overwrite a live room). The
+		// saved invitation is reinstalled so old invites keep working.
+		if !recreate || !digestsEqual(ownerDigest, existing.ownerSecretDigest) {
+			s.mu.Unlock()
+			// Random-ID collisions are astronomically unlikely; a
+			// named collision without the owner secret is a conflict.
+			// Named or not, never leak which side mismatched.
+			s.logCode("room.create", CodeRoomUnavailable)
+			writeError(w, http.StatusConflict, CodeRoomUnavailable)
+			return
+		}
+		existing.ownerDigest = digest
+		existing.inviteDigest = inviteDigest
+		existing.leaseUntil = now.Add(time.Duration(s.cfg.Limits.RoomLeaseTTL))
+		exp := existing.leaseUntil
+		s.mu.Unlock()
+		s.logCode("room.create", "ok")
+		writeJSON(w, http.StatusOK, createRoomResponse{
+			RoomID: roomID, OwnerSecret: ownerSecret,
+			InvitationSecret: inviteSecret, ExpiresAt: timeJSON(exp),
+		})
 		return
 	}
 	if len(s.rooms) >= s.cfg.Limits.MaxRooms {
@@ -246,6 +298,7 @@ func (s *Server) handleCreateRoom(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	exp := now.Add(time.Duration(s.cfg.Limits.RoomLeaseTTL))
+	delete(s.rooms, roomID) // drop any expired record under the same ID
 	s.rooms[roomID] = &room{
 		id:                roomID,
 		ownerDigest:       digest,

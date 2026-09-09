@@ -150,7 +150,18 @@ export interface MultiplayerSynchronizedStart {
 }
 
 export type HostMessage =
-  | { kind: 'hello'; version: number; name: string; appVersion: string }
+  | {
+      kind: 'hello';
+      version: number;
+      name: string;
+      appVersion: string;
+      /** Browser-local sidekick identity; absent on the legacy path. */
+      identity?: string;
+      /** Fresh per-connection nonce for sidekick pair proofs. */
+      pairNonce?: string;
+    }
+  | { kind: 'pair.secret'; hostIdentity: string; secret: string }
+  | { kind: 'invitation'; roomId: string; secret: string }
   | {
       kind: 'pairing';
       paired: boolean;
@@ -178,7 +189,22 @@ export type HostMessage =
   | { kind: 'kicked' };
 
 export type ClientMessage =
-  | { kind: 'hello'; version: number; name: string; platform: string; freeplayEnabled: boolean }
+  | {
+      kind: 'hello';
+      version: number;
+      name: string;
+      platform: string;
+      freeplayEnabled: boolean;
+      /** Browser-local sidekick identity; absent on the legacy path. */
+      identity?: string;
+    }
+  | {
+      kind: 'pair.proof';
+      clientIdentity: string;
+      hostNonce: string;
+      guestNonce: string;
+      proof: string;
+    }
   | {
       kind: 'chat.send';
       text: string;
@@ -286,13 +312,38 @@ function isRemoteTrackItem(value: unknown): value is TrackItem {
     && typeof item.lastModified === 'number';
 }
 
+const SIDEKICK_IDENTITY_PATTERN = /^[A-Za-z0-9_-]{8,128}$/;
+const SIDEKICK_NONCE_PATTERN = /^[A-Za-z0-9_-]{8,128}$/;
+
+function isSidekickIdentity(value: unknown): value is string {
+  return typeof value === 'string' && SIDEKICK_IDENTITY_PATTERN.test(value);
+}
+
+function isOptionalSidekickField(value: unknown, pattern: RegExp): boolean {
+  return value === undefined || (typeof value === 'string' && pattern.test(value));
+}
+
 export function isHostMessage(value: unknown): value is HostMessage {
   if (!value || typeof value !== 'object') return false;
   const message = value as Partial<HostMessage> & Record<string, unknown>;
   if (message.kind === 'hello') {
     return message.version === MULTIPLAYER_PROTOCOL_VERSION
       && typeof message.name === 'string'
-      && typeof message.appVersion === 'string';
+      && typeof message.appVersion === 'string'
+      && isOptionalSidekickField(message.identity, SIDEKICK_IDENTITY_PATTERN)
+      && isOptionalSidekickField(message.pairNonce, SIDEKICK_NONCE_PATTERN);
+  }
+  if (message.kind === 'pair.secret') {
+    return isSidekickIdentity(message.hostIdentity)
+      && typeof message.secret === 'string'
+      && /^[0-9a-f]{64}$/.test(message.secret);
+  }
+  if (message.kind === 'invitation') {
+    return typeof message.roomId === 'string'
+      && /^[0-9a-f]{32}$/.test(message.roomId)
+      && typeof message.secret === 'string'
+      && message.secret.length > 0
+      && message.secret.length <= 512;
   }
   if (message.kind === 'kicked') return true;
   if (message.kind === 'pairing') {

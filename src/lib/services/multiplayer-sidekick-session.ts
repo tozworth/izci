@@ -42,12 +42,17 @@ import {
   acquireSidekickHostRoom,
   acquireSidekickHostRoomWithSession,
   connectSidekickHost,
+  reconnectSidekickHost,
+  type SidekickHostEvents,
   type SidekickHostLink
 } from './multiplayer-sidekick-host';
-import { connectSidekickGuest } from './multiplayer-sidekick-client';
+import { connectSidekickGuest, type SidekickGuestConnection } from './multiplayer-sidekick-client';
+import { getSidekickRtcConfig } from './multiplayer-sidekick-ice-cache';
+import { broadcastSidekickInvitation } from './multiplayer-sidekick-host-pairing';
 import {
   normalizeSidekickEndpoint,
-  rotateSidekickInvitation as rotateSidekickRoomInvitation
+  rotateSidekickInvitation as rotateSidekickRoomInvitation,
+  SidekickError
 } from './multiplayer-sidekick-http';
 
 export interface SidekickHostInvitation {
@@ -117,26 +122,59 @@ export async function startSidekickHosting(
       throw args.signal?.reason ?? new Error('aborted');
     }
     const attempts = new Map<string, string>();
-    const link = await connectSidekickHost(
-      room,
-      {
+    let activeLink: SidekickHostLink | null = null;
+    let hostReconnecting = false;
+    async function reconnectHostSignaling(): Promise<void> {
+      // Signaling reconnect never touches RTC peers: healthy playback
+      // survives while the socket rebinds within the server grace window.
+      if (hostReconnecting || !checkGeneration(core, owned) || core.state.mode !== 'hosting') return;
+      if (!activeLink) return;
+      hostReconnecting = true;
+      core.publish({
+        sidekickSignaling: 'reconnecting',
+        connectionDetail: 'Reconnecting sidekick signaling; audio continues.'
+      });
+      const deadline = new AbortController();
+      const timer = setTimeout(() => deadline.abort(new Error('host reconnect timed out')), 90_000);
+      try {
+        const fresh = await reconnectSidekickHost(room, hostEvents, activeLink, { signal: deadline.signal });
+        if (!checkGeneration(core, owned) || core.state.mode !== 'hosting') {
+          fresh.dispose();
+          return;
+        }
+        activeLink = fresh;
+        core.sidekickHost = fresh;
+        core.disposeSidekickTransport = () => fresh.dispose();
+        core.publish({ sidekickSignaling: 'live', connectionDetail: null });
+      } catch {
+        if (!checkGeneration(core, owned) || core.state.mode !== 'hosting') return;
+        core.publish({
+          sidekickSignaling: 'dropped',
+          connectionDetail: 'Sidekick signaling dropped; audio continues.'
+        });
+      } finally {
+        clearTimeout(timer);
+        hostReconnecting = false;
+      }
+    }
+    const hostEvents: SidekickHostEvents = {
         onPeerRequested(connectionId, attemptId) {
           if (!checkGeneration(core, owned)) return;
           if (core.state.mode !== 'hosting') return;
           attempts.set(attemptId, connectionId);
           if (core.hostPeers.size >= core.multiplayerSettings.multiplayerMaxListeners) {
-            link.reject(attemptId);
+            activeLink?.reject(attemptId);
             return;
           }
           // Install the host handler (accept) before the guest is prompted
           // to offer; the server only prompts after accept.
-          link.accept(attemptId);
+          activeLink?.accept(attemptId);
         },
         onOffer(attemptId, sdp) {
           if (!checkGeneration(core, owned)) return;
-          if (core.state.mode !== 'hosting') return;
+          if (core.state.mode !== 'hosting' || !activeLink) return;
           const connectionId = attempts.get(attemptId) ?? attemptId.slice(0, 8);
-          void acceptSidekickOffer(ctx, link, connectionId, attemptId, sdp, owned);
+          void acceptSidekickOffer(ctx, activeLink, connectionId, attemptId, sdp, owned);
         },
         onCandidate(attemptId, candidate, index, sdpMid, sdpMLineIndex) {
           if (!checkGeneration(core, owned)) return;
@@ -168,10 +206,13 @@ export async function startSidekickHosting(
             type: envelope.type,
             requestId: envelope.requestId
           });
+        },
+        onSocketClose() {
+          void reconnectHostSignaling();
         }
-      },
-      { signal: args.signal }
-    );
+      };
+    const link = await connectSidekickHost(room, hostEvents, { signal: args.signal });
+    activeLink = link;
     if (!checkGeneration(core, owned) || args.signal?.aborted) {
       link.dispose();
       throw args.signal?.reason ?? new Error('aborted');
@@ -182,7 +223,9 @@ export async function startSidekickHosting(
       mode: 'hosting',
       connectionStatus: 'connected',
       inviteCode: null,
-      connectionDetail: null
+      connectionDetail: null,
+      sidekickSignaling: 'live',
+      sidekickHostAuth: 'valid'
     });
     logInfo('multiplayer', 'Sidekick hosting started', {
       protocol: MULTIPLAYER_PROTOCOL_VERSION
@@ -214,7 +257,12 @@ export async function startSidekickHosting(
         freeplayPaired: false,
         freeplay: false,
         connectionDetail: message,
-        message
+        message,
+        sidekickSignaling: null,
+        // An expired operator login needs a fresh key, not a retry.
+        sidekickHostAuth: error instanceof SidekickError && error.code === 'unauthorized'
+          ? 'expired'
+          : null
       });
     }
     throw error instanceof Error ? error : new Error('Could not start sidekick hosting.');
@@ -234,6 +282,9 @@ export async function rotateSidekickInvitation(ctx: MultiplayerHostContext): Pro
     link.room.roomId
   );
   link.room.invitationSecret = rotated.invitationSecret;
+  // Paired guests learn the replacement over their authorized channel;
+  // offline guests need a fresh invite link.
+  broadcastSidekickInvitation(ctx, rotated.invitationSecret);
   return rotated.invitationSecret;
 }
 
@@ -260,7 +311,27 @@ async function acceptSidekickOffer(
     disposePeerConnection(previous);
     core.hostPeers.delete(connectionId);
   }
-  const peer = createPeer(connectionId, `Guest ${connectionId.slice(0, 4)}`, createDirectIceSettings());
+  // Authenticated server ICE (STUN plus time-limited TURN when the
+  // operator configured a relay); relay-only without a relay fails here
+  // with a useful message instead of a silent direct attempt.
+  let rtcConfig: RTCConfiguration;
+  try {
+    rtcConfig = await getSidekickRtcConfig({
+      endpoint: link.room.endpoint,
+      bearer: link.room.sessionToken,
+      roomId: link.room.roomId,
+      cacheKey: `host::${link.room.endpoint}::${link.room.roomId}`,
+      forceRelay: core.multiplayerSettings.multiplayerSidekickForceRelay
+    });
+  } catch (error) {
+    core.updateClient(connectionId, { status: 'disconnected' });
+    core.publish({
+      message: errorMessage(error, 'Could not prepare the connection.')
+    });
+    return;
+  }
+  if (!checkGeneration(core, generation) || core.state.mode !== 'hosting') return;
+  const peer = createPeer(connectionId, `Guest ${connectionId.slice(0, 4)}`, createDirectIceSettings(), rtcConfig);
   (peer as { sidekickAttemptId?: string }).sidekickAttemptId = attemptId;
   peer.signalingCreatedAt = Date.now();
   core.hostPeers.set(connectionId, peer);
@@ -385,12 +456,7 @@ export async function joinSidekick(
   updateLocalTimelineMode(ctx);
 
   try {
-    const guestRef: { current: {
-      sendOffer(sdp: string): void;
-      sendCandidate(c: string, i: number, sdpMid: string, sdpMLineIndex: number): void;
-      sendCandidatesEnd(): void;
-      sendConnected(): void;
-    } | null } = { current: null };
+    const guestRef: { current: SidekickGuestConnection | null } = { current: null };
     let pendingAcceptedAttempt: string | null = null;
     const guest = await connectSidekickGuest(
       endpoint,
@@ -452,22 +518,31 @@ export async function joinSidekick(
           if (!checkGeneration(core, owned)) return;
           if (core.state.mode !== 'client') return;
           // Explicit opt-in only: healthy RTC playback continues either way.
-          if (!core.multiplayerSettings.multiplayerSidekickAutoReconnect) return;
+          if (!core.multiplayerSettings.multiplayerSidekickAutoReconnect) {
+            core.publish({ sidekickSignaling: 'dropped' });
+            return;
+          }
           const guest = core.sidekickGuest;
           if (!guest) return;
           void (async () => {
             const timeout = new AbortController();
             const timer = setTimeout(() => timeout.abort(new Error('reconnect timed out')), 45_000);
             try {
-              core.publish({ connectionDetail: 'Reconnecting sidekick signaling...' });
+              core.publish({
+                sidekickSignaling: 'reconnecting',
+                connectionDetail: 'Reconnecting sidekick signaling...'
+              });
               await guest.reconnectSignaling(timeout.signal);
               if (!checkGeneration(core, owned) || core.state.mode !== 'client') return;
-              core.publish({ connectionDetail: null });
+              core.publish({ sidekickSignaling: 'live', connectionDetail: null });
             } catch {
               // RTC keeps playing; the next drop retries. Never surface
               // the ticket material in UI text.
               if (!checkGeneration(core, owned) || core.state.mode !== 'client') return;
-              core.publish({ connectionDetail: 'Sidekick signaling dropped; audio continues.' });
+              core.publish({
+                sidekickSignaling: 'dropped',
+                connectionDetail: 'Sidekick signaling dropped; audio continues.'
+              });
             } finally {
               clearTimeout(timer);
             }
@@ -494,6 +569,7 @@ export async function joinSidekick(
     }
     core.sidekickGuest = guest;
     core.disposeSidekickTransport = () => guest.dispose();
+    core.publish({ sidekickSignaling: 'live' });
     rememberMultiplayerLastSession('client', {
       hostName: null,
       transport: 'sidekick',
@@ -517,7 +593,8 @@ export async function joinSidekick(
         freeplay: false,
         audioStatus: 'unavailable',
         connectionDetail: errorMessage(error, 'Could not join that sidekick session.'),
-        message: errorMessage(error, 'Could not join that sidekick session.')
+        message: errorMessage(error, 'Could not join that sidekick session.'),
+        sidekickSignaling: null
       });
     }
     throw error instanceof Error ? error : new Error('Could not join that sidekick session.');
@@ -532,23 +609,39 @@ function attemptHash(attemptId: string): number {
 
 async function createSidekickOffer(
   ctx: MultiplayerClientContext,
-  guest: {
-    sendOffer(sdp: string): void;
-    sendCandidate(c: string, i: number, sdpMid: string, sdpMLineIndex: number): void;
-    sendCandidatesEnd(): void;
-    sendConnected(): void;
-  } | null,
+  guest: SidekickGuestConnection | null,
   attemptId: string,
   generation: number
 ): Promise<void> {
   const { core, transition } = ctx;
   if (!checkGeneration(core, generation) || !guest) return;
+  // Authenticated server ICE for this admitted connection; relay-only
+  // without a relay fails here with a useful message.
+  let rtcConfig: RTCConfiguration;
+  try {
+    rtcConfig = await getSidekickRtcConfig({
+      endpoint: guest.endpoint,
+      bearer: guest.connectionToken,
+      roomId: null,
+      cacheKey: `guest::${guest.endpoint}::${guest.connectionId}`,
+      forceRelay: core.multiplayerSettings.multiplayerSidekickForceRelay
+    });
+  } catch (error) {
+    core.publish({
+      connectionStatus: 'error',
+      audioStatus: 'unavailable',
+      connectionDetail: errorMessage(error, 'Could not prepare the connection.'),
+      message: errorMessage(error, 'Could not prepare the connection.')
+    });
+    return;
+  }
+  if (!checkGeneration(core, generation)) return;
   // Dispose previous pending RTC work before attaching new results.
   if (core.clientPeer) {
     disposePeerConnection(core.clientPeer);
     core.clientPeer = null;
   }
-  const peer = createPeer(`sidekick-${attemptId.slice(0, 8)}`, getLocalName(), createDirectIceSettings());
+  const peer = createPeer(`sidekick-${attemptId.slice(0, 8)}`, getLocalName(), createDirectIceSettings(), rtcConfig);
   peer.signalingCreatedAt = attemptHash(attemptId);
   const audioTransceiver = peer.pc.addTransceiver('audio', { direction: 'recvonly' });
   preferOpus(audioTransceiver);

@@ -8,6 +8,15 @@ import {
   forgetMultiplayerPairing,
   rememberMultiplayerPairing
 } from '$lib/stores/multiplayer-pairings';
+import {
+  findSidekickPairing,
+  forgetSidekickPairing,
+  rememberSidekickPairing,
+  setSidekickPairingFreeplay,
+  setSidekickPairingInvitationByRoom
+} from '$lib/stores/multiplayer-sidekick-pairings';
+import { getLocalSidekickIdentity, isValidSidekickIdentity } from './multiplayer-sidekick-identity';
+import { computePairProof, createPairNonce } from './multiplayer-sidekick-pairing';
 import { rememberMultiplayerHost } from '$lib/stores/multiplayer-recents';
 import { getMultiplayerArtworkTrackKey } from './multiplayer-artwork';
 import { multiplayerAudioService } from './multiplayer-audio';
@@ -82,7 +91,8 @@ export function attachClientChannel(ctx: MultiplayerClientContext, peer: PeerCon
       version: MULTIPLAYER_PROTOCOL_VERSION,
       name: peer.name,
       platform: getClientPlatform(),
-      freeplayEnabled: core.multiplayerSettings.multiplayerFreeplay
+      freeplayEnabled: core.multiplayerSettings.multiplayerFreeplay,
+      identity: getLocalSidekickIdentity()
     });
   };
   channel.onmessage = (event) => {
@@ -195,8 +205,43 @@ export function attachClientChannel(ctx: MultiplayerClientContext, peer: PeerCon
         sendClientPlaybackReadyIfPossible(ctx, peer);
       }
     }
+    if (message.kind === 'pair.secret') {
+      // The host chose Pair: store the secret under the host's
+      // browser-local identity, namespaced away from legacy UID pairs.
+      if (core.sidekickGuest) {
+        rememberSidekickPairing({
+          peerIdentity: message.hostIdentity,
+          label: sanitizeClientName(core.state.hostName ?? message.hostIdentity),
+          secret: message.secret,
+          freeplay: false,
+          endpoint: core.sidekickGuest.endpoint,
+          roomId: core.sidekickGuest.roomId,
+          invitationSecret: null
+        });
+      }
+      return;
+    }
+    if (message.kind === 'invitation') {
+      // Rotated invitations reach currently paired guests over their
+      // authorized channel; offline guests need a fresh invite link.
+      if (core.sidekickGuest) {
+        setSidekickPairingInvitationByRoom(
+          core.sidekickGuest.endpoint,
+          message.roomId,
+          message.secret
+        );
+      }
+      return;
+    }
     if (message.kind === 'pairing') {
-      if (message.paired) {
+      if (core.sidekickGuest) {
+        if (message.paired) {
+          const existing = findSidekickPairing(message.hostId);
+          if (existing) setSidekickPairingFreeplay(message.hostId, message.freeplayPaired);
+        } else {
+          forgetSidekickPairing(message.hostId);
+        }
+      } else if (message.paired) {
         rememberMultiplayerPairing(message.hostId, message.name, message.freeplayPaired);
       }
       else forgetMultiplayerPairing(message.hostId);
@@ -318,6 +363,7 @@ export function attachClientChannel(ctx: MultiplayerClientContext, peer: PeerCon
         hostId: core.clientHostId,
         hostName
       });
+      if (core.sidekickGuest) void sendSidekickPairProof(ctx, peer, message.identity, message.pairNonce);
     }
   };
   channel.onclose = () => {
@@ -400,4 +446,47 @@ export function attachClientChannel(ctx: MultiplayerClientContext, peer: PeerCon
       sendClientPlaybackReadyIfPossible(ctx, peer);
     });
   };
+}
+
+/**
+ * Answer a sidekick host hello with an HMAC pair proof when this browser
+ * holds a pair record for the host identity. Guests without a record stay
+ * silent and remain unpaired; a failed proof simply leaves privileges off.
+ */
+async function sendSidekickPairProof(
+  ctx: MultiplayerClientContext,
+  peer: PeerConnection,
+  hostIdentity: string | undefined,
+  hostNonce: string | undefined
+): Promise<void> {
+  const { core } = ctx;
+  const guest = core.sidekickGuest;
+  if (!guest || core.clientPeer !== peer) return;
+  if (!isValidSidekickIdentity(hostIdentity)
+    || typeof hostNonce !== 'string'
+    || !/^[A-Za-z0-9_-]{8,128}$/.test(hostNonce)) return;
+  const record = findSidekickPairing(hostIdentity);
+  if (!record) return;
+  const clientIdentity = getLocalSidekickIdentity();
+  if (clientIdentity === hostIdentity) return;
+  const guestNonce = createPairNonce();
+  try {
+    const proof = await computePairProof(record.secret, {
+      roomId: guest.roomId,
+      hostIdentity,
+      clientIdentity,
+      hostNonce,
+      guestNonce
+    });
+    if (core.clientPeer !== peer || core.state.mode !== 'client') return;
+    sendToPeer(peer, {
+      kind: 'pair.proof',
+      clientIdentity,
+      hostNonce,
+      guestNonce,
+      proof
+    });
+  } catch {
+    // Proofs are best-effort: the guest simply stays unpaired.
+  }
 }

@@ -48,6 +48,9 @@ type connection struct {
 	generation    uint64
 	socketID      uint64
 	attempt       *attempt
+	// iceIssued counts POST /v1/ice responses for this connection, so one
+	// guest cannot mint unbounded TURN credentials.
+	iceIssued int
 }
 
 type attempt struct {

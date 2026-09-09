@@ -32,9 +32,11 @@ import {
   deleteSidekickSession,
   deleteSidekickRoom,
   fetchSidekickInfo,
+  recreateSidekickRoom,
   renewSidekickRoom,
   resumeSidekickRoom,
   rotateSidekickInvitation,
+  SidekickError,
   type SidekickRoom,
   type SidekickServerInfo,
   type SidekickSession
@@ -109,6 +111,13 @@ export interface SidekickSetupNetwork {
     ownerSecret: string,
     signal?: AbortSignal
   ): Promise<{ roomId: string; expiresAt: string }>;
+  recreateRoom(
+    endpoint: string,
+    sessionToken: string,
+    saved: { roomId: string; ownerSecret: string; invitationSecret: string },
+    capacity: number,
+    signal?: AbortSignal
+  ): Promise<SidekickRoom>;
   renewRoom(
     endpoint: string,
     sessionToken: string,
@@ -131,6 +140,8 @@ const DEFAULT_NETWORK: SidekickSetupNetwork = {
   createRoom: (endpoint, token, capacity, signal) => createSidekickRoom(endpoint, token, capacity, signal),
   resumeRoom: (endpoint, token, roomId, ownerSecret, signal) =>
     resumeSidekickRoom(endpoint, token, roomId, ownerSecret, signal),
+  recreateRoom: (endpoint, token, saved, capacity, signal) =>
+    recreateSidekickRoom(endpoint, token, saved, capacity, signal),
   renewRoom: (endpoint, token, roomId, signal) => renewSidekickRoom(endpoint, token, roomId, signal),
   rotateRoom: (endpoint, token, roomId, signal) => rotateSidekickInvitation(endpoint, token, roomId, signal),
   deleteRoom: (endpoint, token, roomId, signal) => deleteSidekickRoom(endpoint, token, roomId, signal)
@@ -429,6 +440,78 @@ export function createSidekickSetupController(
     }
   }
 
+  /**
+   * Resume a remembered room; when the server restarted and the room is
+   * absent, recreate the same room ID and invitation atomically with host
+   * authentication. A live room owned elsewhere still refuses the
+   * collision unless the owner secret matches.
+   */
+  async function resumeOrRecreateRoom(roomId: string, ownerSecret: string): Promise<void> {
+    const session = requireConnector();
+    if (!loginState || !state.endpoint) throw new Error('Log in to the server first.');
+    const recent = sidekickRecents.getSnapshot().find(
+      (entry) => entry.endpoint === state.endpoint && entry.roomId === roomId
+    );
+    const invitationSecret = recent?.invitationSecret;
+    const signal = takeSignal('resume-room');
+    const capacity = multiplayerSettings.getSnapshot().multiplayerMaxListeners;
+    const hostRoom = async (resume: { roomId: string; ownerSecret: string }) =>
+      session.startHosting({
+        endpoint: state.endpoint!,
+        hostKey: '',
+        sessionToken: loginState!.sessionToken,
+        resume,
+        signal
+      });
+    try {
+      try {
+        await hostRoom({ roomId, ownerSecret });
+      } catch (error) {
+        const gone = error instanceof SidekickError
+          && (error.code === 'room-unavailable' || error.code === 'not-found');
+        if (!gone || !invitationSecret) throw error;
+        // The room lapsed (restart or lease expiry): rebuild it with the
+        // saved IDs so existing invite links keep working.
+        await network.recreateRoom(
+          state.endpoint,
+          loginState.sessionToken,
+          { roomId, ownerSecret, invitationSecret },
+          capacity,
+          signal
+        );
+        if (signal.aborted) return;
+        await hostRoom({ roomId, ownerSecret });
+      }
+      if (signal.aborted) return;
+      loginState = null;
+      const link = invitationSecret
+        ? buildSidekickInviteLink(
+          {
+            endpoint: state.endpoint,
+            roomId,
+            secret: invitationSecret,
+            title: multiplayerSettings.getSnapshot().multiplayerSidekickLabel || null
+          },
+          typeof window !== 'undefined' ? window.location.origin : ''
+        )
+        : null;
+      set({
+        hasLogin: false,
+        loginEndpoint: null,
+        hosted: { endpoint: state.endpoint, roomId, invitationSecret: invitationSecret ?? ownerSecret, expiresAt: '' },
+        inviteLink: link
+      });
+    } catch (error) {
+      if (signal.aborted) return;
+      set({ error: toUserError(error, 'Could not resume that room. It may be gone after a server restart.') });
+      publish();
+      throw error instanceof Error ? error : new Error('Could not resume that room.');
+    } finally {
+      clearBusy();
+      publish();
+    }
+  }
+
   async function rotateInvitation(): Promise<void> {
     const session = requireConnector();
     if (!state.hosted) throw new Error('No hosted room to rotate.');
@@ -636,6 +719,7 @@ export function createSidekickSetupController(
     logout,
     createRoom,
     resumeRoom,
+    resumeOrRecreateRoom,
     rotateInvitation,
     closeRoom,
     captureInvitation,

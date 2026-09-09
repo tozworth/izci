@@ -83,6 +83,12 @@ type Server struct {
 	now           func() time.Time
 	hostKeyDigest [32]byte
 
+	// relaySecret is the shared coturn REST secret (nil when no relay is
+	// configured). Only the raw secret lives here; issued usernames and
+	// passwords are derived per request and never stored.
+	relaySecret []byte
+	relayTtl    time.Duration
+
 	mu           sync.Mutex
 	sessions     map[string]*hostSession
 	rooms        map[string]*room
@@ -114,6 +120,13 @@ func NewWithClock(cfg *config.Config, logger *log.Logger, hostKey [32]byte, now 
 	if err != nil {
 		return nil, err
 	}
+	var relaySecret []byte
+	if strings.TrimSpace(cfg.RelaySecretFile) != "" {
+		relaySecret, err = config.LoadRelaySecret(cfg.RelaySecretFile)
+		if err != nil {
+			return nil, err
+		}
+	}
 	s := &Server{
 		cfg:           cfg,
 		logger:        logger,
@@ -122,6 +135,8 @@ func NewWithClock(cfg *config.Config, logger *log.Logger, hostKey [32]byte, now 
 		allowed:       cfg.AllowedOriginSet(),
 		now:           now,
 		hostKeyDigest: sha256Sum(hostKey[:]),
+		relaySecret:   relaySecret,
+		relayTtl:      time.Duration(cfg.RelayCredentialTtl),
 		sessions:      make(map[string]*hostSession),
 		rooms:         make(map[string]*room),
 		connTokens:    make(map[string]*connection),
@@ -282,6 +297,7 @@ func (s *Server) knownPath(p string) bool {
 		"/v1/join",
 		"/v1/socket-tickets",
 		"/v1/socket",
+		"/v1/ice",
 	} {
 		if p == prefix+suffix {
 			return true

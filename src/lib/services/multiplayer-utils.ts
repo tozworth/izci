@@ -106,7 +106,19 @@ export function isClientMessage(value: unknown): value is ClientMessage {
     return message.version === MULTIPLAYER_PROTOCOL_VERSION
       && typeof message.name === 'string'
       && typeof message.platform === 'string'
-      && typeof message.freeplayEnabled === 'boolean';
+      && typeof message.freeplayEnabled === 'boolean'
+      && (message.identity === undefined
+        || (typeof message.identity === 'string' && /^[A-Za-z0-9_-]{8,128}$/.test(message.identity)));
+  }
+  if (message.kind === 'pair.proof') {
+    return typeof message.clientIdentity === 'string'
+      && /^[A-Za-z0-9_-]{8,128}$/.test(message.clientIdentity)
+      && typeof message.hostNonce === 'string'
+      && /^[A-Za-z0-9_-]{8,128}$/.test(message.hostNonce)
+      && typeof message.guestNonce === 'string'
+      && /^[A-Za-z0-9_-]{8,128}$/.test(message.guestNonce)
+      && typeof message.proof === 'string'
+      && /^[0-9a-f]{64}$/.test(message.proof);
   }
   if (message.kind === 'chat.send') {
     return typeof message.text === 'string'

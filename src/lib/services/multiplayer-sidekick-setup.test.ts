@@ -59,6 +59,10 @@ function stubNetwork(): SidekickSetupNetwork & { calls: string[] } {
       calls.push('rotate-room');
       return { roomId: ROOM, invitationSecret: 'invite-2' };
     },
+    recreateRoom: async () => {
+      calls.push('recreate-room');
+      return { roomId: ROOM, ownerSecret: 'owner-1', invitationSecret: 'invite-1', expiresAt: '' };
+    },
     deleteRoom: async () => {
       calls.push('delete-room');
     }
@@ -260,6 +264,93 @@ describe('sidekick setup controller', () => {
     expect(snapshot.guestStatus).toBe('error');
     expect(snapshot.guestError).toContain('#party=[redacted]');
     expect(snapshot.guestError).not.toContain(raw);
+  });
+
+  it('resumes a live room without recreating it', async () => {
+    const network = stubNetwork();
+    const connector = stubConnector();
+    const controller = createSidekickSetupController(network);
+    controller.setSessionConnector(connector);
+    controller.setServerInput('https://sidekick.example.com');
+    await controller.connectServer();
+    await controller.login('operator-key-abc');
+    await controller.resumeOrRecreateRoom(ROOM, 'owner-1');
+    expect(connector.calls).toEqual(['host']);
+    expect(network.calls).not.toContain('recreate-room');
+    expect(controller.getSnapshot().hosted?.roomId).toBe(ROOM);
+  });
+
+  it('recreates an absent room with the saved invitation', async () => {
+    const network = stubNetwork();
+    const connector = stubConnector();
+    let attempts = 0;
+    connector.startHosting = async () => {
+      connector.calls.push('host');
+      attempts += 1;
+      if (attempts === 1) throw new SidekickError('room-unavailable', 404);
+      return { endpoint: 'https://sidekick.example.com', roomId: ROOM, secret: 'invite-1', ownerSecret: 'owner-1' };
+    };
+    const controller = createSidekickSetupController(network);
+    controller.setSessionConnector(connector);
+    controller.setServerInput('https://sidekick.example.com');
+    await controller.connectServer();
+    await controller.login('operator-key-abc');
+    sidekickRecents.set([{
+      endpoint: 'https://sidekick.example.com',
+      roomId: ROOM,
+      displayName: 'Friday',
+      lastUsed: Date.now(),
+      invitationSecret: 'invite-1',
+      ownerSecret: 'owner-1'
+    }]);
+    await controller.resumeOrRecreateRoom(ROOM, 'owner-1');
+    expect(network.calls).toContain('recreate-room');
+    expect(connector.calls.filter((call) => call === 'host')).toHaveLength(2);
+    expect(controller.getSnapshot().hosted?.roomId).toBe(ROOM);
+    expect(controller.getSnapshot().inviteLink).toContain('#party=');
+  });
+
+  it('refuses to recreate without a remembered invitation', async () => {
+    const network = stubNetwork();
+    const connector = stubConnector();
+    connector.startHosting = async () => {
+      throw new SidekickError('room-unavailable', 404);
+    };
+    const controller = createSidekickSetupController(network);
+    controller.setSessionConnector(connector);
+    controller.setServerInput('https://sidekick.example.com');
+    await controller.connectServer();
+    await controller.login('operator-key-abc');
+    await expect(controller.resumeOrRecreateRoom(ROOM, 'owner-1')).rejects.toThrow();
+    expect(network.calls).not.toContain('recreate-room');
+  });
+
+  it('surfaces live-room collisions instead of recreating', async () => {
+    const network = stubNetwork();
+    network.recreateRoom = async () => {
+      throw new SidekickError('room-unavailable', 409);
+    };
+    const connector = stubConnector();
+    connector.startHosting = async (args: unknown) => {
+      const resume = (args as { resume?: unknown }).resume;
+      if (resume) throw new SidekickError('room-unavailable', 404);
+      throw new Error('unexpected host without resume');
+    };
+    const controller = createSidekickSetupController(network);
+    controller.setSessionConnector(connector);
+    controller.setServerInput('https://sidekick.example.com');
+    await controller.connectServer();
+    await controller.login('operator-key-abc');
+    sidekickRecents.set([{
+      endpoint: 'https://sidekick.example.com',
+      roomId: ROOM,
+      displayName: 'Friday',
+      lastUsed: Date.now(),
+      invitationSecret: 'invite-1',
+      ownerSecret: 'owner-1'
+    }]);
+    await expect(controller.resumeOrRecreateRoom(ROOM, 'owner-1')).rejects.toThrow();
+    expect(controller.getSnapshot().error).toBeTruthy();
   });
 
   it('cancels an in-flight info fetch without side effects', async () => {

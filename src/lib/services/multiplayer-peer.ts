@@ -15,12 +15,13 @@ const ICE_CONNECTION_TIMEOUT_MS = 15_000;
 export function createPeer(
   id: string,
   name: string,
-  settings: MultiplayerIceSettings
+  settings: MultiplayerIceSettings,
+  rtcConfig?: RTCConfiguration
 ): PeerConnection {
   return {
     id,
     name,
-    pc: new RTCPeerConnection(createMultiplayerRtcConfiguration(settings)),
+    pc: new RTCPeerConnection(rtcConfig ?? createMultiplayerRtcConfiguration(settings)),
     channel: null,
     outgoing: [],
     flushing: false,
@@ -46,6 +47,8 @@ export function createPeer(
     candidateErrors: [],
     connectionTimer: null,
     signalingCreatedAt: 0,
+    clientIdentity: null,
+    pairNonce: null,
     paired: false,
     freeplayPaired: false,
     clientFreeplayEnabled: false,

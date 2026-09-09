@@ -101,6 +101,10 @@ export interface MultiplayerSessionState {
   audioStatus: MultiplayerAudioStatus;
   remoteDelivery: MultiplayerDeliveryState;
   connectionRoute: MultiplayerConnectionRoute | null;
+  /** Sidekick signaling health; media health stays in audioStatus/connectionRoute. */
+  sidekickSignaling: 'live' | 'reconnecting' | 'dropped' | null;
+  /** Sidekick host-login state; expired logins need user action, not retry. */
+  sidekickHostAuth: 'valid' | 'expired' | null;
   averageAudioBitrateKbps: number | null;
   receiveAudio: boolean;
   connectionStats: MultiplayerConnectionStats | null;
@@ -220,6 +224,10 @@ export interface PeerConnection {
   candidateErrors: string[];
   connectionTimer: number | null;
   signalingCreatedAt: number;
+  /** Browser-local sidekick identity presented in the client hello. */
+  clientIdentity: string | null;
+  /** Fresh per-connection nonce sent in the host hello for pair proofs. */
+  pairNonce: string | null;
   paired: boolean;
   freeplayPaired: boolean;
   clientFreeplayEnabled: boolean;

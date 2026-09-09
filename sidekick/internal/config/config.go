@@ -29,6 +29,13 @@ const (
 	maxTextLen   = 280
 	maxIceURLs   = 16
 	maxIceURLLen = 256
+
+	// DefaultRelayCredentialTTL is the lifetime of TURN credentials issued
+	// by POST /v1/ice (standard coturn REST shared-secret expiry).
+	DefaultRelayCredentialTTL = Duration(10 * time.Minute)
+	// DefaultMaxIcePerConnection caps POST /v1/ice issuance per admitted
+	// connection so one guest cannot mint unbounded TURN credentials.
+	DefaultMaxIcePerConnection = 16
 )
 
 // Default limits shared with later phases (see docs/multiplayer-sidekick-plan.md).
@@ -117,7 +124,16 @@ type Config struct {
 	Description    string   `json:"description"`
 	Contact        string   `json:"contact"`
 	IceURLs        []string `json:"iceUrls"`
-	Limits         Limits   `json:"limits"`
+	// RelaySecretFile optionally points at a file holding the shared
+	// secret for a coturn REST (static-auth-secret) relay. When set, the
+	// turn:/turns: entries of IceURLs are issued time-limited credentials
+	// by POST /v1/ice; without it those URLs are advertised bare.
+	RelaySecretFile string `json:"relaySecretFile"`
+	// RelayCredentialTtl is the TURN credential lifetime (default 10m).
+	RelayCredentialTtl Duration `json:"relayCredentialTtl"`
+	// MaxIcePerConnection caps POST /v1/ice calls per admitted connection.
+	MaxIcePerConnection int    `json:"maxIcePerConnection"`
+	Limits              Limits `json:"limits"`
 }
 
 // Default returns the configuration with default listen address and limits.
@@ -125,11 +141,13 @@ type Config struct {
 // must be supplied by the config file.
 func Default() Config {
 	return Config{
-		Listen:         DefaultListen,
-		PathPrefix:     "",
-		AllowedOrigins: []string{},
-		TrustedProxies: []string{},
-		IceURLs:        []string{},
+		Listen:              DefaultListen,
+		PathPrefix:          "",
+		AllowedOrigins:      []string{},
+		TrustedProxies:      []string{},
+		IceURLs:             []string{},
+		RelayCredentialTtl:  DefaultRelayCredentialTTL,
+		MaxIcePerConnection: DefaultMaxIcePerConnection,
 		Limits: Limits{
 			MaxRooms:                       DefaultMaxRooms,
 			MaxPeersPerRoom:                DefaultMaxPeersPerRoom,
@@ -214,6 +232,15 @@ func (c *Config) Validate() error {
 	}
 	if err := validateIceURLs(c.IceURLs); err != nil {
 		return err
+	}
+	if strings.TrimSpace(c.RelaySecretFile) != "" && len(c.RelaySecretFile) > 1024 {
+		return fmt.Errorf("invalid config: relaySecretFile path is too long")
+	}
+	if ttl := time.Duration(c.RelayCredentialTtl); ttl < time.Minute || ttl > time.Hour {
+		return fmt.Errorf("invalid config: relayCredentialTtl must be between 1m and 1h")
+	}
+	if c.MaxIcePerConnection < 1 || c.MaxIcePerConnection > 1024 {
+		return fmt.Errorf("invalid config: maxIcePerConnection must be between 1 and 1024")
 	}
 	if err := c.Limits.validate(); err != nil {
 		return err
@@ -529,6 +556,21 @@ func (c *Config) AllowedOriginSet() map[string]struct{} {
 		}
 	}
 	return set
+}
+
+// LoadRelaySecret reads the shared coturn REST secret file. The file holds
+// the raw secret text (as with coturn's static-auth-secret) with optional
+// surrounding whitespace. Errors never include secret material.
+func LoadRelaySecret(path string) ([]byte, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, fmt.Errorf("cannot read relay secret file: %w", err)
+	}
+	secret := bytes.TrimSpace(data)
+	if len(secret) < 8 || len(secret) > 512 {
+		return nil, fmt.Errorf("relay secret must be between 8 and 512 bytes")
+	}
+	return secret, nil
 }
 
 // HostKeyLength is the required operator key size in bytes.

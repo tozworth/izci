@@ -14,10 +14,13 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import {
   createSidekickSession,
   fetchSidekickInfo,
+  fetchSidekickIce,
   createSidekickRoom,
+  deleteSidekickRoom,
   joinSidekickRoom,
   mintSidekickSocketTicket,
   normalizeSidekickEndpoint,
+  recreateSidekickRoom,
   SidekickError
 } from './multiplayer-sidekick-http';
 import {
@@ -77,7 +80,12 @@ beforeAll(async () => {
       trustedProxies: [],
       description: 'test',
       contact: 'test@example.com',
-      iceUrls: []
+      iceUrls: [],
+      limits: {
+        maxRooms: 32,
+        maxPeersPerRoom: 8,
+        maxPendingAttemptsPerRoom: 8
+      }
     })
   );
   child = spawn('go', ['run', './cmd/izci-sidekick', 'serve', '--config', configPath], {
@@ -222,6 +230,46 @@ describe('sidekick integration through production helpers', () => {
 
     host.dispose();
     guest.dispose();
+  });
+
+  it('issues empty default ICE to hosts and admitted connections', async () => {
+    const session = await createSidekickSession(endpoint, hostKeyHex);
+    const room = await createSidekickRoom(endpoint, session.sessionToken, 4);
+    const hostIce = await fetchSidekickIce(endpoint, session.sessionToken, room.roomId);
+    expect(hostIce.iceServers).toEqual([]);
+    expect(hostIce.expiresAt ?? null).toBeNull();
+
+    const join = await joinSidekickRoom(endpoint, room.roomId, room.invitationSecret, 'ice-conn-1');
+    const guestIce = await fetchSidekickIce(endpoint, join.connectionToken, null);
+    expect(guestIce.iceServers).toEqual([]);
+
+    // Connection bearers authorize only their own connection.
+    await expect(fetchSidekickIce(endpoint, join.connectionToken, 'f'.repeat(32))).rejects.toMatchObject({
+      code: 'unauthorized'
+    });
+    await expect(fetchSidekickIce(endpoint, 'bogus-bearer-token', null)).rejects.toMatchObject({
+      code: 'unauthorized'
+    });
+  });
+
+  it('recreates a dropped room with its saved IDs', async () => {
+    const session = await createSidekickSession(endpoint, hostKeyHex);
+    const room = await createSidekickRoom(endpoint, session.sessionToken, 4);
+    // A server restart drops the room; the host rebuilds it atomically.
+    await deleteSidekickRoom(endpoint, session.sessionToken, room.roomId);
+    await expect(
+      joinSidekickRoom(endpoint, room.roomId, room.invitationSecret, 'recreate-gone-1')
+    ).rejects.toMatchObject({ code: 'room-unavailable' });
+    const rebuilt = await recreateSidekickRoom(
+      endpoint,
+      session.sessionToken,
+      { roomId: room.roomId, ownerSecret: room.ownerSecret, invitationSecret: room.invitationSecret },
+      4
+    );
+    expect(rebuilt.roomId).toBe(room.roomId);
+    expect(rebuilt.invitationSecret).toBe(room.invitationSecret);
+    const join = await joinSidekickRoom(endpoint, room.roomId, room.invitationSecret, 'recreate-back-1');
+    expect(join.attemptId).toMatch(/^[0-9a-f]{32}$/);
   });
 
   it('supports cancellation and server switch disposal', async () => {

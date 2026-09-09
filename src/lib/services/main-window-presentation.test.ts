@@ -54,6 +54,8 @@ function createSessionState(
     audioStatus: 'idle',
     remoteDelivery: EMPTY_DELIVERY,
     connectionRoute: null,
+    sidekickSignaling: null,
+    sidekickHostAuth: null,
     averageAudioBitrateKbps: null,
     receiveAudio: true,
     connectionStats: null,

@@ -261,6 +261,43 @@ export async function joinSidekickRoom(
   });
 }
 
+export interface SidekickIceResult {
+  iceServers: Array<{ urls: string | string[]; username?: string; credential?: string }>;
+  expiresAt: string | null;
+}
+
+export async function fetchSidekickIce(
+  endpoint: string,
+  bearer: string,
+  roomId: string | null,
+  signal?: AbortSignal
+): Promise<SidekickIceResult> {
+  return requestJson<SidekickIceResult>('POST', endpoint, '/v1/ice', {
+    signal,
+    bearer,
+    body: roomId ? { roomId } : {}
+  });
+}
+
+export async function recreateSidekickRoom(
+  endpoint: string,
+  sessionToken: string,
+  saved: { roomId: string; ownerSecret: string; invitationSecret: string },
+  capacity: number,
+  signal?: AbortSignal
+): Promise<SidekickRoom> {
+  return requestJson<SidekickRoom>('POST', endpoint, '/v1/rooms', {
+    signal,
+    bearer: sessionToken,
+    body: {
+      capacity,
+      roomId: saved.roomId,
+      ownerSecret: saved.ownerSecret,
+      invitationSecret: saved.invitationSecret
+    }
+  });
+}
+
 export async function mintSidekickSocketTicket(
   endpoint: string,
   bearer: string,

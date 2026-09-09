@@ -161,6 +161,64 @@ describe('multiplayer protocol', () => {
     })).toBe(false);
   });
 
+  it('accepts sidekick hello identity extras and pair messages', () => {
+    expect(isHostMessage({
+      kind: 'hello',
+      version: MULTIPLAYER_PROTOCOL_VERSION,
+      name: 'Host',
+      appVersion: '1.0',
+      identity: 'host-identity-01',
+      pairNonce: 'host-nonce-001'
+    })).toBe(true);
+    expect(isHostMessage({
+      kind: 'hello',
+      version: MULTIPLAYER_PROTOCOL_VERSION,
+      name: 'Host',
+      appVersion: '1.0'
+    })).toBe(true);
+    expect(isHostMessage({
+      kind: 'hello',
+      version: MULTIPLAYER_PROTOCOL_VERSION,
+      name: 'Host',
+      appVersion: '1.0',
+      identity: 'bad id!'
+    })).toBe(false);
+    expect(isHostMessage({
+      kind: 'pair.secret',
+      hostIdentity: 'host-identity-01',
+      secret: 'a'.repeat(64)
+    })).toBe(true);
+    expect(isHostMessage({
+      kind: 'pair.secret',
+      hostIdentity: 'host-identity-01',
+      secret: 'short'
+    })).toBe(false);
+    expect(isHostMessage({
+      kind: 'invitation',
+      roomId: 'd'.repeat(32),
+      secret: 'invite-1'
+    })).toBe(true);
+    expect(isHostMessage({
+      kind: 'invitation',
+      roomId: 'short',
+      secret: 'invite-1'
+    })).toBe(false);
+    expect(isClientMessage({
+      kind: 'pair.proof',
+      clientIdentity: 'client-identity-02',
+      hostNonce: 'host-nonce-001',
+      guestNonce: 'guest-nonce-002',
+      proof: 'b'.repeat(64)
+    })).toBe(true);
+    expect(isClientMessage({
+      kind: 'pair.proof',
+      clientIdentity: 'client-identity-02',
+      hostNonce: 'host-nonce-001',
+      guestNonce: 'guest-nonce-002',
+      proof: 'tampered'
+    })).toBe(false);
+  });
+
   it('accepts only bounded pairing identity messages', () => {
     expect(isHostMessage({
       kind: 'pairing',
