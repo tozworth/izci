@@ -1,5 +1,8 @@
 import { version as appVersion } from '../../../package.json';
 import { clearPeerConnectionTimer, sendToPeer } from './multiplayer-peer';
+import { getLocalSidekickIdentity, isValidSidekickIdentity } from './multiplayer-sidekick-identity';
+import { createPairNonce } from './multiplayer-sidekick-pairing';
+import { verifySidekickPairProof } from './multiplayer-sidekick-host-pairing';
 import { MULTIPLAYER_PROTOCOL_VERSION, isMultiplayerCommand } from './multiplayer-protocol';
 import { flushPeerMedia } from './multiplayer-source-transfer';
 import { flushPeerRender, resetPeerRenderQueue, schedulePeerRender } from './multiplayer-render-transfer';
@@ -40,6 +43,16 @@ export function announceHostPeerLeave(
   ctx.handleChatPresence(peer.name, 'leave');
 }
 
+/** Sidekick hello extras: browser-local identity plus a fresh pair nonce. */
+function sidekickHelloExtra(
+  ctx: MultiplayerHostContext,
+  peer: PeerConnection
+): { identity?: string; pairNonce?: string } {
+  if (!ctx.core.sidekickHost) return {};
+  if (!peer.pairNonce) peer.pairNonce = createPairNonce();
+  return { identity: getLocalSidekickIdentity(), pairNonce: peer.pairNonce };
+}
+
 export function attachHostChannel(
   ctx: MultiplayerHostContext,
   peer: PeerConnection,
@@ -55,7 +68,8 @@ export function attachHostChannel(
       kind: 'hello',
       version: MULTIPLAYER_PROTOCOL_VERSION,
       name: getLocalName(),
-      appVersion
+      appVersion,
+      ...sidekickHelloExtra(ctx, peer)
     });
   };
   channel.onmessage = (event) => {
@@ -67,6 +81,11 @@ export function attachHostChannel(
       const firstHello = !peer.helloReceived;
       peer.name = sanitizeClientName(message.name);
       peer.clientFreeplayEnabled = message.freeplayEnabled;
+      // Browser-local identity rides the hello; paired privileges still
+      // wait for the HMAC proof (sidekick) or the stored UID pairing.
+      if (core.sidekickHost && isValidSidekickIdentity(message.identity)) {
+        peer.clientIdentity = message.identity;
+      }
       peer.helloReceived = true;
       core.updateClient(peer.id, { name: peer.name, platform: sanitizePlatform(message.platform) });
       sendToPeer(peer, {
@@ -77,6 +96,10 @@ export function attachHostChannel(
       sendToPeer(peer, { kind: 'chat.history', messages: multiplayerChat.getSnapshot() });
       if (firstHello) ctx.handleChatPresence(peer.name, 'join');
       void syncPeerFreeplayMode(ctx, peer);
+      return;
+    }
+    if (message.kind === 'pair.proof') {
+      if (core.sidekickHost) void verifySidekickPairProof(ctx, peer, message);
       return;
     }
     if (message.kind === 'chat.send') {
@@ -160,7 +183,8 @@ export function attachHostChannel(
     kind: 'hello',
     version: MULTIPLAYER_PROTOCOL_VERSION,
     name: getLocalName(),
-    appVersion
+    appVersion,
+    ...sidekickHelloExtra(ctx, peer)
   });
 }
 

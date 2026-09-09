@@ -19,6 +19,22 @@ services:
     expose:
       - "8787"
 
+  # Optional TURN relay for restrictive NATs/firewalls. The static-auth
+  # secret must match the sidekick's relaySecretFile, and the sidekick
+  # config lists the relay in iceUrls (e.g. "turn:sidekick.example.com:3478").
+  # See coturn.example.conf. Omit this service for direct-only setups.
+  #
+  # coturn:
+  #   image: coturn/coturn:4.6-alpine
+  #   command: ["-c", "/etc/coturn/turnserver.conf"]
+  #   volumes:
+  #     - ./coturn.conf:/etc/coturn/turnserver.conf:ro
+  #   ports:
+  #     - "3478:3478"
+  #     - "3478:3478/udp"
+  #     - "5349:5349"
+  #   network_mode: host  # relay port ranges behave best on the host network
+
   caddy:
     image: caddy:2-alpine
     ports:

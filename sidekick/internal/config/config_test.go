@@ -117,6 +117,9 @@ func TestLoadInvalid(t *testing.T) {
 		{"rooms-huge", `{"publicBaseUrl":"https://a.example","hostKeyFile":"k","limits":{"maxRooms":999999}}`},
 		{"desc-control", `{"publicBaseUrl":"https://a.example","hostKeyFile":"k","description":"a\u0000b"}`},
 		{"bad-ice-scheme", `{"publicBaseUrl":"https://a.example","hostKeyFile":"k","iceUrls":["https://turn.example/x"]}`},
+		{"bad-relay-ttl-type", `{"publicBaseUrl":"https://a.example","hostKeyFile":"k","relayCredentialTtl":600}`},
+		{"bad-relay-ttl-range", `{"publicBaseUrl":"https://a.example","hostKeyFile":"k","relayCredentialTtl":"30s"}`},
+		{"bad-ice-cap", `{"publicBaseUrl":"https://a.example","hostKeyFile":"k","maxIcePerConnection":0}`},
 	}
 	for _, tc := range table {
 		t.Run(tc.name, func(t *testing.T) {
@@ -140,6 +143,8 @@ func TestLoadValidVariants(t *testing.T) {
 		`{"publicBaseUrl":"https://a.example","hostKeyFile":"k","limits":{"attemptTimeout":"60s","maxRooms":2}}`,
 		// STUN/TURN URLs
 		`{"publicBaseUrl":"https://a.example","hostKeyFile":"k","iceUrls":["stun:stun.example:3478","turns:turn.example:5349"]}`,
+		// Relay credentials with a custom TTL and issuance cap
+		`{"publicBaseUrl":"https://a.example","hostKeyFile":"k","relaySecretFile":"/etc/izci-sidekick/relay-secret","relayCredentialTtl":"5m","maxIcePerConnection":4}`,
 	}
 	for i, doc := range docs {
 		if _, err := Load([]byte(doc)); err != nil {
@@ -184,6 +189,40 @@ func TestLoadHostKey(t *testing.T) {
 		}
 	}
 	if _, err := LoadHostKey(filepath.Join(dir, "missing")); err == nil {
+		t.Errorf("expected error for missing file")
+	}
+}
+
+func TestLoadRelaySecret(t *testing.T) {
+	dir := t.TempDir()
+	write := func(name, content string) string {
+		p := filepath.Join(dir, name)
+		if err := os.WriteFile(p, []byte(content), 0o600); err != nil {
+			t.Fatal(err)
+		}
+		return p
+	}
+	secret, err := LoadRelaySecret(write("ok", "correct horse battery staple\n"))
+	if err != nil {
+		t.Fatalf("valid secret: %v", err)
+	}
+	if string(secret) != "correct horse battery staple" {
+		t.Fatalf("secret not trimmed: %q", secret)
+	}
+	for name, content := range map[string]string{
+		"short":  "secret!",
+		"empty":  "",
+		"spaces": "   \n",
+		"long":   strings.Repeat("s", 513),
+	} {
+		p := write(name, content)
+		if _, err := LoadRelaySecret(p); err == nil {
+			t.Errorf("expected error for %s", name)
+		} else if trimmed := strings.TrimSpace(content); trimmed != "" && strings.Contains(err.Error(), trimmed) {
+			t.Errorf("error leaks secret material: %v", err)
+		}
+	}
+	if _, err := LoadRelaySecret(filepath.Join(dir, "missing")); err == nil {
 		t.Errorf("expected error for missing file")
 	}
 }

@@ -102,6 +102,11 @@ func runCheckConfig(args []string) error {
 	if _, err := config.LoadHostKey(cfg.HostKeyFile); err != nil {
 		return err
 	}
+	if cfg.RelaySecretFile != "" {
+		if _, err := config.LoadRelaySecret(cfg.RelaySecretFile); err != nil {
+			return err
+		}
+	}
 	fmt.Printf("config ok: listen=%s public=%s prefix=%q rooms=%d peers/room=%d\n",
 		cfg.Listen, cfg.PublicBaseURL, cfg.PathPrefix,
 		cfg.Limits.MaxRooms, cfg.Limits.MaxPeersPerRoom)

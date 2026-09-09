@@ -220,6 +220,8 @@ export function createMainWindowRuntimeState(): {
         reason: 'host-disabled'
       },
       connectionRoute: null,
+      sidekickSignaling: null,
+      sidekickHostAuth: null,
       averageAudioBitrateKbps: null,
       receiveAudio: true,
       connectionStats: null,

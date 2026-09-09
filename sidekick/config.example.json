@@ -7,5 +7,8 @@
   "trustedProxies": [],
   "description": "Example sidekick operator",
   "contact": "admin@example.com",
-  "iceUrls": []
+  "iceUrls": [],
+  "relaySecretFile": "",
+  "relayCredentialTtl": "10m",
+  "maxIcePerConnection": 16
 }

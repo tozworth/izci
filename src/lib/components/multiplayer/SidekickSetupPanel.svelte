@@ -61,7 +61,9 @@
   }
 
   async function resumeRoom(roomId: string, ownerSecret: string): Promise<void> {
-    await sidekickSetup.resumeRoom(roomId, ownerSecret).catch(() => undefined);
+    // Absent rooms (server restart, lapsed lease) are recreated with the
+    // saved IDs so existing invite links keep working.
+    await sidekickSetup.resumeOrRecreateRoom(roomId, ownerSecret).catch(() => undefined);
   }
 
   async function rotate(): Promise<void> {

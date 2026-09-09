@@ -88,7 +88,60 @@ go test -race ./...
 CGO_ENABLED=0 go build ./...   # linux amd64/arm64 binaries
 ```
 
-Restarting the server drops rooms (memory only). Hosts resume or recreate
-their rooms afterwards; a connected RTC session may keep playing until it
-is renegotiated. Logs record method, path, status, and client IP only:
-never keys, tokens, invitations, SDP, candidates, or request bodies.
+Restarting the server drops rooms (memory only). A newly logged-in host
+resumes its remembered room from izci's setup panel; when the room is
+absent after a restart, the panel recreates the same room ID and
+invitation atomically with host authentication (`POST /v1/rooms` with
+`roomId`, `ownerSecret`, and `invitationSecret`), so saved invite links
+keep working. A live room refuses the collision unless the owner secret
+matches, so another tab cannot take over a running room. A connected RTC
+session may keep playing until it is renegotiated. Logs record method,
+path, status, and client IP only: never keys, tokens, invitations, SDP,
+candidates, or request bodies.
+
+## Pairing and reconnect proofs
+
+Pairing is browser-local: each browser keeps a stable random identity and
+a per-pair secret exchanged over RTC when the host chooses Pair
+(`izci.multiplayer-sidekick-pairings` in local storage; operator keys and
+login bearers are never persisted). Reconnecting guests prove possession
+with HMAC-SHA-256 over `roomId`, both identities, and fresh nonces from
+both peers; stale nonces and wrong-peer proofs fail, and paired
+privileges (including Freeplay) stay disabled until hello and proof
+finish. Pairing restores app privileges after invitation admission only:
+it never grants server administration and never bypasses admission.
+Rotating the invitation (`POST /v1/rooms/{room}/rotate`) only affects
+future joins and is announced to currently paired guests over their
+authorized channels; offline guests need a fresh invite link. Unpair drops
+privileges and kick closes the peer and frees its slot; neither blocks a
+shared invite unless it is rotated.
+
+## ICE, STUN, and optional TURN relay
+
+The default ICE configuration is empty: with no `iceUrls` configured,
+`POST /v1/ice` returns no servers and browsers attempt direct host
+candidates. Advertise STUN/TURN URLs in `iceUrls` (shown in `GET /v1/info`
+so guests can review providers before joining); authenticated hosts and
+admitted connections fetch time-limited settings from `POST /v1/ice`
+(host bearer plus room, or the connection's own token; issuance per
+connection is capped). For a relay, run coturn with a REST shared secret
+(see `deploy/coturn.example.conf`), point `relaySecretFile` at the same
+secret, and list the relay in `iceUrls` as `turn:`/`turns:` URLs.
+Credentials expire after `relayCredentialTtl` (default 10 minutes) and
+izci refreshes them before renegotiating. Relay-only mode in izci
+requires a relay and reports a plain error when the server offers none.
+
+Direct connections usually succeed on one LAN or with friendly NATs; use
+a relay for symmetric NATs and restrictive firewalls. For LAN use, serve
+the API over HTTPS (browsers gate WebRTC and microphone-adjacent
+features on secure contexts; loopback `http:` is allowed for local
+development) and make sure the browser can reach both the sidekick
+endpoint and the STUN/TURN ports.
+
+Privacy notes, stated plainly: the sidekick is trusted for signaling. It
+sees connection metadata (rooms, timing, IPs) and processes SDP/ICE
+transiently to connect peers, but stores none of it beyond the live room
+(all state is in memory). Media itself flows peer-to-peer over WebRTC
+and never passes through the sidekick. A TURN relay is a separate
+service: relayed media passes through it by design, so run your own if
+that matters to you.

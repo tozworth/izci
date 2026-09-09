@@ -337,6 +337,10 @@ export function createMultiplayerSession({
     core.answeredTurnCredentialRequestIds.clear();
     core.renderFallbackTrackIds.clear();
     core.latestDelivery = { ...EMPTY_DELIVERY };
+    // Sidekick transport health resets with the session; media health
+    // lives in audioStatus/connectionRoute and host-login expiry is set
+    // by the failure that observed the 401.
+    core.publish({ sidekickSignaling: null, sidekickHostAuth: null });
   }
   core.resetSession = resetSession;
 
@@ -552,6 +556,8 @@ function getInitialState(): MultiplayerSessionState {
     remoteArtwork: null,
     remoteArtworkResolvedTrackKey: '',
     audioStatus: 'idle',
+    sidekickSignaling: null,
+    sidekickHostAuth: null,
     remoteDelivery: { ...EMPTY_DELIVERY },
     connectionRoute: null,
     averageAudioBitrateKbps: null,
