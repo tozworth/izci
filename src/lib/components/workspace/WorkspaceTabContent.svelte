@@ -116,10 +116,22 @@
     connected={content.chatConnected}
   />
 {:else if tab === 'media'}
-  <div class="media-tab-stage">
+  <div class="media-tab-stage" class:is-image={Boolean(content.imageElement) || content.playbackSnapshot?.backend === 'image'}>
     {#if content.imageElement}
       <ImageStage
         element={mediaTheaterActive ? null : content.imageElement}
+        parkingHost={content.videoParkingHost}
+        fitMode={content.videoFitMode}
+        zoom={content.imageZoom}
+        on:toggleTheater={() => dispatch('toggleVideoTheater')}
+        on:setFit={(event) => dispatch('setVideoFit', event.detail)}
+        on:zoomStep
+        on:resetZoom
+      />
+    {:else if content.playbackSnapshot?.backend === 'image'}
+      <!-- Themed placeholder while the image element decodes; avoids a black VideoStage flash. -->
+      <ImageStage
+        element={null}
         parkingHost={content.videoParkingHost}
         fitMode={content.videoFitMode}
         zoom={content.imageZoom}
@@ -167,5 +179,9 @@
     min-height: 0;
     overflow: hidden;
     background: #000;
+  }
+
+  .media-tab-stage.is-image {
+    background: var(--body-background);
   }
 </style>

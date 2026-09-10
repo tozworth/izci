@@ -73,9 +73,13 @@ export function createVideoWindowActions(deps: VideoWindowActionsDeps) {
       const enteringTheater = signature !== presentationSignature;
       presentationSignature = signature;
       theaterHeldForIncoming = false;
-      deps.showMediaTab();
-      if (enteringTheater && autoEnterTheater) {
-        deps.setTheaterActive(true);
+      if (enteringTheater) {
+        // Surface the media tab on the same rule: re-showing it on an unrelated
+        // publish steals the active tab from the one the user just picked.
+        deps.showMediaTab();
+        if (autoEnterTheater) {
+          deps.setTheaterActive(true);
+        }
       }
       return;
     }

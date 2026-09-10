@@ -551,7 +551,14 @@
   }
   // The veil waits for launch intent (handles seen), not collections: launch
   // delivery routinely lands after IndexedDB restores paint the workspace.
-  $: if (fileLaunchBootVeil && (videoTheaterActive || launchIntentResolved)) {
+  // A visual launch pre-arms theater long before async import/decoding
+  // resolves the track, so hold the veil until the track is active: the veil
+  // then swaps straight onto the image instead of an empty black stage.
+  $: if (
+    fileLaunchBootVeil &&
+    (videoTheaterActive || launchIntentResolved) &&
+    (!videoTheaterActive || visualMediaActive)
+  ) {
     fileLaunchBootVeil = false;
   }
   $: ({
@@ -768,10 +775,20 @@
     // Backstop so a file-launch window without launch params (stale marker,
     // relayed-away launch) can never stick on the veil.
     if (!fileLaunchBootVeil) return;
-    const timer = window.setTimeout(() => {
+    let timer: number | null = null;
+    const dropVeil = () => {
+      // A pre-armed theater with no active track yet is still
+      // importing/decoding; keep the veil rather than flashing black.
+      if (videoTheaterActive && !visualMediaActive) {
+        timer = window.setTimeout(dropVeil, 5000);
+        return;
+      }
       fileLaunchBootVeil = false;
-    }, 2500);
-    return () => window.clearTimeout(timer);
+    };
+    timer = window.setTimeout(dropVeil, 2500);
+    return () => {
+      if (timer !== null) window.clearTimeout(timer);
+    };
   });
 
   onDestroy(() => {
