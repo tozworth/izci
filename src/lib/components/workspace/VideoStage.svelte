@@ -7,7 +7,6 @@
   import type { VideoSeekFeedback } from './types';
 
   export let element: HTMLVideoElement | null = null;
-  export let imageElement: HTMLImageElement | null = null;
   export let parkingHost: HTMLDivElement | null = null;
   export let fitMode: VideoFitMode = 'contain';
   export let snapshot: PlaybackSnapshot | null = null;
@@ -38,7 +37,7 @@
   let seekStateFeedbackSuppressionTimer: number | null = null;
   let suppressSeekStateFeedback = false;
   let observedElement: HTMLVideoElement | null = null;
-  let attachedElement: HTMLVideoElement | HTMLImageElement | null = null;
+  let attachedElement: HTMLVideoElement | null = null;
   let observedState: PlaybackSnapshot['state'] | null = null;
   let observedVolume = 0;
   let observedMuted = false;
@@ -187,20 +186,18 @@
   }
 
   function attachElement(): void {
-    const nextElement = imageElement ?? element;
-    if (attachedElement && attachedElement !== nextElement && attachedElement.parentElement === host) {
+    if (attachedElement && attachedElement !== element && attachedElement.parentElement === host) {
       parkingHost?.appendChild(attachedElement);
     }
-    if (host && nextElement && nextElement.parentElement !== host) {
-      host.appendChild(nextElement);
+    if (host && element && element.parentElement !== host) {
+      host.appendChild(element);
     }
-    attachedElement = nextElement;
+    attachedElement = element;
   }
 
   $: {
     host;
     element;
-    imageElement;
     attachElement();
   }
   $: observeSnapshot(element, snapshot);
@@ -219,12 +216,10 @@
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
   bind:this={host}
-  class="media-stage"
-  class:media-fill={fitMode === 'cover'}
+  class="video-stage"
+  class:video-fill={fitMode === 'cover'}
   class:controls-hidden={controlsHidden}
-  aria-label={imageElement
-    ? $t('main.image.display', { default: 'Image display' })
-    : $t('main.video.playback', { default: 'Video playback' })}
+  aria-label={$t('main.video.playback', { default: 'Video playback' })}
   on:wheel|preventDefault={handleWheel}
   on:dblclick={() => dispatch('toggleVideoTheater')}
   on:contextmenu|preventDefault|stopPropagation={openContextMenu}
@@ -274,7 +269,7 @@
 {/if}
 
 <style>
-  .media-stage {
+  .video-stage {
     position: absolute;
     inset: 0;
     z-index: 7;
@@ -287,8 +282,7 @@
     contain: strict;
   }
 
-  .media-stage :global(video),
-  .media-stage :global(img) {
+  .video-stage :global(video) {
     position: relative;
     z-index: 0;
     display: block;
@@ -302,8 +296,7 @@
     background: #000;
   }
 
-  .media-stage.media-fill :global(video),
-  .media-stage.media-fill :global(img) {
+  .video-stage.video-fill :global(video) {
     object-fit: cover;
   }
 
@@ -332,7 +325,7 @@
       top 180ms ease-out;
   }
 
-  .media-stage.controls-hidden .video-pip-button {
+  .video-stage.controls-hidden .video-pip-button {
     top: 0.65rem;
     opacity: 0;
     pointer-events: none;
@@ -386,7 +379,7 @@
     transform: translateY(0) scale(1);
   }
 
-  .media-stage.controls-hidden .video-status-popup {
+  .video-stage.controls-hidden .video-status-popup {
     top: 0.68rem;
   }
 

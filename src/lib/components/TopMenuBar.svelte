@@ -17,7 +17,7 @@
   } from '$lib/services/playback-bookmarks';
   import { createMenuActions, type MenuActionId } from '$lib/services/menu-actions';
   import { buildMenuItems } from '$lib/services/menu-items';
-  import type { TrackItem, VideoFitMode, WindowMenuSubtitleTone } from '$lib/types';
+  import type { MediaTabKind, TrackItem, VideoFitMode, WindowMenuSubtitleTone, WorkspaceTab } from '$lib/types';
   import type {
     MultiplayerClient,
     MultiplayerAudioStatus,
@@ -33,6 +33,9 @@
   export let nowPlayingViewActive = false;
   export let miniPlayerSupported = false;
   export let miniPlayerActive = false;
+  export let openWorkspaceTabs: WorkspaceTab[] = [];
+  export let visualMediaActive = false;
+  export let mediaTabKind: MediaTabKind = 'video';
   export let videoActive = false;
   export let videoFitMode: VideoFitMode = 'contain';
   export let videoPictureInPictureSupported = false;
@@ -80,6 +83,7 @@
     showLyrics: void;
     togglePatterns: void;
     showChat: void;
+    toggleMedia: void;
     toggleMiniPlayer: void;
     toggleNowPlayingView: void;
     multiplayerHost: void;
@@ -148,6 +152,9 @@
     miniPlayerSupported,
     miniPlayerActive,
     nowPlayingViewActive,
+    openWorkspaceTabs,
+    visualMediaActive,
+    mediaTabKind,
     videoActive,
     videoFitMode,
     videoPictureInPictureSupported,

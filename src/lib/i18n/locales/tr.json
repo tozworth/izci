@@ -289,6 +289,9 @@
       "playback": "Video oynatma"
     },
     "image": {
+      "fit": "Pencereye sığdır",
+      "fill": "Pencereyi doldur",
+      "menu": "Görsel",
       "display": "Görsel gösterimi"
     }
   },
@@ -2348,7 +2351,13 @@
     "title": "Sıra",
     "summary": {
       "filteredTracks": "{total} parçadan {visible} {total, plural, one {görünür} other {görünür}} · {duration}",
-      "tracks": "{count, plural, one {# parça} other {# parça}} · {duration}"
+      "tracks": "{count, plural, one {# parça} other {# parça}} · {duration}",
+      "filteredTracksImages": "{total} görselden {visible} {total, plural, one {görünür} other {görünür}} · {duration}",
+      "tracksImages": "{count, plural, one {# görsel} other {# görsel}} · {duration}",
+      "filteredTracksVideos": "{total} videodan {visible} {total, plural, one {görünür} other {görünür}} · {duration}",
+      "tracksVideos": "{count, plural, one {# video} other {# video}} · {duration}",
+      "filteredTracksItems": "{total} ögeden {visible} {total, plural, one {görünür} other {görünür}} · {duration}",
+      "tracksItems": "{count, plural, one {# öge} other {# öge}} · {duration}"
     },
     "actions": {
       "goTo": "Git...",

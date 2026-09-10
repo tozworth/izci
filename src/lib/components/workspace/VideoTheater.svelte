@@ -3,7 +3,8 @@
   import { t } from 'svelte-i18n';
   import type { PlaybackSnapshot, VideoFitMode } from '$lib/types';
   import type { VideoSeekFeedback } from './types';
-  import MediaStage from './MediaStage.svelte';
+  import ImageStage from './ImageStage.svelte';
+  import VideoStage from './VideoStage.svelte';
 
   export let element: HTMLVideoElement | null = null;
   export let imageElement: HTMLImageElement | null = null;
@@ -78,20 +79,29 @@
     ? $t('workspace.imageTheater.title', { default: 'Image theater' })
     : $t('workspace.videoTheater.title', { default: 'Video theater' })}
 >
-  <MediaStage
-    {element}
-    {imageElement}
-    {parkingHost}
-    {fitMode}
-    {snapshot}
-    {pictureInPictureSupported}
-    {seekFeedback}
-    controlsHidden={controlsHidden}
-    on:volumeStep={(event) => dispatch('volumeStep', event.detail)}
-    on:toggleVideoTheater={() => dispatch('toggleVideoTheater')}
-    on:togglePictureInPicture={() => dispatch('togglePictureInPicture')}
-    on:setVideoFit={(event) => dispatch('setVideoFit', event.detail)}
-  />
+  {#if imageElement}
+    <ImageStage
+      element={imageElement}
+      {parkingHost}
+      {fitMode}
+      on:toggleTheater={() => dispatch('toggleVideoTheater')}
+      on:setFit={(event) => dispatch('setVideoFit', event.detail)}
+    />
+  {:else}
+    <VideoStage
+      {element}
+      {parkingHost}
+      {fitMode}
+      {snapshot}
+      {pictureInPictureSupported}
+      {seekFeedback}
+      controlsHidden={controlsHidden}
+      on:volumeStep={(event) => dispatch('volumeStep', event.detail)}
+      on:toggleVideoTheater={() => dispatch('toggleVideoTheater')}
+      on:togglePictureInPicture={() => dispatch('togglePictureInPicture')}
+      on:setVideoFit={(event) => dispatch('setVideoFit', event.detail)}
+    />
+  {/if}
 </section>
 
 <style>

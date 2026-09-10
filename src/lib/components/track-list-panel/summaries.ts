@@ -47,6 +47,80 @@ export function localizeLibraryGroup(group: LibraryGroup, translate: Translate):
   return { ...group, label, secondary };
 }
 
+type QueueSummaryKind = 'songs' | 'images' | 'videos' | 'items';
+
+function getQueueSummaryKind(items: TrackItem[]): QueueSummaryKind {
+  if (items.length === 0) return 'items';
+  if (items.every((item) => item.kind === 'image')) return 'images';
+  if (items.every((item) => item.kind === 'video')) return 'videos';
+  if (items.every((item) => item.kind !== 'image' && item.kind !== 'video')) return 'songs';
+  return 'items';
+}
+
+function getQueueTracksSummary(
+  kind: QueueSummaryKind,
+  count: number,
+  duration: string,
+  translate: Translate
+): string {
+  switch (kind) {
+    case 'images':
+      return translate('queue.summary.tracksImages', {
+        default: '{count, plural, one {# image} other {# images}} · {duration}',
+        values: { count, duration }
+      });
+    case 'videos':
+      return translate('queue.summary.tracksVideos', {
+        default: '{count, plural, one {# video} other {# videos}} · {duration}',
+        values: { count, duration }
+      });
+    case 'items':
+      return translate('queue.summary.tracksItems', {
+        default: '{count, plural, one {# item} other {# items}} · {duration}',
+        values: { count, duration }
+      });
+    case 'songs':
+    default:
+      return translate('queue.summary.tracks', {
+        default: '{count, plural, one {# song} other {# songs}} · {duration}',
+        values: { count, duration }
+      });
+  }
+}
+
+function getFilteredQueueTracksSummary(
+  kind: QueueSummaryKind,
+  visible: number,
+  total: number,
+  duration: string,
+  translate: Translate
+): string {
+  const values = { visible, total, duration };
+  switch (kind) {
+    case 'images':
+      return translate('queue.summary.filteredTracksImages', {
+        default: '{visible} of {total} {total, plural, one {image} other {images}} · {duration}',
+        values
+      });
+    case 'videos':
+      return translate('queue.summary.filteredTracksVideos', {
+        default: '{visible} of {total} {total, plural, one {video} other {videos}} · {duration}',
+        values
+      });
+    case 'items':
+      return translate('queue.summary.filteredTracksItems', {
+        default: '{visible} of {total} {total, plural, one {item} other {items}} · {duration}',
+        values
+      });
+    case 'songs':
+    default:
+      return translate('queue.summary.filteredTracks', {
+        default: '{visible} of {total} {total, plural, one {song} other {songs}} · {duration}',
+        values
+      });
+  }
+}
+
 export function getLocalizedTrackSummary(
   sourceItems: TrackItem[],
   visibleItems: TrackItem[],
@@ -69,16 +143,16 @@ export function getLocalizedTrackSummary(
   }
 
   if (query && visibleItems.length !== sourceItems.length) {
-    return translate('queue.summary.filteredTracks', {
-      default: '{visible} of {total} {total, plural, one {song} other {songs}} · {duration}',
-      values: { visible: visibleItems.length, total: sourceItems.length, duration }
-    });
+    return getFilteredQueueTracksSummary(
+      getQueueSummaryKind(sourceItems),
+      visibleItems.length,
+      sourceItems.length,
+      duration,
+      translate
+    );
   }
 
-  return translate('queue.summary.tracks', {
-    default: '{count, plural, one {# song} other {# songs}} · {duration}',
-    values: { count: visibleItems.length, duration }
-  });
+  return getQueueTracksSummary(getQueueSummaryKind(visibleItems), visibleItems.length, duration, translate);
 }
 
 function getGroupCountSummary(
@@ -134,14 +208,14 @@ export function getLibraryGroupTrackSummary(
   const duration = formatTotalDuration(getTotalDuration(visibleItems));
 
   if (visibleItems.length !== group.items.length) {
-    return translate('queue.summary.filteredTracks', {
-      default: '{visible} of {total} {total, plural, one {song} other {songs}} · {duration}',
-      values: { visible: visibleItems.length, total: group.items.length, duration }
-    });
+    return getFilteredQueueTracksSummary(
+      getQueueSummaryKind(group.items),
+      visibleItems.length,
+      group.items.length,
+      duration,
+      translate
+    );
   }
 
-  return translate('queue.summary.tracks', {
-    default: '{count, plural, one {# song} other {# songs}} · {duration}',
-    values: { count: visibleItems.length, duration }
-  });
+  return getQueueTracksSummary(getQueueSummaryKind(visibleItems), visibleItems.length, duration, translate);
 }

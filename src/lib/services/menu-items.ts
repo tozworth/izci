@@ -12,6 +12,7 @@ import {
 import { type AbLoopState } from '$lib/services/ab-loop';
 import type {
   LoadoutState,
+  MediaTabKind,
   MenuActionItem,
   PlaybackSettings,
   PwaUpdateStatus,
@@ -19,7 +20,8 @@ import type {
   RafRackSettings,
   TrackItem,
   VideoFitMode,
-  WindowMenuGroup
+  WindowMenuGroup,
+  WorkspaceTab
 } from '$lib/types';
 import { getLoadoutColorValue, LOADOUT_TYPE_ICONS } from '$lib/utils/loadout-presentation';
 import { formatDisplayVersion } from '$lib/utils/version';
@@ -66,6 +68,9 @@ interface MenuItemsDeps {
   miniPlayerSupported: boolean;
   miniPlayerActive: boolean;
   nowPlayingViewActive: boolean;
+  openWorkspaceTabs: WorkspaceTab[];
+  visualMediaActive: boolean;
+  mediaTabKind: MediaTabKind;
   videoActive: boolean;
   videoFitMode: VideoFitMode;
   videoPictureInPictureSupported: boolean;
@@ -626,37 +631,54 @@ function buildFileMenuItems(deps: MenuItemsDeps): MenuActionItem[] {
 }
 
 function buildViewMenuItems(deps: MenuItemsDeps): MenuActionItem[] {
+  const isWorkspaceTabOpen = (tab: WorkspaceTab): boolean => deps.openWorkspaceTabs.includes(tab);
   return [
     {
       id: 'showQueue',
       label: deps.translate('main.menu.queue', { default: 'Queue' }),
-      icon: 'queue_music'
+      icon: 'queue_music',
+      checked: isWorkspaceTabOpen('queue')
     },
     {
       id: 'showLibrary',
       label: deps.translate('main.menu.library', { default: 'Library' }),
-      icon: 'library_music'
+      icon: 'library_music',
+      checked: isWorkspaceTabOpen('library')
     },
     {
       id: 'showTrackDetails',
       label: deps.translate('main.menu.trackDetails', { default: 'Track Details' }),
-      icon: 'info'
+      icon: 'info',
+      checked: isWorkspaceTabOpen('details')
     },
     {
       id: 'showLyrics',
       label: deps.translate('main.menu.lyrics', { default: 'Lyrics' }),
-      icon: 'lyrics'
+      icon: 'lyrics',
+      checked: isWorkspaceTabOpen('lyrics')
     },
     {
       id: 'togglePatterns',
       label: deps.translate('main.menu.patterns', { default: 'Patterns' }),
-      icon: 'view_timeline'
+      icon: 'view_timeline',
+      checked: isWorkspaceTabOpen('patterns')
     },
+    ...(deps.visualMediaActive
+      ? [{
+          id: 'toggleMedia',
+          label: deps.mediaTabKind === 'image'
+            ? deps.translate('workspace.tabs.image', { default: 'Image' })
+            : deps.translate('workspace.tabs.video', { default: 'Video' }),
+          icon: 'movie',
+          checked: isWorkspaceTabOpen('media')
+        } satisfies MenuActionItem]
+      : []),
     ...(deps.multiplayerMode !== 'idle' && deps.multiplayerConnectionStatus === 'connected'
       ? [{
           id: 'showChat',
           label: deps.translate('main.menu.chat', { default: 'Chat' }),
           icon: 'chat',
+          checked: isWorkspaceTabOpen('chat'),
           separatorBefore: true
         } satisfies MenuActionItem]
       : []),

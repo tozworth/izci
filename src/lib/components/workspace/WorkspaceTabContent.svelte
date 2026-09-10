@@ -1,12 +1,14 @@
 <script lang="ts">
+  import { createEventDispatcher } from 'svelte';
   import LyricsPanel from '$lib/components/LyricsPanel.svelte';
   import PatternViewer from '$lib/components/PatternViewer.svelte';
   import TrackListPanel from '$lib/components/TrackListPanel.svelte';
   import UpNextPanel from '$lib/components/UpNextPanel.svelte';
   import TrackDetailsPanel from '$lib/components/TrackDetailsPanel.svelte';
   import ChatPanel from '$lib/components/ChatPanel.svelte';
-  import MediaStage from '$lib/components/workspace/MediaStage.svelte';
-  import type { WorkspaceTab } from '$lib/types';
+  import ImageStage from '$lib/components/workspace/ImageStage.svelte';
+  import VideoStage from '$lib/components/workspace/VideoStage.svelte';
+  import type { VideoFitMode, WorkspaceTab } from '$lib/types';
   import type { WorkspaceTabContentProps } from './types';
 
   export let tab: WorkspaceTab;
@@ -16,6 +18,11 @@
   export let artworkBackgroundBright = false;
   export let visualizerBackdropActive = false;
   export let isCompactWorkspace = false;
+
+  const dispatch = createEventDispatcher<{
+    toggleVideoTheater: void;
+    setVideoFit: VideoFitMode;
+  }>();
 </script>
 
 {#if tab === 'queue'}
@@ -110,19 +117,28 @@
   />
 {:else if tab === 'media'}
   <div class="media-tab-stage">
-    <MediaStage
-      element={mediaTheaterActive ? null : content.videoElement}
-      imageElement={mediaTheaterActive ? null : content.imageElement}
-      parkingHost={content.videoParkingHost}
-      fitMode={content.videoFitMode}
-      snapshot={content.playbackSnapshot}
-      pictureInPictureSupported={content.videoPictureInPictureSupported}
-      seekFeedback={content.videoSeekFeedback}
-      on:volumeStep
-      on:toggleVideoTheater
-      on:togglePictureInPicture
-      on:setVideoFit
-    />
+    {#if content.imageElement}
+      <ImageStage
+        element={mediaTheaterActive ? null : content.imageElement}
+        parkingHost={content.videoParkingHost}
+        fitMode={content.videoFitMode}
+        on:toggleTheater={() => dispatch('toggleVideoTheater')}
+        on:setFit={(event) => dispatch('setVideoFit', event.detail)}
+      />
+    {:else}
+      <VideoStage
+        element={mediaTheaterActive ? null : content.videoElement}
+        parkingHost={content.videoParkingHost}
+        fitMode={content.videoFitMode}
+        snapshot={content.playbackSnapshot}
+        pictureInPictureSupported={content.videoPictureInPictureSupported}
+        seekFeedback={content.videoSeekFeedback}
+        on:volumeStep
+        on:toggleVideoTheater
+        on:togglePictureInPicture
+        on:setVideoFit
+      />
+    {/if}
   </div>
 {/if}
 

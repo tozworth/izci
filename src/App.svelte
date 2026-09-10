@@ -675,6 +675,11 @@
   function closeChatTab(): void {
     workspaceShell.closeWorkspaceTab('chat');
   }
+  function toggleWorkspaceTab(tab: WorkspaceTab): void {
+    const open = workspaceShell.getSnapshot().workspaceTabs.some((entry) => entry.id === tab);
+    if (open) workspaceShell.closeWorkspaceTab(tab);
+    else workspaceShell.showWorkspaceTab(tab);
+  }
   $: {
     artworkPresentation.syncSelection(
       selectedItem,
@@ -811,6 +816,9 @@
     nowPlayingViewActive={isNowPlayingLayoutActive}
     miniPlayerSupported={miniPlayerState.supported}
     miniPlayerActive={miniPlayerState.active || miniPlayerState.opening}
+    openWorkspaceTabs={$workspaceShellStore.workspaceTabs.map((tab) => tab.id)}
+    visualMediaActive={visualMediaActive}
+    mediaTabKind={mediaTabKind}
     videoActive={videoTrackActive}
     videoFitMode={$videoSettings.fitMode}
     {videoPictureInPictureSupported}
@@ -832,12 +840,13 @@
     on:openConverter={() => windowManager.openPopup('converter')}
     on:openLogs={() => windowManager.openPopup('logs')}
     on:openTroubadour={() => windowManager.openPopup('troubadour')}
-    on:showQueue={() => workspaceShell.showWorkspaceTab('queue')}
-    on:showLibrary={() => workspaceShell.showWorkspaceTab('library')}
-    on:showTrackDetails={() => workspaceShell.showTrackDetails()}
-    on:showLyrics={() => workspaceShell.showTrackLyrics()}
+    on:showQueue={() => toggleWorkspaceTab('queue')}
+    on:showLibrary={() => toggleWorkspaceTab('library')}
+    on:showTrackDetails={() => toggleWorkspaceTab('details')}
+    on:showLyrics={() => toggleWorkspaceTab('lyrics')}
     on:togglePatterns={togglePatterns}
-    on:showChat={() => workspaceShell.showWorkspaceTab('chat')}
+    on:showChat={() => toggleWorkspaceTab('chat')}
+    on:toggleMedia={() => toggleWorkspaceTab('media')}
     on:toggleMiniPlayer={() => miniPlayer.toggle()}
     on:toggleNowPlayingView={videoActions.toggleNowPlayingView}
     on:multiplayerHost={() => void multiplayerController.host()}
