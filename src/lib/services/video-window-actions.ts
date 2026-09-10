@@ -22,8 +22,8 @@ interface VideoWindowActionsDeps {
   setAutoNowPlayingSuppressed(value: boolean): void;
   getWindowDisplayState(): { maximized: boolean; fullscreen: boolean };
   mobileMode: boolean;
-  showVideoTab(): void;
-  closeVideoTab(): void;
+  showMediaTab(): void;
+  closeMediaTab(): void;
 }
 
 /**
@@ -57,7 +57,7 @@ export function createVideoWindowActions(deps: VideoWindowActionsDeps) {
     presentationSignature = signature;
 
     if (visualMediaActive) {
-      deps.showVideoTab();
+      deps.showMediaTab();
       if (autoEnterTheater) {
         deps.setTheaterActive(true);
       }
@@ -69,7 +69,7 @@ export function createVideoWindowActions(deps: VideoWindowActionsDeps) {
     if (windowFullscreen.isControllerFullscreenActive()) {
       void windowFullscreen.exit();
     }
-    deps.closeVideoTab();
+    deps.closeMediaTab();
   }
 
   function toggleTheater(): void {

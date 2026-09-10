@@ -329,6 +329,7 @@
       "patterns": "Patterns",
       "chat": "Chat",
       "video": "Video",
+      "image": "Image",
       "label": "Workspace tabs",
       "close": "Close",
       "closeNamed": "Close {tab}",

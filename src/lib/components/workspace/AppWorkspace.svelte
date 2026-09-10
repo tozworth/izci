@@ -7,6 +7,7 @@
     AppearanceSettings,
     BackdropZoneArtworkSettingsMap,
     BackdropZoneEffect,
+    MediaTabKind,
     TrackItem,
     VideoFitMode,
     WorkspacePanelId,
@@ -26,6 +27,7 @@
 
   export let content: WorkspaceTabContentProps;
   export let mediaTheaterActive = false;
+  export let mediaKind: MediaTabKind = 'video';
   export let isNowPlayingLayoutActive: boolean;
   export let workspaceState: WorkspaceShellState;
   export let selectedTrackItem: TrackItem | null;
@@ -74,6 +76,7 @@
     backdropArtworkSettings={appearance.backdropZoneArtwork.nowPlaying}
     activeWorkspaceTab={workspaceState.activeWorkspaceTab}
     workspaceTabs={workspaceState.workspaceTabs}
+    {mediaKind}
     panelAutoHideDelaySeconds={appearance.nowPlayingPanelAutoHideDelaySeconds}
     flyoutTransparency={appearance.nowPlayingFlyoutTransparency}
     alwaysUseArtworkPlayerColors={appearance.useNowPlayingArtworkPlayerColors}
@@ -99,6 +102,7 @@
 {:else}
   <WideWorkspace
     {content}
+    {mediaKind}
     workspacePanels={workspaceState.workspacePanels}
     panelWidths={workspaceState.widePanelWidths}
     resizerWidth={WORKSPACE_RESIZER_WIDTH}

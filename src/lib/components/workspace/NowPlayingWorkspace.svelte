@@ -12,6 +12,7 @@
   import type {
     BackdropZoneEffect,
     BackdropZoneArtworkSettings,
+    MediaTabKind,
     TrackItem,
     WorkspaceTab
   } from '$lib/types';
@@ -28,6 +29,7 @@
 
   export let content: WorkspaceTabContentProps;
   export let mediaTheaterActive = false;
+  export let mediaKind: MediaTabKind = 'video';
   export let track: TrackItem | null = null;
   export let selectedTrack: TrackItem | null = null;
   export let artwork: LoadedStreamArtwork | null = null;
@@ -232,6 +234,7 @@
       <NowPlayingFlyout side={side === 'left' ? 'left' : 'right'}
         tabs={side === 'left' ? leftTabs : rightTabs} {activeWorkspaceTab} {content}
         {mediaTheaterActive}
+        {mediaKind}
         pinned={side === 'left' ? $nowPlayingState.leftPinned : $nowPlayingState.rightPinned}
         open={openSide === side} chromeHidden={panelChromeHidden}
         on:toggle={() => toggleSide(side === 'left' ? 'left' : 'right')}
