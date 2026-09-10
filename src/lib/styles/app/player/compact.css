@@ -18,7 +18,7 @@
   align-self: stretch;
 }
 
-.compact-player-bar.video-track-active .player-track-group {
+.compact-player-bar:is(.video-track-active, .image-track-active) .player-track-group {
   min-height: 32px;
   padding-left: 0.6rem;
 }

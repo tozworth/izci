@@ -289,6 +289,9 @@
       "playback": "Video playback"
     },
     "image": {
+      "fit": "Fit to window",
+      "fill": "Fill window",
+      "menu": "Image",
       "display": "Image display"
     }
   },
@@ -2348,7 +2351,13 @@
     "title": "Queue",
     "summary": {
       "filteredTracks": "{visible} of {total} {total, plural, one {song} other {songs}} · {duration}",
-      "tracks": "{count, plural, one {# song} other {# songs}} · {duration}"
+      "tracks": "{count, plural, one {# song} other {# songs}} · {duration}",
+      "filteredTracksImages": "{visible} of {total} {total, plural, one {image} other {images}} · {duration}",
+      "tracksImages": "{count, plural, one {# image} other {# images}} · {duration}",
+      "filteredTracksVideos": "{visible} of {total} {total, plural, one {video} other {videos}} · {duration}",
+      "tracksVideos": "{count, plural, one {# video} other {# videos}} · {duration}",
+      "filteredTracksItems": "{visible} of {total} {total, plural, one {item} other {items}} · {duration}",
+      "tracksItems": "{count, plural, one {# item} other {# items}} · {duration}"
     },
     "actions": {
       "goTo": "Go to...",

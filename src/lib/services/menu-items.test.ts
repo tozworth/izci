@@ -44,6 +44,9 @@ const baseDeps = (): MenuItemsDeps => ({
   miniPlayerSupported: false,
   miniPlayerActive: false,
   nowPlayingViewActive: false,
+  openWorkspaceTabs: [],
+  visualMediaActive: false,
+  mediaTabKind: 'video',
   videoActive: false,
   videoFitMode: 'contain',
   videoPictureInPictureSupported: false,
@@ -153,6 +156,29 @@ describe('menu-items builders', () => {
     expect(app.attention).toBe(true);
     const install = app.items.find((item) => item.id === 'installApp')!;
     expect(install.attention).toBe(true);
+  });
+
+  it('marks View tabs checked while open so they can be closed from the menu', () => {
+    const view = groupItems(buildMenuItems({
+      ...baseDeps(),
+      openWorkspaceTabs: ['queue', 'lyrics', 'patterns']
+    }), 'view');
+    const byId = new Map(view.map((item) => [item.id, item]));
+    expect(byId.get('showQueue')?.checked).toBe(true);
+    expect(byId.get('showLibrary')?.checked).toBe(false);
+    expect(byId.get('showTrackDetails')?.checked).toBe(false);
+    expect(byId.get('showLyrics')?.checked).toBe(true);
+    expect(byId.get('togglePatterns')?.checked).toBe(true);
+    expect(ids(view)).not.toContain('toggleMedia');
+
+    const withMedia = groupItems(buildMenuItems({
+      ...baseDeps(),
+      openWorkspaceTabs: ['media'],
+      visualMediaActive: true,
+      mediaTabKind: 'video'
+    }), 'view');
+    expect(ids(withMedia)).toContain('toggleMedia');
+    expect(withMedia.find((item) => item.id === 'toggleMedia')?.checked).toBe(true);
   });
 
   it('builds bookmark menu items with add fallback', () => {
