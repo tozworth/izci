@@ -27,7 +27,10 @@ import { filesystemFolders } from '$lib/services/filesystem-folders';
 import { startLibraryFolderCommandListener } from '$lib/services/library-folder-coordination';
 import { scanLaunchLibraryFolders } from '$lib/services/library-folder-scanner';
 import { appInstallService } from '$lib/services/app-install';
-import { subscribeToLaunchedFiles } from '$lib/services/file-launch';
+import {
+  setLaunchedHandlesPreviewListener,
+  subscribeToLaunchedFiles
+} from '$lib/services/file-launch';
 import { createLyricsPresentationController } from '$lib/services/lyrics-presentation';
 import { startLoadoutRuntime } from '$lib/services/loadouts';
 import { createPlaybackCommandsController } from '$lib/services/playback-commands';
@@ -48,6 +51,8 @@ import { windowManager } from '$lib/services/window-manager';
 import { favoritesStore, libraryStore, queueStore } from '$lib/stores/queue';
 import { libraryViewSettings } from '$lib/stores/library-view-settings';
 import { playbackSettings } from '$lib/stores/playback-settings';
+import { videoSettings } from '$lib/stores/video-settings';
+import { isVisualMediaFileName } from '$lib/utils/files';
 import { trackSettings } from '$lib/stores/track-settings';
 import type {
   PlaybackSnapshot,
@@ -377,6 +382,16 @@ export function createMainWindowRuntime(deps: MainWindowRuntimeDeps): MainWindow
     getTheaterActive: () => state.videoTheaterActive,
     setTheaterActive: (active) => publish({ videoTheaterActive: active }),
     setTheaterControlsHidden: (hidden) => publish({ videoTheaterControlsHidden: hidden }),
+    getPendingVisualTrack: () => {
+      const pendingId = playbackCommands.getSnapshot().pendingPlaybackTrackId;
+      if (!pendingId) {
+        return false;
+      }
+      const pending = state.queueItems.find((item) => item.id === pendingId)
+        ?? state.libraryItems.find((item) => item.id === pendingId)
+        ?? state.favoriteItems.find((item) => item.id === pendingId);
+      return pending?.kind === 'video' || pending?.kind === 'image';
+    },
     getIsNowPlayingLayoutActive: () => state.isNowPlayingLayoutActive,
     getIsAutomaticNowPlayingEligible: () => state.isAutomaticNowPlayingEligible,
     setAutoNowPlayingSuppressed: (value) => publish({ autoNowPlayingSuppressed: value }),
@@ -387,6 +402,24 @@ export function createMainWindowRuntime(deps: MainWindowRuntimeDeps): MainWindow
     mobileMode: deps.mobileMode,
     showMediaTab: () => workspaceShell.showWorkspaceTab('media'),
     closeMediaTab: () => workspaceShell.closeWorkspaceTab('media')
+  });
+
+  // Resolve launch intent the moment file-association handles arrive — long
+  // before the async file reads, launch import, and playback load resolve
+  // the playing track. The boot veil waits on this (not on collections),
+  // because launch delivery routinely lands after IndexedDB restores paint
+  // the workspace. Visual launches also pre-arm theater + the media tab.
+  setLaunchedHandlesPreviewListener((handles) => {
+    // Single atomic publish: the boot veil lifts in the same flush that
+    // enters theater. Split publishes render an intermediate workspace frame.
+    const visualLaunch = handles.some((handle) => isVisualMediaFileName(handle?.name ?? ''));
+    const autoEnter = visualLaunch && videoSettings.getSnapshot().autoEnterTheater;
+    if (visualLaunch) {
+      workspaceShell.showWorkspaceTab('media');
+    }
+    publish(autoEnter
+      ? { launchIntentResolved: true, videoTheaterActive: true, videoTheaterControlsHidden: false }
+      : { launchIntentResolved: true });
   });
 
   const transport = createTransportActions({
@@ -786,6 +819,7 @@ export function createMainWindowRuntime(deps: MainWindowRuntimeDeps): MainWindow
     miniPlayer.destroy();
     appInstallService.destroy();
     unsubscribeLaunchedFiles();
+    setLaunchedHandlesPreviewListener(null);
     stopLibraryFolderCommands();
     stopLoadoutRuntime();
     disconnectMediaSession();

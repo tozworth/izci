@@ -11,6 +11,7 @@ import {
   inferArtistTitleFromFileName,
   inferExtension,
   inferKind,
+  isVisualMediaFileName,
   mergeInferredArtistTitle,
   getTrackDisplayTitle,
   getTrackQueueLabel,
@@ -54,6 +55,14 @@ describe('file helpers', () => {
     expect(VIDEO_EXTENSIONS.every((extension) => inferKind(extension) === 'video')).toBe(true);
     expect(IMAGE_EXTENSIONS.every((extension) => inferKind(extension) === 'image')).toBe(true);
     expect(inferKind('txt')).toBeNull();
+  });
+
+  it('detects visual media filenames for theater pre-arming', () => {
+    expect(isVisualMediaFileName('Clip.MP4')).toBe(true);
+    expect(isVisualMediaFileName('Photo.jpeg')).toBe(true);
+    expect(isVisualMediaFileName('Song.flac')).toBe(false);
+    expect(isVisualMediaFileName('Suite.xm')).toBe(false);
+    expect(isVisualMediaFileName('README')).toBe(false);
   });
 
   it('builds image items with a displayable object URL', () => {

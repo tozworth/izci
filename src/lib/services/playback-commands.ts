@@ -11,8 +11,14 @@ import type {
   WorkspaceCollection,
   WorkspaceTab
 } from '$lib/types';
-import { buildTrackItems, cloneTrackItems, getFavoriteIdentity } from '$lib/utils/files';
+import {
+  buildTrackItems,
+  cloneTrackItems,
+  getFavoriteIdentity,
+  isVisualMediaFileName
+} from '$lib/utils/files';
 import { prepareImportedFiles } from '$lib/services/file-verification';
+import { videoSettings } from '$lib/stores/video-settings';
 import type { AbLoopRange } from '$lib/services/ab-loop';
 
 interface PlaybackCommandsState {
@@ -338,6 +344,10 @@ export function createPlaybackCommandsController({
 
   async function importLaunchedFiles(files: File[], action: 'add' | 'replace'): Promise<void> {
     logInfo('files', 'Launch import started', { files: files.length, action });
+    // Keep the early theater pre-arm (see the launch-handles preview) from
+    // being undone by the queue-tab switch while the import resolves.
+    const prearmedVisualTheater = videoSettings.getSnapshot().autoEnterTheater
+      && files.some((file) => isVisualMediaFileName(file.name));
     const nextItems = buildTrackItems(await prepareImportedFiles(files));
 
     if (nextItems.length === 0) {
@@ -346,7 +356,7 @@ export function createPlaybackCommandsController({
     }
 
     await queueStore.ready();
-    setActiveWorkspaceTab('queue');
+    setActiveWorkspaceTab(prearmedVisualTheater ? 'media' : 'queue');
 
     let addedItems: TrackItem[];
 
@@ -355,6 +365,13 @@ export function createPlaybackCommandsController({
     } else {
       const replacement = queueStore.replaceAll(nextItems);
       addedItems = replacement.addedItems;
+      // Mark the incoming visual track pending before unloading: the unload
+      // nulls the current track and syncPresentation would otherwise tear
+      // down theater across the gap, flashing the workspace.
+      const incoming = addedItems[0];
+      if (incoming && (incoming.kind === 'video' || incoming.kind === 'image')) {
+        setPendingPlaybackTrackId(incoming.id);
+      }
       playerController.unload();
       cleanupRemovedItems(replacement.removedItems);
     }

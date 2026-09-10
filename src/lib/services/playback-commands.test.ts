@@ -50,6 +50,10 @@ vi.mock('$lib/services/logging', () => ({
   logWarning: vi.fn()
 }));
 
+vi.mock('$lib/services/file-verification', () => ({
+  prepareImportedFiles: vi.fn(async (files: File[]) => files)
+}));
+
 import {
   PREVIOUS_TRACK_RESTART_THRESHOLD_SECONDS,
   createPlaybackCommandsController,
@@ -272,5 +276,73 @@ describe('automatic crossfade skip behavior', () => {
 
   it('keeps crossfading when the next duration is unknown', () => {
     expect(shouldSkipAutomaticCrossfade(180, undefined, 5)).toBe(false);
+  });
+});
+
+describe('launched-file theater pre-arm', () => {
+  it('activates the media tab for visual launches when auto-enter is enabled', async () => {
+    const { videoSettings, DEFAULT_VIDEO_SETTINGS } = await import('$lib/stores/video-settings');
+    videoSettings.set({ ...DEFAULT_VIDEO_SETTINGS, autoEnterTheater: true });
+    try {
+      const setActiveWorkspaceTab = vi.fn();
+      const { controller } = createCommands({ setActiveWorkspaceTab });
+      playbackMocks.queue.replaceAll.mockReturnValue({ addedItems: [track('v')], removedItems: [] });
+
+      await controller.importLaunchedFiles(
+        [new File(['video'], 'Clip.mp4', { type: 'video/mp4' })],
+        'replace'
+      );
+
+      expect(setActiveWorkspaceTab).toHaveBeenCalledWith('media');
+    } finally {
+      videoSettings.reset();
+    }
+  });
+
+  it('marks the incoming visual track pending before its load resolves', async () => {
+    const { videoSettings, DEFAULT_VIDEO_SETTINGS } = await import('$lib/stores/video-settings');
+    videoSettings.set({ ...DEFAULT_VIDEO_SETTINGS, autoEnterTheater: true });
+    try {
+      const { controller } = createCommands({});
+      playbackMocks.queue.replaceAll.mockImplementation((items: TrackItem[]) => ({
+        addedItems: [items[0]],
+        removedItems: []
+      }));
+      playbackMocks.queue.ensureLoaded.mockImplementation(() => new Promise(() => {}));
+
+      const pending = controller.importLaunchedFiles(
+        [new File(['video'], 'Clip.mp4', { type: 'video/mp4' })],
+        'replace'
+      );
+      await vi.waitFor(() => {
+        const id = controller.getSnapshot().pendingPlaybackTrackId;
+        expect(id).not.toBeNull();
+      });
+      await Promise.resolve();
+      expect(controller.getSnapshot().pendingPlaybackTrackId).not.toBeNull();
+      expect(playbackMocks.player.load).not.toHaveBeenCalled();
+      void pending.catch(() => {});
+    } finally {
+      videoSettings.reset();
+    }
+  });
+
+  it('keeps the queue tab for audio launches', async () => {
+    const { videoSettings, DEFAULT_VIDEO_SETTINGS } = await import('$lib/stores/video-settings');
+    videoSettings.set({ ...DEFAULT_VIDEO_SETTINGS, autoEnterTheater: true });
+    try {
+      const setActiveWorkspaceTab = vi.fn();
+      const { controller } = createCommands({ setActiveWorkspaceTab });
+      playbackMocks.queue.replaceAll.mockReturnValue({ addedItems: [track('a')], removedItems: [] });
+
+      await controller.importLaunchedFiles(
+        [new File(['audio'], 'Song.flac', { type: 'audio/flac' })],
+        'replace'
+      );
+
+      expect(setActiveWorkspaceTab).toHaveBeenCalledWith('queue');
+    } finally {
+      videoSettings.reset();
+    }
   });
 });
