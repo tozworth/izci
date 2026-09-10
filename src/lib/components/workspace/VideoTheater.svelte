@@ -12,6 +12,7 @@
   export let topInset = 0;
   export let chromeInset = 0;
   export let fitMode: VideoFitMode = 'contain';
+  export let imageZoom = 1;
   export let snapshot: PlaybackSnapshot | null = null;
   export let pictureInPictureSupported = false;
   export let seekFeedback: VideoSeekFeedback | null = null;
@@ -23,6 +24,8 @@
     togglePictureInPicture: void;
     setVideoFit: VideoFitMode;
     volumeStep: number;
+    zoomStep: number;
+    resetZoom: void;
   }>();
 
   let controlsHidden = false;
@@ -84,8 +87,11 @@
       element={imageElement}
       {parkingHost}
       {fitMode}
+      zoom={imageZoom}
       on:toggleTheater={() => dispatch('toggleVideoTheater')}
       on:setFit={(event) => dispatch('setVideoFit', event.detail)}
+      on:zoomStep={(event) => dispatch('zoomStep', event.detail)}
+      on:resetZoom={() => dispatch('resetZoom')}
     />
   {:else}
     <VideoStage

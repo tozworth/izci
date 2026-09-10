@@ -122,8 +122,11 @@
         element={mediaTheaterActive ? null : content.imageElement}
         parkingHost={content.videoParkingHost}
         fitMode={content.videoFitMode}
+        zoom={content.imageZoom}
         on:toggleTheater={() => dispatch('toggleVideoTheater')}
         on:setFit={(event) => dispatch('setVideoFit', event.detail)}
+        on:zoomStep
+        on:resetZoom
       />
     {:else}
       <VideoStage

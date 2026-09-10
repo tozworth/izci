@@ -692,4 +692,5 @@ export interface VideoSettings {
   autoResizeWindow: boolean;
   autoEnterTheater: boolean;
   fitMode: VideoFitMode;
+  imageZoom: number;
 }

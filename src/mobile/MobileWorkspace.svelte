@@ -104,6 +104,8 @@
     toggleVideoTheater: void;
     togglePictureInPicture: void;
     setVideoFit: VideoFitMode;
+    zoomStep: number;
+    resetZoom: void;
   }>();
 
   let menuOpen = false;
@@ -315,6 +317,8 @@
                 on:toggleVideoTheater={() => dispatch('toggleVideoTheater')}
                 on:togglePictureInPicture={() => dispatch('togglePictureInPicture')}
                 on:setVideoFit={(event) => dispatch('setVideoFit', event.detail)}
+                on:zoomStep={(event) => dispatch('zoomStep', event.detail)}
+                on:resetZoom={() => dispatch('resetZoom')}
               />
             </div>
           </BackdropZone>

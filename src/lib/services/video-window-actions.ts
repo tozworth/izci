@@ -1,5 +1,6 @@
 import { appearanceSettings } from '$lib/stores/appearance-settings';
-import { videoSettings } from '$lib/stores/video-settings';
+import { IMAGE_ZOOM_MIN, stepImageZoom, videoSettings } from '$lib/stores/video-settings';
+import { resetImagePan } from '$lib/stores/image-pan';
 import { playerController } from '$lib/services/player-controller';
 import { windowFullscreen } from '$lib/services/window-fullscreen';
 import {
@@ -35,6 +36,7 @@ interface VideoWindowActionsDeps {
  */
 export function createVideoWindowActions(deps: VideoWindowActionsDeps) {
   let presentationSignature = '';
+  let lastImageTrackId: string | null = null;
 
   function syncWindowSize(active: boolean, autoResizeWindow: boolean): void {
     if (active && autoResizeWindow) {
@@ -46,6 +48,11 @@ export function createVideoWindowActions(deps: VideoWindowActionsDeps) {
 
   function syncPresentation(track: TrackItem | null, autoEnterTheater: boolean): void {
     const visualMediaActive = track?.kind === 'video' || track?.kind === 'image';
+    const imageTrackId = track?.kind === 'image' ? track.id : null;
+    if (imageTrackId !== lastImageTrackId) {
+      lastImageTrackId = imageTrackId;
+      resetZoom();
+    }
     const signature = visualMediaActive
       ? `${track.id}:${autoEnterTheater ? 'auto' : 'manual'}`
       : 'inactive';
@@ -91,6 +98,21 @@ export function createVideoWindowActions(deps: VideoWindowActionsDeps) {
 
   function setFit(fitMode: VideoFitMode): void {
     videoSettings.update({ fitMode });
+  }
+
+  function zoomStep(factor: number): void {
+    const nextZoom = stepImageZoom(videoSettings.getSnapshot().imageZoom, factor);
+    videoSettings.update({ imageZoom: nextZoom });
+    if (nextZoom <= IMAGE_ZOOM_MIN) {
+      resetImagePan();
+    }
+  }
+
+  function resetZoom(): void {
+    if (videoSettings.getSnapshot().imageZoom !== IMAGE_ZOOM_MIN) {
+      videoSettings.update({ imageZoom: IMAGE_ZOOM_MIN });
+    }
+    resetImagePan();
   }
 
   async function togglePictureInPicture(): Promise<void> {
@@ -170,6 +192,8 @@ export function createVideoWindowActions(deps: VideoWindowActionsDeps) {
     syncPresentation,
     toggleTheater,
     setFit,
+    zoomStep,
+    resetZoom,
     togglePictureInPicture,
     toggleFullscreen,
     toggleFullscreenPresentation,

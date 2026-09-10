@@ -203,6 +203,10 @@
       "enterVideoTheater": "Enter video theater",
       "exitImageTheater": "Exit image theater",
       "enterImageTheater": "Enter image theater",
+      "zoomIn": "Zoom in",
+      "zoomOut": "Zoom out",
+      "resetZoom": "Reset zoom",
+      "imageZoom": "Image zoom",
       "bookmarkNamePrompt": "Name this bookmark:",
       "bookmarks": "Bookmarks",
       "deleteBookmark": "Delete bookmark {name}",
@@ -292,7 +296,9 @@
       "fit": "Fit to window",
       "fill": "Fill window",
       "menu": "Image",
-      "display": "Image display"
+      "display": "Image display",
+      "zoom": "Zoom {percent}%",
+      "resetZoom": "Reset zoom"
     }
   },
   "workspace": {

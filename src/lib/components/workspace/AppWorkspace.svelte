@@ -61,6 +61,8 @@
   export let onToggleVideoTheater: () => void;
   export let onToggleVideoPictureInPicture: () => void;
   export let onSetVideoFit: (fitMode: VideoFitMode) => void;
+  export let onZoomStep: (factor: number) => void;
+  export let onResetZoom: () => void;
 </script>
 
 {#if isNowPlayingLayoutActive}
@@ -123,6 +125,8 @@
     on:toggleVideoTheater={onToggleVideoTheater}
     on:togglePictureInPicture={onToggleVideoPictureInPicture}
     on:setVideoFit={(event) => onSetVideoFit(event.detail)}
+    on:zoomStep={(event) => onZoomStep(event.detail)}
+    on:resetZoom={onResetZoom}
     on:tabChange={(event) => onTabChange(event.detail)}
     on:tabClose={(event) => onTabClose(event.detail)}
     on:tabMove={(event) => onWideTabMove(event.detail)}
