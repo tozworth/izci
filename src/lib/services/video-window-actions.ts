@@ -1,6 +1,7 @@
 import { appearanceSettings } from '$lib/stores/appearance-settings';
 import { IMAGE_ZOOM_MIN, stepImageZoom, videoSettings } from '$lib/stores/video-settings';
 import { resetImagePan } from '$lib/stores/image-pan';
+import { resetImageRotation, rotateImageClockwise } from '$lib/stores/image-rotation';
 import { playerController } from '$lib/services/player-controller';
 import { windowFullscreen } from '$lib/services/window-fullscreen';
 import {
@@ -52,6 +53,7 @@ export function createVideoWindowActions(deps: VideoWindowActionsDeps) {
     if (imageTrackId !== lastImageTrackId) {
       lastImageTrackId = imageTrackId;
       resetZoom();
+      resetImageRotation();
     }
     const signature = visualMediaActive
       ? `${track.id}:${autoEnterTheater ? 'auto' : 'manual'}`
@@ -113,6 +115,10 @@ export function createVideoWindowActions(deps: VideoWindowActionsDeps) {
       videoSettings.update({ imageZoom: IMAGE_ZOOM_MIN });
     }
     resetImagePan();
+  }
+
+  function rotateImage(): void {
+    rotateImageClockwise();
   }
 
   async function togglePictureInPicture(): Promise<void> {
@@ -194,6 +200,7 @@ export function createVideoWindowActions(deps: VideoWindowActionsDeps) {
     setFit,
     zoomStep,
     resetZoom,
+    rotateImage,
     togglePictureInPicture,
     toggleFullscreen,
     toggleFullscreenPresentation,

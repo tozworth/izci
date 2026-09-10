@@ -67,6 +67,15 @@
   font-size: 1.2rem;
 }
 
+.player-bar:not(.compact-player-bar):not(.now-playing-player) .image-zoom-controls .transport-button {
+  width: 1.45rem;
+  height: 1.45rem;
+}
+
+.player-bar:not(.compact-player-bar):not(.now-playing-player) .image-zoom-controls .transport-button .material-symbols-outlined {
+  font-size: 1.2rem;
+}
+
 .player-bar:not(.compact-player-bar):not(.now-playing-player) .favorite-toggle {
   order: -1;
   width: 2.2rem;

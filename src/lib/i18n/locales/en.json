@@ -207,6 +207,7 @@
       "zoomOut": "Zoom out",
       "resetZoom": "Reset zoom",
       "imageZoom": "Image zoom",
+      "rotateImage": "Rotate clockwise",
       "bookmarkNamePrompt": "Name this bookmark:",
       "bookmarks": "Bookmarks",
       "deleteBookmark": "Delete bookmark {name}",

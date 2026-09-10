@@ -104,6 +104,7 @@
     nextSubsong: void;
     zoomStep: number;
     resetZoom: void;
+    rotateImage: void;
     seek: number;
     volume: number;
     mute: void;
@@ -795,6 +796,17 @@
               {$t('main.player.zoomIn', { default: 'Zoom in' })}
             </HoverTooltip>
           </button>
+          <button
+            type="button"
+            class="transport-button image-zoom-button hover-tooltip-anchor"
+            aria-label={$t('main.player.rotateImage', { default: 'Rotate clockwise' })}
+            on:click={() => dispatch('rotateImage')}
+          >
+            <span class="material-symbols-outlined" aria-hidden="true">rotate_right</span>
+            <HoverTooltip placement="above" align="center" nowrap>
+              {$t('main.player.rotateImage', { default: 'Rotate clockwise' })}
+            </HoverTooltip>
+          </button>
         </div>
       {/if}
       {#if presentation !== 'now-playing' && showFavoriteToggle}
@@ -970,7 +982,7 @@
   }
 
   .image-zoom-reset {
-    min-width: 2.6rem;
+    min-width: 2.2rem;
     font-size: 0.68rem;
     font-variant-numeric: tabular-nums;
   }
