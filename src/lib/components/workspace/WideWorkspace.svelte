@@ -43,6 +43,7 @@
     right: null
   };
   export let mediaKind: MediaTabKind = 'video';
+  export let collapseSingleTabBar = true;
   export let zoneArtworkBright: Record<WorkspacePanelId, boolean> = {
     left: false,
     center: false,
@@ -160,6 +161,7 @@
             zoneId={panel.backdropPanelId}
           >
             <div class="workspace-dock-panel-content">
+            {#if !collapseSingleTabBar || panel.tabs.length > 1}
             <WorkspaceTabBar
               tabs={panel.tabs}
               activeTab={panel.activeTab}
@@ -173,6 +175,7 @@
               on:tabDragStart={(event) => handleTabDragStart(event.detail.tabId)}
               on:tabDragEnd={handleTabDragEnd}
             />
+            {/if}
 
             {#if panel.activeTab}
               <div

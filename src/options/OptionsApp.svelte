@@ -144,7 +144,8 @@
       case 'appearance':
         advancedTweaksModified =
           $appearanceSettings.keepLibraryColumnsVisibleInNarrowLayout !== DEFAULT_APPEARANCE_SETTINGS.keepLibraryColumnsVisibleInNarrowLayout ||
-          $appearanceSettings.keepEmptyWorkspacePanelsOpen !== DEFAULT_APPEARANCE_SETTINGS.keepEmptyWorkspacePanelsOpen;
+          $appearanceSettings.keepEmptyWorkspacePanelsOpen !== DEFAULT_APPEARANCE_SETTINGS.keepEmptyWorkspacePanelsOpen ||
+          $appearanceSettings.collapseSingleTabWorkspaceBar !== DEFAULT_APPEARANCE_SETTINGS.collapseSingleTabWorkspaceBar;
         break;
       case 'lyrics':
         advancedTweaksModified =

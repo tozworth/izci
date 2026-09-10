@@ -425,6 +425,7 @@ export interface AppearanceSettings {
   compactPlayerBar: boolean;
   keepLibraryColumnsVisibleInNarrowLayout: boolean;
   keepEmptyWorkspacePanelsOpen: boolean;
+  collapseSingleTabWorkspaceBar: boolean;
   alwaysShowUpNext: boolean;
   showLibraryAlbumArtworkBackdrop: boolean;
   showIdlePlayerQuips: boolean;

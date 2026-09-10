@@ -103,6 +103,7 @@
   <WideWorkspace
     {content}
     {mediaKind}
+    collapseSingleTabBar={appearance.collapseSingleTabWorkspaceBar !== false}
     workspacePanels={workspaceState.workspacePanels}
     panelWidths={workspaceState.widePanelWidths}
     resizerWidth={WORKSPACE_RESIZER_WIDTH}
