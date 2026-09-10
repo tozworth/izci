@@ -339,7 +339,9 @@
 
 .workspace-edge-drop-target {
   position: absolute;
-  top: 0;
+  /* Must clear the dock tab strip: a drop zone covering a tab's drag origin
+     makes Chromium cancel that drag before it starts. */
+  top: calc(var(--tab-strip-tab-min-height, 1.65rem) + 0.1rem);
   bottom: 0;
   z-index: 12;
   display: flex;

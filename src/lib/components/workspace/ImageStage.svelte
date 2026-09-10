@@ -323,7 +323,7 @@
     min-width: 0;
     min-height: 0;
     overflow: hidden;
-    background: #000;
+    background: var(--body-background);
     contain: strict;
   }
 
@@ -338,7 +338,7 @@
     max-width: 100%;
     max-height: 100%;
     object-fit: contain;
-    background: #000;
+    background: var(--body-background);
     transform-origin: center center;
   }
 

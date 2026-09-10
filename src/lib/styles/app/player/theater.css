@@ -9,7 +9,11 @@
   box-shadow:
     0 1.1rem 3.2rem rgba(0, 0, 0, 0.44),
     0 0.2rem 0.7rem rgba(0, 0, 0, 0.28);
-  transform: translateX(-50%);
+  transform: none;
+  /* Centering lives in `translate`, not `transform`: entering theater restyles the
+     same element, and a transitioned transform would slide it in from the
+     workspace position. `transform` is reserved for the controls-hide slide. */
+  translate: -50% 0;
   transition:
     opacity 160ms ease-out,
     transform 180ms ease-out,
@@ -32,6 +36,6 @@
 .app-shell.video-theater-controls-hidden .player-bar.theater-player-bar {
   opacity: 0;
   pointer-events: none;
-  transform: translate(-50%, calc(100% + 1.5rem));
+  transform: translateY(calc(100% + 1.5rem));
 }
 

@@ -76,13 +76,14 @@
 
 <section
   class="video-theater"
+  class:is-image={Boolean(imageElement) || snapshot?.backend === 'image'}
   class:is-controls-hidden={controlsHidden}
   style={`top: ${topInset}px; --video-theater-chrome-inset: ${chromeInset}px;`}
   aria-label={imageElement
     ? $t('workspace.imageTheater.title', { default: 'Image theater' })
     : $t('workspace.videoTheater.title', { default: 'Video theater' })}
 >
-  {#if imageElement}
+  {#if imageElement || snapshot?.backend === 'image'}
     <ImageStage
       element={imageElement}
       {parkingHost}
@@ -118,6 +119,10 @@
     z-index: 39;
     overflow: hidden;
     background: #000;
+  }
+
+  .video-theater.is-image {
+    background: var(--body-background);
   }
 
   .video-theater.is-controls-hidden {
