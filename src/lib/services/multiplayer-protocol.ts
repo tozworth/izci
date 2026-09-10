@@ -688,7 +688,7 @@ function isPlaybackSnapshot(value: unknown): value is PlaybackSnapshot {
 }
 
 function isTrackKind(value: unknown): value is TrackKind {
-  return value === 'stream' || value === 'module' || value === 'video';
+  return value === 'stream' || value === 'module' || value === 'video' || value === 'image';
 }
 
 function createTransferId(): string {

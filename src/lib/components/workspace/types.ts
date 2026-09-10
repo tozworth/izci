@@ -116,6 +116,7 @@ export interface WorkspaceTabContentProps {
   activateChatTrack: (track: MultiplayerChatTrackLink) => void;
   chatConnected: boolean;
   videoElement: HTMLVideoElement | null;
+  imageElement: HTMLImageElement | null;
   videoParkingHost: HTMLDivElement | null;
   videoTheaterActive: boolean;
   videoFitMode: VideoFitMode;

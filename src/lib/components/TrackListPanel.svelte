@@ -548,7 +548,7 @@
     : filterItemsByQuery(unfilteredDisplayItems, normalizedSearchQuery);
   $: trackSummary = selectedLibraryGroup
     ? getLibraryGroupTrackSummary(selectedLibraryGroup, filteredItems, $t)
-    : getLocalizedTrackSummary(displaySourceItems, filteredItems, normalizedSearchQuery, $t);
+    : getLocalizedTrackSummary(displaySourceItems, filteredItems, normalizedSearchQuery, $t, libraryMode);
   $: libraryTooltipDetails = getLibraryViewTooltipDetails(items, favoriteItems, normalizedSearchQuery, $locale ?? undefined);
   $: librarySummary = groupView && !selectedLibraryGroup
     ? getLibraryGroupSummary(groupView, visibleLibraryGroups.length, libraryGroups.length, normalizedSearchQuery ? visibleGroupSongCount : items.length, normalizedSearchQuery, $t)

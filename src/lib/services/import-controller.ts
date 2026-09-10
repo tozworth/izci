@@ -1,5 +1,6 @@
 import {
   MODULE_EXTENSIONS,
+  IMAGE_EXTENSIONS,
   STREAM_EXTENSIONS,
   VIDEO_EXTENSIONS,
   type WorkspaceCollection
@@ -26,11 +27,13 @@ interface ImportControllerOptions {
 const STREAM_FILE_EXTENSIONS = STREAM_EXTENSIONS.map((extension) => `.${extension}`);
 const MODULE_FILE_EXTENSIONS = MODULE_EXTENSIONS.map((extension) => `.${extension}`);
 const VIDEO_FILE_EXTENSIONS = VIDEO_EXTENSIONS.map((extension) => `.${extension}`);
+const IMAGE_FILE_EXTENSIONS = IMAGE_EXTENSIONS.map((extension) => `.${extension}`);
 
 export const FILE_INPUT_ACCEPT = [
   ...STREAM_FILE_EXTENSIONS,
   ...MODULE_FILE_EXTENSIONS,
-  ...VIDEO_FILE_EXTENSIONS
+  ...VIDEO_FILE_EXTENSIONS,
+  ...IMAGE_FILE_EXTENSIONS
 ].join(',');
 
 export function createOpenFilePickerOptions(description = 'Supported media files'): OpenFilePickerOptions {
@@ -49,7 +52,11 @@ export function createOpenFilePickerOptions(description = 'Supported media files
         'video/mp4': ['.mp4', '.m4v'],
         'video/quicktime': ['.mov'],
         'video/webm': ['.webm'],
-        'video/x-matroska': ['.mkv']
+        'video/x-matroska': ['.mkv'],
+        'image/jpeg': ['.jpg', '.jpeg'],
+        'image/png': ['.png'],
+        'image/webp': ['.webp'],
+        'image/avif': ['.avif']
       }
     }
   ]

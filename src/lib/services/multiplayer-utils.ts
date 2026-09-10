@@ -45,6 +45,7 @@ export function resolveMultiplayerDeliveryMode(
   fileTransferLimitMiB = 0
 ): MultiplayerDeliveryMode {
   if (!track || !audioEnabled) return 'none';
+  if (track.kind === 'image') return 'none';
   if (track.kind === 'video') return 'stream';
   if (fileTransferLimitMiB !== 0
     && track.size > 0

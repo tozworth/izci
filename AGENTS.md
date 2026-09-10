@@ -87,7 +87,7 @@
 - Queue, Library, Track Details, Lyrics, and Patterns are dockable workspace tabs. Placement/open state lives in `workspace-panel-state.ts`; wide panel proportions live in `workspace-panel-layout.ts`.
 - `workspace-shell.ts` owns app-level workspace selection, tab, panel, and resize coordination. Layout-specific markup stays in `src/lib/components/workspace/`.
 - `contextual-tab-presentation.ts` owns automatic Lyrics/Patterns tab visibility; components supply availability and dispatch workspace actions.
-- `VideoStage.svelte` only hosts the player-owned video element. Video viewport settings live in `video-settings.ts`; temporary desktop-window sizing and restoration live in `window-video.ts`.
+- `MediaStage.svelte` only hosts the player-owned video or image element. Visual-media viewport settings live in `video-settings.ts`; temporary desktop-window sizing and restoration live in `window-video.ts`.
 - Artwork and visualizer backdrops are shared layers clipped to requesting zones. Keep contrast state local to each zone; the menu/title bar remains on the active theme rather than becoming an artwork surface.
 - Artwork loading, cleanup, palette/brightness analysis, and presentation side effects remain transient and service-owned.
 - Window Controls Overlay state comes from `window-controls-overlay.ts`; components must react to live geometry/visibility rather than assuming overlay mode.

@@ -150,6 +150,9 @@
         : ''
     : '';
   $: replayGain = track?.kind === 'stream' ? track.metadata?.replayGain : undefined;
+  $: imageDimensions = track?.kind === 'image' && track.metadata?.width && track.metadata?.height
+    ? `${track.metadata.width} × ${track.metadata.height}`
+    : '';
   $: replayGainParts = [
     typeof replayGain?.trackGainDb === 'number'
       ? $t('main.trackDetails.replayGainTrack', {
@@ -337,6 +340,19 @@
                 <HoverTooltip align="left" nowrap>{$t('main.trackDetails.replayGain', { default: 'ReplayGain' })}</HoverTooltip>
               </dt>
               <dd>{replayGainSummary}</dd>
+            </div>
+          {/if}
+
+          {#if imageDimensions}
+            <div class="metadata-row">
+              <dt class="hover-tooltip-anchor">
+                <span
+                  class="material-symbols-outlined metadata-icon"
+                  aria-label={$t('main.trackDetails.dimensions', { default: 'Dimensions' })}
+                >aspect_ratio</span>
+                <HoverTooltip align="left" nowrap>{$t('main.trackDetails.dimensions', { default: 'Dimensions' })}</HoverTooltip>
+              </dt>
+              <dd>{imageDimensions}</dd>
             </div>
           {/if}
 

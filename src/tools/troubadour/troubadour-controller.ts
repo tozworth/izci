@@ -15,7 +15,7 @@ import type {
   TroubadourRememberedFolder,
   TroubadourTrackReference
 } from '$lib/services/troubadour-sync';
-import { discoverDirectoryFiles, inferExtension, inferKind } from '$lib/utils/files';
+import { discoverDirectoryFiles, inferExtension } from '$lib/utils/files';
 import { autoGroupTracks, renumberAlbumTracks } from './grouping';
 import { createHistory, pushHistory, undoHistory, redoHistory, type HistoryState } from './history';
 import { cloneStaged, itemDirty } from './troubadour-staged';
@@ -28,7 +28,8 @@ import {
   itemsFromDiscoveredFiles,
   materializeWorkbenchFile,
   metadataTrackForGrouping,
-  effectiveFields
+  effectiveFields,
+  inferWorkbenchKind
 } from './troubadour-loading';
 import { createTroubadourRenamePipeline } from './troubadour-rename';
 import {
@@ -395,7 +396,7 @@ export function createTroubadourController(
               const extension = inferExtension(file.name);
               items.push({
                 id: crypto.randomUUID(), references: [], file, fileHandle: null, parentHandle: null,
-                path: file.webkitRelativePath || file.name, extension, kind: inferKind(extension) ?? 'stream', state: 'loading',
+                path: file.webkitRelativePath || file.name, extension, kind: inferWorkbenchKind(extension), state: 'loading',
                 document: null, patch: {}, artworkEdits: [], albumId: null, error: '', jobProgress: null
               });
             }

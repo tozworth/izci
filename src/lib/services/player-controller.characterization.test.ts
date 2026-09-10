@@ -12,6 +12,25 @@ const harness = vi.hoisted(() => {
 
   const instances: MockBackend[] = [];
   const pendingLoads: PendingLoad[] = [];
+  const imageInstances: MockImageViewer[] = [];
+
+  class MockImageViewer {
+    element = {} as HTMLImageElement;
+    unload = vi.fn();
+    load = vi.fn(async (track: TrackItem) => {
+      this.snapshotCallback({ backend: 'image', state: 'loading' });
+      this.metadataCallback({ width: 800, height: 600 });
+      this.snapshotCallback({ state: 'paused' });
+      return track;
+    });
+
+    constructor(
+      private snapshotCallback: (partial: Partial<PlaybackSnapshot>) => void,
+      private metadataCallback: (metadata: TrackMetadata) => void
+    ) {
+      imageInstances.push(this);
+    }
+  }
 
   class MockBackend {
     role: 'stream' | 'module' | 'hively' | 'video';
@@ -34,11 +53,12 @@ const harness = vi.hoisted(() => {
     applySettings = vi.fn(() => Promise.resolve());
     stepSubsong = vi.fn(() => null);
     togglePictureInPicture = vi.fn(() => Promise.resolve(false));
-    element = null;
+    element: HTMLVideoElement | null = null;
     pictureInPictureSupported = false;
 
     constructor(...callbacks: unknown[]) {
       this.role = (['stream', 'module', 'hively', 'video'] as const)[instances.length % 4];
+      if (this.role === 'video') this.element = {} as HTMLVideoElement;
       this.snapshotCallback = callbacks[0] as ((partial: Partial<PlaybackSnapshot>) => void);
       this.metadataCallback = callbacks[1] as ((metadata: TrackMetadata) => void);
       this.endedCallback = callbacks.at(-1) as (() => void);
@@ -62,6 +82,8 @@ const harness = vi.hoisted(() => {
     MockBackend,
     instances,
     pendingLoads,
+    imageInstances,
+    MockImageViewer,
     audioBus: {
       resume: vi.fn(() => Promise.resolve()),
       setOutputGain: vi.fn(),
@@ -105,6 +127,7 @@ vi.mock('$lib/services/howler-player', () => ({ HowlerPlayerService: harness.Moc
 vi.mock('$lib/services/module-player', () => ({ ModulePlayerService: harness.MockBackend }));
 vi.mock('$lib/services/ahx-player', () => ({ HivelyPlayerService: harness.MockBackend }));
 vi.mock('$lib/services/video-player', () => ({ VideoPlayerService: harness.MockBackend }));
+vi.mock('$lib/services/image-viewer', () => ({ ImageViewerService: harness.MockImageViewer }));
 vi.mock('$lib/services/audio-bus', () => ({ audioBusService: harness.audioBus }));
 vi.mock('$lib/services/media-session', () => ({ mediaSessionService: harness.mediaSession }));
 vi.mock('$lib/services/stream-artwork', () => ({ loadTrackMetadata: vi.fn(() => Promise.resolve(null)) }));
@@ -194,6 +217,7 @@ beforeEach(() => {
     removeEventListener: vi.fn()
   });
   harness.pendingLoads.length = 0;
+  harness.imageInstances.length = 0;
   harness.playbackStore.getSnapshot().replayGainMode = 'off';
   vi.clearAllMocks();
   playerController.unload();
@@ -389,5 +413,51 @@ describe('player controller supersession characterization', () => {
     resolvePending(videoTrack.id);
     await videoLoad;
     expect(harness.audioBus.setRafEffectBypass).toHaveBeenLastCalledWith('auto-amp', true);
+  });
+
+  it('publishes the active video element while its load is still pending', async () => {
+    const videoTrack = backendTrack('stage-video', 'video');
+    const loading = playerController.load(videoTrack, { autoPlay: true });
+    await flushUntilPending(videoTrack.id);
+    const pending = harness.pendingLoads.find(({ track }) => track.id === videoTrack.id)!;
+
+    expect(get(playerController.mediaElements)).toEqual({
+      video: pending.instance.element,
+      image: null
+    });
+
+    resolvePending(videoTrack.id);
+    await loading;
+  });
+
+  it('loads an image without invoking a playback backend or transport controls', async () => {
+    const imageTrack: TrackItem = {
+      id: 'photo',
+      name: 'photo.webp',
+      extension: 'webp',
+      kind: 'image',
+      size: 1,
+      lastModified: 1,
+      objectUrl: 'blob:photo'
+    };
+    const backendLoadCount = harness.pendingLoads.length;
+
+    await playerController.load(imageTrack, { autoPlay: true });
+    playerController.play();
+    playerController.pause();
+    playerController.seek(12);
+
+    expect(harness.pendingLoads).toHaveLength(backendLoadCount);
+    expect(harness.imageInstances).toHaveLength(1);
+    expect(get(playerController.snapshot)).toMatchObject({ state: 'paused', backend: 'image' });
+    expect(get(playerController.currentTrack)?.metadata).toMatchObject({ width: 800, height: 600 });
+    expect(playerController.imageElement).toBe(harness.imageInstances[0].element);
+    expect(get(playerController.mediaElements)).toEqual({
+      video: null,
+      image: harness.imageInstances[0].element
+    });
+
+    playerController.unload();
+    expect(get(playerController.mediaElements)).toEqual({ video: null, image: null });
   });
 });

@@ -169,6 +169,7 @@
   let innerWidth = typeof window !== 'undefined' ? window.innerWidth : 0;
   let innerHeight = typeof window !== 'undefined' ? window.innerHeight : 0;
   const modulePatternStore = playerController.modulePattern;
+  const mediaElementsStore = playerController.mediaElements;
 
   let previousPlaybackState: PlaybackSnapshot['state'] = 'idle';
   let nowPlayingViewActive = appearanceSettings.getSnapshot().nowPlayingViewActive;
@@ -179,6 +180,8 @@
   let isNowPlayingChromeHidden = false;
   let isFullscreenNowPlayingChromeHidden = false;
   let videoTrackActive = false;
+  let imageTrackActive = false;
+  let visualMediaActive = false;
   let videoTheaterActive = false;
   let videoTheaterControlsHidden = false;
   let isFullscreenVideoTheater = false;
@@ -256,6 +259,7 @@
       panelHandlers: runtimePanelHandlers
     },
     stores: {
+      queueItemsStore,
       displayPlaybackSnapshotStore,
       mediaSessionArtworkOverrideStore,
       multiplayerClientMediaSessionStore,
@@ -267,7 +271,7 @@
   } = runtime;
 
   const runtimeSnapshot = runtime.getSnapshot();
-  let workspaceShellState: import('$lib/services/workspace-shell').WorkspaceShellState = runtimeSnapshot.workspaceShellState;
+  const workspaceShellStore = workspaceShell;
   let artworkPresentationState: import('$lib/services/artwork-presentation').ArtworkPresentationState = runtimeSnapshot.artworkPresentationState;
   let playbackCommandsState: { pendingPlaybackTrackId: string | null } = runtimeSnapshot.playbackCommandsState;
   let appInstallState: import('$lib/services/app-install').AppInstallState = runtimeSnapshot.appInstallState;
@@ -276,15 +280,16 @@
   $: workspaceContent = {
     snapshotStore: displayPlaybackSnapshotStore,
     playbackSnapshot,
-    videoElement: playerController.videoElement,
+    videoElement: $mediaElementsStore.video,
+    imageElement: $mediaElementsStore.image,
     videoParkingHost,
     videoTheaterActive,
     videoFitMode: $videoSettings.fitMode,
     videoPictureInPictureSupported,
     videoSeekFeedback,
-    queuePanelProps: workspaceShellState.queuePanelProps,
+    queuePanelProps: $workspaceShellStore.queuePanelProps,
     queuePanelHandlers: runtimePanelHandlers.queuePanelHandlers,
-    libraryPanelProps: workspaceShellState.libraryPanelProps,
+    libraryPanelProps: $workspaceShellStore.libraryPanelProps,
     libraryPanelHandlers: runtimePanelHandlers.libraryPanelHandlers,
     upNextPanelProps,
     upNextPanelHandlers: runtimePanelHandlers.upNextPanelHandlers,
@@ -352,7 +357,6 @@
     if ('multiplayerConnectionOperation' in updates) multiplayerConnectionOperation = updates.multiplayerConnectionOperation!;
     if ('multiplayerConnectionTargetName' in updates) multiplayerConnectionTargetName = updates.multiplayerConnectionTargetName!;
     if ('multiplayerToastMessage' in updates) multiplayerToastMessage = updates.multiplayerToastMessage!;
-    if ('workspaceShellState' in updates) workspaceShellState = updates.workspaceShellState!;
     if ('playbackProgressState' in updates) playbackProgressState = updates.playbackProgressState!;
     if ('miniPlayerState' in updates) miniPlayerState = updates.miniPlayerState!;
     if ('appInstallState' in updates) appInstallState = updates.appInstallState!;
@@ -386,7 +390,7 @@
     collectionsReady
   } = resolveClientCollections(
     {
-      trackItems: $view.trackItems,
+      trackItems: $queueItemsStore,
       libraryItems: $view.libraryItems,
       favoriteItems: $view.favoriteItems,
       collectionsReady: $view.collectionsReady
@@ -445,7 +449,7 @@
     getContextMenuActions: (ids: string[]) => {
       const chatOpen = multiplayerState.mode !== 'idle'
         && multiplayerState.connectionStatus === 'connected'
-        && workspaceShellState.workspaceTabs.some((tab) => tab.id === 'chat');
+        && $workspaceShellStore.workspaceTabs.some((tab) => tab.id === 'chat');
       if (isFreeplayClient) {
         return buildFreeplayQueueContextActions(queueItems, libraryItems, ids, chatOpen)
           .map((action) => action.id === 'remove'
@@ -509,7 +513,7 @@
   $: multiplayerClientMediaSessionStore.set(isMultiplayerClient);
 
   $: selectedItem =
-    workspaceShellState.activeCollection === 'library'
+    $workspaceShellStore.activeCollection === 'library'
       ? $libraryViewSettings.activeView === 'favorites' ? selectedFavoriteItem : selectedLibraryItem
       : selectedTrackItem;
   $: livePlayingTrack = resolveTrackSnapshot(playingTrack, selectedItem, queueItems, libraryItems);
@@ -525,12 +529,14 @@
     ? toLoadedMultiplayerArtwork(livePlayingTrack, multiplayerState.remoteArtwork)
     : undefined);
   $: videoTrackActive = !isMultiplayerClient && livePlayingTrack?.kind === 'video';
-  $: runtime.publish({ videoTrackActive });
+  $: imageTrackActive = !isMultiplayerClient && livePlayingTrack?.kind === 'image';
+  $: visualMediaActive = videoTrackActive || imageTrackActive;
+  $: runtime.publish({ videoTrackActive, visualMediaActive });
   $: videoPictureInPictureSupported =
     videoTrackActive && playerController.videoPictureInPictureSupported;
-  $: videoActions.syncWindowSize(videoTrackActive, $videoSettings.autoResizeWindow);
+  $: videoActions.syncWindowSize(visualMediaActive, $videoSettings.autoResizeWindow);
   $: videoActions.syncPresentation(isMultiplayerClient ? null : livePlayingTrack, $videoSettings.autoEnterTheater);
-  $: if (videoTrackActive && $windowDisplayState.fullscreen && !videoTheaterActive) {
+  $: if (visualMediaActive && $windowDisplayState.fullscreen && !videoTheaterActive) {
     videoTheaterActive = true;
   }
   $: ({
@@ -539,7 +545,7 @@
     chromeInset: videoTheaterChromeInset,
     topInset: videoTheaterTopInset
   } = resolveVideoTheaterPresentation(
-    videoTrackActive,
+    visualMediaActive,
     videoTheaterActive,
     $windowDisplayState.fullscreen,
     $windowControlsOverlayState,
@@ -591,7 +597,7 @@
   } = resolveLyricsPresentation($appearanceSettings, isNowPlayingLayoutActive));
   $: {
     lyricsPresentationState;
-    workspaceShellState;
+    $workspaceShellStore;
     lyricsPresentation.sync({
       track: livePlayingTrack,
       isNowPlayingLayoutActive,
@@ -607,7 +613,7 @@
   });
   $: backdropPresentation = resolveAppBackdropPresentation({
     isNowPlayingLayoutActive,
-    workspaceState: workspaceShellState,
+    workspaceState: $workspaceShellStore,
     backdropZones: $appearanceSettings.backdropZones,
     backdropZoneArtwork: $appearanceSettings.backdropZoneArtwork,
     hasVisibleArtworkBackground: Boolean(artworkPresentationState.visibleArtworkBackground),
@@ -670,7 +676,7 @@
   $: {
     artworkPresentation.syncSelection(
       selectedItem,
-      workspaceShellState.activeCollection === 'library'
+      $workspaceShellStore.activeCollection === 'library'
         ? $libraryViewSettings.activeView === 'favorites'
           ? favoriteSelectionIds.length > 0
           : librarySelectionIds.length > 0
@@ -764,7 +770,7 @@
 <div
   class="app-shell"
   class:mobile-mode={mobileMode}
-  class:compact-workspace={workspaceShellState.isCompactWorkspace}
+  class:compact-workspace={$workspaceShellStore.isCompactWorkspace}
   class:now-playing-mode={isNowPlayingLayoutActive}
   class:video-theater-mode={videoTheaterActive}
   class:video-fullscreen-mode={isFullscreenVideoTheater}
@@ -812,8 +818,8 @@
     playingTrack={livePlayingTrack}
     playbackTime={playbackSnapshot.currentTime}
     {...multiplayerBarProps}
-    on:openFiles={() => void importController.openFiles(workspaceShellState.activeCollection)}
-    on:openFolder={() => void importController.openFolder(workspaceShellState.activeCollection)}
+    on:openFiles={() => void importController.openFiles($workspaceShellStore.activeCollection)}
+    on:openFolder={() => void importController.openFolder($workspaceShellStore.activeCollection)}
     on:installApp={() => void appInstallService.prompt()}
     on:acknowledgeInstallHint={() => appInstallService.acknowledgeHint()}
     on:openOptions={(event) => openOptions(event.detail?.view)}
@@ -856,7 +862,7 @@
   {#if mobileMode}
   <MobileWorkspace
     content={workspaceContent}
-    workspaceState={workspaceShellState}
+    workspaceState={$workspaceShellStore}
     {selectedTrackItem}
     artworkState={artworkPresentationState}
     appearance={$appearanceSettings}
@@ -871,8 +877,8 @@
     on:tabChange={(event) => workspaceShell.showWorkspaceTab(event.detail)}
     on:toggleNowPlaying={videoActions.toggleNowPlayingView}
     on:closeNowPlaying={videoActions.closeNowPlayingView}
-    on:openFiles={() => void importController.openFiles(workspaceShellState.activeCollection)}
-    on:openFolder={() => void importController.openFolder(workspaceShellState.activeCollection)}
+    on:openFiles={() => void importController.openFiles($workspaceShellStore.activeCollection)}
+    on:openFolder={() => void importController.openFolder($workspaceShellStore.activeCollection)}
     on:manageFolders={() => openOptions('folders')}
     on:openOptions={() => openOptions()}
     on:openAbout={() => openOptions('about')}
@@ -906,7 +912,8 @@
   {:else}
   <AppWorkspace
     content={workspaceContent}
-    workspaceState={workspaceShellState}
+    mediaTheaterActive={videoTheaterActive}
+    workspaceState={$workspaceShellStore}
     {selectedTrackItem}
     artworkState={artworkPresentationState}
     appearance={$appearanceSettings}
@@ -940,7 +947,8 @@
 
   {#if videoTheaterActive}
     <VideoTheater
-      element={playerController.videoElement}
+      element={$mediaElementsStore.video}
+      imageElement={$mediaElementsStore.image}
       parkingHost={videoParkingHost}
       topInset={videoTheaterTopInset}
       chromeInset={isFullscreenVideoTheater ? videoTheaterChromeInset : 0}
@@ -953,6 +961,7 @@
       on:togglePictureInPicture={() => void videoActions.togglePictureInPicture()}
       on:setVideoFit={(event) => videoActions.setFit(event.detail)}
       on:volumeStep={(event) => {
+        if (!videoTrackActive) return;
         if (!playbackSnapshot.muted) {
           playerController.setVolume(
             Math.min(Math.max(playbackSnapshot.volume + event.detail, 0), 1)
@@ -1023,7 +1032,8 @@
       rafPresets={$rafPresets.presets}
       selectedRafPresetId={$rafPresets.selectedPresetId}
       rafPresetDirty={isRafPresetDirty($rafPresets, $rafSettings)}
-      showVideoTheaterToggle={videoTrackActive}
+      imageMode={imageTrackActive}
+      showVideoTheaterToggle={visualMediaActive}
       {videoTheaterActive}
       videoFullscreenActive={videoFullscreenExitAction}
       on:toggle={transport.togglePlayback}

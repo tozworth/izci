@@ -1,5 +1,6 @@
 export const STREAM_EXTENSIONS = ['mp3', 'wav', 'flac', 'ogg', 'opus'] as const;
 export const VIDEO_EXTENSIONS = ['mp4', 'm4v', 'mov', 'webm', 'mkv'] as const;
+export const IMAGE_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'avif'] as const;
 export const HIVELY_MODULE_EXTENSIONS = ['ahx', 'hvl'] as const;
 export const MODULE_EXTENSIONS = [
   ...HIVELY_MODULE_EXTENSIONS,
@@ -73,7 +74,7 @@ export const MODULE_EXTENSIONS = [
   'mmcmp'
 ] as const;
 
-export type TrackKind = 'stream' | 'module' | 'video';
+export type TrackKind = 'stream' | 'module' | 'video' | 'image';
 export type PlaybackState = 'idle' | 'loading' | 'playing' | 'paused' | 'ended' | 'error';
 export type PwaUpdateStatus = 'idle' | 'updated' | 'up-to-date' | 'failed';
 export type ModuleInterpolationFilter = 1 | 2 | 4 | 8;
@@ -337,6 +338,8 @@ export interface TrackMetadata {
   subsongNames?: string[];
   rows?: number;
   sampleRate?: number;
+  width?: number;
+  height?: number;
   playCount?: number;
   /** Epoch ms of the last time this track accrued a play. */
   lastPlayed?: number;

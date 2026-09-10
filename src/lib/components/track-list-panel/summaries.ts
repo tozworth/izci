@@ -40,6 +40,8 @@ export function localizeLibraryGroup(group: LibraryGroup, translate: Translate):
     secondary = translate('library.stream', { default: 'Stream' });
   } else if (group.secondaryKind === 'video') {
     secondary = translate('library.video', { default: 'Video' });
+  } else if (group.secondaryKind === 'image') {
+    secondary = translate('library.image', { default: 'Image' });
   }
 
   return { ...group, label, secondary };
@@ -49,9 +51,22 @@ export function getLocalizedTrackSummary(
   sourceItems: TrackItem[],
   visibleItems: TrackItem[],
   query: string,
-  translate: Translate
+  translate: Translate,
+  mediaLabels = false
 ): string {
   const duration = formatTotalDuration(getTotalDuration(visibleItems));
+
+  if (mediaLabels) {
+    return query && visibleItems.length !== sourceItems.length
+      ? translate('library.summary.filteredMedia', {
+          default: '{visible} of {total} media items · {duration}',
+          values: { visible: visibleItems.length, total: sourceItems.length, duration }
+        })
+      : translate('library.summary.media', {
+          default: '{count, plural, one {# media item} other {# media items}} · {duration}',
+          values: { count: visibleItems.length, duration }
+        });
+  }
 
   if (query && visibleItems.length !== sourceItems.length) {
     return translate('queue.summary.filteredTracks', {
@@ -106,7 +121,7 @@ export function getLibraryGroupSummary(
 ): string {
   const groups = getGroupCountSummary(view, visibleGroups, totalGroups, Boolean(query) && visibleGroups !== totalGroups, translate);
   return translate('library.summary.groupsAndSongs', {
-    default: '{groups} · {songs, plural, one {# song} other {# songs}}',
+    default: '{groups} · {songs, plural, one {# media item} other {# media items}}',
     values: { groups, songs }
   });
 }

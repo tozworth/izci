@@ -89,7 +89,7 @@
     switch (view) {
       case 'favorites': return $t('library.views.favorites', { default: 'Favorites' });
       case 'ratings': return $t('library.views.ratings', { default: 'Ratings' });
-      case 'songs': return $t('library.views.songs', { default: 'Songs' });
+      case 'songs': return $t('library.views.songs', { default: 'All Media' });
       case 'artists': return $t('library.views.artists', { default: 'Artists' });
       case 'albums': return $t('library.views.albums', { default: 'Albums' });
       case 'genres': return $t('library.views.genres', { default: 'Genres' });

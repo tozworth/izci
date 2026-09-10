@@ -2,6 +2,7 @@ import { writable } from 'svelte/store';
 import { audioBusService } from '$lib/services/audio-bus';
 import { HivelyPlayerService } from '$lib/services/ahx-player';
 import { HowlerPlayerService } from '$lib/services/howler-player';
+import { ImageViewerService } from '$lib/services/image-viewer';
 import { logDebug, logError, logInfo, logWarning } from '$lib/services/logging';
 import { mediaSessionService } from '$lib/services/media-session';
 import { ModulePlayerService } from '$lib/services/module-player';
@@ -31,6 +32,11 @@ interface PlaybackStatusSnapshot {
   error?: string;
 }
 
+interface MediaElementsSnapshot {
+  video: HTMLVideoElement | null;
+  image: HTMLImageElement | null;
+}
+
 interface PlaybackBundle {
   id: number;
   loadSequence: number;
@@ -44,6 +50,7 @@ interface PlaybackBundle {
   module: ModulePlayerService;
   hively: HivelyPlayerService;
   video: VideoPlayerService;
+  image: ImageViewerService | null;
 }
 
 type CurrentTrackExternalUpdate = Partial<
@@ -111,10 +118,18 @@ function createPlayerController() {
   });
   const currentTrack = writable<TrackItem | null>(null);
   const modulePattern = writable<ModulePatternSnapshot>({ ...initialModulePatternSnapshot });
+  const mediaElements = writable<MediaElementsSnapshot>({ video: null, image: null });
 
   let activeBundle: PlaybackBundle;
   let preparedBundle: PlaybackBundle | null = null;
   let outgoingBundle: PlaybackBundle | null = null;
+
+  function publishActiveMediaElements(): void {
+    mediaElements.set({
+      video: activeBundle.track?.kind === 'video' ? activeBundle.video.element : null,
+      image: activeBundle.track?.kind === 'image' ? activeBundle.image?.element ?? null : null
+    });
+  }
 
   function publish(partial: Partial<PlaybackSnapshot>): void {
     if (partial.state !== undefined) latestState = partial.state;
@@ -190,7 +205,8 @@ function createPlayerController() {
       readiness: null,
       track: null,
       snapshot: { ...initialSnapshot, volume, muted },
-      transitionGain: 1
+      transitionGain: 1,
+      image: null
     } as PlaybackBundle;
 
     bundle.stream = new HowlerPlayerService(
@@ -238,7 +254,9 @@ function createPlayerController() {
     const track = bundle.track;
     if (!track) return null;
     if (track.kind === 'module') return isHivelyModule(track) ? bundle.hively : bundle.module;
-    return bundle[track.kind];
+    if (track.kind === 'stream') return bundle.stream;
+    if (track.kind === 'video') return bundle.video;
+    return null;
   }
 
   function applyBundleTransitionGain(bundle: PlaybackBundle, durationSeconds = 0): void {
@@ -297,6 +315,7 @@ function createPlayerController() {
     bundle.module.stop({ silent: true });
     bundle.hively.stop({ silent: true });
     bundle.video.unload();
+    bundle.image?.unload();
     bundle.track = null;
     bundle.ready = false;
     bundle.readiness = null;
@@ -362,13 +381,18 @@ function createPlayerController() {
     bundle.module.stop({ silent: true });
     bundle.hively.stop({ silent: true });
     bundle.video.unload();
+    bundle.image?.unload();
+    if (bundle === activeBundle) mediaElements.set({ video: null, image: null });
     const preparedTrack = await prepareTrackMetadata(track);
     if (loadId !== bundle.loadSequence) return false;
     bundle.track = preparedTrack;
-    if (bundle === activeBundle) currentTrack.set(preparedTrack);
+    if (bundle === activeBundle) {
+      currentTrack.set(preparedTrack);
+      publishActiveMediaElements();
+    }
     bundle.snapshot = {
       ...initialSnapshot,
-      state: autoPlay ? 'playing' : 'loading',
+      state: 'loading',
       currentTime: initialPosition,
       duration: preparedTrack.metadata?.duration ?? 0,
       volume,
@@ -396,8 +420,19 @@ function createPlayerController() {
       } else {
         updateBundleSnapshot(bundle, { state: 'paused', error: undefined });
       }
+    } else if (preparedTrack.kind === 'video') {
+      const loading = bundle.video.load(preparedTrack, { autoPlay, initialPosition });
+      if (bundle === activeBundle) publishActiveMediaElements();
+      await loading;
+      if (loadId !== bundle.loadSequence) return false;
     } else {
-      await bundle.video.load(preparedTrack, { autoPlay, initialPosition });
+      bundle.image ??= new ImageViewerService(
+        (partial) => updateBundleSnapshot(bundle, partial),
+        (metadata) => updateBundleMetadata(bundle, metadata)
+      );
+      const loading = bundle.image.load(preparedTrack);
+      if (bundle === activeBundle) publishActiveMediaElements();
+      await loading;
       if (loadId !== bundle.loadSequence) return false;
     }
     bundle.ready = true;
@@ -437,7 +472,9 @@ function createPlayerController() {
     }
     if (requestId !== operationSequence || !loaded || !activeBundle.track) return;
     currentTrack.set(activeBundle.track);
-    publishActiveBundle(options.autoPlay ? 'playing' : activeBundle.snapshot.state);
+    publishActiveBundle(activeBundle.track.kind === 'image'
+      ? 'paused'
+      : options.autoPlay ? 'playing' : activeBundle.snapshot.state);
     audioBusService.setRafEffectBypass('auto-amp', activeBundle.track.kind === 'video');
     logInfo('playback', 'Track load completed', { id: track.id, kind: track.kind });
     syncModuleTransportAnchor();
@@ -488,6 +525,7 @@ function createPlayerController() {
     const incoming = preparedBundle;
     preparedBundle = null;
     activeBundle = incoming;
+    publishActiveMediaElements();
     outgoingBundle = previous;
     desiredPlaybackState = 'playing';
     currentTrack.set(incoming.track);
@@ -535,8 +573,12 @@ function createPlayerController() {
     status,
     currentTrack,
     modulePattern,
+    mediaElements,
     get videoElement() {
       return activeBundle.video.element;
+    },
+    get imageElement() {
+      return activeBundle.image?.element ?? null;
     },
     get videoPictureInPictureSupported() {
       return activeBundle.video.pictureInPictureSupported;
@@ -582,6 +624,7 @@ function createPlayerController() {
     },
     play() {
       if (!activeBundle.track) return;
+      if (activeBundle.track.kind === 'image') return;
       desiredPlaybackState = 'playing';
       setBundleTransitionGain(activeBundle, 1);
       bundleService(activeBundle)?.play();
@@ -590,6 +633,7 @@ function createPlayerController() {
     },
     pause() {
       if (!activeBundle.track) return;
+      if (activeBundle.track.kind === 'image') return;
       desiredPlaybackState = 'paused';
       setBundleTransitionGain(activeBundle, 1);
       bundleService(activeBundle)?.pause();
@@ -602,6 +646,7 @@ function createPlayerController() {
     },
     seek(seconds: number) {
       if (!activeBundle.track) return;
+      if (activeBundle.track.kind === 'image') return;
       clearOutgoing();
       setBundleTransitionGain(activeBundle, 1);
       bundleService(activeBundle)?.seek(seconds);
@@ -638,6 +683,7 @@ function createPlayerController() {
       clearOutgoing();
       destroyBundle(activeBundle);
       activeBundle = createBundle();
+      publishActiveMediaElements();
       currentTrack.set(null);
       logInfo('playback', 'Playback unloaded');
       modulePattern.set({ ...initialModulePatternSnapshot });
@@ -701,6 +747,7 @@ function createPlayerController() {
       unsubscribePlaybackSettings();
       if (outgoingTimer !== null) window.clearTimeout(outgoingTimer);
       for (const bundle of [...bundles]) destroyBundle(bundle);
+      mediaElements.set({ video: null, image: null });
       audioBusService.destroy();
     }
   };

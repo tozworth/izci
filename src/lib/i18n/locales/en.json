@@ -5,6 +5,7 @@
       "moduleDecode": "libopenmpt failed to decode this module.",
       "modulePlayback": "Module playback failed.",
       "videoDecode": "Chromium could not decode this video.",
+      "imageDecode": "Chromium could not decode this image.",
       "generic": "Playback failed."
     },
     "import": {
@@ -200,12 +201,15 @@
       "exitFullscreen": "Exit fullscreen",
       "exitVideoTheater": "Exit video theater",
       "enterVideoTheater": "Enter video theater",
+      "exitImageTheater": "Exit image theater",
+      "enterImageTheater": "Enter image theater",
       "bookmarkNamePrompt": "Name this bookmark:",
       "bookmarks": "Bookmarks",
       "deleteBookmark": "Delete bookmark {name}",
       "addBookmark": "Add bookmark",
       "nowPlayingControls": "Now Playing controls",
       "videoTheaterControls": "Video theater controls",
+      "imageTheaterControls": "Image theater controls",
       "showCurrentTrackDetails": "Show current track details",
       "welcome": "Welcome to izci!",
       "ready": "Ready",
@@ -267,6 +271,7 @@
       "heading": "Track Details",
       "closePanel": "Close Track Details",
       "replayGain": "ReplayGain",
+      "dimensions": "Dimensions",
       "patterns": "Patterns",
       "tracks": "Tracks",
       "subsongs": "Subsongs",
@@ -282,6 +287,9 @@
       "seekForward": "Forward {seconds}s",
       "seekBackward": "Back {seconds}s",
       "playback": "Video playback"
+    },
+    "image": {
+      "display": "Image display"
     }
   },
   "workspace": {
@@ -306,6 +314,9 @@
     "empty": "Workspace is empty",
     "videoTheater": {
       "title": "Video theater"
+    },
+    "imageTheater": {
+      "title": "Image theater"
     },
     "panelTabs": "{panel} tabs",
     "panelEmpty": "{panel} is empty",
@@ -1382,11 +1393,11 @@
       "heading": "Video",
       "autoResizeWindow": {
         "title": "Auto resize window",
-        "hint": "Resizes an unsuitable player window to 1280 × 720 when video starts, then restores it when non-video playback begins."
+        "hint": "Resizes an unsuitable player window to 1280 × 720 when video or image display starts, then restores it when other playback begins."
       },
       "autoEnterTheater": {
         "title": "Auto enter theater",
-        "hint": "Opens video playback in theater automatically when a video starts."
+        "hint": "Opens videos and images in theater automatically when they start."
       }
     },
     "visualizer": {
@@ -2251,11 +2262,11 @@
     "expandFolder": "Expand {folder}",
     "unpinNamed": "Unpin {group}",
     "unpin": "Unpin",
-    "groupSongCount": "{count, plural, one {# song} other {# songs}}",
+    "groupSongCount": "{count, plural, one {# media item} other {# media items}}",
     "views": {
       "favorites": "Favorites",
       "ratings": "Ratings",
-      "songs": "Songs",
+      "songs": "All Media",
       "artists": "Artists",
       "albums": "Albums",
       "genres": "Genres",
@@ -2279,6 +2290,7 @@
     "trackerModule": "Tracker module",
     "stream": "Stream",
     "video": "Video",
+    "image": "Image",
     "columns": {
       "title": "Title",
       "artist": "Artist",
@@ -2309,7 +2321,9 @@
       "years": "{count, plural, one {# year} other {# years}}",
       "formats": "{count, plural, one {# format} other {# formats}}",
       "folders": "{count, plural, one {# folder} other {# folders}}",
-      "groupsAndSongs": "{groups} · {songs, plural, one {# song} other {# songs}}"
+      "groupsAndSongs": "{groups} · {songs, plural, one {# media item} other {# media items}}",
+      "filteredMedia": "{visible} of {total} media items · {duration}",
+      "media": "{count, plural, one {# media item} other {# media items}} · {duration}"
     },
     "pinToTop": "Pin to top",
     "noResults": "No library results match \"{query}\".",

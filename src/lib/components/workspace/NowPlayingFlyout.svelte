@@ -13,6 +13,7 @@
   export let tabs: WorkspaceTabDefinition[];
   export let activeWorkspaceTab: WorkspaceTab;
   export let content: WorkspaceTabContentProps;
+  export let mediaTheaterActive = false;
   export let pinned = false;
   export let open = false;
   export let chromeHidden = false;
@@ -69,7 +70,7 @@
     </button>
   </div>
   <div class="np-flyout-content" role="tabpanel" id={`workspace-tab-panel-${side}-${activeTab}`} aria-labelledby={activeTab ? `workspace-tab-${side}-${activeTab}` : undefined}>
-    {#if activeTab}<WorkspaceTabContent tab={activeTab} {content} on:seek />{/if}
+    {#if activeTab}<WorkspaceTabContent tab={activeTab} {content} {mediaTheaterActive} on:seek />{/if}
   </div>
   <!-- Keyboard-operable window splitter; keyboard events are installed by the action. -->
   <!-- svelte-ignore a11y_no_noninteractive_tabindex -->

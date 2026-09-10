@@ -206,5 +206,8 @@ export function localizePlaybackError(message: string, translate: Translate): st
   if (message === 'Chromium could not decode this video.') {
     return translate('main.playbackErrors.videoDecode', { default: 'Chromium could not decode this video.' });
   }
+  if (message === 'Chromium could not decode this image.') {
+    return translate('main.playbackErrors.imageDecode', { default: 'Chromium could not decode this image.' });
+  }
   return translate('main.playbackErrors.generic', { default: 'Playback failed.' });
 }

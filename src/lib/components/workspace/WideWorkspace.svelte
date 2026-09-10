@@ -181,6 +181,7 @@
                 <WorkspaceTabContent
                   tab={panel.activeTab}
                   {content}
+                  mediaTheaterActive={inactive}
                   artworkBackgroundActive={hasArtworkBackdrop(zoneEffects[panel.backdropPanelId]) && Boolean(backdropArtwork)}
                   artworkBackgroundBright={zoneArtworkBright[panel.backdropPanelId] || artworkBackgroundBright}
                   visualizerBackdropActive={hasVisualizerBackdrop(zoneEffects[panel.backdropPanelId])}
