@@ -285,6 +285,12 @@ interface VideoTheaterPresentation {
  * Resolve the video-theater presentation: fullscreen state, the exit action
  * (fullscreen theater with a DOM fullscreen element), and the chrome/top
  * insets for the theater viewport.
+ *
+ * When Window Controls Overlay is visible the menubar's rendered height can
+ * exceed the overlay rect (its CSS min-height wins over a short overlay),
+ * so the inset is the lower of the overlay bottom and the measured menubar
+ * bottom (menubar height plus the app-shell safe-top padding). Otherwise
+ * the theater would slide under the menubar and clip.
  */
 export function resolveVideoTheaterPresentation(
   videoTrackActive: boolean,
@@ -295,11 +301,14 @@ export function resolveVideoTheaterPresentation(
   hasDomFullscreenElement: boolean
 ): VideoTheaterPresentation {
   const isFullscreenVideoTheater = videoTrackActive && theaterActive && fullscreen;
+  const overlayBottom = Math.max(
+    0,
+    windowControlsOverlay.titlebarAreaRect.y + windowControlsOverlay.titlebarAreaRect.height
+  );
+  // Matches `--window-frame-safe-top` (app-shell padding-top when WCO active).
+  const measuredBottom = topMenuBarHeight + (windowControlsOverlay.visible ? 1 : 0);
   const chromeInset = windowControlsOverlay.visible
-    ? Math.max(
-        0,
-        windowControlsOverlay.titlebarAreaRect.y + windowControlsOverlay.titlebarAreaRect.height
-      )
+    ? Math.max(overlayBottom, measuredBottom)
     : topMenuBarHeight;
   return {
     isFullscreenVideoTheater,
