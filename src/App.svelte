@@ -1076,6 +1076,7 @@
       on:toggleVideoTheater={videoActions.toggleTheater}
       on:zoomStep={(event) => videoActions.zoomStep(event.detail)}
       on:resetZoom={videoActions.resetZoom}
+      on:rotateImage={videoActions.rotateImage}
     />
   {/if}
 </div>

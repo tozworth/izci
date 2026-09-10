@@ -1,9 +1,10 @@
 <script lang="ts">
-  import { createEventDispatcher, onDestroy } from 'svelte';
+  import { createEventDispatcher, onDestroy, onMount } from 'svelte';
   import { t } from 'svelte-i18n';
   import MenuSurface from '$lib/components/MenuSurface.svelte';
   import { IMAGE_ZOOM_MIN, IMAGE_ZOOM_WHEEL_FACTOR, stepImageZoom } from '$lib/stores/video-settings';
   import { clampImagePanOffset, imagePan } from '$lib/stores/image-pan';
+  import { imageRotation, isSidewaysRotation, rotationFitScale } from '$lib/stores/image-rotation';
   import type { MenuActionItem } from '$lib/types';
 
   type ImageFitMode = 'contain' | 'cover';
@@ -110,11 +111,12 @@
       return null;
     }
 
+    const sideways = isSidewaysRotation($imageRotation);
     return {
       hostWidth: host.clientWidth,
       hostHeight: host.clientHeight,
-      naturalWidth: attachedElement.naturalWidth,
-      naturalHeight: attachedElement.naturalHeight,
+      naturalWidth: sideways ? attachedElement.naturalHeight : attachedElement.naturalWidth,
+      naturalHeight: sideways ? attachedElement.naturalWidth : attachedElement.naturalHeight,
       fitMode,
       zoom
     };
@@ -125,14 +127,33 @@
       return;
     }
 
-    if (!zoomed) {
+    if (!zoomed && $imageRotation === 0) {
       attachedElement.style.transform = '';
       return;
     }
 
     const bounds = readPanBounds();
     const pan = bounds ? clampImagePanOffset($imagePan, bounds) : $imagePan;
-    attachedElement.style.transform = `translate(${pan.x}px, ${pan.y}px) scale(${zoom})`;
+    const fitScale = host && attachedElement
+      ? rotationFitScale(
+          $imageRotation,
+          host.clientWidth,
+          host.clientHeight,
+          attachedElement.naturalWidth,
+          attachedElement.naturalHeight
+        )
+      : 1;
+    const parts: string[] = [];
+    if (zoomed) {
+      parts.push(`translate(${pan.x}px, ${pan.y}px)`);
+    }
+    if ($imageRotation !== 0) {
+      parts.push(`rotate(${$imageRotation}deg)`);
+    }
+    if (zoomed || fitScale !== 1) {
+      parts.push(`scale(${zoom * fitScale})`);
+    }
+    attachedElement.style.transform = parts.join(' ');
   }
 
   function attachElement(): void {
@@ -230,8 +251,20 @@
     zoom;
     fitMode;
     $imagePan;
+    $imageRotation;
     applyViewport();
   }
+
+  onMount(() => {
+    // Rotated fit depends on host size, which workspace resizes can change
+    // without a window resize; re-fit the viewport then.
+    if (typeof ResizeObserver === 'undefined' || !host) {
+      return;
+    }
+    const observer = new ResizeObserver(() => applyViewport());
+    observer.observe(host);
+    return () => observer.disconnect();
+  });
 
   onDestroy(() => {
     if (zoomStatusHideTimer !== null) {

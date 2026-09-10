@@ -207,6 +207,7 @@
       "zoomOut": "Uzaklaştır",
       "resetZoom": "Yakınlaştırmayı sıfırla",
       "imageZoom": "Görsel yakınlaştırma",
+      "rotateImage": "Saat yönünde döndür",
       "bookmarkNamePrompt": "Name this bookmark:",
       "bookmarks": "Bookmarks",
       "deleteBookmark": "Delete bookmark {name}",
