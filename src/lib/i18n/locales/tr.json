@@ -203,6 +203,10 @@
       "enterVideoTheater": "Video sinemasına gir",
       "exitImageTheater": "Görsel sinemasından çık",
       "enterImageTheater": "Görsel sinemasına gir",
+      "zoomIn": "Yakınlaştır",
+      "zoomOut": "Uzaklaştır",
+      "resetZoom": "Yakınlaştırmayı sıfırla",
+      "imageZoom": "Görsel yakınlaştırma",
       "bookmarkNamePrompt": "Name this bookmark:",
       "bookmarks": "Bookmarks",
       "deleteBookmark": "Delete bookmark {name}",
@@ -292,7 +296,9 @@
       "fit": "Pencereye sığdır",
       "fill": "Pencereyi doldur",
       "menu": "Görsel",
-      "display": "Görsel gösterimi"
+      "display": "Görsel gösterimi",
+      "zoom": "%{percent} yakınlaştırma",
+      "resetZoom": "Yakınlaştırmayı sıfırla"
     }
   },
   "workspace": {

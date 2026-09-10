@@ -120,6 +120,7 @@ export interface WorkspaceTabContentProps {
   videoParkingHost: HTMLDivElement | null;
   videoTheaterActive: boolean;
   videoFitMode: VideoFitMode;
+  imageZoom: number;
   videoPictureInPictureSupported: boolean;
   videoSeekFeedback: VideoSeekFeedback | null;
 }

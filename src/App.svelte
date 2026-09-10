@@ -286,6 +286,7 @@
     videoParkingHost,
     videoTheaterActive,
     videoFitMode: $videoSettings.fitMode,
+    imageZoom: $videoSettings.imageZoom,
     videoPictureInPictureSupported,
     videoSeekFeedback,
     queuePanelProps: $workspaceShellStore.queuePanelProps,
@@ -920,6 +921,8 @@
     on:toggleVideoTheater={videoActions.toggleTheater}
     on:togglePictureInPicture={() => void videoActions.togglePictureInPicture()}
     on:setVideoFit={(event) => videoActions.setFit(event.detail)}
+    on:zoomStep={(event) => videoActions.zoomStep(event.detail)}
+    on:resetZoom={videoActions.resetZoom}
   />
   {:else}
   <AppWorkspace
@@ -955,6 +958,8 @@
     onToggleVideoTheater={videoActions.toggleTheater}
     onToggleVideoPictureInPicture={() => void videoActions.togglePictureInPicture()}
     onSetVideoFit={videoActions.setFit}
+    onZoomStep={videoActions.zoomStep}
+    onResetZoom={videoActions.resetZoom}
   />
   {/if}
 
@@ -966,6 +971,7 @@
       topInset={videoTheaterTopInset}
       chromeInset={isFullscreenVideoTheater ? videoTheaterChromeInset : 0}
       fitMode={$videoSettings.fitMode}
+      imageZoom={$videoSettings.imageZoom}
       snapshot={playbackSnapshot}
       pictureInPictureSupported={videoPictureInPictureSupported}
       seekFeedback={videoSeekFeedback}
@@ -973,6 +979,8 @@
       on:toggleVideoTheater={videoActions.toggleTheater}
       on:togglePictureInPicture={() => void videoActions.togglePictureInPicture()}
       on:setVideoFit={(event) => videoActions.setFit(event.detail)}
+      on:zoomStep={(event) => videoActions.zoomStep(event.detail)}
+      on:resetZoom={videoActions.resetZoom}
       on:volumeStep={(event) => {
         if (!videoTrackActive) return;
         if (!playbackSnapshot.muted) {
@@ -1046,6 +1054,7 @@
       selectedRafPresetId={$rafPresets.selectedPresetId}
       rafPresetDirty={isRafPresetDirty($rafPresets, $rafSettings)}
       imageMode={imageTrackActive}
+      imageZoom={$videoSettings.imageZoom}
       showVideoTheaterToggle={visualMediaActive}
       {videoTheaterActive}
       videoFullscreenActive={videoFullscreenExitAction}
@@ -1065,6 +1074,8 @@
       on:showTrack={(event) => showPlayerTrackDetails(event.detail)}
       on:enterNowPlaying={videoActions.toggleNowPlayingView}
       on:toggleVideoTheater={videoActions.toggleTheater}
+      on:zoomStep={(event) => videoActions.zoomStep(event.detail)}
+      on:resetZoom={videoActions.resetZoom}
     />
   {/if}
 </div>

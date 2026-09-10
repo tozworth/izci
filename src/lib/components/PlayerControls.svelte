@@ -37,6 +37,11 @@
     TrackItem,
     RafPreset
   } from '$lib/types';
+  import {
+    IMAGE_ZOOM_BUTTON_FACTOR,
+    IMAGE_ZOOM_MAX,
+    IMAGE_ZOOM_MIN
+  } from '$lib/stores/video-settings';
 
   function localizeIdlePlayerQuip(quip: IdlePlayerQuipId): string {
     switch (quip) {
@@ -87,6 +92,7 @@
   export let rafPresetDirty = false;
   export let showVideoTheaterToggle = false;
   export let imageMode = false;
+  export let imageZoom = 1;
   export let videoTheaterActive = false;
   export let videoFullscreenActive = false;
 
@@ -96,6 +102,8 @@
     next: void;
     previousSubsong: void;
     nextSubsong: void;
+    zoomStep: number;
+    resetZoom: void;
     seek: number;
     volume: number;
     mute: void;
@@ -749,6 +757,46 @@
           </HoverTooltip>
         </button>
       {/if}
+      {#if imageMode}
+        <div class="image-zoom-controls" role="group" aria-label={$t('main.player.imageZoom', { default: 'Image zoom' })}>
+          <button
+            type="button"
+            class="transport-button image-zoom-button hover-tooltip-anchor"
+            aria-label={$t('main.player.zoomOut', { default: 'Zoom out' })}
+            disabled={imageZoom <= IMAGE_ZOOM_MIN}
+            on:click={() => dispatch('zoomStep', 1 / IMAGE_ZOOM_BUTTON_FACTOR)}
+          >
+            <span class="material-symbols-outlined" aria-hidden="true">zoom_out</span>
+            <HoverTooltip placement="above" align="center" nowrap>
+              {$t('main.player.zoomOut', { default: 'Zoom out' })}
+            </HoverTooltip>
+          </button>
+          <button
+            type="button"
+            class="transport-button image-zoom-reset hover-tooltip-anchor"
+            aria-label={$t('main.player.resetZoom', { default: 'Reset zoom' })}
+            disabled={imageZoom <= IMAGE_ZOOM_MIN}
+            on:click={() => dispatch('resetZoom')}
+          >
+            <span aria-hidden="true">{Math.round(imageZoom * 100)}%</span>
+            <HoverTooltip placement="above" align="center" nowrap>
+              {$t('main.player.resetZoom', { default: 'Reset zoom' })}
+            </HoverTooltip>
+          </button>
+          <button
+            type="button"
+            class="transport-button image-zoom-button hover-tooltip-anchor"
+            aria-label={$t('main.player.zoomIn', { default: 'Zoom in' })}
+            disabled={imageZoom >= IMAGE_ZOOM_MAX}
+            on:click={() => dispatch('zoomStep', IMAGE_ZOOM_BUTTON_FACTOR)}
+          >
+            <span class="material-symbols-outlined" aria-hidden="true">zoom_in</span>
+            <HoverTooltip placement="above" align="center" nowrap>
+              {$t('main.player.zoomIn', { default: 'Zoom in' })}
+            </HoverTooltip>
+          </button>
+        </div>
+      {/if}
       {#if presentation !== 'now-playing' && showFavoriteToggle}
         <div class="favorite-rating-control">
           <button
@@ -915,6 +963,18 @@
 {/if}
 
 <style>
+  .image-zoom-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.15rem;
+  }
+
+  .image-zoom-reset {
+    min-width: 2.6rem;
+    font-size: 0.68rem;
+    font-variant-numeric: tabular-nums;
+  }
+
   .player-artwork-button,
   .player-track-link {
     padding: 0;
