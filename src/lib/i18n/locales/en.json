@@ -631,6 +631,10 @@
         "alwaysUpNext": {
           "title": "Always show up next",
           "hint": "Keeps the Up Next panel under the Queue expanded and visible, even when it is empty."
+        },
+        "singleTabBar": {
+          "title": "Collapse tab bar when a pane has a single tab",
+          "hint": "Hides the tab strip in panes with only one tab so media covers the full pane."
         }
       },
       "font": {

@@ -631,6 +631,10 @@
         "alwaysUpNext": {
           "title": "Sıradakileri her zaman göster",
           "hint": "Sıradaki panelini Sıra sekmesinin altında açık ve görünür tutar, boş olsa bile."
+        },
+        "singleTabBar": {
+          "title": "Bölmede tek sekme varken sekme çubuğunu gizle",
+          "hint": "Yalnızca bir sekmesi olan bölmelerde sekme şeridini gizler; ortam tüm bölmeyi kaplar."
         }
       },
       "font": {
