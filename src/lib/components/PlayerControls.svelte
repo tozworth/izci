@@ -86,6 +86,7 @@
   export let selectedRafPresetId: string | null = null;
   export let rafPresetDirty = false;
   export let showVideoTheaterToggle = false;
+  export let imageMode = false;
   export let videoTheaterActive = false;
   export let videoFullscreenActive = false;
 
@@ -151,8 +152,12 @@
   $: videoTheaterToggleLabel = videoFullscreenActive
     ? $t('main.player.exitFullscreen', { default: 'Exit fullscreen' })
     : videoTheaterActive
-      ? $t('main.player.exitVideoTheater', { default: 'Exit video theater' })
-      : $t('main.player.enterVideoTheater', { default: 'Enter video theater' });
+      ? imageMode
+        ? $t('main.player.exitImageTheater', { default: 'Exit image theater' })
+        : $t('main.player.exitVideoTheater', { default: 'Exit video theater' })
+      : imageMode
+        ? $t('main.player.enterImageTheater', { default: 'Enter image theater' })
+        : $t('main.player.enterVideoTheater', { default: 'Enter video theater' });
 
   function clamp(value: number, min: number, max: number): number {
     return Math.min(Math.max(value, min), max);
@@ -575,13 +580,16 @@
   class:compact-player-bar={compactPlayerBar}
   class:loading={isLoading}
   class:video-track-active={displayTrack?.kind === 'video'}
+  class:image-track-active={imageMode}
   class:artwork-background-active={artworkBackgroundActive}
   class:artwork-background-bright={artworkBackgroundActive && artworkBackgroundBright}
   class:visualizer-backdrop-active={visualizerBackdropActive}
   aria-label={presentation === 'now-playing'
     ? $t('main.player.nowPlayingControls', { default: 'Now Playing controls' })
     : presentation === 'theater'
-      ? $t('main.player.videoTheaterControls', { default: 'Video theater controls' })
+      ? imageMode
+        ? $t('main.player.imageTheaterControls', { default: 'Image theater controls' })
+        : $t('main.player.videoTheaterControls', { default: 'Video theater controls' })
       : undefined}
   data-artwork-zone={artworkBackgroundActive ? 'true' : null}
   data-visualizer-zone={visualizerBackdropActive ? 'true' : null}
@@ -589,7 +597,7 @@
   style={rootStyle}
 >
   <div class="player-track-group">
-    {#if displayTrack?.kind !== 'video'}
+    {#if displayTrack?.kind !== 'video' && displayTrack?.kind !== 'image'}
       <button
         type="button"
         class="player-artwork-button"
@@ -651,6 +659,7 @@
     </div>
   </div>
 
+  {#if !imageMode}
   <div class="player-range">
     <span>{formatDuration(displayedSeekTime)}</span>
     <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -683,6 +692,7 @@
     </div>
     <span>{formatDuration(displayDuration)}</span>
   </div>
+  {/if}
 
   <div class="player-control-strip">
     <div class="player-actions">
@@ -696,6 +706,7 @@
       >
       <span class="material-symbols-outlined" aria-hidden="true">skip_previous</span>
       </button>
+      {#if !imageMode}
       <button
         type="button"
         class="transport-button transport-button-primary"
@@ -711,6 +722,7 @@
           {isLoading ? 'progress_activity' : snapshot.state === 'playing' ? 'pause' : 'play_arrow'}
         </span>
       </button>
+      {/if}
       <button
         type="button"
         class="transport-button transport-button-next"
@@ -782,6 +794,7 @@
     </div>
 
     <!-- svelte-ignore a11y_no_static_element_interactions -->
+    {#if !imageMode}
     <div
       class="volume"
       data-muted={snapshot.muted ? 'true' : 'false'}
@@ -853,6 +866,7 @@
       </div>
     </div>
     </div>
+    {/if}
   </div>
 </svelte:element>
 

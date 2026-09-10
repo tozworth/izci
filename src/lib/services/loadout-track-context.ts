@@ -13,7 +13,7 @@ function normalizeTrackContext(value: unknown): LoadoutTrackContext | null {
   if (
     typeof source.name !== 'string' ||
     typeof source.extension !== 'string' ||
-    (source.kind !== 'stream' && source.kind !== 'module' && source.kind !== 'video') ||
+    (source.kind !== 'stream' && source.kind !== 'module' && source.kind !== 'video' && source.kind !== 'image') ||
     typeof source.size !== 'number' ||
     typeof source.lastModified !== 'number'
   ) return null;

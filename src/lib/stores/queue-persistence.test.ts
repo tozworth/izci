@@ -117,6 +117,22 @@ describe('queue persistence helpers', () => {
     });
   });
 
+  it('round-trips handle-backed image items and dimensions', () => {
+    const imageItem = item({
+      name: 'Photo.webp',
+      extension: 'webp',
+      kind: 'image',
+      fileHandle,
+      metadata: { width: 1920, height: 1080 }
+    });
+
+    expect(normalizeStoredItem(serializeItem(imageItem))).toMatchObject({
+      name: 'Photo.webp',
+      kind: 'image',
+      metadata: { width: 1920, height: 1080 }
+    });
+  });
+
   it('rejects invalid stored items and strips non-file handles', () => {
     expect(normalizeStoredItem(null)).toBeNull();
     expect(normalizeStoredItem({ id: 'x', name: 'Track.flac', extension: 'flac', kind: 'stream' })).toBeNull();

@@ -215,7 +215,7 @@ export function createPlaybackCommandsController({
   ): Promise<void> {
     // Start (or resume) the shared context while the initiating tap still carries
     // mobile browser user activation; file permission/materialization may await.
-    void playerController.resumeAudio();
+    if (track.kind !== 'image') void playerController.resumeAudio();
     const requestId = ++playRequestSequence;
     setPendingPlaybackTrackId(track.id);
     logInfo('playback', 'Play request', { id: track.id, name: track.name, kind: track.kind });
@@ -247,6 +247,8 @@ export function createPlaybackCommandsController({
         getManualTrackChangeFadePercent()
       );
       const shouldTransition =
+        playableTrack.kind !== 'image' &&
+        getPlayingTrack()?.kind !== 'image' &&
         options.manualTransition === true &&
         manualTransitionDurationSeconds > 0 &&
         mode !== 'none' &&
@@ -260,7 +262,10 @@ export function createPlaybackCommandsController({
           manualTransitionCount = Math.max(manualTransitionCount - 1, 0);
         }
       } else {
-        await playerController.load(playableTrack, { autoPlay: true, initialPosition });
+        await playerController.load(playableTrack, {
+          autoPlay: playableTrack.kind !== 'image',
+          initialPosition: playableTrack.kind === 'image' ? 0 : initialPosition
+        });
       }
 
       if (requestId !== playRequestSequence) {
@@ -274,6 +279,8 @@ export function createPlaybackCommandsController({
     }
 
     clearPendingPlaybackTrackId(playableTrack.id);
+
+    if (playableTrack.kind === 'image') return;
 
     const playbackState = getPlaybackState();
 
@@ -470,9 +477,9 @@ export function createPlaybackCommandsController({
   async function prepareUpcomingTrack(): Promise<void> {
     const currentTrack = getPlayingTrack();
 
-    if (!currentTrack || !getGaplessPlaybackEnabled() || getStopAfterCurrentTrack() || getActiveLoopRange()) return;
+    if (!currentTrack || currentTrack.kind === 'image' || !getGaplessPlaybackEnabled() || getStopAfterCurrentTrack() || getActiveLoopRange()) return;
     const nextTrack = resolveNextTrack();
-    if (!nextTrack) return;
+    if (!nextTrack || nextTrack.kind === 'image') return;
 
     const requestId = ++preparationSequence;
     logDebug('playback', 'Preparing upcoming track', { id: nextTrack.id });

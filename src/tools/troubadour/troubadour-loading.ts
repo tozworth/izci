@@ -17,6 +17,11 @@ interface DiscoveredWorkbenchFile {
   path: string;
 }
 
+export function inferWorkbenchKind(extension: string): TroubadourWorkbenchItem['kind'] {
+  const kind = inferKind(extension);
+  return kind === 'module' || kind === 'video' ? kind : 'stream';
+}
+
 export async function materializeWorkbenchFile(file: File): Promise<File> {
   return new File([await file.arrayBuffer()], file.name, {
     type: file.type,
@@ -202,7 +207,7 @@ export async function itemFromHandle(
     path,
     sourceFolderId: base.sourceFolderId,
     extension,
-    kind: inferKind(extension) ?? 'stream',
+    kind: inferWorkbenchKind(extension),
     state: 'loading',
     document: null,
     patch: {},
@@ -279,7 +284,7 @@ export async function itemsFromBatchTracks(
           path: track.path || sourceFile.name,
           sourceFolderId: track.sourceFolderId,
           extension: track.extension || inferExtension(sourceFile.name),
-          kind: track.kind,
+          kind: track.kind === 'image' ? 'stream' : track.kind,
           state: 'loading',
           document: null,
           patch: {},

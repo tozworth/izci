@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { MODULE_EXTENSIONS, VIDEO_EXTENSIONS } from '$lib/types';
+import { IMAGE_EXTENSIONS, MODULE_EXTENSIONS, VIDEO_EXTENSIONS } from '$lib/types';
 
 import {
   buildTrackItems,
@@ -52,7 +52,16 @@ describe('file helpers', () => {
     expect(inferKind('xm')).toBe('module');
     expect(MODULE_EXTENSIONS.every((extension) => inferKind(extension) === 'module')).toBe(true);
     expect(VIDEO_EXTENSIONS.every((extension) => inferKind(extension) === 'video')).toBe(true);
+    expect(IMAGE_EXTENSIONS.every((extension) => inferKind(extension) === 'image')).toBe(true);
     expect(inferKind('txt')).toBeNull();
+  });
+
+  it('builds image items with a displayable object URL', () => {
+    const [item] = buildTrackItems([new File(['image'], 'Photo.JPEG', { type: 'image/jpeg' })]);
+
+    expect(item).toMatchObject({ name: 'Photo.JPEG', extension: 'jpeg', kind: 'image' });
+    expect(item.objectUrl).toMatch(/^blob:/);
+    URL.revokeObjectURL(item.objectUrl!);
   });
 
   it('strips only the final filename extension', () => {

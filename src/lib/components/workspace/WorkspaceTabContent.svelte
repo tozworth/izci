@@ -5,12 +5,13 @@
   import UpNextPanel from '$lib/components/UpNextPanel.svelte';
   import TrackDetailsPanel from '$lib/components/TrackDetailsPanel.svelte';
   import ChatPanel from '$lib/components/ChatPanel.svelte';
-  import VideoStage from '$lib/components/workspace/VideoStage.svelte';
+  import MediaStage from '$lib/components/workspace/MediaStage.svelte';
   import type { WorkspaceTab } from '$lib/types';
   import type { WorkspaceTabContentProps } from './types';
 
   export let tab: WorkspaceTab;
   export let content: WorkspaceTabContentProps;
+  export let mediaTheaterActive = content.videoTheaterActive;
   export let artworkBackgroundActive = false;
   export let artworkBackgroundBright = false;
   export let visualizerBackdropActive = false;
@@ -109,8 +110,9 @@
   />
 {:else}
   <div class="video-tab-stage">
-    <VideoStage
-      element={content.videoTheaterActive ? null : content.videoElement}
+    <MediaStage
+      element={mediaTheaterActive ? null : content.videoElement}
+      imageElement={mediaTheaterActive ? null : content.imageElement}
       parkingHost={content.videoParkingHost}
       fitMode={content.videoFitMode}
       snapshot={content.playbackSnapshot}

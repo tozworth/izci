@@ -607,6 +607,14 @@ export function createWorkspaceShellController({
       lastInputs = inputs;
       recomputeDerivedState();
     },
+    syncQueueItems(queueItems: TrackItem[]): void {
+      if (!lastInputs || lastInputs.queueItems === queueItems) {
+        return;
+      }
+
+      lastInputs = { ...lastInputs, queueItems };
+      recomputeDerivedState();
+    },
     clearSelection,
     selectTrack(
       collection: WorkspaceCollection,

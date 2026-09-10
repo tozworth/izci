@@ -13,7 +13,7 @@ import {
 import type { TrackItem, VideoFitMode } from '$lib/types';
 
 interface VideoWindowActionsDeps {
-  getVideoTrackActive(): boolean;
+  getVisualMediaActive(): boolean;
   getTheaterActive(): boolean;
   setTheaterActive(active: boolean): void;
   setTheaterControlsHidden(hidden: boolean): void;
@@ -45,8 +45,8 @@ export function createVideoWindowActions(deps: VideoWindowActionsDeps) {
   }
 
   function syncPresentation(track: TrackItem | null, autoEnterTheater: boolean): void {
-    const videoActive = track?.kind === 'video';
-    const signature = videoActive
+    const visualMediaActive = track?.kind === 'video' || track?.kind === 'image';
+    const signature = visualMediaActive
       ? `${track.id}:${autoEnterTheater ? 'auto' : 'manual'}`
       : 'inactive';
 
@@ -56,7 +56,7 @@ export function createVideoWindowActions(deps: VideoWindowActionsDeps) {
 
     presentationSignature = signature;
 
-    if (videoActive) {
+    if (visualMediaActive) {
       deps.showVideoTab();
       if (autoEnterTheater) {
         deps.setTheaterActive(true);
@@ -73,7 +73,7 @@ export function createVideoWindowActions(deps: VideoWindowActionsDeps) {
   }
 
   function toggleTheater(): void {
-    if (!deps.getVideoTrackActive()) {
+    if (!deps.getVisualMediaActive()) {
       return;
     }
 
@@ -109,7 +109,7 @@ export function createVideoWindowActions(deps: VideoWindowActionsDeps) {
   }
 
   function toggleFullscreenPresentation(): void | Promise<void> {
-    return deps.getVideoTrackActive() ? toggleFullscreen() : toggleFullscreenNowPlaying();
+    return deps.getVisualMediaActive() ? toggleFullscreen() : toggleFullscreenNowPlaying();
   }
 
   function toggleNowPlayingView(): void {

@@ -5,6 +5,7 @@
       "moduleDecode": "libopenmpt, bu modülü çözemedi.",
       "modulePlayback": "Modül oynatımı başarısız.",
       "videoDecode": "Chromium bu videoyu çözemedi.",
+      "imageDecode": "Chromium bu görseli çözemedi.",
       "generic": "Oynatım başarısız."
     },
     "import": {
@@ -200,12 +201,15 @@
       "exitFullscreen": "Tam ekrandan çık",
       "exitVideoTheater": "Video sinemasından çık",
       "enterVideoTheater": "Video sinemasına gir",
+      "exitImageTheater": "Görsel sinemasından çık",
+      "enterImageTheater": "Görsel sinemasına gir",
       "bookmarkNamePrompt": "Name this bookmark:",
       "bookmarks": "Bookmarks",
       "deleteBookmark": "Delete bookmark {name}",
       "addBookmark": "Add bookmark",
       "nowPlayingControls": "Şimdi Yürütülüyor kontrolleri",
       "videoTheaterControls": "Video sineması kontrolleri",
+      "imageTheaterControls": "Görsel sineması kontrolleri",
       "showCurrentTrackDetails": "Mevcut parçanın detaylarını göster",
       "welcome": "izci'ye hoş geldin!",
       "ready": "Hazır",
@@ -267,6 +271,7 @@
       "heading": "Parça Detayları",
       "closePanel": "Parça Detaylarını Kapat",
       "replayGain": "ReplayGain",
+      "dimensions": "Boyutlar",
       "patterns": "Örüntüler",
       "tracks": "İzler",
       "subsongs": "Altparçalar",
@@ -282,6 +287,9 @@
       "seekForward": "{seconds} sn ileri",
       "seekBackward": "{seconds} sn geri",
       "playback": "Video oynatma"
+    },
+    "image": {
+      "display": "Görsel gösterimi"
     }
   },
   "workspace": {
@@ -306,6 +314,9 @@
     "empty": "Çalışma alanı boş",
     "videoTheater": {
       "title": "Video sineması"
+    },
+    "imageTheater": {
+      "title": "Görsel sineması"
     },
     "panelTabs": "{panel} sekmeleri",
     "panelEmpty": "{panel} boş",
@@ -1382,11 +1393,11 @@
       "heading": "Video",
       "autoResizeWindow": {
         "title": "Pencereyi otomatik boyutlandır",
-        "hint": "Uygun olmayan oynatıcı penceresini video başladığında 1280 × 720 boyutuna getirir; video olmayan bir parça başladığında önceki boyutu geri yükler."
+        "hint": "Uygun olmayan oynatıcı penceresini video veya görsel gösterimi başladığında 1280 × 720 boyutuna getirir; diğer oynatımlarda önceki boyutu geri yükler."
       },
       "autoEnterTheater": {
         "title": "Sinemaya otomatik gir",
-        "hint": "Video başladığında oynatımı otomatik olarak sinema görünümünde açar."
+        "hint": "Video ve görselleri başladıklarında otomatik olarak sinema görünümünde açar."
       }
     },
     "visualizer": {
@@ -2251,11 +2262,11 @@
     "expandFolder": "{folder} klasörünü genişlet",
     "unpinNamed": "{group} sabitlemesini kaldır",
     "unpin": "Sabitlemeyi kaldır",
-    "groupSongCount": "{count, plural, one {# parça} other {# parça}}",
+    "groupSongCount": "{count, plural, one {# medya ögesi} other {# medya ögesi}}",
     "views": {
       "favorites": "Favoriler",
       "ratings": "Puanlar",
-      "songs": "Parçalar",
+      "songs": "Tüm Medya",
       "artists": "Sanatçılar",
       "albums": "Albümler",
       "genres": "Tarzlar",
@@ -2279,6 +2290,7 @@
     "trackerModule": "İzci modülü",
     "stream": "Akış",
     "video": "Video",
+    "image": "Görsel",
     "columns": {
       "title": "Başlık",
       "artist": "Sanatçı",
@@ -2309,7 +2321,9 @@
       "years": "{count, plural, one {# yıl} other {# yıl}}",
       "formats": "{count, plural, one {# tür} other {# tür}}",
       "folders": "{count, plural, one {# klasör} other {# klasör}}",
-      "groupsAndSongs": "{groups} · {songs, plural, one {# parça} other {# parça}}"
+      "groupsAndSongs": "{groups} · {songs, plural, one {# medya ögesi} other {# medya ögesi}}",
+      "filteredMedia": "{total} medya ögesinden {visible} görünür · {duration}",
+      "media": "{count, plural, one {# medya ögesi} other {# medya ögesi}} · {duration}"
     },
     "pinToTop": "Üste sabitle",
     "noResults": "\"{query}\" ile eşleşen kütüphane ögesi yok.",

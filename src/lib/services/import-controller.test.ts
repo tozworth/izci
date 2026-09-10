@@ -9,6 +9,7 @@ import {
 } from './import-controller';
 import {
   MODULE_EXTENSIONS,
+  IMAGE_EXTENSIONS,
   STREAM_EXTENSIONS,
   VIDEO_EXTENSIONS,
   type WorkspaceCollection
@@ -31,7 +32,7 @@ function pickerWindow(value: object): PickerWindow {
 describe('import controller', () => {
   it('keeps picker accept lists aligned with supported extensions', () => {
     expect(FILE_INPUT_ACCEPT.split(',')).toEqual(
-      [...STREAM_EXTENSIONS, ...MODULE_EXTENSIONS, ...VIDEO_EXTENSIONS].map((extension) => `.${extension}`)
+      [...STREAM_EXTENSIONS, ...MODULE_EXTENSIONS, ...VIDEO_EXTENSIONS, ...IMAGE_EXTENSIONS].map((extension) => `.${extension}`)
     );
     expect(OPEN_FILE_PICKER_OPTIONS.multiple).toBe(true);
     expect(OPEN_FILE_PICKER_OPTIONS.types?.[0].accept).toMatchObject({
@@ -39,7 +40,9 @@ describe('import controller', () => {
       'audio/ogg': ['.ogg', '.opus'],
       'audio/x-openmpt': MODULE_EXTENSIONS.map((extension) => `.${extension}`),
       'video/mp4': ['.mp4', '.m4v'],
-      'video/x-matroska': ['.mkv']
+      'video/x-matroska': ['.mkv'],
+      'image/jpeg': ['.jpg', '.jpeg'],
+      'image/avif': ['.avif']
     });
   });
 

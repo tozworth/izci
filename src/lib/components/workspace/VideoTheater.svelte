@@ -3,9 +3,10 @@
   import { t } from 'svelte-i18n';
   import type { PlaybackSnapshot, VideoFitMode } from '$lib/types';
   import type { VideoSeekFeedback } from './types';
-  import VideoStage from './VideoStage.svelte';
+  import MediaStage from './MediaStage.svelte';
 
   export let element: HTMLVideoElement | null = null;
+  export let imageElement: HTMLImageElement | null = null;
   export let parkingHost: HTMLDivElement | null = null;
   export let topInset = 0;
   export let chromeInset = 0;
@@ -73,10 +74,13 @@
   class="video-theater"
   class:is-controls-hidden={controlsHidden}
   style={`top: ${topInset}px; --video-theater-chrome-inset: ${chromeInset}px;`}
-  aria-label={$t('workspace.videoTheater.title', { default: 'Video theater' })}
+  aria-label={imageElement
+    ? $t('workspace.imageTheater.title', { default: 'Image theater' })
+    : $t('workspace.videoTheater.title', { default: 'Video theater' })}
 >
-  <VideoStage
+  <MediaStage
     {element}
+    {imageElement}
     {parkingHost}
     {fitMode}
     {snapshot}

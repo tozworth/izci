@@ -4,7 +4,7 @@
  * creates. Pure move from `main-window-runtime.ts` — no behavior changes.
  */
 
-import { writable } from 'svelte/store';
+import { writable, type Readable } from 'svelte/store';
 import type {
   LyricsPresentationState
 } from '$lib/services/lyrics-presentation';
@@ -43,6 +43,7 @@ export interface MainWindowRuntimeState {
   shuffleEnabled: boolean;
   repeatMode: RepeatMode;
   videoTrackActive: boolean;
+  visualMediaActive: boolean;
   videoTheaterActive: boolean;
   videoTheaterControlsHidden: boolean;
   isNowPlayingLayoutActive: boolean;
@@ -74,6 +75,7 @@ export interface MainWindowRuntimeState {
 
 /** Store objects the runtime creates and owns, exposing `set`. */
 export interface MainWindowRuntimeStores {
+  queueItemsStore: Readable<TrackItem[]>;
   displayPlaybackSnapshotStore: ReturnType<typeof writable<PlaybackSnapshot>>;
   mediaSessionArtworkOverrideStore: ReturnType<typeof writable<LoadedStreamArtwork | null | undefined>>;
   multiplayerClientMediaSessionStore: ReturnType<typeof writable<boolean>>;
@@ -128,6 +130,7 @@ export function createMainWindowRuntimeState(): {
     shuffleEnabled: false,
     repeatMode: 'off',
     videoTrackActive: false,
+    visualMediaActive: false,
     videoTheaterActive: false,
     videoTheaterControlsHidden: false,
     isNowPlayingLayoutActive: false,

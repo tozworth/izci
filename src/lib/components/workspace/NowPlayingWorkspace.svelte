@@ -27,6 +27,7 @@
   } from './types';
 
   export let content: WorkspaceTabContentProps;
+  export let mediaTheaterActive = false;
   export let track: TrackItem | null = null;
   export let selectedTrack: TrackItem | null = null;
   export let artwork: LoadedStreamArtwork | null = null;
@@ -222,7 +223,7 @@
 
       {#if stageTab}
         <section class="now-playing-context" aria-label={contextualTabLabel}>
-          <WorkspaceTabContent tab={stageTab} {content} on:seek />
+          <WorkspaceTabContent tab={stageTab} {content} {mediaTheaterActive} on:seek />
         </section>
       {/if}
     </div>
@@ -230,6 +231,7 @@
     {#each ['left', 'right'] as side}
       <NowPlayingFlyout side={side === 'left' ? 'left' : 'right'}
         tabs={side === 'left' ? leftTabs : rightTabs} {activeWorkspaceTab} {content}
+        {mediaTheaterActive}
         pinned={side === 'left' ? $nowPlayingState.leftPinned : $nowPlayingState.rightPinned}
         open={openSide === side} chromeHidden={panelChromeHidden}
         on:toggle={() => toggleSide(side === 'left' ? 'left' : 'right')}

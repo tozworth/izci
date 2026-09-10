@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createWorkspaceShellController } from './workspace-shell';
-import type { WorkspaceCollection, WorkspaceResizeHandle } from '$lib/types';
+import type { TrackItem, WorkspaceCollection, WorkspaceResizeHandle } from '$lib/types';
 import { workspacePanelState } from '$lib/stores/workspace-panel-state';
 import { libraryViewSettings } from '$lib/stores/library-view-settings';
 
@@ -144,6 +144,27 @@ describe('workspace shell library navigation', () => {
     controller.focusCollection('library');
     expect(controller.getSnapshot()).toBe(before);
 
+    controller.destroy();
+  });
+
+  it('publishes an empty queue immediately through the focused collection update', () => {
+    const controller = createWorkspaceShellController({
+      getQueueContextActions: () => [],
+      getLibraryContextActions: () => []
+    });
+    const queueItem = {
+      id: 'only-track',
+      name: 'only-track.mp3',
+      extension: 'mp3',
+      kind: 'stream',
+      size: 1,
+      lastModified: 1
+    } satisfies TrackItem;
+    controller.sync(createShellInputs({ queueItems: [queueItem] }));
+
+    controller.syncQueueItems([]);
+
+    expect(controller.getSnapshot().queuePanelProps.items).toEqual([]);
     controller.destroy();
   });
 

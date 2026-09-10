@@ -349,7 +349,8 @@ export function createMainWindowRuntime(deps: MainWindowRuntimeDeps): MainWindow
       isMultiplayerClient: isClient,
       isFreeplayClient: isClient && value.freeplay,
       isSourceFileFreeplayClient: isClient && value.freeplay && value.remoteDelivery.mode === 'source-file',
-      videoTrackActive: !isClient && state.playingTrack?.kind === 'video'
+      videoTrackActive: !isClient && state.playingTrack?.kind === 'video',
+      visualMediaActive: !isClient && (state.playingTrack?.kind === 'video' || state.playingTrack?.kind === 'image')
     });
     const update = multiplayerController.syncFromSession(value);
     if (update.enteredFreeplay) workspaceShell.setActiveWorkspaceTab('library');
@@ -372,7 +373,7 @@ export function createMainWindowRuntime(deps: MainWindowRuntimeDeps): MainWindow
   });
 
   const videoActions = createVideoWindowActions({
-    getVideoTrackActive: () => state.videoTrackActive,
+    getVisualMediaActive: () => state.visualMediaActive,
     getTheaterActive: () => state.videoTheaterActive,
     setTheaterActive: (active) => publish({ videoTheaterActive: active }),
     setTheaterControlsHidden: (hidden) => publish({ videoTheaterControlsHidden: hidden }),
@@ -546,6 +547,7 @@ export function createMainWindowRuntime(deps: MainWindowRuntimeDeps): MainWindow
   const unsubscribeTrackItems = queueItemsStore.subscribe((value) => {
     viewSet({ trackItems: value });
     publish({ queueItems: value });
+    if (!state.isMultiplayerClient) workspaceShell.syncQueueItems(value);
   });
   const unsubscribeLibraryItems = libraryItemsStore.subscribe((value) => {
     viewSet({ libraryItems: value });
@@ -619,7 +621,8 @@ export function createMainWindowRuntime(deps: MainWindowRuntimeDeps): MainWindow
     publish({
       localPlayingTrack: value,
       playingTrack: value,
-      videoTrackActive: !state.isMultiplayerClient && value?.kind === 'video'
+      videoTrackActive: !state.isMultiplayerClient && value?.kind === 'video',
+      visualMediaActive: !state.isMultiplayerClient && (value?.kind === 'video' || value?.kind === 'image')
     });
     syncPlayingTrackMetadata(value, {
       isMultiplayerClient: state.isMultiplayerClient,
@@ -816,6 +819,7 @@ export function createMainWindowRuntime(deps: MainWindowRuntimeDeps): MainWindow
       bindFileInput: (element: HTMLInputElement | null) => (fileInputRef.current = element)
     },
     stores: {
+      queueItemsStore,
       displayPlaybackSnapshotStore,
       mediaSessionArtworkOverrideStore,
       multiplayerClientMediaSessionStore,

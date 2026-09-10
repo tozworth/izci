@@ -178,7 +178,7 @@
         <img src={artworkUrl} alt="" />
       {:else}
         <span class="material-symbols-outlined">
-          {displayTrack?.kind === 'module' ? 'graphic_eq' : displayTrack?.kind === 'video' ? 'movie' : 'music_note'}
+          {displayTrack?.kind === 'module' ? 'graphic_eq' : displayTrack?.kind === 'video' ? 'movie' : displayTrack?.kind === 'image' ? 'image' : 'music_note'}
         </span>
       {/if}
       <span class="mini-player-artwork-fullscreen material-symbols-outlined" aria-hidden="true">fullscreen</span>

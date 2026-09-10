@@ -19,7 +19,7 @@ export interface LibraryGroup {
   depth?: number;
   hasChildren?: boolean;
   placeholder?: 'artist' | 'album' | 'genre' | 'year' | 'format' | 'folder';
-  secondaryKind?: 'trackerModule' | 'stream' | 'video';
+  secondaryKind?: 'trackerModule' | 'stream' | 'video' | 'image';
   items: TrackItem[];
   duration: number;
 }
@@ -29,7 +29,7 @@ type LibraryGroupValue = Pick<LibraryGroup, 'label' | 'secondary' | 'placeholder
 export const LIBRARY_VIEW_DEFINITIONS: LibraryViewDefinition[] = [
   { id: 'favorites', label: 'Favorites', icon: 'favorite' },
   { id: 'ratings', label: 'Ratings', icon: 'star' },
-  { id: 'songs', label: 'Songs', icon: 'music_note' },
+  { id: 'songs', label: 'All Media', icon: 'perm_media' },
   { id: 'artists', label: 'Artists', icon: 'person' },
   { id: 'albums', label: 'Albums', icon: 'album' },
   { id: 'genres', label: 'Genres', icon: 'category' },
@@ -111,12 +111,12 @@ function getGroupValues(
       return normalized(item.extension)
         ? [{
             label: normalized(item.extension).toUpperCase(),
-            secondary: item.kind === 'module' ? 'Tracker module' : item.kind === 'video' ? 'Video' : 'Stream',
+            secondary: item.kind === 'module' ? 'Tracker module' : item.kind === 'video' ? 'Video' : item.kind === 'image' ? 'Image' : 'Stream',
             secondaryKind: item.kind === 'module' ? 'trackerModule' : item.kind
           }]
         : [{
             label: 'Unknown format',
-            secondary: item.kind === 'module' ? 'Tracker module' : item.kind === 'video' ? 'Video' : 'Stream',
+            secondary: item.kind === 'module' ? 'Tracker module' : item.kind === 'video' ? 'Video' : item.kind === 'image' ? 'Image' : 'Stream',
             placeholder: 'format',
             secondaryKind: item.kind === 'module' ? 'trackerModule' : item.kind
           }];

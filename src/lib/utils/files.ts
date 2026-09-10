@@ -1,5 +1,6 @@
 import {
   MODULE_EXTENSIONS,
+  IMAGE_EXTENSIONS,
   STREAM_EXTENSIONS,
   VIDEO_EXTENSIONS,
   type TrackItem,
@@ -120,7 +121,7 @@ export function markFileAsModule(file: File): void {
 }
 
 function createTrackObjectUrl(kind: TrackKind, file: File): string | undefined {
-  return kind === 'stream' || kind === 'video' ? URL.createObjectURL(file) : undefined;
+  return kind === 'stream' || kind === 'video' || kind === 'image' ? URL.createObjectURL(file) : undefined;
 }
 
 export function inferExtension(fileName: string): string {
@@ -194,6 +195,10 @@ export function inferKind(extension: string): TrackKind | null {
 
   if (VIDEO_EXTENSIONS.includes(extension as (typeof VIDEO_EXTENSIONS)[number])) {
     return 'video';
+  }
+
+  if (IMAGE_EXTENSIONS.includes(extension as (typeof IMAGE_EXTENSIONS)[number])) {
+    return 'image';
   }
 
   return null;

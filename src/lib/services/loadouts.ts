@@ -10,6 +10,7 @@ import { rafSettings } from '$lib/stores/raf-settings';
 import { visualizerSettings } from '$lib/stores/visualizer-settings';
 import {
   MODULE_EXTENSIONS,
+  IMAGE_EXTENSIONS,
   STREAM_EXTENSIONS,
   VIDEO_EXTENSIONS,
   type Loadout,
@@ -60,6 +61,9 @@ export function resolveRecognizedTrackType(track: LoadoutTrackContext): string |
     return extension;
   }
   if (track.kind === 'video' && VIDEO_EXTENSIONS.includes(extension as (typeof VIDEO_EXTENSIONS)[number])) {
+    return extension;
+  }
+  if (track.kind === 'image' && IMAGE_EXTENSIONS.includes(extension as (typeof IMAGE_EXTENSIONS)[number])) {
     return extension;
   }
   if (track.kind === 'module' && MODULE_EXTENSIONS.includes(extension as (typeof MODULE_EXTENSIONS)[number])) {

@@ -11,7 +11,7 @@ import type { TrackItem } from '$lib/types';
 const STREAM_INLINE_MAX_BYTES = 128 * 1024 * 1024;
 
 function createObjectUrl(item: Pick<TrackItem, 'kind'>, file: File): Promise<string | undefined> {
-  if (item.kind !== 'stream' && item.kind !== 'video') {
+  if (item.kind !== 'stream' && item.kind !== 'video' && item.kind !== 'image') {
     return Promise.resolve(undefined);
   }
 

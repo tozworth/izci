@@ -25,6 +25,7 @@
   }
 
   export let content: WorkspaceTabContentProps;
+  export let mediaTheaterActive = false;
   export let isNowPlayingLayoutActive: boolean;
   export let workspaceState: WorkspaceShellState;
   export let selectedTrackItem: TrackItem | null;
@@ -63,6 +64,7 @@
 {#if isNowPlayingLayoutActive}
   <NowPlayingWorkspace
     {content}
+    {mediaTheaterActive}
     track={content.patternTrack}
     selectedTrack={selectedTrackItem}
     artwork={artworkState.displayedArtwork}
@@ -102,7 +104,7 @@
     resizerWidth={WORKSPACE_RESIZER_WIDTH}
     isResizing={workspaceState.isResizing}
     isCompactWorkspace={workspaceState.isCompactWorkspace}
-    inactive={content.videoTheaterActive}
+    inactive={mediaTheaterActive}
     backdropArtwork={artworkState.visibleArtworkBackground}
     zoneArtworkBright={workspaceZoneArtworkBright}
     zoneEffects={workspaceZoneEffects}
