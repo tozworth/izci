@@ -9,7 +9,6 @@
   box-shadow:
     0 1.1rem 3.2rem rgba(0, 0, 0, 0.44),
     0 0.2rem 0.7rem rgba(0, 0, 0, 0.28);
-  animation: video-theater-player-enter 180ms ease-out;
   transform: translateX(-50%);
   transition:
     opacity 160ms ease-out,
@@ -36,14 +35,3 @@
   transform: translate(-50%, calc(100% + 1.5rem));
 }
 
-@keyframes video-theater-player-enter {
-  from {
-    opacity: 0;
-    transform: translate(-50%, calc(100% + 1.5rem));
-  }
-
-  to {
-    opacity: 1;
-    transform: translateX(-50%);
-  }
-}

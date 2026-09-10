@@ -1001,7 +1001,7 @@
       pictureInPictureSupported={videoPictureInPictureSupported}
       seekFeedback={videoSeekFeedback}
       on:controlsHiddenChange={(event) => (videoTheaterControlsHidden = event.detail)}
-      on:toggleVideoTheater={videoActions.toggleTheater}
+      on:toggleVideoTheater={() => void videoActions.toggleFullscreen()}
       on:togglePictureInPicture={() => void videoActions.togglePictureInPicture()}
       on:setVideoFit={(event) => videoActions.setFit(event.detail)}
       on:zoomStep={(event) => videoActions.zoomStep(event.detail)}

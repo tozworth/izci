@@ -118,3 +118,56 @@ describe('theater hold across launched replace', () => {
     expect(deps.closeMediaTab).toHaveBeenCalledOnce();
   });
 });
+
+describe('theater re-entry on repeated syncs', () => {
+  function createLiveTheaterActions() {
+    let theaterActive = false;
+    const { actions, deps } = createActions({
+      getTheaterActive: () => theaterActive,
+      setTheaterActive: vi.fn((active: boolean) => {
+        theaterActive = active;
+      })
+    });
+
+    return {
+      actions,
+      deps,
+      exitTheater: () => {
+        theaterActive = false;
+      },
+      isTheaterActive: () => theaterActive
+    };
+  }
+
+  it('does not re-enter theater when the same visual track syncs again', () => {
+    const { actions, deps, exitTheater, isTheaterActive } = createLiveTheaterActions();
+
+    actions.syncPresentation(videoTrack('clip'), true);
+    expect(isTheaterActive()).toBe(true);
+
+    // The user leaves theater; unrelated publishes (panel resize, selection)
+    // re-run the sync and must not drag them back in.
+    exitTheater();
+    (deps.setTheaterActive as ReturnType<typeof vi.fn>).mockClear();
+
+    actions.syncPresentation(videoTrack('clip'), true);
+
+    expect(deps.setTheaterActive).not.toHaveBeenCalled();
+    expect(deps.closeMediaTab).not.toHaveBeenCalled();
+    expect(deps.showMediaTab).toHaveBeenCalled();
+    expect(isTheaterActive()).toBe(false);
+  });
+
+  it('re-enters theater when the next visual track starts', () => {
+    const { actions, deps, exitTheater, isTheaterActive } = createLiveTheaterActions();
+
+    actions.syncPresentation(videoTrack('first'), true);
+    exitTheater();
+    (deps.setTheaterActive as ReturnType<typeof vi.fn>).mockClear();
+
+    actions.syncPresentation(videoTrack('second'), true);
+
+    expect(deps.setTheaterActive).toHaveBeenCalledWith(true);
+    expect(isTheaterActive()).toBe(true);
+  });
+});
