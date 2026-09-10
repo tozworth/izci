@@ -66,10 +66,15 @@ export function createVideoWindowActions(deps: VideoWindowActionsDeps) {
       : 'inactive';
 
     if (visualMediaActive) {
+      // Arm theater only on a real presentation change. This sync also runs on
+      // unrelated publishes (any workspace-shell update re-runs the caller's
+      // reactive statement), and re-arming there drags the user back into
+      // theater after they left it — resizing a panel was enough to do it.
+      const enteringTheater = signature !== presentationSignature;
       presentationSignature = signature;
       theaterHeldForIncoming = false;
       deps.showMediaTab();
-      if (autoEnterTheater) {
+      if (enteringTheater && autoEnterTheater) {
         deps.setTheaterActive(true);
       }
       return;
