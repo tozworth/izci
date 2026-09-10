@@ -11,6 +11,7 @@
     AppearanceSettings,
     BackdropZoneArtworkSettingsMap,
     BackdropZoneEffect,
+    MediaTabKind,
     VideoFitMode,
     WorkspacePanelId,
     WorkspaceTab
@@ -47,7 +48,8 @@
   export let zoneArtworkBright: Record<WorkspacePanelId, boolean>;
   export let nowPlayingArtworkBright = false;
   export let installAvailable = false;
-  export let videoAvailable = false;
+  export let mediaAvailable = false;
+  export let mediaKind: MediaTabKind = 'video';
   export let multiplayerEnabled = false;
   export let multiplayerMode: MultiplayerMode = 'idle';
   export let multiplayerConnectionStatus: MultiplayerConnectionStatus = 'idle';
@@ -209,7 +211,7 @@
       <span class="material-symbols-outlined" aria-hidden="true">menu</span>
     </button>
     <div class="mobile-header-title">
-      <span>{nowPlayingActive ? $t('main.menu.nowPlaying', { default: 'Now Playing' }) : activeDefinition?.label ?? 'izci'}</span>
+      <span>{nowPlayingActive ? $t('main.menu.nowPlaying', { default: 'Now Playing' }) : activeTab === 'media' ? (mediaKind === 'image' ? $t('workspace.tabs.image', { default: 'Image' }) : $t('workspace.tabs.video', { default: 'Video' })) : activeDefinition?.label ?? 'izci'}</span>
       {#if !nowPlayingActive && activeTab !== 'queue' && activeTab !== 'library'}
         <small>izci</small>
       {/if}
@@ -348,7 +350,8 @@
 <MobileMenuDrawer
   open={menuOpen}
   {installAvailable}
-  videoAvailable={videoAvailable}
+  mediaAvailable={mediaAvailable}
+  {mediaKind}
   patternsVisible={workspaceState.isPatternsPanelVisible}
   {multiplayerEnabled}
   {multiplayerMode}
@@ -370,7 +373,7 @@
   on:manageFolders={() => dispatch('manageFolders')}
   on:showPatterns={() => dispatch('togglePatterns')}
   on:showChat={() => selectTab('chat')}
-  on:showVideo={() => selectTab('video')}
+  on:showMedia={() => selectTab('media')}
   on:openOptions={() => dispatch('openOptions')}
   on:openAbout={() => dispatch('openAbout')}
   on:install={() => dispatch('install')}

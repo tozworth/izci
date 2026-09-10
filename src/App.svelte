@@ -51,6 +51,7 @@
   import { videoSettings } from '$lib/stores/video-settings';
   import type {
     LyricsDisplayStyle,
+    MediaTabKind,
     PlaybackSnapshot,
     TrackItem,
     TrackSelection,
@@ -531,6 +532,7 @@
   $: videoTrackActive = !isMultiplayerClient && livePlayingTrack?.kind === 'video';
   $: imageTrackActive = !isMultiplayerClient && livePlayingTrack?.kind === 'image';
   $: visualMediaActive = videoTrackActive || imageTrackActive;
+  $: mediaTabKind = (imageTrackActive ? 'image' : 'video') as MediaTabKind;
   $: runtime.publish({ videoTrackActive, visualMediaActive });
   $: videoPictureInPictureSupported =
     videoTrackActive && playerController.videoPictureInPictureSupported;
@@ -872,7 +874,8 @@
     zoneArtworkBright={backdropPresentation.workspaceZoneArtworkBright}
     nowPlayingArtworkBright={backdropPresentation.artworkBackgroundBrightByZone.nowPlaying}
     installAvailable={appInstallState.available}
-    videoAvailable={videoTrackActive}
+    mediaAvailable={visualMediaActive}
+    mediaKind={mediaTabKind}
     {...multiplayerBarProps}
     on:tabChange={(event) => workspaceShell.showWorkspaceTab(event.detail)}
     on:toggleNowPlaying={videoActions.toggleNowPlayingView}
@@ -913,6 +916,7 @@
   <AppWorkspace
     content={workspaceContent}
     mediaTheaterActive={videoTheaterActive}
+    mediaKind={mediaTabKind}
     workspaceState={$workspaceShellStore}
     {selectedTrackItem}
     artworkState={artworkPresentationState}

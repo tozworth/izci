@@ -329,6 +329,7 @@
       "patterns": "Örüntüler",
       "chat": "Sohbet",
       "video": "Video",
+      "image": "Görsel",
       "label": "Çalışma alanı sekmeleri",
       "close": "Kapat",
       "closeNamed": "{tab} sekmesini kapat",

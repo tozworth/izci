@@ -4,7 +4,7 @@
   import { flyoutResize } from '$lib/services/now-playing-flyout-resize';
   import { nowPlayingState } from '$lib/stores/now-playing-state';
   import { t } from 'svelte-i18n';
-  import type { WorkspaceTab } from '$lib/types';
+  import type { MediaTabKind, WorkspaceTab } from '$lib/types';
   import type { FlyoutSide } from '$lib/stores/now-playing-state';
   import type { WorkspaceTabContentProps, WorkspaceTabDefinition, WorkspaceTabMoveDetail } from './types';
   import WorkspaceTabBar from './WorkspaceTabBar.svelte';
@@ -14,6 +14,7 @@
   export let activeWorkspaceTab: WorkspaceTab;
   export let content: WorkspaceTabContentProps;
   export let mediaTheaterActive = false;
+  export let mediaKind: MediaTabKind = 'video';
   export let pinned = false;
   export let open = false;
   export let chromeHidden = false;
@@ -49,7 +50,7 @@
 <aside bind:this={flyoutElement} id={`np-flyout-${side}`} class="np-flyout" class:right={side === 'right'} class:visible class:pinned
   inert={!visible} aria-label={panelsLabel}>
   <div class="np-flyout-toolbar">
-    <WorkspaceTabBar {tabs} {activeTab} panelId={side}
+    <WorkspaceTabBar {tabs} {activeTab} panelId={side} {mediaKind}
       on:tabChange={(event) => dispatch('tabChange', event.detail)}
       on:tabClose={(event) => dispatch('tabClose', event.detail)}
       on:tabMove={(event) => dispatch('tabMove', event.detail)} />

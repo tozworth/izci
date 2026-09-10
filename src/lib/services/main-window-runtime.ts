@@ -385,8 +385,8 @@ export function createMainWindowRuntime(deps: MainWindowRuntimeDeps): MainWindow
       return { maximized: display.maximized, fullscreen: display.fullscreen };
     },
     mobileMode: deps.mobileMode,
-    showVideoTab: () => workspaceShell.showWorkspaceTab('video'),
-    closeVideoTab: () => workspaceShell.closeWorkspaceTab('video')
+    showMediaTab: () => workspaceShell.showWorkspaceTab('media'),
+    closeMediaTab: () => workspaceShell.closeWorkspaceTab('media')
   });
 
   const transport = createTransportActions({

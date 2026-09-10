@@ -7,6 +7,7 @@
   import type {
     BackdropZoneEffect,
     BackdropZoneArtworkSettings,
+    MediaTabKind,
     VideoFitMode,
     WorkspacePanelId,
     WorkspaceTab
@@ -41,6 +42,7 @@
     center: null,
     right: null
   };
+  export let mediaKind: MediaTabKind = 'video';
   export let zoneArtworkBright: Record<WorkspacePanelId, boolean> = {
     left: false,
     center: false,
@@ -162,6 +164,7 @@
               tabs={panel.tabs}
               activeTab={panel.activeTab}
               panelId={panel.id}
+              {mediaKind}
               ariaLabel={$t('workspace.panelTabs', { default: '{panel} tabs', values: { panel: getPanelLabel(panel.id) } })}
               className="dock-panel-tabs"
               on:tabChange={(event) => dispatch('tabChange', event.detail)}

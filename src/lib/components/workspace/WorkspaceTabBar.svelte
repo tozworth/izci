@@ -3,7 +3,7 @@
   import { t } from 'svelte-i18n';
   import DockableTabStrip from '$lib/components/DockableTabStrip.svelte';
   import type { DockTabMoveDetail } from '$lib/components/docking/types';
-  import type { WorkspacePanelId, WorkspaceTab } from '$lib/types';
+  import type { MediaTabKind, WorkspacePanelId, WorkspaceTab } from '$lib/types';
   import type {
     WorkspaceTabDefinition,
     WorkspaceTabDragDetail,
@@ -18,6 +18,7 @@
   export let className = '';
   export let closeable = true;
   export let dragEnabled = true;
+  export let mediaKind: MediaTabKind = 'video';
 
   const dispatch = createEventDispatcher<{
     tabChange: WorkspaceTab;
@@ -34,7 +35,9 @@
       case 'details': return $t('workspace.tabs.details', { default: 'Details' });
       case 'lyrics': return $t('workspace.tabs.lyrics', { default: 'Lyrics' });
       case 'patterns': return $t('workspace.tabs.patterns', { default: 'Patterns' });
-      case 'video': return $t('workspace.tabs.video', { default: 'Video' });
+      case 'media': return mediaKind === 'image'
+        ? $t('workspace.tabs.image', { default: 'Image' })
+        : $t('workspace.tabs.video', { default: 'Video' });
       case 'chat': return $t('workspace.tabs.chat', { default: 'Chat' });
       default: return tab.label;
     }

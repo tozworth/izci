@@ -9,12 +9,14 @@
     MultiplayerMode
   } from '$lib/services/multiplayer-types';
   import type { MultiplayerConnectionRoute } from '$lib/services/multiplayer-ice';
+  import type { MediaTabKind } from '$lib/types';
   import type { MultiplayerRecent } from '$lib/stores/multiplayer-recents';
   import type { MultiplayerPairing } from '$lib/stores/multiplayer-pairings';
 
   export let open = false;
   export let installAvailable = false;
-  export let videoAvailable = false;
+  export let mediaAvailable = false;
+  export let mediaKind: MediaTabKind = 'video';
   export let patternsVisible = false;
   export let multiplayerEnabled = false;
   export let multiplayerMode: MultiplayerMode = 'idle';
@@ -37,7 +39,7 @@
     | 'manageFolders'
     | 'showPatterns'
     | 'showChat'
-    | 'showVideo'
+    | 'showMedia'
     | 'openOptions'
     | 'openAbout'
     | 'install'
@@ -55,7 +57,7 @@
     openFolder: void;
     manageFolders: void;
     showPatterns: void;
-    showVideo: void;
+    showMedia: void;
     openOptions: void;
     openAbout: void;
     install: void;
@@ -152,10 +154,10 @@
           <span>{$t('main.menu.chat', { default: 'Chat' })}</span>
         </button>
       {/if}
-      {#if videoAvailable}
-        <button type="button" on:click={() => run('showVideo')}>
+      {#if mediaAvailable}
+        <button type="button" on:click={() => run('showMedia')}>
           <span class="material-symbols-outlined" aria-hidden="true">movie</span>
-          <span>{$t('main.video.menu', { default: 'Video' })}</span>
+          <span>{mediaKind === 'image' ? $t('workspace.tabs.image', { default: 'Image' }) : $t('workspace.tabs.video', { default: 'Video' })}</span>
         </button>
       {/if}
     </section>

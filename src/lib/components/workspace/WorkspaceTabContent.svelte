@@ -108,8 +108,8 @@
     activateTrack={content.activateChatTrack}
     connected={content.chatConnected}
   />
-{:else}
-  <div class="video-tab-stage">
+{:else if tab === 'media'}
+  <div class="media-tab-stage">
     <MediaStage
       element={mediaTheaterActive ? null : content.videoElement}
       imageElement={mediaTheaterActive ? null : content.imageElement}
@@ -141,7 +141,7 @@
     min-height: 0;
   }
 
-  .video-tab-stage {
+  .media-tab-stage {
     position: relative;
     flex: 1;
     min-width: 0;
