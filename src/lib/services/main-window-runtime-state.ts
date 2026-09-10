@@ -46,6 +46,7 @@ export interface MainWindowRuntimeState {
   visualMediaActive: boolean;
   videoTheaterActive: boolean;
   videoTheaterControlsHidden: boolean;
+  launchIntentResolved: boolean;
   isNowPlayingLayoutActive: boolean;
   isAutomaticNowPlayingEligible: boolean;
   autoNowPlayingSuppressed: boolean;
@@ -133,6 +134,7 @@ export function createMainWindowRuntimeState(): {
     visualMediaActive: false,
     videoTheaterActive: false,
     videoTheaterControlsHidden: false,
+    launchIntentResolved: false,
     isNowPlayingLayoutActive: false,
     isAutomaticNowPlayingEligible: false,
     autoNowPlayingSuppressed: false,

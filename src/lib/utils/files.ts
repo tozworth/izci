@@ -204,6 +204,11 @@ export function inferKind(extension: string): TrackKind | null {
   return null;
 }
 
+export function isVisualMediaFileName(fileName: string): boolean {
+  const kind = inferKind(inferExtension(fileName));
+  return kind === 'video' || kind === 'image';
+}
+
 function createTrackItem(file: File): TrackItem | null {
   const extension = inferExtension(file.name);
   const kind = inferKind(extension) ?? (moduleOverrideFiles.has(file) ? 'module' : null);

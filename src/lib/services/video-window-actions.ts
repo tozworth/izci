@@ -19,6 +19,7 @@ interface VideoWindowActionsDeps {
   getTheaterActive(): boolean;
   setTheaterActive(active: boolean): void;
   setTheaterControlsHidden(hidden: boolean): void;
+  getPendingVisualTrack(): boolean;
   getIsNowPlayingLayoutActive(): boolean;
   getIsAutomaticNowPlayingEligible(): boolean;
   setAutoNowPlayingSuppressed(value: boolean): void;
@@ -47,6 +48,11 @@ export function createVideoWindowActions(deps: VideoWindowActionsDeps) {
     restoreVideoWindowSize();
   }
 
+  // One-shot hold across the unload gap of a launched replace: the old track
+  // unloads (inactive) before the incoming visual track loads, and tearing
+  // down theater in between flashes the workspace.
+  let theaterHeldForIncoming = false;
+
   function syncPresentation(track: TrackItem | null, autoEnterTheater: boolean): void {
     const visualMediaActive = track?.kind === 'video' || track?.kind === 'image';
     const imageTrackId = track?.kind === 'image' ? track.id : null;
@@ -59,19 +65,35 @@ export function createVideoWindowActions(deps: VideoWindowActionsDeps) {
       ? `${track.id}:${autoEnterTheater ? 'auto' : 'manual'}`
       : 'inactive';
 
-    if (signature === presentationSignature) {
-      return;
-    }
-
-    presentationSignature = signature;
-
     if (visualMediaActive) {
+      presentationSignature = signature;
+      theaterHeldForIncoming = false;
       deps.showMediaTab();
       if (autoEnterTheater) {
         deps.setTheaterActive(true);
       }
       return;
     }
+
+    if (deps.getPendingVisualTrack()) {
+      presentationSignature = 'inactive';
+      theaterHeldForIncoming = true;
+      return;
+    }
+
+    if (presentationSignature === '' && deps.getTheaterActive()) {
+      // A file launch delivered synchronously inside setConsumer during
+      // startup and pre-armed theater before this first sync ran. Honor the
+      // pre-arm instead of tearing it down; the track path drives from here.
+      presentationSignature = 'inactive';
+      return;
+    }
+
+    if (signature === presentationSignature && !theaterHeldForIncoming) {
+      return;
+    }
+    presentationSignature = signature;
+    theaterHeldForIncoming = false;
 
     deps.setTheaterActive(false);
     deps.setTheaterControlsHidden(false);

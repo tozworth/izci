@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onDestroy } from 'svelte';
+  import { onDestroy, onMount } from 'svelte';
   import { t } from 'svelte-i18n';
   import { translate } from '$lib/i18n';
   import PlayerControls from '$lib/components/PlayerControls.svelte';
@@ -40,6 +40,7 @@
   import { windowControlsOverlayState } from '$lib/services/window-controls-overlay';
   import { windowDisplayState } from '$lib/services/window-display-state';
   import { forceServiceWorkerUpdateCheck } from '$lib/services/pwa-updates';
+  import { consumeFileLaunchMarker } from '$lib/services/file-launch';
   import { localizePlaybackError } from '$lib/services/transport-actions';
   import { appearanceSettings } from '$lib/stores/appearance-settings';
   import { metadataSettings } from '$lib/stores/metadata-settings';
@@ -193,6 +194,10 @@
   let videoTheaterTopInset = 0;
   let topMenuBarHeight = 0;
   let documentTitle = 'izci';
+  // Cold file-association launches veil first paint until the launchQueue
+  // handles resolve kinds (theater for visual + auto-enter, workspace
+  // otherwise), so the workspace never flashes underneath.
+  let fileLaunchBootVeil = consumeFileLaunchMarker();
   let effectiveLyricsDisplayStyle: LyricsDisplayStyle = 'timestamped';
   let lyricsAutoScroll = true;
   let lyricsFontSize = appearanceSettings.getSnapshot().lyrics.fontSizes.timestamped;
@@ -275,6 +280,7 @@
   const workspaceShellStore = workspaceShell;
   let artworkPresentationState: import('$lib/services/artwork-presentation').ArtworkPresentationState = runtimeSnapshot.artworkPresentationState;
   let playbackCommandsState: { pendingPlaybackTrackId: string | null } = runtimeSnapshot.playbackCommandsState;
+  let launchIntentResolved = runtimeSnapshot.launchIntentResolved;
   let appInstallState: import('$lib/services/app-install').AppInstallState = runtimeSnapshot.appInstallState;
   let multiplayerState: MultiplayerSessionState = runtimeSnapshot.multiplayerState;
 
@@ -368,6 +374,7 @@
     if ('renderPipelineBuffering' in updates) renderPipelineBuffering = updates.renderPipelineBuffering!;
     if ('videoTheaterActive' in updates) videoTheaterActive = updates.videoTheaterActive!;
     if ('videoTheaterControlsHidden' in updates) videoTheaterControlsHidden = updates.videoTheaterControlsHidden!;
+    if ('launchIntentResolved' in updates) launchIntentResolved = updates.launchIntentResolved!;
   });
 
   $: isMultiplayerClient = multiplayerState.mode === 'client';
@@ -541,6 +548,11 @@
   $: videoActions.syncPresentation(isMultiplayerClient ? null : livePlayingTrack, $videoSettings.autoEnterTheater);
   $: if (visualMediaActive && $windowDisplayState.fullscreen && !videoTheaterActive) {
     videoTheaterActive = true;
+  }
+  // The veil waits for launch intent (handles seen), not collections: launch
+  // delivery routinely lands after IndexedDB restores paint the workspace.
+  $: if (fileLaunchBootVeil && (videoTheaterActive || launchIntentResolved)) {
+    fileLaunchBootVeil = false;
   }
   $: ({
     isFullscreenVideoTheater,
@@ -752,6 +764,16 @@
     void playbackCommands.prepareUpcomingTrack();
   }
 
+  onMount(() => {
+    // Backstop so a file-launch window without launch params (stale marker,
+    // relayed-away launch) can never stick on the veil.
+    if (!fileLaunchBootVeil) return;
+    const timer = window.setTimeout(() => {
+      fileLaunchBootVeil = false;
+    }, 2500);
+    return () => window.clearTimeout(timer);
+  });
+
   onDestroy(() => {
     unsubscribeRuntime();
     runtime.dispose();
@@ -787,6 +809,9 @@
   class:window-chrome-transition-bypass={artworkPresentationState.isWindowChromeTransitionBypassed}
   class:window-controls-overlay-active={$windowControlsOverlayState.visible}
 >
+  {#if fileLaunchBootVeil}
+    <div class="boot-veil" aria-hidden="true"></div>
+  {/if}
   {#if backdropPresentation.isArtworkBackdropActive}
     <SharedBackdropArtwork
       artworkUrl={artworkPresentationState.visibleArtworkBackground?.url}

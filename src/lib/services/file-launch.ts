@@ -5,6 +5,7 @@ import {
 } from '$lib/services/filesystem-folders';
 
 type LaunchedFilesListener = (files: File[]) => void | Promise<void>;
+type LaunchedHandlesPreviewListener = (handles: FileSystemFileHandle[]) => void;
 type PrimaryInstanceRecord = {
   id: string;
   updatedAt: number;
@@ -26,8 +27,50 @@ type FileLaunchCoordinationMessage =
       handles: FileSystemFileHandle[];
     };
 
+export const FILE_LAUNCH_WINDOW_QUERY_KEY = 'filelaunch';
+
+/**
+ * Detect a cold file-association launch synchronously from the navigation URL
+ * (the manifest file-handler action carries the marker) and strip it so
+ * reloads don't re-arm the boot veil. Returns true when this window was
+ * opened via file association.
+ */
+export function consumeFileLaunchMarker(): boolean {
+  if (typeof window === 'undefined') {
+    return false;
+  }
+
+  let params: URLSearchParams;
+
+  try {
+    params = new URLSearchParams(window.location.search);
+  } catch {
+    return false;
+  }
+
+  if (!params.has(FILE_LAUNCH_WINDOW_QUERY_KEY)) {
+    return false;
+  }
+
+  params.delete(FILE_LAUNCH_WINDOW_QUERY_KEY);
+  const query = params.toString();
+
+  try {
+    window.history.replaceState(
+      null,
+      '',
+      `${window.location.pathname}${query ? `?${query}` : ''}${window.location.hash}`
+    );
+  } catch {
+    // The marker is cosmetic; a stale URL only risks a redundant veil.
+  }
+
+  return true;
+}
+
 const pendingFileBatches: File[][] = [];
 let activeListener: LaunchedFilesListener | null = null;
+let previewListener: LaunchedHandlesPreviewListener | null = null;
 let launchQueueInitialized = false;
 let flushPromise: Promise<void> | null = null;
 let coordinationInitialized = false;
@@ -223,6 +266,7 @@ function handleCoordinationMessage(event: MessageEvent<FileLaunchCoordinationMes
         return;
       }
 
+      notifyHandlesPreview(message.handles);
       claimPrimaryInstanceIfNeeded(true);
       void enqueueLaunchedFileHandles(message.handles).catch(reportLaunchError);
       focusCurrentWindow();
@@ -376,12 +420,32 @@ async function enqueueLaunchedFileHandles(handles: FileSystemFileHandle[]): Prom
   if (files.length > 0) enqueueLaunchedFiles(files);
 }
 
+function notifyHandlesPreview(handles: FileSystemFileHandle[]): void {
+  if (!previewListener) {
+    return;
+  }
+
+  try {
+    previewListener(handles);
+  } catch (error) {
+    reportLaunchError(error);
+  }
+}
+
+export function setLaunchedHandlesPreviewListener(
+  listener: LaunchedHandlesPreviewListener | null
+): void {
+  previewListener = listener;
+}
+
 async function handleLaunch(launchParams: LaunchParams): Promise<void> {
   const handles = getLaunchFileHandles(launchParams);
 
   if (handles.length === 0) {
     return;
   }
+
+  notifyHandlesPreview(handles);
 
   if (await relayLaunchedFileHandlesToPrimary(handles)) {
     return;

@@ -93,7 +93,9 @@ export default defineConfig({
         ],
         file_handlers: [
           {
-            action: '/',
+            // The query marker lets a cold file-association launch synchronously
+            // veil its first paint until the launchQueue handles resolve kinds.
+            action: '/?filelaunch',
             icons: [
               {
                 src: '/icons/izci-file.png',
