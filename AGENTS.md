@@ -101,6 +101,16 @@
 - Mobile queue and flat Library views use touch-first list rows rather than library columns; tapping a track plays it. Desktop selection and double-click behavior must remain unchanged.
 - Mobile Options is a full-page presentation of the shared Options content. Tool windows are intentionally not exposed in mobile mode for now.
 
+## Oda (couch mode)
+
+- Oda is a session-only, ten-foot presentation mode for the main window. It is entered from the main menu, exits only via `Options > Exit Oda`, and is never restored after a reload; mobile mode cannot enter it.
+- It is a shell over the same runtime, not a second player: it consumes the effective queue/library/playback/artwork state and commands passed from `App.svelte`, so an active Multiplayer client gets host state without Oda-specific protocol or session logic.
+- The active bit, fullscreen ownership, and route/history/focus stack live in `src/lib/services/oda-session.ts`; persistent preferences live in synchronized `src/lib/stores/oda-settings.ts`. Never persist the session, route, or focus.
+- Keep `src/oda/` as its own presentation boundary (`OdaShell.svelte` plus views), analogous to `src/mobile/`. `App.svelte` structurally selects one shell; do not merely hide desktop chrome with CSS or grow `App.svelte` with Oda view logic.
+- Oda gets first refusal on `keydown` before desktop shortcuts. Normalize remote/key aliases in `oda-input.ts`, and keep focus movement deterministic and geometry-independent (`oda-navigation.ts`, `oda-focus.ts`, `oda-route-focus.ts`).
+- Media counts/filters are pure selectors (`oda-destinations.ts`, `oda-browse.ts`, `oda-rows.ts`) derived from the effective library; they must not mutate the persisted desktop Library view or desktop theater/Now Playing window state. Oda theaters host the single player-owned media elements and must never create a second element/source or leave both hosts visible.
+- Oda Options is an Oda-native shell over the shared Options definitions/content with the Oda category first; opening it must not spawn the desktop Options window.
+
 ## Tools windows
 
 - Tools are separate Vite pages entered through `audio-compare.html`, `editor.html`, `converter.html`, `logs.html`, and `troubadour.html`; each page mounts its matching app under `src/tools/<tool>/main.ts`. Lyrics, Loudness, and Spectrogram are Troubadour workbench tabs rather than separate pages.
