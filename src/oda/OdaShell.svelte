@@ -70,7 +70,6 @@
   } from './oda-route-focus';
   import {
     buildOdaOptionsGroups,
-    ODA_OPTIONS_EXIT_FOCUS_ID,
     odaOptionsCategoryFocusId
   } from './oda-options-groups';
 
@@ -324,10 +323,6 @@
       return;
     }
     if (activeRoute.name === 'options') {
-      if (focusId === ODA_OPTIONS_EXIT_FOCUS_ID) {
-        commands.exitOda();
-        return;
-      }
       if (focusId.startsWith('option:')) {
         selectOptionsView(focusId.slice('option:'.length) as OptionsViewName, focusId);
       }
@@ -420,6 +415,9 @@
   function handleCardActivate(card: OdaCardModel): void {
     activateHomeCard(card);
   }
+
+  $: odaBackgroundVisible = settings.odaBackground === 'custom' && settings.odaBackgroundImage;
+  $: odaBackgroundOpacity = Math.min(Math.max(settings.odaBackgroundOpacity, 0), 100) / 100;
 </script>
 
 <div
@@ -427,6 +425,13 @@
   style={`--oda-overscan-percent: ${settings.odaOverscanPercent}`}
   data-oda-active="true"
 >
+  {#if odaBackgroundVisible}
+    <div
+      class="oda-background"
+      style={`background-image: url("${settings.odaBackgroundImage}"); opacity: ${odaBackgroundOpacity}`}
+      aria-hidden="true"
+    ></div>
+  {/if}
   <div class="oda-overscan">
     {#if activeRoute.name === 'home'}
       <OdaHome
@@ -522,7 +527,6 @@
           || settings.odaHoldBackThresholdMs !== DEFAULT_ODA_SETTINGS.odaHoldBackThresholdMs}
         onFocus={(focusId) => focus.setFocus(focusId)}
         onSelectView={(view) => selectOptionsView(view, odaOptionsCategoryFocusId(view))}
-        onExitOda={commands.exitOda}
       />
     {:else if activeRoute.name === 'video-theater'}
       <OdaVideoTheater

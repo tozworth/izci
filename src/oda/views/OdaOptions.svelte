@@ -14,17 +14,15 @@
   export let advancedTweaksModified = false;
   export let onFocus: (focusId: string) => void = () => {};
   export let onSelectView: (view: OptionsViewName) => void = () => {};
-  export let onExitOda: () => void = () => {};
 
   function categoryFocusId(viewId: string): string {
     return `option:${viewId}`;
   }
 
-  const EXIT_ODA_FOCUS_ID = 'option:exit-oda';
-
   let showAdvancedTweaks = false;
   let hintsExpanded = false;
   let contentHost: HTMLElement | null = null;
+  let categoriesNav: HTMLElement | null = null;
 
   $: allViews = [...groups.flat(), ...auxiliaryViews].filter((view) => !view.hidden);
   $: activeDefinition = allViews.find((view) => view.id === activeView) ?? allViews[0] ?? null;
@@ -46,6 +44,23 @@
     if (active instanceof HTMLElement && contentHost.contains(active)) active.blur();
   }
 
+  // Remote navigation moves logical focus without touching DOM focus, so keep
+  // the focused category scrolled into view while the category list owns input.
+  $: {
+    void contentActive;
+    void focusId;
+    void categoriesNav;
+    if (!contentActive && focusId && categoriesNav) {
+      const current = focusId;
+      const nav = categoriesNav;
+      void tick().then(() => {
+        nav
+          .querySelector(`[data-category-focus-id="${current}"]`)
+          ?.scrollIntoView({ block: 'nearest' });
+      });
+    }
+  }
+
   async function focusFirstControl(): Promise<void> {
     await tick();
     if (!contentHost) return;
@@ -63,17 +78,11 @@
 </script>
 
 <div class="oda-options">
-  <nav class="oda-options-categories" aria-label={translate('oda.options.categories', 'Options categories')}>
-    <button
-      type="button"
-      class="oda-options-category"
-      class:is-focused={focusId === EXIT_ODA_FOCUS_ID}
-      on:click={() => { onFocus(EXIT_ODA_FOCUS_ID); onExitOda(); }}
-    >
-      <span class="material-symbols-outlined" aria-hidden="true">logout</span>
-      <span>{translate('oda.options.exitOda', 'Exit Oda')}</span>
-    </button>
-
+  <nav
+    bind:this={categoriesNav}
+    class="oda-options-categories"
+    aria-label={translate('oda.options.categories', 'Options categories')}
+  >
     {#each groups as group}
       {#each group as view}
         {#if !view.hidden}
@@ -83,6 +92,8 @@
             class="oda-options-category"
             class:is-focused={focusId === viewFocusId}
             class:is-active={activeView === view.id}
+            class:is-child={view.parentId != null}
+            data-category-focus-id={viewFocusId}
             on:click={() => { onFocus(viewFocusId); onSelectView(view.id as OptionsViewName); }}
           >
             <span class="material-symbols-outlined" aria-hidden="true">{view.icon}</span>

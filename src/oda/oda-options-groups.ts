@@ -78,8 +78,6 @@ export function buildOdaOptionsGroups(
   };
 }
 
-export const ODA_OPTIONS_EXIT_FOCUS_ID = 'option:exit-oda';
-
 export function odaOptionsCategoryFocusId(view: OptionsViewName): string {
   return `option:${view}`;
 }

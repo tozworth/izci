@@ -86,11 +86,15 @@ export interface OdaWaterfallFocus {
   onCards: boolean;
 }
 
-export const INITIAL_WATERFALL_FOCUS: OdaWaterfallFocus = {
-  sectionIndex: 0,
-  cardIndex: 0,
-  onCards: true
-};
+/**
+ * Entry focus for the home waterfall: the Now Playing card, so Oda opens
+ * scrolled to Now Playing instead of the top (Images) section. Falls back
+ * to the first section when the layout has no Now Playing section.
+ */
+export function initialWaterfallFocus(sections: readonly OdaWaterfallSection[]): OdaWaterfallFocus {
+  const sectionIndex = sections.findIndex((section) => section.id === 'now-playing');
+  return { sectionIndex: sectionIndex >= 0 ? sectionIndex : 0, cardIndex: 0, onCards: true };
+}
 
 export function waterfallSectionFocusId(sectionId: string): string {
   return `section:${sectionId}`;
@@ -264,7 +268,7 @@ export function createWaterfallFocusModel(
 ): OdaFocusModel {
   return {
     resolveMove: (focusId, direction, wrap) => {
-      const focus = findWaterfallFocus(focusId, sections) ?? INITIAL_WATERFALL_FOCUS;
+      const focus = findWaterfallFocus(focusId, sections) ?? initialWaterfallFocus(sections);
       return waterfallFocusId(moveWaterfall(focus, sections, direction, wrap), sections);
     }
   };

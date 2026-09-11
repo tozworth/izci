@@ -43,7 +43,8 @@ const CONTEXT: OdaRouteFocusContext = {
   optionCategoryIds: ['option:oda', 'option:appearance'],
   homeWaterfallSections: [
     { id: 'images', cardIds: ['browse-images'] },
-    { id: 'music', cardIds: ['browse-music', 'artists'] }
+    { id: 'music', cardIds: ['browse-music', 'artists'] },
+    { id: 'now-playing', cardIds: ['now-playing', 'queue'] }
   ]
 };
 
@@ -94,13 +95,13 @@ describe('resolveOdaRouteFocusIds', () => {
     expect(resolveOdaRouteFocusIds({ name: 'video-theater' }, CONTEXT)).toContain('th:play-pause');
     expect(resolveOdaRouteFocusIds({ name: 'image-theater' }, CONTEXT)).toContain('th:rotate');
     expect(resolveOdaRouteFocusIds({ name: 'options', view: 'oda' }, CONTEXT))
-      .toEqual(['option:exit-oda', 'option:oda', 'option:appearance']);
+      .toEqual(['option:oda', 'option:appearance']);
   });
 });
 
 describe('resolveOdaRouteDefaultFocusId', () => {
-  it('starts on the first waterfall card on home', () => {
-    expect(resolveOdaRouteDefaultFocusId(ODA_HOME_ROUTE, CONTEXT)).toBe('card:images:browse-images');
+  it('starts on the Now Playing card on home', () => {
+    expect(resolveOdaRouteDefaultFocusId(ODA_HOME_ROUTE, CONTEXT)).toBe('card:now-playing:now-playing');
   });
 
   it('starts Now Playing on the primary transport control', () => {

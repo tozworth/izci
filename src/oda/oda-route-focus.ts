@@ -20,7 +20,7 @@ import {
   createNowPlayingFocusModel,
   createWaterfallFocusModel,
   waterfallFocusId,
-  INITIAL_WATERFALL_FOCUS,
+  initialWaterfallFocus,
   type OdaFocusModel,
   type OdaWaterfallSection
 } from './oda-navigation';
@@ -29,7 +29,6 @@ import {
   resolveOdaNowPlayingTransportIds
 } from './oda-now-playing';
 import { resolveOdaTheaterControlIds } from './oda-theater';
-import { ODA_OPTIONS_EXIT_FOCUS_ID } from './oda-options-groups';
 
 export interface OdaRouteFocusContext {
   musicItems: TrackItem[];
@@ -61,7 +60,7 @@ export function resolveOdaRouteFocusIds(
   context: OdaRouteFocusContext
 ): string[] {
   if (route.name === 'options') {
-    return [ODA_OPTIONS_EXIT_FOCUS_ID, ...context.optionCategoryIds];
+    return [...context.optionCategoryIds];
   }
   if (route.name === 'now-playing') {
     return [
@@ -82,10 +81,10 @@ export function resolveOdaRouteDefaultFocusId(
   context: OdaRouteFocusContext
 ): string | null {
   if (route.name === 'home') {
-    return waterfallFocusId(INITIAL_WATERFALL_FOCUS, context.homeWaterfallSections);
+    return waterfallFocusId(initialWaterfallFocus(context.homeWaterfallSections), context.homeWaterfallSections);
   }
   if (route.name === 'options') {
-    return context.optionCategoryIds[0] ?? ODA_OPTIONS_EXIT_FOCUS_ID;
+    return context.optionCategoryIds[0] ?? null;
   }
   if (route.name === 'now-playing') return ODA_NP_PLAY_PAUSE;
   return resolveOdaRouteFocusIds(route, context)[0] ?? null;
@@ -99,7 +98,7 @@ export function resolveOdaRouteFocusModel(
     return createWaterfallFocusModel(context.homeWaterfallSections);
   }
   if (route.name === 'options') {
-    return createListFocusModel([ODA_OPTIONS_EXIT_FOCUS_ID, ...context.optionCategoryIds]);
+    return createListFocusModel([...context.optionCategoryIds]);
   }
   if (route.name === 'now-playing') {
     return createNowPlayingFocusModel(

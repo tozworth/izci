@@ -2,7 +2,6 @@ import { describe, expect, it } from 'vitest';
 import { OPTIONS_VIEW_GROUPS } from '../options/views';
 import {
   buildOdaOptionsGroups,
-  ODA_OPTIONS_EXIT_FOCUS_ID,
   odaOptionsCategoryFocusId
 } from './oda-options-groups';
 import type { OdaTranslate } from './oda-translate';
@@ -35,7 +34,6 @@ describe('buildOdaOptionsGroups', () => {
   });
 
   it('builds stable focus ids', () => {
-    expect(ODA_OPTIONS_EXIT_FOCUS_ID).toBe('option:exit-oda');
     expect(odaOptionsCategoryFocusId('appearance')).toBe('option:appearance');
   });
 });

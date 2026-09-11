@@ -3,6 +3,8 @@ import {
   DEFAULT_ODA_SETTINGS,
   ODA_ARROW_REPEAT_INTERVAL_MAX_MS,
   ODA_ARROW_REPEAT_INTERVAL_MIN_MS,
+  ODA_BACKGROUND_OPACITY_MAX_PERCENT,
+  ODA_BACKGROUND_OPACITY_MIN_PERCENT,
   ODA_HOLD_BACK_THRESHOLD_MAX_MS,
   ODA_HOLD_BACK_THRESHOLD_MIN_MS,
   ODA_OVERSCAN_MAX_PERCENT,
@@ -20,7 +22,10 @@ describe('normalizeOdaSettings', () => {
       odaArrowRepeatInitialDelayMs: 600,
       odaArrowRepeatIntervalMs: 90,
       odaHoldBackAction: 'return-home',
-      odaHoldBackThresholdMs: 1_200
+      odaHoldBackThresholdMs: 1_200,
+      odaBackground: 'custom',
+      odaBackgroundImage: 'data:image/jpeg;base64,/9j/',
+      odaBackgroundOpacity: 65
     })).toEqual({
       odaLayout: 'waterfall',
       odaEnterFullscreen: false,
@@ -29,7 +34,10 @@ describe('normalizeOdaSettings', () => {
       odaArrowRepeatInitialDelayMs: 600,
       odaArrowRepeatIntervalMs: 90,
       odaHoldBackAction: 'return-home',
-      odaHoldBackThresholdMs: 1_200
+      odaHoldBackThresholdMs: 1_200,
+      odaBackground: 'custom',
+      odaBackgroundImage: 'data:image/jpeg;base64,/9j/',
+      odaBackgroundOpacity: 65
     });
   });
 
@@ -42,7 +50,10 @@ describe('normalizeOdaSettings', () => {
       odaArrowRepeatInitialDelayMs: null,
       odaArrowRepeatIntervalMs: Number.NaN,
       odaHoldBackAction: 'exit',
-      odaHoldBackThresholdMs: 'soon'
+      odaHoldBackThresholdMs: 'soon',
+      odaBackground: 'artwork',
+      odaBackgroundImage: 'blob:https://example/1',
+      odaBackgroundOpacity: 'opaque'
     })).toEqual(DEFAULT_ODA_SETTINGS);
   });
 
@@ -57,6 +68,10 @@ describe('normalizeOdaSettings', () => {
       .toBe(ODA_HOLD_BACK_THRESHOLD_MIN_MS);
     expect(normalizeOdaSettings({ odaHoldBackThresholdMs: 5_000 }).odaHoldBackThresholdMs)
       .toBe(ODA_HOLD_BACK_THRESHOLD_MAX_MS);
+    expect(normalizeOdaSettings({ odaBackgroundOpacity: -10 }).odaBackgroundOpacity)
+      .toBe(ODA_BACKGROUND_OPACITY_MIN_PERCENT);
+    expect(normalizeOdaSettings({ odaBackgroundOpacity: 250 }).odaBackgroundOpacity)
+      .toBe(ODA_BACKGROUND_OPACITY_MAX_PERCENT);
   });
 
   it('rounds overscan and durations to stable precision', () => {

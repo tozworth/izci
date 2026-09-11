@@ -3,7 +3,7 @@
   import type { PlaybackSnapshot, TrackItem } from '$lib/types';
   import {
     findWaterfallFocus,
-    INITIAL_WATERFALL_FOCUS,
+    initialWaterfallFocus,
     waterfallCardFocusId,
     waterfallSectionFocusId,
     type OdaWaterfallSection
@@ -63,7 +63,7 @@
     id: section.id,
     cardIds: section.cards.map((card) => card.id)
   }));
-  $: focused = findWaterfallFocus(focusId, waterfallSections) ?? INITIAL_WATERFALL_FOCUS;
+  $: focused = findWaterfallFocus(focusId, waterfallSections) ?? initialWaterfallFocus(waterfallSections);
   $: focusedSectionIndex = focused.sectionIndex;
   $: focusedCardId = focused.onCards
     ? waterfallCardFocusId(
