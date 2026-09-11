@@ -14,6 +14,7 @@
   import { DEFAULT_METADATA_SETTINGS, metadataSettings } from '$lib/stores/metadata-settings';
   import { DEFAULT_PLAYBACK_SETTINGS, playbackSettings } from '$lib/stores/playback-settings';
   import { DEFAULT_PATTERN_VIEWER_SETTINGS, patternViewerSettings } from '$lib/stores/pattern-viewer-settings';
+  import { DEFAULT_ODA_SETTINGS, odaSettings } from '$lib/stores/oda-settings';
   import { DEFAULT_TRACK_SETTINGS, trackSettings } from '$lib/stores/track-settings';
   import { DEFAULT_VISUALIZER_SETTINGS, visualizerSettings } from '$lib/stores/visualizer-settings';
   import { resetOptionsView } from './options-reset';
@@ -52,6 +53,7 @@
       case 'now-playing': return $t('options.views.nowPlaying', { default: 'Now Playing' });
       case 'lyrics': return $t('options.views.lyrics', { default: 'Lyrics' });
       case 'playback': return $t('options.views.playback', { default: 'Playback' });
+      case 'oda': return $t('options.views.oda', { default: 'Oda' });
       case 'video': return $t('options.views.video', { default: 'Video' });
       case 'raf': return $t('options.views.raf', { default: 'Raf' });
       case 'visualizer': return $t('options.views.visualizer', { default: 'Visualizer' });
@@ -163,6 +165,13 @@
           $playbackSettings.gaplessPlayback !== DEFAULT_PLAYBACK_SETTINGS.gaplessPlayback ||
           $playbackSettings.fadeDurationSeconds !== DEFAULT_PLAYBACK_SETTINGS.fadeDurationSeconds ||
           $playbackSettings.manualTrackChangeFadePercent !== DEFAULT_PLAYBACK_SETTINGS.manualTrackChangeFadePercent;
+        break;
+      case 'oda':
+        advancedTweaksModified =
+          $odaSettings.odaArrowRepeatInitialDelayMs !== DEFAULT_ODA_SETTINGS.odaArrowRepeatInitialDelayMs ||
+          $odaSettings.odaArrowRepeatIntervalMs !== DEFAULT_ODA_SETTINGS.odaArrowRepeatIntervalMs ||
+          $odaSettings.odaHoldBackAction !== DEFAULT_ODA_SETTINGS.odaHoldBackAction ||
+          $odaSettings.odaHoldBackThresholdMs !== DEFAULT_ODA_SETTINGS.odaHoldBackThresholdMs;
         break;
       case 'visualizer':
         advancedTweaksModified =

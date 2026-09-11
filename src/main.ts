@@ -11,6 +11,7 @@ import { initializeMobileDocument } from './mobile/mobile-device';
 import { initLogging } from '$lib/services/logging';
 import './mobile/mobile.css';
 import './mobile/mobile-options.css';
+import './oda/oda.css';
 
 if (import.meta.env.PROD) {
   registerAppServiceWorker();

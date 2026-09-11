@@ -84,6 +84,15 @@
   import { emptySelection } from '$lib/stores/queue-selection';
   import type { RemoteSelectionSnapshot } from '$lib/services/main-window-selection';
   import { createMainWindowRuntime } from '$lib/services/main-window-runtime';
+  import OdaShell from './oda/OdaShell.svelte';
+  import { createOdaSession, type OdaSessionSnapshot } from '$lib/services/oda-session';
+  import { createOdaFocusController } from './oda/oda-focus';
+  import { isOdaEditableTarget } from './oda/oda-input';
+  import { createOdaTranslate, type OdaTranslate } from './oda/oda-translate';
+  import type { OdaCommands } from './oda/oda-commands';
+  import { odaSettings } from '$lib/stores/oda-settings';
+  import { windowFullscreen } from '$lib/services/window-fullscreen';
+  import { appLocale } from '$lib/i18n';
   import {
     resolveClientCollections,
     resolveClientPlayback,
@@ -283,6 +292,31 @@
   let launchIntentResolved = runtimeSnapshot.launchIntentResolved;
   let appInstallState: import('$lib/services/app-install').AppInstallState = runtimeSnapshot.appInstallState;
   let multiplayerState: MultiplayerSessionState = runtimeSnapshot.multiplayerState;
+
+  let odaSessionSnapshot: OdaSessionSnapshot;
+  const odaSession = createOdaSession({
+    fullscreen: {
+      isFullscreen: () => typeof document !== 'undefined' && Boolean(document.fullscreenElement),
+      enter: () => windowFullscreen.enter(),
+      exit: () => windowFullscreen.exit()
+    },
+    onChange: (snapshot) => {
+      odaSessionSnapshot = snapshot;
+    }
+  });
+  odaSessionSnapshot = odaSession.getSnapshot();
+  const odaFocus = createOdaFocusController({
+    getWrap: () => odaSettings.getSnapshot().odaWrapNavigation,
+    getRepeatInitialDelayMs: () => odaSettings.getSnapshot().odaArrowRepeatInitialDelayMs,
+    getRepeatIntervalMs: () => odaSettings.getSnapshot().odaArrowRepeatIntervalMs,
+    getHoldBack: () => {
+      const settings = odaSettings.getSnapshot();
+      return { action: settings.odaHoldBackAction, thresholdMs: settings.odaHoldBackThresholdMs };
+    },
+    onFocusChange: (focusId) => odaSession.setFocus(focusId)
+  });
+  let odaTranslate: OdaTranslate = createOdaTranslate();
+  $: odaTranslate = ($appLocale, createOdaTranslate());
 
   $: workspaceContent = {
     snapshotStore: displayPlaybackSnapshotStore,
@@ -759,6 +793,64 @@
     if (track) await playbackCommands.activateFavoriteTrack(track);
   }
 
+  async function enterOda(): Promise<void> {
+    if (mobileMode) return;
+    await odaSession.enter({ fullscreen: odaSettings.getSnapshot().odaEnterFullscreen });
+  }
+
+  // Oda always activates from the effective library collection, independent of
+  // the desktop Library view (favorites/ratings/...) the user left selected.
+  async function activateOdaLibraryTrack(id: string): Promise<void> {
+    if (isFreeplayClient) {
+      freeplayActions.addToFreeplayQueue([id]);
+      multiplayerController.activateTrack('queue', id);
+      return;
+    }
+    if (multiplayerController.activateTrack('library', id)) return;
+    await playbackCommands.activateLibraryTrack(id);
+  }
+
+  function handleWindowKeydown(event: KeyboardEvent): void {
+    if (odaSessionSnapshot.active) {
+      if (isOdaEditableTarget(event.target)) return;
+      if (odaFocus.handleKeydown(event)) event.preventDefault();
+      return;
+    }
+    handleAppKeydown(event);
+  }
+
+  function handleWindowKeyup(event: KeyboardEvent): void {
+    if (odaSessionSnapshot.active && !isOdaEditableTarget(event.target)) {
+      odaFocus.handleKeyup(event);
+    }
+  }
+
+  $: odaCommands = {
+    activateLibraryTrack: (id: string) => activateOdaLibraryTrack(id),
+    activateQueueTrack: (id: string) => {
+      if (multiplayerController.activateTrack('queue', id)) return;
+      return playbackCommands.activateQueueTrack(id);
+    },
+    removeQueueTracks: (ids: string[]) => {
+      if (isFreeplayClient) {
+        freeplayActions.removeFromFreeplayQueue(ids);
+        return;
+      }
+      if (!isMultiplayerClient) workspaceCollections.removeTrackItems(ids);
+    },
+    togglePlayback: () => transport.togglePlayback(),
+    stop: () => transport.stop(),
+    stepTrack: (direction: -1 | 1) => transport.stepTrack(direction),
+    seek: (seconds: number) => transport.seek(seconds),
+    toggleShuffle: () => transport.toggleQueueShuffle(),
+    cycleRepeat: () => transport.cycleQueueRepeat(),
+    exitOda: () => {
+      odaFocus.endRepeat();
+      odaFocus.setModel(null);
+      void odaSession.exit();
+    }
+  } satisfies OdaCommands;
+
   $: if (playbackStatus.state !== previousPlaybackState) {
     if (!isMultiplayerClient && playbackStatus.state === 'ended') {
       void playbackCommands.handleTrackEnded();
@@ -770,6 +862,12 @@
   $: if (!isMultiplayerClient && $playbackSettings.gaplessPlayback && playingTrack) {
     void playbackCommands.prepareUpcomingTrack();
   }
+
+  onMount(() => {
+    const handleFullscreenChange = () => odaSession.handleFullscreenChange();
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  });
 
   onMount(() => {
     // Backstop so a file-launch window without launch params (stale marker,
@@ -807,13 +905,43 @@
   bind:innerWidth
   bind:innerHeight
   on:contextmenu={appShortcuts.handleContextMenu}
-  on:keydown={handleAppKeydown}
+  on:keydown={handleWindowKeydown}
+  on:keyup={handleWindowKeyup}
   on:pointermove={(event) => workspaceShell.handlePanelResizeMove(event)}
   on:pointerup={() => workspaceShell.endPanelResize()}
   on:pointercancel={() => workspaceShell.endPanelResize()}
   on:message={handlePopupWindowMessage}
 />
 
+<input
+  bind:this={fileInput}
+  class="sr-only"
+  type="file"
+  multiple
+  accept={FILE_INPUT_ACCEPT}
+  on:change={(event) => void importController.handleFileInputChange(event)}
+/>
+<div bind:this={videoParkingHost} hidden aria-hidden="true"></div>
+
+{#if odaSessionSnapshot.active}
+  <OdaShell
+    session={odaSession}
+    sessionState={odaSessionSnapshot}
+    focus={odaFocus}
+    settings={$odaSettings}
+    translate={odaTranslate}
+    libraryItems={libraryItems}
+    queueItems={queueItems}
+    playingTrack={livePlayingTrack}
+    {playbackSnapshot}
+    artworkUrl={artworkPresentationState.displayedArtwork?.url ?? null}
+    {shuffleEnabled}
+    {repeatMode}
+    canMutateQueue={!isMultiplayerClient || isFreeplayClient}
+    playbackError={playbackStatus.error ? localizePlaybackError(playbackStatus.error, translate) : null}
+    commands={odaCommands}
+  />
+{:else}
 <div
   class="app-shell"
   class:mobile-mode={mobileMode}
@@ -844,15 +972,6 @@
   {/if}
 
   <div class="window-frame-safe-strip" aria-hidden="true"></div>
-  <input
-    bind:this={fileInput}
-    class="sr-only"
-    type="file"
-    multiple
-    accept={FILE_INPUT_ACCEPT}
-    on:change={(event) => void importController.handleFileInputChange(event)}
-  />
-  <div bind:this={videoParkingHost} hidden aria-hidden="true"></div>
   {#if !mobileMode}
   <TopMenuBar
     bind:height={topMenuBarHeight}
@@ -871,6 +990,7 @@
     playingTrack={livePlayingTrack}
     playbackTime={playbackSnapshot.currentTime}
     {...multiplayerBarProps}
+    on:enterOda={enterOda}
     on:openFiles={() => void importController.openFiles($workspaceShellStore.activeCollection)}
     on:openFolder={() => void importController.openFolder($workspaceShellStore.activeCollection)}
     on:installApp={() => void appInstallService.prompt()}
@@ -1134,4 +1254,5 @@
       />
     {/await}
   </div>
+{/if}
 {/if}

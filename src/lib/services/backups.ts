@@ -39,6 +39,7 @@ const BACKUP_CHANNEL_NAME = 'izci-backup-restore';
 const BACKED_UP_SETTINGS_KEYS = [
   'izci.appearance-settings',
   'izci.multiplayer-settings',
+  'izci.oda-settings',
   'izci.library-view-settings.v5',
   'izci.loadout-ui-settings',
   'izci.loadouts',

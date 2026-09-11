@@ -65,6 +65,7 @@
   export let multiplayerPairings: MultiplayerPairing[] = [];
 
   const dispatch = createEventDispatcher<{
+    enterOda: void;
     openFiles: void;
     openFolder: void;
     installApp: void;

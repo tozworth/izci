@@ -157,7 +157,8 @@
       "abLoopSetEnd": "Set A-B end",
       "abLoopActive": "Looping {start}–{end}",
       "abLoopStop": "Stop A-B loop",
-      "queue": "Queue"
+      "queue": "Queue",
+      "enterOda": "Enter Oda"
     },
     "miniPlayer": {
       "heading": "Mini player",
@@ -332,7 +333,7 @@
     "panelEmpty": "{panel} is empty",
     "resizePanels": "Resize {before} and {after}",
     "dropOnPanel": "Drop on {panel}",
-      "tabs": {
+    "tabs": {
       "library": "Library",
       "details": "Details",
       "lyrics": "Lyrics",
@@ -1496,10 +1497,56 @@
       "experimental": "Experimental",
       "cache": "Cache",
       "about": "About",
-      "licenses": "Licenses"
+      "licenses": "Licenses",
+      "oda": "Oda"
     },
     "windowTitle": "izci Options",
-    "categories": "Options categories"
+    "categories": "Options categories",
+    "oda": {
+      "heading": "Oda",
+      "layout": {
+        "title": "Layout",
+        "hint": "Selects the ten-foot home layout. Waterfall is the only layout today.",
+        "options": {
+          "waterfall": "Waterfall"
+        }
+      },
+      "fullscreen": {
+        "title": "Enter browser fullscreen",
+        "hint": "Requests fullscreen when Oda is entered. Oda stays usable when the request is denied, unavailable, or exited with the browser shortcut."
+      },
+      "wrapNavigation": {
+        "title": "Wrap navigation",
+        "hint": "Lets directional navigation wrap past the ends of a list or row."
+      },
+      "overscan": {
+        "title": "Overscan inset",
+        "hint": "Adds a safe-area inset around the Oda layout for televisions that crop the edges."
+      },
+      "input": {
+        "heading": "Input"
+      },
+      "arrowRepeatInitialDelay": {
+        "title": "Arrow-repeat initial delay",
+        "hint": "How long a directional key must be held before Oda starts repeating it."
+      },
+      "arrowRepeatInterval": {
+        "title": "Arrow-repeat interval",
+        "hint": "How often a held directional key repeats after the initial delay."
+      },
+      "holdBack": {
+        "title": "Hold Back action",
+        "hint": "What holding Back does. Exiting Oda stays an explicit Options command.",
+        "options": {
+          "returnHome": "Return home",
+          "none": "Nothing"
+        }
+      },
+      "holdBackThreshold": {
+        "title": "Hold Back threshold",
+        "hint": "How long Back must be held before the Hold Back action triggers."
+      }
+    }
   },
   "audioCompare": {
     "ready": "Ready to compare. Playback is limited to the overlapping duration.",
@@ -2409,6 +2456,85 @@
       "clear": "Clear up next",
       "resize": "Resize up next",
       "contextMenu": "Up Next item actions"
+    }
+  },
+  "oda": {
+    "hint": "Arrows navigate · Enter selects · Escape goes back",
+    "empty": {
+      "default": "There is nothing here yet."
+    },
+    "home": {
+      "idle": "Nothing playing",
+      "playing": "Playing",
+      "paused": "Paused",
+      "queueOne": "1 track",
+      "queueCount": "{count} tracks",
+      "countOne": "1 item",
+      "count": "{count} items",
+      "images": "Images",
+      "videos": "Videos",
+      "music": "Music",
+      "nowPlaying": "Now Playing",
+      "recents": "Recents",
+      "options": "Options"
+    },
+    "cards": {
+      "browseImages": "Browse images",
+      "browseVideos": "Browse videos",
+      "browseMusic": "Browse music",
+      "artists": "Artists",
+      "albums": "Albums",
+      "songs": "Songs",
+      "genres": "Genres",
+      "years": "Years",
+      "formats": "Formats",
+      "folders": "Folders",
+      "nowPlaying": "Now Playing",
+      "queue": "Queue",
+      "odaSettings": "Oda settings",
+      "allOptions": "All options",
+      "exitOda": "Exit Oda",
+      "browseRecents": "Browse recently played"
+    },
+    "browse": {
+      "groupedLater": "Grouped browsing arrives in a later phase.",
+      "count": "{count} items",
+      "emptyTitle": "Nothing to browse",
+      "empty": "No library items of this kind have been added."
+    },
+    "recents": {
+      "emptyTitle": "No recents",
+      "empty": "Nothing has been played yet."
+    },
+    "queue": {
+      "emptyTitle": "The queue is empty",
+      "empty": "Add tracks from the library to build a queue."
+    },
+    "nowPlaying": {
+      "idleTitle": "Nothing playing",
+      "idleHint": "Choose something from the library.",
+      "repeatOne": "Repeat one",
+      "repeatAll": "Repeat all",
+      "repeatOff": "Repeat off",
+      "remove": "Remove from queue",
+      "queueEmpty": "The queue is empty."
+    },
+    "placeholder": {
+      "default": "This Oda screen is not available yet.",
+      "back": "Press Back or Escape to return."
+    },
+    "theater": {
+      "videoTitle": "Video",
+      "videoLater": "The Oda video theater arrives in a later phase. Playback keeps running.",
+      "imageTitle": "Images",
+      "imageLater": "The Oda image theater arrives in a later phase."
+    },
+    "options": {
+      "categories": "Options categories",
+      "exitOda": "Exit Oda",
+      "advanced": "Advanced tweaks",
+      "hints": "Field hints",
+      "reset": "Reset page"
     }
   }
 }

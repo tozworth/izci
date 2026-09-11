@@ -157,7 +157,8 @@
       "abLoopSetEnd": "A-B sonunu ayarla",
       "abLoopActive": "Döngü: {start}–{end}",
       "abLoopStop": "A-B döngüsünü durdur",
-      "queue": "Sıra"
+      "queue": "Sıra",
+      "enterOda": "Oda'ya Gir"
     },
     "miniPlayer": {
       "heading": "Mini oynatıcı",
@@ -332,7 +333,7 @@
     "panelEmpty": "{panel} boş",
     "resizePanels": "{before} ile {after} arasını yeniden boyutlandır",
     "dropOnPanel": "{panel} üzerine bırak",
-      "tabs": {
+    "tabs": {
       "library": "Kütüphane",
       "details": "Detaylar",
       "lyrics": "Sözler",
@@ -1496,10 +1497,56 @@
       "experimental": "Experimental",
       "cache": "Önbellek",
       "about": "Hakkında",
-      "licenses": "Lisanslar"
+      "licenses": "Lisanslar",
+      "oda": "Oda"
     },
     "windowTitle": "izci Ayarları",
-    "categories": "Ayar kategorileri"
+    "categories": "Ayar kategorileri",
+    "oda": {
+      "heading": "Oda",
+      "layout": {
+        "title": "Yerleşim",
+        "hint": "On ayak ana ekran yerleşimini seçer. Şu an tek yerleşim Waterfall'dır.",
+        "options": {
+          "waterfall": "Waterfall"
+        }
+      },
+      "fullscreen": {
+        "title": "Tarayıcı tam ekranına gir",
+        "hint": "Oda'ya girildiğinde tam ekran ister. İstek reddedilse, kullanılamasa veya tarayıcı kısayoluyla çıkılsa bile Oda kullanılabilir kalır."
+      },
+      "wrapNavigation": {
+        "title": "Gezinmeyi döndür",
+        "hint": "Yön tuşlarıyla gezinmenin liste veya satır sonundan başa dönmesini sağlar."
+      },
+      "overscan": {
+        "title": "Aşırı tarama boşluğu",
+        "hint": "Kenarları kırpan televizyonlar için Oda yerleşiminin çevresine güvenli alan boşluğu ekler."
+      },
+      "input": {
+        "heading": "Giriş"
+      },
+      "arrowRepeatInitialDelay": {
+        "title": "Ok tekrarı ilk gecikme",
+        "hint": "Bir yön tuşunun Oda tarafından tekrarlanmaya başlaması için ne kadar basılı tutulması gerektiği."
+      },
+      "arrowRepeatInterval": {
+        "title": "Ok tekrarı aralığı",
+        "hint": "İlk gecikmeden sonra basılı bir yön tuşunun ne sıklıkla tekrarlanacağı."
+      },
+      "holdBack": {
+        "title": "Geri basılı tutma eylemi",
+        "hint": "Geri tuşunu basılı tutmanın ne yapacağı. Oda'dan çıkmak yalnızca açık bir Seçenekler komutudur.",
+        "options": {
+          "returnHome": "Ana ekrana dön",
+          "none": "Hiçbir şey"
+        }
+      },
+      "holdBackThreshold": {
+        "title": "Geri basılı tutma eşiği",
+        "hint": "Geri basılı tutma eyleminin tetiklenmesi için Geri'nin ne kadar basılı tutulması gerektiği."
+      }
+    }
   },
   "audioCompare": {
     "ready": "Ready to compare. Playback is limited to the overlapping duration.",
@@ -2409,6 +2456,85 @@
       "clear": "Sıradakileri temizle",
       "resize": "Sıradakilerin boyutunu değiştir",
       "contextMenu": "Sıradaki öğe eylemleri"
+    }
+  },
+  "oda": {
+    "hint": "Oklar gezinir · Enter seçer · Escape geri döner",
+    "empty": {
+      "default": "Burada henüz bir şey yok."
+    },
+    "home": {
+      "idle": "Çalan bir şey yok",
+      "playing": "Çalıyor",
+      "paused": "Duraklatıldı",
+      "queueOne": "1 parça",
+      "queueCount": "{count} parça",
+      "countOne": "1 öğe",
+      "count": "{count} öğe",
+      "images": "Görseller",
+      "videos": "Videolar",
+      "music": "Müzik",
+      "nowPlaying": "Şimdi Çalıyor",
+      "recents": "Son Çalınanlar",
+      "options": "Seçenekler"
+    },
+    "cards": {
+      "browseImages": "Görsellere göz at",
+      "browseVideos": "Videolara göz at",
+      "browseMusic": "Müziğe göz at",
+      "artists": "Sanatçılar",
+      "albums": "Albümler",
+      "songs": "Şarkılar",
+      "genres": "Türler",
+      "years": "Yıllar",
+      "formats": "Biçimler",
+      "folders": "Klasörler",
+      "nowPlaying": "Şimdi Çalıyor",
+      "queue": "Kuyruk",
+      "odaSettings": "Oda ayarları",
+      "allOptions": "Tüm seçenekler",
+      "exitOda": "Oda'dan Çık",
+      "browseRecents": "Son çalınanlara göz at"
+    },
+    "browse": {
+      "groupedLater": "Gruplu göz atma sonraki bir aşamada gelir.",
+      "count": "{count} öğe",
+      "emptyTitle": "Göz atılacak bir şey yok",
+      "empty": "Bu türde kütüphane öğesi eklenmemiş."
+    },
+    "recents": {
+      "emptyTitle": "Son çalınan yok",
+      "empty": "Henüz hiçbir şey çalınmadı."
+    },
+    "queue": {
+      "emptyTitle": "Kuyruk boş",
+      "empty": "Kuyruk oluşturmak için kütüphaneden parça ekleyin."
+    },
+    "nowPlaying": {
+      "idleTitle": "Çalan bir şey yok",
+      "idleHint": "Kütüphaneden bir şey seçin.",
+      "repeatOne": "Birini tekrarla",
+      "repeatAll": "Tümünü tekrarla",
+      "repeatOff": "Tekrar kapalı",
+      "remove": "Kuyruktan çıkar",
+      "queueEmpty": "Kuyruk boş."
+    },
+    "placeholder": {
+      "default": "Bu Oda ekranı henüz kullanılamıyor.",
+      "back": "Dönmek için Geri veya Escape'e basın."
+    },
+    "theater": {
+      "videoTitle": "Video",
+      "videoLater": "Oda video salonu sonraki bir aşamada gelir. Oynatma devam eder.",
+      "imageTitle": "Görseller",
+      "imageLater": "Oda görsel salonu sonraki bir aşamada gelir."
+    },
+    "options": {
+      "categories": "Seçenek kategorileri",
+      "exitOda": "Oda'dan Çık",
+      "advanced": "Gelişmiş ayarlar",
+      "hints": "Alan ipuçları",
+      "reset": "Sayfayı sıfırla"
     }
   }
 }

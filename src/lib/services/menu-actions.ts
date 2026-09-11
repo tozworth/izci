@@ -22,6 +22,7 @@ import { get } from 'svelte/store';
 import { t } from 'svelte-i18n';
 
 type DispatchedMenuActionId =
+  | 'enterOda'
   | 'openFiles'
   | 'openFolder'
   | 'installApp'

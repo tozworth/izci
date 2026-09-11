@@ -543,6 +543,11 @@ function buildPlaybackMenuItems(
 
 function buildAppMenuItems(deps: MenuItemsDeps, multiplayerMenuItems: MenuActionItem[], loadoutMenuItems: MenuActionItem[]): MenuActionItem[] {
   return [
+    {
+      id: 'enterOda',
+      label: deps.translate('main.menu.enterOda', { default: 'Enter Oda' }),
+      icon: 'tv'
+    },
     ...(deps.installAvailable
       ? [{
           id: 'installApp',
