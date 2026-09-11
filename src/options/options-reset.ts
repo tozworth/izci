@@ -1,6 +1,7 @@
 import { appearanceSettings, DEFAULT_APPEARANCE_SETTINGS } from '$lib/stores/appearance-settings';
 import { metadataSettings } from '$lib/stores/metadata-settings';
 import { modulePlaybackSettings } from '$lib/stores/module-playback-settings';
+import { odaSettings } from '$lib/stores/oda-settings';
 import { patternViewerSettings } from '$lib/stores/pattern-viewer-settings';
 import { playbackSettings } from '$lib/stores/playback-settings';
 import { rafSettings } from '$lib/stores/raf-settings';
@@ -52,6 +53,9 @@ export function resetOptionsView(view: OptionsViewName): void {
     }
     case 'playback':
       playbackSettings.reset();
+      break;
+    case 'oda':
+      odaSettings.reset();
       break;
     case 'video':
       videoSettings.reset();

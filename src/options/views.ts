@@ -4,6 +4,7 @@ export type OptionsViewName =
   | 'now-playing'
   | 'lyrics'
   | 'playback'
+  | 'oda'
   | 'video'
   | 'raf'
   | 'visualizer'
@@ -93,6 +94,17 @@ export const OPTIONS_VIEW_GROUPS: OptionsViewDefinition[][] = [
       id: 'playback',
       label: 'Playback',
       icon: 'play_circle',
+      parentLabel: '',
+      hasHints: true,
+      hasAdvancedTweaks: true,
+      resettable: true
+    }
+  ],
+  [
+    {
+      id: 'oda',
+      label: 'Oda',
+      icon: 'tv',
       parentLabel: '',
       hasHints: true,
       hasAdvancedTweaks: true,

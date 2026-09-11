@@ -694,3 +694,20 @@ export interface VideoSettings {
   fitMode: VideoFitMode;
   imageZoom: number;
 }
+
+export type OdaLayout = 'waterfall';
+
+export type OdaHoldBackAction = 'none' | 'return-home';
+
+export interface OdaSettings {
+  /** Ten-foot home layout. Single value today; kept normalized for future layouts. */
+  odaLayout: OdaLayout;
+  odaEnterFullscreen: boolean;
+  odaWrapNavigation: boolean;
+  /** Overscan / safe-area inset in percent of the viewport edge. */
+  odaOverscanPercent: number;
+  odaArrowRepeatInitialDelayMs: number;
+  odaArrowRepeatIntervalMs: number;
+  odaHoldBackAction: OdaHoldBackAction;
+  odaHoldBackThresholdMs: number;
+}
