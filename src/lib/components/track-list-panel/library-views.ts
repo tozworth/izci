@@ -29,7 +29,10 @@ type LibraryGroupValue = Pick<LibraryGroup, 'label' | 'secondary' | 'placeholder
 export const LIBRARY_VIEW_DEFINITIONS: LibraryViewDefinition[] = [
   { id: 'favorites', label: 'Favorites', icon: 'favorite' },
   { id: 'ratings', label: 'Ratings', icon: 'star' },
-  { id: 'songs', label: 'All Media', icon: 'perm_media' },
+  { id: 'allMedia', label: 'All Media', icon: 'perm_media' },
+  { id: 'songs', label: 'Songs', icon: 'music_note' },
+  { id: 'images', label: 'Images', icon: 'image' },
+  { id: 'videos', label: 'Videos', icon: 'movie' },
   { id: 'artists', label: 'Artists', icon: 'person' },
   { id: 'albums', label: 'Albums', icon: 'album' },
   { id: 'genres', label: 'Genres', icon: 'category' },
@@ -37,6 +40,36 @@ export const LIBRARY_VIEW_DEFINITIONS: LibraryViewDefinition[] = [
   { id: 'formats', label: 'Formats', icon: 'extension' },
   { id: 'folders', label: 'Folders', icon: 'folder' }
 ];
+
+const LIBRARY_FLAT_VIEW_IDS: LibraryViewId[] = [
+  'favorites',
+  'ratings',
+  'allMedia',
+  'songs',
+  'images',
+  'videos'
+];
+
+export function isLibraryFlatView(view: LibraryViewId): boolean {
+  return LIBRARY_FLAT_VIEW_IDS.includes(view);
+}
+
+export function isLibraryGroupView(view: LibraryViewId): view is LibraryGroupViewId {
+  return !LIBRARY_FLAT_VIEW_IDS.includes(view);
+}
+
+export function filterLibraryViewItems(items: TrackItem[], view: LibraryViewId): TrackItem[] {
+  switch (view) {
+    case 'songs':
+      return items.filter((item) => item.kind !== 'image' && item.kind !== 'video');
+    case 'images':
+      return items.filter((item) => item.kind === 'image');
+    case 'videos':
+      return items.filter((item) => item.kind === 'video');
+    default:
+      return items;
+  }
+}
 
 const collators = new Map<string, Intl.Collator>();
 
@@ -370,21 +403,26 @@ export function getLibraryViewTooltipDetails(
   normalizedQuery: string,
   locale?: string
 ): Record<LibraryViewId, string> {
-  const filteredSongs = filterItemsByQuery(items, normalizedQuery);
   const filteredFavorites = filterItemsByQuery(favoriteItems, normalizedQuery);
   const ratedItems = items.filter((item) => normalizeTrackRating(item.rating) !== undefined);
   const filteredRatings = filterItemsByQuery(ratedItems, normalizedQuery);
-  const songCount = normalizedQuery && filteredSongs.length !== items.length
-    ? `${filteredSongs.length} of ${items.length}`
-    : String(filteredSongs.length);
+  const flatViews: LibraryViewId[] = ['allMedia', 'songs', 'images', 'videos'];
   const details = {
     favorites: String(filteredFavorites.length),
-    ratings: `${filteredRatings.length} · ${formatTotalDuration(getTotalDuration(filteredRatings))}`,
-    songs: `${songCount} · ${formatTotalDuration(getTotalDuration(filteredSongs))}`
+    ratings: `${filteredRatings.length} · ${formatTotalDuration(getTotalDuration(filteredRatings))}`
   } as Record<LibraryViewId, string>;
 
+  for (const view of flatViews) {
+    const viewItems = filterLibraryViewItems(items, view);
+    const filteredViewItems = filterItemsByQuery(viewItems, normalizedQuery);
+    const count = normalizedQuery && filteredViewItems.length !== viewItems.length
+      ? `${filteredViewItems.length} of ${viewItems.length}`
+      : String(filteredViewItems.length);
+    details[view] = `${count} · ${formatTotalDuration(getTotalDuration(filteredViewItems))}`;
+  }
+
   for (const definition of LIBRARY_VIEW_DEFINITIONS) {
-    if (definition.id === 'favorites' || definition.id === 'ratings' || definition.id === 'songs') continue;
+    if (!isLibraryGroupView(definition.id)) continue;
 
     if (!normalizedQuery) {
       details[definition.id] = String(countLibraryGroups(items, definition.id));

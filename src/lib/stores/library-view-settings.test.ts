@@ -22,6 +22,7 @@ describe('library view settings', () => {
       expect(view.columns.plays.visible).toBe(false);
     }
 
+    expect(views.allMedia.columns.artist.visible).toBe(true);
     expect(views.songs.columns.artist.visible).toBe(true);
     expect(views.favorites.columns.artist.visible).toBe(true);
     expect(views.artists.columns.artist.visible).toBe(false);
@@ -39,11 +40,11 @@ describe('library view settings', () => {
     libraryViewSettings.setColumnVisibility('discAndTrack', true);
     libraryViewSettings.setColumnVisibility('rating', true);
 
-    const songs = libraryViewSettings.getSnapshot().views.songs;
-    expect(songs.columns.folder.visible).toBe(true);
-    expect(songs.columns.format.visible).toBe(true);
-    expect(songs.columns.discAndTrack.visible).toBe(true);
-    expect(songs.columns.rating.visible).toBe(true);
+    const allMedia = libraryViewSettings.getSnapshot().views.allMedia;
+    expect(allMedia.columns.folder.visible).toBe(true);
+    expect(allMedia.columns.format.visible).toBe(true);
+    expect(allMedia.columns.discAndTrack.visible).toBe(true);
+    expect(allMedia.columns.rating.visible).toBe(true);
   });
 
   it('keeps column visibility, widths, order, and sorting independent per view', () => {
@@ -84,17 +85,20 @@ describe('library view settings', () => {
     expect(libraryViewSettings.getSnapshot().pinnedGroupKeys.artists).toEqual(['artists:first']);
   });
 
-  it('shows every library view tab by default', () => {
-    expect(libraryViewSettings.getSnapshot().visibleViews).toEqual(LIBRARY_VIEW_IDS);
+  it('shows every default library view tab while keeping songs/images/videos opt-in', () => {
+    expect(libraryViewSettings.getSnapshot().visibleViews).toEqual(
+      LIBRARY_VIEW_IDS.filter((view) => !['songs', 'images', 'videos'].includes(view))
+    );
+    expect(libraryViewSettings.getSnapshot().activeView).toBe('allMedia');
   });
 
-  it('toggles library view tabs while keeping canonical order', () => {
+  it('toggles library view tabs while preserving custom order', () => {
     libraryViewSettings.toggleViewVisibility('genres');
     libraryViewSettings.toggleViewVisibility('ratings');
 
     expect(libraryViewSettings.getSnapshot().visibleViews).toEqual([
       'favorites',
-      'songs',
+      'allMedia',
       'artists',
       'albums',
       'years',
@@ -104,7 +108,39 @@ describe('library view settings', () => {
 
     libraryViewSettings.toggleViewVisibility('genres');
     libraryViewSettings.toggleViewVisibility('ratings');
-    expect(libraryViewSettings.getSnapshot().visibleViews).toEqual(LIBRARY_VIEW_IDS);
+    expect(libraryViewSettings.getSnapshot().visibleViews).toEqual([
+      'favorites',
+      'allMedia',
+      'artists',
+      'albums',
+      'years',
+      'formats',
+      'folders',
+      'genres',
+      'ratings'
+    ]);
+  });
+
+  it('reorders library view tabs and preserves that order', () => {
+    libraryViewSettings.moveView('folders', 'favorites', 'before');
+    expect(libraryViewSettings.getSnapshot().visibleViews[0]).toBe('folders');
+
+    libraryViewSettings.moveView('favorites', 'allMedia', 'after');
+    expect(libraryViewSettings.getSnapshot().visibleViews).toEqual([
+      'folders',
+      'ratings',
+      'allMedia',
+      'favorites',
+      'artists',
+      'albums',
+      'genres',
+      'years',
+      'formats'
+    ]);
+
+    libraryViewSettings.toggleViewVisibility('ratings');
+    libraryViewSettings.toggleViewVisibility('ratings');
+    expect(libraryViewSettings.getSnapshot().visibleViews.at(-1)).toBe('ratings');
   });
 
   it('switches the active view when its tab is hidden', () => {
@@ -116,8 +152,17 @@ describe('library view settings', () => {
     expect(snapshot.activeView).toBe('favorites');
   });
 
-  it('keeps the last visible view tab from being hidden', () => {
-    for (const view of LIBRARY_VIEW_IDS) {
+  it('hides opt-in tabs by default and keeps the last visible view tab from being hidden', () => {
+    expect(libraryViewSettings.getSnapshot().visibleViews).not.toContain('songs');
+    expect(libraryViewSettings.getSnapshot().visibleViews).not.toContain('images');
+    expect(libraryViewSettings.getSnapshot().visibleViews).not.toContain('videos');
+
+    libraryViewSettings.toggleViewVisibility('songs');
+    expect(libraryViewSettings.getSnapshot().visibleViews.at(-1)).toBe('songs');
+    libraryViewSettings.toggleViewVisibility('songs');
+    expect(libraryViewSettings.getSnapshot().visibleViews).not.toContain('songs');
+
+    for (const view of [...libraryViewSettings.getSnapshot().visibleViews]) {
       if (view !== 'favorites') libraryViewSettings.toggleViewVisibility(view);
     }
 

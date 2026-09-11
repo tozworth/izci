@@ -8,12 +8,15 @@ import type {
 } from '$lib/types';
 import { createPersistentStore, normalizeBoolean } from './persistent-store';
 
-const LIBRARY_VIEW_SETTINGS_STORAGE_KEY = 'izci.library-view-settings.v6';
-const LIBRARY_VIEW_SETTINGS_CHANNEL = 'izci-library-view-settings-v6';
+const LIBRARY_VIEW_SETTINGS_STORAGE_KEY = 'izci.library-view-settings.v7';
+const LIBRARY_VIEW_SETTINGS_CHANNEL = 'izci-library-view-settings-v7';
 export const LIBRARY_VIEW_IDS: LibraryViewId[] = [
   'favorites',
   'ratings',
+  'allMedia',
   'songs',
+  'images',
+  'videos',
   'artists',
   'albums',
   'genres',
@@ -21,6 +24,7 @@ export const LIBRARY_VIEW_IDS: LibraryViewId[] = [
   'formats',
   'folders'
 ];
+export const LIBRARY_OPT_IN_VIEW_IDS: LibraryViewId[] = ['songs', 'images', 'videos'];
 const LIBRARY_GROUP_VIEW_IDS: LibraryGroupViewId[] = [
   'artists',
   'albums',
@@ -146,7 +150,7 @@ function createDefaultColumns(view: LibraryViewId): LibraryViewTableSettings['co
     }
   };
 
-  if (view !== 'favorites' && view !== 'ratings' && view !== 'songs' && view !== 'albums') {
+  if (view === 'artists' || view === 'genres' || view === 'years' || view === 'formats' || view === 'folders') {
     columns.album.visible = true;
   }
 
@@ -198,11 +202,11 @@ function createDefaultPinnedGroupKeys(): LibraryViewSettings['pinnedGroupKeys'] 
 }
 
 function createDefaultVisibleViews(): LibraryViewId[] {
-  return [...LIBRARY_VIEW_IDS];
+  return LIBRARY_VIEW_IDS.filter((view) => !LIBRARY_OPT_IN_VIEW_IDS.includes(view));
 }
 
 const DEFAULT_LIBRARY_VIEW_SETTINGS: LibraryViewSettings = {
-  activeView: 'songs',
+  activeView: 'allMedia',
   views: createDefaultViews(),
   pinnedGroupKeys: createDefaultPinnedGroupKeys(),
   visibleViews: createDefaultVisibleViews(),
@@ -267,9 +271,7 @@ function normalizeVisibleViews(value: unknown): LibraryViewId[] {
 
   if (normalized.length === 0) return createDefaultVisibleViews();
 
-  return [...normalized].sort(
-    (left, right) => LIBRARY_VIEW_IDS.indexOf(left) - LIBRARY_VIEW_IDS.indexOf(right)
-  );
+  return normalized;
 }
 
 function normalizeViewSettings(value: unknown, view: LibraryViewId): LibraryViewTableSettings {
@@ -363,7 +365,7 @@ export const libraryViewSettings = {
   setActiveView(activeView: LibraryViewId): LibraryViewSettings {
     return updateSettings((settings) => ({
       ...settings,
-      activeView: LIBRARY_VIEW_IDS.includes(activeView) ? activeView : 'songs'
+      activeView: LIBRARY_VIEW_IDS.includes(activeView) ? activeView : 'allMedia'
     }));
   },
   toggleViewVisibility(view: LibraryViewId): LibraryViewSettings {
@@ -376,8 +378,7 @@ export const libraryViewSettings = {
 
       const visibleViews = isVisible
         ? settings.visibleViews.filter((id) => id !== view)
-        : Array.from(new Set([...settings.visibleViews, view]))
-            .sort((left, right) => LIBRARY_VIEW_IDS.indexOf(left) - LIBRARY_VIEW_IDS.indexOf(right));
+        : Array.from(new Set([...settings.visibleViews, view]));
       const activeView = isVisible && settings.activeView === view
         ? visibleViews[0]
         : settings.activeView;
@@ -481,6 +482,26 @@ export const libraryViewSettings = {
             }
           }
         }
+      };
+    });
+  },
+  moveView(view: LibraryViewId, targetView: LibraryViewId, position: 'before' | 'after'): LibraryViewSettings {
+    return updateSettings((settings) => {
+      if (view === targetView) return settings;
+      if (!settings.visibleViews.includes(view) || !settings.visibleViews.includes(targetView)) {
+        return settings;
+      }
+
+      const nextViews = settings.visibleViews.filter((id) => id !== view);
+      const targetIndex = nextViews.indexOf(targetView);
+
+      if (targetIndex === -1) return settings;
+
+      nextViews.splice(position === 'after' ? targetIndex + 1 : targetIndex, 0, view);
+
+      return {
+        ...settings,
+        visibleViews: nextViews
       };
     });
   },

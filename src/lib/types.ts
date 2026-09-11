@@ -96,8 +96,8 @@ export type LibraryColumnId =
   | 'year'
   | 'bitrate'
   | 'fileSize';
-export type LibraryViewId = 'favorites' | 'ratings' | 'songs' | 'artists' | 'albums' | 'genres' | 'years' | 'formats' | 'folders';
-export type LibraryGroupViewId = Exclude<LibraryViewId, 'favorites' | 'ratings' | 'songs'>;
+export type LibraryViewId = 'favorites' | 'ratings' | 'allMedia' | 'songs' | 'images' | 'videos' | 'artists' | 'albums' | 'genres' | 'years' | 'formats' | 'folders';
+export type LibraryGroupViewId = Exclude<LibraryViewId, 'favorites' | 'ratings' | 'allMedia' | 'songs' | 'images' | 'videos'>;
 export type ColorTheme =
   | 'pale'
   | 'lights-out'
