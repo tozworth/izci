@@ -11,6 +11,8 @@
   import OdaListRoute from './views/OdaListRoute.svelte';
   import OdaNowPlaying from './views/OdaNowPlaying.svelte';
   import OdaOptions from './views/OdaOptions.svelte';
+  import OdaTopChrome from './OdaTopChrome.svelte';
+  import { version as appVersion } from '../../package.json';
   import OdaVideoTheater from './views/OdaVideoTheater.svelte';
   import type { OdaCommands, OdaMediaHost } from './oda-commands';
   import type { OdaTranslate } from './oda-translate';
@@ -561,6 +563,10 @@
     {/if}
   </div>
 
+  <OdaTopChrome />
+
+  <div class="oda-version" aria-hidden="true"><strong>izci</strong> {appVersion}</div>
+
   {#if playbackError}
     <div class="oda-notices">
       <div class="oda-notice is-error" role="alert">
@@ -573,6 +579,4 @@
       </div>
     </div>
   {/if}
-
-  <p class="oda-hint">{translate('oda.hint', 'Arrows navigate · Enter selects · Escape goes back')}</p>
 </div>

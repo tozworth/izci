@@ -105,12 +105,9 @@ function createHarness() {
 describe('Oda keyboard flow', () => {
   it('walks from the home waterfall into a music browse route', () => {
     const harness = createHarness();
-    expect(harness.focus.getFocus()).toBe('section:images');
+    expect(harness.focus.getFocus()).toBe('card:images:browse-images');
 
     harness.key('ArrowDown');
-    expect(harness.focus.getFocus()).toBe('section:music');
-
-    harness.key('ArrowRight');
     expect(harness.focus.getFocus()).toBe('card:music:browse-music');
 
     harness.key('Enter');

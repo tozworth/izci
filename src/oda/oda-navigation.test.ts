@@ -105,14 +105,15 @@ describe('waterfall navigation', () => {
       .toBe(waterfallCardFocusId('music', 'artists'));
   });
 
-  it('changes header with Up/Down from the header', () => {
-    const next = moveWaterfall(INITIAL_WATERFALL_FOCUS, SECTIONS, 'down', false);
-    expect(next).toEqual({ sectionIndex: 1, cardIndex: 0, onCards: false });
-    expect(moveWaterfall(next, SECTIONS, 'down', false).sectionIndex).toBe(2);
-    expect(moveWaterfall(INITIAL_WATERFALL_FOCUS, SECTIONS, 'up', false).sectionIndex).toBe(0);
+  it('lands on the first card with Up/Down', () => {
+    const header = { sectionIndex: 0, cardIndex: 0, onCards: false };
+    expect(moveWaterfall(header, SECTIONS, 'down', false))
+      .toEqual({ sectionIndex: 1, cardIndex: 0, onCards: true });
+    expect(moveWaterfall(header, SECTIONS, 'up', false))
+      .toEqual({ sectionIndex: 0, cardIndex: 0, onCards: true });
   });
 
-  it('wraps headers only when enabled', () => {
+  it('wraps sections only when enabled', () => {
     const last = { sectionIndex: SECTIONS.length - 1, cardIndex: 0, onCards: false };
     expect(moveWaterfall(last, SECTIONS, 'down', false).sectionIndex).toBe(SECTIONS.length - 1);
     expect(moveWaterfall(last, SECTIONS, 'down', true).sectionIndex).toBe(0);
@@ -121,7 +122,8 @@ describe('waterfall navigation', () => {
   });
 
   it('Right enters cards and Left/Right move between them', () => {
-    const entered = moveWaterfall(INITIAL_WATERFALL_FOCUS, SECTIONS, 'right', false);
+    const header = { sectionIndex: 0, cardIndex: 0, onCards: false };
+    const entered = moveWaterfall(header, SECTIONS, 'right', false);
     expect(entered).toEqual({ sectionIndex: 0, cardIndex: 0, onCards: true });
     expect(moveWaterfall(entered, SECTIONS, 'left', false)).toEqual(entered);
 

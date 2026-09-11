@@ -2459,7 +2459,6 @@
     }
   },
   "oda": {
-    "hint": "Arrows navigate · Enter selects · Escape goes back",
     "empty": {
       "default": "There is nothing here yet."
     },
