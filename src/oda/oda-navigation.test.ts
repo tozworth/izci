@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
-  INITIAL_WATERFALL_FOCUS,
   clampIndex,
   createNowPlayingFocusModel,
   findWaterfallFocus,
+  initialWaterfallFocus,
   moveGridIndex,
   moveListIndex,
   moveWaterfall,
@@ -117,8 +117,15 @@ describe('waterfall navigation', () => {
     const last = { sectionIndex: SECTIONS.length - 1, cardIndex: 0, onCards: false };
     expect(moveWaterfall(last, SECTIONS, 'down', false).sectionIndex).toBe(SECTIONS.length - 1);
     expect(moveWaterfall(last, SECTIONS, 'down', true).sectionIndex).toBe(0);
-    expect(moveWaterfall(INITIAL_WATERFALL_FOCUS, SECTIONS, 'up', true).sectionIndex)
+    expect(moveWaterfall({ sectionIndex: 0, cardIndex: 0, onCards: true }, SECTIONS, 'up', true).sectionIndex)
       .toBe(SECTIONS.length - 1);
+  });
+
+  it('starts on the Now Playing card, falling back to the first section', () => {
+    expect(initialWaterfallFocus(SECTIONS))
+      .toEqual({ sectionIndex: 3, cardIndex: 0, onCards: true });
+    expect(initialWaterfallFocus([{ id: 'images', cardIds: ['browse-images'] }]))
+      .toEqual({ sectionIndex: 0, cardIndex: 0, onCards: true });
   });
 
   it('Right enters cards and Left/Right move between them', () => {

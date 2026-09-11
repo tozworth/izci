@@ -6,13 +6,17 @@
     ODA_ARROW_REPEAT_INITIAL_DELAY_MIN_MS,
     ODA_ARROW_REPEAT_INTERVAL_MAX_MS,
     ODA_ARROW_REPEAT_INTERVAL_MIN_MS,
+    ODA_BACKGROUND_OPACITY_MAX_PERCENT,
+    ODA_BACKGROUND_OPACITY_MIN_PERCENT,
     ODA_HOLD_BACK_THRESHOLD_MAX_MS,
     ODA_HOLD_BACK_THRESHOLD_MIN_MS,
     ODA_OVERSCAN_MAX_PERCENT,
     ODA_OVERSCAN_MIN_PERCENT,
     odaSettings
   } from '$lib/stores/oda-settings';
-  import type { OdaHoldBackAction, OdaLayout } from '$lib/types';
+  import { readOdaBackgroundImage } from '$lib/services/oda-background';
+  import type { OdaBackground, OdaHoldBackAction, OdaLayout } from '$lib/types';
+  import { tick } from 'svelte';
 
   function checked(event: Event) { return (event.currentTarget as HTMLInputElement).checked; }
   function handleLayoutChange(event: Event) {
@@ -26,6 +30,38 @@
   }
   function handleOverscanChange(event: Event) {
     odaSettings.update({ odaOverscanPercent: (event.currentTarget as HTMLInputElement).valueAsNumber });
+  }
+  let backgroundFileInput: HTMLInputElement | null = null;
+  function handleBackgroundChange(event: Event) {
+    const next = (event.currentTarget as HTMLSelectElement).value as OdaBackground;
+    odaSettings.update({ odaBackground: next });
+    if (next === 'custom') {
+      // Let the select paint before opening the picker.
+      void tick().then(() => backgroundFileInput?.click());
+    }
+  }
+  async function handleBackgroundFileChange(event: Event) {
+    const input = event.currentTarget as HTMLInputElement;
+    const file = input.files?.[0] ?? null;
+    input.value = '';
+    if (!file) {
+      // A dismissed picker with no stored image strands Custom on nothing.
+      if (!odaSettings.getSnapshot().odaBackgroundImage) odaSettings.update({ odaBackground: 'none' });
+      return;
+    }
+    const dataUrl = await readOdaBackgroundImage(file);
+    if (dataUrl) odaSettings.update({ odaBackground: 'custom', odaBackgroundImage: dataUrl });
+    else if (!odaSettings.getSnapshot().odaBackgroundImage) odaSettings.update({ odaBackground: 'none' });
+  }
+  function handleBackgroundOpacityChange(event: Event) {
+    odaSettings.update({
+      odaBackgroundOpacity: (event.currentTarget as HTMLInputElement).valueAsNumber
+    });
+  }
+  function backgroundActionLabel(value: OdaBackground): string {
+    return value === 'custom'
+      ? $t('options.oda.background.options.custom', { default: 'Custom' })
+      : $t('options.oda.background.options.none', { default: 'None' });
   }
   function handleArrowRepeatInitialDelayChange(event: Event) {
     odaSettings.update({
@@ -105,6 +141,66 @@
         />
         <span class="field-output">{$odaSettings.odaOverscanPercent}%</span>
       </SettingsField>
+
+      <SettingsField
+        title={$t('options.oda.background.title', { default: 'Background' })}
+        hint={$t('options.oda.background.hint', { default: 'Shows a custom image behind the Oda layout.' })}
+      >
+        <select value={$odaSettings.odaBackground} on:change={handleBackgroundChange}>
+          <option value="none">{backgroundActionLabel('none')}</option>
+          <option value="custom">{backgroundActionLabel('custom')}</option>
+        </select>
+        <input
+          bind:this={backgroundFileInput}
+          class="oda-background-file"
+          type="file"
+          accept="image/*"
+          tabindex="-1"
+          aria-hidden="true"
+          on:change={(event) => void handleBackgroundFileChange(event)}
+        />
+      </SettingsField>
+
+      {#if $odaSettings.odaBackground === 'custom'}
+        {#if $odaSettings.odaBackgroundImage}
+          <SettingsField
+            title={$t('options.oda.backgroundImage.title', { default: 'Background image' })}
+            hint={$t('options.oda.backgroundImage.hint', { default: 'The image shown behind the Oda layout.' })}
+          >
+            <img
+              class="oda-background-preview"
+              src={$odaSettings.odaBackgroundImage}
+              alt=""
+            />
+            <button type="button" on:click={() => backgroundFileInput?.click()}>
+              {$t('options.oda.background.chooseImage', { default: 'Choose image…' })}
+            </button>
+          </SettingsField>
+        {:else}
+          <SettingsField
+            title={$t('options.oda.backgroundImage.title', { default: 'Background image' })}
+            hint={$t('options.oda.backgroundImage.hint', { default: 'The image shown behind the Oda layout.' })}
+          >
+            <button type="button" on:click={() => backgroundFileInput?.click()}>
+              {$t('options.oda.background.chooseImage', { default: 'Choose image…' })}
+            </button>
+          </SettingsField>
+        {/if}
+        <SettingsField
+          title={$t('options.oda.backgroundOpacity.title', { default: 'Background opacity' })}
+          hint={$t('options.oda.backgroundOpacity.hint', { default: 'How opaque the custom background image is.' })}
+        >
+          <input
+            type="range"
+            min={ODA_BACKGROUND_OPACITY_MIN_PERCENT}
+            max={ODA_BACKGROUND_OPACITY_MAX_PERCENT}
+            step="1"
+            value={$odaSettings.odaBackgroundOpacity}
+            on:input={handleBackgroundOpacityChange}
+          />
+          <span class="field-output">{$odaSettings.odaBackgroundOpacity}%</span>
+        </SettingsField>
+      {/if}
     </div>
   </div>
 
@@ -172,3 +268,18 @@
     </div>
   </div>
 </article>
+
+<style>
+  /* Entry-independent hiding: the Options window never loads app/base.css,
+     so the global .sr-only helper is unavailable there. */
+  .oda-background-file {
+    display: none;
+  }
+  .oda-background-preview {
+    display: block;
+    max-width: 12rem;
+    max-height: 7rem;
+    border: 1px solid var(--border);
+    object-fit: cover;
+  }
+</style>

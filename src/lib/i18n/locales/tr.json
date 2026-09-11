@@ -1523,6 +1523,23 @@
         "title": "Aşırı tarama boşluğu",
         "hint": "Kenarları kırpan televizyonlar için Oda yerleşiminin çevresine güvenli alan boşluğu ekler."
       },
+      "background": {
+        "title": "Arka plan",
+        "hint": "Oda yerleşiminin arkasında özel bir görsel gösterir.",
+        "options": {
+          "none": "Yok",
+          "custom": "Özel"
+        },
+        "chooseImage": "Görsel seç…"
+      },
+      "backgroundImage": {
+        "title": "Arka plan görseli",
+        "hint": "Oda yerleşiminin arkasında gösterilen görsel."
+      },
+      "backgroundOpacity": {
+        "title": "Arka plan opaklığı",
+        "hint": "Özel arka plan görselinin ne kadar opak olacağı."
+      },
       "input": {
         "heading": "Giriş"
       },
@@ -2526,7 +2543,6 @@
     },
     "options": {
       "categories": "Seçenek kategorileri",
-      "exitOda": "Oda'dan Çık",
       "advanced": "Gelişmiş ayarlar",
       "hints": "Alan ipuçları",
       "reset": "Sayfayı sıfırla"

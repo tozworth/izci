@@ -1523,6 +1523,23 @@
         "title": "Overscan inset",
         "hint": "Adds a safe-area inset around the Oda layout for televisions that crop the edges."
       },
+      "background": {
+        "title": "Background",
+        "hint": "Shows a custom image behind the Oda layout.",
+        "options": {
+          "none": "None",
+          "custom": "Custom"
+        },
+        "chooseImage": "Choose image…"
+      },
+      "backgroundImage": {
+        "title": "Background image",
+        "hint": "The image shown behind the Oda layout."
+      },
+      "backgroundOpacity": {
+        "title": "Background opacity",
+        "hint": "How opaque the custom background image is."
+      },
       "input": {
         "heading": "Input"
       },
@@ -2525,7 +2542,6 @@
     },
     "options": {
       "categories": "Options categories",
-      "exitOda": "Exit Oda",
       "advanced": "Advanced tweaks",
       "hints": "Field hints",
       "reset": "Reset page"

@@ -1,4 +1,4 @@
-import type { OdaHoldBackAction, OdaLayout, OdaSettings } from '$lib/types';
+import type { OdaBackground, OdaHoldBackAction, OdaLayout, OdaSettings } from '$lib/types';
 import { createSettingsStore, normalizeBoolean } from './persistent-store';
 
 const ODA_SETTINGS_STORAGE_KEY = 'izci.oda-settings';
@@ -13,11 +13,17 @@ export const ODA_ARROW_REPEAT_INTERVAL_MAX_MS = 1_000;
 export const ODA_HOLD_BACK_THRESHOLD_MIN_MS = 300;
 export const ODA_HOLD_BACK_THRESHOLD_MAX_MS = 2_000;
 
+export const ODA_BACKGROUND_OPACITY_MIN_PERCENT = 0;
+export const ODA_BACKGROUND_OPACITY_MAX_PERCENT = 100;
+
 export const DEFAULT_ODA_SETTINGS: OdaSettings = {
   odaLayout: 'waterfall',
   odaEnterFullscreen: true,
   odaWrapNavigation: false,
   odaOverscanPercent: 0,
+  odaBackground: 'none',
+  odaBackgroundImage: null,
+  odaBackgroundOpacity: 50,
   odaArrowRepeatInitialDelayMs: 450,
   odaArrowRepeatIntervalMs: 130,
   odaHoldBackAction: 'none',
@@ -37,6 +43,25 @@ function normalizeBoundedNumber(value: unknown, fallback: number, min: number, m
     return fallback;
   }
   return Math.min(Math.max(value, min), max);
+}
+
+function normalizeBackground(value: unknown): OdaBackground {
+  return value === 'custom' ? value : DEFAULT_ODA_SETTINGS.odaBackground;
+}
+
+function normalizeBackgroundImage(value: unknown): string | null {
+  return typeof value === 'string' && value.startsWith('data:image/') ? value : null;
+}
+
+function normalizeBackgroundOpacity(value: unknown): number {
+  return Math.round(
+    normalizeBoundedNumber(
+      value,
+      DEFAULT_ODA_SETTINGS.odaBackgroundOpacity,
+      ODA_BACKGROUND_OPACITY_MIN_PERCENT,
+      ODA_BACKGROUND_OPACITY_MAX_PERCENT
+    )
+  );
 }
 
 function normalizeOverscanPercent(value: unknown): number {
@@ -67,6 +92,9 @@ export function normalizeOdaSettings(value: unknown): OdaSettings {
       DEFAULT_ODA_SETTINGS.odaWrapNavigation
     ),
     odaOverscanPercent: normalizeOverscanPercent(source.odaOverscanPercent),
+    odaBackground: normalizeBackground(source.odaBackground),
+    odaBackgroundImage: normalizeBackgroundImage(source.odaBackgroundImage),
+    odaBackgroundOpacity: normalizeBackgroundOpacity(source.odaBackgroundOpacity),
     odaArrowRepeatInitialDelayMs: normalizeDurationMs(
       source.odaArrowRepeatInitialDelayMs,
       DEFAULT_ODA_SETTINGS.odaArrowRepeatInitialDelayMs,

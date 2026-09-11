@@ -699,6 +699,8 @@ export type OdaLayout = 'waterfall';
 
 export type OdaHoldBackAction = 'none' | 'return-home';
 
+export type OdaBackground = 'none' | 'custom';
+
 export interface OdaSettings {
   /** Ten-foot home layout. Single value today; kept normalized for future layouts. */
   odaLayout: OdaLayout;
@@ -706,6 +708,12 @@ export interface OdaSettings {
   odaWrapNavigation: boolean;
   /** Overscan / safe-area inset in percent of the viewport edge. */
   odaOverscanPercent: number;
+  /** Oda shell background source. `custom` uses `odaBackgroundImage`. */
+  odaBackground: OdaBackground;
+  /** Bounded custom background image as a data URL, or null when none is chosen. */
+  odaBackgroundImage: string | null;
+  /** Custom background opacity in percent. */
+  odaBackgroundOpacity: number;
   odaArrowRepeatInitialDelayMs: number;
   odaArrowRepeatIntervalMs: number;
   odaHoldBackAction: OdaHoldBackAction;
