@@ -99,8 +99,8 @@ describe('resolveOdaRouteFocusIds', () => {
 });
 
 describe('resolveOdaRouteDefaultFocusId', () => {
-  it('starts at the centered waterfall header on home', () => {
-    expect(resolveOdaRouteDefaultFocusId(ODA_HOME_ROUTE, CONTEXT)).toBe('section:images');
+  it('starts on the first waterfall card on home', () => {
+    expect(resolveOdaRouteDefaultFocusId(ODA_HOME_ROUTE, CONTEXT)).toBe('card:images:browse-images');
   });
 
   it('starts Now Playing on the primary transport control', () => {

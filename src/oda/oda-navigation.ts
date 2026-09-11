@@ -78,14 +78,18 @@ export interface OdaWaterfallSection {
 export interface OdaWaterfallFocus {
   sectionIndex: number;
   cardIndex: number;
-  /** When false, focus is on the centered header rather than its cards. */
+  /**
+   * When false, focus is on the section header rather than its cards.
+   * Headers are a mouse affordance; keyboard movement lands on cards so
+   * Enter activates without a prior Right press.
+   */
   onCards: boolean;
 }
 
 export const INITIAL_WATERFALL_FOCUS: OdaWaterfallFocus = {
   sectionIndex: 0,
   cardIndex: 0,
-  onCards: false
+  onCards: true
 };
 
 export function waterfallSectionFocusId(sectionId: string): string {
@@ -153,14 +157,14 @@ export function moveWaterfall(
   if (direction === 'up' || direction === 'down') {
     const nextSectionIndex = moveSectionIndex(sectionIndex, sections.length, direction, wrap);
     const nextSection = sections[nextSectionIndex];
-    if (focus.onCards && nextSection.cardIds.length > 0) {
-      return {
-        sectionIndex: nextSectionIndex,
-        cardIndex: clampIndex(focus.cardIndex, nextSection.cardIds.length),
-        onCards: true
-      };
+    if (nextSection.cardIds.length === 0) {
+      return { sectionIndex: nextSectionIndex, cardIndex: 0, onCards: false };
     }
-    return { sectionIndex: nextSectionIndex, cardIndex: 0, onCards: false };
+    return {
+      sectionIndex: nextSectionIndex,
+      cardIndex: focus.onCards ? clampIndex(focus.cardIndex, nextSection.cardIds.length) : 0,
+      onCards: true
+    };
   }
 
   if (!focus.onCards) {

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount, tick } from 'svelte';
   import type { PlaybackSnapshot, TrackItem } from '$lib/types';
   import {
     findWaterfallFocus,
@@ -21,6 +22,43 @@
   export let onActivate: (card: OdaCardModel) => void = () => {};
   export let onFocus: (focusId: string) => void = () => {};
 
+  // The focused section stays vertically centered: the track is translated so
+  // the focused section's middle lands on the viewport middle, with the
+  // slide animated by CSS. Transforms don't affect layout, so measuring
+  // stays stable while the transition runs.
+  let viewport: HTMLElement | null = null;
+  let track: HTMLElement | null = null;
+  let translateY = 0;
+  let centerReady = false;
+
+  function centerFocused(): void {
+    if (!viewport || !track) return;
+    const focusedElement = track.querySelector(
+      ':scope > .oda-waterfall-section.is-focused'
+    ) as HTMLElement | null;
+    if (!focusedElement) return;
+    const next = viewport.clientHeight / 2
+      - (focusedElement.offsetTop + focusedElement.offsetHeight / 2);
+    if (centerReady && Math.abs(next - translateY) < 0.5) return;
+    translateY = next;
+    centerReady = true;
+  }
+
+  $: if (viewport && track) {
+    void focusedSectionIndex;
+    void sections;
+    void tick().then(centerFocused);
+  }
+
+  onMount(() => {
+    centerFocused();
+    if (typeof ResizeObserver === 'undefined' || !viewport || !track) return;
+    const observer = new ResizeObserver(() => centerFocused());
+    observer.observe(viewport);
+    observer.observe(track);
+    return () => observer.disconnect();
+  });
+
   $: waterfallSections = sections.map((section): OdaWaterfallSection => ({
     id: section.id,
     cardIds: section.cards.map((card) => card.id)
@@ -34,6 +72,29 @@
       )
     : waterfallSectionFocusId(sections[focusedSectionIndex]?.id ?? '');
 
+  // The card row never wraps, so keep the focused card visible: scroll it
+  // into view with room to spare for the row's end fade (see scroll-margin
+  // in oda.css). `nearest` leaves already-visible cards untouched.
+  let cardRow: HTMLElement | null = null;
+
+  function revealFocusedCard(): void {
+    const card = cardRow?.querySelector(':scope > .oda-card.is-focused') as HTMLElement | null;
+    if (!card) return;
+    const reduceMotion = typeof window !== 'undefined'
+      && typeof window.matchMedia === 'function'
+      && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    card.scrollIntoView({
+      block: 'nearest',
+      inline: 'nearest',
+      behavior: reduceMotion ? 'auto' : 'smooth'
+    });
+  }
+
+  $: if (cardRow) {
+    void focusedCardId;
+    void tick().then(revealFocusedCard);
+  }
+
   function playStateLabel(): string {
     if (!playingTrack) return translate('oda.home.idle', 'Nothing playing');
     if (playbackSnapshot?.state === 'playing') return translate('oda.home.playing', 'Playing');
@@ -46,7 +107,13 @@
   }
 </script>
 
-<div class="oda-waterfall">
+<div class="oda-waterfall" bind:this={viewport}>
+  <div
+    class="oda-waterfall-track"
+    class:center-ready={centerReady}
+    bind:this={track}
+    style:transform={`translate3d(0, ${translateY}px, 0)`}
+  >
   {#each sections as section, index (section.id)}
     <section
       class="oda-waterfall-section"
@@ -60,27 +127,20 @@
       >{translate(section.labelKey, section.labelFallback)}</h2>
 
       {#if index === focusedSectionIndex}
-        <div class="oda-card-row">
+        <div class="oda-card-row" bind:this={cardRow}>
           {#each section.cards as card (card.id)}
             {@const cardId = cardFocusId(section.id, card.id)}
             {#if section.id === 'now-playing' && card.id === 'now-playing'}
               <button
                 type="button"
-                class="oda-card oda-now-playing-card"
+                class="oda-card"
+                class:has-art={!!artworkUrl}
                 class:is-focused={focusedCardId === cardId}
                 class:is-empty={!playingTrack}
+                style={artworkUrl ? `background-image: url("${artworkUrl}")` : ''}
                 on:click={() => { onFocus(cardId); onActivate(card); }}
               >
-                <span
-                  class="oda-now-playing-art"
-                  style={artworkUrl ? `background-image: url("${artworkUrl}")` : ''}
-                  aria-hidden="true"
-                >
-                  {#if !artworkUrl}
-                    <span class="material-symbols-outlined">music_note</span>
-                  {/if}
-                </span>
-                <span>
+                <span class="oda-card-strip">
                   <span class="oda-card-label">
                     {playingTrack ? (playingTrack.metadata?.title || playingTrack.name) : translate('oda.cards.nowPlaying', 'Now Playing')}
                   </span>
@@ -118,4 +178,5 @@
       {/if}
     </section>
   {/each}
+  </div>
 </div>
