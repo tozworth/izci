@@ -19,7 +19,7 @@ const SECTIONS: OdaWaterfallSection[] = [
   { id: 'music', cardIds: ['browse-music', 'artists', 'albums', 'songs'] },
   { id: 'now-playing', cardIds: ['now-playing-card', 'queue'] },
   { id: 'recents', cardIds: ['browse-recents'] },
-  { id: 'options', cardIds: ['oda-settings', 'all-options', 'exit-oda'] }
+  { id: 'options', cardIds: ['all-options', 'exit-oda'] }
 ];
 
 describe('createNowPlayingFocusModel', () => {

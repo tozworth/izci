@@ -206,16 +206,10 @@ export function buildOdaHomeSections(counts: OdaMediaCounts): OdaHomeSectionMode
       labelFallback: 'Options',
       cards: [
         {
-          id: 'oda-settings',
-          labelKey: 'oda.cards.odaSettings',
-          labelFallback: 'Oda settings',
-          route: { name: 'options', view: 'oda' }
-        },
-        {
           id: 'all-options',
           labelKey: 'oda.cards.allOptions',
           labelFallback: 'All options',
-          route: { name: 'options', view: 'appearance' }
+          route: { name: 'options', view: 'oda' }
         },
         {
           id: 'exit-oda',

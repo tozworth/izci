@@ -79,9 +79,11 @@
 .oda-waterfall-section {
   display: flex;
   flex-direction: column;
+  align-items: stretch;
   gap: 0.4rem;
   opacity: 0.32;
   transform: scale(0.96);
+  transform-origin: left center;
   transition: opacity 160ms ease, transform 160ms ease;
 }
 
@@ -97,7 +99,7 @@
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--oda-muted);
-  text-align: center;
+  text-align: left;
 }
 
 .oda-waterfall-section.is-focused .oda-waterfall-header {
@@ -106,7 +108,7 @@
 
 .oda-card-row {
   display: flex;
-  justify-content: center;
+  justify-content: flex-start;
   flex-wrap: wrap;
   gap: clamp(0.4rem, 1vw, 0.9rem);
 }
