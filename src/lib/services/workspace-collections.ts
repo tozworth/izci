@@ -126,6 +126,10 @@ export function createWorkspaceCollectionsController({
     }
   }
 
+  function moveQueueTrack(id: string, direction: -1 | 1): boolean {
+    return queueStore.moveBy(id, direction);
+  }
+
   function getQueueContextActions(ids: string[], sendToChat = false): MenuActionItem[] {
     const { queueItems, libraryItems } = getState();
     return buildQueueContextActions(
@@ -403,6 +407,7 @@ export function createWorkspaceCollectionsController({
     handleAddFiles,
     removeTrackItems,
     removeLibraryItems,
+    moveQueueTrack,
     getQueueContextActions,
     getLibraryContextActions,
     getFavoriteContextActions,

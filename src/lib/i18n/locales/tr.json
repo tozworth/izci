@@ -2497,8 +2497,8 @@
       "browseRecents": "Son çalınanlara göz at"
     },
     "browse": {
-      "groupedLater": "Gruplu göz atma sonraki bir aşamada gelir.",
       "count": "{count} öğe",
+      "groupCount": "{count} grup",
       "emptyTitle": "Göz atılacak bir şey yok",
       "empty": "Bu türde kütüphane öğesi eklenmemiş."
     },
@@ -2508,7 +2508,9 @@
     },
     "queue": {
       "emptyTitle": "Kuyruk boş",
-      "empty": "Kuyruk oluşturmak için kütüphaneden parça ekleyin."
+      "empty": "Kuyruk oluşturmak için kütüphaneden parça ekleyin.",
+      "moveUp": "Yukarı taşı",
+      "moveDown": "Aşağı taşı"
     },
     "nowPlaying": {
       "idleTitle": "Çalan bir şey yok",
@@ -2519,15 +2521,9 @@
       "remove": "Kuyruktan çıkar",
       "queueEmpty": "Kuyruk boş."
     },
-    "placeholder": {
-      "default": "Bu Oda ekranı henüz kullanılamıyor.",
-      "back": "Dönmek için Geri veya Escape'e basın."
-    },
     "theater": {
-      "videoTitle": "Video",
-      "videoLater": "Oda video salonu sonraki bir aşamada gelir. Oynatma devam eder.",
-      "imageTitle": "Görseller",
-      "imageLater": "Oda görsel salonu sonraki bir aşamada gelir."
+      "controls": "Oynatma denetimleri",
+      "back": "Geri"
     },
     "options": {
       "categories": "Seçenek kategorileri",

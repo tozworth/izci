@@ -150,6 +150,27 @@ describe('createOdaSession', () => {
     expect(session.back()).toBe(false);
   });
 
+  it('pushes browse groups as distinct routes and restores group focus on Back', async () => {
+    const session = createOdaSession({ fullscreen: createFullscreenAdapter(false) });
+    await session.enter({ fullscreen: false });
+
+    session.setFocus('card-artists');
+    session.push({ name: 'browse', medium: 'music', view: 'artists' });
+    session.setFocus('group:artists:aphex');
+    session.push({ name: 'browse', medium: 'music', view: 'artists', groupKey: 'artists:aphex' });
+
+    expect(session.getSnapshot().route).toEqual({
+      name: 'browse',
+      medium: 'music',
+      view: 'artists',
+      groupKey: 'artists:aphex'
+    });
+
+    expect(session.back()).toBe(true);
+    expect(session.getSnapshot().route).toEqual({ name: 'browse', medium: 'music', view: 'artists' });
+    expect(session.getSnapshot().focusId).toBe('group:artists:aphex');
+  });
+
   it('notifies subscribers on state transitions', async () => {
     const changes: string[] = [];
     const session = createOdaSession({

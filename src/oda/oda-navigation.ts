@@ -213,6 +213,47 @@ export function createGridFocusModel(ids: readonly string[], columns: number): O
   };
 }
 
+/**
+ * Now Playing focus: a horizontal transport strip above a vertical queue
+ * rail. Up/Down crosses between the strips; Left/Right only adjusts the
+ * focused transport control. Queue focus is by item ID so updates do not
+ * desynchronize navigation.
+ */
+export function createNowPlayingFocusModel(
+  transportIds: readonly string[],
+  queueIds: readonly string[]
+): OdaFocusModel {
+  return {
+    resolveMove: (focusId, direction, wrap) => {
+      const fallback = transportIds[0] ?? queueIds[0] ?? null;
+      if (!focusId) return fallback;
+
+      const transportIndex = transportIds.indexOf(focusId);
+      if (transportIndex >= 0) {
+        if (direction === 'left' || direction === 'right') {
+          return transportIds[moveListIndex(transportIndex, transportIds.length, direction === 'left' ? 'up' : 'down', wrap)];
+        }
+        if (direction === 'down') return queueIds[0] ?? focusId;
+        return focusId;
+      }
+
+      const queueIndex = queueIds.indexOf(focusId);
+      if (queueIndex >= 0) {
+        if (direction === 'up') {
+          if (queueIndex === 0) return transportIds[transportIds.length - 1] ?? focusId;
+          return queueIds[queueIndex - 1];
+        }
+        if (direction === 'down') {
+          return queueIds[moveListIndex(queueIndex, queueIds.length, 'down', wrap)];
+        }
+        return focusId;
+      }
+
+      return fallback;
+    }
+  };
+}
+
 /** The home waterfall model. */
 export function createWaterfallFocusModel(
   sections: readonly OdaWaterfallSection[]

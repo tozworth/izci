@@ -10,6 +10,7 @@
 import type { OdaHoldBackAction } from '$lib/types';
 import {
   createOdaKeyRepeater,
+  isOdaEditableTarget,
   isOdaRepeatableAction,
   normalizeOdaAction,
   type OdaAction,
@@ -108,6 +109,12 @@ export function createOdaFocusController({
     handleKeydown(event: KeyboardEvent): boolean {
       const action = normalizeOdaAction(event);
       if (!action) return false;
+
+      // Native controls own their keys, but Back and the media transport keys
+      // must still reach Oda while a slider/select/toggle has DOM focus.
+      if (isOdaEditableTarget(event.target) && action !== 'back' && !isTransportAction(action)) {
+        return false;
+      }
 
       if (isOdaRepeatableAction(action)) {
         if (!model) return false;

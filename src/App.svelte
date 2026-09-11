@@ -87,7 +87,6 @@
   import OdaShell from './oda/OdaShell.svelte';
   import { createOdaSession, type OdaSessionSnapshot } from '$lib/services/oda-session';
   import { createOdaFocusController } from './oda/oda-focus';
-  import { isOdaEditableTarget } from './oda/oda-input';
   import { createOdaTranslate, type OdaTranslate } from './oda/oda-translate';
   import type { OdaCommands } from './oda/oda-commands';
   import { odaSettings } from '$lib/stores/oda-settings';
@@ -800,19 +799,28 @@
 
   // Oda always activates from the effective library collection, independent of
   // the desktop Library view (favorites/ratings/...) the user left selected.
-  async function activateOdaLibraryTrack(id: string): Promise<void> {
+  // Returns the effective track so Oda can route to the right presentation.
+  async function activateOdaLibraryTrack(id: string): Promise<TrackItem | null> {
+    const track = libraryItems.find((item) => item.id === id) ?? null;
     if (isFreeplayClient) {
       freeplayActions.addToFreeplayQueue([id]);
       multiplayerController.activateTrack('queue', id);
-      return;
+      return track;
     }
-    if (multiplayerController.activateTrack('library', id)) return;
+    if (multiplayerController.activateTrack('library', id)) return track;
     await playbackCommands.activateLibraryTrack(id);
+    return track;
+  }
+
+  async function activateOdaQueueTrack(id: string): Promise<TrackItem | null> {
+    const track = queueItems.find((item) => item.id === id) ?? null;
+    if (multiplayerController.activateTrack('queue', id)) return track;
+    await playbackCommands.activateQueueTrack(id);
+    return track;
   }
 
   function handleWindowKeydown(event: KeyboardEvent): void {
     if (odaSessionSnapshot.active) {
-      if (isOdaEditableTarget(event.target)) return;
       if (odaFocus.handleKeydown(event)) event.preventDefault();
       return;
     }
@@ -820,17 +828,14 @@
   }
 
   function handleWindowKeyup(event: KeyboardEvent): void {
-    if (odaSessionSnapshot.active && !isOdaEditableTarget(event.target)) {
+    if (odaSessionSnapshot.active) {
       odaFocus.handleKeyup(event);
     }
   }
 
   $: odaCommands = {
     activateLibraryTrack: (id: string) => activateOdaLibraryTrack(id),
-    activateQueueTrack: (id: string) => {
-      if (multiplayerController.activateTrack('queue', id)) return;
-      return playbackCommands.activateQueueTrack(id);
-    },
+    activateQueueTrack: (id: string) => activateOdaQueueTrack(id),
     removeQueueTracks: (ids: string[]) => {
       if (isFreeplayClient) {
         freeplayActions.removeFromFreeplayQueue(ids);
@@ -838,12 +843,22 @@
       }
       if (!isMultiplayerClient) workspaceCollections.removeTrackItems(ids);
     },
+    moveQueueTrack: (id: string, direction: -1 | 1) => {
+      if (isMultiplayerClient) return;
+      workspaceCollections.moveQueueTrack(id, direction);
+    },
     togglePlayback: () => transport.togglePlayback(),
     stop: () => transport.stop(),
     stepTrack: (direction: -1 | 1) => transport.stepTrack(direction),
     seek: (seconds: number) => transport.seek(seconds),
+    setVolume: (volume: number) => transport.setVolume(volume),
     toggleShuffle: () => transport.toggleQueueShuffle(),
     cycleRepeat: () => transport.cycleQueueRepeat(),
+    setVideoFit: (fitMode) => videoActions.setFit(fitMode),
+    togglePictureInPicture: () => void videoActions.togglePictureInPicture(),
+    zoomStep: (factor: number) => videoActions.zoomStep(factor),
+    resetZoom: () => videoActions.resetZoom(),
+    rotateImage: () => videoActions.rotateImage(),
     exitOda: () => {
       odaFocus.endRepeat();
       odaFocus.setModel(null);
@@ -938,7 +953,17 @@
     {shuffleEnabled}
     {repeatMode}
     canMutateQueue={!isMultiplayerClient || isFreeplayClient}
+    canReorderQueue={!isMultiplayerClient}
     playbackError={playbackStatus.error ? localizePlaybackError(playbackStatus.error, translate) : null}
+    media={{
+      videoElement: $mediaElementsStore.video,
+      imageElement: $mediaElementsStore.image,
+      parkingHost: videoParkingHost,
+      fitMode: $videoSettings.fitMode,
+      imageZoom: $videoSettings.imageZoom,
+      pictureInPictureSupported: videoPictureInPictureSupported,
+      seekFeedback: videoSeekFeedback
+    }}
     commands={odaCommands}
   />
 {:else}
