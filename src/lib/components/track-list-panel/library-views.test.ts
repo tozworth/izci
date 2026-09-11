@@ -77,7 +77,10 @@ describe('library view projections', () => {
 
     expect(details.favorites).toBe('1');
     expect(details.ratings).toBe('1 · 01:00');
+    expect(details.allMedia).toBe('3 · 02:30');
     expect(details.songs).toBe('3 · 02:30');
+    expect(details.images).toBe('0 · --:--');
+    expect(details.videos).toBe('0 · --:--');
     expect(details.artists).toBe('2');
     expect(details.albums).toBe('3');
   });

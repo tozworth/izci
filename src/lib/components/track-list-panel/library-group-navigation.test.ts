@@ -29,7 +29,7 @@ const albumGroup: LibraryGroup = {
 
 describe('library group navigation readiness', () => {
   it('waits until both the requested view and its projected group are ready', () => {
-    expect(findRequestedLibraryGroup(request, 'songs', [])).toBeNull();
+    expect(findRequestedLibraryGroup(request, 'allMedia', [])).toBeNull();
     expect(findRequestedLibraryGroup(request, 'albums', [])).toBeNull();
     expect(findRequestedLibraryGroup(request, 'albums', [albumGroup])).toBe(albumGroup);
   });

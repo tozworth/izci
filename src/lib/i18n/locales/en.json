@@ -2345,7 +2345,10 @@
     "views": {
       "favorites": "Favorites",
       "ratings": "Ratings",
-      "songs": "All Media",
+      "allMedia": "All Media",
+      "songs": "Songs",
+      "images": "Images",
+      "videos": "Videos",
       "artists": "Artists",
       "albums": "Albums",
       "genres": "Genres",

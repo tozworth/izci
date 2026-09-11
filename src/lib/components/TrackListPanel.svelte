@@ -488,7 +488,20 @@
   $: activeLibraryView = resolveActiveLibraryView(libraryMode, $trackSettings.enableRatings, $libraryViewSettings.activeView);
   $: favoritesViewActive = libraryMode && activeLibraryView === 'favorites';
   $: ratingsViewActive = libraryMode && activeLibraryView === 'ratings';
-  $: displaySourceItems = favoritesViewActive ? favoriteItems : ratingsViewActive ? items.filter((item) => normalizeTrackRating(item.rating) !== undefined) : items;
+  $: songsViewActive = libraryMode && activeLibraryView === 'songs';
+  $: imagesViewActive = libraryMode && activeLibraryView === 'images';
+  $: videosViewActive = libraryMode && activeLibraryView === 'videos';
+  $: displaySourceItems = favoritesViewActive
+    ? favoriteItems
+    : ratingsViewActive
+      ? items.filter((item) => normalizeTrackRating(item.rating) !== undefined)
+      : songsViewActive
+        ? items.filter((item) => item.kind !== 'image' && item.kind !== 'video')
+        : imagesViewActive
+          ? items.filter((item) => item.kind === 'image')
+          : videosViewActive
+            ? items.filter((item) => item.kind === 'video')
+            : items;
   $: displaySelectedIds = favoritesViewActive ? favoriteSelectedIds : selectedIds;
   $: displaySelectionAnchorId = favoritesViewActive ? favoriteSelectionAnchorId : selectionAnchorId;
   $: displayPlayingId = favoritesViewActive ? favoritePlayingId : playingId;
@@ -503,7 +516,7 @@
   $: orderedColumns = layout === 'columns'
     ? buildOrderedColumns(activeLibraryTableSettings.order, activeLibraryTableSettings.columns, $trackSettings.enableRatings, $t)
     : [];
-  $: groupView = activeLibraryView === 'songs' || activeLibraryView === 'favorites' || activeLibraryView === 'ratings'
+  $: groupView = activeLibraryView === 'allMedia' || activeLibraryView === 'songs' || activeLibraryView === 'images' || activeLibraryView === 'videos' || activeLibraryView === 'favorites' || activeLibraryView === 'ratings'
     ? null
     : activeLibraryView as LibraryGroupViewId;
   $: libraryGroups = groupView
@@ -539,8 +552,8 @@
     previousSelectedAlbumArtworkUrl = selectedAlbumArtworkUrl;
     bypassAlbumBackdropTransitions();
   }
-  $: showTrackRows = !libraryMode || activeLibraryView === 'songs' || activeLibraryView === 'favorites' || activeLibraryView === 'ratings' || Boolean(selectedLibraryGroup);
-  $: unfilteredDisplayItems = libraryMode && activeLibraryView !== 'songs' && activeLibraryView !== 'favorites' && activeLibraryView !== 'ratings'
+  $: showTrackRows = !libraryMode || activeLibraryView === 'allMedia' || activeLibraryView === 'songs' || activeLibraryView === 'images' || activeLibraryView === 'videos' || activeLibraryView === 'favorites' || activeLibraryView === 'ratings' || Boolean(selectedLibraryGroup);
+  $: unfilteredDisplayItems = libraryMode && activeLibraryView !== 'allMedia' && activeLibraryView !== 'songs' && activeLibraryView !== 'images' && activeLibraryView !== 'videos' && activeLibraryView !== 'favorites' && activeLibraryView !== 'ratings'
     ? selectedLibraryGroup?.items ?? []
     : displaySourceItems;
   $: filteredItems = selectedLibraryGroup
@@ -670,6 +683,7 @@
           {readOnly}
           on:viewChange={(event) => handleLibraryViewChange(event.detail)}
           on:viewVisibilityToggle={(event) => libraryViewSettings.toggleViewVisibility(event.detail)}
+          on:viewMove={(event) => libraryViewSettings.moveView(event.detail.view, event.detail.targetView, event.detail.position)}
           on:back={handleLibraryGroupBack}
           on:searchToggle={handleSearchToggle}
           on:searchInput={(event) => handleSearchInput(event.detail)}

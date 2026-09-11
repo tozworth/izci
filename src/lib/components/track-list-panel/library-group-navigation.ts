@@ -28,9 +28,9 @@ export function resolveActiveLibraryView(
 ): LibraryViewId {
   return libraryMode
     ? !ratingsEnabled && storedActiveView === 'ratings'
-      ? 'songs'
+      ? 'allMedia'
       : storedActiveView
-    : 'songs';
+    : 'allMedia';
 }
 
 export function clearSelection(

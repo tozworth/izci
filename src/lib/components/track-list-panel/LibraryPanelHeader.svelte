@@ -8,7 +8,7 @@
   import { LIBRARY_VIEW_DEFINITIONS } from './library-views';
   import { LIBRARY_VIEW_IDS } from '$lib/stores/library-view-settings';
 
-  export let activeView: LibraryViewId = 'songs';
+  export let activeView: LibraryViewId = 'allMedia';
   export let ratingsEnabled = true;
   export let summary = '';
   export let tooltipDetails: Record<LibraryViewId, string>;
@@ -23,6 +23,7 @@
   const dispatch = createEventDispatcher<{
     viewChange: LibraryViewId;
     viewVisibilityToggle: LibraryViewId;
+    viewMove: { view: LibraryViewId; targetView: LibraryViewId; position: 'before' | 'after' };
     back: void;
     searchToggle: void;
     searchInput: string;
@@ -30,15 +31,23 @@
     openFiles: void;
   }>();
 
+  const LIBRARY_VIEW_DRAG_MIME = 'application/x-izci-library-view';
+
   let previousShowSearchInput = false;
   let viewMenuOpen = false;
   let viewMenuX = 0;
   let viewMenuY = 0;
+  let draggedView: LibraryViewId | null = null;
+  let dropIndicator: { view: LibraryViewId; position: 'before' | 'after' } | null = null;
 
   $: eligibleDefinitions = LIBRARY_VIEW_DEFINITIONS.filter(
     (view) => ratingsEnabled || view.id !== 'ratings'
   );
-  $: shownDefinitions = eligibleDefinitions.filter((view) => visibleViews.includes(view.id));
+  $: visibleDefinitionById = new Map(eligibleDefinitions.map((view) => [view.id, view]));
+  $: shownDefinitions = visibleViews.flatMap((id) => {
+    const definition = visibleDefinitionById.get(id);
+    return definition ? [definition] : [];
+  });
   $: viewMenuItems = eligibleDefinitions.map((view): MenuActionItem => ({
     id: `toggle:${view.id}`,
     label: getViewLabel(view.id, view.label),
@@ -85,11 +94,73 @@
     }
   }
 
+  function hasLibraryViewDragData(dataTransfer: DataTransfer | null): boolean {
+    if (!dataTransfer) return false;
+    return Array.from(dataTransfer.types ?? []).includes(LIBRARY_VIEW_DRAG_MIME);
+  }
+
+  function getDropPosition(event: DragEvent, element: HTMLElement): 'before' | 'after' {
+    const rect = element.getBoundingClientRect();
+    return event.clientX < rect.left + rect.width / 2 ? 'before' : 'after';
+  }
+
+  function handleViewDragStart(event: DragEvent, view: LibraryViewId): void {
+    if (!event.dataTransfer) return;
+    draggedView = view;
+    event.dataTransfer.setData(LIBRARY_VIEW_DRAG_MIME, view);
+    event.dataTransfer.effectAllowed = 'move';
+  }
+
+  function handleViewDragOver(event: DragEvent, view: LibraryViewId): void {
+    if (!hasLibraryViewDragData(event.dataTransfer)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
+    if (event.currentTarget instanceof HTMLElement) {
+      dropIndicator = { view, position: getDropPosition(event, event.currentTarget) };
+    }
+  }
+
+  function handleViewDrop(event: DragEvent, targetView: LibraryViewId): void {
+    if (!hasLibraryViewDragData(event.dataTransfer)) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const sourceView = (event.dataTransfer?.getData(LIBRARY_VIEW_DRAG_MIME) as LibraryViewId) || draggedView;
+    const position = dropIndicator?.view === targetView ? dropIndicator.position : 'after';
+    dropIndicator = null;
+    draggedView = null;
+    if (sourceView && sourceView !== targetView && LIBRARY_VIEW_IDS.includes(sourceView)) {
+      dispatch('viewMove', { view: sourceView, targetView, position });
+    }
+  }
+
+  function handleViewDragEnd(): void {
+    draggedView = null;
+    dropIndicator = null;
+  }
+
+  function handleViewKeydown(event: KeyboardEvent, view: LibraryViewId): void {
+    if (!event.altKey || (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight')) return;
+    const index = shownDefinitions.findIndex((definition) => definition.id === view);
+    const target = shownDefinitions[event.key === 'ArrowLeft' ? index - 1 : index + 1];
+    if (!target) return;
+    event.preventDefault();
+    event.stopPropagation();
+    dispatch('viewMove', {
+      view,
+      targetView: target.id,
+      position: event.key === 'ArrowLeft' ? 'before' : 'after'
+    });
+  }
+
   function getViewLabel(view: LibraryViewId, fallback: string): string {
     switch (view) {
       case 'favorites': return $t('library.views.favorites', { default: 'Favorites' });
       case 'ratings': return $t('library.views.ratings', { default: 'Ratings' });
-      case 'songs': return $t('library.views.songs', { default: 'All Media' });
+      case 'allMedia': return $t('library.views.allMedia', { default: 'All Media' });
+      case 'songs': return $t('library.views.songs', { default: 'Songs' });
+      case 'images': return $t('library.views.images', { default: 'Images' });
+      case 'videos': return $t('library.views.videos', { default: 'Videos' });
       case 'artists': return $t('library.views.artists', { default: 'Artists' });
       case 'albums': return $t('library.views.albums', { default: 'Albums' });
       case 'genres': return $t('library.views.genres', { default: 'Genres' });
@@ -113,10 +184,19 @@
           type="button"
           class="tab-strip-tab library-toolbar-button library-view-tab hover-tooltip-anchor"
           class:active={activeView === view.id}
+          class:drop-before={dropIndicator?.view === view.id && dropIndicator.position === 'before'}
+          class:drop-after={dropIndicator?.view === view.id && dropIndicator.position === 'after'}
+          class:dragging={draggedView === view.id}
           role="tab"
           aria-selected={activeView === view.id}
           aria-label={getViewLabel(view.id, view.label)}
+          draggable="true"
           on:click={() => dispatch('viewChange', view.id)}
+          on:keydown={(event) => handleViewKeydown(event, view.id)}
+          on:dragstart={(event) => handleViewDragStart(event, view.id)}
+          on:dragover={(event) => handleViewDragOver(event, view.id)}
+          on:drop={(event) => handleViewDrop(event, view.id)}
+          on:dragend={handleViewDragEnd}
         >
           <span class="material-symbols-outlined" aria-hidden="true">{view.icon}</span>
           <span class="library-view-label">{getViewLabel(view.id, view.label)}</span>
@@ -313,6 +393,28 @@
     font-size: 1rem;
     line-height: 1;
   }
+
+  .library-view-tab.dragging {
+    cursor: grabbing;
+    opacity: 0.6;
+  }
+
+  .library-view-tab.drop-before::before,
+  .library-view-tab.drop-after::after {
+    content: "";
+    position: absolute;
+    top: 0.25rem;
+    bottom: 0.25rem;
+    z-index: 3;
+    width: 2px;
+    border-radius: 999px;
+    background: var(--accent-strong);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-strong) 20%, transparent);
+    pointer-events: none;
+  }
+
+  .library-view-tab.drop-before::before { left: -1px; }
+  .library-view-tab.drop-after::after { right: -1px; }
 
   .library-search-row {
     display: flex;

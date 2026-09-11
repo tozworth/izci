@@ -2345,7 +2345,10 @@
     "views": {
       "favorites": "Favoriler",
       "ratings": "Puanlar",
-      "songs": "Tüm Medya",
+      "allMedia": "Tüm Medya",
+      "songs": "Şarkılar",
+      "images": "Görseller",
+      "videos": "Videolar",
       "artists": "Sanatçılar",
       "albums": "Albümler",
       "genres": "Tarzlar",
