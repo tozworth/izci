@@ -201,6 +201,34 @@
   padding: 0.5rem 0;
 }
 
+/* Windowed route list */
+.oda-list-viewport {
+  position: relative;
+  min-height: 0;
+  height: 100%;
+  overflow-y: auto;
+  padding: 0.5rem 0;
+}
+
+.oda-list-inner {
+  position: relative;
+  width: 100%;
+}
+
+.oda-row-slot {
+  position: absolute;
+  left: 0;
+  right: 0;
+  display: flex;
+  align-items: stretch;
+  gap: 0.25rem;
+}
+
+.oda-row-slot > .oda-row {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
 .oda-row {
   display: flex;
   align-items: center;
@@ -214,6 +242,50 @@
   color: var(--oda-text);
   font: inherit;
   text-align: left;
+}
+
+.oda-row-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.oda-row-trailing {
+  flex: none;
+  color: var(--oda-muted);
+  font-variant-numeric: tabular-nums;
+  font-size: 0.9em;
+}
+
+.oda-row-playing {
+  margin-left: 0.35rem;
+  color: var(--oda-accent);
+  font-size: 1em;
+  vertical-align: middle;
+}
+
+.oda-row-actions {
+  display: flex;
+  align-items: center;
+  flex: none;
+  gap: 0.15rem;
+}
+
+.oda-row-action {
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  background: transparent;
+  color: var(--oda-muted);
+}
+
+.oda-row-action:hover,
+.oda-row-action:focus-visible {
+  border-color: var(--oda-border-strong);
+  color: var(--oda-text);
+  outline: none;
 }
 
 .oda-row.is-focused {
@@ -485,6 +557,49 @@
   color: var(--oda-text);
 }
 
+/* Theaters */
+.oda-theater {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  background: #000;
+}
+
+.oda-theater-controls {
+  position: absolute;
+  left: 50%;
+  bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.55rem;
+  border: 1px solid var(--oda-border);
+  border-radius: 2px;
+  background: color-mix(in srgb, #000 62%, transparent);
+  transform: translateX(-50%);
+}
+
+.oda-theater-controls button {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  height: clamp(2.4rem, 4.5vh, 3.2rem);
+  padding: 0 0.7rem;
+  border: 1px solid var(--oda-border);
+  border-radius: 2px;
+  background: var(--oda-surface);
+  color: var(--oda-text);
+  font: inherit;
+}
+
+.oda-theater-controls button:hover,
+.oda-theater-controls button.is-focused {
+  border-color: var(--oda-focus);
+  color: var(--oda-accent-strong);
+  outline: none;
+}
+
 /* Notices */
 .oda-notices {
   position: absolute;
@@ -539,5 +654,16 @@
   .oda-card,
   .oda-row {
     transition: none;
+  }
+}
+
+@media (max-width: 900px) {
+  .oda-now-playing {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(0, 1fr) minmax(0, 0.8fr);
+  }
+
+  .oda-options {
+    grid-template-columns: minmax(9rem, 30vw) minmax(0, 1fr);
   }
 }

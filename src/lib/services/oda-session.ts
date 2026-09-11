@@ -15,7 +15,7 @@ export type OdaMedium = 'music' | 'video' | 'image';
 
 export type OdaRoute =
   | { name: 'home' }
-  | { name: 'browse'; medium: OdaMedium; view: OdaBrowseView }
+  | { name: 'browse'; medium: OdaMedium; view: OdaBrowseView; groupKey?: string }
   | { name: 'recents' }
   | { name: 'queue' }
   | { name: 'now-playing' }
@@ -57,7 +57,9 @@ export const ODA_HOME_ROUTE: OdaRoute = { name: 'home' };
 function sameRoute(first: OdaRoute, second: OdaRoute): boolean {
   if (first.name !== second.name) return false;
   if (first.name === 'browse' && second.name === 'browse') {
-    return first.medium === second.medium && first.view === second.view;
+    return first.medium === second.medium
+      && first.view === second.view
+      && (first.groupKey ?? null) === (second.groupKey ?? null);
   }
   if (first.name === 'options' && second.name === 'options') {
     return first.view === second.view;

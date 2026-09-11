@@ -1,7 +1,20 @@
 <script lang="ts">
   import type { PlaybackSnapshot, RepeatMode, TrackItem } from '$lib/types';
   import { formatDuration, getTrackDisplayTitle } from '$lib/utils/files';
+  import { odaBrowseTrackId } from '../oda-browse';
+  import { buildOdaTrackDisplayRows } from '../oda-rows';
+  import {
+    ODA_NP_NEXT,
+    ODA_NP_PLAY_PAUSE,
+    ODA_NP_PREVIOUS,
+    ODA_NP_REPEAT,
+    ODA_NP_SEEK_BACK,
+    ODA_NP_SEEK_FORWARD,
+    ODA_NP_SEEK_STEP_SECONDS,
+    ODA_NP_SHUFFLE
+  } from '../oda-now-playing';
   import type { OdaTranslate } from '../oda-translate';
+  import OdaRouteList from './OdaRouteList.svelte';
 
   export let track: TrackItem | null = null;
   export let snapshot: PlaybackSnapshot | null = null;
@@ -11,6 +24,7 @@
   export let shuffleEnabled = false;
   export let repeatMode: RepeatMode = 'off';
   export let canMutateQueue = true;
+  export let canReorderQueue = true;
   export let translate: OdaTranslate;
 
   export let onActivateQueueItem: (id: string) => void = () => {};
@@ -21,13 +35,15 @@
   export let onToggleShuffle: () => void = () => {};
   export let onCycleRepeat: () => void = () => {};
   export let onRemoveQueueItem: (id: string) => void = () => {};
+  export let onMoveQueueItem: (id: string, direction: -1 | 1) => void = () => {};
 
   $: currentTime = snapshot?.currentTime ?? 0;
   $: duration = snapshot?.duration ?? 0;
   $: progressPercent = duration > 0 ? Math.min(100, (currentTime / duration) * 100) : 0;
+  $: queueRows = buildOdaTrackDisplayRows(queueItems, track?.id ?? null);
 
-  function focusIdFor(id: string): string {
-    return `item:${id}`;
+  function focusClass(id: string): boolean {
+    return focusId === id;
   }
 
   function repeatLabel(): string {
@@ -40,6 +56,28 @@
     if (duration <= 0) return;
     const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
     onSeek(((event.clientX - rect.left) / rect.width) * duration);
+  }
+
+  function handleSeekDelta(seconds: number): void {
+    const target = duration > 0
+      ? Math.min(Math.max(currentTime + seconds, 0), duration)
+      : currentTime + seconds;
+    onSeek(target);
+  }
+
+  function handleQueueActivate(rowFocusId: string): void {
+    const id = odaBrowseTrackId(rowFocusId);
+    if (id) onActivateQueueItem(id);
+  }
+
+  function handleQueueRemove(rowFocusId: string): void {
+    const id = odaBrowseTrackId(rowFocusId);
+    if (id) onRemoveQueueItem(id);
+  }
+
+  function handleQueueMove(rowFocusId: string, direction: -1 | 1): void {
+    const id = odaBrowseTrackId(rowFocusId);
+    if (id) onMoveQueueItem(id, direction);
   }
 </script>
 
@@ -69,42 +107,67 @@
         <p class="oda-progress-time">
           {formatDuration(currentTime)} / {duration > 0 ? formatDuration(duration) : '--:--'}
         </p>
-
-        <div class="oda-transport">
-          <button type="button" on:click={() => onStepTrack(-1)}>
-            <span class="material-symbols-outlined">skip_previous</span>
-          </button>
-          <button
-            type="button"
-            class="oda-transport-primary"
-            on:click={onTogglePlayback}
-          >
-            <span class="material-symbols-outlined">
-              {snapshot?.state === 'playing' ? 'pause' : 'play_arrow'}
-            </span>
-          </button>
-          <button type="button" on:click={() => onStepTrack(1)}>
-            <span class="material-symbols-outlined">skip_next</span>
-          </button>
-          <button
-            type="button"
-            class:is-active={shuffleEnabled}
-            on:click={onToggleShuffle}
-          >
-            <span class="material-symbols-outlined">shuffle</span>
-          </button>
-          <button
-            type="button"
-            class:is-active={repeatMode !== 'off'}
-            title={repeatLabel()}
-            on:click={onCycleRepeat}
-          >
-            <span class="material-symbols-outlined">
-              {repeatMode === 'one' ? 'repeat_one' : 'repeat'}
-            </span>
-          </button>
-        </div>
       {/if}
+
+      <div class="oda-transport">
+        <button
+          type="button"
+          class:is-focused={focusClass(ODA_NP_PREVIOUS)}
+          on:click={() => onStepTrack(-1)}
+        >
+          <span class="material-symbols-outlined">skip_previous</span>
+        </button>
+        <button
+          type="button"
+          class="oda-transport-primary"
+          class:is-focused={focusClass(ODA_NP_PLAY_PAUSE)}
+          on:click={onTogglePlayback}
+        >
+          <span class="material-symbols-outlined">
+            {snapshot?.state === 'playing' ? 'pause' : 'play_arrow'}
+          </span>
+        </button>
+        <button
+          type="button"
+          class:is-focused={focusClass(ODA_NP_NEXT)}
+          on:click={() => onStepTrack(1)}
+        >
+          <span class="material-symbols-outlined">skip_next</span>
+        </button>
+        <button
+          type="button"
+          class:is-focused={focusClass(ODA_NP_SEEK_BACK)}
+          on:click={() => handleSeekDelta(-ODA_NP_SEEK_STEP_SECONDS)}
+        >
+          <span class="material-symbols-outlined">replay_10</span>
+        </button>
+        <button
+          type="button"
+          class:is-focused={focusClass(ODA_NP_SEEK_FORWARD)}
+          on:click={() => handleSeekDelta(ODA_NP_SEEK_STEP_SECONDS)}
+        >
+          <span class="material-symbols-outlined">forward_10</span>
+        </button>
+        <button
+          type="button"
+          class:is-active={shuffleEnabled}
+          class:is-focused={focusClass(ODA_NP_SHUFFLE)}
+          on:click={onToggleShuffle}
+        >
+          <span class="material-symbols-outlined">shuffle</span>
+        </button>
+        <button
+          type="button"
+          class:is-active={repeatMode !== 'off'}
+          class:is-focused={focusClass(ODA_NP_REPEAT)}
+          title={repeatLabel()}
+          on:click={onCycleRepeat}
+        >
+          <span class="material-symbols-outlined">
+            {repeatMode === 'one' ? 'repeat_one' : 'repeat'}
+          </span>
+        </button>
+      </div>
     </div>
   </div>
 
@@ -113,37 +176,21 @@
       <h2>{translate('oda.cards.queue', 'Queue')}</h2>
       <p>{queueItems.length}</p>
     </div>
-    <div class="oda-rows">
-      {#each queueItems as item (item.id)}
-        {@const itemFocusId = focusIdFor(item.id)}
-        <div class="oda-row-wrap">
-          <button
-            type="button"
-            class="oda-row"
-            class:is-focused={focusId === itemFocusId}
-            on:click={() => { onFocus(itemFocusId); onActivateQueueItem(item.id); }}
-          >
-            <span class="oda-row-title">
-              {getTrackDisplayTitle(item) || item.name}
-              {#if track?.id === item.id}
-                <span class="material-symbols-outlined" aria-hidden="true">graphic_eq</span>
-              {/if}
-            </span>
-          </button>
-          {#if canMutateQueue}
-            <button
-              type="button"
-              class="oda-row-remove"
-              title={translate('oda.nowPlaying.remove', 'Remove from queue')}
-              on:click={() => onRemoveQueueItem(item.id)}
-            >
-              <span class="material-symbols-outlined">close</span>
-            </button>
-          {/if}
-        </div>
-      {:else}
-        <p class="oda-row-meta">{translate('oda.nowPlaying.queueEmpty', 'The queue is empty.')}</p>
-      {/each}
-    </div>
+    {#if queueRows.length === 0}
+      <p class="oda-row-meta">{translate('oda.nowPlaying.queueEmpty', 'The queue is empty.')}</p>
+    {:else}
+      <OdaRouteList
+        rows={queueRows}
+        {focusId}
+        listKey="now-playing-queue"
+        canRemove={canMutateQueue}
+        canMove={canReorderQueue}
+        onActivate={handleQueueActivate}
+        onFocus={(nextFocusId) => onFocus(nextFocusId)}
+        onRemove={handleQueueRemove}
+        onMove={handleQueueMove}
+        {translate}
+      />
+    {/if}
   </div>
 </div>

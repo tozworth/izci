@@ -413,6 +413,22 @@ export function createTrackCollectionStore(config: TrackCollectionStoreConfig) {
         queuePersist();
       });
     },
+    /** Swap an item with its neighbour. Returns false when the move is a no-op. */
+    moveBy(id: string, offset: -1 | 1) {
+      let moved = false;
+      runOrQueue(() => {
+        const index = itemList.findIndex((item) => item.id === id);
+        const targetIndex = index + offset;
+        if (index < 0 || targetIndex < 0 || targetIndex >= itemList.length) return;
+        const nextItems = [...itemList];
+        [nextItems[index], nextItems[targetIndex]] = [nextItems[targetIndex], nextItems[index]];
+        items.set(nextItems);
+        navigation.reset();
+        queuePersist();
+        moved = true;
+      });
+      return moved;
+    },
     remove(ids: string[]) {
       if (ids.length === 0 || !hydrated) {
         return [];

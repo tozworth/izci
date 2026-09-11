@@ -2497,8 +2497,8 @@
       "browseRecents": "Browse recently played"
     },
     "browse": {
-      "groupedLater": "Grouped browsing arrives in a later phase.",
       "count": "{count} items",
+      "groupCount": "{count} groups",
       "emptyTitle": "Nothing to browse",
       "empty": "No library items of this kind have been added."
     },
@@ -2508,7 +2508,9 @@
     },
     "queue": {
       "emptyTitle": "The queue is empty",
-      "empty": "Add tracks from the library to build a queue."
+      "empty": "Add tracks from the library to build a queue.",
+      "moveUp": "Move up",
+      "moveDown": "Move down"
     },
     "nowPlaying": {
       "idleTitle": "Nothing playing",
@@ -2519,15 +2521,9 @@
       "remove": "Remove from queue",
       "queueEmpty": "The queue is empty."
     },
-    "placeholder": {
-      "default": "This Oda screen is not available yet.",
-      "back": "Press Back or Escape to return."
-    },
     "theater": {
-      "videoTitle": "Video",
-      "videoLater": "The Oda video theater arrives in a later phase. Playback keeps running.",
-      "imageTitle": "Images",
-      "imageLater": "The Oda image theater arrives in a later phase."
+      "controls": "Playback controls",
+      "back": "Back"
     },
     "options": {
       "categories": "Options categories",

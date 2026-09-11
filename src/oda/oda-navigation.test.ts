@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   INITIAL_WATERFALL_FOCUS,
   clampIndex,
+  createNowPlayingFocusModel,
   findWaterfallFocus,
   moveGridIndex,
   moveListIndex,
@@ -20,6 +21,40 @@ const SECTIONS: OdaWaterfallSection[] = [
   { id: 'recents', cardIds: ['browse-recents'] },
   { id: 'options', cardIds: ['oda-settings', 'all-options', 'exit-oda'] }
 ];
+
+describe('createNowPlayingFocusModel', () => {
+  const TRANSPORT = ['np:previous', 'np:play-pause', 'np:next'];
+  const QUEUE = ['item:a', 'item:b'];
+
+  it('resolves an empty focus to the first transport control', () => {
+    const model = createNowPlayingFocusModel(TRANSPORT, QUEUE);
+    expect(model.resolveMove(null, 'down', false)).toBe('np:previous');
+    expect(model.resolveMove(null, 'left', false)).toBe('np:previous');
+  });
+
+  it('moves left/right only within the transport strip', () => {
+    const model = createNowPlayingFocusModel(TRANSPORT, QUEUE);
+    expect(model.resolveMove('np:previous', 'right', false)).toBe('np:play-pause');
+    expect(model.resolveMove('np:next', 'right', false)).toBe('np:next');
+    expect(model.resolveMove('np:play-pause', 'left', false)).toBe('np:previous');
+    expect(model.resolveMove('np:previous', 'left', true)).toBe('np:next');
+  });
+
+  it('crosses into the queue and back to the last transport control', () => {
+    const model = createNowPlayingFocusModel(TRANSPORT, QUEUE);
+    expect(model.resolveMove('np:play-pause', 'down', false)).toBe('item:a');
+    expect(model.resolveMove('item:a', 'down', false)).toBe('item:b');
+    expect(model.resolveMove('item:b', 'down', false)).toBe('item:b');
+    expect(model.resolveMove('item:a', 'up', false)).toBe('np:next');
+    expect(model.resolveMove('item:b', 'up', false)).toBe('item:a');
+  });
+
+  it('falls back for an unknown focus without a queue', () => {
+    const model = createNowPlayingFocusModel(TRANSPORT, []);
+    expect(model.resolveMove('gone', 'down', false)).toBe('np:previous');
+    expect(model.resolveMove('np:previous', 'down', false)).toBe('np:previous');
+  });
+});
 
 describe('clampIndex', () => {
   it('clamps into range and collapses empty lists', () => {
