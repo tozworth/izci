@@ -133,8 +133,10 @@
 
 .oda-card {
   display: flex;
+  position: relative;
   flex: none;
   flex-direction: column;
+  justify-content: flex-end;
   gap: 0.4rem;
   height: clamp(7.5rem, 17vh, 11.5rem);
   aspect-ratio: 16 / 9;
@@ -156,17 +158,40 @@
 }
 
 .oda-card-label {
+  position: relative;
+  z-index: 1;
   font-size: clamp(1.05rem, 1.6vw, 1.6rem);
   font-weight: 640;
 }
 
 .oda-card-meta {
+  position: relative;
+  z-index: 1;
   color: var(--oda-muted);
   font-size: clamp(0.8rem, 1.05vw, 1.05rem);
 }
 
 .oda-card.is-empty .oda-card-meta {
   color: color-mix(in srgb, var(--oda-muted) 70%, transparent);
+}
+
+/* Decorative corner glyph: oversized, tilted clockwise, clipped by the
+   card's own overflow. Artwork cards hide it; the art is the visual.
+   (Qualified selectors so these beat the icon font's own 24px sizing.) */
+.oda-card .oda-card-glyph {
+  position: absolute;
+  top: -1.1rem;
+  right: -1.1rem;
+  z-index: 0;
+  color: color-mix(in srgb, var(--oda-accent-strong) 38%, transparent);
+  font-size: clamp(4.5rem, 10vh, 7rem);
+  line-height: 1;
+  transform: rotate(12deg);
+  pointer-events: none;
+}
+
+.oda-card.has-art .oda-card-glyph {
+  display: none;
 }
 
 /* Cards with artwork: the art covers the card (cropped, never stretched)

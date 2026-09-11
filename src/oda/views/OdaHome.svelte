@@ -95,6 +95,12 @@
     void tick().then(revealFocusedCard);
   }
 
+  function nowPlayingSubtext(): string {
+    const artist = playingTrack?.metadata?.artist?.trim();
+    if (artist) return artist;
+    return playStateLabel();
+  }
+
   function playStateLabel(): string {
     if (!playingTrack) return translate('oda.home.idle', 'Nothing playing');
     if (playbackSnapshot?.state === 'playing') return translate('oda.home.playing', 'Playing');
@@ -104,6 +110,29 @@
 
   function cardFocusId(sectionId: string, cardId: string): string {
     return waterfallCardFocusId(sectionId, cardId);
+  }
+
+  /** Decorative corner glyph per card; null renders no glyph. */
+  const CARD_GLYPHS: Record<string, string> = {
+    'browse-images': 'image',
+    'browse-videos': 'movie',
+    'browse-music': 'library_music',
+    artists: 'mic',
+    albums: 'album',
+    songs: 'music_note',
+    genres: 'category',
+    years: 'calendar_month',
+    formats: 'audio_file',
+    folders: 'folder',
+    'now-playing': 'graphic_eq',
+    queue: 'queue_music',
+    'browse-recents': 'history',
+    'all-options': 'settings',
+    'exit-oda': 'logout'
+  };
+
+  function cardGlyph(cardId: string): string | null {
+    return CARD_GLYPHS[cardId] ?? null;
   }
 </script>
 
@@ -140,12 +169,15 @@
                 style={artworkUrl ? `background-image: url("${artworkUrl}")` : ''}
                 on:click={() => { onFocus(cardId); onActivate(card); }}
               >
+                {#if cardGlyph(card.id)}
+                  <span class="oda-card-glyph material-symbols-outlined" aria-hidden="true">{cardGlyph(card.id)}</span>
+                {/if}
                 <span class="oda-card-strip">
                   <span class="oda-card-label">
                     {playingTrack ? (playingTrack.metadata?.title || playingTrack.name) : translate('oda.cards.nowPlaying', 'Now Playing')}
                   </span>
                   <span class="oda-card-meta">
-                    {playStateLabel()}
+                    {nowPlayingSubtext()}
                   </span>
                 </span>
               </button>
@@ -157,6 +189,9 @@
                 class:is-empty={card.empty}
                 on:click={() => { onFocus(cardId); onActivate(card); }}
               >
+                {#if cardGlyph(card.id)}
+                  <span class="oda-card-glyph material-symbols-outlined" aria-hidden="true">{cardGlyph(card.id)}</span>
+                {/if}
                 <span class="oda-card-label">{translate(card.labelKey, card.labelFallback)}</span>
                 {#if card.id === 'queue'}
                   <span class="oda-card-meta">
