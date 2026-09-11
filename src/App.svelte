@@ -87,6 +87,7 @@
   import OdaShell from './oda/OdaShell.svelte';
   import { createOdaSession, type OdaSessionSnapshot } from '$lib/services/oda-session';
   import { createOdaFocusController } from './oda/oda-focus';
+  import { lockOdaEscapeKey, unlockOdaEscapeKey } from './oda/oda-keyboard-lock';
   import { createOdaTranslate, type OdaTranslate } from './oda/oda-translate';
   import type { OdaCommands } from './oda/oda-commands';
   import { odaSettings } from '$lib/stores/oda-settings';
@@ -795,6 +796,10 @@
   async function enterOda(): Promise<void> {
     if (mobileMode) return;
     await odaSession.enter({ fullscreen: odaSettings.getSnapshot().odaEnterFullscreen });
+    // Eat Escape while Oda owns fullscreen (Chromium Keyboard Lock): the
+    // browser otherwise reserves Esc to leave fullscreen, so an Escape from
+    // Oda Options would just unfullscreen instead of going back to the waterfall.
+    if (odaSessionSnapshot.ownsFullscreen) lockOdaEscapeKey();
   }
 
   // Oda always activates from the effective library collection, independent of
@@ -860,6 +865,7 @@
     resetZoom: () => videoActions.resetZoom(),
     rotateImage: () => videoActions.rotateImage(),
     exitOda: () => {
+      unlockOdaEscapeKey();
       odaFocus.endRepeat();
       odaFocus.setModel(null);
       void odaSession.exit();
@@ -879,7 +885,13 @@
   }
 
   onMount(() => {
-    const handleFullscreenChange = () => odaSession.handleFullscreenChange();
+    const handleFullscreenChange = () => {
+      // Fallback when Escape was not locked (non-Chromium, denied lock): the
+      // browser exits fullscreen and may swallow the keyup, so complete the
+      // pending Back tap here instead of stranding the route.
+      odaFocus.handleBrowserFullscreenExit();
+      odaSession.handleFullscreenChange();
+    };
     document.addEventListener('fullscreenchange', handleFullscreenChange);
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   });

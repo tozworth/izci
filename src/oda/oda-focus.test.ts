@@ -125,6 +125,44 @@ describe('createOdaFocusController', () => {
     expect(handlers.onBack).toHaveBeenCalledTimes(1);
   });
 
+  it('completes a pending Back tap on browser fullscreen exit without double-firing', () => {
+    const { controller, handlers } = createController();
+    controller.setModel(createListFocusModel(['a']));
+
+    controller.handleKeydown(key('Escape'));
+    controller.handleBrowserFullscreenExit();
+    expect(handlers.onBack).toHaveBeenCalledTimes(1);
+
+    // The swallowed press's late keyup (if ever delivered) must not fire again.
+    controller.handleKeyup(key('Escape'));
+    expect(handlers.onBack).toHaveBeenCalledTimes(1);
+  });
+
+  it('ignores browser fullscreen exits with no pending Back press', () => {
+    const { controller, handlers } = createController();
+    controller.setModel(createListFocusModel(['a']));
+
+    controller.handleBrowserFullscreenExit();
+    expect(handlers.onBack).not.toHaveBeenCalled();
+    expect(handlers.onHoldBack).not.toHaveBeenCalled();
+  });
+
+  it('prefers the hold action over the tap when fullscreen exits after the threshold', () => {
+    const { controller, handlers, timers } = createController({ holdAction: 'return-home', thresholdMs: 800 });
+    controller.setModel(createListFocusModel(['a']));
+
+    controller.handleKeydown(key('Escape'));
+    timers[0].callback();
+    expect(handlers.onHoldBack).toHaveBeenCalledTimes(1);
+
+    controller.handleBrowserFullscreenExit();
+    expect(handlers.onBack).not.toHaveBeenCalled();
+
+    controller.handleKeyup(key('Escape'));
+    expect(handlers.onBack).not.toHaveBeenCalled();
+    expect(handlers.onHoldBack).toHaveBeenCalledTimes(1);
+  });
+
   it('passes input through when no model is active', () => {
     const { controller, handlers } = createController();
     controller.setModel(null);

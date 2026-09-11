@@ -100,9 +100,10 @@ describe('buildOdaHomeSections', () => {
       .toEqual({ name: 'browse', medium: 'music', view: 'artists' });
 
     const options = sections[5].cards;
+    expect(options.map((card) => card.id)).toEqual(['all-options', 'exit-oda']);
     expect(options.find((card) => card.id === 'exit-oda')?.command).toBe('exit-oda');
     expect(options.find((card) => card.id === 'all-options')?.route)
-      .toEqual({ name: 'options', view: 'appearance' });
+      .toEqual({ name: 'options', view: 'oda' });
   });
 
   it('keeps empty destinations focusable with an empty marker', () => {

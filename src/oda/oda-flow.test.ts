@@ -137,6 +137,7 @@ describe('Oda keyboard flow', () => {
     expect(harness.focus.getFocus()).toBe('item:m2');
 
     // Back returns to the group list and restores the group focus.
+    harness.key('Escape');
     harness.focus.handleKeyup({ key: 'Escape' } as KeyboardEvent);
     expect(harness.getRoute()).toEqual({ name: 'browse', medium: 'music', view: 'artists' });
   });
