@@ -1511,6 +1511,14 @@
           "waterfall": "Waterfall"
         }
       },
+      "songsLayout": {
+        "title": "Şarkı tarayıcısı yerleşimi",
+        "hint": "Oda'da şarkıları sıkı bir liste veya kapak görseli galerisi olarak gösterir.",
+        "options": {
+          "list": "Liste",
+          "grid": "Kapak görseli ızgarası"
+        }
+      },
       "fullscreen": {
         "title": "Tarayıcı tam ekranına gir",
         "hint": "Oda'ya girildiğinde tam ekran ister. İstek reddedilse, kullanılamasa veya tarayıcı kısayoluyla çıkılsa bile Oda kullanılabilir kalır."
@@ -2521,6 +2529,17 @@
       "emptyTitle": "Göz atılacak bir şey yok",
       "empty": "Bu türde kütüphane öğesi eklenmemiş."
     },
+    "browser": {
+      "library": "Kütüphane",
+      "filters": "Kütüphane filtreleri",
+      "allSongs": "Tüm şarkılar",
+      "allVideos": "Tüm videolar",
+      "allImages": "Tüm görseller",
+      "sidebarHint": "Bir filtre seçin, ardından göz atmak için Sağ'a basın.",
+      "songLayout": "Şarkı yerleşimi",
+      "list": "Liste",
+      "grid": "Kapak görseli ızgarası"
+    },
     "recents": {
       "emptyTitle": "Son çalınan yok",
       "empty": "Henüz hiçbir şey çalınmadı."
@@ -2537,6 +2556,12 @@
       "repeatOne": "Birini tekrarla",
       "repeatAll": "Tümünü tekrarla",
       "repeatOff": "Tekrar kapalı",
+      "previous": "Önceki",
+      "next": "Sonraki",
+      "playPause": "Oynat veya duraklat",
+      "seek": "Sar",
+      "shuffle": "Karıştır",
+      "volume": "Ses",
       "remove": "Kuyruktan çıkar",
       "queueEmpty": "Kuyruk boş."
     },
@@ -2548,7 +2573,8 @@
       "categories": "Seçenek kategorileri",
       "advanced": "Gelişmiş ayarlar",
       "hints": "Alan ipuçları",
-      "reset": "Sayfayı sıfırla"
+      "reset": "Sayfayı sıfırla",
+      "navigationHint": "Yukarı/Aşağı taşır · Sol/Sağ ayarlar · Geri döner"
     }
   }
 }

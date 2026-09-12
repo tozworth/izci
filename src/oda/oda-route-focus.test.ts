@@ -41,6 +41,9 @@ const CONTEXT: OdaRouteFocusContext = {
   recentsItems: RECENTS,
   queueItems: QUEUE,
   optionCategoryIds: ['option:oda', 'option:appearance'],
+  songsLayout: 'grid',
+  canMutateQueue: true,
+  canReorderQueue: true,
   homeWaterfallSections: [
     { id: 'images', cardIds: ['browse-images'] },
     { id: 'music', cardIds: ['browse-music', 'artists'] },
@@ -52,8 +55,8 @@ describe('resolveOdaRouteTrackItems', () => {
   it('selects the right effective collection per route', () => {
     expect(resolveOdaRouteTrackItems({ name: 'recents' }, CONTEXT)).toBe(RECENTS);
     expect(resolveOdaRouteTrackItems({ name: 'queue' }, CONTEXT)).toBe(QUEUE);
-    expect(resolveOdaRouteTrackItems({ name: 'browse', medium: 'video', view: 'tracks' }, CONTEXT)).toBe(VIDEOS);
-    expect(resolveOdaRouteTrackItems({ name: 'browse', medium: 'image', view: 'tracks' }, CONTEXT)).toBe(IMAGES);
+    expect(resolveOdaRouteTrackItems({ name: 'browse', medium: 'video', view: 'songs' }, CONTEXT)).toBe(VIDEOS);
+    expect(resolveOdaRouteTrackItems({ name: 'browse', medium: 'image', view: 'songs' }, CONTEXT)).toBe(IMAGES);
     expect(resolveOdaRouteTrackItems({ name: 'browse', medium: 'music', view: 'songs' }, CONTEXT)).toBe(MUSIC);
   });
 
@@ -61,7 +64,8 @@ describe('resolveOdaRouteTrackItems', () => {
     const [group] = resolveOdaRouteFocusIds(
       { name: 'browse', medium: 'music', view: 'artists' },
       CONTEXT
-    ).map((focusId) => focusId.slice('group:'.length));
+    ).filter((focusId) => focusId.startsWith('group:'))
+      .map((focusId) => focusId.slice('group:'.length));
     expect(group).toBeTruthy();
     expect(
       resolveOdaRouteTrackItems(
@@ -76,19 +80,34 @@ describe('resolveOdaRouteFocusIds', () => {
   it('uses group focus IDs for a grouped browse list', () => {
     const ids = resolveOdaRouteFocusIds({ name: 'browse', medium: 'music', view: 'artists' }, CONTEXT);
     expect(ids.length).toBeGreaterThan(0);
-    expect(ids.every((id) => id.startsWith('group:'))).toBe(true);
+    expect(ids.filter((id) => id.startsWith('group:')).length).toBeGreaterThan(0);
+    expect(ids[0]).toBe('browse-filter:music:songs');
   });
 
   it('uses track focus IDs for flat and group levels', () => {
     const flat = resolveOdaRouteFocusIds({ name: 'browse', medium: 'music', view: 'songs' }, CONTEXT);
-    expect(flat).toEqual(['item:m1', 'item:m2']);
+    expect(flat.slice(-2)).toEqual(['item:m1', 'item:m2']);
   });
 
   it('combines transport and queue IDs for Now Playing', () => {
     const ids = resolveOdaRouteFocusIds({ name: 'now-playing' }, CONTEXT);
-    expect(ids[0]).toBe('np:previous');
+    expect(ids[0]).toBe('np:progress');
     expect(ids).toContain('np:play-pause');
-    expect(ids.slice(-2)).toEqual(['item:q1', 'item:q2']);
+    expect(ids).toContain('item:q1');
+    expect(ids).toContain('item:q2');
+    expect(ids).toContain('np:queue-action:remove:q1');
+  });
+
+  it('omits the queue action branch when queue mutation is unavailable', () => {
+    const readOnlyContext = {
+      ...CONTEXT,
+      canMutateQueue: false,
+      canReorderQueue: false
+    };
+    const ids = resolveOdaRouteFocusIds({ name: 'now-playing' }, readOnlyContext);
+    const model = resolveOdaRouteFocusModel({ name: 'now-playing' }, readOnlyContext);
+    expect(ids.some((id) => id.startsWith('np:queue-action:'))).toBe(false);
+    expect(model!.resolveMove('item:q1', 'right', false)).toBe('item:q1');
   });
 
   it('exposes theater controls and options categories', () => {
@@ -118,13 +137,21 @@ describe('resolveOdaRouteFocusModel', () => {
   it('moves across the Now Playing transport and queue regions', () => {
     const model = resolveOdaRouteFocusModel({ name: 'now-playing' }, CONTEXT);
     expect(model).not.toBeNull();
-    expect(model!.resolveMove(null, 'right', false)).toBe('np:previous');
+    expect(model!.resolveMove(null, 'right', false)).toBe('np:progress');
+    expect(model!.resolveMove('np:progress', 'down', false)).toBe('np:play-pause');
     expect(model!.resolveMove('np:play-pause', 'down', false)).toBe('item:q1');
-    expect(model!.resolveMove('item:q1', 'up', false)).toBe('np:repeat');
+    expect(model!.resolveMove('np:next', 'right', false)).toBe('np:repeat');
+    expect(model!.resolveMove('np:volume', 'right', false)).toBe('item:q1');
+    expect(model!.resolveMove('item:q1', 'up', false)).toBe('np:volume');
+    expect(model!.resolveMove('item:q1', 'right', false)).toBe('np:queue-action:move-up:q1');
+    expect(model!.resolveMove('np:queue-action:move-up:q1', 'left', false)).toBe('item:q1');
   });
 
   it('clamps a list model without wrap', () => {
-    const model = resolveOdaRouteFocusModel({ name: 'browse', medium: 'music', view: 'songs' }, CONTEXT);
+    const model = resolveOdaRouteFocusModel(
+      { name: 'browse', medium: 'music', view: 'songs' },
+      { ...CONTEXT, songsLayout: 'list' }
+    );
     expect(model!.resolveMove('item:m1', 'up', false)).toBe('item:m1');
     expect(model!.resolveMove('item:m1', 'down', false)).toBe('item:m2');
     expect(model!.resolveMove('item:m2', 'down', false)).toBe('item:m2');

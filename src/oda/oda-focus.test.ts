@@ -14,6 +14,7 @@ function createController(options: {
   const focusChanges: Array<string | null> = [];
   const handlers = {
     onActivate: vi.fn(),
+    onMove: vi.fn(() => false),
     onBack: vi.fn(),
     onHoldBack: vi.fn(),
     onTransport: vi.fn()
@@ -62,6 +63,17 @@ describe('createOdaFocusController', () => {
     wrapped.controller.setFocus('b');
     wrapped.controller.handleKeydown(key('ArrowDown'));
     expect(wrapped.controller.getFocus()).toBe('a');
+  });
+
+  it('lets an adjustable logical control consume a directional move', () => {
+    const { controller, handlers } = createController();
+    controller.setModel(createListFocusModel(['timeline', 'button']));
+    controller.setFocus('timeline');
+    handlers.onMove.mockReturnValueOnce(true);
+
+    expect(controller.handleKeydown(key('ArrowRight'))).toBe(true);
+    expect(handlers.onMove).toHaveBeenCalledWith('timeline', 'right');
+    expect(controller.getFocus()).toBe('timeline');
   });
 
   it('resolves a null focus to the first entry on the first move', () => {

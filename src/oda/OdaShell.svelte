@@ -3,7 +3,7 @@
   import type { OdaRoute, OdaSession, OdaSessionSnapshot } from '$lib/services/oda-session';
   import { playbackSettings } from '$lib/stores/playback-settings';
   import { IMAGE_ZOOM_WHEEL_FACTOR } from '$lib/stores/video-settings';
-  import { DEFAULT_ODA_SETTINGS } from '$lib/stores/oda-settings';
+  import { DEFAULT_ODA_SETTINGS, odaSettings } from '$lib/stores/oda-settings';
   import type { OptionsViewName } from '../options/views';
   import OdaBrowseRoute from './views/OdaBrowseRoute.svelte';
   import OdaHome from './views/OdaHome.svelte';
@@ -27,11 +27,11 @@
     selectOdaVideos
   } from './oda-destinations';
   import {
-    isOdaGroupedBrowseView,
+    odaBrowserFilterFromFocusId,
+    odaBrowserLayoutFromFocusId,
     odaBrowseGroupKey,
     odaBrowseTrackId,
-    odaTrackFocusId,
-    resolveOdaBrowseGroup
+    odaTrackFocusId
   } from './oda-browse';
   import {
     findWaterfallFocus,
@@ -39,15 +39,18 @@
     type OdaWaterfallSection
   } from './oda-navigation';
   import type { OdaFocusController, OdaTransportAction } from './oda-focus';
+  import type { OdaDirection } from './oda-input';
   import {
     ODA_NP_NEXT,
     ODA_NP_PLAY_PAUSE,
     ODA_NP_PREVIOUS,
+    ODA_NP_PROGRESS,
     ODA_NP_REPEAT,
-    ODA_NP_SEEK_BACK,
-    ODA_NP_SEEK_FORWARD,
     ODA_NP_SEEK_STEP_SECONDS,
-    ODA_NP_SHUFFLE
+    ODA_NP_SHUFFLE,
+    ODA_NP_VOLUME,
+    parseOdaNowPlayingQueueActionFocusId,
+    resolveOdaNowPlayingRemovalTargetId
   } from './oda-now-playing';
   import {
     ODA_THEATER_BACK,
@@ -130,6 +133,8 @@
     void libraryItems;
     void queueItems;
     void optionCategoryIds;
+    void canMutateQueue;
+    void canReorderQueue;
     routeFocusIds = resolveOdaRouteFocusIds(activeRoute, focusContext());
   }
 
@@ -141,7 +146,10 @@
       recentsItems,
       queueItems,
       optionCategoryIds,
-      homeWaterfallSections
+      homeWaterfallSections,
+      songsLayout: settings.odaSongsLayout,
+      canMutateQueue,
+      canReorderQueue
     };
   }
 
@@ -190,6 +198,9 @@
     void queueItems;
     void optionsContentActive;
     void activeRoute;
+    void settings.odaSongsLayout;
+    void canMutateQueue;
+    void canReorderQueue;
     focus.setModel(optionsContentActive ? null : resolveRouteModel(activeRoute));
   }
 
@@ -200,6 +211,8 @@
     void queueItems;
     void homeWaterfallSections;
     void optionCategoryIds;
+    void canMutateQueue;
+    void canReorderQueue;
     if (
       sessionState.active
       && !optionsContentActive
@@ -212,6 +225,7 @@
 
   $: focus.setHandlers({
     onActivate: (focusId) => handleActivate(focusId),
+    onMove: (focusId, direction) => handleFocusMove(focusId, direction),
     onBack: () => handleBack(),
     onHoldBack: () => session.goHome(),
     onTransport: (action) => handleTransport(action)
@@ -277,21 +291,43 @@
   }
 
   function handleNowPlayingControl(focusId: string): void {
-    const current = playbackSnapshot?.currentTime ?? 0;
-    const duration = playbackSnapshot?.duration ?? 0;
     switch (focusId) {
       case ODA_NP_PLAY_PAUSE: commands.togglePlayback(); break;
       case ODA_NP_PREVIOUS: commands.stepTrack(-1); break;
       case ODA_NP_NEXT: commands.stepTrack(1); break;
       case ODA_NP_SHUFFLE: commands.toggleShuffle(); break;
       case ODA_NP_REPEAT: commands.cycleRepeat(); break;
-      case ODA_NP_SEEK_BACK: commands.seek(Math.max(current - ODA_NP_SEEK_STEP_SECONDS, 0)); break;
-      case ODA_NP_SEEK_FORWARD:
-        commands.seek(duration > 0
-          ? Math.min(current + ODA_NP_SEEK_STEP_SECONDS, duration)
-          : current + ODA_NP_SEEK_STEP_SECONDS);
-        break;
     }
+  }
+
+  function handleFocusMove(focusId: string | null, direction: OdaDirection): boolean {
+    if (activeRoute.name !== 'now-playing') return false;
+
+    if (focusId === ODA_NP_VOLUME && (direction === 'up' || direction === 'down')) {
+      handleVolumeStep(direction === 'up' ? 0.05 : -0.05);
+      return true;
+    }
+
+    if (focusId !== ODA_NP_PROGRESS || (direction !== 'left' && direction !== 'right')) {
+      return false;
+    }
+
+    const current = playbackSnapshot?.currentTime ?? 0;
+    const duration = playbackSnapshot?.duration ?? 0;
+    const delta = direction === 'left' ? -ODA_NP_SEEK_STEP_SECONDS : ODA_NP_SEEK_STEP_SECONDS;
+    commands.seek(duration > 0
+      ? Math.min(Math.max(current + delta, 0), duration)
+      : Math.max(current + delta, 0));
+    return true;
+  }
+
+  function removeNowPlayingQueueItem(trackId: string): void {
+    const nextFocusTrackId = resolveOdaNowPlayingRemovalTargetId(
+      queueItems.map((item) => item.id),
+      trackId
+    );
+    focus.setFocus(nextFocusTrackId ? odaTrackFocusId(nextFocusTrackId) : ODA_NP_PLAY_PAUSE);
+    commands.removeQueueTracks([trackId]);
   }
 
   function handleTheaterControl(focusId: string): void {
@@ -329,6 +365,17 @@
       return;
     }
     if (activeRoute.name === 'now-playing') {
+      const queueAction = parseOdaNowPlayingQueueActionFocusId(focusId);
+      if (queueAction) {
+        if (queueAction.action === 'move-up' && canReorderQueue) {
+          commands.moveQueueTrack(queueAction.trackId, -1);
+        } else if (queueAction.action === 'move-down' && canReorderQueue) {
+          commands.moveQueueTrack(queueAction.trackId, 1);
+        } else if (queueAction.action === 'remove' && canMutateQueue) {
+          removeNowPlayingQueueItem(queueAction.trackId);
+        }
+        return;
+      }
       if (focusId.startsWith('np:')) {
         handleNowPlayingControl(focusId);
         return;
@@ -341,6 +388,16 @@
       return;
     }
     if (activeRoute.name === 'browse') {
+      const layout = odaBrowserLayoutFromFocusId(focusId);
+      if (layout) {
+        odaSettings.update({ odaSongsLayout: layout });
+        return;
+      }
+      const filter = odaBrowserFilterFromFocusId(focusId);
+      if (filter) {
+        session.setBrowseView(filter.medium, filter.view);
+        return;
+      }
       const groupKey = odaBrowseGroupKey(focusId);
       if (groupKey) {
         openBrowseGroup(groupKey);
@@ -377,35 +434,6 @@
     else if (action === 'stop') commands.stop();
     else if (action === 'previous') commands.stepTrack(-1);
     else if (action === 'next') commands.stepTrack(1);
-  }
-
-  function browseTitle(route: Extract<OdaRoute, { name: 'browse' }>): string {
-    if (route.groupKey && isOdaGroupedBrowseView(route.view)) {
-      const group = resolveOdaBrowseGroup(musicItems, route.view, route.groupKey);
-      if (group) return group.label;
-    }
-    if (route.medium === 'video') return translate('oda.cards.browseVideos', 'Browse videos');
-    if (route.medium === 'image') return translate('oda.cards.browseImages', 'Browse images');
-    switch (route.view) {
-      case 'tracks': return translate('oda.cards.browseMusic', 'Browse music');
-      case 'artists': return translate('oda.cards.artists', 'Artists');
-      case 'albums': return translate('oda.cards.albums', 'Albums');
-      case 'songs': return translate('oda.cards.songs', 'Songs');
-      case 'genres': return translate('oda.cards.genres', 'Genres');
-      case 'years': return translate('oda.cards.years', 'Years');
-      case 'formats': return translate('oda.cards.formats', 'Formats');
-      case 'folders': return translate('oda.cards.folders', 'Folders');
-    }
-  }
-
-  function browseSubtitle(route: Extract<OdaRoute, { name: 'browse' }>): string {
-    const count = routeFocusIds.length;
-    const isGroupLevel = route.medium === 'music'
-      && isOdaGroupedBrowseView(route.view)
-      && !route.groupKey;
-    return isGroupLevel
-      ? translate('oda.browse.groupCount', '{count} groups', { count })
-      : translate('oda.browse.count', '{count} items', { count });
   }
 
   function handleVolumeStep(delta: number): void {
@@ -447,6 +475,7 @@
       />
     {:else if activeRoute.name === 'browse'}
       <OdaBrowseRoute
+        medium={activeRoute.medium}
         view={activeRoute.view}
         items={activeRoute.medium === 'music'
           ? musicItems
@@ -454,13 +483,14 @@
             ? videoItems
             : imageItems}
         groupKey={activeRoute.groupKey ?? null}
-        title={browseTitle(activeRoute)}
-        subtitle={browseSubtitle(activeRoute)}
         focusId={sessionState.focusId}
         playingId={playingTrack?.id ?? null}
+        songsLayout={settings.odaSongsLayout}
         {translate}
         onActivateTrack={(id) => void activateAndRoute(odaTrackFocusId(id), 'library')}
         onOpenGroup={openBrowseGroup}
+        onSelectView={(view) => session.setBrowseView(activeRoute.medium, view)}
+        onSetSongsLayout={(layout) => odaSettings.update({ odaSongsLayout: layout })}
         onFocus={(focusId) => focus.setFocus(focusId)}
       />
     {:else if activeRoute.name === 'recents'}
@@ -510,7 +540,7 @@
         onSeek={commands.seek}
         onToggleShuffle={commands.toggleShuffle}
         onCycleRepeat={commands.cycleRepeat}
-        onRemoveQueueItem={(id) => commands.removeQueueTracks([id])}
+        onRemoveQueueItem={removeNowPlayingQueueItem}
         onMoveQueueItem={(id, direction) => commands.moveQueueTrack(id, direction)}
       />
     {:else if activeRoute.name === 'options'}

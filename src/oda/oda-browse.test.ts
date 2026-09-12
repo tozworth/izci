@@ -47,7 +47,6 @@ describe('Oda browse focus IDs', () => {
   it('classifies grouped versus flat views', () => {
     expect(isOdaGroupedBrowseView('artists')).toBe(true);
     expect(isOdaGroupedBrowseView('folders')).toBe(true);
-    expect(isOdaGroupedBrowseView('tracks')).toBe(false);
     expect(isOdaGroupedBrowseView('songs')).toBe(false);
   });
 });

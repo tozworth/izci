@@ -2,7 +2,6 @@ import type { OptionsViewName } from '../../options/views';
 
 /** Initial groupings available inside the Oda music browser. */
 export type OdaBrowseView =
-  | 'tracks'
   | 'artists'
   | 'albums'
   | 'songs'
@@ -172,6 +171,22 @@ export function createOdaSession({ fullscreen, onChange }: CreateOdaSessionOptio
     notify();
   }
 
+  /** Switch the filter in the current browser without growing route history. */
+  function setBrowseView(medium: OdaMedium, view: OdaBrowseView): void {
+    if (!active) return;
+    const top = history[history.length - 1];
+    if (top.route.name !== 'browse') return;
+    if (top.route.medium === medium && top.route.view === view && !top.route.groupKey) return;
+    history[history.length - 1] = {
+      ...top,
+      route: { name: 'browse', medium, view }
+    };
+    focusId = null;
+    restoreFocusId = null;
+    focusRequestToken += 1;
+    notify();
+  }
+
   function canGoBack(): boolean {
     return active && history.length > 1;
   }
@@ -218,6 +233,7 @@ export function createOdaSession({ fullscreen, onChange }: CreateOdaSessionOptio
     exit,
     push,
     goHome,
+    setBrowseView,
     setOptionsView,
     back,
     canGoBack,

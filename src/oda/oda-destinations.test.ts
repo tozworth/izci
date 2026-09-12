@@ -110,7 +110,7 @@ describe('buildOdaHomeSections', () => {
     const sections = buildOdaHomeSections(resolveOdaMediaCounts([]));
     const images = sections[0].cards[0];
     expect(images.empty).toBe(true);
-    expect(images.route).toEqual({ name: 'browse', medium: 'image', view: 'tracks' });
+    expect(images.route).toEqual({ name: 'browse', medium: 'image', view: 'songs' });
   });
 });
 

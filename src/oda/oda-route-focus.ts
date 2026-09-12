@@ -12,10 +12,14 @@ import type { OdaRoute } from '$lib/services/oda-session';
 import {
   buildOdaBrowseGroupRows,
   isOdaGroupedBrowseView,
+  odaBrowserFilterFocusId,
+  odaBrowserLayoutFocusId,
   odaTrackFocusId,
+  resolveOdaBrowserViews,
   resolveOdaBrowseGroup
 } from './oda-browse';
 import {
+  createBrowserFocusModel,
   createListFocusModel,
   createNowPlayingFocusModel,
   createWaterfallFocusModel,
@@ -26,7 +30,9 @@ import {
 } from './oda-navigation';
 import {
   ODA_NP_PLAY_PAUSE,
-  resolveOdaNowPlayingTransportIds
+  resolveOdaNowPlayingQueueActionIds,
+  resolveOdaNowPlayingTransportIds,
+  resolveOdaNowPlayingTransportRows
 } from './oda-now-playing';
 import { resolveOdaTheaterControlIds } from './oda-theater';
 
@@ -38,6 +44,28 @@ export interface OdaRouteFocusContext {
   queueItems: TrackItem[];
   optionCategoryIds: string[];
   homeWaterfallSections: OdaWaterfallSection[];
+  songsLayout: 'list' | 'grid';
+  canMutateQueue: boolean;
+  canReorderQueue: boolean;
+}
+
+
+function resolveBrowseContentFocusIds(
+  route: Extract<OdaRoute, { name: 'browse' }>,
+  context: OdaRouteFocusContext
+): string[] {
+  if (route.medium === 'music' && isOdaGroupedBrowseView(route.view) && !route.groupKey) {
+    return buildOdaBrowseGroupRows(context.musicItems, route.view).map((row) => row.focusId);
+  }
+  return resolveOdaRouteTrackItems(route, context).map((item) => odaTrackFocusId(item.id));
+}
+
+function resolveBrowseFilterFocusIds(route: Extract<OdaRoute, { name: 'browse' }>): string[] {
+  const filters = resolveOdaBrowserViews(route.medium)
+    .map((view) => odaBrowserFilterFocusId(route.medium, view));
+  return route.medium === 'music'
+    ? [...filters, odaBrowserLayoutFocusId('list'), odaBrowserLayoutFocusId('grid')]
+    : filters;
 }
 
 /** Tracks for the current route, filtered by media kind where relevant. */
@@ -65,13 +93,20 @@ export function resolveOdaRouteFocusIds(
   if (route.name === 'now-playing') {
     return [
       ...resolveOdaNowPlayingTransportIds(),
-      ...context.queueItems.map((item) => odaTrackFocusId(item.id))
+      ...context.queueItems.flatMap((item) => [
+        odaTrackFocusId(item.id),
+        ...resolveOdaNowPlayingQueueActionIds(
+          item.id,
+          context.canReorderQueue,
+          context.canMutateQueue
+        )
+      ])
     ];
   }
   if (route.name === 'video-theater') return resolveOdaTheaterControlIds('video');
   if (route.name === 'image-theater') return resolveOdaTheaterControlIds('image');
-  if (route.name === 'browse' && isOdaGroupedBrowseView(route.view) && !route.groupKey) {
-    return buildOdaBrowseGroupRows(context.musicItems, route.view).map((row) => row.focusId);
+  if (route.name === 'browse') {
+    return [...resolveBrowseFilterFocusIds(route), ...resolveBrowseContentFocusIds(route, context)];
   }
   return resolveOdaRouteTrackItems(route, context).map((item) => odaTrackFocusId(item.id));
 }
@@ -87,6 +122,13 @@ export function resolveOdaRouteDefaultFocusId(
     return context.optionCategoryIds[0] ?? null;
   }
   if (route.name === 'now-playing') return ODA_NP_PLAY_PAUSE;
+  if (route.name === 'browse') {
+    if (route.groupKey) {
+      return resolveBrowseContentFocusIds(route, context)[0]
+        ?? odaBrowserFilterFocusId(route.medium, route.view);
+    }
+    return odaBrowserFilterFocusId(route.medium, route.view);
+  }
   return resolveOdaRouteFocusIds(route, context)[0] ?? null;
 }
 
@@ -102,8 +144,25 @@ export function resolveOdaRouteFocusModel(
   }
   if (route.name === 'now-playing') {
     return createNowPlayingFocusModel(
-      resolveOdaNowPlayingTransportIds(),
-      context.queueItems.map((item) => odaTrackFocusId(item.id))
+      resolveOdaNowPlayingTransportRows(),
+      context.queueItems.map((item) => odaTrackFocusId(item.id)),
+      context.queueItems.map((item) => resolveOdaNowPlayingQueueActionIds(
+        item.id,
+        context.canReorderQueue,
+        context.canMutateQueue
+      ))
+    );
+  }
+  if (route.name === 'browse') {
+    const contentIds = resolveBrowseContentFocusIds(route, context);
+    const columns = route.medium !== 'music' || isOdaGroupedBrowseView(route.view) && !route.groupKey
+      ? 4
+      : context.songsLayout === 'grid' ? 4 : 1;
+    return createBrowserFocusModel(
+      resolveBrowseFilterFocusIds(route),
+      odaBrowserFilterFocusId(route.medium, route.view),
+      contentIds,
+      columns
     );
   }
   return createListFocusModel(resolveOdaRouteFocusIds(route, context));

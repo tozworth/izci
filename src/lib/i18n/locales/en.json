@@ -1511,6 +1511,14 @@
           "waterfall": "Waterfall"
         }
       },
+      "songsLayout": {
+        "title": "Song browser layout",
+        "hint": "Shows songs as a compact list or as an artwork gallery in Oda.",
+        "options": {
+          "list": "List",
+          "grid": "Artwork grid"
+        }
+      },
       "fullscreen": {
         "title": "Enter browser fullscreen",
         "hint": "Requests fullscreen when Oda is entered. Oda stays usable when the request is denied, unavailable, or exited with the browser shortcut."
@@ -2520,6 +2528,17 @@
       "emptyTitle": "Nothing to browse",
       "empty": "No library items of this kind have been added."
     },
+    "browser": {
+      "library": "Library",
+      "filters": "Library filters",
+      "allSongs": "All songs",
+      "allVideos": "All videos",
+      "allImages": "All images",
+      "sidebarHint": "Choose a filter, then press Right to browse.",
+      "songLayout": "Song layout",
+      "list": "List",
+      "grid": "Artwork grid"
+    },
     "recents": {
       "emptyTitle": "No recents",
       "empty": "Nothing has been played yet."
@@ -2536,6 +2555,12 @@
       "repeatOne": "Repeat one",
       "repeatAll": "Repeat all",
       "repeatOff": "Repeat off",
+      "previous": "Previous",
+      "next": "Next",
+      "playPause": "Play or pause",
+      "seek": "Seek",
+      "shuffle": "Shuffle",
+      "volume": "Volume",
       "remove": "Remove from queue",
       "queueEmpty": "The queue is empty."
     },
@@ -2547,7 +2572,8 @@
       "categories": "Options categories",
       "advanced": "Advanced tweaks",
       "hints": "Field hints",
-      "reset": "Reset page"
+      "reset": "Reset page",
+      "navigationHint": "Up/Down moves · Left/Right adjusts · Back returns"
     }
   }
 }

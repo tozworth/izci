@@ -7,11 +7,10 @@
     ODA_NP_NEXT,
     ODA_NP_PLAY_PAUSE,
     ODA_NP_PREVIOUS,
+    ODA_NP_PROGRESS,
     ODA_NP_REPEAT,
-    ODA_NP_SEEK_BACK,
-    ODA_NP_SEEK_FORWARD,
-    ODA_NP_SEEK_STEP_SECONDS,
-    ODA_NP_SHUFFLE
+    ODA_NP_SHUFFLE,
+    ODA_NP_VOLUME
   } from '../oda-now-playing';
   import type { OdaTranslate } from '../oda-translate';
   import OdaRouteList from './OdaRouteList.svelte';
@@ -40,9 +39,13 @@
   $: currentTime = snapshot?.currentTime ?? 0;
   $: duration = snapshot?.duration ?? 0;
   $: progressPercent = duration > 0 ? Math.min(100, (currentTime / duration) * 100) : 0;
+  $: volumePercent = Math.round((snapshot?.volume ?? 0) * 100);
   $: queueRows = buildOdaTrackDisplayRows(queueItems, track?.id ?? null);
+  $: title = track ? (getTrackDisplayTitle(track) || track.name) : translate('oda.nowPlaying.idleTitle', 'Nothing playing');
+  $: artist = track?.metadata?.artist?.trim() || '';
+  $: album = track?.metadata?.album?.trim() || '';
 
-  function focusClass(id: string): boolean {
+  function focused(id: string): boolean {
     return focusId === id;
   }
 
@@ -52,17 +55,15 @@
     return translate('oda.nowPlaying.repeatOff', 'Repeat off');
   }
 
+  function activate(id: string, action: () => void): void {
+    onFocus(id);
+    action();
+  }
+
   function handleSeekClick(event: MouseEvent): void {
     if (duration <= 0) return;
     const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
     onSeek(((event.clientX - rect.left) / rect.width) * duration);
-  }
-
-  function handleSeekDelta(seconds: number): void {
-    const target = duration > 0
-      ? Math.min(Math.max(currentTime + seconds, 0), duration)
-      : currentTime + seconds;
-    onSeek(target);
   }
 
   function handleQueueActivate(rowFocusId: string): void {
@@ -82,99 +83,101 @@
 </script>
 
 <div class="oda-now-playing">
-  <div class="oda-now-playing-primary">
-    <div
-      class="oda-artwork"
-      style={artworkUrl ? `background-image: url("${artworkUrl}")` : ''}
-    >
+  {#if artworkUrl}
+    <div class="oda-now-playing-ambient" style={`background-image: url("${artworkUrl}")`} aria-hidden="true"></div>
+  {/if}
+
+  <section class="oda-now-playing-hero">
+    <div class="oda-artwork" class:has-art={!!artworkUrl} style={artworkUrl ? `background-image: url("${artworkUrl}")` : ''}>
       {#if !artworkUrl}
         <span class="material-symbols-outlined" aria-hidden="true">album</span>
       {/if}
     </div>
 
     <div class="oda-now-playing-info">
-      <h2>{track ? (getTrackDisplayTitle(track) || track.name) : translate('oda.nowPlaying.idleTitle', 'Nothing playing')}</h2>
-      <p>
+      <h1>{title}</h1>
+      <p class="oda-now-playing-byline">
         {track
-          ? [track.metadata?.artist, track.metadata?.album].filter(Boolean).join(' · ') || track.name
+          ? [artist, album].filter(Boolean).join(' · ') || track.name
           : translate('oda.nowPlaying.idleHint', 'Choose something from the library.')}
       </p>
 
-      {#if track}
-        <div class="oda-progress" on:click={handleSeekClick} role="presentation">
-          <div class="oda-progress-fill" style={`width: ${progressPercent}%`}></div>
+      <div class="oda-now-playing-timeline">
+        <button
+          class="oda-progress"
+          class:is-focused={focused(ODA_NP_PROGRESS)}
+          type="button"
+          role="slider"
+          aria-label={translate('oda.nowPlaying.seek', 'Seek')}
+          aria-valuemin="0"
+          aria-valuemax={Math.round(duration)}
+          aria-valuenow={Math.round(currentTime)}
+          aria-valuetext={`${formatDuration(currentTime)} / ${duration > 0 ? formatDuration(duration) : '--:--'}`}
+          on:click={(event) => { onFocus(ODA_NP_PROGRESS); handleSeekClick(event); }}
+        >
+          <span class="oda-progress-fill" style={`width: ${progressPercent}%`}></span>
+        </button>
+        <div class="oda-progress-time">
+          <span>{formatDuration(currentTime)}</span>
+          <span>{duration > 0 ? formatDuration(duration) : '--:--'}</span>
         </div>
-        <p class="oda-progress-time">
-          {formatDuration(currentTime)} / {duration > 0 ? formatDuration(duration) : '--:--'}
-        </p>
-      {/if}
+      </div>
 
-      <div class="oda-transport">
-        <button
-          type="button"
-          class:is-focused={focusClass(ODA_NP_PREVIOUS)}
-          on:click={() => onStepTrack(-1)}
-        >
-          <span class="material-symbols-outlined">skip_previous</span>
-        </button>
-        <button
-          type="button"
-          class="oda-transport-primary"
-          class:is-focused={focusClass(ODA_NP_PLAY_PAUSE)}
-          on:click={onTogglePlayback}
-        >
-          <span class="material-symbols-outlined">
-            {snapshot?.state === 'playing' ? 'pause' : 'play_arrow'}
-          </span>
-        </button>
-        <button
-          type="button"
-          class:is-focused={focusClass(ODA_NP_NEXT)}
-          on:click={() => onStepTrack(1)}
-        >
-          <span class="material-symbols-outlined">skip_next</span>
-        </button>
-        <button
-          type="button"
-          class:is-focused={focusClass(ODA_NP_SEEK_BACK)}
-          on:click={() => handleSeekDelta(-ODA_NP_SEEK_STEP_SECONDS)}
-        >
-          <span class="material-symbols-outlined">replay_10</span>
-        </button>
-        <button
-          type="button"
-          class:is-focused={focusClass(ODA_NP_SEEK_FORWARD)}
-          on:click={() => handleSeekDelta(ODA_NP_SEEK_STEP_SECONDS)}
-        >
-          <span class="material-symbols-outlined">forward_10</span>
-        </button>
-        <button
-          type="button"
-          class:is-active={shuffleEnabled}
-          class:is-focused={focusClass(ODA_NP_SHUFFLE)}
-          on:click={onToggleShuffle}
-        >
-          <span class="material-symbols-outlined">shuffle</span>
-        </button>
-        <button
-          type="button"
-          class:is-active={repeatMode !== 'off'}
-          class:is-focused={focusClass(ODA_NP_REPEAT)}
-          title={repeatLabel()}
-          on:click={onCycleRepeat}
-        >
-          <span class="material-symbols-outlined">
-            {repeatMode === 'one' ? 'repeat_one' : 'repeat'}
-          </span>
-        </button>
+      <div class="oda-transport oda-transport-main">
+        <span class="oda-transport-core">
+          <button type="button" class:is-active={shuffleEnabled} class:is-focused={focused(ODA_NP_SHUFFLE)} title={translate('oda.nowPlaying.shuffle', 'Shuffle')} on:click={() => activate(ODA_NP_SHUFFLE, onToggleShuffle)}>
+            <span class="material-symbols-outlined">shuffle</span>
+          </button>
+          <button type="button" class:is-focused={focused(ODA_NP_PREVIOUS)} title={translate('oda.nowPlaying.previous', 'Previous')} on:click={() => activate(ODA_NP_PREVIOUS, () => onStepTrack(-1))}>
+            <span class="material-symbols-outlined">skip_previous</span>
+          </button>
+          <button type="button" class="oda-transport-primary" class:is-focused={focused(ODA_NP_PLAY_PAUSE)} title={translate('oda.nowPlaying.playPause', 'Play or pause')} on:click={() => activate(ODA_NP_PLAY_PAUSE, onTogglePlayback)}>
+            <span class="material-symbols-outlined">{snapshot?.state === 'playing' ? 'pause' : 'play_arrow'}</span>
+          </button>
+          <button type="button" class:is-focused={focused(ODA_NP_NEXT)} title={translate('oda.nowPlaying.next', 'Next')} on:click={() => activate(ODA_NP_NEXT, () => onStepTrack(1))}>
+            <span class="material-symbols-outlined">skip_next</span>
+          </button>
+          <button type="button" class:is-active={repeatMode !== 'off'} class:is-focused={focused(ODA_NP_REPEAT)} title={repeatLabel()} on:click={() => activate(ODA_NP_REPEAT, onCycleRepeat)}>
+            <span class="material-symbols-outlined">{repeatMode === 'one' ? 'repeat_one' : 'repeat'}</span>
+          </button>
+        </span>
+        <span class="oda-volume-control">
+          <span class="material-symbols-outlined oda-volume-step-hint oda-volume-step-up" aria-hidden="true">expand_less</span>
+          <button
+            type="button"
+            role="slider"
+            class="oda-volume-ring"
+            class:is-focused={focused(ODA_NP_VOLUME)}
+            title={`${translate('oda.nowPlaying.volume', 'Volume')}: ${volumePercent}%`}
+            aria-label={translate('oda.nowPlaying.volume', 'Volume')}
+            aria-valuemin="0"
+            aria-valuemax="100"
+            aria-valuenow={volumePercent}
+            on:click={() => onFocus(ODA_NP_VOLUME)}
+          >
+            <svg class="oda-volume-ring-svg" viewBox="0 0 44 44" aria-hidden="true">
+              <circle class="oda-volume-ring-track" cx="22" cy="22" r="19" pathLength="100"></circle>
+              <circle
+                class="oda-volume-ring-value"
+                cx="22"
+                cy="22"
+                r="19"
+                pathLength="100"
+                stroke-dasharray={`${volumePercent} ${100 - volumePercent}`}
+              ></circle>
+            </svg>
+            <span class="material-symbols-outlined">{volumePercent === 0 ? 'volume_off' : 'volume_up'}</span>
+          </button>
+          <span class="material-symbols-outlined oda-volume-step-hint oda-volume-step-down" aria-hidden="true">expand_more</span>
+        </span>
       </div>
     </div>
-  </div>
+  </section>
 
-  <div class="oda-now-playing-rail">
-    <div class="oda-route-header">
+  <section class="oda-now-playing-rail">
+    <div class="oda-now-playing-queue-header">
       <h2>{translate('oda.cards.queue', 'Queue')}</h2>
-      <p>{queueItems.length}</p>
+      <p>{translate('oda.home.queueCount', '{count} tracks', { count: queueItems.length })}</p>
     </div>
     {#if queueRows.length === 0}
       <p class="oda-row-meta">{translate('oda.nowPlaying.queueEmpty', 'The queue is empty.')}</p>
@@ -192,5 +195,5 @@
         {translate}
       />
     {/if}
-  </div>
+  </section>
 </div>

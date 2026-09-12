@@ -221,32 +221,83 @@ export function createGridFocusModel(ids: readonly string[], columns: number): O
   };
 }
 
+/** Two-region library browser: vertical filters at left, list/grid at right. */
+export function createBrowserFocusModel(
+  filterIds: readonly string[],
+  activeFilterId: string,
+  contentIds: readonly string[],
+  columns: number
+): OdaFocusModel {
+  return {
+    resolveMove: (focusId, direction, wrap) => {
+      const fallback = filterIds.includes(activeFilterId)
+        ? activeFilterId
+        : filterIds[0] ?? contentIds[0] ?? null;
+      if (!focusId) return fallback;
+
+      const filterIndex = filterIds.indexOf(focusId);
+      if (filterIndex >= 0) {
+        if (direction === 'right') return contentIds[0] ?? focusId;
+        if (direction === 'up' || direction === 'down') {
+          return filterIds[moveListIndex(filterIndex, filterIds.length, direction, wrap)];
+        }
+        return focusId;
+      }
+
+      const contentIndex = contentIds.indexOf(focusId);
+      if (contentIndex < 0) return fallback;
+      const safeColumns = Math.max(1, Math.floor(columns));
+      if (direction === 'left' && (safeColumns === 1 || contentIndex % safeColumns === 0)) {
+        return fallback;
+      }
+      return contentIds[moveGridIndex(contentIndex, safeColumns, contentIds.length, direction, wrap)];
+    }
+  };
+}
+
 /**
- * Now Playing focus: a horizontal transport strip above a vertical queue
- * rail. Up/Down crosses between the strips; Left/Right only adjusts the
- * focused transport control. Queue focus is by item ID so updates do not
- * desynchronize navigation.
+ * Now Playing focus: a timeline and transport rows beside a vertical queue
+ * rail. Up/Down crosses between control rows; Left/Right moves within a row.
+ * A single-control row enters the horizontal center of the next row. Queue
+ * focus is by item ID so updates do not desynchronize navigation.
  */
 export function createNowPlayingFocusModel(
-  transportIds: readonly string[],
-  queueIds: readonly string[]
+  transportRows: readonly (readonly string[])[],
+  queueIds: readonly string[],
+  queueActionIds: readonly (readonly string[])[] = []
 ): OdaFocusModel {
+  const transportIds = transportRows.flat();
+  const allQueueActionIds = queueActionIds.flat();
   return {
     resolveMove: (focusId, direction, wrap) => {
       const fallback = transportIds[0] ?? queueIds[0] ?? null;
       if (!focusId) return fallback;
 
-      const transportIndex = transportIds.indexOf(focusId);
-      if (transportIndex >= 0) {
+      const transportRowIndex = transportRows.findIndex((row) => row.includes(focusId));
+      if (transportRowIndex >= 0) {
+        const row = transportRows[transportRowIndex];
+        const transportIndex = row.indexOf(focusId);
         if (direction === 'left' || direction === 'right') {
-          return transportIds[moveListIndex(transportIndex, transportIds.length, direction === 'left' ? 'up' : 'down', wrap)];
+          if (direction === 'right' && transportIndex === row.length - 1 && transportRowIndex === transportRows.length - 1) {
+            return queueIds[0] ?? focusId;
+          }
+          return row[moveListIndex(transportIndex, row.length, direction === 'left' ? 'up' : 'down', wrap)];
         }
-        if (direction === 'down') return queueIds[0] ?? focusId;
-        return focusId;
+        const nextRowIndex = transportRowIndex + (direction === 'up' ? -1 : 1);
+        const nextRow = transportRows[nextRowIndex];
+        if (nextRow) {
+          const nextIndex = row.length === 1
+            ? Math.floor((nextRow.length - 1) / 2)
+            : clampIndex(transportIndex, nextRow.length);
+          return nextRow[nextIndex] ?? focusId;
+        }
+        return direction === 'down' ? queueIds[0] ?? focusId : focusId;
       }
 
       const queueIndex = queueIds.indexOf(focusId);
       if (queueIndex >= 0) {
+        if (direction === 'left') return transportIds[transportIds.length - 1] ?? focusId;
+        if (direction === 'right') return queueActionIds[queueIndex]?.[0] ?? focusId;
         if (direction === 'up') {
           if (queueIndex === 0) return transportIds[transportIds.length - 1] ?? focusId;
           return queueIds[queueIndex - 1];
@@ -255,6 +306,31 @@ export function createNowPlayingFocusModel(
           return queueIds[moveListIndex(queueIndex, queueIds.length, 'down', wrap)];
         }
         return focusId;
+      }
+
+      const actionIndex = allQueueActionIds.indexOf(focusId);
+      if (actionIndex >= 0) {
+        const queueIndexForAction = queueActionIds.findIndex((ids) => ids.includes(focusId));
+        const rowActions = queueActionIds[queueIndexForAction] ?? [];
+        const rowActionIndex = rowActions.indexOf(focusId);
+        if (direction === 'left') {
+          return rowActionIndex > 0
+            ? rowActions[rowActionIndex - 1]
+            : queueIds[queueIndexForAction] ?? focusId;
+        }
+        if (direction === 'right') {
+          return rowActions[Math.min(rowActionIndex + 1, rowActions.length - 1)] ?? focusId;
+        }
+        const nextQueueIndex = moveListIndex(
+          queueIndexForAction,
+          queueIds.length,
+          direction,
+          wrap
+        );
+        const nextActions = queueActionIds[nextQueueIndex] ?? [];
+        return nextActions[clampIndex(rowActionIndex, nextActions.length)]
+          ?? queueIds[nextQueueIndex]
+          ?? focusId;
       }
 
       return fallback;

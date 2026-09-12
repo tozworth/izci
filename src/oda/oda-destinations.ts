@@ -132,7 +132,7 @@ export function buildOdaHomeSections(counts: OdaMediaCounts): OdaHomeSectionMode
         labelFallback: 'Browse images',
         count: counts.images,
         empty: counts.images === 0,
-        route: { name: 'browse', medium: 'image', view: 'tracks' }
+          route: { name: 'browse', medium: 'image', view: 'songs' }
       }]
     },
     {
@@ -145,7 +145,7 @@ export function buildOdaHomeSections(counts: OdaMediaCounts): OdaHomeSectionMode
         labelFallback: 'Browse videos',
         count: counts.videos,
         empty: counts.videos === 0,
-        route: { name: 'browse', medium: 'video', view: 'tracks' }
+          route: { name: 'browse', medium: 'video', view: 'songs' }
       }]
     },
     {
@@ -159,7 +159,7 @@ export function buildOdaHomeSections(counts: OdaMediaCounts): OdaHomeSectionMode
           labelFallback: 'Browse music',
           count: counts.music,
           empty: counts.music === 0,
-          route: { name: 'browse', medium: 'music', view: 'tracks' }
+          route: { name: 'browse', medium: 'music', view: 'songs' }
         },
         musicCard('artists', 'oda.cards.artists', 'Artists', 'artists', counts.artists),
         musicCard('albums', 'oda.cards.albums', 'Albums', 'albums', counts.albums),
