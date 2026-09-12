@@ -697,6 +697,8 @@ export interface VideoSettings {
 
 export type OdaLayout = 'waterfall';
 
+export type OdaSongsLayout = 'list' | 'grid';
+
 export type OdaHoldBackAction = 'none' | 'return-home';
 
 export type OdaBackground = 'none' | 'custom';
@@ -706,6 +708,8 @@ export interface OdaSettings {
   odaLayout: OdaLayout;
   odaEnterFullscreen: boolean;
   odaWrapNavigation: boolean;
+  /** Track presentation in Oda's music library browser. */
+  odaSongsLayout: OdaSongsLayout;
   /** Overscan / safe-area inset in percent of the viewport edge. */
   odaOverscanPercent: number;
   /** Oda shell background source. `custom` uses `odaBackgroundImage`. */

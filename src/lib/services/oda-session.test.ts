@@ -171,6 +171,22 @@ describe('createOdaSession', () => {
     expect(session.getSnapshot().focusId).toBe('group:artists:aphex');
   });
 
+  it('switches browser filters in place and clears group state', async () => {
+    const session = createOdaSession({ fullscreen: createFullscreenAdapter(false) });
+    await session.enter({ fullscreen: false });
+    session.push({ name: 'browse', medium: 'music', view: 'albums', groupKey: 'album:one' });
+
+    session.setBrowseView('music', 'artists');
+
+    expect(session.getSnapshot().route).toEqual({
+      name: 'browse',
+      medium: 'music',
+      view: 'artists'
+    });
+    expect(session.getSnapshot().focusId).toBeNull();
+    expect(session.canGoBack()).toBe(true);
+  });
+
   it('notifies subscribers on state transitions', async () => {
     const changes: string[] = [];
     const session = createOdaSession({

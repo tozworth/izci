@@ -1,5 +1,12 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { odaBrowseTrackId, odaTrackFocusId } from '../oda-browse';
+  import {
+    odaNowPlayingQueueActionFocusId,
+    parseOdaNowPlayingQueueActionFocusId,
+    resolveOdaNowPlayingQueueActionIds,
+    type OdaNowPlayingQueueAction
+  } from '../oda-now-playing';
   import type { OdaDisplayRow } from '../oda-rows';
   import type { OdaTranslate } from '../oda-translate';
 
@@ -42,7 +49,9 @@
 
   function ensureFocusVisible(id: string | null): void {
     if (!viewport || !id) return;
-    const index = rows.findIndex((row) => row.focusId === id);
+    const queueAction = parseOdaNowPlayingQueueActionFocusId(id);
+    const rowFocusId = queueAction ? odaTrackFocusId(queueAction.trackId) : id;
+    const index = rows.findIndex((row) => row.focusId === rowFocusId);
     if (index < 0) return;
     const top = index * ROW_HEIGHT;
     const bottom = top + ROW_HEIGHT;
@@ -53,8 +62,22 @@
     }
   }
 
-  function handleAction(rowFocusId: string, action: () => void): void {
-    onFocus(rowFocusId);
+  function queueActionFocusId(rowFocusId: string, action: OdaNowPlayingQueueAction): string {
+    const trackId = odaBrowseTrackId(rowFocusId) ?? rowFocusId;
+    return odaNowPlayingQueueActionFocusId(trackId, action);
+  }
+
+  function queueActionIds(rowFocusId: string): string[] {
+    const trackId = odaBrowseTrackId(rowFocusId) ?? rowFocusId;
+    return resolveOdaNowPlayingQueueActionIds(trackId, canMove, canRemove);
+  }
+
+  function actionStripOpen(rowFocusId: string): boolean {
+    return focusId !== null && queueActionIds(rowFocusId).includes(focusId);
+  }
+
+  function handleAction(actionFocusId: string, action: () => void): void {
+    onFocus(actionFocusId);
     action();
   }
 
@@ -86,6 +109,7 @@
     {#each visibleRows as { row, index } (row.focusId)}
       <div
         class="oda-row-slot"
+        class:is-action-open={actionStripOpen(row.focusId)}
         style={`top: ${index * ROW_HEIGHT}px; height: ${ROW_HEIGHT}px`}
       >
         <button
@@ -93,18 +117,20 @@
           class="oda-row"
           class:is-focused={focusId === row.focusId}
           class:is-playing={row.playing}
+          class:is-action-parent={actionStripOpen(row.focusId)}
+          aria-current={row.playing ? 'true' : undefined}
           on:click={() => { onFocus(row.focusId); onActivate(row.focusId); }}
         >
           <span class="oda-row-main">
-            <span class="oda-row-title">
-              {row.title}
-              {#if row.playing}
-                <span class="material-symbols-outlined oda-row-playing" aria-hidden="true">graphic_eq</span>
-              {/if}
-            </span>
+            <span class="oda-row-title">{row.title}</span>
             {#if row.meta}<span class="oda-row-meta">{row.meta}</span>{/if}
           </span>
-          {#if row.trailing}<span class="oda-row-trailing">{row.trailing}</span>{/if}
+          <span class="oda-row-end">
+            {#if row.trailing}<span class="oda-row-trailing">{row.trailing}</span>{/if}
+            {#if canRemove || canMove}
+              <span class="material-symbols-outlined oda-row-action-chevron" aria-hidden="true">chevron_right</span>
+            {/if}
+          </span>
         </button>
         {#if canRemove || canMove}
           <span class="oda-row-actions">
@@ -112,16 +138,20 @@
               <button
                 type="button"
                 class="oda-row-action"
+                class:is-focused={focusId === queueActionFocusId(row.focusId, 'move-up')}
                 title={translate('oda.queue.moveUp', 'Move up')}
-                on:click={() => handleAction(row.focusId, () => onMove(row.focusId, -1))}
+                aria-label={translate('oda.queue.moveUp', 'Move up')}
+                on:click={() => handleAction(queueActionFocusId(row.focusId, 'move-up'), () => onMove(row.focusId, -1))}
               >
                 <span class="material-symbols-outlined" aria-hidden="true">keyboard_arrow_up</span>
               </button>
               <button
                 type="button"
                 class="oda-row-action"
+                class:is-focused={focusId === queueActionFocusId(row.focusId, 'move-down')}
                 title={translate('oda.queue.moveDown', 'Move down')}
-                on:click={() => handleAction(row.focusId, () => onMove(row.focusId, 1))}
+                aria-label={translate('oda.queue.moveDown', 'Move down')}
+                on:click={() => handleAction(queueActionFocusId(row.focusId, 'move-down'), () => onMove(row.focusId, 1))}
               >
                 <span class="material-symbols-outlined" aria-hidden="true">keyboard_arrow_down</span>
               </button>
@@ -130,8 +160,10 @@
               <button
                 type="button"
                 class="oda-row-action"
+                class:is-focused={focusId === queueActionFocusId(row.focusId, 'remove')}
                 title={translate('oda.nowPlaying.remove', 'Remove from queue')}
-                on:click={() => handleAction(row.focusId, () => onRemove(row.focusId))}
+                aria-label={translate('oda.nowPlaying.remove', 'Remove from queue')}
+                on:click={() => handleAction(queueActionFocusId(row.focusId, 'remove'), () => onRemove(row.focusId))}
               >
                 <span class="material-symbols-outlined" aria-hidden="true">close</span>
               </button>

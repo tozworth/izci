@@ -4,7 +4,8 @@
  * Owns the current focus ID, the active route's navigation model, the
  * normalized key-repeat loop, and the Back tap/hold distinction. The
  * composition root routes active-Oda keydown/keyup here before desktop
- * shortcuts so unmodified arrow keys never seek.
+ * shortcuts. A route may consume a directional move for an adjustable
+ * logical control such as the Now Playing timeline.
  */
 
 import type { OdaHoldBackAction } from '$lib/types';
@@ -22,6 +23,7 @@ export type OdaTransportAction = Extract<OdaAction, 'play-pause' | 'stop' | 'pre
 
 export interface OdaFocusHandlers {
   onActivate(focusId: string | null): void;
+  onMove?(focusId: string | null, direction: OdaDirection): boolean;
   onBack(): void;
   onHoldBack(): void;
   onTransport(action: OdaTransportAction): void;
@@ -72,6 +74,7 @@ export function createOdaFocusController({
   }
 
   function move(direction: OdaDirection): void {
+    if (handlers?.onMove?.(focusId, direction)) return;
     if (!model) return;
     const next = model.resolveMove(focusId, direction, getWrap());
     setFocus(next);

@@ -62,13 +62,77 @@
   }
 
   async function focusFirstControl(): Promise<void> {
-    await tick();
-    if (!contentHost) return;
-    const pane = contentHost.querySelector<HTMLElement>('.view') ?? contentHost;
-    const target = pane.querySelector<HTMLElement>(
-      'input:not([type="hidden"]), select, textarea, button, [tabindex]:not([tabindex="-1"])'
-    );
-    target?.focus();
+    for (let attempt = 0; attempt < 12; attempt += 1) {
+      await tick();
+      if (!contentActive || !contentHost) return;
+      const pane = contentHost.querySelector<HTMLElement>('.view');
+      const target = pane?.querySelector<HTMLElement>(
+        'input:not([type="hidden"]), select, textarea, button, [tabindex]:not([tabindex="-1"])'
+      );
+      if (target) {
+        target.focus();
+        target.scrollIntoView({ block: 'nearest' });
+        return;
+      }
+      await new Promise<void>((resolve) => requestAnimationFrame(() => resolve()));
+    }
+  }
+
+  function focusableControls(): HTMLElement[] {
+    if (!contentHost) return [];
+    return Array.from(contentHost.querySelectorAll<HTMLElement>(
+      'input:not([type="hidden"]):not([tabindex="-1"]), select, textarea, button:not(:disabled), [tabindex]:not([tabindex="-1"])'
+    )).filter((element) => element.offsetParent !== null && !element.hasAttribute('disabled'));
+  }
+
+  function moveControlFocus(target: EventTarget | null, delta: -1 | 1): void {
+    const controls = focusableControls();
+    const current = target instanceof HTMLElement ? controls.indexOf(target) : -1;
+    const next = controls[Math.min(Math.max(current + delta, 0), controls.length - 1)];
+    next?.focus();
+    next?.scrollIntoView({ block: 'nearest' });
+  }
+
+  function handleContentKeydown(event: KeyboardEvent): void {
+    if (!contentActive) return;
+    const target = event.target;
+    if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
+      event.preventDefault();
+      event.stopPropagation();
+      moveControlFocus(target, event.key === 'ArrowUp' ? -1 : 1);
+      return;
+    }
+    if ((event.key === 'ArrowLeft' || event.key === 'ArrowRight') && target instanceof HTMLInputElement && target.type === 'checkbox') {
+      event.preventDefault();
+      event.stopPropagation();
+      const checked = event.key === 'ArrowRight';
+      if (target.checked !== checked) {
+        target.checked = checked;
+        target.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+      return;
+    }
+    if ((event.key === 'ArrowLeft' || event.key === 'ArrowRight') && target instanceof HTMLSelectElement) {
+      event.preventDefault();
+      event.stopPropagation();
+      const delta = event.key === 'ArrowLeft' ? -1 : 1;
+      const nextIndex = Math.min(Math.max(target.selectedIndex + delta, 0), target.options.length - 1);
+      if (nextIndex !== target.selectedIndex) {
+        target.selectedIndex = nextIndex;
+        target.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+      return;
+    }
+    if ((event.key === 'ArrowLeft' || event.key === 'ArrowRight') && target instanceof HTMLButtonElement) {
+      event.preventDefault();
+      event.stopPropagation();
+      moveControlFocus(target, event.key === 'ArrowLeft' ? -1 : 1);
+    }
+  }
+
+  function contentKeyboardNavigation(node: HTMLElement) {
+    node.addEventListener('keydown', handleContentKeydown);
+    return { destroy: () => node.removeEventListener('keydown', handleContentKeydown) };
   }
 
   function handleReset(): void {
@@ -105,10 +169,12 @@
   </nav>
 
   <section
+    use:contentKeyboardNavigation
     bind:this={contentHost}
     class="oda-options-content options-shell"
     class:advanced-tweaks-visible={showAdvancedTweaks}
     class:hints-expanded={hintsExpanded}
+    aria-label={activeDefinition?.label ?? translate('oda.options.categories', 'Options')}
   >
     <div class="oda-options-toolbar">
       <p class="oda-options-breadcrumb">
@@ -118,6 +184,7 @@
         {/if}
         <strong>{activeDefinition?.label ?? ''}</strong>
       </p>
+      <span class="oda-options-nav-hint">{translate('oda.options.navigationHint', 'Up/Down moves · Left/Right adjusts · Back returns')}</span>
       <button
         type="button"
         class:is-active={showAdvancedTweaks || advancedTweaksModified}

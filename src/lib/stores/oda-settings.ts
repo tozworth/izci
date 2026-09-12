@@ -1,4 +1,4 @@
-import type { OdaBackground, OdaHoldBackAction, OdaLayout, OdaSettings } from '$lib/types';
+import type { OdaBackground, OdaHoldBackAction, OdaLayout, OdaSettings, OdaSongsLayout } from '$lib/types';
 import { createSettingsStore, normalizeBoolean } from './persistent-store';
 
 const ODA_SETTINGS_STORAGE_KEY = 'izci.oda-settings';
@@ -20,6 +20,7 @@ export const DEFAULT_ODA_SETTINGS: OdaSettings = {
   odaLayout: 'waterfall',
   odaEnterFullscreen: true,
   odaWrapNavigation: false,
+  odaSongsLayout: 'grid',
   odaOverscanPercent: 0,
   odaBackground: 'none',
   odaBackgroundImage: null,
@@ -36,6 +37,10 @@ function normalizeLayout(value: unknown): OdaLayout {
 
 function normalizeHoldBackAction(value: unknown): OdaHoldBackAction {
   return value === 'return-home' ? value : DEFAULT_ODA_SETTINGS.odaHoldBackAction;
+}
+
+function normalizeSongsLayout(value: unknown): OdaSongsLayout {
+  return value === 'list' ? 'list' : 'grid';
 }
 
 function normalizeBoundedNumber(value: unknown, fallback: number, min: number, max: number): number {
@@ -91,6 +96,7 @@ export function normalizeOdaSettings(value: unknown): OdaSettings {
       source.odaWrapNavigation,
       DEFAULT_ODA_SETTINGS.odaWrapNavigation
     ),
+    odaSongsLayout: normalizeSongsLayout(source.odaSongsLayout),
     odaOverscanPercent: normalizeOverscanPercent(source.odaOverscanPercent),
     odaBackground: normalizeBackground(source.odaBackground),
     odaBackgroundImage: normalizeBackgroundImage(source.odaBackgroundImage),

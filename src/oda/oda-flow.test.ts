@@ -33,6 +33,9 @@ const CONTEXT: OdaRouteFocusContext = {
   recentsItems: [],
   queueItems: [],
   optionCategoryIds: ['option:oda'],
+  songsLayout: 'grid',
+  canMutateQueue: true,
+  canReorderQueue: true,
   homeWaterfallSections: [
     { id: 'images', cardIds: ['browse-images'] },
     { id: 'music', cardIds: ['browse-music', 'artists'] }
@@ -119,6 +122,8 @@ describe('Oda keyboard flow', () => {
     const harness = createHarness();
     harness.push({ name: 'browse', medium: 'music', view: 'artists' });
 
+    harness.key('ArrowRight');
+
     const groupFocusId = harness.focus.getFocus();
     expect(groupFocusId?.startsWith('group:')).toBe(true);
 
@@ -130,7 +135,7 @@ describe('Oda keyboard flow', () => {
     });
     expect(harness.focus.getFocus()).toBe('item:m1');
 
-    harness.key('ArrowDown');
+    harness.key('ArrowRight');
     expect(harness.focus.getFocus()).toBe('item:m2');
 
     // Back returns to the group list and restores the group focus.

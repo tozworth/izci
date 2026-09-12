@@ -10,9 +10,22 @@
 import { buildLibraryGroups, type LibraryGroup } from '$lib/components/track-list-panel/library-views';
 import type { LibraryGroupViewId, TrackItem } from '$lib/types';
 import type { OdaBrowseView } from '$lib/services/oda-session';
+import type { OdaMedium } from '$lib/services/oda-session';
 
 export const ODA_TRACK_FOCUS_PREFIX = 'item:';
 export const ODA_GROUP_FOCUS_PREFIX = 'group:';
+export const ODA_BROWSER_FILTER_FOCUS_PREFIX = 'browse-filter:';
+export const ODA_BROWSER_LAYOUT_FOCUS_PREFIX = 'browse-layout:';
+
+export const ODA_MUSIC_BROWSER_VIEWS: readonly OdaBrowseView[] = [
+  'songs',
+  'albums',
+  'artists',
+  'genres',
+  'years',
+  'formats',
+  'folders'
+];
 
 export function odaTrackFocusId(id: string): string {
   return `${ODA_TRACK_FOCUS_PREFIX}${id}`;
@@ -20,6 +33,36 @@ export function odaTrackFocusId(id: string): string {
 
 export function odaGroupFocusId(key: string): string {
   return `${ODA_GROUP_FOCUS_PREFIX}${key}`;
+}
+
+export function odaBrowserFilterFocusId(medium: OdaMedium, view: OdaBrowseView): string {
+  return `${ODA_BROWSER_FILTER_FOCUS_PREFIX}${medium}:${view}`;
+}
+
+export function odaBrowserLayoutFocusId(layout: 'list' | 'grid'): string {
+  return `${ODA_BROWSER_LAYOUT_FOCUS_PREFIX}${layout}`;
+}
+
+export function odaBrowserLayoutFromFocusId(
+  focusId: string | null | undefined
+): 'list' | 'grid' | null {
+  if (!focusId?.startsWith(ODA_BROWSER_LAYOUT_FOCUS_PREFIX)) return null;
+  const layout = focusId.slice(ODA_BROWSER_LAYOUT_FOCUS_PREFIX.length);
+  return layout === 'list' || layout === 'grid' ? layout : null;
+}
+
+export function odaBrowserFilterFromFocusId(
+  focusId: string | null | undefined
+): { medium: OdaMedium; view: OdaBrowseView } | null {
+  if (!focusId?.startsWith(ODA_BROWSER_FILTER_FOCUS_PREFIX)) return null;
+  const [medium, view] = focusId.slice(ODA_BROWSER_FILTER_FOCUS_PREFIX.length).split(':');
+  if (medium !== 'music' && medium !== 'video' && medium !== 'image') return null;
+  if (![...ODA_MUSIC_BROWSER_VIEWS].includes(view as OdaBrowseView)) return null;
+  return { medium, view: view as OdaBrowseView };
+}
+
+export function resolveOdaBrowserViews(medium: OdaMedium): readonly OdaBrowseView[] {
+  return medium === 'music' ? ODA_MUSIC_BROWSER_VIEWS : ['songs'];
 }
 
 export function odaBrowseTrackId(focusId: string | null | undefined): string | null {
@@ -32,9 +75,9 @@ export function odaBrowseGroupKey(focusId: string | null | undefined): string | 
   return focusId.slice(ODA_GROUP_FOCUS_PREFIX.length);
 }
 
-/** `songs` and `tracks` are flat lists; the others drill into groups. */
+/** `songs` is a flat collection; the other music filters drill into groups. */
 export function isOdaGroupedBrowseView(view: OdaBrowseView): view is LibraryGroupViewId {
-  return view !== 'tracks' && view !== 'songs';
+  return view !== 'songs';
 }
 
 export interface OdaBrowseGroupRow {
@@ -44,6 +87,7 @@ export interface OdaBrowseGroupRow {
   label: string;
   secondary: string;
   count: number;
+  items: TrackItem[];
 }
 
 export interface OdaBrowseTrackRow {
@@ -65,7 +109,8 @@ export function buildOdaBrowseGroupRows(
     key: group.key,
     label: group.label,
     secondary: group.secondary,
-    count: group.items.length
+    count: group.items.length,
+    items: group.items
   }));
 }
 
