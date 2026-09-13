@@ -597,9 +597,11 @@
     {/if}
   </div>
 
-  <OdaTopChrome />
+  {#if activeRoute.name !== 'video-theater' && activeRoute.name !== 'image-theater'}
+    <OdaTopChrome />
 
-  <div class="oda-version" aria-hidden="true"><strong>izci</strong> {appVersion}</div>
+    <div class="oda-version" aria-hidden="true"><strong>izci</strong> {appVersion}</div>
+  {/if}
 
   {#if playbackError}
     <div class="oda-notices">
