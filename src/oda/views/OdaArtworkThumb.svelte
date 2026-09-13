@@ -50,6 +50,8 @@
 <span class="oda-preview-host" bind:this={host}>
   {#if url}
     <img class="oda-tile-image" src={url} alt="" />
+  {:else if tracks.length > 0}
+    <span class="oda-tile-placeholder oda-tile-brand-glyph" aria-hidden="true"></span>
   {:else}
     <span class="oda-tile-placeholder material-symbols-outlined" aria-hidden="true">{icon}</span>
   {/if}

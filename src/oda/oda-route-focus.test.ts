@@ -89,6 +89,14 @@ describe('resolveOdaRouteFocusIds', () => {
     expect(flat.slice(-2)).toEqual(['item:m1', 'item:m2']);
   });
 
+  it('exposes the shared layout controls for every browser medium', () => {
+    for (const medium of ['music', 'video', 'image'] as const) {
+      const ids = resolveOdaRouteFocusIds({ name: 'browse', medium, view: 'songs' }, CONTEXT);
+      expect(ids).toContain('browse-layout:list');
+      expect(ids).toContain('browse-layout:grid');
+    }
+  });
+
   it('combines transport and queue IDs for Now Playing', () => {
     const ids = resolveOdaRouteFocusIds({ name: 'now-playing' }, CONTEXT);
     expect(ids[0]).toBe('np:progress');
@@ -152,7 +160,7 @@ describe('resolveOdaRouteFocusModel', () => {
       { name: 'browse', medium: 'music', view: 'songs' },
       { ...CONTEXT, songsLayout: 'list' }
     );
-    expect(model!.resolveMove('item:m1', 'up', false)).toBe('item:m1');
+    expect(model!.resolveMove('item:m1', 'up', false)).toBe('browse-layout:list');
     expect(model!.resolveMove('item:m1', 'down', false)).toBe('item:m2');
     expect(model!.resolveMove('item:m2', 'down', false)).toBe('item:m2');
   });

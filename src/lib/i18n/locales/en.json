@@ -2534,7 +2534,7 @@
       "allSongs": "All songs",
       "allVideos": "All videos",
       "allImages": "All images",
-      "sidebarHint": "Choose a filter, then press Right to browse.",
+      "layout": "Layout",
       "songLayout": "Song layout",
       "list": "List",
       "grid": "Artwork grid"

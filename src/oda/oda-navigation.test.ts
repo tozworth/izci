@@ -17,6 +17,7 @@ import { resolveOdaNowPlayingRemovalTargetId } from './oda-now-playing';
 
 describe('createBrowserFocusModel', () => {
   const FILTERS = ['browse-filter:music:songs', 'browse-filter:music:albums'];
+  const CONTROLS = ['browse-layout:list', 'browse-layout:grid'];
   const CONTENT = ['item:a', 'item:b', 'item:c', 'item:d', 'item:e'];
 
   it('moves vertically through filters and crosses right into content', () => {
@@ -36,6 +37,14 @@ describe('createBrowserFocusModel', () => {
     const model = createBrowserFocusModel(FILTERS, FILTERS[0], CONTENT, 1);
     expect(model.resolveMove('item:a', 'down', false)).toBe('item:b');
     expect(model.resolveMove('item:b', 'left', false)).toBe(FILTERS[0]);
+  });
+
+  it('reaches header controls from the first content row', () => {
+    const model = createBrowserFocusModel(FILTERS, FILTERS[0], CONTENT, 4, CONTROLS);
+    expect(model.resolveMove('item:a', 'up', false)).toBe(CONTROLS[0]);
+    expect(model.resolveMove(CONTROLS[0], 'right', false)).toBe(CONTROLS[1]);
+    expect(model.resolveMove(CONTROLS[1], 'down', false)).toBe('item:b');
+    expect(model.resolveMove(CONTROLS[0], 'left', false)).toBe(FILTERS[0]);
   });
 });
 

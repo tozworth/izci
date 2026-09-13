@@ -12,7 +12,7 @@
     resolveOdaBrowserViews,
     resolveOdaBrowseGroup
   } from '../oda-browse';
-  import { buildOdaTrackDisplayRows } from '../oda-rows';
+  import { buildOdaGroupDisplayRows, buildOdaTrackDisplayRows } from '../oda-rows';
   import type { OdaTranslate } from '../oda-translate';
   import OdaArtworkThumb from './OdaArtworkThumb.svelte';
   import OdaRouteList from './OdaRouteList.svelte';
@@ -34,6 +34,8 @@
   export let onFocus: (focusId: string) => void = () => {};
 
   let gridViewport: HTMLElement | null = null;
+  const listLayoutFocusId = odaBrowserLayoutFocusId('list');
+  const gridLayoutFocusId = odaBrowserLayoutFocusId('grid');
 
   $: views = resolveOdaBrowserViews(medium);
   $: grouped = medium === 'music' && isOdaGroupedBrowseView(view);
@@ -44,8 +46,10 @@
     ? resolveOdaBrowseGroup(items, view as LibraryGroupViewId, groupKey)
     : null;
   $: trackItems = group?.items ?? (groups.length === 0 ? items : []);
-  $: rows = buildOdaTrackDisplayRows(trackItems, playingId);
-  $: layout = medium !== 'music' || groups.length > 0 ? 'grid' : songsLayout;
+  $: rows = groups.length > 0
+    ? buildOdaGroupDisplayRows(items, view as LibraryGroupViewId)
+    : buildOdaTrackDisplayRows(trackItems, playingId);
+  $: layout = songsLayout;
   $: itemCount = groups.length || trackItems.length;
   $: listKey = `${medium}:${view}:${groupKey ?? ''}:${layout}`;
   $: heading = group?.label ?? filterLabel(view);
@@ -137,30 +141,7 @@
           <span>{filterLabel(filter)}</span>
         </button>
       {/each}
-      {#if medium === 'music'}
-        <div class="oda-browser-sidebar-section">{translate('oda.browser.songLayout', 'Song layout')}</div>
-        {#each ['list', 'grid'] as songLayout}
-          {@const layoutFocusId = odaBrowserLayoutFocusId(songLayout as OdaSongsLayout)}
-          <button
-            type="button"
-            class="oda-browser-filter is-layout"
-            class:is-active={songsLayout === songLayout}
-            class:is-focused={focusId === layoutFocusId}
-            data-focus-id={layoutFocusId}
-            on:click={() => { onFocus(layoutFocusId); onSetSongsLayout(songLayout as OdaSongsLayout); }}
-          >
-            <span class="material-symbols-outlined" aria-hidden="true">{songLayout === 'list' ? 'view_list' : 'grid_view'}</span>
-            <span>{songLayout === 'list'
-              ? translate('oda.browser.list', 'List')
-              : translate('oda.browser.grid', 'Artwork grid')}</span>
-          </button>
-        {/each}
-      {/if}
     </nav>
-
-    <p class="oda-browser-sidebar-hint">
-      {translate('oda.browser.sidebarHint', 'Choose a filter, then press Right to browse.')}
-    </p>
   </aside>
 
   <main class="oda-browser-content">
@@ -173,22 +154,24 @@
         <p>{subheading}</p>
       </div>
 
-      {#if medium === 'music' && groups.length === 0}
-        <div class="oda-browser-layout-switch" aria-label={translate('oda.browser.songLayout', 'Song layout')}>
-          <button
-            type="button"
-            class:is-active={songsLayout === 'list'}
-            title={translate('oda.browser.list', 'List')}
-            on:click={() => onSetSongsLayout('list')}
-          ><span class="material-symbols-outlined" aria-hidden="true">view_list</span></button>
-          <button
-            type="button"
-            class:is-active={songsLayout === 'grid'}
-            title={translate('oda.browser.grid', 'Artwork grid')}
-            on:click={() => onSetSongsLayout('grid')}
-          ><span class="material-symbols-outlined" aria-hidden="true">grid_view</span></button>
-        </div>
-      {/if}
+      <div class="oda-browser-layout-switch" aria-label={translate('oda.browser.layout', 'Layout')}>
+        <button
+          type="button"
+          class:is-active={songsLayout === 'list'}
+          class:is-focused={focusId === listLayoutFocusId}
+          data-focus-id={listLayoutFocusId}
+          title={translate('oda.browser.list', 'List')}
+          on:click={() => { onFocus(listLayoutFocusId); onSetSongsLayout('list'); }}
+        ><span class="material-symbols-outlined" aria-hidden="true">view_list</span></button>
+        <button
+          type="button"
+          class:is-active={songsLayout === 'grid'}
+          class:is-focused={focusId === gridLayoutFocusId}
+          data-focus-id={gridLayoutFocusId}
+          title={translate('oda.browser.grid', 'Artwork grid')}
+          on:click={() => { onFocus(gridLayoutFocusId); onSetSongsLayout('grid'); }}
+        ><span class="material-symbols-outlined" aria-hidden="true">grid_view</span></button>
+      </div>
     </header>
 
     {#if itemCount === 0}

@@ -221,12 +221,13 @@ export function createGridFocusModel(ids: readonly string[], columns: number): O
   };
 }
 
-/** Two-region library browser: vertical filters at left, list/grid at right. */
+/** Library browser: vertical filters, header layout controls, and list/grid content. */
 export function createBrowserFocusModel(
   filterIds: readonly string[],
   activeFilterId: string,
   contentIds: readonly string[],
-  columns: number
+  columns: number,
+  controlIds: readonly string[] = []
 ): OdaFocusModel {
   return {
     resolveMove: (focusId, direction, wrap) => {
@@ -244,9 +245,26 @@ export function createBrowserFocusModel(
         return focusId;
       }
 
+      const controlIndex = controlIds.indexOf(focusId);
+      if (controlIndex >= 0) {
+        if (direction === 'left') {
+          return controlIndex === 0 ? fallback : controlIds[controlIndex - 1];
+        }
+        if (direction === 'right') {
+          return controlIds[Math.min(controlIndex + 1, controlIds.length - 1)] ?? focusId;
+        }
+        if (direction === 'down') {
+          return contentIds[Math.min(controlIndex, contentIds.length - 1)] ?? focusId;
+        }
+        return focusId;
+      }
+
       const contentIndex = contentIds.indexOf(focusId);
       if (contentIndex < 0) return fallback;
       const safeColumns = Math.max(1, Math.floor(columns));
+      if (direction === 'up' && contentIndex < safeColumns && controlIds.length > 0) {
+        return controlIds[Math.min(contentIndex, controlIds.length - 1)];
+      }
       if (direction === 'left' && (safeColumns === 1 || contentIndex % safeColumns === 0)) {
         return fallback;
       }

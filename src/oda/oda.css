@@ -697,7 +697,15 @@
 }
 
 /* Standard Oda library browser ------------------------------------------------ */
+/* Full-bleed route: it cancels the overscan wrapper padding and carries the
+   safe-area plus top-chrome clearance itself, so there is no inset panel seam
+   for the floating chrome glyph to straddle. */
+.oda-overscan:has(> .oda-library-browser) {
+  padding: 0;
+}
+
 .oda-library-browser {
+  --oda-browser-inset: calc(var(--oda-overscan-percent, 0) * 1vw);
   display: grid;
   grid-template-columns: clamp(13.5rem, 20vw, 19rem) minmax(0, 1fr);
   width: 100%;
@@ -706,13 +714,19 @@
   background:
     linear-gradient(90deg, color-mix(in srgb, var(--oda-bg-elevated) 88%, transparent), transparent 40%),
     color-mix(in srgb, var(--oda-bg) 90%, transparent);
+  overflow: hidden;
 }
 
 .oda-browser-sidebar {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  padding: clamp(3.6rem, 8vh, 5.5rem) 0.85rem 3.2rem;
+  padding:
+    calc(var(--oda-browser-inset) + max(env(safe-area-inset-top, 0px), 0.5rem) + clamp(3.1rem, 7vh, 4.5rem))
+    0.85rem
+    calc(var(--oda-browser-inset) + max(env(safe-area-inset-bottom, 0px), 0.8rem) + 1.6rem)
+    calc(var(--oda-browser-inset) + max(env(safe-area-inset-left, 0px), 0.5rem) + 0.85rem);
+  overflow: hidden;
   border-right: 1px solid var(--oda-border);
   background: color-mix(in srgb, var(--oda-bg-elevated) 82%, transparent);
 }
@@ -754,6 +768,7 @@
   min-height: 0;
   padding: 1rem 0;
   overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .oda-browser-filter {
@@ -785,7 +800,7 @@
 .oda-browser-filter.is-active::after {
   content: '';
   position: absolute;
-  right: -0.85rem;
+  right: 0;
   width: 3px;
   height: 1.6rem;
   background: var(--oda-accent-strong);
@@ -801,35 +816,17 @@
   box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--oda-focus) 38%, transparent);
 }
 
-.oda-browser-sidebar-section {
-  margin: 0.75rem 0.65rem 0.25rem;
-  padding-top: 0.75rem;
-  border-top: 1px solid var(--oda-border);
-  color: var(--oda-muted);
-  font-size: clamp(0.64rem, 0.75vw, 0.76rem);
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
-.oda-browser-filter.is-layout {
-  min-height: 2.35rem;
-  font-size: clamp(0.78rem, 0.95vw, 0.96rem);
-}
-
-.oda-browser-sidebar-hint {
-  margin: auto 0.65rem 0;
-  color: var(--oda-muted);
-  font-size: clamp(0.7rem, 0.82vw, 0.82rem);
-  line-height: 1.45;
-}
-
 .oda-browser-content {
   display: grid;
   grid-template-rows: auto minmax(0, 1fr);
   min-width: 0;
   min-height: 0;
-  padding: clamp(3.6rem, 8vh, 5.5rem) clamp(1.3rem, 3vw, 3rem) 2.4rem;
+  padding:
+    calc(var(--oda-browser-inset) + max(env(safe-area-inset-top, 0px), 0.5rem) + clamp(3.1rem, 7vh, 4.5rem))
+    calc(var(--oda-browser-inset) + max(env(safe-area-inset-right, 0px), 0.5rem) + clamp(1.1rem, 2.2vw, 2.2rem))
+    calc(var(--oda-browser-inset) + max(env(safe-area-inset-bottom, 0px), 0.5rem) + 1rem)
+    clamp(1.1rem, 2.2vw, 2.2rem);
+  overflow: hidden;
 }
 
 .oda-browser-header {
@@ -894,6 +891,12 @@
   color: var(--oda-accent-strong);
 }
 
+.oda-browser-layout-switch button.is-focused {
+  outline: 2px solid var(--oda-focus);
+  outline-offset: 1px;
+  color: var(--oda-accent-strong);
+}
+
 .oda-browser-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -902,7 +905,7 @@
   min-height: 0;
   padding: 1.1rem 0.2rem 3rem;
   overflow-y: auto;
-  scrollbar-gutter: stable;
+  overflow-x: hidden;
 }
 
 .oda-library-tile {
@@ -959,6 +962,28 @@
   color: color-mix(in srgb, var(--oda-accent-strong) 55%, var(--oda-muted));
   font-size: clamp(3rem, 6vw, 6rem);
   opacity: 0.7;
+}
+
+.oda-tile-brand-glyph {
+  width: clamp(3.4rem, 7vw, 7rem);
+  aspect-ratio: 1;
+  background: currentColor;
+  -webkit-mask: url('/icons/izci-mark.svg') center / contain no-repeat;
+  mask: url('/icons/izci-mark.svg') center / contain no-repeat;
+}
+
+/* Oda sits above the app-level overlay scrollbar. Restore its native
+   scrollbar width so scrolling lists and grids still show their thumb. */
+html.izci-overlay-vertical-scrollbars .oda-shell .oda-list-viewport::-webkit-scrollbar,
+html.izci-overlay-vertical-scrollbars .oda-shell .oda-browser-grid::-webkit-scrollbar,
+html.izci-overlay-vertical-scrollbars .oda-shell .oda-browser-sidebar nav::-webkit-scrollbar {
+  width: 10px;
+}
+
+.oda-list-viewport,
+.oda-browser-grid {
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
 }
 
 .oda-tile-copy {
