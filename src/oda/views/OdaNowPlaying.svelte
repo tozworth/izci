@@ -1,46 +1,38 @@
 <script lang="ts">
   import type { PlaybackSnapshot, RepeatMode, TrackItem } from '$lib/types';
   import { formatDuration, getTrackDisplayTitle } from '$lib/utils/files';
-  import { odaBrowseTrackId } from '../oda-browse';
-  import { buildOdaTrackDisplayRows } from '../oda-rows';
   import {
     ODA_NP_NEXT,
     ODA_NP_PLAY_PAUSE,
     ODA_NP_PREVIOUS,
     ODA_NP_PROGRESS,
+    ODA_NP_QUEUE,
     ODA_NP_REPEAT,
     ODA_NP_SHUFFLE,
     ODA_NP_VOLUME
   } from '../oda-now-playing';
   import type { OdaTranslate } from '../oda-translate';
-  import OdaRouteList from './OdaRouteList.svelte';
 
   export let track: TrackItem | null = null;
   export let snapshot: PlaybackSnapshot | null = null;
   export let artworkUrl: string | null = null;
-  export let queueItems: TrackItem[] = [];
   export let focusId: string | null = null;
   export let shuffleEnabled = false;
   export let repeatMode: RepeatMode = 'off';
-  export let canMutateQueue = true;
-  export let canReorderQueue = true;
   export let translate: OdaTranslate;
 
-  export let onActivateQueueItem: (id: string) => void = () => {};
   export let onFocus: (focusId: string) => void = () => {};
   export let onTogglePlayback: () => void = () => {};
   export let onStepTrack: (direction: -1 | 1) => void = () => {};
   export let onSeek: (seconds: number) => void = () => {};
   export let onToggleShuffle: () => void = () => {};
   export let onCycleRepeat: () => void = () => {};
-  export let onRemoveQueueItem: (id: string) => void = () => {};
-  export let onMoveQueueItem: (id: string, direction: -1 | 1) => void = () => {};
+  export let onToggleQueue: () => void = () => {};
 
   $: currentTime = snapshot?.currentTime ?? 0;
   $: duration = snapshot?.duration ?? 0;
   $: progressPercent = duration > 0 ? Math.min(100, (currentTime / duration) * 100) : 0;
   $: volumePercent = Math.round((snapshot?.volume ?? 0) * 100);
-  $: queueRows = buildOdaTrackDisplayRows(queueItems, track?.id ?? null);
   $: title = track ? (getTrackDisplayTitle(track) || track.name) : translate('oda.nowPlaying.idleTitle', 'Nothing playing');
   $: artist = track?.metadata?.artist?.trim() || '';
   $: album = track?.metadata?.album?.trim() || '';
@@ -66,20 +58,6 @@
     onSeek(((event.clientX - rect.left) / rect.width) * duration);
   }
 
-  function handleQueueActivate(rowFocusId: string): void {
-    const id = odaBrowseTrackId(rowFocusId);
-    if (id) onActivateQueueItem(id);
-  }
-
-  function handleQueueRemove(rowFocusId: string): void {
-    const id = odaBrowseTrackId(rowFocusId);
-    if (id) onRemoveQueueItem(id);
-  }
-
-  function handleQueueMove(rowFocusId: string, direction: -1 | 1): void {
-    const id = odaBrowseTrackId(rowFocusId);
-    if (id) onMoveQueueItem(id, direction);
-  }
 </script>
 
 <div class="oda-now-playing">
@@ -124,6 +102,16 @@
       </div>
 
       <div class="oda-transport oda-transport-main">
+        <button
+          type="button"
+          class="oda-queue-toggle"
+          class:is-focused={focused(ODA_NP_QUEUE)}
+          title={translate('oda.queue.open', 'Queue')}
+          aria-label={translate('oda.queue.open', 'Queue')}
+          on:click={() => activate(ODA_NP_QUEUE, onToggleQueue)}
+        >
+          <span class="material-symbols-outlined">queue_music</span>
+        </button>
         <span class="oda-transport-core">
           <button type="button" class:is-active={shuffleEnabled} class:is-focused={focused(ODA_NP_SHUFFLE)} title={translate('oda.nowPlaying.shuffle', 'Shuffle')} on:click={() => activate(ODA_NP_SHUFFLE, onToggleShuffle)}>
             <span class="material-symbols-outlined">shuffle</span>
@@ -174,26 +162,4 @@
     </div>
   </section>
 
-  <section class="oda-now-playing-rail">
-    <div class="oda-now-playing-queue-header">
-      <h2>{translate('oda.cards.queue', 'Queue')}</h2>
-      <p>{translate('oda.home.queueCount', '{count} tracks', { count: queueItems.length })}</p>
-    </div>
-    {#if queueRows.length === 0}
-      <p class="oda-row-meta">{translate('oda.nowPlaying.queueEmpty', 'The queue is empty.')}</p>
-    {:else}
-      <OdaRouteList
-        rows={queueRows}
-        {focusId}
-        listKey="now-playing-queue"
-        canRemove={canMutateQueue}
-        canMove={canReorderQueue}
-        onActivate={handleQueueActivate}
-        onFocus={(nextFocusId) => onFocus(nextFocusId)}
-        onRemove={handleQueueRemove}
-        onMove={handleQueueMove}
-        {translate}
-      />
-    {/if}
-  </section>
 </div>

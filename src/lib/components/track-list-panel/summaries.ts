@@ -47,9 +47,9 @@ export function localizeLibraryGroup(group: LibraryGroup, translate: Translate):
   return { ...group, label, secondary };
 }
 
-type QueueSummaryKind = 'songs' | 'images' | 'videos' | 'items';
+export type QueueSummaryKind = 'songs' | 'images' | 'videos' | 'items';
 
-function getQueueSummaryKind(items: TrackItem[]): QueueSummaryKind {
+export function getQueueSummaryKind(items: TrackItem[]): QueueSummaryKind {
   if (items.length === 0) return 'items';
   if (items.every((item) => item.kind === 'image')) return 'images';
   if (items.every((item) => item.kind === 'video')) return 'videos';

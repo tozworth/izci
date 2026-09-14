@@ -36,6 +36,9 @@ const CONTEXT: OdaRouteFocusContext = {
   songsLayout: 'grid',
   canMutateQueue: true,
   canReorderQueue: true,
+  playingKind: 'stream',
+  playingTrackId: null,
+  queueFlyoutOpen: false,
   homeWaterfallSections: [
     { id: 'images', cardIds: ['browse-images'] },
     { id: 'music', cardIds: ['browse-music', 'artists'] }
@@ -144,15 +147,12 @@ describe('Oda keyboard flow', () => {
     expect(harness.getRoute()).toEqual({ name: 'browse', medium: 'music', view: 'artists' });
   });
 
-  it('routes transport keys in a theater and moves focus across Now Playing', () => {
+  it('routes transport keys and moves focus across Now Playing', () => {
     const harness = createHarness();
-    harness.push({ name: 'video-theater' });
-
-    expect(harness.focus.getFocus()).toBe('th:play-pause');
+    harness.push({ name: 'now-playing' });
     expect(harness.key('MediaPlayPause')).toBe(true);
     expect(harness.activations).toContain('transport:play-pause');
 
-    harness.push({ name: 'now-playing' });
     expect(harness.focus.getFocus()).toBe('np:play-pause');
     harness.key('ArrowLeft');
     expect(harness.focus.getFocus()).toBe('np:previous');

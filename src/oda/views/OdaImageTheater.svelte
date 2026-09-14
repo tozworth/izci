@@ -18,6 +18,7 @@
   export let onResetZoom: () => void = () => {};
   export let onRotateImage: () => void = () => {};
   export let onBack: () => void = () => {};
+  export let onToggleQueue: () => void = () => {};
 
   let imageFitMode: VideoFitMode = 'contain';
   $: imageFitMode = fitMode === 'cover' ? 'cover' : 'contain';
@@ -44,6 +45,7 @@
     {onSetFit}
     {onZoomStep}
     {onRotateImage}
+    {onToggleQueue}
     {onBack}
   />
 </div>

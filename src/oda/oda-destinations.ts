@@ -76,9 +76,7 @@ export function resolveOdaMediaCounts(items: readonly TrackItem[]): OdaMediaCoun
 }
 
 /** Resolve the kind-appropriate presentation route for the current item. */
-export function resolveNowPlayingRoute(track: TrackItem | null): OdaRoute {
-  if (track?.kind === 'video') return { name: 'video-theater' };
-  if (track?.kind === 'image') return { name: 'image-theater' };
+export function resolveNowPlayingRoute(_track: TrackItem | null): OdaRoute {
   return { name: 'now-playing' };
 }
 

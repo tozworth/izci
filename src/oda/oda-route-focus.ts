@@ -7,7 +7,7 @@
  * thin.
  */
 
-import type { TrackItem } from '$lib/types';
+import type { TrackItem, TrackKind } from '$lib/types';
 import type { OdaRoute } from '$lib/services/oda-session';
 import {
   buildOdaBrowseGroupRows,
@@ -30,11 +30,12 @@ import {
 } from './oda-navigation';
 import {
   ODA_NP_PLAY_PAUSE,
+  ODA_NP_QUEUE,
   resolveOdaNowPlayingQueueActionIds,
   resolveOdaNowPlayingTransportIds,
   resolveOdaNowPlayingTransportRows
 } from './oda-now-playing';
-import { resolveOdaTheaterControlIds } from './oda-theater';
+import { ODA_THEATER_PLAY_PAUSE, resolveOdaTheaterControlIds } from './oda-theater';
 
 export interface OdaRouteFocusContext {
   musicItems: TrackItem[];
@@ -47,6 +48,9 @@ export interface OdaRouteFocusContext {
   songsLayout: 'list' | 'grid';
   canMutateQueue: boolean;
   canReorderQueue: boolean;
+  playingKind: TrackKind | null;
+  playingTrackId: string | null;
+  queueFlyoutOpen: boolean;
 }
 
 
@@ -93,8 +97,13 @@ export function resolveOdaRouteFocusIds(
     return [...context.optionCategoryIds];
   }
   if (route.name === 'now-playing') {
+    if (!context.queueFlyoutOpen) {
+      if (context.playingKind === 'video') return resolveOdaTheaterControlIds('video');
+      if (context.playingKind === 'image') return resolveOdaTheaterControlIds('image');
+      return resolveOdaNowPlayingTransportIds();
+    }
     return [
-      ...resolveOdaNowPlayingTransportIds(),
+      ODA_NP_QUEUE,
       ...context.queueItems.flatMap((item) => [
         odaTrackFocusId(item.id),
         ...resolveOdaNowPlayingQueueActionIds(
@@ -105,8 +114,6 @@ export function resolveOdaRouteFocusIds(
       ])
     ];
   }
-  if (route.name === 'video-theater') return resolveOdaTheaterControlIds('video');
-  if (route.name === 'image-theater') return resolveOdaTheaterControlIds('image');
   if (route.name === 'browse') {
     return [
       ...resolveBrowseFilterFocusIds(route),
@@ -127,7 +134,21 @@ export function resolveOdaRouteDefaultFocusId(
   if (route.name === 'options') {
     return context.optionCategoryIds[0] ?? null;
   }
-  if (route.name === 'now-playing') return ODA_NP_PLAY_PAUSE;
+  if (route.name === 'now-playing') {
+    if (context.queueFlyoutOpen) {
+      const playingFocusId = context.playingTrackId
+        ? odaTrackFocusId(context.playingTrackId)
+        : null;
+      return playingFocusId && context.queueItems.some((item) => item.id === context.playingTrackId)
+        ? playingFocusId
+        : context.queueItems[0]
+          ? odaTrackFocusId(context.queueItems[0].id)
+          : ODA_NP_QUEUE;
+    }
+    return context.playingKind === 'video' || context.playingKind === 'image'
+      ? ODA_THEATER_PLAY_PAUSE
+      : ODA_NP_PLAY_PAUSE;
+  }
   if (route.name === 'browse') {
     if (route.groupKey) {
       return resolveBrowseContentFocusIds(route, context)[0]
@@ -149,8 +170,14 @@ export function resolveOdaRouteFocusModel(
     return createListFocusModel([...context.optionCategoryIds]);
   }
   if (route.name === 'now-playing') {
+    if (!context.queueFlyoutOpen) {
+      if (context.playingKind === 'video' || context.playingKind === 'image') {
+        return createListFocusModel(resolveOdaTheaterControlIds(context.playingKind));
+      }
+      return createNowPlayingFocusModel(resolveOdaNowPlayingTransportRows(), []);
+    }
     return createNowPlayingFocusModel(
-      resolveOdaNowPlayingTransportRows(),
+      [[ODA_NP_QUEUE]],
       context.queueItems.map((item) => odaTrackFocusId(item.id)),
       context.queueItems.map((item) => resolveOdaNowPlayingQueueActionIds(
         item.id,

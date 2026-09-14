@@ -23,6 +23,7 @@
   export let onRotateImage: () => void = () => {};
   export let onTogglePictureInPicture: () => void = () => {};
   export let onBack: () => void = () => {};
+  export let onToggleQueue: () => void = () => {};
 
   function handleSeekDelta(seconds: number): void {
     const current = snapshot?.currentTime ?? 0;
@@ -57,6 +58,7 @@
     {onSetFit}
     {onZoomStep}
     {onRotateImage}
+    {onToggleQueue}
     {onBack}
   />
 </div>

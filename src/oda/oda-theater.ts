@@ -6,6 +6,8 @@
  * builds the model) and the theater components (which render the buttons).
  */
 
+import { ODA_NP_QUEUE } from './oda-now-playing';
+
 export type OdaTheaterKind = 'video' | 'image';
 
 export const ODA_THEATER_PLAY_PAUSE = 'th:play-pause';
@@ -23,7 +25,7 @@ export const ODA_THEATER_SEEK_STEP_SECONDS = 10;
 export function resolveOdaTheaterControlIds(kind: OdaTheaterKind): string[] {
   const transport = [ODA_THEATER_PLAY_PAUSE, ODA_THEATER_PREVIOUS, ODA_THEATER_NEXT];
   if (kind === 'video') {
-    return [...transport, ODA_THEATER_SEEK_BACK, ODA_THEATER_SEEK_FORWARD, ODA_THEATER_FIT, ODA_THEATER_BACK];
+    return [...transport, ODA_THEATER_SEEK_BACK, ODA_THEATER_SEEK_FORWARD, ODA_THEATER_FIT, ODA_NP_QUEUE, ODA_THEATER_BACK];
   }
-  return [...transport, ODA_THEATER_ZOOM_OUT, ODA_THEATER_ZOOM_IN, ODA_THEATER_ROTATE, ODA_THEATER_FIT, ODA_THEATER_BACK];
+  return [...transport, ODA_THEATER_ZOOM_OUT, ODA_THEATER_ZOOM_IN, ODA_THEATER_ROTATE, ODA_THEATER_FIT, ODA_NP_QUEUE, ODA_THEATER_BACK];
 }

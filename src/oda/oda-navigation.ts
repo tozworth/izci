@@ -274,8 +274,8 @@ export function createBrowserFocusModel(
 }
 
 /**
- * Now Playing focus: a timeline and transport rows beside a vertical queue
- * rail. Up/Down crosses between control rows; Left/Right moves within a row.
+ * Playback focus: transport rows optionally linked to the queue flyout.
+ * Up/Down crosses between control rows; Left/Right moves within a row.
  * A single-control row enters the horizontal center of the next row. Queue
  * focus is by item ID so updates do not desynchronize navigation.
  */

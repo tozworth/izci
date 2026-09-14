@@ -2495,8 +2495,6 @@
       "idle": "Çalan bir şey yok",
       "playing": "Çalıyor",
       "paused": "Duraklatıldı",
-      "queueOne": "1 parça",
-      "queueCount": "{count} parça",
       "countOne": "1 öğe",
       "count": "{count} öğe",
       "images": "Görseller",
@@ -2546,7 +2544,13 @@
     },
     "queue": {
       "emptyTitle": "Kuyruk boş",
-      "empty": "Kuyruk oluşturmak için kütüphaneden parça ekleyin.",
+      "empty": "Kuyruk oluşturmak için kütüphaneden öğe ekleyin.",
+      "open": "Kuyruk",
+      "close": "Kuyruğu kapat",
+      "countSongs": "{count, plural, one {# parça} other {# parça}}",
+      "countImages": "{count, plural, one {# görsel} other {# görsel}}",
+      "countVideos": "{count, plural, one {# video} other {# video}}",
+      "countItems": "{count, plural, one {# öğe} other {# öğe}}",
       "moveUp": "Yukarı taşı",
       "moveDown": "Aşağı taşı"
     },

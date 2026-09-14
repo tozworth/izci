@@ -5,7 +5,7 @@ import {
   formatTotalDuration,
   matchesSearchQuery
 } from './search';
-import { getLocalizedTrackSummary } from './summaries';
+import { getLocalizedTrackSummary, getQueueSummaryKind } from './summaries';
 import type { TrackItem } from '$lib/types';
 
 function item(name: string, metadata: TrackItem['metadata'] = {}): TrackItem {
@@ -66,5 +66,14 @@ describe('track-list-panel search helpers', () => {
       const values = options?.values;
       return `${values?.visible} of ${values?.total} songs · ${values?.duration}`;
     })).toBe('1 of 2 songs · 02:05');
+  });
+
+  it('classifies queue count labels by the same media rules for every surface', () => {
+    const image = { ...item('cover.png'), kind: 'image' as const };
+    const video = { ...item('clip.mp4'), kind: 'video' as const };
+    expect(getQueueSummaryKind(tracks)).toBe('songs');
+    expect(getQueueSummaryKind([image])).toBe('images');
+    expect(getQueueSummaryKind([video])).toBe('videos');
+    expect(getQueueSummaryKind([tracks[0], image])).toBe('items');
   });
 });
