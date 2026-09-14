@@ -44,6 +44,9 @@ const CONTEXT: OdaRouteFocusContext = {
   songsLayout: 'grid',
   canMutateQueue: true,
   canReorderQueue: true,
+  playingKind: 'stream',
+  playingTrackId: 'q1',
+  queueFlyoutOpen: true,
   homeWaterfallSections: [
     { id: 'images', cardIds: ['browse-images'] },
     { id: 'music', cardIds: ['browse-music', 'artists'] },
@@ -97,10 +100,9 @@ describe('resolveOdaRouteFocusIds', () => {
     }
   });
 
-  it('combines transport and queue IDs for Now Playing', () => {
+  it('exposes the shared queue flyout IDs for Now Playing', () => {
     const ids = resolveOdaRouteFocusIds({ name: 'now-playing' }, CONTEXT);
-    expect(ids[0]).toBe('np:progress');
-    expect(ids).toContain('np:play-pause');
+    expect(ids[0]).toBe('np:queue');
     expect(ids).toContain('item:q1');
     expect(ids).toContain('item:q2');
     expect(ids).toContain('np:queue-action:remove:q1');
@@ -119,8 +121,14 @@ describe('resolveOdaRouteFocusIds', () => {
   });
 
   it('exposes theater controls and options categories', () => {
-    expect(resolveOdaRouteFocusIds({ name: 'video-theater' }, CONTEXT)).toContain('th:play-pause');
-    expect(resolveOdaRouteFocusIds({ name: 'image-theater' }, CONTEXT)).toContain('th:rotate');
+    expect(resolveOdaRouteFocusIds(
+      { name: 'now-playing' },
+      { ...CONTEXT, playingKind: 'video', queueFlyoutOpen: false }
+    )).toContain('th:play-pause');
+    expect(resolveOdaRouteFocusIds(
+      { name: 'now-playing' },
+      { ...CONTEXT, playingKind: 'image', queueFlyoutOpen: false }
+    )).toContain('th:rotate');
     expect(resolveOdaRouteFocusIds({ name: 'options', view: 'oda' }, CONTEXT))
       .toEqual(['option:oda', 'option:appearance']);
   });
@@ -132,27 +140,37 @@ describe('resolveOdaRouteDefaultFocusId', () => {
   });
 
   it('starts Now Playing on the primary transport control', () => {
-    expect(resolveOdaRouteDefaultFocusId({ name: 'now-playing' }, CONTEXT)).toBe('np:play-pause');
+    expect(resolveOdaRouteDefaultFocusId(
+      { name: 'now-playing' },
+      { ...CONTEXT, queueFlyoutOpen: false }
+    )).toBe('np:play-pause');
   });
 
-  it('starts Options on the first category and theaters on play/pause', () => {
+  it('starts Options on the first category and visual playback on play/pause', () => {
     expect(resolveOdaRouteDefaultFocusId({ name: 'options', view: 'oda' }, CONTEXT)).toBe('option:oda');
-    expect(resolveOdaRouteDefaultFocusId({ name: 'video-theater' }, CONTEXT)).toBe('th:play-pause');
+    expect(resolveOdaRouteDefaultFocusId(
+      { name: 'now-playing' },
+      { ...CONTEXT, playingKind: 'video', queueFlyoutOpen: false }
+    )).toBe('th:play-pause');
   });
 });
 
 describe('resolveOdaRouteFocusModel', () => {
   it('moves across the Now Playing transport and queue regions', () => {
-    const model = resolveOdaRouteFocusModel({ name: 'now-playing' }, CONTEXT);
+    const model = resolveOdaRouteFocusModel(
+      { name: 'now-playing' },
+      { ...CONTEXT, queueFlyoutOpen: false }
+    );
     expect(model).not.toBeNull();
     expect(model!.resolveMove(null, 'right', false)).toBe('np:progress');
     expect(model!.resolveMove('np:progress', 'down', false)).toBe('np:play-pause');
-    expect(model!.resolveMove('np:play-pause', 'down', false)).toBe('item:q1');
+    expect(model!.resolveMove('np:play-pause', 'down', false)).toBe('np:play-pause');
     expect(model!.resolveMove('np:next', 'right', false)).toBe('np:repeat');
-    expect(model!.resolveMove('np:volume', 'right', false)).toBe('item:q1');
-    expect(model!.resolveMove('item:q1', 'up', false)).toBe('np:volume');
-    expect(model!.resolveMove('item:q1', 'right', false)).toBe('np:queue-action:move-up:q1');
-    expect(model!.resolveMove('np:queue-action:move-up:q1', 'left', false)).toBe('item:q1');
+    expect(model!.resolveMove('np:volume', 'right', false)).toBe('np:volume');
+
+    const flyoutModel = resolveOdaRouteFocusModel({ name: 'now-playing' }, CONTEXT)!;
+    expect(flyoutModel.resolveMove('np:queue', 'down', false)).toBe('item:q1');
+    expect(flyoutModel.resolveMove('item:q1', 'right', false)).toBe('np:queue-action:move-up:q1');
   });
 
   it('clamps a list model without wrap', () => {

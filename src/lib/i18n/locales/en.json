@@ -2494,8 +2494,6 @@
       "idle": "Nothing playing",
       "playing": "Playing",
       "paused": "Paused",
-      "queueOne": "1 track",
-      "queueCount": "{count} tracks",
       "countOne": "1 item",
       "count": "{count} items",
       "images": "Images",
@@ -2545,7 +2543,13 @@
     },
     "queue": {
       "emptyTitle": "The queue is empty",
-      "empty": "Add tracks from the library to build a queue.",
+      "empty": "Add items from the library to build a queue.",
+      "open": "Queue",
+      "close": "Close queue",
+      "countSongs": "{count, plural, one {# song} other {# songs}}",
+      "countImages": "{count, plural, one {# image} other {# images}}",
+      "countVideos": "{count, plural, one {# video} other {# videos}}",
+      "countItems": "{count, plural, one {# item} other {# items}}",
       "moveUp": "Move up",
       "moveDown": "Move down"
     },

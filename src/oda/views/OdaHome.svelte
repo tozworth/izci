@@ -10,6 +10,7 @@
   } from '../oda-navigation';
   import type { OdaCardModel, OdaHomeSectionModel } from '../oda-destinations';
   import type { OdaTranslate } from '../oda-translate';
+  import { getOdaQueueCountSummary } from '../oda-queue';
 
   export let sections: OdaHomeSectionModel[];
   export let focusId: string | null = null;
@@ -17,7 +18,9 @@
   export let playingTrack: TrackItem | null = null;
   export let playbackSnapshot: PlaybackSnapshot | null = null;
   export let artworkUrl: string | null = null;
-  export let queueCount = 0;
+  export let queueItems: TrackItem[] = [];
+
+  $: queueSummary = getOdaQueueCountSummary(queueItems, translate);
 
   export let onActivate: (card: OdaCardModel) => void = () => {};
   export let onFocus: (focusId: string) => void = () => {};
@@ -194,11 +197,7 @@
                 {/if}
                 <span class="oda-card-label">{translate(card.labelKey, card.labelFallback)}</span>
                 {#if card.id === 'queue'}
-                  <span class="oda-card-meta">
-                    {queueCount === 1
-                      ? translate('oda.home.queueOne', '1 track')
-                      : translate('oda.home.queueCount', '{count} tracks', { count: queueCount })}
-                  </span>
+                  <span class="oda-card-meta">{queueSummary}</span>
                 {:else if card.count !== undefined}
                   <span class="oda-card-meta">
                     {card.count === 1

@@ -119,7 +119,7 @@ describe('resolveNowPlayingRoute', () => {
     expect(resolveNowPlayingRoute(null)).toEqual({ name: 'now-playing' });
     expect(resolveNowPlayingRoute(track('stream'))).toEqual({ name: 'now-playing' });
     expect(resolveNowPlayingRoute(track('module'))).toEqual({ name: 'now-playing' });
-    expect(resolveNowPlayingRoute(track('video'))).toEqual({ name: 'video-theater' });
-    expect(resolveNowPlayingRoute(track('image'))).toEqual({ name: 'image-theater' });
+    expect(resolveNowPlayingRoute(track('video'))).toEqual({ name: 'now-playing' });
+    expect(resolveNowPlayingRoute(track('image'))).toEqual({ name: 'now-playing' });
   });
 });

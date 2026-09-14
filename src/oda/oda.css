@@ -1057,16 +1057,16 @@ html.izci-overlay-vertical-scrollbars .oda-shell .oda-browser-sidebar nav::-webk
   opacity: 0.35;
 }
 
-/* Now Playing mirrors the desktop player's centered stack. The queue stays a
-   full-height adjacent rail instead of compressing the player or its rows. */
+/* Now Playing keeps its right side deliberately open for a future lyrics
+   surface. Queue is a shared playback flyout rather than part of this view. */
 .oda-now-playing {
   position: relative;
   isolation: isolate;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) clamp(25rem, 31vw, 38rem);
+  grid-template-columns: minmax(0, 1fr) minmax(20rem, 36vw);
   grid-template-rows: minmax(0, 1fr);
   grid-template-areas:
-    'hero queue';
+    'hero future';
   gap: clamp(1.5rem, 3vw, 3.5rem);
   width: 100%;
   height: 100%;
@@ -1199,6 +1199,18 @@ html.izci-overlay-vertical-scrollbars .oda-shell .oda-browser-sidebar nav::-webk
   min-height: clamp(3.8rem, 5vw, 4.8rem);
 }
 
+.oda-transport button.oda-queue-toggle {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  display: grid;
+  place-items: center;
+  width: clamp(2.8rem, 4vw, 3.8rem);
+  min-width: 0;
+  padding: 0;
+  transform: translateY(-50%);
+}
+
 .oda-transport-core {
   display: flex;
   align-items: center;
@@ -1322,51 +1334,126 @@ html.izci-overlay-vertical-scrollbars .oda-shell .oda-browser-sidebar nav::-webk
   opacity: 1;
 }
 
-.oda-now-playing-rail {
-  grid-area: queue;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: auto minmax(0, 1fr);
-  min-height: 0;
-  padding: 0.75rem 0 0 clamp(1rem, 2vw, 2rem);
-  border-top: 0;
-  border-left: 1px solid var(--oda-border);
-}
-
-.oda-now-playing-rail .oda-row-actions {
+.oda-queue-flyout .oda-row-actions {
   opacity: 0;
   pointer-events: none;
   transition: opacity 100ms ease;
 }
 
-.oda-now-playing-rail .oda-row-slot:hover .oda-row-actions,
-.oda-now-playing-rail .oda-row-slot.is-action-open .oda-row-actions,
-.oda-now-playing-rail .oda-row-actions:focus-within {
+.oda-queue-flyout .oda-row-slot:hover .oda-row-actions,
+.oda-queue-flyout .oda-row-slot.is-action-open .oda-row-actions,
+.oda-queue-flyout .oda-row-actions:focus-within {
   opacity: 1;
   pointer-events: auto;
 }
 
-.oda-now-playing-rail .oda-row-slot.is-action-open .oda-row-actions {
+.oda-queue-flyout .oda-row-slot.is-action-open .oda-row-actions {
   background: linear-gradient(90deg, transparent, var(--oda-surface) 18%);
 }
 
-.oda-now-playing-queue-header {
+.oda-queue-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 39;
+  border: 0;
+  background: rgba(0, 0, 0, 0.52);
+}
+
+.oda-queue-flyout {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 40;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  width: clamp(32rem, 38vw, 45rem);
+  max-width: 92vw;
+  min-height: 0;
+  padding: max(1.4rem, env(safe-area-inset-top, 0px)) max(1.25rem, env(safe-area-inset-right, 0px)) max(1.2rem, env(safe-area-inset-bottom, 0px)) 1.25rem;
+  border-left: 1px solid var(--oda-border-strong);
+  background: color-mix(in srgb, var(--oda-bg) 96%, #000);
+  box-shadow: -1.4rem 0 4rem rgba(0, 0, 0, 0.45);
+}
+
+.oda-queue-flyout-header {
   display: flex;
-  align-items: baseline;
-  gap: 0.75rem;
-  padding: 0 0.4rem 0.8rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1.25rem;
+  min-height: 5rem;
+  padding: 0 0.4rem 1rem;
   border-bottom: 1px solid var(--oda-border);
 }
 
-.oda-now-playing-queue-header h2 {
+.oda-queue-flyout-header h1 {
   margin: 0;
-  font-size: clamp(1.3rem, 1.8vw, 1.85rem);
+  font-size: clamp(1.25rem, 1.5vw, 1.6rem);
+  font-weight: 450;
+  line-height: 1;
 }
 
-.oda-now-playing-queue-header p {
-  margin: 0;
+.oda-queue-flyout-header p {
+  margin: 0.45rem 0 0;
   color: var(--oda-muted);
-  font-size: clamp(0.95rem, 1.05vw, 1.08rem);
+  font-size: clamp(0.88rem, 0.98vw, 1rem);
+}
+
+.oda-queue-flyout-header button {
+  display: grid;
+  place-items: center;
+  width: clamp(2.6rem, 3vw, 3.2rem);
+  height: clamp(2.6rem, 3vw, 3.2rem);
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 2px;
+  background: transparent;
+  color: var(--oda-text);
+}
+
+.oda-queue-flyout-header button:hover,
+.oda-queue-flyout-header button.is-focused {
+  border-color: var(--oda-focus);
+  outline: 1px solid color-mix(in srgb, var(--oda-focus) 38%, transparent);
+  background: color-mix(in srgb, var(--oda-surface) 72%, transparent);
+}
+
+.oda-queue-flyout-header button .material-symbols-outlined {
+  font-size: clamp(1.65rem, 1.9vw, 2rem);
+}
+
+.oda-queue-flyout .oda-list-viewport {
+  min-height: 0;
+  margin-top: 0.8rem;
+}
+
+.oda-queue-flyout .oda-row {
+  font-size: clamp(1rem, 1.2vw, 1.25rem);
+}
+
+.oda-queue-flyout-empty {
+  align-self: center;
+  padding: 2rem;
+  color: var(--oda-muted);
+  text-align: center;
+}
+
+.oda-queue-flyout-empty > .material-symbols-outlined {
+  font-size: clamp(4rem, 7vw, 7rem);
+  opacity: 0.35;
+}
+
+.oda-queue-flyout-empty h2 {
+  margin: 0.8rem 0 0;
+  color: var(--oda-text);
+  font-size: clamp(1.5rem, 2vw, 2.2rem);
+}
+
+.oda-queue-flyout-empty p {
+  margin: 0.65rem auto 0;
+  max-width: 28rem;
+  font-size: clamp(1rem, 1.2vw, 1.25rem);
+  line-height: 1.5;
 }
 
 /* Oda Options proportions and keyboard focus -------------------------------- */
@@ -1475,10 +1562,8 @@ html.izci-overlay-vertical-scrollbars .oda-shell .oda-browser-sidebar nav::-webk
 @media (max-width: 1050px) {
   .oda-now-playing {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: minmax(0, 1fr) minmax(11rem, 34vh);
-    grid-template-areas:
-      'hero'
-      'queue';
+    grid-template-rows: minmax(0, 1fr);
+    grid-template-areas: 'hero';
   }
 
   .oda-now-playing-hero {
@@ -1488,12 +1573,6 @@ html.izci-overlay-vertical-scrollbars .oda-shell .oda-browser-sidebar nav::-webk
 
   .oda-artwork {
     width: min(38vh, 55vw);
-  }
-
-  .oda-now-playing-rail {
-    padding: 0.8rem 0 0;
-    border-top: 1px solid var(--oda-border);
-    border-left: 0;
   }
 
 }

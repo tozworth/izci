@@ -15,6 +15,7 @@
     ODA_THEATER_SEEK_STEP_SECONDS,
     type OdaTheaterKind
   } from '../oda-theater';
+  import { ODA_NP_QUEUE } from '../oda-now-playing';
   import type { OdaTranslate } from '../oda-translate';
 
   export let kind: OdaTheaterKind;
@@ -30,6 +31,7 @@
   export let onZoomStep: (factor: number) => void = () => {};
   export let onRotateImage: () => void = () => {};
   export let onBack: () => void = () => {};
+  export let onToggleQueue: () => void = () => {};
 
   $: playing = snapshot?.state === 'playing';
 
@@ -108,6 +110,16 @@
     <span class="material-symbols-outlined" aria-hidden="true">
       {fitMode === 'cover' ? 'crop_free' : 'fit_screen'}
     </span>
+  </button>
+  <button
+    type="button"
+    class="oda-theater-queue"
+    class:is-focused={focusClass(ODA_NP_QUEUE)}
+    title={translate('oda.queue.open', 'Queue')}
+    aria-label={translate('oda.queue.open', 'Queue')}
+    on:click={onToggleQueue}
+  >
+    <span class="material-symbols-outlined" aria-hidden="true">queue_music</span>
   </button>
   <button
     type="button"

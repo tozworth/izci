@@ -11,6 +11,7 @@
   import OdaListRoute from './views/OdaListRoute.svelte';
   import OdaNowPlaying from './views/OdaNowPlaying.svelte';
   import OdaOptions from './views/OdaOptions.svelte';
+  import OdaQueueFlyout from './views/OdaQueueFlyout.svelte';
   import OdaTopChrome from './OdaTopChrome.svelte';
   import { version as appVersion } from '../../package.json';
   import OdaVideoTheater from './views/OdaVideoTheater.svelte';
@@ -45,6 +46,7 @@
     ODA_NP_PLAY_PAUSE,
     ODA_NP_PREVIOUS,
     ODA_NP_PROGRESS,
+    ODA_NP_QUEUE,
     ODA_NP_REPEAT,
     ODA_NP_SEEK_STEP_SECONDS,
     ODA_NP_SHUFFLE,
@@ -116,6 +118,8 @@
   // from content back to the category list before unwinding the route stack.
   let optionsContentActive = false;
   let lastOptionsFocusId: string | null = null;
+  let queueFlyoutOpen = false;
+  let queueReturnFocusId: string | null = null;
   let lastRouteKey = '';
   $: {
     const routeKey = activeRoute.name === 'options' ? 'options' : activeRoute.name;
@@ -123,6 +127,10 @@
       lastRouteKey = routeKey;
       optionsContentActive = false;
       lastOptionsFocusId = null;
+      if (activeRoute.name !== 'now-playing') {
+        queueFlyoutOpen = false;
+        queueReturnFocusId = null;
+      }
     }
   }
 
@@ -135,6 +143,8 @@
     void optionCategoryIds;
     void canMutateQueue;
     void canReorderQueue;
+    void playingTrack;
+    void queueFlyoutOpen;
     routeFocusIds = resolveOdaRouteFocusIds(activeRoute, focusContext());
   }
 
@@ -149,7 +159,10 @@
       homeWaterfallSections,
       songsLayout: settings.odaSongsLayout,
       canMutateQueue,
-      canReorderQueue
+      canReorderQueue,
+      playingKind: playingTrack?.kind ?? null,
+      playingTrackId: playingTrack?.id ?? null,
+      queueFlyoutOpen
     };
   }
 
@@ -201,6 +214,8 @@
     void settings.odaSongsLayout;
     void canMutateQueue;
     void canReorderQueue;
+    void playingTrack;
+    void queueFlyoutOpen;
     focus.setModel(optionsContentActive ? null : resolveRouteModel(activeRoute));
   }
 
@@ -213,6 +228,8 @@
     void optionCategoryIds;
     void canMutateQueue;
     void canReorderQueue;
+    void playingTrack;
+    void queueFlyoutOpen;
     if (
       sessionState.active
       && !optionsContentActive
@@ -242,15 +259,33 @@
 
   function routeToPresentation(track: TrackItem | null): void {
     if (!track) return;
-    if (track.kind === 'video') {
-      session.push({ name: 'video-theater' });
-      return;
-    }
-    if (track.kind === 'image') {
-      session.push({ name: 'image-theater' });
-      return;
-    }
     session.push({ name: 'now-playing' });
+  }
+
+  function openQueueFlyout(): void {
+    if (queueFlyoutOpen) return;
+    // The queue button exists in every playback renderer, so it remains a
+    // valid return target even when choosing an item swaps media kind.
+    queueReturnFocusId = ODA_NP_QUEUE;
+    queueFlyoutOpen = true;
+    const activeId = playingTrack && queueItems.some((item) => item.id === playingTrack?.id)
+      ? odaTrackFocusId(playingTrack.id)
+      : queueItems[0]
+        ? odaTrackFocusId(queueItems[0].id)
+        : ODA_NP_QUEUE;
+    focus.setFocus(activeId);
+  }
+
+  function closeQueueFlyout(): void {
+    if (!queueFlyoutOpen) return;
+    queueFlyoutOpen = false;
+    focus.setFocus(queueReturnFocusId ?? defaultFocusId());
+    queueReturnFocusId = null;
+  }
+
+  function toggleQueueFlyout(): void {
+    if (queueFlyoutOpen) closeQueueFlyout();
+    else openQueueFlyout();
   }
 
   function activateHomeCard(card: OdaCardModel): void {
@@ -326,7 +361,11 @@
       queueItems.map((item) => item.id),
       trackId
     );
-    focus.setFocus(nextFocusTrackId ? odaTrackFocusId(nextFocusTrackId) : ODA_NP_PLAY_PAUSE);
+    focus.setFocus(nextFocusTrackId
+      ? odaTrackFocusId(nextFocusTrackId)
+      : queueFlyoutOpen
+        ? ODA_NP_QUEUE
+        : defaultFocusId());
     commands.removeQueueTracks([trackId]);
   }
 
@@ -365,6 +404,10 @@
       return;
     }
     if (activeRoute.name === 'now-playing') {
+      if (focusId === ODA_NP_QUEUE) {
+        toggleQueueFlyout();
+        return;
+      }
       const queueAction = parseOdaNowPlayingQueueActionFocusId(focusId);
       if (queueAction) {
         if (queueAction.action === 'move-up' && canReorderQueue) {
@@ -376,14 +419,14 @@
         }
         return;
       }
+      if (queueFlyoutOpen) {
+        void activateAndRoute(focusId, 'queue');
+        return;
+      }
       if (focusId.startsWith('np:')) {
         handleNowPlayingControl(focusId);
         return;
       }
-      void activateAndRoute(focusId, 'queue');
-      return;
-    }
-    if (activeRoute.name === 'video-theater' || activeRoute.name === 'image-theater') {
       if (focusId.startsWith('th:')) handleTheaterControl(focusId);
       return;
     }
@@ -421,6 +464,10 @@
   }
 
   function handleBack(): void {
+    if (queueFlyoutOpen) {
+      closeQueueFlyout();
+      return;
+    }
     if (activeRoute.name === 'options' && optionsContentActive) {
       optionsContentActive = false;
       focus.setFocus(lastOptionsFocusId ?? defaultFocusId());
@@ -469,7 +516,7 @@
         {playingTrack}
         {playbackSnapshot}
         {artworkUrl}
-        queueCount={queueItems.length}
+        {queueItems}
         onActivate={handleCardActivate}
         onFocus={(focusId) => focus.setFocus(focusId)}
       />
@@ -522,27 +569,63 @@
         onFocus={(focusId) => focus.setFocus(focusId)}
       />
     {:else if activeRoute.name === 'now-playing'}
-      <OdaNowPlaying
-        track={playingTrack}
-        snapshot={playbackSnapshot}
-        {artworkUrl}
-        {queueItems}
-        focusId={sessionState.focusId}
-        {shuffleEnabled}
-        {repeatMode}
-        {canMutateQueue}
-        {canReorderQueue}
-        {translate}
-        onActivateQueueItem={(id) => void activateAndRoute(odaTrackFocusId(id), 'queue')}
-        onFocus={(focusId) => focus.setFocus(focusId)}
-        onTogglePlayback={commands.togglePlayback}
-        onStepTrack={commands.stepTrack}
-        onSeek={commands.seek}
-        onToggleShuffle={commands.toggleShuffle}
-        onCycleRepeat={commands.cycleRepeat}
-        onRemoveQueueItem={removeNowPlayingQueueItem}
-        onMoveQueueItem={(id, direction) => commands.moveQueueTrack(id, direction)}
-      />
+      {#if playingTrack?.kind === 'video'}
+        <OdaVideoTheater
+          element={media.videoElement}
+          parkingHost={media.parkingHost}
+          fitMode={media.fitMode}
+          snapshot={playbackSnapshot}
+          pictureInPictureSupported={media.pictureInPictureSupported}
+          seekFeedback={media.seekFeedback}
+          focusId={sessionState.focusId}
+          {translate}
+          onTogglePlayback={commands.togglePlayback}
+          onStepTrack={commands.stepTrack}
+          onSeek={commands.seek}
+          onVolumeStep={handleVolumeStep}
+          onTogglePictureInPicture={commands.togglePictureInPicture}
+          onSetFit={commands.setVideoFit}
+          onZoomStep={commands.zoomStep}
+          onRotateImage={commands.rotateImage}
+          onToggleQueue={openQueueFlyout}
+          onBack={() => session.back()}
+        />
+      {:else if playingTrack?.kind === 'image'}
+        <OdaImageTheater
+          element={media.imageElement}
+          parkingHost={media.parkingHost}
+          fitMode={media.fitMode}
+          zoom={media.imageZoom}
+          focusId={sessionState.focusId}
+          {translate}
+          onTogglePlayback={commands.togglePlayback}
+          onStepTrack={commands.stepTrack}
+          onSetFit={commands.setVideoFit}
+          onZoomStep={commands.zoomStep}
+          onResetZoom={commands.resetZoom}
+          onRotateImage={commands.rotateImage}
+          onToggleQueue={openQueueFlyout}
+          onBack={() => session.back()}
+        />
+      {:else}
+        <OdaNowPlaying
+          track={playingTrack}
+          snapshot={playbackSnapshot}
+          {artworkUrl}
+          focusId={sessionState.focusId}
+          {shuffleEnabled}
+          {repeatMode}
+          {translate}
+          onFocus={(focusId) => focus.setFocus(focusId)}
+          onTogglePlayback={commands.togglePlayback}
+          onStepTrack={commands.stepTrack}
+          onSeek={commands.seek}
+          onToggleShuffle={commands.toggleShuffle}
+          onCycleRepeat={commands.cycleRepeat}
+          onToggleQueue={openQueueFlyout}
+        />
+      {/if}
+
     {:else if activeRoute.name === 'options'}
       <OdaOptions
         groups={odaOptions.groups}
@@ -558,46 +641,26 @@
         onFocus={(focusId) => focus.setFocus(focusId)}
         onSelectView={(view) => selectOptionsView(view, odaOptionsCategoryFocusId(view))}
       />
-    {:else if activeRoute.name === 'video-theater'}
-      <OdaVideoTheater
-        element={media.videoElement}
-        parkingHost={media.parkingHost}
-        fitMode={media.fitMode}
-        snapshot={playbackSnapshot}
-        pictureInPictureSupported={media.pictureInPictureSupported}
-        seekFeedback={media.seekFeedback}
-        focusId={sessionState.focusId}
-        {translate}
-        onTogglePlayback={commands.togglePlayback}
-        onStepTrack={commands.stepTrack}
-        onSeek={commands.seek}
-        onVolumeStep={handleVolumeStep}
-        onTogglePictureInPicture={commands.togglePictureInPicture}
-        onSetFit={commands.setVideoFit}
-        onZoomStep={commands.zoomStep}
-        onRotateImage={commands.rotateImage}
-        onBack={() => session.back()}
-      />
-    {:else if activeRoute.name === 'image-theater'}
-      <OdaImageTheater
-        element={media.imageElement}
-        parkingHost={media.parkingHost}
-        fitMode={media.fitMode}
-        zoom={media.imageZoom}
-        focusId={sessionState.focusId}
-        {translate}
-        onTogglePlayback={commands.togglePlayback}
-        onStepTrack={commands.stepTrack}
-        onSetFit={commands.setVideoFit}
-        onZoomStep={commands.zoomStep}
-        onResetZoom={commands.resetZoom}
-        onRotateImage={commands.rotateImage}
-        onBack={() => session.back()}
-      />
     {/if}
   </div>
 
-  {#if activeRoute.name !== 'video-theater' && activeRoute.name !== 'image-theater'}
+  {#if activeRoute.name === 'now-playing' && queueFlyoutOpen}
+    <OdaQueueFlyout
+      items={queueItems}
+      playingId={playingTrack?.id ?? null}
+      focusId={sessionState.focusId}
+      canMutate={canMutateQueue}
+      canReorder={canReorderQueue}
+      {translate}
+      onClose={closeQueueFlyout}
+      onActivate={(id) => void activateAndRoute(odaTrackFocusId(id), 'queue')}
+      onFocus={(focusId) => focus.setFocus(focusId)}
+      onRemove={removeNowPlayingQueueItem}
+      onMove={(id, direction) => commands.moveQueueTrack(id, direction)}
+    />
+  {/if}
+
+  {#if !(activeRoute.name === 'now-playing' && (playingTrack?.kind === 'video' || playingTrack?.kind === 'image'))}
     <OdaTopChrome />
 
     <div class="oda-version" aria-hidden="true"><strong>izci</strong> {appVersion}</div>
