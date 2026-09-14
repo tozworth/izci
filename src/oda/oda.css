@@ -1057,21 +1057,27 @@ html.izci-overlay-vertical-scrollbars .oda-shell .oda-browser-sidebar nav::-webk
   opacity: 0.35;
 }
 
-/* Now Playing keeps its right side deliberately open for a future lyrics
-   surface. Queue is a shared playback flyout rather than part of this view. */
+/* Now Playing pairs the artwork/transport hero with a Theater-style lyrics
+   surface. Without lyrics the hero takes the full width and stays centered. */
 .oda-now-playing {
   position: relative;
   isolation: isolate;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(20rem, 36vw);
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: minmax(0, 1fr);
   grid-template-areas:
-    'hero future';
+    'hero';
   gap: clamp(1.5rem, 3vw, 3.5rem);
   width: 100%;
   height: 100%;
   padding: clamp(3.4rem, 6.5vh, 5rem) clamp(1.2rem, 2.5vw, 3rem) 2.4rem;
   overflow: hidden;
+}
+
+.oda-now-playing.has-lyrics {
+  grid-template-columns: minmax(0, 1fr) minmax(20rem, 36vw);
+  grid-template-areas:
+    'hero lyrics';
 }
 
 .oda-now-playing-ambient {
@@ -1199,16 +1205,30 @@ html.izci-overlay-vertical-scrollbars .oda-shell .oda-browser-sidebar nav::-webk
   min-height: clamp(3.8rem, 5vw, 4.8rem);
 }
 
-.oda-transport button.oda-queue-toggle {
+.oda-transport-left {
   position: absolute;
   top: 50%;
   left: 0;
+  display: flex;
+  align-items: center;
+  gap: clamp(0.2rem, 0.5vw, 0.45rem);
+  transform: translateY(-50%);
+}
+
+.oda-transport-left button {
   display: grid;
   place-items: center;
   width: clamp(2.8rem, 4vw, 3.8rem);
   min-width: 0;
   padding: 0;
-  transform: translateY(-50%);
+}
+
+.oda-transport button.oda-lyrics-toggle:disabled {
+  opacity: 0.32;
+}
+
+.oda-transport button.oda-lyrics-toggle:disabled.is-focused {
+  opacity: 0.55;
 }
 
 .oda-transport-core {
@@ -1332,6 +1352,157 @@ html.izci-overlay-vertical-scrollbars .oda-shell .oda-browser-sidebar nav::-webk
 
 .oda-volume-control:has(.oda-volume-ring.is-focused) .oda-volume-step-hint {
   opacity: 1;
+}
+
+/* Theater-style lyrics surface: large centered lines, active line full
+   strength, neighbors dimmed and scaled down like desktop Now Playing. */
+.oda-lyrics {
+  grid-area: lyrics;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr);
+  min-height: 0;
+  min-width: 0;
+  border-left: 1px solid var(--oda-border);
+  padding-left: clamp(1.2rem, 2vw, 2.2rem);
+}
+
+.oda-lyrics-scroller {
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: none;
+  mask-image: linear-gradient(transparent, black 14%, black 86%, transparent);
+}
+
+.oda-lyrics-scroller::-webkit-scrollbar {
+  display: none;
+}
+
+.oda-lyrics-list {
+  list-style: none;
+  display: grid;
+  align-content: start;
+  gap: 0.8rem;
+  width: 100%;
+  min-height: 100%;
+  margin: 0;
+  padding: max(1rem, 22%) 0;
+}
+
+.oda-lyrics-list li {
+  padding: 0.15rem 0;
+  color: color-mix(in srgb, var(--oda-text) 72%, transparent);
+  font-size: clamp(1.15rem, 1.7vw, 2rem);
+  font-weight: 650;
+  line-height: 1.12;
+  opacity: var(--lyric-opacity, 0.58);
+  transform: scale(var(--lyric-scale, 0.95));
+  transform-origin: left center;
+  transition:
+    opacity 160ms ease,
+    transform 180ms ease,
+    color 160ms ease;
+}
+
+.oda-lyrics-list li.active {
+  color: var(--oda-text);
+  font-weight: 700;
+  opacity: 1;
+  transform: scale(1);
+}
+
+.oda-lyrics-list li:not(.active) {
+  color: var(--oda-muted);
+}
+
+.oda-lyric-line {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  line-height: inherit;
+  text-align: left;
+  overflow-wrap: break-word;
+}
+
+.oda-lyric-line:focus-visible {
+  outline: 2px solid var(--oda-focus);
+  outline-offset: 2px;
+}
+
+.oda-lyrics-downtime {
+  display: flex;
+  justify-content: center;
+  min-height: 1.05em;
+  transform-origin: center;
+  text-align: center;
+}
+
+.oda-lyrics-dots {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.42em;
+  padding: 0.18em 0;
+  color: currentColor;
+}
+
+.oda-lyrics-dots span {
+  width: 0.32em;
+  height: 0.32em;
+  border-radius: 999px;
+  background: currentColor;
+  opacity: 0.28;
+  animation: oda-lyrics-dot-fade 1.35s ease-in-out infinite;
+  animation-play-state: paused;
+}
+
+.oda-lyrics-dots.is-playing span {
+  animation-play-state: running;
+}
+
+.oda-lyrics-dots span:nth-child(2) {
+  animation-delay: 0.16s;
+}
+
+.oda-lyrics-dots span:nth-child(3) {
+  animation-delay: 0.32s;
+}
+
+@keyframes oda-lyrics-dot-fade {
+  0%,
+  70%,
+  100% {
+    opacity: 0.25;
+  }
+
+  25% {
+    opacity: 0.95;
+  }
+}
+
+.oda-lyrics-plain {
+  margin: 0;
+  color: var(--oda-text);
+  font: inherit;
+  font-size: clamp(1.05rem, 1.4vw, 1.6rem);
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.oda-lyrics-empty {
+  align-self: center;
+  color: var(--oda-muted);
+  font-size: clamp(1rem, 1.4vw, 1.5rem);
+  text-align: center;
+}
+
+.oda-lyrics-empty p {
+  margin: 0;
 }
 
 .oda-queue-flyout .oda-row-actions {
@@ -1560,10 +1731,21 @@ html.izci-overlay-vertical-scrollbars .oda-shell .oda-browser-sidebar nav::-webk
 }
 
 @media (max-width: 1050px) {
-  .oda-now-playing {
+  .oda-now-playing.has-lyrics {
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: minmax(0, 1fr);
-    grid-template-areas: 'hero';
+    grid-template-rows: auto minmax(0, 1fr);
+    grid-template-areas:
+      'hero'
+      'lyrics';
+    overflow-y: auto;
+  }
+
+  .oda-lyrics {
+    border-left: 0;
+    border-top: 1px solid var(--oda-border);
+    padding-left: 0;
+    padding-top: 1rem;
+    min-height: 12rem;
   }
 
   .oda-now-playing-hero {

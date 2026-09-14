@@ -17,6 +17,7 @@
   import OdaVideoTheater from './views/OdaVideoTheater.svelte';
   import type { OdaCommands, OdaMediaHost } from './oda-commands';
   import type { OdaTranslate } from './oda-translate';
+  import { loadTrackLyrics } from '$lib/services/lyrics';
   import type { OdaCardModel } from './oda-destinations';
   import {
     buildOdaHomeSections,
@@ -42,6 +43,7 @@
   import type { OdaFocusController, OdaTransportAction } from './oda-focus';
   import type { OdaDirection } from './oda-input';
   import {
+    ODA_NP_LYRICS,
     ODA_NP_NEXT,
     ODA_NP_PLAY_PAUSE,
     ODA_NP_PREVIOUS,
@@ -120,6 +122,10 @@
   let lastOptionsFocusId: string | null = null;
   let queueFlyoutOpen = false;
   let queueReturnFocusId: string | null = null;
+  let lyricsVisible = true;
+  let lyricsAvailable = false;
+  let lyricsLoadToken = 0;
+  let lyricsLoadedKey = '';
   let lastRouteKey = '';
   $: {
     const routeKey = activeRoute.name === 'options' ? 'options' : activeRoute.name;
@@ -147,6 +153,29 @@
     void queueFlyoutOpen;
     routeFocusIds = resolveOdaRouteFocusIds(activeRoute, focusContext());
   }
+
+  function refreshLyricsAvailability(key: string, track: TrackItem | null): void {
+    if (key === lyricsLoadedKey) return;
+    lyricsLoadedKey = key;
+    if (!key || !track) {
+      lyricsLoadToken += 1;
+      lyricsAvailable = false;
+      return;
+    }
+    const token = ++lyricsLoadToken;
+    lyricsAvailable = false;
+    void loadTrackLyrics(track)
+      .then((lyrics) => {
+        if (token === lyricsLoadToken) lyricsAvailable = Boolean(lyrics);
+      })
+      .catch(() => {
+        if (token === lyricsLoadToken) lyricsAvailable = false;
+      });
+  }
+
+  $: lyricsTrackKey = playingTrack ? `${playingTrack.id}:${playingTrack.lastModified}:${playingTrack.size}` : '';
+  $: refreshLyricsAvailability(lyricsTrackKey, playingTrack);
+  $: lyricsOpen = lyricsVisible && lyricsAvailable;
 
   function focusContext(): OdaRouteFocusContext {
     return {
@@ -325,6 +354,11 @@
     session.push({ ...activeRoute, groupKey });
   }
 
+  function toggleLyricsView(): void {
+    if (!lyricsAvailable) return;
+    lyricsVisible = !lyricsVisible;
+  }
+
   function handleNowPlayingControl(focusId: string): void {
     switch (focusId) {
       case ODA_NP_PLAY_PAUSE: commands.togglePlayback(); break;
@@ -332,6 +366,7 @@
       case ODA_NP_NEXT: commands.stepTrack(1); break;
       case ODA_NP_SHUFFLE: commands.toggleShuffle(); break;
       case ODA_NP_REPEAT: commands.cycleRepeat(); break;
+      case ODA_NP_LYRICS: toggleLyricsView(); break;
     }
   }
 
@@ -616,6 +651,8 @@
           {shuffleEnabled}
           {repeatMode}
           {translate}
+          hasLyrics={lyricsAvailable}
+          lyricsOpen={lyricsOpen}
           onFocus={(focusId) => focus.setFocus(focusId)}
           onTogglePlayback={commands.togglePlayback}
           onStepTrack={commands.stepTrack}
@@ -623,6 +660,7 @@
           onToggleShuffle={commands.toggleShuffle}
           onCycleRepeat={commands.cycleRepeat}
           onToggleQueue={openQueueFlyout}
+          onToggleLyrics={toggleLyricsView}
         />
       {/if}
 

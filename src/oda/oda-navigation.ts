@@ -8,6 +8,7 @@
  */
 
 import type { OdaDirection } from './oda-input';
+import { ODA_NP_PLAY_PAUSE } from './oda-now-playing';
 
 export function clampIndex(index: number, length: number): number {
   if (length <= 0) return 0;
@@ -304,8 +305,9 @@ export function createNowPlayingFocusModel(
         const nextRowIndex = transportRowIndex + (direction === 'up' ? -1 : 1);
         const nextRow = transportRows[nextRowIndex];
         if (nextRow) {
+          const playPauseIndex = nextRow.indexOf(ODA_NP_PLAY_PAUSE);
           const nextIndex = row.length === 1
-            ? Math.floor((nextRow.length - 1) / 2)
+            ? (playPauseIndex >= 0 ? playPauseIndex : Math.floor((nextRow.length - 1) / 2))
             : clampIndex(transportIndex, nextRow.length);
           return nextRow[nextIndex] ?? focusId;
         }
