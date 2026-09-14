@@ -773,7 +773,7 @@
         },
         "freeplay": {
           "title": "Freeplay",
-          "hint": "Eşleşen istemciler, sunucunun kitaplığındaki müziğe kendi kuyrukları, oynatmaları ve sesleriyle bağımsız olarak göz atıp çalabilir."
+          "hint": "Eşleşen istemciler, sunucunun kitaplığındaki müziğe kendi sıraları, oynatmaları ve sesleriyle bağımsız olarak göz atıp çalabilir."
         },
         "freeplayBadge": "Oldukça deneysel"
       },
@@ -2516,7 +2516,7 @@
       "formats": "Biçimler",
       "folders": "Klasörler",
       "nowPlaying": "Şimdi Çalıyor",
-      "queue": "Kuyruk",
+      "queue": "Sıra",
       "allOptions": "Tüm seçenekler",
       "exitOda": "Oda'dan Çık",
       "browseRecents": "Son çalınanlara göz at"
@@ -2543,10 +2543,10 @@
       "empty": "Henüz hiçbir şey çalınmadı."
     },
     "queue": {
-      "emptyTitle": "Kuyruk boş",
-      "empty": "Kuyruk oluşturmak için kütüphaneden öğe ekleyin.",
-      "open": "Kuyruk",
-      "close": "Kuyruğu kapat",
+      "emptyTitle": "Sıra boş",
+      "empty": "Sıra oluşturmak için kütüphaneden öğe ekleyin.",
+      "open": "Sıra",
+      "close": "Sırayı kapat",
       "countSongs": "{count, plural, one {# parça} other {# parça}}",
       "countImages": "{count, plural, one {# görsel} other {# görsel}}",
       "countVideos": "{count, plural, one {# video} other {# video}}",
@@ -2565,9 +2565,11 @@
       "playPause": "Oynat veya duraklat",
       "seek": "Sar",
       "shuffle": "Karıştır",
+      "lyrics": "Sözler",
+      "noLyrics": "Söz yok",
       "volume": "Ses",
-      "remove": "Kuyruktan çıkar",
-      "queueEmpty": "Kuyruk boş."
+      "remove": "Sıradan çıkar",
+      "queueEmpty": "Sıra boş."
     },
     "theater": {
       "controls": "Oynatma denetimleri",

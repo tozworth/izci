@@ -1,7 +1,16 @@
 <script lang="ts">
+  import { tick } from 'svelte';
   import type { PlaybackSnapshot, RepeatMode, TrackItem } from '$lib/types';
   import { formatDuration, getTrackDisplayTitle } from '$lib/utils/files';
   import {
+    buildTheaterLyricRows,
+    findActiveTimelineIndex,
+    loadTrackLyrics,
+    stripLrcTimestamps,
+    type LoadedLyrics
+  } from '$lib/services/lyrics';
+  import {
+    ODA_NP_LYRICS,
     ODA_NP_NEXT,
     ODA_NP_PLAY_PAUSE,
     ODA_NP_PREVIOUS,
@@ -20,6 +29,8 @@
   export let shuffleEnabled = false;
   export let repeatMode: RepeatMode = 'off';
   export let translate: OdaTranslate;
+  export let hasLyrics = false;
+  export let lyricsOpen = false;
 
   export let onFocus: (focusId: string) => void = () => {};
   export let onTogglePlayback: () => void = () => {};
@@ -28,6 +39,7 @@
   export let onToggleShuffle: () => void = () => {};
   export let onCycleRepeat: () => void = () => {};
   export let onToggleQueue: () => void = () => {};
+  export let onToggleLyrics: () => void = () => {};
 
   $: currentTime = snapshot?.currentTime ?? 0;
   $: duration = snapshot?.duration ?? 0;
@@ -36,6 +48,102 @@
   $: title = track ? (getTrackDisplayTitle(track) || track.name) : translate('oda.nowPlaying.idleTitle', 'Nothing playing');
   $: artist = track?.metadata?.artist?.trim() || '';
   $: album = track?.metadata?.album?.trim() || '';
+  $: playbackPlaying = snapshot?.state === 'playing';
+
+  let lyrics: LoadedLyrics | null = null;
+  let lyricsLoading = false;
+  let lyricsLoadToken = 0;
+  let lyricsLoadedKey = '';
+  let lyricsScroller: HTMLDivElement | null = null;
+  let lyricsUserPaused = false;
+  let lyricsUserResumeTimer: ReturnType<typeof setTimeout> | null = null;
+  const lyricRowNodes = new Map<string, HTMLElement>();
+
+  function resetLyricsScroll(): void {
+    lyricRowNodes.clear();
+    lyricsUserPaused = false;
+    if (lyricsUserResumeTimer !== null) {
+      clearTimeout(lyricsUserResumeTimer);
+      lyricsUserResumeTimer = null;
+    }
+    lyricsScroller?.scrollTo({ top: 0, behavior: 'auto' });
+  }
+
+  function loadLyricsForTrack(key: string, nextTrack: TrackItem | null): void {
+    if (key === lyricsLoadedKey) return;
+    lyricsLoadedKey = key;
+    if (!key || !nextTrack) {
+      lyricsLoadToken += 1;
+      lyrics = null;
+      lyricsLoading = false;
+      resetLyricsScroll();
+      return;
+    }
+    const token = ++lyricsLoadToken;
+    lyricsLoading = true;
+    lyrics = null;
+    resetLyricsScroll();
+    void loadTrackLyrics(nextTrack)
+      .then((next) => {
+        if (token === lyricsLoadToken) {
+          lyrics = next;
+          void tick().then(() => scrollLyricsToActive(true));
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (token === lyricsLoadToken) lyricsLoading = false;
+      });
+  }
+
+  function registerLyricRow(node: HTMLElement, key: string) {
+    lyricRowNodes.set(key, node);
+    return {
+      update(nextKey: string) {
+        lyricRowNodes.delete(key);
+        key = nextKey;
+        lyricRowNodes.set(key, node);
+      },
+      destroy() {
+        lyricRowNodes.delete(key);
+      }
+    };
+  }
+
+  function scrollLyricsToActive(immediate = false): void {
+    const row = activeTheaterRowIndex >= 0 ? theaterRows[activeTheaterRowIndex] : null;
+    if (!row || !lyricsScroller) return;
+    const element = lyricRowNodes.get(row.id);
+    if (!element) return;
+    const scrollerRect = lyricsScroller.getBoundingClientRect();
+    const rowRect = element.getBoundingClientRect();
+    const delta = rowRect.top + rowRect.height / 2 - (scrollerRect.top + scrollerRect.height / 2);
+    lyricsScroller.scrollBy({ top: delta, behavior: immediate ? 'auto' : 'smooth' });
+  }
+
+  function pauseLyricsFollow(): void {
+    lyricsUserPaused = true;
+    if (lyricsUserResumeTimer !== null) clearTimeout(lyricsUserResumeTimer);
+    lyricsUserResumeTimer = setTimeout(() => {
+      lyricsUserPaused = false;
+      lyricsUserResumeTimer = null;
+      scrollLyricsToActive();
+    }, 5000);
+  }
+
+  function lyricDistance(index: number, activeIndex: number): number {
+    return activeIndex < 0 ? Math.min(index, 4) : Math.min(Math.abs(index - activeIndex), 4);
+  }
+
+  function lyricOpacity(index: number, activeIndex: number): number {
+    if (index === activeIndex) return 1;
+    return Math.max(0.24, 0.72 - lyricDistance(index, activeIndex) * 0.12);
+  }
+
+  function lyricScale(index: number, activeIndex: number): number {
+    if (index === activeIndex) return 1;
+    return Math.max(0.9, 1 - lyricDistance(index, activeIndex) * 0.025);
+  }
 
   function focused(id: string): boolean {
     return focusId === id;
@@ -45,6 +153,11 @@
     if (repeatMode === 'one') return translate('oda.nowPlaying.repeatOne', 'Repeat one');
     if (repeatMode === 'all') return translate('oda.nowPlaying.repeatAll', 'Repeat all');
     return translate('oda.nowPlaying.repeatOff', 'Repeat off');
+  }
+
+  function lyricsLabel(): string {
+    if (!hasLyrics) return translate('oda.nowPlaying.noLyrics', 'No lyrics');
+    return translate('oda.nowPlaying.lyrics', 'Lyrics');
   }
 
   function activate(id: string, action: () => void): void {
@@ -58,9 +171,31 @@
     onSeek(((event.clientX - rect.left) / rect.width) * duration);
   }
 
+  $: trackLyricsKey = track ? `${track.id}:${track.lastModified}:${track.size}` : '';
+  $: loadLyricsForTrack(trackLyricsKey, track);
+  $: lyricLines = lyrics?.lines ?? [];
+  $: theaterRows = buildTheaterLyricRows(lyricLines, duration, true, 10);
+  $: activeTheaterRowIndex = findActiveTimelineIndex(theaterRows, currentTime);
+  $: activeLyricIndex = activeTheaterRowIndex >= 0 && theaterRows[activeTheaterRowIndex]?.type === 'lyric'
+    ? theaterRows[activeTheaterRowIndex].lyricIndex
+    : -1;
+  $: plainLyricsText = lyrics ? stripLrcTimestamps(lyrics.raw) : '';
+  $: activeLyricsRowId = lyricsOpen && activeTheaterRowIndex >= 0
+    ? theaterRows[activeTheaterRowIndex]?.id ?? ''
+    : '';
+  $: if (lyricsOpen && !lyricsUserPaused && activeLyricsRowId) {
+    void tick().then(() => scrollLyricsToActive());
+  }
+  $: lyricsEmptyMessage = !track
+    ? translate('main.lyrics.playTrack', 'Play a track to view lyrics.')
+    : lyricsLoading
+      ? translate('main.lyrics.reading', 'Reading embedded lyrics...')
+      : !lyrics
+        ? translate('main.lyrics.notFound', 'No embedded lyrics found.')
+        : '';
 </script>
 
-<div class="oda-now-playing">
+<div class="oda-now-playing" class:has-lyrics={lyricsOpen}>
   {#if artworkUrl}
     <div class="oda-now-playing-ambient" style={`background-image: url("${artworkUrl}")`} aria-hidden="true"></div>
   {/if}
@@ -102,16 +237,31 @@
       </div>
 
       <div class="oda-transport oda-transport-main">
-        <button
-          type="button"
-          class="oda-queue-toggle"
-          class:is-focused={focused(ODA_NP_QUEUE)}
-          title={translate('oda.queue.open', 'Queue')}
-          aria-label={translate('oda.queue.open', 'Queue')}
-          on:click={() => activate(ODA_NP_QUEUE, onToggleQueue)}
-        >
-          <span class="material-symbols-outlined">queue_music</span>
-        </button>
+        <span class="oda-transport-left">
+          <button
+            type="button"
+            class="oda-queue-toggle"
+            class:is-focused={focused(ODA_NP_QUEUE)}
+            title={translate('oda.queue.open', 'Queue')}
+            aria-label={translate('oda.queue.open', 'Queue')}
+            on:click={() => activate(ODA_NP_QUEUE, onToggleQueue)}
+          >
+            <span class="material-symbols-outlined">queue_music</span>
+          </button>
+          <button
+            type="button"
+            class="oda-lyrics-toggle"
+            class:is-active={lyricsOpen}
+            class:is-focused={focused(ODA_NP_LYRICS)}
+            title={lyricsLabel()}
+            aria-label={lyricsLabel()}
+            aria-pressed={lyricsOpen}
+            disabled={!hasLyrics}
+            on:click={() => activate(ODA_NP_LYRICS, onToggleLyrics)}
+          >
+            <span class="material-symbols-outlined">lyrics</span>
+          </button>
+        </span>
         <span class="oda-transport-core">
           <button type="button" class:is-active={shuffleEnabled} class:is-focused={focused(ODA_NP_SHUFFLE)} title={translate('oda.nowPlaying.shuffle', 'Shuffle')} on:click={() => activate(ODA_NP_SHUFFLE, onToggleShuffle)}>
             <span class="material-symbols-outlined">shuffle</span>
@@ -162,4 +312,68 @@
     </div>
   </section>
 
+  {#if lyricsOpen}
+    <aside class="oda-lyrics" aria-label={translate('oda.nowPlaying.lyrics', 'Lyrics')}>
+      {#if lyricsEmptyMessage}
+        <div class="oda-lyrics-empty">
+          <p>{lyricsEmptyMessage}</p>
+        </div>
+      {:else if lyricLines.length === 0}
+        <div
+          class="oda-lyrics-scroller"
+          bind:this={lyricsScroller}
+          on:wheel={pauseLyricsFollow}
+        >
+          <pre class="oda-lyrics-plain">{plainLyricsText}</pre>
+        </div>
+      {:else}
+        <div
+          class="oda-lyrics-scroller"
+          bind:this={lyricsScroller}
+          on:wheel={pauseLyricsFollow}
+        >
+          <ol class="oda-lyrics-list">
+            {#each theaterRows as row, index (row.id)}
+              {#if row.type === 'downtime'}
+                <li
+                  use:registerLyricRow={row.id}
+                  class="oda-lyrics-downtime"
+                  class:active={index === activeTheaterRowIndex}
+                  aria-hidden={index !== activeTheaterRowIndex}
+                  style={`--lyric-opacity: ${lyricOpacity(index, activeTheaterRowIndex)}; --lyric-scale: ${lyricScale(index, activeTheaterRowIndex)};`}
+                >
+                  {#if index === activeTheaterRowIndex && (snapshot?.state === 'playing' || snapshot?.state === 'paused')}
+                    <span
+                      class="oda-lyrics-dots"
+                      class:is-playing={playbackPlaying}
+                      aria-label={translate('main.lyrics.instrumentalBreak', 'Instrumental break')}
+                    >
+                      <span></span>
+                      <span></span>
+                      <span></span>
+                    </span>
+                  {/if}
+                </li>
+              {:else}
+                <li
+                  use:registerLyricRow={row.id}
+                  class:active={row.lyricIndex === activeLyricIndex}
+                  class:past={row.time < currentTime}
+                  style={`--lyric-opacity: ${lyricOpacity(index, activeTheaterRowIndex)}; --lyric-scale: ${lyricScale(index, activeTheaterRowIndex)};`}
+                >
+                  <button
+                    type="button"
+                    class="oda-lyric-line"
+                    on:click={() => onSeek(row.time)}
+                  >
+                    <span>{row.text || ' '}</span>
+                  </button>
+                </li>
+              {/if}
+            {/each}
+          </ol>
+        </div>
+      {/if}
+    </aside>
+  {/if}
 </div>

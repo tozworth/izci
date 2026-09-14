@@ -2564,6 +2564,8 @@
       "playPause": "Play or pause",
       "seek": "Seek",
       "shuffle": "Shuffle",
+      "lyrics": "Lyrics",
+      "noLyrics": "No lyrics",
       "volume": "Volume",
       "remove": "Remove from queue",
       "queueEmpty": "The queue is empty."
