@@ -547,39 +547,220 @@
   background: #000;
 }
 
-.oda-theater-controls {
-  position: absolute;
-  left: 50%;
-  bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
-  z-index: 20;
-  display: flex;
-  align-items: center;
-  gap: 0.4rem;
-  padding: 0.4rem 0.55rem;
-  border: 1px solid var(--oda-border);
-  border-radius: 2px;
-  background: color-mix(in srgb, #000 62%, transparent);
-  transform: translateX(-50%);
+html.oda-theater-cursor-hidden .oda-theater,
+html.oda-theater-cursor-hidden .oda-theater * {
+  cursor: none !important;
 }
 
-.oda-theater-controls button {
+.oda-theater-chrome {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  pointer-events: none;
+}
+
+.oda-theater-top-shadow,
+.oda-theater-bottom-shadow {
+  position: absolute;
+  z-index: 10;
+  left: 0;
+  width: 100%;
+  pointer-events: none;
+  transition: opacity 220ms ease, transform 280ms ease;
+}
+
+.oda-theater-top-shadow {
+  top: 0;
+  height: clamp(7rem, 24vh, 14rem);
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0.76), rgba(0, 0, 0, 0));
+}
+
+.oda-theater-bottom-shadow {
+  bottom: 0;
+  height: clamp(8.5rem, 30vh, 17rem);
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.88), rgba(0, 0, 0, 0));
+}
+
+.oda-theater-heading {
+  position: absolute;
+  z-index: 20;
+  top: clamp(1.25rem, 3.5vh, 2.5rem);
+  left: clamp(1.5rem, 4vw, 4rem);
+  right: clamp(1.5rem, 4vw, 4rem);
+  color: #fff;
+  text-align: left;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.72);
+  transition: opacity 180ms ease, transform 260ms ease;
+}
+
+.oda-theater-heading h1 {
+  overflow: hidden;
+  margin: 0;
+  font-size: clamp(1.1rem, 2vw, 1.8rem);
+  font-weight: 500;
+  line-height: 1.08;
+  letter-spacing: -0.025em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.oda-theater-heading p {
+  overflow: hidden;
+  margin: 0.35rem 0 0;
+  color: rgba(255, 255, 255, 0.68);
+  font-size: clamp(0.72rem, 1vw, 0.95rem);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.oda-theater-transport {
+  position: absolute;
+  z-index: 20;
+  right: clamp(1.15rem, 3vw, 3rem);
+  bottom: calc(0.8rem + env(safe-area-inset-bottom, 0px));
+  left: clamp(1.15rem, 3vw, 3rem);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  color: #fff;
+  pointer-events: auto;
+  transition: opacity 180ms ease, transform 260ms ease;
+}
+
+.oda-theater-video .oda-theater-transport {
+  bottom: calc(2.55rem + env(safe-area-inset-bottom, 0px));
+}
+
+.oda-theater-transport-center,
+.oda-theater-transport-edge {
   display: flex;
   align-items: center;
-  gap: 0.35rem;
-  height: clamp(2.4rem, 4.5vh, 3.2rem);
-  padding: 0 0.7rem;
-  border: 1px solid var(--oda-border);
+}
+
+.oda-theater-transport-center {
+  justify-content: center;
+  gap: clamp(0.15rem, 1vw, 0.8rem);
+}
+
+.oda-theater-transport-right {
+  justify-content: flex-end;
+}
+
+.oda-theater-transport button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  width: clamp(2.8rem, 4vw, 3.8rem);
+  height: clamp(2.8rem, 4vw, 3.8rem);
+  padding: 0;
+  border: 1px solid transparent;
   border-radius: 2px;
-  background: var(--oda-surface);
+  background: transparent;
   color: var(--oda-text);
   font: inherit;
+  filter: drop-shadow(0 1px 5px rgba(0, 0, 0, 0.82));
 }
 
-.oda-theater-controls button:hover,
-.oda-theater-controls button.is-focused {
+.oda-theater-transport button .material-symbols-outlined {
+  font-size: clamp(1.8rem, 2.2vw, 2.35rem);
+}
+
+.oda-theater-transport button.oda-theater-primary-control {
+  width: clamp(3.8rem, 5vw, 4.8rem);
+  height: clamp(3.8rem, 5vw, 4.8rem);
+}
+
+.oda-theater-transport button.oda-theater-primary-control .material-symbols-outlined {
+  font-size: clamp(2.8rem, 3.4vw, 3.5rem);
+}
+
+.oda-theater-transport button.oda-theater-edge-control {
+  color: var(--oda-muted);
+}
+
+.oda-theater-transport button:hover {
+  color: var(--oda-text);
+}
+
+.oda-theater-transport button.is-focused {
   border-color: var(--oda-focus);
+  outline: 1px solid color-mix(in srgb, var(--oda-focus) 38%, transparent);
+  background: color-mix(in srgb, var(--oda-surface) 72%, transparent);
+  color: var(--oda-text);
+}
+
+.oda-theater-transport button.is-active {
   color: var(--oda-accent-strong);
-  outline: none;
+}
+
+.oda-theater-timeline {
+  position: absolute;
+  z-index: 21;
+  right: clamp(0.65rem, 1.2vw, 1.15rem);
+  bottom: calc(0.45rem + env(safe-area-inset-bottom, 0px));
+  left: clamp(0.65rem, 1.2vw, 1.15rem);
+  height: 1.65rem;
+  pointer-events: auto;
+  transition: opacity 180ms ease, transform 260ms ease;
+}
+
+.oda-theater-time {
+  position: absolute;
+  right: 0.25rem;
+  bottom: 0.7rem;
+  left: 0.25rem;
+  display: flex;
+  justify-content: space-between;
+  color: rgba(255, 255, 255, 0.68);
+  font-size: clamp(0.72rem, 1vw, 0.9rem);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.oda-theater-progress {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  height: 0.5rem;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  border-radius: 2px;
+  outline: 0;
+  background: color-mix(in srgb, var(--oda-muted) 28%, transparent);
+}
+
+.oda-theater-progress-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--oda-accent-strong);
+}
+
+.oda-theater-progress.is-focused {
+  outline: 2px solid var(--oda-focus);
+  outline-offset: 3px;
+}
+
+.oda-theater-chrome.is-hidden .oda-theater-heading,
+.oda-theater-chrome.is-hidden .oda-theater-top-shadow {
+  opacity: 0;
+  transform: translateY(-1rem);
+}
+
+.oda-theater-chrome.is-hidden .oda-theater-transport,
+.oda-theater-chrome.is-hidden .oda-theater-timeline,
+.oda-theater-chrome.is-hidden .oda-theater-bottom-shadow {
+  opacity: 0;
+  transform: translateY(1rem);
+}
+
+.oda-theater-chrome.is-hidden .oda-theater-transport,
+.oda-theater-chrome.is-hidden .oda-theater-timeline {
+  pointer-events: none;
 }
 
 /* Notices */

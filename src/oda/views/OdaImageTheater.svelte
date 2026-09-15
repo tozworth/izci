@@ -1,24 +1,27 @@
 <script lang="ts">
   import ImageStage from '$lib/components/workspace/ImageStage.svelte';
-  import type { VideoFitMode } from '$lib/types';
+  import type { RepeatMode, TrackItem, VideoFitMode } from '$lib/types';
   import type { OdaTranslate } from '../oda-translate';
   import OdaTheaterControls from './OdaTheaterControls.svelte';
 
   export let element: HTMLImageElement | null = null;
   export let parkingHost: HTMLDivElement | null = null;
   export let fitMode: VideoFitMode = 'contain';
+  export let track: TrackItem | null = null;
   export let zoom = 1;
   export let focusId: string | null = null;
+  export let shuffleEnabled = false;
+  export let repeatMode: RepeatMode = 'off';
   export let translate: OdaTranslate;
 
-  export let onTogglePlayback: () => void = () => {};
   export let onStepTrack: (direction: -1 | 1) => void = () => {};
+  export let onToggleShuffle: () => void = () => {};
+  export let onCycleRepeat: () => void = () => {};
   export let onSetFit: (fitMode: VideoFitMode) => void = () => {};
   export let onZoomStep: (factor: number) => void = () => {};
   export let onResetZoom: () => void = () => {};
-  export let onRotateImage: () => void = () => {};
-  export let onBack: () => void = () => {};
   export let onToggleQueue: () => void = () => {};
+  export let onFocus: (focusId: string) => void = () => {};
 
   let imageFitMode: VideoFitMode = 'contain';
   $: imageFitMode = fitMode === 'cover' ? 'cover' : 'contain';
@@ -37,15 +40,17 @@
   />
   <OdaTheaterControls
     kind="image"
+    {track}
     {focusId}
+    {shuffleEnabled}
+    {repeatMode}
     {fitMode}
     {translate}
-    {onTogglePlayback}
     {onStepTrack}
+    {onToggleShuffle}
+    {onCycleRepeat}
     {onSetFit}
-    {onZoomStep}
-    {onRotateImage}
     {onToggleQueue}
-    {onBack}
+    {onFocus}
   />
 </div>

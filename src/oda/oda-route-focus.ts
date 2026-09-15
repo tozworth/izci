@@ -35,7 +35,12 @@ import {
   resolveOdaNowPlayingTransportIds,
   resolveOdaNowPlayingTransportRows
 } from './oda-now-playing';
-import { ODA_THEATER_PLAY_PAUSE, resolveOdaTheaterControlIds } from './oda-theater';
+import {
+  ODA_THEATER_PLAY_PAUSE,
+  ODA_THEATER_SLIDESHOW,
+  resolveOdaTheaterControlIds,
+  resolveOdaTheaterControlRows
+} from './oda-theater';
 
 export interface OdaRouteFocusContext {
   musicItems: TrackItem[];
@@ -146,7 +151,7 @@ export function resolveOdaRouteDefaultFocusId(
           : ODA_NP_QUEUE;
     }
     return context.playingKind === 'video' || context.playingKind === 'image'
-      ? ODA_THEATER_PLAY_PAUSE
+      ? context.playingKind === 'video' ? ODA_THEATER_PLAY_PAUSE : ODA_THEATER_SLIDESHOW
       : ODA_NP_PLAY_PAUSE;
   }
   if (route.name === 'browse') {
@@ -172,7 +177,7 @@ export function resolveOdaRouteFocusModel(
   if (route.name === 'now-playing') {
     if (!context.queueFlyoutOpen) {
       if (context.playingKind === 'video' || context.playingKind === 'image') {
-        return createListFocusModel(resolveOdaTheaterControlIds(context.playingKind));
+        return createNowPlayingFocusModel(resolveOdaTheaterControlRows(context.playingKind), []);
       }
       return createNowPlayingFocusModel(resolveOdaNowPlayingTransportRows(), []);
     }

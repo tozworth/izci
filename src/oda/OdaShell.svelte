@@ -2,7 +2,6 @@
   import type { OdaSettings, PlaybackSnapshot, RepeatMode, TrackItem } from '$lib/types';
   import type { OdaRoute, OdaSession, OdaSessionSnapshot } from '$lib/services/oda-session';
   import { playbackSettings } from '$lib/stores/playback-settings';
-  import { IMAGE_ZOOM_WHEEL_FACTOR } from '$lib/stores/video-settings';
   import { DEFAULT_ODA_SETTINGS, odaSettings } from '$lib/stores/oda-settings';
   import type { OptionsViewName } from '../options/views';
   import OdaBrowseRoute from './views/OdaBrowseRoute.svelte';
@@ -57,16 +56,11 @@
     resolveOdaNowPlayingRemovalTargetId
   } from './oda-now-playing';
   import {
-    ODA_THEATER_BACK,
     ODA_THEATER_FIT,
     ODA_THEATER_NEXT,
     ODA_THEATER_PLAY_PAUSE,
     ODA_THEATER_PREVIOUS,
-    ODA_THEATER_ROTATE,
-    ODA_THEATER_SEEK_BACK,
-    ODA_THEATER_SEEK_FORWARD,
-    ODA_THEATER_ZOOM_IN,
-    ODA_THEATER_ZOOM_OUT,
+    ODA_THEATER_PROGRESS,
     ODA_THEATER_SEEK_STEP_SECONDS
   } from './oda-theater';
   import {
@@ -378,7 +372,8 @@
       return true;
     }
 
-    if (focusId !== ODA_NP_PROGRESS || (direction !== 'left' && direction !== 'right')) {
+    if ((focusId !== ODA_NP_PROGRESS && focusId !== ODA_THEATER_PROGRESS)
+      || (direction !== 'left' && direction !== 'right')) {
       return false;
     }
 
@@ -405,23 +400,11 @@
   }
 
   function handleTheaterControl(focusId: string): void {
-    const current = playbackSnapshot?.currentTime ?? 0;
-    const duration = playbackSnapshot?.duration ?? 0;
     switch (focusId) {
       case ODA_THEATER_PLAY_PAUSE: commands.togglePlayback(); break;
       case ODA_THEATER_PREVIOUS: commands.stepTrack(-1); break;
       case ODA_THEATER_NEXT: commands.stepTrack(1); break;
-      case ODA_THEATER_SEEK_BACK: commands.seek(Math.max(current - ODA_THEATER_SEEK_STEP_SECONDS, 0)); break;
-      case ODA_THEATER_SEEK_FORWARD:
-        commands.seek(duration > 0
-          ? Math.min(current + ODA_THEATER_SEEK_STEP_SECONDS, duration)
-          : current + ODA_THEATER_SEEK_STEP_SECONDS);
-        break;
       case ODA_THEATER_FIT: commands.setVideoFit(media.fitMode === 'contain' ? 'cover' : 'contain'); break;
-      case ODA_THEATER_ZOOM_IN: commands.zoomStep(IMAGE_ZOOM_WHEEL_FACTOR); break;
-      case ODA_THEATER_ZOOM_OUT: commands.zoomStep(1 / IMAGE_ZOOM_WHEEL_FACTOR); break;
-      case ODA_THEATER_ROTATE: commands.rotateImage(); break;
-      case ODA_THEATER_BACK: session.back(); break;
     }
   }
 
@@ -606,6 +589,7 @@
     {:else if activeRoute.name === 'now-playing'}
       {#if playingTrack?.kind === 'video'}
         <OdaVideoTheater
+          track={playingTrack}
           element={media.videoElement}
           parkingHost={media.parkingHost}
           fitMode={media.fitMode}
@@ -613,34 +597,39 @@
           pictureInPictureSupported={media.pictureInPictureSupported}
           seekFeedback={media.seekFeedback}
           focusId={sessionState.focusId}
+          {shuffleEnabled}
+          {repeatMode}
           {translate}
           onTogglePlayback={commands.togglePlayback}
           onStepTrack={commands.stepTrack}
+          onToggleShuffle={commands.toggleShuffle}
+          onCycleRepeat={commands.cycleRepeat}
           onSeek={commands.seek}
           onVolumeStep={handleVolumeStep}
           onTogglePictureInPicture={commands.togglePictureInPicture}
           onSetFit={commands.setVideoFit}
-          onZoomStep={commands.zoomStep}
-          onRotateImage={commands.rotateImage}
           onToggleQueue={openQueueFlyout}
-          onBack={() => session.back()}
+          onFocus={(focusId) => focus.setFocus(focusId)}
         />
       {:else if playingTrack?.kind === 'image'}
         <OdaImageTheater
+          track={playingTrack}
           element={media.imageElement}
           parkingHost={media.parkingHost}
           fitMode={media.fitMode}
           zoom={media.imageZoom}
           focusId={sessionState.focusId}
+          {shuffleEnabled}
+          {repeatMode}
           {translate}
-          onTogglePlayback={commands.togglePlayback}
           onStepTrack={commands.stepTrack}
+          onToggleShuffle={commands.toggleShuffle}
+          onCycleRepeat={commands.cycleRepeat}
           onSetFit={commands.setVideoFit}
           onZoomStep={commands.zoomStep}
           onResetZoom={commands.resetZoom}
-          onRotateImage={commands.rotateImage}
           onToggleQueue={openQueueFlyout}
-          onBack={() => session.back()}
+          onFocus={(focusId) => focus.setFocus(focusId)}
         />
       {:else}
         <OdaNowPlaying

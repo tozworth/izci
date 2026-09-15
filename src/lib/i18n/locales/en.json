@@ -2572,7 +2572,10 @@
     },
     "theater": {
       "controls": "Playback controls",
-      "back": "Back"
+      "back": "Back",
+      "fit": "Fit",
+      "fill": "Fill",
+      "slideshow": "Slideshow"
     },
     "options": {
       "categories": "Options categories",
