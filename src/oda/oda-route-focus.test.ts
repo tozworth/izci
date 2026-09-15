@@ -128,7 +128,15 @@ describe('resolveOdaRouteFocusIds', () => {
     expect(resolveOdaRouteFocusIds(
       { name: 'now-playing' },
       { ...CONTEXT, playingKind: 'image', queueFlyoutOpen: false }
-    )).toContain('th:rotate');
+    )).toContain('th:slideshow');
+    expect(resolveOdaRouteFocusIds(
+      { name: 'now-playing' },
+      { ...CONTEXT, playingKind: 'video', queueFlyoutOpen: false }
+    )).toContain('th:progress');
+    expect(resolveOdaRouteFocusIds(
+      { name: 'now-playing' },
+      { ...CONTEXT, playingKind: 'video', queueFlyoutOpen: false }
+    )).toEqual(expect.arrayContaining(['np:shuffle', 'np:repeat']));
     expect(resolveOdaRouteFocusIds({ name: 'options', view: 'oda' }, CONTEXT))
       .toEqual(['option:oda', 'option:appearance']);
   });
@@ -152,6 +160,10 @@ describe('resolveOdaRouteDefaultFocusId', () => {
       { name: 'now-playing' },
       { ...CONTEXT, playingKind: 'video', queueFlyoutOpen: false }
     )).toBe('th:play-pause');
+    expect(resolveOdaRouteDefaultFocusId(
+      { name: 'now-playing' },
+      { ...CONTEXT, playingKind: 'image', queueFlyoutOpen: false }
+    )).toBe('th:slideshow');
   });
 });
 
@@ -171,6 +183,18 @@ describe('resolveOdaRouteFocusModel', () => {
     const flyoutModel = resolveOdaRouteFocusModel({ name: 'now-playing' }, CONTEXT)!;
     expect(flyoutModel.resolveMove('np:queue', 'down', false)).toBe('item:q1');
     expect(flyoutModel.resolveMove('item:q1', 'right', false)).toBe('np:queue-action:move-up:q1');
+  });
+
+  it('moves between the video theater transport and timeline', () => {
+    const model = resolveOdaRouteFocusModel(
+      { name: 'now-playing' },
+      { ...CONTEXT, playingKind: 'video', queueFlyoutOpen: false }
+    )!;
+    expect(model.resolveMove('th:play-pause', 'down', false)).toBe('th:progress');
+    expect(model.resolveMove('th:progress', 'up', false)).toBe('th:play-pause');
+    expect(model.resolveMove('th:previous', 'right', false)).toBe('th:play-pause');
+    expect(model.resolveMove('np:shuffle', 'right', false)).toBe('th:previous');
+    expect(model.resolveMove('th:next', 'right', false)).toBe('np:repeat');
   });
 
   it('clamps a list model without wrap', () => {
