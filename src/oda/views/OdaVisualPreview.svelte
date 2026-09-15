@@ -1,20 +1,21 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
-  import { materializeTrackItem } from '$lib/stores/queue-materialization';
+  import { getCachedVisualThumbnail } from '$lib/services/visual-thumbnail-cache';
   import type { TrackItem } from '$lib/types';
 
   export let track: TrackItem;
+  export let maxEdge = 512;
+  export let eager = false;
+  export let onResolved: (available: boolean) => void = () => {};
 
-  let url: string | null = track.objectUrl ?? null;
-  let ownsUrl = false;
+  let url: string | null = null;
   let alive = true;
   let host: HTMLElement | null = null;
   let observer: IntersectionObserver | null = null;
   let started = false;
 
   onMount(() => {
-    if (url) return;
-    if (!host || typeof IntersectionObserver === 'undefined') {
+    if (eager || !host || typeof IntersectionObserver === 'undefined') {
       startLoad();
       return;
     }
@@ -27,18 +28,19 @@
   onDestroy(() => {
     alive = false;
     observer?.disconnect();
-    if (ownsUrl && url) URL.revokeObjectURL(url);
+    if (url) URL.revokeObjectURL(url);
   });
 
   async function load(): Promise<void> {
-    const materialized = await materializeTrackItem(track, false);
-    if (!alive || !materialized?.objectUrl) return;
-    url = materialized.objectUrl;
-    ownsUrl = materialized.objectUrl !== track.objectUrl;
+    const thumbnail = await getCachedVisualThumbnail(track, maxEdge);
+    if (!alive) return;
+    onResolved(Boolean(thumbnail));
+    if (!thumbnail) return;
+    url = URL.createObjectURL(thumbnail.blob);
   }
 
   function startLoad(): void {
-    if (started || url) return;
+    if (started) return;
     started = true;
     observer?.disconnect();
     void load();
@@ -46,10 +48,8 @@
 </script>
 
 <span class="oda-preview-host" bind:this={host}>
-  {#if url && track.kind === 'image'}
+  {#if url}
     <img class="oda-tile-image" src={url} alt="" />
-  {:else if url && track.kind === 'video'}
-    <video class="oda-tile-image" src={url} muted preload="metadata" playsinline></video>
   {:else}
     <span class="oda-tile-placeholder material-symbols-outlined" aria-hidden="true">
       {track.kind === 'video' ? 'movie' : 'image'}

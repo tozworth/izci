@@ -11,6 +11,7 @@
   import type { OdaCardModel, OdaHomeSectionModel } from '../oda-destinations';
   import type { OdaTranslate } from '../oda-translate';
   import { getOdaQueueCountSummary } from '../oda-queue';
+  import OdaVisualPreview from './OdaVisualPreview.svelte';
 
   export let sections: OdaHomeSectionModel[];
   export let focusId: string | null = null;
@@ -33,6 +34,17 @@
   let track: HTMLElement | null = null;
   let translateY = 0;
   let centerReady = false;
+  let mediaThumbnailReady = false;
+  let lastMediaThumbnailKey = '';
+
+  $: mediaThumbnailKey = playingTrack && (playingTrack.kind === 'image' || playingTrack.kind === 'video')
+    ? `${playingTrack.id}:${playingTrack.size}:${playingTrack.lastModified}`
+    : '';
+  $: if (mediaThumbnailKey !== lastMediaThumbnailKey) {
+    lastMediaThumbnailKey = mediaThumbnailKey;
+    mediaThumbnailReady = false;
+  }
+  $: nowPlayingVisualReady = Boolean(artworkUrl) || mediaThumbnailReady;
 
   function centerFocused(): void {
     if (!viewport || !track) return;
@@ -166,13 +178,22 @@
               <button
                 type="button"
                 class="oda-card"
-                class:has-art={!!artworkUrl}
+                class:has-art={nowPlayingVisualReady}
                 class:is-focused={focusedCardId === cardId}
                 class:is-empty={!playingTrack}
                 style={artworkUrl ? `background-image: url("${artworkUrl}")` : ''}
                 on:click={() => { onFocus(cardId); onActivate(card); }}
               >
-                {#if cardGlyph(card.id)}
+                {#if mediaThumbnailKey && playingTrack}
+                  {#key mediaThumbnailKey}
+                    <OdaVisualPreview
+                      track={playingTrack}
+                      maxEdge={512}
+                      eager
+                      onResolved={(available) => mediaThumbnailReady = available}
+                    />
+                  {/key}
+                {:else if cardGlyph(card.id)}
                   <span class="oda-card-glyph material-symbols-outlined" aria-hidden="true">{cardGlyph(card.id)}</span>
                 {/if}
                 <span class="oda-card-strip">
