@@ -533,7 +533,7 @@
         {translate}
         {playingTrack}
         {playbackSnapshot}
-        {artworkUrl}
+        artworkUrl={playingTrack?.kind === 'stream' || playingTrack?.kind === 'module' ? artworkUrl : null}
         {queueItems}
         onActivate={handleCardActivate}
         onFocus={(focusId) => focus.setFocus(focusId)}
