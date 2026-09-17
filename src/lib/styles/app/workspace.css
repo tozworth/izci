@@ -415,15 +415,16 @@
 .np-flyout.right { left: auto; right: 0; width: var(--np-right-width); transform: translateX(105%); }
 .np-flyout.visible { transform: translateX(0); opacity: 1; visibility: visible; transition-delay: 0s; }
 .np-flyout.pinned { box-shadow: none; }
-.np-flyout-toolbar { --np-flyout-toolbar-height: 1.65rem; --np-flyout-toolbar-surface: color-mix(in srgb, var(--menu-bar-bg) var(--np-flyout-surface-opacity), transparent); display: flex; align-items: flex-end; min-width: 0; background: transparent; }
-.np-flyout-toolbar .workspace-tabs { --tab-strip-background: transparent; --tab-strip-radius: 0; flex: 1; min-width: 0; }
+.np-flyout-toolbar { --np-flyout-toolbar-height: 1.65rem; display: flex; align-items: flex-end; min-width: 0; background: transparent; }
+.np-flyout-toolbar .workspace-tabs { --tab-strip-background: transparent; --tab-strip-hover-background: color-mix(in srgb, var(--hover-surface) 42%, transparent); --tab-strip-active-background: transparent; --tab-strip-radius: 0; flex: 1; min-width: 0; backdrop-filter: none; -webkit-backdrop-filter: none; }
+.app-shell.window-controls-overlay-active .np-flyout-toolbar .workspace-tabs { --tab-strip-background: transparent; }
 .np-flyout-toolbar .workspace-tabs::after { display: none; }
-.np-flyout-toolbar .workspace-tabs .dock-tab { background: var(--np-flyout-toolbar-surface); }
-.np-flyout-toolbar .workspace-tabs .dock-tab:hover { background: color-mix(in srgb, var(--np-flyout-toolbar-surface) 88%, var(--hover-surface)); }
-.np-flyout-toolbar .workspace-tabs .dock-tab.active { background: color-mix(in srgb, var(--np-flyout-toolbar-surface) 92%, var(--accent-strong-soft)); }
-.np-flyout-toolbar-button { position: relative; flex: 0 0 var(--np-flyout-toolbar-height); width: var(--np-flyout-toolbar-height); height: var(--np-flyout-toolbar-height); padding: 0; border: 0; color: var(--text); background: var(--np-flyout-toolbar-surface); }
-.np-flyout-toolbar-button:hover:not(:disabled), .np-flyout-toolbar-button:focus-visible { color: var(--text-strong); background: var(--hover-surface); }
-.np-flyout-toolbar-button[aria-pressed='true'] { color: var(--text-strong); background: color-mix(in srgb, var(--accent-strong) 18%, var(--bg)); box-shadow: inset 0 -2px var(--accent-strong); }
+.np-flyout-toolbar .workspace-tabs .dock-tab { background: transparent; }
+.np-flyout-toolbar .workspace-tabs .dock-tab:hover { background: color-mix(in srgb, var(--hover-surface) 42%, transparent); }
+.np-flyout-toolbar .workspace-tabs .dock-tab.active { background: transparent; }
+.np-flyout-toolbar-button { position: relative; flex: 0 0 var(--np-flyout-toolbar-height); width: var(--np-flyout-toolbar-height); height: var(--np-flyout-toolbar-height); padding: 0; border: 0; color: var(--text); background: transparent; }
+.np-flyout-toolbar-button:hover:not(:disabled), .np-flyout-toolbar-button:focus-visible { color: var(--text-strong); background: color-mix(in srgb, var(--hover-surface) 42%, transparent); }
+.np-flyout-toolbar-button[aria-pressed='true'] { color: var(--text-strong); background: color-mix(in srgb, var(--accent-strong) 18%, transparent); box-shadow: inset 0 -2px var(--accent-strong); }
 .np-flyout-toolbar-button[aria-pressed='true'] .material-symbols-outlined { font-variation-settings: 'FILL' 1; }
 .np-flyout-toolbar-button:disabled { color: var(--muted); opacity: .45; }
 .np-flyout-toolbar-button .material-symbols-outlined { font-size: 1rem; }
