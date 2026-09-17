@@ -15,7 +15,7 @@
     odaSettings
   } from '$lib/stores/oda-settings';
   import { readOdaBackgroundImage } from '$lib/services/oda-background';
-  import type { OdaBackground, OdaHoldBackAction, OdaLayout, OdaSongsLayout } from '$lib/types';
+  import type { OdaBackground, OdaBrowserLayout, OdaHoldBackAction, OdaLayout } from '$lib/types';
   import { tick } from 'svelte';
 
   function checked(event: Event) { return (event.currentTarget as HTMLInputElement).checked; }
@@ -26,8 +26,9 @@
     odaSettings.update({ odaEnterFullscreen: checked(event) });
   }
   function handleSongsLayoutChange(event: Event) {
+    const music = (event.currentTarget as HTMLSelectElement).value as OdaBrowserLayout;
     odaSettings.update({
-      odaSongsLayout: (event.currentTarget as HTMLSelectElement).value as OdaSongsLayout
+      odaBrowserLayouts: { ...$odaSettings.odaBrowserLayouts, music }
     });
   }
   function handleWrapNavigationToggle(event: Event) {
@@ -110,9 +111,9 @@
 
       <SettingsField
         title={$t('options.oda.songsLayout.title', { default: 'Song browser layout' })}
-        hint={$t('options.oda.songsLayout.hint', { default: 'Shows songs as a compact list or as an artwork gallery in Oda.' })}
+        hint={$t('options.oda.songsLayout.hint', { default: 'Shows songs as a compact list or as an artwork grid in Oda.' })}
       >
-        <select value={$odaSettings.odaSongsLayout} on:change={handleSongsLayoutChange}>
+        <select value={$odaSettings.odaBrowserLayouts.music} on:change={handleSongsLayoutChange}>
           <option value="list">{$t('options.oda.songsLayout.options.list', { default: 'List' })}</option>
           <option value="grid">{$t('options.oda.songsLayout.options.grid', { default: 'Artwork grid' })}</option>
         </select>

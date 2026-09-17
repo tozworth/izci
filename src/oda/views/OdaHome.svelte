@@ -34,6 +34,7 @@
   let track: HTMLElement | null = null;
   let translateY = 0;
   let centerReady = false;
+  let centerReadyFrame = 0;
   let mediaThumbnailReady = false;
   let lastMediaThumbnailKey = '';
 
@@ -54,9 +55,29 @@
     if (!focusedElement) return;
     const next = viewport.clientHeight / 2
       - (focusedElement.offsetTop + focusedElement.offsetHeight / 2);
-    if (centerReady && Math.abs(next - translateY) < 0.5) return;
+    if (Math.abs(next - translateY) < 0.5) {
+      if (!centerReady) enableCenterTransition();
+      return;
+    }
     translateY = next;
-    centerReady = true;
+    if (!centerReady) enableCenterTransition();
+  }
+
+  function enableCenterTransition(): void {
+    if (centerReady || centerReadyFrame) return;
+    if (typeof requestAnimationFrame === 'undefined') {
+      centerReady = true;
+      return;
+    }
+    // A freshly mounted waterfall must first render at its restored position.
+    // Enabling the transition after that frame keeps Back from looking
+    // like a user-initiated section change.
+    centerReadyFrame = requestAnimationFrame(() => {
+      centerReadyFrame = requestAnimationFrame(() => {
+        centerReadyFrame = 0;
+        centerReady = true;
+      });
+    });
   }
 
   $: if (viewport && track) {
@@ -71,7 +92,10 @@
     const observer = new ResizeObserver(() => centerFocused());
     observer.observe(viewport);
     observer.observe(track);
-    return () => observer.disconnect();
+    return () => {
+      observer.disconnect();
+      if (centerReadyFrame) cancelAnimationFrame(centerReadyFrame);
+    };
   });
 
   $: waterfallSections = sections.map((section): OdaWaterfallSection => ({

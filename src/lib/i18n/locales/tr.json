@@ -1513,7 +1513,7 @@
       },
       "songsLayout": {
         "title": "Şarkı tarayıcısı yerleşimi",
-        "hint": "Oda'da şarkıları sıkı bir liste veya kapak görseli galerisi olarak gösterir.",
+        "hint": "Oda'da şarkıları sıkı bir liste veya kapak görseli ızgarası olarak gösterir.",
         "options": {
           "list": "Liste",
           "grid": "Kapak görseli ızgarası"
@@ -2536,7 +2536,11 @@
       "layout": "Yerleşim",
       "songLayout": "Şarkı yerleşimi",
       "list": "Liste",
-      "grid": "Kapak görseli ızgarası"
+      "grid": "Kapak görseli ızgarası",
+      "gallery": "Galeri",
+      "zoom": "Öğe boyutu",
+      "zoomOut": "Uzaklaştır",
+      "zoomIn": "Yakınlaştır"
     },
     "recents": {
       "emptyTitle": "Son çalınan yok",

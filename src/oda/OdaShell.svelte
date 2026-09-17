@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { OdaSettings, PlaybackSnapshot, RepeatMode, TrackItem } from '$lib/types';
+  import type { OdaBrowserLayout, OdaSettings, PlaybackSnapshot, RepeatMode, TrackItem } from '$lib/types';
   import type { OdaRoute, OdaSession, OdaSessionSnapshot } from '$lib/services/oda-session';
   import { playbackSettings } from '$lib/stores/playback-settings';
   import { DEFAULT_ODA_SETTINGS, odaSettings } from '$lib/stores/oda-settings';
@@ -30,9 +30,11 @@
   import {
     odaBrowserFilterFromFocusId,
     odaBrowserLayoutFromFocusId,
+    odaBrowserZoomFromFocusId,
     odaBrowseGroupKey,
     odaBrowseTrackId,
-    odaTrackFocusId
+    odaTrackFocusId,
+    resolveOdaBrowserColumns
   } from './oda-browse';
   import {
     findWaterfallFocus,
@@ -103,6 +105,10 @@
   $: imageItems = selectOdaImages(libraryItems);
   $: recentsItems = selectOdaRecents(libraryItems);
   $: activeRoute = sessionState.route;
+  $: activeBrowserMedium = activeRoute.name === 'browse' ? activeRoute.medium : 'music';
+  $: activeBrowserLayout = settings.odaBrowserLayouts[activeBrowserMedium];
+  $: activeBrowserZoomLevel = settings.odaBrowserZoomLevels[activeBrowserMedium][activeBrowserLayout];
+  $: activeBrowserColumns = resolveOdaBrowserColumns(activeBrowserLayout, activeBrowserZoomLevel);
 
   $: odaOptions = buildOdaOptionsGroups(translate, $playbackSettings.enableRaf);
   $: optionCategoryIds = odaOptions.groups
@@ -180,7 +186,8 @@
       queueItems,
       optionCategoryIds,
       homeWaterfallSections,
-      songsLayout: settings.odaSongsLayout,
+      browserLayout: activeBrowserLayout,
+      browserColumns: activeBrowserColumns,
       canMutateQueue,
       canReorderQueue,
       playingKind: playingTrack?.kind ?? null,
@@ -234,7 +241,8 @@
     void queueItems;
     void optionsContentActive;
     void activeRoute;
-    void settings.odaSongsLayout;
+    void activeBrowserLayout;
+    void activeBrowserColumns;
     void canMutateQueue;
     void canReorderQueue;
     void playingTrack;
@@ -451,7 +459,12 @@
     if (activeRoute.name === 'browse') {
       const layout = odaBrowserLayoutFromFocusId(focusId);
       if (layout) {
-        odaSettings.update({ odaSongsLayout: layout });
+        setBrowserLayout(layout);
+        return;
+      }
+      const zoomDirection = odaBrowserZoomFromFocusId(focusId);
+      if (zoomDirection) {
+        adjustBrowserZoom(zoomDirection === 'in' ? 1 : -1);
         return;
       }
       const filter = odaBrowserFilterFromFocusId(focusId);
@@ -509,6 +522,35 @@
     activateHomeCard(card);
   }
 
+  function setBrowserLayout(layout: OdaBrowserLayout): void {
+    if (activeRoute.name !== 'browse') return;
+    if (layout === 'gallery' && activeRoute.medium === 'music') return;
+    odaSettings.update({
+      odaBrowserLayouts: {
+        ...settings.odaBrowserLayouts,
+        [activeRoute.medium]: layout
+      }
+    });
+  }
+
+  function adjustBrowserZoom(delta: -1 | 1): void {
+    if (activeRoute.name !== 'browse') return;
+    const medium = activeRoute.medium;
+    const layout = settings.odaBrowserLayouts[medium];
+    const current = settings.odaBrowserZoomLevels[medium][layout];
+    const next = Math.min(Math.max(current + delta, 0), 4);
+    if (next === current) return;
+    odaSettings.update({
+      odaBrowserZoomLevels: {
+        ...settings.odaBrowserZoomLevels,
+        [medium]: {
+          ...settings.odaBrowserZoomLevels[medium],
+          [layout]: next
+        }
+      }
+    });
+  }
+
   $: odaBackgroundVisible = settings.odaBackground === 'custom' && settings.odaBackgroundImage;
   $: odaBackgroundOpacity = Math.min(Math.max(settings.odaBackgroundOpacity, 0), 100) / 100;
 </script>
@@ -550,12 +592,14 @@
         groupKey={activeRoute.groupKey ?? null}
         focusId={sessionState.focusId}
         playingId={playingTrack?.id ?? null}
-        songsLayout={settings.odaSongsLayout}
+        browserLayout={activeBrowserLayout}
+        zoomLevel={activeBrowserZoomLevel}
         {translate}
         onActivateTrack={(id) => void activateAndRoute(odaTrackFocusId(id), 'library')}
         onOpenGroup={openBrowseGroup}
         onSelectView={(view) => session.setBrowseView(activeRoute.medium, view)}
-        onSetSongsLayout={(layout) => odaSettings.update({ odaSongsLayout: layout })}
+        onSetBrowserLayout={setBrowserLayout}
+        onAdjustZoom={adjustBrowserZoom}
         onFocus={(focusId) => focus.setFocus(focusId)}
       />
     {:else if activeRoute.name === 'recents'}

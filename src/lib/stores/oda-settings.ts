@@ -1,4 +1,13 @@
-import type { OdaBackground, OdaHoldBackAction, OdaLayout, OdaSettings, OdaSongsLayout } from '$lib/types';
+import type {
+  OdaBackground,
+  OdaBrowserLayout,
+  OdaBrowserLayouts,
+  OdaBrowserMedium,
+  OdaBrowserZoomLevels,
+  OdaHoldBackAction,
+  OdaLayout,
+  OdaSettings
+} from '$lib/types';
 import { createSettingsStore, normalizeBoolean } from './persistent-store';
 
 const ODA_SETTINGS_STORAGE_KEY = 'izci.oda-settings';
@@ -15,12 +24,30 @@ export const ODA_HOLD_BACK_THRESHOLD_MAX_MS = 2_000;
 
 export const ODA_BACKGROUND_OPACITY_MIN_PERCENT = 0;
 export const ODA_BACKGROUND_OPACITY_MAX_PERCENT = 100;
+export const ODA_BROWSER_ZOOM_MIN = 0;
+export const ODA_BROWSER_ZOOM_MAX = 4;
+
+const ODA_BROWSER_MEDIA: readonly OdaBrowserMedium[] = ['music', 'video', 'image'];
+const ODA_BROWSER_LAYOUTS: readonly OdaBrowserLayout[] = ['list', 'grid', 'gallery'];
+
+const DEFAULT_ODA_BROWSER_LAYOUTS: OdaBrowserLayouts = {
+  music: 'grid',
+  video: 'grid',
+  image: 'grid'
+};
+
+const DEFAULT_ODA_BROWSER_ZOOM_LEVELS: OdaBrowserZoomLevels = {
+  music: { list: 2, grid: 2, gallery: 2 },
+  video: { list: 2, grid: 2, gallery: 2 },
+  image: { list: 2, grid: 2, gallery: 2 }
+};
 
 export const DEFAULT_ODA_SETTINGS: OdaSettings = {
   odaLayout: 'waterfall',
   odaEnterFullscreen: true,
   odaWrapNavigation: false,
-  odaSongsLayout: 'grid',
+  odaBrowserLayouts: DEFAULT_ODA_BROWSER_LAYOUTS,
+  odaBrowserZoomLevels: DEFAULT_ODA_BROWSER_ZOOM_LEVELS,
   odaOverscanPercent: 0,
   odaBackground: 'none',
   odaBackgroundImage: null,
@@ -39,8 +66,40 @@ function normalizeHoldBackAction(value: unknown): OdaHoldBackAction {
   return value === 'return-home' ? value : DEFAULT_ODA_SETTINGS.odaHoldBackAction;
 }
 
-function normalizeSongsLayout(value: unknown): OdaSongsLayout {
-  return value === 'list' ? 'list' : 'grid';
+function normalizeBrowserLayout(value: unknown, medium: OdaBrowserMedium): OdaBrowserLayout {
+  if (value === 'list' || value === 'grid') return value;
+  if (value === 'gallery' && medium !== 'music') return value;
+  return DEFAULT_ODA_BROWSER_LAYOUTS[medium];
+}
+
+function normalizeBrowserLayouts(value: unknown): OdaBrowserLayouts {
+  const source = value && typeof value === 'object'
+    ? value as Partial<Record<OdaBrowserMedium, unknown>>
+    : {};
+  return Object.fromEntries(ODA_BROWSER_MEDIA.map((medium) => [
+    medium,
+    normalizeBrowserLayout(source[medium], medium)
+  ])) as OdaBrowserLayouts;
+}
+
+function normalizeBrowserZoomLevels(value: unknown): OdaBrowserZoomLevels {
+  const source = value && typeof value === 'object'
+    ? value as Partial<Record<OdaBrowserMedium, unknown>>
+    : {};
+  return Object.fromEntries(ODA_BROWSER_MEDIA.map((medium) => {
+    const mediumSource = source[medium] && typeof source[medium] === 'object'
+      ? source[medium] as Partial<Record<OdaBrowserLayout, unknown>>
+      : {};
+    return [medium, Object.fromEntries(ODA_BROWSER_LAYOUTS.map((layout) => [
+      layout,
+      Math.round(normalizeBoundedNumber(
+        mediumSource[layout],
+        DEFAULT_ODA_BROWSER_ZOOM_LEVELS[medium][layout],
+        ODA_BROWSER_ZOOM_MIN,
+        ODA_BROWSER_ZOOM_MAX
+      ))
+    ]))];
+  })) as OdaBrowserZoomLevels;
 }
 
 function normalizeBoundedNumber(value: unknown, fallback: number, min: number, max: number): number {
@@ -96,7 +155,8 @@ export function normalizeOdaSettings(value: unknown): OdaSettings {
       source.odaWrapNavigation,
       DEFAULT_ODA_SETTINGS.odaWrapNavigation
     ),
-    odaSongsLayout: normalizeSongsLayout(source.odaSongsLayout),
+    odaBrowserLayouts: normalizeBrowserLayouts(source.odaBrowserLayouts),
+    odaBrowserZoomLevels: normalizeBrowserZoomLevels(source.odaBrowserZoomLevels),
     odaOverscanPercent: normalizeOverscanPercent(source.odaOverscanPercent),
     odaBackground: normalizeBackground(source.odaBackground),
     odaBackgroundImage: normalizeBackgroundImage(source.odaBackgroundImage),
