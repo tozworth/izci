@@ -1513,7 +1513,7 @@
       },
       "songsLayout": {
         "title": "Song browser layout",
-        "hint": "Shows songs as a compact list or as an artwork gallery in Oda.",
+        "hint": "Shows songs as a compact list or as an artwork grid in Oda.",
         "options": {
           "list": "List",
           "grid": "Artwork grid"
@@ -2535,7 +2535,11 @@
       "layout": "Layout",
       "songLayout": "Song layout",
       "list": "List",
-      "grid": "Artwork grid"
+      "grid": "Artwork grid",
+      "gallery": "Gallery",
+      "zoom": "Item size",
+      "zoomOut": "Zoom out",
+      "zoomIn": "Zoom in"
     },
     "recents": {
       "emptyTitle": "No recents",

@@ -18,7 +18,12 @@ describe('normalizeOdaSettings', () => {
       odaLayout: 'waterfall',
       odaEnterFullscreen: false,
       odaWrapNavigation: true,
-      odaSongsLayout: 'grid',
+      odaBrowserLayouts: { music: 'list', video: 'gallery', image: 'grid' },
+      odaBrowserZoomLevels: {
+        music: { list: 0, grid: 1, gallery: 2 },
+        video: { list: 1, grid: 2, gallery: 3 },
+        image: { list: 2, grid: 3, gallery: 4 }
+      },
       odaOverscanPercent: 4.5,
       odaArrowRepeatInitialDelayMs: 600,
       odaArrowRepeatIntervalMs: 90,
@@ -31,7 +36,12 @@ describe('normalizeOdaSettings', () => {
       odaLayout: 'waterfall',
       odaEnterFullscreen: false,
       odaWrapNavigation: true,
-      odaSongsLayout: 'grid',
+      odaBrowserLayouts: { music: 'list', video: 'gallery', image: 'grid' },
+      odaBrowserZoomLevels: {
+        music: { list: 0, grid: 1, gallery: 2 },
+        video: { list: 1, grid: 2, gallery: 3 },
+        image: { list: 2, grid: 3, gallery: 4 }
+      },
       odaOverscanPercent: 4.5,
       odaArrowRepeatInitialDelayMs: 600,
       odaArrowRepeatIntervalMs: 90,
@@ -74,6 +84,22 @@ describe('normalizeOdaSettings', () => {
       .toBe(ODA_BACKGROUND_OPACITY_MIN_PERCENT);
     expect(normalizeOdaSettings({ odaBackgroundOpacity: 250 }).odaBackgroundOpacity)
       .toBe(ODA_BACKGROUND_OPACITY_MAX_PERCENT);
+    expect(normalizeOdaSettings({
+      odaBrowserZoomLevels: {
+        music: { list: -5, grid: 99, gallery: 2 }
+      }
+    }).odaBrowserZoomLevels.music).toEqual({ list: 0, grid: 4, gallery: 2 });
+  });
+
+  it('allows Gallery only for visual-media browsers', () => {
+    const normalized = normalizeOdaSettings({
+      odaBrowserLayouts: { music: 'gallery', video: 'gallery', image: 'gallery' }
+    });
+    expect(normalized.odaBrowserLayouts).toEqual({
+      music: 'grid',
+      video: 'gallery',
+      image: 'gallery'
+    });
   });
 
   it('rounds overscan and durations to stable precision', () => {

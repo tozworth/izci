@@ -14,6 +14,7 @@
   export let focusId: string | null = null;
   /** Changing this resets the scroll position (route/level change). */
   export let listKey = '';
+  export let rowHeight = 72;
   export let canRemove = false;
   export let canMove = false;
   export let translate: OdaTranslate;
@@ -22,7 +23,6 @@
   export let onRemove: (focusId: string) => void = () => {};
   export let onMove: (focusId: string, direction: -1 | 1) => void = () => {};
 
-  const ROW_HEIGHT = 72;
   const OVERSCAN = 5;
 
   let viewport: HTMLDivElement | null = null;
@@ -30,11 +30,12 @@
   let viewportHeight = 0;
   let lastListKey = '';
 
-  $: totalHeight = rows.length * ROW_HEIGHT;
-  $: startIndex = rows.length === 0 ? 0 : Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - OVERSCAN);
+  $: safeRowHeight = Math.max(40, Math.round(rowHeight));
+  $: totalHeight = rows.length * safeRowHeight;
+  $: startIndex = rows.length === 0 ? 0 : Math.max(0, Math.floor(scrollTop / safeRowHeight) - OVERSCAN);
   $: endIndex = rows.length === 0
     ? 0
-    : Math.min(rows.length, Math.ceil((scrollTop + viewportHeight) / ROW_HEIGHT) + OVERSCAN);
+    : Math.min(rows.length, Math.ceil((scrollTop + viewportHeight) / safeRowHeight) + OVERSCAN);
   $: visibleRows = rows
     .slice(startIndex, endIndex)
     .map((row, offset) => ({ row, index: startIndex + offset }));
@@ -53,8 +54,8 @@
     const rowFocusId = queueAction ? odaTrackFocusId(queueAction.trackId) : id;
     const index = rows.findIndex((row) => row.focusId === rowFocusId);
     if (index < 0) return;
-    const top = index * ROW_HEIGHT;
-    const bottom = top + ROW_HEIGHT;
+    const top = index * safeRowHeight;
+    const bottom = top + safeRowHeight;
     if (top < viewport.scrollTop) {
       viewport.scrollTop = top;
     } else if (bottom > viewport.scrollTop + viewport.clientHeight) {
@@ -87,11 +88,13 @@
     scrollTop = 0;
   }
 
-  // Keep the focused row on screen after route changes, item updates, or
-  // arrow movement without recomputing geometry from the DOM.
+  // Keep keyboard/remote focus visible after route, collection, zoom, or
+  // focus changes. Deliberately do not depend on the virtual scroll window:
+  // doing so turns a user's wheel scroll into a scrollTop write-back loop.
   $: if (viewport && focusId && rows.length > 0) {
-    void startIndex;
-    void endIndex;
+    void rows;
+    void listKey;
+    void safeRowHeight;
     ensureFocusVisible(focusId);
   }
 
@@ -110,7 +113,7 @@
       <div
         class="oda-row-slot"
         class:is-action-open={actionStripOpen(row.focusId)}
-        style={`top: ${index * ROW_HEIGHT}px; height: ${ROW_HEIGHT}px`}
+        style={`top: ${index * safeRowHeight}px; height: ${safeRowHeight}px`}
       >
         <button
           type="button"

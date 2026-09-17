@@ -7,13 +7,14 @@
  * thin.
  */
 
-import type { TrackItem, TrackKind } from '$lib/types';
+import type { OdaBrowserLayout, TrackItem, TrackKind } from '$lib/types';
 import type { OdaRoute } from '$lib/services/oda-session';
 import {
   buildOdaBrowseGroupRows,
   isOdaGroupedBrowseView,
   odaBrowserFilterFocusId,
   odaBrowserLayoutFocusId,
+  odaBrowserZoomFocusId,
   odaTrackFocusId,
   resolveOdaBrowserViews,
   resolveOdaBrowseGroup
@@ -50,7 +51,8 @@ export interface OdaRouteFocusContext {
   queueItems: TrackItem[];
   optionCategoryIds: string[];
   homeWaterfallSections: OdaWaterfallSection[];
-  songsLayout: 'list' | 'grid';
+  browserLayout: OdaBrowserLayout;
+  browserColumns: number;
   canMutateQueue: boolean;
   canReorderQueue: boolean;
   playingKind: TrackKind | null;
@@ -74,10 +76,25 @@ function resolveBrowseFilterFocusIds(route: Extract<OdaRoute, { name: 'browse' }
     .map((view) => odaBrowserFilterFocusId(route.medium, view));
 }
 
-const BROWSER_LAYOUT_FOCUS_IDS = [
+const BASE_BROWSER_LAYOUT_FOCUS_IDS = [
   odaBrowserLayoutFocusId('list'),
   odaBrowserLayoutFocusId('grid')
 ] as const;
+
+const BROWSER_ZOOM_FOCUS_IDS = [
+  odaBrowserZoomFocusId('out'),
+  odaBrowserZoomFocusId('in')
+] as const;
+
+function resolveBrowserControlFocusIds(
+  route: Extract<OdaRoute, { name: 'browse' }>
+): string[] {
+  return [
+    ...BASE_BROWSER_LAYOUT_FOCUS_IDS,
+    ...(route.medium === 'music' ? [] : [odaBrowserLayoutFocusId('gallery')]),
+    ...BROWSER_ZOOM_FOCUS_IDS
+  ];
+}
 
 /** Tracks for the current route, filtered by media kind where relevant. */
 export function resolveOdaRouteTrackItems(
@@ -122,7 +139,7 @@ export function resolveOdaRouteFocusIds(
   if (route.name === 'browse') {
     return [
       ...resolveBrowseFilterFocusIds(route),
-      ...BROWSER_LAYOUT_FOCUS_IDS,
+      ...resolveBrowserControlFocusIds(route),
       ...resolveBrowseContentFocusIds(route, context)
     ];
   }
@@ -193,13 +210,13 @@ export function resolveOdaRouteFocusModel(
   }
   if (route.name === 'browse') {
     const contentIds = resolveBrowseContentFocusIds(route, context);
-    const columns = context.songsLayout === 'grid' ? 4 : 1;
+    const columns = context.browserLayout === 'list' ? 1 : context.browserColumns;
     return createBrowserFocusModel(
       resolveBrowseFilterFocusIds(route),
       odaBrowserFilterFocusId(route.medium, route.view),
       contentIds,
       columns,
-      BROWSER_LAYOUT_FOCUS_IDS
+      resolveBrowserControlFocusIds(route)
     );
   }
   return createListFocusModel(resolveOdaRouteFocusIds(route, context));

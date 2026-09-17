@@ -2,6 +2,7 @@
   import { onDestroy, onMount } from 'svelte';
   import { getCachedArtworkThumbnail } from '$lib/services/artwork-cache';
   import type { TrackItem } from '$lib/types';
+  import { scheduleOdaThumbnailJob, type CancelOdaThumbnailJob } from '../oda-thumbnail-jobs';
 
   export let tracks: TrackItem[] = [];
   export let icon = 'album';
@@ -10,21 +11,30 @@
   let alive = true;
   let host: HTMLElement | null = null;
   let observer: IntersectionObserver | null = null;
-  let started = false;
+  let resolved = false;
+  let queued = false;
+  let cancelQueued: CancelOdaThumbnailJob | null = null;
 
   onMount(() => {
     if (!host || typeof IntersectionObserver === 'undefined') {
-      startLoad();
+      queueLoad();
       return;
     }
     observer = new IntersectionObserver((entries) => {
-      if (entries.some((entry) => entry.isIntersecting)) startLoad();
+      const visible = entries.some((entry) => entry.isIntersecting);
+      if (visible) {
+        queueLoad();
+      } else if (cancelQueued?.()) {
+        cancelQueued = null;
+        queued = false;
+      }
     }, { rootMargin: '320px' });
     observer.observe(host);
   });
 
   onDestroy(() => {
     alive = false;
+    cancelQueued?.();
     observer?.disconnect();
     if (url) URL.revokeObjectURL(url);
   });
@@ -39,11 +49,16 @@
     }
   }
 
-  function startLoad(): void {
-    if (started) return;
-    started = true;
-    observer?.disconnect();
-    void load();
+  function queueLoad(): void {
+    if (queued || resolved) return;
+    queued = true;
+    cancelQueued = scheduleOdaThumbnailJob(async () => {
+      cancelQueued = null;
+      await load();
+      queued = false;
+      resolved = true;
+      observer?.disconnect();
+    });
   }
 </script>
 

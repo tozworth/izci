@@ -697,7 +697,13 @@ export interface VideoSettings {
 
 export type OdaLayout = 'waterfall';
 
-export type OdaSongsLayout = 'list' | 'grid';
+export type OdaBrowserLayout = 'list' | 'grid' | 'gallery';
+
+export type OdaBrowserMedium = 'music' | 'video' | 'image';
+
+export type OdaBrowserLayouts = Record<OdaBrowserMedium, OdaBrowserLayout>;
+
+export type OdaBrowserZoomLevels = Record<OdaBrowserMedium, Record<OdaBrowserLayout, number>>;
 
 export type OdaHoldBackAction = 'none' | 'return-home';
 
@@ -708,8 +714,10 @@ export interface OdaSettings {
   odaLayout: OdaLayout;
   odaEnterFullscreen: boolean;
   odaWrapNavigation: boolean;
-  /** Track presentation in Oda's music library browser. */
-  odaSongsLayout: OdaSongsLayout;
+  /** Presentation selected independently by each Oda library browser. */
+  odaBrowserLayouts: OdaBrowserLayouts;
+  /** Bounded item-size step selected independently for each browser/layout pair. */
+  odaBrowserZoomLevels: OdaBrowserZoomLevels;
   /** Overscan / safe-area inset in percent of the viewport edge. */
   odaOverscanPercent: number;
   /** Oda shell background source. `custom` uses `odaBackgroundImage`. */

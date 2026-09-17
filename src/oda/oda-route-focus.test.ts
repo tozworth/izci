@@ -41,7 +41,8 @@ const CONTEXT: OdaRouteFocusContext = {
   recentsItems: RECENTS,
   queueItems: QUEUE,
   optionCategoryIds: ['option:oda', 'option:appearance'],
-  songsLayout: 'grid',
+  browserLayout: 'grid',
+  browserColumns: 4,
   canMutateQueue: true,
   canReorderQueue: true,
   playingKind: 'stream',
@@ -97,6 +98,9 @@ describe('resolveOdaRouteFocusIds', () => {
       const ids = resolveOdaRouteFocusIds({ name: 'browse', medium, view: 'songs' }, CONTEXT);
       expect(ids).toContain('browse-layout:list');
       expect(ids).toContain('browse-layout:grid');
+      expect(ids).toContain('browse-zoom:out');
+      expect(ids).toContain('browse-zoom:in');
+      expect(ids.includes('browse-layout:gallery')).toBe(medium !== 'music');
     }
   });
 
@@ -200,7 +204,7 @@ describe('resolveOdaRouteFocusModel', () => {
   it('clamps a list model without wrap', () => {
     const model = resolveOdaRouteFocusModel(
       { name: 'browse', medium: 'music', view: 'songs' },
-      { ...CONTEXT, songsLayout: 'list' }
+      { ...CONTEXT, browserLayout: 'list', browserColumns: 1 }
     );
     expect(model!.resolveMove('item:m1', 'up', false)).toBe('browse-layout:list');
     expect(model!.resolveMove('item:m1', 'down', false)).toBe('item:m2');

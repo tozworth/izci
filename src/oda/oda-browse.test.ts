@@ -6,8 +6,14 @@ import {
   isOdaGroupedBrowseView,
   odaBrowseGroupKey,
   odaBrowseTrackId,
+  odaBrowserLayoutFromFocusId,
+  odaBrowserZoomFocusId,
+  odaBrowserZoomFromFocusId,
   odaGroupFocusId,
   odaTrackFocusId,
+  resolveOdaBrowserColumns,
+  resolveOdaBrowserListRowHeight,
+  resolveOdaGalleryAspectRatio,
   resolveOdaBrowseGroup
 } from './oda-browse';
 
@@ -42,6 +48,23 @@ describe('Oda browse focus IDs', () => {
     expect(odaBrowseTrackId(odaGroupFocusId('x'))).toBeNull();
     expect(odaBrowseGroupKey(odaTrackFocusId('x'))).toBeNull();
     expect(odaBrowseTrackId(null)).toBeNull();
+  });
+
+  it('round-trips browser layout and zoom controls', () => {
+    expect(odaBrowserLayoutFromFocusId('browse-layout:gallery')).toBe('gallery');
+    expect(odaBrowserZoomFromFocusId(odaBrowserZoomFocusId('in'))).toBe('in');
+    expect(odaBrowserZoomFromFocusId('browse-zoom:reset')).toBeNull();
+  });
+
+  it('maps bounded zoom steps to list and visual geometry', () => {
+    expect(resolveOdaBrowserColumns('grid', 0)).toBe(7);
+    expect(resolveOdaBrowserColumns('grid', 4)).toBe(2);
+    expect(resolveOdaBrowserColumns('gallery', 99)).toBe(3);
+    expect(resolveOdaBrowserListRowHeight(-4)).toBe(48);
+    expect(resolveOdaBrowserListRowHeight(4)).toBe(108);
+    expect(resolveOdaGalleryAspectRatio(1600, 900)).toBeCloseTo(16 / 9);
+    expect(resolveOdaGalleryAspectRatio(4000, 500)).toBe(2.4);
+    expect(resolveOdaGalleryAspectRatio(200, 1000)).toBe(0.5);
   });
 
   it('classifies grouped versus flat views', () => {
