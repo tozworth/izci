@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onDestroy, onMount } from 'svelte';
   import type { OdaBrowserLayout, OdaSettings, PlaybackSnapshot, RepeatMode, TrackItem } from '$lib/types';
   import type { OdaRoute, OdaSession, OdaSessionSnapshot } from '$lib/services/oda-session';
   import { playbackSettings } from '$lib/stores/playback-settings';
@@ -11,6 +12,7 @@
   import OdaNowPlaying from './views/OdaNowPlaying.svelte';
   import OdaOptions from './views/OdaOptions.svelte';
   import OdaQueueFlyout from './views/OdaQueueFlyout.svelte';
+  import OdaScreensaver from './views/OdaScreensaver.svelte';
   import OdaTopChrome from './OdaTopChrome.svelte';
   import { version as appVersion } from '../../package.json';
   import OdaVideoTheater from './views/OdaVideoTheater.svelte';
@@ -93,6 +95,56 @@
   export let playbackError: string | null = null;
   export let media: OdaMediaHost;
   export let commands: OdaCommands;
+  export let screensaverActive = false;
+  export let screensaverActivityToken = 0;
+
+  let screensaverIdleTimer: ReturnType<typeof setTimeout> | null = null;
+  let screensaverMounted = false;
+  let observedScreensaverActivityToken = screensaverActivityToken;
+
+  function clearScreensaverIdleTimer(): void {
+    if (screensaverIdleTimer !== null) clearTimeout(screensaverIdleTimer);
+    screensaverIdleTimer = null;
+  }
+
+  function scheduleScreensaver(): void {
+    clearScreensaverIdleTimer();
+    const delay = settings.odaScreensaverDelayMinutes;
+    if (!screensaverMounted || delay <= 0 || screensaverActive) return;
+    screensaverIdleTimer = setTimeout(() => {
+      screensaverIdleTimer = null;
+      screensaverActive = true;
+    }, delay * 60_000);
+  }
+
+  function handleScreensaverActivity(): void {
+    if (!screensaverMounted) return;
+    if (screensaverActive) screensaverActive = false;
+    scheduleScreensaver();
+  }
+
+  $: if (screensaverMounted) {
+    void settings.odaScreensaverDelayMinutes;
+    if (settings.odaScreensaverDelayMinutes <= 0 && screensaverActive) screensaverActive = false;
+    scheduleScreensaver();
+  }
+  $: if (screensaverMounted && screensaverActivityToken !== observedScreensaverActivityToken) {
+    observedScreensaverActivityToken = screensaverActivityToken;
+    handleScreensaverActivity();
+  }
+
+  onMount(() => {
+    screensaverMounted = true;
+    observedScreensaverActivityToken = screensaverActivityToken;
+    screensaverActive = false;
+    scheduleScreensaver();
+  });
+
+  onDestroy(() => {
+    screensaverMounted = false;
+    clearScreensaverIdleTimer();
+    screensaverActive = false;
+  });
 
   $: counts = resolveOdaMediaCounts(libraryItems);
   $: homeSections = buildOdaHomeSections(counts);
@@ -555,6 +607,13 @@
   $: odaBackgroundOpacity = Math.min(Math.max(settings.odaBackgroundOpacity, 0), 100) / 100;
 </script>
 
+<svelte:window
+  on:pointerdown={handleScreensaverActivity}
+  on:pointermove={handleScreensaverActivity}
+  on:touchstart={handleScreensaverActivity}
+  on:wheel={handleScreensaverActivity}
+/>
+
 <div
   class="oda-shell"
   style={`--oda-overscan-percent: ${settings.odaOverscanPercent}`}
@@ -708,7 +767,8 @@
         advancedTweaksModified={settings.odaArrowRepeatInitialDelayMs !== DEFAULT_ODA_SETTINGS.odaArrowRepeatInitialDelayMs
           || settings.odaArrowRepeatIntervalMs !== DEFAULT_ODA_SETTINGS.odaArrowRepeatIntervalMs
           || settings.odaHoldBackAction !== DEFAULT_ODA_SETTINGS.odaHoldBackAction
-          || settings.odaHoldBackThresholdMs !== DEFAULT_ODA_SETTINGS.odaHoldBackThresholdMs}
+          || settings.odaHoldBackThresholdMs !== DEFAULT_ODA_SETTINGS.odaHoldBackThresholdMs
+          || settings.odaScreensaverMoveIntervalMinutes !== DEFAULT_ODA_SETTINGS.odaScreensaverMoveIntervalMinutes}
         onFocus={(focusId) => focus.setFocus(focusId)}
         onSelectView={(view) => selectOptionsView(view, odaOptionsCategoryFocusId(view))}
       />
@@ -736,6 +796,13 @@
 
     <div class="oda-version" aria-hidden="true"><strong>izci</strong> {appVersion}</div>
   {/if}
+
+  <OdaScreensaver
+    active={screensaverActive}
+    {imageItems}
+    {playingTrack}
+    moveIntervalMinutes={settings.odaScreensaverMoveIntervalMinutes}
+  />
 
   {#if playbackError}
     <div class="oda-notices">

@@ -1548,6 +1548,18 @@
         "title": "Background opacity",
         "hint": "How opaque the custom background image is."
       },
+      "screensaver": {
+        "off": "Off",
+        "minutes": "{minutes} min",
+        "delay": {
+          "title": "Screensaver",
+          "hint": "Starts the Oda screensaver after this much idle time. It shuffles library images and falls back to theme colors."
+        },
+        "move": {
+          "title": "Move screensaver text",
+          "hint": "How often the clock and Now Playing text fade into new positions to reduce burn-in."
+        }
+      },
       "input": {
         "heading": "Input"
       },

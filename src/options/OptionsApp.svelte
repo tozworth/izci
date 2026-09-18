@@ -171,7 +171,8 @@
           $odaSettings.odaArrowRepeatInitialDelayMs !== DEFAULT_ODA_SETTINGS.odaArrowRepeatInitialDelayMs ||
           $odaSettings.odaArrowRepeatIntervalMs !== DEFAULT_ODA_SETTINGS.odaArrowRepeatIntervalMs ||
           $odaSettings.odaHoldBackAction !== DEFAULT_ODA_SETTINGS.odaHoldBackAction ||
-          $odaSettings.odaHoldBackThresholdMs !== DEFAULT_ODA_SETTINGS.odaHoldBackThresholdMs;
+          $odaSettings.odaHoldBackThresholdMs !== DEFAULT_ODA_SETTINGS.odaHoldBackThresholdMs ||
+          $odaSettings.odaScreensaverMoveIntervalMinutes !== DEFAULT_ODA_SETTINGS.odaScreensaverMoveIntervalMinutes;
         break;
       case 'visualizer':
         advancedTweaksModified =
