@@ -1,10 +1,11 @@
 /**
- * Sidekick `#party=` invitations: `https://<origin>/#party=<base64url JSON>`.
+ * Sidekick invitations keep the destination readable and put the opaque
+ * admission material in a separate code:
+ * `https://<origin>/#party=<sidekick URL>&code=<room>.<secret>`.
  *
- * The JSON payload carries `v`, `endpoint`, `roomId`, `secret`, and an
- * optional `title`. Invitations are parsed locally, captured as pending
- * state, and the secret-bearing fragment is then removed from the address
- * bar. Legacy `#join=` invite codes stay owned by `multiplayer-invite-link`.
+ * Invitations are parsed locally, captured as pending state, and the
+ * secret-bearing fragment is then removed from the address bar. Legacy
+ * `#join=` invite codes stay owned by `multiplayer-invite-link`.
  *
  * Endpoints accept HTTPS only, except loopback development addresses where
  * plain HTTP is allowed (mirroring the server's `publicBaseUrl` rule).
@@ -12,7 +13,6 @@
  * `redactSidekickSecrets` before surfacing errors or diagnostics.
  */
 
-export const SIDEKICK_INVITE_VERSION = 1;
 export const SIDEKICK_INVITE_MAX_BYTES = 4 * 1024;
 export const SIDEKICK_INVITE_TITLE_MAX = 120;
 export const SIDEKICK_INVITE_SECRET_MAX = 512;
@@ -43,30 +43,6 @@ export class SidekickInviteError extends Error {
     this.name = 'SidekickInviteError';
     this.code = code;
   }
-}
-
-function encodeBase64Url(bytes: Uint8Array): string {
-  let binary = '';
-  for (const byte of bytes) binary += String.fromCharCode(byte);
-  return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-}
-
-function decodeBase64Url(raw: string): Uint8Array {
-  if (!raw) throw new SidekickInviteError('bad-encoding');
-  if (raw.length > SIDEKICK_INVITE_MAX_BYTES) throw new SidekickInviteError('too-large');
-  if (!/^[A-Za-z0-9_-]+$/.test(raw)) throw new SidekickInviteError('bad-encoding');
-  const padded = raw.replace(/-/g, '+').replace(/_/g, '/');
-  const remainder = padded.length % 4;
-  if (remainder === 1) throw new SidekickInviteError('bad-encoding');
-  let binary: string;
-  try {
-    binary = atob(padded + (remainder === 0 ? '' : '='.repeat(4 - remainder)));
-  } catch {
-    throw new SidekickInviteError('bad-encoding');
-  }
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i += 1) bytes[i] = binary.charCodeAt(i);
-  return bytes;
 }
 
 /**
@@ -127,60 +103,41 @@ function normalizeInviteTitle(value: unknown): string | null {
 
 export function parseSidekickInvitation(raw: string): SidekickInvitation {
   if (raw.length > SIDEKICK_INVITE_MAX_BYTES) throw new SidekickInviteError('too-large');
-  const bytes = decodeBase64Url(raw);
-  if (bytes.length > SIDEKICK_INVITE_MAX_BYTES) throw new SidekickInviteError('too-large');
-  let payload: unknown;
-  try {
-    payload = JSON.parse(new TextDecoder().decode(bytes));
-  } catch {
-    throw new SidekickInviteError('bad-payload');
+  const params = new URLSearchParams(`party=${raw}`);
+  for (const key of params.keys()) {
+    if (key !== 'party' && key !== 'code') throw new SidekickInviteError('bad-payload');
   }
-  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
-    throw new SidekickInviteError('bad-payload');
-  }
-  const record = payload as Record<string, unknown>;
-  const allowed = new Set(['v', 'endpoint', 'roomId', 'secret', 'title']);
-  for (const key of Object.keys(record)) {
-    if (!allowed.has(key)) throw new SidekickInviteError('bad-payload');
-  }
-  if (record['v'] !== SIDEKICK_INVITE_VERSION) throw new SidekickInviteError('bad-version');
-  if (typeof record['endpoint'] !== 'string') throw new SidekickInviteError('bad-endpoint');
-  const endpoint = normalizeSidekickInviteEndpoint(record['endpoint']);
-  if (typeof record['roomId'] !== 'string' || !SIDEKICK_ROOM_ID_PATTERN.test(record['roomId'])) {
+  const endpointRaw = params.get('party');
+  const code = params.get('code');
+  if (!endpointRaw) throw new SidekickInviteError('bad-endpoint');
+  if (!code) throw new SidekickInviteError('bad-encoding');
+  const separator = code.indexOf('.');
+  const roomId = separator < 0 ? '' : code.slice(0, separator);
+  const secret = separator < 0 ? '' : code.slice(separator + 1);
+  const endpoint = normalizeSidekickInviteEndpoint(endpointRaw);
+  if (!SIDEKICK_ROOM_ID_PATTERN.test(roomId)) {
     throw new SidekickInviteError('bad-room');
   }
-  if (typeof record['secret'] !== 'string'
-    || record['secret'].length === 0
-    || record['secret'].length > SIDEKICK_INVITE_SECRET_MAX) {
+  if (!secret || secret.length > SIDEKICK_INVITE_SECRET_MAX) {
     throw new SidekickInviteError('bad-secret');
   }
-  return {
-    endpoint,
-    roomId: record['roomId'],
-    secret: record['secret'],
-    title: normalizeInviteTitle(record['title'])
-  };
+  return { endpoint, roomId, secret, title: null };
 }
 
 export function buildSidekickInvitationPayload(invitation: SidekickInvitation): string {
-  const payload: Record<string, unknown> = {
-    v: SIDEKICK_INVITE_VERSION,
-    endpoint: normalizeSidekickInviteEndpoint(invitation.endpoint),
-    roomId: invitation.roomId,
-    secret: invitation.secret
-  };
+  const endpoint = normalizeSidekickInviteEndpoint(invitation.endpoint);
   if (!SIDEKICK_ROOM_ID_PATTERN.test(invitation.roomId)) throw new SidekickInviteError('bad-room');
   if (!invitation.secret || invitation.secret.length > SIDEKICK_INVITE_SECRET_MAX) {
     throw new SidekickInviteError('bad-secret');
   }
-  const title = normalizeInviteTitle(invitation.title);
-  if (title) payload['title'] = title;
-  const encoded = encodeBase64Url(new TextEncoder().encode(JSON.stringify(payload)));
-  if (encoded.length > SIDEKICK_INVITE_MAX_BYTES) throw new SidekickInviteError('too-large');
-  if (`#party=${encoded}`.length > SIDEKICK_INVITE_MAX_BYTES) {
+  // Validate the label even though invitations intentionally omit it. The
+  // connected peer supplies the authoritative name after admission.
+  normalizeInviteTitle(invitation.title);
+  const payload = `${endpoint}&code=${encodeURIComponent(`${invitation.roomId}.${invitation.secret}`)}`;
+  if (`#party=${payload}`.length > SIDEKICK_INVITE_MAX_BYTES) {
     throw new SidekickInviteError('too-large');
   }
-  return encoded;
+  return payload;
 }
 
 export function buildSidekickInviteLink(invitation: SidekickInvitation, origin?: string): string {
@@ -188,16 +145,34 @@ export function buildSidekickInviteLink(invitation: SidekickInvitation, origin?:
   return `${base}/#party=${buildSidekickInvitationPayload(invitation)}`;
 }
 
-const PARTY_HASH_PATTERN = /(?:^|[#?&])party=([^&#?]*)/;
+const PARTY_HASH_PATTERN = /(?:^|[#?&])party=/;
 
 /**
- * Returns the raw base64url payload embedded in a hash fragment, or null
+ * Returns the raw invitation payload embedded in a hash fragment, or null
  * when no party fragment is present. The value may be empty or malformed;
  * validation happens in `parseSidekickInvitation`.
  */
 export function parseSidekickInviteHash(hash: string): string | null {
   if (!hash.startsWith('#')) return null;
-  return PARTY_HASH_PATTERN.exec(hash)?.[1] ?? null;
+  const match = PARTY_HASH_PATTERN.exec(hash);
+  return match ? hash.slice(match.index + match[0].length) : null;
+}
+
+/** Parse a pasted full invitation URL or its fragment payload. */
+export function parseSidekickInviteText(value: string, defaultEndpoint = ''): SidekickInvitation {
+  const trimmed = value.trim();
+  if (!trimmed.includes('#') && !trimmed.startsWith('party=') && defaultEndpoint) {
+    return parseSidekickInvitation(
+      `${defaultEndpoint}&code=${encodeURIComponent(trimmed)}`
+    );
+  }
+  const hashIndex = trimmed.indexOf('#');
+  const hash = hashIndex >= 0 ? trimmed.slice(hashIndex) : trimmed.startsWith('party=')
+    ? `#${trimmed}`
+    : trimmed.startsWith('#') ? trimmed : `#party=${trimmed}`;
+  const raw = parseSidekickInviteHash(hash);
+  if (raw === null) throw new SidekickInviteError('bad-payload');
+  return parseSidekickInvitation(raw);
 }
 
 /**
@@ -246,7 +221,7 @@ export function describeSidekickEndpoint(endpoint: string): SidekickEndpointDisp
  */
 export function redactSidekickSecrets(text: string): string {
   return text
-    .replace(/#party=[A-Za-z0-9_-]+/g, '#party=[redacted]')
+    .replace(/#party=[^\s"']+/g, '#party=[redacted]')
     .replace(/("[\w]*[Ss]ecret"\s*:\s*")[^"]+(")/g, '$1[redacted]$2')
     .replace(/((?:invitation|owner)?[Ss]ecret\s*=\s*["']?)[A-Za-z0-9_.-]+(["']?)/g, '$1[redacted]$2');
 }

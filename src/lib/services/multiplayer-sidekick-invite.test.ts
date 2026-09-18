@@ -7,6 +7,7 @@ import {
   normalizeSidekickInviteEndpoint,
   parseSidekickInvitation,
   parseSidekickInviteHash,
+  parseSidekickInviteText,
   redactSidekickSecrets,
   SIDEKICK_INVITE_MAX_BYTES,
   SidekickInviteError
@@ -15,18 +16,11 @@ import {
 const ROOM = 'a'.repeat(32);
 const SECRET = 'invite-secret-1';
 
-function makePayload(overrides: Record<string, unknown> = {}): string {
-  const payload = {
-    v: 1,
-    endpoint: 'https://sidekick.example.com',
-    roomId: ROOM,
-    secret: SECRET,
-    ...overrides
-  };
-  const binary = new TextEncoder().encode(JSON.stringify(payload));
-  let raw = '';
-  for (const byte of binary) raw += String.fromCharCode(byte);
-  return btoa(raw).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+function makePayload(overrides: { endpoint?: string; roomId?: string; secret?: string } = {}): string {
+  const endpoint = overrides.endpoint ?? 'https://sidekick.example.com';
+  const roomId = overrides.roomId ?? ROOM;
+  const secret = overrides.secret ?? SECRET;
+  return `${endpoint}&code=${encodeURIComponent(`${roomId}.${secret}`)}`;
 }
 
 describe('sidekick invitations', () => {
@@ -45,7 +39,7 @@ describe('sidekick invitations', () => {
     });
   });
 
-  it('keeps titles and prefixed endpoints', () => {
+  it('keeps prefixed endpoints and omits unverified titles', () => {
     const raw = buildSidekickInvitationPayload({
       endpoint: 'https://example.com/party/',
       roomId: ROOM,
@@ -54,15 +48,27 @@ describe('sidekick invitations', () => {
     });
     const parsed = parseSidekickInvitation(raw);
     expect(parsed.endpoint).toBe('https://example.com/party');
-    expect(parsed.title).toBe('Friday tunes');
+    expect(parsed.title).toBeNull();
     const link = buildSidekickInviteLink(parsed, 'https://izci.example');
-    expect(link.startsWith('https://izci.example/#party=')).toBe(true);
+    expect(link).toContain('#party=https://example.com/party&code=');
+  });
+
+  it('accepts a bare invite code with the configured sidekick URL', () => {
+    expect(parseSidekickInviteText(`${ROOM}.${SECRET}`, 'https://sidekick.example.com')).toEqual({
+      endpoint: 'https://sidekick.example.com',
+      roomId: ROOM,
+      secret: SECRET,
+      title: null
+    });
   });
 
   it('rejects oversized invitations and long titles', () => {
-    expect(() => parseSidekickInvitation(makePayload({ title: 'x'.repeat(121) }))).toThrowError(
-      SidekickInviteError
-    );
+    expect(() => buildSidekickInvitationPayload({
+      endpoint: 'https://sidekick.example.com',
+      roomId: ROOM,
+      secret: SECRET,
+      title: 'x'.repeat(121)
+    })).toThrowError(SidekickInviteError);
     expect(() => parseSidekickInvitation('A'.repeat(SIDEKICK_INVITE_MAX_BYTES + 1))).toThrowError(
       expect.objectContaining({ code: 'too-large' })
     );
@@ -76,23 +82,20 @@ describe('sidekick invitations', () => {
     ).toThrowError(expect.objectContaining({ code: 'bad-secret' }));
   });
 
-  it('rejects bad versions, rooms, secrets, and payload shapes', () => {
-    expect(() => parseSidekickInvitation(makePayload({ v: 2 }))).toThrowError(
-      expect.objectContaining({ code: 'bad-version' })
-    );
+  it('rejects bad rooms, secrets, and payload shapes', () => {
     expect(() => parseSidekickInvitation(makePayload({ roomId: 'nope' }))).toThrowError(
       expect.objectContaining({ code: 'bad-room' })
     );
     expect(() => parseSidekickInvitation(makePayload({ secret: '' }))).toThrowError(
       expect.objectContaining({ code: 'bad-secret' })
     );
-    expect(() => parseSidekickInvitation(makePayload({ extra: 1 }))).toThrowError(
+    expect(() => parseSidekickInvitation(`${makePayload()}&extra=1`)).toThrowError(
       expect.objectContaining({ code: 'bad-payload' })
     );
     expect(() => parseSidekickInvitation('!!!')).toThrowError(
       expect.objectContaining({ code: 'bad-encoding' })
     );
-    expect(() => parseSidekickInvitation(makePayload({ endpoint: 42 }))).toThrowError(
+    expect(() => parseSidekickInvitation(makePayload({ endpoint: 'nope' }))).toThrowError(
       expect.objectContaining({ code: 'bad-endpoint' })
     );
   });

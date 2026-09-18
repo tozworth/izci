@@ -226,6 +226,27 @@ describe('sidekick setup controller', () => {
     expect(connector.calls).toEqual(['host', 'rotate', 'stop']);
   });
 
+  it('hosts immediately from the endpoint and operator key saved in Options', async () => {
+    const network = stubNetwork();
+    const connector = stubConnector();
+    const controller = createSidekickSetupController(network);
+    controller.setSessionConnector(connector);
+    controller.setServerInput('https://sidekick.example.com');
+    await controller.connectServer();
+    await controller.login(HOST_KEY);
+    await controller.logout();
+    network.calls.length = 0;
+
+    await controller.hostConfigured();
+
+    expect(network.calls).toEqual([
+      'info:https://sidekick.example.com',
+      'login:https://sidekick.example.com'
+    ]);
+    expect(connector.calls).toEqual(['host']);
+    expect(controller.getSnapshot().dialogOpen).toBe(false);
+  });
+
   it('treats an expired login as a user action, not a retry', async () => {
     const network = stubNetwork();
     const connector = stubConnector();

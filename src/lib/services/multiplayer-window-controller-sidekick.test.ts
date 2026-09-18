@@ -98,12 +98,13 @@ function deps(overrides: {
 }
 
 afterEach(() => {
+  vi.restoreAllMocks();
   sidekickSetup.dismissPending();
   sidekickSetup.closeSetup();
   delete (globalThis as Record<string, unknown>)['window'];
 });
 
-function stubWindow(hash: string): { prompted: string[] } {
+function stubWindow(hash: string, promptAnswer: string | null = null): { prompted: string[] } {
   const prompted: string[] = [];
   const listeners: Record<string, () => void> = {};
   (globalThis as Record<string, unknown>)['window'] = {
@@ -116,7 +117,7 @@ function stubWindow(hash: string): { prompted: string[] } {
     },
     prompt: (message: string) => {
       prompted.push(message);
-      return null;
+      return promptAnswer;
     },
     addEventListener: (event: string, listener: () => void) => {
       listeners[event] = listener;
@@ -147,19 +148,28 @@ describe('multiplayer window controller sidekick routing', () => {
     expect(session.startHosting).toHaveBeenCalled();
   });
 
-  it('routes menu host/join to the sidekick setup, not the RTDB flow', async () => {
-    const { prompted } = stubWindow('');
+  it('runs sidekick commands directly instead of opening the setup surface', async () => {
+    const raw = buildSidekickInvitationPayload({
+      endpoint: 'https://sidekick.example.com',
+      roomId: ROOM,
+      secret: 'invite-secret-7',
+      title: null
+    });
+    const { prompted } = stubWindow('', `https://izci.example/#party=${raw}`);
+    const hostConfigured = vi.spyOn(sidekickSetup, 'hostConfigured').mockResolvedValueOnce();
+    const joinInvitation = vi.spyOn(sidekickSetup, 'joinInvitation').mockResolvedValueOnce();
     const { session, controller } = deps({
       multiplayerSettings: settings({ multiplayerTransport: 'sidekick' })
     });
     await controller.host();
+    expect(hostConfigured).toHaveBeenCalledOnce();
     expect(session.startHosting).not.toHaveBeenCalled();
-    expect(sidekickSetup.getSnapshot().dialogOpen).toBe(true);
-    sidekickSetup.closeSetup();
+    expect(sidekickSetup.getSnapshot().dialogOpen).toBe(false);
     await controller.joinWithPrompt();
-    expect(prompted).toEqual([]);
+    expect(prompted).toEqual(['main.multiplayer.sidekick.enterInvite']);
     expect(session.join).not.toHaveBeenCalled();
-    expect(sidekickSetup.getSnapshot().dialogOpen).toBe(true);
+    expect(joinInvitation).toHaveBeenCalledWith(expect.objectContaining({ roomId: ROOM }));
+    expect(sidekickSetup.getSnapshot().dialogOpen).toBe(false);
   });
 
   it('captures party deep links without network traffic or auto-join', async () => {
