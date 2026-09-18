@@ -103,9 +103,11 @@ candidates, or request bodies.
 
 Pairing is browser-local: each browser keeps a stable random identity and
 a per-pair secret exchanged over RTC when the host chooses Pair
-(`izci.multiplayer-sidekick-pairings` in local storage; operator keys and
-login bearers are never persisted). Reconnecting guests prove possession
-with HMAC-SHA-256 over `roomId`, both identities, and fresh nonces from
+(`izci.multiplayer-sidekick-pairings` in local storage; login bearers are
+never persisted). An operator key can be remembered per server on the local
+device when the host enables that option; it is excluded from izci backups.
+Reconnects prove possession with HMAC-SHA-256 over `roomId`, both
+identities, and fresh nonces from
 both peers; stale nonces and wrong-peer proofs fail, and paired
 privileges (including Freeplay) stay disabled until hello and proof
 finish. Pairing restores app privileges after invitation admission only:

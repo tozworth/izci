@@ -7,10 +7,15 @@ import {
 } from './multiplayer-sidekick-setup';
 import { multiplayerSettings } from '$lib/stores/multiplayer-settings';
 import { sidekickRecents, sidekickServers } from '$lib/stores/multiplayer-sidekick-recents';
+import {
+  getRememberedSidekickHostKey,
+  sidekickHostKeys
+} from '$lib/stores/multiplayer-sidekick-host-keys';
 import { buildSidekickInvitationPayload } from './multiplayer-sidekick-invite';
 import { SidekickError } from './multiplayer-sidekick-http';
 
 const ROOM = 'c'.repeat(32);
+const HOST_KEY = 'a'.repeat(64);
 
 function invitation() {
   return {
@@ -99,6 +104,7 @@ function stubConnector(): SidekickSessionConnector & { calls: string[]; joined: 
 beforeEach(() => {
   sidekickRecents.set([]);
   sidekickServers.set([]);
+  sidekickHostKeys.set([]);
   multiplayerSettings.update({
     multiplayerSidekickEndpoint: '',
     multiplayerSidekickLabel: '',
@@ -146,22 +152,49 @@ describe('sidekick setup controller', () => {
     expect(network.calls).toEqual([]);
   });
 
-  it('keeps operator keys and bearers in memory only', async () => {
+  it('remembers operator keys per server but never persists login bearers', async () => {
     const network = stubNetwork();
+    let receivedKey = '';
+    network.createSession = async (_endpoint, hostKey) => {
+      receivedKey = hostKey;
+      return { sessionToken: 'bearer-1', expiresAt: '2030-01-01T00:00:00Z' };
+    };
     const controller = createSidekickSetupController(network);
     controller.setServerInput('https://sidekick.example.com');
     await controller.connectServer();
-    await controller.login('operator-key-abc');
+    await controller.login(HOST_KEY);
     expect(controller.getSnapshot().hasLogin).toBe(true);
+    expect(controller.getSnapshot().hasSavedHostKey).toBe(true);
     expect(controller.getLoginTokenForTest()).toBe('bearer-1');
+    expect(getRememberedSidekickHostKey('https://sidekick.example.com')).toBe(HOST_KEY);
     const persisted = JSON.stringify(multiplayerSettings.getSnapshot())
       + JSON.stringify(sidekickRecents.getSnapshot())
-      + JSON.stringify(sidekickServers.getSnapshot());
-    expect(persisted).not.toContain('operator-key-abc');
+      + JSON.stringify(sidekickServers.getSnapshot())
+      + JSON.stringify(sidekickHostKeys.getSnapshot());
     expect(persisted).not.toContain('bearer-1');
     await controller.logout();
     expect(controller.getLoginTokenForTest()).toBeNull();
     expect(network.calls).toContain('logout:https://sidekick.example.com');
+
+    const nextController = createSidekickSetupController(network);
+    nextController.setServerInput('https://sidekick.example.com');
+    await nextController.connectServer();
+    expect(nextController.getSnapshot().hasSavedHostKey).toBe(true);
+    receivedKey = '';
+    await nextController.login('');
+    expect(receivedKey).toBe(HOST_KEY);
+  });
+
+  it('forgets a saved operator key when its remember toggle is disabled', async () => {
+    const network = stubNetwork();
+    const controller = createSidekickSetupController(network);
+    controller.setServerInput('https://sidekick.example.com');
+    await controller.connectServer();
+    await controller.login(HOST_KEY);
+    expect(getRememberedSidekickHostKey('https://sidekick.example.com')).toBe(HOST_KEY);
+    controller.setRememberHostKey(false);
+    expect(getRememberedSidekickHostKey('https://sidekick.example.com')).toBeNull();
+    expect(controller.getSnapshot().hasSavedHostKey).toBe(false);
   });
 
   it('hosts through the session connector and hands over the bearer', async () => {

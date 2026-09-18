@@ -46,7 +46,7 @@
   }
 
   async function login(): Promise<void> {
-    if (!hostKey.trim()) return;
+    if (!hostKey.trim() && !setup.hasSavedHostKey) return;
     const key = hostKey;
     hostKey = '';
     await sidekickSetup.login(key).catch(() => undefined);
@@ -253,6 +253,9 @@
               id="sidekick-host-key"
               type="password"
               autocomplete="off"
+              placeholder={setup.hasSavedHostKey
+                ? $t('options.multiplayer.sidekick.savedKeyPlaceholder', { default: 'Saved on this device' })
+                : ''}
               value={hostKey}
               disabled={setup.busy !== null}
               on:input={(event) => (hostKey = event.currentTarget.value)}
@@ -260,10 +263,18 @@
                 if (event.key === 'Enter') void login();
               }}
             />
-            <button type="button" disabled={setup.busy !== null || !hostKey.trim()} on:click={login}>
+            <button type="button" disabled={setup.busy !== null || (!hostKey.trim() && !setup.hasSavedHostKey)} on:click={login}>
               {$t('options.multiplayer.sidekick.login', { default: 'Log in' })}
             </button>
           </div>
+          <label class="check">
+            <input
+              type="checkbox"
+              checked={setup.rememberHostKey}
+              on:change={(event) => sidekickSetup.setRememberHostKey(event.currentTarget.checked)}
+            />
+            {$t('options.multiplayer.sidekick.rememberKey', { default: 'Remember operator key on this device' })}
+          </label>
           <p class="hint">{$t('options.multiplayer.sidekick.keyHint', { default: '' })}</p>
         {/if}
         {#if setup.error}
