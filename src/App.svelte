@@ -999,6 +999,18 @@
     canMutateQueue={!isMultiplayerClient || isFreeplayClient}
     canReorderQueue={!isMultiplayerClient}
     playbackError={playbackStatus.error ? localizePlaybackError(playbackStatus.error, translate) : null}
+    multiplayer={{
+      enabled: $multiplayerSettings.multiplayer,
+      session: multiplayerState,
+      pairings: $multiplayerPairings,
+      recents: $multiplayerRecents
+    }}
+    onMultiplayerHost={() => void multiplayerController.host()}
+    onMultiplayerStopHosting={() => { closeChatTab(); void multiplayerSession.stopHosting(); }}
+    onMultiplayerJoin={() => void multiplayerController.joinWithPrompt()}
+    onMultiplayerLeave={() => { closeChatTab(); void multiplayerSession.leave(); }}
+    onMultiplayerJoinPaired={(hostId) => void multiplayerController.joinPaired(hostId)}
+    onMultiplayerJoinRecent={(inviteCode) => void multiplayerController.join(inviteCode)}
     media={{
       videoElement: $mediaElementsStore.video,
       imageElement: $mediaElementsStore.image,

@@ -9,6 +9,9 @@
 import { countLibraryGroups } from '$lib/components/track-list-panel/library-views';
 import type { TrackItem } from '$lib/types';
 import type { OdaRoute } from '$lib/services/oda-session';
+import type { MultiplayerSessionState } from '$lib/services/multiplayer-types';
+import type { MultiplayerPairing } from '$lib/stores/multiplayer-pairings';
+import type { MultiplayerRecent } from '$lib/stores/multiplayer-recents';
 
 export function isOdaMusicTrack(track: TrackItem): boolean {
   return track.kind === 'stream' || track.kind === 'module';
@@ -80,18 +83,40 @@ export function resolveNowPlayingRoute(_track: TrackItem | null): OdaRoute {
   return { name: 'now-playing' };
 }
 
-export type OdaCardCommand = 'exit-oda';
+export type OdaCardCommand =
+  | 'exit-oda'
+  | 'multiplayer-host'
+  | 'multiplayer-stop-hosting'
+  | 'multiplayer-join'
+  | 'multiplayer-leave'
+  | 'multiplayer-join-paired'
+  | 'multiplayer-join-recent';
 
 export interface OdaCardModel {
   /** Stable logical focus ID. */
   id: string;
   labelKey: string;
   labelFallback: string;
+  /** Literal label for user-provided names. */
+  label?: string;
   count?: number;
   route?: OdaRoute;
   command?: OdaCardCommand;
+  commandValue?: string;
+  /** Optional live status shown below the card label. */
+  meta?: string;
+  metaKey?: string;
+  metaFallback?: string;
+  metaValues?: Record<string, string | number>;
   /** Destination currently has no items; still focusable with an empty state. */
   empty?: boolean;
+}
+
+export interface OdaMultiplayerHomeState {
+  enabled: boolean;
+  session: MultiplayerSessionState;
+  pairings: readonly MultiplayerPairing[];
+  recents: readonly MultiplayerRecent[];
 }
 
 export interface OdaHomeSectionModel {
@@ -118,8 +143,11 @@ function musicCard(
   };
 }
 
-export function buildOdaHomeSections(counts: OdaMediaCounts): OdaHomeSectionModel[] {
-  return [
+export function buildOdaHomeSections(
+  counts: OdaMediaCounts,
+  multiplayer?: OdaMultiplayerHomeState
+): OdaHomeSectionModel[] {
+  const sections: OdaHomeSectionModel[] = [
     {
       id: 'images',
       labelKey: 'oda.home.images',
@@ -198,6 +226,75 @@ export function buildOdaHomeSections(counts: OdaMediaCounts): OdaHomeSectionMode
         route: { name: 'recents' }
       }]
     },
+  ];
+
+  if (multiplayer?.enabled) {
+    const { session, pairings, recents } = multiplayer;
+    const connectedClients = session.clients.filter((client) => client.status === 'connected').length;
+    sections.push({
+      id: 'multiplayer',
+      labelKey: 'oda.home.multiplayer',
+      labelFallback: 'Multiplayer',
+      cards: [
+        {
+          id: 'multiplayer-host',
+          labelKey: session.mode === 'hosting'
+            ? 'oda.cards.stopHosting'
+            : 'oda.cards.host',
+          labelFallback: session.mode === 'hosting' ? 'Stop hosting' : 'Host',
+          command: session.mode === 'hosting'
+            ? 'multiplayer-stop-hosting'
+            : 'multiplayer-host',
+          metaKey: session.mode === 'hosting'
+            ? session.inviteCode
+              ? 'oda.multiplayer.hostStatus'
+              : 'oda.multiplayer.clientCount'
+            : undefined,
+          metaFallback: session.mode === 'hosting'
+            ? session.inviteCode
+              ? '{code} · {count, plural, one {# client} other {# clients}}'
+              : '{count, plural, one {# client} other {# clients}}'
+            : undefined,
+          metaValues: session.mode === 'hosting'
+            ? { code: session.inviteCode ?? '', count: connectedClients }
+            : undefined
+        },
+        {
+          id: 'multiplayer-join',
+          labelKey: session.mode === 'client'
+            ? 'oda.cards.leave'
+            : 'oda.cards.join',
+          labelFallback: session.mode === 'client' ? 'Leave' : 'Join',
+          command: session.mode === 'client'
+            ? 'multiplayer-leave'
+            : 'multiplayer-join',
+          meta: session.mode === 'client' ? session.hostName ?? undefined : undefined
+        },
+        ...pairings.map((pairing): OdaCardModel => ({
+          id: `multiplayer-paired-${pairing.hostId}`,
+          labelKey: 'oda.cards.pairedHost',
+          labelFallback: 'Paired host',
+          label: pairing.name,
+          command: 'multiplayer-join-paired',
+          commandValue: pairing.hostId,
+          metaKey: 'oda.cards.pairedHost',
+          metaFallback: 'Paired host'
+        })),
+        ...recents.map((recent): OdaCardModel => ({
+          id: `multiplayer-recent-${recent.inviteCode}`,
+          labelKey: 'oda.cards.recentHost',
+          labelFallback: 'Recent host',
+          label: recent.name,
+          command: 'multiplayer-join-recent',
+          commandValue: recent.inviteCode,
+          metaKey: 'oda.cards.recentHost',
+          metaFallback: 'Recent host'
+        }))
+      ]
+    });
+  }
+
+  sections.push(
     {
       id: 'options',
       labelKey: 'oda.home.options',
@@ -217,5 +314,7 @@ export function buildOdaHomeSections(counts: OdaMediaCounts): OdaHomeSectionMode
         }
       ]
     }
-  ];
+  );
+
+  return sections;
 }

@@ -29,6 +29,7 @@
     selectOdaRecents,
     selectOdaVideos
   } from './oda-destinations';
+  import type { OdaMultiplayerHomeState } from './oda-destinations';
   import {
     odaBrowserFilterFromFocusId,
     odaBrowserLayoutFromFocusId,
@@ -97,6 +98,13 @@
   export let commands: OdaCommands;
   export let screensaverActive = false;
   export let screensaverActivityToken = 0;
+  export let multiplayer: OdaMultiplayerHomeState | null = null;
+  export let onMultiplayerHost: () => void = () => {};
+  export let onMultiplayerStopHosting: () => void = () => {};
+  export let onMultiplayerJoin: () => void = () => {};
+  export let onMultiplayerLeave: () => void = () => {};
+  export let onMultiplayerJoinPaired: (hostId: string) => void = () => {};
+  export let onMultiplayerJoinRecent: (inviteCode: string) => void = () => {};
 
   let screensaverIdleTimer: ReturnType<typeof setTimeout> | null = null;
   let screensaverMounted = false;
@@ -147,7 +155,7 @@
   });
 
   $: counts = resolveOdaMediaCounts(libraryItems);
-  $: homeSections = buildOdaHomeSections(counts);
+  $: homeSections = buildOdaHomeSections(counts, multiplayer ?? undefined);
   $: homeWaterfallSections = homeSections.map((section): OdaWaterfallSection => ({
     id: section.id,
     cardIds: section.cards.map((card) => card.id)
@@ -372,9 +380,18 @@
   }
 
   function activateHomeCard(card: OdaCardModel): void {
-    if (card.command === 'exit-oda') {
-      commands.exitOda();
-      return;
+    switch (card.command) {
+      case 'exit-oda': commands.exitOda(); return;
+      case 'multiplayer-host': onMultiplayerHost(); return;
+      case 'multiplayer-stop-hosting': onMultiplayerStopHosting(); return;
+      case 'multiplayer-join': onMultiplayerJoin(); return;
+      case 'multiplayer-leave': onMultiplayerLeave(); return;
+      case 'multiplayer-join-paired':
+        if (card.commandValue) onMultiplayerJoinPaired(card.commandValue);
+        return;
+      case 'multiplayer-join-recent':
+        if (card.commandValue) onMultiplayerJoinRecent(card.commandValue);
+        return;
     }
     if (card.id === 'now-playing') {
       session.push(resolveNowPlayingRoute(playingTrack));

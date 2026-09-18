@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { TrackItem, TrackKind } from '$lib/types';
+import { EMPTY_CATALOG, EMPTY_DELIVERY, EMPTY_REMOTE_PLAYBACK } from '$lib/services/multiplayer-types';
+import type { MultiplayerSessionState } from '$lib/services/multiplayer-types';
 import {
   buildOdaHomeSections,
   resolveNowPlayingRoute,
@@ -111,6 +113,66 @@ describe('buildOdaHomeSections', () => {
     const images = sections[0].cards[0];
     expect(images.empty).toBe(true);
     expect(images.route).toEqual({ name: 'browse', medium: 'image', view: 'songs' });
+  });
+
+  it('inserts live multiplayer actions before Options in the requested order', () => {
+    const session: MultiplayerSessionState = {
+      mode: 'hosting',
+      connectionStatus: 'connected',
+      reconnecting: false,
+      inviteCode: 'abcd1234',
+      hostName: null,
+      hostMotd: '',
+      hostVersion: null,
+      freeplayPaired: false,
+      freeplay: false,
+      freeplayQueue: [],
+      clients: [{
+        id: 'client-1',
+        name: 'Living room',
+        platform: 'test',
+        status: 'connected',
+        paired: false,
+        freeplayPaired: false,
+        freeplay: false,
+        freeplayTrack: null,
+        freeplayPlaybackState: 'idle',
+        freeplayArtworkUrl: null
+      }],
+      remoteCatalog: EMPTY_CATALOG,
+      remotePlayback: EMPTY_REMOTE_PLAYBACK,
+      remoteArtwork: null,
+      remoteArtworkResolvedTrackKey: '',
+      audioStatus: 'idle',
+      remoteDelivery: EMPTY_DELIVERY,
+      connectionRoute: null,
+      sidekickSignaling: null,
+      sidekickHostAuth: null,
+      averageAudioBitrateKbps: null,
+      receiveAudio: true,
+      connectionStats: null,
+      connectionDetail: null,
+      message: null
+    };
+    const sections = buildOdaHomeSections(resolveOdaMediaCounts([]), {
+      enabled: true,
+      session,
+      pairings: [{ hostId: 'paired-1', name: 'Bedroom', freeplay: false }],
+      recents: [{ inviteCode: 'wxyz9876', name: 'Kitchen' }]
+    });
+
+    expect(sections.at(-2)?.id).toBe('multiplayer');
+    expect(sections.at(-1)?.id).toBe('options');
+    expect(sections.at(-2)?.cards.map((card) => card.id)).toEqual([
+      'multiplayer-host',
+      'multiplayer-join',
+      'multiplayer-paired-paired-1',
+      'multiplayer-recent-wxyz9876'
+    ]);
+    expect(sections.at(-2)?.cards[0]).toMatchObject({
+      command: 'multiplayer-stop-hosting',
+      metaValues: { code: 'abcd1234', count: 1 }
+    });
   });
 });
 
