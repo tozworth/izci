@@ -316,6 +316,8 @@
     onFocusChange: (focusId) => odaSession.setFocus(focusId)
   });
   let odaTranslate: OdaTranslate = createOdaTranslate();
+  let odaScreensaverActive = false;
+  let odaScreensaverActivityToken = 0;
   $: odaTranslate = ($appLocale, createOdaTranslate());
 
   $: workspaceContent = {
@@ -826,6 +828,12 @@
 
   function handleWindowKeydown(event: KeyboardEvent): void {
     if (odaSessionSnapshot.active) {
+      odaScreensaverActivityToken += 1;
+      if (odaScreensaverActive) {
+        odaScreensaverActive = false;
+        event.preventDefault();
+        return;
+      }
       if (odaFocus.handleKeydown(event)) event.preventDefault();
       return;
     }
@@ -865,6 +873,7 @@
     resetZoom: () => videoActions.resetZoom(),
     rotateImage: () => videoActions.rotateImage(),
     exitOda: () => {
+      odaScreensaverActive = false;
       unlockOdaEscapeKey();
       odaFocus.endRepeat();
       odaFocus.setModel(null);
@@ -952,6 +961,8 @@
 
 {#if odaSessionSnapshot.active}
   <OdaShell
+    bind:screensaverActive={odaScreensaverActive}
+    screensaverActivityToken={odaScreensaverActivityToken}
     session={odaSession}
     sessionState={odaSessionSnapshot}
     focus={odaFocus}

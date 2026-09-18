@@ -1548,6 +1548,18 @@
         "title": "Arka plan opaklığı",
         "hint": "Özel arka plan görselinin ne kadar opak olacağı."
       },
+      "screensaver": {
+        "off": "Kapalı",
+        "minutes": "{minutes} dk",
+        "delay": {
+          "title": "Ekran koruyucu",
+          "hint": "Bu kadar boşta kalma süresinden sonra Oda ekran koruyucusunu başlatır. Kitaplıktaki görselleri karıştırır; görsel yoksa tema renklerini kullanır."
+        },
+        "move": {
+          "title": "Ekran koruyucu metnini taşı",
+          "hint": "Yanmayı azaltmak için saat ve Şimdi Çalıyor metninin ne sıklıkla solup yeni konumlarda belireceği."
+        }
+      },
       "input": {
         "heading": "Giriş"
       },

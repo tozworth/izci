@@ -12,6 +12,10 @@
     ODA_HOLD_BACK_THRESHOLD_MIN_MS,
     ODA_OVERSCAN_MAX_PERCENT,
     ODA_OVERSCAN_MIN_PERCENT,
+    ODA_SCREENSAVER_DELAY_MAX_MINUTES,
+    ODA_SCREENSAVER_DELAY_MIN_MINUTES,
+    ODA_SCREENSAVER_MOVE_MAX_MINUTES,
+    ODA_SCREENSAVER_MOVE_MIN_MINUTES,
     odaSettings
   } from '$lib/stores/oda-settings';
   import { readOdaBackgroundImage } from '$lib/services/oda-background';
@@ -63,6 +67,21 @@
     odaSettings.update({
       odaBackgroundOpacity: (event.currentTarget as HTMLInputElement).valueAsNumber
     });
+  }
+  function handleScreensaverDelayChange(event: Event) {
+    odaSettings.update({
+      odaScreensaverDelayMinutes: (event.currentTarget as HTMLInputElement).valueAsNumber
+    });
+  }
+  function handleScreensaverMoveIntervalChange(event: Event) {
+    odaSettings.update({
+      odaScreensaverMoveIntervalMinutes: (event.currentTarget as HTMLInputElement).valueAsNumber
+    });
+  }
+  function minutesLabel(value: number): string {
+    return value === 0
+      ? $t('options.oda.screensaver.off', { default: 'Off' })
+      : $t('options.oda.screensaver.minutes', { default: '{minutes} min', values: { minutes: value } });
   }
   function backgroundActionLabel(value: OdaBackground): string {
     return value === 'custom'
@@ -217,6 +236,37 @@
           <span class="field-output">{$odaSettings.odaBackgroundOpacity}%</span>
         </SettingsField>
       {/if}
+
+      <SettingsField
+        title={$t('options.oda.screensaver.delay.title', { default: 'Screensaver' })}
+        hint={$t('options.oda.screensaver.delay.hint', { default: 'Starts the Oda screensaver after this much idle time. It shuffles library images and falls back to theme colors.' })}
+      >
+        <input
+          type="range"
+          min={ODA_SCREENSAVER_DELAY_MIN_MINUTES}
+          max={ODA_SCREENSAVER_DELAY_MAX_MINUTES}
+          step="1"
+          value={$odaSettings.odaScreensaverDelayMinutes}
+          on:input={handleScreensaverDelayChange}
+        />
+        <span class="field-output">{minutesLabel($odaSettings.odaScreensaverDelayMinutes)}</span>
+      </SettingsField>
+
+      <SettingsField
+        title={$t('options.oda.screensaver.move.title', { default: 'Move screensaver text' })}
+        hint={$t('options.oda.screensaver.move.hint', { default: 'How often the clock and Now Playing text fade into new positions to reduce burn-in.' })}
+        advanced
+      >
+        <input
+          type="range"
+          min={ODA_SCREENSAVER_MOVE_MIN_MINUTES}
+          max={ODA_SCREENSAVER_MOVE_MAX_MINUTES}
+          step="1"
+          value={$odaSettings.odaScreensaverMoveIntervalMinutes}
+          on:input={handleScreensaverMoveIntervalChange}
+        />
+        <span class="field-output">{minutesLabel($odaSettings.odaScreensaverMoveIntervalMinutes)}</span>
+      </SettingsField>
     </div>
   </div>
 

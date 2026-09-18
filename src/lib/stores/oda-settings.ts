@@ -24,6 +24,10 @@ export const ODA_HOLD_BACK_THRESHOLD_MAX_MS = 2_000;
 
 export const ODA_BACKGROUND_OPACITY_MIN_PERCENT = 0;
 export const ODA_BACKGROUND_OPACITY_MAX_PERCENT = 100;
+export const ODA_SCREENSAVER_DELAY_MIN_MINUTES = 0;
+export const ODA_SCREENSAVER_DELAY_MAX_MINUTES = 60;
+export const ODA_SCREENSAVER_MOVE_MIN_MINUTES = 0;
+export const ODA_SCREENSAVER_MOVE_MAX_MINUTES = 60;
 export const ODA_BROWSER_ZOOM_MIN = 0;
 export const ODA_BROWSER_ZOOM_MAX = 4;
 
@@ -52,6 +56,8 @@ export const DEFAULT_ODA_SETTINGS: OdaSettings = {
   odaBackground: 'none',
   odaBackgroundImage: null,
   odaBackgroundOpacity: 50,
+  odaScreensaverDelayMinutes: 0,
+  odaScreensaverMoveIntervalMinutes: 10,
   odaArrowRepeatInitialDelayMs: 450,
   odaArrowRepeatIntervalMs: 130,
   odaHoldBackAction: 'none',
@@ -161,6 +167,18 @@ export function normalizeOdaSettings(value: unknown): OdaSettings {
     odaBackground: normalizeBackground(source.odaBackground),
     odaBackgroundImage: normalizeBackgroundImage(source.odaBackgroundImage),
     odaBackgroundOpacity: normalizeBackgroundOpacity(source.odaBackgroundOpacity),
+    odaScreensaverDelayMinutes: Math.round(normalizeBoundedNumber(
+      source.odaScreensaverDelayMinutes,
+      DEFAULT_ODA_SETTINGS.odaScreensaverDelayMinutes,
+      ODA_SCREENSAVER_DELAY_MIN_MINUTES,
+      ODA_SCREENSAVER_DELAY_MAX_MINUTES
+    )),
+    odaScreensaverMoveIntervalMinutes: Math.round(normalizeBoundedNumber(
+      source.odaScreensaverMoveIntervalMinutes,
+      DEFAULT_ODA_SETTINGS.odaScreensaverMoveIntervalMinutes,
+      ODA_SCREENSAVER_MOVE_MIN_MINUTES,
+      ODA_SCREENSAVER_MOVE_MAX_MINUTES
+    )),
     odaArrowRepeatInitialDelayMs: normalizeDurationMs(
       source.odaArrowRepeatInitialDelayMs,
       DEFAULT_ODA_SETTINGS.odaArrowRepeatInitialDelayMs,

@@ -9,6 +9,10 @@ import {
   ODA_HOLD_BACK_THRESHOLD_MIN_MS,
   ODA_OVERSCAN_MAX_PERCENT,
   ODA_OVERSCAN_MIN_PERCENT,
+  ODA_SCREENSAVER_DELAY_MAX_MINUTES,
+  ODA_SCREENSAVER_DELAY_MIN_MINUTES,
+  ODA_SCREENSAVER_MOVE_MAX_MINUTES,
+  ODA_SCREENSAVER_MOVE_MIN_MINUTES,
   normalizeOdaSettings
 } from './oda-settings';
 
@@ -31,7 +35,9 @@ describe('normalizeOdaSettings', () => {
       odaHoldBackThresholdMs: 1_200,
       odaBackground: 'custom',
       odaBackgroundImage: 'data:image/jpeg;base64,/9j/',
-      odaBackgroundOpacity: 65
+      odaBackgroundOpacity: 65,
+      odaScreensaverDelayMinutes: 15,
+      odaScreensaverMoveIntervalMinutes: 30
     })).toEqual({
       odaLayout: 'waterfall',
       odaEnterFullscreen: false,
@@ -49,7 +55,9 @@ describe('normalizeOdaSettings', () => {
       odaHoldBackThresholdMs: 1_200,
       odaBackground: 'custom',
       odaBackgroundImage: 'data:image/jpeg;base64,/9j/',
-      odaBackgroundOpacity: 65
+      odaBackgroundOpacity: 65,
+      odaScreensaverDelayMinutes: 15,
+      odaScreensaverMoveIntervalMinutes: 30
     });
   });
 
@@ -84,6 +92,14 @@ describe('normalizeOdaSettings', () => {
       .toBe(ODA_BACKGROUND_OPACITY_MIN_PERCENT);
     expect(normalizeOdaSettings({ odaBackgroundOpacity: 250 }).odaBackgroundOpacity)
       .toBe(ODA_BACKGROUND_OPACITY_MAX_PERCENT);
+    expect(normalizeOdaSettings({ odaScreensaverDelayMinutes: -1 }).odaScreensaverDelayMinutes)
+      .toBe(ODA_SCREENSAVER_DELAY_MIN_MINUTES);
+    expect(normalizeOdaSettings({ odaScreensaverDelayMinutes: 90 }).odaScreensaverDelayMinutes)
+      .toBe(ODA_SCREENSAVER_DELAY_MAX_MINUTES);
+    expect(normalizeOdaSettings({ odaScreensaverMoveIntervalMinutes: -1 }).odaScreensaverMoveIntervalMinutes)
+      .toBe(ODA_SCREENSAVER_MOVE_MIN_MINUTES);
+    expect(normalizeOdaSettings({ odaScreensaverMoveIntervalMinutes: 90 }).odaScreensaverMoveIntervalMinutes)
+      .toBe(ODA_SCREENSAVER_MOVE_MAX_MINUTES);
     expect(normalizeOdaSettings({
       odaBrowserZoomLevels: {
         music: { list: -5, grid: 99, gallery: 2 }

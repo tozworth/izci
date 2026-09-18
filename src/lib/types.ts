@@ -726,6 +726,10 @@ export interface OdaSettings {
   odaBackgroundImage: string | null;
   /** Custom background opacity in percent. */
   odaBackgroundOpacity: number;
+  /** Idle time before the Oda screensaver starts. Zero disables it. */
+  odaScreensaverDelayMinutes: number;
+  /** Interval between burn-in-safe text relocations. Zero keeps text stationary. */
+  odaScreensaverMoveIntervalMinutes: number;
   odaArrowRepeatInitialDelayMs: number;
   odaArrowRepeatIntervalMs: number;
   odaHoldBackAction: OdaHoldBackAction;
