@@ -288,9 +288,8 @@ interface VideoTheaterPresentation {
  *
  * When Window Controls Overlay is visible the menubar's rendered height can
  * exceed the overlay rect (its CSS min-height wins over a short overlay),
- * so the inset is the lower of the overlay bottom and the measured menubar
- * bottom (menubar height plus the app-shell safe-top padding). Otherwise
- * the theater would slide under the menubar and clip.
+ * so the inset is the lower edge of either the overlay or the measured
+ * menubar. Otherwise the theater would slide under the menubar and clip.
  */
 export function resolveVideoTheaterPresentation(
   videoTrackActive: boolean,
@@ -305,8 +304,7 @@ export function resolveVideoTheaterPresentation(
     0,
     windowControlsOverlay.titlebarAreaRect.y + windowControlsOverlay.titlebarAreaRect.height
   );
-  // Matches `--window-frame-safe-top` (app-shell padding-top when WCO active).
-  const measuredBottom = topMenuBarHeight + (windowControlsOverlay.visible ? 1 : 0);
+  const measuredBottom = topMenuBarHeight;
   const chromeInset = windowControlsOverlay.visible
     ? Math.max(overlayBottom, measuredBottom)
     : topMenuBarHeight;

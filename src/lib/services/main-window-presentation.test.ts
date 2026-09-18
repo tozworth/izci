@@ -408,9 +408,9 @@ describe('resolveVideoTheaterPresentation', () => {
     expect(resolveVideoTheaterPresentation(true, true, false, overlayVisible, 50, true).fullscreenExitAction).toBe(false);
   });
 
-  it('derives the chrome inset from the lower of overlay and measured menubar bottoms when visible', () => {
-    // Overlay bottom is 50 (10 + 40); measured bottom is 51 (50 + 1px safe-top).
-    expect(resolveVideoTheaterPresentation(true, false, false, overlayVisible, 50, false).chromeInset).toBe(51);
+  it('derives the chrome inset from the lower edge of the overlay or measured menubar', () => {
+    // Overlay bottom and measured menubar bottom are both 50.
+    expect(resolveVideoTheaterPresentation(true, false, false, overlayVisible, 50, false).chromeInset).toBe(50);
     expect(
       resolveVideoTheaterPresentation(
         true,
@@ -434,7 +434,7 @@ describe('resolveVideoTheaterPresentation', () => {
         50,
         false
       ).chromeInset
-    ).toBe(51);
+    ).toBe(50);
     expect(
       resolveVideoTheaterPresentation(
         true,
@@ -451,7 +451,7 @@ describe('resolveVideoTheaterPresentation', () => {
 
   it('zeroes the top inset in fullscreen theater, else mirrors the chrome inset', () => {
     expect(resolveVideoTheaterPresentation(true, true, true, overlayVisible, 50, false).topInset).toBe(0);
-    expect(resolveVideoTheaterPresentation(true, false, true, overlayVisible, 50, false).topInset).toBe(51);
+    expect(resolveVideoTheaterPresentation(true, false, true, overlayVisible, 50, false).topInset).toBe(50);
   });
 });
 
