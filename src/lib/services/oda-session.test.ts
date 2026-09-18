@@ -119,6 +119,82 @@ describe('createOdaSession', () => {
     expect(fullscreen.exitCalls).toBe(0);
   });
 
+  it('arms a gesture retry when a fullscreen request is refused', async () => {
+    const fullscreen: OdaFullscreenAdapter = {
+      isFullscreen: () => false,
+      enter: vi.fn(async () => false),
+      exit: vi.fn(async () => true)
+    };
+    const session = createOdaSession({ fullscreen });
+    await session.enter({ fullscreen: true, retryFullscreenOnGesture: true });
+
+    expect(session.getSnapshot().pendingFullscreenGesture).toBe(true);
+
+    expect(await session.completeFullscreenOnGesture()).toBe(false);
+    expect(session.getSnapshot()).toMatchObject({
+      ownsFullscreen: false,
+      pendingFullscreenGesture: false
+    });
+    expect(fullscreen.enter).toHaveBeenCalledTimes(2);
+
+    // One attempt only: a second input must not call into the fullscreen API.
+    expect(await session.completeFullscreenOnGesture()).toBe(false);
+    expect(fullscreen.enter).toHaveBeenCalledTimes(2);
+  });
+
+  it('claims fullscreen from the first input after a deep-link entry', async () => {
+    const fullscreen = createFullscreenAdapter(false);
+    const session = createOdaSession({
+      fullscreen: {
+        isFullscreen: () => fullscreen.fullscreen,
+        enter: async () => {
+          // The boot-time request has no user activation and is refused.
+          fullscreen.enterCalls += 1;
+          fullscreen.fullscreen = fullscreen.enterCalls > 1;
+          return fullscreen.fullscreen;
+        },
+        exit: async () => true
+      }
+    });
+    await session.enter({ fullscreen: true, retryFullscreenOnGesture: true });
+    expect(session.getSnapshot()).toMatchObject({ ownsFullscreen: false, pendingFullscreenGesture: true });
+
+    expect(await session.completeFullscreenOnGesture()).toBe(true);
+    expect(session.getSnapshot()).toMatchObject({ ownsFullscreen: true, pendingFullscreenGesture: false });
+  });
+
+  it('does not arm a gesture retry for a menu entry or a refused opt-out', async () => {
+    const refused: OdaFullscreenAdapter = {
+      isFullscreen: () => false,
+      enter: vi.fn(async () => false),
+      exit: vi.fn(async () => true)
+    };
+    const withoutRetry = createOdaSession({ fullscreen: refused });
+    await withoutRetry.enter({ fullscreen: true });
+    expect(withoutRetry.getSnapshot().pendingFullscreenGesture).toBe(false);
+
+    const optedOut = createOdaSession({ fullscreen: refused });
+    await optedOut.enter({ fullscreen: false, retryFullscreenOnGesture: true });
+    expect(optedOut.getSnapshot().pendingFullscreenGesture).toBe(false);
+    expect(await optedOut.completeFullscreenOnGesture()).toBe(false);
+  });
+
+  it('drops a pending fullscreen retry on exit', async () => {
+    const fullscreen: OdaFullscreenAdapter = {
+      isFullscreen: () => false,
+      enter: vi.fn(async () => false),
+      exit: vi.fn(async () => true)
+    };
+    const session = createOdaSession({ fullscreen });
+    await session.enter({ fullscreen: true, retryFullscreenOnGesture: true });
+    expect(session.getSnapshot().pendingFullscreenGesture).toBe(true);
+
+    await session.exit();
+    expect(session.getSnapshot().pendingFullscreenGesture).toBe(false);
+    expect(await session.completeFullscreenOnGesture()).toBe(false);
+    expect(fullscreen.enter).toHaveBeenCalledTimes(1);
+  });
+
   it('pushes routes, restores originating focus on Back, and ignores Back at home', () => {
     const session = createOdaSession({ fullscreen: createFullscreenAdapter(false) });
     return session.enter({ fullscreen: false }).then(() => {

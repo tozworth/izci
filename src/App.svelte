@@ -86,6 +86,7 @@
   import { createMainWindowRuntime } from '$lib/services/main-window-runtime';
   import OdaShell from './oda/OdaShell.svelte';
   import { createOdaSession, type OdaSessionSnapshot } from '$lib/services/oda-session';
+  import { consumeOdaDeeplink, watchOdaDeeplink } from './oda/oda-deeplink';
   import { createOdaFocusController } from './oda/oda-focus';
   import { lockOdaEscapeKey, unlockOdaEscapeKey } from './oda/oda-keyboard-lock';
   import { createOdaTranslate, type OdaTranslate } from './oda/oda-translate';
@@ -207,6 +208,9 @@
   // handles resolve kinds (theater for visual + auto-enter, workspace
   // otherwise), so the workspace never flashes underneath.
   let fileLaunchBootVeil = consumeFileLaunchMarker();
+  // `/oda` or `#oda` boots straight into Oda — a TV remote cannot reach the
+  // menu bar. The marker is consumed, so a reload stays out of Oda.
+  const odaLaunchRequested = consumeOdaDeeplink();
   let effectiveLyricsDisplayStyle: LyricsDisplayStyle = 'timestamped';
   let lyricsAutoScroll = true;
   let lyricsFontSize = appearanceSettings.getSnapshot().lyrics.fontSizes.timestamped;
@@ -797,7 +801,12 @@
 
   async function enterOda(): Promise<void> {
     if (mobileMode) return;
-    await odaSession.enter({ fullscreen: odaSettings.getSnapshot().odaEnterFullscreen });
+    await odaSession.enter({
+      fullscreen: odaSettings.getSnapshot().odaEnterFullscreen,
+      // A URL launch carries no user activation, so a refused fullscreen
+      // request is retried by the first input instead of being given up on.
+      retryFullscreenOnGesture: true
+    });
     // Eat Escape while Oda owns fullscreen (Chromium Keyboard Lock): the
     // browser otherwise reserves Esc to leave fullscreen, so an Escape from
     // Oda Options would just unfullscreen instead of going back to the waterfall.
@@ -828,6 +837,13 @@
 
   function handleWindowKeydown(event: KeyboardEvent): void {
     if (odaSessionSnapshot.active) {
+      // A deep-link entry reaches fullscreen from the first input instead of
+      // the boot-time request that had no user activation.
+      if (odaSessionSnapshot.pendingFullscreenGesture) {
+        void odaSession.completeFullscreenOnGesture().then((owned) => {
+          if (owned) lockOdaEscapeKey();
+        });
+      }
       odaScreensaverActivityToken += 1;
       if (odaScreensaverActive) {
         odaScreensaverActive = false;
@@ -903,6 +919,11 @@
     };
     document.addEventListener('fullscreenchange', handleFullscreenChange);
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  });
+
+  onMount(() => {
+    if (odaLaunchRequested) void enterOda();
+    return watchOdaDeeplink(() => void enterOda());
   });
 
   onMount(() => {

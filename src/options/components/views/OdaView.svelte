@@ -140,7 +140,7 @@
 
       <SettingsField
         title={$t('options.oda.fullscreen.title', { default: 'Enter browser fullscreen' })}
-        hint={$t('options.oda.fullscreen.hint', { default: 'Requests fullscreen when Oda is entered. Oda stays usable when the request is denied, unavailable, or exited with the browser shortcut.' })}
+        hint={$t('options.oda.fullscreen.hint', { default: 'Requests fullscreen when Oda is entered. Oda stays usable when the request is denied, unavailable, or exited with the browser shortcut; a deep-link entry asks again on the first keypress.' })}
         checkbox
       >
         <input

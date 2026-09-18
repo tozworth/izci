@@ -36,6 +36,11 @@ export interface OdaSessionSnapshot {
   focusRequestToken: number;
   /** Focus ID to restore after the current route was pushed by Back. */
   restoreFocusId: string | null;
+  /**
+   * A fullscreen request refused for lack of user activation is waiting for
+   * the first input (deep-link entries, which have no activation of their own).
+   */
+  pendingFullscreenGesture: boolean;
 }
 
 export interface OdaFullscreenAdapter {
@@ -72,6 +77,7 @@ function sameRoute(first: OdaRoute, second: OdaRoute): boolean {
 export function createOdaSession({ fullscreen, onChange }: CreateOdaSessionOptions) {
   let active = false;
   let ownsFullscreen = false;
+  let pendingFullscreenGesture = false;
   let history: OdaRouteEntry[] = [{ route: ODA_HOME_ROUTE, restoreFocusId: null }];
   let focusId: string | null = null;
   let focusRequestToken = 0;
@@ -84,7 +90,8 @@ export function createOdaSession({ fullscreen, onChange }: CreateOdaSessionOptio
       route: history[history.length - 1].route,
       focusId,
       focusRequestToken,
-      restoreFocusId
+      restoreFocusId,
+      pendingFullscreenGesture
     };
   }
 
@@ -96,10 +103,11 @@ export function createOdaSession({ fullscreen, onChange }: CreateOdaSessionOptio
     return active;
   }
 
-  async function enter(options: { fullscreen: boolean }): Promise<void> {
+  async function enter(options: { fullscreen: boolean; retryFullscreenOnGesture?: boolean }): Promise<void> {
     if (active) return;
     active = true;
     ownsFullscreen = false;
+    pendingFullscreenGesture = false;
     history = [{ route: ODA_HOME_ROUTE, restoreFocusId: null }];
     focusId = null;
     restoreFocusId = null;
@@ -116,7 +124,27 @@ export function createOdaSession({ fullscreen, onChange }: CreateOdaSessionOptio
     } catch {
       ownsFullscreen = false;
     }
+    pendingFullscreenGesture = Boolean(options.retryFullscreenOnGesture) && !ownsFullscreen;
     notify();
+  }
+
+  /**
+   * Completes a fullscreen request that was refused at entry: a URL launch has
+   * no user activation of its own, so the first real input spent here. One
+   * attempt only — an activation-backed refusal will not succeed on a retry.
+   */
+  async function completeFullscreenOnGesture(): Promise<boolean> {
+    if (!active || !pendingFullscreenGesture) return false;
+    pendingFullscreenGesture = false;
+    if (ownsFullscreen || fullscreen.isFullscreen()) return false;
+
+    try {
+      ownsFullscreen = await fullscreen.enter();
+    } catch {
+      ownsFullscreen = false;
+    }
+    notify();
+    return ownsFullscreen;
   }
 
   async function exit(): Promise<void> {
@@ -124,6 +152,7 @@ export function createOdaSession({ fullscreen, onChange }: CreateOdaSessionOptio
     active = false;
     const owned = ownsFullscreen;
     ownsFullscreen = false;
+    pendingFullscreenGesture = false;
     history = [{ route: ODA_HOME_ROUTE, restoreFocusId: null }];
     focusId = null;
     restoreFocusId = null;
@@ -228,6 +257,7 @@ export function createOdaSession({ fullscreen, onChange }: CreateOdaSessionOptio
     isActive,
     handleFullscreenChange,
     enter,
+    completeFullscreenOnGesture,
     exit,
     push,
     goHome,
