@@ -406,6 +406,26 @@ export function createSidekickSetupController(
     }
   }
 
+  async function hostConfigured(): Promise<void> {
+    const settings = multiplayerSettings.getSnapshot();
+    if (!settings.multiplayerSidekickEndpoint) {
+      throw new Error('Set up a Sidekick server in Options > Multiplayer first.');
+    }
+    if (!noticeAcknowledged()) {
+      throw new Error('Finish Sidekick setup in Options > Multiplayer first.');
+    }
+    set({ serverInput: settings.multiplayerSidekickEndpoint, hostRemember: true });
+    await connectServer();
+    if (state.infoStatus !== 'ready' || !state.endpoint) {
+      throw new Error(state.infoError || 'Could not reach the configured Sidekick server.');
+    }
+    if (!getRememberedSidekickHostKey(state.endpoint)) {
+      throw new Error('Save the Sidekick operator key in Options > Multiplayer first.');
+    }
+    await login('');
+    await createRoom();
+  }
+
   async function resumeRoom(roomId: string, ownerSecret: string): Promise<void> {
     const session = requireConnector();
     if (!loginState || !state.endpoint) throw new Error('Log in to the server first.');
@@ -583,11 +603,11 @@ export function createSidekickSetupController(
     }
   }
 
-  function captureInvitation(invitation: SidekickInvitation): void {
+  function captureInvitation(invitation: SidekickInvitation, openDialog = true): void {
     currentAbort?.abort(new Error('superseded'));
     currentAbort = null;
     set({
-      dialogOpen: true,
+      dialogOpen: openDialog,
       pendingInvitation: invitation,
       pendingRemember: false,
       guestStatus: 'idle',
@@ -634,6 +654,21 @@ export function createSidekickSetupController(
     } finally {
       clearBusy();
       publish();
+    }
+  }
+
+  async function joinInvitation(invitation: SidekickInvitation): Promise<void> {
+    captureInvitation(invitation, false);
+    if (!noticeAcknowledged()) {
+      set({
+        dialogOpen: true,
+        guestError: 'Finish Sidekick setup in Options > Multiplayer first.'
+      });
+      return;
+    }
+    await joinPending();
+    if (state.guestStatus === 'awaiting-providers' || state.guestStatus === 'error') {
+      set({ dialogOpen: true });
     }
   }
 
@@ -754,6 +789,7 @@ export function createSidekickSetupController(
     login,
     logout,
     createRoom,
+    hostConfigured,
     resumeRoom,
     resumeOrRecreateRoom,
     rotateInvitation,
@@ -761,6 +797,7 @@ export function createSidekickSetupController(
     captureInvitation,
     dismissPending,
     joinPending,
+    joinInvitation,
     acknowledgeProvidersAndConnect,
     cancelCurrent,
     acknowledgeNotice,

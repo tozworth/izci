@@ -46,12 +46,6 @@
     });
   }
 
-  function handleSidekickEndpointChange(event: Event) {
-    multiplayerSettings.update({
-      multiplayerSidekickEndpoint: (event.currentTarget as HTMLInputElement).value
-    });
-  }
-
   function handleWaitForClientsToggle(event: Event) {
     multiplayerSettings.update({ multiplayerWaitForClients: checked(event) });
   }
@@ -241,20 +235,6 @@
           <option value="sidekick">{$t('options.multiplayer.transport.sidekick', { default: 'Sidekick server' })}</option>
         </select>
       </SettingsField>
-      <SettingsField
-        title={$t('options.multiplayer.sidekickEndpoint.title', { default: 'Sidekick server' })}
-        hint={$t('options.multiplayer.sidekickEndpoint.hint', { default: 'HTTPS base URL of the self-hosted sidekick.' })}
-      >
-        <input
-          class="multiplayer-text-input multiplayer-endpoint-input"
-          type="text"
-          spellcheck="false"
-          autocomplete="off"
-          placeholder="https://sidekick.example.com"
-          value={$multiplayerSettings.multiplayerSidekickEndpoint}
-          on:change={handleSidekickEndpointChange}
-        />
-      </SettingsField>
       {#if $multiplayerSettings.multiplayerTransport === 'sidekick'}
         <div class="sidekick-config">
           <SidekickSetupPanel mode="config" />
@@ -307,6 +287,7 @@
           on:change={handleRestoreSessionToggle}
         />
       </SettingsField>
+      {#if $multiplayerSettings.multiplayerTransport === 'rtdb'}
       <SettingsField
         title={$t('options.multiplayer.turnUrl.title', { default: 'TURN server' })}
         hint={$t('options.multiplayer.turnUrl.hint', { default: 'Host-only relay endpoint, such as relay.example.net:3478 or turns:relay.example.net:5349. Listeners receive it with temporary credentials.' })}
@@ -360,6 +341,7 @@
           on:change={handleForceTurnToggle}
         />
       </SettingsField>
+      {/if}
       <SettingsField
         title={$t('options.multiplayer.maxListeners.title', { default: 'Maximum guests' })}
         hint={$t('options.multiplayer.maxListeners.hint', { default: 'Limits how many guests can connect to the host at once, whether or not audio streaming is enabled.' })}
@@ -487,7 +469,11 @@
       </p>
     {/if}
     <p>
-      {$t('options.multiplayer.diagnostics.direct', { default: 'izci asks Cloudflare and Google STUN servers for public ICE candidates, then tries direct routes. When configured above, TURN adds a relay path for restrictive NAT or firewall combinations.' })}
+      {#if $multiplayerSettings.multiplayerTransport === 'sidekick'}
+        {$t('options.multiplayer.sidekick.iceManaged', { default: 'STUN and TURN are supplied by the Sidekick operator. This client does not configure relay credentials.' })}
+      {:else}
+        {$t('options.multiplayer.diagnostics.direct', { default: 'izci asks Cloudflare and Google STUN servers for public ICE candidates, then tries direct routes. When configured above, TURN adds a relay path for restrictive NAT or firewall combinations.' })}
+      {/if}
     </p>
     <p>
       {$t('options.multiplayer.diagnostics.upnp', { default: 'A static public IP or router UPnP does not guarantee success: Chromium chooses its own ICE ports and izci does not request a UPnP port mapping.' })}

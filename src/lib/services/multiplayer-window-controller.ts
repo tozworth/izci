@@ -11,6 +11,7 @@ import type { MultiplayerLastSession } from '$lib/stores/multiplayer-last-sessio
 import { consumeInviteLinkHash, buildInviteLink } from '$lib/services/multiplayer-invite-link';
 import {
   consumeSidekickInvite,
+  parseSidekickInviteText,
   SidekickInviteError
 } from '$lib/services/multiplayer-sidekick-invite';
 import { sidekickSetup } from '$lib/services/multiplayer-sidekick-setup';
@@ -356,10 +357,13 @@ export function createMultiplayerWindowController(deps: MultiplayerWindowControl
   }
 
   async function host(): Promise<void> {
-    // Route selection chooses the real implementation: sidekick hosting
-    // lives in the setup dialog (login, room, invite), not the RTDB flow.
     if (isSidekickTransport()) {
-      sidekickSetup.openSetup();
+      beginConnection('hosting');
+      try {
+        await sidekickSetup.hostConfigured();
+      } catch (error) {
+        failConnection(error, 'Could not start Sidekick hosting.');
+      }
       return;
     }
     beginConnection('hosting');
@@ -382,7 +386,29 @@ export function createMultiplayerWindowController(deps: MultiplayerWindowControl
 
   async function joinWithPrompt(): Promise<void> {
     if (isSidekickTransport()) {
-      sidekickSetup.openSetup();
+      const invite = window.prompt(
+        deps.translate('main.multiplayer.sidekick.enterInvite', {
+          default: 'Paste the Sidekick invitation link or invite code'
+        })
+      );
+      if (!invite) return;
+      let invitation;
+      try {
+        invitation = parseSidekickInviteText(
+          invite,
+          deps.getMultiplayerSettings().multiplayerSidekickEndpoint
+        );
+      } catch (error) {
+        failConnection(error, 'That Sidekick invitation could not be read.');
+        return;
+      }
+      beginConnection('joining', invitation.title);
+      deps.pausePlayer();
+      await sidekickSetup.joinInvitation(invitation);
+      if (sidekickSetup.getSnapshot().dialogOpen) {
+        dialog.open = false;
+        publish();
+      }
       return;
     }
     const inviteCode = window.prompt(

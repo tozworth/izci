@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import { t } from 'svelte-i18n';
   import { multiplayerSettings } from '$lib/stores/multiplayer-settings';
   import {
@@ -10,18 +11,11 @@
     SIDEKICK_SETUP_GUIDE_URL,
     sidekickSetup
   } from '$lib/services/multiplayer-sidekick-setup';
-  import {
-    describeSidekickEndpoint,
-    parseSidekickInvitation,
-    parseSidekickInviteHash,
-    SidekickInviteError
-  } from '$lib/services/multiplayer-sidekick-invite';
+  import { describeSidekickEndpoint } from '$lib/services/multiplayer-sidekick-invite';
 
   export let mode: 'full' | 'config' = 'full';
 
   let hostKey = '';
-  let paste = '';
-  let pasteError: string | null = null;
   let copied = false;
   let copyTimer: number | null = null;
 
@@ -32,6 +26,12 @@
     (entry) => !setup.endpoint || entry.endpoint === setup.endpoint
   );
   $: resumeCandidates = myRecents.filter((entry) => entry.ownerSecret);
+
+  onMount(() => {
+    if (mode !== 'config' || sidekickSetup.getSnapshot().serverInput) return;
+    const endpoint = multiplayerSettings.getSnapshot().multiplayerSidekickEndpoint;
+    if (endpoint) sidekickSetup.setServerInput(endpoint);
+  });
 
   function describeEndpoint(endpoint: string): string {
     try {
@@ -49,6 +49,7 @@
     if (!hostKey.trim() && !setup.hasSavedHostKey) return;
     const key = hostKey;
     hostKey = '';
+    sidekickSetup.setRememberHostKey(true);
     await sidekickSetup.login(key).catch(() => undefined);
   }
 
@@ -90,19 +91,6 @@
     }, 2_000);
   }
 
-  function checkPaste(): void {
-    pasteError = null;
-    const hashIndex = paste.indexOf('#');
-    const hash = hashIndex >= 0 ? paste.slice(hashIndex) : paste;
-    const raw = parseSidekickInviteHash(hash) ?? paste.trim();
-    try {
-      sidekickSetup.captureInvitation(parseSidekickInvitation(raw));
-      paste = '';
-    } catch (error) {
-      pasteError = error instanceof SidekickInviteError ? error.code : 'bad-payload';
-    }
-  }
-
   async function join(): Promise<void> {
     await sidekickSetup.joinPending().catch(() => undefined);
   }
@@ -113,7 +101,7 @@
 </script>
 
 <div class="sidekick-setup">
-  {#if mode === 'full'}
+  {#if mode === 'config'}
     <section aria-label={$t('options.multiplayer.sidekick.serverLabel', { default: 'Server address' })}>
       <label class="field-title" for="sidekick-server-input">
         {$t('options.multiplayer.sidekick.serverLabel', { default: 'Server address' })}
@@ -181,7 +169,44 @@
     {#if setup.endpoint}
       <section aria-label={$t('options.multiplayer.sidekick.loginTitle', { default: 'Host login' })}>
         <h4>{$t('options.multiplayer.sidekick.loginTitle', { default: 'Host login' })}</h4>
-        {#if setup.hosted}
+        {#if setup.hasLogin}
+          <p class="hint">{$t('options.multiplayer.sidekick.configured', { default: 'Operator key verified and saved. Host is ready to use from the main window.' })}</p>
+          <button type="button" class="quiet" disabled={setup.busy !== null} on:click={logout}>
+            {$t('options.multiplayer.sidekick.verifyAgain', { default: 'Enter a different key' })}
+          </button>
+        {:else}
+          <label class="field-title" for="sidekick-host-key">
+            {$t('options.multiplayer.sidekick.keyLabel', { default: 'Operator key' })}
+          </label>
+          <div class="row">
+            <input
+              id="sidekick-host-key"
+              type="password"
+              autocomplete="off"
+              placeholder={setup.hasSavedHostKey
+                ? $t('options.multiplayer.sidekick.savedKeyPlaceholder', { default: 'Saved on this device' })
+                : ''}
+              value={hostKey}
+              disabled={setup.busy !== null}
+              on:input={(event) => (hostKey = event.currentTarget.value)}
+              on:keydown={(event) => {
+                if (event.key === 'Enter') void login();
+              }}
+            />
+            <button type="button" disabled={setup.busy !== null || (!hostKey.trim() && !setup.hasSavedHostKey)} on:click={login}>
+              {$t('options.multiplayer.sidekick.verify', { default: 'Verify and save' })}
+            </button>
+          </div>
+          <p class="hint">{$t('options.multiplayer.sidekick.keyHint', { default: '' })}</p>
+        {/if}
+        {#if setup.error}
+          <p class="error" role="alert">{setup.error}</p>
+        {/if}
+      </section>
+    {/if}
+  {:else}
+    {#if setup.hosted}
+      <section aria-label={$t('options.multiplayer.sidekick.loginTitle', { default: 'Host login' })}>
           <p class="hint">{$t('options.multiplayer.sidekick.hostInviteHint', { default: '' })}</p>
           {#if setup.inviteLink}
             <div class="row">
@@ -204,7 +229,9 @@
               {$t('options.multiplayer.sidekick.logout', { default: 'Log out' })}
             </button>
           </div>
-        {:else if setup.hasLogin}
+      </section>
+    {:else if setup.hasLogin}
+      <section aria-label={$t('options.multiplayer.sidekick.loginTitle', { default: 'Host login' })}>
           <p class="hint">{$t('options.multiplayer.sidekick.loggedIn', { default: '' })}</p>
           <label class="check">
             <input
@@ -244,46 +271,13 @@
               {/each}
             </ul>
           {/if}
-        {:else}
-          <label class="field-title" for="sidekick-host-key">
-            {$t('options.multiplayer.sidekick.keyLabel', { default: 'Operator key' })}
-          </label>
-          <div class="row">
-            <input
-              id="sidekick-host-key"
-              type="password"
-              autocomplete="off"
-              placeholder={setup.hasSavedHostKey
-                ? $t('options.multiplayer.sidekick.savedKeyPlaceholder', { default: 'Saved on this device' })
-                : ''}
-              value={hostKey}
-              disabled={setup.busy !== null}
-              on:input={(event) => (hostKey = event.currentTarget.value)}
-              on:keydown={(event) => {
-                if (event.key === 'Enter') void login();
-              }}
-            />
-            <button type="button" disabled={setup.busy !== null || (!hostKey.trim() && !setup.hasSavedHostKey)} on:click={login}>
-              {$t('options.multiplayer.sidekick.login', { default: 'Log in' })}
-            </button>
-          </div>
-          <label class="check">
-            <input
-              type="checkbox"
-              checked={setup.rememberHostKey}
-              on:change={(event) => sidekickSetup.setRememberHostKey(event.currentTarget.checked)}
-            />
-            {$t('options.multiplayer.sidekick.rememberKey', { default: 'Remember operator key on this device' })}
-          </label>
-          <p class="hint">{$t('options.multiplayer.sidekick.keyHint', { default: '' })}</p>
-        {/if}
         {#if setup.error}
           <p class="error" role="alert">{setup.error}</p>
         {/if}
       </section>
     {/if}
 
-    {#if setup.pendingInvitation || setup.endpoint}
+    {#if setup.pendingInvitation}
       <section aria-label={$t('options.multiplayer.sidekick.guestTitle', { default: 'Join with an invitation' })}>
         <h4>{$t('options.multiplayer.sidekick.guestTitle', { default: 'Join with an invitation' })}</h4>
         {#if setup.pendingInvitation}
@@ -316,14 +310,6 @@
               </button>
             </div>
           {:else}
-            <label class="check">
-              <input
-                type="checkbox"
-                checked={setup.pendingRemember}
-                on:change={(event) => sidekickSetup.setPendingRemember(event.currentTarget.checked)}
-              />
-              {$t('options.multiplayer.sidekick.rememberInvite', { default: 'Remember invitation on this device' })}
-            </label>
             {#if !acknowledged}
               <p class="hint">{$t('options.multiplayer.sidekick.noticeRequired', { default: '' })}</p>
             {/if}
@@ -343,39 +329,12 @@
           {#if setup.guestError}
             <p class="error" role="alert">{setup.guestError}</p>
           {/if}
-        {:else}
-          <label class="field-title" for="sidekick-paste">
-            {$t('options.multiplayer.sidekick.pasteLabel', { default: 'Invitation link' })}
-          </label>
-          <div class="row">
-            <input
-              id="sidekick-paste"
-              class="mono"
-              type="text"
-              spellcheck="false"
-              autocomplete="off"
-              placeholder="#party=…"
-              value={paste}
-              on:input={(event) => (paste = event.currentTarget.value)}
-              on:keydown={(event) => {
-                if (event.key === 'Enter') checkPaste();
-              }}
-            />
-            <button type="button" disabled={!paste.trim()} on:click={checkPaste}>
-              {$t('options.multiplayer.sidekick.capture', { default: 'Check invitation' })}
-            </button>
-          </div>
-          <p class="hint">{$t('options.multiplayer.sidekick.pasteHint', { default: '' })}</p>
-          {#if pasteError}
-            <p class="error" role="alert">{pasteError}</p>
-          {/if}
         {/if}
       </section>
     {/if}
-  {:else}
-    <p class="hint">{$t('options.multiplayer.sidekick.needsMainWindow', { default: '' })}</p>
   {/if}
 
+  {#if mode === 'config'}
   <section aria-label={$t('options.multiplayer.sidekick.noticeTitle', { default: 'Server and provider notice' })}>
     <h4>{$t('options.multiplayer.sidekick.noticeTitle', { default: 'Server and provider notice' })}</h4>
     <p class="hint">{$t('options.multiplayer.sidekick.noticeText', { default: '' })}</p>
@@ -436,11 +395,9 @@
           <li>
             <span class="mono">{describeEndpoint(server.endpoint)}</span>
             {#if server.label}<span class="recent-name">{server.label}</span>{/if}
-            {#if mode === 'full'}
-              <button type="button" class="quiet" on:click={() => sidekickSetup.setServerInput(server.endpoint)}>
-                {$t('options.multiplayer.sidekick.useServer', { default: 'Use' })}
-              </button>
-            {/if}
+            <button type="button" class="quiet" on:click={() => sidekickSetup.setServerInput(server.endpoint)}>
+              {$t('options.multiplayer.sidekick.useServer', { default: 'Use' })}
+            </button>
             <button type="button" class="quiet danger" on:click={() => sidekickSetup.forgetServer(server.endpoint)}>
               {$t('options.multiplayer.sidekick.forgetServer', { default: 'Forget server' })}
             </button>
@@ -457,20 +414,6 @@
           <li>
             <span class="recent-name">{recent.displayName}</span>
             <span class="mono">{describeEndpoint(recent.endpoint)}</span>
-            {#if mode === 'full' && recent.invitationSecret}
-              <button
-                type="button"
-                class="quiet"
-                on:click={() => sidekickSetup.captureInvitation({
-                  endpoint: recent.endpoint,
-                  roomId: recent.roomId,
-                  secret: recent.invitationSecret as string,
-                  title: recent.displayName
-                })}
-              >
-                {$t('options.multiplayer.sidekick.join', { default: 'Join' })}
-              </button>
-            {/if}
             <button
               type="button"
               class="quiet danger"
@@ -483,6 +426,7 @@
       </ul>
     {/if}
   </section>
+  {/if}
 </div>
 
 <style>
