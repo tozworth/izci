@@ -2514,6 +2514,7 @@
       "music": "Müzik",
       "nowPlaying": "Şimdi Çalıyor",
       "recents": "Son Çalınanlar",
+      "multiplayer": "Çok Oyunculu",
       "options": "Seçenekler"
     },
     "cards": {
@@ -2529,9 +2530,19 @@
       "folders": "Klasörler",
       "nowPlaying": "Şimdi Çalıyor",
       "queue": "Sıra",
+      "host": "Sunucu ol",
+      "stopHosting": "Sunuculuğu durdur",
+      "join": "Katıl",
+      "leave": "Ayrıl",
+      "pairedHost": "Eşleştirilmiş sunucu",
+      "recentHost": "Son sunucu",
       "allOptions": "Tüm seçenekler",
       "exitOda": "Oda'dan Çık",
       "browseRecents": "Son çalınanlara göz at"
+    },
+    "multiplayer": {
+      "hostStatus": "{code} · {count, plural, one {# istemci} other {# istemci}}",
+      "clientCount": "{count, plural, one {# istemci} other {# istemci}}"
     },
     "browse": {
       "count": "{count} öğe",

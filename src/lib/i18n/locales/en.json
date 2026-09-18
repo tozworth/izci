@@ -2513,6 +2513,7 @@
       "music": "Music",
       "nowPlaying": "Now Playing",
       "recents": "Recents",
+      "multiplayer": "Multiplayer",
       "options": "Options"
     },
     "cards": {
@@ -2528,9 +2529,19 @@
       "folders": "Folders",
       "nowPlaying": "Now Playing",
       "queue": "Queue",
+      "host": "Host",
+      "stopHosting": "Stop hosting",
+      "join": "Join",
+      "leave": "Leave",
+      "pairedHost": "Paired host",
+      "recentHost": "Recent host",
       "allOptions": "All options",
       "exitOda": "Exit Oda",
       "browseRecents": "Browse recently played"
+    },
+    "multiplayer": {
+      "hostStatus": "{code} · {count, plural, one {# client} other {# clients}}",
+      "clientCount": "{count, plural, one {# client} other {# clients}}"
     },
     "browse": {
       "count": "{count} items",

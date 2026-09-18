@@ -166,12 +166,24 @@
     'now-playing': 'graphic_eq',
     queue: 'queue_music',
     'browse-recents': 'history',
+    'multiplayer-host': 'cell_tower',
+    'multiplayer-join': 'login',
     'all-options': 'settings',
     'exit-oda': 'logout'
   };
 
   function cardGlyph(cardId: string): string | null {
+    if (cardId.startsWith('multiplayer-paired-')) return 'devices';
+    if (cardId.startsWith('multiplayer-recent-')) return 'history';
     return CARD_GLYPHS[cardId] ?? null;
+  }
+
+  function cardMeta(card: OdaCardModel): string | null {
+    if (card.meta !== undefined) return card.meta;
+    if (card.metaKey && card.metaFallback) {
+      return translate(card.metaKey, card.metaFallback, card.metaValues);
+    }
+    return null;
   }
 </script>
 
@@ -240,7 +252,7 @@
                 {#if cardGlyph(card.id)}
                   <span class="oda-card-glyph material-symbols-outlined" aria-hidden="true">{cardGlyph(card.id)}</span>
                 {/if}
-                <span class="oda-card-label">{translate(card.labelKey, card.labelFallback)}</span>
+                <span class="oda-card-label">{card.label ?? translate(card.labelKey, card.labelFallback)}</span>
                 {#if card.id === 'queue'}
                   <span class="oda-card-meta">{queueSummary}</span>
                 {:else if card.count !== undefined}
@@ -249,6 +261,8 @@
                       ? translate('oda.home.countOne', '1 item')
                       : translate('oda.home.count', '{count} items', { count: card.count })}
                   </span>
+                {:else if cardMeta(card)}
+                  <span class="oda-card-meta">{cardMeta(card)}</span>
                 {/if}
               </button>
             {/if}
