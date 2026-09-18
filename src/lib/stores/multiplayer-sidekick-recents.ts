@@ -10,8 +10,9 @@ const SIDEKICK_LABEL_MAX = 120;
 
 /**
  * Sidekick-specific recents, stored separately from RTDB UIDs/invite codes.
- * Operator keys and login bearers are never persisted; remembered host
- * rooms may keep their owner/invitation secrets when Remember was chosen.
+ * Operator keys live in their own opt-in store and login bearers are never
+ * persisted; remembered host rooms may keep their owner/invitation secrets
+ * when Remember was chosen.
  */
 export interface SidekickServerEntry {
   endpoint: string;

@@ -482,8 +482,8 @@ export function createMultiplayerWindowController(deps: MultiplayerWindowControl
       if (restored === 'hosting') return;
     }
     if (!settings.multiplayerAutoHost) return;
-    // Sidekick auto-host stays silent: without a persisted operator key
-    // there is nothing to host with, and no request may fire unprompted.
+    // Sidekick auto-host stays silent: remembered keys are scoped to the
+    // explicit setup flow, and no sidekick request may fire unprompted.
     if (settings.multiplayerTransport === 'sidekick') return;
     try {
       await deps.getSession().startHosting({ silent: true });

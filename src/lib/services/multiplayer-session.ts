@@ -441,15 +441,16 @@ export function createMultiplayerSession({
     const last = multiplayerLastSession.getSnapshot();
     if (!last) return null;
     // Explicit transport routing: sidekick records never fall back to RTDB.
-    // Hosting stops at login after reload (operator keys never persist), and
-    // sidekick guests without a remembered invitation require user action.
+    // Hosting stops at login after reload. A remembered operator key avoids
+    // re-entry there; sidekick guests without a remembered invitation still
+    // require user action.
     if (last.transport === 'sidekick') {
       if (last.mode === 'hosting') {
         core.publish({
           mode: 'idle',
           connectionStatus: 'idle',
-          connectionDetail: 'Sidekick hosting needs its operator key again after reload.',
-          message: 'Sidekick hosting needs its operator key again after reload.'
+          connectionDetail: 'Open Sidekick setup to log in and resume hosting.',
+          message: 'Open Sidekick setup to log in and resume hosting.'
         });
         return 'idle' as const;
       }

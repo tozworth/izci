@@ -4,9 +4,9 @@
  * start with no endpoint and this controller makes no network requests
  * until an explicit user action (Connect, Log in, Create, Join) runs.
  *
- * Operator keys and login bearers live in memory only and are never
- * persisted; remembered rooms keep owner/invitation secrets in the
- * sidekick recents store only when Remember was chosen. All surfaced
+ * Login bearers live in memory only. Operator keys may be remembered in a
+ * separate device-local store when the user opts in; remembered rooms keep
+ * owner/invitation secrets only when Remember was chosen. All surfaced
  * errors pass through `redactSidekickSecrets` so invitations never reach
  * UI text, errors, or diagnostics.
  */
@@ -19,6 +19,11 @@ import {
   rememberSidekickServer,
   sidekickRecents
 } from '$lib/stores/multiplayer-sidekick-recents';
+import {
+  forgetSidekickHostKey,
+  getRememberedSidekickHostKey,
+  rememberSidekickHostKey
+} from '$lib/stores/multiplayer-sidekick-host-keys';
 import {
   buildSidekickInviteLink,
   describeSidekickEndpoint,
@@ -76,6 +81,8 @@ export interface SidekickSetupSnapshot {
   pendingInvitation: SidekickInvitation | null;
   pendingRemember: boolean;
   hostRemember: boolean;
+  rememberHostKey: boolean;
+  hasSavedHostKey: boolean;
   guestStatus: SidekickGuestStatus;
   guestInfo: SidekickServerInfo | null;
   guestError: string | null;
@@ -163,6 +170,8 @@ function initialSnapshot(): SidekickSetupSnapshot {
     pendingInvitation: null,
     pendingRemember: false,
     hostRemember: false,
+    rememberHostKey: true,
+    hasSavedHostKey: false,
     guestStatus: 'idle',
     guestInfo: null,
     guestError: null,
@@ -255,7 +264,8 @@ export function createSidekickSetupController(
         endpoint,
         endpointDisplay: display,
         serverInfo: info,
-        infoStatus: 'ready'
+        infoStatus: 'ready',
+        hasSavedHostKey: getRememberedSidekickHostKey(endpoint) !== null
       });
     } catch (error) {
       if (signal.aborted) return;
@@ -279,14 +289,31 @@ export function createSidekickSetupController(
   async function login(hostKey: string): Promise<void> {
     const endpoint = state.endpoint;
     if (!endpoint) throw new Error('Connect to a server first.');
+    const enteredKey = hostKey.trim();
+    const savedKey = getRememberedSidekickHostKey(endpoint);
+    const key = enteredKey || savedKey;
+    if (!key) throw new Error('Enter the operator key first.');
     const signal = takeSignal('login');
     try {
-      const session = await network.createSession(endpoint, hostKey.trim(), signal);
+      const session = await network.createSession(endpoint, key, signal);
       if (signal.aborted) return;
+      if (state.rememberHostKey) {
+        rememberSidekickHostKey(endpoint, key);
+      } else {
+        forgetSidekickHostKey(endpoint);
+      }
       loginState = { endpoint, sessionToken: session.sessionToken, expiresAt: session.expiresAt };
-      set({ hasLogin: true, loginEndpoint: endpoint });
+      set({
+        hasLogin: true,
+        loginEndpoint: endpoint,
+        hasSavedHostKey: getRememberedSidekickHostKey(endpoint) !== null
+      });
     } catch (error) {
       if (signal.aborted) return;
+      if (!enteredKey && savedKey && error instanceof SidekickError && error.code === 'unauthorized') {
+        forgetSidekickHostKey(endpoint);
+        set({ hasSavedHostKey: false });
+      }
       set({ error: toUserError(error, 'Login failed. Check the operator key and try again.') });
       publish();
       throw error instanceof Error ? error : new Error('Login failed.');
@@ -710,6 +737,15 @@ export function createSidekickSetupController(
     setHostRemember(value: boolean): void {
       set({ hostRemember: value });
     },
+    setRememberHostKey(value: boolean): void {
+      if (!value && state.endpoint) forgetSidekickHostKey(state.endpoint);
+      set({
+        rememberHostKey: value,
+        hasSavedHostKey: value && state.endpoint
+          ? getRememberedSidekickHostKey(state.endpoint) !== null
+          : false
+      });
+    },
     setPendingRemember(value: boolean): void {
       set({ pendingRemember: value });
     },
@@ -729,7 +765,9 @@ export function createSidekickSetupController(
     cancelCurrent,
     acknowledgeNotice,
     forgetServer(endpoint: string): void {
+      forgetSidekickHostKey(endpoint);
       forgetSidekickServer(endpoint);
+      if (state.endpoint === endpoint) set({ hasSavedHostKey: false });
     },
     forgetInvitation(endpoint: string, roomId: string): void {
       forgetSidekickInvitation(endpoint, roomId);
