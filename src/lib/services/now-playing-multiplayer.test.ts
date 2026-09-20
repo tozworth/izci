@@ -13,7 +13,6 @@ function client(patch: Partial<MultiplayerClient> = {}): MultiplayerClient {
     platform: 'Windows',
     status: 'connected',
     paired: false,
-    freeplayPaired: false,
     freeplay: false,
     freeplayTrack: null,
     freeplayPlaybackState: 'idle',

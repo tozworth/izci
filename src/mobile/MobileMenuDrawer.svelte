@@ -27,7 +27,6 @@
   export let multiplayerAudioBitrateKbps: number | null = null;
   export let multiplayerInviteCode: string | null = null;
   export let multiplayerHostName: string | null = null;
-  export let multiplayerFreeplayPaired = false;
   export let multiplayerFreeplay = false;
   export let multiplayerClients: MultiplayerClient[] = [];
   export let multiplayerRecents: MultiplayerRecent[] = [];
@@ -178,8 +177,8 @@
             <div class="mobile-drawer-subheading">{$t('main.multiplayer.pairedHosts', { default: 'Paired hosts' })}</div>
             {#each multiplayerPairings as pairing (pairing.hostId)}
               <button type="button" on:click={() => runWithDetail('multiplayerJoinPaired', pairing.hostId)}>
-                <span class="material-symbols-outlined" aria-hidden="true">{pairing.freeplay ? 'queue_music' : 'cast_connected'}</span>
-                <span>{pairing.name}{pairing.freeplay ? ` · ${$t('main.multiplayer.freeplay.label', { default: 'Freeplay' })}` : ''}</span>
+                <span class="material-symbols-outlined" aria-hidden="true">cast_connected</span>
+                <span>{pairing.name}</span>
               </button>
               <button type="button" on:click={() => runWithDetail('multiplayerForgetPairing', pairing.hostId)}>
                 <span class="material-symbols-outlined" aria-hidden="true">link_off</span>
@@ -230,15 +229,10 @@
             >
               <span class="material-symbols-outlined" aria-hidden="true">{client.paired ? 'link_off' : 'link'}</span>
               <span>{client.paired
-                ? client.freeplay
-                  ? $t('main.multiplayer.freeplay.unpairClient', {
-                      default: 'Unpair {name} · Freeplay',
-                      values: { name: client.name }
-                    })
-                  : $t('main.multiplayer.unpairClient', {
-                      default: 'Unpair {name}',
-                      values: { name: client.name }
-                    })
+                ? $t('main.multiplayer.unpairClient', {
+                    default: 'Unpair {name}',
+                    values: { name: client.name }
+                  })
                 : $t('main.multiplayer.pairClientMobile', {
                     default: 'Pair {name}',
                     values: { name: client.name }
@@ -265,9 +259,7 @@
                 ? [
                     multiplayerFreeplay
                       ? $t('main.multiplayer.freeplay.label', { default: 'Freeplay' })
-                      : multiplayerFreeplayPaired
-                        ? $t('main.multiplayer.freeplay.ready', { default: 'Freeplay ready' })
-                        : null,
+                      : null,
                     formatMultiplayerAudioStatusLabel(
                       multiplayerAudioStatus,
                       multiplayerConnectionRoute,

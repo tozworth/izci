@@ -47,16 +47,11 @@
       "join": "Katıl...",
       "freeplay": {
         "label": "Freeplay",
-        "preferenceEnabled": "Uyumlu eşleştirmeler için etkin",
+        "preferenceEnabled": "İstemciler de etkinleştirdiğinde açık",
         "preferenceDisabled": "Seçenekler'de devre dışı",
-        "pairedHost": "Freeplay · Kod kullanmadan katıl",
-        "pairedClientActive": "{platform} · Eşleştirildi · Freeplay",
-        "pairedClientReady": "{platform} · Eşleştirildi · Freeplay hazır",
+        "clientActive": "{platform} · Freeplay",
         "active": "Bağımsız sunucu kitaplığı oynatımı",
-        "inactive": "Eşleştirildi; Freeplay aygıtlardan birinde kapalı",
-        "unpaired": "İki aygıt da etkinleştirip eşleştirince kullanılabilir",
-        "unpairClient": "{name} eşleştirmesini kaldır · Freeplay",
-        "ready": "Freeplay hazır"
+        "inactive": "İki aygıt da etkinleştirdiğinde kullanılabilir"
       },
       "pairedHosts": "Eşleştirilmiş sunucular",
       "instantJoin": "Kod kullanmadan katıl",
@@ -774,7 +769,7 @@
         },
         "freeplay": {
           "title": "Freeplay",
-          "hint": "Eşleşen istemciler, sunucunun kitaplığındaki müziğe kendi sıraları, oynatmaları ve sesleriyle bağımsız olarak göz atıp çalabilir."
+          "hint": "İstemciler, sunucunun kitaplığındaki müziğe kendi sıraları, oynatmaları ve sesleriyle bağımsız olarak göz atıp çalabilir."
         },
         "freeplayBadge": "Oldukça deneysel"
       },

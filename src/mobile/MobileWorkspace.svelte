@@ -60,7 +60,6 @@
   export let multiplayerInviteCode: string | null = null;
   export let multiplayerHostName: string | null = null;
   export let multiplayerHostVersion: string | null = null;
-  export let multiplayerFreeplayPaired = false;
   export let multiplayerFreeplay = false;
   export let multiplayerReceiveAudio = true;
   export let multiplayerConnectionStats: MultiplayerConnectionStats | null = null;
@@ -366,7 +365,6 @@
   {multiplayerAudioBitrateKbps}
   {multiplayerInviteCode}
   {multiplayerHostName}
-  {multiplayerFreeplayPaired}
   {multiplayerFreeplay}
   {multiplayerClients}
   {multiplayerRecents}

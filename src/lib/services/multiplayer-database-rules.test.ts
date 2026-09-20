@@ -159,7 +159,7 @@ describeWithEmulator('multiplayer Realtime Database rules', () => {
     const otherDatabase = environment.authenticatedContext('other-client').database();
     await assertSucceeds(set(
       ref(hostDatabase, `multiplayer/hosts/${hostUid}/paired/${clientUid}`),
-      { name: 'Phone', platform: 'Android', pairedAt: Date.now(), freeplay: true }
+      { name: 'Phone', platform: 'Android', pairedAt: Date.now() }
     ));
     await assertSucceeds(set(ref(hostDatabase, `multiplayer/hosts/${hostUid}/directory`), {
       currentRoom: room,
@@ -172,7 +172,7 @@ describeWithEmulator('multiplayer Realtime Database rules', () => {
     await assertFails(get(ref(otherDatabase, `multiplayer/hosts/${hostUid}/directory`)));
     await assertFails(set(
       ref(clientDatabase, `multiplayer/hosts/${hostUid}/paired/${clientUid}`),
-      { name: 'Forged', platform: 'Android', pairedAt: Date.now(), freeplay: true }
+      { name: 'Forged', platform: 'Android', pairedAt: Date.now() }
     ));
   });
 

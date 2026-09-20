@@ -34,32 +34,25 @@ import {
   errorMessage,
   getLocalName,
   resolveMultiplayerDeliveryMode,
-  resolveMultiplayerFreeplayAgreement
+  isMultiplayerFreeplayActive
 } from './multiplayer-utils';
 import { getLocalSidekickIdentity } from './multiplayer-sidekick-identity';
-import { setSidekickPairingFreeplay } from '$lib/stores/multiplayer-sidekick-pairings';
-import type { PairedClientRecord, PeerConnection } from './multiplayer-types';
+import type { PeerConnection } from './multiplayer-types';
 import type { MultiplayerHostContext } from './multiplayer-host';
 
 export async function syncPeerFreeplayMode(ctx: MultiplayerHostContext, peer: PeerConnection): Promise<void> {
   const { core } = ctx;
   if (core.state.mode !== 'hosting') return;
-  // RTDB and sidekick transports both feed the same renderers/navigation;
-  // only the pairing persistence differs (see persistPairingAgreement).
+  // Admission authorizes the live session. Pairing is only for remembered
+  // reconnects and does not gate Freeplay once both peers opt in.
   if (!core.firebaseRuntime && !core.sidekickHost) return;
   if (!peer.helloReceived) return;
   const modeToken = ++peer.freeplayModeToken;
-  const agreement = resolveMultiplayerFreeplayAgreement({
-    paired: peer.paired,
+  const active = isMultiplayerFreeplayActive({
     hostEnabled: core.multiplayerSettings.multiplayerFreeplay,
     clientEnabled: peer.clientFreeplayEnabled
   });
-  if (peer.paired && agreement !== peer.freeplayPaired) {
-    peer.freeplayPaired = agreement;
-    await persistPairingAgreement(ctx, peer, agreement);
-    if (modeToken !== peer.freeplayModeToken || core.state.mode !== 'hosting') return;
-  }
-  const active = peer.paired && peer.freeplayPaired && agreement;
+  if (modeToken !== peer.freeplayModeToken || core.state.mode !== 'hosting') return;
   const changed = peer.freeplay !== active;
   peer.freeplay = active;
   if (changed) {
@@ -170,7 +163,6 @@ export async function syncPeerFreeplayMode(ctx: MultiplayerHostContext, peer: Pe
 
   core.updateClient(peer.id, {
     paired: peer.paired,
-    freeplayPaired: peer.freeplayPaired,
     freeplay: active
   });
   peer.freeplaySettled = true;
@@ -180,32 +172,6 @@ export async function syncPeerFreeplayMode(ctx: MultiplayerHostContext, peer: Pe
   if (peer.mediaSyncPending || peer.mediaChannel?.readyState === 'open') {
     peer.mediaSyncPending = false;
     syncPeerMediaSource(ctx, peer);
-  }
-}
-
-async function persistPairingAgreement(
-  ctx: MultiplayerHostContext,
-  peer: PeerConnection,
-  freeplay: boolean
-): Promise<void> {
-  const { core } = ctx;
-  if (!peer.paired) return;
-  if (core.firebaseRuntime) {
-    const pairingRef = core.firebaseRuntime.ref(
-      core.firebaseRuntime.database,
-      `multiplayer/hosts/${core.firebaseRuntime.uid}/paired/${peer.id}`
-    );
-    const client = core.state.clients.find((candidate) => candidate.id === peer.id);
-    await core.firebaseRuntime.set(pairingRef, {
-      name: client?.name ?? peer.name,
-      platform: client?.platform ?? 'Unknown',
-      pairedAt: Date.now(),
-      freeplay
-    } satisfies PairedClientRecord);
-    return;
-  }
-  if (core.sidekickHost && peer.clientIdentity) {
-    setSidekickPairingFreeplay(peer.clientIdentity, freeplay);
   }
 }
 
@@ -406,7 +372,6 @@ export function sendPairingState(ctx: MultiplayerHostContext, peer: PeerConnecti
   sendToPeer(peer, {
     kind: 'pairing',
     paired: peer.paired,
-    freeplayPaired: peer.freeplayPaired,
     freeplayActive: peer.freeplay,
     hostId,
     name: getLocalName()

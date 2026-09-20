@@ -221,7 +221,7 @@
           </span>
         </span>
         <span class="multiplayer-mode-description">
-          {$t('options.multiplayer.modes.freeplay.hint', { default: 'Paired clients can browse and play music from the host’s library independently, with their own queue, playback, and audio.' })}
+          {$t('options.multiplayer.modes.freeplay.hint', { default: 'Clients can browse and play music from the host’s library independently, with their own queue, playback, and audio.' })}
         </span>
       </button>
     </div>

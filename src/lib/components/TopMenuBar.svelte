@@ -56,7 +56,6 @@
   export let multiplayerHostName: string | null = null;
   export let multiplayerHostVersion: string | null = null;
   export let multiplayerFreeplayEnabled = false;
-  export let multiplayerFreeplayPaired = false;
   export let multiplayerFreeplay = false;
   export let multiplayerReceiveAudio = true;
   export let multiplayerConnectionStats: MultiplayerConnectionStats | null = null;
@@ -141,7 +140,6 @@
     multiplayerConnectionRoute,
     multiplayerAudioBitrateKbps,
     multiplayerFreeplay,
-    multiplayerFreeplayPaired,
     multiplayerReceiveAudio,
     multiplayerHostVersion,
     multiplayerConnectionStats,

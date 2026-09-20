@@ -110,7 +110,6 @@ export async function leave(ctx: MultiplayerClientContext): Promise<void> {
     hostName: null,
     hostMotd: '',
     hostVersion: null,
-    freeplayPaired: false,
     freeplay: false,
     freeplayQueue: [],
     clients: [],

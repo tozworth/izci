@@ -5,7 +5,6 @@ import {
   isIncompatibleProtocolHello,
   isMultiplayerFreeplayActive,
   resolveMultiplayerDeliveryMode,
-  resolveMultiplayerFreeplayAgreement,
   sanitizeFreeplayQueueIds
 } from './multiplayer-utils';
 import type { TrackItem } from '$lib/types';
@@ -101,26 +100,17 @@ describe('isIncompatibleProtocolHello', () => {
   });
 });
 
-describe('Freeplay pairing negotiation', () => {
-  const enabledPairing = {
-    paired: true,
-    freeplayPaired: true,
+describe('Freeplay negotiation', () => {
+  const enabledPreferences = {
     hostEnabled: true,
     clientEnabled: true
   };
 
-  it('activates only for a persisted pairing with both current opt-ins', () => {
-    expect(isMultiplayerFreeplayActive(enabledPairing)).toBe(true);
-    for (const key of Object.keys(enabledPairing) as Array<keyof typeof enabledPairing>) {
-      expect(isMultiplayerFreeplayActive({ ...enabledPairing, [key]: false })).toBe(false);
+  it('activates whenever both connected peers opt in', () => {
+    expect(isMultiplayerFreeplayActive(enabledPreferences)).toBe(true);
+    for (const key of Object.keys(enabledPreferences) as Array<keyof typeof enabledPreferences>) {
+      expect(isMultiplayerFreeplayActive({ ...enabledPreferences, [key]: false })).toBe(false);
     }
-  });
-
-  it('updates the persisted agreement when both current opt-ins change', () => {
-    expect(resolveMultiplayerFreeplayAgreement({ paired: true, hostEnabled: true, clientEnabled: true }))
-      .toBe(true);
-    expect(resolveMultiplayerFreeplayAgreement({ paired: true, hostEnabled: false, clientEnabled: true }))
-      .toBe(false);
   });
 
   it('deduplicates and bounds the client queue before sending it', () => {

@@ -56,7 +56,6 @@ interface MenuItemsDeps {
   multiplayerConnectionRoute: MultiplayerConnectionRoute | null;
   multiplayerAudioBitrateKbps: number | null;
   multiplayerFreeplay: boolean;
-  multiplayerFreeplayPaired: boolean;
   multiplayerReceiveAudio: boolean;
   multiplayerHostVersion: string | null;
   multiplayerConnectionStats: MultiplayerConnectionStats | null;
@@ -139,7 +138,7 @@ function buildMultiplayerMenuItems(deps: MenuItemsDeps): MenuActionItem[] {
         id: 'multiplayerFreeplayPreference',
         label: deps.translate('main.multiplayer.freeplay.label', { default: 'Freeplay' }),
         description: deps.multiplayerFreeplayEnabled
-          ? deps.translate('main.multiplayer.freeplay.preferenceEnabled', { default: 'Enabled for compatible pairings' })
+          ? deps.translate('main.multiplayer.freeplay.preferenceEnabled', { default: 'Enabled when clients opt in' })
           : deps.translate('main.multiplayer.freeplay.preferenceDisabled', { default: 'Disabled in Options' }),
         icon: deps.multiplayerFreeplayEnabled ? 'queue_music' : 'music_off',
         disabled: true,
@@ -157,10 +156,8 @@ function buildMultiplayerMenuItems(deps: MenuItemsDeps): MenuActionItem[] {
             ...deps.multiplayerPairings.map((pairing) => ({
               id: `multiplayerJoinPaired:${pairing.hostId}`,
               label: pairing.name,
-              description: pairing.freeplay
-                ? deps.translate('main.multiplayer.freeplay.pairedHost', { default: 'Freeplay · Join without a code' })
-                : deps.translate('main.multiplayer.instantJoin', { default: 'Join without a code' }),
-              icon: pairing.freeplay ? 'queue_music' : 'cast_connected',
+              description: deps.translate('main.multiplayer.instantJoin', { default: 'Join without a code' }),
+              icon: 'cast_connected',
               removeActionId: `multiplayerForgetPairing:${pairing.hostId}`,
               removeLabel: deps.translate('main.multiplayer.forgetPairing', {
                 default: 'Forget pairing with {name}',
@@ -219,7 +216,7 @@ function buildMultiplayerMenuItems(deps: MenuItemsDeps): MenuActionItem[] {
         id: 'multiplayerFreeplayPreference',
         label: deps.translate('main.multiplayer.freeplay.label', { default: 'Freeplay' }),
         description: deps.multiplayerFreeplayEnabled
-          ? deps.translate('main.multiplayer.freeplay.preferenceEnabled', { default: 'Enabled for compatible pairings' })
+          ? deps.translate('main.multiplayer.freeplay.preferenceEnabled', { default: 'Enabled when clients opt in' })
           : deps.translate('main.multiplayer.freeplay.preferenceDisabled', { default: 'Disabled in Options' }),
         icon: deps.multiplayerFreeplayEnabled ? 'queue_music' : 'music_off',
         disabled: true,
@@ -228,22 +225,17 @@ function buildMultiplayerMenuItems(deps: MenuItemsDeps): MenuActionItem[] {
       ...deps.multiplayerClients.map((client, index): MenuActionItem => ({
         id: `multiplayerTogglePair:${client.id}`,
         label: client.name,
-        description: client.paired
-          ? client.freeplay
-            ? deps.translate('main.multiplayer.freeplay.pairedClientActive', {
-                default: '{platform} · Paired · Freeplay',
+        description: client.freeplay
+          ? deps.translate('main.multiplayer.freeplay.clientActive', {
+              default: '{platform} · Freeplay',
+              values: { platform: client.platform }
+            })
+          : client.paired
+            ? deps.translate('main.multiplayer.pairedClient', {
+                default: '{platform} · Paired',
                 values: { platform: client.platform }
               })
-            : client.freeplayPaired
-              ? deps.translate('main.multiplayer.freeplay.pairedClientReady', {
-                  default: '{platform} · Paired · Freeplay ready',
-                  values: { platform: client.platform }
-                })
-              : deps.translate('main.multiplayer.pairedClient', {
-                  default: '{platform} · Paired',
-                  values: { platform: client.platform }
-                })
-          : deps.translate('main.multiplayer.pairClient', {
+            : deps.translate('main.multiplayer.pairClient', {
               default: '{platform} · Select to pair',
               values: { platform: client.platform }
             }),
@@ -278,9 +270,7 @@ function buildMultiplayerMenuItems(deps: MenuItemsDeps): MenuActionItem[] {
       label: deps.translate('main.multiplayer.freeplay.label', { default: 'Freeplay' }),
       description: deps.multiplayerFreeplay
         ? deps.translate('main.multiplayer.freeplay.active', { default: 'Independent host library playback' })
-        : deps.multiplayerFreeplayPaired
-          ? deps.translate('main.multiplayer.freeplay.inactive', { default: 'Paired; Freeplay is disabled on one device' })
-          : deps.translate('main.multiplayer.freeplay.unpaired', { default: 'Available after both devices enable it and pair' }),
+        : deps.translate('main.multiplayer.freeplay.inactive', { default: 'Available when both devices enable it' }),
       icon: deps.multiplayerFreeplay ? 'queue_music' : 'music_off',
       disabled: true,
       separatorBefore: true

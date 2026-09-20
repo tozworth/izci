@@ -50,7 +50,6 @@ export function createPeer(
     clientIdentity: null,
     pairNonce: null,
     paired: false,
-    freeplayPaired: false,
     clientFreeplayEnabled: false,
     helloReceived: false,
     chatLeaveAnnounced: false,

@@ -58,7 +58,6 @@ export interface MultiplayerClient {
   platform: string;
   status: 'connecting' | 'connected' | 'disconnected';
   paired: boolean;
-  freeplayPaired: boolean;
   freeplay: boolean;
   freeplayTrack: TrackItem | null;
   freeplayPlaybackState: PlaybackSnapshot['state'];
@@ -90,7 +89,6 @@ export interface MultiplayerSessionState {
   hostName: string | null;
   hostMotd: string;
   hostVersion: string | null;
-  freeplayPaired: boolean;
   freeplay: boolean;
   freeplayQueue: string[];
   clients: MultiplayerClient[];
@@ -176,7 +174,6 @@ export interface PairedClientRecord {
   name: string;
   platform: string;
   pairedAt: number;
-  freeplay: boolean;
 }
 
 export interface SourceFileBeginFrame {
@@ -229,7 +226,6 @@ export interface PeerConnection {
   /** Fresh per-connection nonce sent in the host hello for pair proofs. */
   pairNonce: string | null;
   paired: boolean;
-  freeplayPaired: boolean;
   clientFreeplayEnabled: boolean;
   helloReceived: boolean;
   chatLeaveAnnounced: boolean;

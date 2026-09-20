@@ -12,7 +12,6 @@ import {
   findSidekickPairing,
   forgetSidekickPairing,
   rememberSidekickPairing,
-  setSidekickPairingFreeplay,
   setSidekickPairingInvitationByRoom
 } from '$lib/stores/multiplayer-sidekick-pairings';
 import { getLocalSidekickIdentity, isValidSidekickIdentity } from './multiplayer-sidekick-identity';
@@ -213,7 +212,6 @@ export function attachClientChannel(ctx: MultiplayerClientContext, peer: PeerCon
           peerIdentity: message.hostIdentity,
           label: sanitizeClientName(core.state.hostName ?? message.hostIdentity),
           secret: message.secret,
-          freeplay: false,
           endpoint: core.sidekickGuest.endpoint,
           roomId: core.sidekickGuest.roomId,
           invitationSecret: null
@@ -235,20 +233,18 @@ export function attachClientChannel(ctx: MultiplayerClientContext, peer: PeerCon
     }
     if (message.kind === 'pairing') {
       if (core.sidekickGuest) {
-        if (message.paired) {
-          const existing = findSidekickPairing(message.hostId);
-          if (existing) setSidekickPairingFreeplay(message.hostId, message.freeplayPaired);
-        } else {
+        if (!message.paired) {
           forgetSidekickPairing(message.hostId);
         }
       } else if (message.paired) {
-        rememberMultiplayerPairing(message.hostId, message.name, message.freeplayPaired);
+        rememberMultiplayerPairing(message.hostId, message.name);
       }
       else forgetMultiplayerPairing(message.hostId);
-      core.clientHostId = message.paired ? message.hostId : null;
+      // Keep the host identity while unpaired Freeplay is active so its
+      // independent queue/selection can persist across reconnects.
+      core.clientHostId = message.paired || message.freeplayActive ? message.hostId : null;
       core.publish({
-        freeplayPaired: message.paired && message.freeplayPaired,
-        freeplay: message.paired && message.freeplayActive
+        freeplay: message.freeplayActive
       });
       updateLocalTimelineMode(ctx);
       rememberMultiplayerLastSession('client', {
@@ -256,7 +252,7 @@ export function attachClientChannel(ctx: MultiplayerClientContext, peer: PeerCon
         hostId: core.clientHostId,
         hostName: message.name
       });
-      if (message.paired && message.freeplayActive) {
+      if (message.freeplayActive) {
         restoreFreeplayStateForHost(ctx, message.hostId);
         sendFreeplayQueueToPeer(ctx);
         const saved = multiplayerFreeplayState.getSnapshot();

@@ -388,7 +388,6 @@
     multiplayerHostName: multiplayerState.hostName,
     multiplayerHostVersion: multiplayerState.hostVersion,
     multiplayerFreeplayEnabled: $multiplayerSettings.multiplayerFreeplay,
-    multiplayerFreeplayPaired: multiplayerState.freeplayPaired,
     multiplayerFreeplay: multiplayerState.freeplay,
     multiplayerReceiveAudio: multiplayerState.receiveAudio,
     multiplayerConnectionStats: multiplayerState.connectionStats,

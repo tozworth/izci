@@ -71,7 +71,6 @@ export async function startHosting(
     mode: 'hosting',
     connectionStatus: 'connecting',
     hostName: getLocalName(),
-    freeplayPaired: false,
     freeplay: false,
     audioStatus: 'idle',
     connectionDetail: 'Creating a Firebase signaling room...',
@@ -179,7 +178,6 @@ export async function startHosting(
       hostName: null,
       hostMotd: '',
       hostVersion: null,
-      freeplayPaired: false,
       freeplay: false,
       connectionDetail: message,
       message
@@ -280,15 +278,12 @@ async function acceptClientOffer(
     core.firebaseRuntime.database,
     `multiplayer/hosts/${core.firebaseRuntime.uid}/paired/${id}`
   ));
-  const pairingRecord = pairingSnapshot.val() as Partial<PairedClientRecord> | null;
   peer.paired = pairingSnapshot.exists();
-  peer.freeplayPaired = peer.paired && pairingRecord?.freeplay === true;
   core.updateClient(id, {
     name: peer.name,
     platform: sanitizePlatform(offer.platform),
     status: 'connecting',
     paired: peer.paired,
-    freeplayPaired: peer.freeplayPaired,
     freeplay: false
   });
 
@@ -398,21 +393,16 @@ export async function togglePairing(ctx: MultiplayerHostContext, clientId: strin
     `multiplayer/hosts/${core.firebaseRuntime.uid}/paired/${clientId}`
   );
   const paired = !client.paired;
-  const freeplayPaired = paired
-    && core.multiplayerSettings.multiplayerFreeplay
-    && peer.clientFreeplayEnabled;
   if (paired) {
     await core.firebaseRuntime.set(pairingRef, {
       name: client.name,
       platform: client.platform,
-      pairedAt: Date.now(),
-      freeplay: freeplayPaired
+      pairedAt: Date.now()
     } satisfies PairedClientRecord);
   } else {
     await core.firebaseRuntime.remove(pairingRef);
   }
   peer.paired = paired;
-  peer.freeplayPaired = freeplayPaired;
   await syncPeerFreeplayMode(ctx, peer);
 }
 
@@ -465,7 +455,6 @@ export async function stopHosting(ctx: MultiplayerHostContext): Promise<void> {
     hostName: null,
     hostMotd: '',
     hostVersion: null,
-    freeplayPaired: false,
     freeplay: false,
     clients: [],
     audioStatus: 'idle',

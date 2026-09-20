@@ -12,7 +12,6 @@ import {
   findSidekickPairing,
   forgetSidekickPairing,
   rememberSidekickPairing,
-  setSidekickPairingFreeplay,
   setSidekickPairingInvitationByRoom,
   sidekickPairings
 } from '$lib/stores/multiplayer-sidekick-pairings';
@@ -100,7 +99,6 @@ describe('sidekick pairings store', () => {
       peerIdentity: HOST,
       label: 'Friday Host',
       secret: createPairSecret(),
-      freeplay: true,
       endpoint: 'https://sidekick.example.com/party',
       roomId: ROOM,
       invitationSecret: 'invite-1'
@@ -110,8 +108,6 @@ describe('sidekick pairings store', () => {
   it('remembers, finds, and forgets pairs', () => {
     rememberSidekickPairing(record());
     expect(findSidekickPairing(HOST)?.label).toBe('Friday Host');
-    setSidekickPairingFreeplay(HOST, false);
-    expect(findSidekickPairing(HOST)?.freeplay).toBe(false);
     setSidekickPairingInvitationByRoom('https://sidekick.example.com/party', ROOM, 'invite-2');
     expect(findSidekickPairing(HOST)?.invitationSecret).toBe('invite-2');
     forgetSidekickPairing(HOST);
