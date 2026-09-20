@@ -85,6 +85,7 @@
   import type { RemoteSelectionSnapshot } from '$lib/services/main-window-selection';
   import { createMainWindowRuntime } from '$lib/services/main-window-runtime';
   import OdaShell from './oda/OdaShell.svelte';
+  import OdaMultiplayerDialogs from './oda/OdaMultiplayerDialogs.svelte';
   import { createOdaSession, type OdaSessionSnapshot } from '$lib/services/oda-session';
   import { consumeOdaDeeplink, watchOdaDeeplink } from './oda/oda-deeplink';
   import { createOdaFocusController } from './oda/oda-focus';
@@ -1026,6 +1027,23 @@
       seekFeedback: videoSeekFeedback
     }}
     commands={odaCommands}
+  />
+  <OdaMultiplayerDialogs
+    connectionOpen={multiplayerConnectionDialogOpen}
+    connectionTitle={$t('main.multiplayer.label', { default: 'Multiplayer' })}
+    connectionNotice={multiplayerConnectionNotice}
+    connectionStatus={multiplayerConnectionStatusLine}
+    connectionFailed={multiplayerConnectionFailed}
+    connectionActionLabel={multiplayerState.audioStatus === 'blocked'
+      ? $t('main.multiplayer.audio.start', { default: 'Start audio' })
+      : null}
+    toastTitle={multiplayerToastMessage
+      ? $t('main.multiplayer.connectionFailed', { default: 'Multiplayer connection failed' })
+      : null}
+    toastMessage={multiplayerToastMessage}
+    onDismissConnection={multiplayerController.dismissConnectionDialog}
+    onConnectionAction={() => void multiplayerSession.resumeAudio()}
+    onDismissToast={multiplayerController.dismissToast}
   />
 {:else}
 <div
