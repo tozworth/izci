@@ -20,8 +20,6 @@ export interface SidekickPairRecord {
   label: string;
   /** 32 random bytes as hex, exchanged over RTC at pair time. */
   secret: string;
-  /** Per-pair Freeplay preference. */
-  freeplay: boolean;
   /** Last endpoint/room seen for this peer; admission still applies. */
   endpoint: string;
   roomId: string;
@@ -68,7 +66,6 @@ function normalizePairings(value: unknown): SidekickPairRecord[] {
       peerIdentity: record.peerIdentity,
       label,
       secret: record.secret,
-      freeplay: record.freeplay === true,
       endpoint,
       roomId,
       invitationSecret:
@@ -109,12 +106,6 @@ export function forgetSidekickPairing(peerIdentity: string): void {
 
 export function findSidekickPairing(peerIdentity: string): SidekickPairRecord | null {
   return sidekickPairings.getSnapshot().find((entry) => entry.peerIdentity === peerIdentity) ?? null;
-}
-
-export function setSidekickPairingFreeplay(peerIdentity: string, freeplay: boolean): void {
-  sidekickPairings.update((current) => normalizePairings(current.map((entry) =>
-    entry.peerIdentity === peerIdentity ? { ...entry, freeplay, updatedAt: Date.now() } : entry
-  )));
 }
 
 export function setSidekickPairingInvitationByRoom(

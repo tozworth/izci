@@ -2,12 +2,12 @@
  * Sidekick host pairing: Pair/Unpair over RTC plus HMAC reconnect proofs.
  * The per-pair secret is exchanged over the encrypted RTC channel when the
  * host chooses Pair; reconnecting guests prove possession (room, both
- * identities, fresh nonces) before paired privileges return. Until hello
- * and proof finish, the peer stays unpaired and Freeplay stays off.
+ * identities, fresh nonces) before remembered reconnect privileges return.
+ * Freeplay may activate before pairing once both connected peers opt in.
  *
- * Pairing restores app privileges after invitation admission; it never
- * grants server administration and never bypasses admission. Unpair and
- * kick both leave a shared invitation reusable unless it is rotated.
+ * Pairing restores remembered reconnects after invitation admission; it
+ * never grants server administration, bypasses admission, or gates Freeplay.
+ * Unpair and kick both leave a shared invitation reusable unless it is rotated.
  */
 import { logWarning } from '$lib/services/logging';
 import {
@@ -45,7 +45,6 @@ export async function pairSidekickPeer(ctx: MultiplayerHostContext, peer: PeerCo
     peerIdentity: peer.clientIdentity,
     label: sanitizeClientName(peer.name) || 'Guest',
     secret,
-    freeplay: peer.freeplayPaired,
     endpoint: link.room.endpoint,
     roomId: link.room.roomId,
     invitationSecret: link.room.invitationSecret || null
@@ -62,7 +61,6 @@ export async function unpairSidekickPeer(ctx: MultiplayerHostContext, peer: Peer
   requireSidekickRoom(ctx);
   if (peer.clientIdentity) forgetSidekickPairing(peer.clientIdentity);
   peer.paired = false;
-  peer.freeplayPaired = false;
   sendPairingState(ctx, peer);
   await syncPeerFreeplayMode(ctx, peer);
 }

@@ -1,7 +1,6 @@
 import { logDebug, logError, logInfo, logWarning } from '$lib/services/logging';
 import type { MultiplayerLastSession } from '$lib/stores/multiplayer-last-session';
 import {
-  multiplayerPairings,
   rememberMultiplayerPairing
 } from '$lib/stores/multiplayer-pairings';
 import { multiplayerAudioService } from './multiplayer-audio';
@@ -130,11 +129,9 @@ export async function joinPaired(ctx: MultiplayerClientContext, hostId: string):
     || !normalizeInviteCode(directory.currentRoom ?? '')) {
     throw new Error('That paired host is not currently hosting.');
   }
-  const pairing = multiplayerPairings.getSnapshot().find((candidate) => candidate.hostId === hostId);
   rememberMultiplayerPairing(
     hostId,
-    sanitizeClientName(directory.hostName ?? 'Host'),
-    pairing?.freeplay === true
+    sanitizeClientName(directory.hostName ?? 'Host')
   );
   core.clientHostId = hostId;
   await join(ctx, directory.currentRoom!, { preserveHostId: true });
@@ -223,7 +220,6 @@ export async function connectClient(
     inviteCode,
     hostName: null,
     hostVersion: null,
-    freeplayPaired: reconnecting ? core.state.freeplayPaired : false,
     freeplay: reconnecting ? core.state.freeplay : false,
     freeplayQueue: reconnecting ? core.state.freeplayQueue : [],
     remoteCatalog: reconnecting ? core.state.remoteCatalog : EMPTY_CATALOG,
@@ -452,7 +448,6 @@ export async function connectClient(
         connectionStatus: 'error',
         hostName: null,
         hostVersion: null,
-        freeplayPaired: false,
         freeplay: false,
         audioStatus: 'unavailable',
         connectionDetail: errorMessage(error, 'Could not join that multiplayer session.'),

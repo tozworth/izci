@@ -56,23 +56,11 @@ export function resolveMultiplayerDeliveryMode(
 }
 
 export function isMultiplayerFreeplayActive(pairing: {
-  paired: boolean;
-  freeplayPaired: boolean;
   hostEnabled: boolean;
   clientEnabled: boolean;
 }): boolean {
-  return pairing.paired
-    && pairing.freeplayPaired
-    && pairing.hostEnabled
+  return pairing.hostEnabled
     && pairing.clientEnabled;
-}
-
-export function resolveMultiplayerFreeplayAgreement(pairing: {
-  paired: boolean;
-  hostEnabled: boolean;
-  clientEnabled: boolean;
-}): boolean {
-  return pairing.paired && pairing.hostEnabled && pairing.clientEnabled;
 }
 
 export function cycleMultiplayerRepeatMode(mode: RepeatMode): RepeatMode {

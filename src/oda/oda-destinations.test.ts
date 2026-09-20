@@ -124,7 +124,6 @@ describe('buildOdaHomeSections', () => {
       hostName: null,
       hostMotd: '',
       hostVersion: null,
-      freeplayPaired: false,
       freeplay: false,
       freeplayQueue: [],
       clients: [{
@@ -133,7 +132,6 @@ describe('buildOdaHomeSections', () => {
         platform: 'test',
         status: 'connected',
         paired: false,
-        freeplayPaired: false,
         freeplay: false,
         freeplayTrack: null,
         freeplayPlaybackState: 'idle',
@@ -157,7 +155,7 @@ describe('buildOdaHomeSections', () => {
     const sections = buildOdaHomeSections(resolveOdaMediaCounts([]), {
       enabled: true,
       session,
-      pairings: [{ hostId: 'paired-1', name: 'Bedroom', freeplay: false }],
+      pairings: [{ hostId: 'paired-1', name: 'Bedroom' }],
       recents: [{ inviteCode: 'wxyz9876', name: 'Kitchen' }]
     });
 

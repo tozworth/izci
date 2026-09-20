@@ -95,7 +95,6 @@ export async function startSidekickHosting(
     mode: 'hosting',
     connectionStatus: 'connecting',
     hostName: getLocalName(),
-    freeplayPaired: false,
     freeplay: false,
     audioStatus: 'idle',
     connectionDetail: 'Creating a sidekick room...',
@@ -249,7 +248,6 @@ export async function startSidekickHosting(
         hostName: null,
         hostMotd: '',
         hostVersion: null,
-        freeplayPaired: false,
         freeplay: false,
         connectionDetail: message,
         message,
@@ -335,7 +333,6 @@ async function acceptSidekickOffer(
     platform: 'Unknown',
     status: 'connecting',
     paired: false,
-    freeplayPaired: false,
     freeplay: false
   });
 
@@ -442,7 +439,6 @@ export async function joinSidekick(
     inviteCode: null,
     hostName: null,
     hostVersion: null,
-    freeplayPaired: false,
     freeplay: false,
     audioStatus: core.state.receiveAudio ? 'connecting' : 'refused',
     connectionDetail: 'Joining the sidekick room...',
@@ -584,7 +580,6 @@ export async function joinSidekick(
         connectionStatus: 'error',
         hostName: null,
         hostVersion: null,
-        freeplayPaired: false,
         freeplay: false,
         audioStatus: 'unavailable',
         connectionDetail: errorMessage(error, 'Could not join that sidekick session.'),

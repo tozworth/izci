@@ -28,7 +28,7 @@ export interface MultiplayerChatMessage {
 // Version 27 gives now-playing submissions an explicit intent so track titles are never parsed as slash commands. Version 26 adds transient Play next commands for multiplayer queue tracks. Version 25 adds host-only /clear chat history synchronization. Version 24 adds /np now-playing chat messages. Version 23 adds multiplayer join/leave chat notices. Version 22 adds /me chat actions. Version 21 adds the room MOTD protocol. Version 20 adds the room chat message protocol. Version 18 adds explicit
 // source revisions to buffered-Opus manifests so a
 // listener never reuses cached bytes from a replaced track.
-export const MULTIPLAYER_PROTOCOL_VERSION = 27;
+export const MULTIPLAYER_PROTOCOL_VERSION = 28;
 const MULTIPLAYER_FRAME_CHUNK_SIZE = 12_000;
 export const MULTIPLAYER_QUEUE_MAX_ITEMS = 50_000;
 export const MULTIPLAYER_CHAT_MAX_MESSAGES = 200;
@@ -165,7 +165,6 @@ export type HostMessage =
   | {
       kind: 'pairing';
       paired: boolean;
-      freeplayPaired: boolean;
       freeplayActive: boolean;
       hostId: string;
       name: string;
@@ -348,7 +347,6 @@ export function isHostMessage(value: unknown): value is HostMessage {
   if (message.kind === 'kicked') return true;
   if (message.kind === 'pairing') {
     return typeof message.paired === 'boolean'
-      && typeof message.freeplayPaired === 'boolean'
       && typeof message.freeplayActive === 'boolean'
       && typeof message.hostId === 'string'
       && /^[A-Za-z0-9_-]{1,128}$/.test(message.hostId)

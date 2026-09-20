@@ -189,7 +189,6 @@ export function createMainWindowRuntimeState(): {
       hostName: null,
       hostMotd: '',
       hostVersion: null,
-      freeplayPaired: false,
       freeplay: false,
       freeplayQueue: [],
       clients: [],

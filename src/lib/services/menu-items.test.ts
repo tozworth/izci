@@ -32,7 +32,6 @@ const baseDeps = (): MenuItemsDeps => ({
   multiplayerConnectionRoute: null,
   multiplayerAudioBitrateKbps: null,
   multiplayerFreeplay: false,
-  multiplayerFreeplayPaired: false,
   multiplayerReceiveAudio: true,
   multiplayerHostVersion: null,
   multiplayerConnectionStats: null,
@@ -120,7 +119,7 @@ describe('menu-items builders', () => {
   it('lists paired hosts and recents for idle clients', () => {
     const result = buildMenuItems({
       ...baseDeps(),
-      multiplayerPairings: [{ hostId: 'host-a', name: 'A', freeplay: false }],
+      multiplayerPairings: [{ hostId: 'host-a', name: 'A' }],
       multiplayerRecents: [{ name: 'Recent', inviteCode: 'abcd1234' }]
     });
     const app = result.menuGroups.find((group) => group.id === 'app')!;
